@@ -1550,7 +1550,7 @@ bool IOMapOTBM::saveHouses(Map& map, pugi::xml_document& doc)
 
 		houseNode.append_attribute("townid") = house->townid;
 		houseNode.append_attribute("size") = static_cast<int32_t>(house->size());
-		houseNode.append_attribute("client") = house->clientid;
+		houseNode.append_attribute("clientid") = house->clientid;
 	}
 	return true;
 }
