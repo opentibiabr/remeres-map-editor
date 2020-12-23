@@ -1130,15 +1130,19 @@ bool IOMapOTBM::loadHouses(Map& map, pugi::xml_document& doc)
 			house->rent = pugi::cast<int32_t>(attribute.value());
 		}
 
-		if((attribute = houseNode.attribute("guildhall"))) {
-			house->guildhall = attribute.as_bool();
-		}
-
 		if((attribute = houseNode.attribute("townid"))) {
 			house->townid = pugi::cast<int32_t>(attribute.value());
 		} else {
 			warning("House %d has no town! House was removed.", house->id);
 			map.houses.removeHouse(house);
+		}
+
+		if((attribute = houseNode.attribute("clientid"))) {
+			house->clientid = pugi::cast<int32_t>(attribute.value());
+		}
+
+		if((attribute = houseNode.attribute("guildhall"))) {
+			house->guildhall = attribute.as_bool();
 		}
 	}
 	return true;
@@ -1546,6 +1550,7 @@ bool IOMapOTBM::saveHouses(Map& map, pugi::xml_document& doc)
 
 		houseNode.append_attribute("townid") = house->townid;
 		houseNode.append_attribute("size") = static_cast<int32_t>(house->size());
+		houseNode.append_attribute("client") = house->clientid;
 	}
 	return true;
 }

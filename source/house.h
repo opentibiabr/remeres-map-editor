@@ -38,6 +38,7 @@ public:
 	std::string getDescription();
 
 	uint32_t id;
+	uint32_t clientid;
 	int rent;
 	//HouseDoorList doorList;
 	std::string name;

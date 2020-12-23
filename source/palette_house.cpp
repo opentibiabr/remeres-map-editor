@@ -462,6 +462,7 @@ EditHouseDialog::EditHouseDialog(wxWindow* parent, Map* map, House* house) :
 
 	house_name = wxstr(house->name);
 	house_id = i2ws(house->id);
+	house_clientid = i2ws(house->clientid);
 	house_rent = i2ws(house->rent);
 
 	// House options
@@ -477,7 +478,13 @@ EditHouseDialog::EditHouseDialog(wxWindow* parent, Map* map, House* house) :
 	id_field = newd wxTextCtrl(this, wxID_ANY, "", wxDefaultPosition, wxSize(70,20), 0, wxTextValidator(wxFILTER_NUMERIC, &house_id));
 	id_field->Enable(false);
 	tmpsizer->Add(id_field);
+
 	sizer->Add(tmpsizer, wxSizerFlags().Border(wxALL, 20));
+
+	tmpsizer = newd wxStaticBoxSizer(wxHORIZONTAL, this, "ClientID");
+	sizer->Add(tmpsizer, wxSizerFlags().Border(wxALL, 20));
+	clientid_field = newd wxTextCtrl(this, wxID_ANY, "", wxDefaultPosition, wxSize(160, 20), 0, wxTextValidator(wxFILTER_NUMERIC, &house_clientid));
+	tmpsizer->Add(clientid_field);
 
 	// House options
 	guildhall_field = newd wxCheckBox(this, wxID_ANY, "Guildhall", wxDefaultPosition);
@@ -504,10 +511,17 @@ void EditHouseDialog::OnClickOK(wxCommandEvent& WXUNUSED(event))
 	if(Validate() && TransferDataFromWindow()) {
 		// Verify the newd information
 		long new_house_rent;
+		long new_house_clientid;
 		house_rent.ToLong(&new_house_rent);
+		house_clientid.ToLong(&new_house_clientid);
 
 		if(new_house_rent < 0) {
 			g_gui.PopupDialog(this, "Error", "House rent cannot be less than 0.", wxOK);
+			return;
+		}
+
+		if (new_house_clientid < 0) {
+			g_gui.PopupDialog(this, "Error", "House client id cannot be less than 0.", wxOK);
 			return;
 		}
 
@@ -533,6 +547,7 @@ void EditHouseDialog::OnClickOK(wxCommandEvent& WXUNUSED(event))
 		// Transfer to house
 		what_house->name = nstr(house_name);
 		what_house->rent = new_house_rent;
+		what_house->clientid = new_house_clientid;
 		what_house->guildhall = guildhall_field->GetValue();
 
 		EndModal(1);
