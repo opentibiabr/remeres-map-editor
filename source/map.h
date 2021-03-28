@@ -82,6 +82,7 @@ public:
 	std::string getMapDescription() const {return description;}
 	std::string getHouseFilename() const {return housefile;}
 	std::string getSpawnFilename() const {return spawnfile;}
+	std::string getNpcFilename() const {return npcfile;}
 
 	// Set some map data
 	void setWidth(int new_width);
@@ -89,6 +90,7 @@ public:
 	void setMapDescription(const std::string& new_description);
 	void setHouseFilename(const std::string& new_housefile);
 	void setSpawnFilename(const std::string& new_spawnfile);
+	void setNpcFilename(const std::string& new_npcfile);
 
 	void flagAsNamed() {unnamed = false;}
 
@@ -112,6 +114,7 @@ protected:
 	uint16_t width, height;
 
 	std::string spawnfile; // The maps spawnfile
+	std::string npcfile; // The maps npcfile
 	std::string housefile; // The housefile
 
 public:

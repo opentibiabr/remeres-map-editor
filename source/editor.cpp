@@ -81,6 +81,7 @@ Editor::Editor(CopyBuffer& copybuffer) :
 	std::string sname = "Untitled-" + i2s(++unnamed_counter);
 	map.name = sname + ".otbm";
 	map.spawnfile = sname + "-spawn.xml";
+	map.npcfile = sname + "-npc.xml";
 	map.housefile = sname + "-house.xml";
 	map.description = "No map description available.";
 	map.unnamed = true;
@@ -197,6 +198,8 @@ void Editor::saveMap(FileName filename, bool showdialog)
 
 		_name.SetName(filename.GetName() + "-spawn");
 		map.spawnfile = nstr(_name.GetFullName());
+		_name.SetName(filename.GetName() + "-npc");
+		map.npcfile = nstr(_name.GetFullName());
 		_name.SetName(filename.GetName() + "-house");
 		map.housefile = nstr(_name.GetFullName());
 
@@ -210,7 +213,7 @@ void Editor::saveMap(FileName filename, bool showdialog)
 
 	// Make temporary backups
 	//converter.Assign(wxstr(savefile));
-	std::string backup_otbm, backup_house, backup_spawn;
+	std::string backup_otbm, backup_house, backup_spawn, backup_npc;
 
 	if(converter.GetExt() == "otgz") {
 		save_otgz = true;
@@ -239,6 +242,13 @@ void Editor::saveMap(FileName filename, bool showdialog)
 			std::remove(backup_spawn.c_str());
 			std::rename((map_path + map.spawnfile).c_str(), backup_spawn.c_str());
 		}
+
+		converter.SetFullName(wxstr(map.npcfile));
+		if(converter.FileExists()) {
+			backup_npc = map_path + nstr(converter.GetName()) + ".xml~";
+			std::remove(backup_npc.c_str());
+			std::rename((map_path + map.npcfile).c_str(), backup_npc.c_str());
+		}
 	}
 
 	// Save the map
@@ -248,7 +258,8 @@ void Editor::saveMap(FileName filename, bool showdialog)
 		f <<
 			backup_otbm << std::endl <<
 			backup_house << std::endl <<
-			backup_spawn << std::endl;
+			backup_spawn << std::endl <<
+			backup_npc << std::endl;
 	}
 
 	{
@@ -287,6 +298,12 @@ void Editor::saveMap(FileName filename, bool showdialog)
 				converter.SetFullName(wxstr(map.spawnfile));
 				std::string spawn_filename = map_path + nstr(converter.GetName());
 				std::rename(backup_spawn.c_str(), std::string(spawn_filename + ".xml").c_str());
+			}
+
+			if(!backup_npc.empty()) {
+				converter.SetFullName(wxstr(map.npcfile));
+				std::string npc_filename = map_path + nstr(converter.GetName());
+				std::rename(backup_npc.c_str(), std::string(npc_filename + ".xml").c_str());
 			}
 
 			// Display the error
@@ -340,11 +357,18 @@ void Editor::saveMap(FileName filename, bool showdialog)
 			std::string spawn_filename = map_path + nstr(converter.GetName());
 			std::rename(backup_spawn.c_str(), std::string(spawn_filename + "." + date.str() + ".xml").c_str());
 		}
+		
+		if(!backup_npc.empty()) {
+			converter.SetFullName(wxstr(map.npcfile));
+			std::string npc_filename = map_path + nstr(converter.GetName());
+			std::rename(backup_npc.c_str(), std::string(npc_filename + "." + date.str() + ".xml").c_str());
+		}
 	} else {
 		// Delete the temporary files
 		std::remove(backup_otbm.c_str());
 		std::remove(backup_house.c_str());
 		std::remove(backup_spawn.c_str());
+		std::remove(backup_npc.c_str());
 	}
 
 	map.clearChanges();

@@ -47,6 +47,7 @@ enum OTBM_ItemAttribute
 	OTBM_ATTR_SLEEPERGUID = 20,
 	OTBM_ATTR_SLEEPSTART = 21,
 	OTBM_ATTR_CHARGES = 22,
+	OTBM_ATTR_EXT_NPC_FILE = 23,
 
 	OTBM_ATTR_ATTRIBUTE_MAP = 128
 };
@@ -135,12 +136,16 @@ protected:
 	bool loadSpawns(Map& map, pugi::xml_document& doc);
 	bool loadHouses(Map& map, const FileName& dir);
 	bool loadHouses(Map& map, pugi::xml_document& doc);
+	bool loadNpcs(Map& map, const FileName& dir);
+	bool loadNpcs(Map& map, pugi::xml_document& doc);
 
 	virtual bool saveMap(Map& map, NodeFileWriteHandle& handle);
 	bool saveSpawns(Map& map, const FileName& dir);
 	bool saveSpawns(Map& map, pugi::xml_document& doc);
 	bool saveHouses(Map& map, const FileName& dir);
 	bool saveHouses(Map& map, pugi::xml_document& doc);
+	bool saveNpcs(Map& map, const FileName& dir);
+	bool saveNpcs(Map& map, pugi::xml_document& doc);
 };
 
 #endif

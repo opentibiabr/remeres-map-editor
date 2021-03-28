@@ -368,6 +368,12 @@ void Map::setSpawnFilename(const std::string&  new_spawnfile)
 	unnamed = false;
 }
 
+void Map::setNpcFilename(const std::string&  new_npcfile)
+{
+	npcfile = new_npcfile;
+	unnamed = false;
+}
+
 bool Map::addSpawn(Tile* tile)
 {
 	Spawn* spawn = tile->spawn;
