@@ -28,6 +28,8 @@
 
 #include "creatures.h"
 #include "creature.h"
+#include "npcs.h"
+#include "npc.h"
 #include "map.h"
 #include "tile.h"
 #include "item.h"
@@ -496,10 +498,10 @@ bool IOMapOTBM::loadMap(Map& map, const FileName& filename)
 		// Memory buffers for the houses & spawns
 		std::shared_ptr<uint8_t> house_buffer;
 		std::shared_ptr<uint8_t> spawn_buffer;
-		std::shared_ptr<uint8_t> npc_buffer;
+		std::shared_ptr<uint8_t> spawn_npc_buffer;
 		size_t house_buffer_size = 0;
 		size_t spawn_buffer_size = 0;
-		size_t npc_buffer_size = 0;
+		size_t spawn_npc_buffer_size = 0;
 
 		// See if the otbm file has been loaded
 		bool otbm_loaded = false;
@@ -567,16 +569,16 @@ bool IOMapOTBM::loadMap(Map& map, const FileName& filename)
 					warning("Failed to decompress spawns.");
 				}
 			} else if(entryName == "world/npc.xml") {
-				npc_buffer_size = archive_entry_size(entry);
-				npc_buffer.reset(new uint8_t[npc_buffer_size]);
+				spawn_npc_buffer_size = archive_entry_size(entry);
+				spawn_npc_buffer.reset(new uint8_t[spawn_npc_buffer_size]);
 
 				// Read from the archive
-				size_t read_bytes = archive_read_data(a.get(), npc_buffer.get(), npc_buffer_size);
+				size_t read_bytes = archive_read_data(a.get(), spawn_npc_buffer.get(), spawn_npc_buffer_size);
 
 				// Check so it at least contains the 4-byte file id
-				if(read_bytes < npc_buffer_size) {
-					npc_buffer.reset();
-					npc_buffer_size = 0;
+				if(read_bytes < spawn_npc_buffer_size) {
+					spawn_npc_buffer.reset();
+					spawn_npc_buffer_size = 0;
 					warning("Failed to decompress npcs.");
 				}
 			}
@@ -606,23 +608,23 @@ bool IOMapOTBM::loadMap(Map& map, const FileName& filename)
 			pugi::xml_parse_result result = doc.load_buffer(spawn_buffer.get(), spawn_buffer_size);
 			if(result) {
 				if(!loadSpawns(map, doc)) {
-					warning("Failed to load spawns.");
+					warning("Failed to load monsters spawns.");
 				}
 			} else {
-				warning("Failed to load spawns due to XML parse error.");
+				warning("Failed to load monsters spawns due to XML parse error.");
 			}
 		}
 
 		// Load the npcs from the stored buffer
-		if(npc_buffer.get() && npc_buffer_size > 0) {
+		if(spawn_npc_buffer.get() && spawn_npc_buffer_size > 0) {
 			pugi::xml_document doc;
-			pugi::xml_parse_result result = doc.load_buffer(npc_buffer.get(), npc_buffer_size);
+			pugi::xml_parse_result result = doc.load_buffer(spawn_npc_buffer.get(), spawn_npc_buffer_size);
 			if(result) {
-				if(!loadNpcs(map, doc)) {
-					warning("Failed to load npcs.");
+				if(!loadSpawnsNpc(map, doc)) {
+					warning("Failed to load npcs spawns.");
 				}
 			} else {
-				warning("Failed to load npcs due to XML parse error.");
+				warning("Failed to load npcs spawns due to XML parse error.");
 			}
 		}
 
@@ -645,12 +647,12 @@ bool IOMapOTBM::loadMap(Map& map, const FileName& filename)
 		map.housefile = nstr(filename.GetName()) + "-house.xml";
 	}
 	if(!loadSpawns(map, filename)) {
-		warning("Failed to load spawns.");
+		warning("Failed to load monsters spawns.");
 		map.spawnfile = nstr(filename.GetName()) + "-spawn.xml";
 	}
-	if(!loadNpcs(map, filename)) {
-		warning("Failed to load npcs.");
-		map.npcfile = nstr(filename.GetName()) + "-npc.xml";
+	if(!loadSpawnsNpc(map, filename)) {
+		warning("Failed to load npcs spawn.");
+		map.spawnnpcfile = nstr(filename.GetName()) + "-npc.xml";
 	}
 	return true;
 }
@@ -740,9 +742,9 @@ bool IOMapOTBM::loadMap(Map& map, NodeFileReadHandle& f)
 				}
 				break;
 			}
-			case OTBM_ATTR_EXT_NPC_FILE: {
-				if(!mapHeaderNode->getString(map.npcfile)) {
-					warning("Invalid map npcfile tag");
+			case OTBM_ATTR_EXT_SPAWN_NPC_FILE: {
+				if(!mapHeaderNode->getString(map.spawnnpcfile)) {
+					warning("Invalid map spawnnpcfile tag");
 				}
 				break;
 			}
@@ -1030,11 +1032,10 @@ bool IOMapOTBM::loadSpawns(Map& map, pugi::xml_document& doc)
 				continue;
 			}
 
-			bool isNpc = creatureNodeName == "npc";
 			const std::string& name = creatureNode.attribute("name").as_string();
 			if(name.empty()) {
 				wxString err;
-				err << "Bad creature position data, discarding creature at spawn " << spawnPosition.x << ":" << spawnPosition.y << ":" << spawnPosition.z << " due missing name.";
+				err << "Bad monster position data, discarding monster at spawn " << spawnPosition.x << ":" << spawnPosition.y << ":" << spawnPosition.z << " due missing name.";
 				warnings.Add(err);
 				break;
 			}
@@ -1056,7 +1057,7 @@ bool IOMapOTBM::loadSpawns(Map& map, pugi::xml_document& doc)
 			pugi::xml_attribute yAttribute = creatureNode.attribute("y");
 			if(!xAttribute || !yAttribute) {
 				wxString err;
-				err << "Bad creature position data, discarding creature \"" << name << "\" at spawn " << creaturePosition.x << ":" << creaturePosition.y << ":" << creaturePosition.z << " due to invalid position.";
+				err << "Bad monster position data, discarding monster \"" << name << "\" at spawn " << creaturePosition.x << ":" << creaturePosition.y << ":" << creaturePosition.z << " due to invalid position.";
 				warnings.Add(err);
 				break;
 			}
@@ -1077,21 +1078,21 @@ bool IOMapOTBM::loadSpawns(Map& map, pugi::xml_document& doc)
 
 			if(!creatureTile) {
 				wxString err;
-				err << "Discarding creature \"" << name << "\" at " << creaturePosition.x << ":" << creaturePosition.y << ":" << creaturePosition.z << " due to invalid position.";
+				err << "Discarding monster \"" << name << "\" at " << creaturePosition.x << ":" << creaturePosition.y << ":" << creaturePosition.z << " due to invalid position.";
 				warnings.Add(err);
 				break;
 			}
 
 			if(creatureTile->creature) {
 				wxString err;
-				err << "Duplicate creature \"" << name << "\" at " << creaturePosition.x << ":" << creaturePosition.y << ":" << creaturePosition.z << " was discarded.";
+				err << "Duplicate monster \"" << name << "\" at " << creaturePosition.x << ":" << creaturePosition.y << ":" << creaturePosition.z << " was discarded.";
 				warnings.Add(err);
 				break;
 			}
 
 			CreatureType* type = g_creatures[name];
 			if(!type) {
-				type = g_creatures.addMissingCreatureType(name, isNpc);
+				type = g_creatures.addMissingCreatureType(name);
 			}
 
 			Creature* creature = newd Creature(type);
@@ -1102,7 +1103,7 @@ bool IOMapOTBM::loadSpawns(Map& map, pugi::xml_document& doc)
 			if(creatureTile->getLocation()->getSpawnCount() == 0) {
 				// No spawn, create a newd one
 				ASSERT(creatureTile->spawn == nullptr);
-				Spawn* spawn = newd Spawn(5);
+				Spawn* spawn = newd Spawn(1);
 				creatureTile->spawn = spawn;
 				map.addSpawn(creatureTile);
 			}
@@ -1182,10 +1183,10 @@ bool IOMapOTBM::loadHouses(Map& map, pugi::xml_document& doc)
 	return true;
 }
 
-bool IOMapOTBM::loadNpcs(Map& map, const FileName& dir)
+bool IOMapOTBM::loadSpawnsNpc(Map& map, const FileName& dir)
 {
 	std::string fn = (const char*)(dir.GetPath(wxPATH_GET_SEPARATOR | wxPATH_GET_VOLUME).mb_str(wxConvUTF8));
-	fn += map.npcfile;
+	fn += map.spawnnpcfile;
 
 	FileName filename(wxstr(fn));
 	if(!filename.FileExists())
@@ -1196,61 +1197,60 @@ bool IOMapOTBM::loadNpcs(Map& map, const FileName& dir)
 	if(!result) {
 		return false;
 	}
-	return loadNpcs(map, doc);
+	return loadSpawnsNpc(map, doc);
 }
 
-bool IOMapOTBM::loadNpcs(Map& map, pugi::xml_document& doc)
+bool IOMapOTBM::loadSpawnsNpc(Map& map, pugi::xml_document& doc)
 {
 	pugi::xml_node node = doc.child("npcs");
 	if(!node) {
-		warnings.push_back("IOMapOTBM::loadNpcs: Invalid rootheader.");
+		warnings.push_back("IOMapOTBM::loadSpawnsNpc: Invalid rootheader.");
 		return false;
 	}
 
-	for(pugi::xml_node spawnNode = node.first_child(); spawnNode; spawnNode = spawnNode.next_sibling()) {
-		if(as_lower_str(spawnNode.name()) != "npc") {
+	for(pugi::xml_node spawnNpcNode = node.first_child(); spawnNpcNode; spawnNpcNode = spawnNpcNode.next_sibling()) {
+		if(as_lower_str(spawnNpcNode.name()) != "npc") {
 			continue;
 		}
 
 		Position spawnPosition;
-		spawnPosition.x = pugi::cast<int32_t>(spawnNode.attribute("centerx").value());
-		spawnPosition.y = pugi::cast<int32_t>(spawnNode.attribute("centery").value());
-		spawnPosition.z = pugi::cast<int32_t>(spawnNode.attribute("centerz").value());
+		spawnPosition.x = pugi::cast<int32_t>(spawnNpcNode.attribute("centerx").value());
+		spawnPosition.y = pugi::cast<int32_t>(spawnNpcNode.attribute("centery").value());
+		spawnPosition.z = pugi::cast<int32_t>(spawnNpcNode.attribute("centerz").value());
 
 		if(spawnPosition.x == 0 || spawnPosition.y == 0) {
 			warning("Bad position data on one spawn, discarding...");
 			continue;
 		}
 
-		int32_t radius = pugi::cast<int32_t>(spawnNode.attribute("radius").value());
+		int32_t radius = pugi::cast<int32_t>(spawnNpcNode.attribute("radius").value());
 		if(radius < 1) {
 			warning("Couldn't read radius of spawn.. discarding spawn...");
 			continue;
 		}
 
-		Tile* tile = map.getTile(spawnPosition);
-		if(tile && tile->spawn) {
-			warning("Duplicate spawn on position %d:%d:%d\n", tile->getX(), tile->getY(), tile->getZ());
+		Tile* spawnTile = map.getTile(spawnPosition);
+		if(spawnTile && spawnTile->spawnNpc) {
+			warning("Duplicate spawn on position %d:%d:%d\n", spawnTile->getX(), spawnTile->getY(), spawnTile->getZ());
 			continue;
 		}
 
-		Spawn* spawn = newd Spawn(radius);
-		if(!tile) {
-			tile = map.allocator(map.createTileL(spawnPosition));
-			map.setTile(spawnPosition, tile);
+		SpawnNpc* spawnNpc = newd SpawnNpc(radius);
+		if(!spawnTile) {
+			spawnTile = map.allocator(map.createTileL(spawnPosition));
+			map.setTile(spawnPosition, spawnTile);
 		}
 
-		tile->spawn = spawn;
-		map.addSpawn(tile);
+		spawnTile->spawnNpc = spawnNpc;
+		map.addSpawnNpc(spawnTile);
 
-		for(pugi::xml_node creatureNode = spawnNode.first_child(); creatureNode; creatureNode = creatureNode.next_sibling()) {
-			const std::string& creatureNodeName = as_lower_str(creatureNode.name());
-			if(creatureNodeName != "npc") {
+		for(pugi::xml_node npcNode = spawnNpcNode.first_child(); npcNode; npcNode = npcNode.next_sibling()) {
+			const std::string& npcNodeName = as_lower_str(npcNode.name());
+			if(npcNodeName != "npc") {
 				continue;
 			}
 
-			bool isNpc = creatureNodeName == "npc";
-			const std::string& name = creatureNode.attribute("name").as_string();
+			const std::string& name = npcNode.attribute("name").as_string();
 			if(name.empty()) {
 				wxString err;
 				err << "Bad npc position data, discarding npc at spawn " << spawnPosition.x << ":" << spawnPosition.y << ":" << spawnPosition.z << " due missing name.";
@@ -1258,72 +1258,72 @@ bool IOMapOTBM::loadNpcs(Map& map, pugi::xml_document& doc)
 				break;
 			}
 
-			int32_t spawntime = pugi::cast<int32_t>(creatureNode.attribute("spawntime").value());
+			int32_t spawntime = pugi::cast<int32_t>(npcNode.attribute("spawntime").value());
 			if(spawntime == 0) {
 				spawntime = g_settings.getInteger(Config::DEFAULT_SPAWNTIME);
 			}
 
 			Direction direction = NORTH;
-			int dir = creatureNode.attribute("direction").as_int(-1);
+			int dir = npcNode.attribute("direction").as_int(-1);
 			if(dir >= DIRECTION_FIRST && dir <= DIRECTION_LAST) {
 				direction = (Direction)dir;
 			}
 
-			Position creaturePosition(spawnPosition);
+			Position npcPosition(spawnPosition);
 
-			pugi::xml_attribute xAttribute = creatureNode.attribute("x");
-			pugi::xml_attribute yAttribute = creatureNode.attribute("y");
+			pugi::xml_attribute xAttribute = npcNode.attribute("x");
+			pugi::xml_attribute yAttribute = npcNode.attribute("y");
 			if(!xAttribute || !yAttribute) {
 				wxString err;
-				err << "Bad npc position data, discarding npc \"" << name << "\" at spawn " << creaturePosition.x << ":" << creaturePosition.y << ":" << creaturePosition.z << " due to invalid position.";
+				err << "Bad npc position data, discarding npc \"" << name << "\" at spawn " << npcPosition.x << ":" << npcPosition.y << ":" << npcPosition.z << " due to invalid position.";
 				warnings.Add(err);
 				break;
 			}
 
-			creaturePosition.x += pugi::cast<int32_t>(xAttribute.value());
-			creaturePosition.y += pugi::cast<int32_t>(yAttribute.value());
+			npcPosition.x += pugi::cast<int32_t>(xAttribute.value());
+			npcPosition.y += pugi::cast<int32_t>(yAttribute.value());
 
-			radius = std::max<int32_t>(radius, std::abs(creaturePosition.x - spawnPosition.x));
-			radius = std::max<int32_t>(radius, std::abs(creaturePosition.y - spawnPosition.y));
-			radius = std::min<int32_t>(radius, g_settings.getInteger(Config::MAX_SPAWN_RADIUS));
+			radius = std::max<int32_t>(radius, std::abs(npcPosition.x - spawnPosition.x));
+			radius = std::max<int32_t>(radius, std::abs(npcPosition.y - spawnPosition.y));
+			radius = std::min<int32_t>(radius, g_settings.getInteger(Config::MAX_SPAWN_NPC_RADIUS));
 
-			Tile* creatureTile;
-			if(creaturePosition == spawnPosition) {
-				creatureTile = tile;
+			Tile* npcTile;
+			if(npcPosition == spawnPosition) {
+				npcTile = spawnTile;
 			} else {
-				creatureTile = map.getTile(creaturePosition);
+				npcTile = map.getTile(npcPosition);
 			}
 
-			if(!creatureTile) {
+			if(!npcTile) {
 				wxString err;
-				err << "Discarding npc \"" << name << "\" at " << creaturePosition.x << ":" << creaturePosition.y << ":" << creaturePosition.z << " due to invalid position.";
+				err << "Discarding npc \"" << name << "\" at " << npcPosition.x << ":" << npcPosition.y << ":" << npcPosition.z << " due to invalid position.";
 				warnings.Add(err);
 				break;
 			}
 
-			if(creatureTile->creature) {
+			if(npcTile->npc) {
 				wxString err;
-				err << "Duplicate npc \"" << name << "\" at " << creaturePosition.x << ":" << creaturePosition.y << ":" << creaturePosition.z << " was discarded.";
+				err << "Duplicate npc \"" << name << "\" at " << npcPosition.x << ":" << npcPosition.y << ":" << npcPosition.z << " was discarded.";
 				warnings.Add(err);
 				break;
 			}
 
-			CreatureType* type = g_creatures[name];
+			NpcType* type = g_npcs[name];
 			if(!type) {
-				type = g_creatures.addMissingCreatureType(name, isNpc);
+				type = g_npcs.addMissingNpcType(name);
 			}
 
-			Creature* creature = newd Creature(type);
-			creature->setDirection(direction);
-			creature->setSpawnTime(spawntime);
-			creatureTile->creature = creature;
+			Npc* npc = newd Npc(type);
+			npc->setDirection(direction);
+			npc->setSpawnNpcTime(spawntime);
+			npcTile->npc = npc;
 
-			if(creatureTile->getLocation()->getSpawnCount() == 0) {
+			if(npcTile->getLocation()->getSpawnNpcCount() == 0) {
 				// No spawn, create a newd one
-				ASSERT(creatureTile->spawn == nullptr);
-				Spawn* spawn = newd Spawn(5);
-				creatureTile->spawn = spawn;
-				map.addSpawn(creatureTile);
+				ASSERT(npcTile->spawnNpc == nullptr);
+				SpawnNpc* spawnNpc = newd SpawnNpc(1);
+				npcTile->spawnNpc = spawnNpc;
+				map.addSpawnNpc(npcTile);
 			}
 		}
 	}
@@ -1394,7 +1394,7 @@ bool IOMapOTBM::saveMap(Map& map, const FileName& identifier)
 		g_gui.SetLoadDone(0, "Saving npcs...");
 
 		pugi::xml_document npcDoc;
-		if(saveNpcs(map, npcDoc)) {
+		if(saveSpawnsNpc(map, npcDoc)) {
 			// Write the data
 			npcDoc.save(streamData, "", pugi::format_raw, pugi::encoding_utf8);
 			std::string xmlData = streamData.str();
@@ -1466,8 +1466,8 @@ bool IOMapOTBM::saveMap(Map& map, const FileName& identifier)
 	g_gui.SetLoadDone(99, "Saving houses...");
 	saveHouses(map, identifier);
 
-	g_gui.SetLoadDone(99, "Saving npcs...");
-	saveNpcs(map, identifier);
+	g_gui.SetLoadDone(99, "Saving spawns npcs...");
+	saveSpawnsNpc(map, identifier);
 	return true;
 }
 
@@ -1512,8 +1512,8 @@ bool IOMapOTBM::saveMap(Map& map, NodeFileWriteHandle& f)
 			f.addU8(OTBM_ATTR_EXT_SPAWN_FILE);
 			f.addString(nstr(tmpName.GetFullName()));
 
-			tmpName.Assign(wxstr(map.npcfile));
-			f.addU8(OTBM_ATTR_EXT_NPC_FILE);
+			tmpName.Assign(wxstr(map.spawnnpcfile));
+			f.addU8(OTBM_ATTR_EXT_SPAWN_NPC_FILE);
 			f.addString(nstr(tmpName.GetFullName()));
 
 			tmpName.Assign(wxstr(map.housefile));
@@ -1681,7 +1681,6 @@ bool IOMapOTBM::saveSpawns(Map& map, pugi::xml_document& doc)
 		ASSERT(spawn);
 
 		pugi::xml_node spawnNode = spawnNodes.append_child("spawn");
-
 		spawnNode.append_attribute("centerx") = spawnPosition.x;
 		spawnNode.append_attribute("centery") = spawnPosition.y;
 		spawnNode.append_attribute("centerz") = spawnPosition.z;
@@ -1695,11 +1694,6 @@ bool IOMapOTBM::saveSpawns(Map& map, pugi::xml_document& doc)
 				if(creature_tile) {
 					Creature* creature = creature_tile->creature;
 					if(creature && !creature->isSaved()) {
-						if(creature->isNpc()) {
-							spawnNodes.remove_child(spawnNode);
-							break;
-						}
-
 						pugi::xml_node creatureNode = spawnNode.append_child("monster");
 						creatureNode.append_attribute("name") = creature->getName().c_str();
 						creatureNode.append_attribute("x") = x;
@@ -1771,20 +1765,20 @@ bool IOMapOTBM::saveHouses(Map& map, pugi::xml_document& doc)
 	return true;
 }
 
-bool IOMapOTBM::saveNpcs(Map& map, const FileName& dir)
+bool IOMapOTBM::saveSpawnsNpc(Map& map, const FileName& dir)
 {
 	wxString filepath = dir.GetPath(wxPATH_GET_SEPARATOR | wxPATH_GET_VOLUME);
-	filepath += wxString(map.npcfile.c_str(), wxConvUTF8);
+	filepath += wxString(map.spawnnpcfile.c_str(), wxConvUTF8);
 
 	// Create the XML file
 	pugi::xml_document doc;
-	if(saveNpcs(map, doc)) {
+	if(saveSpawnsNpc(map, doc)) {
 		return doc.save_file(filepath.wc_str(), "\t", pugi::format_default, pugi::encoding_utf8);
 	}
 	return false;
 }
 
-bool IOMapOTBM::saveNpcs(Map& map, pugi::xml_document& doc)
+bool IOMapOTBM::saveSpawnsNpc(Map& map, pugi::xml_document& doc)
 {
 	pugi::xml_node decl = doc.prepend_child(pugi::node_declaration);
 	if(!decl) {
@@ -1793,59 +1787,52 @@ bool IOMapOTBM::saveNpcs(Map& map, pugi::xml_document& doc)
 
 	decl.append_attribute("version") = "1.0";
 
-	CreatureList creatureList;
+	NpcList npcList;
 
 	pugi::xml_node spawnNodes = doc.append_child("npcs");
-
-	for(const auto& spawnPosition : map.spawns) {
+	for(const auto& spawnPosition : map.spawnsNpc) {
 		Tile *tile = map.getTile(spawnPosition);
 		if (tile == nullptr)
 			continue;
 
-		Spawn* spawn = tile->spawn;
-		ASSERT(spawn);
+		SpawnNpc* spawnNpc = tile->spawnNpc;
+		ASSERT(spawnNpc);
 
-		pugi::xml_node spawnNode = spawnNodes.append_child("npc");
+		pugi::xml_node spawnNpcNode = spawnNodes.append_child("npc");
+		spawnNpcNode.append_attribute("centerx") = spawnPosition.x;
+		spawnNpcNode.append_attribute("centery") = spawnPosition.y;
+		spawnNpcNode.append_attribute("centerz") = spawnPosition.z;
 
-		spawnNode.append_attribute("centerx") = spawnPosition.x;
-		spawnNode.append_attribute("centery") = spawnPosition.y;
-		spawnNode.append_attribute("centerz") = spawnPosition.z;
-
-		int32_t radius = spawn->getSize();
-		spawnNode.append_attribute("radius") = radius;
+		int32_t radius = spawnNpc->getSize();
+		spawnNpcNode.append_attribute("radius") = radius;
 
 		for(int32_t y = -radius; y <= radius; ++y) {
 			for(int32_t x = -radius; x <= radius; ++x) {
-				Tile* creature_tile = map.getTile(spawnPosition + Position(x, y, 0));
-				if(creature_tile) {
-					Creature* creature = creature_tile->creature;
-					if(creature && !creature->isSaved()) {
-						if(!creature->isNpc()) {
-							spawnNodes.remove_child(spawnNode);
-							break;
-						}
-
-						pugi::xml_node creatureNode = spawnNode.append_child("npc");
-						creatureNode.append_attribute("name") = creature->getName().c_str();
-						creatureNode.append_attribute("x") = x;
-						creatureNode.append_attribute("y") = y;
-						creatureNode.append_attribute("z") = spawnPosition.z;
-						creatureNode.append_attribute("spawntime") = creature->getSpawnTime();
-						if(creature->getDirection() != NORTH) {
-							creatureNode.append_attribute("direction") = creature->getDirection();
+				Tile* npcTile = map.getTile(spawnPosition + Position(x, y, 0));
+				if(npcTile) {
+					Npc* npc = npcTile->npc;
+					if(npc && !npc->isSaved()) {
+						pugi::xml_node npcNode = spawnNpcNode.append_child("npc");
+						npcNode.append_attribute("name") = npc->getName().c_str();
+						npcNode.append_attribute("x") = x;
+						npcNode.append_attribute("y") = y;
+						npcNode.append_attribute("z") = spawnPosition.z;
+						npcNode.append_attribute("spawntime") = npc->getSpawnNpcTime();
+						if(npc->getDirection() != NORTH) {
+							npcNode.append_attribute("direction") = npc->getDirection();
 						}
 
 						// Mark as saved
-						creature->save();
-						creatureList.push_back(creature);
+						npc->save();
+						npcList.push_back(npc);
 					}
 				}
 			}
 		}
 	}
 
-	for(Creature* creature : creatureList) {
-		creature->reset();
+	for(Npc* npc : npcList) {
+		npc->reset();
 	}
 	return true;
 }

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<npcs>
+    <npc name="Alice" type="npc" looktype="139" lookhead="20" lookbody="39" looklegs="45" lookfeet="7"/>
+    <npc name="Deruno" type="npc" looktype="132" lookhead="20" lookbody="39" looklegs="45" lookfeet="7"/>
+    <npc name="Eryn" type="npc" looktype="130" lookhead="39" lookbody="122" looklegs="125" lookfeet="57"/>
+</npcs>

@@ -31,6 +31,7 @@
 #include "house_brush.h"
 #include "house_exit_brush.h"
 #include "spawn_brush.h"
+#include "spawn_npc_brush.h"
 
 // ============================================================================
 // House palette
@@ -178,6 +179,8 @@ bool HousePalettePanel::SelectBrush(const Brush* whatbrush)
 			}
 		}
 	} else if (whatbrush->isSpawn()) {
+		SelectExitBrush();
+	} else if (whatbrush->isSpawnNpc()) {
 		SelectExitBrush();
 	}
 	return false;

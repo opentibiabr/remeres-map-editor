@@ -26,6 +26,7 @@
 #include "palette_brushlist.h"
 #include "palette_house.h"
 #include "palette_creature.h"
+#include "palette_npc.h"
 #include "palette_waypoints.h"
 
 #include "house_brush.h"
@@ -49,6 +50,7 @@ PaletteWindow::PaletteWindow(wxWindow* parent, const TilesetContainer& tilesets)
 	doodad_palette(nullptr),
 	item_palette(nullptr),
 	creature_palette(nullptr),
+	npc_palette(nullptr),
 	house_palette(nullptr),
 	waypoint_palette(nullptr),
 	raw_palette(nullptr)
@@ -75,6 +77,9 @@ PaletteWindow::PaletteWindow(wxWindow* parent, const TilesetContainer& tilesets)
 
 	creature_palette = static_cast<CreaturePalettePanel*>(CreateCreaturePalette(choicebook, tilesets));
 	choicebook->AddPage(creature_palette, creature_palette->GetName());
+
+	npc_palette = static_cast<NpcPalettePanel*>(CreateNpcPalette(choicebook, tilesets));
+	choicebook->AddPage(npc_palette, npc_palette->GetName());
 
 	raw_palette = static_cast<BrushPalettePanel*>(CreateRAWPalette(choicebook, tilesets));
 	choicebook->AddPage(raw_palette, raw_palette->GetName());
@@ -159,6 +164,12 @@ PalettePanel* PaletteWindow::CreateCreaturePalette(wxWindow *parent, const Tiles
 	return panel;
 }
 
+PalettePanel* PaletteWindow::CreateNpcPalette(wxWindow *parent, const TilesetContainer& tilesets)
+{
+	NpcPalettePanel* panel = newd NpcPalettePanel(parent);
+	return panel;
+}
+
 PalettePanel* PaletteWindow::CreateRAWPalette(wxWindow *parent, const TilesetContainer& tilesets)
 {
 	BrushPalettePanel* panel = newd BrushPalettePanel(parent, tilesets, TILESET_RAW);
@@ -219,6 +230,9 @@ void PaletteWindow::InvalidateContents()
 	LoadCurrentContents();
 	if(creature_palette) {
 		creature_palette->OnUpdate();
+	}
+	if(npc_palette) {
+		npc_palette->OnUpdate();
 	}
 	if(house_palette) {
 		house_palette->OnUpdate();
@@ -305,6 +319,13 @@ bool PaletteWindow::OnSelectBrush(const Brush* whatbrush, PaletteType primary)
 			}
 			break;
 		}
+		case TILESET_NPC: {
+			if(npc_palette && npc_palette->SelectBrush(whatbrush)) {
+				SelectPage(TILESET_NPC);
+				return true;
+			}
+			break;
+		}
 		case TILESET_RAW: {
 			if(raw_palette && raw_palette->SelectBrush(whatbrush)) {
 				SelectPage(TILESET_RAW);
@@ -342,6 +363,14 @@ bool PaletteWindow::OnSelectBrush(const Brush* whatbrush, PaletteType primary)
 	if(primary != TILESET_CREATURE) {
 		if(creature_palette && creature_palette->SelectBrush(whatbrush)) {
 			SelectPage(TILESET_CREATURE);
+			return true;
+		}
+	}
+
+	// Test if it's a npc brush
+	if(primary != TILESET_NPC) {
+		if(npc_palette && npc_palette->SelectBrush(whatbrush)) {
+			SelectPage(TILESET_NPC);
 			return true;
 		}
 	}
@@ -393,6 +422,9 @@ void PaletteWindow::OnUpdate(Map* map)
 {
 	if(creature_palette) {
 		creature_palette->OnUpdate();
+	}
+	if(npc_palette) {
+		npc_palette->OnUpdate();
 	}
 	if(house_palette) {
 		house_palette->SetMap(map);

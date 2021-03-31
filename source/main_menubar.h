@@ -34,6 +34,7 @@ namespace MenuBar
 		CLOSE,
 		IMPORT_MAP,
 		IMPORT_MONSTERS,
+		IMPORT_NPCS,
 		IMPORT_MINIMAP,
 		EXPORT_MINIMAP,
 		RELOAD_DATA,
@@ -104,6 +105,8 @@ namespace MenuBar
 		SHOW_EXTRA,
 		SHOW_CREATURES,
 		SHOW_SPAWNS,
+		SHOW_NPCS,
+		SHOW_SPAWNS_NPC,
 		SHOW_SPECIAL,
 		SHOW_AS_MINIMAP,
 		SHOW_ONLY_COLORS,
@@ -123,6 +126,7 @@ namespace MenuBar
 		SELECT_DOODAD,
 		SELECT_ITEM,
 		SELECT_CREATURE,
+		SELECT_NPC,
 		SELECT_HOUSE,
 		SELECT_WAYPOINT,
 		SELECT_RAW,
@@ -190,6 +194,7 @@ public:
 	// Export Menu
 	void OnImportMap(wxCommandEvent& event);
 	void OnImportMonsterData(wxCommandEvent& event);
+	void OnImportNpcData(wxCommandEvent& event);
 	void OnImportMinimap(wxCommandEvent& event);
 	void OnExportMinimap(wxCommandEvent& event);
 	void OnReloadDataFiles(wxCommandEvent& event);
@@ -265,6 +270,7 @@ public:
 	void OnSelectItemPalette(wxCommandEvent& event);
 	void OnSelectHousePalette(wxCommandEvent& event);
 	void OnSelectCreaturePalette(wxCommandEvent& event);
+	void OnSelectNpcPalette(wxCommandEvent& event);
 	void OnSelectWaypointPalette(wxCommandEvent& event);
 	void OnSelectRawPalette(wxCommandEvent& event);
 

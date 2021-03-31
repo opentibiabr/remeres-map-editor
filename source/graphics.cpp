@@ -123,6 +123,7 @@ void GraphicManager::clear()
 
 	item_count = 0;
 	creature_count = 0;
+	npc_count = 0;
 	loaded_textures = 0;
 	lastclean = time(nullptr);
 	spritefile = "";
@@ -161,7 +162,6 @@ GameSprite* GraphicManager::getCreatureSprite(int id)
 	return nullptr;
 }
 
-
 uint16_t GraphicManager::getItemSpriteMaxID() const
 {
 	return item_count;
@@ -170,6 +170,11 @@ uint16_t GraphicManager::getItemSpriteMaxID() const
 uint16_t GraphicManager::getCreatureSpriteMaxID() const
 {
 	return creature_count;
+}
+
+uint16_t GraphicManager::getNpcSpriteMaxID() const
+{
+	return npc_count;
 }
 
 #define loadPNGFile(name) _wxGetBitmapFromMemory(name, sizeof(name))
@@ -392,12 +397,13 @@ bool GraphicManager::loadSpriteMetadata(const FileName& datafile, wxString& erro
 	//get max id
 	file.getU16(item_count);
 	file.getU16(creature_count);
+	file.getU16(npc_count);
 	file.getU16(effect_count);
 	file.getU16(distance_count);
 
 	uint32_t minID = 100; // items start with id 100
 	// We don't load distance/effects, if we would, just add effect_count & distance_count here
-	uint32_t maxID = item_count + creature_count;
+	uint32_t maxID = item_count + creature_count + npc_count;
 
 	dat_format = client_version->getDatFormatForSignature(datSignature);
 

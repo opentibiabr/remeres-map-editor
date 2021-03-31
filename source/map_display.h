@@ -21,9 +21,11 @@
 #include "action.h"
 #include "tile.h"
 #include "creature.h"
+#include "npc.h"
 
 class Item;
 class Creature;
+class Npc;
 class MapWindow;
 class MapPopupMenu;
 class AnimationTimer;
@@ -86,6 +88,8 @@ public:
 	void OnSelectTableBrush(wxCommandEvent& event);
 	void OnSelectCreatureBrush(wxCommandEvent& event);
 	void OnSelectSpawnBrush(wxCommandEvent& event);
+	void OnSelectNpcBrush(wxCommandEvent& event);
+	void OnSelectSpawnNpcBrush(wxCommandEvent& event);
 	void OnSelectHouseBrush(wxCommandEvent& event);
 	// ---
 	void OnProperties(wxCommandEvent& event);

@@ -268,6 +268,12 @@
     <ClCompile Include="..\..\source\mt_rand.cpp" />
     <ClInclude Include="..\..\source\net_connection.h" />
     <ClCompile Include="..\..\source\net_connection.cpp" />
+    <ClInclude Include="..\..\source\npc.h" />
+    <ClCompile Include="..\..\source\npc.cpp" />
+    <ClInclude Include="..\..\source\npc_brush.h" />
+    <ClCompile Include="..\..\source\npc_brush.cpp" />
+    <ClInclude Include="..\..\source\npcs.h" />
+    <ClCompile Include="..\..\source\npcs.cpp" />
     <ClInclude Include="..\..\source\numbertextctrl.h" />
     <ClInclude Include="..\..\source\properties_window.h" />
     <ClInclude Include="..\..\source\pugicast.h" />
@@ -294,6 +300,7 @@
     <ClCompile Include="..\..\source\dcbutton.cpp" />
     <ClInclude Include="..\..\source\editor_tabs.h" />
     <ClCompile Include="..\..\source\editor_tabs.cpp" />
+    <ClInclude Include="..\..\source\enums.h" />
     <ClInclude Include="..\..\source\gui.h" />
     <ClCompile Include="..\..\source\gui.cpp" />
     <ClInclude Include="..\..\source\gui_ids.h" />
@@ -315,6 +322,8 @@
     <ClCompile Include="..\..\source\palette_house.cpp" />
     <ClInclude Include="..\..\source\palette_waypoints.h" />
     <ClCompile Include="..\..\source\palette_waypoints.cpp" />
+    <ClInclude Include="..\..\source\palette_npc.h" />
+    <ClCompile Include="..\..\source\palette_npc.cpp" />
     <ClInclude Include="..\..\source\palette_window.h" />
     <ClCompile Include="..\..\source\palette_window.cpp" />
     <ClInclude Include="..\..\source\about_window.h" />
@@ -376,6 +385,10 @@
     <ClInclude Include="..\..\source\position.h" />
     <ClInclude Include="..\..\source\spawn.h" />
     <ClCompile Include="..\..\source\spawn.cpp" />
+    <ClInclude Include="..\..\source\spawn_npc.h" />
+    <ClCompile Include="..\..\source\spawn_npc.cpp" />
+    <ClInclude Include="..\..\source\spawn_npc_brush.h" />
+    <ClCompile Include="..\..\source\spawn_npc_brush.cpp" />
     <ClCompile Include="..\..\source\templatemap76-74.cpp" />
     <ClCompile Include="..\..\source\templatemap81.cpp" />
     <ClCompile Include="..\..\source\templatemap854.cpp" />

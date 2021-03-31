@@ -24,6 +24,7 @@ ${CMAKE_CURRENT_LIST_DIR}/definitions.h
 ${CMAKE_CURRENT_LIST_DIR}/doodad_brush.h
 ${CMAKE_CURRENT_LIST_DIR}/editor.h
 ${CMAKE_CURRENT_LIST_DIR}/editor_tabs.h
+${CMAKE_CURRENT_LIST_DIR}/enums.h
 ${CMAKE_CURRENT_LIST_DIR}/extension.h
 ${CMAKE_CURRENT_LIST_DIR}/extension_window.h
 ${CMAKE_CURRENT_LIST_DIR}/find_item_window.h
@@ -63,6 +64,9 @@ ${CMAKE_CURRENT_LIST_DIR}/materials.h
 ${CMAKE_CURRENT_LIST_DIR}/minimap_window.h
 ${CMAKE_CURRENT_LIST_DIR}/mt_rand.h
 ${CMAKE_CURRENT_LIST_DIR}/net_connection.h
+${CMAKE_CURRENT_LIST_DIR}/npc.h
+${CMAKE_CURRENT_LIST_DIR}/npc_brush.h
+${CMAKE_CURRENT_LIST_DIR}/npcs.h
 ${CMAKE_CURRENT_LIST_DIR}/numbertextctrl.h
 ${CMAKE_CURRENT_LIST_DIR}/old_properties_window.h
 ${CMAKE_CURRENT_LIST_DIR}/otml.h
@@ -71,6 +75,7 @@ ${CMAKE_CURRENT_LIST_DIR}/palette_brushlist.h
 ${CMAKE_CURRENT_LIST_DIR}/palette_common.h
 ${CMAKE_CURRENT_LIST_DIR}/palette_creature.h
 ${CMAKE_CURRENT_LIST_DIR}/palette_house.h
+${CMAKE_CURRENT_LIST_DIR}/palette_npc.h
 ${CMAKE_CURRENT_LIST_DIR}/palette_waypoints.h
 ${CMAKE_CURRENT_LIST_DIR}/palette_window.h
 ${CMAKE_CURRENT_LIST_DIR}/pngfiles.h
@@ -88,6 +93,8 @@ ${CMAKE_CURRENT_LIST_DIR}/selection.h
 ${CMAKE_CURRENT_LIST_DIR}/settings.h
 ${CMAKE_CURRENT_LIST_DIR}/spawn.h
 ${CMAKE_CURRENT_LIST_DIR}/spawn_brush.h
+${CMAKE_CURRENT_LIST_DIR}/spawn_npc.h
+${CMAKE_CURRENT_LIST_DIR}/spawn_npc_brush.h
 ${CMAKE_CURRENT_LIST_DIR}/sprites.h
 ${CMAKE_CURRENT_LIST_DIR}/table_brush.h
 ${CMAKE_CURRENT_LIST_DIR}/templates.h
@@ -163,12 +170,16 @@ ${CMAKE_CURRENT_LIST_DIR}/minimap_window.cpp
 ${CMAKE_CURRENT_LIST_DIR}/mkpch.cpp
 ${CMAKE_CURRENT_LIST_DIR}/mt_rand.cpp
 ${CMAKE_CURRENT_LIST_DIR}/net_connection.cpp
+${CMAKE_CURRENT_LIST_DIR}/npc.cpp
+${CMAKE_CURRENT_LIST_DIR}/npc_brush.cpp
+${CMAKE_CURRENT_LIST_DIR}/npcs.cpp
 ${CMAKE_CURRENT_LIST_DIR}/numbertextctrl.cpp
 ${CMAKE_CURRENT_LIST_DIR}/old_properties_window.cpp
 ${CMAKE_CURRENT_LIST_DIR}/palette_brushlist.cpp
 ${CMAKE_CURRENT_LIST_DIR}/palette_common.cpp
 ${CMAKE_CURRENT_LIST_DIR}/palette_creature.cpp
 ${CMAKE_CURRENT_LIST_DIR}/palette_house.cpp
+${CMAKE_CURRENT_LIST_DIR}/palette_npc.cpp
 ${CMAKE_CURRENT_LIST_DIR}/palette_waypoints.cpp
 ${CMAKE_CURRENT_LIST_DIR}/palette_window.cpp
 ${CMAKE_CURRENT_LIST_DIR}/pngfiles.cpp
@@ -182,6 +193,8 @@ ${CMAKE_CURRENT_LIST_DIR}/selection.cpp
 ${CMAKE_CURRENT_LIST_DIR}/settings.cpp
 ${CMAKE_CURRENT_LIST_DIR}/spawn_brush.cpp
 ${CMAKE_CURRENT_LIST_DIR}/spawn.cpp
+${CMAKE_CURRENT_LIST_DIR}/spawn_npc.cpp
+${CMAKE_CURRENT_LIST_DIR}/spawn_npc_brush.cpp
 ${CMAKE_CURRENT_LIST_DIR}/table_brush.cpp
 ${CMAKE_CURRENT_LIST_DIR}/templatemap76-74.cpp
 ${CMAKE_CURRENT_LIST_DIR}/templatemap81.cpp

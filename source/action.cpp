@@ -210,6 +210,19 @@ void Action::commit(DirtyList* dirty_list)
 					} else if(newtile->spawn) {
 						editor.map.addSpawn(newtile);
 					}
+					if(oldtile->spawnNpc) {
+						if(newtile->spawnNpc) {
+							if(*oldtile->spawnNpc != *newtile->spawnNpc) {
+								editor.map.removeSpawnNpc(oldtile);
+								editor.map.addSpawnNpc(newtile);
+							}
+						} else {
+							// Spawn has been removed
+							editor.map.removeSpawnNpc(oldtile);
+						}
+					} else if(newtile->spawnNpc) {
+						editor.map.addSpawnNpc(newtile);
+					}
 
 					//oldtile->update();
 					if(oldtile->isSelected())
@@ -228,6 +241,9 @@ void Action::commit(DirtyList* dirty_list)
 
 					if(newtile->spawn)
 						editor.map.addSpawn(newtile);
+
+					if(newtile->spawnNpc)
+						editor.map.addSpawnNpc(newtile);
 
 				}
 				// Mark the tile as modified
@@ -354,6 +370,19 @@ void Action::undo(DirtyList* dirty_list)
 					}
 				} else if(newtile->spawn) {
 					editor.map.removeSpawn(newtile);
+				}
+
+				if(oldtile->spawnNpc) {
+					if(newtile->spawnNpc) {
+						if(*oldtile->spawnNpc != *newtile->spawnNpc) {
+							editor.map.removeSpawnNpc(newtile);
+							editor.map.addSpawnNpc(oldtile);
+						}
+					} else {
+						editor.map.addSpawnNpc(oldtile);
+					}
+				} else if(newtile->spawnNpc) {
+					editor.map.removeSpawnNpc(newtile);
 				}
 				*data = newtile;
 

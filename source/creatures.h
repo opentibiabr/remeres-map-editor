@@ -43,8 +43,8 @@ public:
 	void clear();
 
 	CreatureType* operator[](const std::string& name);
-	CreatureType* addMissingCreatureType(const std::string& name, bool isNpc);
-	CreatureType* addCreatureType(const std::string& name, bool isNpc, const Outfit& outfit);
+	CreatureType* addMissingCreatureType(const std::string& name);
+	CreatureType* addCreatureType(const std::string& name, const Outfit& outfit);
 
 	bool hasMissing() const;
 	iterator begin() {return creature_map.begin();}
@@ -63,7 +63,6 @@ public:
 	CreatureType& operator=(const CreatureType& ct);
 	~CreatureType();
 
-	bool isNpc;
 	bool missing;
 	bool in_other_tileset;
 	bool standard;

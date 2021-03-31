@@ -75,7 +75,7 @@ protected:
 	wxTextCtrl* description_ctrl;
 	wxTextCtrl* house_filename_ctrl;
 	wxTextCtrl* spawn_filename_ctrl;
-	wxTextCtrl* npc_filename_ctrl;
+	wxTextCtrl* spawn_npc_filename_ctrl;
 
 	DECLARE_EVENT_TABLE();
 };
@@ -102,6 +102,7 @@ protected:
 
 	wxChoice* house_options;
 	wxChoice* spawn_options;
+	wxChoice* spawn_npc_options;
 
 	DECLARE_EVENT_TABLE();
 };
@@ -315,12 +316,22 @@ public:
 		wxPoint position = wxDefaultPosition);
 	ObjectPropertiesWindowBase(
 		wxWindow* parent, wxString title,
+		const Map* map, const Tile* tile, SpawnNpc* spawnNpc,
+		wxPoint position = wxDefaultPosition);
+	ObjectPropertiesWindowBase(
+		wxWindow* parent, wxString title,
+		const Map* map, const Tile* tile, Npc* npc,
+		wxPoint position = wxDefaultPosition);
+	ObjectPropertiesWindowBase(
+		wxWindow* parent, wxString title,
 		const Map* map, const Tile* tile, Creature* creature,
 		wxPoint position = wxDefaultPosition);
 
 	Item* getItemBeingEdited();
 	Creature* getCreatureBeingEdited();
 	Spawn* getSpawnBeingEdited();
+	Npc* getNpcBeingEdited();
+	SpawnNpc* getSpawnNpcBeingEdited();
 
 protected:
 	const Map* edit_map;
@@ -328,6 +339,8 @@ protected:
 	Item* edit_item;
 	Creature* edit_creature;
 	Spawn* edit_spawn;
+	Npc* edit_npc;
+	SpawnNpc* edit_spawn_npc;
 };
 
 /**

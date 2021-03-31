@@ -27,6 +27,7 @@
 #include "materials.h"
 #include "brush.h"
 #include "creature_brush.h"
+#include "npc_brush.h"
 #include "raw_brush.h"
 
 Materials g_materials;
@@ -240,22 +241,12 @@ bool Materials::unserializeMaterials(const FileName& filename, pugi::xml_node no
 void Materials::createOtherTileset()
 {
 	Tileset* others;
-	Tileset* npc_tileset;
-
 	if(tilesets["Others"] != nullptr) {
 		others = tilesets["Others"];
 		others->clear();
 	} else {
 		others = newd Tileset(g_brushes, "Others");
 		tilesets["Others"] = others;
-	}
-
-	if(tilesets["NPCs"] != nullptr) {
-		npc_tileset = tilesets["NPCs"];
-		npc_tileset->clear();
-	} else {
-		npc_tileset = newd Tileset(g_brushes, "NPCs");
-		tilesets["NPCs"] = npc_tileset;
 	}
 
 	// There should really be an iterator to do this
@@ -288,21 +279,39 @@ void Materials::createOtherTileset()
 	for(CreatureMap::iterator iter = g_creatures.begin(); iter != g_creatures.end(); ++iter) {
 		CreatureType* type = iter->second;
 		if(type->in_other_tileset) {
-			if(type->isNpc) {
-				npc_tileset->getCategory(TILESET_CREATURE)->brushlist.push_back(type->brush);
-			} else {
-				others->getCategory(TILESET_CREATURE)->brushlist.push_back(type->brush);
-			}
+			others->getCategory(TILESET_CREATURE)->brushlist.push_back(type->brush);
 		} else if(type->brush == nullptr) {
 			type->brush = newd CreatureBrush(type);
 			g_brushes.addBrush(type->brush);
 			type->brush->flagAsVisible();
 			type->in_other_tileset = true;
-			if(type->isNpc) {
-				npc_tileset->getCategory(TILESET_CREATURE)->brushlist.push_back(type->brush);
-			} else {
-				others->getCategory(TILESET_CREATURE)->brushlist.push_back(type->brush);
-			}
+
+			others->getCategory(TILESET_CREATURE)->brushlist.push_back(type->brush);
+		}
+	}
+}
+
+void Materials::createNpcTileset()
+{
+	Tileset* npcTileset;
+	if(tilesets["NPCs"] != nullptr) {
+		npcTileset = tilesets["NPCs"];
+		npcTileset->clear();
+	} else {
+		npcTileset = newd Tileset(g_brushes, "NPCs");
+		tilesets["NPCs"] = npcTileset;
+	}
+
+	for(NpcMap::iterator iter = g_npcs.begin(); iter != g_npcs.end(); ++iter) {
+		NpcType* type = iter->second;
+		if(type->in_other_tileset) {
+			npcTileset->getCategory(TILESET_NPC)->brushlist.push_back(type->brush);
+		} else if(type->brush == nullptr) {
+			type->brush = newd NpcBrush(type);
+			g_brushes.addBrush(type->brush);
+			type->brush->flagAsVisible();
+			type->in_other_tileset = true;
+			npcTileset->getCategory(TILESET_NPC)->brushlist.push_back(type->brush);
 		}
 	}
 }

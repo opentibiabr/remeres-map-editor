@@ -33,7 +33,9 @@
 #include "house_exit_brush.h"
 #include "doodad_brush.h"
 #include "creature_brush.h"
+#include "npc_brush.h"
 #include "spawn_brush.h"
+#include "spawn_npc_brush.h"
 
 #include "live_server.h"
 #include "live_client.h"
@@ -81,7 +83,7 @@ Editor::Editor(CopyBuffer& copybuffer) :
 	std::string sname = "Untitled-" + i2s(++unnamed_counter);
 	map.name = sname + ".otbm";
 	map.spawnfile = sname + "-spawn.xml";
-	map.npcfile = sname + "-npc.xml";
+	map.spawnnpcfile = sname + "-npc.xml";
 	map.housefile = sname + "-house.xml";
 	map.description = "No map description available.";
 	map.unnamed = true;
@@ -199,7 +201,7 @@ void Editor::saveMap(FileName filename, bool showdialog)
 		_name.SetName(filename.GetName() + "-spawn");
 		map.spawnfile = nstr(_name.GetFullName());
 		_name.SetName(filename.GetName() + "-npc");
-		map.npcfile = nstr(_name.GetFullName());
+		map.spawnnpcfile = nstr(_name.GetFullName());
 		_name.SetName(filename.GetName() + "-house");
 		map.housefile = nstr(_name.GetFullName());
 
@@ -213,7 +215,7 @@ void Editor::saveMap(FileName filename, bool showdialog)
 
 	// Make temporary backups
 	//converter.Assign(wxstr(savefile));
-	std::string backup_otbm, backup_house, backup_spawn, backup_npc;
+	std::string backup_otbm, backup_house, backup_spawn, backup_spawn_npc;
 
 	if(converter.GetExt() == "otgz") {
 		save_otgz = true;
@@ -243,11 +245,11 @@ void Editor::saveMap(FileName filename, bool showdialog)
 			std::rename((map_path + map.spawnfile).c_str(), backup_spawn.c_str());
 		}
 
-		converter.SetFullName(wxstr(map.npcfile));
+		converter.SetFullName(wxstr(map.spawnnpcfile));
 		if(converter.FileExists()) {
-			backup_npc = map_path + nstr(converter.GetName()) + ".xml~";
-			std::remove(backup_npc.c_str());
-			std::rename((map_path + map.npcfile).c_str(), backup_npc.c_str());
+			backup_spawn_npc = map_path + nstr(converter.GetName()) + ".xml~";
+			std::remove(backup_spawn_npc.c_str());
+			std::rename((map_path + map.spawnnpcfile).c_str(), backup_spawn_npc.c_str());
 		}
 	}
 
@@ -259,7 +261,7 @@ void Editor::saveMap(FileName filename, bool showdialog)
 			backup_otbm << std::endl <<
 			backup_house << std::endl <<
 			backup_spawn << std::endl <<
-			backup_npc << std::endl;
+			backup_spawn_npc << std::endl;
 	}
 
 	{
@@ -300,10 +302,10 @@ void Editor::saveMap(FileName filename, bool showdialog)
 				std::rename(backup_spawn.c_str(), std::string(spawn_filename + ".xml").c_str());
 			}
 
-			if(!backup_npc.empty()) {
-				converter.SetFullName(wxstr(map.npcfile));
-				std::string npc_filename = map_path + nstr(converter.GetName());
-				std::rename(backup_npc.c_str(), std::string(npc_filename + ".xml").c_str());
+			if(!backup_spawn_npc.empty()) {
+				converter.SetFullName(wxstr(map.spawnnpcfile));
+				std::string spawnnpc_filename = map_path + nstr(converter.GetName());
+				std::rename(backup_spawn_npc.c_str(), std::string(spawnnpc_filename + ".xml").c_str());
 			}
 
 			// Display the error
@@ -358,17 +360,17 @@ void Editor::saveMap(FileName filename, bool showdialog)
 			std::rename(backup_spawn.c_str(), std::string(spawn_filename + "." + date.str() + ".xml").c_str());
 		}
 		
-		if(!backup_npc.empty()) {
-			converter.SetFullName(wxstr(map.npcfile));
-			std::string npc_filename = map_path + nstr(converter.GetName());
-			std::rename(backup_npc.c_str(), std::string(npc_filename + "." + date.str() + ".xml").c_str());
+		if(!backup_spawn_npc.empty()) {
+			converter.SetFullName(wxstr(map.spawnnpcfile));
+			std::string spawnnpc_filename = map_path + nstr(converter.GetName());
+			std::rename(backup_spawn_npc.c_str(), std::string(spawnnpc_filename + "." + date.str() + ".xml").c_str());
 		}
 	} else {
 		// Delete the temporary files
 		std::remove(backup_otbm.c_str());
 		std::remove(backup_house.c_str());
 		std::remove(backup_spawn.c_str());
-		std::remove(backup_npc.c_str());
+		std::remove(backup_spawn_npc.c_str());
 	}
 
 	map.clearChanges();
@@ -1027,10 +1029,20 @@ void Editor::moveSelection(Position offset)
 			tmp_storage_tile->spawn = new_src_tile->spawn;
 			new_src_tile->spawn = nullptr;
 		}
-		// Move creatures
+		// Move monster
 		if(new_src_tile->creature && new_src_tile->creature->isSelected()) {
 			tmp_storage_tile->creature = new_src_tile->creature;
 			new_src_tile->creature = nullptr;
+		}
+		// Move npc
+		if(new_src_tile->npc && new_src_tile->npc->isSelected()) {
+			tmp_storage_tile->npc = new_src_tile->npc;
+			new_src_tile->npc = nullptr;
+		}
+		// Move npc spawns
+		if(new_src_tile->spawnNpc && new_src_tile->spawnNpc->isSelected()) {
+			tmp_storage_tile->spawnNpc = new_src_tile->spawnNpc;
+			new_src_tile->spawnNpc = nullptr;
 		}
 
 		// Move house data & tile status if ground is transferred
@@ -1206,7 +1218,7 @@ void Editor::destroySelection()
 				// Delete the items from the tile
 				delete *iit;
 			}
-
+			// Monster
 			if(newtile->creature && newtile->creature->isSelected()) {
 				delete newtile->creature;
 				newtile->creature = nullptr;
@@ -1215,6 +1227,16 @@ void Editor::destroySelection()
 			if(newtile->spawn && newtile->spawn->isSelected()) {
 				delete newtile->spawn;
 				newtile->spawn = nullptr;
+			}
+			// Npc
+			if(newtile->npc && newtile->npc->isSelected()) {
+				delete newtile->npc;
+				newtile->npc = nullptr;
+			}
+
+			if(newtile->spawnNpc && newtile->spawnNpc->isSelected()) {
+				delete newtile->spawnNpc;
+				newtile->spawnNpc = nullptr;
 			}
 
 			if(g_settings.getInteger(Config::USE_AUTOMAGIC)) {
@@ -1454,6 +1476,31 @@ void Editor::drawInternal(Position offset, bool alt, bool dodraw)
 		int param;
 		if(brush->isCreature()) {
 			param = g_gui.GetSpawnTime();
+		} else {
+			param = g_gui.GetBrushSize();
+		}
+		if(dodraw) {
+			brush->draw(&map, new_tile, &param);
+		} else {
+			brush->undraw(&map, new_tile);
+		}
+		action->addChange(newd Change(new_tile));
+		batch->addAndCommitAction(action);
+		addBatch(batch, 2);
+	} else if(brush->isSpawnNpc() || brush->isNpc()) {
+		BatchAction* batch = actionQueue->createBatch(ACTION_DRAW);
+		Action* action = actionQueue->createAction(batch);
+
+		Tile* tile = map.getTile(offset);
+		Tile* new_tile = nullptr;
+		if(tile) {
+			new_tile = tile->deepCopy(map);
+		} else {
+			new_tile = map.allocator(map.createTileL(offset));
+		}
+		int param;
+		if(brush->isNpc()) {
+			param = g_gui.GetSpawnNpcTime();
 		} else {
 			param = g_gui.GetBrushSize();
 		}

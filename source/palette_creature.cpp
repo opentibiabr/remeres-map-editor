@@ -44,9 +44,10 @@ CreaturePalettePanel::CreaturePalettePanel(wxWindow* parent, wxWindowID id) :
 	PalettePanel(parent, id),
 	handling_event(false)
 {
+	
 	wxSizer* topsizer = newd wxBoxSizer(wxVERTICAL);
 
-	wxSizer* sidesizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Creatures");
+	wxSizer* sidesizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Monsters");
 	tileset_choice = newd wxChoice(this, PALETTE_CREATURE_TILESET_CHOICE, wxDefaultPosition, wxDefaultSize, (int)0, (const wxString*)nullptr);
 	sidesizer->Add(tileset_choice, 0, wxEXPAND);
 
@@ -169,7 +170,7 @@ void CreaturePalettePanel::OnUpdate()
 		const TilesetCategory* tsc = iter->second->getCategory(TILESET_CREATURE);
 		if(tsc && tsc->size() > 0) {
 			tileset_choice->Append(wxstr(iter->second->name), const_cast<TilesetCategory*>(tsc));
-		} else if(iter->second->name == "NPCs" || iter->second->name == "Others") {
+		} else if(iter->second->name == "Others") {
 			Tileset* ts = const_cast<Tileset*>(iter->second);
 			TilesetCategory* rtsc = ts->getCategory(TILESET_CREATURE);
 			tileset_choice->Append(wxstr(ts->name), rtsc);

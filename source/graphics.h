@@ -263,6 +263,7 @@ public:
 
 	uint16_t getItemSpriteMaxID() const;
 	uint16_t getCreatureSpriteMaxID() const;
+	uint16_t getNpcSpriteMaxID() const;
 
 	// Get an unused texture id (this is acquired by simply increasing a value starting from 0x10000000)
 	GLuint getFreeTextureID();
@@ -303,6 +304,7 @@ private:
 	DatFormat dat_format;
 	uint16_t item_count;
 	uint16_t creature_count;
+	uint16_t npc_count;
 	bool otfi_found;
 	bool is_extended;
 	bool has_transparency;

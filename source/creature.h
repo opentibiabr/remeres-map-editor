@@ -19,19 +19,7 @@
 #define RME_CREATURE_H_
 
 #include "creatures.h"
-
-enum Direction
-{
-	NORTH = 0,
-	EAST = 1,
-	SOUTH = 2,
-	WEST = 3,
-
-	DIRECTION_FIRST = NORTH,
-	DIRECTION_LAST = WEST
-};
-
-IMPLEMENT_INCREMENT_OP(Direction)
+#include "enums.h"
 
 class Creature {
 public:
@@ -54,8 +42,6 @@ public:
 	bool isSelected() const {return selected;}
 	void deselect() {selected = false;}
 	void select() {selected = true;}
-
-	bool isNpc() const;
 
 	std::string getName() const;
 	CreatureBrush* getBrush() const;
@@ -84,14 +70,6 @@ inline void Creature::reset() {
 
 inline bool Creature::isSaved() {
 	return saved;
-}
-
-inline bool Creature::isNpc() const {
-	CreatureType* type = g_creatures[type_name];
-	if(type) {
-		return type->isNpc;
-	}
-	return false;
 }
 
 inline std::string Creature::getName() const {

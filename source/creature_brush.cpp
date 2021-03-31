@@ -58,9 +58,7 @@ bool CreatureBrush::canDraw(BaseMap* map, const Position& position) const
 	if(creature_type && tile && !tile->isBlocking()) {
 		if(tile->getLocation()->getSpawnCount() != 0 || g_settings.getInteger(Config::AUTO_CREATE_SPAWN)) {
  		   if(tile->isPZ()) {
-				if(creature_type->isNpc) {
-					return true;
-				}
+				return true;
 			} else {
 				return true;
 			}

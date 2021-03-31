@@ -33,6 +33,7 @@
 
 #include "doodad_brush.h"
 #include "creature_brush.h"
+#include "npc_brush.h"
 #include "house_exit_brush.h"
 #include "house_brush.h"
 #include "spawn_brush.h"
@@ -41,6 +42,7 @@
 #include "raw_brush.h"
 #include "table_brush.h"
 #include "waypoint_brush.h"
+#include "spawn_npc_brush.h"
 
 DrawingOptions::DrawingOptions()
 {
@@ -59,6 +61,8 @@ void DrawingOptions::SetDefault()
 	show_all_floors = true;
 	show_creatures = true;
 	show_spawns = true;
+	show_npcs = true;
+	show_spawns_npc = true;
 	show_houses = true;
 	show_shade = true;
 	show_special_tiles = true;
@@ -87,6 +91,8 @@ void DrawingOptions::SetIngame()
 	show_all_floors = true;
 	show_creatures = true;
 	show_spawns = false;
+	show_npcs = true;
+	show_spawns_npc = false;
 	show_houses = false;
 	show_shade = false;
 	show_special_tiles = false;
@@ -384,8 +390,12 @@ void MapDrawer::DrawMap()
 									BlitItem(draw_x, draw_y, tile, *it, true, 160, 160, 160, 160);
 								}
 							}
+							// Monsters
 							if(tile->creature && options.show_creatures)
 								BlitCreature(draw_x, draw_y, tile->creature);
+							// Npcs
+							if(tile->npc && options.show_npcs)
+								BlitCreature(draw_x, draw_y, tile->npc);
 						}
 					}
 				}
@@ -563,8 +573,15 @@ void MapDrawer::DrawDraggingShadow()
 
 				if(tile->creature && tile->creature->isSelected() && options.show_creatures)
 					BlitCreature(draw_x, draw_y, tile->creature);
+
 				if(tile->spawn && tile->spawn->isSelected())
 					BlitSpriteType(draw_x, draw_y, SPRITE_SPAWN, 160, 160, 160, 160);
+
+				if(tile->npc && tile->npc->isSelected() && options.show_npcs)
+					BlitCreature(draw_x, draw_y, tile->npc);
+
+				if(tile->spawnNpc && tile->spawnNpc->isSelected())
+					BlitSpriteType(draw_x, draw_y, SPRITE_SPAWN_NPC, 160, 160, 160, 160);
 			}
 		}
 	}
@@ -724,6 +741,8 @@ void MapDrawer::DrawBrush()
 		brushColor = COLOR_FLAG_BRUSH;
 	else if(brush->isSpawn())
 		brushColor = COLOR_SPAWN_BRUSH;
+	else if(brush->isSpawnNpc())
+		brushColor = COLOR_SPAWN_NPC_BRUSH;
 	else if(brush->isEraser())
 		brushColor = COLOR_ERASER;
 
@@ -778,7 +797,7 @@ void MapDrawer::DrawBrush()
 			if(brush->isRaw())
 				glEnable(GL_TEXTURE_2D);
 
-			if(g_gui.GetBrushShape() == BRUSHSHAPE_SQUARE || brush->isSpawn() /* Spawn brush is always square */) {
+			if(g_gui.GetBrushShape() == BRUSHSHAPE_SQUARE || brush->isSpawn() || brush->isSpawnNpc()) {
 				if(brush->isRaw() || brush->isOptionalBorder()) {
 					int start_x, end_x;
 					int start_y, end_y;
@@ -958,6 +977,16 @@ void MapDrawer::DrawBrush()
 				BlitCreature(cx, cy, creature_brush->getType()->outfit, SOUTH, 255, 255, 255, 160);
 			else
 				BlitCreature(cx, cy, creature_brush->getType()->outfit, SOUTH, 255, 64, 64, 160);
+			glDisable(GL_TEXTURE_2D);
+		} else if(brush->isNpc()) {
+			glEnable(GL_TEXTURE_2D);
+			int cy = (mouse_map_y) * TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
+			int cx = (mouse_map_x) * TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
+			NpcBrush* npcBrush = brush->asNpc();
+			if(npcBrush->canDraw(&editor.map, Position(mouse_map_x, mouse_map_y, floor)))
+				BlitCreature(cx, cy, npcBrush->getType()->outfit, SOUTH, 255, 255, 255, 160);
+			else
+				BlitCreature(cx, cy, npcBrush->getType()->outfit, SOUTH, 255, 64, 64, 160);
 			glDisable(GL_TEXTURE_2D);
 		} else if(!brush->isDoodad()) {
 			RAWBrush* raw_brush = nullptr;
@@ -1316,6 +1345,16 @@ void MapDrawer::BlitCreature(int screenx, int screeny, const Creature* c, int re
 	}
 	BlitCreature(screenx, screeny, c->getLookType(), c->getDirection(), red, green, blue, alpha);
 }
+// Npcs
+void MapDrawer::BlitCreature(int screenx, int screeny, const Npc* npc, int red, int green, int blue, int alpha)
+{
+	if(!options.ingame && npc->isSelected()) {
+		red /= 2;
+		green /= 2;
+		blue /= 2;
+	}
+	BlitCreature(screenx, screeny, npc->getLookType(), npc->getDirection(), red, green, blue, alpha);
+}
 
 void MapDrawer::WriteTooltip(Item* item, std::ostringstream& stream)
 {
@@ -1415,6 +1454,15 @@ void MapDrawer::DrawTile(TileLocation* location)
 				b = uint8_t(b * f);
 			}
 
+			if(options.show_spawns_npc && location->getSpawnNpcCount() > 0) {
+				float f = 1.0f;
+				for(uint32_t i = 0; i < location->getSpawnNpcCount(); ++i) {
+					f *= 0.7f;
+				}
+				g = uint8_t(g * f);
+				b = uint8_t(b * f);
+			}
+
 			if(options.show_houses && tile->isHouseTile()) {
 				if((int)tile->getHouseID() == current_house_id) {
 					r /= 2;
@@ -1483,6 +1531,9 @@ void MapDrawer::DrawTile(TileLocation* location)
 			if(tile->creature && options.show_creatures) {
 				BlitCreature(draw_x, draw_y, tile->creature);
 			}
+			if(tile->npc && options.show_npcs) {
+				BlitCreature(draw_x, draw_y, tile->npc);
+			}
 		}
 		//if(location->getWaypointCount() > 0 && options.show_houses) {
 			//BlitSpriteType(draw_x, draw_y, SPRITE_FLAME_BLUE, 64, 64, 255);
@@ -1503,6 +1554,14 @@ void MapDrawer::DrawTile(TileLocation* location)
 				BlitSpriteType(draw_x, draw_y, SPRITE_SPAWN, 128, 128, 128);
 			} else {
 				BlitSpriteType(draw_x, draw_y, SPRITE_SPAWN, 255, 255, 255);
+			}
+		}
+
+		if(tile->spawnNpc && options.show_spawns_npc) {
+			if(tile->spawnNpc->isSelected()) {
+				BlitSpriteType(draw_x, draw_y, SPRITE_SPAWN_NPC, 128, 128, 128);
+			} else {
+				BlitSpriteType(draw_x, draw_y, SPRITE_SPAWN_NPC, 255, 255, 255);
 			}
 		}
 	}
@@ -1780,6 +1839,10 @@ void MapDrawer::glColor(MapDrawer::BrushColor color)
 			break;
 
 		case COLOR_SPAWN_BRUSH:
+			glColor4ub(166, 0, 0, 128);
+			break;
+
+		case COLOR_SPAWN_NPC_BRUSH:
 			glColor4ub(166, 0, 0, 128);
 			break;
 

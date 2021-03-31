@@ -29,6 +29,7 @@
 
 class Item;
 class Creature;
+class Npc;
 
 class MainFrame;
 class MapWindow;

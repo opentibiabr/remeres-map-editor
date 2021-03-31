@@ -26,6 +26,7 @@
 #include "complexitem.h"
 #include "waypoints.h"
 #include "templates.h"
+#include "spawn_npc.h"
 
 class Map : public BaseMap
 {
@@ -69,6 +70,16 @@ public:
 	SpawnList getSpawnList(const Position& position) { return getSpawnList(getTile(position)); }
 	SpawnList getSpawnList(int32_t x, int32_t y, int32_t z) { return getSpawnList(getTile(x, y, z)); }
 
+	// Mess with spawns npc
+	bool addSpawnNpc(Tile* spawn);
+	void removeSpawnNpc(Tile* tile);
+	void removeSpawnNpc(const Position& position) { removeSpawnNpc(getTile(position)); }
+
+	// Returns all possible spawns npc on the target tile
+	SpawnNpcList getSpawnNpcList(Tile* t);
+	SpawnNpcList getSpawnNpcList(const Position& position) { return getSpawnNpcList(getTile(position)); }
+	SpawnNpcList getSpawnNpcList(int32_t x, int32_t y, int32_t z) { return getSpawnNpcList(getTile(x, y, z)); }
+
 	// Returns true if the map has been saved
 	// ie. it knows which file it should be saved to
 	bool hasFile() const;
@@ -82,7 +93,7 @@ public:
 	std::string getMapDescription() const {return description;}
 	std::string getHouseFilename() const {return housefile;}
 	std::string getSpawnFilename() const {return spawnfile;}
-	std::string getNpcFilename() const {return npcfile;}
+	std::string getSpawnNpcFilename() const {return spawnnpcfile;}
 
 	// Set some map data
 	void setWidth(int new_width);
@@ -90,7 +101,7 @@ public:
 	void setMapDescription(const std::string& new_description);
 	void setHouseFilename(const std::string& new_housefile);
 	void setSpawnFilename(const std::string& new_spawnfile);
-	void setNpcFilename(const std::string& new_npcfile);
+	void setSpawnNpcFilename(const std::string& new_npcfile);
 
 	void flagAsNamed() {unnamed = false;}
 
@@ -100,6 +111,7 @@ protected:
 
 protected:
 	void removeSpawnInternal(Tile* tile);
+	void removeSpawnNpcInternal(Tile* tile);
 
 	wxArrayString warnings;
 	wxString error;
@@ -114,13 +126,14 @@ protected:
 	uint16_t width, height;
 
 	std::string spawnfile; // The maps spawnfile
-	std::string npcfile; // The maps npcfile
+	std::string spawnnpcfile; // The maps spawnnpcfile
 	std::string housefile; // The housefile
 
 public:
 	Towns towns;
 	Houses houses;
 	Spawns spawns;
+	SpawnsNpc spawnsNpc;
 
 protected:
 	bool has_changed; // If the map has changed

@@ -27,6 +27,7 @@
 // TODO move to a declarations file.
 class ItemType;
 class CreatureType;
+class NpcType;
 class BaseMap;
 class House;
 class Item;
@@ -46,6 +47,8 @@ class DoorBrush;
 class OptionalBorderBrush;
 class CreatureBrush;
 class SpawnBrush;
+class NpcBrush;
+class SpawnNpcBrush;
 class HouseBrush;
 class HouseExitBrush;
 class WaypointBrush;
@@ -134,6 +137,8 @@ public:
 	virtual bool isOptionalBorder() const { return false; }
 	virtual bool isCreature() const { return false; }
 	virtual bool isSpawn() const { return false; }
+	virtual bool isNpc() const { return false; }
+	virtual bool isSpawnNpc() const { return false; }
 	virtual bool isHouse() const { return false; }
 	virtual bool isHouseExit() const { return false; }
 	virtual bool isWaypoint() const { return false; }
@@ -152,6 +157,8 @@ public:
 	virtual OptionalBorderBrush* asOptionalBorder() { return nullptr; }
 	virtual CreatureBrush* asCreature() { return nullptr; }
 	virtual SpawnBrush* asSpawn() { return nullptr; }
+	virtual NpcBrush* asNpc() { return nullptr; }
+	virtual SpawnNpcBrush* asSpawnNpc() { return nullptr; }
 	virtual HouseBrush* asHouse() { return nullptr; }
 	virtual HouseExitBrush* asHouseExit() { return nullptr; }
 	virtual WaypointBrush* asWaypoint() { return nullptr; }

@@ -368,9 +368,9 @@ void Map::setSpawnFilename(const std::string&  new_spawnfile)
 	unnamed = false;
 }
 
-void Map::setNpcFilename(const std::string&  new_npcfile)
+void Map::setSpawnNpcFilename(const std::string&  new_spawnnpcfile)
 {
-	npcfile = new_npcfile;
+	spawnnpcfile = new_spawnnpcfile;
 	unnamed = false;
 }
 
@@ -472,6 +472,106 @@ SpawnList Map::getSpawnList(Tile* where)
 		}
 	}
 	return list;
+}
+
+bool Map::addSpawnNpc(Tile* tile)
+{
+	SpawnNpc* spawnNpc = tile->spawnNpc;
+	if(spawnNpc) {
+		int z = tile->getZ();
+		int start_x = tile->getX() - spawnNpc->getSize();
+		int start_y = tile->getY() - spawnNpc->getSize();
+		int end_x = tile->getX() + spawnNpc->getSize();
+		int end_y = tile->getY() + spawnNpc->getSize();
+
+		for(int y = start_y; y <= end_y; ++y) {
+			for(int x = start_x; x <= end_x; ++x) {
+				TileLocation* ctile_loc = createTileL(x, y, z);
+				ctile_loc->increaseSpawnNpcCount();
+			}
+		}
+		spawnsNpc.addSpawnNpc(tile);
+		return true;
+	}
+	return false;
+}
+
+void Map::removeSpawnNpcInternal(Tile* tile)
+{
+	SpawnNpc* spawnNpc = tile->spawnNpc;
+	ASSERT(spawnNpc);
+
+	int z = tile->getZ();
+	int start_x = tile->getX() - spawnNpc->getSize();
+	int start_y = tile->getY() - spawnNpc->getSize();
+	int end_x = tile->getX() + spawnNpc->getSize();
+	int end_y = tile->getY() + spawnNpc->getSize();
+
+	for(int y = start_y; y <= end_y; ++y) {
+		for(int x = start_x; x <= end_x; ++x) {
+			TileLocation* ctile_loc = getTileL(x, y, z);
+			if(ctile_loc != nullptr && ctile_loc->getSpawnNpcCount() > 0)
+				ctile_loc->decreaseSpawnNpcCount();
+		}
+	}
+}
+
+void Map::removeSpawnNpc(Tile* tile)
+{
+	if(tile->spawnNpc) {
+		removeSpawnNpcInternal(tile);
+		spawnsNpc.removeSpawnNpc(tile);
+	}
+}
+
+SpawnNpcList Map::getSpawnNpcList(Tile* where)
+{
+	SpawnNpcList listNpc;
+	TileLocation* tile_loc = where->getLocation();
+	if(tile_loc) {
+		if(tile_loc->getSpawnCount() > 0) {
+			uint32_t found = 0;
+			if(where->spawnNpc) {
+				++found;
+				listNpc.push_back(where->spawnNpc);
+			}
+
+			// Scans the border tiles in an expanding square around the original spawnNpc
+			int z = where->getZ();
+			int start_x = where->getX() - 1, end_x = where->getX() + 1;
+			int start_y = where->getY() - 1, end_y = where->getY() + 1;
+			while(found != tile_loc->getSpawnCount()) {
+				for(int x = start_x; x <= end_x; ++x) {
+					Tile* tile = getTile(x, start_y, z);
+					if(tile && tile->spawnNpc) {
+						listNpc.push_back(tile->spawnNpc);
+						++found;
+					}
+					tile = getTile(x, end_y, z);
+					if(tile && tile->spawnNpc) {
+						listNpc.push_back(tile->spawnNpc);
+						++found;
+					}
+				}
+
+				for(int y = start_y + 1; y < end_y; ++y) {
+					Tile* tile = getTile(start_x, y, z);
+					if(tile && tile->spawnNpc) {
+						listNpc.push_back(tile->spawnNpc);
+						++found;
+					}
+					tile = getTile(end_x, y, z);
+					if(tile && tile->spawnNpc) {
+						listNpc.push_back(tile->spawnNpc);
+						++found;
+					}
+				}
+				--start_x, --start_y;
+				++end_x, ++end_y;
+			}
+		}
+	}
+	return listNpc;
 }
 
 bool Map::exportMinimap(FileName filename, int floor /*= GROUND_LAYER*/, bool displaydialog)

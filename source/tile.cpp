@@ -28,12 +28,16 @@
 #include "wall_brush.h"
 #include "carpet_brush.h"
 #include "table_brush.h"
+#include "npc.h"
+#include "spawn_npc.h"
 
 Tile::Tile(int x, int y, int z) :
 	location(nullptr),
 	ground(nullptr),
 	creature(nullptr),
 	spawn(nullptr),
+	npc(nullptr),
+	spawnNpc(nullptr),
 	house_id(0),
 	mapflags(0),
 	statflags(0),
@@ -47,6 +51,8 @@ Tile::Tile(TileLocation& loc) :
 	ground(nullptr),
 	creature(nullptr),
 	spawn(nullptr),
+	npc(nullptr),
+	spawnNpc(nullptr),
 	house_id(0),
 	mapflags(0),
 	statflags(0),
@@ -65,6 +71,8 @@ Tile::~Tile()
 	//printf("%d,%d,%d,%p\n", tilePos.x, tilePos.y, tilePos.z, ground);
 	delete ground;
 	delete spawn;
+	delete npc;
+	delete spawnNpc;
 }
 
 Tile* Tile::deepCopy(BaseMap& map)
@@ -73,7 +81,9 @@ Tile* Tile::deepCopy(BaseMap& map)
 	copy->flags = flags;
 	copy->house_id = house_id;
 	if(spawn) copy->spawn = spawn->deepCopy();
+	if(spawnNpc) copy->spawnNpc = spawnNpc->deepCopy();
 	if(creature) copy->creature = creature->deepCopy();
+	if(npc) copy->npc = npc->deepCopy();
 	// Spawncount & exits are not transferred on copy!
 	if(ground) copy->ground = ground->deepCopy();
 
@@ -113,9 +123,12 @@ int Tile::size() const
 	sz += items.size();
 	if(creature) ++sz;
 	if(spawn) ++sz;
+	if(npc) ++sz;
+	if(spawnNpc) ++sz;
 	if(location) {
 		if(location->getHouseExits()) ++sz;
 		if(location->getSpawnCount()) ++sz;
+		if(location->getSpawnNpcCount()) ++sz;
 		if(location->getWaypointCount()) ++ sz;
 	}
 	return sz;
@@ -145,10 +158,28 @@ void Tile::merge(Tile* other) {
 		other->spawn = nullptr;
 	}
 
+	if(other->npc) {
+		delete npc;
+		npc = other->npc;
+		other->npc = nullptr;
+	}
+
+	if(other->spawnNpc) {
+		delete spawnNpc;
+		spawnNpc = other->spawnNpc;
+		other->spawnNpc = nullptr;
+	}
+
 	if(other->creature) {
 		delete creature;
 		creature = other->creature;
 		other->creature = nullptr;
+	}
+
+	if(other->npc) {
+		delete npc;
+		npc = other->npc;
+		other->npc = nullptr;
 	}
 
 	ItemVector::iterator it;
@@ -239,7 +270,9 @@ void Tile::select()
 	if(size() == 0) return;
 	if(ground) ground->select();
 	if(spawn) spawn->select();
+	if(spawnNpc) spawnNpc->select();
 	if(creature) creature->select();
+	if(npc) npc->select();
 
 	ItemVector::iterator it;
 
@@ -257,7 +290,9 @@ void Tile::deselect()
 {
 	if(ground) ground->deselect();
 	if(spawn) spawn->deselect();
+	if(spawnNpc) spawnNpc->deselect();
 	if(creature) creature->deselect();
+	if(npc) npc->deselect();
 
 	ItemVector::iterator it;
 
@@ -385,7 +420,13 @@ void Tile::update()
 	if(spawn && spawn->isSelected()) {
 		statflags |= TILESTATE_SELECTED;
 	}
+	if(spawnNpc && spawnNpc->isSelected()) {
+		statflags |= TILESTATE_SELECTED;
+	}
 	if(creature && creature->isSelected()) {
+		statflags |= TILESTATE_SELECTED;
+	}
+	if(npc && npc->isSelected()) {
 		statflags |= TILESTATE_SELECTED;
 	}
 

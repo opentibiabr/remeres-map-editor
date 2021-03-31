@@ -102,6 +102,7 @@ wxString PalettePanel::GetName() const
 		case TILESET_DOODAD: return "Doodad Palette";
 		case TILESET_ITEM: return "Item Palette";
 		case TILESET_CREATURE: return "Creature Palette";
+		case TILESET_NPC: return "Npc Palette";
 		case TILESET_HOUSE: return "House Palette";
 		case TILESET_RAW: return "RAW Palette";
 		case TILESET_WAYPOINT: return "Waypoint Palette";

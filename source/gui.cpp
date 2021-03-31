@@ -37,6 +37,7 @@
 #include "map_display.h"
 #include "application.h"
 #include "welcome_dialog.h"
+#include "spawn_npc_brush.h"
 
 #include "live_client.h"
 #include "live_tab.h"
@@ -86,6 +87,7 @@ GUI::GUI() :
 	brush_variation(0),
 
 	creature_spawntime(0),
+	npc_spawntime(0),
 	use_custom_thickness(false),
 	custom_thickness_mod(0.0),
 	progressBar(nullptr),
@@ -386,18 +388,32 @@ bool GUI::LoadDataFiles(wxString& error, wxArrayString& warnings)
 		warnings.push_back("Couldn't load items.xml: " + error);
 	}
 
-	g_gui.SetLoadDone(45, "Loading creatures.xml ...");
-	if(!g_creatures.loadFromXML(wxString(data_path.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + "creatures.xml"), true, error, warnings)) {
-		warnings.push_back("Couldn't load creatures.xml: " + error);
+	g_gui.SetLoadDone(45, "Loading monsters.xml ...");
+	if(!g_creatures.loadFromXML(wxString(data_path.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + "monsters.xml"), true, error, warnings)) {
+		warnings.push_back("Couldn't load monsters.xml: " + error);
 	}
 
-	g_gui.SetLoadDone(45, "Loading user creatures.xml ...");
+	g_gui.SetLoadDone(45, "Loading user monsters.xml ...");
 	{
 		FileName cdb = getLoadedVersion()->getLocalDataPath();
-		cdb.SetFullName("creatures.xml");
+		cdb.SetFullName("monsters.xml");
 		wxString nerr;
 		wxArrayString nwarn;
 		g_creatures.loadFromXML(cdb, false, nerr, nwarn);
+	}
+
+	g_gui.SetLoadDone(45, "Loading npcs.xml ...");
+	if(!g_npcs.loadFromXML(wxString(data_path.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + "npcs.xml"), true, error, warnings)) {
+		warnings.push_back("Couldn't load npcs.xml: " + error);
+	}
+
+	g_gui.SetLoadDone(45, "Loading user npcs.xml ...");
+	{
+		FileName cdb = getLoadedVersion()->getLocalDataPath();
+		cdb.SetFullName("npcs.xml");
+		wxString nerr;
+		wxArrayString nwarn;
+		g_npcs.loadFromXML(cdb, false, nerr, nwarn);
 	}
 
 	g_gui.SetLoadDone(50, "Loading materials.xml ...");
@@ -413,6 +429,7 @@ bool GUI::LoadDataFiles(wxString& error, wxArrayString& warnings)
 	g_gui.SetLoadDone(70, "Finishing...");
 	g_brushes.init();
 	g_materials.createOtherTileset();
+	g_materials.createNpcTileset();
 
 	g_gui.DestroyLoadBar();
 	return true;
@@ -445,9 +462,13 @@ void GUI::UnloadVersion()
 		gfx.clear();
 
 		FileName cdb = getLoadedVersion()->getLocalDataPath();
-		cdb.SetFullName("creatures.xml");
+		cdb.SetFullName("monsters.xml");
 		g_creatures.saveToXML(cdb);
 		g_creatures.clear();
+
+		cdb.SetFullName("npcs.xml");
+		g_npcs.saveToXML(cdb);
+		g_npcs.clear();
 
 		loaded_version = CLIENT_VERSION_NONE;
 	}
@@ -610,6 +631,7 @@ bool GUI::LoadMap(const FileName& fileName)
 	mapTab->GetView()->FitToMap();
 	UpdateTitle();
 	ListDialog("Map loader errors", mapTab->GetMap()->getWarnings());
+	// Npc and monsters
 	root->DoQueryImportCreatures();
 
 	FitViewToMap(mapTab);
@@ -1649,6 +1671,9 @@ BrushShape GUI::GetBrushShape() const
 	if(current_brush == spawn_brush)
 		return BRUSHSHAPE_SQUARE;
 
+	if(current_brush == spawn_npc_brush)
+		return BRUSHSHAPE_SQUARE;
+
 	return brush_shape;
 }
 
@@ -1665,6 +1690,11 @@ int GUI::GetBrushVariation() const
 int GUI::GetSpawnTime() const
 {
 	return creature_spawntime;
+}
+
+int GUI::GetSpawnNpcTime() const
+{
+	return npc_spawntime;
 }
 
 void GUI::SelectBrush()

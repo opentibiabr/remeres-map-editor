@@ -24,6 +24,7 @@
 #include "item_attributes.h"
 
 class Creature;
+class Npc;
 class Border;
 class Tile;
 

@@ -22,6 +22,7 @@
 
 class BrushPalettePanel;
 class CreaturePalettePanel;
+class NpcPalettePanel;
 class HousePalettePanel;
 class WaypointPalettePanel;
 
@@ -66,6 +67,7 @@ protected:
 	static PalettePanel* CreateDoodadPalette(wxWindow* parent, const TilesetContainer& tilesets);
 	static PalettePanel* CreateItemPalette(wxWindow* parent, const TilesetContainer& tilesets);
 	static PalettePanel* CreateCreaturePalette(wxWindow* parent, const TilesetContainer& tilesets);
+	static PalettePanel* CreateNpcPalette(wxWindow* parent, const TilesetContainer& tilesets);
 	static PalettePanel* CreateHousePalette(wxWindow* parent, const TilesetContainer& tilesets);
 	static PalettePanel* CreateWaypointPalette(wxWindow* parent, const TilesetContainer& tilesets);
 	static PalettePanel* CreateRAWPalette(wxWindow* parent, const TilesetContainer& tilesets);
@@ -76,6 +78,7 @@ protected:
 	BrushPalettePanel* doodad_palette;
 	BrushPalettePanel* item_palette;
 	CreaturePalettePanel* creature_palette;
+	NpcPalettePanel* npc_palette;
 	HousePalettePanel* house_palette;
 	WaypointPalettePanel* waypoint_palette;
 	BrushPalettePanel* raw_palette;

@@ -572,7 +572,7 @@ bool IOMapOTMM::loadMap(Map& map, NodeFileReadHandle& f, const FileName& identif
 					if(creatureNode) do {
 						uint8_t creature_type;
 						if(!creatureNode->getByte(creature_type)) {
-							warning("Could not read type of creature node.");
+							warning("Could not read type of monster node.");
 							continue;
 						}
 						bool isNPC;
@@ -647,6 +647,125 @@ bool IOMapOTMM::loadMap(Map& map, NodeFileReadHandle& f, const FileName& identif
 						}
 					} while(creatureNode->advance());
 				} while(spawnNode->advance());
+			} break;
+			case OTMM_SPAWN_NPC_DATA: {
+				BinaryNode* spawnNpcNode = mapNode->getChild();
+				if(spawnNpcNode) do {
+					uint8_t spawnNpcType;
+					if(!spawnNpcNode->getByte(spawnNpcType)) {
+						warning("Could not read spawnNpc type.");
+						continue;
+					}
+					if(spawnNpcType != OTMM_SPAWN_NPC_AREA) {
+						warning("Invalid spawnNpc type.");
+						continue;
+					}
+
+					// Read position
+					uint16_t spawnNpc_x, spawnNpc_y;
+					uint8_t spawnNpc_z;
+					uint32_t radius;
+					if(!spawnNpcNode->getU16(spawnNpc_x) ||
+							!spawnNpcNode->getU16(spawnNpc_y) ||
+							!spawnNpcNode->getU8(spawnNpc_z)
+						)
+					{
+						warning("Could not read spawnNpc position.");
+						continue;
+					}
+					const Position spawnNpcPos(spawnNpc_x, spawnNpc_y, spawnNpc_z);
+
+					// Read radius
+					if(!spawnNpcNode->getU32(radius)) {
+						warning("Could not read spawnNpc radius.");
+						continue;
+					}
+					// Adjust radius
+					radius = min(radius, uint32_t(g_settings.getInteger(Config::MAX_SPAWN_NPC_RADIUS)));
+
+					// Create and assign spawnNpc
+					Tile* spawnNpcTile = map.getTile(spawnNpcPos);
+					if(spawnNpcTile && spawnNpcTile->spawnNpc) {
+						warning("Duplicate spawnNpc on position %d:%d:%d\n", spawnNpcTile->getX(), spawnNpcTile->getY(), spawnNpcTile->getZ());
+						continue;
+					}
+
+					SpawnNpc* spawnNpc = newd SpawnNpc(radius);
+					if(!spawnNpcTile) {
+						spawnNpcTile = map.allocator(spawnNpcPos);
+						map.setTile(spawnNpcPos, spawnNpcTile);
+					}
+					spawnNpcTile->spawnNpc = spawnNpc;
+					map.addSpawn(spawnNpcTile);
+
+					// Read any creatures associated with the spawnNpc
+					BinaryNode* npcNode = spawnNpcNode->getChild();
+					if(npcNode) do {
+						uint8_t npcType;
+						if(!npcNode->getByte(npcType)) {
+							warning("Could not read type of monster node.");
+							continue;
+						}
+						std::string name;
+						uint32_t spawntime = 0;
+
+						if(npcType == OTMM_NPC) {
+							if(!npcNode->getString(name)) {
+								warning("Could not read name of NPC.");
+								return false;
+							}
+						} else {
+							warning("Unknown npc node type (0x%.2x).", npcType);
+							return false;
+						}
+
+						// Read npc position
+						uint16_t npc_x, npc_y;
+						uint8_t npc_z;
+						if(!npcNode->getU16(npc_x) ||
+							!npcNode->getU16(npc_y) ||
+							!npcNode->getU8(npc_z) ) {
+							warning("Could not read npc position.");
+							continue;
+						}
+						const Position npcPos(npc_x, npc_y, npc_z);
+
+						// Check radius
+						if(uint32_t(abs(npcPos.x - spawnNpcPos.x)) > radius || uint32_t(abs(npcPos.y - spawnNpcPos.y)) > radius) {
+							// Outside of the spawnNpc...
+						}
+
+						// Create npc and put on map
+						Tile* npcTile;
+						if(npcPos == spawnNpcPos) {
+							npcTile = spawnNpcTile;
+						} else {
+							npcTile = map.getTile(npcPos);
+						}
+						if(!npcTile) {
+							warning("Discarding npc \"%s\" at %d:%d:%d due to invalid position", name.c_str(), npcPos.x, npcPos.y, npcPos.z);
+							break;
+						}
+						if(npcTile->npc) {
+							warning("Duplicate npc \"%s\" at %d:%d:%d, discarding", name.c_str(), npcPos.x, npcPos.y, npcPos.z);
+							break;
+						}
+						NpcType* type = g_npcs[name];
+						if(!type) {
+							type = g_npcs.addMissingNpcType(name);
+						}
+						Npc* npc = newd Npc(type);
+						npc->setSpawnNpcTime(spawntime);
+						npcTile->npc = npc;
+						if(npcTile->spawn_npc_count == 0) {
+							// No spawn, create a newd one (this happends if the radius of the spawn has been decreased due to g_settings)
+							ASSERT(npcTile->spawnNpc == nullptr);
+							SpawnNpc* spawnNpc = newd SpawnNpc(1);
+							npcTile->spawnNpc = spawnNpc;
+							map.addSpawnNpc(npcTile);
+						}
+					} while(npcNode->advance());
+				} while(spawnNpcNode->advance());
 			} break;
 			case OTMM_TOWN_DATA: {
 				BinaryNode* townNode = mapNode->getChild();
@@ -902,26 +1021,58 @@ bool IOMapOTMM::saveMap(Map& map, NodeFileWriteHandle& f, const FileName& identi
 								if(creature_tile) {
 									Creature* c = creature_tile->creature;
 									if(c && c->isSaved() == false) {
-										if(c->isNpc()) {
-											f.addNode(OTMM_NPC); {
-												f.addString(c->getName());
-												f.addU16(creature_tile->getX());
-												f.addU16(creature_tile->getY());
-												f.addU8(creature_tile->getZ() & 0xf);
-											} f.endNode(); // OTMM_NPC
-										} else {
-											f.addNode(OTMM_MONSTER); {
-												f.addString(c->getName());
-												f.addU32(c->getSpawnTime());
-												f.addU16(creature_tile->getX());
-												f.addU16(creature_tile->getY());
-												f.addU8(creature_tile->getZ() & 0xf);
-											} f.endNode(); // OTMM_MONSTER
-										}
+										f.addNode(OTMM_MONSTER); {
+											f.addString(c->getName());
+											f.addU32(c->getSpawnTime());
+											f.addU16(creature_tile->getX());
+											f.addU16(creature_tile->getY());
+											f.addU8(creature_tile->getZ() & 0xf);
+										} f.endNode(); // OTMM_MONSTER
 
 										// Flag as saved
 										c->save();
 										creature_list.push_back(c);
+									}
+								}
+							}
+						}
+					} f.endNode(); // OTMM_SPAWN_AREA
+				}
+				for(CreatureList::iterator iter = creature_list.begin(); iter != creature_list.end(); ++iter) {
+					(*iter)->reset();
+				}
+			} f.endNode(); // OTMM_SPAWN_DATA
+
+			f.addNode(OTMM_SPAWN_NPC_DATA); {
+				SpawnsNpc& spawnNpc = map.spawnsNpc;
+				NpcList npcList;
+				for(SpawnNpcPositionList::const_iterator piter = spawnNpc.begin(); piter != spawnNpc.end(); ++piter) {
+					const Tile* tile = map.getTile(*piter);
+					ASSERT(tile);
+					const SpawnNpc* spawnNpc = tile->spawnNpc;
+					ASSERT(spawnNpc);
+
+					f.addNode(OTMM_SPAWN_AREA); {
+						f.addU16(tile->getX());
+						f.addU16(tile->getY());
+						f.addU8(tile->getZ() & 0xf);
+						f.addU32(spawnNpc->getSize());
+						for(int y = -tile->spawnNpc->getSize(); y <= tile->spawnNpc->getSize(); ++y) {
+							for(int x = -tile->spawnNpc->getSize(); x <= tile->spawnNpc->getSize(); ++x) {
+								Tile* npcTile = map.getTile(*piter + Position(x, y, 0));
+								if(npcTile) {
+									Npc* npc = npcTile->npc;
+									if(npc && npc->isSaved() == false) {
+										f.addNode(OTMM_NPC); {
+											f.addString(npc->getName());
+											f.addU16(npcTile->getX());
+											f.addU16(npcTile->getY());
+											f.addU8(npcTile->getZ() & 0xf);
+										} f.endNode(); // OTMM_NPC
+
+										// Flag as saved
+										npc->save();
+										npcList.push_back(npc);
 									}
 								}
 							}

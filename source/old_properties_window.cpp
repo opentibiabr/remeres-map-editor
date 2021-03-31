@@ -27,6 +27,7 @@
 #include "map.h"
 #include "editor.h"
 #include "creature.h"
+#include "npc.h"
 
 #include "gui.h"
 #include "application.h"
@@ -354,12 +355,13 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 	wxFlexGridSizer* subsizer = newd wxFlexGridSizer(2, 10, 10);
 	subsizer->AddGrowableCol(1);
 
-	subsizer->Add(newd wxStaticText(this, wxID_ANY, "Creature "));
+	subsizer->Add(newd wxStaticText(this, wxID_ANY, "Creature name "));
+
 	subsizer->Add(newd wxStaticText(this, wxID_ANY, "\"" + wxstr(edit_creature->getName()) + "\""), wxSizerFlags(1).Expand());
 
-	subsizer->Add(newd wxStaticText(this, wxID_ANY, "Spawn interval"));
-	count_field = newd wxSpinCtrl(this, wxID_ANY, i2ws(edit_creature->getSpawnTime()), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 10, 3600, edit_creature->getSpawnTime());
-	// count_field->SetSelection(-1, -1);
+	subsizer->Add(newd wxStaticText(this, wxID_ANY, "Monster spawn interval"));
+		count_field = newd wxSpinCtrl(this, wxID_ANY, i2ws(edit_creature->getSpawnTime()), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 10, 3600, edit_creature->getSpawnTime());
+		// count_field->SetSelection(-1, -1);
 	subsizer->Add(count_field, wxSizerFlags(1).Expand());
 
 	subsizer->Add(newd wxStaticText(this, wxID_ANY, "Direction"));
@@ -409,6 +411,98 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 
 	subsizer->Add(newd wxStaticText(this, wxID_ANY, "Spawn size"));
 	count_field = newd wxSpinCtrl(this, wxID_ANY, i2ws(edit_spawn->getSize()), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 1, g_settings.getInteger(Config::MAX_SPAWN_RADIUS), edit_spawn->getSize());
+	// count_field->SetSelection(-1, -1);
+	subsizer->Add(count_field, wxSizerFlags(1).Expand());
+
+	boxsizer->Add(subsizer, wxSizerFlags(1).Expand());
+
+	topsizer->Add(boxsizer, wxSizerFlags(3).Expand().Border(wxALL, 20));
+
+	wxSizer* std_sizer = newd wxBoxSizer(wxHORIZONTAL);
+	std_sizer->Add(newd wxButton(this, wxID_OK, "OK"), wxSizerFlags(1).Center());
+	std_sizer->Add(newd wxButton(this, wxID_CANCEL, "Cancel"), wxSizerFlags(1).Center());
+	topsizer->Add(std_sizer, wxSizerFlags(0).Center().Border(wxLEFT | wxRIGHT | wxBOTTOM, 20));
+
+	SetSizerAndFit(topsizer);
+	Centre(wxBOTH);
+}
+
+OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, const Tile* tile_parent, Npc* npc, wxPoint pos) :
+	ObjectPropertiesWindowBase(win_parent, "Npc Properties", map, tile_parent, npc, pos),
+	count_field(nullptr),
+	direction_field(nullptr),
+	action_id_field(nullptr),
+	unique_id_field(nullptr),
+	door_id_field(nullptr),
+	depot_id_field(nullptr),
+	splash_type_field(nullptr),
+	text_field(nullptr),
+	description_field(nullptr)
+{
+	ASSERT(edit_npc);
+
+	wxSizer* topsizer = newd wxBoxSizer(wxVERTICAL);
+	wxSizer* boxsizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Npc Properties");
+
+	wxFlexGridSizer* subsizer = newd wxFlexGridSizer(2, 10, 10);
+	subsizer->AddGrowableCol(1);
+
+	subsizer->Add(newd wxStaticText(this, wxID_ANY, "Npc name "));
+
+	subsizer->Add(newd wxStaticText(this, wxID_ANY, "\"" + wxstr(edit_npc->getName()) + "\""), wxSizerFlags(1).Expand());
+
+	subsizer->Add(newd wxStaticText(this, wxID_ANY, "Spawn interval"));
+		count_field = newd wxSpinCtrl(this, wxID_ANY, i2ws(edit_npc->getSpawnNpcTime()), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 10, 3600, edit_npc->getSpawnNpcTime());
+		// count_field->SetSelection(-1, -1);
+	subsizer->Add(count_field, wxSizerFlags(1).Expand());
+
+	subsizer->Add(newd wxStaticText(this, wxID_ANY, "Direction"));
+	direction_field = newd wxChoice(this, wxID_ANY);
+
+	for(Direction dir = DIRECTION_FIRST; dir <= DIRECTION_LAST; ++dir) {
+		direction_field->Append(wxstr(Npc::DirID2Name(dir)), newd int32_t(dir));
+	}
+	direction_field->SetSelection(edit_npc->getDirection());
+	subsizer->Add(direction_field, wxSizerFlags(1).Expand());
+
+	boxsizer->Add(subsizer, wxSizerFlags(1).Expand());
+
+	topsizer->Add(boxsizer, wxSizerFlags(3).Expand().Border(wxALL, 20));
+	//SetSize(220, 0);
+
+	wxSizer* std_sizer = newd wxBoxSizer(wxHORIZONTAL);
+	std_sizer->Add(newd wxButton(this, wxID_OK, "OK"), wxSizerFlags(1).Center());
+	std_sizer->Add(newd wxButton(this, wxID_CANCEL, "Cancel"), wxSizerFlags(1).Center());
+	topsizer->Add(std_sizer, wxSizerFlags(0).Center().Border(wxLEFT | wxRIGHT | wxBOTTOM, 20));
+
+	SetSizerAndFit(topsizer);
+	Centre(wxBOTH);
+}
+
+OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, const Tile* tile_parent, SpawnNpc* spawnNpc, wxPoint pos) :
+	ObjectPropertiesWindowBase(win_parent, "Spawn Npc Properties", map, tile_parent, spawnNpc, pos),
+	count_npc_field(nullptr),
+	direction_field(nullptr),
+	action_id_field(nullptr),
+	unique_id_field(nullptr),
+	door_id_field(nullptr),
+	depot_id_field(nullptr),
+	splash_type_field(nullptr),
+	text_field(nullptr),
+	description_field(nullptr)
+{
+	ASSERT(edit_spawn_npc);
+
+	wxSizer* topsizer = newd wxBoxSizer(wxVERTICAL);
+	wxSizer* boxsizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Spawn Npc Properties");
+
+	//if(item->canHoldDescription()) num_items += 1;
+
+	wxFlexGridSizer* subsizer = newd wxFlexGridSizer(2, 10, 10);
+	subsizer->AddGrowableCol(1);
+
+	subsizer->Add(newd wxStaticText(this, wxID_ANY, "Spawn npc size"));
+	count_field = newd wxSpinCtrl(this, wxID_ANY, i2ws(edit_spawn_npc->getSize()), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 1, g_settings.getInteger(Config::MAX_SPAWN_NPC_RADIUS), edit_spawn_npc->getSize());
 	// count_field->SetSelection(-1, -1);
 	subsizer->Add(count_field, wxSizerFlags(1).Expand());
 
@@ -635,10 +729,23 @@ void OldPropertiesWindow::OnClickOK(wxCommandEvent& WXUNUSED(event))
 		if(new_dir) {
 			edit_creature->setDirection((Direction)*new_dir);
 		}
+	} else if(edit_npc) {
+		int new_spawn_npc_time = count_field->GetValue();
+		edit_npc->setSpawnNpcTime(new_spawn_npc_time);
+
+		int* new_dir = reinterpret_cast<int*>(direction_field->GetClientData(
+			direction_field->GetSelection()));
+
+		if(new_dir) {
+			edit_npc->setDirection((Direction)*new_dir);
+		}
 	} else if(edit_spawn) {
 		int new_spawnsize = count_field->GetValue();
 		edit_spawn->setSize(new_spawnsize);
-	}
+	} else if(edit_spawn_npc) {
+		int new_spawn_npcsize = count_field->GetValue();
+		edit_spawn_npc->setSize(new_spawn_npcsize);
+	} 
 	EndModal(1);
 }
 

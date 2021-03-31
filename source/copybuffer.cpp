@@ -21,6 +21,7 @@
 #include "editor.h"
 #include "gui.h"
 #include "creature.h"
+#include "npc.h"
 
 CopyBuffer::CopyBuffer() :
 	tiles(newd BaseMap())
@@ -89,11 +90,19 @@ void CopyBuffer::copy(Editor& editor, int floor)
 			copied_tile->addItem((*iit)->deepCopy());
 		}
 
+		// Monster
 		if(tile->creature && tile->creature->isSelected()) {
 			copied_tile->creature = tile->creature->deepCopy();
 		}
 		if(tile->spawn && tile->spawn->isSelected()) {
 			copied_tile->spawn = tile->spawn->deepCopy();
+		}
+		// Npc
+		if(tile->npc && tile->npc->isSelected()) {
+			copied_tile->npc = tile->npc->deepCopy();
+		}
+		if(tile->spawnNpc && tile->spawnNpc->isSelected()) {
+			copied_tile->spawnNpc = tile->spawnNpc->deepCopy();
 		}
 
 		tiles->setTile(copied_tile);
@@ -150,6 +159,7 @@ void CopyBuffer::cut(Editor& editor, int floor)
 			copied_tile->addItem(*iit);
 		}
 
+		// Monster
 		if(newtile->creature && newtile->creature->isSelected()) {
 			copied_tile->creature = newtile->creature;
 			newtile->creature = nullptr;
@@ -158,6 +168,17 @@ void CopyBuffer::cut(Editor& editor, int floor)
 		if(newtile->spawn && newtile->spawn->isSelected()) {
 			copied_tile->spawn = newtile->spawn;
 			newtile->spawn = nullptr;
+		}
+
+		// Npc
+		if(newtile->npc && newtile->npc->isSelected()) {
+			copied_tile->npc = newtile->npc;
+			newtile->npc = nullptr;
+		}
+
+		if(newtile->spawnNpc && newtile->spawnNpc->isSelected()) {
+			copied_tile->spawnNpc = newtile->spawnNpc;
+			newtile->spawnNpc = nullptr;
 		}
 
 		tiles->setTile(copied_tile->getPosition(), copied_tile);
