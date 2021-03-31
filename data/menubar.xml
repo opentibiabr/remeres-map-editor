@@ -145,6 +145,7 @@
         <item name="$Item Palette" hotkey="I" action="SELECT_ITEM" help="Select the Item palette."/>
         <item name="$House Palette" hotkey="H" action="SELECT_HOUSE" help="Select the House palette."/>
         <item name="$Creature Palette" hotkey="C" action="SELECT_CREATURE" help="Select the Creature palette."/>
+        <item name="$Npc Palette" hotkey="N" action="SELECT_NPC" help="Select the Npc palette."/>
         <item name="$Waypoint Palette" hotkey="W" action="SELECT_WAYPOINT" help="Select the Waypoint palette."/>
         <item name="$RAW Palette" hotkey="R" action="SELECT_RAW" help="Select the RAW palette."/>
     </menu>
