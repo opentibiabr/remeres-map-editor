@@ -476,7 +476,7 @@ bool Editor::exportSelectionAsMiniMap(FileName directory, wxString fileName)
 	return true;
 }
 
-bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offset, ImportType house_import_type, ImportType spawn_import_type)
+bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offset, ImportType house_import_type, ImportType spawn_import_type, ImportType spawn_npc_import_type)
 {
 	selection.clear();
 	actionQueue->clear();
@@ -654,6 +654,7 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 		}
 	}
 
+	// Monster spawn import
 	std::map<Position, Spawn*> spawn_map;
 	if(spawn_import_type != IMPORT_DONT) {
 		for(SpawnPositionList::iterator siter = imported_map.spawns.begin(); siter != imported_map.spawns.end();) {
@@ -682,6 +683,46 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 							siter = imported_map.spawns.find(next_spawn);
 						else
 							siter = imported_map.spawns.end();
+					}
+					break;
+				}
+				case IMPORT_DONT: {
+					++siter;
+					break;
+				}
+			}
+		}
+	}
+
+	// Npc spawn import
+	std::map<Position, SpawnNpc*> spawn_npc_map;
+	if(spawn_npc_import_type != IMPORT_DONT) {
+		for(SpawnPositionList::iterator siter = imported_map.spawnsNpc.begin(); siter != imported_map.spawnsNpc.end();) {
+			Position oldSpawnNpcPos = *siter;
+			Position newSpawnNpcPos = *siter + offset;
+			switch(spawn_npc_import_type) {
+				case IMPORT_SMART_MERGE:
+				case IMPORT_INSERT:
+				case IMPORT_MERGE: {
+					Tile* importedTile = imported_map.getTile(oldSpawnNpcPos);
+					if(importedTile) {
+						ASSERT(importedTile->spawnNpc);
+						spawn_npc_map[newSpawnNpcPos] = importedTile->spawnNpc;
+
+						SpawnPositionList::iterator next = siter;
+						bool cont = true;
+						Position next_spawn_npc;
+
+						++next;
+						if(next == imported_map.spawnsNpc.end())
+							cont = false;
+						else
+							next_spawn_npc = *next;
+						imported_map.spawnsNpc.erase(siter);
+						if(cont)
+							siter = imported_map.spawnsNpc.find(next_spawn_npc);
+						else
+							siter = imported_map.spawnsNpc.end();
 					}
 					break;
 				}
@@ -790,6 +831,22 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 		tile->spawn = spawn_iter->second;
 
 		map.addSpawn(tile);
+	}
+
+	for(std::map<Position, SpawnNpc*>::iterator spawn_npc_iter = spawn_npc_map.begin(); spawn_npc_iter != spawn_npc_map.end(); ++spawn_npc_iter) {
+		Position pos = spawn_npc_iter->first;
+		TileLocation* location = map.createTileL(pos);
+		Tile* tile = location->get();
+		if(!tile) {
+			tile = map.allocator(location);
+			map.setTile(pos, tile);
+		} else if(tile->spawnNpc) {
+			map.removeSpawnNpcInternal(tile);
+			delete tile->spawnNpc;
+		}
+		tile->spawnNpc = spawn_npc_iter->second;
+
+		map.addSpawnNpc(tile);
 	}
 
 	g_gui.DestroyLoadBar();

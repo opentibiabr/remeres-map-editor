@@ -385,7 +385,7 @@ BEGIN_EVENT_TABLE(ImportMapWindow, wxDialog)
 END_EVENT_TABLE()
 
 ImportMapWindow::ImportMapWindow(wxWindow* parent, Editor& editor) :
-	wxDialog(parent, wxID_ANY, "Import Map", wxDefaultPosition, wxSize(350, 315)),
+	wxDialog(parent, wxID_ANY, "Import Map", wxDefaultPosition, wxSize(350, 350)),
 	editor(editor)
 {
 	wxBoxSizer* sizer = newd wxBoxSizer(wxVERTICAL);
@@ -428,11 +428,18 @@ ImportMapWindow::ImportMapWindow(wxWindow* parent, Editor& editor) :
 	spawn_choices.Add("Merge");
 	spawn_choices.Add("Don't Import");
 
-	// Spawn options
-	tmpsizer = newd wxStaticBoxSizer(new wxStaticBox(this, wxID_ANY, "Spawn Import Behaviour"), wxVERTICAL);
+	// Monster spawn options
+	tmpsizer = newd wxStaticBoxSizer(new wxStaticBox(this, wxID_ANY, "Monster Spawn Import Behaviour"), wxVERTICAL);
 	spawn_options = newd wxChoice(tmpsizer->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize, spawn_choices);
 	spawn_options->SetSelection(0);
 	tmpsizer->Add(spawn_options, 0, wxALL | wxEXPAND, 5);
+	sizer->Add(tmpsizer, 1, wxEXPAND | wxLEFT | wxRIGHT, 5);
+
+	// Npc spawn options
+	tmpsizer = newd wxStaticBoxSizer(new wxStaticBox(this, wxID_ANY, "Npc Spawn Import Behaviour"), wxVERTICAL);
+	spawn_npc_options = newd wxChoice(tmpsizer->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize, spawn_choices);
+	spawn_npc_options->SetSelection(0);
+	tmpsizer->Add(spawn_npc_options, 0, wxALL | wxEXPAND, 5);
 	sizer->Add(tmpsizer, 1, wxEXPAND | wxLEFT | wxRIGHT, 5);
 
 	// OK/Cancel buttons
@@ -467,11 +474,17 @@ void ImportMapWindow::OnClickOK(wxCommandEvent& WXUNUSED(event))
 		}
 
 		ImportType spawn_import_type = IMPORT_DONT;
+		ImportType spawn_npc_import_type = IMPORT_DONT;
 		ImportType house_import_type = IMPORT_DONT;
 
 		switch(spawn_options->GetSelection()) {
 			case 0: spawn_import_type = IMPORT_MERGE; break;
 			case 1: spawn_import_type = IMPORT_DONT; break;
+		}
+
+		switch(spawn_npc_options->GetSelection()) {
+			case 0: spawn_npc_import_type = IMPORT_MERGE; break;
+			case 1: spawn_npc_import_type = IMPORT_DONT; break;
 		}
 
 		switch(house_options->GetSelection()) {
@@ -483,7 +496,7 @@ void ImportMapWindow::OnClickOK(wxCommandEvent& WXUNUSED(event))
 
 		EndModal(1);
 
-		editor.importMap(fn, x_offset_ctrl->GetValue(), y_offset_ctrl->GetValue(), house_import_type, spawn_import_type);
+		editor.importMap(fn, x_offset_ctrl->GetValue(), y_offset_ctrl->GetValue(), house_import_type, spawn_import_type, spawn_npc_import_type);
 	}
 }
 
