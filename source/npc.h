@@ -43,8 +43,6 @@ public:
 	void deselect() {selected = false;}
 	void select() {selected = true;}
 
-	bool isNpc() const;
-
 	std::string getName() const;
 	NpcBrush* getBrush() const;
 
@@ -72,14 +70,6 @@ inline void Npc::reset() {
 
 inline bool Npc::isSaved() {
 	return saved;
-}
-
-inline bool Npc::isNpc() const {
-	NpcType* npcType = g_npcs[type_name];
-	if(npcType) {
-		return npcType->isNpc;
-	}
-	return false;
 }
 
 inline std::string Npc::getName() const {

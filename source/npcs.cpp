@@ -27,7 +27,6 @@
 NpcDatabase g_npcs;
 
 NpcType::NpcType() :
-	isNpc(false),
 	missing(false),
 	in_other_tileset(false),
 	standard(false),
@@ -50,7 +49,6 @@ NpcType::NpcType(const NpcType& npc) :
 
 NpcType& NpcType::operator=(const NpcType& npc)
 {
-	isNpc = npc.isNpc;
 	missing = npc.missing;
 	in_other_tileset = npc.in_other_tileset;
 	standard = npc.standard;
@@ -86,7 +84,6 @@ NpcType* NpcType::loadFromXML(pugi::xml_node node, wxArrayString& warnings)
 
 	NpcType* npcType = newd NpcType();
 	npcType->name = attribute.as_string();
-	npcType->isNpc = tmpType == "npc";
 
 	if((attribute = node.attribute("looktype"))) {
 		npcType->outfit.lookType = pugi::cast<int32_t>(attribute.value());
@@ -125,12 +122,8 @@ NpcType* NpcType::loadFromOTXML(const FileName& filename, pugi::xml_document& do
 {
 	ASSERT(doc != nullptr);
 
-	bool isNpc;
 	pugi::xml_node node;
-	if((node = doc.child("npc"))) {
-		isNpc = true;
-	} else {
-		isNpc = false;
+	if(!(node = doc.child("npc"))) {
 		warnings.push_back("This file is not a npc file");
 		return nullptr;
 	}
@@ -143,10 +136,7 @@ NpcType* NpcType::loadFromOTXML(const FileName& filename, pugi::xml_document& do
 
 	NpcType* npcType = newd NpcType();
 	npcType->name = nstr(filename.GetName());
-	if(isNpc) {
-		npcType->name = nstr(filename.GetName());
-	}
-	npcType->isNpc = isNpc;
+	npcType->name = nstr(filename.GetName());
 
 	for(pugi::xml_node optionNode = node.first_child(); optionNode; optionNode = optionNode.next_sibling()) {
 		if(as_lower_str(optionNode.name()) != "look") {
@@ -303,9 +293,7 @@ bool NpcDatabase::importXMLFromOT(const FileName& filename, wxString& error, wxA
 				npcMap[as_lower_str(npcType->name)] = npcType;
 
 				Tileset* tileSet = nullptr;
-				if(npcType->isNpc) {
-					tileSet = g_materials.tilesets["NPCs"];
-				}
+				tileSet = g_materials.tilesets["NPCs"];
 				ASSERT(tileSet != nullptr);
 
 				Brush* brush = newd NpcBrush(npcType);

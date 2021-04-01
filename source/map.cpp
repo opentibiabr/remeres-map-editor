@@ -529,7 +529,7 @@ SpawnNpcList Map::getSpawnNpcList(Tile* where)
 	SpawnNpcList listNpc;
 	TileLocation* tile_loc = where->getLocation();
 	if(tile_loc) {
-		if(tile_loc->getSpawnCount() > 0) {
+		if(tile_loc->getSpawnNpcCount() > 0) {
 			uint32_t found = 0;
 			if(where->spawnNpc) {
 				++found;
@@ -540,7 +540,7 @@ SpawnNpcList Map::getSpawnNpcList(Tile* where)
 			int z = where->getZ();
 			int start_x = where->getX() - 1, end_x = where->getX() + 1;
 			int start_y = where->getY() - 1, end_y = where->getY() + 1;
-			while(found != tile_loc->getSpawnCount()) {
+			while(found != tile_loc->getSpawnNpcCount()) {
 				for(int x = start_x; x <= end_x; ++x) {
 					Tile* tile = getTile(x, start_y, z);
 					if(tile && tile->spawnNpc) {

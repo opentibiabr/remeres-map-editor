@@ -42,14 +42,13 @@
 #include "wall_brush.h"
 #include "spawn_brush.h"
 #include "creature_brush.h"
-#include "npc_brush.h"
 #include "ground_brush.h"
 #include "waypoint_brush.h"
 #include "raw_brush.h"
 #include "carpet_brush.h"
 #include "table_brush.h"
 #include "spawn_npc_brush.h"
-#include "npc.h"
+#include "npc_brush.h"
 
 BEGIN_EVENT_TABLE(MapCanvas, wxGLCanvas)
 	EVT_KEY_DOWN(MapCanvas::OnKeyDown)
@@ -2466,7 +2465,7 @@ void MapPopupMenu::Update()
 				}
 
 				if(topCreature)
-					Append( MAP_POPUP_MENU_SELECT_CREATURE_BRUSH, "Select Creature", "Uses the current npc as a creature brush");
+					Append( MAP_POPUP_MENU_SELECT_CREATURE_BRUSH, "Select Creature", "Uses the current creature as a creature brush");
 
 				if(topSpawn)
 					Append( MAP_POPUP_MENU_SELECT_SPAWN_BRUSH, "Select Spawn", "Select the spawn brush");
@@ -2475,7 +2474,7 @@ void MapPopupMenu::Update()
 					Append( MAP_POPUP_MENU_SELECT_NPC_BRUSH, "Select Npc", "Uses the current npc as a npc brush");
 
 				if(topSpawnNpc)
-					Append( MAP_POPUP_MENU_SELECT_SPAWN_NPC_BRUSH, "Select Npc Spawn", "Select the spawn npc brush");
+					Append( MAP_POPUP_MENU_SELECT_SPAWN_NPC_BRUSH, "Select Npc Spawn", "Select the npc spawn brush");
 
 				Append( MAP_POPUP_MENU_SELECT_RAW_BRUSH, "Select RAW", "Uses the top item as a RAW brush");
 
@@ -2514,7 +2513,7 @@ void MapPopupMenu::Update()
 					Append( MAP_POPUP_MENU_SELECT_NPC_BRUSH, "Select Npc", "Uses the current npc as a npc brush");
 
 				if(topSpawnNpc)
-					Append( MAP_POPUP_MENU_SELECT_SPAWN_NPC_BRUSH, "Select Npc Spawn", "Select the spawn npc brush");
+					Append( MAP_POPUP_MENU_SELECT_SPAWN_NPC_BRUSH, "Select Npc Spawn", "Select the npc spawn brush");
 
 				Append( MAP_POPUP_MENU_SELECT_RAW_BRUSH, "Select RAW", "Uses the top item as a RAW brush");
 				if(hasWall) {

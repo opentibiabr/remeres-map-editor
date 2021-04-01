@@ -33,16 +33,16 @@
 
 #include "doodad_brush.h"
 #include "creature_brush.h"
-#include "npc_brush.h"
 #include "house_exit_brush.h"
 #include "house_brush.h"
 #include "spawn_brush.h"
+#include "npc_brush.h"
+#include "spawn_npc_brush.h"
 #include "wall_brush.h"
 #include "carpet_brush.h"
 #include "raw_brush.h"
 #include "table_brush.h"
 #include "waypoint_brush.h"
-#include "spawn_npc_brush.h"
 
 DrawingOptions::DrawingOptions()
 {

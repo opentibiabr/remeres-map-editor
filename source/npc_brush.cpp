@@ -58,9 +58,7 @@ bool NpcBrush::canDraw(BaseMap* map, const Position& position) const
 	if(npc_type && tile && !tile->isBlocking()) {
 		if (tile->getLocation()->getSpawnNpcCount() != 0 || g_settings.getInteger(Config::AUTO_CREATE_SPAWN_NPC)) {
  		   if(tile->isPZ()) {
-				if(npc_type->isNpc) {
-					return true;
-				}
+				return true;
 			} else {
 				return true;
 			}

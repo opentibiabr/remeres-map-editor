@@ -63,7 +63,6 @@ public:
 	NpcType& operator=(const NpcType& ct);
 	~NpcType();
 
-	bool isNpc;
 	bool missing;
 	bool in_other_tileset;
 	bool standard;

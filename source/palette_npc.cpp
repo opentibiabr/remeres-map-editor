@@ -34,7 +34,7 @@ BEGIN_EVENT_TABLE(NpcPalettePanel, PalettePanel)
 	EVT_LISTBOX(PALETTE_NPC_LISTBOX, NpcPalettePanel::OnListBoxChange)
 
 	EVT_TOGGLEBUTTON(PALETTE_NPC_BRUSH_BUTTON, NpcPalettePanel::OnClickNpcBrushButton)
-	EVT_TOGGLEBUTTON(PALETTE_SPAWN_BRUSH_BUTTON, NpcPalettePanel::OnClickSpawnNpcBrushButton)
+	EVT_TOGGLEBUTTON(PALETTE_SPAWN_NPC_BRUSH_BUTTON, NpcPalettePanel::OnClickSpawnNpcBrushButton)
 
 	EVT_SPINCTRL(PALETTE_SPAWN_NPC_TIME, NpcPalettePanel::OnChangeSpawnNpcTime)
 	EVT_SPINCTRL(PALETTE_SPAWN_NPC_SIZE, NpcPalettePanel::OnChangeSpawnNpcSize)
@@ -148,7 +148,7 @@ bool NpcPalettePanel::SelectBrush(const Brush* whatbrush)
 				}
 			}
 		}
-	} else if(whatbrush->isSpawn()) {
+	} else if(whatbrush->isSpawnNpc()) {
 		SelectSpawnNpcBrush();
 		return true;
 	}

@@ -323,7 +323,7 @@ void MapPropertiesWindow::OnClickOK(wxCommandEvent& WXUNUSED(event))
 			}
 
 			if(conversion_context.npcType.size() > 0) {
-				int add = g_gui.PopupDialog(this, "Unrecognized creatures", "There were creatures on the old version that are not present in this and were on the map, do you want to add them to this version as well?", wxYES | wxNO);
+				int add = g_gui.PopupDialog(this, "Unrecognized npcs", "There were npcs on the old version that are not present in this and were on the map, do you want to add them to this version as well?", wxYES | wxNO);
 				if(add == wxID_YES) {
 					for(MapConversionContext::NpcMap::iterator cs = conversion_context.npcType.begin(); cs != conversion_context.npcType.end(); ++cs) {
 						MapConversionContext::NpcInfo info = cs->second;

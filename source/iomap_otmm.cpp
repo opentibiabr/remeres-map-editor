@@ -575,18 +575,10 @@ bool IOMapOTMM::loadMap(Map& map, NodeFileReadHandle& f, const FileName& identif
 							warning("Could not read type of monster node.");
 							continue;
 						}
-						bool isNPC;
 						std::string name;
 						uint32_t spawntime = 0; // Only applicable for monsters
 
-						if(creature_type == OTMM_NPC) {
-							isNPC = true;
-							if(!creatureNode->getString(name)) {
-								warning("Could not read name of NPC.");
-								return false;
-							}
-						} else if(creature_type == OTMM_MONSTER) {
-							isNPC = false;
+						if(creature_type == OTMM_MONSTER) {
 							if(!creatureNode->getString(name)) {
 								warning("Could not read name of monster.");
 								return false;
@@ -633,7 +625,7 @@ bool IOMapOTMM::loadMap(Map& map, NodeFileReadHandle& f, const FileName& identif
 						}
 						CreatureType* type = g_creatures[name];
 						if(!type) {
-							type = g_creatures.addMissingCreatureType(name, isNPC);
+							type = g_creatures.addMissingCreatureType(name);
 						}
 						Creature* creature = newd Creature(type);
 						creature->setSpawnTime(spawntime);
@@ -698,12 +690,12 @@ bool IOMapOTMM::loadMap(Map& map, NodeFileReadHandle& f, const FileName& identif
 					spawnNpcTile->spawnNpc = spawnNpc;
 					map.addSpawn(spawnNpcTile);
 
-					// Read any creatures associated with the spawnNpc
+					// Read any npc associated with the npc spawn
 					BinaryNode* npcNode = spawnNpcNode->getChild();
 					if(npcNode) do {
 						uint8_t npcType;
 						if(!npcNode->getByte(npcType)) {
-							warning("Could not read type of monster node.");
+							warning("Could not read type of npc node.");
 							continue;
 						}
 						std::string name;

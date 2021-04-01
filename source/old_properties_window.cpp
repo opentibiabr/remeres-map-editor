@@ -481,7 +481,7 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 
 OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, const Tile* tile_parent, SpawnNpc* spawnNpc, wxPoint pos) :
 	ObjectPropertiesWindowBase(win_parent, "Spawn Npc Properties", map, tile_parent, spawnNpc, pos),
-	count_npc_field(nullptr),
+	count_field(nullptr),
 	direction_field(nullptr),
 	action_id_field(nullptr),
 	unique_id_field(nullptr),

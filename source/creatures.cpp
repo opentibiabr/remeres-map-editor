@@ -310,7 +310,7 @@ bool CreatureDatabase::importXMLFromOT(const FileName& filename, wxString& error
 					creature_map[as_lower_str(creatureType->name)] = creatureType;
 
 					Tileset* tileSet = nullptr;
-					tileSet = g_materials.tilesets["Others"];
+					tileSet = g_materials.tilesets["Monsters"];
 					ASSERT(tileSet != nullptr);
 
 					Brush* brush = newd CreatureBrush(creatureType);
@@ -321,7 +321,7 @@ bool CreatureDatabase::importXMLFromOT(const FileName& filename, wxString& error
 				}
 			}
 		}
-	} else if((node = doc.child("monster")) || (node = doc.child("npc"))) {
+	} else if((node = doc.child("monster"))) {
 		CreatureType* creatureType = CreatureType::loadFromOTXML(filename, doc, warnings);
 		if(creatureType) {
 			CreatureType* current = (*this)[creatureType->name];
@@ -333,7 +333,7 @@ bool CreatureDatabase::importXMLFromOT(const FileName& filename, wxString& error
 				creature_map[as_lower_str(creatureType->name)] = creatureType;
 
 				Tileset* tileSet = nullptr;
-				tileSet = g_materials.tilesets["Others"];
+				tileSet = g_materials.tilesets["Monsters"];
 				ASSERT(tileSet != nullptr);
 
 				Brush* brush = newd CreatureBrush(creatureType);
@@ -344,7 +344,7 @@ bool CreatureDatabase::importXMLFromOT(const FileName& filename, wxString& error
 			}
 		}
 	} else {
-		error = "This is not valid OT npc/monster data file.";
+		error = "This is not valid OT monster data file.";
 		return false;
 	}
 	return true;
