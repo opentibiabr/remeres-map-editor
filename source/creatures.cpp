@@ -66,17 +66,6 @@ CreatureType::~CreatureType()
 CreatureType* CreatureType::loadFromXML(pugi::xml_node node, wxArrayString& warnings)
 {
 	pugi::xml_attribute attribute;
-	if(!(attribute = node.attribute("type"))) {
-		warnings.push_back("Couldn't read type tag of monster node.");
-		return nullptr;
-	}
-
-	const std::string& tmpType = attribute.as_string();
-	if(tmpType != "monster") {
-		warnings.push_back("Invalid type tag of monster node \"" + wxstr(tmpType) + "\"");
-		return nullptr;
-	}
-
 	if(!(attribute = node.attribute("name"))) {
 		warnings.push_back("Couldn't read name tag of monster node.");
 		return nullptr;
@@ -121,7 +110,6 @@ CreatureType* CreatureType::loadFromXML(pugi::xml_node node, wxArrayString& warn
 CreatureType* CreatureType::loadFromOTXML(const FileName& filename, pugi::xml_document& doc, wxArrayString& warnings)
 {
 	ASSERT(doc != nullptr);
-
 	pugi::xml_node node;
 	if(!(node = doc.child("monster"))) {
 		warnings.push_back("This file is not a monster file");

@@ -66,17 +66,6 @@ NpcType::~NpcType()
 NpcType* NpcType::loadFromXML(pugi::xml_node node, wxArrayString& warnings)
 {
 	pugi::xml_attribute attribute;
-	if(!(attribute = node.attribute("type"))) {
-		warnings.push_back("Couldn't read type tag of npc node.");
-		return nullptr;
-	}
-
-	const std::string& tmpType = attribute.as_string();
-	if(tmpType != "npc") {
-		warnings.push_back("Invalid type tag of npc node \"" + wxstr(tmpType) + "\"");
-		return nullptr;
-	}
-
 	if(!(attribute = node.attribute("name"))) {
 		warnings.push_back("Couldn't read name tag of npc node.");
 		return nullptr;
