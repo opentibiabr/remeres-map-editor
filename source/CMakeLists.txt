@@ -15,9 +15,9 @@ ${CMAKE_CURRENT_LIST_DIR}/complexitem.h
 ${CMAKE_CURRENT_LIST_DIR}/con_vector.h
 ${CMAKE_CURRENT_LIST_DIR}/container_properties_window.h
 ${CMAKE_CURRENT_LIST_DIR}/copybuffer.h
-${CMAKE_CURRENT_LIST_DIR}/creature.h
-${CMAKE_CURRENT_LIST_DIR}/creature_brush.h
-${CMAKE_CURRENT_LIST_DIR}/creatures.h
+${CMAKE_CURRENT_LIST_DIR}/monster.h
+${CMAKE_CURRENT_LIST_DIR}/monster_brush.h
+${CMAKE_CURRENT_LIST_DIR}/monsters.h
 ${CMAKE_CURRENT_LIST_DIR}/dat_debug_view.h
 ${CMAKE_CURRENT_LIST_DIR}/dcbutton.h
 ${CMAKE_CURRENT_LIST_DIR}/definitions.h
@@ -73,7 +73,7 @@ ${CMAKE_CURRENT_LIST_DIR}/otml.h
 ${CMAKE_CURRENT_LIST_DIR}/outfit.h
 ${CMAKE_CURRENT_LIST_DIR}/palette_brushlist.h
 ${CMAKE_CURRENT_LIST_DIR}/palette_common.h
-${CMAKE_CURRENT_LIST_DIR}/palette_creature.h
+${CMAKE_CURRENT_LIST_DIR}/palette_monster.h
 ${CMAKE_CURRENT_LIST_DIR}/palette_house.h
 ${CMAKE_CURRENT_LIST_DIR}/palette_npc.h
 ${CMAKE_CURRENT_LIST_DIR}/palette_waypoints.h
@@ -91,8 +91,8 @@ ${CMAKE_CURRENT_LIST_DIR}/rme_forward_declarations.h
 ${CMAKE_CURRENT_LIST_DIR}/rme_net.h
 ${CMAKE_CURRENT_LIST_DIR}/selection.h
 ${CMAKE_CURRENT_LIST_DIR}/settings.h
-${CMAKE_CURRENT_LIST_DIR}/spawn.h
-${CMAKE_CURRENT_LIST_DIR}/spawn_brush.h
+${CMAKE_CURRENT_LIST_DIR}/spawn_monster.h
+${CMAKE_CURRENT_LIST_DIR}/spawn_monster_brush.h
 ${CMAKE_CURRENT_LIST_DIR}/spawn_npc.h
 ${CMAKE_CURRENT_LIST_DIR}/spawn_npc_brush.h
 ${CMAKE_CURRENT_LIST_DIR}/sprites.h
@@ -126,9 +126,9 @@ ${CMAKE_CURRENT_LIST_DIR}/common_windows.cpp
 ${CMAKE_CURRENT_LIST_DIR}/complexitem.cpp
 ${CMAKE_CURRENT_LIST_DIR}/container_properties_window.cpp
 ${CMAKE_CURRENT_LIST_DIR}/copybuffer.cpp
-${CMAKE_CURRENT_LIST_DIR}/creature_brush.cpp
-${CMAKE_CURRENT_LIST_DIR}/creature.cpp
-${CMAKE_CURRENT_LIST_DIR}/creatures.cpp
+${CMAKE_CURRENT_LIST_DIR}/monster_brush.cpp
+${CMAKE_CURRENT_LIST_DIR}/monster.cpp
+${CMAKE_CURRENT_LIST_DIR}/monsters.cpp
 ${CMAKE_CURRENT_LIST_DIR}/dat_debug_view.cpp
 ${CMAKE_CURRENT_LIST_DIR}/dcbutton.cpp
 ${CMAKE_CURRENT_LIST_DIR}/doodad_brush.cpp
@@ -177,7 +177,7 @@ ${CMAKE_CURRENT_LIST_DIR}/numbertextctrl.cpp
 ${CMAKE_CURRENT_LIST_DIR}/old_properties_window.cpp
 ${CMAKE_CURRENT_LIST_DIR}/palette_brushlist.cpp
 ${CMAKE_CURRENT_LIST_DIR}/palette_common.cpp
-${CMAKE_CURRENT_LIST_DIR}/palette_creature.cpp
+${CMAKE_CURRENT_LIST_DIR}/palette_monster.cpp
 ${CMAKE_CURRENT_LIST_DIR}/palette_house.cpp
 ${CMAKE_CURRENT_LIST_DIR}/palette_npc.cpp
 ${CMAKE_CURRENT_LIST_DIR}/palette_waypoints.cpp
@@ -191,8 +191,8 @@ ${CMAKE_CURRENT_LIST_DIR}/result_window.cpp
 ${CMAKE_CURRENT_LIST_DIR}/rme_net.cpp
 ${CMAKE_CURRENT_LIST_DIR}/selection.cpp
 ${CMAKE_CURRENT_LIST_DIR}/settings.cpp
-${CMAKE_CURRENT_LIST_DIR}/spawn_brush.cpp
-${CMAKE_CURRENT_LIST_DIR}/spawn.cpp
+${CMAKE_CURRENT_LIST_DIR}/spawn_monster_brush.cpp
+${CMAKE_CURRENT_LIST_DIR}/spawn_monster.cpp
 ${CMAKE_CURRENT_LIST_DIR}/spawn_npc.cpp
 ${CMAKE_CURRENT_LIST_DIR}/spawn_npc_brush.cpp
 ${CMAKE_CURRENT_LIST_DIR}/table_brush.cpp

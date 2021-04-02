@@ -18,34 +18,34 @@
 #include "main.h"
 
 #include "tile.h"
-#include "spawn.h"
+#include "spawn_monster.h"
 
-Spawns::Spawns()
+SpawnsMonster::SpawnsMonster()
 {
 	////
 }
 
-Spawns::~Spawns()
+SpawnsMonster::~SpawnsMonster()
 {
 	////
 }
 
-void Spawns::addSpawn(Tile* tile)
+void SpawnsMonster::addSpawnMonster(Tile* tile)
 {
-	ASSERT(tile->spawn);
+	ASSERT(tile->spawnMonster);
 
-	auto it = spawns.insert(tile->getPosition());
+	auto it = spawnsMonster.insert(tile->getPosition());
 	ASSERT(it.second);
 }
 
-void Spawns::removeSpawn(Tile* tile) {
-	ASSERT(tile->spawn);
-	spawns.erase(tile->getPosition());
+void SpawnsMonster::removeSpawnMonster(Tile* tile) {
+	ASSERT(tile->spawnMonster);
+	spawnsMonster.erase(tile->getPosition());
 #if 0
-	SpawnPositionList::iterator iter = begin();
+	SpawnMonsterPositionList::iterator iter = begin();
 	while(iter != end()) {
 		if(*iter == tile->getPosition()) {
-			spawns.erase(iter);
+			spawnsMonster.erase(iter);
 			return;
 		}
 		++iter;
@@ -54,7 +54,7 @@ void Spawns::removeSpawn(Tile* tile) {
 #endif
 }
 
-std::ostream& operator<<(std::ostream& os, const Spawn& spawn) {
-	os << &spawn << ":: -> " << spawn.getSize() << std::endl;
+std::ostream& operator<<(std::ostream& os, const SpawnMonster& spawnMonster) {
+	os << &spawnMonster << ":: -> " << spawnMonster.getSize() << std::endl;
 	return os;
 }

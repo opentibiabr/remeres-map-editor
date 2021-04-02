@@ -16,15 +16,15 @@
 //////////////////////////////////////////////////////////////////////
 
 
-#ifndef RME_TILESET_CREATURE_H_
-#define RME_TILESET_CREATURE_H_
+#ifndef RME_TILESET_MONSTER_H_
+#define RME_TILESET_MONSTER_H_
 
 #include "palette_common.h"
 
-class CreaturePalettePanel : public PalettePanel {
+class MonsterPalettePanel : public PalettePanel {
 public:
-	CreaturePalettePanel(wxWindow* parent, wxWindowID id = wxID_ANY);
-	virtual ~CreaturePalettePanel();
+	MonsterPalettePanel(wxWindow* parent, wxWindowID id = wxID_ANY);
+	virtual ~MonsterPalettePanel();
 
 	PaletteType GetType() const;
 
@@ -46,27 +46,27 @@ public:
 
 protected:
 	void SelectTileset(size_t index);
-	void SelectCreature(size_t index);
-	void SelectCreature(std::string name);
+	void SelectMonster(size_t index);
+	void SelectMonster(std::string name);
 public:
 	// Event handling
-	void OnChangeSpawnTime(wxSpinEvent& event);
-	void OnChangeSpawnSize(wxSpinEvent& event);
+	void OnChangeSpawnMonsterTime(wxSpinEvent& event);
+	void OnChangeSpawnMonsterSize(wxSpinEvent& event);
 
 	void OnTilesetChange(wxCommandEvent& event);
 	void OnListBoxChange(wxCommandEvent& event);
-	void OnClickCreatureBrushButton(wxCommandEvent& event);
-	void OnClickSpawnBrushButton(wxCommandEvent& event);
+	void OnClickMonsterBrushButton(wxCommandEvent& event);
+	void OnClickSpawnMonsterBrushButton(wxCommandEvent& event);
 protected:
-	void SelectCreatureBrush();
+	void SelectMonsterBrush();
 	void SelectSpawnBrush();
 
 	wxChoice* tileset_choice;
-	SortableListBox* creature_list;
-	wxToggleButton* creature_brush_button;
-	wxToggleButton* spawn_brush_button;
-	wxSpinCtrl* creature_spawntime_spin;
-	wxSpinCtrl* spawn_size_spin;
+	SortableListBox* monster_list;
+	wxToggleButton* monster_brush_button;
+	wxToggleButton* spawn_monster_brush_button;
+	wxSpinCtrl* monster_spawntime_spin;
+	wxSpinCtrl* spawn_monster_size_spin;
 
 	bool handling_event;
 

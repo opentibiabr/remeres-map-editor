@@ -195,13 +195,13 @@ void MapPropertiesWindow::OnChangeVersion(wxCommandEvent&)
 
 struct MapConversionContext
 {
-	struct CreatureInfo
+	struct MonsterInfo
 	{
 		std::string name;
 		Outfit outfit;
 	};
-	typedef std::map<std::string, CreatureInfo> CreatureMap;
-	CreatureMap monsterType;
+	typedef std::map<std::string, MonsterInfo> MonsterMap;
+	MonsterMap monsterType;
 
 	struct NpcInfo
 	{
@@ -213,14 +213,14 @@ struct MapConversionContext
 
 	void operator()(Map& map, Tile* tile, long long done)
 	{
-		if(tile->creature) {
-			CreatureMap::iterator f = monsterType.find(tile->creature->getName());
+		if(tile->monster) {
+			MonsterMap::iterator f = monsterType.find(tile->monster->getName());
 			if(f == monsterType.end()) {
-				CreatureInfo info = {
-					tile->creature->getName(),
-					tile->creature->getLookType()
+				MonsterInfo info = {
+					tile->monster->getName(),
+					tile->monster->getLookType()
 				};
-				monsterType[tile->creature->getName()] = info;
+				monsterType[tile->monster->getName()] = info;
 			}
 		}
 		if(tile->npc) {
@@ -277,7 +277,7 @@ void MapPropertiesWindow::OnClickOK(wxCommandEvent& WXUNUSED(event))
 			}
 			UnnamedRenderingLock();
 
-			// Remember all creatures types on the map
+			// Remember all monsters types on the map
 			MapConversionContext conversion_context;
 			foreach_TileOnMap(map, conversion_context);
 
@@ -296,19 +296,19 @@ void MapPropertiesWindow::OnClickOK(wxCommandEvent& WXUNUSED(event))
 
 			// Monsters
 			// Remove all monsters that were present are present in the new version
-			for(MapConversionContext::CreatureMap::iterator cs = conversion_context.monsterType.begin(); cs != conversion_context.monsterType.end();) {
-				if(g_creatures[cs->first])
+			for(MapConversionContext::MonsterMap::iterator cs = conversion_context.monsterType.begin(); cs != conversion_context.monsterType.end();) {
+				if(g_monsters[cs->first])
 					cs = conversion_context.monsterType.erase(cs);
 				else
 					++cs;
 			}
 
 			if(conversion_context.monsterType.size() > 0) {
-				int add = g_gui.PopupDialog(this, "Unrecognized creatures", "There were creatures on the old version that are not present in this and were on the map, do you want to add them to this version as well?", wxYES | wxNO);
+				int add = g_gui.PopupDialog(this, "Unrecognized monsters", "There were monsters on the old version that are not present in this and were on the map, do you want to add them to this version as well?", wxYES | wxNO);
 				if(add == wxID_YES) {
-					for(MapConversionContext::CreatureMap::iterator cs = conversion_context.monsterType.begin(); cs != conversion_context.monsterType.end(); ++cs) {
-						MapConversionContext::CreatureInfo info = cs->second;
-						g_creatures.addCreatureType(info.name, info.outfit);
+					for(MapConversionContext::MonsterMap::iterator cs = conversion_context.monsterType.begin(); cs != conversion_context.monsterType.end(); ++cs) {
+						MapConversionContext::MonsterInfo info = cs->second;
+						g_monsters.addMonsterType(info.name, info.outfit);
 					}
 				}
 			}
@@ -351,7 +351,7 @@ void MapPropertiesWindow::OnClickOK(wxCommandEvent& WXUNUSED(event))
 
 	map.setMapDescription(nstr(description_ctrl->GetValue()));
 	map.setHouseFilename(nstr(house_filename_ctrl->GetValue()));
-	map.setSpawnFilename(nstr(spawn_filename_ctrl->GetValue()));
+	map.setSpawnMonsterFilename(nstr(spawn_filename_ctrl->GetValue()));
 	map.setSpawnNpcFilename(nstr(spawn_npc_filename_ctrl->GetValue()));
 
 	// Only resize if we have to
@@ -430,9 +430,9 @@ ImportMapWindow::ImportMapWindow(wxWindow* parent, Editor& editor) :
 
 	// Monster spawn options
 	tmpsizer = newd wxStaticBoxSizer(new wxStaticBox(this, wxID_ANY, "Monster Spawn Import Behaviour"), wxVERTICAL);
-	spawn_options = newd wxChoice(tmpsizer->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize, spawn_choices);
-	spawn_options->SetSelection(0);
-	tmpsizer->Add(spawn_options, 0, wxALL | wxEXPAND, 5);
+	spawn_monster_options = newd wxChoice(tmpsizer->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize, spawn_choices);
+	spawn_monster_options->SetSelection(0);
+	tmpsizer->Add(spawn_monster_options, 0, wxALL | wxEXPAND, 5);
 	sizer->Add(tmpsizer, 1, wxEXPAND | wxLEFT | wxRIGHT, 5);
 
 	// Npc spawn options
@@ -477,7 +477,7 @@ void ImportMapWindow::OnClickOK(wxCommandEvent& WXUNUSED(event))
 		ImportType spawn_npc_import_type = IMPORT_DONT;
 		ImportType house_import_type = IMPORT_DONT;
 
-		switch(spawn_options->GetSelection()) {
+		switch(spawn_monster_options->GetSelection()) {
 			case 0: spawn_import_type = IMPORT_MERGE; break;
 			case 1: spawn_import_type = IMPORT_DONT; break;
 		}
@@ -1363,36 +1363,36 @@ wxDialog(parent, wxID_ANY, title,
 	edit_map(map),
 	edit_tile(tile),
 	edit_item(item),
-	edit_creature(nullptr),
-	edit_spawn(nullptr),
+	edit_monster(nullptr),
+	edit_spawn_monster(nullptr),
 	edit_npc(nullptr),
 	edit_spawn_npc(nullptr)
 {
 	////
 }
 
-ObjectPropertiesWindowBase::ObjectPropertiesWindowBase(wxWindow* parent, wxString title, const Map* map, const Tile* tile, Creature* creature, wxPoint position /* = wxDefaultPosition */) :
+ObjectPropertiesWindowBase::ObjectPropertiesWindowBase(wxWindow* parent, wxString title, const Map* map, const Tile* tile, Monster* monster, wxPoint position /* = wxDefaultPosition */) :
 wxDialog(parent, wxID_ANY, title,
 	position, wxSize(600, 400), wxCAPTION | wxCLOSE_BOX | wxRESIZE_BORDER),
 	edit_map(map),
 	edit_tile(tile),
 	edit_item(nullptr),
-	edit_creature(creature),
-	edit_spawn(nullptr),
+	edit_monster(monster),
+	edit_spawn_monster(nullptr),
 	edit_npc(nullptr),
 	edit_spawn_npc(nullptr)
 {
 	////
 }
 
-ObjectPropertiesWindowBase::ObjectPropertiesWindowBase(wxWindow* parent, wxString title, const Map* map, const Tile* tile, Spawn* spawn, wxPoint position /* = wxDefaultPosition */) :
+ObjectPropertiesWindowBase::ObjectPropertiesWindowBase(wxWindow* parent, wxString title, const Map* map, const Tile* tile, SpawnMonster* spawnMonster, wxPoint position /* = wxDefaultPosition */) :
 wxDialog(parent, wxID_ANY, title,
 	position, wxSize(600, 400), wxCAPTION | wxCLOSE_BOX | wxRESIZE_BORDER),
 	edit_map(map),
 	edit_tile(tile),
 	edit_item(nullptr),
-	edit_creature(nullptr),
-	edit_spawn(spawn),
+	edit_monster(nullptr),
+	edit_spawn_monster(spawnMonster),
 	edit_npc(nullptr),
 	edit_spawn_npc(nullptr)
 {
@@ -1405,8 +1405,8 @@ wxDialog(parent, wxID_ANY, title,
 	edit_map(map),
 	edit_tile(tile),
 	edit_item(nullptr),
-	edit_creature(nullptr),
-	edit_spawn(nullptr),
+	edit_monster(nullptr),
+	edit_spawn_monster(nullptr),
 	edit_npc(npc),
 	edit_spawn_npc(nullptr)
 {
@@ -1419,8 +1419,8 @@ wxDialog(parent, wxID_ANY, title,
 	edit_map(map),
 	edit_tile(tile),
 	edit_item(nullptr),
-	edit_creature(nullptr),
-	edit_spawn(nullptr),
+	edit_monster(nullptr),
+	edit_spawn_monster(nullptr),
 	edit_npc(nullptr),
 	edit_spawn_npc(spawnNpc)
 {

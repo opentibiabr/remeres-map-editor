@@ -21,12 +21,12 @@
 
 #include "editor.h"
 #include "items.h"
-#include "creatures.h"
+#include "monsters.h"
 
 #include "gui.h"
 #include "materials.h"
 #include "brush.h"
-#include "creature_brush.h"
+#include "monster_brush.h"
 #include "npc_brush.h"
 #include "raw_brush.h"
 
@@ -276,17 +276,17 @@ void Materials::createOtherTileset()
 		}
 	}
 
-	for(CreatureMap::iterator iter = g_creatures.begin(); iter != g_creatures.end(); ++iter) {
-		CreatureType* type = iter->second;
+	for(MonsterMap::iterator iter = g_monsters.begin(); iter != g_monsters.end(); ++iter) {
+		MonsterType* type = iter->second;
 		if(type->in_other_tileset) {
-			others->getCategory(TILESET_CREATURE)->brushlist.push_back(type->brush);
+			others->getCategory(TILESET_MONSTER)->brushlist.push_back(type->brush);
 		} else if(type->brush == nullptr) {
-			type->brush = newd CreatureBrush(type);
+			type->brush = newd MonsterBrush(type);
 			g_brushes.addBrush(type->brush);
 			type->brush->flagAsVisible();
 			type->in_other_tileset = true;
 
-			others->getCategory(TILESET_CREATURE)->brushlist.push_back(type->brush);
+			others->getCategory(TILESET_MONSTER)->brushlist.push_back(type->brush);
 		}
 	}
 }

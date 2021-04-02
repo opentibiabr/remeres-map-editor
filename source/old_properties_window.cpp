@@ -26,7 +26,7 @@
 #include "house.h"
 #include "map.h"
 #include "editor.h"
-#include "creature.h"
+#include "monster.h"
 #include "npc.h"
 
 #include "gui.h"
@@ -335,8 +335,8 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 	Centre(wxBOTH);
 }
 
-OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, const Tile* tile_parent, Creature* creature, wxPoint pos) :
-	ObjectPropertiesWindowBase(win_parent, "Creature Properties", map, tile_parent, creature, pos),
+OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, const Tile* tile_parent, Monster* monster, wxPoint pos) :
+	ObjectPropertiesWindowBase(win_parent, "Monster Properties", map, tile_parent, monster, pos),
 	count_field(nullptr),
 	direction_field(nullptr),
 	action_id_field(nullptr),
@@ -347,20 +347,20 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 	text_field(nullptr),
 	description_field(nullptr)
 {
-	ASSERT(edit_creature);
+	ASSERT(edit_monster);
 
 	wxSizer* topsizer = newd wxBoxSizer(wxVERTICAL);
-	wxSizer* boxsizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Creature Properties");
+	wxSizer* boxsizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Monster Properties");
 
 	wxFlexGridSizer* subsizer = newd wxFlexGridSizer(2, 10, 10);
 	subsizer->AddGrowableCol(1);
 
-	subsizer->Add(newd wxStaticText(this, wxID_ANY, "Creature name "));
+	subsizer->Add(newd wxStaticText(this, wxID_ANY, "Monster name "));
 
-	subsizer->Add(newd wxStaticText(this, wxID_ANY, "\"" + wxstr(edit_creature->getName()) + "\""), wxSizerFlags(1).Expand());
+	subsizer->Add(newd wxStaticText(this, wxID_ANY, "\"" + wxstr(edit_monster->getName()) + "\""), wxSizerFlags(1).Expand());
 
-	subsizer->Add(newd wxStaticText(this, wxID_ANY, "Monster spawn interval"));
-		count_field = newd wxSpinCtrl(this, wxID_ANY, i2ws(edit_creature->getSpawnTime()), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 10, 3600, edit_creature->getSpawnTime());
+	subsizer->Add(newd wxStaticText(this, wxID_ANY, "Spawn interval"));
+		count_field = newd wxSpinCtrl(this, wxID_ANY, i2ws(edit_monster->getSpawnMonsterTime()), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 10, 3600, edit_monster->getSpawnMonsterTime());
 		// count_field->SetSelection(-1, -1);
 	subsizer->Add(count_field, wxSizerFlags(1).Expand());
 
@@ -368,9 +368,9 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 	direction_field = newd wxChoice(this, wxID_ANY);
 
 	for(Direction dir = DIRECTION_FIRST; dir <= DIRECTION_LAST; ++dir) {
-		direction_field->Append(wxstr(Creature::DirID2Name(dir)), newd int32_t(dir));
+		direction_field->Append(wxstr(Monster::DirID2Name(dir)), newd int32_t(dir));
 	}
-	direction_field->SetSelection(edit_creature->getDirection());
+	direction_field->SetSelection(edit_monster->getDirection());
 	subsizer->Add(direction_field, wxSizerFlags(1).Expand());
 
 	boxsizer->Add(subsizer, wxSizerFlags(1).Expand());
@@ -387,8 +387,8 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 	Centre(wxBOTH);
 }
 
-OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, const Tile* tile_parent, Spawn* spawn, wxPoint pos) :
-	ObjectPropertiesWindowBase(win_parent, "Spawn Properties", map, tile_parent, spawn, pos),
+OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, const Tile* tile_parent, SpawnMonster* spawnMonster, wxPoint pos) :
+	ObjectPropertiesWindowBase(win_parent, "Spawn Monster Properties", map, tile_parent, spawnMonster, pos),
 	count_field(nullptr),
 	direction_field(nullptr),
 	action_id_field(nullptr),
@@ -399,10 +399,10 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 	text_field(nullptr),
 	description_field(nullptr)
 {
-	ASSERT(edit_spawn);
+	ASSERT(edit_spawn_monster);
 
 	wxSizer* topsizer = newd wxBoxSizer(wxVERTICAL);
-	wxSizer* boxsizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Spawn Properties");
+	wxSizer* boxsizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Spawn Monster Properties");
 
 	//if(item->canHoldDescription()) num_items += 1;
 
@@ -410,7 +410,7 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 	subsizer->AddGrowableCol(1);
 
 	subsizer->Add(newd wxStaticText(this, wxID_ANY, "Spawn size"));
-	count_field = newd wxSpinCtrl(this, wxID_ANY, i2ws(edit_spawn->getSize()), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 1, g_settings.getInteger(Config::MAX_SPAWN_RADIUS), edit_spawn->getSize());
+	count_field = newd wxSpinCtrl(this, wxID_ANY, i2ws(edit_spawn_monster->getSize()), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 1, g_settings.getInteger(Config::MAX_SPAWN_MONSTER_RADIUS), edit_spawn_monster->getSize());
 	// count_field->SetSelection(-1, -1);
 	subsizer->Add(count_field, wxSizerFlags(1).Expand());
 
@@ -494,14 +494,14 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 	ASSERT(edit_spawn_npc);
 
 	wxSizer* topsizer = newd wxBoxSizer(wxVERTICAL);
-	wxSizer* boxsizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Spawn Npc Properties");
+	wxSizer* boxsizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Npc Spawn Properties");
 
 	//if(item->canHoldDescription()) num_items += 1;
 
 	wxFlexGridSizer* subsizer = newd wxFlexGridSizer(2, 10, 10);
 	subsizer->AddGrowableCol(1);
 
-	subsizer->Add(newd wxStaticText(this, wxID_ANY, "Spawn npc size"));
+	subsizer->Add(newd wxStaticText(this, wxID_ANY, "Spawn size"));
 	count_field = newd wxSpinCtrl(this, wxID_ANY, i2ws(edit_spawn_npc->getSize()), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 1, g_settings.getInteger(Config::MAX_SPAWN_NPC_RADIUS), edit_spawn_npc->getSize());
 	// count_field->SetSelection(-1, -1);
 	subsizer->Add(count_field, wxSizerFlags(1).Expand());
@@ -719,15 +719,15 @@ void OldPropertiesWindow::OnClickOK(wxCommandEvent& WXUNUSED(event))
 			edit_item->setUniqueID(new_uid);
 			edit_item->setActionID(new_aid);
 		}
-	} else if(edit_creature) {
-		int new_spawntime = count_field->GetValue();
-		edit_creature->setSpawnTime(new_spawntime);
+	} else if(edit_monster) {
+		int new_spawn_monster_time = count_field->GetValue();
+		edit_monster->setSpawnMonsterTime(new_spawn_monster_time);
 
 		int* new_dir = reinterpret_cast<int*>(direction_field->GetClientData(
 			direction_field->GetSelection()));
 
 		if(new_dir) {
-			edit_creature->setDirection((Direction)*new_dir);
+			edit_monster->setDirection((Direction)*new_dir);
 		}
 	} else if(edit_npc) {
 		int new_spawn_npc_time = count_field->GetValue();
@@ -739,12 +739,12 @@ void OldPropertiesWindow::OnClickOK(wxCommandEvent& WXUNUSED(event))
 		if(new_dir) {
 			edit_npc->setDirection((Direction)*new_dir);
 		}
-	} else if(edit_spawn) {
-		int new_spawnsize = count_field->GetValue();
-		edit_spawn->setSize(new_spawnsize);
+	} else if(edit_spawn_monster) {
+		int new_spawn_monster_size = count_field->GetValue();
+		edit_spawn_monster->setSize(new_spawn_monster_size);
 	} else if(edit_spawn_npc) {
-		int new_spawn_npcsize = count_field->GetValue();
-		edit_spawn_npc->setSize(new_spawn_npcsize);
+		int new_spawn_npc_size = count_field->GetValue();
+		edit_spawn_npc->setSize(new_spawn_npc_size);
 	} 
 	EndModal(1);
 }

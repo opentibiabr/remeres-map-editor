@@ -53,8 +53,8 @@ public: // Members
 	TileLocation* location;
 	Item* ground;
 	ItemVector items;
-	Creature* creature;
-	Spawn* spawn;
+	Monster* monster;
+	SpawnMonster* spawnMonster;
 	Npc* npc;
 	SpawnNpc* spawnNpc;
 	uint32_t house_id; // House id for this tile (pointer not safe)

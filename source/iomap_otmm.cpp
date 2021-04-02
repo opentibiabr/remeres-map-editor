@@ -517,128 +517,128 @@ bool IOMapOTMM::loadMap(Map& map, NodeFileReadHandle& f, const FileName& identif
 					map.setTile(pos, tile);
 				} while(tileNode->advance());
 			} break;
-			case OTMM_SPAWN_DATA: {
-				BinaryNode* spawnNode = mapNode->getChild();
-				if(spawnNode) do {
-					uint8_t spawn_type;
-					if(!spawnNode->getByte(spawn_type)) {
-						warning("Could not read spawn type.");
+			case OTMM_SPAWN_MONSTER_DATA: {
+				BinaryNode* spawnMonsterNode = mapNode->getChild();
+				if(spawnMonsterNode) do {
+					uint8_t spawn_monster_type;
+					if(!spawnMonsterNode->getByte(spawn_monster_type)) {
+						warning("Could not read monster spawn type.");
 						continue;
 					}
-					if(spawn_type != OTMM_SPAWN_AREA) {
-						warning("Invalid spawn type.");
+					if(spawn_monster_type != OTMM_SPAWN_MONSTER_AREA) {
+						warning("Invalid monster spawn type.");
 						continue;
 					}
 
 					// Read position
-					uint16_t spawn_x, spawn_y;
-					uint8_t spawn_z;
+					uint16_t spawnMonster_x, spawnMonster_y;
+					uint8_t spawnMonster_z;
 					uint32_t radius;
-					if(!spawnNode->getU16(spawn_x) ||
-							!spawnNode->getU16(spawn_y) ||
-							!spawnNode->getU8(spawn_z)
+					if(!spawnMonsterNode->getU16(spawnMonster_x) ||
+							!spawnMonsterNode->getU16(spawnMonster_y) ||
+							!spawnMonsterNode->getU8(spawnMonster_z)
 						)
 					{
-						warning("Could not read spawn position.");
+						warning("Could not read monster spawn position.");
 						continue;
 					}
-					const Position spawnpos(spawn_x, spawn_y, spawn_z);
+					const Position spawnPos(spawnMonster_x, spawnMonster_y, spawnMonster_z);
 
 					// Read radius
-					if(!spawnNode->getU32(radius)) {
-						warning("Could not read spawn radius.");
+					if(!spawnMonsterNode->getU32(radius)) {
+						warning("Could not read monster spawn radius.");
 						continue;
 					}
 					// Adjust radius
-					radius = min(radius, uint32_t(g_settings.getInteger(Config::MAX_SPAWN_RADIUS)));
+					radius = min(radius, uint32_t(g_settings.getInteger(Config::MAX_SPAWN_MONSTER_RADIUS)));
 
-					// Create and assign spawn
-					Tile* spawn_tile = map.getTile(spawnpos);
-					if(spawn_tile && spawn_tile->spawn) {
-						warning("Duplicate spawn on position %d:%d:%d\n", spawn_tile->getX(), spawn_tile->getY(), spawn_tile->getZ());
+					// Create and assign monster spawn
+					Tile* spawnMonsterTile = map.getTile(spawnPos);
+					if(spawnMonsterTile && spawnMonsterTile->spawnMonster) {
+						warning("Duplicate monster spawn on position %d:%d:%d\n", spawnMonsterTile->getX(), spawnMonsterTile->getY(), spawnMonsterTile->getZ());
 						continue;
 					}
 
-					Spawn* spawn = newd Spawn(radius);
-					if(!spawn_tile) {
-						spawn_tile = map.allocator(spawnpos);
-						map.setTile(spawnpos, spawn_tile);
+					SpawnMonster* spawnMonster = newd SpawnMonster(radius);
+					if(!spawnMonsterTile) {
+						spawnMonsterTile = map.allocator(spawnPos);
+						map.setTile(spawnPos, spawnMonsterTile);
 					}
-					spawn_tile->spawn = spawn;
-					map.addSpawn(spawn_tile);
+					spawnMonsterTile->spawnMonster = spawnMonster;
+					map.addSpawnMonster(spawnMonsterTile);
 
-					// Read any creatures associated with the spawn
-					BinaryNode* creatureNode = spawnNode->getChild();
-					if(creatureNode) do {
-						uint8_t creature_type;
-						if(!creatureNode->getByte(creature_type)) {
+					// Read any monsters associated with the spawnMonster
+					BinaryNode* monsterNode = spawnMonsterNode->getChild();
+					if(monsterNode) do {
+						uint8_t monster_type;
+						if(!monsterNode->getByte(monster_type)) {
 							warning("Could not read type of monster node.");
 							continue;
 						}
 						std::string name;
 						uint32_t spawntime = 0; // Only applicable for monsters
 
-						if(creature_type == OTMM_MONSTER) {
-							if(!creatureNode->getString(name)) {
+						if(monster_type == OTMM_MONSTER) {
+							if(!monsterNode->getString(name)) {
 								warning("Could not read name of monster.");
 								return false;
 							}
-							if(!creatureNode->getU32(spawntime)) {
-								warning("Could not read spawn time of monster.");
+							if(!monsterNode->getU32(spawntime)) {
+								warning("Could not read spawntime of monster.");
 								return false;
 							}
 						} else {
-							warning("Unknown creature node type (0x%.2x).", creature_type);
+							warning("Unknown monster node type (0x%.2x).", monster_type);
 							return false;
 						}
 
-						// Read creature position
-						uint16_t creature_x, creature_y;
-						uint8_t creature_z;
-						if(!creatureNode->getU16(creature_x) ||
-							!creatureNode->getU16(creature_y) ||
-							!creatureNode->getU8(creature_z) ) {
-							warning("Could not read creature position.");
+						// Read monster position
+						uint16_t monster_x, monster_y;
+						uint8_t monster_z;
+						if(!monsterNode->getU16(monster_x) ||
+							!monsterNode->getU16(monster_y) ||
+							!monsterNode->getU8(monster_z) ) {
+							warning("Could not read monster position.");
 							continue;
 						}
-						const Position creaturepos(creature_x, creature_y, creature_z);
+						const Position monsterPos(monster_x, monster_y, monster_z);
 
 						// Check radius
-						if(uint32_t(abs(creaturepos.x - spawnpos.x)) > radius || uint32_t(abs(creaturepos.y - spawnpos.y)) > radius) {
-							// Outside of the spawn...
+						if(uint32_t(abs(monsterPos.x - spawnPos.x)) > radius || uint32_t(abs(monsterPos.y - spawnPos.y)) > radius) {
+							// Outside of the monster spawn...
 						}
 
-						// Create creature and put on map
-						Tile* creature_tile;
-						if(creaturepos == spawnpos) {
-							creature_tile = spawn_tile;
+						// Create monster and put on map
+						Tile* monster_tile;
+						if(monsterPos == spawnPos) {
+							monster_tile = spawnMonsterTile;
 						} else {
-							creature_tile = map.getTile(creaturepos);
+							monster_tile = map.getTile(monsterPos);
 						}
-						if(!creature_tile) {
-							warning("Discarding creature \"%s\" at %d:%d:%d due to invalid position", name.c_str(), creaturepos.x, creaturepos.y, creaturepos.z);
+						if(!monster_tile) {
+							warning("Discarding monster \"%s\" at %d:%d:%d due to invalid position", name.c_str(), monsterPos.x, monsterPos.y, monsterPos.z);
 							break;
 						}
-						if(creature_tile->creature) {
-							warning("Duplicate creature \"%s\" at %d:%d:%d, discarding", name.c_str(), creaturepos.x, creaturepos.y, creaturepos.z);
+						if(monster_tile->monster) {
+							warning("Duplicate monster \"%s\" at %d:%d:%d, discarding", name.c_str(), monsterPos.x, monsterPos.y, monsterPos.z);
 							break;
 						}
-						CreatureType* type = g_creatures[name];
+						MonsterType* type = g_monsters[name];
 						if(!type) {
-							type = g_creatures.addMissingCreatureType(name);
+							type = g_monsters.addMissingMonsterType(name);
 						}
-						Creature* creature = newd Creature(type);
-						creature->setSpawnTime(spawntime);
-						creature_tile->creature = creature;
-						if(creature_tile->spawn_count == 0) {
-							// No spawn, create a newd one (this happends if the radius of the spawn has been decreased due to g_settings)
-							ASSERT(creature_tile->spawn == nullptr);
-							Spawn* spawn = newd Spawn(5);
-							creature_tile->spawn = spawn;
-							map.addSpawn(creature_tile);
+						Monster* monster = newd Monster(type);
+						monster->setSpawnMonsterTime(spawntime);
+						monster_tile->monster = monster;
+						if(monster_tile->spawn_monster_count == 0) {
+							// No monster spawn, create a newd one (this happends if the radius of the monster spawn has been decreased due to g_settings)
+							ASSERT(monster_tile->spawnMonster == nullptr);
+							SpawnMonster* spawnMonster = newd SpawnMonster(5);
+							monster_tile->spawnMonster = spawnMonster;
+							map.addSpawnMonster(monster_tile);
 						}
-					} while(creatureNode->advance());
-				} while(spawnNode->advance());
+					} while(monsterNode->advance());
+				} while(spawnMonsterNode->advance());
 			} break;
 			case OTMM_SPAWN_NPC_DATA: {
 				BinaryNode* spawnNpcNode = mapNode->getChild();
@@ -688,7 +688,7 @@ bool IOMapOTMM::loadMap(Map& map, NodeFileReadHandle& f, const FileName& identif
 						map.setTile(spawnNpcPos, spawnNpcTile);
 					}
 					spawnNpcTile->spawnNpc = spawnNpc;
-					map.addSpawn(spawnNpcTile);
+					map.addSpawnNpc(spawnNpcTile);
 
 					// Read any npc associated with the npc spawn
 					BinaryNode* npcNode = spawnNpcNode->getChild();
@@ -750,7 +750,7 @@ bool IOMapOTMM::loadMap(Map& map, NodeFileReadHandle& f, const FileName& identif
 						npc->setSpawnNpcTime(spawntime);
 						npcTile->npc = npc;
 						if(npcTile->spawn_npc_count == 0) {
-							// No spawn, create a newd one (this happends if the radius of the spawn has been decreased due to g_settings)
+							// No npc spawn, create a newd one (this happends if the radius of the npc spawn has been decreased due to g_settings)
 							ASSERT(npcTile->spawnNpc == nullptr);
 							SpawnNpc* spawnNpc = newd SpawnNpc(1);
 							npcTile->spawnNpc = spawnNpc;
@@ -896,7 +896,7 @@ bool IOMapOTMM::saveMap(Map& map, NodeFileWriteHandle& f, const FileName& identi
 	 * inevitably make it incompatible with any future releases of
 	 * the map editor, meaning you cannot reuse your map. Before you
 	 * try to modify this, PLEASE consider using an external file
-	 * like spawns.xml or houses.xml, as that will be MUCH easier
+	 * like monster.xml, npc.xml or house.xml, as that will be MUCH easier
 	 * to port to newer versions of the editor than a custom binary
 	 * format.
 	 */
@@ -993,47 +993,47 @@ bool IOMapOTMM::saveMap(Map& map, NodeFileWriteHandle& f, const FileName& identi
 				}
 			} f.endNode(); // OTMM_TILE_DATA
 
-			f.addNode(OTMM_SPAWN_DATA); {
-				Spawns& spawns = map.spawns;
-				CreatureList creature_list;
-				for(SpawnPositionList::const_iterator piter = spawns.begin(); piter != spawns.end(); ++piter) {
+			f.addNode(OTMM_SPAWN_MONSTER_DATA); {
+				SpawnsNpc& spawnsMonster = map.spawnsMonster;
+				MonsterList monster_list;
+				for(SpawnNpcPositionList::const_iterator piter = spawnsMonster.begin(); piter != spawnsMonster.end(); ++piter) {
 					const Tile* tile = map.getTile(*piter);
 					ASSERT(tile);
-					const Spawn* spawn = tile->spawn;
-					ASSERT(spawn);
+					const SpawnMonster* spawnMonster = tile->spawnMonster;
+					ASSERT(spawnMonster);
 
-					f.addNode(OTMM_SPAWN_AREA); {
+					f.addNode(OTMM_SPAWN_MONSTER_AREA); {
 						f.addU16(tile->getX());
 						f.addU16(tile->getY());
 						f.addU8(tile->getZ() & 0xf);
-						f.addU32(spawn->getSize());
-						for(int y = -tile->spawn->getSize(); y <= tile->spawn->getSize(); ++y) {
-							for(int x = -tile->spawn->getSize(); x <= tile->spawn->getSize(); ++x) {
-								Tile* creature_tile = map.getTile(*piter + Position(x, y, 0));
-								if(creature_tile) {
-									Creature* c = creature_tile->creature;
+						f.addU32(spawnMonster->getSize());
+						for(int y = -tile->spawnMonster->getSize(); y <= tile->spawnMonster->getSize(); ++y) {
+							for(int x = -tile->spawnMonster->getSize(); x <= tile->spawnMonster->getSize(); ++x) {
+								Tile* monster_tile = map.getTile(*piter + Position(x, y, 0));
+								if(monster_tile) {
+									Monster* c = monster_tile->monster;
 									if(c && c->isSaved() == false) {
 										f.addNode(OTMM_MONSTER); {
 											f.addString(c->getName());
-											f.addU32(c->getSpawnTime());
-											f.addU16(creature_tile->getX());
-											f.addU16(creature_tile->getY());
-											f.addU8(creature_tile->getZ() & 0xf);
+											f.addU32(c->getSpawnMonsterTime());
+											f.addU16(monster_tile->getX());
+											f.addU16(monster_tile->getY());
+											f.addU8(monster_tile->getZ() & 0xf);
 										} f.endNode(); // OTMM_MONSTER
 
 										// Flag as saved
 										c->save();
-										creature_list.push_back(c);
+										monster_list.push_back(c);
 									}
 								}
 							}
 						}
-					} f.endNode(); // OTMM_SPAWN_AREA
+					} f.endNode(); // OTMM_SPAWN_MONSTER_AREA
 				}
-				for(CreatureList::iterator iter = creature_list.begin(); iter != creature_list.end(); ++iter) {
+				for(MonsterList::iterator iter = monster_list.begin(); iter != monster_list.end(); ++iter) {
 					(*iter)->reset();
 				}
-			} f.endNode(); // OTMM_SPAWN_DATA
+			} f.endNode(); // OTMM_SPAWN_MONSTER_DATA
 
 			f.addNode(OTMM_SPAWN_NPC_DATA); {
 				SpawnsNpc& spawnNpc = map.spawnsNpc;
@@ -1044,7 +1044,7 @@ bool IOMapOTMM::saveMap(Map& map, NodeFileWriteHandle& f, const FileName& identi
 					const SpawnNpc* spawnNpc = tile->spawnNpc;
 					ASSERT(spawnNpc);
 
-					f.addNode(OTMM_SPAWN_AREA); {
+					f.addNode(OTMM_SPAWN_NPC_AREA); {
 						f.addU16(tile->getX());
 						f.addU16(tile->getY());
 						f.addU8(tile->getZ() & 0xf);
@@ -1069,12 +1069,12 @@ bool IOMapOTMM::saveMap(Map& map, NodeFileWriteHandle& f, const FileName& identi
 								}
 							}
 						}
-					} f.endNode(); // OTMM_SPAWN_AREA
+					} f.endNode(); // OTMM_SPAWN_NPC_AREA
 				}
-				for(CreatureList::iterator iter = creature_list.begin(); iter != creature_list.end(); ++iter) {
+				for(NpcList::iterator iter = npc_list.begin(); iter != npc_list.end(); ++iter) {
 					(*iter)->reset();
 				}
-			} f.endNode(); // OTMM_SPAWN_DATA
+			} f.endNode(); // OTMM_SPAWN_NPC_DATA
 
 			f.addNode(OTMM_TOWN_DATA); {
 				for(TownMap::const_iterator it = map.towns.begin(); it != map.towns.end(); ++it) {

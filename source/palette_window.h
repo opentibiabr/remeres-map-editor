@@ -21,7 +21,7 @@
 #include "palette_common.h"
 
 class BrushPalettePanel;
-class CreaturePalettePanel;
+class MonsterPalettePanel;
 class NpcPalettePanel;
 class HousePalettePanel;
 class WaypointPalettePanel;
@@ -53,7 +53,7 @@ public:
 	virtual bool OnSelectBrush(const Brush* whatbrush, PaletteType primary = TILESET_UNKNOWN);
 	// Updates the palette window to use the current brush size
 	virtual void OnUpdateBrushSize(BrushShape shape, int size);
-	// Updates the content of the palette (eg. houses, creatures)
+	// Updates the content of the palette (eg. houses, monsters)
 	virtual void OnUpdate(Map* map);
 
 	// wxWidgets Event Handlers
@@ -66,7 +66,7 @@ protected:
 	static PalettePanel* CreateTerrainPalette(wxWindow* parent, const TilesetContainer& tilesets);
 	static PalettePanel* CreateDoodadPalette(wxWindow* parent, const TilesetContainer& tilesets);
 	static PalettePanel* CreateItemPalette(wxWindow* parent, const TilesetContainer& tilesets);
-	static PalettePanel* CreateCreaturePalette(wxWindow* parent, const TilesetContainer& tilesets);
+	static PalettePanel* CreateMonsterPalette(wxWindow* parent, const TilesetContainer& tilesets);
 	static PalettePanel* CreateNpcPalette(wxWindow* parent, const TilesetContainer& tilesets);
 	static PalettePanel* CreateHousePalette(wxWindow* parent, const TilesetContainer& tilesets);
 	static PalettePanel* CreateWaypointPalette(wxWindow* parent, const TilesetContainer& tilesets);
@@ -77,7 +77,7 @@ protected:
 	BrushPalettePanel* terrain_palette;
 	BrushPalettePanel* doodad_palette;
 	BrushPalettePanel* item_palette;
-	CreaturePalettePanel* creature_palette;
+	MonsterPalettePanel* monster_palette;
 	NpcPalettePanel* npc_palette;
 	HousePalettePanel* house_palette;
 	WaypointPalettePanel* waypoint_palette;

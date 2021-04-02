@@ -28,7 +28,7 @@
 #include "sprites.h"
 #include "materials.h"
 #include "doodad_brush.h"
-#include "spawn_brush.h"
+#include "spawn_monster_brush.h"
 
 #include "common_windows.h"
 #include "result_window.h"
@@ -86,7 +86,7 @@ GUI::GUI() :
 	brush_size(0),
 	brush_variation(0),
 
-	creature_spawntime(0),
+	monster_spawntime(0),
 	npc_spawntime(0),
 	use_custom_thickness(false),
 	custom_thickness_mod(0.0),
@@ -389,7 +389,7 @@ bool GUI::LoadDataFiles(wxString& error, wxArrayString& warnings)
 	}
 
 	g_gui.SetLoadDone(45, "Loading monsters.xml ...");
-	if(!g_creatures.loadFromXML(wxString(data_path.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + "monsters.xml"), true, error, warnings)) {
+	if(!g_monsters.loadFromXML(wxString(data_path.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + "monsters.xml"), true, error, warnings)) {
 		warnings.push_back("Couldn't load monsters.xml: " + error);
 	}
 
@@ -399,7 +399,7 @@ bool GUI::LoadDataFiles(wxString& error, wxArrayString& warnings)
 		cdb.SetFullName("monsters.xml");
 		wxString nerr;
 		wxArrayString nwarn;
-		g_creatures.loadFromXML(cdb, false, nerr, nwarn);
+		g_monsters.loadFromXML(cdb, false, nerr, nwarn);
 	}
 
 	g_gui.SetLoadDone(45, "Loading npcs.xml ...");
@@ -463,8 +463,8 @@ void GUI::UnloadVersion()
 
 		FileName cdb = getLoadedVersion()->getLocalDataPath();
 		cdb.SetFullName("monsters.xml");
-		g_creatures.saveToXML(cdb);
-		g_creatures.clear();
+		g_monsters.saveToXML(cdb);
+		g_monsters.clear();
 
 		cdb.SetFullName("npcs.xml");
 		g_npcs.saveToXML(cdb);
@@ -1687,9 +1687,9 @@ int GUI::GetBrushVariation() const
 	return brush_variation;
 }
 
-int GUI::GetSpawnTime() const
+int GUI::GetSpawnMonsterTime() const
 {
-	return creature_spawntime;
+	return monster_spawntime;
 }
 
 int GUI::GetSpawnNpcTime() const

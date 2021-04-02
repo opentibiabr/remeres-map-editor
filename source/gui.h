@@ -40,7 +40,7 @@ class HouseExitBrush;
 class WaypointBrush;
 class OptionalBorderBrush;
 class EraserBrush;
-class SpawnBrush;
+class SpawnMonsterBrush;
 class SpawnNpcBrush;
 class DoorBrush;
 class FlagBrush;
@@ -237,11 +237,11 @@ public:
 	BrushShape GetBrushShape() const;
 	int GetBrushSize() const;
 	int GetBrushVariation() const;
-	int GetSpawnTime() const;
+	int GetSpawnMonsterTime() const;
 	int GetSpawnNpcTime() const;
 
 	// Additional brush parameters
-	void SetSpawnTime(int time) {creature_spawntime = time;}
+	void SetSpawnMonsterTime(int time) {monster_spawntime = time;}
 	void SetSpawnNpcTime(int time) {npc_spawntime = time;}
 	void SetBrushSize(int nz);
 	void SetBrushSizeInternal(int nz);
@@ -384,7 +384,7 @@ public:
 	WaypointBrush* waypoint_brush;
 	OptionalBorderBrush* optional_brush;
 	EraserBrush* eraser;
-	SpawnBrush* spawn_brush;
+	SpawnMonsterBrush* spawn_brush;
 	SpawnNpcBrush* spawn_npc_brush;
 	DoorBrush* normal_door_brush;
 	DoorBrush* locked_door_brush;
@@ -422,7 +422,7 @@ protected:
 	BrushShape brush_shape;
 	int brush_size;
 	int brush_variation;
-	int creature_spawntime;
+	int monster_spawntime;
 	int npc_spawntime;
 
 	bool use_custom_thickness;

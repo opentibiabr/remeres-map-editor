@@ -30,7 +30,7 @@ class HouseBrush;
 class HouseExitBrush;
 class OptionalBorderBrush;
 class EraserBrush;
-class SpawnBrush;
+class SpawnMonsterBrush;
 class SpawnNpcBrush;
 class DoorBrush;
 class FlagBrush;

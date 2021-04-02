@@ -18,8 +18,8 @@
 #include "main.h"
 
 #include "tileset.h"
-#include "creatures.h"
-#include "creature_brush.h"
+#include "monsters.h"
+#include "monster_brush.h"
 #include "npcs.h"
 #include "npc_brush.h"
 #include "items.h"
@@ -113,7 +113,7 @@ void Tileset::loadCategory(pugi::xml_node node, wxArrayString &warnings)
 		category = getCategory(TILESET_ITEM);
 		subCategory = getCategory(TILESET_RAW);
 	} else if(nodeName == "monsters") {
-		category = getCategory(TILESET_CREATURE);
+		category = getCategory(TILESET_MONSTER);
 		for(pugi::xml_node brushNode = node.first_child(); brushNode; brushNode = brushNode.next_sibling()) {
 			const std::string& brushName = as_lower_str(brushNode.name());
 			if(brushName != "monster") {
@@ -126,20 +126,20 @@ void Tileset::loadCategory(pugi::xml_node node, wxArrayString &warnings)
 				continue;
 			}
 
-			const std::string& creatureName = attribute.as_string();
-			CreatureType* ctype = g_creatures[creatureName];
+			const std::string& monsterName = attribute.as_string();
+			MonsterType* ctype = g_monsters[monsterName];
 			if(ctype) {
-				CreatureBrush* brush;
+				MonsterBrush* brush;
 				if(ctype->brush) {
 					brush = ctype->brush;
 				} else {
-					brush = ctype->brush = newd CreatureBrush(ctype);
+					brush = ctype->brush = newd MonsterBrush(ctype);
 					brushes.addBrush(brush);
 				}
 				brush->flagAsVisible();
 				category->brushlist.push_back(brush);
 			} else {
-				warnings.push_back(wxString("Unknown monster type \"") << wxstr(creatureName) << "\"");
+				warnings.push_back(wxString("Unknown monster type \"") << wxstr(monsterName) << "\"");
 			}
 		}
 	} else if(nodeName == "npcs") {

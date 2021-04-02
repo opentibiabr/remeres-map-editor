@@ -197,18 +197,18 @@ void Action::commit(DirtyList* dirty_list)
 						if(house)
 							house->addTile(newtile);
 					}
-					if(oldtile->spawn) {
-						if(newtile->spawn) {
-							if(*oldtile->spawn != *newtile->spawn) {
-								editor.map.removeSpawn(oldtile);
-								editor.map.addSpawn(newtile);
+					if(oldtile->spawnMonster) {
+						if(newtile->spawnMonster) {
+							if(*oldtile->spawnMonster != *newtile->spawnMonster) {
+								editor.map.removeSpawnMonster(oldtile);
+								editor.map.addSpawnMonster(newtile);
 							}
 						} else {
-							// Spawn has been removed
-							editor.map.removeSpawn(oldtile);
+							// Monster spawn has been removed
+							editor.map.removeSpawnMonster(oldtile);
 						}
-					} else if(newtile->spawn) {
-						editor.map.addSpawn(newtile);
+					} else if(newtile->spawnMonster) {
+						editor.map.addSpawnMonster(newtile);
 					}
 					if(oldtile->spawnNpc) {
 						if(newtile->spawnNpc) {
@@ -217,7 +217,7 @@ void Action::commit(DirtyList* dirty_list)
 								editor.map.addSpawnNpc(newtile);
 							}
 						} else {
-							// Spawn has been removed
+							// SpawnMonster has been removed
 							editor.map.removeSpawnNpc(oldtile);
 						}
 					} else if(newtile->spawnNpc) {
@@ -239,8 +239,8 @@ void Action::commit(DirtyList* dirty_list)
 						}
 					}
 
-					if(newtile->spawn)
-						editor.map.addSpawn(newtile);
+					if(newtile->spawnMonster)
+						editor.map.addSpawnMonster(newtile);
 
 					if(newtile->spawnNpc)
 						editor.map.addSpawnNpc(newtile);
@@ -359,17 +359,17 @@ void Action::undo(DirtyList* dirty_list)
 					}
 				}
 
-				if(oldtile->spawn) {
-					if(newtile->spawn) {
-						if(*oldtile->spawn != *newtile->spawn) {
-							editor.map.removeSpawn(newtile);
-							editor.map.addSpawn(oldtile);
+				if(oldtile->spawnMonster) {
+					if(newtile->spawnMonster) {
+						if(*oldtile->spawnMonster != *newtile->spawnMonster) {
+							editor.map.removeSpawnMonster(newtile);
+							editor.map.addSpawnMonster(oldtile);
 						}
 					} else {
-						editor.map.addSpawn(oldtile);
+						editor.map.addSpawnMonster(oldtile);
 					}
-				} else if(newtile->spawn) {
-					editor.map.removeSpawn(newtile);
+				} else if(newtile->spawnMonster) {
+					editor.map.removeSpawnMonster(newtile);
 				}
 
 				if(oldtile->spawnNpc) {

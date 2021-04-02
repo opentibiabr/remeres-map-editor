@@ -15,58 +15,37 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //////////////////////////////////////////////////////////////////////
 
-#include "main.h"
+#ifndef RME_monster_BRUSH_H
+#define RME_monster_BRUSH_H
 
-#include "spawn_brush.h"
-#include "basemap.h"
-#include "spawn.h"
+#include "brush.h"
 
 //=============================================================================
-// Spawn brush
+// MonsterBrush, place monsters
 
-SpawnBrush::SpawnBrush() :
-	Brush()
+class MonsterBrush : public Brush
 {
-	////
-}
+public:
+	MonsterBrush(MonsterType* type); // Create a RAWBrush of the specified type
+	virtual ~MonsterBrush();
 
-SpawnBrush::~SpawnBrush()
-{
-	////
-}
+	bool isMonster() const { return true; }
+	MonsterBrush* asMonster() { return static_cast<MonsterBrush*>(this); }
 
-int SpawnBrush::getLookID() const
-{
-	return 0;
-}
+	virtual bool canDraw(BaseMap* map, const Position& position) const;
+	virtual void draw(BaseMap* map, Tile* tile, void* parameter);
+	virtual void undraw(BaseMap* map, Tile* tile);
 
-std::string SpawnBrush::getName() const
-{
-	return "Spawn Brush";
-}
+	MonsterType* getType() const {return monster_type;}
 
-bool SpawnBrush::canDraw(BaseMap* map, const Position& position) const
-{
-	Tile* tile = map->getTile(position);
-	if(tile) {
-		if(tile->spawn) {
-			return false;
-		}
-	}
-	return true;
-}
+	virtual int getLookID() const; // We don't have a look type, this will always return 0
+	virtual std::string getName() const;
+	virtual bool canDrag() const { return false; }
+	virtual bool canSmear() const { return true; }
+	virtual bool oneSizeFitsAll() const { return true; }
 
-void SpawnBrush::undraw(BaseMap* map, Tile* tile)
-{
-	delete tile->spawn;
-	tile->spawn = nullptr;
-}
+protected:
+	MonsterType* monster_type;
+};
 
-void SpawnBrush::draw(BaseMap* map, Tile* tile, void* parameter)
-{
-	ASSERT(tile);
-	ASSERT(parameter); // Should contain an int which is the size of the newd spawn
-	if(tile->spawn == nullptr) {
-		tile->spawn = newd Spawn(max(1, *(int*)parameter));
-	}
-}
+#endif

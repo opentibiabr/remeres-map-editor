@@ -28,7 +28,7 @@
 #include "welcome_dialog.h"
 
 class Item;
-class Creature;
+class Monster;
 class Npc;
 
 class MainFrame;

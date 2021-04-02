@@ -15,40 +15,40 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //////////////////////////////////////////////////////////////////////
 
-#ifndef RME_CREATURES_H_
-#define RME_CREATURES_H_
+#ifndef RME_MONSTERS_H_
+#define RME_MONSTERS_H_
 
 #include "outfit.h"
 
 #include <string>
 #include <map>
 
-class CreatureType;
-class CreatureBrush;
+class MonsterType;
+class MonsterBrush;
 
-typedef std::map<std::string, CreatureType*> CreatureMap;
+typedef std::map<std::string, MonsterType*> MonsterMap;
 
-class CreatureDatabase
+class MonsterDatabase
 {
 protected:
-	CreatureMap creature_map;
+	MonsterMap monster_map;
 
 public:
-	typedef CreatureMap::iterator iterator;
-	typedef CreatureMap::const_iterator const_iterator;
+	typedef MonsterMap::iterator iterator;
+	typedef MonsterMap::const_iterator const_iterator;
 
-	CreatureDatabase();
-	~CreatureDatabase();
+	MonsterDatabase();
+	~MonsterDatabase();
 
 	void clear();
 
-	CreatureType* operator[](const std::string& name);
-	CreatureType* addMissingCreatureType(const std::string& name);
-	CreatureType* addCreatureType(const std::string& name, const Outfit& outfit);
+	MonsterType* operator[](const std::string& name);
+	MonsterType* addMissingMonsterType(const std::string& name);
+	MonsterType* addMonsterType(const std::string& name, const Outfit& outfit);
 
 	bool hasMissing() const;
-	iterator begin() {return creature_map.begin();}
-	iterator end() {return creature_map.end();}
+	iterator begin() {return monster_map.begin();}
+	iterator end() {return monster_map.end();}
 
 	bool loadFromXML(const FileName& filename, bool standard, wxString& error, wxArrayString& warnings);
 	bool importXMLFromOT(const FileName& filename, wxString& error, wxArrayString& warnings);
@@ -56,24 +56,24 @@ public:
 	bool saveToXML(const FileName& filename);
 };
 
-class CreatureType {
+class MonsterType {
 public:
-	CreatureType();
-	CreatureType(const CreatureType& ct);
-	CreatureType& operator=(const CreatureType& ct);
-	~CreatureType();
+	MonsterType();
+	MonsterType(const MonsterType& ct);
+	MonsterType& operator=(const MonsterType& ct);
+	~MonsterType();
 
 	bool missing;
 	bool in_other_tileset;
 	bool standard;
 	std::string name;
 	Outfit outfit;
-	CreatureBrush* brush;
+	MonsterBrush* brush;
 
-	static CreatureType* loadFromXML(pugi::xml_node node, wxArrayString& warnings);
-	static CreatureType* loadFromOTXML(const FileName& filename, pugi::xml_document& node, wxArrayString& warnings);
+	static MonsterType* loadFromXML(pugi::xml_node node, wxArrayString& warnings);
+	static MonsterType* loadFromOTXML(const FileName& filename, pugi::xml_document& node, wxArrayString& warnings);
 };
 
-extern CreatureDatabase g_creatures;
+extern MonsterDatabase g_monsters;
 
 #endif

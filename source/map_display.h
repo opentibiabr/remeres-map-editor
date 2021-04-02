@@ -20,11 +20,11 @@
 
 #include "action.h"
 #include "tile.h"
-#include "creature.h"
+#include "monster.h"
 #include "npc.h"
 
 class Item;
-class Creature;
+class Monster;
 class Npc;
 class MapWindow;
 class MapPopupMenu;
@@ -86,7 +86,7 @@ public:
 	void OnSelectWallBrush(wxCommandEvent& event);
 	void OnSelectCarpetBrush(wxCommandEvent& event);
 	void OnSelectTableBrush(wxCommandEvent& event);
-	void OnSelectCreatureBrush(wxCommandEvent& event);
+	void OnSelectMonsterBrush(wxCommandEvent& event);
 	void OnSelectSpawnBrush(wxCommandEvent& event);
 	void OnSelectNpcBrush(wxCommandEvent& event);
 	void OnSelectSpawnNpcBrush(wxCommandEvent& event);

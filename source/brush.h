@@ -26,7 +26,7 @@
 // Thanks to a million forward declarations, we don't have to include any files!
 // TODO move to a declarations file.
 class ItemType;
-class CreatureType;
+class MonsterType;
 class NpcType;
 class BaseMap;
 class House;
@@ -45,8 +45,8 @@ class TableBrush;
 class CarpetBrush;
 class DoorBrush;
 class OptionalBorderBrush;
-class CreatureBrush;
-class SpawnBrush;
+class MonsterBrush;
+class SpawnMonsterBrush;
 class NpcBrush;
 class SpawnNpcBrush;
 class HouseBrush;
@@ -135,8 +135,8 @@ public:
 	virtual bool isCarpet() const { return false; }
 	virtual bool isDoor() const { return false; }
 	virtual bool isOptionalBorder() const { return false; }
-	virtual bool isCreature() const { return false; }
-	virtual bool isSpawn() const { return false; }
+	virtual bool isMonster() const { return false; }
+	virtual bool isSpawnMonster() const { return false; }
 	virtual bool isNpc() const { return false; }
 	virtual bool isSpawnNpc() const { return false; }
 	virtual bool isHouse() const { return false; }
@@ -155,8 +155,8 @@ public:
 	virtual CarpetBrush* asCarpet() { return nullptr; }
 	virtual DoorBrush* asDoor() { return nullptr; }
 	virtual OptionalBorderBrush* asOptionalBorder() { return nullptr; }
-	virtual CreatureBrush* asCreature() { return nullptr; }
-	virtual SpawnBrush* asSpawn() { return nullptr; }
+	virtual MonsterBrush* asMonster() { return nullptr; }
+	virtual SpawnMonsterBrush* asSpawnMonster() { return nullptr; }
 	virtual NpcBrush* asNpc() { return nullptr; }
 	virtual SpawnNpcBrush* asSpawnNpc() { return nullptr; }
 	virtual HouseBrush* asHouse() { return nullptr; }

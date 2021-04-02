@@ -33,7 +33,7 @@
 #include "materials.h"
 #include "map.h"
 #include "complexitem.h"
-#include "creature.h"
+#include "monster.h"
 #include "npc.h"
 
 #include <wx/snglinst.h>
@@ -550,7 +550,7 @@ bool MainFrame::DoQuerySave(bool doclose)
 bool MainFrame::DoQueryImportCreatures()
 {
 	// Monsters
-	if(g_creatures.hasMissing()) {
+	if(g_monsters.hasMissing()) {
 		long ret = g_gui.PopupDialog("Missing monsters", "There are missing monsters in the editor, do you want to load them from an OT monster file?", wxYES | wxNO);
 		if(ret == wxID_YES) {
 			do {
@@ -561,7 +561,7 @@ bool MainFrame::DoQueryImportCreatures()
 					for(uint32_t i = 0; i < paths.GetCount(); ++i) {
 						wxString error;
 						wxArrayString warnings;
-						bool ok = g_creatures.importXMLFromOT(FileName(paths[i]), error, warnings);
+						bool ok = g_monsters.importXMLFromOT(FileName(paths[i]), error, warnings);
 						if(ok)
 							g_gui.ListDialog("Monster loader errors", warnings);
 						else
@@ -570,7 +570,7 @@ bool MainFrame::DoQueryImportCreatures()
 				} else {
 					break;
 				}
-			} while(g_creatures.hasMissing());
+			} while(g_monsters.hasMissing());
 		}
 	}
 	// Npcs

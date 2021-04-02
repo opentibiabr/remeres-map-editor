@@ -20,7 +20,7 @@
 #include "copybuffer.h"
 #include "editor.h"
 #include "gui.h"
-#include "creature.h"
+#include "monster.h"
 #include "npc.h"
 
 CopyBuffer::CopyBuffer() :
@@ -91,11 +91,11 @@ void CopyBuffer::copy(Editor& editor, int floor)
 		}
 
 		// Monster
-		if(tile->creature && tile->creature->isSelected()) {
-			copied_tile->creature = tile->creature->deepCopy();
+		if(tile->monster && tile->monster->isSelected()) {
+			copied_tile->monster = tile->monster->deepCopy();
 		}
-		if(tile->spawn && tile->spawn->isSelected()) {
-			copied_tile->spawn = tile->spawn->deepCopy();
+		if(tile->spawnMonster && tile->spawnMonster->isSelected()) {
+			copied_tile->spawnMonster = tile->spawnMonster->deepCopy();
 		}
 		// Npc
 		if(tile->npc && tile->npc->isSelected()) {
@@ -160,14 +160,14 @@ void CopyBuffer::cut(Editor& editor, int floor)
 		}
 
 		// Monster
-		if(newtile->creature && newtile->creature->isSelected()) {
-			copied_tile->creature = newtile->creature;
-			newtile->creature = nullptr;
+		if(newtile->monster && newtile->monster->isSelected()) {
+			copied_tile->monster = newtile->monster;
+			newtile->monster = nullptr;
 		}
 
-		if(newtile->spawn && newtile->spawn->isSelected()) {
-			copied_tile->spawn = newtile->spawn;
-			newtile->spawn = nullptr;
+		if(newtile->spawnMonster && newtile->spawnMonster->isSelected()) {
+			copied_tile->spawnMonster = newtile->spawnMonster;
+			newtile->spawnMonster = nullptr;
 		}
 
 		// Npc

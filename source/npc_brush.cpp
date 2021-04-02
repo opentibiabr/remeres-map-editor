@@ -81,7 +81,7 @@ void NpcBrush::draw(BaseMap* map, Tile* tile, void* parameter)
 		undraw(map, tile);
 		if(npc_type) {
 			if(tile->spawnNpc == nullptr && tile->getLocation()->getSpawnNpcCount() == 0) {
-				// manually place spawn on location
+				// manually place npc spawn on location
 				tile->spawnNpc = newd SpawnNpc(1);
 			}
 			tile->npc = newd Npc(npc_type);

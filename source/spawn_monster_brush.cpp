@@ -15,32 +15,58 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //////////////////////////////////////////////////////////////////////
 
-#ifndef RME_SPAWN_BRUSH_H
-#define RME_SPAWN_BRUSH_H
+#include "main.h"
 
-#include "brush.h"
+#include "spawn_monster_brush.h"
+#include "basemap.h"
+#include "spawn_monster.h"
 
 //=============================================================================
-// SpawnBrush, place spawns
+// SpawnMonster brush
 
-class SpawnBrush : public Brush
+SpawnMonsterBrush::SpawnMonsterBrush() :
+	Brush()
 {
-public:
-	SpawnBrush(); // Create a RAWBrush of the specified type
-	virtual ~SpawnBrush();
+	////
+}
 
-	bool isSpawn() const { return true; }
-	SpawnBrush* asSpawn() { return static_cast<SpawnBrush*>(this); }
+SpawnMonsterBrush::~SpawnMonsterBrush()
+{
+	////
+}
 
-	virtual bool canDraw(BaseMap* map, const Position& position) const;
-	virtual void draw(BaseMap* map, Tile* tile, void* parameter); // parameter is brush size
-	virtual void undraw(BaseMap* map, Tile* tile);
+int SpawnMonsterBrush::getLookID() const
+{
+	return 0;
+}
 
-	virtual int getLookID() const; // We don't have a look, sorry!
-	virtual std::string getName() const;
-	virtual bool canDrag() const { return true; }
-	virtual bool canSmear() const { return false; }
-	virtual bool oneSizeFitsAll() const { return true; }
-};
+std::string SpawnMonsterBrush::getName() const
+{
+	return "SpawnMonster Brush";
+}
 
-#endif
+bool SpawnMonsterBrush::canDraw(BaseMap* map, const Position& position) const
+{
+	Tile* tile = map->getTile(position);
+	if(tile) {
+		if(tile->spawnMonster) {
+			return false;
+		}
+	}
+	return true;
+}
+
+void SpawnMonsterBrush::undraw(BaseMap* map, Tile* tile)
+{
+	delete tile->spawnMonster;
+	tile->spawnMonster = nullptr;
+}
+
+void SpawnMonsterBrush::draw(BaseMap* map, Tile* tile, void* parameter)
+{
+	ASSERT(tile);
+	ASSERT(parameter); // Should contain an int which is the size of the newd monster spawn
+	if(tile->spawnMonster == nullptr) {
+		tile->spawnMonster = newd SpawnMonster(max(1, *(int*)parameter));
+	}
+}

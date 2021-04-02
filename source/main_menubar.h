@@ -103,8 +103,8 @@ namespace MenuBar
 		SHOW_INGAME_BOX,
 		SHOW_GRID,
 		SHOW_EXTRA,
-		SHOW_CREATURES,
-		SHOW_SPAWNS,
+		SHOW_MONSTERS,
+		SHOW_SPAWNS_MONSTER,
 		SHOW_NPCS,
 		SHOW_SPAWNS_NPC,
 		SHOW_SPECIAL,
@@ -125,7 +125,7 @@ namespace MenuBar
 		SELECT_TERRAIN,
 		SELECT_DOODAD,
 		SELECT_ITEM,
-		SELECT_CREATURE,
+		SELECT_MONSTER,
 		SELECT_NPC,
 		SELECT_HOUSE,
 		SELECT_WAYPOINT,
@@ -269,7 +269,7 @@ public:
 	void OnSelectDoodadPalette(wxCommandEvent& event);
 	void OnSelectItemPalette(wxCommandEvent& event);
 	void OnSelectHousePalette(wxCommandEvent& event);
-	void OnSelectCreaturePalette(wxCommandEvent& event);
+	void OnSelectMonsterPalette(wxCommandEvent& event);
 	void OnSelectNpcPalette(wxCommandEvent& event);
 	void OnSelectWaypointPalette(wxCommandEvent& event);
 	void OnSelectRawPalette(wxCommandEvent& event);
