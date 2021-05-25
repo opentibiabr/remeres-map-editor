@@ -33834,7 +33834,7 @@
 	<item fromid="22355" toid="22360" name="dry floor"/>
 	<item id="22361" article="a" name="golden quartzes"/>
 	<item fromid="22362" toid="22385" name="grass"/>
-	<item fromid="22386" toid="223409" name="dry floor"/>
+	<item fromid="22386" toid="22409" name="dry floor"/>
 	<item fromid="22410" toid="22457" name="salt incrusted floor"/>
 	<item fromid="22458" toid="22493" name="tent"/>
 	<item id="22494" name="RESERVED SPRITE"/>
@@ -34043,8 +34043,9 @@
 	<item id="22566" article="a" name="stairs">
 		<attribute key="floorchange" value="west"/>
 	</item>
-	<item name="stone pillar" id="22567"/>
-	<item fromid="22568" toid="22584" name="cracked stone wall"/>
+	<item fromid="22567" toid="22570" name="cracked stone wall"/>
+	<item fromid="22571" toid="22578" name="RESERVED SPRITE"/>
+	<item fromid="22579" toid="22584" name="cracked stone wall"/>
 	<item fromid="22585" toid="22618" name="energy wall"/>
 	<item fromid="22619" toid="22625" name="RESERVED SPRITE"/>
 	<item id="22626" article="a" name="large pile of bones"/>
@@ -40039,6 +40040,7 @@
 	<item fromid="28111" toid="28136" name="unknown item"/>
 	<!-- Summer Update 2018 - Library-->
 	<item fromid="28137" toid="28144" article="an" name="ostentatious bookstand"/>
+	<item id="28145" name="RESERVED SPRITE"/>
 	<item fromid="28146" toid="28165" article="a" name="green seating area"/>
 	<item fromid="28166" toid="28167" article="a" name="fireplace"/>
 	<item id="28168" article="a" name="candles"/>
