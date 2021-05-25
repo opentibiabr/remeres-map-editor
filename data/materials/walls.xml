@@ -690,7 +690,7 @@
 		</wall>
 	</brush>
 
-	<brush name="plant wall" type="wall" server_lookid="6239">
+	<brush name="plant wall" type="wall decoration" server_lookid="6239">
 		<wall type="horizontal">
 			<item id="6239" chance="1"/>
 			<item id="6241" chance="0"/>
