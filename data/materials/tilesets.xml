@@ -31,8 +31,8 @@
 	<include file="tilesets/levers.xml"/>
 	<include file="tilesets/magic_fields.xml"/>
 	<include file="tilesets/magical_items.xml"/>
-	<include file="tilesets/magical_instruments.xml"/>
 	<include file="tilesets/mountains.xml"/>
+	<include file="tilesets/musical_instruments.xml"/>
 	<include file="tilesets/nature.xml"/>
 	<include file="tilesets/nature_tiny_borders.xml"/>
 	<include file="tilesets/oldschool.xml"/>
