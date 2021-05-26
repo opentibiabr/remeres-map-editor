@@ -1,6 +1,9 @@
 <materials>
-	<tileset name="Equipment - Shields">
+	<tileset name="Equipment - Legs">
 		<items>
+			<item id="645"/>
+			<item id="812"/>
+			<item fromid="821" toid="823"/>
 			<item fromid="3362" toid="3364"/>
 			<item fromid="3371" toid="3372"/>
 			<item id="3382"/>
@@ -9,13 +12,8 @@
 			<item id="3401"/>
 			<item fromid="3557" toid="3559"/>
 			<item id="7464"/>
-			<item id="812"/>
-			<item id="821"/>
-			<item id="822"/>
-			<item id="823"/>
 			<item id="5918"/>
 			<item id="3560"/>
-			<item id="645"/>
 			<item id="8095"/>
 			<item id="8863"/>
 			<item fromid="8897" toid="8899"/>

@@ -1,7 +1,6 @@
 <materials>
 	<!-- Tilesets -->
 	<include file="tilesets/addons_and_quest_items.xml"/>
-	<include file="tilesets/amulets.xml"/>
 	<include file="tilesets/architecture.xml"/>
 	<include file="tilesets/archway.xml"/>
 	<include file="tilesets/banners.xml"/>
