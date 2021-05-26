@@ -1,6 +1,9 @@
 <materials>
 	<tileset name="Creature Products">
 		<items>
+			<item fromid="940" toid="942"/>
+			<item fromid="944" toid="947"/>
+			<item id="954"/>
 			<item id="3044"/>
 			<item fromid="5876" toid="5883"/>
 			<item id="5890"/>
@@ -80,9 +83,9 @@
 			<item fromid="23501" toid="23524"/>
 			<item fromid="24381" toid="24386"/>
 			<item fromid="24388" toid="24389"/>
-			<item fromid="24938" toid="24942"/>
+			<item fromid="24937" toid="24942"/>
 			<item fromid="24961" toid="24963"/>
-			<item fromid="24965" toid="24966"/>
+			<item fromid="24965" toid="24968"/>
 			<item fromid="25689" toid="25697"/>
 			<item fromid="25701" toid="25703"/>
 
@@ -98,6 +101,7 @@
 			<item fromid="28894" toid="28897"/>
 			<item id="21090"/>
 			<item fromid="29942" toid="29949"/>
+			<item id="30005"/>
 			<item id="30058"/>
 			<item fromid="30082" toid="30088"/>
 			<item fromid="30203" toid="30205"/>
@@ -130,6 +134,7 @@
 			<item fromid="32629" toid="32634"/>
 			<item id="32698"/>
 			<item fromid="32703" toid="32705"/>
+			<item fromid="32724" toid="32725"/>
 			<item fromid="32772" toid="32774"/>
 			<item fromid="33778" toid="33780"/>
 			<item id="33947"/>

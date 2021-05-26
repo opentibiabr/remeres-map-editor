@@ -1,0 +1,8 @@
+<materials>
+	<tileset name="Amulets">
+		<items>
+			<item fromid="22767" toid="22768"/>
+			<item id="31268"/><!--jade amulet (replica)-->
+		</items>
+	</tileset>
+</materials>

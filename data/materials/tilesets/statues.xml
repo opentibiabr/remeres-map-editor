@@ -1,8 +1,6 @@
 <materials>
 	<tileset name="Statues">
 		<doodad>
-			<item fromid="2027" toid="2028"/>
-			<item fromid="2031" toid="2032"/>
 			<brush name="knight statue"/>
 			<brush name="mage statue"/>
 			<brush name="king statue"/>
@@ -32,9 +30,6 @@
 			<brush name="giant snake head statue"/>
 			<brush name="giant snake head statue (open)"/>
 			<brush name="giant hand statue"/>
-			<item fromid="2033" toid="2034"/>
-			<item fromid="746" toid="751"/>
-			<item id="19131"/>
 			<brush name="strange statue"/>
 			<brush name="earth element statue"/>
 			<brush name="ice element statue"/>
@@ -46,7 +41,6 @@
 			<brush name="dracoyl statue"/>
 			<brush name="metal hand"/>
 			<brush name="yalaharian statue"/>
-			<item id="8390"/>
 			<brush name="carlin axeman"/>
 			<brush name="carlin swordsman"/>
 			<brush name="carlin bowman"/>
@@ -59,7 +53,6 @@
 			<brush name="zao dragon statue4"/>
 			<brush name="zao dragon statue5"/>
 			<brush name="zao dragon statue6"/>
-			<item id="10322"/>
 			<brush name="zao dragon statue7"/>
 			<brush name="zao dragon statue8"/>
 			<brush name="skull pillar"/>
@@ -115,9 +108,19 @@
 			<brush name="big sphinx statue"/>
 			<brush name="blue rest lion"/>
 			<brush name="blue stand lion"/>
-			<item fromid="28187" toid="28188"/>
+		</doodad>
+		<items>
+			<item fromid="746" toid="751"/>
+			<item fromid="2027" toid="2028"/>
+			<item fromid="2031" toid="2032"/>
+			<item fromid="2033" toid="2034"/>
+			<item id="8390"/>
+			<item id="19131"/>
+			<item id="10322"/>
 			<item fromid="25648" toid="25649"/>
 			<item id="25684"/>
-		</doodad>
+			<item fromid="31259" toid="31261"/>
+			<item fromid="28187" toid="28188"/>
+		</items>
 	</tileset>
 </materials>

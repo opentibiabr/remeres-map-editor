@@ -1,10 +1,12 @@
 <materials>
 	<tileset name="Tools">
 		<items>
+			<item id="127"/>
+			<item id="646"/>
+			<item id="650"/>
 			<item id="5710"/>
 			<item id="3003"/>
 			<item id="6391"/>
-			<item id="646"/>
 			<item id="3454"/>
 			<item id="3470"/>
 			<item id="3471"/>

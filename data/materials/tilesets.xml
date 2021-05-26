@@ -1,6 +1,7 @@
 <materials>
 	<!-- Tilesets -->
 	<include file="tilesets/addons_and_quest_items.xml"/>
+	<include file="tilesets/amulets.xml"/>
 	<include file="tilesets/architecture.xml"/>
 	<include file="tilesets/archway.xml"/>
 	<include file="tilesets/banners.xml"/>
@@ -9,9 +10,11 @@
 	<include file="tilesets/borders.xml"/>
 	<include file="tilesets/bridges.xml"/>
 	<include file="tilesets/containers.xml"/>
+	<include file="tilesets/contest_prizes.xml"/>
 	<include file="tilesets/corpses.xml"/>
 	<include file="tilesets/creature_products.xml"/>
 	<include file="tilesets/crystals.xml"/>
+	<include file="tilesets/decorations.xml"/>
 	<include file="tilesets/desert.xml"/>
 	<include file="tilesets/dools.xml"/>
 	<include file="tilesets/equipments.xml"/>
@@ -22,20 +25,25 @@
 	<include file="tilesets/grounds.xml"/>
 	<include file="tilesets/grounds_tiny_borders.xml"/>
 	<include file="tilesets/hangables.xml"/>
+	<include file="tilesets/helmets.xml"/>
 	<include file="tilesets/interior.xml"/>
-	<include file="tilesets/jewelry.xml"/>
+	<include file="tilesets/kitchen.xml"/>
 	<include file="tilesets/levers.xml"/>
 	<include file="tilesets/magic_fields.xml"/>
+	<include file="tilesets/magical_items.xml"/>
 	<include file="tilesets/mountains.xml"/>
 	<include file="tilesets/nature.xml"/>
 	<include file="tilesets/nature_tiny_borders.xml"/>
 	<include file="tilesets/oldschool.xml"/>
 	<include file="tilesets/pipes.xml"/>
 	<include file="tilesets/plants_and_flowers.xml"/>
+	<include file="tilesets/potions.xml"/>
 	<include file="tilesets/raillings.xml"/>
+	<include file="tilesets/rings.xml"/>
 	<include file="tilesets/roofs.xml"/>
 	<include file="tilesets/runes.xml"/>
 	<include file="tilesets/sea.xml"/>
+	<include file="tilesets/shields.xml"/>
 	<include file="tilesets/signs.xml"/>
 	<include file="tilesets/skulls_bones.xml"/>
 	<include file="tilesets/snow.xml"/>
@@ -49,8 +57,15 @@
 	<include file="tilesets/trinkets.xml"/>
 	<include file="tilesets/trophies.xml"/>
 	<include file="tilesets/unknown.xml"/>
+	<include file="tilesets/valuables.xml"/>
 	<include file="tilesets/walls.xml"/>
-	<include file="tilesets/weapons_magic.xml"/>
-	<include file="tilesets/weapons.xml"/>
+	<include file="tilesets/weapons_ammo.xml"/>
+	<include file="tilesets/weapons_axe.xml"/>
+	<include file="tilesets/weapons_club.xml"/>
+	<include file="tilesets/weapons_distance.xml"/>
+	<include file="tilesets/weapons_replica.xml"/>
+	<include file="tilesets/weapons_spellbook.xml"/>
+	<include file="tilesets/weapons_sword.xml"/>
+	<include file="tilesets/weapons_wand_and_rod.xml"/>
 	<include file="tilesets/writeables.xml"/>
 </materials>

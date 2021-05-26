@@ -47027,6 +47027,9 @@
 		<attribute key="wrapableTo" value="23398" />
 		<attribute key="weight" value="860" />
 	</item>
+	<item id="32919" name="bronze cup"/>
+	<item id="32920" name="silver cup"/>
+	<item id="32920" name="gold cup"/>
 	<item id="32943" article="a" name="Vexclaw Doll">
 		<attribute key="wrapableTo" value="23398" />
 		<attribute key="weight" value="860" />
@@ -47471,7 +47474,7 @@
 		<attribute key="decayTo" value="33812" />
 		<attribute key="duration" value="10" />
 		<attribute key="corpseType" value="undead" />
-	</item>		
+	</item>
 	<item id="33814" article="a" name="dead brachiodemon">
 		<attribute key="decayTo" value="0" />
 		<attribute key="duration" value="600" />
@@ -47749,7 +47752,7 @@
 		<attribute key="decayTo" value="33904" />
 		<attribute key="duration" value="10" />
 		<attribute key="corpseType" value="blood" />
-	</item>		
+	</item>
 	<item id="33906" article="a" name="dead courage Leech">
 		<attribute key="decayTo" value="0" />
 		<attribute key="duration" value="600" />
@@ -47945,7 +47948,7 @@
 		<attribute key="decayTo" value="33960" />
 		<attribute key="duration" value="10" />
 		<attribute key="corpseType" value="blood" />
-	</item>		
+	</item>
 	<item id="33962" article="a" name="dead lion warlock">
 		<attribute key="decayTo" value="0" />
 		<attribute key="duration" value="600" />
@@ -47991,7 +47994,7 @@
 		<attribute key="decayTo" value="33968" />
 		<attribute key="duration" value="10" />
 		<attribute key="corpseType" value="blood" />
-	</item>		
+	</item>
 	<item id="33970" article="a" name="dead drume">
 		<attribute key="decayTo" value="0" />
 		<attribute key="duration" value="600" />
@@ -48929,11 +48932,11 @@
 		<attribute key="duration" value="600" />
 		<attribute key="corpseType" value="blood" />
 	</item>
-	<item id="34209" name="Fitzwilliam's Special Reserve">		
+	<item id="34209" name="Fitzwilliam's Special Reserve">
 		<attribute key="weight" value="100" />
 		<attribute key="description" value="A fine but practically ancient wine. It's absolutely not advised to actually drink it." />
 	</item>
-	<item id="34210" article="a" name="goromaphone(Replica)">		
+	<item id="34210" article="a" name="goromaphone(Replica)">
 		<attribute key="weight" value="6660" />
 		<attribute key="description" value="Souvenir from Thais Museum." />
 	</item>
@@ -49016,6 +49019,11 @@
 	<item id="34255" article="a" name="trapdoor">
 		<attribute key="floorchange" value="down" />
 	</item>
+	<item id="34331" article="a" name="golden magic longsword">
+		<attribute key="description" value="This is a golden replica of the famous magic longsword." />
+		<attribute key="weight" value="4300" />
+	</item>
+	<item id="34332" article="a" name="gilded crown" />
 	<item id="34256" article="a" name="lion statue" />
 	<item id="34257" article="a" name="lion statue" />
 	<item id="34258" name="red silk flower">
