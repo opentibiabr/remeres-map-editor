@@ -1,0 +1,10 @@
+<materials>
+	<tileset name="Full Grounds">
+		<raw>
+			<item fromid="356" toid="367"/>
+			<item fromid="880" toid="891"/>
+			<item fromid="7187" toid="7188"/>
+			<item fromid="7190" toid="7200"/>
+		</raw>
+	</tileset>
+</materials>

@@ -49,8 +49,9 @@
 			<item fromid="19479" toid="19488"/>
 			<item fromid="21115" toid="21120"/>
 			<item id="23153"/>
-			<item id="6869"/>
-			<item id="6925"/>
+			<item fromid="6869" toid="6881"/>
+			<item fromid="6925" toid="6937"/>
+			<item fromid="6939" toid="6965"/>
 			<item fromid="6761" toid="6762"/>
 			<item id="6768"/>
 			<item fromid="6719" toid="6720"/>

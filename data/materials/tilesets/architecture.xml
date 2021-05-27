@@ -187,8 +187,8 @@
 			<item fromid="6981" toid="6983"/>
 			<item fromid="6986"/>
 			<item fromid="240" toid="252"/>
-			<item fromid="265"/>
-			<item fromid="267"/>
+			<item id="265"/>
+			<item id="267"/>
 			<item fromid="11825" toid="11828"/>
 			<item id="16583"/>
 			<item id="16601"/>

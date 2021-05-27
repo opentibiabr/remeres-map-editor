@@ -7,7 +7,9 @@
 	<include file="tilesets/blank.xml"/>
 	<include file="tilesets/boats.xml"/>
 	<include file="tilesets/borders.xml"/>
+	<include file="tilesets/bottom.xml"/>
 	<include file="tilesets/bridges.xml"/>
+	<include file="tilesets/common.xml"/>
 	<include file="tilesets/containers.xml"/>
 	<include file="tilesets/contest_prizes.xml"/>
 	<include file="tilesets/corpses.xml"/>
@@ -28,10 +30,11 @@
 	<include file="tilesets/festive_items.xml"/>
 	<include file="tilesets/fluid_containers.xml"/>
 	<include file="tilesets/food.xml"/>
+	<include file="tilesets/full_grounds.xml"/>
+	<include file="tilesets/furniture.xml"/>
 	<include file="tilesets/grounds.xml"/>
 	<include file="tilesets/grounds_tiny_borders.xml"/>
 	<include file="tilesets/hangables.xml"/>
-	<include file="tilesets/helmets.xml"/>
 	<include file="tilesets/interior.xml"/>
 	<include file="tilesets/kitchen.xml"/>
 	<include file="tilesets/levers.xml"/>
@@ -50,7 +53,6 @@
 	<include file="tilesets/roofs.xml"/>
 	<include file="tilesets/runes.xml"/>
 	<include file="tilesets/sea.xml"/>
-	<include file="tilesets/shields.xml"/>
 	<include file="tilesets/signs.xml"/>
 	<include file="tilesets/skulls_bones.xml"/>
 	<include file="tilesets/snow.xml"/>

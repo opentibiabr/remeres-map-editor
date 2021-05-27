@@ -47891,6 +47891,10 @@
 		<attribute key="loottype" value="creatureproduct" />
 		<attribute key="weight" value="2000" />
 	</item>
+	<item id="33948" article="a" name="cask">
+		<attribute key="weight" value="5500" />
+		<attribute key="description" value="A goblin zombie is stuffed into it." />
+	</item>
 	<item id="33950" name="cleansed sanity">
 		<attribute key="weight" value="101" />
 		<attribute key="description" value="Can be used to douse Goshnar's madness." />

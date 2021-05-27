@@ -1,8 +1,0 @@
-<materials>
-	<tileset name="Shields">
-		<items>
-			<item fromid="28915" toid="28918"/>
-			<item fromid="30181" toid="30182"/>
-		</items>
-	</tileset>
-</materials>

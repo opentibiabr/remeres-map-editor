@@ -1,6 +1,8 @@
 <materials>
 	<tileset name="Festive Items">
 		<items>
+			<item id="649"/>
+			<item fromid="653" toid="655"/>
 			<item id="2986"/>
 			<item id="6279"/>
 			<item id="14750"/>
@@ -12,7 +14,7 @@
 			<item fromid="6572" toid="6572"/>
 			<item id="6575"/>
 			<item id="6578"/>
-			<item id="649"/>
+			<item id="8853"/>
 			<item id="13902"/>
 			<item id="13905"/>
 			<item id="13914"/>

@@ -2,6 +2,7 @@
 	<tileset name="Equipment - Helmets">
 		<items>
 			<item id="3011"/>
+			<item id="3022"/>
 			<item fromid="3229" toid="3230"/>
 			<item id="3351"/>
 			<item fromid="3351" toid="3356"/>
