@@ -46,6 +46,7 @@ public:
 	virtual int32_t getZ() const { return z_order; }
 	bool useSoloOptionalBorder() const { return use_only_optional; }
 	bool isReRandomizable() const { return randomize; }
+	bool ownsItem(Item* item) const;
 
 	bool hasOuterZilchBorder() const { return has_zilch_outer_border || optional_border; }
 	bool hasInnerZilchBorder() const { return has_zilch_inner_border; }

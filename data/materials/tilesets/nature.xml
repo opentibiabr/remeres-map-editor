@@ -17,7 +17,6 @@
 			<brush name="sandstone mountain"/>
 			<brush name="seacrest mountain"/>
 			<brush name="earth"/>
-			<brush name="earth (stone border)"/>
 			<brush name="clear water"/>
 			<brush name="sea"/>
 			<brush name="walkable sea"/>
@@ -28,7 +27,6 @@
 			<brush name="blood water (walkable)"/>
 			<brush name="white gravel"/>
 			<brush name="grass"/>
-			<brush name="grass (alternate border)"/>
 			<brush name="dark grass"/>
 			<brush name="jungle grass"/>
 			<brush name="dried grass"/>
@@ -47,7 +45,6 @@
 			<brush name="green small grass"/>
 			<brush name="green small grass with snow"/>
 			<brush name="cave"/>
-			<brush name="cave (alternate border)"/>
 			<brush name="dirt"/>
 			<brush name="earth ground"/>
 			<brush name="jungle dirt"/>
@@ -65,7 +62,6 @@
 			<brush name="cake tile"/>
 			<brush name="krailos dirt"/>
 			<brush name="sand"/>
-			<brush name="sand (thick border)"/>
 			<brush name="pink sand"/>
 			<brush name="dark sand"/>
 			<brush name="dry earth"/>
@@ -99,7 +95,6 @@
 			<brush name="rock soil"/>
 			<brush name="rocky ground"/>
 			<brush name="frozen mud"/>
-			<brush name="frozen mud (thick border)"/>
 			<brush name="darkest mud"/>
 			<brush name="purple mud"/>
 			<brush name="earth floor"/>

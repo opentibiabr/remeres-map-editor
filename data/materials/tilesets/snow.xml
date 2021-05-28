@@ -18,7 +18,6 @@
 			<brush name="rock soil"/>
 			<brush name="rocky ground"/>
 			<brush name="frozen mud"/>
-			<brush name="frozen mud (thick border)"/>
 		</terrain>
 		<doodad>
 			<brush name="snowy dead trees"/>

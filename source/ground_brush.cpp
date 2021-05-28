@@ -154,10 +154,6 @@ bool GroundBrush::load(pugi::xml_node node, wxArrayString& warnings)
 		look_id = pugi::cast<uint16_t>(attribute.value());
 	}
 
-	if((attribute = node.attribute("server_lookid"))) {
-		look_id = g_items[pugi::cast<uint16_t>(attribute.value())].clientID;
-	}
-
 	if((attribute = node.attribute("z-order"))) {
 		z_order = pugi::cast<int32_t>(attribute.value());
 	}
