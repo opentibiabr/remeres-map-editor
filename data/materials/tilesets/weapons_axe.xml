@@ -1,30 +1,31 @@
 <materials>
 	<tileset name="Weapons - Axe">
 		<items>
-			<item fromid="784" toid="788"/>
-			<item fromid="801" toid="805"/>
 			<item fromid="665" toid="669"/>
 			<item fromid="684" toid="688"/>
-			<item fromid="3266"/>
+			<item fromid="784" toid="788"/>
+			<item fromid="801" toid="805"/>
+			<item id="919"/>
+			<item id="3266"/>
 			<item fromid="3268" toid="3269"/>
 			<item fromid="3274" toid="3276"/>
 			<item fromid="3302" toid="3303"/>
 			<item fromid="3313" toid="3320"/>
-			<item fromid="3323"/>
+			<item id="3323"/>
 			<item fromid="3328" toid="3329"/>
-			<item fromid="3331"/>
-			<item fromid="3335"/>
-			<item fromid="3342"/>
-			<item fromid="3344"/>
-			<item fromid="6553"/>
-			<item fromid="7380"/>
+			<item id="3331"/>
+			<item id="3335"/>
+			<item id="3342"/>
+			<item id="3344"/>
+			<item id="3346"/>
+			<item id="6553"/>
+			<item id="7380"/>
 			<item fromid="7388" toid="7389"/>
 			<item fromid="7411" toid="7413"/>
 			<item fromid="7453" toid="7456"/>
 			<item fromid="7433" toid="7436"/>
-			<item fromid="7773"/>
+			<item id="7773"/>
 			<item fromid="8096" toid="8098"/>
-			<item id="3346"/>
 			<item id="9132"/>
 			<item id="9384"/>
 			<item id="9386"/>

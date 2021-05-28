@@ -357,7 +357,6 @@
 			<item id="4848"/>
 			<item fromid="2519" toid="2542"/>
 			<item fromid="2572" toid="2595"/>
-			<item fromid="2904"/>
 			<item fromid="2934" toid="2935"/>
 			<item fromid="2948" toid="2958"/>
 			<item fromid="2989" toid="3000"/>
@@ -365,12 +364,9 @@
 			<item fromid="2974" toid="2980"/>
 			<item fromid="2813" toid="2852"/>
 			<item fromid="2981" toid="2988"/>
-			<item fromid="3064"/>
-			<item fromid="3076"/>
 			<item fromid="3459" toid="3480"/>
 			<item fromid="3484" toid="3491"/>
 			<item fromid="3497" toid="3500"/>
-			<item fromid="3502"/>
 			<item fromid="3472" toid="3477"/>
 			<item fromid="3515" toid="3518"/>
 			<item fromid="3523" toid="3524"/>
@@ -392,7 +388,6 @@
 			<item fromid="8527" toid="8531"/>
 			<item fromid="8695" toid="8707"/>
 			<item fromid="8710" toid="8714"/>
-			<item fromid="8923"/>
 			<item fromid="9027" toid="9028"/>
 			<item fromid="9042" toid="9046"/>
 			<item fromid="9059" toid="9060"/>
@@ -419,10 +414,6 @@
 			<item id="7936"/>
 			<item fromid="8646" toid="8652"/>
 			<item fromid="8329" toid="8332"/>
-			<!-- Potted Plants -->
-			<item fromid="306"/>
-			<item fromid="316"/>
-			<item fromid="321"/>
 			<item fromid="325" toid="346"/>
 			<item fromid="9069" toid="9078"/>
 			<item id="649"/>
@@ -457,7 +448,6 @@
 			<item fromid="17372" toid="17373"/>
 			<item id="16578"/>
 			<item fromid="16588" toid="16594"/>
-			<item fromid="9699"/>
 			<item fromid="10033" toid="10034"/>
 			<item fromid="10043" toid="10045"/>
 			<item fromid="10050" toid="10053"/>

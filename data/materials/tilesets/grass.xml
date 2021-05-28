@@ -1,0 +1,7 @@
+<materials>
+	<tileset name="Grass">
+		<items>
+			<item id="5470"/>
+		</items>
+	</tileset>
+</materials>

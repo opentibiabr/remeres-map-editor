@@ -587,7 +587,10 @@
 			<brush name="vase plant"/>
 		</doodad>
 		<raw>
+			<item fromid="957" toid="958"/>
+			<item id="1006"/>
 			<item id="1066"/>
+			<item id="1090"/>
 			<item id="4827"/>
 			<item id="4829"/>
 			<item id="7743"/>
@@ -596,11 +599,11 @@
 			<item fromid="5750" toid="5754"/>
 			<item fromid="5866" toid="5868"/>
 			<item fromid="7805" toid="7812"/>
-			<item fromid="2130"/>
 			<item fromid="1772" toid="1846"/>
 			<item fromid="6422" toid="6431"/>
 			<item fromid="4433" toid="4608"/>
 			<item fromid="4745" toid="4746"/>
+			<item id="4830"/>
 			<item id="7024"/>
 			<item fromid="5091" toid="5095"/>
 			<item fromid="7957" toid="7963"/>
@@ -617,12 +620,9 @@
 			<item fromid="1847" toid="1921"/>
 			<item fromid="3701" toid="3986"/>
 			<item fromid="5556" toid="5563"/>
-			<item fromid="7804"/>
 			<!-- Whirlpool -->
 			<item id="6094"/>
-			<item fromid="5676"/>
 			<brush name="gryphon nest"/>
-			<item fromid="5677"/>
 			<item id="4994"/>
 			<item fromid="7020" toid="7023"/>
 			<item fromid="4874" toid="4876"/>
@@ -635,7 +635,6 @@
 			<item id="197"/>
 			<item id="198"/>
 			<item fromid="199" toid="202"/>
-			<item fromid="211"/>
 			<item fromid="233" toid="234"/>
 			<item fromid="6215" toid="6232"/>
 			<item fromid="6270" toid="6275"/>
@@ -648,23 +647,14 @@
 			<item fromid="7942" toid="7948"/>
 			<item fromid="7480" toid="7506"/>
 			<item fromid="5462" toid="5465"/>
-			<item fromid="5470"/>
-			<item fromid="5658"/>
-			<item fromid="5687"/>
 			<item fromid="6750" toid="6760"/>
 			<item fromid="6951" toid="6966"/>
-			<item fromid="7106"/>
 			<item fromid="7108" toid="7109"/>
-			<item fromid="7261"/>
 			<item fromid="9254" toid="1024"/>
 			<item fromid="7996" toid="8005"/>
-			<item fromid="1090"/>
-			<item fromid="1006"/>
-			<item fromid="957" toid="958"/>
 			<item fromid="7912" toid="7915"/>
 			<item fromid="8503" toid="8506"/>
 			<item id="9225"/>
-			<item fromid="9584"/>
 			<item fromid="9587" toid="9589"/>
 			<item fromid="9811" toid="9842"/>
 			<item fromid="11592" toid="11602"/>
@@ -672,31 +662,29 @@
 			<item fromid="9861" toid="9862"/>
 			<item fromid="9870" toid="9871"/>
 			<item fromid="9876" toid="9892"/>
-			<item fromid="9894"/>
-			<item fromid="9896"/>
 			<item fromid="9899" toid="9900"/>
 			<item fromid="9952" toid="9961"/>
 			<item fromid="9995" toid="10000"/>
-			<item fromid="10098"/>
+			<item id="10098"/>
 			<item fromid="10126" toid="10133"/>
 			<item fromid="10481" toid="10488"/>
 			<item fromid="10578" toid="10587"/>
 			<item fromid="10606" toid="10743"/>
-			<item fromid="10745"/>
-			<item fromid="10747"/>
+			<item id="10745"/>
+			<item id="10747"/>
 			<item fromid="10766" toid="10772"/>
 			<item fromid="10823" toid="10828"/>
 			<item fromid="10843" toid="10870"/>
-			<item fromid="11427"/>
+			<item id="11427"/>
 			<item fromid="10871" toid="10875"/>
 			<item fromid="11336" toid="11337"/>
 			<item fromid="11349" toid="11359"/>
 			<item fromid="11373" toid="11377"/>
 			<item fromid="11793" toid="11796"/>
 			<item fromid="11432" toid="11439"/>
-			<item fromid="12416"/>
+			<item id="12416"/>
 			<item fromid="12418" toid="12421"/>
-			<item fromid="12423"/>
+			<item id="12423"/>
 			<item fromid="12632" toid="12635"/>
 			<item fromid="12652" toid="12655"/>
 			<item fromid="12747" toid="12762"/>
@@ -728,18 +716,18 @@
 			<item fromid="15393" toid="15398"/>
 			<item fromid="15488" toid="15505"/>
 			<item fromid="15535" toid="15583"/>
-			<item fromid="15632"/>
+			<item id="15632"/>
 			<item fromid="15634" toid="15640"/>
 			<item fromid="16169" toid="16171"/>
-			<item fromid="16248"/>
-			<item fromid="16250"/>
+			<item id="16248"/>
+			<item id="16250"/>
 			<item fromid="16379" toid="16386"/>
 			<item fromid="16404" toid="16411"/>
 			<item fromid="16311" toid="16312"/>
 			<item fromid="16325" toid="16332"/>
 			<item fromid="16377" toid="16378"/>
 			<item fromid="16387" toid="16395"/>
-			<item fromid="16399"/>
+			<item id="16399"/>
 			<item fromid="16402" toid="16403"/>
 			<item fromid="16416" toid="16417"/>
 			<item fromid="16412" toid="16415"/>
@@ -753,33 +741,23 @@
 			<item fromid="17983" toid="17984"/>
 			<item fromid="17987" toid="17991"/>
 			<item fromid="18436" toid="18441"/>
-			<item fromid="18911"/>
 			<item fromid="18373" toid="18382"/>
 			<item fromid="18400" toid="18405"/>
-			<item fromid="18453"/>
-			<item fromid="18442" toid="18452"/>
+			<item fromid="18442" toid="18453"/>
 			<item fromid="18486" toid="18514"/>
 			<item fromid="18533" toid="18559"/>
 			<item fromid="18578" toid="18590"/>
 			<item fromid="18808" toid="18813"/>
-			<item id="18910"/>
 			<item fromid="18815" toid="18818"/>
 			<item fromid="18854" toid="18879"/>
 			<item fromid="18895" toid="18901"/>
+			<item fromid="18910" toid="18911"/>
 			<item fromid="19061" toid="19062"/>
 			<item fromid="19121" toid="19123"/>
 			<item fromid="19209" toid="19210"/>
 			<item fromid="19375" toid="19378"/>
 			<item fromid="19479" toid="19491"/>
-			<item fromid="19671"/>
-			<item fromid="19675" toid="19677"/>
 			<item fromid="19689" toid="19690"/>
-			<item fromid="19692"/>
-			<item fromid="19716"/>
-			<item fromid="19729"/>
-			<item fromid="19737"/>
-			<item fromid="19739"/>
-			<item fromid="19741"/>
 			<item fromid="19757" toid="19766"/>
 			<item fromid="19770" toid="19789"/>
 			<item fromid="19808" toid="19810"/>
@@ -788,8 +766,6 @@
 			<item fromid="20099" toid="20102"/>
 			<item fromid="20116" toid="20119"/>
 			<item fromid="20191" toid="20197"/>
-			<item fromid="181"/>
-			<item fromid="4830"/>
 			<item fromid="21104" toid="21107"/>
 			<item fromid="21826" toid="21832"/>
 			<item fromid="21844" toid="21845"/>

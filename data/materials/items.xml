@@ -236,6 +236,7 @@
 		<attribute key="weight" value="200"/>
 	</item>
 	<item id="180" article="the" name="remains of a spider egg"/>
+	<item id="181" article="the" name="spider egg"/>
 	<item fromid="182" toid="187" article="a" name="spider web"/>
 	<item id="188" article="the" name="remains of a spider web">
 		<attribute key="decayTo" value="182"/>
@@ -9615,7 +9616,7 @@
 		<attribute key="description" value="It smells like herbs."/>
 		<attribute key="weight" value="300"/>
 	</item>
-	<item id="4829" name="witches' cap spot" article="a">
+	<item id="4829" article="a" name="witches' cap spot">
 		<attribute key="duration" value="86400"/>
 		<attribute key="weight" value="100"/>
 	</item>

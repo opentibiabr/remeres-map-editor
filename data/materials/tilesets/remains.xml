@@ -1,7 +1,7 @@
 <materials>
-	<tileset name="Rings">
+	<tileset name="Remains">
 		<items>
-			<item id="22170"/>
+			<item id="5687"/>
 		</items>
 	</tileset>
 </materials>

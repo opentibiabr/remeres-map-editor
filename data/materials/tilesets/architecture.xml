@@ -35,7 +35,10 @@
 			<item fromid="5025" toid="5032"/>
 			<item fromid="8388" toid="8389"/>
 			<item id="8518"/>
-			<item fromid="8865"/>
+			<item id="8865"/>
+			<item fromid="8870" toid="8877"/>
+			<item fromid="9133" toid="9140"/>
+			<item fromid="9428" toid="9429"/>
 			<item fromid="9428" toid="9429"/>
 			<item id="10954"/>
 			<item fromid="10975" toid="10976"/>
@@ -46,7 +49,7 @@
 			<item id="13106"/>
 			<item id="13122"/>
 			<item fromid="15484" toid="15487"/>
-			<item fromid="15611"/>
+			<item id="15611"/>
 			<item id="16572"/>
 			<item fromid="17336" toid="17338"/>
 			<item id="17340"/>
@@ -119,19 +122,6 @@
 			<item fromid="20239" toid="20244"/>
 			<item fromid="20266" toid="20269"/>
 			<!-- Pillars -->
-			<item id="2152"/>
-			<item id="2153"/>
-			<item id="2263"/>
-			<item id="2264"/>
-			<item fromid="7708" toid="7710"/>
-			<item fromid="2289" toid="2290"/>
-			<item fromid="5025" toid="5032"/>
-			<item fromid="8388" toid="8389"/>
-			<item id="8518"/>
-			<item fromid="8865"/>
-			<item fromid="8870" toid="8877"/>
-			<item fromid="9133" toid="9140"/>
-			<item fromid="9428" toid="9429"/>
 			<item id="10954"/>
 			<item fromid="10975" toid="10976"/>
 			<item fromid="11007" toid="11008"/>
@@ -141,7 +131,7 @@
 			<item id="13106"/>
 			<item id="13122"/>
 			<item fromid="15484" toid="15487"/>
-			<item fromid="15611"/>
+			<item id="15611"/>
 			<item id="16572"/>
 			<item fromid="17336" toid="17338"/>
 			<item id="17340"/>
@@ -185,7 +175,7 @@
 			<!-- Poles and Struts -->
 			<item fromid="6886" toid="6888"/>
 			<item fromid="6981" toid="6983"/>
-			<item fromid="6986"/>
+			<item id="6986"/>
 			<item fromid="240" toid="252"/>
 			<item id="265"/>
 			<item id="267"/>

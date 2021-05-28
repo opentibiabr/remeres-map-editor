@@ -5,7 +5,8 @@
 			<item id="2906"/>
 			<item fromid="5792" toid="5797"/>
 			<item id="8156"/>
-			<item fromid="869" toid="871"/>
+			<item id="869"/>
+			<item id="871"/>
 			<item id="873"/>
 			<!-- Trinkets -->
 			<item id="3231"/>

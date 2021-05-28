@@ -94,33 +94,6 @@
 			<brush name="tessellated floor"/>
 			<brush name="stone dark floor simbols"/>
 			<brush name="green tree floor"/>
-			<item fromid="7348"/>
-			<item fromid="7350" toid="7358"/>
-			<item id="905"/>
-			<item id="7760"/>
-			<item id="7764"/>
-			<item fromid="7769" toid="7770"/>
-			<item id="7867"/>
-			<item id="7886"/>
-			<item id="8131"/>
-			<item id="231"/>
-			<item id="408"/>
-			<item id="7066"/>
-			<item fromid="8766" toid="8769"/>
-			<item id="8886"/>
-			<item fromid="12285" toid="12293"/>
-			<item id="16174"/>
-			<item id="16203"/>
-			<item id="17982"/>
-			<item id="18013"/>
-			<item id="21138"/>
-			<item fromid="21345" toid="21346"/>
-			<item fromid="21407" toid="21409"/>
-			<item fromid="21440" toid="21442"/>
-			<item fromid="21676" toid="21681"/>
-			<item fromid="21693" toid="21694"/>
-			<item fromid="21696" toid="21737"/>
-			<item id="21817"/>
 		</terrain>
 		<!-- Raw -->
 		<raw>
@@ -219,8 +192,6 @@
 			<item fromid="430" toid="431"/>
 			<item fromid="452" toid="453"/>
 			<item fromid="457" toid="462"/>
-			<item fromid="479"/>
-			<item fromid="481"/>
 			<item fromid="596" toid="599"/>
 			<item fromid="838" toid="840"/>
 			<item fromid="924" toid="935"/>
@@ -231,13 +202,8 @@
 			<item fromid="6612" toid="6626"/>
 			<item fromid="6804" toid="6809"/>
 			<item fromid="7062" toid="7066"/>
-			<item fromid="486"/>
-			<item fromid="7272"/>
-			<item fromid="4427"/>
 			<item fromid="1724" toid="1728"/>
 			<item fromid="1010" toid="1011"/>
-			<item fromid="6967"/>
-			<item fromid="1197"/>
 			<item id="6171"/>
 			<item id="100"/>
 			<item id="386"/>
@@ -245,9 +211,6 @@
 			<item id="7880"/>
 			<item fromid="4394" toid="4410"/>
 			<item fromid="728" toid="730"/>
-			<item fromid="4515" toid="4530"/>
-			<item fromid="4555"/>
-			<item fromid="4559" toid="4568"/>
 			<item id="6352"/>
 			<item fromid="6683" toid="6686"/>
 			<item id="7756"/>
@@ -257,14 +220,18 @@
 			<item id="7739"/>
 			<item fromid="970" toid="978"/>
 			<item fromid="992" toid="993"/>
-			<item fromid="7593"/>
-			<item fromid="7595" toid="7601"/>
-			<item fromid="7594"/>
-			<item fromid="7602" toid="7604"/>
 			<item fromid="8085" toid="8089"/>
 			<item fromid="1007" toid="1009"/>
 			<item id="967"/>
 			<item fromid="959" toid="966"/>
+			<item fromid="7350" toid="7358"/>
+			<item id="905"/>
+			<item id="7760"/>
+			<item id="7764"/>
+			<item fromid="7769" toid="7770"/>
+			<item id="7867"/>
+			<item id="7886"/>
+			<item id="8131"/>
 			<item fromid="8276" toid="8290"/>
 			<item fromid="8308" toid="8316"/>
 			<item fromid="8228" toid="8230"/>
@@ -297,6 +264,11 @@
 			<item id="10991"/>
 			<item fromid="10997" toid="11002"/>
 			<item id="11038"/>
+			<item id="231"/>
+			<item id="408"/>
+			<item id="7066"/>
+			<item fromid="8766" toid="8769"/>
+			<item id="8886"/>
 			<item fromid="11159" toid="11168"/>
 			<item fromid="11278" toid="11285"/>
 			<item fromid="11417" toid="11425"/>
@@ -316,6 +288,7 @@
 			<item fromid="12379" toid="12386"/>
 			<item id="12721"/>
 			<item fromid="12851" toid="12860"/>
+			<item fromid="12285" toid="12293"/>
 			<item fromid="13029" toid="13038"/>
 			<item fromid="13227" toid="13236"/>
 			<item fromid="13324" toid="13334"/>
@@ -344,6 +317,10 @@
 			<item id="16584"/>
 			<item id="16863"/>
 			<item id="16868"/>
+			<item id="16174"/>
+			<item id="16203"/>
+			<item id="17982"/>
+			<item id="18013"/>
 			<item fromid="17464" toid="17468"/>
 			<item fromid="17505" toid="17510"/>
 			<item fromid="17516" toid="17518"/>
@@ -381,10 +358,18 @@
 			<item fromid="20544" toid="20545"/>
 			<item fromid="20712" toid="20714"/>
 			<item id="20658"/>
+			<item fromid="20953" toid="20955"/>
 			<item id="21294"/>
 			<item id="20888"/>
 			<item id="21035"/>
-			<item fromid="20953" toid="20955"/>
+			<item id="21138"/>
+			<item fromid="21345" toid="21346"/>
+			<item fromid="21407" toid="21409"/>
+			<item fromid="21440" toid="21442"/>
+			<item fromid="21676" toid="21681"/>
+			<item fromid="21693" toid="21694"/>
+			<item fromid="21696" toid="21737"/>
+			<item id="21817"/>
 			<item fromid="21261" toid="21262"/>
 			<item fromid="21772" toid="21774"/>
 			<item fromid="21914" toid="21919"/>

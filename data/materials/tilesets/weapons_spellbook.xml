@@ -2,7 +2,7 @@
 	<tileset name="Weapons - Spellbook">
 		<items>
 			<item fromid="8072" toid="8076"/>
-			<item fromid="8090"/>
+			<item id="8090"/>
 			<item id="11691"/>
 			<item id="16107"/>
 			<item id="14769"/>

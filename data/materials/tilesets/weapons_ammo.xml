@@ -1,12 +1,12 @@
 <materials>
 	<tileset name="Weapons - Ammo">
 		<items>
-			<item fromid="774"/>
 			<item fromid="761" toid="763"/>
+			<item id="774"/>
+			<item id="3287"/>
 			<item fromid="3446" toid="3450"/>
-			<item fromid="6528"/>
+			<item id="6528"/>
 			<item fromid="7363" toid="7368"/>
-			<item fromid="3287"/>
 			<item fromid="14251" toid="14252"/>
 			<item id="15793"/>
 			<item fromid="16141" toid="16143"/>

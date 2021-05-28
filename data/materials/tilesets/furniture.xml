@@ -2,6 +2,9 @@
 	<tileset name="Furniture">
 		<items>
 			<item id="397"/>
+			<item id="306"/>
+			<item id="316"/>
+			<item id="321"/>
 			<item fromid="831" toid="834"/>
 			<item fromid="2775" toid="2812"/>
 			<item fromid="5086" toid="5088"/>

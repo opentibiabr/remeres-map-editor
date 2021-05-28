@@ -62,7 +62,7 @@
 			<item fromid="7282" toid="7285"/>
 			<item fromid="7316" toid="7341"/>
 			<item fromid="7344" toid="7347"/>
-			<item fromid="7535"/>
+			<item id="7535"/>
 			<item fromid="7537" toid="7540"/>
 			<item id="7763"/>
 			<item fromid="7537" toid="7540"/>
@@ -70,7 +70,7 @@
 			<item fromid="8118" toid="8130"/>
 			<item fromid="8133" toid="8141"/>
 			<item fromid="8181" toid="8184"/>
-			<item fromid="8738"/>
+			<item id="8738"/>
 			<item fromid="8742" toid="8744"/>
 			<item fromid="8866" toid="8869"/>
 			<item fromid="8887" toid="8890"/>

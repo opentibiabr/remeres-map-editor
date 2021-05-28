@@ -310,7 +310,6 @@
 			<item id="21149"/>
 			<item id="21390"/>
 			<item id="21843"/>
-			<item fromid="611"/>
 			<item fromid="1751" toid="1754"/>
 			<item fromid="1922" toid="1947"/>
 			<item fromid="7361" toid="7362"/>
@@ -323,16 +322,11 @@
 			<item fromid="3112" toid="3113"/>
 			<item fromid="3117" toid="3131"/>
 			<item fromid="3134" toid="3144"/>
-			<item fromid="3221"/>
-			<item fromid="3458"/>
-			<item fromid="3501"/>
 			<item fromid="3510" toid="3514"/>
 			<item fromid="3519" toid="3522"/>
 			<item fromid="3525" toid="3532"/>
 			<item fromid="2083" toid="2103"/>
 			<item fromid="2299" toid="2301"/>
-			<item fromid="5676"/>
-			<item fromid="5677"/>
 			<item fromid="842" toid="850"/>
 			<item fromid="5074" toid="5079"/>
 			<item fromid="5484" toid="5494"/>
@@ -354,15 +348,10 @@
 			<item fromid="6373" toid="6385"/>
 			<item fromid="1703" toid="1715"/>
 			<item fromid="7145" toid="7157"/>
-			<item fromid="2892"/>
-			<item fromid="2894"/>
 			<item fromid="3135" toid="3144"/>
-			<item fromid="4849"/>
-			<item fromid="4851"/>
 			<item fromid="4569" toid="4583"/>
 			<item fromid="253" toid="264"/>
 			<item fromid="2145" toid="2148"/>
-			<item fromid="2773"/>
 			<item id="10112"/>
 			<item fromid="2511" toid="2542"/>
 			<item fromid="2572" toid="2595"/>
@@ -376,8 +365,6 @@
 			<item id="8525"/>
 			<item fromid="8544" toid="8553"/>
 			<item fromid="8571" toid="8578"/>
-			<item fromid="8615"/>
-			<item fromid="8618"/>
 			<item fromid="8659" toid="8666"/>
 			<item fromid="8854" toid="8857"/>
 			<item fromid="8911" toid="8914"/>

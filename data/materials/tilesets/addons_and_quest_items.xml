@@ -39,8 +39,6 @@
 			<item id="4839"/>
 			<item id="4841"/>
 			<item fromid="6087" toid="6090"/>
-			<item fromid="2393"/>
-			<item fromid="6126"/>
 			<item id="6499"/>
 			<item fromid="6546" toid="6552"/>
 			<item id="6561"/>
@@ -61,6 +59,7 @@
 			<item id="9173"/>
 			<item id="9191"/>
 			<item id="9697"/>
+			<item id="9699"/>
 			<item id="10187"/>
 			<item id="12413"/>
 			<item fromid="12784" toid="12785"/>
@@ -117,7 +116,7 @@
 			<item fromid="30006" toid="30009"/>
 			<item fromid="30131" toid="30132"/>
 			<item fromid="30168" toid="30169"/>
-			<item fromid="31164"/>
+			<item id="31164"/>
 			<item fromid="31198" toid="31206"/>
 			<item fromid="31354" toid="31356"/>
 			<item id="31489"/>
@@ -144,7 +143,7 @@
 			<item id="34014"/>
 			<item fromid="34016" toid="34017"/>
 			<item id="34078"/>
-			<item fromid="34209"/>
+			<item id="34209"/>
 		</items>
 	</tileset>
 </materials>

@@ -1,0 +1,7 @@
+<materials>
+	<tileset name="Depots">
+		<items>
+			<item id="3502"/>
+		</items>
+	</tileset>
+</materials>

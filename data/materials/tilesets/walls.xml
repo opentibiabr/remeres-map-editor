@@ -260,7 +260,7 @@
 			<item fromid="10489" toid="10493"/>
 			<item fromid="1638" toid="1649"/>
 			<item fromid="5136" toid="5141"/>
-			<item fromid="2170"/>
+			<item id="2170"/>
 			<item fromid="1294" toid="1296"/>
 			<item id="1298"/>
 			<item fromid="2162" toid="2169"/>
@@ -357,8 +357,7 @@
 			<item id="6784"/>
 			<item id="6786"/>
 			<item fromid="6788" toid="6789"/>
-			<item fromid="6795" toid="6802"/>
-			<item fromid="6803"/>
+			<item fromid="6795" toid="6803"/>
 			<item fromid="7054" toid="7057"/>
 			<item fromid="6790" toid="6792"/>
 			<item fromid="6968" toid="6969"/>

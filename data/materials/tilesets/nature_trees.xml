@@ -1,0 +1,17 @@
+<materials>
+	<tileset name="Nature - Trees">
+		<raw>
+			<item id="9584"/>
+			<item id="9894"/>
+			<item id="9896"/>
+			<item id="19671"/>
+			<item fromid="19675" toid="19677"/>
+			<item id="19692"/>
+			<item id="19716"/>
+			<item id="19729"/>
+			<item id="19737"/>
+			<item id="19739"/>
+			<item id="19741"/>
+		</raw>
+	</tileset>
+</materials>

@@ -51,7 +51,7 @@
 			<item fromid="12212" toid="12213"/>
 			<item fromid="18609" toid="18614"/>
 			<item fromid="18621" toid="18625"/>
-			<item fromid="18629"/>
+			<item id="18629"/>
 			<item fromid="19784" toid="19789"/>
 		</raw>
 	</tileset>

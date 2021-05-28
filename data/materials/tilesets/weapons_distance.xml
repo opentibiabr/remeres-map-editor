@@ -1,15 +1,15 @@
 <materials>
 	<tileset name="Weapons - Distance">
 		<items>
-			<item fromid="3277"/>
-			<item fromid="7378"/>
-			<item fromid="3347"/>
-			<item fromid="5803"/>
-			<item fromid="5947"/>
+			<item id="3239"/>
+			<item id="3298"/>
+			<item id="3277"/>
+			<item id="3347"/>
 			<item fromid="3349" toid="3350"/>
-			<item fromid="7438"/>
-			<item fromid="3239"/>
-			<item fromid="3298"/>
+			<item id="5803"/>
+			<item id="5947"/>
+			<item id="7378"/>
+			<item id="7438"/>
 			<item fromid="8021" toid="8030"/>
 			<item id="9148"/>
 			<item id="12733"/>

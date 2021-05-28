@@ -1,0 +1,9 @@
+<materials>
+	<tileset name="Natural Products">
+		<items>
+			<item id="181"/>
+			<item id="211"/>
+			<item fromid="5676" toid="5677"/>
+		</items>
+	</tileset>
+</materials>
