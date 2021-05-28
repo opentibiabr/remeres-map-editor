@@ -1812,7 +1812,7 @@ void GUI::FillDoodadPreviewBuffer()
 				bool fail = false;
 				if(random(brush->getTotalChance(GetBrushVariation())) <= brush->getCompositeChance(GetBrushVariation())) {
 					// Composite
-					const CompositeTileList& composites = brush->getComposite(GetBrushVariation());
+					const CompositeTileList& composites = g_brushes.getComposite(GetBrushVariation());
 
 					// Figure out if the placement is valid
 					for (const auto &composite : composites) {
@@ -1872,7 +1872,7 @@ void GUI::FillDoodadPreviewBuffer()
 		if(brush->hasCompositeObjects(GetBrushVariation()) &&
 				random(brush->getTotalChance(GetBrushVariation())) <= brush->getCompositeChance(GetBrushVariation())) {
 			// Composite
-			const CompositeTileList& composites = brush->getComposite(GetBrushVariation());
+			const CompositeTileList& composites = g_brushes.getComposite(GetBrushVariation());
 
 			// All placement is valid...
 

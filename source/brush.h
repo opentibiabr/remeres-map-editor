@@ -59,10 +59,33 @@ class EraserBrush;
 // Brushes, holds all brushes
 
 typedef std::multimap<std::string, Brush*> BrushMap;
+typedef std::vector<std::pair<Position, ItemVector> > CompositeTileList;
 
 class Brushes
 {
+
 public:
+	struct SingleBlock {
+		int chance;
+		Item* item;
+	};
+
+	struct CompositeBlock {
+		int chance;
+		CompositeTileList items;
+	};
+
+	struct AlternativeBlock {
+		AlternativeBlock();
+		~AlternativeBlock();
+		bool ownsItem(uint16_t id) const;
+		std::vector<SingleBlock> single_items;
+		std::vector<CompositeBlock> composite_items;
+
+		int composite_chance; // Total chance of a composite
+		int single_chance; // Total chance of a single object
+	};
+
 	Brushes();
 	~Brushes();
 
@@ -72,12 +95,16 @@ public:
 	Brush* getBrush(const std::string& name) const;
 
 	void addBrush(Brush* brush);
+	bool loadAlternative(pugi::xml_node node, wxArrayString& warnings, AlternativeBlock* which = nullptr);
+	bool ownsItem(Item* item) const;
+	const CompositeTileList& getComposite(int variation) const;
 
 	bool unserializeBorder(pugi::xml_node node, wxArrayString& warnings);
 	bool unserializeBrush(pugi::xml_node node, wxArrayString& warnings);
 
 	const BrushMap& getMap() const { return brushes; }
 
+	std::vector<AlternativeBlock*> alternatives;
 protected:
 	typedef std::map<uint32_t, AutoBorder*> BorderMap;
 	BrushMap brushes;

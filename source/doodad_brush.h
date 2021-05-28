@@ -23,8 +23,6 @@
 //=============================================================================
 // Doodadbrush, add doodads!
 
-typedef std::vector<std::pair<Position, ItemVector> > CompositeTileList;
-
 class DoodadBrush : public Brush
 {
 public:
@@ -34,16 +32,10 @@ public:
 	bool isDoodad() const { return true; }
 	DoodadBrush* asDoodad() { return static_cast<DoodadBrush*>(this); }
 
-protected:
-	struct AlternativeBlock;
-
-public:
-	bool loadAlternative(pugi::xml_node node, wxArrayString& warnings, AlternativeBlock* which = nullptr);
 	virtual bool load(pugi::xml_node node, wxArrayString& warnings);
 
 	virtual bool canDraw(BaseMap* map, const Position& position) const { return true; }
 	virtual void draw(BaseMap* map, Tile* tile, void* parameter);
-	const CompositeTileList& getComposite(int variation) const;
 	virtual void undraw(BaseMap* map, Tile* tile);
 
 	bool isEmpty(int variation) const;
@@ -67,7 +59,7 @@ public:
 	virtual bool canDrag() const { return false; }
 	virtual bool oneSizeFitsAll() const { return one_size; }
 	virtual int getLookID() const { return look_id; }
-	virtual int getMaxVariation() const { return alternatives.size(); }
+	virtual int getMaxVariation() const { return g_brushes.alternatives.size(); }
 	virtual std::string getName() const { return name; }
 	virtual void setName(const std::string& newName) { name = newName; }
 
@@ -85,29 +77,6 @@ protected:
 	bool on_duplicate;
 	uint16_t clear_mapflags;
 	uint16_t clear_statflags;
-
-	struct SingleBlock {
-		int chance;
-		Item* item;
-	};
-
-	struct CompositeBlock {
-		int chance;
-		CompositeTileList items;
-	};
-
-	struct AlternativeBlock {
-		AlternativeBlock();
-		~AlternativeBlock();
-		bool ownsItem(uint16_t id) const;
-		std::vector<SingleBlock> single_items;
-		std::vector<CompositeBlock> composite_items;
-
-		int composite_chance; // Total chance of a composite
-		int single_chance; // Total chance of a single object
-	};
-
-	std::vector<AlternativeBlock*> alternatives;
 };
 
 #endif

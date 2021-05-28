@@ -56,7 +56,9 @@ Brushes::Brushes()
 
 Brushes::~Brushes()
 {
-	////
+	for(std::vector<AlternativeBlock*>::iterator alt_iter = alternatives.begin(); alt_iter != alternatives.end(); ++alt_iter) {
+		delete *alt_iter;
+	}
 }
 
 void Brushes::clear()
@@ -198,6 +200,180 @@ bool Brushes::unserializeBorder(pugi::xml_node node, wxArrayString& warnings)
 void Brushes::addBrush(Brush *brush)
 {
 	brushes.insert(std::make_pair(brush->getName(), brush));
+}
+
+Brushes::AlternativeBlock::AlternativeBlock() :
+	composite_chance(0),
+	single_chance(0)
+{
+	////
+}
+
+Brushes::AlternativeBlock::~AlternativeBlock()
+{
+	for(std::vector<CompositeBlock>::iterator composite_iter = composite_items.begin(); composite_iter != composite_items.end(); ++composite_iter) {
+		CompositeTileList& tv = composite_iter->items;
+
+		for(CompositeTileList::iterator compt_iter = tv.begin(); compt_iter != tv.end(); ++compt_iter) {
+			ItemVector& items = compt_iter->second;
+			for(ItemVector::iterator iiter = items.begin(); iiter != items.end(); ++iiter)
+				delete *iiter;
+		}
+	}
+
+	for(std::vector<SingleBlock>::iterator single_iter = single_items.begin(); single_iter != single_items.end(); ++single_iter) {
+		delete single_iter->item;
+	}
+}
+
+bool Brushes::AlternativeBlock::ownsItem(uint16_t id) const
+{
+	for(std::vector<SingleBlock>::const_iterator single_iter = single_items.begin(); single_iter != single_items.end(); ++single_iter) {
+		if(single_iter->item->getID() == id) {
+			return true;
+		}
+	}
+
+	for(std::vector<CompositeBlock>::const_iterator composite_iter = composite_items.begin(); composite_iter != composite_items.end(); ++composite_iter) {
+		const CompositeTileList& ctl = composite_iter->items;
+		for(CompositeTileList::const_iterator comp_iter = ctl.begin(); comp_iter != ctl.end(); ++comp_iter) {
+			const ItemVector& items = comp_iter->second;
+
+			for(ItemVector::const_iterator item_iter = items.begin(), item_end = items.end(); item_iter != item_end; ++item_iter) {
+				if((*item_iter)->getID() == id) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+bool Brushes::loadAlternative(pugi::xml_node node, wxArrayString& warnings, AlternativeBlock* which)
+{
+	AlternativeBlock* alternativeBlock;
+	if(which) {
+		alternativeBlock = which;
+	} else {
+		alternativeBlock = newd AlternativeBlock();
+	}
+
+	pugi::xml_attribute attribute;
+	for(pugi::xml_node childNode = node.first_child(); childNode; childNode = childNode.next_sibling()) {
+		const std::string& childName = as_lower_str(childNode.name());
+		if(childName == "item") {
+			if(!(attribute = childNode.attribute("chance"))) {
+				warnings.push_back("Can't read chance tag of doodad item node.");
+				continue;
+			}
+
+			Item* item = Item::Create(childNode);
+			if(!item) {
+				warnings.push_back("Can't create item from doodad item node.");
+				continue;
+			}
+
+			ItemType& it = g_items[item->getID()];
+			if(it.id != 0) {
+				it.brush;
+			}
+
+			SingleBlock sb;
+			sb.item = item;
+			sb.chance = pugi::cast<int32_t>(attribute.value());
+
+			alternativeBlock->single_items.push_back(sb);
+			alternativeBlock->single_chance += sb.chance;
+		} else if(childName == "composite") {
+			if(!(attribute = childNode.attribute("chance"))) {
+				warnings.push_back("Can't read chance tag of doodad item node.");
+				continue;
+			}
+
+			alternativeBlock->composite_chance += pugi::cast<int32_t>(attribute.value());
+
+			CompositeBlock cb;
+			cb.chance = alternativeBlock->composite_chance;
+
+			for(pugi::xml_node compositeNode = childNode.first_child(); compositeNode; compositeNode = compositeNode.next_sibling()) {
+				if(as_lower_str(compositeNode.name()) != "tile") {
+					continue;
+				}
+
+				if(!(attribute = compositeNode.attribute("x"))) {
+					warnings.push_back("Couldn't read positionX values of composite tile node.");
+					continue;
+				}
+
+				int32_t x = pugi::cast<int32_t>(attribute.value());
+				if(!(attribute = compositeNode.attribute("y"))) {
+					warnings.push_back("Couldn't read positionY values of composite tile node.");
+					continue;
+				}
+
+				int32_t y = pugi::cast<int32_t>(attribute.value());
+				int32_t z = pugi::cast<int32_t>(compositeNode.attribute("z").value());
+				if(x < -0x7FFF || x > 0x7FFF) {
+					warnings.push_back("Invalid range of x value on composite tile node.");
+					continue;
+				} else if(y < -0x7FFF || y > 0x7FFF) {
+					warnings.push_back("Invalid range of y value on composite tile node.");
+					continue;
+				} else if(z < -0x7 || z > 0x7) {
+					warnings.push_back("Invalid range of z value on composite tile node.");
+					continue;
+				}
+
+				ItemVector items;
+				for(pugi::xml_node itemNode = compositeNode.first_child(); itemNode; itemNode = itemNode.next_sibling()) {
+					if(as_lower_str(itemNode.name()) != "item") {
+						continue;
+					}
+
+					Item* item = Item::Create(itemNode);
+					if(item) {
+						items.push_back(item);
+
+						ItemType& it = g_items[item->getID()];
+						if(it.id != 0) {
+							it.brush;
+						}
+					}
+				}
+
+				if(!items.empty()) {
+					cb.items.push_back(std::make_pair(Position(x, y, z), items));
+				}
+			}
+			alternativeBlock->composite_items.push_back(cb);
+		}
+	}
+
+	if(!which) {
+		alternatives.push_back(alternativeBlock);
+	}
+	return true;
+}
+
+const CompositeTileList& Brushes::getComposite(int variation) const
+{
+	static CompositeTileList empty;
+
+	if(alternatives.empty())
+		return empty;
+
+	variation %= alternatives.size();
+	const AlternativeBlock* ab_ptr = alternatives[variation];
+	ASSERT(ab_ptr);
+
+	int roll = random(1, ab_ptr->composite_chance);
+	for(std::vector<CompositeBlock>::const_iterator block_iter = ab_ptr->composite_items.begin(); block_iter != ab_ptr->composite_items.end(); ++block_iter) {
+		const CompositeBlock& cb = *block_iter;
+		if(roll <= cb.chance) {
+			return cb.items;
+		}
+	}
+	return empty;
 }
 
 Brush* Brushes::getBrush(const std::string& name) const
