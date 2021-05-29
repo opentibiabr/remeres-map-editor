@@ -1,29 +1,21 @@
 <materials>
 	<tileset name="Nature - Grass">
 		<terrain>
-			<brush name="grass"/>
-			<brush name="dark grass"/>
-			<brush name="jungle grass"/>
-			<brush name="dried grass"/>
-			<brush name="lush grass"/>
-			<brush name="krailos grass"/>
-			<brush name="green small grass"/>
-			<brush name="green small grass with snow"/>
-		</terrain>
-		<doodad>
 			<brush name="grass tufts"/>
 			<brush name="dry grass tufts"/>
 			<brush name="grassy tufts"/>
 			<brush name="venorean grass tufts"/>
 			<brush name="tall jungle grass"/>
 			<brush name="tall swamp grass"/>
+			<brush name="grass (green small)"/>
+			<brush name="grass (green small with snow)"/>
 			<brush name="grass drift (horizontal)"/>
 			<brush name="grass drift (vertical)"/>
 			<brush name="mini pepper root grass"/>
 			<brush name="pepper root grass"/>
 			<brush name="high grass"/>
 			<brush name="necrotic grass"/>
-		</doodad>
+		</terrain>
 		<raw>
 			<item fromid="2511" toid="2514"/>
 			<item fromid="6215" toid="6218"/>

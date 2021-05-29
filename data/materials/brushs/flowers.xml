@@ -1,0 +1,8 @@
+<materials>
+	<brush name="ice flowers" type="doodad" lookid="29971" draggable="true" on_blocking="true" thickness="12/100">
+		<item id="29971" chance="15"/>
+		<item id="29972" chance="10"/>
+		<item id="29973" chance="10"/>
+		<item id="29974" chance="10"/>
+	</brush>
+</materials>

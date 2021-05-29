@@ -1,0 +1,10 @@
+<materials>
+	<tileset name="Nature - Flowers">
+		<doodad>
+			<brush name="ice flowers"/>
+		</doodad>
+		<raw>
+			<item fromid="29971" toid="29974"/>
+		</raw>
+	</tileset>
+</materials>

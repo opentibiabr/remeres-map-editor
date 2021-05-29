@@ -33,7 +33,7 @@
 		<optional id="120"/>
 	</brush>
 	
-	<brush name="dried grass" type="ground" lookid="970" z-order="2900">
+	<brush name="grass (dried)" type="ground" lookid="970" z-order="2900">
 		<item id="970" chance="2500"/>
 		<item id="971" chance="2500"/>
 		<item id="972" chance="2500"/>
@@ -634,7 +634,7 @@
 		</border>
 	</brush>
 	
-	<brush name="dark grass" type="ground" lookid="106" z-order="3100">
+	<brush name="grass (dark)" type="ground" lookid="106" z-order="3100">
 		<item id="106" chance="8"/>
 		<item id="108" chance="1"/>
 		<item id="109" chance="1"/>
@@ -1080,7 +1080,7 @@
 		<item id="937" chance="1000"/>
 	</brush>
 	
-	<brush name="jungle grass" type="ground" lookid="1019" z-order="3600">
+	<brush name="grass (jungle)" type="ground" lookid="1019" z-order="3600">
 		<item id="1019" chance="2500"/>
 		<item id="10197" chance="1000"/>
 		
@@ -1591,7 +1591,7 @@
 		<border align="outer" id="124"/>
 	</brush>
 	
-	<brush name="mountain" type="ground" lookid="1127" z-order="9900">
+	<brush name="mountain" type="ground" lookid="1128" z-order="9900">
 		<item id="1128" chance="1"/>
 		
 		<border align="inner" to="icy mountain" id="53"/>
@@ -1628,7 +1628,7 @@
 		<friend name="mountain"/>
 	</brush>
 	
-	<brush name="snowy mountain" type="ground" lookid="800" z-order="9901" solo_optional="true">
+	<brush name="snowy mountain" type="ground" lookid="6869" z-order="9901" solo_optional="true">
 		<item id="6869" chance="1"/>
 		
 		<border align="inner" to="none" id="53"/>
@@ -3016,7 +3016,7 @@
 		<border align="outer" id="180"/>
 	</brush>
 	
-	<brush name="lush grass" type="ground" lookid="11711" z-order="3400">
+	<brush name="grass (lush)" type="ground" lookid="11711" z-order="3400">
 		<item id="11711" chance="2500"/>
 		<item id="11712" chance="2500"/>
 		<item id="11713" chance="2500"/>
@@ -3295,7 +3295,7 @@
 		<border align="outer" id="70"/>
 	</brush>
 	
-	<brush name="krailos grass" type="ground" lookid="22348" z-order="3000">
+	<brush name="grass (krailos)" type="ground" lookid="22348" z-order="3000">
 		<item id="22348" chance="100"/>
 		<item id="22349" chance="100"/>
 		<item id="22350" chance="100"/>

@@ -1,0 +1,7 @@
+<materials>
+	<tileset name="Nature - Plants">
+		<raw>
+			<item fromid="30422" toid="30427"/>
+		</raw>
+	</tileset>
+</materials>

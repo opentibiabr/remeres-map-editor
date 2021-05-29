@@ -1,0 +1,9 @@
+<materials>
+	<tileset name="Nature - Holes">
+		<raw>
+			<item id="7737"/>
+			<item id="7749"/>
+			<item id="7762"/>
+		</raw>
+	</tileset>
+</materials>

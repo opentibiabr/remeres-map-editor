@@ -1,5 +1,5 @@
 <materials>
-	<tileset name="Grounds">
+	<tileset name="Grounds - Ornamented">
 		<!-- Terrain -->
 		<terrain>
 			<!-- Pavement -->
@@ -92,7 +92,6 @@
 			<brush name="slate floor 2"/>
 			<brush name="tessellated floor"/>
 			<brush name="stone dark floor simbols"/>
-			<brush name="green tree floor"/>
 		</terrain>
 		<!-- Raw -->
 		<raw>
@@ -212,7 +211,6 @@
 			<item fromid="728" toid="730"/>
 			<item id="6352"/>
 			<item fromid="6683" toid="6686"/>
-			<item id="7756"/>
 			<item fromid="351" toid="368"/>
 			<item fromid="372" toid="387"/>
 			<item fromid="7062" toid="7066"/>

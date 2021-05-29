@@ -21403,7 +21403,9 @@
 		<attribute key="description" value="This blossom was gathered from a Witherstem."/>
 		<attribute key="weight" value="50"/>
 	</item>
-	<item id="12236" name="unknown item"/>
+	<item id="12236" name="unknown hole">
+		<attribute key="floorchange" value="down"/>
+	</item>
 	<item id="12237" name="scum bag">
 		<attribute key="weight" value="900"/>
 	</item>

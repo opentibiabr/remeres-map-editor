@@ -1,66 +1,7 @@
 <materials>
-	<include file="doodads/grass.xml"/>
-	<include file="doodads/tiny_borders.xml"/>
-	<include file="doodads/tree.xml"/>
-
-	<brush name="sequoia trunk" type="doodad" server_lookid="30417" draggable="true" on_blocking="true" thickness="12/100">
-		<alternate>
-			<item id="30417" chance="15"/>
-		</alternate>
-		<alternate>
-		<composite chance="15">
-			<tile x="0" y="0" z="0"> <item id="30407"/> </tile>
-			<tile x="0" y="0" z="-1"> <item id="30416"/> </tile>
-		</composite>
-		</alternate>		
-	</brush>
-
 	<brush name="pile of ruddy ashlars" type="doodad" server_lookid="30450" draggable="true" on_blocking="true" thickness="12/100">
 		<item id="30450" chance="15"/>
 		<item id="30451" chance="10"/>
-	</brush>
-	
-	
-	<brush name="sun fruit plants" type="doodad" server_lookid="29968" draggable="true" on_blocking="true" thickness="12/100">
-		<item id="29968" chance="15"/>
-		<item id="29969" chance="10"/>
-		<item id="29970" chance="10"/>
-	</brush>
-	
-	<brush name="ice flowers" type="doodad" server_lookid="29971" draggable="true" on_blocking="true" thickness="12/100">
-		<item id="29971" chance="15"/>
-		<item id="29972" chance="10"/>
-		<item id="29973" chance="10"/>
-		<item id="29974" chance="10"/>
-	</brush>
-	
-	<brush name="new colored brushs" type="doodad" server_lookid="30425" draggable="true" on_blocking="true" thickness="12/100">
-		<item id="30425" chance="15"/>
-		<item id="30427" chance="15"/>
-		<item id="30426" chance="10"/>
-		<item id="30422" chance="5"/>
-		<item id="30424" chance="5"/>
-	</brush>
-	
-	<brush name="new colored small plants" type="doodad" server_lookid="30421" draggable="true" on_blocking="true" thickness="12/100">
-		<item id="30421" chance="15"/>
-		<item id="30420" chance="15"/>
-		<item id="30423" chance="10"/>
-	</brush>
-	
-	<brush name="large branch" type="doodad" server_lookid="6181" draggable="true" on_blocking="true" thickness="12/100">
-		<alternate>	-- south --
-			<item id="6181" chance="10"/>
-			<item id="6182" chance="10"/>
-			<item id="6183" chance="10"/>
-			<item id="6184" chance="10"/>
-		</alternate>
-		<alternate>	-- east --
-			<item id="6185" chance="10"/>
-			<item id="6186" chance="10"/>
-			<item id="6187" chance="10"/>
-			<item id="6188" chance="10"/>
-		</alternate>
 	</brush>
 	
 	<brush name="snowy rocks" type="doodad" server_lookid="7008" draggable="true" on_blocking="true" thickness="12/100">
@@ -1326,7 +1267,7 @@
 		<carpet align="center" id="13766"/>
 	</brush>
 	
-	<brush name="green small grass" type="carpet" server_lookid="28952">
+	<brush name="grass (green small)" type="carpet" server_lookid="28952">
 		<carpet align="n"   id="28965"/>
 		<carpet align="e"   id="28966"/>
 		<carpet align="s"   id="28964"/>
@@ -1354,7 +1295,7 @@
 		<carpet align="center" id="25339"/>
 	</brush>
 	
-	<brush name="green small grass with snow" type="carpet" server_lookid="28976">
+	<brush name="grass (green small with snow)" type="carpet" server_lookid="28976">
 		<carpet align="n"   id="28989"/>
 		<carpet align="e"   id="28990"/>
 		<carpet align="s"   id="28988"/>
@@ -10553,11 +10494,6 @@
 		<item id="16330" chance="10"/>
 		<item id="16331" chance="10"/>
 		<item id="16332" chance="10"/>
-	</brush>
-
-	<brush name="whispering willow" type="doodad" server_lookid="16377" draggable="true" on_blocking="true" thickness="10/10">
-		<item id="16377" chance="10"/>
-		<item id="16378" chance="6"/>
 	</brush>
 
 	<brush name="giant mud lump" type="doodad" server_lookid="16389" draggable="true" on_blocking="true" thickness="10/10">
@@ -19799,24 +19735,6 @@
 		</alternate>
 	</brush>
 	
-	-- /\ Edited By Nolis --
-	-- \/ Doodads By Africano --
-	
-	<brush name="cypress" type="doodad" server_lookid="20101" draggable="false" on_duplicate="true" thickness="10/10">
-        <alternate>
-            <item id="20101" chance="10"/>
-        </alternate>
-        <alternate>
-            <item id="20102" chance="10"/>
-        </alternate>
-		<alternate>
-            <item id="20116" chance="10"/>
-        </alternate>
-		<alternate>
-            <item id="20117" chance="10"/>
-        </alternate>
-    </brush>
-	
 	<brush name="lattice" type="doodad" server_lookid="20942" draggable="false" on_duplicate="true" thickness="10/10">
         <alternate>
             <item id="20942" chance="10"/>
@@ -19985,39 +19903,6 @@
         </alternate>
     </brush>
 	
-	<brush name="small plant house" type="doodad" server_lookid="25311" draggable="false" on_duplicate="true" thickness="10/10">
-        <alternate>
-            <item id="25311" chance="10"/>
-        </alternate>
-        <alternate>
-            <item id="25312" chance="10"/>
-        </alternate>
-		<alternate>
-            <item id="25313" chance="10"/>
-        </alternate>
-		<alternate>
-            <item id="25314" chance="10"/>
-        </alternate>
-		<alternate>
-            <item id="25315" chance="10"/>
-        </alternate>
-		<alternate>
-            <item id="25316" chance="10"/>
-        </alternate>
-		<alternate>
-            <item id="25317" chance="10"/>
-        </alternate>
-		<alternate>
-            <item id="25318" chance="10"/>
-        </alternate>
-		<alternate>
-            <item id="25319" chance="10"/>
-        </alternate>
-		<alternate>
-            <item id="25320" chance="10"/>
-        </alternate>
-    </brush>
-	
 	<brush name="dwelling in a log" type="doodad" server_lookid="25321" draggable="false" on_duplicate="true" thickness="10/10">
         <alternate>
             <item id="25321" chance="10"/>
@@ -20093,18 +19978,6 @@
         </alternate>
 		<alternate>
             <item id="25394" chance="10"/>
-        </alternate>
-    </brush>
-	
-	<brush name="sentient oak" type="doodad" server_lookid="25405" draggable="false" on_duplicate="true" thickness="10/10">
-        <alternate>
-            <item id="25405" chance="10"/>
-        </alternate>
-        <alternate>
-            <item id="25406" chance="10"/>
-        </alternate>
-		<alternate>
-            <item id="25407" chance="10"/>
         </alternate>
     </brush>
 	

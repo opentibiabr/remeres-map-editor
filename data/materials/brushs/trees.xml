@@ -1,4 +1,5 @@
 <materials>
+	
 	<brush name="birch trees" type="doodad" lookid="957" draggable="true" on_blocking="true" thickness="12/100">
 		<item id="957" chance="10"/>
 		<item id="958" chance="2"/>
@@ -157,6 +158,20 @@
 		<item id="5398" chance="10"/>
 	</brush>
 
+	<brush name="large branch (east)" type="doodad" lookid="6185" draggable="true" on_blocking="true" thickness="12/100">
+		<item id="6185" chance="10"/>
+		<item id="6186" chance="10"/>
+		<item id="6187" chance="10"/>
+		<item id="6188" chance="10"/>
+	</brush>
+	
+	<brush name="large branch (south)" type="doodad" lookid="6181" draggable="true" on_blocking="true" thickness="12/100">
+		<item id="6181" chance="10"/>
+		<item id="6182" chance="10"/>
+		<item id="6183" chance="10"/>
+		<item id="6184" chance="10"/>
+	</brush>
+
 	<brush name="snowy dead trees" type="doodad" lookid="7022" draggable="true" on_blocking="true" thickness="12/100">
 		<item id="3608" chance="10"/>
 		<item id="7020" chance="10"/>
@@ -240,6 +255,11 @@
 		<item id="9996" chance="2"/>
 	</brush>
 
+	<brush name="whispering willow" type="doodad" lookid="16377" draggable="true" on_blocking="true" thickness="10/10">
+		<item id="16377" chance="10"/>
+		<item id="16378" chance="8"/>
+	</brush>
+
 	<brush name="ab'dendriel trees" type="doodad" lookid="18444" draggable="true" on_blocking="true" thickness="12/100">
 		<item id="18442" chance="10"/>
 		<item id="18443" chance="5"/>
@@ -288,6 +308,14 @@
 	<brush name="sleepless twine tree" type="doodad" lookid="19919" draggable="true" on_blocking="true" thickness="10/10">
 		<item id="19919" chance="10"/>
 		<item id="19920" chance="10"/>
+	</brush>
+
+	<!-- 20000 -->
+	<brush name="cypress" type="doodad" lookid="20101" draggable="false" on_duplicate="true" thickness="10/10">
+		<item id="20101" chance="10"/>
+		<item id="20102" chance="10"/>
+		<item id="20116" chance="10"/>
+		<item id="20117" chance="10"/>
 	</brush>
 	
 	<brush name="cactus trees" type="doodad" lookid="22290" draggable="true" on_blocking="true" thickness="12/100">
@@ -359,6 +387,25 @@
 		<item id="25310" chance="10"/>
 	</brush>
 
+	<brush name="small plant house" type="doodad" lookid="25311" draggable="false" on_duplicate="true" thickness="10/10">
+		<item id="25311" chance="10"/>
+		<item id="25312" chance="10"/>
+		<item id="25313" chance="10"/>
+		<item id="25314" chance="10"/>
+		<item id="25315" chance="10"/>
+		<item id="25316" chance="10"/>
+		<item id="25317" chance="10"/>
+		<item id="25318" chance="10"/>
+		<item id="25319" chance="10"/>
+		<item id="25320" chance="10"/>
+	</brush>
+
+	<brush name="sentient oak" type="doodad" lookid="25405" draggable="false" on_duplicate="true" thickness="10/10">
+		<item id="25405" chance="10"/>
+		<item id="25406" chance="10"/>
+		<item id="25407" chance="10"/>
+	</brush>
+
 	<brush name="lampion tree" type="doodad" lookid="25408" draggable="false" on_duplicate="true" thickness="10/10">
 		<item id="25408" chance="10"/>
 		<item id="25409" chance="10"/>
@@ -416,6 +463,20 @@
 		<item id="25492" chance="10"/>
 		<item id="25493" chance="10"/>
 		<item id="25494" chance="10"/>
+	</brush>
+
+	<brush name="sun fruit plants" type="doodad" lookid="29968" draggable="true" on_blocking="true" thickness="12/100">
+		<item id="29968" chance="15"/>
+		<item id="29969" chance="10"/>
+		<item id="29970" chance="10"/>
+	</brush>
+
+	<brush name="sequoia trunk" type="doodad" lookid="30417" draggable="true" on_blocking="true" thickness="12/100">
+		<item id="30417" chance="15"/>
+		<composite chance="15">
+			<tile x="0" y="0" z="0"> <item id="30407"/> </tile>
+			<tile x="0" y="0" z="-1"> <item id="30416"/> </tile>
+		</composite>
 	</brush>
 
 	<brush name="festive tree (off)" type="doodad" lookid="30238" draggable="true" on_blocking="true" thickness="10/10">
