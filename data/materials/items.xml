@@ -36933,10 +36933,7 @@
 	<item id="25407" article="a" name="sentient oak">
 		<attribute key="description" value="It looks happy"/>
 	</item>
-	<item id="25408" article="a" name="lampion tree">
-		<attribute key="description" value="A single blue blossom is hanging down from a branch."/>
-	</item>
-	<item id="25409" article="a" name="lampion tree">
+	<item fromid="25408" toid="25409" article="a" name="lampion tree">
 		<attribute key="description" value="A single blue blossom is hanging down from a branch."/>
 	</item>
 	<item id="25410" article="a" name="water-filled stump"/>

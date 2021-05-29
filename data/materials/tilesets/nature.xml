@@ -172,58 +172,21 @@
 			<item fromid="21575" toid="21585"/>
 		</terrain>
 		<doodad>
-			<brush name="green trees"/>
-			<brush name="alternate trees"/>
-			<brush name="birch trees"/>
-			<brush name="dead trees"/>
-			<brush name="mango tree"/>
 			<item id="6094"/>
-			<brush name="palm trees"/>
-			<brush name="banana trees"/>
-			<brush name="broken palm trees"/>
-			<brush name="mangrove tree"/>
-			<brush name="dead mangrove tree"/>
-			<brush name="mangrove tree (on water)"/>
-			<brush name="dead mangrove tree (on water)"/>
-			<brush name="dead trees (no faces)"/>
-			<brush name="dead trees (faces)"/>
-			<brush name="cherry blossom trees"/>
 			<item id="30419"/>
-			<brush name="green zao trees"/>
-			<brush name="dragonbone trees"/>
-			<brush name="flower trees"/>
-			<brush name="jade plant"/>
-			<brush name="solstice trees"/>
 			<item id="10000"/>
 			<brush name="whispering willow"/>
-			<brush name="ab'dendriel trees"/>
-			<brush name="oramond trees1"/>
-			<brush name="oramond trees2"/>
-			<brush name="oramond trees3"/>
 			<brush name="cypress"/>
-			<brush name="krailos trees1"/>
 			<item id="22292"/>
-			<brush name="krailos trees2"/>
-			<brush name="krailos trees3"/>
 			<brush name="sequoia trunk"/>
 			<item id="30418"/>
 			<item id="29332"/>
 			<item id="29333"/>
 			<brush name="sun fruit plants"/>
 			<brush name="sentient oak"/>
-			<brush name="beech"/>
-			<brush name="windroot tree"/>
-			<brush name="arching tree"/>
-			<brush name="fairy tree"/>
-			<brush name="night plants"/>
-			<brush name="bird plant"/>
-			<brush name="dream bird tree"/>
 			<brush name="moon sculpture"/>
-			<brush name="magical tree (colours)"/>
-			<brush name="tree with blue leaves"/>
 			<brush name="small plant house"/>
 			<brush name="dwelling in a log"/>
-			<brush name="tree stump"/>
 			<brush name="twilight morels"/>
 			<item id="22885"/>
 			<brush name="monster nest"/>
@@ -237,9 +200,6 @@
 			<brush name="herbs"/>
 			<brush name="mossy stone"/>
 			<brush name="mossy spots"/>
-			<brush name="grass tufts"/>
-			<brush name="dry grass tufts"/>
-			<brush name="grassy tufts"/>
 			<brush name="new mossy spots"/>
 			<brush name="carrot sprouts"/>
 			<brush name="venorean grass tufts"/>
@@ -262,8 +222,6 @@
 			<brush name="new colored brushs"/>
 			<brush name="new colored small plants"/>
 			<item fromid="3651"	toid="3653"/>
-			<brush name="large cactus"/>
-			<brush name="small cactus"/>
 			<brush name="sand dune"/>
 			<brush name="sand dark dune"/>
 			<brush name="sand pile"/>
@@ -351,8 +309,6 @@
 			<brush name="spike brush"/>
 			<brush name="swamp source"/>
 			<item id="5676"/>
-			<brush name="grass drift"/>
-			<brush name="jungle trees"/>
 			<brush name="jungle flowers"/>
 			<brush name="jungle plants"/>
 			<brush name="jungle fern"/>
@@ -365,11 +321,8 @@
 			<brush name="ant trails"/>
 			<brush name="log"/>
 			<brush name="log covered in moss"/>
-			<brush name="jungle giant tree"/>
 			<brush name="branches"/>
-			<brush name="tree crown"/>
 			<brush name="demon oak"/>
-			<brush name="enormous tree"/>
 			<brush name="branching"/>
 			<brush name="some leaves"/>
 			<brush name="giant mushrooms"/>
@@ -463,7 +416,6 @@
 			<brush name="unknown12"/>
 			<brush name="unknown13"/>
 			<brush name="magma stones"/>
-			<brush name="eye tree"/>
 			<brush name="hive spike structure"/>
 			<brush name="hive bulbuous structure"/>
 			<brush name="hive porous structure"/>
@@ -577,8 +529,6 @@
 			<item fromid="28688" toid="28689"/>
 			<item fromid="28920" toid="28923"/>
 			<item fromid="30620" toid="30622"/>
-			<brush name="trimmed tree"/>
-			<brush name="untended trimmed tree"/>
 			<brush name="vase plant"/>
 		</doodad>
 		<raw>
@@ -631,7 +581,7 @@
 			<item id="198"/>
 			<item fromid="199" toid="202"/>
 			<item fromid="233" toid="234"/>
-			<item fromid="6215" toid="6232"/>
+			<item fromid="6219" toid="6232"/>
 			<item fromid="6270" toid="6275"/>
 			<item fromid="6179" toid="6190"/>
 			<item fromid="5389" toid="5398"/>

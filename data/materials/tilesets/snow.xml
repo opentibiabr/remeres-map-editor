@@ -20,9 +20,7 @@
 			<brush name="frozen mud"/>
 		</terrain>
 		<doodad>
-			<brush name="snowy dead trees"/>
 			<brush name="snowy alive trees"/>
-			<brush name="dead trees"/>
 			<brush name="snowy rocks"/>
 			<brush name="small snowy rocks"/>
 			<brush name="ice floe"/>

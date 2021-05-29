@@ -2,7 +2,6 @@
 	<tileset name="Interior">
 		<doodad>
 			<!-- Furniture -->
-			<brush name="depot"/>
 			<brush name="bookcase"/>
 			<brush name="bambu bookcase with books"/>
 			<brush name="new bookcase"/>
@@ -505,7 +504,6 @@
 			<item id="22737"/>
 			<item id="21787"/>
 			<item id="21796"/>
-			<item fromid="22797" toid="22813"/>
 			<item fromid="23399" toid="23411"/>
 			<item id="23414"/>
 			<item fromid="23417" toid="23430"/>

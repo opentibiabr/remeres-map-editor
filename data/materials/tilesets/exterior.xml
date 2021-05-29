@@ -1,8 +1,6 @@
 <materials>
 	<tileset name="Exterior">
 		<doodad>
-			<item id="34111"/>
-			<item id="1949"/>
 			<brush name="magic stone"/>
 			<item id="3501"/>
 			<item id="3458"/>

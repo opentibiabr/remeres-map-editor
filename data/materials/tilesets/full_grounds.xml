@@ -1,5 +1,8 @@
 <materials>
 	<tileset name="Full Grounds">
+		<doodad>
+			<brush name="carving of a lion"/>
+		</doodad>
 		<raw>
 			<item fromid="356" toid="367"/>
 			<item id="479"/>
