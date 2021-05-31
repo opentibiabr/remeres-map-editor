@@ -11,7 +11,7 @@
 			<brush name="flowers (white hanging)"/>
 			<brush name="sunflowers"/>
 		</doodad>
-		<raw>
+		<items>
 			<item fromid="3654" toid="3657"/>
 			<item fromid="3666" toid="3667"/>
 			<item fromid="3669" toid="3672"/>
@@ -23,6 +23,6 @@
 			<item id="22643"/>
 			<item id="22648"/>
 			<item fromid="29971" toid="29974"/>
-		</raw>
+		</items>
 	</tileset>
 </materials>

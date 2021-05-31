@@ -36584,7 +36584,6 @@
 		<attribute key="rotateTo" value="25103"/>
 		<attribute key="wrapableTo" value="23398"/>
 	</item>
-	<!-- store -->
 	<item fromid="25105" toid="25111" article="a" name="dragon lair wall"/>
 	<item fromid="25112" toid="25113" article="a" name="grey stones"/>
 	<item fromid="25114" toid="25123" article="a" name="slate"/>

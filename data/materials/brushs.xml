@@ -1,6 +1,7 @@
 <materials>
 	<!-- Brushs -->
 	<include file="brushs/brushes.xml"/>
+	<include file="brushs/decorations.xml"/>
 	<include file="brushs/doodads.xml"/>
 	<include file="brushs/flowers.xml"/>
 	<include file="brushs/grass.xml"/>

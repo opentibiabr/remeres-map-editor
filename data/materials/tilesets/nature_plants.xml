@@ -4,14 +4,25 @@
 			<brush name="sea plants"/>
 			<brush name="swamp plants"/>
 			<brush name="herbs"/>
+			<brush name="vase plant"/>
 		</doodad>
-		<raw>
+		<items>
+			<item id="316"/>
+			<item id="321"/>
+			<item fromid="325" toid="346"/>
+			<item id="649"/>
+			<item fromid="2981" toid="2988"/>
 			<item id="3683"/>
 			<item id="3674"/>
 			<item fromid="3685" toid="3697"/>
 			<item fromid="3735" toid="3741"/>
+			<item fromid="9069" toid="9078"/>
+			<item fromid="9226" toid="9231"/>
+			<item fromid="14029" toid="14038"/>
+			<item fromid="17372" toid="17373"/>
 			<item fromid="25348" toid="25349"/>
 			<item fromid="30422" toid="30427"/>
-		</raw>
+			<item fromid="30620" toid="30622"/>
+		</items>
 	</tileset>
 </materials>

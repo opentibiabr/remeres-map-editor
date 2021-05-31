@@ -2426,6 +2426,10 @@
 		</wall>
 	</brush>
 	
+	<brush name="dragon lair wall (large)" type="wall" server_lookid="24993">
+		<item id="25037" chance="10"/>
+	</brush>
+
 	<brush name="dragon lair wall" type="wall" server_lookid="24993">
 		<wall type="horizontal">
 			<item id="24993" chance="10"/>

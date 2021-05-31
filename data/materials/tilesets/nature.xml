@@ -17,31 +17,7 @@
 			<item fromid="3651"	toid="3653"/>
 			<brush name="sand dune"/>
 			<brush name="sand dark dune"/>
-			<brush name="sand pile"/>
-			<brush name="heap of black sand"/>
-			<brush name="sand trickle"/>
-			<brush name="sand stones"/>
-			<brush name="sandy rock pile"/>
 
-			<brush name="spike"/>
-			<brush name="slate"/>
-			<brush name="mud cave rocks"/>
-			<brush name="mud cave rocks with stone"/>
-			<brush name="brown rubble"/>
-			<brush name="rough brown rubble"/>
-			<brush name="stone cave rocks"/>
-			<brush name="stone cave rocks with mud"/>
-			<brush name="gray rubble"/>
-			<brush name="rough gray rubble"/>
-			<brush name="rubles"/>
-			<brush name="jagged stones (unwalkable)"/>
-			<brush name="jagged stones (walkable)"/>
-			<brush name="jagged stones (hangable)"/>
-			<brush name="new dark stones"/>
-			<brush name="dragon lair spikes"/>
-			<brush name="dragon lair lava formation"/>
-			<brush name="dark stone ruins"/>
-			<brush name="dark jagged stones"/>
 			<brush name="ab'dendriel menhir"/>
 			<brush name="cave hole1"/>
 			<brush name="cave hole2"/>
@@ -56,7 +32,6 @@
 			<item id="29305"/>
 			<brush name="webbed cocoon, standing"/>
 			<brush name="spider victim"/>
-			<brush name="water stones"/>
 			<brush name="water source"/>
 			<brush name="water source 2"/>
 			<brush name="lilypads"/>
@@ -122,7 +97,6 @@
 			<brush name="yellow tentacles"/>
 			<brush name="blue tentacles"/>
 			<brush name="purple stones"/>
-			<brush name="purple crystal"/>
 			<brush name="purple mini crystals"/>
 			<brush name="purple wall crystals"/>
 			<brush name="sleeping dragon (body)"/>
@@ -179,7 +153,6 @@
 			<brush name="unknown11"/>
 			<brush name="unknown12"/>
 			<brush name="unknown13"/>
-			<brush name="magma stones"/>
 			<brush name="hive spike structure"/>
 			<brush name="hive bulbuous structure"/>
 			<brush name="hive porous structure"/>
@@ -235,7 +208,6 @@
 			<brush name="ab'dendriel's hedge arch"/>
 			<item id="18439"/>
 			<brush name="strange moss rocks"/>
-			<brush name="krailos rocks"/>
 			<brush name="krailos blood"/>
 			<brush name="krailos mountains"/>
 			<brush name="pile of ruddy ashlars"/>
@@ -248,52 +220,6 @@
 			<brush name="unknown15"/>
 			<brush name="purple things"/>
 			<brush name="diverse obsidian pipes"/>
-			<brush name="blue cave crystal"/>
-			<brush name="light blue cave crystal"/>
-			<brush name="red cave crystal"/>
-			<brush name="green cave crystal"/>
-			<brush name="prism cave crystal"/>
-			<brush name="large blue crystals"/>
-			<brush name="large white crystals"/>
-			<brush name="white cave crystal"/>
-			<brush name="small white crystals"/>
-			<brush name="white crystals"/>
-			<item id="14949"/>
-			<brush name="huge red crystals"/>
-			<brush name="large fallen crystal"/>
-			<brush name="green crystal stalagmite"/>
-			<brush name="green crystal wall"/>
-			<brush name="green crystal rods"/>
-			<item id="14952"/>
-			<item id="14955"/>
-			<brush name="blue crystal wall"/>
-			<brush name="blue crystal rods"/>
-			<item id="14958"/>
-			<item id="14961"/>
-			<item id="14974"/>
-			<brush name="red crystal wall"/>
-			<brush name="red crystal rods"/>
-			<brush name="red crystal geode"/>
-			<item id="14967"/>
-			<item id="14964"/>
-			<brush name="harverstable crystal"/>
-			<brush name="crystal resonator"/>
-			<item fromid="2981" toid="2988"/>
-			<item id="306"/>
-			<item id="316"/>
-			<item id="321"/>
-			<item id="649"/>
-			<item fromid="325" toid="346"/>
-			<item fromid="9069" toid="9068"/>
-			<item fromid="9226" toid="9231"/>
-			<item fromid="14029" toid="14038"/>
-			<item fromid="17372" toid="17373"/>
-			<item fromid="25216" toid="25220"/>
-			<item fromid="28697" toid="28699"/>
-			<item fromid="28688" toid="28689"/>
-			<item fromid="28920" toid="28923"/>
-			<item fromid="30620" toid="30622"/>
-			<brush name="vase plant"/>
 		</doodad>
 		<raw>
 			<item fromid="957" toid="958"/>
@@ -427,7 +353,6 @@
 			<item fromid="15535" toid="15583"/>
 			<item id="15632"/>
 			<item fromid="15634" toid="15640"/>
-			<item fromid="16169" toid="16171"/>
 			<item id="16248"/>
 			<item id="16250"/>
 			<item fromid="16379" toid="16386"/>
@@ -508,7 +433,6 @@
 			<item fromid="25146" toid="25165"/>
 			<item fromid="25236" toid="25237"/>
 			<item fromid="25339" toid="25347"/>
-			<item fromid="25356" toid="25359"/>
 			<item fromid="25362" toid="25409"/>
 			<item id="25444"/>
 			<item fromid="25446" toid="25498"/>
