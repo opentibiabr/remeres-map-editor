@@ -172,6 +172,17 @@
 		<item id="6184" chance="10"/>
 	</brush>
 
+	<brush name="twines" type="table" lookid="6219">
+		<table align="north"> <item id="6221" chance="10"/> </table>
+		<table align="vertical"> <item id="6220" chance="10"/> </table>
+		<table align="south"> <item id="6222" chance="10"/> </table>
+		<table align="west"> <item id="6223" chance="10"/> </table>
+		<table align="horizontal"> <item id="6219" chance="10"/> </table>
+		<table align="east"> <item id="6224" chance="10"/> </table>
+		<table align="alone"> <item id="6219" chance="10"/> </table>
+		<table align="alone"> <item id="6219" chance="10"/> </table>
+	</brush>
+
 	<brush name="snowy dead trees" type="doodad" lookid="7022" draggable="true" on_blocking="true" thickness="12/100">
 		<item id="3608" chance="10"/>
 		<item id="7020" chance="10"/>

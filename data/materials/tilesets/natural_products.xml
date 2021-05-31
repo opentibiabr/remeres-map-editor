@@ -1,9 +1,13 @@
 <materials>
 	<tileset name="Natural Products">
+		<doodad>
+			<brush name="carrot sprouts"/>
+		</doodad>
 		<items>
 			<item id="181"/>
 			<item id="211"/>
 			<item fromid="5676" toid="5677"/>
+			<item fromid="15637" toid="15638"/>
 		</items>
 	</tileset>
 </materials>

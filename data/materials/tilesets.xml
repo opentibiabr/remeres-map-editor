@@ -48,11 +48,13 @@
 	<include file="tilesets/musical_instruments.xml"/>
 	<include file="tilesets/natural_products.xml"/>
 	<include file="tilesets/nature.xml"/>
+	<include file="tilesets/nature_brushes.xml"/>
 	<include file="tilesets/nature_flowers.xml"/>
 	<include file="tilesets/nature_grass.xml"/>
 	<include file="tilesets/nature_holes.xml"/>
 	<include file="tilesets/nature_plants.xml"/>
 	<include file="tilesets/nature_steppe_plants.xml"/>
+	<include file="tilesets/nature_stones.xml"/>
 	<include file="tilesets/nature_trees.xml"/>
 	<include file="tilesets/nature_underground_plants.xml"/>
 	<include file="tilesets/nature_tiny_borders.xml"/>

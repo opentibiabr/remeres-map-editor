@@ -59,7 +59,9 @@
 			<brush name="tree stubs"/>
 			<brush name="tree stump"/>
 			<brush name="tree with blue leaves"/>
+			<brush name="twines"/>
 			<brush name="whispering willow"/>
+
 		</doodad>
 		<raw>
 			<item fromid="957" toid="958"/>
@@ -72,6 +74,7 @@
 			<item fromid="5155" toid="5156"/>
 			<item fromid="5389" toid="5398"/>
 			<item id="6094"/>
+			<item fromid="6219" toid="6224"/>
 			<item fromid="7020" toid="7024"/>
 			<item fromid="7957" toid="7990"/>
 			<item fromid="8838" toid="8843"/>

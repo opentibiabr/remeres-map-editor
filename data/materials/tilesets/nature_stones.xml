@@ -1,0 +1,63 @@
+<materials>
+	<tileset name="Nature - Stones">
+		<doodad>
+			<brush name="brown rocks"/>
+			<brush name="debris (bigger)"/>
+			<brush name="debris (medium)"/>
+			<brush name="debris (small)"/>
+			<brush name="grey stones"/>
+			<brush name="lava hole"/>
+			<brush name="menhir"/>
+			<brush name="mossy rocks (big)"/>
+			<brush name="mossy rocks (small)"/>
+			<brush name="mud ball"/>
+			<brush name="mud clot (giant)"/>
+			<brush name="mud clot (small)"/>
+			<brush name="mud lump (giant)"/>
+			<brush name="mud lump (big)"/>
+			<brush name="sentient stones (big)"/>
+			<brush name="sentient stones (small)"/>
+			<brush name="stones"/>
+			<brush name="stones (south)"/>
+			<brush name="stones (east)"/>
+			<brush name="stones pile"/>
+			<brush name="stone rocks (iny tiny)"/>
+			<brush name="stone rocks (tiny)"/>
+			<brush name="stone rocks (medium)"/>
+			<brush name="stone 1 (4 SQMS)"/>
+			<brush name="stone 2 (4 SQMS)"/>
+			<brush name="stone 3 (4 SQMS)"/>
+			<brush name="stone 4 (4 SQMS)"/>
+			<brush name="stone 5 (4 SQMS)"/>
+			<brush name="stone 6 (4 SQMS)"/>
+			<brush name="stone 1 (2 SQMS)"/>
+			<brush name="stone 2 (2 SQMS)"/>
+			<brush name="stone 3 (2 SQMS)"/>
+			<brush name="stone 4 (2 SQMS)"/>
+			<brush name="stone 5 (2 SQMS)"/>
+			<brush name="stalagmite"/>
+			<brush name="veined rocks"/>
+			<brush name="veined stones"/>
+			<brush name="veined stones (big)"/>
+			<brush name="ward stones (gray)"/>
+			<brush name="ward stones (blue)"/>
+			<brush name="weeping stones"/>
+		</doodad>
+		<raw>
+			<item fromid="390" toid="392"/>
+			<item fromid="1146" toid="1151"/>
+			<item fromid="1772" toid="1780"/>
+			<item fromid="1782" toid="1921"/>
+			<item fromid="7912" toid="7915"/>
+			<item fromid="8503" toid="8506"/>
+			<item fromid="16387" toid="16395"/>
+			<item fromid="16402" toid="16411"/>
+			<item fromid="16416" toid="16417"/>
+			<item fromid="25112" toid="25113"/>
+			<item fromid="25236" toid="25237"/>
+			<item fromid="25446" toid="25465"/>
+			<item fromid="29334" toid="29337"/>
+			<item fromid="30428" toid="30447"/>
+		</raw>
+	</tileset>
+</materials>

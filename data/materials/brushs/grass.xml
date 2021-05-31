@@ -14,10 +14,10 @@
 	</brush>
 
 	<brush name="grass tufts" type="doodad" lookid="6215" draggable="true" on_blocking="true" thickness="25/100">
-		<item id="6215" chance="1"/>
+		<item id="6215" chance="10"/>
+		<item id="6216" chance="8"/>
 		<item id="6217" chance="12"/>
 		<item id="6218" chance="60"/>
-		<item id="21935" chance="5"/>
 	</brush>
 	
 	<brush name="dry grass tufts" type="doodad" lookid="9820" draggable="true" on_blocking="true" thickness="25/100">
@@ -36,5 +36,12 @@
 		<item id="13373" chance="5"/>
 		<item id="13374" chance="10"/>
 		<item id="13375" chance="10"/>
+	</brush>
+
+	<brush name="venorean grass tufts" type="doodad" lookid="17897" draggable="true" on_blocking="true" thickness="10/10">
+		<item id="17897" chance="10"/>
+		<item id="17898" chance="10"/>
+		<item id="17983" chance="10"/>
+		<item id="17984" chance="10"/>
 	</brush>
 </materials>

@@ -7130,7 +7130,8 @@
 	<item fromid="3880" toid="3883" article="a" name="titans orchid"/>
 	<item id="3884" article="a" name="purple cardinal"/>
 	<item id="3885" article="a" name="witches cauldron plant"/>
-	<item fromid="3886" toid="3890" article="a" name="gold blossom"/>
+	<item fromid="3886" toid="3887" article="a" name="gold blossom"/>
+	<item fromid="3888" toid="3890" article="a" name="meadow star"/>
 	<item id="3891" article="a" name="sneeze blossom"/>
 	<item fromid="3892" toid="3894" article="a" name="dew kisser flower"/>
 	<item fromid="3895" toid="3898" article="a" name="velvet petal"/>
@@ -43737,7 +43738,8 @@
 	<item id="30427" name="wild desert roses"/>
 	<item fromid="30428" toid="30433" article="a" name="veined rock"/>
 	<item fromid="30434" toid="30443" article="a" name="veined stone"/>
-	<item fromid="30444" toid="30447" article="a" name="veined rock"/>
+	<item fromid="30444" toid="30445" article="a" name="veined rock"/>
+	<item fromid="30446" toid="30447" article="a" name="veined stone"/>
 	<item fromid="30448" toid="30449" article="a" name="ruddy obelisk"/>
 	<item fromid="30450" toid="30451" article="a" name="pile of ruddy ashlars"/>
 	<item fromid="30452" toid="30453" article="an" name="ancient sepulchre"/>

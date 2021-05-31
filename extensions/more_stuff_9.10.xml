@@ -132,13 +132,6 @@
 		<alternate> <item id="11007" chance="30"/> </alternate> <!-- south -->
 	</brush>
 
-	<brush name="grass tufts" type="doodad">
-		<!-- Double the chance of these items to appear in favor of 6216 -->
-		<item id="21935" chance="10"/>
-		<item id="6217" chance="10"/>
-		<item id="6218" chance="10"/>
-	</brush>
-
 	<brush name="Lava fountain" type="doodad" server_lookid="11506" draggable="true" on_blocking="true" thickness="100/100">
 		<alternate>
 			<composite chance="10">

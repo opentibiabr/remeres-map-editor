@@ -1,6 +1,16 @@
 <materials>
 	<tileset name="Nature - Plants">
+		<doodad>
+			<brush name="sea plants"/>
+			<brush name="swamp plants"/>
+			<brush name="herbs"/>
+		</doodad>
 		<raw>
+			<item id="3683"/>
+			<item id="3674"/>
+			<item fromid="3685" toid="3697"/>
+			<item fromid="3735" toid="3741"/>
+			<item fromid="25348" toid="25349"/>
 			<item fromid="30422" toid="30427"/>
 		</raw>
 	</tileset>

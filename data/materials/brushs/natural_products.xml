@@ -1,0 +1,6 @@
+<materials>
+	<brush name="carrot sprouts" type="doodad" lookid="15637" draggable="true" on_blocking="true" thickness="10/10">
+		<item id="15637" chance="10"/>
+		<item id="15638" chance="10"/>
+	</brush>
+</materials>
