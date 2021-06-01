@@ -1,9 +1,12 @@
 <materials>
 	<tileset name="Nature - Plants">
 		<doodad>
+			<brush name="flowering cactus"/>
+			<brush name="herbs"/>
+			<brush name="moonshine bells"/>
 			<brush name="sea plants"/>
 			<brush name="swamp plants"/>
-			<brush name="herbs"/>
+			<brush name="twilight morels"/>
 			<brush name="vase plant"/>
 		</doodad>
 		<items>
@@ -20,7 +23,10 @@
 			<item fromid="9226" toid="9231"/>
 			<item fromid="14029" toid="14038"/>
 			<item fromid="17372" toid="17373"/>
+			<item fromid="18446" toid="18449"/>
+			<item fromid="22298" toid="22299"/>
 			<item fromid="25348" toid="25349"/>
+			<item fromid="25389" toid="25394"/>
 			<item fromid="30422" toid="30427"/>
 			<item fromid="30620" toid="30622"/>
 		</items>

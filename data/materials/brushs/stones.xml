@@ -70,7 +70,7 @@
 		</composite>
 	</brush>
 
-	<brush name="menhir" type="doodad" lookid="1791" draggable="true" on_blocking="true" thickness="15/100">
+	<brush name="stones (coloured)" type="doodad" lookid="1791" draggable="true" on_blocking="true" thickness="15/100">
 		<item id="1840" chance="5"/>
 		<item id="1841" chance="5"/>
 		<item id="1842" chance="5"/>
@@ -437,6 +437,59 @@
 		<item id="1914" chance="10"/>
 	</brush>
 
+	<brush name="mossy spots" type="doodad" lookid="4569" draggable="true" on_blocking="true" thickness="6/10">
+		<item id="4569" chance="8"/>
+		<item id="4570" chance="8"/>
+		<item id="4571" chance="10"/>
+		<item id="4572" chance="8"/>
+		<item id="4573" chance="6"/>
+		<item id="4574" chance="4"/>
+		<item id="4575" chance="6"/>
+		<item id="4576" chance="10"/>
+		<item id="4577" chance="8"/>
+		<item id="4578" chance="6"/>
+		<item id="4579" chance="8"/>
+		<item id="4580" chance="12"/>
+		<item id="4581" chance="12"/>
+		<item id="4582" chance="12"/>
+		<item id="4583" chance="4"/>
+	</brush>
+
+	<brush name="mossy stone" type="doodad" lookid="4746" draggable="true" on_blocking="true" thickness="30/100">
+		<item id="4746" chance="10"/>
+		<item id="4745" chance="10"/>
+		<composite chance="10">
+			<tile x="0" y="0"> <item id="4434"/> </tile>
+			<tile x="1" y="0"> <item id="4435"/> </tile>
+			<tile x="0" y="1"> <item id="4437"/> </tile>
+			<tile x="1" y="1"> <item id="4436"/> </tile>
+		</composite>
+		<composite chance="10">
+			<tile x="0" y="0"> <item id="4438"/> </tile>
+			<tile x="1" y="0"> <item id="4439"/> </tile>
+			<tile x="0" y="1"> <item id="4441"/> </tile>
+			<tile x="1" y="1"> <item id="4440"/> </tile>
+		</composite>
+		<composite chance="10">
+			<tile x="0" y="0"> <item id="4442"/> </tile>
+			<tile x="1" y="0"> <item id="4443"/> </tile>
+			<tile x="0" y="1"> <item id="4556"/> </tile>
+			<tile x="1" y="1"> <item id="4444"/> </tile>
+		</composite>
+		<composite chance="10">
+			<tile x="0" y="0"> <item id="4557"/> </tile>
+			<tile x="1" y="0"> <item id="4558"/> </tile>
+			<tile x="0" y="1"> <item id="4604"/> </tile>
+			<tile x="1" y="1"> <item id="4603"/> </tile>
+		</composite>
+		<composite chance="10">
+			<tile x="0" y="0"> <item id="4605"/> </tile>
+			<tile x="1" y="0"> <item id="4606"/> </tile>
+			<tile x="0" y="1"> <item id="4608"/> </tile>
+			<tile x="1" y="1"> <item id="4607"/> </tile>
+		</composite>
+	</brush>
+
 	<brush name="rocks (stone cave)" type="doodad" lookid="5618" draggable="true" on_blocking="true" thickness="13/100">
 		<item id="5618" chance="10"/>
 		<item id="5619" chance="10"/>
@@ -557,6 +610,15 @@
 		<item id="12213" chance="10"/>
 	</brush>
 
+	<brush name="mossy spots (green)" type="doodad" lookid="15393" draggable="true" on_blocking="true" thickness="10/10">
+		<item id="15393" chance="10"/>
+		<item id="15394" chance="10"/>
+		<item id="15395" chance="6"/>
+		<item id="15396" chance="6"/>
+		<item id="15397" chance="10"/>
+		<item id="15398" chance="10"/>
+	</brush>
+
 	<brush name="crystals large (blue)" type="doodad" lookid="16169" draggable="true" on_blocking="true" thickness="10/10">
 		<item id="16169" chance="10"/>
 		<item id="16170" chance="10"/>
@@ -595,6 +657,12 @@
 	<brush name="mud clot (small)" type="doodad" lookid="16416" draggable="true" on_blocking="true" thickness="10/10">
 		<item id="16416" chance="6"/>
 		<item id="16417" chance="4"/>
+	</brush>
+
+	<brush name="menhir" type="doodad" lookid="18450" draggable="true" on_blocking="true" thickness="10/10">
+		<item id="18450" chance="10"/>
+		<item id="18451" chance="10"/>
+		<item id="18452" chance="10"/>
 	</brush>
 
 	<brush name="sandy rock pile" type="doodad" lookid="18621" draggable="true" on_blocking="true" thickness="10/10">

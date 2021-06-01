@@ -371,6 +371,11 @@
 		<item id="24036" chance="10"/>
 	</brush>
 
+	<brush name="dwelling in a log" type="doodad" lookid="25321" draggable="false" on_duplicate="true" thickness="10/10">
+		<item id="25321" chance="10"/>
+		<item id="25322" chance="10"/>
+	</brush>
+
 	<brush name="tree stump" type="doodad" lookid="25362" draggable="false" on_duplicate="true" thickness="10/10">
 		<item id="25362" chance="10"/>
 		<item id="25363" chance="10"/>

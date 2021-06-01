@@ -20,8 +20,7 @@
 			<item fromid="6225" toid="6230"/>
 			<item fromid="10720" toid="10723"/>
 			<item fromid="10860" toid="10865"/>
-			<item id="22643"/>
-			<item id="22648"/>
+			<item fromid="22643" toid="22648"/>
 			<item fromid="29971" toid="29974"/>
 		</items>
 	</tileset>

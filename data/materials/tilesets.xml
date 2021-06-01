@@ -1,6 +1,7 @@
 <materials>
 	<!-- Tilesets -->
 	<include file="tilesets/addons_and_quest_items.xml"/>
+	<include file="tilesets/animals.xml"/>
 	<include file="tilesets/architecture.xml"/>
 	<include file="tilesets/archway.xml"/>
 	<include file="tilesets/banners.xml"/>
@@ -10,6 +11,7 @@
 	<include file="tilesets/bottom.xml"/>
 	<include file="tilesets/bridges.xml"/>
 	<include file="tilesets/common.xml"/>
+	<include file="tilesets/constructions.xml"/>
 	<include file="tilesets/containers.xml"/>
 	<include file="tilesets/contest_prizes.xml"/>
 	<include file="tilesets/corpses.xml"/>
@@ -29,6 +31,7 @@
 	<include file="tilesets/equipments_shields.xml"/>
 	<include file="tilesets/exterior.xml"/>
 	<include file="tilesets/festive_items.xml"/>
+	<include file="tilesets/fields.xml"/>
 	<include file="tilesets/fluid_containers.xml"/>
 	<include file="tilesets/food.xml"/>
 	<include file="tilesets/full_grounds.xml"/>

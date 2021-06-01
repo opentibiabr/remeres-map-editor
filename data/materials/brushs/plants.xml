@@ -25,8 +25,27 @@
 		<item id="3741" chance="10"/>
 	</brush>
 
+	<brush name="moonshine bells" type="doodad" server_lookid="18446" draggable="true" on_blocking="true" thickness="10/10">
+		<item id="18446" chance="10"/>
+		<item id="18447" chance="10"/>
+	</brush>
+
+	<brush name="flowering cactus" type="doodad" server_lookid="22299" draggable="true" on_blocking="true" thickness="10/10">
+		<item id="22298" chance="10"/>
+		<item id="22299" chance="10"/>
+	</brush>
+
 	<brush name="sea plants" type="doodad" lookid="25348" draggable="true" on_blocking="true" thickness="10/10">
 		<item id="25348" chance="6"/>
 		<item id="25349" chance="10"/>
+	</brush>
+
+	<brush name="twilight morels" type="doodad" lookid="25389" draggable="false" on_duplicate="true" thickness="10/10">
+		<item id="25389" chance="10"/>
+		<item id="25390" chance="10"/>
+		<item id="25391" chance="10"/>
+		<item id="25392" chance="10"/>
+		<item id="25393" chance="10"/>
+		<item id="25394" chance="10"/>
 	</brush>
 </materials>

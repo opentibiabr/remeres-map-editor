@@ -2,6 +2,7 @@
 	<tileset name="Grounds - Nature">
 		<terrain>
 			<brush name="cave"/>
+			<brush name="earth"/>
 			<brush name="grass"/>
 			<brush name="grass (dark)"/>
 			<brush name="grass (dried)"/>
@@ -9,9 +10,9 @@
 			<brush name="grass (krailos)"/>
 			<brush name="grass (lush)"/>
 			<brush name="green tree floor"/>
+			<brush name="sand dune"/>
 			<brush name="snow"/>
 
-			<brush name="earth"/>
 			<brush name="clear water"/>
 			<brush name="sea"/>
 			<brush name="walkable sea"/>

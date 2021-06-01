@@ -1,6 +1,6 @@
 <materials>
 	<tileset name="Teleports">
-		<raw>
+		<items>
 			<item id="775"/>
 			<item fromid="1756" toid="1758"/>
 			<item id="1949"/>
@@ -16,10 +16,13 @@
 			<item id="25717"/>
 			<item fromid="27527" toid="27529"/>
 			<item fromid="27589" toid="27590"/>
+			<item id="25717"/>
+			<item id="25778"/>
 			<item id="27658"/>
+			<item id="28673"/>
 			<item fromid="29979" toid="29980"/>
 			<item id="33790"/>
 			<item id="34111"/>
-		</raw>
+		</items>
 	</tileset>
 </materials>

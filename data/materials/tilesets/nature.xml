@@ -1,27 +1,7 @@
 <materials>
 	<tileset name="Nature">
 		<doodad>
-			<brush name="moon sculpture"/>
-			<brush name="dwelling in a log"/>
-			<brush name="twilight morels"/>
-			<brush name="monster nest"/>
-			<brush name="firefly"/>
-			<brush name="mossy stone"/>
-			<brush name="mossy spots"/>
-			<brush name="new mossy spots"/>
-			<brush name="red bulb plant"/>
-			<brush name="blue ab'dendriel plants"/>
-			<brush name="orange plants"/>
-			<brush name="rolled up plants"/>
-			<item id="22645"/>
-			<item fromid="3651"	toid="3653"/>
-			<brush name="sand dune"/>
-			<brush name="sand dark dune"/>
-
-			<brush name="ab'dendriel menhir"/>
-			<brush name="cave hole1"/>
-			<brush name="cave hole2"/>
-			<brush name="cave hole3"/>
+			
 			<brush name="plant wall2"/>
 			<brush name="cave wall twigs"/>
 			<brush name="tigerhead"/>
@@ -35,14 +15,6 @@
 			<brush name="water source"/>
 			<brush name="water source 2"/>
 			<brush name="lilypads"/>
-			<item id="7804"/>
-			<!-- Whirlpool -->
-			<item id="25717"/>
-			<item id="25778"/>
-			<item id="28673"/>
-			<brush name="waterfall"/>
-			<brush name="lavafall"/>
-			<brush name="fogfall"/>
 			<brush name="tall jungle grass"/>
 			<brush name="tall swamp grass"/>
 			<brush name="venorean spice"/>
@@ -281,7 +253,6 @@
 			<item fromid="914" toid="917"/>
 			<item fromid="7942" toid="7948"/>
 			<item fromid="7480" toid="7506"/>
-			<item fromid="5462" toid="5465"/>
 			<item fromid="6750" toid="6760"/>
 			<item fromid="6951" toid="6966"/>
 			<item fromid="7108" toid="7109"/>

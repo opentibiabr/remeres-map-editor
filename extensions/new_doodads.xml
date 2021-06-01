@@ -17,13 +17,6 @@
 		</doodad>
 	</tileset>
 
-	<brush name="cane stufts" type="doodad" server_lookid="5470">
-		<item id="5462" chance="10"/>
-		<item id="5463" chance="10"/>
-		<item id="5465" chance="10"/>
-		<item id="5470" chance="10"/>
-	</brush>
-
 	<tileset name="Nature">
 		<doodad>
 			<brush name="cane stufts"/>

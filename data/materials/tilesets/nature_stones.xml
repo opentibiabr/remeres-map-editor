@@ -14,6 +14,9 @@
 			<brush name="menhir"/>
 			<brush name="mossy rocks (big)"/>
 			<brush name="mossy rocks (small)"/>
+			<brush name="mossy stone"/>
+			<brush name="mossy spots"/>
+			<brush name="mossy spots (green)"/>
 			<brush name="mud ball"/>
 			<brush name="mud clot (giant)"/>
 			<brush name="mud clot (small)"/>
@@ -38,6 +41,7 @@
 			<brush name="spikes"/>
 			<brush name="stones"/>
 			<brush name="stones (coal)"/>
+			<brush name="stones (coloured)"/>
 			<brush name="stones (dark jagged)"/>
 			<brush name="stones (jagged unwalkable)"/>
 			<brush name="stones (jagged walkable)"/>
@@ -75,6 +79,10 @@
 			<item fromid="1133" toid="1151"/>
 			<item fromid="1772" toid="1780"/>
 			<item fromid="1782" toid="1921"/>
+			<item fromid="4434" toid="4444"/>
+			<item fromid="4556" toid="4558"/>
+			<item fromid="4569" toid="4583"/>
+			<item fromid="4603" toid="4608"/>
 			<item fromid="5618" toid="5623"/>
 			<item fromid="5707" toid="5709"/>
 			<item id="5747"/>
@@ -82,8 +90,10 @@
 			<item fromid="5866" toid="5868"/>
 			<item fromid="7912" toid="7915"/>
 			<item fromid="8503" toid="8506"/>
+			<item fromid="15393" toid="15398"/>
 			<item fromid="16387" toid="16395"/>
 			<item fromid="16402" toid="16411"/>
+			<item fromid="18450" toid="18452"/>
 			<item fromid="16416" toid="16417"/>
 			<item fromid="18621" toid="18622"/>
 			<item fromid="18624" toid="18625"/>
