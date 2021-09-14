@@ -224,7 +224,7 @@ void Item::serializeItemAttributes_OTBM(const IOMap& maphandle, NodeFileWriteHan
 
 void Item::serializeItemCompact_OTBM(const IOMap& maphandle, NodeFileWriteHandle& stream) const
 {
-	stream.addU16(id);
+	stream.addU16(g_items[id].clientID);
 
 	/* This is impossible
 	const ItemType& iType = g_items[id];
@@ -238,7 +238,7 @@ void Item::serializeItemCompact_OTBM(const IOMap& maphandle, NodeFileWriteHandle
 bool Item::serializeItemNode_OTBM(const IOMap& maphandle, NodeFileWriteHandle& file) const
 {
 	file.addNode(OTBM_ITEM);
-	file.addU16(id);
+	file.addU16(g_items[id].clientID);
 	if(maphandle.version.otbm == MAP_OTBM_1) {
 		const ItemType& iType = g_items[id];
 		if(iType.stackable || iType.isSplash() || iType.isFluidContainer()) {
@@ -370,7 +370,7 @@ bool Container::unserializeItemNode_OTBM(const IOMap& maphandle, BinaryNode* nod
 bool Container::serializeItemNode_OTBM(const IOMap& maphandle, NodeFileWriteHandle& file) const
 {
 	file.addNode(OTBM_ITEM);
-	file.addU16(id);
+	file.addU16(g_items[id].clientID);
 	if(maphandle.version.otbm == MAP_OTBM_1) {
 		// In the ludicrous event that an item is a container AND stackable, we have to do this. :p
 		const ItemType& iType = g_items[id];
@@ -1179,6 +1179,14 @@ bool IOMapOTBM::loadHouses(Map& map, pugi::xml_document& doc)
 			warning("House %d has no town! House was removed.", house->id);
 			map.houses.removeHouse(house);
 		}
+
+		if((attribute = houseNode.attribute("clientid"))) {
+			house->clientid = pugi::cast<int32_t>(attribute.value());
+		}
+
+		if((attribute = houseNode.attribute("beds"))) {
+			house->beds = pugi::cast<int32_t>(attribute.value());
+		}
 	}
 	return true;
 }
@@ -1761,6 +1769,8 @@ bool IOMapOTBM::saveHouses(Map& map, pugi::xml_document& doc)
 
 		houseNode.append_attribute("townid") = house->townid;
 		houseNode.append_attribute("size") = static_cast<int32_t>(house->size());
+		houseNode.append_attribute("clientid") = house->clientid;
+		houseNode.append_attribute("beds") = house->beds;
 	}
 	return true;
 }
