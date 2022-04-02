@@ -109,8 +109,8 @@ FindItemDialog::FindItemDialog(wxWindow* parent, const wxString& title, bool onl
 
 	wxStaticBoxSizer* properties_box_sizer = newd wxStaticBoxSizer(newd wxStaticBox(this, wxID_ANY, "Properties"), wxVERTICAL);
 
-	unpassable = newd wxCheckBox(properties_box_sizer->GetStaticBox(), wxID_ANY, "Unpassable", wxDefaultPosition, wxDefaultSize, 0);
-	properties_box_sizer->Add(unpassable, 0, wxALL, 5);
+	blockSolid = newd wxCheckBox(properties_box_sizer->GetStaticBox(), wxID_ANY, "Unpassable", wxDefaultPosition, wxDefaultSize, 0);
+	properties_box_sizer->Add(blockSolid, 0, wxALL, 5);
 
 	unmovable = newd wxCheckBox(properties_box_sizer->GetStaticBox(), wxID_ANY, "Unmovable", wxDefaultPosition, wxDefaultSize, 0);
 	properties_box_sizer->Add(unmovable, 0, wxALL, 5);
@@ -182,7 +182,7 @@ FindItemDialog::FindItemDialog(wxWindow* parent, const wxString& title, bool onl
 
 	types_radio_box->Connect(wxEVT_COMMAND_RADIOBOX_SELECTED, wxCommandEventHandler(FindItemDialog::OnTypeChange), NULL, this);
 
-	unpassable->Connect(wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler(FindItemDialog::OnPropertyChange), NULL, this);
+	blockSolid->Connect(wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler(FindItemDialog::OnPropertyChange), NULL, this);
 	unmovable->Connect(wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler(FindItemDialog::OnPropertyChange), NULL, this);
 	block_missiles->Connect(wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler(FindItemDialog::OnPropertyChange), NULL, this);
 	block_pathfinder->Connect(wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler(FindItemDialog::OnPropertyChange), NULL, this);
@@ -211,7 +211,7 @@ FindItemDialog::~FindItemDialog()
 
 	types_radio_box->Disconnect(wxEVT_COMMAND_RADIOBOX_SELECTED, wxCommandEventHandler(FindItemDialog::OnTypeChange), NULL, this);
 
-	unpassable->Disconnect(wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler(FindItemDialog::OnPropertyChange), NULL, this);
+	blockSolid->Disconnect(wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler(FindItemDialog::OnPropertyChange), NULL, this);
 	unmovable->Disconnect(wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler(FindItemDialog::OnPropertyChange), NULL, this);
 	block_missiles->Disconnect(wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler(FindItemDialog::OnPropertyChange), NULL, this);
 	block_pathfinder->Disconnect(wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler(FindItemDialog::OnPropertyChange), NULL, this);
@@ -258,7 +258,7 @@ void FindItemDialog::setSearchMode(FindItemDialog::SearchMode mode)
 
 void FindItemDialog::EnableProperties(bool enable)
 {
-	unpassable->Enable(enable);
+	blockSolid->Enable(enable);
 	unmovable->Enable(enable);
 	block_missiles->Enable(enable);
 	block_pathfinder->Enable(enable);
@@ -302,10 +302,10 @@ void FindItemDialog::RefreshContentsInternal()
 		}
 	}
 	else if(selection == SearchMode::ClientIDs) {
-		uint16_t clientID = (uint16_t)client_id_spin->GetValue();
+		uint16_t id = (uint16_t)client_id_spin->GetValue();
 		for (int id = 100; id <= g_items.getMaxID(); ++id) {
 			ItemType& item = g_items.getItemType(id);
-			if (item.id == 0 || item.clientID != clientID)
+			if (item.id == 0 || item.id != id)
 				continue;
 
 			RAWBrush* raw_brush = item.raw_brush;
@@ -373,7 +373,7 @@ void FindItemDialog::RefreshContentsInternal()
 		}
 	}
 	else if(selection == SearchMode::Properties) {
-		bool has_selected = (unpassable->GetValue() ||
+		bool has_selected = (blockSolid->GetValue() ||
 			unmovable->GetValue() ||
 			block_missiles->GetValue() ||
 			block_pathfinder->GetValue() ||
@@ -399,10 +399,10 @@ void FindItemDialog::RefreshContentsInternal()
 				if(!raw_brush)
 					continue;
 
-				if((unpassable->GetValue() && !item.unpassable) ||
+				if((blockSolid->GetValue() && !item.blockSolid) ||
 					(unmovable->GetValue() && item.moveable) ||
-					(block_missiles->GetValue() && !item.blockMissiles) ||
-					(block_pathfinder->GetValue() && !item.blockPathfinder) ||
+					(block_missiles->GetValue() && !item.blockProjectile) ||
+					(block_pathfinder->GetValue() && !item.blockPathFind) ||
 					(readable->GetValue() && !item.canReadText) ||
 					(writeable->GetValue() && !item.canWriteText) ||
 					(pickupable->GetValue() && !item.pickupable) ||

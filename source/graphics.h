@@ -23,6 +23,7 @@
 #include <deque>
 
 #include "client_version.h"
+#include "sprite_appearances.h"
 
 enum SpriteSize {
 	SPRITE_SIZE_16x16,
@@ -69,7 +70,7 @@ protected:
 };
 
 
-class GameSprite : public Sprite{
+class GameSprite : public Sprite {
 public:
 	GameSprite();
 	~GameSprite();
@@ -170,7 +171,7 @@ public:
 	uint8_t pattern_x;
 	uint8_t pattern_y;
 	uint8_t pattern_z;
-	uint8_t frames;
+	uint8_t sprite_phase_size;
 	uint32_t numsprites;
 
 	Animator* animator;
@@ -186,6 +187,8 @@ public:
 
 	friend class GraphicManager;
 };
+
+extern GameSprite g_gameSprite;
 
 struct FrameDuration
 {
@@ -272,8 +275,8 @@ public:
 	// Metadata should be loaded first
 	// This fills the item / creature adress space
 	bool loadOTFI(const FileName& filename, wxString& error, wxArrayString& warnings);
-	bool loadSpriteMetadata(const FileName& datafile, wxString& error, wxArrayString& warnings);
-	bool loadSpriteMetadataFlags(FileReadHandle& file, GameSprite* sType, wxString& error, wxArrayString& warnings);
+	bool loadSpriteMetadata(ItemType* t, wxString& error, wxArrayString& warnings);
+	bool loadSpriteMetadataFlags(const ItemType* t, GameSprite* sType, wxString& error, wxArrayString& warnings);
 	bool loadSpriteData(const FileName& datafile, wxString& error, wxArrayString& warnings);
 
 	// Cleans old & unused textures according to config settings
@@ -405,5 +408,7 @@ static RGBQuad minimap_color[256] = {
 	RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       // 248
 	RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0)        // 252
 };
+
+extern GraphicManager g_graphics;
 
 #endif

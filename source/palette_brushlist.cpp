@@ -574,9 +574,11 @@ bool BrushListBox::SelectBrush(const Brush* whatbrush)
 
 void BrushListBox::OnDrawItem(wxDC& dc, const wxRect& rect, size_t n) const
 {
+	spdlog::info("BrushListBox::OnDrawItem");
 	ASSERT(n < tileset->size());
 	Sprite* spr = g_gui.gfx.getSprite(tileset->brushlist[n]->getLookID());
 	if(spr) {
+		spdlog::info("BrushListBox::OnDrawItem 2");
 		spr->DrawTo(&dc, SPRITE_SIZE_32x32, rect.GetX(), rect.GetY(), rect.GetWidth(), rect.GetHeight());
 	}
 	if(IsSelected(n)) {

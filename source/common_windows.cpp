@@ -1254,6 +1254,7 @@ Brush* FindDialogListBox::GetSelectedBrush()
 
 void FindDialogListBox::OnDrawItem(wxDC& dc, const wxRect& rect, size_t n) const
 {
+	spdlog::info("FindDialogListBox::OnDrawItem");
 	if(no_matches) {
 		dc.DrawText("No matches for your search.", rect.GetX() + 40, rect.GetY() + 6);
 	} else if(cleared) {
@@ -1261,7 +1262,9 @@ void FindDialogListBox::OnDrawItem(wxDC& dc, const wxRect& rect, size_t n) const
 	} else {
 		ASSERT(n < brushlist.size());
 		Sprite* spr = g_gui.gfx.getSprite(brushlist[n]->getLookID());
+		spdlog::info("FindDialogListBox::OnDrawItem 2");
 		if(spr) {
+			spdlog::info("FindDialogListBox::OnDrawItem 3");
 			spr->DrawTo(&dc, SPRITE_SIZE_32x32, rect.GetX(), rect.GetY(), rect.GetWidth(), rect.GetHeight());
 		}
 

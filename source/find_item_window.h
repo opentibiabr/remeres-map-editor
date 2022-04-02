@@ -83,7 +83,7 @@ private:
 	wxSpinCtrl* client_id_spin;
 	wxTextCtrl* name_text_input;
 	wxTimer input_timer;
-	wxCheckBox* unpassable;
+	wxCheckBox* blockSolid;
 	wxCheckBox* unmovable;
 	wxCheckBox* block_missiles;
 	wxCheckBox* block_pathfinder;

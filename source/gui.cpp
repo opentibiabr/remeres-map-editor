@@ -18,8 +18,10 @@
 #include "main.h"
 
 #include <wx/display.h>
+#include "spdlog/spdlog.h"
 
 #include "gui.h"
+#include "application.h"
 #include "main_menubar.h"
 
 #include "editor.h"
@@ -29,6 +31,7 @@
 #include "materials.h"
 #include "doodad_brush.h"
 #include "spawn_monster_brush.h"
+#include "sprite_appearances.h"
 
 #include "common_windows.h"
 #include "result_window.h"
@@ -284,11 +287,13 @@ bool GUI::LoadVersion(ClientVersionID version, wxString& error, wxArrayString& w
 		}
 
 		bool ret = LoadDataFiles(error, warnings);
-		if(ret)
+		if(ret) {
 			g_gui.LoadPerspective();
+		}
 		else
+		{
 			loaded_version = CLIENT_VERSION_NONE;
-
+		}
 		return ret;
 	}
 	return true;
@@ -345,8 +350,11 @@ bool GUI::LoadDataFiles(wxString& error, wxArrayString& warnings)
 		return false;
 	}
 
+	g_spriteAppearances.init();
+
 	g_gui.gfx.client_version = getLoadedVersion();
 
+	spdlog::info("Loading new map...");
 	if(!g_gui.gfx.loadOTFI(client_path.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR), error, warnings)) {
 		error = "Couldn't load otfi file: " + error;
 		g_gui.DestroyLoadBar();
@@ -355,45 +363,55 @@ bool GUI::LoadDataFiles(wxString& error, wxArrayString& warnings)
 	}
 
 	g_gui.CreateLoadBar("Loading asset files");
-	g_gui.SetLoadDone(0, "Loading metadata file...");
-
-	wxFileName metadata_path = g_gui.gfx.getMetadataFileName();
-	if(!g_gui.gfx.loadSpriteMetadata(metadata_path, error, warnings)) {
-		error = "Couldn't load metadata: " + error;
-		g_gui.DestroyLoadBar();
-		UnloadVersion();
-		return false;
+	g_gui.SetLoadDone(0, "Loading metadata file");
+	spdlog::info("Loading assets");
+	/*wxFileName metadata_path = g_gui.gfx.getMetadataFileName();
+	//if(!g_gui.gfx.loadSpriteMetadata(metadata_path, error, warnings)) {
+	//	error = "Couldn't load metadata: " + error;
+	//	g_gui.DestroyLoadBar();
+	//	UnloadVersion();
+	//	return false;
 	}
 
 	g_gui.SetLoadDone(10, "Loading sprites file...");
-
+	spdlog::info("Loading sprites");
 	wxFileName sprites_path = g_gui.gfx.getSpritesFileName();
 	if(!g_gui.gfx.loadSpriteData(sprites_path.GetFullPath(), error, warnings)) {
 		error = "Couldn't load sprites: " + error;
+		spdlog::error("[GUI::LoadDataFiles] - Couldn't load sprites: {}", error);
+		g_gui.DestroyLoadBar();
+		UnloadVersion();
+		return false;
+	}*/
+
+	g_gui.SetLoadDone(20, "Loading appearances.dat file...");
+	spdlog::info("Loading appearances");
+	if(!g_items.loadAppearanceProtobuf(error, warnings)) {
+		error = "Couldn't load catalog-content.json: " + error;
+		spdlog::error("[GUI::LoadDataFiles] - Couldn't load {}", error);
 		g_gui.DestroyLoadBar();
 		UnloadVersion();
 		return false;
 	}
 
-	g_gui.SetLoadDone(20, "Loading items.otb file...");
-	if(!g_items.loadFromOtb(wxString("data/items/items.otb"), error, warnings)) {
-		error = "Couldn't load items.otb: " + error;
-		g_gui.DestroyLoadBar();
-		UnloadVersion();
-		return false;
-	}
-
+	wxString itemPath = "data/items/items.xml";
 	g_gui.SetLoadDone(30, "Loading items.xml ...");
-	if(!g_items.loadFromGameXml(wxString("data/items/items.xml"), error, warnings)) {
+	spdlog::info("Loading items");
+	if(!g_items.loadFromGameXml(itemPath, error, warnings)) {
 		warnings.push_back("Couldn't load items.xml: " + error);
+		spdlog::warn("[GUI::LoadDataFiles] - Couldn't load {}: {}", itemPath, error);
 	}
 
+	wxString monstersPath = "data/creatures/monsters.xml";
 	g_gui.SetLoadDone(45, "Loading monsters.xml ...");
-	if(!g_monsters.loadFromXML(wxString("data/creatures/monsters.xml"), true, error, warnings)) {
+	spdlog::info("Loading monsters");
+	if(!g_monsters.loadFromXML(monstersPath, true, error, warnings)) {
 		warnings.push_back("Couldn't load monsters.xml: " + error);
+		spdlog::warn("[GUI::LoadDataFiles] - Couldn't load {}: {}", monstersPath, error);
 	}
 
 	g_gui.SetLoadDone(45, "Loading user monsters.xml ...");
+	spdlog::info("Loading user monsters");
 	{
 		FileName cdb = getLoadedVersion()->getLocalDataPath();
 		cdb.SetFullName("monsters.xml");
@@ -402,12 +420,16 @@ bool GUI::LoadDataFiles(wxString& error, wxArrayString& warnings)
 		g_monsters.loadFromXML(cdb, false, nerr, nwarn);
 	}
 
+	wxString npcsPath = "data/creatures/npcs.xml";
 	g_gui.SetLoadDone(45, "Loading npcs.xml ...");
-	if(!g_npcs.loadFromXML(wxString("data/creatures/npcs.xml"), true, error, warnings)) {
+	spdlog::info("Loading npcs");
+	if(!g_npcs.loadFromXML(npcsPath, true, error, warnings)) {
 		warnings.push_back("Couldn't load npcs.xml: " + error);
+		spdlog::warn("[GUI::LoadDataFiles] - Couldn't load {}: {}", npcsPath, error);
 	}
 
 	g_gui.SetLoadDone(45, "Loading user npcs.xml ...");
+	spdlog::info("Loading user npcs");
 	{
 		FileName cdb = getLoadedVersion()->getLocalDataPath();
 		cdb.SetFullName("npcs.xml");
@@ -416,17 +438,24 @@ bool GUI::LoadDataFiles(wxString& error, wxArrayString& warnings)
 		g_npcs.loadFromXML(cdb, false, nerr, nwarn);
 	}
 
+	wxString materialsPath = data_path.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + "materials.xml";
 	g_gui.SetLoadDone(50, "Loading materials.xml ...");
-	if(!g_materials.loadMaterials(wxString(data_path.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + "materials.xml"), error, warnings)) {
+	spdlog::info("Loading materials");
+	if(!g_materials.loadMaterials(materialsPath, error, warnings)) {
 		warnings.push_back("Couldn't load materials.xml: " + error);
+		spdlog::warn("[GUI::LoadDataFiles] - Couldn't load {}: {}", materialsPath, error);
 	}
 
 	g_gui.SetLoadDone(70, "Loading extensions...");
+	spdlog::info("Loading extensions");
 	if(!g_materials.loadExtensions(extension_path, error, warnings)) {
-		//warnings.push_back("Couldn't load extensions: " + error);
+		warnings.push_back("Couldn't load extensions: " + error);
+		spdlog::warn("[GUI::LoadDataFiles] - Couldn't load extensions: {}", error);
 	}
 
 	g_gui.SetLoadDone(70, "Finishing...");
+	spdlog::info("Finishing load map...");
+	
 	g_brushes.init();
 	g_materials.createOtherTileset();
 	g_materials.createNpcTileset();

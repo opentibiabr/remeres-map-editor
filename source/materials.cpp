@@ -18,6 +18,7 @@
 #include "main.h"
 
 #include <wx/dir.h>
+#include <spdlog/spdlog.h>
 
 #include "editor.h"
 #include "items.h"
@@ -72,22 +73,26 @@ MaterialsExtensionList Materials::getExtensionsByVersion(uint16_t version_id)
 	return ret_list;
 }
 
-bool Materials::loadMaterials(const FileName& identifier, wxString& error, wxArrayString& warnings)
+bool Materials::loadMaterials(const FileName& identifier, wxString& error, wxArrayString& warnings, bool loadInclude)
 {
 	pugi::xml_document doc;
 	pugi::xml_parse_result result = doc.load_file(identifier.GetFullPath().mb_str());
 	if(!result) {
 		warnings.push_back("Could not open " + identifier.GetFullName() + " (file not found or syntax error)");
+		spdlog::error("[Materials::loadMaterials] - Could not open {} (file not found or syntax error)", identifier.GetFullName());
 		return false;
 	}
 
 	pugi::xml_node node = doc.child("materials");
 	if(!node) {
 		warnings.push_back(identifier.GetFullName() + ": Invalid rootheader.");
+		spdlog::error("[Materials::loadMaterials] - {} : Invalid rootheader", identifier.GetFullName());
 		return false;
 	}
 
-	unserializeMaterials(identifier, node, error, warnings);
+	if (!loadInclude) {
+		unserializeMaterials(identifier, node, error, warnings);
+	}
 	return true;
 }
 
@@ -216,8 +221,9 @@ bool Materials::unserializeMaterials(const FileName& filename, pugi::xml_node no
 			includeName.SetName(wxString(attribute.as_string(), wxConvUTF8));
 
 			wxString subError;
-			if(!loadMaterials(includeName, subError, warnings)) {
+			if(!loadMaterials(includeName, subError, warnings, true)) {
 				warnings.push_back("Error while loading file \"" + includeName.GetFullName() + "\": " + subError);
+				spdlog::warn("[Materials::unserializeMaterials] - Error while loading file {}", includeName.GetFullName());
 			}
 		} else if(childName == "metaitem") {
 			g_items.loadMetaItem(childNode);

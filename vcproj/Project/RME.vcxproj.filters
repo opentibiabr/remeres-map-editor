@@ -371,6 +371,17 @@
     <ClInclude Include="..\..\source\welcome_dialog.h">
       <Filter>gui\dialogs</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\source\npc.h" />
+    <ClInclude Include="..\..\source\npc_brush.h" />
+    <ClInclude Include="..\..\source\npcs.h" />
+    <ClInclude Include="..\..\source\sprite_appearances.h" />
+    <ClInclude Include="..\..\source\enums.h" />
+    <ClInclude Include="..\..\source\palette_npc.h" />
+    <ClInclude Include="..\..\source\spawn_npc.h" />
+    <ClInclude Include="..\..\source\spawn_npc_brush.h" />
+    <ClInclude Include="..\..\source\graphics\apngloader.h" />
+    <ClInclude Include="..\..\source\tools\resources.h" />
+    <ClInclude Include="..\..\source\protobuf\appearances.pb.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\source\json\json_spirit_reader.cpp">
@@ -651,6 +662,16 @@
     <ClCompile Include="..\..\source\welcome_dialog.cpp">
       <Filter>gui\dialogs</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\source\npc.cpp" />
+    <ClCompile Include="..\..\source\npc_brush.cpp" />
+    <ClCompile Include="..\..\source\npcs.cpp" />
+    <ClCompile Include="..\..\source\sprite_appearances.cpp" />
+    <ClCompile Include="..\..\source\palette_npc.cpp" />
+    <ClCompile Include="..\..\source\spawn_npc.cpp" />
+    <ClCompile Include="..\..\source\spawn_npc_brush.cpp" />
+    <ClCompile Include="..\..\source\graphics\apngloader.cpp" />
+    <ClCompile Include="..\..\source\tools\resources.cpp" />
+    <ClCompile Include="..\..\source\protobuf\appearances.pb.cc" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="rme.rc">

@@ -477,9 +477,6 @@ bool IOMapOTBM::getVersionInfo(NodeFileReadHandle* f,  MapVersion& out_ver)
 	root->getU16(u16);
 	root->getU32(u32);
 
-	if(!root->getU32(u32)) // OTB minor version
-		return false;
-
 	out_ver.client = ClientVersionID(u32);
 	return true;
 }
@@ -697,21 +694,6 @@ bool IOMapOTBM::loadMap(Map& map, NodeFileReadHandle& f)
 
 	map.height = u16;
 
-	if(!root->getU32(u32) || u32 > (unsigned long)g_items.MajorVersion) { // OTB major version
-		if(g_gui.PopupDialog("Map error",
-			"The loaded map appears to be a items.otb format that deviates from the "
-			"items.otb loaded by the editor. Do you still want to attempt to load the map?", wxYES | wxNO) == wxID_YES)
-		{
-			warning("Unsupported or damaged map version");
-		} else {
-			error("Outdated items.otb, could not load map");
-			return false;
-		}
-	}
-
-	if(!root->getU32(u32) || u32 > (unsigned long)g_items.MinorVersion) { // OTB minor version
-		warning("This editor needs an updated items.otb version");
-	}
 	version.client = (ClientVersionID)u32;
 
 	BinaryNode* mapHeaderNode = root->getChild();

@@ -20,6 +20,8 @@
 
 #include "filehandle.h"
 #include "brush_enums.h"
+#include "sprite_appearances.h"
+#include "protobuf/appearances.pb.h"
 
 class Brush;
 class GroundBrush;
@@ -268,6 +270,12 @@ public:
 	bool isFloorChange() const;
 
 	GameSprite* sprite;
+	SpritesSize m_size;
+	int m_animationPhases;
+	int m_numPatternX{ 0 }, m_numPatternY{ 0 }, m_numPatternZ{ 0 };
+	int m_layers{ 0 };
+	std::vector<int> m_spritesIndex;
+
 	uint16_t id;
 	uint16_t clientID;
 	Brush* brush;
@@ -283,11 +291,20 @@ public:
 	ItemGroup_t group;
 	ItemTypes_t type;
 
+	uint32_t border_group;
+	uint32_t pattern_width;
+	uint32_t pattern_height;
+	uint32_t pattern_depth;
+	uint32_t layers;
+	uint8_t sprite_phase_size;
+	uint32_t width;
+	uint32_t height;
+	uint32_t sprite_id;
+
 	uint16_t volume;
 	uint16_t maxTextLen;
 	//uint16_t writeOnceItemId;
 	uint16_t ground_equivalent;
-	uint32_t border_group;
 	bool has_equivalent; // True if any item has this as ground_equivalent
 	bool wall_hate_me; // (For wallbrushes, regard this as not part of the wall)
 
@@ -295,17 +312,23 @@ public:
 	std::string editorsuffix;
 	std::string description;
 
+	uint32_t patternWidth;
+	uint32_t charges;
+	
 	float weight;
 	// It might be useful to be able to extrapolate this information in the future
 	int attack;
 	int defense;
 	int armor;
-	uint32_t charges;
 	bool client_chargeable;
 	bool extra_chargeable;
 	bool ignoreLook;
 
 	bool isHangable;
+	bool isCorpse;
+	bool isVertical;
+	bool isHorizontal;
+	bool isPodium;
 	bool hookEast;
 	bool hookSouth;
 	bool canReadText;
@@ -334,11 +357,18 @@ public:
 	bool floorChangeWest;
 	bool floorChange;
 
-	bool unpassable;
+	bool blockSolid;
 	bool blockPickupable;
-	bool blockMissiles;
-	bool blockPathfinder;
+	bool blockProjectile;
+	bool blockPathFind;
 	bool hasElevation;
+	bool forceUse;
+	bool hasHeight;
+	bool walkStack;
+
+	bool spriteInfo = false;
+
+	bool noMoveAnimation = false;
 
 	int alwaysOnTopOrder;
 	int rotateTo;
@@ -360,7 +390,7 @@ public:
 	ItemType& getItemType(int id);
 	ItemType& getItemIdByClientID(int spriteId);
 
-	bool loadFromOtb(const FileName& datafile, wxString& error, wxArrayString& warnings);
+	bool loadAppearanceProtobuf(wxString& error, wxArrayString& warnings);
 	bool loadFromGameXml(const FileName& datafile, wxString& error, wxArrayString& warnings);
 	bool loadItemFromGameXml(pugi::xml_node itemNode, int id);
 	bool loadMetaItem(pugi::xml_node node);
@@ -375,10 +405,9 @@ public:
 	uint32_t MinorVersion;
 	uint32_t BuildNumber;
 
+	remeres::protobuf::appearances::Appearances appearances;
 protected:
-	bool loadFromOtbVer1(BinaryNode* itemNode, wxString& error, wxArrayString& warnings);
-	bool loadFromOtbVer2(BinaryNode* itemNode, wxString& error, wxArrayString& warnings);
-	bool loadFromOtbVer3(BinaryNode* itemNode, wxString& error, wxArrayString& warnings);
+	bool loadFromProtobuf(wxString& error, wxArrayString& warnings);
 
 protected:
 	// Count of GameSprite types

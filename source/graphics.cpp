@@ -24,11 +24,23 @@
 #include "settings.h"
 #include "gui.h"
 #include "otml.h"
+#include "sprite_appearances.h"
 
 #include <wx/mstream.h>
 #include <wx/stopwatch.h>
 #include <wx/dir.h>
+#include <iostream>
+#include <memory>
+#include <thread>
+#include <chrono>
+#include <mutex>
+#include <algorithm>
+#include <string>
+
 #include "pngfiles.h"
+
+GraphicManager g_graphics;
+GameSprite g_gameSprite;
 
 // All 133 template colors
 static uint32_t TemplateOutfitLookupTable[] = {
@@ -374,157 +386,86 @@ bool GraphicManager::loadOTFI(const FileName& filename, wxString& error, wxArray
 	return true;
 }
 
-bool GraphicManager::loadSpriteMetadata(const FileName& datafile, wxString& error, wxArrayString& warnings)
+bool GraphicManager::loadSpriteMetadata(ItemType* t, wxString& error, wxArrayString& warnings)
 {
-	// items.otb has most of the info we need. This only loads the GameSprite metadata
-	FileReadHandle file(nstr(datafile.GetFullPath()));
-
-	if(!file.isOk()) {
-		error += "Failed to open " + datafile.GetFullPath() + " for reading\nThe error reported was:" + wxstr(file.getErrorMessage());
-		return false;
-	}
-
 	uint16_t effect_count, distance_count;
 
-	uint32_t datSignature;
-	file.getU32(datSignature);
-	//get max id
-	file.getU16(item_count);
-	file.getU16(creature_count);
-	file.getU16(effect_count);
-	file.getU16(distance_count);
+	GameSprite* sType = newd GameSprite();
+	uint16_t id = t->id;
+	sType->id = id;
+	sprite_space[id] = sType;
 
-	uint32_t minID = 100; // items start with id 100
-	// We don't load distance/effects, if we would, just add effect_count & distance_count here
-	uint32_t maxID = item_count + creature_count;
-
-	dat_format = client_version->getDatFormatForSignature(datSignature);
-
-	if(!otfi_found) {
-		is_extended = dat_format >= DAT_FORMAT_11;
-		has_frame_durations = dat_format >= DAT_FORMAT_11;
-		has_frame_groups = dat_format >= DAT_FORMAT_11;
+	// Load the sprite flags
+	if(!loadSpriteMetadataFlags(t, sType, error, warnings)) {
+		wxString msg;
+		msg << "Failed to load flags for sprite " << sType->id;
+		warnings.push_back(msg);
 	}
 
-	uint16_t id = minID;
-	// loop through all ItemDatabase until we reach the end of file
-	while(id <= maxID) {
-		GameSprite* sType = newd GameSprite();
-		sprite_space[id] = sType;
+	// Size and GameSprite data
+	//sType->width = t->m_size.width();
+	//sType->height = t->m_size.height();
 
-		sType->id = id;
+	// Number of blendframes (some sprites consist of several merged sprites
+	sType->layers = t->layers;
+	sType->pattern_x = t->pattern_width;
+	sType->pattern_y = t->pattern_height;
+	sType->pattern_z = t->pattern_depth;
+	// Length of animation
+	sType->sprite_phase_size = t->m_animationPhases;
 
-		// Load the sprite flags
-		if(!loadSpriteMetadataFlags(file, sType, error, warnings)) {
-			wxString msg;
-			msg << "Failed to load flags for sprite " << sType->id;
-			warnings.push_back(msg);
+	if(sType->sprite_phase_size > 1) {
+		uint8_t async = 0;
+		int loop_count = 0;
+		int8_t start_frame = 0;
+		if(has_frame_durations) {
+			// file.getByte(async);
+			// file.get32(loop_count);
+			// file.getSByte(start_frame);
+		}
+		sType->animator = newd Animator(sType->sprite_phase_size, start_frame, loop_count, async == 1);
+		if(has_frame_durations) {
+			for(int i = 0; i < sType->sprite_phase_size; i++) {
+				uint32_t min;
+				uint32_t max;
+				// file.getU32(min);
+				// file.getU32(max);
+				FrameDuration* frame_duration = sType->animator->getFrameDuration(i);
+				frame_duration->setValues(int(min), int(max));
+			}
+			sType->animator->reset();
+		}
+	}
+
+	sType->numsprites =
+		(int)sType->width * (int)sType->height *
+		(int)sType->layers *
+		(int)sType->pattern_x * (int)sType->pattern_y * sType->pattern_z *
+		(int)sType->sprite_phase_size;
+
+	// Read the sprite ids
+	for(uint32_t i = 0; i < sType->numsprites; ++i) {
+		uint32_t sprite_id;
+		if(is_extended) {
+			// file.getU32(sprite_id);
+		} else {
+			sprite_id = t->sprite_id;
 		}
 
-		// Reads the group count
-		uint8_t group_count = 1;
-		if(has_frame_groups && id > item_count) {
-			file.getU8(group_count);
+		if(image_space[sprite_id] == nullptr) {
+			GameSprite::NormalImage* img = newd GameSprite::NormalImage();
+			img->id = sprite_id;
+			image_space[sprite_id] = img;
 		}
-
-		for(uint32_t k = 0; k < group_count; ++k) {
-			// Skipping the group type
-			if(has_frame_groups && id > item_count) {
-				file.skip(1);
-			}
-
-			// Size and GameSprite data
-			file.getByte(sType->width);
-			file.getByte(sType->height);
-
-			// Skipping the exact size
-			if((sType->width > 1) || (sType->height > 1)){
-				file.skip(1);
-			}
-
-			file.getU8(sType->layers); // Number of blendframes (some sprites consist of several merged sprites)
-			file.getU8(sType->pattern_x);
-			file.getU8(sType->pattern_y);
-			file.getU8(sType->pattern_z);
-			file.getU8(sType->frames); // Length of animation
-
-			if(sType->frames > 1) {
-				uint8_t async = 0;
-				int loop_count = 0;
-				int8_t start_frame = 0;
-				if(has_frame_durations) {
-					file.getByte(async);
-					file.get32(loop_count);
-					file.getSByte(start_frame);
-				}
-				sType->animator = newd Animator(sType->frames, start_frame, loop_count, async == 1);
-				if(has_frame_durations) {
-					for(int i = 0; i < sType->frames; i++) {
-						uint32_t min;
-						uint32_t max;
-						file.getU32(min);
-						file.getU32(max);
-						FrameDuration* frame_duration = sType->animator->getFrameDuration(i);
-						frame_duration->setValues(int(min), int(max));
-					}
-					sType->animator->reset();
-				}
-			}
-
-			sType->numsprites =
-				(int)sType->width * (int)sType->height *
-				(int)sType->layers *
-				(int)sType->pattern_x * (int)sType->pattern_y * sType->pattern_z *
-				(int)sType->frames;
-
-			// Read the sprite ids
-			for(uint32_t i = 0; i < sType->numsprites; ++i) {
-				uint32_t sprite_id;
-				if(is_extended) {
-					file.getU32(sprite_id);
-				} else {
-					uint16_t u16 = 0;
-					file.getU16(u16);
-					sprite_id = u16;
-				}
-
-				if(image_space[sprite_id] == nullptr) {
-					GameSprite::NormalImage* img = newd GameSprite::NormalImage();
-					img->id = sprite_id;
-					image_space[sprite_id] = img;
-				}
-				sType->spriteList.push_back(static_cast<GameSprite::NormalImage*>(image_space[sprite_id]));
-			}
-		}
+		sType->spriteList.push_back(static_cast<GameSprite::NormalImage*>(image_space[sprite_id]));
 		++id;
 	}
-
 	return true;
 }
 
-bool GraphicManager::loadSpriteMetadataFlags(FileReadHandle& file, GameSprite* sType, wxString& error, wxArrayString& warnings)
+bool GraphicManager::loadSpriteMetadataFlags(const ItemType* t, GameSprite* sType, wxString& error, wxArrayString& warnings)
 {
-	uint8_t prev_flag = 0;
-	uint8_t flag = DatFlagLast;
-
-	for(int i = 0; i < DatFlagLast; ++i) {
-		prev_flag = flag;
-		file.getU8(flag);
-
-		if(flag == DatFlagLast) {
-			return true;
-		}
-		if(dat_format >= DAT_FORMAT_11) {
-			/* In 10.10+ all attributes from 16 and up were
-			* incremented by 1 to make space for 16 as
-			* "No Movement Animation" flag.
-			*/
-			if(flag == 16)
-				flag = DatFlagNoMoveAnimation;
-			else if(flag > 16)
-				flag -= 1;
-		}
-
+	/*
 		switch (flag) {
 			case DatFlagGroundBorder:
 			case DatFlagOnBottom:
@@ -564,19 +505,19 @@ bool GraphicManager::loadSpriteMetadataFlags(FileReadHandle& file, GameSprite* s
 			case DatFlagCloth:
 			case DatFlagLensHelp:
 			case DatFlagUsable:
-				file.skip(2);
+				// file.skip(2);
 				break;
 
 			case DatFlagLight:
-				file.skip(4);
+				// file.skip(4);
 				break;
 
 			case DatFlagDisplacement: {
 				if(dat_format >= DAT_FORMAT_11) {
 					uint16_t offset_x;
 					uint16_t offset_y;
-					file.getU16(offset_x);
-					file.getU16(offset_y);
+					// file.getU16(offset_x);
+					// file.getU16(offset_y);
 
 					sType->drawoffset_x = offset_x;
 					sType->drawoffset_y = offset_y;
@@ -586,23 +527,23 @@ bool GraphicManager::loadSpriteMetadataFlags(FileReadHandle& file, GameSprite* s
 
 			case DatFlagElevation: {
 				uint16_t draw_height;
-				file.getU16(draw_height);
+				// file.getU16(draw_height);
 				sType->draw_height = draw_height;
 				break;
 			}
 
 			case DatFlagMinimapColor: {
 				uint16_t minimap_color;
-				file.getU16(minimap_color);
+				// file.getU16(minimap_color);
 				sType->minimap_color = minimap_color;
 				break;
 			}
 
 			case DatFlagMarket: {
-				file.skip(6);
+				// file.skip(6);
 				std::string marketName;
-				file.getString(marketName);
-				file.skip(4);
+				// file.getString(marketName);
+				// file.skip(4);
 				break;
 			}
 
@@ -613,7 +554,7 @@ bool GraphicManager::loadSpriteMetadataFlags(FileReadHandle& file, GameSprite* s
 				break;
 			}
 		}
-	}
+	}*/
 
 	return true;
 }
@@ -705,32 +646,20 @@ bool GraphicManager::loadSpriteDump(uint8_t*& target, uint16_t& size, int sprite
 		// Empty GameSprite
 		size = 0;
 		target = nullptr;
+		spdlog::info("GraphicManager::loadSpriteDump - return true : sprite_id == 0");
 		return true;
 	}
 
-	FileReadHandle fh(spritefile);
-	if(!fh.isOk())
+	SpritePtr spr = g_spriteAppearances.getSprite(sprite_id);
+	if (!spr) {
+		spdlog::info("GraphicManager::loadSpriteDump - return false");
 		return false;
-	unloaded = false;
-
-	if(!fh.seek((is_extended ? 4 : 2) + sprite_id * sizeof(uint32_t)))
-		return false;
-
-	uint32_t to_seek = 0;
-	if(fh.getU32(to_seek)) {
-		fh.seek(to_seek+3);
-		uint16_t sprite_size;
-		if(fh.getU16(sprite_size)) {
-			target = newd uint8_t[sprite_size];
-			if(fh.getRAW(target, sprite_size)) {
-				size = sprite_size;
-				return true;
-			}
-			delete[] target;
-			target = nullptr;
-		}
 	}
-	return false;
+
+	size = spr->pixels.size();
+	target = spr->pixels.data();
+	spdlog::info("GraphicManager::loadSpriteDump - return true");
+	return true;
 }
 
 void GraphicManager::addSpriteToCleanup(GameSprite* spr)
@@ -780,8 +709,10 @@ EditorSprite::~EditorSprite()
 
 void EditorSprite::DrawTo(wxDC* dc, SpriteSize sz, int start_x, int start_y, int width, int height)
 {
+	spdlog::info("EditorSprite::DrawTo");
 	wxBitmap* sp = bm[sz];
 	if(sp)
+		spdlog::info("EditorSprite::DrawTo - if");
 		dc->DrawBitmap(*sp, start_x, start_y, true);
 }
 
@@ -801,7 +732,7 @@ GameSprite::GameSprite() :
 	pattern_x(0),
 	pattern_y(0),
 	pattern_z(0),
-	frames(0),
+	sprite_phase_size(0),
 	numsprites(0),
 	animator(nullptr),
 	draw_height(0),
@@ -857,7 +788,7 @@ uint8_t GameSprite::getMiniMapColor() const
 
 int GameSprite::getIndex(int width, int height, int layer, int pattern_x, int pattern_y, int pattern_z, int frame) const
 {
-	return ((((((frame % this->frames) *
+	return ((((((frame % this->sprite_phase_size) *
 		this->pattern_z + pattern_z) *
 		this->pattern_y + pattern_y) *
 		this->pattern_x + pattern_x) *
@@ -927,7 +858,7 @@ GLuint GameSprite::getHardwareID(int _x, int _y, int _dir, const Outfit& _outfit
 wxMemoryDC* GameSprite::getDC(SpriteSize size)
 {
 	ASSERT(size == SPRITE_SIZE_16x16 || size == SPRITE_SIZE_32x32);
-
+	spdlog::info("GameSprite::getDC - 1");
 	if(!dc[size]) {
 		ASSERT(width >= 1 && height >= 1);
 
@@ -937,12 +868,14 @@ wxMemoryDC* GameSprite::getDC(SpriteSize size)
 		wxImage image(image_size, image_size);
 		image.Clear(bgshade);
 
+		spdlog::info("GameSprite::getDC - 2");
 		for(uint8_t l = 0; l < layers; l++) {
 			for(uint8_t w = 0; w < width; w++) {
 				for(uint8_t h = 0; h < height; h++) {
 					const int i = getIndex(w, h, l, 0, 0, 0, 0);
 					uint8_t* data = spriteList[i]->getRGBData();
 					if(data) {
+						spdlog::info("GameSprite::getDC - data");
 						wxImage img(SPRITE_PIXELS, SPRITE_PIXELS, data);
 						img.SetMaskColour(0xFF, 0x00, 0xFF);
 						image.Paste(img, (width - w - 1) * SPRITE_PIXELS, (height - h - 1) * SPRITE_PIXELS);
@@ -963,6 +896,7 @@ wxMemoryDC* GameSprite::getDC(SpriteSize size)
 		g_gui.gfx.addSpriteToCleanup(this);
 		image.Destroy();
 	}
+	spdlog::info("GameSprite::getDC - return dc[size]");
 	return dc[size];
 }
 
@@ -972,12 +906,14 @@ void GameSprite::DrawTo(wxDC* dc, SpriteSize sz, int start_x, int start_y, int w
 	if(height == -1) height= sz == SPRITE_SIZE_32x32 ? 32 : 16;
 	wxDC* sdc = getDC(sz);
 	if(sdc) {
+		spdlog::info("GameSprite::DrawTo - if");
 		dc->Blit(start_x, start_y, width, height, sdc, 0, 0, wxCOPY, true);
 	} else {
 		const wxBrush& b = dc->GetBrush();
 		dc->SetBrush(*wxRED_BRUSH);
 		dc->DrawRectangle(start_x, start_y, width, height);
 		dc->SetBrush(b);
+		spdlog::info("GameSprite::DrawTo - else");
 	}
 }
 
@@ -1060,11 +996,14 @@ void GameSprite::NormalImage::clean(int time)
 uint8_t* GameSprite::NormalImage::getRGBData()
 {
 	if(!dump) {
+		spdlog::info("GameSprite::NormalImage::getRGBData() - !dump");
 		if(g_settings.getInteger(Config::USE_MEMCACHED_SPRITES)) {
+			spdlog::info("GameSprite::NormalImage::getRGBData() - first return nullptr");
 			return nullptr;
 		}
 
 		if(!g_gui.gfx.loadSpriteDump(dump, size, id)) {
+			spdlog::info("GameSprite::NormalImage::getRGBData() - second return nullptr");
 			return nullptr;
 		}
 	}
@@ -1104,6 +1043,7 @@ uint8_t* GameSprite::NormalImage::getRGBData()
 		data[write + 2] = 0xFF; // blue
 		write += 3;
 	}
+	spdlog::info("NormalImage::getRGBData() - return data");
 	return data;
 }
 
@@ -1111,11 +1051,14 @@ uint8_t* GameSprite::NormalImage::getRGBData()
 uint8_t* GameSprite::NormalImage::getRGBAData()
 {
 	if(!dump) {
+		spdlog::info("GameSprite::NormalImage::getRGBAData() - !dump");
 		if(g_settings.getInteger(Config::USE_MEMCACHED_SPRITES)) {
+			spdlog::info("GameSprite::NormalImage::getRGBData() - first return nullptr");
 			return nullptr;
 		}
 
 		if(!g_gui.gfx.loadSpriteDump(dump, size, id)) {
+			spdlog::info("GameSprite::NormalImage::getRGBData() - second return nullptr");
 			return nullptr;
 		}
 	}
@@ -1161,6 +1104,7 @@ uint8_t* GameSprite::NormalImage::getRGBAData()
 		data[write + 3] = 0x00; // alpha
 		write += 4;
 	}
+	spdlog::info("NormalImage::getRGBAData() - return data");
 	return data;
 }
 
@@ -1214,6 +1158,7 @@ uint8_t* GameSprite::TemplateImage::getRGBData()
 {
 	uint8_t* rgbdata = parent->spriteList[sprite_index]->getRGBData();
 	uint8_t* template_rgbdata = parent->spriteList[sprite_index + parent->height * parent->width]->getRGBData();
+	spdlog::info("GameSprite::TemplateImage::getRGBData() - getRGBData()");
 
 	if(!rgbdata) {
 		delete[] template_rgbdata;
@@ -1259,6 +1204,7 @@ uint8_t* GameSprite::TemplateImage::getRGBData()
 		}
 	}
 	delete[] template_rgbdata;
+	spdlog::info("GameSprite::TemplateImage::getRGBData() - return rgbdata;");
 	return rgbdata;
 }
 
@@ -1266,6 +1212,7 @@ uint8_t* GameSprite::TemplateImage::getRGBAData()
 {
 	uint8_t* rgbadata = parent->spriteList[sprite_index]->getRGBAData();
 	uint8_t* template_rgbdata = parent->spriteList[sprite_index + parent->height * parent->width]->getRGBData();
+	spdlog::info("GameSprite::TemplateImage::getRGBAData() - getRGBAData()");
 
 	if(!rgbadata) {
 		delete[] template_rgbdata;
@@ -1311,6 +1258,7 @@ uint8_t* GameSprite::TemplateImage::getRGBAData()
 		}
 	}
 	delete[] template_rgbdata;
+	spdlog::info("GameSprite::TemplateImage::getRGBAData() - return rgbadata");
 	return rgbadata;
 }
 
