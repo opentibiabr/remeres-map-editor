@@ -50,6 +50,7 @@
 
 #include "../brushes/icon/rme_icon.xpm"
 
+#ifdef _WIN32
 bool Application::openConsole()
 {
 	FILE *conin, *conout;
@@ -63,6 +64,7 @@ bool Application::openConsole()
 	}
 	return false;
 }
+#endif
 
 BEGIN_EVENT_TABLE(MainFrame, wxFrame)
 	EVT_CLOSE(MainFrame::OnExit)
