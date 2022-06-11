@@ -456,7 +456,7 @@
 	<npc name="Hyacinth" looktype="130" lookitem="0" lookaddon="0" lookhead="11" lookbody="123" looklegs="123" lookfeet="94" />
 	<npc name="Ikassis" looktype="28" lookitem="0" lookaddon="0" lookhead="0" lookbody="0" looklegs="0" lookfeet="0" />
 	<npc name="Imalas" looktype="128" lookitem="0" lookaddon="0" lookhead="115" lookbody="9" looklegs="39" lookfeet="114" />
-	<npc name="Imbuement Assistant" looktype="141" lookitem="0" lookaddon="3" lookhead="41" lookbody="72" looklegs="39" lookfeet="96" />
+	<npc name="Imbuement Assistant" looktype="141" lookitem="0" lookaddon="0" lookhead="41" lookbody="72" looklegs="39" lookfeet="96" />
 	<npc name="Imbul" looktype="128" lookitem="0" lookaddon="0" lookhead="95" lookbody="2" looklegs="63" lookfeet="115" />
 	<npc name="Inigo" looktype="472" lookitem="0" lookaddon="0" lookhead="59" lookbody="114" looklegs="0" lookfeet="94" />
 	<npc name="Inkaef" looktype="146" lookitem="0" lookaddon="0" lookhead="114" lookbody="86" looklegs="0" lookfeet="86" />
