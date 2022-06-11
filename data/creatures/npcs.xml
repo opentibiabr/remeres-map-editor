@@ -162,6 +162,7 @@
 	<npc name="Busty Bonecrusher" looktype="139" lookitem="0" lookaddon="0" lookhead="96" lookbody="0" looklegs="66" lookfeet="95" />
 	<npc name="Cael" looktype="66" lookitem="0" lookaddon="0" lookhead="0" lookbody="0" looklegs="0" lookfeet="0" />
 	<npc name="Cameron" looktype="128" lookitem="0" lookaddon="0" lookhead="59" lookbody="37" looklegs="115" lookfeet="95" />
+	<npc name="Canary" looktype="128" lookitem="0" lookaddon="0" lookhead="0" lookbody="0" looklegs="0" lookfeet="0" />
 	<npc name="Captain Bluebear" looktype="129" lookitem="0" lookaddon="0" lookhead="19" lookbody="69" looklegs="125" lookfeet="50" />
 	<npc name="Captain Breezelda" looktype="142" lookitem="0" lookaddon="0" lookhead="97" lookbody="23" looklegs="28" lookfeet="76" />
 	<npc name="Captain Chelop" looktype="289" lookitem="0" lookaddon="0" lookhead="2" lookbody="67" looklegs="39" lookfeet="76" />
