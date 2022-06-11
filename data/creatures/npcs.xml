@@ -456,6 +456,7 @@
 	<npc name="Hyacinth" looktype="130" lookitem="0" lookaddon="0" lookhead="11" lookbody="123" looklegs="123" lookfeet="94" />
 	<npc name="Ikassis" looktype="28" lookitem="0" lookaddon="0" lookhead="0" lookbody="0" looklegs="0" lookfeet="0" />
 	<npc name="Imalas" looktype="128" lookitem="0" lookaddon="0" lookhead="115" lookbody="9" looklegs="39" lookfeet="114" />
+	<npc name="Imbuement Assistant" looktype="141" lookitem="0" lookaddon="3" lookhead="41" lookbody="72" looklegs="39" lookfeet="96" />
 	<npc name="Imbul" looktype="128" lookitem="0" lookaddon="0" lookhead="95" lookbody="2" looklegs="63" lookfeet="115" />
 	<npc name="Inigo" looktype="472" lookitem="0" lookaddon="0" lookhead="59" lookbody="114" looklegs="0" lookfeet="94" />
 	<npc name="Inkaef" looktype="146" lookitem="0" lookaddon="0" lookhead="114" lookbody="86" looklegs="0" lookfeet="86" />
@@ -621,7 +622,7 @@
 	<npc name="Muzir" looktype="146" lookitem="0" lookaddon="0" lookhead="95" lookbody="4" looklegs="11" lookfeet="76" />
 	<npc name="Myra" looktype="138" lookitem="0" lookaddon="0" lookhead="58" lookbody="19" looklegs="0" lookfeet="132" />
 	<npc name="Mysterious Ornate Chest" looktype="0" lookitem="19068" lookaddon="0" lookhead="0" lookbody="0" looklegs="0" lookfeet="0" />
-	<npc name="Nah Bob" looktype="80" lookitem="0" lookaddon="0" lookhead="0" lookbody="0" looklegs="0" lookfeet="0" />
+	<npc name="Nah'Bob" looktype="80" lookitem="0" lookaddon="0" lookhead="0" lookbody="0" looklegs="0" lookfeet="0" />
 	<npc name="Naji" looktype="129" lookitem="0" lookaddon="0" lookhead="57" lookbody="113" looklegs="95" lookfeet="113" />
 	<npc name="Narsai" looktype="1199" lookitem="0" lookaddon="0" lookhead="114" lookbody="74" looklegs="10" lookfeet="79" />
 	<npc name="Navigator" looktype="463" lookitem="0" lookaddon="0" lookhead="94" lookbody="123" looklegs="116" lookfeet="123" />
@@ -726,7 +727,7 @@
 	<npc name="Rapanaioboat" looktype="160" lookitem="0" lookaddon="0" lookhead="0" lookbody="21" looklegs="20" lookfeet="39" />
 	<npc name="Rapanaioisleofevil" looktype="160" lookitem="0" lookaddon="0" lookhead="0" lookbody="21" looklegs="20" lookfeet="39" />
 	<npc name="Rashid" looktype="146" lookitem="0" lookaddon="0" lookhead="100" lookbody="100" looklegs="119" lookfeet="115" />
-	<npc name="Rashid Custom" looktype="146" lookitem="0" lookaddon="0" lookhead="100" lookbody="100" looklegs="119" lookfeet="115" />
+	<npc name="Rashid of Island" looktype="146" lookitem="0" lookaddon="0" lookhead="100" lookbody="100" looklegs="119" lookfeet="115" />
 	<npc name="Rata Mari" looktype="21" lookitem="0" lookaddon="0" lookhead="0" lookbody="0" looklegs="0" lookfeet="0" />
 	<npc name="Ray" looktype="128" lookitem="0" lookaddon="0" lookhead="19" lookbody="115" looklegs="126" lookfeet="58" />
 	<npc name="Raymond Striker" looktype="151" lookitem="0" lookaddon="0" lookhead="39" lookbody="77" looklegs="98" lookfeet="95" />
