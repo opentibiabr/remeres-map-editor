@@ -38,6 +38,7 @@
 
 #include "iomap_otbm.h"
 #include "pugicast.h"
+#include "kmap_writer.hpp"
 
 typedef uint8_t attribute_t;
 typedef uint32_t flags_t;
@@ -1644,6 +1645,9 @@ bool IOMapOTBM::saveMap(Map& map, NodeFileWriteHandle& f)
 		f.endNode();
 	}
 	f.endNode();
+
+	KmapWriter kmapwriter;
+	kmapwriter.build(map);
 	return true;
 }
 
