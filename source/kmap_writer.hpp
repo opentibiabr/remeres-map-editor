@@ -81,15 +81,15 @@ class KmapWriter {
 		flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<canary::kmap::Tile>>> buildTiles(Map &map, Tile &tile, const Position& pos) {
 			std::vector<flatbuffers::Offset<canary::kmap::Tile>> tilesOffset;
 			House* house = map.houses.getHouse(tile.getHouseID());
-			flatbuffers::Offset<canary::kmap::HouseInfo> houseInfoOffset = canary::kmap::CreateHouseInfo(
-				builder,
-				tile.getHouseID(),
-				house->getEmptyDoorID()
-			);
+            flatbuffers::Offset<canary::kmap::HouseInfo> houseInfoOffset = house ? canary::kmap::CreateHouseInfo(
+                builder,
+                tile.getHouseID(),
+                house->getEmptyDoorID()
+            ) : 0;
 
 			Item* ground = tile.ground;
 
-			auto createTilesOffset = canary::kmap::CreateTile(
+			auto createTilesOffset = ground ? canary::kmap::CreateTile(
 				builder,
 				buildItems(tile, pos),
 				tile.getX(),
@@ -98,7 +98,7 @@ class KmapWriter {
 				ground->getID(),
 				houseInfoOffset,
 				buildActionAttributes(*ground, pos)
-			);
+			) : 0;
 
 			tilesOffset.push_back(createTilesOffset);
 
@@ -108,6 +108,10 @@ class KmapWriter {
 		flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<canary::kmap::Item>>> buildItems(Tile &tile, const Position& pos) {
 			std::vector<flatbuffers::Offset<canary::kmap::Item>> itemsOffset;
 			for (Item* item : tile.items) {
+                if (item == nullptr) {
+                    continue;
+                }
+
 				std::string text = item->getText();
 				std::string description = item->getDescription();
 				auto textOffset = (!text.empty()) ? builder.CreateString(text) : 0;
