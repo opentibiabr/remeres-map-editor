@@ -12,15 +12,15 @@ class KmapWriter {
 	public:
 		KmapWriter() = default;
 
-		void build(Map& map, std::string &mapPath) {
+		void build(Map& map) {
 			auto headerOffset = buildHeader(map);
 			MapIterator mapIterator = map.begin();
 			auto dataOffset = buildMapData(map);
 			builder.Finish(Kmap::CreateMap(builder, headerOffset, dataOffset));
-			save(mapPath);
+			save(map.getPath() + ".kmap");
 		}
 
-		void save(std::string &mapPath) {
+		void save(std::string mapPath) {
 			std::ofstream ofs(mapPath, std::ofstream::binary);
 			ofs.write((char*)getBuffer(), getSize());
 			ofs.close();
@@ -113,22 +113,21 @@ class KmapWriter {
 		}
 
 		flatbuffers::Offset<Kmap::Tile> buildTile(Map &map, Tile &tile, const Position& pos) {
-			auto items = buildItems(tile, pos);
 			House* house = map.houses.getHouse(tile.getHouseID());
 			auto houseInfoOffset = house ? Kmap::CreateHouseInfo(
 				builder,
 				tile.getHouseID(),
 				house->getEmptyDoorID()
 			) : 0;
-			auto createActionOffSet = buildActionAttributes(*ground, pos);
+			auto createActionOffSet = buildActionAttributes(*tile.ground, pos);
 
 			return Kmap::CreateTile(
 				builder,
-				items,
+				buildItems(tile, pos),
 				tile.getX() & 0xFF,
 				tile.getY() & 0xFF,
 				tile.getMapFlags(),
-				ground->getID(),
+				tile.ground->getID(),
 				houseInfoOffset,
 				createActionOffSet
 			);
@@ -149,7 +148,6 @@ class KmapWriter {
 			for (Item* item : tile.items) {
 				std::string text = item->getText();
 				std::string description = item->getDescription();
-				auto items = builder.CreateVector(itemsOffset);
 				auto textOffset = (!text.empty()) ? builder.CreateString(text) : 0;
 				auto createActionOffSet = buildActionAttributes(*item, pos);
 
@@ -162,7 +160,7 @@ class KmapWriter {
 
 				auto createItemsOffset = Kmap::CreateItem(
 					builder,
-					items,
+					0,
 					item->getID(),
 					item->getCount(),
 					depotId,

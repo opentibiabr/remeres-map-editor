@@ -1461,10 +1461,12 @@ bool IOMapOTBM::saveMap(Map& map, const FileName& identifier)
 
 
 	/*if(!saveMap(map, f))
-		return false;*/
+		return false;
+	nstr(identifier.GetName()) + ".kmap"*/
 
 	KmapWriter kmapwriter;
-	kmapwriter.build(map, nstr(identifier.GetName()) + ".kmap");
+	kmapwriter.build(map);
+	return true;
 
 	g_gui.SetLoadDone(99, "Saving monster spawns...");
 	saveSpawns(map, identifier);

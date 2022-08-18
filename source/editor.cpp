@@ -270,6 +270,7 @@ void Editor::saveMap(FileName filename, bool showdialog)
 		wxFileName fn = wxstr(savefile);
 		map.filename = fn.GetFullPath().mb_str(wxConvUTF8);
 		map.name = fn.GetFullName().mb_str(wxConvUTF8);
+		map.setPath(map_path + nstr(fn.GetName()));
 
 		if(showdialog)
 			g_gui.CreateLoadBar("Saving OTBM map...");
