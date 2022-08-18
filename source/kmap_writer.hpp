@@ -81,7 +81,10 @@ class KmapWriter {
 				const Position& pos = tile->getPosition();
 
 				if(isNewArea(pos, areaPos)) {
-					auto tiles = builder.CreateVector(tilesOffset);
+					std::vector<flatbuffers::Offset<Kmap::Tile>> finalizedOffset;
+					tilesOffset.swap(finalizedOffset);
+					auto tiles = builder.CreateVector(finalizedOffset);
+					
 					auto position = Kmap::CreatePosition(
 						builder,
 						areaPos->x & 0xFF00,
@@ -89,23 +92,20 @@ class KmapWriter {
 						areaPos->z
 					);
 
+					areasOffset.push_back(Kmap::CreateArea(builder, tiles, position));
+
 					areaPos->x = pos.x;
 					areaPos->y = pos.y;
 					areaPos->z = pos.z;
-
-
-					areasOffset.push_back(Kmap::CreateArea(builder, tiles, position));
-
 					tilesOffset.clear();
+				
 				}
 
-				if (!areaPos) {
-					areaPos = &Position(pos.x, pos.y, pos.z);
+				auto offset = buildTile(map, *tile, pos);
+				if (!offset.IsNull()) {
+					tilesOffset.push_back(offset);
 				}
 
-				if (tile->ground) {
-					tilesOffset.push_back(buildTile(map, *tile, pos));
-				}
 				++mapIterator;
 			}
 
@@ -113,6 +113,11 @@ class KmapWriter {
 		}
 
 		flatbuffers::Offset<Kmap::Tile> buildTile(Map &map, Tile &tile, const Position& pos) {
+			Item* ground = tile.ground;
+			if (ground == nullptr || ground->isMetaItem()) {
+				return 0;
+			}
+
 			House* house = map.houses.getHouse(tile.getHouseID());
 			auto houseInfoOffset = house ? Kmap::CreateHouseInfo(
 				builder,
@@ -146,6 +151,9 @@ class KmapWriter {
 		flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<Kmap::Item>>> buildItems(Tile &tile, const Position& pos) {
 			std::vector<flatbuffers::Offset<Kmap::Item>> itemsOffset;
 			for (Item* item : tile.items) {
+				if (item == nullptr || item->isMetaItem()) {
+					continue;
+				}
 				std::string text = item->getText();
 				std::string description = item->getDescription();
 				auto textOffset = (!text.empty()) ? builder.CreateString(text) : 0;
