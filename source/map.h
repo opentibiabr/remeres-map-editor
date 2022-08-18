@@ -83,9 +83,23 @@ public:
 	// Returns true if the map has been saved
 	// ie. it knows which file it should be saved to
 	bool hasFile() const;
-	std::string getFilename() const {return filename;}
 	std::string getName() const {return name;}
 	void setName(const std::string& n) {name = n;}
+	
+	std::string getFilename() const {
+		return filename;
+	}
+	void setFileName(const std::string& newName) {
+		filename = newName;
+	}
+
+	// File path (not have extension file)
+	std::string getPath() const {
+		return path;
+	}
+	void setPath(const std::string& newPath) {
+		path = newPath;
+	}
 
 	// Get map data
 	int getWidth() const {return width;}
@@ -117,6 +131,7 @@ protected:
 	wxString error;
 
 	std::string name; // The map name, NOT the same as filename
+	std::string path; // Map full path
 	std::string filename; // the maps filename
 	std::string description; // The description of the map
 

@@ -4,7 +4,7 @@
 #include "map.h"
 #include "filehandle.h"
 #include "flatbuffers/flatbuffers.h"
-#include "flatbuffer/map_generated.h"
+#include "flatbuffer/kmap_generated.h"
 #include "gui.h"
 
 class KmapWriter {
@@ -16,34 +16,36 @@ class KmapWriter {
 			auto headerOffset = buildHeader(map);
 			MapIterator mapIterator = map.begin();
 			auto dataOffset = buildMapData(map);
-			builder.Finish(canary::kmap::CreateMap(builder, headerOffset, dataOffset));
-			save();
+			builder.Finish(Kmap::CreateMap(builder, headerOffset, dataOffset));
+			save(map);
 		}
 
-		void save() {
-			FileName dataDirectory = GUI::GetLocalDataDirectory() + "map.kmap";
-			auto mapPath = nstr(dataDirectory.GetFullName());
-			std::ofstream ofs(mapPath, std::ofstream::binary);
-			ofs.write((char*)builder.GetBufferPointer(), builder.GetSize());
+		void save(Map& map) {
+			auto mapFullPath = map.getPath() + ".kmap";
+			std::ofstream ofs(mapFullPath, std::ofstream::binary);
+			ofs.write((char*)getBuffer(), getSize());
 			ofs.close();
-			wxMessageBox(mapPath);
+			wxMessageBox(map.getPath()+ ".kmap");
 		}
 
 		uint8_t* getBuffer() {
 			return builder.GetBufferPointer();
 		}
 
+		flatbuffers::uoffset_t getSize() {
+			return builder.GetSize();
+		}
 
 	private:
 		flatbuffers::FlatBufferBuilder builder;
 
-		flatbuffers::Offset<canary::kmap::MapHeader> buildHeader(Map& map) {
+		flatbuffers::Offset<Kmap::MapHeader> buildHeader(Map& map) {
 			auto monsterSpawnFile = builder.CreateString(getFullFileName(map.getSpawnFilename()));
 			auto npcSpawnFile = builder.CreateString(getFullFileName(map.getSpawnNpcFilename()));
 			auto houseFile = builder.CreateString(getFullFileName(map.getHouseFilename()));
 			auto description = builder.CreateString("Saved with Remere's Map Editor " + __RME_VERSION__ + "\n" + map.getMapDescription());
 
-			return canary::kmap::CreateMapHeader(
+			return Kmap::CreateMapHeader(
 				builder,
 				map.getWidth(),
 				map.getHeight(),
@@ -55,20 +57,21 @@ class KmapWriter {
 			);
 		}
 
-		flatbuffers::Offset<canary::kmap::MapData> buildMapData(Map &map) {
+		flatbuffers::Offset<Kmap::MapData> buildMapData(Map &map) {
 			auto areas = buildArea(map);
 			auto towns = buildTowns(map);
 			auto waypoints = buildWaypoints(map);
 
-			return canary::kmap::CreateMapData(builder, areas, towns, waypoints);
+			return Kmap::CreateMapData(builder, areas, towns, waypoints);
 		}
 
-		flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<canary::kmap::Area>>> buildArea(Map& map) {
-			std::vector<flatbuffers::Offset<canary::kmap::Area>> areasOffset;
-			std::vector<flatbuffers::Offset<canary::kmap::Tile>> tilesOffset;
+		flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<Kmap::Area>>> buildArea(Map& map) {
+			std::vector<flatbuffers::Offset<Kmap::Area>> areasOffset;
+			std::vector<flatbuffers::Offset<Kmap::Tile>> tilesOffset;
 
-			int local_x = -1, local_y = -1, local_z = -1;
+			Position *areaPos;
 			MapIterator mapIterator = map.begin();
+
 			while(mapIterator != map.end()) {
 				Tile* tile = (*mapIterator)->get();
 				if(tile == nullptr || tile->size() == 0) {
@@ -78,79 +81,74 @@ class KmapWriter {
 
 				const Position& pos = tile->getPosition();
 
-				if(pos.x < local_x || pos.x >= local_x + 256 || pos.y < local_y || pos.y >= local_y + 256 || pos.z != local_z) {
-					auto position = canary::kmap::CreatePosition(
+				if(isNewArea(pos, areaPos)) {
+					auto position = Kmap::CreatePosition(
 						builder,
-						local_x = pos.x & 0xFF00,
-						local_y = pos.y & 0xFF00,
-						local_z = pos.z
+						areaPos->x & 0xFF00,
+						areaPos->y & 0xFF00,
+						areaPos->z
 					);
 
-					auto tileVec = builder.CreateVector(tilesOffset);
-					areasOffset.push_back(canary::kmap::CreateArea(builder, tileVec, position));
+					areaPos->x = pos.x;
+					areaPos->y = pos.y;
+					areaPos->z = pos.z;
+
+					auto tiles = builder.CreateVector(tilesOffset);
+
+					areasOffset.push_back(Kmap::CreateArea(builder, tiles));
+
 					tilesOffset.clear();
 				}
 
-				House* house = map.houses.getHouse(tile->getHouseID());
-				flatbuffers::Offset<canary::kmap::HouseInfo> houseInfoOffset = house ? canary::kmap::CreateHouseInfo(
-					builder,
-					tile->getHouseID(),
-					house->getEmptyDoorID()
-				) : 0;
-
-				Item * ground = tile->ground;
-				if (ground) {
-					auto createActionOffSet = buildActionAttributes(*tile->ground, pos);
-					auto createTilesOffset = canary::kmap::CreateTile(
-						builder,
-						buildItems(*tile, pos),
-						tile->getX() & 0xFF,
-						tile->getY() & 0xFF,
-						tile->getMapFlags(),
-						ground->getID(),
-						houseInfoOffset,
-						createActionOffSet
-					);
-
-					tilesOffset.push_back(createTilesOffset);
+				if (!areaPos) {
+					areaPos = &Position(pos.x, pos.y, pos.z);
 				}
+
+				tilesOffset.push_back(buildTile(map, *tile, pos));
 				++mapIterator;
 			}
 
 			return builder.CreateVector(areasOffset);
 		}
 
-		flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<canary::kmap::Tile>>> buildTiles(Map &map, Tile &tile, const Position& pos) {
-			std::vector<flatbuffers::Offset<canary::kmap::Tile>> tilesOffset;
+		flatbuffers::Offset<Kmap::Tile> buildTile(Map &map, Tile &tile, const Position& pos) {
+			Item* ground = tile.ground;
+			if (!ground) return 0;
+
+			auto items = buildItems(tile, pos);
+
 			House* house = map.houses.getHouse(tile.getHouseID());
-			flatbuffers::Offset<canary::kmap::HouseInfo> houseInfoOffset = house ? canary::kmap::CreateHouseInfo(
+			auto houseInfoOffset = house ? Kmap::CreateHouseInfo(
 				builder,
 				tile.getHouseID(),
 				house->getEmptyDoorID()
 			) : 0;
 
-			Item* ground = tile.ground;
-
 			auto createActionOffSet = buildActionAttributes(*ground, pos);
-
-			auto createTilesOffset = ground ? canary::kmap::CreateTile(
+			return Kmap::CreateTile(
 				builder,
-				buildItems(tile, pos),
-				tile.getX(),
-				tile.getY(),
+				items,
+				tile.getX() & 0xFF,
+				tile.getY() & 0xFF,
 				tile.getMapFlags(),
 				ground->getID(),
 				houseInfoOffset,
 				createActionOffSet
-			) : 0;
-
-			tilesOffset.push_back(createTilesOffset);
-
-			return builder.CreateVector(tilesOffset);
+			);
 		}
 
-		flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<canary::kmap::Item>>> buildItems(Tile &tile, const Position& pos) {
-			std::vector<flatbuffers::Offset<canary::kmap::Item>> itemsOffset;
+		bool isNewArea(const Position &pos, Position *areaPos) {
+			if (!areaPos) return false;
+
+			return pos.x < areaPos->x
+				|| pos.x >= areaPos->x + 256
+				|| pos.y < areaPos->y
+				|| pos.y >= areaPos->y + 256
+				|| pos.z != areaPos->z;
+		}
+
+		flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<Kmap::Item>>> buildItems(Tile &tile, const Position& pos) {
+			std::vector<flatbuffers::Offset<Kmap::Item>> itemsOffset;
 			for (Item* item : tile.items) {
 				if (item == nullptr) {
 					continue;
@@ -168,7 +166,7 @@ class KmapWriter {
 
 				auto createActionOffSet = buildActionAttributes(*item, pos);
 
-				auto createItemsOffset = canary::kmap::CreateItem(
+				auto createItemsOffset = Kmap::CreateItem(
 					builder,
 					0,
 					item->getID(),
@@ -179,28 +177,28 @@ class KmapWriter {
 					createActionOffSet
 				);
 
-				//if (is subitem) return canary::kmap::Item.createItemsVector(builder, itemsOffset);
+				//if (is subitem) return Kmap::Item.createItemsVector(builder, itemsOffset);
 				itemsOffset.push_back(createItemsOffset);
 			}
 
 			return builder.CreateVector(itemsOffset);
 		}
 
-		flatbuffers::Offset<canary::kmap::ActionAttributes> buildActionAttributes(Item &item, const Position& pos) {
+		flatbuffers::Offset<Kmap::ActionAttributes> buildActionAttributes(Item &item, const Position& pos) {
 			uint16_t actionId = item.getActionID();
 			uint16_t uniqueId = item.getActionID();
 			if (actionId == 0 || uniqueId == 0) {
 				return {};
 			}
 
-			auto positionOffSet = canary::kmap::CreatePosition(
+			auto positionOffSet = Kmap::CreatePosition(
 				builder,
 				pos.x,
 				pos.y,
 				pos.z
 			);
 
-			return canary::kmap::CreateActionAttributes(
+			return Kmap::CreateActionAttributes(
 				builder,
 				actionId,
 				uniqueId,
@@ -208,12 +206,12 @@ class KmapWriter {
 			);
 		}
 
-		flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<canary::kmap::Town>>> buildTowns(Map &map) {
-			std::vector<flatbuffers::Offset<canary::kmap::Town>> townsOffset;
+		flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<Kmap::Town>>> buildTowns(Map &map) {
+			std::vector<flatbuffers::Offset<Kmap::Town>> townsOffset;
 			for(const auto& [townId, town] : map.towns) {
 				const Position& townPosition = town->getTemplePosition();
 
-				auto positionOffSet = canary::kmap::CreatePosition(
+				auto positionOffSet = Kmap::CreatePosition(
 					builder,
 					townPosition.x,
 					townPosition.y,
@@ -222,7 +220,7 @@ class KmapWriter {
 
 				auto name = builder.CreateString(town->getName());
 
-				auto createTownOffset = canary::kmap::CreateTown(
+				auto createTownOffset = Kmap::CreateTown(
 					builder,
 					townId,
 					name,
@@ -236,10 +234,10 @@ class KmapWriter {
 			return builder.CreateVector(townsOffset);
 		}
 
-		flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<canary::kmap::Waypoint>>> buildWaypoints(Map &map) {
-			std::vector<flatbuffers::Offset<canary::kmap::Waypoint>> waypointsOffSet;
+		flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<Kmap::Waypoint>>> buildWaypoints(Map &map) {
+			std::vector<flatbuffers::Offset<Kmap::Waypoint>> waypointsOffSet;
 			for(const auto& [waypointId, waypoint] : map.waypoints) {
-				auto position = canary::kmap::CreatePosition(
+				auto position = Kmap::CreatePosition(
 					builder,
 					waypoint->pos.x,
 					waypoint->pos.y,
@@ -248,7 +246,7 @@ class KmapWriter {
 
 				auto name = builder.CreateString(waypoint->name);
 
-				auto createWaypointOffSet = canary::kmap::CreateWaypoint(
+				auto createWaypointOffSet = Kmap::CreateWaypoint(
 					builder,
 					name,
 					position
