@@ -5,6 +5,7 @@
 #include "filehandle.h"
 #include "flatbuffers/flatbuffers.h"
 #include "flatbuffer/map_generated.h"
+#include "gui.h"
 
 class KmapWriter {
 
@@ -16,6 +17,15 @@ class KmapWriter {
 			MapIterator mapIterator = map.begin();
 			auto dataOffset = buildMapData(map);
 			builder.Finish(canary::kmap::CreateMap(builder, headerOffset, dataOffset));
+		}
+
+		void saveKmap() {
+			FileName dataDirectory = GUI::GetLocalDataDirectory() + "map.kmap";
+			auto mapPath = nstr(dataDirectory.GetFullName());
+			std::ofstream ofs(mapPath, std::ofstream::binary);
+			ofs.write((char*)builder.GetBufferPointer(), builder.GetSize());
+			ofs.close();
+			wxMessageBox(mapPath);
 		}
 
 		uint8_t* getBuffer() {
@@ -103,6 +113,7 @@ class KmapWriter {
 
 					tilesOffset.push_back(createTilesOffset);
 				}
+				++mapIterator;
 			}
 
 			return builder.CreateVector(areasOffset);

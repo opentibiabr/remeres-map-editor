@@ -36,6 +36,7 @@
 #include "npc_brush.h"
 #include "spawn_monster_brush.h"
 #include "spawn_npc_brush.h"
+#include "kmap_writer.hpp"
 
 #include "live_server.h"
 #include "live_client.h"
@@ -372,6 +373,9 @@ void Editor::saveMap(FileName filename, bool showdialog)
 		std::remove(backup_spawn.c_str());
 		std::remove(backup_spawn_npc.c_str());
 	}
+	
+	KmapWriter kmapwriter;
+	kmapwriter.saveKmap();
 
 	map.clearChanges();
 }
