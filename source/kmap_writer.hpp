@@ -17,9 +17,10 @@ class KmapWriter {
 			MapIterator mapIterator = map.begin();
 			auto dataOffset = buildMapData(map);
 			builder.Finish(canary::kmap::CreateMap(builder, headerOffset, dataOffset));
+			save();
 		}
 
-		void saveKmap() {
+		void save() {
 			FileName dataDirectory = GUI::GetLocalDataDirectory() + "map.kmap";
 			auto mapPath = nstr(dataDirectory.GetFullName());
 			std::ofstream ofs(mapPath, std::ofstream::binary);
