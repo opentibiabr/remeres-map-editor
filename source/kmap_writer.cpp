@@ -84,7 +84,15 @@ FBVectorOffset<FBOffset<Kmap::Area>> KmapWriter::buildAreas(Map &map)
 
 		if (isNewArea(pos, areaPos))
 		{
-			areasOffset.push_back(buildArea(pos, areaPos, tilesOffset));
+			if (auto areaOffset = buildArea(pos, areaPos, tilesOffset);
+			!areaOffset.IsNull())
+			{
+				areasOffset.push_back(areaOffset);
+			}
+
+			areaPos->x = pos.x;
+			areaPos->y = pos.y;
+			areaPos->z = pos.z;
 			tilesOffset.clear();
 		}
 
@@ -102,6 +110,11 @@ FBVectorOffset<FBOffset<Kmap::Area>> KmapWriter::buildAreas(Map &map)
 
 FBOffset<Kmap::Area> KmapWriter::buildArea(const Position pos, Position *areaPos, StdOffsetVector<Kmap::Tile> tilesOffset)
 {
+	if (tilesOffset.empty())
+	{
+		return 0;
+	}
+
 	StdOffsetVector<Kmap::Tile> finalizedOffset;
 	tilesOffset.swap(finalizedOffset);
 
@@ -111,22 +124,21 @@ FBOffset<Kmap::Area> KmapWriter::buildArea(const Position pos, Position *areaPos
 		Kmap::CreatePosition(builder, areaPos->x &0xFF00, areaPos->y &0xFF00, areaPos->z)
 	);
 
-	areaPos->x = pos.x;
-	areaPos->y = pos.y;
-	areaPos->z = pos.z;
-
 	return areaOffset;
 }
 
 bool KmapWriter::isNewArea(const Position &pos, Position *areaPos)
 {
-	if (!areaPos) return false;
+	if (areaPos == nullptr)
+	{
+		return false;
+	}
 
 	return pos.x < areaPos->x ||
-		pos.x >= areaPos->x + 256 ||
-		pos.y < areaPos->y ||
-		pos.y >= areaPos->y + 256 ||
-		pos.z != areaPos->z;
+	pos.x >= areaPos->x + 256 ||
+	pos.y < areaPos->y ||
+	pos.y >= areaPos->y + 256 ||
+	pos.z != areaPos->z;
 }
 
 FBOffset<Kmap::Tile> KmapWriter::buildTile(Tile &tile)
@@ -164,7 +176,7 @@ FBOffset<Kmap::Tile> KmapWriter::buildTile(Tile &tile)
 
 FBVectorOffset<FBOffset<Kmap::Item>> KmapWriter::buildItems(std::vector<Item*> &items)
 {
-	if (items.size() == 0)
+	if (items.empty())
 	{
 		return 0;
 	}
@@ -177,29 +189,41 @@ FBVectorOffset<FBOffset<Kmap::Item>> KmapWriter::buildItems(std::vector<Item*> &
 		{
 			continue;
 		}
-		if (auto itemOffset = buildItem(*item);;
+
+		if (auto itemOffset = buildItem(*item);
 		!itemOffset.IsNull())
 		{
 			itemsOffset.push_back(itemOffset);
 		}
 	}
 
+	if (itemsOffset.empty())
+	{
+		return 0;
+	}
+
 	return builder.CreateVector(itemsOffset);
 }
 
-FBOffset<Kmap::Item> KmapWriter::buildItem(Item &item){
+FBOffset<Kmap::Item> KmapWriter::buildItem(Item &item)
+{
 	if (item.isMetaItem())
 	{
 		return 0;
 	}
 
-	auto itemAttributesOffset = CreateItemAttributes(
-		builder,
-		item.getSubtype(),
-		buildString(item.getText()),
-		buildString(item.getDescription()),
-		buildActionAttributes(item)
-	);
+	FBOffset<Kmap::ItemAttributes> itemAttributesOffset = 0;
+
+	if (!item.getText().empty() || !item.getDescription().empty() || item.getSubtype() > 0)
+	{
+		itemAttributesOffset = CreateItemAttributes(
+			builder,
+			item.getSubtype(),
+			buildString(item.getText()),
+			buildString(item.getDescription()),
+			buildActionAttributes(item)
+		);
+	}
 
 	return Kmap::CreateItem(
 		builder,
@@ -225,6 +249,11 @@ FBOffset<Kmap::ItemDetails> KmapWriter::buildItemsDetails(Item &item)
 	Depot *depot = dynamic_cast<Depot*>(&item);
 	Door *door = dynamic_cast<Door*>(&item);
 	Teleport *teleport = dynamic_cast<Teleport*>(&item);
+
+	if (container == nullptr && depot == nullptr && door == nullptr && teleport == nullptr)
+	{
+		return 0;
+	}
 
 	return Kmap::CreateItemDetails(
 		builder,
