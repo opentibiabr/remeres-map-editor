@@ -408,6 +408,7 @@
     <ClCompile Include="..\..\source\iomap_otbm.cpp" />
     <ClInclude Include="..\..\source\json.h" />
     <ClInclude Include="..\..\source\kmap_writer.hpp" />
+    <ClCompile Include="..\..\source\kmap_writer.cpp" />
     <ClInclude Include="..\..\source\json\json_spirit.h" />
     <ClInclude Include="..\..\source\json\json_spirit_error_position.h" />
     <ClInclude Include="..\..\source\json\json_spirit_reader.h" />

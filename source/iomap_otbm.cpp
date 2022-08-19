@@ -642,7 +642,6 @@ bool IOMapOTBM::loadMap(Map& map, const FileName& filename)
 	if(!loadMap(map, f))
 		return false;
 
-
 	// Read auxilliary files
 	if(!loadHouses(map, filename)) {
 		warning("Failed to load houses.");
@@ -1459,14 +1458,11 @@ bool IOMapOTBM::saveMap(Map& map, const FileName& identifier)
 		return false;
 	}
 
-
-	/*if(!saveMap(map, f))
+	if(!saveMap(map, f))
 		return false;
-	nstr(identifier.GetName()) + ".kmap"*/
 
 	KmapWriter kmapwriter;
 	kmapwriter.build(map);
-	return true;
 
 	g_gui.SetLoadDone(99, "Saving monster spawns...");
 	saveSpawns(map, identifier);

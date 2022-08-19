@@ -26,24 +26,28 @@ table Area {
 	position: Position;
 }
 
+table ItemAttributes {
+	count: ubyte;
+	depot_id: ushort;
+	rune_charges: ushort;
+	text: string;
+	description: string;
+	action_attributes: ActionAttributes;
+}
+
 table Tile {
-	items: [Item];
+	ground: Item;
 	x: ubyte;
 	y: ubyte;
 	flags: uint32;
 	tile_id: ushort;
 	house_info: HouseInfo;
-	action_attributes: ActionAttributes;
 }
 
 table Item {
 	items: [Item];
 	id: ushort;
-	count: ubyte;
-	depot_id: ushort;
-	rune_charges: ushort;
-	text: string;
-	action_attributes: ActionAttributes;
+	attributes: ItemAttributes;
 }
 
 table HouseInfo {
