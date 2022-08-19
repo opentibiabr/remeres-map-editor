@@ -21,25 +21,9 @@
 
 #include "map.h"
 
-// Makes reading easier and reduces the complexity of returns
-using FlatOffSetHeader = flatbuffers::Offset<Kmap::MapHeader>;
-using FlatOffSetMapData = flatbuffers::Offset<Kmap::MapData>;
-using FlatOffSetTile = flatbuffers::Offset<Kmap::Tile>;
-using FlatOffSetItem = flatbuffers::Offset<Kmap::Item>;
-using FlatOffSetArea = flatbuffers::Offset<Kmap::Area>;
-using FlatOffSetTown = flatbuffers::Offset<Kmap::Town>;
-using FlatOffSetWayPoint = flatbuffers::Offset<Kmap::Waypoint>;
-using FlatOffSetAttributes = flatbuffers::Offset<Kmap::ActionAttributes>;
-using FlatTownVector = flatbuffers::Offset<flatbuffers::Vector<FlatOffSetTown>>;
-using FlatWayPointVector = flatbuffers::Offset<flatbuffers::Vector<FlatOffSetWayPoint>>;
-using FlatAreaVector = flatbuffers::Offset<flatbuffers::Vector<FlatOffSetArea>>;
-using FlatItemVector = flatbuffers::Offset<flatbuffers::Vector<FlatOffSetItem>>;
-
 void KmapWriter::build(Map & map)
 {
-	auto headerOffset = buildHeader(map);
-	auto dataOffset = buildMapData(map);
-	builder.Finish(Kmap::CreateMap(builder, headerOffset, dataOffset));
+	builder.Finish(Kmap::CreateMap(builder, buildHeader(map), buildMapData(map)));
 	save(map.getPath() + ".kmap");
 }
 
@@ -61,40 +45,31 @@ flatbuffers::uoffset_t KmapWriter::getSize()
 	return builder.GetSize();
 }
 
-FlatOffSetHeader KmapWriter::buildHeader(Map & map)
+FBOffset<Kmap::MapHeader> KmapWriter::buildHeader(Map & map)
 {
-	auto monsterSpawnFile = builder.CreateString(getFullFileName(map.getSpawnFilename()));
-	auto npcSpawnFile = builder.CreateString(getFullFileName(map.getSpawnNpcFilename()));
-	auto houseFile = builder.CreateString(getFullFileName(map.getHouseFilename()));
-	auto description = builder.CreateString("Saved with Remere's Map Editor " + __RME_VERSION__ + "\n" + map.getMapDescription());
-
 	return Kmap::CreateMapHeader(
 		builder,
 		map.getWidth(),
 		map.getHeight(),
 		map.getVersion().otbm,
-		monsterSpawnFile,
-		npcSpawnFile,
-		houseFile,
-		description
+		buildString(getFullFileName(map.getSpawnFilename())),
+		buildString(getFullFileName(map.getSpawnNpcFilename())),
+		buildString(getFullFileName(map.getHouseFilename())),
+		buildString("Saved with Remere's Map Editor " + __RME_VERSION__ + "\n" + map.getMapDescription())
 	);
 }
 
-FlatOffSetMapData KmapWriter::buildMapData(Map & map)
+FBOffset<Kmap::MapData> KmapWriter::buildMapData(Map & map)
 {
-	auto areas = buildArea(map);
-	auto towns = buildTowns(map);
-	auto waypoints = buildWaypoints(map);
-
-	return Kmap::CreateMapData(builder, areas, towns, waypoints);
+	return Kmap::CreateMapData(builder, buildAreas(map), buildTowns(map), buildWaypoints(map));
 }
 
-FlatAreaVector KmapWriter::buildArea(Map & map)
+FBVectorOffset<FBOffset<Kmap::Area>> KmapWriter::buildAreas(Map &map)
 {
-	std::vector<FlatOffSetArea> areasOffset;
-	std::vector<FlatOffSetTile> tilesOffset;
+	StdOffsetVector<Kmap::Area> areasOffset;
+	StdOffsetVector<Kmap::Tile> tilesOffset;
 
-	Position * areaPos = nullptr;
+	Position* areaPos = nullptr;
 	MapIterator mapIterator = map.begin();
 	while (mapIterator != map.end())
 	{
@@ -109,27 +84,11 @@ FlatAreaVector KmapWriter::buildArea(Map & map)
 
 		if (isNewArea(pos, areaPos))
 		{
-			std::vector<FlatOffSetTile> finalizedOffset;
-			tilesOffset.swap(finalizedOffset);
-			auto tiles = builder.CreateVector(finalizedOffset);
-
-			auto position = Kmap::CreatePosition(
-				builder,
-				areaPos->x &0xFF00,
-				areaPos->y &0xFF00,
-				areaPos->z
-			);
-
-			areasOffset.push_back(Kmap::CreateArea(builder, tiles, position));
-
-			areaPos->x = pos.x;
-			areaPos->y = pos.y;
-			areaPos->z = pos.z;
+			areasOffset.push_back(buildArea(pos, areaPos, tilesOffset));
 			tilesOffset.clear();
-
 		}
 
-		auto offset = buildTile(map, *tile, pos);
+		auto offset = buildTile(*tile);
 		if (!offset.IsNull())
 		{
 			tilesOffset.push_back(offset);
@@ -141,30 +100,22 @@ FlatAreaVector KmapWriter::buildArea(Map & map)
 	return builder.CreateVector(areasOffset);
 }
 
-FlatOffSetTile KmapWriter::buildTile(Map &map, Tile &tile, const Position &pos)
+FBOffset<Kmap::Area> KmapWriter::buildArea(const Position pos, Position *areaPos, StdOffsetVector<Kmap::Tile> tilesOffset)
 {
-	Item *ground = tile.ground;
-	if (ground == nullptr || ground->isMetaItem())
-	{
-		return 0;
-	}
+	StdOffsetVector<Kmap::Tile> finalizedOffset;
+	tilesOffset.swap(finalizedOffset);
 
-	House *house = map.houses.getHouse(tile.getHouseID());
-	auto houseInfoOffset = house ? Kmap::CreateHouseInfo(
+	auto areaOffset = Kmap::CreateArea(
 		builder,
-		tile.getHouseID(),
-		house->getEmptyDoorID()
-	) : 0;
-
-	return Kmap::CreateTile(
-		builder,
-		buildGround(*ground, pos),
-		tile.getX() &0xFF,
-		tile.getY() &0xFF,
-		tile.getMapFlags(),
-		ground->getID(),
-		houseInfoOffset
+		builder.CreateVector(finalizedOffset),
+		Kmap::CreatePosition(builder, areaPos->x &0xFF00, areaPos->y &0xFF00, areaPos->z)
 	);
+
+	areaPos->x = pos.x;
+	areaPos->y = pos.y;
+	areaPos->z = pos.z;
+
+	return areaOffset;
 }
 
 bool KmapWriter::isNewArea(const Position &pos, Position *areaPos)
@@ -178,146 +129,157 @@ bool KmapWriter::isNewArea(const Position &pos, Position *areaPos)
 		pos.z != areaPos->z;
 }
 
-FlatOffSetItem KmapWriter::buildGround(Item &item, const Position &pos)
+FBOffset<Kmap::Tile> KmapWriter::buildTile(Tile &tile)
 {
-	auto createActionOffSet = buildActionAttributes(item, pos);
-	auto itemAttributesOffset = CreateItemAttributes(
-		builder,
-		0,
-		0,
-		0,
-		0,
-		0,
-		createActionOffSet
-	);
+	Item *ground = tile.ground;
+	bool hasGround = false;
+	if (ground && !ground->isMetaItem())
+	{
+		hasGround = true;
 
-	return Kmap::CreateItem(
+		for(Item* item : tile.items)
+		{
+			if (!ground->hasBorderEquivalent())
+			{
+				break;
+			}
+			if (item->getGroundEquivalent() == ground->getID())
+			{
+				hasGround = false;
+				break;
+			}
+		}
+	}
+
+	return Kmap::CreateTile(
 		builder,
-		0,
-		item.getID(),
-		itemAttributesOffset
+		buildItems(tile.items),
+		hasGround ? buildItem(*ground) : 0,
+		tile.getX() &0xFF,
+		tile.getY() &0xFF,
+		tile.getMapFlags(),
+		tile.getHouseID()
 	);
 }
 
-FlatItemVector KmapWriter::buildItems(Tile &tile, const Position &pos)
+FBVectorOffset<FBOffset<Kmap::Item>> KmapWriter::buildItems(std::vector<Item*> &items)
 {
-	std::vector<FlatOffSetItem> itemsOffset;
-	for (Item *item: tile.items)
+	if (items.size() == 0)
 	{
-		if (item == nullptr || item->isMetaItem())
+		return 0;
+	}
+
+	StdOffsetVector<Kmap::Item> itemsOffset;
+
+	for (Item *item: items)
+	{
+		if (item == nullptr)
 		{
 			continue;
 		}
-
-		std::string text = item->getText();
-		std::string description = item->getDescription();
-		auto textOffset = (!text.empty()) ? builder.CreateString(text) : 0;
-		auto descriptionOffset = (!description.empty()) ? builder.CreateString(description) : 0;
-		auto createActionOffSet = buildActionAttributes(*item, pos);
-
-		Depot *depot = dynamic_cast<Depot*> (item);
-		auto itemAttributesOffset = CreateItemAttributes(
-			builder,
-			item->getCount(),
-			depot ? depot->getDepotID() : 0,
-			item->getSubtype(),
-			textOffset,
-			descriptionOffset,
-			createActionOffSet
-		);
-
-		auto createItemsOffset = Kmap::CreateItem(
-			builder,
-			buildItems(tile, pos),
-			item->getID(),
-			itemAttributesOffset
-		);
-
-		//if (is subitem) return Kmap::Item.createItemsVector(builder, itemsOffset);
-		itemsOffset.push_back(createItemsOffset);
+		if (auto itemOffset = buildItem(*item);;
+		!itemOffset.IsNull())
+		{
+			itemsOffset.push_back(itemOffset);
+		}
 	}
 
 	return builder.CreateVector(itemsOffset);
 }
 
-FlatOffSetAttributes KmapWriter::buildActionAttributes(Item &item, const Position &pos)
-{
-	uint16_t actionId = item.getActionID();
-	uint16_t uniqueId = item.getActionID();
-	if (actionId == 0 || uniqueId == 0)
+FBOffset<Kmap::Item> KmapWriter::buildItem(Item &item){
+	if (item.isMetaItem())
 	{
 		return 0;
 	}
 
-	auto positionOffSet = Kmap::CreatePosition(
+	auto itemAttributesOffset = CreateItemAttributes(
 		builder,
-		pos.x,
-		pos.y,
-		pos.z
+		item.getSubtype(),
+		buildString(item.getText()),
+		buildString(item.getDescription()),
+		buildActionAttributes(item)
 	);
 
-	return Kmap::CreateActionAttributes(
+	return Kmap::CreateItem(
 		builder,
-		actionId,
-		uniqueId,
-		positionOffSet
+		item.getID(),
+		buildItemsDetails(item),
+		itemAttributesOffset
 	);
 }
 
-FlatTownVector KmapWriter::buildTowns(Map & map)
+FBOffset<Kmap::Action> KmapWriter::buildActionAttributes(Item &item)
 {
-	std::vector<FlatOffSetTown> townsOffset;
+	if (item.getActionID() == 0 && item.getUniqueID() == 0)
+	{
+		return 0;
+	}
+
+	return Kmap::CreateAction(builder, item.getActionID(), item.getUniqueID());
+}
+
+FBOffset<Kmap::ItemDetails> KmapWriter::buildItemsDetails(Item &item)
+{
+	Container *container = dynamic_cast<Container*>(&item);
+	Depot *depot = dynamic_cast<Depot*>(&item);
+	Door *door = dynamic_cast<Door*>(&item);
+	Teleport *teleport = dynamic_cast<Teleport*>(&item);
+
+	return Kmap::CreateItemDetails(
+		builder,
+		container ? buildItems(container->getVector()) : 0,
+		depot ? depot->getDepotID() : 0,
+		door ? door->getDoorID() : 0,
+		teleport ? buildPosition(teleport->getDestination()) : 0
+	);
+}
+
+FBVectorOffset<FBOffset<Kmap::Town>> KmapWriter::buildTowns(Map & map)
+{
+	StdOffsetVector<Kmap::Town> townsOffset;
+
 	for (const auto &[townId, town]: map.towns)
 	{
-		const Position &townPosition = town->getTemplePosition();
-
-		auto positionOffSet = Kmap::CreatePosition(
-			builder,
-			townPosition.x,
-			townPosition.y,
-			townPosition.z
-	);
-
-		auto name = builder.CreateString(town->getName());
-
-		auto createTownOffset = Kmap::CreateTown(
-			builder,
-			townId,
-			name,
-			positionOffSet
-	);
-
-		townsOffset.push_back(createTownOffset);
-
+		townsOffset.push_back(
+			Kmap::CreateTown(
+				builder,
+				townId,
+				buildString(town->getName()),
+				buildPosition(town->getTemplePosition())
+			)
+		);
 	}
 
 	return builder.CreateVector(townsOffset);
 }
 
-FlatWayPointVector KmapWriter::buildWaypoints(Map & map)
+FBVectorOffset<FBOffset<Kmap::Waypoint>> KmapWriter::buildWaypoints(Map & map)
 {
-	std::vector<FlatOffSetWayPoint> waypointsOffSet;
+	StdOffsetVector<Kmap::Waypoint> waypointsOffSet;
+
 	for (const auto &[waypointId, waypoint]: map.waypoints)
 	{
-		auto position = Kmap::CreatePosition(
-			builder,
-			waypoint->pos.x,
-			waypoint->pos.y,
-			waypoint->pos.z
-	);
-
-		auto name = builder.CreateString(waypoint->name);
-
-		auto createWaypointOffSet = Kmap::CreateWaypoint(
-			builder,
-			name,
-			position
-	);
-
-		waypointsOffSet.push_back(createWaypointOffSet);
+		waypointsOffSet.push_back(
+			Kmap::CreateWaypoint(
+				builder,
+				buildString(waypoint->name),
+				buildPosition(waypoint->pos)
+			)
+		);
 	}
 
 	return builder.CreateVector(waypointsOffSet);
+}
+
+FBOffset<flatbuffers::String> KmapWriter::buildString(std::string string)
+{
+	return string.empty() ? builder.CreateString(string) : 0;
+}
+
+FBOffset<Kmap::Position> KmapWriter::buildPosition(const Position &pos)
+{
+	return Kmap::CreatePosition(builder, pos.x, pos.y, pos.z);
 }
 
 std::string KmapWriter::getFullFileName(std::string fileName)
