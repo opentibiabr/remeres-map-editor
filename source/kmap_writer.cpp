@@ -156,8 +156,6 @@ FlatOffSetTile KmapWriter::buildTile(Map &map, Tile &tile, const Position &pos)
 		house->getEmptyDoorID()
 	) : 0;
 
-	auto createActionOffSet = buildActionAttributes(*ground, pos);
-
 	return Kmap::CreateTile(
 		builder,
 		buildGround(*ground, pos),
