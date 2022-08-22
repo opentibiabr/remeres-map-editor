@@ -438,8 +438,8 @@ bool ClientVersion::hasValidPaths()
 		OTMLDocumentPtr doc = OTMLDocument::parse(otfi.GetFullPath().ToStdString());
 		if(doc->size() != 0 && doc->hasChildAt("DatSpr")) {
 			OTMLNodePtr node = doc->get("DatSpr");
-			std::string metadata = node->valueAt<std::string>("metadata-file", std::string(ASSETS_NAME) + ".dat");
-			std::string sprites = node->valueAt<std::string>("sprites-file", std::string(ASSETS_NAME) + ".spr");
+			std::string metadata = node->valueAt("metadata-file", std::string(ASSETS_NAME) + ".dat");
+			std::string sprites = node->valueAt("sprites-file", std::string(ASSETS_NAME) + ".spr");
 			metadata_path = wxFileName(client_path.GetFullPath(), wxString(metadata));
 			sprites_path = wxFileName(client_path.GetFullPath(), wxString(sprites));
 		}

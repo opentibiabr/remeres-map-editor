@@ -28,7 +28,7 @@ table Area {
 
 table Tile {
 	items: [Item];
-	tile: Item;
+	ground: Item;
 	x: ubyte;
 	y: ubyte;
 	flags: uint32;
@@ -58,17 +58,6 @@ table ItemDetails {
 table Action {
 	action_id: ushort;
 	unique_id: ushort;
-}
-
-table HouseInfo {
-	id: uint32;
-	door_id: ubyte;
-}
-
-table ActionAttributes {
-	action_id: ushort;
-	unique_id: ushort;
-	teleport_position: Position;
 }
 
 table Town {

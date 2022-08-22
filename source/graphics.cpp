@@ -351,12 +351,12 @@ bool GraphicManager::loadOTFI(const FileName& filename, wxString& error, wxArray
 		}
 
 		OTMLNodePtr node = doc->get("DatSpr");
-		is_extended = node->valueAt<bool>("extended");
-		has_transparency = node->valueAt<bool>("transparency");
-		has_frame_durations = node->valueAt<bool>("frame-durations");
-		has_frame_groups = node->valueAt<bool>("frame-groups");
-		std::string metadata = node->valueAt<std::string>("metadata-file", std::string(ASSETS_NAME) + ".dat");
-		std::string sprites = node->valueAt<std::string>("sprites-file", std::string(ASSETS_NAME) + ".spr");
+		is_extended = node->valueAt("extended");
+		has_transparency = node->valueAt("transparency");
+		has_frame_durations = node->valueAt("frame-durations");
+		has_frame_groups = node->valueAt("frame-groups");
+		std::string metadata = node->valueAt("metadata-file", std::string(ASSETS_NAME) + ".dat");
+		std::string sprites = node->valueAt("sprites-file", std::string(ASSETS_NAME) + ".spr");
 		metadata_file = wxFileName(filename.GetFullPath(), wxString(metadata));
 		sprites_file = wxFileName(filename.GetFullPath(), wxString(sprites));
 		otfi_found = true;

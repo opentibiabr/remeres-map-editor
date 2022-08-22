@@ -1,215 +1,106 @@
-set(rme_H
-${CMAKE_CURRENT_LIST_DIR}/about_window.h
-${CMAKE_CURRENT_LIST_DIR}/action.h
-${CMAKE_CURRENT_LIST_DIR}/application.h
-${CMAKE_CURRENT_LIST_DIR}/artprovider.h
-${CMAKE_CURRENT_LIST_DIR}/basemap.h
-${CMAKE_CURRENT_LIST_DIR}/browse_tile_window.h
-${CMAKE_CURRENT_LIST_DIR}/brush.h
-${CMAKE_CURRENT_LIST_DIR}/brush_enums.h
-${CMAKE_CURRENT_LIST_DIR}/carpet_brush.h
-${CMAKE_CURRENT_LIST_DIR}/client_version.h
-${CMAKE_CURRENT_LIST_DIR}/common.h
-${CMAKE_CURRENT_LIST_DIR}/common_windows.h
-${CMAKE_CURRENT_LIST_DIR}/complexitem.h
-${CMAKE_CURRENT_LIST_DIR}/con_vector.h
-${CMAKE_CURRENT_LIST_DIR}/container_properties_window.h
-${CMAKE_CURRENT_LIST_DIR}/copybuffer.h
-${CMAKE_CURRENT_LIST_DIR}/monster.h
-${CMAKE_CURRENT_LIST_DIR}/monster_brush.h
-${CMAKE_CURRENT_LIST_DIR}/monsters.h
-${CMAKE_CURRENT_LIST_DIR}/dat_debug_view.h
-${CMAKE_CURRENT_LIST_DIR}/dcbutton.h
-${CMAKE_CURRENT_LIST_DIR}/definitions.h
-${CMAKE_CURRENT_LIST_DIR}/doodad_brush.h
-${CMAKE_CURRENT_LIST_DIR}/editor.h
-${CMAKE_CURRENT_LIST_DIR}/editor_tabs.h
-${CMAKE_CURRENT_LIST_DIR}/enums.h
-${CMAKE_CURRENT_LIST_DIR}/extension.h
-${CMAKE_CURRENT_LIST_DIR}/extension_window.h
-${CMAKE_CURRENT_LIST_DIR}/find_item_window.h
-${CMAKE_CURRENT_LIST_DIR}/filehandle.h
-${CMAKE_CURRENT_LIST_DIR}/graphics.h
-${CMAKE_CURRENT_LIST_DIR}/ground_brush.h
-${CMAKE_CURRENT_LIST_DIR}/gui.h
-${CMAKE_CURRENT_LIST_DIR}/gui_ids.h
-${CMAKE_CURRENT_LIST_DIR}/house.h
-${CMAKE_CURRENT_LIST_DIR}/house_brush.h
-${CMAKE_CURRENT_LIST_DIR}/house_exit_brush.h
-${CMAKE_CURRENT_LIST_DIR}/iomap.h
-${CMAKE_CURRENT_LIST_DIR}/iomap_otbm.h
-#${CMAKE_CURRENT_LIST_DIR}/iomap_otmm.h
-${CMAKE_CURRENT_LIST_DIR}/item.h
-${CMAKE_CURRENT_LIST_DIR}/item_attributes.h
-${CMAKE_CURRENT_LIST_DIR}/items.h
-${CMAKE_CURRENT_LIST_DIR}/json.h
-${CMAKE_CURRENT_LIST_DIR}/live_action.h
-${CMAKE_CURRENT_LIST_DIR}/live_client.h
-${CMAKE_CURRENT_LIST_DIR}/live_packets.h
-${CMAKE_CURRENT_LIST_DIR}/live_peer.h
-${CMAKE_CURRENT_LIST_DIR}/live_server.h
-${CMAKE_CURRENT_LIST_DIR}/live_socket.h
-${CMAKE_CURRENT_LIST_DIR}/live_tab.h
-${CMAKE_CURRENT_LIST_DIR}/main.h
-${CMAKE_CURRENT_LIST_DIR}/main_menubar.h
-${CMAKE_CURRENT_LIST_DIR}/main_toolbar.h
-${CMAKE_CURRENT_LIST_DIR}/map.h
-${CMAKE_CURRENT_LIST_DIR}/map_allocator.h
-${CMAKE_CURRENT_LIST_DIR}/map_display.h
-${CMAKE_CURRENT_LIST_DIR}/map_drawer.h
-${CMAKE_CURRENT_LIST_DIR}/map_region.h
-${CMAKE_CURRENT_LIST_DIR}/map_tab.h
-${CMAKE_CURRENT_LIST_DIR}/map_window.h
-${CMAKE_CURRENT_LIST_DIR}/materials.h
-${CMAKE_CURRENT_LIST_DIR}/minimap_window.h
-${CMAKE_CURRENT_LIST_DIR}/mt_rand.h
-${CMAKE_CURRENT_LIST_DIR}/net_connection.h
-${CMAKE_CURRENT_LIST_DIR}/npc.h
-${CMAKE_CURRENT_LIST_DIR}/npc_brush.h
-${CMAKE_CURRENT_LIST_DIR}/npcs.h
-${CMAKE_CURRENT_LIST_DIR}/numbertextctrl.h
-${CMAKE_CURRENT_LIST_DIR}/old_properties_window.h
-${CMAKE_CURRENT_LIST_DIR}/otml.h
-${CMAKE_CURRENT_LIST_DIR}/outfit.h
-${CMAKE_CURRENT_LIST_DIR}/palette_brushlist.h
-${CMAKE_CURRENT_LIST_DIR}/palette_common.h
-${CMAKE_CURRENT_LIST_DIR}/palette_monster.h
-${CMAKE_CURRENT_LIST_DIR}/palette_house.h
-${CMAKE_CURRENT_LIST_DIR}/palette_npc.h
-${CMAKE_CURRENT_LIST_DIR}/palette_waypoints.h
-${CMAKE_CURRENT_LIST_DIR}/palette_window.h
-${CMAKE_CURRENT_LIST_DIR}/pngfiles.h
-${CMAKE_CURRENT_LIST_DIR}/position.h
-${CMAKE_CURRENT_LIST_DIR}/positionctrl.h
-${CMAKE_CURRENT_LIST_DIR}/preferences.h
-${CMAKE_CURRENT_LIST_DIR}/process_com.h
-${CMAKE_CURRENT_LIST_DIR}/properties_window.h
-${CMAKE_CURRENT_LIST_DIR}/raw_brush.h
-${CMAKE_CURRENT_LIST_DIR}/replace_items_window.h
-${CMAKE_CURRENT_LIST_DIR}/result_window.h
-${CMAKE_CURRENT_LIST_DIR}/rme_forward_declarations.h
-${CMAKE_CURRENT_LIST_DIR}/rme_net.h
-${CMAKE_CURRENT_LIST_DIR}/selection.h
-${CMAKE_CURRENT_LIST_DIR}/settings.h
-${CMAKE_CURRENT_LIST_DIR}/spawn_monster.h
-${CMAKE_CURRENT_LIST_DIR}/spawn_monster_brush.h
-${CMAKE_CURRENT_LIST_DIR}/spawn_npc.h
-${CMAKE_CURRENT_LIST_DIR}/spawn_npc_brush.h
-${CMAKE_CURRENT_LIST_DIR}/sprites.h
-${CMAKE_CURRENT_LIST_DIR}/table_brush.h
-${CMAKE_CURRENT_LIST_DIR}/templates.h
-${CMAKE_CURRENT_LIST_DIR}/threads.h
-${CMAKE_CURRENT_LIST_DIR}/tile.h
-${CMAKE_CURRENT_LIST_DIR}/tileset.h
-${CMAKE_CURRENT_LIST_DIR}/town.h
-${CMAKE_CURRENT_LIST_DIR}/updater.h
-${CMAKE_CURRENT_LIST_DIR}/wall_brush.h
-${CMAKE_CURRENT_LIST_DIR}/waypoint_brush.h
-${CMAKE_CURRENT_LIST_DIR}/waypoints.h
-${CMAKE_CURRENT_LIST_DIR}/welcome_dialog.h
-)
-
-set(rme_SRC
-${CMAKE_CURRENT_LIST_DIR}/about_window.cpp
-${CMAKE_CURRENT_LIST_DIR}/action.cpp
-${CMAKE_CURRENT_LIST_DIR}/application.cpp
-${CMAKE_CURRENT_LIST_DIR}/artprovider.cpp
-${CMAKE_CURRENT_LIST_DIR}/basemap.cpp
-${CMAKE_CURRENT_LIST_DIR}/brush.cpp
-${CMAKE_CURRENT_LIST_DIR}/brush_tables.cpp
-${CMAKE_CURRENT_LIST_DIR}/browse_tile_window.cpp
-${CMAKE_CURRENT_LIST_DIR}/positionctrl.cpp
-${CMAKE_CURRENT_LIST_DIR}/carpet_brush.cpp
-${CMAKE_CURRENT_LIST_DIR}/client_version.cpp
-${CMAKE_CURRENT_LIST_DIR}/common.cpp
-${CMAKE_CURRENT_LIST_DIR}/common_windows.cpp
-${CMAKE_CURRENT_LIST_DIR}/complexitem.cpp
-${CMAKE_CURRENT_LIST_DIR}/container_properties_window.cpp
-${CMAKE_CURRENT_LIST_DIR}/copybuffer.cpp
-${CMAKE_CURRENT_LIST_DIR}/monster_brush.cpp
-${CMAKE_CURRENT_LIST_DIR}/monster.cpp
-${CMAKE_CURRENT_LIST_DIR}/monsters.cpp
-${CMAKE_CURRENT_LIST_DIR}/dat_debug_view.cpp
-${CMAKE_CURRENT_LIST_DIR}/dcbutton.cpp
-${CMAKE_CURRENT_LIST_DIR}/doodad_brush.cpp
-${CMAKE_CURRENT_LIST_DIR}/editor.cpp
-${CMAKE_CURRENT_LIST_DIR}/editor_tabs.cpp
-${CMAKE_CURRENT_LIST_DIR}/eraser_brush.cpp
-${CMAKE_CURRENT_LIST_DIR}/extension.cpp
-${CMAKE_CURRENT_LIST_DIR}/extension_window.cpp
-${CMAKE_CURRENT_LIST_DIR}/find_item_window.cpp
-${CMAKE_CURRENT_LIST_DIR}/filehandle.cpp
-${CMAKE_CURRENT_LIST_DIR}/graphics.cpp
-${CMAKE_CURRENT_LIST_DIR}/ground_brush.cpp
-${CMAKE_CURRENT_LIST_DIR}/gui.cpp
-${CMAKE_CURRENT_LIST_DIR}/house_brush.cpp
-${CMAKE_CURRENT_LIST_DIR}/house.cpp
-${CMAKE_CURRENT_LIST_DIR}/house_exit_brush.cpp
-${CMAKE_CURRENT_LIST_DIR}/iomap.cpp
-${CMAKE_CURRENT_LIST_DIR}/iomap_otbm.cpp
-#${CMAKE_CURRENT_LIST_DIR}/iomap_otmm.cpp
-${CMAKE_CURRENT_LIST_DIR}/item_attributes.cpp
-${CMAKE_CURRENT_LIST_DIR}/item.cpp
-${CMAKE_CURRENT_LIST_DIR}/items.cpp
-${CMAKE_CURRENT_LIST_DIR}/live_action.cpp
-${CMAKE_CURRENT_LIST_DIR}/live_client.cpp
-${CMAKE_CURRENT_LIST_DIR}/live_peer.cpp
-${CMAKE_CURRENT_LIST_DIR}/live_server.cpp
-${CMAKE_CURRENT_LIST_DIR}/live_socket.cpp
-${CMAKE_CURRENT_LIST_DIR}/live_tab.cpp
-${CMAKE_CURRENT_LIST_DIR}/main_menubar.cpp
-${CMAKE_CURRENT_LIST_DIR}/main_toolbar.cpp
-${CMAKE_CURRENT_LIST_DIR}/map.cpp
-${CMAKE_CURRENT_LIST_DIR}/map_display.cpp
-${CMAKE_CURRENT_LIST_DIR}/map_drawer.cpp
-${CMAKE_CURRENT_LIST_DIR}/map_region.cpp
-${CMAKE_CURRENT_LIST_DIR}/map_tab.cpp
-${CMAKE_CURRENT_LIST_DIR}/map_window.cpp
-${CMAKE_CURRENT_LIST_DIR}/materials.cpp
-${CMAKE_CURRENT_LIST_DIR}/minimap_window.cpp
-${CMAKE_CURRENT_LIST_DIR}/mkpch.cpp
-${CMAKE_CURRENT_LIST_DIR}/mt_rand.cpp
-${CMAKE_CURRENT_LIST_DIR}/net_connection.cpp
-${CMAKE_CURRENT_LIST_DIR}/npc.cpp
-${CMAKE_CURRENT_LIST_DIR}/npc_brush.cpp
-${CMAKE_CURRENT_LIST_DIR}/npcs.cpp
-${CMAKE_CURRENT_LIST_DIR}/numbertextctrl.cpp
-${CMAKE_CURRENT_LIST_DIR}/old_properties_window.cpp
-${CMAKE_CURRENT_LIST_DIR}/palette_brushlist.cpp
-${CMAKE_CURRENT_LIST_DIR}/palette_common.cpp
-${CMAKE_CURRENT_LIST_DIR}/palette_monster.cpp
-${CMAKE_CURRENT_LIST_DIR}/palette_house.cpp
-${CMAKE_CURRENT_LIST_DIR}/palette_npc.cpp
-${CMAKE_CURRENT_LIST_DIR}/palette_waypoints.cpp
-${CMAKE_CURRENT_LIST_DIR}/palette_window.cpp
-${CMAKE_CURRENT_LIST_DIR}/pngfiles.cpp
-${CMAKE_CURRENT_LIST_DIR}/preferences.cpp
-${CMAKE_CURRENT_LIST_DIR}/process_com.cpp
-${CMAKE_CURRENT_LIST_DIR}/properties_window.cpp
-${CMAKE_CURRENT_LIST_DIR}/raw_brush.cpp
-${CMAKE_CURRENT_LIST_DIR}/replace_items_window.cpp
-${CMAKE_CURRENT_LIST_DIR}/result_window.cpp
-${CMAKE_CURRENT_LIST_DIR}/rme_net.cpp
-${CMAKE_CURRENT_LIST_DIR}/selection.cpp
-${CMAKE_CURRENT_LIST_DIR}/settings.cpp
-${CMAKE_CURRENT_LIST_DIR}/spawn_monster_brush.cpp
-${CMAKE_CURRENT_LIST_DIR}/spawn_monster.cpp
-${CMAKE_CURRENT_LIST_DIR}/spawn_npc.cpp
-${CMAKE_CURRENT_LIST_DIR}/spawn_npc_brush.cpp
-${CMAKE_CURRENT_LIST_DIR}/table_brush.cpp
-${CMAKE_CURRENT_LIST_DIR}/templatemap76-74.cpp
-${CMAKE_CURRENT_LIST_DIR}/templatemap81.cpp
-${CMAKE_CURRENT_LIST_DIR}/templatemap854.cpp
-${CMAKE_CURRENT_LIST_DIR}/templatemapclassic.cpp
-${CMAKE_CURRENT_LIST_DIR}/tile.cpp
-${CMAKE_CURRENT_LIST_DIR}/tileset.cpp
-${CMAKE_CURRENT_LIST_DIR}/town.cpp
-${CMAKE_CURRENT_LIST_DIR}/updater.cpp
-${CMAKE_CURRENT_LIST_DIR}/wall_brush.cpp
-${CMAKE_CURRENT_LIST_DIR}/waypoint_brush.cpp
-${CMAKE_CURRENT_LIST_DIR}/waypoints.cpp
-${CMAKE_CURRENT_LIST_DIR}/welcome_dialog.cpp
-${CMAKE_CURRENT_LIST_DIR}/json/json_spirit_reader.cpp
-${CMAKE_CURRENT_LIST_DIR}/json/json_spirit_value.cpp
-${CMAKE_CURRENT_LIST_DIR}/json/json_spirit_writer.cpp
+target_sources(${PROJECT_NAME}
+PRIVATE
+	source/json/json_spirit_reader.cpp
+	source/json/json_spirit_value.cpp
+	source/json/json_spirit_writer.cpp
+	source/about_window.cpp
+	source/action.cpp
+	source/application.cpp
+	source/artprovider.cpp
+	source/basemap.cpp
+	source/brush.cpp
+	source/brush_tables.cpp
+	source/browse_tile_window.cpp
+	source/positionctrl.cpp
+	source/carpet_brush.cpp
+	source/client_version.cpp
+	source/common.cpp
+	source/common_windows.cpp
+	source/complexitem.cpp
+	source/container_properties_window.cpp
+	source/copybuffer.cpp
+	source/monster_brush.cpp
+	source/monster.cpp
+	source/monsters.cpp
+	source/dat_debug_view.cpp
+	source/dcbutton.cpp
+	source/doodad_brush.cpp
+	source/editor.cpp
+	source/editor_tabs.cpp
+	source/eraser_brush.cpp
+	source/extension.cpp
+	source/extension_window.cpp
+	source/find_item_window.cpp
+	source/filehandle.cpp
+	source/graphics.cpp
+	source/ground_brush.cpp
+	source/gui.cpp
+	source/house_brush.cpp
+	source/house.cpp
+	source/house_exit_brush.cpp
+	source/iomap.cpp
+	source/iomap_otbm.cpp
+	source/item_attributes.cpp
+	source/item.cpp
+	source/items.cpp
+	source/kmap_writer.cpp
+	source/live_action.cpp
+	source/live_client.cpp
+	source/live_peer.cpp
+	source/live_server.cpp
+	source/live_socket.cpp
+	source/live_tab.cpp
+	source/main_menubar.cpp
+	source/main_toolbar.cpp
+	source/map.cpp
+	source/map_display.cpp
+	source/map_drawer.cpp
+	source/map_region.cpp
+	source/map_tab.cpp
+	source/map_window.cpp
+	source/materials.cpp
+	source/minimap_window.cpp
+	source/mkpch.cpp
+	source/mt_rand.cpp
+	source/net_connection.cpp
+	source/npc.cpp
+	source/npc_brush.cpp
+	source/npcs.cpp
+	source/numbertextctrl.cpp
+	source/old_properties_window.cpp
+	source/otml.cpp
+	source/palette_brushlist.cpp
+	source/palette_common.cpp
+	source/palette_monster.cpp
+	source/palette_house.cpp
+	source/palette_npc.cpp
+	source/palette_waypoints.cpp
+	source/palette_window.cpp
+	source/pngfiles.cpp
+	source/preferences.cpp
+	source/process_com.cpp
+	source/properties_window.cpp
+	source/raw_brush.cpp
+	source/replace_items_window.cpp
+	source/result_window.cpp
+	source/rme_net.cpp
+	source/selection.cpp
+	source/settings.cpp
+	source/spawn_monster_brush.cpp
+	source/spawn_monster.cpp
+	source/spawn_npc.cpp
+	source/spawn_npc_brush.cpp
+	source/table_brush.cpp
+	source/templatemap76-74.cpp
+	source/templatemap81.cpp
+	source/templatemap854.cpp
+	source/templatemapclassic.cpp
+	source/tile.cpp
+	source/tileset.cpp
+	source/town.cpp
+	source/updater.cpp
+	source/wall_brush.cpp
+	source/waypoint_brush.cpp
+	source/waypoints.cpp
+	source/welcome_dialog.cpp
 )

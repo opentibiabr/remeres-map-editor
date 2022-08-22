@@ -80,7 +80,7 @@ FBVectorOffset<FBOffset<Kmap::Area>> KmapWriter::buildAreas(Map &map)
 			continue;
 		}
 
-		const Position &pos = tile->getPosition();
+		Position pos = tile->getPosition();
 
 		if (isNewArea(pos, areaPos))
 		{
@@ -94,6 +94,10 @@ FBVectorOffset<FBOffset<Kmap::Area>> KmapWriter::buildAreas(Map &map)
 			areaPos->y = pos.y;
 			areaPos->z = pos.z;
 			tilesOffset.clear();
+		}
+
+		if (areaPos == nullptr) {
+			areaPos = &pos;
 		}
 
 		auto offset = buildTile(*tile);
