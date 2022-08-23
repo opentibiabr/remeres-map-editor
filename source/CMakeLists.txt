@@ -3,6 +3,7 @@ PRIVATE
 	source/json/json_spirit_reader.cpp
 	source/json/json_spirit_value.cpp
 	source/json/json_spirit_writer.cpp
+	source/Kmap/kmap_writer.cpp
 	source/about_window.cpp
 	source/action.cpp
 	source/application.cpp
@@ -43,7 +44,7 @@ PRIVATE
 	source/item_attributes.cpp
 	source/item.cpp
 	source/items.cpp
-	source/kmap_writer.cpp
+	source/save_kmap.cpp
 	source/live_action.cpp
 	source/live_client.cpp
 	source/live_peer.cpp

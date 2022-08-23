@@ -37,7 +37,7 @@
 #include "town.h"
 
 #include "iomap_otbm.h"
-#include "kmap_writer.hpp"
+#include "save_kmap.hpp"
 
 typedef uint8_t attribute_t;
 typedef uint32_t flags_t;
@@ -1460,8 +1460,8 @@ bool IOMapOTBM::saveMap(Map& map, const FileName& identifier)
 	if(!saveMap(map, f))
 		return false;
 
-	KmapWriter kmapwriter;
-	kmapwriter.build(map);
+	SaveKMap saveKmap;
+	saveKmap.build(map);
 
 	g_gui.SetLoadDone(99, "Saving monster spawns...");
 	saveSpawns(map, identifier);
