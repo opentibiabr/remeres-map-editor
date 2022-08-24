@@ -12,6 +12,7 @@
     "asio",
     "flatbuffers",
     "zlib",
-    "opengl"
+    "opengl",
+    "gtest"
   ]
 }

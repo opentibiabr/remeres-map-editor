@@ -21,7 +21,8 @@
 
 #include <fstream>
 #include <utility>
-#include "kmap/kmap_writer.hpp"
+#include "kmaplib/kmap_writer.hpp"
+
 #include "map.h"
 
 using Detail = Kmap::DTO::ItemDetail;
@@ -43,7 +44,7 @@ private:
 private:
 	FBBuffer generated;
 
-	void buildItem(std::vector<Item*> &items);
+	void buildItem(Item &item);
 
 	Detail buildItemDetail(Item *item);
 

@@ -27,10 +27,11 @@ void SaveKMap::build(Map & map)
 		buildAreas(map);
 		buildTowns(map);
 		buildWaypoints(map);
+
 		generated = writer.finish();
 		save(map.getPath() + ".kmap");
-	} catch (const std::error_code& e) {
-		std::cout << e.message();
+	} catch (const Kmap::CannotWriteKmap& e) {
+		std::cout << e.what();
 	}
 }
 
@@ -57,7 +58,7 @@ void SaveKMap::setHeader(const Map& map)
 	);
 }
 
-void SaveKMap::buildAreas(Map & map)
+void SaveKMap::buildAreas(Map& map)
 {
 	int x = -1, y = -1, z = -1;
 	MapIterator mapIterator = map.begin();
@@ -83,54 +84,45 @@ void SaveKMap::buildAreas(Map & map)
 			z = pos.z;
 		}
 
-		writer.addTile(
-			!hasGround(*tile) ?
-			Kmap::DTO::Tile(
-				tile->getX() &0xFF,
-				tile->getY() &0xFF,
-				tile->getMapFlags(),
-				tile->getHouseID()
-			) :
-			Kmap::DTO::Tile(
-				tile->getX() &0xFF,
-				tile->getY() &0xFF,
-				tile->getMapFlags(),
-				tile->getHouseID(),
-				tile->ground->getID(),
-				buildItemDetail(tile->ground),
-				buildItemAttribute(tile->ground)
-			)
-		);
+		for (Item *item : tile->items) {
+			buildItem(*item);
+		}
 
-		buildItem(tile->items);
+		writer.addTile(
+			!hasGround(*tile)
+				? Kmap::DTO::Tile(
+					tile->getX() & 0xFF,
+					tile->getY() & 0xFF,
+					tile->getMapFlags(),
+					tile->getHouseID()
+				) : Kmap::DTO::Tile(
+					tile->getX() & 0xFF,
+					tile->getY() & 0xFF,
+					tile->getMapFlags(),
+					tile->getHouseID(),
+					tile->ground->getID(),
+					buildItemDetail(tile->ground),
+					buildItemAttribute(tile->ground)
+				)
+		);
 
 		++mapIterator;
 	}
 
-	if (x != -1) writer.addArea(Kmap::DTO::Position(x &0xFF00, y &0xFF00, z));
+	if (x != -1) writer.addArea(Kmap::DTO::Position(x & 0xFF00, y & 0xFF00, z));
 }
 
-void SaveKMap::buildItem(std::vector<Item*> &items)
+void SaveKMap::buildItem(Item &item)
 {
-	if (items.empty())
-	{
-		return;
-	}
+	if (item.isMetaItem()) return;
 
-	for (Item *item: items)
-	{
-		if (item == nullptr || item->isMetaItem()) {
-			continue;
-		}
+	buildContainerItems(dynamic_cast<Container*>(&item));
 
-		buildContainerItems(dynamic_cast<Container*>(item));
-
-		writer.addItem(
-			item->getID(),
-			buildItemDetail(item),
-			buildItemAttribute(item)
-		);
-	}
+	writer.addItem(
+		item.getID(),
+		buildItemDetail(&item),
+		buildItemAttribute(&item)
+	);
 }
 
 Detail SaveKMap::buildItemDetail(Item *item) {
@@ -143,7 +135,7 @@ Detail SaveKMap::buildItemDetail(Item *item) {
 	return Detail(
 		depot ? depot->getDepotID() : 0,
 		door ? door->getDoorID() : 0,
-		teleport ? buildPosition(teleport->getDestination()) : Kmap::DTO::Position(0, 0, 0)
+		buildPosition(teleport ? teleport->getDestination() : Position(0, 0, 0))
 	);
 }
 
@@ -165,10 +157,7 @@ void SaveKMap::buildContainerItems(Container* container)
 
 	for (auto item : container->getVector()) {
 		if (item->isMetaItem()) return;
-		writer.addContainerItem(
-			item->getID(),
-			buildItemAttribute(item)
-		);
+		writer.addContainerItem(item->getID(), buildItemAttribute(item));
 	}
 }
 
@@ -207,7 +196,7 @@ bool SaveKMap::hasGround(Tile &tile) {
 
 	for(Item* item : tile.items)
 	{
-		if (ground->hasBorderEquivalent()) return true;
+		if (!ground->hasBorderEquivalent()) return true;
 		if (item->getGroundEquivalent() == ground->getID())
 		{
 			return false;
