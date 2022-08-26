@@ -25,7 +25,7 @@
 
 class SmallPosition;
 
-class Position {
+class Position : public Kmap::IPosition {
 public:
 	// We use int since it's the native machine type and can be several times faster than
 	// the other integer types in most cases, also, the position may be negative in some
@@ -34,6 +34,18 @@ public:
 
 	Position() : x(0), y(0), z(0) {}
 	Position(int _x, int _y, int _z) : x(_x), y(_y), z(_z) {}
+
+	[[nodiscard]] uint16_t X() const override {
+		return x;
+	}
+
+	[[nodiscard]] uint16_t Y() const override {
+		return y;
+	}
+
+	[[nodiscard]] uint8_t Z() const override {
+		return z;
+	}
 
 	bool operator<(const Position& p) const {
 		if(z < p.z)

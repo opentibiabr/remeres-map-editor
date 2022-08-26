@@ -25,43 +25,26 @@
 
 #include "map.h"
 
-using Detail = Kmap::DTO::ItemDetail;
-using Attribute = Kmap::DTO::ItemAttribute;
-
 class SaveKMap {
 public:
 	void build(Map & map);
 
+	void save(std::string mapPath);
+
 private:
 	Kmap::Writer writer;
 
-	void save(std::string mapPath);
-
-	void setHeader(const Map& map);
+	FBBuffer generated;
 
 	void buildAreas(Map &map);
 
-private:
-	FBBuffer generated;
-
 	void buildItem(Item &item);
-
-	Detail buildItemDetail(Item *item);
-
-	Attribute buildItemAttribute(Item *item);
 
 	void buildContainerItems(Container* container);
 
 	void buildTowns(Map& map);
 
-	void buildWaypoints(Map& map);
-
 	bool isFinishedArea(const Position &pos, int areaX, int areaY, int areaZ);
-
-	bool hasGround(Tile &tile);
-
-	std::string getFullFileName(std::string fileName);
-	Kmap::DTO::Position buildPosition(Position pos);
 };
 
 #endif

@@ -1462,6 +1462,7 @@ bool IOMapOTBM::saveMap(Map& map, const FileName& identifier)
 
 	SaveKMap saveKmap;
 	saveKmap.build(map);
+	saveKmap.save(map.getPath());
 
 	g_gui.SetLoadDone(99, "Saving monster spawns...");
 	saveSpawns(map, identifier);

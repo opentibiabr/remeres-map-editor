@@ -20,7 +20,7 @@
 
 #include "position.h"
 
-class Town
+class Town : public Kmap::ITown {
 {
 public:
 	Town(uint32_t _id) : id(_id), name("") {}
@@ -35,6 +35,19 @@ public:
 
 	uint32_t getID() const {return id;}
 	void setID(uint32_t _id) {id = _id;}
+
+	[[nodiscard]] uint8_t Id() const override {
+		return getID();
+	}
+
+	[[nodiscard]] const std::string& Name() const override {
+		return getName();
+	}
+
+	[[nodiscard]] const IPosition& TemplePosition() const override {
+		return getTemplePosition();
+	}
+
 private:
 	uint32_t id;
 	std::string name;
