@@ -21,7 +21,7 @@
 
 #include <fstream>
 #include <utility>
-#include "kmaplib/kmap_writer.hpp"
+#include <KMapLib/include/kmap_writer.hpp>
 
 #include "map.h"
 

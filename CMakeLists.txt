@@ -32,18 +32,12 @@ find_package(wxWidgets COMPONENTS html aui gl adv core net base REQUIRED)
 find_package(GLUT REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(LibArchive REQUIRED)
+find_package(KMapLib REQUIRED)
 if (MSVC)
 	find_package(Threads REQUIRED)
 endif()
 if(APPLE)
 	set(CMAKE_PREFIX_PATH /usr/local/opt/libarchive)
-endif()
-
-set(MY_URL "https://github.com/opentibiabr/libs/raw/main/KnaryLib.lib")
-set(MY_DOWNLOAD_PATH "source/libs/KnaryLib.lib")
-
-if (NOT EXISTS "${MY_DOWNLOAD_PATH}")
-	file(DOWNLOAD "${MY_URL}" "${MY_DOWNLOAD_PATH}")
 endif()
 
 include(GNUInstallDirs)
@@ -79,6 +73,7 @@ target_link_libraries(${PROJECT_NAME}
 	GLUT::GLUT
 	ZLIB::ZLIB
 	LibArchive::LibArchive
+	Knary::KMapLib
 )
 
 set_target_properties(${PROJECT_NAME}

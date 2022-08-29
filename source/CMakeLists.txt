@@ -3,7 +3,6 @@ PRIVATE
 	source/json/json_spirit_reader.cpp
 	source/json/json_spirit_value.cpp
 	source/json/json_spirit_writer.cpp
-	source/Kmap/kmap_writer.cpp
 	source/about_window.cpp
 	source/action.cpp
 	source/application.cpp

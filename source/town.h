@@ -18,9 +18,11 @@
 #ifndef RME_TOWN_H_
 #define RME_TOWN_H_
 
+#include <KMapLib/include/models/town.hpp>
+
 #include "position.h"
 
-class Town : public Kmap::ITown {
+class Town : public Kmap::ITown
 {
 public:
 	Town(uint32_t _id) : id(_id), name("") {}
@@ -44,7 +46,7 @@ public:
 		return getName();
 	}
 
-	[[nodiscard]] const IPosition& TemplePosition() const override {
+	[[nodiscard]] const Position& TemplePosition() const override {
 		return getTemplePosition();
 	}
 

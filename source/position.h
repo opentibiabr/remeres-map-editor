@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <vector>
 #include <list>
+#include <KMapLib/include/models/position.hpp>
 
 class SmallPosition;
 
