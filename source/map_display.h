@@ -116,6 +116,7 @@ public:
 
 	Position GetCursorPosition() const;
 
+	void ShowPositionIndicator(const Position& position);
 	void TakeScreenshot(wxFileName path, wxString format);
 
 protected:
