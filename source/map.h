@@ -105,6 +105,8 @@ public:
 
 	void flagAsNamed() {unnamed = false;}
 
+	bool hasUniqueId(uint16_t uid);
+
 protected:
 	// Loads a map
 	bool open(const std::string identifier);
@@ -136,6 +138,10 @@ public:
 	SpawnsNpc spawnsNpc;
 
 protected:
+	void updateUniqueIds(Tile* old_tile, Tile* new_tile) override;
+	void addUniqueId(uint16_t uid);
+	void removeUniqueId(uint16_t uid);
+
 	bool has_changed; // If the map has changed
 	bool unnamed; // If the map has yet to receive a name
 
@@ -145,6 +151,9 @@ protected:
 
 public:
 	Waypoints waypoints;
+
+private:
+	std::vector<uint16_t> uniqueIds;
 };
 
 template <typename ForeachType>
