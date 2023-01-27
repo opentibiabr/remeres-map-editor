@@ -150,6 +150,8 @@ namespace Config {
 		MINIMAP_UPDATE_DELAY,
 		MINIMAP_VIEW_BOX,
 		MINIMAP_EXPORT_DIR,
+		ACTIONS_HISTORY_VISIBLE,
+		ACTIONS_HISTORY_LAYOUT,
 		WINDOW_HEIGHT,
 		WINDOW_WIDTH,
 		WINDOW_MAXIMIZED,
@@ -199,6 +201,7 @@ public:
 	void setDefaults() {IO(DEFAULT);}
 	void load();
 	void save(bool endoftheworld = false);
+
 public:
 	enum DynamicType {
 		TYPE_NONE,

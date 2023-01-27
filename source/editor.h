@@ -72,6 +72,8 @@ public: // Functions
 	void QueryNode(int ndx, int ndy, bool underground);
 	void SendNodeRequests();
 
+	bool hasChanges() const;
+	void clearChanges();
 
 	// Map handling
 	void saveMap(FileName filename, bool showdialog); // "" means default filename
@@ -85,16 +87,25 @@ public: // Functions
 	bool exportMiniMap(FileName filename, int floor /*= GROUND_LAYER*/, bool displaydialog);
 	bool exportSelectionAsMiniMap(FileName directory, wxString fileName);
 
-	// Adds an action to the action queue (this allows the user to undo the action)
-	// Invalidates the action pointer
+	ActionQueue* getHistoryActions() const noexcept { return actionQueue; }
+	Action* createAction(ActionIdentifier type);
+	Action* createAction(BatchAction* parent);
+	BatchAction* createBatch(ActionIdentifier type);
 	void addBatch(BatchAction* action, int stacking_delay = 0);
 	void addAction(Action* action, int stacking_delay = 0);
+	bool canUndo() const;
+	bool canRedo() const;
+	void undo(int indexes = 1);
+	void redo(int indexes = 1);
+	void updateActions();
+	void resetActionsTimer();
+	void clearActions();
 
 	// Selection
 	bool hasSelection() const { return selection.size() != 0; }
 	// Some simple actions that work on the map (these will work through the undo queue)
 	// Moves the selected area by the offset
-	void moveSelection(Position offset);
+	void moveSelection(const Position& offset);
 	// Deletes all selected items
 	void destroySelection();
 	// Borderizes the selected region

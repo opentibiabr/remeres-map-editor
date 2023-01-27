@@ -121,6 +121,7 @@ namespace MenuBar
 		SHOW_PICKUPABLES,
 		SHOW_MOVEABLES,
 		WIN_MINIMAP,
+		WIN_ACTIONS_HISTORY,
 		NEW_PALETTE,
 		TAKE_SCREENSHOT,
 		LIVE_START,
@@ -269,6 +270,7 @@ public:
 
 	// Window Menu
 	void OnMinimapWindow(wxCommandEvent& event);
+	void OnActionsHistoryWindow(wxCommandEvent& event);
 	void OnNewPalette(wxCommandEvent& event);
 	void OnTakeScreenshot(wxCommandEvent& event);
 	void OnSelectTerrainPalette(wxCommandEvent& event);

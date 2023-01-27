@@ -20,6 +20,7 @@
 
 #include "position.h"
 #include "npc.h"
+#include "action.h"
 
 class Action;
 class Editor;
@@ -73,7 +74,7 @@ public:
 		SUBTHREAD = 2,
 	};
 
-	void start(SessionFlags flags = NONE);
+	void start(SessionFlags flags = NONE, ActionIdentifier identifier = ACTION_SELECT);
 	void commit();
 	void finish(SessionFlags flags = NONE);
 
@@ -81,8 +82,8 @@ public:
 	// This deletes the thread
 	void join(SelectionThread* thread);
 
-	size_t size() {return tiles.size();}
-	size_t size() const {return tiles.size();}
+	size_t size() const noexcept { return tiles.size(); }
+	bool empty() const noexcept { return tiles.empty(); }
 	void updateSelectionCount();
 	TileSet::iterator begin() {return tiles.begin();}
 	TileSet::iterator end() {return tiles.end();}

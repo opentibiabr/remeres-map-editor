@@ -133,8 +133,8 @@ void CopyBuffer::cut(Editor& editor, int floor)
 	int item_count = 0;
 	copyPos = Position(0xFFFF, 0xFFFF, floor);
 
-	BatchAction* batch = editor.actionQueue->createBatch(ACTION_CUT_TILES);
-	Action* action = editor.actionQueue->createAction(batch);
+	BatchAction* batch = editor.createBatch(ACTION_CUT_TILES);
+	Action* action = editor.createAction(batch);
 
 	PositionList tilestoborder;
 
@@ -206,7 +206,7 @@ void CopyBuffer::cut(Editor& editor, int floor)
 	tilestoborder.unique();
 
 	if(g_settings.getInteger(Config::USE_AUTOMAGIC)) {
-		action = editor.actionQueue->createAction(batch);
+		action = editor.createAction(batch);
 		for(PositionList::iterator it = tilestoborder.begin(); it != tilestoborder.end(); ++it) {
 			TileLocation* location = editor.map.createTileL(*it);
 			if(location->get()) {
@@ -229,6 +229,8 @@ void CopyBuffer::cut(Editor& editor, int floor)
 	}
 
 	editor.addBatch(batch);
+	editor.updateActions();
+
 	std::stringstream ss;
 	ss << "Cut out " << tile_count << " tile" << (tile_count > 1 ? "s" : "") <<  " (" << item_count << " item" << (item_count > 1? "s" : "") << ")";
 	g_gui.SetStatusText(wxstr(ss.str()));
@@ -240,8 +242,10 @@ void CopyBuffer::paste(Editor& editor, const Position& toPosition)
 		return;
 	}
 
-	BatchAction* batchAction = editor.actionQueue->createBatch(ACTION_PASTE_TILES);
-	Action* action = editor.actionQueue->createAction(batchAction);
+	Map& map = editor.getMap();
+
+	BatchAction* batchAction = editor.createBatch(ACTION_PASTE_TILES);
+	Action* action = editor.createAction(batchAction);
 	for(MapIterator it = tiles->begin(); it != tiles->end(); ++it) {
 		Tile* buffer_tile = (*it)->get();
 		Position pos = buffer_tile->getPosition() - copyPos + toPosition;
@@ -282,7 +286,7 @@ void CopyBuffer::paste(Editor& editor, const Position& toPosition)
 	batchAction->addAndCommitAction(action);
 
 	if(g_settings.getInteger(Config::USE_AUTOMAGIC) && g_settings.getInteger(Config::BORDERIZE_PASTE)) {
-		action = editor.actionQueue->createAction(batchAction);
+		action = editor.createAction(batchAction);
 		TileList borderize_tiles;
 		Map& map = editor.map;
 
@@ -328,6 +332,7 @@ void CopyBuffer::paste(Editor& editor, const Position& toPosition)
 	}
 
 	editor.addBatch(batchAction);
+	editor.updateActions();
 }
 
 bool CopyBuffer::canPaste() const
