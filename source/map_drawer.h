@@ -53,6 +53,7 @@ public:
 
 	bool isOnlyColors() const noexcept;
 	bool isTileIndicators() const noexcept;
+	bool isTooltips() const noexcept;
 
 	bool transparent_floors;
 	bool transparent_items;
