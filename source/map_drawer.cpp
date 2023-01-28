@@ -113,6 +113,23 @@ void DrawingOptions::SetIngame()
 	hide_items_when_zoomed = false;
 }
 
+bool DrawingOptions::isOnlyColors() const noexcept
+{
+	return show_as_minimap || show_only_colors;
+}
+
+bool DrawingOptions::isTileIndicators() const noexcept
+{
+	if(isOnlyColors())
+		return false;
+	return show_pickupables || show_moveables || show_houses || show_spawns;
+}
+
+bool DrawingOptions::isTooltips() const noexcept
+{
+	return show_tooltips && !isOnlyColors();
+}
+
 MapDrawer::MapDrawer(MapCanvas* canvas) : canvas(canvas), editor(canvas->editor)
 {
 	////
@@ -207,7 +224,7 @@ void MapDrawer::Draw()
 		DrawGrid();
 	if(options.show_ingame_box)
 		DrawIngameBox();
-	if(options.show_tooltips)
+	if(options.isTooltips())
 		DrawTooltips();
 }
 
@@ -232,6 +249,28 @@ inline int getFloorAdjustment(int floor)
 		return 0; // No adjustment
 	else
 		return TILE_SIZE * (GROUND_LAYER - floor);
+}
+
+void MapDrawer::DrawShade(int map_z)
+{
+	if(map_z == end_z && start_z != end_z) {
+		bool only_colors = options.isOnlyColors();
+		if(!only_colors)
+			glDisable(GL_TEXTURE_2D);
+
+		float x = screensize_x * zoom;
+		float y = screensize_y * zoom;
+		glColor4ub(0, 0, 0, 128);
+		glBegin(GL_QUADS);
+			glVertex2f(0, y);
+			glVertex2f(x, y);
+			glVertex2f(x,0);
+			glVertex2f(0,0);
+		glEnd();
+
+		if(!only_colors)
+			glEnable(GL_TEXTURE_2D);
+	}
 }
 
 void MapDrawer::DrawMap()
@@ -331,9 +370,6 @@ void MapDrawer::DrawMap()
 			DrawPositionIndicator(map_z);
 		}
 
-		if(only_colors)
-			glEnable(GL_TEXTURE_2D);
-
 		// Draws the doodad preview or the paste preview (or import preview)
 		if(g_gui.secondary_map != nullptr && !options.ingame) {
 			Position normalPos;
@@ -427,6 +463,96 @@ void MapDrawer::DrawMap()
 
 	if(!only_colors)
 		glEnable(GL_TEXTURE_2D);
+}
+
+void MapDrawer::DrawSecondaryMap(int map_z)
+{
+	if(options.ingame)
+		return;
+
+	BaseMap* secondary_map = g_gui.secondary_map;
+	if(!secondary_map) return;
+
+	Position normal_pos;
+	Position to_pos(mouse_map_x, mouse_map_y, floor);
+
+	if(canvas->isPasting()) {
+		normal_pos = editor.copybuffer.getPosition();
+	} else {
+		Brush* brush = g_gui.GetCurrentBrush();
+		if(brush && brush->isDoodad()) {
+			normal_pos = Position(0x8000, 0x8000, 0x8);
+		}
+	}
+
+	glEnable(GL_TEXTURE_2D);
+
+	for(int map_x = start_x; map_x <= end_x; map_x++) {
+		for(int map_y = start_y; map_y <= end_y; map_y++) {
+			Position final_pos(map_x, map_y, map_z);
+			Position pos = normal_pos + final_pos - to_pos;
+			if(pos.z < 0 || pos.z >= MAP_LAYERS) {
+				continue;
+			}
+
+			Tile* tile = secondary_map->getTile(pos);
+			if(!tile) continue;
+
+			int draw_x, draw_y;
+			getDrawPosition(final_pos, draw_x, draw_y);
+
+			// Draw ground
+			uint8_t r = 160, g = 160, b = 160;
+			if(tile->ground) {
+				if(options.show_blocking && tile->isBlocking()) {
+					g = g/3*2;
+					b = b/3*2;
+				}
+				if(options.show_houses && tile->isHouseTile()) {
+					if(tile->getHouseID() == current_house_id) {
+						r /= 2;
+					} else {
+						r /= 2;
+						g /= 2;
+					}
+				} else if(options.show_special_tiles && tile->isPZ()) {
+					r /= 2;
+					b /= 2;
+				}
+				if(options.show_special_tiles && tile->getMapFlags() & TILESTATE_PVPZONE) {
+					r = r/3*2;
+					b = r/3*2;
+				}
+				if(options.show_special_tiles && tile->getMapFlags() & TILESTATE_NOLOGOUT) {
+					b /= 2;
+				}
+				if(options.show_special_tiles && tile->getMapFlags() & TILESTATE_NOPVP) {
+					g /= 2;
+				}
+				BlitItem(draw_x, draw_y, tile, tile->ground, true, r, g, b, 160);
+			}
+
+			bool hidden = options.hide_items_when_zoomed && zoom > 10.f;
+
+			// Draw items
+			if(!hidden && !tile->items.empty()) {
+				for(const Item* item : tile->items) {
+					if(item->isBorder()) {
+						BlitItem(draw_x, draw_y, tile, item, true, 160, r, g, b);
+					} else {
+						BlitItem(draw_x, draw_y, tile, item, true, 160, 160, 160, 160);
+					}
+				}
+			}
+
+			// Draw creature
+			if(!hidden && options.show_creatures && tile->creature) {
+				BlitCreature(draw_x, draw_y, tile->creature);
+			}
+		}
+	}
+
+	glDisable(GL_TEXTURE_2D);
 }
 
 void MapDrawer::DrawIngameBox()
@@ -1445,8 +1571,11 @@ void MapDrawer::DrawTile(TileLocation* location)
 	if(options.show_only_modified && !tile->isModified())
 		return;
 
-	if(options.show_tooltips && location->getWaypointCount() > 0) {
-		Waypoint* waypoint = canvas->editor.map.waypoints.getWaypoint(location);
+	const Position& position = location->getPosition();
+	bool show_tooltips = options.isTooltips();
+
+	if(show_tooltips && location->getWaypointCount() > 0) {
+		Waypoint* waypoint = canvas->editor.getMap().waypoints.getWaypoint(position);
 		if(waypoint)
 			WriteTooltip(waypoint, tooltip);
 	}
@@ -1524,13 +1653,14 @@ void MapDrawer::DrawTile(TileLocation* location)
 		}
 
 		if(only_colors) {
-			if(as_minimap) {
+			glDisable(GL_TEXTURE_2D);
+			if(options.show_as_minimap) {
 				wxColor color = colorFromEightBit(tile->getMiniMapColor());
 				glBlitSquare(draw_x, draw_y, color);
-			}
-			else if(r != 255 || g != 255 || b != 255) {
+			} else if(r != 255 || g != 255 || b != 255) {
 				glBlitSquare(draw_x, draw_y, r, g, b, 128);
 			}
+			glEnable(GL_TEXTURE_2D);
 		} else {
 			if(options.show_preview && zoom <= 2.0)
 				tile->ground->animate();
@@ -1538,7 +1668,7 @@ void MapDrawer::DrawTile(TileLocation* location)
 			BlitItem(draw_x, draw_y, tile, tile->ground, false, r, g, b);
 		}
 
-		if(options.show_tooltips && position.z == floor)
+		if(show_tooltips && position.z == floor)
 			WriteTooltip(tile->ground, tooltip);
 	}
 
@@ -1547,9 +1677,6 @@ void MapDrawer::DrawTile(TileLocation* location)
 			for(ItemVector::iterator it = tile->items.begin(); it != tile->items.end(); it++) {
 				if(options.show_tooltips && position.z == floor)
 					WriteTooltip(*it, tooltip);
-
-				if(options.show_preview && zoom <= 2.0)
-					(*it)->animate();
 
 				if((*it)->isBorder()) {
 					BlitItem(draw_x, draw_y, tile, *it, false, r, g, b);
@@ -1566,7 +1693,11 @@ void MapDrawer::DrawTile(TileLocation* location)
 		}
 	}
 
-	if(options.show_tooltips) {
+	if(!hidden && options.show_creatures && tile->creature) {
+		BlitCreature(draw_x, draw_y, tile->creature);
+	}
+
+	if(show_tooltips) {
 		if(location->getWaypointCount() > 0)
 			MakeTooltip(draw_x, draw_y, tooltip.str(), 0, 255, 0);
 		else
@@ -1730,8 +1861,8 @@ void MapDrawer::DrawPositionIndicator(int z)
 	int offset = (TILE_SIZE - size) / 2;
 
 	glDisable(GL_TEXTURE_2D);
-		drawRect(x + offset + 2, y + offset + 2, size - 4, size - 4, *wxWHITE, 2);
-		drawRect(x + offset + 1, y + offset + 1, size - 2, size - 2, *wxBLACK, 2);
+	drawRect(x + offset + 2, y + offset + 2, size - 4, size - 4, *wxWHITE, 2);
+	drawRect(x + offset + 1, y + offset + 1, size - 2, size - 2, *wxBLACK, 2);
 	glEnable(GL_TEXTURE_2D);
 }
 
