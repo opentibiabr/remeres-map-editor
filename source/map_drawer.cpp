@@ -148,26 +148,26 @@ void MapDrawer::SetupVars()
 	dragging = canvas->dragging;
 	dragging_draw = canvas->dragging_draw;
 
-	zoom = (float)canvas->GetZoom();
-	tile_size = int(TILE_SIZE / zoom); // after zoom
+	zoom = static_cast<float>(canvas->GetZoom());
+	tile_size = int(rme::TileSize / zoom); // after zoom
 	floor = canvas->GetFloor();
 
 	if(options.show_all_floors) {
 		if(floor < 8)
-			start_z = GROUND_LAYER;
+			start_z = rme::MapGroundLayer;
 		else
-			start_z = std::min(MAP_MAX_LAYER, floor + 2);
+			start_z = std::min(rme::MapMaxLayer, floor + 2);
 	}
 	else
 		start_z = floor;
 
 	end_z = floor;
-	superend_z = (floor > GROUND_LAYER ? 8 : 0);
+	superend_z = (floor > rme::MapGroundLayer ? 8 : 0);
 
-	start_x = view_scroll_x / TILE_SIZE;
-	start_y = view_scroll_y / TILE_SIZE;
+	start_x = view_scroll_x / rme::TileSize;
+	start_y = view_scroll_y / rme::TileSize;
 
-	if(floor > GROUND_LAYER) {
+	if(floor > rme::MapGroundLayer) {
 		start_x -= 2;
 		start_y -= 2;
 	}
@@ -245,10 +245,10 @@ void MapDrawer::DrawBackground()
 
 inline int getFloorAdjustment(int floor)
 {
-	if(floor > GROUND_LAYER) // Underground
+	if(floor > rme::MapGroundLayer) // Underground
 		return 0; // No adjustment
 	else
-		return TILE_SIZE * (GROUND_LAYER - floor);
+		return rme::TileSize * (rme::MapGroundLayer - floor);
 }
 
 void MapDrawer::DrawShade(int map_z)
@@ -330,7 +330,7 @@ void MapDrawer::DrawMap()
 							continue;
 					}
 
-					if(!live_client || nd->isVisible(map_z > GROUND_LAYER)) {
+					if(!live_client || nd->isVisible(map_z > rme::MapGroundLayer)) {
 						for(int map_x = 0; map_x < 4; ++map_x) {
 							for(int map_y = 0; map_y < 4; ++map_y) {
 								DrawTile(nd->getTile(map_x, map_y, map_z));
@@ -348,19 +348,19 @@ void MapDrawer::DrawMap()
 							}
 						}
 					} else {
-						if(!nd->isRequested(map_z > GROUND_LAYER)) {
+						if(!nd->isRequested(map_z > rme::MapGroundLayer)) {
 							// Request the node
-							editor.QueryNode(nd_map_x, nd_map_y, map_z > GROUND_LAYER);
-							nd->setRequested(map_z > GROUND_LAYER, true);
+							editor.QueryNode(nd_map_x, nd_map_y, map_z > rme::MapGroundLayer);
+							nd->setRequested(map_z > rme::MapGroundLayer, true);
 						}
-						int cy = (nd_map_y) * TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
-						int cx = (nd_map_x) * TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
+						int cy = (nd_map_y) * rme::TileSize - view_scroll_y - getFloorAdjustment(floor);
+						int cx = (nd_map_x) * rme::TileSize - view_scroll_x - getFloorAdjustment(floor);
 
 						glColor4ub(255, 0, 255, 128);
 						glBegin(GL_QUADS);
-							glVertex2f(cx, cy + TILE_SIZE * 4);
-							glVertex2f(cx + TILE_SIZE * 4, cy + TILE_SIZE * 4);
-							glVertex2f(cx + TILE_SIZE * 4, cy);
+							glVertex2f(cx, cy + rme::TileSize * 4);
+							glVertex2f(cx + rme::TileSize * 4, cy + rme::TileSize * 4);
+							glVertex2f(cx + rme::TileSize * 4, cy);
 							glVertex2f(cx,     cy);
 						glEnd();
 					}
@@ -491,7 +491,7 @@ void MapDrawer::DrawSecondaryMap(int map_z)
 		for(int map_y = start_y; map_y <= end_y; map_y++) {
 			Position final_pos(map_x, map_y, map_z);
 			Position pos = normal_pos + final_pos - to_pos;
-			if(pos.z < 0 || pos.z >= MAP_LAYERS) {
+			if(pos.z < 0 || pos.z >= rme::MapLayers) {
 				continue;
 			}
 
@@ -563,13 +563,13 @@ void MapDrawer::DrawIngameBox()
 	int offset_y = 2;
 	int box_start_map_x = center_x;
 	int box_start_map_y = center_y + offset_y;
-	int box_end_map_x = center_x + CLIENT_MAP_WIDTH;
-	int box_end_map_y = center_y + CLIENT_MAP_HEIGHT + offset_y;
+	int box_end_map_x = center_x + rme::ClientMapWidth;
+	int box_end_map_y = center_y + rme::ClientMapHeight + offset_y;
 
-	int box_start_x = box_start_map_x * TILE_SIZE - view_scroll_x;
-	int box_start_y = box_start_map_y * TILE_SIZE - view_scroll_y;
-	int box_end_x = box_end_map_x * TILE_SIZE - view_scroll_x;
-	int box_end_y = box_end_map_y * TILE_SIZE - view_scroll_y;
+	int box_start_x = box_start_map_x * rme::TileSize - view_scroll_x;
+	int box_start_y = box_start_map_y * rme::TileSize - view_scroll_y;
+	int box_end_x = box_end_map_x * rme::TileSize - view_scroll_x;
+	int box_end_y = box_end_map_y * rme::TileSize - view_scroll_y;
 
 	if(box_start_map_x >= start_x) {
 		glColor4ub(0, 0, 0, 128);
@@ -621,10 +621,10 @@ void MapDrawer::DrawIngameBox()
 		glVertex2f(box_start_x, box_start_y);
 	glEnd();
 
-	box_start_x += TILE_SIZE;
-	box_start_y += TILE_SIZE;
-	box_end_x -= 2 * TILE_SIZE;
-	box_end_y -= 2 * TILE_SIZE;
+	box_start_x += rme::TileSize;
+	box_start_y += rme::TileSize;
+	box_end_x -= 2 * rme::TileSize;
+	box_end_y -= 2 * rme::TileSize;
 
 	// client visible tiles
 	glColor4ub(0, 255, 0, 128);
@@ -636,10 +636,10 @@ void MapDrawer::DrawIngameBox()
 		glVertex2f(box_start_x, box_start_y);
 	glEnd();
 
-	box_start_x += 7 * TILE_SIZE;
-	box_start_y += 5 * TILE_SIZE;
-	box_end_x = box_start_x + TILE_SIZE;
-	box_end_y = box_start_y + TILE_SIZE;
+	box_start_x += ((rme::ClientMapWidth/2)-2) * rme::TileSize;
+	box_start_y += ((rme::ClientMapHeight/2)-2) * rme::TileSize;
+	box_end_x = box_start_x + rme::TileSize;
+	box_end_y = box_start_y + rme::TileSize;
 
 	// client player position
 	glColor4ub(0, 255, 0, 128);
@@ -657,16 +657,16 @@ void MapDrawer::DrawGrid()
 	for(int y = start_y; y < end_y; ++y) {
 		glColor4ub(255, 255, 255, 128);
 		glBegin(GL_LINES);
-			glVertex2f(start_x * TILE_SIZE - view_scroll_x, y * TILE_SIZE - view_scroll_y);
-			glVertex2f(end_x * TILE_SIZE - view_scroll_x, y * TILE_SIZE - view_scroll_y);
+			glVertex2f(start_x * rme::TileSize - view_scroll_x, y * rme::TileSize - view_scroll_y);
+			glVertex2f(end_x * rme::TileSize - view_scroll_x, y * rme::TileSize - view_scroll_y);
 		glEnd();
 	}
 
 	for(int x = start_x; x < end_x; ++x) {
 		glColor4ub(255, 255, 255, 128);
 		glBegin(GL_LINES);
-			glVertex2f(x * TILE_SIZE - view_scroll_x, start_y * TILE_SIZE - view_scroll_y);
-			glVertex2f(x * TILE_SIZE - view_scroll_x, end_y * TILE_SIZE - view_scroll_y);
+			glVertex2f(x * rme::TileSize - view_scroll_x, start_y * rme::TileSize - view_scroll_y);
+			glVertex2f(x * rme::TileSize - view_scroll_x, end_y * rme::TileSize - view_scroll_y);
 		glEnd();
 	}
 }
@@ -686,9 +686,11 @@ void MapDrawer::DrawDraggingShadow()
 			move_y = canvas->drag_start_y - mouse_map_y;
 			move_z = canvas->drag_start_z - floor;
 
-			pos.x -= move_x;
-			pos.y -= move_y;
-			pos.z -= move_z;
+		const Position& position = tile->getPosition();
+		int pos_z = position.z - move_z;
+		if(pos_z < 0 || pos_z >= rme::MapLayers) {
+			continue;
+		}
 
 			if(pos.z < 0 || pos.z >= MAP_LAYERS) {
 				continue;
@@ -828,11 +830,11 @@ void MapDrawer::DrawLiveCursors()
 
 	LiveSocket& live = editor.GetLive();
 	for(LiveCursor& cursor : live.getCursorList()) {
-		if(cursor.pos.z <= GROUND_LAYER && floor > GROUND_LAYER) {
+		if(cursor.pos.z <= rme::MapGroundLayer && floor > rme::MapGroundLayer) {
 			continue;
 		}
 
-		if(cursor.pos.z > GROUND_LAYER && floor <= 8) {
+		if(cursor.pos.z > rme::MapGroundLayer && floor <= 8) {
 			continue;
 		}
 
@@ -846,20 +848,20 @@ void MapDrawer::DrawLiveCursors()
 		}
 
 		int offset;
-		if (cursor.pos.z <= GROUND_LAYER)
-			offset = (GROUND_LAYER - cursor.pos.z) * TILE_SIZE;
+		if(cursor.pos.z <= rme::MapGroundLayer)
+			offset = (rme::MapGroundLayer - cursor.pos.z) * rme::TileSize;
 		else
-			offset = TILE_SIZE * (floor - cursor.pos.z);
+			offset = rme::TileSize * (floor - cursor.pos.z);
 
-		float draw_x = ((cursor.pos.x * TILE_SIZE) - view_scroll_x) - offset;
-		float draw_y = ((cursor.pos.y * TILE_SIZE) - view_scroll_y) - offset;
+		float draw_x = ((cursor.pos.x * rme::TileSize) - view_scroll_x) - offset;
+		float draw_y = ((cursor.pos.y * rme::TileSize) - view_scroll_y) - offset;
 
 		glColor(cursor.color);
 		glBegin(GL_QUADS);
 			glVertex2f(draw_x, draw_y);
-			glVertex2f(draw_x + TILE_SIZE, draw_y);
-			glVertex2f(draw_x + TILE_SIZE, draw_y + TILE_SIZE);
-			glVertex2f(draw_x, draw_y + TILE_SIZE);
+			glVertex2f(draw_x + rme::TileSize, draw_y);
+			glVertex2f(draw_x + rme::TileSize, draw_y + rme::TileSize);
+			glVertex2f(draw_x, draw_y + rme::TileSize);
 		glEnd();
 	}
 }
@@ -898,10 +900,10 @@ void MapDrawer::DrawBrush()
 			int last_click_end_map_x   = std::max(canvas->last_click_map_x, mouse_map_x)+1;
 			int last_click_end_map_y   = std::max(canvas->last_click_map_y, mouse_map_y)+1;
 
-			int last_click_start_sx = last_click_start_map_x * TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
-			int last_click_start_sy = last_click_start_map_y * TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
-			int last_click_end_sx = last_click_end_map_x * TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
-			int last_click_end_sy = last_click_end_map_y * TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
+			int last_click_start_sx = last_click_start_map_x * rme::TileSize - view_scroll_x - adjustment;
+			int last_click_start_sy = last_click_start_map_y * rme::TileSize - view_scroll_y - adjustment;
+			int last_click_end_sx = last_click_end_map_x * rme::TileSize - view_scroll_x - adjustment;
+			int last_click_end_sy = last_click_end_map_y * rme::TileSize - view_scroll_y - adjustment;
 
 			int delta_x = last_click_end_sx - last_click_start_sx;
 			int delta_y = last_click_end_sy - last_click_start_sy;
@@ -909,29 +911,29 @@ void MapDrawer::DrawBrush()
 			glColor(brushColor);
 			glBegin(GL_QUADS);
 				{
-					glVertex2f(last_click_start_sx, last_click_start_sy + TILE_SIZE);
-					glVertex2f(last_click_end_sx, last_click_start_sy + TILE_SIZE);
+					glVertex2f(last_click_start_sx, last_click_start_sy + rme::TileSize);
+					glVertex2f(last_click_end_sx, last_click_start_sy + rme::TileSize);
 					glVertex2f(last_click_end_sx, last_click_start_sy);
 					glVertex2f(last_click_start_sx, last_click_start_sy);
 				}
 
-				if(delta_y > TILE_SIZE) {
-					glVertex2f(last_click_start_sx, last_click_end_sy - TILE_SIZE);
-					glVertex2f(last_click_start_sx + TILE_SIZE, last_click_end_sy - TILE_SIZE);
-					glVertex2f(last_click_start_sx + TILE_SIZE, last_click_start_sy + TILE_SIZE);
-					glVertex2f(last_click_start_sx, last_click_start_sy + TILE_SIZE);
+				if(delta_y > rme::TileSize) {
+					glVertex2f(last_click_start_sx, last_click_end_sy - rme::TileSize);
+					glVertex2f(last_click_start_sx + rme::TileSize, last_click_end_sy - rme::TileSize);
+					glVertex2f(last_click_start_sx + rme::TileSize, last_click_start_sy + rme::TileSize);
+					glVertex2f(last_click_start_sx, last_click_start_sy + rme::TileSize);
 				}
 
-				if(delta_x > TILE_SIZE && delta_y > TILE_SIZE) {
-					glVertex2f(last_click_end_sx - TILE_SIZE, last_click_start_sy + TILE_SIZE);
-					glVertex2f(last_click_end_sx, last_click_start_sy + TILE_SIZE);
-					glVertex2f(last_click_end_sx, last_click_end_sy - TILE_SIZE);
-					glVertex2f(last_click_end_sx - TILE_SIZE, last_click_end_sy - TILE_SIZE);
+				if(delta_x > rme::TileSize && delta_y > rme::TileSize) {
+					glVertex2f(last_click_end_sx - rme::TileSize, last_click_start_sy + rme::TileSize);
+					glVertex2f(last_click_end_sx, last_click_start_sy + rme::TileSize);
+					glVertex2f(last_click_end_sx, last_click_end_sy - rme::TileSize);
+					glVertex2f(last_click_end_sx - rme::TileSize, last_click_end_sy - rme::TileSize);
 				}
 
-				if (delta_y > TILE_SIZE) {
-					glVertex2f(last_click_start_sx, last_click_end_sy - TILE_SIZE);
-					glVertex2f(last_click_end_sx, last_click_end_sy - TILE_SIZE);
+				if(delta_y > rme::TileSize) {
+					glVertex2f(last_click_start_sx, last_click_end_sy - rme::TileSize);
+					glVertex2f(last_click_end_sx, last_click_end_sy - rme::TileSize);
 					glVertex2f(last_click_end_sx, last_click_end_sy);
 					glVertex2f(last_click_start_sx, last_click_end_sy);
 				}
@@ -965,9 +967,9 @@ void MapDrawer::DrawBrush()
 						raw_brush = brush->asRaw();
 
 					for(int y = start_y; y <= end_y; y++) {
-						int cy = y * TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
+						int cy = y * rme::TileSize - view_scroll_y - adjustment;
 						for(int x = start_x; x <= end_x; x++) {
-							int cx = x * TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
+							int cx = x * rme::TileSize - view_scroll_x - adjustment;
 							if(brush->isOptionalBorder())
 								glColorCheck(brush, Position(x, y, floor));
 							else
@@ -980,10 +982,10 @@ void MapDrawer::DrawBrush()
 					int last_click_end_map_x   = std::max(canvas->last_click_map_x, mouse_map_x)+1;
 					int last_click_end_map_y   = std::max(canvas->last_click_map_y, mouse_map_y)+1;
 
-					int last_click_start_sx = last_click_start_map_x * TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
-					int last_click_start_sy = last_click_start_map_y * TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
-					int last_click_end_sx = last_click_end_map_x * TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
-					int last_click_end_sy = last_click_end_map_y * TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
+					int last_click_start_sx = last_click_start_map_x * rme::TileSize - view_scroll_x - adjustment;
+					int last_click_start_sy = last_click_start_map_y * rme::TileSize - view_scroll_y - adjustment;
+					int last_click_end_sx = last_click_end_map_x * rme::TileSize - view_scroll_x - adjustment;
+					int last_click_end_sy = last_click_end_map_y * rme::TileSize - view_scroll_y - adjustment;
 
 					glColor(brushColor);
 					glBegin(GL_QUADS);
@@ -1027,10 +1029,10 @@ void MapDrawer::DrawBrush()
 					raw_brush = brush->asRaw();
 
 				for(int y = start_y-1; y <= end_y+1; y++) {
-					int cy = y * TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
+					int cy = y * rme::TileSize - view_scroll_y - adjustment;
 					float dy = center_y - y;
 					for(int x = start_x-1; x <= end_x+1; x++) {
-						int cx = x * TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
+						int cx = x * rme::TileSize - view_scroll_x - adjustment;
 
 						float dx = center_x - x;
 						//printf("%f;%f\n", dx, dy);
@@ -1041,9 +1043,9 @@ void MapDrawer::DrawBrush()
 							} else {
 								glColor(brushColor);
 								glBegin(GL_QUADS);
-									glVertex2f(cx, cy + TILE_SIZE);
-									glVertex2f(cx + TILE_SIZE, cy + TILE_SIZE);
-									glVertex2f(cx + TILE_SIZE, cy);
+									glVertex2f(cx, cy + rme::TileSize);
+									glVertex2f(cx + rme::TileSize, cy + rme::TileSize);
+									glVertex2f(cx + rme::TileSize, cy);
 									glVertex2f(cx,   cy);
 								glEnd();
 							}
@@ -1062,10 +1064,10 @@ void MapDrawer::DrawBrush()
 			int end_map_x   = mouse_map_x + g_gui.GetBrushSize() + 1;
 			int end_map_y   = mouse_map_y + g_gui.GetBrushSize() + 1;
 
-			int start_sx = start_map_x * TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
-			int start_sy = start_map_y * TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
-			int end_sx = end_map_x * TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
-			int end_sy = end_map_y * TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
+			int start_sx = start_map_x * rme::TileSize - view_scroll_x - adjustment;
+			int start_sy = start_map_y * rme::TileSize - view_scroll_y - adjustment;
+			int end_sx = end_map_x * rme::TileSize - view_scroll_x - adjustment;
+			int end_sy = end_map_y * rme::TileSize - view_scroll_y - adjustment;
 
 			int delta_x = end_sx - start_sx;
 			int delta_y = end_sy - start_sy;
@@ -1073,42 +1075,42 @@ void MapDrawer::DrawBrush()
 			glColor(brushColor);
 			glBegin(GL_QUADS);
 				{
-					glVertex2f(start_sx, start_sy + TILE_SIZE);
-					glVertex2f(end_sx, start_sy + TILE_SIZE);
+					glVertex2f(start_sx, start_sy + rme::TileSize);
+					glVertex2f(end_sx, start_sy + rme::TileSize);
 					glVertex2f(end_sx, start_sy);
 					glVertex2f(start_sx, start_sy);
 				}
 
-				if(delta_y > TILE_SIZE) {
-					glVertex2f(start_sx, end_sy - TILE_SIZE);
-					glVertex2f(start_sx + TILE_SIZE, end_sy - TILE_SIZE);
-					glVertex2f(start_sx + TILE_SIZE, start_sy + TILE_SIZE);
-					glVertex2f(start_sx, start_sy + TILE_SIZE);
+				if(delta_y > rme::TileSize) {
+					glVertex2f(start_sx, end_sy - rme::TileSize);
+					glVertex2f(start_sx + rme::TileSize, end_sy - rme::TileSize);
+					glVertex2f(start_sx + rme::TileSize, start_sy + rme::TileSize);
+					glVertex2f(start_sx, start_sy + rme::TileSize);
 				}
 
-				if(delta_x > TILE_SIZE && delta_y > TILE_SIZE) {
-					glVertex2f(end_sx - TILE_SIZE, start_sy + TILE_SIZE);
-					glVertex2f(end_sx, start_sy + TILE_SIZE);
-					glVertex2f(end_sx, end_sy - TILE_SIZE);
-					glVertex2f(end_sx - TILE_SIZE, end_sy - TILE_SIZE);
+				if(delta_x > rme::TileSize && delta_y > rme::TileSize) {
+					glVertex2f(end_sx - rme::TileSize, start_sy + rme::TileSize);
+					glVertex2f(end_sx, start_sy + rme::TileSize);
+					glVertex2f(end_sx, end_sy - rme::TileSize);
+					glVertex2f(end_sx - rme::TileSize, end_sy - rme::TileSize);
 				}
 
-				if(delta_y > TILE_SIZE) {
-					glVertex2f(start_sx, end_sy - TILE_SIZE);
-					glVertex2f(end_sx, end_sy - TILE_SIZE);
+				if(delta_y > rme::TileSize) {
+					glVertex2f(start_sx, end_sy - rme::TileSize);
+					glVertex2f(end_sx, end_sy - rme::TileSize);
 					glVertex2f(end_sx, end_sy);
 					glVertex2f(start_sx, end_sy);
 				}
 			glEnd();
 		} else if(brush->isDoor()) {
-			int cx = (mouse_map_x) * TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
-			int cy = (mouse_map_y) * TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
+			int cx = (mouse_map_x) * rme::TileSize - view_scroll_x - adjustment;
+			int cy = (mouse_map_y) * rme::TileSize - view_scroll_y - adjustment;
 
 			glColorCheck(brush, Position(mouse_map_x, mouse_map_y, floor));
 			glBegin(GL_QUADS);
-				glVertex2f(cx, cy + TILE_SIZE);
-				glVertex2f(cx + TILE_SIZE, cy + TILE_SIZE);
-				glVertex2f(cx + TILE_SIZE, cy);
+				glVertex2f(cx, cy + rme::TileSize);
+				glVertex2f(cx + rme::TileSize, cy + rme::TileSize);
+				glVertex2f(cx + rme::TileSize, cy);
 				glVertex2f(cx, cy);
 			glEnd();
 		} else if(brush->isMonster()) {
@@ -1139,9 +1141,9 @@ void MapDrawer::DrawBrush()
 			}
 
 			for(int y = -g_gui.GetBrushSize()-1; y <= g_gui.GetBrushSize()+1; y++) {
-				int cy = (mouse_map_y + y) * TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
+				int cy = (mouse_map_y + y) * rme::TileSize - view_scroll_y - adjustment;
 				for(int x = -g_gui.GetBrushSize()-1; x <= g_gui.GetBrushSize()+1; x++) {
-					int cx = (mouse_map_x + x) * TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
+					int cx = (mouse_map_x + x) * rme::TileSize - view_scroll_x - adjustment;
 					if(g_gui.GetBrushShape() == BRUSHSHAPE_SQUARE) {
 						if(x >= -g_gui.GetBrushSize() && x <= g_gui.GetBrushSize() && y >= -g_gui.GetBrushSize() && y <= g_gui.GetBrushSize()) {
 							if(brush->isRaw()) {
@@ -1158,9 +1160,9 @@ void MapDrawer::DrawBrush()
 										glColor(brushColor);
 
 									glBegin(GL_QUADS);
-										glVertex2f(cx, cy + TILE_SIZE);
-										glVertex2f(cx + TILE_SIZE, cy + TILE_SIZE);
-										glVertex2f(cx + TILE_SIZE, cy);
+										glVertex2f(cx, cy + rme::TileSize);
+										glVertex2f(cx + rme::TileSize, cy + rme::TileSize);
+										glVertex2f(cx + rme::TileSize, cy);
 										glVertex2f(cx, cy);
 									glEnd();
 								}
@@ -1183,9 +1185,9 @@ void MapDrawer::DrawBrush()
 										glColor(brushColor);
 
 									glBegin(GL_QUADS);
-										glVertex2f(cx, cy + TILE_SIZE);
-										glVertex2f(cx + TILE_SIZE, cy + TILE_SIZE);
-										glVertex2f(cx + TILE_SIZE, cy);
+										glVertex2f(cx, cy + rme::TileSize);
+										glVertex2f(cx + rme::TileSize, cy + rme::TileSize);
+										glVertex2f(cx + rme::TileSize, cy);
 										glVertex2f(cx, cy);
 									glEnd();
 								}
@@ -1304,7 +1306,7 @@ void MapDrawer::BlitItem(int& draw_x, int& draw_y, const Tile* tile, const Item*
 					pattern_z,
 					frame
 				);
-				glBlitTexture(screenx - cx * TILE_SIZE, screeny - cy * TILE_SIZE, texnum, red, green, blue, alpha);
+				glBlitTexture(screenx - cx * rme::TileSize, screeny - cy * rme::TileSize, texnum, red, green, blue, alpha);
 			}
 		}
 	}
@@ -1409,7 +1411,7 @@ void MapDrawer::BlitItem(int& draw_x, int& draw_y, const Position& pos, const It
 					pattern_z,
 					frame
 				);
-				glBlitTexture(screenx - cx * TILE_SIZE, screeny - cy * TILE_SIZE, texnum, red, green, blue, alpha);
+				glBlitTexture(screenx - cx * rme::TileSize, screeny - cy * rme::TileSize, texnum, red, green, blue, alpha);
 			}
 		}
 	}
@@ -1425,13 +1427,19 @@ void MapDrawer::BlitSpriteType(int screenx, int screeny, uint32_t spriteid, int 
 	screenx -= spr->getDrawOffset().first;
 	screeny -= spr->getDrawOffset().second;
 
-	int tme = 0; //GetTime() % itype->FPA;
-	for(int cx = 0; cx != spr->width; ++cx) {
-		for(int cy = 0; cy != spr->height; ++cy) {
-			for(int cf = 0; cf != spr->layers; ++cf) {
-				int texnum = spr->getHardwareID(cx,cy,cf,-1,0,0,0,tme);
-				//printf("CF: %d\tTexturenum: %d\n", cf, texnum);
-				glBlitTexture(screenx - cx * TILE_SIZE, screeny - cy * TILE_SIZE, texnum, red, green, blue, alpha);
+	GameSprite* sprite = type.sprite;
+	if(!sprite)
+		return;
+
+	screenx -= sprite->getDrawOffset().x;
+	screeny -= sprite->getDrawOffset().y;
+
+	int frame = 0;
+	for(int cx = 0; cx != sprite->width; ++cx) {
+		for(int cy = 0; cy != sprite->height; ++cy) {
+			for(int cf = 0; cf != sprite->layers; ++cf) {
+				int texnum = sprite->getHardwareID(cx,cy,cf,-1,0,0,0, frame);
+				glBlitTexture(screenx - cx * rme::TileSize, screeny - cy * rme::TileSize, texnum, red, green, blue, alpha);
 			}
 		}
 	}
@@ -1443,13 +1451,15 @@ void MapDrawer::BlitSpriteType(int screenx, int screeny, GameSprite* spr, int re
 	screenx -= spr->getDrawOffset().first;
 	screeny -= spr->getDrawOffset().second;
 
-	int tme = 0; //GetTime() % itype->FPA;
-	for(int cx = 0; cx != spr->width; ++cx) {
-		for(int cy = 0; cy != spr->height; ++cy) {
-			for(int cf = 0; cf != spr->layers; ++cf) {
-				int texnum = spr->getHardwareID(cx,cy,cf,-1,0,0,0,tme);
-				//printf("CF: %d\tTexturenum: %d\n", cf, texnum);
-				glBlitTexture(screenx - cx * TILE_SIZE, screeny - cy * TILE_SIZE, texnum, red, green, blue, alpha);
+	screenx -= sprite->getDrawOffset().x;
+	screeny -= sprite->getDrawOffset().y;
+
+	int frame = 0;
+	for(int cx = 0; cx != sprite->width; ++cx) {
+		for(int cy = 0; cy != sprite->height; ++cy) {
+			for(int cf = 0; cf != sprite->layers; ++cf) {
+				int texnum = sprite->getHardwareID(cx,cy,cf,-1,0,0,0, frame);
+				glBlitTexture(screenx - cx * rme::TileSize, screeny - cy * rme::TileSize, texnum, red, green, blue, alpha);
 			}
 		}
 	}
@@ -1478,7 +1488,7 @@ void MapDrawer::BlitCreature(int screenx, int screeny, const Outfit& outfit, Dir
 				for (int cx = 0; cx != mountSpr->width; ++cx) {
 					for (int cy = 0; cy != mountSpr->height; ++cy) {
 						int texnum = mountSpr->getHardwareID(cx, cy, 0, 0, (int)dir, 0, 0, 0);
-						glBlitTexture(screenx - cx * TILE_SIZE, screeny - cy * TILE_SIZE, texnum, red, green, blue, alpha);
+						glBlitTexture(screenx - cx * rme::TileSize, screeny - cy * rme::TileSize, texnum, red, green, blue, alpha);
 					}
 				}
 				pattern_z = std::min<int>(1, spr->pattern_z - 1);
@@ -1494,10 +1504,10 @@ void MapDrawer::BlitCreature(int screenx, int screeny, const Outfit& outfit, Dir
 			if (pattern_y > 0 && !(outfit.lookAddon & (1 << (pattern_y - 1))))
 				continue;
 
-			for (int cx = 0; cx != spr->width; ++cx) {
-				for (int cy = 0; cy != spr->height; ++cy) {
-					int texnum = spr->getHardwareID(cx, cy, (int)dir, pattern_y, pattern_z, outfit, tme);
-					glBlitTexture(screenx - cx * TILE_SIZE, screeny - cy * TILE_SIZE, texnum, red, green, blue, alpha);
+			for(int cx = 0; cx != sprite->width; ++cx) {
+				for(int cy = 0; cy != sprite->height; ++cy) {
+					int texnum = sprite->getHardwareID(cx, cy, (int)dir, pattern_y, pattern_z, outfit, frame);
+					glBlitTexture(screenx - cx * rme::TileSize, screeny - cy * rme::TileSize, texnum, red, green, blue, alpha);
 				}
 			}
 		}
@@ -1708,8 +1718,8 @@ void MapDrawer::DrawTile(TileLocation* location)
 
 void MapDrawer::DrawBrushIndicator(int x, int y, Brush* brush, uint8_t r, uint8_t g, uint8_t b)
 {
-	x += (TILE_SIZE / 2);
-	y += (TILE_SIZE / 2);
+	x += (rme::TileSize / 2);
+	y += (rme::TileSize / 2);
 
 	// 7----0----1
 	// |         |
@@ -1733,8 +1743,8 @@ void MapDrawer::DrawBrushIndicator(int x, int y, Brush* brush, uint8_t r, uint8_
 	glColor4ub(0x00, 0x00, 0x00, 0x50);
 	glVertex2i(x, y);
 	for(int i = 0; i <= 30; i++) {
-		float angle = i * 2.0f * PI / 30;
-		glVertex2f(cos(angle) * (TILE_SIZE / 2) + x, sin(angle) * (TILE_SIZE / 2) + y);
+		float angle = i * 2.0f * rme::PI / 30;
+		glVertex2f(cos(angle) * (rme::TileSize / 2) + x, sin(angle) * (rme::TileSize / 2) + y);
 	}
 	glEnd();
 
@@ -1857,8 +1867,8 @@ void MapDrawer::DrawPositionIndicator(int z)
 	int x, y;
 	getDrawPosition(pos_indicator, x, y);
 
-	int size = static_cast<int>(TILE_SIZE * (0.3f + std::abs(500 - time % 1000) / 1000.f));
-	int offset = (TILE_SIZE - size) / 2;
+	int size = static_cast<int>(rme::TileSize * (0.3f + std::abs(500 - time % 1000) / 1000.f));
+	int offset = (rme::TileSize - size) / 2;
 
 	glDisable(GL_TEXTURE_2D);
 	drawRect(x + offset + 2, y + offset + 2, size - 4, size - 4, *wxWHITE, 2);
@@ -1898,8 +1908,8 @@ void MapDrawer::DrawTooltips()
 		width = (width + 8.0f) * scale;
 		height = (height + 4.0f) * scale;
 
-		float x = tooltip->x + (TILE_SIZE / 2.0f);
-		float y = tooltip->y + ((TILE_SIZE / 2.0f) * scale);
+		float x = tooltip->x + (rme::TileSize / 2.0f);
+		float y = tooltip->y + ((rme::TileSize / 2.0f) * scale);
 		float center = width / 2.0f;
 		float space = (7.0f * scale);
 		float startx = x - center;
@@ -2019,15 +2029,15 @@ void MapDrawer::glBlitTexture(int x, int y, int textureId, int red, int green, i
 	glBegin(GL_QUADS);
 
 	if(adjustZoom) {
-		float size = TILE_SIZE;
-		if (zoom < 1.0f) {
+		float size = rme::TileSize;
+		if(zoom < 1.0f) {
 			float offset = 10 / (10 * zoom);
-			size = std::max<float>(16, TILE_SIZE * zoom);
+			size = std::max<float>(16, rme::TileSize * zoom);
 			x += offset;
 			y += offset;
 		} else if (zoom > 1.f) {
 			float offset = (10 * zoom);
-			size = TILE_SIZE + offset;
+			size = rme::TileSize + offset;
 			x -= offset;
 			y -= offset;
 		}
@@ -2037,9 +2047,9 @@ void MapDrawer::glBlitTexture(int x, int y, int textureId, int red, int green, i
 		glTexCoord2f(0.f, 1.f); glVertex2f(x, y + size);
 	} else {
 		glTexCoord2f(0.f, 0.f); glVertex2f(x, y);
-		glTexCoord2f(1.f, 0.f); glVertex2f(x + TILE_SIZE, y);
-		glTexCoord2f(1.f, 1.f); glVertex2f(x + TILE_SIZE, y + TILE_SIZE);
-		glTexCoord2f(0.f, 1.f); glVertex2f(x, y + TILE_SIZE);
+		glTexCoord2f(1.f, 0.f); glVertex2f(x + rme::TileSize, y);
+		glTexCoord2f(1.f, 1.f); glVertex2f(x + rme::TileSize, y + rme::TileSize);
+		glTexCoord2f(0.f, 1.f); glVertex2f(x, y + rme::TileSize);
 	}
 
 	glEnd();
@@ -2049,10 +2059,10 @@ void MapDrawer::glBlitSquare(int sx, int sy, int red, int green, int blue, int a
 {
 	glColor4ub(uint8_t(red), uint8_t(green), uint8_t(blue), uint8_t(alpha));
 	glBegin(GL_QUADS);
-		glVertex2f(sx, sy);
-		glVertex2f(sx + TILE_SIZE, sy);
-		glVertex2f(sx + TILE_SIZE, sy + TILE_SIZE);
-		glVertex2f(sx, sy + TILE_SIZE);
+		glVertex2f(x, y);
+		glVertex2f(x + rme::TileSize, y);
+		glVertex2f(x + rme::TileSize, y + rme::TileSize);
+		glVertex2f(x, y + rme::TileSize);
 	glEnd();
 }
 
@@ -2061,9 +2071,9 @@ void MapDrawer::glBlitSquare(int x, int y, const wxColor& color)
 	glColor4ub(color.Red(), color.Green(), color.Blue(), color.Alpha());
 	glBegin(GL_QUADS);
 		glVertex2f(x, y);
-		glVertex2f(x + TILE_SIZE, y);
-		glVertex2f(x + TILE_SIZE, y + TILE_SIZE);
-		glVertex2f(x, y + TILE_SIZE);
+		glVertex2f(x + rme::TileSize, y);
+		glVertex2f(x + rme::TileSize, y + rme::TileSize);
+		glVertex2f(x, y + rme::TileSize);
 	glEnd();
 }
 
@@ -2144,11 +2154,11 @@ void MapDrawer::drawRect(int x, int y, int w, int h, const wxColor& color, int w
 void MapDrawer::getDrawPosition(const Position& position, int& x, int& y)
 {
 	int offset;
-	if (position.z <= GROUND_LAYER)
-		offset = (GROUND_LAYER - position.z) * TILE_SIZE;
+	if(position.z <= rme::MapGroundLayer)
+		offset = (rme::MapGroundLayer - position.z) * rme::TileSize;
 	else
-		offset = TILE_SIZE * (floor - position.z);
+		offset = rme::TileSize * (floor - position.z);
 
-	x = ((position.x * TILE_SIZE) - view_scroll_x) - offset;
-	y = ((position.y * TILE_SIZE) - view_scroll_y) - offset;
+	x = ((position.x * rme::TileSize) - view_scroll_x) - offset;
+	y = ((position.y * rme::TileSize) - view_scroll_y) - offset;
 }

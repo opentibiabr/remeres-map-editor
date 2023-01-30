@@ -88,7 +88,13 @@ public:
 		return ! (*this == p);
 	}
 
-	bool isValid() const;
+	bool isValid() const noexcept {
+		if(x == 0 && y == 0 && z == 0)
+			return false;
+		return (z >= rme::MapMinLayer && z <= rme::MapMaxLayer)
+			&& (x >= 0 && x <= rme::MapMaxWidth)
+			&& (y >= 0 && y <= rme::MapMaxHeight);
+	}
 };
 
 inline std::ostream& operator<<(std::ostream& os, const Position& pos) {
