@@ -46,7 +46,13 @@ class GraphicManager;
 class FileReadHandle;
 class Animator;
 
-class Sprite {
+struct SpriteLight {
+	uint8_t intensity = 0;
+	uint8_t color = 0;
+};
+
+class Sprite
+{
 public:
 	Sprite() {}
 
@@ -87,6 +93,9 @@ public:
 	uint16_t getDrawHeight() const noexcept { return draw_height; }
 	const wxPoint& getDrawOffset() const noexcept { return draw_offset; }
 	uint8_t getMiniMapColor() const noexcept { return minimap_color; }
+
+	bool hasLight() const noexcept { return has_light; }
+	const SpriteLight& getLight() const noexcept { return light; }
 
 	static GameSprite* createFromBitmap(const wxArtID& bitmapId);
 
@@ -192,6 +201,9 @@ public:
 	wxPoint draw_offset;
 
 	uint16_t minimap_color;
+
+	bool has_light = false;
+	SpriteLight light;
 
 	std::vector<NormalImage*> spriteList;
 	std::list<TemplateImage*> instanced_templates; // Templates that use this sprite

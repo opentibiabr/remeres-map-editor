@@ -68,6 +68,7 @@ target_sources(${PROJECT_NAME}
 	house_brush.cpp
 	house.cpp
 	house_exit_brush.cpp
+	light_drawer.cpp
 	iomap.cpp
 	iomap_otbm.cpp
 	item_attributes.cpp
