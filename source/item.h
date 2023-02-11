@@ -72,6 +72,16 @@ enum SplashType
 
 IMPLEMENT_INCREMENT_OP(SplashType)
 
+class Creature;
+class Border;
+class Tile;
+class Container;
+class Depot;
+class Teleport;
+class Door;
+
+struct SpriteLight;
+
 class Item : public ItemAttributes
 {
 public:
@@ -177,6 +187,9 @@ public:
 	uint8_t getMiniMapColor() const;
 	int getHeight() const;
 	std::pair<int,int> getDrawOffset() const;
+
+	bool hasLight() const;
+	SpriteLight getLight() const;
 
 	// Item types
 	bool hasProperty(enum ITEMPROPERTY prop) const;
