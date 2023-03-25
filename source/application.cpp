@@ -660,7 +660,8 @@ void MainFrame::PrepareDC(wxDC& dc)
 	dc.SetMapMode( wxMM_TEXT );
 }
 
-// This is necessary for cmake to understand that it needs to set the executable
+#ifdef _MSC_VER
+// This is necessary for cmake with visual studio link the executable
 int main(int argc, char** argv)
 {
 	wxEntryStart(argc, argv); // Start the wxWidgets library
@@ -670,3 +671,4 @@ int main(int argc, char** argv)
 	wxEntryCleanup(); // Clear the wxWidgets library
 	return 0;
 }
+#endif

@@ -102,7 +102,9 @@ _Ret_bytecap_(_Size) inline void* __CRTDECL operator new[](size_t _Size, const c
 
 // The complete STL ?, well, almost ;)
 #include <stdlib.h>
-#include <crtdbg.h>
+#ifdef _WIN32
+    #include <crtdbg.h>
+#endif
 #include <math.h>
 #include <list>
 #include <vector>
