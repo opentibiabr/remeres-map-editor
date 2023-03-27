@@ -26,8 +26,11 @@ jobs:
               sccache
 
     steps:
-      - name: Setup MSBuild.exe
-        uses: microsoft/setup-msbuild@v1.1
+      - name: Setup MSVC
+        uses: microsoft/setup-msvc@v1.8.2
+        with:
+          msvc-version: '17.5'
+          architecture: ${{ matrix.buildtype }}
 
       - name: Checkout repository
         uses: actions/checkout@v2
