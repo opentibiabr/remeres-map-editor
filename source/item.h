@@ -178,6 +178,8 @@ public:
 	uint8_t getMiniMapColor() const;
 	wxPoint getDrawOffset() const;
 
+	uint16_t getGroundSpeed() const;
+
 	bool hasLight() const;
 	SpriteLight getLight() const;
 

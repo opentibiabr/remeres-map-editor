@@ -71,6 +71,7 @@ target_sources(${PROJECT_NAME}
 	light_drawer.cpp
 	iomap.cpp
 	iomap_otbm.cpp
+	iominimap.cpp
 	item_attributes.cpp
 	item.cpp
 	items.cpp

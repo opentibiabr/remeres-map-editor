@@ -576,13 +576,18 @@ bool GraphicManager::loadSpriteMetadataFlags(FileReadHandle& file, GameSprite* s
 			case DatFlagChargeable:
 				break;
 
-			case DatFlagGround:
 			case DatFlagWritable:
 			case DatFlagWritableOnce:
 			case DatFlagCloth:
 			case DatFlagLensHelp:
 			case DatFlagUsable:
 				file.skip(2);
+				break;
+
+			case DatFlagGround:
+				uint16_t speed;
+				file.getU16(speed);
+                sType->ground_speed = speed;
 				break;
 
 			case DatFlagLight: {
@@ -702,7 +707,7 @@ bool GraphicManager::loadSpriteData(const FileName& datafile, wxString& error, w
 					wxString ss;
 					ss << "items.spr: Duplicate GameSprite id " << id;
 					warnings.push_back(ss);
-					fh.seekRelative(size);
+					fh.skip(size);
 				} else {
 					spr->id = id;
 					spr->size = size;
@@ -714,7 +719,7 @@ bool GraphicManager::loadSpriteData(const FileName& datafile, wxString& error, w
 				}
 			}
 		} else {
-			fh.seekRelative(size);
+			fh.skip(size);
 		}
 	}
 #undef safe_get
@@ -830,6 +835,7 @@ GameSprite::GameSprite() :
 	frames(0),
 	numsprites(0),
 	animator(nullptr),
+	ground_speed(0),
 	draw_height(0),
 	minimap_color(0)
 {

@@ -197,6 +197,7 @@ public:
 
 	Animator* animator;
 
+	uint16_t ground_speed;
 	uint16_t draw_height;
 	wxPoint draw_offset;
 
