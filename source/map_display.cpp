@@ -789,18 +789,8 @@ void MapCanvas::OnMouseActionClick(wxMouseEvent& event)
 						drag_start_x = mouse_map_x;
 						drag_start_y = mouse_map_y;
 						drag_start_z = floor;
-					} else {
-						Item* item = tile->getTopItem();
-						if(item) {
-							editor.selection.add(tile, item);
-							dragging = true;
-							drag_start_x = mouse_map_x;
-							drag_start_y = mouse_map_y;
-							drag_start_z = floor;
-						}
-					}
 					// Show npc spawns
-					if(tile->spawnNpc && g_settings.getInteger(Config::SHOW_SPAWNS_NPC)) {
+					} else if(tile->spawnNpc && g_settings.getInteger(Config::SHOW_SPAWNS_NPC)) {
 						editor.selection.add(tile, tile->spawnNpc);
 						dragging = true;
 						drag_start_x = mouse_map_x;
@@ -1119,7 +1109,7 @@ void MapCanvas::OnMouseActionRelease(wxMouseEvent& event)
 					// We know it's a square, just split it into several areas
 					int width = end_x - start_x;
 					if(width < threadcount) {
-						threadcount = min(1, width);
+						threadcount = std::min(1, width);
 					}
 					// Let's divide!
 					int remainder = width;
@@ -1213,7 +1203,7 @@ void MapCanvas::OnMouseActionRelease(wxMouseEvent& event)
 				int map_x = start_map_x + (end_map_x - start_map_x)/2;
 				int map_y = start_map_y + (end_map_y - start_map_y)/2;
 
-				int width = min(g_settings.getInteger(Config::MAX_SPAWN_MONSTER_RADIUS), ((end_map_x - start_map_x)/2 + (end_map_y - start_map_y)/2)/2);
+				int width = std::min(g_settings.getInteger(Config::MAX_SPAWN_MONSTER_RADIUS), ((end_map_x - start_map_x)/2 + (end_map_y - start_map_y)/2)/2);
 				int old = g_gui.GetBrushSize();
 				g_gui.SetBrushSize(width);
 				editor.draw(Position(map_x, map_y, floor), event.AltDown());
@@ -1227,7 +1217,7 @@ void MapCanvas::OnMouseActionRelease(wxMouseEvent& event)
 				int map_x = start_map_x + (end_map_x - start_map_x)/2;
 				int map_y = start_map_y + (end_map_y - start_map_y)/2;
 
-				int width = min(g_settings.getInteger(Config::MAX_SPAWN_NPC_RADIUS), ((end_map_x - start_map_x)/2 + (end_map_y - start_map_y)/2)/2);
+				int width = std::min(g_settings.getInteger(Config::MAX_SPAWN_NPC_RADIUS), ((end_map_x - start_map_x)/2 + (end_map_y - start_map_y)/2)/2);
 				int old = g_gui.GetBrushSize();
 				g_gui.SetBrushSize(width);
 				editor.draw(Position(map_x, map_y, floor), event.AltDown());
@@ -1819,7 +1809,7 @@ void MapCanvas::OnKeyDown(wxKeyEvent& event)
 			int nv = g_gui.GetBrushVariation();
 			--nv;
 			if(nv < 0) {
-				nv = max(0, (g_gui.GetCurrentBrush()? g_gui.GetCurrentBrush()->getMaxVariation() - 1 : 0));
+				nv = std::max(0, (g_gui.GetCurrentBrush()? g_gui.GetCurrentBrush()->getMaxVariation() - 1 : 0));
 			}
 			g_gui.SetBrushVariation(nv);
 			g_gui.RefreshView();
@@ -2470,10 +2460,10 @@ void MapPopupMenu::Update()
 				Teleport* teleport = dynamic_cast<Teleport*>(topSelectedItem);
 				if(topSelectedItem && (topSelectedItem->isBrushDoor() || topSelectedItem->isRoteable() || teleport)) {
 
-					if(topSelectedItem->isRoteable()) 
+					if(topSelectedItem->isRoteable())
 						Append(MAP_POPUP_MENU_ROTATE, "&Rotate item", "Rotate this item");
 
-					if(teleport && teleport->hasDestination()) 
+					if(teleport && teleport->hasDestination())
 						Append(MAP_POPUP_MENU_GOTO, "&Go To Destination", "Go to the destination of this teleport");
 
 					if(topSelectedItem->isDoor())
@@ -2492,7 +2482,7 @@ void MapPopupMenu::Update()
 
 				if(topSpawnMonster)
 					Append( MAP_POPUP_MENU_SELECT_SPAWN_BRUSH, "Select Npc", "Select the npc brush");
-				
+
 				if(topNpc)
 					Append( MAP_POPUP_MENU_SELECT_NPC_BRUSH, "Select Npc", "Uses the current npc as a npc brush");
 
