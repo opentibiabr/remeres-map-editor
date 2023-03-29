@@ -40,7 +40,7 @@ TableBrush::~TableBrush()
 
 bool TableBrush::load(pugi::xml_node node, wxArrayString& warnings)
 {
-	look_id = g_items[attribute.as_ushort()].id;
+	look_id = g_items[(node.attribute("server_lookid").as_ushort())].id;
 	if(look_id == 0) {
 		look_id = node.attribute("lookid").as_ushort();
 	}

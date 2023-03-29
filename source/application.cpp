@@ -50,22 +50,6 @@
 
 #include "../brushes/icon/rme_icon.xpm"
 
-#ifdef _WIN32
-bool Application::openConsole()
-{
-	FILE *conin, *conout;
-	if (AllocConsole()) {
-		freopen_s(&conin, "conin$", "r", stdin);
-		freopen_s(&conout, "conout$", "w", stdout);
-		freopen_s(&conout, "conout$", "w", stderr);
-		SetConsoleTitle(L"Remere's Map Editor - Debug Console");
-		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_RED);
-		return true;
-	}
-	return false;
-}
-#endif
-
 BEGIN_EVENT_TABLE(MainFrame, wxFrame)
 	EVT_CLOSE(MainFrame::OnExit)
 
@@ -121,10 +105,11 @@ bool Application::OnInit()
 #if defined __DEBUG_MODE__ && defined __WINDOWS__
 	_CrtSetDbgFlag ( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
 #endif
-
-	std::cout << "This is free software: you are free to change and redistribute it." << std::endl;
-	std::cout << "There is NO WARRANTY, to the extent permitted by law." << std::endl;
-	std::cout << "Review COPYING in RME distribution for details." << std::endl;
+	spdlog::info("This is free software: you are free to change and redistribute it");
+	spdlog::info("There is NO WARRANTY, to the extent permitted by law");
+	spdlog::info("Review COPYING in RME distribution for details");
+	spdlog::info("Visit our website for updates, support, and resources: https://docs.opentibiabr.com/");
+	spdlog::info("Application started sucessfull!\n");
 	mt_seed(time(nullptr));
 	srand(time(nullptr));
 
@@ -288,28 +273,6 @@ bool Application::OnInit()
 				return true;
 			}
 		}
-	}
-
-	if (openConsole()) {
-		spdlog::info("{} - Version [{}]", __W_RME_APPLICATION_NAME__, __W_RME_VERSION__);
-		spdlog::info("Compiled with {}", BOOST_COMPILER);
-		std::string platform;
-		#if defined(__amd64__) || defined(_M_X64)
-		platform = "x64";
-		#elif defined(__i386__) || defined(_M_IX86) || defined(_X86_)
-		platform = "x86";
-		#elif defined(__arm__)
-		platform = "ARM";
-		#else
-		platform = "unknown";
-		#endif
-		spdlog::info("Compiled on {} {} for platform {}\n", __DATE__, __TIME__, platform);
-		spdlog::info("A program developed by Remere");
-		spdlog::info("This is free software: you are free to change and redistribute it");
-		spdlog::info("There is NO WARRANTY, to the extent permitted by law");
-		spdlog::info("Review COPYING in RME distribution for details");
-		spdlog::info("Visit our website for updates, support, and resources: https://docs.opentibiabr.org/");
-		spdlog::info("Application started sucessfull!\n");
 	}
 
 	// Keep track of first event loop entry

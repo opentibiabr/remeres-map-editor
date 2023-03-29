@@ -79,14 +79,14 @@ bool Materials::loadMaterials(const FileName& identifier, wxString& error, wxArr
 	pugi::xml_parse_result result = doc.load_file(identifier.GetFullPath().mb_str());
 	if(!result) {
 		warnings.push_back("Could not open " + identifier.GetFullName() + " (file not found or syntax error)");
-		spdlog::error("[Materials::loadMaterials] - Could not open {} (file not found or syntax error)", identifier.GetFullName());
+		spdlog::error("[Materials::loadMaterials] - Could not open {} (file not found or syntax error)", identifier.GetFullName().ToStdString());
 		return false;
 	}
 
 	pugi::xml_node node = doc.child("materials");
 	if(!node) {
 		warnings.push_back(identifier.GetFullName() + ": Invalid rootheader.");
-		spdlog::error("[Materials::loadMaterials] - {} : Invalid rootheader", identifier.GetFullName());
+		spdlog::error("[Materials::loadMaterials] - {} : Invalid rootheader", identifier.GetFullName().ToStdString());
 		return false;
 	}
 
@@ -223,7 +223,7 @@ bool Materials::unserializeMaterials(const FileName& filename, pugi::xml_node no
 			wxString subError;
 			if(!loadMaterials(includeName, subError, warnings, true)) {
 				warnings.push_back("Error while loading file \"" + includeName.GetFullName() + "\": " + subError);
-				spdlog::warn("[Materials::unserializeMaterials] - Error while loading file {}", includeName.GetFullName());
+				spdlog::warn("[Materials::unserializeMaterials] - Error while loading file {}", includeName.GetFullName().ToStdString());
 			}
 		} else if(childName == "metaitem") {
 			g_items.loadMetaItem(childNode);

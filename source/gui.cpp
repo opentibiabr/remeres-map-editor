@@ -388,7 +388,7 @@ bool GUI::LoadDataFiles(wxString& error, wxArrayString& warnings)
 	spdlog::info("Loading appearances");
 	if(!g_items.loadAppearanceProtobuf(error, warnings)) {
 		error = "Couldn't load catalog-content.json: " + error;
-		spdlog::error("[GUI::LoadDataFiles] - Couldn't load {}", error);
+		spdlog::error("[GUI::LoadDataFiles] - Couldn't load {}", error.ToStdString());
 		g_gui.DestroyLoadBar();
 		UnloadVersion();
 		return false;
@@ -399,7 +399,7 @@ bool GUI::LoadDataFiles(wxString& error, wxArrayString& warnings)
 	spdlog::info("Loading items");
 	if(!g_items.loadFromGameXml(itemPath, error, warnings)) {
 		warnings.push_back("Couldn't load items.xml: " + error);
-		spdlog::warn("[GUI::LoadDataFiles] - Couldn't load {}: {}", itemPath, error);
+		spdlog::warn("[GUI::LoadDataFiles] - Couldn't load {}: {}", itemPath.ToStdString(), error.ToStdString());
 	}
 
 	wxString monstersPath = "data/creatures/monsters.xml";
@@ -407,7 +407,7 @@ bool GUI::LoadDataFiles(wxString& error, wxArrayString& warnings)
 	spdlog::info("Loading monsters");
 	if(!g_monsters.loadFromXML(monstersPath, true, error, warnings)) {
 		warnings.push_back("Couldn't load monsters.xml: " + error);
-		spdlog::warn("[GUI::LoadDataFiles] - Couldn't load {}: {}", monstersPath, error);
+		spdlog::warn("[GUI::LoadDataFiles] - Couldn't load {}: {}", monstersPath.ToStdString(), error.ToStdString());
 	}
 
 	g_gui.SetLoadDone(45, "Loading user monsters.xml ...");
@@ -425,7 +425,7 @@ bool GUI::LoadDataFiles(wxString& error, wxArrayString& warnings)
 	spdlog::info("Loading npcs");
 	if(!g_npcs.loadFromXML(npcsPath, true, error, warnings)) {
 		warnings.push_back("Couldn't load npcs.xml: " + error);
-		spdlog::warn("[GUI::LoadDataFiles] - Couldn't load {}: {}", npcsPath, error);
+		spdlog::warn("[GUI::LoadDataFiles] - Couldn't load {}: {}", npcsPath.ToStdString(), error.ToStdString());
 	}
 
 	g_gui.SetLoadDone(45, "Loading user npcs.xml ...");
@@ -443,14 +443,14 @@ bool GUI::LoadDataFiles(wxString& error, wxArrayString& warnings)
 	spdlog::info("Loading materials");
 	if(!g_materials.loadMaterials(materialsPath, error, warnings)) {
 		warnings.push_back("Couldn't load materials.xml: " + error);
-		spdlog::warn("[GUI::LoadDataFiles] - Couldn't load {}: {}", materialsPath, error);
+		spdlog::warn("[GUI::LoadDataFiles] - Couldn't load {}: {}", materialsPath.ToStdString(), error.ToStdString());
 	}
 
 	g_gui.SetLoadDone(70, "Loading extensions...");
 	spdlog::info("Loading extensions");
 	if(!g_materials.loadExtensions(extension_path, error, warnings)) {
 		warnings.push_back("Couldn't load extensions: " + error);
-		spdlog::warn("[GUI::LoadDataFiles] - Couldn't load extensions: {}", error);
+		spdlog::warn("[GUI::LoadDataFiles] - Couldn't load extensions: {}", error.ToStdString());
 	}
 
 	g_gui.SetLoadDone(70, "Finishing...");
