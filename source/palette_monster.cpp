@@ -70,7 +70,7 @@ MonsterPalettePanel::MonsterPalettePanel(wxWindow* parent, wxWindowID id) :
 	grid->Add(monster_brush_button, 0, wxEXPAND);
 
 	grid->Add(newd wxStaticText(this, wxID_ANY, "Spawn size"));
-	spawn_monster_size_spin = newd wxSpinCtrl(this, PALETTE_MONSTER_SPAWN_SIZE, i2ws(5), wxDefaultPosition, wxSize(50, 20), wxSP_ARROW_KEYS, 1, g_settings.getInteger(Config::MAX_SPAWN_MONSTER_RADIUS), g_settings.getInteger(Config::CURRENT_SPAWN_MONSTER_RADIUS));
+	spawn_monster_size_spin = newd wxSpinCtrl(this, PALETTE_MONSTER_SPAWN_SIZE, i2ws(1), wxDefaultPosition, wxSize(50, 20), wxSP_ARROW_KEYS, 1, g_settings.getInteger(Config::MAX_SPAWN_MONSTER_RADIUS), g_settings.getInteger(Config::CURRENT_SPAWN_MONSTER_RADIUS));
 	grid->Add(spawn_monster_size_spin, 0, wxEXPAND);
 	spawn_monster_brush_button = newd wxToggleButton(this, PALETTE_SPAWN_MONSTER_BRUSH_BUTTON, "Place Spawn");
 	grid->Add(spawn_monster_brush_button, 0, wxEXPAND);

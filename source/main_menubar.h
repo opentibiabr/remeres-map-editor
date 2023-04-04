@@ -83,6 +83,8 @@ namespace MenuBar
 		MAP_REMOVE_ITEMS,
 		MAP_REMOVE_CORPSES,
 		MAP_REMOVE_UNREACHABLE_TILES,
+		MAP_REMOVE_EMPTY_MONSTERS_SPAWNS,
+		MAP_REMOVE_EMPTY_NPCS_SPAWNS,
 		MAP_CLEAN_HOUSE_ITEMS,
 		MAP_PROPERTIES,
 		MAP_STATISTICS,
@@ -217,6 +219,8 @@ public:
 	void OnMapRemoveItems(wxCommandEvent& event);
 	void OnMapRemoveCorpses(wxCommandEvent& event);
 	void OnMapRemoveUnreachable(wxCommandEvent& event);
+	void OnMapRemoveEmptyMonsterSpawns(wxCommandEvent& event);
+	void OnMapRemoveEmptyNpcSpawns(wxCommandEvent& event);
 	void OnClearHouseTiles(wxCommandEvent& event);
 	void OnClearModifiedState(wxCommandEvent& event);
 	void OnToggleAutomagic(wxCommandEvent& event);
