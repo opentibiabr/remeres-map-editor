@@ -1117,8 +1117,6 @@ void GUI::RefreshView()
 	for(EditorTab* editorTab : editorTabs) {
 		editorTab->GetWindow()->Refresh();
 	}
-
-	root->GetAuiToolBar()->UpdateIndicators();
 }
 
 void GUI::CreateLoadBar(wxString message, bool canCancel /* = false */ )
