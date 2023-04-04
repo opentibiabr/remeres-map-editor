@@ -75,6 +75,8 @@ struct DrawingOptions {
 	bool show_only_modified;
 	bool show_preview;
 	bool show_hooks;
+	bool show_pickupables;
+	bool show_moveables;
 	bool hide_items_when_zoomed;
 };
 
@@ -140,6 +142,8 @@ protected:
 	void DrawTile(TileLocation* tile);
 	void DrawBrushIndicator(int x, int y, Brush* brush, uint8_t r, uint8_t g, uint8_t b);
 	void DrawHookIndicator(int x, int y, const ItemType& type);
+	void DrawTileIndicators(TileLocation* location);
+	void DrawIndicator(int x, int y, int indicator, uint8_t r = 255, uint8_t g = 255, uint8_t b = 255, uint8_t a = 255);
 	void WriteTooltip(Item* item, std::ostringstream& stream);
 	void WriteTooltip(Waypoint* item, std::ostringstream& stream);
 	void MakeTooltip(int screenx, int screeny, const std::string& text, uint8_t r = 255, uint8_t g = 255, uint8_t b = 255);
@@ -157,7 +161,7 @@ protected:
 	};
 
 	void getColor(Brush* brush, const Position& position, uint8_t &r, uint8_t &g, uint8_t &b);
-	void glBlitTexture(int sx, int sy, int texture_number, int red, int green, int blue, int alpha);
+	void glBlitTexture(int x, int y, int textureId, int red, int green, int blue, int alpha, bool adjustZoom = false);
 	void glBlitSquare(int sx, int sy, int red, int green, int blue, int alpha);
 	void glColor(wxColor color);
 	void glColor(BrushColor color);
