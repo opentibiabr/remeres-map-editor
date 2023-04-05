@@ -32,6 +32,7 @@
 
 #include <wx/chartype.h>
 
+#include "items.h"
 #include "editor.h"
 #include "materials.h"
 #include "live_client.h"
@@ -1371,7 +1372,7 @@ namespace OnMapRemoveUnreachable
 			if(done % 0x1000 == 0)
 				g_gui.SetLoadDone((unsigned int)(100 * done / total));
 
-			Position pos = tile->getPosition();
+			const Position& pos = tile->getPosition();
 			int sx = std::max(pos.x - 10, 0);
 			int ex = std::min(pos.x + 10, 65535);
 			int sy = std::max(pos.y - 8,  0);
@@ -1713,7 +1714,7 @@ void MainMenuBar::OnMapStatistics(wxCommandEvent& WXUNUSED(event))
 	item_count += 1; \
 	if(!(_item)->isGroundTile() && !(_item)->isBorder()) { \
 		is_detailed = true; \
-		ItemType& it = g_items[(_item)->getID()]; \
+		const ItemType& it = g_items.getItemType((_item)->getID()); \
 		if(it.moveable) { \
 			loose_item_count += 1; \
 		} \
@@ -1733,13 +1734,11 @@ void MainMenuBar::OnMapStatistics(wxCommandEvent& WXUNUSED(event))
 		} \
 	} \
 }
-
 		if(tile->ground) {
 			ANALYZE_ITEM(tile->ground);
 		}
 
-		for(ItemVector::const_iterator item_iter = tile->items.begin(); item_iter != tile->items.end(); ++item_iter) {
-			Item* item = *item_iter;
+		for(Item* item : tile->items) {
 			ANALYZE_ITEM(item);
 		}
 #undef ANALYZE_ITEM

@@ -36,6 +36,8 @@ Selection::Selection(Editor& editor) :
 
 Selection::~Selection()
 {
+	tiles.clear();
+
 	delete subsession;
 	delete session;
 }
@@ -43,8 +45,9 @@ Selection::~Selection()
 Position Selection::minPosition() const
 {
 	Position minPos(0x10000, 0x10000, 0x10);
-	for(TileSet::const_iterator tile = tiles.begin(); tile != tiles.end(); ++tile) {
-		Position pos((*tile)->getPosition());
+	for(const Tile* tile : tiles) {
+		if(!tile) continue;
+		const Position& pos = tile->getPosition();
 		if(minPos.x > pos.x)
 			minPos.x = pos.x;
 		if(minPos.y > pos.y)
@@ -57,9 +60,10 @@ Position Selection::minPosition() const
 
 Position Selection::maxPosition() const
 {
-	Position maxPos(0, 0, 0);
-	for(TileSet::const_iterator tile = tiles.begin(); tile != tiles.end(); ++tile) {
-		Position pos((*tile)->getPosition());
+	Position maxPos;
+	for(const Tile* tile : tiles) {
+		if(!tile) continue;
+		const Position& pos = tile->getPosition();
 		if(maxPos.x < pos.x)
 			maxPos.x = pos.x;
 		if(maxPos.y < pos.y)
@@ -171,10 +175,10 @@ void Selection::remove(Tile* tile, Item* item)
 	ASSERT(tile);
 	ASSERT(item);
 
-	bool tmp = item->isSelected();
+	bool selected = item->isSelected();
 	item->deselect();
 	Tile* new_tile = tile->deepCopy(editor.map);
-	if(tmp) item->select();
+	if(selected) item->select();
 	if(item->isBorder() && g_settings.getInteger(Config::BORDER_IS_GROUND)) new_tile->deselectGround();
 
 	subsession->addChange(newd Change(new_tile));
@@ -186,10 +190,10 @@ void Selection::remove(Tile* tile, SpawnMonster* spawnMonster)
 	ASSERT(tile);
 	ASSERT(spawnMonster);
 
-	bool tmp = spawnMonster->isSelected();
+	bool selected = spawnMonster->isSelected();
 	spawnMonster->deselect();
 	Tile* new_tile = tile->deepCopy(editor.map);
-	if(tmp) spawnMonster->select();
+	if(selected) spawnMonster->select();
 
 	subsession->addChange(newd Change(new_tile));
 }
@@ -200,10 +204,10 @@ void Selection::remove(Tile* tile, SpawnNpc* spawnNpc)
 	ASSERT(tile);
 	ASSERT(spawnNpc);
 
-	bool tmp = spawnNpc->isSelected();
+	bool selected = spawnNpc->isSelected();
 	spawnNpc->deselect();
 	Tile* new_tile = tile->deepCopy(editor.map);
-	if(tmp) spawnNpc->select();
+	if(selected) spawnNpc->select();
 
 	subsession->addChange(newd Change(new_tile));
 }
@@ -214,10 +218,10 @@ void Selection::remove(Tile* tile, Monster* monster)
 	ASSERT(tile);
 	ASSERT(monster);
 
-	bool tmp = monster->isSelected();
+	bool selected = monster->isSelected();
 	monster->deselect();
 	Tile* new_tile = tile->deepCopy(editor.map);
-	if(tmp) monster->select();
+	if(selected) monster->select();
 
 	subsession->addChange(newd Change(new_tile));
 }
@@ -228,10 +232,10 @@ void Selection::remove(Tile* tile, Npc* npc)
 	ASSERT(tile);
 	ASSERT(npc);
 
-	bool tmp = npc->isSelected();
+	bool selected = npc->isSelected();
 	npc->deselect();
 	Tile* new_tile = tile->deepCopy(editor.map);
-	if(tmp) npc->select();
+	if(selected) npc->select();
 
 	subsession->addChange(newd Change(new_tile));
 }
@@ -293,15 +297,15 @@ void Selection::commit()
 	if(session) {
 		ASSERT(subsession);
 		// We need to step out of the session before we do the action, else peril awaits us!
-		BatchAction* tmp = session;
+		BatchAction* batch = session;
 		session = nullptr;
 
 		// Do the action
-		tmp->addAndCommitAction(subsession);
+		batch->addAndCommitAction(subsession);
 
 		// Create a newd action for subsequent selects
 		subsession = editor.actionQueue->createAction(ACTION_SELECT);
-		session = tmp;
+		session = batch;
 	}
 }
 
@@ -315,11 +319,11 @@ void Selection::finish(SessionFlags flags)
 			ASSERT(session);
 			ASSERT(subsession);
 			// We need to exit the session before we do the action, else peril awaits us!
-			BatchAction* tmp = session;
+			BatchAction* batch = session;
 			session = nullptr;
 
-			tmp->addAndCommitAction(subsession);
-			editor.addBatch(tmp, 2);
+			batch->addAndCommitAction(subsession);
+			editor.addBatch(batch, 2);
 
 			session = nullptr;
 			subsession = nullptr;

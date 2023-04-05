@@ -53,6 +53,7 @@ public:
 
 	virtual void DrawTo(wxDC* dc, SpriteSize sz, int start_x, int start_y, int width = -1, int height = -1) = 0;
 	virtual void unloadDC() = 0;
+
 private:
 	Sprite(const Sprite&);
 	Sprite& operator=(const Sprite&);
@@ -189,7 +190,6 @@ public:
 	Animator* animator;
 
 	uint16_t draw_height;
-	uint16_t drawoffset_x;
 	wxPoint draw_offset;
 
 	uint16_t minimap_color;
@@ -275,8 +275,9 @@ public:
 
 	long getElapsedTime() const { return (animation_timer->TimeInMicro() / 1000).ToLong(); }
 
-	uint16_t getItemSpriteMaxID() const;
-	uint16_t getCreatureSpriteMaxID() const;
+	uint16_t getItemSpriteMinID() const noexcept { return 100; }
+	uint16_t getItemSpriteMaxID() const noexcept { return item_count; }
+	uint16_t getCreatureSpriteMaxID() const noexcept { return creature_count; }
 
 	// Get an unused texture id (this is acquired by simply increasing a value starting from 0x10000000)
 	GLuint getFreeTextureID();
@@ -334,24 +335,6 @@ private:
 	friend class GameSprite::NormalImage;
 	friend class GameSprite::EditorImage;
 	friend class GameSprite::TemplateImage;
-};
-
-struct RGBQuad {
-	uint8_t red;
-	uint8_t green;
-	uint8_t blue;
-	uint8_t reserved;
-
-	RGBQuad(uint8_t r, uint8_t g, uint8_t b) : red(r), green (g), blue(b), reserved(0) {}
-
-	operator uint32_t() {
-		return (blue << 0) | (green << 8) | (red << 16);
-	}
-
-	operator bool() {
-		//std::cout << "RGBQuad operator bool " << int(red) << " || " << int(blue) << " || " << int(green) << std::endl;
-		return blue != 0 || red != 0 || green != 0;
-	}
 };
 
 #endif

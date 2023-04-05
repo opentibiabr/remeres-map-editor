@@ -54,11 +54,7 @@ class FileHandle
 {
 public:
 	FileHandle() : error_code(FILE_NO_ERROR), file(nullptr) {}
-	virtual ~FileHandle() {close();}
-
-	// Ensures we don't accidentally copy it.
-	FileHandle(const FileHandle &) = delete;
-	FileHandle &operator=(const FileHandle &) = delete;
+	virtual ~FileHandle() { close(); }
 
 	virtual void close();
 	virtual bool isOpen() {return file != nullptr;}

@@ -178,7 +178,7 @@ void MapCanvas::SetZoom(double value)
 		GetScreenCenter(&center_x, &center_y);
 
 		zoom = value;
-		static_cast<MapWindow*>(GetParent())->SetScreenCenterPosition(Position(center_x, center_y, floor));
+		GetMapWindow()->SetScreenCenterPosition(Position(center_x, center_y, floor));
 
 		UpdatePositionStatus();
 		UpdateZoomStatus();
@@ -188,8 +188,9 @@ void MapCanvas::SetZoom(double value)
 
 void MapCanvas::GetViewBox(int* view_scroll_x, int* view_scroll_y, int* screensize_x, int* screensize_y) const
 {
-	static_cast<MapWindow*>(GetParent())->GetViewSize(screensize_x, screensize_y);
-	static_cast<MapWindow*>(GetParent())->GetViewStart(view_scroll_x, view_scroll_y);
+	MapWindow* window = GetMapWindow();
+	window->GetViewSize(screensize_x, screensize_y);
+	window->GetViewStart(view_scroll_x, view_scroll_y);
 }
 
 void MapCanvas::OnPaint(wxPaintEvent& event)
@@ -279,7 +280,7 @@ void MapCanvas::TakeScreenshot(wxFileName path, wxString format)
 	} else {
 		// We got the shit
 		int screensize_x, screensize_y;
-		static_cast<MapWindow*>(GetParent())->GetViewSize(&screensize_x, &screensize_y);
+		GetMapWindow()->GetViewSize(&screensize_x, &screensize_y);
 		wxImage screenshot(screensize_x, screensize_y, screenshot_buffer);
 
 		time_t t = time(nullptr);
@@ -338,7 +339,7 @@ void MapCanvas::TakeScreenshot(wxFileName path, wxString format)
 void MapCanvas::ScreenToMap(int screen_x, int screen_y, int* map_x, int* map_y)
 {
 	int start_x, start_y;
-	static_cast<MapWindow*>(GetParent())->GetViewStart(&start_x, &start_y);
+	GetMapWindow()->GetViewStart(&start_x, &start_y);
 
 	screen_x *= GetContentScaleFactor();
 	screen_y *= GetContentScaleFactor();
@@ -364,10 +365,18 @@ void MapCanvas::ScreenToMap(int screen_x, int screen_y, int* map_x, int* map_y)
 	}*/
 }
 
+MapWindow* MapCanvas::GetMapWindow() const
+{
+	wxWindow* window = GetParent();
+	if(window)
+		return static_cast<MapWindow*>(window);
+	return nullptr;
+}
+
 void MapCanvas::GetScreenCenter(int* map_x, int* map_y)
 {
 	int width, height;
-	static_cast<MapWindow*>(GetParent())->GetViewSize(&width, &height);
+	GetMapWindow()->GetViewSize(&width, &height);
 	return ScreenToMap(width/2, height/2, map_x, map_y);
 }
 
@@ -437,7 +446,7 @@ void MapCanvas::UpdateZoomStatus()
 void MapCanvas::OnMouseMove(wxMouseEvent& event)
 {
 	if(screendragging) {
-		static_cast<MapWindow*>(GetParent())->ScrollRelative(int(g_settings.getFloat(Config::SCROLL_SPEED) * zoom*(event.GetX() - cursor_x)), int(g_settings.getFloat(Config::SCROLL_SPEED) * zoom*(event.GetY() - cursor_y)));
+		GetMapWindow()->ScrollRelative(int(g_settings.getFloat(Config::SCROLL_SPEED) * zoom*(event.GetX() - cursor_x)), int(g_settings.getFloat(Config::SCROLL_SPEED) * zoom*(event.GetY() - cursor_y)));
 		Refresh();
 	}
 
@@ -1002,7 +1011,7 @@ void MapCanvas::OnMouseActionClick(wxMouseEvent& event)
 	last_click_y = int(event.GetY()*zoom);
 
 	int start_x, start_y;
-	static_cast<MapWindow*>(GetParent())->GetViewStart(&start_x, &start_y);
+	GetMapWindow()->GetViewStart(&start_x, &start_y);
 	last_click_abs_x = last_click_x + start_x;
 	last_click_abs_y = last_click_y + start_y;
 
@@ -1341,14 +1350,15 @@ void MapCanvas::OnMouseCameraClick(wxMouseEvent& event)
 
 	last_mmb_click_x = event.GetX();
 	last_mmb_click_y = event.GetY();
+
 	if(event.ControlDown()) {
 		int screensize_x, screensize_y;
-		static_cast<MapWindow*>(GetParent())->GetViewSize(&screensize_x, &screensize_y);
-
-		static_cast<MapWindow*>(GetParent())->ScrollRelative(
+		MapWindow* window = GetMapWindow();
+		window->GetViewSize(&screensize_x, &screensize_y);
+		window->ScrollRelative(
 			int(-screensize_x * (1.0 - zoom) * (std::max(cursor_x, 1) / double(screensize_x))),
 			int(-screensize_y * (1.0 - zoom) * (std::max(cursor_y, 1) / double(screensize_y)))
-			);
+		);
 		zoom = 1.0;
 		Refresh();
 	} else {
@@ -1366,11 +1376,12 @@ void MapCanvas::OnMouseCameraRelease(wxMouseEvent& event)
 	} else if(last_mmb_click_x > event.GetX() - 3 && last_mmb_click_x < event.GetX() + 3 &&
 				last_mmb_click_y > event.GetY() - 3 && last_mmb_click_y < event.GetY() + 3) {
 		int screensize_x, screensize_y;
-		static_cast<MapWindow*>(GetParent())->GetViewSize(&screensize_x, &screensize_y);
-		static_cast<MapWindow*>(GetParent())->ScrollRelative(
+		MapWindow* window = GetMapWindow();
+		window->GetViewSize(&screensize_x, &screensize_y);
+		window->ScrollRelative(
 			int(zoom * (2*cursor_x - screensize_x)),
 			int(zoom * (2*cursor_y - screensize_y))
-			);
+		);
 		Refresh();
 	}
 }
@@ -1432,7 +1443,7 @@ void MapCanvas::OnMousePropertiesClick(wxMouseEvent& event)
 	last_click_y = int(event.GetY()*zoom);
 
 	int start_x, start_y;
-	static_cast<MapWindow*>(GetParent())->GetViewStart(&start_x, &start_y);
+	GetMapWindow()->GetViewStart(&start_x, &start_y);
 	last_click_abs_x = last_click_x + start_x;
 	last_click_abs_y = last_click_y + start_y;
 
@@ -1621,13 +1632,14 @@ void MapCanvas::OnWheel(wxMouseEvent& event)
 		UpdateZoomStatus();
 
 		int screensize_x, screensize_y;
-		static_cast<MapWindow*>(GetParent())->GetViewSize(&screensize_x, &screensize_y);
+		MapWindow* window = GetMapWindow();
+		window->GetViewSize(&screensize_x, &screensize_y);
 
 		// This took a day to figure out!
 		int scroll_x = int(screensize_x * diff * (std::max(cursor_x, 1) / double(screensize_x))) * GetContentScaleFactor();
 		int scroll_y = int(screensize_y * diff * (std::max(cursor_y, 1) / double(screensize_y))) * GetContentScaleFactor();
 
-		static_cast<MapWindow*>(GetParent())->ScrollRelative(-scroll_x, -scroll_y);
+		window->ScrollRelative(-scroll_x, -scroll_y);
 	}
 
 	Refresh();
@@ -1654,6 +1666,8 @@ void MapCanvas::OnGainMouse(wxMouseEvent& event)
 
 void MapCanvas::OnKeyDown(wxKeyEvent& event)
 {
+	MapWindow* window = GetMapWindow();
+
 	//char keycode = event.GetKeyCode();
 	// std::cout << "Keycode " << keycode << std::endl;
 	switch(event.GetKeyCode()) {
@@ -1678,13 +1692,13 @@ void MapCanvas::OnKeyDown(wxKeyEvent& event)
 			}
 
 			int screensize_x, screensize_y;
-			static_cast<MapWindow*>(GetParent())->GetViewSize(&screensize_x, &screensize_y);
+			window->GetViewSize(&screensize_x, &screensize_y);
 
 			// This took a day to figure out!
 			int scroll_x = int(screensize_x * diff * (std::max(cursor_x, 1) / double(screensize_x)));
 			int scroll_y = int(screensize_y * diff * (std::max(cursor_y, 1) / double(screensize_y)));
 
-			static_cast<MapWindow*>(GetParent())->ScrollRelative(-scroll_x, -scroll_y);
+			window->ScrollRelative(-scroll_x, -scroll_y);
 
 			UpdatePositionStatus();
 			UpdateZoomStatus();
@@ -1701,13 +1715,12 @@ void MapCanvas::OnKeyDown(wxKeyEvent& event)
 			}
 
 			int screensize_x, screensize_y;
-			static_cast<MapWindow*>(GetParent())->GetViewSize(&screensize_x, &screensize_y);
+			window->GetViewSize(&screensize_x, &screensize_y);
 
 			// This took a day to figure out!
 			int scroll_x = int(screensize_x * diff * (std::max(cursor_x, 1) / double(screensize_x)));
 			int scroll_y = int(screensize_y * diff * (std::max(cursor_y, 1) / double(screensize_y)));
-
-			static_cast<MapWindow*>(GetParent())->ScrollRelative(-scroll_x, -scroll_y);
+			window->ScrollRelative(-scroll_x, -scroll_y);
 
 			UpdatePositionStatus();
 			UpdateZoomStatus();
@@ -1730,7 +1743,7 @@ void MapCanvas::OnKeyDown(wxKeyEvent& event)
 		case WXK_NUMPAD_UP:
 		case WXK_UP: {
 			int start_x, start_y;
-			static_cast<MapWindow*>(GetParent())->GetViewStart(&start_x, &start_y);
+			window->GetViewStart(&start_x, &start_y);
 
 			int tiles = 3;
 			if(event.ControlDown())
@@ -1738,7 +1751,7 @@ void MapCanvas::OnKeyDown(wxKeyEvent& event)
 			else if(zoom == 1.0)
 				tiles = 1;
 
-			static_cast<MapWindow*>(GetParent())->Scroll(start_x, int(start_y - TILE_SIZE * tiles * zoom));
+			window->Scroll(start_x, int(start_y - TILE_SIZE * tiles * zoom));
 			UpdatePositionStatus();
 			Refresh();
 			break;
@@ -1746,7 +1759,7 @@ void MapCanvas::OnKeyDown(wxKeyEvent& event)
 		case WXK_NUMPAD_DOWN:
 		case WXK_DOWN: {
 			int start_x, start_y;
-			static_cast<MapWindow*>(GetParent())->GetViewStart(&start_x, &start_y);
+			window->GetViewStart(&start_x, &start_y);
 
 			int tiles = 3;
 			if(event.ControlDown())
@@ -1754,7 +1767,7 @@ void MapCanvas::OnKeyDown(wxKeyEvent& event)
 			else if(zoom == 1.0)
 				tiles = 1;
 
-			static_cast<MapWindow*>(GetParent())->Scroll(start_x, int(start_y + TILE_SIZE * tiles * zoom));
+			window->Scroll(start_x, int(start_y + TILE_SIZE * tiles * zoom));
 			UpdatePositionStatus();
 			Refresh();
 			break;
@@ -1762,7 +1775,7 @@ void MapCanvas::OnKeyDown(wxKeyEvent& event)
 		case WXK_NUMPAD_LEFT:
 		case WXK_LEFT: {
 			int start_x, start_y;
-			static_cast<MapWindow*>(GetParent())->GetViewStart(&start_x, &start_y);
+			window->GetViewStart(&start_x, &start_y);
 
 			int tiles = 3;
 			if(event.ControlDown())
@@ -1770,7 +1783,7 @@ void MapCanvas::OnKeyDown(wxKeyEvent& event)
 			else if(zoom == 1.0)
 				tiles = 1;
 
-			static_cast<MapWindow*>(GetParent())->Scroll(int(start_x - TILE_SIZE * tiles * zoom), start_y);
+			window->Scroll(int(start_x - TILE_SIZE * tiles * zoom), start_y);
 			UpdatePositionStatus();
 			Refresh();
 			break;
@@ -1778,7 +1791,7 @@ void MapCanvas::OnKeyDown(wxKeyEvent& event)
 		case WXK_NUMPAD_RIGHT:
 		case WXK_RIGHT: {
 			int start_x, start_y;
-			static_cast<MapWindow*>(GetParent())->GetViewStart(&start_x, &start_y);
+			window->GetViewStart(&start_x, &start_y);
 
 			int tiles = 3;
 			if(event.ControlDown())
@@ -1786,7 +1799,7 @@ void MapCanvas::OnKeyDown(wxKeyEvent& event)
 			else if(zoom == 1.0)
 				tiles = 1;
 
-			static_cast<MapWindow*>(GetParent())->Scroll(int(start_x + TILE_SIZE * tiles * zoom), start_y);
+			window->Scroll(int(start_x + TILE_SIZE * tiles * zoom), start_y);
 			UpdatePositionStatus();
 			Refresh();
 			break;
@@ -1848,11 +1861,11 @@ void MapCanvas::OnKeyDown(wxKeyEvent& event)
 				Hotkey hk;
 				if(g_gui.IsSelectionMode()) {
 					int view_start_x, view_start_y;
-					static_cast<MapWindow*>(GetParent())->GetViewStart(&view_start_x, &view_start_y);
+					window->GetViewStart(&view_start_x, &view_start_y);
 					int view_start_map_x = view_start_x / TILE_SIZE, view_start_map_y = view_start_y / TILE_SIZE;
 
 					int view_screensize_x, view_screensize_y;
-					static_cast<MapWindow*>(GetParent())->GetViewSize(&view_screensize_x, &view_screensize_y);
+					window->GetViewSize(&view_screensize_x, &view_screensize_y);
 
 					int map_x = int(view_start_map_x + (view_screensize_x * zoom) / TILE_SIZE / 2);
 					int map_y = int(view_start_map_y + (view_screensize_y * zoom) / TILE_SIZE / 2);
@@ -1875,7 +1888,7 @@ void MapCanvas::OnKeyDown(wxKeyEvent& event)
 					int map_y = hk.GetPosition().y;
 					int map_z = hk.GetPosition().z;
 
-					static_cast<MapWindow*>(GetParent())->Scroll(TILE_SIZE * map_x, TILE_SIZE * map_y, true);
+					window->Scroll(TILE_SIZE * map_x, TILE_SIZE * map_y, true);
 					floor = map_z;
 
 					g_gui.SetStatusText("Used hotkey " + i2ws(index));
