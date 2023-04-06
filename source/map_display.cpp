@@ -681,6 +681,8 @@ void MapCanvas::OnMouseActionClick(wxMouseEvent& event)
 	int mouse_map_x, mouse_map_y;
 	ScreenToMap(event.GetX(), event.GetY(), &mouse_map_x, &mouse_map_y);
 
+	Selection& selection = editor.getSelection();
+
 	if(event.ControlDown() && event.AltDown()) {
 		Tile* tile = editor.getMap().getTile(mouse_map_x, mouse_map_y, floor);
 		if(tile && tile->size() > 0) {
@@ -707,121 +709,121 @@ void MapCanvas::OnMouseActionClick(wxMouseEvent& event)
 				boundbox_selection = true;
 
 				if(!event.ControlDown()) {
-					editor.selection.start(); // Start selection session
-					editor.selection.clear(); // Clear out selection
-					editor.selection.finish(); // End selection session
-					editor.selection.updateSelectionCount();
+					selection.start(); // Start selection session
+					selection.clear(); // Clear out selection
+					selection.finish(); // End selection session
+					selection.updateSelectionCount();
 				}
 			} else if(event.ControlDown()) {
 				Tile* tile = editor.getMap().getTile(mouse_map_x, mouse_map_y, floor);
 				if(tile) {
 					// Show monster spawn
 					if(tile->spawnMonster && g_settings.getInteger(Config::SHOW_SPAWNS_MONSTER)) {
-						editor.selection.start(); // Start selection session
+						selection.start(); // Start selection session
 						if(tile->spawnMonster->isSelected()) {
-							editor.selection.remove(tile, tile->spawnMonster);
+							selection.remove(tile, tile->spawnMonster);
 						} else {
-							editor.selection.add(tile, tile->spawnMonster);
+							selection.add(tile, tile->spawnMonster);
 						}
-						editor.selection.finish(); // Finish selection session
-						editor.selection.updateSelectionCount();
+						selection.finish(); // Finish selection session
+						selection.updateSelectionCount();
 					// Show monsters
 					} else if(tile->monster && g_settings.getInteger(Config::SHOW_MONSTERS)) {
-						editor.selection.start(); // Start selection session
+						selection.start(); // Start selection session
 						if(tile->monster->isSelected()) {
-							editor.selection.remove(tile, tile->monster);
+							selection.remove(tile, tile->monster);
 						} else {
-							editor.selection.add(tile, tile->monster);
+							selection.add(tile, tile->monster);
 						}
-						editor.selection.finish(); // Finish selection session
-						editor.selection.updateSelectionCount();
+						selection.finish(); // Finish selection session
+						selection.updateSelectionCount();
 					} else {
 						Item* item = tile->getTopItem();
 						if(item) {
-							editor.selection.start(); // Start selection session
+							selection.start(); // Start selection session
 							if(item->isSelected()) {
-								editor.selection.remove(tile, item);
+								selection.remove(tile, item);
 							} else {
-								editor.selection.add(tile, item);
+								selection.add(tile, item);
 							}
-							editor.selection.finish(); // Finish selection session
-							editor.selection.updateSelectionCount();
+							selection.finish(); // Finish selection session
+							selection.updateSelectionCount();
 						}
 					}
 					// Show npcs
 					if(tile->spawnNpc && g_settings.getInteger(Config::SHOW_SPAWNS_NPC)) {
-						editor.selection.start(); // Start selection session
+						selection.start(); // Start selection session
 						if(tile->spawnNpc->isSelected()) {
-							editor.selection.remove(tile, tile->spawnNpc);
+							selection.remove(tile, tile->spawnNpc);
 						} else {
-							editor.selection.add(tile, tile->spawnNpc);
+							selection.add(tile, tile->spawnNpc);
 						}
-						editor.selection.finish(); // Finish selection session
-						editor.selection.updateSelectionCount();
+						selection.finish(); // Finish selection session
+						selection.updateSelectionCount();
 					} else if(tile->npc && g_settings.getInteger(Config::SHOW_NPCS)) {
-						editor.selection.start(); // Start selection session
+						selection.start(); // Start selection session
 						if(tile->npc->isSelected()) {
-							editor.selection.remove(tile, tile->npc);
+							selection.remove(tile, tile->npc);
 						} else {
-							editor.selection.add(tile, tile->npc);
+							selection.add(tile, tile->npc);
 						}
-						editor.selection.finish(); // Finish selection session
-						editor.selection.updateSelectionCount();
+						selection.finish(); // Finish selection session
+						selection.updateSelectionCount();
 					// Show npc spawn
 					} else {
 						Item* item = tile->getTopItem();
 						if(item) {
-							editor.selection.start(); // Start selection session
+							selection.start(); // Start selection session
 							if(item->isSelected()) {
-								editor.selection.remove(tile, item);
+								selection.remove(tile, item);
 							} else {
-								editor.selection.add(tile, item);
+								selection.add(tile, item);
 							}
-							editor.selection.finish(); // Finish selection session
-							editor.selection.updateSelectionCount();
+							selection.finish(); // Finish selection session
+							selection.updateSelectionCount();
 						}
 					}
 				}
 			} else {
 				Tile* tile = editor.getMap().getTile(mouse_map_x, mouse_map_y, floor);
 				if(!tile) {
-					editor.selection.start(); // Start selection session
-					editor.selection.clear(); // Clear out selection
-					editor.selection.finish(); // End selection session
-					editor.selection.updateSelectionCount();
+					selection.start(); // Start selection session
+					selection.clear(); // Clear out selection
+					selection.finish(); // End selection session
+					selection.updateSelectionCount();
 				} else if(tile->isSelected()) {
 					dragging = true;
 					drag_start_x = mouse_map_x;
 					drag_start_y = mouse_map_y;
 					drag_start_z = floor;
 				} else {
-					editor.selection.start(); // Start a selection session
-					editor.selection.clear();
-					editor.selection.commit();
+					selection.start(); // Start a selection session
+					selection.clear();
+					selection.commit();
 					// Show monster spawn
 					if(tile->spawnMonster && g_settings.getInteger(Config::SHOW_SPAWNS_MONSTER)) {
-						editor.selection.add(tile, tile->spawnMonster);
+						selection.add(tile, tile->spawnMonster);
 						dragging = true;
 						drag_start_x = mouse_map_x;
 						drag_start_y = mouse_map_y;
 						drag_start_z = floor;
 					// Show monsters
 					} else if(tile->monster && g_settings.getInteger(Config::SHOW_MONSTERS)) {
-						editor.selection.add(tile, tile->monster);
+						selection.add(tile, tile->monster);
 						dragging = true;
 						drag_start_x = mouse_map_x;
 						drag_start_y = mouse_map_y;
 						drag_start_z = floor;
 					// Show npc spawns
 					} else if(tile->spawnNpc && g_settings.getInteger(Config::SHOW_SPAWNS_NPC)) {
-						editor.selection.add(tile, tile->spawnNpc);
+						selection.add(tile, tile->spawnNpc);
 						dragging = true;
 						drag_start_x = mouse_map_x;
 						drag_start_y = mouse_map_y;
 						drag_start_z = floor;
 					// Show npcs
 					} else if(tile->npc && g_settings.getInteger(Config::SHOW_NPCS)) {
-						editor.selection.add(tile, tile->npc);
+						selection.add(tile, tile->npc);
 						dragging = true;
 						drag_start_x = mouse_map_x;
 						drag_start_y = mouse_map_y;
@@ -829,15 +831,15 @@ void MapCanvas::OnMouseActionClick(wxMouseEvent& event)
 					} else {
 						Item* item = tile->getTopItem();
 						if(item) {
-							editor.selection.add(tile, item);
+							selection.add(tile, item);
 							dragging = true;
 							drag_start_x = mouse_map_x;
 							drag_start_y = mouse_map_y;
 							drag_start_z = floor;
 						}
 					}
-					editor.selection.finish(); // Finish the selection session
-					editor.selection.updateSelectionCount();
+					selection.finish(); // Finish the selection session
+					selection.updateSelectionCount();
 				}
 			}
 		} while(false);
@@ -1032,6 +1034,7 @@ void MapCanvas::OnMouseActionRelease(wxMouseEvent& event)
 	int mouse_map_x, mouse_map_y;
 	ScreenToMap(event.GetX(), event.GetY(), &mouse_map_x, &mouse_map_y);
 
+	Selection& selection = editor.getSelection();
 	int move_x = last_click_map_x - mouse_map_x;
 	int move_y = last_click_map_y - mouse_map_y;
 	int move_z = last_click_map_z - floor;
@@ -1045,14 +1048,14 @@ void MapCanvas::OnMouseActionRelease(wxMouseEvent& event)
 					// Mouse hasn't moved, do control+shift thingy!
 					Tile* tile = editor.getMap().getTile(mouse_map_x, mouse_map_y, floor);
 					if(tile) {
-						editor.selection.start(); // Start a selection session
+						selection.start(); // Start a selection session
 						if(tile->isSelected()) {
-							editor.selection.remove(tile);
+							selection.remove(tile);
 						} else {
-							editor.selection.add(tile);
+							selection.add(tile);
 						}
-						editor.selection.finish(); // Finish the selection session
-						editor.selection.updateSelectionCount();
+						selection.finish(); // Finish the selection session
+						selection.updateSelectionCount();
 					}
 				} else {
 					// The cursor has moved, do some boundboxing!
@@ -1155,15 +1158,15 @@ void MapCanvas::OnMouseActionRelease(wxMouseEvent& event)
 					ASSERT(cleared == width);
 					ASSERT(remainder == 0);
 
-					editor.selection.start(); // Start a selection session
+					selection.start(); // Start a selection session
 					for(std::vector<SelectionThread*>::iterator iter = threads.begin(); iter != threads.end(); ++iter) {
 						(*iter)->Execute();
 					}
 					for(std::vector<SelectionThread*>::iterator iter = threads.begin(); iter != threads.end(); ++iter) {
-						editor.selection.join(*iter);
+						selection.join(*iter);
 					}
-					editor.selection.finish(); // Finish the selection session
-					editor.selection.updateSelectionCount();
+					selection.finish(); // Finish the selection session
+					selection.updateSelectionCount();
 				}
 			} else if(event.ControlDown()) {
 				////
@@ -1173,39 +1176,39 @@ void MapCanvas::OnMouseActionRelease(wxMouseEvent& event)
 				if(tile) {
 					if(tile->spawnMonster && g_settings.getInteger(Config::SHOW_SPAWNS_MONSTER)) {
 						if(!tile->spawnMonster->isSelected()) {
-							editor.selection.start(); // Start a selection session
-							editor.selection.add(tile, tile->spawnMonster);
-							editor.selection.finish(); // Finish the selection session
-							editor.selection.updateSelectionCount();
+							selection.start(); // Start a selection session
+							selection.add(tile, tile->spawnMonster);
+							selection.finish(); // Finish the selection session
+							selection.updateSelectionCount();
 						}
 					} else if(tile->monster && g_settings.getInteger(Config::SHOW_MONSTERS)) {
 						if(!tile->monster->isSelected()) {
-							editor.selection.start(); // Start a selection session
-							editor.selection.add(tile, tile->monster);
-							editor.selection.finish(); // Finish the selection session
-							editor.selection.updateSelectionCount();
+							selection.start(); // Start a selection session
+							selection.add(tile, tile->monster);
+							selection.finish(); // Finish the selection session
+							selection.updateSelectionCount();
 						}
 					} else if(tile->spawnNpc && g_settings.getInteger(Config::SHOW_SPAWNS_NPC)) {
 						if(!tile->spawnNpc->isSelected()) {
-							editor.selection.start(); // Start a selection session
-							editor.selection.add(tile, tile->spawnNpc);
-							editor.selection.finish(); // Finish the selection session
-							editor.selection.updateSelectionCount();
+							selection.start(); // Start a selection session
+							selection.add(tile, tile->spawnNpc);
+							selection.finish(); // Finish the selection session
+							selection.updateSelectionCount();
 						}
 					} else if(tile->npc && g_settings.getInteger(Config::SHOW_NPCS)) {
 						if(!tile->npc->isSelected()) {
-							editor.selection.start(); // Start a selection session
-							editor.selection.add(tile, tile->monster);
-							editor.selection.finish(); // Finish the selection session
-							editor.selection.updateSelectionCount();
+							selection.start(); // Start a selection session
+							selection.add(tile, tile->monster);
+							selection.finish(); // Finish the selection session
+							selection.updateSelectionCount();
 						}
 					} else {
 						Item* item = tile->getTopItem();
 						if(item && !item->isSelected()) {
-							editor.selection.start(); // Start a selection session
-							editor.selection.add(tile, item);
-							editor.selection.finish(); // Finish the selection session
-							editor.selection.updateSelectionCount();
+							selection.start(); // Start a selection session
+							selection.add(tile, item);
+							selection.finish(); // Finish the selection session
+							selection.updateSelectionCount();
 						}
 					}
 				}
@@ -1405,43 +1408,45 @@ void MapCanvas::OnMousePropertiesClick(wxMouseEvent& event)
 
 	EndPasting();
 
+	Selection& selection = editor.getSelection();
+
 	boundbox_selection = false;
 	if(event.ShiftDown()) {
 		boundbox_selection = true;
 
 		if(!event.ControlDown()) {
-			editor.selection.start(); // Start selection session
-			editor.selection.clear(); // Clear out selection
-			editor.selection.finish(); // End selection session
-			editor.selection.updateSelectionCount();
+			selection.start(); // Start selection session
+			selection.clear(); // Clear out selection
+			selection.finish(); // End selection session
+			selection.updateSelectionCount();
 		}
 	} else if(!tile) {
-		editor.selection.start(); // Start selection session
-		editor.selection.clear(); // Clear out selection
-		editor.selection.finish(); // End selection session
-		editor.selection.updateSelectionCount();
+		selection.start(); // Start selection session
+		selection.clear(); // Clear out selection
+		selection.finish(); // End selection session
+		selection.updateSelectionCount();
 	} else if(tile->isSelected()) {
 		// Do nothing!
 	} else {
-		editor.selection.start(); // Start a selection session
-		editor.selection.clear();
-		editor.selection.commit();
+		selection.start(); // Start a selection session
+		selection.clear();
+		selection.commit();
 		if(tile->spawnMonster && g_settings.getInteger(Config::SHOW_SPAWNS_MONSTER)) {
-			editor.selection.add(tile, tile->spawnMonster);
+			selection.add(tile, tile->spawnMonster);
 		} else if(tile->monster && g_settings.getInteger(Config::SHOW_MONSTERS)) {
-			editor.selection.add(tile, tile->monster);
+			selection.add(tile, tile->monster);
 		} else if(tile->npc && g_settings.getInteger(Config::SHOW_NPCS)) {
-			editor.selection.add(tile, tile->npc);
+			selection.add(tile, tile->npc);
 		} else if(tile->spawnNpc && g_settings.getInteger(Config::SHOW_SPAWNS_NPC)) {
-			editor.selection.add(tile, tile->spawnNpc);
+			selection.add(tile, tile->spawnNpc);
 		} else {
 			Item* item = tile->getTopItem();
 			if(item) {
-				editor.selection.add(tile, item);
+				selection.add(tile, item);
 			}
 		}
-		editor.selection.finish(); // Finish the selection session
-		editor.selection.updateSelectionCount();
+		selection.finish(); // Finish the selection session
+		selection.updateSelectionCount();
 	}
 
 	last_click_x = int(event.GetX()*zoom);
@@ -1467,18 +1472,19 @@ void MapCanvas::OnMousePropertiesRelease(wxMouseEvent& event)
 	}
 
 	if(boundbox_selection) {
+		Selection& selection = editor.getSelection();
 		if(mouse_map_x == last_click_map_x && mouse_map_y == last_click_map_y && event.ControlDown()) {
 			// Mouse hasn't move, do control+shift thingy!
 			Tile* tile = editor.getMap().getTile(mouse_map_x, mouse_map_y, floor);
 			if(tile) {
-				editor.selection.start(); // Start a selection session
+				selection.start(); // Start a selection session
 				if(tile->isSelected()) {
-					editor.selection.remove(tile);
+					selection.remove(tile);
 				} else {
-					editor.selection.add(tile);
+					selection.add(tile);
 				}
-				editor.selection.finish(); // Finish the selection session
-				editor.selection.updateSelectionCount();
+				selection.finish(); // Finish the selection session
+				selection.updateSelectionCount();
 			}
 		} else {
 			// The cursor has moved, do some boundboxing!
@@ -1489,14 +1495,14 @@ void MapCanvas::OnMousePropertiesRelease(wxMouseEvent& event)
 				int tmp = mouse_map_y; mouse_map_y = last_click_map_y; last_click_map_y = tmp;
 			}
 
-			editor.selection.start(); // Start a selection session
+			selection.start(); // Start a selection session
 			switch(g_settings.getInteger(Config::SELECTION_TYPE)) {
 				case SELECT_CURRENT_FLOOR: {
 					for(int x = last_click_map_x; x <= mouse_map_x; x++) {
 						for(int y = last_click_map_y; y <= mouse_map_y; y ++) {
 							Tile* tile = editor.getMap().getTile(x, y, floor);
 							if(!tile) continue;
-							editor.selection.add(tile);
+							selection.add(tile);
 						}
 					}
 					break;
@@ -1525,8 +1531,8 @@ void MapCanvas::OnMousePropertiesRelease(wxMouseEvent& event)
 							for(int y = start_y; y <= end_y; y++) {
 								Tile* tile = editor.getMap().getTile(x, y, z);
 								if(!tile) continue;
-								editor.selection.add(tile);
-								}
+								selection.add(tile);
+							}
 						}
 						if(z <= GROUND_LAYER && g_settings.getInteger(Config::COMPENSATED_SELECT)) {
 							start_x++; start_y++;
@@ -1563,7 +1569,7 @@ void MapCanvas::OnMousePropertiesRelease(wxMouseEvent& event)
 							for(int y = start_y; y <= end_y; y++) {
 								Tile* tile = editor.getMap().getTile(x, y, z);
 								if(!tile) continue;
-								editor.selection.add(tile);
+								selection.add(tile);
 							}
 						}
 						if(z <= GROUND_LAYER && g_settings.getInteger(Config::COMPENSATED_SELECT)) {
@@ -1574,8 +1580,8 @@ void MapCanvas::OnMousePropertiesRelease(wxMouseEvent& event)
 					break;
 				}
 			}
-			editor.selection.finish(); // Finish the selection session
-			editor.selection.updateSelectionCount();
+			selection.finish(); // Finish the selection session
+			selection.updateSelectionCount();
 		}
 	} else if(event.ControlDown()) {
 		// Nothing
@@ -1965,12 +1971,11 @@ void MapCanvas::OnDelete(wxCommandEvent& WXUNUSED(event))
 
 void MapCanvas::OnCopyPosition(wxCommandEvent& WXUNUSED(event))
 {
-	if(editor.selection.size() == 0)
+	if(editor.hasSelection())
 		return;
 
-	Position minPos = editor.selection.minPosition();
-	Position maxPos = editor.selection.maxPosition();
-
+	Position minPos = editor.getSelection().minPosition();
+	Position maxPos = editor.getSelection().maxPosition();
 	if(minPos != maxPos) {
 		posToClipboard(minPos.x, minPos.y, minPos.z, maxPos.x, maxPos.y, maxPos.z);
 	} else {
@@ -1981,10 +1986,10 @@ void MapCanvas::OnCopyPosition(wxCommandEvent& WXUNUSED(event))
 
 void MapCanvas::OnCopyServerId(wxCommandEvent& WXUNUSED(event))
 {
-	ASSERT(editor.selection.size() == 1);
+	ASSERT(editor.getSelection().size() == 1);
 
 	if(wxTheClipboard->Open()) {
-		Tile* tile = editor.selection.getSelectedTile();
+		Tile* tile = editor.getSelection().getSelectedTile();
 		ItemVector selected_items = tile->getSelectedItems();
 		ASSERT(selected_items.size() == 1);
 
@@ -2000,10 +2005,10 @@ void MapCanvas::OnCopyServerId(wxCommandEvent& WXUNUSED(event))
 
 void MapCanvas::OnCopyClientId(wxCommandEvent& WXUNUSED(event))
 {
-	ASSERT(editor.selection.size() == 1);
+	ASSERT(editor.getSelection().size() == 1);
 
 	if(wxTheClipboard->Open()) {
-		Tile* tile = editor.selection.getSelectedTile();
+		Tile* tile = editor.getSelection().getSelectedTile();
 		ItemVector selected_items = tile->getSelectedItems();
 		ASSERT(selected_items.size() == 1);
 
@@ -2019,10 +2024,10 @@ void MapCanvas::OnCopyClientId(wxCommandEvent& WXUNUSED(event))
 
 void MapCanvas::OnCopyName(wxCommandEvent& WXUNUSED(event))
 {
-	ASSERT(editor.selection.size() == 1);
+	ASSERT(editor.getSelection().size() == 1);
 
 	if(wxTheClipboard->Open()) {
-		Tile* tile = editor.selection.getSelectedTile();
+		Tile* tile = editor.getSelection().getSelectedTile();
 		ItemVector selected_items = tile->getSelectedItems();
 		ASSERT(selected_items.size() == 1);
 
@@ -2038,10 +2043,10 @@ void MapCanvas::OnCopyName(wxCommandEvent& WXUNUSED(event))
 
 void MapCanvas::OnBrowseTile(wxCommandEvent& WXUNUSED(event))
 {
-	if(editor.selection.size() != 1)
+	if(editor.getSelection().size() != 1)
 		return;
 
-	Tile* tile = editor.selection.getSelectedTile();
+	Tile* tile = editor.getSelection().getSelectedTile();
 	if(!tile) return;
 	ASSERT(tile->isSelected());
 	Tile* new_tile = tile->deepCopy(editor.getMap());
@@ -2063,7 +2068,7 @@ void MapCanvas::OnBrowseTile(wxCommandEvent& WXUNUSED(event))
 
 void MapCanvas::OnRotateItem(wxCommandEvent& WXUNUSED(event))
 {
-	Tile* tile = editor.selection.getSelectedTile();
+	Tile* tile = editor.getSelection().getSelectedTile();
 
 	Action* action = editor.actionQueue->createAction(ACTION_ROTATE_ITEM);
 
@@ -2082,7 +2087,7 @@ void MapCanvas::OnRotateItem(wxCommandEvent& WXUNUSED(event))
 
 void MapCanvas::OnGotoDestination(wxCommandEvent& WXUNUSED(event))
 {
-	Tile* tile = editor.selection.getSelectedTile();
+	Tile* tile = editor.getSelection().getSelectedTile();
 	ItemVector selected_items = tile->getSelectedItems();
 	ASSERT(selected_items.size() > 0);
 	Teleport* teleport = dynamic_cast<Teleport*>(selected_items.front());
@@ -2094,7 +2099,7 @@ void MapCanvas::OnGotoDestination(wxCommandEvent& WXUNUSED(event))
 
 void MapCanvas::OnCopyDestination(wxCommandEvent& WXUNUSED(event))
 {
-	Tile* tile = editor.selection.getSelectedTile();
+	Tile* tile = editor.getSelection().getSelectedTile();
 	ItemVector selected_items = tile->getSelectedItems();
 	ASSERT(selected_items.size() > 0);
 
@@ -2108,7 +2113,7 @@ void MapCanvas::OnCopyDestination(wxCommandEvent& WXUNUSED(event))
 
 void MapCanvas::OnSwitchDoor(wxCommandEvent& WXUNUSED(event))
 {
-	Tile* tile = editor.selection.getSelectedTile();
+	Tile* tile = editor.getSelection().getSelectedTile();
 
 	Action* action = editor.actionQueue->createAction(ACTION_SWITCHDOOR);
 
@@ -2127,8 +2132,8 @@ void MapCanvas::OnSwitchDoor(wxCommandEvent& WXUNUSED(event))
 
 void MapCanvas::OnSelectRAWBrush(wxCommandEvent& WXUNUSED(event))
 {
-	if(editor.selection.size() != 1) return;
-	Tile* tile = editor.selection.getSelectedTile();
+	if(editor.getSelection().size() != 1) return;
+	Tile* tile = editor.getSelection().getSelectedTile();
 	if(!tile) return;
 	Item* item = tile->getTopSelectedItem();
 
@@ -2138,8 +2143,8 @@ void MapCanvas::OnSelectRAWBrush(wxCommandEvent& WXUNUSED(event))
 
 void MapCanvas::OnSelectGroundBrush(wxCommandEvent& WXUNUSED(event))
 {
-	if(editor.selection.size() != 1) return;
-	Tile* tile = editor.selection.getSelectedTile();
+	if(editor.getSelection().size() != 1) return;
+	Tile* tile = editor.getSelection().getSelectedTile();
 	if(!tile) return;
 	GroundBrush* bb = tile->getGroundBrush();
 
@@ -2149,8 +2154,8 @@ void MapCanvas::OnSelectGroundBrush(wxCommandEvent& WXUNUSED(event))
 
 void MapCanvas::OnSelectDoodadBrush(wxCommandEvent& WXUNUSED(event))
 {
-	if(editor.selection.size() != 1) return;
-	Tile* tile = editor.selection.getSelectedTile();
+	if(editor.getSelection().size() != 1) return;
+	Tile* tile = editor.getSelection().getSelectedTile();
 	if(!tile) return;
 	Item* item = tile->getTopSelectedItem();
 
@@ -2160,8 +2165,8 @@ void MapCanvas::OnSelectDoodadBrush(wxCommandEvent& WXUNUSED(event))
 
 void MapCanvas::OnSelectDoorBrush(wxCommandEvent& WXUNUSED(event))
 {
-	if(editor.selection.size() != 1) return;
-	Tile* tile = editor.selection.getSelectedTile();
+	if(editor.getSelection().size() != 1) return;
+	Tile* tile = editor.getSelection().getSelectedTile();
 	if(!tile) return;
 	Item* item = tile->getTopSelectedItem();
 
@@ -2171,8 +2176,8 @@ void MapCanvas::OnSelectDoorBrush(wxCommandEvent& WXUNUSED(event))
 
 void MapCanvas::OnSelectWallBrush(wxCommandEvent& WXUNUSED(event))
 {
-	if(editor.selection.size() != 1) return;
-	Tile* tile = editor.selection.getSelectedTile();
+	if(editor.getSelection().size() != 1) return;
+	Tile* tile = editor.getSelection().getSelectedTile();
 	if(!tile) return;
 	Item* wall = tile->getWall();
 	WallBrush* wb = wall->getWallBrush();
@@ -2183,8 +2188,8 @@ void MapCanvas::OnSelectWallBrush(wxCommandEvent& WXUNUSED(event))
 
 void MapCanvas::OnSelectCarpetBrush(wxCommandEvent& WXUNUSED(event))
 {
-	if(editor.selection.size() != 1) return;
-	Tile* tile = editor.selection.getSelectedTile();
+	if(editor.getSelection().size() != 1) return;
+	Tile* tile = editor.getSelection().getSelectedTile();
 	if(!tile) return;
 	Item* wall = tile->getCarpet();
 	CarpetBrush* cb = wall->getCarpetBrush();
@@ -2195,8 +2200,8 @@ void MapCanvas::OnSelectCarpetBrush(wxCommandEvent& WXUNUSED(event))
 
 void MapCanvas::OnSelectTableBrush(wxCommandEvent& WXUNUSED(event))
 {
-	if(editor.selection.size() != 1) return;
-	Tile* tile = editor.selection.getSelectedTile();
+	if(editor.getSelection().size() != 1) return;
+	Tile* tile = editor.getSelection().getSelectedTile();
 	if(!tile) return;
 	Item* wall = tile->getTable();
 	TableBrush* tb = wall->getTableBrush();
@@ -2207,7 +2212,7 @@ void MapCanvas::OnSelectTableBrush(wxCommandEvent& WXUNUSED(event))
 
 void MapCanvas::OnSelectHouseBrush(wxCommandEvent& WXUNUSED(event))
 {
-	Tile* tile = editor.selection.getSelectedTile();
+	Tile* tile = editor.getSelection().getSelectedTile();
 	if(!tile)
 		return;
 
@@ -2222,7 +2227,7 @@ void MapCanvas::OnSelectHouseBrush(wxCommandEvent& WXUNUSED(event))
 
 void MapCanvas::OnSelectMonsterBrush(wxCommandEvent& WXUNUSED(event))
 {
-	Tile* tile = editor.selection.getSelectedTile();
+	Tile* tile = editor.getSelection().getSelectedTile();
 	if(!tile)
 		return;
 
@@ -2237,7 +2242,7 @@ void MapCanvas::OnSelectSpawnBrush(wxCommandEvent& WXUNUSED(event))
 
 void MapCanvas::OnSelectNpcBrush(wxCommandEvent& WXUNUSED(event))
 {
-	Tile* tile = editor.selection.getSelectedTile();
+	Tile* tile = editor.getSelection().getSelectedTile();
 	if(!tile)
 		return;
 
@@ -2252,10 +2257,10 @@ void MapCanvas::OnSelectSpawnNpcBrush(wxCommandEvent& WXUNUSED(event))
 
 void MapCanvas::OnProperties(wxCommandEvent& WXUNUSED(event))
 {
-	if(editor.selection.size() != 1)
+	if(editor.getSelection().size() != 1)
 		return;
 
-	Tile* tile = editor.selection.getSelectedTile();
+	Tile* tile = editor.getSelection().getSelectedTile();
 	if(!tile) return;
 	ASSERT(tile->isSelected());
 	Tile* new_tile = tile->deepCopy(editor.getMap());
@@ -2377,7 +2382,7 @@ void MapCanvas::Reset()
 	last_mmb_click_x = -1;
 	last_mmb_click_y = -1;
 
-	editor.selection.clear();
+	editor.getSelection().clear();
 	editor.actionQueue->clear();
 }
 
@@ -2400,7 +2405,7 @@ void MapPopupMenu::Update()
 		Delete(m_item);
 	}
 
-	bool anything_selected = editor.selection.size() != 0;
+	bool anything_selected = editor.hasSelection();
 
 	wxMenuItem* cutItem = Append( MAP_POPUP_MENU_CUT, "&Cut\tCTRL+X", "Cut out all selected items");
 	cutItem->Enable(anything_selected);
@@ -2418,8 +2423,8 @@ void MapPopupMenu::Update()
 	deleteItem->Enable(anything_selected);
 
 	if(anything_selected) {
-		if(editor.selection.size() == 1) {
-			Tile* tile = editor.selection.getSelectedTile();
+		if(editor.getSelection().size() == 1) {
+			Tile* tile = editor.getSelection().getSelectedTile();
 			ItemVector selected_items = tile->getSelectedItems();
 
 			bool hasWall = false;

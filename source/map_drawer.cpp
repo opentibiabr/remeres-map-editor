@@ -571,13 +571,12 @@ void MapDrawer::DrawGrid()
 
 void MapDrawer::DrawDraggingShadow()
 {
-	if(!dragging || options.ingame || editor.selection.isBusy())
+	if(!dragging || options.ingame || editor.getSelection().isBusy())
 		return;
 
 	glEnable(GL_TEXTURE_2D);
 
-	// Draw dragging shadow
-	for(Tile* tile : editor.selection) {
+	for(Tile* tile : editor.getSelection()) {
 		int move_z = canvas->drag_start_z - floor;
 		int move_x = canvas->drag_start_x - mouse_map_x;
 		int move_y = canvas->drag_start_y - mouse_map_y;
