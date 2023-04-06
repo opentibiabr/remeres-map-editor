@@ -78,10 +78,10 @@ bool Map::open(const std::string file)
 
 	for(int x = 20; ; x += 2) {
 		int y = 22;
-		Tile* old = getTile(x, y, GROUND_LAYER);
+		Tile* old = getTile(x, y, rme::MapGroundLayer);
 		if(old) {
 			y -= 2;
-			Tile* new_ = getTile(x, y, GROUND_LAYER);
+			Tile* new_ = getTile(x, y, rme::MapGroundLayer);
 			if(new_) {
 				if(old->ground || old->items.size()) {
 					out << "\tvecval.clear();\n";
@@ -610,7 +610,7 @@ SpawnNpcList Map::getSpawnNpcList(int x, int y, int z) const
 	return getSpawnNpcList(tile);
 }
 
-bool Map::exportMinimap(FileName filename, int floor /*= GROUND_LAYER*/, bool displaydialog)
+bool Map::exportMinimap(FileName filename, int floor /*= rme::MapGroundLayer*/, bool displaydialog)
 {
 	uint8_t* pic = nullptr;
 
@@ -815,7 +815,7 @@ void Map::removeUniqueId(uint16_t uid)
 
 bool Map::hasUniqueId(uint16_t uid) const
 {
-	if (uid < MIN_UNIQUE_ID || uniqueIds.empty())
+	if (uid < rme::MinUniqueId || uniqueIds.empty())
 		return false;
 
 	auto it = std::find(uniqueIds.begin(), uniqueIds.end(), uid);

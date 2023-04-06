@@ -125,13 +125,14 @@ _Ret_bytecap_(_Size) inline void* __CRTDECL operator new[](size_t _Size, const c
 #include <ranges>
 #include <regex>
 
-using StringVector = std::vector<std::string>;
-using FileName= wxFileName;
+typedef std::vector<std::string> StringVector;
+typedef wxFileName FileName;
 
 #include "con_vector.h"
 #include "common.h"
 #include "threads.h"
 
+#include "const.h"
 #include "rme_forward_declarations.h"
 
 #if wxCHECK_VERSION(3, 1, 0)
