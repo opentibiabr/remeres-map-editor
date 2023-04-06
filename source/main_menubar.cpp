@@ -305,8 +305,8 @@ void MainMenuBar::Update()
 
 	Editor* editor = g_gui.GetCurrentEditor();
 	if(editor) {
-		EnableItem(UNDO, editor->actionQueue->canUndo());
-		EnableItem(REDO, editor->actionQueue->canRedo());
+		EnableItem(UNDO, editor->getHistoryActions()->canUndo());
+		EnableItem(REDO, editor->getHistoryActions()->canRedo());
 		EnableItem(PASTE, editor->copybuffer.canPaste());
 	} else {
 		EnableItem(UNDO, false);
@@ -1135,7 +1135,7 @@ void MainMenuBar::OnRemoveItemOnSelection(wxCommandEvent& WXUNUSED(event))
 
 	FindItemDialog dialog(frame, "Remove Item on Selection");
 	if(dialog.ShowModal() == wxID_OK) {
-		g_gui.GetCurrentEditor()->actionQueue->clear();
+		g_gui.GetCurrentEditor()->getHistoryActions()->clear();
 		g_gui.CreateLoadBar("Searching item on selection to remove...");
 		OnMapRemoveItems::RemoveItemCondition condition(dialog.getResultID());
 		int64_t count = RemoveItemOnMap(g_gui.GetCurrentMap(), condition, true);
@@ -1293,7 +1293,7 @@ void MainMenuBar::OnMapRemoveItems(wxCommandEvent& WXUNUSED(event))
 		uint16_t itemid = dialog.getResultID();
 
 		g_gui.GetCurrentEditor()->getSelection().clear();
-		g_gui.GetCurrentEditor()->actionQueue->clear();
+		g_gui.GetCurrentEditor()->getHistoryActions()->clear();
 
 		OnMapRemoveItems::RemoveItemCondition condition(itemid);
 		g_gui.CreateLoadBar("Searching map for items to remove...");
@@ -1336,7 +1336,7 @@ void MainMenuBar::OnMapRemoveCorpses(wxCommandEvent& WXUNUSED(event))
 
 	if(ok == wxID_YES) {
 		g_gui.GetCurrentEditor()->getSelection().clear();
-		g_gui.GetCurrentEditor()->actionQueue->clear();
+		g_gui.GetCurrentEditor()->getHistoryActions()->clear();
 
 		OnMapRemoveCorpses::condition func;
 		g_gui.CreateLoadBar("Searching map for items to remove...");
@@ -1410,7 +1410,7 @@ void MainMenuBar::OnMapRemoveUnreachable(wxCommandEvent& WXUNUSED(event))
 
 	if(ok == wxID_YES) {
 		g_gui.GetCurrentEditor()->getSelection().clear();
-		g_gui.GetCurrentEditor()->actionQueue->clear();
+		g_gui.GetCurrentEditor()->getHistoryActions()->clear();
 
 		OnMapRemoveUnreachable::condition func;
 		g_gui.CreateLoadBar("Searching map for tiles to remove...");
@@ -1473,8 +1473,8 @@ void MainMenuBar::OnMapRemoveEmptyMonsterSpawns(wxCommandEvent& WXUNUSED(event))
 			monster->reset();
 		}
 
-		BatchAction* batch = editor->actionQueue->createBatch(ACTION_DELETE_TILES);
-		Action* action = editor->actionQueue->createAction(batch);
+		BatchAction* batch = editor->getHistoryActions()->createBatch(ACTION_DELETE_TILES);
+		Action* action = editor->getHistoryActions()->createAction(batch);
 
 		const size_t count = toDeleteSpawns.size();
 		size_t removed = 0;
@@ -1547,8 +1547,8 @@ void MainMenuBar::OnMapRemoveEmptyNpcSpawns(wxCommandEvent& WXUNUSED(event))
 			npc->reset();
 		}
 
-		BatchAction* batch = editor->actionQueue->createBatch(ACTION_DELETE_TILES);
-		Action* action = editor->actionQueue->createAction(batch);
+		BatchAction* batch = editor->getHistoryActions()->createBatch(ACTION_DELETE_TILES);
+		Action* action = editor->getHistoryActions()->createAction(batch);
 
 		const size_t count = toDeleteSpawns.size();
 		size_t removed = 0;
