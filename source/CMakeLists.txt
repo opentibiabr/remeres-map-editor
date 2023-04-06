@@ -34,6 +34,7 @@ target_sources(${PROJECT_NAME}
 	PRIVATE
 	about_window.cpp
 	action.cpp
+	actions_history_window.cpp
 	application.cpp
 	artprovider.cpp
 	basemap.cpp

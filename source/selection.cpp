@@ -74,7 +74,7 @@ Position Selection::maxPosition() const
 	return max_pos;
 }
 
-void Selection::add(Tile* tile, Item* item)
+void Selection::add(const Tile* tile, Item* item)
 {
 	ASSERT(subsession);
 	ASSERT(tile);
@@ -95,7 +95,7 @@ void Selection::add(Tile* tile, Item* item)
 	subsession->addChange(newd Change(new_tile));
 }
 
-void Selection::add(Tile* tile, SpawnMonster* spawnMonster)
+void Selection::add(const Tile* tile, SpawnMonster* spawnMonster)
 {
 	ASSERT(subsession);
 	ASSERT(tile);
@@ -111,7 +111,7 @@ void Selection::add(Tile* tile, SpawnMonster* spawnMonster)
 	subsession->addChange(newd Change(new_tile));
 }
 
-void Selection::add(Tile* tile, SpawnNpc* spawnNpc)
+void Selection::add(const Tile* tile, SpawnNpc* spawnNpc)
 {
 	ASSERT(subsession);
 	ASSERT(tile);
@@ -127,7 +127,7 @@ void Selection::add(Tile* tile, SpawnNpc* spawnNpc)
 	subsession->addChange(newd Change(new_tile));
 }
 
-void Selection::add(Tile* tile, Monster* monster)
+void Selection::add(const Tile* tile, Monster* monster)
 {
 	ASSERT(subsession);
 	ASSERT(tile);
@@ -143,7 +143,7 @@ void Selection::add(Tile* tile, Monster* monster)
 	subsession->addChange(newd Change(new_tile));
 }
 
-void Selection::add(Tile* tile, Npc* npc)
+void Selection::add(const Tile* tile, Npc* npc)
 {
 	ASSERT(subsession);
 	ASSERT(tile);
@@ -159,7 +159,7 @@ void Selection::add(Tile* tile, Npc* npc)
 	subsession->addChange(newd Change(new_tile));
 }
 
-void Selection::add(Tile* tile)
+void Selection::add(const Tile* tile)
 {
 	ASSERT(subsession);
 	ASSERT(tile);
@@ -280,13 +280,13 @@ void Selection::clear()
 	}
 }
 
-void Selection::start(SessionFlags flags)
+void Selection::start(SessionFlags flags, ActionIdentifier identifier)
 {
 	if(!(flags & INTERNAL)) {
 		if(!(flags & SUBTHREAD)) {
-			session = editor.getHistoryActions()->createBatch(ACTION_SELECT);
+			session = editor.createBatch(identifier);
 		}
-		subsession = editor.getHistoryActions()->createAction(ACTION_SELECT);
+		subsession = editor.createAction(identifier);
 	}
 	busy = true;
 }
@@ -303,7 +303,7 @@ void Selection::commit()
 		batch->addAndCommitAction(subsession);
 
 		// Create a newd action for subsequent selects
-		subsession = editor.getHistoryActions()->createAction(ACTION_SELECT);
+		subsession = editor.createAction(ACTION_SELECT);
 		session = batch;
 	}
 }
@@ -323,6 +323,7 @@ void Selection::finish(SessionFlags flags)
 
 			batch->addAndCommitAction(subsession);
 			editor.addBatch(batch, 2);
+			editor.updateActions();
 
 			session = nullptr;
 			subsession = nullptr;

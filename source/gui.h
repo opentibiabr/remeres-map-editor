@@ -52,6 +52,7 @@ class MapCanvas;
 
 class SearchResultWindow;
 class MinimapWindow;
+class ActionsHistoryWindow;
 class PaletteWindow;
 class OldPropertiesWindow;
 class EditTownsDialog;
@@ -60,12 +61,20 @@ class ItemButton;
 class LiveSocket;
 
 extern const wxEventType EVT_UPDATE_MENUS;
+extern const wxEventType EVT_UPDATE_ACTIONS;
 
 #define EVT_ON_UPDATE_MENUS(id, fn) \
     DECLARE_EVENT_TABLE_ENTRY( \
         EVT_UPDATE_MENUS, id, wxID_ANY, \
-        (wxObjectEventFunction)(wxEventFunction) wxStaticCastEvent( wxCommandEventFunction, &fn ), \
-        (wxObject *) nullptr \
+        (wxObjectEventFunction)(wxEventFunction) wxStaticCastEvent(wxCommandEventFunction, &fn), \
+        (wxObject*) nullptr \
+    ),
+
+#define EVT_ON_UPDATE_ACTIONS(id, fn) \
+    DECLARE_EVENT_TABLE_ENTRY( \
+        EVT_UPDATE_ACTIONS, id, wxID_ANY, \
+        (wxObjectEventFunction)(wxEventFunction) wxStaticCastEvent(wxCommandEventFunction, &fn), \
+        (wxObject*) nullptr \
     ),
 
 class Hotkey
@@ -99,8 +108,6 @@ private:
 
 std::ostream& operator<<(std::ostream& os, const Hotkey& hotkey);
 std::istream& operator>>(std::istream& os, Hotkey& hotkey);
-
-
 
 class GUI
 {
@@ -177,6 +184,8 @@ public:
 	void SetTitle(wxString newtitle);
 	void UpdateTitle();
 	void UpdateMenus();
+	void UpdateActions();
+	void RefreshActions();
 	void ShowToolbar(ToolBarID id, bool show);
 	void SetStatusText(wxString text);
 
@@ -196,6 +205,9 @@ public:
 	// Search Results
 	SearchResultWindow* ShowSearchWindow();
 	void HideSearchWindow();
+
+	ActionsHistoryWindow* ShowActionsWindow();
+	void HideActionsWindow();
 
 	// Minimap
 	void CreateMinimap();
@@ -370,6 +382,7 @@ public:
 	MinimapWindow* minimap;
 	DCButton* gem; // The small gem in the lower-right corner
 	SearchResultWindow* search_result_window;
+	ActionsHistoryWindow* actions_history_window;
 	GraphicManager gfx;
 
 	BaseMap* secondary_map; // A buffer map
