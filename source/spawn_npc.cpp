@@ -20,14 +20,18 @@
 #include "tile.h"
 #include "spawn_npc.h"
 
-SpawnsNpc::SpawnsNpc()
+SpawnNpc::SpawnNpc(int size) :
+	size(0),
+	selected(false)
 {
-	////
+	setSize(size);
 }
 
-SpawnsNpc::~SpawnsNpc()
+SpawnNpc* SpawnNpc::deepCopy() const
 {
-	////
+	SpawnNpc* copy = new SpawnNpc(size);
+	copy->selected = selected;
+	return copy;
 }
 
 void SpawnsNpc::addSpawnNpc(Tile* tile)

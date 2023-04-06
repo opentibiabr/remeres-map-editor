@@ -22,18 +22,15 @@ class Tile;
 
 class SpawnNpc {
 public:
-	SpawnNpc(int size = 3) : size(0), selected(false) {setSize(size);}
-	~SpawnNpc() {}
+	SpawnNpc(int size = 3);
 
-	SpawnNpc* deepCopy() {
-		SpawnNpc* copy = newd SpawnNpc(size);
-		copy->selected = selected;
-		return copy;
-	}
+	SpawnNpc* deepCopy() const;
 
-	bool isSelected() const {return selected;}
-	void select() {selected = true;}
-	void deselect() {selected = false;}
+	bool isSelected() const noexcept { return selected; }
+	void select() noexcept { selected = true; }
+	void deselect() noexcept { selected = false; }
+
+	int getSize() const noexcept { return size; }
 
 	// Does not compare selection!
 	bool operator==(const SpawnNpc& other) {return size == other.size;}
@@ -43,7 +40,7 @@ public:
 		ASSERT(size < 100);
 		size = newsize;
 	}
-	int getSize() const {return size;}
+
 protected:
 	int size;
 	bool selected;
@@ -54,17 +51,15 @@ typedef std::list<SpawnNpc*> SpawnNpcList;
 
 class SpawnsNpc {
 public:
-	SpawnsNpc();
-	~SpawnsNpc();
 
 	void addSpawnNpc(Tile* tile);
 	void removeSpawnNpc(Tile* tile);
 
-	SpawnNpcPositionList::iterator begin() {return spawnsNpc.begin();}
-	SpawnNpcPositionList::const_iterator begin() const {return spawnsNpc.begin();}
-	SpawnNpcPositionList::iterator end() {return spawnsNpc.end();}
-	SpawnNpcPositionList::const_iterator end() const {return spawnsNpc.end();}
-	void erase(SpawnNpcPositionList::iterator iter) {spawnsNpc.erase(iter);}
+	SpawnNpcPositionList::iterator begin() noexcept { return spawnsNpc.begin(); }
+	SpawnNpcPositionList::const_iterator begin() const noexcept { return spawnsNpc.begin(); }
+	SpawnNpcPositionList::iterator end() noexcept { return spawnsNpc.end(); }
+	SpawnNpcPositionList::const_iterator end() const noexcept { return spawnsNpc.end(); }
+	void erase(SpawnNpcPositionList::iterator iter) noexcept { spawnsNpc.erase(iter); }
 	SpawnNpcPositionList::iterator find(Position& pos) {return spawnsNpc.find(pos);}
 private:
 	SpawnNpcPositionList spawnsNpc;

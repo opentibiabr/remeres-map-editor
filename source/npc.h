@@ -24,33 +24,34 @@
 class Npc {
 public:
 	Npc(NpcType* type);
-	Npc(std::string type_name);
-	~Npc();
-
-	// Static conversions
-	static std::string DirID2Name(uint16_t id);
-	static uint16_t DirName2ID(std::string id);
+	Npc(const std::string& type_name);
 
 	Npc* deepCopy() const;
 
 	const Outfit& getLookType() const;
 
-	bool isSaved();
-	void save();
-	void reset();
+	bool isSaved() const noexcept { return saved; }
+	void save() noexcept { saved = true; }
+	void reset() noexcept { saved = false; }
 
-	bool isSelected() const {return selected;}
-	void deselect() {selected = false;}
-	void select() {selected = true;}
+	bool isSelected() const noexcept { return selected; }
+	void deselect() noexcept { selected = false; }
+	void select() noexcept { selected = true; }
+
+	bool isNpc() const;
 
 	std::string getName() const;
 	NpcBrush* getBrush() const;
 
-	int getSpawnNpcTime() const {return spawnNpcTime;}
-	void setSpawnNpcTime(int spawnNpcTime) {this->spawnNpcTime = spawnNpcTime;}
+	int getSpawnNpcTime() const noexcept {return spawnNpcTime;}
+	void setSpawnNpcTime(int time) noexcept { spawnNpcTime = time; }
 
-	Direction getDirection() const { return direction; }
-	void setDirection(Direction direction) { this->direction = direction; }
+	Direction getDirection() const noexcept { return direction; }
+	void setDirection(Direction _direction) noexcept { direction = _direction; }
+
+	// Static conversions
+	static std::string DirID2Name(uint16_t id);
+	static uint16_t DirName2ID(std::string id);
 
 protected:
 	std::string type_name;
@@ -59,33 +60,6 @@ protected:
 	bool saved;
 	bool selected;
 };
-
-inline void Npc::save() {
-	saved = true;
-}
-
-inline void Npc::reset() {
-	saved = false;
-}
-
-inline bool Npc::isSaved() {
-	return saved;
-}
-
-inline std::string Npc::getName() const {
-	NpcType* npcType = g_npcs[type_name];
-	if(npcType) {
-		return npcType->name;
-	}
-	return "";
-}
-inline NpcBrush* Npc::getBrush() const {
-	NpcType* npcType = g_npcs[type_name];
-	if(npcType) {
-		return npcType->brush;
-	}
-	return nullptr;
-}
 
 typedef std::vector<Npc*> NpcVector;
 typedef std::list<Npc*> NpcList;

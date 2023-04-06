@@ -303,16 +303,6 @@ void Map::cleanInvalidTiles(bool showdialog)
 		g_gui.DestroyLoadBar();
 }
 
-MapVersion Map::getVersion() const
-{
-	return mapVersion;
-}
-
-bool Map::hasChanged() const
-{
-	return has_changed;
-}
-
 bool Map::doChange()
 {
 	bool doupdate = !has_changed;
@@ -325,11 +315,6 @@ bool Map::clearChanges()
 	bool doupdate = has_changed;
 	has_changed = false;
 	return doupdate;
-}
-
-bool Map::hasFile() const
-{
-	return filename != "";
 }
 
 void Map::setWidth(int new_width)
@@ -424,54 +409,86 @@ void Map::removeSpawnMonster(Tile* tile)
 	}
 }
 
-SpawnMonsterList Map::getSpawnMonsterList(Tile* where)
+SpawnMonsterList Map::getSpawnMonsterList(const Tile* tile) const
 {
 	SpawnMonsterList list;
-	TileLocation* tile_loc = where->getLocation();
-	if(tile_loc) {
-		if(tile_loc->getSpawnMonsterCount() > 0) {
-			uint32_t found = 0;
-			if(where->spawnMonster) {
+	if(!tile) return list;
+
+	const TileLocation* location = tile->getLocation();
+	if(!location || location->getSpawnMonsterCount() == 0)
+		return list;
+
+	uint32_t found = 0;
+	if(tile->spawnMonster) {
+		++found;
+		list.push_back(tile->spawnMonster);
+	}
+
+	// Scans the border tiles in an expanding square around the original spawn
+	const Position& position = tile->getPosition();
+	int start_x = position.x - 1;
+	int end_x = position.x + 1;
+	int start_y = position.y - 1;
+	int end_y = position.y + 1;
+
+	while(found != location->getSpawnMonsterCount()) {
+		for(int x = start_x; x <= end_x; ++x) {
+			const Tile* start_tile = getTile(x, start_y, position.z);
+			if(start_tile && start_tile->spawnMonster) {
+				list.push_back(start_tile->spawnMonster);
 				++found;
-				list.push_back(where->spawnMonster);
 			}
 
-			// Scans the border tiles in an expanding square around the original monster spawn
-			int z = where->getZ();
-			int start_x = where->getX() - 1, end_x = where->getX() + 1;
-			int start_y = where->getY() - 1, end_y = where->getY() + 1;
-			while(found != tile_loc->getSpawnMonsterCount()) {
-				for(int x = start_x; x <= end_x; ++x) {
-					Tile* tile = getTile(x, start_y, z);
-					if(tile && tile->spawnMonster) {
-						list.push_back(tile->spawnMonster);
-						++found;
-					}
-					tile = getTile(x, end_y, z);
-					if(tile && tile->spawnMonster) {
-						list.push_back(tile->spawnMonster);
-						++found;
-					}
-				}
-
-				for(int y = start_y + 1; y < end_y; ++y) {
-					Tile* tile = getTile(start_x, y, z);
-					if(tile && tile->spawnMonster) {
-						list.push_back(tile->spawnMonster);
-						++found;
-					}
-					tile = getTile(end_x, y, z);
-					if(tile && tile->spawnMonster) {
-						list.push_back(tile->spawnMonster);
-						++found;
-					}
-				}
-				--start_x, --start_y;
-				++end_x, ++end_y;
+			const Tile* end_tile = getTile(x, end_y, position.z);
+			if(end_tile && end_tile->spawnMonster) {
+				list.push_back(end_tile->spawnMonster);
+				++found;
 			}
 		}
+
+			for(int y = start_y + 1; y < end_y; ++y) {
+			const Tile* start_tile = getTile(start_x, y, position.z);
+			if(start_tile && start_tile->spawnMonster) {
+				list.push_back(start_tile->spawnMonster);
+				++found;
+			}
+			const Tile* end_tile = getTile(end_x, y, position.z);
+			if(end_tile && end_tile->spawnMonster) {
+				list.push_back(end_tile->spawnMonster);
+				++found;
+			}
+		}
+
+		for(int y = start_y + 1; y < end_y; ++y) {
+			const Tile* start_tile = getTile(start_x, y, position.z);
+			if(start_tile && start_tile->spawnMonster) {
+				list.push_back(start_tile->spawnMonster);
+				++found;
+			}
+			const Tile* end_tile = getTile(end_x, y, position.z);
+			if(end_tile && end_tile->spawnMonster) {
+				list.push_back(end_tile->spawnMonster);
+				++found;
+			}
+		}
+		--start_x;
+		--start_y;
+		++end_x;
+		++end_y;
 	}
 	return list;
+}
+
+SpawnMonsterList Map::getSpawnMonsterList(const Position& position) const
+{
+	const Tile* tile = getTile(position);
+	return getSpawnMonsterList(tile);
+}
+
+SpawnMonsterList Map::getSpawnMonsterList(int x, int y, int z) const
+{
+	const Tile* tile = getTile(x, y, z);
+	return getSpawnMonsterList(tile);
 }
 
 bool Map::addSpawnNpc(Tile* tile)
@@ -524,54 +541,73 @@ void Map::removeSpawnNpc(Tile* tile)
 	}
 }
 
-SpawnNpcList Map::getSpawnNpcList(Tile* where)
+SpawnNpcList Map::getSpawnNpcList(const Tile* tile) const
 {
 	SpawnNpcList listNpc;
-	TileLocation* tile_loc = where->getLocation();
-	if(tile_loc) {
-		if(tile_loc->getSpawnNpcCount() > 0) {
-			uint32_t found = 0;
-			if(where->spawnNpc) {
+	if(!tile) return listNpc;
+
+	const TileLocation* location = tile->getLocation();
+	if(!location || location->getSpawnNpcCount() == 0)
+		return listNpc;
+
+	uint32_t found = 0;
+	if(tile->spawnNpc) {
+		++found;
+		listNpc.push_back(tile->spawnNpc);
+	}
+
+	// Scans the border tiles in an expanding square around the original spawn
+	const Position& position = tile->getPosition();
+	int start_x = position.x - 1;
+	int end_x = position.x + 1;
+	int start_y = position.y - 1;
+	int end_y = position.y + 1;
+
+	while(found != location->getSpawnNpcCount()) {
+		for(int x = start_x; x <= end_x; ++x) {
+			const Tile* start_tile = getTile(x, start_y, position.z);
+			if(start_tile && start_tile->spawnNpc) {
+				listNpc.push_back(start_tile->spawnNpc);
 				++found;
-				listNpc.push_back(where->spawnNpc);
 			}
 
-			// Scans the border tiles in an expanding square around the original spawnNpc
-			int z = where->getZ();
-			int start_x = where->getX() - 1, end_x = where->getX() + 1;
-			int start_y = where->getY() - 1, end_y = where->getY() + 1;
-			while(found != tile_loc->getSpawnNpcCount()) {
-				for(int x = start_x; x <= end_x; ++x) {
-					Tile* tile = getTile(x, start_y, z);
-					if(tile && tile->spawnNpc) {
-						listNpc.push_back(tile->spawnNpc);
-						++found;
-					}
-					tile = getTile(x, end_y, z);
-					if(tile && tile->spawnNpc) {
-						listNpc.push_back(tile->spawnNpc);
-						++found;
-					}
-				}
-
-				for(int y = start_y + 1; y < end_y; ++y) {
-					Tile* tile = getTile(start_x, y, z);
-					if(tile && tile->spawnNpc) {
-						listNpc.push_back(tile->spawnNpc);
-						++found;
-					}
-					tile = getTile(end_x, y, z);
-					if(tile && tile->spawnNpc) {
-						listNpc.push_back(tile->spawnNpc);
-						++found;
-					}
-				}
-				--start_x, --start_y;
-				++end_x, ++end_y;
+			const Tile* end_tile = getTile(x, end_y, position.z);
+			if(end_tile && end_tile->spawnNpc) {
+				listNpc.push_back(end_tile->spawnNpc);
+				++found;
 			}
 		}
+
+			for(int y = start_y + 1; y < end_y; ++y) {
+			const Tile* start_tile = getTile(start_x, y, position.z);
+			if(start_tile && start_tile->spawnNpc) {
+				listNpc.push_back(start_tile->spawnNpc);
+				++found;
+			}
+			const Tile* end_tile = getTile(end_x, y, position.z);
+			if(end_tile && end_tile->spawnNpc) {
+				listNpc.push_back(end_tile->spawnNpc);
+				++found;
+			}
+		}
+		--start_x;
+		--start_y;
+		++end_x;
+		++end_y;
 	}
 	return listNpc;
+}
+
+SpawnNpcList Map::getSpawnNpcList(const Position& position) const
+{
+	const Tile* tile = getTile(position);
+	return getSpawnNpcList(tile);
+}
+
+SpawnNpcList Map::getSpawnNpcList(int x, int y, int z) const
+{
+	const Tile* tile = getTile(x, y, z);
+	return getSpawnNpcList(tile);
 }
 
 bool Map::exportMinimap(FileName filename, int floor /*= GROUND_LAYER*/, bool displaydialog)
@@ -777,7 +813,7 @@ void Map::removeUniqueId(uint16_t uid)
 	}
 }
 
-bool Map::hasUniqueId(uint16_t uid)
+bool Map::hasUniqueId(uint16_t uid) const
 {
 	if (uid < MIN_UNIQUE_ID || uniqueIds.empty())
 		return false;

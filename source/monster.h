@@ -23,34 +23,33 @@
 
 class Monster {
 public:
-	Monster(MonsterType* ctype);
-	Monster(std::string type_name);
-	~Monster();
-
-	// Static conversions
-	static std::string DirID2Name(uint16_t id);
-	static uint16_t DirName2ID(std::string id);
+	Monster(MonsterType* type);
+	Monster(const std::string& type_name);
 
 	Monster* deepCopy() const;
 
 	const Outfit& getLookType() const;
 
-	bool isSaved();
-	void save();
-	void reset();
+	bool isSaved() const noexcept { return saved; }
+	void save() noexcept { saved = true; }
+	void reset() noexcept { saved = false; }
 
-	bool isSelected() const {return selected;}
-	void deselect() {selected = false;}
-	void select() {selected = true;}
+	bool isSelected() const noexcept { return selected; }
+	void deselect() noexcept { selected = false; }
+	void select() noexcept { selected = true; }
 
 	std::string getName() const;
 	MonsterBrush* getBrush() const;
 
-	int getSpawnMonsterTime() const {return spawntime;}
-	void setSpawnMonsterTime(int spawntime) {this->spawntime = spawntime;}
+	int getSpawnMonsterTime() const noexcept {return spawntime;}
+	void setSpawnMonsterTime(int time) noexcept { spawntime = time; }
 
-	Direction getDirection() const { return direction; }
-	void setDirection(Direction direction) { this->direction = direction; }
+	Direction getDirection() const noexcept { return direction; }
+	void setDirection(Direction _direction) noexcept { direction = _direction; }
+
+	// Static conversions
+	static std::string DirID2Name(uint16_t id);
+	static uint16_t DirName2ID(std::string id);
 
 protected:
 	std::string type_name;
@@ -59,33 +58,6 @@ protected:
 	bool saved;
 	bool selected;
 };
-
-inline void Monster::save() {
-	saved = true;
-}
-
-inline void Monster::reset() {
-	saved = false;
-}
-
-inline bool Monster::isSaved() {
-	return saved;
-}
-
-inline std::string Monster::getName() const {
-	MonsterType* type = g_monsters[type_name];
-	if(type) {
-		return type->name;
-	}
-	return "";
-}
-inline MonsterBrush* Monster::getBrush() const {
-	MonsterType* type = g_monsters[type_name];
-	if(type) {
-		return type->brush;
-	}
-	return nullptr;
-}
 
 typedef std::vector<Monster*> MonsterVector;
 typedef std::list<Monster*> MonsterList;

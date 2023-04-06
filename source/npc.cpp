@@ -25,23 +25,65 @@ Npc::Npc(NpcType* type) : direction(NORTH), spawnNpcTime(0), saved(false), selec
 		type_name = type->name;
 }
 
-Npc::Npc(std::string type_name) : type_name(type_name), direction(NORTH), spawnNpcTime(0), saved(false), selected(false)
+Npc::Npc(const std::string& type_name) : type_name(type_name), direction(NORTH), spawnNpcTime(0), saved(false), selected(false)
 {
 	////
 }
 
-Npc::~Npc()
+Npc* Npc::deepCopy() const
 {
-	////
+	Npc* copy = new Npc(type_name);
+	copy->spawnNpcTime = spawnNpcTime;
+	copy->direction = direction;
+	copy->selected = selected;
+	copy->saved = saved;
+	return copy;
 }
 
-std::string Npc::DirID2Name(uint16_t id) {
+const Outfit& Npc::getLookType() const
+{
+	const NpcType* type = g_npcs[type_name];
+	if(type)
+		return type->outfit;
+	static const Outfit otfi; // Empty outfit
+	return otfi;
+}
+
+bool Npc::isNpc() const
+{
+	const NpcType* type = g_npcs[type_name];
+	if(type) {
+		return type->isNpc;
+	}
+	return false;
+}
+
+std::string Npc::getName() const
+{
+	const NpcType* type = g_npcs[type_name];
+	if(type) {
+		return type->name;
+	}
+	return "";
+}
+
+NpcBrush* Npc::getBrush() const
+{
+	const NpcType* type = g_npcs[type_name];
+	if(type) {
+		return type->brush;
+	}
+	return nullptr;
+}
+
+std::string Npc::DirID2Name(uint16_t id)
+{
 	switch (id) {
-	case NORTH: return "North";
-	case EAST: return "East";
-	case SOUTH: return "South";
-	case WEST: return "West";
-	default: return "Unknown";
+		case NORTH: return "North";
+		case EAST: return "East";
+		case SOUTH: return "South";
+		case WEST: return "West";
+		default: return "Unknown";
 	}
 }
 
@@ -53,23 +95,4 @@ uint16_t Npc::DirName2ID(std::string dir)
 	if(dir == "south") return SOUTH;
 	if(dir == "west") return WEST;
 	return SOUTH;
-}
-
-Npc* Npc::deepCopy() const
-{
-	Npc* copy = newd Npc(type_name);
-	copy->spawnNpcTime = spawnNpcTime;
-	copy->direction = direction;
-	copy->selected = selected;
-	copy->saved = saved;
-	return copy;
-}
-
-const Outfit& Npc::getLookType() const
-{
-	NpcType* type = g_npcs[type_name];
-	if(type)
-		return type->outfit;
-	static const Outfit otfi; // Empty outfit
-	return otfi;
 }

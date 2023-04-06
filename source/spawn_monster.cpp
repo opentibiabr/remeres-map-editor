@@ -20,14 +20,18 @@
 #include "tile.h"
 #include "spawn_monster.h"
 
-SpawnsMonster::SpawnsMonster()
+SpawnMonster::SpawnMonster(int size) :
+	size(0),
+	selected(false)
 {
-	////
+	setSize(size);
 }
 
-SpawnsMonster::~SpawnsMonster()
+SpawnMonster* SpawnMonster::deepCopy() const
 {
-	////
+	SpawnMonster* copy = new SpawnMonster(size);
+	copy->selected = selected;
+	return copy;
 }
 
 void SpawnsMonster::addSpawnMonster(Tile* tile)

@@ -45,8 +45,8 @@ public:
 
 	// Access tile
 	// Can't set directly since that does not update tile count
-	Tile* get() {return tile;}
-	const Tile* get() const {return tile;}
+	Tile* get() noexcept { return tile; }
+	const Tile* get() const noexcept { return tile; }
 
 	int size() const;
 	bool empty() const;
@@ -56,26 +56,27 @@ public:
 	int getY() const noexcept { return position.y; }
 	int getZ() const noexcept { return position.z; }
 
-	size_t getSpawnMonsterCount() const {return spawn_monster_count;}
-	void increaseSpawnCount() {spawn_monster_count++;}
-	void decreaseSpawnMonsterCount() {spawn_monster_count--;}
+	size_t getSpawnMonsterCount() const noexcept {return spawn_monster_count;}
+	void increaseSpawnCount() noexcept  {spawn_monster_count++;}
+	void decreaseSpawnMonsterCount() noexcept  {spawn_monster_count--;}
 
-	size_t getSpawnNpcCount() const {return spawn_npc_count;}
-	void increaseSpawnNpcCount() {spawn_npc_count++;}
-	void decreaseSpawnNpcCount() {spawn_npc_count--;}
+	size_t getSpawnNpcCount() const noexcept {return spawn_npc_count;}
+	void increaseSpawnNpcCount() noexcept {spawn_npc_count++;}
+	void decreaseSpawnNpcCount() noexcept {spawn_npc_count--;}
 
-	size_t getWaypointCount() const {return waypoint_count;}
+	size_t getWaypointCount() const noexcept  {return waypoint_count;}
 	void increaseWaypointCount() {waypoint_count++;}
 	void decreaseWaypointCount() {waypoint_count--;}
-	HouseExitList* createHouseExits() {if(house_exits) return house_exits; return house_exits = newd HouseExitList;}
-	HouseExitList* getHouseExits() {return house_exits;}
+	HouseExitList* createHouseExits();
+	HouseExitList* getHouseExits() noexcept  { return house_exits; }
 
 	friend class Floor;
 	friend class QTreeNode;
 	friend class Waypoints;
 };
 
-class Floor {
+class Floor
+{
 public:
 	Floor(int x, int y, int z);
 	TileLocation locs[MAP_LAYERS];
@@ -117,6 +118,7 @@ public:
 	void setRequested(bool underground, bool r);
 	bool isVisible(bool underground);
 	bool isRequested(bool underground);
+
 protected:
 	BaseMap& map;
 	uint32_t visible;

@@ -111,8 +111,8 @@ public:
 	void UpdateZoomStatus();
 
 	void ChangeFloor(int new_floor);
-	int GetFloor() const {return floor;}
-	double GetZoom() const { return zoom; }
+	int GetFloor() const noexcept { return floor; }
+	double GetZoom() const noexcept { return zoom; }
 	void SetZoom(double value);
 	void GetViewBox(int* view_scroll_x, int* view_scroll_y, int* screensize_x, int* screensize_y) const;
 
@@ -195,6 +195,7 @@ public:
 	virtual ~MapPopupMenu();
 
 	void Update();
+
 protected:
 	Editor& editor;
 };
@@ -203,7 +204,6 @@ class AnimationTimer : public wxTimer
 {
 public:
 	AnimationTimer(MapCanvas *canvas);
-	~AnimationTimer();
 
 	void Notify();
 	void Start();

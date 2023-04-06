@@ -22,18 +22,15 @@ class Tile;
 
 class SpawnMonster {
 public:
-	SpawnMonster(int size = 3) : size(0), selected(false) {setSize(size);}
-	~SpawnMonster() {}
+	SpawnMonster(int size = 3);
 
-	SpawnMonster* deepCopy() {
-		SpawnMonster* copy = newd SpawnMonster(size);
-		copy->selected = selected;
-		return copy;
-	}
+	SpawnMonster* deepCopy() const;
 
-	bool isSelected() const {return selected;}
-	void select() {selected = true;}
-	void deselect() {selected = false;}
+	bool isSelected() const noexcept { return selected; }
+	void select() noexcept { selected = true; }
+	void deselect() noexcept { selected = false; }
+
+	int getSize() const noexcept { return size; }
 
 	// Does not compare selection!
 	bool operator==(const SpawnMonster& other) {return size == other.size;}
@@ -43,7 +40,6 @@ public:
 		ASSERT(size < 100);
 		size = newsize;
 	}
-	int getSize() const {return size;}
 protected:
 	int size;
 	bool selected;
@@ -54,17 +50,15 @@ typedef std::list<SpawnMonster*> SpawnMonsterList;
 
 class SpawnsMonster {
 public:
-	SpawnsMonster();
-	~SpawnsMonster();
 
 	void addSpawnMonster(Tile* tile);
 	void removeSpawnMonster(Tile* tile);
 
-	SpawnMonsterPositionList::iterator begin() {return spawnsMonster.begin();}
-	SpawnMonsterPositionList::const_iterator begin() const {return spawnsMonster.begin();}
-	SpawnMonsterPositionList::iterator end() {return spawnsMonster.end();}
-	SpawnMonsterPositionList::const_iterator end() const {return spawnsMonster.end();}
-	void erase(SpawnMonsterPositionList::iterator iter) {spawnsMonster.erase(iter);}
+	SpawnMonsterPositionList::iterator begin() noexcept { return spawnsMonster.begin(); }
+	SpawnMonsterPositionList::const_iterator begin() const noexcept { return spawnsMonster.begin(); }
+	SpawnMonsterPositionList::iterator end() noexcept { return spawnsMonster.end(); }
+	SpawnMonsterPositionList::const_iterator end() const noexcept { return spawnsMonster.end(); }
+	void erase(SpawnMonsterPositionList::iterator iter) noexcept { spawnsMonster.erase(iter); }
 	SpawnMonsterPositionList::iterator find(Position& pos) {return spawnsMonster.find(pos);}
 private:
 	SpawnMonsterPositionList spawnsMonster;

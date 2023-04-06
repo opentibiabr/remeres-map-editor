@@ -47,8 +47,8 @@ public:
 	MonsterType* addMonsterType(const std::string& name, const Outfit& outfit);
 
 	bool hasMissing() const;
-	iterator begin() {return monster_map.begin();}
-	iterator end() {return monster_map.end();}
+	iterator begin() noexcept { return monster_map.begin(); }
+	iterator end() noexcept { return monster_map.end(); }
 
 	bool loadFromXML(const FileName& filename, bool standard, wxString& error, wxArrayString& warnings);
 	bool importXMLFromOT(const FileName& filename, wxString& error, wxArrayString& warnings);

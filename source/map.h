@@ -43,12 +43,11 @@ public:
 	bool convert(MapVersion to, bool showdialog = false);
 	bool convert(const ConversionMap& cm, bool showdialog = false);
 
-
 	// Query information about the map
 
-	MapVersion getVersion() const;
+	MapVersion getVersion() const noexcept { return mapVersion; }
 	// Returns true if any change has been done since last save
-	bool hasChanged() const;
+	bool hasChanged() const noexcept { return has_changed; }
 	// Makes a change, doesn't matter what. Just so that it asks when saving (Also adds a * to the window title)
 	bool doChange();
 	// Clears any changes
@@ -66,9 +65,9 @@ public:
 	void removeSpawnMonster(const Position& position) { removeSpawnMonster(getTile(position)); }
 
 	// Returns all possible spawnsMonster on the target tile
-	SpawnMonsterList getSpawnMonsterList(Tile* t);
-	SpawnMonsterList getSpawnMonsterList(const Position& position) { return getSpawnMonsterList(getTile(position)); }
-	SpawnMonsterList getSpawnMonsterList(int32_t x, int32_t y, int32_t z) { return getSpawnMonsterList(getTile(x, y, z)); }
+	SpawnMonsterList getSpawnMonsterList(const Tile* tile) const;
+	SpawnMonsterList getSpawnMonsterList(const Position& position) const;
+	SpawnMonsterList getSpawnMonsterList(int x, int y, int z) const;
 
 	// Mess with npc spawns
 	bool addSpawnNpc(Tile* spawnMonster);
@@ -76,16 +75,16 @@ public:
 	void removeSpawnNpc(const Position& position) { removeSpawnNpc(getTile(position)); }
 
 	// Returns all possible npc spawns on the target tile
-	SpawnNpcList getSpawnNpcList(Tile* t);
-	SpawnNpcList getSpawnNpcList(const Position& position) { return getSpawnNpcList(getTile(position)); }
-	SpawnNpcList getSpawnNpcList(int32_t x, int32_t y, int32_t z) { return getSpawnNpcList(getTile(x, y, z)); }
+	SpawnNpcList getSpawnNpcList(const Tile* tile) const;
+	SpawnNpcList getSpawnNpcList(const Position& position) const;
+	SpawnNpcList getSpawnNpcList(int x, int y, int z) const;
 
 	// Returns true if the map has been saved
 	// ie. it knows which file it should be saved to
-	bool hasFile() const;
-	std::string getFilename() const { return filename; }
-	std::string getName() const { return name; }
-	void setName(const std::string& n) { name = n; }
+	bool hasFile() const noexcept { return !filename.empty(); }
+	const std::string& getFilename() const noexcept { return filename; }
+	const std::string& getName() const noexcept { return name; }
+	void setName(const std::string& _name) noexcept { name = _name; }
 
 	// Get map data
 	int getWidth() const {return width;}
@@ -103,9 +102,9 @@ public:
 	void setSpawnMonsterFilename(const std::string& new_spawnmonsterfile);
 	void setSpawnNpcFilename(const std::string& new_npcfile);
 
-	void flagAsNamed() {unnamed = false;}
+	void flagAsNamed() noexcept { unnamed = false; }
 
-	bool hasUniqueId(uint16_t uid);
+	bool hasUniqueId(uint16_t uid) const;
 
 protected:
 	// Loads a map
