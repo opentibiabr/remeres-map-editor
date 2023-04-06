@@ -482,7 +482,7 @@ void GUI::SaveCurrentMap(FileName filename, bool showdialog)
 		if(editor) {
 			editor->saveMap(filename, showdialog);
 
-			const std::string& filename = editor->map.getFilename();
+			const std::string& filename = editor->getMap().getFilename();
 			const Position& position = mapTab->GetScreenCenterPosition();
 			std::ostringstream stream;
 			stream << position;
@@ -553,7 +553,7 @@ bool GUI::NewMap()
 
 	auto *mapTab = newd MapTab(tabbook, editor);
 	mapTab->OnSwitchEditorMode(mode);
-    editor->map.clearChanges();
+    editor->getMap().clearChanges();
 
 	SetStatusText("Created new map");
 	UpdateTitle();
@@ -687,7 +687,7 @@ Map& GUI::GetCurrentMap()
 {
 	Editor* editor = GetCurrentEditor();
 	ASSERT(editor);
-	return editor->map;
+	return editor->getMap();
 }
 
 int GUI::GetOpenMapCount()

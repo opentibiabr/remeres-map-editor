@@ -84,7 +84,7 @@ void Selection::add(Tile* tile, Item* item)
 
 	// Make a copy of the tile with the item selected
 	item->select();
-	Tile* new_tile = tile->deepCopy(editor.map);
+	Tile* new_tile = tile->deepCopy(editor.getMap());
 	item->deselect();
 
 	if(g_settings.getInteger(Config::BORDER_IS_GROUND)) {
@@ -105,7 +105,7 @@ void Selection::add(Tile* tile, SpawnMonster* spawnMonster)
 
 	// Make a copy of the tile with the item selected
 	spawnMonster->select();
-	Tile* new_tile = tile->deepCopy(editor.map);
+	Tile* new_tile = tile->deepCopy(editor.getMap());
 	spawnMonster->deselect();
 
 	subsession->addChange(newd Change(new_tile));
@@ -121,7 +121,7 @@ void Selection::add(Tile* tile, SpawnNpc* spawnNpc)
 
 	// Make a copy of the tile with the item selected
 	spawnNpc->select();
-	Tile* new_tile = tile->deepCopy(editor.map);
+	Tile* new_tile = tile->deepCopy(editor.getMap());
 	spawnNpc->deselect();
 
 	subsession->addChange(newd Change(new_tile));
@@ -137,7 +137,7 @@ void Selection::add(Tile* tile, Monster* monster)
 
 	// Make a copy of the tile with the item selected
 	monster->select();
-	Tile* new_tile = tile->deepCopy(editor.map);
+	Tile* new_tile = tile->deepCopy(editor.getMap());
 	monster->deselect();
 
 	subsession->addChange(newd Change(new_tile));
@@ -153,7 +153,7 @@ void Selection::add(Tile* tile, Npc* npc)
 
 	// Make a copy of the tile with the item selected
 	npc->select();
-	Tile* new_tile = tile->deepCopy(editor.map);
+	Tile* new_tile = tile->deepCopy(editor.getMap());
 	npc->deselect();
 
 	subsession->addChange(newd Change(new_tile));
@@ -164,7 +164,7 @@ void Selection::add(Tile* tile)
 	ASSERT(subsession);
 	ASSERT(tile);
 
-	Tile* new_tile = tile->deepCopy(editor.map);
+	Tile* new_tile = tile->deepCopy(editor.getMap());
 	new_tile->select();
 
 	subsession->addChange(newd Change(new_tile));
@@ -178,7 +178,7 @@ void Selection::remove(Tile* tile, Item* item)
 
 	bool selected = item->isSelected();
 	item->deselect();
-	Tile* new_tile = tile->deepCopy(editor.map);
+	Tile* new_tile = tile->deepCopy(editor.getMap());
 	if(selected) item->select();
 	if(item->isBorder() && g_settings.getInteger(Config::BORDER_IS_GROUND)) new_tile->deselectGround();
 
@@ -193,7 +193,7 @@ void Selection::remove(Tile* tile, SpawnMonster* spawnMonster)
 
 	bool selected = spawnMonster->isSelected();
 	spawnMonster->deselect();
-	Tile* new_tile = tile->deepCopy(editor.map);
+	Tile* new_tile = tile->deepCopy(editor.getMap());
 	if(selected) spawnMonster->select();
 
 	subsession->addChange(newd Change(new_tile));
@@ -207,7 +207,7 @@ void Selection::remove(Tile* tile, SpawnNpc* spawnNpc)
 
 	bool selected = spawnNpc->isSelected();
 	spawnNpc->deselect();
-	Tile* new_tile = tile->deepCopy(editor.map);
+	Tile* new_tile = tile->deepCopy(editor.getMap());
 	if(selected) spawnNpc->select();
 
 	subsession->addChange(newd Change(new_tile));
@@ -221,7 +221,7 @@ void Selection::remove(Tile* tile, Monster* monster)
 
 	bool selected = monster->isSelected();
 	monster->deselect();
-	Tile* new_tile = tile->deepCopy(editor.map);
+	Tile* new_tile = tile->deepCopy(editor.getMap());
 	if(selected) monster->select();
 
 	subsession->addChange(newd Change(new_tile));
@@ -235,7 +235,7 @@ void Selection::remove(Tile* tile, Npc* npc)
 
 	bool selected = npc->isSelected();
 	npc->deselect();
-	Tile* new_tile = tile->deepCopy(editor.map);
+	Tile* new_tile = tile->deepCopy(editor.getMap());
 	if(selected) npc->select();
 
 	subsession->addChange(newd Change(new_tile));
@@ -245,7 +245,7 @@ void Selection::remove(Tile* tile)
 {
 	ASSERT(subsession);
 
-	Tile* new_tile = tile->deepCopy(editor.map);
+	Tile* new_tile = tile->deepCopy(editor.getMap());
 	new_tile->deselect();
 
 	subsession->addChange(newd Change(new_tile));
@@ -268,7 +268,7 @@ void Selection::clear()
 {
 	if(session) {
 		for(Tile* tile : tiles) {
-			Tile* new_tile = tile->deepCopy(editor.map);
+			Tile* new_tile = tile->deepCopy(editor.getMap());
 			new_tile->deselect();
 			subsession->addChange(newd Change(new_tile));
 		}
@@ -379,7 +379,7 @@ wxThread::ExitCode SelectionThread::Entry()
 	for(int z = start.z; z >= end.z; --z) {
 		for(int x = start.x; x <= end.x; ++x) {
 			for(int y = start.y; y <= end.y; ++y) {
-				Tile* tile = editor.map.getTile(x, y, z);
+				Tile* tile = editor.getMap().getTile(x, y, z);
 				if(!tile)
 					continue;
 

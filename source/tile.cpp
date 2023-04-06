@@ -75,7 +75,7 @@ Tile::~Tile()
 	delete spawnNpc;
 }
 
-Tile* Tile::deepCopy(BaseMap& map)
+Tile* Tile::deepCopy(BaseMap& map) const
 {
 	Tile* copy = map.allocator.allocateTile(location);
 	copy->flags = flags;
@@ -90,7 +90,6 @@ Tile* Tile::deepCopy(BaseMap& map)
 	for(const Item* item : items) {
 		copy->items.push_back(item->deepCopy());
 	}
-
 	return copy;
 }
 

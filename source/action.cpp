@@ -163,7 +163,7 @@ void Action::commit(DirtyList* dirty_list)
 				const Position& pos = newtile->getPosition();
 
 				if(editor.IsLiveClient()) {
-					QTreeNode* nd = editor.map.getLeaf(pos.x, pos.y);
+					QTreeNode* nd = editor.getMap().getLeaf(pos.x, pos.y);
 					if(!nd || !nd->isVisible(pos.z > GROUND_LAYER)) {
 						// Delete all changes that affect tiles outside our view
 						c->clear();
@@ -172,7 +172,7 @@ void Action::commit(DirtyList* dirty_list)
 					}
 				}
 
-				Tile* oldtile = editor.map.swapTile(pos, newtile);
+				Tile* oldtile = editor.getMap().swapTile(pos, newtile);
 				TileLocation* location = newtile->getLocation();
 
 				// Update other nodes in the network
@@ -189,39 +189,39 @@ void Action::commit(DirtyList* dirty_list)
 				if(oldtile) {
 					if(newtile->getHouseID() != oldtile->getHouseID()) {
 						// oooooomggzzz we need to add it to the appropriate house!
-						House* house = editor.map.houses.getHouse(oldtile->getHouseID());
+						House* house = editor.getMap().houses.getHouse(oldtile->getHouseID());
 						if(house)
 							house->removeTile(oldtile);
 
-						house = editor.map.houses.getHouse(newtile->getHouseID());
+						house = editor.getMap().houses.getHouse(newtile->getHouseID());
 						if(house)
 							house->addTile(newtile);
 					}
 					if(oldtile->spawnMonster) {
 						if(newtile->spawnMonster) {
 							if(*oldtile->spawnMonster != *newtile->spawnMonster) {
-								editor.map.removeSpawnMonster(oldtile);
-								editor.map.addSpawnMonster(newtile);
+								editor.getMap().removeSpawnMonster(oldtile);
+								editor.getMap().addSpawnMonster(newtile);
 							}
 						} else {
 							// Monster spawn has been removed
-							editor.map.removeSpawnMonster(oldtile);
+							editor.getMap().removeSpawnMonster(oldtile);
 						}
 					} else if(newtile->spawnMonster) {
-						editor.map.addSpawnMonster(newtile);
+						editor.getMap().addSpawnMonster(newtile);
 					}
 					if(oldtile->spawnNpc) {
 						if(newtile->spawnNpc) {
 							if(*oldtile->spawnNpc != *newtile->spawnNpc) {
-								editor.map.removeSpawnNpc(oldtile);
-								editor.map.addSpawnNpc(newtile);
+								editor.getMap().removeSpawnNpc(oldtile);
+								editor.getMap().addSpawnNpc(newtile);
 							}
 						} else {
 							// SpawnMonster has been removed
-							editor.map.removeSpawnNpc(oldtile);
+							editor.getMap().removeSpawnNpc(oldtile);
 						}
 					} else if(newtile->spawnNpc) {
-						editor.map.addSpawnNpc(newtile);
+						editor.getMap().addSpawnNpc(newtile);
 					}
 
 					//oldtile->update();
@@ -230,20 +230,20 @@ void Action::commit(DirtyList* dirty_list)
 
 					*data = oldtile;
 				} else {
-					*data = editor.map.allocator(location);
+					*data = editor.getMap().allocator(location);
 					if(newtile->getHouseID() != 0) {
 						// oooooomggzzz we need to add it to the appropriate house!
-						House* house = editor.map.houses.getHouse(newtile->getHouseID());
+						House* house = editor.getMap().houses.getHouse(newtile->getHouseID());
 						if(house) {
 							house->addTile(newtile);
 						}
 					}
 
 					if(newtile->spawnMonster)
-						editor.map.addSpawnMonster(newtile);
+						editor.getMap().addSpawnMonster(newtile);
 
 					if(newtile->spawnNpc)
-						editor.map.addSpawnNpc(newtile);
+						editor.getMap().addSpawnNpc(newtile);
 
 				}
 				// Mark the tile as modified
@@ -260,7 +260,7 @@ void Action::commit(DirtyList* dirty_list)
 			case CHANGE_MOVE_HOUSE_EXIT: {
 				std::pair<uint32_t, Position>* p = reinterpret_cast<std::pair<uint32_t, Position>* >(c->data);
 				ASSERT(p);
-				House* whathouse = editor.map.houses.getHouse(p->first);
+				House* whathouse = editor.getMap().houses.getHouse(p->first);
 
 				if(whathouse) {
 					Position oldpos = whathouse->getExit();
@@ -273,12 +273,12 @@ void Action::commit(DirtyList* dirty_list)
 			case CHANGE_MOVE_WAYPOINT: {
 				std::pair<std::string, Position>* p = reinterpret_cast<std::pair<std::string, Position>* >(c->data);
 				ASSERT(p);
-				Waypoint* wp = editor.map.waypoints.getWaypoint(p->first);
+				Waypoint* wp = editor.getMap().waypoints.getWaypoint(p->first);
 
 				if(wp) {
 					// Change the tiles
-					TileLocation* oldtile = editor.map.getTileL(wp->pos);
-					TileLocation* newtile = editor.map.getTileL(p->second);
+					TileLocation* oldtile = editor.getMap().getTileL(wp->pos);
+					TileLocation* newtile = editor.getMap().getTileL(p->second);
 
 					// Only need to remove from old if it actually exists
 					if(p->second.isValid() && oldtile && oldtile->getWaypointCount() > 0)
@@ -321,7 +321,7 @@ void Action::undo(DirtyList* dirty_list)
 				const Position& pos = oldtile->getPosition();
 
 				if(editor.IsLiveClient()) {
-					QTreeNode* nd = editor.map.getLeaf(pos.x, pos.y);
+					QTreeNode* nd = editor.getMap().getLeaf(pos.x, pos.y);
 					if(!nd || !nd->isVisible(pos.z > GROUND_LAYER)) {
 						// Delete all changes that affect tiles outside our view
 						c->clear();
@@ -330,7 +330,7 @@ void Action::undo(DirtyList* dirty_list)
 					}
 				}
 
-				Tile* newtile = editor.map.swapTile(pos, oldtile);
+				Tile* newtile = editor.getMap().swapTile(pos, oldtile);
 
 				// Update server side change list (for broadcast)
 				if(editor.IsLiveServer() && dirty_list)
@@ -344,7 +344,7 @@ void Action::undo(DirtyList* dirty_list)
 
 				if(newtile->getHouseID() != oldtile->getHouseID()) {
 					// oooooomggzzz we need to remove it from the appropriate house!
-					House* house = editor.map.houses.getHouse(newtile->getHouseID());
+					House* house = editor.getMap().houses.getHouse(newtile->getHouseID());
 					if(house) {
 						house->removeTile(newtile);
 					} else {
@@ -352,7 +352,7 @@ void Action::undo(DirtyList* dirty_list)
 						newtile->setHouse(nullptr);
 					}
 
-					house = editor.map.houses.getHouse(oldtile->getHouseID());
+					house = editor.getMap().houses.getHouse(oldtile->getHouseID());
 					if(house) {
 						house->addTile(oldtile);
 					}
@@ -361,27 +361,27 @@ void Action::undo(DirtyList* dirty_list)
 				if(oldtile->spawnMonster) {
 					if(newtile->spawnMonster) {
 						if(*oldtile->spawnMonster != *newtile->spawnMonster) {
-							editor.map.removeSpawnMonster(newtile);
-							editor.map.addSpawnMonster(oldtile);
+							editor.getMap().removeSpawnMonster(newtile);
+							editor.getMap().addSpawnMonster(oldtile);
 						}
 					} else {
-						editor.map.addSpawnMonster(oldtile);
+						editor.getMap().addSpawnMonster(oldtile);
 					}
 				} else if(newtile->spawnMonster) {
-					editor.map.removeSpawnMonster(newtile);
+					editor.getMap().removeSpawnMonster(newtile);
 				}
 
 				if(oldtile->spawnNpc) {
 					if(newtile->spawnNpc) {
 						if(*oldtile->spawnNpc != *newtile->spawnNpc) {
-							editor.map.removeSpawnNpc(newtile);
-							editor.map.addSpawnNpc(oldtile);
+							editor.getMap().removeSpawnNpc(newtile);
+							editor.getMap().addSpawnNpc(oldtile);
 						}
 					} else {
-						editor.map.addSpawnNpc(oldtile);
+						editor.getMap().addSpawnNpc(oldtile);
 					}
 				} else if(newtile->spawnNpc) {
-					editor.map.removeSpawnNpc(newtile);
+					editor.getMap().removeSpawnNpc(newtile);
 				}
 				*data = newtile;
 
@@ -397,7 +397,7 @@ void Action::undo(DirtyList* dirty_list)
 			case CHANGE_MOVE_HOUSE_EXIT: {
 				std::pair<uint32_t, Position>* p = reinterpret_cast<std::pair<uint32_t, Position>* >(c->data);
 				ASSERT(p);
-				House* whathouse = editor.map.houses.getHouse(p->first);
+				House* whathouse = editor.getMap().houses.getHouse(p->first);
 				if(whathouse) {
 					Position oldpos = whathouse->getExit();
 					whathouse->setExit(p->second);
@@ -409,12 +409,12 @@ void Action::undo(DirtyList* dirty_list)
 			case CHANGE_MOVE_WAYPOINT: {
 				std::pair<std::string, Position>* p = reinterpret_cast<std::pair<std::string, Position>* >(c->data);
 				ASSERT(p);
-				Waypoint* wp = editor.map.waypoints.getWaypoint(p->first);
+				Waypoint* wp = editor.getMap().waypoints.getWaypoint(p->first);
 
 				if(wp) {
 					// Change the tiles
-					TileLocation* oldtile = editor.map.getTileL(wp->pos);
-					TileLocation* newtile = editor.map.getTileL(p->second);
+					TileLocation* oldtile = editor.getMap().getTileL(wp->pos);
+					TileLocation* newtile = editor.getMap().getTileL(p->second);
 
 					// Only need to remove from old if it actually exists
 					if(p->second.isValid() && oldtile && oldtile->getWaypointCount() > 0)
@@ -596,7 +596,7 @@ void ActionQueue::addBatch(BatchAction* batch, int stacking_delay)
 	batch->commit();
 
 	// Update title
-	if(editor.map.doChange())
+	if(editor.getMap().doChange())
 		g_gui.UpdateTitle();
 
 	if(batch->type == ACTION_REMOTE) {

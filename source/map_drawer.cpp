@@ -303,11 +303,11 @@ void MapDrawer::DrawMap()
 
 			for(int nd_map_x = nd_start_x; nd_map_x <= nd_end_x; nd_map_x += 4) {
 				for(int nd_map_y = nd_start_y; nd_map_y <= nd_end_y; nd_map_y += 4) {
-					QTreeNode* nd = editor.map.getLeaf(nd_map_x, nd_map_y);
+					QTreeNode* nd = editor.getMap().getLeaf(nd_map_x, nd_map_y);
 					if(!nd) {
 						if(!live_client)
 							continue;
-						nd = editor.map.createLeaf(nd_map_x, nd_map_y);
+						nd = editor.getMap().createLeaf(nd_map_x, nd_map_y);
 						nd->setVisible(false, false);
 					}
 
@@ -601,7 +601,7 @@ void MapDrawer::DrawDraggingShadow()
 			getDrawPosition(pos, draw_x, draw_y);
 
 			ItemVector items = tile->getSelectedItems();
-			Tile* dest_tile = editor.map.getTile(pos);
+			Tile* dest_tile = editor.getMap().getTile(pos);
 
 			for(Item* item : items) {
 				if(dest_tile)
@@ -639,7 +639,7 @@ void MapDrawer::DrawHigherFloors()
 	int map_z = floor - 1;
 	for(int map_x = start_x; map_x <= end_x; map_x++) {
 		for(int map_y = start_y; map_y <= end_y; map_y++) {
-			Tile* tile = editor.map.getTile(map_x, map_y, map_z);
+			Tile* tile = editor.getMap().getTile(map_x, map_y, map_z);
 			if(!tile) continue;
 
 			int draw_x, draw_y;
@@ -1008,7 +1008,7 @@ void MapDrawer::DrawBrush()
 			int cy = (mouse_map_y) * TILE_SIZE - view_scroll_y - adjustment;
 			int cx = (mouse_map_x) * TILE_SIZE - view_scroll_x - adjustment;
 			MonsterBrush* monster_brush = brush->asMonster();
-			if(monster_brush->canDraw(&editor.map, Position(mouse_map_x, mouse_map_y, floor)))
+			if(monster_brush->canDraw(&editor.getMap(), Position(mouse_map_x, mouse_map_y, floor)))
 				BlitCreature(cx, cy, monster_brush->getType()->outfit, SOUTH, 255, 255, 255, 160);
 			else
 				BlitCreature(cx, cy, monster_brush->getType()->outfit, SOUTH, 255, 64, 64, 160);
@@ -1018,7 +1018,7 @@ void MapDrawer::DrawBrush()
 			int cy = (mouse_map_y) * TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
 			int cx = (mouse_map_x) * TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
 			NpcBrush* npcBrush = brush->asNpc();
-			if(npcBrush->canDraw(&editor.map, Position(mouse_map_x, mouse_map_y, floor)))
+			if(npcBrush->canDraw(&editor.getMap(), Position(mouse_map_x, mouse_map_y, floor)))
 				BlitCreature(cx, cy, npcBrush->getType()->outfit, SOUTH, 255, 255, 255, 160);
 			else
 				BlitCreature(cx, cy, npcBrush->getType()->outfit, SOUTH, 255, 64, 64, 160);
@@ -1463,7 +1463,7 @@ void MapDrawer::DrawTile(TileLocation* location)
 	const Position& position = location->getPosition();
 
 	if(options.show_tooltips && location->getWaypointCount() > 0) {
-		Waypoint* waypoint = canvas->editor.map.waypoints.getWaypoint(position);
+		Waypoint* waypoint = canvas->editor.getMap().waypoints.getWaypoint(position);
 		if(waypoint)
 			WriteTooltip(waypoint, tooltip);
 	}
@@ -1880,7 +1880,7 @@ void MapDrawer::MakeTooltip(int screenx, int screeny, const std::string& text, u
 
 void MapDrawer::getColor(Brush* brush, const Position& position, uint8_t &r, uint8_t &g, uint8_t &b)
 {
-	if(brush->canDraw(&editor.map, position)) {
+	if(brush->canDraw(&editor.getMap(), position)) {
 		if(brush->isWaypoint()) {
 			r = 0x00; g = 0xff, b = 0x00;
 		} else {
@@ -2020,7 +2020,7 @@ void MapDrawer::glColor(MapDrawer::BrushColor color)
 
 void MapDrawer::glColorCheck(Brush* brush, const Position& pos)
 {
-	if(brush->canDraw(&editor.map, pos))
+	if(brush->canDraw(&editor.getMap(), pos))
 		glColor(COLOR_VALID);
 	else
 		glColor(COLOR_INVALID);
