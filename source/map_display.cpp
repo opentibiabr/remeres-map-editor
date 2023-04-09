@@ -2523,13 +2523,13 @@ void MapPopupMenu::Update()
 					Append( MAP_POPUP_MENU_SELECT_MONSTER_BRUSH, "Select Monster", "Uses the current monster as a monster brush");
 
 				if(topSpawnMonster)
-					Append( MAP_POPUP_MENU_SELECT_SPAWN_BRUSH, "Select Monster", "Select the npc brush");
+					Append( MAP_POPUP_MENU_SELECT_SPAWN_BRUSH, "Select Monster Spawn", "Select the npc brush");
 
 				if(topNpc)
 					Append( MAP_POPUP_MENU_SELECT_NPC_BRUSH, "Select Npc", "Uses the current npc as a npc brush");
 
 				if(topSpawnNpc)
-					Append( MAP_POPUP_MENU_SELECT_SPAWN_NPC_BRUSH, "Select Npc", "Select the npc brush");
+					Append( MAP_POPUP_MENU_SELECT_SPAWN_NPC_BRUSH, "Select Npc Spawn", "Select the npc brush");
 
 				Append( MAP_POPUP_MENU_SELECT_RAW_BRUSH, "Select RAW", "Uses the top item as a RAW brush");
 
