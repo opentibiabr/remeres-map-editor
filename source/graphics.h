@@ -20,7 +20,6 @@
 
 #include "outfit.h"
 #include "common.h"
-#include <deque>
 
 #include "client_version.h"
 

@@ -23,7 +23,6 @@
 #include "complexitem.h"
 #include "container_properties_window.h"
 
-#include <wx/grid.h>
 
 BEGIN_EVENT_TABLE(PropertiesWindow, wxDialog)
 	EVT_BUTTON(wxID_OK, PropertiesWindow::OnClickOK)

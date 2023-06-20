@@ -36,8 +36,6 @@
 #include "monster.h"
 #include "npc.h"
 
-#include <wx/snglinst.h>
-
 #if defined(__LINUX__) || defined(__WINDOWS__)
 #include <GL/glut.h>
 #endif

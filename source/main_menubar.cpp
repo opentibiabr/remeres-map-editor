@@ -30,8 +30,6 @@
 
 #include "gui.h"
 
-#include <wx/chartype.h>
-
 #include "editor.h"
 #include "materials.h"
 #include "live_client.h"

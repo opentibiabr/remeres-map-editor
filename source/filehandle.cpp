@@ -19,8 +19,6 @@
 
 #include "filehandle.h"
 
-#include <stdio.h>
-#include <assert.h>
 
 uint8_t NodeFileWriteHandle::NODE_START = ::NODE_START;
 uint8_t NodeFileWriteHandle::NODE_END = ::NODE_END;

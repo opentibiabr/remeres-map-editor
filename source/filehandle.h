@@ -19,11 +19,8 @@
 #define RME_FILEHANDLE_H_
 
 #include "definitions.h"
-
-#include <stdexcept>
-#include <string>
 #include <stack>
-#include <stdio.h>
+
 
 #ifndef FORCEINLINE
 #   ifdef _MSV_VER

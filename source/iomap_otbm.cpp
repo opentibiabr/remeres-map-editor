@@ -17,12 +17,6 @@
 
 #include "main.h"
 
-#include <wx/wfstream.h>
-#include <wx/tarstrm.h>
-#include <wx/zstream.h>
-#include <wx/mstream.h>
-#include <wx/datstrm.h>
-
 #include "settings.h"
 #include "gui.h" // Loadbar
 
