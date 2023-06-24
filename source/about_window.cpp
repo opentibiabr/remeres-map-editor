@@ -24,6 +24,7 @@
 #include <typeinfo>
 #include <memory>
 
+
 class GamePanel : public wxPanel {
 public:
 	GamePanel(wxWindow* parent, int width, int height);
