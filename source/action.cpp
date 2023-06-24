@@ -652,7 +652,7 @@ bool ActionQueue::undo()
 		}
 
 		// Update title
-		if(batch->isNoSelection() && editor.getMap().doChange()) {
+		if(batch && batch->isNoSelection() && editor.getMap().doChange()) {
 			g_gui.UpdateTitle();
 		}
 		return true;
@@ -670,7 +670,7 @@ bool ActionQueue::redo()
 		current++;
 
 		// Update title
-		if(batch->isNoSelection() && editor.getMap().doChange()) {
+		if(batch && batch->isNoSelection() && editor.getMap().doChange()) {
 			g_gui.UpdateTitle();
 		}
 		return true;

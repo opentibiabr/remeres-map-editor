@@ -345,7 +345,10 @@ bool ItemDatabase::loadFromOtbVer1(BinaryNode* itemNode, wxString& error, wxArra
 						break;
 					}
 
-					item->weight = *reinterpret_cast<double*>(&weight);
+					double actualWeight;
+					memcpy(&actualWeight, weight, sizeof(actualWeight));
+
+					item->weight = actualWeight;
 					break;
 				}
 
@@ -545,6 +548,7 @@ bool ItemDatabase::loadFromOtbVer2(BinaryNode* itemNode, wxString& error, wxArra
 					uint8_t value = 0;
 					if(!itemNode->getU8(value)) {
 						warnings.push_back("Invalid item type property (5)");
+						break;
 					}
 					item->alwaysOnTopOrder = value;
 					break;
