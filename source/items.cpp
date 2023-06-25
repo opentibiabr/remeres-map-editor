@@ -799,10 +799,11 @@ bool ItemDatabase::loadItemFromGameXml(pugi::xml_node itemNode, uint16_t id)
 		return true;
 	}
 
-	if(!isValidID(id))
-		return false;
+	 // Não verificar isValidID se o ID estiver entre 1 e 18, mas verificar para outros IDs.
+    if(!(id >= 1 && id <= 18) && !isValidID(id))
+        return false;
 
-	ItemType& item = *items[id];
+	ItemType& item = getItemType(id);
 	item.name = itemNode.attribute("name").as_string();
 	item.editorsuffix = itemNode.attribute("editorsuffix").as_string();
 
@@ -998,13 +999,16 @@ bool ItemDatabase::loadMetaItem(pugi::xml_node node)
 	return false;
 }
 
-const ItemType& ItemDatabase::getItemType(uint16_t id) const
+ItemType& ItemDatabase::getItemType(uint16_t id)
 {
-	if(id == 0 || id > maxItemId)
+	if(id == 0 || id > maxItemId) {
 		return dummy;
+	}
 
-	const ItemType* type = items[id];
-	if(type) return *type;
+	ItemType* type = items[id];
+	if(type) {
+		return *type;
+	}
 
 	return dummy;
 }

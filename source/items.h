@@ -363,7 +363,7 @@ public:
 
 	uint16_t getMinID() const noexcept { return 100; }
 	uint16_t getMaxID() const noexcept { return maxItemId; }
-	const ItemType& getItemType(uint16_t id) const;
+	ItemType& getItemType(uint16_t id);
 	ItemType* getRawItemType(uint16_t id);
 
 	bool isValidID(uint16_t id) const;
