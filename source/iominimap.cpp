@@ -175,6 +175,7 @@ bool IOMinimap::exportMinimap(const std::string& directory)
 		rect.height = 0;
 	}
 
+	int totalTiles = 0;
 	for(auto it = map.begin(); it != map.end(); ++it) {
 		auto tile = (*it)->get();
 		if(!tile || (!tile->ground && tile->items.empty())) {
@@ -195,6 +196,7 @@ bool IOMinimap::exportMinimap(const std::string& directory)
 		if (position.y > rect.height) {
 			rect.height = position.y;
 		}
+		totalTiles++;
 	}
 
 	constexpr int image_size = 1024;
@@ -202,6 +204,8 @@ bool IOMinimap::exportMinimap(const std::string& directory)
 	uint8_t* pixels = new uint8_t[pixels_size];
 	auto image = new wxImage(image_size, image_size, pixels, true);
 
+    int processedTiles = 0;
+    int lastShownProgress = -1;
 	for(size_t z = min_z; z <= max_z; z++) {
 		auto& rect = bounds[z];
 		if(rect.IsEmpty()) {
@@ -225,6 +229,16 @@ bool IOMinimap::exportMinimap(const std::string& directory)
 							index += rme::PixelFormatRGB;
 							continue;
 						}
+
+                		processedTiles++;
+						int progress = static_cast<int>((static_cast<double>(processedTiles) / totalTiles) * 100);
+						if (progress > lastShownProgress) {
+							if (m_updateLoadbar) {
+								g_gui.SetLoadDone(progress);
+							}
+							lastShownProgress = progress;
+						}
+				
 						uint8_t color = tile->getMiniMapColor();
 						pixels[index  ] = (uint8_t)(static_cast<int>(color / 36) % 6 * 51); // red
 						pixels[index+1] = (uint8_t)(static_cast<int>(color / 6) % 6 * 51);  // green
@@ -238,7 +252,8 @@ bool IOMinimap::exportMinimap(const std::string& directory)
 					image->SetData(pixels, true);
 					wxString extension = m_format == MinimapExportFormat::Png ? "png" : "bmp";
 					wxBitmapType type = m_format == MinimapExportFormat::Png ? wxBITMAP_TYPE_PNG : wxBITMAP_TYPE_BMP; 
-					wxFileName file = wxString::Format("%d-%d-%d.%s", h, w, z, extension);
+					wxString extension_wx = wxString::FromAscii(extension.mb_str());
+					wxFileName file = wxString::Format("%s-%s-%s.%s", std::to_string(h), std::to_string(w), std::to_string(z), extension_wx);
 					file.Normalize(wxPATH_NORM_ALL, directory);
 					image->SaveFile(file.GetFullPath(), type);
 				}
@@ -246,10 +261,12 @@ bool IOMinimap::exportMinimap(const std::string& directory)
 		}
 	}
 
+	g_gui.DestroyLoadBar();
 	image->Destroy();
 	delete[] pixels;
 	return true;
 }
+
 
 bool IOMinimap::exportSelection(const std::string& directory, const std::string& name)
 {

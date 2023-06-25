@@ -693,7 +693,7 @@ void WallDecorationBrush::draw(BaseMap* map, Tile* tile, void* parameter)
 					if(dt.type == doortype) {
 						ASSERT(dt.id);
 						const ItemType& type = g_items.getItemType(dt.id);
-						ASSERT(it.id != 0);
+						ASSERT(dt.id != 0);
 
 						if(type.isOpen == open) {
 							id = dt.id;

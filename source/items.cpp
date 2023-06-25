@@ -698,8 +698,10 @@ bool ItemDatabase::loadFromOtbVer3(BinaryNode* itemNode, wxString& error, wxArra
 					}
 
 					uint8_t value;
-					if(!itemNode->getU8(value))
+					if(!itemNode->getU8(value)) {
 						warnings.push_back("Invalid item type property (5)");
+						break;
+					}
 
 					item->alwaysOnTopOrder = value;
 					break;

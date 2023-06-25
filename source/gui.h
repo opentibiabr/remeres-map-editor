@@ -455,6 +455,7 @@ protected:
 	int disabled_counter;
 
 	friend class RenderingLock;
+	friend class IOMinimap;
 	friend MapTab::MapTab(MapTabbook*, Editor*);
 	friend MapTab::MapTab(const MapTab*);
 };
