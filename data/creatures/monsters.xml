@@ -5,7 +5,7 @@
     <monster name="Abyssador" looktype="495" />
     <monster name="Abyssal Calamary" looktype="451" />
     <monster name="Achad" looktype="146" lookhead="93" lookbody="93" looklegs="57" lookfeet="97" lookaddons="3" />
-    <monster name="Acid Blob" looktype="315" />
+    <monster name="Acid Blob" looktype="314" />
     <monster name="Acolyte Of Darkness" looktype="9" />
     <monster name="Acolyte Of The Cult" looktype="194" lookhead="114" lookbody="121" looklegs="121" lookfeet="57" lookaddons="0" />
     <monster name="Adept Of The Cult" looktype="194" lookhead="114" lookbody="94" looklegs="94" lookfeet="57" lookaddons="0" />
