@@ -24,6 +24,8 @@
 			<item fromid="17897" toid="17898"/>
 			<item fromid="17983" toid="17984"/>
 			<item id="21935"/>
+			<item id="9044"/>
+			<item fromid="12372" toid="12378"/>
 		</raw>
 	</tileset>
 </materials>
