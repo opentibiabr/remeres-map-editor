@@ -1181,7 +1181,7 @@ bool IOMapOTBM::loadHouses(Map& map, pugi::xml_document& doc)
 		}
 
 		if((attribute = houseNode.attribute("clientid"))) {
-			house->clientid = pugi::cast<int32_t>(attribute.value());
+			house->clientid = attribute.as_uint();
 		}
 
 		if((attribute = houseNode.attribute("beds"))) {
