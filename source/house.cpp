@@ -84,6 +84,7 @@ House::House(Map& map) :
 	rent(0),
 	townid(0),
 	guildhall(false),
+	beds(0),
 	map(&map),
 	exit(0,0,0)
 {
@@ -180,7 +181,7 @@ std::string House::getDescription()
 {
 	std::ostringstream os;
 	os << name;
-	os << " (ID:" << id << "; Rent: " << rent << ")";
+	os << " (ID:" << id << "; Rent: " << rent << "; Max Beds: " << beds << ")";
 	return os.str();
 }
 

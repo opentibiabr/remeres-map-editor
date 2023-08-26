@@ -852,9 +852,16 @@ bool IOMapOTMM::loadMap(Map& map, NodeFileReadHandle& f, const FileName& identif
 						continue;
 					}
 
+					uint32_t beds;
+					if(!houseNode->getU32(beds)) {
+						warning("Could not read house max beds.");
+						continue;
+					}
+
 					house->name = house_name;
 					house->townid = town_id;
 					house->rent = rent;
+					house->beds = beds;
 
 					uint16_t x;
 					uint16_t y;
@@ -1097,6 +1104,7 @@ bool IOMapOTMM::saveMap(Map& map, NodeFileWriteHandle& f, const FileName& identi
 						f.addString(house->name);
 						f.addU16(house->townid);
 						f.addU16(house->rent);
+						f.addU16(house->beds);
 						f.addU16(house->getExit().x);
 						f.addU16(house->getExit().y);
 						f.addU8(house->getExit().z & 0xf);

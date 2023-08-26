@@ -101,11 +101,12 @@ protected:
 	Map* map;
 	House* what_house;
 
-	wxString house_name, house_id, house_rent;
+	wxString house_name, house_id, house_rent, house_beds;
 
 	wxTextCtrl* name_field;
 	wxTextCtrl* id_field;
 	wxTextCtrl* rent_field;
+	wxTextCtrl* beds_field;
 	wxCheckBox* guildhall_field;
 
 	DECLARE_EVENT_TABLE();

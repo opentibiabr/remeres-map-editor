@@ -1178,6 +1178,10 @@ bool IOMapOTBM::loadHouses(Map& map, pugi::xml_document& doc)
 			warning("House %d has no town! House was removed.", house->id);
 			map.houses.removeHouse(house);
 		}
+
+		if((attribute = houseNode.attribute("beds"))) {
+			house->beds = attribute.as_uint();
+		}
 	}
 	return true;
 }
@@ -1765,6 +1769,7 @@ bool IOMapOTBM::saveHouses(Map& map, pugi::xml_document& doc)
 
 		houseNode.append_attribute("townid") = house->townid;
 		houseNode.append_attribute("size") = static_cast<int32_t>(house->size());
+		houseNode.append_attribute("beds") = house->beds;
 	}
 	return true;
 }
