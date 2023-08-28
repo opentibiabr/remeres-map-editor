@@ -84,6 +84,7 @@ House::House(Map& map) :
 	rent(0),
 	townid(0),
 	guildhall(false),
+	clientid(0),
 	beds(0),
 	map(&map),
 	exit(0,0,0)

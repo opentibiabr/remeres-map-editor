@@ -39,6 +39,7 @@ public:
 
 	uint32_t id;
 	int rent;
+	int clientid;
 	int beds;
 	//HouseDoorList doorList;
 	std::string name;
