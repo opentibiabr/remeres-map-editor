@@ -36,6 +36,7 @@ enum ChangeType {
 	CHANGE_MOVE_WAYPOINT,
 };
 
+
 class Change {
 private:
 	ChangeType type;
