@@ -94,10 +94,8 @@ jobs:
       - name: Run CMake Cache and Build
         uses: lukka/run-cmake@main
         with:
-          cmakeListsTxtPath: ${{ github.workspace }}/CMakeLists.txt
-          useVcpkgToolchainFile: true
-          buildDirectory: ${{ github.workspace }}/build/
-          cmakeBuildType: ${{ matrix.buildtype }}
+          configurePreset: ${{ matrix.buildtype }}
+          buildPreset: ${{ matrix.buildtype }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@main
