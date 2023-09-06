@@ -34,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-20.04, ubuntu-22.04 ]
+        os: [ ubuntu-22.04 ]
         buildtype: [ linux-release, linux-debug ]
         include:
           - os: ubuntu-20.04
@@ -56,13 +56,6 @@ jobs:
       - name: Install Linux Dependencies
         run: >
           sudo apt-get update && sudo apt-get install ccache linux-headers-$(uname -r)
-
-      - name: Switch to gcc-11
-        if: matrix.os == 'ubuntu-20.04'
-        run: |
-          sudo apt install gcc-11 g++-11
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100 --slave /usr/bin/g++ g++ /usr/bin/g++-11 --slave /usr/bin/gcov gcov /usr/bin/gcov-11
-          sudo update-alternatives --set gcc /usr/bin/gcc-11
 
       - name: CCache
         uses: hendrikmuhs/ccache-action@main
