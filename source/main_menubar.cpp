@@ -527,16 +527,16 @@ bool MainMenuBar::Load(const FileName& path, wxArrayString& warnings, wxString& 
 	const int count = 41;
 	wxAcceleratorEntry entries[count];
 	// Edit
-	entries[0].Set(wxACCEL_CTRL, (int)'Z', MAIN_FRAME_MENU + MenuBar::UNDO);
-	entries[1].Set(wxACCEL_CTRL | wxACCEL_SHIFT, (int)'Z', MAIN_FRAME_MENU + MenuBar::REDO);
-	entries[2].Set(wxACCEL_CTRL, (int)'F', MAIN_FRAME_MENU + MenuBar::FIND_ITEM);
-	entries[3].Set(wxACCEL_CTRL | wxACCEL_SHIFT, (int)'F', MAIN_FRAME_MENU + MenuBar::REPLACE_ITEMS);
-	entries[4].Set(wxACCEL_NORMAL, (int)'A', MAIN_FRAME_MENU + MenuBar::AUTOMAGIC);
-	entries[5].Set(wxACCEL_CTRL, (int)'B', MAIN_FRAME_MENU + MenuBar::BORDERIZE_SELECTION);
-	entries[6].Set(wxACCEL_NORMAL, (int)'P', MAIN_FRAME_MENU + MenuBar::GOTO_PREVIOUS_POSITION);
-	entries[7].Set(wxACCEL_CTRL, (int)'G', MAIN_FRAME_MENU + MenuBar::GOTO_POSITION);
-	entries[8].Set(wxACCEL_NORMAL, (int)'J', MAIN_FRAME_MENU + MenuBar::JUMP_TO_BRUSH);
-	entries[9].Set(wxACCEL_CTRL, (int)'X', MAIN_FRAME_MENU + MenuBar::CUT);
+	entries[0].Set(wxACCEL_CTRL, (int)'Z', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::UNDO));
+    entries[1].Set(wxACCEL_CTRL | wxACCEL_SHIFT, (int)'Z', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::REDO));
+    entries[2].Set(wxACCEL_CTRL, (int)'F', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::FIND_ITEM));
+    entries[3].Set(wxACCEL_CTRL | wxACCEL_SHIFT, (int)'F', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::REPLACE_ITEMS));
+    entries[4].Set(wxACCEL_NORMAL, (int)'A', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::AUTOMAGIC));
+    entries[5].Set(wxACCEL_CTRL, (int)'B', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::BORDERIZE_SELECTION));
+    entries[6].Set(wxACCEL_NORMAL, (int)'P', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::GOTO_PREVIOUS_POSITION));
+    entries[7].Set(wxACCEL_CTRL, (int)'G', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::GOTO_POSITION));
+    entries[8].Set(wxACCEL_NORMAL, (int)'J', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::JUMP_TO_BRUSH));
+    entries[9].Set(wxACCEL_CTRL, (int)'X', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::CUT));
 	entries[10].Set(wxACCEL_CTRL, (int)'C', MAIN_FRAME_MENU + MenuBar::COPY);
 	entries[11].Set(wxACCEL_CTRL, (int)'V', MAIN_FRAME_MENU + MenuBar::PASTE);
 	// View
@@ -1567,7 +1567,7 @@ void MainMenuBar::OnMapStatistics(wxCommandEvent& WXUNUSED(event))
 
 		if(tile->spawnMonster)
 			spawn_monster_count += 1;
-		
+
 		if(tile->spawnNpc)
 			spawn_npc_count += 1;
 
@@ -1661,7 +1661,7 @@ void MainMenuBar::OnMapStatistics(wxCommandEvent& WXUNUSED(event))
 	os << "\t\tTotal npc spawn count: " << spawn_npc_count << "\n";
 	if(monsters_per_spawn >= 0)
 		os << "\t\tMean monsters per spawn: " << monsters_per_spawn << "\n";
-	
+
 	if(npcs_per_spawn >= 0)
 		os << "\t\tMean npcs per spawn: " << npcs_per_spawn << "\n";
 
