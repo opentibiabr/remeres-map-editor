@@ -7,17 +7,21 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - 'src/**'
+      - 'source/**'
       - 'cmake/**'
       - 'CMakeLists.txt'
       - 'CMakePresets.json'
       - 'vcpkg.json'
+      - 'vcproj/**'
   push:
     paths:
       - 'src/**'
+      - 'source/**'
       - 'cmake/**'
       - 'CMakeLists.txt'
       - 'CMakePresets.json'
       - 'vcpkg.json'
+      - 'vcproj/**'
     branches:
       - main
 
