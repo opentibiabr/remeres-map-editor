@@ -294,17 +294,21 @@ bool DiskNodeFileReadHandle::renewCache()
 
 BinaryNode* DiskNodeFileReadHandle::getRootNode()
 {
-	assert(root_node == nullptr); // You should never do this twice
-	uint8_t first;
-	fread(&first, 1, 1, file);
-	if(first == NODE_START) {
-		root_node = getNode(nullptr);
-		root_node->load();
-		return root_node;
-	} else {
-		error_code = FILE_SYNTAX_ERROR;
-		return nullptr;
-	}
+    assert(root_node == nullptr); // You should never do this twice
+    uint8_t first;
+    size_t numRead = fread(&first, 1, 1, file);
+    if(numRead != 1) {
+        error_code = FILE_READ_ERROR;
+        return nullptr;
+    }
+    if(first == NODE_START) {
+        root_node = getNode(nullptr);
+        root_node->load();
+        return root_node;
+    } else {
+        error_code = FILE_SYNTAX_ERROR;
+        return nullptr;
+    }
 }
 
 //=============================================================================
