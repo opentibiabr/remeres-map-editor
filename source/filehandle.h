@@ -93,10 +93,10 @@ protected:
 	size_t file_size;
 
 	template<class T>
-	bool getType(T& ref) {
-		fread(&ref, sizeof(ref), 1, file);
-		return ferror(file) == 0;
-	}
+    bool getType(T& ref) {
+        size_t numRead = fread(&ref, sizeof(ref), 1, file);
+        return numRead == 1 && ferror(file) == 0;
+    }
 };
 
 class NodeFileReadHandle;

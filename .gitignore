@@ -57,3 +57,4 @@ cmake-build-debug/
 *.rar
 vcpkg_installed/
 *.ilk
+remeres.exe.manifest

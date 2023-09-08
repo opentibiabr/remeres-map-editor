@@ -359,7 +359,7 @@ void Editor::saveMap(FileName filename, bool showdialog)
 			std::string spawn_filename = map_path + nstr(converter.GetName());
 			std::rename(backup_spawn.c_str(), std::string(spawn_filename + "." + date.str() + ".xml").c_str());
 		}
-		
+
 		if(!backup_spawn_npc.empty()) {
 			converter.SetFullName(wxstr(map.spawnnpcfile));
 			std::string spawnnpc_filename = map_path + nstr(converter.GetName());
@@ -466,8 +466,8 @@ bool Editor::exportSelectionAsMiniMap(FileName directory, wxString fileName)
 		}
 
 		FileName file(fileName + "_" + i2ws(z) + ".png");
-		file.Normalize(wxPATH_NORM_ALL, directory.GetFullPath());
-		wxImage* image = newd wxImage(minimap_width, minimap_height, pixels, true);
+        file.Normalize(wxPATH_NORM_ABSOLUTE | wxPATH_NORM_TILDE | wxPATH_NORM_DOTS, directory.GetFullPath());
+        wxImage* image = newd wxImage(minimap_width, minimap_height, pixels, true);
 		image->SaveFile(file.GetFullPath(), wxBITMAP_TYPE_PNG);
 		image->Destroy();
 		delete[] pixels;
