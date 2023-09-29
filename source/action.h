@@ -20,8 +20,6 @@
 
 #include "position.h"
 
-#include <deque>
-
 class Editor;
 class Tile;
 class House;
@@ -37,6 +35,7 @@ enum ChangeType {
 	CHANGE_MOVE_HOUSE_EXIT,
 	CHANGE_MOVE_WAYPOINT,
 };
+
 
 class Change {
 private:

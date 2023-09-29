@@ -79,9 +79,27 @@ _Ret_bytecap_(_Size) inline void* __CRTDECL operator new[](size_t _Size, const c
 #include <wx/ipc.h>
 #include <wx/grid.h>
 #include <wx/clipbrd.h>
+#include <wx/mstream.h>
+#include <wx/stopwatch.h>
+#include <wx/display.h>
+#include <wx/wfstream.h>
+#include <wx/tarstrm.h>
+#include <wx/zstream.h>
+#include <wx/datstrm.h>
+#include <wx/event.h>
+#include <wx/splitter.h>
+#include <wx/chartype.h>
+#include <wx/artprov.h>
+#include <wx/collpane.h>
+#include <wx/listbook.h>
+#include <wx/clrpicker.h>
+#include <wx/confbase.h>
+#include <wx/config.h>
+#include <wx/fileconf.h>
+#include <wx/sstream.h>
 
 // PugiXML
-#include "ext/pugixml.hpp"
+#include <pugixml.hpp>
 
 // Libarchive, for OTGZ
 #if OTGZ_SUPPORT > 0
@@ -124,6 +142,7 @@ _Ret_bytecap_(_Size) inline void* __CRTDECL operator new[](size_t _Size, const c
 #include <fstream>
 #include <ranges>
 #include <regex>
+#include <random>
 
 using StringVector = std::vector<std::string>;
 using FileName= wxFileName;

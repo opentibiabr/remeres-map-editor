@@ -20,9 +20,6 @@
 #define RME_PREFERENCES_WINDOW_H_
 
 #include "main.h"
-#include <wx/listbook.h>
-#include <wx/collpane.h>
-#include <wx/clrpicker.h>
 
 class PreferencesWindow : public wxDialog
 {

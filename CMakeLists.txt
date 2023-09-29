@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.22)
 
 project(cmake)
 
@@ -25,12 +25,22 @@ set(CMAKE_CXX_STANDARD 20)
 set(GNUCXX_MINIMUM_VERSION 11)
 set(MSVC_MINIMUM_VERSION "19.32")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_DISABLE_SOURCE_CHANGES ON)
+set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
+
+# Make will print more details
+set(CMAKE_VERBOSE_MAKEFILE OFF)
+
+# Generate compile_commands.json
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # *****************************************************************************
 # Options
 # *****************************************************************************
 option(OPTIONS_ENABLE_CCACHE "Enable ccache" OFF)
 option(OPTIONS_ENABLE_SCCACHE "Use sccache to speed up compilation process" OFF)
+option(OPTIONS_ENABLE_IPO "Check and Enable interprocedural optimization (IPO/LTO)" ON)
 
 # *****************************************************************************
 # Set Sanity Check
@@ -88,6 +98,22 @@ if(OPTIONS_ENABLE_SCCACHE)
 	else()
 		log_option_disabled("sccache")
 	endif()
+endif()
+
+# === IPO ===
+option(OPTIONS_ENABLE_IPO "Check and Enable interprocedural optimization (IPO/LTO)" ON)
+if(OPTIONS_ENABLE_IPO)
+	log_option_enabled("ipo")
+
+	include(CheckIPOSupported)
+	check_ipo_supported(RESULT result OUTPUT output)
+	if(result)
+		set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+	else()
+		log_war("IPO is not supported: ${output}")
+	endif()
+else()
+	log_option_disabled("ipo")
 endif()
 
 # *****************************************************************************

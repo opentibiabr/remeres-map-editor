@@ -134,7 +134,7 @@ MapPropertiesWindow::MapPropertiesWindow(wxWindow* parent, MapTab* view, Editor&
 		spawn_filename_ctrl =
 			newd wxTextCtrl(this, wxID_ANY, wxstr(map.getSpawnFilename())), 1, wxEXPAND
 		);
-	
+
 	grid_sizer->Add(
 		newd wxStaticText(this, wxID_ANY, "External npc file")
 		);
@@ -626,24 +626,24 @@ void ExportMiniMapWindow::OnClickOK(wxCommandEvent& WXUNUSED(event))
 				for(int floor = 0; floor < MAP_LAYERS; ++floor) {
 					g_gui.SetLoadScale(int(floor*(100.f/16.f)), int((floor+1)*(100.f/16.f)));
 					FileName file(file_name_text_field->GetValue() + "_" + i2ws(floor) + ".bmp");
-					file.Normalize(wxPATH_NORM_ALL, directory.GetFullPath());
-					editor.exportMiniMap(file, floor, true);
+                    file.Normalize(wxPATH_NORM_ABSOLUTE | wxPATH_NORM_TILDE | wxPATH_NORM_DOTS, directory.GetFullPath());
+                    editor.exportMiniMap(file, floor, true);
 				}
 				break;
 			}
 
 			case 1: { // Ground floor
 				FileName file(file_name_text_field->GetValue() + "_" + i2ws(GROUND_LAYER) + ".bmp");
-				file.Normalize(wxPATH_NORM_ALL, directory.GetFullPath());
-				editor.exportMiniMap(file, GROUND_LAYER, true);
+                file.Normalize(wxPATH_NORM_ABSOLUTE | wxPATH_NORM_TILDE | wxPATH_NORM_DOTS, directory.GetFullPath());
+                editor.exportMiniMap(file, GROUND_LAYER, true);
 				break;
 			}
 
 			case 2: { // Specific floors
 				int floor = floor_number->GetValue();
 				FileName file(file_name_text_field->GetValue() + "_" + i2ws(floor) + ".bmp");
-				file.Normalize(wxPATH_NORM_ALL, directory.GetFullPath());
-				editor.exportMiniMap(file, floor, true);
+                file.Normalize(wxPATH_NORM_ABSOLUTE | wxPATH_NORM_TILDE | wxPATH_NORM_DOTS, directory.GetFullPath());
+                editor.exportMiniMap(file, floor, true);
 				break;
 			}
 

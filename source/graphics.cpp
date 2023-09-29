@@ -24,10 +24,6 @@
 #include "settings.h"
 #include "gui.h"
 #include "otml.h"
-
-#include <wx/mstream.h>
-#include <wx/stopwatch.h>
-#include <wx/dir.h>
 #include "pngfiles.h"
 
 // All 133 template colors

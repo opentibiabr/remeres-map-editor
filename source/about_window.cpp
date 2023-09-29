@@ -20,9 +20,6 @@
 #include "gui.h"
 
 #include "about_window.h"
-#include <fstream>
-#include <typeinfo>
-#include <memory>
 
 class GamePanel : public wxPanel {
 public:

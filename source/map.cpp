@@ -21,8 +21,6 @@
 
 #include "map.h"
 
-#include <sstream>
-
 Map::Map() : BaseMap(),
 	width(512),
 	height(512),
