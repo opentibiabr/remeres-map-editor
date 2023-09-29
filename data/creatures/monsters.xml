@@ -79,6 +79,7 @@
     <monster name="Bat" looktype="122" />
     <monster name="Battlemaster Zunzu" looktype="343" />
     <monster name="Bazir" looktype="35" />
+    <monster name="Bashmu" looktype="1408" lookhead="0" lookbody="50" looklegs="42" lookfeet="79" lookaddons="3" />
     <monster name="Bear" looktype="16" />
     <monster name="Beast Gore Horn" looktype="1548" />
     <monster name="Beast Gorerilla" looktype="1559" />
@@ -501,6 +502,7 @@
     <monster name="Ghazbaran" looktype="12" />
     <monster name="Ghost Wolf" looktype="730" />
     <monster name="Ghost" looktype="48" />
+    <monster name="Ghostly Apparition" looktype="319" />
     <monster name="Ghoul" looktype="18" />
     <monster name="Ghoulish Hyaena" looktype="94" lookhead="20" lookbody="30" looklegs="40" lookfeet="50" lookaddons="0" />
     <monster name="Ghulosh" looktype="1062" lookhead="79" lookbody="94" looklegs="94" lookfeet="94" lookaddons="3" />
@@ -508,6 +510,7 @@
     <monster name="Giant Beaver" looktype="1536" />
     <monster name="Giant Spider Wyda" looktype="38" />
     <monster name="Giant Spider" looktype="38" />
+    <monster name="Girtablilu Warrior" looktype="1407" lookhead="114" lookbody="39" looklegs="113" lookfeet="114" lookaddons="3" />
     <monster name="Gladiator" looktype="131" lookhead="78" lookbody="3" looklegs="79" lookfeet="114" lookaddons="0" />
     <monster name="Glitterscale" looktype="34" />
     <monster name="Gloom Wolf" looktype="716" />
@@ -575,6 +578,7 @@
     <monster name="Haunted Dragon" looktype="231" />
     <monster name="Haunted Treeling" looktype="310" />
     <monster name="Haunter" looktype="320" />
+    <monster name="Hazardous Phantom" looktype="1298" lookhead="114" lookbody="80" looklegs="94" lookfeet="78" lookaddons="0" />
     <monster name="Headpecker" looktype="1557" />
     <monster name="Hell Hole" looktype="0" />
     <monster name="Hellfire Fighter" looktype="243" />
@@ -612,10 +616,11 @@
     <monster name="Ice Witch" looktype="149" />
     <monster name="Icecold Book" looktype="1061" lookhead="87" lookbody="85" looklegs="79" lookfeet="0" lookaddons="0" />
     <monster name="Icicle" looktype="904" />
-    <monster name="Iks Ahpututu" looktype="1509" />
-    <monster name="Iks Aucar" looktype="1507" />
-    <monster name="Iks Chuka" looktype="1508" />
-    <monster name="Iks Pututu" looktype="1508" />
+    <monster name="Iks Ahpututu" looktype="1590" />
+    <monster name="Iks Aucar" looktype="1587" />
+    <monster name="Iks Chuka" looktype="1588" />
+    <monster name="Iks Churrascan" looktype="1587" />
+    <monster name="Iks Pututu" looktype="1589" />
     <monster name="Imp Intruder" looktype="237" />
     <monster name="Incineron" looktype="243" />
     <monster name="Incredibly Old Witch" looktype="54" />
@@ -647,6 +652,7 @@
     <monster name="Jesse The Wicked" looktype="134" lookhead="76" lookbody="76" looklegs="76" lookfeet="115" lookaddons="3" />
     <monster name="Juggernaut" looktype="244" />
     <monster name="Jungle Moa" looktype="1534" />
+    <monster name="Juvenile Bashmu" looktype="1408" lookhead="0" lookbody="112" looklegs="3" lookfeet="79" lookaddons="0" />
     <monster name="Juvenile Cyclops" looktype="22" />
     <monster name="Kalyassa" looktype="947" lookhead="37" lookbody="113" looklegs="38" lookfeet="95" lookaddons="3" />
     <monster name="Kerberos" looktype="240" />
@@ -1305,6 +1311,7 @@
     <monster name="Vampire" looktype="68" />
     <monster name="Vampiric Blood" looktype="1041" />
     <monster name="Vashresamun" looktype="90" />
+    <monster name="Venerable Girtablilu" looktype="1407" lookhead="38" lookbody="58" looklegs="114" lookfeet="2" lookaddons="3" />
     <monster name="Vermin Swarm" looktype="349" />
     <monster name="Verminor" looktype="12" lookhead="38" lookbody="114" looklegs="0" lookfeet="94" lookaddons="0" />
     <monster name="Versperoth" looktype="295" />
