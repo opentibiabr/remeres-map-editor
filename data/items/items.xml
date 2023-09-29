@@ -2,6 +2,8 @@
 <items>
 	<!--  Liquids -->
 	<!--  Fluid type 0 is same as water (id="1") -->
+
+	<!-- RME vai dar erro por causa desses items abaixo-->
 	<item id="1" name="water" /> 
 	<item id="2" name="wine" />
 	<item id="3" name="beer" />
@@ -20,6 +22,8 @@
 	<item id="16" name="mead" />
 	<item id="17" name="tea" />
 	<item id="18" name="ink" />
+	<!-- RME vai dar erro por causa desses items acima-->
+	
 	<!-- 12.85 last fluid is 18, 19+ is a loop from 0 to 18 over and over again -->
 
 	<item id="100" name="void"/>
