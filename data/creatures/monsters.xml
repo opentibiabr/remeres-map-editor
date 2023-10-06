@@ -228,7 +228,7 @@
     <monster name="Cult Believer" looktype="132" lookhead="98" lookbody="77" looklegs="39" lookfeet="57" lookaddons="1" />
     <monster name="Cult Enforcer" looktype="134" lookhead="114" lookbody="19" looklegs="76" lookfeet="76" lookaddons="1" />
     <monster name="Cult Scholar" looktype="145" />
-    <monster name="Cursed Ape" looktype="1506" />
+    <monster name="Cursed Ape" looktype="1592" />
     <monster name="Cursed Book" looktype="1061" lookhead="79" lookbody="83" looklegs="113" lookfeet="0" lookaddons="0" />
     <monster name="Cursed Gladiator" looktype="100" />
     <monster name="Cursed Prospector" looktype="1268" />
@@ -769,7 +769,7 @@
     <monster name="Menace" looktype="113" />
     <monster name="Menacing Carnivor" looktype="1139" lookhead="86" lookbody="70" looklegs="81" lookfeet="91" lookaddons="3" />
     <monster name="Mephiles" looktype="237" />
-    <monster name="Mercurian Menace" looktype="1561" />
+    <monster name="Mercurial Menace" looktype="1561" />
     <monster name="Mercury Blob" looktype="316" />
     <monster name="Merlkin" looktype="117" />
     <monster name="Metal Gargoyle" looktype="601" />
