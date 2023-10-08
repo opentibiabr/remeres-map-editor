@@ -65,10 +65,7 @@ struct WaypointData {
 };
 
 class Change {
-private:
-	ChangeType type;
-	void* data;
-
+public:
 	Change(Tile* tile);
 	~Change();
 
@@ -83,6 +80,7 @@ private:
 	uint32_t memsize() const;
 
 private:
+	Change();
 	ChangeType type;
 	void* data;
 
