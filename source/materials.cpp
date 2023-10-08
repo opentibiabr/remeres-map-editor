@@ -17,8 +17,6 @@
 
 #include "main.h"
 
-#include <wx/dir.h>
-
 #include "editor.h"
 #include "items.h"
 #include "monsters.h"

@@ -136,7 +136,7 @@ MapPropertiesWindow::MapPropertiesWindow(wxWindow* parent, MapTab* view, Editor&
 		spawn_filename_ctrl =
 			newd wxTextCtrl(this, wxID_ANY, wxstr(map.getSpawnFilename())), 1, wxEXPAND
 		);
-	
+
 	grid_sizer->Add(
 		newd wxStaticText(this, wxID_ANY, "External npc file")
 		);

@@ -17,8 +17,6 @@
 
 #include "main.h"
 
-#include <wx/display.h>
-
 #include "gui.h"
 #include "main_menubar.h"
 

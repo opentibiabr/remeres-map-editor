@@ -228,7 +228,7 @@ void Editor::redo(int indexes)
 		indexes--;
 	}
 	g_gui.UpdateActions();
-	g_gui.RefreshView();	
+	g_gui.RefreshView();
 }
 
 void Editor::updateActions()
@@ -444,7 +444,7 @@ void Editor::saveMap(FileName filename, bool showdialog)
 			std::string spawn_filename = map_path + nstr(converter.GetName());
 			std::rename(backup_spawn.c_str(), std::string(spawn_filename + "." + date.str() + ".xml").c_str());
 		}
-		
+
 		if(!backup_spawn_npc.empty()) {
 			converter.SetFullName(wxstr(map.spawnnpcfile));
 			std::string spawnnpc_filename = map_path + nstr(converter.GetName());

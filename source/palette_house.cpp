@@ -466,6 +466,8 @@ EditHouseDialog::EditHouseDialog(wxWindow* parent, Map* map, House* house) :
 	house_name = wxstr(house->name);
 	house_id = i2ws(house->id);
 	house_rent = i2ws(house->rent);
+	house_clientid = i2ws(house->clientid);
+	house_beds = i2ws(house->beds);
 
 	// House options
 	tmpsizer = newd wxStaticBoxSizer(wxHORIZONTAL, this, "Name");
@@ -480,6 +482,16 @@ EditHouseDialog::EditHouseDialog(wxWindow* parent, Map* map, House* house) :
 	id_field = newd wxTextCtrl(this, wxID_ANY, "", wxDefaultPosition, wxSize(70,20), 0, wxTextValidator(wxFILTER_NUMERIC, &house_id));
 	id_field->Enable(false);
 	tmpsizer->Add(id_field);
+	sizer->Add(tmpsizer, wxSizerFlags().Border(wxALL, 20));
+
+	tmpsizer = newd wxStaticBoxSizer(wxHORIZONTAL, this, "Client ID");
+	clientid_field = newd wxTextCtrl(this, wxID_ANY, "", wxDefaultPosition, wxSize(160,20), 0, wxTextValidator(wxFILTER_NUMERIC, &house_clientid));
+	tmpsizer->Add(clientid_field);
+	sizer->Add(tmpsizer, wxSizerFlags().Border(wxALL, 20));
+
+	tmpsizer = newd wxStaticBoxSizer(wxHORIZONTAL, this, "Max beds");
+	beds_field = newd wxTextCtrl(this, wxID_ANY, "", wxDefaultPosition, wxSize(160,20), 0, wxTextValidator(wxFILTER_NUMERIC, &house_beds));
+	tmpsizer->Add(beds_field);
 	sizer->Add(tmpsizer, wxSizerFlags().Border(wxALL, 20));
 
 	// House options
@@ -509,8 +521,19 @@ void EditHouseDialog::OnClickOK(wxCommandEvent& WXUNUSED(event))
 		long new_house_rent;
 		house_rent.ToLong(&new_house_rent);
 
+		long new_house_beds;
+		house_beds.ToLong(&new_house_beds);
+
+		long new_house_clientid;
+		house_clientid.ToLong(&new_house_clientid);
+
 		if(new_house_rent < 0) {
 			g_gui.PopupDialog(this, "Error", "House rent cannot be less than 0.", wxOK);
+			return;
+		}
+
+		if(new_house_beds < 0) {
+			g_gui.PopupDialog(this, "Error", "House beds cannot be less than 0.", wxOK);
 			return;
 		}
 
@@ -536,6 +559,8 @@ void EditHouseDialog::OnClickOK(wxCommandEvent& WXUNUSED(event))
 		// Transfer to house
 		what_house->name = nstr(house_name);
 		what_house->rent = new_house_rent;
+		what_house->clientid = new_house_clientid;
+		what_house->beds = new_house_beds;
 		what_house->guildhall = guildhall_field->GetValue();
 
 		EndModal(1);

@@ -22,7 +22,6 @@
 #include "live_action.h"
 #include "editor.h"
 
-#include <wx/event.h>
 
 LiveClient::LiveClient() : LiveSocket(),
 	readMessage(), queryNodeList(), currentOperation(),

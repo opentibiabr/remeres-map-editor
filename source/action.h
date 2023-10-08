@@ -20,8 +20,6 @@
 
 #include "position.h"
 
-#include <deque>
-
 class Editor;
 class Tile;
 class House;
@@ -66,11 +64,11 @@ struct WaypointData {
 	Position position;
 };
 
-class Change
-{
-	Change();
+class Change {
+private:
+	ChangeType type;
+	void* data;
 
-public:
 	Change(Tile* tile);
 	~Change();
 

@@ -562,53 +562,54 @@ bool MainMenuBar::Load(const FileName& path, wxArrayString& warnings, wxString& 
 	const int count = 41;
 	wxAcceleratorEntry entries[count];
 	// Edit
-	entries[0].Set(wxACCEL_CTRL, (int)'Z', MAIN_FRAME_MENU + MenuBar::UNDO);
-	entries[1].Set(wxACCEL_CTRL | wxACCEL_SHIFT, (int)'Z', MAIN_FRAME_MENU + MenuBar::REDO);
-	entries[2].Set(wxACCEL_CTRL, (int)'F', MAIN_FRAME_MENU + MenuBar::FIND_ITEM);
-	entries[3].Set(wxACCEL_CTRL | wxACCEL_SHIFT, (int)'F', MAIN_FRAME_MENU + MenuBar::REPLACE_ITEMS);
-	entries[4].Set(wxACCEL_NORMAL, (int)'A', MAIN_FRAME_MENU + MenuBar::AUTOMAGIC);
-	entries[5].Set(wxACCEL_CTRL, (int)'B', MAIN_FRAME_MENU + MenuBar::BORDERIZE_SELECTION);
-	entries[6].Set(wxACCEL_NORMAL, (int)'P', MAIN_FRAME_MENU + MenuBar::GOTO_PREVIOUS_POSITION);
-	entries[7].Set(wxACCEL_CTRL, (int)'G', MAIN_FRAME_MENU + MenuBar::GOTO_POSITION);
-	entries[8].Set(wxACCEL_NORMAL, (int)'J', MAIN_FRAME_MENU + MenuBar::JUMP_TO_BRUSH);
-	entries[9].Set(wxACCEL_CTRL, (int)'X', MAIN_FRAME_MENU + MenuBar::CUT);
-	entries[10].Set(wxACCEL_CTRL, (int)'C', MAIN_FRAME_MENU + MenuBar::COPY);
-	entries[11].Set(wxACCEL_CTRL, (int)'V', MAIN_FRAME_MENU + MenuBar::PASTE);
-	// View
-	entries[12].Set(wxACCEL_CTRL, (int)'=', MAIN_FRAME_MENU + MenuBar::ZOOM_IN);
-	entries[13].Set(wxACCEL_CTRL, (int)'-', MAIN_FRAME_MENU + MenuBar::ZOOM_OUT);
-	entries[14].Set(wxACCEL_CTRL, (int)'0', MAIN_FRAME_MENU + MenuBar::ZOOM_NORMAL);
-	entries[15].Set(wxACCEL_NORMAL, (int)'Q', MAIN_FRAME_MENU + MenuBar::SHOW_SHADE);
-	entries[16].Set(wxACCEL_CTRL, (int)'W', MAIN_FRAME_MENU + MenuBar::SHOW_ALL_FLOORS);
-	entries[17].Set(wxACCEL_NORMAL, (int)'Q', MAIN_FRAME_MENU + MenuBar::GHOST_ITEMS);
-	entries[18].Set(wxACCEL_CTRL, (int)'L', MAIN_FRAME_MENU + MenuBar::GHOST_HIGHER_FLOORS);
-	entries[19].Set(wxACCEL_SHIFT, (int)'I', MAIN_FRAME_MENU + MenuBar::SHOW_INGAME_BOX);
-	entries[20].Set(wxACCEL_SHIFT, (int)'G', MAIN_FRAME_MENU + MenuBar::SHOW_GRID);
-	entries[21].Set(wxACCEL_NORMAL, (int)'V', MAIN_FRAME_MENU + MenuBar::HIGHLIGHT_ITEMS);
-	entries[22].Set(wxACCEL_NORMAL, (int)'F', MAIN_FRAME_MENU + MenuBar::SHOW_MONSTERS);
-	entries[23].Set(wxACCEL_NORMAL, (int)'S', MAIN_FRAME_MENU + MenuBar::SHOW_SPAWNS_MONSTER);
-	entries[24].Set(wxACCEL_NORMAL, (int)'X', MAIN_FRAME_MENU + MenuBar::SHOW_NPCS);
-	entries[25].Set(wxACCEL_NORMAL, (int)'U', MAIN_FRAME_MENU + MenuBar::SHOW_SPAWNS_NPC);
-	entries[26].Set(wxACCEL_NORMAL, (int)'E', MAIN_FRAME_MENU + MenuBar::SHOW_SPECIAL);
-	entries[27].Set(wxACCEL_SHIFT, (int)'E', MAIN_FRAME_MENU + MenuBar::SHOW_AS_MINIMAP);
-	entries[28].Set(wxACCEL_CTRL, (int)'E', MAIN_FRAME_MENU + MenuBar::SHOW_ONLY_COLORS);
-	entries[29].Set(wxACCEL_CTRL, (int)'M', MAIN_FRAME_MENU + MenuBar::SHOW_ONLY_MODIFIED);
-	entries[30].Set(wxACCEL_CTRL, (int)'H', MAIN_FRAME_MENU + MenuBar::SHOW_HOUSES);
-	entries[31].Set(wxACCEL_NORMAL, (int)'O', MAIN_FRAME_MENU + MenuBar::SHOW_PATHING);
-	entries[32].Set(wxACCEL_NORMAL, (int)'Y', MAIN_FRAME_MENU + MenuBar::SHOW_TOOLTIPS);
-	entries[33].Set(wxACCEL_NORMAL, (int)'L', MAIN_FRAME_MENU + MenuBar::SHOW_PREVIEW);
-	entries[34].Set(wxACCEL_NORMAL, (int)'K', MAIN_FRAME_MENU + MenuBar::SHOW_WALL_HOOKS);
+	entries[0].Set(wxACCEL_CTRL, (int)'Z', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::UNDO));
+    entries[1].Set(wxACCEL_CTRL | wxACCEL_SHIFT, (int)'Z', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::REDO));
+    entries[2].Set(wxACCEL_CTRL, (int)'F', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::FIND_ITEM));
+    entries[3].Set(wxACCEL_CTRL | wxACCEL_SHIFT, (int)'F', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::REPLACE_ITEMS));
+    entries[4].Set(wxACCEL_NORMAL, (int)'A', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::AUTOMAGIC));
+    entries[5].Set(wxACCEL_CTRL, (int)'B', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::BORDERIZE_SELECTION));
+    entries[6].Set(wxACCEL_NORMAL, (int)'P', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::GOTO_PREVIOUS_POSITION));
+    entries[7].Set(wxACCEL_CTRL, (int)'G', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::GOTO_POSITION));
+    entries[8].Set(wxACCEL_NORMAL, (int)'J', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::JUMP_TO_BRUSH));
+    entries[9].Set(wxACCEL_CTRL, (int)'X', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::CUT));
+    entries[10].Set(wxACCEL_CTRL, (int)'C', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::COPY));
+    entries[11].Set(wxACCEL_CTRL, (int)'V', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::PASTE));
 
-	// Window
-	entries[33].Set(wxACCEL_NORMAL, (int)'M', MAIN_FRAME_MENU + MenuBar::WIN_MINIMAP);
-	entries[34].Set(wxACCEL_NORMAL, (int)'T', MAIN_FRAME_MENU + MenuBar::SELECT_TERRAIN);
-	entries[35].Set(wxACCEL_NORMAL, (int)'D', MAIN_FRAME_MENU + MenuBar::SELECT_DOODAD);
-	entries[36].Set(wxACCEL_NORMAL, (int)'I', MAIN_FRAME_MENU + MenuBar::SELECT_ITEM);
-	entries[37].Set(wxACCEL_NORMAL, (int)'H', MAIN_FRAME_MENU + MenuBar::SELECT_HOUSE);
-	entries[38].Set(wxACCEL_NORMAL, (int)'C', MAIN_FRAME_MENU + MenuBar::SELECT_MONSTER);
-	entries[39].Set(wxACCEL_NORMAL, (int)'N', MAIN_FRAME_MENU + MenuBar::SELECT_NPC);
-	entries[40].Set(wxACCEL_NORMAL, (int)'W', MAIN_FRAME_MENU + MenuBar::SELECT_WAYPOINT);
-	entries[41].Set(wxACCEL_NORMAL, (int)'R', MAIN_FRAME_MENU + MenuBar::SELECT_RAW);
+    // View
+    entries[12].Set(wxACCEL_CTRL, (int)'=', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::ZOOM_IN));
+    entries[13].Set(wxACCEL_CTRL, (int)'-', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::ZOOM_OUT));
+    entries[14].Set(wxACCEL_CTRL, (int)'0', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::ZOOM_NORMAL));
+    entries[15].Set(wxACCEL_NORMAL, (int)'Q', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_SHADE));
+    entries[16].Set(wxACCEL_CTRL, (int)'W', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_ALL_FLOORS));
+    entries[17].Set(wxACCEL_NORMAL, (int)'Q', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::GHOST_ITEMS));
+    entries[18].Set(wxACCEL_CTRL, (int)'L', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::GHOST_HIGHER_FLOORS));
+    entries[19].Set(wxACCEL_SHIFT, (int)'I', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_INGAME_BOX));
+    entries[20].Set(wxACCEL_SHIFT, (int)'G', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_GRID));
+    entries[21].Set(wxACCEL_NORMAL, (int)'V', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::HIGHLIGHT_ITEMS));
+    entries[22].Set(wxACCEL_NORMAL, (int)'F', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_MONSTERS));
+    entries[23].Set(wxACCEL_NORMAL, (int)'S', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_SPAWNS_MONSTER));
+    entries[24].Set(wxACCEL_NORMAL, (int)'X', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_NPCS));
+    entries[25].Set(wxACCEL_NORMAL, (int)'U', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_SPAWNS_NPC));
+    entries[26].Set(wxACCEL_NORMAL, (int)'E', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_SPECIAL));
+    entries[27].Set(wxACCEL_SHIFT, (int)'E', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_AS_MINIMAP));
+    entries[28].Set(wxACCEL_CTRL, (int)'E', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_ONLY_COLORS));
+    entries[29].Set(wxACCEL_CTRL, (int)'M', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_ONLY_MODIFIED));
+    entries[30].Set(wxACCEL_CTRL, (int)'H', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_HOUSES));
+    entries[31].Set(wxACCEL_NORMAL, (int)'O', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_PATHING));
+    entries[32].Set(wxACCEL_NORMAL, (int)'Y', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_TOOLTIPS));
+    entries[33].Set(wxACCEL_NORMAL, (int)'L', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_PREVIEW));
+    entries[34].Set(wxACCEL_NORMAL, (int)'K', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_WALL_HOOKS));
+
+    // Window
+    entries[33].Set(wxACCEL_NORMAL, (int)'M', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::WIN_MINIMAP));
+    entries[34].Set(wxACCEL_NORMAL, (int)'T', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_TERRAIN));
+    entries[35].Set(wxACCEL_NORMAL, (int)'D', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_DOODAD));
+    entries[36].Set(wxACCEL_NORMAL, (int)'I', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_ITEM));
+    entries[37].Set(wxACCEL_NORMAL, (int)'H', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_HOUSE));
+    entries[38].Set(wxACCEL_NORMAL, (int)'C', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_MONSTER));
+    entries[39].Set(wxACCEL_NORMAL, (int)'N', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_NPC));
+    entries[40].Set(wxACCEL_NORMAL, (int)'W', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_WAYPOINT));
+    entries[41].Set(wxACCEL_NORMAL, (int)'R', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_RAW));
 
 	wxAcceleratorTable accelerator(count, entries);
 	frame->SetAcceleratorTable(accelerator);
@@ -1749,7 +1750,7 @@ void MainMenuBar::OnMapStatistics(wxCommandEvent& WXUNUSED(event))
 
 		if(tile->spawnMonster)
 			spawn_monster_count += 1;
-		
+
 		if(tile->spawnNpc)
 			spawn_npc_count += 1;
 
@@ -1843,7 +1844,7 @@ void MainMenuBar::OnMapStatistics(wxCommandEvent& WXUNUSED(event))
 	os << "\t\tTotal npc spawn count: " << spawn_npc_count << "\n";
 	if(monsters_per_spawn >= 0)
 		os << "\t\tMean monsters per spawn: " << monsters_per_spawn << "\n";
-	
+
 	if(npcs_per_spawn >= 0)
 		os << "\t\tMean npcs per spawn: " << npcs_per_spawn << "\n";
 

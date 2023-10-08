@@ -24,10 +24,6 @@
 #include "settings.h"
 #include "gui.h"
 #include "otml.h"
-
-#include <wx/mstream.h>
-#include <wx/stopwatch.h>
-#include <wx/dir.h>
 #include <wx/rawbmp.h>
 #include "pngfiles.h"
 
