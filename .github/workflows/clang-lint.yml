@@ -37,8 +37,7 @@ jobs:
         if: ${{ github.ref != 'refs/heads/main' }}
         uses: DoozyX/clang-format-lint-action@v0.16.2
         with:
-          source: "src"
-          exclude: "src/protobuf"
+          source: "source"
           extensions: "cpp,hpp,h"
           clangFormatVersion: 16
           inplace: true
