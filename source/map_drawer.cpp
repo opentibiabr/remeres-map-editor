@@ -17,9 +17,7 @@
 
 #include "main.h"
 
-#ifdef __APPLE__
-	#include <GLUT/glut.h>
-#else
+#if defined(__LINUX__) || defined(__WINDOWS__)
 	#include <GL/glut.h>
 #endif
 
@@ -1788,6 +1786,7 @@ void MapDrawer::DrawPositionIndicator(int z) {
 }
 
 void MapDrawer::DrawTooltips() {
+#if defined(__LINUX__) || defined(__WINDOWS__)
 	if (!options.show_tooltips || tooltips.empty()) {
 		return;
 	}
@@ -1898,6 +1897,7 @@ void MapDrawer::DrawTooltips() {
 	}
 
 	glEnable(GL_TEXTURE_2D);
+#endif
 }
 
 void MapDrawer::MakeTooltip(int screenx, int screeny, const std::string &text, uint8_t r, uint8_t g, uint8_t b) {

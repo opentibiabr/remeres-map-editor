@@ -10,9 +10,11 @@ build-release
 CMakeLists.txt.user*
 
 # RME
+remeres
 rme
 rme.cfg
 data/user
+world
 
 # Visual Studio
 *.MAP
