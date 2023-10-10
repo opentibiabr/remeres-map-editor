@@ -20,34 +20,29 @@
 #include "live_action.h"
 #include "editor.h"
 
-NetworkedAction::NetworkedAction(Editor& editor, ActionIdentifier ident) :
+NetworkedAction::NetworkedAction(Editor &editor, ActionIdentifier ident) :
 	Action(editor, ident),
-	owner(0)
-{
+	owner(0) {
 	;
 }
 
-NetworkedAction::~NetworkedAction()
-{
+NetworkedAction::~NetworkedAction() {
 	;
 }
 
-NetworkedBatchAction::NetworkedBatchAction(Editor& editor, NetworkedActionQueue& queue, ActionIdentifier ident) :
+NetworkedBatchAction::NetworkedBatchAction(Editor &editor, NetworkedActionQueue &queue, ActionIdentifier ident) :
 	BatchAction(editor, ident),
-	queue(queue)
-{
+	queue(queue) {
 	;
 }
 
-NetworkedBatchAction::~NetworkedBatchAction()
-{
+NetworkedBatchAction::~NetworkedBatchAction() {
 	;
 }
 
-void NetworkedBatchAction::addAndCommitAction(Action* action)
-{
+void NetworkedBatchAction::addAndCommitAction(Action* action) {
 	// If empty, do nothing.
-	if(action->size() == 0) {
+	if (action->size() == 0) {
 		delete action;
 		return;
 	}
@@ -55,11 +50,12 @@ void NetworkedBatchAction::addAndCommitAction(Action* action)
 	// Track changed nodes...
 	DirtyList dirty_list;
 	NetworkedAction* netact = dynamic_cast<NetworkedAction*>(action);
-	if(netact)
+	if (netact) {
 		dirty_list.owner = netact->owner;
+	}
 
 	// Add it!
-	action->commit(type != ACTION_SELECT? &dirty_list : nullptr);
+	action->commit(type != ACTION_SELECT ? &dirty_list : nullptr);
 	batch.push_back(action);
 	timestamp = time(nullptr);
 
@@ -67,59 +63,53 @@ void NetworkedBatchAction::addAndCommitAction(Action* action)
 	queue.broadcast(dirty_list);
 }
 
-void NetworkedBatchAction::commit()
-{
+void NetworkedBatchAction::commit() {
 	// Track changed nodes...
 	DirtyList dirty_list;
 
-	for(ActionVector::iterator it = batch.begin(); it != batch.end(); ++it) {
+	for (ActionVector::iterator it = batch.begin(); it != batch.end(); ++it) {
 		NetworkedAction* action = static_cast<NetworkedAction*>(*it);
-		if(!action->isCommited()) {
-			action->commit(type != ACTION_SELECT? &dirty_list : nullptr);
-			if(action->owner != 0)
+		if (!action->isCommited()) {
+			action->commit(type != ACTION_SELECT ? &dirty_list : nullptr);
+			if (action->owner != 0) {
 				dirty_list.owner = action->owner;
+			}
 		}
 	}
 	// Broadcast changes!
 	queue.broadcast(dirty_list);
 }
 
-void NetworkedBatchAction::undo()
-{
+void NetworkedBatchAction::undo() {
 	// Track changed nodes...
 	DirtyList dirty_list;
 
-	for(ActionVector::reverse_iterator it = batch.rbegin(); it != batch.rend(); ++it) {
-		(*it)->undo(type != ACTION_SELECT? &dirty_list : nullptr);
+	for (ActionVector::reverse_iterator it = batch.rbegin(); it != batch.rend(); ++it) {
+		(*it)->undo(type != ACTION_SELECT ? &dirty_list : nullptr);
 	}
 	// Broadcast changes!
 	queue.broadcast(dirty_list);
 }
 
-void NetworkedBatchAction::redo()
-{
+void NetworkedBatchAction::redo() {
 	commit();
 }
-
 
 //===================
 // Action queue
 
-NetworkedActionQueue::NetworkedActionQueue(Editor& editor) : ActionQueue(editor)
-{
+NetworkedActionQueue::NetworkedActionQueue(Editor &editor) :
+	ActionQueue(editor) {
 }
 
-Action* NetworkedActionQueue::createAction(ActionIdentifier identifier) const
-{
+Action* NetworkedActionQueue::createAction(ActionIdentifier identifier) const {
 	return new NetworkedAction(editor, identifier);
 }
 
-BatchAction* NetworkedActionQueue::createBatch(ActionIdentifier identifier)
-{
+BatchAction* NetworkedActionQueue::createBatch(ActionIdentifier identifier) {
 	return new NetworkedBatchAction(editor, *this, identifier);
 }
 
-void NetworkedActionQueue::broadcast(DirtyList& dirty_list)
-{
+void NetworkedActionQueue::broadcast(DirtyList &dirty_list) {
 	editor.BroadcastNodes(dirty_list);
 }

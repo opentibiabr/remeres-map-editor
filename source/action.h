@@ -69,13 +69,17 @@ public:
 	Change(Tile* tile);
 	~Change();
 
-	static Change* Create(House* house, const Position& position);
-	static Change* Create(Waypoint* waypoint, const Position& position);
+	static Change* Create(House* house, const Position &position);
+	static Change* Create(Waypoint* waypoint, const Position &position);
 
 	void clear();
 
-	ChangeType getType() const noexcept { return type; }
-	void* getData() const noexcept { return data; }
+	ChangeType getType() const noexcept {
+		return type;
+	}
+	void* getData() const noexcept {
+		return data;
+	}
 
 	uint32_t memsize() const;
 
@@ -90,8 +94,7 @@ private:
 typedef std::vector<Change*> ChangeList;
 
 // A dirty list represents a list of all tiles that was changed in an action
-class DirtyList
-{
+class DirtyList {
 public:
 	struct ValueType {
 		uint32_t pos;
@@ -102,28 +105,28 @@ public:
 
 protected:
 	struct Comparator {
-		bool operator()(const ValueType& a, const ValueType& b) const {
+		bool operator()(const ValueType &a, const ValueType &b) const {
 			return a.pos < b.pos;
 		}
 	};
 
 public:
-
 	typedef std::set<ValueType, Comparator> SetType;
 
 	void AddPosition(int x, int y, int z);
 	void AddChange(Change* c);
-	bool Empty() const {return iset.empty() && ichanges.empty();}
-	SetType& GetPosList();
-	ChangeList& GetChanges();
+	bool Empty() const {
+		return iset.empty() && ichanges.empty();
+	}
+	SetType &GetPosList();
+	ChangeList &GetChanges();
 
 protected:
 	SetType iset;
 	ChangeList ichanges;
 };
 
-class Action
-{
+class Action {
 public:
 	virtual ~Action();
 
@@ -134,21 +137,31 @@ public:
 	// Get memory footprint
 	size_t approx_memsize() const;
 	size_t memsize() const;
-	size_t size() const noexcept { return changes.size(); }
-	bool empty() const noexcept { return changes.empty(); }
-	ActionIdentifier getType() const noexcept { return type; }
+	size_t size() const noexcept {
+		return changes.size();
+	}
+	bool empty() const noexcept {
+		return changes.empty();
+	}
+	ActionIdentifier getType() const noexcept {
+		return type;
+	}
 
 	void commit(DirtyList* dirty_list);
-	bool isCommited() const noexcept { return commited; }
+	bool isCommited() const noexcept {
+		return commited;
+	}
 	void undo(DirtyList* dirty_list);
-	void redo(DirtyList* dirty_list) {commit(dirty_list);}
+	void redo(DirtyList* dirty_list) {
+		commit(dirty_list);
+	}
 
 protected:
-	Action(Editor& editor, ActionIdentifier ident);
+	Action(Editor &editor, ActionIdentifier ident);
 
 	bool commited;
 	ChangeList changes;
-	Editor& editor;
+	Editor &editor;
 	ActionIdentifier type;
 
 	friend class ActionQueue;
@@ -156,26 +169,35 @@ protected:
 
 typedef std::vector<Action*> ActionVector;
 
-class BatchAction
-{
+class BatchAction {
 public:
 	virtual ~BatchAction();
 
-	void resetTimer() noexcept { timestamp = 0; }
+	void resetTimer() noexcept {
+		timestamp = 0;
+	}
 
 	// Get memory footprint
 	size_t memsize(bool resize = false) const;
-	size_t size() const noexcept { return batch.size(); }
-	bool empty() const noexcept { return batch.empty(); }
-	ActionIdentifier getType() const noexcept { return type; }
-	const wxString& getLabel() const noexcept { return label; }
+	size_t size() const noexcept {
+		return batch.size();
+	}
+	bool empty() const noexcept {
+		return batch.empty();
+	}
+	ActionIdentifier getType() const noexcept {
+		return type;
+	}
+	const wxString &getLabel() const noexcept {
+		return label;
+	}
 	bool isNoSelection() const noexcept;
 
 	virtual void addAction(Action* action);
 	virtual void addAndCommitAction(Action* action);
 
 protected:
-	BatchAction(Editor& editor, ActionIdentifier ident);
+	BatchAction(Editor &editor, ActionIdentifier ident);
 
 	virtual void commit();
 	virtual void undo();
@@ -183,7 +205,7 @@ protected:
 
 	void merge(BatchAction* other);
 
-	Editor& editor;
+	Editor &editor;
 	int timestamp;
 	uint32_t memory_size;
 	ActionIdentifier type;
@@ -193,10 +215,9 @@ protected:
 	friend class ActionQueue;
 };
 
-class ActionQueue
-{
+class ActionQueue {
 public:
-	ActionQueue(Editor& editor);
+	ActionQueue(Editor &editor);
 	virtual ~ActionQueue();
 
 	typedef std::deque<BatchAction*> ActionList;
@@ -214,13 +235,25 @@ public:
 	bool redo();
 	void clear();
 
-	const ActionList& getActions() const noexcept { return actions; }
+	const ActionList &getActions() const noexcept {
+		return actions;
+	}
 	const BatchAction* getAction(size_t index) const;
-	int getCurrentIndex() const noexcept { return current; }
-	bool canUndo() const noexcept { return current > 0; }
-	bool canRedo() const noexcept { return current < actions.size(); }
-	size_t size() const noexcept { return actions.size(); }
-	bool empty() const noexcept { return actions.empty(); }
+	int getCurrentIndex() const noexcept {
+		return current;
+	}
+	bool canUndo() const noexcept {
+		return current > 0;
+	}
+	bool canRedo() const noexcept {
+		return current < actions.size();
+	}
+	size_t size() const noexcept {
+		return actions.size();
+	}
+	bool empty() const noexcept {
+		return actions.empty();
+	}
 
 	bool hasChanges() const;
 
@@ -231,7 +264,7 @@ protected:
 
 	size_t current;
 	size_t memory_size;
-	Editor& editor;
+	Editor &editor;
 	ActionList actions;
 };
 

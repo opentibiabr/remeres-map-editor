@@ -32,38 +32,48 @@ class Floor;
 class QTreeNode;
 class TileLocation;
 
-class MapIterator
-{
+class MapIterator {
 public:
 	MapIterator(BaseMap* _map = nullptr);
 	~MapIterator();
-	MapIterator(const MapIterator& other);
+	MapIterator(const MapIterator &other);
 
 	TileLocation* operator*();
 	TileLocation* operator->();
-	MapIterator& operator++();
+	MapIterator &operator++();
 	MapIterator operator++(int);
-	bool operator==(const MapIterator& other) const {
-		if(other.local_z != local_z) return false;
-		if(other.local_i != local_i) return false;
-		if(other.nodestack == nodestack) return true;
-		if(other.current_tile == current_tile) return true;
+	bool operator==(const MapIterator &other) const {
+		if (other.local_z != local_z) {
+			return false;
+		}
+		if (other.local_i != local_i) {
+			return false;
+		}
+		if (other.nodestack == nodestack) {
+			return true;
+		}
+		if (other.current_tile == current_tile) {
+			return true;
+		}
 		return false;
 	}
-	bool operator!=(const MapIterator& other) const {
+	bool operator!=(const MapIterator &other) const {
 		return !(other == *this);
 	}
 
 	struct NodeIndex {
-		NodeIndex(QTreeNode* _node) : index(0), node(_node) {}
-		NodeIndex(const NodeIndex& other) : index(other.index), node(other.node) {}
+		NodeIndex(QTreeNode* _node) :
+			index(0), node(_node) { }
+		NodeIndex(const NodeIndex &other) :
+			index(other.index), node(other.node) { }
 		int index;
 		QTreeNode* node;
 
-		bool operator==(const NodeIndex& n) const {
+		bool operator==(const NodeIndex &n) const {
 			return n.node == node && n.index == index;
 		}
 	};
+
 private:
 	std::vector<NodeIndex> nodestack;
 	int local_i, local_z;
@@ -73,8 +83,7 @@ private:
 	friend class BaseMap;
 };
 
-class BaseMap
-{
+class BaseMap {
 public:
 	BaseMap();
 	virtual ~BaseMap();
@@ -83,37 +92,45 @@ public:
 	void clear(bool del = true);
 	MapIterator begin();
 	MapIterator end();
-	uint64_t size() const noexcept { return tilecount; }
+	uint64_t size() const noexcept {
+		return tilecount;
+	}
 
 	// these functions take a position and returns a tile on the map
 	Tile* createTile(int x, int y, int z);
 	Tile* getTile(int x, int y, int z);
-	Tile* getTile(const Position& pos);
+	Tile* getTile(const Position &pos);
 	const Tile* getTile(int x, int y, int z) const;
-	const Tile* getTile(const Position& pos) const;
+	const Tile* getTile(const Position &pos) const;
 	TileLocation* getTileL(int x, int y, int z);
-	TileLocation* getTileL(const Position& pos);
+	TileLocation* getTileL(const Position &pos);
 	TileLocation* createTileL(int x, int y, int z);
-	TileLocation* createTileL(const Position& pos);
+	TileLocation* createTileL(const Position &pos);
 	const TileLocation* getTileL(int x, int y, int z) const;
-	const TileLocation* getTileL(const Position& pos) const;
+	const TileLocation* getTileL(const Position &pos) const;
 
 	// Get a Quad Tree Leaf from the map
-	QTreeNode* getLeaf(int x, int y) {return root.getLeaf(x, y);}
-	QTreeNode* createLeaf(int x, int y) {return root.getLeafForce(x, y);}
+	QTreeNode* getLeaf(int x, int y) {
+		return root.getLeaf(x, y);
+	}
+	QTreeNode* createLeaf(int x, int y) {
+		return root.getLeafForce(x, y);
+	}
 
 	// Assigns a tile, it might seem pointless to provide position, but it is not, as the passed tile may be nullptr
 	void setTile(int x, int y, int z, Tile* new_tile, bool remove = false);
-	void setTile(const Position& position, Tile* new_tile, bool remove = false);
+	void setTile(const Position &position, Tile* new_tile, bool remove = false);
 	void setTile(Tile* new_tile, bool remove = false);
 	// Replaces a tile and returns the old one
 	Tile* swapTile(int x, int y, int z, Tile* new_tile);
-	Tile* swapTile(const Position& position, Tile* new_tile);
+	Tile* swapTile(const Position &position, Tile* new_tile);
 
 	// Clears the visiblity according to the mask passed
 	void clearVisible(uint32_t mask);
 
-	uint64_t getTileCount() const noexcept { return tilecount; }
+	uint64_t getTileCount() const noexcept {
+		return tilecount;
+	}
 
 public:
 	MapAllocator allocator;
@@ -128,28 +145,24 @@ protected:
 	friend class QTreeNode;
 };
 
-inline Tile* BaseMap::getTile(int x, int y, int z)
-{
+inline Tile* BaseMap::getTile(int x, int y, int z) {
 	TileLocation* l = getTileL(x, y, z);
-	return l? l->get() : nullptr;
+	return l ? l->get() : nullptr;
 }
 
-inline Tile* BaseMap::getTile(const Position& pos)
-{
+inline Tile* BaseMap::getTile(const Position &pos) {
 	TileLocation* l = getTileL(pos);
-	return l? l->get() : nullptr;
+	return l ? l->get() : nullptr;
 }
 
-inline const Tile* BaseMap::getTile(int x, int y, int z) const
-{
+inline const Tile* BaseMap::getTile(int x, int y, int z) const {
 	const TileLocation* l = getTileL(x, y, z);
-	return l? l->get() : nullptr;
+	return l ? l->get() : nullptr;
 }
 
-inline const Tile* BaseMap::getTile(const Position& pos) const
-{
+inline const Tile* BaseMap::getTile(const Position &pos) const {
 	const TileLocation* l = getTileL(pos);
-	return l? l->get() : nullptr;
+	return l ? l->get() : nullptr;
 }
 
 #endif

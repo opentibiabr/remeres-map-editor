@@ -26,7 +26,7 @@
 
 enum SpriteSize {
 	SPRITE_SIZE_16x16,
-	//SPRITE_SIZE_24x24,
+	// SPRITE_SIZE_24x24,
 	SPRITE_SIZE_32x32,
 	SPRITE_SIZE_COUNT
 };
@@ -50,16 +50,15 @@ struct SpriteLight {
 	uint8_t color = 0;
 };
 
-class Sprite
-{
+class Sprite {
 public:
-	Sprite() {}
+	Sprite() { }
 
 	virtual void DrawTo(wxDC* dc, SpriteSize sz, int start_x, int start_y, int width = -1, int height = -1) = 0;
 	virtual void unloadDC() = 0;
 
 private:
-	Sprite(const Sprite&);
+	Sprite(const Sprite &);
 };
 
 class EditorSprite : public Sprite {
@@ -74,29 +73,38 @@ protected:
 	wxBitmap* bm[SPRITE_SIZE_COUNT];
 };
 
-
-class GameSprite : public Sprite{
+class GameSprite : public Sprite {
 public:
 	GameSprite();
 	virtual ~GameSprite();
 
 	int getIndex(int width, int height, int layer, int pattern_x, int pattern_y, int pattern_z, int frame) const;
 	GLuint getHardwareID(int _x, int _y, int _layer, int _subtype, int _pattern_x, int _pattern_y, int _pattern_z, int _frame);
-	GLuint getHardwareID(int _x, int _y, int _dir, int _addon, int _pattern_z, const Outfit& _outfit, int _frame); // CreatureDatabase
+	GLuint getHardwareID(int _x, int _y, int _dir, int _addon, int _pattern_z, const Outfit &_outfit, int _frame); // CreatureDatabase
 	virtual void DrawTo(wxDC* dc, SpriteSize sz, int start_x, int start_y, int width = -1, int height = -1);
 
 	virtual void unloadDC();
 
 	void clean(int time);
 
-	uint16_t getDrawHeight() const noexcept { return draw_height; }
-	const wxPoint& getDrawOffset() const noexcept { return draw_offset; }
-	uint8_t getMiniMapColor() const noexcept { return minimap_color; }
+	uint16_t getDrawHeight() const noexcept {
+		return draw_height;
+	}
+	const wxPoint &getDrawOffset() const noexcept {
+		return draw_offset;
+	}
+	uint8_t getMiniMapColor() const noexcept {
+		return minimap_color;
+	}
 
-	bool hasLight() const noexcept { return has_light; }
-	const SpriteLight& getLight() const noexcept { return light; }
+	bool hasLight() const noexcept {
+		return has_light;
+	}
+	const SpriteLight &getLight() const noexcept {
+		return light;
+	}
 
-	static GameSprite* createFromBitmap(const wxArtID& bitmapId);
+	static GameSprite* createFromBitmap(const wxArtID &bitmapId);
 
 protected:
 	class Image;
@@ -104,7 +112,7 @@ protected:
 	class TemplateImage;
 
 	wxMemoryDC* getDC(SpriteSize size);
-	TemplateImage* getTemplateImage(int sprite_index, const Outfit& outfit);
+	TemplateImage* getTemplateImage(int sprite_index, const Outfit &outfit);
 
 	class Image {
 	public:
@@ -120,6 +128,7 @@ protected:
 		virtual GLuint getHardwareID() = 0;
 		virtual uint8_t* getRGBData() = 0;
 		virtual uint8_t* getRGBAData() = 0;
+
 	protected:
 		virtual void createGLTexture(GLuint textureId);
 		virtual void unloadGLTexture(GLuint textureId);
@@ -142,6 +151,7 @@ protected:
 		virtual GLuint getHardwareID();
 		virtual uint8_t* getRGBData();
 		virtual uint8_t* getRGBAData();
+
 	protected:
 		virtual void createGLTexture(GLuint textureId = 0);
 		virtual void unloadGLTexture(GLuint textureId = 0);
@@ -149,17 +159,19 @@ protected:
 
 	class EditorImage : public NormalImage {
 	public:
-		EditorImage(const wxArtID& bitmapId);
+		EditorImage(const wxArtID &bitmapId);
+
 	protected:
 		void createGLTexture(GLuint textureId) override;
 		void unloadGLTexture(GLuint textureId) override;
+
 	private:
 		wxArtID bitmapId;
 	};
 
 	class TemplateImage : public Image {
 	public:
-		TemplateImage(GameSprite* parent, int v, const Outfit& outfit);
+		TemplateImage(GameSprite* parent, int v, const Outfit &outfit);
 		virtual ~TemplateImage();
 
 		virtual GLuint getHardwareID();
@@ -173,6 +185,7 @@ protected:
 		uint8_t lookBody;
 		uint8_t lookLegs;
 		uint8_t lookFeet;
+
 	protected:
 		void colorizePixel(uint8_t color, uint8_t &r, uint8_t &b, uint8_t &g);
 
@@ -211,33 +224,30 @@ public:
 	friend class GraphicManager;
 };
 
-struct FrameDuration
-{
+struct FrameDuration {
 	int min;
 	int max;
 
-	FrameDuration(int min, int max) : min(min), max(max)
-	{
+	FrameDuration(int min, int max) :
+		min(min), max(max) {
 		ASSERT(min <= max);
 	}
 
-	int getDuration() const
-	{
-		if(min == max)
+	int getDuration() const {
+		if (min == max) {
 			return min;
+		}
 		return uniform_random(min, max);
 	};
 
-	void setValues(int min, int max)
-	{
+	void setValues(int min, int max) {
 		ASSERT(min <= max);
 		this->min = min;
 		this->max = max;
 	}
 };
 
-class Animator
-{
+class Animator {
 public:
 	Animator(int frames, int start_frame, int loop_count, bool async);
 	~Animator();
@@ -271,8 +281,7 @@ private:
 	bool is_complete;
 };
 
-class GraphicManager
-{
+class GraphicManager {
 public:
 	GraphicManager();
 	~GraphicManager();
@@ -284,11 +293,19 @@ public:
 	GameSprite* getCreatureSprite(int id);
 	GameSprite* getEditorSprite(int id);
 
-	long getElapsedTime() const { return (animation_timer->TimeInMicro() / 1000).ToLong(); }
+	long getElapsedTime() const {
+		return (animation_timer->TimeInMicro() / 1000).ToLong();
+	}
 
-	uint16_t getItemSpriteMinID() const noexcept { return 100; }
-	uint16_t getItemSpriteMaxID() const noexcept { return item_count; }
-	uint16_t getCreatureSpriteMaxID() const noexcept { return creature_count; }
+	uint16_t getItemSpriteMinID() const noexcept {
+		return 100;
+	}
+	uint16_t getItemSpriteMaxID() const noexcept {
+		return item_count;
+	}
+	uint16_t getCreatureSpriteMaxID() const noexcept {
+		return creature_count;
+	}
 
 	// Get an unused texture id (this is acquired by simply increasing a value starting from 0x10000000)
 	GLuint getFreeTextureID();
@@ -297,28 +314,32 @@ public:
 	bool loadEditorSprites();
 	// Metadata should be loaded first
 	// This fills the item / creature adress space
-	bool loadOTFI(const FileName& filename, wxString& error, wxArrayString& warnings);
-	bool loadSpriteMetadata(const FileName& datafile, wxString& error, wxArrayString& warnings);
-	bool loadSpriteMetadataFlags(FileReadHandle& file, GameSprite* sType, wxString& error, wxArrayString& warnings);
-	bool loadSpriteData(const FileName& datafile, wxString& error, wxArrayString& warnings);
+	bool loadOTFI(const FileName &filename, wxString &error, wxArrayString &warnings);
+	bool loadSpriteMetadata(const FileName &datafile, wxString &error, wxArrayString &warnings);
+	bool loadSpriteMetadataFlags(FileReadHandle &file, GameSprite* sType, wxString &error, wxArrayString &warnings);
+	bool loadSpriteData(const FileName &datafile, wxString &error, wxArrayString &warnings);
 
 	// Cleans old & unused textures according to config settings
 	void garbageCollection();
 	void addSpriteToCleanup(GameSprite* spr);
 
-	wxFileName getMetadataFileName() const { return metadata_file; }
-	wxFileName getSpritesFileName() const { return sprites_file; }
+	wxFileName getMetadataFileName() const {
+		return metadata_file;
+	}
+	wxFileName getSpritesFileName() const {
+		return sprites_file;
+	}
 
 	bool hasTransparency() const;
 	bool isUnloaded() const;
 
-	ClientVersion *client_version;
+	ClientVersion* client_version;
 
 private:
 	bool unloaded;
 	// This is used if memcaching is NOT on
 	std::string spritefile;
-	bool loadSpriteDump(uint8_t*& target, uint16_t& size, int sprite_id);
+	bool loadSpriteDump(uint8_t*&target, uint16_t &size, int sprite_id);
 
 	typedef std::map<int, Sprite*> SpriteMap;
 	SpriteMap sprite_space;

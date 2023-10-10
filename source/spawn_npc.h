@@ -26,15 +26,27 @@ public:
 
 	SpawnNpc* deepCopy() const;
 
-	bool isSelected() const noexcept { return selected; }
-	void select() noexcept { selected = true; }
-	void deselect() noexcept { selected = false; }
+	bool isSelected() const noexcept {
+		return selected;
+	}
+	void select() noexcept {
+		selected = true;
+	}
+	void deselect() noexcept {
+		selected = false;
+	}
 
-	int getSize() const noexcept { return size; }
+	int getSize() const noexcept {
+		return size;
+	}
 
 	// Does not compare selection!
-	bool operator==(const SpawnNpc& other) {return size == other.size;}
-	bool operator!=(const SpawnNpc& other) {return size != other.size;}
+	bool operator==(const SpawnNpc &other) {
+		return size == other.size;
+	}
+	bool operator!=(const SpawnNpc &other) {
+		return size != other.size;
+	}
 
 	void setSize(int newsize) {
 		ASSERT(size < 100);
@@ -51,16 +63,28 @@ typedef std::list<SpawnNpc*> SpawnNpcList;
 
 class SpawnsNpc {
 public:
-
 	void addSpawnNpc(Tile* tile);
 	void removeSpawnNpc(Tile* tile);
 
-	SpawnNpcPositionList::iterator begin() noexcept { return spawnsNpc.begin(); }
-	SpawnNpcPositionList::const_iterator begin() const noexcept { return spawnsNpc.begin(); }
-	SpawnNpcPositionList::iterator end() noexcept { return spawnsNpc.end(); }
-	SpawnNpcPositionList::const_iterator end() const noexcept { return spawnsNpc.end(); }
-	void erase(SpawnNpcPositionList::iterator iter) noexcept { spawnsNpc.erase(iter); }
-	SpawnNpcPositionList::iterator find(Position& pos) {return spawnsNpc.find(pos);}
+	SpawnNpcPositionList::iterator begin() noexcept {
+		return spawnsNpc.begin();
+	}
+	SpawnNpcPositionList::const_iterator begin() const noexcept {
+		return spawnsNpc.begin();
+	}
+	SpawnNpcPositionList::iterator end() noexcept {
+		return spawnsNpc.end();
+	}
+	SpawnNpcPositionList::const_iterator end() const noexcept {
+		return spawnsNpc.end();
+	}
+	void erase(SpawnNpcPositionList::iterator iter) noexcept {
+		spawnsNpc.erase(iter);
+	}
+	SpawnNpcPositionList::iterator find(Position &pos) {
+		return spawnsNpc.find(pos);
+	}
+
 private:
 	SpawnNpcPositionList spawnsNpc;
 };

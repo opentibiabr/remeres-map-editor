@@ -22,8 +22,7 @@
 #include "gui.h"
 
 HistoryListBox::HistoryListBox(wxWindow* parent) :
-	wxVListBox(parent, wxID_ANY)
-{
+	wxVListBox(parent, wxID_ANY) {
 	wxSize icon_size = FROM_DIP(parent, wxSize(16, 16));
 	open_bitmap = wxArtProvider::GetBitmap(wxART_FILE_OPEN, wxART_TOOLBAR, icon_size);
 	move_bitmap = wxArtProvider::GetBitmap(ART_MOVE, wxART_LIST, icon_size);
@@ -43,27 +42,26 @@ HistoryListBox::HistoryListBox(wxWindow* parent) :
 	change_bitmap = wxArtProvider::GetBitmap(ART_CHANGE, wxART_LIST, icon_size);
 }
 
-void HistoryListBox::OnDrawItem(wxDC& dc, const wxRect& rect, size_t index) const
-{
+void HistoryListBox::OnDrawItem(wxDC &dc, const wxRect &rect, size_t index) const {
 	const Editor* editor = g_gui.GetCurrentEditor();
-	if(!editor) {
+	if (!editor) {
 		return;
 	}
 
 	const ActionQueue* actions = editor->getHistoryActions();
-	if(!actions) {
+	if (!actions) {
 		return;
 	}
 
-	if(IsSelected(index)) {
+	if (IsSelected(index)) {
 		dc.SetTextForeground(*wxBLUE);
 	} else {
 		dc.SetTextForeground(*wxBLACK);
 	}
 
 	const BatchAction* action = actions->getAction(index - 1);
-	if(action) {
-		const wxBitmap& bitmap = getIconBitmap(action->getType());
+	if (action) {
+		const wxBitmap &bitmap = getIconBitmap(action->getType());
 		dc.DrawBitmap(bitmap, rect.GetX() + 4, rect.GetY() + 4, true);
 		dc.DrawText(action->getLabel(), rect.GetX() + 28, rect.GetY() + 3);
 	} else {
@@ -72,15 +70,12 @@ void HistoryListBox::OnDrawItem(wxDC& dc, const wxRect& rect, size_t index) cons
 	}
 }
 
-wxCoord HistoryListBox::OnMeasureItem(size_t index) const
-{
+wxCoord HistoryListBox::OnMeasureItem(size_t index) const {
 	return 24;
 }
 
-const wxBitmap& HistoryListBox::getIconBitmap(ActionIdentifier identifier) const
-{
-	switch (identifier)
-	{
+const wxBitmap &HistoryListBox::getIconBitmap(ActionIdentifier identifier) const {
+	switch (identifier) {
 		case ACTION_MOVE:
 			return move_bitmap;
 		case ACTION_REMOTE:
@@ -117,8 +112,7 @@ const wxBitmap& HistoryListBox::getIconBitmap(ActionIdentifier identifier) const
 }
 
 ActionsHistoryWindow::ActionsHistoryWindow(wxWindow* parent) :
-	wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(230, 250))
-{
+	wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(230, 250)) {
 	SetSizeHints(wxDefaultSize, wxDefaultSize);
 
 	wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
@@ -133,19 +127,18 @@ ActionsHistoryWindow::ActionsHistoryWindow(wxWindow* parent) :
 	list->Connect(wxEVT_COMMAND_LISTBOX_SELECTED, wxCommandEventHandler(ActionsHistoryWindow::OnListSelected), NULL, this);
 }
 
-ActionsHistoryWindow::~ActionsHistoryWindow()
-{
+ActionsHistoryWindow::~ActionsHistoryWindow() {
 	// Disconnect Events
 	list->Disconnect(wxEVT_COMMAND_LISTBOX_SELECTED, wxCommandEventHandler(ActionsHistoryWindow::OnListSelected), NULL, this);
 }
 
-void ActionsHistoryWindow::RefreshActions()
-{
-	if(!IsShownOnScreen())
+void ActionsHistoryWindow::RefreshActions() {
+	if (!IsShownOnScreen()) {
 		return;
+	}
 
 	const Editor* editor = g_gui.GetCurrentEditor();
-	if(!editor) {
+	if (!editor) {
 		list->SetItemCount(0);
 		list->Refresh();
 		return;
@@ -155,7 +148,7 @@ void ActionsHistoryWindow::RefreshActions()
 	int selection = 0;
 
 	const ActionQueue* actions = editor->getHistoryActions();
-	if(actions) {
+	if (actions) {
 		count += actions->size();
 		selection += actions->getCurrentIndex();
 	}
@@ -165,16 +158,16 @@ void ActionsHistoryWindow::RefreshActions()
 	list->Refresh();
 }
 
-void ActionsHistoryWindow::OnListSelected(wxCommandEvent& event)
-{
+void ActionsHistoryWindow::OnListSelected(wxCommandEvent &event) {
 	int index = list->GetSelection();
-	if(index == wxNOT_FOUND)
+	if (index == wxNOT_FOUND) {
 		return;
+	}
 
 	Editor* editor = g_gui.GetCurrentEditor();
-	if(editor && editor->getHistoryActions()) {
+	if (editor && editor->getHistoryActions()) {
 		int current = editor->getHistoryActions()->getCurrentIndex();
-		if(index > current) {
+		if (index > current) {
 			editor->redo(index - current);
 		} else if (index < current) {
 			editor->undo(current - index);

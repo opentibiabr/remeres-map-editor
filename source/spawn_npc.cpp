@@ -22,20 +22,17 @@
 
 SpawnNpc::SpawnNpc(int size) :
 	size(0),
-	selected(false)
-{
+	selected(false) {
 	setSize(size);
 }
 
-SpawnNpc* SpawnNpc::deepCopy() const
-{
+SpawnNpc* SpawnNpc::deepCopy() const {
 	SpawnNpc* copy = new SpawnNpc(size);
 	copy->selected = selected;
 	return copy;
 }
 
-void SpawnsNpc::addSpawnNpc(Tile* tile)
-{
+void SpawnsNpc::addSpawnNpc(Tile* tile) {
 	ASSERT(tile->spawnNpc);
 
 	auto it = spawnsNpc.insert(tile->getPosition());
@@ -58,7 +55,7 @@ void SpawnsNpc::removeSpawnNpc(Tile* tile) {
 #endif
 }
 
-std::ostream& operator<<(std::ostream& os, const SpawnNpc& spawnNpc) {
+std::ostream &operator<<(std::ostream &os, const SpawnNpc &spawnNpc) {
 	os << &spawnNpc << ":: -> " << spawnNpc.getSize() << std::endl;
 	return os;
 }

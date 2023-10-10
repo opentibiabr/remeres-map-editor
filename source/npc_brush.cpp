@@ -29,35 +29,31 @@
 
 NpcBrush::NpcBrush(NpcType* type) :
 	Brush(),
-	npc_type(type)
-{
+	npc_type(type) {
 	ASSERT(type->brush == nullptr);
-	type->brush/* = this*/;
+	type->brush /* = this*/;
 }
 
-NpcBrush::~NpcBrush()
-{
+NpcBrush::~NpcBrush() {
 	////
 }
 
-int NpcBrush::getLookID() const
-{
+int NpcBrush::getLookID() const {
 	return 0;
 }
 
-std::string NpcBrush::getName() const
-{
-	if(npc_type)
+std::string NpcBrush::getName() const {
+	if (npc_type) {
 		return npc_type->name;
+	}
 	return "Npc Brush";
 }
 
-bool NpcBrush::canDraw(BaseMap* map, const Position& position) const
-{
+bool NpcBrush::canDraw(BaseMap* map, const Position &position) const {
 	Tile* tile = map->getTile(position);
-	if(npc_type && tile && !tile->isBlocking()) {
+	if (npc_type && tile && !tile->isBlocking()) {
 		if (tile->getLocation()->getSpawnNpcCount() != 0 || g_settings.getInteger(Config::AUTO_CREATE_SPAWN_NPC)) {
- 		   if(tile->isPZ()) {
+			if (tile->isPZ()) {
 				return true;
 			} else {
 				return true;
@@ -67,20 +63,18 @@ bool NpcBrush::canDraw(BaseMap* map, const Position& position) const
 	return false;
 }
 
-void NpcBrush::undraw(BaseMap* map, Tile* tile)
-{
+void NpcBrush::undraw(BaseMap* map, Tile* tile) {
 	delete tile->npc;
 	tile->npc = nullptr;
 }
 
-void NpcBrush::draw(BaseMap* map, Tile* tile, void* parameter)
-{
+void NpcBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 	ASSERT(tile);
 	ASSERT(parameter);
-	if(canDraw(map, tile->getPosition())) {
+	if (canDraw(map, tile->getPosition())) {
 		undraw(map, tile);
-		if(npc_type) {
-			if(tile->spawnNpc == nullptr && tile->getLocation()->getSpawnNpcCount() == 0) {
+		if (npc_type) {
+			if (tile->spawnNpc == nullptr && tile->getLocation()->getSpawnNpcCount() == 0) {
 				// manually place npc spawn on location
 				tile->spawnNpc = newd SpawnNpc(1);
 			}

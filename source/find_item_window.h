@@ -29,8 +29,7 @@
 
 class FindDialogListBox;
 
-class FindItemDialog : public wxDialog
-{
+class FindItemDialog : public wxDialog {
 public:
 	enum SearchMode {
 		ServerIDs = 0,
@@ -52,11 +51,15 @@ public:
 		Key
 	};
 
-	FindItemDialog(wxWindow* parent, const wxString& title, bool onlyPickupables = false);
+	FindItemDialog(wxWindow* parent, const wxString &title, bool onlyPickupables = false);
 	~FindItemDialog();
 
-	Brush* getResult() const { return result_brush; }
-	uint16_t getResultID() const { return result_id; }
+	Brush* getResult() const {
+		return result_brush;
+	}
+	uint16_t getResultID() const {
+		return result_id;
+	}
 
 	SearchMode getSearchMode() const;
 	void setSearchMode(SearchMode mode);
@@ -65,15 +68,15 @@ private:
 	void EnableProperties(bool enable);
 	void RefreshContentsInternal();
 
-	void OnOptionChange(wxCommandEvent& event);
-	void OnServerIdChange(wxCommandEvent& event);
-	void OnClientIdChange(wxCommandEvent& event);
-	void OnText(wxCommandEvent& event);
-	void OnTypeChange(wxCommandEvent& event);
-	void OnPropertyChange(wxCommandEvent& event);
-	void OnInputTimer(wxTimerEvent& event);
-	void OnClickOK(wxCommandEvent& event);
-	void OnClickCancel(wxCommandEvent& event);
+	void OnOptionChange(wxCommandEvent &event);
+	void OnServerIdChange(wxCommandEvent &event);
+	void OnClientIdChange(wxCommandEvent &event);
+	void OnText(wxCommandEvent &event);
+	void OnTypeChange(wxCommandEvent &event);
+	void OnPropertyChange(wxCommandEvent &event);
+	void OnInputTimer(wxTimerEvent &event);
+	void OnClickOK(wxCommandEvent &event);
+	void OnClickCancel(wxCommandEvent &event);
 
 	wxRadioBox* options_radio_box;
 

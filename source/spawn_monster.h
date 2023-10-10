@@ -26,20 +26,33 @@ public:
 
 	SpawnMonster* deepCopy() const;
 
-	bool isSelected() const noexcept { return selected; }
-	void select() noexcept { selected = true; }
-	void deselect() noexcept { selected = false; }
+	bool isSelected() const noexcept {
+		return selected;
+	}
+	void select() noexcept {
+		selected = true;
+	}
+	void deselect() noexcept {
+		selected = false;
+	}
 
-	int getSize() const noexcept { return size; }
+	int getSize() const noexcept {
+		return size;
+	}
 
 	// Does not compare selection!
-	bool operator==(const SpawnMonster& other) {return size == other.size;}
-	bool operator!=(const SpawnMonster& other) {return size != other.size;}
+	bool operator==(const SpawnMonster &other) {
+		return size == other.size;
+	}
+	bool operator!=(const SpawnMonster &other) {
+		return size != other.size;
+	}
 
 	void setSize(int newsize) {
 		ASSERT(size < 100);
 		size = newsize;
 	}
+
 protected:
 	int size;
 	bool selected;
@@ -50,19 +63,30 @@ typedef std::list<SpawnMonster*> SpawnMonsterList;
 
 class SpawnsMonster {
 public:
-
 	void addSpawnMonster(Tile* tile);
 	void removeSpawnMonster(Tile* tile);
 
-	SpawnMonsterPositionList::iterator begin() noexcept { return spawnsMonster.begin(); }
-	SpawnMonsterPositionList::const_iterator begin() const noexcept { return spawnsMonster.begin(); }
-	SpawnMonsterPositionList::iterator end() noexcept { return spawnsMonster.end(); }
-	SpawnMonsterPositionList::const_iterator end() const noexcept { return spawnsMonster.end(); }
-	void erase(SpawnMonsterPositionList::iterator iter) noexcept { spawnsMonster.erase(iter); }
-	SpawnMonsterPositionList::iterator find(Position& pos) {return spawnsMonster.find(pos);}
+	SpawnMonsterPositionList::iterator begin() noexcept {
+		return spawnsMonster.begin();
+	}
+	SpawnMonsterPositionList::const_iterator begin() const noexcept {
+		return spawnsMonster.begin();
+	}
+	SpawnMonsterPositionList::iterator end() noexcept {
+		return spawnsMonster.end();
+	}
+	SpawnMonsterPositionList::const_iterator end() const noexcept {
+		return spawnsMonster.end();
+	}
+	void erase(SpawnMonsterPositionList::iterator iter) noexcept {
+		spawnsMonster.erase(iter);
+	}
+	SpawnMonsterPositionList::iterator find(Position &pos) {
+		return spawnsMonster.find(pos);
+	}
+
 private:
 	SpawnMonsterPositionList spawnsMonster;
 };
-
 
 #endif

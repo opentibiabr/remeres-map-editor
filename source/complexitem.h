@@ -23,8 +23,7 @@
 
 #pragma pack(1)
 
-struct OTBM_TeleportDestination
-{
+struct OTBM_TeleportDestination {
 	uint16_t x;
 	uint16_t y;
 	uint8_t z;
@@ -32,90 +31,122 @@ struct OTBM_TeleportDestination
 
 #pragma pack()
 
-class Container : public Item
-{
+class Container : public Item {
 public:
 	Container(const uint16_t type);
 	~Container();
 
 	Item* deepCopy() const override;
-	Container* getContainer() override { return this; }
+	Container* getContainer() override {
+		return this;
+	}
 
 	Item* getItem(size_t index) const;
 
-	ItemVector& getVector() noexcept { return contents; }
-	size_t getItemCount() const noexcept { return contents.size(); }
-	size_t getVolume() const noexcept { return getItemType().volume; }
-	double getWeight() noexcept { return getItemType().weight; }
+	ItemVector &getVector() noexcept {
+		return contents;
+	}
+	size_t getItemCount() const noexcept {
+		return contents.size();
+	}
+	size_t getVolume() const noexcept {
+		return getItemType().volume;
+	}
+	double getWeight() noexcept {
+		return getItemType().weight;
+	}
 
-	virtual bool unserializeItemNode_OTBM(const IOMap& maphandle, BinaryNode* node);
-	virtual bool serializeItemNode_OTBM(const IOMap& maphandle, NodeFileWriteHandle& f) const;
-	//virtual bool unserializeItemNode_OTMM(const IOMap& maphandle, BinaryNode* node);
-	//virtual bool serializeItemNode_OTMM(const IOMap& maphandle, NodeFileWriteHandle& f) const;
+	virtual bool unserializeItemNode_OTBM(const IOMap &maphandle, BinaryNode* node);
+	virtual bool serializeItemNode_OTBM(const IOMap &maphandle, NodeFileWriteHandle &f) const;
+	// virtual bool unserializeItemNode_OTMM(const IOMap& maphandle, BinaryNode* node);
+	// virtual bool serializeItemNode_OTMM(const IOMap& maphandle, NodeFileWriteHandle& f) const;
 
 protected:
 	ItemVector contents;
 };
 
-class Teleport : public Item
-{
+class Teleport : public Item {
 public:
 	Teleport(const uint16_t type);
 
 	Item* deepCopy() const override;
-	Teleport* getTeleport() override { return this; }
+	Teleport* getTeleport() override {
+		return this;
+	}
 
-	virtual void serializeItemAttributes_OTBM(const IOMap& maphandle, NodeFileWriteHandle& f) const;
-	virtual bool readItemAttribute_OTBM(const IOMap& maphandle, OTBM_ItemAttribute attr, BinaryNode* node);
-	//virtual void serializeItemAttributes_OTMM(const IOMap& maphandle, NodeFileWriteHandle& f) const;
-	//virtual bool readItemAttribute_OTMM(const IOMap& maphandle, OTMM_ItemAttribute attr, BinaryNode* node);
+	virtual void serializeItemAttributes_OTBM(const IOMap &maphandle, NodeFileWriteHandle &f) const;
+	virtual bool readItemAttribute_OTBM(const IOMap &maphandle, OTBM_ItemAttribute attr, BinaryNode* node);
+	// virtual void serializeItemAttributes_OTMM(const IOMap& maphandle, NodeFileWriteHandle& f) const;
+	// virtual bool readItemAttribute_OTMM(const IOMap& maphandle, OTMM_ItemAttribute attr, BinaryNode* node);
 
-	const Position& getDestination() const noexcept { return destination; }
-	int getX() const noexcept { return destination.x; }
-	int getY() const noexcept { return destination.y; }
-	int getZ() const noexcept { return destination.z; }
-	void setDestination(const Position& position) noexcept { destination = position; }
-	bool hasDestination() const noexcept { return destination.isValid(); }
+	const Position &getDestination() const noexcept {
+		return destination;
+	}
+	int getX() const noexcept {
+		return destination.x;
+	}
+	int getY() const noexcept {
+		return destination.y;
+	}
+	int getZ() const noexcept {
+		return destination.z;
+	}
+	void setDestination(const Position &position) noexcept {
+		destination = position;
+	}
+	bool hasDestination() const noexcept {
+		return destination.isValid();
+	}
 
 protected:
 	Position destination;
 };
 
-class Door : public Item
-{
+class Door : public Item {
 public:
 	Door(const uint16_t type);
 
 	Item* deepCopy() const override;
-	Door* getDoor() override { return this; }
+	Door* getDoor() override {
+		return this;
+	}
 
-	uint8_t getDoorID() const { return doorId; }
-	void setDoorID(uint8_t id) { doorId = id; }
+	uint8_t getDoorID() const {
+		return doorId;
+	}
+	void setDoorID(uint8_t id) {
+		doorId = id;
+	}
 
-	virtual void serializeItemAttributes_OTBM(const IOMap& maphandle, NodeFileWriteHandle& f) const;
-	virtual bool readItemAttribute_OTBM(const IOMap& maphandle, OTBM_ItemAttribute attr, BinaryNode* node);
-	//virtual void serializeItemAttributes_OTMM(const IOMap& maphandle, NodeFileWriteHandle& f) const;
-	//virtual bool readItemAttribute_OTMM(const IOMap& maphandle, OTMM_ItemAttribute attr, BinaryNode* node);
+	virtual void serializeItemAttributes_OTBM(const IOMap &maphandle, NodeFileWriteHandle &f) const;
+	virtual bool readItemAttribute_OTBM(const IOMap &maphandle, OTBM_ItemAttribute attr, BinaryNode* node);
+	// virtual void serializeItemAttributes_OTMM(const IOMap& maphandle, NodeFileWriteHandle& f) const;
+	// virtual bool readItemAttribute_OTMM(const IOMap& maphandle, OTMM_ItemAttribute attr, BinaryNode* node);
 
 protected:
 	uint8_t doorId;
 };
 
-class Depot : public Item
-{
+class Depot : public Item {
 public:
 	Depot(const uint16_t _type);
 
 	Item* deepCopy() const override;
-	Depot* getDepot() override { return this; }
+	Depot* getDepot() override {
+		return this;
+	}
 
-	uint8_t getDepotID() const { return depotId; }
-	void setDepotID(uint8_t id) { depotId = id; }
+	uint8_t getDepotID() const {
+		return depotId;
+	}
+	void setDepotID(uint8_t id) {
+		depotId = id;
+	}
 
-	virtual void serializeItemAttributes_OTBM(const IOMap& maphandle, NodeFileWriteHandle& f) const;
-	virtual bool readItemAttribute_OTBM(const IOMap& maphandle, OTBM_ItemAttribute attr, BinaryNode* node);
-	//virtual void serializeItemAttributes_OTMM(const IOMap& maphandle, NodeFileWriteHandle& f) const;
-	//virtual bool readItemAttribute_OTMM(const IOMap& maphandle, OTMM_ItemAttribute attr, BinaryNode* node);
+	virtual void serializeItemAttributes_OTBM(const IOMap &maphandle, NodeFileWriteHandle &f) const;
+	virtual bool readItemAttribute_OTBM(const IOMap &maphandle, OTBM_ItemAttribute attr, BinaryNode* node);
+	// virtual void serializeItemAttributes_OTMM(const IOMap& maphandle, NodeFileWriteHandle& f) const;
+	// virtual bool readItemAttribute_OTMM(const IOMap& maphandle, OTMM_ItemAttribute attr, BinaryNode* node);
 
 protected:
 	uint8_t depotId;

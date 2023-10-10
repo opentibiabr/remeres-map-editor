@@ -19,27 +19,29 @@
 #define RME_MAIN_H_
 
 #ifdef _WIN32
-#	define WIN32_LEAN_AND_MEAN
-#	ifdef _WIN32_WINNT
-#		undef _WIN32_WINNT
-#	endif
-#	define _WIN32_WINNT 0x0501
+	#define WIN32_LEAN_AND_MEAN
+	#ifdef _WIN32_WINNT
+		#undef _WIN32_WINNT
+	#endif
+	#define _WIN32_WINNT 0x0501
 #endif
 
 #ifdef DEBUG_MEM
 
-#define _CRTDBG_MAP_ALLOC
+	#define _CRTDBG_MAP_ALLOC
 
-#pragma warning(disable: 4291)
-_Ret_bytecap_(_Size) inline void * __CRTDECL operator new(size_t _Size, const char* file, int line)
-        { return ::operator new(_Size, _NORMAL_BLOCK, file, line); }
-_Ret_bytecap_(_Size) inline void* __CRTDECL operator new[](size_t _Size, const char* file, int line)
-        { return ::operator new[](_Size, _NORMAL_BLOCK, file, line); }
-#define newd new(__FILE__, __LINE__)
+	#pragma warning(disable : 4291)
+_Ret_bytecap_(_Size) inline void* __CRTDECL operator new(size_t _Size, const char* file, int line) {
+	return ::operator new(_Size, _NORMAL_BLOCK, file, line);
+}
+_Ret_bytecap_(_Size) inline void* __CRTDECL operator new[](size_t _Size, const char* file, int line) {
+	return ::operator new[](_Size, _NORMAL_BLOCK, file, line);
+}
+	#define newd new (__FILE__, __LINE__)
 
 #else
 
-#define newd new
+	#define newd new
 
 #endif
 
@@ -51,7 +53,7 @@ _Ret_bytecap_(_Size) inline void* __CRTDECL operator new[](size_t _Size, const c
 
 #include <wx/wxprec.h>
 #ifndef WX_PRECOMP
-#   include <wx/wx.h>
+	#include <wx/wx.h>
 #endif
 #include <wx/dir.h>
 #include <wx/defs.h>
@@ -103,8 +105,8 @@ _Ret_bytecap_(_Size) inline void* __CRTDECL operator new[](size_t _Size, const c
 
 // Libarchive, for OTGZ
 #if OTGZ_SUPPORT > 0
-#include <archive.h>
-#include <archive_entry.h>
+	#include <archive.h>
+	#include <archive_entry.h>
 #endif
 
 // This has annoyed me one time too many
@@ -113,15 +115,15 @@ _Ret_bytecap_(_Size) inline void* __CRTDECL operator new[](size_t _Size, const c
 #include <assert.h>
 #define _MSG(msg) !bool(msg)
 #ifdef __DEBUG__
-#   define ASSERT assert
+	#define ASSERT assert
 #else
-#   define ASSERT(...)
+	#define ASSERT(...)
 #endif
 
 // The complete STL ?, well, almost ;)
 #include <stdlib.h>
 #ifdef _WIN32
-    #include <crtdbg.h>
+	#include <crtdbg.h>
 #endif
 #include <math.h>
 #include <list>
@@ -155,9 +157,9 @@ typedef wxFileName FileName;
 #include "rme_forward_declarations.h"
 
 #if wxCHECK_VERSION(3, 1, 0)
-        #define FROM_DIP(widget, size) widget->FromDIP(size)
+	#define FROM_DIP(widget, size) widget->FromDIP(size)
 #else
-        #define FROM_DIP(widget, size) size
+	#define FROM_DIP(widget, size) size
 #endif
 
 #endif

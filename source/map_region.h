@@ -25,14 +25,14 @@ class Tile;
 class Floor;
 class BaseMap;
 
-class TileLocation
-{
+class TileLocation {
 	TileLocation();
+
 public:
 	~TileLocation();
 
-	TileLocation(const TileLocation&) = delete;
-	TileLocation& operator=(const TileLocation&) = delete;
+	TileLocation(const TileLocation &) = delete;
+	TileLocation &operator=(const TileLocation &) = delete;
 
 protected:
 	Tile* tile;
@@ -43,55 +43,84 @@ protected:
 	HouseExitList* house_exits; // Any house exits pointing here
 
 public:
-
 	// Access tile
 	// Can't set directly since that does not update tile count
-	Tile* get() noexcept { return tile; }
-	const Tile* get() const noexcept { return tile; }
+	Tile* get() noexcept {
+		return tile;
+	}
+	const Tile* get() const noexcept {
+		return tile;
+	}
 
 	int size() const;
 	bool empty() const;
 
-	const Position& getPosition() const noexcept { return position; }
-	int getX() const noexcept { return position.x; }
-	int getY() const noexcept { return position.y; }
-	int getZ() const noexcept { return position.z; }
+	const Position &getPosition() const noexcept {
+		return position;
+	}
+	int getX() const noexcept {
+		return position.x;
+	}
+	int getY() const noexcept {
+		return position.y;
+	}
+	int getZ() const noexcept {
+		return position.z;
+	}
 
-	size_t getSpawnMonsterCount() const noexcept {return spawn_monster_count;}
-	void increaseSpawnCount() noexcept  {spawn_monster_count++;}
-	void decreaseSpawnMonsterCount() noexcept  {spawn_monster_count--;}
+	size_t getSpawnMonsterCount() const noexcept {
+		return spawn_monster_count;
+	}
+	void increaseSpawnCount() noexcept {
+		spawn_monster_count++;
+	}
+	void decreaseSpawnMonsterCount() noexcept {
+		spawn_monster_count--;
+	}
 
-	size_t getSpawnNpcCount() const noexcept {return spawn_npc_count;}
-	void increaseSpawnNpcCount() noexcept {spawn_npc_count++;}
-	void decreaseSpawnNpcCount() noexcept {spawn_npc_count--;}
+	size_t getSpawnNpcCount() const noexcept {
+		return spawn_npc_count;
+	}
+	void increaseSpawnNpcCount() noexcept {
+		spawn_npc_count++;
+	}
+	void decreaseSpawnNpcCount() noexcept {
+		spawn_npc_count--;
+	}
 
-	size_t getWaypointCount() const noexcept  {return waypoint_count;}
-	void increaseWaypointCount() {waypoint_count++;}
-	void decreaseWaypointCount() {waypoint_count--;}
+	size_t getWaypointCount() const noexcept {
+		return waypoint_count;
+	}
+	void increaseWaypointCount() {
+		waypoint_count++;
+	}
+	void decreaseWaypointCount() {
+		waypoint_count--;
+	}
 	HouseExitList* createHouseExits();
-	HouseExitList* getHouseExits() noexcept  { return house_exits; }
+	HouseExitList* getHouseExits() noexcept {
+		return house_exits;
+	}
 
 	friend class Floor;
 	friend class QTreeNode;
 	friend class Waypoints;
 };
 
-class Floor
-{
+class Floor {
 public:
 	Floor(int x, int y, int z);
 	TileLocation locs[rme::MapLayers];
 };
 
 // This is not a QuadTree, but a HexTree (16 child nodes to every node), so the name is abit misleading
-class QTreeNode
-{
+class QTreeNode {
 public:
-	QTreeNode(BaseMap& map);
+	QTreeNode(BaseMap &map);
 	virtual ~QTreeNode();
 
-	QTreeNode(const QTreeNode&) = delete;
-	QTreeNode& operator=(const QTreeNode&) = delete;
+	QTreeNode(const QTreeNode &) = delete;
+	QTreeNode &operator=(const QTreeNode &) = delete;
 
 	QTreeNode* getLeaf(int x, int y); // Might return nullptr
 	QTreeNode* getLeafForce(int x, int y); // Will never return nullptr, it will create the node if it's not there
@@ -121,7 +150,7 @@ public:
 	bool isRequested(bool underground);
 
 protected:
-	BaseMap& map;
+	BaseMap &map;
 	uint32_t visible;
 
 	bool isLeaf;
@@ -129,9 +158,9 @@ protected:
 	union {
 		QTreeNode* child[rme::MapLayers];
 		Floor* array[rme::MapLayers];
-//#if 16 != rme::MapLayers
-//#    error "You need to rewrite the QuadTree in order to handle more or less than 16 floors"
-//#endif
+		// #if 16 != rme::MapLayers
+		// #    error "You need to rewrite the QuadTree in order to handle more or less than 16 floors"
+		// #endif
 	};
 
 	friend class BaseMap;

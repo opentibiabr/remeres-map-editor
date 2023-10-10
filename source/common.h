@@ -41,32 +41,32 @@ int ws2i(wxString s);
 double ws2f(wxString s);
 
 // replaces all instances of sought in str with replacement
-void replaceString(std::string& str, const std::string sought, const std::string replacement);
+void replaceString(std::string &str, const std::string sought, const std::string replacement);
 // Removes all characters in t from source (from either start or beginning of the string)
-void trim_right(std::string& source, const std::string& t);
-void trim_left(std::string& source, const std::string& t);
-void trim(std::string& str);
+void trim_right(std::string &source, const std::string &t);
+void trim_left(std::string &source, const std::string &t);
+void trim(std::string &str);
 // Converts the argument to lower/uppercase
-void to_lower_str(std::string& source);
-void to_upper_str(std::string& source);
-std::string as_lower_str(const std::string& other);
-std::string as_upper_str(const std::string& other);
+void to_lower_str(std::string &source);
+void to_upper_str(std::string &source);
+std::string as_lower_str(const std::string &other);
+std::string as_upper_str(const std::string &other);
 
 // isFalseString returns true if the string is either "0", "false", "no", "not" or blank
 // isTrueString returns the opposite value of isFalseString
-bool isFalseString(std::string& str);
-bool isTrueString(std::string& str);
+bool isFalseString(std::string &str);
+bool isTrueString(std::string &str);
 
 // Generates a random number between low and high using the mersenne twister
 int random(int high);
 int random(int low, int high);
 
 // Unicode conversions
-std::wstring string2wstring(const std::string& utf8string);
-std::string wstring2string(const std::wstring& widestring);
+std::wstring string2wstring(const std::string &utf8string);
+std::string wstring2string(const std::wstring &widestring);
 
 // Gets position values from ClipBoard
-bool posFromClipboard(int& x, int& y, int& z);
+bool posFromClipboard(int &x, int &y, int &z);
 bool posToClipboard(int x, int y, int z, int format);
 bool posToClipboard(int fromx, int fromy, int fromz, int tox, int toy, int toz);
 

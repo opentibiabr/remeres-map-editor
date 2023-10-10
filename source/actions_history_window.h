@@ -21,16 +21,15 @@
 #include "main.h"
 #include "action.h"
 
-class HistoryListBox : public wxVListBox
-{
+class HistoryListBox : public wxVListBox {
 public:
-	HistoryListBox(wxWindow *parent);
+	HistoryListBox(wxWindow* parent);
 
-	void OnDrawItem(wxDC& dc, const wxRect& rect, size_t index) const override;
+	void OnDrawItem(wxDC &dc, const wxRect &rect, size_t index) const override;
 	wxCoord OnMeasureItem(size_t index) const override;
 
 private:
-	const wxBitmap& getIconBitmap(ActionIdentifier identifier) const;
+	const wxBitmap &getIconBitmap(ActionIdentifier identifier) const;
 
 	wxBitmap open_bitmap;
 	wxBitmap move_bitmap;
@@ -50,15 +49,14 @@ private:
 	wxBitmap change_bitmap;
 };
 
-class ActionsHistoryWindow : public wxPanel
-{
+class ActionsHistoryWindow : public wxPanel {
 public:
 	ActionsHistoryWindow(wxWindow* parent);
 	virtual ~ActionsHistoryWindow();
 
 	void RefreshActions();
 
-	void OnListSelected(wxCommandEvent& event);
+	void OnListSelected(wxCommandEvent &event);
 
 protected:
 	HistoryListBox* list;

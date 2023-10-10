@@ -20,40 +20,40 @@
 
 namespace rme {
 
-constexpr double PI = 3.14159265;
+	constexpr double PI = 3.14159265;
 
-// The height of the map (there should be more checks for this...)
-constexpr int MapLayers = 16;
+	// The height of the map (there should be more checks for this...)
+	constexpr int MapLayers = 16;
 
-constexpr int MapMinWidth = 256;
-constexpr int MapMaxWidth = 65000;
-constexpr int MapMinHeight = 256;
-constexpr int MapMaxHeight = 65000;
-constexpr int MapMinLayer = 0;
-constexpr int MapMaxLayer = 15;
+	constexpr int MapMinWidth = 256;
+	constexpr int MapMaxWidth = 65000;
+	constexpr int MapMinHeight = 256;
+	constexpr int MapMaxHeight = 65000;
+	constexpr int MapMinLayer = 0;
+	constexpr int MapMaxLayer = 15;
 
-// The sea layer
-constexpr int MapGroundLayer = 7;
+	// The sea layer
+	constexpr int MapGroundLayer = 7;
 
-constexpr int ClientMapWidth = 18;
-constexpr int ClientMapHeight = 14;
+	constexpr int ClientMapWidth = 18;
+	constexpr int ClientMapHeight = 14;
 
-// The size of the tile in pixels
-constexpr int TileSize = 32;
+	// The size of the tile in pixels
+	constexpr int TileSize = 32;
 
-// The default size of sprites
-constexpr int SpritePixels = 32;
-constexpr int SpritePixelsSize = SpritePixels * SpritePixels;
+	// The default size of sprites
+	constexpr int SpritePixels = 32;
+	constexpr int SpritePixelsSize = SpritePixels * SpritePixels;
 
-constexpr int MaxLightIntensity = 8;
+	constexpr int MaxLightIntensity = 8;
 
-constexpr int PixelFormatRGB = 3;
-constexpr int PixelFormatRGBA = 4;
+	constexpr int PixelFormatRGB = 3;
+	constexpr int PixelFormatRGBA = 4;
 
-constexpr int MinUniqueId = 1000;
-constexpr int MaxUniqueId = 65535;
-constexpr int MinActionId = 100;
-constexpr int MaxActionId = 65535;
+	constexpr int MinUniqueId = 1000;
+	constexpr int MaxUniqueId = 65535;
+	constexpr int MinActionId = 100;
+	constexpr int MaxActionId = 65535;
 
 } // namespace rme
 

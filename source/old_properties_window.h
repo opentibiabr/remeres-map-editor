@@ -25,8 +25,7 @@
 class ContainerItemButton;
 class ContainerItemPopupMenu;
 
-class OldPropertiesWindow : public ObjectPropertiesWindowBase
-{
+class OldPropertiesWindow : public ObjectPropertiesWindowBase {
 public:
 	OldPropertiesWindow(wxWindow* parent, const Map* map, const Tile* tile, Item* item, wxPoint = wxDefaultPosition);
 	OldPropertiesWindow(wxWindow* parent, const Map* map, const Tile* tile, Monster* monster, wxPoint = wxDefaultPosition);
@@ -35,10 +34,10 @@ public:
 	OldPropertiesWindow(wxWindow* parent, const Map* map, const Tile* tile, SpawnNpc* spawnNpc, wxPoint = wxDefaultPosition);
 	virtual ~OldPropertiesWindow();
 
-	void OnFocusChange(wxFocusEvent&);
+	void OnFocusChange(wxFocusEvent &);
 
-	void OnClickOK(wxCommandEvent&);
-	void OnClickCancel(wxCommandEvent&);
+	void OnClickOK(wxCommandEvent &);
+	void OnClickCancel(wxCommandEvent &);
 
 	void Update();
 
@@ -62,4 +61,3 @@ protected:
 };
 
 #endif
-

@@ -18,8 +18,7 @@
 #ifndef RME_ENUMS_H
 #define RME_ENUMS_H
 
-enum Direction
-{
+enum Direction {
 	NORTH = 0,
 	EAST = 1,
 	SOUTH = 2,

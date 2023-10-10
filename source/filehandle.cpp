@@ -19,51 +19,54 @@
 
 #include "filehandle.h"
 
-
 uint8_t NodeFileWriteHandle::NODE_START = ::NODE_START;
 uint8_t NodeFileWriteHandle::NODE_END = ::NODE_END;
 uint8_t NodeFileWriteHandle::ESCAPE_CHAR = ::ESCAPE_CHAR;
 
-bool FileHandle::seek(size_t offset, int origin)
-{
-	if(file) {
+bool FileHandle::seek(size_t offset, int origin) {
+	if (file) {
 		return fseek(file, static_cast<long>(offset), origin) == 0;
 	}
 	return false;
 }
 
-size_t FileHandle::tell()
-{
-	if(file) {
+size_t FileHandle::tell() {
+	if (file) {
 		return ftell(file);
 	}
 	return 0;
 }
 
-void FileHandle::close()
-{
-	if(file) {
+void FileHandle::close() {
+	if (file) {
 		fclose(file);
 		file = nullptr;
 	}
 }
 
-std::string FileHandle::getErrorMessage()
-{
-	switch(error_code) {
-		case FILE_NO_ERROR: return "No error";
-		case FILE_COULD_NOT_OPEN: return "Could not open file";
-		case FILE_INVALID_IDENTIFIER: return "File magic number not recognized";
-		case FILE_STRING_TOO_LONG: return "Too long string encountered";
-		case FILE_READ_ERROR: return "Failed to read from file";
-		case FILE_WRITE_ERROR: return "Failed to write to file";
-		case FILE_SYNTAX_ERROR: return "Node file syntax error";
-		case FILE_PREMATURE_END: return "File end encountered unexpectedly";
+std::string FileHandle::getErrorMessage() {
+	switch (error_code) {
+		case FILE_NO_ERROR:
+			return "No error";
+		case FILE_COULD_NOT_OPEN:
+			return "Could not open file";
+		case FILE_INVALID_IDENTIFIER:
+			return "File magic number not recognized";
+		case FILE_STRING_TOO_LONG:
+			return "Too long string encountered";
+		case FILE_READ_ERROR:
+			return "Failed to read from file";
+		case FILE_WRITE_ERROR:
+			return "Failed to write to file";
+		case FILE_SYNTAX_ERROR:
+			return "Node file syntax error";
+		case FILE_PREMATURE_END:
+			return "File end encountered unexpectedly";
 	}
-	if(file == nullptr) {
+	if (file == nullptr) {
 		return "Could not open file (2)";
 	}
-	if(ferror(file)) {
+	if (ferror(file)) {
 		return "Internal file error #" + i2s(ferror(file));
 	}
 	return "No error";
@@ -72,14 +75,14 @@ std::string FileHandle::getErrorMessage()
 //=============================================================================
 // File read handle
 
-FileReadHandle::FileReadHandle(const std::string& name) : file_size(0)
-{
+FileReadHandle::FileReadHandle(const std::string &name) :
+	file_size(0) {
 #if defined __VISUALC__ && defined _UNICODE
 	file = _wfopen(string2wstring(name).c_str(), L"rb");
 #else
 	file = fopen(name.c_str(), "rb");
 #endif
-	if(!file || ferror(file)) {
+	if (!file || ferror(file)) {
 		error_code = FILE_COULD_NOT_OPEN;
 	} else {
 		fseek(file, 0, SEEK_END);
@@ -88,52 +91,46 @@ FileReadHandle::FileReadHandle(const std::string& name) : file_size(0)
 	}
 }
 
-FileReadHandle::~FileReadHandle()
-{
+FileReadHandle::~FileReadHandle() {
 	////
 }
 
-void FileReadHandle::close()
-{
+void FileReadHandle::close() {
 	file_size = 0;
 	FileHandle::close();
 }
 
-bool FileReadHandle::getRAW(uint8_t* ptr, size_t sz)
-{
+bool FileReadHandle::getRAW(uint8_t* ptr, size_t sz) {
 	size_t o = fread(ptr, 1, sz, file);
-	if(o != sz) {
+	if (o != sz) {
 		error_code = FILE_READ_ERROR;
 		return false;
 	}
 	return true;
 }
 
-bool FileReadHandle::getRAW(std::string& str, size_t sz)
-{
+bool FileReadHandle::getRAW(std::string &str, size_t sz) {
 	str.resize(sz);
 	size_t o = fread(const_cast<char*>(str.data()), 1, sz, file);
-	if(o != sz) {
+	if (o != sz) {
 		error_code = FILE_READ_ERROR;
 		return false;
 	}
 	return true;
 }
 
-bool FileReadHandle::getString(std::string& str)
-{
+bool FileReadHandle::getString(std::string &str) {
 	uint16_t sz;
-	if(!getU16(sz)) {
+	if (!getU16(sz)) {
 		error_code = FILE_READ_ERROR;
 		return false;
 	}
 	return getRAW(str, sz);
 }
 
-bool FileReadHandle::getLongString(std::string& str)
-{
+bool FileReadHandle::getLongString(std::string &str) {
 	uint32_t sz;
-	if(!getU32(sz)) {
+	if (!getU32(sz)) {
 		error_code = FILE_READ_ERROR;
 		return false;
 	}
@@ -149,34 +146,30 @@ NodeFileReadHandle::NodeFileReadHandle() :
 	cache_size(32768),
 	cache_length(0),
 	local_read_index(0),
-	root_node(nullptr)
-{
+	root_node(nullptr) {
 	////
 }
 
-NodeFileReadHandle::~NodeFileReadHandle()
-{
-	while(!unused.empty()) {
+NodeFileReadHandle::~NodeFileReadHandle() {
+	while (!unused.empty()) {
 		free(unused.top());
 		unused.pop();
 	}
 }
 
-BinaryNode* NodeFileReadHandle::getNode(BinaryNode* parent)
-{
+BinaryNode* NodeFileReadHandle::getNode(BinaryNode* parent) {
 	void* mem;
-	if(unused.empty()) {
+	if (unused.empty()) {
 		mem = malloc(sizeof(BinaryNode));
 	} else {
 		mem = unused.top();
 		unused.pop();
 	}
-	return new(mem) BinaryNode(this, parent);
+	return new (mem) BinaryNode(this, parent);
 }
 
-void NodeFileReadHandle::freeNode(BinaryNode* node)
-{
-	if(node) {
+void NodeFileReadHandle::freeNode(BinaryNode* node) {
+	if (node) {
 		node->~BinaryNode();
 		unused.push(node);
 	}
@@ -185,13 +178,11 @@ void NodeFileReadHandle::freeNode(BinaryNode* node)
 //=============================================================================
 // Memory based node file read handle
 
-MemoryNodeFileReadHandle::MemoryNodeFileReadHandle(const uint8_t* data, size_t size)
-{
+MemoryNodeFileReadHandle::MemoryNodeFileReadHandle(const uint8_t* data, size_t size) {
 	assign(data, size);
 }
 
-void MemoryNodeFileReadHandle::assign(const uint8_t* data, size_t size)
-{
+void MemoryNodeFileReadHandle::assign(const uint8_t* data, size_t size) {
 	freeNode(root_node);
 	root_node = nullptr;
 	// Highly volatile, but we know we're not gonna modify
@@ -200,23 +191,19 @@ void MemoryNodeFileReadHandle::assign(const uint8_t* data, size_t size)
 	local_read_index = 0;
 }
 
-MemoryNodeFileReadHandle::~MemoryNodeFileReadHandle()
-{
+MemoryNodeFileReadHandle::~MemoryNodeFileReadHandle() {
 	freeNode(root_node);
 }
 
-void MemoryNodeFileReadHandle::close()
-{
+void MemoryNodeFileReadHandle::close() {
 	assign(nullptr, 0);
 }
 
-bool MemoryNodeFileReadHandle::renewCache()
-{
+bool MemoryNodeFileReadHandle::renewCache() {
 	return false;
 }
 
-BinaryNode* MemoryNodeFileReadHandle::getRootNode()
-{
+BinaryNode* MemoryNodeFileReadHandle::getRootNode() {
 	assert(root_node == nullptr); // You should never do this twice
 
 	local_read_index++; // Skip first NODE_START
@@ -229,19 +216,18 @@ BinaryNode* MemoryNodeFileReadHandle::getRootNode()
 //=============================================================================
 // File based node file read handle
 
-DiskNodeFileReadHandle::DiskNodeFileReadHandle(const std::string& name, const std::vector<std::string>& acceptable_identifiers) :
-	file_size(0)
-{
+DiskNodeFileReadHandle::DiskNodeFileReadHandle(const std::string &name, const std::vector<std::string> &acceptable_identifiers) :
+	file_size(0) {
 #if defined __VISUALC__ && defined _UNICODE
 	file = _wfopen(string2wstring(name).c_str(), L"rb");
 #else
 	file = fopen(name.c_str(), "rb");
 #endif
-	if(!file || ferror(file)) {
+	if (!file || ferror(file)) {
 		error_code = FILE_COULD_NOT_OPEN;
 	} else {
 		char ver[4];
-		if(fread(ver, 1, 4, file) != 4) {
+		if (fread(ver, 1, 4, file) != 4) {
 			fclose(file);
 			error_code = FILE_SYNTAX_ERROR;
 			return;
@@ -249,16 +235,16 @@ DiskNodeFileReadHandle::DiskNodeFileReadHandle(const std::string& name, const st
 
 		// 0x00 00 00 00 is accepted as a wildcard version
 
-		if(ver[0] != 0 || ver[1] != 0 || ver[2] != 0 || ver[3] != 0) {
+		if (ver[0] != 0 || ver[1] != 0 || ver[2] != 0 || ver[3] != 0) {
 			bool accepted = false;
-			for(std::vector<std::string>::const_iterator id_iter = acceptable_identifiers.begin(); id_iter != acceptable_identifiers.end(); ++id_iter) {
-				if(memcmp(ver, id_iter->c_str(), 4) == 0) {
+			for (std::vector<std::string>::const_iterator id_iter = acceptable_identifiers.begin(); id_iter != acceptable_identifiers.end(); ++id_iter) {
+				if (memcmp(ver, id_iter->c_str(), 4) == 0) {
 					accepted = true;
 					break;
 				}
 			}
 
-			if(!accepted) {
+			if (!accepted) {
 				fclose(file);
 				error_code = FILE_SYNTAX_ERROR;
 				return;
@@ -271,50 +257,46 @@ DiskNodeFileReadHandle::DiskNodeFileReadHandle(const std::string& name, const st
 	}
 }
 
-DiskNodeFileReadHandle::~DiskNodeFileReadHandle()
-{
+DiskNodeFileReadHandle::~DiskNodeFileReadHandle() {
 	close();
 }
 
-void DiskNodeFileReadHandle::close()
-{
+void DiskNodeFileReadHandle::close() {
 	freeNode(root_node);
 	file_size = 0;
 	FileHandle::close();
 	free(cache);
 }
 
-bool DiskNodeFileReadHandle::renewCache()
-{
-	if(!cache) {
+bool DiskNodeFileReadHandle::renewCache() {
+	if (!cache) {
 		cache = (uint8_t*)malloc(cache_size);
 	}
 	cache_length = fread(cache, 1, cache_size, file);
 
-	if(cache_length == 0 || ferror(file)) {
+	if (cache_length == 0 || ferror(file)) {
 		return false;
 	}
 	local_read_index = 0;
 	return true;
 }
 
-BinaryNode* DiskNodeFileReadHandle::getRootNode()
-{
-    assert(root_node == nullptr); // You should never do this twice
-    uint8_t first;
-    size_t numRead = fread(&first, 1, 1, file);
-    if(numRead != 1) {
-        error_code = FILE_READ_ERROR;
-        return nullptr;
-    }
-    if(first == NODE_START) {
-        root_node = getNode(nullptr);
-        root_node->load();
-        return root_node;
-    } else {
-        error_code = FILE_SYNTAX_ERROR;
-        return nullptr;
-    }
+BinaryNode* DiskNodeFileReadHandle::getRootNode() {
+	assert(root_node == nullptr); // You should never do this twice
+	uint8_t first;
+	size_t numRead = fread(&first, 1, 1, file);
+	if (numRead != 1) {
+		error_code = FILE_READ_ERROR;
+		return nullptr;
+	}
+	if (first == NODE_START) {
+		root_node = getNode(nullptr);
+		root_node->load();
+		return root_node;
+	} else {
+		error_code = FILE_SYNTAX_ERROR;
+		return nullptr;
+	}
 }
 
 //=============================================================================
@@ -324,22 +306,19 @@ BinaryNode::BinaryNode(NodeFileReadHandle* file, BinaryNode* parent) :
 	read_offset(0),
 	file(file),
 	parent(parent),
-	child(nullptr)
-{
+	child(nullptr) {
 	////
 }
 
-BinaryNode::~BinaryNode()
-{
+BinaryNode::~BinaryNode() {
 	file->freeNode(child);
 }
 
-BinaryNode* BinaryNode::getChild()
-{
+BinaryNode* BinaryNode::getChild() {
 	ASSERT(file);
 	ASSERT(child == nullptr);
 
-	if(file->last_was_start) {
+	if (file->last_was_start) {
 		child = file->getNode(this);
 		child->load();
 		return child;
@@ -347,9 +326,8 @@ BinaryNode* BinaryNode::getChild()
 	return nullptr;
 }
 
-bool BinaryNode::getRAW(uint8_t* ptr, size_t sz)
-{
-	if(read_offset + sz > data.size()) {
+bool BinaryNode::getRAW(uint8_t* ptr, size_t sz) {
+	if (read_offset + sz > data.size()) {
 		read_offset = data.size();
 		return false;
 	}
@@ -358,9 +336,8 @@ bool BinaryNode::getRAW(uint8_t* ptr, size_t sz)
 	return true;
 }
 
-bool BinaryNode::getRAW(std::string& str, size_t sz)
-{
-	if(read_offset + sz > data.size()) {
+bool BinaryNode::getRAW(std::string &str, size_t sz) {
+	if (read_offset + sz > data.size()) {
 		read_offset = data.size();
 		return false;
 	}
@@ -369,54 +346,52 @@ bool BinaryNode::getRAW(std::string& str, size_t sz)
 	return true;
 }
 
-bool BinaryNode::getString(std::string& str)
-{
+bool BinaryNode::getString(std::string &str) {
 	uint16_t len;
-	if(!getU16(len)) {
+	if (!getU16(len)) {
 		return false;
 	}
 	return getRAW(str, len);
 }
 
-bool BinaryNode::getLongString(std::string& str)
-{
+bool BinaryNode::getLongString(std::string &str) {
 	uint32_t len;
-	if(!getU32(len)) {
+	if (!getU32(len)) {
 		return false;
 	}
 	return getRAW(str, len);
 }
 
-BinaryNode* BinaryNode::advance()
-{
+BinaryNode* BinaryNode::advance() {
 	// Advance this to the next position
 	ASSERT(file);
 
-	if(file->error_code != FILE_NO_ERROR)
+	if (file->error_code != FILE_NO_ERROR) {
 		return nullptr;
+	}
 
-	if(child == nullptr) {
+	if (child == nullptr) {
 		getChild();
 	}
 	// We need to move the cursor to the next node, since we're still iterating our child node!
-	while(child) {
+	while (child) {
 		// both functions modify ourselves and sets child to nullptr, so loop will be aborted
 		// possibly change to assignment ?
 		child->getChild();
 		child->advance();
 	}
 
-	if(file->last_was_start) {
+	if (file->last_was_start) {
 		return nullptr;
 	} else {
 		// Last was end (0xff)
 		// Read next byte to decide if there is another node following this
-		uint8_t*& cache = file->cache;
-		size_t& cache_length = file->cache_length;
-		size_t& local_read_index = file->local_read_index;
+		uint8_t*&cache = file->cache;
+		size_t &cache_length = file->cache_length;
+		size_t &local_read_index = file->local_read_index;
 
-		if(local_read_index >= cache_length) {
-			if(!file->renewCache()) {
+		if (local_read_index >= cache_length) {
+			if (!file->renewCache()) {
 				// Failed to renew, exit
 				parent->child = nullptr;
 				file->freeNode(this);
@@ -427,14 +402,14 @@ BinaryNode* BinaryNode::advance()
 		uint8_t op = cache[local_read_index];
 		++local_read_index;
 
-		if(op == NODE_START) {
+		if (op == NODE_START) {
 			// Another node follows this.
 			// Load this node as the next one
 			read_offset = 0;
 			data.clear();
 			load();
 			return this;
-		} else if(op == NODE_END) {
+		} else if (op == NODE_END) {
 			// End of this child-tree
 			parent->child = nullptr;
 			file->last_was_start = false;
@@ -447,16 +422,15 @@ BinaryNode* BinaryNode::advance()
 	}
 }
 
-void BinaryNode::load()
-{
+void BinaryNode::load() {
 	ASSERT(file);
 	// Read until next node starts
-	uint8_t*& cache = file->cache;
-	size_t& cache_length = file->cache_length;
-	size_t& local_read_index = file->local_read_index;
-	while(true) {
-		if(local_read_index >= cache_length) {
-			if(!file->renewCache()) {
+	uint8_t*&cache = file->cache;
+	size_t &cache_length = file->cache_length;
+	size_t &local_read_index = file->local_read_index;
+	while (true) {
+		if (local_read_index >= cache_length) {
+			if (!file->renewCache()) {
 				// Failed to renew, exit
 				file->error_code = FILE_PREMATURE_END;
 				return;
@@ -466,7 +440,7 @@ void BinaryNode::load()
 		uint8_t op = cache[local_read_index];
 		++local_read_index;
 
-		switch(op) {
+		switch (op) {
 			case NODE_START: {
 				file->last_was_start = true;
 				return;
@@ -478,8 +452,8 @@ void BinaryNode::load()
 			}
 
 			case ESCAPE_CHAR: {
-				if(local_read_index >= cache_length) {
-					if(!file->renewCache()) {
+				if (local_read_index >= cache_length) {
+					if (!file->renewCache()) {
 						// Failed to renew, exit
 						file->error_code = FILE_PREMATURE_END;
 						return;
@@ -494,7 +468,7 @@ void BinaryNode::load()
 			default:
 				break;
 		}
-		//std::cout << "Appending..." << std::endl;
+		// std::cout << "Appending..." << std::endl;
 		data.append(1, op);
 	}
 }
@@ -502,26 +476,23 @@ void BinaryNode::load()
 //=============================================================================
 // node file binary write handle
 
-FileWriteHandle::FileWriteHandle(const std::string& name)
-{
+FileWriteHandle::FileWriteHandle(const std::string &name) {
 #if defined __VISUALC__ && defined _UNICODE
 	file = _wfopen(string2wstring(name).c_str(), L"wb");
 #else
 	file = fopen(name.c_str(), "wb");
 #endif
-	if(file == nullptr || ferror(file)) {
+	if (file == nullptr || ferror(file)) {
 		error_code = FILE_COULD_NOT_OPEN;
 	}
 }
 
-FileWriteHandle::~FileWriteHandle()
-{
+FileWriteHandle::~FileWriteHandle() {
 	////
 }
 
-bool FileWriteHandle::addString(const std::string& str)
-{
-	if(str.size() > 0xFFFF) {
+bool FileWriteHandle::addString(const std::string &str) {
+	if (str.size() > 0xFFFF) {
 		error_code = FILE_STRING_TOO_LONG;
 		return false;
 	}
@@ -530,10 +501,9 @@ bool FileWriteHandle::addString(const std::string& str)
 	return true;
 }
 
-bool FileWriteHandle::addString(const char* str)
-{
+bool FileWriteHandle::addString(const char* str) {
 	size_t len = strlen(str);
-	if(len > 0xFFFF) {
+	if (len > 0xFFFF) {
 		error_code = FILE_STRING_TOO_LONG;
 		return false;
 	}
@@ -542,28 +512,24 @@ bool FileWriteHandle::addString(const char* str)
 	return true;
 }
 
-bool FileWriteHandle::addLongString(const std::string& str)
-{
+bool FileWriteHandle::addLongString(const std::string &str) {
 	addU32(uint32_t(str.size()));
 	addRAW(str);
 	return true;
 }
 
-bool FileWriteHandle::addRAW(const std::string& str)
-{
+bool FileWriteHandle::addRAW(const std::string &str) {
 	fwrite(str.c_str(), 1, str.size(), file);
 	return ferror(file) == 0;
 }
 
-bool FileWriteHandle::addRAW(const uint8_t* ptr, size_t sz)
-{
+bool FileWriteHandle::addRAW(const uint8_t* ptr, size_t sz) {
 	fwrite(ptr, 1, sz, file);
 	return ferror(file) == 0;
 }
 
-void FileWriteHandle::flush()
-{
-	if(file) {
+void FileWriteHandle::flush() {
+	if (file) {
 		fflush(file);
 	}
 }
@@ -571,37 +537,34 @@ void FileWriteHandle::flush()
 //=============================================================================
 // Disk based node file write handle
 
-DiskNodeFileWriteHandle::DiskNodeFileWriteHandle(const std::string& name, const std::string& identifier)
-{
+DiskNodeFileWriteHandle::DiskNodeFileWriteHandle(const std::string &name, const std::string &identifier) {
 #if defined __VISUALC__ && defined _UNICODE
 	file = _wfopen(string2wstring(name).c_str(), L"wb");
 #else
 	file = fopen(name.c_str(), "wb");
 #endif
-	if(!file || ferror(file)) {
+	if (!file || ferror(file)) {
 		error_code = FILE_COULD_NOT_OPEN;
 		return;
 	}
-	if(identifier.length() != 4) {
+	if (identifier.length() != 4) {
 		error_code = FILE_INVALID_IDENTIFIER;
 		return;
 	}
 
 	fwrite(identifier.c_str(), 1, 4, file);
-	if(!cache) {
-		cache = (uint8_t*)malloc(cache_size+1);
+	if (!cache) {
+		cache = (uint8_t*)malloc(cache_size + 1);
 	}
 	local_write_index = 0;
 }
 
-DiskNodeFileWriteHandle::~DiskNodeFileWriteHandle()
-{
+DiskNodeFileWriteHandle::~DiskNodeFileWriteHandle() {
 	close();
 }
 
-void DiskNodeFileWriteHandle::close()
-{
-	if(file) {
+void DiskNodeFileWriteHandle::close() {
+	if (file) {
 		renewCache();
 		fclose(file);
 		file = nullptr;
@@ -609,15 +572,14 @@ void DiskNodeFileWriteHandle::close()
 	}
 }
 
-void DiskNodeFileWriteHandle::renewCache()
-{
-	if(cache) {
+void DiskNodeFileWriteHandle::renewCache() {
+	if (cache) {
 		fwrite(cache, local_write_index, 1, file);
-		if(ferror(file) != 0) {
+		if (ferror(file) != 0) {
 			error_code = FILE_WRITE_ERROR;
 		}
 	} else {
-		cache = (uint8_t*)malloc(cache_size+1);
+		cache = (uint8_t*)malloc(cache_size + 1);
 	}
 	local_write_index = 0;
 }
@@ -625,51 +587,44 @@ void DiskNodeFileWriteHandle::renewCache()
 //=============================================================================
 // Memory based node file write handle
 
-MemoryNodeFileWriteHandle::MemoryNodeFileWriteHandle()
-{
-	if(!cache) {
-		cache = (uint8_t*)malloc(cache_size+1);
+MemoryNodeFileWriteHandle::MemoryNodeFileWriteHandle() {
+	if (!cache) {
+		cache = (uint8_t*)malloc(cache_size + 1);
 	}
 	local_write_index = 0;
 }
 
-MemoryNodeFileWriteHandle::~MemoryNodeFileWriteHandle()
-{
+MemoryNodeFileWriteHandle::~MemoryNodeFileWriteHandle() {
 	close();
 }
 
-void MemoryNodeFileWriteHandle::reset()
-{
+void MemoryNodeFileWriteHandle::reset() {
 	memset(cache, 0xAA, cache_size);
 	local_write_index = 0;
 }
 
-void MemoryNodeFileWriteHandle::close()
-{
+void MemoryNodeFileWriteHandle::close() {
 	free(cache);
 	cache = nullptr;
 }
 
-uint8_t* MemoryNodeFileWriteHandle::getMemory()
-{
+uint8_t* MemoryNodeFileWriteHandle::getMemory() {
 	return cache;
 }
 
-size_t MemoryNodeFileWriteHandle::getSize()
-{
+size_t MemoryNodeFileWriteHandle::getSize() {
 	return local_write_index;
 }
 
-void MemoryNodeFileWriteHandle::renewCache()
-{
-	if(cache) {
+void MemoryNodeFileWriteHandle::renewCache() {
+	if (cache) {
 		cache_size = cache_size * 2;
 		cache = (uint8_t*)realloc(cache, cache_size);
-		if(!cache) {
+		if (!cache) {
 			exit(1);
 		}
 	} else {
-		cache = (uint8_t*)malloc(cache_size+1);
+		cache = (uint8_t*)malloc(cache_size + 1);
 	}
 }
 
@@ -679,74 +634,64 @@ void MemoryNodeFileWriteHandle::renewCache()
 NodeFileWriteHandle::NodeFileWriteHandle() :
 	cache(nullptr),
 	cache_size(0x7FFF),
-	local_write_index(0)
-{
+	local_write_index(0) {
 	////
 }
 
-NodeFileWriteHandle::~NodeFileWriteHandle()
-{
+NodeFileWriteHandle::~NodeFileWriteHandle() {
 	free(cache);
 }
 
-bool NodeFileWriteHandle::addNode(uint8_t nodetype)
-{
+bool NodeFileWriteHandle::addNode(uint8_t nodetype) {
 	cache[local_write_index++] = NODE_START;
-	if(local_write_index >= cache_size) {
+	if (local_write_index >= cache_size) {
 		renewCache();
 	}
 
 	cache[local_write_index++] = nodetype;
-	if(local_write_index >= cache_size) {
+	if (local_write_index >= cache_size) {
 		renewCache();
 	}
 
 	return error_code == FILE_NO_ERROR;
 }
 
-bool NodeFileWriteHandle::endNode()
-{
+bool NodeFileWriteHandle::endNode() {
 	cache[local_write_index++] = NODE_END;
-	if(local_write_index >= cache_size) {
+	if (local_write_index >= cache_size) {
 		renewCache();
 	}
 
 	return error_code == FILE_NO_ERROR;
 }
 
-bool NodeFileWriteHandle::addU8(uint8_t u8)
-{
+bool NodeFileWriteHandle::addU8(uint8_t u8) {
 	writeBytes(&u8, sizeof(u8));
 	return error_code == FILE_NO_ERROR;
 }
 
-bool NodeFileWriteHandle::addByte(uint8_t u8)
-{
+bool NodeFileWriteHandle::addByte(uint8_t u8) {
 	writeBytes(&u8, sizeof(u8));
 	return error_code == FILE_NO_ERROR;
 }
 
-bool NodeFileWriteHandle::addU16(uint16_t u16)
-{
+bool NodeFileWriteHandle::addU16(uint16_t u16) {
 	writeBytes(reinterpret_cast<uint8_t*>(&u16), sizeof(u16));
 	return error_code == FILE_NO_ERROR;
 }
 
-bool NodeFileWriteHandle::addU32(uint32_t u32)
-{
+bool NodeFileWriteHandle::addU32(uint32_t u32) {
 	writeBytes(reinterpret_cast<uint8_t*>(&u32), sizeof(u32));
 	return error_code == FILE_NO_ERROR;
 }
 
-bool NodeFileWriteHandle::addU64(uint64_t u64)
-{
+bool NodeFileWriteHandle::addU64(uint64_t u64) {
 	writeBytes(reinterpret_cast<uint8_t*>(&u64), sizeof(u64));
 	return error_code == FILE_NO_ERROR;
 }
 
-bool NodeFileWriteHandle::addString(const std::string& str)
-{
-	if(str.size() > 0xFFFF) {
+bool NodeFileWriteHandle::addString(const std::string &str) {
+	if (str.size() > 0xFFFF) {
 		error_code = FILE_STRING_TOO_LONG;
 		return false;
 	}
@@ -755,21 +700,18 @@ bool NodeFileWriteHandle::addString(const std::string& str)
 	return error_code == FILE_NO_ERROR;
 }
 
-bool NodeFileWriteHandle::addLongString(const std::string& str)
-{
+bool NodeFileWriteHandle::addLongString(const std::string &str) {
 	addU32(uint32_t(str.size()));
 	addRAW((const uint8_t*)str.c_str(), str.size());
 	return error_code == FILE_NO_ERROR;
 }
 
-bool NodeFileWriteHandle::addRAW(std::string& str)
-{
+bool NodeFileWriteHandle::addRAW(std::string &str) {
 	writeBytes(reinterpret_cast<uint8_t*>(const_cast<char*>(str.data())), str.size());
 	return error_code == FILE_NO_ERROR;
 }
 
-bool NodeFileWriteHandle::addRAW(const uint8_t* ptr, size_t sz)
-{
+bool NodeFileWriteHandle::addRAW(const uint8_t* ptr, size_t sz) {
 	writeBytes(ptr, sz);
 	return error_code == FILE_NO_ERROR;
 }

@@ -24,30 +24,50 @@
 class Npc {
 public:
 	Npc(NpcType* type);
-	Npc(const std::string& type_name);
+	Npc(const std::string &type_name);
 
 	Npc* deepCopy() const;
 
-	const Outfit& getLookType() const;
+	const Outfit &getLookType() const;
 
-	bool isSaved() const noexcept { return saved; }
-	void save() noexcept { saved = true; }
-	void reset() noexcept { saved = false; }
+	bool isSaved() const noexcept {
+		return saved;
+	}
+	void save() noexcept {
+		saved = true;
+	}
+	void reset() noexcept {
+		saved = false;
+	}
 
-	bool isSelected() const noexcept { return selected; }
-	void deselect() noexcept { selected = false; }
-	void select() noexcept { selected = true; }
+	bool isSelected() const noexcept {
+		return selected;
+	}
+	void deselect() noexcept {
+		selected = false;
+	}
+	void select() noexcept {
+		selected = true;
+	}
 
 	bool isNpc() const;
 
 	std::string getName() const;
 	NpcBrush* getBrush() const;
 
-	int getSpawnNpcTime() const noexcept {return spawnNpcTime;}
-	void setSpawnNpcTime(int time) noexcept { spawnNpcTime = time; }
+	int getSpawnNpcTime() const noexcept {
+		return spawnNpcTime;
+	}
+	void setSpawnNpcTime(int time) noexcept {
+		spawnNpcTime = time;
+	}
 
-	Direction getDirection() const noexcept { return direction; }
-	void setDirection(Direction _direction) noexcept { direction = _direction; }
+	Direction getDirection() const noexcept {
+		return direction;
+	}
+	void setDirection(Direction _direction) noexcept {
+		direction = _direction;
+	}
 
 	// Static conversions
 	static std::string DirID2Name(uint16_t id);

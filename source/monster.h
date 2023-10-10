@@ -24,28 +24,48 @@
 class Monster {
 public:
 	Monster(MonsterType* type);
-	Monster(const std::string& type_name);
+	Monster(const std::string &type_name);
 
 	Monster* deepCopy() const;
 
-	const Outfit& getLookType() const;
+	const Outfit &getLookType() const;
 
-	bool isSaved() const noexcept { return saved; }
-	void save() noexcept { saved = true; }
-	void reset() noexcept { saved = false; }
+	bool isSaved() const noexcept {
+		return saved;
+	}
+	void save() noexcept {
+		saved = true;
+	}
+	void reset() noexcept {
+		saved = false;
+	}
 
-	bool isSelected() const noexcept { return selected; }
-	void deselect() noexcept { selected = false; }
-	void select() noexcept { selected = true; }
+	bool isSelected() const noexcept {
+		return selected;
+	}
+	void deselect() noexcept {
+		selected = false;
+	}
+	void select() noexcept {
+		selected = true;
+	}
 
 	std::string getName() const;
 	MonsterBrush* getBrush() const;
 
-	int getSpawnMonsterTime() const noexcept {return spawntime;}
-	void setSpawnMonsterTime(int time) noexcept { spawntime = time; }
+	int getSpawnMonsterTime() const noexcept {
+		return spawntime;
+	}
+	void setSpawnMonsterTime(int time) noexcept {
+		spawntime = time;
+	}
 
-	Direction getDirection() const noexcept { return direction; }
-	void setDirection(Direction _direction) noexcept { direction = _direction; }
+	Direction getDirection() const noexcept {
+		return direction;
+	}
+	void setDirection(Direction _direction) noexcept {
+		direction = _direction;
+	}
 
 	// Static conversions
 	static std::string DirID2Name(uint16_t id);

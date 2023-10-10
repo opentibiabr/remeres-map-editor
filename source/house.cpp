@@ -22,65 +22,62 @@
 #include "tile.h"
 #include "map.h"
 
-Houses::Houses(Map& map) :
+Houses::Houses(Map &map) :
 	map(map),
-	max_house_id(0)
-{
+	max_house_id(0) {
 	////
 }
 
-Houses::~Houses()
-{
-	for(auto it = houses.begin(); it != houses.end(); ++it)
+Houses::~Houses() {
+	for (auto it = houses.begin(); it != houses.end(); ++it) {
 		delete it->second;
+	}
 	houses.clear();
 }
 
-uint32_t Houses::getEmptyID()
-{
+uint32_t Houses::getEmptyID() {
 	return ++max_house_id;
 }
 
-void Houses::addHouse(House* new_house)
-{
+void Houses::addHouse(House* new_house) {
 	ASSERT(new_house);
 	HouseMap::iterator it = houses.find(new_house->id);
 	ASSERT(it == houses.end());
 	new_house->map = &map;
-	if(new_house->id > max_house_id)
+	if (new_house->id > max_house_id) {
 		max_house_id = new_house->id;
+	}
 	houses[new_house->id] = new_house;
 }
 
-void Houses::removeHouse(House* house_to_remove)
-{
+void Houses::removeHouse(House* house_to_remove) {
 	HouseMap::iterator it = houses.find(house_to_remove->id);
-	if(it != houses.end())
+	if (it != houses.end()) {
 		houses.erase(it);
+	}
 
 	house_to_remove->clean();
 	delete house_to_remove;
 }
 
-House* Houses::getHouse(uint32_t houseid)
-{
+House* Houses::getHouse(uint32_t houseid) {
 	HouseMap::iterator it = houses.find(houseid);
-	if(it != houses.end()) {
+	if (it != houses.end()) {
 		return it->second;
 	}
 	return nullptr;
 }
 
-const House* Houses::getHouse(uint32_t houseid) const
-{
+const House* Houses::getHouse(uint32_t houseid) const {
 	HouseMap::const_iterator it = houses.find(houseid);
-	if(it != houses.end())
+	if (it != houses.end()) {
 		return it->second;
+	}
 
 	return nullptr;
 }
 
-House::House(Map& map) :
+House::House(Map &map) :
 	id(0),
 	rent(0),
 	townid(0),
@@ -88,48 +85,46 @@ House::House(Map& map) :
 	clientid(0),
 	beds(0),
 	map(&map),
-	exit(0,0,0)
-{
+	exit(0, 0, 0) {
 	////
 }
 
-void House::clean()
-{
-	for(PositionList::const_iterator pos_iter = tiles.begin(); pos_iter != tiles.end(); ++pos_iter) {
+void House::clean() {
+	for (PositionList::const_iterator pos_iter = tiles.begin(); pos_iter != tiles.end(); ++pos_iter) {
 		Tile* tile = map->getTile(*pos_iter);
-		if(tile)
+		if (tile) {
 			tile->setHouse(nullptr);
+		}
 	}
 
 	Tile* tile = map->getTile(exit);
-	if(tile)
+	if (tile) {
 		tile->removeHouseExit(this);
+	}
 }
 
-size_t House::size() const
-{
+size_t House::size() const {
 	size_t count = 0;
-	for(PositionList::const_iterator pos_iter = tiles.begin(); pos_iter != tiles.end(); ++pos_iter) {
+	for (PositionList::const_iterator pos_iter = tiles.begin(); pos_iter != tiles.end(); ++pos_iter) {
 		auto tile = map->getTile(*pos_iter);
 		auto topItem = tile->getTopItem();
-		if(tile && (!tile->getWall() || tile->getTable() || topItem->isDoor()))
+		if (tile && (!tile->getWall() || tile->getTable() || topItem->isDoor())) {
 			++count;
+		}
 	}
 	return count;
 }
 
-void House::addTile(Tile* tile)
-{
+void House::addTile(Tile* tile) {
 	ASSERT(tile);
 	tile->setHouse(this);
 	tiles.push_back(tile->getPosition());
 }
 
-void House::removeTile(Tile* tile)
-{
+void House::removeTile(Tile* tile) {
 	ASSERT(tile);
-	for(PositionList::iterator tile_iter = tiles.begin(); tile_iter != tiles.end(); ++tile_iter) {
-		if(*tile_iter == tile->getPosition()) {
+	for (PositionList::iterator tile_iter = tiles.begin(); tile_iter != tiles.end(); ++tile_iter) {
+		if (*tile_iter == tile->getPosition()) {
 			tiles.erase(tile_iter);
 			tile->setHouse(nullptr);
 			return;
@@ -137,21 +132,21 @@ void House::removeTile(Tile* tile)
 	}
 }
 
-uint8_t House::getEmptyDoorID() const
-{
+uint8_t House::getEmptyDoorID() const {
 	std::set<uint8_t> taken;
-	for(PositionList::const_iterator tile_iter = tiles.begin(); tile_iter != tiles.end(); ++tile_iter) {
-		if(const Tile* tile = map->getTile(*tile_iter)) {
-			for(ItemVector::const_iterator item_iter = tile->items.begin(); item_iter != tile->items.end(); ++item_iter) {
-				if(Door* door = dynamic_cast<Door*>(*item_iter))
+	for (PositionList::const_iterator tile_iter = tiles.begin(); tile_iter != tiles.end(); ++tile_iter) {
+		if (const Tile* tile = map->getTile(*tile_iter)) {
+			for (ItemVector::const_iterator item_iter = tile->items.begin(); item_iter != tile->items.end(); ++item_iter) {
+				if (Door* door = dynamic_cast<Door*>(*item_iter)) {
 					taken.insert(door->getDoorID());
+				}
 			}
 		}
 	}
 
-	for(int i = 1; i < 256; ++i) {
+	for (int i = 1; i < 256; ++i) {
 		std::set<uint8_t>::iterator it = taken.find(uint8_t(i));
-		if(it == taken.end()) {
+		if (it == taken.end()) {
 			// Free ID!
 			return i;
 		}
@@ -159,13 +154,12 @@ uint8_t House::getEmptyDoorID() const
 	return 255;
 }
 
-Position House::getDoorPositionByID(uint8_t id) const
-{
-	for(PositionList::const_iterator tile_iter = tiles.begin(); tile_iter != tiles.end(); ++tile_iter) {
-		if(const Tile* tile = map->getTile(*tile_iter)) {
-			for(ItemVector::const_iterator item_iter = tile->items.begin(); item_iter != tile->items.end(); ++item_iter) {
-				if(Door* door = dynamic_cast<Door*>(*item_iter)) {
-					if(door->getDoorID() == id) {
+Position House::getDoorPositionByID(uint8_t id) const {
+	for (PositionList::const_iterator tile_iter = tiles.begin(); tile_iter != tiles.end(); ++tile_iter) {
+		if (const Tile* tile = map->getTile(*tile_iter)) {
+			for (ItemVector::const_iterator item_iter = tile->items.begin(); item_iter != tile->items.end(); ++item_iter) {
+				if (Door* door = dynamic_cast<Door*>(*item_iter)) {
+					if (door->getDoorID() == id) {
 						return *tile_iter;
 					}
 				}
@@ -175,28 +169,28 @@ Position House::getDoorPositionByID(uint8_t id) const
 	return Position();
 }
 
-std::string House::getDescription()
-{
+std::string House::getDescription() {
 	std::ostringstream os;
 	os << name;
 	os << " (ID:" << id << "; Rent: " << rent << "; Max Beds: " << beds << ")";
 	return os.str();
 }
 
-void House::setExit(Map* targetmap, const Position& pos)
-{
+void House::setExit(Map* targetmap, const Position &pos) {
 	// This might fail when the user decides to put an exit at 0,0,0, let's just hope noone does (Noone SHOULD, so there is no problem? Hm?)
-	if(pos == exit || !pos.isValid())
+	if (pos == exit || !pos.isValid()) {
 		return;
+	}
 
-	if(exit.isValid()) {
+	if (exit.isValid()) {
 		Tile* oldexit = targetmap->getTile(exit);
-		if(oldexit)
+		if (oldexit) {
 			oldexit->removeHouseExit(this);
+		}
 	}
 
 	Tile* newexit = targetmap->getTile(pos);
-	if(!newexit) {
+	if (!newexit) {
 		newexit = targetmap->allocator(targetmap->createTileL(pos));
 		targetmap->setTile(pos, newexit);
 	}
@@ -205,7 +199,6 @@ void House::setExit(Map* targetmap, const Position& pos)
 	exit = pos;
 }
 
-void House::setExit(const Position& pos)
-{
+void House::setExit(const Position &pos) {
 	setExit(map, pos);
 }

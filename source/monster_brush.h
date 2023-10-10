@@ -23,27 +23,38 @@
 //=============================================================================
 // MonsterBrush, place monsters
 
-class MonsterBrush : public Brush
-{
+class MonsterBrush : public Brush {
 public:
 	MonsterBrush(MonsterType* type); // Create a RAWBrush of the specified type
 	virtual ~MonsterBrush();
 
-	bool isMonster() const { return true; }
-	MonsterBrush* asMonster() { return static_cast<MonsterBrush*>(this); }
+	bool isMonster() const {
+		return true;
+	}
+	MonsterBrush* asMonster() {
+		return static_cast<MonsterBrush*>(this);
+	}
 
-	virtual bool canDraw(BaseMap* map, const Position& position) const;
+	virtual bool canDraw(BaseMap* map, const Position &position) const;
 	virtual void draw(BaseMap* map, Tile* tile, void* parameter);
 	void draw_creature(BaseMap* map, Tile* tile);
 	virtual void undraw(BaseMap* map, Tile* tile);
 
-	MonsterType* getType() const {return monster_type;}
+	MonsterType* getType() const {
+		return monster_type;
+	}
 
 	virtual int getLookID() const; // We don't have a look type, this will always return 0
 	virtual std::string getName() const;
-	virtual bool canDrag() const { return false; }
-	virtual bool canSmear() const { return true; }
-	virtual bool oneSizeFitsAll() const { return true; }
+	virtual bool canDrag() const {
+		return false;
+	}
+	virtual bool canSmear() const {
+		return true;
+	}
+	virtual bool oneSizeFitsAll() const {
+		return true;
+	}
 
 protected:
 	MonsterType* monster_type;

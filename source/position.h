@@ -30,81 +30,98 @@ public:
 	// cases
 	int x, y, z;
 
-	Position() : x(0), y(0), z(0) {}
-	Position(int x, int y, int z) : x(x), y(y), z(z) {}
+	Position() :
+		x(0), y(0), z(0) { }
+	Position(int x, int y, int z) :
+		x(x), y(y), z(z) { }
 
-	bool operator<(const Position& other) const noexcept {
-		if(z < other.z)
+	bool operator<(const Position &other) const noexcept {
+		if (z < other.z) {
 			return true;
-		if(z > other.z)
+		}
+		if (z > other.z) {
 			return false;
+		}
 
-		if(y < other.y)
+		if (y < other.y) {
 			return true;
-		if(y > other.y)
+		}
+		if (y > other.y) {
 			return false;
+		}
 
-		if(x < other.x)
+		if (x < other.x) {
 			return true;
-		//if(x > p.x)
+		}
+		// if(x > p.x)
 		//	return false;
-
 
 		return false;
 	}
 
-	bool operator>(const Position& other) const noexcept {
+	bool operator>(const Position &other) const noexcept {
 		return !(*this < other);
 	}
 
-	Position operator-(const Position& other) const noexcept {
+	Position operator-(const Position &other) const noexcept {
 		return Position(x - other.x, y - other.y, z - other.z);
 	}
 
-	Position operator+(const Position& other) const noexcept {
+	Position operator+(const Position &other) const noexcept {
 		return Position(x + other.x, y + other.y, z + other.z);
 	}
 
-	Position& operator+=(const Position& other) {
+	Position &operator+=(const Position &other) {
 		*this = *this + other;
 		return *this;
 	}
 
-	bool operator==(const Position& other) const noexcept {
+	bool operator==(const Position &other) const noexcept {
 		return other.z == z && other.x == x && other.y == y;
 	}
 
-	bool operator!=(const Position& other) const noexcept {
+	bool operator!=(const Position &other) const noexcept {
 		return !(*this == other);
 	}
 
 	bool isValid() const noexcept {
-		if(x == 0 && y == 0 && z == 0)
+		if (x == 0 && y == 0 && z == 0) {
 			return false;
+		}
 		return (z >= rme::MapMinLayer && z <= rme::MapMaxLayer)
 			&& (x >= 0 && x <= rme::MapMaxWidth)
 			&& (y >= 0 && y <= rme::MapMaxHeight);
 	}
 };
 
-inline std::ostream& operator<<(std::ostream& os, const Position& pos) {
+inline std::ostream &operator<<(std::ostream &os, const Position &pos) {
 	os << pos.x << ':' << pos.y << ':' << pos.z;
 	return os;
 }
 
-inline std::istream& operator>>(std::istream& is, Position& pos) {
+inline std::istream &operator>>(std::istream &is, Position &pos) {
 	char a, b;
 	int x, y, z;
 	is >> x;
-	if(!is) return is;
+	if (!is) {
+		return is;
+	}
 	is >> a;
-	if(!is || a != ':') return is;
+	if (!is || a != ':') {
+		return is;
+	}
 	is >> y;
-	if(!is) return is;
+	if (!is) {
+		return is;
+	}
 	is >> b;
-	if(!is || b != ':') return is;
+	if (!is || b != ':') {
+		return is;
+	}
 	is >> z;
-	if(!is) return is;
+	if (!is) {
+		return is;
+	}
 
 	pos.x = x;
 	pos.y = y;
@@ -113,7 +130,7 @@ inline std::istream& operator>>(std::istream& is, Position& pos) {
 	return is;
 }
 
-inline Position abs(const Position& position) {
+inline Position abs(const Position &position) {
 	return Position(
 		std::abs(position.x),
 		std::abs(position.y),

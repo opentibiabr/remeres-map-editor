@@ -20,8 +20,7 @@
 
 class GameSprite;
 
-struct MapTooltip
-{
+struct MapTooltip {
 	enum TextLength {
 		MAX_CHARS_PER_LINE = 40,
 		MAX_CHARS = 255,
@@ -33,8 +32,9 @@ struct MapTooltip
 	}
 
 	void checkLineEnding() {
-		if(text.at(text.size() - 1) == '\n')
+		if (text.at(text.size() - 1) == '\n') {
 			text.resize(text.size() - 1);
+		}
 	}
 
 	int x, y;
@@ -90,10 +90,9 @@ public:
 class MapCanvas;
 class LightDrawer;
 
-class MapDrawer
-{
+class MapDrawer {
 	MapCanvas* canvas;
-	Editor& editor;
+	Editor &editor;
 	DrawingOptions options;
 	std::shared_ptr<LightDrawer> light_drawer;
 
@@ -143,27 +142,29 @@ public:
 
 	void TakeScreenshot(uint8_t* screenshot_buffer);
 
-	void ShowPositionIndicator(const Position& position);
+	void ShowPositionIndicator(const Position &position);
 
-	DrawingOptions& getOptions() noexcept { return options; }
+	DrawingOptions &getOptions() noexcept {
+		return options;
+	}
 
 protected:
-	void BlitItem(int& screenx, int& screeny, const Tile* tile, const Item* item, bool ephemeral = false, int red = 255, int green = 255, int blue = 255, int alpha = 255);
-	void BlitItem(int& screenx, int& screeny, const Position& pos, const Item* item, bool ephemeral = false, int red = 255, int green = 255, int blue = 255, int alpha = 255);
+	void BlitItem(int &screenx, int &screeny, const Tile* tile, const Item* item, bool ephemeral = false, int red = 255, int green = 255, int blue = 255, int alpha = 255);
+	void BlitItem(int &screenx, int &screeny, const Position &pos, const Item* item, bool ephemeral = false, int red = 255, int green = 255, int blue = 255, int alpha = 255);
 	void BlitSpriteType(int screenx, int screeny, uint32_t spriteid, int red = 255, int green = 255, int blue = 255, int alpha = 255);
 	void BlitSpriteType(int screenx, int screeny, GameSprite* spr, int red = 255, int green = 255, int blue = 255, int alpha = 255);
 	void BlitCreature(int screenx, int screeny, const Monster* npc, int red = 255, int green = 255, int blue = 255, int alpha = 255);
 	void BlitCreature(int screenx, int screeny, const Npc* c, int red = 255, int green = 255, int blue = 255, int alpha = 255);
-	void BlitCreature(int screenx, int screeny, const Outfit& outfit, Direction dir, int red = 255, int green = 255, int blue = 255, int alpha = 255);
+	void BlitCreature(int screenx, int screeny, const Outfit &outfit, Direction dir, int red = 255, int green = 255, int blue = 255, int alpha = 255);
 	void DrawTile(TileLocation* tile);
 	void DrawBrushIndicator(int x, int y, Brush* brush, uint8_t r, uint8_t g, uint8_t b);
-	void DrawHookIndicator(int x, int y, const ItemType& type);
+	void DrawHookIndicator(int x, int y, const ItemType &type);
 	void DrawTileIndicators(TileLocation* location);
 	void DrawIndicator(int x, int y, int indicator, uint8_t r = 255, uint8_t g = 255, uint8_t b = 255, uint8_t a = 255);
 	void DrawPositionIndicator(int z);
-	void WriteTooltip(const Item* item, std::ostringstream& stream);
-	void WriteTooltip(const Waypoint* item, std::ostringstream& stream);
-	void MakeTooltip(int screenx, int screeny, const std::string& text, uint8_t r = 255, uint8_t g = 255, uint8_t b = 255);
+	void WriteTooltip(const Item* item, std::ostringstream &stream);
+	void WriteTooltip(const Waypoint* item, std::ostringstream &stream);
+	void MakeTooltip(int screenx, int screeny, const std::string &text, uint8_t r = 255, uint8_t g = 255, uint8_t b = 255);
 	void AddLight(TileLocation* location);
 
 	enum BrushColor {
@@ -178,19 +179,18 @@ protected:
 		COLOR_BLANK,
 	};
 
-	void getColor(Brush* brush, const Position& position, uint8_t &r, uint8_t &g, uint8_t &b);
+	void getColor(Brush* brush, const Position &position, uint8_t &r, uint8_t &g, uint8_t &b);
 	void glBlitTexture(int x, int y, int textureId, int red, int green, int blue, int alpha, bool adjustZoom = false);
 	void glBlitSquare(int x, int y, int red, int green, int blue, int alpha);
-	void glBlitSquare(int x, int y, const wxColor& color);
-	void glColor(const wxColor& color);
+	void glBlitSquare(int x, int y, const wxColor &color);
+	void glColor(const wxColor &color);
 	void glColor(BrushColor color);
-	void glColorCheck(Brush* brush, const Position& pos);
-	void drawRect(int x, int y, int w, int h, const wxColor& color, int width = 1);
-	void drawFilledRect(int x, int y, int w, int h, const wxColor& color);
+	void glColorCheck(Brush* brush, const Position &pos);
+	void drawRect(int x, int y, int w, int h, const wxColor &color, int width = 1);
+	void drawFilledRect(int x, int y, int w, int h, const wxColor &color);
 
 private:
-	void getDrawPosition(const Position& position, int &x, int &y);
+	void getDrawPosition(const Position &position, int &x, int &y);
 };
 
 #endif
-

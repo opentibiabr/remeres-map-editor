@@ -20,10 +20,8 @@
 #include "numbertextctrl.h"
 #include "position.h"
 
-PositionCtrl::PositionCtrl(wxWindow* parent, const wxString& label, int x, int y, int z,
-	int maxx /*= rme::MapMaxWidth*/, int maxy /*= rme::MapMaxHeight*/, int maxz /*= rme::MapMaxLayer*/) :
-wxStaticBoxSizer(wxHORIZONTAL, parent, label)
-{
+PositionCtrl::PositionCtrl(wxWindow* parent, const wxString &label, int x, int y, int z, int maxx /*= rme::MapMaxWidth*/, int maxy /*= rme::MapMaxHeight*/, int maxz /*= rme::MapMaxLayer*/) :
+	wxStaticBoxSizer(wxHORIZONTAL, parent, label) {
 	x_field = newd NumberTextCtrl(parent, wxID_ANY, x, 0, maxx, wxTE_PROCESS_ENTER, "X", wxDefaultPosition, wxSize(60, 20));
 	x_field->Bind(wxEVT_TEXT_PASTE, &PositionCtrl::OnClipboardText, this);
 	Add(x_field, 2, wxEXPAND | wxLEFT | wxBOTTOM, 5);
@@ -37,13 +35,11 @@ wxStaticBoxSizer(wxHORIZONTAL, parent, label)
 	Add(z_field, 1, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
 }
 
-PositionCtrl::~PositionCtrl()
-{
+PositionCtrl::~PositionCtrl() {
 	////
 }
 
-Position PositionCtrl::GetPosition() const
-{
+Position PositionCtrl::GetPosition() const {
 	Position pos;
 	pos.x = x_field->GetIntValue();
 	pos.y = y_field->GetIntValue();
@@ -51,22 +47,19 @@ Position PositionCtrl::GetPosition() const
 	return pos;
 }
 
-void PositionCtrl::SetPosition(Position pos)
-{
+void PositionCtrl::SetPosition(Position pos) {
 	x_field->SetIntValue(pos.x);
 	y_field->SetIntValue(pos.y);
 	z_field->SetIntValue(pos.z);
 }
 
-bool PositionCtrl::Enable(bool enable)
-{
+bool PositionCtrl::Enable(bool enable) {
 	return (x_field->Enable(enable) && y_field->Enable(enable) && z_field->Enable(enable));
 }
 
-void PositionCtrl::OnClipboardText(wxClipboardTextEvent& evt)
-{
+void PositionCtrl::OnClipboardText(wxClipboardTextEvent &evt) {
 	Position position;
-	if(posFromClipboard(position.x, position.y, position.z)) {
+	if (posFromClipboard(position.x, position.y, position.z)) {
 		x_field->SetIntValue(position.x);
 		y_field->SetIntValue(position.y);
 		z_field->SetIntValue(position.z);

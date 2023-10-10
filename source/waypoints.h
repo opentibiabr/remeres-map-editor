@@ -20,8 +20,7 @@
 
 #include "position.h"
 
-class Waypoint
-{
+class Waypoint {
 public:
 	std::string name;
 	Position pos;
@@ -29,26 +28,34 @@ public:
 
 typedef std::map<std::string, Waypoint*> WaypointMap;
 
-class Waypoints
-{
+class Waypoints {
 public:
-	Waypoints(Map& map) : map(map) {}
+	Waypoints(Map &map) :
+		map(map) { }
 	virtual ~Waypoints();
 
 	void addWaypoint(Waypoint* wp);
 	Waypoint* getWaypoint(std::string name);
-	Waypoint* getWaypoint(const Position& position);
+	Waypoint* getWaypoint(const Position &position);
 	void removeWaypoint(std::string name);
 
 	WaypointMap waypoints;
 
-	WaypointMap::iterator begin() { return waypoints.begin(); }
-	WaypointMap::const_iterator begin() const { return waypoints.begin(); }
-	WaypointMap::iterator end() { return waypoints.end(); }
-	WaypointMap::const_iterator end() const { return waypoints.end(); }
+	WaypointMap::iterator begin() {
+		return waypoints.begin();
+	}
+	WaypointMap::const_iterator begin() const {
+		return waypoints.begin();
+	}
+	WaypointMap::iterator end() {
+		return waypoints.end();
+	}
+	WaypointMap::const_iterator end() const {
+		return waypoints.end();
+	}
 
 private:
-	Map& map;
+	Map &map;
 };
 
 #endif
