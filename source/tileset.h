@@ -30,6 +30,7 @@ enum TilesetCategoryType {
 	TILESET_RAW,
 	TILESET_HOUSE,
 	TILESET_WAYPOINT,
+	TILESET_ZONES,
 };
 
 class TilesetCategory {

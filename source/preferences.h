@@ -51,6 +51,7 @@ protected:
 	wxSpinCtrl* worker_threads_spin;
 	wxSpinCtrl* replace_size_spin;
 	wxRadioBox* position_format;
+	wxRadioBox* area_format;
 
 	// Editor
 	wxCheckBox* group_actions_chkbox;

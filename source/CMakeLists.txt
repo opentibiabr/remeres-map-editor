@@ -6,7 +6,7 @@ project(remeres)
 
 find_package(asio CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
-find_package(GLUT REQUIRED)
+find_package(glfw3 CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(Threads REQUIRED)
@@ -171,6 +171,7 @@ target_sources(${PROJECT_NAME}
 	palette_house.cpp
 	palette_npc.cpp
 	palette_waypoints.cpp
+	palette_zones.cpp
 	palette_window.cpp
 	pngfiles.cpp
 	preferences.cpp
@@ -199,20 +200,21 @@ target_sources(${PROJECT_NAME}
 	waypoint_brush.cpp
 	waypoints.cpp
 	welcome_dialog.cpp
+	zone_brush.cpp
+	zones.cpp
 )
 
 target_include_directories(${PROJECT_NAME}
 	PRIVATE
 	${CMAKE_SOURCE_DIR}/source
 	${OPENGL_INCLUDE_DIR}
-	${GLUT_INCLUDE_DIRS}
 	${ZLIB_INCLUDE_DIR}
 )
 
 target_link_libraries(${PROJECT_NAME}
 	PRIVATE
 	${OPENGL_LIBRARIES}
-	${GLUT_LIBRARIES}
+	glfw
 	${ZLIB_LIBRARIES}
 	fmt::fmt
 	asio::asio

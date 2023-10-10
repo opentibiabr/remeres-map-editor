@@ -54,6 +54,7 @@ class HouseExitBrush;
 class WaypointBrush;
 class FlagBrush;
 class EraserBrush;
+class ZoneBrush;
 
 //=============================================================================
 // Brushes, holds all brushes
@@ -188,6 +189,9 @@ public:
 	virtual bool isWaypoint() const {
 		return false;
 	}
+	virtual bool isZone() const {
+		return false;
+	}
 	virtual bool isFlag() const {
 		return false;
 	}
@@ -250,6 +254,9 @@ public:
 		return nullptr;
 	}
 	virtual EraserBrush* asEraser() {
+		return nullptr;
+	}
+	virtual ZoneBrush* asZone() {
 		return nullptr;
 	}
 

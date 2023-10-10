@@ -37,6 +37,7 @@ public:
 
 	virtual bool canDraw(BaseMap* map, const Position &position) const;
 	virtual void draw(BaseMap* map, Tile* tile, void* parameter);
+	void drawMonster(BaseMap* map, Tile* tile, void* parameter);
 	void draw_creature(BaseMap* map, Tile* tile);
 	virtual void undraw(BaseMap* map, Tile* tile);
 
