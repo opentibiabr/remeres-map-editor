@@ -53,6 +53,7 @@ struct SpriteLight {
 class Sprite {
 public:
 	Sprite() { }
+	virtual ~Sprite() { }
 
 	virtual void DrawTo(wxDC* dc, SpriteSize sz, int start_x, int start_y, int width = -1, int height = -1) = 0;
 	virtual void unloadDC() = 0;

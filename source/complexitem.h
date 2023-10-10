@@ -52,12 +52,12 @@ public:
 	size_t getVolume() const noexcept {
 		return getItemType().volume;
 	}
-	double getWeight() noexcept {
+	double getWeight() noexcept override {
 		return getItemType().weight;
 	}
 
-	virtual bool unserializeItemNode_OTBM(const IOMap &maphandle, BinaryNode* node);
-	virtual bool serializeItemNode_OTBM(const IOMap &maphandle, NodeFileWriteHandle &f) const;
+	virtual bool unserializeItemNode_OTBM(const IOMap &maphandle, BinaryNode* node) override;
+	virtual bool serializeItemNode_OTBM(const IOMap &maphandle, NodeFileWriteHandle &f) const override;
 	// virtual bool unserializeItemNode_OTMM(const IOMap& maphandle, BinaryNode* node);
 	// virtual bool serializeItemNode_OTMM(const IOMap& maphandle, NodeFileWriteHandle& f) const;
 
@@ -74,8 +74,8 @@ public:
 		return this;
 	}
 
-	virtual void serializeItemAttributes_OTBM(const IOMap &maphandle, NodeFileWriteHandle &f) const;
-	virtual bool readItemAttribute_OTBM(const IOMap &maphandle, OTBM_ItemAttribute attr, BinaryNode* node);
+	virtual void serializeItemAttributes_OTBM(const IOMap &maphandle, NodeFileWriteHandle &f) const override;
+	virtual bool readItemAttribute_OTBM(const IOMap &maphandle, OTBM_ItemAttribute attr, BinaryNode* node) override;
 	// virtual void serializeItemAttributes_OTMM(const IOMap& maphandle, NodeFileWriteHandle& f) const;
 	// virtual bool readItemAttribute_OTMM(const IOMap& maphandle, OTMM_ItemAttribute attr, BinaryNode* node);
 
@@ -118,8 +118,8 @@ public:
 		doorId = id;
 	}
 
-	virtual void serializeItemAttributes_OTBM(const IOMap &maphandle, NodeFileWriteHandle &f) const;
-	virtual bool readItemAttribute_OTBM(const IOMap &maphandle, OTBM_ItemAttribute attr, BinaryNode* node);
+	virtual void serializeItemAttributes_OTBM(const IOMap &maphandle, NodeFileWriteHandle &f) const override;
+	virtual bool readItemAttribute_OTBM(const IOMap &maphandle, OTBM_ItemAttribute attr, BinaryNode* node) override;
 	// virtual void serializeItemAttributes_OTMM(const IOMap& maphandle, NodeFileWriteHandle& f) const;
 	// virtual bool readItemAttribute_OTMM(const IOMap& maphandle, OTMM_ItemAttribute attr, BinaryNode* node);
 
@@ -143,8 +143,8 @@ public:
 		depotId = id;
 	}
 
-	virtual void serializeItemAttributes_OTBM(const IOMap &maphandle, NodeFileWriteHandle &f) const;
-	virtual bool readItemAttribute_OTBM(const IOMap &maphandle, OTBM_ItemAttribute attr, BinaryNode* node);
+	virtual void serializeItemAttributes_OTBM(const IOMap &maphandle, NodeFileWriteHandle &f) const override;
+	virtual bool readItemAttribute_OTBM(const IOMap &maphandle, OTBM_ItemAttribute attr, BinaryNode* node) override;
 	// virtual void serializeItemAttributes_OTMM(const IOMap& maphandle, NodeFileWriteHandle& f) const;
 	// virtual bool readItemAttribute_OTMM(const IOMap& maphandle, OTMM_ItemAttribute attr, BinaryNode* node);
 

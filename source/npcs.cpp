@@ -254,7 +254,7 @@ bool NpcDatabase::importXMLFromOT(const FileName &filename, wxString &error, wxA
 	}
 
 	pugi::xml_node node;
-	if (node = doc.child("npc")) {
+	if ((node = doc.child("npc"))) {
 		NpcType* npcType = NpcType::loadFromOTXML(filename, doc, warnings);
 		if (npcType) {
 			NpcType* current = (*this)[npcType->name];
