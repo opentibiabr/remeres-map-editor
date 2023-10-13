@@ -22,10 +22,11 @@
 #include "common.h"
 
 #include "client_version.h"
+#include <wx/artprov.h>
 
 enum SpriteSize {
 	SPRITE_SIZE_16x16,
-	//SPRITE_SIZE_24x24,
+	// SPRITE_SIZE_24x24,
 	SPRITE_SIZE_32x32,
 	SPRITE_SIZE_COUNT
 };
@@ -44,16 +45,20 @@ class GraphicManager;
 class FileReadHandle;
 class Animator;
 
+struct SpriteLight {
+	uint8_t intensity = 0;
+	uint8_t color = 0;
+};
+
 class Sprite {
 public:
-	Sprite() {}
-	virtual ~Sprite() {}
+	Sprite() { }
 
 	virtual void DrawTo(wxDC* dc, SpriteSize sz, int start_x, int start_y, int width = -1, int height = -1) = 0;
 	virtual void unloadDC() = 0;
+
 private:
-	Sprite(const Sprite&);
-	Sprite& operator=(const Sprite&);
+	Sprite(const Sprite &);
 };
 
 class EditorSprite : public Sprite {
@@ -63,28 +68,43 @@ public:
 
 	virtual void DrawTo(wxDC* dc, SpriteSize sz, int start_x, int start_y, int width = -1, int height = -1);
 	virtual void unloadDC();
+
 protected:
 	wxBitmap* bm[SPRITE_SIZE_COUNT];
 };
 
-
-class GameSprite : public Sprite{
+class GameSprite : public Sprite {
 public:
 	GameSprite();
-	~GameSprite();
+	virtual ~GameSprite();
 
 	int getIndex(int width, int height, int layer, int pattern_x, int pattern_y, int pattern_z, int frame) const;
 	GLuint getHardwareID(int _x, int _y, int _layer, int _subtype, int _pattern_x, int _pattern_y, int _pattern_z, int _frame);
-	GLuint getHardwareID(int _x, int _y, int _dir, int _addon, int _pattern_z, const Outfit& _outfit, int _frame); // CreatureDatabase
+	GLuint getHardwareID(int _x, int _y, int _dir, int _addon, int _pattern_z, const Outfit &_outfit, int _frame); // CreatureDatabase
 	virtual void DrawTo(wxDC* dc, SpriteSize sz, int start_x, int start_y, int width = -1, int height = -1);
 
 	virtual void unloadDC();
 
 	void clean(int time);
 
-	int getDrawHeight() const;
-	std::pair<int, int> getDrawOffset() const;
-	uint8_t getMiniMapColor() const;
+	uint16_t getDrawHeight() const noexcept {
+		return draw_height;
+	}
+	const wxPoint &getDrawOffset() const noexcept {
+		return draw_offset;
+	}
+	uint8_t getMiniMapColor() const noexcept {
+		return minimap_color;
+	}
+
+	bool hasLight() const noexcept {
+		return has_light;
+	}
+	const SpriteLight &getLight() const noexcept {
+		return light;
+	}
+
+	static GameSprite* createFromBitmap(const wxArtID &bitmapId);
 
 protected:
 	class Image;
@@ -92,7 +112,7 @@ protected:
 	class TemplateImage;
 
 	wxMemoryDC* getDC(SpriteSize size);
-	TemplateImage* getTemplateImage(int sprite_index, const Outfit& outfit);
+	TemplateImage* getTemplateImage(int sprite_index, const Outfit &outfit);
 
 	class Image {
 	public:
@@ -108,9 +128,10 @@ protected:
 		virtual GLuint getHardwareID() = 0;
 		virtual uint8_t* getRGBData() = 0;
 		virtual uint8_t* getRGBAData() = 0;
+
 	protected:
-		virtual void createGLTexture(GLuint whatid);
-		virtual void unloadGLTexture(GLuint whatid);
+		virtual void createGLTexture(GLuint textureId);
+		virtual void unloadGLTexture(GLuint textureId);
 	};
 
 	class NormalImage : public Image {
@@ -130,14 +151,27 @@ protected:
 		virtual GLuint getHardwareID();
 		virtual uint8_t* getRGBData();
 		virtual uint8_t* getRGBAData();
+
 	protected:
-		virtual void createGLTexture(GLuint ignored = 0);
-		virtual void unloadGLTexture(GLuint ignored = 0);
+		virtual void createGLTexture(GLuint textureId = 0);
+		virtual void unloadGLTexture(GLuint textureId = 0);
+	};
+
+	class EditorImage : public NormalImage {
+	public:
+		EditorImage(const wxArtID &bitmapId);
+
+	protected:
+		void createGLTexture(GLuint textureId) override;
+		void unloadGLTexture(GLuint textureId) override;
+
+	private:
+		wxArtID bitmapId;
 	};
 
 	class TemplateImage : public Image {
 	public:
-		TemplateImage(GameSprite* parent, int v, const Outfit& outfit);
+		TemplateImage(GameSprite* parent, int v, const Outfit &outfit);
 		virtual ~TemplateImage();
 
 		virtual GLuint getHardwareID();
@@ -151,6 +185,7 @@ protected:
 		uint8_t lookBody;
 		uint8_t lookLegs;
 		uint8_t lookFeet;
+
 	protected:
 		void colorizePixel(uint8_t color, uint8_t &r, uint8_t &b, uint8_t &g);
 
@@ -174,11 +209,14 @@ public:
 
 	Animator* animator;
 
+	uint16_t ground_speed;
 	uint16_t draw_height;
-	uint16_t drawoffset_x;
-	uint16_t drawoffset_y;
+	wxPoint draw_offset;
 
 	uint16_t minimap_color;
+
+	bool has_light = false;
+	SpriteLight light;
 
 	std::vector<NormalImage*> spriteList;
 	std::list<TemplateImage*> instanced_templates; // Templates that use this sprite
@@ -186,33 +224,30 @@ public:
 	friend class GraphicManager;
 };
 
-struct FrameDuration
-{
+struct FrameDuration {
 	int min;
 	int max;
 
-	FrameDuration(int min, int max) : min(min), max(max)
-	{
+	FrameDuration(int min, int max) :
+		min(min), max(max) {
 		ASSERT(min <= max);
 	}
 
-	int getDuration() const
-	{
-		if(min == max)
+	int getDuration() const {
+		if (min == max) {
 			return min;
+		}
 		return uniform_random(min, max);
 	};
 
-	void setValues(int min, int max)
-	{
+	void setValues(int min, int max) {
 		ASSERT(min <= max);
 		this->min = min;
 		this->max = max;
 	}
 };
 
-class Animator
-{
+class Animator {
 public:
 	Animator(int frames, int start_frame, int loop_count, bool async);
 	~Animator();
@@ -246,8 +281,7 @@ private:
 	bool is_complete;
 };
 
-class GraphicManager
-{
+class GraphicManager {
 public:
 	GraphicManager();
 	~GraphicManager();
@@ -257,11 +291,21 @@ public:
 
 	Sprite* getSprite(int id);
 	GameSprite* getCreatureSprite(int id);
+	GameSprite* getEditorSprite(int id);
 
-	long getElapsedTime() const { return (animation_timer->TimeInMicro() / 1000).ToLong(); }
+	long getElapsedTime() const {
+		return (animation_timer->TimeInMicro() / 1000).ToLong();
+	}
 
-	uint16_t getItemSpriteMaxID() const;
-	uint16_t getCreatureSpriteMaxID() const;
+	uint16_t getItemSpriteMinID() const noexcept {
+		return 100;
+	}
+	uint16_t getItemSpriteMaxID() const noexcept {
+		return item_count;
+	}
+	uint16_t getCreatureSpriteMaxID() const noexcept {
+		return creature_count;
+	}
 
 	// Get an unused texture id (this is acquired by simply increasing a value starting from 0x10000000)
 	GLuint getFreeTextureID();
@@ -270,28 +314,32 @@ public:
 	bool loadEditorSprites();
 	// Metadata should be loaded first
 	// This fills the item / creature adress space
-	bool loadOTFI(const FileName& filename, wxString& error, wxArrayString& warnings);
-	bool loadSpriteMetadata(const FileName& datafile, wxString& error, wxArrayString& warnings);
-	bool loadSpriteMetadataFlags(FileReadHandle& file, GameSprite* sType, wxString& error, wxArrayString& warnings);
-	bool loadSpriteData(const FileName& datafile, wxString& error, wxArrayString& warnings);
+	bool loadOTFI(const FileName &filename, wxString &error, wxArrayString &warnings);
+	bool loadSpriteMetadata(const FileName &datafile, wxString &error, wxArrayString &warnings);
+	bool loadSpriteMetadataFlags(FileReadHandle &file, GameSprite* sType, wxString &error, wxArrayString &warnings);
+	bool loadSpriteData(const FileName &datafile, wxString &error, wxArrayString &warnings);
 
 	// Cleans old & unused textures according to config settings
 	void garbageCollection();
 	void addSpriteToCleanup(GameSprite* spr);
 
-	wxFileName getMetadataFileName() const { return metadata_file; }
-	wxFileName getSpritesFileName() const { return sprites_file; }
+	wxFileName getMetadataFileName() const {
+		return metadata_file;
+	}
+	wxFileName getSpritesFileName() const {
+		return sprites_file;
+	}
 
 	bool hasTransparency() const;
 	bool isUnloaded() const;
 
-	ClientVersion *client_version;
+	ClientVersion* client_version;
 
 private:
 	bool unloaded;
 	// This is used if memcaching is NOT on
 	std::string spritefile;
-	bool loadSpriteDump(uint8_t*& target, uint16_t& size, int sprite_id);
+	bool loadSpriteDump(uint8_t*&target, uint16_t &size, int sprite_id);
 
 	typedef std::map<int, Sprite*> SpriteMap;
 	SpriteMap sprite_space;
@@ -317,92 +365,8 @@ private:
 
 	friend class GameSprite::Image;
 	friend class GameSprite::NormalImage;
+	friend class GameSprite::EditorImage;
 	friend class GameSprite::TemplateImage;
-};
-
-struct RGBQuad {
-	uint8_t red;
-	uint8_t green;
-	uint8_t blue;
-	uint8_t reserved;
-
-	RGBQuad(uint8_t r, uint8_t g, uint8_t b) : red(r), green (g), blue(b), reserved(0) {}
-
-	operator uint32_t() {
-		return (blue << 0) | (green << 8) | (red << 16);
-	}
-
-	operator bool() {
-		//std::cout << "RGBQuad operator bool " << int(red) << " || " << int(blue) << " || " << int(green) << std::endl;
-		return blue != 0 || red != 0 || green != 0;
-	}
-};
-
-static RGBQuad minimap_color[256] = {
-	RGBQuad(0, 0, 0),       RGBQuad(0, 0, 51),      RGBQuad(0, 0, 102),     RGBQuad(0, 0, 153),     // 0
-	RGBQuad(0, 0, 204),     RGBQuad(0, 0, 255),     RGBQuad(0, 51, 0),      RGBQuad(0, 51, 51),     // 4
-	RGBQuad(0, 51, 102),    RGBQuad(0, 51, 153),    RGBQuad(0, 51, 204),    RGBQuad(0, 51, 255),    // 8
-	RGBQuad(0, 102, 0),     RGBQuad(0, 102, 51),    RGBQuad(0, 102, 102),   RGBQuad(0, 102, 153),   // 12
-	RGBQuad(0, 102, 204),   RGBQuad(0, 102, 255),   RGBQuad(0, 153, 0),     RGBQuad(0, 153, 51),    // 16
-	RGBQuad(0, 153, 102),   RGBQuad(0, 153, 153),   RGBQuad(0, 153, 204),   RGBQuad(0, 153, 255),   // 20
-	RGBQuad(0, 204, 0),     RGBQuad(0, 204, 51),    RGBQuad(0, 204, 102),   RGBQuad(0, 204, 153),   // 24
-	RGBQuad(0, 204, 204),   RGBQuad(0, 204, 255),   RGBQuad(0, 255, 0),     RGBQuad(0, 255, 51),    // 28
-	RGBQuad(0, 255, 102),   RGBQuad(0, 255, 153),   RGBQuad(0, 255, 204),   RGBQuad(0, 255, 255),   // 32
-	RGBQuad(51, 0, 0),      RGBQuad(51, 0, 51),     RGBQuad(51, 0, 102),    RGBQuad(51, 0, 153),    // 36
-	RGBQuad(51, 0, 204),    RGBQuad(51, 0, 255),    RGBQuad(51, 51, 0),     RGBQuad(51, 51, 51),    // 40
-	RGBQuad(51, 51, 102),   RGBQuad(51, 51, 153),   RGBQuad(51, 51, 204),   RGBQuad(51, 51, 255),   // 44
-	RGBQuad(51, 102, 0),    RGBQuad(51, 102, 51),   RGBQuad(51, 102, 102),  RGBQuad(51, 102, 153),  // 48
-	RGBQuad(51, 102, 204),  RGBQuad(51, 102, 255),  RGBQuad(51, 153, 0),    RGBQuad(51, 153, 51),   // 52
-	RGBQuad(51, 153, 102),  RGBQuad(51, 153, 153),  RGBQuad(51, 153, 204),  RGBQuad(51, 153, 255),  // 56
-	RGBQuad(51, 204, 0),    RGBQuad(51, 204, 51),   RGBQuad(51, 204, 102),  RGBQuad(51, 204, 153),  // 60
-	RGBQuad(51, 204, 204),  RGBQuad(51, 204, 255),  RGBQuad(51, 255, 0),    RGBQuad(51, 255, 51),   // 64
-	RGBQuad(51, 255, 102),  RGBQuad(51, 255, 153),  RGBQuad(51, 255, 204),  RGBQuad(51, 255, 255),  // 68
-	RGBQuad(102, 0, 0),     RGBQuad(102, 0, 51),    RGBQuad(102, 0, 102),   RGBQuad(102, 0, 153),   // 72
-	RGBQuad(102, 0, 204),   RGBQuad(102, 0, 255),   RGBQuad(102, 51, 0),    RGBQuad(102, 51, 51),   // 76
-	RGBQuad(102, 51, 102),  RGBQuad(102, 51, 153),  RGBQuad(102, 51, 204),  RGBQuad(102, 51, 255),  // 80
-	RGBQuad(102, 102, 0),   RGBQuad(102, 102, 51),  RGBQuad(102, 102, 102), RGBQuad(102, 102, 153), // 84
-	RGBQuad(102, 102, 204), RGBQuad(102, 102, 255), RGBQuad(102, 153, 0),   RGBQuad(102, 153, 51),  // 88
-	RGBQuad(102, 153, 102), RGBQuad(102, 153, 153), RGBQuad(102, 153, 204), RGBQuad(102, 153, 255), // 92
-	RGBQuad(102, 204, 0),   RGBQuad(102, 204, 51),  RGBQuad(102, 204, 102), RGBQuad(102, 204, 153), // 96
-	RGBQuad(102, 204, 204), RGBQuad(102, 204, 255), RGBQuad(102, 255, 0),   RGBQuad(102, 255, 51),  // 100
-	RGBQuad(102, 255, 102), RGBQuad(102, 255, 153), RGBQuad(102, 255, 204), RGBQuad(102, 255, 255), // 104
-	RGBQuad(153, 0, 0),     RGBQuad(153, 0, 51),    RGBQuad(153, 0, 102),   RGBQuad(153, 0, 153),   // 108
-	RGBQuad(153, 0, 204),   RGBQuad(153, 0, 255),   RGBQuad(153, 51, 0),    RGBQuad(153, 51, 51),   // 112
-	RGBQuad(153, 51, 102),  RGBQuad(153, 51, 153),  RGBQuad(153, 51, 204),  RGBQuad(153, 51, 255),  // 116
-	RGBQuad(153, 102, 0),   RGBQuad(153, 102, 51),  RGBQuad(153, 102, 102), RGBQuad(153, 102, 153), // 120
-	RGBQuad(153, 102, 204), RGBQuad(153, 102, 255), RGBQuad(153, 153, 0),   RGBQuad(153, 153, 51),  // 124
-	RGBQuad(153, 153, 102), RGBQuad(153, 153, 153), RGBQuad(153, 153, 204), RGBQuad(153, 153, 255), // 128
-	RGBQuad(153, 204, 0),   RGBQuad(153, 204, 51),  RGBQuad(153, 204, 102), RGBQuad(153, 204, 153), // 132
-	RGBQuad(153, 204, 204), RGBQuad(153, 204, 255), RGBQuad(153, 255, 0),   RGBQuad(153, 255, 51),  // 136
-	RGBQuad(153, 255, 102), RGBQuad(153, 255, 153), RGBQuad(153, 255, 204), RGBQuad(153, 255, 255), // 140
-	RGBQuad(204, 0, 0),     RGBQuad(204, 0, 51),    RGBQuad(204, 0, 102),   RGBQuad(204, 0, 153),   // 144
-	RGBQuad(204, 0, 204),   RGBQuad(204, 0, 255),   RGBQuad(204, 51, 0),    RGBQuad(204, 51, 51),   // 148
-	RGBQuad(204, 51, 102),  RGBQuad(204, 51, 153),  RGBQuad(204, 51, 204),  RGBQuad(204, 51, 255),  // 152
-	RGBQuad(204, 102, 0),   RGBQuad(204, 102, 51),  RGBQuad(204, 102, 102), RGBQuad(204, 102, 153), // 156
-	RGBQuad(204, 102, 204), RGBQuad(204, 102, 255), RGBQuad(204, 153, 0),   RGBQuad(204, 153, 51),  // 160
-	RGBQuad(204, 153, 102), RGBQuad(204, 153, 153), RGBQuad(204, 153, 204), RGBQuad(204, 153, 255), // 164
-	RGBQuad(204, 204, 0),   RGBQuad(204, 204, 51),  RGBQuad(204, 204, 102), RGBQuad(204, 204, 153), // 168
-	RGBQuad(204, 204, 204), RGBQuad(204, 204, 255), RGBQuad(204, 255, 0),   RGBQuad(204, 255, 51),  // 172
-	RGBQuad(204, 255, 102), RGBQuad(204, 255, 153), RGBQuad(204, 255, 204), RGBQuad(204, 255, 255), // 176
-	RGBQuad(255, 0, 0),     RGBQuad(255, 0, 51),    RGBQuad(255, 0, 102),   RGBQuad(255, 0, 153),   // 180
-	RGBQuad(255, 0, 204),   RGBQuad(255, 0, 255),   RGBQuad(255, 51, 0),    RGBQuad(255, 51, 51),   // 184
-	RGBQuad(255, 51, 102),  RGBQuad(255, 51, 153),  RGBQuad(255, 51, 204),  RGBQuad(255, 51, 255),  // 188
-	RGBQuad(255, 102, 0),   RGBQuad(255, 102, 51),  RGBQuad(255, 102, 102), RGBQuad(255, 102, 153), // 192
-	RGBQuad(255, 102, 204), RGBQuad(255, 102, 255), RGBQuad(255, 153, 0),   RGBQuad(255, 153, 51),  // 196
-	RGBQuad(255, 153, 102), RGBQuad(255, 153, 153), RGBQuad(255, 153, 204), RGBQuad(255, 153, 255), // 200
-	RGBQuad(255, 204, 0),   RGBQuad(255, 204, 51),  RGBQuad(255, 204, 102), RGBQuad(255, 204, 153), // 204
-	RGBQuad(255, 204, 204), RGBQuad(255, 204, 255), RGBQuad(255, 255, 0),   RGBQuad(255, 255, 51),  // 208
-	RGBQuad(255, 255, 102), RGBQuad(255, 255, 153), RGBQuad(255, 255, 204), RGBQuad(255, 255, 255), // 212
-	RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       // 216
-	RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       // 220
-	RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       // 224
-	RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       // 228
-	RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       // 232
-	RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       // 236
-	RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       // 240
-	RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       // 244
-	RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       // 248
-	RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0),       RGBQuad(0, 0, 0)        // 252
 };
 
 #endif

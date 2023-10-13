@@ -20,18 +20,19 @@
 #include "tile.h"
 #include "spawn_monster.h"
 
-SpawnsMonster::SpawnsMonster()
-{
-	////
+SpawnMonster::SpawnMonster(int size) :
+	size(0),
+	selected(false) {
+	setSize(size);
 }
 
-SpawnsMonster::~SpawnsMonster()
-{
-	////
+SpawnMonster* SpawnMonster::deepCopy() const {
+	SpawnMonster* copy = new SpawnMonster(size);
+	copy->selected = selected;
+	return copy;
 }
 
-void SpawnsMonster::addSpawnMonster(Tile* tile)
-{
+void SpawnsMonster::addSpawnMonster(Tile* tile) {
 	ASSERT(tile->spawnMonster);
 
 	auto it = spawnsMonster.insert(tile->getPosition());
@@ -54,7 +55,7 @@ void SpawnsMonster::removeSpawnMonster(Tile* tile) {
 #endif
 }
 
-std::ostream& operator<<(std::ostream& os, const SpawnMonster& spawnMonster) {
+std::ostream &operator<<(std::ostream &os, const SpawnMonster &spawnMonster) {
 	os << &spawnMonster << ":: -> " << spawnMonster.getSize() << std::endl;
 	return os;
 }

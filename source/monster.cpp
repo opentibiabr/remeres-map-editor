@@ -19,44 +19,26 @@
 
 #include "monster.h"
 
-Monster::Monster(MonsterType* ctype) : direction(NORTH), spawntime(0), saved(false), selected(false)
-{
-	if(ctype)
-		type_name = ctype->name;
-}
-
-Monster::Monster(std::string ctype_name) : type_name(ctype_name), direction(NORTH), spawntime(0), saved(false), selected(false)
-{
-	////
-}
-
-Monster::~Monster()
-{
-	////
-}
-
-std::string Monster::DirID2Name(uint16_t id) {
-	switch (id) {
-	case NORTH: return "North";
-	case EAST: return "East";
-	case SOUTH: return "South";
-	case WEST: return "West";
-	default: return "Unknown";
+Monster::Monster(MonsterType* type) :
+	direction(NORTH),
+	spawntime(0),
+	saved(false),
+	selected(false) {
+	if (type) {
+		type_name = type->name;
 	}
 }
 
-uint16_t Monster::DirName2ID(std::string dir)
-{
-	to_lower_str(dir);
-	if(dir == "north") return NORTH;
-	if(dir == "east") return EAST;
-	if(dir == "south") return SOUTH;
-	if(dir == "west") return WEST;
-	return SOUTH;
+Monster::Monster(const std::string &type_name) :
+	type_name(type_name),
+	direction(NORTH),
+	spawntime(0),
+	saved(false),
+	selected(false) {
+	////
 }
 
-Monster* Monster::deepCopy() const
-{
+Monster* Monster::deepCopy() const {
 	Monster* copy = newd Monster(type_name);
 	copy->spawntime = spawntime;
 	copy->direction = direction;
@@ -65,11 +47,59 @@ Monster* Monster::deepCopy() const
 	return copy;
 }
 
-const Outfit& Monster::getLookType() const
-{
-	MonsterType* type = g_monsters[type_name];
-	if(type)
+const Outfit &Monster::getLookType() const {
+	const MonsterType* type = g_monsters[type_name];
+	if (type) {
 		return type->outfit;
+	}
 	static const Outfit otfi; // Empty outfit
 	return otfi;
+}
+
+std::string Monster::getName() const {
+	const MonsterType* type = g_monsters[type_name];
+	if (type) {
+		return type->name;
+	}
+	return "";
+}
+
+MonsterBrush* Monster::getBrush() const {
+	const MonsterType* type = g_monsters[type_name];
+	if (type) {
+		return type->brush;
+	}
+	return nullptr;
+}
+
+std::string Monster::DirID2Name(uint16_t id) {
+	switch (id) {
+		case NORTH:
+			return "North";
+		case EAST:
+			return "East";
+		case SOUTH:
+			return "South";
+		case WEST:
+			return "West";
+		default:
+			return "Unknown";
+	}
+}
+
+uint16_t Monster::DirName2ID(std::string dir) {
+	to_lower_str(dir);
+	if (dir == "north") {
+		return NORTH;
+	}
+	if (dir == "east") {
+		return EAST;
+	}
+	if (dir == "south") {
+		return SOUTH;
+	}
+	if (dir == "west") {
+		return WEST;
+	}
+	return SOUTH;
 }

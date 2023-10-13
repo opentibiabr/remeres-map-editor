@@ -29,35 +29,31 @@
 
 MonsterBrush::MonsterBrush(MonsterType* type) :
 	Brush(),
-	monster_type(type)
-{
+	monster_type(type) {
 	ASSERT(type->brush == nullptr);
 	type->brush = this;
 }
 
-MonsterBrush::~MonsterBrush()
-{
+MonsterBrush::~MonsterBrush() {
 	////
 }
 
-int MonsterBrush::getLookID() const
-{
+int MonsterBrush::getLookID() const {
 	return 0;
 }
 
-std::string MonsterBrush::getName() const
-{
-	if(monster_type)
+std::string MonsterBrush::getName() const {
+	if (monster_type) {
 		return monster_type->name;
+	}
 	return "Monster Brush";
 }
 
-bool MonsterBrush::canDraw(BaseMap* map, const Position& position) const
-{
+bool MonsterBrush::canDraw(BaseMap* map, const Position &position) const {
 	Tile* tile = map->getTile(position);
-	if(monster_type && tile && !tile->isBlocking()) {
-		if(tile->getLocation()->getSpawnMonsterCount() != 0 || g_settings.getInteger(Config::AUTO_CREATE_SPAWN_MONSTER)) {
- 			if(tile->isPZ()) {
+	if (monster_type && tile && !tile->isBlocking()) {
+		if (tile->getLocation()->getSpawnMonsterCount() != 0 || g_settings.getInteger(Config::AUTO_CREATE_SPAWN_MONSTER)) {
+			if (tile->isPZ()) {
 				return false;
 			} else {
 				return true;
@@ -67,20 +63,18 @@ bool MonsterBrush::canDraw(BaseMap* map, const Position& position) const
 	return false;
 }
 
-void MonsterBrush::undraw(BaseMap* map, Tile* tile)
-{
+void MonsterBrush::undraw(BaseMap* map, Tile* tile) {
 	delete tile->monster;
 	tile->monster = nullptr;
 }
 
-void MonsterBrush::draw(BaseMap* map, Tile* tile, void* parameter)
-{
+void MonsterBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 	ASSERT(tile);
 	ASSERT(parameter);
-	if(canDraw(map, tile->getPosition())) {
+	if (canDraw(map, tile->getPosition())) {
 		undraw(map, tile);
-		if(monster_type) {
-			if(tile->spawnMonster == nullptr && tile->getLocation()->getSpawnMonsterCount() == 0) {
+		if (monster_type) {
+			if (tile->spawnMonster == nullptr && tile->getLocation()->getSpawnMonsterCount() == 0) {
 				// manually place spawnMonster on location
 				tile->spawnMonster = newd SpawnMonster(1);
 			}

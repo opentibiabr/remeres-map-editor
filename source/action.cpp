@@ -23,274 +23,245 @@
 #include "editor.h"
 #include "gui.h"
 
-Change::Change() : type(CHANGE_NONE), data(nullptr)
-{
+Change::Change() :
+	type(CHANGE_NONE), data(nullptr) {
 	////
 }
 
-Change::Change(Tile* t) : type(CHANGE_TILE)
-{
-	ASSERT(t);
-	data = t;
+Change::Change(Tile* tile) :
+	type(CHANGE_TILE) {
+	ASSERT(tile);
+	data = tile;
 }
 
-Change* Change::Create(House* house, const Position& where)
-{
-	Change* c = newd Change();
-	c->type = CHANGE_MOVE_HOUSE_EXIT;
-	std::pair<uint32_t, Position>* p = newd std::pair<uint32_t, Position>;
-	p->first = house->id;
-	p->second = where;
-	c->data = p;
-	return c;
+Change* Change::Create(House* house, const Position &position) {
+	Change* change = new Change();
+	change->type = CHANGE_MOVE_HOUSE_EXIT;
+	change->data = new HouseData { house->id, position };
+	return change;
 }
 
-Change* Change::Create(Waypoint* wp, const Position& where)
-{
-	Change* c = newd Change();
-	c->type = CHANGE_MOVE_WAYPOINT;
-	std::pair<std::string, Position>* p = newd std::pair<std::string, Position>;
-	p->first = wp->name;
-	p->second = where;
-	c->data = p;
-	return c;
+Change* Change::Create(Waypoint* waypoint, const Position &position) {
+	Change* change = new Change();
+	change->type = CHANGE_MOVE_WAYPOINT;
+	change->data = new WaypointData { waypoint->name, position };
+	return change;
 }
 
-Change::~Change()
-{
+Change::~Change() {
 	clear();
 }
 
-void Change::clear()
-{
-	switch(type) {
+void Change::clear() {
+	switch (type) {
 		case CHANGE_TILE:
 			ASSERT(data);
 			delete reinterpret_cast<Tile*>(data);
 			break;
 		case CHANGE_MOVE_HOUSE_EXIT:
 			ASSERT(data);
-			delete reinterpret_cast<std::pair<uint32_t, Position>* >(data);
+			delete reinterpret_cast<HouseData*>(data);
 			break;
 		case CHANGE_MOVE_WAYPOINT:
 			ASSERT(data);
-			delete reinterpret_cast<std::pair<std::string, Position>* >(data);
+			delete reinterpret_cast<WaypointData*>(data);
 			break;
 		case CHANGE_NONE:
 			break;
 		default:
 #ifdef __DEBUG_MODE__
-			if(data)
+			if (data) {
 				printf("UNHANDLED CHANGE TYPE! Leak!");
+			}
 #endif
 			break;
 	}
+
 	type = CHANGE_NONE;
 	data = nullptr;
 }
 
-uint32_t Change::memsize() const
-{
+uint32_t Change::memsize() const {
 	uint32_t mem = sizeof(*this);
-	switch(type) {
-		case CHANGE_TILE:
-			ASSERT(data);
-			mem += reinterpret_cast<Tile*>(data)->memsize();
-			break;
-		default:
-			break;
+	if (type == CHANGE_TILE) {
+		mem += reinterpret_cast<Tile*>(data)->memsize();
 	}
 	return mem;
 }
 
-Action::Action(Editor& editor, ActionIdentifier ident) :
+Action::Action(Editor &editor, ActionIdentifier ident) :
 	commited(false),
 	editor(editor),
-	type(ident)
-{
+	type(ident) {
 }
 
-Action::~Action()
-{
-	ChangeList::const_reverse_iterator it = changes.rbegin();
-	while(it != changes.rend()) {
-		delete *it;
-		++it;
+Action::~Action() {
+	for (Change* change : changes) {
+		delete change;
 	}
+	changes.clear();
 }
 
-size_t Action::approx_memsize() const
-{
+size_t Action::approx_memsize() const {
 	uint32_t mem = sizeof(*this);
-	mem += changes.size() * (sizeof(Change) + sizeof(Tile) + sizeof(Item) + 6/* approx overhead*/);
+	mem += changes.size() * (sizeof(Change) + sizeof(Tile) + sizeof(Item) + 6 /* approx overhead*/);
 	return mem;
 }
 
-size_t Action::memsize() const
-{
+size_t Action::memsize() const {
 	uint32_t mem = sizeof(*this);
 	mem += sizeof(Change*) * 3 * changes.size();
-	ChangeList::const_iterator it = changes.begin();
-	while(it != changes.end()) {
-		Change* c = *it;
-		switch(c->type) {
-			case CHANGE_TILE:
-			{
-				ASSERT(c->data);
-				mem += reinterpret_cast<Tile*>(c->data)->memsize();
-				break;
-			}
 
-			default:
-				break;
+	for (const Change* change : changes) {
+		if (change && change->getType() == CHANGE_TILE) {
+			mem += reinterpret_cast<Tile*>(change->getData())->memsize();
 		}
-		++it;
 	}
+
 	return mem;
 }
 
-void Action::commit(DirtyList* dirty_list)
-{
-	editor.selection.start(Selection::INTERNAL);
-	ChangeList::const_iterator it = changes.begin();
-	while(it != changes.end()) {
-		Change* c = *it;
-		switch(c->type) {
-			case CHANGE_TILE: {
-				void** data = &c->data;
-				Tile* newtile = reinterpret_cast<Tile*>(*data);
-				ASSERT(newtile);
-				Position pos = newtile->getPosition();
+void Action::commit(DirtyList* dirty_list) {
+	Map &map = editor.getMap();
+	Selection &selection = editor.getSelection();
+	selection.start(Selection::INTERNAL);
 
-				if(editor.IsLiveClient()) {
-					QTreeNode* nd = editor.map.getLeaf(pos.x, pos.y);
-					if(!nd || !nd->isVisible(pos.z > GROUND_LAYER)) {
-						// Delete all changes that affect tiles outside our view
-						c->clear();
-						++it;
+	for (Change* change : changes) {
+		switch (change->getType()) {
+			case CHANGE_TILE: {
+				void** data = &change->data;
+				Tile* new_tile = reinterpret_cast<Tile*>(*data);
+				ASSERT(new_tile);
+
+				const Position &pos = new_tile->getPosition();
+
+				if (editor.IsLiveClient()) {
+					QTreeNode* node = map.getLeaf(pos.x, pos.y);
+					if (!node || !node->isVisible(pos.z > rme::MapGroundLayer)) {
+						change->clear();
 						continue;
 					}
 				}
 
-				Tile* oldtile = editor.map.swapTile(pos, newtile);
-				TileLocation* location = newtile->getLocation();
+				Tile* old_tile = map.swapTile(pos, new_tile);
+				TileLocation* location = new_tile->getLocation();
 
 				// Update other nodes in the network
-				if(editor.IsLiveServer() && dirty_list)
+				if (editor.IsLiveServer() && dirty_list) {
 					dirty_list->AddPosition(pos.x, pos.y, pos.z);
+				}
 
+				new_tile->update();
 
-				newtile->update();
+				// std::cout << "\tSwitched tile at " << pos.x << ";" << pos.y << ";" << pos.z << " from " << (void*)oldtile << " to " << *data <<  std::endl;
+				if (new_tile->isSelected()) {
+					selection.addInternal(new_tile);
+				}
 
-				//std::cout << "\tSwitched tile at " << pos.x << ";" << pos.y << ";" << pos.z << " from " << (void*)oldtile << " to " << *data <<  std::endl;
-				if(newtile->isSelected())
-					editor.selection.addInternal(newtile);
-
-				if(oldtile) {
-					if(newtile->getHouseID() != oldtile->getHouseID()) {
+				if (old_tile) {
+					if (new_tile->getHouseID() != old_tile->getHouseID()) {
 						// oooooomggzzz we need to add it to the appropriate house!
-						House* house = editor.map.houses.getHouse(oldtile->getHouseID());
-						if(house)
-							house->removeTile(oldtile);
+						House* house = map.houses.getHouse(old_tile->getHouseID());
+						if (house) {
+							house->removeTile(old_tile);
+						}
 
-						house = editor.map.houses.getHouse(newtile->getHouseID());
-						if(house)
-							house->addTile(newtile);
+						house = map.houses.getHouse(new_tile->getHouseID());
+						if (house) {
+							house->addTile(new_tile);
+						}
 					}
-					if(oldtile->spawnMonster) {
-						if(newtile->spawnMonster) {
-							if(*oldtile->spawnMonster != *newtile->spawnMonster) {
-								editor.map.removeSpawnMonster(oldtile);
-								editor.map.addSpawnMonster(newtile);
+					if (old_tile->spawnMonster) {
+						if (new_tile->spawnMonster) {
+							if (*old_tile->spawnMonster != *new_tile->spawnMonster) {
+								map.removeSpawnMonster(old_tile);
+								map.addSpawnMonster(new_tile);
 							}
 						} else {
 							// Monster spawn has been removed
-							editor.map.removeSpawnMonster(oldtile);
+							editor.getMap().removeSpawnMonster(old_tile);
 						}
-					} else if(newtile->spawnMonster) {
-						editor.map.addSpawnMonster(newtile);
+					} else if (new_tile->spawnMonster) {
+						editor.getMap().addSpawnMonster(new_tile);
 					}
-					if(oldtile->spawnNpc) {
-						if(newtile->spawnNpc) {
-							if(*oldtile->spawnNpc != *newtile->spawnNpc) {
-								editor.map.removeSpawnNpc(oldtile);
-								editor.map.addSpawnNpc(newtile);
+					if (old_tile->spawnNpc) {
+						if (new_tile->spawnNpc) {
+							if (*old_tile->spawnNpc != *new_tile->spawnNpc) {
+								map.removeSpawnNpc(old_tile);
+								map.addSpawnNpc(new_tile);
 							}
 						} else {
 							// SpawnMonster has been removed
-							editor.map.removeSpawnNpc(oldtile);
+							map.removeSpawnNpc(old_tile);
 						}
-					} else if(newtile->spawnNpc) {
-						editor.map.addSpawnNpc(newtile);
+					} else if (new_tile->spawnNpc) {
+						map.addSpawnNpc(new_tile);
 					}
 
-					//oldtile->update();
-					if(oldtile->isSelected())
-						editor.selection.removeInternal(oldtile);
+					// oldtile->update();
+					if (old_tile->isSelected()) {
+						selection.removeInternal(old_tile);
+					}
 
-					*data = oldtile;
+					*data = old_tile;
 				} else {
-					*data = editor.map.allocator(location);
-					if(newtile->getHouseID() != 0) {
+					*data = map.allocator(location);
+					if (new_tile->getHouseID() != 0) {
 						// oooooomggzzz we need to add it to the appropriate house!
-						House* house = editor.map.houses.getHouse(newtile->getHouseID());
-						if(house) {
-							house->addTile(newtile);
+						House* house = map.houses.getHouse(new_tile->getHouseID());
+						if (house) {
+							house->addTile(new_tile);
 						}
 					}
 
-					if(newtile->spawnMonster)
-						editor.map.addSpawnMonster(newtile);
+					if (new_tile->spawnMonster) {
+						map.addSpawnMonster(new_tile);
+					}
 
-					if(newtile->spawnNpc)
-						editor.map.addSpawnNpc(newtile);
-
+					if (new_tile->spawnNpc) {
+						map.addSpawnNpc(new_tile);
+					}
 				}
-				// Mark the tile as modified
-				newtile->modify();
+				new_tile->modify();
 
 				// Update client dirty list
-				if(editor.IsLiveClient() && dirty_list && type != ACTION_REMOTE) {
-					// Local action, assemble changes
-					dirty_list->AddChange(c);
+				if (editor.IsLiveClient() && dirty_list && type != ACTION_REMOTE) {
+					dirty_list->AddChange(change);
 				}
 				break;
 			}
 
 			case CHANGE_MOVE_HOUSE_EXIT: {
-				std::pair<uint32_t, Position>* p = reinterpret_cast<std::pair<uint32_t, Position>* >(c->data);
-				ASSERT(p);
-				House* whathouse = editor.map.houses.getHouse(p->first);
+				HouseData* data = reinterpret_cast<HouseData*>(change->data);
+				ASSERT(data);
 
-				if(whathouse) {
-					Position oldpos = whathouse->getExit();
-					whathouse->setExit(p->second);
-					p->second = oldpos;
+				House* house = map.houses.getHouse(data->id);
+				if (house) {
+					const Position &old_pos = house->getExit();
+					house->setExit(data->position);
+					data->position = old_pos;
 				}
 				break;
 			}
 
 			case CHANGE_MOVE_WAYPOINT: {
-				std::pair<std::string, Position>* p = reinterpret_cast<std::pair<std::string, Position>* >(c->data);
-				ASSERT(p);
-				Waypoint* wp = editor.map.waypoints.getWaypoint(p->first);
+				WaypointData* data = reinterpret_cast<WaypointData*>(change->data);
+				ASSERT(data);
 
-				if(wp) {
-					// Change the tiles
-					TileLocation* oldtile = editor.map.getTileL(wp->pos);
-					TileLocation* newtile = editor.map.getTileL(p->second);
+				Waypoint* waypoint = map.waypoints.getWaypoint(data->id);
+				if (waypoint) {
+					TileLocation* old_tile = map.getTileL(waypoint->pos);
+					TileLocation* new_tile = map.getTileL(data->position);
 
-					// Only need to remove from old if it actually exists
-					if(p->second != Position())
-						if(oldtile && oldtile->getWaypointCount() > 0)
-							oldtile->decreaseWaypointCount();
+					if (data->position.isValid() && old_tile && old_tile->getWaypointCount() > 0) {
+						old_tile->decreaseWaypointCount();
+					}
 
-					newtile->increaseWaypointCount();
+					new_tile->increaseWaypointCount();
 
-					// Update shit
-					Position oldpos = wp->pos;
-					wp->pos = p->second;
-					p->second = oldpos;
+					Position old_pos = waypoint->pos;
+					waypoint->pos = data->position;
+					data->position = old_pos;
 				}
 				break;
 			}
@@ -298,136 +269,131 @@ void Action::commit(DirtyList* dirty_list)
 			default:
 				break;
 		}
-		++it;
 	}
-	editor.selection.finish(Selection::INTERNAL);
+	selection.finish(Selection::INTERNAL);
 	commited = true;
 }
 
-void Action::undo(DirtyList* dirty_list)
-{
-	if(changes.empty())
+void Action::undo(DirtyList* dirty_list) {
+	if (changes.empty()) {
 		return;
+	}
 
-	editor.selection.start(Selection::INTERNAL);
-	ChangeList::reverse_iterator it = changes.rbegin();
+	Map &map = editor.getMap();
+	Selection &selection = editor.getSelection();
+	selection.start(Selection::INTERNAL);
 
-	while(it != changes.rend()) {
-		Change* c = *it;
-		switch(c->type) {
+	for (Change* change : changes) {
+		switch (change->getType()) {
 			case CHANGE_TILE: {
-				void** data = &c->data;
-				Tile* oldtile = reinterpret_cast<Tile*>(*data);
-				ASSERT(oldtile);
-				Position pos = oldtile->getPosition();
+				void** data = &change->data;
+				Tile* old_tile = reinterpret_cast<Tile*>(*data);
+				ASSERT(old_tile);
+				const Position &pos = old_tile->getPosition();
 
-				if(editor.IsLiveClient()) {
-					QTreeNode* nd = editor.map.getLeaf(pos.x, pos.y);
-					if(!nd || !nd->isVisible(pos.z > GROUND_LAYER)) {
+				if (editor.IsLiveClient()) {
+					QTreeNode* node = map.getLeaf(pos.x, pos.y);
+					if (!node || !node->isVisible(pos.z > rme::MapGroundLayer)) {
 						// Delete all changes that affect tiles outside our view
-						c->clear();
-						++it;
+						change->clear();
 						continue;
 					}
 				}
 
-				Tile* newtile = editor.map.swapTile(pos, oldtile);
+				Tile* new_tile = map.swapTile(pos, old_tile);
 
 				// Update server side change list (for broadcast)
-				if(editor.IsLiveServer() && dirty_list)
+				if (editor.IsLiveServer() && dirty_list) {
 					dirty_list->AddPosition(pos.x, pos.y, pos.z);
+				}
 
+				if (old_tile->isSelected()) {
+					selection.addInternal(old_tile);
+				}
+				if (new_tile->isSelected()) {
+					selection.removeInternal(new_tile);
+				}
 
-				if(oldtile->isSelected())
-					editor.selection.addInternal(oldtile);
-				if(newtile->isSelected())
-					editor.selection.removeInternal(newtile);
-
-				if(newtile->getHouseID() != oldtile->getHouseID()) {
+				if (new_tile->getHouseID() != old_tile->getHouseID()) {
 					// oooooomggzzz we need to remove it from the appropriate house!
-					House* house = editor.map.houses.getHouse(newtile->getHouseID());
-					if(house) {
-						house->removeTile(newtile);
+					House* house = map.houses.getHouse(new_tile->getHouseID());
+					if (house) {
+						house->removeTile(new_tile);
 					} else {
-						// Set tile house to 0, house has been removed
-						newtile->setHouse(nullptr);
+						new_tile->setHouse(nullptr);
 					}
 
-					house = editor.map.houses.getHouse(oldtile->getHouseID());
-					if(house) {
-						house->addTile(oldtile);
+					house = map.houses.getHouse(old_tile->getHouseID());
+					if (house) {
+						house->addTile(old_tile);
 					}
 				}
 
-				if(oldtile->spawnMonster) {
-					if(newtile->spawnMonster) {
-						if(*oldtile->spawnMonster != *newtile->spawnMonster) {
-							editor.map.removeSpawnMonster(newtile);
-							editor.map.addSpawnMonster(oldtile);
+				if (old_tile->spawnMonster) {
+					if (new_tile->spawnMonster) {
+						if (*old_tile->spawnMonster != *new_tile->spawnMonster) {
+							map.removeSpawnMonster(new_tile);
+							map.addSpawnMonster(old_tile);
 						}
 					} else {
-						editor.map.addSpawnMonster(oldtile);
+						map.addSpawnMonster(old_tile);
 					}
-				} else if(newtile->spawnMonster) {
-					editor.map.removeSpawnMonster(newtile);
+				} else if (new_tile->spawnMonster) {
+					map.removeSpawnMonster(new_tile);
 				}
 
-				if(oldtile->spawnNpc) {
-					if(newtile->spawnNpc) {
-						if(*oldtile->spawnNpc != *newtile->spawnNpc) {
-							editor.map.removeSpawnNpc(newtile);
-							editor.map.addSpawnNpc(oldtile);
+				if (old_tile->spawnNpc) {
+					if (new_tile->spawnNpc) {
+						if (*old_tile->spawnNpc != *new_tile->spawnNpc) {
+							map.removeSpawnNpc(new_tile);
+							map.addSpawnNpc(old_tile);
 						}
 					} else {
-						editor.map.addSpawnNpc(oldtile);
+						map.addSpawnNpc(old_tile);
 					}
-				} else if(newtile->spawnNpc) {
-					editor.map.removeSpawnNpc(newtile);
+				} else if (new_tile->spawnNpc) {
+					map.removeSpawnNpc(new_tile);
 				}
-				*data = newtile;
-
+				*data = new_tile;
 
 				// Update client dirty list
-				if(editor.IsLiveClient() && dirty_list && type != ACTION_REMOTE) {
-					// Local action, assemble changes
-					dirty_list->AddChange(c);
+				if (editor.IsLiveClient() && dirty_list && type != ACTION_REMOTE) {
+					dirty_list->AddChange(change);
 				}
 				break;
 			}
 
 			case CHANGE_MOVE_HOUSE_EXIT: {
-				std::pair<uint32_t, Position>* p = reinterpret_cast<std::pair<uint32_t, Position>* >(c->data);
-				ASSERT(p);
-				House* whathouse = editor.map.houses.getHouse(p->first);
-				if(whathouse) {
-					Position oldpos = whathouse->getExit();
-					whathouse->setExit(p->second);
-					p->second = oldpos;
+				HouseData* data = reinterpret_cast<HouseData*>(change->data);
+				ASSERT(data);
+
+				House* house = map.houses.getHouse(data->id);
+				if (house) {
+					const Position &oldpos = house->getExit();
+					house->setExit(data->position);
+					data->position = oldpos;
 				}
 				break;
 			}
 
 			case CHANGE_MOVE_WAYPOINT: {
-				std::pair<std::string, Position>* p = reinterpret_cast<std::pair<std::string, Position>* >(c->data);
-				ASSERT(p);
-				Waypoint* wp = editor.map.waypoints.getWaypoint(p->first);
+				WaypointData* data = reinterpret_cast<WaypointData*>(change->data);
+				ASSERT(data);
 
-				if(wp) {
-					// Change the tiles
-					TileLocation* oldtile = editor.map.getTileL(wp->pos);
-					TileLocation* newtile = editor.map.getTileL(p->second);
+				Waypoint* waypoint = map.waypoints.getWaypoint(data->id);
+				if (waypoint) {
+					TileLocation* old_tile = map.getTileL(waypoint->pos);
+					TileLocation* new_tile = map.getTileL(data->position);
 
-					// Only need to remove from old if it actually exists
-					if(p->second != Position())
-						if(oldtile && oldtile->getWaypointCount() > 0)
-							oldtile->decreaseWaypointCount();
+					if (data->position.isValid() && old_tile && old_tile->getWaypointCount() > 0) {
+						old_tile->decreaseWaypointCount();
+					}
 
-					newtile->increaseWaypointCount();
+					new_tile->increaseWaypointCount();
 
-					// Update shit
-					Position oldpos = wp->pos;
-					wp->pos = p->second;
-					p->second = oldpos;
+					Position old_pos = waypoint->pos;
+					waypoint->pos = data->position;
+					data->position = old_pos;
 				}
 				break;
 			}
@@ -435,41 +401,37 @@ void Action::undo(DirtyList* dirty_list)
 			default:
 				break;
 		}
-		++it;
 	}
-	editor.selection.finish(Selection::INTERNAL);
+
+	selection.finish(Selection::INTERNAL);
 	commited = false;
 }
 
-BatchAction::BatchAction(Editor& editor, ActionIdentifier ident) :
+BatchAction::BatchAction(Editor &editor, ActionIdentifier ident) :
 	editor(editor),
-    timestamp(0),
-    memory_size(0),
-    type(ident)
-{
-    ////
+	timestamp(0),
+	memory_size(0),
+	type(ident) {
+	////
 }
 
-
-BatchAction::~BatchAction()
-{
-	for(Action* action : batch) {
+BatchAction::~BatchAction() {
+	for (Action* action : batch) {
 		delete action;
 	}
 	batch.clear();
 }
 
-size_t BatchAction::memsize(bool recalc) const
-{
+size_t BatchAction::memsize(bool recalc) const {
 	// Expensive operation, only evaluate once (won't change anyways)
-	if(!recalc && memory_size > 0) {
+	if (!recalc && memory_size > 0) {
 		return memory_size;
 	}
 
 	uint32_t mem = sizeof(*this);
 	mem += sizeof(Action*) * 3 * batch.size();
 
-	for(Action* action : batch) {
+	for (const Action* action : batch) {
 #ifdef __USE_EXACT_MEMSIZE__
 		mem += action->memsize();
 #else
@@ -482,114 +444,101 @@ size_t BatchAction::memsize(bool recalc) const
 	return mem;
 }
 
-void BatchAction::addAction(Action* action)
-{
-	// If empty, do nothing.
-	if(action->size() == 0) {
+bool BatchAction::isNoSelection() const noexcept {
+	return type != ACTION_SELECT && type != ACTION_UNSELECT;
+}
+
+void BatchAction::addAction(Action* action) {
+	if (!action) {
+		return;
+	}
+
+	if (action->empty() || !editor.CanEdit()) {
 		delete action;
 		return;
 	}
 
 	ASSERT(action->getType() == type);
 
-	if(!editor.CanEdit()) {
-		delete action;
-		return;
-	}
-
-	// Add it!
 	batch.push_back(action);
 	timestamp = time(nullptr);
 }
 
-void BatchAction::addAndCommitAction(Action* action)
-{
-	// If empty, do nothing.
-	if(action->size() == 0) {
+void BatchAction::addAndCommitAction(Action* action) {
+	if (!action) {
+		return;
+	}
+
+	if (!editor.CanEdit() || action->empty()) {
 		delete action;
 		return;
 	}
 
-	if(!editor.CanEdit()) {
-		delete action;
-		return;
-	}
-
-	// Add it!
 	action->commit(nullptr);
 	batch.push_back(action);
 	timestamp = time(nullptr);
 }
 
-void BatchAction::commit()
-{
-	for(Action* action : batch) {
-		if(!action->isCommited()) {
+void BatchAction::commit() {
+	for (Action* action : batch) {
+		if (action && !action->isCommited()) {
 			action->commit(nullptr);
 		}
 	}
 }
 
-void BatchAction::undo()
-{
-	for(Action* action : std::views::reverse(batch)) {
+void BatchAction::undo() {
+	for (Action* action : std::views::reverse(batch)) {
 		action->undo(nullptr);
 	}
 }
 
-void BatchAction::redo()
-{
-	for(Action* action : batch) {
+void BatchAction::redo() {
+	for (Action* action : batch) {
 		action->redo(nullptr);
 	}
 }
 
-void BatchAction::merge(BatchAction* other)
-{
+void BatchAction::merge(BatchAction* other) {
 	batch.insert(batch.end(), other->batch.begin(), other->batch.end());
 	other->batch.clear();
 }
 
-ActionQueue::ActionQueue(Editor& editor) :
-	current(0), memory_size(0), editor(editor)
-{
+ActionQueue::ActionQueue(Editor &editor) :
+	current(0), memory_size(0), editor(editor) {
 	////
 }
 
-ActionQueue::~ActionQueue()
-{
-	for(auto it = actions.begin(); it != actions.end(); it = actions.erase(it)) {
-		delete *it;
+ActionQueue::~ActionQueue() {
+	for (BatchAction* batch : actions) {
+		delete batch;
+	}
+	actions.clear();
+}
+
+Action* ActionQueue::createAction(ActionIdentifier identifier) const {
+	return new Action(editor, identifier);
+}
+
+Action* ActionQueue::createAction(BatchAction* batch) const {
+	return new Action(editor, batch->getType());
+}
+
+BatchAction* ActionQueue::createBatch(ActionIdentifier identifier) const {
+	return new BatchAction(editor, identifier);
+}
+
+void ActionQueue::resetTimer() {
+	if (!actions.empty()) {
+		actions.back()->resetTimer();
 	}
 }
 
-Action* ActionQueue::createAction(ActionIdentifier ident)
-{
-	return newd Action(editor, ident);
-}
-
-Action* ActionQueue::createAction(BatchAction* batch)
-{
-	return newd Action(editor, batch->getType());
-}
-
-BatchAction* ActionQueue::createBatch(ActionIdentifier ident)
-{
-	return newd BatchAction(editor, ident);
-}
-
-void ActionQueue::resetTimer()
-{
-	if(!actions.empty())
-		actions.back()->resetTimer();
-}
-
-void ActionQueue::addBatch(BatchAction* batch, int stacking_delay)
-{
+void ActionQueue::addBatch(BatchAction* batch, int stacking_delay) {
 	ASSERT(batch);
 	ASSERT(current <= actions.size());
 
-	if(batch->size() == 0) {
+	if (batch->empty()) {
 		delete batch;
 		return;
 	}
@@ -598,29 +547,30 @@ void ActionQueue::addBatch(BatchAction* batch, int stacking_delay)
 	batch->commit();
 
 	// Update title
-	if(editor.map.doChange())
+	if (batch->isNoSelection() && editor.getMap().doChange()) {
 		g_gui.UpdateTitle();
+	}
 
-	if(batch->type == ACTION_REMOTE) {
+	if (batch->getType() == ACTION_REMOTE) {
 		delete batch;
 		return;
 	}
 
-	while(current != actions.size()) {
+	while (current != actions.size()) {
 		memory_size -= actions.back()->memsize();
 		BatchAction* todelete = actions.back();
 		actions.pop_back();
 		delete todelete;
 	}
 
-	while(memory_size > size_t(1024 * 1024 * g_settings.getInteger(Config::UNDO_MEM_SIZE)) && !actions.empty()) {
+	while (memory_size > size_t(1024 * 1024 * g_settings.getInteger(Config::UNDO_MEM_SIZE)) && !actions.empty()) {
 		memory_size -= actions.front()->memsize();
 		delete actions.front();
 		actions.pop_front();
 		current--;
 	}
 
-	if(actions.size() > size_t(g_settings.getInteger(Config::UNDO_SIZE)) && !actions.empty()) {
+	if (actions.size() > size_t(g_settings.getInteger(Config::UNDO_SIZE)) && !actions.empty()) {
 		memory_size -= actions.front()->memsize();
 		BatchAction* todelete = actions.front();
 		actions.pop_front();
@@ -629,9 +579,9 @@ void ActionQueue::addBatch(BatchAction* batch, int stacking_delay)
 	}
 
 	do {
-		if(!actions.empty()) {
+		if (!actions.empty()) {
 			BatchAction* lastAction = actions.back();
-			if(lastAction->type == batch->type && g_settings.getInteger(Config::GROUP_ACTIONS) && time(nullptr) - stacking_delay < lastAction->timestamp) {
+			if (lastAction->type == batch->type && g_settings.getInteger(Config::GROUP_ACTIONS) && time(nullptr) - stacking_delay < lastAction->timestamp) {
 				lastAction->merge(batch);
 				lastAction->timestamp = time(nullptr);
 				memory_size -= lastAction->memsize();
@@ -644,14 +594,13 @@ void ActionQueue::addBatch(BatchAction* batch, int stacking_delay)
 		actions.push_back(batch);
 		batch->timestamp = time(nullptr);
 		current++;
-	} while(false);
+	} while (false);
 }
 
-void ActionQueue::addAction(Action* action, int stacking_delay)
-{
+void ActionQueue::addAction(Action* action, int stacking_delay) {
 	BatchAction* batch = createBatch(action->getType());
 	batch->addAndCommitAction(action);
-	if(batch->size() == 0) {
+	if (batch->empty()) {
 		delete batch;
 		return;
 	}
@@ -659,72 +608,130 @@ void ActionQueue::addAction(Action* action, int stacking_delay)
 	addBatch(batch, stacking_delay);
 }
 
-void ActionQueue::undo()
-{
-	if(current > 0) {
+const BatchAction* ActionQueue::getAction(size_t index) const {
+	if (index >= 0 && index < actions.size()) {
+		return actions.at(index);
+	}
+	return nullptr;
+}
+
+void ActionQueue::generateLabels() {
+	for (BatchAction* batch : actions) {
+		if (batch && batch->label.IsEmpty()) {
+			batch->label = createLabel(batch->getType());
+		}
+	}
+}
+
+bool ActionQueue::undo() {
+	if (current > 0) {
 		current--;
-		BatchAction* batch = actions[current];
-		batch->undo();
+		BatchAction* batch = actions.at(current);
+		if (batch) {
+			batch->undo();
+		}
+
+		// Update title
+		if (batch && batch->isNoSelection() && editor.getMap().doChange()) {
+			g_gui.UpdateTitle();
+		}
+		return true;
 	}
+	return false;
 }
 
-void ActionQueue::redo()
-{
-	if(current < actions.size()) {
-		BatchAction* batch = actions[current];
-		batch->redo();
+bool ActionQueue::redo() {
+	if (current < actions.size()) {
+		BatchAction* batch = actions.at(current);
+		if (batch) {
+			batch->redo();
+		}
 		current++;
+
+		// Update title
+		if (batch && batch->isNoSelection() && editor.getMap().doChange()) {
+			g_gui.UpdateTitle();
+		}
+		return true;
 	}
+	return false;
 }
 
-void ActionQueue::clear()
-{
-	for(ActionList::iterator it = actions.begin(); it != actions.end();) {
-		delete *it;
-		it = actions.erase(it);
+bool ActionQueue::hasChanges() const {
+	for (const BatchAction* batch : actions) {
+		if (batch && !batch->empty() && batch->isNoSelection()) {
+			return true;
+		}
 	}
+	return false;
+}
+
+void ActionQueue::clear() {
+	for (BatchAction* batch : actions) {
+		delete batch;
+	}
+	actions.clear();
 	current = 0;
 }
 
-
-DirtyList::DirtyList() :
-	owner(0)
-{
-	;
+wxString ActionQueue::createLabel(ActionIdentifier type) {
+	switch (type) {
+		case ACTION_MOVE:
+			return "Move";
+		case ACTION_SELECT:
+			return "Select";
+		case ACTION_UNSELECT:
+			return "Unselect";
+		case ACTION_DELETE_TILES:
+			return "Delete";
+		case ACTION_CUT_TILES:
+			return "Cut";
+		case ACTION_PASTE_TILES:
+			return "Paste";
+		case ACTION_RANDOMIZE:
+			return "Randomize";
+		case ACTION_BORDERIZE:
+			return "Borderize";
+		case ACTION_DRAW:
+			return "Draw";
+		case ACTION_ERASE:
+			return "Erase";
+		case ACTION_SWITCHDOOR:
+			return "Switch Door";
+		case ACTION_ROTATE_ITEM:
+			return "Rotate Item";
+		case ACTION_REPLACE_ITEMS:
+			return "Replace";
+		case ACTION_CHANGE_PROPERTIES:
+			return "Change Properties";
+		default:
+			return wxEmptyString;
+	}
 }
 
-DirtyList::~DirtyList()
-{
-	;
-}
-
-void DirtyList::AddPosition(int x, int y, int z)
-{
+void DirtyList::AddPosition(int x, int y, int z) {
 	uint32_t m = ((x >> 2) << 18) | ((y >> 2) << 4);
-	ValueType fi = {m, 0};
+	ValueType fi = { m, 0 };
 	SetType::iterator s = iset.find(fi);
-	if(s != iset.end()) {
+	if (s != iset.end()) {
 		ValueType v = *s;
 		iset.erase(s);
 		v.floors = (1 << z) | v.floors;
 		iset.insert(v);
 	} else {
-		ValueType v = {m, (uint32_t)(1 << z)};
+		ValueType v = { m, (uint32_t)(1 << z) };
 		iset.insert(v);
 	}
 }
 
-void DirtyList::AddChange(Change* c)
-{
+void DirtyList::AddChange(Change* c) {
 	ichanges.push_back(c);
 }
 
-DirtyList::SetType& DirtyList::GetPosList()
-{
+DirtyList::SetType &DirtyList::GetPosList() {
 	return iset;
 }
 
-ChangeList& DirtyList::GetChanges()
-{
+ChangeList &DirtyList::GetChanges() {
 	return ichanges;
 }

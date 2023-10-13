@@ -25,48 +25,41 @@
 // SpawnMonster brush
 
 SpawnMonsterBrush::SpawnMonsterBrush() :
-	Brush()
-{
+	Brush() {
 	////
 }
 
-SpawnMonsterBrush::~SpawnMonsterBrush()
-{
+SpawnMonsterBrush::~SpawnMonsterBrush() {
 	////
 }
 
-int SpawnMonsterBrush::getLookID() const
-{
+int SpawnMonsterBrush::getLookID() const {
 	return 0;
 }
 
-std::string SpawnMonsterBrush::getName() const
-{
+std::string SpawnMonsterBrush::getName() const {
 	return "SpawnMonster Brush";
 }
 
-bool SpawnMonsterBrush::canDraw(BaseMap* map, const Position& position) const
-{
+bool SpawnMonsterBrush::canDraw(BaseMap* map, const Position &position) const {
 	Tile* tile = map->getTile(position);
-	if(tile) {
-		if(tile->spawnMonster) {
+	if (tile) {
+		if (tile->spawnMonster) {
 			return false;
 		}
 	}
 	return true;
 }
 
-void SpawnMonsterBrush::undraw(BaseMap* map, Tile* tile)
-{
+void SpawnMonsterBrush::undraw(BaseMap* map, Tile* tile) {
 	delete tile->spawnMonster;
 	tile->spawnMonster = nullptr;
 }
 
-void SpawnMonsterBrush::draw(BaseMap* map, Tile* tile, void* parameter)
-{
+void SpawnMonsterBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 	ASSERT(tile);
 	ASSERT(parameter); // Should contain an int which is the size of the newd monster spawn
-	if(tile->spawnMonster == nullptr) {
+	if (tile->spawnMonster == nullptr) {
 		tile->spawnMonster = newd SpawnMonster(std::max(1, *(int*)parameter));
 	}
 }

@@ -15,7 +15,6 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //////////////////////////////////////////////////////////////////////
 
-
 #ifndef RME_TILESET_MONSTER_H_
 #define RME_TILESET_MONSTER_H_
 
@@ -48,15 +47,17 @@ protected:
 	void SelectTileset(size_t index);
 	void SelectMonster(size_t index);
 	void SelectMonster(std::string name);
+
 public:
 	// Event handling
-	void OnChangeSpawnMonsterTime(wxSpinEvent& event);
-	void OnChangeSpawnMonsterSize(wxSpinEvent& event);
+	void OnChangeSpawnMonsterTime(wxSpinEvent &event);
+	void OnChangeSpawnMonsterSize(wxSpinEvent &event);
 
-	void OnTilesetChange(wxCommandEvent& event);
-	void OnListBoxChange(wxCommandEvent& event);
-	void OnClickMonsterBrushButton(wxCommandEvent& event);
-	void OnClickSpawnMonsterBrushButton(wxCommandEvent& event);
+	void OnTilesetChange(wxCommandEvent &event);
+	void OnListBoxChange(wxCommandEvent &event);
+	void OnClickMonsterBrushButton(wxCommandEvent &event);
+	void OnClickSpawnMonsterBrushButton(wxCommandEvent &event);
+
 protected:
 	void SelectMonsterBrush();
 	void SelectSpawnBrush();

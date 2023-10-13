@@ -15,7 +15,6 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //////////////////////////////////////////////////////////////////////
 
-
 #ifndef RME_TILESET_NPC_H_
 #define RME_TILESET_NPC_H_
 
@@ -48,15 +47,17 @@ protected:
 	void SelectTileset(size_t index);
 	void SelectNpc(size_t index);
 	void SelectNpc(std::string name);
+
 public:
 	// Event handling
-	void OnChangeSpawnNpcTime(wxSpinEvent& event);
-	void OnChangeSpawnNpcSize(wxSpinEvent& event);
+	void OnChangeSpawnNpcTime(wxSpinEvent &event);
+	void OnChangeSpawnNpcSize(wxSpinEvent &event);
 
-	void OnTilesetChange(wxCommandEvent& event);
-	void OnListBoxChange(wxCommandEvent& event);
-	void OnClickNpcBrushButton(wxCommandEvent& event);
-	void OnClickSpawnNpcBrushButton(wxCommandEvent& event);
+	void OnTilesetChange(wxCommandEvent &event);
+	void OnListBoxChange(wxCommandEvent &event);
+	void OnClickNpcBrushButton(wxCommandEvent &event);
+	void OnClickSpawnNpcBrushButton(wxCommandEvent &event);
+
 protected:
 	void SelectNpcBrush();
 	void SelectSpawnNpcBrush();

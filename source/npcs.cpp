@@ -30,24 +30,21 @@ NpcType::NpcType() :
 	in_other_tileset(false),
 	standard(false),
 	name(""),
-	brush(nullptr)
-{
+	brush(nullptr) {
 	////
 }
 
-NpcType::NpcType(const NpcType& npc) :
+NpcType::NpcType(const NpcType &npc) :
 	missing(npc.missing),
 	in_other_tileset(npc.in_other_tileset),
 	standard(npc.standard),
 	name(npc.name),
 	outfit(npc.outfit),
-	brush(npc.brush)
-{
+	brush(npc.brush) {
 	////
 }
 
-NpcType& NpcType::operator=(const NpcType& npc)
-{
+NpcType &NpcType::operator=(const NpcType &npc) {
 	missing = npc.missing;
 	in_other_tileset = npc.in_other_tileset;
 	standard = npc.standard;
@@ -57,15 +54,13 @@ NpcType& NpcType::operator=(const NpcType& npc)
 	return *this;
 }
 
-NpcType::~NpcType()
-{
+NpcType::~NpcType() {
 	////
 }
 
-NpcType* NpcType::loadFromXML(pugi::xml_node node, wxArrayString& warnings)
-{
+NpcType* NpcType::loadFromXML(pugi::xml_node node, wxArrayString &warnings) {
 	pugi::xml_attribute attribute;
-	if(!(attribute = node.attribute("name"))) {
+	if (!(attribute = node.attribute("name"))) {
 		warnings.push_back("Couldn't read name tag of npc node.");
 		return nullptr;
 	}
@@ -73,51 +68,50 @@ NpcType* NpcType::loadFromXML(pugi::xml_node node, wxArrayString& warnings)
 	NpcType* npcType = newd NpcType();
 	npcType->name = attribute.as_string();
 
-	if((attribute = node.attribute("looktype"))) {
+	if ((attribute = node.attribute("looktype"))) {
 		npcType->outfit.lookType = attribute.as_int();
-		if(g_gui.gfx.getCreatureSprite(npcType->outfit.lookType) == nullptr) {
+		if (g_gui.gfx.getCreatureSprite(npcType->outfit.lookType) == nullptr) {
 			warnings.push_back("Invalid npc \"" + wxstr(npcType->name) + "\" look type #" + std::to_string(npcType->outfit.lookType));
 		}
 	}
 
-	if((attribute = node.attribute("lookitem"))) {
+	if ((attribute = node.attribute("lookitem"))) {
 		npcType->outfit.lookItem = attribute.as_int();
 	}
 
-	if((attribute = node.attribute("lookaddon"))) {
+	if ((attribute = node.attribute("lookaddon"))) {
 		npcType->outfit.lookAddon = attribute.as_int();
 	}
 
-	if((attribute = node.attribute("lookhead"))) {
+	if ((attribute = node.attribute("lookhead"))) {
 		npcType->outfit.lookHead = attribute.as_int();
 	}
 
-	if((attribute = node.attribute("lookbody"))) {
+	if ((attribute = node.attribute("lookbody"))) {
 		npcType->outfit.lookBody = attribute.as_int();
 	}
 
-	if((attribute = node.attribute("looklegs"))) {
+	if ((attribute = node.attribute("looklegs"))) {
 		npcType->outfit.lookLegs = attribute.as_int();
 	}
 
-	if((attribute = node.attribute("lookfeet"))) {
+	if ((attribute = node.attribute("lookfeet"))) {
 		npcType->outfit.lookFeet = attribute.as_int();
 	}
 	return npcType;
 }
 
-NpcType* NpcType::loadFromOTXML(const FileName& filename, pugi::xml_document& doc, wxArrayString& warnings)
-{
+NpcType* NpcType::loadFromOTXML(const FileName &filename, pugi::xml_document &doc, wxArrayString &warnings) {
 	ASSERT(doc != nullptr);
 
 	pugi::xml_node node;
-	if(!(node = doc.child("npc"))) {
+	if (!(node = doc.child("npc"))) {
 		warnings.push_back("This file is not a npc file");
 		return nullptr;
 	}
 
 	pugi::xml_attribute attribute;
-	if(!(attribute = node.attribute("name"))) {
+	if (!(attribute = node.attribute("name"))) {
 		warnings.push_back("Couldn't read name tag of npc node.");
 		return nullptr;
 	}
@@ -126,71 +120,66 @@ NpcType* NpcType::loadFromOTXML(const FileName& filename, pugi::xml_document& do
 	npcType->name = nstr(filename.GetName());
 	npcType->name = nstr(filename.GetName());
 
-	for(pugi::xml_node optionNode = node.first_child(); optionNode; optionNode = optionNode.next_sibling()) {
-		if(as_lower_str(optionNode.name()) != "look") {
+	for (pugi::xml_node optionNode = node.first_child(); optionNode; optionNode = optionNode.next_sibling()) {
+		if (as_lower_str(optionNode.name()) != "look") {
 			continue;
 		}
 
-		if((attribute = optionNode.attribute("type"))) {
+		if ((attribute = optionNode.attribute("type"))) {
 			npcType->outfit.lookType = attribute.as_int();
 		}
 
-		if((attribute = optionNode.attribute("item")) || (attribute = optionNode.attribute("lookex")) || (attribute = optionNode.attribute("typeex"))) {
+		if ((attribute = optionNode.attribute("item")) || (attribute = optionNode.attribute("lookex")) || (attribute = optionNode.attribute("typeex"))) {
 			npcType->outfit.lookItem = attribute.as_int();
 		}
 
-		if((attribute = optionNode.attribute("addon"))) {
+		if ((attribute = optionNode.attribute("addon"))) {
 			npcType->outfit.lookAddon = attribute.as_int();
 		}
 
-		if((attribute = optionNode.attribute("head"))) {
+		if ((attribute = optionNode.attribute("head"))) {
 			npcType->outfit.lookHead = attribute.as_int();
 		}
 
-		if((attribute = optionNode.attribute("body"))) {
+		if ((attribute = optionNode.attribute("body"))) {
 			npcType->outfit.lookBody = attribute.as_int();
 		}
 
-		if((attribute = optionNode.attribute("legs"))) {
+		if ((attribute = optionNode.attribute("legs"))) {
 			npcType->outfit.lookLegs = attribute.as_int();
 		}
 
-		if((attribute = optionNode.attribute("feet"))) {
+		if ((attribute = optionNode.attribute("feet"))) {
 			npcType->outfit.lookFeet = attribute.as_int();
 		}
 	}
 	return npcType;
 }
 
-NpcDatabase::NpcDatabase()
-{
+NpcDatabase::NpcDatabase() {
 	////
 }
 
-NpcDatabase::~NpcDatabase()
-{
+NpcDatabase::~NpcDatabase() {
 	clear();
 }
 
-void NpcDatabase::clear()
-{
-	for(NpcMap::iterator iter = npcMap.begin(); iter != npcMap.end(); ++iter) {
+void NpcDatabase::clear() {
+	for (NpcMap::iterator iter = npcMap.begin(); iter != npcMap.end(); ++iter) {
 		delete iter->second;
 	}
 	npcMap.clear();
 }
 
-NpcType* NpcDatabase::operator[](const std::string& name)
-{
+NpcType* NpcDatabase::operator[](const std::string &name) {
 	NpcMap::iterator iter = npcMap.find(as_lower_str(name));
-	if(iter != npcMap.end()) {
+	if (iter != npcMap.end()) {
 		return iter->second;
 	}
 	return nullptr;
 }
 
-NpcType* NpcDatabase::addMissingNpcType(const std::string& name)
-{
+NpcType* NpcDatabase::addMissingNpcType(const std::string &name) {
 	assert((*this)[name] == nullptr);
 
 	NpcType* npcType = newd NpcType();
@@ -202,8 +191,7 @@ NpcType* NpcDatabase::addMissingNpcType(const std::string& name)
 	return npcType;
 }
 
-NpcType* NpcDatabase::addNpcType(const std::string& name, const Outfit& outfit)
-{
+NpcType* NpcDatabase::addNpcType(const std::string &name, const Outfit &outfit) {
 	assert((*this)[name] == nullptr);
 
 	NpcType* npcType = newd NpcType();
@@ -215,40 +203,38 @@ NpcType* NpcDatabase::addNpcType(const std::string& name, const Outfit& outfit)
 	return npcType;
 }
 
-bool NpcDatabase::hasMissing() const
-{
-	for(NpcMap::const_iterator iter = npcMap.begin(); iter != npcMap.end(); ++iter) {
-		if(iter->second->missing) {
+bool NpcDatabase::hasMissing() const {
+	for (NpcMap::const_iterator iter = npcMap.begin(); iter != npcMap.end(); ++iter) {
+		if (iter->second->missing) {
 			return true;
 		}
 	}
 	return false;
 }
 
-bool NpcDatabase::loadFromXML(const FileName& filename, bool standard, wxString& error, wxArrayString& warnings)
-{
+bool NpcDatabase::loadFromXML(const FileName &filename, bool standard, wxString &error, wxArrayString &warnings) {
 	pugi::xml_document doc;
 	pugi::xml_parse_result result = doc.load_file(filename.GetFullPath().mb_str());
-	if(!result) {
+	if (!result) {
 		error = "Couldn't open file \"" + filename.GetFullName() + "\", invalid format?";
 		return false;
 	}
 
 	pugi::xml_node node = doc.child("npcs");
-	if(!node) {
+	if (!node) {
 		error = "Invalid file signature, this file is not a valid npc file.";
 		return false;
 	}
 
-	for(pugi::xml_node npcNode = node.first_child(); npcNode; npcNode = npcNode.next_sibling()) {
-		if(as_lower_str(npcNode.name()) != "npc") {
+	for (pugi::xml_node npcNode = node.first_child(); npcNode; npcNode = npcNode.next_sibling()) {
+		if (as_lower_str(npcNode.name()) != "npc") {
 			continue;
 		}
 
 		NpcType* npcType = NpcType::loadFromXML(npcNode, warnings);
-		if(npcType) {
+		if (npcType) {
 			npcType->standard = standard;
-			if((*this)[npcType->name]) {
+			if ((*this)[npcType->name]) {
 				warnings.push_back("Duplicate npc with name \"" + wxstr(npcType->name) + "\"! Discarding...");
 				delete npcType;
 			} else {
@@ -259,22 +245,21 @@ bool NpcDatabase::loadFromXML(const FileName& filename, bool standard, wxString&
 	return true;
 }
 
-bool NpcDatabase::importXMLFromOT(const FileName& filename, wxString& error, wxArrayString& warnings)
-{
+bool NpcDatabase::importXMLFromOT(const FileName &filename, wxString &error, wxArrayString &warnings) {
 	pugi::xml_document doc;
 	pugi::xml_parse_result result = doc.load_file(filename.GetFullPath().mb_str());
-	if(!result) {
+	if (!result) {
 		error = "Couldn't open file \"" + filename.GetFullName() + "\", invalid format?";
 		return false;
 	}
 
 	pugi::xml_node node;
-	if(node = doc.child("npc")) {
+	if (node = doc.child("npc")) {
 		NpcType* npcType = NpcType::loadFromOTXML(filename, doc, warnings);
-		if(npcType) {
+		if (npcType) {
 			NpcType* current = (*this)[npcType->name];
 
-			if(current) {
+			if (current) {
 				*current = *npcType;
 				delete npcType;
 			} else {
@@ -298,23 +283,22 @@ bool NpcDatabase::importXMLFromOT(const FileName& filename, wxString& error, wxA
 	return true;
 }
 
-bool NpcDatabase::saveToXML(const FileName& filename)
-{
+bool NpcDatabase::saveToXML(const FileName &filename) {
 	pugi::xml_document doc;
 
 	pugi::xml_node decl = doc.prepend_child(pugi::node_declaration);
 	decl.append_attribute("version") = "1.0";
 
 	pugi::xml_node npcNodes = doc.append_child("npcs");
-	for(const auto& npcEntry : npcMap) {
+	for (const auto &npcEntry : npcMap) {
 		NpcType* npcType = npcEntry.second;
-		if(!npcType->standard) {
+		if (!npcType->standard) {
 			pugi::xml_node npcNode = npcNodes.append_child("npc");
 
 			npcNode.append_attribute("name") = npcType->name.c_str();
 			npcNode.append_attribute("type") = "npc";
 
-			const Outfit& outfit = npcType->outfit;
+			const Outfit &outfit = npcType->outfit;
 			npcNode.append_attribute("looktype") = outfit.lookType;
 			npcNode.append_attribute("lookitem") = outfit.lookItem;
 			npcNode.append_attribute("lookaddon") = outfit.lookAddon;

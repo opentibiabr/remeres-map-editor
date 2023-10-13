@@ -100,6 +100,7 @@ target_sources(${PROJECT_NAME}
 	PRIVATE
 	about_window.cpp
 	action.cpp
+	actions_history_window.cpp
 	application.cpp
 	artprovider.cpp
 	basemap.cpp
@@ -133,8 +134,10 @@ target_sources(${PROJECT_NAME}
 	house_brush.cpp
 	house.cpp
 	house_exit_brush.cpp
+	light_drawer.cpp
 	iomap.cpp
 	iomap_otbm.cpp
+	iominimap.cpp
 	item_attributes.cpp
 	item.cpp
 	items.cpp
