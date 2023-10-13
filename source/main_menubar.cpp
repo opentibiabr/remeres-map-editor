@@ -515,47 +515,46 @@ void MainMenuBar::UpdateIndicatorsMenu() {
 	CheckItem(SHOW_MOVEABLES, g_settings.getBoolean(Config::SHOW_MOVEABLES));
 }
 
-bool MainMenuBar::Load(const FileName& path, wxArrayString& warnings, wxString& error)
-{
-    // Open the XML file
-    pugi::xml_document doc;
-    pugi::xml_parse_result result = doc.load_file(path.GetFullPath().mb_str());
-    if(!result) {
-        error = "Could not open " + path.GetFullName() + " (file not found or syntax error)";
-        return false;
-    }
+bool MainMenuBar::Load(const FileName &path, wxArrayString &warnings, wxString &error) {
+	// Open the XML file
+	pugi::xml_document doc;
+	pugi::xml_parse_result result = doc.load_file(path.GetFullPath().mb_str());
+	if (!result) {
+		error = "Could not open " + path.GetFullName() + " (file not found or syntax error)";
+		return false;
+	}
 
-    pugi::xml_node node = doc.child("menubar");
-    if(!node) {
-        error = path.GetFullName() + ": Invalid rootheader.";
-        return false;
-    }
+	pugi::xml_node node = doc.child("menubar");
+	if (!node) {
+		error = path.GetFullName() + ": Invalid rootheader.";
+		return false;
+	}
 
-    // Clear the menu
-    while(menubar->GetMenuCount() > 0) {
-        menubar->Remove(0);
-    }
+	// Clear the menu
+	while (menubar->GetMenuCount() > 0) {
+		menubar->Remove(0);
+	}
 
-    // Load succeded
-    for(pugi::xml_node menuNode = node.first_child(); menuNode; menuNode = menuNode.next_sibling()) {
-        // For each child node, load it
-        wxObject* i = LoadItem(menuNode, nullptr, warnings, error);
-        wxMenu* m = dynamic_cast<wxMenu*>(i);
-        if(m) {
-            menubar->Append(m, m->GetTitle());
+	// Load succeded
+	for (pugi::xml_node menuNode = node.first_child(); menuNode; menuNode = menuNode.next_sibling()) {
+		// For each child node, load it
+		wxObject* i = LoadItem(menuNode, nullptr, warnings, error);
+		wxMenu* m = dynamic_cast<wxMenu*>(i);
+		if (m) {
+			menubar->Append(m, m->GetTitle());
 #ifdef __APPLE__
-            m->SetTitle(m->GetTitle());
+			m->SetTitle(m->GetTitle());
 #else
-            m->SetTitle("");
+			m->SetTitle("");
 #endif
-        } else if(i) {
-            delete i;
-            warnings.push_back(path.GetFullName() + ": Only menus can be subitems of main menu");
-        }
-    }
+		} else if (i) {
+			delete i;
+			warnings.push_back(path.GetFullName() + ": Only menus can be subitems of main menu");
+		}
+	}
 
 #ifdef __LINUX__
-    const int count = 42;
+	const int count = 42;
 	wxAcceleratorEntry entries[count];
 	// Edit
 	entries[0].Set(wxACCEL_CTRL, (int)'Z', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::UNDO));
@@ -611,18 +610,18 @@ bool MainMenuBar::Load(const FileName& path, wxArrayString& warnings, wxString& 
 	frame->SetAcceleratorTable(accelerator);
 #endif
 
-    /*
-    // Create accelerator table
-    accelerator_table = newd wxAcceleratorTable(accelerators.size(), &accelerators[0]);
+	/*
+	// Create accelerator table
+	accelerator_table = newd wxAcceleratorTable(accelerators.size(), &accelerators[0]);
 
-    // Tell all clients of the renewed accelerators
-    RenewClients();
-    */
+	// Tell all clients of the renewed accelerators
+	RenewClients();
+	*/
 
-    recentFiles.AddFilesToMenu();
-    Update();
-    LoadValues();
-    return true;
+	recentFiles.AddFilesToMenu();
+	Update();
+	LoadValues();
+	return true;
 }
 
 wxObject* MainMenuBar::LoadItem(pugi::xml_node node, wxMenu* parent, wxArrayString &warnings, wxString &error) {
