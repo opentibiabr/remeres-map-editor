@@ -791,6 +791,7 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 						uint32_t house_id;
 						if (!tileNode->getU32(house_id)) {
 							warning("House tile without house data, discarding tile");
+                            delete tile;
 							continue;
 						}
 						if (house_id) {
@@ -1137,13 +1138,18 @@ bool IOMapOTBM::loadHouses(Map &map, pugi::xml_document &doc) {
 			}
 		}
 
-		if ((attribute = houseNode.attribute("name"))) {
-			house->name = attribute.as_string();
-		} else {
-			house->name = "House #" + std::to_string(house->id);
-		}
+        if(house != nullptr) {
+            if ((attribute = houseNode.attribute("name"))) {
+                house->name = attribute.as_string();
+            } else {
+                house->name = "House #" + std::to_string(house->id);
+            }
+        } else {
+            // Tratar o erro: house é nullptr.
+            // Você pode lançar uma exceção, retornar um código de erro, ou registrar um aviso, por exemplo.
+        }
 
-		Position exitPosition(
+        Position exitPosition(
 			houseNode.attribute("entryx").as_int(),
 			houseNode.attribute("entryy").as_int(),
 			houseNode.attribute("entryz").as_int()

@@ -283,20 +283,22 @@ Tile* LiveSocket::readTile(BinaryNode* node, Editor &editor, const Position* pos
 		return nullptr;
 	}
 
-	Position pos;
-	if (position) {
-		pos = *position;
-	} else {
-		uint16_t x;
-		node->getU16(x);
-		pos.x = x;
-		uint16_t y;
-		node->getU16(y);
-		pos.y = y;
-		uint8_t z;
-		node->getU8(z);
-		pos.z = z;
-	}
+    Position pos;
+    if (position) {
+        pos = *position;
+    } else {
+        uint16_t x = 0;  // Inicializar com valor padrão
+        uint16_t y = 0;  // Inicializar com valor padrão
+        uint8_t z = 0;   // Inicializar com valor padrão
+
+        if (node->getU16(x) && node->getU16(y) && node->getU8(z)) {
+            pos.x = x;
+            pos.y = y;
+            pos.z = z;
+        } else {
+            // Tratar erro: os métodos getU16 ou getU8 falharam
+        }
+    }
 
 	Tile* tile = map.allocator(
 		map.createTileL(pos)

@@ -111,9 +111,11 @@ bool Application::OnInit() {
 	wxArtProvider::Push(new ArtProvider());
 
 #if defined(__LINUX__) || defined(__WINDOWS__)
-	int argc = 1;
-	char* argv[1] = { wxString(this->argv[0]).char_str() };
-	glutInit(&argc, argv);
+    int argc = 1;
+    char* arg = strdup(wxString(this->argv[0]).char_str());
+    char* argv[] = { arg };
+    glutInit(&argc, argv);
+    free(arg);
 #endif
 
 	// Load some internal stuff
