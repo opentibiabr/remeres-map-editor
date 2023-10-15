@@ -71,7 +71,7 @@ void ContainerItemButton::OnMouseDoubleLeftClick(wxMouseEvent &WXUNUSED(event)) 
 
 void ContainerItemButton::OnMouseRightRelease(wxMouseEvent &WXUNUSED(event)) {
 	if (!popup_menu) {
-		popup_menu.reset(newd ContainerItemPopupMenu);
+		popup_menu = std::make_unique<ContainerItemPopupMenu>();
 	}
 
 	popup_menu->Update(this);
@@ -114,12 +114,12 @@ void ContainerItemButton::OnEditItem(wxCommandEvent &WXUNUSED(event)) {
 
 	newDialogAt += wxPoint(20, 20);
 
-	wxDialog* d;
+    std::shared_ptr<wxDialog> d;
 
 	if (edit_map->getVersion().otbm >= MAP_OTBM_4) {
-		d = newd PropertiesWindow(this, edit_map, nullptr, edit_item, newDialogAt);
+		d = newd<PropertiesWindow>(this, edit_map, nullptr, edit_item, newDialogAt);
 	} else {
-		d = newd OldPropertiesWindow(this, edit_map, nullptr, edit_item, newDialogAt);
+		d = newd<OldPropertiesWindow>(this, edit_map, nullptr, edit_item, newDialogAt);
 	}
 
 	d->ShowModal();

@@ -30,36 +30,36 @@
 #include "table_brush.h"
 #include "wall_brush.h"
 
-Item* Item::Create(uint16_t id, uint16_t subtype /*= 0xFFFF*/) {
+std::shared_ptr<Item> Item::Create(uint16_t id, uint16_t subtype /*= 0xFFFF*/) {
 	if (id == 0) {
 		return nullptr;
 	}
 
-	const ItemType &type = g_items.getItemType(id);
-	if (type.id == 0) {
-		return newd Item(id, subtype);
+	const auto &type = g_items.getItemType(id);
+	if (type->id == 0) {
+		return newd<Item>(id, subtype);
 	}
 
-	if (type.isDepot()) {
-		return new Depot(id);
-	} else if (type.isContainer()) {
-		return new Container(id);
-	} else if (type.isTeleport()) {
-		return new Teleport(id);
-	} else if (type.isDoor()) {
-		return new Door(id);
+	if (type->isDepot()) {
+		return newd<Depot>(id);
+	} else if (type->isContainer()) {
+		return newd<Container>(id);
+	} else if (type->isTeleport()) {
+		return newd<Teleport>(id);
+	} else if (type->isDoor()) {
+		return newd<Door>(id);
 	} else if (subtype == 0xFFFF) {
-		if (type.isFluidContainer()) {
-			return new Item(id, LIQUID_NONE);
-		} else if (type.isSplash()) {
-			return new Item(id, LIQUID_WATER);
-		} else if (type.charges > 0) {
-			return new Item(id, type.charges);
+		if (type->isFluidContainer()) {
+			return newd<Item>(id, LIQUID_NONE);
+		} else if (type->isSplash()) {
+			return newd<Item>(id, LIQUID_WATER);
+		} else if (type->charges > 0) {
+			return newd<Item>(id, type->charges);
 		} else {
-			return new Item(id, 1);
+			return newd<Item>(id, 1);
 		}
 	}
-	return new Item(id, subtype);
+	return newd<Item>(id, subtype);
 }
 
 Item::Item(unsigned short _type, unsigned short _count) :
@@ -76,54 +76,52 @@ Item::~Item() {
 	////
 }
 
-Item* Item::deepCopy() const {
-	Item* copy = Create(id, subtype);
+std::shared_ptr<Item> Item::deepCopy() const {
+    std::shared_ptr<Item> copy = Create(id, subtype);
 	if (copy) {
 		copy->selected = selected;
 		if (attributes) {
-			copy->attributes = newd ItemAttributeMap(*attributes);
+			copy->attributes = newd<ItemAttributeMap>(*attributes);
 		}
 	}
 	return copy;
 }
 
-Item* transformItem(Item* old_item, uint16_t new_id, Tile* parent) {
+std::shared_ptr<Item> Item::transformItem(std::shared_ptr<Item> old_item, uint16_t new_id, std::shared_ptr<Tile> parent) {
 	if (old_item == nullptr) {
 		return nullptr;
 	}
 
 	old_item->setID(new_id);
 	// Through the magic of deepCopy, this will now be a pointer to an item of the correct type.
-	Item* new_item = old_item->deepCopy();
+    std::shared_ptr<Item> new_item = old_item->deepCopy();
 	if (parent) {
 		// Find the old item and remove it from the tile, insert this one instead!
 		if (old_item == parent->ground) {
-			delete old_item;
 			parent->ground = new_item;
 			return new_item;
 		}
 
-		std::queue<Container*> containers;
+		std::queue<std::shared_ptr<Container>> containers;
 		for (ItemVector::iterator item_iter = parent->items.begin(); item_iter != parent->items.end(); ++item_iter) {
 			if (*item_iter == old_item) {
-				delete old_item;
 				item_iter = parent->items.erase(item_iter);
 				parent->items.insert(item_iter, new_item);
 				return new_item;
 			}
 
-			Container* c = dynamic_cast<Container*>(*item_iter);
+            std::shared_ptr<Container> c = static_self_cast<Container>(*item_iter);
 			if (c) {
 				containers.push(c);
 			}
 		}
 
 		while (containers.size() != 0) {
-			Container* container = containers.front();
+            std::shared_ptr<Container> container = containers.front();
 			ItemVector &v = container->getVector();
 			for (ItemVector::iterator item_iter = v.begin(); item_iter != v.end(); ++item_iter) {
-				Item* i = *item_iter;
-				Container* c = dynamic_cast<Container*>(i);
+                std::shared_ptr<Item> i = *item_iter;
+                std::shared_ptr<Container> c = static_self_cast<Container>(i);
 				if (c) {
 					containers.push(c);
 				}
@@ -138,8 +136,6 @@ Item* transformItem(Item* old_item, uint16_t new_id, Tile* parent) {
 			containers.pop();
 		}
 	}
-
-	delete new_item;
 	return nullptr;
 }
 
@@ -157,8 +153,8 @@ void Item::setSubtype(uint16_t _subtype) {
 }
 
 bool Item::hasSubtype() const {
-	const ItemType &type = g_items.getItemType(id);
-	return (type.isFluidContainer() || type.stackable || type.charges != 0 || type.isSplash() || isCharged());
+	const auto &type = g_items.getItemType(id);
+	return (type->isFluidContainer() || type->stackable || type->charges != 0 || type->isSplash() || isCharged());
 }
 
 uint16_t Item::getSubtype() const {
@@ -166,16 +162,16 @@ uint16_t Item::getSubtype() const {
 }
 
 bool Item::hasProperty(enum ITEMPROPERTY prop) const {
-	const ItemType &type = g_items.getItemType(id);
+	const auto &type = g_items.getItemType(id);
 	switch (prop) {
 		case BLOCKSOLID:
-			if (type.unpassable) {
+			if (type->unpassable) {
 				return true;
 			}
 			break;
 
 		case MOVEABLE:
-			if (type.moveable && getUniqueID() == 0) {
+			if (type->moveable && getUniqueID() == 0) {
 				return true;
 			}
 			break;
@@ -186,31 +182,31 @@ bool Item::hasProperty(enum ITEMPROPERTY prop) const {
 						break;
 			*/
 		case BLOCKPROJECTILE:
-			if (type.blockMissiles) {
+			if (type->blockMissiles) {
 				return true;
 			}
 			break;
 
 		case BLOCKPATHFIND:
-			if (type.blockPathfinder) {
+			if (type->blockPathfinder) {
 				return true;
 			}
 			break;
 
 		case HOOK_SOUTH:
-			if (type.hookSouth) {
+			if (type->hookSouth) {
 				return true;
 			}
 			break;
 
 		case HOOK_EAST:
-			if (type.hookEast) {
+			if (type->hookEast) {
 				return true;
 			}
 			break;
 
 		case BLOCKINGANDNOTMOVEABLE:
-			if (type.unpassable && (!type.moveable || getUniqueID() != 0)) {
+			if (type->unpassable && (!type->moveable || getUniqueID() != 0)) {
 				return true;
 			}
 			break;
@@ -222,43 +218,43 @@ bool Item::hasProperty(enum ITEMPROPERTY prop) const {
 }
 
 wxPoint Item::getDrawOffset() const {
-	const ItemType &type = g_items.getItemType(id);
-	if (type.sprite) {
-		return type.sprite->getDrawOffset();
+	const auto &type = g_items.getItemType(id);
+	if (type->sprite) {
+		return type->sprite->getDrawOffset();
 	}
 	return wxPoint(0, 0);
 }
 
 uint16_t Item::getGroundSpeed() const {
 	const auto &type = g_items.getItemType(id);
-	if (type.sprite) {
-		return type.sprite->ground_speed;
+	if (type->sprite) {
+		return type->sprite->ground_speed;
 	}
 	return 0;
 }
 
 bool Item::hasLight() const {
-	const ItemType &type = g_items.getItemType(id);
-	if (type.sprite) {
-		return type.sprite->hasLight();
+	const auto &type = g_items.getItemType(id);
+	if (type->sprite) {
+		return type->sprite->hasLight();
 	}
 	return false;
 }
 
 SpriteLight Item::getLight() const {
-	const ItemType &type = g_items.getItemType(id);
-	if (type.sprite) {
-		return type.sprite->getLight();
+	const auto &type = g_items.getItemType(id);
+	if (type->sprite) {
+		return type->sprite->getLight();
 	}
 	return SpriteLight { 0, 0 };
 }
 
 double Item::getWeight() const {
-	const ItemType &type = g_items.getItemType(id);
-	if (type.stackable) {
-		return type.weight * std::max(1, (int)subtype);
+	const auto &type = g_items.getItemType(id);
+	if (type->stackable) {
+		return type->weight * std::max(1, (int)subtype);
 	}
-	return type.weight;
+	return type->weight;
 }
 
 void Item::setUniqueID(unsigned short n) {
@@ -278,11 +274,11 @@ void Item::setDescription(const std::string &str) {
 }
 
 double Item::getWeight() {
-	const ItemType &type = g_items.getItemType(id);
-	if (type.isStackable()) {
-		return type.weight * subtype;
+	const auto &type = g_items.getItemType(id);
+	if (type->isStackable()) {
+		return type->weight * subtype;
 	}
-	return type.weight;
+	return type->weight;
 }
 
 bool Item::canHoldText() const {
@@ -290,49 +286,49 @@ bool Item::canHoldText() const {
 }
 
 bool Item::canHoldDescription() const {
-	return g_items.getItemType(id).allowDistRead;
+	return g_items.getItemType(id)->allowDistRead;
 }
 
 uint8_t Item::getMiniMapColor() const {
-	GameSprite* sprite = g_items.getItemType(id).sprite;
+    std::shared_ptr<GameSprite> sprite = g_items.getItemType(id)->sprite;
 	if (sprite) {
 		return sprite->getMiniMapColor();
 	}
 	return 0;
 }
 
-GroundBrush* Item::getGroundBrush() const {
-	const ItemType &type = g_items.getItemType(id);
-	if (type.isGroundTile() && type.brush && type.brush->isGround()) {
-		return type.brush->asGround();
+std::shared_ptr<GroundBrush> Item::getGroundBrush() const {
+	const auto &type = g_items.getItemType(id);
+	if (type->isGroundTile() && type->brush && type->brush->isGround()) {
+		return type->brush->asGround();
 	}
 	return nullptr;
 }
 
-TableBrush* Item::getTableBrush() const {
-	const ItemType &type = g_items.getItemType(id);
-	if (type.isTable && type.brush && type.brush->isTable()) {
-		return type.brush->asTable();
+std::shared_ptr<TableBrush> Item::getTableBrush() const {
+	const auto &type = g_items.getItemType(id);
+	if (type->isTable && type->brush && type->brush->isTable()) {
+		return type->brush->asTable();
 	}
 	return nullptr;
 }
 
-CarpetBrush* Item::getCarpetBrush() const {
-	const ItemType &type = g_items.getItemType(id);
-	if (type.isCarpet && type.brush && type.brush->isCarpet()) {
-		return type.brush->asCarpet();
+std::shared_ptr<CarpetBrush> Item::getCarpetBrush() const {
+	const auto &type = g_items.getItemType(id);
+	if (type->isCarpet && type->brush && type->brush->isCarpet()) {
+		return type->brush->asCarpet();
 	}
 	return nullptr;
 }
 
-DoorBrush* Item::getDoorBrush() const {
-	const ItemType &type = g_items.getItemType(id);
-	if (!type.isWall || !type.isBrushDoor || !type.brush || !type.brush->isWall()) {
+std::shared_ptr<DoorBrush> Item::getDoorBrush() const {
+	const auto &type = g_items.getItemType(id);
+	if (!type->isWall || !type->isBrushDoor || !type->brush || !type->brush->isWall()) {
 		return nullptr;
 	}
 
-	DoorType door_type = type.brush->asWall()->getDoorTypeFromID(id);
-	DoorBrush* door_brush = nullptr;
+	DoorType door_type = type->brush->asWall()->getDoorTypeFromID(id);
+    std::shared_ptr<DoorBrush> door_brush = nullptr;
 	// Quite a horrible dependency on a global here, meh.
 	switch (door_type) {
 		case WALL_DOOR_NORMAL: {
@@ -366,30 +362,30 @@ DoorBrush* Item::getDoorBrush() const {
 	return door_brush;
 }
 
-WallBrush* Item::getWallBrush() const {
-	const ItemType &type = g_items.getItemType(id);
-	if (type.isWall && type.brush && type.brush->isWall()) {
-		return type.brush->asWall();
+std::shared_ptr<WallBrush> Item::getWallBrush() const {
+	const auto &type = g_items.getItemType(id);
+	if (type->isWall && type->brush && type->brush->isWall()) {
+		return type->brush->asWall();
 	}
 	return nullptr;
 }
 
 BorderType Item::getWallAlignment() const {
-	const ItemType &type = g_items.getItemType(id);
-	if (!type.isWall) {
+	const auto &type = g_items.getItemType(id);
+	if (!type->isWall) {
 		return BORDER_NONE;
 	}
-	return type.border_alignment;
+	return type->border_alignment;
 }
 
 BorderType Item::getBorderAlignment() const {
-	const ItemType &type = g_items.getItemType(id);
-	return type.border_alignment;
+	const auto &type = g_items.getItemType(id);
+	return type->border_alignment;
 }
 
 void Item::animate() {
-	const ItemType &type = g_items.getItemType(id);
-	GameSprite* sprite = type.sprite;
+	const auto &type = g_items.getItemType(id);
+	auto sprite = type->sprite;
 	if (!sprite || !sprite->animator) {
 		return;
 	}
@@ -524,7 +520,7 @@ uint16_t Item::LiquidName2ID(std::string liquid) {
 // ============================================================================
 // XML Saving & loading
 
-Item* Item::Create(pugi::xml_node xml) {
+std::shared_ptr<Item> Item::Create(pugi::xml_node xml) {
 	pugi::xml_attribute attribute;
 
 	uint16_t id = 0;

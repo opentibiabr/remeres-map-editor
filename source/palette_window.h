@@ -26,7 +26,7 @@ class NpcPalettePanel;
 class HousePalettePanel;
 class WaypointPalettePanel;
 
-class PaletteWindow : public wxPanel {
+class PaletteWindow : public wxPanel, public SharedObject {
 public:
 	PaletteWindow(wxWindow* parent, const TilesetContainer &tilesets);
 	~PaletteWindow();
@@ -64,25 +64,25 @@ public:
 	void OnClose(wxCloseEvent &);
 
 protected:
-	static PalettePanel* CreateTerrainPalette(wxWindow* parent, const TilesetContainer &tilesets);
-	static PalettePanel* CreateDoodadPalette(wxWindow* parent, const TilesetContainer &tilesets);
-	static PalettePanel* CreateItemPalette(wxWindow* parent, const TilesetContainer &tilesets);
-	static PalettePanel* CreateMonsterPalette(wxWindow* parent, const TilesetContainer &tilesets);
-	static PalettePanel* CreateNpcPalette(wxWindow* parent, const TilesetContainer &tilesets);
-	static PalettePanel* CreateHousePalette(wxWindow* parent, const TilesetContainer &tilesets);
-	static PalettePanel* CreateWaypointPalette(wxWindow* parent, const TilesetContainer &tilesets);
-	static PalettePanel* CreateRAWPalette(wxWindow* parent, const TilesetContainer &tilesets);
+	static std::shared_ptr<PalettePanel> CreateTerrainPalette(std::shared_ptr<wxWindow> parent, const TilesetContainer &tilesets);
+	static std::shared_ptr<PalettePanel> CreateDoodadPalette(std::shared_ptr<wxWindow> parent, const TilesetContainer &tilesets);
+	static std::shared_ptr<PalettePanel> CreateItemPalette(std::shared_ptr<wxWindow> parent, const TilesetContainer &tilesets);
+	static std::shared_ptr<PalettePanel> CreateMonsterPalette(std::shared_ptr<wxWindow> parent, const TilesetContainer &tilesets);
+	static std::shared_ptr<PalettePanel> CreateNpcPalette(std::shared_ptr<wxWindow> parent, const TilesetContainer &tilesets);
+	static std::shared_ptr<PalettePanel> CreateHousePalette(std::shared_ptr<wxWindow> parent, const TilesetContainer &tilesets);
+	static std::shared_ptr<PalettePanel> CreateWaypointPalette(std::shared_ptr<wxWindow> parent, const TilesetContainer &tilesets);
+	static std::shared_ptr<PalettePanel> CreateRAWPalette(std::shared_ptr<wxWindow> parent, const TilesetContainer &tilesets);
 
-	wxChoicebook* choicebook;
+	std::shared_ptr<wxChoicebook> choicebook;
 
-	BrushPalettePanel* terrain_palette;
-	BrushPalettePanel* doodad_palette;
-	BrushPalettePanel* item_palette;
-	MonsterPalettePanel* monster_palette;
-	NpcPalettePanel* npc_palette;
-	HousePalettePanel* house_palette;
-	WaypointPalettePanel* waypoint_palette;
-	BrushPalettePanel* raw_palette;
+	std::shared_ptr<BrushPalettePanel> terrain_palette;
+    std::shared_ptr<BrushPalettePanel> doodad_palette;
+    std::shared_ptr<BrushPalettePanel> item_palette;
+    std::shared_ptr<MonsterPalettePanel> monster_palette;
+    std::shared_ptr<NpcPalettePanel> npc_palette;
+    std::shared_ptr<HousePalettePanel> house_palette;
+    std::shared_ptr<WaypointPalettePanel> waypoint_palette;
+    std::shared_ptr<BrushPalettePanel> raw_palette;
 
 	DECLARE_EVENT_TABLE()
 };

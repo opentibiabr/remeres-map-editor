@@ -21,6 +21,8 @@
 
 #include "about_window.h"
 
+#include <memory>
+
 class GamePanel : public wxPanel {
 public:
 	GamePanel(wxWindow* parent, int width, int height);
@@ -209,13 +211,13 @@ AboutWindow::AboutWindow(wxWindow* parent) :
 	about << "Compiled on: " << __TDATE__ << " : " << __TTIME__ << "\n";
 	about << "Compiled with: " << compiler << "\n";
 
-	topsizer = newd wxBoxSizer(wxVERTICAL);
+	topsizer = newd<wxBoxSizer>(wxVERTICAL);
 
-	topsizer->Add(newd wxStaticText(this, wxID_ANY, about), 1, wxALL, 20);
+	topsizer->Add(newd<wxStaticText>(this, wxID_ANY, about).get(), 1, wxALL, 20);
 
-	wxSizer* choicesizer = newd wxBoxSizer(wxHORIZONTAL);
-	choicesizer->Add(newd wxButton(this, wxID_OK, "OK"), wxSizerFlags(1).Center());
-	topsizer->Add(choicesizer, 0, wxALIGN_CENTER | wxLEFT | wxRIGHT | wxBOTTOM, 20);
+	std::shared_ptr<wxSizer> choicesizer = newd<wxBoxSizer>(wxHORIZONTAL);
+	choicesizer->Add(newd<wxButton>(this, wxID_OK, "OK").get(), wxSizerFlags(1).Center());
+	topsizer->Add(choicesizer.get(), 0, wxALIGN_CENTER | wxLEFT | wxRIGHT | wxBOTTOM, 20);
 
 	wxAcceleratorEntry entries[3];
 	entries[0].Set(wxACCEL_NORMAL, WXK_ESCAPE, wxID_CANCEL);
@@ -224,7 +226,7 @@ AboutWindow::AboutWindow(wxWindow* parent) :
 	wxAcceleratorTable accel(3, entries);
 	SetAcceleratorTable(accel);
 
-	SetSizerAndFit(topsizer);
+	SetSizerAndFit(topsizer.get());
 	Centre(wxBOTH);
 }
 
@@ -258,8 +260,8 @@ void AboutWindow::OnClickLicense(wxCommandEvent &WXUNUSED(event)) {
 void AboutWindow::OnTetris(wxCommandEvent &) {
 	if (!game_panel) {
 		DestroyChildren();
-		game_panel = newd TetrisPanel(this);
-		topsizer->Add(game_panel, 1, wxALIGN_CENTER | wxALL, 7);
+		game_panel = newd<TetrisPanel>(this);
+		topsizer->Add(game_panel.get(), 1, wxALIGN_CENTER | wxALL, 7);
 		Fit();
 		game_panel->SetFocus();
 		SetWindowStyleFlag(wxRESIZE_BORDER | wxCAPTION | wxCLOSE_BOX);
@@ -270,8 +272,8 @@ void AboutWindow::OnTetris(wxCommandEvent &) {
 void AboutWindow::OnSnake(wxCommandEvent &) {
 	if (!game_panel) {
 		DestroyChildren();
-		game_panel = newd SnakePanel(this);
-		topsizer->Add(game_panel, 1, wxALIGN_CENTER | wxALL, 7);
+		game_panel = newd<SnakePanel>(this);
+		topsizer->Add(game_panel.get(), 1, wxALIGN_CENTER | wxALL, 7);
 		Fit();
 		game_panel->SetFocus();
 		SetWindowStyleFlag(wxRESIZE_BORDER | wxCAPTION | wxCLOSE_BOX);
@@ -358,11 +360,11 @@ const wxBrush &TetrisPanel::GetBrush(Color color) const {
 	static std::unique_ptr<wxBrush> yellow_brush;
 	static std::unique_ptr<wxBrush> purple_brush;
 
-	if (yellow_brush.get() == nullptr) {
-		yellow_brush.reset(newd wxBrush(wxColor(255, 255, 0)));
+	if (yellow_brush == nullptr) {
+		yellow_brush = std::make_unique<wxBrush>(wxColor(255, 255, 0));
 	}
-	if (purple_brush.get() == nullptr) {
-		purple_brush.reset(newd wxBrush(wxColor(128, 0, 255)));
+	if (purple_brush == nullptr) {
+		purple_brush = std::make_unique<wxBrush>(wxColor(128, 0, 255));
 	}
 
 	const wxBrush* brush = nullptr;

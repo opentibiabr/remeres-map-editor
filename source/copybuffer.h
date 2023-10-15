@@ -45,7 +45,7 @@ public:
 
 private:
 	Position copyPos;
-	BaseMap* tiles;
+	std::shared_ptr<BaseMap> tiles;
 };
 
 #endif

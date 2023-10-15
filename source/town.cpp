@@ -33,13 +33,12 @@ Towns::~Towns() {
 void Towns::clear() {
 	TownMap::const_iterator it = begin();
 	while (it != end()) {
-		delete it->second;
 		++it;
 	}
 	towns.clear();
 }
 
-bool Towns::addTown(Town* town) {
+bool Towns::addTown(std::shared_ptr<Town> town) {
 	TownMap::iterator it = find(town->getID());
 	if (it != end()) {
 		return false;
@@ -58,7 +57,7 @@ uint32_t Towns::getEmptyID() {
 	return empty + 1;
 }
 
-Town* Towns::getTown(std::string &name) {
+std::shared_ptr<Town> Towns::getTown(std::string &name) {
 	for (TownMap::iterator it = begin(); it != end(); ++it) {
 		if (it->second->getName() == name) {
 			return it->second;
@@ -67,7 +66,7 @@ Town* Towns::getTown(std::string &name) {
 	return nullptr;
 }
 
-Town* Towns::getTown(uint32_t id) {
+std::shared_ptr<Town> Towns::getTown(uint32_t id) {
 	TownMap::iterator it = find(id);
 	if (it != end()) {
 		return it->second;

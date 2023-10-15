@@ -29,8 +29,8 @@ public:
 	void OnClickList(wxCommandEvent &);
 
 protected:
-	DatDebugViewListBox* item_list;
-	wxTextCtrl* search_field;
+    std::shared_ptr<DatDebugViewListBox> item_list;
+    std::shared_ptr<wxTextCtrl> search_field;
 
 	DECLARE_EVENT_TABLE()
 };

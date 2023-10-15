@@ -21,7 +21,7 @@
 #include "gui.h"
 
 #include "items.h"
-#include "item.h"
+//#include "item.h"
 
 ItemDatabase g_items;
 
@@ -128,7 +128,6 @@ ItemDatabase::~ItemDatabase() {
 
 void ItemDatabase::clear() {
 	for (size_t i = 0; i < items.size(); i++) {
-		delete items[i];
 		items.set(i, nullptr);
 	}
 }
@@ -146,7 +145,7 @@ bool ItemDatabase::loadFromOtbVer1(BinaryNode* itemNode, wxString &error, wxArra
 			continue;
 		}
 
-		ItemType* item = new ItemType();
+		auto item = newd<ItemType>();
 		item->group = static_cast<ItemGroup_t>(group);
 
 		switch (item->group) {
@@ -404,7 +403,6 @@ bool ItemDatabase::loadFromOtbVer1(BinaryNode* itemNode, wxString &error, wxArra
 
 		if (items[item->id]) {
 			warnings.push_back("items.otb: Duplicate items");
-			delete items[item->id];
 		}
 		items.set(item->id, item);
 	}
@@ -424,7 +422,7 @@ bool ItemDatabase::loadFromOtbVer2(BinaryNode* itemNode, wxString &error, wxArra
 			continue;
 		}
 
-		ItemType* item = newd ItemType();
+		auto item = newd<ItemType>();
 		item->group = static_cast<ItemGroup_t>(group);
 
 		switch (item->group) {
@@ -571,7 +569,6 @@ bool ItemDatabase::loadFromOtbVer2(BinaryNode* itemNode, wxString &error, wxArra
 
 		if (items[item->id]) {
 			warnings.push_back("items.otb: Duplicate items");
-			delete items[item->id];
 		}
 		items.set(item->id, item);
 	}
@@ -591,7 +588,7 @@ bool ItemDatabase::loadFromOtbVer3(BinaryNode* itemNode, wxString &error, wxArra
 			continue;
 		}
 
-		ItemType* item = newd ItemType();
+		auto item = newd<ItemType>();
 		item->group = static_cast<ItemGroup_t>(group);
 
 		switch (item->group) {
@@ -728,7 +725,6 @@ bool ItemDatabase::loadFromOtbVer3(BinaryNode* itemNode, wxString &error, wxArra
 
 		if (items[item->id]) {
 			warnings.push_back("items.otb: Duplicate items");
-			delete items[item->id];
 		}
 		items.set(item->id, item);
 	}
@@ -1002,7 +998,7 @@ bool ItemDatabase::loadMetaItem(pugi::xml_node node) {
 			return false;
 		}
 
-		ItemType* item = new ItemType();
+		auto item = newd<ItemType>();
 		item->is_metaitem = true;
 		item->id = id;
 		items.set(id, item);
@@ -1011,20 +1007,20 @@ bool ItemDatabase::loadMetaItem(pugi::xml_node node) {
 	return false;
 }
 
-ItemType &ItemDatabase::getItemType(uint16_t id) {
+std::shared_ptr<ItemType> ItemDatabase::getItemType(uint16_t id) {
 	if (id == 0 || id > maxItemId) {
 		return dummy;
 	}
 
-	ItemType* type = items[id];
+	auto type = items[id];
 	if (type) {
-		return *type;
+		return type;
 	}
 
 	return dummy;
 }
 
-ItemType* ItemDatabase::getRawItemType(uint16_t id) {
+std::shared_ptr<ItemType> ItemDatabase::getRawItemType(uint16_t id) {
 	if (id == 0 || id > maxItemId) {
 		return nullptr;
 	}

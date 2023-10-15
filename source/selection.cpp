@@ -100,7 +100,7 @@ void Selection::add(const Tile* tile, Item* item) {
 		}
 	}
 
-	subsession->addChange(newd Change(new_tile));
+	subsession->addChange(newd<Change>(new_tile));
 }
 
 void Selection::add(const Tile* tile, SpawnMonster* spawnMonster) {
@@ -117,7 +117,7 @@ void Selection::add(const Tile* tile, SpawnMonster* spawnMonster) {
 	Tile* new_tile = tile->deepCopy(editor.getMap());
 	spawnMonster->deselect();
 
-	subsession->addChange(newd Change(new_tile));
+	subsession->addChange(newd<Change>(new_tile));
 }
 
 void Selection::add(const Tile* tile, SpawnNpc* spawnNpc) {
@@ -134,7 +134,7 @@ void Selection::add(const Tile* tile, SpawnNpc* spawnNpc) {
 	Tile* new_tile = tile->deepCopy(editor.getMap());
 	spawnNpc->deselect();
 
-	subsession->addChange(newd Change(new_tile));
+	subsession->addChange(newd<Change>(new_tile));
 }
 
 void Selection::add(const Tile* tile, Monster* monster) {
@@ -151,7 +151,7 @@ void Selection::add(const Tile* tile, Monster* monster) {
 	Tile* new_tile = tile->deepCopy(editor.getMap());
 	monster->deselect();
 
-	subsession->addChange(newd Change(new_tile));
+	subsession->addChange(newd<Change>(new_tile));
 }
 
 void Selection::add(const Tile* tile, Npc* npc) {
@@ -168,7 +168,7 @@ void Selection::add(const Tile* tile, Npc* npc) {
 	Tile* new_tile = tile->deepCopy(editor.getMap());
 	npc->deselect();
 
-	subsession->addChange(newd Change(new_tile));
+	subsession->addChange(newd<Change>(new_tile));
 }
 
 void Selection::add(const Tile* tile) {
@@ -178,7 +178,7 @@ void Selection::add(const Tile* tile) {
 	Tile* new_tile = tile->deepCopy(editor.getMap());
 	new_tile->select();
 
-	subsession->addChange(newd Change(new_tile));
+	subsession->addChange(newd<Change>(new_tile));
 }
 
 void Selection::remove(Tile* tile, Item* item) {
@@ -196,7 +196,7 @@ void Selection::remove(Tile* tile, Item* item) {
 		new_tile->deselectGround();
 	}
 
-	subsession->addChange(newd Change(new_tile));
+	subsession->addChange(newd<Change>(new_tile));
 }
 
 void Selection::remove(Tile* tile, SpawnMonster* spawnMonster) {
@@ -211,7 +211,7 @@ void Selection::remove(Tile* tile, SpawnMonster* spawnMonster) {
 		spawnMonster->select();
 	}
 
-	subsession->addChange(newd Change(new_tile));
+	subsession->addChange(newd<Change>(new_tile));
 }
 
 void Selection::remove(Tile* tile, SpawnNpc* spawnNpc) {
@@ -226,7 +226,7 @@ void Selection::remove(Tile* tile, SpawnNpc* spawnNpc) {
 		spawnNpc->select();
 	}
 
-	subsession->addChange(newd Change(new_tile));
+	subsession->addChange(newd<Change>(new_tile));
 }
 
 void Selection::remove(Tile* tile, Monster* monster) {
@@ -241,7 +241,7 @@ void Selection::remove(Tile* tile, Monster* monster) {
 		monster->select();
 	}
 
-	subsession->addChange(newd Change(new_tile));
+	subsession->addChange(newd<Change>(new_tile));
 }
 
 void Selection::remove(Tile* tile, Npc* npc) {
@@ -256,7 +256,7 @@ void Selection::remove(Tile* tile, Npc* npc) {
 		npc->select();
 	}
 
-	subsession->addChange(newd Change(new_tile));
+	subsession->addChange(newd<Change>(new_tile));
 }
 
 void Selection::remove(Tile* tile) {
@@ -265,7 +265,7 @@ void Selection::remove(Tile* tile) {
 	Tile* new_tile = tile->deepCopy(editor.getMap());
 	new_tile->deselect();
 
-	subsession->addChange(newd Change(new_tile));
+	subsession->addChange(newd<Change>(new_tile));
 }
 
 void Selection::addInternal(Tile* tile) {
@@ -284,7 +284,7 @@ void Selection::clear() {
 		for (Tile* tile : tiles) {
 			Tile* new_tile = tile->deepCopy(editor.getMap());
 			new_tile->deselect();
-			subsession->addChange(newd Change(new_tile));
+			subsession->addChange(newd<Change>(new_tile));
 		}
 	} else {
 		for (Tile* tile : tiles) {
@@ -355,14 +355,12 @@ void Selection::updateSelectionCount() {
 	}
 }
 
-void Selection::join(SelectionThread* thread) {
+void Selection::join(std::shared_ptr<SelectionThread> thread) {
 	thread->Wait();
 
 	ASSERT(session);
 	session->addAction(thread->result);
 	thread->selection.subsession = nullptr;
-
-	delete thread;
 }
 
 SelectionThread::SelectionThread(Editor &editor, Position start, Position end) :

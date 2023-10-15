@@ -175,7 +175,7 @@ GraphicManager::GraphicManager() :
 	has_frame_groups(false),
 	loaded_textures(0),
 	lastclean(0) {
-	animation_timer = newd wxStopWatch();
+	animation_timer = newd<wxStopWatch>();
 	animation_timer->Start();
 }
 
@@ -275,133 +275,133 @@ GameSprite* GraphicManager::getEditorSprite(int id) {
 }
 
 #define loadPNGFile(name) _wxGetBitmapFromMemory(name, sizeof(name))
-inline wxBitmap* _wxGetBitmapFromMemory(const unsigned char* data, int length) {
+inline std::shared_ptr<wxBitmap> _wxGetBitmapFromMemory(const unsigned char* data, int length) {
 	wxMemoryInputStream is(data, length);
 	wxImage img(is, "image/png");
 	if (!img.IsOk()) {
 		return nullptr;
 	}
-	return newd wxBitmap(img, -1);
+	return newd<wxBitmap>(img, -1);
 }
 
 bool GraphicManager::loadEditorSprites() {
 	// Unused graphics MIGHT be loaded here, but it's a neglectable loss
-	sprite_space[EDITOR_SPRITE_SELECTION_MARKER] = newd EditorSprite(
-		newd wxBitmap(selection_marker_xpm16x16),
-		newd wxBitmap(selection_marker_xpm32x32)
+	sprite_space[EDITOR_SPRITE_SELECTION_MARKER] = newd<EditorSprite>(
+		newd<wxBitmap>(selection_marker_xpm16x16),
+		newd<wxBitmap>(selection_marker_xpm32x32)
 	);
-	sprite_space[EDITOR_SPRITE_BRUSH_CD_1x1] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_BRUSH_CD_1x1] = newd<EditorSprite>(
 		loadPNGFile(circular_1_small_png),
 		loadPNGFile(circular_1_png)
 	);
-	sprite_space[EDITOR_SPRITE_BRUSH_CD_3x3] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_BRUSH_CD_3x3] = newd<EditorSprite>(
 		loadPNGFile(circular_2_small_png),
 		loadPNGFile(circular_2_png)
 	);
-	sprite_space[EDITOR_SPRITE_BRUSH_CD_5x5] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_BRUSH_CD_5x5] = newd<EditorSprite>(
 		loadPNGFile(circular_3_small_png),
 		loadPNGFile(circular_3_png)
 	);
-	sprite_space[EDITOR_SPRITE_BRUSH_CD_7x7] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_BRUSH_CD_7x7] = newd<EditorSprite>(
 		loadPNGFile(circular_4_small_png),
 		loadPNGFile(circular_4_png)
 	);
-	sprite_space[EDITOR_SPRITE_BRUSH_CD_9x9] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_BRUSH_CD_9x9] = newd<EditorSprite>(
 		loadPNGFile(circular_5_small_png),
 		loadPNGFile(circular_5_png)
 	);
-	sprite_space[EDITOR_SPRITE_BRUSH_CD_15x15] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_BRUSH_CD_15x15] = newd<EditorSprite>(
 		loadPNGFile(circular_6_small_png),
 		loadPNGFile(circular_6_png)
 	);
-	sprite_space[EDITOR_SPRITE_BRUSH_CD_19x19] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_BRUSH_CD_19x19] = newd<EditorSprite>(
 		loadPNGFile(circular_7_small_png),
 		loadPNGFile(circular_7_png)
 	);
-	sprite_space[EDITOR_SPRITE_BRUSH_SD_1x1] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_BRUSH_SD_1x1] = newd<EditorSprite>(
 		loadPNGFile(rectangular_1_small_png),
 		loadPNGFile(rectangular_1_png)
 	);
-	sprite_space[EDITOR_SPRITE_BRUSH_SD_3x3] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_BRUSH_SD_3x3] = newd<EditorSprite>(
 		loadPNGFile(rectangular_2_small_png),
 		loadPNGFile(rectangular_2_png)
 	);
-	sprite_space[EDITOR_SPRITE_BRUSH_SD_5x5] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_BRUSH_SD_5x5] = newd<EditorSprite>(
 		loadPNGFile(rectangular_3_small_png),
 		loadPNGFile(rectangular_3_png)
 	);
-	sprite_space[EDITOR_SPRITE_BRUSH_SD_7x7] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_BRUSH_SD_7x7] = newd<EditorSprite>(
 		loadPNGFile(rectangular_4_small_png),
 		loadPNGFile(rectangular_4_png)
 	);
-	sprite_space[EDITOR_SPRITE_BRUSH_SD_9x9] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_BRUSH_SD_9x9] = newd<EditorSprite>(
 		loadPNGFile(rectangular_5_small_png),
 		loadPNGFile(rectangular_5_png)
 	);
-	sprite_space[EDITOR_SPRITE_BRUSH_SD_15x15] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_BRUSH_SD_15x15] = newd<EditorSprite>(
 		loadPNGFile(rectangular_6_small_png),
 		loadPNGFile(rectangular_6_png)
 	);
-	sprite_space[EDITOR_SPRITE_BRUSH_SD_19x19] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_BRUSH_SD_19x19] = newd<EditorSprite>(
 		loadPNGFile(rectangular_7_small_png),
 		loadPNGFile(rectangular_7_png)
 	);
 
-	sprite_space[EDITOR_SPRITE_OPTIONAL_BORDER_TOOL] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_OPTIONAL_BORDER_TOOL] = newd<EditorSprite>(
 		loadPNGFile(optional_border_small_png),
 		loadPNGFile(optional_border_png)
 	);
-	sprite_space[EDITOR_SPRITE_ERASER] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_ERASER] = newd<EditorSprite>(
 		loadPNGFile(eraser_small_png),
 		loadPNGFile(eraser_png)
 	);
-	sprite_space[EDITOR_SPRITE_PZ_TOOL] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_PZ_TOOL] = newd<EditorSprite>(
 		loadPNGFile(protection_zone_small_png),
 		loadPNGFile(protection_zone_png)
 	);
-	sprite_space[EDITOR_SPRITE_PVPZ_TOOL] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_PVPZ_TOOL] = newd<EditorSprite>(
 		loadPNGFile(pvp_zone_small_png),
 		loadPNGFile(pvp_zone_png)
 	);
-	sprite_space[EDITOR_SPRITE_NOLOG_TOOL] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_NOLOG_TOOL] = newd<EditorSprite>(
 		loadPNGFile(no_logout_small_png),
 		loadPNGFile(no_logout_png)
 	);
-	sprite_space[EDITOR_SPRITE_NOPVP_TOOL] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_NOPVP_TOOL] = newd<EditorSprite>(
 		loadPNGFile(no_pvp_small_png),
 		loadPNGFile(no_pvp_png)
 	);
 
-	sprite_space[EDITOR_SPRITE_DOOR_NORMAL] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_DOOR_NORMAL] = newd<EditorSprite>(
 		loadPNGFile(door_normal_small_png),
 		loadPNGFile(door_normal_png)
 	);
-	sprite_space[EDITOR_SPRITE_DOOR_LOCKED] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_DOOR_LOCKED] = newd<EditorSprite>(
 		loadPNGFile(door_locked_small_png),
 		loadPNGFile(door_locked_png)
 	);
-	sprite_space[EDITOR_SPRITE_DOOR_MAGIC] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_DOOR_MAGIC] = newd<EditorSprite>(
 		loadPNGFile(door_magic_small_png),
 		loadPNGFile(door_magic_png)
 	);
-	sprite_space[EDITOR_SPRITE_DOOR_QUEST] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_DOOR_QUEST] = newd<EditorSprite>(
 		loadPNGFile(door_quest_small_png),
 		loadPNGFile(door_quest_png)
 	);
-	sprite_space[EDITOR_SPRITE_WINDOW_NORMAL] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_WINDOW_NORMAL] = newd<EditorSprite>(
 		loadPNGFile(window_normal_small_png),
 		loadPNGFile(window_normal_png)
 	);
-	sprite_space[EDITOR_SPRITE_WINDOW_HATCH] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_WINDOW_HATCH] = newd<EditorSprite>(
 		loadPNGFile(window_hatch_small_png),
 		loadPNGFile(window_hatch_png)
 	);
 
-	sprite_space[EDITOR_SPRITE_SELECTION_GEM] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_SELECTION_GEM] = newd<EditorSprite>(
 		loadPNGFile(gem_edit_png),
 		nullptr
 	);
-	sprite_space[EDITOR_SPRITE_DRAWING_GEM] = newd EditorSprite(
+	sprite_space[EDITOR_SPRITE_DRAWING_GEM] = newd<EditorSprite>(
 		loadPNGFile(gem_move_png),
 		nullptr
 	);
@@ -492,7 +492,7 @@ bool GraphicManager::loadSpriteMetadata(const FileName &datafile, wxString &erro
 	uint16_t id = minID;
 	// loop through all ItemDatabase until we reach the end of file
 	while (id <= maxID) {
-		GameSprite* sType = newd GameSprite();
+		const auto& sType = newd<GameSprite>();
 		sprite_space[id] = sType;
 
 		sType->id = id;
@@ -540,7 +540,7 @@ bool GraphicManager::loadSpriteMetadata(const FileName &datafile, wxString &erro
 					file.get32(loop_count);
 					file.getSByte(start_frame);
 				}
-				sType->animator = newd Animator(sType->frames, start_frame, loop_count, async == 1);
+				sType->animator = newd<Animator>(sType->frames, start_frame, loop_count, async == 1);
 				if (has_frame_durations) {
 					for (int i = 0; i < sType->frames; i++) {
 						uint32_t min;
@@ -568,11 +568,11 @@ bool GraphicManager::loadSpriteMetadata(const FileName &datafile, wxString &erro
 				}
 
 				if (image_space[sprite_id] == nullptr) {
-					GameSprite::NormalImage* img = newd GameSprite::NormalImage();
+					const auto& img = newd<GameSprite::NormalImage>();
 					img->id = sprite_id;
 					image_space[sprite_id] = img;
 				}
-				sType->spriteList.push_back(static_cast<GameSprite::NormalImage*>(image_space[sprite_id]));
+				sType->spriteList.push_back(static_self_cast<GameSprite::NormalImage>(image_space[sprite_id]));
 			}
 		}
 		++id;
@@ -581,7 +581,7 @@ bool GraphicManager::loadSpriteMetadata(const FileName &datafile, wxString &erro
 	return true;
 }
 
-bool GraphicManager::loadSpriteMetadataFlags(FileReadHandle &file, GameSprite* sType, wxString &error, wxArrayString &warnings) {
+bool GraphicManager::loadSpriteMetadataFlags(FileReadHandle &file, std::shared_ptr<GameSprite> sType, wxString &error, wxArrayString &warnings) {
 	uint8_t prev_flag = 0;
 	uint8_t flag = DatFlagLast;
 
@@ -761,7 +761,7 @@ bool GraphicManager::loadSpriteData(const FileName &datafile, wxString &error, w
 
 		ImageMap::iterator it = image_space.find(id);
 		if (it != image_space.end()) {
-			GameSprite::NormalImage* spr = dynamic_cast<GameSprite::NormalImage*>(it->second);
+			const auto& spr = static_self_cast<GameSprite::NormalImage>(it->second);
 			if (spr && size > 0) {
 				if (spr->size > 0) {
 					wxString ss;
@@ -771,8 +771,8 @@ bool GraphicManager::loadSpriteData(const FileName &datafile, wxString &error, w
 				} else {
 					spr->id = id;
 					spr->size = size;
-					spr->dump = newd uint8_t[size];
-					if (!fh.getRAW(spr->dump, size)) {
+					spr->dump = newd<uint8_t>(size); ///////////////////////////////////////////////
+					if (!fh.getRAW(&spr->dump, size)) { ///////////////////////////////////////////
 						error = wxstr(fh.getErrorMessage());
 						return false;
 					}
@@ -787,7 +787,7 @@ bool GraphicManager::loadSpriteData(const FileName &datafile, wxString &error, w
 	return true;
 }
 
-bool GraphicManager::loadSpriteDump(uint8_t*&target, uint16_t &size, int sprite_id) {
+bool GraphicManager::loadSpriteDump(std::shared_ptr<uint8_t> target, uint16_t &size, int sprite_id) {
 	if (g_settings.getInteger(Config::USE_MEMCACHED_SPRITES)) {
 		return false;
 	}
@@ -814,12 +814,11 @@ bool GraphicManager::loadSpriteDump(uint8_t*&target, uint16_t &size, int sprite_
 		fh.seek(to_seek + 3);
 		uint16_t sprite_size;
 		if (fh.getU16(sprite_size)) {
-			target = newd uint8_t[sprite_size];
-			if (fh.getRAW(target, sprite_size)) {
+			target = newd<uint8_t>(sprite_size);
+			if (fh.getRAW(&target, sprite_size)) {
 				size = sprite_size;
 				return true;
 			}
-			delete[] target;
 			target = nullptr;
 		}
 	}
@@ -848,7 +847,7 @@ void GraphicManager::garbageCollection() {
 			}
 			SpriteMap::iterator sit = sprite_space.begin();
 			while (sit != sprite_space.end()) {
-				GameSprite* gs = dynamic_cast<GameSprite*>(sit->second);
+				const auto& gs = static_self_cast<GameSprite>(sit->second);
 				if (gs) {
 					gs->clean(t);
 				}
@@ -902,15 +901,10 @@ GameSprite::GameSprite() :
 
 GameSprite::~GameSprite() {
 	unloadDC();
-	for (std::list<TemplateImage*>::iterator iter = instanced_templates.begin(); iter != instanced_templates.end(); ++iter) {
-		delete *iter;
-	}
-
-	delete animator;
 }
 
 void GameSprite::clean(int time) {
-	for (std::list<TemplateImage*>::iterator iter = instanced_templates.begin();
+	for (std::list<std::shared_ptr<TemplateImage>>::iterator iter = instanced_templates.begin();
 		 iter != instanced_templates.end();
 		 ++iter) {
 		(*iter)->clean(time);
@@ -945,15 +939,15 @@ GLuint GameSprite::getHardwareID(int _x, int _y, int _layer, int _count, int _pa
 	return spriteList[v]->getHardwareID();
 }
 
-GameSprite::TemplateImage* GameSprite::getTemplateImage(int sprite_index, const Outfit &outfit) {
+std::shared_ptr<GameSprite::TemplateImage> GameSprite::getTemplateImage(int sprite_index, const Outfit &outfit) {
 	if (instanced_templates.empty()) {
-		TemplateImage* img = newd TemplateImage(this, sprite_index, outfit);
+		const auto& img = newd<TemplateImage>(this, sprite_index, outfit);
 		instanced_templates.push_back(img);
 		return img;
 	}
 	// While this is linear lookup, it is very rare for the list to contain more than 4-8 entries, so it's faster than a hashmap anyways.
-	for (std::list<TemplateImage*>::iterator iter = instanced_templates.begin(); iter != instanced_templates.end(); ++iter) {
-		TemplateImage* img = *iter;
+	for (std::list<std::shared_ptr<TemplateImage>>::iterator iter = instanced_templates.begin(); iter != instanced_templates.end(); ++iter) {
+		const auto& img = *iter;
 		if (img->sprite_index == sprite_index) {
 			uint32_t lookHash = img->lookHead << 24 | img->lookBody << 16 | img->lookLegs << 8 | img->lookFeet;
 			if (outfit.getColorHash() == lookHash) {
@@ -961,7 +955,7 @@ GameSprite::TemplateImage* GameSprite::getTemplateImage(int sprite_index, const 
 			}
 		}
 	}
-	TemplateImage* img = newd TemplateImage(this, sprite_index, outfit);
+	const auto& img = newd<TemplateImage>(this, sprite_index, outfit);
 	instanced_templates.push_back(img);
 	return img;
 }
@@ -976,13 +970,13 @@ GLuint GameSprite::getHardwareID(int _x, int _y, int _dir, int _addon, int _patt
 		}
 	}
 	if (layers > 1) { // Template
-		TemplateImage* img = getTemplateImage(v, _outfit);
+        std::shared_ptr<TemplateImage> img = getTemplateImage(v, _outfit);
 		return img->getHardwareID();
 	}
 	return spriteList[v]->getHardwareID();
 }
 
-wxMemoryDC* GameSprite::getDC(SpriteSize size) {
+std::shared_ptr<wxMemoryDC> GameSprite::getDC(SpriteSize size) {
 	ASSERT(size == SPRITE_SIZE_16x16 || size == SPRITE_SIZE_32x32);
 
 	if (!dc[size]) {
@@ -1016,7 +1010,7 @@ wxMemoryDC* GameSprite::getDC(SpriteSize size) {
 		}
 
 		wxBitmap bmp(image);
-		dc[size] = newd wxMemoryDC(bmp);
+		dc[size] = newd<wxMemoryDC>(bmp);
 		g_gui.gfx.addSpriteToCleanup(this);
 		image.Destroy();
 	}
@@ -1030,9 +1024,9 @@ void GameSprite::DrawTo(wxDC* dc, SpriteSize sz, int start_x, int start_y, int w
 	if (height == -1) {
 		height = sz == SPRITE_SIZE_32x32 ? 32 : 16;
 	}
-	wxDC* sdc = getDC(sz);
+    std::shared_ptr<wxDC> sdc = getDC(sz);
 	if (sdc) {
-		dc->Blit(start_x, start_y, width, height, sdc, 0, 0, wxCOPY, true);
+		dc->Blit(start_x, start_y, width, height, sdc.get(), 0, 0, wxCOPY, true);
 	} else {
 		const wxBrush &b = dc->GetBrush();
 		dc->SetBrush(*wxRED_BRUSH);
@@ -1095,19 +1089,16 @@ GameSprite::NormalImage::NormalImage() :
 	////
 }
 
-GameSprite::NormalImage::~NormalImage() {
-	delete[] dump;
-}
+GameSprite::NormalImage::~NormalImage() = default;
 
 void GameSprite::NormalImage::clean(int time) {
 	Image::clean(time);
 	if (time - lastaccess > 5 && !g_settings.getInteger(Config::USE_MEMCACHED_SPRITES)) { // We keep dumps around for 5 seconds.
-		delete[] dump;
 		dump = nullptr;
 	}
 }
 
-uint8_t* GameSprite::NormalImage::getRGBData() {
+std::shared_ptr<uint8_t> GameSprite::NormalImage::getRGBData() {
 	if (!dump) {
 		if (g_settings.getInteger(Config::USE_MEMCACHED_SPRITES)) {
 			return nullptr;
@@ -1119,7 +1110,7 @@ uint8_t* GameSprite::NormalImage::getRGBData() {
 	}
 
 	const int pixels_data_size = rme::SpritePixels * rme::SpritePixels * 3;
-	uint8_t* data = newd uint8_t[pixels_data_size];
+	const auto& data = newd<uint8_t>(pixels_data_size);
 	uint8_t bpp = g_gui.gfx.hasTransparency() ? 4 : 3;
 	int write = 0;
 	int read = 0;
@@ -1437,10 +1428,10 @@ void GameSprite::TemplateImage::unloadGLTexture(GLuint unused) {
 	Image::unloadGLTexture(gl_tid);
 }
 
-GameSprite* GameSprite::createFromBitmap(const wxArtID &bitmapId) {
-	GameSprite::EditorImage* image = new GameSprite::EditorImage(bitmapId);
+std::shared_ptr<GameSprite> GameSprite::createFromBitmap(const wxArtID &bitmapId) {
+    std::shared_ptr<GameSprite::EditorImage> image = newd<GameSprite::EditorImage>(bitmapId);
 
-	GameSprite* sprite = new GameSprite();
+    std::shared_ptr<GameSprite> sprite = newd<GameSprite>();
 	sprite->width = 1;
 	sprite->height = 1;
 	sprite->layers = 1;

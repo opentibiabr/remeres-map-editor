@@ -35,24 +35,24 @@ BrushPalettePanel::BrushPalettePanel(wxWindow* parent, const TilesetContainer &t
 	palette_type(category),
 	choicebook(nullptr),
 	size_panel(nullptr) {
-	wxSizer* topsizer = newd wxBoxSizer(wxVERTICAL);
+	std::shared_ptr<wxSizer> topsizer = newd<wxBoxSizer>(wxVERTICAL);
 
 	// Create the tileset panel
-	wxSizer* ts_sizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Tileset");
-	wxChoicebook* tmp_choicebook = newd wxChoicebook(this, wxID_ANY, wxDefaultPosition, wxSize(180, 250));
-	ts_sizer->Add(tmp_choicebook, 1, wxEXPAND);
-	topsizer->Add(ts_sizer, 1, wxEXPAND);
+    std::shared_ptr<wxSizer> ts_sizer = newd<wxStaticBoxSizer>(wxVERTICAL, this, "Tileset");
+	std::shared_ptr<wxChoicebook> tmp_choicebook = newd<wxChoicebook>(this, wxID_ANY, wxDefaultPosition, wxSize(180, 250));
+	ts_sizer->Add(tmp_choicebook.get(), 1, wxEXPAND);
+	topsizer->Add(ts_sizer.get(), 1, wxEXPAND);
 
 	for (TilesetContainer::const_iterator iter = tilesets.begin(); iter != tilesets.end(); ++iter) {
 		const TilesetCategory* tcg = iter->second->getCategory(category);
 		if (tcg && tcg->size() > 0) {
-			BrushPanel* panel = newd BrushPanel(tmp_choicebook);
+			auto panel = newd<BrushPanel>(tmp_choicebook);
 			panel->AssignTileset(tcg);
-			tmp_choicebook->AddPage(panel, wxstr(iter->second->name));
+			tmp_choicebook->AddPage(panel.get(), wxstr(iter->second->name));
 		}
 	}
 
-	SetSizerAndFit(topsizer);
+	SetSizerAndFit(topsizer.get());
 
 	choicebook = tmp_choicebook;
 }
@@ -143,12 +143,12 @@ bool BrushPalettePanel::SelectBrush(const Brush* whatbrush) {
 		return false;
 	}
 
-	BrushPanel* panel = dynamic_cast<BrushPanel*>(choicebook->GetCurrentPage());
+    auto panel = dynamic_cast<BrushPanel*>(choicebook->GetCurrentPage());
 	if (!panel) {
 		return false;
 	}
 
-	for (PalettePanel* toolBar : tool_bars) {
+	for (const std::shared_ptr<PalettePanel>& toolBar : tool_bars) {
 		if (toolBar->SelectBrush(whatbrush)) {
 			panel->SelectBrush(nullptr);
 			return true;
@@ -156,7 +156,7 @@ bool BrushPalettePanel::SelectBrush(const Brush* whatbrush) {
 	}
 
 	if (panel->SelectBrush(whatbrush)) {
-		for (PalettePanel* toolBar : tool_bars) {
+		for (const std::shared_ptr<PalettePanel>& toolBar : tool_bars) {
 			toolBar->SelectBrush(nullptr);
 		}
 		return true;
@@ -170,7 +170,7 @@ bool BrushPalettePanel::SelectBrush(const Brush* whatbrush) {
 		panel = dynamic_cast<BrushPanel*>(choicebook->GetPage(iz));
 		if (panel && panel->SelectBrush(whatbrush)) {
 			choicebook->ChangeSelection(iz);
-			for (PalettePanel* toolBar : tool_bars) {
+			for (const std::shared_ptr<PalettePanel>& toolBar : tool_bars) {
 				toolBar->SelectBrush(nullptr);
 			}
 			return true;
@@ -235,8 +235,8 @@ BrushPanel::BrushPanel(wxWindow* parent) :
 	brushbox(nullptr),
 	loaded(false),
 	list_type(BRUSHLIST_LISTBOX) {
-	sizer = newd wxBoxSizer(wxVERTICAL);
-	SetSizerAndFit(sizer);
+	sizer = newd<wxBoxSizer>(wxVERTICAL);
+	SetSizerAndFit(sizer.get());
 }
 
 BrushPanel::~BrushPanel() {
@@ -283,13 +283,13 @@ void BrushPanel::LoadContents() {
 	ASSERT(tileset != nullptr);
 	switch (list_type) {
 		case BRUSHLIST_LARGE_ICONS:
-			brushbox = newd BrushIconBox(this, tileset, RENDER_SIZE_32x32);
+			brushbox = newd<BrushIconBox>(this, tileset, RENDER_SIZE_32x32);
 			break;
 		case BRUSHLIST_SMALL_ICONS:
-			brushbox = newd BrushIconBox(this, tileset, RENDER_SIZE_16x16);
+			brushbox = newd<BrushIconBox>(this, tileset, RENDER_SIZE_16x16);
 			break;
 		case BRUSHLIST_LISTBOX:
-			brushbox = newd BrushListBox(this, tileset);
+			brushbox = newd<BrushListBox>(this, tileset);
 			break;
 		default:
 			break;
@@ -382,32 +382,32 @@ BrushIconBox::BrushIconBox(wxWindow* parent, const TilesetCategory* _tileset, Re
 	}
 
 	// Create buttons
-	wxSizer* stacksizer = newd wxBoxSizer(wxVERTICAL);
-	wxSizer* rowsizer = nullptr;
+	std::shared_ptr<wxSizer> stacksizer = newd<wxBoxSizer>(wxVERTICAL);
+    std::shared_ptr<wxSizer> rowsizer = nullptr;
 	int item_counter = 0;
 	for (BrushVector::const_iterator iter = tileset->brushlist.begin(); iter != tileset->brushlist.end(); ++iter) {
 		ASSERT(*iter);
 		++item_counter;
 
 		if (!rowsizer) {
-			rowsizer = newd wxBoxSizer(wxHORIZONTAL);
+			rowsizer = newd<wxBoxSizer>(wxHORIZONTAL);
 		}
 
-		BrushButton* bb = newd BrushButton(this, *iter, rsz);
-		rowsizer->Add(bb);
+        std::shared_ptr<BrushButton> bb = newd<BrushButton>(this, *iter, rsz);
+		rowsizer->Add(bb.get());
 		brush_buttons.push_back(bb);
 
 		if (item_counter % width == 0) { // newd row
-			stacksizer->Add(rowsizer);
+			stacksizer->Add(rowsizer.get());
 			rowsizer = nullptr;
 		}
 	}
 	if (rowsizer) {
-		stacksizer->Add(rowsizer);
+		stacksizer->Add(rowsizer.get());
 	}
 
 	SetScrollbars(20, 20, 8, item_counter / width, 0, 0);
-	SetSizer(stacksizer);
+	SetSizer(stacksizer.get());
 }
 
 BrushIconBox::~BrushIconBox() {
@@ -427,7 +427,7 @@ Brush* BrushIconBox::GetSelectedBrush() const {
 		return nullptr;
 	}
 
-	for (std::vector<BrushButton*>::const_iterator it = brush_buttons.begin(); it != brush_buttons.end(); ++it) {
+	for (std::vector<std::shared_ptr<BrushButton>>::const_iterator it = brush_buttons.begin(); it != brush_buttons.end(); ++it) {
 		if ((*it)->GetValue()) {
 			return (*it)->brush;
 		}
@@ -437,7 +437,7 @@ Brush* BrushIconBox::GetSelectedBrush() const {
 
 bool BrushIconBox::SelectBrush(const Brush* whatbrush) {
 	DeselectAll();
-	for (std::vector<BrushButton*>::iterator it = brush_buttons.begin(); it != brush_buttons.end(); ++it) {
+	for (std::vector<std::shared_ptr<BrushButton>>::iterator it = brush_buttons.begin(); it != brush_buttons.end(); ++it) {
 		if ((*it)->brush == whatbrush) {
 			(*it)->SetValue(true);
 			EnsureVisible(*it);
@@ -448,12 +448,12 @@ bool BrushIconBox::SelectBrush(const Brush* whatbrush) {
 }
 
 void BrushIconBox::DeselectAll() {
-	for (std::vector<BrushButton*>::iterator it = brush_buttons.begin(); it != brush_buttons.end(); ++it) {
+	for (std::vector<std::shared_ptr<BrushButton>>::iterator it = brush_buttons.begin(); it != brush_buttons.end(); ++it) {
 		(*it)->SetValue(false);
 	}
 }
 
-void BrushIconBox::EnsureVisible(BrushButton* btn) {
+void BrushIconBox::EnsureVisible(std::shared_ptr<BrushButton> btn) {
 	int windowSizeX, windowSizeY;
 	GetVirtualSize(&windowSizeX, &windowSizeY);
 

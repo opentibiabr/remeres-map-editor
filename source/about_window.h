@@ -34,8 +34,8 @@ public:
 	void OnSnake(wxCommandEvent &);
 
 private:
-	wxSizer* topsizer;
-	GamePanel* game_panel;
+	std::shared_ptr<wxSizer> topsizer;
+    std::shared_ptr<GamePanel> game_panel;
 
 	DECLARE_EVENT_TABLE()
 };

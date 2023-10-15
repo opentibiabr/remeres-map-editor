@@ -69,8 +69,8 @@ public:
 	Change(Tile* tile);
 	~Change();
 
-	static Change* Create(House* house, const Position &position);
-	static Change* Create(Waypoint* waypoint, const Position &position);
+	static std::shared_ptr<Change> Create(House* house, const Position &position);
+	static std::shared_ptr<Change> Create(Waypoint* waypoint, const Position &position);
 
 	void clear();
 
@@ -91,7 +91,7 @@ private:
 	friend class Action;
 };
 
-typedef std::vector<Change*> ChangeList;
+typedef std::vector<std::shared_ptr<Change>> ChangeList;
 
 // A dirty list represents a list of all tiles that was changed in an action
 class DirtyList {
@@ -130,7 +130,7 @@ class Action {
 public:
 	virtual ~Action();
 
-	void addChange(Change* t) {
+	void addChange(std::shared_ptr<Change> t) {
 		changes.push_back(t);
 	}
 

@@ -41,7 +41,7 @@ public:
 
 protected:
 	// Live Server
-	LiveServer* live_server;
+	std::shared_ptr<LiveServer> live_server;
 	LiveClient* live_client;
 
 public:
@@ -52,7 +52,7 @@ public:
 public: // Functions
 	// Live Server handling
 	LiveClient* GetLiveClient() const;
-	LiveServer* GetLiveServer() const;
+    std::shared_ptr<LiveServer> GetLiveServer() const;
 	LiveSocket &GetLive() const;
 	bool CanEdit() const noexcept {
 		return true;
@@ -63,7 +63,7 @@ public: // Functions
 	bool IsLiveClient() const;
 
 	// Server side
-	LiveServer* StartLiveServer();
+    std::shared_ptr<LiveServer> StartLiveServer();
 	void CloseLiveServer();
 	void BroadcastNodes(DirtyList &dirty_list);
 
@@ -160,7 +160,7 @@ protected:
 private:
 	Map map;
 	Selection selection;
-	ActionQueue* actionQueue;
+    std::shared_ptr<ActionQueue> actionQueue;
 };
 
 inline void Editor::draw(const Position &offset, bool alt) {

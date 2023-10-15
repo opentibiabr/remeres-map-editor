@@ -58,7 +58,7 @@ class EraserBrush;
 //=============================================================================
 // Brushes, holds all brushes
 
-typedef std::multimap<std::string, Brush*> BrushMap;
+typedef std::multimap<std::string, std::shared_ptr<Brush>> BrushMap;
 
 class Brushes {
 public:
@@ -68,9 +68,9 @@ public:
 	void init();
 	void clear();
 
-	Brush* getBrush(const std::string &name) const;
+    std::shared_ptr<Brush> getBrush(const std::string &name) const;
 
-	void addBrush(Brush* brush);
+	void addBrush(std::shared_ptr<Brush> brush);
 
 	bool unserializeBorder(pugi::xml_node node, wxArrayString &warnings);
 	bool unserializeBrush(pugi::xml_node node, wxArrayString &warnings);
@@ -80,7 +80,7 @@ public:
 	}
 
 protected:
-	typedef std::map<uint32_t, AutoBorder*> BorderMap;
+	typedef std::map<uint32_t, std::shared_ptr<AutoBorder>> BorderMap;
 	BrushMap brushes;
 	BorderMap borders;
 
@@ -204,19 +204,19 @@ public:
 	virtual TerrainBrush* asTerrain() {
 		return nullptr;
 	}
-	virtual GroundBrush* asGround() {
+	virtual std::shared_ptr<GroundBrush> asGround() {
 		return nullptr;
 	}
-	virtual WallBrush* asWall() {
+	virtual std::shared_ptr<WallBrush> asWall() {
 		return nullptr;
 	}
 	virtual WallDecorationBrush* asWallDecoration() {
 		return nullptr;
 	}
-	virtual TableBrush* asTable() {
+	virtual std::shared_ptr<TableBrush> asTable() {
 		return nullptr;
 	}
-	virtual CarpetBrush* asCarpet() {
+	virtual std::shared_ptr<CarpetBrush> asCarpet() {
 		return nullptr;
 	}
 	virtual DoorBrush* asDoor() {

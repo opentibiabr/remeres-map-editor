@@ -27,23 +27,23 @@
 #endif
 
 #ifdef DEBUG_MEM
+#define _CRTDBG_MAP_ALLOC
+#pragma warning(disable : 4291)
 
-	#define _CRTDBG_MAP_ALLOC
+#define newd make_shared_debug
 
-	#pragma warning(disable : 4291)
-_Ret_bytecap_(_Size) inline void* __CRTDECL operator new(size_t _Size, const char* file, int line) {
-	return ::operator new(_Size, _NORMAL_BLOCK, file, line);
+template <typename T, typename... Args>
+std::shared_ptr<T> make_shared_debug(const char* file, int line, Args&&... args) {
+    return std::allocate_shared<T>(std::allocator<T>(), std::forward<Args>(args)...);
 }
-_Ret_bytecap_(_Size) inline void* __CRTDECL operator new[](size_t _Size, const char* file, int line) {
-	return ::operator new[](_Size, _NORMAL_BLOCK, file, line);
-}
-	#define newd new (__FILE__, __LINE__)
 
 #else
 
-	#define newd new
+#define newd std::make_shared
 
 #endif
+
+#include "beats.h"
 
 #include <asio.hpp>
 #include <fmt/core.h>

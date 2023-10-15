@@ -69,10 +69,10 @@ void PalettePanel::LoadAllContents() {
 	}
 }
 
-void PalettePanel::AddToolPanel(PalettePanel* panel) {
-	wxSizer* sp_sizer = newd wxStaticBoxSizer(wxVERTICAL, this, panel->GetName());
-	sp_sizer->Add(panel, 0, wxEXPAND);
-	GetSizer()->Add(sp_sizer, 0, wxEXPAND);
+void PalettePanel::AddToolPanel(std::shared_ptr<PalettePanel> panel) {
+	auto sp_sizer = newd<wxStaticBoxSizer>(wxVERTICAL, this, panel->GetName());
+	sp_sizer->Add(panel.get(), 0, wxEXPAND);
+	GetSizer()->Add(sp_sizer.get(), 0, wxEXPAND);
 
 	// GetSizer()->SetDimension(wxDefaultCoord, wxDefaultCoord, wxDefaultCoord, wxDefaultCoord);
 	// GetSizer()->Layout();
@@ -219,9 +219,8 @@ void BrushSizePanel::LoadAllContents() {
 		return;
 	}
 
-	wxSizer* size_sizer = newd wxBoxSizer(wxVERTICAL);
-	;
-	wxSizer* sub_sizer = newd wxBoxSizer(wxHORIZONTAL);
+	std::shared_ptr<wxSizer> size_sizer = newd<wxBoxSizer>(wxVERTICAL);
+    std::shared_ptr<wxSizer> sub_sizer = newd<wxBoxSizer>(wxHORIZONTAL);
 	RenderSize render_size;
 
 	if (large_icons) {
@@ -232,10 +231,10 @@ void BrushSizePanel::LoadAllContents() {
 		render_size = RENDER_SIZE_16x16;
 	}
 
-	sub_sizer->Add(brushshapeSquareButton = newd DCButton(this, PALETTE_BRUSHSHAPE_SQUARE, wxDefaultPosition, DC_BTN_TOGGLE, render_size, EDITOR_SPRITE_BRUSH_SD_9x9));
+	sub_sizer->Add(brushshapeSquareButton = newd<DCButton>(this, PALETTE_BRUSHSHAPE_SQUARE, wxDefaultPosition, DC_BTN_TOGGLE, render_size, EDITOR_SPRITE_BRUSH_SD_9x9).get());
 	brushshapeSquareButton->SetToolTip("Square brush");
 
-	sub_sizer->Add(brushshapeCircleButton = newd DCButton(this, PALETTE_BRUSHSHAPE_CIRCLE, wxDefaultPosition, DC_BTN_TOGGLE, render_size, EDITOR_SPRITE_BRUSH_CD_9x9));
+	sub_sizer->Add(brushshapeCircleButton = newd<DCButton>(this, PALETTE_BRUSHSHAPE_CIRCLE, wxDefaultPosition, DC_BTN_TOGGLE, render_size, EDITOR_SPRITE_BRUSH_CD_9x9).get());
 	brushshapeCircleButton->SetToolTip("Circle brush");
 	brushshapeSquareButton->SetValue(true);
 
@@ -245,35 +244,35 @@ void BrushSizePanel::LoadAllContents() {
 		sub_sizer->AddSpacer(18);
 	}
 
-	sub_sizer->Add(brushsize0Button = newd DCButton(this, PALETTE_TERRAIN_BRUSHSIZE_0, wxDefaultPosition, DC_BTN_TOGGLE, render_size, EDITOR_SPRITE_BRUSH_CD_1x1));
+	sub_sizer->Add(brushsize0Button = newd<DCButton>(this, PALETTE_TERRAIN_BRUSHSIZE_0, wxDefaultPosition, DC_BTN_TOGGLE, render_size, EDITOR_SPRITE_BRUSH_CD_1x1).get());
 	brushsize0Button->SetToolTip("Brush size 1");
 	brushsize0Button->SetValue(true);
 
-	sub_sizer->Add(brushsize1Button = newd DCButton(this, PALETTE_TERRAIN_BRUSHSIZE_1, wxDefaultPosition, DC_BTN_TOGGLE, render_size, EDITOR_SPRITE_BRUSH_SD_3x3));
+	sub_sizer->Add(brushsize1Button = newd<DCButton>(this, PALETTE_TERRAIN_BRUSHSIZE_1, wxDefaultPosition, DC_BTN_TOGGLE, render_size, EDITOR_SPRITE_BRUSH_SD_3x3).get());
 	brushsize1Button->SetToolTip("Brush size 2");
 
 	if (large_icons) {
-		size_sizer->Add(sub_sizer);
-		sub_sizer = newd wxBoxSizer(wxHORIZONTAL);
+		size_sizer->Add(sub_sizer.get());
+		sub_sizer = newd<wxBoxSizer>(wxHORIZONTAL);
 	}
 
-	sub_sizer->Add(brushsize2Button = newd DCButton(this, PALETTE_TERRAIN_BRUSHSIZE_2, wxDefaultPosition, DC_BTN_TOGGLE, render_size, EDITOR_SPRITE_BRUSH_SD_5x5));
+	sub_sizer->Add(brushsize2Button = newd<DCButton>(this, PALETTE_TERRAIN_BRUSHSIZE_2, wxDefaultPosition, DC_BTN_TOGGLE, render_size, EDITOR_SPRITE_BRUSH_SD_5x5).get());
 	brushsize2Button->SetToolTip("Brush size 3");
 
-	sub_sizer->Add(brushsize4Button = newd DCButton(this, PALETTE_TERRAIN_BRUSHSIZE_4, wxDefaultPosition, DC_BTN_TOGGLE, render_size, EDITOR_SPRITE_BRUSH_SD_7x7));
+	sub_sizer->Add(brushsize4Button = newd<DCButton>(this, PALETTE_TERRAIN_BRUSHSIZE_4, wxDefaultPosition, DC_BTN_TOGGLE, render_size, EDITOR_SPRITE_BRUSH_SD_7x7).get());
 	brushsize4Button->SetToolTip("Brush size 5");
 
-	sub_sizer->Add(brushsize6Button = newd DCButton(this, PALETTE_TERRAIN_BRUSHSIZE_6, wxDefaultPosition, DC_BTN_TOGGLE, render_size, EDITOR_SPRITE_BRUSH_SD_9x9));
+	sub_sizer->Add(brushsize6Button = newd<DCButton>(this, PALETTE_TERRAIN_BRUSHSIZE_6, wxDefaultPosition, DC_BTN_TOGGLE, render_size, EDITOR_SPRITE_BRUSH_SD_9x9).get());
 	brushsize6Button->SetToolTip("Brush size 7");
 
-	sub_sizer->Add(brushsize8Button = newd DCButton(this, PALETTE_TERRAIN_BRUSHSIZE_8, wxDefaultPosition, DC_BTN_TOGGLE, render_size, EDITOR_SPRITE_BRUSH_SD_15x15));
+	sub_sizer->Add(brushsize8Button = newd<DCButton>(this, PALETTE_TERRAIN_BRUSHSIZE_8, wxDefaultPosition, DC_BTN_TOGGLE, render_size, EDITOR_SPRITE_BRUSH_SD_15x15).get());
 	brushsize8Button->SetToolTip("Brush size 9");
 
-	sub_sizer->Add(brushsize11Button = newd DCButton(this, PALETTE_TERRAIN_BRUSHSIZE_11, wxDefaultPosition, DC_BTN_TOGGLE, render_size, EDITOR_SPRITE_BRUSH_SD_19x19));
+	sub_sizer->Add(brushsize11Button = newd<DCButton>(this, PALETTE_TERRAIN_BRUSHSIZE_11, wxDefaultPosition, DC_BTN_TOGGLE, render_size, EDITOR_SPRITE_BRUSH_SD_19x19).get());
 	brushsize11Button->SetToolTip("Brush size 12");
 
-	size_sizer->Add(sub_sizer);
-	SetSizerAndFit(size_sizer);
+	size_sizer->Add(sub_sizer.get());
+	SetSizerAndFit(size_sizer.get());
 
 	loaded = true;
 }
@@ -444,9 +443,8 @@ void BrushToolPanel::LoadAllContents() {
 		return;
 	}
 
-	wxSizer* size_sizer = newd wxBoxSizer(wxVERTICAL);
-	;
-	wxSizer* sub_sizer = newd wxBoxSizer(wxHORIZONTAL);
+	std::shared_ptr<wxSizer> size_sizer = newd<wxBoxSizer>(wxVERTICAL);
+    std::shared_ptr<wxSizer> sub_sizer = newd<wxBoxSizer>(wxHORIZONTAL);
 
 	/*RenderSize render_size;
 	if(large_icons) {
@@ -461,117 +459,117 @@ void BrushToolPanel::LoadAllContents() {
 		// Create the tool page with 32x32 icons
 
 		ASSERT(g_gui.optional_brush);
-		sub_sizer->Add(optionalBorderButton = newd BrushButton(this, g_gui.optional_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_OPTIONAL_BORDER_TOOL));
+		sub_sizer->Add(optionalBorderButton = newd<BrushButton>(this, g_gui.optional_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_OPTIONAL_BORDER_TOOL).get());
 		optionalBorderButton->SetToolTip("Optional Border Tool");
 
 		ASSERT(g_gui.eraser);
-		sub_sizer->Add(eraserButton = newd BrushButton(this, g_gui.eraser, RENDER_SIZE_32x32, PALETTE_TERRAIN_ERASER));
+		sub_sizer->Add(eraserButton = newd<BrushButton>(this, g_gui.eraser, RENDER_SIZE_32x32, PALETTE_TERRAIN_ERASER).get());
 		eraserButton->SetToolTip("Eraser");
 
 		ASSERT(g_gui.pz_brush);
-		sub_sizer->Add(pzBrushButton = newd BrushButton(this, g_gui.pz_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_PZ_TOOL));
+		sub_sizer->Add(pzBrushButton = newd<BrushButton>(this, g_gui.pz_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_PZ_TOOL).get());
 		pzBrushButton->SetToolTip("PZ Tool");
 
 		ASSERT(g_gui.rook_brush);
-		sub_sizer->Add(nopvpBrushButton = newd BrushButton(this, g_gui.rook_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_NOPVP_TOOL));
+		sub_sizer->Add(nopvpBrushButton = newd<BrushButton>(this, g_gui.rook_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_NOPVP_TOOL).get());
 		nopvpBrushButton->SetToolTip("NO PVP Tool");
 
 		ASSERT(g_gui.nolog_brush);
-		sub_sizer->Add(nologBrushButton = newd BrushButton(this, g_gui.nolog_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_NOLOGOUT_TOOL));
+		sub_sizer->Add(nologBrushButton = newd<BrushButton>(this, g_gui.nolog_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_NOLOGOUT_TOOL).get());
 		nologBrushButton->SetToolTip("No Logout Tool");
 
 		ASSERT(g_gui.pvp_brush);
-		sub_sizer->Add(pvpzoneBrushButton = newd BrushButton(this, g_gui.pvp_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_PVPZONE_TOOL));
+		sub_sizer->Add(pvpzoneBrushButton = newd<BrushButton>(this, g_gui.pvp_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_PVPZONE_TOOL).get());
 		pvpzoneBrushButton->SetToolTip("PVP Zone Tool");
 
 		// New row
-		size_sizer->Add(sub_sizer);
-		sub_sizer = newd wxBoxSizer(wxHORIZONTAL);
+		size_sizer->Add(sub_sizer.get());
+		sub_sizer = newd<wxBoxSizer>(wxHORIZONTAL);
 
 		ASSERT(g_gui.normal_door_brush);
-		sub_sizer->Add(normalDoorButton = newd BrushButton(this, g_gui.normal_door_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_NORMAL_DOOR));
+		sub_sizer->Add(normalDoorButton = newd<BrushButton>(this, g_gui.normal_door_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_NORMAL_DOOR).get());
 		normalDoorButton->SetToolTip("Normal Door Tool");
 
 		ASSERT(g_gui.locked_door_brush);
-		sub_sizer->Add(lockedDoorButton = newd BrushButton(this, g_gui.locked_door_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_LOCKED_DOOR));
+		sub_sizer->Add(lockedDoorButton = newd<BrushButton>(this, g_gui.locked_door_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_LOCKED_DOOR).get());
 		lockedDoorButton->SetToolTip("Locked Door Tool");
 
 		ASSERT(g_gui.magic_door_brush);
-		sub_sizer->Add(magicDoorButton = newd BrushButton(this, g_gui.magic_door_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_MAGIC_DOOR));
+		sub_sizer->Add(magicDoorButton = newd<BrushButton>(this, g_gui.magic_door_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_MAGIC_DOOR).get());
 		magicDoorButton->SetToolTip("Magic Door Tool");
 
 		ASSERT(g_gui.quest_door_brush);
-		sub_sizer->Add(questDoorButton = newd BrushButton(this, g_gui.quest_door_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_QUEST_DOOR));
+		sub_sizer->Add(questDoorButton = newd<BrushButton>(this, g_gui.quest_door_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_QUEST_DOOR).get());
 		questDoorButton->SetToolTip("Quest Door Tool");
 
 		ASSERT(g_gui.hatch_door_brush);
-		sub_sizer->Add(hatchDoorButton = newd BrushButton(this, g_gui.hatch_door_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_HATCH_DOOR));
+		sub_sizer->Add(hatchDoorButton = newd<BrushButton>(this, g_gui.hatch_door_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_HATCH_DOOR).get());
 		hatchDoorButton->SetToolTip("Hatch Window Tool");
 
 		ASSERT(g_gui.window_door_brush);
-		sub_sizer->Add(windowDoorButton = newd BrushButton(this, g_gui.window_door_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_WINDOW_DOOR));
+		sub_sizer->Add(windowDoorButton = newd<BrushButton>(this, g_gui.window_door_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_WINDOW_DOOR).get());
 		windowDoorButton->SetToolTip("Window Tool");
 	} else {
 		// Create the tool page with 16x16 icons
 		// Create tool window #1
 
 		ASSERT(g_gui.optional_brush);
-		sub_sizer->Add(optionalBorderButton = newd BrushButton(this, g_gui.optional_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_OPTIONAL_BORDER_TOOL));
+		sub_sizer->Add(optionalBorderButton = newd<BrushButton>(this, g_gui.optional_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_OPTIONAL_BORDER_TOOL).get());
 		optionalBorderButton->SetToolTip("Optional Border Tool");
 
 		ASSERT(g_gui.eraser);
-		sub_sizer->Add(eraserButton = newd BrushButton(this, g_gui.eraser, RENDER_SIZE_16x16, PALETTE_TERRAIN_ERASER));
+		sub_sizer->Add(eraserButton = newd<BrushButton>(this, g_gui.eraser, RENDER_SIZE_16x16, PALETTE_TERRAIN_ERASER).get());
 		eraserButton->SetToolTip("Eraser");
 
 		sub_sizer->AddSpacer(20);
 
 		ASSERT(g_gui.normal_door_brush);
-		sub_sizer->Add(normalDoorButton = newd BrushButton(this, g_gui.normal_door_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_NORMAL_DOOR));
+		sub_sizer->Add(normalDoorButton = newd<BrushButton>(this, g_gui.normal_door_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_NORMAL_DOOR).get());
 		normalDoorButton->SetToolTip("Normal Door Tool");
 
 		ASSERT(g_gui.locked_door_brush);
-		sub_sizer->Add(lockedDoorButton = newd BrushButton(this, g_gui.locked_door_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_LOCKED_DOOR));
+		sub_sizer->Add(lockedDoorButton = newd<BrushButton>(this, g_gui.locked_door_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_LOCKED_DOOR).get());
 		lockedDoorButton->SetToolTip("Locked Door Tool");
 
 		ASSERT(g_gui.magic_door_brush);
-		sub_sizer->Add(magicDoorButton = newd BrushButton(this, g_gui.magic_door_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_MAGIC_DOOR));
+		sub_sizer->Add(magicDoorButton = newd<BrushButton>(this, g_gui.magic_door_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_MAGIC_DOOR).get());
 		magicDoorButton->SetToolTip("Magic Door Tool");
 
 		ASSERT(g_gui.quest_door_brush);
-		sub_sizer->Add(questDoorButton = newd BrushButton(this, g_gui.quest_door_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_QUEST_DOOR));
+		sub_sizer->Add(questDoorButton = newd<BrushButton>(this, g_gui.quest_door_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_QUEST_DOOR).get());
 		questDoorButton->SetToolTip("Quest Door Tool");
 
 		ASSERT(g_gui.hatch_door_brush);
-		sub_sizer->Add(hatchDoorButton = newd BrushButton(this, g_gui.hatch_door_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_HATCH_DOOR));
+		sub_sizer->Add(hatchDoorButton = newd<BrushButton>(this, g_gui.hatch_door_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_HATCH_DOOR).get());
 		hatchDoorButton->SetToolTip("Hatch Window Tool");
 
 		ASSERT(g_gui.window_door_brush);
-		sub_sizer->Add(windowDoorButton = newd BrushButton(this, g_gui.window_door_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_WINDOW_DOOR));
+		sub_sizer->Add(windowDoorButton = newd<BrushButton>(this, g_gui.window_door_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_WINDOW_DOOR).get());
 		windowDoorButton->SetToolTip("Window Tool");
 
 		// Next row
-		size_sizer->Add(sub_sizer);
-		sub_sizer = newd wxBoxSizer(wxHORIZONTAL);
+		size_sizer->Add(sub_sizer.get());
+		sub_sizer = newd<wxBoxSizer>(wxHORIZONTAL);
 
 		ASSERT(g_gui.pz_brush);
-		sub_sizer->Add(pzBrushButton = newd BrushButton(this, g_gui.pz_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_PZ_TOOL));
+		sub_sizer->Add(pzBrushButton = newd<BrushButton>(this, g_gui.pz_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_PZ_TOOL).get());
 		pzBrushButton->SetToolTip("PZ Tool");
 
 		ASSERT(g_gui.rook_brush);
-		sub_sizer->Add(nopvpBrushButton = newd BrushButton(this, g_gui.rook_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_NOPVP_TOOL));
+		sub_sizer->Add(nopvpBrushButton = newd<BrushButton>(this, g_gui.rook_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_NOPVP_TOOL).get());
 		nopvpBrushButton->SetToolTip("NO PVP Tool");
 
 		ASSERT(g_gui.nolog_brush);
-		sub_sizer->Add(nologBrushButton = newd BrushButton(this, g_gui.nolog_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_NOLOGOUT_TOOL));
+		sub_sizer->Add(nologBrushButton = newd<BrushButton>(this, g_gui.nolog_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_NOLOGOUT_TOOL).get());
 		nologBrushButton->SetToolTip("No Logout Tool");
 
 		ASSERT(g_gui.pvp_brush);
-		sub_sizer->Add(pvpzoneBrushButton = newd BrushButton(this, g_gui.pvp_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_PVPZONE_TOOL));
+		sub_sizer->Add(pvpzoneBrushButton = newd<BrushButton>(this, g_gui.pvp_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_PVPZONE_TOOL).get());
 		pvpzoneBrushButton->SetToolTip("PVP Zone Tool");
 	}
 
-	size_sizer->Add(sub_sizer);
-	SetSizerAndFit(size_sizer);
+	size_sizer->Add(sub_sizer.get());
+	SetSizerAndFit(size_sizer.get());
 
 	loaded = true;
 }
@@ -789,18 +787,18 @@ END_EVENT_TABLE()
 
 BrushThicknessPanel::BrushThicknessPanel(wxWindow* parent) :
 	PalettePanel(parent, wxID_ANY) {
-	wxSizer* thickness_sizer = newd wxBoxSizer(wxVERTICAL);
+	std::shared_ptr<wxSizer> thickness_sizer = newd<wxBoxSizer>(wxVERTICAL);
 
-	wxSizer* thickness_sub_sizer = newd wxBoxSizer(wxHORIZONTAL);
+    std::shared_ptr<wxSizer> thickness_sub_sizer = newd<wxBoxSizer>(wxHORIZONTAL);
 	thickness_sub_sizer->Add(20, 10);
-	use_button = newd wxCheckBox(this, PALETTE_DOODAD_USE_THICKNESS, "Use custom thickness");
-	thickness_sub_sizer->Add(use_button);
-	thickness_sizer->Add(thickness_sub_sizer, 1, wxEXPAND);
+	use_button = newd<wxCheckBox>(this, PALETTE_DOODAD_USE_THICKNESS, "Use custom thickness");
+	thickness_sub_sizer->Add(use_button.get());
+	thickness_sizer->Add(thickness_sub_sizer.get(), 1, wxEXPAND);
 
-	slider = newd wxSlider(this, PALETTE_DOODAD_SLIDER, 5, 1, 10, wxDefaultPosition);
-	thickness_sizer->Add(slider, 1, wxEXPAND);
+	slider = newd<wxSlider>(this, PALETTE_DOODAD_SLIDER, 5, 1, 10, wxDefaultPosition);
+	thickness_sizer->Add(slider.get(), 1, wxEXPAND);
 
-	SetSizerAndFit(thickness_sizer);
+	SetSizerAndFit(thickness_sizer.get());
 }
 
 BrushThicknessPanel::~BrushThicknessPanel() {

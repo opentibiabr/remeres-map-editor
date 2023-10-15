@@ -143,7 +143,7 @@ private:
 	static bool processed[BLOCK_SIZE * BLOCK_SIZE];
 
 	Editor &editor;
-	MapDrawer* drawer;
+	std::shared_ptr<MapDrawer> drawer;
 	int keyCode;
 
 	// View related
@@ -187,8 +187,8 @@ private:
 	uint32_t current_house_id;
 
 	wxStopWatch refresh_watch;
-	MapPopupMenu* popup_menu;
-	AnimationTimer* animation_timer;
+	std::shared_ptr<MapPopupMenu> popup_menu;
+    std::shared_ptr<AnimationTimer> animation_timer;
 
 	friend class MapDrawer;
 

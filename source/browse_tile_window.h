@@ -36,10 +36,10 @@ public:
 	void OnClickCancel(wxCommandEvent &);
 
 protected:
-	BrowseTileListBox* item_list;
+	std::shared_ptr<BrowseTileListBox> item_list;
 	wxStaticText* item_count_txt;
-	wxButton* delete_button;
-	wxButton* select_raw_button;
+    std::shared_ptr<wxButton> delete_button;
+    std::shared_ptr<wxButton> select_raw_button;
 
 	DECLARE_EVENT_TABLE();
 };

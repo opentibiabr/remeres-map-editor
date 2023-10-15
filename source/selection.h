@@ -81,7 +81,7 @@ public:
 
 	// Joins the selection instance in this thread with this instance
 	// This deletes the thread
-	void join(SelectionThread* thread);
+	void join(std::shared_ptr<SelectionThread> thread);
 
 	size_t size() const noexcept {
 		return tiles.size();

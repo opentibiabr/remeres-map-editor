@@ -32,18 +32,18 @@ END_EVENT_TABLE()
 
 ExtensionsDialog::ExtensionsDialog(wxWindow* parent) :
 	wxDialog(parent, wxID_ANY, "Extensions", wxDefaultPosition, wxSize(600, 500), wxRESIZE_BORDER | wxCAPTION) {
-	wxBoxSizer* topSizer = new wxBoxSizer(wxVERTICAL);
+    auto topSizer = newd<wxBoxSizer>(wxVERTICAL);
 
-	wxHtmlWindow* htmlWindow = new wxHtmlWindow(this, wxID_ANY, wxDefaultPosition, wxSize(550, 400));
+	auto htmlWindow = newd<wxHtmlWindow>(this, wxID_ANY, wxDefaultPosition, wxSize(550, 400));
 	htmlWindow->SetPage(HTML());
-	topSizer->Add(htmlWindow, wxSizerFlags(1).DoubleBorder().Expand());
+	topSizer->Add(htmlWindow.get(), wxSizerFlags(1).DoubleBorder().Expand());
 
-	wxSizer* buttonSizer = newd wxBoxSizer(wxHORIZONTAL);
-	buttonSizer->Add(newd wxButton(this, wxID_OK, "OK"), wxSizerFlags(1).Center());
-	buttonSizer->Add(newd wxButton(this, EXTENSIONS_OPEN_FOLDER_BUTTON, "Open Extensions Folder"), wxSizerFlags(1).Center());
-	topSizer->Add(buttonSizer, 0, wxCENTER | wxLEFT | wxRIGHT | wxBOTTOM, 20);
+    std::shared_ptr<wxSizer> buttonSizer = newd<wxBoxSizer>(wxHORIZONTAL);
+	buttonSizer->Add(newd<wxButton>(this, wxID_OK, "OK").get(), wxSizerFlags(1).Center());
+	buttonSizer->Add(newd<wxButton>(this, EXTENSIONS_OPEN_FOLDER_BUTTON, "Open Extensions Folder").get(), wxSizerFlags(1).Center());
+	topSizer->Add(buttonSizer.get(), 0, wxCENTER | wxLEFT | wxRIGHT | wxBOTTOM, 20);
 
-	SetSizerAndFit(topSizer);
+	SetSizerAndFit(topSizer.get());
 	Centre(wxBOTH);
 }
 

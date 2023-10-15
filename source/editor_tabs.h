@@ -47,7 +47,7 @@ public:
 
 protected:
 	EditorTab* GetInternalTab(int idx);
-	wxAuiNotebook* notebook;
+    std::shared_ptr<wxAuiNotebook> notebook;
 	std::map<wxWindow*, EditorTab*> conv;
 
 	friend class MapTab;

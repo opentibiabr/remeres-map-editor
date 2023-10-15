@@ -55,19 +55,19 @@ MapPropertiesWindow::MapPropertiesWindow(wxWindow* parent, MapTab* view, Editor 
 	// Setup data variabels
 	const Map &map = editor.getMap();
 
-	wxSizer* topsizer = newd wxBoxSizer(wxVERTICAL);
+	std::shared_ptr<wxSizer> topsizer = newd<wxBoxSizer>(wxVERTICAL);
 
-	wxFlexGridSizer* grid_sizer = newd wxFlexGridSizer(2, 10, 10);
+	std::shared_ptr<wxFlexGridSizer> grid_sizer = newd<wxFlexGridSizer>(2, 10, 10);
 	grid_sizer->AddGrowableCol(1);
 
 	// Description
-	grid_sizer->Add(newd wxStaticText(this, wxID_ANY, "Map Description"));
-	description_ctrl = newd wxTextCtrl(this, wxID_ANY, wxstr(map.getMapDescription()), wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE);
-	grid_sizer->Add(description_ctrl, wxSizerFlags(1).Expand());
+	grid_sizer->Add(newd<wxStaticText>(this, wxID_ANY, "Map Description").get());
+	description_ctrl = newd<wxTextCtrl>(this, wxID_ANY, wxstr(map.getMapDescription()), wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE);
+	grid_sizer->Add(description_ctrl.get(), wxSizerFlags(1).Expand());
 
 	// Map version
-	grid_sizer->Add(newd wxStaticText(this, wxID_ANY, "Map Version"));
-	version_choice = newd wxChoice(this, MAP_PROPERTIES_VERSION);
+	grid_sizer->Add(newd<wxStaticText>(this, wxID_ANY, "Map Version").get());
+	version_choice = newd<wxChoice>(this, MAP_PROPERTIES_VERSION);
 	version_choice->Append("OTServ 0.5.0");
 	version_choice->Append("OTServ 0.6.0");
 	version_choice->Append("OTServ 0.6.1");
@@ -90,66 +90,66 @@ MapPropertiesWindow::MapPropertiesWindow(wxWindow* parent, MapTab* view, Editor 
 			version_choice->SetSelection(0);
 	}
 
-	grid_sizer->Add(version_choice, wxSizerFlags(1).Expand());
+	grid_sizer->Add(version_choice.get(), wxSizerFlags(1).Expand());
 
 	// Version
-	grid_sizer->Add(newd wxStaticText(this, wxID_ANY, "Client Version"));
-	protocol_choice = newd wxChoice(this, wxID_ANY);
+	grid_sizer->Add(newd<wxStaticText>(this, wxID_ANY, "Client Version").get());
+	protocol_choice = newd<wxChoice>(this, wxID_ANY);
 
 	protocol_choice->SetStringSelection(wxstr(g_gui.GetCurrentVersion().getName()));
 
-	grid_sizer->Add(protocol_choice, wxSizerFlags(1).Expand());
+	grid_sizer->Add(protocol_choice.get(), wxSizerFlags(1).Expand());
 
 	// Dimensions
-	grid_sizer->Add(newd wxStaticText(this, wxID_ANY, "Map Dimensions"));
+	grid_sizer->Add(newd<wxStaticText>(this, wxID_ANY, "Map Dimensions").get());
 	{
-		wxSizer* subsizer = newd wxBoxSizer(wxHORIZONTAL);
+        std::shared_ptr<wxSizer> subsizer = newd<wxBoxSizer>(wxHORIZONTAL);
 		subsizer->Add(
-			width_spin = newd wxSpinCtrl(this, wxID_ANY, wxstr(i2s(map.getWidth())), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, rme::MapMinWidth, rme::MapMaxWidth), wxSizerFlags(1).Expand()
+			width_spin = newd<wxSpinCtrl>(this, wxID_ANY, wxstr(i2s(map.getWidth())), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, rme::MapMinWidth, rme::MapMaxWidth).get(), wxSizerFlags(1).Expand()
 		);
 		subsizer->Add(
-			height_spin = newd wxSpinCtrl(this, wxID_ANY, wxstr(i2s(map.getHeight())), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, rme::MapMinHeight, rme::MapMaxHeight), wxSizerFlags(1).Expand()
+			height_spin = newd<wxSpinCtrl>(this, wxID_ANY, wxstr(i2s(map.getHeight())), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, rme::MapMinHeight, rme::MapMaxHeight).get(), wxSizerFlags(1).Expand()
 		);
-		grid_sizer->Add(subsizer, 1, wxEXPAND);
+		grid_sizer->Add(subsizer.get(), 1, wxEXPAND);
 	}
 
 	// External files
 	grid_sizer->Add(
-		newd wxStaticText(this, wxID_ANY, "External house file")
+		newd<wxStaticText>(this, wxID_ANY, "External house file").get()
 	);
 
 	grid_sizer->Add(
-		house_filename_ctrl = newd wxTextCtrl(this, wxID_ANY, wxstr(map.getHouseFilename())), 1, wxEXPAND
+		house_filename_ctrl = newd<wxTextCtrl>(this, wxID_ANY, wxstr(map.getHouseFilename())).get(), 1, wxEXPAND
 	);
 
 	grid_sizer->Add(
-		newd wxStaticText(this, wxID_ANY, "External monster file")
+		newd<wxStaticText>(this, wxID_ANY, "External monster file").get()
 	);
 
 	grid_sizer->Add(
-		spawn_filename_ctrl = newd wxTextCtrl(this, wxID_ANY, wxstr(map.getSpawnFilename())), 1, wxEXPAND
+		spawn_filename_ctrl = newd<wxTextCtrl>(this, wxID_ANY, wxstr(map.getSpawnFilename())).get(), 1, wxEXPAND
 	);
 
 	grid_sizer->Add(
-		newd wxStaticText(this, wxID_ANY, "External npc file")
+		newd<wxStaticText>(this, wxID_ANY, "External npc file").get()
 	);
 
 	grid_sizer->Add(
-		spawn_npc_filename_ctrl = newd wxTextCtrl(this, wxID_ANY, wxstr(map.getSpawnNpcFilename())), 1, wxEXPAND
+		spawn_npc_filename_ctrl = newd<wxTextCtrl>(this, wxID_ANY, wxstr(map.getSpawnNpcFilename())).get(), 1, wxEXPAND
 	);
 
-	topsizer->Add(grid_sizer, wxSizerFlags(1).Expand().Border(wxALL, 20));
+	topsizer->Add(grid_sizer.get(), wxSizerFlags(1).Expand().Border(wxALL, 20));
 
-	wxSizer* subsizer = newd wxBoxSizer(wxHORIZONTAL);
-	subsizer->Add(newd wxButton(this, wxID_OK, "OK"), wxSizerFlags(1).Center());
-	subsizer->Add(newd wxButton(this, wxID_CANCEL, "Cancel"), wxSizerFlags(1).Center());
-	topsizer->Add(subsizer, wxSizerFlags(0).Center().Border(wxLEFT | wxRIGHT | wxBOTTOM, 20));
+    std::shared_ptr<wxSizer> subsizer = newd<wxBoxSizer>(wxHORIZONTAL);
+	subsizer->Add(newd<wxButton>(this, wxID_OK, "OK").get(), wxSizerFlags(1).Center());
+	subsizer->Add(newd<wxButton>(this, wxID_CANCEL, "Cancel").get(), wxSizerFlags(1).Center());
+	topsizer->Add(subsizer.get(), wxSizerFlags(0).Center().Border(wxLEFT | wxRIGHT | wxBOTTOM, 20));
 
-	SetSizerAndFit(topsizer);
+	SetSizerAndFit(topsizer.get());
 	Centre(wxBOTH);
 	UpdateProtocolList();
 
-	ClientVersion* current_version = ClientVersion::get(map.getVersion().client);
+	auto current_version = ClientVersion::get(map.getVersion().client);
 	protocol_choice->SetStringSelection(wxstr(current_version->getName()));
 }
 
@@ -374,29 +374,29 @@ END_EVENT_TABLE()
 ImportMapWindow::ImportMapWindow(wxWindow* parent, Editor &editor) :
 	wxDialog(parent, wxID_ANY, "Import Map", wxDefaultPosition, wxSize(420, 350)),
 	editor(editor) {
-	wxBoxSizer* sizer = newd wxBoxSizer(wxVERTICAL);
-	wxStaticBoxSizer* tmpsizer;
+    std::shared_ptr<wxBoxSizer> sizer = newd<wxBoxSizer>(wxVERTICAL);
+    std::shared_ptr<wxStaticBoxSizer> tmpsizer;
 
 	// File
-	tmpsizer = newd wxStaticBoxSizer(new wxStaticBox(this, wxID_ANY, "Map File"), wxHORIZONTAL);
-	file_text_field = newd wxTextCtrl(tmpsizer->GetStaticBox(), wxID_ANY, "", wxDefaultPosition, wxSize(300, 23));
-	tmpsizer->Add(file_text_field, 0, wxALL, 5);
-	wxButton* browse_button = newd wxButton(tmpsizer->GetStaticBox(), MAP_WINDOW_FILE_BUTTON, "Browse...", wxDefaultPosition, wxSize(80, 23));
-	tmpsizer->Add(browse_button, 0, wxALL, 5);
-	sizer->Add(tmpsizer, 1, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
+	tmpsizer = newd<wxStaticBoxSizer>(newd<wxStaticBox>(this, wxID_ANY, "Map File"), wxHORIZONTAL);
+	file_text_field = newd<wxTextCtrl>(tmpsizer->GetStaticBox(), wxID_ANY, "", wxDefaultPosition, wxSize(300, 23));
+	tmpsizer->Add(file_text_field.get(), 0, wxALL, 5);
+	auto browse_button = newd<wxButton>(tmpsizer->GetStaticBox(), MAP_WINDOW_FILE_BUTTON, "Browse...", wxDefaultPosition, wxSize(80, 23));
+	tmpsizer->Add(browse_button.get(), 0, wxALL, 5);
+	sizer->Add(tmpsizer.get(), 1, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
 
 	// Import offset
-	tmpsizer = newd wxStaticBoxSizer(new wxStaticBox(this, wxID_ANY, "Import Offset"), wxHORIZONTAL);
-	tmpsizer->Add(newd wxStaticText(tmpsizer->GetStaticBox(), wxID_ANY, "Offset X:"), 0, wxALL | wxEXPAND, 5);
-	x_offset_ctrl = newd wxSpinCtrl(tmpsizer->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(60, 23), wxSP_ARROW_KEYS, -rme::MapMaxHeight, rme::MapMaxHeight);
-	tmpsizer->Add(x_offset_ctrl, 0, wxALL, 5);
-	tmpsizer->Add(newd wxStaticText(tmpsizer->GetStaticBox(), wxID_ANY, "Offset Y:"), 0, wxALL, 5);
-	y_offset_ctrl = newd wxSpinCtrl(tmpsizer->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(60, 23), wxSP_ARROW_KEYS, -rme::MapMaxHeight, rme::MapMaxHeight);
-	tmpsizer->Add(y_offset_ctrl, 0, wxALL, 5);
-	tmpsizer->Add(newd wxStaticText(tmpsizer->GetStaticBox(), wxID_ANY, "Offset Z:"), 0, wxALL, 5);
-	z_offset_ctrl = newd wxSpinCtrl(tmpsizer->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(60, 23), wxSP_ARROW_KEYS, -rme::MapMaxLayer, rme::MapMaxLayer);
-	tmpsizer->Add(z_offset_ctrl, 0, wxALL, 5);
-	sizer->Add(tmpsizer, 1, wxEXPAND | wxLEFT | wxRIGHT, 5);
+	tmpsizer = newd<wxStaticBoxSizer>(newd<wxStaticBox>(this, wxID_ANY, "Import Offset"), wxHORIZONTAL);
+	tmpsizer->Add(newd<wxStaticText>(tmpsizer->GetStaticBox(), wxID_ANY, "Offset X:").get(), 0, wxALL | wxEXPAND, 5);
+	x_offset_ctrl = newd<wxSpinCtrl>(tmpsizer->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(60, 23), wxSP_ARROW_KEYS, -rme::MapMaxHeight, rme::MapMaxHeight);
+	tmpsizer->Add(x_offset_ctrl.get(), 0, wxALL, 5);
+	tmpsizer->Add(newd<wxStaticText>(tmpsizer->GetStaticBox(), wxID_ANY, "Offset Y:").get(), 0, wxALL, 5);
+	y_offset_ctrl = newd<wxSpinCtrl>(tmpsizer->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(60, 23), wxSP_ARROW_KEYS, -rme::MapMaxHeight, rme::MapMaxHeight);
+	tmpsizer->Add(y_offset_ctrl.get(), 0, wxALL, 5);
+	tmpsizer->Add(newd<wxStaticText>(tmpsizer->GetStaticBox(), wxID_ANY, "Offset Z:").get(), 0, wxALL, 5);
+	z_offset_ctrl = newd<wxSpinCtrl>(tmpsizer->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(60, 23), wxSP_ARROW_KEYS, -rme::MapMaxLayer, rme::MapMaxLayer);
+	tmpsizer->Add(z_offset_ctrl.get(), 0, wxALL, 5);
+	sizer->Add(tmpsizer.get(), 1, wxEXPAND | wxLEFT | wxRIGHT, 5);
 
 	// Import options
 	wxArrayString house_choices;
@@ -406,11 +406,11 @@ ImportMapWindow::ImportMapWindow(wxWindow* parent, Editor &editor) :
 	house_choices.Add("Don't Import");
 
 	// House options
-	tmpsizer = newd wxStaticBoxSizer(new wxStaticBox(this, wxID_ANY, "House Import Behaviour"), wxVERTICAL);
-	house_options = newd wxChoice(tmpsizer->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize, house_choices);
+	tmpsizer = newd<wxStaticBoxSizer>(newd<wxStaticBox>(this, wxID_ANY, "House Import Behaviour"), wxVERTICAL);
+	house_options = newd<wxChoice>(tmpsizer->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize, house_choices);
 	house_options->SetSelection(0);
-	tmpsizer->Add(house_options, 0, wxALL | wxEXPAND, 5);
-	sizer->Add(tmpsizer, 1, wxEXPAND | wxLEFT | wxRIGHT, 5);
+	tmpsizer->Add(house_options.get(), 0, wxALL | wxEXPAND, 5);
+	sizer->Add(tmpsizer.get(), 1, wxEXPAND | wxLEFT | wxRIGHT, 5);
 
 	// Import options
 	wxArrayString spawn_choices;
@@ -418,26 +418,26 @@ ImportMapWindow::ImportMapWindow(wxWindow* parent, Editor &editor) :
 	spawn_choices.Add("Don't Import");
 
 	// Monster spawn options
-	tmpsizer = newd wxStaticBoxSizer(new wxStaticBox(this, wxID_ANY, "Monster Spawn Import Behaviour"), wxVERTICAL);
-	spawn_monster_options = newd wxChoice(tmpsizer->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize, spawn_choices);
+	tmpsizer = newd<wxStaticBoxSizer>(newd<wxStaticBox>(this, wxID_ANY, "Monster Spawn Import Behaviour"), wxVERTICAL);
+	spawn_monster_options = newd<wxChoice>(tmpsizer->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize, spawn_choices);
 	spawn_monster_options->SetSelection(0);
-	tmpsizer->Add(spawn_monster_options, 0, wxALL | wxEXPAND, 5);
-	sizer->Add(tmpsizer, 1, wxEXPAND | wxLEFT | wxRIGHT, 5);
+	tmpsizer->Add(spawn_monster_options.get(), 0, wxALL | wxEXPAND, 5);
+	sizer->Add(tmpsizer.get(), 1, wxEXPAND | wxLEFT | wxRIGHT, 5);
 
 	// Npc spawn options
-	tmpsizer = newd wxStaticBoxSizer(new wxStaticBox(this, wxID_ANY, "Npc Spawn Import Behaviour"), wxVERTICAL);
-	spawn_npc_options = newd wxChoice(tmpsizer->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize, spawn_choices);
+	tmpsizer = newd<wxStaticBoxSizer>(newd<wxStaticBox>(this, wxID_ANY, "Npc Spawn Import Behaviour"), wxVERTICAL);
+	spawn_npc_options = newd<wxChoice>(tmpsizer->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize, spawn_choices);
 	spawn_npc_options->SetSelection(0);
-	tmpsizer->Add(spawn_npc_options, 0, wxALL | wxEXPAND, 5);
-	sizer->Add(tmpsizer, 1, wxEXPAND | wxLEFT | wxRIGHT, 5);
+	tmpsizer->Add(spawn_npc_options.get(), 0, wxALL | wxEXPAND, 5);
+	sizer->Add(tmpsizer.get(), 1, wxEXPAND | wxLEFT | wxRIGHT, 5);
 
 	// OK/Cancel buttons
-	wxBoxSizer* buttons = newd wxBoxSizer(wxHORIZONTAL);
-	buttons->Add(newd wxButton(this, wxID_OK, "Ok"), 0, wxALL, 5);
-	buttons->Add(newd wxButton(this, wxID_CANCEL, "Cancel"), 0, wxALL, 5);
-	sizer->Add(buttons, wxSizerFlags(1).Center());
+	auto buttons = newd<wxBoxSizer>(wxHORIZONTAL);
+	buttons->Add(newd<wxButton>(this, wxID_OK, "Ok").get(), 0, wxALL, 5);
+	buttons->Add(newd<wxButton>(this, wxID_CANCEL, "Cancel").get(), 0, wxALL, 5);
+	sizer->Add(buttons.get(), wxSizerFlags(1).Center());
 
-	SetSizer(sizer);
+	SetSizer(sizer.get());
 	Layout();
 	Centre(wxBOTH);
 }
@@ -522,41 +522,41 @@ END_EVENT_TABLE()
 ExportMiniMapWindow::ExportMiniMapWindow(wxWindow* parent, Editor &editor) :
 	wxDialog(parent, wxID_ANY, "Export Minimap", wxDefaultPosition, wxSize(400, 300)),
 	editor(editor) {
-	wxSizer* sizer = newd wxBoxSizer(wxVERTICAL);
-	wxSizer* tmpsizer;
+    std::shared_ptr<wxSizer> sizer = newd<wxBoxSizer>(wxVERTICAL);
+    std::shared_ptr<wxSizer> tmpsizer;
 
 	// Error field
-	error_field = newd wxStaticText(this, wxID_VIEW_DETAILS, "", wxDefaultPosition, wxDefaultSize);
+	error_field = newd<wxStaticText>(this, wxID_VIEW_DETAILS, "", wxDefaultPosition, wxDefaultSize);
 	error_field->SetForegroundColour(*wxRED);
-	tmpsizer = newd wxBoxSizer(wxHORIZONTAL);
-	tmpsizer->Add(error_field, 0, wxALL, 5);
-	sizer->Add(tmpsizer, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 5);
+	tmpsizer = newd<wxBoxSizer>(wxHORIZONTAL);
+	tmpsizer->Add(error_field.get(), 0, wxALL, 5);
+	sizer->Add(tmpsizer.get(), 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 5);
 
 	// Output folder
-	directory_text_field = newd wxTextCtrl(this, wxID_ANY, "", wxDefaultPosition, wxDefaultSize);
+	directory_text_field = newd<wxTextCtrl>(this, wxID_ANY, "", wxDefaultPosition, wxDefaultSize);
 	directory_text_field->Bind(wxEVT_KEY_UP, &ExportMiniMapWindow::OnDirectoryChanged, this);
 	directory_text_field->SetValue(wxString(g_settings.getString(Config::MINIMAP_EXPORT_DIR)));
-	tmpsizer = newd wxStaticBoxSizer(wxHORIZONTAL, this, "Output Folder");
-	tmpsizer->Add(directory_text_field, 1, wxALL, 5);
-	tmpsizer->Add(newd wxButton(this, MAP_WINDOW_FILE_BUTTON, "Browse"), 0, wxALL, 5);
-	sizer->Add(tmpsizer, 0, wxALL | wxEXPAND, 5);
+	tmpsizer = newd<wxStaticBoxSizer>(wxHORIZONTAL, this, "Output Folder");
+	tmpsizer->Add(directory_text_field.get(), 1, wxALL, 5);
+	tmpsizer->Add(newd<wxButton>(this, MAP_WINDOW_FILE_BUTTON, "Browse").get(), 0, wxALL, 5);
+	sizer->Add(tmpsizer.get(), 0, wxALL | wxEXPAND, 5);
 
 	// File name
 	wxString mapName(editor.getMap().getName().c_str(), wxConvUTF8);
-	file_name_text_field = newd wxTextCtrl(this, wxID_ANY, mapName.BeforeLast('.'), wxDefaultPosition, wxDefaultSize);
+	file_name_text_field = newd<wxTextCtrl>(this, wxID_ANY, mapName.BeforeLast('.'), wxDefaultPosition, wxDefaultSize);
 	file_name_text_field->Bind(wxEVT_KEY_UP, &ExportMiniMapWindow::OnFileNameChanged, this);
-	tmpsizer = newd wxStaticBoxSizer(wxHORIZONTAL, this, "File Name");
-	tmpsizer->Add(file_name_text_field, 1, wxALL, 5);
-	sizer->Add(tmpsizer, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 5);
+	tmpsizer = newd<wxStaticBoxSizer>(wxHORIZONTAL, this, "File Name");
+	tmpsizer->Add(file_name_text_field.get(), 1, wxALL, 5);
+	sizer->Add(tmpsizer.get(), 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 5);
 
 	// Format options
 	wxArrayString format_choices;
 	format_choices.Add(".otmm (Client Minimap)");
 	format_choices.Add(".png (PNG Image)");
 	format_choices.Add(".bmp (Bitmap Image)");
-	format_options = new wxChoice(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, format_choices);
+	format_options = newd<wxChoice>(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, format_choices);
 	format_options->SetSelection(0);
-	tmpsizer->Add(format_options, 1, wxALL, 5);
+	tmpsizer->Add(format_options.get(), 1, wxALL, 5);
 
 	// Export options
 	wxArrayString choices;
@@ -569,22 +569,22 @@ ExportMiniMapWindow::ExportMiniMapWindow(wxWindow* parent, Editor &editor) :
 	}
 
 	// Area options
-	tmpsizer = newd wxStaticBoxSizer(wxHORIZONTAL, this, "Area Options");
-	floor_options = newd wxChoice(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, choices);
-	floor_number = newd wxSpinCtrl(this, wxID_ANY, i2ws(rme::MapGroundLayer), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, rme::MapMinLayer, rme::MapMaxLayer, rme::MapGroundLayer);
+	tmpsizer = newd<wxStaticBoxSizer>(wxHORIZONTAL, this, "Area Options");
+	floor_options = newd<wxChoice>(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, choices);
+	floor_number = newd<wxSpinCtrl>(this, wxID_ANY, i2ws(rme::MapGroundLayer), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, rme::MapMinLayer, rme::MapMaxLayer, rme::MapGroundLayer);
 	floor_number->Enable(false);
 	floor_options->SetSelection(0);
-	tmpsizer->Add(floor_options, 1, wxALL, 5);
-	tmpsizer->Add(floor_number, 0, wxALL, 5);
-	sizer->Add(tmpsizer, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 5);
+	tmpsizer->Add(floor_options.get(), 1, wxALL, 5);
+	tmpsizer->Add(floor_number.get(), 0, wxALL, 5);
+	sizer->Add(tmpsizer.get(), 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 5);
 
 	// OK/Cancel buttons
-	tmpsizer = newd wxBoxSizer(wxHORIZONTAL);
-	tmpsizer->Add(ok_button = newd wxButton(this, wxID_OK, "OK"), wxSizerFlags(1).Center());
-	tmpsizer->Add(newd wxButton(this, wxID_CANCEL, "Cancel"), wxSizerFlags(1).Center());
-	sizer->Add(tmpsizer, 0, wxCENTER, 10);
+	tmpsizer = newd<wxBoxSizer>(wxHORIZONTAL);
+	tmpsizer->Add(ok_button = newd<wxButton>(this, wxID_OK, "OK").get(), wxSizerFlags(1).Center());
+	tmpsizer->Add(newd<wxButton>(this, wxID_CANCEL, "Cancel").get(), wxSizerFlags(1).Center());
+	sizer->Add(tmpsizer.get(), 0, wxCENTER, 10);
 
-	SetSizer(sizer);
+	SetSizer(sizer.get());
 	Layout();
 	Centre(wxBOTH);
 	CheckValues();
@@ -704,22 +704,22 @@ FindDialog::FindDialog(wxWindow* parent, wxString title) :
 	idle_input_timer(this),
 	result_brush(nullptr),
 	result_id(0) {
-	wxSizer* sizer = newd wxBoxSizer(wxVERTICAL);
+    std::shared_ptr<wxSizer> sizer = newd<wxBoxSizer>(wxVERTICAL);
 
-	search_field = newd KeyForwardingTextCtrl(this, JUMP_DIALOG_TEXT, "", wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
+	search_field = newd<KeyForwardingTextCtrl>(this, JUMP_DIALOG_TEXT, "", wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
 	search_field->SetFocus();
-	sizer->Add(search_field, 0, wxEXPAND);
+	sizer->Add(search_field.get(), 0, wxEXPAND);
 
-	item_list = newd FindDialogListBox(this, JUMP_DIALOG_LIST);
+	item_list = newd<FindDialogListBox>(this, JUMP_DIALOG_LIST);
 	item_list->SetMinSize(wxSize(470, 400));
-	sizer->Add(item_list, wxSizerFlags(1).Expand().Border());
+	sizer->Add(item_list.get(), wxSizerFlags(1).Expand().Border());
 
-	wxSizer* stdsizer = newd wxBoxSizer(wxHORIZONTAL);
-	stdsizer->Add(newd wxButton(this, wxID_OK, "OK"), wxSizerFlags(1).Center());
-	stdsizer->Add(newd wxButton(this, wxID_CANCEL, "Cancel"), wxSizerFlags(1).Center());
-	sizer->Add(stdsizer, wxSizerFlags(0).Center().Border());
+    std::shared_ptr<wxSizer> stdsizer = newd<wxBoxSizer>(wxHORIZONTAL);
+	stdsizer->Add(newd<wxButton>(this, wxID_OK, "OK").get(), wxSizerFlags(1).Center());
+	stdsizer->Add(newd<wxButton>(this, wxID_CANCEL, "Cancel").get(), wxSizerFlags(1).Center());
+	sizer->Add(stdsizer.get(), wxSizerFlags(0).Center().Border());
 
-	SetSizerAndFit(sizer);
+	SetSizerAndFit(sizer.get());
 	Centre(wxBOTH);
 	// We can't call it here since it calls an abstract function, call in child constructors instead.
 	// RefreshContents();
@@ -813,7 +813,7 @@ FindBrushDialog::FindBrushDialog(wxWindow* parent, wxString title) :
 FindBrushDialog::~FindBrushDialog() = default;
 
 void FindBrushDialog::OnClickListInternal(wxCommandEvent &event) {
-	Brush* brush = item_list->GetSelectedBrush();
+	auto brush = item_list->GetSelectedBrush();
 	if (brush) {
 		result_brush = brush;
 		EndModal(1);
@@ -826,7 +826,7 @@ void FindBrushDialog::OnClickOKInternal() {
 		if (item_list->GetSelection() == wxNOT_FOUND) {
 			item_list->SetSelection(0);
 		}
-		Brush* brush = item_list->GetSelectedBrush();
+		auto brush = item_list->GetSelectedBrush();
 		if (!brush) {
 			// It's either "Please enter a search string" or "No matches"
 			// Perhaps we can refresh now?
@@ -836,7 +836,7 @@ void FindBrushDialog::OnClickOKInternal() {
 			if (do_search) {
 				const BrushMap &map = g_brushes.getMap();
 				for (BrushMap::const_iterator iter = map.begin(); iter != map.end(); ++iter) {
-					const Brush* brush = iter->second;
+					const auto brush = iter->second;
 					if (as_lower_str(brush->getName()).find(search_string) == std::string::npos) {
 						continue;
 					}
@@ -860,7 +860,7 @@ void FindBrushDialog::OnClickOKInternal() {
 							continue;
 						}
 
-						RAWBrush* raw_brush = type.raw_brush;
+                        std::shared_ptr<RAWBrush> raw_brush = type.raw_brush;
 						if (!raw_brush) {
 							continue;
 						}
@@ -896,10 +896,10 @@ void FindBrushDialog::RefreshContentsInternal() {
 		const BrushMap &brushes_map = g_brushes.getMap();
 
 		// We store the raws so they display last of all results
-		std::deque<const RAWBrush*> raws;
+		std::deque<std::shared_ptr<RAWBrush>> raws;
 
 		for (BrushMap::const_iterator iter = brushes_map.begin(); iter != brushes_map.end(); ++iter) {
-			const Brush* brush = iter->second;
+			const auto brush = iter->second;
 
 			if (as_lower_str(brush->getName()).find(search_string) == std::string::npos) {
 				continue;
@@ -910,7 +910,7 @@ void FindBrushDialog::RefreshContentsInternal() {
 			}
 
 			found_search_results = true;
-			item_list->AddBrush(const_cast<Brush*>(brush));
+			item_list->AddBrush(static_self_cast<Brush>(brush));
 		}
 
 		for (int id = 0; id <= g_items.getMaxID(); ++id) {
@@ -919,7 +919,7 @@ void FindBrushDialog::RefreshContentsInternal() {
 				continue;
 			}
 
-			RAWBrush* raw_brush = type.raw_brush;
+			std::shared_ptr<RAWBrush> raw_brush = type.raw_brush;
 			if (!raw_brush) {
 				continue;
 			}
@@ -933,7 +933,7 @@ void FindBrushDialog::RefreshContentsInternal() {
 		}
 
 		while (raws.size() > 0) {
-			item_list->AddBrush(const_cast<RAWBrush*>(raws.front()));
+			item_list->AddBrush(static_self_cast<RAWBrush>(raws.front()));
 			raws.pop_front();
 		}
 
@@ -974,7 +974,7 @@ void FindDialogListBox::SetNoMatches() {
 	SetItemCount(1);
 }
 
-void FindDialogListBox::AddBrush(Brush* brush) {
+void FindDialogListBox::AddBrush(std::shared_ptr<Brush> brush) {
 	if (cleared || no_matches) {
 		SetItemCount(0);
 	}
@@ -986,7 +986,7 @@ void FindDialogListBox::AddBrush(Brush* brush) {
 	brushlist.push_back(brush);
 }
 
-Brush* FindDialogListBox::GetSelectedBrush() {
+std::shared_ptr<Brush> FindDialogListBox::GetSelectedBrush() {
 	ssize_t n = GetSelection();
 	if (n == wxNOT_FOUND || no_matches || cleared) {
 		return nullptr;
@@ -1183,58 +1183,54 @@ EditTownsDialog::EditTownsDialog(wxWindow* parent, Editor &editor) :
 	const Map &map = editor.getMap();
 
 	// Create topsizer
-	wxSizer* sizer = newd wxBoxSizer(wxVERTICAL);
-	wxSizer* tmpsizer;
+	std::shared_ptr<wxSizer> sizer = newd<wxBoxSizer>(wxVERTICAL);
+    std::shared_ptr<wxSizer> tmpsizer;
 
-	for (TownMap::const_iterator town_iter = map.towns.begin(); town_iter != map.towns.end(); ++town_iter) {
-		Town* town = town_iter->second;
-		town_list.push_back(newd Town(*town));
+	for (TownMap::const_iterator town_iter = map.towns->begin(); town_iter != map.towns->end(); ++town_iter) {
+		auto town = town_iter->second;
+		town_list.push_back(newd<Town>(*town));
 		if (max_town_id < town->getID()) {
 			max_town_id = town->getID();
 		}
 	}
 
 	// Town list
-	town_listbox = newd wxListBox(this, EDIT_TOWNS_LISTBOX, wxDefaultPosition, wxSize(240, 100));
-	sizer->Add(town_listbox, 1, wxEXPAND | wxTOP | wxLEFT | wxRIGHT, 10);
+	town_listbox = newd<wxListBox>(this, EDIT_TOWNS_LISTBOX, wxDefaultPosition, wxSize(240, 100));
+	sizer->Add(town_listbox.get(), 1, wxEXPAND | wxTOP | wxLEFT | wxRIGHT, 10);
 
-	tmpsizer = newd wxBoxSizer(wxHORIZONTAL);
-	tmpsizer->Add(newd wxButton(this, EDIT_TOWNS_ADD, "Add"), 0, wxTOP, 5);
-	tmpsizer->Add(remove_button = newd wxButton(this, EDIT_TOWNS_REMOVE, "Remove"), 0, wxRIGHT | wxTOP, 5);
-	sizer->Add(tmpsizer, 0, wxEXPAND | wxLEFT | wxRIGHT, 10);
+	tmpsizer = newd<wxBoxSizer>(wxHORIZONTAL);
+	tmpsizer->Add(newd<wxButton>(this, EDIT_TOWNS_ADD, "Add").get(), 0, wxTOP, 5);
+	tmpsizer->Add(remove_button = newd<wxButton>(this, EDIT_TOWNS_REMOVE, "Remove").get(), 0, wxRIGHT | wxTOP, 5);
+	sizer->Add(tmpsizer.get(), 0, wxEXPAND | wxLEFT | wxRIGHT, 10);
 
 	// House options
-	tmpsizer = newd wxStaticBoxSizer(wxHORIZONTAL, this, "Name / ID");
-	name_field = newd wxTextCtrl(this, wxID_ANY, "", wxDefaultPosition, wxSize(190, 20), 0, wxTextValidator(wxFILTER_ASCII, &town_name));
-	tmpsizer->Add(name_field, 2, wxEXPAND | wxLEFT | wxBOTTOM, 5);
+	tmpsizer = newd<wxStaticBoxSizer>(wxHORIZONTAL, this, "Name / ID");
+	name_field = newd<wxTextCtrl>(this, wxID_ANY, "", wxDefaultPosition, wxSize(190, 20), 0, wxTextValidator(wxFILTER_ASCII, &town_name));
+	tmpsizer->Add(name_field.get(), 2, wxEXPAND | wxLEFT | wxBOTTOM, 5);
 
-	id_field = newd wxTextCtrl(this, wxID_ANY, "", wxDefaultPosition, wxSize(40, 20), 0, wxTextValidator(wxFILTER_NUMERIC, &town_id));
+	id_field = newd<wxTextCtrl>(this, wxID_ANY, "", wxDefaultPosition, wxSize(40, 20), 0, wxTextValidator(wxFILTER_NUMERIC, &town_id));
 	id_field->Enable(false);
-	tmpsizer->Add(id_field, 1, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
-	sizer->Add(tmpsizer, 0, wxEXPAND | wxALL, 10);
+	tmpsizer->Add(id_field.get(), 1, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
+	sizer->Add(tmpsizer.get(), 0, wxEXPAND | wxALL, 10);
 
 	// Temple position
-	temple_position = newd PositionCtrl(this, "Temple Position", 0, 0, 0, map.getWidth(), map.getHeight());
-	select_position_button = newd wxButton(this, EDIT_TOWNS_SELECT_TEMPLE, "Go To");
-	temple_position->Add(select_position_button, 0, wxLEFT | wxRIGHT | wxBOTTOM, 5);
-	sizer->Add(temple_position, 0, wxEXPAND | wxLEFT | wxRIGHT, 10);
+	temple_position = newd<PositionCtrl>(this, "Temple Position", 0, 0, 0, map.getWidth(), map.getHeight());
+	select_position_button = newd<wxButton>(this, EDIT_TOWNS_SELECT_TEMPLE, "Go To");
+	temple_position->Add(select_position_button.get(), 0, wxLEFT | wxRIGHT | wxBOTTOM, 5);
+	sizer->Add(temple_position.get(), 0, wxEXPAND | wxLEFT | wxRIGHT, 10);
 
 	// OK/Cancel buttons
-	tmpsizer = newd wxBoxSizer(wxHORIZONTAL);
-	tmpsizer->Add(newd wxButton(this, wxID_OK, "OK"), wxSizerFlags(1).Center());
-	tmpsizer->Add(newd wxButton(this, wxID_CANCEL, "Cancel"), wxSizerFlags(1).Center());
-	sizer->Add(tmpsizer, 0, wxCENTER | wxALL, 10);
+	tmpsizer = newd<wxBoxSizer>(wxHORIZONTAL);
+	tmpsizer->Add(newd<wxButton>(this, wxID_OK, "OK").get(), wxSizerFlags(1).Center());
+	tmpsizer->Add(newd<wxButton>(this, wxID_CANCEL, "Cancel").get(), wxSizerFlags(1).Center());
+	sizer->Add(tmpsizer.get(), 0, wxCENTER | wxALL, 10);
 
-	SetSizerAndFit(sizer);
+	SetSizerAndFit(sizer.get());
 	Centre(wxBOTH);
 	BuildListBox(true);
 }
 
-EditTownsDialog::~EditTownsDialog() {
-	for (std::vector<Town*>::iterator town_iter = town_list.begin(); town_iter != town_list.end(); ++town_iter) {
-		delete *town_iter;
-	}
-}
+EditTownsDialog::~EditTownsDialog() = default;
 
 void EditTownsDialog::BuildListBox(bool doselect) {
 	long tmplong = 0;
@@ -1245,7 +1241,7 @@ void EditTownsDialog::BuildListBox(bool doselect) {
 	if (doselect && id_field->GetValue().ToLong(&tmplong)) {
 		uint32_t old_town_id = tmplong;
 
-		for (std::vector<Town*>::iterator town_iter = town_list.begin(); town_iter != town_list.end(); ++town_iter) {
+		for (std::vector<std::shared_ptr<Town>>::iterator town_iter = town_list.begin(); town_iter != town_list.end(); ++town_iter) {
 			if (old_town_id == (*town_iter)->getID()) {
 				selection_before = (*town_iter)->getID();
 				break;
@@ -1253,8 +1249,8 @@ void EditTownsDialog::BuildListBox(bool doselect) {
 		}
 	}
 
-	for (std::vector<Town*>::iterator town_iter = town_list.begin(); town_iter != town_list.end(); ++town_iter) {
-		Town* town = *town_iter;
+	for (std::vector<std::shared_ptr<Town>>::iterator town_iter = town_list.begin(); town_iter != town_list.end(); ++town_iter) {
+		auto town = *town_iter;
 		town_name_list.Add(wxstr(town->getName()));
 		if (max_town_id < town->getID()) {
 			max_town_id = town->getID();
@@ -1268,7 +1264,7 @@ void EditTownsDialog::BuildListBox(bool doselect) {
 	if (doselect) {
 		if (selection_before) {
 			int i = 0;
-			for (std::vector<Town*>::iterator town_iter = town_list.begin(); town_iter != town_list.end(); ++town_iter) {
+			for (std::vector<std::shared_ptr<Town>>::iterator town_iter = town_list.begin(); town_iter != town_list.end(); ++town_iter) {
 				if (selection_before == (*town_iter)->getID()) {
 					town_listbox->SetSelection(i);
 					return;
@@ -1288,9 +1284,9 @@ void EditTownsDialog::UpdateSelection(int new_selection) {
 		if (id_field->GetValue().ToLong(&tmplong)) {
 			uint32_t old_town_id = tmplong;
 
-			Town* old_town = nullptr;
+            std::shared_ptr<Town> old_town = nullptr;
 
-			for (std::vector<Town*>::iterator town_iter = town_list.begin(); town_iter != town_list.end(); ++town_iter) {
+			for (std::vector<std::shared_ptr<Town>>::iterator town_iter = town_list.begin(); town_iter != town_list.end(); ++town_iter) {
 				if (old_town_id == (*town_iter)->getID()) {
 					old_town = *town_iter;
 					break;
@@ -1326,7 +1322,7 @@ void EditTownsDialog::UpdateSelection(int new_selection) {
 		select_position_button->Enable(true);
 
 		// Change the values to reflect the newd selection
-		Town* town = town_list[new_selection];
+        auto town = town_list[new_selection];
 		ASSERT(town);
 
 		// printf("Selected %d:%s\n", new_selection, town->getName().c_str());
@@ -1354,7 +1350,7 @@ void EditTownsDialog::OnClickSelectTemplePosition(wxCommandEvent &WXUNUSED(event
 }
 
 void EditTownsDialog::OnClickAdd(wxCommandEvent &WXUNUSED(event)) {
-	Town* new_town = newd Town(++max_town_id);
+	auto new_town = newd<Town>(++max_town_id);
 	new_town->setName("Unnamed Town");
 	new_town->setTemplePosition(Position(0, 0, 0));
 	town_list.push_back(new_town);
@@ -1369,9 +1365,9 @@ void EditTownsDialog::OnClickRemove(wxCommandEvent &WXUNUSED(event)) {
 	if (id_field->GetValue().ToLong(&tmplong)) {
 		uint32_t old_town_id = tmplong;
 
-		Town* town = nullptr;
+        std::shared_ptr<Town> town = nullptr;
 
-		std::vector<Town*>::iterator town_iter = town_list.begin();
+		std::vector<std::shared_ptr<Town>>::iterator town_iter = town_list.begin();
 
 		int selection_index = 0;
 		while (town_iter != town_list.end()) {
@@ -1394,7 +1390,6 @@ void EditTownsDialog::OnClickRemove(wxCommandEvent &WXUNUSED(event)) {
 			}
 		}
 
-		delete town;
 		town_list.erase(town_iter);
 		BuildListBox(false);
 		UpdateSelection(selection_index - 1);
@@ -1409,9 +1404,9 @@ void EditTownsDialog::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 		if (town_list.size() > 0 && id_field->GetValue().ToLong(&tmplong)) {
 			uint32_t old_town_id = tmplong;
 
-			Town* old_town = nullptr;
+            std::shared_ptr<Town> old_town = nullptr;
 
-			for (std::vector<Town*>::iterator town_iter = town_list.begin(); town_iter != town_list.end(); ++town_iter) {
+			for (std::vector<std::shared_ptr<Town>>::iterator town_iter = town_list.begin(); town_iter != town_list.end(); ++town_iter) {
 				if (old_town_id == (*town_iter)->getID()) {
 					old_town = *town_iter;
 					break;
@@ -1436,11 +1431,11 @@ void EditTownsDialog::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 			}
 		}
 
-		Towns &towns = editor.getMap().towns;
+        const auto &towns = editor.getMap().towns;
 
 		// Verify the newd information
-		for (std::vector<Town*>::iterator town_iter = town_list.begin(); town_iter != town_list.end(); ++town_iter) {
-			Town* town = *town_iter;
+		for (std::vector<std::shared_ptr<Town>>::iterator town_iter = town_list.begin(); town_iter != town_list.end(); ++town_iter) {
+			auto town = *town_iter;
 			if (town->getName() == "") {
 				g_gui.PopupDialog(this, "Error", "You can't have a town with an empty name.", wxOK);
 				return;
@@ -1454,11 +1449,11 @@ void EditTownsDialog::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 		}
 
 		// Clear old towns
-		towns.clear();
+		towns->clear();
 
 		// Build the newd town map
-		for (std::vector<Town*>::iterator town_iter = town_list.begin(); town_iter != town_list.end(); ++town_iter) {
-			towns.addTown(*town_iter);
+		for (std::vector<std::shared_ptr<Town>>::iterator town_iter = town_list.begin(); town_iter != town_list.end(); ++town_iter) {
+			towns->addTown(*town_iter);
 		}
 		town_list.clear();
 		editor.getMap().doChange();
@@ -1488,18 +1483,18 @@ GotoPositionDialog::GotoPositionDialog(wxWindow* parent, Editor &editor) :
 	const Map &map = editor.getMap();
 
 	// create topsizer
-	wxSizer* sizer = newd wxBoxSizer(wxVERTICAL);
+    std::shared_ptr<wxSizer> sizer = newd<wxBoxSizer>(wxVERTICAL);
 
-	posctrl = newd PositionCtrl(this, "Destination", map.getWidth() / 2, map.getHeight() / 2, rme::MapGroundLayer, map.getWidth(), map.getHeight());
-	sizer->Add(posctrl, 0, wxTOP | wxLEFT | wxRIGHT, 20);
+	posctrl = newd<PositionCtrl>(this, "Destination", map.getWidth() / 2, map.getHeight() / 2, rme::MapGroundLayer, map.getWidth(), map.getHeight());
+	sizer->Add(posctrl.get(), 0, wxTOP | wxLEFT | wxRIGHT, 20);
 
 	// OK/Cancel buttons
-	wxSizer* tmpsizer = newd wxBoxSizer(wxHORIZONTAL);
-	tmpsizer->Add(newd wxButton(this, wxID_OK, "OK"), wxSizerFlags(1).Center());
-	tmpsizer->Add(newd wxButton(this, wxID_CANCEL, "Cancel"), wxSizerFlags(1).Center());
-	sizer->Add(tmpsizer, 0, wxALL | wxCENTER, 20); // Border to top too
+    std::shared_ptr<wxSizer> tmpsizer = newd<wxBoxSizer>(wxHORIZONTAL);
+	tmpsizer->Add(newd<wxButton>(this, wxID_OK, "OK").get(), wxSizerFlags(1).Center());
+	tmpsizer->Add(newd<wxButton>(this, wxID_CANCEL, "Cancel").get(), wxSizerFlags(1).Center());
+	sizer->Add(tmpsizer.get(), 0, wxALL | wxCENTER, 20); // Border to top too
 
-	SetSizerAndFit(sizer);
+	SetSizerAndFit(sizer.get());
 	Centre(wxBOTH);
 }
 

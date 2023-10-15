@@ -27,7 +27,7 @@ ItemAttributes::ItemAttributes() :
 
 ItemAttributes::ItemAttributes(const ItemAttributes &o) {
 	if (o.attributes) {
-		attributes = newd ItemAttributeMap(*o.attributes);
+		attributes = newd<ItemAttributeMap>(*o.attributes);
 	}
 }
 
@@ -37,7 +37,7 @@ ItemAttributes::~ItemAttributes() {
 
 void ItemAttributes::createAttributes() {
 	if (!attributes) {
-		attributes = newd ItemAttributeMap;
+		attributes = newd<ItemAttributeMap>();
 	}
 }
 

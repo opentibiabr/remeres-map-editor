@@ -36,10 +36,10 @@ END_EVENT_TABLE()
 
 MapTabbook::MapTabbook(wxWindow* parent, wxWindowID id) :
 	wxPanel(parent, id, wxDefaultPosition, wxDefaultSize) {
-	wxSizer* wxz = newd wxBoxSizer(wxHORIZONTAL);
-	notebook = newd wxAuiNotebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize);
-	wxz->Add(notebook, 1, wxEXPAND);
-	SetSizerAndFit(wxz);
+    std::shared_ptr<wxSizer> wxz = newd<wxBoxSizer>(wxHORIZONTAL);
+	notebook = newd<wxAuiNotebook>(this, wxID_ANY, wxDefaultPosition, wxDefaultSize);
+	wxz->Add(notebook.get(), 1, wxEXPAND);
+	SetSizerAndFit(wxz.get());
 }
 
 void MapTabbook::CycleTab(bool forward) {
@@ -137,7 +137,7 @@ void MapTabbook::OnAllowNotebookDND(wxAuiNotebookEvent &evt) {
 // Wrappers
 
 void MapTabbook::AddTab(EditorTab* tab, bool select) {
-	tab->GetWindow()->Reparent(notebook);
+	tab->GetWindow()->Reparent(notebook.get());
 	notebook->AddPage(tab->GetWindow(), tab->GetTitle(), select);
 	conv[tab->GetWindow()] = tab;
 }

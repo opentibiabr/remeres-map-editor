@@ -77,13 +77,15 @@ class Npc;
 
 struct SpriteLight;
 
-class Item : public ItemAttributes {
+class Item : public ItemAttributes, public SharedObject{
 public:
 	// Factory member to create item of right type based on type
-	static Item* Create(uint16_t id, uint16_t subtype = 0xFFFF);
-	static Item* Create(pugi::xml_node);
-	static Item* Create_OTBM(const IOMap &maphandle, BinaryNode* stream);
+	static std::shared_ptr<Item> Create(uint16_t id, uint16_t subtype = 0xFFFF);
+	static std::shared_ptr<Item> Create(pugi::xml_node);
+	static std::shared_ptr<Item> Create_OTBM(const IOMap &maphandle, BinaryNode* stream);
 	// static Item* Create_OTMM(const IOMap& maphandle, BinaryNode* stream);
+
+    std::shared_ptr<Item> transformItem(std::shared_ptr<Item> old_item, uint16_t new_id, std::shared_ptr<Tile> parent = nullptr);
 
 protected:
 	// Constructor for items
@@ -93,7 +95,7 @@ public:
 	virtual ~Item();
 
 	// Deep copy thingy
-	virtual Item* deepCopy() const;
+	virtual std::shared_ptr<Item> deepCopy() const;
 
 	// Get memory footprint size
 	uint32_t memsize() const;
@@ -188,18 +190,18 @@ public:
 	uint32_t getMaxWriteLength() const {
 		return getItemType().maxTextLen;
 	}
-	Brush* getBrush() const {
+    std::shared_ptr<Brush> getBrush() const {
 		return getItemType().brush;
 	}
-	GroundBrush* getGroundBrush() const;
-	WallBrush* getWallBrush() const;
-	DoorBrush* getDoorBrush() const;
-	TableBrush* getTableBrush() const;
-	CarpetBrush* getCarpetBrush() const;
-	Brush* getDoodadBrush() const {
+    std::shared_ptr<GroundBrush> getGroundBrush() const;
+    std::shared_ptr<WallBrush> getWallBrush() const;
+    std::shared_ptr<DoorBrush> getDoorBrush() const;
+    std::shared_ptr<TableBrush> getTableBrush() const;
+    std::shared_ptr<CarpetBrush> getCarpetBrush() const;
+    std::shared_ptr<Brush> getDoodadBrush() const {
 		return getItemType().doodad_brush;
 	} // This is not necessarily a doodad brush
-	RAWBrush* getRAWBrush() const {
+    std::shared_ptr<RAWBrush> getRAWBrush() const {
 		return getItemType().raw_brush;
 	}
 	uint16_t getGroundEquivalent() const {
@@ -305,9 +307,9 @@ public:
 	}
 
 	// Wall alignment (vertical, horizontal, pole, corner)
-	BorderType getWallAlignment() const;
+    BorderType getWallAlignment() const;
 	// Border aligment (south, west etc.)
-	BorderType getBorderAlignment() const;
+    BorderType getBorderAlignment() const;
 
 	// Get the name!
 	const std::string getName() const {
@@ -384,10 +386,8 @@ private:
 	Item &operator==(const Item &i); // Can't compare
 };
 
-typedef std::vector<Item*> ItemVector;
-typedef std::list<Item*> ItemList;
-
-Item* transformItem(Item* old_item, uint16_t new_id, Tile* parent = nullptr);
+typedef std::vector<std::shared_ptr<Item>> ItemVector;
+typedef std::list<std::shared_ptr<Item>> ItemList;
 
 inline int Item::getCount() const {
 	if (isStackable() || isExtraCharged() || isClientCharged()) {

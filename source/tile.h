@@ -50,10 +50,10 @@ enum : uint8_t {
 class Tile {
 public: // Members
 	TileLocation* location;
-	Item* ground;
+    std::shared_ptr<Item> ground;
 	ItemVector items;
-	Monster* monster;
-	SpawnMonster* spawnMonster;
+	std::shared_ptr<Monster> monster;
+	std::shared_ptr<SpawnMonster> spawnMonster;
 	Npc* npc;
 	SpawnNpc* spawnNpc;
 	uint32_t house_id; // House id for this tile (pointer not safe)

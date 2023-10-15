@@ -37,11 +37,7 @@ DoodadBrush::DoodadBrush() :
 	////
 }
 
-DoodadBrush::~DoodadBrush() {
-	for (std::vector<AlternativeBlock*>::iterator alt_iter = alternatives.begin(); alt_iter != alternatives.end(); ++alt_iter) {
-		delete *alt_iter;
-	}
-}
+DoodadBrush::~DoodadBrush() = default;
 
 DoodadBrush::AlternativeBlock::AlternativeBlock() :
 	composite_chance(0),
@@ -66,12 +62,12 @@ DoodadBrush::AlternativeBlock::~AlternativeBlock() {
 	}
 }
 
-bool DoodadBrush::loadAlternative(pugi::xml_node node, wxArrayString &warnings, AlternativeBlock* which) {
-	AlternativeBlock* alternativeBlock;
+bool DoodadBrush::loadAlternative(pugi::xml_node node, wxArrayString &warnings, std::shared_ptr<AlternativeBlock> which) {
+    std::shared_ptr<AlternativeBlock> alternativeBlock;
 	if (which) {
 		alternativeBlock = which;
 	} else {
-		alternativeBlock = newd AlternativeBlock();
+		alternativeBlock = newd<AlternativeBlock>();
 	}
 
 	pugi::xml_attribute attribute;
@@ -89,7 +85,7 @@ bool DoodadBrush::loadAlternative(pugi::xml_node node, wxArrayString &warnings, 
 				continue;
 			}
 
-			ItemType* type = g_items.getRawItemType(item->getID());
+			auto type = g_items.getRawItemType(item->getID());
 			if (type) {
 				type->doodad_brush = this;
 			}
@@ -147,7 +143,7 @@ bool DoodadBrush::loadAlternative(pugi::xml_node node, wxArrayString &warnings, 
 					if (item) {
 						items.push_back(item);
 
-						ItemType* type = g_items.getRawItemType(item->getID());
+						auto type = g_items.getRawItemType(item->getID());
 						if (type) {
 							type->doodad_brush = this;
 						}
@@ -266,7 +262,7 @@ bool DoodadBrush::ownsItem(Item* item) const {
 	}
 	uint16_t id = item->getID();
 
-	for (std::vector<AlternativeBlock*>::const_iterator alt_iter = alternatives.begin(); alt_iter != alternatives.end(); ++alt_iter) {
+	for (std::vector<std::shared_ptr<AlternativeBlock>>::const_iterator alt_iter = alternatives.begin(); alt_iter != alternatives.end(); ++alt_iter) {
 		if ((*alt_iter)->ownsItem(id)) {
 			return true;
 		}
@@ -323,7 +319,7 @@ void DoodadBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 	}
 
 	variation %= alternatives.size();
-	const AlternativeBlock* ab_ptr = alternatives[variation];
+	const std::shared_ptr<AlternativeBlock> ab_ptr = alternatives[variation];
 	ASSERT(ab_ptr);
 
 	int roll = random(1, ab_ptr->single_chance);
@@ -350,7 +346,7 @@ const CompositeTileList &DoodadBrush::getComposite(int variation) const {
 	}
 
 	variation %= alternatives.size();
-	const AlternativeBlock* ab_ptr = alternatives[variation];
+	const std::shared_ptr<AlternativeBlock> ab_ptr = alternatives[variation];
 	ASSERT(ab_ptr);
 
 	int roll = random(1, ab_ptr->composite_chance);
@@ -381,7 +377,7 @@ int DoodadBrush::getCompositeChance(int ab) const {
 		return 0;
 	}
 	ab %= alternatives.size();
-	const AlternativeBlock* ab_ptr = alternatives[ab];
+	const std::shared_ptr<AlternativeBlock> ab_ptr = alternatives[ab];
 	ASSERT(ab_ptr);
 	return ab_ptr->composite_chance;
 }
@@ -391,7 +387,7 @@ int DoodadBrush::getSingleChance(int ab) const {
 		return 0;
 	}
 	ab %= alternatives.size();
-	const AlternativeBlock* ab_ptr = alternatives[ab];
+	const std::shared_ptr<AlternativeBlock> ab_ptr = alternatives[ab];
 	ASSERT(ab_ptr);
 	return ab_ptr->single_chance;
 }
@@ -401,7 +397,7 @@ int DoodadBrush::getTotalChance(int ab) const {
 		return 0;
 	}
 	ab %= alternatives.size();
-	const AlternativeBlock* ab_ptr = alternatives[ab];
+	const std::shared_ptr<AlternativeBlock> ab_ptr = alternatives[ab];
 	ASSERT(ab_ptr);
 	return ab_ptr->composite_chance + ab_ptr->single_chance;
 }
@@ -411,7 +407,7 @@ bool DoodadBrush::hasSingleObjects(int ab) const {
 		return false;
 	}
 	ab %= alternatives.size();
-	AlternativeBlock* ab_ptr = alternatives[ab];
+    std::shared_ptr<AlternativeBlock> ab_ptr = alternatives[ab];
 	ASSERT(ab_ptr);
 	return ab_ptr->single_chance > 0;
 }
@@ -421,7 +417,7 @@ bool DoodadBrush::hasCompositeObjects(int ab) const {
 		return false;
 	}
 	ab %= alternatives.size();
-	AlternativeBlock* ab_ptr = alternatives[ab];
+    std::shared_ptr<AlternativeBlock> ab_ptr = alternatives[ab];
 	ASSERT(ab_ptr);
 	return ab_ptr->composite_chance > 0;
 }

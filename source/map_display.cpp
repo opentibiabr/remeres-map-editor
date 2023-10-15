@@ -137,16 +137,13 @@ MapCanvas::MapCanvas(MapWindow* parent, Editor &editor, int* attriblist) :
 
 	last_mmb_click_x(-1),
 	last_mmb_click_y(-1) {
-	popup_menu = newd MapPopupMenu(editor);
-	animation_timer = newd AnimationTimer(this);
-	drawer = new MapDrawer(this);
+	popup_menu = newd<MapPopupMenu>(editor);
+	animation_timer = newd<AnimationTimer>(this);
+	drawer = newd<MapDrawer>(this);
 	keyCode = WXK_NONE;
 }
 
 MapCanvas::~MapCanvas() {
-	delete popup_menu;
-	delete animation_timer;
-	delete drawer;
 	free(screenshot_buffer);
 }
 
@@ -261,21 +258,20 @@ void MapCanvas::TakeScreenshot(wxFileName path, wxString format) {
 	int screensize_x, screensize_y;
 	GetViewBox(&view_scroll_x, &view_scroll_y, &screensize_x, &screensize_y);
 
-	delete[] screenshot_buffer;
-	screenshot_buffer = newd uint8_t[3 * screensize_x * screensize_y];
+    std::vector<uint8_t> screenshot_buffer(3 * screensize_x * screensize_y);
 
 	// Draw the window
 	Refresh();
 	wxGLCanvas::Update(); // Forces immediate redraws the window.
 
 	// screenshot_buffer should now contain the screenbuffer
-	if (screenshot_buffer == nullptr) {
+	if (screenshot_buffer.empty()) {
 		g_gui.PopupDialog("Capture failed", "Image capture failed. Old Video Driver?", wxOK);
 	} else {
 		// We got the shit
 		int screensize_x, screensize_y;
 		GetMapWindow()->GetViewSize(&screensize_x, &screensize_y);
-		wxImage screenshot(screensize_x, screensize_y, screenshot_buffer);
+        wxImage screenshot(screensize_x, screensize_y, screenshot_buffer.data());
 
 		time_t t = time(nullptr);
 		struct tm current_time;
@@ -335,8 +331,6 @@ void MapCanvas::TakeScreenshot(wxFileName path, wxString format) {
 	}
 
 	Refresh();
-
-	screenshot_buffer = nullptr;
 }
 
 void MapCanvas::ScreenToMap(int screen_x, int screen_y, int* map_x, int* map_y) {
@@ -604,27 +598,27 @@ void MapCanvas::OnMouseLeftDoubleClick(wxMouseEvent &event) {
 
 	if (tile && tile->size() > 0) {
 		Tile* new_tile = tile->deepCopy(map);
-		wxDialog* dialog = nullptr;
+		std::shared_ptr<wxDialog> dialog = nullptr;
 		// Show monster spawn
 		if (new_tile->spawnMonster && g_settings.getInteger(Config::SHOW_SPAWNS_MONSTER)) {
-			dialog = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, new_tile->spawnMonster);
+			dialog = newd<OldPropertiesWindow>(g_gui.root, &editor.getMap(), new_tile, new_tile->spawnMonster);
 		}
 		// Show monster
 		else if (new_tile->monster && g_settings.getInteger(Config::SHOW_MONSTERS)) {
-			dialog = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, new_tile->monster);
+			dialog = newd<OldPropertiesWindow>(g_gui.root, &editor.getMap(), new_tile, new_tile->monster);
 		}
 		// Show npc
 		else if (new_tile->npc && g_settings.getInteger(Config::SHOW_NPCS)) {
-			dialog = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, new_tile->npc);
+			dialog = newd<OldPropertiesWindow>(g_gui.root, &editor.getMap(), new_tile, new_tile->npc);
 		}
 		// Show npc spawn
 		else if (new_tile->spawnNpc && g_settings.getInteger(Config::SHOW_SPAWNS_NPC)) {
-			dialog = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, new_tile->spawnNpc);
+			dialog = newd<OldPropertiesWindow>(g_gui.root, &editor.getMap(), new_tile, new_tile->spawnNpc);
 		} else if (Item* item = new_tile->getTopItem()) {
 			if (editor.getMap().getVersion().otbm >= MAP_OTBM_4) {
-				dialog = newd PropertiesWindow(g_gui.root, &editor.getMap(), new_tile, item);
+				dialog = newd<OldPropertiesWindow>(g_gui.root, &editor.getMap(), new_tile, item);
 			} else {
-				dialog = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, item);
+				dialog = newd<OldPropertiesWindow>(g_gui.root, &editor.getMap(), new_tile, item);
 			}
 		} else {
 			delete new_tile;
@@ -634,7 +628,7 @@ void MapCanvas::OnMouseLeftDoubleClick(wxMouseEvent &event) {
 		int ret = dialog->ShowModal();
 		if (ret != 0) {
 			Action* action = editor.createAction(ACTION_CHANGE_PROPERTIES);
-			action->addChange(newd Change(new_tile));
+			action->addChange(newd<Change>(new_tile));
 			editor.addAction(action);
 		} else {
 			// Cancel!
@@ -1141,9 +1135,9 @@ void MapCanvas::OnMouseActionRelease(wxMouseEvent &event) {
 					// Let's divide!
 					int remainder = width;
 					int cleared = 0;
-					std::vector<SelectionThread*> threads;
+					std::vector<std::shared_ptr<SelectionThread>> threads;
 					if (width == 0) {
-						threads.push_back(newd SelectionThread(editor, Position(start_x, start_y, start_z), Position(start_x, end_y, end_z)));
+						threads.push_back(newd<SelectionThread>(editor, Position(start_x, start_y, start_z), Position(start_x, end_y, end_z)));
 					} else {
 						for (int i = 0; i < threadcount; ++i) {
 							int chunksize = width / threadcount;
@@ -1151,7 +1145,7 @@ void MapCanvas::OnMouseActionRelease(wxMouseEvent &event) {
 							if (i == threadcount - 1) {
 								chunksize = remainder;
 							}
-							threads.push_back(newd SelectionThread(editor, Position(start_x + cleared, start_y, start_z), Position(start_x + cleared + chunksize, end_y, end_z)));
+							threads.push_back(newd<SelectionThread>(editor, Position(start_x + cleared, start_y, start_z), Position(start_x + cleared + chunksize, end_y, end_z)));
 							cleared += chunksize;
 							remainder -= chunksize;
 						}
@@ -1160,10 +1154,10 @@ void MapCanvas::OnMouseActionRelease(wxMouseEvent &event) {
 					ASSERT(remainder == 0);
 
 					selection.start(); // Start a selection session
-					for (SelectionThread* thread : threads) {
+					for (const std::shared_ptr<SelectionThread>& thread : threads) {
 						thread->Execute();
 					}
-					for (SelectionThread* thread : threads) {
+					for (const std::shared_ptr<SelectionThread>& thread : threads) {
 						selection.join(thread);
 					}
 					selection.finish(); // Finish the selection session
@@ -2075,7 +2069,7 @@ void MapCanvas::OnBrowseTile(wxCommandEvent &WXUNUSED(event)) {
 	int ret = w->ShowModal();
 	if (ret != 0) {
 		Action* action = editor.createAction(ACTION_DELETE_TILES);
-		action->addChange(newd Change(new_tile));
+		action->addChange(newd<Change>(new_tile));
 		editor.addAction(action);
 		editor.updateActions();
 	} else {
@@ -2111,7 +2105,7 @@ void MapCanvas::OnRotateItem(wxCommandEvent &WXUNUSED(event)) {
 	Tile* new_tile = tile->deepCopy(editor.getMap());
 	Item* new_item = new_tile->getSelectedItems().front();
 	new_item->doRotate();
-	action->addChange(new Change(new_tile));
+	action->addChange(newd<Change>(new_tile));
 
 	editor.addAction(action);
 	editor.updateActions();
@@ -2154,7 +2148,7 @@ void MapCanvas::OnSwitchDoor(wxCommandEvent &WXUNUSED(event)) {
 
 	DoorBrush::switchDoor(selected_items.front());
 
-	action->addChange(newd Change(new_tile));
+	action->addChange(newd<Change>(new_tile));
 
 	editor.addAction(action);
 	editor.updateActions();
@@ -2326,16 +2320,16 @@ void MapCanvas::OnProperties(wxCommandEvent &WXUNUSED(event)) {
 	ASSERT(tile->isSelected());
 	Tile* new_tile = tile->deepCopy(editor.getMap());
 
-	wxDialog* w = nullptr;
+	std::shared_ptr<wxDialog> w = nullptr;
 
 	if (new_tile->spawnMonster && g_settings.getInteger(Config::SHOW_SPAWNS_MONSTER)) {
-		w = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, new_tile->spawnMonster);
+		w = newd<OldPropertiesWindow>(g_gui.root, &editor.getMap(), new_tile, new_tile->spawnMonster);
 	} else if (new_tile->monster && g_settings.getInteger(Config::SHOW_MONSTERS)) {
-		w = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, new_tile->monster);
+		w = newd<OldPropertiesWindow>(g_gui.root, &editor.getMap(), new_tile, new_tile->monster);
 	} else if (new_tile->npc && g_settings.getInteger(Config::SHOW_NPCS)) {
-		w = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, new_tile->npc);
+		w = newd<OldPropertiesWindow>(g_gui.root, &editor.getMap(), new_tile, new_tile->npc);
 	} else if (new_tile->spawnNpc && g_settings.getInteger(Config::SHOW_SPAWNS_NPC)) {
-		w = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, new_tile->spawnNpc);
+		w = newd<OldPropertiesWindow>(g_gui.root, &editor.getMap(), new_tile, new_tile->spawnNpc);
 	} else {
 		ItemVector selected_items = new_tile->getSelectedItems();
 
@@ -2350,9 +2344,9 @@ void MapCanvas::OnProperties(wxCommandEvent &WXUNUSED(event)) {
 
 		if (item) {
 			if (editor.getMap().getVersion().otbm >= MAP_OTBM_4) {
-				w = newd PropertiesWindow(g_gui.root, &editor.getMap(), new_tile, item);
+				w = newd <OldPropertiesWindow>(g_gui.root, &editor.getMap(), new_tile, item);
 			} else {
-				w = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, item);
+				w = newd <OldPropertiesWindow>(g_gui.root, &editor.getMap(), new_tile, item);
 			}
 		} else {
 			return;
@@ -2362,7 +2356,7 @@ void MapCanvas::OnProperties(wxCommandEvent &WXUNUSED(event)) {
 	int ret = w->ShowModal();
 	if (ret != 0) {
 		Action* action = editor.createAction(ACTION_CHANGE_PROPERTIES);
-		action->addChange(newd Change(new_tile));
+		action->addChange(newd<Change>(new_tile));
 		editor.addAction(action);
 	} else {
 		// Cancel!

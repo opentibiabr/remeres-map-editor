@@ -99,8 +99,8 @@ public:
 	void PrepareDC(wxDC &dc);
 
 protected:
-	MainMenuBar* menu_bar;
-	MainToolBar* tool_bar;
+	std::shared_ptr<MainMenuBar> menu_bar;
+    std::shared_ptr<MainToolBar> tool_bar;
 
 	friend class Application;
 	friend class GUI;

@@ -20,6 +20,7 @@
 
 #include "main.h"
 #include "palette_common.h"
+#include "beats.h"
 
 enum BrushListType {
 	BRUSHLIST_LARGE_ICONS,
@@ -85,7 +86,7 @@ public:
 	}
 
 	// Scrolls the window to the position of the named brush button
-	void EnsureVisible(BrushButton* btn);
+	void EnsureVisible(std::shared_ptr<BrushButton> btn);
 	void EnsureVisible(size_t n);
 
 	// Select the first brush
@@ -103,7 +104,7 @@ protected:
 	void DeselectAll();
 
 protected:
-	std::vector<BrushButton*> brush_buttons;
+	std::vector<std::shared_ptr<BrushButton>> brush_buttons;
 	RenderSize icon_size;
 
 	DECLARE_EVENT_TABLE();
@@ -149,15 +150,15 @@ public:
 
 protected:
 	const TilesetCategory* tileset;
-	wxSizer* sizer;
-	BrushBoxInterface* brushbox;
+	std::shared_ptr<wxSizer> sizer;
+	std::shared_ptr<BrushBoxInterface> brushbox;
 	bool loaded;
 	BrushListType list_type;
 
 	DECLARE_EVENT_TABLE();
 };
 
-class BrushPalettePanel : public PalettePanel {
+class BrushPalettePanel : public PalettePanel, public SharedObject {
 public:
 	BrushPalettePanel(wxWindow* parent, const TilesetContainer &tilesets, TilesetCategoryType category, wxWindowID id = wxID_ANY);
 	~BrushPalettePanel();
@@ -192,7 +193,7 @@ public:
 
 protected:
 	PaletteType palette_type;
-	wxChoicebook* choicebook;
+	std::shared_ptr<wxChoicebook> choicebook;
 	BrushSizePanel* size_panel;
 	std::map<wxWindow*, Brush*> remembered_brushes;
 

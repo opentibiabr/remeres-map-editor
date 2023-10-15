@@ -65,7 +65,7 @@ public:
 	virtual PaletteType GetType() const;
 
 	// Add a tool panel!
-	virtual void AddToolPanel(PalettePanel* panel);
+	virtual void AddToolPanel(std::shared_ptr<PalettePanel> panel);
 	// Sets the style for this toolbar and child toolabrs
 	virtual void SetToolbarIconSize(bool large_icons);
 
@@ -92,7 +92,7 @@ public:
 	void RefreshOtherPalettes();
 
 protected:
-	typedef std::vector<PalettePanel*> ToolBarList;
+	typedef std::vector<std::shared_ptr<PalettePanel>> ToolBarList;
 	ToolBarList tool_bars;
 	wxTimer refresh_timer;
 	int last_brush_size;
@@ -246,8 +246,8 @@ public:
 	void OnClickCustomThickness(wxCommandEvent &event);
 
 public:
-	wxSlider* slider;
-	wxCheckBox* use_button;
+    std::shared_ptr<wxSlider> slider;
+    std::shared_ptr<wxCheckBox> use_button;
 
 	DECLARE_EVENT_TABLE()
 };

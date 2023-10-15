@@ -30,7 +30,7 @@ using json = nlohmann::json;
 // Static methods to load/save
 
 ClientVersion::VersionMap ClientVersion::client_versions;
-ClientVersion* ClientVersion::latest_version = nullptr;
+std::shared_ptr<ClientVersion> ClientVersion::latest_version = nullptr;
 ClientVersion::OtbMap ClientVersion::otb_versions;
 
 void ClientVersion::loadVersions() {
@@ -131,9 +131,6 @@ void ClientVersion::loadVersions() {
 }
 
 void ClientVersion::unloadVersions() {
-	for (VersionMap::iterator it = client_versions.begin(); it != client_versions.end(); ++it) {
-		delete it->second;
-	}
 	client_versions.clear();
 	latest_version = nullptr;
 	otb_versions.clear();
@@ -198,7 +195,7 @@ void ClientVersion::loadVersion(pugi::xml_node versionNode) {
 		return;
 	}
 
-	ClientVersion* version = newd ClientVersion(otb_versions[otbVersionName], versionName, wxstr(dataPath));
+	auto version = newd<ClientVersion>(otb_versions[otbVersionName], versionName, wxstr(dataPath));
 
 	bool should_be_default = versionNode.attribute("default").as_bool();
 	version->visible = versionNode.attribute("visible").as_bool();
@@ -255,7 +252,6 @@ void ClientVersion::loadVersion(pugi::xml_node versionNode) {
 
 	if (client_versions[version->getID()]) {
 		wxLogError("Duplicate version id %i, discarding version '%s'.", version->getID(), version->name);
-		delete version;
 		return;
 	}
 
@@ -272,7 +268,7 @@ void ClientVersion::loadVersionExtensions(pugi::xml_node versionNode) {
 		return;
 	}
 
-	ClientVersion* version = get(attribute.as_string());
+	auto version = get(attribute.as_string());
 	if (!version) {
 		// Same rationale as above
 		return;
@@ -286,8 +282,8 @@ void ClientVersion::loadVersionExtensions(pugi::xml_node versionNode) {
 		const std::string &from = childNode.attribute("from").as_string();
 		const std::string &to = childNode.attribute("to").as_string();
 
-		ClientVersion* fromVersion = get(from);
-		ClientVersion* toVersion = get(to);
+		auto fromVersion = get(from);
+		auto toVersion = get(to);
 
 		if (!fromVersion && !toVersion) {
 			wxLogError("Unknown client extension data.");
@@ -303,7 +299,7 @@ void ClientVersion::loadVersionExtensions(pugi::xml_node versionNode) {
 		}
 
 		for (const auto &versionEntry : client_versions) {
-			ClientVersion* version = versionEntry.second;
+			auto version = versionEntry.second;
 			if (version->getID() >= fromVersion->getID() && version->getID() <= toVersion->getID()) {
 				version->extension_versions.push_back(version);
 			}
@@ -343,7 +339,7 @@ ClientVersion::ClientVersion(OtbVersion otb, std::string versionName, wxString p
 	////
 }
 
-ClientVersion* ClientVersion::get(ClientVersionID id) {
+std::shared_ptr<ClientVersion> ClientVersion::get(ClientVersionID id) {
 	VersionMap::iterator i = client_versions.find(id);
 	if (i == client_versions.end()) {
 		return nullptr;
@@ -351,7 +347,7 @@ ClientVersion* ClientVersion::get(ClientVersionID id) {
 	return i->second;
 }
 
-ClientVersion* ClientVersion::get(std::string id) {
+std::shared_ptr<ClientVersion> ClientVersion::get(std::string id) {
 	for (VersionMap::iterator i = client_versions.begin(); i != client_versions.end(); ++i) {
 		if (i->second->getName() == id) {
 			return i->second;
@@ -392,7 +388,7 @@ ClientVersionList ClientVersion::getAllForOTBMVersion(MapVersionID id) {
 	return list;
 }
 
-ClientVersion* ClientVersion::getLatestVersion() {
+std::shared_ptr<ClientVersion> ClientVersion::getLatestVersion() {
 	return latest_version;
 }
 
@@ -535,11 +531,11 @@ ClientVersionList ClientVersion::getExtensionsSupported() const {
 	return extension_versions;
 }
 
-ClientVersionList ClientVersion::getAllVersionsSupportedForClientVersion(ClientVersion* clientVersion) {
+ClientVersionList ClientVersion::getAllVersionsSupportedForClientVersion(std::shared_ptr<ClientVersion> clientVersion) {
 	ClientVersionList versionList;
 	for (const auto &versionEntry : client_versions) {
-		ClientVersion* version = versionEntry.second;
-		for (ClientVersion* checkVersion : version->getExtensionsSupported()) {
+		auto version = versionEntry.second;
+		for (const auto& checkVersion : version->getExtensionsSupported()) {
 			if (clientVersion == checkVersion) {
 				versionList.push_back(version);
 			}

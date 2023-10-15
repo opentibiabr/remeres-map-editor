@@ -105,15 +105,15 @@ public:
 		return light;
 	}
 
-	static GameSprite* createFromBitmap(const wxArtID &bitmapId);
+	static std::shared_ptr<GameSprite> createFromBitmap(const wxArtID &bitmapId);
 
 protected:
 	class Image;
 	class NormalImage;
 	class TemplateImage;
 
-	wxMemoryDC* getDC(SpriteSize size);
-	TemplateImage* getTemplateImage(int sprite_index, const Outfit &outfit);
+    std::shared_ptr<wxMemoryDC> getDC(SpriteSize size);
+    std::shared_ptr<TemplateImage> getTemplateImage(int sprite_index, const Outfit &outfit);
 
 	class Image {
 	public:
@@ -145,12 +145,12 @@ protected:
 
 		// This contains the pixel data
 		uint16_t size;
-		uint8_t* dump;
+        std::shared_ptr<uint8_t> dump;
 
 		virtual void clean(int time);
 
 		virtual GLuint getHardwareID();
-		virtual uint8_t* getRGBData();
+		virtual std::shared_ptr<uint8_t> getRGBData();
 		virtual uint8_t* getRGBAData();
 
 	protected:
@@ -195,7 +195,7 @@ protected:
 	};
 
 	uint32_t id;
-	wxMemoryDC* dc[SPRITE_SIZE_COUNT];
+    std::shared_ptr<wxMemoryDC> dc[SPRITE_SIZE_COUNT];
 
 public:
 	// GameSprite info
@@ -208,7 +208,7 @@ public:
 	uint8_t frames;
 	uint32_t numsprites;
 
-	Animator* animator;
+    std::shared_ptr<Animator> animator;
 
 	uint16_t ground_speed;
 	uint16_t draw_height;
@@ -219,8 +219,8 @@ public:
 	bool has_light = false;
 	SpriteLight light;
 
-	std::vector<NormalImage*> spriteList;
-	std::list<TemplateImage*> instanced_templates; // Templates that use this sprite
+	std::vector<std::shared_ptr<NormalImage>> spriteList;
+	std::list<std::shared_ptr<TemplateImage>> instanced_templates; // Templates that use this sprite
 
 	friend class GraphicManager;
 };
@@ -282,7 +282,7 @@ private:
 	bool is_complete;
 };
 
-class GraphicManager {
+class GraphicManager : public SharedObject{
 public:
 	GraphicManager();
 	~GraphicManager();
@@ -317,7 +317,7 @@ public:
 	// This fills the item / creature adress space
 	bool loadOTFI(const FileName &filename, wxString &error, wxArrayString &warnings);
 	bool loadSpriteMetadata(const FileName &datafile, wxString &error, wxArrayString &warnings);
-	bool loadSpriteMetadataFlags(FileReadHandle &file, GameSprite* sType, wxString &error, wxArrayString &warnings);
+	bool loadSpriteMetadataFlags(FileReadHandle &file, std::shared_ptr<GameSprite> sType, wxString &error, wxArrayString &warnings);
 	bool loadSpriteData(const FileName &datafile, wxString &error, wxArrayString &warnings);
 
 	// Cleans old & unused textures according to config settings
@@ -340,11 +340,11 @@ private:
 	bool unloaded;
 	// This is used if memcaching is NOT on
 	std::string spritefile;
-	bool loadSpriteDump(uint8_t*&target, uint16_t &size, int sprite_id);
+	bool loadSpriteDump(std::shared_ptr<uint8_t> target, uint16_t &size, int sprite_id);
 
-	typedef std::map<int, Sprite*> SpriteMap;
+	typedef std::map<int, std::shared_ptr<Sprite>> SpriteMap;
 	SpriteMap sprite_space;
-	typedef std::map<int, GameSprite::Image*> ImageMap;
+	typedef std::map<int, std::shared_ptr<GameSprite::Image>> ImageMap;
 	ImageMap image_space;
 	std::deque<GameSprite*> cleanup_list;
 
@@ -362,7 +362,7 @@ private:
 	int loaded_textures;
 	int lastclean;
 
-	wxStopWatch* animation_timer;
+    std::shared_ptr<wxStopWatch> animation_timer;
 
 	friend class GameSprite::Image;
 	friend class GameSprite::NormalImage;

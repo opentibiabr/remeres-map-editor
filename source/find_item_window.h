@@ -78,35 +78,35 @@ private:
 	void OnClickOK(wxCommandEvent &event);
 	void OnClickCancel(wxCommandEvent &event);
 
-	wxRadioBox* options_radio_box;
+	std::shared_ptr<wxRadioBox> options_radio_box;
 
-	wxRadioBox* types_radio_box;
+    std::shared_ptr<wxRadioBox> types_radio_box;
 
-	wxSpinCtrl* server_id_spin;
-	wxSpinCtrl* client_id_spin;
-	wxTextCtrl* name_text_input;
+    std::shared_ptr<wxSpinCtrl> server_id_spin;
+    std::shared_ptr<wxSpinCtrl> client_id_spin;
+    std::shared_ptr<wxTextCtrl> name_text_input;
 	wxTimer input_timer;
-	wxCheckBox* unpassable;
-	wxCheckBox* unmovable;
-	wxCheckBox* block_missiles;
-	wxCheckBox* block_pathfinder;
-	wxCheckBox* readable;
-	wxCheckBox* writeable;
-	wxCheckBox* pickupable;
-	wxCheckBox* stackable;
-	wxCheckBox* rotatable;
-	wxCheckBox* hangable;
-	wxCheckBox* hook_east;
-	wxCheckBox* hook_south;
-	wxCheckBox* has_elevation;
-	wxCheckBox* ignore_look;
-	wxCheckBox* floor_change;
+    std::shared_ptr<wxCheckBox> unpassable;
+    std::shared_ptr<wxCheckBox> unmovable;
+    std::shared_ptr<wxCheckBox> block_missiles;
+    std::shared_ptr<wxCheckBox> block_pathfinder;
+    std::shared_ptr<wxCheckBox> readable;
+    std::shared_ptr<wxCheckBox> writeable;
+    std::shared_ptr<wxCheckBox> pickupable;
+    std::shared_ptr<wxCheckBox> stackable;
+    std::shared_ptr<wxCheckBox> rotatable;
+    std::shared_ptr<wxCheckBox> hangable;
+    std::shared_ptr<wxCheckBox> hook_east;
+    std::shared_ptr<wxCheckBox> hook_south;
+    std::shared_ptr<wxCheckBox> has_elevation;
+    std::shared_ptr<wxCheckBox> ignore_look;
+    std::shared_ptr<wxCheckBox> floor_change;
 
-	FindDialogListBox* items_list;
-	wxStdDialogButtonSizer* buttons_box_sizer;
-	wxButton* ok_button;
-	wxButton* cancel_button;
-	Brush* result_brush;
+    std::shared_ptr<FindDialogListBox> items_list;
+	std::shared_ptr<wxStdDialogButtonSizer> buttons_box_sizer;
+	std::shared_ptr<wxButton> ok_button;
+    std::shared_ptr<wxButton> cancel_button;
+    std::shared_ptr<Brush> result_brush;
 	uint16_t result_id;
 	bool only_pickupables;
 

@@ -138,41 +138,41 @@ END_EVENT_TABLE()
 
 BrowseTileWindow::BrowseTileWindow(wxWindow* parent, Tile* tile, wxPoint position /* = wxDefaultPosition */) :
 	wxDialog(parent, wxID_ANY, "Browse Field", position, wxSize(600, 400), wxCAPTION | wxCLOSE_BOX | wxRESIZE_BORDER) {
-	wxSizer* sizer = newd wxBoxSizer(wxVERTICAL);
-	item_list = newd BrowseTileListBox(this, wxID_ANY, tile);
-	sizer->Add(item_list, wxSizerFlags(1).Expand());
+	std::shared_ptr<wxSizer> sizer = newd<wxBoxSizer>(wxVERTICAL);
+	item_list = newd<BrowseTileListBox>(this, wxID_ANY, tile);
+	sizer->Add(item_list.get(), wxSizerFlags(1).Expand());
 
 	wxString pos;
 	pos << "x=" << tile->getX() << ",  y=" << tile->getY() << ",  z=" << tile->getZ();
 
-	wxSizer* infoSizer = newd wxBoxSizer(wxVERTICAL);
-	wxBoxSizer* buttons = newd wxBoxSizer(wxHORIZONTAL);
-	delete_button = newd wxButton(this, wxID_REMOVE, "Delete");
+    std::shared_ptr<wxSizer> infoSizer = newd<wxBoxSizer>(wxVERTICAL);
+    std::shared_ptr<wxBoxSizer> buttons = newd<wxBoxSizer>(wxHORIZONTAL);
+	delete_button = newd<wxButton>(this, wxID_REMOVE, "Delete");
 	delete_button->Enable(false);
-	buttons->Add(delete_button);
+	buttons->Add(delete_button.get());
 	buttons->AddSpacer(5);
-	select_raw_button = newd wxButton(this, wxID_FIND, "Select RAW");
+	select_raw_button = newd<wxButton>(this, wxID_FIND, "Select RAW");
 	select_raw_button->Enable(false);
-	buttons->Add(select_raw_button);
-	infoSizer->Add(buttons);
+	buttons->Add(select_raw_button.get());
+	infoSizer->Add(buttons.get());
 	infoSizer->AddSpacer(5);
-	infoSizer->Add(newd wxStaticText(this, wxID_ANY, "Position:  " + pos), wxSizerFlags(0).Left());
-	infoSizer->Add(item_count_txt = newd wxStaticText(this, wxID_ANY, "Item count:  " + i2ws(item_list->GetItemCount())), wxSizerFlags(0).Left());
-	infoSizer->Add(newd wxStaticText(this, wxID_ANY, "Protection zone:  " + b2yn(tile->isPZ())), wxSizerFlags(0).Left());
-	infoSizer->Add(newd wxStaticText(this, wxID_ANY, "No PvP:  " + b2yn(tile->getMapFlags() & TILESTATE_NOPVP)), wxSizerFlags(0).Left());
-	infoSizer->Add(newd wxStaticText(this, wxID_ANY, "No logout:  " + b2yn(tile->getMapFlags() & TILESTATE_NOLOGOUT)), wxSizerFlags(0).Left());
-	infoSizer->Add(newd wxStaticText(this, wxID_ANY, "PvP zone:  " + b2yn(tile->getMapFlags() & TILESTATE_PVPZONE)), wxSizerFlags(0).Left());
-	infoSizer->Add(newd wxStaticText(this, wxID_ANY, "House:  " + b2yn(tile->isHouseTile())), wxSizerFlags(0).Left());
+	infoSizer->Add(newd<wxStaticText>(this, wxID_ANY, "Position:  " + pos).get(), wxSizerFlags(0).Left());
+	infoSizer->Add(item_count_txt = newd<wxStaticText>(this, wxID_ANY, "Item count:  " + i2ws(item_list->GetItemCount())).get(), wxSizerFlags(0).Left());
+	infoSizer->Add(newd<wxStaticText>(this, wxID_ANY, "Protection zone:  " + b2yn(tile->isPZ())).get(), wxSizerFlags(0).Left());
+	infoSizer->Add(newd<wxStaticText>(this, wxID_ANY, "No PvP:  " + b2yn(tile->getMapFlags() & TILESTATE_NOPVP)).get(), wxSizerFlags(0).Left());
+	infoSizer->Add(newd<wxStaticText>(this, wxID_ANY, "No logout:  " + b2yn(tile->getMapFlags() & TILESTATE_NOLOGOUT)).get(), wxSizerFlags(0).Left());
+	infoSizer->Add(newd<wxStaticText>(this, wxID_ANY, "PvP zone:  " + b2yn(tile->getMapFlags() & TILESTATE_PVPZONE)).get(), wxSizerFlags(0).Left());
+	infoSizer->Add(newd<wxStaticText>(this, wxID_ANY, "House:  " + b2yn(tile->isHouseTile())).get(), wxSizerFlags(0).Left());
 
-	sizer->Add(infoSizer, wxSizerFlags(0).Left().DoubleBorder());
+	sizer->Add(infoSizer.get(), wxSizerFlags(0).Left().DoubleBorder());
 
 	// OK/Cancel buttons
-	wxSizer* btnSizer = newd wxBoxSizer(wxHORIZONTAL);
-	btnSizer->Add(newd wxButton(this, wxID_OK, "OK"), wxSizerFlags(0).Center());
-	btnSizer->Add(newd wxButton(this, wxID_CANCEL, "Cancel"), wxSizerFlags(0).Center());
-	sizer->Add(btnSizer, wxSizerFlags(0).Center().DoubleBorder());
+    std::shared_ptr<wxSizer> btnSizer = newd<wxBoxSizer>(wxHORIZONTAL);
+	btnSizer->Add(newd<wxButton>(this, wxID_OK, "OK").get(), wxSizerFlags(0).Center());
+	btnSizer->Add(newd<wxButton>(this, wxID_CANCEL, "Cancel").get(), wxSizerFlags(0).Center());
+	sizer->Add(btnSizer.get(), wxSizerFlags(0).Center().DoubleBorder());
 
-	SetSizerAndFit(sizer);
+	SetSizerAndFit(sizer.get());
 
 	// Connect Events
 	item_list->Connect(wxEVT_COMMAND_LISTBOX_SELECTED, wxCommandEventHandler(BrowseTileWindow::OnItemSelected), NULL, this);

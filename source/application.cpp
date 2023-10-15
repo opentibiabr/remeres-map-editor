@@ -150,9 +150,9 @@ bool Application::OnInit() {
 
 	// Image handlers
 	// wxImage::AddHandler(newd wxBMPHandler);
-	wxImage::AddHandler(newd wxPNGHandler);
-	wxImage::AddHandler(newd wxJPEGHandler);
-	wxImage::AddHandler(newd wxTGAHandler);
+	wxImage::AddHandler(newd<wxPNGHandler>().get());
+	wxImage::AddHandler(newd<wxJPEGHandler>().get());
+	wxImage::AddHandler(newd<wxTGAHandler>().get());
 
 	g_gui.gfx.loadEditorSprites();
 
@@ -166,8 +166,8 @@ bool Application::OnInit() {
 	m_file_to_open = wxEmptyString;
 	ParseCommandLineMap(m_file_to_open);
 
-	g_gui.root = newd MainFrame(__W_RME_APPLICATION_NAME__, wxDefaultPosition, wxSize(700, 500));
-	SetTopWindow(g_gui.root);
+	g_gui.root = newd<MainFrame>(__W_RME_APPLICATION_NAME__, wxDefaultPosition, wxSize(700, 500));
+	SetTopWindow(g_gui.root.get());
 	g_gui.SetTitle("");
 
 	g_gui.root->LoadRecentFiles();
@@ -369,7 +369,7 @@ MainFrame::MainFrame(const wxString &title, const wxPoint &pos, const wxSize &si
 #endif
 
 	// Creates the file-dropdown menu
-	menu_bar = newd MainMenuBar(this);
+	menu_bar = newd<MainMenuBar>(this);
 	wxArrayString warnings;
 	wxString error;
 
@@ -388,12 +388,12 @@ MainFrame::MainFrame(const wxString &title, const wxPoint &pos, const wxSize &si
 	SetStatusText(wxString("Welcome to ") << __W_RME_APPLICATION_NAME__ << " " << __W_RME_VERSION__);
 
 	// Le sizer
-	g_gui.aui_manager = newd wxAuiManager(this);
-	g_gui.tabbook = newd MapTabbook(this, wxID_ANY);
+	g_gui.aui_manager = newd<wxAuiManager>(this);
+	g_gui.tabbook = newd<MapTabbook>(this, wxID_ANY);
 
-	tool_bar = newd MainToolBar(this, g_gui.aui_manager);
+	tool_bar = newd<MainToolBar>(this, g_gui.aui_manager);
 
-	g_gui.aui_manager->AddPane(g_gui.tabbook, wxAuiPaneInfo().CenterPane().Floatable(false).CloseButton(false).PaneBorder(false));
+	g_gui.aui_manager->AddPane(g_gui.tabbook.get(), wxAuiPaneInfo().CenterPane().Floatable(false).CloseButton(false).PaneBorder(false));
 	g_gui.aui_manager->Update();
 
 	UpdateMenubar();
@@ -555,7 +555,7 @@ bool MainFrame::DoQueryImportCreatures() {
 		long ret = g_gui.PopupDialog("Missing monsters", "There are missing monsters in the editor, do you want to load them from an OT monster file?", wxYES | wxNO);
 		if (ret == wxID_YES) {
 			do {
-				wxFileDialog dlg(g_gui.root, "Import monster file", "", "", "*.xml", wxFD_OPEN | wxFD_MULTIPLE | wxFD_FILE_MUST_EXIST);
+				wxFileDialog dlg(g_gui.root.get(), "Import monster file", "", "", "*.xml", wxFD_OPEN | wxFD_MULTIPLE | wxFD_FILE_MUST_EXIST);
 				if (dlg.ShowModal() == wxID_OK) {
 					wxArrayString paths;
 					dlg.GetPaths(paths);
@@ -566,7 +566,7 @@ bool MainFrame::DoQueryImportCreatures() {
 						if (ok) {
 							g_gui.ListDialog("Monster loader errors", warnings);
 						} else {
-							wxMessageBox("Error OT data file \"" + paths[i] + "\".\n" + error, "Error", wxOK | wxICON_INFORMATION, g_gui.root);
+							wxMessageBox("Error OT data file \"" + paths[i] + "\".\n" + error, "Error", wxOK | wxICON_INFORMATION, g_gui.root.get());
 						}
 					}
 				} else {
@@ -580,7 +580,7 @@ bool MainFrame::DoQueryImportCreatures() {
 		long ret = g_gui.PopupDialog("Missing npcs", "There are missing npcs in the editor, do you want to load them from an OT npc file?", wxYES | wxNO);
 		if (ret == wxID_YES) {
 			do {
-				wxFileDialog dlg(g_gui.root, "Import npc file", "", "", "*.xml", wxFD_OPEN | wxFD_MULTIPLE | wxFD_FILE_MUST_EXIST);
+				wxFileDialog dlg(g_gui.root.get(), "Import npc file", "", "", "*.xml", wxFD_OPEN | wxFD_MULTIPLE | wxFD_FILE_MUST_EXIST);
 				if (dlg.ShowModal() == wxID_OK) {
 					wxArrayString paths;
 					dlg.GetPaths(paths);
@@ -591,7 +591,7 @@ bool MainFrame::DoQueryImportCreatures() {
 						if (ok) {
 							g_gui.ListDialog("Npc loader errors", warnings);
 						} else {
-							wxMessageBox("Error OT data file \"" + paths[i] + "\".\n" + error, "Error", wxOK | wxICON_INFORMATION, g_gui.root);
+							wxMessageBox("Error OT data file \"" + paths[i] + "\".\n" + error, "Error", wxOK | wxICON_INFORMATION, g_gui.root.get());
 						}
 					}
 				} else {

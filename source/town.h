@@ -52,7 +52,7 @@ private:
 	Position templepos;
 };
 
-typedef std::map<uint32_t, Town*> TownMap;
+typedef std::map<uint32_t, std::shared_ptr<Town>> TownMap;
 
 class Towns {
 public:
@@ -66,11 +66,11 @@ public:
 		return towns.size();
 	}
 
-	bool addTown(Town* town);
+	bool addTown(std::shared_ptr<Town> town);
 	uint32_t getEmptyID();
 
-	Town* getTown(std::string &townname);
-	Town* getTown(uint32_t _townid);
+    std::shared_ptr<Town> getTown(std::string &townname);
+    std::shared_ptr<Town> getTown(uint32_t _townid);
 
 	TownMap::const_iterator begin() const noexcept {
 		return towns.begin();

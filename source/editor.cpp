@@ -44,7 +44,7 @@
 Editor::Editor(CopyBuffer &copybuffer) :
 	live_server(nullptr),
 	live_client(nullptr),
-	actionQueue(newd ActionQueue(*this)),
+	actionQueue(newd<ActionQueue>(*this)),
 	selection(*this),
 	copybuffer(copybuffer),
 	replace_brush(nullptr) {
@@ -95,7 +95,7 @@ Editor::Editor(CopyBuffer &copybuffer) :
 Editor::Editor(CopyBuffer &copybuffer, const FileName &fn) :
 	live_server(nullptr),
 	live_client(nullptr),
-	actionQueue(newd ActionQueue(*this)),
+	actionQueue(newd<ActionQueue>(*this)),
 	selection(*this),
 	copybuffer(copybuffer),
 	replace_brush(nullptr) {
@@ -150,7 +150,7 @@ Editor::Editor(CopyBuffer &copybuffer, const FileName &fn) :
 Editor::Editor(CopyBuffer &copybuffer, LiveClient* client) :
 	live_server(nullptr),
 	live_client(client),
-	actionQueue(newd NetworkedActionQueue(*this)),
+	actionQueue(newd<NetworkedActionQueue>(*this)),
 	selection(*this),
 	copybuffer(copybuffer),
 	replace_brush(nullptr) {
@@ -164,7 +164,6 @@ Editor::~Editor() {
 
 	UnnamedRenderingLock();
 	selection.clear();
-	delete actionQueue;
 }
 
 Action* Editor::createAction(ActionIdentifier type) {
@@ -483,9 +482,9 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 	std::map<uint32_t, uint32_t> house_id_map;
 
 	if (house_import_type != IMPORT_DONT) {
-		for (TownMap::iterator tit = imported_map.towns.begin(); tit != imported_map.towns.end();) {
-			Town* imported_town = tit->second;
-			Town* current_town = map.towns.getTown(imported_town->getID());
+		for (TownMap::iterator tit = imported_map.towns->begin(); tit != imported_map.towns->end();) {
+			auto imported_town = tit->second;
+			auto current_town = map.towns->getTown(imported_town->getID());
 
 			Position oldexit = imported_town->getTemplePosition();
 			Position newexit = oldexit + offset;
@@ -512,7 +511,7 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 							continue;
 						} else {
 							// Conflict! Find a newd id and replace old
-							uint32_t new_id = map.towns.getEmptyID();
+							uint32_t new_id = map.towns->getEmptyID();
 							imported_town->setID(new_id);
 							town_id_map[imported_town->getID()] = new_id;
 						}
@@ -523,7 +522,7 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 				}
 				case IMPORT_INSERT: {
 					// Find a newd id and replace old
-					uint32_t new_id = map.towns.getEmptyID();
+					uint32_t new_id = map.towns->getEmptyID();
 					imported_town->setID(new_id);
 					town_id_map[imported_town->getID()] = new_id;
 					break;
@@ -535,10 +534,10 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 				}
 			}
 
-			map.towns.addTown(imported_town);
+			map.towns->addTown(imported_town);
 
 #ifdef __VISUALC__ // C++0x compliance to some degree :)
-			tit = imported_map.towns.erase(tit);
+			tit = imported_map.towns->erase(tit);
 #else // Bulky, slow way
 			TownMap::iterator tmp_iter = tit;
 			++tmp_iter;
@@ -643,7 +642,7 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 	}
 
 	// Monster spawn import
-	std::map<Position, SpawnMonster*> spawn_monster_map;
+	std::map<Position, std::shared_ptr<SpawnMonster>> spawn_monster_map;
 	if (spawn_import_type != IMPORT_DONT) {
 		for (SpawnNpcPositionList::iterator siter = imported_map.spawnsMonster.begin(); siter != imported_map.spawnsMonster.end();) {
 			Position oldSpawnMonsterPos = *siter;
@@ -807,7 +806,7 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 		map.setTile(new_pos, import_tile, true);
 	}
 
-	for (std::map<Position, SpawnMonster*>::iterator spawn_monster_iter = spawn_monster_map.begin(); spawn_monster_iter != spawn_monster_map.end(); ++spawn_monster_iter) {
+	for (std::map<Position, std::shared_ptr<SpawnMonster>>::iterator spawn_monster_iter = spawn_monster_map.begin(); spawn_monster_iter != spawn_monster_map.end(); ++spawn_monster_iter) {
 		Position pos = spawn_monster_iter->first;
 		TileLocation* location = map.createTileL(pos);
 		Tile* tile = location->get();
@@ -816,7 +815,6 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 			map.setTile(pos, tile);
 		} else if (tile->spawnMonster) {
 			map.removeSpawnMonsterInternal(tile);
-			delete tile->spawnMonster;
 		}
 		tile->spawnMonster = spawn_monster_iter->second;
 
@@ -862,7 +860,7 @@ void Editor::borderizeSelection() {
 		Tile* new_tile = tile->deepCopy(map);
 		new_tile->borderize(&map);
 		new_tile->select();
-		action->addChange(new Change(new_tile));
+		action->addChange(newd<Change>(new_tile));
 	}
 	addAction(action);
 	updateActions();
@@ -912,7 +910,7 @@ void Editor::randomizeSelection() {
 			}
 
 			new_tile->select();
-			action->addChange(new Change(new_tile));
+			action->addChange(newd<Change>(new_tile));
 		}
 	}
 	addAction(action);
@@ -972,7 +970,7 @@ void Editor::clearInvalidHouseTiles(bool showdialog) {
 	HouseMap::iterator iter = houses.begin();
 	while (iter != houses.end()) {
 		House* h = iter->second;
-		if (map.towns.getTown(h->townid) == nullptr) {
+		if (map.towns->getTown(h->townid) == nullptr) {
 #ifdef __VISUALC__ // C++0x compliance to some degree :)
 			iter = houses.erase(iter);
 #else // Bulky, slow way
@@ -1091,7 +1089,7 @@ void Editor::moveSelection(const Position &offset) {
 		}
 
 		storage.insert(storage_tile);
-		action->addChange(new Change(new_tile));
+		action->addChange(newd<Change>(new_tile));
 	}
 	batch_action->addAndCommitAction(action);
 
@@ -1158,7 +1156,7 @@ void Editor::moveSelection(const Position &offset) {
 			if (tile->ground && tile->ground->isSelected()) {
 				new_tile->selectGround();
 			}
-			action->addChange(new Change(new_tile));
+			action->addChange(newd<Change>(new_tile));
 		}
 		batch_action->addAndCommitAction(action);
 	}
@@ -1191,7 +1189,7 @@ void Editor::moveSelection(const Position &offset) {
 			tile->setLocation(location);
 			new_dest_tile = tile;
 		}
-		action->addChange(new Change(new_dest_tile));
+		action->addChange(newd<Change>(new_dest_tile));
 	}
 	batch_action->addAndCommitAction(action);
 
@@ -1274,7 +1272,7 @@ void Editor::moveSelection(const Position &offset) {
 				if (tile->ground->isSelected()) {
 					new_tile->selectGround();
 				}
-				action->addChange(new Change(new_tile));
+				action->addChange(newd<Change>(new_tile));
 			}
 		}
 		batch_action->addAndCommitAction(action);
@@ -1311,12 +1309,10 @@ void Editor::destroySelection() {
 			}
 			// Monster
 			if (newtile->monster && newtile->monster->isSelected()) {
-				delete newtile->monster;
 				newtile->monster = nullptr;
 			}
 
 			if (newtile->spawnMonster && newtile->spawnMonster->isSelected()) {
-				delete newtile->spawnMonster;
 				newtile->spawnMonster = nullptr;
 			}
 			// Npc
@@ -1338,7 +1334,7 @@ void Editor::destroySelection() {
 					}
 				}
 			}
-			action->addChange(newd Change(newtile));
+			action->addChange(newd<Change>(newtile));
 		}
 
 		batch->addAndCommitAction(action);
@@ -1359,12 +1355,12 @@ void Editor::destroySelection() {
 					new_tile->wallize(&map);
 					new_tile->tableize(&map);
 					new_tile->carpetize(&map);
-					action->addChange(newd Change(new_tile));
+					action->addChange(newd<Change>(new_tile));
 				} else {
 					Tile* new_tile = map.allocator(location);
 					new_tile->borderize(&map);
 					if (new_tile->size()) {
-						action->addChange(newd Change(new_tile));
+						action->addChange(newd<Change>(new_tile));
 					} else {
 						delete new_tile;
 					}
@@ -1463,14 +1459,14 @@ void Editor::drawInternal(Position offset, bool alt, bool dodraw) {
 						removeDuplicateWalls(buffer_tile, new_tile);
 						doSurroundingBorders(doodad_brush, tilestoborder, buffer_tile, new_tile);
 						new_tile->merge(buffer_tile);
-						action->addChange(newd Change(new_tile));
+						action->addChange(newd<Change>(new_tile));
 					}
 				} else {
 					Tile* new_tile = map.allocator(location);
 					removeDuplicateWalls(buffer_tile, new_tile);
 					doSurroundingBorders(doodad_brush, tilestoborder, buffer_tile, new_tile);
 					new_tile->merge(buffer_tile);
-					action->addChange(newd Change(new_tile));
+					action->addChange(newd<Change>(new_tile));
 				}
 			} else {
 				if (tile && !tile->isBlocking()) {
@@ -1488,7 +1484,7 @@ void Editor::drawInternal(Position offset, bool alt, bool dodraw) {
 						removeDuplicateWalls(buffer_tile, new_tile);
 						doSurroundingBorders(doodad_brush, tilestoborder, buffer_tile, new_tile);
 						new_tile->merge(buffer_tile);
-						action->addChange(newd Change(new_tile));
+						action->addChange(newd<Change>(new_tile));
 					}
 				}
 			}
@@ -1508,7 +1504,7 @@ void Editor::drawInternal(Position offset, bool alt, bool dodraw) {
 					Tile* new_tile = tile->deepCopy(map);
 					new_tile->borderize(&map);
 					new_tile->wallize(&map);
-					action->addChange(newd Change(new_tile));
+					action->addChange(newd<Change>(new_tile));
 				}
 			}
 			batch->addAndCommitAction(action);
@@ -1564,7 +1560,7 @@ void Editor::drawInternal(Position offset, bool alt, bool dodraw) {
 		} else {
 			brush->asWall()->undraw(&map, new_tile);
 		}
-		action->addChange(newd Change(new_tile));
+		action->addChange(newd<Change>(new_tile));
 		batch->addAndCommitAction(action);
 		addBatch(batch, 2);
 	} else if (brush->isSpawnMonster() || brush->isMonster()) {
@@ -1589,7 +1585,7 @@ void Editor::drawInternal(Position offset, bool alt, bool dodraw) {
 		} else {
 			brush->undraw(&map, new_tile);
 		}
-		action->addChange(newd Change(new_tile));
+		action->addChange(newd<Change>(new_tile));
 		batch->addAndCommitAction(action);
 		addBatch(batch, 2);
 	} else if (brush->isSpawnNpc() || brush->isNpc()) {
@@ -1614,7 +1610,7 @@ void Editor::drawInternal(Position offset, bool alt, bool dodraw) {
 		} else {
 			brush->undraw(&map, new_tile);
 		}
-		action->addChange(newd Change(new_tile));
+		action->addChange(newd<Change>(new_tile));
 		batch->addAndCommitAction(action);
 		addBatch(batch, 2);
 	}
@@ -1649,12 +1645,12 @@ void Editor::drawInternal(const PositionVector &tilestodraw, bool alt, bool dodr
 					Tile* new_tile = tile->deepCopy(map);
 					brush->draw(&map, new_tile);
 					new_tile->borderize(&map);
-					action->addChange(newd Change(new_tile));
+					action->addChange(newd<Change>(new_tile));
 				} else if (!dodraw && tile->hasOptionalBorder()) {
 					Tile* new_tile = tile->deepCopy(map);
 					brush->undraw(&map, new_tile);
 					new_tile->borderize(&map);
-					action->addChange(newd Change(new_tile));
+					action->addChange(newd<Change>(new_tile));
 				}
 			} else if (dodraw) {
 				Tile* new_tile = map.allocator(location);
@@ -1664,7 +1660,7 @@ void Editor::drawInternal(const PositionVector &tilestodraw, bool alt, bool dodr
 					delete new_tile;
 					continue;
 				}
-				action->addChange(newd Change(new_tile));
+				action->addChange(newd<Change>(new_tile));
 			}
 		}
 	} else {
@@ -1679,11 +1675,11 @@ void Editor::drawInternal(const PositionVector &tilestodraw, bool alt, bool dodr
 				} else {
 					brush->undraw(&map, new_tile);
 				}
-				action->addChange(newd Change(new_tile));
+				action->addChange(newd<Change>(new_tile));
 			} else if (dodraw) {
 				Tile* new_tile = map.allocator(location);
 				brush->draw(&map, new_tile, &alt);
-				action->addChange(newd Change(new_tile));
+				action->addChange(newd<Change>(new_tile));
 			}
 		}
 	}
@@ -1731,7 +1727,7 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 					g_gui.GetCurrentBrush()->undraw(&map, new_tile);
 					tilestoborder.push_back(*it);
 				}
-				action->addChange(newd Change(new_tile));
+				action->addChange(newd<Change>(new_tile));
 			} else if (dodraw) {
 				Tile* new_tile = map.allocator(location);
 				if (brush->isGround() && alt) {
@@ -1747,7 +1743,7 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 				} else {
 					g_gui.GetCurrentBrush()->draw(&map, new_tile, nullptr);
 				}
-				action->addChange(newd Change(new_tile));
+				action->addChange(newd<Change>(new_tile));
 			}
 		}
 
@@ -1768,7 +1764,7 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 						new_tile->carpetize(&map);
 					}
 					new_tile->borderize(&map);
-					action->addChange(newd Change(new_tile));
+					action->addChange(newd<Change>(new_tile));
 				} else {
 					Tile* new_tile = map.allocator(location);
 					if (brush->isEraser()) {
@@ -1779,7 +1775,7 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 					}
 					new_tile->borderize(&map);
 					if (new_tile->size() > 0) {
-						action->addChange(newd Change(new_tile));
+						action->addChange(newd<Change>(new_tile));
 					} else {
 						delete new_tile;
 					}
@@ -1803,11 +1799,11 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 				} else {
 					g_gui.GetCurrentBrush()->undraw(&map, new_tile);
 				}
-				action->addChange(newd Change(new_tile));
+				action->addChange(newd<Change>(new_tile));
 			} else if (dodraw) {
 				Tile* new_tile = map.allocator(location);
 				g_gui.GetCurrentBrush()->draw(&map, new_tile, nullptr);
-				action->addChange(newd Change(new_tile));
+				action->addChange(newd<Change>(new_tile));
 			}
 		}
 
@@ -1822,13 +1818,13 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 				if (tile && tile->hasTable()) {
 					Tile* new_tile = tile->deepCopy(map);
 					new_tile->tableize(&map);
-					action->addChange(newd Change(new_tile));
+					action->addChange(newd<Change>(new_tile));
 				}
 			} else if (brush->isCarpet()) {
 				if (tile && tile->hasCarpet()) {
 					Tile* new_tile = tile->deepCopy(map);
 					new_tile->carpetize(&map);
-					action->addChange(newd Change(new_tile));
+					action->addChange(newd<Change>(new_tile));
 				}
 			}
 		}
@@ -1863,7 +1859,7 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 				Tile* tile = draw_map->getTile(*it);
 				if (tile) {
 					tile->wallize(draw_map);
-					action->addChange(newd Change(tile));
+					action->addChange(newd<Change>(tile));
 				}
 			}
 			draw_map->clear(false);
@@ -1882,11 +1878,11 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 					} else {
 						g_gui.GetCurrentBrush()->undraw(&map, new_tile);
 					}
-					action->addChange(newd Change(new_tile));
+					action->addChange(newd<Change>(new_tile));
 				} else if (dodraw) {
 					Tile* new_tile = map.allocator(location);
 					g_gui.GetCurrentBrush()->draw(&map, new_tile);
-					action->addChange(newd Change(new_tile));
+					action->addChange(newd<Change>(new_tile));
 				}
 			}
 
@@ -1902,7 +1898,7 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 						Tile* new_tile = tile->deepCopy(map);
 						new_tile->wallize(&map);
 						// if(*tile == *new_tile) delete new_tile;
-						action->addChange(newd Change(new_tile));
+						action->addChange(newd<Change>(new_tile));
 					}
 				}
 				batch->addAndCommitAction(action);
@@ -1930,11 +1926,11 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 				} else {
 					door_brush->undraw(&map, new_tile);
 				}
-				action->addChange(newd Change(new_tile));
+				action->addChange(newd<Change>(new_tile));
 			} else if (dodraw) {
 				Tile* new_tile = map.allocator(location);
 				door_brush->draw(&map, new_tile, &alt);
-				action->addChange(newd Change(new_tile));
+				action->addChange(newd<Change>(new_tile));
 			}
 		}
 
@@ -1950,7 +1946,7 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 					Tile* new_tile = tile->deepCopy(map);
 					new_tile->wallize(&map);
 					// if(*tile == *new_tile) delete new_tile;
-					action->addChange(newd Change(new_tile));
+					action->addChange(newd<Change>(new_tile));
 				}
 			}
 			batch->addAndCommitAction(action);
@@ -1969,11 +1965,11 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 				} else {
 					g_gui.GetCurrentBrush()->undraw(&map, new_tile);
 				}
-				action->addChange(newd Change(new_tile));
+				action->addChange(newd<Change>(new_tile));
 			} else if (dodraw) {
 				Tile* new_tile = map.allocator(location);
 				g_gui.GetCurrentBrush()->draw(&map, new_tile);
-				action->addChange(newd Change(new_tile));
+				action->addChange(newd<Change>(new_tile));
 			}
 		}
 		addAction(action, 2);
@@ -2003,7 +1999,7 @@ LiveClient* Editor::GetLiveClient() const {
 	return live_client;
 }
 
-LiveServer* Editor::GetLiveServer() const {
+std::shared_ptr<LiveServer> Editor::GetLiveServer() const {
 	return live_server;
 }
 
@@ -2014,12 +2010,11 @@ LiveSocket &Editor::GetLive() const {
 	return *live_client;
 }
 
-LiveServer* Editor::StartLiveServer() {
+std::shared_ptr<LiveServer> Editor::StartLiveServer() {
 	ASSERT(IsLocal());
-	live_server = newd LiveServer(*this);
+	live_server = newd<LiveServer>(*this);
 
-	delete actionQueue;
-	actionQueue = newd NetworkedActionQueue(*this);
+	actionQueue = newd<NetworkedActionQueue>(*this);
 
 	return live_server;
 }
@@ -2044,11 +2039,9 @@ void Editor::CloseLiveServer() {
 	if (live_server) {
 		live_server->close();
 
-		delete live_server;
 		live_server = nullptr;
 
-		delete actionQueue;
-		actionQueue = newd ActionQueue(*this);
+		actionQueue = newd<ActionQueue>(*this);
 	}
 
 	NetworkConnection &connection = NetworkConnection::getInstance();

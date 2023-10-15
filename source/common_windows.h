@@ -67,9 +67,9 @@ protected:
 	Editor &editor;
 	wxSpinCtrl* height_spin;
 	wxSpinCtrl* width_spin;
-	wxChoice* version_choice;
-	wxChoice* protocol_choice;
-	wxTextCtrl* description_ctrl;
+    std::shared_ptr<wxChoice> version_choice;
+    std::shared_ptr<wxChoice> protocol_choice;
+	std::shared_ptr<wxTextCtrl> description_ctrl;
 	wxTextCtrl* house_filename_ctrl;
 	wxTextCtrl* spawn_filename_ctrl;
 	wxTextCtrl* spawn_npc_filename_ctrl;
@@ -93,14 +93,14 @@ public:
 protected:
 	Editor &editor;
 
-	wxTextCtrl* file_text_field;
-	wxSpinCtrl* x_offset_ctrl;
-	wxSpinCtrl* y_offset_ctrl;
-	wxSpinCtrl* z_offset_ctrl;
+    std::shared_ptr<wxTextCtrl> file_text_field;
+    std::shared_ptr<wxSpinCtrl> x_offset_ctrl;
+    std::shared_ptr<wxSpinCtrl> y_offset_ctrl;
+    std::shared_ptr<wxSpinCtrl> z_offset_ctrl;
 
-	wxChoice* house_options;
-	wxChoice* spawn_monster_options;
-	wxChoice* spawn_npc_options;
+    std::shared_ptr<wxChoice> house_options;
+    std::shared_ptr<wxChoice> spawn_monster_options;
+    std::shared_ptr<wxChoice> spawn_npc_options;
 
 	DECLARE_EVENT_TABLE();
 };
@@ -125,12 +125,12 @@ protected:
 
 	Editor &editor;
 
-	wxChoice* format_options;
-	wxStaticText* error_field;
-	wxTextCtrl* directory_text_field;
-	wxTextCtrl* file_name_text_field;
-	wxChoice* floor_options;
-	wxSpinCtrl* floor_number;
+    std::shared_ptr<wxChoice> format_options;
+    std::shared_ptr<wxStaticText> error_field;
+    std::shared_ptr<wxTextCtrl> directory_text_field;
+    std::shared_ptr<wxTextCtrl> file_name_text_field;
+    std::shared_ptr<wxChoice> floor_options;
+    std::shared_ptr<wxSpinCtrl> floor_number;
 	wxButton* ok_button;
 
 	DECLARE_EVENT_TABLE();
@@ -161,8 +161,8 @@ public:
 
 	void Clear();
 	void SetNoMatches();
-	void AddBrush(Brush*);
-	Brush* GetSelectedBrush();
+	void AddBrush(std::shared_ptr<Brush>);
+    std::shared_ptr<Brush> GetSelectedBrush();
 
 	void OnDrawItem(wxDC &dc, const wxRect &rect, size_t index) const;
 	wxCoord OnMeasureItem(size_t index) const;
@@ -170,7 +170,7 @@ public:
 protected:
 	bool cleared;
 	bool no_matches;
-	std::vector<Brush*> brushlist;
+	std::vector<std::shared_ptr<Brush>> brushlist;
 };
 
 /**
@@ -217,10 +217,10 @@ protected:
 	virtual void OnClickListInternal(wxCommandEvent &) = 0;
 	virtual void OnClickOKInternal() = 0;
 
-	FindDialogListBox* item_list;
-	KeyForwardingTextCtrl* search_field;
+    std::shared_ptr<FindDialogListBox> item_list;
+    std::shared_ptr<KeyForwardingTextCtrl> search_field;
 	wxTimer idle_input_timer;
-	const Brush* result_brush;
+	std::shared_ptr<Brush> result_brush;
 	int result_id;
 
 	DECLARE_EVENT_TABLE()
@@ -230,7 +230,7 @@ protected:
  * Find a brush dialog
  * Find out what brush was returned through GetResult
  */
-class FindBrushDialog : public FindDialog {
+class FindBrushDialog : public FindDialog, public SharedObject{
 public:
 	FindBrushDialog(wxWindow* parent, wxString title = "Jump to Brush");
 	virtual ~FindBrushDialog();
@@ -254,7 +254,7 @@ public:
 
 protected:
 	Editor &editor;
-	PositionCtrl* posctrl;
+    std::shared_ptr<PositionCtrl> posctrl;
 
 	DECLARE_EVENT_TABLE();
 };
@@ -329,18 +329,18 @@ protected:
 
 	Editor &editor;
 
-	std::vector<Town*> town_list;
+	std::vector<std::shared_ptr<Town>> town_list;
 	uint32_t max_town_id;
 
-	wxListBox* town_listbox;
+    std::shared_ptr<wxListBox> town_listbox;
 	wxString town_name, town_id;
 
-	wxTextCtrl* name_field;
-	wxTextCtrl* id_field;
+    std::shared_ptr<wxTextCtrl> name_field;
+    std::shared_ptr<wxTextCtrl> id_field;
 
-	PositionCtrl* temple_position;
+    std::shared_ptr<PositionCtrl> temple_position;
 	wxButton* remove_button;
-	wxButton* select_position_button;
+    std::shared_ptr<wxButton> select_position_button;
 
 	DECLARE_EVENT_TABLE();
 };

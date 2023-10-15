@@ -305,9 +305,9 @@ public:
 
 	// editor related
 public:
-	Brush* brush;
-	Brush* doodad_brush;
-	RAWBrush* raw_brush;
+    std::shared_ptr<Brush> brush;
+    std::shared_ptr<Brush> doodad_brush;
+    std::shared_ptr<RAWBrush> raw_brush;
 	bool is_metaitem;
 	// This is needed as a consequence of the item palette & the raw palette
 	// using the same brushes ("others" category consists of items with this
@@ -329,7 +329,7 @@ public:
 	bool isCarpet;
 
 public:
-	GameSprite* sprite;
+    std::shared_ptr<GameSprite> sprite;
 
 	uint16_t id;
 	uint16_t clientID;
@@ -401,8 +401,8 @@ public:
 	uint16_t getMaxID() const noexcept {
 		return maxItemId;
 	}
-	ItemType &getItemType(uint16_t id);
-	ItemType* getRawItemType(uint16_t id);
+    std::shared_ptr<ItemType> getItemType(uint16_t id);
+    std::shared_ptr<ItemType> getRawItemType(uint16_t id);
 
 	bool isValidID(uint16_t id) const;
 
@@ -412,7 +412,7 @@ public:
 	bool loadMetaItem(pugi::xml_node node);
 
 	// typedef std::map<int32_t, ItemType*> ItemMap;
-	typedef contigous_vector<ItemType*> ItemMap;
+	typedef contigous_vector<std::shared_ptr<ItemType>> ItemMap;
 	typedef std::map<std::string, ItemType*> ItemNameMap;
 
 	// Version information
@@ -438,7 +438,7 @@ protected:
 	uint16_t maxClientID;
 	uint16_t maxItemId;
 
-	ItemType dummy;
+    std::shared_ptr<ItemType> dummy;
 
 	friend class GameSprite;
 	friend class Item;

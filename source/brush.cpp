@@ -57,9 +57,6 @@ Brushes::~Brushes() {
 }
 
 void Brushes::clear() {
-	for (auto brushEntry : brushes) {
-		delete brushEntry.second;
-	}
 	brushes.clear();
 
 	for (auto borderEntry : borders) {
@@ -69,24 +66,24 @@ void Brushes::clear() {
 }
 
 void Brushes::init() {
-	addBrush(g_gui.optional_brush = newd OptionalBorderBrush());
-	addBrush(g_gui.eraser = newd EraserBrush());
-	addBrush(g_gui.spawn_brush = newd SpawnMonsterBrush());
-	addBrush(g_gui.spawn_npc_brush = newd SpawnNpcBrush());
-	addBrush(g_gui.normal_door_brush = newd DoorBrush(WALL_DOOR_NORMAL));
-	addBrush(g_gui.locked_door_brush = newd DoorBrush(WALL_DOOR_LOCKED));
-	addBrush(g_gui.magic_door_brush = newd DoorBrush(WALL_DOOR_MAGIC));
-	addBrush(g_gui.quest_door_brush = newd DoorBrush(WALL_DOOR_QUEST));
-	addBrush(g_gui.hatch_door_brush = newd DoorBrush(WALL_HATCH_WINDOW));
-	addBrush(g_gui.window_door_brush = newd DoorBrush(WALL_WINDOW));
-	addBrush(g_gui.house_brush = newd HouseBrush());
-	addBrush(g_gui.house_exit_brush = newd HouseExitBrush());
-	addBrush(g_gui.waypoint_brush = newd WaypointBrush());
+	addBrush(g_gui.optional_brush = newd<OptionalBorderBrush>());
+	addBrush(g_gui.eraser = newd<EraserBrush>());
+	addBrush(g_gui.spawn_brush = newd<SpawnMonsterBrush>());
+	addBrush(g_gui.spawn_npc_brush = newd<SpawnNpcBrush>());
+	addBrush(g_gui.normal_door_brush = newd<DoorBrush>(WALL_DOOR_NORMAL));
+	addBrush(g_gui.locked_door_brush = newd<DoorBrush>(WALL_DOOR_LOCKED));
+	addBrush(g_gui.magic_door_brush = newd<DoorBrush>(WALL_DOOR_MAGIC));
+	addBrush(g_gui.quest_door_brush = newd<DoorBrush>(WALL_DOOR_QUEST));
+	addBrush(g_gui.hatch_door_brush = newd<DoorBrush>(WALL_HATCH_WINDOW));
+	addBrush(g_gui.window_door_brush = newd<DoorBrush>(WALL_WINDOW));
+	addBrush(g_gui.house_brush = newd<HouseBrush>());
+	addBrush(g_gui.house_exit_brush = newd<HouseExitBrush>());
+	addBrush(g_gui.waypoint_brush = newd<WaypointBrush>());
 
-	addBrush(g_gui.pz_brush = newd FlagBrush(TILESTATE_PROTECTIONZONE));
-	addBrush(g_gui.rook_brush = newd FlagBrush(TILESTATE_NOPVP));
-	addBrush(g_gui.nolog_brush = newd FlagBrush(TILESTATE_NOLOGOUT));
-	addBrush(g_gui.pvp_brush = newd FlagBrush(TILESTATE_PVPZONE));
+	addBrush(g_gui.pz_brush = newd<FlagBrush>(TILESTATE_PROTECTIONZONE));
+	addBrush(g_gui.rook_brush = newd<FlagBrush>(TILESTATE_NOPVP));
+	addBrush(g_gui.nolog_brush = newd<FlagBrush>(TILESTATE_NOLOGOUT));
+	addBrush(g_gui.pvp_brush = newd<FlagBrush>(TILESTATE_PVPZONE));
 
 	GroundBrush::init();
 	WallBrush::init();
@@ -107,7 +104,7 @@ bool Brushes::unserializeBrush(pugi::xml_node node, wxArrayString &warnings) {
 		return false;
 	}
 
-	Brush* brush = getBrush(brushName);
+	auto brush = getBrush(brushName);
 	if (!brush) {
 		if (!(attribute = node.attribute("type"))) {
 			warnings.push_back("Couldn't read brush type");
@@ -116,17 +113,17 @@ bool Brushes::unserializeBrush(pugi::xml_node node, wxArrayString &warnings) {
 
 		const std::string brushType = attribute.as_string();
 		if (brushType == "border" || brushType == "ground") {
-			brush = newd GroundBrush();
+			brush = newd<GroundBrush>();
 		} else if (brushType == "wall") {
-			brush = newd WallBrush();
+			brush = newd<WallBrush>();
 		} else if (brushType == "wall decoration") {
-			brush = newd WallDecorationBrush();
+			brush = newd<WallDecorationBrush>();
 		} else if (brushType == "carpet") {
-			brush = newd CarpetBrush();
+			brush = newd<CarpetBrush>();
 		} else if (brushType == "table") {
-			brush = newd TableBrush();
+			brush = newd<TableBrush>();
 		} else if (brushType == "doodad") {
-			brush = newd DoodadBrush();
+			brush = newd<DoodadBrush>();
 		} else {
 			warnings.push_back(wxString("Unknown brush type ") << wxstr(brushType));
 			return false;
@@ -151,11 +148,10 @@ bool Brushes::unserializeBrush(pugi::xml_node node, wxArrayString &warnings) {
 
 	if (brush->getName() == "all" || brush->getName() == "none") {
 		warnings.push_back(wxString("Using reserved brushname '") << wxstr(brush->getName()) << "'.");
-		delete brush;
 		return false;
 	}
 
-	Brush* otherBrush = getBrush(brush->getName());
+	auto otherBrush = getBrush(brush->getName());
 	if (otherBrush) {
 		if (otherBrush != brush) {
 			warnings.push_back(wxString("Duplicate brush name ") << wxstr(brush->getName()) << ". Undefined behaviour may ensue.");
@@ -182,17 +178,17 @@ bool Brushes::unserializeBorder(pugi::xml_node node, wxArrayString &warnings) {
 		return false;
 	}
 
-	AutoBorder* border = newd AutoBorder(id);
+	auto border = newd<AutoBorder>(id);
 	border->load(node, warnings);
 	borders[id] = border;
 	return true;
 }
 
-void Brushes::addBrush(Brush* brush) {
+void Brushes::addBrush(std::shared_ptr<Brush> brush) {
 	brushes.insert(std::make_pair(brush->getName(), brush));
 }
 
-Brush* Brushes::getBrush(const std::string &name) const {
+std::shared_ptr<Brush> Brushes::getBrush(const std::string &name) const {
 	auto it = brushes.find(name);
 	if (it != brushes.end()) {
 		return it->second;

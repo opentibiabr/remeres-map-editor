@@ -37,9 +37,9 @@ FindItemDialog::FindItemDialog(wxWindow* parent, const wxString &title, bool onl
 	only_pickupables(onlyPickupables) {
 	this->SetSizeHints(wxDefaultSize, wxDefaultSize);
 
-	wxBoxSizer* box_sizer = newd wxBoxSizer(wxHORIZONTAL);
+	auto box_sizer = newd<wxBoxSizer>(wxHORIZONTAL);
 
-	wxBoxSizer* options_box_sizer = newd wxBoxSizer(wxVERTICAL);
+	auto options_box_sizer = newd<wxBoxSizer>(wxVERTICAL);
 
 	wxString radio_boxChoices[] = { "Find by Server ID",
 									"Find by Client ID",
@@ -48,43 +48,43 @@ FindItemDialog::FindItemDialog(wxWindow* parent, const wxString &title, bool onl
 									"Find by Properties" };
 
 	int radio_boxNChoices = sizeof(radio_boxChoices) / sizeof(wxString);
-	options_radio_box = newd wxRadioBox(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, radio_boxNChoices, radio_boxChoices, 1, wxRA_SPECIFY_COLS);
+	options_radio_box = newd<wxRadioBox>(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, radio_boxNChoices, radio_boxChoices, 1, wxRA_SPECIFY_COLS);
 	options_radio_box->SetSelection(SearchMode::ServerIDs);
-	options_box_sizer->Add(options_radio_box, 0, wxALL | wxEXPAND, 5);
+	options_box_sizer->Add(options_radio_box.get(), 0, wxALL | wxEXPAND, 5);
 
-	wxStaticBoxSizer* server_id_box_sizer = newd wxStaticBoxSizer(newd wxStaticBox(this, wxID_ANY, "Server ID"), wxVERTICAL);
-	server_id_spin = newd wxSpinCtrl(server_id_box_sizer->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, g_items.getMinID(), g_items.getMaxID(), g_items.getMinID());
-	server_id_box_sizer->Add(server_id_spin, 0, wxALL | wxEXPAND, 5);
-	options_box_sizer->Add(server_id_box_sizer, 1, wxALL | wxEXPAND, 5);
+    auto server_id_box_sizer = newd<wxStaticBoxSizer>(newd<wxStaticBox>(this, wxID_ANY, "Server ID"), wxVERTICAL);
+	server_id_spin = newd<wxSpinCtrl>(server_id_box_sizer->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, g_items.getMinID(), g_items.getMaxID(), g_items.getMinID());
+	server_id_box_sizer->Add(server_id_spin.get(), 0, wxALL | wxEXPAND, 5);
+	options_box_sizer->Add(server_id_box_sizer.get(), 1, wxALL | wxEXPAND, 5);
 
-	wxStaticBoxSizer* client_id_box_sizer = newd wxStaticBoxSizer(newd wxStaticBox(this, wxID_ANY, "Client ID"), wxVERTICAL);
-	client_id_spin = newd wxSpinCtrl(client_id_box_sizer->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, g_gui.gfx.getItemSpriteMinID(), g_gui.gfx.getItemSpriteMaxID(), g_gui.gfx.getItemSpriteMinID());
+	auto client_id_box_sizer = newd<wxStaticBoxSizer>(newd<wxStaticBox>(this, wxID_ANY, "Client ID"), wxVERTICAL);
+	client_id_spin = newd<wxSpinCtrl>(client_id_box_sizer->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, g_gui.gfx.getItemSpriteMinID(), g_gui.gfx.getItemSpriteMaxID(), g_gui.gfx.getItemSpriteMinID());
 	client_id_spin->Enable(false);
-	client_id_box_sizer->Add(client_id_spin, 0, wxALL | wxEXPAND, 5);
-	options_box_sizer->Add(client_id_box_sizer, 1, wxALL | wxEXPAND, 5);
+	client_id_box_sizer->Add(client_id_spin.get(), 0, wxALL | wxEXPAND, 5);
+	options_box_sizer->Add(client_id_box_sizer.get(), 1, wxALL | wxEXPAND, 5);
 
-	wxStaticBoxSizer* name_box_sizer = newd wxStaticBoxSizer(newd wxStaticBox(this, wxID_ANY, "Name"), wxVERTICAL);
-	name_text_input = newd wxTextCtrl(name_box_sizer->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
+	auto name_box_sizer = newd<wxStaticBoxSizer>(newd<wxStaticBox>(this, wxID_ANY, "Name"), wxVERTICAL);
+	name_text_input = newd<wxTextCtrl>(name_box_sizer->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
 	name_text_input->Enable(false);
-	name_box_sizer->Add(name_text_input, 0, wxALL | wxEXPAND, 5);
-	options_box_sizer->Add(name_box_sizer, 1, wxALL | wxEXPAND, 5);
+	name_box_sizer->Add(name_text_input.get(), 0, wxALL | wxEXPAND, 5);
+	options_box_sizer->Add(name_box_sizer.get(), 1, wxALL | wxEXPAND, 5);
 
 	// spacer
 	options_box_sizer->Add(0, 0, 4, wxALL | wxEXPAND, 5);
 
-	buttons_box_sizer = newd wxStdDialogButtonSizer();
-	ok_button = newd wxButton(this, wxID_OK);
-	buttons_box_sizer->AddButton(ok_button);
-	cancel_button = newd wxButton(this, wxID_CANCEL);
-	buttons_box_sizer->AddButton(cancel_button);
+	buttons_box_sizer = newd<wxStdDialogButtonSizer>();
+	ok_button = newd<wxButton>(this, wxID_OK);
+	buttons_box_sizer->AddButton(ok_button.get());
+	cancel_button = newd<wxButton>(this, wxID_CANCEL);
+	buttons_box_sizer->AddButton(cancel_button.get());
 	buttons_box_sizer->Realize();
-	options_box_sizer->Add(buttons_box_sizer, 0, wxALIGN_CENTER | wxALL, 5);
+	options_box_sizer->Add(buttons_box_sizer.get(), 0, wxALIGN_CENTER | wxALL, 5);
 
-	box_sizer->Add(options_box_sizer, 1, wxALL, 5);
+	box_sizer->Add(options_box_sizer.get(), 1, wxALL, 5);
 
 	// --------------- Types ---------------
 
-	wxStaticBoxSizer* type_box_sizer = newd wxStaticBoxSizer(newd wxStaticBox(this, wxID_ANY, "Types"), wxVERTICAL);
+	auto type_box_sizer = newd<wxStaticBoxSizer>(newd<wxStaticBox>(this, wxID_ANY, "Types"), wxVERTICAL);
 
 	wxString types_choices[] = { "Depot",
 								 "Mailbox",
@@ -97,75 +97,75 @@ FindItemDialog::FindItemDialog(wxWindow* parent, const wxString &title, bool onl
 								 "Key" };
 
 	int types_choices_count = sizeof(types_choices) / sizeof(wxString);
-	types_radio_box = newd wxRadioBox(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, types_choices_count, types_choices, 1, wxRA_SPECIFY_COLS);
+	types_radio_box = newd<wxRadioBox>(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, types_choices_count, types_choices, 1, wxRA_SPECIFY_COLS);
 	types_radio_box->SetSelection(0);
 	types_radio_box->Enable(false);
-	type_box_sizer->Add(types_radio_box, 0, wxALL | wxEXPAND, 5);
+	type_box_sizer->Add(types_radio_box.get(), 0, wxALL | wxEXPAND, 5);
 
-	box_sizer->Add(type_box_sizer, 1, wxALL | wxEXPAND, 5);
+	box_sizer->Add(type_box_sizer.get(), 1, wxALL | wxEXPAND, 5);
 
 	// --------------- Properties ---------------
 
-	wxStaticBoxSizer* properties_box_sizer = newd wxStaticBoxSizer(newd wxStaticBox(this, wxID_ANY, "Properties"), wxVERTICAL);
+	auto properties_box_sizer = newd<wxStaticBoxSizer>(newd<wxStaticBox>(this, wxID_ANY, "Properties"), wxVERTICAL);
 
-	unpassable = newd wxCheckBox(properties_box_sizer->GetStaticBox(), wxID_ANY, "Unpassable", wxDefaultPosition, wxDefaultSize, 0);
-	properties_box_sizer->Add(unpassable, 0, wxALL, 5);
+	unpassable = newd<wxCheckBox>(properties_box_sizer->GetStaticBox(), wxID_ANY, "Unpassable", wxDefaultPosition, wxDefaultSize, 0);
+	properties_box_sizer->Add(unpassable.get(), 0, wxALL, 5);
 
-	unmovable = newd wxCheckBox(properties_box_sizer->GetStaticBox(), wxID_ANY, "Unmovable", wxDefaultPosition, wxDefaultSize, 0);
-	properties_box_sizer->Add(unmovable, 0, wxALL, 5);
+	unmovable = newd<wxCheckBox>(properties_box_sizer->GetStaticBox(), wxID_ANY, "Unmovable", wxDefaultPosition, wxDefaultSize, 0);
+	properties_box_sizer->Add(unmovable.get(), 0, wxALL, 5);
 
-	block_missiles = newd wxCheckBox(properties_box_sizer->GetStaticBox(), wxID_ANY, "Block Missiles", wxDefaultPosition, wxDefaultSize, 0);
-	properties_box_sizer->Add(block_missiles, 0, wxALL, 5);
+	block_missiles = newd<wxCheckBox>(properties_box_sizer->GetStaticBox(), wxID_ANY, "Block Missiles", wxDefaultPosition, wxDefaultSize, 0);
+	properties_box_sizer->Add(block_missiles.get(), 0, wxALL, 5);
 
-	block_pathfinder = newd wxCheckBox(properties_box_sizer->GetStaticBox(), wxID_ANY, "Block Pathfinder", wxDefaultPosition, wxDefaultSize, 0);
-	properties_box_sizer->Add(block_pathfinder, 0, wxALL, 5);
+	block_pathfinder = newd<wxCheckBox>(properties_box_sizer->GetStaticBox(), wxID_ANY, "Block Pathfinder", wxDefaultPosition, wxDefaultSize, 0);
+	properties_box_sizer->Add(block_pathfinder.get(), 0, wxALL, 5);
 
-	readable = newd wxCheckBox(properties_box_sizer->GetStaticBox(), wxID_ANY, "Readable", wxDefaultPosition, wxDefaultSize, 0);
-	properties_box_sizer->Add(readable, 0, wxALL, 5);
+	readable = newd<wxCheckBox>(properties_box_sizer->GetStaticBox(), wxID_ANY, "Readable", wxDefaultPosition, wxDefaultSize, 0);
+	properties_box_sizer->Add(readable.get(), 0, wxALL, 5);
 
-	writeable = newd wxCheckBox(properties_box_sizer->GetStaticBox(), wxID_ANY, "Writeable", wxDefaultPosition, wxDefaultSize, 0);
-	properties_box_sizer->Add(writeable, 0, wxALL, 5);
+	writeable = newd<wxCheckBox>(properties_box_sizer->GetStaticBox(), wxID_ANY, "Writeable", wxDefaultPosition, wxDefaultSize, 0);
+	properties_box_sizer->Add(writeable.get(), 0, wxALL, 5);
 
-	pickupable = newd wxCheckBox(properties_box_sizer->GetStaticBox(), wxID_ANY, "Pickupable", wxDefaultPosition, wxDefaultSize, 0);
+	pickupable = newd<wxCheckBox>(properties_box_sizer->GetStaticBox(), wxID_ANY, "Pickupable", wxDefaultPosition, wxDefaultSize, 0);
 	pickupable->SetValue(only_pickupables);
 	pickupable->Enable(!only_pickupables);
-	properties_box_sizer->Add(pickupable, 0, wxALL, 5);
+	properties_box_sizer->Add(pickupable.get(), 0, wxALL, 5);
 
-	stackable = newd wxCheckBox(properties_box_sizer->GetStaticBox(), wxID_ANY, "Stackable", wxDefaultPosition, wxDefaultSize, 0);
-	properties_box_sizer->Add(stackable, 0, wxALL, 5);
+	stackable = newd<wxCheckBox>(properties_box_sizer->GetStaticBox(), wxID_ANY, "Stackable", wxDefaultPosition, wxDefaultSize, 0);
+	properties_box_sizer->Add(stackable.get(), 0, wxALL, 5);
 
-	rotatable = newd wxCheckBox(properties_box_sizer->GetStaticBox(), wxID_ANY, "Rotatable", wxDefaultPosition, wxDefaultSize, 0);
-	properties_box_sizer->Add(rotatable, 0, wxALL, 5);
+	rotatable = newd<wxCheckBox>(properties_box_sizer->GetStaticBox(), wxID_ANY, "Rotatable", wxDefaultPosition, wxDefaultSize, 0);
+	properties_box_sizer->Add(rotatable.get(), 0, wxALL, 5);
 
-	hangable = newd wxCheckBox(properties_box_sizer->GetStaticBox(), wxID_ANY, "Hangable", wxDefaultPosition, wxDefaultSize, 0);
-	properties_box_sizer->Add(hangable, 0, wxALL, 5);
+	hangable = newd<wxCheckBox>(properties_box_sizer->GetStaticBox(), wxID_ANY, "Hangable", wxDefaultPosition, wxDefaultSize, 0);
+	properties_box_sizer->Add(hangable.get(), 0, wxALL, 5);
 
-	hook_east = newd wxCheckBox(properties_box_sizer->GetStaticBox(), wxID_ANY, "Hook East", wxDefaultPosition, wxDefaultSize, 0);
-	properties_box_sizer->Add(hook_east, 0, wxALL, 5);
+	hook_east = newd<wxCheckBox>(properties_box_sizer->GetStaticBox(), wxID_ANY, "Hook East", wxDefaultPosition, wxDefaultSize, 0);
+	properties_box_sizer->Add(hook_east.get(), 0, wxALL, 5);
 
-	hook_south = newd wxCheckBox(properties_box_sizer->GetStaticBox(), wxID_ANY, "Hook South", wxDefaultPosition, wxDefaultSize, 0);
-	properties_box_sizer->Add(hook_south, 0, wxALL, 5);
+	hook_south = newd<wxCheckBox>(properties_box_sizer->GetStaticBox(), wxID_ANY, "Hook South", wxDefaultPosition, wxDefaultSize, 0);
+	properties_box_sizer->Add(hook_south.get(), 0, wxALL, 5);
 
-	has_elevation = newd wxCheckBox(properties_box_sizer->GetStaticBox(), wxID_ANY, "Has Elevation", wxDefaultPosition, wxDefaultSize, 0);
-	properties_box_sizer->Add(has_elevation, 0, wxALL, 5);
+	has_elevation = newd<wxCheckBox>(properties_box_sizer->GetStaticBox(), wxID_ANY, "Has Elevation", wxDefaultPosition, wxDefaultSize, 0);
+	properties_box_sizer->Add(has_elevation.get(), 0, wxALL, 5);
 
-	ignore_look = newd wxCheckBox(properties_box_sizer->GetStaticBox(), wxID_ANY, "Ignore Look", wxDefaultPosition, wxDefaultSize, 0);
-	properties_box_sizer->Add(ignore_look, 0, wxALL, 5);
+	ignore_look = newd<wxCheckBox>(properties_box_sizer->GetStaticBox(), wxID_ANY, "Ignore Look", wxDefaultPosition, wxDefaultSize, 0);
+	properties_box_sizer->Add(ignore_look.get(), 0, wxALL, 5);
 
-	floor_change = newd wxCheckBox(properties_box_sizer->GetStaticBox(), wxID_ANY, "Floor Change", wxDefaultPosition, wxDefaultSize, 0);
-	properties_box_sizer->Add(floor_change, 0, wxALL, 5);
+	floor_change = newd<wxCheckBox>(properties_box_sizer->GetStaticBox(), wxID_ANY, "Floor Change", wxDefaultPosition, wxDefaultSize, 0);
+	properties_box_sizer->Add(floor_change.get(), 0, wxALL, 5);
 
-	box_sizer->Add(properties_box_sizer, 1, wxALL | wxEXPAND, 5);
+	box_sizer->Add(properties_box_sizer.get(), 1, wxALL | wxEXPAND, 5);
 
 	// --------------- Items list ---------------
 
-	wxStaticBoxSizer* result_box_sizer = newd wxStaticBoxSizer(newd wxStaticBox(this, wxID_ANY, "Result"), wxVERTICAL);
-	items_list = newd FindDialogListBox(result_box_sizer->GetStaticBox(), wxID_ANY);
+	auto result_box_sizer = newd<wxStaticBoxSizer>(newd<wxStaticBox>(this, wxID_ANY, "Result"), wxVERTICAL);
+	items_list = newd<FindDialogListBox>(result_box_sizer->GetStaticBox(), wxID_ANY);
 	items_list->SetMinSize(wxSize(230, 512));
-	result_box_sizer->Add(items_list, 0, wxALL, 5);
-	box_sizer->Add(result_box_sizer, 1, wxALL | wxEXPAND, 5);
+	result_box_sizer->Add(items_list.get(), 0, wxALL, 5);
+	box_sizer->Add(result_box_sizer.get(), 1, wxALL | wxEXPAND, 5);
 
-	this->SetSizer(box_sizer);
+	this->SetSizer(box_sizer.get());
 	this->Layout();
 	this->Centre(wxBOTH);
 	this->EnableProperties(false);
@@ -286,7 +286,7 @@ void FindItemDialog::RefreshContentsInternal() {
 				continue;
 			}
 
-			RAWBrush* raw_brush = item.raw_brush;
+			const auto& raw_brush = item.raw_brush;
 			if (!raw_brush) {
 				continue;
 			}
@@ -306,7 +306,7 @@ void FindItemDialog::RefreshContentsInternal() {
 				continue;
 			}
 
-			RAWBrush* raw_brush = item.raw_brush;
+			const auto& raw_brush = item.raw_brush;
 			if (!raw_brush) {
 				continue;
 			}
@@ -327,7 +327,7 @@ void FindItemDialog::RefreshContentsInternal() {
 					continue;
 				}
 
-				RAWBrush* raw_brush = item.raw_brush;
+				const auto& raw_brush = item.raw_brush;
 				if (!raw_brush) {
 					continue;
 				}
@@ -351,7 +351,7 @@ void FindItemDialog::RefreshContentsInternal() {
 				continue;
 			}
 
-			RAWBrush* raw_brush = item.raw_brush;
+			const auto& raw_brush = item.raw_brush;
 			if (!raw_brush) {
 				continue;
 			}
@@ -378,7 +378,7 @@ void FindItemDialog::RefreshContentsInternal() {
 					continue;
 				}
 
-				RAWBrush* raw_brush = item.raw_brush;
+				const auto& raw_brush = item.raw_brush;
 				if (!raw_brush) {
 					continue;
 				}
@@ -433,7 +433,7 @@ void FindItemDialog::OnInputTimer(wxTimerEvent &WXUNUSED(event)) {
 
 void FindItemDialog::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 	if (items_list->GetItemCount() != 0) {
-		Brush* brush = items_list->GetSelectedBrush();
+		const auto& brush = items_list->GetSelectedBrush();
 		if (brush) {
 			result_brush = brush;
 			result_id = brush->asRaw()->getItemID();

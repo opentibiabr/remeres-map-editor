@@ -178,7 +178,7 @@ struct ClientData {
 
 // typedef the client version
 class ClientVersion;
-typedef std::vector<ClientVersion*> ClientVersionList;
+typedef std::vector<std::shared_ptr<ClientVersion>> ClientVersionList;
 
 class ClientVersion {
 public:
@@ -193,14 +193,14 @@ public:
 	static void unloadVersions();
 	static void saveVersions();
 
-	static ClientVersion* get(ClientVersionID id);
-	static ClientVersion* get(std::string name);
+	static std::shared_ptr<ClientVersion> get(ClientVersionID id);
+	static std::shared_ptr<ClientVersion> get(std::string name);
 	static ClientVersionList getVisible(std::string from, std::string to);
 	static ClientVersionList getAll();
 	static ClientVersionList getAllVisible();
 	static ClientVersionList getAllForOTBMVersion(MapVersionID map_version);
-	static ClientVersionList getAllVersionsSupportedForClientVersion(ClientVersion* v);
-	static ClientVersion* getLatestVersion();
+	static ClientVersionList getAllVersionsSupportedForClientVersion(std::shared_ptr<ClientVersion> v);
+	static std::shared_ptr<ClientVersion> getLatestVersion();
 
 	bool operator==(const ClientVersion &o) const {
 		return otb.id == o.otb.id;
@@ -241,7 +241,7 @@ private:
 	std::vector<MapVersionID> map_versions_supported;
 	MapVersionID preferred_map_version;
 	std::vector<ClientData> data_versions;
-	std::vector<ClientVersion*> extension_versions;
+	std::vector<std::shared_ptr<ClientVersion>> extension_versions;
 
 	wxString data_path;
 	FileName client_path;
@@ -254,16 +254,16 @@ private:
 	static void loadVersionExtensions(pugi::xml_node client_node);
 
 	// All versions
-	using VersionMap = std::map<ClientVersionID, ClientVersion*>;
+	using VersionMap = std::map<ClientVersionID, std::shared_ptr<ClientVersion>>;
 	static VersionMap client_versions;
-	static ClientVersion* latest_version;
+	static std::shared_ptr<ClientVersion> latest_version;
 
 	// All otbs
 	typedef std::map<std::string, OtbVersion> OtbMap;
 	static OtbMap otb_versions;
 };
 
-inline int VersionComparisonPredicate(ClientVersion* a, ClientVersion* b) {
+inline int VersionComparisonPredicate(std::shared_ptr<ClientVersion> a, std::shared_ptr<ClientVersion> b) {
 	if (a->getID() < b->getID()) {
 		return 1;
 	}

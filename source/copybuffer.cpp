@@ -24,7 +24,7 @@
 #include "npc.h"
 
 CopyBuffer::CopyBuffer() :
-	tiles(newd BaseMap()) {
+	tiles(newd<BaseMap>()) {
 	;
 }
 
@@ -47,7 +47,6 @@ Position CopyBuffer::getPosition() const {
 }
 
 void CopyBuffer::clear() {
-	delete tiles;
 	tiles = nullptr;
 }
 
@@ -58,7 +57,7 @@ void CopyBuffer::copy(Editor &editor, int floor) {
 	}
 
 	clear();
-	tiles = newd BaseMap();
+	tiles = newd<BaseMap>();
 
 	int tile_count = 0;
 	int item_count = 0;
@@ -120,7 +119,7 @@ void CopyBuffer::cut(Editor &editor, int floor) {
 	}
 
 	clear();
-	tiles = newd BaseMap();
+	tiles = newd<BaseMap>();
 
 	Map &map = editor.getMap();
 	int tile_count = 0;
@@ -191,7 +190,7 @@ void CopyBuffer::cut(Editor &editor, int floor) {
 				}
 			}
 		}
-		action->addChange(newd Change(newtile));
+		action->addChange(newd<Change>(newtile));
 	}
 
 	batch->addAndCommitAction(action);
@@ -208,12 +207,12 @@ void CopyBuffer::cut(Editor &editor, int floor) {
 				Tile* new_tile = location->get()->deepCopy(map);
 				new_tile->borderize(&map);
 				new_tile->wallize(&map);
-				action->addChange(newd Change(new_tile));
+				action->addChange(newd<Change>(new_tile));
 			} else {
 				Tile* new_tile = map.allocator(location);
 				new_tile->borderize(&map);
 				if (new_tile->size()) {
-					action->addChange(newd Change(new_tile));
+					action->addChange(newd<Change>(new_tile));
 				} else {
 					delete new_tile;
 				}
@@ -277,7 +276,7 @@ void CopyBuffer::paste(Editor &editor, const Position &toPosition) {
 		map.createTile(pos.x, pos.y + 1, pos.z);
 		map.createTile(pos.x + 1, pos.y + 1, pos.z);
 
-		action->addChange(newd Change(new_dest_tile));
+		action->addChange(newd<Change>(new_dest_tile));
 	}
 	batchAction->addAndCommitAction(action);
 
@@ -352,7 +351,7 @@ void CopyBuffer::paste(Editor &editor, const Position &toPosition) {
 				}
 
 				newTile->wallize(&map);
-				action->addChange(newd Change(newTile));
+				action->addChange(newd<Change>(newTile));
 			}
 		}
 

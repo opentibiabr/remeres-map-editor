@@ -407,9 +407,9 @@ protected:
 	//=========================================================================
 public:
 	wxString m_dataDirectory;
-	wxAuiManager* aui_manager;
-	MapTabbook* tabbook;
-	MainFrame* root; // The main frame
+    std::shared_ptr<wxAuiManager> aui_manager;
+    std::shared_ptr<MapTabbook> tabbook;
+    std::shared_ptr<MainFrame> root; // The main frame
 	WelcomeDialog* welcomeDialog;
 	CopyBuffer copybuffer;
 
@@ -426,23 +426,23 @@ public:
 	// Brush references
 	//=========================================================================
 
-	HouseBrush* house_brush;
-	HouseExitBrush* house_exit_brush;
-	WaypointBrush* waypoint_brush;
-	OptionalBorderBrush* optional_brush;
-	EraserBrush* eraser;
-	SpawnMonsterBrush* spawn_brush;
-	SpawnNpcBrush* spawn_npc_brush;
-	DoorBrush* normal_door_brush;
-	DoorBrush* locked_door_brush;
-	DoorBrush* magic_door_brush;
-	DoorBrush* quest_door_brush;
-	DoorBrush* hatch_door_brush;
-	DoorBrush* window_door_brush;
-	FlagBrush* pz_brush;
-	FlagBrush* rook_brush;
-	FlagBrush* nolog_brush;
-	FlagBrush* pvp_brush;
+    std::shared_ptr<HouseBrush> house_brush;
+    std::shared_ptr<HouseExitBrush> house_exit_brush;
+    std::shared_ptr<WaypointBrush> waypoint_brush;
+	std::shared_ptr<OptionalBorderBrush> optional_brush;
+    std::shared_ptr<EraserBrush> eraser;
+    std::shared_ptr<SpawnMonsterBrush> spawn_brush;
+    std::shared_ptr<SpawnNpcBrush> spawn_npc_brush;
+    std::shared_ptr<DoorBrush> normal_door_brush;
+    std::shared_ptr<DoorBrush> locked_door_brush;
+    std::shared_ptr<DoorBrush> magic_door_brush;
+    std::shared_ptr<DoorBrush> quest_door_brush;
+    std::shared_ptr<DoorBrush> hatch_door_brush;
+    std::shared_ptr<DoorBrush> window_door_brush;
+    std::shared_ptr<FlagBrush> pz_brush;
+    std::shared_ptr<FlagBrush> rook_brush;
+    std::shared_ptr<FlagBrush> nolog_brush;
+    std::shared_ptr<FlagBrush> pvp_brush;
 
 protected:
 	//=========================================================================

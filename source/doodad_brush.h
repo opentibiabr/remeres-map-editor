@@ -41,7 +41,7 @@ protected:
 	struct AlternativeBlock;
 
 public:
-	bool loadAlternative(pugi::xml_node node, wxArrayString &warnings, AlternativeBlock* which = nullptr);
+	bool loadAlternative(pugi::xml_node node, wxArrayString &warnings, std::shared_ptr<AlternativeBlock> which = nullptr);
 	virtual bool load(pugi::xml_node node, wxArrayString &warnings);
 
 	virtual bool canDraw(BaseMap* map, const Position &position) const {
@@ -136,7 +136,7 @@ protected:
 		int single_chance; // Total chance of a single object
 	};
 
-	std::vector<AlternativeBlock*> alternatives;
+	std::vector<std::shared_ptr<AlternativeBlock>> alternatives;
 };
 
 #endif
