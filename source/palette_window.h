@@ -76,13 +76,13 @@ protected:
 	std::shared_ptr<wxChoicebook> choicebook;
 
 	std::shared_ptr<BrushPalettePanel> terrain_palette;
-    std::shared_ptr<BrushPalettePanel> doodad_palette;
-    std::shared_ptr<BrushPalettePanel> item_palette;
-    std::shared_ptr<MonsterPalettePanel> monster_palette;
-    std::shared_ptr<NpcPalettePanel> npc_palette;
-    std::shared_ptr<HousePalettePanel> house_palette;
-    std::shared_ptr<WaypointPalettePanel> waypoint_palette;
-    std::shared_ptr<BrushPalettePanel> raw_palette;
+	std::shared_ptr<BrushPalettePanel> doodad_palette;
+	std::shared_ptr<BrushPalettePanel> item_palette;
+	std::shared_ptr<MonsterPalettePanel> monster_palette;
+	std::shared_ptr<NpcPalettePanel> npc_palette;
+	std::shared_ptr<HousePalettePanel> house_palette;
+	std::shared_ptr<WaypointPalettePanel> waypoint_palette;
+	std::shared_ptr<BrushPalettePanel> raw_palette;
 
 	DECLARE_EVENT_TABLE()
 };

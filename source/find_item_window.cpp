@@ -52,7 +52,7 @@ FindItemDialog::FindItemDialog(wxWindow* parent, const wxString &title, bool onl
 	options_radio_box->SetSelection(SearchMode::ServerIDs);
 	options_box_sizer->Add(options_radio_box.get(), 0, wxALL | wxEXPAND, 5);
 
-    auto server_id_box_sizer = newd<wxStaticBoxSizer>(newd<wxStaticBox>(this, wxID_ANY, "Server ID"), wxVERTICAL);
+	auto server_id_box_sizer = newd<wxStaticBoxSizer>(newd<wxStaticBox>(this, wxID_ANY, "Server ID"), wxVERTICAL);
 	server_id_spin = newd<wxSpinCtrl>(server_id_box_sizer->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, g_items.getMinID(), g_items.getMaxID(), g_items.getMinID());
 	server_id_box_sizer->Add(server_id_spin.get(), 0, wxALL | wxEXPAND, 5);
 	options_box_sizer->Add(server_id_box_sizer.get(), 1, wxALL | wxEXPAND, 5);
@@ -286,7 +286,7 @@ void FindItemDialog::RefreshContentsInternal() {
 				continue;
 			}
 
-			const auto& raw_brush = item.raw_brush;
+			const auto &raw_brush = item.raw_brush;
 			if (!raw_brush) {
 				continue;
 			}
@@ -306,7 +306,7 @@ void FindItemDialog::RefreshContentsInternal() {
 				continue;
 			}
 
-			const auto& raw_brush = item.raw_brush;
+			const auto &raw_brush = item.raw_brush;
 			if (!raw_brush) {
 				continue;
 			}
@@ -327,7 +327,7 @@ void FindItemDialog::RefreshContentsInternal() {
 					continue;
 				}
 
-				const auto& raw_brush = item.raw_brush;
+				const auto &raw_brush = item.raw_brush;
 				if (!raw_brush) {
 					continue;
 				}
@@ -351,7 +351,7 @@ void FindItemDialog::RefreshContentsInternal() {
 				continue;
 			}
 
-			const auto& raw_brush = item.raw_brush;
+			const auto &raw_brush = item.raw_brush;
 			if (!raw_brush) {
 				continue;
 			}
@@ -378,7 +378,7 @@ void FindItemDialog::RefreshContentsInternal() {
 					continue;
 				}
 
-				const auto& raw_brush = item.raw_brush;
+				const auto &raw_brush = item.raw_brush;
 				if (!raw_brush) {
 					continue;
 				}
@@ -433,7 +433,7 @@ void FindItemDialog::OnInputTimer(wxTimerEvent &WXUNUSED(event)) {
 
 void FindItemDialog::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 	if (items_list->GetItemCount() != 0) {
-		const auto& brush = items_list->GetSelectedBrush();
+		const auto &brush = items_list->GetSelectedBrush();
 		if (brush) {
 			result_brush = brush;
 			result_id = brush->asRaw()->getItemID();

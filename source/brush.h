@@ -68,7 +68,7 @@ public:
 	void init();
 	void clear();
 
-    std::shared_ptr<Brush> getBrush(const std::string &name) const;
+	std::shared_ptr<Brush> getBrush(const std::string &name) const;
 
 	void addBrush(std::shared_ptr<Brush> brush);
 

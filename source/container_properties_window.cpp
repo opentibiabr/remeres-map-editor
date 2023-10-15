@@ -114,7 +114,7 @@ void ContainerItemButton::OnEditItem(wxCommandEvent &WXUNUSED(event)) {
 
 	newDialogAt += wxPoint(20, 20);
 
-    std::shared_ptr<wxDialog> d;
+	std::shared_ptr<wxDialog> d;
 
 	if (edit_map->getVersion().otbm >= MAP_OTBM_4) {
 		d = newd<PropertiesWindow>(this, edit_map, nullptr, edit_item, newDialogAt);

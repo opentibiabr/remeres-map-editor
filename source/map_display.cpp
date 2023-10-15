@@ -258,7 +258,7 @@ void MapCanvas::TakeScreenshot(wxFileName path, wxString format) {
 	int screensize_x, screensize_y;
 	GetViewBox(&view_scroll_x, &view_scroll_y, &screensize_x, &screensize_y);
 
-    std::vector<uint8_t> screenshot_buffer(3 * screensize_x * screensize_y);
+	std::vector<uint8_t> screenshot_buffer(3 * screensize_x * screensize_y);
 
 	// Draw the window
 	Refresh();
@@ -271,7 +271,7 @@ void MapCanvas::TakeScreenshot(wxFileName path, wxString format) {
 		// We got the shit
 		int screensize_x, screensize_y;
 		GetMapWindow()->GetViewSize(&screensize_x, &screensize_y);
-        wxImage screenshot(screensize_x, screensize_y, screenshot_buffer.data());
+		wxImage screenshot(screensize_x, screensize_y, screenshot_buffer.data());
 
 		time_t t = time(nullptr);
 		struct tm current_time;
@@ -1154,10 +1154,10 @@ void MapCanvas::OnMouseActionRelease(wxMouseEvent &event) {
 					ASSERT(remainder == 0);
 
 					selection.start(); // Start a selection session
-					for (const std::shared_ptr<SelectionThread>& thread : threads) {
+					for (const std::shared_ptr<SelectionThread> &thread : threads) {
 						thread->Execute();
 					}
-					for (const std::shared_ptr<SelectionThread>& thread : threads) {
+					for (const std::shared_ptr<SelectionThread> &thread : threads) {
 						selection.join(thread);
 					}
 					selection.finish(); // Finish the selection session
@@ -2344,9 +2344,9 @@ void MapCanvas::OnProperties(wxCommandEvent &WXUNUSED(event)) {
 
 		if (item) {
 			if (editor.getMap().getVersion().otbm >= MAP_OTBM_4) {
-				w = newd <OldPropertiesWindow>(g_gui.root, &editor.getMap(), new_tile, item);
+				w = newd<OldPropertiesWindow>(g_gui.root, &editor.getMap(), new_tile, item);
 			} else {
-				w = newd <OldPropertiesWindow>(g_gui.root, &editor.getMap(), new_tile, item);
+				w = newd<OldPropertiesWindow>(g_gui.root, &editor.getMap(), new_tile, item);
 			}
 		} else {
 			return;

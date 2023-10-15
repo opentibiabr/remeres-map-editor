@@ -100,7 +100,7 @@ public:
 
 protected:
 	std::shared_ptr<MainMenuBar> menu_bar;
-    std::shared_ptr<MainToolBar> tool_bar;
+	std::shared_ptr<MainToolBar> tool_bar;
 
 	friend class Application;
 	friend class GUI;

@@ -145,8 +145,8 @@ BrowseTileWindow::BrowseTileWindow(wxWindow* parent, Tile* tile, wxPoint positio
 	wxString pos;
 	pos << "x=" << tile->getX() << ",  y=" << tile->getY() << ",  z=" << tile->getZ();
 
-    std::shared_ptr<wxSizer> infoSizer = newd<wxBoxSizer>(wxVERTICAL);
-    std::shared_ptr<wxBoxSizer> buttons = newd<wxBoxSizer>(wxHORIZONTAL);
+	std::shared_ptr<wxSizer> infoSizer = newd<wxBoxSizer>(wxVERTICAL);
+	std::shared_ptr<wxBoxSizer> buttons = newd<wxBoxSizer>(wxHORIZONTAL);
 	delete_button = newd<wxButton>(this, wxID_REMOVE, "Delete");
 	delete_button->Enable(false);
 	buttons->Add(delete_button.get());
@@ -167,7 +167,7 @@ BrowseTileWindow::BrowseTileWindow(wxWindow* parent, Tile* tile, wxPoint positio
 	sizer->Add(infoSizer.get(), wxSizerFlags(0).Left().DoubleBorder());
 
 	// OK/Cancel buttons
-    std::shared_ptr<wxSizer> btnSizer = newd<wxBoxSizer>(wxHORIZONTAL);
+	std::shared_ptr<wxSizer> btnSizer = newd<wxBoxSizer>(wxHORIZONTAL);
 	btnSizer->Add(newd<wxButton>(this, wxID_OK, "OK").get(), wxSizerFlags(0).Center());
 	btnSizer->Add(newd<wxButton>(this, wxID_CANCEL, "Cancel").get(), wxSizerFlags(0).Center());
 	sizer->Add(btnSizer.get(), wxSizerFlags(0).Center().DoubleBorder());

@@ -38,7 +38,7 @@ BrushPalettePanel::BrushPalettePanel(wxWindow* parent, const TilesetContainer &t
 	std::shared_ptr<wxSizer> topsizer = newd<wxBoxSizer>(wxVERTICAL);
 
 	// Create the tileset panel
-    std::shared_ptr<wxSizer> ts_sizer = newd<wxStaticBoxSizer>(wxVERTICAL, this, "Tileset");
+	std::shared_ptr<wxSizer> ts_sizer = newd<wxStaticBoxSizer>(wxVERTICAL, this, "Tileset");
 	std::shared_ptr<wxChoicebook> tmp_choicebook = newd<wxChoicebook>(this, wxID_ANY, wxDefaultPosition, wxSize(180, 250));
 	ts_sizer->Add(tmp_choicebook.get(), 1, wxEXPAND);
 	topsizer->Add(ts_sizer.get(), 1, wxEXPAND);
@@ -143,12 +143,12 @@ bool BrushPalettePanel::SelectBrush(const Brush* whatbrush) {
 		return false;
 	}
 
-    auto panel = dynamic_cast<BrushPanel*>(choicebook->GetCurrentPage());
+	auto panel = dynamic_cast<BrushPanel*>(choicebook->GetCurrentPage());
 	if (!panel) {
 		return false;
 	}
 
-	for (const std::shared_ptr<PalettePanel>& toolBar : tool_bars) {
+	for (const std::shared_ptr<PalettePanel> &toolBar : tool_bars) {
 		if (toolBar->SelectBrush(whatbrush)) {
 			panel->SelectBrush(nullptr);
 			return true;
@@ -156,7 +156,7 @@ bool BrushPalettePanel::SelectBrush(const Brush* whatbrush) {
 	}
 
 	if (panel->SelectBrush(whatbrush)) {
-		for (const std::shared_ptr<PalettePanel>& toolBar : tool_bars) {
+		for (const std::shared_ptr<PalettePanel> &toolBar : tool_bars) {
 			toolBar->SelectBrush(nullptr);
 		}
 		return true;
@@ -170,7 +170,7 @@ bool BrushPalettePanel::SelectBrush(const Brush* whatbrush) {
 		panel = dynamic_cast<BrushPanel*>(choicebook->GetPage(iz));
 		if (panel && panel->SelectBrush(whatbrush)) {
 			choicebook->ChangeSelection(iz);
-			for (const std::shared_ptr<PalettePanel>& toolBar : tool_bars) {
+			for (const std::shared_ptr<PalettePanel> &toolBar : tool_bars) {
 				toolBar->SelectBrush(nullptr);
 			}
 			return true;
@@ -383,7 +383,7 @@ BrushIconBox::BrushIconBox(wxWindow* parent, const TilesetCategory* _tileset, Re
 
 	// Create buttons
 	std::shared_ptr<wxSizer> stacksizer = newd<wxBoxSizer>(wxVERTICAL);
-    std::shared_ptr<wxSizer> rowsizer = nullptr;
+	std::shared_ptr<wxSizer> rowsizer = nullptr;
 	int item_counter = 0;
 	for (BrushVector::const_iterator iter = tileset->brushlist.begin(); iter != tileset->brushlist.end(); ++iter) {
 		ASSERT(*iter);
@@ -393,7 +393,7 @@ BrushIconBox::BrushIconBox(wxWindow* parent, const TilesetCategory* _tileset, Re
 			rowsizer = newd<wxBoxSizer>(wxHORIZONTAL);
 		}
 
-        std::shared_ptr<BrushButton> bb = newd<BrushButton>(this, *iter, rsz);
+		std::shared_ptr<BrushButton> bb = newd<BrushButton>(this, *iter, rsz);
 		rowsizer->Add(bb.get());
 		brush_buttons.push_back(bb);
 

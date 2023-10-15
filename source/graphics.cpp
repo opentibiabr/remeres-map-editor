@@ -492,7 +492,7 @@ bool GraphicManager::loadSpriteMetadata(const FileName &datafile, wxString &erro
 	uint16_t id = minID;
 	// loop through all ItemDatabase until we reach the end of file
 	while (id <= maxID) {
-		const auto& sType = newd<GameSprite>();
+		const auto &sType = newd<GameSprite>();
 		sprite_space[id] = sType;
 
 		sType->id = id;
@@ -568,7 +568,7 @@ bool GraphicManager::loadSpriteMetadata(const FileName &datafile, wxString &erro
 				}
 
 				if (image_space[sprite_id] == nullptr) {
-					const auto& img = newd<GameSprite::NormalImage>();
+					const auto &img = newd<GameSprite::NormalImage>();
 					img->id = sprite_id;
 					image_space[sprite_id] = img;
 				}
@@ -761,7 +761,7 @@ bool GraphicManager::loadSpriteData(const FileName &datafile, wxString &error, w
 
 		ImageMap::iterator it = image_space.find(id);
 		if (it != image_space.end()) {
-			const auto& spr = static_self_cast<GameSprite::NormalImage>(it->second);
+			const auto &spr = static_self_cast<GameSprite::NormalImage>(it->second);
 			if (spr && size > 0) {
 				if (spr->size > 0) {
 					wxString ss;
@@ -847,7 +847,7 @@ void GraphicManager::garbageCollection() {
 			}
 			SpriteMap::iterator sit = sprite_space.begin();
 			while (sit != sprite_space.end()) {
-				const auto& gs = static_self_cast<GameSprite>(sit->second);
+				const auto &gs = static_self_cast<GameSprite>(sit->second);
 				if (gs) {
 					gs->clean(t);
 				}
@@ -941,13 +941,13 @@ GLuint GameSprite::getHardwareID(int _x, int _y, int _layer, int _count, int _pa
 
 std::shared_ptr<GameSprite::TemplateImage> GameSprite::getTemplateImage(int sprite_index, const Outfit &outfit) {
 	if (instanced_templates.empty()) {
-		const auto& img = newd<TemplateImage>(this, sprite_index, outfit);
+		const auto &img = newd<TemplateImage>(this, sprite_index, outfit);
 		instanced_templates.push_back(img);
 		return img;
 	}
 	// While this is linear lookup, it is very rare for the list to contain more than 4-8 entries, so it's faster than a hashmap anyways.
 	for (std::list<std::shared_ptr<TemplateImage>>::iterator iter = instanced_templates.begin(); iter != instanced_templates.end(); ++iter) {
-		const auto& img = *iter;
+		const auto &img = *iter;
 		if (img->sprite_index == sprite_index) {
 			uint32_t lookHash = img->lookHead << 24 | img->lookBody << 16 | img->lookLegs << 8 | img->lookFeet;
 			if (outfit.getColorHash() == lookHash) {
@@ -955,7 +955,7 @@ std::shared_ptr<GameSprite::TemplateImage> GameSprite::getTemplateImage(int spri
 			}
 		}
 	}
-	const auto& img = newd<TemplateImage>(this, sprite_index, outfit);
+	const auto &img = newd<TemplateImage>(this, sprite_index, outfit);
 	instanced_templates.push_back(img);
 	return img;
 }
@@ -970,7 +970,7 @@ GLuint GameSprite::getHardwareID(int _x, int _y, int _dir, int _addon, int _patt
 		}
 	}
 	if (layers > 1) { // Template
-        std::shared_ptr<TemplateImage> img = getTemplateImage(v, _outfit);
+		std::shared_ptr<TemplateImage> img = getTemplateImage(v, _outfit);
 		return img->getHardwareID();
 	}
 	return spriteList[v]->getHardwareID();
@@ -1024,7 +1024,7 @@ void GameSprite::DrawTo(wxDC* dc, SpriteSize sz, int start_x, int start_y, int w
 	if (height == -1) {
 		height = sz == SPRITE_SIZE_32x32 ? 32 : 16;
 	}
-    std::shared_ptr<wxDC> sdc = getDC(sz);
+	std::shared_ptr<wxDC> sdc = getDC(sz);
 	if (sdc) {
 		dc->Blit(start_x, start_y, width, height, sdc.get(), 0, 0, wxCOPY, true);
 	} else {
@@ -1110,7 +1110,7 @@ std::shared_ptr<uint8_t> GameSprite::NormalImage::getRGBData() {
 	}
 
 	const int pixels_data_size = rme::SpritePixels * rme::SpritePixels * 3;
-	const auto& data = newd<uint8_t>(pixels_data_size);
+	const auto &data = newd<uint8_t>(pixels_data_size);
 	uint8_t bpp = g_gui.gfx.hasTransparency() ? 4 : 3;
 	int write = 0;
 	int read = 0;
@@ -1429,9 +1429,9 @@ void GameSprite::TemplateImage::unloadGLTexture(GLuint unused) {
 }
 
 std::shared_ptr<GameSprite> GameSprite::createFromBitmap(const wxArtID &bitmapId) {
-    std::shared_ptr<GameSprite::EditorImage> image = newd<GameSprite::EditorImage>(bitmapId);
+	std::shared_ptr<GameSprite::EditorImage> image = newd<GameSprite::EditorImage>(bitmapId);
 
-    std::shared_ptr<GameSprite> sprite = newd<GameSprite>();
+	std::shared_ptr<GameSprite> sprite = newd<GameSprite>();
 	sprite->width = 1;
 	sprite->height = 1;
 	sprite->layers = 1;

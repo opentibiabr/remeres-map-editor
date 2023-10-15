@@ -101,7 +101,7 @@ public:
 	FORCEINLINE bool get32(int32_t &i32) {
 		return getType(i32);
 	}
-	bool getRAW(void *ptr, size_t sz);
+	bool getRAW(void* ptr, size_t sz);
 	bool getRAW(std::string &str, size_t sz);
 	bool getString(std::string &str);
 	bool getLongString(std::string &str);

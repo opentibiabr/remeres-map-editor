@@ -246,8 +246,8 @@ public:
 	void OnClickCustomThickness(wxCommandEvent &event);
 
 public:
-    std::shared_ptr<wxSlider> slider;
-    std::shared_ptr<wxCheckBox> use_button;
+	std::shared_ptr<wxSlider> slider;
+	std::shared_ptr<wxCheckBox> use_button;
 
 	DECLARE_EVENT_TABLE()
 };

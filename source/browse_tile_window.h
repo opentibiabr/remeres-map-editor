@@ -38,8 +38,8 @@ public:
 protected:
 	std::shared_ptr<BrowseTileListBox> item_list;
 	wxStaticText* item_count_txt;
-    std::shared_ptr<wxButton> delete_button;
-    std::shared_ptr<wxButton> select_raw_button;
+	std::shared_ptr<wxButton> delete_button;
+	std::shared_ptr<wxButton> select_raw_button;
 
 	DECLARE_EVENT_TABLE();
 };

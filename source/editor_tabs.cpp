@@ -36,7 +36,7 @@ END_EVENT_TABLE()
 
 MapTabbook::MapTabbook(wxWindow* parent, wxWindowID id) :
 	wxPanel(parent, id, wxDefaultPosition, wxDefaultSize) {
-    std::shared_ptr<wxSizer> wxz = newd<wxBoxSizer>(wxHORIZONTAL);
+	std::shared_ptr<wxSizer> wxz = newd<wxBoxSizer>(wxHORIZONTAL);
 	notebook = newd<wxAuiNotebook>(this, wxID_ANY, wxDefaultPosition, wxDefaultSize);
 	wxz->Add(notebook.get(), 1, wxEXPAND);
 	SetSizerAndFit(wxz.get());

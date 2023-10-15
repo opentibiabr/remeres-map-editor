@@ -168,7 +168,7 @@ protected:
 	std::string housefile; // The housefile
 
 public:
-    std::shared_ptr<Towns> towns;
+	std::shared_ptr<Towns> towns;
 	Houses houses;
 	SpawnsMonster spawnsMonster;
 	SpawnsNpc spawnsNpc;

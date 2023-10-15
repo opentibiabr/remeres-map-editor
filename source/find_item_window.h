@@ -80,33 +80,33 @@ private:
 
 	std::shared_ptr<wxRadioBox> options_radio_box;
 
-    std::shared_ptr<wxRadioBox> types_radio_box;
+	std::shared_ptr<wxRadioBox> types_radio_box;
 
-    std::shared_ptr<wxSpinCtrl> server_id_spin;
-    std::shared_ptr<wxSpinCtrl> client_id_spin;
-    std::shared_ptr<wxTextCtrl> name_text_input;
+	std::shared_ptr<wxSpinCtrl> server_id_spin;
+	std::shared_ptr<wxSpinCtrl> client_id_spin;
+	std::shared_ptr<wxTextCtrl> name_text_input;
 	wxTimer input_timer;
-    std::shared_ptr<wxCheckBox> unpassable;
-    std::shared_ptr<wxCheckBox> unmovable;
-    std::shared_ptr<wxCheckBox> block_missiles;
-    std::shared_ptr<wxCheckBox> block_pathfinder;
-    std::shared_ptr<wxCheckBox> readable;
-    std::shared_ptr<wxCheckBox> writeable;
-    std::shared_ptr<wxCheckBox> pickupable;
-    std::shared_ptr<wxCheckBox> stackable;
-    std::shared_ptr<wxCheckBox> rotatable;
-    std::shared_ptr<wxCheckBox> hangable;
-    std::shared_ptr<wxCheckBox> hook_east;
-    std::shared_ptr<wxCheckBox> hook_south;
-    std::shared_ptr<wxCheckBox> has_elevation;
-    std::shared_ptr<wxCheckBox> ignore_look;
-    std::shared_ptr<wxCheckBox> floor_change;
+	std::shared_ptr<wxCheckBox> unpassable;
+	std::shared_ptr<wxCheckBox> unmovable;
+	std::shared_ptr<wxCheckBox> block_missiles;
+	std::shared_ptr<wxCheckBox> block_pathfinder;
+	std::shared_ptr<wxCheckBox> readable;
+	std::shared_ptr<wxCheckBox> writeable;
+	std::shared_ptr<wxCheckBox> pickupable;
+	std::shared_ptr<wxCheckBox> stackable;
+	std::shared_ptr<wxCheckBox> rotatable;
+	std::shared_ptr<wxCheckBox> hangable;
+	std::shared_ptr<wxCheckBox> hook_east;
+	std::shared_ptr<wxCheckBox> hook_south;
+	std::shared_ptr<wxCheckBox> has_elevation;
+	std::shared_ptr<wxCheckBox> ignore_look;
+	std::shared_ptr<wxCheckBox> floor_change;
 
-    std::shared_ptr<FindDialogListBox> items_list;
+	std::shared_ptr<FindDialogListBox> items_list;
 	std::shared_ptr<wxStdDialogButtonSizer> buttons_box_sizer;
 	std::shared_ptr<wxButton> ok_button;
-    std::shared_ptr<wxButton> cancel_button;
-    std::shared_ptr<Brush> result_brush;
+	std::shared_ptr<wxButton> cancel_button;
+	std::shared_ptr<Brush> result_brush;
 	uint16_t result_id;
 	bool only_pickupables;
 

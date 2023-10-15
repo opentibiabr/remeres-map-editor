@@ -63,7 +63,7 @@ DoodadBrush::AlternativeBlock::~AlternativeBlock() {
 }
 
 bool DoodadBrush::loadAlternative(pugi::xml_node node, wxArrayString &warnings, std::shared_ptr<AlternativeBlock> which) {
-    std::shared_ptr<AlternativeBlock> alternativeBlock;
+	std::shared_ptr<AlternativeBlock> alternativeBlock;
 	if (which) {
 		alternativeBlock = which;
 	} else {
@@ -407,7 +407,7 @@ bool DoodadBrush::hasSingleObjects(int ab) const {
 		return false;
 	}
 	ab %= alternatives.size();
-    std::shared_ptr<AlternativeBlock> ab_ptr = alternatives[ab];
+	std::shared_ptr<AlternativeBlock> ab_ptr = alternatives[ab];
 	ASSERT(ab_ptr);
 	return ab_ptr->single_chance > 0;
 }
@@ -417,7 +417,7 @@ bool DoodadBrush::hasCompositeObjects(int ab) const {
 		return false;
 	}
 	ab %= alternatives.size();
-    std::shared_ptr<AlternativeBlock> ab_ptr = alternatives[ab];
+	std::shared_ptr<AlternativeBlock> ab_ptr = alternatives[ab];
 	ASSERT(ab_ptr);
 	return ab_ptr->composite_chance > 0;
 }

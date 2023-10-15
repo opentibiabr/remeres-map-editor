@@ -535,7 +535,7 @@ ClientVersionList ClientVersion::getAllVersionsSupportedForClientVersion(std::sh
 	ClientVersionList versionList;
 	for (const auto &versionEntry : client_versions) {
 		auto version = versionEntry.second;
-		for (const auto& checkVersion : version->getExtensionsSupported()) {
+		for (const auto &checkVersion : version->getExtensionsSupported()) {
 			if (clientVersion == checkVersion) {
 				versionList.push_back(version);
 			}

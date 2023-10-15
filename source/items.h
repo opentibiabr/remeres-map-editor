@@ -305,9 +305,9 @@ public:
 
 	// editor related
 public:
-    std::shared_ptr<Brush> brush;
-    std::shared_ptr<Brush> doodad_brush;
-    std::shared_ptr<RAWBrush> raw_brush;
+	std::shared_ptr<Brush> brush;
+	std::shared_ptr<Brush> doodad_brush;
+	std::shared_ptr<RAWBrush> raw_brush;
 	bool is_metaitem;
 	// This is needed as a consequence of the item palette & the raw palette
 	// using the same brushes ("others" category consists of items with this
@@ -329,7 +329,7 @@ public:
 	bool isCarpet;
 
 public:
-    std::shared_ptr<GameSprite> sprite;
+	std::shared_ptr<GameSprite> sprite;
 
 	uint16_t id;
 	uint16_t clientID;
@@ -401,8 +401,8 @@ public:
 	uint16_t getMaxID() const noexcept {
 		return maxItemId;
 	}
-    std::shared_ptr<ItemType> getItemType(uint16_t id);
-    std::shared_ptr<ItemType> getRawItemType(uint16_t id);
+	std::shared_ptr<ItemType> getItemType(uint16_t id);
+	std::shared_ptr<ItemType> getRawItemType(uint16_t id);
 
 	bool isValidID(uint16_t id) const;
 
@@ -438,7 +438,7 @@ protected:
 	uint16_t maxClientID;
 	uint16_t maxItemId;
 
-    std::shared_ptr<ItemType> dummy;
+	std::shared_ptr<ItemType> dummy;
 
 	friend class GameSprite;
 	friend class Item;

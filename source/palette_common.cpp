@@ -220,7 +220,7 @@ void BrushSizePanel::LoadAllContents() {
 	}
 
 	std::shared_ptr<wxSizer> size_sizer = newd<wxBoxSizer>(wxVERTICAL);
-    std::shared_ptr<wxSizer> sub_sizer = newd<wxBoxSizer>(wxHORIZONTAL);
+	std::shared_ptr<wxSizer> sub_sizer = newd<wxBoxSizer>(wxHORIZONTAL);
 	RenderSize render_size;
 
 	if (large_icons) {
@@ -444,7 +444,7 @@ void BrushToolPanel::LoadAllContents() {
 	}
 
 	std::shared_ptr<wxSizer> size_sizer = newd<wxBoxSizer>(wxVERTICAL);
-    std::shared_ptr<wxSizer> sub_sizer = newd<wxBoxSizer>(wxHORIZONTAL);
+	std::shared_ptr<wxSizer> sub_sizer = newd<wxBoxSizer>(wxHORIZONTAL);
 
 	/*RenderSize render_size;
 	if(large_icons) {
@@ -789,7 +789,7 @@ BrushThicknessPanel::BrushThicknessPanel(wxWindow* parent) :
 	PalettePanel(parent, wxID_ANY) {
 	std::shared_ptr<wxSizer> thickness_sizer = newd<wxBoxSizer>(wxVERTICAL);
 
-    std::shared_ptr<wxSizer> thickness_sub_sizer = newd<wxBoxSizer>(wxHORIZONTAL);
+	std::shared_ptr<wxSizer> thickness_sub_sizer = newd<wxBoxSizer>(wxHORIZONTAL);
 	thickness_sub_sizer->Add(20, 10);
 	use_button = newd<wxCheckBox>(this, PALETTE_DOODAD_USE_THICKNESS, "Use custom thickness");
 	thickness_sub_sizer->Add(use_button.get());

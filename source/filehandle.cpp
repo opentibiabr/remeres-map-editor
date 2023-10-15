@@ -100,7 +100,7 @@ void FileReadHandle::close() {
 	FileHandle::close();
 }
 
-bool FileReadHandle::getRAW(void *ptr, size_t sz) {
+bool FileReadHandle::getRAW(void* ptr, size_t sz) {
 	size_t o = fread(ptr, 1, sz, file);
 	if (o != sz) {
 		error_code = FILE_READ_ERROR;

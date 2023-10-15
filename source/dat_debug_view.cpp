@@ -88,7 +88,7 @@ END_EVENT_TABLE()
 
 DatDebugView::DatDebugView(wxWindow* parent) :
 	wxPanel(parent) {
-    std::shared_ptr<wxSizer> sizer = newd<wxBoxSizer>(wxVERTICAL);
+	std::shared_ptr<wxSizer> sizer = newd<wxBoxSizer>(wxVERTICAL);
 
 	search_field = newd<wxTextCtrl>(this, wxID_ANY, "", wxDefaultPosition, wxDefaultSize);
 	search_field->SetFocus();

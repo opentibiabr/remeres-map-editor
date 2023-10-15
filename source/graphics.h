@@ -112,8 +112,8 @@ protected:
 	class NormalImage;
 	class TemplateImage;
 
-    std::shared_ptr<wxMemoryDC> getDC(SpriteSize size);
-    std::shared_ptr<TemplateImage> getTemplateImage(int sprite_index, const Outfit &outfit);
+	std::shared_ptr<wxMemoryDC> getDC(SpriteSize size);
+	std::shared_ptr<TemplateImage> getTemplateImage(int sprite_index, const Outfit &outfit);
 
 	class Image {
 	public:
@@ -145,7 +145,7 @@ protected:
 
 		// This contains the pixel data
 		uint16_t size;
-        std::shared_ptr<uint8_t> dump;
+		std::shared_ptr<uint8_t> dump;
 
 		virtual void clean(int time);
 
@@ -195,7 +195,7 @@ protected:
 	};
 
 	uint32_t id;
-    std::shared_ptr<wxMemoryDC> dc[SPRITE_SIZE_COUNT];
+	std::shared_ptr<wxMemoryDC> dc[SPRITE_SIZE_COUNT];
 
 public:
 	// GameSprite info
@@ -208,7 +208,7 @@ public:
 	uint8_t frames;
 	uint32_t numsprites;
 
-    std::shared_ptr<Animator> animator;
+	std::shared_ptr<Animator> animator;
 
 	uint16_t ground_speed;
 	uint16_t draw_height;
@@ -282,7 +282,7 @@ private:
 	bool is_complete;
 };
 
-class GraphicManager : public SharedObject{
+class GraphicManager : public SharedObject {
 public:
 	GraphicManager();
 	~GraphicManager();
@@ -362,7 +362,7 @@ private:
 	int loaded_textures;
 	int lastclean;
 
-    std::shared_ptr<wxStopWatch> animation_timer;
+	std::shared_ptr<wxStopWatch> animation_timer;
 
 	friend class GameSprite::Image;
 	friend class GameSprite::NormalImage;

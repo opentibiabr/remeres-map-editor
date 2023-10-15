@@ -69,8 +69,8 @@ public:
 	bool addTown(std::shared_ptr<Town> town);
 	uint32_t getEmptyID();
 
-    std::shared_ptr<Town> getTown(std::string &townname);
-    std::shared_ptr<Town> getTown(uint32_t _townid);
+	std::shared_ptr<Town> getTown(std::string &townname);
+	std::shared_ptr<Town> getTown(uint32_t _townid);
 
 	TownMap::const_iterator begin() const noexcept {
 		return towns.begin();

@@ -103,7 +103,7 @@ MapPropertiesWindow::MapPropertiesWindow(wxWindow* parent, MapTab* view, Editor 
 	// Dimensions
 	grid_sizer->Add(newd<wxStaticText>(this, wxID_ANY, "Map Dimensions").get());
 	{
-        std::shared_ptr<wxSizer> subsizer = newd<wxBoxSizer>(wxHORIZONTAL);
+		std::shared_ptr<wxSizer> subsizer = newd<wxBoxSizer>(wxHORIZONTAL);
 		subsizer->Add(
 			width_spin = newd<wxSpinCtrl>(this, wxID_ANY, wxstr(i2s(map.getWidth())), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, rme::MapMinWidth, rme::MapMaxWidth).get(), wxSizerFlags(1).Expand()
 		);
@@ -140,7 +140,7 @@ MapPropertiesWindow::MapPropertiesWindow(wxWindow* parent, MapTab* view, Editor 
 
 	topsizer->Add(grid_sizer.get(), wxSizerFlags(1).Expand().Border(wxALL, 20));
 
-    std::shared_ptr<wxSizer> subsizer = newd<wxBoxSizer>(wxHORIZONTAL);
+	std::shared_ptr<wxSizer> subsizer = newd<wxBoxSizer>(wxHORIZONTAL);
 	subsizer->Add(newd<wxButton>(this, wxID_OK, "OK").get(), wxSizerFlags(1).Center());
 	subsizer->Add(newd<wxButton>(this, wxID_CANCEL, "Cancel").get(), wxSizerFlags(1).Center());
 	topsizer->Add(subsizer.get(), wxSizerFlags(0).Center().Border(wxLEFT | wxRIGHT | wxBOTTOM, 20));
@@ -374,8 +374,8 @@ END_EVENT_TABLE()
 ImportMapWindow::ImportMapWindow(wxWindow* parent, Editor &editor) :
 	wxDialog(parent, wxID_ANY, "Import Map", wxDefaultPosition, wxSize(420, 350)),
 	editor(editor) {
-    std::shared_ptr<wxBoxSizer> sizer = newd<wxBoxSizer>(wxVERTICAL);
-    std::shared_ptr<wxStaticBoxSizer> tmpsizer;
+	std::shared_ptr<wxBoxSizer> sizer = newd<wxBoxSizer>(wxVERTICAL);
+	std::shared_ptr<wxStaticBoxSizer> tmpsizer;
 
 	// File
 	tmpsizer = newd<wxStaticBoxSizer>(newd<wxStaticBox>(this, wxID_ANY, "Map File"), wxHORIZONTAL);
@@ -522,8 +522,8 @@ END_EVENT_TABLE()
 ExportMiniMapWindow::ExportMiniMapWindow(wxWindow* parent, Editor &editor) :
 	wxDialog(parent, wxID_ANY, "Export Minimap", wxDefaultPosition, wxSize(400, 300)),
 	editor(editor) {
-    std::shared_ptr<wxSizer> sizer = newd<wxBoxSizer>(wxVERTICAL);
-    std::shared_ptr<wxSizer> tmpsizer;
+	std::shared_ptr<wxSizer> sizer = newd<wxBoxSizer>(wxVERTICAL);
+	std::shared_ptr<wxSizer> tmpsizer;
 
 	// Error field
 	error_field = newd<wxStaticText>(this, wxID_VIEW_DETAILS, "", wxDefaultPosition, wxDefaultSize);
@@ -704,7 +704,7 @@ FindDialog::FindDialog(wxWindow* parent, wxString title) :
 	idle_input_timer(this),
 	result_brush(nullptr),
 	result_id(0) {
-    std::shared_ptr<wxSizer> sizer = newd<wxBoxSizer>(wxVERTICAL);
+	std::shared_ptr<wxSizer> sizer = newd<wxBoxSizer>(wxVERTICAL);
 
 	search_field = newd<KeyForwardingTextCtrl>(this, JUMP_DIALOG_TEXT, "", wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
 	search_field->SetFocus();
@@ -714,7 +714,7 @@ FindDialog::FindDialog(wxWindow* parent, wxString title) :
 	item_list->SetMinSize(wxSize(470, 400));
 	sizer->Add(item_list.get(), wxSizerFlags(1).Expand().Border());
 
-    std::shared_ptr<wxSizer> stdsizer = newd<wxBoxSizer>(wxHORIZONTAL);
+	std::shared_ptr<wxSizer> stdsizer = newd<wxBoxSizer>(wxHORIZONTAL);
 	stdsizer->Add(newd<wxButton>(this, wxID_OK, "OK").get(), wxSizerFlags(1).Center());
 	stdsizer->Add(newd<wxButton>(this, wxID_CANCEL, "Cancel").get(), wxSizerFlags(1).Center());
 	sizer->Add(stdsizer.get(), wxSizerFlags(0).Center().Border());
@@ -860,7 +860,7 @@ void FindBrushDialog::OnClickOKInternal() {
 							continue;
 						}
 
-                        std::shared_ptr<RAWBrush> raw_brush = type.raw_brush;
+						std::shared_ptr<RAWBrush> raw_brush = type.raw_brush;
 						if (!raw_brush) {
 							continue;
 						}
@@ -1184,7 +1184,7 @@ EditTownsDialog::EditTownsDialog(wxWindow* parent, Editor &editor) :
 
 	// Create topsizer
 	std::shared_ptr<wxSizer> sizer = newd<wxBoxSizer>(wxVERTICAL);
-    std::shared_ptr<wxSizer> tmpsizer;
+	std::shared_ptr<wxSizer> tmpsizer;
 
 	for (TownMap::const_iterator town_iter = map.towns->begin(); town_iter != map.towns->end(); ++town_iter) {
 		auto town = town_iter->second;
@@ -1284,7 +1284,7 @@ void EditTownsDialog::UpdateSelection(int new_selection) {
 		if (id_field->GetValue().ToLong(&tmplong)) {
 			uint32_t old_town_id = tmplong;
 
-            std::shared_ptr<Town> old_town = nullptr;
+			std::shared_ptr<Town> old_town = nullptr;
 
 			for (std::vector<std::shared_ptr<Town>>::iterator town_iter = town_list.begin(); town_iter != town_list.end(); ++town_iter) {
 				if (old_town_id == (*town_iter)->getID()) {
@@ -1322,7 +1322,7 @@ void EditTownsDialog::UpdateSelection(int new_selection) {
 		select_position_button->Enable(true);
 
 		// Change the values to reflect the newd selection
-        auto town = town_list[new_selection];
+		auto town = town_list[new_selection];
 		ASSERT(town);
 
 		// printf("Selected %d:%s\n", new_selection, town->getName().c_str());
@@ -1365,7 +1365,7 @@ void EditTownsDialog::OnClickRemove(wxCommandEvent &WXUNUSED(event)) {
 	if (id_field->GetValue().ToLong(&tmplong)) {
 		uint32_t old_town_id = tmplong;
 
-        std::shared_ptr<Town> town = nullptr;
+		std::shared_ptr<Town> town = nullptr;
 
 		std::vector<std::shared_ptr<Town>>::iterator town_iter = town_list.begin();
 
@@ -1404,7 +1404,7 @@ void EditTownsDialog::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 		if (town_list.size() > 0 && id_field->GetValue().ToLong(&tmplong)) {
 			uint32_t old_town_id = tmplong;
 
-            std::shared_ptr<Town> old_town = nullptr;
+			std::shared_ptr<Town> old_town = nullptr;
 
 			for (std::vector<std::shared_ptr<Town>>::iterator town_iter = town_list.begin(); town_iter != town_list.end(); ++town_iter) {
 				if (old_town_id == (*town_iter)->getID()) {
@@ -1431,7 +1431,7 @@ void EditTownsDialog::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 			}
 		}
 
-        const auto &towns = editor.getMap().towns;
+		const auto &towns = editor.getMap().towns;
 
 		// Verify the newd information
 		for (std::vector<std::shared_ptr<Town>>::iterator town_iter = town_list.begin(); town_iter != town_list.end(); ++town_iter) {
@@ -1483,13 +1483,13 @@ GotoPositionDialog::GotoPositionDialog(wxWindow* parent, Editor &editor) :
 	const Map &map = editor.getMap();
 
 	// create topsizer
-    std::shared_ptr<wxSizer> sizer = newd<wxBoxSizer>(wxVERTICAL);
+	std::shared_ptr<wxSizer> sizer = newd<wxBoxSizer>(wxVERTICAL);
 
 	posctrl = newd<PositionCtrl>(this, "Destination", map.getWidth() / 2, map.getHeight() / 2, rme::MapGroundLayer, map.getWidth(), map.getHeight());
 	sizer->Add(posctrl.get(), 0, wxTOP | wxLEFT | wxRIGHT, 20);
 
 	// OK/Cancel buttons
-    std::shared_ptr<wxSizer> tmpsizer = newd<wxBoxSizer>(wxHORIZONTAL);
+	std::shared_ptr<wxSizer> tmpsizer = newd<wxBoxSizer>(wxHORIZONTAL);
 	tmpsizer->Add(newd<wxButton>(this, wxID_OK, "OK").get(), wxSizerFlags(1).Center());
 	tmpsizer->Add(newd<wxButton>(this, wxID_CANCEL, "Cancel").get(), wxSizerFlags(1).Center());
 	sizer->Add(tmpsizer.get(), 0, wxALL | wxCENTER, 20); // Border to top too

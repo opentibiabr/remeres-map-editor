@@ -77,7 +77,7 @@ Item::~Item() {
 }
 
 std::shared_ptr<Item> Item::deepCopy() const {
-    std::shared_ptr<Item> copy = Create(id, subtype);
+	std::shared_ptr<Item> copy = Create(id, subtype);
 	if (copy) {
 		copy->selected = selected;
 		if (attributes) {
@@ -94,7 +94,7 @@ std::shared_ptr<Item> Item::transformItem(std::shared_ptr<Item> old_item, uint16
 
 	old_item->setID(new_id);
 	// Through the magic of deepCopy, this will now be a pointer to an item of the correct type.
-    std::shared_ptr<Item> new_item = old_item->deepCopy();
+	std::shared_ptr<Item> new_item = old_item->deepCopy();
 	if (parent) {
 		// Find the old item and remove it from the tile, insert this one instead!
 		if (old_item == parent->ground) {
@@ -110,18 +110,18 @@ std::shared_ptr<Item> Item::transformItem(std::shared_ptr<Item> old_item, uint16
 				return new_item;
 			}
 
-            std::shared_ptr<Container> c = static_self_cast<Container>(*item_iter);
+			std::shared_ptr<Container> c = static_self_cast<Container>(*item_iter);
 			if (c) {
 				containers.push(c);
 			}
 		}
 
 		while (containers.size() != 0) {
-            std::shared_ptr<Container> container = containers.front();
+			std::shared_ptr<Container> container = containers.front();
 			ItemVector &v = container->getVector();
 			for (ItemVector::iterator item_iter = v.begin(); item_iter != v.end(); ++item_iter) {
-                std::shared_ptr<Item> i = *item_iter;
-                std::shared_ptr<Container> c = static_self_cast<Container>(i);
+				std::shared_ptr<Item> i = *item_iter;
+				std::shared_ptr<Container> c = static_self_cast<Container>(i);
 				if (c) {
 					containers.push(c);
 				}
@@ -290,7 +290,7 @@ bool Item::canHoldDescription() const {
 }
 
 uint8_t Item::getMiniMapColor() const {
-    std::shared_ptr<GameSprite> sprite = g_items.getItemType(id)->sprite;
+	std::shared_ptr<GameSprite> sprite = g_items.getItemType(id)->sprite;
 	if (sprite) {
 		return sprite->getMiniMapColor();
 	}
@@ -328,7 +328,7 @@ std::shared_ptr<DoorBrush> Item::getDoorBrush() const {
 	}
 
 	DoorType door_type = type->brush->asWall()->getDoorTypeFromID(id);
-    std::shared_ptr<DoorBrush> door_brush = nullptr;
+	std::shared_ptr<DoorBrush> door_brush = nullptr;
 	// Quite a horrible dependency on a global here, meh.
 	switch (door_type) {
 		case WALL_DOOR_NORMAL: {

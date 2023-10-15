@@ -77,7 +77,7 @@ class Npc;
 
 struct SpriteLight;
 
-class Item : public ItemAttributes, public SharedObject{
+class Item : public ItemAttributes, public SharedObject {
 public:
 	// Factory member to create item of right type based on type
 	static std::shared_ptr<Item> Create(uint16_t id, uint16_t subtype = 0xFFFF);
@@ -85,7 +85,7 @@ public:
 	static std::shared_ptr<Item> Create_OTBM(const IOMap &maphandle, BinaryNode* stream);
 	// static Item* Create_OTMM(const IOMap& maphandle, BinaryNode* stream);
 
-    std::shared_ptr<Item> transformItem(std::shared_ptr<Item> old_item, uint16_t new_id, std::shared_ptr<Tile> parent = nullptr);
+	std::shared_ptr<Item> transformItem(std::shared_ptr<Item> old_item, uint16_t new_id, std::shared_ptr<Tile> parent = nullptr);
 
 protected:
 	// Constructor for items
@@ -190,18 +190,18 @@ public:
 	uint32_t getMaxWriteLength() const {
 		return getItemType().maxTextLen;
 	}
-    std::shared_ptr<Brush> getBrush() const {
+	std::shared_ptr<Brush> getBrush() const {
 		return getItemType().brush;
 	}
-    std::shared_ptr<GroundBrush> getGroundBrush() const;
-    std::shared_ptr<WallBrush> getWallBrush() const;
-    std::shared_ptr<DoorBrush> getDoorBrush() const;
-    std::shared_ptr<TableBrush> getTableBrush() const;
-    std::shared_ptr<CarpetBrush> getCarpetBrush() const;
-    std::shared_ptr<Brush> getDoodadBrush() const {
+	std::shared_ptr<GroundBrush> getGroundBrush() const;
+	std::shared_ptr<WallBrush> getWallBrush() const;
+	std::shared_ptr<DoorBrush> getDoorBrush() const;
+	std::shared_ptr<TableBrush> getTableBrush() const;
+	std::shared_ptr<CarpetBrush> getCarpetBrush() const;
+	std::shared_ptr<Brush> getDoodadBrush() const {
 		return getItemType().doodad_brush;
 	} // This is not necessarily a doodad brush
-    std::shared_ptr<RAWBrush> getRAWBrush() const {
+	std::shared_ptr<RAWBrush> getRAWBrush() const {
 		return getItemType().raw_brush;
 	}
 	uint16_t getGroundEquivalent() const {
@@ -307,9 +307,9 @@ public:
 	}
 
 	// Wall alignment (vertical, horizontal, pole, corner)
-    BorderType getWallAlignment() const;
+	BorderType getWallAlignment() const;
 	// Border aligment (south, west etc.)
-    BorderType getBorderAlignment() const;
+	BorderType getBorderAlignment() const;
 
 	// Get the name!
 	const std::string getName() const {

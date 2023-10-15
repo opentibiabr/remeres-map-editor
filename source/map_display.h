@@ -188,7 +188,7 @@ private:
 
 	wxStopWatch refresh_watch;
 	std::shared_ptr<MapPopupMenu> popup_menu;
-    std::shared_ptr<AnimationTimer> animation_timer;
+	std::shared_ptr<AnimationTimer> animation_timer;
 
 	friend class MapDrawer;
 

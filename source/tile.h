@@ -50,7 +50,7 @@ enum : uint8_t {
 class Tile {
 public: // Members
 	TileLocation* location;
-    std::shared_ptr<Item> ground;
+	std::shared_ptr<Item> ground;
 	ItemVector items;
 	std::shared_ptr<Monster> monster;
 	std::shared_ptr<SpawnMonster> spawnMonster;

@@ -32,13 +32,13 @@ END_EVENT_TABLE()
 
 ExtensionsDialog::ExtensionsDialog(wxWindow* parent) :
 	wxDialog(parent, wxID_ANY, "Extensions", wxDefaultPosition, wxSize(600, 500), wxRESIZE_BORDER | wxCAPTION) {
-    auto topSizer = newd<wxBoxSizer>(wxVERTICAL);
+	auto topSizer = newd<wxBoxSizer>(wxVERTICAL);
 
 	auto htmlWindow = newd<wxHtmlWindow>(this, wxID_ANY, wxDefaultPosition, wxSize(550, 400));
 	htmlWindow->SetPage(HTML());
 	topSizer->Add(htmlWindow.get(), wxSizerFlags(1).DoubleBorder().Expand());
 
-    std::shared_ptr<wxSizer> buttonSizer = newd<wxBoxSizer>(wxHORIZONTAL);
+	std::shared_ptr<wxSizer> buttonSizer = newd<wxBoxSizer>(wxHORIZONTAL);
 	buttonSizer->Add(newd<wxButton>(this, wxID_OK, "OK").get(), wxSizerFlags(1).Center());
 	buttonSizer->Add(newd<wxButton>(this, EXTENSIONS_OPEN_FOLDER_BUTTON, "Open Extensions Folder").get(), wxSizerFlags(1).Center());
 	topSizer->Add(buttonSizer.get(), 0, wxCENTER | wxLEFT | wxRIGHT | wxBOTTOM, 20);

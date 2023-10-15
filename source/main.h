@@ -27,19 +27,19 @@
 #endif
 
 #ifdef DEBUG_MEM
-#define _CRTDBG_MAP_ALLOC
-#pragma warning(disable : 4291)
+	#define _CRTDBG_MAP_ALLOC
+	#pragma warning(disable : 4291)
 
-#define newd make_shared_debug
+	#define newd make_shared_debug
 
 template <typename T, typename... Args>
-std::shared_ptr<T> make_shared_debug(const char* file, int line, Args&&... args) {
-    return std::allocate_shared<T>(std::allocator<T>(), std::forward<Args>(args)...);
+std::shared_ptr<T> make_shared_debug(const char* file, int line, Args &&... args) {
+	return std::allocate_shared<T>(std::allocator<T>(), std::forward<Args>(args)...);
 }
 
 #else
 
-#define newd std::make_shared
+	#define newd std::make_shared
 
 #endif
 
