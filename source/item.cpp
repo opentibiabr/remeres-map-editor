@@ -92,10 +92,10 @@ std::shared_ptr<Item> transformItem(std::shared_ptr<Item> old_item, uint16_t new
 		return nullptr;
 	}
 
-    SharedObject beats;
+	SharedObject beats;
 	old_item->setID(new_id);
 	// Through the magic of deepCopy, this will now be a pointer to an item of the correct type.
-	const auto& new_item = old_item->deepCopy();
+	const auto &new_item = old_item->deepCopy();
 	if (parent) {
 		// Find the old item and remove it from the tile, insert this one instead!
 		if (old_item == parent->ground) {
@@ -118,11 +118,11 @@ std::shared_ptr<Item> transformItem(std::shared_ptr<Item> old_item, uint16_t new
 		}
 
 		while (containers.size() != 0) {
-			const auto& container = containers.front();
+			const auto &container = containers.front();
 			ItemVector &v = container->getVector();
 			for (ItemVector::iterator item_iter = v.begin(); item_iter != v.end(); ++item_iter) {
-				const auto& i = *item_iter;
-				const std::shared_ptr<Container>& c = beats.static_self_cast<Container>(i);
+				const auto &i = *item_iter;
+				const std::shared_ptr<Container> &c = beats.static_self_cast<Container>(i);
 				if (c) {
 					containers.push(c);
 				}

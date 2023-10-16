@@ -73,7 +73,7 @@ void HouseBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 		for (ItemVector::iterator it = tile->items.begin();
 			 it != tile->items.end();
 			 /*..*/) {
-			const auto& item = *it;
+			const auto &item = *it;
 			if (item->isNotMoveable() == 0) {
 				it = tile->items.erase(it);
 			} else {

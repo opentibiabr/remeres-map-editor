@@ -107,9 +107,9 @@ size_t Action::approx_memsize() const {
 
 size_t Action::memsize() const {
 	uint32_t mem = sizeof(*this);
-	mem += sizeof(const std::shared_ptr<Change>&) * 3 * changes.size();
+	mem += sizeof(const std::shared_ptr<Change> &) * 3 * changes.size();
 
-	for (const auto& change : changes) {
+	for (const auto &change : changes) {
 		if (change && change->getType() == CHANGE_TILE) {
 			mem += reinterpret_cast<Tile*>(change->getData())->memsize();
 		}
@@ -123,7 +123,7 @@ void Action::commit(DirtyList* dirty_list) {
 	Selection &selection = editor.getSelection();
 	selection.start(Selection::INTERNAL);
 
-	for (const auto& change : changes) {
+	for (const auto &change : changes) {
 		switch (change->getType()) {
 			case CHANGE_TILE: {
 				void** data = &change->data;
@@ -280,7 +280,7 @@ void Action::undo(DirtyList* dirty_list) {
 	Selection &selection = editor.getSelection();
 	selection.start(Selection::INTERNAL);
 
-	for (const auto& change : changes) {
+	for (const auto &change : changes) {
 		switch (change->getType()) {
 			case CHANGE_TILE: {
 				void** data = &change->data;

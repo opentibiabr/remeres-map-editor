@@ -791,7 +791,7 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 
 		if (offset != Position(0, 0, 0)) {
 			for (ItemVector::iterator iter = import_tile->items.begin(); iter != import_tile->items.end(); ++iter) {
-				const auto& item = *iter;
+				const auto &item = *iter;
 				if (std::shared_ptr<Teleport> teleport = static_self_cast<Teleport>(item)) {
 					teleport->setDestination(teleport->getDestination() + offset);
 				}
@@ -904,8 +904,8 @@ void Editor::randomizeSelection() {
 		if (brush && brush->isReRandomizable()) {
 			brush->draw(&map, new_tile, nullptr);
 
-            const auto& old_ground = tile->ground;
-            const auto& new_ground = new_tile->ground;
+			const auto &old_ground = tile->ground;
+			const auto &new_ground = new_tile->ground;
 			if (old_ground && new_ground) {
 				new_ground->setActionID(old_ground->getActionID());
 				new_ground->setUniqueID(old_ground->getUniqueID());
@@ -935,7 +935,7 @@ void Editor::randomizeMap(bool showdialog) {
 
 		GroundBrush* groundBrush = tile->getGroundBrush();
 		if (groundBrush) {
-			const auto& oldGround = tile->ground;
+			const auto &oldGround = tile->ground;
 
 			uint16_t actionId, uniqueId;
 			if (oldGround) {
@@ -947,7 +947,7 @@ void Editor::randomizeMap(bool showdialog) {
 			}
 			groundBrush->draw(&map, tile, nullptr);
 
-			const auto& newGround = tile->ground;
+			const auto &newGround = tile->ground;
 			if (newGround) {
 				newGround->setActionID(actionId);
 				newGround->setUniqueID(uniqueId);
@@ -1057,7 +1057,7 @@ void Editor::moveSelection(const Position &offset) {
 		Tile* storage_tile = map.allocator(tile->getLocation());
 
 		ItemVector selected_items = new_tile->popSelectedItems();
-		for (const auto& item : selected_items) {
+		for (const auto &item : selected_items) {
 			storage_tile->addItem(item);
 		}
 
@@ -1406,7 +1406,7 @@ void removeDuplicateWalls(Tile* buffer, Tile* tile) {
 		return;
 	}
 
-	for (const auto& item : buffer->items) {
+	for (const auto &item : buffer->items) {
 		if (item) {
 			WallBrush* brush = item->getWallBrush();
 			if (brush) {

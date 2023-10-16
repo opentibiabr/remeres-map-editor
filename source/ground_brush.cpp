@@ -927,7 +927,7 @@ void GroundBrush::doBorders(BaseMap* map, Tile* tile) {
 			}
 			*/
 			uint32_t matches = 0;
-			for (const auto& item : tile->items) {
+			for (const auto &item : tile->items) {
 				if (!item->isBorder()) {
 					break;
 				}
@@ -957,7 +957,7 @@ void GroundBrush::doBorders(BaseMap* map, Tile* tile) {
 				if (specificCaseBlock->delete_all) {
 					// Delete all matching borders
 					while (it != tileItems.end()) {
-						const auto& item = *it;
+						const auto &item = *it;
 						if (!item->isBorder()) {
 							break;
 						}
@@ -978,7 +978,7 @@ void GroundBrush::doBorders(BaseMap* map, Tile* tile) {
 				} else {
 					// All matched, replace!
 					while (it != tileItems.end()) {
-						const auto& item = *it;
+						const auto &item = *it;
 						if (!item->isBorder()) {
 							return;
 						}

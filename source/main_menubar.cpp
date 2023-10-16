@@ -920,7 +920,7 @@ void MainMenuBar::OnSearchForItem(wxCommandEvent &WXUNUSED(event)) {
 		window->Clear();
 		for (std::vector<std::pair<Tile*, std::shared_ptr<Item>>>::const_iterator iter = result.begin(); iter != result.end(); ++iter) {
 			Tile* tile = iter->first;
-            std::shared_ptr<Item> item = iter->second;
+			std::shared_ptr<Item> item = iter->second;
 			window->AddPosition(wxstr(item->getName()), tile->getPosition());
 		}
 
@@ -954,7 +954,7 @@ namespace OnSearchForStuff {
 		bool search_container;
 		bool search_writeable;
 		std::vector<std::pair<Tile*, std::shared_ptr<Item>>> found;
-        SharedObject beats;
+		SharedObject beats;
 
 		void operator()(Map &map, Tile* tile, std::shared_ptr<Item> item, long long done) {
 			if (done % 0x8000 == 0) {
@@ -1076,7 +1076,7 @@ void MainMenuBar::OnSearchForItemOnSelection(wxCommandEvent &WXUNUSED(event)) {
 		window->Clear();
 		for (std::vector<std::pair<Tile*, std::shared_ptr<Item>>>::const_iterator iter = result.begin(); iter != result.end(); ++iter) {
 			Tile* tile = iter->first;
-            std::shared_ptr<Item> item = iter->second;
+			std::shared_ptr<Item> item = iter->second;
 			window->AddPosition(wxstr(item->getName()), tile->getPosition());
 		}
 
@@ -1675,36 +1675,36 @@ void MainMenuBar::OnMapStatistics(wxCommandEvent &WXUNUSED(event)) {
 		tile_count += 1;
 
 		bool is_detailed = false;
-#define ANALYZE_ITEM(_item)                                             \
-	{                                                                   \
-		item_count += 1;                                                \
-		if (!(_item)->isGroundTile() && !(_item)->isBorder()) {         \
-			is_detailed = true;                                         \
-			const ItemType &it = g_items.getItemType((_item)->getID()); \
-			if (it.moveable) {                                          \
-				loose_item_count += 1;                                  \
-			}                                                           \
-			if (it.isDepot()) {                                         \
-				depot_count += 1;                                       \
-			}                                                           \
-			if ((_item)->getActionID() > 0) {                           \
-				action_item_count += 1;                                 \
-			}                                                           \
-			if ((_item)->getUniqueID() > 0) {                           \
-				unique_item_count += 1;                                 \
-			}                                                           \
-			if (const std::shared_ptr<Container>& c = static_self_cast<Container>((_item))) {     \
-				if (c->getVector().size()) {                            \
-					container_count += 1;                               \
-				}                                                       \
-			}                                                           \
-		}                                                               \
+#define ANALYZE_ITEM(_item)                                                                   \
+	{                                                                                         \
+		item_count += 1;                                                                      \
+		if (!(_item)->isGroundTile() && !(_item)->isBorder()) {                               \
+			is_detailed = true;                                                               \
+			const ItemType &it = g_items.getItemType((_item)->getID());                       \
+			if (it.moveable) {                                                                \
+				loose_item_count += 1;                                                        \
+			}                                                                                 \
+			if (it.isDepot()) {                                                               \
+				depot_count += 1;                                                             \
+			}                                                                                 \
+			if ((_item)->getActionID() > 0) {                                                 \
+				action_item_count += 1;                                                       \
+			}                                                                                 \
+			if ((_item)->getUniqueID() > 0) {                                                 \
+				unique_item_count += 1;                                                       \
+			}                                                                                 \
+			if (const std::shared_ptr<Container> &c = static_self_cast<Container>((_item))) { \
+				if (c->getVector().size()) {                                                  \
+					container_count += 1;                                                     \
+				}                                                                             \
+			}                                                                                 \
+		}                                                                                     \
 	}
 		if (tile->ground) {
 			ANALYZE_ITEM(tile->ground);
 		}
 
-		for (const auto& item : tile->items) {
+		for (const auto &item : tile->items) {
 			ANALYZE_ITEM(item);
 		}
 #undef ANALYZE_ITEM

@@ -277,7 +277,7 @@ void LiveClient::sendChanges(DirtyList &dirtyList) {
 	}
 
 	mapWriter.reset();
-	for (const auto& change : changeList) {
+	for (const auto &change : changeList) {
 		switch (change->getType()) {
 			case CHANGE_TILE: {
 				const Position &position = static_cast<Tile*>(change->getData())->getPosition();

@@ -154,7 +154,7 @@ void CarpetBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 void CarpetBrush::undraw(BaseMap* map, Tile* tile) {
 	auto &items = tile->items;
 	for (auto it = items.begin(); it != items.end();) {
-		const auto& item = *it;
+		const auto &item = *it;
 		if (item->isCarpet()) {
 			CarpetBrush* carpetBrush = item->getCarpetBrush();
 			if (carpetBrush) {
@@ -175,7 +175,7 @@ void CarpetBrush::doCarpets(BaseMap* map, Tile* tile) {
 			return false;
 		}
 
-		for (const auto& item : tile->items) {
+		for (const auto &item : tile->items) {
 			if (item->getCarpetBrush() == carpetBrush) {
 				return true;
 			}
@@ -202,7 +202,7 @@ void CarpetBrush::doCarpets(BaseMap* map, Tile* tile) {
 		//
 	}
 	*/
-	for (const auto& item : tile->items) {
+	for (const auto &item : tile->items) {
 		ASSERT(item);
 
 		CarpetBrush* carpetBrush = item->getCarpetBrush();

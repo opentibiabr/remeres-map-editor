@@ -63,7 +63,7 @@ void ContainerItemButton::OnMouseDoubleLeftClick(wxMouseEvent &WXUNUSED(event)) 
 		return;
 	}
 
-	const auto& container = getParentContainer();
+	const auto &container = getParentContainer();
 	if (container->getVolume() > container->getItemCount()) {
 		OnAddItem(dummy);
 	}
@@ -82,10 +82,10 @@ void ContainerItemButton::OnAddItem(wxCommandEvent &WXUNUSED(event)) {
 	FindItemDialog dialog(GetParent(), "Choose Item to add", true);
 
 	if (dialog.ShowModal() == wxID_OK) {
-		const auto& container = getParentContainer();
+		const auto &container = getParentContainer();
 		ItemVector &itemVector = container->getVector();
 
-		const auto& item = Item::Create(dialog.getResultID());
+		const auto &item = Item::Create(dialog.getResultID());
 		if (index < itemVector.size()) {
 			itemVector.insert(itemVector.begin() + index, item);
 		} else {

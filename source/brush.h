@@ -347,7 +347,7 @@ protected:
 //=============================================================================
 // Doorbrush, add doors, windows etc.
 
-class DoorBrush : public Brush, public SharedObject{
+class DoorBrush : public Brush, public SharedObject {
 public:
 	explicit DoorBrush(DoorType _doortype);
 	~DoorBrush() override;

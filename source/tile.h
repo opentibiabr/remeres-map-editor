@@ -191,12 +191,12 @@ public: // Functions
 	bool hasTable() const noexcept {
 		return testFlags(statflags, TILESTATE_HAS_TABLE);
 	}
-    std::shared_ptr<Item> getTable() const;
+	std::shared_ptr<Item> getTable() const;
 
 	bool hasCarpet() const noexcept {
 		return testFlags(statflags, TILESTATE_HAS_CARPET);
 	}
-    std::shared_ptr<Item> getCarpet() const;
+	std::shared_ptr<Item> getCarpet() const;
 
 	bool hasOptionalBorder() const noexcept {
 		return testFlags(statflags, TILESTATE_OP_BORDER);

@@ -83,7 +83,7 @@ public:
 
 	uint32_t memsize() const;
 
-    Change();
+	Change();
 
 private:
 	ChangeType type;

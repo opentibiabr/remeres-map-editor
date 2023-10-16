@@ -268,7 +268,7 @@ class ObjectPropertiesWindowBase : public wxDialog {
 public:
 	ObjectPropertiesWindowBase(
 		wxWindow* parent, wxString title,
-        Map* map, Tile* tile, std::shared_ptr<Item> item,
+		Map* map, Tile* tile, std::shared_ptr<Item> item,
 		wxPoint position = wxDefaultPosition
 	);
 	ObjectPropertiesWindowBase(
@@ -292,7 +292,7 @@ public:
 		wxPoint position = wxDefaultPosition
 	);
 
-    std::shared_ptr<Item> getItemBeingEdited();
+	std::shared_ptr<Item> getItemBeingEdited();
 	Monster* getMonsterBeingEdited();
 	SpawnMonster* getSpawnBeingEdited();
 	Npc* getNpcBeingEdited();
@@ -301,7 +301,7 @@ public:
 protected:
 	Map* edit_map;
 	Tile* edit_tile;
-    std::shared_ptr<Item> edit_item;
+	std::shared_ptr<Item> edit_item;
 	Monster* edit_monster;
 	SpawnMonster* edit_spawn_monster;
 	Npc* edit_npc;

@@ -238,7 +238,7 @@ bool Container::unserializeItemNode_OTMM(const IOMap &maphandle, BinaryNode* nod
 				}
 				// load container items
 				if (type == OTMM_ITEM) {
-					const auto& item = Item::Create_OTMM(maphandle, child);
+					const auto &item = Item::Create_OTMM(maphandle, child);
 					if (!item) {
 						return false;
 					}
@@ -467,7 +467,7 @@ bool IOMapOTMM::loadMap(Map &map, NodeFileReadHandle &f, const FileName &identif
 							BinaryNode* itemNode = tileNode->getChild();
 							if (itemNode) {
 								do {
-                                    std::shared_ptr<Item> item = nullptr;
+									std::shared_ptr<Item> item = nullptr;
 									uint8_t item_type;
 									if (!itemNode->getByte(item_type)) {
 										warning("Unknown item type %d:%d:%d", pos.x, pos.y, pos.z);
@@ -945,7 +945,7 @@ bool IOMapOTMM::saveMap(Map &map, NodeFileWriteHandle &f, const FileName &identi
 						}
 
 						if (save_tile->ground) {
-							const auto& ground = save_tile->ground;
+							const auto &ground = save_tile->ground;
 							if (ground->isMetaItem()) {
 								// Do nothing, we don't save metaitems...
 								f.addU16(0);

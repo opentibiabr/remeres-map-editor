@@ -85,10 +85,9 @@ public:
 	static std::shared_ptr<Item> Create_OTBM(const IOMap &maphandle, BinaryNode* stream);
 	// static std::shared_ptr<Item> Create_OTMM(const IOMap& maphandle, BinaryNode* stream);
 
-    Item(unsigned short _type, unsigned short _count);
+	Item(unsigned short _type, unsigned short _count);
 
 protected:
-
 public:
 	virtual ~Item();
 
@@ -372,11 +371,11 @@ public:
 	}
 
 protected:
-	uint16_t id{}; // the same id as in ItemType
+	uint16_t id {}; // the same id as in ItemType
 	// Subtype is either fluid type, count, subtype or charges
-	uint16_t subtype{};
-	bool selected{};
-	int frame{};
+	uint16_t subtype {};
+	bool selected {};
+	int frame {};
 
 private:
 	Item &operator=(const Item &i); // Can't copy

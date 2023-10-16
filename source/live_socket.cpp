@@ -254,7 +254,7 @@ void LiveSocket::sendTile(MemoryNodeFileWriteHandle &writer, Tile* tile, const P
 		writer.addU32(tile->getMapFlags());
 	}
 
-	const auto& ground = tile->ground;
+	const auto &ground = tile->ground;
 	if (ground) {
 		if (ground->isComplex()) {
 			ground->serializeItemNode_OTBM(mapVersion, writer);
@@ -264,7 +264,7 @@ void LiveSocket::sendTile(MemoryNodeFileWriteHandle &writer, Tile* tile, const P
 		}
 	}
 
-	for (const auto& item : tile->items) {
+	for (const auto &item : tile->items) {
 		item->serializeItemNode_OTBM(mapVersion, writer);
 	}
 
@@ -334,7 +334,7 @@ Tile* LiveSocket::readTile(BinaryNode* node, Editor &editor, const Position* pos
 				break;
 			}
 			case OTBM_ATTR_ITEM: {
-				const auto& item = Item::Create_OTBM(mapVersion, node);
+				const auto &item = Item::Create_OTBM(mapVersion, node);
 				if (!item) {
 					// warning("Invalid item at tile %d:%d:%d", pos.x, pos.y, pos.z);
 				}
@@ -359,7 +359,7 @@ Tile* LiveSocket::readTile(BinaryNode* node, Editor &editor, const Position* pos
 			}
 
 			if (itemType == OTBM_ITEM) {
-				const auto& item = Item::Create_OTBM(mapVersion, itemNode);
+				const auto &item = Item::Create_OTBM(mapVersion, itemNode);
 				if (item) {
 					if (!item->unserializeItemNode_OTBM(mapVersion, itemNode)) {
 						// warning("Couldn't unserialize item attributes at %d:%d:%d", pos.x, pos.y, pos.z);

@@ -196,7 +196,7 @@ private:
 };
 
 // Right-click popup menu
-class MapPopupMenu : public wxMenu, public SharedObject{
+class MapPopupMenu : public wxMenu, public SharedObject {
 public:
 	MapPopupMenu(Editor &editor);
 	virtual ~MapPopupMenu();

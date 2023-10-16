@@ -70,7 +70,7 @@ bool DoodadBrush::loadAlternative(pugi::xml_node node, wxArrayString &warnings, 
 				continue;
 			}
 
-			const auto& item = Item::Create(childNode);
+			const auto &item = Item::Create(childNode);
 			if (!item) {
 				warnings.push_back("Can't create item from doodad item node.");
 				continue;
@@ -130,7 +130,7 @@ bool DoodadBrush::loadAlternative(pugi::xml_node node, wxArrayString &warnings, 
 						continue;
 					}
 
-					const auto& item = Item::Create(itemNode);
+					const auto &item = Item::Create(itemNode);
 					if (item) {
 						items.push_back(item);
 
@@ -264,7 +264,7 @@ bool DoodadBrush::ownsItem(std::shared_ptr<Item> item) const {
 void DoodadBrush::undraw(BaseMap* map, Tile* tile) {
 	// Remove all doodad-related
 	for (ItemVector::iterator item_iter = tile->items.begin(); item_iter != tile->items.end();) {
-		const auto& item = *item_iter;
+		const auto &item = *item_iter;
 		if (item->getDoodadBrush() != nullptr) {
 			if (item->isComplex() && g_settings.getInteger(Config::ERASER_LEAVE_UNIQUE)) {
 				++item_iter;

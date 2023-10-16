@@ -117,7 +117,7 @@ protected:
 
 	struct SingleBlock {
 		int chance;
-        std::shared_ptr<Item> item;
+		std::shared_ptr<Item> item;
 	};
 
 	struct CompositeBlock {

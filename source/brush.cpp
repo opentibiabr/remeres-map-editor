@@ -387,7 +387,7 @@ bool DoorBrush::canDraw(BaseMap* map, const Position &position) const {
 		return false;
 	}
 
-	const auto& item = tile->getWall();
+	const auto &item = tile->getWall();
 	if (!item) {
 		return false;
 	}
@@ -440,7 +440,7 @@ bool DoorBrush::canDraw(BaseMap* map, const Position &position) const {
 
 void DoorBrush::undraw(BaseMap* map, Tile* tile) {
 	for (ItemVector::iterator it = tile->items.begin(); it != tile->items.end(); ++it) {
-		const auto& item = *it;
+		const auto &item = *it;
 		if (item->isBrushDoor()) {
 			item->getWallBrush()->draw(map, tile, nullptr);
 			if (g_settings.getInteger(Config::USE_AUTOMAGIC)) {

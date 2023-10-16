@@ -26,7 +26,7 @@ class Door;
 
 class Houses;
 
-class House : public SharedObject{
+class House : public SharedObject {
 public:
 	House(Map &map);
 

@@ -56,7 +56,7 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, Map* map, Tile* t
 	ASSERT(edit_item);
 
 	wxSizer* topsizer = newd wxBoxSizer(wxVERTICAL);
-	if (const std::shared_ptr<Container>& container = static_self_cast<Container>(edit_item)) {
+	if (const std::shared_ptr<Container> &container = static_self_cast<Container>(edit_item)) {
 		// Container
 		wxSizer* boxsizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Container Properties");
 
@@ -96,7 +96,7 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, Map* map, Tile* t
 				horizontal_sizer = newd wxBoxSizer(wxHORIZONTAL);
 			}
 
-			const auto& item = container->getItem(index);
+			const auto &item = container->getItem(index);
 			ContainerItemButton* containerItemButton = newd ContainerItemButton(this, use_large_sprites, index, map, item);
 
 			container_items.push_back(containerItemButton);
@@ -197,7 +197,7 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, Map* map, Tile* t
 		topsizer->Add(boxsizer, wxSizerFlags(0).Expand().Border(wxALL, 20));
 
 		// SetSize(220, 190);
-	} else if (const std::shared_ptr<Depot>& depot = static_self_cast<Depot>(edit_item)) {
+	} else if (const std::shared_ptr<Depot> &depot = static_self_cast<Depot>(edit_item)) {
 		// Depot
 		wxSizer* boxsizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Depot Properties");
 		wxFlexGridSizer* subsizer = newd wxFlexGridSizer(2, 10, 10);
@@ -242,8 +242,8 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, Map* map, Tile* t
 		// SetSize(220, 140);
 	} else {
 		// Normal item
-		const std::shared_ptr<Door>& door = static_self_cast<Door>(edit_item);
-		const std::shared_ptr<Teleport>& teleport = static_self_cast<Teleport>(edit_item);
+		const std::shared_ptr<Door> &door = static_self_cast<Door>(edit_item);
+		const std::shared_ptr<Teleport> &teleport = static_self_cast<Teleport>(edit_item);
 
 		wxString description;
 		if (door) {
@@ -646,7 +646,7 @@ void OldPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 
 			if (door && g_settings.getInteger(Config::WARN_FOR_DUPLICATE_ID)) {
 				if (edit_tile && edit_tile->isHouseTile()) {
-                    House* house = edit_map->houses.getHouse(edit_tile->getHouseID());
+					House* house = edit_map->houses.getHouse(edit_tile->getHouseID());
 					if (house) {
 						Position pos = house->getDoorPositionByID(new_door_id);
 						if (pos.isValid() && pos != edit_tile->getPosition()) {

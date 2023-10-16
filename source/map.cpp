@@ -201,7 +201,7 @@ bool Map::convert(const ConversionMap &rm, bool showdialog) {
 
 			const std::vector<uint16_t> &new_items = cfmtm->second;
 			for (std::vector<uint16_t>::const_iterator iit = new_items.begin(); iit != new_items.end(); ++iit) {
-				const auto& item = Item::Create(*iit);
+				const auto &item = Item::Create(*iit);
 				if (item->isGroundTile()) {
 					tile->ground = item;
 				} else {
@@ -221,7 +221,7 @@ bool Map::convert(const ConversionMap &rm, bool showdialog) {
 				const std::vector<uint16_t> &v = cfstm->second;
 				// conversions << "Converted " << tile->getX() << ":" << tile->getY() << ":" << tile->getZ() << " " << id << " -> ";
 				for (std::vector<uint16_t>::const_iterator iit = v.begin(); iit != v.end(); ++iit) {
-					const auto& item = Item::Create(*iit);
+					const auto &item = Item::Create(*iit);
 					// conversions << *iit << " ";
 					if (item->isGroundTile()) {
 						item->setActionID(aid);
@@ -765,7 +765,7 @@ void Map::updateUniqueIds(Tile* old_tile, Tile* new_tile) {
 				removeUniqueId(uid);
 			}
 		}
-		for (const auto& item : old_tile->items) {
+		for (const auto &item : old_tile->items) {
 			if (item) {
 				uint16_t uid = item->getUniqueID();
 				if (uid != 0) {
@@ -782,7 +782,7 @@ void Map::updateUniqueIds(Tile* old_tile, Tile* new_tile) {
 				addUniqueId(uid);
 			}
 		}
-		for (const auto& item : new_tile->items) {
+		for (const auto &item : new_tile->items) {
 			if (item) {
 				uint16_t uid = item->getUniqueID();
 				if (uid != 0) {

@@ -413,7 +413,7 @@ void MapCanvas::UpdatePositionStatus(int x, int y) {
 		} else if (tile->npc && g_settings.getInteger(Config::SHOW_NPCS)) {
 			ss << ("NPC");
 			ss << " \"" << wxstr(tile->npc->getName()) << "\" spawntime: " << tile->npc->getSpawnNpcTime();
-		} else if (const auto& item = tile->getTopItem()) {
+		} else if (const auto &item = tile->getTopItem()) {
 			ss << "Item \"" << wxstr(item->getName()) << "\"";
 			ss << " id:" << item->getID();
 			ss << " cid:" << item->getClientID();
@@ -620,7 +620,7 @@ void MapCanvas::OnMouseLeftDoubleClick(wxMouseEvent &event) {
 		// Show npc spawn
 		else if (new_tile->spawnNpc && g_settings.getInteger(Config::SHOW_SPAWNS_NPC)) {
 			dialog = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, new_tile->spawnNpc);
-		} else if (const auto& item = new_tile->getTopItem()) {
+		} else if (const auto &item = new_tile->getTopItem()) {
 			if (editor.getMap().getVersion().otbm >= MAP_OTBM_4) {
 				dialog = newd PropertiesWindow(g_gui.root, &editor.getMap(), new_tile, item);
 			} else {
@@ -685,7 +685,7 @@ void MapCanvas::OnMouseActionClick(wxMouseEvent &event) {
 	if (event.ControlDown() && event.AltDown()) {
 		Tile* tile = editor.getMap().getTile(mouse_map_x, mouse_map_y, floor);
 		if (tile && tile->size() > 0) {
-			const auto& item = tile->getTopItem();
+			const auto &item = tile->getTopItem();
 			if (item && item->getRAWBrush()) {
 				g_gui.SelectBrush(item->getRAWBrush(), TILESET_RAW);
 			}
@@ -740,7 +740,7 @@ void MapCanvas::OnMouseActionClick(wxMouseEvent &event) {
 							selection.finish(); // Finish selection session
 							selection.updateSelectionCount();
 						} else {
-							const auto& item = tile->getTopItem();
+							const auto &item = tile->getTopItem();
 							if (item) {
 								selection.start(); // Start selection session
 								if (item->isSelected()) {
@@ -773,7 +773,7 @@ void MapCanvas::OnMouseActionClick(wxMouseEvent &event) {
 							selection.updateSelectionCount();
 							// Show npc spawn
 						} else {
-							const auto& item = tile->getTopItem();
+							const auto &item = tile->getTopItem();
 							if (item) {
 								selection.start(); // Start selection session
 								if (item->isSelected()) {
@@ -831,7 +831,7 @@ void MapCanvas::OnMouseActionClick(wxMouseEvent &event) {
 							drag_start_y = mouse_map_y;
 							drag_start_z = floor;
 						} else {
-							const auto& item = tile->getTopItem();
+							const auto &item = tile->getTopItem();
 							if (item) {
 								selection.add(tile, item);
 								dragging = true;
@@ -1204,7 +1204,7 @@ void MapCanvas::OnMouseActionRelease(wxMouseEvent &event) {
 							selection.updateSelectionCount();
 						}
 					} else {
-						const auto& item = tile->getTopItem();
+						const auto &item = tile->getTopItem();
 						if (item && !item->isSelected()) {
 							selection.start(); // Start a selection session
 							selection.add(tile, item);
@@ -1440,7 +1440,7 @@ void MapCanvas::OnMousePropertiesClick(wxMouseEvent &event) {
 		} else if (tile->spawnNpc && g_settings.getInteger(Config::SHOW_SPAWNS_NPC)) {
 			selection.add(tile, tile->spawnNpc);
 		} else {
-			const auto& item = tile->getTopItem();
+			const auto &item = tile->getTopItem();
 			if (item) {
 				selection.add(tile, item);
 			}
@@ -2012,7 +2012,7 @@ void MapCanvas::OnCopyServerId(wxCommandEvent &WXUNUSED(event)) {
 		ItemVector selected_items = tile->getSelectedItems();
 		ASSERT(selected_items.size() == 1);
 
-		const auto& item = selected_items.front();
+		const auto &item = selected_items.front();
 
 		wxTextDataObject* obj = new wxTextDataObject();
 		obj->SetText(i2ws(item->getID()));
@@ -2030,7 +2030,7 @@ void MapCanvas::OnCopyClientId(wxCommandEvent &WXUNUSED(event)) {
 		ItemVector selected_items = tile->getSelectedItems();
 		ASSERT(selected_items.size() == 1);
 
-		const auto& item = selected_items.front();
+		const auto &item = selected_items.front();
 
 		wxTextDataObject* obj = new wxTextDataObject();
 		obj->SetText(i2ws(item->getClientID()));
@@ -2048,7 +2048,7 @@ void MapCanvas::OnCopyName(wxCommandEvent &WXUNUSED(event)) {
 		ItemVector selected_items = tile->getSelectedItems();
 		ASSERT(selected_items.size() == 1);
 
-		const auto& item = selected_items.front();
+		const auto &item = selected_items.front();
 
 		wxTextDataObject* obj = new wxTextDataObject();
 		obj->SetText(wxstr(item->getName()));
@@ -2102,14 +2102,14 @@ void MapCanvas::OnRotateItem(wxCommandEvent &WXUNUSED(event)) {
 		return;
 	}
 
-	const auto& item = items.front();
+	const auto &item = items.front();
 	if (!item || !item->isRoteable()) {
 		return;
 	}
 
 	Action* action = editor.createAction(ACTION_ROTATE_ITEM);
 	Tile* new_tile = tile->deepCopy(editor.getMap());
-    const auto new_item = new_tile->getSelectedItems().front();
+	const auto new_item = new_tile->getSelectedItems().front();
 	new_item->doRotate();
 	action->addChange(std::make_shared<Change>(new_tile));
 
@@ -2122,7 +2122,7 @@ void MapCanvas::OnGotoDestination(wxCommandEvent &WXUNUSED(event)) {
 	Tile* tile = editor.getSelection().getSelectedTile();
 	ItemVector selected_items = tile->getSelectedItems();
 	ASSERT(selected_items.size() > 0);
-	const std::shared_ptr<Teleport>& teleport = static_self_cast<Teleport>(selected_items.front());
+	const std::shared_ptr<Teleport> &teleport = static_self_cast<Teleport>(selected_items.front());
 	if (teleport) {
 		Position pos = teleport->getDestination();
 		g_gui.SetScreenCenterPosition(pos);
@@ -2134,7 +2134,7 @@ void MapCanvas::OnCopyDestination(wxCommandEvent &WXUNUSED(event)) {
 	ItemVector selected_items = tile->getSelectedItems();
 	ASSERT(selected_items.size() > 0);
 
-	const std::shared_ptr<Teleport>& teleport = static_self_cast<Teleport>(selected_items.front());
+	const std::shared_ptr<Teleport> &teleport = static_self_cast<Teleport>(selected_items.front());
 	if (teleport) {
 		const Position &destination = teleport->getDestination();
 		int format = g_settings.getInteger(Config::COPY_POSITION_FORMAT);
@@ -2169,7 +2169,7 @@ void MapCanvas::OnSelectRAWBrush(wxCommandEvent &WXUNUSED(event)) {
 	if (!tile) {
 		return;
 	}
-	const auto& item = tile->getTopSelectedItem();
+	const auto &item = tile->getTopSelectedItem();
 
 	if (item && item->getRAWBrush()) {
 		g_gui.SelectBrush(item->getRAWBrush(), TILESET_RAW);
@@ -2199,7 +2199,7 @@ void MapCanvas::OnSelectDoodadBrush(wxCommandEvent &WXUNUSED(event)) {
 	if (!tile) {
 		return;
 	}
-	const auto& item = tile->getTopSelectedItem();
+	const auto &item = tile->getTopSelectedItem();
 
 	if (item) {
 		g_gui.SelectBrush(item->getDoodadBrush(), TILESET_DOODAD);
@@ -2214,7 +2214,7 @@ void MapCanvas::OnSelectDoorBrush(wxCommandEvent &WXUNUSED(event)) {
 	if (!tile) {
 		return;
 	}
-    const auto& item = tile->getTopSelectedItem();
+	const auto &item = tile->getTopSelectedItem();
 
 	if (item) {
 		g_gui.SelectBrush(item->getDoorBrush(), TILESET_TERRAIN);
@@ -2229,7 +2229,7 @@ void MapCanvas::OnSelectWallBrush(wxCommandEvent &WXUNUSED(event)) {
 	if (!tile) {
 		return;
 	}
-    const auto& wall = tile->getWall();
+	const auto &wall = tile->getWall();
 	WallBrush* wb = wall->getWallBrush();
 
 	if (wb) {
@@ -2245,7 +2245,7 @@ void MapCanvas::OnSelectCarpetBrush(wxCommandEvent &WXUNUSED(event)) {
 	if (!tile) {
 		return;
 	}
-    const auto& wall = tile->getCarpet();
+	const auto &wall = tile->getCarpet();
 	CarpetBrush* cb = wall->getCarpetBrush();
 
 	if (cb) {
@@ -2261,7 +2261,7 @@ void MapCanvas::OnSelectTableBrush(wxCommandEvent &WXUNUSED(event)) {
 	if (!tile) {
 		return;
 	}
-    const auto& wall = tile->getTable();
+	const auto &wall = tile->getTable();
 	TableBrush* tb = wall->getTableBrush();
 
 	if (tb) {
@@ -2484,13 +2484,13 @@ void MapPopupMenu::Update() {
 			bool hasCarpet = false;
 			bool hasTable = false;
 			std::shared_ptr<Item> topItem = nullptr;
-            std::shared_ptr<Item> topSelectedItem = (selected_items.size() == 1 ? selected_items.back() : nullptr);
+			std::shared_ptr<Item> topSelectedItem = (selected_items.size() == 1 ? selected_items.back() : nullptr);
 			Monster* topMonster = tile->monster;
 			SpawnMonster* topSpawnMonster = tile->spawnMonster;
 			Npc* topNpc = tile->npc;
 			SpawnNpc* topSpawnNpc = tile->spawnNpc;
 
-			for (const auto& item : tile->items) {
+			for (const auto &item : tile->items) {
 				if (item->isWall()) {
 					Brush* wb = item->getWallBrush();
 					if (wb && wb->visibleInPalette()) {

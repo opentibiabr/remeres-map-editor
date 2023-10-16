@@ -64,7 +64,7 @@ PropertiesWindow::~PropertiesWindow() {
 }
 
 void PropertiesWindow::Update() {
-	const std::shared_ptr<Container>& container = static_self_cast<Container>(edit_item);
+	const std::shared_ptr<Container> &container = static_self_cast<Container>(edit_item);
 	if (container) {
 		for (uint32_t i = 0; i < container->getVolume(); ++i) {
 			container_items[i]->setItem(container->getItem(i));
@@ -95,7 +95,7 @@ wxWindow* PropertiesWindow::createGeneralPanel(wxWindow* parent) {
 }
 
 wxWindow* PropertiesWindow::createContainerPanel(wxWindow* parent) {
-    const std::shared_ptr<Container>& container = static_self_cast<Container>(edit_item);
+	const std::shared_ptr<Container> &container = static_self_cast<Container>(edit_item);
 	wxPanel* panel = newd wxPanel(parent, ITEM_PROPERTIES_CONTAINER_TAB);
 	wxSizer* topSizer = newd wxBoxSizer(wxVERTICAL);
 
@@ -103,7 +103,7 @@ wxWindow* PropertiesWindow::createContainerPanel(wxWindow* parent) {
 
 	bool use_large_sprites = g_settings.getBoolean(Config::USE_LARGE_CONTAINER_ICONS);
 	for (uint32_t i = 0; i < container->getVolume(); ++i) {
-        std::shared_ptr<Item> item = container->getItem(i);
+		std::shared_ptr<Item> item = container->getItem(i);
 		ContainerItemButton* containerItemButton = newd ContainerItemButton(panel, use_large_sprites, i, edit_map, item);
 
 		container_items.push_back(containerItemButton);

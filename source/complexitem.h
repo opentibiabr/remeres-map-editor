@@ -41,7 +41,7 @@ public:
 		return this;
 	}
 
-    std::shared_ptr<Item> getItem(size_t index) const;
+	std::shared_ptr<Item> getItem(size_t index) const;
 
 	ItemVector &getVector() noexcept {
 		return contents;
@@ -69,7 +69,7 @@ class Teleport : public Item {
 public:
 	Teleport(const uint16_t type);
 
-    std::shared_ptr<Item> deepCopy() const override;
+	std::shared_ptr<Item> deepCopy() const override;
 	Teleport* getTeleport() override {
 		return this;
 	}
@@ -106,7 +106,7 @@ class Door : public Item {
 public:
 	Door(const uint16_t type);
 
-    std::shared_ptr<Item> deepCopy() const override;
+	std::shared_ptr<Item> deepCopy() const override;
 	Door* getDoor() override {
 		return this;
 	}
@@ -131,7 +131,7 @@ class Depot : public Item {
 public:
 	Depot(const uint16_t _type);
 
-    std::shared_ptr<Item> deepCopy() const override;
+	std::shared_ptr<Item> deepCopy() const override;
 	Depot* getDepot() override {
 		return this;
 	}

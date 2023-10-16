@@ -33,7 +33,7 @@ public:
 };
 
 // Container Item Button
-class ContainerItemButton : public ItemButton, public SharedObject{
+class ContainerItemButton : public ItemButton, public SharedObject {
 	DECLARE_EVENT_TABLE()
 public:
 	ContainerItemButton(wxWindow* parent, bool large, int index, Map* map, std::shared_ptr<Item> item);
@@ -55,7 +55,7 @@ private:
 	static std::unique_ptr<ContainerItemPopupMenu> popup_menu;
 
 	Map* edit_map;
-    std::shared_ptr<Item> edit_item;
+	std::shared_ptr<Item> edit_item;
 
 	size_t index;
 

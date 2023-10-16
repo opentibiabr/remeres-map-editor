@@ -182,7 +182,7 @@ void TableBrush::doTables(BaseMap* map, Tile* tile) {
 	int32_t y = position.y;
 	int32_t z = position.z;
 
-	for (const auto& item : tile->items) {
+	for (const auto &item : tile->items) {
 		ASSERT(item);
 
 		TableBrush* table_brush = item->getTableBrush();
