@@ -344,13 +344,13 @@ void ReplaceItemsDialog::OnExecuteButtonClicked(wxCommandEvent &WXUNUSED(event))
 			BatchAction* batch = editor->createBatch(ACTION_REPLACE_ITEMS);
 			Action* action = editor->createAction(batch);
 			for (const auto &pair : result) {
-				Tile* new_tile = pair.first->deepCopy(editor->getMap());
+				const auto& new_tile = pair.first->deepCopy(editor->getMap());
 				int index = pair.first->getIndexOf(pair.second);
 				ASSERT(index != wxNOT_FOUND);
-				Item* item = new_tile->getItemAt(index);
+				const auto& item = new_tile->getItemAt(index);
 				ASSERT(item && item->getID() == pair.second->getID());
 				transformItem(item, info.withId, new_tile);
-				action->addChange(new Change(new_tile));
+				action->addChange(std::make_shared<Change>(new_tile));
 				total++;
 			}
 			batch->addAndCommitAction(action);

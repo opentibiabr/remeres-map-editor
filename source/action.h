@@ -66,11 +66,11 @@ struct WaypointData {
 
 class Change {
 public:
-	Change(Tile* tile);
+	explicit Change(Tile* tile);
 	~Change();
 
-	static Change* Create(House* house, const Position &position);
-	static Change* Create(Waypoint* waypoint, const Position &position);
+	static std::shared_ptr<Change> Create(House* house, const Position &position);
+	static std::shared_ptr<Change> Create(Waypoint* waypoint, const Position &position);
 
 	void clear();
 
@@ -83,15 +83,16 @@ public:
 
 	uint32_t memsize() const;
 
+    Change();
+
 private:
-	Change();
 	ChangeType type;
 	void* data;
 
 	friend class Action;
 };
 
-typedef std::vector<Change*> ChangeList;
+typedef std::vector<std::shared_ptr<Change>> ChangeList;
 
 // A dirty list represents a list of all tiles that was changed in an action
 class DirtyList {
@@ -114,7 +115,7 @@ public:
 	typedef std::set<ValueType, Comparator> SetType;
 
 	void AddPosition(int x, int y, int z);
-	void AddChange(Change* c);
+	void AddChange(const std::shared_ptr<Change> &c);
 	bool Empty() const {
 		return iset.empty() && ichanges.empty();
 	}
@@ -130,7 +131,7 @@ class Action {
 public:
 	virtual ~Action();
 
-	void addChange(Change* t) {
+	void addChange(const std::shared_ptr<Change> &t) {
 		changes.push_back(t);
 	}
 

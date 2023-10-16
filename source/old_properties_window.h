@@ -25,13 +25,13 @@
 class ContainerItemButton;
 class ContainerItemPopupMenu;
 
-class OldPropertiesWindow : public ObjectPropertiesWindowBase {
+class OldPropertiesWindow : public ObjectPropertiesWindowBase, public SharedObject {
 public:
-	OldPropertiesWindow(wxWindow* parent, const Map* map, const Tile* tile, Item* item, wxPoint = wxDefaultPosition);
-	OldPropertiesWindow(wxWindow* parent, const Map* map, const Tile* tile, Monster* monster, wxPoint = wxDefaultPosition);
-	OldPropertiesWindow(wxWindow* parent, const Map* map, const Tile* tile, SpawnMonster* spawnMonster, wxPoint = wxDefaultPosition);
-	OldPropertiesWindow(wxWindow* parent, const Map* map, const Tile* tile, Npc* npc, wxPoint = wxDefaultPosition);
-	OldPropertiesWindow(wxWindow* parent, const Map* map, const Tile* tile, SpawnNpc* spawnNpc, wxPoint = wxDefaultPosition);
+	OldPropertiesWindow(wxWindow* parent, Map* map, Tile* tile, std::shared_ptr<Item> item, wxPoint = wxDefaultPosition);
+	OldPropertiesWindow(wxWindow* parent, Map* map, Tile* tile, Monster* monster, wxPoint = wxDefaultPosition);
+	OldPropertiesWindow(wxWindow* parent, Map* map, Tile* tile, SpawnMonster* spawnMonster, wxPoint = wxDefaultPosition);
+	OldPropertiesWindow(wxWindow* parent, Map* map, Tile* tile, Npc* npc, wxPoint = wxDefaultPosition);
+	OldPropertiesWindow(wxWindow* parent, Map* map, Tile* tile, SpawnNpc* spawnNpc, wxPoint = wxDefaultPosition);
 	virtual ~OldPropertiesWindow();
 
 	void OnFocusChange(wxFocusEvent &);

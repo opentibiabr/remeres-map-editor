@@ -26,7 +26,7 @@ class Door;
 
 class Houses;
 
-class House {
+class House : public SharedObject{
 public:
 	House(Map &map);
 
@@ -50,8 +50,8 @@ public:
 	const Position &getExit() const noexcept {
 		return exit;
 	}
-	uint8_t getEmptyDoorID() const;
-	Position getDoorPositionByID(uint8_t id) const;
+	uint8_t getEmptyDoorID();
+	Position getDoorPositionByID(uint8_t id);
 
 protected:
 	Map* map;

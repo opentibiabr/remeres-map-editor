@@ -275,7 +275,7 @@ void LivePeer::parseReceiveChanges(NetworkMessage &message) {
 		do {
 			Tile* tile = readTile(tileNode, editor, nullptr);
 			if (tile) {
-				action->addChange(newd Change(tile));
+				action->addChange(std::make_shared<Change>(tile));
 			}
 		} while (tileNode->advance());
 	}

@@ -791,8 +791,8 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 
 		if (offset != Position(0, 0, 0)) {
 			for (ItemVector::iterator iter = import_tile->items.begin(); iter != import_tile->items.end(); ++iter) {
-				Item* item = *iter;
-				if (Teleport* teleport = dynamic_cast<Teleport*>(item)) {
+				const auto& item = *iter;
+				if (std::shared_ptr<Teleport> teleport = static_self_cast<Teleport>(item)) {
 					teleport->setDestination(teleport->getDestination() + offset);
 				}
 			}
@@ -862,7 +862,7 @@ void Editor::borderizeSelection() {
 		Tile* new_tile = tile->deepCopy(map);
 		new_tile->borderize(&map);
 		new_tile->select();
-		action->addChange(new Change(new_tile));
+		action->addChange(std::make_shared<Change>(new_tile));
 	}
 	addAction(action);
 	updateActions();
@@ -904,15 +904,15 @@ void Editor::randomizeSelection() {
 		if (brush && brush->isReRandomizable()) {
 			brush->draw(&map, new_tile, nullptr);
 
-			Item* old_ground = tile->ground;
-			Item* new_ground = new_tile->ground;
+            const auto& old_ground = tile->ground;
+            const auto& new_ground = new_tile->ground;
 			if (old_ground && new_ground) {
 				new_ground->setActionID(old_ground->getActionID());
 				new_ground->setUniqueID(old_ground->getUniqueID());
 			}
 
 			new_tile->select();
-			action->addChange(new Change(new_tile));
+			action->addChange(std::make_shared<Change>(new_tile));
 		}
 	}
 	addAction(action);
@@ -935,7 +935,7 @@ void Editor::randomizeMap(bool showdialog) {
 
 		GroundBrush* groundBrush = tile->getGroundBrush();
 		if (groundBrush) {
-			Item* oldGround = tile->ground;
+			const auto& oldGround = tile->ground;
 
 			uint16_t actionId, uniqueId;
 			if (oldGround) {
@@ -947,7 +947,7 @@ void Editor::randomizeMap(bool showdialog) {
 			}
 			groundBrush->draw(&map, tile, nullptr);
 
-			Item* newGround = tile->ground;
+			const auto& newGround = tile->ground;
 			if (newGround) {
 				newGround->setActionID(actionId);
 				newGround->setUniqueID(uniqueId);
@@ -1057,7 +1057,7 @@ void Editor::moveSelection(const Position &offset) {
 		Tile* storage_tile = map.allocator(tile->getLocation());
 
 		ItemVector selected_items = new_tile->popSelectedItems();
-		for (Item* item : selected_items) {
+		for (const auto& item : selected_items) {
 			storage_tile->addItem(item);
 		}
 
@@ -1091,7 +1091,7 @@ void Editor::moveSelection(const Position &offset) {
 		}
 
 		storage.insert(storage_tile);
-		action->addChange(new Change(new_tile));
+		action->addChange(std::make_shared<Change>(new_tile));
 	}
 	batch_action->addAndCommitAction(action);
 
@@ -1158,7 +1158,7 @@ void Editor::moveSelection(const Position &offset) {
 			if (tile->ground && tile->ground->isSelected()) {
 				new_tile->selectGround();
 			}
-			action->addChange(new Change(new_tile));
+			action->addChange(std::make_shared<Change>(new_tile));
 		}
 		batch_action->addAndCommitAction(action);
 	}
@@ -1191,7 +1191,7 @@ void Editor::moveSelection(const Position &offset) {
 			tile->setLocation(location);
 			new_dest_tile = tile;
 		}
-		action->addChange(new Change(new_dest_tile));
+		action->addChange(std::make_shared<Change>(new_dest_tile));
 	}
 	batch_action->addAndCommitAction(action);
 
@@ -1274,7 +1274,7 @@ void Editor::moveSelection(const Position &offset) {
 				if (tile->ground->isSelected()) {
 					new_tile->selectGround();
 				}
-				action->addChange(new Change(new_tile));
+				action->addChange(std::make_shared<Change>(new_tile));
 			}
 		}
 		batch_action->addAndCommitAction(action);
@@ -1306,8 +1306,6 @@ void Editor::destroySelection() {
 			ItemVector tile_selection = newtile->popSelectedItems();
 			for (ItemVector::iterator iit = tile_selection.begin(); iit != tile_selection.end(); ++iit) {
 				++item_count;
-				// Delete the items from the tile
-				delete *iit;
 			}
 			// Monster
 			if (newtile->monster && newtile->monster->isSelected()) {
@@ -1338,7 +1336,7 @@ void Editor::destroySelection() {
 					}
 				}
 			}
-			action->addChange(newd Change(newtile));
+			action->addChange(std::make_shared<Change>(newtile));
 		}
 
 		batch->addAndCommitAction(action);
@@ -1359,12 +1357,12 @@ void Editor::destroySelection() {
 					new_tile->wallize(&map);
 					new_tile->tableize(&map);
 					new_tile->carpetize(&map);
-					action->addChange(newd Change(new_tile));
+					action->addChange(std::make_shared<Change>(new_tile));
 				} else {
 					Tile* new_tile = map.allocator(location);
 					new_tile->borderize(&map);
 					if (new_tile->size()) {
-						action->addChange(newd Change(new_tile));
+						action->addChange(std::make_shared<Change>(new_tile));
 					} else {
 						delete new_tile;
 					}
@@ -1408,7 +1406,7 @@ void removeDuplicateWalls(Tile* buffer, Tile* tile) {
 		return;
 	}
 
-	for (const Item* item : buffer->items) {
+	for (const auto& item : buffer->items) {
 		if (item) {
 			WallBrush* brush = item->getWallBrush();
 			if (brush) {
@@ -1463,14 +1461,14 @@ void Editor::drawInternal(Position offset, bool alt, bool dodraw) {
 						removeDuplicateWalls(buffer_tile, new_tile);
 						doSurroundingBorders(doodad_brush, tilestoborder, buffer_tile, new_tile);
 						new_tile->merge(buffer_tile);
-						action->addChange(newd Change(new_tile));
+						action->addChange(std::make_shared<Change>(new_tile));
 					}
 				} else {
 					Tile* new_tile = map.allocator(location);
 					removeDuplicateWalls(buffer_tile, new_tile);
 					doSurroundingBorders(doodad_brush, tilestoborder, buffer_tile, new_tile);
 					new_tile->merge(buffer_tile);
-					action->addChange(newd Change(new_tile));
+					action->addChange(std::make_shared<Change>(new_tile));
 				}
 			} else {
 				if (tile && !tile->isBlocking()) {
@@ -1488,7 +1486,7 @@ void Editor::drawInternal(Position offset, bool alt, bool dodraw) {
 						removeDuplicateWalls(buffer_tile, new_tile);
 						doSurroundingBorders(doodad_brush, tilestoborder, buffer_tile, new_tile);
 						new_tile->merge(buffer_tile);
-						action->addChange(newd Change(new_tile));
+						action->addChange(std::make_shared<Change>(new_tile));
 					}
 				}
 			}
@@ -1508,7 +1506,7 @@ void Editor::drawInternal(Position offset, bool alt, bool dodraw) {
 					Tile* new_tile = tile->deepCopy(map);
 					new_tile->borderize(&map);
 					new_tile->wallize(&map);
-					action->addChange(newd Change(new_tile));
+					action->addChange(std::make_shared<Change>(new_tile));
 				}
 			}
 			batch->addAndCommitAction(action);
@@ -1564,7 +1562,7 @@ void Editor::drawInternal(Position offset, bool alt, bool dodraw) {
 		} else {
 			brush->asWall()->undraw(&map, new_tile);
 		}
-		action->addChange(newd Change(new_tile));
+		action->addChange(std::make_shared<Change>(new_tile));
 		batch->addAndCommitAction(action);
 		addBatch(batch, 2);
 	} else if (brush->isSpawnMonster() || brush->isMonster()) {
@@ -1589,7 +1587,7 @@ void Editor::drawInternal(Position offset, bool alt, bool dodraw) {
 		} else {
 			brush->undraw(&map, new_tile);
 		}
-		action->addChange(newd Change(new_tile));
+		action->addChange(std::make_shared<Change>(new_tile));
 		batch->addAndCommitAction(action);
 		addBatch(batch, 2);
 	} else if (brush->isSpawnNpc() || brush->isNpc()) {
@@ -1614,7 +1612,7 @@ void Editor::drawInternal(Position offset, bool alt, bool dodraw) {
 		} else {
 			brush->undraw(&map, new_tile);
 		}
-		action->addChange(newd Change(new_tile));
+		action->addChange(std::make_shared<Change>(new_tile));
 		batch->addAndCommitAction(action);
 		addBatch(batch, 2);
 	}
@@ -1649,12 +1647,12 @@ void Editor::drawInternal(const PositionVector &tilestodraw, bool alt, bool dodr
 					Tile* new_tile = tile->deepCopy(map);
 					brush->draw(&map, new_tile);
 					new_tile->borderize(&map);
-					action->addChange(newd Change(new_tile));
+					action->addChange(std::make_shared<Change>(new_tile));
 				} else if (!dodraw && tile->hasOptionalBorder()) {
 					Tile* new_tile = tile->deepCopy(map);
 					brush->undraw(&map, new_tile);
 					new_tile->borderize(&map);
-					action->addChange(newd Change(new_tile));
+					action->addChange(std::make_shared<Change>(new_tile));
 				}
 			} else if (dodraw) {
 				Tile* new_tile = map.allocator(location);
@@ -1664,7 +1662,7 @@ void Editor::drawInternal(const PositionVector &tilestodraw, bool alt, bool dodr
 					delete new_tile;
 					continue;
 				}
-				action->addChange(newd Change(new_tile));
+				action->addChange(std::make_shared<Change>(new_tile));
 			}
 		}
 	} else {
@@ -1679,11 +1677,11 @@ void Editor::drawInternal(const PositionVector &tilestodraw, bool alt, bool dodr
 				} else {
 					brush->undraw(&map, new_tile);
 				}
-				action->addChange(newd Change(new_tile));
+				action->addChange(std::make_shared<Change>(new_tile));
 			} else if (dodraw) {
 				Tile* new_tile = map.allocator(location);
 				brush->draw(&map, new_tile, &alt);
-				action->addChange(newd Change(new_tile));
+				action->addChange(std::make_shared<Change>(new_tile));
 			}
 		}
 	}
@@ -1731,7 +1729,7 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 					g_gui.GetCurrentBrush()->undraw(&map, new_tile);
 					tilestoborder.push_back(*it);
 				}
-				action->addChange(newd Change(new_tile));
+				action->addChange(std::make_shared<Change>(new_tile));
 			} else if (dodraw) {
 				Tile* new_tile = map.allocator(location);
 				if (brush->isGround() && alt) {
@@ -1747,7 +1745,7 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 				} else {
 					g_gui.GetCurrentBrush()->draw(&map, new_tile, nullptr);
 				}
-				action->addChange(newd Change(new_tile));
+				action->addChange(std::make_shared<Change>(new_tile));
 			}
 		}
 
@@ -1768,7 +1766,7 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 						new_tile->carpetize(&map);
 					}
 					new_tile->borderize(&map);
-					action->addChange(newd Change(new_tile));
+					action->addChange(std::make_shared<Change>(new_tile));
 				} else {
 					Tile* new_tile = map.allocator(location);
 					if (brush->isEraser()) {
@@ -1779,7 +1777,7 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 					}
 					new_tile->borderize(&map);
 					if (new_tile->size() > 0) {
-						action->addChange(newd Change(new_tile));
+						action->addChange(std::make_shared<Change>(new_tile));
 					} else {
 						delete new_tile;
 					}
@@ -1803,11 +1801,11 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 				} else {
 					g_gui.GetCurrentBrush()->undraw(&map, new_tile);
 				}
-				action->addChange(newd Change(new_tile));
+				action->addChange(std::make_shared<Change>(new_tile));
 			} else if (dodraw) {
 				Tile* new_tile = map.allocator(location);
 				g_gui.GetCurrentBrush()->draw(&map, new_tile, nullptr);
-				action->addChange(newd Change(new_tile));
+				action->addChange(std::make_shared<Change>(new_tile));
 			}
 		}
 
@@ -1822,13 +1820,13 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 				if (tile && tile->hasTable()) {
 					Tile* new_tile = tile->deepCopy(map);
 					new_tile->tableize(&map);
-					action->addChange(newd Change(new_tile));
+					action->addChange(std::make_shared<Change>(new_tile));
 				}
 			} else if (brush->isCarpet()) {
 				if (tile && tile->hasCarpet()) {
 					Tile* new_tile = tile->deepCopy(map);
 					new_tile->carpetize(&map);
-					action->addChange(newd Change(new_tile));
+					action->addChange(std::make_shared<Change>(new_tile));
 				}
 			}
 		}
@@ -1863,7 +1861,7 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 				Tile* tile = draw_map->getTile(*it);
 				if (tile) {
 					tile->wallize(draw_map);
-					action->addChange(newd Change(tile));
+					action->addChange(std::make_shared<Change>(tile));
 				}
 			}
 			draw_map->clear(false);
@@ -1882,11 +1880,11 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 					} else {
 						g_gui.GetCurrentBrush()->undraw(&map, new_tile);
 					}
-					action->addChange(newd Change(new_tile));
+					action->addChange(std::make_shared<Change>(new_tile));
 				} else if (dodraw) {
 					Tile* new_tile = map.allocator(location);
 					g_gui.GetCurrentBrush()->draw(&map, new_tile);
-					action->addChange(newd Change(new_tile));
+					action->addChange(std::make_shared<Change>(new_tile));
 				}
 			}
 
@@ -1902,7 +1900,7 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 						Tile* new_tile = tile->deepCopy(map);
 						new_tile->wallize(&map);
 						// if(*tile == *new_tile) delete new_tile;
-						action->addChange(newd Change(new_tile));
+						action->addChange(std::make_shared<Change>(new_tile));
 					}
 				}
 				batch->addAndCommitAction(action);
@@ -1930,11 +1928,11 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 				} else {
 					door_brush->undraw(&map, new_tile);
 				}
-				action->addChange(newd Change(new_tile));
+				action->addChange(std::make_shared<Change>(new_tile));
 			} else if (dodraw) {
 				Tile* new_tile = map.allocator(location);
 				door_brush->draw(&map, new_tile, &alt);
-				action->addChange(newd Change(new_tile));
+				action->addChange(std::make_shared<Change>(new_tile));
 			}
 		}
 
@@ -1950,7 +1948,7 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 					Tile* new_tile = tile->deepCopy(map);
 					new_tile->wallize(&map);
 					// if(*tile == *new_tile) delete new_tile;
-					action->addChange(newd Change(new_tile));
+					action->addChange(std::make_shared<Change>(new_tile));
 				}
 			}
 			batch->addAndCommitAction(action);
@@ -1969,11 +1967,11 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 				} else {
 					g_gui.GetCurrentBrush()->undraw(&map, new_tile);
 				}
-				action->addChange(newd Change(new_tile));
+				action->addChange(std::make_shared<Change>(new_tile));
 			} else if (dodraw) {
 				Tile* new_tile = map.allocator(location);
 				g_gui.GetCurrentBrush()->draw(&map, new_tile);
-				action->addChange(newd Change(new_tile));
+				action->addChange(std::make_shared<Change>(new_tile));
 			}
 		}
 		addAction(action, 2);

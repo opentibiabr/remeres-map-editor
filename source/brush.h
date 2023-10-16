@@ -347,10 +347,10 @@ protected:
 //=============================================================================
 // Doorbrush, add doors, windows etc.
 
-class DoorBrush : public Brush {
+class DoorBrush : public Brush, public SharedObject{
 public:
-	DoorBrush(DoorType _doortype);
-	virtual ~DoorBrush();
+	explicit DoorBrush(DoorType _doortype);
+	~DoorBrush() override;
 
 	bool isDoor() const {
 		return true;
@@ -359,7 +359,7 @@ public:
 		return static_cast<DoorBrush*>(this);
 	}
 
-	static void switchDoor(Item* door);
+	static void switchDoor(std::shared_ptr<Item> door);
 
 	virtual bool canDraw(BaseMap* map, const Position &position) const;
 	virtual void draw(BaseMap* map, Tile* tile, void* parameter);

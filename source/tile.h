@@ -50,7 +50,7 @@ enum : uint8_t {
 class Tile {
 public: // Members
 	TileLocation* location;
-	Item* ground;
+	std::shared_ptr<Item> ground;
 	ItemVector items;
 	Monster* monster;
 	SpawnMonster* spawnMonster;
@@ -139,10 +139,10 @@ public: // Functions
 
 	bool hasProperty(enum ITEMPROPERTY prop) const;
 
-	int getIndexOf(Item* item) const;
-	Item* getTopItem() const; // Returns the topmost item, or nullptr if the tile is empty
-	Item* getItemAt(int index) const;
-	void addItem(Item* item);
+	int getIndexOf(std::shared_ptr<Item> item) const;
+	std::shared_ptr<Item> getTopItem() const; // Returns the topmost item, or nullptr if the tile is empty
+	std::shared_ptr<Item> getItemAt(int index) const;
+	void addItem(std::shared_ptr<Item> item);
 
 	void select();
 	void deselect();
@@ -159,7 +159,7 @@ public: // Functions
 
 	ItemVector popSelectedItems(bool ignoreTileSelected = false);
 	ItemVector getSelectedItems();
-	Item* getTopSelectedItem();
+	std::shared_ptr<Item> getTopSelectedItem();
 
 	// Refresh internal flags (such as selected etc.)
 	void update();
@@ -183,7 +183,7 @@ public: // Functions
 	void cleanBorders();
 
 	// Add a border item (added at the bottom of all items)
-	void addBorderItem(Item* item);
+	void addBorderItem(std::shared_ptr<Item> item);
 
 	// Borderize this tile
 	void borderize(BaseMap* parent);
@@ -191,12 +191,12 @@ public: // Functions
 	bool hasTable() const noexcept {
 		return testFlags(statflags, TILESTATE_HAS_TABLE);
 	}
-	Item* getTable() const;
+    std::shared_ptr<Item> getTable() const;
 
 	bool hasCarpet() const noexcept {
 		return testFlags(statflags, TILESTATE_HAS_CARPET);
 	}
-	Item* getCarpet() const;
+    std::shared_ptr<Item> getCarpet() const;
 
 	bool hasOptionalBorder() const noexcept {
 		return testFlags(statflags, TILESTATE_OP_BORDER);
@@ -210,14 +210,14 @@ public: // Functions
 	}
 
 	// Get the (first) wall of this tile
-	Item* getWall() const;
+	std::shared_ptr<Item> getWall() const;
 	bool hasWall() const;
 	// Remove all walls from the tile (for autowall) (only of those belonging to the specified brush
 	void cleanWalls(WallBrush* brush);
 	// Remove all walls from the tile
 	void cleanWalls(bool dontdelete = false);
 	// Add a wall item (same as just addItem, but an additional check to verify that it is a wall)
-	void addWallItem(Item* item);
+	void addWallItem(std::shared_ptr<Item> item);
 	// Wallize (name sucks, I know) this tile
 	void wallize(BaseMap* parent);
 	// Remove all tables from this tile
@@ -229,7 +229,7 @@ public: // Functions
 
 	// Has to do with houses
 	bool isHouseTile() const noexcept;
-	uint32_t getHouseID() const noexcept;
+	uint32_t getHouseID() noexcept;
 	void addHouseExit(House* house);
 	void removeHouseExit(House* house);
 	bool isHouseExit() const;
@@ -277,7 +277,7 @@ inline bool Tile::isHouseTile() const noexcept {
 	return house_id != 0;
 }
 
-inline uint32_t Tile::getHouseID() const noexcept {
+inline uint32_t Tile::getHouseID() noexcept {
 	return house_id;
 }
 

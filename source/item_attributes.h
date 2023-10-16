@@ -105,7 +105,7 @@ public:
 	ItemAttributeMap getAttributes() const;
 
 protected:
-	ItemAttributeMap* attributes;
+	std::shared_ptr<ItemAttributeMap> attributes;
 
 	void createAttributes();
 };

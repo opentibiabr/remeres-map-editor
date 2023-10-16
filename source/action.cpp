@@ -34,15 +34,15 @@ Change::Change(Tile* tile) :
 	data = tile;
 }
 
-Change* Change::Create(House* house, const Position &position) {
-	Change* change = new Change();
+std::shared_ptr<Change> Change::Create(House* house, const Position &position) {
+	std::shared_ptr<Change> change = std::make_shared<Change>();
 	change->type = CHANGE_MOVE_HOUSE_EXIT;
 	change->data = new HouseData { house->id, position };
 	return change;
 }
 
-Change* Change::Create(Waypoint* waypoint, const Position &position) {
-	Change* change = new Change();
+std::shared_ptr<Change> Change::Create(Waypoint* waypoint, const Position &position) {
+	auto change = std::make_shared<Change>();
 	change->type = CHANGE_MOVE_WAYPOINT;
 	change->data = new WaypointData { waypoint->name, position };
 	return change;
@@ -96,9 +96,6 @@ Action::Action(Editor &editor, ActionIdentifier ident) :
 }
 
 Action::~Action() {
-	for (Change* change : changes) {
-		delete change;
-	}
 	changes.clear();
 }
 
@@ -110,9 +107,9 @@ size_t Action::approx_memsize() const {
 
 size_t Action::memsize() const {
 	uint32_t mem = sizeof(*this);
-	mem += sizeof(Change*) * 3 * changes.size();
+	mem += sizeof(const std::shared_ptr<Change>&) * 3 * changes.size();
 
-	for (const Change* change : changes) {
+	for (const auto& change : changes) {
 		if (change && change->getType() == CHANGE_TILE) {
 			mem += reinterpret_cast<Tile*>(change->getData())->memsize();
 		}
@@ -126,7 +123,7 @@ void Action::commit(DirtyList* dirty_list) {
 	Selection &selection = editor.getSelection();
 	selection.start(Selection::INTERNAL);
 
-	for (Change* change : changes) {
+	for (const auto& change : changes) {
 		switch (change->getType()) {
 			case CHANGE_TILE: {
 				void** data = &change->data;
@@ -283,7 +280,7 @@ void Action::undo(DirtyList* dirty_list) {
 	Selection &selection = editor.getSelection();
 	selection.start(Selection::INTERNAL);
 
-	for (Change* change : changes) {
+	for (const auto& change : changes) {
 		switch (change->getType()) {
 			case CHANGE_TILE: {
 				void** data = &change->data;
@@ -724,7 +721,7 @@ void DirtyList::AddPosition(int x, int y, int z) {
 	}
 }
 
-void DirtyList::AddChange(Change* c) {
+void DirtyList::AddChange(const std::shared_ptr<Change> &c) {
 	ichanges.push_back(c);
 }
 

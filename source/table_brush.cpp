@@ -120,7 +120,6 @@ void TableBrush::undraw(BaseMap* map, Tile* t) {
 		if ((*it)->isTable()) {
 			TableBrush* tb = (*it)->getTableBrush();
 			if (tb == this) {
-				delete *it;
 				it = t->items.erase(it);
 			} else {
 				++it;
@@ -183,7 +182,7 @@ void TableBrush::doTables(BaseMap* map, Tile* tile) {
 	int32_t y = position.y;
 	int32_t z = position.z;
 
-	for (Item* item : tile->items) {
+	for (const auto& item : tile->items) {
 		ASSERT(item);
 
 		TableBrush* table_brush = item->getTableBrush();

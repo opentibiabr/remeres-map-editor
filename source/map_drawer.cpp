@@ -466,7 +466,7 @@ void MapDrawer::DrawSecondaryMap(int map_z) {
 
 			// Draw items
 			if (!hidden && !tile->items.empty()) {
-				for (const Item* item : tile->items) {
+				for (const auto& item : tile->items) {
 					if (item->isBorder()) {
 						BlitItem(draw_x, draw_y, tile, item, true, 160, r, g, b);
 					} else {
@@ -607,7 +607,7 @@ void MapDrawer::DrawDraggingShadow() {
 			ItemVector items = tile->getSelectedItems();
 			Tile* dest_tile = editor.getMap().getTile(pos);
 
-			for (Item* item : items) {
+			for (const auto& item : items) {
 				if (dest_tile) {
 					BlitItem(draw_x, draw_y, dest_tile, item, true, 160, 160, 160, 160);
 				} else {
@@ -662,7 +662,7 @@ void MapDrawer::DrawHigherFloors() {
 
 			bool hidden = options.hide_items_when_zoomed && zoom > 10.f;
 			if (!hidden && !tile->items.empty()) {
-				for (const Item* item : tile->items) {
+				for (const auto& item : tile->items) {
 					BlitItem(draw_x, draw_y, tile, item, false, 255, 255, 255, 96);
 				}
 			}
@@ -1115,7 +1115,7 @@ void MapDrawer::DrawBrush() {
 	}
 }
 
-void MapDrawer::BlitItem(int &draw_x, int &draw_y, const Tile* tile, const Item* item, bool ephemeral, int red, int green, int blue, int alpha) {
+void MapDrawer::BlitItem(int &draw_x, int &draw_y, const Tile* tile, std::shared_ptr<Item> item, bool ephemeral, int red, int green, int blue, int alpha) {
 	const ItemType &type = g_items.getItemType(item->getID());
 	if (type.id == 0) {
 		glDisable(GL_TEXTURE_2D);
@@ -1218,7 +1218,7 @@ void MapDrawer::BlitItem(int &draw_x, int &draw_y, const Tile* tile, const Item*
 	}
 }
 
-void MapDrawer::BlitItem(int &draw_x, int &draw_y, const Position &pos, const Item* item, bool ephemeral, int red, int green, int blue, int alpha) {
+void MapDrawer::BlitItem(int &draw_x, int &draw_y, const Position &pos, std::shared_ptr<Item> item, bool ephemeral, int red, int green, int blue, int alpha) {
 	const ItemType &type = g_items.getItemType(item->getID());
 	if (type.id == 0) {
 		return;
@@ -1424,7 +1424,7 @@ void MapDrawer::BlitCreature(int screenx, int screeny, const Npc* npc, int red, 
 	BlitCreature(screenx, screeny, npc->getLookType(), npc->getDirection(), red, green, blue, alpha);
 }
 
-void MapDrawer::WriteTooltip(const Item* item, std::ostringstream &stream) {
+void MapDrawer::WriteTooltip(std::shared_ptr<Item> item, std::ostringstream &stream) {
 	if (!item) {
 		return;
 	}
@@ -1582,7 +1582,7 @@ void MapDrawer::DrawTile(TileLocation* location) {
 	bool hidden = only_colors || (options.hide_items_when_zoomed && zoom > 10.f);
 
 	if (!hidden && !tile->items.empty()) {
-		for (Item* item : tile->items) {
+		for (const auto& item : tile->items) {
 			if (show_tooltips && position.z == floor) {
 				WriteTooltip(item, tooltip);
 			}
@@ -1709,7 +1709,7 @@ void MapDrawer::DrawTileIndicators(TileLocation* location) {
 			green = 0x00;
 			blue = 0x00;
 		}
-		for (const Item* item : tile->items) {
+		for (const auto& item : tile->items) {
 			const ItemType &type = g_items.getItemType(item->getID());
 			if ((type.pickupable && options.show_pickupables) || (type.moveable && options.show_moveables)) {
 				if (type.pickupable && options.show_pickupables && type.moveable && options.show_moveables) {

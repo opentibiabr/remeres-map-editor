@@ -50,20 +50,7 @@ DoodadBrush::AlternativeBlock::AlternativeBlock() :
 }
 
 DoodadBrush::AlternativeBlock::~AlternativeBlock() {
-	for (std::vector<CompositeBlock>::iterator composite_iter = composite_items.begin(); composite_iter != composite_items.end(); ++composite_iter) {
-		CompositeTileList &tv = composite_iter->items;
-
-		for (CompositeTileList::iterator compt_iter = tv.begin(); compt_iter != tv.end(); ++compt_iter) {
-			ItemVector &items = compt_iter->second;
-			for (ItemVector::iterator iiter = items.begin(); iiter != items.end(); ++iiter) {
-				delete *iiter;
-			}
-		}
-	}
-
-	for (std::vector<SingleBlock>::iterator single_iter = single_items.begin(); single_iter != single_items.end(); ++single_iter) {
-		delete single_iter->item;
-	}
+	/////
 }
 
 bool DoodadBrush::loadAlternative(pugi::xml_node node, wxArrayString &warnings, AlternativeBlock* which) {
@@ -83,7 +70,7 @@ bool DoodadBrush::loadAlternative(pugi::xml_node node, wxArrayString &warnings, 
 				continue;
 			}
 
-			Item* item = Item::Create(childNode);
+			const auto& item = Item::Create(childNode);
 			if (!item) {
 				warnings.push_back("Can't create item from doodad item node.");
 				continue;
@@ -143,7 +130,7 @@ bool DoodadBrush::loadAlternative(pugi::xml_node node, wxArrayString &warnings, 
 						continue;
 					}
 
-					Item* item = Item::Create(itemNode);
+					const auto& item = Item::Create(itemNode);
 					if (item) {
 						items.push_back(item);
 
@@ -260,7 +247,7 @@ bool DoodadBrush::AlternativeBlock::ownsItem(uint16_t id) const {
 	return false;
 }
 
-bool DoodadBrush::ownsItem(Item* item) const {
+bool DoodadBrush::ownsItem(std::shared_ptr<Item> item) const {
 	if (item->getDoodadBrush() == this) {
 		return true;
 	}
@@ -277,20 +264,18 @@ bool DoodadBrush::ownsItem(Item* item) const {
 void DoodadBrush::undraw(BaseMap* map, Tile* tile) {
 	// Remove all doodad-related
 	for (ItemVector::iterator item_iter = tile->items.begin(); item_iter != tile->items.end();) {
-		Item* item = *item_iter;
+		const auto& item = *item_iter;
 		if (item->getDoodadBrush() != nullptr) {
 			if (item->isComplex() && g_settings.getInteger(Config::ERASER_LEAVE_UNIQUE)) {
 				++item_iter;
 			} else if (g_settings.getInteger(Config::DOODAD_BRUSH_ERASE_LIKE)) {
 				// Only delete items of the same doodad brush
 				if (ownsItem(item)) {
-					delete item;
 					item_iter = tile->items.erase(item_iter);
 				} else {
 					++item_iter;
 				}
 			} else {
-				delete item;
 				item_iter = tile->items.erase(item_iter);
 			}
 		} else {
@@ -302,11 +287,9 @@ void DoodadBrush::undraw(BaseMap* map, Tile* tile) {
 		if (g_settings.getInteger(Config::DOODAD_BRUSH_ERASE_LIKE)) {
 			// Only delete items of the same doodad brush
 			if (ownsItem(tile->ground)) {
-				delete tile->ground;
 				tile->ground = nullptr;
 			}
 		} else {
-			delete tile->ground;
 			tile->ground = nullptr;
 		}
 	}

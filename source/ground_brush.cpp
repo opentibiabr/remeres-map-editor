@@ -525,7 +525,6 @@ bool GroundBrush::load(pugi::xml_node node, wxArrayString &warnings) {
 void GroundBrush::undraw(BaseMap* map, Tile* tile) {
 	ASSERT(tile);
 	if (tile->hasGround() && tile->ground->getGroundBrush() == this) {
-		delete tile->ground;
 		tile->ground = nullptr;
 	}
 }
@@ -928,7 +927,7 @@ void GroundBrush::doBorders(BaseMap* map, Tile* tile) {
 			}
 			*/
 			uint32_t matches = 0;
-			for (Item* item : tile->items) {
+			for (const auto& item : tile->items) {
 				if (!item->isBorder()) {
 					break;
 				}
@@ -958,7 +957,7 @@ void GroundBrush::doBorders(BaseMap* map, Tile* tile) {
 				if (specificCaseBlock->delete_all) {
 					// Delete all matching borders
 					while (it != tileItems.end()) {
-						Item* item = *it;
+						const auto& item = *it;
 						if (!item->isBorder()) {
 							break;
 						}
@@ -966,7 +965,6 @@ void GroundBrush::doBorders(BaseMap* map, Tile* tile) {
 						bool inc = true;
 						for (uint16_t matchId : specificCaseBlock->items_to_match) {
 							if (item->getID() == matchId) {
-								delete item;
 								it = tileItems.erase(it);
 								inc = false;
 								break;
@@ -980,7 +978,7 @@ void GroundBrush::doBorders(BaseMap* map, Tile* tile) {
 				} else {
 					// All matched, replace!
 					while (it != tileItems.end()) {
-						Item* item = *it;
+						const auto& item = *it;
 						if (!item->isBorder()) {
 							return;
 						}

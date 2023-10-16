@@ -35,13 +35,13 @@ public:
 
 	// Selects the items on the tile/tiles
 	// Won't work outside a selection session
-	void add(const Tile* tile, Item* item);
+	void add(const Tile* tile, std::shared_ptr<Item> item);
 	void add(const Tile* tile, SpawnMonster* spawnMonster);
 	void add(const Tile* tile, SpawnNpc* spawnNpc);
 	void add(const Tile* tile, Monster* monster);
 	void add(const Tile* tile, Npc* npc);
 	void add(const Tile* tile);
-	void remove(Tile* tile, Item* item);
+	void remove(Tile* tile, std::shared_ptr<Item> item);
 	void remove(Tile* tile, SpawnMonster* spawnMonster);
 	void remove(Tile* tile, SpawnNpc* spawnNpc);
 	void remove(Tile* tile, Monster* monster);

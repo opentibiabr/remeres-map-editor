@@ -61,12 +61,10 @@ Tile::Tile(TileLocation &loc) :
 
 Tile::~Tile() {
 	while (!items.empty()) {
-		delete items.back();
 		items.pop_back();
 	}
 	delete monster;
 	// printf("%d,%d,%d,%p\n", tilePos.x, tilePos.y, tilePos.z, ground);
-	delete ground;
 	delete spawnMonster;
 	delete npc;
 	delete spawnNpc;
@@ -93,7 +91,7 @@ Tile* Tile::deepCopy(BaseMap &map) const {
 		copy->ground = ground->deepCopy();
 	}
 
-	for (const Item* item : items) {
+	for (const auto& item : items) {
 		copy->items.push_back(item->deepCopy());
 	}
 	return copy;
@@ -105,11 +103,11 @@ uint32_t Tile::memsize() const {
 		mem += ground->memsize();
 	}
 
-	for (const Item* item : items) {
+	for (const auto& item : items) {
 		mem += item->memsize();
 	}
 
-	mem += sizeof(Item*) * items.capacity();
+	mem += sizeof(std::shared_ptr<Item>) * items.capacity();
 
 	return mem;
 }
@@ -163,7 +161,6 @@ void Tile::merge(Tile* other) {
 	}
 
 	if (other->ground) {
-		delete ground;
 		ground = other->ground;
 		other->ground = nullptr;
 	}
@@ -204,7 +201,7 @@ void Tile::merge(Tile* other) {
 		other->npc = nullptr;
 	}
 
-	for (Item* item : other->items) {
+	for (const auto& item : other->items) {
 		addItem(item);
 	}
 	other->items.clear();
@@ -219,7 +216,7 @@ bool Tile::hasProperty(enum ITEMPROPERTY prop) const {
 		return true;
 	}
 
-	for (const Item* item : items) {
+	for (const auto& item : items) {
 		if (item->hasProperty(prop)) {
 			return true;
 		}
@@ -235,7 +232,7 @@ uint16_t Tile::getGroundSpeed() const noexcept {
 	return 0;
 }
 
-int Tile::getIndexOf(Item* item) const {
+int Tile::getIndexOf(std::shared_ptr<Item> item) const {
 	if (!item) {
 		return wxNOT_FOUND;
 	}
@@ -258,7 +255,7 @@ int Tile::getIndexOf(Item* item) const {
 	return wxNOT_FOUND;
 }
 
-Item* Tile::getTopItem() const {
+std::shared_ptr<Item> Tile::getTopItem() const {
 	if (!items.empty() && !items.back()->isMetaItem()) {
 		return items.back();
 	}
@@ -268,7 +265,7 @@ Item* Tile::getTopItem() const {
 	return nullptr;
 }
 
-Item* Tile::getItemAt(int index) const {
+std::shared_ptr<Item> Tile::getItemAt(int index) const {
 	if (index < 0) {
 		return nullptr;
 	}
@@ -284,13 +281,12 @@ Item* Tile::getItemAt(int index) const {
 	return nullptr;
 }
 
-void Tile::addItem(Item* item) {
+void Tile::addItem(std::shared_ptr<Item> item) {
 	if (!item) {
 		return;
 	}
 	if (item->isGroundTile()) {
 		// printf("ADDING GROUND\n");
-		delete ground;
 		ground = item;
 		return;
 	}
@@ -299,7 +295,6 @@ void Tile::addItem(Item* item) {
 
 	uint16_t gid = item->getGroundEquivalent();
 	if (gid != 0) {
-		delete ground;
 		ground = Item::Create(gid);
 		// At the very bottom!
 		it = items.begin();
@@ -350,7 +345,7 @@ void Tile::select() {
 		npc->select();
 	}
 
-	for (Item* item : items) {
+	for (const auto& item : items) {
 		item->select();
 	}
 
@@ -374,14 +369,14 @@ void Tile::deselect() {
 		npc->deselect();
 	}
 
-	for (Item* item : items) {
+	for (const auto& item : items) {
 		item->deselect();
 	}
 
 	statflags &= ~TILESTATE_SELECTED;
 }
 
-Item* Tile::getTopSelectedItem() {
+std::shared_ptr<Item> Tile::getTopSelectedItem() {
 	for (auto it = items.rbegin(); it != items.rend(); ++it) {
 		if ((*it)->isSelected() && !(*it)->isMetaItem()) {
 			return *it;
@@ -406,7 +401,7 @@ ItemVector Tile::popSelectedItems(bool ignoreTileSelected) {
 	}
 
 	for (auto it = items.begin(); it != items.end();) {
-		Item* item = (*it);
+		const auto& item = (*it);
 		if (item->isSelected()) {
 			pop_items.push_back(item);
 			it = items.erase(it);
@@ -430,7 +425,7 @@ ItemVector Tile::getSelectedItems() {
 		selected_items.push_back(ground);
 	}
 
-	for (Item* item : items) {
+	for (const auto& item : items) {
 		if (item->isSelected()) {
 			selected_items.push_back(item);
 		}
@@ -490,7 +485,7 @@ void Tile::update() {
 		}
 	}
 
-	for (const Item* item : items) {
+	for (const auto& item : items) {
 		if (item->isSelected()) {
 			statflags |= TILESTATE_SELECTED;
 		}
@@ -528,7 +523,7 @@ void Tile::borderize(BaseMap* parent) {
 	GroundBrush::doBorders(parent, this);
 }
 
-void Tile::addBorderItem(Item* item) {
+void Tile::addBorderItem(std::shared_ptr<Item> item) {
 	if (!item) {
 		return;
 	}
@@ -549,13 +544,11 @@ void Tile::cleanBorders() {
 	}
 
 	for (auto it = items.begin(); it != items.end();) {
-		Item* item = (*it);
+		const auto& item = (*it);
 		// Borders should only be on the bottom, we can ignore the rest of the items
 		if (!item->isBorder()) {
 			break;
 		}
-
-		delete item;
 		it = items.erase(it);
 	}
 }
@@ -564,8 +557,8 @@ void Tile::wallize(BaseMap* parent) {
 	WallBrush::doWalls(parent, this);
 }
 
-Item* Tile::getWall() const {
-	for (Item* item : items) {
+std::shared_ptr<Item> Tile::getWall() const {
+	for (const auto& item : items) {
 		if (item->isWall()) {
 			return item;
 		}
@@ -573,8 +566,8 @@ Item* Tile::getWall() const {
 	return nullptr;
 }
 
-Item* Tile::getCarpet() const {
-	for (Item* item : items) {
+std::shared_ptr<Item> Tile::getCarpet() const {
+	for (const auto& item : items) {
 		if (item->isCarpet()) {
 			return item;
 		}
@@ -582,8 +575,8 @@ Item* Tile::getCarpet() const {
 	return nullptr;
 }
 
-Item* Tile::getTable() const {
-	for (Item* item : items) {
+std::shared_ptr<Item> Tile::getTable() const {
+	for (const auto& item : items) {
 		if (item->isTable()) {
 			return item;
 		}
@@ -591,7 +584,7 @@ Item* Tile::getTable() const {
 	return nullptr;
 }
 
-void Tile::addWallItem(Item* item) {
+void Tile::addWallItem(std::shared_ptr<Item> item) {
 	if (!item) {
 		return;
 	}
@@ -606,10 +599,9 @@ void Tile::cleanWalls(bool dontdelete) {
 	}
 
 	for (auto it = items.begin(); it != items.end();) {
-		Item* item = (*it);
+		const auto& item = (*it);
 		if (item && item->isWall()) {
 			if (!dontdelete) {
-				delete item;
 			}
 			it = items.erase(it);
 		} else {
@@ -622,9 +614,8 @@ void Tile::cleanWalls(WallBrush* brush) {
 	ItemVector::iterator it;
 
 	for (auto it = items.begin(); it != items.end();) {
-		Item* item = (*it);
+		const auto& item = (*it);
 		if (item && item->isWall() && brush->hasWall(item)) {
-			delete item;
 			it = items.erase(it);
 		} else {
 			++it;
@@ -638,10 +629,9 @@ void Tile::cleanTables(bool dontdelete) {
 	}
 
 	for (auto it = items.begin(); it != items.end();) {
-		Item* item = (*it);
+		const auto& item = (*it);
 		if (item && item->isTable()) {
 			if (!dontdelete) {
-				delete item;
 			}
 			it = items.erase(it);
 		} else {
@@ -666,7 +656,7 @@ void Tile::selectGround() {
 	}
 	ItemVector::iterator it;
 
-	for (Item* item : items) {
+	for (const auto& item : items) {
 		if (!item->isBorder()) {
 			break;
 		}
@@ -683,7 +673,7 @@ void Tile::deselectGround() {
 	if (ground) {
 		ground->deselect();
 	}
-	for (Item* item : items) {
+	for (const auto& item : items) {
 		if (!item->isBorder()) {
 			break;
 		}

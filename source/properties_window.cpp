@@ -35,14 +35,14 @@ EVT_NOTEBOOK_PAGE_CHANGED(wxID_ANY, PropertiesWindow::OnNotebookPageChanged)
 EVT_GRID_CELL_CHANGED(PropertiesWindow::OnGridValueChanged)
 END_EVENT_TABLE()
 
-PropertiesWindow::PropertiesWindow(wxWindow* parent, const Map* map, const Tile* tile_parent, Item* item, wxPoint pos) :
+PropertiesWindow::PropertiesWindow(wxWindow* parent, Map* map, Tile* tile_parent, std::shared_ptr<Item> item, wxPoint pos) :
 	ObjectPropertiesWindowBase(parent, "Item Properties", map, tile_parent, item, pos),
 	currentPanel(nullptr) {
 	ASSERT(edit_item);
 	notebook = newd wxNotebook(this, wxID_ANY, wxDefaultPosition, wxSize(600, 300));
 
 	notebook->AddPage(createGeneralPanel(notebook), "Simple", true);
-	if (dynamic_cast<Container*>(item)) {
+	if (static_self_cast<Container>(item)) {
 		notebook->AddPage(createContainerPanel(notebook), "Contents");
 	}
 	notebook->AddPage(createAttributesPanel(notebook), "Advanced");
@@ -64,7 +64,7 @@ PropertiesWindow::~PropertiesWindow() {
 }
 
 void PropertiesWindow::Update() {
-	Container* container = dynamic_cast<Container*>(edit_item);
+	const std::shared_ptr<Container>& container = static_self_cast<Container>(edit_item);
 	if (container) {
 		for (uint32_t i = 0; i < container->getVolume(); ++i) {
 			container_items[i]->setItem(container->getItem(i));
@@ -95,7 +95,7 @@ wxWindow* PropertiesWindow::createGeneralPanel(wxWindow* parent) {
 }
 
 wxWindow* PropertiesWindow::createContainerPanel(wxWindow* parent) {
-	Container* container = (Container*)edit_item;
+    const std::shared_ptr<Container>& container = static_self_cast<Container>(edit_item);
 	wxPanel* panel = newd wxPanel(parent, ITEM_PROPERTIES_CONTAINER_TAB);
 	wxSizer* topSizer = newd wxBoxSizer(wxVERTICAL);
 
@@ -103,7 +103,7 @@ wxWindow* PropertiesWindow::createContainerPanel(wxWindow* parent) {
 
 	bool use_large_sprites = g_settings.getBoolean(Config::USE_LARGE_CONTAINER_ICONS);
 	for (uint32_t i = 0; i < container->getVolume(); ++i) {
-		Item* item = container->getItem(i);
+        std::shared_ptr<Item> item = container->getItem(i);
 		ContainerItemButton* containerItemButton = newd ContainerItemButton(panel, use_large_sprites, i, edit_map, item);
 
 		container_items.push_back(containerItemButton);

@@ -160,7 +160,7 @@ namespace MenuBar {
 
 class MainFrame;
 
-class MainMenuBar : public wxEvtHandler {
+class MainMenuBar : public wxEvtHandler, public SharedObject {
 public:
 	MainMenuBar(MainFrame* frame);
 	virtual ~MainMenuBar();

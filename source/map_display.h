@@ -31,7 +31,7 @@ class MapPopupMenu;
 class AnimationTimer;
 class MapDrawer;
 
-class MapCanvas : public wxGLCanvas {
+class MapCanvas : public wxGLCanvas, public SharedObject {
 public:
 	MapCanvas(MapWindow* parent, Editor &editor, int* attriblist);
 	virtual ~MapCanvas();
@@ -196,7 +196,7 @@ private:
 };
 
 // Right-click popup menu
-class MapPopupMenu : public wxMenu {
+class MapPopupMenu : public wxMenu, public SharedObject{
 public:
 	MapPopupMenu(Editor &editor);
 	virtual ~MapPopupMenu();

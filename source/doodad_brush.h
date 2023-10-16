@@ -76,7 +76,7 @@ public:
 	bool doNewBorders() const {
 		return do_new_borders;
 	}
-	bool ownsItem(Item* item) const;
+	bool ownsItem(std::shared_ptr<Item> item) const;
 
 	virtual bool canSmear() const {
 		return draggable;
@@ -117,7 +117,7 @@ protected:
 
 	struct SingleBlock {
 		int chance;
-		Item* item;
+        std::shared_ptr<Item> item;
 	};
 
 	struct CompositeBlock {

@@ -194,6 +194,7 @@ private:
 
 template <typename ForeachType>
 inline void foreach_ItemOnMap(Map &map, ForeachType &foreach, bool selectedTiles) {
+    SharedObject beats;
 	MapIterator tileiter = map.begin();
 	MapIterator end = map.end();
 	long long done = 0;
@@ -211,12 +212,11 @@ inline void foreach_ItemOnMap(Map &map, ForeachType &foreach, bool selectedTiles
 				;
 		}
 
-		std::queue<Container*> containers;
+		std::queue<std::shared_ptr<Container>> containers;
 		for (ItemVector::iterator itemiter = tile->items.begin(); itemiter != tile->items.end(); ++itemiter) {
-			Item* item = *itemiter;
-			Container* container = dynamic_cast<Container*>(item);
-			foreach (map, tile, item, done)
-				;
+			const auto& item = *itemiter;
+			std::shared_ptr<Container> container = beats.static_self_cast<Container>(item);
+			foreach (map, tile, item, done);
 			if (container) {
 				containers.push(container);
 
@@ -224,10 +224,9 @@ inline void foreach_ItemOnMap(Map &map, ForeachType &foreach, bool selectedTiles
 					container = containers.front();
 					ItemVector &v = container->getVector();
 					for (ItemVector::iterator containeriter = v.begin(); containeriter != v.end(); ++containeriter) {
-						Item* i = *containeriter;
-						Container* c = dynamic_cast<Container*>(i);
-						foreach (map, tile, i, done)
-							;
+						const auto& i = *containeriter;
+						const std::shared_ptr<Container>& c = beats.static_self_cast<Container>(i);
+						foreach (map, tile, i, done);
 						if (c) {
 							containers.push(c);
 						}
@@ -291,17 +290,15 @@ inline int64_t RemoveItemOnMap(Map &map, RemoveIfType &condition, bool selectedO
 
 		if (tile->ground) {
 			if (condition(map, tile->ground, removed, done)) {
-				delete tile->ground;
 				tile->ground = nullptr;
 				++removed;
 			}
 		}
 
 		for (auto iit = tile->items.begin(); iit != tile->items.end();) {
-			Item* item = *iit;
+			const auto& item = *iit;
 			if (condition(map, item, removed, done)) {
 				iit = tile->items.erase(iit);
-				delete item;
 				++removed;
 			} else {
 				++iit;

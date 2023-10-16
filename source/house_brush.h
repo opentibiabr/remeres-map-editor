@@ -26,7 +26,7 @@
 // Should be deleted by the owning palette
 
 // Forward declaration
-class HouseBrush : public Brush {
+class HouseBrush : public Brush, public SharedObject {
 public:
 	HouseBrush();
 	virtual ~HouseBrush();

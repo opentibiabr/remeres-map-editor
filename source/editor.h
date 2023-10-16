@@ -32,7 +32,7 @@ class LiveClient;
 class LiveServer;
 class LiveSocket;
 
-class Editor {
+class Editor : public SharedObject {
 public:
 	Editor(CopyBuffer &copybuffer, LiveClient* client);
 	Editor(CopyBuffer &copybuffer, const FileName &fn);

@@ -329,7 +329,7 @@ bool Materials::unserializeTileset(pugi::xml_node node, wxArrayString &warnings)
 	return true;
 }
 
-bool Materials::isInTileset(Item* item, std::string tilesetName) const {
+bool Materials::isInTileset(std::shared_ptr<Item> item, std::string tilesetName) const {
 	const ItemType &type = g_items.getItemType(item->getID());
 	return type.id != 0 && (isInTileset(type.brush, tilesetName) || isInTileset(type.doodad_brush, tilesetName) || isInTileset(type.raw_brush, tilesetName));
 }

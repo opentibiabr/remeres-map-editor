@@ -36,7 +36,7 @@ typedef uint8_t attribute_t;
 typedef uint32_t flags_t;
 
 // H4X
-void reform(Map* map, Tile* tile, Item* item) {
+void reform(Map* map, Tile* tile, std::shared_ptr<Item> item) {
 	/*
 	int aid = item->getActionID();
 	int id = item->getID();
@@ -58,7 +58,7 @@ void reform(Map* map, Tile* tile, Item* item) {
 // ============================================================================
 // Item
 
-Item* Item::Create_OTBM(const IOMap &maphandle, BinaryNode* stream) {
+std::shared_ptr<Item> Item::Create_OTBM(const IOMap &maphandle, BinaryNode* stream) {
 	uint16_t id;
 	if (!stream->getU16(id)) {
 		return nullptr;
@@ -332,13 +332,12 @@ bool Container::unserializeItemNode_OTBM(const IOMap &maphandle, BinaryNode* nod
 				return false;
 			}
 
-			Item* item = Item::Create_OTBM(maphandle, child);
+			const auto& item = Item::Create_OTBM(maphandle, child);
 			if (!item) {
 				return false;
 			}
 
 			if (!item->unserializeItemNode_OTBM(maphandle, child)) {
-				delete item;
 				return false;
 			}
 
@@ -360,7 +359,7 @@ bool Container::serializeItemNode_OTBM(const IOMap &maphandle, NodeFileWriteHand
 	}
 
 	serializeItemAttributes_OTBM(maphandle, file);
-	for (Item* item : contents) {
+	for (const auto& item : contents) {
 		item->serializeItemNode_OTBM(maphandle, file);
 	}
 
@@ -820,7 +819,7 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 								break;
 							}
 							case OTBM_ATTR_ITEM: {
-								Item* item = Item::Create_OTBM(*this, tileNode);
+								const auto& item = Item::Create_OTBM(*this, tileNode);
 								if (item == nullptr) {
 									warning("Invalid item at tile %d:%d:%d", pos.x, pos.y, pos.z);
 								}
@@ -837,7 +836,7 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 					// printf("Didn't die in loop\n");
 
 					for (BinaryNode* itemNode = tileNode->getChild(); itemNode != nullptr; itemNode = itemNode->advance()) {
-						Item* item = nullptr;
+                        std::shared_ptr<Item> item = nullptr;
 						uint8_t item_type;
 						if (!itemNode->getByte(item_type)) {
 							warning("Unknown item type %d:%d:%d", pos.x, pos.y, pos.z);
@@ -1573,12 +1572,12 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 				}
 
 				if (save_tile->ground) {
-					Item* ground = save_tile->ground;
+					const auto& ground = save_tile->ground;
 					if (ground->isMetaItem()) {
 						// Do nothing, we don't save metaitems...
 					} else if (ground->hasBorderEquivalent()) {
 						bool found = false;
-						for (Item* item : save_tile->items) {
+						for (const auto& item : save_tile->items) {
 							if (item->getGroundEquivalent() == ground->getID()) {
 								// Do nothing
 								// Found equivalent
@@ -1598,7 +1597,7 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 					}
 				}
 
-				for (Item* item : save_tile->items) {
+				for (const auto& item : save_tile->items) {
 					if (!item->isMetaItem()) {
 						item->serializeItemNode_OTBM(self, f);
 					}

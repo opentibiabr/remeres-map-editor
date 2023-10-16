@@ -1100,7 +1100,7 @@ void SortableListBox::DoSort() {
 // ============================================================================
 // Object properties base
 
-ObjectPropertiesWindowBase::ObjectPropertiesWindowBase(wxWindow* parent, wxString title, const Map* map, const Tile* tile, Item* item, wxPoint position /* = wxDefaultPosition */) :
+ObjectPropertiesWindowBase::ObjectPropertiesWindowBase(wxWindow* parent, wxString title, Map* map, Tile* tile, std::shared_ptr<Item> item, wxPoint position /* = wxDefaultPosition */) :
 	wxDialog(parent, wxID_ANY, title, position, wxSize(600, 400), wxCAPTION | wxCLOSE_BOX | wxRESIZE_BORDER),
 	edit_map(map),
 	edit_tile(tile),
@@ -1112,7 +1112,7 @@ ObjectPropertiesWindowBase::ObjectPropertiesWindowBase(wxWindow* parent, wxStrin
 	////
 }
 
-ObjectPropertiesWindowBase::ObjectPropertiesWindowBase(wxWindow* parent, wxString title, const Map* map, const Tile* tile, Monster* monster, wxPoint position /* = wxDefaultPosition */) :
+ObjectPropertiesWindowBase::ObjectPropertiesWindowBase(wxWindow* parent, wxString title, Map* map, Tile* tile, Monster* monster, wxPoint position /* = wxDefaultPosition */) :
 	wxDialog(parent, wxID_ANY, title, position, wxSize(600, 400), wxCAPTION | wxCLOSE_BOX | wxRESIZE_BORDER),
 	edit_map(map),
 	edit_tile(tile),
@@ -1124,7 +1124,7 @@ ObjectPropertiesWindowBase::ObjectPropertiesWindowBase(wxWindow* parent, wxStrin
 	////
 }
 
-ObjectPropertiesWindowBase::ObjectPropertiesWindowBase(wxWindow* parent, wxString title, const Map* map, const Tile* tile, SpawnMonster* spawnMonster, wxPoint position /* = wxDefaultPosition */) :
+ObjectPropertiesWindowBase::ObjectPropertiesWindowBase(wxWindow* parent, wxString title, Map* map, Tile* tile, SpawnMonster* spawnMonster, wxPoint position /* = wxDefaultPosition */) :
 	wxDialog(parent, wxID_ANY, title, position, wxSize(600, 400), wxCAPTION | wxCLOSE_BOX | wxRESIZE_BORDER),
 	edit_map(map),
 	edit_tile(tile),
@@ -1136,7 +1136,7 @@ ObjectPropertiesWindowBase::ObjectPropertiesWindowBase(wxWindow* parent, wxStrin
 	////
 }
 
-ObjectPropertiesWindowBase::ObjectPropertiesWindowBase(wxWindow* parent, wxString title, const Map* map, const Tile* tile, Npc* npc, wxPoint position /* = wxDefaultPosition */) :
+ObjectPropertiesWindowBase::ObjectPropertiesWindowBase(wxWindow* parent, wxString title, Map* map, Tile* tile, Npc* npc, wxPoint position /* = wxDefaultPosition */) :
 	wxDialog(parent, wxID_ANY, title, position, wxSize(600, 400), wxCAPTION | wxCLOSE_BOX | wxRESIZE_BORDER),
 	edit_map(map),
 	edit_tile(tile),
@@ -1148,7 +1148,7 @@ ObjectPropertiesWindowBase::ObjectPropertiesWindowBase(wxWindow* parent, wxStrin
 	////
 }
 
-ObjectPropertiesWindowBase::ObjectPropertiesWindowBase(wxWindow* parent, wxString title, const Map* map, const Tile* tile, SpawnNpc* spawnNpc, wxPoint position /* = wxDefaultPosition */) :
+ObjectPropertiesWindowBase::ObjectPropertiesWindowBase(wxWindow* parent, wxString title, Map* map, Tile* tile, SpawnNpc* spawnNpc, wxPoint position /* = wxDefaultPosition */) :
 	wxDialog(parent, wxID_ANY, title, position, wxSize(600, 400), wxCAPTION | wxCLOSE_BOX | wxRESIZE_BORDER),
 	edit_map(map),
 	edit_tile(tile),
@@ -1160,7 +1160,7 @@ ObjectPropertiesWindowBase::ObjectPropertiesWindowBase(wxWindow* parent, wxStrin
 	////
 }
 
-Item* ObjectPropertiesWindowBase::getItemBeingEdited() {
+std::shared_ptr<Item> ObjectPropertiesWindowBase::getItemBeingEdited() {
 	return edit_item;
 }
 

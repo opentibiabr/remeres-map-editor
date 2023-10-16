@@ -33,10 +33,10 @@ public:
 };
 
 // Container Item Button
-class ContainerItemButton : public ItemButton {
+class ContainerItemButton : public ItemButton, public SharedObject{
 	DECLARE_EVENT_TABLE()
 public:
-	ContainerItemButton(wxWindow* parent, bool large, int index, const Map* map, Item* item);
+	ContainerItemButton(wxWindow* parent, bool large, int index, Map* map, std::shared_ptr<Item> item);
 	~ContainerItemButton();
 
 	void OnMouseDoubleLeftClick(wxMouseEvent &event);
@@ -47,15 +47,15 @@ public:
 	void OnRemoveItem(wxCommandEvent &event);
 
 	ObjectPropertiesWindowBase* getParentContainerWindow();
-	Container* getParentContainer();
+	std::shared_ptr<Container> getParentContainer();
 
-	void setItem(Item* item);
+	void setItem(std::shared_ptr<Item> item);
 
 private:
 	static std::unique_ptr<ContainerItemPopupMenu> popup_menu;
 
-	const Map* edit_map;
-	Item* edit_item;
+	Map* edit_map;
+    std::shared_ptr<Item> edit_item;
 
 	size_t index;
 

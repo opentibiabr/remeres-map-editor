@@ -342,7 +342,7 @@ int DoorBrush::getLookID() const {
 	}
 }
 
-void DoorBrush::switchDoor(Item* item) {
+void DoorBrush::switchDoor(std::shared_ptr<Item> item) {
 	ASSERT(item);
 	ASSERT(item->isBrushDoor());
 
@@ -387,7 +387,7 @@ bool DoorBrush::canDraw(BaseMap* map, const Position &position) const {
 		return false;
 	}
 
-	Item* item = tile->getWall();
+	const auto& item = tile->getWall();
 	if (!item) {
 		return false;
 	}
@@ -440,7 +440,7 @@ bool DoorBrush::canDraw(BaseMap* map, const Position &position) const {
 
 void DoorBrush::undraw(BaseMap* map, Tile* tile) {
 	for (ItemVector::iterator it = tile->items.begin(); it != tile->items.end(); ++it) {
-		Item* item = *it;
+		const auto& item = *it;
 		if (item->isBrushDoor()) {
 			item->getWallBrush()->draw(map, tile, nullptr);
 			if (g_settings.getInteger(Config::USE_AUTOMAGIC)) {
@@ -453,7 +453,7 @@ void DoorBrush::undraw(BaseMap* map, Tile* tile) {
 
 void DoorBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 	for (ItemVector::iterator item_iter = tile->items.begin(); item_iter != tile->items.end();) {
-		Item* item = *item_iter;
+		auto item = *item_iter;
 		if (!item->isWall()) {
 			++item_iter;
 			continue;
@@ -516,7 +516,7 @@ void DoorBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 
 		if (g_settings.getInteger(Config::AUTO_ASSIGN_DOORID) && tile->isHouseTile()) {
 			Map* mmap = dynamic_cast<Map*>(map);
-			Door* door = dynamic_cast<Door*>(item);
+			const std::shared_ptr<Door> &door = static_self_cast<Door>(item);
 			if (mmap && door) {
 				House* house = mmap->houses.getHouse(tile->getHouseID());
 				ASSERT(house);

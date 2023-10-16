@@ -47,22 +47,19 @@ bool EraserBrush::canDraw(BaseMap* map, const Position &position) const {
 
 void EraserBrush::undraw(BaseMap* map, Tile* tile) {
 	for (ItemVector::iterator item_iter = tile->items.begin(); item_iter != tile->items.end();) {
-		Item* item = *item_iter;
+		const auto& item = *item_iter;
 		if (item->isComplex() && g_settings.getInteger(Config::ERASER_LEAVE_UNIQUE)) {
 			++item_iter;
 		} else {
-			delete item;
 			item_iter = tile->items.erase(item_iter);
 		}
 	}
 	if (tile->ground) {
 		if (g_settings.getInteger(Config::ERASER_LEAVE_UNIQUE)) {
 			if (!tile->ground->isComplex()) {
-				delete tile->ground;
 				tile->ground = nullptr;
 			}
 		} else {
-			delete tile->ground;
 			tile->ground = nullptr;
 		}
 	}
@@ -71,13 +68,12 @@ void EraserBrush::undraw(BaseMap* map, Tile* tile) {
 void EraserBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 	// Draw is undraw, undraw is super-undraw!
 	for (ItemVector::iterator item_iter = tile->items.begin(); item_iter != tile->items.end();) {
-		Item* item = *item_iter;
+		const auto& item = *item_iter;
 		if ((item->isComplex() || item->isBorder()) && g_settings.getInteger(Config::ERASER_LEAVE_UNIQUE)) {
 			++item_iter;
 			//} else if(item->getDoodadBrush()) {
 			//++item_iter;
 		} else {
-			delete item;
 			item_iter = tile->items.erase(item_iter);
 		}
 	}

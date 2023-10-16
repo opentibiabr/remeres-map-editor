@@ -27,7 +27,7 @@ ItemAttributes::ItemAttributes() :
 
 ItemAttributes::ItemAttributes(const ItemAttributes &o) {
 	if (o.attributes) {
-		attributes = newd ItemAttributeMap(*o.attributes);
+		attributes = std::make_shared<ItemAttributeMap>(*o.attributes);
 	}
 }
 
@@ -37,14 +37,11 @@ ItemAttributes::~ItemAttributes() {
 
 void ItemAttributes::createAttributes() {
 	if (!attributes) {
-		attributes = newd ItemAttributeMap;
+		attributes = std::make_shared<ItemAttributeMap>();
 	}
 }
 
 void ItemAttributes::clearAllAttributes() {
-	if (attributes) {
-		delete attributes;
-	}
 	attributes = nullptr;
 }
 

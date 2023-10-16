@@ -132,12 +132,12 @@ void House::removeTile(Tile* tile) {
 	}
 }
 
-uint8_t House::getEmptyDoorID() const {
+uint8_t House::getEmptyDoorID() {
 	std::set<uint8_t> taken;
 	for (PositionList::const_iterator tile_iter = tiles.begin(); tile_iter != tiles.end(); ++tile_iter) {
 		if (const Tile* tile = map->getTile(*tile_iter)) {
 			for (ItemVector::const_iterator item_iter = tile->items.begin(); item_iter != tile->items.end(); ++item_iter) {
-				if (Door* door = dynamic_cast<Door*>(*item_iter)) {
+				if (std::shared_ptr<Door> door = static_self_cast<Door>(*item_iter)) {
 					taken.insert(door->getDoorID());
 				}
 			}
@@ -154,11 +154,11 @@ uint8_t House::getEmptyDoorID() const {
 	return 255;
 }
 
-Position House::getDoorPositionByID(uint8_t id) const {
+Position House::getDoorPositionByID(uint8_t id) {
 	for (PositionList::const_iterator tile_iter = tiles.begin(); tile_iter != tiles.end(); ++tile_iter) {
 		if (const Tile* tile = map->getTile(*tile_iter)) {
 			for (ItemVector::const_iterator item_iter = tile->items.begin(); item_iter != tile->items.end(); ++item_iter) {
-				if (Door* door = dynamic_cast<Door*>(*item_iter)) {
+				if (const std::shared_ptr<Door> &door = static_self_cast<Door>(*item_iter)) {
 					if (door->getDoorID() == id) {
 						return *tile_iter;
 					}

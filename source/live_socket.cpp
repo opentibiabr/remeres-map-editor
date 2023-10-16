@@ -162,7 +162,7 @@ void LiveSocket::receiveFloor(NetworkMessage &message, Editor &editor, Action* a
 	if (tileBits == 0) {
 		for (uint_fast8_t x = 0; x < 4; ++x) {
 			for (uint_fast8_t y = 0; y < 4; ++y) {
-				action->addChange(new Change(map.allocator(node->createTile(ndx * 4 + x, ndy * 4 + y, z))));
+				action->addChange(std::make_shared<Change>(map.allocator(node->createTile(ndx * 4 + x, ndy * 4 + y, z))));
 			}
 		}
 		return;
@@ -185,7 +185,7 @@ void LiveSocket::receiveFloor(NetworkMessage &message, Editor &editor, Action* a
 				receiveTile(tileNode, editor, action, &position);
 				tileNode->advance();
 			} else {
-				action->addChange(new Change(map.allocator(node->createTile(position.x, position.y, z))));
+				action->addChange(std::make_shared<Change>(map.allocator(node->createTile(position.x, position.y, z))));
 			}
 		}
 	}
@@ -233,7 +233,7 @@ void LiveSocket::receiveTile(BinaryNode* node, Editor &editor, Action* action, c
 
 	Tile* tile = readTile(node, editor, position);
 	if (tile) {
-		action->addChange(newd Change(tile));
+		action->addChange(std::make_shared<Change>(tile));
 	}
 }
 
@@ -254,7 +254,7 @@ void LiveSocket::sendTile(MemoryNodeFileWriteHandle &writer, Tile* tile, const P
 		writer.addU32(tile->getMapFlags());
 	}
 
-	Item* ground = tile->ground;
+	const auto& ground = tile->ground;
 	if (ground) {
 		if (ground->isComplex()) {
 			ground->serializeItemNode_OTBM(mapVersion, writer);
@@ -264,7 +264,7 @@ void LiveSocket::sendTile(MemoryNodeFileWriteHandle &writer, Tile* tile, const P
 		}
 	}
 
-	for (Item* item : tile->items) {
+	for (const auto& item : tile->items) {
 		item->serializeItemNode_OTBM(mapVersion, writer);
 	}
 
@@ -334,7 +334,7 @@ Tile* LiveSocket::readTile(BinaryNode* node, Editor &editor, const Position* pos
 				break;
 			}
 			case OTBM_ATTR_ITEM: {
-				Item* item = Item::Create_OTBM(mapVersion, node);
+				const auto& item = Item::Create_OTBM(mapVersion, node);
 				if (!item) {
 					// warning("Invalid item at tile %d:%d:%d", pos.x, pos.y, pos.z);
 				}
@@ -359,7 +359,7 @@ Tile* LiveSocket::readTile(BinaryNode* node, Editor &editor, const Position* pos
 			}
 
 			if (itemType == OTBM_ITEM) {
-				Item* item = Item::Create_OTBM(mapVersion, itemNode);
+				const auto& item = Item::Create_OTBM(mapVersion, itemNode);
 				if (item) {
 					if (!item->unserializeItemNode_OTBM(mapVersion, itemNode)) {
 						// warning("Couldn't unserialize item attributes at %d:%d:%d", pos.x, pos.y, pos.z);

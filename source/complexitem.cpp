@@ -28,23 +28,20 @@ Container::Container(const uint16_t type) :
 }
 
 Container::~Container() {
-	for (Item* item : contents) {
-		delete item;
-	}
 	contents.clear();
 }
 
-Item* Container::deepCopy() const {
-	Item* copy = Item::deepCopy();
+std::shared_ptr<Item> Container::deepCopy() const {
+	const auto& copy = Item::deepCopy();
 	if (Container* container = copy->getContainer()) {
-		for (const Item* item : contents) {
+		for (const auto& item : contents) {
 			container->contents.push_back(item->deepCopy());
 		}
 	}
 	return copy;
 }
 
-Item* Container::getItem(size_t index) const {
+std::shared_ptr<Item> Container::getItem(size_t index) const {
 	if (index >= 0 && index < contents.size()) {
 		return contents.at(index);
 	}
@@ -58,8 +55,8 @@ Teleport::Teleport(const uint16_t type) :
 	////
 }
 
-Item* Teleport::deepCopy() const {
-	Item* copy = Item::deepCopy();
+std::shared_ptr<Item> Teleport::deepCopy() const {
+	const auto& copy = Item::deepCopy();
 	if (Teleport* teleport = copy->getTeleport()) {
 		teleport->setDestination(destination);
 	}
@@ -73,8 +70,8 @@ Door::Door(const uint16_t type) :
 	////
 }
 
-Item* Door::deepCopy() const {
-	Item* copy = Item::deepCopy();
+std::shared_ptr<Item> Door::deepCopy() const {
+	const auto& copy = Item::deepCopy();
 	if (Door* door = copy->getDoor()) {
 		door->doorId = doorId;
 	}
@@ -88,8 +85,8 @@ Depot::Depot(const uint16_t type) :
 	////
 }
 
-Item* Depot::deepCopy() const {
-	Item* copy = Item::deepCopy();
+std::shared_ptr<Item> Depot::deepCopy() const {
+	const auto& copy = Item::deepCopy();
 	if (Depot* depot = copy->getDepot()) {
 		depot->depotId = depotId;
 	}

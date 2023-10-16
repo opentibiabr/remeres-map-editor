@@ -149,8 +149,8 @@ public:
 	}
 
 protected:
-	void BlitItem(int &screenx, int &screeny, const Tile* tile, const Item* item, bool ephemeral = false, int red = 255, int green = 255, int blue = 255, int alpha = 255);
-	void BlitItem(int &screenx, int &screeny, const Position &pos, const Item* item, bool ephemeral = false, int red = 255, int green = 255, int blue = 255, int alpha = 255);
+	void BlitItem(int &screenx, int &screeny, const Tile* tile, std::shared_ptr<Item> item, bool ephemeral = false, int red = 255, int green = 255, int blue = 255, int alpha = 255);
+	void BlitItem(int &screenx, int &screeny, const Position &pos, std::shared_ptr<Item> item, bool ephemeral = false, int red = 255, int green = 255, int blue = 255, int alpha = 255);
 	void BlitSpriteType(int screenx, int screeny, uint32_t spriteid, int red = 255, int green = 255, int blue = 255, int alpha = 255);
 	void BlitSpriteType(int screenx, int screeny, GameSprite* spr, int red = 255, int green = 255, int blue = 255, int alpha = 255);
 	void BlitCreature(int screenx, int screeny, const Monster* npc, int red = 255, int green = 255, int blue = 255, int alpha = 255);
@@ -162,7 +162,7 @@ protected:
 	void DrawTileIndicators(TileLocation* location);
 	void DrawIndicator(int x, int y, int indicator, uint8_t r = 255, uint8_t g = 255, uint8_t b = 255, uint8_t a = 255);
 	void DrawPositionIndicator(int z);
-	void WriteTooltip(const Item* item, std::ostringstream &stream);
+	void WriteTooltip(std::shared_ptr<Item> item, std::ostringstream &stream);
 	void WriteTooltip(const Waypoint* item, std::ostringstream &stream);
 	void MakeTooltip(int screenx, int screeny, const std::string &text, uint8_t r = 255, uint8_t g = 255, uint8_t b = 255);
 	void AddLight(TileLocation* location);

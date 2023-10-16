@@ -268,40 +268,40 @@ class ObjectPropertiesWindowBase : public wxDialog {
 public:
 	ObjectPropertiesWindowBase(
 		wxWindow* parent, wxString title,
-		const Map* map, const Tile* tile, Item* item,
+        Map* map, Tile* tile, std::shared_ptr<Item> item,
 		wxPoint position = wxDefaultPosition
 	);
 	ObjectPropertiesWindowBase(
 		wxWindow* parent, wxString title,
-		const Map* map, const Tile* tile, SpawnMonster* spawnMonster,
+		Map* map, Tile* tile, SpawnMonster* spawnMonster,
 		wxPoint position = wxDefaultPosition
 	);
 	ObjectPropertiesWindowBase(
 		wxWindow* parent, wxString title,
-		const Map* map, const Tile* tile, SpawnNpc* spawnNpc,
+		Map* map, Tile* tile, SpawnNpc* spawnNpc,
 		wxPoint position = wxDefaultPosition
 	);
 	ObjectPropertiesWindowBase(
 		wxWindow* parent, wxString title,
-		const Map* map, const Tile* tile, Npc* npc,
+		Map* map, Tile* tile, Npc* npc,
 		wxPoint position = wxDefaultPosition
 	);
 	ObjectPropertiesWindowBase(
 		wxWindow* parent, wxString title,
-		const Map* map, const Tile* tile, Monster* monster,
+		Map* map, Tile* tile, Monster* monster,
 		wxPoint position = wxDefaultPosition
 	);
 
-	Item* getItemBeingEdited();
+    std::shared_ptr<Item> getItemBeingEdited();
 	Monster* getMonsterBeingEdited();
 	SpawnMonster* getSpawnBeingEdited();
 	Npc* getNpcBeingEdited();
 	SpawnNpc* getSpawnNpcBeingEdited();
 
 protected:
-	const Map* edit_map;
-	const Tile* edit_tile;
-	Item* edit_item;
+	Map* edit_map;
+	Tile* edit_tile;
+    std::shared_ptr<Item> edit_item;
 	Monster* edit_monster;
 	SpawnMonster* edit_spawn_monster;
 	Npc* edit_npc;

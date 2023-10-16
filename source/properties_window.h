@@ -26,9 +26,9 @@ class ContainerItemButton;
 class ContainerItemPopupMenu;
 class ItemAttribute;
 
-class PropertiesWindow : public ObjectPropertiesWindowBase {
+class PropertiesWindow : public ObjectPropertiesWindowBase, public SharedObject {
 public:
-	PropertiesWindow(wxWindow* parent, const Map* map, const Tile* tile, Item* item, wxPoint position = wxDefaultPosition);
+	PropertiesWindow(wxWindow* parent, Map* map, Tile* tile, std::shared_ptr<Item> item, wxPoint position = wxDefaultPosition);
 	~PropertiesWindow();
 
 	void OnClickOK(wxCommandEvent &);

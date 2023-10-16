@@ -56,7 +56,7 @@ void HouseBrush::undraw(BaseMap* map, Tile* tile) {
 		for (ItemVector::iterator it = tile->items.begin();
 			 it != tile->items.end();
 			 ++it) {
-			if (Door* door = dynamic_cast<Door*>(*it)) {
+			if (std::shared_ptr<Door> door = static_self_cast<Door>(*it)) {
 				door->setDoorID(0);
 			}
 		}
@@ -73,9 +73,8 @@ void HouseBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 		for (ItemVector::iterator it = tile->items.begin();
 			 it != tile->items.end();
 			 /*..*/) {
-			Item* item = *it;
+			const auto& item = *it;
 			if (item->isNotMoveable() == 0) {
-				delete item;
 				it = tile->items.erase(it);
 			} else {
 				++it;
@@ -87,7 +86,7 @@ void HouseBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 		for (ItemVector::iterator it = tile->items.begin();
 			 it != tile->items.end();
 			 ++it) {
-			if (Door* door = dynamic_cast<Door*>(*it)) {
+			if (const std::shared_ptr<Door> &door = static_self_cast<Door>(*it)) {
 				if (door->getDoorID() == 0 || old_house_id != 0) {
 					Map* real_map = dynamic_cast<Map*>(map);
 					if (real_map) {

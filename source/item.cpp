@@ -30,36 +30,36 @@
 #include "table_brush.h"
 #include "wall_brush.h"
 
-Item* Item::Create(uint16_t id, uint16_t subtype /*= 0xFFFF*/) {
+std::shared_ptr<Item> Item::Create(uint16_t id, uint16_t subtype /*= 0xFFFF*/) {
 	if (id == 0) {
 		return nullptr;
 	}
 
 	const ItemType &type = g_items.getItemType(id);
 	if (type.id == 0) {
-		return newd Item(id, subtype);
+		return std::make_shared<Item>(id, subtype);
 	}
 
 	if (type.isDepot()) {
-		return new Depot(id);
+		return std::make_shared<Depot>(id);
 	} else if (type.isContainer()) {
-		return new Container(id);
+		return std::make_shared<Container>(id);
 	} else if (type.isTeleport()) {
-		return new Teleport(id);
+		return std::make_shared<Teleport>(id);
 	} else if (type.isDoor()) {
-		return new Door(id);
+		return std::make_shared<Door>(id);
 	} else if (subtype == 0xFFFF) {
 		if (type.isFluidContainer()) {
-			return new Item(id, LIQUID_NONE);
+			return std::make_shared<Item>(id, LIQUID_NONE);
 		} else if (type.isSplash()) {
-			return new Item(id, LIQUID_WATER);
+			return std::make_shared<Item>(id, LIQUID_WATER);
 		} else if (type.charges > 0) {
-			return new Item(id, type.charges);
+			return std::make_shared<Item>(id, type.charges);
 		} else {
-			return new Item(id, 1);
+			return std::make_shared<Item>(id, 1);
 		}
 	}
-	return new Item(id, subtype);
+	return std::make_shared<Item>(id, subtype);
 }
 
 Item::Item(unsigned short _type, unsigned short _count) :
@@ -76,54 +76,53 @@ Item::~Item() {
 	////
 }
 
-Item* Item::deepCopy() const {
-	Item* copy = Create(id, subtype);
+std::shared_ptr<Item> Item::deepCopy() const {
+	auto copy = Create(id, subtype);
 	if (copy) {
 		copy->selected = selected;
 		if (attributes) {
-			copy->attributes = newd ItemAttributeMap(*attributes);
+			copy->attributes = std::make_shared<ItemAttributeMap>(*attributes);
 		}
 	}
 	return copy;
 }
 
-Item* transformItem(Item* old_item, uint16_t new_id, Tile* parent) {
+std::shared_ptr<Item> transformItem(std::shared_ptr<Item> old_item, uint16_t new_id, Tile* parent) {
 	if (old_item == nullptr) {
 		return nullptr;
 	}
 
+    SharedObject beats;
 	old_item->setID(new_id);
 	// Through the magic of deepCopy, this will now be a pointer to an item of the correct type.
-	Item* new_item = old_item->deepCopy();
+	const auto& new_item = old_item->deepCopy();
 	if (parent) {
 		// Find the old item and remove it from the tile, insert this one instead!
 		if (old_item == parent->ground) {
-			delete old_item;
 			parent->ground = new_item;
 			return new_item;
 		}
 
-		std::queue<Container*> containers;
+		std::queue<std::shared_ptr<Container>> containers;
 		for (ItemVector::iterator item_iter = parent->items.begin(); item_iter != parent->items.end(); ++item_iter) {
 			if (*item_iter == old_item) {
-				delete old_item;
 				item_iter = parent->items.erase(item_iter);
 				parent->items.insert(item_iter, new_item);
 				return new_item;
 			}
 
-			Container* c = dynamic_cast<Container*>(*item_iter);
+			const std::shared_ptr<Container> &c = beats.static_self_cast<Container>(*item_iter);
 			if (c) {
 				containers.push(c);
 			}
 		}
 
 		while (containers.size() != 0) {
-			Container* container = containers.front();
+			const auto& container = containers.front();
 			ItemVector &v = container->getVector();
 			for (ItemVector::iterator item_iter = v.begin(); item_iter != v.end(); ++item_iter) {
-				Item* i = *item_iter;
-				Container* c = dynamic_cast<Container*>(i);
+				const auto& i = *item_iter;
+				const std::shared_ptr<Container>& c = beats.static_self_cast<Container>(i);
 				if (c) {
 					containers.push(c);
 				}
@@ -138,8 +137,6 @@ Item* transformItem(Item* old_item, uint16_t new_id, Tile* parent) {
 			containers.pop();
 		}
 	}
-
-	delete new_item;
 	return nullptr;
 }
 
@@ -524,7 +521,7 @@ uint16_t Item::LiquidName2ID(std::string liquid) {
 // ============================================================================
 // XML Saving & loading
 
-Item* Item::Create(pugi::xml_node xml) {
+std::shared_ptr<Item> Item::Create(pugi::xml_node xml) {
 	pugi::xml_attribute attribute;
 
 	uint16_t id = 0;

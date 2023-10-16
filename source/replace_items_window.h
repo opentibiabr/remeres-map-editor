@@ -89,7 +89,7 @@ struct ItemFinder {
 	ItemFinder(uint16_t itemid, int32_t limit = -1) :
 		itemid(itemid), limit(limit), exceeded(false) { }
 
-	void operator()(Map &map, Tile* tile, Item* item, long long done) {
+	void operator()(Map &map, Tile* tile, std::shared_ptr<Item> item, long long done) {
 		if (exceeded) {
 			return;
 		}
@@ -102,7 +102,7 @@ struct ItemFinder {
 		}
 	}
 
-	std::vector<std::pair<Tile*, Item*>> result;
+	std::vector<std::pair<Tile*, std::shared_ptr<Item>>> result;
 
 private:
 	uint16_t itemid;

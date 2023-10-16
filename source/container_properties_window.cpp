@@ -43,7 +43,7 @@ EVT_MENU(CONTAINER_POPUP_MENU_EDIT, ContainerItemButton::OnEditItem)
 EVT_MENU(CONTAINER_POPUP_MENU_REMOVE, ContainerItemButton::OnRemoveItem)
 END_EVENT_TABLE()
 
-ContainerItemButton::ContainerItemButton(wxWindow* parent, bool large, int _index, const Map* map, Item* item) :
+ContainerItemButton::ContainerItemButton(wxWindow* parent, bool large, int _index, Map* map, std::shared_ptr<Item> item) :
 	ItemButton(parent, (large ? RENDER_SIZE_32x32 : RENDER_SIZE_16x16), (item ? item->getClientID() : 0)),
 	edit_map(map),
 	edit_item(item),
@@ -63,7 +63,7 @@ void ContainerItemButton::OnMouseDoubleLeftClick(wxMouseEvent &WXUNUSED(event)) 
 		return;
 	}
 
-	Container* container = getParentContainer();
+	const auto& container = getParentContainer();
 	if (container->getVolume() > container->getItemCount()) {
 		OnAddItem(dummy);
 	}
@@ -82,10 +82,10 @@ void ContainerItemButton::OnAddItem(wxCommandEvent &WXUNUSED(event)) {
 	FindItemDialog dialog(GetParent(), "Choose Item to add", true);
 
 	if (dialog.ShowModal() == wxID_OK) {
-		Container* container = getParentContainer();
+		const auto& container = getParentContainer();
 		ItemVector &itemVector = container->getVector();
 
-		Item* item = Item::Create(dialog.getResultID());
+		const auto& item = Item::Create(dialog.getResultID());
 		if (index < itemVector.size()) {
 			itemVector.insert(itemVector.begin() + index, item);
 		} else {
@@ -134,7 +134,7 @@ void ContainerItemButton::OnRemoveItem(wxCommandEvent &WXUNUSED(event)) {
 		return;
 	}
 
-	Container* container = getParentContainer();
+	auto container = getParentContainer();
 	ItemVector &itemVector = container->getVector();
 
 	auto it = itemVector.begin();
@@ -147,7 +147,6 @@ void ContainerItemButton::OnRemoveItem(wxCommandEvent &WXUNUSED(event)) {
 	ASSERT(it != itemVector.end());
 
 	itemVector.erase(it);
-	delete edit_item;
 
 	ObjectPropertiesWindowBase* propertyWindow = getParentContainerWindow();
 	if (propertyWindow) {
@@ -155,7 +154,7 @@ void ContainerItemButton::OnRemoveItem(wxCommandEvent &WXUNUSED(event)) {
 	}
 }
 
-void ContainerItemButton::setItem(Item* item) {
+void ContainerItemButton::setItem(std::shared_ptr<Item> item) {
 	edit_item = item;
 	if (edit_item) {
 		SetSprite(edit_item->getClientID());
@@ -174,10 +173,10 @@ ObjectPropertiesWindowBase* ContainerItemButton::getParentContainerWindow() {
 	return nullptr;
 }
 
-Container* ContainerItemButton::getParentContainer() {
+std::shared_ptr<Container> ContainerItemButton::getParentContainer() {
 	ObjectPropertiesWindowBase* propertyWindow = getParentContainerWindow();
 	if (propertyWindow) {
-		return dynamic_cast<Container*>(propertyWindow->getItemBeingEdited());
+		return static_self_cast<Container>(propertyWindow->getItemBeingEdited());
 	}
 	return nullptr;
 }
@@ -209,7 +208,7 @@ void ContainerItemPopupMenu::Update(ContainerItemButton* btn) {
 		addItem = Append(CONTAINER_POPUP_MENU_ADD, "&Add Item", "Add a newd item to the container");
 	}
 
-	Container* parentContainer = btn->getParentContainer();
+	auto parentContainer = btn->getParentContainer();
 	if (parentContainer->getVolume() <= (int)parentContainer->getVector().size()) {
 		addItem->Enable(false);
 	}

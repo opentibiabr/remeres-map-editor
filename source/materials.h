@@ -37,7 +37,7 @@ public:
 	void createOtherTileset();
 	void createNpcTileset();
 
-	bool isInTileset(Item* item, std::string tileset) const;
+	bool isInTileset(std::shared_ptr<Item> item, std::string tileset) const;
 	bool isInTileset(Brush* brush, std::string tileset) const;
 
 protected:

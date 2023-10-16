@@ -35,13 +35,13 @@ public:
 
 	void OnDrawItem(wxDC &dc, const wxRect &rect, size_t index) const;
 	wxCoord OnMeasureItem(size_t index) const;
-	Item* GetSelectedItem();
+	std::shared_ptr<Item> GetSelectedItem();
 	void RemoveSelected();
 
 protected:
 	void UpdateItems();
 
-	typedef std::map<int, Item*> ItemsMap;
+	typedef std::map<int, std::shared_ptr<Item>> ItemsMap;
 	ItemsMap items;
 	Tile* edit_tile;
 };
@@ -57,7 +57,7 @@ BrowseTileListBox::~BrowseTileListBox() {
 
 void BrowseTileListBox::OnDrawItem(wxDC &dc, const wxRect &rect, size_t n) const {
 	ItemsMap::const_iterator item_iterator = items.find(int(n));
-	Item* item = item_iterator->second;
+	const auto& item = item_iterator->second;
 
 	Sprite* sprite = g_gui.gfx.getSprite(item->getClientID());
 	if (sprite) {
@@ -85,7 +85,7 @@ wxCoord BrowseTileListBox::OnMeasureItem(size_t n) const {
 	return 32;
 }
 
-Item* BrowseTileListBox::GetSelectedItem() {
+std::shared_ptr<Item> BrowseTileListBox::GetSelectedItem() {
 	if (GetItemCount() == 0 || GetSelectedCount() == 0) {
 		return nullptr;
 	}
@@ -100,12 +100,6 @@ void BrowseTileListBox::RemoveSelected() {
 
 	Clear();
 	items.clear();
-
-	// Delete the items from the tile
-	ItemVector tile_selection = edit_tile->popSelectedItems(true);
-	for (ItemVector::iterator iit = tile_selection.begin(); iit != tile_selection.end(); ++iit) {
-		delete *iit;
-	}
 
 	UpdateItems();
 	Refresh();
@@ -195,7 +189,7 @@ void BrowseTileWindow::OnClickDelete(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void BrowseTileWindow::OnClickSelectRaw(wxCommandEvent &WXUNUSED(event)) {
-	Item* item = item_list->GetSelectedItem();
+	const auto& item = item_list->GetSelectedItem();
 	if (item && item->getRAWBrush()) {
 		g_gui.SelectBrush(item->getRAWBrush(), TILESET_RAW);
 	}

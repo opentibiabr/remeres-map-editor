@@ -41,7 +41,7 @@ EVT_BUTTON(wxID_OK, OldPropertiesWindow::OnClickOK)
 EVT_BUTTON(wxID_CANCEL, OldPropertiesWindow::OnClickCancel)
 END_EVENT_TABLE()
 
-OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, const Tile* tile_parent, Item* item, wxPoint pos) :
+OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, Map* map, Tile* tile_parent, std::shared_ptr<Item> item, wxPoint pos) :
 	ObjectPropertiesWindowBase(win_parent, "Item Properties", map, tile_parent, item, pos),
 	count_field(nullptr),
 	direction_field(nullptr),
@@ -56,7 +56,7 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 	ASSERT(edit_item);
 
 	wxSizer* topsizer = newd wxBoxSizer(wxVERTICAL);
-	if (Container* container = dynamic_cast<Container*>(edit_item)) {
+	if (const std::shared_ptr<Container>& container = static_self_cast<Container>(edit_item)) {
 		// Container
 		wxSizer* boxsizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Container Properties");
 
@@ -96,7 +96,7 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 				horizontal_sizer = newd wxBoxSizer(wxHORIZONTAL);
 			}
 
-			Item* item = container->getItem(index);
+			const auto& item = container->getItem(index);
 			ContainerItemButton* containerItemButton = newd ContainerItemButton(this, use_large_sprites, index, map, item);
 
 			container_items.push_back(containerItemButton);
@@ -197,7 +197,7 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 		topsizer->Add(boxsizer, wxSizerFlags(0).Expand().Border(wxALL, 20));
 
 		// SetSize(220, 190);
-	} else if (Depot* depot = dynamic_cast<Depot*>(edit_item)) {
+	} else if (const std::shared_ptr<Depot>& depot = static_self_cast<Depot>(edit_item)) {
 		// Depot
 		wxSizer* boxsizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Depot Properties");
 		wxFlexGridSizer* subsizer = newd wxFlexGridSizer(2, 10, 10);
@@ -242,8 +242,8 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 		// SetSize(220, 140);
 	} else {
 		// Normal item
-		Door* door = dynamic_cast<Door*>(edit_item);
-		Teleport* teleport = dynamic_cast<Teleport*>(edit_item);
+		const std::shared_ptr<Door>& door = static_self_cast<Door>(edit_item);
+		const std::shared_ptr<Teleport>& teleport = static_self_cast<Teleport>(edit_item);
 
 		wxString description;
 		if (door) {
@@ -351,7 +351,7 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 	Centre(wxBOTH);
 }
 
-OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, const Tile* tile_parent, Monster* monster, wxPoint pos) :
+OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, Map* map, Tile* tile_parent, Monster* monster, wxPoint pos) :
 	ObjectPropertiesWindowBase(win_parent, "Monster Properties", map, tile_parent, monster, pos),
 	count_field(nullptr),
 	direction_field(nullptr),
@@ -403,7 +403,7 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 	Centre(wxBOTH);
 }
 
-OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, const Tile* tile_parent, SpawnMonster* spawnMonster, wxPoint pos) :
+OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, Map* map, Tile* tile_parent, SpawnMonster* spawnMonster, wxPoint pos) :
 	ObjectPropertiesWindowBase(win_parent, "Spawn Monster Properties", map, tile_parent, spawnMonster, pos),
 	count_field(nullptr),
 	direction_field(nullptr),
@@ -443,7 +443,7 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 	Centre(wxBOTH);
 }
 
-OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, const Tile* tile_parent, Npc* npc, wxPoint pos) :
+OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, Map* map, Tile* tile_parent, Npc* npc, wxPoint pos) :
 	ObjectPropertiesWindowBase(win_parent, "Npc Properties", map, tile_parent, npc, pos),
 	count_field(nullptr),
 	direction_field(nullptr),
@@ -495,7 +495,7 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 	Centre(wxBOTH);
 }
 
-OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, const Tile* tile_parent, SpawnNpc* spawnNpc, wxPoint pos) :
+OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, Map* map, Tile* tile_parent, SpawnNpc* spawnNpc, wxPoint pos) :
 	ObjectPropertiesWindowBase(win_parent, "Spawn Npc Properties", map, tile_parent, spawnNpc, pos),
 	count_field(nullptr),
 	direction_field(nullptr),
@@ -646,7 +646,7 @@ void OldPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 
 			if (door && g_settings.getInteger(Config::WARN_FOR_DUPLICATE_ID)) {
 				if (edit_tile && edit_tile->isHouseTile()) {
-					const House* house = edit_map->houses.getHouse(edit_tile->getHouseID());
+                    House* house = edit_map->houses.getHouse(edit_tile->getHouseID());
 					if (house) {
 						Position pos = house->getDoorPositionByID(new_door_id);
 						if (pos.isValid() && pos != edit_tile->getPosition()) {
@@ -727,7 +727,7 @@ void OldPropertiesWindow::OnClickCancel(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void OldPropertiesWindow::Update() {
-	Container* container = dynamic_cast<Container*>(edit_item);
+	std::shared_ptr<Container> container = static_self_cast<Container>(edit_item);
 	if (container) {
 		for (uint32_t i = 0; i < container->getVolume(); ++i) {
 			container_items[i]->setItem(container->getItem(i));

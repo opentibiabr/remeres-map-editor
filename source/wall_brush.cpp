@@ -261,7 +261,7 @@ void WallBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 	if (b) {
 		// Find a matching wall item on this tile, and shift the id
 		for (ItemVector::iterator item_iter = tile->items.begin(); item_iter != tile->items.end(); ++item_iter) {
-			Item* item = *item_iter;
+			const auto& item = *item_iter;
 			if (item->isWall()) {
 				WallBrush* wb = item->getWallBrush();
 				if (wb == this) {
@@ -359,7 +359,7 @@ bool hasMatchingWallBrushAtTile(BaseMap* map, WallBrush* wall_brush, uint32_t x,
 
 	ItemVector::const_iterator it = t->items.begin();
 	for (; it != t->items.end(); ++it) {
-		Item* item = *it;
+		const auto& item = *it;
 		if (item->isWall()) {
 			WallBrush* wb = item->getWallBrush();
 			if (wb == wall_brush) {
@@ -389,7 +389,7 @@ void WallBrush::doWalls(BaseMap* map, Tile* tile) {
 	ItemVector items_to_add;
 
 	while (it != tile->items.end()) {
-		Item* wall = *it;
+		const auto& wall = *it;
 		if (!wall->isWall()) {
 			++it;
 			continue;
@@ -466,7 +466,7 @@ void WallBrush::doWalls(BaseMap* map, Tile* tile) {
 				while (it != tile->items.end()) {
 					// If we have a decoration ontop of us, we need to change it's alignment aswell!
 
-					Item* wall_decoration = *it;
+					const auto& wall_decoration = *it;
 					ASSERT(wall_decoration);
 					WallBrush* brush = wall_decoration->getWallBrush();
 					if (brush && brush->isWallDecoration()) {
@@ -499,7 +499,7 @@ void WallBrush::doWalls(BaseMap* map, Tile* tile) {
 							}
 						}
 						if (id != 0) {
-							Item* new_wall = Item::Create(id);
+							const auto& new_wall = Item::Create(id);
 							if (wall_decoration->isSelected()) {
 								new_wall->select();
 							}
@@ -558,7 +558,7 @@ void WallBrush::doWalls(BaseMap* map, Tile* tile) {
 					continue;
 				} else {
 					// If there is such an item, add it to the tile
-					Item* new_wall = Item::Create(id);
+					const auto& new_wall = Item::Create(id);
 					if (wall->isSelected()) {
 						new_wall->select();
 					}
@@ -570,7 +570,7 @@ void WallBrush::doWalls(BaseMap* map, Tile* tile) {
 				// Increment and check for end
 				while (it != tile->items.end()) {
 					// If we have a decoration ontop of us, we need to change it's alignment aswell!
-					Item* wall_decoration = *it;
+					const auto& wall_decoration = *it;
 					WallBrush* brush = wall_decoration->getWallBrush();
 					if (brush && brush->isWallDecoration()) {
 						// We know we have changed alignment, so no need to check for it again.
@@ -595,7 +595,7 @@ void WallBrush::doWalls(BaseMap* map, Tile* tile) {
 							}
 						}
 						if (id != 0) {
-							Item* new_wall = Item::Create(id);
+							const auto& new_wall = Item::Create(id);
 							if (wall_decoration->isSelected()) {
 								new_wall->select();
 							}
@@ -616,7 +616,7 @@ void WallBrush::doWalls(BaseMap* map, Tile* tile) {
 	}
 }
 
-bool WallBrush::hasWall(Item* item) {
+bool WallBrush::hasWall(std::shared_ptr<Item> item) {
 	ASSERT(item->isWall());
 	::BorderType bt = item->getWallAlignment();
 
@@ -671,7 +671,7 @@ void WallDecorationBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 
 	tile->cleanWalls(this);
 	while (iter != tile->items.end()) {
-		Item* item = *iter;
+		const auto& item = *iter;
 		if (item->isBorder()) {
 			++iter;
 			continue;
@@ -748,7 +748,7 @@ void WallDecorationBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 			ASSERT(id);
 
 			// Add a matching item above this item.
-			Item* item = Item::Create(id);
+			const auto& item = Item::Create(id);
 			++iter;
 			iter = tile->items.insert(iter, item);
 		}

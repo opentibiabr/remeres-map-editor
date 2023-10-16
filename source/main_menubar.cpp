@@ -241,7 +241,7 @@ namespace OnMapRemoveItems {
 
 		uint16_t itemId;
 
-		bool operator()(Map &map, Item* item, int64_t removed, int64_t done) {
+		bool operator()(Map &map, std::shared_ptr<Item> item, int64_t removed, int64_t done) {
 			if (done % 0x8000 == 0) {
 				g_gui.SetLoadDone((uint32_t)(100 * done / map.getTileCount()));
 			}
@@ -872,13 +872,13 @@ namespace OnSearchForItem {
 
 		uint16_t itemId;
 		uint32_t maxCount;
-		std::vector<std::pair<Tile*, Item*>> result;
+		std::vector<std::pair<Tile*, std::shared_ptr<Item>>> result;
 
 		bool limitReached() const {
 			return result.size() >= (size_t)maxCount;
 		}
 
-		void operator()(Map &map, Tile* tile, Item* item, long long done) {
+		void operator()(Map &map, Tile* tile, std::shared_ptr<Item> item, long long done) {
 			if (result.size() >= (size_t)maxCount) {
 				return;
 			}
@@ -906,7 +906,7 @@ void MainMenuBar::OnSearchForItem(wxCommandEvent &WXUNUSED(event)) {
 		g_gui.CreateLoadBar("Searching map...");
 
 		foreach_ItemOnMap(g_gui.GetCurrentMap(), finder, false);
-		std::vector<std::pair<Tile*, Item*>> &result = finder.result;
+		std::vector<std::pair<Tile*, std::shared_ptr<Item>>> &result = finder.result;
 
 		g_gui.DestroyLoadBar();
 
@@ -918,9 +918,9 @@ void MainMenuBar::OnSearchForItem(wxCommandEvent &WXUNUSED(event)) {
 
 		SearchResultWindow* window = g_gui.ShowSearchWindow();
 		window->Clear();
-		for (std::vector<std::pair<Tile*, Item*>>::const_iterator iter = result.begin(); iter != result.end(); ++iter) {
+		for (std::vector<std::pair<Tile*, std::shared_ptr<Item>>>::const_iterator iter = result.begin(); iter != result.end(); ++iter) {
 			Tile* tile = iter->first;
-			Item* item = iter->second;
+            std::shared_ptr<Item> item = iter->second;
 			window->AddPosition(wxstr(item->getName()), tile->getPosition());
 		}
 
@@ -953,19 +953,20 @@ namespace OnSearchForStuff {
 		bool search_action;
 		bool search_container;
 		bool search_writeable;
-		std::vector<std::pair<Tile*, Item*>> found;
+		std::vector<std::pair<Tile*, std::shared_ptr<Item>>> found;
+        SharedObject beats;
 
-		void operator()(Map &map, Tile* tile, Item* item, long long done) {
+		void operator()(Map &map, Tile* tile, std::shared_ptr<Item> item, long long done) {
 			if (done % 0x8000 == 0) {
 				g_gui.SetLoadDone((unsigned int)(100 * done / map.getTileCount()));
 			}
-			Container* container;
-			if ((search_unique && item->getUniqueID() > 0) || (search_action && item->getActionID() > 0) || (search_container && ((container = dynamic_cast<Container*>(item)) && container->getItemCount())) || (search_writeable && item && item->getText().length() > 0)) {
+			std::shared_ptr<Container> container;
+			if ((search_unique && item->getUniqueID() > 0) || (search_action && item->getActionID() > 0) || (search_container && ((container = beats.static_self_cast<Container>(item)) && container->getItemCount())) || (search_writeable && item && item->getText().length() > 0)) {
 				found.push_back(std::make_pair(tile, item));
 			}
 		}
 
-		wxString desc(Item* item) {
+		wxString desc(std::shared_ptr<Item> item) {
 			wxString label;
 			if (item->getUniqueID() > 0) {
 				label << "UID:" << item->getUniqueID() << " ";
@@ -977,7 +978,7 @@ namespace OnSearchForStuff {
 
 			label << wxstr(item->getName());
 
-			if (dynamic_cast<Container*>(item)) {
+			if (beats.static_self_cast<Container>(item)) {
 				label << " (Container) ";
 			}
 
@@ -994,9 +995,9 @@ namespace OnSearchForStuff {
 			}
 		}
 
-		static bool compare(const std::pair<Tile*, Item*> &pair1, const std::pair<Tile*, Item*> &pair2) {
-			const Item* item1 = pair1.second;
-			const Item* item2 = pair2.second;
+		static bool compare(const std::pair<Tile*, const std::shared_ptr<Item>> &pair1, const std::pair<Tile*, const std::shared_ptr<Item>> &pair2) {
+			std::shared_ptr<Item> item1 = pair1.second;
+			std::shared_ptr<Item> item2 = pair2.second;
 
 			if (item1->getActionID() != 0 || item2->getActionID() != 0) {
 				return item1->getActionID() < item2->getActionID();
@@ -1061,7 +1062,7 @@ void MainMenuBar::OnSearchForItemOnSelection(wxCommandEvent &WXUNUSED(event)) {
 		g_gui.CreateLoadBar("Searching on selected area...");
 
 		foreach_ItemOnMap(g_gui.GetCurrentMap(), finder, true);
-		std::vector<std::pair<Tile*, Item*>> &result = finder.result;
+		std::vector<std::pair<Tile*, std::shared_ptr<Item>>> &result = finder.result;
 
 		g_gui.DestroyLoadBar();
 
@@ -1073,9 +1074,9 @@ void MainMenuBar::OnSearchForItemOnSelection(wxCommandEvent &WXUNUSED(event)) {
 
 		SearchResultWindow* window = g_gui.ShowSearchWindow();
 		window->Clear();
-		for (std::vector<std::pair<Tile*, Item*>>::const_iterator iter = result.begin(); iter != result.end(); ++iter) {
+		for (std::vector<std::pair<Tile*, std::shared_ptr<Item>>>::const_iterator iter = result.begin(); iter != result.end(); ++iter) {
 			Tile* tile = iter->first;
-			Item* item = iter->second;
+            std::shared_ptr<Item> item = iter->second;
 			window->AddPosition(wxstr(item->getName()), tile->getPosition());
 		}
 
@@ -1285,7 +1286,7 @@ namespace OnMapRemoveCorpses {
 	struct condition {
 		condition() { }
 
-		bool operator()(Map &map, Item* item, long long removed, long long done) {
+		bool operator()(Map &map, std::shared_ptr<Item> item, long long removed, long long done) {
 			if (done % 0x800 == 0) {
 				g_gui.SetLoadDone((unsigned int)(100 * done / map.getTileCount()));
 			}
@@ -1454,7 +1455,7 @@ void MainMenuBar::OnMapRemoveEmptyMonsterSpawns(wxCommandEvent &WXUNUSED(event))
 				// update progress bar for each 5 spawns removed
 				g_gui.SetLoadDone(100 * removed / count);
 			}
-			action->addChange(newd Change(newtile));
+			action->addChange(std::make_shared<Change>(newtile));
 		}
 
 		batch->addAndCommitAction(action);
@@ -1527,7 +1528,7 @@ void MainMenuBar::OnMapRemoveEmptyNpcSpawns(wxCommandEvent &WXUNUSED(event)) {
 				// update progress bar for each 5 spawns removed
 				g_gui.SetLoadDone(100 * removed / count);
 			}
-			action->addChange(newd Change(newtile));
+			action->addChange(std::make_shared<Change>(newtile));
 		}
 
 		batch->addAndCommitAction(action);
@@ -1692,7 +1693,7 @@ void MainMenuBar::OnMapStatistics(wxCommandEvent &WXUNUSED(event)) {
 			if ((_item)->getUniqueID() > 0) {                           \
 				unique_item_count += 1;                                 \
 			}                                                           \
-			if (Container* c = dynamic_cast<Container*>((_item))) {     \
+			if (const std::shared_ptr<Container>& c = static_self_cast<Container>((_item))) {     \
 				if (c->getVector().size()) {                            \
 					container_count += 1;                               \
 				}                                                       \
@@ -1703,7 +1704,7 @@ void MainMenuBar::OnMapStatistics(wxCommandEvent &WXUNUSED(event)) {
 			ANALYZE_ITEM(tile->ground);
 		}
 
-		for (Item* item : tile->items) {
+		for (const auto& item : tile->items) {
 			ANALYZE_ITEM(item);
 		}
 #undef ANALYZE_ITEM
@@ -2231,13 +2232,13 @@ void MainMenuBar::SearchItems(bool unique, bool action, bool container, bool wri
 
 	foreach_ItemOnMap(g_gui.GetCurrentMap(), searcher, onSelection);
 	searcher.sort();
-	std::vector<std::pair<Tile*, Item*>> &found = searcher.found;
+	std::vector<std::pair<Tile*, std::shared_ptr<Item>>> &found = searcher.found;
 
 	g_gui.DestroyLoadBar();
 
 	SearchResultWindow* result = g_gui.ShowSearchWindow();
 	result->Clear();
-	for (std::vector<std::pair<Tile*, Item*>>::iterator iter = found.begin(); iter != found.end(); ++iter) {
+	for (std::vector<std::pair<Tile*, std::shared_ptr<Item>>>::iterator iter = found.begin(); iter != found.end(); ++iter) {
 		result->AddPosition(searcher.desc(iter->second), iter->first->getPosition());
 	}
 }

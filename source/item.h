@@ -77,23 +77,23 @@ class Npc;
 
 struct SpriteLight;
 
-class Item : public ItemAttributes {
+class Item : public ItemAttributes, public SharedObject {
 public:
 	// Factory member to create item of right type based on type
-	static Item* Create(uint16_t id, uint16_t subtype = 0xFFFF);
-	static Item* Create(pugi::xml_node);
-	static Item* Create_OTBM(const IOMap &maphandle, BinaryNode* stream);
-	// static Item* Create_OTMM(const IOMap& maphandle, BinaryNode* stream);
+	static std::shared_ptr<Item> Create(uint16_t id, uint16_t subtype = 0xFFFF);
+	static std::shared_ptr<Item> Create(pugi::xml_node);
+	static std::shared_ptr<Item> Create_OTBM(const IOMap &maphandle, BinaryNode* stream);
+	// static std::shared_ptr<Item> Create_OTMM(const IOMap& maphandle, BinaryNode* stream);
+
+    Item(unsigned short _type, unsigned short _count);
 
 protected:
-	// Constructor for items
-	Item(unsigned short _type, unsigned short _count);
 
 public:
 	virtual ~Item();
 
 	// Deep copy thingy
-	virtual Item* deepCopy() const;
+	virtual std::shared_ptr<Item> deepCopy() const;
 
 	// Get memory footprint size
 	uint32_t memsize() const;
@@ -372,11 +372,11 @@ public:
 	}
 
 protected:
-	uint16_t id; // the same id as in ItemType
+	uint16_t id{}; // the same id as in ItemType
 	// Subtype is either fluid type, count, subtype or charges
-	uint16_t subtype;
-	bool selected;
-	int frame;
+	uint16_t subtype{};
+	bool selected{};
+	int frame{};
 
 private:
 	Item &operator=(const Item &i); // Can't copy
@@ -384,10 +384,10 @@ private:
 	Item &operator==(const Item &i); // Can't compare
 };
 
-typedef std::vector<Item*> ItemVector;
-typedef std::list<Item*> ItemList;
+typedef std::vector<std::shared_ptr<Item>> ItemVector;
+typedef std::list<std::shared_ptr<Item>> ItemList;
 
-Item* transformItem(Item* old_item, uint16_t new_id, Tile* parent = nullptr);
+std::shared_ptr<Item> transformItem(std::shared_ptr<Item> old_item, uint16_t new_id, Tile* parent = nullptr);
 
 inline int Item::getCount() const {
 	if (isStackable() || isExtraCharged() || isClientCharged()) {
