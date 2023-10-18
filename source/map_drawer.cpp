@@ -619,14 +619,14 @@ void MapDrawer::DrawDraggingShadow() {
 				BlitCreature(draw_x, draw_y, tile->monster);
 			}
 			if (tile->spawnMonster && tile->spawnMonster->isSelected()) {
-				DrawIndicator(draw_x, draw_y, EDITOR_SPRITE_SPAWNS, 160, 160, 160, 160);
+				DrawIndicator(draw_x, draw_y, EDITOR_SPRITE_MONSTERS, 160, 160, 160, 160);
 			}
 
 			if (options.show_npcs && tile->npc && tile->npc->isSelected()) {
 				BlitCreature(draw_x, draw_y, tile->npc);
 			}
 			if (tile->spawnNpc && tile->spawnNpc->isSelected()) {
-				DrawIndicator(draw_x, draw_y, EDITOR_SPRITE_SPAWNS, 160, 160, 160, 160);
+				DrawIndicator(draw_x, draw_y, EDITOR_SPRITE_NPCS, 160, 160, 160, 160);
 			}
 		}
 	}
@@ -1733,17 +1733,17 @@ void MapDrawer::DrawTileIndicators(TileLocation* location) {
 
 	if (options.show_spawns_monster && tile->spawnMonster) {
 		if (tile->spawnMonster->isSelected()) {
-			DrawIndicator(x, y, EDITOR_SPRITE_SPAWNS, 128, 128, 128);
+			DrawIndicator(x, y, EDITOR_SPRITE_MONSTERS, 128, 128, 128);
 		} else {
-			DrawIndicator(x, y, EDITOR_SPRITE_SPAWNS);
+			DrawIndicator(x, y, EDITOR_SPRITE_MONSTERS);
 		}
 	}
 
 	if (tile->spawnNpc && options.show_spawns_npc) {
 		if (tile->spawnNpc->isSelected()) {
-			DrawIndicator(x, y, SPRITE_SPAWN_NPC, 128, 128, 128);
+			DrawIndicator(x, y, EDITOR_SPRITE_NPCS, 128, 128, 128);
 		} else {
-			DrawIndicator(x, y, SPRITE_SPAWN_NPC, 255, 255, 255);
+			DrawIndicator(x, y, EDITOR_SPRITE_NPCS, 255, 255, 255);
 		}
 	}
 }

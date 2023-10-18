@@ -40,7 +40,8 @@
 #include "../icons/toolbar_hooks.xpm"
 #include "../icons/toolbar_pickupables.xpm"
 #include "../icons/toolbar_moveables.xpm"
-#include "../icons/spawns.xpm"
+#include "../icons/monsters.xpm"
+#include "../icons/npcs.xpm"
 #include "../icons/house_exit.xpm"
 #include "../icons/pickupable.xpm"
 #include "../icons/moveable.xpm"
@@ -145,8 +146,10 @@ wxBitmap ArtProvider::CreateBitmap(const wxArtID &id, const wxArtClient &client,
 			return wxBitmap(mini_change_xpm);
 		}
 	} else if (client == wxART_OTHER) {
-		if (id == ART_SPAWNS) {
-			return wxBitmap(spawns_xpm);
+		if (id == ART_MONSTERS) {
+			return wxBitmap(monsters_xpm);
+		} else if (id == ART_NPCS) {
+			return wxBitmap(npcs_xpm);
 		} else if (id == ART_HOUSE_EXIT) {
 			return wxBitmap(house_exit_xpm);
 		} else if (id == ART_PICKUPABLE) {

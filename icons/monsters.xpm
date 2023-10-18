@@ -1,5 +1,5 @@
 /* XPM */
-static const char *spawns_xpm[] = {
+static const char *monsters_xpm[] = {
 /* columns rows colors chars-per-pixel */
 "32 32 54 1 ",
 "  c black",

@@ -406,7 +406,8 @@ bool GraphicManager::loadEditorSprites() {
 		nullptr
 	);
 
-	sprite_space[EDITOR_SPRITE_SPAWNS] = GameSprite::createFromBitmap(ART_SPAWNS);
+	sprite_space[EDITOR_SPRITE_MONSTERS] = GameSprite::createFromBitmap(ART_MONSTERS);
+	sprite_space[EDITOR_SPRITE_NPCS] = GameSprite::createFromBitmap(ART_NPCS);
 	sprite_space[EDITOR_SPRITE_HOUSE_EXIT] = GameSprite::createFromBitmap(ART_HOUSE_EXIT);
 	sprite_space[EDITOR_SPRITE_PICKUPABLE_ITEM] = GameSprite::createFromBitmap(ART_PICKUPABLE);
 	sprite_space[EDITOR_SPRITE_MOVEABLE_ITEM] = GameSprite::createFromBitmap(ART_MOVEABLE);
