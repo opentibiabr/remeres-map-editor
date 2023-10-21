@@ -1910,6 +1910,7 @@ void MapDrawer::DrawTooltips() {
 		glEnable(GL_TEXTURE_2D);
 #endif
 	}
+}
 
 	void MapDrawer::MakeTooltip(int screenx, int screeny, const std::string &text, uint8_t r, uint8_t g, uint8_t b) {
 		if (text.empty()) {
