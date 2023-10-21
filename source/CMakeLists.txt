@@ -208,6 +208,7 @@ target_include_directories(${PROJECT_NAME}
 	PRIVATE
 	${CMAKE_SOURCE_DIR}/source
 	${OPENGL_INCLUDE_DIR}
+	${GLUT_INCLUDE_DIRS}
 	${ZLIB_INCLUDE_DIR}
 )
 
