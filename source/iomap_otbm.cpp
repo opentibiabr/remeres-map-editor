@@ -1865,6 +1865,9 @@ bool IOMapOTBM::saveZones(Map &map, pugi::xml_document &doc) {
 
 	pugi::xml_node zoneNodes = doc.append_child("zones");
 	for (const auto &[name, id] : map.zones) {
+		if (id <= 0) {
+			continue;
+		}
 		pugi::xml_node zoneNode = zoneNodes.append_child("zone");
 
 		zoneNode.append_attribute("name") = name.c_str();

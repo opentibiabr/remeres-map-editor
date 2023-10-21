@@ -32,6 +32,7 @@ EVT_BUTTON(PALETTE_ZONES_REMOVE_ZONE, ZonesPalettePanel::OnClickRemoveZone)
 EVT_LIST_BEGIN_LABEL_EDIT(PALETTE_ZONES_LISTBOX, ZonesPalettePanel::OnBeginEditZoneLabel)
 EVT_LIST_END_LABEL_EDIT(PALETTE_ZONES_LISTBOX, ZonesPalettePanel::OnEditZoneLabel)
 EVT_LIST_ITEM_SELECTED(PALETTE_ZONES_LISTBOX, ZonesPalettePanel::OnClickZone)
+EVT_LIST_ITEM_RIGHT_CLICK(PALETTE_ZONES_LISTBOX, ZonesPalettePanel::OnRightClickZone)
 END_EVENT_TABLE()
 
 ZonesPalettePanel::ZonesPalettePanel(wxWindow* parent, wxWindowID id) :
@@ -133,6 +134,19 @@ void ZonesPalettePanel::OnClickZone(wxListEvent &event) {
 	if (map->zones.hasZone(name)) {
 		auto zoneId = map->zones.getZoneID(name);
 		g_gui.zone_brush->setZone(zoneId);
+	}
+}
+
+void ZonesPalettePanel::OnRightClickZone(wxListEvent &event) {
+	if (!map) {
+		return;
+	}
+
+	std::string name = nstr(event.GetText());
+	if (map->zones.hasZone(name)) {
+		auto zoneId = map->zones.getZoneID(name);
+		g_gui.zone_brush->setZone(zoneId);
+		g_gui.SetScreenCenterPosition(map->getZonePosition(zoneId));
 	}
 }
 

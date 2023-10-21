@@ -342,6 +342,24 @@ void Map::cleanDeletedZones(bool showdialog) {
 	}
 }
 
+Position Map::getZonePosition(unsigned int zoneId) {
+	Position pos;
+	for (MapIterator miter = begin(); miter != end(); ++miter) {
+		Tile* tile = (*miter)->get();
+		ASSERT(tile);
+
+		if (tile->size() == 0) {
+			continue;
+		}
+
+		if (tile->zones.find(zoneId) != tile->zones.end()) {
+			pos = tile->getPosition();
+			break;
+		}
+	}
+	return pos;
+}
+
 bool Map::doChange() {
 	bool doupdate = !has_changed;
 	has_changed = true;
