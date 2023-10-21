@@ -254,6 +254,9 @@ public: // Functions
 	}
 
 	void addZone(unsigned int zone) {
+		if (zone == 0) {
+			return;
+		}
 		zones.insert(zone);
 	}
 
