@@ -6,7 +6,7 @@ project(remeres)
 
 find_package(asio CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
-find_package(glfw3 CONFIG REQUIRED)
+find_package(GLUT REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(Threads REQUIRED)
@@ -214,7 +214,7 @@ target_include_directories(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
 	PRIVATE
 	${OPENGL_LIBRARIES}
-	glfw
+	${GLUT_LIBRARIES}
 	${ZLIB_LIBRARIES}
 	fmt::fmt
 	asio::asio
