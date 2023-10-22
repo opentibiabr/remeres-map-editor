@@ -123,6 +123,10 @@ MapPropertiesWindow::MapPropertiesWindow(wxWindow* parent, MapTab* view, Editor 
 	);
 
 	grid_sizer->Add(
+		newd wxStaticText(this, wxID_ANY, "External zone file")
+	);
+
+	grid_sizer->Add(
 		zone_filename_ctrl = newd wxTextCtrl(this, wxID_ANY, wxstr(map.getZoneFilename())), 1, wxEXPAND
 	);
 

@@ -1555,13 +1555,14 @@ void MapDrawer::DrawTile(TileLocation* location) {
 
 			bool zone_active = tile->hasZone(g_gui.zone_brush->getZone());
 			if (showspecial && zone_active) {
+				b /= 1.3;
 				r /= 1.5;
 				g /= 2;
 			}
 			if (showspecial && ((!tile->zones.empty() && !zone_active) || tile->zones.size() > 1)) {
-				r /= 1.2;
-				g /= 1.5;
-				b /= 1.1;
+				r /= 1.4;
+				g /= 1.6;
+				b /= 1.3;
 			}
 
 			if (showspecial && tile->getMapFlags() & TILESTATE_NOLOGOUT) {
