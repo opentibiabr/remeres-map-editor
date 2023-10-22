@@ -470,6 +470,7 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 		std::remove(backup_house.c_str());
 		std::remove(backup_spawn.c_str());
 		std::remove(backup_spawn_npc.c_str());
+		std::remove(backup_zones.c_str());
 	}
 
 	clearChanges();
