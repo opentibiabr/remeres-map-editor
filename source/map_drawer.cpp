@@ -1802,114 +1802,114 @@ void MapDrawer::DrawTooltips() {
 #if defined(__LINUX__) || defined(__WINDOWS__)
 	if (!options.show_tooltips || tooltips.empty()) {
 		return;
+	}
 
-		glDisable(GL_TEXTURE_2D);
+	glDisable(GL_TEXTURE_2D);
 
-		for (MapTooltip* tooltip : tooltips) {
-			const char* text = tooltip->text.c_str();
-			float line_width = 0.0f;
-			float width = 2.0f;
-			float height = 14.0f;
-			int char_count = 0;
-			int line_char_count = 0;
+	for (MapTooltip* tooltip : tooltips) {
+		const char* text = tooltip->text.c_str();
+		float line_width = 0.0f;
+		float width = 2.0f;
+		float height = 14.0f;
+		int char_count = 0;
+		int line_char_count = 0;
 
-			for (const char* c = text; *c != '\0'; c++) {
-				if (*c == '\n' || (line_char_count >= MapTooltip::MAX_CHARS_PER_LINE && *c == ' ')) {
-					height += 14.0f;
-					line_width = 0.0f;
-					line_char_count = 0;
-				} else {
-					line_width += glutBitmapWidth(GLUT_BITMAP_HELVETICA_12, *c);
-				}
-				width = std::max<float>(width, line_width);
-				char_count++;
-				line_char_count++;
-
-				if (tooltip->ellipsis && char_count > (MapTooltip::MAX_CHARS + 3)) {
-					break;
-				}
-			}
-
-			float scale = zoom < 1.0f ? zoom : 1.0f;
-
-			width = (width + 8.0f) * scale;
-			height = (height + 4.0f) * scale;
-
-			float x = tooltip->x + (rme::TileSize / 2.0f);
-			float y = tooltip->y + ((rme::TileSize / 2.0f) * scale);
-			float center = width / 2.0f;
-			float space = (7.0f * scale);
-			float startx = x - center;
-			float endx = x + center;
-			float starty = y - (height + space);
-			float endy = y - space;
-
-			// 7----0----1
-			// |         |
-			// 6--5  3--2
-			//     \/
-			//     4
-			float vertexes[9][2] = {
-				{ x, starty }, // 0
-				{ endx, starty }, // 1
-				{ endx, endy }, // 2
-				{ x + space, endy }, // 3
-				{ x, y }, // 4
-				{ x - space, endy }, // 5
-				{ startx, endy }, // 6
-				{ startx, starty }, // 7
-				{ x, starty }, // 0
-			};
-
-			// background
-			glColor4ub(tooltip->r, tooltip->g, tooltip->b, 255);
-			glBegin(GL_POLYGON);
-			for (int i = 0; i < 8; ++i) {
-				glVertex2f(vertexes[i][0], vertexes[i][1]);
-			}
-			glEnd();
-
-			// borders
-			glColor4ub(0, 0, 0, 255);
-			glLineWidth(1.0);
-			glBegin(GL_LINES);
-			for (int i = 0; i < 8; ++i) {
-				glVertex2f(vertexes[i][0], vertexes[i][1]);
-				glVertex2f(vertexes[i + 1][0], vertexes[i + 1][1]);
-			}
-			glEnd();
-
-			// text
-			if (zoom <= 1.0) {
-				startx += (3.0f * scale);
-				starty += (14.0f * scale);
-				glColor4ub(0, 0, 0, 255);
-				glRasterPos2f(startx, starty);
-				char_count = 0;
+		for (const char* c = text; *c != '\0'; c++) {
+			if (*c == '\n' || (line_char_count >= MapTooltip::MAX_CHARS_PER_LINE && *c == ' ')) {
+				height += 14.0f;
+				line_width = 0.0f;
 				line_char_count = 0;
-				for (const char* c = text; *c != '\0'; c++) {
-					if (*c == '\n' || (line_char_count >= MapTooltip::MAX_CHARS_PER_LINE && *c == ' ')) {
-						starty += (14.0f * scale);
-						glRasterPos2f(startx, starty);
-						line_char_count = 0;
-					}
-					char_count++;
-					line_char_count++;
+			} else {
+				line_width += glutBitmapWidth(GLUT_BITMAP_HELVETICA_12, *c);
+			}
+			width = std::max<float>(width, line_width);
+			char_count++;
+			line_char_count++;
 
-					if (tooltip->ellipsis && char_count >= MapTooltip::MAX_CHARS) {
-						glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, '.');
-						if (char_count >= (MapTooltip::MAX_CHARS + 2)) {
-							break;
-						}
-					} else if (!iscntrl(*c)) {
-						glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, *c);
-					}
-				}
+			if (tooltip->ellipsis && char_count > (MapTooltip::MAX_CHARS + 3)) {
+				break;
 			}
 		}
 
-		glEnable(GL_TEXTURE_2D);
+		float scale = zoom < 1.0f ? zoom : 1.0f;
+
+		width = (width + 8.0f) * scale;
+		height = (height + 4.0f) * scale;
+
+		float x = tooltip->x + (rme::TileSize / 2.0f);
+		float y = tooltip->y + ((rme::TileSize / 2.0f) * scale);
+		float center = width / 2.0f;
+		float space = (7.0f * scale);
+		float startx = x - center;
+		float endx = x + center;
+		float starty = y - (height + space);
+		float endy = y - space;
+
+		// 7----0----1
+		// |         |
+		// 6--5  3--2
+		//     \/
+		//     4
+		float vertexes[9][2] = {
+			{ x, starty }, // 0
+			{ endx, starty }, // 1
+			{ endx, endy }, // 2
+			{ x + space, endy }, // 3
+			{ x, y }, // 4
+			{ x - space, endy }, // 5
+			{ startx, endy }, // 6
+			{ startx, starty }, // 7
+			{ x, starty }, // 0
+		};
+
+		// background
+		glColor4ub(tooltip->r, tooltip->g, tooltip->b, 255);
+		glBegin(GL_POLYGON);
+		for (int i = 0; i < 8; ++i) {
+			glVertex2f(vertexes[i][0], vertexes[i][1]);
+		}
+		glEnd();
+
+		// borders
+		glColor4ub(0, 0, 0, 255);
+		glLineWidth(1.0);
+		glBegin(GL_LINES);
+		for (int i = 0; i < 8; ++i) {
+			glVertex2f(vertexes[i][0], vertexes[i][1]);
+			glVertex2f(vertexes[i + 1][0], vertexes[i + 1][1]);
+		}
+		glEnd();
+
+		// text
+		if (zoom <= 1.0) {
+			startx += (3.0f * scale);
+			starty += (14.0f * scale);
+			glColor4ub(0, 0, 0, 255);
+			glRasterPos2f(startx, starty);
+			char_count = 0;
+			line_char_count = 0;
+			for (const char* c = text; *c != '\0'; c++) {
+				if (*c == '\n' || (line_char_count >= MapTooltip::MAX_CHARS_PER_LINE && *c == ' ')) {
+					starty += (14.0f * scale);
+					glRasterPos2f(startx, starty);
+					line_char_count = 0;
+				}
+				char_count++;
+				line_char_count++;
+
+				if (tooltip->ellipsis && char_count >= MapTooltip::MAX_CHARS) {
+					glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, '.');
+					if (char_count >= (MapTooltip::MAX_CHARS + 2)) {
+						break;
+					}
+				} else if (!iscntrl(*c)) {
+					glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, *c);
+				}
+			}
+		}
 	}
+
+	glEnable(GL_TEXTURE_2D);
 #endif
 }
 
