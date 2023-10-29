@@ -1,0 +1,13 @@
+<materials>
+	<tileset name="new_quivers">
+		<items>
+			<item id="39150"/>
+			<item id="35848"/>
+			<item id="36666"/>
+			<item id="35524"/>
+			<item id="39160"/>
+			<item id="35562"/>
+			<item id="35849"/>
+		</items>
+	</tileset>
+</materials>

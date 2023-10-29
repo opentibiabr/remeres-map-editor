@@ -1,0 +1,35 @@
+<materials>
+	<tileset name="new_wands">
+		<items>
+			<item id="30399"/>
+			<item id="28825"/>
+			<item id="28826"/>
+			<item id="25700"/>
+			<item id="36668"/>
+			<item id="29425"/>
+			<item id="28717"/>
+			<item id="36669"/>
+			<item id="43883"/>
+			<item id="35522"/>
+			<item id="34152"/>
+			<item id="39162"/>
+			<item id="43882"/>
+			<item id="12741"/>
+			<item id="17111"/>
+			<item id="34090"/>
+			<item id="3073"/>
+			<item id="25760"/>
+			<item id="3072"/>
+			<item id="16096"/>
+			<item id="27457"/>
+			<item id="12603"/>
+			<item id="8093"/>
+			<item id="3075"/>
+			<item id="16115"/>
+			<item id="3071"/>
+			<item id="8092"/>
+			<item id="8094"/>
+			<item id="3074"/>
+		</items>
+	</tileset>
+</materials>

@@ -1,0 +1,59 @@
+<materials>
+	<tileset name="new_boots">
+		<items>
+			<item id="40592"/>
+			<item id="22086"/>
+			<item id="3079"/>
+			<item id="22773"/>
+			<item id="22774"/>
+			<item id="3246"/>
+			<item id="3553"/>
+			<item id="30394"/>
+			<item id="9017"/>
+			<item id="3556"/>
+			<item id="10200"/>
+			<item id="13997"/>
+			<item id="10201"/>
+			<item id="4033"/>
+			<item id="39161"/>
+			<item id="24409"/>
+			<item id="9018"/>
+			<item id="9019"/>
+			<item id="39158"/>
+			<item id="7457"/>
+			<item id="819"/>
+			<item id="3555"/>
+			<item id="37610"/>
+			<item id="10323"/>
+			<item id="3552"/>
+			<item id="820"/>
+			<item id="818"/>
+			<item id="35520"/>
+			<item id="35519"/>
+			<item id="21169"/>
+			<item id="40593"/>
+			<item id="21981"/>
+			<item id="29424"/>
+			<item id="32619"/>
+			<item id="3549"/>
+			<item id="6529"/>
+			<item id="34098"/>
+			<item id="34097"/>
+			<item id="3550"/>
+			<item id="5461"/>
+			<item id="16112"/>
+			<item id="3551"/>
+			<item id="43884"/>
+			<item id="43887"/>
+			<item id="3554"/>
+			<item id="813"/>
+			<item id="32098"/>
+			<item id="22756"/>
+			<item id="19374"/>
+			<item id="23476"/>
+			<item id="23477"/>
+			<item id="31617"/>
+			<item id="30196"/>
+		</items>
+	</tileset>
+</materials>

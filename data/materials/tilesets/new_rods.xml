@@ -1,0 +1,34 @@
+<materials>
+	<tileset name="new_rods">
+		<items>
+			<item id="30400"/>
+			<item id="28825"/>
+			<item id="28826"/>
+			<item id="25700"/>
+			<item id="36674"/>
+			<item id="29425"/>
+			<item id="28716"/>
+			<item id="36675"/>
+			<item id="16118"/>
+			<item id="43886"/>
+			<item id="3067"/>
+			<item id="35521"/>
+			<item id="34151"/>
+			<item id="3070"/>
+			<item id="16117"/>
+			<item id="39163"/>
+			<item id="3069"/>
+			<item id="8083"/>
+			<item id="22183"/>
+			<item id="27458"/>
+			<item id="43885"/>
+			<item id="12732"/>
+			<item id="3066"/>
+			<item id="17111"/>
+			<item id="34091"/>
+			<item id="8084"/>
+			<item id="3065"/>
+			<item id="8082"/>
+		</items>
+	</tileset>
+</materials>

@@ -1,0 +1,53 @@
+<materials>
+	<tileset name="new_plants">
+		<items>
+			<item id="20108"/>
+			<item id="20115"/>
+			<item id="22064"/>
+			<item id="3691"/>
+			<item id="3870"/>
+			<item id="19768"/>
+			<item id="20107"/>
+			<item id="20114"/>
+			<item id="12655"/>
+			<item id="19771"/>
+			<item id="20106"/>
+			<item id="20113"/>
+			<item id="10727"/>
+			<item id="3690"/>
+			<item id="18448"/>
+			<item id="3693"/>
+			<item id="19772"/>
+			<item id="3749"/>
+			<item id="5420"/>
+			<item id="3692"/>
+			<item id="3685"/>
+			<item id="3871"/>
+			<item id="3686"/>
+			<item id="3687"/>
+			<item id="22644"/>
+			<item id="21088"/>
+			<item id="19770"/>
+			<item id="20105"/>
+			<item id="20109"/>
+			<item id="20110"/>
+			<item id="10856"/>
+			<item id="22063"/>
+			<item id="16587"/>
+			<item id="19767"/>
+			<item id="20104"/>
+			<item id="20112"/>
+			<item id="13677"/>
+			<item id="39551"/>
+			<item id="27459"/>
+			<item id="3683"/>
+			<item id="16585"/>
+			<item id="16586"/>
+			<item id="3689"/>
+			<item id="3688"/>
+			<item id="9097"/>
+			<item id="7890"/>
+			<item id="30427"/>
+		</items>
+	</tileset>
+</materials>

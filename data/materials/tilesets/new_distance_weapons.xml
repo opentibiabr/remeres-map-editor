@@ -1,0 +1,32 @@
+<materials>
+	<tileset name="new_distance weapons">
+		<items>
+			<item id="31581"/>
+			<item id="28465"/>
+			<item id="27455"/>
+			<item id="3350"/>
+			<item id="8027"/>
+			<item id="20082"/>
+			<item id="36664"/>
+			<item id="7438"/>
+			<item id="28718"/>
+			<item id="36665"/>
+			<item id="43878"/>
+			<item id="14246"/>
+			<item id="19362"/>
+			<item id="35518"/>
+			<item id="34150"/>
+			<item id="29417"/>
+			<item id="9378"/>
+			<item id="16164"/>
+			<item id="22866"/>
+			<item id="43877"/>
+			<item id="12733"/>
+			<item id="8029"/>
+			<item id="34088"/>
+			<item id="20083"/>
+			<item id="20084"/>
+			<item id="8026"/>
+		</items>
+	</tileset>
+</materials>

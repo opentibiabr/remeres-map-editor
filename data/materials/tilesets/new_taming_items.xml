@@ -1,0 +1,55 @@
+<materials>
+	<tileset name="new_taming items">
+		<items>
+			<item id="24960"/>
+			<item id="12548"/>
+			<item id="12549"/>
+			<item id="32114"/>
+			<item id="27605"/>
+			<item id="12311"/>
+			<item id="39548"/>
+			<item id="21186"/>
+			<item id="23684"/>
+			<item id="32103"/>
+			<item id="32105"/>
+			<item id="32104"/>
+			<item id="16155"/>
+			<item id="12547"/>
+			<item id="12546"/>
+			<item id="14143"/>
+			<item id="14142"/>
+			<item id="12318"/>
+			<item id="16154"/>
+			<item id="12801"/>
+			<item id="12550"/>
+			<item id="16251"/>
+			<item id="12307"/>
+			<item id="12260"/>
+			<item id="25059"/>
+			<item id="16153"/>
+			<item id="12306"/>
+			<item id="17858"/>
+			<item id="28791"/>
+			<item id="12304"/>
+			<item id="20355"/>
+			<item id="23685"/>
+			<item id="16244"/>
+			<item id="23677"/>
+			<item id="19136"/>
+			<item id="20274"/>
+			<item id="30192"/>
+			<item id="30171"/>
+			<item id="34258"/>
+			<item id="12308"/>
+			<item id="12509"/>
+			<item id="5907"/>
+			<item id="12519"/>
+			<item id="32629"/>
+			<item id="12802"/>
+			<item id="12320"/>
+			<item id="12305"/>
+			<item id="30170"/>
+			<item id="23538"/>
+		</items>
+	</tileset>
+</materials>

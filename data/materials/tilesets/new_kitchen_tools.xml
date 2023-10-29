@@ -1,0 +1,27 @@
+<materials>
+	<tileset name="new_kitchen tools">
+		<items>
+			<item id="3464"/>
+			<item id="8020"/>
+			<item id="8198"/>
+			<item id="31913"/>
+			<item id="32072"/>
+			<item id="2902"/>
+			<item id="3471"/>
+			<item id="2881"/>
+			<item id="32071"/>
+			<item id="3467"/>
+			<item id="2882"/>
+			<item id="7244"/>
+			<item id="3469"/>
+			<item id="2880"/>
+			<item id="3472"/>
+			<item id="3466"/>
+			<item id="2905"/>
+			<item id="3473"/>
+			<item id="12789"/>
+			<item id="3468"/>
+			<item id="3470"/>
+		</items>
+	</tileset>
+</materials>

@@ -1,0 +1,34 @@
+<materials>
+	<tileset name="new_magical items">
+		<items>
+			<item id="3077"/>
+			<item id="3147"/>
+			<item id="3251"/>
+			<item id="3076"/>
+			<item id="9105"/>
+			<item id="22196"/>
+			<item id="6499"/>
+			<item id="3206"/>
+			<item id="11658"/>
+			<item id="5669"/>
+			<item id="10306"/>
+			<item id="3024"/>
+			<item id="943"/>
+			<item id="3061"/>
+			<item id="11680"/>
+			<item id="11454"/>
+			<item id="4049"/>
+			<item id="3062"/>
+			<item id="11474"/>
+			<item id="5668"/>
+			<item id="9660"/>
+			<item id="3060"/>
+			<item id="3215"/>
+			<item id="3254"/>
+			<item id="21383"/>
+			<item id="4061"/>
+			<item id="3034"/>
+			<item id="25795"/>
+		</items>
+	</tileset>
+</materials>

@@ -1,0 +1,40 @@
+<materials>
+	<tileset name="new_musical instruments">
+		<items>
+			<item id="2951"/>
+			<item id="3103"/>
+			<item id="3257"/>
+			<item id="2965"/>
+			<item id="2952"/>
+			<item id="3255"/>
+			<item id="2955"/>
+			<item id="2963"/>
+			<item id="2964"/>
+			<item id="2950"/>
+			<item id="3258"/>
+			<item id="2949"/>
+			<item id="3260"/>
+			<item id="2953"/>
+			<item id="6572"/>
+			<item id="6573"/>
+			<item id="2959"/>
+			<item id="2960"/>
+			<item id="2961"/>
+			<item id="2962"/>
+			<item id="6123"/>
+			<item id="8645"/>
+			<item id="2957"/>
+			<item id="2956"/>
+			<item id="2954"/>
+			<item id="3256"/>
+			<item id="21554"/>
+			<item id="12602"/>
+			<item id="3252"/>
+			<item id="2966"/>
+			<item id="2958"/>
+			<item id="2948"/>
+			<item id="3262"/>
+			<item id="5786"/>
+		</items>
+	</tileset>
+</materials>

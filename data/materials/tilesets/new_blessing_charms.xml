@@ -1,0 +1,11 @@
+<materials>
+	<tileset name="new_blessing charms">
+		<items>
+			<item id="10341"/>
+			<item id="10345"/>
+			<item id="10343"/>
+			<item id="10344"/>
+			<item id="10342"/>
+		</items>
+	</tileset>
+</materials>

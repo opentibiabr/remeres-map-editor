@@ -1,0 +1,32 @@
+<materials>
+	<tileset name="new_spellbooks">
+		<items>
+			<item id="40594"/>
+			<item id="39154"/>
+			<item id="39152"/>
+			<item id="22755"/>
+			<item id="29426"/>
+			<item id="20088"/>
+			<item id="36672"/>
+			<item id="36673"/>
+			<item id="34153"/>
+			<item id="29420"/>
+			<item id="11691"/>
+			<item id="14769"/>
+			<item id="8090"/>
+			<item id="8072"/>
+			<item id="8075"/>
+			<item id="8074"/>
+			<item id="16107"/>
+			<item id="8073"/>
+			<item id="21400"/>
+			<item id="3059"/>
+			<item id="3101"/>
+			<item id="8076"/>
+			<item id="29431"/>
+			<item id="20090"/>
+			<item id="20089"/>
+			<item id="25699"/>
+		</items>
+	</tileset>
+</materials>

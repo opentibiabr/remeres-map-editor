@@ -1,0 +1,45 @@
+<materials>
+	<tileset name="new_trophies">
+		<items>
+			<item id="7396"/>
+			<item id="35582"/>
+			<item id="10244"/>
+			<item id="36748"/>
+			<item id="32754"/>
+			<item id="35585"/>
+			<item id="7398"/>
+			<item id="7397"/>
+			<item id="6434"/>
+			<item id="7393"/>
+			<item id="10421"/>
+			<item id="7399"/>
+			<item id="10398"/>
+			<item id="32756"/>
+			<item id="35586"/>
+			<item id="32751"/>
+			<item id="35599"/>
+			<item id="32753"/>
+			<item id="7400"/>
+			<item id="10419"/>
+			<item id="36749"/>
+			<item id="902"/>
+			<item id="7401"/>
+			<item id="7395"/>
+			<item id="9538"/>
+			<item id="31266"/>
+			<item id="9613"/>
+			<item id="32752"/>
+			<item id="35587"/>
+			<item id="32755"/>
+			<item id="11694"/>
+			<item id="11679"/>
+			<item id="35584"/>
+			<item id="22101"/>
+			<item id="22103"/>
+			<item id="22102"/>
+			<item id="27706"/>
+			<item id="34219"/>
+			<item id="7394"/>
+		</items>
+	</tileset>
+</materials>

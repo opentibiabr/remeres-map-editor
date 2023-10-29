@@ -1,0 +1,31 @@
+<materials>
+	<tileset name="new_metals">
+		<items>
+			<item id="9632"/>
+			<item id="11447"/>
+			<item id="16138"/>
+			<item id="9655"/>
+			<item id="8775"/>
+			<item id="9233"/>
+			<item id="5892"/>
+			<item id="5880"/>
+			<item id="16130"/>
+			<item id="9115"/>
+			<item id="10298"/>
+			<item id="953"/>
+			<item id="5889"/>
+			<item id="5888"/>
+			<item id="3110"/>
+			<item id="5887"/>
+			<item id="16133"/>
+			<item id="10310"/>
+			<item id="5944"/>
+			<item id="10408"/>
+			<item id="16137"/>
+			<item id="10315"/>
+			<item id="31333"/>
+			<item id="16135"/>
+			<item id="9654"/>
+		</items>
+	</tileset>
+</materials>

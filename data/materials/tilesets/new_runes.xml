@@ -1,0 +1,44 @@
+<materials>
+	<tileset name="new_runes">
+		<items>
+			<item id="3203"/>
+			<item id="3161"/>
+			<item id="3178"/>
+			<item id="3177"/>
+			<item id="3148"/>
+			<item id="3197"/>
+			<item id="3149"/>
+			<item id="3164"/>
+			<item id="3166"/>
+			<item id="3200"/>
+			<item id="3192"/>
+			<item id="3188"/>
+			<item id="3190"/>
+			<item id="3189"/>
+			<item id="3191"/>
+			<item id="17113"/>
+			<item id="3198"/>
+			<item id="3182"/>
+			<item id="3158"/>
+			<item id="3174"/>
+			<item id="21351"/>
+			<item id="21434"/>
+			<item id="17512"/>
+			<item id="21352"/>
+			<item id="21432"/>
+			<item id="3180"/>
+			<item id="3165"/>
+			<item id="3173"/>
+			<item id="3172"/>
+			<item id="3176"/>
+			<item id="17112"/>
+			<item id="3195"/>
+			<item id="3179"/>
+			<item id="3175"/>
+			<item id="3155"/>
+			<item id="3202"/>
+			<item id="17511"/>
+			<item id="3156"/>
+		</items>
+	</tileset>
+</materials>

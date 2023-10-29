@@ -1,0 +1,62 @@
+<materials>
+	<tileset name="new_party items">
+		<items>
+			<item id="39693"/>
+			<item id="14674"/>
+			<item id="6574"/>
+			<item id="32072"/>
+			<item id="30191"/>
+			<item id="30212"/>
+			<item id="39703"/>
+			<item id="6277"/>
+			<item id="6278"/>
+			<item id="3599"/>
+			<item id="6569"/>
+			<item id="37536"/>
+			<item id="20310"/>
+			<item id="30213"/>
+			<item id="3598"/>
+			<item id="6393"/>
+			<item id="32071"/>
+			<item id="30208"/>
+			<item id="6576"/>
+			<item id="30271"/>
+			<item id="6577"/>
+			<item id="30190"/>
+			<item id="30211"/>
+			<item id="39698"/>
+			<item id="39700"/>
+			<item id="39702"/>
+			<item id="6276"/>
+			<item id="31914"/>
+			<item id="30198"/>
+			<item id="30268"/>
+			<item id="30255"/>
+			<item id="6279"/>
+			<item id="6578"/>
+			<item id="6572"/>
+			<item id="6573"/>
+			<item id="14028"/>
+			<item id="14027"/>
+			<item id="2995"/>
+			<item id="30269"/>
+			<item id="30256"/>
+			<item id="39697"/>
+			<item id="39699"/>
+			<item id="39701"/>
+			<item id="6575"/>
+			<item id="30188"/>
+			<item id="30209"/>
+			<item id="651"/>
+			<item id="14750"/>
+			<item id="14759"/>
+			<item id="8853"/>
+			<item id="30270"/>
+			<item id="30257"/>
+			<item id="6392"/>
+			<item id="30187"/>
+			<item id="30189"/>
+			<item id="30210"/>
+		</items>
+	</tileset>
+</materials>

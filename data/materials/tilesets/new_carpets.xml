@@ -1,0 +1,20 @@
+<materials>
+	<tileset name="new_carpets">
+		<items>
+			<item id="37378"/>
+			<item id="37357"/>
+			<item id="37354"/>
+			<item id="36838"/>
+			<item id="37358"/>
+			<item id="37376"/>
+			<item id="37374"/>
+			<item id="37380"/>
+			<item id="37379"/>
+			<item id="37366"/>
+			<item id="22737"/>
+			<item id="37377"/>
+			<item id="23536"/>
+			<item id="37375"/>
+		</items>
+	</tileset>
+</materials>

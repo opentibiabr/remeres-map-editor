@@ -101,4 +101,54 @@
 	<include file="tilesets/weapons_sword.xml"/>
 	<include file="tilesets/weapons_wand_and_rod.xml"/>
 	<include file="tilesets/writeables.xml"/>
+	
+	<!-- Needs to be reviewed or maybe merged with other tilesets -->
+	<include file="tilesets/new_amulets.xml"/>
+	<include file="tilesets/new_rings.xml"/>
+	<include file="tilesets/new_helmets.xml"/>
+	<include file="tilesets/new_armors.xml"/>
+	<include file="tilesets/new_legs.xml"/>
+	<include file="tilesets/new_boots.xml"/>
+	<include file="tilesets/new_shields.xml"/>
+	<include file="tilesets/new_spellbooks.xml"/>
+	<include file="tilesets/new_quivers.xml"/>
+	<include file="tilesets/new_axe_weapons.xml"/>
+	<include file="tilesets/new_club_weapons.xml"/>
+	<include file="tilesets/new_sword_weapons.xml"/>
+	<include file="tilesets/new_rods.xml"/>
+	<include file="tilesets/new_wands.xml"/>
+	<include file="tilesets/new_distance_weapons.xml"/>
+	<include file="tilesets/new_ammunition.xml"/>
+	<include file="tilesets/new_books.xml"/>
+	<include file="tilesets/new_carpets.xml"/>
+	<include file="tilesets/new_containers.xml"/>
+	<include file="tilesets/new_contest_prizes.xml"/>
+	<include file="tilesets/new_fansite_items.xml"/>
+	<include file="tilesets/new_decorations.xml"/>
+	<include file="tilesets/new_documents_and_papers.xml"/>
+	<include file="tilesets/new_dolls_and_bears.xml"/>
+	<include file="tilesets/new_furniture.xml"/>
+	<include file="tilesets/new_kitchen_tools.xml"/>
+	<include file="tilesets/new_musical_instruments.xml"/>
+	<include file="tilesets/new_trophies.xml"/>
+	<include file="tilesets/new_creature_products.xml"/>
+	<include file="tilesets/new_food.xml"/>
+	<include file="tilesets/new_liquids.xml"/>
+	<include file="tilesets/new_plants.xml"/>
+	<include file="tilesets/new_tools.xml"/>
+	<include file="tilesets/new_light_sources.xml"/>
+	<include file="tilesets/new_taming_items.xml"/>
+	<include file="tilesets/new_clothing_accessories.xml"/>
+	<include file="tilesets/new_enchanted_items.xml"/>
+	<include file="tilesets/new_game_tokens.xml"/>
+	<include file="tilesets/new_valuables.xml"/>
+	<include file="tilesets/new_magical_items.xml"/>
+	<include file="tilesets/new_metals.xml"/>
+	<include file="tilesets/new_party_items.xml"/>
+	<include file="tilesets/new_blessing_charms.xml"/>
+	<include file="tilesets/new_quest_items.xml"/>
+	<include file="tilesets/new_rubbish.xml"/>
+	<include file="tilesets/new_runes.xml"/>
+
+	
 </materials>

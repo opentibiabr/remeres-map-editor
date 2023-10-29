@@ -1,0 +1,39 @@
+<materials>
+	<tileset name="new_books">
+		<items>
+			<item id="10025"/>
+			<item id="6108"/>
+			<item id="2850"/>
+			<item id="10320"/>
+			<item id="12675"/>
+			<item id="9646"/>
+			<item id="25235"/>
+			<item id="25239"/>
+			<item id="11699"/>
+			<item id="3234"/>
+			<item id="4844"/>
+			<item id="2849"/>
+			<item id="2851"/>
+			<item id="25745"/>
+			<item id="8155"/>
+			<item id="23986"/>
+			<item id="27934"/>
+			<item id="3212"/>
+			<item id="648"/>
+			<item id="25242"/>
+			<item id="23985"/>
+			<item id="27933"/>
+			<item id="28572"/>
+			<item id="28820"/>
+			<item id="2848"/>
+			<item id="2852"/>
+			<item id="27932"/>
+			<item id="11450"/>
+			<item id="28792"/>
+			<item id="28865"/>
+			<item id="8117"/>
+			<item id="6103"/>
+			<item id="7879"/>
+		</items>
+	</tileset>
+</materials>

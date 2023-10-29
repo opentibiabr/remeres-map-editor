@@ -1,0 +1,15 @@
+<materials>
+	<tileset name="new_game tokens">
+		<items>
+			<item id="3533"/>
+			<item id="2990"/>
+			<item id="9104"/>
+			<item id="10340"/>
+			<item id="12734"/>
+			<item id="12807"/>
+			<item id="619"/>
+			<item id="893"/>
+			<item id="3534"/>
+		</items>
+	</tileset>
+</materials>

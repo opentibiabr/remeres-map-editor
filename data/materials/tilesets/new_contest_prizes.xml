@@ -1,0 +1,27 @@
+<materials>
+	<tileset name="new_contest prizes">
+		<items>
+			<item id="9219"/>
+			<item id="9218"/>
+			<item id="9208"/>
+			<item id="9217"/>
+			<item id="9214"/>
+			<item id="9211"/>
+			<item id="9206"/>
+			<item id="9224"/>
+			<item id="9215"/>
+			<item id="9212"/>
+			<item id="9209"/>
+			<item id="9223"/>
+			<item id="9220"/>
+			<item id="9221"/>
+			<item id="5785"/>
+			<item id="9222"/>
+			<item id="9207"/>
+			<item id="9216"/>
+			<item id="9213"/>
+			<item id="9210"/>
+			<item id="11694"/>
+		</items>
+	</tileset>
+</materials>

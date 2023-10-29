@@ -1,0 +1,58 @@
+<materials>
+	<tileset name="new_legs">
+		<items>
+			<item id="21168"/>
+			<item id="35517"/>
+			<item id="3560"/>
+			<item id="645"/>
+			<item id="3372"/>
+			<item id="3558"/>
+			<item id="24402"/>
+			<item id="3382"/>
+			<item id="39166"/>
+			<item id="3389"/>
+			<item id="13996"/>
+			<item id="3363"/>
+			<item id="3398"/>
+			<item id="36667"/>
+			<item id="3401"/>
+			<item id="35516"/>
+			<item id="32617"/>
+			<item id="28720"/>
+			<item id="16106"/>
+			<item id="823"/>
+			<item id="27649"/>
+			<item id="3364"/>
+			<item id="14087"/>
+			<item id="37607"/>
+			<item id="19366"/>
+			<item id="3371"/>
+			<item id="9014"/>
+			<item id="3559"/>
+			<item id="32097"/>
+			<item id="822"/>
+			<item id="821"/>
+			<item id="7464"/>
+			<item id="39167"/>
+			<item id="40595"/>
+			<item id="40590"/>
+			<item id="13999"/>
+			<item id="5918"/>
+			<item id="3557"/>
+			<item id="16111"/>
+			<item id="8095"/>
+			<item id="43881"/>
+			<item id="43876"/>
+			<item id="32618"/>
+			<item id="34092"/>
+			<item id="34093"/>
+			<item id="40589"/>
+			<item id="3362"/>
+			<item id="24404"/>
+			<item id="812"/>
+			<item id="9383"/>
+			<item id="22087"/>
+			<item id="8863"/>
+		</items>
+	</tileset>
+</materials>

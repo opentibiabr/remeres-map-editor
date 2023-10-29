@@ -1,0 +1,22 @@
+<materials>
+	<tileset name="new_ammunition">
+		<items>
+			<item id="3447"/>
+			<item id="3449"/>
+			<item id="22119"/>
+			<item id="15793"/>
+			<item id="25757"/>
+			<item id="35901"/>
+			<item id="774"/>
+			<item id="16143"/>
+			<item id="763"/>
+			<item id="761"/>
+			<item id="7365"/>
+			<item id="3448"/>
+			<item id="762"/>
+			<item id="21470"/>
+			<item id="7364"/>
+			<item id="14251"/>
+		</items>
+	</tileset>
+</materials>
