@@ -303,6 +303,9 @@ public:
 	bool isMetaItem() const {
 		return getItemType().isMetaItem();
 	}
+	bool hasElevation() const {
+		return getItemType().hasElevation();
+	}
 
 	// Wall alignment (vertical, horizontal, pole, corner)
 	BorderType getWallAlignment() const;
