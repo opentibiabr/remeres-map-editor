@@ -294,9 +294,6 @@ public:
 		return is_metaitem;
 	}
 
-	bool hasElevation() const noexcept {
-		return hasElevation;
-	}
 	bool isFloorChange() const noexcept;
 
 	float getWeight() const noexcept {
