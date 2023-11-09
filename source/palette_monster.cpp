@@ -38,6 +38,8 @@ EVT_TOGGLEBUTTON(PALETTE_SPAWN_MONSTER_BRUSH_BUTTON, MonsterPalettePanel::OnClic
 
 EVT_SPINCTRL(PALETTE_MONSTER_SPAWN_TIME, MonsterPalettePanel::OnChangeSpawnMonsterTime)
 EVT_SPINCTRL(PALETTE_MONSTER_SPAWN_SIZE, MonsterPalettePanel::OnChangeSpawnMonsterSize)
+
+EVT_TEXT_ENTER(PALETTE_MONSTER_SEARCH, MonsterPalettePanel::OnChangeMonsterName)
 END_EVENT_TABLE()
 
 MonsterPalettePanel::MonsterPalettePanel(wxWindow* parent, wxWindowID id) :
@@ -49,6 +51,9 @@ MonsterPalettePanel::MonsterPalettePanel(wxWindow* parent, wxWindowID id) :
 	wxSizer* sidesizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Monsters");
 	tileset_choice = newd wxChoice(this, PALETTE_MONSTER_TILESET_CHOICE, wxDefaultPosition, wxDefaultSize, (int)0, (const wxString*)nullptr);
 	sidesizer->Add(tileset_choice, 0, wxEXPAND);
+
+	monster_name_text = newd wxTextCtrl(this, PALETTE_MONSTER_SEARCH, "Name");
+	sidesizer->Add(monster_name_text, 0, wxEXPAND);
 
 	monster_list = newd SortableListBox(this, PALETTE_MONSTER_LISTBOX);
 	sidesizer->Add(monster_list, 1, wxEXPAND);
@@ -73,6 +78,9 @@ MonsterPalettePanel::MonsterPalettePanel(wxWindow* parent, wxWindowID id) :
 	grid->Add(spawn_monster_size_spin, 0, wxEXPAND);
 	spawn_monster_brush_button = newd wxToggleButton(this, PALETTE_SPAWN_MONSTER_BRUSH_BUTTON, "Place Spawn");
 	grid->Add(spawn_monster_brush_button, 0, wxEXPAND);
+	grid->Add(newd wxStaticText(this, wxID_ANY, "Spawn density %"));
+	monster_spawndensity_spin = newd wxSpinCtrl(this, PALETTE_MONSTER_SPAWN_DENSITY, i2ws(g_settings.getInteger(Config::SPAWN_MONSTER_DENSITY)), wxDefaultPosition, wxSize(50, 20), wxSP_ARROW_KEYS, 0, 3600, g_settings.getInteger(Config::SPAWN_MONSTER_DENSITY));
+	grid->Add(monster_spawndensity_spin, 0, wxEXPAND);
 
 	sidesizer->Add(grid, 0, wxEXPAND);
 	topsizer->Add(sidesizer, 0, wxEXPAND);
@@ -106,6 +114,17 @@ Brush* MonsterPalettePanel::GetSelectedBrush() const {
 	} else if (spawn_monster_brush_button->GetValue()) {
 		g_settings.setInteger(Config::CURRENT_SPAWN_MONSTER_RADIUS, spawn_monster_size_spin->GetValue());
 		g_settings.setInteger(Config::DEFAULT_SPAWN_MONSTER_TIME, monster_spawntime_spin->GetValue());
+		g_settings.setInteger(Config::SPAWN_MONSTER_DENSITY, monster_spawndensity_spin->GetValue());
+		std::vector<MonsterBrush*> monsters;
+		wxArrayInt selectedIndices;
+		monster_list->GetCheckedItems(selectedIndices);
+		for (auto index : selectedIndices) {
+			Brush* brush = reinterpret_cast<Brush*>(monster_list->GetClientData(index));
+			if (brush && brush->isMonster()) {
+				monsters.push_back(brush->asMonster());
+			}
+		}
+		g_gui.spawn_brush->setMonsters(monsters);
 		return g_gui.spawn_brush;
 	}
 	return nullptr;
@@ -276,4 +295,7 @@ void MonsterPalettePanel::OnChangeSpawnMonsterSize(wxSpinEvent &event) {
 		g_gui.SetBrushSize(event.GetPosition());
 		handling_event = false;
 	}
+}
+
+void MonsterPalettePanel::OnChangeMonsterName(wxCommandEvent &event) {
 }

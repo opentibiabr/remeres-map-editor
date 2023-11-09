@@ -31,6 +31,7 @@
 #include "table_brush.h"
 #include "wall_brush.h"
 #include "waypoint_brush.h"
+#include "zone_brush.h"
 
 #include "settings.h"
 
@@ -87,6 +88,7 @@ void Brushes::init() {
 	addBrush(g_gui.rook_brush = newd FlagBrush(TILESTATE_NOPVP));
 	addBrush(g_gui.nolog_brush = newd FlagBrush(TILESTATE_NOLOGOUT));
 	addBrush(g_gui.pvp_brush = newd FlagBrush(TILESTATE_PVPZONE));
+	addBrush(g_gui.zone_brush = newd ZoneBrush());
 
 	GroundBrush::init();
 	WallBrush::init();

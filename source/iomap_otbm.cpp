@@ -632,6 +632,10 @@ bool IOMapOTBM::loadMap(Map &map, const FileName &filename) {
 		warning("Failed to load houses.");
 		map.housefile = nstr(filename.GetName()) + "-house.xml";
 	}
+	if (!loadZones(map, filename)) {
+		warning("Failed to load zones.");
+		map.zonefile = nstr(filename.GetName()) + "-zones.xml";
+	}
 	if (!loadSpawnsMonster(map, filename)) {
 		warning("Failed to load monsters spawns.");
 		map.spawnmonsterfile = nstr(filename.GetName()) + "-monster.xml";
@@ -727,6 +731,12 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 			case OTBM_ATTR_EXT_HOUSE_FILE: {
 				if (!mapHeaderNode->getString(map.housefile)) {
 					warning("Invalid map housefile tag");
+				}
+				break;
+			}
+			case OTBM_ATTR_EXT_ZONE_FILE: {
+				if (!mapHeaderNode->getString(map.zonefile)) {
+					warning("Invalid map zonefile tag");
 				}
 				break;
 			}
@@ -836,21 +846,35 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 
 					// printf("Didn't die in loop\n");
 
-					for (BinaryNode* itemNode = tileNode->getChild(); itemNode != nullptr; itemNode = itemNode->advance()) {
+					for (BinaryNode* childNode = tileNode->getChild(); childNode != nullptr; childNode = childNode->advance()) {
 						Item* item = nullptr;
-						uint8_t item_type;
-						if (!itemNode->getByte(item_type)) {
+						uint8_t node_type;
+						if (!childNode->getByte(node_type)) {
 							warning("Unknown item type %d:%d:%d", pos.x, pos.y, pos.z);
 							continue;
 						}
-						if (item_type == OTBM_ITEM) {
-							item = Item::Create_OTBM(*this, itemNode);
+						if (node_type == OTBM_ITEM) {
+							item = Item::Create_OTBM(*this, childNode);
 							if (item) {
-								if (!item->unserializeItemNode_OTBM(*this, itemNode)) {
+								if (!item->unserializeItemNode_OTBM(*this, childNode)) {
 									warning("Couldn't unserialize item attributes at %d:%d:%d", pos.x, pos.y, pos.z);
 								}
 								// reform(&map, tile, item);
 								tile->addItem(item);
+							}
+						} else if (node_type == OTBM_TILE_ZONE) {
+							uint16_t zone_count;
+							if (!childNode->getU16(zone_count)) {
+								warning("Invalid zone count at %d:%d:%d", pos.x, pos.y, pos.z);
+								continue;
+							}
+							for (uint16_t i = 0; i < zone_count; ++i) {
+								uint16_t zone_id;
+								if (!childNode->getU16(zone_id)) {
+									warning("Invalid zone id at %d:%d:%d", pos.x, pos.y, pos.z);
+									continue;
+								}
+								tile->addZone(zone_id);
 							}
 						} else {
 							warning("Unknown type of tile child node");
@@ -1183,6 +1207,41 @@ bool IOMapOTBM::loadHouses(Map &map, pugi::xml_document &doc) {
 	}
 	return true;
 }
+bool IOMapOTBM::loadZones(Map &map, const FileName &dir) {
+	std::string fn = (const char*)(dir.GetPath(wxPATH_GET_SEPARATOR | wxPATH_GET_VOLUME).mb_str(wxConvUTF8));
+	fn += map.zonefile;
+	FileName filename(wxstr(fn));
+	if (!filename.FileExists()) {
+		return false;
+	}
+
+	pugi::xml_document doc;
+	pugi::xml_parse_result result = doc.load_file(fn.c_str());
+	if (!result) {
+		return false;
+	}
+	return loadZones(map, doc);
+}
+
+bool IOMapOTBM::loadZones(Map &map, pugi::xml_document &doc) {
+	pugi::xml_node node = doc.child("zones");
+	if (!node) {
+		warnings.push_back("IOMapOTBM::loadZones: Invalid rootheader.");
+		return false;
+	}
+
+	pugi::xml_attribute attribute;
+	for (pugi::xml_node zoneNode = node.first_child(); zoneNode; zoneNode = zoneNode.next_sibling()) {
+		if (as_lower_str(zoneNode.name()) != "zone") {
+			continue;
+		}
+
+		std::string name = zoneNode.attribute("name").as_string();
+		unsigned int id = zoneNode.attribute("zoneid").as_uint();
+		map.zones.addZone(name, id);
+	}
+	return true;
+}
 
 bool IOMapOTBM::loadSpawnsNpc(Map &map, const FileName &dir) {
 	std::string fn = (const char*)(dir.GetPath(wxPATH_GET_SEPARATOR | wxPATH_GET_VOLUME).mb_str(wxConvUTF8));
@@ -1466,6 +1525,9 @@ bool IOMapOTBM::saveMap(Map &map, const FileName &identifier) {
 	g_gui.SetLoadDone(99, "Saving houses...");
 	saveHouses(map, identifier);
 
+	g_gui.SetLoadDone(99, "Saving zones...");
+	saveZones(map, identifier);
+
 	g_gui.SetLoadDone(99, "Saving npcs spawns...");
 	saveSpawnsNpc(map, identifier);
 	return true;
@@ -1517,6 +1579,10 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 
 			tmpName.Assign(wxstr(map.housefile));
 			f.addU8(OTBM_ATTR_EXT_HOUSE_FILE);
+			f.addString(nstr(tmpName.GetFullName()));
+
+			tmpName.Assign(wxstr(map.zonefile));
+			f.addU8(OTBM_ATTR_EXT_ZONE_FILE);
 			f.addString(nstr(tmpName.GetFullName()));
 
 			// Start writing tiles
@@ -1602,6 +1668,14 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 					if (!item->isMetaItem()) {
 						item->serializeItemNode_OTBM(self, f);
 					}
+				}
+				if (!save_tile->zones.empty()) {
+					f.addNode(OTBM_TILE_ZONE);
+					f.addU16(save_tile->zones.size());
+					for (const auto &zoneId : save_tile->zones) {
+						f.addU16(zoneId);
+					}
+					f.endNode();
 				}
 
 				f.endNode();
@@ -1765,6 +1839,39 @@ bool IOMapOTBM::saveHouses(Map &map, pugi::xml_document &doc) {
 		houseNode.append_attribute("size") = static_cast<int32_t>(house->size());
 		houseNode.append_attribute("clientid") = house->clientid;
 		houseNode.append_attribute("beds") = house->beds;
+	}
+	return true;
+}
+
+bool IOMapOTBM::saveZones(Map &map, const FileName &dir) {
+	wxString filepath = dir.GetPath(wxPATH_GET_SEPARATOR | wxPATH_GET_VOLUME);
+	filepath += wxString(map.zonefile.c_str(), wxConvUTF8);
+
+	// Create the XML file
+	pugi::xml_document doc;
+	if (saveZones(map, doc)) {
+		return doc.save_file(filepath.wc_str(), "\t", pugi::format_default, pugi::encoding_utf8);
+	}
+	return false;
+}
+
+bool IOMapOTBM::saveZones(Map &map, pugi::xml_document &doc) {
+	pugi::xml_node decl = doc.prepend_child(pugi::node_declaration);
+	if (!decl) {
+		return false;
+	}
+
+	decl.append_attribute("version") = "1.0";
+
+	pugi::xml_node zoneNodes = doc.append_child("zones");
+	for (const auto &[name, id] : map.zones) {
+		if (id <= 0) {
+			continue;
+		}
+		pugi::xml_node zoneNode = zoneNodes.append_child("zone");
+
+		zoneNode.append_attribute("name") = name.c_str();
+		zoneNode.append_attribute("zoneid") = id;
 	}
 	return true;
 }

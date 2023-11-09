@@ -15,16 +15,20 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //////////////////////////////////////////////////////////////////////
 
-#ifndef RME_TILESET_MONSTER_H_
-#define RME_TILESET_MONSTER_H_
+#ifndef RME_PALETTE_ZONES_H_
+#define RME_PALETTE_ZONES_H_
 
+#include <wx/listctrl.h>
+
+#include "zones.h"
 #include "palette_common.h"
 
-class MonsterPalettePanel : public PalettePanel {
+class ZonesPalettePanel : public PalettePanel {
 public:
-	MonsterPalettePanel(wxWindow* parent, wxWindowID id = wxID_ANY);
-	virtual ~MonsterPalettePanel();
+	ZonesPalettePanel(wxWindow* parent, wxWindowID id = wxID_ANY);
+	~ZonesPalettePanel();
 
+	wxString GetName() const;
 	PaletteType GetType() const;
 
 	// Select the first brush
@@ -36,45 +40,31 @@ public:
 	// Select the brush in the parameter, this only changes the look of the panel
 	bool SelectBrush(const Brush* whatbrush);
 
-	// Updates the palette window to use the current brush size
-	void OnUpdateBrushSize(BrushShape shape, int size);
-	// Called when this page is displayed
-	void OnSwitchIn();
 	// Called sometimes?
 	void OnUpdate();
-
-protected:
-	void SelectTileset(size_t index);
-	void SelectMonster(size_t index);
-	void SelectMonster(std::string name);
+	// Called when this page is about to be displayed
+	void OnSwitchIn();
+	// Called when this page is hidden
+	void OnSwitchOut();
 
 public:
-	// Event handling
-	void OnChangeSpawnMonsterTime(wxSpinEvent &event);
-	void OnChangeSpawnMonsterSize(wxSpinEvent &event);
+	// wxWidgets event handling
+	void OnClickZone(wxListEvent &event);
+	void OnRightClickZone(wxListEvent &event);
+	void OnBeginEditZoneLabel(wxListEvent &event);
+	void OnEditZoneLabel(wxListEvent &event);
+	void OnClickAddZone(wxCommandEvent &event);
+	void OnClickRemoveZone(wxCommandEvent &event);
 
-	void OnTilesetChange(wxCommandEvent &event);
-	void OnListBoxChange(wxCommandEvent &event);
-	void OnClickMonsterBrushButton(wxCommandEvent &event);
-	void OnClickSpawnMonsterBrushButton(wxCommandEvent &event);
-	void OnChangeMonsterName(wxCommandEvent &event);
+	void SetMap(Map* map);
 
 protected:
-	void SelectMonsterBrush();
-	void SelectSpawnBrush();
+	Map* map;
+	wxListCtrl* zone_list;
+	wxButton* add_zone_button;
+	wxButton* remove_zone_button;
 
-	wxChoice* tileset_choice;
-	wxTextCtrl* monster_name_text;
-	SortableListBox* monster_list;
-	wxToggleButton* monster_brush_button;
-	wxToggleButton* spawn_monster_brush_button;
-	wxSpinCtrl* monster_spawntime_spin;
-	wxSpinCtrl* spawn_monster_size_spin;
-	wxSpinCtrl* monster_spawndensity_spin;
-
-	bool handling_event;
-
-	DECLARE_EVENT_TABLE();
+	DECLARE_EVENT_TABLE()
 };
 
 #endif

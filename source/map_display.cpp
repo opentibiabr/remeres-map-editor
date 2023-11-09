@@ -690,6 +690,8 @@ void MapCanvas::OnMouseActionClick(wxMouseEvent &event) {
 				g_gui.SelectBrush(item->getRAWBrush(), TILESET_RAW);
 			}
 		}
+	} else if (event.AltDown()) {
+		OnMouseCameraClick(event);
 	} else if (g_gui.IsSelectionMode()) {
 		Selection &selection = editor.getSelection();
 		if (isPasting()) {
@@ -1038,6 +1040,7 @@ void MapCanvas::OnMouseActionRelease(wxMouseEvent &event) {
 	int move_x = last_click_map_x - mouse_map_x;
 	int move_y = last_click_map_y - mouse_map_y;
 	int move_z = last_click_map_z - floor;
+	OnMouseCameraRelease(event);
 
 	if (g_gui.IsSelectionMode()) {
 		if (dragging && (move_x != 0 || move_y != 0 || move_z != 0)) {
@@ -1997,7 +2000,8 @@ void MapCanvas::OnCopyPosition(wxCommandEvent &WXUNUSED(event)) {
 	Position minPos = editor.getSelection().minPosition();
 	Position maxPos = editor.getSelection().maxPosition();
 	if (minPos != maxPos) {
-		posToClipboard(minPos.x, minPos.y, minPos.z, maxPos.x, maxPos.y, maxPos.z);
+		int format = g_settings.getInteger(Config::COPY_AREA_FORMAT);
+		posToClipboard(minPos.x, minPos.y, minPos.z, maxPos.x, maxPos.y, maxPos.z, format);
 	} else {
 		int format = g_settings.getInteger(Config::COPY_POSITION_FORMAT);
 		posToClipboard(minPos.x, minPos.y, minPos.z, format);

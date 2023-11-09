@@ -171,6 +171,7 @@ target_sources(${PROJECT_NAME}
 	palette_house.cpp
 	palette_npc.cpp
 	palette_waypoints.cpp
+	palette_zones.cpp
 	palette_window.cpp
 	pngfiles.cpp
 	preferences.cpp
@@ -199,6 +200,8 @@ target_sources(${PROJECT_NAME}
 	waypoint_brush.cpp
 	waypoints.cpp
 	welcome_dialog.cpp
+	zone_brush.cpp
+	zones.cpp
 )
 
 target_include_directories(${PROJECT_NAME}

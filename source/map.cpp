@@ -28,7 +28,8 @@ Map::Map() :
 	houses(*this),
 	has_changed(false),
 	unnamed(false),
-	waypoints(*this) {
+	waypoints(*this),
+	zones(*this) {
 	// Earliest version possible
 	// Caller is responsible for converting us to proper version
 	mapVersion.otbm = MAP_OTBM_1;
@@ -307,6 +308,58 @@ void Map::cleanInvalidTiles(bool showdialog) {
 	}
 }
 
+void Map::cleanDeletedZones(bool showdialog) {
+	if (showdialog) {
+		g_gui.CreateLoadBar("Removing deleted zones...");
+	}
+
+	uint64_t tiles_done = 0;
+
+	for (MapIterator miter = begin(); miter != end(); ++miter) {
+		Tile* tile = (*miter)->get();
+		ASSERT(tile);
+
+		if (tile->size() == 0) {
+			continue;
+		}
+
+		for (auto iter = tile->zones.begin(); iter != tile->zones.end();) {
+			if (zones.hasZone(*iter)) {
+				++iter;
+			} else {
+				iter = tile->zones.erase(iter);
+			}
+		}
+
+		++tiles_done;
+		if (showdialog && tiles_done % 0x10000 == 0) {
+			g_gui.SetLoadDone(int(tiles_done / double(getTileCount()) * 100.0));
+		}
+	}
+
+	if (showdialog) {
+		g_gui.DestroyLoadBar();
+	}
+}
+
+Position Map::getZonePosition(unsigned int zoneId) {
+	Position pos;
+	for (MapIterator miter = begin(); miter != end(); ++miter) {
+		Tile* tile = (*miter)->get();
+		ASSERT(tile);
+
+		if (tile->size() == 0) {
+			continue;
+		}
+
+		if (tile->zones.find(zoneId) != tile->zones.end()) {
+			pos = tile->getPosition();
+			break;
+		}
+	}
+	return pos;
+}
+
 bool Map::doChange() {
 	bool doupdate = !has_changed;
 	has_changed = true;
@@ -344,6 +397,11 @@ void Map::setMapDescription(const std::string &new_description) {
 
 void Map::setHouseFilename(const std::string &new_housefile) {
 	housefile = new_housefile;
+	unnamed = false;
+}
+
+void Map::setZoneFilename(const std::string &new_zonefile) {
+	zonefile = new_zonefile;
 	unnamed = false;
 }
 
@@ -819,4 +877,29 @@ bool Map::hasUniqueId(uint16_t uid) const {
 
 	auto it = std::find(uniqueIds.begin(), uniqueIds.end(), uid);
 	return it != uniqueIds.end();
+}
+
+int64_t RemoveMonstersOnMap(Map &map, bool selectedOnly) {
+	int64_t done = 0;
+	int64_t removed = 0;
+
+	MapIterator it = map.begin();
+	MapIterator end = map.end();
+
+	while (it != end) {
+		++done;
+		Tile* tile = (*it)->get();
+		if (selectedOnly && !tile->isSelected()) {
+			++it;
+			continue;
+		}
+		if (tile->monster) {
+			delete tile->monster;
+			tile->monster = nullptr;
+			++removed;
+		}
+
+		++it;
+	}
+	return removed;
 }

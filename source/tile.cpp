@@ -96,6 +96,9 @@ Tile* Tile::deepCopy(BaseMap &map) const {
 	for (const Item* item : items) {
 		copy->items.push_back(item->deepCopy());
 	}
+	for (unsigned int zone : zones) {
+		copy->zones.insert(zone);
+	}
 	return copy;
 }
 

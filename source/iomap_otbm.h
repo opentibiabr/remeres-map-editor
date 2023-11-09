@@ -47,6 +47,7 @@ enum OTBM_ItemAttribute {
 	OTBM_ATTR_SLEEPSTART = 21,
 	OTBM_ATTR_CHARGES = 22,
 	OTBM_ATTR_EXT_SPAWN_NPC_FILE = 23,
+	OTBM_ATTR_EXT_ZONE_FILE = 24,
 
 	OTBM_ATTR_ATTRIBUTE_MAP = 128
 };
@@ -69,7 +70,8 @@ enum OTBM_NodeTypes_t {
 	OTBM_WAYPOINTS = 15,
 	OTBM_WAYPOINT = 16,
 	OTBM_SPAWN_NPC_AREA = 17,
-	OTBM_SPAWNS_NPC = 18
+	OTBM_SPAWNS_NPC = 18,
+	OTBM_TILE_ZONE = 19
 };
 
 struct OTBM_root_header {
@@ -133,6 +135,8 @@ protected:
 	bool loadHouses(Map &map, pugi::xml_document &doc);
 	bool loadSpawnsNpc(Map &map, const FileName &dir);
 	bool loadSpawnsNpc(Map &map, pugi::xml_document &doc);
+	bool loadZones(Map &map, const FileName &dir);
+	bool loadZones(Map &map, pugi::xml_document &doc);
 
 	virtual bool saveMap(Map &map, NodeFileWriteHandle &handle);
 	bool saveSpawns(Map &map, const FileName &dir);
@@ -141,6 +145,8 @@ protected:
 	bool saveHouses(Map &map, pugi::xml_document &doc);
 	bool saveSpawnsNpc(Map &map, const FileName &dir);
 	bool saveSpawnsNpc(Map &map, pugi::xml_document &doc);
+	bool saveZones(Map &map, const FileName &dir);
+	bool saveZones(Map &map, pugi::xml_document &doc);
 };
 
 #endif

@@ -42,6 +42,7 @@
 #include "raw_brush.h"
 #include "table_brush.h"
 #include "waypoint_brush.h"
+#include "zone_brush.h"
 #include "light_drawer.h"
 
 DrawingOptions::DrawingOptions() {
@@ -452,6 +453,10 @@ void MapDrawer::DrawSecondaryMap(int map_z) {
 				if (options.show_special_tiles && tile->getMapFlags() & TILESTATE_PVPZONE) {
 					r = r / 3 * 2;
 					b = r / 3 * 2;
+				}
+				if (options.show_special_tiles && tile->hasZone(g_gui.zone_brush->getZone())) {
+					r = r / 3 * 2;
+					b = b / 3 * 2;
 				}
 				if (options.show_special_tiles && tile->getMapFlags() & TILESTATE_NOLOGOUT) {
 					b /= 2;
@@ -1548,6 +1553,18 @@ void MapDrawer::DrawTile(TileLocation* location) {
 				b = b / 3 * 2;
 			}
 
+			bool zone_active = tile->hasZone(g_gui.zone_brush->getZone());
+			if (showspecial && zone_active) {
+				b /= 1.3;
+				r /= 1.5;
+				g /= 2;
+			}
+			if (showspecial && ((!tile->zones.empty() && !zone_active) || tile->zones.size() > 1)) {
+				r /= 1.4;
+				g /= 1.6;
+				b /= 1.3;
+			}
+
 			if (showspecial && tile->getMapFlags() & TILESTATE_NOLOGOUT) {
 				b /= 2;
 			}
@@ -1759,11 +1776,7 @@ void MapDrawer::DrawIndicator(int x, int y, int indicator, uint8_t r, uint8_t g,
 }
 
 void MapDrawer::DrawPositionIndicator(int z) {
-	if (z != pos_indicator.z
-		|| pos_indicator.x < start_x
-		|| pos_indicator.x > end_x
-		|| pos_indicator.y < start_y
-		|| pos_indicator.y > end_y) {
+	if (z != pos_indicator.z || pos_indicator.x < start_x || pos_indicator.x > end_x || pos_indicator.y < start_y || pos_indicator.y > end_y) {
 		return;
 	}
 

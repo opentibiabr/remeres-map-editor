@@ -125,6 +125,28 @@ wxNotebookPage* PreferencesWindow::CreateGeneralPage() {
 	sizer->Add(position_format, 0, wxALL | wxEXPAND, 5);
 	SetWindowToolTip(tmptext, position_format, "The position format when copying from the map.");
 
+	// clip << "{";
+	// clip << "fromx = " << minPos.x << ", ";
+	// clip << "tox = " << maxPos.x << ", ";
+	// clip << "fromy = " << minPos.y << ", ";
+	// clip << "toy = " << maxPos.y << ", ";
+	// if(minPos.z != maxPos.z) {
+	// 	clip << "fromz = " << minPos.z << ", ";
+	// 	clip << "toz = " << maxPos.z;
+	// }
+	// else
+	// 	clip << "z = " << minPos.z;
+	// clip << "}";
+
+	wxString area_choices[] = { "  {fromx = 0, tox = 0, fromy = 0, toy = 0, fromz = 0, toz = 0}",
+								"  { x = 0, y = 0, z = 0 }, { x = 0, y = 0, z = 0 }",
+								"  Position(x, y, z), Position(x, y, z)" };
+	int area_radio_choices = sizeof(area_choices) / sizeof(wxString);
+	area_format = newd wxRadioBox(general_page, wxID_ANY, "Copy Area Format", wxDefaultPosition, wxDefaultSize, area_radio_choices, area_choices, 1, wxRA_SPECIFY_COLS);
+	area_format->SetSelection(g_settings.getInteger(Config::COPY_POSITION_FORMAT));
+	sizer->Add(area_format, 0, wxALL | wxEXPAND, 5);
+	SetWindowToolTip(tmptext, area_format, "The area format when copying from the map.");
+
 	general_page->SetSizerAndFit(sizer);
 
 	return general_page;
@@ -578,6 +600,7 @@ void PreferencesWindow::Apply() {
 	g_settings.setInteger(Config::WORKER_THREADS, worker_threads_spin->GetValue());
 	g_settings.setInteger(Config::REPLACE_SIZE, replace_size_spin->GetValue());
 	g_settings.setInteger(Config::COPY_POSITION_FORMAT, position_format->GetSelection());
+	g_settings.setInteger(Config::COPY_AREA_FORMAT, area_format->GetSelection());
 
 	// Editor
 	g_settings.setInteger(Config::GROUP_ACTIONS, group_actions_chkbox->GetValue());
@@ -678,9 +701,9 @@ void PreferencesWindow::Apply() {
 	ClientVersionList versions = ClientVersion::getAllVisible();
 	int version_counter = 0;
 	for (auto version : versions) {
-		wxString dir = version_dir_pickers[version_counter]->GetPath();
-		if (dir.Length() > 0 && dir.Last() != '/' && dir.Last() != '\\') {
-			dir.Append("/");
+		auto dir = version_dir_pickers[version_counter]->GetPath().ToStdString();
+		if (dir.size() > 0 && dir.back() != '/' && dir.back() != '\\') {
+			dir.push_back('/');
 		}
 		version->setClientPath(FileName(dir));
 

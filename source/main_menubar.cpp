@@ -87,6 +87,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(SEARCH_ON_SELECTION_ITEM, wxITEM_NORMAL, OnSearchForItemOnSelection);
 	MAKE_ACTION(REPLACE_ON_SELECTION_ITEMS, wxITEM_NORMAL, OnReplaceItemsOnSelection);
 	MAKE_ACTION(REMOVE_ON_SELECTION_ITEM, wxITEM_NORMAL, OnRemoveItemOnSelection);
+	MAKE_ACTION(REMOVE_ON_SELECTION_MONSTER, wxITEM_NORMAL, OnRemoveMonstersOnSelection);
 	MAKE_ACTION(SELECT_MODE_COMPENSATE, wxITEM_RADIO, OnSelectionTypeChange);
 	MAKE_ACTION(SELECT_MODE_LOWER, wxITEM_RADIO, OnSelectionTypeChange);
 	MAKE_ACTION(SELECT_MODE_CURRENT, wxITEM_RADIO, OnSelectionTypeChange);
@@ -175,6 +176,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(SELECT_NPC, wxITEM_NORMAL, OnSelectNpcPalette);
 	MAKE_ACTION(SELECT_HOUSE, wxITEM_NORMAL, OnSelectHousePalette);
 	MAKE_ACTION(SELECT_WAYPOINT, wxITEM_NORMAL, OnSelectWaypointPalette);
+	MAKE_ACTION(SELECT_ZONES, wxITEM_NORMAL, OnSelectZonesPalette);
 	MAKE_ACTION(SELECT_RAW, wxITEM_NORMAL, OnSelectRawPalette);
 
 	MAKE_ACTION(FLOOR_0, wxITEM_RADIO, OnChangeFloor);
@@ -353,6 +355,7 @@ void MainMenuBar::Update() {
 	EnableItem(SEARCH_ON_SELECTION_ITEM, has_selection && is_host);
 	EnableItem(REPLACE_ON_SELECTION_ITEMS, has_selection && is_host);
 	EnableItem(REMOVE_ON_SELECTION_ITEM, has_selection && is_host);
+	EnableItem(REMOVE_ON_SELECTION_MONSTER, has_selection && is_host);
 
 	EnableItem(CUT, has_map);
 	EnableItem(COPY, has_map);
@@ -402,6 +405,7 @@ void MainMenuBar::Update() {
 	EnableItem(SELECT_MONSTER, loaded);
 	EnableItem(SELECT_NPC, loaded);
 	EnableItem(SELECT_WAYPOINT, loaded);
+	EnableItem(SELECT_ZONES, loaded);
 	EnableItem(SELECT_RAW, loaded);
 
 	EnableItem(LIVE_START, is_local);
@@ -564,7 +568,7 @@ bool MainMenuBar::Load(const FileName &path, wxArrayString &warnings, wxString &
 	}
 
 #ifdef __LINUX__
-	const int count = 42;
+	const int count = 43;
 	wxAcceleratorEntry entries[count];
 	// Edit
 	entries[0].Set(wxACCEL_CTRL, (int)'Z', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::UNDO));
@@ -614,7 +618,8 @@ bool MainMenuBar::Load(const FileName &path, wxArrayString &warnings, wxString &
 	entries[38].Set(wxACCEL_NORMAL, (int)'C', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_MONSTER));
 	entries[39].Set(wxACCEL_NORMAL, (int)'N', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_NPC));
 	entries[40].Set(wxACCEL_NORMAL, (int)'W', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_WAYPOINT));
-	entries[41].Set(wxACCEL_NORMAL, (int)'R', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_RAW));
+	entries[41].Set(wxACCEL_NORMAL, (int)'Z', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_ZONES));
+	entries[42].Set(wxACCEL_NORMAL, (int)'R', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_RAW));
 
 	wxAcceleratorTable accelerator(count, entries);
 	frame->SetAcceleratorTable(accelerator);
@@ -1127,6 +1132,23 @@ void MainMenuBar::OnRemoveItemOnSelection(wxCommandEvent &WXUNUSED(event)) {
 		g_gui.RefreshView();
 	}
 	dialog.Destroy();
+}
+
+void MainMenuBar::OnRemoveMonstersOnSelection(wxCommandEvent &WXUNUSED(event)) {
+	if (!g_gui.IsEditorOpen()) {
+		return;
+	}
+
+	g_gui.GetCurrentEditor()->clearActions();
+	g_gui.CreateLoadBar("Searching monsters on selection to remove...");
+	int64_t count = RemoveMonstersOnMap(g_gui.GetCurrentMap(), true);
+	g_gui.DestroyLoadBar();
+
+	wxString msg;
+	msg << count << " monsters removed.";
+	g_gui.PopupDialog("Remove Monsters", msg, wxOK);
+	g_gui.GetCurrentMap().doChange();
+	g_gui.RefreshView();
 }
 
 void MainMenuBar::OnSelectionTypeChange(wxCommandEvent &WXUNUSED(event)) {
@@ -1941,13 +1963,13 @@ void MainMenuBar::OnToggleFullscreen(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void MainMenuBar::OnTakeScreenshot(wxCommandEvent &WXUNUSED(event)) {
-	wxString path = wxstr(g_settings.getString(Config::SCREENSHOT_DIRECTORY));
-	if (path.size() > 0 && (path.Last() == '/' || path.Last() == '\\')) {
+	auto path = g_settings.getString(Config::SCREENSHOT_DIRECTORY);
+	if (path.size() > 0 && (path.back() == '/' || path.back() == '\\')) {
 		path = path + "/";
 	}
 
 	g_gui.GetCurrentMapTab()->GetView()->GetCanvas()->TakeScreenshot(
-		path, wxstr(g_settings.getString(Config::SCREENSHOT_FORMAT))
+		wxstr(path), wxstr(g_settings.getString(Config::SCREENSHOT_FORMAT))
 	);
 }
 
@@ -2056,6 +2078,10 @@ void MainMenuBar::OnSelectNpcPalette(wxCommandEvent &WXUNUSED(event)) {
 
 void MainMenuBar::OnSelectWaypointPalette(wxCommandEvent &WXUNUSED(event)) {
 	g_gui.SelectPalettePage(TILESET_WAYPOINT);
+}
+
+void MainMenuBar::OnSelectZonesPalette(wxCommandEvent &WXUNUSED(event)) {
+	g_gui.SelectPalettePage(TILESET_ZONES);
 }
 
 void MainMenuBar::OnSelectRawPalette(wxCommandEvent &WXUNUSED(event)) {

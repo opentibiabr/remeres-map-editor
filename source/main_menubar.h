@@ -56,6 +56,7 @@ namespace MenuBar {
 		SEARCH_ON_SELECTION_ITEM,
 		REPLACE_ON_SELECTION_ITEMS,
 		REMOVE_ON_SELECTION_ITEM,
+		REMOVE_ON_SELECTION_MONSTER,
 		SELECT_MODE_COMPENSATE,
 		SELECT_MODE_CURRENT,
 		SELECT_MODE_LOWER,
@@ -134,6 +135,7 @@ namespace MenuBar {
 		SELECT_NPC,
 		SELECT_HOUSE,
 		SELECT_WAYPOINT,
+		SELECT_ZONES,
 		SELECT_RAW,
 		FLOOR_0,
 		FLOOR_1,
@@ -248,6 +250,7 @@ public:
 	void OnSearchForItemOnSelection(wxCommandEvent &event);
 	void OnReplaceItemsOnSelection(wxCommandEvent &event);
 	void OnRemoveItemOnSelection(wxCommandEvent &event);
+	void OnRemoveMonstersOnSelection(wxCommandEvent &event);
 
 	// Map menu
 	void OnMapEditTowns(wxCommandEvent &event);
@@ -284,6 +287,7 @@ public:
 	void OnSelectMonsterPalette(wxCommandEvent &event);
 	void OnSelectNpcPalette(wxCommandEvent &event);
 	void OnSelectWaypointPalette(wxCommandEvent &event);
+	void OnSelectZonesPalette(wxCommandEvent &event);
 	void OnSelectRawPalette(wxCommandEvent &event);
 
 	// Floor menu

@@ -15,48 +15,46 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //////////////////////////////////////////////////////////////////////
 
-#ifndef RME_SPAWN_MONSTER_BRUSH_H
-#define RME_SPAWN_MONSTER_BRUSH_H
+#ifndef RME_ZONE_BRUSH_H
+#define RME_ZONE_BRUSH_H
 
 #include "brush.h"
 
 //=============================================================================
-// SpawnMonsterBrush, place monster spawn
+// ZoneBrush, draws zones simply
 
-class SpawnMonsterBrush : public Brush {
+class ZoneBrush : public FlagBrush {
 public:
-	SpawnMonsterBrush(); // Create a RAWBrush of the specified type
-	virtual ~SpawnMonsterBrush();
+	ZoneBrush();
+	virtual ~ZoneBrush();
 
-	bool isSpawnMonster() const {
+	bool isZone() const {
 		return true;
 	}
-	SpawnMonsterBrush* asSpawnMonster() {
-		return static_cast<SpawnMonsterBrush*>(this);
+	ZoneBrush* asZone() {
+		return static_cast<ZoneBrush*>(this);
+	}
+
+	// Not used
+	virtual bool load(pugi::xml_node node, wxArrayString &warnings) {
+		return true;
 	}
 
 	virtual bool canDraw(BaseMap* map, const Position &position) const;
-	virtual void draw(BaseMap* map, Tile* tile, void* parameter); // parameter is brush size
+	virtual void draw(BaseMap* map, Tile* tile, void* parameter);
 	virtual void undraw(BaseMap* map, Tile* tile);
 
-	virtual int getLookID() const; // We don't have a look, sorry!
-	virtual std::string getName() const;
-	virtual bool canDrag() const {
-		return true;
-	}
-	virtual bool canSmear() const {
-		return false;
-	}
-	virtual bool oneSizeFitsAll() const {
-		return true;
+	unsigned int getZone() const;
+	void setZone(unsigned int id);
+	virtual int getLookID() const {
+		return 0;
+	} // We don't have a graphic
+	virtual std::string getName() const {
+		return "Zone Brush";
 	}
 
-	void setMonsters(std::vector<MonsterBrush*> &monsters) {
-		this->monsters = monsters;
-	}
-
-private:
-	std::vector<MonsterBrush*> monsters;
+protected:
+	unsigned int zoneId;
 };
 
 #endif
