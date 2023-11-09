@@ -43,7 +43,7 @@
         <separator/>
         <menu name="$Border Options">
             <item name="Border $Automagic" hotkey="A" action="AUTOMAGIC" help="Turns on all automatic border functions."/>
-			<separator/>
+            <separator/>
             <item name="$Borderize Selection" hotkey="Ctrl+B" action="BORDERIZE_SELECTION" help="Creates automatic borders in the entire selected area."/>
             <item name="Borderize $Map" action="BORDERIZE_MAP" help="Reborders the entire map."/>
             <item name="Ra$ndomize Selection" action="RANDOMIZE_SELECTION" help="Randomizes the ground tiles of the selected area."/>
@@ -82,9 +82,8 @@
         <item name="Replace Items on Selection" action="REPLACE_ON_SELECTION_ITEMS" help="Replace items on selected area."/>
         <item name="Find Item on Selection" action="SEARCH_ON_SELECTION_ITEM" help="Find items on selected area."/>
         <item name="Remove Item on Selection" action="REMOVE_ON_SELECTION_ITEM" help="Remove item on selected area."/>
-        <item name="Remove Duplicates Items on Selection" action="REMOVE_ON_SELECTION_DUPLICATE_ITEMS" help="Removes all items duplicates selected area."/>
         <item name="Remove Monsters on Selection" action="REMOVE_ON_SELECTION_MONSTER" help="Remove monsters on selected area."/>
-		<item name="Remove Duplicates Items on Selection" action="REMOVE_ON_SELECTION_DUPLICATE_ITEMS" help="Removes all items duplicates selected area."/>
+        <item name="Remove Duplicates Items on Selection" action="REMOVE_ON_SELECTION_DUPLICATE_ITEMS" help="Removes all items duplicates selected area."/>
         <separator/>
         <menu name="$Find on Selection">
             <item name="Find $Everything" action="SEARCH_ON_SELECTION_EVERYTHING" help="Find all unique/action/text/container items."/>
@@ -93,7 +92,7 @@
             <item name="Find $Action" action="SEARCH_ON_SELECTION_ACTION" help="Find all items with an action ID on selected area."/>
             <item name="Find $Container" action="SEARCH_ON_SELECTION_CONTAINER" help="Find all containers on selected area."/>
             <item name="Find $Writeable" action="SEARCH_ON_SELECTION_WRITEABLE" help="Find all writeable items on selected area."/>
-			<item name="Find $Duplicate Items" action="SEARCH_ON_SELECTION_DUPLICATE" help="Find all positions where there are duplicate items on selected area."/>
+            <item name="Find $Duplicate Items" action="SEARCH_ON_SELECTION_DUPLICATE" help="Find all positions where there are duplicate items on selected area."/>
         </menu>
         <separator/>
         <menu name="$Selection Mode">
