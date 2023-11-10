@@ -53,7 +53,7 @@
             <item name="$Remove Items by ID..." action="MAP_REMOVE_ITEMS" help="Removes all items with the selected ID from the map."/>
             <item name="Remove $all corpses..." action="MAP_REMOVE_CORPSES" help="Removes all corpses from the map."/>
             <item name="Remove all $unreachable tiles..." action="MAP_REMOVE_UNREACHABLE_TILES" help="Removes all tiles that cannot be reached (or seen) by the player from the map."/>
-           <item name="Remove all $duplicates items..." action="REMOVE_ON_MAP_DUPLICATE_ITEMS" help="Removes all items duplicates on map."/>
+            <item name="Remove all $duplicates items..." action="REMOVE_ON_MAP_DUPLICATE_ITEMS" help="Removes all items duplicates on map."/>
             <item name="Remove empty monsters spawns" action="MAP_REMOVE_EMPTY_MONSTERS_SPAWNS" help="Removes all empty monsters spawns from the map."/>
             <item name="Remove empty npcs spawns" action="MAP_REMOVE_EMPTY_NPCS_SPAWNS" help="Removes all empty npcs spawns from the map."/>
             <item name="$Clear Invalid Houses" action="CLEAR_INVALID_HOUSES" help="Clears house tiles not belonging to any house."/>
