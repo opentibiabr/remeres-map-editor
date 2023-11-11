@@ -39,6 +39,7 @@
             <item name="Find $Container" action="SEARCH_ON_MAP_CONTAINER" help="Find all containers on map."/>
             <item name="Find $Writeable" action="SEARCH_ON_MAP_WRITEABLE" help="Find all writeable items on map."/>
             <item name="Find $Duplicate Items" action="SEARCH_ON_MAP_DUPLICATE" help="Find all positions where there are duplicate items on the map."/>
+            <item name="Find Walls $Upon Walls" action="SEARCH_ON_MAP_WALLS_UPON_WALLS" help="Find all positions where there are walls/windows/doors on walls/windows/doors on the map."/>
         </menu>
         <separator/>
         <menu name="$Border Options">
@@ -93,6 +94,7 @@
             <item name="Find $Container" action="SEARCH_ON_SELECTION_CONTAINER" help="Find all containers on selected area."/>
             <item name="Find $Writeable" action="SEARCH_ON_SELECTION_WRITEABLE" help="Find all writeable items on selected area."/>
             <item name="Find $Duplicate Items" action="SEARCH_ON_SELECTION_DUPLICATE" help="Find all positions where there are duplicate items on selected area."/>
+            <item name="Find Walls $Upon Walls" action="SEARCH_ON_SELECTION_WALLS_UPON_WALLS" help="Find all positions where there are walls/windows/doors on walls/windows/doors on selected area."/>
         </menu>
         <separator/>
         <menu name="$Selection Mode">
