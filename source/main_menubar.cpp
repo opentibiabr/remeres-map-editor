@@ -2468,6 +2468,7 @@ namespace SearchWallsUponWalls {
 				return;
 			}
 
+			
 			if (item->isWall() || item->isDoor()) {
 				std::unordered_set<int> itemIDs;
 				for (Item* itemInTile : tile->items) {
