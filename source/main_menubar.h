@@ -316,6 +316,7 @@ protected:
 	void SearchDuplicatedItems(bool onSelection = false);
 	void RemoveDuplicatesItems(bool onSelection = false);
 	void SearchWallsUponWalls(bool onSelection = false);
+
 protected:
 	MainFrame* frame;
 	wxMenuBar* menubar;
