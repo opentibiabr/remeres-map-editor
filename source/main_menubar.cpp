@@ -2279,6 +2279,7 @@ void MainMenuBar::SearchItems(bool unique, bool action, bool container, bool wri
 
 	SearchResultWindow* result = g_gui.ShowSearchWindow();
 	result->Clear();
+
 	for (std::vector<std::pair<Tile*, Item*>>::iterator iter = found.begin(); iter != found.end(); ++iter) {
 		result->AddPosition(searcher.desc(iter->second), iter->first->getPosition());
 	}
