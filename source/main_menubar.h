@@ -311,6 +311,7 @@ protected:
 	void SearchItems(bool unique, bool action, bool container, bool writable, bool onSelection = false);
 	void SearchDuplicatedItems(bool onSelection = false);
 	void RemoveDuplicatesItems(bool onSelection = false);
+
 protected:
 	MainFrame* frame;
 	wxMenuBar* menubar;
