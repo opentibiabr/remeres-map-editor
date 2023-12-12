@@ -2285,27 +2285,27 @@ void MainMenuBar::SearchItems(bool unique, bool action, bool container, bool wri
 	}
 }
 
-void MainMenuBar::OnSearchForDuplicateItemsOnMap(const wxCommandEvent &WXUNUSED(event)) {
+void MainMenuBar::OnSearchForDuplicateItemsOnMap(wxCommandEvent &WXUNUSED(event)) {
 	SearchDuplicatedItems(false);
 }
 
-void MainMenuBar::OnSearchForDuplicateItemsOnSelection(const wxCommandEvent &WXUNUSED(event)) {
+void MainMenuBar::OnSearchForDuplicateItemsOnSelection(wxCommandEvent &WXUNUSED(event)) {
 	SearchDuplicatedItems(true);
 }
 
-void MainMenuBar::OnRemoveForDuplicateItemsOnMap(const wxCommandEvent &WXUNUSED(event)) {
+void MainMenuBar::OnRemoveForDuplicateItemsOnMap(wxCommandEvent &WXUNUSED(event)) {
 	RemoveDuplicatesItems(false);
 }
 
-void MainMenuBar::OnRemoveForDuplicateItemsOnSelection(const wxCommandEvent &WXUNUSED(event)) {
+void MainMenuBar::OnRemoveForDuplicateItemsOnSelection(wxCommandEvent &WXUNUSED(event)) {
 	RemoveDuplicatesItems(true);
 }
 
-void MainMenuBar::OnSearchForWallsUponWallsOnMap(const wxCommandEvent &WXUNUSED(event)) {
+void MainMenuBar::OnSearchForWallsUponWallsOnMap(wxCommandEvent &WXUNUSED(event)) {
 	SearchWallsUponWalls(false);
 }
 
-void MainMenuBar::OnSearchForWallsUponWallsOnSelection(const wxCommandEvent &WXUNUSED(event)) {
+void MainMenuBar::OnSearchForWallsUponWallsOnSelection(wxCommandEvent &WXUNUSED(event)) {
 	SearchWallsUponWalls(true);
 }
 
@@ -2493,7 +2493,7 @@ namespace SearchWallsUponWalls {
 	};
 }
 
-void MainMenuBar::SearchWallsUponWalls(bool onSelection /* = false*/) const {
+void MainMenuBar::SearchWallsUponWalls(bool onSelection /* = false*/) {
 	if (!g_gui.IsEditorOpen()) {
 		return;
 	}
