@@ -2508,7 +2508,7 @@ void MainMenuBar::SearchWallsUponWalls(bool onSelection /* = false*/) {
 
 	foreach_ItemOnMap(g_gui.GetCurrentMap(), finder, onSelection);
 
-	std::unordered_set<Tile*> const &foundTiles = finder.foundTiles;
+	const std::unordered_set<Tile*> &foundTiles = finder.foundTiles;
 
 	g_gui.DestroyLoadBar();
 
