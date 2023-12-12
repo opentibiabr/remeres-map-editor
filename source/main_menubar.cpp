@@ -2452,7 +2452,7 @@ namespace SearchWallsUponWalls {
 	struct condition {
 		std::unordered_set<Tile*> foundTiles;
 
-		void operator()(Map &map, Tile* tile, Item* item, long long done) {
+		void operator()(const Map &map, Tile* tile, const Item* item, long long done) {
 			if (done % 0x8000 == 0) {
 				g_gui.SetLoadDone(static_cast<unsigned int>(100 * done / map.getTileCount()));
 			}
@@ -2469,25 +2469,26 @@ namespace SearchWallsUponWalls {
 				return;
 			}
 
-			if (item->isWall() || item->isDoor()) {
-				std::unordered_set<int> itemIDs;
-				for (Item* itemInTile : tile->items) {
-					if (itemInTile) {
-						if (itemInTile->isWall() || itemInTile->isDoor()) {
-							if (item->getID() != itemInTile->getID()) {
-								itemIDs.insert(itemInTile->getID());
-							}
-						}
-					}
-				}
-
-				size_t itemIDsSize = itemIDs.size();
-				if (itemIDsSize > 0) {
-					foundTiles.insert(tile);
-				}
-
-				itemIDs.clear();
+			if (!item->isWall() && !item->isDoor()) {
+				return;
 			}
+
+			std::unordered_set<int> itemIDs;
+			for (Item* const itemInTile : tile->items) {
+				if (!itemInTile || (!itemInTile->isWall() && !itemInTile->isDoor())) {
+					continue;
+				}
+
+				if (item->getID() != itemInTile->getID()) {
+					itemIDs.insert(itemInTile->getID());
+				}
+			}
+
+			if (itemIDs.size() > 0) {
+				foundTiles.insert(tile);
+			}
+
+			itemIDs.clear();
 		}
 	};
 }
@@ -2507,7 +2508,7 @@ void MainMenuBar::SearchWallsUponWalls(bool onSelection /* = false*/) {
 
 	foreach_ItemOnMap(g_gui.GetCurrentMap(), finder, onSelection);
 
-	std::unordered_set<Tile*> &foundTiles = finder.foundTiles;
+	std::unordered_set<Tile*> const &foundTiles = finder.foundTiles;
 
 	g_gui.DestroyLoadBar();
 
