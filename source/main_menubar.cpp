@@ -1328,7 +1328,7 @@ namespace OnMapRemoveCorpses {
 				g_gui.SetLoadDone((unsigned int)(100 * done / map.getTileCount()));
 			}
 
-			return g_materials.isInTileset(item, "Corpses") & !item->isComplex();
+			return g_materials.isInTileset(item, "Corpses") && !item->isComplex();
 		}
 	};
 }
@@ -2474,7 +2474,7 @@ namespace SearchWallsUponWalls {
 			}
 
 			std::unordered_set<int> itemIDs;
-			for (Item* const itemInTile : tile->items) {
+			for (const Item* itemInTile : tile->items) {
 				if (!itemInTile || (!itemInTile->isWall() && !itemInTile->isDoor())) {
 					continue;
 				}
@@ -2484,7 +2484,7 @@ namespace SearchWallsUponWalls {
 				}
 			}
 
-			if (itemIDs.size() > 0) {
+			if (!itemIDs.empty()) {
 				foundTiles.insert(tile);
 			}
 
@@ -2493,7 +2493,7 @@ namespace SearchWallsUponWalls {
 	};
 }
 
-void MainMenuBar::SearchWallsUponWalls(bool onSelection /* = false*/) {
+void MainMenuBar::SearchWallsUponWalls(bool onSelection /* = false*/) const {
 	if (!g_gui.IsEditorOpen()) {
 		return;
 	}
