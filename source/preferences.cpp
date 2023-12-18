@@ -735,7 +735,7 @@ void PreferencesWindow::Apply() {
 	if (must_restart) {
 		g_gui.PopupDialog(this, "Notice", "You must restart the editor for the changes to take effect.", wxOK);
 	}
-	
+
 	if (!palette_update_needed) {
 		// update palette icons
 		g_gui.RebuildPalettes();

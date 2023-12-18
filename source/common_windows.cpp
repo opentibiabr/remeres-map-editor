@@ -684,15 +684,14 @@ void ExportMiniMapWindow::CheckValues() {
 // Export Tilesets window
 
 BEGIN_EVENT_TABLE(ExportTilesetsWindow, wxDialog)
-	EVT_BUTTON(TILESET_FILE_BUTTON, ExportTilesetsWindow::OnClickBrowse)
-	EVT_BUTTON(wxID_OK, ExportTilesetsWindow::OnClickOK)
-	EVT_BUTTON(wxID_CANCEL, ExportTilesetsWindow::OnClickCancel)
+EVT_BUTTON(TILESET_FILE_BUTTON, ExportTilesetsWindow::OnClickBrowse)
+EVT_BUTTON(wxID_OK, ExportTilesetsWindow::OnClickOK)
+EVT_BUTTON(wxID_CANCEL, ExportTilesetsWindow::OnClickCancel)
 END_EVENT_TABLE()
 
-ExportTilesetsWindow::ExportTilesetsWindow(wxWindow* parent, Editor& editor) :
+ExportTilesetsWindow::ExportTilesetsWindow(wxWindow* parent, Editor &editor) :
 	wxDialog(parent, wxID_ANY, "Export Tilesets", wxDefaultPosition, wxSize(400, 230)),
-	editor(editor)
-{
+	editor(editor) {
 	wxSizer* sizer = newd wxBoxSizer(wxVERTICAL);
 	wxSizer* tmpsizer;
 
@@ -733,34 +732,29 @@ ExportTilesetsWindow::ExportTilesetsWindow(wxWindow* parent, Editor& editor) :
 
 ExportTilesetsWindow::~ExportTilesetsWindow() = default;
 
-void ExportTilesetsWindow::OnClickBrowse(wxCommandEvent & WXUNUSED(event))
-{
+void ExportTilesetsWindow::OnClickBrowse(wxCommandEvent &WXUNUSED(event)) {
 	wxDirDialog dialog(NULL, "Select the output folder", "", wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
 	if (dialog.ShowModal() == wxID_OK) {
-		const wxString& directory = dialog.GetPath();
+		const wxString &directory = dialog.GetPath();
 		directory_text_field->ChangeValue(directory);
 	}
 	CheckValues();
 }
 
-void ExportTilesetsWindow::OnDirectoryChanged(wxKeyEvent & event)
-{
+void ExportTilesetsWindow::OnDirectoryChanged(wxKeyEvent &event) {
 	CheckValues();
 	event.Skip();
 }
 
-void ExportTilesetsWindow::OnFileNameChanged(wxKeyEvent & event)
-{
+void ExportTilesetsWindow::OnFileNameChanged(wxKeyEvent &event) {
 	CheckValues();
 	event.Skip();
 }
 
-void ExportTilesetsWindow::OnClickOK(wxCommandEvent & WXUNUSED(event))
-{
+void ExportTilesetsWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 	g_gui.CreateLoadBar("Exporting Tilesets");
 
-	try
-	{
+	try {
 		FileName directory(directory_text_field->GetValue());
 		g_settings.setString(Config::TILESET_EXPORT_DIR, directory_text_field->GetValue().ToStdString());
 
@@ -770,11 +764,11 @@ void ExportTilesetsWindow::OnClickOK(wxCommandEvent & WXUNUSED(event))
 		pugi::xml_document doc;
 		pugi::xml_node node = doc.append_child("materials");
 
-		std::map<std::string, TilesetCategoryType> palettes{
-			{"Terrain", TILESET_TERRAIN},
-			{"Doodad", TILESET_DOODAD},
-			{"Items", TILESET_ITEM},
-			{"Raw", TILESET_RAW}
+		std::map<std::string, TilesetCategoryType> palettes {
+			{ "Terrain", TILESET_TERRAIN },
+			{ "Doodad", TILESET_DOODAD },
+			{ "Items", TILESET_ITEM },
+			{ "Raw", TILESET_RAW }
 		};
 		for (TilesetContainer::iterator iter = g_materials.tilesets.begin(); iter != g_materials.tilesets.end(); ++iter) {
 			std::string _data = iter->second->name;
@@ -782,7 +776,7 @@ void ExportTilesetsWindow::OnClickOK(wxCommandEvent & WXUNUSED(event))
 			if (_data == "others") {
 				bool blocked = 1;
 
-				for (const auto& kv : palettes) {
+				for (const auto &kv : palettes) {
 					TilesetCategory* tilesetCategory = iter->second->getCategory(kv.second);
 
 					if (kv.second != TILESET_RAW && tilesetCategory->brushlist.size() > 0) {
@@ -790,14 +784,16 @@ void ExportTilesetsWindow::OnClickOK(wxCommandEvent & WXUNUSED(event))
 					}
 				}
 
-				if (blocked) continue;
+				if (blocked) {
+					continue;
+				}
 			}
 
 			pugi::xml_node tileset = node.append_child("tileset");
 			tileset.append_attribute("name") = iter->second->name.c_str();
 
-			for (const auto& kv : palettes) {
-				TilesetCategory *tilesetCategory = iter->second->getCategory(kv.second);
+			for (const auto &kv : palettes) {
+				TilesetCategory* tilesetCategory = iter->second->getCategory(kv.second);
 
 				if (tilesetCategory->brushlist.size() > 0) {
 					std::string data = kv.first;
@@ -805,12 +801,11 @@ void ExportTilesetsWindow::OnClickOK(wxCommandEvent & WXUNUSED(event))
 
 					pugi::xml_node palette = tileset.append_child(data.c_str());
 					for (BrushVector::const_iterator _iter = tilesetCategory->brushlist.begin(); _iter != tilesetCategory->brushlist.end(); ++_iter) {
-						if ( !(*_iter)->isRaw() ) {
+						if (!(*_iter)->isRaw()) {
 							pugi::xml_node brush = palette.append_child("brush");
 							brush.append_attribute("name") = (*_iter)->getName().c_str();
-						}
-						else {
-							ItemType& it = g_items[(*_iter)->asRaw()->getItemID()];
+						} else {
+							ItemType &it = g_items[(*_iter)->asRaw()->getItemID()];
 							if (it.id != 0) {
 								pugi::xml_node item = palette.append_child("item");
 								item.append_attribute("id") = it.id;
@@ -829,9 +824,7 @@ void ExportTilesetsWindow::OnClickOK(wxCommandEvent & WXUNUSED(event))
 		doc.save_file(file.GetFullPath().mb_str());
 		g_gui.PopupDialog("Successfully saved Tilesets", "Saved tilesets to '" + std::string(file.GetFullPath().mb_str()) + "'", wxOK);
 		g_materials.modify(false);
-	}
-	catch (std::bad_alloc&)
-	{
+	} catch (std::bad_alloc &) {
 		g_gui.PopupDialog("Error", "There is not enough memory available to complete the operation.", wxOK);
 	}
 
@@ -839,14 +832,12 @@ void ExportTilesetsWindow::OnClickOK(wxCommandEvent & WXUNUSED(event))
 	EndModal(1);
 }
 
-void ExportTilesetsWindow::OnClickCancel(wxCommandEvent & WXUNUSED(event))
-{
+void ExportTilesetsWindow::OnClickCancel(wxCommandEvent &WXUNUSED(event)) {
 	// Just close this window
 	EndModal(0);
 }
 
-void ExportTilesetsWindow::CheckValues()
-{
+void ExportTilesetsWindow::CheckValues() {
 	if (directory_text_field->IsEmpty()) {
 		error_field->SetLabel("Type or select an output folder.");
 		ok_button->Enable(false);
@@ -1366,9 +1357,7 @@ ObjectPropertiesWindowBase::ObjectPropertiesWindowBase(wxWindow* parent, wxStrin
 }
 
 ObjectPropertiesWindowBase::ObjectPropertiesWindowBase(wxWindow* parent, wxString title, wxPoint position /* = wxDefaultPosition */) :
-	wxDialog(parent, wxID_ANY, title,
-		position, wxSize(600, 400), wxCAPTION | wxCLOSE_BOX | wxRESIZE_BORDER)
-{
+	wxDialog(parent, wxID_ANY, title, position, wxSize(600, 400), wxCAPTION | wxCLOSE_BOX | wxRESIZE_BORDER) {
 	////
 }
 

@@ -846,8 +846,7 @@ void MainMenuBar::OnExportMinimap(wxCommandEvent &WXUNUSED(event)) {
 	dialog.ShowModal();
 }
 
-void MainMenuBar::OnExportTilesets(wxCommandEvent& WXUNUSED(event))
-{
+void MainMenuBar::OnExportTilesets(wxCommandEvent &WXUNUSED(event)) {
 	if (g_gui.GetCurrentEditor()) {
 		ExportTilesetsWindow dlg(frame, *g_gui.GetCurrentEditor());
 		dlg.ShowModal();
@@ -2309,7 +2308,7 @@ namespace SearchDuplicatedItems {
 	struct condition {
 		std::unordered_set<Tile*> foundTiles;
 
-		void operator()(Map& map, Tile* tile, Item* item, long long done) {
+		void operator()(Map &map, Tile* tile, Item* item, long long done) {
 			if (done % 0x8000 == 0) {
 				g_gui.SetLoadDone((unsigned int)(100 * done / map.getTileCount()));
 			}
@@ -2340,7 +2339,7 @@ namespace SearchDuplicatedItems {
 	};
 }
 
-void MainMenuBar::SearchDuplicatedItems(bool onSelection/* = false*/) {
+void MainMenuBar::SearchDuplicatedItems(bool onSelection /* = false*/) {
 	if (!g_gui.IsEditorOpen()) {
 		return;
 	}
@@ -2354,7 +2353,7 @@ void MainMenuBar::SearchDuplicatedItems(bool onSelection/* = false*/) {
 	SearchDuplicatedItems::condition finder;
 
 	foreach_ItemOnMap(g_gui.GetCurrentMap(), finder, onSelection);
-	std::unordered_set<Tile*>& foundTiles = finder.foundTiles;
+	std::unordered_set<Tile*> &foundTiles = finder.foundTiles;
 
 	g_gui.DestroyLoadBar();
 
@@ -2374,7 +2373,7 @@ void MainMenuBar::SearchDuplicatedItems(bool onSelection/* = false*/) {
 
 namespace RemoveDuplicatesItems {
 	struct condition {
-		bool operator()(Map& map, Tile* tile, Item* item, long long removed, long long done) {
+		bool operator()(Map &map, Tile* tile, Item* item, long long removed, long long done) {
 			if (done % 0x8000 == 0) {
 				g_gui.SetLoadDone((unsigned int)(100 * done / map.getTileCount()));
 			}
@@ -2412,14 +2411,14 @@ namespace RemoveDuplicatesItems {
 	};
 }
 
-void MainMenuBar::RemoveDuplicatesItems(bool onSelection/* = false*/) {
+void MainMenuBar::RemoveDuplicatesItems(bool onSelection /* = false*/) {
 	if (!g_gui.IsEditorOpen()) {
 		return;
 	}
 
 	int ok = g_gui.PopupDialog("Remove Duplicate Items", "Do you want to remove all duplicates items from the map?", wxYES | wxNO);
 
-	if(ok == wxID_YES) {
+	if (ok == wxID_YES) {
 		g_gui.GetCurrentEditor()->getSelection().clear();
 		g_gui.GetCurrentEditor()->clearActions();
 

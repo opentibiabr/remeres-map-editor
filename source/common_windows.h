@@ -140,22 +140,21 @@ protected:
 /**
  * The export tilesets dialog, select output path.
  */
-class ExportTilesetsWindow : public wxDialog
-{
+class ExportTilesetsWindow : public wxDialog {
 public:
-	ExportTilesetsWindow(wxWindow* parent, Editor& editor);
+	ExportTilesetsWindow(wxWindow* parent, Editor &editor);
 	virtual ~ExportTilesetsWindow();
 
-	void OnClickBrowse(wxCommandEvent&);
-	void OnDirectoryChanged(wxKeyEvent&);
-	void OnFileNameChanged(wxKeyEvent&);
-	void OnClickOK(wxCommandEvent&);
-	void OnClickCancel(wxCommandEvent&);
+	void OnClickBrowse(wxCommandEvent &);
+	void OnDirectoryChanged(wxKeyEvent &);
+	void OnFileNameChanged(wxKeyEvent &);
+	void OnClickOK(wxCommandEvent &);
+	void OnClickCancel(wxCommandEvent &);
 
 protected:
 	void CheckValues();
 
-	Editor& editor;
+	Editor &editor;
 
 	wxStaticText* error_field;
 	wxTextCtrl* directory_text_field;
@@ -321,7 +320,8 @@ public:
 		wxPoint position = wxDefaultPosition
 	);
 	ObjectPropertiesWindowBase(
-		wxWindow* parent, wxString title, wxPoint position = wxDefaultPosition);
+		wxWindow* parent, wxString title, wxPoint position = wxDefaultPosition
+	);
 
 	Item* getItemBeingEdited();
 	Monster* getMonsterBeingEdited();

@@ -330,7 +330,7 @@ bool Materials::unserializeTileset(pugi::xml_node node, wxArrayString &warnings)
 }
 
 void Materials::addToTileset(std::string tilesetName, int itemId, TilesetCategoryType categoryType) {
-	ItemType& it = g_items[itemId];
+	ItemType &it = g_items[itemId];
 
 	if (it.id == 0) {
 		return;
@@ -340,8 +340,7 @@ void Materials::addToTileset(std::string tilesetName, int itemId, TilesetCategor
 	auto _it = tilesets.find(tilesetName);
 	if (_it != tilesets.end()) {
 		tileset = _it->second;
-	}
-	else {
+	} else {
 		tileset = newd Tileset(g_brushes, tilesetName);
 		tilesets.insert(std::make_pair(tilesetName, tileset));
 	}
@@ -353,12 +352,13 @@ void Materials::addToTileset(std::string tilesetName, int itemId, TilesetCategor
 		if (it.in_other_tileset) {
 			category->brushlist.push_back(it.raw_brush);
 			return;
-		}
-		else if (it.raw_brush == nullptr) {
+		} else if (it.raw_brush == nullptr) {
 			brush = it.raw_brush = newd RAWBrush(it.id);
 			it.has_raw = true;
 			g_brushes.addBrush(it.raw_brush);
-		} else brush = it.raw_brush;
+		} else {
+			brush = it.raw_brush;
+		}
 
 		brush->flagAsVisible();
 		category->brushlist.push_back(it.raw_brush);

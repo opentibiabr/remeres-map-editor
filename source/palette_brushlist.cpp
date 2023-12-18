@@ -236,8 +236,7 @@ void BrushPalettePanel::OnSwitchIn() {
 	OnUpdateBrushSize(g_gui.GetBrushShape(), last_brush_size);
 }
 
-void BrushPalettePanel::OnClickAddTileset(wxCommandEvent& WXUNUSED(event))
-{
+void BrushPalettePanel::OnClickAddTileset(wxCommandEvent &WXUNUSED(event)) {
 	if (!choicebook) {
 		return;
 	}
@@ -252,8 +251,7 @@ void BrushPalettePanel::OnClickAddTileset(wxCommandEvent& WXUNUSED(event))
 	}
 }
 
-void BrushPalettePanel::OnClickAddItemToTileset(wxCommandEvent& WXUNUSED(event))
-{
+void BrushPalettePanel::OnClickAddItemToTileset(wxCommandEvent &WXUNUSED(event)) {
 	if (!choicebook) {
 		return;
 	}

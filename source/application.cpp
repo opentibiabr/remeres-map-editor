@@ -485,8 +485,7 @@ bool MainFrame::DoQueryClose() {
 	return true;
 }
 
-bool MainFrame::DoQuerySaveTileset(bool doclose)
-{
+bool MainFrame::DoQuerySaveTileset(bool doclose) {
 	if (!g_materials.needSave()) {
 		// skip dialog when there is nothing to save
 		return true;

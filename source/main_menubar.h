@@ -209,7 +209,7 @@ public:
 	void OnImportNpcData(wxCommandEvent &event);
 	void OnImportMinimap(wxCommandEvent &event);
 	void OnExportMinimap(wxCommandEvent &event);
-	void OnExportTilesets(wxCommandEvent& event);
+	void OnExportTilesets(wxCommandEvent &event);
 	void OnReloadDataFiles(wxCommandEvent &event);
 
 	// Edit Menu
@@ -313,6 +313,7 @@ protected:
 	void SearchItems(bool unique, bool action, bool container, bool writable, bool onSelection = false);
 	void SearchDuplicatedItems(bool onSelection = false);
 	void RemoveDuplicatesItems(bool onSelection = false);
+
 protected:
 	MainFrame* frame;
 	wxMenuBar* menubar;

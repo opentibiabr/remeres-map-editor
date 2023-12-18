@@ -2320,13 +2320,15 @@ void MapCanvas::OnSelectSpawnNpcBrush(wxCommandEvent &WXUNUSED(event)) {
 	g_gui.SelectBrush(g_gui.spawn_npc_brush, TILESET_NPC);
 }
 
-void MapCanvas::OnSelectMoveTo(wxCommandEvent& WXUNUSED(event))
-{
-	if (editor.selection.size() != 1)
+void MapCanvas::OnSelectMoveTo(wxCommandEvent &WXUNUSED(event)) {
+	if (editor.selection.size() != 1) {
 		return;
+	}
 
 	Tile* tile = editor.selection.getSelectedTile();
-	if (!tile) return;
+	if (!tile) {
+		return;
+	}
 	ASSERT(tile->isSelected());
 	Tile* new_tile = tile->deepCopy(editor.map);
 
@@ -2345,9 +2347,9 @@ void MapCanvas::OnSelectMoveTo(wxCommandEvent& WXUNUSED(event))
 
 	if (item) {
 		w = newd TilesetWindow(g_gui.root, &editor.map, new_tile, item);
-	}
-	else
+	} else {
 		return;
+	}
 
 	int ret = w->ShowModal();
 	if (ret != 0) {
@@ -2356,8 +2358,7 @@ void MapCanvas::OnSelectMoveTo(wxCommandEvent& WXUNUSED(event))
 		editor.addAction(action);
 
 		g_gui.RebuildPalettes();
-	}
-	else {
+	} else {
 		// Cancel!
 		delete new_tile;
 	}
