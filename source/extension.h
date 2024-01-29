@@ -28,6 +28,7 @@ public:
 
 	std::string name;
 	std::string description;
+
 private:
 	MaterialsExtension(const MaterialsExtension &);
 	MaterialsExtension &operator=(const MaterialsExtension &);

@@ -113,8 +113,8 @@
 
 // Mathematical constants
 #define PI 3.14159265358979323846264338327950288419716939937510
-#define DEG2RAD (PI/180.0)
-#define RAD2DEG (180.0/DEG)
+#define DEG2RAD (PI / 180.0)
+#define RAD2DEG (180.0 / DEG)
 
 // The height of the map (there should be more checks for this...)
 #define MAP_LAYERS 16
@@ -128,7 +128,7 @@
 
 // The default size of sprites
 #define SPRITE_PIXELS 32
-#define SPRITE_PIXELS_SIZE SPRITE_PIXELS * SPRITE_PIXELS
+#define SPRITE_PIXELS_SIZE SPRITE_PIXELS* SPRITE_PIXELS
 
 // The sea layer
 #define GROUND_LAYER 7

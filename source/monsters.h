@@ -25,8 +25,7 @@ class MonsterBrush;
 
 typedef std::map<std::string, MonsterType*> MonsterMap;
 
-class MonsterDatabase
-{
+class MonsterDatabase {
 protected:
 	MonsterMap monster_map;
 
@@ -39,18 +38,22 @@ public:
 
 	void clear();
 
-	MonsterType* operator[](const std::string& name);
-	MonsterType* addMissingMonsterType(const std::string& name);
-	MonsterType* addMonsterType(const std::string& name, const Outfit& outfit);
+	MonsterType* operator[](const std::string &name);
+	MonsterType* addMissingMonsterType(const std::string &name);
+	MonsterType* addMonsterType(const std::string &name, const Outfit &outfit);
 
 	bool hasMissing() const;
-	iterator begin() {return monster_map.begin();}
-	iterator end() {return monster_map.end();}
+	iterator begin() {
+		return monster_map.begin();
+	}
+	iterator end() {
+		return monster_map.end();
+	}
 
-	bool loadFromXML(const FileName& filename, bool standard, wxString& error, wxArrayString& warnings);
-	bool importXMLFromOT(const FileName& filename, wxString& error, wxArrayString& warnings);
+	bool loadFromXML(const FileName &filename, bool standard, wxString &error, wxArrayString &warnings);
+	bool importXMLFromOT(const FileName &filename, wxString &error, wxArrayString &warnings);
 
-	bool saveToXML(const FileName& filename);
+	bool saveToXML(const FileName &filename);
 
 	wxArrayString getMissingMonsterNames() const;
 };
@@ -58,8 +61,8 @@ public:
 class MonsterType {
 public:
 	MonsterType();
-	MonsterType(const MonsterType& ct);
-	MonsterType& operator=(const MonsterType& ct);
+	MonsterType(const MonsterType &ct);
+	MonsterType &operator=(const MonsterType &ct);
 	~MonsterType();
 
 	bool missing;
@@ -69,8 +72,8 @@ public:
 	Outfit outfit;
 	MonsterBrush* brush;
 
-	static MonsterType* loadFromXML(pugi::xml_node node, wxArrayString& warnings);
-	static MonsterType* loadFromOTXML(const FileName& filename, pugi::xml_document& node, wxArrayString& warnings);
+	static MonsterType* loadFromXML(pugi::xml_node node, wxArrayString &warnings);
+	static MonsterType* loadFromOTXML(const FileName &filename, pugi::xml_document &node, wxArrayString &warnings);
 };
 
 extern MonsterDatabase g_monsters;

@@ -24,8 +24,7 @@
 
 class GameSprite;
 
-enum class SpriteLayout
-{
+enum class SpriteLayout {
 	ONE_BY_ONE = 0,
 	ONE_BY_TWO = 1,
 	TWO_BY_ONE = 2,
@@ -33,138 +32,151 @@ enum class SpriteLayout
 };
 
 struct SpritesSize {
-	public:
-		SpritesSize(int height, int width) : height(height), width(width) {}
+public:
+	SpritesSize(int height, int width) :
+		height(height), width(width) { }
 
-		void resize(int height, int width) {
-			this->height = height;
-			this->width = width;
-		}
-		void setHeight(int height) {
-			this->height = height;
-		}
-		void setWidth(int width) {
-			this->width = width;
-		}
-		int area() const {
-			return width * height;
-		}
+	void resize(int height, int width) {
+		this->height = height;
+		this->width = width;
+	}
+	void setHeight(int height) {
+		this->height = height;
+	}
+	void setWidth(int width) {
+		this->width = width;
+	}
+	int area() const {
+		return width * height;
+	}
 
-		int height = 0;
-		int width = 0;
+	int height = 0;
+	int width = 0;
 };
 
 struct Sprites {
-	public:
-		Sprites(int32_t width, int32_t height) : size(width, height) {
-			pixels.resize(width * height * 4, 0);
-		}
+public:
+	Sprites(int32_t width, int32_t height) :
+		size(width, height) {
+		pixels.resize(width * height * 4, 0);
+	}
 
-		bool save(const std::string& file, bool fixMagenta = false) {
-			wxImage image(size.width, size.height);
-	
-			for (int y = 0; y < size.height; ++y) {
-				for (int x = 0; x < size.width; ++x) {
-					const int index = (y * size.width + x) * 4;
-					const uint8_t r = pixels[index + 2];
-					const uint8_t g = pixels[index + 1];
-					const uint8_t b = pixels[index];
-					image.SetRGB(x, y, r, g, b);
-				}
+	bool save(const std::string &file, bool fixMagenta = false) {
+		wxImage image(size.width, size.height);
+
+		for (int y = 0; y < size.height; ++y) {
+			for (int x = 0; x < size.width; ++x) {
+				const int index = (y * size.width + x) * 4;
+				const uint8_t r = pixels[index + 2];
+				const uint8_t g = pixels[index + 1];
+				const uint8_t b = pixels[index];
+				image.SetRGB(x, y, r, g, b);
 			}
-
-			return image.SaveFile(wxString(file), wxBITMAP_TYPE_PNG);
 		}
 
-		std::vector<uint8_t> pixels;
-		SpritesSize size;
+		return image.SaveFile(wxString(file), wxBITMAP_TYPE_PNG);
+	}
+
+	std::vector<uint8_t> pixels;
+	SpritesSize size;
 };
 
 class SpriteSheet {
-	public:
-		SpriteSheet(int firstId, int lastId, SpriteLayout spriteLayout, const std::string& path) : firstId(firstId), lastId(lastId), spriteLayout(spriteLayout), path(path) {}
+public:
+	SpriteSheet(int firstId, int lastId, SpriteLayout spriteLayout, const std::string &path) :
+		firstId(firstId), lastId(lastId), spriteLayout(spriteLayout), path(path) { }
 
-		SpritesSize getSpriteSize() {
-			SpritesSize size(SPRITE_SIZE, SPRITE_SIZE);
+	SpritesSize getSpriteSize() {
+		SpritesSize size(SPRITE_SIZE, SPRITE_SIZE);
 
-			switch (spriteLayout) {
-				case SpriteLayout::ONE_BY_ONE: break;
-				case SpriteLayout::ONE_BY_TWO: size.setHeight(64); break;
-				case SpriteLayout::TWO_BY_ONE: size.setWidth(64); break;
-				case SpriteLayout::TWO_BY_TWO: size.resize(64, 64); break;
-				default: break;
-			}
-			return size;
+		switch (spriteLayout) {
+			case SpriteLayout::ONE_BY_ONE:
+				break;
+			case SpriteLayout::ONE_BY_TWO:
+				size.setHeight(64);
+				break;
+			case SpriteLayout::TWO_BY_ONE:
+				size.setWidth(64);
+				break;
+			case SpriteLayout::TWO_BY_TWO:
+				size.resize(64, 64);
+				break;
+			default:
+				break;
 		}
+		return size;
+	}
 
-		bool exportSheetImage(const std::string& file, bool fixMagenta = false) {
-			wxImage image(384, 384, data.get(), true);
-			return image.SaveFile(wxString(file), wxBITMAP_TYPE_PNG);
-		};
+	bool exportSheetImage(const std::string &file, bool fixMagenta = false) {
+		wxImage image(384, 384, data.get(), true);
+		return image.SaveFile(wxString(file), wxBITMAP_TYPE_PNG);
+	};
 
-		int firstId = 0;
-		int lastId = 0;
-		SpriteLayout spriteLayout = SpriteLayout::ONE_BY_ONE;
-		std::unique_ptr<uint8_t[]> data;
-		std::string path;
-		bool loaded = false;
+	int firstId = 0;
+	int lastId = 0;
+	SpriteLayout spriteLayout = SpriteLayout::ONE_BY_ONE;
+	std::unique_ptr<uint8_t[]> data;
+	std::string path;
+	bool loaded = false;
 };
 
 using SpritePtr = std::shared_ptr<Sprites>;
 using SpriteSheetPtr = std::shared_ptr<SpriteSheet>;
 
 //@bindsingleton g_spriteAppearances
-class SpriteAppearances
-{
-	public:
-		void init();
-		void terminate();
+class SpriteAppearances {
+public:
+	void init();
+	void terminate();
 
-		void unload();
+	void unload();
 
-		// sprites
-        void exportSpriteImage(int id, const std::string& path);
-        SpritePtr getSprite(int spriteId);
+	// sprites
+	void exportSpriteImage(int id, const std::string &path);
+	SpritePtr getSprite(int spriteId);
 
-        int getSpritesCount() {
-            return spritesCount;
-        }
+	int getSpritesCount() {
+		return spritesCount;
+	}
 
-		void setSpritesCount(int count) { spritesCount = count; }
-		int getSpritesCount() const { return spritesCount; }
-		/**
-			Returns a wxImage object containing the sprite image data for a given sprite ID.
-			@param id The ID of the sprite to retrieve.
-			@param toSavePng Determines if the image should be saved as a PNG file.
-			@return A wxImage object containing the sprite image data.
-			@remarks The image data is retrieved from a sprite sheet using the provided ID.
-			If toSavePng is set to true, the black color (0, 0, 0) is set to transparent by default and the image will be saved as a PNG file (with transparent background).
-			Use to save image: image.SaveFile(g_gui.GetDataDirectory().ToStdString() + "image.png", wxBITMAP_TYPE_PNG);
-		*/
-		wxImage getWxImageBySpriteId(int id, bool toSavePng = false);
+	void setSpritesCount(int count) {
+		spritesCount = count;
+	}
+	int getSpritesCount() const {
+		return spritesCount;
+	}
+	/**
+		Returns a wxImage object containing the sprite image data for a given sprite ID.
+		@param id The ID of the sprite to retrieve.
+		@param toSavePng Determines if the image should be saved as a PNG file.
+		@return A wxImage object containing the sprite image data.
+		@remarks The image data is retrieved from a sprite sheet using the provided ID.
+		If toSavePng is set to true, the black color (0, 0, 0) is set to transparent by default and the image will be saved as a PNG file (with transparent background).
+		Use to save image: image.SaveFile(g_gui.GetDataDirectory().ToStdString() + "image.png", wxBITMAP_TYPE_PNG);
+	*/
+	wxImage getWxImageBySpriteId(int id, bool toSavePng = false);
 
-		const std::string getAppearanceFileName() const {
-			return appearanceFile;
-		}
+	const std::string getAppearanceFileName() const {
+		return appearanceFile;
+	}
 
-		bool loadCatalogContent(const std::string& dir, bool loadData = true);
-		bool loadSpriteSheet(const SpriteSheetPtr& sheet);
-		void saveSheetToFileBySprite(int id, const std::string& file);
-		void saveSheetToFile(const SpriteSheetPtr& sheet, const std::string& file);
-		SpriteSheetPtr getSheetBySpriteId(int id, bool load = true);
+	bool loadCatalogContent(const std::string &dir, bool loadData = true);
+	bool loadSpriteSheet(const SpriteSheetPtr &sheet);
+	void saveSheetToFileBySprite(int id, const std::string &file);
+	void saveSheetToFile(const SpriteSheetPtr &sheet, const std::string &file);
+	SpriteSheetPtr getSheetBySpriteId(int id, bool load = true);
 
-		void addSpriteSheet(SpriteSheetPtr sheet) {
-			sheets.push_back(sheet);
-		}
+	void addSpriteSheet(SpriteSheetPtr sheet) {
+		sheets.push_back(sheet);
+	}
 
-		void saveSpriteToFile(int id, const std::string& file);
+	void saveSpriteToFile(int id, const std::string &file);
 
-	private:
-
-		int spritesCount = 0;
-		std::vector<SpriteSheetPtr> sheets;
-		std::map<int, SpritePtr> sprites;
-		std::string appearanceFile;
+private:
+	int spritesCount = 0;
+	std::vector<SpriteSheetPtr> sheets;
+	std::map<int, SpritePtr> sprites;
+	std::string appearanceFile;
 };
 
 extern SpriteAppearances g_spriteAppearances;

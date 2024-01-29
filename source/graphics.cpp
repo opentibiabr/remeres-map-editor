@@ -250,7 +250,7 @@ GameSprite* GraphicManager::getCreatureSprite(int id) {
 	}
 
 	SpriteMap::iterator it = sprite_space.find(id + getItemSpriteMaxID());
-	if(it != sprite_space.end()) {
+	if (it != sprite_space.end()) {
 		return static_cast<GameSprite*>(it->second);
 	}
 	return nullptr;
@@ -410,8 +410,7 @@ bool GraphicManager::loadEditorSprites() {
 	return true;
 }
 
-bool GraphicManager::loadItemSpriteMetadata(ItemType* t, wxString& error, wxArrayString& warnings)
-{
+bool GraphicManager::loadItemSpriteMetadata(ItemType* t, wxString &error, wxArrayString &warnings) {
 	GameSprite* sType = newd GameSprite();
 	sType->id = t->id;
 	sprite_space[t->id] = sType;
@@ -427,11 +426,11 @@ bool GraphicManager::loadItemSpriteMetadata(ItemType* t, wxString& error, wxArra
 	sType->sprite_phase_size = t->m_animationPhases.size();
 	has_frame_durations = t->m_animationPhases.size() > 0;
 
-	if(sType->sprite_phase_size > 0) {
+	if (sType->sprite_phase_size > 0) {
 		sType->animator = newd Animator(sType->sprite_phase_size, t->start_frame, t->loop_count, t->async_animation);
-		if(has_frame_durations) {
+		if (has_frame_durations) {
 			int frameIndex = 0;
-			for (const auto phase : t->m_animationPhases) { 
+			for (const auto phase : t->m_animationPhases) {
 				FrameDuration* frame_duration = sType->animator->getFrameDuration(frameIndex);
 				frame_duration->setValues(phase.first, phase.second);
 				frameIndex++;
@@ -440,16 +439,13 @@ bool GraphicManager::loadItemSpriteMetadata(ItemType* t, wxString& error, wxArra
 		}
 	}
 
-	sType->numsprites =
-		(int)sType->layers *
-		(int)sType->pattern_x * (int)sType->pattern_y * sType->pattern_z *
-		std::max<int>(1, sType->sprite_phase_size);
+	sType->numsprites = (int)sType->layers * (int)sType->pattern_x * (int)sType->pattern_y * sType->pattern_z * std::max<int>(1, sType->sprite_phase_size);
 
 	// Read the sprite ids
-	for(uint32_t i = 0; i < sType->numsprites; ++i) {
+	for (uint32_t i = 0; i < sType->numsprites; ++i) {
 		uint32_t sprite_id = t->m_sprites[i];
 
-		if(image_space[sprite_id] == nullptr) {
+		if (image_space[sprite_id] == nullptr) {
 			GameSprite::NormalImage* img = newd GameSprite::NormalImage();
 			img->id = sprite_id;
 			image_space[sprite_id] = img;
@@ -459,8 +455,7 @@ bool GraphicManager::loadItemSpriteMetadata(ItemType* t, wxString& error, wxArra
 	return true;
 }
 
-bool GraphicManager::loadOutfitSpriteMetadata(canary::protobuf::appearances::Appearance outfit, wxString& error, wxArrayString& warnings)
-{
+bool GraphicManager::loadOutfitSpriteMetadata(canary::protobuf::appearances::Appearance outfit, wxString &error, wxArrayString &warnings) {
 	GameSprite* sType = newd GameSprite();
 	sType->id = outfit.id() + getItemSpriteMaxID();
 	sprite_space[outfit.id() + getItemSpriteMaxID()] = sType;
@@ -481,11 +476,11 @@ bool GraphicManager::loadOutfitSpriteMetadata(canary::protobuf::appearances::App
 	sType->sprite_phase_size = animation.sprite_phase().size();
 	has_frame_durations = animation.sprite_phase().size() > 0;
 
-	if(sType->sprite_phase_size > 0) {
+	if (sType->sprite_phase_size > 0) {
 		sType->animator = newd Animator(sType->sprite_phase_size, animation.default_start_phase(), animation.loop_count(), !animation.synchronized());
-		if(has_frame_durations) {
+		if (has_frame_durations) {
 			int frameIndex = 0;
-			for (const auto &phase : animation.sprite_phase()) { 
+			for (const auto &phase : animation.sprite_phase()) {
 				FrameDuration* frame_duration = sType->animator->getFrameDuration(frameIndex);
 				frame_duration->setValues(phase.duration_min(), phase.duration_max());
 				frameIndex++;
@@ -494,10 +489,7 @@ bool GraphicManager::loadOutfitSpriteMetadata(canary::protobuf::appearances::App
 		}
 	}
 
-	sType->numsprites =
-		(int)sType->layers *
-		(int)sType->pattern_x * (int)sType->pattern_y * sType->pattern_z *
-		std::max<int>(1, sType->sprite_phase_size);
+	sType->numsprites = (int)sType->layers * (int)sType->pattern_x * (int)sType->pattern_y * sType->pattern_z * std::max<int>(1, sType->sprite_phase_size);
 
 	sType->minimap_color = outfit.flags().has_automap() ? static_cast<uint16_t>(outfit.flags().automap().color()) : 0;
 	sType->draw_height = outfit.flags().has_height() ? static_cast<uint16_t>(outfit.flags().height().elevation()) : 0;
@@ -508,10 +500,10 @@ bool GraphicManager::loadOutfitSpriteMetadata(canary::protobuf::appearances::App
 	}
 
 	// Read the sprite ids
-	for(uint32_t i = 0; i < sType->numsprites; ++i) {
+	for (uint32_t i = 0; i < sType->numsprites; ++i) {
 		uint32_t sprite_id = spriteInfo.sprite_id().Get(i);
 
-		if(image_space[sprite_id] == nullptr) {
+		if (image_space[sprite_id] == nullptr) {
 			GameSprite::NormalImage* img = newd GameSprite::NormalImage();
 			img->id = sprite_id;
 			image_space[sprite_id] = img;
@@ -521,10 +513,9 @@ bool GraphicManager::loadOutfitSpriteMetadata(canary::protobuf::appearances::App
 	return true;
 }
 
-bool GraphicManager::loadSpriteDump(uint8_t*& target, uint16_t& size, int sprite_id)
-{
+bool GraphicManager::loadSpriteDump(uint8_t*&target, uint16_t &size, int sprite_id) {
 	// Empty GameSprite
-	if(sprite_id == 0) {
+	if (sprite_id == 0) {
 		size = 0;
 		target = nullptr;
 		return true;
@@ -602,8 +593,7 @@ GameSprite::GameSprite() :
 	ground_speed(0),
 	draw_height(0),
 	drawoffset_x(0),
-	drawoffset_y(0)
-{
+	drawoffset_y(0) {
 	m_wxMemoryDc[SPRITE_SIZE_16x16] = nullptr;
 	m_wxMemoryDc[SPRITE_SIZE_32x32] = nullptr;
 	minimap_color(0);
@@ -615,8 +605,7 @@ GameSprite::~GameSprite() {
 	animator = nullptr;
 }
 
-void GameSprite::unloadDC()
-{
+void GameSprite::unloadDC() {
 	delete m_wxMemoryDc[SPRITE_SIZE_16x16];
 	delete m_wxMemoryDc[SPRITE_SIZE_32x32];
 	m_wxMemoryDc[SPRITE_SIZE_16x16] = nullptr;
@@ -627,8 +616,7 @@ int GameSprite::getIndex(int width, int height, int layer, int pattern_x, int pa
 	return ((((((frame % this->frames) * this->pattern_z + pattern_z) * this->pattern_y + pattern_y) * this->pattern_x + pattern_x) * this->layers + layer) * this->height + height) * this->width + width;
 }
 
-std::pair<int, int> GameSprite::getDrawOffset()
-{
+std::pair<int, int> GameSprite::getDrawOffset() {
 	if (!isDrawOffsetLoaded && spriteList.size() > 0) {
 		const auto &sheet = g_spriteAppearances.getSheetBySpriteId(spriteList[0]->getSpriteId());
 		if (!sheet) {
@@ -643,27 +631,20 @@ std::pair<int, int> GameSprite::getDrawOffset()
 	return std::make_pair(drawoffset_x, drawoffset_y);
 }
 
-uint8_t GameSprite::getMiniMapColor() const
-{
+uint8_t GameSprite::getMiniMapColor() const {
 	return minimap_color;
 }
 
-int GameSprite::getIndex(int width, int height, int layer, int pattern_x, int pattern_y, int pattern_z, int frame) const
-{
-	return ((((frame % this->sprite_phase_size) *
-		this->pattern_z + pattern_z) *
-		this->pattern_y + pattern_y) *
-		this->pattern_x + pattern_x) *
-		this->layers + layer;
+int GameSprite::getIndex(int width, int height, int layer, int pattern_x, int pattern_y, int pattern_z, int frame) const {
+	return ((((frame % this->sprite_phase_size) * this->pattern_z + pattern_z) * this->pattern_y + pattern_y) * this->pattern_x + pattern_x) * this->layers + layer;
 }
 
-GLuint GameSprite::getSpriteId(int _layer, int _count, int _pattern_x, int _pattern_y, int _pattern_z, int _frame)
-{
+GLuint GameSprite::getSpriteId(int _layer, int _count, int _pattern_x, int _pattern_y, int _pattern_z, int _frame) {
 	uint32_t v;
-	if(_count >= 0) {
+	if (_count >= 0) {
 		v = _count;
 	} else {
-		v = (((_frame)*pattern_y+_pattern_y)*pattern_x+_pattern_x)*layers+_layer;
+		v = (((_frame)*pattern_y + _pattern_y) * pattern_x + _pattern_x) * layers + _layer;
 	}
 	if (v >= numsprites) {
 		if (numsprites == 1) {
@@ -675,18 +656,17 @@ GLuint GameSprite::getSpriteId(int _layer, int _count, int _pattern_x, int _patt
 	return spriteList[v]->getSpriteId();
 }
 
-std::shared_ptr<GameSprite::OutfitImage> GameSprite::getOutfitImage(int spriteId, Direction direction, const Outfit& outfit)
-{
+std::shared_ptr<GameSprite::OutfitImage> GameSprite::getOutfitImage(int spriteId, Direction direction, const Outfit &outfit) {
 	uint32_t spriteIndex = direction * layers;
-	if(layers > 1 && spriteIndex >= numsprites) {
-		if(numsprites == 1) {
+	if (layers > 1 && spriteIndex >= numsprites) {
+		if (numsprites == 1) {
 			spriteIndex = 0;
 		} else {
 			spriteIndex %= numsprites;
 		}
 	}
 
-	if(instanced_templates.empty()) {
+	if (instanced_templates.empty()) {
 		auto img = std::make_shared<GameSprite::OutfitImage>(this, spriteIndex, spriteId, outfit);
 		if (!img) {
 			return nullptr;
@@ -695,11 +675,11 @@ std::shared_ptr<GameSprite::OutfitImage> GameSprite::getOutfitImage(int spriteId
 		return img;
 	}
 	// While this is linear lookup, it is very rare for the list to contain more than 4-8 entries, so it's faster than a hashmap anyways.
-	for(auto iter = instanced_templates.begin(); iter != instanced_templates.end(); ++iter) {
+	for (auto iter = instanced_templates.begin(); iter != instanced_templates.end(); ++iter) {
 		auto img = *iter;
-		if(img->m_spriteId == spriteId) {
+		if (img->m_spriteId == spriteId) {
 			uint32_t lookHash = img->m_lookHead << 24 | img->m_lookBody << 16 | img->m_lookLegs << 8 | img->m_lookFeet;
-			if(outfit.getColorHash() == lookHash) {
+			if (outfit.getColorHash() == lookHash) {
 				return img;
 			}
 		}
@@ -711,7 +691,7 @@ std::shared_ptr<GameSprite::OutfitImage> GameSprite::getOutfitImage(int spriteId
 }
 
 wxMemoryDC* GameSprite::getDC(SpriteSize spriteSize) {
-	if(!m_wxMemoryDc[spriteSize]) {
+	if (!m_wxMemoryDc[spriteSize]) {
 		const int bgshade = g_settings.getInteger(Config::ICON_BACKGROUND);
 		wxImage background(getWidth(), getHeight());
 
@@ -735,9 +715,8 @@ wxMemoryDC* GameSprite::getDC(SpriteSize spriteSize) {
 	return m_wxMemoryDc[spriteSize];
 }
 
-void GameSprite::DrawTo(wxDC* dcWindow, SpriteSize spriteSize, int start_x, int start_y, int width, int height)
-{
-	if(width == -1 || height == -1) {
+void GameSprite::DrawTo(wxDC* dcWindow, SpriteSize spriteSize, int start_x, int start_y, int width, int height) {
+	if (width == -1 || height == -1) {
 		if (spriteList.size() == 0) {
 			return;
 		}
@@ -751,24 +730,23 @@ void GameSprite::DrawTo(wxDC* dcWindow, SpriteSize spriteSize, int start_x, int 
 	}
 
 	wxMemoryDC* sdc = getDC(spriteSize);
-	if(sdc) {
+	if (sdc) {
 		dcWindow->Blit(start_x, start_y, width, height, sdc, 0, 0, wxCOPY, true);
 	} else {
-		const wxBrush& b = dcWindow->GetBrush();
+		const wxBrush &b = dcWindow->GetBrush();
 		dcWindow->SetBrush(*wxRED_BRUSH);
 		dcWindow->DrawRectangle(start_x, start_y, width, height);
 		dcWindow->SetBrush(b);
 	}
 }
 
-uint8_t* GameSprite::invertGLColors(int spriteHeight, int spriteWidth, uint8_t* rgba)
-{
+uint8_t* GameSprite::invertGLColors(int spriteHeight, int spriteWidth, uint8_t* rgba) {
 	uint8_t* rgba_inverted = new uint8_t[spriteWidth * spriteHeight * 4];
 	for (int i = 0; i < spriteWidth * spriteHeight; i++) {
-		rgba_inverted[i*4 + 0] = rgba[i*4 + 2]; // R -> B
-		rgba_inverted[i*4 + 1] = rgba[i*4 + 1]; // G
-		rgba_inverted[i*4 + 2] = rgba[i*4 + 0]; // B -> R
-		rgba_inverted[i*4 + 3] = rgba[i*4 + 3]; // A
+		rgba_inverted[i * 4 + 0] = rgba[i * 4 + 2]; // R -> B
+		rgba_inverted[i * 4 + 1] = rgba[i * 4 + 1]; // G
+		rgba_inverted[i * 4 + 2] = rgba[i * 4 + 0]; // B -> R
+		rgba_inverted[i * 4 + 3] = rgba[i * 4 + 3]; // A
 	}
 
 	return rgba_inverted;
@@ -831,28 +809,25 @@ void GameSprite::Image::clean(int time) {
 GameSprite::NormalImage::NormalImage() :
 	id(0),
 	size(0),
-	m_cachedData(nullptr)
-{
+	m_cachedData(nullptr) {
 	////
 }
 
-GameSprite::NormalImage::~NormalImage()
-{
+GameSprite::NormalImage::~NormalImage() {
 	m_cachedData = nullptr;
 }
 
 void GameSprite::NormalImage::clean(int time) {
 	Image::clean(time);
 	// We keep dumps around for 5 seconds.
-	if(time - lastaccess > 5) {
+	if (time - lastaccess > 5) {
 		m_cachedData = nullptr;
 	}
 }
 
-uint8_t* GameSprite::NormalImage::getRGBAData()
-{
-	if(!m_cachedData) {
-		if(!g_gui.gfx.loadSpriteDump(m_cachedData, size, id)) {
+uint8_t* GameSprite::NormalImage::getRGBAData() {
+	if (!m_cachedData) {
+		if (!g_gui.gfx.loadSpriteDump(m_cachedData, size, id)) {
 			spdlog::info("[GameSprite::NormalImage::getRGBAData] - Failed when parsing sprite id {}", id);
 			return nullptr;
 		}
@@ -861,9 +836,8 @@ uint8_t* GameSprite::NormalImage::getRGBAData()
 	return m_cachedData;
 }
 
-GLuint GameSprite::NormalImage::getSpriteId()
-{
-	if(!isGLLoaded) {
+GLuint GameSprite::NormalImage::getSpriteId() {
+	if (!isGLLoaded) {
 		createGLTexture(id);
 	}
 	visit();
@@ -878,8 +852,7 @@ void GameSprite::NormalImage::unloadGLTexture(GLuint textureId) {
 	Image::unloadGLTexture(id);
 }
 
-uint8_t GameSprite::getWidth()
-{
+uint8_t GameSprite::getWidth() {
 	if (width <= 0) {
 		const auto &sheet = g_spriteAppearances.getSheetBySpriteId(spriteList[0]->getSpriteId(), false);
 		if (sheet) {
@@ -891,8 +864,7 @@ uint8_t GameSprite::getWidth()
 	return width;
 }
 
-uint8_t GameSprite::getHeight()
-{
+uint8_t GameSprite::getHeight() {
 	if (height <= 0) {
 		const auto &sheet = g_spriteAppearances.getSheetBySpriteId(spriteList[0]->getSpriteId(), false);
 		if (sheet) {
@@ -905,7 +877,7 @@ uint8_t GameSprite::getHeight()
 }
 
 // OutfitImage
-GameSprite::OutfitImage::OutfitImage(GameSprite* initParent, int initSpriteIndex, GLuint initSpriteId, const Outfit& initOutfit) :
+GameSprite::OutfitImage::OutfitImage(GameSprite* initParent, int initSpriteIndex, GLuint initSpriteId, const Outfit &initOutfit) :
 	m_spriteId(initSpriteId),
 	m_spriteIndex(initSpriteIndex),
 	m_parent(initParent),
@@ -913,22 +885,19 @@ GameSprite::OutfitImage::OutfitImage(GameSprite* initParent, int initSpriteIndex
 	m_lookHead(initOutfit.lookHead),
 	m_lookBody(initOutfit.lookBody),
 	m_lookLegs(initOutfit.lookLegs),
-	m_lookFeet(initOutfit.lookFeet)
-{
+	m_lookFeet(initOutfit.lookFeet) {
 	////
 }
 
-GameSprite::OutfitImage::~OutfitImage()
-{
+GameSprite::OutfitImage::~OutfitImage() {
 	m_cachedOutfitData = nullptr;
 }
 
-void GameSprite::OutfitImage::unloadGLTexture(GLuint ignored)
-{
+void GameSprite::OutfitImage::unloadGLTexture(GLuint ignored) {
 	Image::unloadGLTexture(m_spriteId);
 }
 
-void GameSprite::OutfitImage::colorizePixel(uint8_t color, uint8_t& red, uint8_t& green, uint8_t& blue) {
+void GameSprite::OutfitImage::colorizePixel(uint8_t color, uint8_t &red, uint8_t &green, uint8_t &blue) {
 	uint8_t ro = (TemplateOutfitLookupTable[color] & 0xFF0000) >> 16; // rgb outfit
 	uint8_t go = (TemplateOutfitLookupTable[color] & 0xFF00) >> 8;
 	uint8_t bo = (TemplateOutfitLookupTable[color] & 0xFF);
@@ -938,9 +907,8 @@ void GameSprite::OutfitImage::colorizePixel(uint8_t color, uint8_t& red, uint8_t
 	blue = (uint8_t)(blue * ((float)bo / 255.f));
 }
 
-uint8_t* GameSprite::OutfitImage::getRGBAData()
-{
-	if (m_cachedOutfitData ) {
+uint8_t* GameSprite::OutfitImage::getRGBAData() {
+	if (m_cachedOutfitData) {
 		return m_cachedOutfitData;
 	}
 
@@ -957,16 +925,16 @@ uint8_t* GameSprite::OutfitImage::getRGBAData()
 	uint8_t* rgbadata = sprite->pixels.data();
 	uint8_t* template_rgbadata = spriteTemplate->pixels.data();
 
-	if(m_lookHead > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
+	if (m_lookHead > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
 		m_lookHead = 0;
 	}
-	if(m_lookBody > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
+	if (m_lookBody > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
 		m_lookBody = 0;
 	}
-	if(m_lookLegs > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
+	if (m_lookLegs > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
 		m_lookLegs = 0;
 	}
-	if(m_lookFeet > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
+	if (m_lookFeet > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
 		m_lookFeet = 0;
 	}
 
@@ -975,13 +943,13 @@ uint8_t* GameSprite::OutfitImage::getRGBAData()
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
 			const int index = (y * width + x) * 4;
-			uint8_t& red = rgbadata[index + 2];
-			uint8_t& green = rgbadata[index + 1];
-			uint8_t& blue = rgbadata[index];
+			uint8_t &red = rgbadata[index + 2];
+			uint8_t &green = rgbadata[index + 1];
+			uint8_t &blue = rgbadata[index];
 
-			const uint8_t& tred = template_rgbadata[index + 2];
-			const uint8_t& tgreen = template_rgbadata[index + 1];
-			const uint8_t& tblue = template_rgbadata[index];
+			const uint8_t &tred = template_rgbadata[index + 2];
+			const uint8_t &tgreen = template_rgbadata[index + 1];
+			const uint8_t &tblue = template_rgbadata[index];
 
 			if (tred && tgreen && !tblue) { // yellow => head
 				colorizePixel(m_lookHead, red, green, blue);
@@ -1001,14 +969,13 @@ uint8_t* GameSprite::OutfitImage::getRGBAData()
 	return m_cachedOutfitData;
 }
 
-GLuint GameSprite::OutfitImage::getSpriteId()
-{
-	if(!m_isGLLoaded) {
-		if(m_spriteId == 0) {
+GLuint GameSprite::OutfitImage::getSpriteId() {
+	if (!m_isGLLoaded) {
+		if (m_spriteId == 0) {
 			m_spriteId = g_gui.gfx.getFreeTextureID();
 		}
 		createGLTexture(m_spriteId);
-		if(!m_isGLLoaded) {
+		if (!m_isGLLoaded) {
 			return 0;
 		}
 	}
@@ -1016,12 +983,11 @@ GLuint GameSprite::OutfitImage::getSpriteId()
 	return m_spriteId;
 }
 
-void GameSprite::OutfitImage::createGLTexture(GLuint spriteId)
-{
+void GameSprite::OutfitImage::createGLTexture(GLuint spriteId) {
 	ASSERT(!m_isGLLoaded);
 
 	uint8_t* rgba = getRGBAData();
-	if(!rgba) {
+	if (!rgba) {
 		return;
 	}
 

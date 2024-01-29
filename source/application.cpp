@@ -277,17 +277,17 @@ bool Application::OnInit() {
 
 void Application::OnEventLoopEnter(wxEventLoopBase* loop) {
 
-	//First startup?
+	// First startup?
 	if (!m_startup) {
 		return;
 	}
 
 	m_startup = false;
 
-	//Open a map.
+	// Open a map.
 	if (m_file_to_open != wxEmptyString) {
 		g_gui.LoadMap(FileName(m_file_to_open));
-	} else if (!g_gui.IsWelcomeDialogShown() && g_gui.NewMap()) { //Open a new empty map
+	} else if (!g_gui.IsWelcomeDialogShown() && g_gui.NewMap()) { // Open a new empty map
 		// You generally don't want to save this map...
 		g_gui.GetCurrentEditor()->clearChanges();
 	}

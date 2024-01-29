@@ -38,13 +38,11 @@
 #include "table_brush.h"
 #include "waypoint_brush.h"
 
-DrawingOptions::DrawingOptions()
-{
+DrawingOptions::DrawingOptions() {
 	SetDefault();
 }
 
-void DrawingOptions::SetDefault()
-{
+void DrawingOptions::SetDefault() {
 	transparent_floors = false;
 	transparent_items = false;
 	show_ingame_box = false;
@@ -73,8 +71,7 @@ void DrawingOptions::SetDefault()
 	hide_items_when_zoomed = true;
 }
 
-void DrawingOptions::SetIngame()
-{
+void DrawingOptions::SetIngame() {
 	transparent_floors = false;
 	transparent_items = false;
 	show_ingame_box = false;
@@ -103,18 +100,16 @@ void DrawingOptions::SetIngame()
 	hide_items_when_zoomed = false;
 }
 
-MapDrawer::MapDrawer(MapCanvas* canvas) : canvas(canvas), editor(canvas->editor)
-{
+MapDrawer::MapDrawer(MapCanvas* canvas) :
+	canvas(canvas), editor(canvas->editor) {
 	////
 }
 
-MapDrawer::~MapDrawer()
-{
+MapDrawer::~MapDrawer() {
 	Release();
 }
 
-void MapDrawer::SetupVars()
-{
+void MapDrawer::SetupVars() {
 	canvas->MouseToMap(&mouse_map_x, &mouse_map_y);
 	canvas->GetViewBox(&view_scroll_x, &view_scroll_y, &screensize_x, &screensize_y);
 
@@ -125,14 +120,15 @@ void MapDrawer::SetupVars()
 	tile_size = int(TILE_SIZE / zoom); // after zoom
 	floor = canvas->GetFloor();
 
-	if(options.show_all_floors) {
-		if(floor < 8)
+	if (options.show_all_floors) {
+		if (floor < 8) {
 			start_z = GROUND_LAYER;
-		else
+		} else {
 			start_z = std::min(MAP_MAX_LAYER, floor + 2);
-	}
-	else
+		}
+	} else {
 		start_z = floor;
+	}
 
 	end_z = floor;
 	superend_z = (floor > GROUND_LAYER ? 8 : 0);
@@ -140,7 +136,7 @@ void MapDrawer::SetupVars()
 	start_x = view_scroll_x / TILE_SIZE;
 	start_y = view_scroll_y / TILE_SIZE;
 
-	if(floor > GROUND_LAYER) {
+	if (floor > GROUND_LAYER) {
 		start_x -= 2;
 		start_y -= 2;
 	}
@@ -149,8 +145,7 @@ void MapDrawer::SetupVars()
 	end_y = start_y + screensize_y / tile_size + 2;
 }
 
-void MapDrawer::SetupGL()
-{
+void MapDrawer::SetupGL() {
 	glViewport(0, 0, screensize_x, screensize_y);
 
 	// Enable 2D mode
@@ -161,7 +156,7 @@ void MapDrawer::SetupGL()
 	glMatrixMode(GL_PROJECTION);
 	glPushMatrix();
 	glLoadIdentity();
-	glOrtho(0, vPort[2]*zoom, vPort[3]*zoom, 0, -1, 1);
+	glOrtho(0, vPort[2] * zoom, vPort[3] * zoom, 0, -1, 1);
 
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
@@ -169,9 +164,8 @@ void MapDrawer::SetupGL()
 	glTranslatef(0.375f, 0.375f, 0.0f);
 }
 
-void MapDrawer::Release()
-{
-	for(std::vector<MapTooltip*>::const_iterator it = tooltips.begin(); it != tooltips.end(); ++it) {
+void MapDrawer::Release() {
+	for (std::vector<MapTooltip*>::const_iterator it = tooltips.begin(); it != tooltips.end(); ++it) {
 		delete *it;
 	}
 	tooltips.clear();
@@ -183,26 +177,28 @@ void MapDrawer::Release()
 	glPopMatrix();
 }
 
-void MapDrawer::Draw()
-{
+void MapDrawer::Draw() {
 	DrawBackground();
 	DrawMap();
 	DrawDraggingShadow();
 	DrawHigherFloors();
-	if(options.dragging)
+	if (options.dragging) {
 		DrawSelectionBox();
+	}
 	DrawLiveCursors();
 	DrawBrush();
-	if(options.show_grid)
+	if (options.show_grid) {
 		DrawGrid();
-	if(options.show_ingame_box)
+	}
+	if (options.show_ingame_box) {
 		DrawIngameBox();
-	if(options.show_tooltips)
+	}
+	if (options.show_tooltips) {
 		DrawTooltips();
+	}
 }
 
-void MapDrawer::DrawBackground()
-{
+void MapDrawer::DrawBackground() {
 	// Black Background
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -212,184 +208,191 @@ void MapDrawer::DrawBackground()
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
 
-	//glAlphaFunc(GL_GEQUAL, 0.9f);
-	//glEnable(GL_ALPHA_TEST);
+	// glAlphaFunc(GL_GEQUAL, 0.9f);
+	// glEnable(GL_ALPHA_TEST);
 }
 
-inline int getFloorAdjustment(int floor)
-{
-	if(floor > GROUND_LAYER) // Underground
+inline int getFloorAdjustment(int floor) {
+	if (floor > GROUND_LAYER) { // Underground
 		return 0; // No adjustment
-	else
+	} else {
 		return TILE_SIZE * (GROUND_LAYER - floor);
+	}
 }
 
-void MapDrawer::DrawMap()
-{
+void MapDrawer::DrawMap() {
 	bool live_client = editor.IsLiveClient();
 
 	Brush* brush = g_gui.GetCurrentBrush();
 
 	// The current house we're drawing
 	current_house_id = 0;
-	if(brush) {
-		if(brush->isHouse())
+	if (brush) {
+		if (brush->isHouse()) {
 			current_house_id = brush->asHouse()->getHouseID();
-		else if(brush->isHouseExit())
+		} else if (brush->isHouseExit()) {
 			current_house_id = brush->asHouseExit()->getHouseID();
+		}
 	}
 
 	bool only_colors = options.show_as_minimap || options.show_only_colors;
 
 	// Enable texture mode
-	if(!only_colors)
+	if (!only_colors) {
 		glEnable(GL_TEXTURE_2D);
+	}
 
-	for(int map_z = start_z; map_z >= superend_z; map_z--) {
-		if(map_z == end_z && start_z != end_z && options.show_shade) {
+	for (int map_z = start_z; map_z >= superend_z; map_z--) {
+		if (map_z == end_z && start_z != end_z && options.show_shade) {
 			// Draw shade
-			if(!only_colors)
+			if (!only_colors) {
 				glDisable(GL_TEXTURE_2D);
+			}
 
 			glColor4ub(0, 0, 0, 128);
 			glBegin(GL_QUADS);
-				glVertex2f(0,int(screensize_y*zoom));
-				glVertex2f(int(screensize_x*zoom),int(screensize_y*zoom));
-				glVertex2f(int(screensize_x*zoom),0);
-				glVertex2f(0,0);
+			glVertex2f(0, int(screensize_y * zoom));
+			glVertex2f(int(screensize_x * zoom), int(screensize_y * zoom));
+			glVertex2f(int(screensize_x * zoom), 0);
+			glVertex2f(0, 0);
 			glEnd();
 
-			if(!only_colors)
+			if (!only_colors) {
 				glEnable(GL_TEXTURE_2D);
+			}
 		}
 
-		if(map_z >= end_z) {
+		if (map_z >= end_z) {
 			int nd_start_x = start_x & ~3;
 			int nd_start_y = start_y & ~3;
 			int nd_end_x = (end_x & ~3) + 4;
 			int nd_end_y = (end_y & ~3) + 4;
 
-			for(int nd_map_x = nd_start_x; nd_map_x <= nd_end_x; nd_map_x += 4) {
-				for(int nd_map_y = nd_start_y; nd_map_y <= nd_end_y; nd_map_y += 4) {
+			for (int nd_map_x = nd_start_x; nd_map_x <= nd_end_x; nd_map_x += 4) {
+				for (int nd_map_y = nd_start_y; nd_map_y <= nd_end_y; nd_map_y += 4) {
 					QTreeNode* nd = editor.map.getLeaf(nd_map_x, nd_map_y);
-					if(!nd) {
-						if(live_client) {
+					if (!nd) {
+						if (live_client) {
 							nd = editor.map.createLeaf(nd_map_x, nd_map_y);
 							nd->setVisible(false, false);
-						}
-						else
+						} else {
 							continue;
+						}
 					}
 
-					if(!live_client || nd->isVisible(map_z > GROUND_LAYER)) {
-						for(int map_x = 0; map_x < 4; ++map_x) {
-							for(int map_y = 0; map_y < 4; ++map_y) {
+					if (!live_client || nd->isVisible(map_z > GROUND_LAYER)) {
+						for (int map_x = 0; map_x < 4; ++map_x) {
+							for (int map_y = 0; map_y < 4; ++map_y) {
 								DrawTile(nd->getTile(map_x, map_y, map_z));
 							}
 						}
 					} else {
-						if(!nd->isRequested(map_z > GROUND_LAYER)) {
+						if (!nd->isRequested(map_z > GROUND_LAYER)) {
 							// Request the node
 							editor.QueryNode(nd_map_x, nd_map_y, map_z > GROUND_LAYER);
 							nd->setRequested(map_z > GROUND_LAYER, true);
 						}
-						int cy = (nd_map_y) * TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
-						int cx = (nd_map_x) * TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
+						int cy = (nd_map_y)*TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
+						int cx = (nd_map_x)*TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
 
 						glColor4ub(255, 0, 255, 128);
 						glBegin(GL_QUADS);
-							glVertex2f(cx, cy + TILE_SIZE * 4);
-							glVertex2f(cx + TILE_SIZE * 4, cy + TILE_SIZE * 4);
-							glVertex2f(cx + TILE_SIZE * 4, cy);
-							glVertex2f(cx, cy);
+						glVertex2f(cx, cy + TILE_SIZE * 4);
+						glVertex2f(cx + TILE_SIZE * 4, cy + TILE_SIZE * 4);
+						glVertex2f(cx + TILE_SIZE * 4, cy);
+						glVertex2f(cx, cy);
 						glEnd();
 					}
 				}
 			}
 		}
 
-		if(only_colors)
+		if (only_colors) {
 			glEnable(GL_TEXTURE_2D);
+		}
 
 		// Draws the doodad preview or the paste preview (or import preview)
-		if(g_gui.secondary_map != nullptr && !options.ingame) {
+		if (g_gui.secondary_map != nullptr && !options.ingame) {
 			Position normalPos;
 			Position to(mouse_map_x, mouse_map_y, floor);
 
-			if(canvas->isPasting()) {
+			if (canvas->isPasting()) {
 				normalPos = editor.copybuffer.getPosition();
-			} else if(brush && brush->isDoodad()) {
+			} else if (brush && brush->isDoodad()) {
 				normalPos = Position(0x8000, 0x8000, 0x8);
 			}
 
-			for(int map_x = start_x; map_x <= end_x; map_x++) {
-				for(int map_y = start_y; map_y <= end_y; map_y++) {
+			for (int map_x = start_x; map_x <= end_x; map_x++) {
+				for (int map_y = start_y; map_y <= end_y; map_y++) {
 					Position final(map_x, map_y, map_z);
 					Position pos = normalPos + final - to;
-					//Position pos = topos + copypos - Position(map_x, map_y, map_z);
-					if(pos.z >= MAP_LAYERS || pos.z < 0) {
+					// Position pos = topos + copypos - Position(map_x, map_y, map_z);
+					if (pos.z >= MAP_LAYERS || pos.z < 0) {
 						continue;
 					}
 
 					Tile* tile = g_gui.secondary_map->getTile(pos);
-					if(tile) {
+					if (tile) {
 						// Compensate for underground/overground
 						int offset;
-						if(map_z <= GROUND_LAYER)
+						if (map_z <= GROUND_LAYER) {
 							offset = (GROUND_LAYER - map_z) * TILE_SIZE;
-						else
+						} else {
 							offset = TILE_SIZE * (floor - map_z);
+						}
 
 						int draw_x = ((map_x * TILE_SIZE) - view_scroll_x) - offset;
 						int draw_y = ((map_y * TILE_SIZE) - view_scroll_y) - offset;
 
 						// Draw ground
 						uint8_t r = 160, g = 160, b = 160;
-						if(tile->ground) {
-							if(tile->isBlocking() && options.show_blocking) {
-								g = g/3*2;
-								b = b/3*2;
+						if (tile->ground) {
+							if (tile->isBlocking() && options.show_blocking) {
+								g = g / 3 * 2;
+								b = b / 3 * 2;
 							}
-							if(tile->isHouseTile() && options.show_houses) {
-								if((int)tile->getHouseID() == current_house_id) {
+							if (tile->isHouseTile() && options.show_houses) {
+								if ((int)tile->getHouseID() == current_house_id) {
 									r /= 2;
 								} else {
 									r /= 2;
 									g /= 2;
 								}
-							} else if(options.show_special_tiles && tile->isPZ()) {
+							} else if (options.show_special_tiles && tile->isPZ()) {
 								r /= 2;
 								b /= 2;
 							}
-							if(options.show_special_tiles && tile->getMapFlags() & TILESTATE_PVPZONE) {
-								r = r/3*2;
-								b = r/3*2;
+							if (options.show_special_tiles && tile->getMapFlags() & TILESTATE_PVPZONE) {
+								r = r / 3 * 2;
+								b = r / 3 * 2;
 							}
-							if(options.show_special_tiles && tile->getMapFlags() & TILESTATE_NOLOGOUT) {
+							if (options.show_special_tiles && tile->getMapFlags() & TILESTATE_NOLOGOUT) {
 								b /= 2;
 							}
-							if(options.show_special_tiles && tile->getMapFlags() & TILESTATE_NOPVP) {
+							if (options.show_special_tiles && tile->getMapFlags() & TILESTATE_NOPVP) {
 								g /= 2;
 							}
 							BlitItem(draw_x, draw_y, tile, tile->ground, true, r, g, b, 160);
 						}
 
 						// Draw items on the tile
-						if(zoom <= 10.0 || !options.hide_items_when_zoomed) {
+						if (zoom <= 10.0 || !options.hide_items_when_zoomed) {
 							ItemVector::iterator it;
-							for(it = tile->items.begin(); it != tile->items.end(); it++) {
-								if((*it)->isBorder()) {
+							for (it = tile->items.begin(); it != tile->items.end(); it++) {
+								if ((*it)->isBorder()) {
 									BlitItem(draw_x, draw_y, tile, *it, true, 160, r, g, b);
 								} else {
 									BlitItem(draw_x, draw_y, tile, *it, true, 160, 160, 160, 160);
 								}
 							}
 							// Monsters
-							if(tile->monster && options.show_monsters)
+							if (tile->monster && options.show_monsters) {
 								BlitCreature(draw_x, draw_y, tile->monster);
+							}
 							// Npcs
-							if(tile->npc && options.show_npcs)
+							if (tile->npc && options.show_npcs) {
 								BlitCreature(draw_x, draw_y, tile->npc);
+							}
 						}
 					}
 				}
@@ -402,12 +405,12 @@ void MapDrawer::DrawMap()
 		++end_y;
 	}
 
-	if(!only_colors)
+	if (!only_colors) {
 		glEnable(GL_TEXTURE_2D);
+	}
 }
 
-void MapDrawer::DrawIngameBox()
-{
+void MapDrawer::DrawIngameBox() {
 	int center_x = start_x + int(screensize_x * zoom / 64);
 	int center_y = start_y + int(screensize_y * zoom / 64);
 
@@ -422,54 +425,54 @@ void MapDrawer::DrawIngameBox()
 	int box_end_x = box_end_map_x * TILE_SIZE - view_scroll_x;
 	int box_end_y = box_end_map_y * TILE_SIZE - view_scroll_y;
 
-	if(box_start_map_x >= start_x) {
+	if (box_start_map_x >= start_x) {
 		glColor4ub(0, 0, 0, 128);
 		glBegin(GL_QUADS);
-			glVertex2f(0, screensize_y * zoom);
-			glVertex2f(box_start_x, screensize_y * zoom);
-			glVertex2f(box_start_x, 0);
-			glVertex2f(0, 0);
+		glVertex2f(0, screensize_y * zoom);
+		glVertex2f(box_start_x, screensize_y * zoom);
+		glVertex2f(box_start_x, 0);
+		glVertex2f(0, 0);
 		glEnd();
 	}
 
-	if(box_end_map_x < end_x) {
+	if (box_end_map_x < end_x) {
 		glColor4ub(0, 0, 0, 128);
 		glBegin(GL_QUADS);
-			glVertex2f(box_end_x, screensize_y * zoom);
-			glVertex2f(screensize_x * zoom, screensize_y * zoom);
-			glVertex2f(screensize_x * zoom, 0);
-			glVertex2f(box_end_x, 0);
+		glVertex2f(box_end_x, screensize_y * zoom);
+		glVertex2f(screensize_x * zoom, screensize_y * zoom);
+		glVertex2f(screensize_x * zoom, 0);
+		glVertex2f(box_end_x, 0);
 		glEnd();
 	}
 
-	if(box_start_map_y >= start_y) {
+	if (box_start_map_y >= start_y) {
 		glColor4ub(0, 0, 0, 128);
 		glBegin(GL_QUADS);
-			glVertex2f(box_start_x, box_start_y);
-			glVertex2f(box_end_x, box_start_y);
-			glVertex2f(box_end_x, 0);
-			glVertex2f(box_start_x, 0);
+		glVertex2f(box_start_x, box_start_y);
+		glVertex2f(box_end_x, box_start_y);
+		glVertex2f(box_end_x, 0);
+		glVertex2f(box_start_x, 0);
 		glEnd();
 	}
 
-	if(box_end_map_y < end_y) {
+	if (box_end_map_y < end_y) {
 		glColor4ub(0, 0, 0, 128);
 		glBegin(GL_QUADS);
-			glVertex2f(box_start_x, screensize_y * zoom);
-			glVertex2f(box_end_x, screensize_y * zoom);
-			glVertex2f(box_end_x, box_end_y);
-			glVertex2f(box_start_x, box_end_y);
+		glVertex2f(box_start_x, screensize_y * zoom);
+		glVertex2f(box_end_x, screensize_y * zoom);
+		glVertex2f(box_end_x, box_end_y);
+		glVertex2f(box_start_x, box_end_y);
 		glEnd();
 	}
 
 	// client hidden tiles
 	glColor4ub(255, 0, 0, 128);
 	glBegin(GL_LINE_STRIP);
-		glVertex2f(box_start_x, box_start_y);
-		glVertex2f(box_end_x, box_start_y);
-		glVertex2f(box_end_x, box_end_y);
-		glVertex2f(box_start_x, box_end_y);
-		glVertex2f(box_start_x, box_start_y);
+	glVertex2f(box_start_x, box_start_y);
+	glVertex2f(box_end_x, box_start_y);
+	glVertex2f(box_end_x, box_end_y);
+	glVertex2f(box_start_x, box_end_y);
+	glVertex2f(box_start_x, box_start_y);
 	glEnd();
 
 	box_start_x += TILE_SIZE;
@@ -480,11 +483,11 @@ void MapDrawer::DrawIngameBox()
 	// client visible tiles
 	glColor4ub(0, 255, 0, 128);
 	glBegin(GL_LINE_STRIP);
-		glVertex2f(box_start_x, box_start_y);
-		glVertex2f(box_end_x, box_start_y);
-		glVertex2f(box_end_x, box_end_y);
-		glVertex2f(box_start_x, box_end_y);
-		glVertex2f(box_start_x, box_start_y);
+	glVertex2f(box_start_x, box_start_y);
+	glVertex2f(box_end_x, box_start_y);
+	glVertex2f(box_end_x, box_end_y);
+	glVertex2f(box_start_x, box_end_y);
+	glVertex2f(box_start_x, box_start_y);
 	glEnd();
 
 	box_start_x += 7 * TILE_SIZE;
@@ -495,40 +498,38 @@ void MapDrawer::DrawIngameBox()
 	// client player position
 	glColor4ub(0, 255, 0, 128);
 	glBegin(GL_LINE_STRIP);
-		glVertex2f(box_start_x, box_start_y);
-		glVertex2f(box_end_x, box_start_y);
-		glVertex2f(box_end_x, box_end_y);
-		glVertex2f(box_start_x, box_end_y);
-		glVertex2f(box_start_x, box_start_y);
+	glVertex2f(box_start_x, box_start_y);
+	glVertex2f(box_end_x, box_start_y);
+	glVertex2f(box_end_x, box_end_y);
+	glVertex2f(box_start_x, box_end_y);
+	glVertex2f(box_start_x, box_start_y);
 	glEnd();
 }
 
-void MapDrawer::DrawGrid()
-{
-	for(int y = start_y; y < end_y; ++y) {
+void MapDrawer::DrawGrid() {
+	for (int y = start_y; y < end_y; ++y) {
 		glColor4ub(255, 255, 255, 128);
 		glBegin(GL_LINES);
-			glVertex2f(start_x * TILE_SIZE - view_scroll_x, y * TILE_SIZE - view_scroll_y);
-			glVertex2f(end_x * TILE_SIZE - view_scroll_x, y * TILE_SIZE - view_scroll_y);
+		glVertex2f(start_x * TILE_SIZE - view_scroll_x, y * TILE_SIZE - view_scroll_y);
+		glVertex2f(end_x * TILE_SIZE - view_scroll_x, y * TILE_SIZE - view_scroll_y);
 		glEnd();
 	}
 
-	for(int x = start_x; x < end_x; ++x) {
+	for (int x = start_x; x < end_x; ++x) {
 		glColor4ub(255, 255, 255, 128);
 		glBegin(GL_LINES);
-			glVertex2f(x * TILE_SIZE - view_scroll_x, start_y * TILE_SIZE - view_scroll_y);
-			glVertex2f(x * TILE_SIZE - view_scroll_x, end_y * TILE_SIZE - view_scroll_y);
+		glVertex2f(x * TILE_SIZE - view_scroll_x, start_y * TILE_SIZE - view_scroll_y);
+		glVertex2f(x * TILE_SIZE - view_scroll_x, end_y * TILE_SIZE - view_scroll_y);
 		glEnd();
 	}
 }
 
-void MapDrawer::DrawDraggingShadow()
-{
+void MapDrawer::DrawDraggingShadow() {
 	glEnable(GL_TEXTURE_2D);
 
 	// Draw dragging shadow
-	if(!editor.selection.isBusy() && dragging && !options.ingame) {
-		for(TileSet::iterator tit = editor.selection.begin(); tit != editor.selection.end(); tit++) {
+	if (!editor.selection.isBusy() && dragging && !options.ingame) {
+		for (TileSet::iterator tit = editor.selection.begin(); tit != editor.selection.end(); tit++) {
 			Tile* tile = *tit;
 			Position pos = tile->getPosition();
 
@@ -541,41 +542,47 @@ void MapDrawer::DrawDraggingShadow()
 			pos.y -= move_y;
 			pos.z -= move_z;
 
-			if(pos.z < 0 || pos.z >= MAP_LAYERS) {
+			if (pos.z < 0 || pos.z >= MAP_LAYERS) {
 				continue;
 			}
 
 			// On screen and dragging?
-			if(pos.x+2 > start_x && pos.x < end_x && pos.y+2 > start_y && pos.y < end_y && (move_x != 0 || move_y != 0 || move_z != 0)) {
+			if (pos.x + 2 > start_x && pos.x < end_x && pos.y + 2 > start_y && pos.y < end_y && (move_x != 0 || move_y != 0 || move_z != 0)) {
 				int offset;
-				if(pos.z <= GROUND_LAYER)
+				if (pos.z <= GROUND_LAYER) {
 					offset = (GROUND_LAYER - pos.z) * TILE_SIZE;
-				else
+				} else {
 					offset = TILE_SIZE * (floor - pos.z);
+				}
 
 				int draw_x = ((pos.x * TILE_SIZE) - view_scroll_x) - offset;
 				int draw_y = ((pos.y * TILE_SIZE) - view_scroll_y) - offset;
 
 				ItemVector toRender = tile->getSelectedItems();
 				Tile* desttile = editor.map.getTile(pos);
-				for(ItemVector::const_iterator iit = toRender.begin(); iit != toRender.end(); iit++) {
-					if(desttile)
-						BlitItem(draw_x, draw_y, desttile, *iit, true, 160,160,160,160);
-					else
-						BlitItem(draw_x, draw_y, pos, *iit, true, 160,160,160,160);
+				for (ItemVector::const_iterator iit = toRender.begin(); iit != toRender.end(); iit++) {
+					if (desttile) {
+						BlitItem(draw_x, draw_y, desttile, *iit, true, 160, 160, 160, 160);
+					} else {
+						BlitItem(draw_x, draw_y, pos, *iit, true, 160, 160, 160, 160);
+					}
 				}
 
-				if(tile->monster && tile->monster->isSelected() && options.show_monsters)
+				if (tile->monster && tile->monster->isSelected() && options.show_monsters) {
 					BlitCreature(draw_x, draw_y, tile->monster);
+				}
 
-				if(tile->spawnMonster && tile->spawnMonster->isSelected())
+				if (tile->spawnMonster && tile->spawnMonster->isSelected()) {
 					BlitSpriteType(draw_x, draw_y, SPRITE_SPAWN, 160, 160, 160, 160);
+				}
 
-				if(tile->npc && tile->npc->isSelected() && options.show_npcs)
+				if (tile->npc && tile->npc->isSelected() && options.show_npcs) {
 					BlitCreature(draw_x, draw_y, tile->npc);
+				}
 
-				if(tile->spawnNpc && tile->spawnNpc->isSelected())
+				if (tile->spawnNpc && tile->spawnNpc->isSelected()) {
 					BlitSpriteType(draw_x, draw_y, SPRITE_SPAWN_NPC, 160, 160, 160, 160);
+				}
 			}
 		}
 	}
@@ -583,39 +590,40 @@ void MapDrawer::DrawDraggingShadow()
 	glDisable(GL_TEXTURE_2D);
 }
 
-void MapDrawer::DrawHigherFloors()
-{
+void MapDrawer::DrawHigherFloors() {
 	glEnable(GL_TEXTURE_2D);
 
 	// Draw "transparent higher floor"
-	if(floor != 8 && floor != 0 && options.transparent_floors) {
+	if (floor != 8 && floor != 0 && options.transparent_floors) {
 		int map_z = floor - 1;
-		for(int map_x = start_x; map_x <= end_x; map_x++) {
-			for(int map_y = start_y; map_y <= end_y; map_y++) {
+		for (int map_x = start_x; map_x <= end_x; map_x++) {
+			for (int map_y = start_y; map_y <= end_y; map_y++) {
 				Tile* tile = editor.map.getTile(map_x, map_y, map_z);
-				if(tile) {
+				if (tile) {
 					int offset;
-					if (map_z <= GROUND_LAYER)
+					if (map_z <= GROUND_LAYER) {
 						offset = (GROUND_LAYER - map_z) * TILE_SIZE;
-					else
-						offset = TILE_SIZE*(floor - map_z);
+					} else {
+						offset = TILE_SIZE * (floor - map_z);
+					}
 
 					int draw_x = ((map_x * TILE_SIZE) - view_scroll_x) - offset;
 					int draw_y = ((map_y * TILE_SIZE) - view_scroll_y) - offset;
 
-					//Position pos = tile->getPosition();
+					// Position pos = tile->getPosition();
 
-					if(tile->ground) {
-						if(tile->isPZ()) {
-							BlitItem(draw_x, draw_y, tile, tile->ground, false, 128,255,128, 96);
+					if (tile->ground) {
+						if (tile->isPZ()) {
+							BlitItem(draw_x, draw_y, tile, tile->ground, false, 128, 255, 128, 96);
 						} else {
-							BlitItem(draw_x, draw_y, tile, tile->ground, false, 255,255,255, 96);
+							BlitItem(draw_x, draw_y, tile, tile->ground, false, 255, 255, 255, 96);
 						}
 					}
-					if(zoom <= 10.0 || !options.hide_items_when_zoomed) {
+					if (zoom <= 10.0 || !options.hide_items_when_zoomed) {
 						ItemVector::iterator it;
-						for(it = tile->items.begin(); it != tile->items.end(); it++)
-							BlitItem(draw_x, draw_y, tile, *it, false, 255,255,255, 96);
+						for (it = tile->items.begin(); it != tile->items.end(); it++) {
+							BlitItem(draw_x, draw_y, tile, *it, false, 255, 255, 255, 96);
+						}
 					}
 				}
 			}
@@ -625,10 +633,10 @@ void MapDrawer::DrawHigherFloors()
 	glDisable(GL_TEXTURE_2D);
 }
 
-void MapDrawer::DrawSelectionBox()
-{
-	if(options.ingame)
+void MapDrawer::DrawSelectionBox() {
+	if (options.ingame) {
 		return;
+	}
 
 	// Draw bounding box
 
@@ -662,9 +670,9 @@ void MapDrawer::DrawSelectionBox()
 	glEnable(GL_LINE_STIPPLE);
 	glLineStipple(1, 0xf0);
 	glLineWidth(1.0);
-	glColor4f(1.0,1.0,1.0,1.0);
+	glColor4f(1.0, 1.0, 1.0, 1.0);
 	glBegin(GL_LINES);
-	for(int i = 0; i < 4; i++) {
+	for (int i = 0; i < 4; i++) {
 		glVertex2f(lines[i][0], lines[i][1]);
 		glVertex2f(lines[i][2], lines[i][3]);
 	}
@@ -672,22 +680,22 @@ void MapDrawer::DrawSelectionBox()
 	glDisable(GL_LINE_STIPPLE);
 }
 
-void MapDrawer::DrawLiveCursors()
-{
-	if(options.ingame || !editor.IsLive())
+void MapDrawer::DrawLiveCursors() {
+	if (options.ingame || !editor.IsLive()) {
 		return;
+	}
 
-	LiveSocket& live = editor.GetLive();
-	for(LiveCursor& cursor : live.getCursorList()) {
-		if(cursor.pos.z <= GROUND_LAYER && floor > GROUND_LAYER) {
+	LiveSocket &live = editor.GetLive();
+	for (LiveCursor &cursor : live.getCursorList()) {
+		if (cursor.pos.z <= GROUND_LAYER && floor > GROUND_LAYER) {
 			continue;
 		}
 
-		if(cursor.pos.z > GROUND_LAYER && floor <= 8) {
+		if (cursor.pos.z > GROUND_LAYER && floor <= 8) {
 			continue;
 		}
 
-		if(cursor.pos.z < floor) {
+		if (cursor.pos.z < floor) {
 			cursor.color = wxColor(
 				cursor.color.Red(),
 				cursor.color.Green(),
@@ -697,57 +705,61 @@ void MapDrawer::DrawLiveCursors()
 		}
 
 		int offset;
-		if (cursor.pos.z <= GROUND_LAYER)
+		if (cursor.pos.z <= GROUND_LAYER) {
 			offset = (GROUND_LAYER - cursor.pos.z) * TILE_SIZE;
-		else
+		} else {
 			offset = TILE_SIZE * (floor - cursor.pos.z);
+		}
 
 		float draw_x = ((cursor.pos.x * TILE_SIZE) - view_scroll_x) - offset;
 		float draw_y = ((cursor.pos.y * TILE_SIZE) - view_scroll_y) - offset;
 
 		glColor(cursor.color);
 		glBegin(GL_QUADS);
-			glVertex2f(draw_x, draw_y);
-			glVertex2f(draw_x + TILE_SIZE, draw_y);
-			glVertex2f(draw_x + TILE_SIZE, draw_y + TILE_SIZE);
-			glVertex2f(draw_x, draw_y + TILE_SIZE);
+		glVertex2f(draw_x, draw_y);
+		glVertex2f(draw_x + TILE_SIZE, draw_y);
+		glVertex2f(draw_x + TILE_SIZE, draw_y + TILE_SIZE);
+		glVertex2f(draw_x, draw_y + TILE_SIZE);
 		glEnd();
 	}
 }
 
-void MapDrawer::DrawBrush()
-{
-	if(!g_gui.IsDrawingMode())
+void MapDrawer::DrawBrush() {
+	if (!g_gui.IsDrawingMode()) {
 		return;
-	if(!g_gui.GetCurrentBrush())
+	}
+	if (!g_gui.GetCurrentBrush()) {
 		return;
-	if(options.ingame)
+	}
+	if (options.ingame) {
 		return;
+	}
 
 	Brush* brush = g_gui.GetCurrentBrush();
 
 	BrushColor brushColor = COLOR_BLANK;
-	if(brush->isTerrain() || brush->isTable() || brush->isCarpet())
+	if (brush->isTerrain() || brush->isTable() || brush->isCarpet()) {
 		brushColor = COLOR_BRUSH;
-	else if(brush->isHouse())
+	} else if (brush->isHouse()) {
 		brushColor = COLOR_HOUSE_BRUSH;
-	else if(brush->isFlag())
+	} else if (brush->isFlag()) {
 		brushColor = COLOR_FLAG_BRUSH;
-	else if(brush->isSpawnMonster())
+	} else if (brush->isSpawnMonster()) {
 		brushColor = COLOR_SPAWN_BRUSH;
-	else if(brush->isSpawnNpc())
+	} else if (brush->isSpawnNpc()) {
 		brushColor = COLOR_SPAWN_NPC_BRUSH;
-	else if(brush->isEraser())
+	} else if (brush->isEraser()) {
 		brushColor = COLOR_ERASER;
+	}
 
-	if(dragging_draw) {
+	if (dragging_draw) {
 		ASSERT(brush->canDrag());
 
-		if(brush->isWall()) {
+		if (brush->isWall()) {
 			int last_click_start_map_x = std::min(canvas->last_click_map_x, mouse_map_x);
 			int last_click_start_map_y = std::min(canvas->last_click_map_y, mouse_map_y);
-			int last_click_end_map_x   = std::max(canvas->last_click_map_x, mouse_map_x)+1;
-			int last_click_end_map_y   = std::max(canvas->last_click_map_y, mouse_map_y)+1;
+			int last_click_end_map_x = std::max(canvas->last_click_map_x, mouse_map_x) + 1;
+			int last_click_end_map_y = std::max(canvas->last_click_map_y, mouse_map_y) + 1;
 
 			int last_click_start_sx = last_click_start_map_x * TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
 			int last_click_start_sy = last_click_start_map_y * TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
@@ -759,51 +771,52 @@ void MapDrawer::DrawBrush()
 
 			glColor(brushColor);
 			glBegin(GL_QUADS);
-				{
-					glVertex2f(last_click_start_sx, last_click_start_sy + TILE_SIZE);
-					glVertex2f(last_click_end_sx, last_click_start_sy + TILE_SIZE);
-					glVertex2f(last_click_end_sx, last_click_start_sy);
-					glVertex2f(last_click_start_sx, last_click_start_sy);
-				}
+			{
+				glVertex2f(last_click_start_sx, last_click_start_sy + TILE_SIZE);
+				glVertex2f(last_click_end_sx, last_click_start_sy + TILE_SIZE);
+				glVertex2f(last_click_end_sx, last_click_start_sy);
+				glVertex2f(last_click_start_sx, last_click_start_sy);
+			}
 
-				if(delta_y > TILE_SIZE) {
-					glVertex2f(last_click_start_sx, last_click_end_sy - TILE_SIZE);
-					glVertex2f(last_click_start_sx + TILE_SIZE, last_click_end_sy - TILE_SIZE);
-					glVertex2f(last_click_start_sx + TILE_SIZE, last_click_start_sy + TILE_SIZE);
-					glVertex2f(last_click_start_sx, last_click_start_sy + TILE_SIZE);
-				}
+			if (delta_y > TILE_SIZE) {
+				glVertex2f(last_click_start_sx, last_click_end_sy - TILE_SIZE);
+				glVertex2f(last_click_start_sx + TILE_SIZE, last_click_end_sy - TILE_SIZE);
+				glVertex2f(last_click_start_sx + TILE_SIZE, last_click_start_sy + TILE_SIZE);
+				glVertex2f(last_click_start_sx, last_click_start_sy + TILE_SIZE);
+			}
 
-				if(delta_x > TILE_SIZE && delta_y > TILE_SIZE) {
-					glVertex2f(last_click_end_sx - TILE_SIZE, last_click_start_sy + TILE_SIZE);
-					glVertex2f(last_click_end_sx, last_click_start_sy + TILE_SIZE);
-					glVertex2f(last_click_end_sx, last_click_end_sy - TILE_SIZE);
-					glVertex2f(last_click_end_sx - TILE_SIZE, last_click_end_sy - TILE_SIZE);
-				}
+			if (delta_x > TILE_SIZE && delta_y > TILE_SIZE) {
+				glVertex2f(last_click_end_sx - TILE_SIZE, last_click_start_sy + TILE_SIZE);
+				glVertex2f(last_click_end_sx, last_click_start_sy + TILE_SIZE);
+				glVertex2f(last_click_end_sx, last_click_end_sy - TILE_SIZE);
+				glVertex2f(last_click_end_sx - TILE_SIZE, last_click_end_sy - TILE_SIZE);
+			}
 
-				if (delta_y > TILE_SIZE) {
-					glVertex2f(last_click_start_sx, last_click_end_sy - TILE_SIZE);
-					glVertex2f(last_click_end_sx, last_click_end_sy - TILE_SIZE);
-					glVertex2f(last_click_end_sx, last_click_end_sy);
-					glVertex2f(last_click_start_sx, last_click_end_sy);
-				}
+			if (delta_y > TILE_SIZE) {
+				glVertex2f(last_click_start_sx, last_click_end_sy - TILE_SIZE);
+				glVertex2f(last_click_end_sx, last_click_end_sy - TILE_SIZE);
+				glVertex2f(last_click_end_sx, last_click_end_sy);
+				glVertex2f(last_click_start_sx, last_click_end_sy);
+			}
 			glEnd();
 		} else {
-			if(brush->isRaw())
+			if (brush->isRaw()) {
 				glEnable(GL_TEXTURE_2D);
+			}
 
-			if(g_gui.GetBrushShape() == BRUSHSHAPE_SQUARE || brush->isSpawnMonster() || brush->isSpawnNpc()) {
-				if(brush->isRaw() || brush->isOptionalBorder()) {
+			if (g_gui.GetBrushShape() == BRUSHSHAPE_SQUARE || brush->isSpawnMonster() || brush->isSpawnNpc()) {
+				if (brush->isRaw() || brush->isOptionalBorder()) {
 					int start_x, end_x;
 					int start_y, end_y;
 
-					if(mouse_map_x < canvas->last_click_map_x) {
+					if (mouse_map_x < canvas->last_click_map_x) {
 						start_x = mouse_map_x;
 						end_x = canvas->last_click_map_x;
 					} else {
 						start_x = canvas->last_click_map_x;
 						end_x = mouse_map_x;
 					}
-					if(mouse_map_y < canvas->last_click_map_y) {
+					if (mouse_map_y < canvas->last_click_map_y) {
 						start_y = mouse_map_y;
 						end_y = canvas->last_click_map_y;
 					} else {
@@ -812,24 +825,26 @@ void MapDrawer::DrawBrush()
 					}
 
 					RAWBrush* raw_brush = nullptr;
-					if(brush->isRaw())
+					if (brush->isRaw()) {
 						raw_brush = brush->asRaw();
+					}
 
-					for(int y = start_y; y <= end_y; y++) {
+					for (int y = start_y; y <= end_y; y++) {
 						int cy = y * TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
-						for(int x = start_x; x <= end_x; x++) {
+						for (int x = start_x; x <= end_x; x++) {
 							int cx = x * TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
-							if(brush->isOptionalBorder())
+							if (brush->isOptionalBorder()) {
 								glColorCheck(brush, Position(x, y, floor));
-							else
+							} else {
 								BlitSpriteType(cx, cy, raw_brush->getItemType()->sprite, 160, 160, 160, 160);
+							}
 						}
 					}
 				} else {
 					int last_click_start_map_x = std::min(canvas->last_click_map_x, mouse_map_x);
 					int last_click_start_map_y = std::min(canvas->last_click_map_y, mouse_map_y);
-					int last_click_end_map_x   = std::max(canvas->last_click_map_x, mouse_map_x)+1;
-					int last_click_end_map_y   = std::max(canvas->last_click_map_y, mouse_map_y)+1;
+					int last_click_end_map_x = std::max(canvas->last_click_map_x, mouse_map_x) + 1;
+					int last_click_end_map_y = std::max(canvas->last_click_map_y, mouse_map_y) + 1;
 
 					int last_click_start_sx = last_click_start_map_x * TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
 					int last_click_start_sy = last_click_start_map_y * TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
@@ -838,22 +853,22 @@ void MapDrawer::DrawBrush()
 
 					glColor(brushColor);
 					glBegin(GL_QUADS);
-						glVertex2f(last_click_start_sx, last_click_start_sy);
-						glVertex2f(last_click_end_sx, last_click_start_sy);
-						glVertex2f(last_click_end_sx, last_click_end_sy);
-						glVertex2f(last_click_start_sx, last_click_end_sy);
+					glVertex2f(last_click_start_sx, last_click_start_sy);
+					glVertex2f(last_click_end_sx, last_click_start_sy);
+					glVertex2f(last_click_end_sx, last_click_end_sy);
+					glVertex2f(last_click_start_sx, last_click_end_sy);
 					glEnd();
 				}
-			} else if(g_gui.GetBrushShape() == BRUSHSHAPE_CIRCLE) {
+			} else if (g_gui.GetBrushShape() == BRUSHSHAPE_CIRCLE) {
 				// Calculate drawing offsets
 				int start_x, end_x;
 				int start_y, end_y;
 				int width = std::max(
 					std::abs(std::max(mouse_map_y, canvas->last_click_map_y) - std::min(mouse_map_y, canvas->last_click_map_y)),
 					std::abs(std::max(mouse_map_x, canvas->last_click_map_x) - std::min(mouse_map_x, canvas->last_click_map_x))
-					);
+				);
 
-				if(mouse_map_x < canvas->last_click_map_x) {
+				if (mouse_map_x < canvas->last_click_map_x) {
 					start_x = canvas->last_click_map_x - width;
 					end_x = canvas->last_click_map_x;
 				} else {
@@ -861,7 +876,7 @@ void MapDrawer::DrawBrush()
 					end_x = canvas->last_click_map_x + width;
 				}
 
-				if(mouse_map_y < canvas->last_click_map_y) {
+				if (mouse_map_y < canvas->last_click_map_y) {
 					start_y = canvas->last_click_map_y - width;
 					end_y = canvas->last_click_map_y;
 				} else {
@@ -874,28 +889,29 @@ void MapDrawer::DrawBrush()
 				float radii = width / 2.0f + 0.005f;
 
 				RAWBrush* raw_brush = nullptr;
-				if(brush->isRaw())
+				if (brush->isRaw()) {
 					raw_brush = brush->asRaw();
+				}
 
-				for(int y = start_y-1; y <= end_y+1; y++) {
+				for (int y = start_y - 1; y <= end_y + 1; y++) {
 					int cy = y * TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
 					float dy = center_y - y;
-					for(int x = start_x-1; x <= end_x+1; x++) {
+					for (int x = start_x - 1; x <= end_x + 1; x++) {
 						int cx = x * TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
 
 						float dx = center_x - x;
-						//printf("%f;%f\n", dx, dy);
-						float distance = sqrt(dx*dx + dy*dy);
-						if(distance < radii) {
-							if(brush->isRaw()) {
+						// printf("%f;%f\n", dx, dy);
+						float distance = sqrt(dx * dx + dy * dy);
+						if (distance < radii) {
+							if (brush->isRaw()) {
 								BlitSpriteType(cx, cy, raw_brush->getItemType()->sprite, 160, 160, 160, 160);
 							} else {
 								glColor(brushColor);
 								glBegin(GL_QUADS);
-									glVertex2f(cx, cy + TILE_SIZE);
-									glVertex2f(cx + TILE_SIZE, cy + TILE_SIZE);
-									glVertex2f(cx + TILE_SIZE, cy);
-									glVertex2f(cx,   cy);
+								glVertex2f(cx, cy + TILE_SIZE);
+								glVertex2f(cx + TILE_SIZE, cy + TILE_SIZE);
+								glVertex2f(cx + TILE_SIZE, cy);
+								glVertex2f(cx, cy);
 								glEnd();
 							}
 						}
@@ -903,15 +919,16 @@ void MapDrawer::DrawBrush()
 				}
 			}
 
-			if(brush->isRaw())
+			if (brush->isRaw()) {
 				glDisable(GL_TEXTURE_2D);
+			}
 		}
 	} else {
-		if(brush->isWall()) {
+		if (brush->isWall()) {
 			int start_map_x = mouse_map_x - g_gui.GetBrushSize();
 			int start_map_y = mouse_map_y - g_gui.GetBrushSize();
-			int end_map_x   = mouse_map_x + g_gui.GetBrushSize() + 1;
-			int end_map_y   = mouse_map_y + g_gui.GetBrushSize() + 1;
+			int end_map_x = mouse_map_x + g_gui.GetBrushSize() + 1;
+			int end_map_y = mouse_map_y + g_gui.GetBrushSize() + 1;
 
 			int start_sx = start_map_x * TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
 			int start_sy = start_map_y * TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
@@ -923,121 +940,125 @@ void MapDrawer::DrawBrush()
 
 			glColor(brushColor);
 			glBegin(GL_QUADS);
-				{
-					glVertex2f(start_sx, start_sy + TILE_SIZE);
-					glVertex2f(end_sx, start_sy + TILE_SIZE);
-					glVertex2f(end_sx, start_sy);
-					glVertex2f(start_sx, start_sy);
-				}
+			{
+				glVertex2f(start_sx, start_sy + TILE_SIZE);
+				glVertex2f(end_sx, start_sy + TILE_SIZE);
+				glVertex2f(end_sx, start_sy);
+				glVertex2f(start_sx, start_sy);
+			}
 
-				if(delta_y > TILE_SIZE) {
-					glVertex2f(start_sx, end_sy - TILE_SIZE);
-					glVertex2f(start_sx + TILE_SIZE, end_sy - TILE_SIZE);
-					glVertex2f(start_sx + TILE_SIZE, start_sy + TILE_SIZE);
-					glVertex2f(start_sx, start_sy + TILE_SIZE);
-				}
+			if (delta_y > TILE_SIZE) {
+				glVertex2f(start_sx, end_sy - TILE_SIZE);
+				glVertex2f(start_sx + TILE_SIZE, end_sy - TILE_SIZE);
+				glVertex2f(start_sx + TILE_SIZE, start_sy + TILE_SIZE);
+				glVertex2f(start_sx, start_sy + TILE_SIZE);
+			}
 
-				if(delta_x > TILE_SIZE && delta_y > TILE_SIZE) {
-					glVertex2f(end_sx - TILE_SIZE, start_sy + TILE_SIZE);
-					glVertex2f(end_sx, start_sy + TILE_SIZE);
-					glVertex2f(end_sx, end_sy - TILE_SIZE);
-					glVertex2f(end_sx - TILE_SIZE, end_sy - TILE_SIZE);
-				}
+			if (delta_x > TILE_SIZE && delta_y > TILE_SIZE) {
+				glVertex2f(end_sx - TILE_SIZE, start_sy + TILE_SIZE);
+				glVertex2f(end_sx, start_sy + TILE_SIZE);
+				glVertex2f(end_sx, end_sy - TILE_SIZE);
+				glVertex2f(end_sx - TILE_SIZE, end_sy - TILE_SIZE);
+			}
 
-				if(delta_y > TILE_SIZE) {
-					glVertex2f(start_sx, end_sy - TILE_SIZE);
-					glVertex2f(end_sx, end_sy - TILE_SIZE);
-					glVertex2f(end_sx, end_sy);
-					glVertex2f(start_sx, end_sy);
-				}
+			if (delta_y > TILE_SIZE) {
+				glVertex2f(start_sx, end_sy - TILE_SIZE);
+				glVertex2f(end_sx, end_sy - TILE_SIZE);
+				glVertex2f(end_sx, end_sy);
+				glVertex2f(start_sx, end_sy);
+			}
 			glEnd();
-		} else if(brush->isDoor()) {
-			int cx = (mouse_map_x) * TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
-			int cy = (mouse_map_y) * TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
+		} else if (brush->isDoor()) {
+			int cx = (mouse_map_x)*TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
+			int cy = (mouse_map_y)*TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
 
 			glColorCheck(brush, Position(mouse_map_x, mouse_map_y, floor));
 			glBegin(GL_QUADS);
-				glVertex2f(cx, cy + TILE_SIZE);
-				glVertex2f(cx + TILE_SIZE, cy + TILE_SIZE);
-				glVertex2f(cx + TILE_SIZE, cy);
-				glVertex2f(cx, cy);
+			glVertex2f(cx, cy + TILE_SIZE);
+			glVertex2f(cx + TILE_SIZE, cy + TILE_SIZE);
+			glVertex2f(cx + TILE_SIZE, cy);
+			glVertex2f(cx, cy);
 			glEnd();
-		} else if(brush->isMonster()) {
+		} else if (brush->isMonster()) {
 			glEnable(GL_TEXTURE_2D);
-			int cy = (mouse_map_y) * TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
-			int cx = (mouse_map_x) * TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
+			int cy = (mouse_map_y)*TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
+			int cx = (mouse_map_x)*TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
 			MonsterBrush* monster_brush = brush->asMonster();
-			if(monster_brush->canDraw(&editor.map, Position(mouse_map_x, mouse_map_y, floor)))
+			if (monster_brush->canDraw(&editor.map, Position(mouse_map_x, mouse_map_y, floor))) {
 				BlitCreature(cx, cy, monster_brush->getType()->outfit, SOUTH, 255, 255, 255, 160);
-			else
+			} else {
 				BlitCreature(cx, cy, monster_brush->getType()->outfit, SOUTH, 255, 64, 64, 160);
+			}
 			glDisable(GL_TEXTURE_2D);
-		} else if(brush->isNpc()) {
+		} else if (brush->isNpc()) {
 			glEnable(GL_TEXTURE_2D);
-			int cy = (mouse_map_y) * TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
-			int cx = (mouse_map_x) * TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
+			int cy = (mouse_map_y)*TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
+			int cx = (mouse_map_x)*TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
 			NpcBrush* npcBrush = brush->asNpc();
-			if(npcBrush->canDraw(&editor.map, Position(mouse_map_x, mouse_map_y, floor)))
+			if (npcBrush->canDraw(&editor.map, Position(mouse_map_x, mouse_map_y, floor))) {
 				BlitCreature(cx, cy, npcBrush->getType()->outfit, SOUTH, 255, 255, 255, 160);
-			else
+			} else {
 				BlitCreature(cx, cy, npcBrush->getType()->outfit, SOUTH, 255, 64, 64, 160);
+			}
 			glDisable(GL_TEXTURE_2D);
-		} else if(!brush->isDoodad()) {
+		} else if (!brush->isDoodad()) {
 			RAWBrush* raw_brush = nullptr;
-			if(brush->isRaw()) { // Textured brush
+			if (brush->isRaw()) { // Textured brush
 				glEnable(GL_TEXTURE_2D);
 				raw_brush = brush->asRaw();
 			}
 
-			for(int y = -g_gui.GetBrushSize()-1; y <= g_gui.GetBrushSize()+1; y++) {
+			for (int y = -g_gui.GetBrushSize() - 1; y <= g_gui.GetBrushSize() + 1; y++) {
 				int cy = (mouse_map_y + y) * TILE_SIZE - view_scroll_y - getFloorAdjustment(floor);
-				for(int x = -g_gui.GetBrushSize()-1; x <= g_gui.GetBrushSize()+1; x++) {
+				for (int x = -g_gui.GetBrushSize() - 1; x <= g_gui.GetBrushSize() + 1; x++) {
 					int cx = (mouse_map_x + x) * TILE_SIZE - view_scroll_x - getFloorAdjustment(floor);
-					if(g_gui.GetBrushShape() == BRUSHSHAPE_SQUARE) {
-						if(x >= -g_gui.GetBrushSize() && x <= g_gui.GetBrushSize() && y >= -g_gui.GetBrushSize() && y <= g_gui.GetBrushSize()) {
-							if(brush->isRaw()) {
+					if (g_gui.GetBrushShape() == BRUSHSHAPE_SQUARE) {
+						if (x >= -g_gui.GetBrushSize() && x <= g_gui.GetBrushSize() && y >= -g_gui.GetBrushSize() && y <= g_gui.GetBrushSize()) {
+							if (brush->isRaw()) {
 								BlitSpriteType(cx, cy, raw_brush->getItemType()->sprite, 160, 160, 160, 160);
 							} else {
-								if(brush->isWaypoint()) {
+								if (brush->isWaypoint()) {
 									uint8_t r, g, b;
 									getColor(brush, Position(mouse_map_x + x, mouse_map_y + y, floor), r, g, b);
 									DrawBrushIndicator(cx, cy, brush, r, g, b);
 								} else {
-									if(brush->isHouseExit() || brush->isOptionalBorder())
+									if (brush->isHouseExit() || brush->isOptionalBorder()) {
 										glColorCheck(brush, Position(mouse_map_x + x, mouse_map_y + y, floor));
-									else
+									} else {
 										glColor(brushColor);
+									}
 
 									glBegin(GL_QUADS);
-										glVertex2f(cx, cy + TILE_SIZE);
-										glVertex2f(cx + TILE_SIZE, cy + TILE_SIZE);
-										glVertex2f(cx + TILE_SIZE, cy);
-										glVertex2f(cx, cy);
+									glVertex2f(cx, cy + TILE_SIZE);
+									glVertex2f(cx + TILE_SIZE, cy + TILE_SIZE);
+									glVertex2f(cx + TILE_SIZE, cy);
+									glVertex2f(cx, cy);
 									glEnd();
 								}
 							}
 						}
-					} else if(g_gui.GetBrushShape() == BRUSHSHAPE_CIRCLE) {
-						double distance = sqrt(double(x*x) + double(y*y));
-						if(distance < g_gui.GetBrushSize()+0.005) {
-							if(brush->isRaw()) {
+					} else if (g_gui.GetBrushShape() == BRUSHSHAPE_CIRCLE) {
+						double distance = sqrt(double(x * x) + double(y * y));
+						if (distance < g_gui.GetBrushSize() + 0.005) {
+							if (brush->isRaw()) {
 								BlitSpriteType(cx, cy, raw_brush->getItemType()->sprite, 160, 160, 160, 160);
 							} else {
-								if(brush->isWaypoint()) {
+								if (brush->isWaypoint()) {
 									uint8_t r, g, b;
 									getColor(brush, Position(mouse_map_x + x, mouse_map_y + y, floor), r, g, b);
 									DrawBrushIndicator(cx, cy, brush, r, g, b);
 								} else {
-									if(brush->isHouseExit() || brush->isOptionalBorder())
+									if (brush->isHouseExit() || brush->isOptionalBorder()) {
 										glColorCheck(brush, Position(mouse_map_x + x, mouse_map_y + y, floor));
-									else
+									} else {
 										glColor(brushColor);
+									}
 
 									glBegin(GL_QUADS);
-										glVertex2f(cx, cy + TILE_SIZE);
-										glVertex2f(cx + TILE_SIZE, cy + TILE_SIZE);
-										glVertex2f(cx + TILE_SIZE, cy);
-										glVertex2f(cx, cy);
+									glVertex2f(cx, cy + TILE_SIZE);
+									glVertex2f(cx + TILE_SIZE, cy + TILE_SIZE);
+									glVertex2f(cx + TILE_SIZE, cy);
+									glVertex2f(cx, cy);
 									glEnd();
 								}
 							}
@@ -1046,55 +1067,58 @@ void MapDrawer::DrawBrush()
 				}
 			}
 
-			if(brush->isRaw()) { // Textured brush
+			if (brush->isRaw()) { // Textured brush
 				glDisable(GL_TEXTURE_2D);
 			}
 		}
 	}
 }
 
-void MapDrawer::BlitItem(int& draw_x, int& draw_y, const Tile* tile, const Item* item, bool ephemeral, int red, int green, int blue, int alpha) {
-	ItemType& it = g_items[item->getID()];
+void MapDrawer::BlitItem(int &draw_x, int &draw_y, const Tile* tile, const Item* item, bool ephemeral, int red, int green, int blue, int alpha) {
+	ItemType &it = g_items[item->getID()];
 
-	if(!options.ingame && !ephemeral && item->isSelected()) {
+	if (!options.ingame && !ephemeral && item->isSelected()) {
 		red /= 2;
 		blue /= 2;
 		green /= 2;
 	}
 
 	// Ugly hacks. :)
-	if(it.id == 0) {
+	if (it.id == 0) {
 		glDisable(GL_TEXTURE_2D);
 		glBlitSquare(draw_x, draw_y, 255, 0, 0, alpha);
 		glEnable(GL_TEXTURE_2D);
 		return;
-	} else if(it.id == ITEM_STAIRS && !options.ingame) {
+	} else if (it.id == ITEM_STAIRS && !options.ingame) {
 		glDisable(GL_TEXTURE_2D);
-		glBlitSquare(draw_x, draw_y, red, green, 0, alpha/3*2);
+		glBlitSquare(draw_x, draw_y, red, green, 0, alpha / 3 * 2);
 		glEnable(GL_TEXTURE_2D);
 		return;
-	} else if(it.id == ITEM_NOTHING_SPECIAL && !options.ingame) {
+	} else if (it.id == ITEM_NOTHING_SPECIAL && !options.ingame) {
 		glDisable(GL_TEXTURE_2D);
-		glBlitSquare(draw_x, draw_y, red, 0, 0, alpha/3*2);
+		glBlitSquare(draw_x, draw_y, red, 0, 0, alpha / 3 * 2);
 		glEnable(GL_TEXTURE_2D);
 		return;
 	}
 
 	GameSprite* spr = it.sprite;
 
-	if(it.isMetaItem())
+	if (it.isMetaItem()) {
 		return;
-	
-	if(spr == nullptr)
-		return;
+	}
 
-	if(!ephemeral && it.pickupable && !options.show_items)
+	if (spr == nullptr) {
 		return;
+	}
+
+	if (!ephemeral && it.pickupable && !options.show_items) {
+		return;
+	}
 
 	int screenx = draw_x - spr->getDrawOffset().first;
 	int screeny = draw_y - spr->getDrawOffset().second;
 
-	const Position& pos = tile->getPosition();
+	const Position &pos = tile->getPosition();
 
 	// Set the newd drawing height accordingly
 	draw_x -= spr->getDrawHeight();
@@ -1106,89 +1130,83 @@ void MapDrawer::BlitItem(int& draw_x, int& draw_y, const Tile* tile, const Item*
 	int pattern_y = pos.y % spr->pattern_y;
 	int pattern_z = pos.z % spr->pattern_z;
 
-	if(it.isSplash() || it.isFluidContainer()) {
+	if (it.isSplash() || it.isFluidContainer()) {
 		subtype = item->getSubtype();
-	} else if(it.isHangable) {
-		if(tile->hasProperty(HOOK_SOUTH)) {
+	} else if (it.isHangable) {
+		if (tile->hasProperty(HOOK_SOUTH)) {
 			pattern_x = 1;
-		} else if(tile->hasProperty(HOOK_EAST)) {
+		} else if (tile->hasProperty(HOOK_EAST)) {
 			pattern_x = 2;
 		} else {
 			pattern_x = 0;
 		}
-	} else if(it.stackable) {
-		if(item->getSubtype() <= 1)
+	} else if (it.stackable) {
+		if (item->getSubtype() <= 1) {
 			subtype = 0;
-		else if(item->getSubtype() <= 2)
+		} else if (item->getSubtype() <= 2) {
 			subtype = 1;
-		else if(item->getSubtype() <= 3)
+		} else if (item->getSubtype() <= 3) {
 			subtype = 2;
-		else if(item->getSubtype() <= 4)
+		} else if (item->getSubtype() <= 4) {
 			subtype = 3;
-		else if(item->getSubtype() < 10)
+		} else if (item->getSubtype() < 10) {
 			subtype = 4;
-		else if(item->getSubtype() < 25)
+		} else if (item->getSubtype() < 25) {
 			subtype = 5;
-		else if(item->getSubtype() < 50)
+		} else if (item->getSubtype() < 50) {
 			subtype = 6;
-		else
+		} else {
 			subtype = 7;
+		}
 	}
 
-	if(!ephemeral && options.transparent_items &&
-			(!it.isGroundTile() || spr->getWidth() > 1 || spr->getHeight() > 1) &&
-			!it.isSplash() &&
-			(!it.isBorder || spr->getWidth() > 1 || spr->getHeight() > 1)
-	  )
-	{
+	if (!ephemeral && options.transparent_items && (!it.isGroundTile() || spr->getWidth() > 1 || spr->getHeight() > 1) && !it.isSplash() && (!it.isBorder || spr->getWidth() > 1 || spr->getHeight() > 1)) {
 		alpha /= 2;
 	}
 
 	int frame = item->getFrame();
-	int texnum = spr->getSpriteId(0,
-		subtype,
-		pattern_x,
-		pattern_y,
-		pattern_z,
-		frame
-	);
+	int texnum = spr->getSpriteId(0, subtype, pattern_x, pattern_y, pattern_z, frame);
 	glBlitTexture(screenx, screeny, texnum, red, green, blue, alpha);
 
-	if(options.show_hooks && (it.hookSouth || it.hookEast))
+	if (options.show_hooks && (it.hookSouth || it.hookEast)) {
 		DrawHookIndicator(draw_x, draw_y, it);
+	}
 }
 
-void MapDrawer::BlitItem(int& draw_x, int& draw_y, const Position& pos, const Item* item, bool ephemeral, int red, int green, int blue, int alpha) {
-	ItemType& it = g_items[item->getID()];
+void MapDrawer::BlitItem(int &draw_x, int &draw_y, const Position &pos, const Item* item, bool ephemeral, int red, int green, int blue, int alpha) {
+	ItemType &it = g_items[item->getID()];
 
-	if(!options.ingame && !ephemeral && item->isSelected()) {
+	if (!options.ingame && !ephemeral && item->isSelected()) {
 		red /= 2;
 		blue /= 2;
 		green /= 2;
 	}
 
-	if(it.id == ITEM_STAIRS && !options.ingame) { // Ugly hack yes?
+	if (it.id == ITEM_STAIRS && !options.ingame) { // Ugly hack yes?
 		glDisable(GL_TEXTURE_2D);
-		glBlitSquare(draw_x, draw_y, red, green, 0, alpha/3*2);
+		glBlitSquare(draw_x, draw_y, red, green, 0, alpha / 3 * 2);
 		glEnable(GL_TEXTURE_2D);
 		return;
-	} else if(it.id == ITEM_NOTHING_SPECIAL && !options.ingame) { // Ugly hack yes?
+	} else if (it.id == ITEM_NOTHING_SPECIAL && !options.ingame) { // Ugly hack yes?
 		glDisable(GL_TEXTURE_2D);
-		glBlitSquare(draw_x, draw_y, red, 0, 0, alpha/3*2);
+		glBlitSquare(draw_x, draw_y, red, 0, 0, alpha / 3 * 2);
 		glEnable(GL_TEXTURE_2D);
 		return;
 	}
 
 	GameSprite* spr = it.sprite;
 
-	if(it.isMetaItem())
+	if (it.isMetaItem()) {
 		return;
+	}
 
-	if(spr == nullptr)
+	if (spr == nullptr) {
 		return;
+	}
 
-	if(!ephemeral && it.pickupable && options.show_items)
+	if (!ephemeral && it.pickupable && options.show_items) {
 		return;
+	}
 
 	int screenx = draw_x - spr->getDrawOffset().first;
 	int screeny = draw_y - spr->getDrawOffset().second;
@@ -1203,9 +1221,9 @@ void MapDrawer::BlitItem(int& draw_x, int& draw_y, const Position& pos, const It
 	int pattern_y = pos.y % spr->pattern_y;
 	int pattern_z = pos.z % spr->pattern_z;
 
-	if(it.isSplash() || it.isFluidContainer()) {
+	if (it.isSplash() || it.isFluidContainer()) {
 		subtype = item->getSubtype();
-	} else if(it.isHangable) {
+	} else if (it.isHangable) {
 		pattern_x = 0;
 		/*
 		if(tile->hasProperty(HOOK_SOUTH)) {
@@ -1216,77 +1234,69 @@ void MapDrawer::BlitItem(int& draw_x, int& draw_y, const Position& pos, const It
 			pattern_x = -0;
 		}
 		*/
-	} else if(it.stackable) {
-		if(item->getSubtype() <= 1)
+	} else if (it.stackable) {
+		if (item->getSubtype() <= 1) {
 			subtype = 0;
-		else if(item->getSubtype() <= 2)
+		} else if (item->getSubtype() <= 2) {
 			subtype = 1;
-		else if(item->getSubtype() <= 3)
+		} else if (item->getSubtype() <= 3) {
 			subtype = 2;
-		else if(item->getSubtype() <= 4)
+		} else if (item->getSubtype() <= 4) {
 			subtype = 3;
-		else if(item->getSubtype() < 10)
+		} else if (item->getSubtype() < 10) {
 			subtype = 4;
-		else if(item->getSubtype() < 25)
+		} else if (item->getSubtype() < 25) {
 			subtype = 5;
-		else if(item->getSubtype() < 50)
+		} else if (item->getSubtype() < 50) {
 			subtype = 6;
-		else
+		} else {
 			subtype = 7;
+		}
 	}
 
-	if(!ephemeral && options.transparent_items &&
-			(!it.isGroundTile() || spr->getWidth() > 1 || spr->height > 1) &&
-			!it.isSplash() &&
-			(!it.isBorder || spr->getWidth() > 1 || spr->getHeight() > 1)
-	  )
-	{
+	if (!ephemeral && options.transparent_items && (!it.isGroundTile() || spr->getWidth() > 1 || spr->height > 1) && !it.isSplash() && (!it.isBorder || spr->getWidth() > 1 || spr->getHeight() > 1)) {
 		alpha /= 2;
 	}
 
 	int frame = item->getFrame();
-	int texnum = spr->getSpriteId(0,
-		subtype,
-		pattern_x,
-		pattern_y,
-		pattern_z,
-		frame
-	);
+	int texnum = spr->getSpriteId(0, subtype, pattern_x, pattern_y, pattern_z, frame);
 	glBlitTexture(screenx, screeny, texnum, red, green, blue, alpha);
 
-	if(options.show_hooks && (it.hookSouth || it.hookEast) && zoom <= 3.0)
+	if (options.show_hooks && (it.hookSouth || it.hookEast) && zoom <= 3.0) {
 		DrawHookIndicator(draw_x, draw_y, it);
+	}
 }
 
-void MapDrawer::BlitSpriteType(int screenx, int screeny, uint32_t spriteid, int red, int green, int blue, int alpha)
-{
+void MapDrawer::BlitSpriteType(int screenx, int screeny, uint32_t spriteid, int red, int green, int blue, int alpha) {
 	GameSprite* spr = g_items[spriteid].sprite;
-	if(spr == nullptr) return;
+	if (spr == nullptr) {
+		return;
+	}
 	screenx -= spr->getDrawOffset().first;
 	screeny -= spr->getDrawOffset().second;
 
-	int tme = 0; //GetTime() % itype->FPA;
-	int texnum = spr->getSpriteId(0,-1,0,0,0,tme);
-	//printf("CF: %d\tTexturenum: %d\n", cf, texnum);
+	int tme = 0; // GetTime() % itype->FPA;
+	int texnum = spr->getSpriteId(0, -1, 0, 0, 0, tme);
+	// printf("CF: %d\tTexturenum: %d\n", cf, texnum);
 	glBlitTexture(screenx, screeny, texnum, red, green, blue, alpha);
 }
 
-void MapDrawer::BlitSpriteType(int screenx, int screeny, GameSprite* spr, int red, int green, int blue, int alpha)
-{
-	if(spr == nullptr) return;
+void MapDrawer::BlitSpriteType(int screenx, int screeny, GameSprite* spr, int red, int green, int blue, int alpha) {
+	if (spr == nullptr) {
+		return;
+	}
 	screenx -= spr->getDrawOffset().first;
 	screeny -= spr->getDrawOffset().second;
 
-	int tme = 0; //GetTime() % itype->FPA;
-	int texnum = spr->getSpriteId(0,-1,0,0,0,tme);
-	//printf("CF: %d\tTexturenum: %d\n", cf, texnum);
+	int tme = 0; // GetTime() % itype->FPA;
+	int texnum = spr->getSpriteId(0, -1, 0, 0, 0, tme);
+	// printf("CF: %d\tTexturenum: %d\n", cf, texnum);
 	glBlitTexture(screenx, screeny, texnum, red, green, blue, alpha);
 }
 
-void MapDrawer::BlitCreature(int screenx, int screeny, const Outfit& outfit, Direction dir, int red, int green, int blue, int alpha)
-{
-	if(outfit.lookItem != 0) {
-		ItemType& it = g_items[outfit.lookItem];
+void MapDrawer::BlitCreature(int screenx, int screeny, const Outfit &outfit, Direction dir, int red, int green, int blue, int alpha) {
+	if (outfit.lookItem != 0) {
+		ItemType &it = g_items[outfit.lookItem];
 		BlitSpriteType(screenx, screeny, it.sprite, red, green, blue, alpha);
 		return;
 	}
@@ -1296,8 +1306,9 @@ void MapDrawer::BlitCreature(int screenx, int screeny, const Outfit& outfit, Dir
 	}
 
 	GameSprite* spr = g_gui.gfx.getCreatureSprite(outfit.lookType);
-	if(!spr || outfit.lookType == 0)
+	if (!spr || outfit.lookType == 0) {
 		return;
+	}
 
 	screenx -= spr->getDrawOffset().first;
 	screeny -= spr->getDrawOffset().second;
@@ -1309,9 +1320,8 @@ void MapDrawer::BlitCreature(int screenx, int screeny, const Outfit& outfit, Dir
 	}
 }
 
-void MapDrawer::BlitCreature(int screenx, int screeny, const Monster* c, int red, int green, int blue, int alpha)
-{
-	if(!options.ingame && c->isSelected()) {
+void MapDrawer::BlitCreature(int screenx, int screeny, const Monster* c, int red, int green, int blue, int alpha) {
+	if (!options.ingame && c->isSelected()) {
 		red /= 2;
 		green /= 2;
 		blue /= 2;
@@ -1319,9 +1329,8 @@ void MapDrawer::BlitCreature(int screenx, int screeny, const Monster* c, int red
 	BlitCreature(screenx, screeny, c->getLookType(), c->getDirection(), red, green, blue, alpha);
 }
 // Npcs
-void MapDrawer::BlitCreature(int screenx, int screeny, const Npc* npc, int red, int green, int blue, int alpha)
-{
-	if(!options.ingame && npc->isSelected()) {
+void MapDrawer::BlitCreature(int screenx, int screeny, const Npc* npc, int red, int green, int blue, int alpha) {
+	if (!options.ingame && npc->isSelected()) {
 		red /= 2;
 		green /= 2;
 		blue /= 2;
@@ -1329,53 +1338,58 @@ void MapDrawer::BlitCreature(int screenx, int screeny, const Npc* npc, int red, 
 	BlitCreature(screenx, screeny, npc->getLookType(), npc->getDirection(), red, green, blue, alpha);
 }
 
-void MapDrawer::WriteTooltip(Item* item, std::ostringstream& stream)
-{
-	if(item == nullptr)
+void MapDrawer::WriteTooltip(Item* item, std::ostringstream &stream) {
+	if (item == nullptr) {
 		return;
+	}
 
 	const uint16_t id = item->getID();
-	if(id < 100)
+	if (id < 100) {
 		return;
+	}
 
 	const uint16_t unique = item->getUniqueID();
 	const uint16_t action = item->getActionID();
-	const std::string& text = item->getText();
-	if(unique == 0 && action == 0 && text.empty())
+	const std::string &text = item->getText();
+	if (unique == 0 && action == 0 && text.empty()) {
 		return;
+	}
 
-	if(stream.tellp() > 0)
+	if (stream.tellp() > 0) {
 		stream << "\n";
+	}
 
 	stream << "id: " << id << "\n";
 
-	if (action > 0)
+	if (action > 0) {
 		stream << "aid: " << action << "\n";
-	if(unique > 0)
+	}
+	if (unique > 0) {
 		stream << "uid: " << unique << "\n";
-	if(!text.empty())
+	}
+	if (!text.empty()) {
 		stream << "text: " << text << "\n";
+	}
 }
 
-void MapDrawer::WriteTooltip(Waypoint* waypoint, std::ostringstream& stream)
-{
-	if (stream.tellp() > 0)
+void MapDrawer::WriteTooltip(Waypoint* waypoint, std::ostringstream &stream) {
+	if (stream.tellp() > 0) {
 		stream << "\n";
+	}
 	stream << "wp: " << waypoint->name << "\n";
 }
 
-void MapDrawer::DrawTile(TileLocation* location)
-{
-	if(!location) {
+void MapDrawer::DrawTile(TileLocation* location) {
+	if (!location) {
 		return;
 	}
 	Tile* tile = location->get();
 
-	if(!tile) {
+	if (!tile) {
 		return;
 	}
 
-	if(options.show_only_modified && !tile->isModified()) {
+	if (options.show_only_modified && !tile->isModified()) {
 		return;
 	}
 
@@ -1383,158 +1397,160 @@ void MapDrawer::DrawTile(TileLocation* location)
 	int map_y = location->getY();
 	int map_z = location->getZ();
 
-
-	if(options.show_tooltips && location->getWaypointCount() > 0) {
+	if (options.show_tooltips && location->getWaypointCount() > 0) {
 		Waypoint* waypoint = canvas->editor.map.waypoints.getWaypoint(location);
-		if(waypoint)
+		if (waypoint) {
 			WriteTooltip(waypoint, tooltip);
+		}
 	}
 
 	bool as_minimap = options.show_as_minimap;
 	bool only_colors = as_minimap || options.show_only_colors;
 
 	int offset;
-	if (map_z <= GROUND_LAYER)
+	if (map_z <= GROUND_LAYER) {
 		offset = (GROUND_LAYER - map_z) * TILE_SIZE;
-	else
+	} else {
 		offset = TILE_SIZE * (floor - map_z);
+	}
 
 	int draw_x = ((map_x * TILE_SIZE) - view_scroll_x) - offset;
 	int draw_y = ((map_y * TILE_SIZE) - view_scroll_y) - offset;
 
-	uint8_t r = 255,g = 255,b = 255;
-	if(tile->ground || only_colors) {
+	uint8_t r = 255, g = 255, b = 255;
+	if (tile->ground || only_colors) {
 
-		if(!as_minimap) {
+		if (!as_minimap) {
 			bool showspecial = options.show_only_colors || options.show_special_tiles;
 
-			if(options.show_blocking && tile->isBlocking() && tile->size() > 0) {
+			if (options.show_blocking && tile->isBlocking() && tile->size() > 0) {
 				g = g / 3 * 2;
 				b = b / 3 * 2;
 			}
 
 			int item_count = tile->items.size();
-			if(options.highlight_items && item_count > 0 && !tile->items.back()->isBorder()) {
+			if (options.highlight_items && item_count > 0 && !tile->items.back()->isBorder()) {
 				static const float factor[5] = { 0.75f, 0.6f, 0.48f, 0.40f, 0.33f };
 				int idx = (item_count < 5 ? item_count : 5) - 1;
 				g = int(g * factor[idx]);
 				r = int(r * factor[idx]);
 			}
 
-			if(options.show_spawns_monster && location->getSpawnMonsterCount() > 0) {
+			if (options.show_spawns_monster && location->getSpawnMonsterCount() > 0) {
 				float f = 1.0f;
-				for(uint32_t i = 0; i < location->getSpawnMonsterCount(); ++i) {
+				for (uint32_t i = 0; i < location->getSpawnMonsterCount(); ++i) {
 					f *= 0.7f;
 				}
 				g = uint8_t(g * f);
 				b = uint8_t(b * f);
 			}
 
-			if(options.show_spawns_npc && location->getSpawnNpcCount() > 0) {
+			if (options.show_spawns_npc && location->getSpawnNpcCount() > 0) {
 				float f = 1.0f;
-				for(uint32_t i = 0; i < location->getSpawnNpcCount(); ++i) {
+				for (uint32_t i = 0; i < location->getSpawnNpcCount(); ++i) {
 					f *= 0.7f;
 				}
 				g = uint8_t(g * f);
 				b = uint8_t(b * f);
 			}
 
-			if(options.show_houses && tile->isHouseTile()) {
-				if((int)tile->getHouseID() == current_house_id) {
+			if (options.show_houses && tile->isHouseTile()) {
+				if ((int)tile->getHouseID() == current_house_id) {
 					r /= 2;
-				}
-				else {
+				} else {
 					r /= 2;
 					g /= 2;
 				}
-			}
-			else if(showspecial && tile->isPZ()) {
+			} else if (showspecial && tile->isPZ()) {
 				r /= 2;
 				b /= 2;
 			}
 
-			if(showspecial && tile->getMapFlags() & TILESTATE_PVPZONE) {
+			if (showspecial && tile->getMapFlags() & TILESTATE_PVPZONE) {
 				g = r / 4;
 				b = b / 3 * 2;
 			}
 
-			if(showspecial && tile->getMapFlags() & TILESTATE_NOLOGOUT) {
+			if (showspecial && tile->getMapFlags() & TILESTATE_NOLOGOUT) {
 				b /= 2;
 			}
 
-			if(showspecial && tile->getMapFlags() & TILESTATE_NOPVP) {
+			if (showspecial && tile->getMapFlags() & TILESTATE_NOPVP) {
 				g /= 2;
 			}
 		}
 
-		if(only_colors) {
-			if(as_minimap) {
+		if (only_colors) {
+			if (as_minimap) {
 				uint8_t color = tile->getMiniMapColor();
 				r = (uint8_t)(int(color / 36) % 6 * 51);
 				g = (uint8_t)(int(color / 6) % 6 * 51);
 				b = (uint8_t)(color % 6 * 51);
 				glBlitSquare(draw_x, draw_y, r, g, b, 255);
-			}
-			else if(r != 255 || g != 255 || b != 255) {
+			} else if (r != 255 || g != 255 || b != 255) {
 				glBlitSquare(draw_x, draw_y, r, g, b, 128);
 			}
 		} else {
-			if(options.show_preview && zoom <= 2.0)
+			if (options.show_preview && zoom <= 2.0) {
 				tile->ground->animate();
+			}
 
 			BlitItem(draw_x, draw_y, tile, tile->ground, false, r, g, b);
 		}
 
-		if(options.show_tooltips && map_z == floor)
+		if (options.show_tooltips && map_z == floor) {
 			WriteTooltip(tile->ground, tooltip);
+		}
 	}
 
-	if(!only_colors) {
-		if(zoom < 10.0 || !options.hide_items_when_zoomed) {
-			for(ItemVector::iterator it = tile->items.begin(); it != tile->items.end(); it++) {
-				if(options.show_tooltips && map_z == floor)
+	if (!only_colors) {
+		if (zoom < 10.0 || !options.hide_items_when_zoomed) {
+			for (ItemVector::iterator it = tile->items.begin(); it != tile->items.end(); it++) {
+				if (options.show_tooltips && map_z == floor) {
 					WriteTooltip(*it, tooltip);
+				}
 
-				if(options.show_preview && zoom <= 2.0)
+				if (options.show_preview && zoom <= 2.0) {
 					(*it)->animate();
+				}
 
-				if((*it)->isBorder()) {
+				if ((*it)->isBorder()) {
 					BlitItem(draw_x, draw_y, tile, *it, false, r, g, b);
 				} else {
 					BlitItem(draw_x, draw_y, tile, *it);
 				}
 			}
-			if(tile->monster && options.show_monsters) {
+			if (tile->monster && options.show_monsters) {
 				BlitCreature(draw_x, draw_y, tile->monster);
 			}
-			if(tile->npc && options.show_npcs) {
+			if (tile->npc && options.show_npcs) {
 				BlitCreature(draw_x, draw_y, tile->npc);
 			}
 		}
-		//if(location->getWaypointCount() > 0 && options.show_houses) {
-			//BlitSpriteType(draw_x, draw_y, SPRITE_FLAME_BLUE, 64, 64, 255);
+		// if(location->getWaypointCount() > 0 && options.show_houses) {
+		// BlitSpriteType(draw_x, draw_y, SPRITE_FLAME_BLUE, 64, 64, 255);
 		//}
 
-		if(tile->isHouseExit() && options.show_houses) {
-			if(tile->hasHouseExit(current_house_id)) {
+		if (tile->isHouseExit() && options.show_houses) {
+			if (tile->hasHouseExit(current_house_id)) {
 				BlitSpriteType(draw_x, draw_y, SPRITE_FLAG_GREY, 64, 255, 255);
 			} else {
 				BlitSpriteType(draw_x, draw_y, SPRITE_FLAG_GREY, 64, 64, 255);
 			}
 		}
-		//if(tile->isTownExit()) {
+		// if(tile->isTownExit()) {
 		//	BlitSpriteType(draw_x, draw_y, SPRITE_FLAG_GREY, 255, 255, 64);
-		//}
-		if(tile->spawnMonster && options.show_spawns_monster) {
-			if(tile->spawnMonster->isSelected()) {
+		// }
+		if (tile->spawnMonster && options.show_spawns_monster) {
+			if (tile->spawnMonster->isSelected()) {
 				BlitSpriteType(draw_x, draw_y, SPRITE_SPAWN, 128, 128, 128);
 			} else {
 				BlitSpriteType(draw_x, draw_y, SPRITE_SPAWN, 255, 255, 255);
 			}
 		}
 
-		if(tile->spawnNpc && options.show_spawns_npc) {
-			if(tile->spawnNpc->isSelected()) {
+		if (tile->spawnNpc && options.show_spawns_npc) {
+			if (tile->spawnNpc->isSelected()) {
 				BlitSpriteType(draw_x, draw_y, SPRITE_SPAWN_NPC, 128, 128, 128);
 			} else {
 				BlitSpriteType(draw_x, draw_y, SPRITE_SPAWN_NPC, 255, 255, 255);
@@ -1542,17 +1558,17 @@ void MapDrawer::DrawTile(TileLocation* location)
 		}
 	}
 
-	if(options.show_tooltips) {
-		if(location->getWaypointCount() > 0)
+	if (options.show_tooltips) {
+		if (location->getWaypointCount() > 0) {
 			MakeTooltip(draw_x, draw_y, tooltip.str(), 0, 255, 0);
-		else
+		} else {
 			MakeTooltip(draw_x, draw_y, tooltip.str());
+		}
 	}
 	tooltip.str("");
 }
 
-void MapDrawer::DrawBrushIndicator(int x, int y, Brush* brush, uint8_t r, uint8_t g, uint8_t b)
-{
+void MapDrawer::DrawBrushIndicator(int x, int y, Brush* brush, uint8_t r, uint8_t g, uint8_t b) {
 	x += (TILE_SIZE / 2);
 	y += (TILE_SIZE / 2);
 
@@ -1562,22 +1578,22 @@ void MapDrawer::DrawBrushIndicator(int x, int y, Brush* brush, uint8_t r, uint8_
 	//	 \/
 	//	 4
 	static int vertexes[9][2] = {
-		{-15, -20},  // 0
-		{ 15, -20},  // 1
-		{ 15, -5},   // 2
-		{ 5,  -5},   // 3
-		{ 0,   0},   // 4
-		{-5,  -5},   // 5
-		{-15, -5},   // 6
-		{-15, -20},  // 7
-		{-15, -20},  // 0
+		{ -15, -20 }, // 0
+		{ 15, -20 }, // 1
+		{ 15, -5 }, // 2
+		{ 5, -5 }, // 3
+		{ 0, 0 }, // 4
+		{ -5, -5 }, // 5
+		{ -15, -5 }, // 6
+		{ -15, -20 }, // 7
+		{ -15, -20 }, // 0
 	};
 
 	// circle
 	glBegin(GL_TRIANGLE_FAN);
 	glColor4ub(0x00, 0x00, 0x00, 0x50);
 	glVertex2i(x, y);
-	for(int i = 0; i <= 30; i++) {
+	for (int i = 0; i <= 30; i++) {
 		float angle = i * 2.0f * PI / 30;
 		glVertex2f(cos(angle) * (TILE_SIZE / 2) + x, sin(angle) * (TILE_SIZE / 2) + y);
 	}
@@ -1586,34 +1602,34 @@ void MapDrawer::DrawBrushIndicator(int x, int y, Brush* brush, uint8_t r, uint8_
 	// background
 	glColor4ub(r, g, b, 0xB4);
 	glBegin(GL_POLYGON);
-	for(int i = 0; i < 8; ++i)
+	for (int i = 0; i < 8; ++i) {
 		glVertex2i(vertexes[i][0] + x, vertexes[i][1] + y);
+	}
 	glEnd();
 
 	// borders
 	glColor4ub(0x00, 0x00, 0x00, 0xB4);
 	glLineWidth(1.0);
 	glBegin(GL_LINES);
-	for(int i = 0; i < 8; ++i) {
+	for (int i = 0; i < 8; ++i) {
 		glVertex2i(vertexes[i][0] + x, vertexes[i][1] + y);
 		glVertex2i(vertexes[i + 1][0] + x, vertexes[i + 1][1] + y);
 	}
 	glEnd();
 }
 
-void MapDrawer::DrawHookIndicator(int x, int y, const ItemType& type)
-{
+void MapDrawer::DrawHookIndicator(int x, int y, const ItemType &type) {
 	glDisable(GL_TEXTURE_2D);
 	glColor4ub(uint8_t(0), uint8_t(0), uint8_t(255), uint8_t(200));
 	glBegin(GL_QUADS);
-	if(type.hookSouth) {
+	if (type.hookSouth) {
 		x -= 10;
 		y += 10;
 		glVertex2f(x, y);
 		glVertex2f(x + 10, y);
 		glVertex2f(x + 20, y + 10);
 		glVertex2f(x + 10, y + 10);
-	} else if(type.hookEast) {
+	} else if (type.hookEast) {
 		x += 10;
 		y -= 10;
 		glVertex2f(x, y);
@@ -1625,9 +1641,8 @@ void MapDrawer::DrawHookIndicator(int x, int y, const ItemType& type)
 	glEnable(GL_TEXTURE_2D);
 }
 
-void MapDrawer::DrawTooltips()
-{
-	for(std::vector<MapTooltip*>::const_iterator it = tooltips.begin(); it != tooltips.end(); ++it) {
+void MapDrawer::DrawTooltips() {
+	for (std::vector<MapTooltip*>::const_iterator it = tooltips.begin(); it != tooltips.end(); ++it) {
 		MapTooltip* tooltip = (*it);
 		const char* text = tooltip->text.c_str();
 		float line_width = 0.0f;
@@ -1636,8 +1651,8 @@ void MapDrawer::DrawTooltips()
 		int char_count = 0;
 		int line_char_count = 0;
 
-		for(const char* c = text; *c != '\0'; c++) {
-			if(*c == '\n' || (line_char_count >= MapTooltip::MAX_CHARS_PER_LINE && *c == ' ')) {
+		for (const char* c = text; *c != '\0'; c++) {
+			if (*c == '\n' || (line_char_count >= MapTooltip::MAX_CHARS_PER_LINE && *c == ' ')) {
 				height += 14.0f;
 				line_width = 0.0f;
 				line_char_count = 0;
@@ -1648,8 +1663,9 @@ void MapDrawer::DrawTooltips()
 			char_count++;
 			line_char_count++;
 
-			if(tooltip->ellipsis && char_count > (MapTooltip::MAX_CHARS + 3))
+			if (tooltip->ellipsis && char_count > (MapTooltip::MAX_CHARS + 3)) {
 				break;
+			}
 		}
 
 		float scale = zoom < 1.0f ? zoom : 1.0f;
@@ -1672,44 +1688,45 @@ void MapDrawer::DrawTooltips()
 		//	 \/
 		//	 4
 		float vertexes[9][2] = {
-			{x,		 starty}, // 0
-			{endx,	  starty}, // 1
-			{endx,	  endy},   // 2
-			{x + space, endy},   // 3
-			{x,		 y},	  // 4
-			{x - space, endy},   // 5
-			{startx,	endy},   // 6
-			{startx,	starty}, // 7
-			{x,		 starty}, // 0
+			{ x, starty }, // 0
+			{ endx, starty }, // 1
+			{ endx, endy }, // 2
+			{ x + space, endy }, // 3
+			{ x, y }, // 4
+			{ x - space, endy }, // 5
+			{ startx, endy }, // 6
+			{ startx, starty }, // 7
+			{ x, starty }, // 0
 		};
 
 		// background
 		glColor4ub(tooltip->r, tooltip->g, tooltip->b, 255);
 		glBegin(GL_POLYGON);
-		for(int i = 0; i < 8; ++i)
+		for (int i = 0; i < 8; ++i) {
 			glVertex2f(vertexes[i][0], vertexes[i][1]);
+		}
 		glEnd();
 
 		// borders
 		glColor4ub(0, 0, 0, 255);
 		glLineWidth(1.0);
 		glBegin(GL_LINES);
-		for(int i = 0; i < 8; ++i) {
+		for (int i = 0; i < 8; ++i) {
 			glVertex2f(vertexes[i][0], vertexes[i][1]);
 			glVertex2f(vertexes[i + 1][0], vertexes[i + 1][1]);
 		}
 		glEnd();
 
 		// text
-		if(zoom <= 1.0) {
+		if (zoom <= 1.0) {
 			startx += (3.0f * scale);
 			starty += (14.0f * scale);
 			glColor4ub(0, 0, 0, 255);
 			glRasterPos2f(startx, starty);
 			char_count = 0;
 			line_char_count = 0;
-			for(const char* c = text; *c != '\0'; c++) {
-				if(*c == '\n' || (line_char_count >= MapTooltip::MAX_CHARS_PER_LINE && *c == ' ')) {
+			for (const char* c = text; *c != '\0'; c++) {
+				if (*c == '\n' || (line_char_count >= MapTooltip::MAX_CHARS_PER_LINE && *c == ' ')) {
 					starty += (14.0f * scale);
 					glRasterPos2f(startx, starty);
 					line_char_count = 0;
@@ -1717,10 +1734,11 @@ void MapDrawer::DrawTooltips()
 				char_count++;
 				line_char_count++;
 
-				if(tooltip->ellipsis && char_count >= MapTooltip::MAX_CHARS) {
+				if (tooltip->ellipsis && char_count >= MapTooltip::MAX_CHARS) {
 					glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, '.');
-					if(char_count >= (MapTooltip::MAX_CHARS + 2))
+					if (char_count >= (MapTooltip::MAX_CHARS + 2)) {
 						break;
+					}
 				} else if (!iscntrl(*c)) {
 					glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, *c);
 				}
@@ -1729,42 +1747,43 @@ void MapDrawer::DrawTooltips()
 	}
 }
 
-void MapDrawer::MakeTooltip(int screenx, int screeny, const std::string& text, uint8_t r, uint8_t g, uint8_t b)
-{
-	if(text.empty())
+void MapDrawer::MakeTooltip(int screenx, int screeny, const std::string &text, uint8_t r, uint8_t g, uint8_t b) {
+	if (text.empty()) {
 		return;
+	}
 
-	MapTooltip *tooltip = newd MapTooltip(screenx, screeny, text, r, g, b);
+	MapTooltip* tooltip = newd MapTooltip(screenx, screeny, text, r, g, b);
 	tooltip->checkLineEnding();
 	tooltips.push_back(tooltip);
 }
 
-void MapDrawer::getColor(Brush* brush, const Position& position, uint8_t &r, uint8_t &g, uint8_t &b)
-{
-	if(brush->canDraw(&editor.map, position)) {
-		if(brush->isWaypoint()) {
-			r = 0x00; g = 0xff, b = 0x00;
+void MapDrawer::getColor(Brush* brush, const Position &position, uint8_t &r, uint8_t &g, uint8_t &b) {
+	if (brush->canDraw(&editor.map, position)) {
+		if (brush->isWaypoint()) {
+			r = 0x00;
+			g = 0xff, b = 0x00;
 		} else {
-			r = 0x00; g = 0x00, b = 0xff;
+			r = 0x00;
+			g = 0x00, b = 0xff;
 		}
 	} else {
-		r = 0xff; g = 0x00, b = 0x00;
+		r = 0xff;
+		g = 0x00, b = 0x00;
 	}
 }
 
-void MapDrawer::TakeScreenshot(uint8_t* screenshot_buffer)
-{
+void MapDrawer::TakeScreenshot(uint8_t* screenshot_buffer) {
 	glFinish(); // Wait for the operation to finish
 
 	glPixelStorei(GL_PACK_ALIGNMENT, 1); // 1 byte alignment
 
-	for(int i = 0; i < screensize_y; ++i)
-		glReadPixels(0, screensize_y - i, screensize_x, 1, GL_RGB, GL_UNSIGNED_BYTE, (GLubyte*)(screenshot_buffer) + 3*screensize_x*i);
+	for (int i = 0; i < screensize_y; ++i) {
+		glReadPixels(0, screensize_y - i, screensize_x, 1, GL_RGB, GL_UNSIGNED_BYTE, (GLubyte*)(screenshot_buffer) + 3 * screensize_x * i);
+	}
 }
 
-void MapDrawer::glBlitTexture(int sx, int sy, int texture_number, int red, int green, int blue, int alpha, const Outfit& outfit/* = {}*/)
-{
-	if(texture_number != 0) {
+void MapDrawer::glBlitTexture(int sx, int sy, int texture_number, int red, int green, int blue, int alpha, const Outfit &outfit /* = {}*/) {
+	if (texture_number != 0) {
 		SpriteSheetPtr sheet = g_spriteAppearances.getSheetBySpriteId(texture_number);
 		if (!sheet) {
 			return;
@@ -1786,33 +1805,34 @@ void MapDrawer::glBlitTexture(int sx, int sy, int texture_number, int red, int g
 		glBindTexture(GL_TEXTURE_2D, texture_number);
 		glColor4ub(uint8_t(red), uint8_t(green), uint8_t(blue), uint8_t(alpha));
 		glBegin(GL_QUADS);
-			glTexCoord2f(0.f, 0.f); glVertex2f(sx, sy);
-			glTexCoord2f(1.f, 0.f); glVertex2f(sx + spriteWidth, sy);
-			glTexCoord2f(1.f, 1.f); glVertex2f(sx + spriteWidth, sy + spriteHeight);
-			glTexCoord2f(0.f, 1.f); glVertex2f(sx, sy + spriteHeight);
+		glTexCoord2f(0.f, 0.f);
+		glVertex2f(sx, sy);
+		glTexCoord2f(1.f, 0.f);
+		glVertex2f(sx + spriteWidth, sy);
+		glTexCoord2f(1.f, 1.f);
+		glVertex2f(sx + spriteWidth, sy + spriteHeight);
+		glTexCoord2f(0.f, 1.f);
+		glVertex2f(sx, sy + spriteHeight);
 		glEnd();
 	}
 }
 
-void MapDrawer::glBlitSquare(int sx, int sy, int red, int green, int blue, int alpha)
-{
+void MapDrawer::glBlitSquare(int sx, int sy, int red, int green, int blue, int alpha) {
 	glColor4ub(uint8_t(red), uint8_t(green), uint8_t(blue), uint8_t(alpha));
 	glBegin(GL_QUADS);
-		glVertex2f(sx, sy);
-		glVertex2f(sx + TILE_SIZE, sy);
-		glVertex2f(sx + TILE_SIZE, sy + TILE_SIZE);
-		glVertex2f(sx, sy + TILE_SIZE);
+	glVertex2f(sx, sy);
+	glVertex2f(sx + TILE_SIZE, sy);
+	glVertex2f(sx + TILE_SIZE, sy + TILE_SIZE);
+	glVertex2f(sx, sy + TILE_SIZE);
 	glEnd();
 }
 
-void MapDrawer::glColor(wxColor color)
-{
+void MapDrawer::glColor(wxColor color) {
 	glColor4ub(color.Red(), color.Green(), color.Blue(), color.Alpha());
 }
 
-void MapDrawer::glColor(MapDrawer::BrushColor color)
-{
-	switch(color) {
+void MapDrawer::glColor(MapDrawer::BrushColor color) {
+	switch (color) {
 		case COLOR_BRUSH:
 			glColor4ub(
 				g_settings.getInteger(Config::CURSOR_RED),
@@ -1858,10 +1878,10 @@ void MapDrawer::glColor(MapDrawer::BrushColor color)
 	}
 }
 
-void MapDrawer::glColorCheck(Brush* brush, const Position& pos)
-{
-	if(brush->canDraw(&editor.map, pos))
+void MapDrawer::glColorCheck(Brush* brush, const Position &pos) {
+	if (brush->canDraw(&editor.map, pos)) {
 		glColor(COLOR_VALID);
-	else
+	} else {
 		glColor(COLOR_INVALID);
+	}
 }

@@ -20,8 +20,7 @@
 
 class GameSprite;
 
-struct MapTooltip
-{
+struct MapTooltip {
 	enum TextLength {
 		MAX_CHARS_PER_LINE = 40,
 		MAX_CHARS = 255,
@@ -33,8 +32,9 @@ struct MapTooltip
 	}
 
 	void checkLineEnding() {
-		if(text.at(text.size() - 1) == '\n')
+		if (text.at(text.size() - 1) == '\n') {
 			text.resize(text.size() - 1);
+		}
 	}
 
 	int x, y;
@@ -80,10 +80,9 @@ struct DrawingOptions {
 
 class MapCanvas;
 
-class MapDrawer
-{
+class MapDrawer {
 	MapCanvas* canvas;
-	Editor& editor;
+	Editor &editor;
 	DrawingOptions options;
 
 	float zoom;
@@ -127,22 +126,24 @@ public:
 
 	void TakeScreenshot(uint8_t* screenshot_buffer);
 
-	DrawingOptions& getOptions() { return options; }
+	DrawingOptions &getOptions() {
+		return options;
+	}
 
 protected:
-	void BlitItem(int& screenx, int& screeny, const Tile* tile, const Item* item, bool ephemeral = false, int red = 255, int green = 255, int blue = 255, int alpha = 255);
-	void BlitItem(int& screenx, int& screeny, const Position& pos, const Item* item, bool ephemeral = false, int red = 255, int green = 255, int blue = 255, int alpha = 255);
+	void BlitItem(int &screenx, int &screeny, const Tile* tile, const Item* item, bool ephemeral = false, int red = 255, int green = 255, int blue = 255, int alpha = 255);
+	void BlitItem(int &screenx, int &screeny, const Position &pos, const Item* item, bool ephemeral = false, int red = 255, int green = 255, int blue = 255, int alpha = 255);
 	void BlitSpriteType(int screenx, int screeny, uint32_t spriteid, int red = 255, int green = 255, int blue = 255, int alpha = 255);
 	void BlitSpriteType(int screenx, int screeny, GameSprite* spr, int red = 255, int green = 255, int blue = 255, int alpha = 255);
 	void BlitCreature(int screenx, int screeny, const Monster* npc, int red = 255, int green = 255, int blue = 255, int alpha = 255);
 	void BlitCreature(int screenx, int screeny, const Npc* c, int red = 255, int green = 255, int blue = 255, int alpha = 255);
-	void BlitCreature(int screenx, int screeny, const Outfit& outfit, Direction dir, int red = 255, int green = 255, int blue = 255, int alpha = 255);
+	void BlitCreature(int screenx, int screeny, const Outfit &outfit, Direction dir, int red = 255, int green = 255, int blue = 255, int alpha = 255);
 	void DrawTile(TileLocation* tile);
 	void DrawBrushIndicator(int x, int y, Brush* brush, uint8_t r, uint8_t g, uint8_t b);
-	void DrawHookIndicator(int x, int y, const ItemType& type);
-	void WriteTooltip(Item* item, std::ostringstream& stream);
-	void WriteTooltip(Waypoint* item, std::ostringstream& stream);
-	void MakeTooltip(int screenx, int screeny, const std::string& text, uint8_t r = 255, uint8_t g = 255, uint8_t b = 255);
+	void DrawHookIndicator(int x, int y, const ItemType &type);
+	void WriteTooltip(Item* item, std::ostringstream &stream);
+	void WriteTooltip(Waypoint* item, std::ostringstream &stream);
+	void MakeTooltip(int screenx, int screeny, const std::string &text, uint8_t r = 255, uint8_t g = 255, uint8_t b = 255);
 
 	enum BrushColor {
 		COLOR_BRUSH,
@@ -156,14 +157,12 @@ protected:
 		COLOR_BLANK,
 	};
 
-	void getColor(Brush* brush, const Position& position, uint8_t &r, uint8_t &g, uint8_t &b);
-	void glBlitTexture(int sx, int sy, int texture_number, int red, int green, int blue, int alpha, const Outfit& outfit = {});
+	void getColor(Brush* brush, const Position &position, uint8_t &r, uint8_t &g, uint8_t &b);
+	void glBlitTexture(int sx, int sy, int texture_number, int red, int green, int blue, int alpha, const Outfit &outfit = {});
 	void glBlitSquare(int sx, int sy, int red, int green, int blue, int alpha);
 	void glColor(wxColor color);
 	void glColor(BrushColor color);
-	void glColorCheck(Brush* brush, const Position& pos);
+	void glColorCheck(Brush* brush, const Position &pos);
 };
 
-
 #endif
-

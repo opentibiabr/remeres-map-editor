@@ -361,8 +361,8 @@ bool MonsterDatabase::saveToXML(const FileName &filename) {
 
 wxArrayString MonsterDatabase::getMissingMonsterNames() const {
 	wxArrayString missingMonsters;
-	for(const auto& monsterEntry : monster_map) {
-		if(monsterEntry.second->missing) {
+	for (const auto &monsterEntry : monster_map) {
+		if (monsterEntry.second->missing) {
 			missingMonsters.Add(monsterEntry.second->name);
 		}
 	}

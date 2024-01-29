@@ -313,8 +313,8 @@ bool NpcDatabase::saveToXML(const FileName &filename) {
 
 wxArrayString NpcDatabase::getMissingNpcNames() const {
 	wxArrayString missingNpcs;
-	for(const auto& ncpEntry : npcMap) {
-		if(ncpEntry.second->missing) {
+	for (const auto &ncpEntry : npcMap) {
+		if (ncpEntry.second->missing) {
 			missingNpcs.Add(ncpEntry.second->name);
 		}
 	}

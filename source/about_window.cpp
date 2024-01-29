@@ -488,7 +488,7 @@ void TetrisPanel::NewGame() {
 
 void TetrisPanel::AddScore(int lines_added) {
 	lines += lines_added;
-	score += lines_added*lines_added * 10;
+	score += lines_added * lines_added * 10;
 	wxString title = "Canary Tetris : ";
 	title << score << " points  ";
 	title << lines << " lines";

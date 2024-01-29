@@ -30,28 +30,24 @@ ItemType::ItemType() = default;
 
 ItemType::~ItemType() = default;
 
-bool ItemType::isFloorChange() const
-{
+bool ItemType::isFloorChange() const {
 	return floorChange || floorChangeDown || floorChangeNorth || floorChangeSouth || floorChangeEast || floorChangeWest;
 }
 
 ItemDatabase::ItemDatabase() = default;
 
-ItemDatabase::~ItemDatabase()
-{
+ItemDatabase::~ItemDatabase() {
 	clear();
 }
 
-void ItemDatabase::clear()
-{
-	for(uint32_t i = 0; i < items.size(); i++) {
+void ItemDatabase::clear() {
+	for (uint32_t i = 0; i < items.size(); i++) {
 		delete items[i];
 		items.set(i, nullptr);
 	}
 }
 
-bool ItemDatabase::loadFromProtobuf(wxString &error, wxArrayString &warnings, canary::protobuf::appearances::Appearances appearances)
-{
+bool ItemDatabase::loadFromProtobuf(wxString &error, wxArrayString &warnings, canary::protobuf::appearances::Appearances appearances) {
 	using namespace canary::protobuf::appearances;
 
 	for (uint32_t it = 0; it < static_cast<uint32_t>(appearances.object_size()); ++it) {
@@ -72,7 +68,7 @@ bool ItemDatabase::loadFromProtobuf(wxString &error, wxArrayString &warnings, ca
 			continue;
 		}
 
-		ItemType *t = newd ItemType();
+		ItemType* t = newd ItemType();
 		t->id = static_cast<uint16_t>(object.id());
 		t->clientID = static_cast<uint16_t>(object.id());
 		t->name = object.name();
@@ -117,8 +113,7 @@ bool ItemDatabase::loadFromProtobuf(wxString &error, wxArrayString &warnings, ca
 				t->loop_count = animation.loop_count();
 				t->async_animation = !animation.synchronized();
 				for (int k = 0; k < spritesPhases.size(); k++) {
-					t->m_animationPhases.push_back(std::pair<int,int>(static_cast<int>(spritesPhases[k].duration_min()),
-												static_cast<int>(spritesPhases[k].duration_max())));
+					t->m_animationPhases.push_back(std::pair<int, int>(static_cast<int>(spritesPhases[k].duration_min()), static_cast<int>(spritesPhases[k].duration_max())));
 				}
 			}
 
@@ -173,33 +168,32 @@ bool ItemDatabase::loadFromProtobuf(wxString &error, wxArrayString &warnings, ca
 	return true;
 }
 
-bool ItemDatabase::loadItemFromGameXml(pugi::xml_node itemNode, int id)
-{
-	ItemType& it = getItemType(id);
+bool ItemDatabase::loadItemFromGameXml(pugi::xml_node itemNode, int id) {
+	ItemType &it = getItemType(id);
 
 	it.name = itemNode.attribute("name").as_string();
 	it.editorsuffix = itemNode.attribute("editorsuffix").as_string();
 
 	pugi::xml_attribute attribute;
-	for(pugi::xml_node itemAttributesNode = itemNode.first_child(); itemAttributesNode; itemAttributesNode = itemAttributesNode.next_sibling()) {
-		if(!(attribute = itemAttributesNode.attribute("key"))) {
+	for (pugi::xml_node itemAttributesNode = itemNode.first_child(); itemAttributesNode; itemAttributesNode = itemAttributesNode.next_sibling()) {
+		if (!(attribute = itemAttributesNode.attribute("key"))) {
 			continue;
 		}
 
 		std::string key = attribute.as_string();
 		to_lower_str(key);
-		if(key == "type") {
-			if(!(attribute = itemAttributesNode.attribute("value"))) {
+		if (key == "type") {
+			if (!(attribute = itemAttributesNode.attribute("value"))) {
 				continue;
 			}
 
 			std::string typeValue = attribute.as_string();
 			to_lower_str(key);
-			if(typeValue == "depot") {
+			if (typeValue == "depot") {
 				it.type = ITEM_TYPE_DEPOT;
-			} else if(typeValue == "mailbox") {
+			} else if (typeValue == "mailbox") {
 				it.type = ITEM_TYPE_MAILBOX;
-			} else if(typeValue == "trashholder") {
+			} else if (typeValue == "trashholder") {
 				it.type = ITEM_TYPE_TRASHHOLDER;
 			} else if (typeValue == "container") {
 				it.type = ITEM_TYPE_CONTAINER;
@@ -215,70 +209,70 @@ bool ItemDatabase::loadItemFromGameXml(pugi::xml_node itemNode, int id)
 			} else if (typeValue == "key") {
 				it.type = ITEM_TYPE_KEY;
 			}
-		} else if(key == "name") {
-			if((attribute = itemAttributesNode.attribute("value"))) {
+		} else if (key == "name") {
+			if ((attribute = itemAttributesNode.attribute("value"))) {
 				it.name = attribute.as_string();
 			}
-		} else if(key == "description") {
-			if((attribute = itemAttributesNode.attribute("value"))) {
+		} else if (key == "description") {
+			if ((attribute = itemAttributesNode.attribute("value"))) {
 				it.description = attribute.as_string();
 			}
-		}else if(key == "runespellName") {
+		} else if (key == "runespellName") {
 			/*if((attribute = itemAttributesNode.attribute("value"))) {
 				it.runeSpellName = attribute.as_string();
 			}*/
-		} else if(key == "weight") {
-			if((attribute = itemAttributesNode.attribute("value"))) {
+		} else if (key == "weight") {
+			if ((attribute = itemAttributesNode.attribute("value"))) {
 				it.weight = attribute.as_int() / 100.f;
 			}
-		} else if(key == "armor") {
-			if((attribute = itemAttributesNode.attribute("value"))) {
+		} else if (key == "armor") {
+			if ((attribute = itemAttributesNode.attribute("value"))) {
 				it.armor = attribute.as_int();
 			}
-		} else if(key == "defense") {
-			if((attribute = itemAttributesNode.attribute("value"))) {
+		} else if (key == "defense") {
+			if ((attribute = itemAttributesNode.attribute("value"))) {
 				it.defense = attribute.as_int();
 			}
-		} else if(key == "rotateto") {
-			if((attribute = itemAttributesNode.attribute("value"))) {
+		} else if (key == "rotateto") {
+			if ((attribute = itemAttributesNode.attribute("value"))) {
 				it.rotateTo = static_cast<uint16_t>(attribute.as_uint());
 			}
-		} else if(key == "containersize") {
-			if((attribute = itemAttributesNode.attribute("value"))) {
+		} else if (key == "containersize") {
+			if ((attribute = itemAttributesNode.attribute("value"))) {
 				it.volume = static_cast<uint16_t>(attribute.as_uint());
 			}
-		} else if(key == "readable") {
-			if((attribute = itemAttributesNode.attribute("value"))) {
+		} else if (key == "readable") {
+			if ((attribute = itemAttributesNode.attribute("value"))) {
 				it.canReadText = attribute.as_bool();
 			}
-		} else if(key == "writeable") {
-			if((attribute = itemAttributesNode.attribute("value"))) {
+		} else if (key == "writeable") {
+			if ((attribute = itemAttributesNode.attribute("value"))) {
 				it.canWriteText = it.canReadText = attribute.as_bool();
 			}
-		} else if(key == "decayto") {
+		} else if (key == "decayto") {
 			it.decays = true;
-		} else if(key == "maxtextlen" || key == "maxtextlength") {
-			if((attribute = itemAttributesNode.attribute("value"))) {
+		} else if (key == "maxtextlen" || key == "maxtextlength") {
+			if ((attribute = itemAttributesNode.attribute("value"))) {
 				it.maxTextLen = static_cast<uint16_t>(attribute.as_uint());
 				it.canReadText = it.maxTextLen > 0;
 			}
-		} else if(key == "writeonceitemid") {
-			if((attribute = itemAttributesNode.attribute("value"))) {
+		} else if (key == "writeonceitemid") {
+			if ((attribute = itemAttributesNode.attribute("value"))) {
 				it.write_once_item_id = attribute.as_int();
 			}
-		} else if(key == "allowdistread") {
-			if((attribute = itemAttributesNode.attribute("value"))) {
+		} else if (key == "allowdistread") {
+			if ((attribute = itemAttributesNode.attribute("value"))) {
 				it.allowDistRead = attribute.as_bool();
 			}
-		} else if(key == "charges") {
-			if((attribute = itemAttributesNode.attribute("value"))) {
+		} else if (key == "charges") {
+			if ((attribute = itemAttributesNode.attribute("value"))) {
 				it.charges = attribute.as_uint();
 				it.extra_chargeable = true;
 			}
-		} else if(key == "floorchange") {
+		} else if (key == "floorchange") {
 			if ((attribute = itemAttributesNode.attribute("value"))) {
 				std::string value = attribute.as_string();
-				if(value == "down") {
+				if (value == "down") {
 					it.floorChangeDown = true;
 					it.floorChange = true;
 				} else if (value == "north") {
@@ -293,60 +287,60 @@ bool ItemDatabase::loadItemFromGameXml(pugi::xml_node itemNode, int id)
 				} else if (value == "east") {
 					it.floorChangeEast = true;
 					it.floorChange = true;
-				} else if(value == "northex")
+				} else if (value == "northex") {
 					it.floorChange = true;
-				else if(value == "southex")
+				} else if (value == "southex") {
 					it.floorChange = true;
-				else if(value == "westex")
+				} else if (value == "westex") {
 					it.floorChange = true;
-				else if(value == "eastex")
+				} else if (value == "eastex") {
 					it.floorChange = true;
-				else if (value == "southalt")
+				} else if (value == "southalt") {
 					it.floorChange = true;
-				else if (value == "eastalt")
+				} else if (value == "eastalt") {
 					it.floorChange = true;
+				}
 			}
 		}
 	}
 	return true;
 }
 
-bool ItemDatabase::loadFromGameXml(const FileName& identifier, wxString& error, wxArrayString& warnings)
-{
+bool ItemDatabase::loadFromGameXml(const FileName &identifier, wxString &error, wxArrayString &warnings) {
 	pugi::xml_document doc;
 	pugi::xml_parse_result result = doc.load_file(identifier.GetFullPath().mb_str());
-	if(!result) {
+	if (!result) {
 		error = "Could not load items.xml (Syntax error?)";
 		return false;
 	}
 
 	pugi::xml_node node = doc.child("items");
-	if(!node) {
+	if (!node) {
 		error = "items.xml, invalid root node.";
 		return false;
 	}
 
-	for(pugi::xml_node itemNode = node.first_child(); itemNode; itemNode = itemNode.next_sibling()) {
-		if(as_lower_str(itemNode.name()) != "item") {
+	for (pugi::xml_node itemNode = node.first_child(); itemNode; itemNode = itemNode.next_sibling()) {
+		if (as_lower_str(itemNode.name()) != "item") {
 			continue;
 		}
 
 		uint16_t fromId = 0;
 		uint16_t toId = 0;
-		if(const pugi::xml_attribute attribute = itemNode.attribute("id")) {
+		if (const pugi::xml_attribute attribute = itemNode.attribute("id")) {
 			fromId = toId = static_cast<uint16_t>(attribute.as_uint());
 		} else {
 			fromId = itemNode.attribute("fromid").as_uint();
 			toId = itemNode.attribute("toid").as_uint();
 		}
 
-		if(fromId == 0 || toId == 0) {
-			error = "Could not read item id from item node, fromid "+ std::to_string(fromId) +", toid "+ std::to_string(toId) +".";
+		if (fromId == 0 || toId == 0) {
+			error = "Could not read item id from item node, fromid " + std::to_string(fromId) + ", toid " + std::to_string(toId) + ".";
 			return false;
 		}
 
-		for(uint16_t id = fromId; id <= toId; ++id) {
-			if(!loadItemFromGameXml(itemNode, id)) {
+		for (uint16_t id = fromId; id <= toId; ++id) {
+			if (!loadItemFromGameXml(itemNode, id)) {
 				return false;
 			}
 		}
@@ -354,11 +348,10 @@ bool ItemDatabase::loadFromGameXml(const FileName& identifier, wxString& error, 
 	return true;
 }
 
-bool ItemDatabase::loadMetaItem(pugi::xml_node node)
-{
-	if(const pugi::xml_attribute attribute = node.attribute("id")) {
+bool ItemDatabase::loadMetaItem(pugi::xml_node node) {
+	if (const pugi::xml_attribute attribute = node.attribute("id")) {
 		const uint16_t id = static_cast<uint16_t>(attribute.as_uint());
-		if(id == 0 || items[id]) {
+		if (id == 0 || items[id]) {
 			return false;
 		}
 		items.set(id, newd ItemType());
@@ -369,19 +362,17 @@ bool ItemDatabase::loadMetaItem(pugi::xml_node node)
 	return false;
 }
 
-ItemType& ItemDatabase::getItemType(int id)
-{
+ItemType &ItemDatabase::getItemType(int id) {
 	ItemType* it = items[id];
-	if(it)
+	if (it) {
 		return *it;
-	else {
+	} else {
 		static ItemType dummyItemType; // use this for invalid ids
 		return dummyItemType;
 	}
 }
 
-bool ItemDatabase::typeExists(int id) const
-{
+bool ItemDatabase::typeExists(int id) const {
 	ItemType* it = items[id];
 	return it != nullptr;
 }

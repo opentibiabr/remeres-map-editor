@@ -22,8 +22,7 @@
 #include "settings.h"
 
 // OTBM versions
-enum MapVersionID
-{
+enum MapVersionID {
 	MAP_OTBM_UNKNOWN = -1,
 	MAP_OTBM_1 = 0,
 	MAP_OTBM_2 = 1,
@@ -32,15 +31,15 @@ enum MapVersionID
 };
 
 // The composed version of a otbm file (otbm version, client version)
-struct MapVersion
-{
-	MapVersion() : otbm(MAP_OTBM_1) {}
-	MapVersion(MapVersionID m) : otbm(m) {}
+struct MapVersion {
+	MapVersion() :
+		otbm(MAP_OTBM_1) { }
+	MapVersion(MapVersionID m) :
+		otbm(m) { }
 	MapVersionID otbm;
 };
 
-class ClientAssets
-{
+class ClientAssets {
 public:
 	ClientAssets() = default;
 	~ClientAssets() = default;
@@ -51,7 +50,7 @@ public:
 
 	static void load();
 	// Load protobuf appearance file and catalog-content json with sprites
-	static bool loadAppearanceProtobuf(wxString& error, wxArrayString& warnings);
+	static bool loadAppearanceProtobuf(wxString &error, wxArrayString &warnings);
 	static void save();
 
 	static std::string getVersionName();

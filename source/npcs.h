@@ -25,8 +25,7 @@ class NpcBrush;
 
 typedef std::map<std::string, NpcType*> NpcMap;
 
-class NpcDatabase
-{
+class NpcDatabase {
 protected:
 	NpcMap npcMap;
 
@@ -39,18 +38,22 @@ public:
 
 	void clear();
 
-	NpcType* operator[](const std::string& name);
-	NpcType* addMissingNpcType(const std::string& name);
-	NpcType* addNpcType(const std::string& name, const Outfit& outfit);
+	NpcType* operator[](const std::string &name);
+	NpcType* addMissingNpcType(const std::string &name);
+	NpcType* addNpcType(const std::string &name, const Outfit &outfit);
 
 	bool hasMissing() const;
-	iterator begin() {return npcMap.begin();}
-	iterator end() {return npcMap.end();}
+	iterator begin() {
+		return npcMap.begin();
+	}
+	iterator end() {
+		return npcMap.end();
+	}
 
-	bool loadFromXML(const FileName& filename, bool standard, wxString& error, wxArrayString& warnings);
-	bool importXMLFromOT(const FileName& filename, wxString& error, wxArrayString& warnings);
+	bool loadFromXML(const FileName &filename, bool standard, wxString &error, wxArrayString &warnings);
+	bool importXMLFromOT(const FileName &filename, wxString &error, wxArrayString &warnings);
 
-	bool saveToXML(const FileName& filename);
+	bool saveToXML(const FileName &filename);
 
 	wxArrayString getMissingNpcNames() const;
 };
@@ -58,8 +61,8 @@ public:
 class NpcType {
 public:
 	NpcType();
-	NpcType(const NpcType& ct);
-	NpcType& operator=(const NpcType& ct);
+	NpcType(const NpcType &ct);
+	NpcType &operator=(const NpcType &ct);
 	~NpcType();
 
 	bool missing;
@@ -69,8 +72,8 @@ public:
 	Outfit outfit;
 	NpcBrush* brush;
 
-	static NpcType* loadFromXML(pugi::xml_node node, wxArrayString& warnings);
-	static NpcType* loadFromOTXML(const FileName& filename, pugi::xml_document& node, wxArrayString& warnings);
+	static NpcType* loadFromXML(pugi::xml_node node, wxArrayString &warnings);
+	static NpcType* loadFromOTXML(const FileName &filename, pugi::xml_document &node, wxArrayString &warnings);
 };
 
 extern NpcDatabase g_npcs;

@@ -232,9 +232,8 @@ void MapPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 	}
 
 	if (new_ver.otbm != old_ver.otbm) {
-		if(g_gui.GetOpenMapCount() > 1) {
-			g_gui.PopupDialog(this, "Error",
-				"You can not change editor version with multiple maps open", wxOK);
+		if (g_gui.GetOpenMapCount() > 1) {
+			g_gui.PopupDialog(this, "Error", "You can not change editor version with multiple maps open", wxOK);
 			return;
 		}
 		wxString error;
@@ -245,9 +244,8 @@ void MapPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 		g_gui.GetCurrentEditor()->clearActions();
 
 		if (new_ver.otbm < old_ver.otbm) {
-			int ret = g_gui.PopupDialog(this, "Notice",
-				"Converting to a previous version may have serious side-effects, are you sure you want to do this?", wxYES | wxNO);
-			if(ret != wxID_YES) {
+			int ret = g_gui.PopupDialog(this, "Notice", "Converting to a previous version may have serious side-effects, are you sure you want to do this?", wxYES | wxNO);
+			if (ret != wxID_YES) {
 				return;
 			}
 			UnnamedRenderingLock();

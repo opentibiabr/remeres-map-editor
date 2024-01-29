@@ -33,11 +33,9 @@ wxString ClientAssets::data_path;
 wxString ClientAssets::assets_path;
 bool ClientAssets::loaded = false;
 
-void ClientAssets::load()
-{
+void ClientAssets::load() {
 	// Load the data directory info
-	try
-	{
+	try {
 		auto dataDirs = g_settings.getString(Config::ASSETS_DATA_DIRS);
 		if (!dataDirs.empty()) {
 			json read_obj = json::parse(dataDirs);
@@ -45,15 +43,12 @@ void ClientAssets::load()
 			auto path = ver_obj.at("path").get<std::string>();
 			setPath(wxstr(path));
 		}
-	}
-	catch ([[maybe_unused]]const json::exception& e)
-	{
+	} catch ([[maybe_unused]] const json::exception &e) {
 		spdlog::info("Json exception with error code {}", e.what());
 	}
 }
 
-bool ClientAssets::loadAppearanceProtobuf(wxString& error, wxArrayString& warnings)
-{
+bool ClientAssets::loadAppearanceProtobuf(wxString &error, wxArrayString &warnings) {
 	using namespace canary::protobuf::appearances;
 	using json = nlohmann::json;
 
@@ -85,7 +80,6 @@ bool ClientAssets::loadAppearanceProtobuf(wxString& error, wxArrayString& warnin
 		return false;
 	}
 
-
 	std::ifstream file(packagesPath, std::ios::in);
 	if (!file.is_open()) {
 		error = "Failed to open packages.json";
@@ -103,7 +97,7 @@ bool ClientAssets::loadAppearanceProtobuf(wxString& error, wxArrayString& warnin
 
 	std::fstream fileStream(assetsDirectory + appearanceFileName, std::ios::in | std::ios::binary);
 	if (!fileStream.is_open()) {
-		error = "Failed to load "+ appearanceFileName +" from the client folder, file cannot be oppened";
+		error = "Failed to load " + appearanceFileName + " from the client folder, file cannot be oppened";
 		spdlog::error("[{}] - Failed to load {}, file cannot be oppened", __func__, appearanceFileName);
 		fileStream.close();
 		return false;
@@ -114,7 +108,7 @@ bool ClientAssets::loadAppearanceProtobuf(wxString& error, wxArrayString& warnin
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 	g_gui.appearances = Appearances();
 	if (!g_gui.appearances.ParseFromIstream(&fileStream)) {
-		error = "Failed to parse binary file "+ appearanceFileName +", file is invalid";
+		error = "Failed to parse binary file " + appearanceFileName + ", file is invalid";
 		spdlog::error("[{}] - Failed to parse binary file {}, file is invalid", __func__, appearanceFileName);
 		fileStream.close();
 		return false;
@@ -150,8 +144,7 @@ bool ClientAssets::loadAppearanceProtobuf(wxString& error, wxArrayString& warnin
 	return true;
 }
 
-void ClientAssets::save()
-{
+void ClientAssets::save() {
 	try {
 		json vers_obj;
 
@@ -166,33 +159,29 @@ void ClientAssets::save()
 		std::ostringstream out;
 		out << vers_obj;
 		g_settings.setString(Config::ASSETS_DATA_DIRS, out.str());
-	}
-	catch ([[maybe_unused]]const json::exception& e) {
+	} catch ([[maybe_unused]] const json::exception &e) {
 		// pass
 	}
 }
 
-FileName ClientAssets::getDataPath()
-{
+FileName ClientAssets::getDataPath() {
 	wxString basePath = g_gui.GetDataDirectory();
-	if(!wxFileName(basePath).DirExists())
+	if (!wxFileName(basePath).DirExists()) {
 		basePath = g_gui.getFoundDataDirectory();
+	}
 	return basePath + data_path + FileName::GetPathSeparator();
 }
 
-FileName ClientAssets::getLocalPath()
-{
+FileName ClientAssets::getLocalPath() {
 	FileName f = g_gui.GetLocalDataDirectory() + data_path + FileName::GetPathSeparator();
 	f.Mkdir(0755, wxPATH_MKDIR_FULL);
 	return f;
 }
 
-wxString ClientAssets::getPath()
-{
+wxString ClientAssets::getPath() {
 	return assets_path;
 }
 
-std::string ClientAssets::getVersionName()
-{
+std::string ClientAssets::getVersionName() {
 	return version_name;
 }

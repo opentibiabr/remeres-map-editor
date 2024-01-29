@@ -53,7 +53,7 @@ Editor::Editor(CopyBuffer &copybuffer) :
 	wxArrayString warnings;
 	bool ok = true;
 
-	if(g_gui.CloseAllEditors()) {
+	if (g_gui.CloseAllEditors()) {
 		ok = g_gui.LoadVersion(error, warnings);
 		g_gui.PopupDialog("Error", error, wxOK);
 		g_gui.ListDialog("Warnings", warnings);
@@ -96,7 +96,7 @@ Editor::Editor(CopyBuffer &copybuffer, const FileName &fn) :
 	replace_brush(nullptr) {
 	MapVersion ver;
 
-	if(!IOMapOTBM::getVersionInfo(fn, ver)) {
+	if (!IOMapOTBM::getVersionInfo(fn, ver)) {
 		g_gui.PopupDialog("Error", "Could not open file \"" + fn.GetFullPath() + "\".", wxOK);
 		spdlog::error("Could not open file {}. This is not a valid OTBM file or it does not exist.", nstr(fn.GetFullPath()));
 		throw std::runtime_error("Could not open file \"" + nstr(fn.GetFullPath()) + "\".\nThis is not a valid OTBM file or it does not exist.");
@@ -105,9 +105,9 @@ Editor::Editor(CopyBuffer &copybuffer, const FileName &fn) :
 	bool success = true;
 	wxString error;
 	wxArrayString warnings;
-	if(g_gui.CloseAllEditors()) {
+	if (g_gui.CloseAllEditors()) {
 		success = g_gui.LoadVersion(error, warnings);
-		if(!success) {
+		if (!success) {
 			g_gui.PopupDialog("Error", error, wxOK);
 			auto clientDirectory = ClientAssets::getPath().ToStdString() + "/";
 			if (!wxDirExists(wxString(clientDirectory))) {
@@ -116,8 +116,7 @@ Editor::Editor(CopyBuffer &copybuffer, const FileName &fn) :
 				dialog.ShowModal();
 				dialog.Destroy();
 			}
-		}
-		else {
+		} else {
 			g_gui.ListDialog("Warnings", warnings);
 		}
 	} else {
@@ -136,8 +135,7 @@ Editor::Editor(CopyBuffer &copybuffer, LiveClient* client) :
 	live_client(client),
 	actionQueue(newd NetworkedActionQueue(*this)),
 	selection(*this),
-	copybuffer(copybuffer)
-{
+	copybuffer(copybuffer) {
 	replace_brush(nullptr);
 }
 
@@ -276,28 +274,28 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 	// converter.Assign(wxstr(savefile));
 	std::string backup_otbm, backup_house, backup_spawn, backup_spawn_npc, backup_zones;
 
-	if(converter.FileExists()) {
+	if (converter.FileExists()) {
 		backup_otbm = map_path + nstr(converter.GetName()) + ".otbm~";
 		std::remove(backup_otbm.c_str());
 		std::rename(savefile.c_str(), backup_otbm.c_str());
 	}
 
 	converter.SetFullName(wxstr(map.housefile));
-	if(converter.FileExists()) {
+	if (converter.FileExists()) {
 		backup_house = map_path + nstr(converter.GetName()) + ".xml~";
 		std::remove(backup_house.c_str());
 		std::rename((map_path + map.housefile).c_str(), backup_house.c_str());
 	}
 
 	converter.SetFullName(wxstr(map.spawnmonsterfile));
-	if(converter.FileExists()) {
+	if (converter.FileExists()) {
 		backup_spawn = map_path + nstr(converter.GetName()) + ".xml~";
 		std::remove(backup_spawn.c_str());
 		std::rename((map_path + map.spawnmonsterfile).c_str(), backup_spawn.c_str());
-		}
+	}
 
 	converter.SetFullName(wxstr(map.spawnnpcfile));
-	if(converter.FileExists()) {
+	if (converter.FileExists()) {
 		backup_spawn_npc = map_path + nstr(converter.GetName()) + ".xml~";
 		std::remove(backup_spawn_npc.c_str());
 		std::rename((map_path + map.spawnnpcfile).c_str(), backup_spawn_npc.c_str());
@@ -386,11 +384,11 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 		// Move temporary backups to their proper files
 		time_t t = time(nullptr);
 		tm current_time;
-		#if defined(__WINDOWS__)
+#if defined(__WINDOWS__)
 		localtime_s(&current_time, &t);
-		#else
+#else
 		localtime_r(&current_time, &t);
-		#endif
+#endif
 
 		std::ostringstream date;
 		date << (1900 + current_time->tm_year);

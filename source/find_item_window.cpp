@@ -230,10 +230,10 @@ void FindItemDialog::setSearchMode(FindItemDialog::SearchMode mode) {
 	EnableProperties(mode == SearchMode::Properties);
 	RefreshContentsInternal();
 
-	if(mode == SearchMode::ItemIDs) {
+	if (mode == SearchMode::ItemIDs) {
 		item_id_spin->SetFocus();
 		item_id_spin->SetSelection(-1, -1);
-	} else if(mode == SearchMode::Names) {
+	} else if (mode == SearchMode::Names) {
 		name_text_input->SetFocus();
 	}
 }
@@ -263,11 +263,11 @@ void FindItemDialog::RefreshContentsInternal() {
 	SearchMode selection = (SearchMode)options_radio_box->GetSelection();
 	bool found_search_results = false;
 
-	if(selection == SearchMode::ItemIDs) {
+	if (selection == SearchMode::ItemIDs) {
 		uint16_t itemID = (uint16_t)item_id_spin->GetValue();
-		for(int id = 100; id <= g_items.getMaxID(); ++id) {
-			ItemType& item = g_items.getItemType(id);
-			if(item.id != itemID) {
+		for (int id = 100; id <= g_items.getMaxID(); ++id) {
+			ItemType &item = g_items.getItemType(id);
+			if (item.id != itemID) {
 				continue;
 			}
 
@@ -370,8 +370,7 @@ void FindItemDialog::OnOptionChange(wxCommandEvent &WXUNUSED(event)) {
 	setSearchMode((SearchMode)options_radio_box->GetSelection());
 }
 
-void FindItemDialog::OnItemIdChange(wxCommandEvent& WXUNUSED(event))
-{
+void FindItemDialog::OnItemIdChange(wxCommandEvent &WXUNUSED(event)) {
 	RefreshContentsInternal();
 }
 

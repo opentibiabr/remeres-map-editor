@@ -15,7 +15,6 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //////////////////////////////////////////////////////////////////////
 
-
 #include "main.h"
 
 #include "settings.h"
@@ -27,41 +26,40 @@
 #include "preferences.h"
 
 BEGIN_EVENT_TABLE(PreferencesWindow, wxDialog)
-	EVT_BUTTON(wxID_OK, PreferencesWindow::OnClickOK)
-	EVT_BUTTON(wxID_CANCEL, PreferencesWindow::OnClickCancel)
-	EVT_BUTTON(wxID_APPLY, PreferencesWindow::OnClickApply)
-	EVT_COLLAPSIBLEPANE_CHANGED(wxID_ANY, PreferencesWindow::OnCollapsiblePane)
+EVT_BUTTON(wxID_OK, PreferencesWindow::OnClickOK)
+EVT_BUTTON(wxID_CANCEL, PreferencesWindow::OnClickCancel)
+EVT_BUTTON(wxID_APPLY, PreferencesWindow::OnClickApply)
+EVT_COLLAPSIBLEPANE_CHANGED(wxID_ANY, PreferencesWindow::OnCollapsiblePane)
 END_EVENT_TABLE()
 
-PreferencesWindow::PreferencesWindow(wxWindow *parent)
-        : wxDialog(parent, wxID_ANY, "Preferences", wxDefaultPosition, wxSize(400, 400), wxCAPTION | wxCLOSE_BOX) {
-    wxSizer* sizer = newd wxBoxSizer(wxVERTICAL);
+PreferencesWindow::PreferencesWindow(wxWindow* parent) :
+	wxDialog(parent, wxID_ANY, "Preferences", wxDefaultPosition, wxSize(400, 400), wxCAPTION | wxCLOSE_BOX) {
+	wxSizer* sizer = newd wxBoxSizer(wxVERTICAL);
 
-    book = newd wxNotebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBK_TOP);
+	book = newd wxNotebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBK_TOP);
 
-    book->AddPage(CreateGeneralPage(), "General", true);
-    book->AddPage(CreateEditorPage(), "Editor");
-    book->AddPage(CreateGraphicsPage(), "Graphics");
-    book->AddPage(CreateUIPage(), "Interface");
-    book->AddPage(CreateClientPage(), "Client Folder");
+	book->AddPage(CreateGeneralPage(), "General", true);
+	book->AddPage(CreateEditorPage(), "Editor");
+	book->AddPage(CreateGraphicsPage(), "Graphics");
+	book->AddPage(CreateUIPage(), "Interface");
+	book->AddPage(CreateClientPage(), "Client Folder");
 	version_dir_picker->Bind(wxEVT_DIRPICKER_CHANGED, &PreferencesWindow::SelectNewAssetsFolder, this);
 
-    sizer->Add(book, 1, wxEXPAND | wxALL, 10);
+	sizer->Add(book, 1, wxEXPAND | wxALL, 10);
 
-    wxSizer* subsizer = newd wxBoxSizer(wxHORIZONTAL);
-    subsizer->Add(newd wxButton(this, wxID_OK, "OK"), wxSizerFlags(1).Center());
-    subsizer->Add(newd wxButton(this, wxID_CANCEL, "Cancel"), wxSizerFlags(1).Border(wxALL, 5).Left().Center());
-    subsizer->Add(newd wxButton(this, wxID_APPLY, "Apply"), wxSizerFlags(1).Center());
-    sizer->Add(subsizer, 0, wxCENTER | wxLEFT | wxBOTTOM | wxRIGHT, 10);
+	wxSizer* subsizer = newd wxBoxSizer(wxHORIZONTAL);
+	subsizer->Add(newd wxButton(this, wxID_OK, "OK"), wxSizerFlags(1).Center());
+	subsizer->Add(newd wxButton(this, wxID_CANCEL, "Cancel"), wxSizerFlags(1).Border(wxALL, 5).Left().Center());
+	subsizer->Add(newd wxButton(this, wxID_APPLY, "Apply"), wxSizerFlags(1).Center());
+	sizer->Add(subsizer, 0, wxCENTER | wxLEFT | wxBOTTOM | wxRIGHT, 10);
 
-    SetSizerAndFit(sizer);
-    Centre(wxBOTH);
+	SetSizerAndFit(sizer);
+	Centre(wxBOTH);
 }
 
 PreferencesWindow::~PreferencesWindow() = default;
 
-wxNotebookPage* PreferencesWindow::CreateGeneralPage()
-{
+wxNotebookPage* PreferencesWindow::CreateGeneralPage() {
 	wxNotebookPage* general_page = newd wxPanel(book, wxID_ANY);
 
 	wxSizer* sizer = newd wxBoxSizer(wxVERTICAL);
@@ -87,7 +85,7 @@ wxNotebookPage* PreferencesWindow::CreateGeneralPage()
 
 	sizer->AddSpacer(10);
 
-    auto * grid_sizer = newd wxFlexGridSizer(2, 10, 10);
+	auto* grid_sizer = newd wxFlexGridSizer(2, 10, 10);
 	grid_sizer->AddGrowableCol(1);
 
 	grid_sizer->Add(tmptext = newd wxStaticText(general_page, wxID_ANY, "Undo queue size: "), 0);
@@ -114,7 +112,7 @@ wxNotebookPage* PreferencesWindow::CreateGeneralPage()
 	sizer->AddSpacer(10);
 
 	wxString position_choices[] = { "  {x = 0, y = 0, z = 0}",
-                                    R"(  {"x":0,"y":0,"z":0})",
+									R"(  {"x":0,"y":0,"z":0})",
 									"  x, y, z",
 									"  (x, y, z)",
 									"  Position(x, y, z)" };
@@ -129,8 +127,7 @@ wxNotebookPage* PreferencesWindow::CreateGeneralPage()
 	return general_page;
 }
 
-wxNotebookPage* PreferencesWindow::CreateEditorPage()
-{
+wxNotebookPage* PreferencesWindow::CreateEditorPage() {
 	wxNotebookPage* editor_page = newd wxPanel(book, wxID_ANY);
 
 	wxSizer* sizer = newd wxBoxSizer(wxVERTICAL);
@@ -197,8 +194,7 @@ wxNotebookPage* PreferencesWindow::CreateEditorPage()
 	return editor_page;
 }
 
-wxNotebookPage* PreferencesWindow::CreateGraphicsPage()
-{
+wxNotebookPage* PreferencesWindow::CreateGraphicsPage() {
 	wxWindow* tmp;
 	wxNotebookPage* graphics_page = newd wxPanel(book, wxID_ANY);
 
@@ -216,7 +212,7 @@ wxNotebookPage* PreferencesWindow::CreateGraphicsPage()
 
 	sizer->AddSpacer(5);
 
-	auto * subsizer = newd wxFlexGridSizer(2, 10, 10);
+	auto* subsizer = newd wxFlexGridSizer(2, 10, 10);
 	subsizer->AddGrowableCol(1);
 
 	// Icon background color
@@ -224,9 +220,9 @@ wxNotebookPage* PreferencesWindow::CreateGraphicsPage()
 	icon_background_choice->Append("Black background");
 	icon_background_choice->Append("Gray background");
 	icon_background_choice->Append("White background");
-	if(g_settings.getInteger(Config::ICON_BACKGROUND) == 255) {
+	if (g_settings.getInteger(Config::ICON_BACKGROUND) == 255) {
 		icon_background_choice->SetSelection(2);
-	} else if(g_settings.getInteger(Config::ICON_BACKGROUND) == 88) {
+	} else if (g_settings.getInteger(Config::ICON_BACKGROUND) == 88) {
 		icon_background_choice->SetSelection(1);
 	} else {
 		icon_background_choice->SetSelection(0);
@@ -238,22 +234,12 @@ wxNotebookPage* PreferencesWindow::CreateGraphicsPage()
 
 	// Cursor colors
 	subsizer->Add(tmp = newd wxStaticText(graphics_page, wxID_ANY, "Cursor color: "), 0);
-	subsizer->Add(cursor_color_pick = newd wxColourPickerCtrl(graphics_page, wxID_ANY, wxColor(
-		g_settings.getInteger(Config::CURSOR_RED),
-		g_settings.getInteger(Config::CURSOR_GREEN),
-		g_settings.getInteger(Config::CURSOR_BLUE),
-		g_settings.getInteger(Config::CURSOR_ALPHA)
-		)), 0);
+	subsizer->Add(cursor_color_pick = newd wxColourPickerCtrl(graphics_page, wxID_ANY, wxColor(g_settings.getInteger(Config::CURSOR_RED), g_settings.getInteger(Config::CURSOR_GREEN), g_settings.getInteger(Config::CURSOR_BLUE), g_settings.getInteger(Config::CURSOR_ALPHA))), 0);
 	SetWindowToolTip(icon_background_choice, tmp, "The color of the main cursor on the map (while in drawing mode).");
 
 	// Alternate cursor color
 	subsizer->Add(tmp = newd wxStaticText(graphics_page, wxID_ANY, "Secondary cursor color: "), 0);
-	subsizer->Add(cursor_alt_color_pick = newd wxColourPickerCtrl(graphics_page, wxID_ANY, wxColor(
-		g_settings.getInteger(Config::CURSOR_ALT_RED),
-		g_settings.getInteger(Config::CURSOR_ALT_GREEN),
-		g_settings.getInteger(Config::CURSOR_ALT_BLUE),
-		g_settings.getInteger(Config::CURSOR_ALT_ALPHA)
-		)), 0);
+	subsizer->Add(cursor_alt_color_pick = newd wxColourPickerCtrl(graphics_page, wxID_ANY, wxColor(g_settings.getInteger(Config::CURSOR_ALT_RED), g_settings.getInteger(Config::CURSOR_ALT_GREEN), g_settings.getInteger(Config::CURSOR_ALT_BLUE), g_settings.getInteger(Config::CURSOR_ALT_ALPHA))), 0);
 	SetWindowToolTip(icon_background_choice, tmp, "The color of the secondary cursor on the map (for houses and flags).");
 
 	// Screenshot dir
@@ -270,13 +256,13 @@ wxNotebookPage* PreferencesWindow::CreateGraphicsPage()
 	screenshot_format_choice->Append("JPG");
 	screenshot_format_choice->Append("TGA");
 	screenshot_format_choice->Append("BMP");
-	if(g_settings.getString(Config::SCREENSHOT_FORMAT) == "png") {
+	if (g_settings.getString(Config::SCREENSHOT_FORMAT) == "png") {
 		screenshot_format_choice->SetSelection(0);
-	} else if(g_settings.getString(Config::SCREENSHOT_FORMAT) == "jpg") {
+	} else if (g_settings.getString(Config::SCREENSHOT_FORMAT) == "jpg") {
 		screenshot_format_choice->SetSelection(1);
-	} else if(g_settings.getString(Config::SCREENSHOT_FORMAT) == "tga") {
+	} else if (g_settings.getString(Config::SCREENSHOT_FORMAT) == "tga") {
 		screenshot_format_choice->SetSelection(2);
-	} else if(g_settings.getString(Config::SCREENSHOT_FORMAT) == "bmp") {
+	} else if (g_settings.getString(Config::SCREENSHOT_FORMAT) == "bmp") {
 		screenshot_format_choice->SetSelection(3);
 	} else {
 		screenshot_format_choice->SetSelection(0);
@@ -342,8 +328,7 @@ wxNotebookPage* PreferencesWindow::CreateGraphicsPage()
 	return graphics_page;
 }
 
-wxChoice* PreferencesWindow::AddPaletteStyleChoice(wxWindow* parent, wxSizer* sizer, const wxString& short_description, const wxString& description, const std::string& setting)
-{
+wxChoice* PreferencesWindow::AddPaletteStyleChoice(wxWindow* parent, wxSizer* sizer, const wxString &short_description, const wxString &description, const std::string &setting) {
 	wxStaticText* text;
 	sizer->Add(text = newd wxStaticText(parent, wxID_ANY, short_description), 0);
 
@@ -357,56 +342,58 @@ wxChoice* PreferencesWindow::AddPaletteStyleChoice(wxWindow* parent, wxSizer* si
 	text->SetToolTip(description);
 	choice->SetToolTip(description);
 
-	if(setting == "large icons") {
+	if (setting == "large icons") {
 		choice->SetSelection(0);
-	} else if(setting == "small icons") {
+	} else if (setting == "small icons") {
 		choice->SetSelection(1);
-	} else if(setting == "listbox") {
+	} else if (setting == "listbox") {
 		choice->SetSelection(2);
 	}
 
 	return choice;
 }
 
-void PreferencesWindow::SetPaletteStyleChoice(wxChoice* ctrl, int key)
-{
-	if(ctrl->GetSelection() == 0) {
+void PreferencesWindow::SetPaletteStyleChoice(wxChoice* ctrl, int key) {
+	if (ctrl->GetSelection() == 0) {
 		g_settings.setString(key, "large icons");
-	} else if(ctrl->GetSelection() == 1) {
+	} else if (ctrl->GetSelection() == 1) {
 		g_settings.setString(key, "small icons");
-	} else if(ctrl->GetSelection() == 2) {
+	} else if (ctrl->GetSelection() == 2) {
 		g_settings.setString(key, "listbox");
 	}
 }
 
-wxNotebookPage* PreferencesWindow::CreateUIPage()
-{
+wxNotebookPage* PreferencesWindow::CreateUIPage() {
 	wxNotebookPage* ui_page = newd wxPanel(book, wxID_ANY);
 
 	wxSizer* sizer = newd wxBoxSizer(wxVERTICAL);
 
-    auto * subsizer = newd wxFlexGridSizer(2, 10, 10);
+	auto* subsizer = newd wxFlexGridSizer(2, 10, 10);
 	subsizer->AddGrowableCol(1);
 	terrain_palette_style_choice = AddPaletteStyleChoice(
 		ui_page, subsizer,
 		"Terrain Palette Style:",
 		"Configures the look of the terrain palette.",
-		g_settings.getString(Config::PALETTE_TERRAIN_STYLE));
+		g_settings.getString(Config::PALETTE_TERRAIN_STYLE)
+	);
 	doodad_palette_style_choice = AddPaletteStyleChoice(
 		ui_page, subsizer,
 		"Doodad Palette Style:",
 		"Configures the look of the doodad palette.",
-		g_settings.getString(Config::PALETTE_DOODAD_STYLE));
+		g_settings.getString(Config::PALETTE_DOODAD_STYLE)
+	);
 	item_palette_style_choice = AddPaletteStyleChoice(
 		ui_page, subsizer,
 		"Item Palette Style:",
 		"Configures the look of the item palette.",
-		g_settings.getString(Config::PALETTE_ITEM_STYLE));
+		g_settings.getString(Config::PALETTE_ITEM_STYLE)
+	);
 	raw_palette_style_choice = AddPaletteStyleChoice(
 		ui_page, subsizer,
 		"RAW Palette Style:",
 		"Configures the look of the raw palette.",
-		g_settings.getString(Config::PALETTE_RAW_STYLE));
+		g_settings.getString(Config::PALETTE_RAW_STYLE)
+	);
 
 	sizer->Add(subsizer, 0, wxALL, 5);
 
@@ -461,14 +448,14 @@ wxNotebookPage* PreferencesWindow::CreateUIPage()
 
 	sizer->Add(newd wxStaticText(ui_page, wxID_ANY, "Scroll speed: "), 0, wxLEFT | wxTOP, 5);
 
-    auto true_scrollspeed = int(std::abs(g_settings.getFloat(Config::SCROLL_SPEED)) * 10);
+	auto true_scrollspeed = int(std::abs(g_settings.getFloat(Config::SCROLL_SPEED)) * 10);
 	scroll_speed_slider = newd wxSlider(ui_page, wxID_ANY, true_scrollspeed, 1, std::max(true_scrollspeed, 100));
 	scroll_speed_slider->SetToolTip("This controls how fast the map will scroll when you hold down the center mouse button and move it around.");
 	sizer->Add(scroll_speed_slider, 0, wxEXPAND, 5);
 
 	sizer->Add(newd wxStaticText(ui_page, wxID_ANY, "Zoom speed: "), 0, wxLEFT | wxTOP, 5);
 
-    auto true_zoomspeed = int(g_settings.getFloat(Config::ZOOM_SPEED) * 10);
+	auto true_zoomspeed = int(g_settings.getFloat(Config::ZOOM_SPEED) * 10);
 	zoom_speed_slider = newd wxSlider(ui_page, wxID_ANY, true_zoomspeed, 1, std::max(true_zoomspeed, 100));
 	zoom_speed_slider->SetToolTip("This controls how fast you will zoom when you scroll the center mouse button.");
 	sizer->Add(zoom_speed_slider, 0, wxEXPAND, 5);
@@ -478,8 +465,7 @@ wxNotebookPage* PreferencesWindow::CreateUIPage()
 	return ui_page;
 }
 
-wxNotebookPage* PreferencesWindow::CreateClientPage()
-{
+wxNotebookPage* PreferencesWindow::CreateClientPage() {
 	wxNotebookPage* client_page = newd wxPanel(book, wxID_ANY);
 
 	// Refresh g_settings
@@ -487,13 +473,12 @@ wxNotebookPage* PreferencesWindow::CreateClientPage()
 
 	wxSizer* topsizer = newd wxBoxSizer(wxVERTICAL);
 
-	wxScrolledWindow *client_list_window = newd wxScrolledWindow(client_page, wxID_ANY, wxDefaultPosition, wxDefaultSize);
+	wxScrolledWindow* client_list_window = newd wxScrolledWindow(client_page, wxID_ANY, wxDefaultPosition, wxDefaultSize);
 	client_list_window->SetMinSize(FROM_DIP(this, wxSize(450, 450)));
-	auto * client_list_sizer = newd wxFlexGridSizer(2, 10, 10);
+	auto* client_list_sizer = newd wxFlexGridSizer(2, 10, 10);
 	client_list_sizer->AddGrowableCol(1);
 
-
-	wxStaticText *tmp_text = newd wxStaticText(client_list_window, wxID_ANY, wxString("Select path:"));
+	wxStaticText* tmp_text = newd wxStaticText(client_list_window, wxID_ANY, wxString("Select path:"));
 	client_list_sizer->Add(tmp_text, wxSizerFlags(0).Expand());
 
 	wxDirPickerCtrl* dir_picker = newd wxDirPickerCtrl(client_list_window, wxID_ANY, ClientAssets::getPath());
@@ -519,24 +504,20 @@ wxNotebookPage* PreferencesWindow::CreateClientPage()
 
 // Event handlers!
 
-void PreferencesWindow::OnClickOK(wxCommandEvent& WXUNUSED(event))
-{
+void PreferencesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 	Apply();
 	EndModal(0);
 }
 
-void PreferencesWindow::OnClickCancel(wxCommandEvent& WXUNUSED(event))
-{
+void PreferencesWindow::OnClickCancel(wxCommandEvent &WXUNUSED(event)) {
 	EndModal(0);
 }
 
-void PreferencesWindow::OnClickApply(wxCommandEvent& WXUNUSED(event))
-{
+void PreferencesWindow::OnClickApply(wxCommandEvent &WXUNUSED(event)) {
 	Apply();
 }
 
-void PreferencesWindow::SelectNewAssetsFolder(wxCommandEvent& event)
-{
+void PreferencesWindow::SelectNewAssetsFolder(wxCommandEvent &event) {
 	wxDirPickerCtrl* dir_picker = static_cast<wxDirPickerCtrl*>(event.GetEventObject());
 	wxString path = dir_picker->GetPath();
 	if (!path.IsEmpty()) {
@@ -548,16 +529,14 @@ void PreferencesWindow::SelectNewAssetsFolder(wxCommandEvent& event)
 	}
 }
 
-void PreferencesWindow::OnCollapsiblePane(wxCollapsiblePaneEvent& event)
-{
-    auto * win = (wxWindow*)event.GetEventObject();
+void PreferencesWindow::OnCollapsiblePane(wxCollapsiblePaneEvent &event) {
+	auto* win = (wxWindow*)event.GetEventObject();
 	win->GetParent()->Fit();
 }
 
 // Stuff
 
-void PreferencesWindow::Apply()
-{
+void PreferencesWindow::Apply() {
 	// General
 	g_settings.setInteger(Config::WELCOME_DIALOG, show_welcome_dialog_chkbox->GetValue());
 	g_settings.setInteger(Config::ALWAYS_MAKE_BACKUP, always_make_backup_chkbox->GetValue());
@@ -584,18 +563,18 @@ void PreferencesWindow::Apply()
 
 	// Graphics
 	g_settings.setInteger(Config::USE_GUI_SELECTION_SHADOW, icon_selection_shadow_chkbox->GetValue());
-	if(icon_background_choice->GetSelection() == 0) {
-		if(g_settings.getInteger(Config::ICON_BACKGROUND) != 0) {
+	if (icon_background_choice->GetSelection() == 0) {
+		if (g_settings.getInteger(Config::ICON_BACKGROUND) != 0) {
 			g_gui.gfx.cleanSoftwareSprites();
 		}
 		g_settings.setInteger(Config::ICON_BACKGROUND, 0);
-	} else if(icon_background_choice->GetSelection() == 1) {
-		if(g_settings.getInteger(Config::ICON_BACKGROUND) != 88) {
+	} else if (icon_background_choice->GetSelection() == 1) {
+		if (g_settings.getInteger(Config::ICON_BACKGROUND) != 88) {
 			g_gui.gfx.cleanSoftwareSprites();
 		}
 		g_settings.setInteger(Config::ICON_BACKGROUND, 88);
-	} else if(icon_background_choice->GetSelection() == 2) {
-		if(g_settings.getInteger(Config::ICON_BACKGROUND) != 255) {
+	} else if (icon_background_choice->GetSelection() == 2) {
+		if (g_settings.getInteger(Config::ICON_BACKGROUND) != 255) {
 			g_gui.gfx.cleanSoftwareSprites();
 		}
 		g_settings.setInteger(Config::ICON_BACKGROUND, 255);
@@ -605,27 +584,27 @@ void PreferencesWindow::Apply()
 	g_settings.setString(Config::SCREENSHOT_DIRECTORY, nstr(screenshot_directory_picker->GetPath()));
 
 	std::string new_format = nstr(screenshot_format_choice->GetStringSelection());
-	if(new_format == "PNG") {
+	if (new_format == "PNG") {
 		g_settings.setString(Config::SCREENSHOT_FORMAT, "png");
-	} else if(new_format == "TGA") {
+	} else if (new_format == "TGA") {
 		g_settings.setString(Config::SCREENSHOT_FORMAT, "tga");
-	} else if(new_format == "JPG") {
+	} else if (new_format == "JPG") {
 		g_settings.setString(Config::SCREENSHOT_FORMAT, "jpg");
-	} else if(new_format == "BMP") {
+	} else if (new_format == "BMP") {
 		g_settings.setString(Config::SCREENSHOT_FORMAT, "bmp");
 	}
 
 	wxColor clr = cursor_color_pick->GetColour();
-		g_settings.setInteger(Config::CURSOR_RED, clr.Red());
-		g_settings.setInteger(Config::CURSOR_GREEN, clr.Green());
-		g_settings.setInteger(Config::CURSOR_BLUE, clr.Blue());
-		//g_settings.setInteger(Config::CURSOR_ALPHA, clr.Alpha());
+	g_settings.setInteger(Config::CURSOR_RED, clr.Red());
+	g_settings.setInteger(Config::CURSOR_GREEN, clr.Green());
+	g_settings.setInteger(Config::CURSOR_BLUE, clr.Blue());
+	// g_settings.setInteger(Config::CURSOR_ALPHA, clr.Alpha());
 
 	clr = cursor_alt_color_pick->GetColour();
-		g_settings.setInteger(Config::CURSOR_ALT_RED, clr.Red());
-		g_settings.setInteger(Config::CURSOR_ALT_GREEN, clr.Green());
-		g_settings.setInteger(Config::CURSOR_ALT_BLUE, clr.Blue());
-		//g_settings.setInteger(Config::CURSOR_ALT_ALPHA, clr.Alpha());
+	g_settings.setInteger(Config::CURSOR_ALT_RED, clr.Red());
+	g_settings.setInteger(Config::CURSOR_ALT_GREEN, clr.Green());
+	g_settings.setInteger(Config::CURSOR_ALT_BLUE, clr.Blue());
+	// g_settings.setInteger(Config::CURSOR_ALT_ALPHA, clr.Alpha());
 
 	g_settings.setInteger(Config::HIDE_ITEMS_WHEN_ZOOMED, hide_items_when_zoomed_chkbox->GetValue());
 	/*
@@ -650,16 +629,15 @@ void PreferencesWindow::Apply()
 	g_settings.setInteger(Config::USE_LARGE_CONTAINER_ICONS, large_container_icons_chkbox->GetValue());
 	g_settings.setInteger(Config::USE_LARGE_CHOOSE_ITEM_ICONS, large_pick_item_icons_chkbox->GetValue());
 
-
 	g_settings.setInteger(Config::SWITCH_MOUSEBUTTONS, switch_mousebtn_chkbox->GetValue());
 	g_settings.setInteger(Config::DOUBLECLICK_PROPERTIES, doubleclick_properties_chkbox->GetValue());
 
 	float scroll_mul = 1.0;
-	if(inversed_scroll_chkbox->GetValue()) {
+	if (inversed_scroll_chkbox->GetValue()) {
 		scroll_mul = -1.0;
 	}
-	g_settings.setFloat(Config::SCROLL_SPEED, scroll_mul * scroll_speed_slider->GetValue()/10.f);
-	g_settings.setFloat(Config::ZOOM_SPEED, zoom_speed_slider->GetValue()/10.f);
+	g_settings.setFloat(Config::SCROLL_SPEED, scroll_mul * scroll_speed_slider->GetValue() / 10.f);
+	g_settings.setFloat(Config::ZOOM_SPEED, zoom_speed_slider->GetValue() / 10.f);
 
 	// Make sure to reload client paths
 	ClientAssets::save();

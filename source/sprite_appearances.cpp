@@ -26,19 +26,16 @@ namespace fs = std::filesystem;
 
 SpriteAppearances g_spriteAppearances;
 
-void SpriteAppearances::init()
-{
+void SpriteAppearances::init() {
 	// in tibia 12.81 there is currently 3482 sheets
 	sheets.reserve(4000);
 }
 
-void SpriteAppearances::terminate()
-{
+void SpriteAppearances::terminate() {
 	unload();
 }
 
-bool SpriteAppearances::loadCatalogContent(const std::string& dir, bool loadData /* true*/)
-{
+bool SpriteAppearances::loadCatalogContent(const std::string &dir, bool loadData /* true*/) {
 	using json = nlohmann::json;
 	fs::path catalogPath = fs::path(dir) / fs::path("catalog-content.json");
 	if (!fs::exists(catalogPath)) {
@@ -58,8 +55,8 @@ bool SpriteAppearances::loadCatalogContent(const std::string& dir, bool loadData
 
 	file.close();
 
-	for (const auto& obj : document) {
-		const auto& type = obj["type"];
+	for (const auto &obj : document) {
+		const auto &type = obj["type"];
 		if (type == "appearances") {
 			appearanceFile = obj["file"];
 		} else if (type == "sprite") {
@@ -81,8 +78,7 @@ bool SpriteAppearances::loadCatalogContent(const std::string& dir, bool loadData
 	return true;
 }
 
-bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr& sheet)
-{
+bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr &sheet) {
 	if (sheet->loaded) {
 		return false;
 	}
@@ -99,22 +95,24 @@ bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr& sheet)
 
 	file.close();
 
-	 /*
-		CIP's header, always 32 (0x20) bytes.
-		Header format:
-		[0x00, X):		  A variable number of NULL (0x00) bytes. The amount of pad-bytes can vary depending on how many
-							bytes the "7-bit integer encoded LZMA file size" take.
-		[X, X + 0x05):	  The constant byte sequence [0x70 0x0A 0xFA 0x80 0x24]
-		[X + 0x05, 0x20]:   LZMA file size (Note: excluding the 32 bytes of this header) encoded as a 7-bit integer
-	*/
+	/*
+	   CIP's header, always 32 (0x20) bytes.
+	   Header format:
+	   [0x00, X):		  A variable number of NULL (0x00) bytes. The amount of pad-bytes can vary depending on how many
+						   bytes the "7-bit integer encoded LZMA file size" take.
+	   [X, X + 0x05):	  The constant byte sequence [0x70 0x0A 0xFA 0x80 0x24]
+	   [X + 0x05, 0x20]:   LZMA file size (Note: excluding the 32 bytes of this header) encoded as a 7-bit integer
+   */
 
-	while (buffer[pos++] == 0x00);
+	while (buffer[pos++] == 0x00)
+		;
 	pos += 4;
-	while ((buffer[pos++] & 0x80) == 0x80);
+	while ((buffer[pos++] & 0x80) == 0x80)
+		;
 
 	uint8_t lclppb = buffer[pos++];
 
-	lzma_options_lzma options{};
+	lzma_options_lzma options {};
 	options.lc = lclppb % 9;
 
 	int remainder = lclppb / 9;
@@ -133,8 +131,8 @@ bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr& sheet)
 	lzma_stream stream = LZMA_STREAM_INIT;
 
 	lzma_filter filters[2] = {
-		lzma_filter{LZMA_FILTER_LZMA1, &options},
-		lzma_filter{LZMA_VLI_UNKNOWN, NULL}
+		lzma_filter { LZMA_FILTER_LZMA1, &options },
+		lzma_filter { LZMA_VLI_UNKNOWN, NULL }
 	};
 
 	lzma_ret ret = lzma_raw_decoder(&stream, filters);
@@ -189,20 +187,18 @@ bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr& sheet)
 	return true;
 }
 
-void SpriteAppearances::unload()
-{
+void SpriteAppearances::unload() {
 	spritesCount = 0;
 	sheets.clear();
 }
 
-SpriteSheetPtr SpriteAppearances::getSheetBySpriteId(int id, bool load /* = true */)
-{
+SpriteSheetPtr SpriteAppearances::getSheetBySpriteId(int id, bool load /* = true */) {
 	if (id == 0) {
 		return nullptr;
 	}
 
 	// find sheet
-	auto sheetIt = std::find_if(sheets.begin(), sheets.end(), [=](const SpriteSheetPtr& sheet) {
+	auto sheetIt = std::find_if(sheets.begin(), sheets.end(), [=](const SpriteSheetPtr &sheet) {
 		return id >= sheet->firstId && id <= sheet->lastId;
 	});
 
@@ -210,7 +206,7 @@ SpriteSheetPtr SpriteAppearances::getSheetBySpriteId(int id, bool load /* = true
 		return nullptr;
 	}
 
-	const SpriteSheetPtr& sheet = *sheetIt;
+	const SpriteSheetPtr &sheet = *sheetIt;
 	if (load && !sheet->loaded) {
 		loadSpriteSheet(sheet);
 	}
@@ -218,8 +214,7 @@ SpriteSheetPtr SpriteAppearances::getSheetBySpriteId(int id, bool load /* = true
 	return sheet;
 }
 
-wxImage SpriteAppearances::getWxImageBySpriteId(int id, bool toSavePng/* = false*/)
-{
+wxImage SpriteAppearances::getWxImageBySpriteId(int id, bool toSavePng /* = false*/) {
 	const auto &sprite = getSprite(id);
 	if (!sprite) {
 		spdlog::error("[{}] - Unknown sprite id", __func__);
@@ -243,8 +238,7 @@ wxImage SpriteAppearances::getWxImageBySpriteId(int id, bool toSavePng/* = false
 	return image;
 }
 
-SpritePtr SpriteAppearances::getSprite(int spriteId)
-{
+SpritePtr SpriteAppearances::getSprite(int spriteId) {
 	// caching
 	auto it = sprites.find(spriteId);
 	if (it != sprites.end()) {
