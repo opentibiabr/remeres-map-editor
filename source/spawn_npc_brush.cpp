@@ -25,48 +25,41 @@
 // Spawn npc brush
 
 SpawnNpcBrush::SpawnNpcBrush() :
-	Brush()
-{
+	Brush() {
 	////
 }
 
-SpawnNpcBrush::~SpawnNpcBrush()
-{
+SpawnNpcBrush::~SpawnNpcBrush() {
 	////
 }
 
-int SpawnNpcBrush::getLookID() const
-{
+int SpawnNpcBrush::getLookID() const {
 	return 0;
 }
 
-std::string SpawnNpcBrush::getName() const
-{
+std::string SpawnNpcBrush::getName() const {
 	return "Spawn Npc Brush";
 }
 
-bool SpawnNpcBrush::canDraw(BaseMap* map, const Position& position) const
-{
+bool SpawnNpcBrush::canDraw(BaseMap* map, const Position &position) const {
 	Tile* tile = map->getTile(position);
-	if(tile) {
-		if(tile->spawnNpc) {
+	if (tile) {
+		if (tile->spawnNpc) {
 			return false;
 		}
 	}
 	return true;
 }
 
-void SpawnNpcBrush::undraw(BaseMap* map, Tile* tile)
-{
+void SpawnNpcBrush::undraw(BaseMap* map, Tile* tile) {
 	delete tile->spawnNpc;
 	tile->spawnNpc = nullptr;
 }
 
-void SpawnNpcBrush::draw(BaseMap* map, Tile* tile, void* parameter)
-{
+void SpawnNpcBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 	ASSERT(tile);
 	ASSERT(parameter); // Should contain an int which is the size of the newd spawn npc
-	if(tile->spawnNpc == nullptr) {
+	if (tile->spawnNpc == nullptr) {
 		tile->spawnNpc = newd SpawnNpc(std::max(1, *(int*)parameter));
 	}
 }

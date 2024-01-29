@@ -25,10 +25,11 @@ class MonsterPalettePanel;
 class NpcPalettePanel;
 class HousePalettePanel;
 class WaypointPalettePanel;
+class ZonesPalettePanel;
 
 class PaletteWindow : public wxPanel {
 public:
-	PaletteWindow(wxWindow* parent, const TilesetContainer& tilesets);
+	PaletteWindow(wxWindow* parent, const TilesetContainer &tilesets);
 	~PaletteWindow();
 
 	// Interface
@@ -57,20 +58,22 @@ public:
 	virtual void OnUpdate(Map* map);
 
 	// wxWidgets Event Handlers
-	void OnSwitchingPage(wxChoicebookEvent& event);
-	void OnPageChanged(wxChoicebookEvent& event);
+	void OnSwitchingPage(wxChoicebookEvent &event);
+	void OnPageChanged(wxChoicebookEvent &event);
 	// Forward key events to the parent window (The Map Window)
-	void OnKey(wxKeyEvent& event);
-	void OnClose(wxCloseEvent&);
+	void OnKey(wxKeyEvent &event);
+	void OnClose(wxCloseEvent &);
+
 protected:
-	static PalettePanel* CreateTerrainPalette(wxWindow* parent, const TilesetContainer& tilesets);
-	static PalettePanel* CreateDoodadPalette(wxWindow* parent, const TilesetContainer& tilesets);
-	static PalettePanel* CreateItemPalette(wxWindow* parent, const TilesetContainer& tilesets);
-	static PalettePanel* CreateMonsterPalette(wxWindow* parent, const TilesetContainer& tilesets);
-	static PalettePanel* CreateNpcPalette(wxWindow* parent, const TilesetContainer& tilesets);
-	static PalettePanel* CreateHousePalette(wxWindow* parent, const TilesetContainer& tilesets);
-	static PalettePanel* CreateWaypointPalette(wxWindow* parent, const TilesetContainer& tilesets);
-	static PalettePanel* CreateRAWPalette(wxWindow* parent, const TilesetContainer& tilesets);
+	static PalettePanel* CreateTerrainPalette(wxWindow* parent, const TilesetContainer &tilesets);
+	static PalettePanel* CreateDoodadPalette(wxWindow* parent, const TilesetContainer &tilesets);
+	static PalettePanel* CreateItemPalette(wxWindow* parent, const TilesetContainer &tilesets);
+	static PalettePanel* CreateMonsterPalette(wxWindow* parent, const TilesetContainer &tilesets);
+	static PalettePanel* CreateNpcPalette(wxWindow* parent, const TilesetContainer &tilesets);
+	static PalettePanel* CreateHousePalette(wxWindow* parent, const TilesetContainer &tilesets);
+	static PalettePanel* CreateWaypointPalette(wxWindow* parent, const TilesetContainer &tilesets);
+	static PalettePanel* CreateZonesPalette(wxWindow* parent, const TilesetContainer &tilesets);
+	static PalettePanel* CreateRAWPalette(wxWindow* parent, const TilesetContainer &tilesets);
 
 	wxChoicebook* choicebook;
 
@@ -81,6 +84,7 @@ protected:
 	NpcPalettePanel* npc_palette;
 	HousePalettePanel* house_palette;
 	WaypointPalettePanel* waypoint_palette;
+	ZonesPalettePanel* zones_palette;
 	BrushPalettePanel* raw_palette;
 
 	DECLARE_EVENT_TABLE()

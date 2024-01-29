@@ -20,6 +20,7 @@
 
 #include "position.h"
 #include "npc.h"
+#include "action.h"
 
 class Action;
 class Editor;
@@ -27,20 +28,19 @@ class BatchAction;
 
 class SelectionThread;
 
-class Selection
-{
+class Selection {
 public:
-	Selection(Editor& editor);
+	Selection(Editor &editor);
 	~Selection();
 
 	// Selects the items on the tile/tiles
 	// Won't work outside a selection session
-	void add(Tile* tile, Item* item);
-	void add(Tile* tile, SpawnMonster* spawnMonster);
-	void add(Tile* tile, SpawnNpc* spawnNpc);
-	void add(Tile* tile, Monster* monster);
-	void add(Tile* tile, Npc* npc);
-	void add(Tile* tile);
+	void add(const Tile* tile, Item* item);
+	void add(const Tile* tile, SpawnMonster* spawnMonster);
+	void add(const Tile* tile, SpawnNpc* spawnNpc);
+	void add(const Tile* tile, Monster* monster);
+	void add(const Tile* tile, Npc* npc);
+	void add(const Tile* tile);
 	void remove(Tile* tile, Item* item);
 	void remove(Tile* tile, SpawnMonster* spawnMonster);
 	void remove(Tile* tile, SpawnNpc* spawnNpc);
@@ -56,7 +56,9 @@ public:
 	void clear();
 
 	// Returns true when inside a session
-	bool isBusy() {return busy;}
+	bool isBusy() const noexcept {
+		return busy;
+	}
 
 	//
 	Position minPosition() const;
@@ -73,7 +75,7 @@ public:
 		SUBTHREAD = 2,
 	};
 
-	void start(SessionFlags flags = NONE);
+	void start(SessionFlags flags = NONE, ActionIdentifier identifier = ACTION_SELECT);
 	void commit();
 	void finish(SessionFlags flags = NONE);
 
@@ -81,34 +83,46 @@ public:
 	// This deletes the thread
 	void join(SelectionThread* thread);
 
-	size_t size() {return tiles.size();}
-	size_t size() const {return tiles.size();}
+	size_t size() const noexcept {
+		return tiles.size();
+	}
+	bool empty() const noexcept {
+		return tiles.empty();
+	}
 	void updateSelectionCount();
-	TileSet::iterator begin() {return tiles.begin();}
-	TileSet::iterator end() {return tiles.end();}
-	TileSet& getTiles() {return tiles; }
-	Tile* getSelectedTile() {ASSERT(size() == 1); return *tiles.begin();}
+	TileSet::iterator begin() noexcept {
+		return tiles.begin();
+	}
+	TileSet::iterator end() noexcept {
+		return tiles.end();
+	}
+	const TileSet &getTiles() const noexcept {
+		return tiles;
+	}
+	Tile* getSelectedTile() {
+		ASSERT(size() == 1);
+		return *tiles.begin();
+	}
 
 private:
-	bool busy;
-	Editor& editor;
+	Editor &editor;
 	BatchAction* session;
 	Action* subsession;
-
 	TileSet tiles;
+	bool busy;
 
 	friend class SelectionThread;
 };
 
 class SelectionThread : public wxThread {
 public:
-	SelectionThread(Editor& editor, Position start, Position end);
-	virtual ~SelectionThread();
+	SelectionThread(Editor &editor, Position start, Position end);
 
 	void Execute(); // Calls "Create" and then "Run"
+
 protected:
 	virtual ExitCode Entry();
-	Editor& editor;
+	Editor &editor;
 	Position start, end;
 	Selection selection;
 	Action* result;

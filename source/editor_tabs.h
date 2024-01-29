@@ -22,11 +22,9 @@
 
 class EditorTab;
 
-class MapTabbook : public wxPanel
-{
+class MapTabbook : public wxPanel {
 public:
 	MapTabbook(wxWindow* parent, wxWindowID id);
-	~MapTabbook();
 
 	// Wrapper functions
 	void AddTab(EditorTab* tab, bool select);
@@ -42,9 +40,9 @@ public:
 	EditorTab* GetTab(int idx);
 
 	// Events
-	void OnAllowNotebookDND(wxAuiNotebookEvent& evt);
-	void OnNotebookPageClose(wxAuiNotebookEvent& evt);
-	void OnNotebookPageChanged(wxAuiNotebookEvent& evt);
+	void OnAllowNotebookDND(wxAuiNotebookEvent &evt);
+	void OnNotebookPageClose(wxAuiNotebookEvent &evt);
+	void OnNotebookPageChanged(wxAuiNotebookEvent &evt);
 	void OnSwitchEditorMode(EditorMode mode);
 
 protected:
@@ -57,8 +55,7 @@ protected:
 	DECLARE_EVENT_TABLE();
 };
 
-class EditorTab
-{
+class EditorTab {
 public:
 	EditorTab();
 	virtual ~EditorTab();
@@ -68,7 +65,7 @@ public:
 	virtual wxString GetTitle() const = 0;
 
 	//
-	virtual void OnSwitchEditorMode(EditorMode mode) {}
+	virtual void OnSwitchEditorMode(EditorMode mode) { }
 };
 
 #endif

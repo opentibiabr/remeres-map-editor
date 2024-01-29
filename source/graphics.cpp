@@ -15,11 +15,11 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //////////////////////////////////////////////////////////////////////
 
-
 #include "main.h"
 
 #include "sprites.h"
 #include "graphics.h"
+#include "artprovider.h"
 #include "filehandle.h"
 #include "settings.h"
 #include "gui.h"
@@ -33,28 +33,138 @@ GameSprite g_gameSprite;
 
 // All 133 template colors
 static uint32_t TemplateOutfitLookupTable[] = {
-	0xFFFFFF, 0xFFD4BF, 0xFFE9BF, 0xFFFFBF, 0xE9FFBF, 0xD4FFBF,
-	0xBFFFBF, 0xBFFFD4, 0xBFFFE9, 0xBFFFFF, 0xBFE9FF, 0xBFD4FF,
-	0xBFBFFF, 0xD4BFFF, 0xE9BFFF, 0xFFBFFF, 0xFFBFE9, 0xFFBFD4,
-	0xFFBFBF, 0xDADADA, 0xBF9F8F, 0xBFAF8F, 0xBFBF8F, 0xAFBF8F,
-	0x9FBF8F, 0x8FBF8F, 0x8FBF9F, 0x8FBFAF, 0x8FBFBF, 0x8FAFBF,
-	0x8F9FBF, 0x8F8FBF, 0x9F8FBF, 0xAF8FBF, 0xBF8FBF, 0xBF8FAF,
-	0xBF8F9F, 0xBF8F8F, 0xB6B6B6, 0xBF7F5F, 0xBFAF8F, 0xBFBF5F,
-	0x9FBF5F, 0x7FBF5F, 0x5FBF5F, 0x5FBF7F, 0x5FBF9F, 0x5FBFBF,
-	0x5F9FBF, 0x5F7FBF, 0x5F5FBF, 0x7F5FBF, 0x9F5FBF, 0xBF5FBF,
-	0xBF5F9F, 0xBF5F7F, 0xBF5F5F, 0x919191, 0xBF6A3F, 0xBF943F,
-	0xBFBF3F, 0x94BF3F, 0x6ABF3F, 0x3FBF3F, 0x3FBF6A, 0x3FBF94,
-	0x3FBFBF, 0x3F94BF, 0x3F6ABF, 0x3F3FBF, 0x6A3FBF, 0x943FBF,
-	0xBF3FBF, 0xBF3F94, 0xBF3F6A, 0xBF3F3F, 0x6D6D6D, 0xFF5500,
-	0xFFAA00, 0xFFFF00, 0xAAFF00, 0x54FF00, 0x00FF00, 0x00FF54,
-	0x00FFAA, 0x00FFFF, 0x00A9FF, 0x0055FF, 0x0000FF, 0x5500FF,
-	0xA900FF, 0xFE00FF, 0xFF00AA, 0xFF0055, 0xFF0000, 0x484848,
-	0xBF3F00, 0xBF7F00, 0xBFBF00, 0x7FBF00, 0x3FBF00, 0x00BF00,
-	0x00BF3F, 0x00BF7F, 0x00BFBF, 0x007FBF, 0x003FBF, 0x0000BF,
-	0x3F00BF, 0x7F00BF, 0xBF00BF, 0xBF007F, 0xBF003F, 0xBF0000,
-	0x242424, 0x7F2A00, 0x7F5500, 0x7F7F00, 0x557F00, 0x2A7F00,
-	0x007F00, 0x007F2A, 0x007F55, 0x007F7F, 0x00547F, 0x002A7F,
-	0x00007F, 0x2A007F, 0x54007F, 0x7F007F, 0x7F0055, 0x7F002A,
+	0xFFFFFF,
+	0xFFD4BF,
+	0xFFE9BF,
+	0xFFFFBF,
+	0xE9FFBF,
+	0xD4FFBF,
+	0xBFFFBF,
+	0xBFFFD4,
+	0xBFFFE9,
+	0xBFFFFF,
+	0xBFE9FF,
+	0xBFD4FF,
+	0xBFBFFF,
+	0xD4BFFF,
+	0xE9BFFF,
+	0xFFBFFF,
+	0xFFBFE9,
+	0xFFBFD4,
+	0xFFBFBF,
+	0xDADADA,
+	0xBF9F8F,
+	0xBFAF8F,
+	0xBFBF8F,
+	0xAFBF8F,
+	0x9FBF8F,
+	0x8FBF8F,
+	0x8FBF9F,
+	0x8FBFAF,
+	0x8FBFBF,
+	0x8FAFBF,
+	0x8F9FBF,
+	0x8F8FBF,
+	0x9F8FBF,
+	0xAF8FBF,
+	0xBF8FBF,
+	0xBF8FAF,
+	0xBF8F9F,
+	0xBF8F8F,
+	0xB6B6B6,
+	0xBF7F5F,
+	0xBFAF8F,
+	0xBFBF5F,
+	0x9FBF5F,
+	0x7FBF5F,
+	0x5FBF5F,
+	0x5FBF7F,
+	0x5FBF9F,
+	0x5FBFBF,
+	0x5F9FBF,
+	0x5F7FBF,
+	0x5F5FBF,
+	0x7F5FBF,
+	0x9F5FBF,
+	0xBF5FBF,
+	0xBF5F9F,
+	0xBF5F7F,
+	0xBF5F5F,
+	0x919191,
+	0xBF6A3F,
+	0xBF943F,
+	0xBFBF3F,
+	0x94BF3F,
+	0x6ABF3F,
+	0x3FBF3F,
+	0x3FBF6A,
+	0x3FBF94,
+	0x3FBFBF,
+	0x3F94BF,
+	0x3F6ABF,
+	0x3F3FBF,
+	0x6A3FBF,
+	0x943FBF,
+	0xBF3FBF,
+	0xBF3F94,
+	0xBF3F6A,
+	0xBF3F3F,
+	0x6D6D6D,
+	0xFF5500,
+	0xFFAA00,
+	0xFFFF00,
+	0xAAFF00,
+	0x54FF00,
+	0x00FF00,
+	0x00FF54,
+	0x00FFAA,
+	0x00FFFF,
+	0x00A9FF,
+	0x0055FF,
+	0x0000FF,
+	0x5500FF,
+	0xA900FF,
+	0xFE00FF,
+	0xFF00AA,
+	0xFF0055,
+	0xFF0000,
+	0x484848,
+	0xBF3F00,
+	0xBF7F00,
+	0xBFBF00,
+	0x7FBF00,
+	0x3FBF00,
+	0x00BF00,
+	0x00BF3F,
+	0x00BF7F,
+	0x00BFBF,
+	0x007FBF,
+	0x003FBF,
+	0x0000BF,
+	0x3F00BF,
+	0x7F00BF,
+	0xBF00BF,
+	0xBF007F,
+	0xBF003F,
+	0xBF0000,
+	0x242424,
+	0x7F2A00,
+	0x7F5500,
+	0x7F7F00,
+	0x557F00,
+	0x2A7F00,
+	0x007F00,
+	0x007F2A,
+	0x007F55,
+	0x007F7F,
+	0x00547F,
+	0x002A7F,
+	0x00007F,
+	0x2A007F,
+	0x54007F,
+	0x7F007F,
+	0x7F0055,
+	0x7F002A,
 	0x7F0000,
 };
 
@@ -64,39 +174,38 @@ GraphicManager::GraphicManager() :
 	has_frame_durations(false),
 	has_frame_groups(false),
 	loaded_textures(0),
-	lastclean(0)
-{
+	lastclean(0) {
 	animation_timer = newd wxStopWatch();
 	animation_timer->Start();
 }
 
-GraphicManager::~GraphicManager()
-{
-	for(SpriteMap::iterator iter = sprite_space.begin(); iter != sprite_space.end(); ++iter) {
+GraphicManager::~GraphicManager() {
+	for (SpriteMap::iterator iter = sprite_space.begin(); iter != sprite_space.end(); ++iter) {
 		delete iter->second;
 		iter->second = nullptr;
 	}
 
-	for(ImageMap::iterator iter = image_space.begin(); iter != image_space.end(); ++iter) {
+	for (ImageMap::iterator iter = image_space.begin(); iter != image_space.end(); ++iter) {
 		delete iter->second;
 		iter->second = nullptr;
 	}
+
+	sprite_space.clear();
+	image_space.clear();
 
 	delete animation_timer;
 	animation_timer = nullptr;
 }
 
-GLuint GraphicManager::getFreeTextureID()
-{
+GLuint GraphicManager::getFreeTextureID() {
 	static GLuint id_counter = 0x10000000;
 	return id_counter++; // This should (hopefully) never run out
 }
 
-void GraphicManager::clear()
-{
+void GraphicManager::clear() {
 	SpriteMap new_sprite_space;
-	for(SpriteMap::iterator iter = sprite_space.begin(); iter != sprite_space.end(); ++iter) {
-		if(iter->first >= 0) { // Don't clean internal sprites
+	for (SpriteMap::iterator iter = sprite_space.begin(); iter != sprite_space.end(); ++iter) {
+		if (iter->first >= 0) { // Don't clean internal sprites
 			delete iter->second;
 			iter->second = nullptr;
 		} else {
@@ -104,7 +213,7 @@ void GraphicManager::clear()
 		}
 	}
 
-	for(ImageMap::iterator iter = image_space.begin(); iter != image_space.end(); ++iter) {
+	for (ImageMap::iterator iter = image_space.begin(); iter != image_space.end(); ++iter) {
 		delete iter->second;
 		iter->second = nullptr;
 	}
@@ -119,27 +228,24 @@ void GraphicManager::clear()
 	lastclean = time(nullptr);
 }
 
-void GraphicManager::cleanSoftwareSprites()
-{
-	for(SpriteMap::iterator iter = sprite_space.begin(); iter != sprite_space.end(); ++iter) {
-		if(iter->first >= 0) { // Don't clean internal sprites
+void GraphicManager::cleanSoftwareSprites() {
+	for (SpriteMap::iterator iter = sprite_space.begin(); iter != sprite_space.end(); ++iter) {
+		if (iter->first >= 0) { // Don't clean internal sprites
 			iter->second->unloadDC();
 		}
 	}
 }
 
-Sprite* GraphicManager::getSprite(int id)
-{
+Sprite* GraphicManager::getSprite(int id) {
 	SpriteMap::iterator it = sprite_space.find(id);
-	if(it != sprite_space.end()) {
+	if (it != sprite_space.end()) {
 		return it->second;
 	}
 	return nullptr;
 }
 
-GameSprite* GraphicManager::getCreatureSprite(int id)
-{
-	if(id < 0) {
+GameSprite* GraphicManager::getCreatureSprite(int id) {
+	if (id < 0) {
 		return nullptr;
 	}
 
@@ -150,176 +256,156 @@ GameSprite* GraphicManager::getCreatureSprite(int id)
 	return nullptr;
 }
 
-uint16_t GraphicManager::getItemSpriteMaxID() const
-{
-	return item_count;
-}
+GameSprite* GraphicManager::getEditorSprite(int id) {
+	if (id >= 0) {
+		return nullptr;
+	}
 
-uint16_t GraphicManager::getCreatureSpriteMaxID() const
-{
-	return creature_count;
+	SpriteMap::iterator it = sprite_space.find(id);
+	if (it != sprite_space.end()) {
+		return dynamic_cast<GameSprite*>(it->second);
+	}
+	return nullptr;
 }
 
 #define loadPNGFile(name) _wxGetBitmapFromMemory(name, sizeof(name))
-inline wxBitmap* _wxGetBitmapFromMemory(const unsigned char* data, int length)
-{
+inline wxBitmap* _wxGetBitmapFromMemory(const unsigned char* data, int length) {
 	wxMemoryInputStream is(data, length);
 	wxImage img(is, "image/png");
-	if(!img.IsOk()) return nullptr;
+	if (!img.IsOk()) {
+		return nullptr;
+	}
 	return newd wxBitmap(img, -1);
 }
 
-bool GraphicManager::loadEditorSprites()
-{
+bool GraphicManager::loadEditorSprites() {
 	// Unused graphics MIGHT be loaded here, but it's a neglectable loss
-	sprite_space[EDITOR_SPRITE_SELECTION_MARKER] =
-		newd EditorSprite(
-			newd wxBitmap(selection_marker_xpm16x16),
-			newd wxBitmap(selection_marker_xpm32x32)
-		);
-	sprite_space[EDITOR_SPRITE_BRUSH_CD_1x1] =
-		newd EditorSprite(
-			loadPNGFile(circular_1_small_png),
-			loadPNGFile(circular_1_png)
-		);
-	sprite_space[EDITOR_SPRITE_BRUSH_CD_3x3] =
-		newd EditorSprite(
-			loadPNGFile(circular_2_small_png),
-			loadPNGFile(circular_2_png)
-		);
-	sprite_space[EDITOR_SPRITE_BRUSH_CD_5x5] =
-		newd EditorSprite(
-			loadPNGFile(circular_3_small_png),
-			loadPNGFile(circular_3_png)
-		);
-	sprite_space[EDITOR_SPRITE_BRUSH_CD_7x7] =
-		newd EditorSprite(
-			loadPNGFile(circular_4_small_png),
-			loadPNGFile(circular_4_png)
-		);
-	sprite_space[EDITOR_SPRITE_BRUSH_CD_9x9] =
-		newd EditorSprite(
-			loadPNGFile(circular_5_small_png),
-			loadPNGFile(circular_5_png)
-		);
-	sprite_space[EDITOR_SPRITE_BRUSH_CD_15x15] =
-		newd EditorSprite(
-			loadPNGFile(circular_6_small_png),
-			loadPNGFile(circular_6_png)
-		);
-	sprite_space[EDITOR_SPRITE_BRUSH_CD_19x19] =
-		newd EditorSprite(
-			loadPNGFile(circular_7_small_png),
-			loadPNGFile(circular_7_png)
-		);
-	sprite_space[EDITOR_SPRITE_BRUSH_SD_1x1] =
-		newd EditorSprite(
-			loadPNGFile(rectangular_1_small_png),
-			loadPNGFile(rectangular_1_png)
-		);
-	sprite_space[EDITOR_SPRITE_BRUSH_SD_3x3] =
-		newd EditorSprite(
-			loadPNGFile(rectangular_2_small_png),
-			loadPNGFile(rectangular_2_png)
-		);
-	sprite_space[EDITOR_SPRITE_BRUSH_SD_5x5] =
-		newd EditorSprite(
-			loadPNGFile(rectangular_3_small_png),
-			loadPNGFile(rectangular_3_png)
-		);
-	sprite_space[EDITOR_SPRITE_BRUSH_SD_7x7] =
-		newd EditorSprite(
-			loadPNGFile(rectangular_4_small_png),
-			loadPNGFile(rectangular_4_png)
-		);
-	sprite_space[EDITOR_SPRITE_BRUSH_SD_9x9] =
-		newd EditorSprite(
-			loadPNGFile(rectangular_5_small_png),
-			loadPNGFile(rectangular_5_png)
-		);
-	sprite_space[EDITOR_SPRITE_BRUSH_SD_15x15] =
-		newd EditorSprite(
-			loadPNGFile(rectangular_6_small_png),
-			loadPNGFile(rectangular_6_png)
-		);
-	sprite_space[EDITOR_SPRITE_BRUSH_SD_19x19] =
-		newd EditorSprite(
-			loadPNGFile(rectangular_7_small_png),
-			loadPNGFile(rectangular_7_png)
-		);
+	sprite_space[EDITOR_SPRITE_SELECTION_MARKER] = newd EditorSprite(
+		newd wxBitmap(selection_marker_xpm16x16),
+		newd wxBitmap(selection_marker_xpm32x32)
+	);
+	sprite_space[EDITOR_SPRITE_BRUSH_CD_1x1] = newd EditorSprite(
+		loadPNGFile(circular_1_small_png),
+		loadPNGFile(circular_1_png)
+	);
+	sprite_space[EDITOR_SPRITE_BRUSH_CD_3x3] = newd EditorSprite(
+		loadPNGFile(circular_2_small_png),
+		loadPNGFile(circular_2_png)
+	);
+	sprite_space[EDITOR_SPRITE_BRUSH_CD_5x5] = newd EditorSprite(
+		loadPNGFile(circular_3_small_png),
+		loadPNGFile(circular_3_png)
+	);
+	sprite_space[EDITOR_SPRITE_BRUSH_CD_7x7] = newd EditorSprite(
+		loadPNGFile(circular_4_small_png),
+		loadPNGFile(circular_4_png)
+	);
+	sprite_space[EDITOR_SPRITE_BRUSH_CD_9x9] = newd EditorSprite(
+		loadPNGFile(circular_5_small_png),
+		loadPNGFile(circular_5_png)
+	);
+	sprite_space[EDITOR_SPRITE_BRUSH_CD_15x15] = newd EditorSprite(
+		loadPNGFile(circular_6_small_png),
+		loadPNGFile(circular_6_png)
+	);
+	sprite_space[EDITOR_SPRITE_BRUSH_CD_19x19] = newd EditorSprite(
+		loadPNGFile(circular_7_small_png),
+		loadPNGFile(circular_7_png)
+	);
+	sprite_space[EDITOR_SPRITE_BRUSH_SD_1x1] = newd EditorSprite(
+		loadPNGFile(rectangular_1_small_png),
+		loadPNGFile(rectangular_1_png)
+	);
+	sprite_space[EDITOR_SPRITE_BRUSH_SD_3x3] = newd EditorSprite(
+		loadPNGFile(rectangular_2_small_png),
+		loadPNGFile(rectangular_2_png)
+	);
+	sprite_space[EDITOR_SPRITE_BRUSH_SD_5x5] = newd EditorSprite(
+		loadPNGFile(rectangular_3_small_png),
+		loadPNGFile(rectangular_3_png)
+	);
+	sprite_space[EDITOR_SPRITE_BRUSH_SD_7x7] = newd EditorSprite(
+		loadPNGFile(rectangular_4_small_png),
+		loadPNGFile(rectangular_4_png)
+	);
+	sprite_space[EDITOR_SPRITE_BRUSH_SD_9x9] = newd EditorSprite(
+		loadPNGFile(rectangular_5_small_png),
+		loadPNGFile(rectangular_5_png)
+	);
+	sprite_space[EDITOR_SPRITE_BRUSH_SD_15x15] = newd EditorSprite(
+		loadPNGFile(rectangular_6_small_png),
+		loadPNGFile(rectangular_6_png)
+	);
+	sprite_space[EDITOR_SPRITE_BRUSH_SD_19x19] = newd EditorSprite(
+		loadPNGFile(rectangular_7_small_png),
+		loadPNGFile(rectangular_7_png)
+	);
 
-	sprite_space[EDITOR_SPRITE_OPTIONAL_BORDER_TOOL] =
-		newd EditorSprite(
-			loadPNGFile(optional_border_small_png),
-			loadPNGFile(optional_border_png)
-		);
-	sprite_space[EDITOR_SPRITE_ERASER] =
-		newd EditorSprite(
-			loadPNGFile(eraser_small_png),
-			loadPNGFile(eraser_png)
-		);
-	sprite_space[EDITOR_SPRITE_PZ_TOOL] =
-		newd EditorSprite(
-			loadPNGFile(protection_zone_small_png),
-			loadPNGFile(protection_zone_png)
-		);
-	sprite_space[EDITOR_SPRITE_PVPZ_TOOL] =
-		newd EditorSprite(
-			loadPNGFile(pvp_zone_small_png),
-			loadPNGFile(pvp_zone_png)
-		);
-	sprite_space[EDITOR_SPRITE_NOLOG_TOOL] =
-		newd EditorSprite(
-			loadPNGFile(no_logout_small_png),
-			loadPNGFile(no_logout_png)
-		);
-	sprite_space[EDITOR_SPRITE_NOPVP_TOOL] =
-		newd EditorSprite(
-			loadPNGFile(no_pvp_small_png),
-			loadPNGFile(no_pvp_png)
-		);
+	sprite_space[EDITOR_SPRITE_OPTIONAL_BORDER_TOOL] = newd EditorSprite(
+		loadPNGFile(optional_border_small_png),
+		loadPNGFile(optional_border_png)
+	);
+	sprite_space[EDITOR_SPRITE_ERASER] = newd EditorSprite(
+		loadPNGFile(eraser_small_png),
+		loadPNGFile(eraser_png)
+	);
+	sprite_space[EDITOR_SPRITE_PZ_TOOL] = newd EditorSprite(
+		loadPNGFile(protection_zone_small_png),
+		loadPNGFile(protection_zone_png)
+	);
+	sprite_space[EDITOR_SPRITE_PVPZ_TOOL] = newd EditorSprite(
+		loadPNGFile(pvp_zone_small_png),
+		loadPNGFile(pvp_zone_png)
+	);
+	sprite_space[EDITOR_SPRITE_NOLOG_TOOL] = newd EditorSprite(
+		loadPNGFile(no_logout_small_png),
+		loadPNGFile(no_logout_png)
+	);
+	sprite_space[EDITOR_SPRITE_NOPVP_TOOL] = newd EditorSprite(
+		loadPNGFile(no_pvp_small_png),
+		loadPNGFile(no_pvp_png)
+	);
 
-	sprite_space[EDITOR_SPRITE_DOOR_NORMAL] =
-		newd EditorSprite(
-			loadPNGFile(door_normal_small_png),
-			loadPNGFile(door_normal_png)
-		);
-	sprite_space[EDITOR_SPRITE_DOOR_LOCKED] =
-		newd EditorSprite(
-			loadPNGFile(door_locked_small_png),
-			loadPNGFile(door_locked_png)
-		);
-	sprite_space[EDITOR_SPRITE_DOOR_MAGIC] =
-		newd EditorSprite(
-			loadPNGFile(door_magic_small_png),
-			loadPNGFile(door_magic_png)
-		);
-	sprite_space[EDITOR_SPRITE_DOOR_QUEST] =
-		newd EditorSprite(
-			loadPNGFile(door_quest_small_png),
-			loadPNGFile(door_quest_png)
-		);
-	sprite_space[EDITOR_SPRITE_WINDOW_NORMAL] =
-		newd EditorSprite(
-			loadPNGFile(window_normal_small_png),
-			loadPNGFile(window_normal_png)
-		);
-	sprite_space[EDITOR_SPRITE_WINDOW_HATCH] =
-		newd EditorSprite(
-			loadPNGFile(window_hatch_small_png),
-			loadPNGFile(window_hatch_png)
-		);
+	sprite_space[EDITOR_SPRITE_DOOR_NORMAL] = newd EditorSprite(
+		loadPNGFile(door_normal_small_png),
+		loadPNGFile(door_normal_png)
+	);
+	sprite_space[EDITOR_SPRITE_DOOR_LOCKED] = newd EditorSprite(
+		loadPNGFile(door_locked_small_png),
+		loadPNGFile(door_locked_png)
+	);
+	sprite_space[EDITOR_SPRITE_DOOR_MAGIC] = newd EditorSprite(
+		loadPNGFile(door_magic_small_png),
+		loadPNGFile(door_magic_png)
+	);
+	sprite_space[EDITOR_SPRITE_DOOR_QUEST] = newd EditorSprite(
+		loadPNGFile(door_quest_small_png),
+		loadPNGFile(door_quest_png)
+	);
+	sprite_space[EDITOR_SPRITE_WINDOW_NORMAL] = newd EditorSprite(
+		loadPNGFile(window_normal_small_png),
+		loadPNGFile(window_normal_png)
+	);
+	sprite_space[EDITOR_SPRITE_WINDOW_HATCH] = newd EditorSprite(
+		loadPNGFile(window_hatch_small_png),
+		loadPNGFile(window_hatch_png)
+	);
 
-	sprite_space[EDITOR_SPRITE_SELECTION_GEM] =
-		newd EditorSprite(
-			loadPNGFile(gem_edit_png),
-			nullptr
-		);
-	sprite_space[EDITOR_SPRITE_DRAWING_GEM] =
-		newd EditorSprite(
-			loadPNGFile(gem_move_png),
-			nullptr
-		);
+	sprite_space[EDITOR_SPRITE_SELECTION_GEM] = newd EditorSprite(
+		loadPNGFile(gem_edit_png),
+		nullptr
+	);
+	sprite_space[EDITOR_SPRITE_DRAWING_GEM] = newd EditorSprite(
+		loadPNGFile(gem_move_png),
+		nullptr
+	);
+
+	sprite_space[EDITOR_SPRITE_MONSTERS] = GameSprite::createFromBitmap(ART_MONSTERS);
+	sprite_space[EDITOR_SPRITE_NPCS] = GameSprite::createFromBitmap(ART_NPCS);
+	sprite_space[EDITOR_SPRITE_HOUSE_EXIT] = GameSprite::createFromBitmap(ART_HOUSE_EXIT);
+	sprite_space[EDITOR_SPRITE_PICKUPABLE_ITEM] = GameSprite::createFromBitmap(ART_PICKUPABLE);
+	sprite_space[EDITOR_SPRITE_MOVEABLE_ITEM] = GameSprite::createFromBitmap(ART_MOVEABLE);
+	sprite_space[EDITOR_SPRITE_PICKUPABLE_MOVEABLE_ITEM] = GameSprite::createFromBitmap(ART_PICKUPABLE_MOVEABLE);
 
 	return true;
 }
@@ -454,26 +540,23 @@ bool GraphicManager::loadSpriteDump(uint8_t*& target, uint16_t& size, int sprite
 	return true;
 }
 
-void GraphicManager::addSpriteToCleanup(GameSprite* spr)
-{
+void GraphicManager::addSpriteToCleanup(GameSprite* spr) {
 	cleanup_list.push_back(spr);
 	// Clean if needed
-	if(cleanup_list.size() > std::max<uint32_t>(100, g_settings.getInteger(Config::SOFTWARE_CLEAN_THRESHOLD))) {
-		for(int i = 0; i < g_settings.getInteger(Config::SOFTWARE_CLEAN_SIZE) && static_cast<uint32_t>(i) < cleanup_list.size(); ++i) {
+	if (cleanup_list.size() > std::max<uint32_t>(100, g_settings.getInteger(Config::SOFTWARE_CLEAN_THRESHOLD))) {
+		for (int i = 0; i < g_settings.getInteger(Config::SOFTWARE_CLEAN_SIZE) && static_cast<uint32_t>(i) < cleanup_list.size(); ++i) {
 			cleanup_list.front()->unloadDC();
 			cleanup_list.pop_front();
 		}
 	}
 }
 
-void GraphicManager::garbageCollection()
-{
-	if(g_settings.getInteger(Config::TEXTURE_MANAGEMENT)) {
+void GraphicManager::garbageCollection() {
+	if (g_settings.getInteger(Config::TEXTURE_MANAGEMENT)) {
 		int t = time(nullptr);
-		if(loaded_textures > g_settings.getInteger(Config::TEXTURE_CLEAN_THRESHOLD) &&
-			t - lastclean > g_settings.getInteger(Config::TEXTURE_CLEAN_PULSE)) {
+		if (loaded_textures > g_settings.getInteger(Config::TEXTURE_CLEAN_THRESHOLD) && t - lastclean > g_settings.getInteger(Config::TEXTURE_CLEAN_PULSE)) {
 			ImageMap::iterator iit = image_space.begin();
-			while(iit != image_space.end()) {
+			while (iit != image_space.end()) {
 				iit->second->clean(t);
 				++iit;
 			}
@@ -482,26 +565,23 @@ void GraphicManager::garbageCollection()
 	}
 }
 
-EditorSprite::EditorSprite(wxBitmap* b16x16, wxBitmap* b32x32)
-{
+EditorSprite::EditorSprite(wxBitmap* b16x16, wxBitmap* b32x32) {
 	bm[SPRITE_SIZE_16x16] = b16x16;
 	bm[SPRITE_SIZE_32x32] = b32x32;
 }
 
-EditorSprite::~EditorSprite()
-{
+EditorSprite::~EditorSprite() {
 	unloadDC();
 }
 
-void EditorSprite::DrawTo(wxDC* dc, SpriteSize sz, int start_x, int start_y, int width, int height)
-{
+void EditorSprite::DrawTo(wxDC* dc, SpriteSize sz, int start_x, int start_y, int width, int height) {
 	wxBitmap* sp = bm[sz];
-	if(sp)
+	if (sp) {
 		dc->DrawBitmap(*sp, start_x, start_y, true);
+	}
 }
 
-void EditorSprite::unloadDC()
-{
+void EditorSprite::unloadDC() {
 	delete bm[SPRITE_SIZE_16x16];
 	delete bm[SPRITE_SIZE_32x32];
 	bm[SPRITE_SIZE_16x16] = nullptr;
@@ -519,17 +599,17 @@ GameSprite::GameSprite() :
 	sprite_phase_size(0),
 	numsprites(0),
 	animator(nullptr),
+	ground_speed(0),
 	draw_height(0),
 	drawoffset_x(0),
-	drawoffset_y(0),
-	minimap_color(0)
+	drawoffset_y(0)
 {
 	m_wxMemoryDc[SPRITE_SIZE_16x16] = nullptr;
 	m_wxMemoryDc[SPRITE_SIZE_32x32] = nullptr;
+	minimap_color(0);
 }
 
-GameSprite::~GameSprite()
-{
+GameSprite::~GameSprite() {
 	unloadDC();
 	delete animator;
 	animator = nullptr;
@@ -543,9 +623,8 @@ void GameSprite::unloadDC()
 	m_wxMemoryDc[SPRITE_SIZE_32x32] = nullptr;
 }
 
-int GameSprite::getDrawHeight() const
-{
-	return draw_height;
+int GameSprite::getIndex(int width, int height, int layer, int pattern_x, int pattern_y, int pattern_z, int frame) const {
+	return ((((((frame % this->frames) * this->pattern_z + pattern_z) * this->pattern_y + pattern_y) * this->pattern_x + pattern_x) * this->layers + layer) * this->height + height) * this->width + width;
 }
 
 std::pair<int, int> GameSprite::getDrawOffset()
@@ -586,8 +665,8 @@ GLuint GameSprite::getSpriteId(int _layer, int _count, int _pattern_x, int _patt
 	} else {
 		v = (((_frame)*pattern_y+_pattern_y)*pattern_x+_pattern_x)*layers+_layer;
 	}
-	if(v >= numsprites) {
-		if(numsprites == 1) {
+	if (v >= numsprites) {
+		if (numsprites == 1) {
 			v = 0;
 		} else {
 			v %= numsprites;
@@ -631,8 +710,7 @@ std::shared_ptr<GameSprite::OutfitImage> GameSprite::getOutfitImage(int spriteId
 	return img;
 }
 
-wxMemoryDC* GameSprite::getDC(SpriteSize spriteSize)
-{
+wxMemoryDC* GameSprite::getDC(SpriteSize spriteSize) {
 	if(!m_wxMemoryDc[spriteSize]) {
 		const int bgshade = g_settings.getInteger(Config::ICON_BACKGROUND);
 		wxImage background(getWidth(), getHeight());
@@ -698,22 +776,19 @@ uint8_t* GameSprite::invertGLColors(int spriteHeight, int spriteWidth, uint8_t* 
 
 GameSprite::Image::Image() :
 	isGLLoaded(false),
-	lastaccess(0)
-{
+	lastaccess(0) {
 	////
 }
 
-GameSprite::Image::~Image()
-{
+GameSprite::Image::~Image() {
 	unloadGLTexture(0);
 }
 
-void GameSprite::Image::createGLTexture(GLuint whatid)
-{
+void GameSprite::Image::createGLTexture(GLuint textureId) {
 	ASSERT(!isGLLoaded);
 
 	uint8_t* rgba = getRGBAData();
-	if(!rgba) {
+	if (!rgba) {
 		return;
 	}
 
@@ -729,7 +804,7 @@ void GameSprite::Image::createGLTexture(GLuint whatid)
 	isGLLoaded = true;
 	g_gui.gfx.loaded_textures += 1;
 
-	glBindTexture(GL_TEXTURE_2D, whatid);
+	glBindTexture(GL_TEXTURE_2D, textureId);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Linear Filtering
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // Linear Filtering
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, 0x812F); // GL_CLAMP_TO_EDGE
@@ -737,21 +812,18 @@ void GameSprite::Image::createGLTexture(GLuint whatid)
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, spriteWidth, spriteHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, invertedBuffer);
 }
 
-void GameSprite::Image::unloadGLTexture(GLuint whatid)
-{
+void GameSprite::Image::unloadGLTexture(GLuint textureId) {
 	isGLLoaded = false;
 	g_gui.gfx.loaded_textures -= 1;
-	glDeleteTextures(1, &whatid);
+	glDeleteTextures(1, &textureId);
 }
 
-void GameSprite::Image::visit()
-{
+void GameSprite::Image::visit() {
 	lastaccess = time(nullptr);
 }
 
-void GameSprite::Image::clean(int time)
-{
-	if(isGLLoaded && time - lastaccess > g_settings.getInteger(Config::TEXTURE_LONGEVITY)) {
+void GameSprite::Image::clean(int time) {
+	if (isGLLoaded && time - lastaccess > g_settings.getInteger(Config::TEXTURE_LONGEVITY)) {
 		unloadGLTexture(0);
 	}
 }
@@ -769,8 +841,7 @@ GameSprite::NormalImage::~NormalImage()
 	m_cachedData = nullptr;
 }
 
-void GameSprite::NormalImage::clean(int time)
-{
+void GameSprite::NormalImage::clean(int time) {
 	Image::clean(time);
 	// We keep dumps around for 5 seconds.
 	if(time - lastaccess > 5) {
@@ -799,13 +870,11 @@ GLuint GameSprite::NormalImage::getSpriteId()
 	return id;
 }
 
-void GameSprite::NormalImage::createGLTexture(GLuint ignored)
-{
+void GameSprite::NormalImage::createGLTexture(GLuint textureId) {
 	Image::createGLTexture(id);
 }
 
-void GameSprite::NormalImage::unloadGLTexture(GLuint ignored)
-{
+void GameSprite::NormalImage::unloadGLTexture(GLuint textureId) {
 	Image::unloadGLTexture(id);
 }
 
@@ -976,6 +1045,22 @@ void GameSprite::OutfitImage::createGLTexture(GLuint spriteId)
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, spriteWidth, spriteHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, invertedBuffer);
 }
 
+GameSprite* GameSprite::createFromBitmap(const wxArtID &bitmapId) {
+	GameSprite::EditorImage* image = new GameSprite::EditorImage(bitmapId);
+
+	GameSprite* sprite = new GameSprite();
+	sprite->width = 1;
+	sprite->height = 1;
+	sprite->layers = 1;
+	sprite->pattern_x = 1;
+	sprite->pattern_y = 1;
+	sprite->pattern_z = 1;
+	sprite->frames = 1;
+	sprite->numsprites = 1;
+	sprite->spriteList.push_back(image);
+	return sprite;
+}
+
 // ============================================================================
 // Animator
 
@@ -990,54 +1075,51 @@ Animator::Animator(int frame_count, int start_frame, int loop_count, bool async)
 	total_duration(0),
 	direction(ANIMATION_FORWARD),
 	last_time(0),
-	is_complete(false)
-{
+	is_complete(false) {
 	ASSERT(start_frame >= -1 && start_frame < frame_count);
 
-	for(int i = 0; i < frame_count; i++) {
+	for (int i = 0; i < frame_count; i++) {
 		durations.push_back(newd FrameDuration(ITEM_FRAME_DURATION, ITEM_FRAME_DURATION));
 	}
 
 	reset();
 }
 
-Animator::~Animator()
-{
-	for(int i = 0; i < frame_count; i++) {
+Animator::~Animator() {
+	for (int i = 0; i < frame_count; i++) {
 		delete durations[i];
 		durations[i] = nullptr;
 	}
 	durations.clear();
 }
 
-int Animator::getStartFrame() const
-{
-	if(start_frame > -1)
+int Animator::getStartFrame() const {
+	if (start_frame > -1) {
 		return start_frame;
+	}
 	return uniform_random(0, frame_count - 1);
 }
 
-FrameDuration* Animator::getFrameDuration(int frame)
-{
+FrameDuration* Animator::getFrameDuration(int frame) {
 	ASSERT(frame >= 0 && frame < frame_count);
 	return durations[frame];
 }
 
-int Animator::getFrame()
-{
+int Animator::getFrame() {
 	long time = g_gui.gfx.getElapsedTime();
-	if(time != last_time && !is_complete) {
+	if (time != last_time && !is_complete) {
 		long elapsed = time - last_time;
-		if(elapsed >= current_duration) {
+		if (elapsed >= current_duration) {
 			int frame = 0;
-			if(loop_count < 0)
+			if (loop_count < 0) {
 				frame = getPingPongFrame();
-			else
+			} else {
 				frame = getLoopFrame();
+			}
 
-			if(current_frame != frame) {
+			if (current_frame != frame) {
 				int duration = getDuration(frame) - (elapsed - current_duration);
-				if(duration < 0 && !async) {
+				if (duration < 0 && !async) {
 					calculateSynchronous();
 				} else {
 					current_frame = frame;
@@ -1055,22 +1137,23 @@ int Animator::getFrame()
 	return current_frame;
 }
 
-void Animator::setFrame(int frame)
-{
+void Animator::setFrame(int frame) {
 	ASSERT(frame == -1 || frame == 255 || frame == 254 || (frame >= 0 && frame < frame_count));
 
-	if(current_frame == frame)
+	if (current_frame == frame) {
 		return;
+	}
 
-	if(async) {
-		if(frame == 255) // Async mode
+	if (async) {
+		if (frame == 255) { // Async mode
 			current_frame = 0;
-		else if(frame == 254) // Random mode
+		} else if (frame == 254) { // Random mode
 			current_frame = uniform_random(0, frame_count - 1);
-		else if(frame >= 0 && frame < frame_count)
+		} else if (frame >= 0 && frame < frame_count) {
 			current_frame = frame;
-		else
+		} else {
 			current_frame = getStartFrame();
+		}
 
 		is_complete = false;
 		last_time = g_gui.gfx.getElapsedTime();
@@ -1081,11 +1164,11 @@ void Animator::setFrame(int frame)
 	}
 }
 
-void Animator::reset()
-{
+void Animator::reset() {
 	total_duration = 0;
-	for(int i = 0; i < frame_count; i++)
+	for (int i = 0; i < frame_count; i++) {
 		total_duration += durations[i]->max;
+	}
 
 	is_complete = false;
 	direction = ANIMATION_FORWARD;
@@ -1094,48 +1177,46 @@ void Animator::reset()
 	setFrame(-1);
 }
 
-int Animator::getDuration(int frame) const
-{
+int Animator::getDuration(int frame) const {
 	ASSERT(frame >= 0 && frame < frame_count);
 	return durations[frame]->getDuration();
 }
 
-int Animator::getPingPongFrame()
-{
+int Animator::getPingPongFrame() {
 	int count = direction == ANIMATION_FORWARD ? 1 : -1;
 	int next_frame = current_frame + count;
-	if(next_frame < 0 || next_frame >= frame_count) {
+	if (next_frame < 0 || next_frame >= frame_count) {
 		direction = direction == ANIMATION_FORWARD ? ANIMATION_BACKWARD : ANIMATION_FORWARD;
 		count *= -1;
 	}
 	return current_frame + count;
 }
 
-int Animator::getLoopFrame()
-{
+int Animator::getLoopFrame() {
 	int next_phase = current_frame + 1;
-	if(next_phase < frame_count)
+	if (next_phase < frame_count) {
 		return next_phase;
+	}
 
-	if(loop_count == 0)
+	if (loop_count == 0) {
 		return 0;
+	}
 
-	if(current_loop < (loop_count - 1)) {
+	if (current_loop < (loop_count - 1)) {
 		current_loop++;
 		return 0;
 	}
 	return current_frame;
 }
 
-void Animator::calculateSynchronous()
-{
+void Animator::calculateSynchronous() {
 	long time = g_gui.gfx.getElapsedTime();
-	if(time > 0 && total_duration > 0) {
+	if (time > 0 && total_duration > 0) {
 		long elapsed = time % total_duration;
 		int total_time = 0;
-		for(int i = 0; i < frame_count; i++) {
+		for (int i = 0; i < frame_count; i++) {
 			int duration = getDuration(i);
-			if(elapsed >= total_time && elapsed < total_time + duration) {
+			if (elapsed >= total_time && elapsed < total_time + duration) {
 				current_frame = i;
 				current_duration = duration - (elapsed - total_time);
 				break;

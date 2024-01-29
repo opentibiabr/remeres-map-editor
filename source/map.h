@@ -25,11 +25,11 @@
 #include "spawn_monster.h"
 #include "complexitem.h"
 #include "waypoints.h"
+#include "zones.h"
 #include "templates.h"
 #include "spawn_npc.h"
 
-class Map : public BaseMap
-{
+class Map : public BaseMap {
 public:
 	// ctor and dtor
 	Map();
@@ -37,73 +37,118 @@ public:
 
 	// Operations on the entire map
 	void cleanInvalidTiles(bool showdialog = false);
+	void cleanDeletedZones(bool showdialog = false);
+	Position getZonePosition(unsigned int zoneId);
 	// Save a bmp image of the minimap
-	bool exportMinimap(FileName filename, int floor = GROUND_LAYER, bool showdialog = false);
+	bool exportMinimap(FileName filename, int floor = rme::MapGroundLayer, bool showdialog = false);
 	//
 	bool convert(MapVersion to, bool showdialog = false);
-	bool convert(const ConversionMap& cm, bool showdialog = false);
-
+	bool convert(const ConversionMap &cm, bool showdialog = false);
 
 	// Query information about the map
 
-	MapVersion getVersion() const;
+	MapVersion getVersion() const noexcept {
+		return mapVersion;
+	}
 	// Returns true if any change has been done since last save
-	bool hasChanged() const;
+	bool hasChanged() const noexcept {
+		return has_changed;
+	}
 	// Makes a change, doesn't matter what. Just so that it asks when saving (Also adds a * to the window title)
 	bool doChange();
 	// Clears any changes
 	bool clearChanges();
 
 	// Errors/warnings
-	bool hasWarnings() const {return warnings.size() != 0;}
-	const wxArrayString& getWarnings() const {return warnings;}
-	bool hasError() const {return error.size() != 0;}
-	wxString getError() const {return error;}
+	bool hasWarnings() const {
+		return warnings.size() != 0;
+	}
+	const wxArrayString &getWarnings() const {
+		return warnings;
+	}
+	bool hasError() const {
+		return error.size() != 0;
+	}
+	wxString getError() const {
+		return error;
+	}
 
 	// Mess with spawnsMonster
 	bool addSpawnMonster(Tile* spawnMonster);
 	void removeSpawnMonster(Tile* tile);
-	void removeSpawnMonster(const Position& position) { removeSpawnMonster(getTile(position)); }
+	void removeSpawnMonster(const Position &position) {
+		removeSpawnMonster(getTile(position));
+	}
 
 	// Returns all possible spawnsMonster on the target tile
-	SpawnMonsterList getSpawnMonsterList(Tile* t);
-	SpawnMonsterList getSpawnMonsterList(const Position& position) { return getSpawnMonsterList(getTile(position)); }
-	SpawnMonsterList getSpawnMonsterList(int32_t x, int32_t y, int32_t z) { return getSpawnMonsterList(getTile(x, y, z)); }
+	SpawnMonsterList getSpawnMonsterList(const Tile* tile) const;
+	SpawnMonsterList getSpawnMonsterList(const Position &position) const;
+	SpawnMonsterList getSpawnMonsterList(int x, int y, int z) const;
 
 	// Mess with npc spawns
 	bool addSpawnNpc(Tile* spawnMonster);
 	void removeSpawnNpc(Tile* tile);
-	void removeSpawnNpc(const Position& position) { removeSpawnNpc(getTile(position)); }
+	void removeSpawnNpc(const Position &position) {
+		removeSpawnNpc(getTile(position));
+	}
 
 	// Returns all possible npc spawns on the target tile
-	SpawnNpcList getSpawnNpcList(Tile* t);
-	SpawnNpcList getSpawnNpcList(const Position& position) { return getSpawnNpcList(getTile(position)); }
-	SpawnNpcList getSpawnNpcList(int32_t x, int32_t y, int32_t z) { return getSpawnNpcList(getTile(x, y, z)); }
+	SpawnNpcList getSpawnNpcList(const Tile* tile) const;
+	SpawnNpcList getSpawnNpcList(const Position &position) const;
+	SpawnNpcList getSpawnNpcList(int x, int y, int z) const;
 
 	// Returns true if the map has been saved
 	// ie. it knows which file it should be saved to
-	bool hasFile() const;
-	std::string getFilename() const {return filename;}
-	std::string getName() const {return name;}
-	void setName(const std::string& n) {name = n;}
+	bool hasFile() const noexcept {
+		return !filename.empty();
+	}
+	const std::string &getFilename() const noexcept {
+		return filename;
+	}
+	const std::string &getName() const noexcept {
+		return name;
+	}
+	void setName(const std::string &_name) noexcept {
+		name = _name;
+	}
 
 	// Get map data
-	int getWidth() const {return width;}
-	int getHeight() const {return height;}
-	std::string getMapDescription() const {return description;}
-	std::string getHouseFilename() const {return housefile;}
-	std::string getSpawnFilename() const {return spawnmonsterfile;}
-	std::string getSpawnNpcFilename() const {return spawnnpcfile;}
+	int getWidth() const {
+		return width;
+	}
+	int getHeight() const {
+		return height;
+	}
+	std::string getMapDescription() const {
+		return description;
+	}
+	std::string getHouseFilename() const {
+		return housefile;
+	}
+	std::string getSpawnFilename() const {
+		return spawnmonsterfile;
+	}
+	std::string getSpawnNpcFilename() const {
+		return spawnnpcfile;
+	}
+	std::string getZoneFilename() const {
+		return zonefile;
+	}
 
 	// Set some map data
 	void setWidth(int new_width);
 	void setHeight(int new_height);
-	void setMapDescription(const std::string& new_description);
-	void setHouseFilename(const std::string& new_housefile);
-	void setSpawnMonsterFilename(const std::string& new_spawnmonsterfile);
-	void setSpawnNpcFilename(const std::string& new_npcfile);
+	void setMapDescription(const std::string &new_description);
+	void setHouseFilename(const std::string &new_housefile);
+	void setSpawnMonsterFilename(const std::string &new_spawnmonsterfile);
+	void setSpawnNpcFilename(const std::string &new_npcfile);
+	void setZoneFilename(const std::string &new_zonefile);
 
-	void flagAsNamed() {unnamed = false;}
+	void flagAsNamed() noexcept {
+		unnamed = false;
+	}
+
+	bool hasUniqueId(uint16_t uid) const;
 
 protected:
 	// Loads a map
@@ -128,6 +173,7 @@ protected:
 	std::string spawnmonsterfile; // The maps spawnmonsterfile
 	std::string spawnnpcfile; // The maps spawnnpcfile
 	std::string housefile; // The housefile
+	std::string zonefile; // The zonefile
 
 public:
 	Towns towns;
@@ -136,6 +182,10 @@ public:
 	SpawnsNpc spawnsNpc;
 
 protected:
+	void updateUniqueIds(Tile* old_tile, Tile* new_tile) override;
+	void addUniqueId(uint16_t uid);
+	void removeUniqueId(uint16_t uid);
+
 	bool has_changed; // If the map has changed
 	bool unnamed; // If the map has yet to receive a name
 
@@ -144,48 +194,54 @@ protected:
 
 public:
 	Waypoints waypoints;
+	Zones zones;
+
+private:
+	std::vector<uint16_t> uniqueIds;
 };
 
 template <typename ForeachType>
-inline void foreach_ItemOnMap(Map& map, ForeachType& foreach, bool selectedTiles)
-{
+inline void foreach_ItemOnMap(Map &map, ForeachType &foreach, bool selectedTiles) {
 	MapIterator tileiter = map.begin();
 	MapIterator end = map.end();
 	long long done = 0;
 
-	while(tileiter != end) {
+	while (tileiter != end) {
 		++done;
 		Tile* tile = (*tileiter)->get();
-		if(selectedTiles && !tile->isSelected()) {
+		if (selectedTiles && !tile->isSelected()) {
 			++tileiter;
 			continue;
 		}
 
-		if(tile->ground) {
-			foreach(map, tile, tile->ground, done);
+		if (tile->ground) {
+			foreach (map, tile, tile->ground, done)
+				;
 		}
 
 		std::queue<Container*> containers;
-		for(ItemVector::iterator itemiter = tile->items.begin(); itemiter != tile->items.end(); ++itemiter) {
+		for (ItemVector::iterator itemiter = tile->items.begin(); itemiter != tile->items.end(); ++itemiter) {
 			Item* item = *itemiter;
 			Container* container = dynamic_cast<Container*>(item);
-			foreach(map, tile, item, done);
-			if(container) {
+			foreach (map, tile, item, done)
+				;
+			if (container) {
 				containers.push(container);
 
 				do {
 					container = containers.front();
-					ItemVector& v = container->getVector();
-					for(ItemVector::iterator containeriter = v.begin(); containeriter != v.end(); ++containeriter) {
+					ItemVector &v = container->getVector();
+					for (ItemVector::iterator containeriter = v.begin(); containeriter != v.end(); ++containeriter) {
 						Item* i = *containeriter;
 						Container* c = dynamic_cast<Container*>(i);
-						foreach(map, tile, i, done);
-						if(c) {
+						foreach (map, tile, i, done)
+							;
+						if (c) {
 							containers.push(c);
 						}
 					}
 					containers.pop();
-				} while(containers.size());
+				} while (containers.size());
 			}
 		}
 		++tileiter;
@@ -193,28 +249,28 @@ inline void foreach_ItemOnMap(Map& map, ForeachType& foreach, bool selectedTiles
 }
 
 template <typename ForeachType>
-inline void foreach_TileOnMap(Map& map, ForeachType& foreach)
-{
+inline void foreach_TileOnMap(Map &map, ForeachType &foreach) {
 	MapIterator tileiter = map.begin();
 	MapIterator end = map.end();
 	long long done = 0;
 
-	while(tileiter != end)
-		foreach(map, (*tileiter++)->get(), ++done);
+	while (tileiter != end) {
+		foreach (map, (*tileiter++)->get(), ++done)
+			;
+	}
 }
 
 template <typename RemoveIfType>
-inline long long remove_if_TileOnMap(Map& map, RemoveIfType& remove_if)
-{
+inline long long remove_if_TileOnMap(Map &map, RemoveIfType &remove_if) {
 	MapIterator tileiter = map.begin();
 	MapIterator end = map.end();
 	long long done = 0;
 	long long removed = 0;
 	long long total = map.getTileCount();
 
-	while(tileiter != end) {
+	while (tileiter != end) {
 		Tile* tile = (*tileiter)->get();
-		if(remove_if(map, tile, removed, done, total)) {
+		if (remove_if(map, tile, removed, done, total)) {
 			map.setTile(tile->getPosition(), nullptr, true);
 			++removed;
 		}
@@ -226,38 +282,79 @@ inline long long remove_if_TileOnMap(Map& map, RemoveIfType& remove_if)
 }
 
 template <typename RemoveIfType>
-inline int64_t RemoveItemOnMap(Map& map, RemoveIfType& condition, bool selectedOnly) {
+inline int64_t RemoveItemOnMap(Map &map, RemoveIfType &condition, bool selectedOnly) {
 	int64_t done = 0;
 	int64_t removed = 0;
 
 	MapIterator it = map.begin();
 	MapIterator end = map.end();
 
-	while(it != end) {
+	while (it != end) {
 		++done;
 		Tile* tile = (*it)->get();
-		if(selectedOnly && !tile->isSelected()) {
+		if (selectedOnly && !tile->isSelected()) {
 			++it;
 			continue;
 		}
 
-		if(tile->ground) {
-			if(condition(map, tile->ground, removed, done)) {
+		if (tile->ground) {
+			if (condition(map, tile->ground, removed, done)) {
 				delete tile->ground;
 				tile->ground = nullptr;
 				++removed;
 			}
 		}
 
-		for(auto iit = tile->items.begin(); iit != tile->items.end();) {
+		for (auto iit = tile->items.begin(); iit != tile->items.end();) {
 			Item* item = *iit;
-			if(condition(map, item, removed, done)) {
+			if (condition(map, item, removed, done)) {
 				iit = tile->items.erase(iit);
 				delete item;
 				++removed;
-			}
-			else
+			} else {
 				++iit;
+			}
+		}
+		++it;
+	}
+	return removed;
+}
+
+int64_t RemoveMonstersOnMap(Map &map, bool selectedOnly);
+
+template <typename RemoveIfType>
+inline int64_t RemoveItemDuplicateOnMap(Map &map, RemoveIfType &condition, bool selectedOnly) {
+	int64_t done = 0;
+	int64_t removed = 0;
+
+	MapIterator it = map.begin();
+	MapIterator end = map.end();
+
+	while (it != end) {
+		++done;
+		Tile* tile = (*it)->get();
+		if (selectedOnly && !tile->isSelected()) {
+			++it;
+			continue;
+		}
+
+		if (tile->ground) {
+			if (condition(map, tile, tile->ground, removed, done)) {
+				delete tile->ground;
+				tile->ground = nullptr;
+				++removed;
+			}
+		}
+
+		for (auto iit = tile->items.begin(); iit != tile->items.end();) {
+			Item* item = *iit;
+			if (condition(map, tile, item, removed, done)) {
+				iit = tile->items.erase(iit);
+				delete item;
+				++removed;
+			} else {
+				++iit;
+			}
 		}
 		++it;
 	}

@@ -21,8 +21,7 @@
 #include "tileset.h"
 #include "client_assets.h"
 
-class MaterialsExtension
-{
+class MaterialsExtension {
 public:
 	MaterialsExtension(std::string name, std::string description);
 	~MaterialsExtension();
@@ -30,8 +29,8 @@ public:
 	std::string name;
 	std::string description;
 private:
-	MaterialsExtension(const MaterialsExtension&);
-	MaterialsExtension& operator=(const MaterialsExtension&);
+	MaterialsExtension(const MaterialsExtension &);
+	MaterialsExtension &operator=(const MaterialsExtension &);
 };
 
 typedef std::vector<MaterialsExtension*> MaterialsExtensionList;

@@ -29,21 +29,20 @@
 // Npc palette
 
 BEGIN_EVENT_TABLE(NpcPalettePanel, PalettePanel)
-	EVT_CHOICE(PALETTE_NPC_TILESET_CHOICE, NpcPalettePanel::OnTilesetChange)
+EVT_CHOICE(PALETTE_NPC_TILESET_CHOICE, NpcPalettePanel::OnTilesetChange)
 
-	EVT_LISTBOX(PALETTE_NPC_LISTBOX, NpcPalettePanel::OnListBoxChange)
+EVT_LISTBOX(PALETTE_NPC_LISTBOX, NpcPalettePanel::OnListBoxChange)
 
-	EVT_TOGGLEBUTTON(PALETTE_NPC_BRUSH_BUTTON, NpcPalettePanel::OnClickNpcBrushButton)
-	EVT_TOGGLEBUTTON(PALETTE_SPAWN_NPC_BRUSH_BUTTON, NpcPalettePanel::OnClickSpawnNpcBrushButton)
+EVT_TOGGLEBUTTON(PALETTE_NPC_BRUSH_BUTTON, NpcPalettePanel::OnClickNpcBrushButton)
+EVT_TOGGLEBUTTON(PALETTE_SPAWN_NPC_BRUSH_BUTTON, NpcPalettePanel::OnClickSpawnNpcBrushButton)
 
-	EVT_SPINCTRL(PALETTE_SPAWN_NPC_TIME, NpcPalettePanel::OnChangeSpawnNpcTime)
-	EVT_SPINCTRL(PALETTE_SPAWN_NPC_SIZE, NpcPalettePanel::OnChangeSpawnNpcSize)
+EVT_SPINCTRL(PALETTE_SPAWN_NPC_TIME, NpcPalettePanel::OnChangeSpawnNpcTime)
+EVT_SPINCTRL(PALETTE_SPAWN_NPC_SIZE, NpcPalettePanel::OnChangeSpawnNpcSize)
 END_EVENT_TABLE()
 
 NpcPalettePanel::NpcPalettePanel(wxWindow* parent, wxWindowID id) :
 	PalettePanel(parent, id),
-	handling_event(false)
-{
+	handling_event(false) {
 	wxSizer* topsizer = newd wxBoxSizer(wxVERTICAL);
 
 	wxSizer* sidesizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Npcs");
@@ -57,7 +56,7 @@ NpcPalettePanel::NpcPalettePanel(wxWindow* parent, wxWindowID id) :
 	// Brush selection
 	sidesizer = newd wxStaticBoxSizer(newd wxStaticBox(this, wxID_ANY, "Brushes", wxDefaultPosition, wxSize(150, 200)), wxVERTICAL);
 
-	//sidesizer->Add(180, 1, wxEXPAND);
+	// sidesizer->Add(180, 1, wxEXPAND);
 
 	wxFlexGridSizer* grid = newd wxFlexGridSizer(3, 10, 10);
 	grid->AddGrowableCol(1);
@@ -81,33 +80,29 @@ NpcPalettePanel::NpcPalettePanel(wxWindow* parent, wxWindowID id) :
 	OnUpdate();
 }
 
-NpcPalettePanel::~NpcPalettePanel()
-{
+NpcPalettePanel::~NpcPalettePanel() {
 	////
 }
 
-PaletteType NpcPalettePanel::GetType() const
-{
+PaletteType NpcPalettePanel::GetType() const {
 	return TILESET_NPC;
 }
 
-void NpcPalettePanel::SelectFirstBrush()
-{
+void NpcPalettePanel::SelectFirstBrush() {
 	SelectNpcBrush();
 }
 
-Brush* NpcPalettePanel::GetSelectedBrush() const
-{
-	if(npc_brush_button->GetValue()) {
-		if(npc_list->GetCount() == 0) {
+Brush* NpcPalettePanel::GetSelectedBrush() const {
+	if (npc_brush_button->GetValue()) {
+		if (npc_list->GetCount() == 0) {
 			return nullptr;
 		}
 		Brush* brush = reinterpret_cast<Brush*>(npc_list->GetClientData(npc_list->GetSelection()));
-		if(brush && brush->isNpc()) {
+		if (brush && brush->isNpc()) {
 			g_gui.SetSpawnNpcTime(npc_spawntime_spin->GetValue());
 			return brush;
 		}
-	} else if(spawn_npc_brush_button->GetValue()) {
+	} else if (spawn_npc_brush_button->GetValue()) {
 		g_settings.setInteger(Config::CURRENT_SPAWN_NPC_RADIUS, spawn_npc_size_spin->GetValue());
 		g_settings.setInteger(Config::DEFAULT_SPAWN_NPC_TIME, npc_spawntime_spin->GetValue());
 		return g_gui.spawn_npc_brush;
@@ -115,32 +110,31 @@ Brush* NpcPalettePanel::GetSelectedBrush() const
 	return nullptr;
 }
 
-bool NpcPalettePanel::SelectBrush(const Brush* whatbrush)
-{
-	if(!whatbrush)
+bool NpcPalettePanel::SelectBrush(const Brush* whatbrush) {
+	if (!whatbrush) {
 		return false;
+	}
 
-	if(whatbrush->isNpc()) {
+	if (whatbrush->isNpc()) {
 		int current_index = tileset_choice->GetSelection();
-		if(current_index != wxNOT_FOUND) {
+		if (current_index != wxNOT_FOUND) {
 			const TilesetCategory* tsc = reinterpret_cast<const TilesetCategory*>(tileset_choice->GetClientData(current_index));
 			// Select first house
-			for(BrushVector::const_iterator iter = tsc->brushlist.begin(); iter != tsc->brushlist.end(); ++iter) {
-				if(*iter == whatbrush) {
+			for (BrushVector::const_iterator iter = tsc->brushlist.begin(); iter != tsc->brushlist.end(); ++iter) {
+				if (*iter == whatbrush) {
 					SelectNpc(whatbrush->getName());
 					return true;
 				}
 			}
 		}
 		// Not in the current display, search the hidden one's
-		for(size_t i = 0; i < tileset_choice->GetCount(); ++i) {
-			if(current_index != (int)i) {
+		for (size_t i = 0; i < tileset_choice->GetCount(); ++i) {
+			if (current_index != (int)i) {
 				const TilesetCategory* tsc = reinterpret_cast<const TilesetCategory*>(tileset_choice->GetClientData(i));
-				for(BrushVector::const_iterator iter = tsc->brushlist.begin();
-						iter != tsc->brushlist.end();
-						++iter)
-				{
-					if(*iter == whatbrush) {
+				for (BrushVector::const_iterator iter = tsc->brushlist.begin();
+					 iter != tsc->brushlist.end();
+					 ++iter) {
+					if (*iter == whatbrush) {
 						SelectTileset(i);
 						SelectNpc(whatbrush->getName());
 						return true;
@@ -148,28 +142,26 @@ bool NpcPalettePanel::SelectBrush(const Brush* whatbrush)
 				}
 			}
 		}
-	} else if(whatbrush->isSpawnNpc()) {
+	} else if (whatbrush->isSpawnNpc()) {
 		SelectSpawnNpcBrush();
 		return true;
 	}
 	return false;
 }
 
-int NpcPalettePanel::GetSelectedBrushSize() const
-{
+int NpcPalettePanel::GetSelectedBrushSize() const {
 	return spawn_npc_size_spin->GetValue();
 }
 
-void NpcPalettePanel::OnUpdate()
-{
+void NpcPalettePanel::OnUpdate() {
 	tileset_choice->Clear();
 	g_materials.createNpcTileset();
 
-	for(TilesetContainer::const_iterator iter = g_materials.tilesets.begin(); iter != g_materials.tilesets.end(); ++iter) {
+	for (TilesetContainer::const_iterator iter = g_materials.tilesets.begin(); iter != g_materials.tilesets.end(); ++iter) {
 		const TilesetCategory* tsc = iter->second->getCategory(TILESET_NPC);
-		if(tsc && tsc->size() > 0) {
+		if (tsc && tsc->size() > 0) {
 			tileset_choice->Append(wxstr(iter->second->name), const_cast<TilesetCategory*>(tsc));
-		} else if(iter->second->name == "NPCs") {
+		} else if (iter->second->name == "NPCs") {
 			Tileset* ts = const_cast<Tileset*>(iter->second);
 			TilesetCategory* rtsc = ts->getCategory(TILESET_NPC);
 			tileset_choice->Append(wxstr(ts->name), rtsc);
@@ -178,32 +170,28 @@ void NpcPalettePanel::OnUpdate()
 	SelectTileset(0);
 }
 
-void NpcPalettePanel::OnUpdateBrushSize(BrushShape shape, int size)
-{
+void NpcPalettePanel::OnUpdateBrushSize(BrushShape shape, int size) {
 	return spawn_npc_size_spin->SetValue(size);
 }
 
-void NpcPalettePanel::OnSwitchIn()
-{
+void NpcPalettePanel::OnSwitchIn() {
 	g_gui.ActivatePalette(GetParentPalette());
 	g_gui.SetBrushSize(spawn_npc_size_spin->GetValue());
 }
 
-void NpcPalettePanel::SelectTileset(size_t index)
-{
+void NpcPalettePanel::SelectTileset(size_t index) {
 	ASSERT(tileset_choice->GetCount() >= index);
 
 	npc_list->Clear();
-	if(tileset_choice->GetCount() == 0) {
+	if (tileset_choice->GetCount() == 0) {
 		// No tilesets :(
 		npc_brush_button->Enable(false);
 	} else {
 		const TilesetCategory* tsc = reinterpret_cast<const TilesetCategory*>(tileset_choice->GetClientData(index));
 		// Select first house
-		for(BrushVector::const_iterator iter = tsc->brushlist.begin();
-				iter != tsc->brushlist.end();
-				++iter)
-		{
+		for (BrushVector::const_iterator iter = tsc->brushlist.begin();
+			 iter != tsc->brushlist.end();
+			 ++iter) {
 			npc_list->Append(wxstr((*iter)->getName()), *iter);
 		}
 		npc_list->Sort();
@@ -213,22 +201,20 @@ void NpcPalettePanel::SelectTileset(size_t index)
 	}
 }
 
-void NpcPalettePanel::SelectNpc(size_t index)
-{
+void NpcPalettePanel::SelectNpc(size_t index) {
 	// Save the old g_settings
 	ASSERT(npc_list->GetCount() >= index);
 
-	if(npc_list->GetCount() > 0) {
+	if (npc_list->GetCount() > 0) {
 		npc_list->SetSelection(index);
 	}
 
 	SelectNpcBrush();
 }
 
-void NpcPalettePanel::SelectNpc(std::string name)
-{
-	if(npc_list->GetCount() > 0) {
-		if(!npc_list->SetStringSelection(wxstr(name))) {
+void NpcPalettePanel::SelectNpc(std::string name) {
+	if (npc_list->GetCount() > 0) {
+		if (!npc_list->SetStringSelection(wxstr(name))) {
 			npc_list->SetSelection(0);
 		}
 	}
@@ -236,9 +222,8 @@ void NpcPalettePanel::SelectNpc(std::string name)
 	SelectNpcBrush();
 }
 
-void NpcPalettePanel::SelectNpcBrush()
-{
-	if(npc_list->GetCount() > 0) {
+void NpcPalettePanel::SelectNpcBrush() {
+	if (npc_list->GetCount() > 0) {
 		npc_brush_button->Enable(true);
 		npc_brush_button->SetValue(true);
 		spawn_npc_brush_button->SetValue(false);
@@ -248,50 +233,43 @@ void NpcPalettePanel::SelectNpcBrush()
 	}
 }
 
-void NpcPalettePanel::SelectSpawnNpcBrush()
-{
-	//g_gui.house_exit_brush->setHouse(house);
+void NpcPalettePanel::SelectSpawnNpcBrush() {
+	// g_gui.house_exit_brush->setHouse(house);
 	npc_brush_button->SetValue(false);
 	spawn_npc_brush_button->SetValue(true);
 }
 
-void NpcPalettePanel::OnTilesetChange(wxCommandEvent& event)
-{
+void NpcPalettePanel::OnTilesetChange(wxCommandEvent &event) {
 	SelectTileset(event.GetSelection());
 	g_gui.ActivatePalette(GetParentPalette());
 	g_gui.SelectBrush();
 }
 
-void NpcPalettePanel::OnListBoxChange(wxCommandEvent& event)
-{
+void NpcPalettePanel::OnListBoxChange(wxCommandEvent &event) {
 	SelectNpc(event.GetSelection());
 	g_gui.ActivatePalette(GetParentPalette());
 	g_gui.SelectBrush();
 }
 
-void NpcPalettePanel::OnClickNpcBrushButton(wxCommandEvent& event)
-{
+void NpcPalettePanel::OnClickNpcBrushButton(wxCommandEvent &event) {
 	SelectNpcBrush();
 	g_gui.ActivatePalette(GetParentPalette());
 	g_gui.SelectBrush();
 }
 
-void NpcPalettePanel::OnClickSpawnNpcBrushButton(wxCommandEvent& event)
-{
+void NpcPalettePanel::OnClickSpawnNpcBrushButton(wxCommandEvent &event) {
 	SelectSpawnNpcBrush();
 	g_gui.ActivatePalette(GetParentPalette());
 	g_gui.SelectBrush();
 }
 
-void NpcPalettePanel::OnChangeSpawnNpcTime(wxSpinEvent& event)
-{
+void NpcPalettePanel::OnChangeSpawnNpcTime(wxSpinEvent &event) {
 	g_gui.ActivatePalette(GetParentPalette());
 	g_gui.SetSpawnNpcTime(event.GetPosition());
 }
 
-void NpcPalettePanel::OnChangeSpawnNpcSize(wxSpinEvent& event)
-{
-	if(!handling_event) {
+void NpcPalettePanel::OnChangeSpawnNpcSize(wxSpinEvent &event) {
+	if (!handling_event) {
 		handling_event = true;
 		g_gui.ActivatePalette(GetParentPalette());
 		g_gui.SetBrushSize(event.GetPosition());

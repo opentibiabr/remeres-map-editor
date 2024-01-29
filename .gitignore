@@ -10,9 +10,11 @@ build-release
 CMakeLists.txt.user*
 
 # RME
+remeres
 rme
 rme.cfg
 data/user
+world
 
 # Visual Studio
 *.MAP
@@ -38,6 +40,7 @@ vcproj/Project/x64/
 vcproj/Installer/Beta Release/
 vcproj/Installer/Debug/
 vcproj/Installer/Release/
+vcpkg_installed/
 .vscode/
 *.filters
 *.users
@@ -59,3 +62,5 @@ cmake-build-debug/
 *.lzma
 *.dat
 *.manifest
+vcpkg_installed/
+*.ilk

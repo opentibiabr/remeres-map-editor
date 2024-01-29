@@ -26,7 +26,6 @@ MaterialsExtension::MaterialsExtension(std::string name, std::string description
 	////
 }
 
-MaterialsExtension::~MaterialsExtension()
-{
+MaterialsExtension::~MaterialsExtension() {
 	////
 }

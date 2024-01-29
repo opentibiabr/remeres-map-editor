@@ -25,8 +25,7 @@
 class ContainerItemButton;
 class ContainerItemPopupMenu;
 
-class OldPropertiesWindow : public ObjectPropertiesWindowBase
-{
+class OldPropertiesWindow : public ObjectPropertiesWindowBase {
 public:
 	OldPropertiesWindow(wxWindow* parent, const Map* map, const Tile* tile, Item* item, wxPoint = wxDefaultPosition);
 	OldPropertiesWindow(wxWindow* parent, const Map* map, const Tile* tile, Monster* monster, wxPoint = wxDefaultPosition);
@@ -35,14 +34,12 @@ public:
 	OldPropertiesWindow(wxWindow* parent, const Map* map, const Tile* tile, SpawnNpc* spawnNpc, wxPoint = wxDefaultPosition);
 	virtual ~OldPropertiesWindow();
 
-	void OnFocusChange(wxFocusEvent&);
+	void OnFocusChange(wxFocusEvent &);
 
-	void OnClickOK(wxCommandEvent&);
-	void OnClickCancel(wxCommandEvent&);
+	void OnClickOK(wxCommandEvent &);
+	void OnClickCancel(wxCommandEvent &);
 
 	void Update();
-
-protected:
 
 protected:
 	wxSpinCtrl* count_field;
@@ -51,9 +48,7 @@ protected:
 	wxSpinCtrl* unique_id_field;
 	wxSpinCtrl* door_id_field;
 	wxChoice* depot_id_field;
-	wxSpinCtrl* x_field;
-	wxSpinCtrl* y_field;
-	wxSpinCtrl* z_field;
+	PositionCtrl* destination_field;
 	wxChoice* splash_type_field;
 	wxTextCtrl* text_field;
 	wxTextCtrl* description_field;
@@ -66,4 +61,3 @@ protected:
 };
 
 #endif
-

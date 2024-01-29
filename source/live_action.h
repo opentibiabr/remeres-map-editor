@@ -24,8 +24,9 @@ class NetworkedActionQueue;
 
 class NetworkedAction : public Action {
 protected:
-	NetworkedAction(Editor& editor, ActionIdentifier ident);
+	NetworkedAction(Editor &editor, ActionIdentifier ident);
 	~NetworkedAction();
+
 public:
 	uint32_t owner;
 
@@ -33,9 +34,10 @@ public:
 };
 
 class NetworkedBatchAction : public BatchAction {
-	NetworkedActionQueue& queue;
+	NetworkedActionQueue &queue;
+
 protected:
-	NetworkedBatchAction(Editor& editor, NetworkedActionQueue& queue, ActionIdentifier ident);
+	NetworkedBatchAction(Editor &editor, NetworkedActionQueue &queue, ActionIdentifier ident);
 	~NetworkedBatchAction();
 
 public:
@@ -51,14 +53,13 @@ protected:
 
 class NetworkedActionQueue : public ActionQueue {
 public:
-	NetworkedActionQueue(Editor& editor);
-	~NetworkedActionQueue();
+	NetworkedActionQueue(Editor &editor);
 
-	Action* createAction(ActionIdentifier ident);
-	BatchAction* createBatch(ActionIdentifier ident);
+	Action* createAction(ActionIdentifier identifier) const;
+	BatchAction* createBatch(ActionIdentifier identifier);
 
 protected:
-	void broadcast(DirtyList& dirty_list);
+	void broadcast(DirtyList &dirty_list);
 
 	friend class NetworkedBatchAction;
 };

@@ -23,26 +23,37 @@
 //=============================================================================
 // NpcBrush, place npcs
 
-class NpcBrush : public Brush
-{
+class NpcBrush : public Brush {
 public:
 	NpcBrush(NpcType* type); // Create a RAWBrush of the specified type
 	virtual ~NpcBrush();
 
-	bool isNpc() const { return true; }
-	NpcBrush* asNpc() { return static_cast<NpcBrush*>(this); }
+	bool isNpc() const {
+		return true;
+	}
+	NpcBrush* asNpc() {
+		return static_cast<NpcBrush*>(this);
+	}
 
-	virtual bool canDraw(BaseMap* map, const Position& position) const;
+	virtual bool canDraw(BaseMap* map, const Position &position) const;
 	virtual void draw(BaseMap* map, Tile* tile, void* parameter);
 	virtual void undraw(BaseMap* map, Tile* tile);
 
-	NpcType* getType() const {return npc_type;}
+	NpcType* getType() const {
+		return npc_type;
+	}
 
 	virtual int getLookID() const; // We don't have a look type, this will always return 0
 	virtual std::string getName() const;
-	virtual bool canDrag() const { return false; }
-	virtual bool canSmear() const { return true; }
-	virtual bool oneSizeFitsAll() const { return true; }
+	virtual bool canDrag() const {
+		return false;
+	}
+	virtual bool canSmear() const {
+		return true;
+	}
+	virtual bool oneSizeFitsAll() const {
+		return true;
+	}
 
 protected:
 	NpcType* npc_type;

@@ -38,20 +38,24 @@
             <item name="Find $Action" action="SEARCH_ON_MAP_ACTION" help="Find all items with an action ID on map."/>
             <item name="Find $Container" action="SEARCH_ON_MAP_CONTAINER" help="Find all containers on map."/>
             <item name="Find $Writeable" action="SEARCH_ON_MAP_WRITEABLE" help="Find all writeable items on map."/>
+            <item name="Find $Duplicate Items" action="SEARCH_ON_MAP_DUPLICATE" help="Find all positions where there are duplicate items on the map."/>
         </menu>
         <separator/>
         <menu name="$Border Options">
             <item name="Border $Automagic" hotkey="A" action="AUTOMAGIC" help="Turns on all automatic border functions."/>
-			<separator/>
+            <separator/>
             <item name="$Borderize Selection" hotkey="Ctrl+B" action="BORDERIZE_SELECTION" help="Creates automatic borders in the entire selected area."/>
             <item name="Borderize $Map" action="BORDERIZE_MAP" help="Reborders the entire map."/>
             <item name="Ra$ndomize Selection" action="RANDOMIZE_SELECTION" help="Randomizes the ground tiles of the selected area."/>
             <item name="$Randomize Map" action="RANDOMIZE_MAP" help="Randomizes all tiles of the entire map."/>
         </menu>
-        <menu name="$Other Options">
+        <menu name="$Tools">
             <item name="$Remove Items by ID..." action="MAP_REMOVE_ITEMS" help="Removes all items with the selected ID from the map."/>
             <item name="Remove $all corpses..." action="MAP_REMOVE_CORPSES" help="Removes all corpses from the map."/>
             <item name="Remove all $unreachable tiles..." action="MAP_REMOVE_UNREACHABLE_TILES" help="Removes all tiles that cannot be reached (or seen) by the player from the map."/>
+            <item name="Remove all $duplicates items..." action="REMOVE_ON_MAP_DUPLICATE_ITEMS" help="Removes all items duplicates on map."/>
+            <item name="Remove empty monsters spawns" action="MAP_REMOVE_EMPTY_MONSTERS_SPAWNS" help="Removes all empty monsters spawns from the map."/>
+            <item name="Remove empty npcs spawns" action="MAP_REMOVE_EMPTY_NPCS_SPAWNS" help="Removes all empty npcs spawns from the map."/>
             <item name="$Clear Invalid Houses" action="CLEAR_INVALID_HOUSES" help="Clears house tiles not belonging to any house."/>
             <item name="Clear $Modified State" action="CLEAR_MODIFIED_STATE" help="Clears the modified state from all tiles."/>
         </menu>
@@ -78,6 +82,8 @@
         <item name="Replace Items on Selection" action="REPLACE_ON_SELECTION_ITEMS" help="Replace items on selected area."/>
         <item name="Find Item on Selection" action="SEARCH_ON_SELECTION_ITEM" help="Find items on selected area."/>
         <item name="Remove Item on Selection" action="REMOVE_ON_SELECTION_ITEM" help="Remove item on selected area."/>
+        <item name="Remove Monsters on Selection" action="REMOVE_ON_SELECTION_MONSTER" help="Remove monsters on selected area."/>
+        <item name="Remove Duplicates Items on Selection" action="REMOVE_ON_SELECTION_DUPLICATE_ITEMS" help="Removes all items duplicates selected area."/>
         <separator/>
         <menu name="$Find on Selection">
             <item name="Find $Everything" action="SEARCH_ON_SELECTION_EVERYTHING" help="Find all unique/action/text/container items."/>
@@ -86,6 +92,7 @@
             <item name="Find $Action" action="SEARCH_ON_SELECTION_ACTION" help="Find all items with an action ID on selected area."/>
             <item name="Find $Container" action="SEARCH_ON_SELECTION_CONTAINER" help="Find all containers on selected area."/>
             <item name="Find $Writeable" action="SEARCH_ON_SELECTION_WRITEABLE" help="Find all writeable items on selected area."/>
+            <item name="Find $Duplicate Items" action="SEARCH_ON_SELECTION_DUPLICATE" help="Find all positions where there are duplicate items on selected area."/>
         </menu>
         <separator/>
         <menu name="$Selection Mode">
@@ -118,7 +125,10 @@
         <item name="Show $all floors" hotkey="Ctrl+W" action="SHOW_ALL_FLOORS" help="If not checked other floors are hidden."/>
         <item name="Ghost $loose items" hotkey="G" action="GHOST_ITEMS" help="Ghost items (except ground)."/>
         <item name="Ghost $higher floors" hotkey="Ctrl+L" action="GHOST_HIGHER_FLOORS" help="Ghost floors."/>
-        <item name="Show $Ingame Box" hotkey="Shift+I" action="SHOW_INGAME_BOX" help="Shadows out areas not visible ingame (from the center of the screen)."/>
+        <menu name="$Ingame Box">
+            <item name="Show $client box" hotkey="Shift+I" action="SHOW_INGAME_BOX" help="Shadows out areas not visible ingame (from the center of the screen)."/>
+            <item name="Show $lights" hotkey="Shift+I" action="SHOW_LIGHTS" help="Show lights."/>
+        </menu>
         <item name="Show $Grid" hotkey="Shift+G" action="SHOW_GRID" help="Shows a grid over all items."/>
         <item name="H$ighlight items" hotkey="V" action="HIGHLIGHT_ITEMS" help="Highlight tiles with items on them."/>
         <separator/>
@@ -134,10 +144,15 @@
         <item name="Show $pathing" hotkey="O" action="SHOW_PATHING" help="Show pathing grid (blocking tiles)."/>
         <item name="Show T$ooltips" hotkey="Y" action="SHOW_TOOLTIPS" help="Show tooltips."/>
         <item name="Show Previe$w" hotkey="L" action="SHOW_PREVIEW" help="Show animations and lights preview."/>
-        <item name="Show Wall Hoo$ks" hotkey="K" action="SHOW_WALL_HOOKS" help="Show indicators for wall hooks."/>
+        <menu name="Show Indicators">
+            <item name="Show Wall Hoo$ks" hotkey="K" action="SHOW_WALL_HOOKS" help="Show indicators for wall hooks."/>
+            <item name="Show Pickupables" action="SHOW_PICKUPABLES" help="Show indicators for pickupable items."/>
+            <item name="Show Moveables" action="SHOW_MOVEABLES" help="Show indicators for moveable items."/>
+        </menu>
     </menu>
     <menu name="$Window">
         <item name="$Minimap" hotkey="M" action="WIN_MINIMAP" help="Displays the minimap window."/>
+        <item name="$Actions History" action="WIN_ACTIONS_HISTORY" help="Displays the actions history window."/>
         <item name="$New Palette" action="NEW_PALETTE" help="Creates a new palette."/>
         <separator/>
         <item name="$Terrain Palette" hotkey="T" action="SELECT_TERRAIN" help="Select the Terrain palette."/>
@@ -147,6 +162,7 @@
         <item name="$Creature Palette" hotkey="C" action="SELECT_MONSTER" help="Select the Creature palette."/>
         <item name="$Npc Palette" hotkey="N" action="SELECT_NPC" help="Select the Npc palette."/>
         <item name="$Waypoint Palette" hotkey="W" action="SELECT_WAYPOINT" help="Select the Waypoint palette."/>
+        <item name="$Zones Palette" hotkey="Z" action="SELECT_ZONES" help="Select the Zones palette."/>
         <item name="$RAW Palette" hotkey="R" action="SELECT_RAW" help="Select the RAW palette."/>
     </menu>
     <!--

@@ -25,13 +25,13 @@
 extern Materials g_materials;
 
 BEGIN_EVENT_TABLE(ExtensionsDialog, wxDialog)
-	EVT_BUTTON(wxID_OK, ExtensionsDialog::OnClickOK)
-	EVT_BUTTON(EXTENSIONS_OPEN_FOLDER_BUTTON, ExtensionsDialog::OnClickOpenFolder)
+EVT_HTML_LINK_CLICKED(wxID_ANY, ExtensionsDialog::OnClickLink)
+EVT_BUTTON(wxID_OK, ExtensionsDialog::OnClickOK)
+EVT_BUTTON(EXTENSIONS_OPEN_FOLDER_BUTTON, ExtensionsDialog::OnClickOpenFolder)
 END_EVENT_TABLE()
 
 ExtensionsDialog::ExtensionsDialog(wxWindow* parent) :
-	wxDialog(parent, wxID_ANY, "Extensions", wxDefaultPosition, wxSize(600, 500), wxRESIZE_BORDER | wxCAPTION)
-{
+	wxDialog(parent, wxID_ANY, "Extensions", wxDefaultPosition, wxSize(600, 500), wxRESIZE_BORDER | wxCAPTION) {
 	wxBoxSizer* topSizer = new wxBoxSizer(wxVERTICAL);
 
 	wxSizer* buttonSizer = newd wxBoxSizer(wxHORIZONTAL);
@@ -43,28 +43,29 @@ ExtensionsDialog::ExtensionsDialog(wxWindow* parent) :
 	Centre(wxBOTH);
 }
 
-ExtensionsDialog::~ExtensionsDialog()
-{
+ExtensionsDialog::~ExtensionsDialog() {
 	////
 }
 
-void ExtensionsDialog::OnClickOK(wxCommandEvent& evt)
-{
+void ExtensionsDialog::OnClickLink(wxHtmlLinkEvent &evt) {
+	::wxLaunchDefaultBrowser(evt.GetLinkInfo().GetHref(), wxBROWSER_NEW_WINDOW);
+}
+
+void ExtensionsDialog::OnClickOK(wxCommandEvent &evt) {
 	EndModal(0);
 }
 
-void ExtensionsDialog::OnClickOpenFolder(wxCommandEvent& evt)
-{
+void ExtensionsDialog::OnClickOpenFolder(wxCommandEvent &evt) {
 	wxString cmd, extensionsDir = g_gui.GetExtensionsDirectory();
 #if defined __WINDOWS__
 	cmd << "explorer";
 #elif defined __APPLE__
 	cmd << "open";
-	extensionsDir.Replace(" ", "\\ "); //Escape spaces
+	extensionsDir.Replace(" ", "\\ "); // Escape spaces
 #elif defined __linux
 	cmd << "xdg-open";
 #else
-#error "NOT IMPLEMENTED"
+	#error "NOT IMPLEMENTED"
 #endif
 
 	cmd << " " << extensionsDir;

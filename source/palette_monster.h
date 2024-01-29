@@ -15,7 +15,6 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //////////////////////////////////////////////////////////////////////
 
-
 #ifndef RME_TILESET_MONSTER_H_
 #define RME_TILESET_MONSTER_H_
 
@@ -48,25 +47,30 @@ protected:
 	void SelectTileset(size_t index);
 	void SelectMonster(size_t index);
 	void SelectMonster(std::string name);
+
 public:
 	// Event handling
-	void OnChangeSpawnMonsterTime(wxSpinEvent& event);
-	void OnChangeSpawnMonsterSize(wxSpinEvent& event);
+	void OnChangeSpawnMonsterTime(wxSpinEvent &event);
+	void OnChangeSpawnMonsterSize(wxSpinEvent &event);
 
-	void OnTilesetChange(wxCommandEvent& event);
-	void OnListBoxChange(wxCommandEvent& event);
-	void OnClickMonsterBrushButton(wxCommandEvent& event);
-	void OnClickSpawnMonsterBrushButton(wxCommandEvent& event);
+	void OnTilesetChange(wxCommandEvent &event);
+	void OnListBoxChange(wxCommandEvent &event);
+	void OnClickMonsterBrushButton(wxCommandEvent &event);
+	void OnClickSpawnMonsterBrushButton(wxCommandEvent &event);
+	void OnChangeMonsterName(wxCommandEvent &event);
+
 protected:
 	void SelectMonsterBrush();
 	void SelectSpawnBrush();
 
 	wxChoice* tileset_choice;
+	wxTextCtrl* monster_name_text;
 	SortableListBox* monster_list;
 	wxToggleButton* monster_brush_button;
 	wxToggleButton* spawn_monster_brush_button;
 	wxSpinCtrl* monster_spawntime_spin;
 	wxSpinCtrl* spawn_monster_size_spin;
+	wxSpinCtrl* monster_spawndensity_spin;
 
 	bool handling_event;
 
