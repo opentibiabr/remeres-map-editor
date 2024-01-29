@@ -50,6 +50,7 @@
 // OS
 
 #define OTGZ_SUPPORT 0
+#define CLIENT_VERSION 1100
 
 #define ASSETS_NAME "Tibia"
 

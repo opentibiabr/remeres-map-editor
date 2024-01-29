@@ -260,11 +260,7 @@
     <ClInclude Include="..\..\source\doodad_brush.h" />
     <ClCompile Include="..\..\source\doodad_brush.cpp" />
     <ClCompile Include="..\..\source\eraser_brush.cpp" />
-    <ClInclude Include="..\..\source\extension.h" />
-    <ClInclude Include="..\..\source\extension_window.h" />
     <ClInclude Include="..\..\source\filehandle.h" />
-    <ClCompile Include="..\..\source\extension.cpp" />
-    <ClCompile Include="..\..\source\extension_window.cpp" />
     <ClCompile Include="..\..\source\filehandle.cpp" />
     <ClInclude Include="..\..\source\ground_brush.h" />
     <ClCompile Include="..\..\source\ground_brush.cpp" />
@@ -368,8 +364,8 @@
     <ClCompile Include="..\..\source\map_window.cpp" />
     <ClInclude Include="..\..\source\action.h" />
     <ClCompile Include="..\..\source\action.cpp" />
-    <ClInclude Include="..\..\source\client_version.h" />
-    <ClCompile Include="..\..\source\client_version.cpp" />
+    <ClInclude Include="..\..\source\client_assets.h" />
+    <ClCompile Include="..\..\source\client_assets.cpp" />
     <ClInclude Include="..\..\source\copybuffer.h" />
     <ClCompile Include="..\..\source\copybuffer.cpp" />
     <ClInclude Include="..\..\source\monsters.h" />
@@ -413,6 +409,8 @@
     <ClCompile Include="..\..\source\spawn_npc.cpp" />
     <ClInclude Include="..\..\source\spawn_npc_brush.h" />
     <ClCompile Include="..\..\source\spawn_npc_brush.cpp" />
+    <ClCompile Include="..\..\source\sprite_appearances.cpp" />
+    <ClInclude Include="..\..\source\sprite_appearances.h" />
     <ClCompile Include="..\..\source\templatemap76-74.cpp" />
     <ClCompile Include="..\..\source\templatemap81.cpp" />
     <ClCompile Include="..\..\source\templatemap854.cpp" />

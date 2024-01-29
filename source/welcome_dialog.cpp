@@ -35,13 +35,13 @@ void WelcomeDialog::OnButtonClicked(const wxMouseEvent &event) {
 	wxPoint click_point = event.GetPosition();
 	if (click_point.x > 0 && click_point.x < button_size.x && click_point.y > 0 && click_point.y < button_size.x) {
 		if (button->GetAction() == wxID_PREFERENCES) {
-			PreferencesWindow preferences_window(m_welcome_dialog_panel, true);
+			PreferencesWindow preferences_window(m_welcome_dialog_panel);
 			preferences_window.ShowModal();
 			m_welcome_dialog_panel->updateInputs();
 		} else {
 			wxCommandEvent action_event(WELCOME_DIALOG_ACTION);
 			if (button->GetAction() == wxID_OPEN) {
-				wxString wildcard = g_settings.getInteger(Config::USE_OTGZ) != 0 ? "(*.otbm;*.otgz)|*.otbm;*.otgz" : "(*.otbm)|*.otbm|Compressed OpenTibia Binary Map (*.otgz)|*.otgz";
+				wxString wildcard = "OpenTibia Binary Map (*.otbm)|*.otbm";
 				wxFileDialog file_dialog(this, "Open map file", "", "", wildcard, wxFD_OPEN | wxFD_FILE_MUST_EXIST);
 				if (file_dialog.ShowModal() == wxID_OK) {
 					action_event.SetString(file_dialog.GetPath());

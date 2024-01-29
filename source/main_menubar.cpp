@@ -24,7 +24,6 @@
 #include "minimap_window.h"
 #include "dat_debug_view.h"
 #include "result_window.h"
-#include "extension_window.h"
 #include "find_item_window.h"
 #include "settings.h"
 
@@ -197,7 +196,6 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(FLOOR_15, wxITEM_RADIO, OnChangeFloor);
 
 	MAKE_ACTION(DEBUG_VIEW_DAT, wxITEM_NORMAL, OnDebugViewDat);
-	MAKE_ACTION(EXTENSIONS, wxITEM_NORMAL, OnListExtensions);
 	MAKE_ACTION(GOTO_WEBSITE, wxITEM_NORMAL, OnGotoWebsite);
 	MAKE_ACTION(ABOUT, wxITEM_NORMAL, OnAbout);
 
@@ -323,7 +321,7 @@ void MainMenuBar::Update() {
 		EnableItem(PASTE, false);
 	}
 
-	bool loaded = g_gui.IsVersionLoaded();
+	bool loaded = ClientAssets::isLoaded();
 	bool has_map = editor != nullptr;
 	bool has_selection = editor && editor->hasSelection();
 	bool is_live = editor && editor->IsLive();
@@ -853,14 +851,16 @@ void MainMenuBar::OnDebugViewDat(wxCommandEvent &WXUNUSED(event)) {
 void MainMenuBar::OnReloadDataFiles(wxCommandEvent &WXUNUSED(event)) {
 	wxString error;
 	wxArrayString warnings;
-	g_gui.LoadVersion(g_gui.GetCurrentVersionID(), error, warnings, true);
+	g_gui.LoadVersion(error, warnings);
 	g_gui.PopupDialog("Error", error, wxOK);
 	g_gui.ListDialog("Warnings", warnings);
-}
-
-void MainMenuBar::OnListExtensions(wxCommandEvent &WXUNUSED(event)) {
-	ExtensionsDialog exts(frame);
-	exts.ShowModal();
+	auto clientDirectory = ClientAssets::getPath().ToStdString() + "/";
+	if (clientDirectory.empty() || !wxDirExists(wxString(clientDirectory))) {
+		PreferencesWindow dialog(nullptr);
+		dialog.getBookCtrl().SetSelection(4);
+		dialog.ShowModal();
+		dialog.Destroy();
+	}
 }
 
 void MainMenuBar::OnGotoWebsite(wxCommandEvent &WXUNUSED(event)) {
@@ -945,7 +945,7 @@ void MainMenuBar::OnSearchForItem(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void MainMenuBar::OnReplaceItems(wxCommandEvent &WXUNUSED(event)) {
-	if (!g_gui.IsVersionLoaded()) {
+	if (!ClientAssets::isLoaded()) {
 		return;
 	}
 
@@ -1101,7 +1101,7 @@ void MainMenuBar::OnSearchForItemOnSelection(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void MainMenuBar::OnReplaceItemsOnSelection(wxCommandEvent &WXUNUSED(event)) {
-	if (!g_gui.IsVersionLoaded()) {
+	if (!ClientAssets::isLoaded()) {
 		return;
 	}
 
@@ -1230,7 +1230,7 @@ void MainMenuBar::OnRandomizeMap(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void MainMenuBar::OnJumpToBrush(wxCommandEvent &WXUNUSED(event)) {
-	if (!g_gui.IsVersionLoaded()) {
+	if (!ClientAssets::isLoaded()) {
 		return;
 	}
 
@@ -1249,7 +1249,7 @@ void MainMenuBar::OnJumpToBrush(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void MainMenuBar::OnJumpToItemBrush(wxCommandEvent &WXUNUSED(event)) {
-	if (!g_gui.IsVersionLoaded()) {
+	if (!ClientAssets::isLoaded()) {
 		return;
 	}
 
@@ -2298,7 +2298,7 @@ namespace SearchDuplicatedItems {
 	struct condition {
 		std::unordered_set<Tile*> foundTiles;
 
-		void operator()(Map& map, Tile* tile, Item* item, long long done) {
+		void operator()(Map &map, Tile* tile, Item* item, long long done) {
 			if (done % 0x8000 == 0) {
 				g_gui.SetLoadDone((unsigned int)(100 * done / map.getTileCount()));
 			}
@@ -2329,7 +2329,7 @@ namespace SearchDuplicatedItems {
 	};
 }
 
-void MainMenuBar::SearchDuplicatedItems(bool onSelection/* = false*/) {
+void MainMenuBar::SearchDuplicatedItems(bool onSelection /* = false*/) {
 	if (!g_gui.IsEditorOpen()) {
 		return;
 	}
@@ -2343,7 +2343,7 @@ void MainMenuBar::SearchDuplicatedItems(bool onSelection/* = false*/) {
 	SearchDuplicatedItems::condition finder;
 
 	foreach_ItemOnMap(g_gui.GetCurrentMap(), finder, onSelection);
-	std::unordered_set<Tile*>& foundTiles = finder.foundTiles;
+	std::unordered_set<Tile*> &foundTiles = finder.foundTiles;
 
 	g_gui.DestroyLoadBar();
 
@@ -2363,7 +2363,7 @@ void MainMenuBar::SearchDuplicatedItems(bool onSelection/* = false*/) {
 
 namespace RemoveDuplicatesItems {
 	struct condition {
-		bool operator()(Map& map, Tile* tile, Item* item, long long removed, long long done) {
+		bool operator()(Map &map, Tile* tile, Item* item, long long removed, long long done) {
 			if (done % 0x8000 == 0) {
 				g_gui.SetLoadDone((unsigned int)(100 * done / map.getTileCount()));
 			}
@@ -2401,14 +2401,14 @@ namespace RemoveDuplicatesItems {
 	};
 }
 
-void MainMenuBar::RemoveDuplicatesItems(bool onSelection/* = false*/) {
+void MainMenuBar::RemoveDuplicatesItems(bool onSelection /* = false*/) {
 	if (!g_gui.IsEditorOpen()) {
 		return;
 	}
 
 	int ok = g_gui.PopupDialog("Remove Duplicate Items", "Do you want to remove all duplicates items from the map?", wxYES | wxNO);
 
-	if(ok == wxID_YES) {
+	if (ok == wxID_YES) {
 		g_gui.GetCurrentEditor()->getSelection().clear();
 		g_gui.GetCurrentEditor()->clearActions();
 

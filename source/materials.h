@@ -18,7 +18,7 @@
 #ifndef RME_MATERIALS_H_
 #define RME_MATERIALS_H_
 
-#include "extension.h"
+using TilesetContainer = std::map<std::string, Tileset*>;
 
 class Materials {
 public:
@@ -27,13 +27,9 @@ public:
 
 	void clear();
 
-	const MaterialsExtensionList &getExtensions();
-	MaterialsExtensionList getExtensionsByVersion(uint16_t version_id);
-
 	TilesetContainer tilesets;
 
 	bool loadMaterials(const FileName &identifier, wxString &error, wxArrayString &warnings);
-	bool loadExtensions(FileName identifier, wxString &error, wxArrayString &warnings);
 	void createOtherTileset();
 	void createNpcTileset();
 
@@ -43,8 +39,6 @@ public:
 protected:
 	bool unserializeMaterials(const FileName &filename, pugi::xml_node node, wxString &error, wxArrayString &warnings);
 	bool unserializeTileset(pugi::xml_node node, wxArrayString &warnings);
-
-	MaterialsExtensionList extensions;
 
 private:
 	Materials(const Materials &);

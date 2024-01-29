@@ -3,6 +3,17 @@ cmake_minimum_required(VERSION 3.22)
 project(cmake)
 
 # *****************************************************************************
+# Append cmake search path
+# *****************************************************************************
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
+# *****************************************************************************
+# Include cmake tools
+# *****************************************************************************
+include(MessageColors)
+include(LoggingHelper)
+
+# *****************************************************************************
 # Vcpkg Configs
 # *****************************************************************************
 
@@ -41,6 +52,20 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(OPTIONS_ENABLE_CCACHE "Enable ccache" OFF)
 option(OPTIONS_ENABLE_SCCACHE "Use sccache to speed up compilation process" OFF)
 option(OPTIONS_ENABLE_IPO "Check and Enable interprocedural optimization (IPO/LTO)" ON)
+option(ASAN_ENABLED "Build this target with AddressSanitizer" ON)
+
+# === ASAN ===
+if(ASAN_ENABLED AND (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo"))
+	log_option_enabled("asan")
+	if(MSVC)
+		add_compile_options(/fsanitize=address)
+	else()
+		add_compile_options(-fsanitize=address)
+		link_libraries(-fsanitize=address)
+	endif()
+else()
+	log_option_disabled("asan")
+endif()
 
 # *****************************************************************************
 # Set Sanity Check
@@ -66,12 +91,6 @@ endif()
 # Append cmake search path
 # *****************************************************************************
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
-
-# *****************************************************************************
-# Include cmake tools
-# *****************************************************************************
-include(MessageColors)
-include(LoggingHelper)
 
 # *****************************************************************************
 # Options Code
@@ -119,4 +138,5 @@ endif()
 # *****************************************************************************
 # Add source project
 # *****************************************************************************
+add_subdirectory(source/protobuf)
 add_subdirectory(source)

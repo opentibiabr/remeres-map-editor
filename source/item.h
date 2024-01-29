@@ -151,9 +151,6 @@ public:
 	uint16_t getID() const {
 		return id;
 	}
-	uint16_t getClientID() const {
-		return g_items.getItemType(id).clientID;
-	}
 
 	// NOTE: This is very volatile, do NOT use this unless you know exactly what you're doing
 	// which you probably don't so avoid it like the plague!

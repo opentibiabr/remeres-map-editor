@@ -92,6 +92,6 @@ protected:
 	friend class TilesetCategory;
 };
 
-typedef std::map<std::string, Tileset*> TilesetContainer;
+using TilesetContainer = std::map<std::string, Tileset*>;
 
 #endif

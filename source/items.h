@@ -21,6 +21,14 @@
 #include "filehandle.h"
 #include "brush_enums.h"
 
+namespace canary {
+	namespace protobuf {
+		namespace appearances {
+			class Appearances;
+		}
+	}
+}
+
 class Brush;
 class GroundBrush;
 class WallBrush;
@@ -240,7 +248,7 @@ private:
 	ItemType(const ItemType &) { }
 
 public:
-	ItemType();
+	ItemType() = default;
 
 	bool isGroundTile() const noexcept {
 		return group == ITEM_GROUP_GROUND;
@@ -303,94 +311,110 @@ public:
 		return volume;
 	}
 
-	// editor related
 public:
-	Brush* brush;
-	Brush* doodad_brush;
-	RAWBrush* raw_brush;
-	bool is_metaitem;
-	// This is needed as a consequence of the item palette & the raw palette
-	// using the same brushes ("others" category consists of items with this
-	// flag set to false)
-	bool has_raw;
-	bool in_other_tileset;
+	GameSprite* sprite = nullptr;
+	Brush* brush = nullptr;
+	Brush* doodad_brush = nullptr;
+	RAWBrush* raw_brush = nullptr;
 
-	uint16_t ground_equivalent;
-	uint32_t border_group;
-	bool has_equivalent; // True if any item has this as ground_equivalent
-	bool wall_hate_me; // (For wallbrushes, regard this as not part of the wall)
+	std::vector<std::pair<int, int>> m_animationPhases;
+	int m_numPatternX { 0 }, m_numPatternY { 0 }, m_numPatternZ { 0 };
+	int m_layers { 0 };
+	std::vector<int> m_sprites;
 
-	bool isBorder;
-	bool isOptionalBorder;
-	bool isWall;
-	bool isBrushDoor;
-	bool isOpen;
-	bool isTable;
-	bool isCarpet;
+	uint8_t sprite_phase_size = 0;
 
-public:
-	GameSprite* sprite;
+	uint16_t id = 0;
+	uint16_t clientID = 0;
+	uint16_t volume = 0;
+	uint16_t maxTextLen = 0;
+	uint16_t write_once_item_id = 0;
+	uint16_t ground_equivalent = 0;
+	uint16_t rotateTo = 0;
 
-	uint16_t id;
-	uint16_t clientID;
-
-	ItemGroup_t group;
-	ItemTypes_t type;
-
-	uint16_t volume;
-	uint16_t maxTextLen;
-	// uint16_t writeOnceItemId;
+	uint32_t border_group = 0;
+	uint32_t pattern_width = 0;
+	uint32_t pattern_height = 0;
+	uint32_t pattern_depth = 0;
+	uint32_t layers = 0;
+	uint32_t width = 0;
+	uint32_t height = 0;
+	uint32_t sprite_id = 0;
+	uint32_t loop_count = 0;
+	uint32_t start_frame = 0;
+	uint32_t patternWidth = 0;
+	uint32_t charges = 0;
 
 	std::string name;
 	std::string editorsuffix;
 	std::string description;
 
-	float weight;
-	// It might be useful to be able to extrapolate this information in the future
-	int attack;
-	int defense;
-	int armor;
-	uint32_t charges;
-	bool client_chargeable;
-	bool extra_chargeable;
-	bool ignoreLook;
+	float weight = 0.0;
+	int attack = 0;
+	int defense = 0;
+	int armor = 0;
+	int alwaysOnTopOrder = 0;
 
-	bool isHangable;
-	bool hookEast;
-	bool hookSouth;
-	bool canReadText;
-	bool canWriteText;
-	bool allowDistRead;
-	bool replaceable;
-	bool decays;
+	bool is_metaitem = false;
+	// This is needed as a consequence of the item palette & the raw palette
+	// using the same brushes ("others" category consists of items with this
+	// flag set to false)
+	bool has_raw = false;
+	bool in_other_tileset = false;
+	bool async_animation = false;
+	bool has_equivalent = false; // True if any item has this as ground_equivalent
+	bool wall_hate_me = false; // (For wallbrushes, regard this as not part of the wall)
+	bool client_chargeable = false;
+	bool extra_chargeable = false;
+	bool ignoreLook = false;
+	bool isHangable = false;
+	bool isCorpse = false;
+	bool isVertical = false;
+	bool isHorizontal = false;
+	bool isPodium = false;
+	bool hookEast = false;
+	bool hookSouth = false;
+	bool canReadText = false;
+	bool canWriteText = false;
+	bool allowDistRead = false;
+	bool replaceable = true;
+	bool decays = false;
+	bool stackable = false;
+	bool moveable = true;
+	bool alwaysOnBottom = false;
+	bool pickupable = false;
+	bool rotable = false;
+	bool isBorder = false;
+	bool isOptionalBorder = false;
+	bool isWall = false;
+	bool isBrushDoor = false;
+	bool isOpen = false;
+	bool isTable = false;
+	bool isCarpet = false;
+	bool floorChangeDown = false;
+	bool floorChangeNorth = false;
+	bool floorChangeSouth = false;
+	bool floorChangeEast = false;
+	bool floorChangeWest = false;
+	bool floorChange = false;
+	bool unpassable = false;
+	bool blockPickupable = false;
+	bool blockMissiles = false;
+	bool blockPathfinder = false;
+	bool hasElevation = false;
+	bool forceUse = false;
+	bool hasHeight = false;
+	bool walkStack = false;
+	bool spriteInfo = false;
+	bool noMoveAnimation = false;
 
-	bool stackable;
-	bool moveable;
-	bool alwaysOnBottom;
-	bool pickupable;
-	bool rotable;
-
-	bool floorChangeDown;
-	bool floorChangeNorth;
-	bool floorChangeSouth;
-	bool floorChangeEast;
-	bool floorChangeWest;
-	bool floorChange;
-
-	bool unpassable;
-	bool blockPickupable;
-	bool blockMissiles;
-	bool blockPathfinder;
-	bool hasElevation;
-
-	int alwaysOnTopOrder;
-	uint16_t rotateTo;
-	BorderType border_alignment;
+	BorderType border_alignment = BORDER_NONE;
+	ItemGroup_t group = ITEM_GROUP_NONE;
+	ItemTypes_t type = ITEM_TYPE_NONE;
 };
 
 class ItemDatabase {
 public:
-	ItemDatabase();
 	~ItemDatabase();
 
 	void clear();
@@ -407,6 +431,7 @@ public:
 	bool isValidID(uint16_t id) const;
 
 	bool loadFromOtb(const FileName &datafile, wxString &error, wxArrayString &warnings);
+	bool loadFromProtobuf(wxString &error, wxArrayString &warnings, canary::protobuf::appearances::Appearances appearances);
 	bool loadFromGameXml(const FileName &datafile, wxString &error, wxArrayString &warnings);
 	bool loadItemFromGameXml(pugi::xml_node itemNode, uint16_t id);
 	bool loadMetaItem(pugi::xml_node node);
@@ -429,14 +454,11 @@ protected:
 	ItemMap items;
 
 	// Count of GameSprite types
-	uint16_t item_count;
-	uint16_t effect_count;
-	uint16_t monster_count;
-	uint16_t distance_count;
-
-	uint16_t minClientID;
-	uint16_t maxClientID;
-	uint16_t maxItemId;
+	uint16_t item_count = 0;
+	uint16_t effect_count = 0;
+	uint16_t monster_count = 0;
+	uint16_t distance_count = 0;
+	uint16_t maxItemId = 0;
 
 	ItemType dummy;
 

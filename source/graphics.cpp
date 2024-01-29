@@ -17,15 +17,22 @@
 
 #include "main.h"
 
-#include "sprites.h"
 #include "graphics.h"
+
+#include "client_assets.h"
 #include "artprovider.h"
 #include "filehandle.h"
 #include "settings.h"
 #include "gui.h"
 #include "otml.h"
-#include <wx/rawbmp.h>
+#include "sprite_appearances.h"
+#include "sprites.h"
 #include "pngfiles.h"
+
+#include <wx/rawbmp.h>
+
+GraphicManager g_graphics;
+GameSprite g_gameSprite;
 
 // All 133 template colors
 static uint32_t TemplateOutfitLookupTable[] = {
@@ -165,12 +172,8 @@ static uint32_t TemplateOutfitLookupTable[] = {
 };
 
 GraphicManager::GraphicManager() :
-	client_version(nullptr),
-	unloaded(true),
-	dat_format(DAT_FORMAT_UNKNOWN),
 	otfi_found(false),
 	is_extended(false),
-	has_transparency(false),
 	has_frame_durations(false),
 	has_frame_groups(false),
 	loaded_textures(0),
@@ -182,24 +185,16 @@ GraphicManager::GraphicManager() :
 GraphicManager::~GraphicManager() {
 	for (SpriteMap::iterator iter = sprite_space.begin(); iter != sprite_space.end(); ++iter) {
 		delete iter->second;
+		iter->second = nullptr;
 	}
 
 	for (ImageMap::iterator iter = image_space.begin(); iter != image_space.end(); ++iter) {
 		delete iter->second;
+		iter->second = nullptr;
 	}
 
-	sprite_space.clear();
-	image_space.clear();
-
 	delete animation_timer;
-}
-
-bool GraphicManager::hasTransparency() const {
-	return has_transparency;
-}
-
-bool GraphicManager::isUnloaded() const {
-	return unloaded;
+	animation_timer = nullptr;
 }
 
 GLuint GraphicManager::getFreeTextureID() {
@@ -212,6 +207,7 @@ void GraphicManager::clear() {
 	for (SpriteMap::iterator iter = sprite_space.begin(); iter != sprite_space.end(); ++iter) {
 		if (iter->first >= 0) { // Don't clean internal sprites
 			delete iter->second;
+			iter->second = nullptr;
 		} else {
 			new_sprite_space.insert(std::make_pair(iter->first, iter->second));
 		}
@@ -219,6 +215,7 @@ void GraphicManager::clear() {
 
 	for (ImageMap::iterator iter = image_space.begin(); iter != image_space.end(); ++iter) {
 		delete iter->second;
+		iter->second = nullptr;
 	}
 
 	sprite_space.swap(new_sprite_space);
@@ -229,9 +226,6 @@ void GraphicManager::clear() {
 	creature_count = 0;
 	loaded_textures = 0;
 	lastclean = time(nullptr);
-	spritefile = "";
-
-	unloaded = true;
 }
 
 void GraphicManager::cleanSoftwareSprites() {
@@ -255,11 +249,19 @@ GameSprite* GraphicManager::getCreatureSprite(int id) {
 		return nullptr;
 	}
 
-	SpriteMap::iterator it = sprite_space.find(id + item_count);
+	SpriteMap::iterator it = sprite_space.find(id + getItemSpriteMaxID());
 	if (it != sprite_space.end()) {
 		return static_cast<GameSprite*>(it->second);
 	}
 	return nullptr;
+}
+
+uint16_t GraphicManager::getItemSpriteMaxID() const {
+	return item_count;
+}
+
+uint16_t GraphicManager::getCreatureSpriteMaxID() const {
+	return creature_count;
 }
 
 GameSprite* GraphicManager::getEditorSprite(int id) {
@@ -416,6 +418,7 @@ bool GraphicManager::loadEditorSprites() {
 	return true;
 }
 
+#if CLIENT_VERSION < 1100
 bool GraphicManager::loadOTFI(const FileName &filename, wxString &error, wxArrayString &warnings) {
 	wxDir dir(filename.GetFullPath());
 	wxString otfi_file;
@@ -719,13 +722,13 @@ bool GraphicManager::loadSpriteData(const FileName &datafile, wxString &error, w
 		return false;
 	}
 
-#define safe_get(func, ...)                      \
-	do {                                         \
-		if (!fh.get##func(__VA_ARGS__)) {        \
-			error = wxstr(fh.getErrorMessage()); \
-			return false;                        \
-		}                                        \
-	} while (false)
+	#define safe_get(func, ...)                      \
+		do {                                         \
+			if (!fh.get##func(__VA_ARGS__)) {        \
+				error = wxstr(fh.getErrorMessage()); \
+				return false;                        \
+			}                                        \
+		} while (false)
 
 	uint32_t sprSignature;
 	safe_get(U32, sprSignature);
@@ -772,8 +775,8 @@ bool GraphicManager::loadSpriteData(const FileName &datafile, wxString &error, w
 				} else {
 					spr->id = id;
 					spr->size = size;
-					spr->dump = newd uint8_t[size];
-					if (!fh.getRAW(spr->dump, size)) {
+					spr->m_cachedData = newd uint8_t[size];
+					if (!fh.getRAW(spr->m_cachedData, size)) {
 						error = wxstr(fh.getErrorMessage());
 						return false;
 					}
@@ -783,7 +786,7 @@ bool GraphicManager::loadSpriteData(const FileName &datafile, wxString &error, w
 			fh.skip(size);
 		}
 	}
-#undef safe_get
+	#undef safe_get
 	unloaded = false;
 	return true;
 }
@@ -826,6 +829,128 @@ bool GraphicManager::loadSpriteDump(uint8_t*&target, uint16_t &size, int sprite_
 	}
 	return false;
 }
+#endif
+
+bool GraphicManager::loadItemSpriteMetadata(ItemType* t, wxString &error, wxArrayString &warnings) {
+	GameSprite* sType = newd GameSprite();
+	sType->id = t->id;
+	sprite_space[t->id] = sType;
+	item_count = std::max<uint16_t>(item_count, t->id);
+
+	// Number of blendframes (some sprites consist of several merged sprites
+	sType->layers = t->layers;
+	sType->pattern_x = t->pattern_width;
+	sType->pattern_y = t->pattern_height;
+	sType->pattern_z = t->pattern_depth;
+
+	// Length of animation
+	sType->sprite_phase_size = t->m_animationPhases.size();
+	has_frame_durations = t->m_animationPhases.size() > 0;
+
+	if (sType->sprite_phase_size > 0) {
+		sType->animator = newd Animator(sType->sprite_phase_size, t->start_frame, t->loop_count, t->async_animation);
+		if (has_frame_durations) {
+			int frameIndex = 0;
+			for (const auto phase : t->m_animationPhases) {
+				FrameDuration* frame_duration = sType->animator->getFrameDuration(frameIndex);
+				frame_duration->setValues(phase.first, phase.second);
+				frameIndex++;
+			}
+			sType->animator->reset();
+		}
+	}
+
+	sType->numsprites = (int)sType->layers * (int)sType->pattern_x * (int)sType->pattern_y * sType->pattern_z * std::max<int>(1, sType->sprite_phase_size);
+
+	// Read the sprite ids
+	for (uint32_t i = 0; i < sType->numsprites; ++i) {
+		uint32_t sprite_id = t->m_sprites[i];
+
+		if (image_space[sprite_id] == nullptr) {
+			GameSprite::NormalImage* img = newd GameSprite::NormalImage();
+			img->id = sprite_id;
+			image_space[sprite_id] = img;
+		}
+		sType->spriteList.push_back(static_cast<GameSprite::NormalImage*>(image_space[sprite_id]));
+	}
+	return true;
+}
+
+bool GraphicManager::loadOutfitSpriteMetadata(canary::protobuf::appearances::Appearance outfit, wxString &error, wxArrayString &warnings) {
+	GameSprite* sType = newd GameSprite();
+	sType->id = outfit.id() + getItemSpriteMaxID();
+	sprite_space[outfit.id() + getItemSpriteMaxID()] = sType;
+	creature_count = std::max<uint16_t>(creature_count, outfit.id());
+
+	// We dont need to worry about IDLE or MOVING frame group
+	const auto &frameGroup = outfit.frame_group().Get(0);
+	const auto &spriteInfo = frameGroup.sprite_info();
+	const auto &animation = spriteInfo.animation();
+
+	// Number of blendframes (some sprites consist of several merged sprites
+	sType->layers = spriteInfo.layers();
+	sType->pattern_x = spriteInfo.pattern_width();
+	sType->pattern_y = spriteInfo.pattern_height();
+	sType->pattern_z = spriteInfo.pattern_depth();
+
+	// Length of animation
+	sType->sprite_phase_size = animation.sprite_phase().size();
+	has_frame_durations = animation.sprite_phase().size() > 0;
+
+	if (sType->sprite_phase_size > 0) {
+		sType->animator = newd Animator(sType->sprite_phase_size, animation.default_start_phase(), animation.loop_count(), !animation.synchronized());
+		if (has_frame_durations) {
+			int frameIndex = 0;
+			for (const auto &phase : animation.sprite_phase()) {
+				FrameDuration* frame_duration = sType->animator->getFrameDuration(frameIndex);
+				frame_duration->setValues(phase.duration_min(), phase.duration_max());
+				frameIndex++;
+			}
+			sType->animator->reset();
+		}
+	}
+
+	sType->numsprites = (int)sType->layers * (int)sType->pattern_x * (int)sType->pattern_y * sType->pattern_z * std::max<int>(1, sType->sprite_phase_size);
+
+	sType->minimap_color = outfit.flags().has_automap() ? static_cast<uint16_t>(outfit.flags().automap().color()) : 0;
+	sType->draw_height = outfit.flags().has_height() ? static_cast<uint16_t>(outfit.flags().height().elevation()) : 0;
+	if (outfit.flags().has_shift()) {
+		sType->drawoffset_x = static_cast<uint16_t>(outfit.flags().shift().x());
+		sType->drawoffset_y = static_cast<uint16_t>(outfit.flags().shift().y());
+		sType->isDrawOffsetLoaded = true;
+	}
+
+	// Read the sprite ids
+	for (uint32_t i = 0; i < sType->numsprites; ++i) {
+		uint32_t sprite_id = spriteInfo.sprite_id().Get(i);
+
+		if (image_space[sprite_id] == nullptr) {
+			GameSprite::NormalImage* img = newd GameSprite::NormalImage();
+			img->id = sprite_id;
+			image_space[sprite_id] = img;
+		}
+		sType->spriteList.push_back(static_cast<GameSprite::NormalImage*>(image_space[sprite_id]));
+	}
+	return true;
+}
+
+bool GraphicManager::loadSpriteDump(uint8_t*&target, uint16_t &size, int sprite_id) {
+	// Empty GameSprite
+	if (sprite_id == 0) {
+		size = 0;
+		target = nullptr;
+		return true;
+	}
+
+	const auto &spritePtr = g_spriteAppearances.getSprite(sprite_id);
+	if (!spritePtr) {
+		return false;
+	}
+
+	size = spritePtr->pixels.size();
+	target = spritePtr->pixels.data();
+	return true;
+}
 
 void GraphicManager::addSpriteToCleanup(GameSprite* spr) {
 	cleanup_list.push_back(spr);
@@ -846,14 +971,6 @@ void GraphicManager::garbageCollection() {
 			while (iit != image_space.end()) {
 				iit->second->clean(t);
 				++iit;
-			}
-			SpriteMap::iterator sit = sprite_space.begin();
-			while (sit != sprite_space.end()) {
-				GameSprite* gs = dynamic_cast<GameSprite*>(sit->second);
-				if (gs) {
-					gs->clean(t);
-				}
-				++sit;
 			}
 			lastclean = t;
 		}
@@ -891,50 +1008,63 @@ GameSprite::GameSprite() :
 	pattern_x(0),
 	pattern_y(0),
 	pattern_z(0),
-	frames(0),
+	sprite_phase_size(0),
 	numsprites(0),
 	animator(nullptr),
-	ground_speed(0),
 	draw_height(0),
+	drawoffset_x(0),
+	drawoffset_y(0),
 	minimap_color(0) {
-	dc[SPRITE_SIZE_16x16] = nullptr;
-	dc[SPRITE_SIZE_32x32] = nullptr;
+	m_wxMemoryDc[SPRITE_SIZE_16x16] = nullptr;
+	m_wxMemoryDc[SPRITE_SIZE_32x32] = nullptr;
 }
 
 GameSprite::~GameSprite() {
 	unloadDC();
-	for (std::list<TemplateImage*>::iterator iter = instanced_templates.begin(); iter != instanced_templates.end(); ++iter) {
-		delete *iter;
-	}
-
 	delete animator;
-}
-
-void GameSprite::clean(int time) {
-	for (std::list<TemplateImage*>::iterator iter = instanced_templates.begin();
-		 iter != instanced_templates.end();
-		 ++iter) {
-		(*iter)->clean(time);
-	}
+	animator = nullptr;
 }
 
 void GameSprite::unloadDC() {
-	delete dc[SPRITE_SIZE_16x16];
-	delete dc[SPRITE_SIZE_32x32];
-	dc[SPRITE_SIZE_16x16] = nullptr;
-	dc[SPRITE_SIZE_32x32] = nullptr;
+	delete m_wxMemoryDc[SPRITE_SIZE_16x16];
+	delete m_wxMemoryDc[SPRITE_SIZE_32x32];
+	m_wxMemoryDc[SPRITE_SIZE_16x16] = nullptr;
+	m_wxMemoryDc[SPRITE_SIZE_32x32] = nullptr;
+}
+
+uint16_t GameSprite::getDrawHeight() const {
+	return draw_height;
+}
+
+wxPoint GameSprite::getDrawOffset() {
+	if (!isDrawOffsetLoaded && spriteList.size() > 0) {
+		const auto &sheet = g_spriteAppearances.getSheetBySpriteId(spriteList[0]->getHardwareID());
+		if (!sheet) {
+			return wxPoint(0, 0);
+		}
+
+		drawoffset_x += sheet->getSpriteSize().width - 32;
+		drawoffset_y += sheet->getSpriteSize().height - 32;
+		isDrawOffsetLoaded = true;
+	}
+
+	return wxPoint(drawoffset_x, drawoffset_y);
+}
+
+uint8_t GameSprite::getMiniMapColor() const {
+	return minimap_color;
 }
 
 int GameSprite::getIndex(int width, int height, int layer, int pattern_x, int pattern_y, int pattern_z, int frame) const {
-	return ((((((frame % this->frames) * this->pattern_z + pattern_z) * this->pattern_y + pattern_y) * this->pattern_x + pattern_x) * this->layers + layer) * this->height + height) * this->width + width;
+	return ((((frame % this->sprite_phase_size) * this->pattern_z + pattern_z) * this->pattern_y + pattern_y) * this->pattern_x + pattern_x) * this->layers + layer;
 }
 
-GLuint GameSprite::getHardwareID(int _x, int _y, int _layer, int _count, int _pattern_x, int _pattern_y, int _pattern_z, int _frame) {
+GLuint GameSprite::getHardwareID(int _layer, int _count, int _pattern_x, int _pattern_y, int _pattern_z, int _frame) {
 	uint32_t v;
-	if (_count >= 0 && height <= 1 && width <= 1) {
+	if (_count >= 0) {
 		v = _count;
 	} else {
-		v = ((((((_frame)*pattern_y + _pattern_y) * pattern_x + _pattern_x) * layers + _layer) * height + _y) * width + _x);
+		v = (((_frame)*pattern_y + _pattern_y) * pattern_x + _pattern_x) * layers + _layer;
 	}
 	if (v >= numsprites) {
 		if (numsprites == 1) {
@@ -946,100 +1076,100 @@ GLuint GameSprite::getHardwareID(int _x, int _y, int _layer, int _count, int _pa
 	return spriteList[v]->getHardwareID();
 }
 
-GameSprite::TemplateImage* GameSprite::getTemplateImage(int sprite_index, const Outfit &outfit) {
+std::shared_ptr<GameSprite::OutfitImage> GameSprite::getOutfitImage(int spriteId, Direction direction, const Outfit &outfit) {
+	uint32_t spriteIndex = direction * layers;
+	if (layers > 1 && spriteIndex >= numsprites) {
+		if (numsprites == 1) {
+			spriteIndex = 0;
+		} else {
+			spriteIndex %= numsprites;
+		}
+	}
+
 	if (instanced_templates.empty()) {
-		TemplateImage* img = newd TemplateImage(this, sprite_index, outfit);
+		auto img = std::make_shared<GameSprite::OutfitImage>(this, spriteIndex, spriteId, outfit);
+		if (!img) {
+			return nullptr;
+		}
 		instanced_templates.push_back(img);
 		return img;
 	}
 	// While this is linear lookup, it is very rare for the list to contain more than 4-8 entries, so it's faster than a hashmap anyways.
-	for (std::list<TemplateImage*>::iterator iter = instanced_templates.begin(); iter != instanced_templates.end(); ++iter) {
-		TemplateImage* img = *iter;
-		if (img->sprite_index == sprite_index) {
-			uint32_t lookHash = img->lookHead << 24 | img->lookBody << 16 | img->lookLegs << 8 | img->lookFeet;
+	for (auto iter = instanced_templates.begin(); iter != instanced_templates.end(); ++iter) {
+		auto img = *iter;
+		if (img->m_spriteId == spriteId) {
+			uint32_t lookHash = img->m_lookHead << 24 | img->m_lookBody << 16 | img->m_lookLegs << 8 | img->m_lookFeet;
 			if (outfit.getColorHash() == lookHash) {
 				return img;
 			}
 		}
 	}
-	TemplateImage* img = newd TemplateImage(this, sprite_index, outfit);
+
+	auto img = std::make_shared<GameSprite::OutfitImage>(this, spriteIndex, spriteId, outfit);
 	instanced_templates.push_back(img);
 	return img;
 }
 
-GLuint GameSprite::getHardwareID(int _x, int _y, int _dir, int _addon, int _pattern_z, const Outfit &_outfit, int _frame) {
-	uint32_t v = getIndex(_x, _y, 0, _dir, _addon, _pattern_z, _frame);
-	if (v >= numsprites) {
-		if (numsprites == 1) {
-			v = 0;
-		} else {
-			v %= numsprites;
-		}
-	}
-	if (layers > 1) { // Template
-		TemplateImage* img = getTemplateImage(v, _outfit);
-		return img->getHardwareID();
-	}
-	return spriteList[v]->getHardwareID();
-}
-
-wxMemoryDC* GameSprite::getDC(SpriteSize size) {
-	ASSERT(size == SPRITE_SIZE_16x16 || size == SPRITE_SIZE_32x32);
-
-	if (!dc[size]) {
-		ASSERT(width >= 1 && height >= 1);
-
+wxMemoryDC* GameSprite::getDC(SpriteSize spriteSize) {
+	if (!m_wxMemoryDc[spriteSize]) {
 		const int bgshade = g_settings.getInteger(Config::ICON_BACKGROUND);
+		wxImage background(getWidth(), getHeight());
 
-		int image_size = std::max<int>(width, height) * rme::SpritePixels;
-		wxImage image(image_size, image_size);
-		image.Clear(bgshade);
+		auto backgroundBmp = wxBitmap(background);
+		m_wxMemoryDc[spriteSize] = new wxMemoryDC(backgroundBmp);
 
-		for (uint8_t l = 0; l < layers; l++) {
-			for (uint8_t w = 0; w < width; w++) {
-				for (uint8_t h = 0; h < height; h++) {
-					const int i = getIndex(w, h, l, 0, 0, 0, 0);
-					uint8_t* data = spriteList[i]->getRGBData();
-					if (data) {
-						wxImage img(rme::SpritePixels, rme::SpritePixels, data);
-						img.SetMaskColour(0xFF, 0x00, 0xFF);
-						image.Paste(img, (width - w - 1) * rme::SpritePixels, (height - h - 1) * rme::SpritePixels);
-						img.Destroy();
-					}
-				}
-			}
+		m_wxMemoryDc[spriteSize]->SelectObject(wxNullBitmap);
+		auto spriteId = spriteList[0]->getHardwareID();
+		wxImage wxImage = g_spriteAppearances.getWxImageBySpriteId(spriteId);
+
+		// Resize image to 32x32
+		if (getWidth() > rme::SpritePixels || getHeight() > rme::SpritePixels) {
+			wxImage.Rescale(rme::SpritePixels, rme::SpritePixels);
 		}
 
-		// Now comes the resizing / antialiasing
-		if (size == SPRITE_SIZE_16x16 || image.GetWidth() > rme::SpritePixels || image.GetHeight() > rme::SpritePixels) {
-			int new_size = SPRITE_SIZE_16x16 ? 16 : 32;
-			image.Rescale(new_size, new_size);
-		}
-
-		wxBitmap bmp(image);
-		dc[size] = newd wxMemoryDC(bmp);
+		auto bitMap = wxBitmap(wxImage);
+		m_wxMemoryDc[spriteSize]->SelectObject(bitMap);
 		g_gui.gfx.addSpriteToCleanup(this);
-		image.Destroy();
 	}
-	return dc[size];
+
+	return m_wxMemoryDc[spriteSize];
 }
 
-void GameSprite::DrawTo(wxDC* dc, SpriteSize sz, int start_x, int start_y, int width, int height) {
-	if (width == -1) {
-		width = sz == SPRITE_SIZE_32x32 ? 32 : 16;
+void GameSprite::DrawTo(wxDC* dcWindow, SpriteSize spriteSize, int start_x, int start_y, int width, int height) {
+	if (width == -1 || height == -1) {
+		if (spriteList.size() == 0) {
+			return;
+		}
+		const auto &sheet = g_spriteAppearances.getSheetBySpriteId(spriteList[0]->getHardwareID());
+		if (!sheet) {
+			return;
+		}
+
+		width = sheet->getSpriteSize().width;
+		height = sheet->getSpriteSize().height;
 	}
-	if (height == -1) {
-		height = sz == SPRITE_SIZE_32x32 ? 32 : 16;
-	}
-	wxDC* sdc = getDC(sz);
+
+	wxMemoryDC* sdc = getDC(spriteSize);
 	if (sdc) {
-		dc->Blit(start_x, start_y, width, height, sdc, 0, 0, wxCOPY, true);
+		dcWindow->Blit(start_x, start_y, width, height, sdc, 0, 0, wxCOPY, true);
 	} else {
-		const wxBrush &b = dc->GetBrush();
-		dc->SetBrush(*wxRED_BRUSH);
-		dc->DrawRectangle(start_x, start_y, width, height);
-		dc->SetBrush(b);
+		const wxBrush &b = dcWindow->GetBrush();
+		dcWindow->SetBrush(*wxRED_BRUSH);
+		dcWindow->DrawRectangle(start_x, start_y, width, height);
+		dcWindow->SetBrush(b);
 	}
+}
+
+uint8_t* GameSprite::invertGLColors(int spriteHeight, int spriteWidth, uint8_t* rgba) {
+	uint8_t* rgba_inverted = new uint8_t[spriteWidth * spriteHeight * 4];
+	for (int i = 0; i < spriteWidth * spriteHeight; i++) {
+		rgba_inverted[i * 4 + 0] = rgba[i * 4 + 2]; // R -> B
+		rgba_inverted[i * 4 + 1] = rgba[i * 4 + 1]; // G
+		rgba_inverted[i * 4 + 2] = rgba[i * 4 + 0]; // B -> R
+		rgba_inverted[i * 4 + 3] = rgba[i * 4 + 3]; // A
+	}
+
+	return rgba_inverted;
 }
 
 GameSprite::Image::Image() :
@@ -1052,7 +1182,7 @@ GameSprite::Image::~Image() {
 	unloadGLTexture(0);
 }
 
-void GameSprite::Image::createGLTexture(GLuint textureId) {
+void GameSprite::Image::createGLTexture(GLuint whatid) {
 	ASSERT(!isGLLoaded);
 
 	uint8_t* rgba = getRGBAData();
@@ -1060,23 +1190,30 @@ void GameSprite::Image::createGLTexture(GLuint textureId) {
 		return;
 	}
 
+	const auto &sheet = g_spriteAppearances.getSheetBySpriteId(whatid);
+	if (!sheet) {
+		return;
+	}
+
+	auto spriteWidth = sheet->getSpriteSize().width;
+	auto spriteHeight = sheet->getSpriteSize().height;
+	auto invertedBuffer = invertGLColors(spriteHeight, spriteWidth, rgba);
+
 	isGLLoaded = true;
 	g_gui.gfx.loaded_textures += 1;
 
-	glBindTexture(GL_TEXTURE_2D, textureId);
+	glBindTexture(GL_TEXTURE_2D, whatid);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Linear Filtering
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // Linear Filtering
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, 0x812F); // GL_CLAMP_TO_EDGE
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, 0x812F); // GL_CLAMP_TO_EDGE
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, rme::SpritePixels, rme::SpritePixels, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
-
-	delete[] rgba;
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, spriteWidth, spriteHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, invertedBuffer);
 }
 
-void GameSprite::Image::unloadGLTexture(GLuint textureId) {
+void GameSprite::Image::unloadGLTexture(GLuint whatid) {
 	isGLLoaded = false;
 	g_gui.gfx.loaded_textures -= 1;
-	glDeleteTextures(1, &textureId);
+	glDeleteTextures(1, &whatid);
 }
 
 void GameSprite::Image::visit() {
@@ -1092,125 +1229,31 @@ void GameSprite::Image::clean(int time) {
 GameSprite::NormalImage::NormalImage() :
 	id(0),
 	size(0),
-	dump(nullptr) {
+	m_cachedData(nullptr) {
 	////
 }
 
 GameSprite::NormalImage::~NormalImage() {
-	delete[] dump;
+	m_cachedData = nullptr;
 }
 
 void GameSprite::NormalImage::clean(int time) {
 	Image::clean(time);
-	if (time - lastaccess > 5 && !g_settings.getInteger(Config::USE_MEMCACHED_SPRITES)) { // We keep dumps around for 5 seconds.
-		delete[] dump;
-		dump = nullptr;
+	// We keep dumps around for 5 seconds.
+	if (time - lastaccess > 5) {
+		m_cachedData = nullptr;
 	}
-}
-
-uint8_t* GameSprite::NormalImage::getRGBData() {
-	if (!dump) {
-		if (g_settings.getInteger(Config::USE_MEMCACHED_SPRITES)) {
-			return nullptr;
-		}
-
-		if (!g_gui.gfx.loadSpriteDump(dump, size, id)) {
-			return nullptr;
-		}
-	}
-
-	const int pixels_data_size = rme::SpritePixels * rme::SpritePixels * 3;
-	uint8_t* data = newd uint8_t[pixels_data_size];
-	uint8_t bpp = g_gui.gfx.hasTransparency() ? 4 : 3;
-	int write = 0;
-	int read = 0;
-
-	// decompress pixels
-	while (read < size && write < pixels_data_size) {
-		int transparent = dump[read] | dump[read + 1] << 8;
-		read += 2;
-		for (int i = 0; i < transparent && write < pixels_data_size; i++) {
-			data[write + 0] = 0xFF; // red
-			data[write + 1] = 0x00; // green
-			data[write + 2] = 0xFF; // blue
-			write += 3;
-		}
-
-		int colored = dump[read] | dump[read + 1] << 8;
-		read += 2;
-		for (int i = 0; i < colored && write < pixels_data_size; i++) {
-			data[write + 0] = dump[read + 0]; // red
-			data[write + 1] = dump[read + 1]; // green
-			data[write + 2] = dump[read + 2]; // blue
-			write += 3;
-			read += bpp;
-		}
-	}
-
-	// fill remaining pixels
-	while (write < pixels_data_size) {
-		data[write + 0] = 0xFF; // red
-		data[write + 1] = 0x00; // green
-		data[write + 2] = 0xFF; // blue
-		write += 3;
-	}
-	return data;
 }
 
 uint8_t* GameSprite::NormalImage::getRGBAData() {
-	if (!dump) {
-		if (g_settings.getInteger(Config::USE_MEMCACHED_SPRITES)) {
-			return nullptr;
-		}
-
-		if (!g_gui.gfx.loadSpriteDump(dump, size, id)) {
+	if (!m_cachedData) {
+		if (!g_gui.gfx.loadSpriteDump(m_cachedData, size, id)) {
+			spdlog::info("[GameSprite::NormalImage::getRGBAData] - Failed when parsing sprite id {}", id);
 			return nullptr;
 		}
 	}
 
-	const int pixels_data_size = rme::SpritePixelsSize * 4;
-	uint8_t* data = newd uint8_t[pixels_data_size];
-	bool use_alpha = g_gui.gfx.hasTransparency();
-	uint8_t bpp = use_alpha ? 4 : 3;
-	int write = 0;
-	int read = 0;
-
-	// decompress pixels
-	while (read < size && write < pixels_data_size) {
-		int transparent = dump[read] | dump[read + 1] << 8;
-		if (use_alpha && transparent >= rme::SpritePixelsSize) { // Corrupted sprite?
-			break;
-		}
-		read += 2;
-		for (int i = 0; i < transparent && write < pixels_data_size; i++) {
-			data[write + 0] = 0x00; // red
-			data[write + 1] = 0x00; // green
-			data[write + 2] = 0x00; // blue
-			data[write + 3] = 0x00; // alpha
-			write += 4;
-		}
-
-		int colored = dump[read] | dump[read + 1] << 8;
-		read += 2;
-		for (int i = 0; i < colored && write < pixels_data_size; i++) {
-			data[write + 0] = dump[read + 0]; // red
-			data[write + 1] = dump[read + 1]; // green
-			data[write + 2] = dump[read + 2]; // blue
-			data[write + 3] = use_alpha ? dump[read + 3] : 0xFF; // alpha
-			write += 4;
-			read += bpp;
-		}
-	}
-
-	// fill remaining pixels
-	while (write < pixels_data_size) {
-		data[write + 0] = 0x00; // red
-		data[write + 1] = 0x00; // green
-		data[write + 2] = 0x00; // blue
-		data[write + 3] = 0x00; // alpha
-		write += 4;
-	}
-	return data;
+	return m_cachedData;
 }
 
 GLuint GameSprite::NormalImage::getHardwareID() {
@@ -1221,11 +1264,11 @@ GLuint GameSprite::NormalImage::getHardwareID() {
 	return id;
 }
 
-void GameSprite::NormalImage::createGLTexture(GLuint textureId) {
+void GameSprite::NormalImage::createGLTexture(GLuint ignored) {
 	Image::createGLTexture(id);
 }
 
-void GameSprite::NormalImage::unloadGLTexture(GLuint textureId) {
+void GameSprite::NormalImage::unloadGLTexture(GLuint ignored) {
 	Image::unloadGLTexture(id);
 }
 
@@ -1281,161 +1324,169 @@ void GameSprite::EditorImage::createGLTexture(GLuint textureId) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, 0x812F); // GL_CLAMP_TO_EDGE
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, 0x812F); // GL_CLAMP_TO_EDGE
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, rme::SpritePixels, rme::SpritePixels, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageData);
-
-	delete[] imageData;
 }
 
 void GameSprite::EditorImage::unloadGLTexture(GLuint textureId) {
 	Image::unloadGLTexture(id);
 }
 
-GameSprite::TemplateImage::TemplateImage(GameSprite* parent, int v, const Outfit &outfit) :
-	gl_tid(0),
-	parent(parent),
-	sprite_index(v),
-	lookHead(outfit.lookHead),
-	lookBody(outfit.lookBody),
-	lookLegs(outfit.lookLegs),
-	lookFeet(outfit.lookFeet) {
+uint8_t GameSprite::getWidth() {
+	if (width <= 0) {
+		const auto &sheet = g_spriteAppearances.getSheetBySpriteId(spriteList[0]->getHardwareID(), false);
+		if (sheet) {
+			width = sheet->getSpriteSize().width;
+			height = sheet->getSpriteSize().height;
+		}
+	}
+
+	return width;
+}
+
+uint8_t GameSprite::getHeight() {
+	if (height <= 0) {
+		const auto &sheet = g_spriteAppearances.getSheetBySpriteId(spriteList[0]->getHardwareID(), false);
+		if (sheet) {
+			width = sheet->getSpriteSize().width;
+			height = sheet->getSpriteSize().height;
+		}
+	}
+
+	return height;
+}
+
+// OutfitImage
+GameSprite::OutfitImage::OutfitImage(GameSprite* initParent, int initSpriteIndex, GLuint initSpriteId, const Outfit &initOutfit) :
+	m_spriteId(initSpriteId),
+	m_spriteIndex(initSpriteIndex),
+	m_parent(initParent),
+	m_name(initOutfit.name),
+	m_lookHead(initOutfit.lookHead),
+	m_lookBody(initOutfit.lookBody),
+	m_lookLegs(initOutfit.lookLegs),
+	m_lookFeet(initOutfit.lookFeet) {
 	////
 }
 
-GameSprite::TemplateImage::~TemplateImage() {
-	////
+GameSprite::OutfitImage::~OutfitImage() {
+	m_cachedOutfitData = nullptr;
 }
 
-void GameSprite::TemplateImage::colorizePixel(uint8_t color, uint8_t &red, uint8_t &green, uint8_t &blue) {
-	// Thanks! Khaos, or was it mips? Hmmm... =)
+void GameSprite::OutfitImage::unloadGLTexture(GLuint ignored) {
+	Image::unloadGLTexture(m_spriteId);
+}
+
+void GameSprite::OutfitImage::colorizePixel(uint8_t color, uint8_t &red, uint8_t &green, uint8_t &blue) {
 	uint8_t ro = (TemplateOutfitLookupTable[color] & 0xFF0000) >> 16; // rgb outfit
 	uint8_t go = (TemplateOutfitLookupTable[color] & 0xFF00) >> 8;
 	uint8_t bo = (TemplateOutfitLookupTable[color] & 0xFF);
-	red = (uint8_t)(red * (ro / 255.f));
-	green = (uint8_t)(green * (go / 255.f));
-	blue = (uint8_t)(blue * (bo / 255.f));
+
+	red = (uint8_t)(red * ((float)ro / 255.f));
+	green = (uint8_t)(green * ((float)go / 255.f));
+	blue = (uint8_t)(blue * ((float)bo / 255.f));
 }
 
-uint8_t* GameSprite::TemplateImage::getRGBData() {
-	uint8_t* rgbdata = parent->spriteList[sprite_index]->getRGBData();
-	uint8_t* template_rgbdata = parent->spriteList[sprite_index + parent->height * parent->width]->getRGBData();
-
-	if (!rgbdata) {
-		delete[] template_rgbdata;
-		return nullptr;
+uint8_t* GameSprite::OutfitImage::getRGBAData() {
+	if (m_cachedOutfitData) {
+		return m_cachedOutfitData;
 	}
-	if (!template_rgbdata) {
-		delete[] rgbdata;
+
+	const auto &sprite = g_spriteAppearances.getSprite(m_parent->spriteList[m_spriteIndex]->getHardwareID());
+	if (!sprite) {
 		return nullptr;
 	}
 
-	if (lookHead > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
-		lookHead = 0;
-	}
-	if (lookBody > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
-		lookBody = 0;
-	}
-	if (lookLegs > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
-		lookLegs = 0;
-	}
-	if (lookFeet > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
-		lookFeet = 0;
+	const auto &spriteTemplate = g_spriteAppearances.getSprite(m_parent->spriteList[m_spriteIndex + 1]->getHardwareID());
+	if (!spriteTemplate) {
+		return nullptr;
 	}
 
-	for (int y = 0; y < rme::SpritePixels; ++y) {
-		for (int x = 0; x < rme::SpritePixels; ++x) {
-			uint8_t &red = rgbdata[y * rme::SpritePixels * 3 + x * 3 + 0];
-			uint8_t &green = rgbdata[y * rme::SpritePixels * 3 + x * 3 + 1];
-			uint8_t &blue = rgbdata[y * rme::SpritePixels * 3 + x * 3 + 2];
+	uint8_t* rgbadata = sprite->pixels.data();
+	uint8_t* template_rgbadata = spriteTemplate->pixels.data();
 
-			uint8_t &tred = template_rgbdata[y * rme::SpritePixels * 3 + x * 3 + 0];
-			uint8_t &tgreen = template_rgbdata[y * rme::SpritePixels * 3 + x * 3 + 1];
-			uint8_t &tblue = template_rgbdata[y * rme::SpritePixels * 3 + x * 3 + 2];
+	if (m_lookHead > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
+		m_lookHead = 0;
+	}
+	if (m_lookBody > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
+		m_lookBody = 0;
+	}
+	if (m_lookLegs > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
+		m_lookLegs = 0;
+	}
+	if (m_lookFeet > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
+		m_lookFeet = 0;
+	}
+
+	int height = sprite->size.height;
+	int width = sprite->size.width;
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x) {
+			const int index = (y * width + x) * 4;
+			uint8_t &red = rgbadata[index + 2];
+			uint8_t &green = rgbadata[index + 1];
+			uint8_t &blue = rgbadata[index];
+
+			const uint8_t &tred = template_rgbadata[index + 2];
+			const uint8_t &tgreen = template_rgbadata[index + 1];
+			const uint8_t &tblue = template_rgbadata[index];
 
 			if (tred && tgreen && !tblue) { // yellow => head
-				colorizePixel(lookHead, red, green, blue);
+				colorizePixel(m_lookHead, red, green, blue);
 			} else if (tred && !tgreen && !tblue) { // red => body
-				colorizePixel(lookBody, red, green, blue);
+				colorizePixel(m_lookBody, red, green, blue);
 			} else if (!tred && tgreen && !tblue) { // green => legs
-				colorizePixel(lookLegs, red, green, blue);
+				colorizePixel(m_lookLegs, red, green, blue);
 			} else if (!tred && !tgreen && tblue) { // blue => feet
-				colorizePixel(lookFeet, red, green, blue);
+				colorizePixel(m_lookFeet, red, green, blue);
 			}
 		}
 	}
-	delete[] template_rgbdata;
-	return rgbdata;
+
+	spdlog::debug("outfit name: {}, pattern_x: {}, pattern_y: {}, pattern_z: {}, sprite_phase_size: {}, layers: {}, draw height: {}, drawx: {}, drawy: {}", m_name, m_parent->pattern_x, m_parent->pattern_y, m_parent->pattern_z, m_parent->sprite_phase_size, m_parent->layers, m_parent->draw_height, m_parent->drawoffset_x, m_parent->drawoffset_y);
+
+	m_cachedOutfitData = rgbadata;
+	return m_cachedOutfitData;
 }
 
-uint8_t* GameSprite::TemplateImage::getRGBAData() {
-	uint8_t* rgbadata = parent->spriteList[sprite_index]->getRGBAData();
-	uint8_t* template_rgbdata = parent->spriteList[sprite_index + parent->height * parent->width]->getRGBData();
-
-	if (!rgbadata) {
-		delete[] template_rgbdata;
-		return nullptr;
-	}
-	if (!template_rgbdata) {
-		delete[] rgbadata;
-		return nullptr;
-	}
-
-	if (lookHead > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
-		lookHead = 0;
-	}
-	if (lookBody > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
-		lookBody = 0;
-	}
-	if (lookLegs > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
-		lookLegs = 0;
-	}
-	if (lookFeet > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
-		lookFeet = 0;
-	}
-
-	for (int y = 0; y < rme::SpritePixels; ++y) {
-		for (int x = 0; x < rme::SpritePixels; ++x) {
-			uint8_t &red = rgbadata[y * rme::SpritePixels * 4 + x * 4 + 0];
-			uint8_t &green = rgbadata[y * rme::SpritePixels * 4 + x * 4 + 1];
-			uint8_t &blue = rgbadata[y * rme::SpritePixels * 4 + x * 4 + 2];
-
-			uint8_t &tred = template_rgbdata[y * rme::SpritePixels * 3 + x * 3 + 0];
-			uint8_t &tgreen = template_rgbdata[y * rme::SpritePixels * 3 + x * 3 + 1];
-			uint8_t &tblue = template_rgbdata[y * rme::SpritePixels * 3 + x * 3 + 2];
-
-			if (tred && tgreen && !tblue) { // yellow => head
-				colorizePixel(lookHead, red, green, blue);
-			} else if (tred && !tgreen && !tblue) { // red => body
-				colorizePixel(lookBody, red, green, blue);
-			} else if (!tred && tgreen && !tblue) { // green => legs
-				colorizePixel(lookLegs, red, green, blue);
-			} else if (!tred && !tgreen && tblue) { // blue => feet
-				colorizePixel(lookFeet, red, green, blue);
-			}
+GLuint GameSprite::OutfitImage::getHardwareID() {
+	if (!m_isGLLoaded) {
+		if (m_spriteId == 0) {
+			m_spriteId = g_gui.gfx.getFreeTextureID();
 		}
-	}
-	delete[] template_rgbdata;
-	return rgbadata;
-}
-
-GLuint GameSprite::TemplateImage::getHardwareID() {
-	if (!isGLLoaded) {
-		if (gl_tid == 0) {
-			gl_tid = g_gui.gfx.getFreeTextureID();
-		}
-		createGLTexture(gl_tid);
-		if (!isGLLoaded) {
+		createGLTexture(m_spriteId);
+		if (!m_isGLLoaded) {
 			return 0;
 		}
 	}
-	visit();
-	return gl_tid;
+
+	return m_spriteId;
 }
 
-void GameSprite::TemplateImage::createGLTexture(GLuint unused) {
-	Image::createGLTexture(gl_tid);
-}
+void GameSprite::OutfitImage::createGLTexture(GLuint spriteId) {
+	ASSERT(!m_isGLLoaded);
 
-void GameSprite::TemplateImage::unloadGLTexture(GLuint unused) {
-	Image::unloadGLTexture(gl_tid);
+	uint8_t* rgba = getRGBAData();
+	if (!rgba) {
+		return;
+	}
+
+	const auto &sheet = g_spriteAppearances.getSheetBySpriteId(spriteId);
+	if (!sheet) {
+		return;
+	}
+
+	auto spriteWidth = sheet->getSpriteSize().width;
+	auto spriteHeight = sheet->getSpriteSize().height;
+	auto invertedBuffer = m_parent->invertGLColors(spriteHeight, spriteWidth, rgba);
+
+	m_isGLLoaded = true;
+	g_gui.gfx.loaded_textures += 1;
+
+	glBindTexture(GL_TEXTURE_2D, spriteId);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Linear Filtering
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // Linear Filtering
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, 0x812F); // GL_CLAMP_TO_EDGE
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, 0x812F); // GL_CLAMP_TO_EDGE
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, spriteWidth, spriteHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, invertedBuffer);
 }
 
 GameSprite* GameSprite::createFromBitmap(const wxArtID &bitmapId) {
@@ -1448,7 +1499,7 @@ GameSprite* GameSprite::createFromBitmap(const wxArtID &bitmapId) {
 	sprite->pattern_x = 1;
 	sprite->pattern_y = 1;
 	sprite->pattern_z = 1;
-	sprite->frames = 1;
+	sprite->sprite_phase_size = 1;
 	sprite->numsprites = 1;
 	sprite->spriteList.push_back(image);
 	return sprite;
@@ -1481,6 +1532,7 @@ Animator::Animator(int frame_count, int start_frame, int loop_count, bool async)
 Animator::~Animator() {
 	for (int i = 0; i < frame_count; i++) {
 		delete durations[i];
+		durations[i] = nullptr;
 	}
 	durations.clear();
 }

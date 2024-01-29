@@ -154,7 +154,6 @@ namespace MenuBar {
 		FLOOR_14,
 		FLOOR_15,
 		DEBUG_VIEW_DAT,
-		EXTENSIONS,
 		GOTO_WEBSITE,
 		ABOUT,
 		SEARCH_ON_MAP_DUPLICATE,
@@ -295,7 +294,6 @@ public:
 
 	// About Menu
 	void OnDebugViewDat(wxCommandEvent &event);
-	void OnListExtensions(wxCommandEvent &event);
 	void OnGotoWebsite(wxCommandEvent &event);
 	void OnAbout(wxCommandEvent &event);
 	void OnSearchForDuplicateItemsOnMap(wxCommandEvent &event);
@@ -311,6 +309,7 @@ protected:
 	void SearchItems(bool unique, bool action, bool container, bool writable, bool onSelection = false);
 	void SearchDuplicatedItems(bool onSelection = false);
 	void RemoveDuplicatesItems(bool onSelection = false);
+
 protected:
 	MainFrame* frame;
 	wxMenuBar* menubar;

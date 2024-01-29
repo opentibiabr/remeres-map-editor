@@ -225,7 +225,6 @@
 		<attribute key="description" value="You can see stairs leading down."/>
 		<attribute key="floorchange" value="down"/>
 	</item>
-	<item id="168" name="RESERVED SPRITE"/>
 	<item id="169" article="a" name="scarab cheese">
 		<attribute key="primarytype" value="food"/>
 		<attribute key="description" value="It smells horrible and should not be in the sun for too long."/>
@@ -730,7 +729,6 @@
 		<attribute key="primarytype" value="dropdowns"/>
 		<attribute key="floorchange" value="down"/>
 	</item>
-	<item id="371" name="RESERVED SPRITE"/>
 	<item id="372" name="earth"/>
 	<item fromid="373" toid="384" article="a" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
@@ -765,7 +763,6 @@
 		<attribute key="duration" value="300"/>
 		<attribute key="decayTo" value="354"/>
 	</item>
-	<item id="395" name="RESERVED SPRITE"/>
 	<item id="396" article="a" name="technomancer beard">
 		<attribute key="primarytype" value="creature products"/>
 		<attribute key="weight" value="50"/>
@@ -851,7 +848,6 @@
 	<item fromid="424" toid="425" name="sandstone floor">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
-	<item fromid="426" toid="427" name="RESERVED SPRITE"/>
 	<item id="428" name="stairs">
 		<attribute key="floorchange" value="down"/>
 	</item>
@@ -886,7 +882,6 @@
 	<item fromid="439" toid="450" name="wooden floor">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
-	<item id="451" name="RESERVED SPRITE"/>
 	<item fromid="452" toid="453" name="wooden floor">
 		<attribute key="primarytype" value="artificial tiles"/>
 		<attribute key="description" value="It seems to be a switch."/>
@@ -901,11 +896,9 @@
 	<item id="464" name="wooden floor">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
-	<item fromid="465" toid="468" name="RESERVED SPRITE"/>
 	<item id="469" name="stairs">
 		<attribute key="floorchange" value="down"/>
 	</item>
-	<item fromid="470" toid="474" name="RESERVED SPRITE"/>
 	<item id="475" article="a" name="closed trapdoor">
 		<attribute key="primarytype" value="dropdowns"/>
 	</item>
@@ -1028,8 +1021,6 @@
 		<attribute key="duration" value="300"/>
 		<attribute key="decayTo" value="606"/>
 	</item>
-	<item id="616" name="DEPRECATED item"/>
-	<item id="617" name="DEPRECATED item"/>
 	<item id="618" name="grass"/>
 	<item id="619" article="a" name="waterball">
 		<attribute key="primarytype" value="game tokens"/>
@@ -2377,7 +2368,6 @@
 		<attribute key="primarytype" value="stairs"/>
 		<attribute key="floorchange" value="eastalt"/>
 	</item>
-	<item fromid="857" toid="858" name="empty sprite"/>
 	<item id="859" name="stairs">
 		<attribute key="floorchange" value="down"/>
 	</item>
@@ -2566,7 +2556,6 @@
 		<attribute key="decayTo" value="275"/>
 		<attribute key="containersize" value="30"/>
 	</item>
-	<item fromid="912" toid="913" name="RESERVED SPRITE"/>
 	<item fromid="914" toid="917" article="a" name="demon oak"/>
 	<item id="918" name="earth ground">
 		<attribute key="primarytype" value="natural tiles"/>
@@ -2578,7 +2567,6 @@
 	<item fromid="920" toid="921" article="a" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item id="922" name="RESERVED SPRITE"/>
 	<item fromid="923" toid="936" name="sandstone"/>
 	<item id="937" name="grass"/>
 	<item id="938" article="a" name="ship's telescope"/>
@@ -2739,7 +2727,6 @@
 		<attribute key="primarytype" value="rocks"/>
 	</item>
 	<item fromid="1091" toid="1098" name="rifty earth"/>
-	<item id="1099" name="RESERVED SPRITE"/>
 	<item fromid="1100" toid="1111" name="rocks"/>
 	<item fromid="1112" toid="1122" article="a" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
@@ -3425,8 +3412,6 @@
 		<attribute key="containersize" value="10"/>
 	</item>
 	<item fromid="1988" toid="1989" article="a" name="buried coffin"/>
-	<item id="1990" name="RESERVED SPRITE"/>
-	<item id="1991" name="RESERVED SPRITE"/>
 	<item id="1992" article="a" name="sarcophagus">
 		<attribute key="primarytype" value="coffins"/>
 		<attribute key="containersize" value="10"/>
@@ -3793,7 +3778,6 @@
 		<attribute key="duration" value="10"/>
 		<attribute key="decayTo" value="2140"/>
 	</item>
-	<item id="2139" name="RESERVED SPRITE"/>
 	<item id="2140" name="ashes">
 		<attribute key="primarytype" value="fields"/>
 		<attribute key="type" value="magicfield"/>
@@ -3801,9 +3785,6 @@
 		<attribute key="duration" value="5"/>
 		<attribute key="decayTo" value="2137"/>
 	</item>
-	<item id="2141" name="RESERVED SPRITE"/>
-	<item id="2142" name="RESERVED SPRITE"/>
-	<item id="2143" name="RESERVED SPRITE"/>
 	<item id="2144" name="lava">
 		<attribute key="primarytype" value="natural tiles"/>
 		<attribute key="type" value="trashholder"/>
@@ -3828,9 +3809,6 @@
 		<attribute key="duration" value="4"/>
 		<attribute key="decayTo" value="2147"/>
 	</item>
-	<item id="2149" name="RESERVED SPRITE"/>
-	<item id="2150" name="RESERVED SPRITE"/>
-	<item id="2151" name="RESERVED SPRITE"/>
 	<item id="2152" article="a" name="stone pillar">
 		<attribute key="primarytype" value="pillars"/>
 	</item>
@@ -3871,7 +3849,6 @@
 	<item fromid="2184" toid="2185" name="bars">
 		<attribute key="primarytype" value="constructions"/>
 	</item>
-	<item id="2186" name="RESERVED SPRITE"/>
 	<item id="2187" name="nothing special">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
@@ -3912,7 +3889,6 @@
 	<item fromid="2209" toid="2216" article="a" name="sandstone railing">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item id="2217" name="RESERVED SPRITE"/>
 	<item fromid="2218" toid="2221" article="a" name="ramp"/>
 	<item fromid="2222" toid="2233" article="a" name="white stone railing">
 		<attribute key="primarytype" value="walls"/>
@@ -4383,7 +4359,6 @@
 		<attribute key="containersize" value="10"/>
 		<attribute key="weight" value="9500"/>
 	</item>
-	<item id="2479" name="RESERVED SPRITE"/>
 	<item id="2480" article="a" name="chest">
 		<attribute key="primarytype" value="containers"/>
 		<attribute key="containersize" value="15"/>
@@ -4663,7 +4638,6 @@
 	<item fromid="2535" toid="2542" article="an" name="oven">
 		<attribute key="primarytype" value="furniture"/>
 	</item>
-	<item fromid="2543" toid="2571" name="RESERVED SPRITE"/>
 	<item fromid="2572" toid="2580" article="a" name="red carpet">
 		<attribute key="primarytype" value="floor decorations"/>
 	</item>
@@ -12109,7 +12083,8 @@
 	<item fromid="4394" toid="4410" name="rock soil">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
-	<item fromid="4411" toid="4432" name="earth"/>
+	<item fromid="4411" toid="4427" name="earth"/>
+	<item fromid="4429" toid="4432" name="earth"/>
 	<item id="4433" article="a" name="snowy birch tree"/>
 	<item fromid="4434" toid="4456" name="grass"/>
 	<item fromid="4457" toid="4502" article="a" name="mountain">
@@ -12179,7 +12154,6 @@
 		<attribute key="primarytype" value="natural tiles"/>
 		<attribute key="fluidsource" value="water"/>
 	</item>
-	<item id="4653" name="RESERVED SPRITE"/>
 	<item fromid="4654" toid="4655" name="shallow water">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
@@ -13711,8 +13685,6 @@
 	<item fromid="5771" toid="5774" name="metal fittings">
 		<attribute key="primarytype" value="fields"/>
 	</item>
-	<item id="5775" article="a" name="glowing obsidian pipes"/>
-	<item id="5776" name="obsidian pipes"/>
 	<item fromid="5777" toid="5778" article="a" name="target board">
 		<attribute key="primarytype" value="tools (objects)"/>
 	</item>
@@ -18333,7 +18305,6 @@
 		<attribute key="decayTo" value="7537"/>
 		<attribute key="containersize" value="7"/>
 	</item>
-	<item id="7536" name="RESERVED SPRITE"/>
 	<item id="7537" article="the" name="remains of Koshei">
 		<attribute key="fluidsource" value="blood"/>
 		<attribute key="duration" value="10"/>
@@ -20074,7 +20045,6 @@
 	<item fromid="8201" toid="8216" article="a" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item id="8217" article="a" name="RESERVED SPRITE"/>
 	<item id="8218" article="a" name="roof">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
@@ -21260,7 +21230,6 @@
 		<attribute key="weight" value="1800"/>
 	</item>
 	<item id="9043" article="a" name="yalahar coal basin"/>
-	<item id="9044" name="RESERVED SPRITE"/>
 	<item id="9045" article="a" name="royal tapestry">
 		<attribute key="primarytype" value="decoration"/>
 		<attribute key="weight" value="1000"/>
@@ -21589,7 +21558,6 @@
 		<attribute key="type" value="ladder"/>
 	</item>
 	<item id="9117" article="a" name="unknown item"/>
-	<item id="9118" name="RESERVED SPRITE"/>
 	<item id="9119" article="a" name="crucible">
 		<attribute key="primarytype" value="tools (objects)"/>
 	</item>
@@ -21884,7 +21852,6 @@
 		<attribute key="decayTo" value="9234"/>
 		<attribute key="weight" value="6450"/>
 	</item>
-	<item fromid="9202" toid="9203" name="RESERVED SPRITE"/>
 	<item id="9204" article="an" name="old pirate poem">
 		<attribute key="primarytype" value="documents and papers"/>
 		<attribute key="readable" value="1"/>
@@ -22087,7 +22054,6 @@
 		<attribute key="duration" value="30"/>
 		<attribute key="decayTo" value="9242"/>
 	</item>
-	<item id="9245" name="RESERVED SPRITE"/>
 	<item id="9246" name="earth"/>
 	<item id="9247" article="a" name="golem blueprint">
 		<attribute key="primarytype" value="documents and papers"/>
@@ -26136,7 +26102,6 @@
 	<item fromid="11819" toid="11820" article="a" name="cutlery">
 		<attribute key="primarytype" value="tools (objects)"/>
 	</item>
-	<item fromid="11821" toid="11822" name="RESERVED SPRITE"/>
 	<item fromid="11823" toid="11824" article="a" name="wolf hide"/>
 	<item id="11825" article="a" name="rods"/>
 	<item id="11826" article="a" name="rod"/>
@@ -26222,7 +26187,6 @@
 		<attribute key="primarytype" value="constructions"/>
 	</item>
 	<item fromid="12024" toid="12031" article="a" name="clock"/>
-	<item id="12032" name="RESERVED SPRITE"/>
 	<item id="12033" article="a" name="closed door">
 		<attribute key="type" value="door"/>
 		<attribute key="blockProjectile" value="1"/>
@@ -26299,7 +26263,6 @@
 	<item fromid="12059" toid="12063" article="a" name="slime fungus">
 		<attribute key="primarytype" value="mushrooms"/>
 	</item>
-	<item id="12064" article="a" name="RESERVED SPRITE"/>
 	<item fromid="12065" toid="12066" name="stone floor">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
@@ -26324,7 +26287,6 @@
 	<item id="12073" article="a" name="slime fungus">
 		<attribute key="primarytype" value="mushrooms"/>
 	</item>
-	<item id="12074" name="RESERVED SPRITE"/>
 	<item fromid="12075" toid="12076" article="a" name="slime fungus">
 		<attribute key="primarytype" value="mushrooms"/>
 	</item>
@@ -26373,7 +26335,6 @@
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="weight" value="1100"/>
 	</item>
-	<item fromid="12124" toid="12127" name="RESERVED SPRITE"/>
 	<item id="12128" article="an" name="Emergency kit">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="weight" value="1000"/>
@@ -27284,7 +27245,6 @@
 		<attribute key="weight" value="1800"/>
 	</item>
 	<item id="12573" name="unknown item"/>
-	<item id="12574" name="RESERVED SPRITE"/>
 	<item id="12575" name="Whinona">
 		<attribute key="primarytype" value="dolls and bears"/>
 		<attribute key="weight" value="600"/>
@@ -27425,7 +27385,6 @@
 	<item id="12656" name="root vegetable dish">
 		<attribute key="primarytype" value="tools (objects)"/>
 	</item>
-	<item id="12657" article="a" name="RESERVED SPRITE"/>
 	<item id="12658" article="a" name="dead shaburak demon">
 		<attribute key="duration" value="10"/>
 		<attribute key="decayTo" value="12825"/>
@@ -27604,7 +27563,6 @@
 		<attribute key="description" value="It seems the water wants to go back to the bog it came from. Soon it will all be trickled away"/>
 		<attribute key="weight" value="3000"/>
 	</item>
-	<item id="12723" name="RESERVED SPRITE"/>
 	<item id="12724" name="heavy stone">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="description" value="It can be used to arm catapults"/>
@@ -27614,12 +27572,10 @@
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="weight" value="13000"/>
 	</item>
-	<item id="12726" name="RESERVED SPRITE"/>
 	<item id="12727" name="greasy stone">
 		<attribute key="primarytype" value="rocks"/>
 	</item>
 	<item id="12728" name="hole"/>
-	<item id="12729" name="RESERVED SPRITE"/>
 	<item id="12730" name="eye of a deepling">
 		<attribute key="description" value="Did it just twitch...? No, must have been an optical illusion"/>
 		<attribute key="weight" value="240"/>
@@ -27675,7 +27631,6 @@
 		<attribute key="description" value="It seems all its former magical power has left this broken carcass of a ring"/>
 		<attribute key="weight" value="60"/>
 	</item>
-	<item id="12738" name="RESERVED SPRITE"/>
 	<item id="12739" name="unknown item"/>
 	<item id="12740" article="a" name="war wolf skin">
 		<attribute key="primarytype" value="quest items"/>
@@ -27751,20 +27706,16 @@
 		<attribute key="primarytype" value="animals"/>
 		<attribute key="description" value="No - you can't fool this one with an orc outfit. He needs to be distracted."/>
 	</item>
-	<item id="12793" name="RESERVED SPRITE"/>
 	<item id="12794" name="recharging tarantula trap">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="description" value="You can't use this item for a short time"/>
 		<attribute key="weight" value="10"/>
 	</item>
-	<item id="12795" name="RESERVED SPRITE"/>
 	<item id="12796" article="a" name="energy portal">
 		<attribute key="primarytype" value="teleporters"/>
 		<attribute key="type" value="teleport"/>
 		<attribute key="effect" value="teleport"/>
 	</item>
-	<item id="12797" name="RESERVED SPRITE"/>
-	<item id="12798" name="RESERVED SPRITE"/>
 	<item id="12799" name="ladder">
 		<attribute key="floorchange" value="down"/>
 	</item>
@@ -27819,7 +27770,6 @@
 		<attribute key="weight" value="4015"/>
 	</item>
 	<item fromid="12815" toid="12816" name="unknown item"/>
-	<item id="12817" name="RESERVED SPRITE"/>
 	<item id="12818" name="unknown item"/>
 	<item id="12819" name="prepared bucket">
 		<attribute key="primarytype" value="quest items"/>
@@ -27947,9 +27897,7 @@
 	<item id="12846" name="wooden floor">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
-	<item fromid="12847" toid="12850" name="RESERVED SPRITE"/>
 	<item fromid="12851" toid="12877" article="a" name="hive structure"/>
-	<item fromid="12878" toid="12879" name="RESERVED SPRITE"/>
 	<item fromid="12880" toid="12901" article="a" name="hive structure"/>
 	<item id="12902" name="your inbox">
 		<attribute key="primarytype" value="utilities"/>
@@ -28042,9 +27990,7 @@
 	<item fromid="13219" toid="13226" name="hive structure"/>
 	<item fromid="13227" toid="13254" article="a" name="hive floor"/>
 	<item fromid="13255" toid="13267" article="a" name="hive floor"/>
-	<item id="13268" name="RESERVED SPRITE"/>
 	<item fromid="13269" toid="13271" article="an" name="hive floor"/>
-	<item id="13272" name="RESERVED SPRITE"/>
 	<item fromid="13273" toid="13294" article="a" name="hive gate">
 		<attribute key="primarytype" value="teleporters"/>
 	</item>
@@ -28069,7 +28015,6 @@
 	<item fromid="13368" toid="13375" name="unknown"/>
 	<item fromid="13376" toid="13377" name="small insectoid hairs"/>
 	<item fromid="13382" toid="13396" article="an" name="insectoid meatball"/>
-	<item id="13397" name="RESERVED SPRITE"/>
 	<item fromid="13398" toid="13399" name="unknown item"/>
 	<item id="13400" article="a" name="hivecomb floor"/>
 	<item fromid="13413" toid="13424" article="a" name="rockboy"/>
@@ -28203,7 +28148,6 @@
 	<item fromid="13689" toid="13692" name="bubbles">
 		<attribute key="primarytype" value="fields"/>
 	</item>
-	<item fromid="13693" toid="13699" name="RESERVED SPRITE"/>
 	<item fromid="13700" toid="13711" name="unknown item"/>
 	<item id="13712" article="a" name="dead deepling warrior">
 		<attribute key="fluidsource" value="blood"/>
@@ -28242,7 +28186,6 @@
 		<attribute key="floorchange" value="north"/>
 	</item>
 	<item id="13723" article="a" name="ramp"/>
-	<item fromid="13724" toid="13749" name="RESERVED SPRITE"/>
 	<item id="13750" article="a" name="dead deepling guard">
 		<attribute key="duration" value="10"/>
 		<attribute key="decayTo" value="13751"/>
@@ -28288,7 +28231,6 @@
 	<item id="13775" article="a" name="deep black gap"/>
 	<item id="13776" article="a" name="moist pillar"/>
 	<item fromid="13777" toid="13778" article="a" name="ramp"/>
-	<item fromid="13779" toid="13782" name="RESERVED SPRITE"/>
 	<item fromid="13783" toid="13786" article="a" name="ramp"/>
 	<item id="13787" article="a" name="dead Jaul">
 		<attribute key="duration" value="10"/>
@@ -28556,7 +28498,6 @@
 	<item fromid="13921" toid="13924" article="an" name="archway">
 		<attribute key="primarytype" value="constructions"/>
 	</item>
-	<item fromid="13925" toid="13933" name="RESERVED SPRITE"/>
 	<item fromid="13934" toid="13935" article="an" name="archway">
 		<attribute key="primarytype" value="constructions"/>
 	</item>
@@ -28584,7 +28525,6 @@
 		<attribute key="primarytype" value="quest objects"/>
 	</item>
 	<item fromid="13943" toid="13967" article="a" name="hivecomb floor"/>
-	<item id="13968" name="RESERVED SPRITE"/>
 	<item id="13969" article="an" name="insectoid cocoon">
 		<attribute key="weight" value="500"/>
 	</item>
@@ -28612,12 +28552,10 @@
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="weight" value="500"/>
 	</item>
-	<item id="13975" name="RESERVED SPRITE"/>
 	<item id="13976" article="a" name="blob bomb">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="weight" value="110"/>
 	</item>
-	<item id="13977" name="RESERVED SPRITE"/>
 	<item id="13978" article="a" name="hive floor"/>
 	<item id="13979" article="a" name="dead spitter">
 		<attribute key="duration" value="10"/>
@@ -28886,7 +28824,6 @@
 		<attribute key="description" value="The identity of some deepling is written there"/>
 		<attribute key="weight" value="280"/>
 	</item>
-	<item id="14024" name="RESERVED SPRITE"/>
 	<item fromid="14025" toid="14026" article="a" name="party lampions">
 		<attribute key="weight" value="1000"/>
 	</item>
@@ -28945,7 +28882,6 @@
 		<attribute key="description" value="There is a fully grown finger snapper plant in it. This plant can't wither anymore"/>
 		<attribute key="weight" value="150"/>
 	</item>
-	<item id="14039" name="RESERVED SPRITE"/>
 	<item id="14040" article="a" name="warrior's axe">
 		<attribute key="weaponType" value="axe"/>
 		<attribute key="attack" value="42"/>
@@ -29013,7 +28949,6 @@
 		<attribute key="description" value="It is unstable and will lose its aggressive properties soon"/>
 		<attribute key="weight" value="150"/>
 	</item>
-	<item fromid="14056" toid="14063" name="RESERVED SPRITE"/>
 	<item id="14064" name="hive pore">
 		<attribute key="primarytype" value="hive born"/>
 	</item>
@@ -29224,7 +29159,6 @@
 	<item id="14167" name="deepling spawn">
 		<attribute key="primarytype" value="natural products"/>
 	</item>
-	<item fromid="14168" toid="14170" name="RESERVED SPRITE"/>
 	<item id="14171" name="hive pore">
 		<attribute key="primarytype" value="hive born"/>
 	</item>
@@ -29260,7 +29194,6 @@
 	<item fromid="14205" toid="14206" name="unknown item"/>
 	<item fromid="14207" toid="14210" name="unknown item"/>
 	<item fromid="14211" toid="14218" name="unknown item"/>
-	<item fromid="14219" toid="14221" name="RESERVED SPRITE"/>
 	<item id="14222" article="a" name="trophy of Obujos">
 		<attribute key="weight" value="500"/>
 	</item>
@@ -29380,13 +29313,11 @@
 		<attribute key="description" value="This makeshift drum will not last for long"/>
 		<attribute key="weight" value="3200"/>
 	</item>
-	<item id="14254" name="RESERVED SPRITE"/>
 	<item id="14255" article="a" name="swarmer drum">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="description" value="The drum is still vibrating and not ready for use"/>
 		<attribute key="weight" value="3200"/>
 	</item>
-	<item fromid="14256" toid="14257" name="RESERVED SPRITE"/>
 	<item id="14258" article="a" name="depth galea">
 		<attribute key="primarytype" value="helmets"/>
 		<attribute key="description" value="Enables underwater exploration"/>
@@ -29395,7 +29326,6 @@
 		<attribute key="weight" value="4600"/>
 	</item>
 	<item id="14259" name="Eighty outfit"/>
-	<item fromid="14260" toid="14669" name="RESERVED SPRITE"/>
 	<item id="14670" article="a" name="CM token">
 		<attribute key="description" value="It was awarded during the festivities of Tibia's 15th anniversary"/>
 		<attribute key="weight" value="1000"/>
@@ -29467,13 +29397,11 @@
 		<attribute key="description" value="It was painted in the style of Lyxoph. Unfortunately, there are some blue pixels in this piece"/>
 		<attribute key="weight" value="1600"/>
 	</item>
-	<item fromid="14699" toid="14740" name="RESERVED SPRITE"/>
 	<item id="14741" article="an" name="easel kit">
 		<attribute key="primarytype" value="painting equipment"/>
 		<attribute key="description" value="Use it in your house to construct an easel"/>
 		<attribute key="weight" value="7500"/>
 	</item>
-	<item fromid="14742" toid="14749" name="RESERVED SPRITE"/>
 	<item id="14750" article="a" name="surprise nest">
 		<attribute key="primarytype" value="party items"/>
 		<attribute key="description" value="Use it to get a little surprise."/>
@@ -29482,7 +29410,6 @@
 	<item id="14751" article="a" name="pirate's surprise">
 		<attribute key="weight" value="1200"/>
 	</item>
-	<item id="14752" name="RESERVED SPRITE"/>
 	<item id="14753" article="a" name="dung ball">
 		<attribute key="primarytype" value="creature products"/>
 		<attribute key="weight" value="190"/>
@@ -29565,7 +29492,6 @@
 	<item fromid="14770" toid="14801" name="crystal floor">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
-	<item fromid="14802" toid="14841" name="RESERVED SPRITE"/>
 	<item id="14842" article="a" name="basalt wall with crystals"/>
 	<item fromid="14843" toid="14844" article="a" name="basalt wall">
 		<attribute key="primarytype" value="constructions"/>
@@ -29728,7 +29654,6 @@
 	<item fromid="15091" toid="15097" article="a" name="mossy wall">
 		<attribute key="primarytype" value="plants"/>
 	</item>
-	<item fromid="15098" toid="15099" name="RESERVED SPRITE"/>
 	<item id="15100" name="mushrooms"/>
 	<item fromid="15101" toid="15107" article="a" name="mossy wall">
 		<attribute key="primarytype" value="plants"/>
@@ -29789,7 +29714,6 @@
 	</item>
 	<item fromid="15137" toid="15140" name="huge brown mushroom"/>
 	<item id="15141" name="mushrooms growing on a pillar"/>
-	<item id="15142" name="RESERVED SPRITE"/>
 	<item id="15143" name="stalagmites">
 		<attribute key="primarytype" value="rocks"/>
 	</item>
@@ -29824,23 +29748,18 @@
 		<attribute key="primarytype" value="rocks"/>
 	</item>
 	<item fromid="15205" toid="15216" name="mushrooms"/>
-	<item fromid="15217" toid="15220" name="RESERVED SPRITE"/>
 	<item fromid="15221" toid="15224" article="a" name="crystal wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item fromid="15225" toid="15228" name="RESERVED SPRITE"/>
 	<item fromid="15229" toid="15231" article="a" name="crystal wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item fromid="15232" toid="15236" name="RESERVED SPRITE"/>
 	<item fromid="15237" toid="15240" article="a" name="crystal wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item fromid="15241" toid="15250" name="RESERVED SPRITE"/>
 	<item id="15251" article="a" name="crystal wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item fromid="15252" toid="15259" name="RESERVED SPRITE"/>
 	<item fromid="15260" toid="15266" article="a" name="crystal wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
@@ -29850,7 +29769,6 @@
 	<item fromid="15269" toid="15274" article="a" name="crystal wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item id="15275" name="RESERVED SPRITE"/>
 	<item id="15276" article="a" name="miniature house">
 		<attribute key="primarytype" value="valuables"/>
 		<attribute key="description" value="This trophy was awarded to honour the greatest architects in Tibia"/>
@@ -29858,15 +29776,12 @@
 		<attribute key="maxtextlen" value="99"/>
 		<attribute key="weight" value="1000"/>
 	</item>
-	<item fromid="15277" toid="15289" name="RESERVED SPRITE"/>
 	<item fromid="15290" toid="15296" article="a" name="crystal wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item id="15297" name="RESERVED SPRITE"/>
 	<item fromid="15298" toid="15301" name="basalt">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
-	<item fromid="15302" toid="15308" name="RESERVED SPRITE"/>
 	<item fromid="15309" toid="15318" article="a" name="basalt wall">
 		<attribute key="primarytype" value="constructions"/>
 	</item>
@@ -29887,7 +29802,6 @@
 	<item id="15345" article="a" name="basalt wall">
 		<attribute key="primarytype" value="constructions"/>
 	</item>
-	<item id="15346" name="RESERVED SPRITE"/>
 	<item fromid="15347" toid="15392" article="a" name="mossy wall">
 		<attribute key="primarytype" value="plants"/>
 	</item>
@@ -29910,7 +29824,6 @@
 	<item fromid="15468" toid="15472" name="crystal glass floor">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
-	<item fromid="15473" toid="15483" name="RESERVED SPRITE"/>
 	<item fromid="15484" toid="15487" article="a" name="stone block"/>
 	<item fromid="15488" toid="15505" article="a" name="small stream"/>
 	<item id="15506" article="a" name="simple bed">
@@ -30080,7 +29993,6 @@
 	<item fromid="15690" toid="15691" article="a" name="lava stream">
 		<attribute key="primarytype" value="fields"/>
 	</item>
-	<item fromid="15692" toid="15695" name="RESERVED SPRITE"/>
 	<item id="15696" article="a" name="gnomish extraction crystal">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="weight" value="450"/>
@@ -30104,7 +30016,6 @@
 		<attribute key="duration" value="40"/>
 		<attribute key="decayTo" value="15829"/>
 	</item>
-	<item id="15702" name="RESERVED SPRITE"/>
 	<item id="15703" article="a" name="gnomish repair crystal">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="weight" value="450"/>
@@ -30329,7 +30240,6 @@
 	<item fromid="15846" toid="15862" name="scattered crystals">
 		<attribute key="primarytype" value="rocks"/>
 	</item>
-	<item id="15863" name="RESERVED SPRITE"/>
 	<item id="15864" article="a" name="dead stone devourer">
 		<attribute key="duration" value="10"/>
 		<attribute key="decayTo" value="15865"/>
@@ -30388,7 +30298,6 @@
 		<attribute key="decayTo" value="0"/>
 	</item>
 	<item fromid="15876" toid="15887" article="a" name="stone"/>
-	<item fromid="15888" toid="15889" name="RESERVED SPRITE"/>
 	<item id="15890" article="a" name="closed door">
 		<attribute key="type" value="door"/>
 		<attribute key="blockProjectile" value="1"/>
@@ -30456,7 +30365,6 @@
 	<item fromid="15914" toid="15956" article="a" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item fromid="15957" toid="15986" name="RESERVED SPRITE"/>
 	<item id="15987" article="a" name="dead lava golem">
 		<attribute key="duration" value="10"/>
 		<attribute key="decayTo" value="15988"/>
@@ -30647,7 +30555,6 @@
 		<attribute key="decayTo" value="16088"/>
 		<attribute key="containersize" value="25"/>
 	</item>
-	<item fromid="16092" toid="16093" name="RESERVED SPRITE"/>
 	<item id="16094" article="a" name="crystal lamp">
 		<attribute key="primarytype" value="light sources"/>
 		<attribute key="weight" value="1000"/>
@@ -31007,7 +30914,6 @@
 		<attribute key="description" value="A hermit near Carlin might be able to tell you more about it"/>
 		<attribute key="weight" value="200"/>
 	</item>
-	<item fromid="16156" toid="16159" name="RESERVED SPRITE"/>
 	<item id="16160" article="a" name="crystalline sword">
 		<attribute key="primarytype" value="sword weapons"/>
 		<attribute key="weaponType" value="sword"/>
@@ -31231,14 +31137,12 @@
 	<item id="16203" name="timber floor">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
-	<item id="16204" name="RESERVED SPRITE"/>
 	<item id="16205" name="Gnomevil's hat">
 		<attribute key="weight" value="210"/>
 	</item>
 	<item id="16206" name="Abyssador's lash">
 		<attribute key="weight" value="190"/>
 	</item>
-	<item fromid="16207" toid="16228" name="RESERVED SPRITE"/>
 	<item id="16229" article="a" name="tail of Abyssador">
 		<attribute key="weight" value="800"/>
 	</item>
@@ -31275,25 +31179,20 @@
 	<item id="16240" article="a" name="statue of Gnomevil">
 		<attribute key="weight" value="2200"/>
 	</item>
-	<item id="16241" name="RESERVED SPRITE"/>
 	<item id="16242" article="a" name="red teleport crystal">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="description" value="Such crystals are used to charge the teleporters to the warzones"/>
 		<attribute key="weight" value="45"/>
 	</item>
-	<item id="16243" name="RESERVED SPRITE"/>
 	<item id="16244" article="a" name="music box">
 		<attribute key="primarytype" value="taming items"/>
 		<attribute key="description" value="It may have some charming effects when played to certain creatures, but disappears in the process"/>
 		<attribute key="weight" value="200"/>
 	</item>
-	<item id="16245" name="RESERVED SPRITE"/>
 	<item id="16246" name="strange symbols">
 		<attribute key="description" value="Another set of strange symbols."/>
 	</item>
-	<item id="16247" name="RESERVED SPRITE"/>
 	<item id="16248" name="huge brown mushroom"/>
-	<item id="16249" name="RESERVED SPRITE"/>
 	<item id="16250" name="unknown item"/>
 	<item id="16251" article="a" name="golem wrench">
 		<attribute key="primarytype" value="taming items"/>
@@ -31324,7 +31223,6 @@
 		<attribute key="description" value="It is a voucher for the second addon of the crystal warlord outfit"/>
 		<attribute key="weight" value="80"/>
 	</item>
-	<item fromid="16258" toid="16261" name="RESERVED SPRITE"/>
 	<item fromid="16262" toid="16263" article="a" name="dragon eye">
 		<attribute key="primarytype" value="fansite items"/>
 		<attribute key="description" value="It belonged to the first dragon to roam the world and was adorned with Tibia-Market's purest gold"/>
@@ -31344,7 +31242,6 @@
 	<item fromid="16265" toid="16272" name="stairs">
 		<attribute key="floorchange" value="down"/>
 	</item>
-	<item fromid="16273" toid="16274" name="RESERVED SPRITE"/>
 	<item fromid="16275" toid="16276" article="a" name="noble sword">
 		<attribute key="primarytype" value="fansite items"/>
 		<attribute key="description" value="This sword was forged with the enthusiasm and dreams of the Rookgaardians. Awarded by Rookie.pl"/>
@@ -31354,7 +31251,6 @@
 		<attribute key="description" value="Use it in a city temple to travel to the Adventurers Guild. A replacement is available at temples"/>
 		<attribute key="weight" value="30"/>
 	</item>
-	<item id="16278" name="RESERVED SPRITE"/>
 	<item id="16279" article="a" name="crystal rubbish">
 		<attribute key="primarytype" value="rubbish"/>
 		<attribute key="weight" value="980"/>
@@ -31380,9 +31276,7 @@
 	<item fromid="16387" toid="16390" article="a" name="giant mud lump"/>
 	<item fromid="16391" toid="16394" article="a" name="big mud lump"/>
 	<item id="16395" article="a" name="mud clot"/>
-	<item fromid="16396" toid="16398" name="RESERVED SPRITE"/>
 	<item id="16399" article="a" name="mud clot"/>
-	<item fromid="16400" toid="16401" name="RESERVED SPRITE"/>
 	<item fromid="16402" toid="16403" article="a" name="mud ball"/>
 	<item fromid="16404" toid="16406" name="swamp mud debris"/>
 	<item fromid="16407" toid="16410" article="a" name="mud nugget"/>
@@ -31394,7 +31288,6 @@
 	<item fromid="16483" toid="16497" article="a" name="grimy wooden plank">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
-	<item fromid="16498" toid="16571" name="RESERVED SPRITE"/>
 	<item id="16572" article="a" name="wooden treadmill">
 		<attribute key="primarytype" value="machines (objects)"/>
 	</item>
@@ -31436,7 +31329,6 @@
 	</item>
 	<item fromid="16638" toid="16664" article="a" name="muddy mountain"/>
 	<item fromid="16665" toid="16678" article="a" name="swamp clay mountain"/>
-	<item id="16679" name="RESERVED SPRITE"/>
 	<item id="16680" article="a" name="ramp">
 		<attribute key="floorchange" value="east"/>
 	</item>
@@ -31472,22 +31364,17 @@
 	<item fromid="16696" toid="16703" article="a" name="ramp">
 		<attribute key="floorchange" value="down"/>
 	</item>
-	<item fromid="16704" toid="16784" name="RESERVED SPRITE"/>
 	<item fromid="16785" toid="16792" article="a" name="ramp">
 		<attribute key="floorchange" value="down"/>
 	</item>
 	<item fromid="16793" toid="16826" article="a" name="swamp clay mountain"/>
 	<item fromid="16827" toid="16861" article="a" name="muddy mountain"/>
-	<item id="16862" name="RESERVED SPRITE"/>
 	<item id="16863" article="a" name="muddy mountain"/>
-	<item id="16864" name="RESERVED SPRITE"/>
 	<item id="16865" name="grass"/>
 	<item id="16866" article="a" name="swamp clay mountain"/>
-	<item id="16867" name="RESERVED SPRITE"/>
 	<item id="16868" article="a" name="swamp clay mountain"/>
 	<item id="16869" article="a" name="muddy mountain"/>
 	<item fromid="16870" toid="16871" article="a" name="swamp clay mountain"/>
-	<item fromid="16872" toid="17051" name="RESERVED SPRITE"/>
 	<item fromid="17052" toid="17073" article="a" name="brown stone wall"/>
 	<item fromid="17074" toid="17095" article="an" name="ornate wall">
 		<attribute key="primarytype" value="walls"/>
@@ -31527,14 +31414,12 @@
 		<attribute key="type" value="rune"/>
 		<attribute key="weight" value="210"/>
 	</item>
-	<item id="17114" name="RESERVED SPRITE"/>
 	<item fromid="17115" toid="17140" article="a" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
 	<item fromid="17141" toid="17149" article="a" name="window">
 		<attribute key="primarytype" value="windows"/>
 	</item>
-	<item id="17150" name="RESERVED SPRITE"/>
 	<item id="17151" name="freshly cut venorean spice">
 		<attribute key="description" value="It has just been cut."/>
 		<attribute key="duration" value="21600"/>
@@ -31618,7 +31503,6 @@
 	<item id="17239" article="a" name="hole">
 		<attribute key="floorchange" value="down"/>
 	</item>
-	<item fromid="17240" toid="17259" name="RESERVED SPRITE"/>
 	<item fromid="17260" toid="17271" article="a" name="muddy mountain"/>
 	<item fromid="17272" toid="17279" article="a" name="unknown item"/>
 	<item fromid="17280" toid="17299" article="a" name="swamp clay mountain"/>
@@ -31628,11 +31512,9 @@
 	<item id="17316" article="a" name="cobbled pavement">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
-	<item id="17317" name="RESERVED SPRITE"/>
 	<item fromid="17318" toid="17321" article="a" name="magic door">
 		<attribute key="primarytype" value="utilities"/>
 	</item>
-	<item id="17322" name="RESERVED SPRITE"/>
 	<item fromid="17323" toid="17329" article="a" name="pillar railing">
 		<attribute key="primarytype" value="walls"/>
 	</item>
@@ -31772,7 +31654,6 @@
 	<item id="17415" article="a" name="lit candle"/>
 	<item fromid="17416" toid="17417" article="a" name="candle"/>
 	<item id="17418" article="a" name="lit candle"/>
-	<item fromid="17419" toid="17420" name="RESERVED SPRITE"/>
 	<item id="17421" article="a" name="dead water buffalo">
 		<attribute key="fluidsource" value="blood"/>
 		<attribute key="duration" value="10"/>
@@ -32007,7 +31888,6 @@
 	<item fromid="17516" toid="17518" name="parquet floor">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
-	<item id="17519" name="RESERVED SPRITE"/>
 	<item id="17520" article="a" name="wooden treadmill">
 		<attribute key="primarytype" value="machines (objects)"/>
 	</item>
@@ -32019,7 +31899,6 @@
 		<attribute key="primarytype" value="machines (objects)"/>
 	</item>
 	<item fromid="17525" toid="17526" article="an" name="oculus"/>
-	<item id="17527" name="RESERVED SPRITE"/>
 	<item fromid="17528" toid="17531" article="a" name="small window">
 		<attribute key="primarytype" value="windows"/>
 	</item>
@@ -32100,7 +31979,6 @@
 	<item fromid="17578" toid="17597" article="a" name="roof">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
-	<item fromid="17598" toid="17600" name="RESERVED SPRITE"/>
 	<item fromid="17601" toid="17616" name="swamp">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
@@ -32370,7 +32248,6 @@
 		<attribute key="defense" value="28"/>
 		<attribute key="weight" value="5900"/>
 	</item>
-	<item id="17811" name="RESERVED SPRITE"/>
 	<item id="17812" article="a" name="ratana">
 		<attribute key="primarytype" value="sword weapons"/>
 		<attribute key="weaponType" value="sword"/>
@@ -32712,7 +32589,6 @@
 		<attribute key="primarytype" value="walls"/>
 	</item>
 	<item fromid="17933" toid="17935" article="a" name="wooden gable"/>
-	<item id="17936" name="RESERVED SPRITE"/>
 	<item id="17937" name="wooden floor">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
@@ -32725,7 +32601,6 @@
 		<attribute key="primarytype" value="machines (objects)"/>
 	</item>
 	<item fromid="17946" toid="17947" article="an" name="elevator"/>
-	<item fromid="17948" toid="17949" name="RESERVED SPRITE"/>
 	<item id="17950" name="swamp">
 		<attribute key="primarytype" value="natural tiles"/>
 		<attribute key="type" value="trashholder"/>
@@ -32739,15 +32614,12 @@
 	<item fromid="17963" toid="17966" article="a" name="cord">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item id="17967" name="RESERVED SPRITE"/>
 	<item id="17968" name="unknown item"/>
-	<item fromid="17969" toid="17971" name="RESERVED SPRITE"/>
 	<item id="17972" article="a" name="canopy bed kit">
 		<attribute key="primarytype" value="furniture"/>
 		<attribute key="description" value="Use it on your bed to change the bed to a canopy bed"/>
 		<attribute key="weight" value="4000"/>
 	</item>
-	<item id="17973" name="RESERVED SPRITE"/>
 	<item id="17974" article="a" name="venorean cabinet kit">
 		<attribute key="primarytype" value="furniture"/>
 		<attribute key="description" value="Use it in your house to construct a venorean cabinet"/>
@@ -32758,7 +32630,6 @@
 		<attribute key="description" value="Use it in your house to construct a wardrobe"/>
 		<attribute key="weight" value="2500"/>
 	</item>
-	<item id="17976" name="RESERVED SPRITE"/>
 	<item id="17977" article="a" name="venorean drawer kit">
 		<attribute key="primarytype" value="furniture"/>
 		<attribute key="description" value="Use it in your house to construct a drawer"/>
@@ -32773,7 +32644,6 @@
 	<item id="17985" article="a" name="wooden floor">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
-	<item id="17986" name="RESERVED SPRITE"/>
 	<item fromid="17987" toid="17991" article="a" name="ghastly eye"/>
 	<item id="17992" article="a" name="pillar railing">
 		<attribute key="primarytype" value="walls"/>
@@ -32853,7 +32723,6 @@
 		<attribute key="primarytype" value="artificial tiles"/>
 		<attribute key="walkstack" value="0"/>
 	</item>
-	<item id="18014" name="RESERVED SPRITE"/>
 	<item id="18015" article="a" name="cabinet">
 		<attribute key="primarytype" value="furniture"/>
 		<attribute key="containersize" value="8"/>
@@ -32886,7 +32755,6 @@
 	</item>
 	<item id="18021" name="unknown item"/>
 	<item id="18022" name="unknown item"/>
-	<item fromid="18023" toid="18024" name="RESERVED SPRITE"/>
 	<item fromid="18025" toid="18026" article="a" name="counter">
 		<attribute key="primarytype" value="tables"/>
 		<attribute key="type" value="door"/>
@@ -34592,13 +34460,11 @@
 		<attribute key="containersize" value="32"/>
 		<attribute key="weight" value="3800"/>
 	</item>
-	<item fromid="18340" toid="18342" name="RESERVED SPRITE"/>
 	<item fromid="18343" toid="18344" article="a" name="bookworm doll">
 		<attribute key="primarytype" value="dolls and bears"/>
 		<attribute key="description" value="It does not wish to be disturbed. Awarded by TibiaLibrary.org"/>
 		<attribute key="weight" value="1900"/>
 	</item>
-	<item fromid="18345" toid="18351" name="RESERVED SPRITE"/>
 	<item fromid="18352" toid="18372" article="a" name="basalt crystal wall">
 		<attribute key="primarytype" value="constructions"/>
 	</item>
@@ -34606,7 +34472,6 @@
 	<item fromid="18382" toid="18384" article="a" name="basalt crystal wall">
 		<attribute key="primarytype" value="constructions"/>
 	</item>
-	<item id="18385" name="RESERVED SPRITE"/>
 	<item id="18386" article="an" name="assassin">
 		<attribute key="primarytype" value="outlaws"/>
 	</item>
@@ -34672,11 +34537,9 @@
 	<item fromid="18459" toid="18464" name="forest floor">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
-	<item fromid="18465" toid="18469" name="RESERVED SPRITE"/>
 	<item fromid="18470" toid="18480" name="branches">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
-	<item id="18481" name="RESERVED SPRITE"/>
 	<item fromid="18482" toid="18485" name="bookcase">
 		<attribute key="primarytype" value="furniture"/>
 		<attribute key="containersize" value="6"/>
@@ -34738,7 +34601,6 @@
 	</item>
 	<item id="18657" article="a" name="ramp"/>
 	<item fromid="18658" toid="18659" article="a" name="sandstone mountain"/>
-	<item fromid="18660" toid="18761" name="RESERVED SPRITE"/>
 	<item fromid="18762" toid="18795" article="a" name="mountain">
 		<attribute key="primarytype" value="rocks"/>
 	</item>
@@ -34756,7 +34618,6 @@
 		<attribute key="primarytype" value="trees"/>
 	</item>
 	<item id="18818" article="a" name="tree branch"/>
-	<item fromid="18819" toid="18837" name="RESERVED SPRITE"/>
 	<item fromid="18838" toid="18853" article="a" name="small brook">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
@@ -34772,7 +34633,6 @@
 		<attribute key="primarytype" value="trees"/>
 	</item>
 	<item id="18880" article="a" name="sandstone"/>
-	<item id="18881" name="RESERVED SPRITE"/>
 	<item fromid="18882" toid="18894" article="a" name="sandstone"/>
 	<item fromid="18895" toid="18898" article="a" name="glowing fruit"/>
 	<item fromid="18899" toid="18901" name="small glowing fruits"/>
@@ -34806,7 +34666,6 @@
 	<item fromid="18912" toid="18915" article="a" name="blood well">
 		<attribute key="primarytype" value="constructions"/>
 	</item>
-	<item id="18916" name="RESERVED SPRITE"/>
 	<item fromid="18917" toid="18923" name="crystal floor">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
@@ -35125,7 +34984,6 @@
 		<attribute key="duration" value="60"/>
 		<attribute key="decayTo" value="0"/>
 	</item>
-	<item fromid="18986" toid="18990" name="RESERVED SPRITE"/>
 	<item id="18991" article="an" name="elven vial">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="description" value="This vial is currently empty, there are no traces of any liquid"/>
@@ -35158,7 +35016,6 @@
 		<attribute key="weight" value="150"/>
 	</item>
 	<item fromid="18998" toid="19031" name="earth"/>
-	<item id="19032" name="RESERVED SPRITE"/>
 	<item fromid="19033" toid="19040" name="dripping candles"/>
 	<item id="19041" article="a" name="dead leaf golem">
 		<attribute key="fluidsource" value="slime"/>
@@ -35287,7 +35144,6 @@
 		<attribute key="primarytype" value="quest objects"/>
 		<attribute key="description" value="This mysterious chest is strangely shaped and feels slightly unnatural."/>
 	</item>
-	<item fromid="19069" toid="19071" name="RESERVED SPRITE"/>
 	<item fromid="19072" toid="19074" article="a" name="council certificate">
 		<attribute key="primarytype" value="contest prizes"/>
 	<attribute key="writeable" value="1"/>
@@ -35447,7 +35303,6 @@
 		<attribute key="duration" value="4"/>
 		<attribute key="decayTo" value="19116"/>
 	</item>
-	<item id="19115" name="RESERVED SPRITE"/>
 	<item id="19116" article="a" name="strange fire">
 		<attribute key="primarytype" value="quest objects"/>
 		<attribute key="duration" value="13"/>
@@ -35619,21 +35474,18 @@
 		<attribute key="weight" value="2180"/>
 	</item>
 	<item fromid="19161" toid="19163" article="a" name="brain heater machine"/>
-	<item id="19164" name="RESERVED SPRITE"/>
 	<item id="19165" article="a" name="brain heater machine"/>
 	<item id="19166" name="Omrabas' bone key">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="description" value="It is delicately carved out of the bone of some animal and bears strange inscriptions"/>
 		<attribute key="weight" value="100"/>
 	</item>
-	<item fromid="19167" toid="19172" name="RESERVED SPRITE"/>
 	<item id="19173" name="Omrabas' copper key">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="description" value="A very ornate key, made of solid copper"/>
 		<attribute key="weight" value="100"/>
 	</item>
 	<item fromid="19174" toid="19178" name="dripping candles"/>
-	<item fromid="19179" toid="19197" name="RESERVED SPRITE"/>
 	<item fromid="19198" toid="19199" article="a" name="strange shrine"/>
 	<item id="19200" article="a" name="lift"/>
 	<item id="19201" article="an" name="ornate door with a keyhole"/>
@@ -35705,7 +35557,6 @@
 	<item id="19220" article="a" name="hole">
 		<attribute key="floorchange" value="down"/>
 	</item>
-	<item fromid="19221" toid="19223" name="RESERVED SPRITE"/>
 	<item fromid="19224" toid="19235" name="wooden floor">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
@@ -35729,7 +35580,6 @@
 		<attribute key="primarytype" value="pillars"/>
 	</item>
 	<item id="19247" article="a" name="glowing ice cube"/>
-	<item id="19248" name="RESERVED SPRITE"/>
 	<item id="19249" name="thawing ice pick">
 		<attribute key="primarytype" value="tools"/>
 		<attribute key="description" value="It is frosted with tiny ice crystals and starts to melt as you look at it"/>
@@ -35757,9 +35607,7 @@
 		<attribute key="primarytype" value="rocks"/>
 	</item>
 	<item fromid="19310" toid="19313" article="a" name="large berg crystals"/>
-	<item id="19314" name="RESERVED SPRITE"/>
 	<item fromid="19315" toid="19350" article="a" name="slimy growth"/>
-	<item fromid="19351" toid="19355" name="RESERVED SPRITE"/>
 	<item id="19356" article="a" name="triple bolt crossbow">
 		<attribute key="primarytype" value="distance weapons"/>
 		<attribute key="weaponType" value="distance"/>
@@ -35805,7 +35653,6 @@
 		<attribute key="armor" value="1"/>
 		<attribute key="weight" value="120"/>
 	</item>
-	<item id="19360" name="RESERVED SPRITE"/>
 	<item id="19361" article="a" name="sun mirror">
 		<attribute key="primarytype" value="light sources"/>
 		<attribute key="weight" value="850"/>
@@ -35844,7 +35691,6 @@
 			<attribute key="skillboost shielding" value="3"/>
 		</attribute>
 	</item>
-	<item id="19364" name="RESERVED SPRITE"/>
 	<item id="19365" article="a" name="trapped lightning">
 		<attribute key="primarytype" value="light sources"/>
 		<attribute key="weight" value="100"/>
@@ -35856,11 +35702,9 @@
 		<attribute key="armor" value="8"/>
 		<attribute key="weight" value="1500"/>
 	</item>
-	<item fromid="19367" toid="19368" name="RESERVED SPRITE"/>
 	<item id="19369" article="an" name="eye of the storm">
 		<attribute key="weight" value="150"/>
 	</item>
-	<item id="19370" name="RESERVED SPRITE"/>
 	<item id="19371" article="a" name="glass of goo">
 		<attribute key="weight" value="170"/>
 	</item>
@@ -35903,7 +35747,6 @@
 	<item fromid="19380" toid="19385" article="a" name="basalt crystal wall">
 		<attribute key="primarytype" value="constructions"/>
 	</item>
-	<item id="19386" name="RESERVED SPRITE"/>
 	<item id="19387" article="a" name="large crystal teleporter">
 		<attribute key="primarytype" value="teleporters"/>
 	</item>
@@ -35929,13 +35772,11 @@
 		<attribute key="primarytype" value="wall hangings"/>
 		<attribute key="description" value="The sun with its burning grasp devours the nothingness twice."/>
 	</item>
-	<item fromid="19394" toid="19396" name="RESERVED SPRITE"/>
 	<item fromid="19397" toid="19398" name="memory box">
 		<attribute key="primarytype" value="fansite items"/>
 		<attribute key="description" value="It is said to freeze time itself to capture your fondest memories. Awarded by TibiaEvents.com"/>
 		<attribute key="weight" value="2000"/>
 	</item>
-	<item id="19399" name="RESERVED SPRITE"/>
 	<item id="19400" name="arcane staff">
 		<attribute key="primarytype" value="club weapons"/>
 		<attribute key="attack" value="50"/>
@@ -35947,7 +35788,6 @@
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
 	<item fromid="19405" toid="19408" article="a" name="strange foundation"/>
-	<item fromid="19409" toid="19410" name="RESERVED SPRITE"/>
 	<item id="19411" article="a" name="strange foundation"/>
 	<item id="19412" article="a" name="strange window"/>
 	<item id="19413" article="a" name="ruined wall"/>
@@ -35962,13 +35802,11 @@
 	<item fromid="19461" toid="19462" article="a" name="strange window"/>
 	<item fromid="19463" toid="19464" article="a" name="window shutter"/>
 	<item fromid="19465" toid="19470" article="a" name="strange wall"/>
-	<item fromid="19471" toid="19478" name="RESERVED SPRITE"/>
 	<item fromid="19479" toid="19490" article="a" name="flowing water"/>
 	<item fromid="19491" toid="19492" article="a" name="small brook">
 		<attribute key="primarytype" value="natural tiles"/>
 		<attribute key="description" value="You see the silvery movement of fish."/>
 	</item>
-	<item id="19493" name="RESERVED SPRITE"/>
 	<item fromid="19494" toid="19513" article="a" name="strange wall"/>
 	<item fromid="19514" toid="19516" article="a" name="small ruined wall"/>
 	<item fromid="19517" toid="19518" article="a" name="ruined window"/>
@@ -36089,14 +35927,12 @@
 	<item fromid="19808" toid="19810" article="a" name="glistening stone">
 		<attribute key="primarytype" value="rocks"/>
 	</item>
-	<item fromid="19811" toid="19823" name="RESERVED SPRITE"/>
 	<item id="19824" article="a" name="unknown item"/>
 	<item fromid="19825" toid="19860" article="a" name="stone pebble floor"/>
 	<item fromid="19861" toid="19872" article="a" name="stone pavement"/>
 	<item fromid="19873" toid="19884" article="a" name="stone pebble floor"/>
 	<item fromid="19885" toid="19898" article="a" name="giant face"/>
 	<item fromid="19899" toid="19917" article="a" name="stone pavement"/>
-	<item id="19918" name="RESERVED SPRITE"/>
 	<item fromid="19919" toid="19924" article="a" name="sleepless twine">
 		<attribute key="primarytype" value="plants"/>
 	</item>
@@ -36105,7 +35941,6 @@
 	<item fromid="19970" toid="19981" article="a" name="flowing water"/>
 	<item fromid="20016" toid="20025" article="a" name="flowing water"/>
 	<item fromid="20026" toid="20027" article="an" name="unknown item"/>
-	<item id="20028" name="RESERVED SPRITE"/>
 	<item id="20029" article="a" name="broken dream">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="description" value="The fragment of a dream. Strange pictures seem to flit through the shards"/>
@@ -36119,7 +35954,6 @@
 	<item fromid="20031" toid="20044" article="a" name="half-buried face">
 		<attribute key="primarytype" value="refuse"/>
 	</item>
-	<item fromid="20045" toid="20046" name="RESERVED SPRITE"/>
 	<item id="20047" article="an" name="ancient dream">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="description" value="The dream glows as if alive"/>
@@ -36631,7 +36465,6 @@
 	<item fromid="20118" toid="20119" article="a" name="sleepless twine">
 		<attribute key="primarytype" value="plants"/>
 	</item>
-	<item id="20120" name="RESERVED SPRITE"/>
 	<item id="20121" article="a" name="strange vortex">
 		<attribute key="primarytype" value="fields"/>
 	</item>
@@ -36650,7 +36483,6 @@
 		<attribute key="primarytype" value="light sources"/>
 		<attribute key="weight" value="3000"/>
 	</item>
-	<item id="20127" name="RESERVED SPRITE"/>
 	<item id="20128" name="traces of an ancient dream">
 		<attribute key="description" value="It grows new crystal spikes at a slow pace."/>
 	</item>
@@ -36820,7 +36652,6 @@
 		<attribute key="description" value="This dung smells extremely awful and deteriorates quickly"/>
 		<attribute key="weight" value="50"/>
 	</item>
-	<item fromid="20166" toid="20167" name="RESERVED SPRITE"/>
 	<item id="20168" article="a" name="message in a bottle"/>
 	<item id="20169" article="a" name="gravel and chalk in a bucket">
 		<attribute key="description" value="This contains a mixture of gravel and chalk"/>
@@ -36852,10 +36683,8 @@
 		<attribute key="containersize" value="40"/>
 	</item>
 	<item id="20175" name="unknown item"/>
-	<item id="20176" name="RESERVED SPRITE"/>
 	<item fromid="20177" toid="20178" article="an" name="unknown item"/>
 	<item fromid="20179" toid="20180" article="a" name="large pile of various bones"/>
-	<item id="20181" name="RESERVED SPRITE"/>
 	<item id="20182" article="a" name="ring of ending">
 		<attribute key="description" value="This constantly rotating ring is perfectly weightless, yet feels infinitely heavy at the same time"/>
 		<attribute key="weight" value="0"/>
@@ -36950,7 +36779,6 @@
 		<attribute key="description" value="The blend inside smells as if a dead green fairy had been dropped in it"/>
 		<attribute key="weight" value="200"/>
 	</item>
-	<item id="20211" name="RESERVED SPRITE"/>
 	<item id="20212" article="a" name="dead demon outcast">
 		<attribute key="fluidsource" value="blood"/>
 		<attribute key="duration" value="300"/>
@@ -37035,7 +36863,6 @@
 	</item>
 	<item fromid="20247" toid="20249" article="a" name="strange stones"/>
 	<item fromid="20250" toid="20251" article="a" name="small instable vortex"/>
-	<item id="20252" name="RESERVED SPRITE"/>
 	<item id="20253" name="strange stairs">
 		<attribute key="floorchange" value="north"/>
 	</item>
@@ -37218,11 +37045,9 @@
 		<attribute key="description" value="Golden lines are embedded in the amulet and show mysterious symbols. It was awarded by TibiaHoF"/>
 		<attribute key="weight" value="400"/>
 	</item>
-	<item id="20343" name="RESERVED SPRITE"/>
 	<item id="20344" article="a" name="hole">
 		<attribute key="floorchange" value="down"/>
 	</item>
-	<item fromid="20345" toid="20346" name="RESERVED SPRITE"/>
 	<item id="20347" article="a" name="cake backpack">
 		<attribute key="primarytype" value="containers"/>
 		<attribute key="containersize" value="20"/>
@@ -37231,13 +37056,11 @@
 			<attribute key="increase capacity" value="3"/>
 		</attribute>
 	</item>
-	<item fromid="20348" toid="20349" name="RESERVED SPRITE"/>
 	<item id="20350" article="a" name="cake tapestry">
 		<attribute key="primarytype" value="decoration"/>
 		<attribute key="weight" value="1000"/>
 	</item>
 	<item fromid="20351" toid="20353" name="unknown corpse"/>
-	<item id="20354" name="RESERVED SPRITE"/>
 	<item id="20355" article="a" name="melting horn">
 		<attribute key="primarytype" value="taming items"/>
 		<attribute key="description" value="A hermit near Carlin might be able to tell you more about it"/>
@@ -37259,11 +37082,9 @@
 	<item fromid="20361" toid="20363" name="geyser">
 		<attribute key="primarytype" value="rocks"/>
 	</item>
-	<item fromid="20364" toid="20366" name="RESERVED SPRITE"/>
 	<item fromid="20367" toid="20372" name="mountain">
 		<attribute key="primarytype" value="rocks"/>
 	</item>
-	<item id="20373" name="RESERVED SPRITE"/>
 	<item fromid="20374" toid="20391" article="a" name="stone floor">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
@@ -37803,7 +37624,6 @@
 	<item fromid="21115" toid="21120" article="a" name="slime">
 		<attribute key="primarytype" value="blobs"/>
 	</item>
-	<item fromid="21121" toid="21122" name="RESERVED SPRITE"/>
 	<item id="21123" article="a" name="dead body of Quandon"/>
 	<item id="21124" article="a" name="necrometer">
 		<attribute key="primarytype" value="quest items"/>
@@ -37841,7 +37661,6 @@
 		<attribute key="duration" value="5"/>
 		<attribute key="decayTo" value="21128"/>
 	</item>
-	<item id="21133" name="RESERVED SPRITE"/>
 	<item fromid="21134" toid="21136" article="a" name="metal statue"/>
 	<item id="21137" article="a" name="pint of glooth">
 		<attribute key="description" value="Though it's frothy green, it has quite a pleasant odour"/>
@@ -37909,7 +37728,6 @@
 		<attribute key="description" value="A supply crate filled with turnips"/>
 		<attribute key="weight" value="6000"/>
 	</item>
-	<item id="21157" name="RESERVED SPRITE"/>
 	<item id="21158" article="a" name="glooth spear" plural="glooth spears">
 		<attribute key="primarytype" value="distance weapons"/>
 	<attribute key="weaponType" value="distance"/>
@@ -37919,12 +37737,10 @@
 	<attribute key="weight" value="2600"/>
 	</item>
 	<item id="21159" article="a" name="floating crate of turnips"/>
-	<item id="21160" name="RESERVED SPRITE"/>
 	<item id="21161" article="a" name="mootant armor rack">
 		<attribute key="duration" value="30"/>
 		<attribute key="decayTo" value="21163"/>
 	</item>
-	<item id="21162" name="RESERVED SPRITE"/>
 	<item id="21163" article="a" name="mootant armor rack"/>
 	<item id="21164" article="a" name="glooth cape">
 		<attribute key="primarytype" value="armors"/>
@@ -38076,7 +37892,6 @@
 		<attribute key="defense" value="1"/>
 		<attribute key="weight" value="1900"/>
 	</item>
-	<item id="21181" name="RESERVED SPRITE"/>
 	<item id="21182" article="a" name="glob of glooth">
 		<attribute key="weight" value="10"/>
 	</item>
@@ -38175,7 +37990,6 @@
 		<attribute key="primarytype" value="creature products"/>
 		<attribute key="weight" value="400"/>
 	</item>
-	<item fromid="21205" toid="21207" name="RESERVED SPRITE"/>
 	<item fromid="21208" toid="21211" name="active probing device">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="description" value="This thing looks highly instable, you better find a place to deploy it soon"/>
@@ -38219,7 +38033,6 @@
 		<attribute key="defense" value="22"/>
 		<attribute key="weight" value="9600"/>
 	</item>
-	<item id="21220" name="RESERVED SPRITE"/>
 	<item id="21221" article="a" name="jammed sewer grate">
 		<attribute key="primarytype" value="fields"/>
 		<attribute key="description" value="This grate won't budge."/>
@@ -38270,7 +38083,6 @@
 	<item id="21298" name="sewer grate">
 		<attribute key="primarytype" value="dropdowns"/>
 	</item>
-	<item id="21299" name="RESERVED SPRITE"/>
 	<item id="21300" name="unknown item"/>
 	<item id="21301" name="crude primitive printout">
 		<attribute key="primarytype" value="documents and papers"/>
@@ -38288,7 +38100,6 @@
 		<attribute key="weight" value="200"/>
 	</item>
 	<item fromid="21324" toid="21327" name="unknown item"/>
-	<item fromid="21328" toid="21330" name="RESERVED SPRITE"/>
 	<item fromid="21331" toid="21332" article="the" name="voting results">
 		<attribute key="description" value="This board will notify you of all relevant voting results, courtesy of the Rathleton Magistrate."/>
 	</item>
@@ -38299,14 +38110,12 @@
 		<attribute key="primarytype" value="teleporters"/>
 		<attribute key="description" value="You can see the other side through it."/>
 	</item>
-	<item fromid="21337" toid="21340" name="RESERVED SPRITE"/>
 	<item id="21341" article="a" name="loose stone pile">
 		<attribute key="primarytype" value="rocks"/>
 	</item>
 	<item id="21342" article="a" name="hole">
 		<attribute key="floorchange" value="down"/>
 	</item>
-	<item id="21343" name="RESERVED SPRITE"/>
 	<item id="21344" article="a" name="hole">
 		<attribute key="floorchange" value="down"/>
 	</item>
@@ -38316,7 +38125,6 @@
 	<item id="21346" article="a" name="stone floor">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
-	<item id="21347" name="RESERVED SPRITE"/>
 	<item id="21348" article="the" name="scorcher">
 		<attribute key="description" value="It's warm to the touch"/>
 		<attribute key="weaponType" value="wand"/>
@@ -38324,7 +38132,6 @@
 		<attribute key="range" value="3"/>
 		<attribute key="weight" value="1500"/>
 	</item>
-	<item id="21349" name="RESERVED SPRITE"/>
 	<item id="21350" article="the" name="chiller">
 		<attribute key="description" value="It is a little, well, chilly to the touch"/>
 		<attribute key="weaponType" value="wand"/>
@@ -38346,9 +38153,7 @@
 		<attribute key="charges" value="4"/>
 		<attribute key="weight" value="210"/>
 	</item>
-	<item fromid="21353" toid="21364" name="RESERVED SPRITE"/>
 	<item id="21365" name="stairs"/>
-	<item fromid="21366" toid="21371" name="RESERVED SPRITE"/>
 	<item id="21372" name="Mr Jones's piano"/>
 	<item id="21373" article="a" name="forlorn shovel">
 		<attribute key="primarytype" value="utilities"/>
@@ -38362,7 +38167,6 @@
 		<attribute key="primarytype" value="utilities"/>
 		<attribute key="description" value="There's a note pinned to it: 'Never leave home without a rope!'."/>
 	</item>
-	<item id="21376" name="RESERVED SPRITE"/>
 	<item id="21377" article="a" name="dawnfire derb plant">
 		<attribute key="description" value="It glows slightly in the dark, like the dawning sun."/>
 	</item>
@@ -38377,12 +38181,10 @@
 		<attribute key="weight" value="600"/>
 	</item>
 	<item id="21380" article="a" name="hole"/>
-	<item fromid="21381" toid="21382" name="RESERVED SPRITE"/>
 	<item id="21383" article="a" name="stone of insight">
 		<attribute key="description" value="This rare artefact can be traded with Milos or Trimegis for a fraction of their knowledge"/>
 		<attribute key="weight" value="999"/>
 	</item>
-	<item fromid="21384" toid="21386" name="RESERVED SPRITE"/>
 	<item id="21387" article="a" name="small lit pagoda">
 		<attribute key="primarytype" value="shrines and altars"/>
 		<attribute key="duration" value="5"/>
@@ -38546,7 +38348,6 @@
 		<attribute key="primarytype" value="rubbish"/>
 		<attribute key="weight" value="980"/>
 	</item>
-	<item id="21444" name="RESERVED SPRITE"/>
 	<item id="21445" article="a" name="war backpack">
 		<attribute key="primarytype" value="fansite items"/>
 		<attribute key="description" value="Carry all you need for battle in it. Sponsored by TibiaWars.com"/>
@@ -38617,7 +38418,6 @@
 		<attribute key="duration" value="60"/>
 		<attribute key="decayTo" value="0"/>
 	</item>
-	<item fromid="21458" toid="21461" name="RESERVED SPRITE"/>
 	<item id="21462" article="a" name="fire field"/>
 	<item id="21463" article="a" name="magic field"/>
 	<item id="21464" article="a" name="flame of life">
@@ -38756,7 +38556,6 @@
 		<attribute key="primarytype" value="machines (objects)"/>
 		<attribute key="description" value="You find fine crystal dust on the floor around."/>
 	</item>
-	<item id="21574" name="RESERVED SPRITE"/>
 	<item fromid="21575" toid="21580" article="an" name="ocean floor">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
@@ -38766,16 +38565,12 @@
 	<item fromid="21586" toid="21598" article="an" name="ocean floor">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
-	<item fromid="21599" toid="21659" name="RESERVED SPRITE"/>
 	<item fromid="21660" toid="21675" article="a" name="broken stone tile"/>
 	<item fromid="21676" toid="21681" article="a" name="stone floor">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
-	<item fromid="21682" toid="21692" name="RESERVED SPRITE"/>
 	<item fromid="21693" toid="21694" article="an" name="ornamented stone floor"/>
-	<item id="21695" name="RESERVED SPRITE"/>
 	<item fromid="21696" toid="21737" article="an" name="ornamented stone floor"/>
-	<item id="21738" name="RESERVED SPRITE"/>
 	<item id="21739" article="a" name="water vortex">
 		<attribute key="primarytype" value="teleporters"/>
 		<attribute key="type" value="teleport"/>
@@ -38791,7 +38586,6 @@
 		<attribute key="type" value="teleport"/>
 		<attribute key="description" value="A hot current buffets you upward."/>
 	</item>
-	<item id="21742" name="RESERVED SPRITE"/>
 	<item id="21743" article="a" name="strange machine">
 		<attribute key="primarytype" value="machines (objects)"/>
 		<attribute key="type" value="teleport"/>
@@ -38841,7 +38635,6 @@
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="weight" value="5"/>
 	</item>
-	<item id="21756" name="RESERVED SPRITE"/>
 	<item id="21757" article="a" name="calibrated indicator gauge">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="weight" value="10"/>
@@ -38854,12 +38647,10 @@
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="weight" value="500"/>
 	</item>
-	<item id="21760" name="RESERVED SPRITE"/>
 	<item id="21761" article="a" name="glooth converter">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="weight" value="500"/>
 	</item>
-	<item fromid="21762" toid="21765" name="RESERVED SPRITE"/>
 	<item id="21766" article="a" name="glass tube">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="weight" value="1400"/>
@@ -38878,20 +38669,16 @@
 	<item id="21770" article="a" name="drowned seaman's skull">
 		<attribute key="weight" value="2180"/>
 	</item>
-	<item id="21771" name="RESERVED SPRITE"/>
 	<item fromid="21772" toid="21774" article="a" name="slime">
 		<attribute key="primarytype" value="blobs"/>
 	</item>
-	<item fromid="21775" toid="21777" name="RESERVED SPRITE"/>
 	<item fromid="21778" toid="21785" article="a" name="slime">
 		<attribute key="primarytype" value="blobs"/>
 	</item>
-	<item id="21786" name="RESERVED SPRITE"/>
 	<item id="21787" article="a" name="broken nacre altar">
 		<attribute key="primarytype" value="shrines and altars"/>
 		<attribute key="description" value="The altar slab has been defiled and the inlaid work removed."/>
 	</item>
-	<item fromid="21788" toid="21790" name="RESERVED SPRITE"/>
 	<item id="21791" article="a" name="strange statue">
 		<attribute key="primarytype" value="statues"/>
 	</item>
@@ -38899,7 +38686,6 @@
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="weight" value="20"/>
 	</item>
-	<item id="21793" name="RESERVED SPRITE"/>
 	<item id="21794" article="an" name="ancient sundial">
 		<attribute key="primarytype" value="quest objects"/>
 		<attribute key="description" value="It seems strangely out of place in this surrounding."/>
@@ -38951,7 +38737,6 @@
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="weight" value="30"/>
 	</item>
-	<item id="21807" name="RESERVED SPRITE"/>
 	<item id="21808" article="a" name="rest of life energy"/>
 	<item id="21809" article="a" name="spark of light"/>
 	<item id="21810" article="a" name="maelstrom of darkness"/>
@@ -39082,7 +38867,6 @@
 		<attribute key="primarytype" value="rocks"/>
 		<attribute key="containersize" value="8"/>
 	</item>
-	<item fromid="21859" toid="21860" name="RESERVED SPRITE"/>
 	<item fromid="21861" toid="21862" article="a" name="nacre slab"/>
 	<item id="21863" article="a" name="dead roaring lion">
 		<attribute key="fluidsource" value="blood"/>
@@ -39153,7 +38937,6 @@
 	<item id="21878" article="a" name="spider">
 		<attribute key="primarytype" value="arachnids"/>
 	</item>
-	<item id="21879" name="RESERVED SPRITE"/>
 	<item id="21880" article="a" name="gas bag">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="weight" value="700"/>
@@ -39324,7 +39107,6 @@
 		<attribute key="primarytype" value="statues"/>
 	</item>
 	<item id="21937" article="the" name="remains of a lapis vase"/>
-	<item fromid="21938" toid="21939" name="RESERVED SPRITE"/>
 	<item id="21940" name="destroyed machinery">
 		<attribute key="duration" value="10"/>
 		<attribute key="decayTo" value="21941"/>
@@ -39344,7 +39126,6 @@
 		<attribute key="duration" value="60"/>
 		<attribute key="decayTo" value="0"/>
 	</item>
-	<item id="21944" name="RESERVED SPRITE"/>
 	<item id="21945" article="a" name="large amphora">
 		<attribute key="primarytype" value="fluid containers"/>
 	</item>
@@ -39355,12 +39136,10 @@
 		value="It is said to be a symbol of perseverance and luck.&#10;Awarded by TibiaMagazine.com.ve"/>
 	<attribute key="weight" value="1700"/>
 	</item>
-	<item id="21949" name="RESERVED SPRITE"/>
 	<item id="21950" name="witches' cap spot">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="weight" value="100"/>
 	</item>
-	<item id="21951" name="RESERVED SPRITE"/>
 	<item id="21952" article="a" name="maxxen santa">
 		<attribute key="primarytype" value="dolls and bears"/>
 		<attribute key="weight" value="650"/>
@@ -39429,7 +39208,6 @@
 		<attribute key="primarytype" value="natural tiles"/>
 		<attribute key="description" value="There is a hole in the ceiling."/>
 	</item>
-	<item id="21969" name="RESERVED SPRITE"/>
 	<item id="21970" article="a" name="closed door">
 		<attribute key="type" value="door"/>
 		<attribute key="blockProjectile" value="1"/>
@@ -39458,7 +39236,6 @@
 		<attribute key="primarytype" value="creature products"/>
 	<attribute key="weight" value="200"/>
 	</item>
-	<item id="21976" name="RESERVED SPRITE"/>
 	<item id="21977" article="the" name="remains of a tainted soul">
 		<attribute key="duration" value="10"/>
 		<attribute key="decayTo" value="21979"/>
@@ -39787,7 +39564,6 @@
 		<attribute key="primarytype" value="plants"/>
 		<attribute key="description" value="This rare flower will only bloom in the light of the moon."/>
 	</item>
-	<item id="22065" name="RESERVED SPRITE"/>
 	<item id="22066" article="a" name="dead wereboar">
 		<attribute key="duration" value="10"/>
 		<attribute key="decayTo" value="22068"/>
@@ -39948,7 +39724,6 @@
 	<item id="22104" article="a" name="trophy of Feroxa">
 		<attribute key="weight" value="500"/>
 	</item>
-	<item id="22105" name="RESERVED SPRITE"/>
 	<item id="22106" article="a" name="water vortex">
 		<attribute key="primarytype" value="teleporters"/>
 		<attribute key="type" value="teleport"/>
@@ -39977,7 +39752,6 @@
 		<attribute key="decayTo" value="22108"/>
 		<attribute key="containersize" value="24"/>
 	</item>
-	<item id="22112" name="RESERVED SPRITE"/>
 	<item id="22113" article="an" name="enchanted werewolf helmet">
 		<attribute key="description" value="This helmet can only be worn by knights and amplifies club fighting."/>
 		<attribute key="transformequipto" value="22128"/>
@@ -39998,7 +39772,6 @@
 		<attribute key="transformequipto" value="22132"/>
 		<attribute key="weight" value="2500"/>
 	</item>
-	<item id="22117" name="RESERVED SPRITE"/>
 	<item id="22118" name="Tibia coins">
 		<attribute key="primarytype" value="valuables"/>
 		<attribute key="description" value="Tibia Coins are needed to shop exclusive products in the Store, including fabulous mounts, classy outfits, a Name Change or even Premium Time"/>
@@ -40178,7 +39951,6 @@
 		<attribute key="description" value="It grants infinite power and knowledge to the one who wears it.&#10;Awarded by TibiaMisterios.com.br"/>
 		<attribute key="weight" value="666"/>
 	</item>
-	<item id="22155" name="RESERVED SPRITE"/>
 	<item id="22156" article="a" name="stairs">
 		<attribute key="floorchange" value="north"/>
 	</item>
@@ -40224,9 +39996,7 @@
 		<attribute key="defense" value="23"/>
 		<attribute key="weight" value="7500"/>
 	</item>
-	<item id="22173" name="RESERVED SPRITE"/>
 	<item fromid="22174" toid="22180" article="a" name="part of the godbreaker"/>
-	<item id="22181" name="RESERVED SPRITE"/>
 	<item id="22182" article="a" name="teleportation rod">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="description" value="A rod to be powerful enough to transport the godbreaker parts to a place of safety"/>
@@ -40310,7 +40080,6 @@
 		<attribute key="primarytype" value="magical items"/>
 		<attribute key="weight" value="3400"/>
 	</item>
-	<item fromid="22197" toid="22251" name="RESERVED SPRITE"/>
 	<item fromid="22252" toid="22253" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
@@ -40418,7 +40187,6 @@
 	<item fromid="22458" toid="22493" name="tent">
 		<attribute key="primarytype" value="constructions"/>
 	</item>
-	<item id="22494" name="RESERVED SPRITE"/>
 	<item fromid="22495" toid="22497" name="unknown item"/>
 	<item fromid="22498" toid="22501" name="painted tusks">
 		<attribute key="primarytype" value="walls"/>
@@ -40634,15 +40402,12 @@
 		<attribute key="floorchange" value="west"/>
 	</item>
 	<item fromid="22567" toid="22570" name="cracked stone wall"/>
-	<item fromid="22571" toid="22578" name="RESERVED SPRITE"/>
 	<item fromid="22579" toid="22584" name="cracked stone wall"/>
 	<item fromid="22585" toid="22618" name="energy wall"/>
-	<item fromid="22619" toid="22625" name="RESERVED SPRITE"/>
 	<item id="22626" article="a" name="large pile of bones"/>
 	<item fromid="22627" toid="22640" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item id="22641" name="RESERVED SPRITE"/>
 	<item id="22642" article="a" name="clay pot">
 		<attribute key="primarytype" value="fluid containers"/>
 	</item>
@@ -40683,13 +40448,11 @@
 		<attribute key="description" value="It is sticky and smells of decayed plants"/>
 		<attribute key="weight" value="600"/>
 	</item>
-	<item fromid="22653" toid="22655" name="RESERVED SPRITE"/>
 	<item id="22656" article="a" name="voodoo lily pollen">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="description" value="They are blue and violet and exhale a faint stench of death"/>
 		<attribute key="weight" value="10"/>
 	</item>
-	<item id="22657" name="RESERVED SPRITE"/>
 	<item id="22658" article="a" name="floating green flask">
 		<attribute key="primarytype" value="refuse"/>
 	</item>
@@ -40829,7 +40592,6 @@
 		<attribute key="description" value="This pure soul is powerful enough to destroy Sin Devourers. The soul is fading away quickly though"/>
 		<attribute key="weight" value="250"/>
 	</item>
-	<item fromid="22699" toid="22702" name="RESERVED SPRITE"/>
 	<item id="22703" article="a" name="crystal trail">
 		<attribute key="primarytype" value="rocks"/>
 	</item>
@@ -40876,7 +40638,6 @@
 		<attribute key="description" value="Its blade is sharp and its wood carefully preserved. A weapon for a strong goblin, and clearly used before"/>
 		<attribute key="weight" value="8000"/>
 	</item>
-	<item fromid="22714" toid="22715" name="RESERVED SPRITE"/>
 	<item fromid="22716" toid="22719" article="a" name="stone tile">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
@@ -41243,7 +41004,6 @@
 		<attribute key="decayTo" value="22784"/>
 		<attribute key="containersize" value="30"/>
 	</item>
-	<item fromid="22788" toid="22792" name="RESERVED SPRITE"/>
 	<item id="22793" name="stone tile">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
@@ -41311,7 +41071,6 @@
 	<item id="22813" article="a" name="depot box XVII">
 		<attribute key="containersize" value="32"/>
 	</item>
-	<item fromid="22814" toid="22862" name="RESERVED SPRITE"/>
 	<item id="22863" article="a" name="test voodoo doll">
 		<attribute key="primarytype" value="dolls and bears"/>
 		<attribute key="weight" value="650"/>
@@ -41394,12 +41153,10 @@
 	<item id="22881" name="dry grass">
 		<attribute key="primarytype" value="remains"/>
 	</item>
-	<item fromid="22882" toid="22884" name="RESERVED SPRITE"/>
 	<item id="22885" article="a" name="bird nest">
 		<attribute key="primarytype" value="natural products"/>
 		<attribute key="description" value="Something glitters between the eggs."/>
 	</item>
-	<item fromid="22886" toid="22888" name="RESERVED SPRITE"/>
 	<item id="22889" article="a" name="shield of destiny">
 		<attribute key="description" value="Holding the divine intellect of Uman and the merciless&#10;destruction instinct of Zathroth, the eternal balance remains on the&#10;hands of its owner. Granted by TibiaRoyal.com"/>
 		<attribute key="weight" value="6800"/>
@@ -41410,7 +41167,6 @@
 		<attribute key="decayTo" value="22889"/>
 		<attribute key="weight" value="6800"/>
 	</item>
-	<item id="22891" name="RESERVED SPRITE"/>
 	<item id="22892" article="a" name="stone tile">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
@@ -41418,73 +41174,54 @@
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
 	<item id="22894" article="a" name="vortex"/>
-	<item fromid="22895" toid="23047" name="RESERVED SPRITE"/>
 	<item fromid="23048" toid="23057" article="a" name="rift floor">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
-	<item fromid="23058" toid="23059" name="RESERVED SPRITE"/>
 	<item id="23060" article="a" name="rift floor">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
-	<item fromid="23061" toid="23062" name="RESERVED SPRITE"/>
 	<item id="23063" article="a" name="rift floor">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
-	<item fromid="23064" toid="23065" name="RESERVED SPRITE"/>
 	<item id="23066" article="a" name="rift floor">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
-	<item fromid="23067" toid="23068" name="RESERVED SPRITE"/>
 	<item id="23069" article="a" name="rift floor">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
-	<item fromid="23070" toid="23071" name="RESERVED SPRITE"/>
 	<item id="23072" article="a" name="rift floor">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
-	<item fromid="23073" toid="23074" name="RESERVED SPRITE"/>
 	<item id="23075" article="a" name="rift floor">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
-	<item fromid="23076" toid="23077" name="RESERVED SPRITE"/>
 	<item id="23078" article="a" name="rift floor">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
-	<item fromid="23079" toid="23080" name="RESERVED SPRITE"/>
 	<item id="23081" article="a" name="rift floor">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
-	<item fromid="23082" toid="23083" name="RESERVED SPRITE"/>
 	<item id="23084" article="a" name="rift floor">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
-	<item fromid="23085" toid="23086" name="RESERVED SPRITE"/>
 	<item id="23087" article="a" name="rift floor">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
-	<item fromid="23088" toid="23089" name="RESERVED SPRITE"/>
 	<item id="23090" article="a" name="rift floor">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
-	<item fromid="23091" toid="23094" name="RESERVED SPRITE"/>
 	<item fromid="23095" toid="23096" name="crackling energy"/>
 	<item fromid="23097" toid="23110" name="overgrown rift floor"/>
 	<item fromid="23111" toid="23113" name="rift floor">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
 	<item id="23114" name="unknown item"/>
-	<item fromid="23115" toid="23118" name="RESERVED SPRITE"/>
 	<item id="23119" name="unknown item"/>
-	<item fromid="23120" toid="23123" name="RESERVED SPRITE"/>
 	<item id="23124" name="unknown item"/>
-	<item fromid="23125" toid="23128" name="RESERVED SPRITE"/>
 	<item id="23129" name="unknown item"/>
-	<item fromid="23130" toid="23133" name="RESERVED SPRITE"/>
 	<item id="23134" name="unknown item"/>
-	<item fromid="23135" toid="23138" name="RESERVED SPRITE"/>
 	<item id="23139" name="unknown item"/>
 	<item id="23140" name="crater"/>
-	<item fromid="23141" toid="23143" name="RESERVED SPRITE"/>
 	<item fromid="23144" toid="23153" name="rift wall"/>
 	<item fromid="23154" toid="23162" name="glowing dirt">
 		<attribute key="description" value="This floor is very gluey."/>
@@ -41498,24 +41235,17 @@
 	<item fromid="23184" toid="23186" name="viscous dirt">
 		<attribute key="description" value="This floor is very gluey."/>
 	</item>
-	<item fromid="23187" toid="23188" name="RESERVED SPRITE"/>
 	<item id="23189" name="rift wall"/>
-	<item id="23190" name="RESERVED SPRITE"/>
 	<item fromid="23191" toid="23192" name="rift wall"/>
-	<item fromid="23193" toid="23194" name="RESERVED SPRITE"/>
 	<item fromid="23195" toid="23213" name="rift wall"/>
 	<item fromid="23214" toid="23222" name="glowing"/>
 	<item fromid="23223" toid="23342" name="weapon of carving">
 		<attribute key="description" value="This weapon is overcharged"/>
 	</item>
 	<item fromid="23343" toid="23344" article="a" name="crater"/>
-	<item fromid="23345" toid="23348" name="RESERVED SPRITE"/>
 	<item fromid="23349" toid="23351" article="a" name="crater"/>
-	<item fromid="23352" toid="23353" name="RESERVED SPRITE"/>
 	<item fromid="23354" toid="23357" name="rift wall"/>
-	<item fromid="23358" toid="23359" name="RESERVED SPRITE"/>
 	<item id="23360" article="a" name="crater"/>
-	<item id="23361" name="RESERVED SPRITE"/>
 	<item id="23362" article="a" name="crater"/>
 	<item id="23363" name="rift floor">
 		<attribute key="primarytype" value="natural tiles"/>
@@ -41615,7 +41345,6 @@
 		<attribute key="primarytype" value="utilities"/>
 		<attribute key="containersize" value="20"/>
 	</item>
-	<item id="23397" name="RESERVED SPRITE"/>
 	<item id="23398" article="a" name="decoration kit">
 		<attribute key="primarytype" value="furniture"/>
 	</item>
@@ -42402,7 +42131,6 @@
 	<item fromid="23577" toid="23667" name="weapon of mayhem">
 		<attribute key="description" value="This weapon is overcharged"/>
 	</item>
-	<item fromid="23668" toid="23675" name="RESERVED SPRITE"/>
 	<item id="23676" name="hand puppets">
 		<attribute key="primarytype" value="fansite items"/>
 		<attribute key="description" value="Souvenir from Thais Museum"/>
@@ -42459,12 +42187,10 @@
 		<attribute key="primarytype" value="light sources"/>
 		<attribute key="weight" value="560"/>
 	</item>
-	<item fromid="23688" toid="23690" name="RESERVED SPRITE"/>
 	<item id="23691" article="a" name="fish in a tank">
 		<attribute key="description" value="A small fish is minding his own business in this tank"/>
 		<attribute key="wrapableto" value="23398"/>
 	</item>
-	<item id="23692" name="RESERVED SPRITE"/>
 	<item id="23693" article="a" name="rustic chair">
 		<attribute key="primarytype" value="furniture"/>
 		<attribute key="wrapableto" value="23398"/>
@@ -42689,7 +42415,6 @@
 	<item id="23741" name="brass-shod chest">
 		<attribute key="primarytype" value="utilities"/>
 	</item>
-	<item fromid="23742" toid="23809" name="RESERVED SPRITE"/>
 	<item id="23810" article="a" name="phial of fresh water">
 		<attribute key="description" value="The phial contains fresh, clean water. It also looks like it sparkles. The flask is so thin and finely crated that the water seems to pour out little by little"/>
 		<attribute key="weight" value="300"/>
@@ -42829,7 +42554,6 @@
 	<item fromid="24163" toid="24186" article="a" name="mossy wall">
 		<attribute key="primarytype" value="plants"/>
 	</item>
-	<item id="24187" name="RESERVED SPRITE"/>
 	<item fromid="24188" toid="24191" article="a" name="mossy wall">
 		<attribute key="primarytype" value="plants"/>
 	</item>
@@ -42902,19 +42626,15 @@
 	</item>
 	<item fromid="24234" toid="24235" name="unknown item"/>
 	<item fromid="24236" toid="24243" article="a" name="waterway cataract"/>
-	<item id="24244" name="RESERVED SPRITE"/>
 	<item id="24245" article="a" name="empty plant tub"/>
 	<item id="24246" article="a" name="plant tub"/>
 	<item id="24247" article="a" name="empty ruined plant tub"/>
-	<item id="24249" name="RESERVED SPRITE"/>
 	<item fromid="24250" toid="24255" name="unknown item"/>
 	<item id="24256" name="unknown item"/>
 	<item id="24258" article="a" name="waterway"/>
-	<item fromid="24259" toid="24285" name="RESERVED SPRITE"/>
 	<item fromid="24286" toid="24309" article="a" name="stone floor">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
-	<item fromid="24310" toid="24312" name="RESERVED SPRITE"/>
 	<item id="24313" article="a" name="dead Lloyd">
 		<attribute key="fluidsource" value="blood"/>
 		<attribute key="duration" value="10"/>
@@ -42929,9 +42649,7 @@
 	</item>
 	<item fromid="24315" toid="24316" article="a" name="waterway"/>
 	<item id="24317" article="a" name="cut grass"/>
-	<item fromid="24318" toid="24356" name="RESERVED SPRITE"/>
 	<item fromid="24357" toid="24358" name="unknown item"/>
-	<item fromid="24359" toid="24379" name="RESERVED SPRITE"/>
 	<item id="24380" article="a" name="bone toothpick">
 		<attribute key="primarytype" value="creature products"/>
 		<attribute key="weight" value="2000"/>
@@ -43162,7 +42880,6 @@
 		<attribute key="primarytype" value="natural products"/>
 		<attribute key="weight" value="100"/>
 	</item>
-	<item fromid="24440" toid="24441" name="RESERVED SPRITE"/>
 	<item fromid="24442" toid="24449" name="colourful bunting"/>
 	<item fromid="24450" toid="24457" article="an" name="emblem"/>
 	<item fromid="24458" toid="24475" article="a" name="market stand"/>
@@ -43283,7 +43000,6 @@
 		<attribute key="containersize" value="10"/>
 		<attribute key="weight" value="9500"/>
 	</item>
-	<item id="24865" name="RESERVED SPRITE"/>
 	<item fromid="24866" toid="24872" name="old tibia item"/>
 	<item id="24873" article="a" name="blurred transcript">
 		<attribute key="primarytype" value="quest items"/>
@@ -43295,13 +43011,10 @@
 	<item id="24875" article="a" name="dragon chest">
 		<attribute key="primarytype" value="closets"/>
 	</item>
-	<item id="24876" name="RESERVED SPRITE"/>
 	<item id="24877" article="a" name="dragon chest">
 		<attribute key="primarytype" value="closets"/>
 	</item>
-	<item id="24878" name="RESERVED SPRITE"/>
 	<item fromid="24879" toid="24886" name="unknown item"/>
-	<item id="24887" name="RESERVED SPRITE"/>
 	<item id="24888" article="a" name="platform rising from water"/>
 	<item id="24889" article="a" name="platform rising into water"/>
 	<item id="24890" article="a" name="platform rising from water"/>
@@ -43316,7 +43029,6 @@
 	<item fromid="24904" toid="24911" article="a" name="stone tile">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
-	<item id="24912" name="RESERVED SPRITE"/>
 	<item fromid="24913" toid="24923" name="unknown item"/>
 	<item fromid="24924" toid="24925" article="an" name="opticorder analyser">
 		<attribute key="primarytype" value="machines (objects)"/>
@@ -43345,7 +43057,6 @@
 		<attribute key="description" value="It floats quietly, yet emits a dim light. You can hear something rattling inside but there seems to be no way to open it"/>
 		<attribute key="weight" value="100"/>
 	</item>
-	<item id="24931" name="RESERVED SPRITE"/>
 	<item id="24932" article="a" name="unknown teleport"/>
 	<item id="24933" article="a" name="large glowing emerald">
 		<attribute key="primarytype" value="teleporters"/>
@@ -43406,7 +43117,6 @@
 		<attribute key="weight" value="3800"/>
 	</item>
 	<item id="24952" article="a" name="dark stone"/>
-	<item id="24953" name="RESERVED SPRITE"/>
 	<item fromid="24954" toid="24959" article="a" name="part of a rune">
 		<attribute key="weight" value="850"/>
 	</item>
@@ -43486,10 +43196,8 @@
 		<attribute key="primarytype" value="creature products"/>
 		<attribute key="weight" value="650"/>
 	</item>
-	<item fromid="24979" toid="24980" name="RESERVED SPRITE"/>
 	<item fromid="24981" toid="24992" article="a" name="dark stone"/>
 	<item fromid="24993" toid="25010" article="a" name="dragon lair wall"/>
-	<item fromid="25011" toid="25014" name="RESERVED SPRITE"/>
 	<item id="25015" article="a" name="ramp"/>
 	<item id="25016" article="a" name="ramp">
 		<attribute key="floorchange" value="north"/>
@@ -43506,9 +43214,7 @@
 	<item id="25022" article="a" name="ramp">
 		<attribute key="floorchange" value="south"/>
 	</item>
-	<item fromid="25023" toid="25036" name="RESERVED SPRITE"/>
 	<item id="25037" article="a" name="dragon lair wall"/>
-	<item fromid="25038" toid="25045" name="RESERVED SPRITE"/>
 	<item id="25046" article="a" name="lush meadow"/>
 	<item fromid="25047" toid="25048" article="a" name="death portal">
 		<attribute key="primarytype" value="teleporters"/>
@@ -43714,7 +43420,6 @@
 	</item>
 	<item fromid="25114" toid="25123" article="a" name="slate"/>
 	<item fromid="25124" toid="25129" article="a" name="dragon lair wall"/>
-	<item id="25130" name="RESERVED SPRITE"/>
 	<item id="25131" article="a" name="unknown corpse">
 		<attribute key="fluidsource" value="blood"/>
 		<attribute key="duration" value="10"/>
@@ -43738,10 +43443,8 @@
 		<attribute key="decayTo" value="0"/>
 	</item>
 	<item fromid="25135" toid="25138" name="unknown item"/>
-	<item fromid="25139" toid="25134" name="RESERVED SPRITE"/>
 	<item id="25141" name="unknown item"/>
 	<item id="25142" name="dragon lair wall"/>
-	<item fromid="25143" toid="25145" name="RESERVED SPRITE"/>
 	<item fromid="25146" toid="25155" article="a" name="dragon">
 		<attribute key="primarytype" value="dragons"/>
 	</item>
@@ -43832,13 +43535,11 @@
 		<attribute key="duration" value="60"/>
 		<attribute key="decayTo" value="0"/>
 	</item>
-	<item id="25197" name="RESERVED SPRITE"/>
 	<item fromid="25198" toid="25199" article="a" name="monument broken"/>
 	<item id="25200" name="unknown item"/>
 	<item fromid="25201" toid="25202" article="an" name="abandoned imbuing shrine">
 		<attribute key="primarytype" value="constructions"/>
 	</item>
-	<item fromid="25203" toid="25204" name="RESERVED SPRITE"/>
 	<item fromid="25205" toid="25209" name="tapestry of honour">
 		<attribute key="description" value="It was awarded during the festivities of Tibia's anniversary"/>
 	</item>
@@ -44169,27 +43870,21 @@
 		<attribute key="primarytype" value="fields"/>
 	</item>
 	<item fromid="25511" toid="25524" name="unknown item (floor)"/>
-	<item fromid="25525" toid="25573" name="RESERVED SPRITE"/>
 	<item fromid="25574" toid="25576" article="a" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item fromid="25577" toid="25579" name="RESERVED SPRITE"/>
 	<item fromid="25580" toid="25582" article="a" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item fromid="25583" toid="25585" name="RESERVED SPRITE"/>
 	<item fromid="25586" toid="25589" article="a" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item fromid="25590" toid="25624" name="RESERVED SPRITE"/>
 	<item id="25625" article="a" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item id="25626" name="RESERVED SPRITE"/>
 	<item id="25627" article="a" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item id="25628" name="RESERVED SPRITE"/>
 	<item fromid="25629" toid="25630" article="a" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
@@ -44232,7 +43927,6 @@
 		<attribute key="primarytype" value="documents and papers"/>
 		<attribute key="weight" value="150"/>
 	</item>
-	<item id="25688" name="RESERVED SPRITE"/>
 	<item id="25689" article="a" name="golden brush">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="description" value="The owner of this golden brush can be proud of supporting arts"/>
@@ -44323,7 +44017,6 @@
 		<attribute key="weight" value="200"/>
 	</item>
 	<item id="25703" article="a" name="dead lava"/>
-	<item fromid="25704" toid="25705" name="RESERVED SPRITE"/>
 	<item id="25706" article="a" name="stuffed ogre brute"/>
 	<item id="25707" article="a" name="stuffed ogre savage"/>
 	<item id="25708" article="a" name="stuffed ogre shaman"/>
@@ -44334,7 +44027,6 @@
 	<item id="25711" article="a" name="stuffed guzzlemaw"/>
 	<item id="25712" article="a" name="stuffed rotworm"/>
 	<item id="25713" article="a" name="stuffed mummy"/>
-	<item fromid="25714" toid="25715" name="RESERVED SPRITE"/>
 	<item id="25716" article="a" name="stuffed clomp"/>
 	<item id="25717" article="a" name="brown vortex"/>
 	<item id="25718" article="a" name="temple teleport scroll">
@@ -44453,7 +44145,6 @@
 	<item fromid="25752" toid="25754" article="a" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item id="25755" name="RESERVED SPRITE"/>
 	<item id="25756" article="an" name="energized tile"/>
 	<item id="25757" article="a" name="diamond arrow">
 		<attribute key="primarytype" value="ammunition"/>
@@ -44547,7 +44238,6 @@
 		<attribute key="primarytype" value="dreamhaunters"/>
 		<attribute key="weight" value="10"/>
 	</item>
-	<item fromid="25775" toid="25776" name="RESERVED SPRITE"/>
 	<item id="25777" name="remains of a decaying soul"/>
 	<item id="25778" name="remains of a withering soul"/>
 	<item id="25779" article="a" name="swan feather cloak">
@@ -44564,13 +44254,11 @@
 		<attribute key="containersize" value="24"/>
 		<attribute key="weight" value="800"/>
 	</item>
-	<item id="25781" name="RESERVED SPRITE"/>
 	<item id="25782" article="a" name="magical music notes">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="weight" value="10"/>
 	</item>
 	<item id="25783" article="a" name="raven herb bush"/>
-	<item fromid="25784" toid="25793" name="RESERVED SPRITE"/>
 	<item id="25794" article="a" name="cult object">
 		<attribute key="primarytype" value="quest objects"/>
 	</item>
@@ -44738,7 +44426,6 @@
 		<attribute key="decayTo" value="25830"/>
 		<attribute key="containersize" value="20"/>
 	</item>
-	<item fromid="25832" toid="25838" name="RESERVED SPRITE"/>
 	<item id="25839" article="a" name="dead putrid mummy">
 		<attribute key="duration" value="60"/>
 		<attribute key="decayTo" value="0"/>
@@ -44845,7 +44532,6 @@
 		<attribute key="wrapableto" value="23398"/>
 		<attribute key="weight" value="200000"/>
 	</item>
-	<item fromid="25884" toid="25888" name="RESERVED SPRITE"/>
 	<item id="25889" article="a" name="mana cask">
 		<attribute key="primarytype" value="utilities"/>
 		<attribute key="description" value="This cask can be used to refill mana potions"/>
@@ -46314,7 +46000,6 @@
 	<item fromid="26125" toid="26128" name="stone tile">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
-	<item fromid="26129" toid="26132" name="RESERVED SPRITE"/>
 	<item id="26133" article="a" name="dead boss">
 		<attribute key="duration" value="300"/>
 		<attribute key="decayTo" value="26134"/>
@@ -46327,10 +46012,8 @@
 		<attribute key="duration" value="0"/>
 		<attribute key="decayTo" value="0"/>
 	</item>
-	<item fromid="26136" toid="26139" name="RESERVED SPRITE"/>
 	<item fromid="26140" toid="26142" name="unknown item"/>
 	<item id="26143" article="a" name="small stones"/>
-	<item fromid="26144" toid="26149" name="RESERVED SPRITE"/>
 	<item id="26150" article="a" name="wheat carpet">
 		<attribute key="primarytype" value="floor decorations"/>
 		<attribute key="type" value="carpet"/>
@@ -46448,7 +46131,6 @@
 		<attribute key="duration" value="2"/>
 		<attribute key="decayTo" value="26180"/>
 	</item>
-	<item fromid="26177" toid="26178" name="RESERVED SPRITE"/>
 	<item id="26179" article="a" name="demon">
 		<attribute key="primarytype" value="demons"/>
 		<attribute key="duration" value="2"/>
@@ -46497,7 +46179,6 @@
 	<item id="26194" article="a" name="your magical tree">
 		<attribute key="description" value="This certainly is no ordinary tree, yet it looks exactly like one and smells invigoratingly fresh."/>
 	</item>
-	<item fromid="26195" toid="26946" name="RESERVED SPRITE"/>
 	<item fromid="26947" toid="26948" article="a" name="Journal Shield">
 		<attribute key="primarytype" value="shields"/>
 		<attribute key="description" value="Tibia's very first headline is written on it. Awarded by BomDiaTibia.com"/>
@@ -46506,39 +46187,30 @@
 	<item fromid="26949" toid="27061" article="a" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item fromid="27062" toid="27095" name="RESERVED SPRITE"/>
 	<item fromid="27096" toid="27231" article="a" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item id="27232" name="RESERVED SPRITE"/>
 	<item id="27233" article="a" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item fromid="27234" toid="27235" name="RESERVED SPRITE"/>
 	<item id="27236" article="a" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item fromid="27237" toid="27238" name="RESERVED SPRITE"/>
 	<item id="27239" article="a" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item fromid="27240" toid="27241" name="RESERVED SPRITE"/>
 	<item id="27242" article="a" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item fromid="27243" toid="27244" name="RESERVED SPRITE"/>
 	<item fromid="27245" toid="27246" article="a" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item fromid="27247" toid="27248" name="RESERVED SPRITE"/>
 	<item fromid="27249" toid="27250" article="a" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item fromid="27251" toid="27254" name="RESERVED SPRITE"/>
 	<item fromid="27255" toid="27258" article="a" name="stone wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item id="27259" name="RESERVED SPRITE"/>
 	<item fromid="27261" toid="27262" article="a" name="rusted key fragment">
 		<attribute key="description" value="The key fragment is quite rusted. Looks like it has been an ornate key once"/>
 		<attribute key="weight" value="250"/>
@@ -46620,7 +46292,6 @@
 		<attribute key="primarytype" value="traps"/>
 	</item>
 	<item fromid="27358" toid="27361" article="a" name="portrait of a werewolf"/>
-	<item fromid="27362" toid="27365" name="RESERVED SPRITE"/>
 	<item id="27366" article="a" name="makeshift home">
 		<attribute key="primarytype" value="traps"/>
 	</item>
@@ -46649,7 +46320,6 @@
 		<attribute key="description" value="Underneath the circle with the dot inside you read: &quot;The alchemical symbol for gold.&quot;"/>
 		<attribute key="weight" value="200"/>
 	</item>
-	<item fromid="27373" toid="27442" name="RESERVED SPRITE"/>
 	<item id="27443" article="a" name="piece of parchment">
 		<attribute key="description" value="Underneath the plant drawing you read: &quot;Shadow Bite Plant, grows only subterranean, underneath Edron.&quot;"/>
 		<attribute key="weight" value="200"/>
@@ -46839,7 +46509,8 @@
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="weight" value="100"/>
 	</item>
-	<item fromid="27466" toid="27473" name="obsidian pipes"/>
+	<item fromid="27466" toid="27468" name="glowing obsidian pipes"/>
+	<item fromid="27469" toid="27473" name="obsidian pipes"/>
 	<item fromid="27474" toid="27475" article="a" name="reinforced crystal-resonators">
 		<attribute key="primarytype" value="rocks"/>
 	</item>
@@ -47002,7 +46673,6 @@
 		<attribute key="weight" value="500"/>
 	</item>
 	<item fromid="27527" toid="27529" article="an" name="unknown item"/>
-	<item fromid="27530" toid="27533" name="RESERVED SPRITE"/>
 	<item id="27534" article="a" name="dead stonerefiner">
 		<attribute key="duration" value="60"/>
 		<attribute key="decayTo" value="0"/>
@@ -47025,7 +46695,6 @@
 		<attribute key="decayTo" value="27536"/>
 		<attribute key="containersize" value="28"/>
 	</item>
-	<item fromid="27538" toid="27541" name="RESERVED SPRITE"/>
 	<item id="27542" article="a" name="dead deepworm">
 		<attribute key="duration" value="60"/>
 		<attribute key="decayTo" value="0"/>
@@ -47048,11 +46717,9 @@
 		<attribute key="decayTo" value="27544"/>
 		<attribute key="containersize" value="20"/>
 	</item>
-	<item id="27546" name="RESERVED SPRITE"/>
 	<item id="27547" article="an" name="opticorder rectifier">
 		<attribute key="primarytype" value="machines (objects)"/>
 	</item>
-	<item fromid="27548" toid="27551" name="RESERVED SPRITE"/>
 	<item id="27552" article="a" name="dead tunnel tyrant">
 		<attribute key="duration" value="60"/>
 		<attribute key="decayTo" value="0"/>
@@ -47118,18 +46785,14 @@
 		<attribute key="decayTo" value="27562"/>
 		<attribute key="containersize" value="20"/>
 	</item>
-	<item id="27564" name="RESERVED SPRITE"/>
 	<item id="27565" article="a" name="foxtail amulet">
 		<attribute key="primarytype" value="amulets and necklaces"/>
 		<attribute key="absorbpercentphysical" value="5"/>
 		<attribute key="armor" value="2"/>
 		<attribute key="weight" value="500"/>
 	</item>
-	<item fromid="27566" toid="27581" name="RESERVED SPRITE"/>
 	<item id="27582" name="unknown corpse"/>
-	<item fromid="27583" toid="27585" name="RESERVED SPRITE"/>
 	<item id="27586" name="unknown corpse"/>
-	<item id="27587" name="RESERVED SPRITE"/>
 	<item id="27588" article="an" name="opticorder rectifier">
 		<attribute key="primarytype" value="machines (objects)"/>
 		<attribute key="description" value="A strangely shaped hollow rests in the center of a workbench."/>
@@ -47210,7 +46873,6 @@
 		<attribute key="primarytype" value="creature products"/>
 		<attribute key="weight" value="170"/>
 	</item>
-	<item id="27609" name="RESERVED SPRITE"/>
 	<item id="27610" name="dead Last Planegazer">
 		<attribute key="duration" value="60"/>
 		<attribute key="decayTo" value="0"/>
@@ -47359,7 +47021,6 @@
 		<attribute key="decayTo" value="27640"/>
 		<attribute key="containersize" value="20"/>
 	</item>
-	<item id="27642" name="RESERVED SPRITE"/>
 	<item id="27643" article="a" name="dead mole">
 		<attribute key="duration" value="60"/>
 		<attribute key="decayTo" value="0"/>
@@ -47532,7 +47193,6 @@
 	<item id="27671" article="a" name="torch of change">
 		<attribute key="wrapableto" value="23398"/>
 	</item>
-	<item id="27672" name="RESERVED SPRITE"/>
 	<item id="27673" article="a" name="torch of change">
 		<attribute key="wrapableto" value="23398"/>
 	</item>
@@ -47542,7 +47202,6 @@
 	<item id="27675" article="a" name="torch of change">
 		<attribute key="wrapableto" value="23398"/>
 	</item>
-	<item fromid="27676" toid="27678" name="RESERVED SPRITE"/>
 	<item id="27679" article="an" name="alchemistic bookstand">
 		<attribute key="primarytype" value="decoration"/>
 		<attribute key="wrapableto" value="23398"/>
@@ -47593,7 +47252,6 @@
 		<attribute key="primarytype" value="decoration"/>
 		<attribute key="wrapableto" value="23398"/>
 	</item>
-	<item id="27690" name="RESERVED SPRITE"/>
 	<item id="27691" article="a" name="ferumbras bust">
 		<attribute key="primarytype" value="furniture"/>
 		<attribute key="description" value="Something is missing."/>
@@ -47679,7 +47337,6 @@
 		<attribute key="duration" value="60"/>
 		<attribute key="decayTo" value="0"/>
 	</item>
-	<item fromid="27711" toid="27712" name="RESERVED SPRITE"/>
 	<item id="27713" article="a" name="heavy crystal fragment">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="description" value="A heavy fragment harvested from a large tree of crystals. It's fragile but should last about a day"/>
@@ -47748,11 +47405,9 @@
 		<attribute key="duration" value="60"/>
 		<attribute key="decayTo" value="0"/>
 	</item>
-	<item id="27726" name="RESERVED SPRITE"/>
 	<item id="27727" name="lava">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
-	<item fromid="27728" toid="27834" name="RESERVED SPRITE"/>
 	<item fromid="27835" toid="27838" article="a" name="painted stone floor">
 		<attribute key="description" value="A large white symbol has been painted accross the floor."/>
 	</item>
@@ -47768,7 +47423,6 @@
 	<item id="27842" article="a" name="banner">
 		<attribute key="description" value="A banner with the colours and heraldic animal of the Falcon Order."/>
 	</item>
-	<item fromid="27843" toid="27844" name="RESERVED SPRITE"/>
 	<item fromid="27845" toid="27846" article="a" name="Citizen Doll">
 		<attribute key="primarytype" value="dolls and bears"/>
 		<attribute key="description" value="This doll carries the story of all Tibians in their legendary citizen outfit. Awarded by TibiaTV.com.br"/>
@@ -47804,7 +47458,6 @@
 		<attribute key="description" value="The blood in this test tube is of a very deep ruby red"/>
 		<attribute key="weight" value="85"/>
 	</item>
-	<item id="27875" name="RESERVED SPRITE"/>
 	<item fromid="27876" toid="27881" article="a" name="writing desk"/>
 	<item fromid="27894" toid="27895" name="unknown item"/>
 	<item id="27896" article="a" name="bucket of scrolls"/>
@@ -47870,7 +47523,6 @@
 	<item fromid="28137" toid="28144" article="an" name="ostentatious bookstand">
 		<attribute key="primarytype" value="utilities"/>
 	</item>
-	<item id="28145" name="RESERVED SPRITE"/>
 	<item fromid="28146" toid="28165" article="a" name="green seating area"/>
 	<item fromid="28166" toid="28167" article="a" name="fireplace"/>
 	<item id="28168" article="a" name="candles"/>
@@ -47885,7 +47537,6 @@
 	<item id="28187" article="a" name="hand of odd"/>
 	<item id="28188" article="a" name="scribbler's hand"/>
 	<item id="28189" article="a" name="magical gas lamp"/>
-	<item fromid="28190" toid="28192" name="RESERVED SPRITE"/>
 	<item fromid="28193" toid="28198" article="a" name="book shelves"/>
 	<item fromid="28199" toid="28200" article="a" name="fiery metal eye">
 		<attribute key="description" value="This eye seems to be aware of its surroundings"/>
@@ -47901,9 +47552,7 @@
 	<item fromid="28220" toid="28221" article="a" name="wall lamp"/>
 	<item fromid="28222" toid="28226" article="a" name="magic sphere"/>
 	<item fromid="28227" toid="28243" article="a" name="painting of Tibiasula"/>
-	<item fromid="28244" toid="28248" name="RESERVED SPRITE"/>
 	<item fromid="28249" toid="28258" article="a" name="painting of Tibiasula"/>
-	<item id="28259" name="RESERVED SPRITE"/>
 	<item fromid="28260" toid="28263" article="a" name="map of Tibia"/>
 	<item fromid="28264" toid="28267" article="a" name="painting of the two worlds"/>
 	<item fromid="28268" toid="28273" article="a" name="writing desk"/>
@@ -47911,7 +47560,6 @@
 		<attribute key="primarytype" value="utilities"/>
 		<attribute key="description" value="Pressure on this gable will move the stone on the plank."/>
 	</item>
-	<item fromid="28278" toid="28283" name="RESERVED SPRITE"/>
 	<item fromid="28284" toid="28290" article="a" name="slate floor">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
@@ -47960,7 +47608,6 @@
 	<item fromid="28368" toid="28369" article="an" name="open door">
 		<attribute key="type" value="door"/>
 	</item>
-	<item fromid="28370" toid="28379" name="RESERVED SPRITE"/>
 	<item fromid="28380" toid="28411" article="a" name="book shelves"/>
 	<item fromid="28412" toid="28422" name="pillar">
 		<attribute key="primarytype" value="traps"/>
@@ -48014,7 +47661,6 @@
 		<attribute key="primarytype" value="distance weapons"/>
 	</item>
 	<item id="28479" article="a" name="wand of destruction TEST"/>
-	<item id="28480" name="RESERVED SPRITE"/>
 	<item id="28481" article="a" name="writing desk">
 		<attribute key="containersize" value="5"/>
 	</item>
@@ -48036,7 +47682,6 @@
 		<attribute key="primarytype" value="food"/>
 		<attribute key="weight" value="280"/>
 	</item>
-	<item id="28487" name="RESERVED SPRITE"/>
 	<item id="28488" article="a" name="parchment of dark knowledge">
 		<attribute key="description" value="Its power seems to seek a book to attach to"/>
 		<attribute key="weight" value="200"/>
@@ -48070,7 +47715,6 @@
 	<item fromid="28496" toid="28498" article="a" name="wooden wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
-	<item id="28499" name="RESERVED SPRITE"/>
 	<item id="28500" article="a" name="wooden wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
@@ -48098,7 +47742,6 @@
 		<attribute key="type" value="door"/>
 	</item>
 	<item fromid="28521" toid="28523" name="unknown item"/>
-	<item id="28524" name="RESERVED SPRITE"/>
 	<item id="28525" article="a" name="magic gold converter">
 		<attribute key="primarytype" value="tools"/>
 		<attribute key="description" value="It is actually in the inactive state"/>
@@ -48167,7 +47810,6 @@
 		<attribute key="charges" value="50"/>
 		<attribute key="weight" value="1000"/>
 	</item>
-	<item fromid="28546" toid="28551" name="RESERVED SPRITE"/>
 	<item id="28552" article="an" name="exercise sword">
 		<attribute key="primarytype" value="exercise weapons"/>
 		<attribute key="showCharges" value="1"/>
@@ -48391,7 +48033,6 @@
 		<attribute key="decayTo" value="28589"/>
 		<attribute key="containersize" value="20"/>
 	</item>
-	<item fromid="28591" toid="28594" name="RESERVED SPRITE"/>
 	<item id="28595" article="a" name="slain floating savant">
 		<attribute key="duration" value="60"/>
 		<attribute key="decayTo" value="0"/>
@@ -48690,7 +48331,6 @@
 		<attribute key="type" value="door"/>
 		<attribute key="blockProjectile" value="1"/>
 	</item>
-	<item id="28660" name="RESERVED SPRITE"/>
 	<item fromid="28661" toid="28662" article="a" name="writing desk">
 		<attribute key="containersize" value="5"/>
 	</item>
@@ -48736,7 +48376,6 @@
 		<attribute key="duration" value="60"/>
 		<attribute key="decayTo" value="0"/>
 	</item>
-	<item id="28671" name="RESERVED SPRITE"/>
 	<item fromid="28672" toid="28673" article="a" name="vortex">
 		<attribute key="type" value="teleport"/>
 	</item>
@@ -48905,7 +48544,6 @@
 	<item id="28710" article="the" name="Peacock Ballad">
 		<attribute key="weight" value="50"/>
 	</item>
-	<item fromid="28711" toid="28712" name="RESERVED SPRITE"/>
 	<item id="28713" article="a" name="magic sphere"/>
 	<item id="28714" article="a" name="falcon circlet">
 		<attribute key="primarytype" value="helmets"/>
@@ -49163,7 +48801,6 @@
 	<item fromid="28738" toid="28741" article="a" name="broken idol">
 		<attribute key="primarytype" value="statues"/>
 	</item>
-	<item fromid="28742" toid="28745" name="RESERVED SPRITE"/>
 	<item fromid="28746" toid="28749" name="zathroth' redeemer">
 		<attribute key="primarytype" value="club weapons"/>
 		<attribute key="description" value="This is an ordinary looking scythe - or is it?"/>
@@ -49196,7 +48833,6 @@
 		<attribute key="decayTo" value="28753"/>
 		<attribute key="containersize" value="20"/>
 	</item>
-	<item fromid="28755" toid="28766" name="RESERVED SPRITE"/>
 	<item id="28767" article="a" name="dead guardian of tales">
 		<attribute key="duration" value="300"/>
 		<attribute key="decayTo" value="0"/>
@@ -49306,7 +48942,6 @@
 		<attribute key="decayTo" value="28785"/>
 		<attribute key="containersize" value="20"/>
 	</item>
-	<item fromid="28787" toid="28790" name="RESERVED SPRITE"/>
 	<item id="28791" article="a" name="library ticket">
 		<attribute key="primarytype" value="taming items"/>
 		<attribute key="description" value="The initials are beautifully decorated and it is sealed with red wax"/>
@@ -49452,7 +49087,6 @@
 		<attribute key="description" value="Once there was an extraordinary place where the magic entities lived peacefully and in harmony. It was a stronghold of knowledge"/>
 		<attribute key="weight" value="60"/>
 	</item>
-	<item id="28819" name="RESERVED SPRITE"/>
 	<item id="28820" article="an" name="ornate tome">
 		<attribute key="primarytype" value="books"/>
 		<attribute key="weight" value="1500"/>
@@ -49567,7 +49201,6 @@
 		</attribute>
 	</item>
 	<item fromid="28833" toid="28834" name="unknown item"/>
-	<item fromid="28835" toid="28848" name="RESERVED SPRITE"/>
 	<item id="28849" article="a" name="dead deathling spellsinger">
 		<attribute key="duration" value="60"/>
 		<attribute key="decayTo" value="0"/>
@@ -49598,7 +49231,6 @@
 		<attribute key="description" value="Ideal to grease large mechanisms. The can is leaky"/>
 		<attribute key="weight" value="1900"/>
 	</item>
-	<item fromid="28856" toid="28858" name="RESERVED SPRITE"/>
 	<item id="28859" article="a" name="dead falcon paladin">
 		<attribute key="duration" value="300"/>
 		<attribute key="decayTo" value="0"/>
@@ -49628,7 +49260,6 @@
 		<attribute key="description" value="The book crumbles to dust as soon as you reach for it"/>
 		<attribute key="weight" value="200"/>
 	</item>
-	<item fromid="28866" toid="28870" name="RESERVED SPRITE"/>
 	<item id="28871" article="a" name="slain energuardian of tales">
 		<attribute key="duration" value="60"/>
 		<attribute key="decayTo" value="0"/>
@@ -49650,12 +49281,10 @@
 		<attribute key="decayTo" value="28873"/>
 		<attribute key="containersize" value="24"/>
 	</item>
-	<item fromid="28875" toid="28878" name="RESERVED SPRITE"/>
 	<item id="28879" article="a" name="fiery metal eye">
 		<attribute key="description" value="This eye seems to be aware of its surroundings."/>
 		<attribute key="weight" value="4015"/>
 	</item>
-	<item fromid="28880" toid="28884" name="RESERVED SPRITE"/>
 	<item fromid="28885" toid="28886" article="an" name="open door">
 		<attribute key="type" value="door"/>
 	</item>
@@ -49706,7 +49335,6 @@
 		<attribute key="description" value="Several spots on it are marked with the letter Z"/>
 		<attribute key="weight" value="830"/>
 	</item>
-	<item fromid="28909" toid="28910" name="RESERVED SPRITE"/>
 	<item id="28912" article="a" name="message in a bottle"/>
 	<item fromid="28913" toid="28914" article="a" name="fennec">
 		<attribute key="primarytype" value="decoration"/>
@@ -49737,7 +49365,6 @@
 		<attribute key="duration" value="3"/>
 		<attribute key="decayto" value="28915"/>
 	</item>
-	<item id="28919" name="RESERVED SPRITE"/>
 	<item fromid="28920" toid="28923" name="luminescent fungi">
 		<attribute key="wrapableto" value="23398"/>
 	</item>
@@ -49850,13 +49477,10 @@
 	<item id="28948" article="a" name="painting of Tibiasula">
 		<attribute key="wrapableto" value="23398"/>
 	</item>
-	<item fromid="28949" toid="28950" name="RESERVED SPRITE"/>
 	<item id="28951" article="a" name="focus of corrupted nature"/>
 	<item id="28952" name="unknown item"/>
-	<item fromid="28953" toid="28963" name="RESERVED SPRITE"/>
 	<item fromid="28964" toid="28975" name="unknown item"/>
 	<item id="28976" name="unknown item"/>
-	<item fromid="28977" toid="28987" name="RESERVED SPRITE"/>
 	<item fromid="28988" toid="28999" name="unknown item"/>
 	<item fromid="29000" toid="29021" name="ice floor">
 		<attribute key="primarytype" value="artificial tiles"/>
@@ -50087,7 +49711,6 @@
 		<attribute key="primarytype" value="rocks"/>
 		<attribute key="description" value="A single onyx lies on a small stand."/>
 	</item>
-	<item fromid="29354" toid="29406" name="RESERVED SPRITE"/>
 	<item id="29407" name="nothing special">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
@@ -50359,7 +49982,6 @@
 		<attribute key="containersize" value="15"/>
 		<attribute key="weight" value="12000"/>
 	</item>
-	<item id="29434" name="RESERVED SPRITE"/>
 	<item id="29435" article="a" name="chest">
 		<attribute key="primarytype" value="containers"/>
 		<attribute key="containersize" value="15"/>
@@ -50370,7 +49992,6 @@
 		<attribute key="containersize" value="15"/>
 		<attribute key="weight" value="12000"/>
 	</item>
-	<item fromid="29437" toid="29941" name="RESERVED SPRITE"/>
 	<item id="29942" article="a" name="Maxxenius head">
 		<attribute key="primarytype" value="creature products"/>
 		<attribute key="weight" value="210"/>
@@ -50490,7 +50111,6 @@
 		<attribute key="weight" value="400"/>
 	</item>
 	<item id="30007" article="an" name="grave"/>
-	<item id="30008" name="RESERVED SPRITE"/>
 	<item id="30009" article="a" name="colourful mushroom">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="description" value="It smells of liquorice, raspberries, pepper and fish"/>
@@ -50585,7 +50205,6 @@
 	<item fromid="30027" toid="30031" article="a" name="archway">
 		<attribute key="primarytype" value="constructions"/>
 	</item>
-	<item id="30032" name="RESERVED SPRITE"/>
 	<item fromid="30033" toid="30034" article="a" name="gate of expertise">
 		<attribute key="type" value="door"/>
 		<attribute key="blockProjectile" value="1"/>
@@ -50811,7 +50430,6 @@
 	<item id="30088" article="a" name="Malofur's lunchbox">
 		<attribute key="weight" value="70"/>
 	</item>
-	<item fromid="30089" toid="30095" name="RESERVED SPRITE"/>
 	<item id="30096" article="a" name="dead spiky carnivor">
 		<attribute key="duration" value="60"/>
 		<attribute key="decayTo" value="0"/>
@@ -50856,7 +50474,6 @@
 	</item>
 	<item id="30104" name="unknown item"/>
 	<item id="30105" article="a" name="dead djinn"/>
-	<item fromid="30106" toid="30117" name="RESERVED SPRITE"/>
 	<item fromid="30118" toid="30119" article="a" name="golden sun"/>
 	<item fromid="30120" toid="30121" article="a" name="snowflakes"/>
 	<item id="30122" article="a" name="dead crazed winter vanguard">
@@ -50901,7 +50518,6 @@
 		<attribute key="duration" value="60"/>
 		<attribute key="decayTo" value="0"/>
 	</item>
-	<item id="30130" name="RESERVED SPRITE"/>
 	<item id="30131" article="an" name="ancient oil lamp"/>
 	<item id="30132" article="a" name="dream talisman">
 		<attribute key="primarytype" value="quest items"/>
@@ -51231,7 +50847,6 @@
 		<attribute key="primarytype" value="food"/>
 		<attribute key="weight" value="500"/>
 	</item>
-	<item id="30199" name="RESERVED SPRITE"/>
 	<item id="30200" article="a" name="birthday card">
 		<attribute key="primarytype" value="decoration"/>
 		<attribute key="weight" value="100"/>
@@ -51305,7 +50920,6 @@
 	</item>
 	<item id="30215" name="ice"/>
 	<item id="30216" article="a" name="frozen human"/>
-	<item id="30217" name="RESERVED SPRITE"/>
 	<item id="30218" name="ice"/>
 	<item id="30219" article="a" name="large snowball">
 		<attribute key="primarytype" value="natural products"/>
@@ -51635,7 +51249,6 @@
 		<attribute key="containersize" value="20"/>
 	</item>
 	<item fromid="30309" toid="30312" name="unknown item"/>
-	<item fromid="30313" toid="30314" name="RESERVED SPRITE"/>
 	<item id="30315" article="a" name="pinata">
 		<attribute key="primarytype" value="decoration"/>
 		<attribute key="weight" value="3000"/>
@@ -51770,7 +51383,6 @@
 		<attribute key="armor" value="2"/>
 		<attribute key="weight" value="650"/>
 	</item>
-	<item fromid="30346" toid="30351" name="RESERVED SPRITE"/>
 	<item id="30352" article="a" name="dead lost gnome">
 		<attribute key="duration" value="60"/>
 		<attribute key="decayTo" value="0"/>
@@ -51792,7 +51404,6 @@
 		<attribute key="decayTo" value="30354"/>
 		<attribute key="containersize" value="10"/>
 	</item>
-	<item fromid="30356" toid="30361" name="RESERVED SPRITE"/>
 	<item id="30362" name="Badbara">
 		<attribute key="primarytype" value="dolls and bears"/>
 		<attribute key="weight" value="600"/>
@@ -51850,7 +51461,6 @@
 		<attribute key="description" value="Use it in your house to place a white raven"/>
 		<attribute key="weight" value="8000"/>
 	</item>
-	<item fromid="30374" toid="30392" name="RESERVED SPRITE"/>
 	<item id="30393" article="a" name="cobra crossbow">
 		<attribute key="primarytype" value="distance weapons"/>
 		<attribute key="weaponType" value="distance"/>
@@ -51993,7 +51603,6 @@
 		<attribute key="stopduration" value="1"/>
 		<attribute key="showduration" value="1"/>
 	</item>
-	<item fromid="30404" toid="30406" name="RESERVED SPRITE"/>
 	<item id="30407" article="a" name="sequoia trunk">
 		<attribute key="primarytype" value="quest objects"/>
 	</item>
@@ -52070,7 +51679,6 @@
 	<item fromid="30674" toid="30683" article="a" name="lamassu statue">
 		<attribute key="primarytype" value="statues"/>
 	</item>
-	<item fromid="30684" toid="30700" name="RESERVED SPRITE"/>
 	<item fromid="30701" toid="30717" article="a" name="reed">
 		<attribute key="description" value="It is trampled flat by many busy feet."/>
 	</item>
@@ -52272,7 +51880,6 @@
 	<item fromid="31131" toid="31133" article="a" name="obelisk">
 		<attribute key="primarytype" value="pillars"/>
 	</item>
-	<item fromid="31134" toid="31138" name="RESERVED SPRITE"/>
 	<item id="31139" article="a" name="sandstone"/>
 	<item fromid="31140" toid="31149" article="a" name="ancient wall"/>
 	<item id="31150" article="a" name="blazing bonfire">
@@ -52283,7 +51890,6 @@
 	<item fromid="31153" toid="31156" name="hanging Sun disk"/>
 	<item id="31157" article="a" name="wall lamp"/>
 	<item id="31158" article="a" name="lit wall lamp"/>
-	<item id="31159" name="RESERVED SPRITE"/>
 	<item id="31160" article="a" name="cleansed soul splinter">
 		<attribute key="primarytype" value="quest objects"/>
 	</item>
@@ -52480,7 +52086,6 @@
 		<attribute key="rotateto" value="31212"/>
 	</item>
 	<item fromid="31227" toid="31238" name="reed"/>
-	<item id="31239" name="RESERVED SPRITE"/>
 	<item fromid="31240" toid="31242" name="unknown item"/>
 	<item fromid="31243" toid="31254" article="a" name="tapestry"/>
 	<item id="31255" article="a" name="dead cart packed with gold">
@@ -52703,7 +52308,6 @@
 		<attribute key="primarytype" value="documents and papers"/>
 		<attribute key="weight" value="10"/>
 	</item>
-	<item id="31322" name="RESERVED SPRITE"/>
 	<item id="31323" name="sea horse figurine">
 		<attribute key="primarytype" value="creature products"/>
 		<attribute key="weight" value="650"/>
@@ -52835,7 +52439,6 @@
 		<attribute key="description" value="It is composed of many small shards"/>
 		<attribute key="weight" value="1600"/>
 	</item>
-	<item id="31373" name="RESERVED SPRITE"/>
 	<item id="31374" article="a" name="ancient sarcophagus"/>
 	<item fromid="31375" toid="31376" article="a" name="honey palm">
 		<attribute key="primarytype" value="trees"/>
@@ -52946,7 +52549,6 @@
 		<attribute key="decayTo" value="31397"/>
 		<attribute key="containersize" value="32"/>
 	</item>
-	<item fromid="31399" toid="31401" name="RESERVED SPRITE"/>
 	<item id="31402" article="a" name="dead adult goanna">
 		<attribute key="duration" value="60"/>
 		<attribute key="decayTo" value="0"/>
@@ -53013,7 +52615,6 @@
 	<item id="31414" name="sceptre of sun and sea">
 		<attribute key="weight" value="900"/>
 	</item>
-	<item id="31415" name="RESERVED SPRITE"/>
 	<item id="31416" article="a" name="dead priestess of the wild sun">
 		<attribute key="duration" value="50"/>
 		<attribute key="decayTo" value="0"/>
@@ -53056,11 +52657,9 @@
 		<attribute key="decayTo" value="31422"/>
 		<attribute key="containersize" value="32"/>
 	</item>
-	<item fromid="31424" toid="31427" name="RESERVED SPRITE"/>
 	<item id="31428" name="goanna hide with sun symbol">
 		<attribute key="weight" value="60"/>
 	</item>
-	<item fromid="31429" toid="31430" name="RESERVED SPRITE"/>
 	<item id="31431" article="a" name="symbol of sun and sea">
 		<attribute key="weight" value="100"/>
 	</item>
@@ -53242,7 +52841,6 @@
 		<attribute key="weight" value="98"/>
 	</item>
 	<item id="31490" name="unknown item"/>
-	<item id="31491" name="RESERVED SPRITE"/>
 	<item fromid="31492" toid="31493" article="a" name="vortex"/>
 	<item fromid="31494" toid="31495" article="a" name="closed door">
 		<attribute key="type" value="door"/>
@@ -53317,7 +52915,6 @@
 		<attribute key="wrapableto" value="26054"/>
 		<attribute key="rotateto" value="31513"/>
 	</item>
-	<item id="31517" name="RESERVED SPRITE"/>
 	<item fromid="31518" toid="31523" article="a" name="memorial">
 		<attribute key="primarytype" value="constructions"/>
 	</item>
@@ -53384,7 +52981,6 @@
 		<attribute key="decayTo" value="31534"/>
 		<attribute key="containersize" value="32"/>
 	</item>
-	<item fromid="31536" toid="31543" name="RESERVED SPRITE"/>
 	<item id="31544" article="a" name="dead cobra assassin">
 		<attribute key="duration" value="60"/>
 		<attribute key="decayTo" value="0"/>
@@ -53964,11 +53560,9 @@
 	<item id="31666" article="an" name="open door">
 		<attribute key="type" value="door"/>
 	</item>
-	<item id="31667" name="RESERVED SPRITE"/>
 	<item fromid="31668" toid="31669" name="scorpion grave">
 		<attribute key="primarytype" value="quest objects"/>
 	</item>
-	<item fromid="31670" toid="31672" name="RESERVED SPRITE"/>
 	<item id="31673" name="unknown item"/>
 	<item id="31674" article="an" name="omniscient owl">
 		<attribute key="primarytype" value="fansite items"/>
@@ -53987,7 +53581,6 @@
 		<attribute key="description" value="Returning the amulet of the Cobra to its resting place has reversed everything that happened to Scarlett and Galthen after it was taken. For them only, however. You are truly selfless"/>
 		<attribute key="weight" value="50"/>
 	</item>
-	<item id="31677" name="RESERVED SPRITE"/>
 	<item id="31678" name="cobra crest">
 		<attribute key="primarytype" value="creature products"/>
 		<attribute key="weight" value="170"/>
@@ -54078,7 +53671,6 @@
 	<item fromid="31697" toid="31698" article="a" name="little big flower lamp">
 		<attribute key="wrapableto" value="23398"/>
 	</item>
-	<item fromid="31699" toid="31702" name="RESERVED SPRITE"/>
 	<item id="31703" article="a" name="baby unicorn">
 		<attribute key="primarytype" value="decoration"/>
 		<attribute key="description" value="The purest eyes are blinking back at you"/>
@@ -54140,7 +53732,6 @@
 	<item id="31726" article="a" name="box with balm">
 		<attribute key="weight" value="240"/>
 	</item>
-	<item fromid="31727" toid="31731" name="RESERVED SPRITE"/>
 	<item id="31732" name="unknown item"/>
 	<item fromid="31733" toid="31734" name="unknown item"/>
 	<item id="31735" article="a" name="metal grate">
@@ -54172,7 +53763,6 @@
 		<attribute key="description" value="It is a mark of distinction, awarded by the priesthood of Bastesh to those who help sea creatures in need"/>
 		<attribute key="weight" value="1050"/>
 	</item>
-	<item id="31912" name="RESERVED SPRITE"/>
 	<item id="31913" article="a" name="baking tray">
 		<attribute key="primarytype" value="kitchen tools"/>
 		<attribute key="description" value="There is reed flour dough on it"/>
@@ -54217,14 +53807,11 @@
 		<attribute key="primarytype" value="tools"/>
 		<attribute key="weight" value="2100"/>
 	</item>
-	<item id="31926" name="reserved sprite"/>
 	<item id="31927" article="a" name="trap">
 		<attribute key="primarytype" value="tools"/>
 		<attribute key="weight" value="2100"/>
 	</item>
-	<item id="31928" name="reserved sprite"/>
 	<item id="31929" name="unknown"/>
-	<item id="31930" name="reserved sprite"/>
 	<item id="31931" article="a" name="pirate ship ballista">
 		<attribute key="primarytype" value="decoration"/>
 		<attribute key="wrapableto" value="23398"/>
@@ -54320,7 +53907,6 @@
 		<attribute key="primarytype" value="decoration"/>
 		<attribute key="wrapableto" value="23398"/>
 	</item>
-	<item fromid="31952" toid="31954" name="reserved sprite"/>
 	<item id="31955" article="a" name="monkey">
 		<attribute key="primarytype" value="decoration"/>
 		<attribute key="description" value="It is cheerfully swinging back and forth"/>
@@ -54335,13 +53921,11 @@
 	</item>
 	<item id="31957" name="unknown"/>
 	<item fromid="31958" toid="31959" name="unknown"/>
-	<item id="31960" name="reserved sprite"/>
 	<item id="31961" article="a" name="red gingerbread heart">
 		<attribute key="primarytype" value="food"/>
 		<attribute key="showCount" value="1"/>
 		<attribute key="weight" value="500"/>
 	</item>
-	<item id="31962" name="reserved sprite"/>
 	<item fromid="31963" toid="32008" name="event item"/>
 	<item id="32009" article="a" name="veal">
 		<attribute key="primarytype" value="food"/>
@@ -54382,7 +53966,6 @@
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="weight" value="100"/>
 	</item>
-	<item fromid="32036" toid="32038" name="reserved sprite"/>
 	<item fromid="32039" toid="32042" name="unknown"/>
 	<item id="32043" article="a" name="bass">
 		<attribute key="primarytype" value="food"/>
@@ -54405,7 +53988,6 @@
 		<attribute key="description" value="The all knowing sausages know probably all mysteries of the world. Too bad they only want to talk about schnitzel"/>
 		<attribute key="weight" value="1500"/>
 	</item>
-	<item id="32065" name="reserved sprite"/>
 	<item id="32066" article="a" name="green gingerbread heart">
 		<attribute key="primarytype" value="food"/>
 		<attribute key="showCount" value="1"/>
@@ -54479,14 +54061,12 @@
 		<attribute key="decayTo" value="32090"/>
 		<attribute key="containersize" value="10"/>
 	</item>
-	<item id="32092" name="reserved sprite"/>
 	<item id="32093" article="a" name="schnitzel meat grinder">
 		<attribute key="primarytype" value="tools"/>
 		<attribute key="weaponType" value="club"/>
 		<attribute key="attack" value="10"/>
 		<attribute key="weight" value="343"/>
 	</item>
-	<item fromid="32094" toid="32095" name="reserved sprite"/>
 	<item id="32096" article="a" name="lots">
 		<attribute key="primarytype" value="documents and papers"/>
 		<attribute key="showCount" value="1"/>
@@ -54805,7 +54385,6 @@
 		<attribute key="primarytype" value="wall hangings"/>
 		<attribute key="wrapableto" value="23398"/>
 	</item>
-	<item fromid="32167" toid="32169" name="reserved sprite"/>
 	<item id="32170" article="a" name="inscribed red heart">
 		<attribute key="primarytype" value="decoration"/>
 		<attribute key="showCount" value="1"/>
@@ -54823,7 +54402,6 @@
 	</item>
 	<item fromid="32173" toid="32175" article="a" name="slime fungus ulcer"/>
 	<item id="32176" article="a" name="unknow item"/>
-	<item fromid="32177" toid="32196" name="reserved sprite"/>
 	<item id="32197" article="a" name="ulcer probe">
 		<attribute key="primarytype" value="creature products"/>
 		<attribute key="showCount" value="1"/>
@@ -54896,9 +54474,7 @@
 		<attribute key="decayTo" value="32271"/>
 		<attribute key="containersize" value="20"/>
 	</item>
-	<item fromid="32273" toid="32339" name="reserved sprite"/>
 	<item fromid="32340" toid="32344" article="a" name="ruined wall"/>
-	<item fromid="32345" toid="32350" name="reserved sprite"/>
 	<item fromid="32351" toid="32381" article="a" name="earth ground">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
@@ -54906,7 +54482,6 @@
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
 	<item id="32411" name="unknown"/>
-	<item fromid="32412" toid="32413" name="reserved sprite"/>
 	<item fromid="32414" toid="32416" article="a" name="vortex"/>
 	<item id="32417" article="a" name="unknow"/>
 	<item id="32418" article="a" name="brain head"/>
@@ -56240,7 +55815,6 @@
 	<item fromid="32640" toid="32658" article="a" name="dead tree">
 		<attribute key="primarytype" value="remains"/>
 	</item>
-	<item fromid="32659" toid="32687" name="reserved sprite"/>
 	<item fromid="32688" toid="32693" article="a" name="blood">
 		<attribute key="primarytype" value="liquids"/>
 		<attribute key="weight" value="180"/>
@@ -56326,7 +55900,6 @@
 	<item id="32726" article="a" name="a weak spot">
 		<attribute key="weight" value="4"/>
 	</item>
-	<item fromid="32727" toid="32729" name="reserved sprite"/>
 	<item id="32730" article="a" name="dead wormling">
 		<attribute key="duration" value="50"/>
 		<attribute key="decayTo" value="0"/>

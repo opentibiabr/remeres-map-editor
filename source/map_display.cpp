@@ -74,8 +74,7 @@ EVT_MENU(MAP_POPUP_MENU_COPY_POSITION, MapCanvas::OnCopyPosition)
 EVT_MENU(MAP_POPUP_MENU_PASTE, MapCanvas::OnPaste)
 EVT_MENU(MAP_POPUP_MENU_DELETE, MapCanvas::OnDelete)
 //----
-EVT_MENU(MAP_POPUP_MENU_COPY_SERVER_ID, MapCanvas::OnCopyServerId)
-EVT_MENU(MAP_POPUP_MENU_COPY_CLIENT_ID, MapCanvas::OnCopyClientId)
+EVT_MENU(MAP_POPUP_MENU_COPY_ITEM_ID, MapCanvas::OnCopyItemId)
 EVT_MENU(MAP_POPUP_MENU_COPY_NAME, MapCanvas::OnCopyName)
 // ----
 EVT_MENU(MAP_POPUP_MENU_ROTATE, MapCanvas::OnRotateItem)
@@ -416,7 +415,6 @@ void MapCanvas::UpdatePositionStatus(int x, int y) {
 		} else if (Item* item = tile->getTopItem()) {
 			ss << "Item \"" << wxstr(item->getName()) << "\"";
 			ss << " id:" << item->getID();
-			ss << " cid:" << item->getClientID();
 			if (item->getUniqueID()) {
 				ss << " uid:" << item->getUniqueID();
 			}
@@ -2008,7 +2006,7 @@ void MapCanvas::OnCopyPosition(wxCommandEvent &WXUNUSED(event)) {
 	}
 }
 
-void MapCanvas::OnCopyServerId(wxCommandEvent &WXUNUSED(event)) {
+void MapCanvas::OnCopyItemId(wxCommandEvent &WXUNUSED(event)) {
 	ASSERT(editor.getSelection().size() == 1);
 
 	if (wxTheClipboard->Open()) {
@@ -2020,24 +2018,6 @@ void MapCanvas::OnCopyServerId(wxCommandEvent &WXUNUSED(event)) {
 
 		wxTextDataObject* obj = new wxTextDataObject();
 		obj->SetText(i2ws(item->getID()));
-		wxTheClipboard->SetData(obj);
-
-		wxTheClipboard->Close();
-	}
-}
-
-void MapCanvas::OnCopyClientId(wxCommandEvent &WXUNUSED(event)) {
-	ASSERT(editor.getSelection().size() == 1);
-
-	if (wxTheClipboard->Open()) {
-		Tile* tile = editor.getSelection().getSelectedTile();
-		ItemVector selected_items = tile->getSelectedItems();
-		ASSERT(selected_items.size() == 1);
-
-		const Item* item = selected_items.front();
-
-		wxTextDataObject* obj = new wxTextDataObject();
-		obj->SetText(i2ws(item->getClientID()));
 		wxTheClipboard->SetData(obj);
 
 		wxTheClipboard->Close();
@@ -2524,8 +2504,7 @@ void MapPopupMenu::Update() {
 			AppendSeparator();
 
 			if (topSelectedItem) {
-				Append(MAP_POPUP_MENU_COPY_SERVER_ID, "Copy Item Server Id", "Copy the server id of this item");
-				Append(MAP_POPUP_MENU_COPY_CLIENT_ID, "Copy Item Client Id", "Copy the client id of this item");
+				Append(MAP_POPUP_MENU_COPY_ITEM_ID, "Copy Item Id", "Copy the id of this item");
 				Append(MAP_POPUP_MENU_COPY_NAME, "Copy Item Name", "Copy the name of this item");
 				AppendSeparator();
 			}
@@ -2776,7 +2755,7 @@ void AnimationTimer::Notify() {
 	if (map_canvas->GetZoom() <= 2.0) {
 		map_canvas->Refresh();
 	}
-};
+}
 
 void AnimationTimer::Start() {
 	if (!started) {

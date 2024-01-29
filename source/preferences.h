@@ -22,17 +22,18 @@
 
 class PreferencesWindow : public wxDialog {
 public:
-	explicit PreferencesWindow(wxWindow* parent) :
-		PreferencesWindow(parent, false) {};
-	PreferencesWindow(wxWindow* parent, bool clientVersionSelected);
+	explicit PreferencesWindow(wxWindow* parent);
 	virtual ~PreferencesWindow();
 
 	void OnClickDefaults(wxCommandEvent &);
 	void OnClickApply(wxCommandEvent &);
 	void OnClickOK(wxCommandEvent &);
 	void OnClickCancel(wxCommandEvent &);
-
+	void SelectNewAssetsFolder(wxCommandEvent &event);
 	void OnCollapsiblePane(wxCollapsiblePaneEvent &);
+	wxBookCtrl &getBookCtrl() {
+		return *book;
+	}
 
 protected:
 	void SetDefaults();
@@ -69,7 +70,6 @@ protected:
 	// Graphics
 	wxCheckBox* icon_selection_shadow_chkbox;
 	wxChoice* icon_background_choice;
-	wxCheckBox* use_memcached_chkbox;
 	wxDirPickerCtrl* screenshot_directory_picker;
 	wxChoice* screenshot_format_choice;
 	wxCheckBox* hide_items_when_zoomed_chkbox;
@@ -106,7 +106,7 @@ protected:
 
 	// Client info
 	wxChoice* default_version_choice;
-	std::vector<wxDirPickerCtrl*> version_dir_pickers;
+	wxDirPickerCtrl* version_dir_picker;
 	wxCheckBox* check_sigs_chkbox;
 
 	// Create controls

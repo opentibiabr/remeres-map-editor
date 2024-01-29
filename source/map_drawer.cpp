@@ -35,6 +35,7 @@
 #include "house_exit_brush.h"
 #include "house_brush.h"
 #include "spawn_monster_brush.h"
+#include "sprite_appearances.h"
 #include "npc_brush.h"
 #include "spawn_npc_brush.h"
 #include "wall_brush.h"
@@ -1204,19 +1205,13 @@ void MapDrawer::BlitItem(int &draw_x, int &draw_y, const Tile* tile, const Item*
 		}
 	}
 
-	if (!ephemeral && options.transparent_items && (!type.isGroundTile() || sprite->width > 1 || sprite->height > 1) && !type.isSplash() && (!type.isBorder || sprite->width > 1 || sprite->height > 1)) {
+	if (!ephemeral && options.transparent_items && (!type.isGroundTile() || sprite->getWidth() > 1 || sprite->getHeight() > 1) && !type.isSplash() && (!type.isBorder || sprite->getWidth() > 1 || sprite->getHeight() > 1)) {
 		alpha /= 2;
 	}
 
 	int frame = item->getFrame();
-	for (int cx = 0; cx != sprite->width; cx++) {
-		for (int cy = 0; cy != sprite->height; cy++) {
-			for (int cf = 0; cf != sprite->layers; cf++) {
-				int texnum = sprite->getHardwareID(cx, cy, cf, subtype, pattern_x, pattern_y, pattern_z, frame);
-				glBlitTexture(screenx - cx * rme::TileSize, screeny - cy * rme::TileSize, texnum, red, green, blue, alpha);
-			}
-		}
-	}
+	int texnum = sprite->getHardwareID(0, subtype, pattern_x, pattern_y, pattern_z, frame);
+	glBlitTexture(screenx, screeny, texnum, red, green, blue, alpha);
 
 	if (options.show_hooks && (type.hookSouth || type.hookEast)) {
 		DrawHookIndicator(draw_x, draw_y, type);
@@ -1304,19 +1299,13 @@ void MapDrawer::BlitItem(int &draw_x, int &draw_y, const Position &pos, const It
 		}
 	}
 
-	if (!ephemeral && options.transparent_items && (!type.isGroundTile() || sprite->width > 1 || sprite->height > 1) && !type.isSplash() && (!type.isBorder || sprite->width > 1 || sprite->height > 1)) {
+	if (!ephemeral && options.transparent_items && (!type.isGroundTile() || sprite->getWidth() > 1 || sprite->getHeight() > 1) && !type.isSplash() && (!type.isBorder || sprite->getWidth() > 1 || sprite->getHeight() > 1)) {
 		alpha /= 2;
 	}
 
 	int frame = item->getFrame();
-	for (int cx = 0; cx != sprite->width; ++cx) {
-		for (int cy = 0; cy != sprite->height; ++cy) {
-			for (int cf = 0; cf != sprite->layers; ++cf) {
-				int texnum = sprite->getHardwareID(cx, cy, cf, subtype, pattern_x, pattern_y, pattern_z, frame);
-				glBlitTexture(screenx - cx * rme::TileSize, screeny - cy * rme::TileSize, texnum, red, green, blue, alpha);
-			}
-		}
-	}
+	int texnum = sprite->getHardwareID(0, subtype, pattern_x, pattern_y, pattern_z, frame);
+	glBlitTexture(screenx, screeny, texnum, red, green, blue, alpha);
 
 	if (options.show_hooks && (type.hookSouth || type.hookEast) && zoom <= 3.0) {
 		DrawHookIndicator(draw_x, draw_y, type);
@@ -1338,14 +1327,8 @@ void MapDrawer::BlitSpriteType(int screenx, int screeny, uint32_t spriteid, int 
 	screeny -= sprite->getDrawOffset().y;
 
 	int frame = 0;
-	for (int cx = 0; cx != sprite->width; ++cx) {
-		for (int cy = 0; cy != sprite->height; ++cy) {
-			for (int cf = 0; cf != sprite->layers; ++cf) {
-				int texnum = sprite->getHardwareID(cx, cy, cf, -1, 0, 0, 0, frame);
-				glBlitTexture(screenx - cx * rme::TileSize, screeny - cy * rme::TileSize, texnum, red, green, blue, alpha);
-			}
-		}
-	}
+	int texnum = sprite->getHardwareID(0, -1, 0, 0, 0, 0);
+	glBlitTexture(screenx, screeny, texnum, red, green, blue, alpha);
 }
 
 void MapDrawer::BlitSpriteType(int screenx, int screeny, GameSprite* sprite, int red, int green, int blue, int alpha) {
@@ -1357,57 +1340,33 @@ void MapDrawer::BlitSpriteType(int screenx, int screeny, GameSprite* sprite, int
 	screeny -= sprite->getDrawOffset().y;
 
 	int frame = 0;
-	for (int cx = 0; cx != sprite->width; ++cx) {
-		for (int cy = 0; cy != sprite->height; ++cy) {
-			for (int cf = 0; cf != sprite->layers; ++cf) {
-				int texnum = sprite->getHardwareID(cx, cy, cf, -1, 0, 0, 0, frame);
-				glBlitTexture(screenx - cx * rme::TileSize, screeny - cy * rme::TileSize, texnum, red, green, blue, alpha);
-			}
-		}
-	}
+	int texnum = sprite->getHardwareID(0, -1, 0, 0, 0, 0);
+	glBlitTexture(screenx, screeny, texnum, red, green, blue, alpha);
 }
 
 void MapDrawer::BlitCreature(int screenx, int screeny, const Outfit &outfit, Direction dir, int red, int green, int blue, int alpha) {
 	if (outfit.lookItem != 0) {
 		const ItemType &type = g_items.getItemType(outfit.lookItem);
 		BlitSpriteType(screenx, screeny, type.sprite, red, green, blue, alpha);
-	} else {
-		GameSprite* sprite = g_gui.gfx.getCreatureSprite(outfit.lookType);
-		if (!sprite || outfit.lookType == 0) {
-			return;
-		}
+		return;
+	}
 
-		// mount and addon drawing thanks to otc code
-		int pattern_z = 0;
-		if (outfit.lookMount != 0) {
-			if (GameSprite* mountSpr = g_gui.gfx.getCreatureSprite(outfit.lookMount)) {
-				for (int cx = 0; cx != mountSpr->width; ++cx) {
-					for (int cy = 0; cy != mountSpr->height; ++cy) {
-						int texnum = mountSpr->getHardwareID(cx, cy, 0, 0, (int)dir, 0, 0, 0);
-						glBlitTexture(screenx - cx * rme::TileSize, screeny - cy * rme::TileSize, texnum, red, green, blue, alpha);
-					}
-				}
-				pattern_z = std::min<int>(1, sprite->pattern_z - 1);
-			}
-		}
+	if (outfit.lookType == 0) {
+		return;
+	}
 
-		int frame = 0;
+	GameSprite* spr = g_gui.gfx.getCreatureSprite(outfit.lookType);
+	if (!spr || outfit.lookType == 0) {
+		return;
+	}
 
-		// pattern_y => creature addon
-		for (int pattern_y = 0; pattern_y < sprite->pattern_y; pattern_y++) {
+	screenx -= spr->getDrawOffset().x;
+	screeny -= spr->getDrawOffset().y;
 
-			// continue if we dont have this addon
-			if (pattern_y > 0 && !(outfit.lookAddon & (1 << (pattern_y - 1)))) {
-				continue;
-			}
-
-			for (int cx = 0; cx != sprite->width; ++cx) {
-				for (int cy = 0; cy != sprite->height; ++cy) {
-					int texnum = sprite->getHardwareID(cx, cy, (int)dir, pattern_y, pattern_z, outfit, frame);
-					glBlitTexture(screenx - cx * rme::TileSize, screeny - cy * rme::TileSize, texnum, red, green, blue, alpha);
-				}
-			}
-		}
+	auto spriteId = spr->spriteList[0]->getHardwareID();
+	auto outfitImage = spr->getOutfitImage(spriteId, dir, outfit);
+	if (outfitImage) {
+		glBlitTexture(screenx, screeny, outfitImage->getHardwareID(), red, green, blue, alpha, false, outfit);
 	}
 }
 
@@ -1771,7 +1730,7 @@ void MapDrawer::DrawIndicator(int x, int y, int indicator, uint8_t r, uint8_t g,
 		return;
 	}
 
-	int textureId = sprite->getHardwareID(0, 0, 0, -1, 0, 0, 0, 0);
+	int textureId = sprite->getHardwareID(0, 0, 0, -1, 0, 0);
 	glBlitTexture(x, y, textureId, r, g, b, a, true);
 }
 
@@ -1981,48 +1940,39 @@ void MapDrawer::ShowPositionIndicator(const Position &position) {
 	pos_indicator_timer.Start();
 }
 
-void MapDrawer::glBlitTexture(int x, int y, int textureId, int red, int green, int blue, int alpha, bool adjustZoom) {
-	if (textureId <= 0) {
-		return;
-	}
-
-	glBindTexture(GL_TEXTURE_2D, textureId);
-	glColor4ub(uint8_t(red), uint8_t(green), uint8_t(blue), uint8_t(alpha));
-	glBegin(GL_QUADS);
-
-	if (adjustZoom) {
-		float size = rme::TileSize;
-		if (zoom < 1.0f) {
-			float offset = 10 / (10 * zoom);
-			size = std::max<float>(16, rme::TileSize * zoom);
-			x += offset;
-			y += offset;
-		} else if (zoom > 1.f) {
-			float offset = (10 * zoom);
-			size = rme::TileSize + offset;
-			x -= offset;
-			y -= offset;
+void MapDrawer::glBlitTexture(int sx, int sy, int texture_number, int red, int green, int blue, int alpha, bool adjustZoom /* = false*/, const Outfit &outfit /* = {}*/) {
+	if (texture_number != 0) {
+		SpriteSheetPtr sheet = g_spriteAppearances.getSheetBySpriteId(texture_number);
+		if (!sheet) {
+			return;
 		}
-		glTexCoord2f(0.f, 0.f);
-		glVertex2f(x, y);
-		glTexCoord2f(1.f, 0.f);
-		glVertex2f(x + size, y);
-		glTexCoord2f(1.f, 1.f);
-		glVertex2f(x + size, y + size);
-		glTexCoord2f(0.f, 1.f);
-		glVertex2f(x, y + size);
-	} else {
-		glTexCoord2f(0.f, 0.f);
-		glVertex2f(x, y);
-		glTexCoord2f(1.f, 0.f);
-		glVertex2f(x + rme::TileSize, y);
-		glTexCoord2f(1.f, 1.f);
-		glVertex2f(x + rme::TileSize, y + rme::TileSize);
-		glTexCoord2f(0.f, 1.f);
-		glVertex2f(x, y + rme::TileSize);
-	}
 
-	glEnd();
+		auto spriteWidth = sheet->getSpriteSize().width;
+		auto spriteHeight = sheet->getSpriteSize().height;
+		// Fix the outfit offset 8x8 sprites being drawn offset
+		if (spriteWidth == 64 && spriteHeight == 64 && (outfit.lookType > 0 || outfit.lookItem > 0)) {
+			GameSprite* spr = g_gui.gfx.getCreatureSprite(outfit.lookType);
+			if (spr && spr->drawoffset_x == 8 && spr->drawoffset_y == 8) {
+				sx -= spriteWidth / 2;
+				sy -= spriteWidth / 2;
+			}
+		}
+
+		spdlog::debug("Blitting outfit {} at ({}, {})", outfit.name, sx, sy);
+
+		glBindTexture(GL_TEXTURE_2D, texture_number);
+		glColor4ub(uint8_t(red), uint8_t(green), uint8_t(blue), uint8_t(alpha));
+		glBegin(GL_QUADS);
+		glTexCoord2f(0.f, 0.f);
+		glVertex2f(sx, sy);
+		glTexCoord2f(1.f, 0.f);
+		glVertex2f(sx + spriteWidth, sy);
+		glTexCoord2f(1.f, 1.f);
+		glVertex2f(sx + spriteWidth, sy + spriteHeight);
+		glTexCoord2f(0.f, 1.f);
+		glVertex2f(sx, sy + spriteHeight);
+		glEnd();
+	}
 }
 
 void MapDrawer::glBlitSquare(int x, int y, int red, int green, int blue, int alpha) {

@@ -1,8 +1,8 @@
 
 # *****************************************************************************
-# Project remeres
+# Project canary map editor
 # *****************************************************************************
-project(remeres)
+project(canary-map-editor)
 
 find_package(asio CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
@@ -13,20 +13,12 @@ find_package(Threads REQUIRED)
 find_package(wxWidgets COMPONENTS html aui gl adv core net base CONFIG REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(pugixml CONFIG REQUIRED)
+find_package(liblzma CONFIG REQUIRED)
 
 option(TOGGLE_BIN_FOLDER "Use build/bin folder for generate compilation files" OFF)
 option(OPTIONS_ENABLE_OPENMP "Enable Open Multi-Processing support." ON)
 option(DEBUG_LOG "Enable Debug Log" OFF)
 option(BUILD_STATIC_LIBRARY "Build using static libraries" ON)
-option(SPEED_UP_BUILD_UNITY "Compile using build unity for speed up build" ON)
-
-# LibArchive disabled in compilation level by default, see "#define OTGZ_SUPPORT" in the "definitions.h" file
-#if(APPLE)
-#	set(CMAKE_PREFIX_PATH /usr/local/opt/libarchive)
-#endif()
-# If you need use, enable this:
-#find_package(LibArchive REQUIRED)
-#${LibArchive_INCLUDE_DIRS} ${LibArchive_LIBRARIES}
 
 # Build static libs
 if(BUILD_STATIC_LIBRARY)
@@ -89,11 +81,6 @@ endif()
 # === PRECOMPILED HEADER ===
 target_precompile_headers(${PROJECT_NAME} PRIVATE main.h)
 
-# === UNITY BUILD (compile time reducer) ===
-if(SPEED_UP_BUILD_UNITY)
-	set_target_properties(${PROJECT_NAME} PROPERTIES UNITY_BUILD ON)
-	log_option_enabled("Build unity for speed up compilation")
-endif()
 
 
 target_sources(${PROJECT_NAME}
@@ -109,7 +96,7 @@ target_sources(${PROJECT_NAME}
 	browse_tile_window.cpp
 	positionctrl.cpp
 	carpet_brush.cpp
-	client_version.cpp
+	client_assets.cpp
 	common.cpp
 	common_windows.cpp
 	complexitem.cpp
@@ -124,8 +111,6 @@ target_sources(${PROJECT_NAME}
 	editor.cpp
 	editor_tabs.cpp
 	eraser_brush.cpp
-	extension.cpp
-	extension_window.cpp
 	find_item_window.cpp
 	filehandle.cpp
 	graphics.cpp
@@ -187,6 +172,7 @@ target_sources(${PROJECT_NAME}
 	spawn_monster.cpp
 	spawn_npc.cpp
 	spawn_npc_brush.cpp
+	sprite_appearances.cpp
 	table_brush.cpp
 	templatemap76-74.cpp
 	templatemap81.cpp
@@ -222,6 +208,8 @@ target_link_libraries(${PROJECT_NAME}
 	nlohmann_json::nlohmann_json
 	pugixml::pugixml
 	wx::base wx::core wx::net wx::gl wx::html wx::aui wx::adv
+	liblzma::liblzma
+	protobuf
 )
 
 ## Link compilation files to build/bin folder, else link to the main dir

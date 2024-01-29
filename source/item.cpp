@@ -40,6 +40,10 @@ Item* Item::Create(uint16_t id, uint16_t subtype /*= 0xFFFF*/) {
 		return newd Item(id, subtype);
 	}
 
+	if (!type.sprite) {
+		return nullptr;
+	}
+
 	if (type.isDepot()) {
 		return new Depot(id);
 	} else if (type.isContainer()) {
@@ -224,7 +228,7 @@ bool Item::hasProperty(enum ITEMPROPERTY prop) const {
 wxPoint Item::getDrawOffset() const {
 	const ItemType &type = g_items.getItemType(id);
 	if (type.sprite) {
-		return type.sprite->getDrawOffset();
+		return wxPoint(type.sprite->getDrawOffset().x, type.sprite->getDrawOffset().y);
 	}
 	return wxPoint(0, 0);
 }

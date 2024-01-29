@@ -32,6 +32,7 @@
 #include "application.h"
 #include "common_windows.h"
 #include "positionctrl.h"
+#include "preferences.h"
 
 #include "iominimap.h"
 
@@ -92,11 +93,11 @@ MapPropertiesWindow::MapPropertiesWindow(wxWindow* parent, MapTab* view, Editor 
 
 	grid_sizer->Add(version_choice, wxSizerFlags(1).Expand());
 
-	// Version
-	grid_sizer->Add(newd wxStaticText(this, wxID_ANY, "Client Version"));
+	// Client directory
+	grid_sizer->Add(newd wxStaticText(this, wxID_ANY, "Client Folder"));
 	protocol_choice = newd wxChoice(this, wxID_ANY);
 
-	protocol_choice->SetStringSelection(wxstr(g_gui.GetCurrentVersion().getName()));
+	protocol_choice->SetStringSelection(wxstr(ClientAssets::getVersionName()));
 
 	grid_sizer->Add(protocol_choice, wxSizerFlags(1).Expand());
 
@@ -157,8 +158,7 @@ MapPropertiesWindow::MapPropertiesWindow(wxWindow* parent, MapTab* view, Editor 
 	Centre(wxBOTH);
 	UpdateProtocolList();
 
-	ClientVersion* current_version = ClientVersion::get(map.getVersion().client);
-	protocol_choice->SetStringSelection(wxstr(current_version->getName()));
+	protocol_choice->SetStringSelection(wxstr(ClientAssets::getVersionName()));
 }
 
 void MapPropertiesWindow::UpdateProtocolList() {
@@ -166,27 +166,6 @@ void MapPropertiesWindow::UpdateProtocolList() {
 	wxString client = protocol_choice->GetStringSelection();
 
 	protocol_choice->Clear();
-
-	ClientVersionList versions;
-	if (g_settings.getInteger(Config::USE_OTBM_4_FOR_ALL_MAPS)) {
-		versions = ClientVersion::getAllVisible();
-	} else {
-		MapVersionID map_version = MAP_OTBM_1;
-		if (ver.Contains("0.5.0")) {
-			map_version = MAP_OTBM_1;
-		} else if (ver.Contains("0.6.0")) {
-			map_version = MAP_OTBM_2;
-		} else if (ver.Contains("0.6.1")) {
-			map_version = MAP_OTBM_3;
-		} else if (ver.Contains("0.7.0")) {
-			map_version = MAP_OTBM_4;
-		}
-
-		ClientVersionList protocols = ClientVersion::getAllForOTBMVersion(map_version);
-		for (ClientVersionList::const_iterator p = protocols.begin(); p != protocols.end(); ++p) {
-			protocol_choice->Append(wxstr((*p)->getName()));
-		}
-	}
 	protocol_choice->SetSelection(0);
 	protocol_choice->SetStringSelection(client);
 }
@@ -241,7 +220,6 @@ void MapPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 
 	wxString ver = version_choice->GetStringSelection();
 
-	new_ver.client = ClientVersion::get(nstr(protocol_choice->GetStringSelection()))->getID();
 	if (ver.Contains("0.5.0")) {
 		new_ver.otbm = MAP_OTBM_1;
 	} else if (ver.Contains("0.6.0")) {
@@ -252,7 +230,7 @@ void MapPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 		new_ver.otbm = MAP_OTBM_4;
 	}
 
-	if (new_ver.client != old_ver.client) {
+	if (new_ver.otbm != old_ver.otbm) {
 		if (g_gui.GetOpenMapCount() > 1) {
 			g_gui.PopupDialog(this, "Error", "You can not change editor version with multiple maps open", wxOK);
 			return;
@@ -264,7 +242,7 @@ void MapPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 		g_gui.GetCurrentEditor()->getSelection().clear();
 		g_gui.GetCurrentEditor()->clearActions();
 
-		if (new_ver.client < old_ver.client) {
+		if (new_ver.otbm < old_ver.otbm) {
 			int ret = g_gui.PopupDialog(this, "Notice", "Converting to a previous version may have serious side-effects, are you sure you want to do this?", wxYES | wxNO);
 			if (ret != wxID_YES) {
 				return;
@@ -279,10 +257,18 @@ void MapPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 			map.convert(new_ver, true);
 
 			// Load the new version
-			if (!g_gui.LoadVersion(new_ver.client, error, warnings)) {
+			if (!g_gui.LoadVersion(error, warnings)) {
 				g_gui.ListDialog(this, "Warnings", warnings);
 				g_gui.PopupDialog(this, "Map Loader Error", error, wxOK);
 				g_gui.PopupDialog(this, "Conversion Error", "Could not convert map. The map will now be closed.", wxOK);
+
+				auto clientDirectory = ClientAssets::getPath().ToStdString() + "/";
+				if (clientDirectory.empty() || !wxDirExists(wxString(clientDirectory))) {
+					PreferencesWindow dialog(nullptr);
+					dialog.getBookCtrl().SetSelection(4);
+					dialog.ShowModal();
+					dialog.Destroy();
+				}
 
 				EndModal(0);
 				return;
@@ -331,10 +317,18 @@ void MapPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 			map.cleanInvalidTiles(true);
 		} else {
 			UnnamedRenderingLock();
-			if (!g_gui.LoadVersion(new_ver.client, error, warnings)) {
+			if (!g_gui.LoadVersion(error, warnings)) {
 				g_gui.ListDialog(this, "Warnings", warnings);
 				g_gui.PopupDialog(this, "Map Loader Error", error, wxOK);
 				g_gui.PopupDialog(this, "Conversion Error", "Could not convert map. The map will now be closed.", wxOK);
+
+				auto clientDirectory = ClientAssets::getPath().ToStdString() + "/";
+				if (clientDirectory.empty() || !wxDirExists(wxString(clientDirectory))) {
+					PreferencesWindow dialog(nullptr);
+					dialog.getBookCtrl().SetSelection(4);
+					dialog.ShowModal();
+					dialog.Destroy();
+				}
 
 				EndModal(0);
 				return;

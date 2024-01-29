@@ -489,7 +489,7 @@ void TetrisPanel::NewGame() {
 void TetrisPanel::AddScore(int lines_added) {
 	lines += lines_added;
 	score += lines_added * lines_added * 10;
-	wxString title = "Remere's Tetris : ";
+	wxString title = "Canary Map Editor Tetris : ";
 	title << score << " points  ";
 	title << lines << " lines";
 	((wxTopLevelWindow*)GetParent())->SetTitle(title);
@@ -785,7 +785,7 @@ void SnakePanel::NewGame() {
 }
 
 void SnakePanel::UpdateTitle() {
-	wxString title = "Remere's Snake : ";
+	wxString title = "Canary Map Editor Snake : ";
 	title << length << " segments";
 	((wxTopLevelWindow*)GetParent())->SetTitle(title);
 }

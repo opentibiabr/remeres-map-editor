@@ -17,9 +17,11 @@
 
 #include "main.h"
 
+#include "iomap_otbm.h"
+
 #include "settings.h"
 #include "gui.h" // Loadbar
-
+#include "client_assets.h"
 #include "monsters.h"
 #include "monster.h"
 #include "npcs.h"
@@ -29,8 +31,6 @@
 #include "item.h"
 #include "complexitem.h"
 #include "town.h"
-
-#include "iomap_otbm.h"
 
 typedef uint8_t attribute_t;
 typedef uint32_t flags_t;
@@ -181,7 +181,7 @@ void Item::serializeItemAttributes_OTBM(const IOMap &maphandle, NodeFileWriteHan
 			serializeAttributeMap(maphandle, stream);
 		}
 	} else {
-		if (g_items.MinorVersion >= CLIENT_VERSION_820 && isCharged()) {
+		if (isCharged()) {
 			stream.addU8(OTBM_ATTR_CHARGES);
 			stream.addU16(getSubtype());
 		}
@@ -389,6 +389,10 @@ bool Container::serializeItemNode_OTBM(const IOMap &maphandle, NodeFileWriteHand
 	|--- OTBM_ITEM_DEF (not implemented)
 */
 
+IOMapOTBM::IOMapOTBM(MapVersion ver) {
+	version = ver;
+}
+
 bool IOMapOTBM::getVersionInfo(const FileName &filename, MapVersion &out_ver) {
 #if OTGZ_SUPPORT > 0
 	if (filename.GetExt() == "otgz") {
@@ -453,17 +457,13 @@ bool IOMapOTBM::getVersionInfo(NodeFileReadHandle* f, MapVersion &out_ver) {
 	if (!root->getU32(u32)) { // Version
 		return false;
 	}
+
 	out_ver.otbm = (MapVersionID)u32;
 
 	root->getU16(u16);
 	root->getU16(u16);
 	root->getU32(u32);
 
-	if (!root->getU32(u32)) { // OTB minor version
-		return false;
-	}
-
-	out_ver.client = ClientVersionID(u32);
 	return true;
 }
 
@@ -688,23 +688,6 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 	}
 
 	map.height = u16;
-
-	if (!root->getU32(u32) || u32 > (unsigned long)g_items.MajorVersion) { // OTB major version
-		if (g_gui.PopupDialog("Map error", "The loaded map appears to be a items.otb format that deviates from the "
-										   "items.otb loaded by the editor. Do you still want to attempt to load the map?",
-							  wxYES | wxNO)
-			== wxID_YES) {
-			warning("Unsupported or damaged map version");
-		} else {
-			error("Outdated items.otb, could not load map");
-			return false;
-		}
-	}
-
-	if (!root->getU32(u32) || u32 > (unsigned long)g_items.MinorVersion) { // OTB minor version
-		warning("This editor needs an updated items.otb version");
-	}
-	version.client = (ClientVersionID)u32;
 
 	BinaryNode* mapHeaderNode = root->getChild();
 	if (mapHeaderNode == nullptr || !mapHeaderNode->getByte(u8) || u8 != OTBM_MAP_DATA) {
@@ -1552,13 +1535,13 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 
 	f.addNode(0);
 	{
-		f.addU32(mapVersion.otbm); // Version
+		f.addU32(2); // Version (deprecated)
 
 		f.addU16(map.width);
 		f.addU16(map.height);
 
-		f.addU32(g_items.MajorVersion);
-		f.addU32(g_items.MinorVersion);
+		f.addU32(4); // Major otb version (deprecated)
+		f.addU32(4); // Minor otb version (deprecated)
 
 		f.addNode(OTBM_MAP_DATA);
 		{
@@ -1654,18 +1637,30 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 						}
 
 						if (!found) {
+							if (ground->getID() == 0) {
+								continue;
+							}
 							ground->serializeItemNode_OTBM(self, f);
 						}
 					} else if (ground->isComplex()) {
+						if (ground->getID() == 0) {
+							continue;
+						}
 						ground->serializeItemNode_OTBM(self, f);
 					} else {
 						f.addByte(OTBM_ATTR_ITEM);
+						if (ground->getID() == 0) {
+							continue;
+						}
 						ground->serializeItemCompact_OTBM(self, f);
 					}
 				}
 
 				for (Item* item : save_tile->items) {
 					if (!item->isMetaItem()) {
+						if (item->getID() == 0) {
+							continue;
+						}
 						item->serializeItemNode_OTBM(self, f);
 					}
 				}
@@ -1772,8 +1767,9 @@ bool IOMapOTBM::saveSpawns(Map &map, pugi::xml_document &doc) {
 						monsterNode.append_attribute("x") = x;
 						monsterNode.append_attribute("y") = y;
 						monsterNode.append_attribute("z") = spawnPosition.z;
-						auto monsterSpawnTime = monster->getSpawnMonsterTime();
-						if (monsterSpawnTime > std::numeric_limits<uint32_t>::max() || monsterSpawnTime < std::numeric_limits<uint32_t>::min()) {
+						int monsterSpawnTime = monster->getSpawnMonsterTime();
+						uint16_t maxUint16 = std::numeric_limits<uint16_t>::max();
+						if (std::cmp_greater(monsterSpawnTime, maxUint16)) {
 							monsterSpawnTime = 60;
 						}
 

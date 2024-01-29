@@ -22,77 +22,11 @@
 
 #include "items.h"
 #include "item.h"
+#include "sprite_appearances.h"
+
+#include <appearances.pb.h>
 
 ItemDatabase g_items;
-
-ItemType::ItemType() :
-	sprite(nullptr),
-	id(0),
-	clientID(0),
-	brush(nullptr),
-	doodad_brush(nullptr),
-	raw_brush(nullptr),
-	is_metaitem(false),
-	has_raw(false),
-	in_other_tileset(false),
-	group(ITEM_GROUP_NONE),
-	type(ITEM_TYPE_NONE),
-	volume(0),
-	maxTextLen(0),
-	// writeOnceItemID(0),
-	ground_equivalent(0),
-	border_group(0),
-	has_equivalent(false),
-	wall_hate_me(false),
-	name(""),
-	description(""),
-	weight(0.0f),
-	attack(0),
-	defense(0),
-	armor(0),
-	charges(0),
-	client_chargeable(false),
-	extra_chargeable(false),
-	ignoreLook(false),
-
-	isHangable(false),
-	hookEast(false),
-	hookSouth(false),
-	canReadText(false),
-	canWriteText(false),
-	replaceable(true),
-	decays(false),
-	stackable(false),
-	moveable(true),
-	alwaysOnBottom(false),
-	pickupable(false),
-	rotable(false),
-	isBorder(false),
-	isOptionalBorder(false),
-	isWall(false),
-	isBrushDoor(false),
-	isOpen(false),
-	isTable(false),
-	isCarpet(false),
-
-	floorChangeDown(false),
-	floorChangeNorth(false),
-	floorChangeSouth(false),
-	floorChangeEast(false),
-	floorChangeWest(false),
-	floorChange(false),
-
-	unpassable(false),
-	blockPickupable(false),
-	blockMissiles(false),
-	blockPathfinder(false),
-	hasElevation(false),
-
-	alwaysOnTopOrder(0),
-	rotateTo(0),
-	border_alignment(BORDER_NONE) {
-	////
-}
 
 bool ItemType::isFloorChange() const noexcept {
 	return floorChange
@@ -101,25 +35,6 @@ bool ItemType::isFloorChange() const noexcept {
 		|| floorChangeSouth
 		|| floorChangeEast
 		|| floorChangeWest;
-}
-
-ItemDatabase::ItemDatabase() :
-	// Version information
-	MajorVersion(0),
-	MinorVersion(0),
-	BuildNumber(0),
-
-	// Count of GameSprite types
-	item_count(0),
-	effect_count(0),
-	monster_count(0),
-	distance_count(0),
-
-	minClientID(0),
-	maxClientID(0),
-
-	maxItemId(0) {
-	////
 }
 
 ItemDatabase::~ItemDatabase() {
@@ -133,6 +48,7 @@ void ItemDatabase::clear() {
 	}
 }
 
+#if CLIENT_VERSION < 1100
 bool ItemDatabase::loadFromOtbVer1(BinaryNode* itemNode, wxString &error, wxArrayString &warnings) {
 	for (; itemNode != nullptr; itemNode = itemNode->advance()) {
 		uint8_t group;
@@ -184,7 +100,7 @@ bool ItemDatabase::loadFromOtbVer1(BinaryNode* itemNode, wxString &error, wxArra
 		if (itemNode->getU32(flags)) {
 			item->unpassable = ((flags & FLAG_UNPASSABLE) == FLAG_UNPASSABLE);
 			item->blockMissiles = ((flags & FLAG_BLOCK_MISSILES) == FLAG_BLOCK_MISSILES);
-			item->blockPathfinder = ((flags & FLAG_BLOCK_PATHFINDER) == FLAG_BLOCK_PATHFINDER);
+			item->blockPathfinderer = ((flags & FLAG_BLOCK_PATHFINDER) == FLAG_BLOCK_PATHFINDER);
 			item->hasElevation = ((flags & FLAG_HAS_ELEVATION) == FLAG_HAS_ELEVATION);
 			// t->useable = ((flags & FLAG_USEABLE) == FLAG_USEABLE);
 			item->pickupable = ((flags & FLAG_PICKUPABLE) == FLAG_PICKUPABLE);
@@ -457,7 +373,7 @@ bool ItemDatabase::loadFromOtbVer2(BinaryNode* itemNode, wxString &error, wxArra
 		if (itemNode->getU32(flags)) {
 			item->unpassable = ((flags & FLAG_UNPASSABLE) == FLAG_UNPASSABLE);
 			item->blockMissiles = ((flags & FLAG_BLOCK_MISSILES) == FLAG_BLOCK_MISSILES);
-			item->blockPathfinder = ((flags & FLAG_BLOCK_PATHFINDER) == FLAG_BLOCK_PATHFINDER);
+			item->blockPathfinderer = ((flags & FLAG_BLOCK_PATHFINDER) == FLAG_BLOCK_PATHFINDER);
 			item->hasElevation = ((flags & FLAG_HAS_ELEVATION) == FLAG_HAS_ELEVATION);
 			item->pickupable = ((flags & FLAG_PICKUPABLE) == FLAG_PICKUPABLE);
 			item->moveable = ((flags & FLAG_MOVEABLE) == FLAG_MOVEABLE);
@@ -612,7 +528,7 @@ bool ItemDatabase::loadFromOtbVer3(BinaryNode* itemNode, wxString &error, wxArra
 		if (itemNode->getU32(flags)) {
 			item->unpassable = ((flags & FLAG_UNPASSABLE) == FLAG_UNPASSABLE);
 			item->blockMissiles = ((flags & FLAG_BLOCK_MISSILES) == FLAG_BLOCK_MISSILES);
-			item->blockPathfinder = ((flags & FLAG_BLOCK_PATHFINDER) == FLAG_BLOCK_PATHFINDER);
+			item->blockPathfinderer = ((flags & FLAG_BLOCK_PATHFINDER) == FLAG_BLOCK_PATHFINDER);
 			item->hasElevation = ((flags & FLAG_HAS_ELEVATION) == FLAG_HAS_ELEVATION);
 			item->pickupable = ((flags & FLAG_PICKUPABLE) == FLAG_PICKUPABLE);
 			item->moveable = ((flags & FLAG_MOVEABLE) == FLAG_MOVEABLE);
@@ -746,13 +662,13 @@ bool ItemDatabase::loadFromOtb(const FileName &datafile, wxString &error, wxArra
 
 	BinaryNode* root = f.getRootNode();
 
-#define safe_get(node, func, ...)               \
-	do {                                        \
-		if (!node->get##func(__VA_ARGS__)) {    \
-			error = wxstr(f.getErrorMessage()); \
-			return false;                       \
-		}                                       \
-	} while (false)
+	#define safe_get(node, func, ...)               \
+		do {                                        \
+			if (!node->get##func(__VA_ARGS__)) {    \
+				error = wxstr(f.getErrorMessage()); \
+				return false;                       \
+			}                                       \
+		} while (false)
 
 	// Read root flags
 	root->skip(1); // Type info
@@ -800,18 +716,130 @@ bool ItemDatabase::loadFromOtb(const FileName &datafile, wxString &error, wxArra
 	}
 	return true;
 }
+#endif
+
+bool ItemDatabase::loadFromProtobuf(wxString &error, wxArrayString &warnings, canary::protobuf::appearances::Appearances appearances) {
+	using namespace canary::protobuf::appearances;
+
+	for (uint32_t it = 0; it < static_cast<uint32_t>(appearances.object_size()); ++it) {
+		Appearance object = appearances.object(it);
+
+		// This scenario should never happen but on custom assets this can break the loader.
+		if (!object.has_flags()) {
+			spdlog::error("[ItemDatabase::loadFromProtobuf] - Item with id {} is invalid and was ignored.", object.id());
+			wxLogError("[ItemDatabase::loadFromProtobuf] - Item with id %i is invalid and was ignored.", object.id());
+			continue;
+		}
+
+		if (object.id() >= items.size()) {
+			items.resize(object.id() + 1);
+		}
+
+		if (!object.has_id()) {
+			continue;
+		}
+
+		ItemType* t = newd ItemType();
+		t->id = static_cast<uint16_t>(object.id());
+		t->clientID = static_cast<uint16_t>(object.id());
+		t->name = object.name();
+		t->description = object.description();
+
+		if (object.flags().container()) {
+			t->type = ITEM_TYPE_CONTAINER;
+			t->group = ITEM_GROUP_CONTAINER;
+		} else if (object.flags().has_bank()) {
+			t->group = ITEM_GROUP_GROUND;
+		} else if (object.flags().liquidcontainer()) {
+			t->group = ITEM_GROUP_FLUID;
+		} else if (object.flags().liquidpool()) {
+			t->group = ITEM_GROUP_SPLASH;
+		}
+
+		if (object.flags().clip()) {
+			t->alwaysOnTopOrder = 1;
+		} else if (object.flags().top()) {
+			t->alwaysOnTopOrder = 3;
+		} else if (object.flags().bottom()) {
+			t->alwaysOnTopOrder = 2;
+		}
+
+		// now lets parse sprite data
+		t->m_animationPhases.clear();
+
+		for (const auto &framegroup : object.frame_group()) {
+			const auto &frameGroupType = framegroup.fixed_frame_group();
+			const auto &spriteInfo = framegroup.sprite_info();
+			const auto &animation = spriteInfo.animation();
+			const auto &sprites = spriteInfo.sprite_id();
+
+			t->pattern_width = spriteInfo.pattern_width();
+			t->pattern_height = spriteInfo.pattern_height();
+			t->pattern_depth = spriteInfo.pattern_depth();
+			t->layers = spriteInfo.layers();
+
+			if (animation.sprite_phase().size() > 0) {
+				const auto &spritesPhases = animation.sprite_phase();
+				t->start_frame = animation.default_start_phase();
+				t->loop_count = animation.loop_count();
+				t->async_animation = !animation.synchronized();
+				for (int k = 0; k < spritesPhases.size(); k++) {
+					t->m_animationPhases.push_back(std::pair<int, int>(static_cast<int>(spritesPhases[k].duration_min()), static_cast<int>(spritesPhases[k].duration_max())));
+				}
+			}
+
+			t->sprite_id = spriteInfo.sprite_id(0);
+
+			t->m_sprites.clear();
+			t->m_sprites.resize(sprites.size());
+			for (int i = 0; i < sprites.size(); i++) {
+				t->m_sprites[i] = sprites[i];
+			}
+		}
+
+		t->noMoveAnimation = object.flags().no_movement_animation();
+		t->isCorpse = object.flags().corpse() || object.flags().player_corpse();
+		t->forceUse = object.flags().forceuse();
+		t->hasHeight = object.flags().has_height();
+		t->unpassable = object.flags().unpass();
+		t->blockMissiles = object.flags().unsight();
+		t->blockPathfinder = object.flags().avoid();
+		t->pickupable = object.flags().take();
+		t->moveable = object.flags().unmove() == false;
+		t->canReadText = (object.flags().has_lenshelp() && object.flags().lenshelp().id() == 1112) || (object.flags().has_write() && object.flags().write().max_text_length() != 0) || (object.flags().has_write_once() && object.flags().write_once().max_text_length_once() != 0);
+		t->canReadText = object.flags().has_write() || object.flags().has_write_once();
+		t->isVertical = object.flags().has_hook() && object.flags().hook().south();
+		t->isHorizontal = object.flags().has_hook() && object.flags().hook().east();
+		t->isHangable = object.flags().hang();
+		t->stackable = object.flags().cumulative();
+		t->isPodium = object.flags().show_off_socket();
+
+		g_gui.gfx.loadItemSpriteMetadata(t, error, warnings);
+		t->sprite = static_cast<GameSprite*>(g_gui.gfx.getSprite(t->id));
+		if (t->sprite) {
+			t->sprite->minimap_color = object.flags().has_automap() ? static_cast<uint16_t>(object.flags().automap().color()) : 0;
+			t->sprite->draw_height = object.flags().has_height() ? static_cast<uint16_t>(object.flags().height().elevation()) : 0;
+			if (object.flags().has_shift()) {
+				t->sprite->drawoffset_x = static_cast<uint16_t>(object.flags().shift().x());
+				t->sprite->drawoffset_y = static_cast<uint16_t>(object.flags().shift().y());
+			}
+		}
+
+		// Save max item id from the object size iteraction
+		maxItemId = it;
+
+		if (t) {
+			if (items[t->id]) {
+				wxLogWarning("appearances.dat: Duplicate items");
+				delete items[t->id];
+			}
+			items.set(t->id, t);
+		}
+	}
+	return true;
+}
 
 bool ItemDatabase::loadItemFromGameXml(pugi::xml_node itemNode, uint16_t id) {
-	ClientVersionID clientVersion = g_gui.GetCurrentVersionID();
-	if (clientVersion < CLIENT_VERSION_980 && id > 20000 && id < 20100) {
-		itemNode = itemNode.next_sibling();
-		return true;
-	} else if (id > 30000 && id < 30100) {
-		itemNode = itemNode.next_sibling();
-		return true;
-	}
-
-	// Não verificar isValidID se o ID estiver entre 1 e 18, mas verificar para outros IDs.
 	if (!(id >= 1 && id <= 18) && !isValidID(id)) {
 		return false;
 	}
@@ -981,17 +1009,14 @@ bool ItemDatabase::loadFromGameXml(const FileName &identifier, wxString &error, 
 		}
 
 		if (fromId == 0 || toId == 0) {
-			error = "Could not read item id from item node, fromid " + std::to_string(fromId) + ", toid " + std::to_string(toId) + ".";
-			return false;
+			error += "Could not read item id from item node, fromid " + std::to_string(fromId) + ", toid " + std::to_string(toId) + ".";
 		}
 
 		for (uint16_t id = fromId; id <= toId; ++id) {
-			if (!loadItemFromGameXml(itemNode, id)) {
-				error = wxString::Format("Could not load item id %d. Item id not found.", id);
-				return false;
-			}
+			loadItemFromGameXml(itemNode, id);
 		}
 	}
+
 	return true;
 }
 
