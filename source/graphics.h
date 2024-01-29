@@ -192,8 +192,8 @@ protected:
 		void colorizePixel(uint8_t color, uint8_t &r, uint8_t &b, uint8_t &g);
 		uint8_t* getOutfitData(int spriteId);
 
-		virtual void createGLTexture(GLuint spriteId = 0);
-		virtual void unloadGLTexture(GLuint ignored = 0);
+		virtual void createGLTexture(GLuint);
+		virtual void unloadGLTexture(GLuint);
 	};
 
 	uint32_t id;
@@ -223,8 +223,6 @@ public:
 	uint16_t ground_speed;
 	uint16_t draw_height;
 	wxPoint draw_offset;
-	uint16_t drawoffset_x;
-	uint16_t drawoffset_y;
 
 	uint16_t minimap_color;
 
@@ -344,9 +342,6 @@ public:
 		return sprites_file;
 	}
 
-	bool hasTransparency() const;
-	bool isUnloaded() const;
-
 private:
 	bool unloaded;
 	// This is used if memcaching is NOT on
@@ -363,7 +358,6 @@ private:
 	uint16_t creature_count;
 	bool otfi_found;
 	bool is_extended;
-	bool has_transparency;
 	bool has_frame_durations;
 	bool has_frame_groups;
 	wxFileName metadata_file;

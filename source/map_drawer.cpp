@@ -1952,7 +1952,7 @@ void MapDrawer::glBlitTexture(int sx, int sy, int texture_number, int red, int g
 		// Fix the outfit offset 8x8 sprites being drawn offset
 		if (spriteWidth == 64 && spriteHeight == 64 && (outfit.lookType > 0 || outfit.lookItem > 0)) {
 			GameSprite* spr = g_gui.gfx.getCreatureSprite(outfit.lookType);
-			if (spr && spr->drawoffset_x == 8 && spr->drawoffset_y == 8) {
+			if (spr && spr->getDrawOffset().x == 8 && spr->getDrawOffset().y == 8) {
 				sx -= spriteWidth / 2;
 				sy -= spriteWidth / 2;
 			}

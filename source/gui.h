@@ -367,7 +367,6 @@ public:
 
 protected:
 	bool LoadDataFiles(wxString &error, wxArrayString &warnings);
-	void UnloadVersion();
 
 	//=========================================================================
 	// Palette Interface

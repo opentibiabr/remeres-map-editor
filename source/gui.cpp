@@ -239,9 +239,6 @@ bool GUI::LoadVersion(wxString &error, wxArrayString &warnings) {
 	DestroyPalettes();
 	DestroyMinimap();
 
-	// Destroy the previous version
-	UnloadVersion();
-
 	bool ret = LoadDataFiles(error, warnings);
 	if (ret) {
 		g_gui.LoadPerspective();
@@ -289,7 +286,6 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 		error = "Couldn't load catalog-content.json, error: " + error;
 		spdlog::error("[GUI::LoadDataFiles] {}", error.ToStdString());
 		g_gui.DestroyLoadBar();
-		UnloadVersion();
 		return false;
 	}
 
@@ -352,40 +348,6 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 	g_gui.DestroyLoadBar();
 	spdlog::info("Assets loaded");
 	return true;
-}
-
-void GUI::UnloadVersion() {
-	UnnamedRenderingLock();
-	gfx.clear();
-	current_brush = nullptr;
-	previous_brush = nullptr;
-
-	house_brush = nullptr;
-	house_exit_brush = nullptr;
-	waypoint_brush = nullptr;
-	optional_brush = nullptr;
-	eraser = nullptr;
-	normal_door_brush = nullptr;
-	locked_door_brush = nullptr;
-	magic_door_brush = nullptr;
-	quest_door_brush = nullptr;
-	hatch_door_brush = nullptr;
-	window_door_brush = nullptr;
-
-	// g_gui.UnloadVersion();
-	g_materials.clear();
-	g_brushes.clear();
-	g_items.clear();
-	gfx.clear();
-
-	FileName cdb = ClientAssets::getLocalPath();
-	cdb.SetFullName("monsters.xml");
-	g_monsters.saveToXML(cdb);
-	g_monsters.clear();
-
-	cdb.SetFullName("npcs.xml");
-	g_npcs.saveToXML(cdb);
-	g_npcs.clear();
 }
 
 void GUI::SaveCurrentMap(FileName filename, bool showdialog) {

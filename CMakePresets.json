@@ -129,6 +129,18 @@
 	],
 	"buildPresets": [
 		{
+			"name": "1-windows-release",
+			"configurePreset": "windows-release"
+		},
+		{
+			"name": "2-windows-asan",
+			"configurePreset": "windows-release-asan"
+		},
+		{
+			"name": "3-windows-debug",
+			"configurePreset": "windows-debug"
+		},
+		{
 			"name": "linux-release",
 			"configurePreset": "linux-release"
 		},

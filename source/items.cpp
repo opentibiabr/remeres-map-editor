@@ -100,7 +100,7 @@ bool ItemDatabase::loadFromOtbVer1(BinaryNode* itemNode, wxString &error, wxArra
 		if (itemNode->getU32(flags)) {
 			item->unpassable = ((flags & FLAG_UNPASSABLE) == FLAG_UNPASSABLE);
 			item->blockMissiles = ((flags & FLAG_BLOCK_MISSILES) == FLAG_BLOCK_MISSILES);
-			item->blockPathfinderer = ((flags & FLAG_BLOCK_PATHFINDER) == FLAG_BLOCK_PATHFINDER);
+			item->blockPathfinder = ((flags & FLAG_BLOCK_PATHFINDER) == FLAG_BLOCK_PATHFINDER);
 			item->hasElevation = ((flags & FLAG_HAS_ELEVATION) == FLAG_HAS_ELEVATION);
 			// t->useable = ((flags & FLAG_USEABLE) == FLAG_USEABLE);
 			item->pickupable = ((flags & FLAG_PICKUPABLE) == FLAG_PICKUPABLE);
@@ -373,7 +373,7 @@ bool ItemDatabase::loadFromOtbVer2(BinaryNode* itemNode, wxString &error, wxArra
 		if (itemNode->getU32(flags)) {
 			item->unpassable = ((flags & FLAG_UNPASSABLE) == FLAG_UNPASSABLE);
 			item->blockMissiles = ((flags & FLAG_BLOCK_MISSILES) == FLAG_BLOCK_MISSILES);
-			item->blockPathfinderer = ((flags & FLAG_BLOCK_PATHFINDER) == FLAG_BLOCK_PATHFINDER);
+			item->blockPathfinder = ((flags & FLAG_BLOCK_PATHFINDER) == FLAG_BLOCK_PATHFINDER);
 			item->hasElevation = ((flags & FLAG_HAS_ELEVATION) == FLAG_HAS_ELEVATION);
 			item->pickupable = ((flags & FLAG_PICKUPABLE) == FLAG_PICKUPABLE);
 			item->moveable = ((flags & FLAG_MOVEABLE) == FLAG_MOVEABLE);
@@ -528,7 +528,7 @@ bool ItemDatabase::loadFromOtbVer3(BinaryNode* itemNode, wxString &error, wxArra
 		if (itemNode->getU32(flags)) {
 			item->unpassable = ((flags & FLAG_UNPASSABLE) == FLAG_UNPASSABLE);
 			item->blockMissiles = ((flags & FLAG_BLOCK_MISSILES) == FLAG_BLOCK_MISSILES);
-			item->blockPathfinderer = ((flags & FLAG_BLOCK_PATHFINDER) == FLAG_BLOCK_PATHFINDER);
+			item->blockPathfinder = ((flags & FLAG_BLOCK_PATHFINDER) == FLAG_BLOCK_PATHFINDER);
 			item->hasElevation = ((flags & FLAG_HAS_ELEVATION) == FLAG_HAS_ELEVATION);
 			item->pickupable = ((flags & FLAG_PICKUPABLE) == FLAG_PICKUPABLE);
 			item->moveable = ((flags & FLAG_MOVEABLE) == FLAG_MOVEABLE);
@@ -820,8 +820,7 @@ bool ItemDatabase::loadFromProtobuf(wxString &error, wxArrayString &warnings, ca
 			t->sprite->minimap_color = object.flags().has_automap() ? static_cast<uint16_t>(object.flags().automap().color()) : 0;
 			t->sprite->draw_height = object.flags().has_height() ? static_cast<uint16_t>(object.flags().height().elevation()) : 0;
 			if (object.flags().has_shift()) {
-				t->sprite->drawoffset_x = static_cast<uint16_t>(object.flags().shift().x());
-				t->sprite->drawoffset_y = static_cast<uint16_t>(object.flags().shift().y());
+				t->sprite->draw_offset = wxPoint(object.flags().shift().x(), object.flags().shift().y());
 			}
 		}
 

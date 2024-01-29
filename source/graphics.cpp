@@ -915,8 +915,7 @@ bool GraphicManager::loadOutfitSpriteMetadata(canary::protobuf::appearances::App
 	sType->minimap_color = outfit.flags().has_automap() ? static_cast<uint16_t>(outfit.flags().automap().color()) : 0;
 	sType->draw_height = outfit.flags().has_height() ? static_cast<uint16_t>(outfit.flags().height().elevation()) : 0;
 	if (outfit.flags().has_shift()) {
-		sType->drawoffset_x = static_cast<uint16_t>(outfit.flags().shift().x());
-		sType->drawoffset_y = static_cast<uint16_t>(outfit.flags().shift().y());
+		sType->draw_offset = wxPoint(outfit.flags().shift().x(), outfit.flags().shift().y());
 		sType->isDrawOffsetLoaded = true;
 	}
 
@@ -1012,8 +1011,6 @@ GameSprite::GameSprite() :
 	numsprites(0),
 	animator(nullptr),
 	draw_height(0),
-	drawoffset_x(0),
-	drawoffset_y(0),
 	minimap_color(0) {
 	m_wxMemoryDc[SPRITE_SIZE_16x16] = nullptr;
 	m_wxMemoryDc[SPRITE_SIZE_32x32] = nullptr;
@@ -1023,13 +1020,6 @@ GameSprite::~GameSprite() {
 	unloadDC();
 	delete animator;
 	animator = nullptr;
-}
-
-void GameSprite::unloadDC() {
-	delete m_wxMemoryDc[SPRITE_SIZE_16x16];
-	delete m_wxMemoryDc[SPRITE_SIZE_32x32];
-	m_wxMemoryDc[SPRITE_SIZE_16x16] = nullptr;
-	m_wxMemoryDc[SPRITE_SIZE_32x32] = nullptr;
 }
 
 uint16_t GameSprite::getDrawHeight() const {
@@ -1043,12 +1033,43 @@ wxPoint GameSprite::getDrawOffset() {
 			return wxPoint(0, 0);
 		}
 
-		drawoffset_x += sheet->getSpriteSize().width - 32;
-		drawoffset_y += sheet->getSpriteSize().height - 32;
+		draw_offset.x += sheet->getSpriteSize().width - 32;
+		draw_offset.y += sheet->getSpriteSize().height - 32;
 		isDrawOffsetLoaded = true;
 	}
 
-	return wxPoint(drawoffset_x, drawoffset_y);
+	return draw_offset;
+}
+
+uint8_t GameSprite::getWidth() {
+	if (width <= 0) {
+		const auto &sheet = g_spriteAppearances.getSheetBySpriteId(spriteList[0]->getHardwareID(), false);
+		if (sheet) {
+			width = sheet->getSpriteSize().width;
+			height = sheet->getSpriteSize().height;
+		}
+	}
+
+	return width;
+}
+
+uint8_t GameSprite::getHeight() {
+	if (height <= 0) {
+		const auto &sheet = g_spriteAppearances.getSheetBySpriteId(spriteList[0]->getHardwareID(), false);
+		if (sheet) {
+			width = sheet->getSpriteSize().width;
+			height = sheet->getSpriteSize().height;
+		}
+	}
+
+	return height;
+}
+
+void GameSprite::unloadDC() {
+	delete m_wxMemoryDc[SPRITE_SIZE_16x16];
+	delete m_wxMemoryDc[SPRITE_SIZE_32x32];
+	m_wxMemoryDc[SPRITE_SIZE_16x16] = nullptr;
+	m_wxMemoryDc[SPRITE_SIZE_32x32] = nullptr;
 }
 
 uint8_t GameSprite::getMiniMapColor() const {
@@ -1086,17 +1107,7 @@ std::shared_ptr<GameSprite::OutfitImage> GameSprite::getOutfitImage(int spriteId
 		}
 	}
 
-	if (instanced_templates.empty()) {
-		auto img = std::make_shared<GameSprite::OutfitImage>(this, spriteIndex, spriteId, outfit);
-		if (!img) {
-			return nullptr;
-		}
-		instanced_templates.push_back(img);
-		return img;
-	}
-	// While this is linear lookup, it is very rare for the list to contain more than 4-8 entries, so it's faster than a hashmap anyways.
-	for (auto iter = instanced_templates.begin(); iter != instanced_templates.end(); ++iter) {
-		auto img = *iter;
+	for (auto &img : instanced_templates) {
 		if (img->m_spriteId == spriteId) {
 			uint32_t lookHash = img->m_lookHead << 24 | img->m_lookBody << 16 | img->m_lookLegs << 8 | img->m_lookFeet;
 			if (outfit.getColorHash() == lookHash) {
@@ -1182,7 +1193,7 @@ GameSprite::Image::~Image() {
 	unloadGLTexture(0);
 }
 
-void GameSprite::Image::createGLTexture(GLuint whatid) {
+void GameSprite::Image::createGLTexture(GLuint textureId) {
 	ASSERT(!isGLLoaded);
 
 	uint8_t* rgba = getRGBAData();
@@ -1190,7 +1201,7 @@ void GameSprite::Image::createGLTexture(GLuint whatid) {
 		return;
 	}
 
-	const auto &sheet = g_spriteAppearances.getSheetBySpriteId(whatid);
+	const auto &sheet = g_spriteAppearances.getSheetBySpriteId(textureId);
 	if (!sheet) {
 		return;
 	}
@@ -1202,7 +1213,7 @@ void GameSprite::Image::createGLTexture(GLuint whatid) {
 	isGLLoaded = true;
 	g_gui.gfx.loaded_textures += 1;
 
-	glBindTexture(GL_TEXTURE_2D, whatid);
+	glBindTexture(GL_TEXTURE_2D, textureId);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Linear Filtering
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // Linear Filtering
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, 0x812F); // GL_CLAMP_TO_EDGE
@@ -1210,10 +1221,10 @@ void GameSprite::Image::createGLTexture(GLuint whatid) {
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, spriteWidth, spriteHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, invertedBuffer);
 }
 
-void GameSprite::Image::unloadGLTexture(GLuint whatid) {
+void GameSprite::Image::unloadGLTexture(GLuint textureId) {
 	isGLLoaded = false;
 	g_gui.gfx.loaded_textures -= 1;
-	glDeleteTextures(1, &whatid);
+	glDeleteTextures(1, &textureId);
 }
 
 void GameSprite::Image::visit() {
@@ -1264,11 +1275,11 @@ GLuint GameSprite::NormalImage::getHardwareID() {
 	return id;
 }
 
-void GameSprite::NormalImage::createGLTexture(GLuint ignored) {
+void GameSprite::NormalImage::createGLTexture(GLuint) {
 	Image::createGLTexture(id);
 }
 
-void GameSprite::NormalImage::unloadGLTexture(GLuint ignored) {
+void GameSprite::NormalImage::unloadGLTexture(GLuint) {
 	Image::unloadGLTexture(id);
 }
 
@@ -1324,34 +1335,11 @@ void GameSprite::EditorImage::createGLTexture(GLuint textureId) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, 0x812F); // GL_CLAMP_TO_EDGE
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, 0x812F); // GL_CLAMP_TO_EDGE
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, rme::SpritePixels, rme::SpritePixels, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageData);
+	delete[] imageData;
 }
 
 void GameSprite::EditorImage::unloadGLTexture(GLuint textureId) {
 	Image::unloadGLTexture(id);
-}
-
-uint8_t GameSprite::getWidth() {
-	if (width <= 0) {
-		const auto &sheet = g_spriteAppearances.getSheetBySpriteId(spriteList[0]->getHardwareID(), false);
-		if (sheet) {
-			width = sheet->getSpriteSize().width;
-			height = sheet->getSpriteSize().height;
-		}
-	}
-
-	return width;
-}
-
-uint8_t GameSprite::getHeight() {
-	if (height <= 0) {
-		const auto &sheet = g_spriteAppearances.getSheetBySpriteId(spriteList[0]->getHardwareID(), false);
-		if (sheet) {
-			width = sheet->getSpriteSize().width;
-			height = sheet->getSpriteSize().height;
-		}
-	}
-
-	return height;
 }
 
 // OutfitImage
@@ -1371,7 +1359,7 @@ GameSprite::OutfitImage::~OutfitImage() {
 	m_cachedOutfitData = nullptr;
 }
 
-void GameSprite::OutfitImage::unloadGLTexture(GLuint ignored) {
+void GameSprite::OutfitImage::unloadGLTexture(GLuint) {
 	Image::unloadGLTexture(m_spriteId);
 }
 
@@ -1441,7 +1429,7 @@ uint8_t* GameSprite::OutfitImage::getRGBAData() {
 		}
 	}
 
-	spdlog::debug("outfit name: {}, pattern_x: {}, pattern_y: {}, pattern_z: {}, sprite_phase_size: {}, layers: {}, draw height: {}, drawx: {}, drawy: {}", m_name, m_parent->pattern_x, m_parent->pattern_y, m_parent->pattern_z, m_parent->sprite_phase_size, m_parent->layers, m_parent->draw_height, m_parent->drawoffset_x, m_parent->drawoffset_y);
+	spdlog::debug("outfit name: {}, pattern_x: {}, pattern_y: {}, pattern_z: {}, sprite_phase_size: {}, layers: {}, draw height: {}, drawx: {}, drawy: {}", m_name, m_parent->pattern_x, m_parent->pattern_y, m_parent->pattern_z, m_parent->sprite_phase_size, m_parent->layers, m_parent->draw_height, m_parent->getDrawOffset().x, m_parent->getDrawOffset().y);
 
 	m_cachedOutfitData = rgbadata;
 	return m_cachedOutfitData;

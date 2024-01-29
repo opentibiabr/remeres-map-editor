@@ -228,8 +228,9 @@ bool Item::hasProperty(enum ITEMPROPERTY prop) const {
 wxPoint Item::getDrawOffset() const {
 	const ItemType &type = g_items.getItemType(id);
 	if (type.sprite) {
-		return wxPoint(type.sprite->getDrawOffset().x, type.sprite->getDrawOffset().y);
+		return type.sprite->getDrawOffset();
 	}
+
 	return wxPoint(0, 0);
 }
 

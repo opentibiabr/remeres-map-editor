@@ -547,7 +547,7 @@ void PreferencesWindow::SelectNewAssetsFolder(wxCommandEvent &event) {
 	wxString path = dir_picker->GetPath();
 	if (!path.IsEmpty()) {
 		ClientAssets::setPath(path);
-		// spdlog::info("New directory selected: {}", path.ToStdString());
+		spdlog::debug("New directory selected: {}", path.ToStdString());
 	} else {
 		wxMessageDialog dialog(this, "Directory is empty, please, select a valid directory", "Error", wxOK | wxICON_ERROR);
 		dialog.ShowModal();
