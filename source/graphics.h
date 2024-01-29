@@ -181,13 +181,10 @@ protected:
 		GLuint m_spriteId = 0;
 		GameSprite* m_parent = 0;
 		int m_spriteIndex = 0;
-		std::string m_name;
-		uint8_t m_lookHead = 0;
-		uint8_t m_lookBody = 0;
-		uint8_t m_lookLegs = 0;
-		uint8_t m_lookFeet = 0;
 		bool m_isGLLoaded = false;
 		uint8_t* m_cachedOutfitData = nullptr;
+
+		Outfit m_outfit;
 
 		void colorizePixel(uint8_t color, uint8_t &r, uint8_t &b, uint8_t &g);
 		uint8_t* getOutfitData(int spriteId);

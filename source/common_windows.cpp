@@ -1007,6 +1007,19 @@ void FindDialogListBox::OnDrawItem(wxDC &dc, const wxRect &rect, size_t n) const
 		Sprite* spr = g_gui.gfx.getSprite(brushlist[n]->getLookID());
 		if (spr) {
 			spr->DrawTo(&dc, SPRITE_SIZE_32x32, rect.GetX(), rect.GetY(), rect.GetWidth(), rect.GetHeight());
+		} else {
+			auto monsterType = g_monsters[brushlist[n]->getName()];
+			NpcType* npcType;
+			if (!monsterType) {
+				npcType = g_npcs[brushlist[n]->getName()];
+			}
+
+			auto lookType = monsterType ? monsterType->outfit.lookType : npcType ? npcType->outfit.lookType
+																				 : 0;
+			auto creatureSprite = g_gui.gfx.getCreatureSprite(lookType);
+			if (creatureSprite) {
+				creatureSprite->DrawTo(&dc, SPRITE_SIZE_32x32, rect.GetX(), rect.GetY(), rect.GetWidth(), rect.GetHeight());
+			}
 		}
 
 		if (IsSelected(n)) {

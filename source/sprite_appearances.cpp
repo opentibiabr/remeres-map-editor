@@ -48,14 +48,12 @@ bool SpriteAppearances::loadCatalogContent(const std::string &dir, bool loadData
 	fs::path catalogPath = fs::path(dir) / fs::path("catalog-content.json");
 	if (!fs::exists(catalogPath)) {
 		spdlog::error("catalog-content.json is not present in given directory. {}", catalogPath.string().c_str());
-		throw std::exception(fmt::format("catalog-content.json is not present in given directory: {}", catalogPath.string()).c_str());
 		return false;
 	}
 
 	std::ifstream file(catalogPath, std::ios::in);
 	if (!file.is_open()) {
 		spdlog::error("Unable to open catalog-content.json.");
-		throw std::exception("Unable to open catalog-content.json.");
 		return false;
 	}
 
@@ -94,7 +92,7 @@ bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr &sheet) {
 	std::ifstream file(sheet->path, std::ios::binary | std::ios::in);
 	if (!file.is_open()) {
 		spdlog::error("[SpriteAppearances::loadSpriteSheet] - Unable to open given sheets files");
-		throw std::exception("Unable to open given file.");
+		return false;
 	}
 
 	std::vector<uint8_t> buffer((std::istreambuf_iterator<char>(file)), (std::istreambuf_iterator<char>()));
@@ -146,7 +144,7 @@ bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr &sheet) {
 	lzma_ret ret = lzma_raw_decoder(&stream, filters);
 	if (ret != LZMA_OK) {
 		spdlog::error("Failed to initialize lzma raw decoder result: {}", static_cast<int>(ret));
-		throw std::exception(fmt::format("Failed to initialize lzma raw decoder result: {}", static_cast<int>(ret)).c_str());
+		return false;
 	}
 
 	std::unique_ptr<uint8_t[]> decompressed = std::make_unique<uint8_t[]>(LZMA_UNCOMPRESSED_SIZE); // uncompressed size, bmp file + 122 bytes header
@@ -159,7 +157,7 @@ bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr &sheet) {
 	ret = lzma_code(&stream, LZMA_RUN);
 	if (ret != LZMA_STREAM_END) {
 		spdlog::error("Failed to decode lzma buffer result: {}", static_cast<int>(ret));
-		throw std::exception(fmt::format("failed to decode lzma buffer result: {}", static_cast<int>(ret)).c_str());
+		return false;
 	}
 
 	lzma_end(&stream); // free memory

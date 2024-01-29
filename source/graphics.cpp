@@ -1109,7 +1109,8 @@ std::shared_ptr<GameSprite::OutfitImage> GameSprite::getOutfitImage(int spriteId
 
 	for (auto &img : instanced_templates) {
 		if (img->m_spriteId == spriteId) {
-			uint32_t lookHash = img->m_lookHead << 24 | img->m_lookBody << 16 | img->m_lookLegs << 8 | img->m_lookFeet;
+			const auto &outfit = img->m_outfit;
+			uint32_t lookHash = outfit.lookHead << 24 | outfit.lookBody << 16 | outfit.lookLegs << 8 | outfit.lookFeet;
 			if (outfit.getColorHash() == lookHash) {
 				return img;
 			}
@@ -1146,27 +1147,27 @@ wxMemoryDC* GameSprite::getDC(SpriteSize spriteSize) {
 	return m_wxMemoryDc[spriteSize];
 }
 
-void GameSprite::DrawTo(wxDC* dcWindow, SpriteSize spriteSize, int start_x, int start_y, int width, int height) {
-	if (width == -1 || height == -1) {
+void GameSprite::DrawTo(wxDC* dcWindow, SpriteSize spriteSize, int start_x, int start_y, int sizeWidth, int sizeHeight) {
+	if (sizeWidth == -1 || sizeHeight == -1) {
 		if (spriteList.size() == 0) {
 			return;
 		}
+
 		const auto &sheet = g_spriteAppearances.getSheetBySpriteId(spriteList[0]->getHardwareID());
 		if (!sheet) {
 			return;
 		}
 
-		width = sheet->getSpriteSize().width;
-		height = sheet->getSpriteSize().height;
+		sizeWidth = sheet->getSpriteSize().width;
+		sizeHeight = sheet->getSpriteSize().height;
 	}
-
 	wxMemoryDC* sdc = getDC(spriteSize);
 	if (sdc) {
-		dcWindow->Blit(start_x, start_y, width, height, sdc, 0, 0, wxCOPY, true);
+		dcWindow->Blit(start_x, start_y, sizeWidth, sizeHeight, sdc, 0, 0, wxCOPY, true);
 	} else {
 		const wxBrush &b = dcWindow->GetBrush();
 		dcWindow->SetBrush(*wxRED_BRUSH);
-		dcWindow->DrawRectangle(start_x, start_y, width, height);
+		dcWindow->DrawRectangle(start_x, start_y, sizeWidth, sizeHeight);
 		dcWindow->SetBrush(b);
 	}
 }
@@ -1347,13 +1348,7 @@ GameSprite::OutfitImage::OutfitImage(GameSprite* initParent, int initSpriteIndex
 	m_spriteId(initSpriteId),
 	m_spriteIndex(initSpriteIndex),
 	m_parent(initParent),
-	m_name(initOutfit.name),
-	m_lookHead(initOutfit.lookHead),
-	m_lookBody(initOutfit.lookBody),
-	m_lookLegs(initOutfit.lookLegs),
-	m_lookFeet(initOutfit.lookFeet) {
-	////
-}
+	m_outfit(initOutfit) { }
 
 GameSprite::OutfitImage::~OutfitImage() {
 	m_cachedOutfitData = nullptr;
@@ -1391,17 +1386,17 @@ uint8_t* GameSprite::OutfitImage::getRGBAData() {
 	uint8_t* rgbadata = sprite->pixels.data();
 	uint8_t* template_rgbadata = spriteTemplate->pixels.data();
 
-	if (m_lookHead > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
-		m_lookHead = 0;
+	if (m_outfit.lookHead > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
+		m_outfit.lookHead = 0;
 	}
-	if (m_lookBody > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
-		m_lookBody = 0;
+	if (m_outfit.lookBody > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
+		m_outfit.lookBody = 0;
 	}
-	if (m_lookLegs > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
-		m_lookLegs = 0;
+	if (m_outfit.lookLegs > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
+		m_outfit.lookLegs = 0;
 	}
-	if (m_lookFeet > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
-		m_lookFeet = 0;
+	if (m_outfit.lookFeet > (sizeof(TemplateOutfitLookupTable) / sizeof(TemplateOutfitLookupTable[0]))) {
+		m_outfit.lookFeet = 0;
 	}
 
 	int height = sprite->size.height;
@@ -1418,18 +1413,18 @@ uint8_t* GameSprite::OutfitImage::getRGBAData() {
 			const uint8_t &tblue = template_rgbadata[index];
 
 			if (tred && tgreen && !tblue) { // yellow => head
-				colorizePixel(m_lookHead, red, green, blue);
+				colorizePixel(m_outfit.lookHead, red, green, blue);
 			} else if (tred && !tgreen && !tblue) { // red => body
-				colorizePixel(m_lookBody, red, green, blue);
+				colorizePixel(m_outfit.lookBody, red, green, blue);
 			} else if (!tred && tgreen && !tblue) { // green => legs
-				colorizePixel(m_lookLegs, red, green, blue);
+				colorizePixel(m_outfit.lookLegs, red, green, blue);
 			} else if (!tred && !tgreen && tblue) { // blue => feet
-				colorizePixel(m_lookFeet, red, green, blue);
+				colorizePixel(m_outfit.lookFeet, red, green, blue);
 			}
 		}
 	}
 
-	spdlog::debug("outfit name: {}, pattern_x: {}, pattern_y: {}, pattern_z: {}, sprite_phase_size: {}, layers: {}, draw height: {}, drawx: {}, drawy: {}", m_name, m_parent->pattern_x, m_parent->pattern_y, m_parent->pattern_z, m_parent->sprite_phase_size, m_parent->layers, m_parent->draw_height, m_parent->getDrawOffset().x, m_parent->getDrawOffset().y);
+	spdlog::debug("outfit name: {}, pattern_x: {}, pattern_y: {}, pattern_z: {}, sprite_phase_size: {}, layers: {}, draw height: {}, drawx: {}, drawy: {}", m_outfit.name, m_parent->pattern_x, m_parent->pattern_y, m_parent->pattern_z, m_parent->sprite_phase_size, m_parent->layers, m_parent->draw_height, m_parent->getDrawOffset().x, m_parent->getDrawOffset().y);
 
 	m_cachedOutfitData = rgbadata;
 	return m_cachedOutfitData;

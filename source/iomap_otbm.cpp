@@ -1151,9 +1151,6 @@ bool IOMapOTBM::loadHouses(Map &map, pugi::xml_document &doc) {
 			} else {
 				house->name = "House #" + std::to_string(house->id);
 			}
-		} else {
-			// Tratar o erro: house é nullptr.
-			// Você pode lançar uma exceção, retornar um código de erro, ou registrar um aviso, por exemplo.
 		}
 
 		Position exitPosition(

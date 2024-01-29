@@ -2,6 +2,7 @@
 # *****************************************************************************
 # Project canary map editor
 # *****************************************************************************
+
 project(canary-map-editor)
 
 find_package(asio CONFIG REQUIRED)
@@ -14,26 +15,14 @@ find_package(wxWidgets COMPONENTS html aui gl adv core net base CONFIG REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(pugixml CONFIG REQUIRED)
 find_package(liblzma CONFIG REQUIRED)
+find_package(Protobuf REQUIRED)
 
+# *****************************************************************************
+# Options
+# *****************************************************************************
 option(TOGGLE_BIN_FOLDER "Use build/bin folder for generate compilation files" OFF)
 option(OPTIONS_ENABLE_OPENMP "Enable Open Multi-Processing support." ON)
 option(DEBUG_LOG "Enable Debug Log" OFF)
-option(BUILD_STATIC_LIBRARY "Build using static libraries" ON)
-
-# Build static libs
-if(BUILD_STATIC_LIBRARY)
-	log_option_enabled("STATIC_LIBRARY")
-
-	if(MSVC)
-		set(CMAKE_FIND_LIBRARY_SUFFIXES ".lib")
-	elseif(UNIX AND NOT APPLE)
-		set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-	elseif(APPLE)
-		set(CMAKE_FIND_LIBRARY_SUFFIXES ".a" ".dylib")
-	endif()
-else()
-	log_option_disabled("STATIC_LIBRARY")
-endif()
 
 # === DEBUG LOG ===
 # cmake -DDEBUG_LOG=ON ..
@@ -48,9 +37,6 @@ if (MSVC)
 	add_executable(${PROJECT_NAME} "" ../cmake/remeres.rc)
 
 	if(BUILD_STATIC_LIBRARY)
-		set(CMAKE_CXX_FLAGS_RELEASE "/MT")
-		set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/MT")
-		set(CMAKE_CXX_FLAGS_DEBUG "/MTd")
 		set_property(TARGET ${PROJECT_NAME} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 	endif()
 
@@ -69,19 +55,6 @@ if(OPTIONS_ENABLE_OPENMP)
 else()
 	log_option_disabled("openmp")
 endif()
-
-# === IPO ===
-check_ipo_supported(RESULT result OUTPUT output)
-if(result)
-	set_property(TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
-else()
-	message(WARNING "IPO is not supported: ${output}")
-endif()
-
-# === PRECOMPILED HEADER ===
-target_precompile_headers(${PROJECT_NAME} PRIVATE main.h)
-
-
 
 target_sources(${PROJECT_NAME}
 	PRIVATE
@@ -209,6 +182,7 @@ target_link_libraries(${PROJECT_NAME}
 	pugixml::pugixml
 	wx::base wx::core wx::net wx::gl wx::html wx::aui wx::adv
 	liblzma::liblzma
+	OpenGL::GL
 	protobuf
 )
 

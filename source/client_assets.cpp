@@ -26,6 +26,14 @@
 #include "gui.h"
 #include "otml.h"
 
+namespace {
+	bool logErrorAndSetMessage(const std::string &message, wxString &error) {
+		spdlog::error(message);
+		error = message;
+		return false;
+	}
+} // namespace (internal use only)
+
 using json = nlohmann::json;
 
 std::string ClientAssets::version_name;
@@ -54,21 +62,18 @@ bool ClientAssets::loadAppearanceProtobuf(wxString &error, wxArrayString &warnin
 
 	auto clientDirectory = ClientAssets::getPath().ToStdString() + "/";
 	if (!wxDirExists(wxString(clientDirectory))) {
-		error = "The client directory is not valid path, please set a valid path";
-		spdlog::error("The client directory is not valid path, please set a valid path");
+		logErrorAndSetMessage(fmt::format("Client directory is not a valid path: {}", clientDirectory), error);
 		return false;
 	}
 
 	auto assetsDirectory = clientDirectory + "/assets/";
 	if (!wxDirExists(wxString(assetsDirectory))) {
-		error = "The assets directory is not valid path, please set a valid path";
-		spdlog::error("The assets directory is not valid path, please set a valid path");
+		logErrorAndSetMessage(fmt::format("Assets directory not found in path: {}", assetsDirectory), error);
 		return false;
 	}
 
 	if (!g_spriteAppearances.loadCatalogContent(assetsDirectory, false)) {
-		error = "The client directory is not valid path, please set a valid path";
-		spdlog::error("[{}] Cannot open catalog content file", __func__);
+		logErrorAndSetMessage(fmt::format("Failed to load catalog content from directory: {}", assetsDirectory), error);
 		return false;
 	}
 
