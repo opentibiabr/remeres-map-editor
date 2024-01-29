@@ -1,12 +1,12 @@
 //////////////////////////////////////////////////////////////////////
-// This file is part of Canary Map Editor
+// This file is part of Remere's Map Editor
 //////////////////////////////////////////////////////////////////////
-// Canary Map Editor is free software: you can redistribute it and/or modify
+// Remere's Map Editor is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Canary Map Editor is distributed in the hope that it will be useful,
+// Remere's Map Editor is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
@@ -173,7 +173,7 @@ wxString GUI::GetLocalDataDirectory()
 	} else {
 		FileName dir = dynamic_cast<wxStandardPaths&>(wxStandardPaths::Get()).GetUserDataDir();
 #ifdef __WINDOWS__
-		dir.AppendDir("Canary Map Editor");
+		dir.AppendDir("Remere's Map Editor");
 #else
 		dir.AppendDir(".rme");
 #endif
@@ -193,7 +193,7 @@ wxString GUI::GetLocalDirectory()
 	} else {
 		FileName dir = dynamic_cast<wxStandardPaths&>(wxStandardPaths::Get()).GetUserDataDir();
 #ifdef __WINDOWS__
-		dir.AppendDir("Canary Map Editor");
+		dir.AppendDir("Remere's Map Editor");
 #else
 		dir.AppendDir(".rme");
 #endif
@@ -1358,22 +1358,22 @@ void GUI::SetTitle(wxString title)
 #endif
 #ifdef __EXPERIMENTAL__
 	if(title != "") {
-		g_gui.root->SetTitle(title << " - Canary Map Editor BETA" << TITLE_APPEND);
+		g_gui.root->SetTitle(title << " - Remere's Map Editor BETA" << TITLE_APPEND);
 	} else {
-		g_gui.root->SetTitle(wxString("Canary Map Editor BETA") << TITLE_APPEND);
+		g_gui.root->SetTitle(wxString("Remere's Map Editor BETA") << TITLE_APPEND);
 	}
 #elif __SNAPSHOT__
 	if (title != "") {
-		g_gui.root->SetTitle(title << " - Canary Map Editor - SNAPSHOT" << TITLE_APPEND);
+		g_gui.root->SetTitle(title << " - Remere's Map Editor - SNAPSHOT" << TITLE_APPEND);
 	}
 	else {
-		g_gui.root->SetTitle(wxString("Canary Map Editor - SNAPSHOT") << TITLE_APPEND);
+		g_gui.root->SetTitle(wxString("Remere's Map Editor - SNAPSHOT") << TITLE_APPEND);
 	}
 #else
 	if(!title.empty()) {
-		g_gui.root->SetTitle(title << " - Canary Map Editor" << TITLE_APPEND);
+		g_gui.root->SetTitle(title << " - Remere's Map Editor" << TITLE_APPEND);
 	} else {
-		g_gui.root->SetTitle(wxString("Canary Map Editor") << TITLE_APPEND);
+		g_gui.root->SetTitle(wxString("Remere's Map Editor") << TITLE_APPEND);
 	}
 #endif
 }
