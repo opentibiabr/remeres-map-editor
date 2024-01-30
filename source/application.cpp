@@ -115,10 +115,9 @@ bool Application::OnInit() {
 
 #if defined(__LINUX__) || defined(__WINDOWS__)
 	int argc = 1;
-	char* arg = strdup(wxString(this->argv[0]).char_str());
-	char* argv[] = { arg };
+	auto arg = wxString(this->argv[0]).ToStdString();
+	char* argv[] = { &arg[0] };
 	glutInit(&argc, argv);
-	free(arg);
 #endif
 
 	// Load some internal stuff

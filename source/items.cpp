@@ -721,7 +721,7 @@ bool ItemDatabase::loadFromOtb(const FileName &datafile, wxString &error, wxArra
 bool ItemDatabase::loadFromProtobuf(wxString &error, wxArrayString &warnings, canary::protobuf::appearances::Appearances appearances) {
 	using namespace canary::protobuf::appearances;
 
-	for (uint32_t it = 0; it < static_cast<uint32_t>(appearances.object_size()); ++it) {
+	for (uint16_t it = 0; it < static_cast<uint16_t>(appearances.object_size()); ++it) {
 		Appearance object = appearances.object(it);
 
 		// This scenario should never happen but on custom assets this can break the loader.
@@ -741,6 +741,11 @@ bool ItemDatabase::loadFromProtobuf(wxString &error, wxArrayString &warnings, ca
 
 		ItemType* t = newd ItemType();
 		t->id = static_cast<uint16_t>(object.id());
+		// Save max item id from the object size iteraction
+		if (maxItemId < t->id) {
+			maxItemId = t->id;
+			spdlog::debug("[ItemDatabase::loadFromProtobuf] - Loading item with id {}.", t->id);
+		}
 		t->clientID = static_cast<uint16_t>(object.id());
 		t->name = object.name();
 		t->description = object.description();
@@ -824,9 +829,6 @@ bool ItemDatabase::loadFromProtobuf(wxString &error, wxArrayString &warnings, ca
 			}
 		}
 
-		// Save max item id from the object size iteraction
-		maxItemId = it;
-
 		if (t) {
 			if (items[t->id]) {
 				wxLogWarning("appearances.dat: Duplicate items");
@@ -835,6 +837,8 @@ bool ItemDatabase::loadFromProtobuf(wxString &error, wxArrayString &warnings, ca
 			items.set(t->id, t);
 		}
 	}
+
+	spdlog::debug("[ItemDatabase::loadFromProtobuf] - Last loaded item: {}", maxItemId);
 	return true;
 }
 

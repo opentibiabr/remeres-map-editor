@@ -57,7 +57,7 @@ public:
 	static FileName getDataPath();
 	static FileName getLocalPath();
 	static wxString getPath();
-	static void setPath(wxString newPath) {
+	static void setPath(const wxString &newPath) {
 		assets_path = newPath;
 	}
 	static void setLoaded(bool newLoaded) {
