@@ -851,7 +851,7 @@ void MainMenuBar::OnDebugViewDat(wxCommandEvent &WXUNUSED(event)) {
 void MainMenuBar::OnReloadDataFiles(wxCommandEvent &WXUNUSED(event)) {
 	wxString error;
 	wxArrayString warnings;
-	g_gui.LoadVersion(error, warnings);
+	g_gui.loadMapWindow(error, warnings, true);
 	g_gui.PopupDialog("Error", error, wxOK);
 	g_gui.ListDialog("Warnings", warnings);
 	auto clientDirectory = ClientAssets::getPath().ToStdString() + "/";

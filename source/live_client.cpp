@@ -392,7 +392,7 @@ void LiveClient::parseChangeClientVersion(NetworkMessage &message) {
 
 	wxString error;
 	wxArrayString warnings;
-	g_gui.LoadVersion(error, warnings);
+	g_gui.loadMapWindow(error, warnings);
 
 	sendReady();
 }

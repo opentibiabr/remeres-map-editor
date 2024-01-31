@@ -53,6 +53,15 @@
 
 #include <appearances.pb.h>
 
+namespace InternalGUI {
+	void logErrorAndSetMessage(const std::string &message, wxString &error) {
+		spdlog::error(message);
+		error = message + ". Error:" + error;
+		g_gui.DestroyLoadBar();
+		g_gui.unloadMapWindow();
+	}
+} // namespace (internal use only)
+
 const wxEventType EVT_UPDATE_MENUS = wxNewEventType();
 const wxEventType EVT_UPDATE_ACTIONS = wxNewEventType();
 
@@ -230,7 +239,11 @@ void GUI::discoverDataDirectory(const wxString &existentFile) {
 	}
 }
 
-bool GUI::LoadVersion(wxString &error, wxArrayString &warnings) {
+bool GUI::loadMapWindow(wxString &error, wxArrayString &warnings, bool force /* = false*/) {
+	if (!force && ClientAssets::isLoaded()) {
+		return true;
+	}
+
 	// There is another version loaded right now, save window layout
 	g_gui.SavePerspective();
 
@@ -238,6 +251,8 @@ bool GUI::LoadVersion(wxString &error, wxArrayString &warnings) {
 	UnnamedRenderingLock();
 	DestroyPalettes();
 	DestroyMinimap();
+	// Destroy the previous window
+	unloadMapWindow();
 
 	bool ret = LoadDataFiles(error, warnings);
 	if (ret) {
@@ -283,9 +298,8 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 	g_gui.SetLoadDone(20, "Loading client assets...");
 	spdlog::info("Loading appearances");
 	if (!ClientAssets::loadAppearanceProtobuf(error, warnings)) {
-		error = "Couldn't load catalog-content.json, error: " + error;
-		spdlog::error("[GUI::LoadDataFiles] {}", error.ToStdString());
-		g_gui.DestroyLoadBar();
+
+		InternalGUI::logErrorAndSetMessage("Couldn't load catalog-content.json", error);
 		return false;
 	}
 
@@ -348,6 +362,38 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 	g_gui.DestroyLoadBar();
 	spdlog::info("Assets loaded");
 	return true;
+}
+
+void GUI::unloadMapWindow() {
+	UnnamedRenderingLock();
+	gfx.clear();
+	current_brush = nullptr;
+	previous_brush = nullptr;
+
+	house_brush = nullptr;
+	house_exit_brush = nullptr;
+	waypoint_brush = nullptr;
+	optional_brush = nullptr;
+	eraser = nullptr;
+	normal_door_brush = nullptr;
+	locked_door_brush = nullptr;
+	magic_door_brush = nullptr;
+	quest_door_brush = nullptr;
+	hatch_door_brush = nullptr;
+	window_door_brush = nullptr;
+
+	g_materials.clear();
+	g_brushes.clear();
+	g_items.clear();
+	gfx.clear();
+
+	FileName cdb = ClientAssets::getLocalPath();
+	cdb.SetFullName("monsters.xml");
+	g_monsters.saveToXML(cdb);
+	cdb.SetFullName("npcs.xml");
+	g_monsters.saveToXML(cdb);
+	g_monsters.clear();
+	g_npcs.clear();
 }
 
 void GUI::SaveCurrentMap(FileName filename, bool showdialog) {

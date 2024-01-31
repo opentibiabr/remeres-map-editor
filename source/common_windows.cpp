@@ -257,7 +257,7 @@ void MapPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 			map.convert(new_ver, true);
 
 			// Load the new version
-			if (!g_gui.LoadVersion(error, warnings)) {
+			if (!g_gui.loadMapWindow(error, warnings)) {
 				g_gui.ListDialog(this, "Warnings", warnings);
 				g_gui.PopupDialog(this, "Map Loader Error", error, wxOK);
 				g_gui.PopupDialog(this, "Conversion Error", "Could not convert map. The map will now be closed.", wxOK);
@@ -317,7 +317,7 @@ void MapPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 			map.cleanInvalidTiles(true);
 		} else {
 			UnnamedRenderingLock();
-			if (!g_gui.LoadVersion(error, warnings)) {
+			if (!g_gui.loadMapWindow(error, warnings)) {
 				g_gui.ListDialog(this, "Warnings", warnings);
 				g_gui.PopupDialog(this, "Map Loader Error", error, wxOK);
 				g_gui.PopupDialog(this, "Conversion Error", "Could not convert map. The map will now be closed.", wxOK);

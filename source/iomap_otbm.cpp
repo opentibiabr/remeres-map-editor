@@ -463,6 +463,7 @@ bool IOMapOTBM::getVersionInfo(NodeFileReadHandle* f, MapVersion &out_ver) {
 	root->getU16(u16);
 	root->getU16(u16);
 	root->getU32(u32);
+	root->skip(4); // Skip the otb version (deprecated)
 
 	return true;
 }
@@ -665,7 +666,7 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 
 	version.otbm = (MapVersionID)u32;
 
-	if (version.otbm > MAP_OTBM_4) {
+	if (version.otbm > MAP_OTBM_5) {
 		// Failed to read version
 		if (g_gui.PopupDialog("Map error", "The loaded map appears to be a OTBM format that is not supported by the editor."
 										   "Do you still want to attempt to load the map?",
@@ -1528,11 +1529,9 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 	const IOMapOTBM &self = *this;
 
 	FileName tmpName;
-	MapVersion mapVersion = map.getVersion();
-
 	f.addNode(0);
 	{
-		f.addU32(2); // Version (deprecated)
+		f.addU32(MapVersionID::MAP_OTBM_5); // Map version
 
 		f.addU16(map.width);
 		f.addU16(map.height);

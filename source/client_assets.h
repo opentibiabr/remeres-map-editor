@@ -27,14 +27,13 @@ enum MapVersionID {
 	MAP_OTBM_2 = 1,
 	MAP_OTBM_3 = 2,
 	MAP_OTBM_4 = 3,
+	MAP_OTBM_5 = 4,
 };
 
-// The composed version of a otbm file (otbm version, client version)
+// The composed version of a otbm file (otbm version)
 struct MapVersion {
 	MapVersion() :
-		otbm(MAP_OTBM_1) { }
-	MapVersion(MapVersionID m) :
-		otbm(m) { }
+		otbm(MAP_OTBM_5) { }
 	MapVersionID otbm;
 };
 

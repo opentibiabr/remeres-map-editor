@@ -52,20 +52,9 @@ Editor::Editor(CopyBuffer &copybuffer) :
 	replace_brush(nullptr) {
 	wxString error;
 	wxArrayString warnings;
-	bool ok = true;
-
-	if (g_gui.CloseAllEditors()) {
-		ok = g_gui.LoadVersion(error, warnings);
+	if (!g_gui.loadMapWindow(error, warnings)) {
 		g_gui.PopupDialog("Error", error, wxOK);
 		g_gui.ListDialog("Warnings", warnings);
-
-		auto clientDirectory = ClientAssets::getPath().ToStdString() + "/";
-		if (!wxDirExists(wxString(clientDirectory))) {
-			PreferencesWindow dialog(nullptr);
-			dialog.getBookCtrl().SetSelection(4);
-			dialog.ShowModal();
-			dialog.Destroy();
-		}
 	}
 
 	MapVersion version;
@@ -88,6 +77,7 @@ Editor::Editor(CopyBuffer &copybuffer) :
 	map.doChange();
 }
 
+// Used for loading a new map from "open map" menu
 Editor::Editor(CopyBuffer &copybuffer, const FileName &fn) :
 	live_server(nullptr),
 	live_client(nullptr),
@@ -97,16 +87,22 @@ Editor::Editor(CopyBuffer &copybuffer, const FileName &fn) :
 	replace_brush(nullptr) {
 	MapVersion ver;
 	if (!IOMapOTBM::getVersionInfo(fn, ver)) {
-		g_gui.PopupDialog("Error", "Could not open file \"" + fn.GetFullPath() + "\".", wxOK);
 		spdlog::error("Could not open file {}. This is not a valid OTBM file or it does not exist.", nstr(fn.GetFullPath()));
 		throw std::runtime_error("Could not open file \"" + nstr(fn.GetFullPath()) + "\".\nThis is not a valid OTBM file or it does not exist.");
+	}
+
+	if (ver.otbm != g_gui.getLoadedMapVersion().otbm) {
+		auto result = g_gui.PopupDialog("Map error", "The loaded map appears to be a OTBM format that is not supported by the editor. Do you still want to attempt to load the map? Caution: this will close your current map!", wxYES | wxNO);
+		if (result == wxID_NO) {
+			throw std::runtime_error("Maps of different versions can't be loaded at same time. Save and close your current map and try again.");
+		}
 	}
 
 	bool success = true;
 	wxString error;
 	wxArrayString warnings;
 	if (g_gui.CloseAllEditors()) {
-		success = g_gui.LoadVersion(error, warnings);
+		success = g_gui.loadMapWindow(error, warnings);
 		if (!success) {
 			g_gui.PopupDialog("Error", error, wxOK);
 			auto clientDirectory = ClientAssets::getPath().ToStdString() + "/";

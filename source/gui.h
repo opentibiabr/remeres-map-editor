@@ -309,7 +309,9 @@ public:
 		return m_dataDirectory;
 	}
 
-	bool LoadVersion(wxString &error, wxArrayString &warnings);
+	// Load/unload a map tabs (takes care of dialogs aswell)
+	void unloadMapWindow();
+	bool loadMapWindow(wxString &error, wxArrayString &warnings, bool force = false);
 
 	// Centers current view on position
 	void SetScreenCenterPosition(const Position &position, bool showIndicator = true);
@@ -364,6 +366,9 @@ public:
 	void SaveMap();
 	void SaveMapAs();
 	bool LoadMap(const FileName &fileName);
+	const MapVersion &getLoadedMapVersion() const {
+		return m_loadedMapVersion;
+	}
 
 protected:
 	bool LoadDataFiles(wxString &error, wxArrayString &warnings);
@@ -451,6 +456,7 @@ protected:
 
 	wxGLContext* OGLContext;
 
+	MapVersion m_loadedMapVersion;
 	EditorMode mode;
 	bool pasting;
 
