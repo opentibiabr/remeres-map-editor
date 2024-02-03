@@ -61,9 +61,6 @@ if (MSVC)
 	add_executable(${PROJECT_NAME} "" ../cmake/remeres.rc)
 
 	if(BUILD_STATIC_LIBRARY)
-		set(CMAKE_CXX_FLAGS_RELEASE "/MT")
-		set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/MT")
-		set(CMAKE_CXX_FLAGS_DEBUG "/MTd")
 		set_property(TARGET ${PROJECT_NAME} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 	endif()
 
