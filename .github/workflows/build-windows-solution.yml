@@ -74,4 +74,4 @@ jobs:
         with:
           name: ${{ matrix.os }}-${{ matrix.buildtype }}
           path: |
-            ${{ github.workspace }}/vcproj/x64/${{ matrix.buildtype }}/
+            ${{ github.workspace }}/vcproj/Project/x64/${{ matrix.buildtype }}/
