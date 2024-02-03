@@ -22,7 +22,6 @@ find_package(Protobuf REQUIRED)
 option(TOGGLE_BIN_FOLDER "Use build/bin folder for generate compilation files" OFF)
 option(OPTIONS_ENABLE_OPENMP "Enable Open Multi-Processing support." ON)
 option(DEBUG_LOG "Enable Debug Log" OFF)
-option(BUILD_STATIC_LIBRARY "Build using static libraries" ON)
 option(SPEED_UP_BUILD_UNITY "Compile using build unity for speed up build" ON)
 
 # LibArchive disabled in compilation level by default, see "#define OTGZ_SUPPORT" in the "definitions.h" file
