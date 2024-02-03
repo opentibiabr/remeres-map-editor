@@ -180,7 +180,7 @@ protected:
 	};
 
 	void getColor(Brush* brush, const Position &position, uint8_t &r, uint8_t &g, uint8_t &b);
-	void glBlitTexture(int sx, int sy, int texture_number, int red, int green, int blue, int alpha, bool adjustZoom = false, const Outfit &outfit = {});
+	void glBlitTexture(int sx, int sy, int texture_number, int red, int green, int blue, int alpha, bool adjustZoom = false, bool isEditorSprite = false, const Outfit &outfit = {});
 	void glBlitSquare(int x, int y, int red, int green, int blue, int alpha);
 	void glBlitSquare(int x, int y, const wxColor &color);
 	void glColor(const wxColor &color);

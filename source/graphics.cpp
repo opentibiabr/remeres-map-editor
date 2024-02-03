@@ -195,6 +195,9 @@ GraphicManager::~GraphicManager() {
 		iter->second = nullptr;
 	}
 
+	sprite_space.clear();
+	image_space.clear();
+
 	delete animation_timer;
 	animation_timer = nullptr;
 }
@@ -416,7 +419,6 @@ bool GraphicManager::loadEditorSprites() {
 	sprite_space[EDITOR_SPRITE_PICKUPABLE_ITEM] = GameSprite::createFromBitmap(ART_PICKUPABLE);
 	sprite_space[EDITOR_SPRITE_MOVEABLE_ITEM] = GameSprite::createFromBitmap(ART_MOVEABLE);
 	sprite_space[EDITOR_SPRITE_PICKUPABLE_MOVEABLE_ITEM] = GameSprite::createFromBitmap(ART_PICKUPABLE_MOVEABLE);
-
 	return true;
 }
 

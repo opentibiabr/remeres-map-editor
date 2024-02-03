@@ -1366,7 +1366,7 @@ void MapDrawer::BlitCreature(int screenx, int screeny, const Outfit &outfit, Dir
 	auto spriteId = spr->spriteList[0]->getHardwareID();
 	auto outfitImage = spr->getOutfitImage(spriteId, dir, outfit);
 	if (outfitImage) {
-		glBlitTexture(screenx, screeny, outfitImage->getHardwareID(), red, green, blue, alpha, false, outfit);
+		glBlitTexture(screenx, screeny, outfitImage->getHardwareID(), red, green, blue, alpha, false, false, outfit);
 	}
 }
 
@@ -1727,11 +1727,12 @@ void MapDrawer::DrawTileIndicators(TileLocation* location) {
 void MapDrawer::DrawIndicator(int x, int y, int indicator, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
 	GameSprite* sprite = g_gui.gfx.getEditorSprite(indicator);
 	if (sprite == nullptr) {
+		spdlog::error("MapDrawer::DrawIndicator: sprite is nullptr");
 		return;
 	}
 
 	int textureId = sprite->getHardwareID(0, 0, 0, -1, 0, 0);
-	glBlitTexture(x, y, textureId, r, g, b, a, true);
+	glBlitTexture(x, y, textureId, r, g, b, a, true, true);
 }
 
 void MapDrawer::DrawPositionIndicator(int z) {
@@ -1940,39 +1941,66 @@ void MapDrawer::ShowPositionIndicator(const Position &position) {
 	pos_indicator_timer.Start();
 }
 
-void MapDrawer::glBlitTexture(int sx, int sy, int texture_number, int red, int green, int blue, int alpha, bool adjustZoom /* = false*/, const Outfit &outfit /* = {}*/) {
-	if (texture_number != 0) {
-		SpriteSheetPtr sheet = g_spriteAppearances.getSheetBySpriteId(texture_number);
+void MapDrawer::glBlitTexture(int sx, int sy, int textureId, int red, int green, int blue, int alpha, bool adjustZoom, bool isEditorSprite, const Outfit &outfit) {
+	if (textureId <= 0) {
+		return;
+	}
+
+	auto width = rme::TileSize;
+	auto height = rme::TileSize;
+	// Adjusts the offset of normal sprites
+	if (!isEditorSprite) {
+		SpriteSheetPtr sheet = g_spriteAppearances.getSheetBySpriteId(textureId);
 		if (!sheet) {
 			return;
 		}
 
-		auto spriteWidth = sheet->getSpriteSize().width;
-		auto spriteHeight = sheet->getSpriteSize().height;
-		// Fix the outfit offset 8x8 sprites being drawn offset
-		if (spriteWidth == 64 && spriteHeight == 64 && (outfit.lookType > 0 || outfit.lookItem > 0)) {
+		width = sheet->getSpriteSize().width;
+		height = sheet->getSpriteSize().height;
+
+		// If the sprite is an outfit and the size is 64x64, adjust the offset
+		if (width == 64 && height == 64 && (outfit.lookType > 0 || outfit.lookItem > 0)) {
 			GameSprite* spr = g_gui.gfx.getCreatureSprite(outfit.lookType);
 			if (spr && spr->getDrawOffset().x == 8 && spr->getDrawOffset().y == 8) {
-				sx -= spriteWidth / 2;
-				sy -= spriteWidth / 2;
+				sx -= width / 2;
+				sy -= height / 2;
 			}
 		}
-
-		spdlog::debug("Blitting outfit {} at ({}, {})", outfit.name, sx, sy);
-
-		glBindTexture(GL_TEXTURE_2D, texture_number);
-		glColor4ub(uint8_t(red), uint8_t(green), uint8_t(blue), uint8_t(alpha));
-		glBegin(GL_QUADS);
-		glTexCoord2f(0.f, 0.f);
-		glVertex2f(sx, sy);
-		glTexCoord2f(1.f, 0.f);
-		glVertex2f(sx + spriteWidth, sy);
-		glTexCoord2f(1.f, 1.f);
-		glVertex2f(sx + spriteWidth, sy + spriteHeight);
-		glTexCoord2f(0.f, 1.f);
-		glVertex2f(sx, sy + spriteHeight);
-		glEnd();
 	}
+
+	// Adjust zoom if necessary
+	if (adjustZoom) {
+		if (zoom < 1.0f) {
+			float offset = 10 / (10 * zoom);
+			width = std::max<int>(16, static_cast<int>(width * zoom));
+			height = std::max<int>(16, static_cast<int>(height * zoom));
+			sx += offset;
+			sy += offset;
+		} else if (zoom > 1.f) {
+			float offset = (10 * zoom);
+			width += static_cast<int>(offset);
+			height += static_cast<int>(offset);
+			sx -= offset;
+			sy -= offset;
+		}
+	}
+
+	if (outfit.lookType > 0) {
+		spdlog::debug("Blitting outfit {} at ({}, {})", outfit.name, sx, sy);
+	}
+
+	glBindTexture(GL_TEXTURE_2D, textureId);
+	glColor4ub(uint8_t(red), uint8_t(green), uint8_t(blue), uint8_t(alpha));
+	glBegin(GL_QUADS);
+	glTexCoord2f(0.f, 0.f);
+	glVertex2f(sx, sy);
+	glTexCoord2f(1.f, 0.f);
+	glVertex2f(sx + width, sy);
+	glTexCoord2f(1.f, 1.f);
+	glVertex2f(sx + width, sy + height);
+	glTexCoord2f(0.f, 1.f);
+	glVertex2f(sx, sy + height);
+	glEnd();
 }
 
 void MapDrawer::glBlitSquare(int x, int y, int red, int green, int blue, int alpha) {
