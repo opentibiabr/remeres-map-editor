@@ -24,7 +24,14 @@
 
 #include <wx/artprov.h>
 
-#include <appearances.pb.h>
+// Forward declarations
+namespace canary {
+	namespace protobuf {
+		namespace appearances {
+			class Appearance;
+		}
+	}
+}
 
 enum SpriteSize {
 	SPRITE_SIZE_16x16,

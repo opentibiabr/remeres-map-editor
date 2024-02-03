@@ -31,6 +31,8 @@
 
 #include <wx/rawbmp.h>
 
+#include <appearances.pb.h>
+
 GraphicManager g_graphics;
 GameSprite g_gameSprite;
 
@@ -1123,22 +1125,25 @@ std::shared_ptr<GameSprite::OutfitImage> GameSprite::getOutfitImage(int spriteId
 }
 
 wxMemoryDC* GameSprite::getDC(SpriteSize spriteSize) {
-	if (!m_wxMemoryDc[spriteSize]) {
-		const int bgshade = g_settings.getInteger(Config::ICON_BACKGROUND);
-		wxImage background(getWidth(), getHeight());
+	ASSERT(spriteSize == SPRITE_SIZE_16x16 || spriteSize == SPRITE_SIZE_32x32);
 
+	if (!m_wxMemoryDc[spriteSize]) {
+		ASSERT(width >= 1 && height >= 1);
+
+		wxImage background(getWidth(), getHeight());
 		auto backgroundBmp = wxBitmap(background);
 		m_wxMemoryDc[spriteSize] = new wxMemoryDC(backgroundBmp);
-
 		m_wxMemoryDc[spriteSize]->SelectObject(wxNullBitmap);
+
 		auto spriteId = spriteList[0]->getHardwareID();
 		wxImage wxImage = g_spriteAppearances.getWxImageBySpriteId(spriteId);
 
-		// Resize image to 32x32
+		// Resize the image to rme::SpritePixels x rme::SpritePixels, if necessary
 		if (getWidth() > rme::SpritePixels || getHeight() > rme::SpritePixels) {
 			wxImage.Rescale(rme::SpritePixels, rme::SpritePixels);
 		}
 
+		// Create a bitmap with the sprite image
 		auto bitMap = wxBitmap(wxImage);
 		m_wxMemoryDc[spriteSize]->SelectObject(bitMap);
 		g_gui.gfx.addSpriteToCleanup(this);
@@ -1215,8 +1220,8 @@ void GameSprite::Image::createGLTexture(GLuint textureId) {
 	g_gui.gfx.loaded_textures += 1;
 
 	glBindTexture(GL_TEXTURE_2D, textureId);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Linear Filtering
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // Linear Filtering
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // Nearest Filtering
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); // Nearest Filtering
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, 0x812F); // GL_CLAMP_TO_EDGE
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, 0x812F); // GL_CLAMP_TO_EDGE
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, spriteWidth, spriteHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, invertedBuffer);
@@ -1331,8 +1336,8 @@ void GameSprite::EditorImage::createGLTexture(GLuint textureId) {
 	g_gui.gfx.loaded_textures += 1;
 
 	glBindTexture(GL_TEXTURE_2D, id);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Linear Filtering
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // Linear Filtering
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // Nearest Filtering
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); // Nearest Filtering
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, 0x812F); // GL_CLAMP_TO_EDGE
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, 0x812F); // GL_CLAMP_TO_EDGE
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, rme::SpritePixels, rme::SpritePixels, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageData);
@@ -1465,8 +1470,8 @@ void GameSprite::OutfitImage::createGLTexture(GLuint spriteId) {
 	g_gui.gfx.loaded_textures += 1;
 
 	glBindTexture(GL_TEXTURE_2D, spriteId);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Linear Filtering
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // Linear Filtering
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // Nearest Filtering
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); // Nearest Filtering
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, 0x812F); // GL_CLAMP_TO_EDGE
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, 0x812F); // GL_CLAMP_TO_EDGE
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, spriteWidth, spriteHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, invertedBuffer);

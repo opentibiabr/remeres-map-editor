@@ -178,14 +178,6 @@ bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr &sheet) {
 		}
 	}
 
-	// Fix magenta (remove transparency by black collor)
-	for (int offset = 0; offset < BYTES_IN_SPRITE_SHEET; offset += 4) {
-		std::memcpy(&data, bufferStart + offset, 4);
-		if (data == 0xFF00FF) {
-			std::memset(bufferStart + offset, 0x00, 4);
-		}
-	}
-
 	sheet->data = std::make_unique<uint8_t[]>(LZMA_UNCOMPRESSED_SIZE);
 	std::memcpy(sheet->data.get(), bufferStart, BYTES_IN_SPRITE_SHEET);
 
@@ -227,6 +219,10 @@ wxImage SpriteAppearances::getWxImageBySpriteId(int id, bool toSavePng /* = fals
 		return {};
 	}
 
+	const int bgshade = g_settings.getInteger(Config::ICON_BACKGROUND);
+	const uint32_t magenta = 0xFF00FF;
+	const uint32_t lightMagenta = 0xD000CF;
+
 	const int width = sprite->size.width;
 	const int height = sprite->size.height;
 	auto pixels = sprite->pixels.data();
@@ -234,9 +230,17 @@ wxImage SpriteAppearances::getWxImageBySpriteId(int id, bool toSavePng /* = fals
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
 			const int index = (y * width + x) * 4;
-			const uint8_t r = pixels[index + 2];
-			const uint8_t g = pixels[index + 1];
-			const uint8_t b = pixels[index];
+			uint8_t r = pixels[index + 2];
+			uint8_t g = pixels[index + 1];
+			uint8_t b = pixels[index];
+
+			// Combines the color channels into a single 32-bit value
+			uint32_t color = (r << 16) | (g << 8) | b;
+
+			// Replaces magenta with the background color
+			if (color == magenta || color == lightMagenta) {
+				r = g = b = bgshade; // Sets RGB to the background color
+			}
 			image.SetRGB(x, y, r, g, b);
 		}
 	}

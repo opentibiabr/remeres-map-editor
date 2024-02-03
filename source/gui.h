@@ -445,7 +445,7 @@ public:
 	FlagBrush* pvp_brush;
 	ZoneBrush* zone_brush;
 
-	canary::protobuf::appearances::Appearances appearances; // Protobuf appearances file parsed
+	std::unique_ptr<canary::protobuf::appearances::Appearances> m_appearancesPtr; // Protobuf appearances file parsed
 
 protected:
 	//=========================================================================

@@ -26,6 +26,8 @@
 #include "gui.h"
 #include "otml.h"
 
+#include <appearances.pb.h>
+
 namespace {
 	bool logErrorAndSetMessage(const std::string &message, wxString &error) {
 		spdlog::error(message);
@@ -111,8 +113,8 @@ bool ClientAssets::loadAppearanceProtobuf(wxString &error, wxArrayString &warnin
 	// Verify that the version of the library that we linked against is
 	// compatible with the version of the headers we compiled against.
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
-	g_gui.appearances = Appearances();
-	if (!g_gui.appearances.ParseFromIstream(&fileStream)) {
+	g_gui.m_appearancesPtr = std::make_unique<Appearances>();
+	if (!g_gui.m_appearancesPtr->ParseFromIstream(&fileStream)) {
 		error = "Failed to parse binary file " + appearanceFileName + ", file is invalid";
 		spdlog::error("[{}] - Failed to parse binary file {}, file is invalid", __func__, appearanceFileName);
 		fileStream.close();
@@ -120,7 +122,7 @@ bool ClientAssets::loadAppearanceProtobuf(wxString &error, wxArrayString &warnin
 	}
 
 	// Parsing all items into ItemType
-	bool rt = g_items.loadFromProtobuf(error, warnings, g_gui.appearances);
+	bool rt = g_items.loadFromProtobuf(error, warnings, *g_gui.m_appearancesPtr);
 	if (!rt) {
 		error = "Failed to parse item types from protobuf";
 		spdlog::error("[{}] - Failed to parse item types from protobuf", __func__);
@@ -129,8 +131,8 @@ bool ClientAssets::loadAppearanceProtobuf(wxString &error, wxArrayString &warnin
 	}
 
 	// Load looktypes
-	for (int i = 0; i < g_gui.appearances.outfit().size(); i++) {
-		const auto &outfit = g_gui.appearances.outfit().Get(i);
+	for (int i = 0; i < g_gui.m_appearancesPtr->outfit().size(); i++) {
+		const auto &outfit = g_gui.m_appearancesPtr->outfit().Get(i);
 		if (!g_gui.gfx.loadOutfitSpriteMetadata(outfit, error, warnings)) {
 			error = "Failed to parse outfit types from protobuf";
 			spdlog::error("[{}] - Failed to parse outfit types from protobuf", __func__);

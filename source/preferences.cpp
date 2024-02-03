@@ -522,8 +522,6 @@ wxNotebookPage* PreferencesWindow::CreateClientPage() {
 	topsizer->Add(client_list_window, 0, wxALL, 5);
 	client_page->SetSizerAndFit(topsizer);
 
-	spdlog::warn("text window {}", client_page->GetLabel().ToStdString());
-
 	return client_page;
 }
 
