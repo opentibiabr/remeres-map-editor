@@ -20,7 +20,7 @@
 				"VCPKG_TARGET_TRIPLET": "x64-windows-static",
 				"CMAKE_BUILD_TYPE": "Release",
 				"OPTIONS_ENABLE_SCCACHE": "ON",
-				"BUILD_STATIC_LIBRARY": "ON",
+				"BUILD_STATIC_LIBRARY": "ON"
 			},
 			"architecture": {
 				"value": "x64",
