@@ -143,7 +143,7 @@ wxNotebookPage* PreferencesWindow::CreateGeneralPage() {
 								"  Position(x, y, z), Position(x, y, z)" };
 	int area_radio_choices = sizeof(area_choices) / sizeof(wxString);
 	area_format = newd wxRadioBox(general_page, wxID_ANY, "Copy Area Format", wxDefaultPosition, wxDefaultSize, area_radio_choices, area_choices, 1, wxRA_SPECIFY_COLS);
-	area_format->SetSelection(g_settings.getInteger(Config::COPY_POSITION_FORMAT));
+	area_format->SetSelection(g_settings.getInteger(Config::COPY_AREA_FORMAT));
 	sizer->Add(area_format, 0, wxALL | wxEXPAND, 5);
 	SetWindowToolTip(tmptext, area_format, "The area format when copying from the map.");
 
