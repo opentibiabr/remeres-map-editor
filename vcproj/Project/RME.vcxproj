@@ -501,7 +501,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(RunProtoCompile)'=='false'">
     <ProtocPath>$(ProjectDir)vcpkg_installed\$(VcpkgTriplet)\tools\protobuf\protoc</ProtocPath>
-    <ProtoPath>$(GITHUB_WORKSPACE)\src\protobuf</ProtoPath>
+    <ProtoPath>$(GITHUB_WORKSPACE)\source\protobuf</ProtoPath>
   </PropertyGroup>
   <ItemGroup>
     <ProtoFiles Include="$(ProtoPath)\*.proto" />

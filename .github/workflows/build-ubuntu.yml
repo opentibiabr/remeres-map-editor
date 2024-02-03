@@ -82,7 +82,7 @@ jobs:
         uses: lukka/get-cmake@main
 
       - name: Install additional libraries
-        run: sudo apt-get install libasio-dev nlohmann-json3-dev libfmt-dev libxi-dev libgl1-mesa-dev libglu1-mesa-dev mesa-common-dev libxrandr-dev libxxf86vm-dev libglib2.0-dev at-spi2-core libwxgtk3.0-gtk3-dev libarchive-dev freeglut3-dev libxmu-dev libdbus-1-dev libxtst-dev
+        run: sudo apt-get install libasio-dev nlohmann-json3-dev libfmt-dev bison libxi-dev libgl1-mesa-dev libegl1-mesa-dev libglu1-mesa-dev mesa-common-dev libxrandr-dev libxxf86vm-dev libx11-dev libxft-dev libxext-dev libwayland-dev libxkbcommon-dev libibus-1.0-dev libasound2-dev libxmu-dev libdbus-1-dev libxtst-dev linux-libc-dev libarchive-dev libwxgtk3.0-gtk3-dev python3-distutils libxrender-dev
 
       - name: Run CMake Cache and Build
         uses: lukka/run-cmake@main
