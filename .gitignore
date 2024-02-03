@@ -28,6 +28,7 @@ world
 *.opendb
 *.vs
 
+vcproj/
 vcproj/ipch/
 vcproj/Beta Release/
 vcproj/Debug/
