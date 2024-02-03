@@ -95,4 +95,4 @@ jobs:
         with:
           name: ${{ matrix.os }}-${{ matrix.buildtype }}
           path: |
-            ${{ github.workspace }}/remeres
+            ${{ github.workspace }}/canary-map-editor
