@@ -417,6 +417,8 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 
 	// Move to permanent backup
 	if (!save_as && g_settings.getInteger(Config::ALWAYS_MAKE_BACKUP)) {
+		std::string backup_path = map_path + "backups/";
+		ensureBackupDirectoryExists(backup_path);
 		// Move temporary backups to their proper files
 		time_t t = time(nullptr);
 		tm* current_time = localtime(&t);
@@ -437,31 +439,31 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 
 		if (!backup_otbm.empty()) {
 			converter.SetFullName(wxstr(savefile));
-			std::string otbm_filename = map_path + nstr(converter.GetName());
+			std::string otbm_filename = backup_path + nstr(converter.GetName());
 			std::rename(backup_otbm.c_str(), std::string(otbm_filename + "." + date.str() + (save_otgz ? ".otgz" : ".otbm")).c_str());
 		}
 
 		if (!backup_house.empty()) {
 			converter.SetFullName(wxstr(map.housefile));
-			std::string house_filename = map_path + nstr(converter.GetName());
+			std::string house_filename = backup_path + nstr(converter.GetName());
 			std::rename(backup_house.c_str(), std::string(house_filename + "." + date.str() + ".xml").c_str());
 		}
 
 		if (!backup_spawn.empty()) {
 			converter.SetFullName(wxstr(map.spawnmonsterfile));
-			std::string spawn_filename = map_path + nstr(converter.GetName());
+			std::string spawn_filename = backup_path + nstr(converter.GetName());
 			std::rename(backup_spawn.c_str(), std::string(spawn_filename + "." + date.str() + ".xml").c_str());
 		}
 
 		if (!backup_spawn_npc.empty()) {
 			converter.SetFullName(wxstr(map.spawnnpcfile));
-			std::string spawnnpc_filename = map_path + nstr(converter.GetName());
+			std::string spawnnpc_filename = backup_path + nstr(converter.GetName());
 			std::rename(backup_spawn_npc.c_str(), std::string(spawnnpc_filename + "." + date.str() + ".xml").c_str());
 		}
 
 		if (!backup_zones.empty()) {
 			converter.SetFullName(wxstr(map.zonefile));
-			std::string zones_filename = map_path + nstr(converter.GetName());
+			std::string zones_filename = backup_path + nstr(converter.GetName());
 			std::rename(backup_zones.c_str(), std::string(zones_filename + "." + date.str() + ".xml").c_str());
 		}
 	} else {

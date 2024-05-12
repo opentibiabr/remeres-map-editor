@@ -149,6 +149,8 @@ public: // Functions
 	void undraw(const PositionVector &posvec, bool alt);
 	void undraw(const PositionVector &todraw, PositionVector &toborder, bool alt);
 
+	void ensureBackupDirectoryExists(const std::string &backup_path);
+
 protected:
 	void drawInternal(const Position offset, bool alt, bool dodraw);
 	void drawInternal(const PositionVector &posvec, bool alt, bool dodraw);
@@ -180,6 +182,12 @@ inline void Editor::undraw(const PositionVector &posvec, bool alt) {
 }
 inline void Editor::undraw(const PositionVector &todraw, PositionVector &toborder, bool alt) {
 	drawInternal(todraw, toborder, alt, false);
+}
+
+inline void Editor::ensureBackupDirectoryExists(const std::string &backup_path) {
+	if (!std::filesystem::exists(backup_path)) {
+		std::filesystem::create_directory(backup_path);
+	}
 }
 
 #endif
