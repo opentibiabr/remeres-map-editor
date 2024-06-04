@@ -74,12 +74,14 @@ void SpawnMonsterBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 			}
 		}
 
-		for (int i = 0; i < toSpawn; ++i) {
-			auto iter = positions.begin();
-			std::advance(iter, rand() % positions.size());
-			auto monsterBrush = monsters[rand() % monsters.size()];
-			monsterBrush->drawMonster(map, map->getTile(*iter), &time);
-			positions.erase(iter);
+		if (monsters.size() > 0) {
+			for (int i = 0; i < toSpawn; ++i) {
+				auto iter = positions.begin();
+				std::advance(iter, rand() % positions.size());
+				auto monsterBrush = monsters[rand() % monsters.size()];
+				monsterBrush->drawMonster(map, map->getTile(*iter), &time);
+				positions.erase(iter);
+			}
 		}
 	}
 }
