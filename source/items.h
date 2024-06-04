@@ -393,6 +393,8 @@ public:
 	ItemDatabase();
 	~ItemDatabase();
 
+	ItemType &operator[](uint16_t id);
+
 	void clear();
 
 	uint16_t getMinID() const noexcept {

@@ -26,7 +26,6 @@
 #include "house.h"
 #include "map.h"
 #include "editor.h"
-#include "creature.h"
 #include "materials.h"
 #include "tileset.h"
 

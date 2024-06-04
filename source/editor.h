@@ -158,6 +158,7 @@ protected:
 	Editor &operator=(const Editor &);
 
 private:
+	friend class MapCanvas;
 	Map map;
 	Selection selection;
 	ActionQueue* actionQueue;

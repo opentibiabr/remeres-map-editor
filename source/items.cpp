@@ -126,6 +126,10 @@ ItemDatabase::~ItemDatabase() {
 	clear();
 }
 
+ItemType &ItemDatabase::operator[](uint16_t id) {
+	return getItemType(id);
+}
+
 void ItemDatabase::clear() {
 	for (size_t i = 0; i < items.size(); i++) {
 		delete items[i];
