@@ -43,8 +43,6 @@ EVT_BUTTON(wxID_OK, AddTilesetWindow::OnClickOK)
 EVT_BUTTON(wxID_CANCEL, AddTilesetWindow::OnClickCancel)
 END_EVENT_TABLE()
 
-static constexpr int OUTFIT_COLOR_MAX = 133;
-
 AddTilesetWindow::AddTilesetWindow(wxWindow* win_parent, TilesetCategoryType categoryType, wxPoint pos) :
 	ObjectPropertiesWindowBase(win_parent, "Add a Tileset", pos),
 	category_type(categoryType),
