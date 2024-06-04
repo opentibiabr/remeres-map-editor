@@ -207,6 +207,9 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(REMOVE_ON_MAP_DUPLICATE_ITEMS, wxITEM_NORMAL, OnRemoveForDuplicateItemsOnMap);
 	MAKE_ACTION(REMOVE_ON_SELECTION_DUPLICATE_ITEMS, wxITEM_NORMAL, OnRemoveForDuplicateItemsOnSelection);
 
+	MAKE_ACTION(SEARCH_ON_MAP_WALLS_UPON_WALLS, wxITEM_NORMAL, OnSearchForWallsUponWallsOnMap);
+	MAKE_ACTION(SEARCH_ON_SELECTION_WALLS_UPON_WALLS, wxITEM_NORMAL, OnSearchForWallsUponWallsOnSelection);
+
 	// A deleter, this way the frame does not need
 	// to bother deleting us.
 	class CustomMenuBar : public wxMenuBar {
@@ -420,6 +423,9 @@ void MainMenuBar::Update() {
 	EnableItem(SEARCH_ON_SELECTION_DUPLICATE, has_selection && is_host);
 	EnableItem(REMOVE_ON_MAP_DUPLICATE_ITEMS, is_local);
 	EnableItem(REMOVE_ON_SELECTION_DUPLICATE_ITEMS, is_local && has_selection);
+
+	EnableItem(SEARCH_ON_MAP_WALLS_UPON_WALLS, is_host);
+	EnableItem(SEARCH_ON_SELECTION_WALLS_UPON_WALLS, is_host && has_selection);
 
 	UpdateFloorMenu();
 	UpdateIndicatorsMenu();
@@ -1332,7 +1338,7 @@ namespace OnMapRemoveCorpses {
 				g_gui.SetLoadDone((unsigned int)(100 * done / map.getTileCount()));
 			}
 
-			return g_materials.isInTileset(item, "Corpses") & !item->isComplex();
+			return g_materials.isInTileset(item, "Corpses") && !item->isComplex();
 		}
 	};
 }
@@ -2283,6 +2289,7 @@ void MainMenuBar::SearchItems(bool unique, bool action, bool container, bool wri
 
 	SearchResultWindow* result = g_gui.ShowSearchWindow();
 	result->Clear();
+
 	for (std::vector<std::pair<Tile*, Item*>>::iterator iter = found.begin(); iter != found.end(); ++iter) {
 		result->AddPosition(searcher.desc(iter->second), iter->first->getPosition());
 	}
@@ -2302,6 +2309,14 @@ void MainMenuBar::OnRemoveForDuplicateItemsOnMap(wxCommandEvent &WXUNUSED(event)
 
 void MainMenuBar::OnRemoveForDuplicateItemsOnSelection(wxCommandEvent &WXUNUSED(event)) {
 	RemoveDuplicatesItems(true);
+}
+
+void MainMenuBar::OnSearchForWallsUponWallsOnMap(wxCommandEvent &WXUNUSED(event)) {
+	SearchWallsUponWalls(false);
+}
+
+void MainMenuBar::OnSearchForWallsUponWallsOnSelection(wxCommandEvent &WXUNUSED(event)) {
+	SearchWallsUponWalls(true);
 }
 
 namespace SearchDuplicatedItems {
@@ -2440,5 +2455,83 @@ void MainMenuBar::RemoveDuplicatesItems(bool onSelection /* = false*/) {
 		g_gui.PopupDialog("Search completed", msg, wxOK);
 
 		g_gui.GetCurrentMap().doChange();
+	}
+}
+
+namespace SearchWallsUponWalls {
+	struct condition {
+		std::unordered_set<Tile*> foundTiles;
+
+		void operator()(const Map &map, Tile* tile, const Item* item, long long done) {
+			if (done % 0x8000 == 0) {
+				g_gui.SetLoadDone(static_cast<unsigned int>(100 * done / map.getTileCount()));
+			}
+
+			if (!tile) {
+				return;
+			}
+
+			if (!item) {
+				return;
+			}
+
+			if (!item->isBlockMissiles()) {
+				return;
+			}
+
+			if (!item->isWall() && !item->isDoor()) {
+				return;
+			}
+
+			std::unordered_set<int> itemIDs;
+			for (const Item* itemInTile : tile->items) {
+				if (!itemInTile || (!itemInTile->isWall() && !itemInTile->isDoor())) {
+					continue;
+				}
+
+				if (item->getID() != itemInTile->getID()) {
+					itemIDs.insert(itemInTile->getID());
+				}
+			}
+
+			if (!itemIDs.empty()) {
+				foundTiles.insert(tile);
+			}
+
+			itemIDs.clear();
+		}
+	};
+}
+
+void MainMenuBar::SearchWallsUponWalls(bool onSelection /* = false*/) {
+	if (!g_gui.IsEditorOpen()) {
+		return;
+	}
+
+	if (onSelection) {
+		g_gui.CreateLoadBar("Searching on selected area...");
+	} else {
+		g_gui.CreateLoadBar("Searching on map...");
+	}
+
+	SearchWallsUponWalls::condition finder;
+
+	foreach_ItemOnMap(g_gui.GetCurrentMap(), finder, onSelection);
+
+	const std::unordered_set<Tile*> &foundTiles = finder.foundTiles;
+
+	g_gui.DestroyLoadBar();
+
+	size_t setSize = foundTiles.size();
+
+	wxString msg;
+	msg << setSize << " items under walls and doors founded.";
+
+	g_gui.PopupDialog("Search completed", msg, wxOK);
+
+	SearchResultWindow* result = g_gui.ShowSearchWindow();
+	result->Clear();
+	for (const Tile* tile : foundTiles) {
+		result->AddPosition("Item Under", tile->getPosition());
 	}
 }

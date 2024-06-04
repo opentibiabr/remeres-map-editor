@@ -438,6 +438,7 @@ void FindItemDialog::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 			result_brush = brush;
 			result_id = brush->asRaw()->getItemID();
 			EndModal(wxID_OK);
+			g_gui.SelectBrush(brush->asRaw(), TILESET_RAW);
 		}
 	}
 }

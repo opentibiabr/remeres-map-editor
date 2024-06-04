@@ -306,6 +306,9 @@ public:
 	bool hasElevation() const {
 		return getItemType().hasElevation;
 	}
+	bool isBlockMissiles() const {
+		return getItemType().blockMissiles;
+	}
 
 	// Wall alignment (vertical, horizontal, pole, corner)
 	BorderType getWallAlignment() const;
