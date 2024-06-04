@@ -36,7 +36,7 @@ public:
 	void OnClickOK(wxCommandEvent &);
 	void OnClickCancel(wxCommandEvent &);
 
-protected:
+private:
 	wxTextCtrl* tileset_name_field;
 	wxSpinCtrl* item_id_field;
 
