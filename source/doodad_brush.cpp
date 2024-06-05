@@ -89,7 +89,7 @@ bool DoodadBrush::loadAlternative(pugi::xml_node node, wxArrayString &warnings, 
 				continue;
 			}
 
-			ItemType* type = g_items.getRawItemType(item->getID());
+			auto type = g_items.getRawItemType(item->getID());
 			if (type) {
 				type->doodad_brush = this;
 			}
@@ -147,7 +147,7 @@ bool DoodadBrush::loadAlternative(pugi::xml_node node, wxArrayString &warnings, 
 					if (item) {
 						items.push_back(item);
 
-						ItemType* type = g_items.getRawItemType(item->getID());
+						auto type = g_items.getRawItemType(item->getID());
 						if (type) {
 							type->doodad_brush = this;
 						}

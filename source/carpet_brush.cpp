@@ -88,7 +88,7 @@ bool CarpetBrush::load(pugi::xml_node node, wxArrayString &warnings) {
 
 			int32_t chance = attribute.as_int();
 
-			ItemType* type = g_items.getRawItemType(id);
+			auto type = g_items.getRawItemType(id);
 			if (!type) {
 				warnings.push_back("There is no itemtype with id " + std::to_string(id));
 				continue;
@@ -117,7 +117,7 @@ bool CarpetBrush::load(pugi::xml_node node, wxArrayString &warnings) {
 			}
 
 			uint16_t id = attribute.as_uint();
-			ItemType* type = g_items.getRawItemType(id);
+			auto type = g_items.getRawItemType(id);
 			if (!type) {
 				warnings.push_back("There is no itemtype with id " + std::to_string(id));
 				return false;

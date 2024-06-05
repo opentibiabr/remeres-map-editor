@@ -80,7 +80,7 @@ bool AutoBorder::load(pugi::xml_node node, wxArrayString &warnings, GroundBrush*
 
 		const std::string &orientation = attribute.as_string();
 
-		ItemType* type = g_items.getRawItemType(itemid);
+		auto type = g_items.getRawItemType(itemid);
 		if (!type) {
 			warnings.push_back("Invalid item ID " + std::to_string(itemid) + " for border " + std::to_string(id));
 			continue;
@@ -91,7 +91,7 @@ bool AutoBorder::load(pugi::xml_node node, wxArrayString &warnings, GroundBrush*
 			type->ground_equivalent = ground_equivalent;
 			type->brush = owner;
 
-			ItemType* type2 = g_items.getRawItemType(ground_equivalent);
+			auto type2 = g_items.getRawItemType(ground_equivalent);
 			type2->has_equivalent = type2->id != 0;
 		}
 
@@ -166,7 +166,7 @@ bool GroundBrush::load(pugi::xml_node node, wxArrayString &warnings) {
 			uint16_t itemId = childNode.attribute("id").as_uint();
 			int32_t chance = childNode.attribute("chance").as_int();
 
-			ItemType* type = g_items.getRawItemType(itemId);
+			auto type = g_items.getRawItemType(itemId);
 			if (!type) {
 				warnings.push_back("\nInvalid item id " + std::to_string(itemId));
 				return false;
@@ -416,7 +416,7 @@ bool GroundBrush::load(pugi::xml_node node, wxArrayString &warnings) {
 								AutoBorder* autoBorder = itt->second;
 								ASSERT(autoBorder != nullptr);
 
-								ItemType* type = g_items.getRawItemType(with_id);
+								auto type = g_items.getRawItemType(with_id);
 								if (!type) {
 									return false;
 								}
@@ -439,7 +439,7 @@ bool GroundBrush::load(pugi::xml_node node, wxArrayString &warnings) {
 								}
 
 								int32_t with_id = attribute.as_int();
-								ItemType* type = g_items.getRawItemType(with_id);
+								auto type = g_items.getRawItemType(with_id);
 								if (!type) {
 									return false;
 								}

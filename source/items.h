@@ -402,7 +402,7 @@ public:
 		return maxItemId;
 	}
 	ItemType &getItemType(uint16_t id);
-	ItemType* getRawItemType(uint16_t id);
+	std::shared_ptr<ItemType> getRawItemType(uint16_t id);
 
 	bool isValidID(uint16_t id) const;
 
@@ -411,9 +411,9 @@ public:
 	bool loadItemFromGameXml(pugi::xml_node itemNode, uint16_t id);
 	bool loadMetaItem(pugi::xml_node node);
 
-	// typedef std::map<int32_t, ItemType*> ItemMap;
-	typedef contigous_vector<ItemType*> ItemMap;
-	typedef std::map<std::string, ItemType*> ItemNameMap;
+	// typedef std::map<int32_t, std::shared_ptr<ItemType>> ItemMap;
+	typedef contigous_vector<std::shared_ptr<ItemType>> ItemMap;
+	typedef std::map<std::string, std::shared_ptr<ItemType>> ItemNameMap;
 
 	// Version information
 	uint32_t MajorVersion;
