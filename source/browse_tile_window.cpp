@@ -175,12 +175,12 @@ BrowseTileWindow::BrowseTileWindow(wxWindow* parent, Tile* tile, wxPoint positio
 	SetSizerAndFit(sizer);
 
 	// Connect Events
-	item_list->Connect(wxEVT_COMMAND_LISTBOX_SELECTED, wxCommandEventHandler(BrowseTileWindow::OnItemSelected), NULL, this);
+	item_list->Connect(wxEVT_COMMAND_LISTBOX_SELECTED, wxCommandEventHandler(BrowseTileWindow::OnItemSelected), nullptr, this);
 }
 
 BrowseTileWindow::~BrowseTileWindow() {
 	// Disconnect Events
-	item_list->Disconnect(wxEVT_COMMAND_LISTBOX_SELECTED, wxCommandEventHandler(BrowseTileWindow::OnItemSelected), NULL, this);
+	item_list->Disconnect(wxEVT_COMMAND_LISTBOX_SELECTED, wxCommandEventHandler(BrowseTileWindow::OnItemSelected), nullptr, this);
 }
 
 void BrowseTileWindow::OnItemSelected(wxCommandEvent &WXUNUSED(event)) {

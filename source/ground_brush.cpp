@@ -325,7 +325,7 @@ bool GroundBrush::load(pugi::xml_node node, wxArrayString &warnings) {
 					continue;
 				}
 
-				SpecificCaseBlock* specificCaseBlock = nullptr;
+				auto specificCaseBlock = std::make_unique<SpecificCaseBlock>();
 				for (pugi::xml_node superChildNode = subChildNode.first_child(); superChildNode; superChildNode = superChildNode.next_sibling()) {
 					const std::string &superChildName = as_lower_str(superChildNode.name());
 					if (superChildName == "conditions") {
@@ -353,7 +353,7 @@ bool GroundBrush::load(pugi::xml_node node, wxArrayString &warnings) {
 
 								uint32_t match_itemid = autoBorder->tiles[edge_id];
 								if (!specificCaseBlock) {
-									specificCaseBlock = newd SpecificCaseBlock();
+									specificCaseBlock = std::make_unique<SpecificCaseBlock>();
 								}
 								specificCaseBlock->items_to_match.push_back(match_itemid);
 							} else if (conditionName == "match_group") {
@@ -368,7 +368,7 @@ bool GroundBrush::load(pugi::xml_node node, wxArrayString &warnings) {
 
 								int32_t edge_id = AutoBorder::edgeNameToID(attribute.as_string());
 								if (!specificCaseBlock) {
-									specificCaseBlock = newd SpecificCaseBlock();
+									specificCaseBlock = std::make_unique<SpecificCaseBlock>();
 								}
 
 								specificCaseBlock->match_group = group;
@@ -381,7 +381,7 @@ bool GroundBrush::load(pugi::xml_node node, wxArrayString &warnings) {
 
 								int32_t match_itemid = attribute.as_int();
 								if (!specificCaseBlock) {
-									specificCaseBlock = newd SpecificCaseBlock();
+									specificCaseBlock = std::make_unique<SpecificCaseBlock>();
 								}
 
 								specificCaseBlock->match_group = 0;
@@ -423,7 +423,7 @@ bool GroundBrush::load(pugi::xml_node node, wxArrayString &warnings) {
 
 								type->isBorder = true;
 								if (!specificCaseBlock) {
-									specificCaseBlock = newd SpecificCaseBlock();
+									specificCaseBlock = std::make_unique<SpecificCaseBlock>();
 								}
 
 								specificCaseBlock->to_replace_id = autoBorder->tiles[edge_id];
@@ -442,19 +442,18 @@ bool GroundBrush::load(pugi::xml_node node, wxArrayString &warnings) {
 								ItemType* type = g_items.getRawItemType(with_id);
 								if (!type) {
 									return false;
-									delete specificCaseBlock;
 								}
 
 								type->isBorder = true;
 								if (!specificCaseBlock) {
-									specificCaseBlock = newd SpecificCaseBlock();
+									specificCaseBlock = std::make_unique<SpecificCaseBlock>();
 								}
 
 								specificCaseBlock->to_replace_id = to_replace_id;
 								specificCaseBlock->with_id = with_id;
 							} else if (actionName == "delete_borders") {
 								if (!specificCaseBlock) {
-									specificCaseBlock = newd SpecificCaseBlock();
+									specificCaseBlock = std::make_unique<SpecificCaseBlock>();
 								}
 								specificCaseBlock->delete_all = true;
 							}

@@ -124,12 +124,12 @@ ActionsHistoryWindow::ActionsHistoryWindow(wxWindow* parent) :
 	Layout();
 
 	// Connect Events
-	list->Connect(wxEVT_COMMAND_LISTBOX_SELECTED, wxCommandEventHandler(ActionsHistoryWindow::OnListSelected), NULL, this);
+	list->Connect(wxEVT_COMMAND_LISTBOX_SELECTED, wxCommandEventHandler(ActionsHistoryWindow::OnListSelected), nullptr, this);
 }
 
 ActionsHistoryWindow::~ActionsHistoryWindow() {
 	// Disconnect Events
-	list->Disconnect(wxEVT_COMMAND_LISTBOX_SELECTED, wxCommandEventHandler(ActionsHistoryWindow::OnListSelected), NULL, this);
+	list->Disconnect(wxEVT_COMMAND_LISTBOX_SELECTED, wxCommandEventHandler(ActionsHistoryWindow::OnListSelected), nullptr, this);
 }
 
 void ActionsHistoryWindow::RefreshActions() {
