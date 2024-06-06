@@ -132,7 +132,7 @@ void ItemDatabase::clear() {
 	}
 }
 
-bool ItemDatabase::loadGroupByOtbVersion(const std::shared_ptr<ItemType> &item, BinaryNode* itemNode, wxString &error, wxArrayString &warnings) {
+bool ItemDatabase::loadGroupByOtbVersion(const std::shared_ptr<ItemType> &item, wxArrayString &warnings) const {
 	switch (item->group) {
 		case ITEM_GROUP_NONE:
 		case ITEM_GROUP_GROUND:
@@ -175,7 +175,7 @@ bool ItemDatabase::loadGroupByOtbVersion(const std::shared_ptr<ItemType> &item, 
 	return true;
 }
 
-bool ItemDatabase::loadFlagsByOtbVersion(const std::shared_ptr<ItemType> &item, BinaryNode* itemNode, wxString &error, wxArrayString &warnings) {
+bool ItemDatabase::loadFlagsByOtbVersion(const std::shared_ptr<ItemType> &item, BinaryNode* itemNode) const {
 	uint32_t flags;
 	if (itemNode->getU32(flags)) {
 		item->unpassable = ((flags & FLAG_UNPASSABLE) == FLAG_UNPASSABLE);
@@ -209,6 +209,221 @@ bool ItemDatabase::loadFlagsByOtbVersion(const std::shared_ptr<ItemType> &item, 
 	return true;
 }
 
+bool ItemDatabase::handleAttributes(const std::shared_ptr<ItemType> &item, uint8_t &attribute, uint16_t &datalen, BinaryNode* itemNode, wxString &error, wxArrayString &warnings) {
+	switch (attribute) {
+		case ITEM_ATTR_SERVERID: {
+			if (datalen != sizeof(uint16_t)) {
+				error = "items.otb: Unexpected data length of server id block (Should be 2 bytes)";
+				return false;
+			}
+			if (!itemNode->getU16(item->id)) {
+				warnings.push_back("Invalid item type property (2)");
+			}
+
+			if (maxItemId < item->id) {
+				maxItemId = item->id;
+			}
+			break;
+		}
+
+		case ITEM_ATTR_CLIENTID: {
+			if (datalen != sizeof(uint16_t)) {
+				error = "items.otb: Unexpected data length of client id block (Should be 2 bytes)";
+				return false;
+			}
+
+			if (!itemNode->getU16(item->clientID)) {
+				warnings.push_back("Invalid item type property (2)");
+			}
+
+			item->sprite = static_cast<GameSprite*>(g_gui.gfx.getSprite(item->clientID));
+			break;
+		}
+
+		case ITEM_ATTR_SPEED: {
+			if (datalen != sizeof(uint16_t)) {
+				error = "items.otb: Unexpected data length of speed block (Should be 2 bytes)";
+				return false;
+			}
+
+			// t->speed = itemNode->getU16();
+			if (!itemNode->skip(2)) { // Just skip two bytes, we don't need speed
+				warnings.push_back("Invalid item type property (3)");
+			}
+			break;
+		}
+
+		case ITEM_ATTR_LIGHT2: {
+			if (datalen != sizeof(lightBlock2)) {
+				warnings.push_back(wxString::Format("items.otb: Unexpected data length of item light (2) block (Should be %d bytes)", sizeof(lightBlock2)));
+				break;
+			}
+
+			if (!itemNode->skip(4)) { // Just skip two bytes, we don't need light
+				warnings.push_back("Invalid item type property (4)");
+			}
+
+			// t->lightLevel = node->getU16();
+			// t->lightColor = node->getU16();
+			break;
+		}
+
+		case ITEM_ATTR_TOPORDER: {
+			if (datalen != sizeof(uint8_t)) {
+				warnings.push_back("items.otb: Unexpected data length of item toporder block (Should be 1 byte)");
+				break;
+			}
+
+			uint8_t value = 0;
+			if (!itemNode->getU8(value)) {
+				warnings.push_back("Invalid item type property (5)");
+			}
+
+			item->alwaysOnTopOrder = value;
+			break;
+		}
+
+		case ITEM_ATTR_NAME: {
+			if (MajorVersion != 1) {
+				break;
+			}
+
+			if (datalen >= 128) {
+				warnings.push_back("items.otb: Unexpected data length of item name block (Should be 128 bytes)");
+				break;
+			}
+
+			uint8_t name[128];
+			memset(&name, 0, 128);
+
+			if (!itemNode->getRAW(name, datalen)) {
+				warnings.push_back("Invalid item type property (6)");
+				break;
+			}
+			item->name = (char*)name;
+			break;
+		}
+
+		case ITEM_ATTR_DESCR: {
+			if (MajorVersion != 1) {
+				break;
+			}
+
+			if (datalen >= 128) {
+				warnings.push_back("items.otb: Unexpected data length of item descr block (Should be 128 bytes)");
+				break;
+			}
+
+			uint8_t description[128];
+			memset(&description, 0, 128);
+
+			if (!itemNode->getRAW(description, datalen)) {
+				warnings.push_back("Invalid item type property (7)");
+				break;
+			}
+
+			item->description = (char*)description;
+			break;
+		}
+
+		case ITEM_ATTR_MAXITEMS: {
+			if (MajorVersion != 1) {
+				break;
+			}
+
+			if (datalen != sizeof(unsigned short)) {
+				warnings.push_back("items.otb: Unexpected data length of item volume block (Should be 2 bytes)");
+				break;
+			}
+
+			if (!itemNode->getU16(item->volume)) {
+				warnings.push_back("Invalid item type property (8)");
+			}
+			break;
+		}
+
+		case ITEM_ATTR_WEIGHT: {
+			if (MajorVersion != 1) {
+				break;
+			}
+
+			if (datalen != sizeof(double)) {
+				warnings.push_back("items.otb: Unexpected data length of item weight block (Should be 8 bytes)");
+				break;
+			}
+
+			uint8_t weight[sizeof(double)];
+			if (!itemNode->getRAW(weight, sizeof(double))) {
+				warnings.push_back("Invalid item type property (7)");
+				break;
+			}
+
+			double actualWeight;
+			memcpy(&actualWeight, weight, sizeof(actualWeight));
+
+			item->weight = actualWeight;
+			break;
+		}
+
+		case ITEM_ATTR_ROTATETO: {
+			if (MajorVersion != 1) {
+				break;
+			}
+
+			if (datalen != sizeof(unsigned short)) {
+				warnings.push_back("items.otb: Unexpected data length of item rotateTo block (Should be 2 bytes)");
+				break;
+			}
+
+			uint16_t rotate;
+			if (!itemNode->getU16(rotate)) {
+				warnings.push_back("Invalid item type property (8)");
+				break;
+			}
+
+			item->rotateTo = rotate;
+			break;
+		}
+
+		case ITEM_ATTR_WRITEABLE3: {
+			if (MajorVersion != 1) {
+				break;
+			}
+
+			if (datalen != sizeof(writeableBlock3)) {
+				warnings.push_back("items.otb: Unexpected data length of item toporder block (Should be 1 byte)");
+				break;
+			}
+
+			uint16_t readOnlyID;
+			uint16_t maxTextLen;
+
+			if (!itemNode->getU16(readOnlyID)) {
+				warnings.push_back("Invalid item type property (9)");
+				break;
+			}
+
+			if (!itemNode->getU16(maxTextLen)) {
+				warnings.push_back("Invalid item type property (10)");
+				break;
+			}
+
+			// t->readOnlyId = wb3->readOnlyId;
+			item->maxTextLen = maxTextLen;
+			break;
+		}
+
+		default: {
+			// skip unknown attributes
+			itemNode->skip(datalen);
+			// warnings.push_back("items.otb: Skipped unknown attribute");
+			break;
+		}
+	}
+
+	return true;
+}
+
 bool ItemDatabase::loadAttributesByOtbVersion(const std::shared_ptr<ItemType> &item, BinaryNode* itemNode, wxString &error, wxArrayString &warnings) {
 	uint8_t attribute;
 	while (itemNode->getU8(attribute)) {
@@ -218,215 +433,8 @@ bool ItemDatabase::loadAttributesByOtbVersion(const std::shared_ptr<ItemType> &i
 			break;
 		}
 
-		switch (attribute) {
-			case ITEM_ATTR_SERVERID: {
-				if (datalen != sizeof(uint16_t)) {
-					error = "items.otb: Unexpected data length of server id block (Should be 2 bytes)";
-					return false;
-				}
-				if (!itemNode->getU16(item->id)) {
-					warnings.push_back("Invalid item type property (2)");
-				}
-
-				if (maxItemId < item->id) {
-					maxItemId = item->id;
-				}
-				break;
-			}
-
-			case ITEM_ATTR_CLIENTID: {
-				if (datalen != sizeof(uint16_t)) {
-					error = "items.otb: Unexpected data length of client id block (Should be 2 bytes)";
-					return false;
-				}
-
-				if (!itemNode->getU16(item->clientID)) {
-					warnings.push_back("Invalid item type property (2)");
-				}
-
-				item->sprite = static_cast<GameSprite*>(g_gui.gfx.getSprite(item->clientID));
-				break;
-			}
-
-			case ITEM_ATTR_SPEED: {
-				if (datalen != sizeof(uint16_t)) {
-					error = "items.otb: Unexpected data length of speed block (Should be 2 bytes)";
-					return false;
-				}
-
-				// t->speed = itemNode->getU16();
-				if (!itemNode->skip(2)) { // Just skip two bytes, we don't need speed
-					warnings.push_back("Invalid item type property (3)");
-				}
-				break;
-			}
-
-			case ITEM_ATTR_LIGHT2: {
-				if (datalen != sizeof(lightBlock2)) {
-					warnings.push_back(wxString::Format("items.otb: Unexpected data length of item light (2) block (Should be %d bytes)", sizeof(lightBlock2)));
-					break;
-				}
-
-				if (!itemNode->skip(4)) { // Just skip two bytes, we don't need light
-					warnings.push_back("Invalid item type property (4)");
-				}
-
-				// t->lightLevel = node->getU16();
-				// t->lightColor = node->getU16();
-				break;
-			}
-
-			case ITEM_ATTR_TOPORDER: {
-				if (datalen != sizeof(uint8_t)) {
-					warnings.push_back("items.otb: Unexpected data length of item toporder block (Should be 1 byte)");
-					break;
-				}
-
-				uint8_t value = 0;
-				if (!itemNode->getU8(value)) {
-					warnings.push_back("Invalid item type property (5)");
-				}
-
-				item->alwaysOnTopOrder = value;
-				break;
-			}
-
-			case ITEM_ATTR_NAME: {
-				if (MajorVersion != 1) {
-					break;
-				}
-
-				if (datalen >= 128) {
-					warnings.push_back("items.otb: Unexpected data length of item name block (Should be 128 bytes)");
-					break;
-				}
-
-				uint8_t name[128];
-				memset(&name, 0, 128);
-
-				if (!itemNode->getRAW(name, datalen)) {
-					warnings.push_back("Invalid item type property (6)");
-					break;
-				}
-				item->name = (char*)name;
-				break;
-			}
-
-			case ITEM_ATTR_DESCR: {
-				if (MajorVersion != 1) {
-					break;
-				}
-
-				if (datalen >= 128) {
-					warnings.push_back("items.otb: Unexpected data length of item descr block (Should be 128 bytes)");
-					break;
-				}
-
-				uint8_t description[128];
-				memset(&description, 0, 128);
-
-				if (!itemNode->getRAW(description, datalen)) {
-					warnings.push_back("Invalid item type property (7)");
-					break;
-				}
-
-				item->description = (char*)description;
-				break;
-			}
-
-			case ITEM_ATTR_MAXITEMS: {
-				if (MajorVersion != 1) {
-					break;
-				}
-
-				if (datalen != sizeof(unsigned short)) {
-					warnings.push_back("items.otb: Unexpected data length of item volume block (Should be 2 bytes)");
-					break;
-				}
-
-				if (!itemNode->getU16(item->volume)) {
-					warnings.push_back("Invalid item type property (8)");
-				}
-				break;
-			}
-
-			case ITEM_ATTR_WEIGHT: {
-				if (MajorVersion != 1) {
-					break;
-				}
-
-				if (datalen != sizeof(double)) {
-					warnings.push_back("items.otb: Unexpected data length of item weight block (Should be 8 bytes)");
-					break;
-				}
-
-				uint8_t weight[sizeof(double)];
-				if (!itemNode->getRAW(weight, sizeof(double))) {
-					warnings.push_back("Invalid item type property (7)");
-					break;
-				}
-
-				double actualWeight;
-				memcpy(&actualWeight, weight, sizeof(actualWeight));
-
-				item->weight = actualWeight;
-				break;
-			}
-
-			case ITEM_ATTR_ROTATETO: {
-				if (MajorVersion != 1) {
-					break;
-				}
-
-				if (datalen != sizeof(unsigned short)) {
-					warnings.push_back("items.otb: Unexpected data length of item rotateTo block (Should be 2 bytes)");
-					break;
-				}
-
-				uint16_t rotate;
-				if (!itemNode->getU16(rotate)) {
-					warnings.push_back("Invalid item type property (8)");
-					break;
-				}
-
-				item->rotateTo = rotate;
-				break;
-			}
-
-			case ITEM_ATTR_WRITEABLE3: {
-				if (MajorVersion != 1) {
-					break;
-				}
-
-				if (datalen != sizeof(writeableBlock3)) {
-					warnings.push_back("items.otb: Unexpected data length of item toporder block (Should be 1 byte)");
-					break;
-				}
-
-				uint16_t readOnlyID;
-				uint16_t maxTextLen;
-
-				if (!itemNode->getU16(readOnlyID)) {
-					warnings.push_back("Invalid item type property (9)");
-					break;
-				}
-
-				if (!itemNode->getU16(maxTextLen)) {
-					warnings.push_back("Invalid item type property (10)");
-					break;
-				}
-
-				// t->readOnlyId = wb3->readOnlyId;
-				item->maxTextLen = maxTextLen;
-				break;
-			}
-
-			default: {
-				// skip unknown attributes
-				itemNode->skip(datalen);
-				// warnings.push_back("items.otb: Skipped unknown attribute");
-				break;
-			}
+		if (!handleAttributes(item, attribute, datalen, itemNode, error, warnings)) {
+			return false;
 		}
 	}
 
@@ -502,11 +510,11 @@ bool ItemDatabase::loadFromOtb(const FileName &datafile, wxString &error, wxArra
 		auto item = std::make_shared<ItemType>();
 		item->group = static_cast<ItemGroup_t>(group);
 
-		if (!loadGroupByOtbVersion(item, itemNode, error, warnings)) {
+		if (!loadGroupByOtbVersion(item, warnings)) {
 			return false;
 		}
 
-		if (!loadFlagsByOtbVersion(item, itemNode, error, warnings)) {
+		if (!loadFlagsByOtbVersion(item, itemNode)) {
 			return false;
 		}
 

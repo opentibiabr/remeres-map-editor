@@ -421,9 +421,13 @@ public:
 	uint32_t BuildNumber;
 
 protected:
-	bool loadGroupByOtbVersion(const std::shared_ptr<ItemType> &item, BinaryNode* itemNode, wxString &error, wxArrayString &warnings);
-	bool loadFlagsByOtbVersion(const std::shared_ptr<ItemType> &item, BinaryNode* itemNode, wxString &error, wxArrayString &warnings);
+	bool loadGroupByOtbVersion(const std::shared_ptr<ItemType> &item, wxArrayString &warnings) const;
+
+	bool loadFlagsByOtbVersion(const std::shared_ptr<ItemType> &item, BinaryNode* itemNode) const;
+
+	bool handleAttributes(const std::shared_ptr<ItemType> &item, uint8_t &attribute, uint16_t &datalen, BinaryNode* itemNode, wxString &error, wxArrayString &warnings);
 	bool loadAttributesByOtbVersion(const std::shared_ptr<ItemType> &item, BinaryNode* itemNode, wxString &error, wxArrayString &warnings);
+
 	bool loadFromOtb(BinaryNode* itemNode, wxString &error, wxArrayString &warnings);
 
 protected:
