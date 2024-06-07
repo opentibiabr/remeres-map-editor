@@ -1711,7 +1711,7 @@ void MapDrawer::DrawHookIndicator(int x, int y, const ItemType &type) {
 	glEnable(GL_TEXTURE_2D);
 }
 
-void MapDrawer::DrawLightStrength(int x, int y, const Item* &item) {
+void MapDrawer::DrawLightStrength(int x, int y, const Item*&item) {
 	const SpriteLight &light = item->getLight();
 
 	if (light.intensity <= 0) {
