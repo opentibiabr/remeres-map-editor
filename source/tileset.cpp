@@ -243,7 +243,7 @@ void TilesetCategory::loadBrush(pugi::xml_node node, wxArrayString &warnings) {
 
 		std::vector<Brush*> tempBrushVector;
 		for (uint16_t id = fromId; id <= toId; ++id) {
-			ItemType* type = g_items.getRawItemType(id);
+			auto type = g_items.getRawItemType(id);
 			if (!type) {
 				warnings.push_back(wxString::Format("Tileset: %s, Brush: %s, Previous %d, From: %d, To: %d", wxstr(tileset.name), wxstr(brushName), tileset.previousId, fromId, toId));
 				warnings.push_back("Unknown item id #" + std::to_string(id) + ".");

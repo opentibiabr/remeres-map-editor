@@ -46,13 +46,13 @@ public:
 	}
 	virtual int getLookID() const;
 	virtual std::string getName() const;
-	ItemType* getItemType() const {
+	std::shared_ptr<ItemType> getItemType() const {
 		return itemtype;
 	}
 	uint16_t getItemID() const;
 
 protected:
-	ItemType* itemtype;
+	std::shared_ptr<ItemType> itemtype;
 };
 
 #endif

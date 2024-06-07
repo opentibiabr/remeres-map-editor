@@ -240,7 +240,7 @@ void Materials::createOtherTileset() {
 
 	// There should really be an iterator to do this
 	for (int32_t id = 0; id <= g_items.getMaxID(); ++id) {
-		ItemType* type = g_items.getRawItemType(id);
+		auto type = g_items.getRawItemType(id);
 		if (!type) {
 			continue;
 		}
