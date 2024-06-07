@@ -282,10 +282,6 @@ void MapDrawer::DrawMap() {
 	int center_x = start_x + int(screensize_x * zoom / 64);
 	int center_y = start_y + int(screensize_y * zoom / 64);
 	int offset_y = 2;
-	int box_start_map_x = center_x - view_scroll_x;
-	int box_start_map_y = center_y - view_scroll_x + offset_y;
-	int box_end_map_x = center_x + rme::ClientMapWidth;
-	int box_end_map_y = center_y + rme::ClientMapHeight + offset_y;
 
 	bool live_client = editor.IsLiveClient();
 
@@ -337,7 +333,6 @@ void MapDrawer::DrawMap() {
 								DrawTile(location);
 								// draw light, but only if not zoomed too far
 								if (location && options.show_lights && zoom <= 10) {
-									auto &position = location->getPosition();
 									AddLight(location);
 								}
 							}
@@ -1907,7 +1902,7 @@ void MapDrawer::DrawTooltips() {
 #endif
 }
 
-void MapDrawer::DrawLight() {
+void MapDrawer::DrawLight() const {
 	// draw in-game light
 	light_drawer->draw(start_x, start_y, end_x, end_y, view_scroll_x, view_scroll_y);
 }
