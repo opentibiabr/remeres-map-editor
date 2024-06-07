@@ -25,6 +25,7 @@
 #include "tile.h"
 #include "old_properties_window.h"
 #include "properties_window.h"
+#include "tileset_window.h"
 #include "palette_window.h"
 #include "map_display.h"
 #include "map_drawer.h"
@@ -95,6 +96,7 @@ EVT_MENU(MAP_POPUP_MENU_SELECT_SPAWN_BRUSH, MapCanvas::OnSelectSpawnBrush)
 EVT_MENU(MAP_POPUP_MENU_SELECT_NPC_BRUSH, MapCanvas::OnSelectNpcBrush)
 EVT_MENU(MAP_POPUP_MENU_SELECT_SPAWN_NPC_BRUSH, MapCanvas::OnSelectSpawnNpcBrush)
 EVT_MENU(MAP_POPUP_MENU_SELECT_HOUSE_BRUSH, MapCanvas::OnSelectHouseBrush)
+EVT_MENU(MAP_POPUP_MENU_MOVE_TO_TILESET, MapCanvas::OnSelectMoveTo)
 // ----
 EVT_MENU(MAP_POPUP_MENU_PROPERTIES, MapCanvas::OnProperties)
 // ----
@@ -2318,6 +2320,51 @@ void MapCanvas::OnSelectSpawnNpcBrush(wxCommandEvent &WXUNUSED(event)) {
 	g_gui.SelectBrush(g_gui.spawn_npc_brush, TILESET_NPC);
 }
 
+void MapCanvas::OnSelectMoveTo(wxCommandEvent &WXUNUSED(event)) {
+	if (editor.selection.size() != 1) {
+		return;
+	}
+
+	Tile* tile = editor.selection.getSelectedTile();
+	if (!tile) {
+		return;
+	}
+	ASSERT(tile->isSelected());
+	Tile* new_tile = tile->deepCopy(editor.map);
+
+	wxDialog* w = nullptr;
+
+	ItemVector selected_items = new_tile->getSelectedItems();
+
+	Item* item = nullptr;
+	int count = 0;
+	for (ItemVector::iterator it = selected_items.begin(); it != selected_items.end(); ++it) {
+		++count;
+		if ((*it)->isSelected()) {
+			item = *it;
+		}
+	}
+
+	if (item) {
+		w = newd TilesetWindow(g_gui.root, &editor.map, new_tile, item);
+	} else {
+		return;
+	}
+
+	int ret = w->ShowModal();
+	if (ret != 0) {
+		Action* action = editor.actionQueue->createAction(ACTION_CHANGE_PROPERTIES);
+		action->addChange(newd Change(new_tile));
+		editor.addAction(action);
+
+		g_gui.RebuildPalettes();
+	} else {
+		// Cancel!
+		delete new_tile;
+	}
+	w->Destroy();
+}
+
 void MapCanvas::OnProperties(wxCommandEvent &WXUNUSED(event)) {
 	if (editor.getSelection().size() != 1) {
 		return;
@@ -2574,6 +2621,10 @@ void MapPopupMenu::Update() {
 				}
 
 				Append(MAP_POPUP_MENU_SELECT_RAW_BRUSH, "Select RAW", "Uses the top item as a RAW brush");
+
+				if (g_settings.getBoolean(Config::SHOW_TILESET_EDITOR)) {
+					Append(MAP_POPUP_MENU_MOVE_TO_TILESET, "Move To Tileset", "Move this item to any tileset");
+				}
 
 				if (hasWall) {
 					Append(MAP_POPUP_MENU_SELECT_WALL_BRUSH, "Select Wallbrush", "Uses the current item as a wallbrush");
