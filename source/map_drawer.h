@@ -54,7 +54,6 @@ public:
 	bool isOnlyColors() const noexcept;
 	bool isTileIndicators() const noexcept;
 	bool isTooltips() const noexcept;
-	bool isDrawLight() const noexcept;
 
 	bool transparent_floors;
 	bool transparent_items;
@@ -162,6 +161,7 @@ protected:
 	void DrawTileIndicators(TileLocation* location);
 	void DrawIndicator(int x, int y, int indicator, uint8_t r = 255, uint8_t g = 255, uint8_t b = 255, uint8_t a = 255);
 	void DrawPositionIndicator(int z);
+	void DrawLight();
 	void WriteTooltip(const Item* item, std::ostringstream &stream);
 	void WriteTooltip(const Waypoint* item, std::ostringstream &stream);
 	void MakeTooltip(int screenx, int screeny, const std::string &text, uint8_t r = 255, uint8_t g = 255, uint8_t b = 255);
