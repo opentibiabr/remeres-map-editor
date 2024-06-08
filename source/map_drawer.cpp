@@ -281,10 +281,6 @@ void MapDrawer::DrawShade(int map_z) {
 }
 
 void MapDrawer::DrawMap() {
-	int center_x = start_x + int(screensize_x * zoom / 64);
-	int center_y = start_y + int(screensize_y * zoom / 64);
-	int offset_y = 2;
-
 	bool live_client = editor.IsLiveClient();
 
 	Brush* brush = g_gui.GetCurrentBrush();
@@ -2050,23 +2046,31 @@ void MapDrawer::glBlitTexture(int x, int y, int textureId, int red, int green, i
 	glEnd();
 }
 
-void MapDrawer::glBlitSquare(int x, int y, int red, int green, int blue, int alpha, int size /* = rme::TileSize */) {
-	glColor4ub(uint8_t(red), uint8_t(green), uint8_t(blue), uint8_t(alpha));
+void MapDrawer::glBlitSquare(int x, int y, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha, int size /* = rme::TileSize */) const {
+	const auto dx = static_cast<double>(x);
+	const auto dy = static_cast<double>(y);
+	const auto dSize = static_cast<double>(size);
+
+	glColor4ub(red, green, blue, alpha);
 	glBegin(GL_QUADS);
-	glVertex2f(x, y);
-	glVertex2f(x + size, y);
-	glVertex2f(x + size, y + size);
-	glVertex2f(x, y + size);
+	glVertex2f(dx, dy);
+	glVertex2f(dx + dSize, dy);
+	glVertex2f(dx + dSize, dy + dSize);
+	glVertex2f(dx, dy + dSize);
 	glEnd();
 }
 
-void MapDrawer::glBlitSquare(int x, int y, const wxColor &color, int size /* = rme::TileSize */) {
+void MapDrawer::glBlitSquare(int x, int y, const wxColor &color, int size /* = rme::TileSize */) const {
+	const auto dx = static_cast<double>(x);
+	const auto dy = static_cast<double>(y);
+	const auto dSize = static_cast<double>(size);
+
 	glColor4ub(color.Red(), color.Green(), color.Blue(), color.Alpha());
 	glBegin(GL_QUADS);
-	glVertex2f(x, y);
-	glVertex2f(x + size, y);
-	glVertex2f(x + size, y + size);
-	glVertex2f(x, y + size);
+	glVertex2f(dx, dy);
+	glVertex2f(dx + dSize, dy);
+	glVertex2f(dx + dSize, dy + dSize);
+	glVertex2f(dx, dy + dSize);
 	glEnd();
 }
 

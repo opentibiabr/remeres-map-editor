@@ -183,8 +183,8 @@ protected:
 
 	void getColor(Brush* brush, const Position &position, uint8_t &r, uint8_t &g, uint8_t &b);
 	void glBlitTexture(int x, int y, int textureId, int red, int green, int blue, int alpha, bool adjustZoom = false);
-	void glBlitSquare(int x, int y, int red, int green, int blue, int alpha, int size = rme::TileSize);
-	void glBlitSquare(int x, int y, const wxColor &color, int size = rme::TileSize);
+	void glBlitSquare(int x, int y, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha, int size = rme::TileSize) const;
+	void glBlitSquare(int x, int y, const wxColor &color, int size = rme::TileSize) const;
 	void glColor(const wxColor &color);
 	void glColor(BrushColor color);
 	void glColorCheck(Brush* brush, const Position &pos);
