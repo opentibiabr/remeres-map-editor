@@ -240,7 +240,7 @@ void Materials::createOtherTileset() {
 
 	// There should really be an iterator to do this
 	for (int32_t id = 0; id <= g_items.getMaxID(); ++id) {
-		ItemType* type = g_items.getRawItemType(id);
+		auto type = g_items.getRawItemType(id);
 		if (!type) {
 			continue;
 		}
@@ -327,6 +327,43 @@ bool Materials::unserializeTileset(pugi::xml_node node, wxArrayString &warnings)
 		tileset->loadCategory(childNode, warnings);
 	}
 	return true;
+}
+
+void Materials::addToTileset(std::string tilesetName, int itemId, TilesetCategoryType categoryType) {
+	ItemType &it = g_items[itemId];
+
+	if (it.id == 0) {
+		return;
+	}
+
+	Tileset* tileset;
+	auto _it = tilesets.find(tilesetName);
+	if (_it != tilesets.end()) {
+		tileset = _it->second;
+	} else {
+		tileset = newd Tileset(g_brushes, tilesetName);
+		tilesets.insert(std::make_pair(tilesetName, tileset));
+	}
+
+	TilesetCategory* category = tileset->getCategory(categoryType);
+
+	if (!it.isMetaItem()) {
+		Brush* brush;
+		if (it.in_other_tileset) {
+			category->brushlist.push_back(it.raw_brush);
+			return;
+		} else if (it.raw_brush == nullptr) {
+			brush = it.raw_brush = newd RAWBrush(it.id);
+			it.has_raw = true;
+			g_brushes.addBrush(it.raw_brush);
+		} else {
+			brush = it.raw_brush;
+		}
+
+		brush->flagAsVisible();
+		category->brushlist.push_back(it.raw_brush);
+		it.in_other_tileset = true;
+	}
 }
 
 bool Materials::isInTileset(Item* item, std::string tilesetName) const {

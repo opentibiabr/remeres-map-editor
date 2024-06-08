@@ -1155,22 +1155,23 @@ bool IOMapOTBM::loadHouses(Map &map, pugi::xml_document &doc) {
 		}
 
 		House* house = nullptr;
-		if ((attribute = houseNode.attribute("houseid"))) {
-			house = map.houses.getHouse(attribute.as_uint());
-			if (!house) {
-				break;
-			}
+		const auto houseIdAttribute = houseNode.attribute("houseid");
+		if (!houseIdAttribute) {
+			warnings.push_back(fmt::format("IOMapOTBM::loadHouses: Could not load house, missing 'houseid' attribute."));
+			continue;
 		}
 
-		if (house != nullptr) {
-			if ((attribute = houseNode.attribute("name"))) {
-				house->name = attribute.as_string();
-			} else {
-				house->name = "House #" + std::to_string(house->id);
-			}
+		house = map.houses.getHouse(houseIdAttribute.as_uint());
+
+		if (!house) {
+			warnings.push_back(fmt::format("IOMapOTBM::loadHouses: Could not load house #{}", houseIdAttribute.as_uint()));
+			continue;
+		}
+
+		if ((attribute = houseNode.attribute("name"))) {
+			house->name = attribute.as_string();
 		} else {
-			// Tratar o erro: house é nullptr.
-			// Você pode lançar uma exceção, retornar um código de erro, ou registrar um aviso, por exemplo.
+			house->name = "House #" + std::to_string(house->id);
 		}
 
 		Position exitPosition(

@@ -56,6 +56,7 @@ class MinimapWindow;
 class ActionsHistoryWindow;
 class PaletteWindow;
 class OldPropertiesWindow;
+class TilesetWindow;
 class EditTownsDialog;
 class ItemButton;
 
@@ -398,9 +399,9 @@ public:
 	// Returns list of all palette, first in the list is primary
 	const std::list<PaletteWindow*> &GetPalettes();
 
+	void DestroyPalettes();
 	// Hidden from public view
 protected:
-	void DestroyPalettes();
 	PaletteWindow* CreatePalette();
 
 	//=========================================================================

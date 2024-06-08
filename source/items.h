@@ -393,6 +393,8 @@ public:
 	ItemDatabase();
 	~ItemDatabase();
 
+	ItemType &operator[](uint16_t id);
+
 	void clear();
 
 	uint16_t getMinID() const noexcept {
@@ -402,7 +404,7 @@ public:
 		return maxItemId;
 	}
 	ItemType &getItemType(uint16_t id);
-	ItemType* getRawItemType(uint16_t id);
+	std::shared_ptr<ItemType> getRawItemType(uint16_t id);
 
 	bool isValidID(uint16_t id) const;
 
@@ -411,9 +413,9 @@ public:
 	bool loadItemFromGameXml(pugi::xml_node itemNode, uint16_t id);
 	bool loadMetaItem(pugi::xml_node node);
 
-	// typedef std::map<int32_t, ItemType*> ItemMap;
-	typedef contigous_vector<ItemType*> ItemMap;
-	typedef std::map<std::string, ItemType*> ItemNameMap;
+	// typedef std::map<int32_t, std::shared_ptr<ItemType>> ItemMap;
+	typedef contigous_vector<std::shared_ptr<ItemType>> ItemMap;
+	typedef std::map<std::string, std::shared_ptr<ItemType>> ItemNameMap;
 
 	// Version information
 	uint32_t MajorVersion;
@@ -421,9 +423,14 @@ public:
 	uint32_t BuildNumber;
 
 protected:
-	bool loadFromOtbVer1(BinaryNode* itemNode, wxString &error, wxArrayString &warnings);
-	bool loadFromOtbVer2(BinaryNode* itemNode, wxString &error, wxArrayString &warnings);
-	bool loadFromOtbVer3(BinaryNode* itemNode, wxString &error, wxArrayString &warnings);
+	bool loadGroupByOtbVersion(const std::shared_ptr<ItemType> &item, wxArrayString &warnings) const;
+
+	bool loadFlagsByOtbVersion(const std::shared_ptr<ItemType> &item, BinaryNode* itemNode) const;
+
+	bool handleAttributes(const std::shared_ptr<ItemType> &item, uint8_t &attribute, uint16_t &datalen, BinaryNode* itemNode, wxString &error, wxArrayString &warnings);
+	bool loadAttributesByOtbVersion(const std::shared_ptr<ItemType> &item, BinaryNode* itemNode, wxString &error, wxArrayString &warnings);
+
+	bool loadFromOtb(BinaryNode* itemNode, wxString &error, wxArrayString &warnings);
 
 protected:
 	ItemMap items;
