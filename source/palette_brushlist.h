@@ -78,7 +78,7 @@ public:
 class BrushIconBox : public wxScrolledWindow, public BrushBoxInterface {
 public:
 	BrushIconBox(wxWindow* parent, const TilesetCategory* _tileset, RenderSize rsz);
-	~BrushIconBox();
+	~BrushIconBox() = default;
 
 	wxWindow* GetSelfWindow() {
 		return this;

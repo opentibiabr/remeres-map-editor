@@ -428,8 +428,9 @@ BrushIconBox::BrushIconBox(wxWindow* parent, const TilesetCategory* _tileset, Re
 	// Create buttons
 	stacksizer = newd wxBoxSizer(wxVERTICAL);
 	auto rowsizer = newd wxBoxSizer(wxHORIZONTAL);
-	for (auto iter = tileset->brushlist.begin(); iter != tileset->brushlist.end(); ++iter) {
-		const auto brushButton = newd BrushButton(this, *iter, rsz);
+
+	std::ranges::for_each(tileset->brushlist, [&](const auto &brush) {
+		const auto brushButton = newd BrushButton(this, brush, rsz);
 		rowsizer->Add(brushButton);
 		brushButtons.push_back(brushButton);
 
@@ -438,20 +439,14 @@ BrushIconBox::BrushIconBox(wxWindow* parent, const TilesetCategory* _tileset, Re
 			rowsizers.emplace_back(rowsizer);
 			rowsizer = newd wxBoxSizer(wxHORIZONTAL);
 		}
-	}
+	});
+	
 	if (rowsizer != rowsizers.back()) {
 		stacksizer->Add(rowsizer);
 	}
 
 	SetScrollbars(20, 20, 8, brushButtons.size() / width, 0, 0);
 	SetSizer(stacksizer);
-}
-
-BrushIconBox::~BrushIconBox() {
-	delete stacksizer;
-	for (auto row : rowsizers) {
-		delete row;
-	}
 }
 
 void BrushIconBox::SelectFirstBrush() {
