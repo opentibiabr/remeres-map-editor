@@ -144,6 +144,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(SHOW_EXTRA, wxITEM_CHECK, OnChangeViewSettings);
 	MAKE_ACTION(SHOW_INGAME_BOX, wxITEM_CHECK, OnChangeViewSettings);
 	MAKE_ACTION(SHOW_LIGHTS, wxITEM_CHECK, OnChangeViewSettings);
+	MAKE_ACTION(SHOW_LIGHT_STRENGTH, wxITEM_CHECK, OnChangeViewSettings);
 	MAKE_ACTION(SHOW_GRID, wxITEM_CHECK, OnChangeViewSettings);
 	MAKE_ACTION(SHOW_MONSTERS, wxITEM_CHECK, OnChangeViewSettings);
 	MAKE_ACTION(SHOW_SPAWNS_MONSTER, wxITEM_CHECK, OnChangeViewSettings);
@@ -468,6 +469,7 @@ void MainMenuBar::LoadValues() {
 	CheckItem(SHOW_SHADE, g_settings.getBoolean(Config::SHOW_SHADE));
 	CheckItem(SHOW_INGAME_BOX, g_settings.getBoolean(Config::SHOW_INGAME_BOX));
 	CheckItem(SHOW_LIGHTS, g_settings.getBoolean(Config::SHOW_LIGHTS));
+	CheckItem(SHOW_LIGHT_STRENGTH, g_settings.getBoolean(Config::SHOW_LIGHT_STRENGTH));
 	CheckItem(SHOW_ALL_FLOORS, g_settings.getBoolean(Config::SHOW_ALL_FLOORS));
 	CheckItem(GHOST_ITEMS, g_settings.getBoolean(Config::TRANSPARENT_ITEMS));
 	CheckItem(GHOST_HIGHER_FLOORS, g_settings.getBoolean(Config::TRANSPARENT_FLOORS));
@@ -576,7 +578,7 @@ bool MainMenuBar::Load(const FileName &path, wxArrayString &warnings, wxString &
 	}
 
 #ifdef __LINUX__
-	const int count = 46;
+	const int count = 47;
 	wxAcceleratorEntry entries[count];
 	// Edit
 	entries[0].Set(wxACCEL_CTRL, (int)'Z', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::UNDO));
@@ -602,33 +604,34 @@ bool MainMenuBar::Load(const FileName &path, wxArrayString &warnings, wxString &
 	entries[18].Set(wxACCEL_CTRL, (int)'L', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::GHOST_HIGHER_FLOORS));
 	entries[19].Set(wxACCEL_SHIFT, (int)'I', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_INGAME_BOX));
 	entries[20].Set(wxACCEL_SHIFT, (int)'L', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_LIGHTS));
-	entries[21].Set(wxACCEL_SHIFT, (int)'G', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_GRID));
-	entries[22].Set(wxACCEL_NORMAL, (int)'V', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::HIGHLIGHT_ITEMS));
-	entries[23].Set(wxACCEL_NORMAL, (int)'F', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_MONSTERS));
-	entries[24].Set(wxACCEL_NORMAL, (int)'S', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_SPAWNS_MONSTER));
-	entries[25].Set(wxACCEL_NORMAL, (int)'X', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_NPCS));
-	entries[26].Set(wxACCEL_NORMAL, (int)'U', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_SPAWNS_NPC));
-	entries[27].Set(wxACCEL_NORMAL, (int)'E', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_SPECIAL));
-	entries[28].Set(wxACCEL_SHIFT, (int)'E', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_AS_MINIMAP));
-	entries[29].Set(wxACCEL_CTRL, (int)'E', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_ONLY_COLORS));
-	entries[30].Set(wxACCEL_CTRL, (int)'M', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_ONLY_MODIFIED));
-	entries[31].Set(wxACCEL_CTRL, (int)'H', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_HOUSES));
-	entries[32].Set(wxACCEL_NORMAL, (int)'O', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_PATHING));
-	entries[33].Set(wxACCEL_NORMAL, (int)'Y', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_TOOLTIPS));
-	entries[34].Set(wxACCEL_NORMAL, (int)'L', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_PREVIEW));
-	entries[35].Set(wxACCEL_NORMAL, (int)'K', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_WALL_HOOKS));
+	entries[21].Set(wxACCEL_SHIFT, (int)'K', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_LIGHT_STRENGTH));
+	entries[22].Set(wxACCEL_SHIFT, (int)'G', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_GRID));
+	entries[23].Set(wxACCEL_NORMAL, (int)'V', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::HIGHLIGHT_ITEMS));
+	entries[24].Set(wxACCEL_NORMAL, (int)'F', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_MONSTERS));
+	entries[25].Set(wxACCEL_NORMAL, (int)'S', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_SPAWNS_MONSTER));
+	entries[26].Set(wxACCEL_NORMAL, (int)'X', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_NPCS));
+	entries[27].Set(wxACCEL_NORMAL, (int)'U', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_SPAWNS_NPC));
+	entries[28].Set(wxACCEL_NORMAL, (int)'E', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_SPECIAL));
+	entries[29].Set(wxACCEL_SHIFT, (int)'E', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_AS_MINIMAP));
+	entries[30].Set(wxACCEL_CTRL, (int)'E', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_ONLY_COLORS));
+	entries[31].Set(wxACCEL_CTRL, (int)'M', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_ONLY_MODIFIED));
+	entries[32].Set(wxACCEL_CTRL, (int)'H', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_HOUSES));
+	entries[33].Set(wxACCEL_NORMAL, (int)'O', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_PATHING));
+	entries[34].Set(wxACCEL_NORMAL, (int)'Y', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_TOOLTIPS));
+	entries[35].Set(wxACCEL_NORMAL, (int)'L', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_PREVIEW));
+	entries[36].Set(wxACCEL_NORMAL, (int)'K', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_WALL_HOOKS));
 
 	// Window
-	entries[36].Set(wxACCEL_NORMAL, (int)'M', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::WIN_MINIMAP));
-	entries[37].Set(wxACCEL_NORMAL, (int)'T', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_TERRAIN));
-	entries[38].Set(wxACCEL_NORMAL, (int)'D', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_DOODAD));
-	entries[39].Set(wxACCEL_NORMAL, (int)'I', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_ITEM));
-	entries[40].Set(wxACCEL_NORMAL, (int)'H', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_HOUSE));
-	entries[41].Set(wxACCEL_NORMAL, (int)'C', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_MONSTER));
-	entries[42].Set(wxACCEL_NORMAL, (int)'N', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_NPC));
-	entries[43].Set(wxACCEL_NORMAL, (int)'W', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_WAYPOINT));
-	entries[44].Set(wxACCEL_NORMAL, (int)'Z', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_ZONES));
-	entries[45].Set(wxACCEL_NORMAL, (int)'R', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_RAW));
+	entries[37].Set(wxACCEL_NORMAL, (int)'M', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::WIN_MINIMAP));
+	entries[38].Set(wxACCEL_NORMAL, (int)'T', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_TERRAIN));
+	entries[39].Set(wxACCEL_NORMAL, (int)'D', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_DOODAD));
+	entries[40].Set(wxACCEL_NORMAL, (int)'I', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_ITEM));
+	entries[41].Set(wxACCEL_NORMAL, (int)'H', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_HOUSE));
+	entries[42].Set(wxACCEL_NORMAL, (int)'C', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_MONSTER));
+	entries[43].Set(wxACCEL_NORMAL, (int)'N', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_NPC));
+	entries[44].Set(wxACCEL_NORMAL, (int)'W', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_WAYPOINT));
+	entries[45].Set(wxACCEL_NORMAL, (int)'Z', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_ZONES));
+	entries[46].Set(wxACCEL_NORMAL, (int)'R', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_RAW));
 
 	wxAcceleratorTable accelerator(count, entries);
 	frame->SetAcceleratorTable(accelerator);
@@ -2019,6 +2022,7 @@ void MainMenuBar::OnChangeViewSettings(wxCommandEvent &event) {
 	g_settings.setInteger(Config::TRANSPARENT_ITEMS, IsItemChecked(MenuBar::GHOST_ITEMS));
 	g_settings.setInteger(Config::SHOW_INGAME_BOX, IsItemChecked(MenuBar::SHOW_INGAME_BOX));
 	g_settings.setInteger(Config::SHOW_LIGHTS, IsItemChecked(MenuBar::SHOW_LIGHTS));
+	g_settings.setInteger(Config::SHOW_LIGHT_STRENGTH, IsItemChecked(MenuBar::SHOW_LIGHT_STRENGTH));
 	g_settings.setInteger(Config::SHOW_GRID, IsItemChecked(MenuBar::SHOW_GRID));
 	g_settings.setInteger(Config::SHOW_EXTRA, !IsItemChecked(MenuBar::SHOW_EXTRA));
 

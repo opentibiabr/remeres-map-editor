@@ -129,7 +129,10 @@
         <item name="Ghost $loose items" hotkey="G" action="GHOST_ITEMS" help="Ghost items (except ground)."/>
         <item name="Ghost $higher floors" hotkey="Ctrl+L" action="GHOST_HIGHER_FLOORS" help="Ghost floors."/>
         <item name="Show $client box" hotkey="Shift+I" action="SHOW_INGAME_BOX" help="Shadows out areas not visible ingame (from the center of the screen)."/>
-        <item name="Show $lights" hotkey="Shift+L" action="SHOW_LIGHTS" help="Show lights."/>
+        <menu name="$Lights">
+            <item name="Show $lights" hotkey="Shift+L" action="SHOW_LIGHTS" help="Show lights."/>
+            <item name="Show $light strength" hotkey="Shift+K" action="SHOW_LIGHT_STRENGTH" help="Show indicators of light strength."/>
+        </menu>
         <item name="Show $Grid" hotkey="Shift+G" action="SHOW_GRID" help="Shows a grid over all items."/>
         <item name="H$ighlight items" hotkey="V" action="HIGHLIGHT_ITEMS" help="Highlight tiles with items on them."/>
         <separator/>

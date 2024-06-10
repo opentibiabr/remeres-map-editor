@@ -54,6 +54,7 @@ void DrawingOptions::SetDefault() {
 	transparent_items = false;
 	show_ingame_box = false;
 	show_lights = false;
+	show_light_strength = true;
 	ingame = false;
 	dragging = false;
 
@@ -86,6 +87,7 @@ void DrawingOptions::SetIngame() {
 	transparent_items = false;
 	show_ingame_box = false;
 	show_lights = false;
+	show_light_strength = false;
 	ingame = true;
 	dragging = false;
 
@@ -279,10 +281,6 @@ void MapDrawer::DrawShade(int map_z) {
 }
 
 void MapDrawer::DrawMap() {
-	int center_x = start_x + int(screensize_x * zoom / 64);
-	int center_y = start_y + int(screensize_y * zoom / 64);
-	int offset_y = 2;
-
 	bool live_client = editor.IsLiveClient();
 
 	Brush* brush = g_gui.GetCurrentBrush();
@@ -1210,6 +1208,10 @@ void MapDrawer::BlitItem(int &draw_x, int &draw_y, const Tile* tile, const Item*
 	if (options.show_hooks && (type.hookSouth || type.hookEast)) {
 		DrawHookIndicator(draw_x, draw_y, type);
 	}
+
+	if (!options.ingame && options.show_light_strength) {
+		DrawLightStrength(draw_x, draw_y, item);
+	}
 }
 
 void MapDrawer::BlitItem(int &draw_x, int &draw_y, const Position &pos, const Item* item, bool ephemeral, int red, int green, int blue, int alpha) {
@@ -1309,6 +1311,10 @@ void MapDrawer::BlitItem(int &draw_x, int &draw_y, const Position &pos, const It
 
 	if (options.show_hooks && (type.hookSouth || type.hookEast) && zoom <= 3.0) {
 		DrawHookIndicator(draw_x, draw_y, type);
+	}
+
+	if (!options.ingame && options.show_light_strength) {
+		DrawLightStrength(draw_x, draw_y, item);
 	}
 }
 
@@ -1696,6 +1702,27 @@ void MapDrawer::DrawHookIndicator(int x, int y, const ItemType &type) {
 	glEnable(GL_TEXTURE_2D);
 }
 
+void MapDrawer::DrawLightStrength(int x, int y, const Item*&item) {
+	const SpriteLight &light = item->getLight();
+
+	if (light.intensity <= 0) {
+		return;
+	}
+
+	wxColor lightColor = colorFromEightBit(light.color);
+	const uint8_t byteR = lightColor.Red();
+	const uint8_t byteG = lightColor.Green();
+	const uint8_t byteB = lightColor.Blue();
+	constexpr uint8_t byteA = 255;
+
+	const int startOffset = std::max<int>(16, 32 - light.intensity);
+	const int sqSize = rme::TileSize - startOffset;
+	glDisable(GL_TEXTURE_2D);
+	glBlitSquare(x + startOffset - 2, y + startOffset - 2, 0, 0, 0, byteA, sqSize + 2);
+	glBlitSquare(x + startOffset - 1, y + startOffset - 1, byteR, byteG, byteB, byteA, sqSize);
+	glEnable(GL_TEXTURE_2D);
+}
+
 void MapDrawer::DrawTileIndicators(TileLocation* location) {
 	if (!location) {
 		return;
@@ -2019,23 +2046,31 @@ void MapDrawer::glBlitTexture(int x, int y, int textureId, int red, int green, i
 	glEnd();
 }
 
-void MapDrawer::glBlitSquare(int x, int y, int red, int green, int blue, int alpha) {
-	glColor4ub(uint8_t(red), uint8_t(green), uint8_t(blue), uint8_t(alpha));
+void MapDrawer::glBlitSquare(int x, int y, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha, int size /* = rme::TileSize */) const {
+	const auto dx = static_cast<double>(x);
+	const auto dy = static_cast<double>(y);
+	const auto dSize = static_cast<double>(size);
+
+	glColor4ub(red, green, blue, alpha);
 	glBegin(GL_QUADS);
-	glVertex2f(x, y);
-	glVertex2f(x + rme::TileSize, y);
-	glVertex2f(x + rme::TileSize, y + rme::TileSize);
-	glVertex2f(x, y + rme::TileSize);
+	glVertex2f(dx, dy);
+	glVertex2f(dx + dSize, dy);
+	glVertex2f(dx + dSize, dy + dSize);
+	glVertex2f(dx, dy + dSize);
 	glEnd();
 }
 
-void MapDrawer::glBlitSquare(int x, int y, const wxColor &color) {
+void MapDrawer::glBlitSquare(int x, int y, const wxColor &color, int size /* = rme::TileSize */) const {
+	const auto dx = static_cast<double>(x);
+	const auto dy = static_cast<double>(y);
+	const auto dSize = static_cast<double>(size);
+
 	glColor4ub(color.Red(), color.Green(), color.Blue(), color.Alpha());
 	glBegin(GL_QUADS);
-	glVertex2f(x, y);
-	glVertex2f(x + rme::TileSize, y);
-	glVertex2f(x + rme::TileSize, y + rme::TileSize);
-	glVertex2f(x, y + rme::TileSize);
+	glVertex2f(dx, dy);
+	glVertex2f(dx + dSize, dy);
+	glVertex2f(dx + dSize, dy + dSize);
+	glVertex2f(dx, dy + dSize);
 	glEnd();
 }
 

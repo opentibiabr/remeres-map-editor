@@ -58,6 +58,7 @@ public:
 	bool transparent_floors;
 	bool transparent_items;
 	bool show_ingame_box;
+	bool show_light_strength;
 	bool show_lights;
 	bool ingame;
 	bool dragging;
@@ -158,6 +159,7 @@ protected:
 	void DrawTile(TileLocation* tile);
 	void DrawBrushIndicator(int x, int y, Brush* brush, uint8_t r, uint8_t g, uint8_t b);
 	void DrawHookIndicator(int x, int y, const ItemType &type);
+	void DrawLightStrength(int x, int y, const Item*&item);
 	void DrawTileIndicators(TileLocation* location);
 	void DrawIndicator(int x, int y, int indicator, uint8_t r = 255, uint8_t g = 255, uint8_t b = 255, uint8_t a = 255);
 	void DrawPositionIndicator(int z);
@@ -181,8 +183,8 @@ protected:
 
 	void getColor(Brush* brush, const Position &position, uint8_t &r, uint8_t &g, uint8_t &b);
 	void glBlitTexture(int x, int y, int textureId, int red, int green, int blue, int alpha, bool adjustZoom = false);
-	void glBlitSquare(int x, int y, int red, int green, int blue, int alpha);
-	void glBlitSquare(int x, int y, const wxColor &color);
+	void glBlitSquare(int x, int y, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha, int size = rme::TileSize) const;
+	void glBlitSquare(int x, int y, const wxColor &color, int size = rme::TileSize) const;
 	void glColor(const wxColor &color);
 	void glColor(BrushColor color);
 	void glColorCheck(Brush* brush, const Position &pos);

@@ -199,6 +199,7 @@ void Settings::IO(IOMode mode) {
 	Int(SHOW_ALL_FLOORS, 1);
 	Int(SHOW_INGAME_BOX, 0);
 	Int(SHOW_LIGHTS, 1);
+	Int(SHOW_LIGHT_STRENGTH, 1);
 	Int(SHOW_GRID, 0);
 	Int(SHOW_EXTRA, 1);
 	Int(SHOW_SHADE, 1);
