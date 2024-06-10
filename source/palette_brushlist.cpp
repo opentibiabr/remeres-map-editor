@@ -440,8 +440,8 @@ BrushIconBox::BrushIconBox(wxWindow* parent, const TilesetCategory* _tileset, Re
 			rowsizer = newd wxBoxSizer(wxHORIZONTAL);
 		}
 	});
-	
-	if (rowsizer != rowsizers.back()) {
+
+	if (rowsizers.size() <= 0 || rowsizer != rowsizers.back()) {
 		stacksizer->Add(rowsizer);
 	}
 
