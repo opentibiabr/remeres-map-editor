@@ -85,8 +85,7 @@ public:
 	}
 
 	// Scrolls the window to the position of the named brush button
-	void EnsureVisible(BrushButton* btn);
-	void EnsureVisible(size_t n);
+	void EnsureVisible(const BrushButton* btn);
 
 	// Select the first brush
 	void SelectFirstBrush();
@@ -98,13 +97,18 @@ public:
 	// Event handling...
 	void OnClickBrushButton(wxCommandEvent &event);
 
-protected:
-	// Used internally to deselect all buttons before selecting a newd one.
-	void DeselectAll();
+private:
+	// Used internally to select a button.
+	void Select(BrushButton* brushButton);
+	// Used internally to deselect a button before selecting a new one.
+	void Deselect();
 
-protected:
-	std::vector<BrushButton*> brush_buttons;
-	RenderSize icon_size;
+	BrushButton* selectedButton = nullptr;
+	std::vector<BrushButton*> brushButtons;
+	RenderSize iconSize;
+
+	wxBoxSizer* stacksizer;
+	std::vector<wxBoxSizer*> rowsizers;
 
 	DECLARE_EVENT_TABLE();
 };

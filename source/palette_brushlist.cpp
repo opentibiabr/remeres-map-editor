@@ -421,53 +421,42 @@ END_EVENT_TABLE()
 BrushIconBox::BrushIconBox(wxWindow* parent, const TilesetCategory* _tileset, RenderSize rsz) :
 	wxScrolledWindow(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL),
 	BrushBoxInterface(_tileset),
-	icon_size(rsz) {
+	iconSize(rsz) {
 	ASSERT(tileset->getType() >= TILESET_UNKNOWN && tileset->getType() <= TILESET_HOUSE);
-	int width;
-	if (icon_size == RENDER_SIZE_32x32) {
-		width = std::max(g_settings.getInteger(Config::PALETTE_COL_COUNT) / 2 + 1, 1);
-	} else {
-		width = std::max(g_settings.getInteger(Config::PALETTE_COL_COUNT) + 1, 1);
-	}
+	const auto width = iconSize == RENDER_SIZE_32x32 ? std::max(g_settings.getInteger(Config::PALETTE_COL_COUNT) / 2 + 1, 1) : std::max(g_settings.getInteger(Config::PALETTE_COL_COUNT) + 1, 1);
 
 	// Create buttons
-	wxSizer* stacksizer = newd wxBoxSizer(wxVERTICAL);
-	wxSizer* rowsizer = nullptr;
-	int item_counter = 0;
-	for (BrushVector::const_iterator iter = tileset->brushlist.begin(); iter != tileset->brushlist.end(); ++iter) {
-		ASSERT(*iter);
-		++item_counter;
+	stacksizer = newd wxBoxSizer(wxVERTICAL);
+	auto rowsizer = newd wxBoxSizer(wxHORIZONTAL);
+	for (auto iter = tileset->brushlist.begin(); iter != tileset->brushlist.end(); ++iter) {
+		const auto brushButton = newd BrushButton(this, *iter, rsz);
+		rowsizer->Add(brushButton);
+		brushButtons.push_back(brushButton);
 
-		if (!rowsizer) {
+		if (brushButtons.size() % width == 0) { // new row
+			stacksizer->Add(rowsizer);
+			rowsizers.emplace_back(rowsizer);
 			rowsizer = newd wxBoxSizer(wxHORIZONTAL);
 		}
-
-		BrushButton* bb = newd BrushButton(this, *iter, rsz);
-		rowsizer->Add(bb);
-		brush_buttons.push_back(bb);
-
-		if (item_counter % width == 0) { // newd row
-			stacksizer->Add(rowsizer);
-			rowsizer = nullptr;
-		}
 	}
-	if (rowsizer) {
+	if (rowsizer != rowsizers.back()) {
 		stacksizer->Add(rowsizer);
 	}
 
-	SetScrollbars(20, 20, 8, item_counter / width, 0, 0);
+	SetScrollbars(20, 20, 8, brushButtons.size() / width, 0, 0);
 	SetSizer(stacksizer);
 }
 
 BrushIconBox::~BrushIconBox() {
-	////
+	delete stacksizer;
+	for (auto row : rowsizers) {
+		delete row;
+	}
 }
 
 void BrushIconBox::SelectFirstBrush() {
 	if (tileset && tileset->size() > 0) {
-		DeselectAll();
-		brush_buttons[0]->SetValue(true);
-		EnsureVisible((size_t)0);
+		Select(brushButtons[0]);
 	}
 }
 
@@ -476,33 +465,38 @@ Brush* BrushIconBox::GetSelectedBrush() const {
 		return nullptr;
 	}
 
-	for (std::vector<BrushButton*>::const_iterator it = brush_buttons.begin(); it != brush_buttons.end(); ++it) {
-		if ((*it)->GetValue()) {
-			return (*it)->brush;
-		}
-	}
-	return nullptr;
+	return selectedButton ? selectedButton->brush : nullptr;
 }
 
-bool BrushIconBox::SelectBrush(const Brush* whatbrush) {
-	DeselectAll();
-	for (std::vector<BrushButton*>::iterator it = brush_buttons.begin(); it != brush_buttons.end(); ++it) {
-		if ((*it)->brush == whatbrush) {
-			(*it)->SetValue(true);
-			EnsureVisible(*it);
-			return true;
-		}
+bool BrushIconBox::SelectBrush(const Brush* whatBrush) {
+	const auto it = std::find_if(brushButtons.begin(), brushButtons.end(), [&](const auto &brushButton) {
+		return brushButton->brush == whatBrush;
+	});
+
+	if (it != brushButtons.end()) {
+		Deselect();
+		Select(*it);
+		return true;
 	}
+
 	return false;
 }
 
-void BrushIconBox::DeselectAll() {
-	for (std::vector<BrushButton*>::iterator it = brush_buttons.begin(); it != brush_buttons.end(); ++it) {
-		(*it)->SetValue(false);
+void BrushIconBox::Select(BrushButton* brushButton) {
+	Deselect();
+	selectedButton = brushButton;
+	selectedButton->SetValue(true);
+	EnsureVisible(selectedButton);
+}
+
+void BrushIconBox::Deselect() {
+	if (selectedButton != nullptr) {
+		selectedButton->SetValue(false);
+		selectedButton = nullptr;
 	}
 }
 
-void BrushIconBox::EnsureVisible(BrushButton* btn) {
+void BrushIconBox::EnsureVisible(const BrushButton* btn) {
 	int windowSizeX, windowSizeY;
 	GetVirtualSize(&windowSizeX, &windowSizeY);
 
@@ -510,19 +504,19 @@ void BrushIconBox::EnsureVisible(BrushButton* btn) {
 	int scrollUnitY;
 	GetScrollPixelsPerUnit(&scrollUnitX, &scrollUnitY);
 
-	wxRect rect = btn->GetRect();
+	const auto &rect = btn->GetRect();
 	int y;
 	CalcUnscrolledPosition(0, rect.y, nullptr, &y);
 
-	int maxScrollPos = windowSizeY / scrollUnitY;
-	int scrollPosY = std::min(maxScrollPos, (y / scrollUnitY));
+	const auto maxScrollPos = windowSizeY / scrollUnitY;
+	const auto scrollPosY = std::min(maxScrollPos, (y / scrollUnitY));
 
 	int startScrollPosY;
 	GetViewStart(nullptr, &startScrollPosY);
 
 	int clientSizeX, clientSizeY;
 	GetClientSize(&clientSizeX, &clientSizeY);
-	int endScrollPosY = startScrollPosY + clientSizeY / scrollUnitY;
+	const auto endScrollPosY = startScrollPosY + clientSizeY / scrollUnitY;
 
 	if (scrollPosY < startScrollPosY || scrollPosY > endScrollPosY) {
 		// only scroll if the button isnt visible
@@ -530,21 +524,11 @@ void BrushIconBox::EnsureVisible(BrushButton* btn) {
 	}
 }
 
-void BrushIconBox::EnsureVisible(size_t n) {
-	EnsureVisible(brush_buttons[n]);
-}
-
 void BrushIconBox::OnClickBrushButton(wxCommandEvent &event) {
-	wxObject* obj = event.GetEventObject();
-	BrushButton* btn = dynamic_cast<BrushButton*>(obj);
-	if (btn) {
-		wxWindow* w = this;
-		while ((w = w->GetParent()) && dynamic_cast<PaletteWindow*>(w) == nullptr)
-			;
-		if (w) {
-			g_gui.ActivatePalette(static_cast<PaletteWindow*>(w));
-		}
-		g_gui.SelectBrush(btn->brush, tileset->getType());
+	const auto &eventObject = event.GetEventObject();
+	const auto &brushButton = dynamic_cast<BrushButton*>(eventObject);
+	if (brushButton) {
+		g_gui.SelectBrush(brushButton->brush, tileset->getType());
 	}
 }
 
