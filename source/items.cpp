@@ -133,6 +133,7 @@ ItemType &ItemDatabase::operator[](uint16_t id) {
 void ItemDatabase::clear() {
 	for (size_t i = 0; i < items.size(); i++) {
 		items[i].reset();
+		items.set(i, nullptr);
 	}
 }
 
