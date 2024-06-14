@@ -28,10 +28,17 @@ enum BrushListType {
 	BRUSHLIST_TEXT_LISTBOX,
 };
 
+static const std::unordered_map<wxString, BrushListType> listTypeMap = {
+	{ "small icons", BRUSHLIST_SMALL_ICONS },
+	{ "large icons", BRUSHLIST_LARGE_ICONS },
+	{ "listbox", BRUSHLIST_LISTBOX },
+	{ "textlistbox", BRUSHLIST_TEXT_LISTBOX },
+};
+
 class BrushBoxInterface {
 public:
-	BrushBoxInterface(const TilesetCategory* _tileset) :
-		tileset(_tileset), loaded(false) {
+	BrushBoxInterface(const TilesetCategory* tileset) :
+		tileset(tileset), loaded(false) {
 		ASSERT(tileset);
 	}
 	virtual ~BrushBoxInterface() { }
@@ -52,8 +59,8 @@ protected:
 
 class BrushListBox : public wxVListBox, public BrushBoxInterface {
 public:
-	BrushListBox(wxWindow* parent, const TilesetCategory* _tileset);
-	~BrushListBox();
+	BrushListBox(wxWindow* parent, const TilesetCategory* tileset);
+	~BrushListBox() = default;
 
 	wxWindow* GetSelfWindow() {
 		return this;
@@ -64,11 +71,11 @@ public:
 	// Returns the currently selected brush (First brush if panel is not loaded)
 	Brush* GetSelectedBrush() const;
 	// Select the brush in the parameter, this only changes the look of the panel
-	bool SelectBrush(const Brush* brush);
+	bool SelectBrush(const Brush* whatBrush);
 
 	// Event handlers
-	virtual void OnDrawItem(wxDC &dc, const wxRect &rect, size_t n) const;
-	virtual wxCoord OnMeasureItem(size_t n) const;
+	virtual void OnDrawItem(wxDC &dc, const wxRect &rect, size_t index) const;
+	virtual wxCoord OnMeasureItem(size_t index) const;
 
 	void OnKey(wxKeyEvent &event);
 
@@ -77,7 +84,7 @@ public:
 
 class BrushIconBox : public wxScrolledWindow, public BrushBoxInterface {
 public:
-	BrushIconBox(wxWindow* parent, const TilesetCategory* _tileset, RenderSize rsz);
+	BrushIconBox(wxWindow* parent, const TilesetCategory* tileset, RenderSize renderSize);
 	~BrushIconBox() = default;
 
 	wxWindow* GetSelfWindow() {
@@ -85,7 +92,7 @@ public:
 	}
 
 	// Scrolls the window to the position of the named brush button
-	void EnsureVisible(const BrushButton* btn);
+	void EnsureVisible(const BrushButton* brushButto);
 
 	// Select the first brush
 	void SelectFirstBrush();
@@ -107,7 +114,7 @@ private:
 	std::vector<BrushButton*> brushButtons;
 	RenderSize iconSize;
 
-	wxBoxSizer* stacksizer;
+	wxBoxSizer* stacksizer = nullptr;
 	std::vector<wxBoxSizer*> rowsizers;
 
 	DECLARE_EVENT_TABLE();
@@ -122,7 +129,7 @@ private:
 class BrushPanel : public wxPanel {
 public:
 	BrushPanel(wxWindow* parent);
-	~BrushPanel();
+	~BrushPanel() = default;
 
 	// Interface
 	// Flushes this panel and consequent views will feature reloaded data
@@ -131,17 +138,17 @@ public:
 	void LoadContents();
 
 	// Sets the display type (list or icons)
-	void SetListType(BrushListType ltype);
-	void SetListType(wxString ltype);
+	void SetListType(BrushListType newListType);
+	void SetListType(const wxString &newListType);
 	// Assigns a tileset to this list
-	void AssignTileset(const TilesetCategory* tileset);
+	void AssignTileset(const TilesetCategory* newTileset);
 
 	// Select the first brush
 	void SelectFirstBrush();
 	// Returns the currently selected brush (First brush if panel is not loaded)
 	Brush* GetSelectedBrush() const;
 	// Select the brush in the parameter, this only changes the look of the panel
-	bool SelectBrush(const Brush* whatbrush);
+	bool SelectBrush(const Brush* whatBrush);
 
 	// Called when the window is about to be displayed
 	void OnSwitchIn();
@@ -156,7 +163,7 @@ protected:
 	wxSizer* sizer;
 	BrushBoxInterface* brushbox;
 	bool loaded;
-	BrushListType list_type;
+	BrushListType listType;
 
 	DECLARE_EVENT_TABLE();
 };
@@ -164,7 +171,7 @@ protected:
 class BrushPalettePanel : public PalettePanel {
 public:
 	BrushPalettePanel(wxWindow* parent, const TilesetContainer &tilesets, TilesetCategoryType category, wxWindowID id = wxID_ANY);
-	~BrushPalettePanel();
+	~BrushPalettePanel() = default;
 
 	// Interface
 	// Flushes this panel and consequent views will feature reloaded data
@@ -177,15 +184,15 @@ public:
 	PaletteType GetType() const;
 
 	// Sets the display type (list or icons)
-	void SetListType(BrushListType ltype);
-	void SetListType(wxString ltype);
+	void SetListType(BrushListType newTypeList);
+	void SetListType(const wxString &newTypeList);
 
 	// Select the first brush
 	void SelectFirstBrush();
 	// Returns the currently selected brush (first brush if panel is not loaded)
 	Brush* GetSelectedBrush() const;
 	// Select the brush in the parameter, this only changes the look of the panel
-	bool SelectBrush(const Brush* whatbrush);
+	bool SelectBrush(const Brush* whatBrush);
 
 	// Called when this page is displayed
 	void OnSwitchIn();
@@ -197,10 +204,10 @@ public:
 	void OnClickAddItemToTileset(wxCommandEvent &WXUNUSED(event));
 
 protected:
-	PaletteType palette_type;
-	wxChoicebook* choicebook;
-	BrushSizePanel* size_panel;
-	std::map<wxWindow*, Brush*> remembered_brushes;
+	PaletteType paletteType;
+	wxChoicebook* choicebook = nullptr;
+	BrushSizePanel* sizePanel = nullptr;
+	std::map<wxWindow*, Brush*> rememberedBrushes;
 
 	DECLARE_EVENT_TABLE();
 };
