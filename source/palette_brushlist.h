@@ -37,8 +37,8 @@ static const std::unordered_map<wxString, BrushListType> listTypeMap = {
 
 class BrushBoxInterface {
 public:
-	BrushBoxInterface(const TilesetCategory* tileset) :
-		tileset(tileset), loaded(false) {
+	explicit BrushBoxInterface(const TilesetCategory* tileset) :
+		tileset(tileset) {
 		ASSERT(tileset);
 	}
 	virtual ~BrushBoxInterface() { }
@@ -54,7 +54,7 @@ public:
 
 protected:
 	const TilesetCategory* const tileset;
-	bool loaded;
+	bool loaded = false;
 };
 
 class BrushListBox : public wxVListBox, public BrushBoxInterface {
@@ -71,11 +71,11 @@ public:
 	// Returns the currently selected brush (First brush if panel is not loaded)
 	Brush* GetSelectedBrush() const;
 	// Select the brush in the parameter, this only changes the look of the panel
-	bool SelectBrush(const Brush* whatBrush);
+	bool SelectBrush(const Brush* whatBrush) override;
 
 	// Event handlers
-	virtual void OnDrawItem(wxDC &dc, const wxRect &rect, size_t index) const;
-	virtual wxCoord OnMeasureItem(size_t index) const;
+	void OnDrawItem(wxDC &dc, const wxRect &rect, size_t index) const override;
+	wxCoord OnMeasureItem(size_t index) const override;
 
 	void OnKey(wxKeyEvent &event);
 
@@ -99,7 +99,7 @@ public:
 	// Returns the currently selected brush (First brush if panel is not loaded)
 	Brush* GetSelectedBrush() const;
 	// Select the brush in the parameter, this only changes the look of the panel
-	bool SelectBrush(const Brush* brush);
+	bool SelectBrush(const Brush* whatBrush) override;
 
 	// Event handling...
 	void OnClickBrushButton(wxCommandEvent &event);

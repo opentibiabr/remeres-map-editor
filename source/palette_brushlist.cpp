@@ -60,7 +60,7 @@ BrushPalettePanel::BrushPalettePanel(wxWindow* parent, const TilesetContainer &t
 	for (auto iter = tilesets.begin(); iter != tilesets.end(); ++iter) {
 		const auto &tilesetCategory = iter->second->getCategory(category);
 		if (tilesetCategory && tilesetCategory->size() > 0) {
-			BrushPanel* panel = newd BrushPanel(tmpChoicebook);
+			const auto &panel = newd BrushPanel(tmpChoicebook);
 			panel->AssignTileset(tilesetCategory);
 			tmpChoicebook->AddPage(panel, wxstr(iter->second->name));
 		}
@@ -194,8 +194,7 @@ void BrushPalettePanel::OnSwitchingPage(wxChoicebookEvent &event) {
 	if (!choicebook) {
 		return;
 	}
-	const auto &oldPanel = dynamic_cast<BrushPanel*>(choicebook->GetCurrentPage());
-	if (oldPanel) {
+	if (const auto &oldPanel = dynamic_cast<BrushPanel*>(choicebook->GetCurrentPage()); oldPanel) {
 		oldPanel->OnSwitchOut();
 		for (const auto &palettePanel : tool_bars) {
 			const auto &brush = palettePanel->GetSelectedBrush();
@@ -295,7 +294,7 @@ void BrushPanel::SetListType(BrushListType newListType) {
 }
 
 void BrushPanel::SetListType(const wxString &newListType) {
-	const auto &it = listTypeMap.find((newListType));
+	const auto &it = listTypeMap.find(newListType);
 	if (it != listTypeMap.end()) {
 		SetListType(it->second);
 	}
@@ -382,8 +381,8 @@ void BrushPanel::OnClickListBoxRow(wxCommandEvent &event) {
 	ASSERT(brushbox);
 	const auto index = event.GetSelection();
 
-	const auto &paletteWindow = g_gui.GetParentWindowByType<PaletteWindow*>(this);
-	if (paletteWindow != nullptr) {
+	
+	if (const auto &paletteWindow = g_gui.GetParentWindowByType<PaletteWindow*>(this); paletteWindow != nullptr) {
 		g_gui.ActivatePalette(paletteWindow);
 	}
 
@@ -450,7 +449,7 @@ bool BrushIconBox::SelectBrush(const Brush* whatBrush) {
 		return false;
 	}
 
-	const auto &it = std::find_if(brushButtons.begin(), brushButtons.end(), [&](const auto &brushButton) {
+	const auto &it = std::ranges::find_if(brushButtons.begin(), brushButtons.end(), [&](const auto &brushButton) {
 		return brushButton->brush == whatBrush;
 	});
 
@@ -508,8 +507,7 @@ void BrushIconBox::OnClickBrushButton(wxCommandEvent &event) {
 	const auto &eventObject = event.GetEventObject();
 	const auto &brushButton = dynamic_cast<BrushButton*>(eventObject);
 	if (brushButton) {
-		const auto &paletteWindow = g_gui.GetParentWindowByType<PaletteWindow*>(this);
-		if (paletteWindow) {
+		if (const auto &paletteWindow = g_gui.GetParentWindowByType<PaletteWindow*>(this); paletteWindow) {
 			g_gui.ActivatePalette(paletteWindow);
 		}
 		g_gui.SelectBrush(brushButton->brush, tileset->getType());
@@ -539,8 +537,7 @@ Brush* BrushListBox::GetSelectedBrush() const {
 		return nullptr;
 	}
 
-	const auto index = GetSelection();
-	if (index != wxNOT_FOUND) {
+	if (const auto index = GetSelection(); index != wxNOT_FOUND) {
 		return tileset->brushlist[index];
 	} else if (tileset->size() > 0) {
 		return tileset->brushlist[0];
@@ -560,8 +557,7 @@ bool BrushListBox::SelectBrush(const Brush* whatBrush) {
 
 void BrushListBox::OnDrawItem(wxDC &dc, const wxRect &rect, size_t index) const {
 	ASSERT(index < tileset->size());
-	const auto &sprite = g_gui.gfx.getSprite(tileset->brushlist[index]->getLookID());
-	if (sprite) {
+	if (const auto &sprite = g_gui.gfx.getSprite(tileset->brushlist[index]->getLookID()); sprite) {
 		sprite->DrawTo(&dc, SPRITE_SIZE_32x32, rect.GetX(), rect.GetY(), rect.GetWidth(), rect.GetHeight());
 	}
 	if (IsSelected(index)) {

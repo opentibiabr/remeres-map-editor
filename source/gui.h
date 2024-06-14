@@ -131,8 +131,11 @@ private:
 
 public:
 	template <typename T>
-	const T GetParentWindowByType(wxWindow* window) {
-		while ((window = window->GetParent()) && dynamic_cast<T>(window) == nullptr) { }
+	T GetParentWindowByType(wxWindow* window) {
+		while ((window = window->GetParent()) && dynamic_cast<T>(window) == nullptr) {
+			// JUST ITERATE UNTIL THERE IS NO PARENT LEFT OR
+			// FOUND A PARENT THAT CAN BE CASTED TO THE GIVEN TYPE
+		}
 
 		return window ? static_cast<T>(window) : nullptr;
 	}
