@@ -163,7 +163,7 @@ protected:
 	wxSizer* sizer;
 	BrushBoxInterface* brushbox;
 	bool loaded;
-	BrushListType listType;
+	BrushListType listType = BRUSHLIST_LISTBOX;
 
 	DECLARE_EVENT_TABLE();
 };
@@ -184,8 +184,8 @@ public:
 	PaletteType GetType() const;
 
 	// Sets the display type (list or icons)
-	void SetListType(BrushListType newTypeList);
-	void SetListType(const wxString &newTypeList);
+	void SetListType(BrushListType newTypeList) const;
+	void SetListType(const wxString &newTypeList) const;
 
 	// Select the first brush
 	void SelectFirstBrush();

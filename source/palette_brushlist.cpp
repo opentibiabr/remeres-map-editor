@@ -100,7 +100,7 @@ PaletteType BrushPalettePanel::GetType() const {
 	return paletteType;
 }
 
-void BrushPalettePanel::SetListType(BrushListType newTypeList) {
+void BrushPalettePanel::SetListType(BrushListType newTypeList) const {
 	if (!choicebook) {
 		return;
 	}
@@ -110,7 +110,7 @@ void BrushPalettePanel::SetListType(BrushListType newTypeList) {
 	}
 }
 
-void BrushPalettePanel::SetListType(const wxString &newTypeList) {
+void BrushPalettePanel::SetListType(const wxString &newTypeList) const {
 	if (!choicebook) {
 		return;
 	}
@@ -273,8 +273,7 @@ EVT_LISTBOX(wxID_ANY, BrushPanel::OnClickListBoxRow)
 END_EVENT_TABLE()
 
 BrushPanel::BrushPanel(wxWindow* parent) :
-	wxPanel(parent, wxID_ANY),
-	listType(BRUSHLIST_LISTBOX) {
+	wxPanel(parent, wxID_ANY) {
 	sizer = newd wxBoxSizer(wxVERTICAL);
 	SetSizerAndFit(sizer);
 }
