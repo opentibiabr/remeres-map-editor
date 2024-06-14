@@ -381,7 +381,6 @@ void BrushPanel::OnClickListBoxRow(wxCommandEvent &event) {
 	ASSERT(brushbox);
 	const auto index = event.GetSelection();
 
-	
 	if (const auto &paletteWindow = g_gui.GetParentWindowByType<PaletteWindow*>(this); paletteWindow != nullptr) {
 		g_gui.ActivatePalette(paletteWindow);
 	}
