@@ -42,33 +42,34 @@ BrushPalettePanel::BrushPalettePanel(wxWindow* parent, const TilesetContainer &t
 
 	// Create the tileset panel
 	const auto tsSizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Tileset");
-	const auto tmpChoicebook = newd wxChoicebook(this, wxID_ANY, wxDefaultPosition, wxSize(180, 250));
-	tsSizer->Add(tmpChoicebook, 1, wxEXPAND);
+	choicebook = newd wxChoicebook(this, wxID_ANY, wxDefaultPosition, wxSize(180, 250));
+	tsSizer->Add(choicebook, 1, wxEXPAND);
 	topsizer->Add(tsSizer, 1, wxEXPAND);
 
 	if (g_settings.getBoolean(Config::SHOW_TILESET_EDITOR)) {
-		const auto &tmpsizer = newd wxBoxSizer(wxHORIZONTAL);
-		const auto &buttonAddTileset = newd wxButton(this, wxID_NEW, "Add new Tileset");
-		tmpsizer->Add(buttonAddTileset, wxSizerFlags(0).Center());
-
-		const auto &buttonAddItemToTileset = newd wxButton(this, wxID_ADD, "Add new Item");
-		tmpsizer->Add(buttonAddItemToTileset, wxSizerFlags(0).Center());
-
-		topsizer->Add(tmpsizer, 0, wxCENTER, 10);
+		AddTilesetEditor(topsizer);
 	}
 
 	for (auto iter = tilesets.begin(); iter != tilesets.end(); ++iter) {
 		const auto &tilesetCategory = iter->second->getCategory(category);
-		if (tilesetCategory && tilesetCategory->size() > 0) {
-			const auto &panel = newd BrushPanel(tmpChoicebook);
-			panel->AssignTileset(tilesetCategory);
-			tmpChoicebook->AddPage(panel, wxstr(iter->second->name));
+		if (tilesetCategory && tilesetCategory->brushlist.size() > 0) {
+			const auto panel = newd BrushPanel(choicebook, tilesetCategory);
+			choicebook->AddPage(panel, wxstr(iter->second->name));
 		}
 	}
 
 	SetSizerAndFit(topsizer);
+}
 
-	choicebook = tmpChoicebook;
+void BrushPalettePanel::AddTilesetEditor(wxSizer* sizer) {
+	const auto tmpsizer = newd wxBoxSizer(wxHORIZONTAL);
+	const auto buttonAddTileset = newd wxButton(this, wxID_NEW, "Add new Tileset");
+	tmpsizer->Add(buttonAddTileset, wxSizerFlags(0).Center());
+
+	const auto &buttonAddItemToTileset = newd wxButton(this, wxID_ADD, "Add new Item");
+	tmpsizer->Add(buttonAddItemToTileset, wxSizerFlags(0).Center());
+
+	sizer->Add(tmpsizer, 0, wxCENTER, 10);
 }
 
 void BrushPalettePanel::InvalidateContents() {
@@ -272,8 +273,8 @@ BEGIN_EVENT_TABLE(BrushPanel, wxPanel)
 EVT_LISTBOX(wxID_ANY, BrushPanel::OnClickListBoxRow)
 END_EVENT_TABLE()
 
-BrushPanel::BrushPanel(wxWindow* parent) :
-	wxPanel(parent, wxID_ANY) {
+BrushPanel::BrushPanel(wxWindow* parent, const TilesetCategory* tileset) :
+	wxPanel(parent, wxID_ANY), tileset(tileset) {
 	sizer = newd wxBoxSizer(wxVERTICAL);
 	SetSizerAndFit(sizer);
 }
@@ -404,26 +405,27 @@ BrushIconBox::BrushIconBox(wxWindow* parent, const TilesetCategory* tileset, Ren
 
 	// Create buttons
 	stacksizer = newd wxBoxSizer(wxVERTICAL);
+	SetSizer(stacksizer);
+
+	SetScrollbars(20, 20, 8, tileset->brushlist.size() / width, 0, 0, false);
+
 	auto rowsizer = newd wxBoxSizer(wxHORIZONTAL);
 
-	std::ranges::for_each(tileset->brushlist, [&](const auto &brush) {
+	for (const auto &brush : tileset->brushlist) {
 		const auto brushButton = newd BrushButton(this, brush, rsz);
 		rowsizer->Add(brushButton);
-		brushButtons.push_back(brushButton);
+		brushButtons.emplace_back(brushButton);
 
 		if (brushButtons.size() % width == 0) { // new row
 			stacksizer->Add(rowsizer);
 			rowsizers.emplace_back(rowsizer);
 			rowsizer = newd wxBoxSizer(wxHORIZONTAL);
 		}
-	});
+	}
 
 	if (rowsizers.size() <= 0 || rowsizer != rowsizers.back()) {
 		stacksizer->Add(rowsizer);
 	}
-
-	SetScrollbars(20, 20, 8, brushButtons.size() / width, 0, 0);
-	SetSizer(stacksizer);
 }
 
 void BrushIconBox::SelectFirstBrush() {

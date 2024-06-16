@@ -128,7 +128,7 @@ private:
 
 class BrushPanel : public wxPanel {
 public:
-	BrushPanel(wxWindow* parent);
+	BrushPanel(wxWindow* parent, const TilesetCategory* tileset);
 	~BrushPanel() = default;
 
 	// Interface
@@ -172,6 +172,8 @@ class BrushPalettePanel : public PalettePanel {
 public:
 	BrushPalettePanel(wxWindow* parent, const TilesetContainer &tilesets, TilesetCategoryType category, wxWindowID id = wxID_ANY);
 	~BrushPalettePanel() = default;
+
+	void AddTilesetEditor(wxSizer* sizer);
 
 	// Interface
 	// Flushes this panel and consequent views will feature reloaded data
