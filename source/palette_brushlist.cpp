@@ -50,11 +50,11 @@ BrushPalettePanel::BrushPalettePanel(wxWindow* parent, const TilesetContainer &t
 		AddTilesetEditor(topsizer);
 	}
 
-	for (auto iter = tilesets.begin(); iter != tilesets.end(); ++iter) {
-		const auto &tilesetCategory = iter->second->getCategory(category);
+	for (auto it = tilesets.begin(); it != tilesets.end(); ++it) {
+		const auto &tilesetCategory = it->second->getCategory(category);
 		if (tilesetCategory && tilesetCategory->brushlist.size() > 0) {
 			const auto panel = newd BrushPanel(choicebook, tilesetCategory);
-			choicebook->AddPage(panel, wxstr(iter->second->name));
+			choicebook->AddPage(panel, wxstr(it->second->name));
 		}
 	}
 
