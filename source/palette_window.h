@@ -30,7 +30,7 @@ class ZonesPalettePanel;
 class PaletteWindow : public wxPanel {
 public:
 	PaletteWindow(wxWindow* parent, const TilesetContainer &tilesets);
-	~PaletteWindow();
+	~PaletteWindow() = default;
 
 	// Interface
 	// Reloads layout g_settings from g_settings (and using map)
@@ -51,7 +51,7 @@ public:
 	// Custom Event handlers (something has changed?)
 	// Finds the brush pointed to by whatbrush and selects it as the current brush (also changes page)
 	// Returns if the brush was found in this palette
-	virtual bool OnSelectBrush(const Brush* whatbrush, PaletteType primary = TILESET_UNKNOWN);
+	virtual bool OnSelectBrush(const Brush* whatBrush, PaletteType primary = TILESET_UNKNOWN);
 	// Updates the palette window to use the current brush size
 	virtual void OnUpdateBrushSize(BrushShape shape, int size);
 	// Updates the content of the palette (eg. houses, monsters)
@@ -65,6 +65,9 @@ public:
 	void OnClose(wxCloseEvent &);
 
 protected:
+	static void AddBrushToolPanel(PalettePanel* panel, const Config::Key config);
+	static void AddBrushSizePanel(PalettePanel* panel, const Config::Key config);
+
 	static PalettePanel* CreateTerrainPalette(wxWindow* parent, const TilesetContainer &tilesets);
 	static PalettePanel* CreateDoodadPalette(wxWindow* parent, const TilesetContainer &tilesets);
 	static PalettePanel* CreateItemPalette(wxWindow* parent, const TilesetContainer &tilesets);
@@ -75,17 +78,17 @@ protected:
 	static PalettePanel* CreateZonesPalette(wxWindow* parent, const TilesetContainer &tilesets);
 	static PalettePanel* CreateRAWPalette(wxWindow* parent, const TilesetContainer &tilesets);
 
-	wxChoicebook* choicebook;
+	wxChoicebook* choicebook = newd wxChoicebook(this, PALETTE_CHOICEBOOK, wxDefaultPosition, wxSize(230, 250));
 
-	BrushPalettePanel* terrain_palette;
-	BrushPalettePanel* doodad_palette;
-	BrushPalettePanel* item_palette;
-	MonsterPalettePanel* monster_palette;
-	NpcPalettePanel* npc_palette;
-	HousePalettePanel* house_palette;
-	WaypointPalettePanel* waypoint_palette;
-	ZonesPalettePanel* zones_palette;
-	BrushPalettePanel* raw_palette;
+	BrushPalettePanel* terrainPalette = nullptr;
+	BrushPalettePanel* doodadPalette = nullptr;
+	BrushPalettePanel* itemPalette = nullptr;
+	MonsterPalettePanel* monsterPalette = nullptr;
+	NpcPalettePanel* npcPalette = nullptr;
+	HousePalettePanel* housePalette = nullptr;
+	WaypointPalettePanel* waypointPalette = nullptr;
+	ZonesPalettePanel* zonesPalette = nullptr;
+	BrushPalettePanel* rawPalette = nullptr;
 
 	DECLARE_EVENT_TABLE()
 };
