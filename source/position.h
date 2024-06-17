@@ -28,12 +28,32 @@ public:
 	// We use int since it's the native machine type and can be several times faster than
 	// the other integer types in most cases, also, the position may be negative in some
 	// cases
-	int x, y, z;
+	int x = 0;
+	int y = 0;
+	int z = 0;
 
-	Position() :
-		x(0), y(0), z(0) { }
-	Position(int x, int y, int z) :
+	Position() = default;
+	Position(int x, int y, int z) noexcept :
 		x(x), y(y), z(z) { }
+	Position(const std::string &stringPosition) {
+		auto position = 0;
+		auto lastPosition = 0;
+		position = stringPosition.find(delimiter, lastPosition);
+		if (position != std::string::npos) {
+			x = stoi(stringPosition.substr(lastPosition, position));
+			lastPosition = position;
+		}
+		position = stringPosition.find(delimiter, lastPosition);
+		if (position != std::string::npos) {
+			y = stoi(stringPosition.substr(lastPosition + 1, position));
+			lastPosition = position;
+		}
+		position = stringPosition.find(delimiter, lastPosition);
+		if (position != std::string::npos) {
+			z = stoi(stringPosition.substr(lastPosition + 1, position));
+			lastPosition = position;
+		}
+	}
 
 	bool operator<(const Position &other) const noexcept {
 		if (z < other.z) {
@@ -92,6 +112,13 @@ public:
 			&& (x >= 0 && x <= rme::MapMaxWidth)
 			&& (y >= 0 && y <= rme::MapMaxHeight);
 	}
+
+	const std::string toString() const {
+		return fmt::format("{}:{}:{}", x, y, z);
+	}
+
+private:
+	std::string delimiter = ":";
 };
 
 inline std::ostream &operator<<(std::ostream &os, const Position &pos) {

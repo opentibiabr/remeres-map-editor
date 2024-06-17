@@ -124,8 +124,8 @@ Brush* MonsterPalettePanel::GetSelectedBrush() const {
 				monsters.push_back(brush->asMonster());
 			}
 		}
-		g_gui.spawn_brush->setMonsters(monsters);
-		return g_gui.spawn_brush;
+		g_gui.spawnBrush->setMonsters(monsters);
+		return g_gui.spawnBrush;
 	}
 	return nullptr;
 }

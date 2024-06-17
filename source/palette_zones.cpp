@@ -75,10 +75,10 @@ void ZonesPalettePanel::SelectFirstBrush() {
 
 Brush* ZonesPalettePanel::GetSelectedBrush() const {
 	long item = zone_list->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-	g_gui.zone_brush->setZone(
+	g_gui.zoneBrush->setZone(
 		item == -1 || !map->zones.hasZone(nstr(zone_list->GetItemText(item))) ? 0 : map->zones.getZoneID(nstr(zone_list->GetItemText(item)))
 	);
-	return g_gui.zone_brush;
+	return g_gui.zoneBrush;
 }
 
 bool ZonesPalettePanel::SelectBrush(const Brush* whatbrush) {
@@ -133,7 +133,7 @@ void ZonesPalettePanel::OnClickZone(wxListEvent &event) {
 	std::string name = nstr(event.GetText());
 	if (map->zones.hasZone(name)) {
 		auto zoneId = map->zones.getZoneID(name);
-		g_gui.zone_brush->setZone(zoneId);
+		g_gui.zoneBrush->setZone(zoneId);
 	}
 }
 
@@ -145,7 +145,7 @@ void ZonesPalettePanel::OnRightClickZone(wxListEvent &event) {
 	std::string name = nstr(event.GetText());
 	if (map->zones.hasZone(name)) {
 		auto zoneId = map->zones.getZoneID(name);
-		g_gui.zone_brush->setZone(zoneId);
+		g_gui.zoneBrush->setZone(zoneId);
 		g_gui.SetScreenCenterPosition(map->getZonePosition(zoneId));
 	}
 }
@@ -182,7 +182,7 @@ void ZonesPalettePanel::OnEditZoneLabel(wxListEvent &event) {
 				map->zones.removeZone(oldName);
 				map->zones.addZone(name);
 				auto zoneId = map->zones.getZoneID(name);
-				g_gui.zone_brush->setZone(zoneId);
+				g_gui.zoneBrush->setZone(zoneId);
 
 				// Refresh other palettes
 				refresh_timer.Start(300, true);

@@ -81,25 +81,25 @@ extern const wxEventType EVT_UPDATE_ACTIONS;
 
 class Hotkey {
 public:
-	Hotkey();
-	Hotkey(Position pos);
-	Hotkey(Brush* brush);
-	Hotkey(std::string _brushname);
-	~Hotkey();
+	Hotkey() = default;
+	Hotkey(const Position &position);
+	Hotkey(const Brush* brush);
+	Hotkey(const std::string &brushName);
+	~Hotkey() = default;
 
-	bool IsPosition() const {
+	bool IsPosition() const noexcept {
 		return type == POSITION;
 	}
-	bool IsBrush() const {
+	bool IsBrush() const noexcept {
 		return type == BRUSH;
 	}
-	Position GetPosition() const {
+	const Position &GetPosition() const {
 		ASSERT(IsPosition());
-		return pos;
+		return position;
 	}
 	std::string GetBrushname() const {
 		ASSERT(IsBrush());
-		return brushname;
+		return brushName;
 	}
 
 private:
@@ -107,10 +107,10 @@ private:
 		NONE,
 		POSITION,
 		BRUSH,
-	} type;
+	} type = NONE;
 
-	Position pos;
-	std::string brushname;
+	Position position;
+	std::string brushName = "";
 
 	friend std::ostream &operator<<(std::ostream &os, const Hotkey &hotkey);
 	friend std::istream &operator>>(std::istream &os, Hotkey &hotkey);
@@ -121,7 +121,7 @@ std::istream &operator>>(std::istream &os, Hotkey &hotkey);
 
 class GUI {
 public: // dtor and ctor
-	GUI();
+	GUI() = default;
 	~GUI();
 
 private:
@@ -145,7 +145,7 @@ public:
 	 * Creates a loading bar with the specified message, title is always "Loading"
 	 * The default scale is 0 - 100
 	 */
-	void CreateLoadBar(wxString message, bool canCancel = false);
+	void CreateLoadBar(const wxString &message, bool canCancel = false);
 
 	/**
 	 * Sets how much of the load has completed, the scale can be set with
@@ -173,13 +173,21 @@ public:
 
 	void UpdateMenubar();
 
-	bool IsRenderingEnabled() const {
-		return disabled_counter == 0;
+	bool IsRenderingEnabled() const noexcept {
+		return disabledCounter == 0;
 	}
 
-	void EnableHotkeys();
-	void DisableHotkeys();
-	bool AreHotkeysEnabled() const;
+	void EnableHotkeys() noexcept {
+		hotkeysEnabled = true;
+	}
+
+	void DisableHotkeys() noexcept {
+		hotkeysEnabled = false;
+	}
+
+	bool AreHotkeysEnabled() const noexcept {
+		return hotkeysEnabled;
+	}
 
 	// This sends the event to the main window (redirecting from other controls)
 	void AddPendingCanvasEvent(wxEvent &event);
@@ -188,11 +196,11 @@ public:
 	void OnWelcomeDialogAction(wxCommandEvent &event);
 
 protected:
-	void DisableRendering() {
-		++disabled_counter;
+	void DisableRendering() noexcept {
+		++disabledCounter;
 	}
-	void EnableRendering() {
-		--disabled_counter;
+	void EnableRendering() noexcept {
+		--disabledCounter;
 	}
 
 public:
@@ -202,14 +210,14 @@ public:
 	void UpdateActions();
 	void RefreshActions();
 	void ShowToolbar(ToolBarID id, bool show);
-	void SetStatusText(wxString text);
+	void SetStatusText(const wxString &text);
 
-	long PopupDialog(wxWindow* parent, wxString title, wxString text, long style, wxString configsavename = wxEmptyString, uint32_t configsavevalue = 0);
-	long PopupDialog(wxString title, wxString text, long style, wxString configsavename = wxEmptyString, uint32_t configsavevalue = 0);
+	long PopupDialog(wxWindow* parent, const wxString &title, const wxString &text, long style, const wxString &configSaveName = wxEmptyString, uint32_t configSaveValue = 0);
+	long PopupDialog(const wxString &title, const wxString &text, long style, const wxString &configSaveName = wxEmptyString, uint32_t configSaveValue = 0);
 
-	void ListDialog(wxWindow* parent, wxString title, const wxArrayString &vec);
-	void ListDialog(const wxString &title, const wxArrayString &vec) {
-		ListDialog(nullptr, title, vec);
+	void ListDialog(wxWindow* parent, const wxString &title, const wxArrayString &strings);
+	void ListDialog(const wxString &title, const wxArrayString &strings) {
+		ListDialog(nullptr, title, strings);
 	}
 
 	void ShowTextBox(wxWindow* parent, wxString title, wxString contents);
@@ -236,7 +244,7 @@ public:
 	bool IsMinimapVisible() const;
 
 	int GetCurrentFloor();
-	void ChangeFloor(int newfloor);
+	void ChangeFloor(int newFloor);
 
 	double GetCurrentZoom();
 	void SetCurrentZoom(double zoom);
@@ -244,10 +252,10 @@ public:
 	void SwitchMode();
 	void SetSelectionMode();
 	void SetDrawingMode();
-	bool IsSelectionMode() const {
+	bool IsSelectionMode() const noexcept {
 		return mode == SELECTION_MODE;
 	}
-	bool IsDrawingMode() const {
+	bool IsDrawingMode() const noexcept {
 		return mode == DRAWING_MODE;
 	}
 
@@ -262,29 +270,29 @@ public:
 	void SelectBrush();
 	// Updates the palette AND selects the brush, second parameter is first palette to look in
 	// Returns true if the brush was found and selected
-	bool SelectBrush(const Brush* brush, PaletteType pt = TILESET_UNKNOWN);
+	bool SelectBrush(const Brush* brush, PaletteType paletteType = TILESET_UNKNOWN);
 	// Selects the brush selected before the current brush
 	void SelectPreviousBrush();
 	// Only selects the brush, doesn't update the palette
 	void SelectBrushInternal(Brush* brush);
 	// Get different brush parameters
-	Brush* GetCurrentBrush() const;
-	BrushShape GetBrushShape() const;
-	int GetBrushSize() const;
-	int GetBrushVariation() const;
-	int GetSpawnMonsterTime() const;
-	int GetSpawnNpcTime() const;
+	Brush* GetCurrentBrush() const noexcept;
+	BrushShape GetBrushShape() const noexcept;
+	uint8_t GetBrushSize() const noexcept;
+	int GetBrushVariation() const noexcept;
+	int GetSpawnMonsterTime() const noexcept;
+	int GetSpawnNpcTime() const noexcept;
 
 	// Additional brush parameters
-	void SetSpawnMonsterTime(int time) {
-		monster_spawntime = time;
+	void SetSpawnMonsterTime(int time) noexcept {
+		monsterSpawntime = time;
 	}
-	void SetSpawnNpcTime(int time) {
-		npc_spawntime = time;
+	void SetSpawnNpcTime(int time) noexcept {
+		npcSpawntime = time;
 	}
-	void SetBrushSize(int nz);
-	void SetBrushSizeInternal(int nz);
-	void SetBrushShape(BrushShape bs);
+	void SetBrushSize(uint8_t newBrushSize);
+	void SetBrushSizeInternal(uint8_t newBrushSize);
+	void SetBrushShape(BrushShape newBrushShape);
 	void SetBrushVariation(int nz);
 	void SetBrushThickness(int low, int ceil);
 	void SetBrushThickness(bool on, int low = -1, int ceil = -1);
@@ -293,6 +301,7 @@ public:
 	void IncreaseBrushSize(bool wrap = false);
 
 	// Fetch different useful directories
+	static FileName GetExecFileName();
 	static wxString GetExecDirectory();
 	static wxString GetDataDirectory();
 	static wxString GetLocalDataDirectory();
@@ -300,7 +309,7 @@ public:
 	static wxString GetExtensionsDirectory();
 
 	void discoverDataDirectory(const wxString &existentFile);
-	wxString getFoundDataDirectory() {
+	const wxString &getFoundDataDirectory() const {
 		return m_dataDirectory;
 	}
 
@@ -311,8 +320,8 @@ public:
 	const ClientVersion &GetCurrentVersion() const;
 	ClientVersionID GetCurrentVersionID() const;
 	// If any version is loaded at all
-	bool IsVersionLoaded() const {
-		return loaded_version != CLIENT_VERSION_NONE;
+	bool IsVersionLoaded() const noexcept {
+		return loadedVersion != CLIENT_VERSION_NONE;
 	}
 
 	// Centers current view on position
@@ -329,7 +338,7 @@ public:
 	void PreparePaste();
 	void StartPasting();
 	void EndPasting();
-	bool IsPasting() const {
+	bool IsPasting() const noexcept {
 		return pasting;
 	}
 
@@ -339,8 +348,8 @@ public:
 	bool DoRedo();
 
 	// Editor interface
-	wxAuiManager* GetAuiManager() const {
-		return aui_manager;
+	wxAuiManager* GetAuiManager() const noexcept {
+		return auiManager;
 	}
 	EditorTab* GetCurrentTab();
 	EditorTab* GetTab(int idx);
@@ -372,7 +381,7 @@ public:
 protected:
 	bool LoadDataFiles(wxString &error, wxArrayString &warnings);
 	ClientVersion* getLoadedVersion() const {
-		return loaded_version == CLIENT_VERSION_NONE ? nullptr : ClientVersion::get(loaded_version);
+		return loadedVersion == CLIENT_VERSION_NONE ? nullptr : ClientVersion::get(loadedVersion);
 	}
 
 	//=========================================================================
@@ -381,18 +390,18 @@ public:
 	// Spawn a newd palette
 	PaletteWindow* NewPalette();
 	// Bring this palette to the front (as the 'active' palette)
-	void ActivatePalette(PaletteWindow* p);
+	void ActivatePalette(PaletteWindow* paletteWindow);
 	// Rebuild forces palette to reload the entire contents
 	void RebuildPalettes();
 	// Refresh only updates the content (such as house/waypoint list)
-	void RefreshPalettes(Map* m = nullptr, bool usedfault = true);
+	void RefreshPalettes(Map* map = nullptr, bool usedfault = true);
 	// Won't refresh the palette in the parameter
-	void RefreshOtherPalettes(PaletteWindow* p);
+	void RefreshOtherPalettes(PaletteWindow* paletteWindow);
 	// If no palette is shown, this displays the primary palette
 	// else does nothing.
 	void ShowPalette();
 	// Select a particular page on the primary palette
-	void SelectPalettePage(PaletteType pt);
+	void SelectPalettePage(PaletteType paletteType);
 
 	// Returns primary palette
 	PaletteWindow* GetPalette();
@@ -409,43 +418,43 @@ protected:
 	//=========================================================================
 public:
 	wxString m_dataDirectory;
-	wxAuiManager* aui_manager;
+	wxAuiManager* auiManager = nullptr;
 	MapTabbook* tabbook;
-	MainFrame* root; // The main frame
+	MainFrame* root = nullptr; // The main frame
 	WelcomeDialog* welcomeDialog;
 	CopyBuffer copybuffer;
 
-	MinimapWindow* minimap;
-	DCButton* gem; // The small gem in the lower-right corner
-	SearchResultWindow* search_result_window;
-	ActionsHistoryWindow* actions_history_window;
+	MinimapWindow* minimap = nullptr;
+	DCButton* gem = nullptr; // The small gem in the lower-right corner
+	SearchResultWindow* searchResultWindow = nullptr;
+	ActionsHistoryWindow* actionsHistoryWindow = nullptr;
 	GraphicManager gfx;
 
-	BaseMap* secondary_map; // A buffer map
-	BaseMap* doodad_buffer_map; // The map in which doodads are temporarily stored
+	BaseMap* secondaryMap = nullptr; // A buffer map
+	BaseMap* doodadBufferMap = newd BaseMap(); // The map in which doodads are temporarily stored
 
 	//=========================================================================
 	// Brush references
 	//=========================================================================
 
-	HouseBrush* house_brush;
-	HouseExitBrush* house_exit_brush;
-	WaypointBrush* waypoint_brush;
-	OptionalBorderBrush* optional_brush;
-	EraserBrush* eraser;
-	SpawnMonsterBrush* spawn_brush;
-	SpawnNpcBrush* spawn_npc_brush;
-	DoorBrush* normal_door_brush;
-	DoorBrush* locked_door_brush;
-	DoorBrush* magic_door_brush;
-	DoorBrush* quest_door_brush;
-	DoorBrush* hatch_door_brush;
-	DoorBrush* window_door_brush;
-	FlagBrush* pz_brush;
-	FlagBrush* rook_brush;
-	FlagBrush* nolog_brush;
-	FlagBrush* pvp_brush;
-	ZoneBrush* zone_brush;
+	HouseBrush* houseBrush = nullptr;
+	HouseExitBrush* houseExitBrush = nullptr;
+	WaypointBrush* waypointBrush = nullptr;
+	OptionalBorderBrush* optionalBrush = nullptr;
+	EraserBrush* eraser = nullptr;
+	SpawnMonsterBrush* spawnBrush = nullptr;
+	SpawnNpcBrush* spawnNpcBrush = nullptr;
+	DoorBrush* normalDoorBrush = nullptr;
+	DoorBrush* lockedDoorBrush = nullptr;
+	DoorBrush* magicDoorBrush = nullptr;
+	DoorBrush* questDoorBrush = nullptr;
+	DoorBrush* hatchDoorBrush = nullptr;
+	DoorBrush* windowDoorBrush = nullptr;
+	FlagBrush* pzBrush = nullptr;
+	FlagBrush* rookBrush = nullptr;
+	FlagBrush* noLogoutBrush = nullptr;
+	FlagBrush* pvpBrush = nullptr;
+	ZoneBrush* zoneBrush = nullptr;
 
 protected:
 	//=========================================================================
@@ -454,41 +463,41 @@ protected:
 	typedef std::list<PaletteWindow*> PaletteList;
 	PaletteList palettes;
 
-	wxGLContext* OGLContext;
+	wxGLContext* OGLContext = nullptr;
 
-	ClientVersionID loaded_version;
-	EditorMode mode;
-	bool pasting;
+	ClientVersionID loadedVersion = CLIENT_VERSION_NONE;
+	EditorMode mode = SELECTION_MODE;
+	bool pasting = false;
 
 	Hotkey hotkeys[10];
-	bool hotkeys_enabled;
+	bool hotkeysEnabled = true;
 
 	//=========================================================================
 	// Internal brush data
 	//=========================================================================
-	Brush* current_brush;
-	Brush* previous_brush;
-	BrushShape brush_shape;
-	int brush_size;
-	int brush_variation;
-	int monster_spawntime;
-	int npc_spawntime;
+	Brush* currentBrush = nullptr;
+	Brush* previousBrush = nullptr;
+	BrushShape brushShape = BRUSHSHAPE_SQUARE;
+	uint8_t brushSize = 0;
+	int brushVariation = 0;
+	int monsterSpawntime = 0;
+	int npcSpawntime = 0;
 
-	bool use_custom_thickness;
-	float custom_thickness_mod;
+	bool useCustomThickness = false;
+	float customThicknessMod = 0.0;
 
 	//=========================================================================
 	// Progress bar tracking
 	//=========================================================================
 	wxString progressText;
-	wxGenericProgressDialog* progressBar;
+	wxGenericProgressDialog* progressBar = nullptr;
 
 	int32_t progressFrom;
 	int32_t progressTo;
 	int32_t currentProgress;
 
 	wxWindowDisabler* winDisabler;
-	int disabled_counter;
+	int disabledCounter = 0;
 
 	friend class RenderingLock;
 	friend class IOMinimap;
@@ -499,17 +508,16 @@ protected:
 extern GUI g_gui;
 
 class RenderingLock {
-	bool acquired;
+	bool acquired = true;
 
 public:
-	RenderingLock() :
-		acquired(true) {
+	RenderingLock() noexcept {
 		g_gui.DisableRendering();
 	}
-	~RenderingLock() {
+	~RenderingLock() noexcept {
 		release();
 	}
-	void release() {
+	void release() noexcept {
 		g_gui.EnableRendering();
 		acquired = false;
 	}
@@ -522,7 +530,7 @@ public:
  */
 class ScopedLoadingBar {
 public:
-	ScopedLoadingBar(wxString message, bool canCancel = false) {
+	ScopedLoadingBar(const wxString &message, bool canCancel = false) {
 		g_gui.CreateLoadBar(message, canCancel);
 	}
 	~ScopedLoadingBar() {
@@ -540,7 +548,7 @@ public:
 
 #define UnnamedRenderingLock() RenderingLock __unnamed_rendering_lock_##__LINE__
 
-void SetWindowToolTip(wxWindow* a, const wxString &tip);
-void SetWindowToolTip(wxWindow* a, wxWindow* b, const wxString &tip);
+void SetWindowToolTip(wxWindow* window, const wxString &tip);
+void SetWindowToolTip(wxWindow* firstWindow, wxWindow* secondWindow, const wxString &tip);
 
 #endif

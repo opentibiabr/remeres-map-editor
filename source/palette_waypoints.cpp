@@ -74,10 +74,10 @@ void WaypointPalettePanel::SelectFirstBrush() {
 
 Brush* WaypointPalettePanel::GetSelectedBrush() const {
 	long item = waypoint_list->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-	g_gui.waypoint_brush->setWaypoint(
+	g_gui.waypointBrush->setWaypoint(
 		item == -1 ? nullptr : map->waypoints.getWaypoint(nstr(waypoint_list->GetItemText(item)))
 	);
-	return g_gui.waypoint_brush;
+	return g_gui.waypointBrush;
 }
 
 bool WaypointPalettePanel::SelectBrush(const Brush* whatbrush) {
@@ -135,7 +135,7 @@ void WaypointPalettePanel::OnClickWaypoint(wxListEvent &event) {
 	Waypoint* wp = map->waypoints.getWaypoint(wpname);
 	if (wp) {
 		g_gui.SetScreenCenterPosition(wp->pos);
-		g_gui.waypoint_brush->setWaypoint(wp);
+		g_gui.waypointBrush->setWaypoint(wp);
 	}
 }
 
@@ -181,7 +181,7 @@ void WaypointPalettePanel::OnEditWaypointLabel(wxListEvent &event) {
 				}
 
 				map->waypoints.addWaypoint(nwp);
-				g_gui.waypoint_brush->setWaypoint(nwp);
+				g_gui.waypointBrush->setWaypoint(nwp);
 
 				// Refresh other palettes
 				refresh_timer.Start(300, true);

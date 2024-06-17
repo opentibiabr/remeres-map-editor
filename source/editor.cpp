@@ -1456,7 +1456,7 @@ void Editor::drawInternal(Position offset, bool alt, bool dodraw) {
 	if (brush->isDoodad()) {
 		BatchAction* batch = actionQueue->createBatch(ACTION_DRAW);
 		Action* action = actionQueue->createAction(batch);
-		BaseMap* buffer_map = g_gui.doodad_buffer_map;
+		BaseMap* buffer_map = g_gui.doodadBufferMap;
 
 		Position delta_pos = offset - Position(0x8000, 0x8000, 0x8);
 		PositionList tilestoborder;
@@ -1866,8 +1866,8 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 
 		if (alt && dodraw) {
 			// This is exempt from USE_AUTOMAGIC
-			g_gui.doodad_buffer_map->clear();
-			BaseMap* draw_map = g_gui.doodad_buffer_map;
+			g_gui.doodadBufferMap->clear();
+			BaseMap* draw_map = g_gui.doodadBufferMap;
 
 			for (PositionVector::const_iterator it = tilestodraw.begin(); it != tilestodraw.end(); ++it) {
 				TileLocation* location = map.createTileL(*it);

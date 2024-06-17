@@ -252,18 +252,18 @@ void MainToolBar::UpdateButtons() {
 void MainToolBar::UpdateBrushButtons() {
 	Brush* brush = g_gui.GetCurrentBrush();
 	if (brush) {
-		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_OPTIONAL_BORDER_TOOL, brush == g_gui.optional_brush);
+		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_OPTIONAL_BORDER_TOOL, brush == g_gui.optionalBrush);
 		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_ERASER, brush == g_gui.eraser);
-		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_PZ_TOOL, brush == g_gui.pz_brush);
-		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_NOPVP_TOOL, brush == g_gui.rook_brush);
-		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_NOLOGOUT_TOOL, brush == g_gui.nolog_brush);
-		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_PVPZONE_TOOL, brush == g_gui.pvp_brush);
-		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_NORMAL_DOOR, brush == g_gui.normal_door_brush);
-		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_LOCKED_DOOR, brush == g_gui.locked_door_brush);
-		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_MAGIC_DOOR, brush == g_gui.magic_door_brush);
-		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_QUEST_DOOR, brush == g_gui.quest_door_brush);
-		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_HATCH_DOOR, brush == g_gui.hatch_door_brush);
-		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_WINDOW_DOOR, brush == g_gui.window_door_brush);
+		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_PZ_TOOL, brush == g_gui.pzBrush);
+		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_NOPVP_TOOL, brush == g_gui.rookBrush);
+		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_NOLOGOUT_TOOL, brush == g_gui.noLogoutBrush);
+		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_PVPZONE_TOOL, brush == g_gui.pvpBrush);
+		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_NORMAL_DOOR, brush == g_gui.normalDoorBrush);
+		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_LOCKED_DOOR, brush == g_gui.lockedDoorBrush);
+		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_MAGIC_DOOR, brush == g_gui.magicDoorBrush);
+		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_QUEST_DOOR, brush == g_gui.questDoorBrush);
+		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_HATCH_DOOR, brush == g_gui.hatchDoorBrush);
+		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_WINDOW_DOOR, brush == g_gui.windowDoorBrush);
 	} else {
 		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_OPTIONAL_BORDER_TOOL, false);
 		brushes_toolbar->ToggleTool(PALETTE_TERRAIN_ERASER, false);
@@ -488,40 +488,40 @@ void MainToolBar::OnBrushesButtonClick(wxCommandEvent &event) {
 
 	switch (event.GetId()) {
 		case PALETTE_TERRAIN_OPTIONAL_BORDER_TOOL:
-			g_gui.SelectBrush(g_gui.optional_brush);
+			g_gui.SelectBrush(g_gui.optionalBrush);
 			break;
 		case PALETTE_TERRAIN_ERASER:
 			g_gui.SelectBrush(g_gui.eraser);
 			break;
 		case PALETTE_TERRAIN_PZ_TOOL:
-			g_gui.SelectBrush(g_gui.pz_brush);
+			g_gui.SelectBrush(g_gui.pzBrush);
 			break;
 		case PALETTE_TERRAIN_NOPVP_TOOL:
-			g_gui.SelectBrush(g_gui.rook_brush);
+			g_gui.SelectBrush(g_gui.rookBrush);
 			break;
 		case PALETTE_TERRAIN_NOLOGOUT_TOOL:
-			g_gui.SelectBrush(g_gui.nolog_brush);
+			g_gui.SelectBrush(g_gui.noLogoutBrush);
 			break;
 		case PALETTE_TERRAIN_PVPZONE_TOOL:
-			g_gui.SelectBrush(g_gui.pvp_brush);
+			g_gui.SelectBrush(g_gui.pvpBrush);
 			break;
 		case PALETTE_TERRAIN_NORMAL_DOOR:
-			g_gui.SelectBrush(g_gui.normal_door_brush);
+			g_gui.SelectBrush(g_gui.normalDoorBrush);
 			break;
 		case PALETTE_TERRAIN_LOCKED_DOOR:
-			g_gui.SelectBrush(g_gui.locked_door_brush);
+			g_gui.SelectBrush(g_gui.lockedDoorBrush);
 			break;
 		case PALETTE_TERRAIN_MAGIC_DOOR:
-			g_gui.SelectBrush(g_gui.magic_door_brush);
+			g_gui.SelectBrush(g_gui.magicDoorBrush);
 			break;
 		case PALETTE_TERRAIN_QUEST_DOOR:
-			g_gui.SelectBrush(g_gui.quest_door_brush);
+			g_gui.SelectBrush(g_gui.questDoorBrush);
 			break;
 		case PALETTE_TERRAIN_HATCH_DOOR:
-			g_gui.SelectBrush(g_gui.hatch_door_brush);
+			g_gui.SelectBrush(g_gui.hatchDoorBrush);
 			break;
 		case PALETTE_TERRAIN_WINDOW_DOOR:
-			g_gui.SelectBrush(g_gui.window_door_brush);
+			g_gui.SelectBrush(g_gui.windowDoorBrush);
 			break;
 		default:
 			break;
