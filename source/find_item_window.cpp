@@ -108,9 +108,9 @@ FindItemDialog::FindItemDialog(wxWindow* parent, const wxString &title, bool onl
 	// --------------- Tile Types ---------------
 
 	wxString tileTypesChoices[] = { "PZ",
-								 "PVP",
-								 "No PVP",
-								 "No Logout" };
+									"PVP",
+									"No PVP",
+									"No Logout" };
 
 	int tileTypesChoicesCount = sizeof(tileTypesChoices) / sizeof(wxString);
 	tileTypesRadioBox = newd wxRadioBox(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, tileTypesChoicesCount, tileTypesChoices, 1, wxRA_SPECIFY_COLS);
