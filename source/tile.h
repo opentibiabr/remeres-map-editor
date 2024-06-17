@@ -126,8 +126,20 @@ public: // Functions
 		return testFlags(statflags, TILESTATE_BLOCKING);
 	}
 
+	// PVP
+	bool isPVP() const noexcept {
+		return mapflags & TILESTATE_PVPZONE;
+	}
+	// NO PVP
+	bool isNoPVP() const noexcept {
+		return mapflags & TILESTATE_NOPVP;
+	}
 	// PZ
-	bool isPZ() const {
+	bool isNoLogout() const noexcept {
+		return mapflags & TILESTATE_NOLOGOUT;
+	}
+	// PZ
+	bool isPZ() const noexcept {
 		return testFlags(mapflags, TILESTATE_PROTECTIONZONE);
 	}
 	void setPZ(bool pz) {
