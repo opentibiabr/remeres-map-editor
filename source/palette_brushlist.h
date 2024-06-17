@@ -37,11 +37,11 @@ static const std::unordered_map<wxString, BrushListType> listTypeMap = {
 
 class BrushBoxInterface {
 public:
-	explicit BrushBoxInterface(const TilesetCategory* tileset) :
+	explicit BrushBoxInterface(const TilesetCategory* tileset) noexcept :
 		tileset(tileset) {
 		ASSERT(tileset);
 	}
-	virtual ~BrushBoxInterface() { }
+	virtual ~BrushBoxInterface() = default;
 
 	virtual wxWindow* GetSelfWindow() = 0;
 
@@ -160,9 +160,9 @@ public:
 
 protected:
 	const TilesetCategory* tileset;
-	wxSizer* sizer;
+	wxSizer* sizer = newd wxBoxSizer(wxVERTICAL);
 	BrushBoxInterface* brushbox;
-	bool loaded;
+	bool loaded = false;
 	BrushListType listType = BRUSHLIST_LISTBOX;
 
 	DECLARE_EVENT_TABLE();
@@ -186,8 +186,8 @@ public:
 	PaletteType GetType() const;
 
 	// Sets the display type (list or icons)
-	void SetListType(BrushListType newTypeList) const;
-	void SetListType(const wxString &newTypeList) const;
+	void SetListType(BrushListType newListType) const;
+	void SetListType(const wxString &newListType) const;
 
 	// Select the first brush
 	void SelectFirstBrush();
