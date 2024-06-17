@@ -107,7 +107,8 @@ private:
 		NONE,
 		POSITION,
 		BRUSH,
-	} type = NONE;
+	} type
+		= NONE;
 
 	Position position;
 	std::string brushName = "";
