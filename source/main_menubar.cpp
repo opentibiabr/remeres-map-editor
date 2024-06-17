@@ -902,9 +902,10 @@ void MainMenuBar::OnRedo(wxCommandEvent &WXUNUSED(event)) {
 
 namespace OnSearchForItem {
 	struct Finder {
-		Finder(uint16_t itemId, uint32_t maxCount) :
-			itemId(itemId), maxCount(maxCount) { }
+		Finder(uint16_t itemId, uint32_t maxCount, bool findTile = false) :
+			itemId(itemId), maxCount(maxCount), findTile(findTile) { }
 
+		bool findTile = false;
 		uint16_t itemId;
 		uint32_t maxCount;
 		std::vector<std::pair<Tile*, Item*>> result;
@@ -925,6 +926,41 @@ namespace OnSearchForItem {
 			if (item->getID() == itemId) {
 				result.push_back(std::make_pair(tile, item));
 			}
+
+			if (!findTile) {
+				return;
+			}
+
+			if (tile->isHouseTile()) {
+				return;
+			}
+
+			const auto &tileSearchType = static_cast<FindItemDialog::SearchTileType>(g_settings.getInteger(Config::FIND_TILE_TYPE));
+			if (tileSearchType == FindItemDialog::SearchTileType::NoLogout && !tile->isNoLogout()) {
+				return;
+			}
+
+			if (tileSearchType == FindItemDialog::SearchTileType::PlayerVsPlayer && !tile->isPVP()) {
+				return;
+			}
+
+			if (tileSearchType == FindItemDialog::SearchTileType::NoPlayerVsPlayer && !tile->isNoPVP()) {
+				return;
+			}
+
+			if (tileSearchType == FindItemDialog::SearchTileType::ProtectionZone && !tile->isPZ()) {
+				return;
+			}
+
+			const auto it = std::ranges::find_if(result, [&tile](const auto &pair) {
+				return pair.first == tile;
+			});
+
+			if (it != result.end()) {
+				return;
+			}
+
+			result.push_back(std::make_pair(tile, nullptr));
 		}
 	};
 }
@@ -934,10 +970,16 @@ void MainMenuBar::OnSearchForItem(wxCommandEvent &WXUNUSED(event)) {
 		return;
 	}
 
+	const auto &searchMode = static_cast<FindItemDialog::SearchMode>(g_settings.getInteger(Config::FIND_ITEM_MODE));
+
 	FindItemDialog dialog(frame, "Search for Item");
-	dialog.setSearchMode((FindItemDialog::SearchMode)g_settings.getInteger(Config::FIND_ITEM_MODE));
+	dialog.setSearchMode(searchMode);
 	if (dialog.ShowModal() == wxID_OK) {
-		OnSearchForItem::Finder finder(dialog.getResultID(), (uint32_t)g_settings.getInteger(Config::REPLACE_SIZE));
+		g_settings.setInteger(Config::FIND_ITEM_MODE, static_cast<int>(dialog.getSearchMode()));
+		g_settings.setInteger(Config::FIND_TILE_TYPE, static_cast<int>(dialog.getSearchTileType()));
+
+		OnSearchForItem::Finder finder(dialog.getResultID(), (uint32_t)g_settings.getInteger(Config::REPLACE_SIZE), dialog.getSearchMode() == FindItemDialog::SearchMode::TileTypes);
+
 		g_gui.CreateLoadBar("Searching map...");
 
 		foreach_ItemOnMap(g_gui.GetCurrentMap(), finder, false);
@@ -953,13 +995,30 @@ void MainMenuBar::OnSearchForItem(wxCommandEvent &WXUNUSED(event)) {
 
 		SearchResultWindow* window = g_gui.ShowSearchWindow();
 		window->Clear();
-		for (std::vector<std::pair<Tile*, Item*>>::const_iterator iter = result.begin(); iter != result.end(); ++iter) {
-			Tile* tile = iter->first;
-			Item* item = iter->second;
-			window->AddPosition(wxstr(item->getName()), tile->getPosition());
-		}
 
-		g_settings.setInteger(Config::FIND_ITEM_MODE, (int)dialog.getSearchMode());
+		const auto &searchTileType = dialog.getSearchTileType();
+
+		for (auto it = result.begin(); it != result.end(); ++it) {
+			const auto &tile = it->first;
+
+			if (dialog.getSearchMode() == FindItemDialog::SearchMode::TileTypes) {
+				wxString tileType;
+
+				if (tile->isNoLogout() && searchTileType == FindItemDialog::SearchTileType::NoLogout) {
+					tileType = "No Logout";
+				} else if (tile->isPVP() && searchTileType == FindItemDialog::SearchTileType::PlayerVsPlayer) {
+					tileType = "PVP";
+				} else if (tile->isNoPVP() && searchTileType == FindItemDialog::SearchTileType::NoPlayerVsPlayer) {
+					tileType = "No PVP";
+				} else if (tile->isPZ() && searchTileType == FindItemDialog::SearchTileType::ProtectionZone) {
+					tileType = "PZ";
+				}
+
+				window->AddPosition(tileType, tile->getPosition());
+			} else {
+				window->AddPosition(wxstr(it->second->getName()), tile->getPosition());
+			}
+		}
 	}
 	dialog.Destroy();
 }
