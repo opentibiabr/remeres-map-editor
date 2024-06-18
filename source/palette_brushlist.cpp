@@ -52,7 +52,7 @@ BrushPalettePanel::BrushPalettePanel(wxWindow* parent, const TilesetContainer &t
 
 	for (auto it = tilesets.begin(); it != tilesets.end(); ++it) {
 		const auto tilesetCategory = it->second->getCategory(category);
-		if (tilesetCategory && tilesetCategory->brushlist.size() > 0) {
+		if (tilesetCategory && !tilesetCategory->brushlist.empty()) {
 			const auto panel = newd BrushPanel(choicebook, tilesetCategory);
 			choicebook->AddPage(panel, wxstr(it->second->name));
 		}
