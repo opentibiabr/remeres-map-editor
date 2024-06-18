@@ -348,6 +348,7 @@ void Settings::IO(IOMode mode) {
 	String(RECENT_EDITED_MAP_POSITION, "");
 
 	Int(FIND_ITEM_MODE, 0);
+	Int(FIND_TILE_TYPE, 0);
 	Int(JUMP_TO_ITEM_MODE, 0);
 
 #undef section
