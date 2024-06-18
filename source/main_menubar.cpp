@@ -2404,10 +2404,6 @@ namespace SearchDuplicatedItems {
 				return;
 			}
 
-			if (item->getActionID() > 0 || item->getUniqueID() > 0) {
-				return;
-			}
-
 			if (foundTiles.count(tile) == 0) {
 				std::unordered_set<int> itemIDs;
 				for (Item* existingItem : tile->items) {
