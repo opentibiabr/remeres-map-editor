@@ -167,6 +167,22 @@ PalettePanel* PaletteWindow::CreateRAWPalette(wxWindow* parent, const TilesetCon
 	return panel;
 }
 
+bool PaletteWindow::CanSelectHouseBrush(PalettePanel* palette, const Brush* whatBrush) {
+	if (!palette || !whatBrush->isHouse()) {
+		return false;
+	}
+
+	return true;
+}
+
+bool PaletteWindow::CanSelectBrush(PalettePanel* palette, const Brush* whatBrush) {
+	if (!palette) {
+		return false;
+	}
+
+	return palette->SelectBrush(whatBrush);
+}
+
 void PaletteWindow::ReloadSettings(Map* map) {
 	if (terrainPalette) {
 		terrainPalette->SetListType(wxstr(g_settings.getString(Config::PALETTE_TERRAIN_STYLE)));
@@ -197,7 +213,7 @@ void PaletteWindow::ReloadSettings(Map* map) {
 	InvalidateContents();
 }
 
-void PaletteWindow::LoadCurrentContents() {
+void PaletteWindow::LoadCurrentContents() const {
 	if (!choicebook) {
 		return;
 	}
@@ -312,7 +328,7 @@ bool PaletteWindow::OnSelectBrush(const Brush* whatBrush, PaletteType primary) {
 		return false;
 	}
 
-	if (whatBrush->isHouse() && housePalette) {
+	if (CanSelectHouseBrush(housePalette, whatBrush)) {
 		housePalette->SelectBrush(whatBrush);
 		SelectPage(TILESET_HOUSE);
 		return true;
@@ -325,35 +341,35 @@ bool PaletteWindow::OnSelectBrush(const Brush* whatBrush, PaletteType primary) {
 		}
 		case TILESET_DOODAD: {
 			// Ok, search doodad before terrain
-			if (doodadPalette && doodadPalette->SelectBrush(whatBrush)) {
+			if (CanSelectBrush(doodadPalette, whatBrush)) {
 				SelectPage(TILESET_DOODAD);
 				return true;
 			}
 			break;
 		}
 		case TILESET_ITEM: {
-			if (itemPalette && itemPalette->SelectBrush(whatBrush)) {
+			if (CanSelectBrush(itemPalette, whatBrush)) {
 				SelectPage(TILESET_ITEM);
 				return true;
 			}
 			break;
 		}
 		case TILESET_MONSTER: {
-			if (monsterPalette && monsterPalette->SelectBrush(whatBrush)) {
+			if (CanSelectBrush(monsterPalette, whatBrush)) {
 				SelectPage(TILESET_MONSTER);
 				return true;
 			}
 			break;
 		}
 		case TILESET_NPC: {
-			if (npcPalette && npcPalette->SelectBrush(whatBrush)) {
+			if (CanSelectBrush(npcPalette, whatBrush)) {
 				SelectPage(TILESET_NPC);
 				return true;
 			}
 			break;
 		}
 		case TILESET_RAW: {
-			if (rawPalette && rawPalette->SelectBrush(whatBrush)) {
+			if (CanSelectBrush(rawPalette, whatBrush)) {
 				SelectPage(TILESET_RAW);
 				return true;
 			}
@@ -364,49 +380,39 @@ bool PaletteWindow::OnSelectBrush(const Brush* whatBrush, PaletteType primary) {
 	}
 
 	// Test if it's a terrain brush
-	if (terrainPalette && terrainPalette->SelectBrush(whatBrush)) {
+	if (CanSelectBrush(terrainPalette, whatBrush)) {
 		SelectPage(TILESET_TERRAIN);
 		return true;
 	}
 
 	// Test if it's a doodad brush
-	if (primary != TILESET_DOODAD) {
-		if (doodadPalette && doodadPalette->SelectBrush(whatBrush)) {
-			SelectPage(TILESET_DOODAD);
-			return true;
-		}
+	if (primary != TILESET_DOODAD && CanSelectBrush(doodadPalette, whatBrush)) {
+		SelectPage(TILESET_DOODAD);
+		return true;
 	}
 
 	// Test if it's an item brush
-	if (primary != TILESET_ITEM) {
-		if (itemPalette && itemPalette->SelectBrush(whatBrush)) {
-			SelectPage(TILESET_ITEM);
-			return true;
-		}
+	if (primary != TILESET_ITEM && CanSelectBrush(itemPalette, whatBrush)) {
+		SelectPage(TILESET_ITEM);
+		return true;
 	}
 
 	// Test if it's a monster brush
-	if (primary != TILESET_MONSTER) {
-		if (monsterPalette && monsterPalette->SelectBrush(whatBrush)) {
-			SelectPage(TILESET_MONSTER);
-			return true;
-		}
+	if (primary != TILESET_MONSTER && CanSelectBrush(monsterPalette, whatBrush)) {
+		SelectPage(TILESET_MONSTER);
+		return true;
 	}
 
 	// Test if it's a npc brush
-	if (primary != TILESET_NPC) {
-		if (npcPalette && npcPalette->SelectBrush(whatBrush)) {
-			SelectPage(TILESET_NPC);
-			return true;
-		}
+	if (primary != TILESET_NPC && CanSelectBrush(npcPalette, whatBrush)) {
+		SelectPage(TILESET_NPC);
+		return true;
 	}
 
 	// Test if it's a raw brush
-	if (primary != TILESET_RAW) {
-		if (rawPalette && rawPalette->SelectBrush(whatBrush)) {
-			SelectPage(TILESET_RAW);
-			return true;
-		}
+	if (primary != TILESET_RAW && CanSelectBrush(rawPalette, whatBrush)) {
+		SelectPage(TILESET_RAW);
+		return true;
 	}
 
 	return false;

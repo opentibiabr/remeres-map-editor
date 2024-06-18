@@ -38,7 +38,7 @@ public:
 	// Flushes all pages and forces them to be reloaded from the palette data again
 	void InvalidateContents();
 	// (Re)Loads all currently displayed data, called from InvalidateContents implicitly
-	void LoadCurrentContents();
+	void LoadCurrentContents() const;
 	// Goes to the selected page and selects any brush there
 	void SelectPage(PaletteType palette);
 	// The currently selected brush in this palette
@@ -77,6 +77,9 @@ protected:
 	static PalettePanel* CreateWaypointPalette(wxWindow* parent, const TilesetContainer &tilesets);
 	static PalettePanel* CreateZonesPalette(wxWindow* parent, const TilesetContainer &tilesets);
 	static PalettePanel* CreateRAWPalette(wxWindow* parent, const TilesetContainer &tilesets);
+
+	static bool CanSelectHouseBrush(PalettePanel* palette, const Brush* whatBrush);
+	static bool CanSelectBrush(PalettePanel* palette, const Brush* whatBrush);
 
 	wxChoicebook* choicebook = newd wxChoicebook(this, PALETTE_CHOICEBOOK, wxDefaultPosition, wxSize(230, 250));
 
