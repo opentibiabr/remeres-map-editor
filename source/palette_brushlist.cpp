@@ -160,13 +160,13 @@ bool BrushPalettePanel::SelectBrush(const Brush* whatBrush) {
 	}
 
 	if (panel->SelectBrush(whatBrush)) {
-		for (const auto &palettePanel : tool_bars) {
+		for (const auto palettePanel : tool_bars) {
 			palettePanel->SelectBrush(nullptr);
 		}
 		return true;
 	}
 
-	for (const auto &palettePanel : tool_bars) {
+	for (const auto palettePanel : tool_bars) {
 		if (palettePanel->SelectBrush(whatBrush)) {
 			panel->SelectBrush(nullptr);
 			return true;
@@ -181,7 +181,7 @@ bool BrushPalettePanel::SelectBrush(const Brush* whatBrush) {
 		panel = dynamic_cast<BrushPanel*>(choicebook->GetPage(pageIndex));
 		if (panel && panel->SelectBrush(whatBrush)) {
 			choicebook->ChangeSelection(pageIndex);
-			for (const auto &palettePanel : tool_bars) {
+			for (const auto palettePanel : tool_bars) {
 				palettePanel->SelectBrush(nullptr);
 			}
 			return true;
@@ -357,7 +357,7 @@ bool BrushPanel::SelectBrush(const Brush* whatBrush) {
 		return brushbox->SelectBrush(whatBrush);
 	}
 
-	for (const auto &brush : tileset->brushlist) {
+	for (const auto brush : tileset->brushlist) {
 		if (brush == whatBrush) {
 			LoadContents();
 			return brushbox->SelectBrush(whatBrush);
@@ -380,7 +380,7 @@ void BrushPanel::OnClickListBoxRow(wxCommandEvent &event) {
 	ASSERT(brushbox);
 	const auto index = event.GetSelection();
 
-	if (const auto &paletteWindow = g_gui.GetParentWindowByType<PaletteWindow*>(this); paletteWindow != nullptr) {
+	if (const auto paletteWindow = g_gui.GetParentWindowByType<PaletteWindow*>(this); paletteWindow != nullptr) {
 		g_gui.ActivatePalette(paletteWindow);
 	}
 
@@ -410,7 +410,7 @@ BrushIconBox::BrushIconBox(wxWindow* parent, const TilesetCategory* tileset, Ren
 
 	auto rowsizer = newd wxBoxSizer(wxHORIZONTAL);
 
-	for (const auto &brush : tileset->brushlist) {
+	for (const auto brush : tileset->brushlist) {
 		const auto brushButton = newd BrushButton(this, brush, rsz);
 		rowsizer->Add(brushButton);
 		brushButtons.emplace_back(brushButton);
@@ -448,7 +448,7 @@ bool BrushIconBox::SelectBrush(const Brush* whatBrush) {
 		return false;
 	}
 
-	const auto &it = std::ranges::find_if(brushButtons.begin(), brushButtons.end(), [&](const auto &brushButton) {
+	const auto it = std::ranges::find_if(brushButtons.begin(), brushButtons.end(), [&](const auto brushButton) {
 		return brushButton->brush == whatBrush;
 	});
 

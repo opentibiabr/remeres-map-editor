@@ -60,7 +60,7 @@ protected:
 class BrushListBox : public wxVListBox, public BrushBoxInterface {
 public:
 	BrushListBox(wxWindow* parent, const TilesetCategory* tileset);
-	~BrushListBox() = default;
+	~BrushListBox() final = default;
 
 	wxWindow* GetSelfWindow() {
 		return this;
@@ -129,7 +129,7 @@ private:
 class BrushPanel : public wxPanel {
 public:
 	BrushPanel(wxWindow* parent, const TilesetCategory* tileset);
-	~BrushPanel() = default;
+	~BrushPanel() final = default;
 
 	// Interface
 	// Flushes this panel and consequent views will feature reloaded data
@@ -171,7 +171,7 @@ protected:
 class BrushPalettePanel : public PalettePanel {
 public:
 	BrushPalettePanel(wxWindow* parent, const TilesetContainer &tilesets, TilesetCategoryType category, wxWindowID id = wxID_ANY);
-	~BrushPalettePanel() = default;
+	~BrushPalettePanel() final = default;
 
 	void AddTilesetEditor(wxSizer* sizer);
 
@@ -194,7 +194,7 @@ public:
 	// Returns the currently selected brush (first brush if panel is not loaded)
 	Brush* GetSelectedBrush() const;
 	// Select the brush in the parameter, this only changes the look of the panel
-	bool SelectBrush(const Brush* whatBrush);
+	bool SelectBrush(const Brush* whatBrush) override;
 
 	// Called when this page is displayed
 	void OnSwitchIn();
