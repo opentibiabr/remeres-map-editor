@@ -919,7 +919,9 @@ bool GraphicManager::loadOutfitSpriteMetadata(canary::protobuf::appearances::App
 	sType->minimap_color = outfit.flags().has_automap() ? static_cast<uint16_t>(outfit.flags().automap().color()) : 0;
 	sType->draw_height = outfit.flags().has_height() ? static_cast<uint16_t>(outfit.flags().height().elevation()) : 0;
 	if (outfit.flags().has_shift()) {
-		sType->draw_offset = wxPoint(outfit.flags().shift().x(), outfit.flags().shift().y());
+		auto drawOffset = sType->getDrawOffset();
+		drawOffset.x -= outfit.flags().shift().x();
+		drawOffset.y -= outfit.flags().shift().y();
 		sType->isDrawOffsetLoaded = true;
 	}
 
@@ -1031,7 +1033,7 @@ uint16_t GameSprite::getDrawHeight() const {
 }
 
 wxPoint GameSprite::getDrawOffset() {
-	if (!isDrawOffsetLoaded && spriteList.size() > 0) {
+	if (!isDrawOffsetLoaded && !spriteList.empty()) {
 		const auto &sheet = g_spriteAppearances.getSheetBySpriteId(spriteList[0]->getHardwareID());
 		if (!sheet) {
 			return wxPoint(0, 0);
