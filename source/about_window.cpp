@@ -184,7 +184,7 @@ AboutWindow::AboutWindow(wxWindow* parent) :
 
 	wxString about;
 
-	about << "This is an OpenTibia Map Editor created by Remere.\n";
+	about << "This is an OpenTibia Map Editor created by Remere and edited by Canary.\n";
 	about << "Version " << __W_RME_VERSION__ << " for ";
 	about <<
 #ifdef __WINDOWS__

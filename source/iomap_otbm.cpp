@@ -1543,7 +1543,7 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 		{
 			f.addByte(OTBM_ATTR_DESCRIPTION);
 			// Neither SimOne's nor OpenTibia cares for additional description tags
-			f.addString("Saved with Remere's Map Editor " + __RME_VERSION__);
+			f.addString("Saved with Canary's Map Editor " + __RME_VERSION__);
 
 			f.addU8(OTBM_ATTR_DESCRIPTION);
 			f.addString(map.description);
