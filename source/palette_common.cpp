@@ -463,7 +463,7 @@ void BrushToolPanel::LoadAllContents() {
 		// Create the tool page with 32x32 icons
 
 		ASSERT(g_gui.optional_brush);
-		sub_sizer->Add(optionalBorderButton = newd BrushButton(this, g_gui.optional_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_OPTIONAL_BORDER_TOOL));
+		sub_sizer->Add(optionalBorderButton = newd BrushButton(this, g_gui.optionalBrush, RENDER_SIZE_32x32, PALETTE_TERRAIN_OPTIONAL_BORDER_TOOL));
 		optionalBorderButton->SetToolTip("Optional Border Tool");
 
 		ASSERT(g_gui.eraser);
@@ -471,19 +471,19 @@ void BrushToolPanel::LoadAllContents() {
 		eraserButton->SetToolTip("Eraser");
 
 		ASSERT(g_gui.pz_brush);
-		sub_sizer->Add(pzBrushButton = newd BrushButton(this, g_gui.pz_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_PZ_TOOL));
+		sub_sizer->Add(pzBrushButton = newd BrushButton(this, g_gui.pzBrush, RENDER_SIZE_32x32, PALETTE_TERRAIN_PZ_TOOL));
 		pzBrushButton->SetToolTip("PZ Tool");
 
 		ASSERT(g_gui.rook_brush);
-		sub_sizer->Add(nopvpBrushButton = newd BrushButton(this, g_gui.rook_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_NOPVP_TOOL));
+		sub_sizer->Add(nopvpBrushButton = newd BrushButton(this, g_gui.rookBrush, RENDER_SIZE_32x32, PALETTE_TERRAIN_NOPVP_TOOL));
 		nopvpBrushButton->SetToolTip("NO PVP Tool");
 
 		ASSERT(g_gui.nolog_brush);
-		sub_sizer->Add(nologBrushButton = newd BrushButton(this, g_gui.nolog_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_NOLOGOUT_TOOL));
+		sub_sizer->Add(nologBrushButton = newd BrushButton(this, g_gui.noLogoutBrush, RENDER_SIZE_32x32, PALETTE_TERRAIN_NOLOGOUT_TOOL));
 		nologBrushButton->SetToolTip("No Logout Tool");
 
 		ASSERT(g_gui.pvp_brush);
-		sub_sizer->Add(pvpzoneBrushButton = newd BrushButton(this, g_gui.pvp_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_PVPZONE_TOOL));
+		sub_sizer->Add(pvpzoneBrushButton = newd BrushButton(this, g_gui.pvpBrush, RENDER_SIZE_32x32, PALETTE_TERRAIN_PVPZONE_TOOL));
 		pvpzoneBrushButton->SetToolTip("PVP Zone Tool");
 
 		// New row
@@ -491,34 +491,34 @@ void BrushToolPanel::LoadAllContents() {
 		sub_sizer = newd wxBoxSizer(wxHORIZONTAL);
 
 		ASSERT(g_gui.normal_door_brush);
-		sub_sizer->Add(normalDoorButton = newd BrushButton(this, g_gui.normal_door_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_NORMAL_DOOR));
+		sub_sizer->Add(normalDoorButton = newd BrushButton(this, g_gui.normalDoorBrush, RENDER_SIZE_32x32, PALETTE_TERRAIN_NORMAL_DOOR));
 		normalDoorButton->SetToolTip("Normal Door Tool");
 
 		ASSERT(g_gui.locked_door_brush);
-		sub_sizer->Add(lockedDoorButton = newd BrushButton(this, g_gui.locked_door_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_LOCKED_DOOR));
+		sub_sizer->Add(lockedDoorButton = newd BrushButton(this, g_gui.lockedDoorBrush, RENDER_SIZE_32x32, PALETTE_TERRAIN_LOCKED_DOOR));
 		lockedDoorButton->SetToolTip("Locked Door Tool");
 
 		ASSERT(g_gui.magic_door_brush);
-		sub_sizer->Add(magicDoorButton = newd BrushButton(this, g_gui.magic_door_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_MAGIC_DOOR));
+		sub_sizer->Add(magicDoorButton = newd BrushButton(this, g_gui.magicDoorBrush, RENDER_SIZE_32x32, PALETTE_TERRAIN_MAGIC_DOOR));
 		magicDoorButton->SetToolTip("Magic Door Tool");
 
 		ASSERT(g_gui.quest_door_brush);
-		sub_sizer->Add(questDoorButton = newd BrushButton(this, g_gui.quest_door_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_QUEST_DOOR));
+		sub_sizer->Add(questDoorButton = newd BrushButton(this, g_gui.questDoorBrush, RENDER_SIZE_32x32, PALETTE_TERRAIN_QUEST_DOOR));
 		questDoorButton->SetToolTip("Quest Door Tool");
 
 		ASSERT(g_gui.hatch_door_brush);
-		sub_sizer->Add(hatchDoorButton = newd BrushButton(this, g_gui.hatch_door_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_HATCH_DOOR));
+		sub_sizer->Add(hatchDoorButton = newd BrushButton(this, g_gui.hatchDoorBrush, RENDER_SIZE_32x32, PALETTE_TERRAIN_HATCH_DOOR));
 		hatchDoorButton->SetToolTip("Hatch Window Tool");
 
 		ASSERT(g_gui.window_door_brush);
-		sub_sizer->Add(windowDoorButton = newd BrushButton(this, g_gui.window_door_brush, RENDER_SIZE_32x32, PALETTE_TERRAIN_WINDOW_DOOR));
+		sub_sizer->Add(windowDoorButton = newd BrushButton(this, g_gui.windowDoorBrush, RENDER_SIZE_32x32, PALETTE_TERRAIN_WINDOW_DOOR));
 		windowDoorButton->SetToolTip("Window Tool");
 	} else {
 		// Create the tool page with 16x16 icons
 		// Create tool window #1
 
 		ASSERT(g_gui.optional_brush);
-		sub_sizer->Add(optionalBorderButton = newd BrushButton(this, g_gui.optional_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_OPTIONAL_BORDER_TOOL));
+		sub_sizer->Add(optionalBorderButton = newd BrushButton(this, g_gui.optionalBrush, RENDER_SIZE_16x16, PALETTE_TERRAIN_OPTIONAL_BORDER_TOOL));
 		optionalBorderButton->SetToolTip("Optional Border Tool");
 
 		ASSERT(g_gui.eraser);
@@ -528,27 +528,27 @@ void BrushToolPanel::LoadAllContents() {
 		sub_sizer->AddSpacer(20);
 
 		ASSERT(g_gui.normal_door_brush);
-		sub_sizer->Add(normalDoorButton = newd BrushButton(this, g_gui.normal_door_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_NORMAL_DOOR));
+		sub_sizer->Add(normalDoorButton = newd BrushButton(this, g_gui.normalDoorBrush, RENDER_SIZE_16x16, PALETTE_TERRAIN_NORMAL_DOOR));
 		normalDoorButton->SetToolTip("Normal Door Tool");
 
 		ASSERT(g_gui.locked_door_brush);
-		sub_sizer->Add(lockedDoorButton = newd BrushButton(this, g_gui.locked_door_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_LOCKED_DOOR));
+		sub_sizer->Add(lockedDoorButton = newd BrushButton(this, g_gui.lockedDoorBrush, RENDER_SIZE_16x16, PALETTE_TERRAIN_LOCKED_DOOR));
 		lockedDoorButton->SetToolTip("Locked Door Tool");
 
 		ASSERT(g_gui.magic_door_brush);
-		sub_sizer->Add(magicDoorButton = newd BrushButton(this, g_gui.magic_door_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_MAGIC_DOOR));
+		sub_sizer->Add(magicDoorButton = newd BrushButton(this, g_gui.magicDoorBrush, RENDER_SIZE_16x16, PALETTE_TERRAIN_MAGIC_DOOR));
 		magicDoorButton->SetToolTip("Magic Door Tool");
 
 		ASSERT(g_gui.quest_door_brush);
-		sub_sizer->Add(questDoorButton = newd BrushButton(this, g_gui.quest_door_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_QUEST_DOOR));
+		sub_sizer->Add(questDoorButton = newd BrushButton(this, g_gui.questDoorBrush, RENDER_SIZE_16x16, PALETTE_TERRAIN_QUEST_DOOR));
 		questDoorButton->SetToolTip("Quest Door Tool");
 
 		ASSERT(g_gui.hatch_door_brush);
-		sub_sizer->Add(hatchDoorButton = newd BrushButton(this, g_gui.hatch_door_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_HATCH_DOOR));
+		sub_sizer->Add(hatchDoorButton = newd BrushButton(this, g_gui.hatchDoorBrush, RENDER_SIZE_16x16, PALETTE_TERRAIN_HATCH_DOOR));
 		hatchDoorButton->SetToolTip("Hatch Window Tool");
 
 		ASSERT(g_gui.window_door_brush);
-		sub_sizer->Add(windowDoorButton = newd BrushButton(this, g_gui.window_door_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_WINDOW_DOOR));
+		sub_sizer->Add(windowDoorButton = newd BrushButton(this, g_gui.windowDoorBrush, RENDER_SIZE_16x16, PALETTE_TERRAIN_WINDOW_DOOR));
 		windowDoorButton->SetToolTip("Window Tool");
 
 		// Next row
@@ -556,19 +556,19 @@ void BrushToolPanel::LoadAllContents() {
 		sub_sizer = newd wxBoxSizer(wxHORIZONTAL);
 
 		ASSERT(g_gui.pz_brush);
-		sub_sizer->Add(pzBrushButton = newd BrushButton(this, g_gui.pz_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_PZ_TOOL));
+		sub_sizer->Add(pzBrushButton = newd BrushButton(this, g_gui.pzBrush, RENDER_SIZE_16x16, PALETTE_TERRAIN_PZ_TOOL));
 		pzBrushButton->SetToolTip("PZ Tool");
 
 		ASSERT(g_gui.rook_brush);
-		sub_sizer->Add(nopvpBrushButton = newd BrushButton(this, g_gui.rook_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_NOPVP_TOOL));
+		sub_sizer->Add(nopvpBrushButton = newd BrushButton(this, g_gui.rookBrush, RENDER_SIZE_16x16, PALETTE_TERRAIN_NOPVP_TOOL));
 		nopvpBrushButton->SetToolTip("NO PVP Tool");
 
 		ASSERT(g_gui.nolog_brush);
-		sub_sizer->Add(nologBrushButton = newd BrushButton(this, g_gui.nolog_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_NOLOGOUT_TOOL));
+		sub_sizer->Add(nologBrushButton = newd BrushButton(this, g_gui.noLogoutBrush, RENDER_SIZE_16x16, PALETTE_TERRAIN_NOLOGOUT_TOOL));
 		nologBrushButton->SetToolTip("No Logout Tool");
 
 		ASSERT(g_gui.pvp_brush);
-		sub_sizer->Add(pvpzoneBrushButton = newd BrushButton(this, g_gui.pvp_brush, RENDER_SIZE_16x16, PALETTE_TERRAIN_PVPZONE_TOOL));
+		sub_sizer->Add(pvpzoneBrushButton = newd BrushButton(this, g_gui.pvpBrush, RENDER_SIZE_16x16, PALETTE_TERRAIN_PVPZONE_TOOL));
 		pvpzoneBrushButton->SetToolTip("PVP Zone Tool");
 	}
 
@@ -606,69 +606,69 @@ void BrushToolPanel::DeselectAll() {
 
 Brush* BrushToolPanel::GetSelectedBrush() const {
 	if (optionalBorderButton->GetValue()) {
-		return g_gui.optional_brush;
+		return g_gui.optionalBrush;
 	}
 	if (eraserButton->GetValue()) {
 		return g_gui.eraser;
 	}
 	if (normalDoorButton->GetValue()) {
-		return g_gui.normal_door_brush;
+		return g_gui.normalDoorBrush;
 	}
 	if (lockedDoorButton->GetValue()) {
-		return g_gui.locked_door_brush;
+		return g_gui.lockedDoorBrush;
 	}
 	if (magicDoorButton->GetValue()) {
-		return g_gui.magic_door_brush;
+		return g_gui.magicDoorBrush;
 	}
 	if (questDoorButton->GetValue()) {
-		return g_gui.quest_door_brush;
+		return g_gui.questDoorBrush;
 	}
 	if (hatchDoorButton->GetValue()) {
-		return g_gui.hatch_door_brush;
+		return g_gui.hatchDoorBrush;
 	}
 	if (windowDoorButton->GetValue()) {
-		return g_gui.window_door_brush;
+		return g_gui.windowDoorBrush;
 	}
 	if (pzBrushButton->GetValue()) {
-		return g_gui.pz_brush;
+		return g_gui.pzBrush;
 	}
 	if (nopvpBrushButton->GetValue()) {
-		return g_gui.rook_brush;
+		return g_gui.rookBrush;
 	}
 	if (nologBrushButton->GetValue()) {
-		return g_gui.nolog_brush;
+		return g_gui.noLogoutBrush;
 	}
 	if (pvpzoneBrushButton->GetValue()) {
-		return g_gui.pvp_brush;
+		return g_gui.pvpBrush;
 	}
 	return nullptr;
 }
 
 bool BrushToolPanel::SelectBrush(const Brush* whatbrush) {
 	BrushButton* button = nullptr;
-	if (whatbrush == g_gui.optional_brush) {
+	if (whatbrush == g_gui.optionalBrush) {
 		button = optionalBorderButton;
 	} else if (whatbrush == g_gui.eraser) {
 		button = eraserButton;
-	} else if (whatbrush == g_gui.normal_door_brush) {
+	} else if (whatbrush == g_gui.normalDoorBrush) {
 		button = normalDoorButton;
-	} else if (whatbrush == g_gui.locked_door_brush) {
+	} else if (whatbrush == g_gui.lockedDoorBrush) {
 		button = lockedDoorButton;
-	} else if (whatbrush == g_gui.magic_door_brush) {
+	} else if (whatbrush == g_gui.magicDoorBrush) {
 		button = magicDoorButton;
-	} else if (whatbrush == g_gui.quest_door_brush) {
+	} else if (whatbrush == g_gui.questDoorBrush) {
 		button = questDoorButton;
-	} else if (whatbrush == g_gui.hatch_door_brush) {
+	} else if (whatbrush == g_gui.hatchDoorBrush) {
 		button = hatchDoorButton;
-	} else if (whatbrush == g_gui.window_door_brush) {
+	} else if (whatbrush == g_gui.windowDoorBrush) {
 		button = windowDoorButton;
-	} else if (whatbrush == g_gui.pz_brush) {
+	} else if (whatbrush == g_gui.pzBrush) {
 		button = pzBrushButton;
-	} else if (whatbrush == g_gui.rook_brush) {
+	} else if (whatbrush == g_gui.rookBrush) {
 		button = nopvpBrushButton;
-	} else if (whatbrush == g_gui.nolog_brush) {
+	} else if (whatbrush == g_gui.noLogoutBrush) {
 		button = nologBrushButton;
-	} else if (whatbrush == g_gui.pvp_brush) {
+	} else if (whatbrush == g_gui.pvpBrush) {
 		button = pvpzoneBrushButton;
 	}
 
@@ -687,7 +687,7 @@ void BrushToolPanel::OnSwitchIn() {
 
 void BrushToolPanel::OnClickGravelButton(wxCommandEvent &event) {
 	g_gui.ActivatePalette(GetParentPalette());
-	g_gui.SelectBrush(g_gui.optional_brush);
+	g_gui.SelectBrush(g_gui.optionalBrush);
 }
 
 void BrushToolPanel::OnClickEraserButton(wxCommandEvent &event) {
@@ -697,52 +697,52 @@ void BrushToolPanel::OnClickEraserButton(wxCommandEvent &event) {
 
 void BrushToolPanel::OnClickNormalDoorButton(wxCommandEvent &event) {
 	g_gui.ActivatePalette(GetParentPalette());
-	g_gui.SelectBrush(g_gui.normal_door_brush);
+	g_gui.SelectBrush(g_gui.normalDoorBrush);
 }
 
 void BrushToolPanel::OnClickLockedDoorButton(wxCommandEvent &event) {
 	g_gui.ActivatePalette(GetParentPalette());
-	g_gui.SelectBrush(g_gui.locked_door_brush);
+	g_gui.SelectBrush(g_gui.lockedDoorBrush);
 }
 
 void BrushToolPanel::OnClickMagicDoorButton(wxCommandEvent &event) {
 	g_gui.ActivatePalette(GetParentPalette());
-	g_gui.SelectBrush(g_gui.magic_door_brush);
+	g_gui.SelectBrush(g_gui.magicDoorBrush);
 }
 
 void BrushToolPanel::OnClickQuestDoorButton(wxCommandEvent &event) {
 	g_gui.ActivatePalette(GetParentPalette());
-	g_gui.SelectBrush(g_gui.quest_door_brush);
+	g_gui.SelectBrush(g_gui.questDoorBrush);
 }
 
 void BrushToolPanel::OnClickHatchDoorButton(wxCommandEvent &event) {
 	g_gui.ActivatePalette(GetParentPalette());
-	g_gui.SelectBrush(g_gui.hatch_door_brush);
+	g_gui.SelectBrush(g_gui.hatchDoorBrush);
 }
 
 void BrushToolPanel::OnClickWindowDoorButton(wxCommandEvent &event) {
 	g_gui.ActivatePalette(GetParentPalette());
-	g_gui.SelectBrush(g_gui.window_door_brush);
+	g_gui.SelectBrush(g_gui.windowDoorBrush);
 }
 
 void BrushToolPanel::OnClickPZBrushButton(wxCommandEvent &event) {
 	g_gui.ActivatePalette(GetParentPalette());
-	g_gui.SelectBrush(g_gui.pz_brush);
+	g_gui.SelectBrush(g_gui.pzBrush);
 }
 
 void BrushToolPanel::OnClickNOPVPBrushButton(wxCommandEvent &event) {
 	g_gui.ActivatePalette(GetParentPalette());
-	g_gui.SelectBrush(g_gui.rook_brush);
+	g_gui.SelectBrush(g_gui.rookBrush);
 }
 
 void BrushToolPanel::OnClickNoLogoutBrushButton(wxCommandEvent &event) {
 	g_gui.ActivatePalette(GetParentPalette());
-	g_gui.SelectBrush(g_gui.nolog_brush);
+	g_gui.SelectBrush(g_gui.noLogoutBrush);
 }
 
 void BrushToolPanel::OnClickPVPZoneBrushButton(wxCommandEvent &event) {
 	g_gui.ActivatePalette(GetParentPalette());
-	g_gui.SelectBrush(g_gui.pvp_brush);
+	g_gui.SelectBrush(g_gui.pvpBrush);
 }
 
 // ============================================================================

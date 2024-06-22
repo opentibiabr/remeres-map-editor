@@ -105,7 +105,7 @@ HousePalettePanel::~HousePalettePanel() {
 }
 
 void HousePalettePanel::SetMap(Map* m) {
-	g_gui.house_brush->setHouse(nullptr);
+	g_gui.houseBrush->setHouse(nullptr);
 	map = m;
 	OnUpdate();
 }
@@ -138,12 +138,12 @@ Brush* HousePalettePanel::GetSelectedBrush() const {
 	if (select_position_button->GetValue()) {
 		House* house = GetCurrentlySelectedHouse();
 		if (house) {
-			g_gui.house_exit_brush->setHouse(house);
+			g_gui.houseExitBrush->setHouse(house);
 		}
-		return (g_gui.house_exit_brush->getHouseID() != 0 ? g_gui.house_exit_brush : nullptr);
+		return (g_gui.houseExitBrush->getHouseID() != 0 ? g_gui.houseExitBrush : nullptr);
 	} else if (house_brush_button->GetValue()) {
-		g_gui.house_brush->setHouse(GetCurrentlySelectedHouse());
-		return (g_gui.house_brush->getHouseID() != 0 ? g_gui.house_brush : nullptr);
+		g_gui.houseBrush->setHouse(GetCurrentlySelectedHouse());
+		return (g_gui.houseBrush->getHouseID() != 0 ? g_gui.houseBrush : nullptr);
 	}
 	return nullptr;
 }

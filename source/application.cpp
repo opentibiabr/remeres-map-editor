@@ -388,13 +388,13 @@ MainFrame::MainFrame(const wxString &title, const wxPoint &pos, const wxSize &si
 	SetStatusText(wxString("Welcome to ") << __W_RME_APPLICATION_NAME__ << " " << __W_RME_VERSION__);
 
 	// Le sizer
-	g_gui.aui_manager = newd wxAuiManager(this);
+	g_gui.auiManager = newd wxAuiManager(this);
 	g_gui.tabbook = newd MapTabbook(this, wxID_ANY);
 
-	tool_bar = newd MainToolBar(this, g_gui.aui_manager);
+	tool_bar = newd MainToolBar(this, g_gui.auiManager);
 
-	g_gui.aui_manager->AddPane(g_gui.tabbook, wxAuiPaneInfo().CenterPane().Floatable(false).CloseButton(false).PaneBorder(false));
-	g_gui.aui_manager->Update();
+	g_gui.auiManager->AddPane(g_gui.tabbook, wxAuiPaneInfo().CenterPane().Floatable(false).CloseButton(false).PaneBorder(false));
+	g_gui.auiManager->Update();
 
 	UpdateMenubar();
 }
@@ -664,7 +664,7 @@ void MainFrame::OnExit(wxCloseEvent &event) {
 			}
 		}
 	}
-	g_gui.aui_manager->UnInit();
+	g_gui.auiManager->UnInit();
 	((Application &)wxGetApp()).Unload();
 #ifdef __RELEASE__
 	// Hack, "crash" gracefully in release builds, let OS handle cleanup of windows

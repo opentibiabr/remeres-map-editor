@@ -105,7 +105,7 @@ Brush* NpcPalettePanel::GetSelectedBrush() const {
 	} else if (spawn_npc_brush_button->GetValue()) {
 		g_settings.setInteger(Config::CURRENT_SPAWN_NPC_RADIUS, spawn_npc_size_spin->GetValue());
 		g_settings.setInteger(Config::DEFAULT_SPAWN_NPC_TIME, npc_spawntime_spin->GetValue());
-		return g_gui.spawn_npc_brush;
+		return g_gui.spawnNpcBrush;
 	}
 	return nullptr;
 }

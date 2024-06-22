@@ -388,7 +388,7 @@ void MapDrawer::DrawSecondaryMap(int map_z) {
 		return;
 	}
 
-	BaseMap* secondary_map = g_gui.secondary_map;
+	BaseMap* secondary_map = g_gui.secondaryMap;
 	if (!secondary_map) {
 		return;
 	}
@@ -445,7 +445,7 @@ void MapDrawer::DrawSecondaryMap(int map_z) {
 					r = r / 3 * 2;
 					b = r / 3 * 2;
 				}
-				if (options.show_special_tiles && tile->hasZone(g_gui.zone_brush->getZone())) {
+				if (options.show_special_tiles && tile->hasZone(g_gui.zoneBrush->getZone())) {
 					r = r / 3 * 2;
 					b = b / 3 * 2;
 				}
@@ -1548,7 +1548,7 @@ void MapDrawer::DrawTile(TileLocation* location) {
 				b = b / 3 * 2;
 			}
 
-			bool zone_active = tile->hasZone(g_gui.zone_brush->getZone());
+			bool zone_active = tile->hasZone(g_gui.zoneBrush->getZone());
 			if (showspecial && zone_active) {
 				b /= 1.3;
 				r /= 1.5;
