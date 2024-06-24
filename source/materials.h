@@ -18,6 +18,8 @@
 #ifndef RME_MATERIALS_H_
 #define RME_MATERIALS_H_
 
+#include "tileset.h"
+
 using TilesetContainer = std::map<std::string, Tileset*>;
 
 class Materials {
@@ -31,16 +33,25 @@ public:
 
 	bool loadMaterials(const FileName &identifier, wxString &error, wxArrayString &warnings);
 	void createOtherTileset();
+	void addToTileset(std::string tilesetName, int itemId, TilesetCategoryType categoryType);
 	void createNpcTileset();
 
 	bool isInTileset(Item* item, std::string tileset) const;
 	bool isInTileset(Brush* brush, std::string tileset) const;
+	bool needSave() const {
+		return modified;
+	}
+
+	void modify(bool newValue = true) {
+		this->modified = newValue;
+	}
 
 protected:
 	bool unserializeMaterials(const FileName &filename, pugi::xml_node node, wxString &error, wxArrayString &warnings);
 	bool unserializeTileset(pugi::xml_node node, wxArrayString &warnings);
 
 private:
+	bool modified = false;
 	Materials(const Materials &);
 	Materials &operator=(const Materials &);
 };

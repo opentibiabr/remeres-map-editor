@@ -87,7 +87,7 @@ bool TableBrush::load(pugi::xml_node node, wxArrayString &warnings) {
 				break;
 			}
 
-			ItemType* type = g_items.getRawItemType(id);
+			auto type = g_items.getRawItemType(id);
 			if (!type) {
 				warnings.push_back("There is no itemtype with id " + std::to_string(id));
 				return false;

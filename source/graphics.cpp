@@ -835,7 +835,7 @@ bool GraphicManager::loadSpriteDump(uint8_t*&target, uint16_t &size, int sprite_
 }
 #endif
 
-bool GraphicManager::loadItemSpriteMetadata(ItemType* t, wxString &error, wxArrayString &warnings) {
+bool GraphicManager::loadItemSpriteMetadata(const std::shared_ptr<ItemType> &t, wxString &error, wxArrayString &warnings) {
 	GameSprite* sType = newd GameSprite();
 	sType->id = t->id;
 	sprite_space[t->id] = sType;

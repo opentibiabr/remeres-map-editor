@@ -101,6 +101,8 @@ target_sources(${PROJECT_NAME}
 	about_window.cpp
 	action.cpp
 	actions_history_window.cpp
+	add_item_window.cpp
+	add_tileset_window.cpp
 	application.cpp
 	artprovider.cpp
 	basemap.cpp
@@ -193,6 +195,7 @@ target_sources(${PROJECT_NAME}
 	templatemapclassic.cpp
 	tile.cpp
 	tileset.cpp
+	tileset_window.cpp
 	town.cpp
 	updater.cpp
 	wall_brush.cpp

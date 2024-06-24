@@ -1139,11 +1139,17 @@ bool IOMapOTBM::loadHouses(Map &map, pugi::xml_document &doc) {
 		}
 
 		House* house = nullptr;
-		if ((attribute = houseNode.attribute("houseid"))) {
-			house = map.houses.getHouse(attribute.as_uint());
-			if (!house) {
-				break;
-			}
+		const auto houseIdAttribute = houseNode.attribute("houseid");
+		if (!houseIdAttribute) {
+			warnings.push_back(fmt::format("IOMapOTBM::loadHouses: Could not load house, missing 'houseid' attribute."));
+			continue;
+		}
+
+		house = map.houses.getHouse(houseIdAttribute.as_uint());
+
+		if (!house) {
+			warnings.push_back(fmt::format("IOMapOTBM::loadHouses: Could not load house #{}", houseIdAttribute.as_uint()));
+			continue;
 		}
 
 		if (house != nullptr) {
@@ -1188,6 +1194,7 @@ bool IOMapOTBM::loadHouses(Map &map, pugi::xml_document &doc) {
 	}
 	return true;
 }
+
 bool IOMapOTBM::loadZones(Map &map, const FileName &dir) {
 	std::string fn = (const char*)(dir.GetPath(wxPATH_GET_SEPARATOR | wxPATH_GET_VOLUME).mb_str(wxConvUTF8));
 	fn += map.zonefile;

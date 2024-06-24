@@ -200,6 +200,7 @@ void Settings::IO(IOMode mode) {
 	Int(SHOW_ALL_FLOORS, 1);
 	Int(SHOW_INGAME_BOX, 0);
 	Int(SHOW_LIGHTS, 1);
+	Int(SHOW_LIGHT_STRENGTH, 1);
 	Int(SHOW_GRID, 0);
 	Int(SHOW_EXTRA, 1);
 	Int(SHOW_SHADE, 1);
@@ -265,6 +266,7 @@ void Settings::IO(IOMode mode) {
 	Int(DEFAULT_CLIENT_VERSION, std::atoi(ClientAssets::getVersionName().c_str()));
 	Int(RAW_LIKE_SIMONE, 1);
 	Int(ONLY_ONE_INSTANCE, 1);
+	Int(SHOW_TILESET_EDITOR, 0);
 	Int(USE_OTBM_4_FOR_ALL_MAPS, 0);
 	Int(USE_OTGZ, 1);
 	Int(SAVE_WITH_OTB_MAGIC_NUMBER, 0);
@@ -287,6 +289,7 @@ void Settings::IO(IOMode mode) {
 	Int(MINIMAP_UPDATE_DELAY, 333);
 	Int(MINIMAP_VIEW_BOX, 1);
 	String(MINIMAP_EXPORT_DIR, "");
+	String(TILESET_EXPORT_DIR, "");
 
 	Int(CURSOR_RED, 0);
 	Int(CURSOR_GREEN, 166);
@@ -343,6 +346,7 @@ void Settings::IO(IOMode mode) {
 	String(RECENT_EDITED_MAP_POSITION, "");
 
 	Int(FIND_ITEM_MODE, 0);
+	Int(FIND_TILE_TYPE, 0);
 	Int(JUMP_TO_ITEM_MODE, 0);
 
 #undef section

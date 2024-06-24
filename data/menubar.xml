@@ -16,6 +16,7 @@
         </menu>
         <menu name="$Export">
             <item name="$Export Minimap..." action="EXPORT_MINIMAP" help="Export minimap to an image file."/>
+            <item name="$Export Tilesets..." action="EXPORT_TILESETS" help="Export tilesets to an xml file."/>
         </menu>
         <menu name="$Reload">
             <item name="$Reload" hotkey="F5" action="RELOAD_DATA" help="Reloads all data files."/>
@@ -39,6 +40,7 @@
             <item name="Find $Container" action="SEARCH_ON_MAP_CONTAINER" help="Find all containers on map."/>
             <item name="Find $Writeable" action="SEARCH_ON_MAP_WRITEABLE" help="Find all writeable items on map."/>
             <item name="Find $Duplicate Items" action="SEARCH_ON_MAP_DUPLICATE" help="Find all positions where there are duplicate items on the map."/>
+            <item name="Find Walls $Upon Walls" action="SEARCH_ON_MAP_WALLS_UPON_WALLS" help="Find all positions where there are walls/windows/doors on walls/windows/doors on the map."/>
         </menu>
         <separator/>
         <menu name="$Border Options">
@@ -93,6 +95,7 @@
             <item name="Find $Container" action="SEARCH_ON_SELECTION_CONTAINER" help="Find all containers on selected area."/>
             <item name="Find $Writeable" action="SEARCH_ON_SELECTION_WRITEABLE" help="Find all writeable items on selected area."/>
             <item name="Find $Duplicate Items" action="SEARCH_ON_SELECTION_DUPLICATE" help="Find all positions where there are duplicate items on selected area."/>
+            <item name="Find Walls $Upon Walls" action="SEARCH_ON_SELECTION_WALLS_UPON_WALLS" help="Find all positions where there are walls/windows/doors on walls/windows/doors on selected area."/>
         </menu>
         <separator/>
         <menu name="$Selection Mode">
@@ -125,9 +128,10 @@
         <item name="Show $all floors" hotkey="Ctrl+W" action="SHOW_ALL_FLOORS" help="If not checked other floors are hidden."/>
         <item name="Ghost $loose items" hotkey="G" action="GHOST_ITEMS" help="Ghost items (except ground)."/>
         <item name="Ghost $higher floors" hotkey="Ctrl+L" action="GHOST_HIGHER_FLOORS" help="Ghost floors."/>
-        <menu name="$Ingame Box">
-            <item name="Show $client box" hotkey="Shift+I" action="SHOW_INGAME_BOX" help="Shadows out areas not visible ingame (from the center of the screen)."/>
-            <item name="Show $lights" hotkey="Shift+I" action="SHOW_LIGHTS" help="Show lights."/>
+        <item name="Show $client box" hotkey="Shift+I" action="SHOW_INGAME_BOX" help="Shadows out areas not visible ingame (from the center of the screen)."/>
+        <menu name="$Lights">
+            <item name="Show $lights" hotkey="Shift+L" action="SHOW_LIGHTS" help="Show lights."/>
+            <item name="Show $light strength" hotkey="Shift+K" action="SHOW_LIGHT_STRENGTH" help="Show indicators of light strength."/>
         </menu>
         <item name="Show $Grid" hotkey="Shift+G" action="SHOW_GRID" help="Shows a grid over all items."/>
         <item name="H$ighlight items" hotkey="V" action="HIGHLIGHT_ITEMS" help="Highlight tiles with items on them."/>

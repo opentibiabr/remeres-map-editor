@@ -68,6 +68,7 @@ public:
 	void UpdateMenubar();
 	bool DoQueryClose();
 	bool DoQuerySave(bool doclose = true);
+	bool DoQuerySaveTileset(bool doclose = true);
 	void ShowMissingMonsters();
 	void ShowMissingNpcs();
 	bool DoQueryImportCreatures();

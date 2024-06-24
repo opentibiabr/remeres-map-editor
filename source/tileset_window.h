@@ -15,44 +15,31 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //////////////////////////////////////////////////////////////////////
 
-#ifndef RME_RAW_BRUSH_H
-#define RME_RAW_BRUSH_H
+#ifndef RME_TILESET_WINDOW_H_
+#define RME_TILESET_WINDOW_H_
 
-#include "brush.h"
+#include "main.h"
 
-//=============================================================================
-// RAWBrush, draw items like SimOne's editor
+#include "common_windows.h"
 
-class RAWBrush : public Brush {
+class ContainerItemButton;
+class ContainerItemPopupMenu;
+
+class TilesetWindow : public ObjectPropertiesWindowBase {
 public:
-	RAWBrush(uint16_t itemid); // Create a RAWBrush of the specified type
-	virtual ~RAWBrush();
+	TilesetWindow(wxWindow* parent, const Map* map, const Tile* tile, Item* item, wxPoint = wxDefaultPosition);
 
-	bool isRaw() const {
-		return true;
-	}
-	RAWBrush* asRaw() {
-		return static_cast<RAWBrush*>(this);
-	}
+	void OnChangePalette(wxCommandEvent &event);
 
-	virtual bool canDraw(BaseMap* map, const Position &position) const {
-		return true;
-	}
-	virtual void draw(BaseMap* map, Tile* tile, void* parameter);
-	virtual void undraw(BaseMap* map, Tile* tile);
-
-	virtual bool canDrag() const {
-		return true;
-	}
-	virtual int getLookID() const;
-	virtual std::string getName() const;
-	std::shared_ptr<ItemType> getItemType() const {
-		return itemtype;
-	}
-	uint16_t getItemID() const;
+	void OnClickOK(wxCommandEvent &);
+	void OnClickCancel(wxCommandEvent &);
 
 protected:
-	std::shared_ptr<ItemType> itemtype;
+	// tileset
+	wxChoice* palette_field;
+	wxChoice* tileset_field;
+
+	DECLARE_EVENT_TABLE();
 };
 
 #endif

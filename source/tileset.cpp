@@ -243,7 +243,7 @@ void TilesetCategory::loadBrush(pugi::xml_node node, wxArrayString &warnings) {
 
 		std::vector<Brush*> tempBrushVector;
 		for (uint16_t id = fromId; id <= toId; ++id) {
-			ItemType* type = g_items.getRawItemType(id);
+			const auto &type = g_items.getRawItemType(id);
 			// Ignore item if not exist
 			if (!type || type->id == 0) {
 				continue;
@@ -264,6 +264,8 @@ void TilesetCategory::loadBrush(pugi::xml_node node, wxArrayString &warnings) {
 
 			brush->flagAsVisible();
 			tempBrushVector.push_back(brush);
+
+			tileset.previousId = id;
 		}
 
 		auto insertPosition = brushlist.end();

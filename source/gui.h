@@ -63,6 +63,7 @@ class MinimapWindow;
 class ActionsHistoryWindow;
 class PaletteWindow;
 class OldPropertiesWindow;
+class TilesetWindow;
 class EditTownsDialog;
 class ItemButton;
 
@@ -136,6 +137,16 @@ private:
 	bool operator==(const GUI &g_gui); // Don't compare me
 
 public:
+	template <typename T>
+	T GetParentWindowByType(wxWindow* window) {
+		while ((window = window->GetParent()) && dynamic_cast<T>(window) == nullptr) {
+			// JUST ITERATE UNTIL THERE IS NO PARENT LEFT OR
+			// FOUND A PARENT THAT CAN BE CASTED TO THE GIVEN TYPE
+		}
+
+		return window ? static_cast<T>(window) : nullptr;
+	}
+
 	/**
 	 * Saves the perspective to the configuration file
 	 * This is the position of all windows etc. in the editor
@@ -397,9 +408,9 @@ public:
 	// Returns list of all palette, first in the list is primary
 	const std::list<PaletteWindow*> &GetPalettes();
 
+	void DestroyPalettes();
 	// Hidden from public view
 protected:
-	void DestroyPalettes();
 	PaletteWindow* CreatePalette();
 
 	//=========================================================================

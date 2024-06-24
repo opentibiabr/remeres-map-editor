@@ -86,6 +86,11 @@ wxNotebookPage* PreferencesWindow::CreateGeneralPage() {
 	only_one_instance_chkbox->SetToolTip("When checked, maps opened using the shell will all be opened in the same instance.");
 	sizer->Add(only_one_instance_chkbox, 0, wxLEFT | wxTOP, 5);
 
+	enable_tileset_editing_chkbox = newd wxCheckBox(general_page, wxID_ANY, "Enable tileset editing");
+	enable_tileset_editing_chkbox->SetValue(g_settings.getInteger(Config::SHOW_TILESET_EDITOR) == 1);
+	enable_tileset_editing_chkbox->SetToolTip("Show tileset editing options.");
+	sizer->Add(enable_tileset_editing_chkbox, 0, wxLEFT | wxTOP, 5);
+
 	sizer->AddSpacer(10);
 
 	auto* grid_sizer = newd wxFlexGridSizer(2, 10, 10);
@@ -560,6 +565,9 @@ void PreferencesWindow::OnCollapsiblePane(wxCollapsiblePaneEvent &event) {
 // Stuff
 
 void PreferencesWindow::Apply() {
+	bool must_restart = false;
+	bool palette_update_needed = false;
+
 	// General
 	g_settings.setInteger(Config::WELCOME_DIALOG, show_welcome_dialog_chkbox->GetValue());
 	g_settings.setInteger(Config::ALWAYS_MAKE_BACKUP, always_make_backup_chkbox->GetValue());
@@ -571,6 +579,10 @@ void PreferencesWindow::Apply() {
 	g_settings.setInteger(Config::REPLACE_SIZE, replace_size_spin->GetValue());
 	g_settings.setInteger(Config::COPY_POSITION_FORMAT, position_format->GetSelection());
 	g_settings.setInteger(Config::COPY_AREA_FORMAT, area_format->GetSelection());
+	if (g_settings.getBoolean(Config::SHOW_TILESET_EDITOR) != enable_tileset_editing_chkbox->GetValue()) {
+		palette_update_needed = true;
+	}
+	g_settings.setInteger(Config::SHOW_TILESET_EDITOR, enable_tileset_editing_chkbox->GetValue());
 
 	// Editor
 	g_settings.setInteger(Config::GROUP_ACTIONS, group_actions_chkbox->GetValue());
@@ -666,5 +678,21 @@ void PreferencesWindow::Apply() {
 	ClientAssets::load();
 
 	g_settings.save();
-	g_gui.RebuildPalettes();
+
+	if (must_restart) {
+		g_gui.PopupDialog(this, "Notice", "You must restart the editor for the changes to take effect.", wxOK);
+	}
+
+	if (!palette_update_needed) {
+		// update palette icons
+		g_gui.RebuildPalettes();
+	} else {
+		// change palette structure
+		wxString error;
+		wxArrayString warnings;
+		if (!g_gui.loadMapWindow(error, warnings)) {
+			g_gui.PopupDialog("Error", error, wxOK);
+			g_gui.ListDialog("Warnings", warnings);
+		}
+	}
 }

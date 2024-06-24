@@ -35,7 +35,15 @@ public:
 		ItemIDs = 0,
 		Names,
 		Types,
+		TileTypes,
 		Properties,
+	};
+
+	enum SearchTileType {
+		ProtectionZone,
+		PlayerVsPlayer,
+		NoPlayerVsPlayer,
+		NoLogout
 	};
 
 	enum SearchItemType {
@@ -61,6 +69,7 @@ public:
 	}
 
 	SearchMode getSearchMode() const;
+	SearchTileType getSearchTileType() const;
 	void setSearchMode(SearchMode mode);
 
 private:
@@ -79,6 +88,7 @@ private:
 	wxRadioBox* options_radio_box;
 
 	wxRadioBox* types_radio_box;
+	wxRadioBox* tileTypesRadioBox;
 
 	wxSpinCtrl* item_id_spin;
 	wxTextCtrl* name_text_input;
@@ -104,7 +114,7 @@ private:
 	wxButton* ok_button;
 	wxButton* cancel_button;
 	Brush* result_brush;
-	uint16_t result_id;
+	uint16_t result_id = 0;
 	bool only_pickupables;
 
 	DECLARE_EVENT_TABLE()

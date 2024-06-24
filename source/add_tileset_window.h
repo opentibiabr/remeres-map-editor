@@ -15,44 +15,38 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //////////////////////////////////////////////////////////////////////
 
-#ifndef RME_RAW_BRUSH_H
-#define RME_RAW_BRUSH_H
+#ifndef RME_ADD_TILESET_WINDOW_H_
+#define RME_ADD_TILESET_WINDOW_H_
 
-#include "brush.h"
+#include "main.h"
 
-//=============================================================================
-// RAWBrush, draw items like SimOne's editor
+#include "common_windows.h"
 
-class RAWBrush : public Brush {
+class ContainerItemButton;
+class ContainerItemPopupMenu;
+
+class AddTilesetWindow : public ObjectPropertiesWindowBase {
 public:
-	RAWBrush(uint16_t itemid); // Create a RAWBrush of the specified type
-	virtual ~RAWBrush();
+	AddTilesetWindow(wxWindow* parent, TilesetCategoryType categoryType, wxPoint = wxDefaultPosition);
 
-	bool isRaw() const {
-		return true;
-	}
-	RAWBrush* asRaw() {
-		return static_cast<RAWBrush*>(this);
-	}
+	void OnItemClicked(wxMouseEvent &event);
+	void SetItemIdToItemButton(uint16_t id);
+	void OnChangeItemId(wxCommandEvent &WXUNUSED(event));
 
-	virtual bool canDraw(BaseMap* map, const Position &position) const {
-		return true;
-	}
-	virtual void draw(BaseMap* map, Tile* tile, void* parameter);
-	virtual void undraw(BaseMap* map, Tile* tile);
+	void OnClickOK(wxCommandEvent &);
+	void OnClickCancel(wxCommandEvent &);
 
-	virtual bool canDrag() const {
-		return true;
-	}
-	virtual int getLookID() const;
-	virtual std::string getName() const;
-	std::shared_ptr<ItemType> getItemType() const {
-		return itemtype;
-	}
-	uint16_t getItemID() const;
+private:
+	wxTextCtrl* tileset_name_field;
+	wxSpinCtrl* item_id_field;
 
-protected:
-	std::shared_ptr<ItemType> itemtype;
+	wxStaticText* item_id_label;
+	wxStaticText* item_name_label;
+
+	TilesetCategoryType category_type;
+	DCButton* item_button;
+
+	DECLARE_EVENT_TABLE();
 };
 
 #endif

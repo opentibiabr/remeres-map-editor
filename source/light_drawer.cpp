@@ -32,16 +32,21 @@ LightDrawer::~LightDrawer() {
 	lights.clear();
 }
 
-void LightDrawer::draw(int map_x, int map_y, int scroll_x, int scroll_y) {
-	constexpr int half_tile_size = rme::TileSize / 2;
+void LightDrawer::draw(int map_x, int map_y, int end_x, int end_y, int scroll_x, int scroll_y) {
+	if (texture == 0) {
+		createGLTexture();
+	}
 
-	for (int x = 0; x < rme::ClientMapWidth; ++x) {
-		for (int y = 0; y < rme::ClientMapHeight; ++y) {
+	int w = end_x - map_x;
+	int h = end_y - map_y;
+
+	buffer.resize(static_cast<size_t>(w * h * rme::PixelFormatRGBA));
+
+	for (int x = 0; x < w; ++x) {
+		for (int y = 0; y < h; ++y) {
 			int mx = (map_x + x);
 			int my = (map_y + y);
-			int px = (mx * rme::TileSize + half_tile_size);
-			int py = (my * rme::TileSize + half_tile_size);
-			int index = (y * rme::ClientMapWidth + x);
+			int index = (y * w + x);
 			int color_index = index * rme::PixelFormatRGBA;
 
 			buffer[color_index] = global_color.Red();
@@ -67,18 +72,19 @@ void LightDrawer::draw(int map_x, int map_y, int scroll_x, int scroll_y) {
 
 	const int draw_x = map_x * rme::TileSize - scroll_x;
 	const int draw_y = map_y * rme::TileSize - scroll_y;
-	constexpr int draw_width = rme::ClientMapWidth * rme::TileSize;
-	constexpr int draw_height = rme::ClientMapHeight * rme::TileSize;
+	int draw_width = w * rme::TileSize;
+	int draw_height = h * rme::TileSize;
 
 	glBindTexture(GL_TEXTURE_2D, texture);
+
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, 0x812F);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, 0x812F);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, rme::ClientMapWidth, rme::ClientMapHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, buffer.data());
-
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, buffer.data());
 	glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA);
 
+	glColor4ub(255, 255, 255, 255); // reset color
 	glEnable(GL_TEXTURE_2D);
 	glBegin(GL_QUADS);
 	glTexCoord2f(0.f, 0.f);
@@ -99,7 +105,12 @@ void LightDrawer::setGlobalLightColor(uint8_t color) {
 	global_color = colorFromEightBit(color);
 }
 
-void LightDrawer::addLight(int map_x, int map_y, const SpriteLight &light) {
+void LightDrawer::addLight(int map_x, int map_y, int map_z, const SpriteLight &light) {
+	if (map_z <= rme::MapGroundLayer) {
+		map_x -= (rme::MapGroundLayer - map_z);
+		map_y -= (rme::MapGroundLayer - map_z);
+	}
+
 	if (map_x <= 0 || map_x >= rme::MapMaxWidth || map_y <= 0 || map_y >= rme::MapMaxHeight) {
 		return;
 	}
@@ -123,8 +134,11 @@ void LightDrawer::clear() noexcept {
 
 void LightDrawer::createGLTexture() {
 	glGenTextures(1, &texture);
+	ASSERT(texture == 0);
 }
 
 void LightDrawer::unloadGLTexture() {
-	glDeleteTextures(1, &texture);
+	if (texture != 0) {
+		glDeleteTextures(1, &texture);
+	}
 }
