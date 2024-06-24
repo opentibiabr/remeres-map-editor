@@ -93,7 +93,12 @@ Editor::Editor(CopyBuffer &copybuffer, const FileName &fn) :
 
 	if (ver.otbm != g_gui.getLoadedMapVersion().otbm) {
 		auto result = g_gui.PopupDialog("Map error", "The loaded map appears to be a OTBM format that is not supported by the editor. Do you still want to attempt to load the map? Caution: this will close your current map!", wxYES | wxNO);
-		if (result == wxID_NO) {
+		if (result == wxID_YES) {
+			if (!g_gui.CloseAllEditors()) {
+				spdlog::error("All maps of different versions were not closed.");
+				throw std::runtime_error("All maps of different versions were not closed.");
+			}
+		} else if (result == wxID_NO) {
 			throw std::runtime_error("Maps of different versions can't be loaded at same time. Save and close your current map and try again.");
 		}
 	}
@@ -101,23 +106,19 @@ Editor::Editor(CopyBuffer &copybuffer, const FileName &fn) :
 	bool success = true;
 	wxString error;
 	wxArrayString warnings;
-	if (g_gui.CloseAllEditors()) {
-		success = g_gui.loadMapWindow(error, warnings);
-		if (!success) {
-			g_gui.PopupDialog("Error", error, wxOK);
-			auto clientDirectory = ClientAssets::getPath().ToStdString() + "/";
-			if (!wxDirExists(wxString(clientDirectory))) {
-				PreferencesWindow dialog(nullptr);
-				dialog.getBookCtrl().SetSelection(4);
-				dialog.ShowModal();
-				dialog.Destroy();
-			}
-		} else {
-			g_gui.ListDialog("Warnings", warnings);
+
+	success = g_gui.loadMapWindow(error, warnings);
+	if (!success) {
+		g_gui.PopupDialog("Error", error, wxOK);
+		auto clientDirectory = ClientAssets::getPath().ToStdString() + "/";
+		if (!wxDirExists(wxString(clientDirectory))) {
+			PreferencesWindow dialog(nullptr);
+			dialog.getBookCtrl().SetSelection(4);
+			dialog.ShowModal();
+			dialog.Destroy();
 		}
 	} else {
-		spdlog::error("All maps of different versions were not closed.");
-		throw std::runtime_error("All maps of different versions were not closed.");
+		g_gui.ListDialog("Warnings", warnings);
 	}
 
 	if (success) {
