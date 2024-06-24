@@ -577,7 +577,6 @@ bool ItemDatabase::loadFromProtobuf(wxString &error, wxArrayString &warnings, ca
 	return true;
 }
 
-
 bool ItemDatabase::loadItemFromGameXml(pugi::xml_node itemNode, uint16_t id) {
 	if (!(id >= 1 && id <= 18) && !isValidID(id)) {
 		return false;
