@@ -202,13 +202,13 @@ bool Item::hasProperty(enum ITEMPROPERTY prop) const {
 			break;
 
 		case HOOK_SOUTH:
-			if (type.hookSouth || type.hook == ItemHook_t::ITEM_HOOK_SOUTH) {
+			if (type.hookSouth || type.hook == ITEM_HOOK_SOUTH) {
 				return true;
 			}
 			break;
 
 		case HOOK_EAST:
-			if (type.hookEast || type.hook == ItemHook_t::ITEM_HOOK_EAST) {
+			if (type.hookEast || type.hook == ITEM_HOOK_EAST) {
 				return true;
 			}
 			break;

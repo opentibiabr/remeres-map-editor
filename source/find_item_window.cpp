@@ -41,8 +41,7 @@ FindItemDialog::FindItemDialog(wxWindow* parent, const wxString &title, bool onl
 
 	wxBoxSizer* options_box_sizer = newd wxBoxSizer(wxVERTICAL);
 
-	wxString radio_boxChoices[] = { "Find by Server ID",
-									"Find by Client ID",
+	wxString radio_boxChoices[] = { "Find by Item ID",
 									"Find by Name",
 									"Find by Types",
 									"Find by Tile Types",
@@ -370,7 +369,7 @@ void FindItemDialog::RefreshContentsInternal() {
 					continue;
 				}
 
-				if ((unpassable->GetValue() && !item.unpassable) || (unmovable->GetValue() && item.moveable) || (block_missiles->GetValue() && !item.blockMissiles) || (block_pathfinder->GetValue() && !item.blockPathfinder) || (readable->GetValue() && !item.canReadText) || (writeable->GetValue() && !item.canWriteText) || (pickupable->GetValue() && !item.pickupable) || (stackable->GetValue() && !item.stackable) || (rotatable->GetValue() && !item.rotable) || (hangable->GetValue() && !item.isHangable) || (hook_east->GetValue() && !item.hookEast) || (hook_south->GetValue() && !item.hookSouth) || (has_elevation->GetValue() && !item.hasElevation) || (ignore_look->GetValue() && !item.ignoreLook) || (floor_change->GetValue() && !item.isFloorChange())) {
+				if ((unpassable->GetValue() && !item.unpassable) || (unmovable->GetValue() && item.moveable) || (block_missiles->GetValue() && !item.blockMissiles) || (block_pathfinder->GetValue() && !item.blockPathfinder) || (readable->GetValue() && !item.canReadText) || (writeable->GetValue() && !item.canWriteText) || (pickupable->GetValue() && !item.pickupable) || (stackable->GetValue() && !item.stackable) || (rotatable->GetValue() && !item.rotable) || (hangable->GetValue() && !item.isHangable) || (hook_east->GetValue() && (!item.hookEast && item.hook != ITEM_HOOK_EAST)) || (hook_south->GetValue() && (!item.hookSouth && item.hook != ITEM_HOOK_SOUTH)) || (has_elevation->GetValue() && !item.hasElevation) || (ignore_look->GetValue() && !item.ignoreLook) || (floor_change->GetValue() && !item.isFloorChange())) {
 					continue;
 				}
 
