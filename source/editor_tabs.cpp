@@ -60,39 +60,44 @@ void MapTabbook::CycleTab(bool forward) {
 }
 
 void MapTabbook::OnNotebookPageClose(wxAuiNotebookEvent &event) {
-	EditorTab* editor_tab = GetTab(event.GetInt());
+	const auto currentMapTab = g_gui.GetCurrentMapTab();
 
-	MapTab* map_tab = dynamic_cast<MapTab*>(editor_tab);
-	if (map_tab && map_tab->IsUniqueReference() && map_tab->GetMap()) {
-		bool need_refresh = true;
-		Editor* editor = map_tab->GetEditor();
+	if (!currentMapTab) {
+		return;
+	}
+
+	const auto editor = currentMapTab->GetEditor();
+
+	if (currentMapTab->IsUniqueReference() && currentMapTab->GetMap()) {
+		bool refresh = true;
 		if (editor->IsLive()) {
 			if (editor->hasChanges()) {
-				SetFocusedTab(event.GetInt());
+				// SetFocusedTab(event.GetInt());
 				if (!g_gui.root->DoQuerySave(false)) {
-					need_refresh = false;
-					event.Veto();
+					refresh = false;
+					currentMapTab->Close();
+					// event.Veto();
 				}
 			}
 		} else if (editor->hasChanges()) {
-			SetFocusedTab(event.GetInt());
+			// SetFocusedTab(event.GetInt());
 			if (!g_gui.root->DoQuerySave()) {
-				need_refresh = false;
-				event.Veto();
+				refresh = false;
+				currentMapTab->Close();
+				// event.Veto();
 			}
 		}
 
-		if (need_refresh) {
+		if (refresh) {
 			g_gui.RefreshPalettes(nullptr, false);
 			g_gui.UpdateMenus();
 		}
 		return;
 	}
 
-	LiveLogTab* live_tab = dynamic_cast<LiveLogTab*>(editor_tab);
-	if (live_tab && live_tab->IsConnected()) {
-		event.Veto();
-	}
+	editor->CloseLiveServer();
+	currentMapTab->Close();
+	// event.Veto();
 }
 
 void MapTabbook::OnNotebookPageChanged(wxAuiNotebookEvent &evt) {
