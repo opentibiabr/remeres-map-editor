@@ -231,8 +231,7 @@ message AppearanceFlagAutomap {
 }
 
 message AppearanceFlagHook {
-	optional HOOK_TYPE south = 1;
-	optional HOOK_TYPE east = 2;
+	optional HOOK_TYPE direction = 1;
 }
 
 message AppearanceFlagLenshelp {

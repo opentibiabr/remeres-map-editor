@@ -1200,7 +1200,7 @@ void MapDrawer::BlitItem(int &draw_x, int &draw_y, const Tile* tile, const Item*
 	int texnum = sprite->getHardwareID(0, subtype, pattern_x, pattern_y, pattern_z, frame);
 	glBlitTexture(screenx, screeny, texnum, red, green, blue, alpha);
 
-	if (options.show_hooks && (type.hookSouth || type.hookEast)) {
+	if (options.show_hooks && (type.hookSouth || type.hookEast || type.hook != ITEM_HOOK_NONE)) {
 		DrawHookIndicator(draw_x, draw_y, type);
 	}
 
@@ -1642,14 +1642,14 @@ void MapDrawer::DrawHookIndicator(int x, int y, const ItemType &type) {
 	glDisable(GL_TEXTURE_2D);
 	glColor4ub(uint8_t(0), uint8_t(0), uint8_t(255), uint8_t(200));
 	glBegin(GL_QUADS);
-	if (type.hookSouth) {
+	if (type.hookSouth || type.hook == ITEM_HOOK_SOUTH) {
 		x -= 10;
 		y += 10;
 		glVertex2f(x, y);
 		glVertex2f(x + 10, y);
 		glVertex2f(x + 20, y + 10);
 		glVertex2f(x + 10, y + 10);
-	} else if (type.hookEast) {
+	} else if (type.hookEast || type.hook == ITEM_HOOK_EAST) {
 		x += 10;
 		y -= 10;
 		glVertex2f(x, y);

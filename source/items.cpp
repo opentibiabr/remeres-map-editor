@@ -548,11 +548,13 @@ bool ItemDatabase::loadFromProtobuf(wxString &error, wxArrayString &warnings, ca
 		t->moveable = object.flags().unmove() == false;
 		t->canReadText = (object.flags().has_lenshelp() && object.flags().lenshelp().id() == 1112) || (object.flags().has_write() && object.flags().write().max_text_length() != 0) || (object.flags().has_write_once() && object.flags().write_once().max_text_length_once() != 0);
 		t->canReadText = object.flags().has_write() || object.flags().has_write_once();
-		t->isVertical = object.flags().has_hook() && object.flags().hook().south();
-		t->isHorizontal = object.flags().has_hook() && object.flags().hook().east();
 		t->isHangable = object.flags().hang();
 		t->stackable = object.flags().cumulative();
 		t->isPodium = object.flags().show_off_socket();
+
+		if (object.flags().has_hook()) {
+			t->hook = object.flags().hook().direction() == HOOK_TYPE_SOUTH ? ITEM_HOOK_SOUTH : ITEM_HOOK_EAST;
+		}
 
 		g_gui.gfx.loadItemSpriteMetadata(t, error, warnings);
 		t->sprite = static_cast<GameSprite*>(g_gui.gfx.getSprite(t->id));

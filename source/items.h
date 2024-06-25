@@ -86,6 +86,12 @@ enum ItemTypes_t {
 	ITEM_TYPE_LAST
 };
 
+enum ItemHook_t {
+	ITEM_HOOK_NONE = 0,
+	ITEM_HOOK_SOUTH = 1,
+	ITEM_HOOK_EAST = 2,
+};
+
 /////////OTB specific//////////////
 
 enum rootattrib_t {
@@ -411,6 +417,7 @@ public:
 	BorderType border_alignment = BORDER_NONE;
 	ItemGroup_t group = ITEM_GROUP_NONE;
 	ItemTypes_t type = ITEM_TYPE_NONE;
+	ItemHook_t hook = ITEM_HOOK_NONE;
 };
 
 class ItemDatabase {
