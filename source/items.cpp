@@ -562,6 +562,12 @@ bool ItemDatabase::loadFromProtobuf(wxString &error, wxArrayString &warnings, ca
 			if (object.flags().has_shift()) {
 				t->sprite->draw_offset = wxPoint(object.flags().shift().x(), object.flags().shift().y());
 			}
+
+			if (object.flags().has_light()) {
+				t->sprite->light.color = object.flags().light().color();
+				t->sprite->light.intensity = object.flags().light().brightness();
+				t->sprite->has_light = true;
+			}
 		}
 
 		if (t) {
