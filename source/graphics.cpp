@@ -919,10 +919,13 @@ bool GraphicManager::loadOutfitSpriteMetadata(canary::protobuf::appearances::App
 	sType->minimap_color = outfit.flags().has_automap() ? static_cast<uint16_t>(outfit.flags().automap().color()) : 0;
 	sType->draw_height = outfit.flags().has_height() ? static_cast<uint16_t>(outfit.flags().height().elevation()) : 0;
 	if (outfit.flags().has_shift()) {
-		auto drawOffset = sType->getDrawOffset();
-		drawOffset.x -= outfit.flags().shift().x();
-		drawOffset.y -= outfit.flags().shift().y();
-		sType->isDrawOffsetLoaded = true;
+		wxPoint drawOffset(0, 0);
+		if (sType->width > 32 || sType->height > 32) {
+			drawOffset = sType->getDrawOffset();
+		}
+		drawOffset.x += outfit.flags().shift().x();
+		drawOffset.y += outfit.flags().shift().y();
+		sType->draw_offset = drawOffset;
 	}
 
 	// Read the sprite ids
