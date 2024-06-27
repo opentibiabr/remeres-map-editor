@@ -321,6 +321,7 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 	spdlog::info("Loading user monsters");
 	{
 		FileName cdb = ClientAssets::getLocalPath();
+		cdb.AppendDir("materials");
 		cdb.SetFullName("monsters.xml");
 		wxString nerr;
 		wxArrayString nwarn;
@@ -338,10 +339,11 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 	spdlog::info("Loading user npcs");
 	{
 		FileName cdb = ClientAssets::getLocalPath();
+		cdb.AppendDir("materials");
 		cdb.SetFullName("npcs.xml");
 		wxString nerr;
 		wxArrayString nwarn;
-		g_npcs.loadFromXML(cdb, false, nerr, nwarn);
+		g_npcs.loadFromXML(cdb, false, nerr, warnings);
 	}
 
 	g_gui.SetLoadDone(50, "Loading materials.xml ...");
