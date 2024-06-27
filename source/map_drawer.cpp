@@ -1339,7 +1339,7 @@ void MapDrawer::BlitSpriteType(int screenx, int screeny, GameSprite* sprite, int
 	glBlitTexture(screenx, screeny, texnum, red, green, blue, alpha);
 }
 
-void MapDrawer::BlitCreature(int screenx, int screeny, const Outfit &outfit, Direction dir, int red, int green, int blue, int alpha) {
+void MapDrawer::BlitCreature(int screenx, int screeny, const Outfit &outfit, const Direction &dir, int red, int green, int blue, int alpha) {
 	if (outfit.lookItem != 0) {
 		const ItemType &type = g_items.getItemType(outfit.lookItem);
 		BlitSpriteType(screenx, screeny, type.sprite, red, green, blue, alpha);
@@ -1361,7 +1361,7 @@ void MapDrawer::BlitCreature(int screenx, int screeny, const Outfit &outfit, Dir
 	auto spriteId = spr->spriteList[0]->getHardwareID();
 	auto outfitImage = spr->getOutfitImage(spriteId, dir, outfit);
 	if (outfitImage) {
-		glBlitTexture(screenx, screeny, outfitImage->getHardwareID(), red, green, blue, alpha, false, false, outfit);
+		glBlitTexture(screenx, screeny, outfitImage->getHardwareID(), red, green, blue, alpha, false, false, outfit, spriteId);
 	}
 }
 
@@ -1962,7 +1962,7 @@ void MapDrawer::ShowPositionIndicator(const Position &position) {
 	pos_indicator_timer.Start();
 }
 
-void MapDrawer::glBlitTexture(int sx, int sy, int textureId, int red, int green, int blue, int alpha, bool adjustZoom, bool isEditorSprite, const Outfit &outfit) {
+void MapDrawer::glBlitTexture(int sx, int sy, int textureId, int red, int green, int blue, int alpha, bool adjustZoom, bool isEditorSprite, const Outfit &outfit, int spriteId) {
 	if (textureId <= 0) {
 		return;
 	}
@@ -1971,7 +1971,7 @@ void MapDrawer::glBlitTexture(int sx, int sy, int textureId, int red, int green,
 	auto height = rme::TileSize;
 	// Adjusts the offset of normal sprites
 	if (!isEditorSprite) {
-		SpriteSheetPtr sheet = g_spriteAppearances.getSheetBySpriteId(textureId);
+		SpriteSheetPtr sheet = g_spriteAppearances.getSheetBySpriteId(spriteId > 0 ? spriteId : textureId);
 		if (!sheet) {
 			return;
 		}

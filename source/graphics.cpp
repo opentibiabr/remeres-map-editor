@@ -1117,7 +1117,7 @@ std::shared_ptr<GameSprite::OutfitImage> GameSprite::getOutfitImage(int spriteId
 	}
 
 	for (auto &img : instanced_templates) {
-		if (img->m_spriteId == spriteId) {
+		if (img->m_spriteId == spriteId && img->m_spriteIndex == spriteIndex) {
 			const auto &outfit = img->m_outfit;
 			uint32_t lookHash = outfit.lookHead << 24 | outfit.lookBody << 16 | outfit.lookLegs << 8 | outfit.lookFeet;
 			if (outfit.getColorHash() == lookHash) {
@@ -1444,19 +1444,19 @@ uint8_t* GameSprite::OutfitImage::getRGBAData() {
 
 GLuint GameSprite::OutfitImage::getHardwareID() {
 	if (!m_isGLLoaded) {
-		if (m_spriteId == 0) {
-			m_spriteId = g_gui.gfx.getFreeTextureID();
+		if (m_textureId == 0) {
+			m_textureId = g_gui.gfx.getFreeTextureID();
 		}
-		createGLTexture(m_spriteId);
+		createGLTexture(m_spriteId, m_textureId);
 		if (!m_isGLLoaded) {
 			return 0;
 		}
 	}
 
-	return m_spriteId;
+	return m_textureId;
 }
 
-void GameSprite::OutfitImage::createGLTexture(GLuint spriteId) {
+void GameSprite::OutfitImage::createGLTexture(GLuint spriteId, GLuint textureId) {
 	ASSERT(!m_isGLLoaded);
 
 	uint8_t* rgba = getRGBAData();
@@ -1476,7 +1476,7 @@ void GameSprite::OutfitImage::createGLTexture(GLuint spriteId) {
 	m_isGLLoaded = true;
 	g_gui.gfx.loaded_textures += 1;
 
-	glBindTexture(GL_TEXTURE_2D, spriteId);
+	glBindTexture(GL_TEXTURE_2D, textureId > 0 ? textureId : spriteId);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // Nearest Filtering
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); // Nearest Filtering
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, 0x812F); // GL_CLAMP_TO_EDGE

@@ -185,6 +185,7 @@ protected:
 		virtual GLuint getHardwareID();
 		virtual uint8_t* getRGBAData();
 
+		GLuint m_textureId = 0;
 		GLuint m_spriteId = 0;
 		GameSprite* m_parent = 0;
 		int m_spriteIndex = 0;
@@ -196,7 +197,7 @@ protected:
 		void colorizePixel(uint8_t color, uint8_t &r, uint8_t &b, uint8_t &g);
 		uint8_t* getOutfitData(int spriteId);
 
-		virtual void createGLTexture(GLuint);
+		virtual void createGLTexture(GLuint, GLuint);
 		virtual void unloadGLTexture(GLuint);
 	};
 
