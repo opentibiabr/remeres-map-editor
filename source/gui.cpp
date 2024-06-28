@@ -251,6 +251,9 @@ bool GUI::loadMapWindow(wxString &error, wxArrayString &warnings, bool force /* 
 	UnnamedRenderingLock();
 	DestroyPalettes();
 	DestroyMinimap();
+
+	g_spriteAppearances.terminate();
+
 	// Destroy the previous window
 	unloadMapWindow();
 
