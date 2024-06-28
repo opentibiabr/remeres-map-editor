@@ -551,6 +551,9 @@ bool ItemDatabase::loadFromProtobuf(wxString &error, wxArrayString &warnings, ca
 		t->isHangable = object.flags().hang();
 		t->stackable = object.flags().cumulative();
 		t->isPodium = object.flags().show_off_socket();
+		t->rotable = object.flags().rotate();
+		t->ignoreLook = object.flags().ignore_look();
+		t->hasElevation = object.flags().has_height();
 
 		if (object.flags().has_hook()) {
 			t->hook = object.flags().hook().direction() == HOOK_TYPE_SOUTH ? ITEM_HOOK_SOUTH : ITEM_HOOK_EAST;
