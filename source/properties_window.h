@@ -35,6 +35,7 @@ public:
 	void OnClickCancel(wxCommandEvent &);
 	void OnClickAddAttribute(wxCommandEvent &);
 	void OnClickRemoveAttribute(wxCommandEvent &);
+	void OnSpinArrowAttributeUpdate(wxSpinEvent &event);
 
 	void OnResize(wxSizeEvent &);
 	void OnNotebookPageChanged(wxNotebookEvent &);
@@ -59,6 +60,11 @@ protected:
 	void SetGridValue(wxGrid* grid, int rowIndex, std::string name, const ItemAttribute &attr);
 
 protected:
+	const static wxArrayString types;
+
+	wxSpinCtrl* simpleActionIdField = nullptr;
+	wxSpinCtrl* simpleUniqueIdField = nullptr;
+
 	wxNotebook* notebook;
 	wxWindow* currentPanel;
 
