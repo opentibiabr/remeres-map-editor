@@ -13824,7 +13824,6 @@
 		<attribute key="primarytype" value="sword weapons"/>
 	</item>
 	<item fromid="5860" toid="5863" article="an" name="armor"/>
-	<item id="5864" name="obsidian pipes"/>
 	<item id="5865" article="a" name="juice squeezer">
 		<attribute key="primarytype" value="tools"/>
 		<attribute key="weight" value="1500"/>
@@ -16521,7 +16520,8 @@
 	<item fromid="6917" toid="6924" article="a" name="ramp">
 		<attribute key="floorchange" value="down"/>
 	</item>
-	<item fromid="6925" toid="6952" name="ice"/>
+	<item fromid="6925" toid="6937" name="ice"/>
+	<item fromid="6939" toid="6952" name="ice"/>
 	<item fromid="6953" toid="6965" article="a" name="frozen railing"/>
 	<item id="6966" name="icicles">
 		<attribute key="primarytype" value="natural products"/>
@@ -21557,7 +21557,6 @@
 	<item id="9116" article="a" name="ladder">
 		<attribute key="type" value="ladder"/>
 	</item>
-	<item id="9117" article="a" name="unknown item"/>
 	<item id="9119" article="a" name="crucible">
 		<attribute key="primarytype" value="tools (objects)"/>
 	</item>
@@ -23402,7 +23401,6 @@
 	</item>
 	<item fromid="10090" toid="10095" article="a" name="banner"/>
 	<item id="10096" article="a" name="stacke"/>
-	<item id="10097" article="a" name="pepper grass"/>
 	<item id="10098" name="high grass">
 		<attribute key="primarytype" value="grass"/>
 	</item>
@@ -23546,7 +23544,6 @@
 			<attribute key="increase capacity" value="3"/>
 		</attribute>
 	</item>
-	<item id="10203" article="a" name="skull pile"/>
 	<item id="10205" article="a" name="pile of bones"/>
 	<item id="10206" article="a" name="stone stairs">
 		<attribute key="primarytype" value="stairs"/>
@@ -27517,20 +27514,6 @@
 		<attribute key="duration" value="60"/>
 		<attribute key="decayTo" value="0"/>
 	</item>
-	<item id="12692" article="a" name="scribbled notes">
-		<attribute key="primarytype" value="quest items"/>
-		<attribute key="weight" value="100"/>
-	</item>
-	<item id="12694" article="an" name="old letter">
-		<attribute key="primarytype" value="documents and papers"/>
-		<attribute key="weight" value="50"/>
-	</item>
-	<item id="12699" article="a" name="magic gold converter">
-		<attribute key="primarytype" value="tools"/>
-		<attribute key="showCharges" value="1"/>
-		<attribute key="charges" value="500"/>
-		<attribute key="wrapableto" value="23398"/>
-	</item>
 	<item fromid="12713" toid="12716" name="toad pedestal">
 		<attribute key="primarytype" value="statues"/>
 	</item>
@@ -27929,7 +27912,8 @@
 	<item id="12961" article="an" name="insectoid hive">
 		<attribute key="floorchange" value="down"/>
 	</item>
-	<item fromid="12962" toid="13038" article="a" name="hive structure"/>
+	<item fromid="12962" toid="12978" article="a" name="hive structure"/>
+	<item fromid="12981" toid="13038" article="a" name="hive structure"/>
 	<item fromid="13039" toid="13054" article="an" name="insectoid hive"/>
 	<item fromid="13055" toid="13082" article="a" name="hive structure"/>
 	<item id="13083" article="a" name="moist wall">
@@ -27983,7 +27967,8 @@
 		<attribute key="primarytype" value="rocks"/>
 	</item>
 	<item fromid="13161" toid="13167" name="small moist stones"/>
-	<item fromid="13170" toid="13214" name="hive structure"/>
+	<item fromid="13170" toid="13184" name="hive structure"/>
+	<item fromid="13203" toid="13214" name="hive structure"/>
 	<item fromid="13215" toid="13218" name="hive claw">
 		<attribute key="primarytype" value="rocks"/>
 	</item>
@@ -28014,7 +27999,8 @@
 	</item>
 	<item fromid="13368" toid="13375" name="unknown"/>
 	<item fromid="13376" toid="13377" name="small insectoid hairs"/>
-	<item fromid="13382" toid="13396" article="an" name="insectoid meatball"/>
+	<item fromid="13382" toid="13388" article="an" name="insectoid meatball"/>
+	<item fromid="13390" toid="13396" article="an" name="insectoid meatball"/>
 	<item fromid="13398" toid="13399" name="unknown item"/>
 	<item id="13400" article="a" name="hivecomb floor"/>
 	<item fromid="13413" toid="13424" article="a" name="rockboy"/>
@@ -28092,7 +28078,10 @@
 		<attribute key="floorchange" value="south"/>
 	</item>
 	<item fromid="13592" toid="13593" article="a" name="ramp"/>
-	<item fromid="13594" toid="13645" article="a" name="grotto">
+	<item id="13594" article="a" name="grotto">
+		<attribute key="primarytype" value="rocks"/>
+	</item>
+	<item fromid="13596" toid="13645" article="a" name="grotto">
 		<attribute key="primarytype" value="rocks"/>
 	</item>
 	<item id="13647" name="moist stones">
@@ -28524,7 +28513,8 @@
 	<item fromid="13941" toid="13942" article="a" name="golden anchor">
 		<attribute key="primarytype" value="quest objects"/>
 	</item>
-	<item fromid="13943" toid="13967" article="a" name="hivecomb floor"/>
+	<item fromid="13943" toid="13953" article="a" name="hivecomb floor"/>
+	<item fromid="13955" toid="13967" article="a" name="hivecomb floor"/>
 	<item id="13969" article="an" name="insectoid cocoon">
 		<attribute key="weight" value="500"/>
 	</item>
@@ -29553,7 +29543,8 @@
 	<item fromid="14893" toid="14898" article="a" name="basalt wall">
 		<attribute key="primarytype" value="constructions"/>
 	</item>
-	<item fromid="14913" toid="14931" article="a" name="small stream"/>
+	<item fromid="14913" toid="14927" article="a" name="small stream"/>
+	<item fromid="14929" toid="14931" article="a" name="small stream"/>
 	<item id="14932" article="a" name="ramp">
 		<attribute key="floorchange" value="east"/>
 	</item>
@@ -29776,13 +29767,19 @@
 		<attribute key="maxtextlen" value="99"/>
 		<attribute key="weight" value="1000"/>
 	</item>
-	<item fromid="15290" toid="15296" article="a" name="crystal wall">
+	<item fromid="15290" toid="15292" article="a" name="crystal wall">
+		<attribute key="primarytype" value="walls"/>
+	</item>
+	<item id="15296" article="a" name="crystal wall">
 		<attribute key="primarytype" value="walls"/>
 	</item>
 	<item fromid="15298" toid="15301" name="basalt">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
-	<item fromid="15309" toid="15318" article="a" name="basalt wall">
+	<item id="15309" article="a" name="basalt wall">
+		<attribute key="primarytype" value="constructions"/>
+	</item>
+	<item fromid="15311" toid="15318" article="a" name="basalt wall">
 		<attribute key="primarytype" value="constructions"/>
 	</item>
 	<item id="15319" article="a" name="large blue crystal">
@@ -29802,7 +29799,13 @@
 	<item id="15345" article="a" name="basalt wall">
 		<attribute key="primarytype" value="constructions"/>
 	</item>
-	<item fromid="15347" toid="15392" article="a" name="mossy wall">
+	<item fromid="15347" toid="15350" article="a" name="mossy wall">
+		<attribute key="primarytype" value="plants"/>
+	</item>
+	<item fromid="15355" toid="15389" article="a" name="mossy wall">
+		<attribute key="primarytype" value="plants"/>
+	</item>
+	<item id="15392" article="a" name="mossy wall">
 		<attribute key="primarytype" value="plants"/>
 	</item>
 	<item fromid="15393" toid="15398" name="mossy spots"/>
@@ -30096,14 +30099,6 @@
 	</item>
 	<item fromid="15790" toid="15791" name="icy bones">
 		<attribute key="primarytype" value="walls"/>
-	</item>
-	<item id="15792" article="a" name="crystal bolt">
-		<attribute key="weaponType" value="ammunition"/>
-		<attribute key="ammotype" value="bolt"/>
-		<attribute key="shootType" value="vortexbolt"/>
-		<attribute key="maxhitchance" value="90"/>
-		<attribute key="attack" value="36"/>
-		<attribute key="weight" value="80"/>
 	</item>
 	<item id="15793" article="a" name="crystalline arrow">
 		<attribute key="primarytype" value="ammunition"/>
@@ -30531,10 +30526,6 @@
 	<item id="16086" article="a" name="dead hideous fungus">
 		<attribute key="duration" value="60"/>
 		<attribute key="decayTo" value="0"/>
-	</item>
-	<item id="16087" article="a" name="purse">
-		<attribute key="primarytype" value="utilities"/>
-		<attribute key="containersize" value="30"/>
 	</item>
 	<item id="16088" article="a" name="dead Deathstrike">
 		<attribute key="duration" value="300"/>
@@ -31285,9 +31276,6 @@
 		<attribute key="primarytype" value="plants"/>
 	</item>
 	<item fromid="16416" toid="16417" name="mud clot"/>
-	<item fromid="16483" toid="16497" article="a" name="grimy wooden plank">
-		<attribute key="primarytype" value="artificial tiles"/>
-	</item>
 	<item id="16572" article="a" name="wooden treadmill">
 		<attribute key="primarytype" value="machines (objects)"/>
 	</item>
@@ -34481,7 +34469,10 @@
 	<item fromid="18400" toid="18405" article="a" name="sand">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
-	<item fromid="18406" toid="18426" article="a" name="basalt crystal wall">
+	<item fromid="18406" toid="18410" article="a" name="basalt crystal wall">
+		<attribute key="primarytype" value="constructions"/>
+	</item>
+	<item fromid="18415" toid="18426" article="a" name="basalt crystal wall">
 		<attribute key="primarytype" value="constructions"/>
 	</item>
 	<item fromid="18427" toid="18428" article="a" name="mining crane">
@@ -34578,7 +34569,8 @@
 		<attribute key="primarytype" value="liquids"/>
 		<attribute key="weight" value="180"/>
 	</item>
-	<item fromid="18621" toid="18625" article="a" name="sandy rock pile"/>
+	<item fromid="18621" toid="18622" article="a" name="sandy rock pile"/>
+	<item fromid="18624" toid="18625" article="a" name="sandy rock pile"/>
 	<item id="18629" article="a" name="sandy rock pile"/>
 	<item fromid="18630" toid="18641" article="a" name="sandstone mountain"/>
 	<item fromid="18642" toid="18649" article="a" name="ramp">
@@ -35607,7 +35599,8 @@
 		<attribute key="primarytype" value="rocks"/>
 	</item>
 	<item fromid="19310" toid="19313" article="a" name="large berg crystals"/>
-	<item fromid="19315" toid="19350" article="a" name="slimy growth"/>
+	<item fromid="19315" toid="19325" article="a" name="slimy growth"/>
+	<item fromid="19338" toid="19350" article="a" name="slimy growth"/>
 	<item id="19356" article="a" name="triple bolt crossbow">
 		<attribute key="primarytype" value="distance weapons"/>
 		<attribute key="weaponType" value="distance"/>
@@ -35937,7 +35930,8 @@
 		<attribute key="primarytype" value="plants"/>
 	</item>
 	<item fromid="19925" toid="19931" article="the" name="dreamcatcher device"/>
-	<item fromid="19932" toid="19969" article="a" name="stone pavement"/>
+	<item fromid="19932" toid="19933" article="a" name="stone pavement"/>
+	<item fromid="19946" toid="19969" article="a" name="stone pavement"/>
 	<item fromid="19970" toid="19981" article="a" name="flowing water"/>
 	<item fromid="20016" toid="20025" article="a" name="flowing water"/>
 	<item fromid="20026" toid="20027" article="an" name="unknown item"/>
@@ -35951,7 +35945,19 @@
 		<attribute key="description" value="A fine glowing powder and crystalline nuggets"/>
 		<attribute key="weight" value="10"/>
 	</item>
-	<item fromid="20031" toid="20044" article="a" name="half-buried face">
+	<item fromid="20031" toid="20032" article="a" name="half-buried face">
+		<attribute key="primarytype" value="refuse"/>
+	</item>
+	<item fromid="20035" toid="20036" article="a" name="half-buried face">
+		<attribute key="primarytype" value="refuse"/>
+	</item>
+	<item id="20039" article="a" name="half-buried face">
+		<attribute key="primarytype" value="refuse"/>
+	</item>
+	<item id="20041" article="a" name="half-buried face">
+		<attribute key="primarytype" value="refuse"/>
+	</item>
+	<item fromid="20043" toid="20044" article="a" name="half-buried face">
 		<attribute key="primarytype" value="refuse"/>
 	</item>
 	<item id="20047" article="an" name="ancient dream">
@@ -36722,7 +36728,10 @@
 		<attribute key="description" value="It contains some strange tea leaves"/>
 		<attribute key="weight" value="1000"/>
 	</item>
-	<item fromid="20191" toid="20197" article="a" name="poison spine">
+	<item fromid="20191" toid="20195" article="a" name="poison spine">
+		<attribute key="primarytype" value="flora and minerals"/>
+	</item>
+	<item id="20197" article="a" name="poison spine">
 		<attribute key="primarytype" value="flora and minerals"/>
 	</item>
 	<item id="20198" article="a" name="frazzle tongue" plural="frazzle tongues">
@@ -37195,8 +37204,11 @@
 	<item fromid="20497" toid="20500" article="a" name="street lamp"/>
 	<item fromid="20501" toid="20504" article="a" name="candle"/>
 	<item fromid="20505" toid="20508" article="a" name="gear wheels"/>
-	<item fromid="20517" toid="20532" article="a" name="sewer pipe"/>
-	<item fromid="20533" toid="20569" article="a" name="stone floor">
+	<item fromid="20518" toid="20532" article="a" name="sewer pipe"/>
+	<item fromid="20533" toid="20542" article="a" name="stone floor">
+		<attribute key="primarytype" value="artificial tiles"/>
+	</item>
+	<item fromid="20544" toid="20569" article="a" name="stone floor">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
 	<item fromid="20570" toid="20572" article="a" name="wall"/>
@@ -37221,7 +37233,7 @@
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
 	<item fromid="20653" toid="20657" article="a" name="spume"/>
-	<item fromid="20662" toid="20669" article="a" name="buttress"/>
+	<item fromid="20662" toid="20668" article="a" name="buttress"/>
 	<item fromid="20670" toid="20677" article="a" name="tube"/>
 	<item id="20678" article="a" name="plug"/>
 	<item fromid="20679" toid="20688" article="a" name="tube"/>
@@ -37290,7 +37302,8 @@
 	<item fromid="20905" toid="20908" article="a" name="cracked wall"/>
 	<item fromid="20909" toid="20916" article="a" name="soot"/>
 	<item fromid="20917" toid="20920" article="a" name="grime"/>
-	<item fromid="20921" toid="20934" article="a" name="cracked wall"/>
+	<item fromid="20921" toid="20929" article="a" name="cracked wall"/>
+	<item fromid="20931" toid="20934" article="a" name="cracked wall"/>
 	<item fromid="20935" toid="20936" article="a" name="wall"/>
 	<item fromid="20937" toid="20940" article="a" name="rubble">
 		<attribute key="primarytype" value="rocks"/>
@@ -38089,7 +38102,13 @@
 		<attribute key="description" value="This printout is nearly unreadable. One column of numbers on it is followed by the word: Doubleday"/>
 		<attribute key="weight" value="50"/>
 	</item>
-	<item fromid="21302" toid="21322" name="shallow water">
+	<item fromid="21302" toid="21307" name="shallow water">
+		<attribute key="primarytype" value="natural tiles"/>
+		<attribute key="type" value="trashholder"/>
+		<attribute key="fluidsource" value="water"/>
+		<attribute key="effect" value="bluebubble"/>
+	</item>
+	<item fromid="21311" toid="21322" name="shallow water">
 		<attribute key="primarytype" value="natural tiles"/>
 		<attribute key="type" value="trashholder"/>
 		<attribute key="fluidsource" value="water"/>
@@ -38489,7 +38508,10 @@
 		<attribute key="type" value="trashholder"/>
 		<attribute key="effect" value="fire"/>
 	</item>
-	<item fromid="21478" toid="21499" article="a" name="lava">
+	<item fromid="21478" toid="21482" article="a" name="lava">
+		<attribute key="primarytype" value="natural tiles"/>
+	</item>
+	<item fromid="21484" toid="21499" article="a" name="lava">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
 	<item id="21500" article="a" name="water vortex">
@@ -38529,7 +38551,7 @@
 		<attribute key="description" value="It seems fragile and precious"/>
 		<attribute key="weight" value="280"/>
 	</item>
-	<item fromid="21558" toid="21563" article="a" name="coral stone">
+	<item fromid="21559" toid="21563" article="a" name="coral stone">
 		<attribute key="primarytype" value="walls"/>
 	</item>
 	<item id="21564" article="a" name="stairs">
@@ -38562,7 +38584,7 @@
 	<item fromid="21581" toid="21585" article="a" name="rock">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
-	<item fromid="21586" toid="21598" article="an" name="ocean floor">
+	<item fromid="21586" toid="21597" article="an" name="ocean floor">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
 	<item fromid="21660" toid="21675" article="a" name="broken stone tile"/>
@@ -39483,12 +39505,12 @@
 		<attribute key="description" value="Souvenir from Thais Museum"/>
 		<attribute key="weight" value="2800"/>
 	</item>
-	<item fromid="22028" toid="22042" article="a" name="noble sword">
+	<item id="22028" article="a" name="noble sword">
 		<attribute key="primarytype" value="fansite items"/>
 		<attribute key="description" value="Souvenir from Thais Museum"/>
 		<attribute key="weight" value="5000"/>
 	</item>
-	<item fromid="22043" toid="22050" article="a" name="simple arrow">
+	<item id="22043" article="a" name="simple arrow">
 		<attribute key="primarytype" value="ammunition"/>
 		<attribute key="attack" value="20"/>
 		<attribute key="weight" value="60"/>
@@ -42039,11 +42061,10 @@
 		<attribute key="primarytype" value="food"/>
 		<attribute key="weight" value="900"/>
 	</item>
-	<item id="23546" name="arena leaderboard"/>
 	<item id="23547" name="arena certificate">
 		<attribute key="description" value="An arena certificate"/>
 	</item>
-	<item fromid="23548" toid="23552" name="arena leaderboard"/>
+	<item id="23548" name="arena leaderboard"/>
 	<item id="23553" article="a" name="dead Buster">
 		<attribute key="duration" value="10"/>
 		<attribute key="decayTo" value="23554"/>
@@ -42128,7 +42149,10 @@
 	</item>
 	<item id="23574" article="a" name="vortex"/>
 	<item fromid="23575" toid="23576" name="unknown item (animation?)"/>
-	<item fromid="23577" toid="23667" name="weapon of mayhem">
+	<item fromid="23577" toid="23602" name="weapon of mayhem">
+		<attribute key="description" value="This weapon is overcharged"/>
+	</item>
+	<item fromid="23604" toid="23667" name="weapon of mayhem">
 		<attribute key="description" value="This weapon is overcharged"/>
 	</item>
 	<item id="23676" name="hand puppets">
@@ -42488,7 +42512,10 @@
 		<attribute key="type" value="door"/>
 	</item>
 	<item fromid="23879" toid="23883" article="a" name="slant"/>
-	<item fromid="23897" toid="23980" article="a" name="stone floor">
+	<item fromid="23897" toid="23928" article="a" name="stone floor">
+		<attribute key="primarytype" value="artificial tiles"/>
+	</item>
+	<item fromid="23949" toid="23980" article="a" name="stone floor">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
 	<item fromid="23981" toid="23984" article="a" name="monument wall"/>
@@ -42631,7 +42658,6 @@
 	<item id="24247" article="a" name="empty ruined plant tub"/>
 	<item fromid="24250" toid="24255" name="unknown item"/>
 	<item id="24256" name="unknown item"/>
-	<item id="24258" article="a" name="waterway"/>
 	<item fromid="24286" toid="24309" article="a" name="stone floor">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
@@ -42940,7 +42966,8 @@
 		<attribute key="primarytype" value="tools (objects)"/>
 	</item>
 	<item id="24497" name="unknown item"/>
-	<item fromid="24498" toid="24540" name="old tibia item"/>
+	<item fromid="24498" toid="24503" name="old tibia item"/>
+	<item fromid="24506" toid="24540" name="old tibia item"/>
 	<item id="24541" article="a" name="closed door">
 		<attribute key="type" value="door"/>
 		<attribute key="blockProjectile" value="1"/>
@@ -42955,7 +42982,9 @@
 	<item id="24544" article="an" name="open door">
 		<attribute key="type" value="door"/>
 	</item>
-	<item fromid="24545" toid="24802" name="old tibia item"/>
+	<item fromid="24545" toid="24656" name="old tibia item"/>
+	<item fromid="24665" toid="24695" name="old tibia item"/>
+	<item fromid="24697" toid="24802" name="old tibia item"/>
 	<item fromid="24803" toid="24805" name="old stone wall"/>
 	<item id="24806" article="a" name="old ramp">
 		<attribute key="floorchange" value="east"/>
@@ -47520,7 +47549,10 @@
 	<item fromid="28059" toid="28084" name="unknown item"/>
 	<item fromid="28085" toid="28110" name="unknown item"/>
 	<item fromid="28111" toid="28136" name="unknown item"/>
-	<item fromid="28137" toid="28144" article="an" name="ostentatious bookstand">
+	<item fromid="28137" toid="28142" article="an" name="ostentatious bookstand">
+		<attribute key="primarytype" value="utilities"/>
+	</item>
+	<item id="28144" article="an" name="ostentatious bookstand">
 		<attribute key="primarytype" value="utilities"/>
 	</item>
 	<item fromid="28146" toid="28165" article="a" name="green seating area"/>
@@ -47567,7 +47599,13 @@
 		<attribute key="primarytype" value="natural tiles"/>
 		<attribute key="description" value="There is an inscription here but you cannot read it."/>
 	</item>
-	<item fromid="28292" toid="28317" article="a" name="slate floor">
+	<item id="28292" article="a" name="slate floor">
+		<attribute key="primarytype" value="natural tiles"/>
+	</item>
+	<item fromid="28294" toid="28304" article="a" name="slate floor">
+		<attribute key="primarytype" value="natural tiles"/>
+	</item>
+	<item fromid="28306" toid="28317" article="a" name="slate floor">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
 	<item fromid="28318" toid="28337" article="a" name="tessellated floor"/>
@@ -49546,7 +49584,10 @@
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
 	<item id="29250" name="unknown item"/>
-	<item fromid="29251" toid="29273" article="a" name="roof">
+	<item id="29251" article="a" name="roof">
+		<attribute key="primarytype" value="artificial tiles"/>
+	</item>
+	<item fromid="29253" toid="29273" article="a" name="roof">
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
 	<item fromid="29274" toid="29275" name="dream catcher pole"/>
@@ -53746,7 +53787,7 @@
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="weight" value="370"/>
 	</item>
-	<item fromid="31739" toid="31904" name="orger fork">
+	<item id="31739" name="orger fork">
 		<attribute key="primarytype" value="quest items"/>
 		<attribute key="weight" value="80"/>
 	</item>
@@ -53926,7 +53967,8 @@
 		<attribute key="showCount" value="1"/>
 		<attribute key="weight" value="500"/>
 	</item>
-	<item fromid="31963" toid="32008" name="event item"/>
+	<item fromid="31963" toid="32005" name="event item"/>
+	<item fromid="32007" toid="32008" name="event item"/>
 	<item id="32009" article="a" name="veal">
 		<attribute key="primarytype" value="food"/>
 		<attribute key="showCount" value="1"/>
@@ -55596,9 +55638,6 @@
 		<attribute key="description" value="Forged of tormented souls, it might grant protection from the powers of the Pale Worm, but it has a chance to burn out in the process"/>
 		<attribute key="weight" value="3000"/>
 	</item>
-	<item id="32592" article="a" name="unknow">
-		<attribute key="weight" value="170"/>
-	</item>
 	<item id="32593" article="a" name="grimace">
 		<attribute key="primarytype" value="creature products"/>
 		<attribute key="weight" value="60"/>
@@ -55809,9 +55848,8 @@
 		<attribute key="description" value="This ring is out of magic energy"/>
 		<attribute key="weight" value="80"/>
 	</item>
-	<item id="32637" article="a" name="unknow"/>
-	<item id="32638" article="a" name="unknow"/>
-	<item id="32639" article="a" name="unknow"/>
+	<item id="32638" article="a" name="floor"/>
+	<item id="32639" article="a" name="floor"/>
 	<item fromid="32640" toid="32658" article="a" name="dead tree">
 		<attribute key="primarytype" value="remains"/>
 	</item>
@@ -55858,9 +55896,6 @@
 	<item id="32705" article="a" name="pair of old bracers">
 		<attribute key="armor" value="1"/>
 		<attribute key="weight" value="200"/>
-	</item>
-	<item id="32706" article="a" name="unknow">
-		<attribute key="weight" value="4"/>
 	</item>
 	<item id="32707" article="a" name="dead corpse">
 		<attribute key="duration" value="50"/>
@@ -62700,11 +62735,6 @@
 		<attribute key="description" value="You can see the other side trough it."/>
 		<attribute key="effect" value="teleport"/>
 	</item>
-	<item id="37086" article="a" name="miniature of a murmillion"/>
-	<item id="37087" article="a" name="miniature of a scissorion"/>
-	<item id="37088" article="a" name="miniature of a hoodinion"/>
-	<item id="37089" article="a" name="miniature of a mearidion"/>
-	<item id="37090" article="a" name="miniature of a domestikion"/>
 	<item id="37109" article="a" name="sliver" plural="slivers">
 		<attribute key="description" value="This item can be used in the exaltation forge to create exalted cores"/>
 		<attribute key="weight" value="10"/>
@@ -63207,9 +63237,6 @@
 	<item id="37317" article="a" name="Tibia Coin"/>
 	<item id="37321" article="a" name="Halls of Hope picture">
 		<attribute key="weight" value="100"/>
-	</item>
-	<item fromid="37331" toid="37332" article="a" name="time-particle extractor">
-		<attribute key="weight" value="900"/>
 	</item>
 	<item id="37333" article="an" name="Adventurers' Guild picture">
 		<attribute key="weight" value="100"/>
@@ -64511,7 +64538,10 @@
 		<attribute key="primarytype" value="artificial tiles"/>
 	</item>
 	<item fromid="38108" toid="38111" name="lily pads"/>
-	<item fromid="38112" toid="38144" name="shallow water">
+	<item fromid="38112" toid="38113" name="shallow water">
+		<attribute key="primarytype" value="natural tiles"/>
+	</item>
+	<item fromid="38115" toid="38144" name="shallow water">
 		<attribute key="primarytype" value="natural tiles"/>
 	</item>
 	<item fromid="38145" toid="38156" name="water"/>
@@ -64635,7 +64665,8 @@
 	<item id="38651" article="a" name="bronze hand">
 		<attribute key="weight" value="150"/>
 	</item>
-	<item fromid="38662" toid="38674" name="flooded sand"/>
+	<item fromid="38662" toid="38664" name="flooded sand"/>
+	<item fromid="38666" toid="38674" name="flooded sand"/>
 	<item fromid="38675" toid="38676" name="lianas"/>
 	<item id="38677" article="a" name="beaver of wisdom">
 		<attribute key="description" value="This wise beaver will happily solve all your math problems! Awarded by TibiaPal.com"/>
@@ -64755,7 +64786,13 @@
 		<attribute key="primarytype" value="valuables"/>
 		<attribute key="weight" value="175"/>
 	</item>
-	<item fromid="39041" toid="39091" article="a" name="bridge"/>
+	<item fromid="39041" toid="39042" article="a" name="bridge"/>
+	<item fromid="39047" toid="39049" article="a" name="bridge"/>
+	<item fromid="39052" toid="39053" article="a" name="bridge"/>
+	<item fromid="39055" toid="39059" article="a" name="bridge"/>
+	<item id="39082" article="a" name="bridge"/>
+	<item fromid="39084" toid="39085" article="a" name="bridge"/>
+	<item fromid="39088" toid="39091" article="a" name="bridge"/>
 	<item id="39107" article="a" name="delicate vase">
 		<attribute key="primarytype" value="decoration"/>
 	</item>
@@ -65461,7 +65498,8 @@
 	<item fromid="39246" toid="39265" article="a" name="turtle shell">
 		<attribute key="primarytype" value="creature products"/>
 	</item>
-	<item fromid="39266" toid="39271" article="a" name="trapped water"/>
+	<item fromid="39266" toid="39269" article="a" name="trapped water"/>
+	<item id="39271" article="a" name="trapped water"/>
 	<item id="39272" article="a" name="dead sulphider">
 		<attribute key="decayTo" value="0"/>
 		<attribute key="duration" value="60"/>
