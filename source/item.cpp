@@ -40,6 +40,10 @@ Item* Item::Create(uint16_t id, uint16_t subtype /*= 0xFFFF*/) {
 		return newd Item(id, subtype);
 	}
 
+	if (!type.sprite) {
+		return nullptr;
+	}
+
 	if (type.isDepot()) {
 		return new Depot(id);
 	} else if (type.isContainer()) {
@@ -198,13 +202,13 @@ bool Item::hasProperty(enum ITEMPROPERTY prop) const {
 			break;
 
 		case HOOK_SOUTH:
-			if (type.hookSouth) {
+			if (type.hookSouth || type.hook == ITEM_HOOK_SOUTH) {
 				return true;
 			}
 			break;
 
 		case HOOK_EAST:
-			if (type.hookEast) {
+			if (type.hookEast || type.hook == ITEM_HOOK_EAST) {
 				return true;
 			}
 			break;
@@ -226,6 +230,7 @@ wxPoint Item::getDrawOffset() const {
 	if (type.sprite) {
 		return type.sprite->getDrawOffset();
 	}
+
 	return wxPoint(0, 0);
 }
 

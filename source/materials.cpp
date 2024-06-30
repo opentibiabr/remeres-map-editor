@@ -43,26 +43,7 @@ void Materials::clear() {
 		delete iter->second;
 	}
 
-	for (MaterialsExtensionList::iterator iter = extensions.begin(); iter != extensions.end(); ++iter) {
-		delete *iter;
-	}
-
 	tilesets.clear();
-	extensions.clear();
-}
-
-const MaterialsExtensionList &Materials::getExtensions() {
-	return extensions;
-}
-
-MaterialsExtensionList Materials::getExtensionsByVersion(uint16_t version_id) {
-	MaterialsExtensionList ret_list;
-	for (MaterialsExtensionList::iterator iter = extensions.begin(); iter != extensions.end(); ++iter) {
-		if ((*iter)->isForVersion(version_id)) {
-			ret_list.push_back(*iter);
-		}
-	}
-	return ret_list;
 }
 
 bool Materials::loadMaterials(const FileName &identifier, wxString &error, wxArrayString &warnings) {
@@ -80,114 +61,6 @@ bool Materials::loadMaterials(const FileName &identifier, wxString &error, wxArr
 	}
 
 	unserializeMaterials(identifier, node, error, warnings);
-	return true;
-}
-
-bool Materials::loadExtensions(FileName directoryName, wxString &error, wxArrayString &warnings) {
-	directoryName.Mkdir(0755, wxPATH_MKDIR_FULL); // Create if it doesn't exist
-
-	wxDir ext_dir(directoryName.GetPath());
-	if (!ext_dir.IsOpened()) {
-		error = "Could not open extensions directory.";
-		return false;
-	}
-
-	wxString filename;
-	if (!ext_dir.GetFirst(&filename)) {
-		// No extensions found
-		return true;
-	}
-
-	StringVector clientVersions;
-	do {
-		FileName fn;
-		fn.SetPath(directoryName.GetPath());
-		fn.SetFullName(filename);
-		if (fn.GetExt() != "xml") {
-			continue;
-		}
-
-		pugi::xml_document doc;
-		pugi::xml_parse_result result = doc.load_file(fn.GetFullPath().mb_str());
-		if (!result) {
-			warnings.push_back("Could not open " + filename + " (file not found or syntax error)");
-			continue;
-		}
-
-		pugi::xml_node extensionNode = doc.child("materialsextension");
-		if (!extensionNode) {
-			warnings.push_back(filename + ": Invalid rootheader.");
-			continue;
-		}
-
-		pugi::xml_attribute attribute;
-		if (!(attribute = extensionNode.attribute("name"))) {
-			warnings.push_back(filename + ": Couldn't read extension name.");
-			continue;
-		}
-
-		const std::string &extensionName = attribute.as_string();
-		if (!(attribute = extensionNode.attribute("author"))) {
-			warnings.push_back(filename + ": Couldn't read extension name.");
-			continue;
-		}
-
-		const std::string &extensionAuthor = attribute.as_string();
-		if (!(attribute = extensionNode.attribute("description"))) {
-			warnings.push_back(filename + ": Couldn't read extension name.");
-			continue;
-		}
-
-		const std::string &extensionDescription = attribute.as_string();
-		if (extensionName.empty() || extensionAuthor.empty() || extensionDescription.empty()) {
-			warnings.push_back(filename + ": Couldn't read extension attributes (name, author, description).");
-			continue;
-		}
-
-		std::string extensionUrl = extensionNode.attribute("url").as_string();
-		extensionUrl.erase(std::remove(extensionUrl.begin(), extensionUrl.end(), '\''));
-
-		std::string extensionAuthorLink = extensionNode.attribute("authorurl").as_string();
-		extensionAuthorLink.erase(std::remove(extensionAuthorLink.begin(), extensionAuthorLink.end(), '\''));
-
-		MaterialsExtension* materialExtension = newd MaterialsExtension(extensionName, extensionAuthor, extensionDescription);
-		materialExtension->url = extensionUrl;
-		materialExtension->author_url = extensionAuthorLink;
-
-		if ((attribute = extensionNode.attribute("client"))) {
-			clientVersions.clear();
-			const std::string &extensionClientString = attribute.as_string();
-
-			size_t lastPosition = 0;
-			size_t position = extensionClientString.find(';');
-			while (position != std::string::npos) {
-				clientVersions.push_back(extensionClientString.substr(lastPosition, position - lastPosition));
-				lastPosition = position + 1;
-				position = extensionClientString.find(';', lastPosition);
-			}
-
-			clientVersions.push_back(extensionClientString.substr(lastPosition));
-			for (const std::string &version : clientVersions) {
-				materialExtension->addVersion(version);
-			}
-
-			std::sort(materialExtension->version_list.begin(), materialExtension->version_list.end(), VersionComparisonPredicate);
-
-			auto duplicate = std::unique(materialExtension->version_list.begin(), materialExtension->version_list.end());
-			while (duplicate != materialExtension->version_list.end()) {
-				materialExtension->version_list.erase(duplicate);
-				duplicate = std::unique(materialExtension->version_list.begin(), materialExtension->version_list.end());
-			}
-		} else {
-			warnings.push_back(filename + ": Extension is not available for any version.");
-		}
-
-		extensions.push_back(materialExtension);
-		if (materialExtension->isForVersion(g_gui.GetCurrentVersionID())) {
-			unserializeMaterials(filename, extensionNode, error, warnings);
-		}
-	} while (ext_dir.GetNext(&filename));
-
 	return true;
 }
 

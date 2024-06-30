@@ -28,6 +28,7 @@ world
 *.opendb
 *.vs
 
+vcproj/
 vcproj/ipch/
 vcproj/Beta Release/
 vcproj/Debug/
@@ -58,7 +59,6 @@ cmake-build-debug/
 *.exe
 *.pdb
 *.rar
-vcpkg_installed/
-*.ilk
-remeres.exe.manifest
-remeres
+*.lzma
+*.dat
+*.manifest

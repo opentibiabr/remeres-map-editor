@@ -23,12 +23,21 @@
 #include "complexitem.h"
 #include "container_properties_window.h"
 
+const wxArrayString PropertiesWindow::types = {
+	"Number",
+	"Float",
+	"Boolean",
+	"String"
+};
+
 BEGIN_EVENT_TABLE(PropertiesWindow, wxDialog)
 EVT_BUTTON(wxID_OK, PropertiesWindow::OnClickOK)
 EVT_BUTTON(wxID_CANCEL, PropertiesWindow::OnClickCancel)
 
 EVT_BUTTON(ITEM_PROPERTIES_ADD_ATTRIBUTE, PropertiesWindow::OnClickAddAttribute)
 EVT_BUTTON(ITEM_PROPERTIES_REMOVE_ATTRIBUTE, PropertiesWindow::OnClickRemoveAttribute)
+
+EVT_SPINCTRL(wxID_ANY, PropertiesWindow::OnSpinArrowAttributeUpdate)
 
 EVT_NOTEBOOK_PAGE_CHANGED(wxID_ANY, PropertiesWindow::OnNotebookPageChanged)
 
@@ -82,12 +91,12 @@ wxWindow* PropertiesWindow::createGeneralPanel(wxWindow* parent) {
 	gridsizer->Add(newd wxStaticText(panel, wxID_ANY, "\"" + wxstr(edit_item->getName()) + "\""));
 
 	gridsizer->Add(newd wxStaticText(panel, wxID_ANY, "Action ID"));
-	wxSpinCtrl* action_id_field = newd wxSpinCtrl(panel, wxID_ANY, i2ws(edit_item->getActionID()), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 0xFFFF, edit_item->getActionID());
-	gridsizer->Add(action_id_field, wxSizerFlags(1).Expand());
+	simpleActionIdField = newd wxSpinCtrl(panel, 1, i2ws(edit_item->getActionID()), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 0xFFFF, edit_item->getActionID());
+	gridsizer->Add(simpleActionIdField, wxSizerFlags(1).Expand());
 
 	gridsizer->Add(newd wxStaticText(panel, wxID_ANY, "Unique ID"));
-	wxSpinCtrl* unique_id_field = newd wxSpinCtrl(panel, wxID_ANY, i2ws(edit_item->getUniqueID()), wxDefaultPosition, wxSize(-1, 20), wxSP_ARROW_KEYS, 0, 0xFFFF, edit_item->getUniqueID());
-	gridsizer->Add(unique_id_field, wxSizerFlags(1).Expand());
+	simpleUniqueIdField = newd wxSpinCtrl(panel, 2, i2ws(edit_item->getUniqueID()), wxDefaultPosition, wxSize(-1, 20), wxSP_ARROW_KEYS, 0, 0xFFFF, edit_item->getUniqueID());
+	gridsizer->Add(simpleUniqueIdField, wxSizerFlags(1).Expand());
 
 	panel->SetSizerAndFit(gridsizer);
 
@@ -167,31 +176,28 @@ wxWindow* PropertiesWindow::createAttributesPanel(wxWindow* parent) {
 }
 
 void PropertiesWindow::SetGridValue(wxGrid* grid, int rowIndex, std::string label, const ItemAttribute &attr) {
-	wxArrayString types;
-	types.Add("Number");
-	types.Add("Float");
-	types.Add("Boolean");
-	types.Add("String");
-
 	grid->SetCellValue(rowIndex, 0, label);
 	switch (attr.type) {
 		case ItemAttribute::STRING: {
 			grid->SetCellValue(rowIndex, 1, "String");
 			grid->SetCellValue(rowIndex, 2, wxstr(*attr.getString()));
+			grid->SetCellRenderer(rowIndex, 2, new wxGridCellStringRenderer);
+			grid->SetCellEditor(rowIndex, 2, new wxGridCellTextEditor);
 			break;
 		}
 		case ItemAttribute::INTEGER: {
 			grid->SetCellValue(rowIndex, 1, "Number");
 			grid->SetCellValue(rowIndex, 2, i2ws(*attr.getInteger()));
+			grid->SetCellRenderer(rowIndex, 2, new wxGridCellNumberRenderer);
 			grid->SetCellEditor(rowIndex, 2, new wxGridCellNumberEditor);
 			break;
 		}
 		case ItemAttribute::DOUBLE:
 		case ItemAttribute::FLOAT: {
 			grid->SetCellValue(rowIndex, 1, "Float");
-			wxString f;
-			f << *attr.getFloat();
-			grid->SetCellValue(rowIndex, 2, f);
+			const float value = *attr.getFloat();
+			grid->SetCellValue(rowIndex, 2, wxString::Format("%f", value ? value : 0.0));
+			grid->SetCellRenderer(rowIndex, 2, new wxGridCellFloatRenderer);
 			grid->SetCellEditor(rowIndex, 2, new wxGridCellFloatEditor);
 			break;
 		}
@@ -211,6 +217,7 @@ void PropertiesWindow::SetGridValue(wxGrid* grid, int rowIndex, std::string labe
 			break;
 		}
 	}
+	grid->SetCellAlignment(rowIndex, 2, 2, 0);
 	grid->SetCellEditor(rowIndex, 1, new wxGridCellChoiceEditor(types));
 }
 
@@ -257,6 +264,7 @@ void PropertiesWindow::saveContainerPanel() {
 
 void PropertiesWindow::saveAttributesPanel() {
 	edit_item->clearAllAttributes();
+
 	for (int32_t rowIndex = 0; rowIndex < attributesGrid->GetNumberRows(); ++rowIndex) {
 		ItemAttribute attr;
 		wxString type = attributesGrid->GetCellValue(rowIndex, 1);
@@ -279,9 +287,13 @@ void PropertiesWindow::saveAttributesPanel() {
 		}
 		edit_item->setAttribute(nstr(attributesGrid->GetCellValue(rowIndex, 0)), attr);
 	}
+
+	edit_item->setAttribute("aid", ItemAttribute(simpleActionIdField->GetValue()));
+	edit_item->setAttribute("uid", ItemAttribute(simpleUniqueIdField->GetValue()));
 }
 
 void PropertiesWindow::OnGridValueChanged(wxGridEvent &event) {
+	const auto attributeKey = attributesGrid->GetCellValue(event.GetRow(), 0);
 	if (event.GetCol() == 1) {
 		wxString newType = attributesGrid->GetCellValue(event.GetRow(), 1);
 		if (newType == event.GetString()) {
@@ -290,7 +302,7 @@ void PropertiesWindow::OnGridValueChanged(wxGridEvent &event) {
 
 		ItemAttribute attr;
 		if (newType == "String") {
-			attr.set("");
+			attr.set(std::string());
 		} else if (newType == "Float") {
 			attr.set(0.0f);
 		} else if (newType == "Number") {
@@ -298,7 +310,14 @@ void PropertiesWindow::OnGridValueChanged(wxGridEvent &event) {
 		} else if (newType == "Boolean") {
 			attr.set(false);
 		}
-		SetGridValue(attributesGrid, event.GetRow(), nstr(attributesGrid->GetCellValue(event.GetRow(), 0)), attr);
+		SetGridValue(attributesGrid, event.GetRow(), nstr(attributeKey), attr);
+	} else if (event.GetCol() == 2 || event.GetCol() == 0) {
+		const auto value = attributesGrid->GetCellValue(event.GetRow(), 2);
+		if (strcmp(attributeKey, "aid") == 0) {
+			simpleActionIdField->SetValue(value);
+		} else if (strcmp(attributeKey, "uid") == 0) {
+			simpleUniqueIdField->SetValue(value);
+		}
 	}
 }
 
@@ -321,6 +340,35 @@ void PropertiesWindow::OnClickRemoveAttribute(wxCommandEvent &) {
 
 	int rowIndex = rowIndexes[0];
 	attributesGrid->DeleteRows(rowIndex, 1);
+}
+
+void PropertiesWindow::OnSpinArrowAttributeUpdate(wxSpinEvent &event) {
+	const auto spinCtrl = dynamic_cast<wxSpinCtrl*>(event.GetEventObject());
+	if (!spinCtrl) {
+		return;
+	}
+
+	const auto number = event.GetInt();
+
+	if (number < 0) {
+		return;
+	}
+
+	const auto spinCtrlId = spinCtrl->GetId();
+
+	if (spinCtrlId == 1) {
+		edit_item->setAttribute("aid", ItemAttribute(number));
+	} else if (spinCtrlId == 2) {
+		edit_item->setAttribute("uid", ItemAttribute(number));
+	}
+
+	for (int32_t rowIndex = 0; rowIndex < attributesGrid->GetNumberRows(); ++rowIndex) {
+		wxString attributeKey = attributesGrid->GetCellValue(rowIndex, 0);
+		if ((strcmp(attributeKey, "aid") == 0 && spinCtrlId == 1) || (strcmp(attributeKey, "uid") == 0 && spinCtrlId == 2)) {
+			attributesGrid->SetCellValue(rowIndex, 1, "Number");
+			attributesGrid->SetCellValue(rowIndex, 2, wxString::Format("%i", number));
+		}
+	}
 }
 
 void PropertiesWindow::OnClickCancel(wxCommandEvent &) {
