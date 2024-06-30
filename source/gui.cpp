@@ -563,6 +563,11 @@ bool GUI::LoadMap(const FileName &fileName) {
 			mapTab->SetScreenCenterPosition(position);
 		}
 	}
+
+	for (const auto &palette : palettes) {
+		palette->OnUpdate(mapTab->GetMap());
+	}
+
 	return true;
 }
 
@@ -921,6 +926,7 @@ PaletteWindow* GUI::CreatePalette() {
 
 	auto* palette = newd PaletteWindow(root, g_materials.tilesets);
 	aui_manager->AddPane(palette, wxAuiPaneInfo().Caption("Palette").TopDockable(false).BottomDockable(false));
+	palette->OnUpdate(GetCurrentMapTab()->GetMap());
 	aui_manager->Update();
 
 	// Make us the active palette
