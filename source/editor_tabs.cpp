@@ -60,31 +60,28 @@ void MapTabbook::CycleTab(bool forward) {
 }
 
 void MapTabbook::OnNotebookPageClose(wxAuiNotebookEvent &event) {
-	const auto currentMapTab = g_gui.GetCurrentMapTab();
+	const auto editorTab = GetTab(event.GetSelection());
+	const auto mapTab = dynamic_cast<MapTab*>(editorTab);
 
-	if (!currentMapTab) {
+	if (!mapTab) {
 		return;
 	}
 
-	const auto editor = currentMapTab->GetEditor();
+	const auto editor = mapTab->GetEditor();
 
-	if (currentMapTab->IsUniqueReference() && currentMapTab->GetMap()) {
+	if (mapTab->IsUniqueReference() && mapTab->GetMap()) {
 		bool refresh = true;
 		if (editor->IsLive()) {
 			if (editor->hasChanges()) {
-				// SetFocusedTab(event.GetInt());
 				if (!g_gui.root->DoQuerySave(false)) {
 					refresh = false;
-					currentMapTab->Close();
-					// event.Veto();
+					event.Veto();
 				}
 			}
 		} else if (editor->hasChanges()) {
-			// SetFocusedTab(event.GetInt());
-			if (!g_gui.root->DoQuerySave()) {
+			if (!g_gui.root->DoQuerySave(false)) {
 				refresh = false;
-				currentMapTab->Close();
-				// event.Veto();
+				event.Veto();
 			}
 		}
 
@@ -95,9 +92,10 @@ void MapTabbook::OnNotebookPageClose(wxAuiNotebookEvent &event) {
 		return;
 	}
 
-	editor->CloseLiveServer();
-	currentMapTab->Close();
-	// event.Veto();
+	const auto liveTab = dynamic_cast<LiveLogTab*>(editorTab);
+	if (liveTab && liveTab->IsConnected()) {
+		event.Veto();
+	}
 }
 
 void MapTabbook::OnNotebookPageChanged(wxAuiNotebookEvent &evt) {

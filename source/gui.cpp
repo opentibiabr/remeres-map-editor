@@ -903,7 +903,9 @@ PaletteWindow* GUI::NewPalette() {
 
 void GUI::RefreshPalettes(Map* m, bool usedefault) {
 	for (auto &palette : palettes) {
-		palette->OnUpdate(m ? m : (usedefault ? (IsEditorOpen() ? &GetCurrentMap() : nullptr) : nullptr));
+		const auto currentMap = IsEditorOpen() ? &GetCurrentMap() : nullptr;
+		const auto defaultMap = usedefault ? currentMap : nullptr;
+		palette->OnUpdate(m ? m : defaultMap);
 	}
 	SelectBrush();
 
