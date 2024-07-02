@@ -153,11 +153,6 @@ bool HousePalettePanel::SelectBrush(const Brush* whatbrush) {
 		return false;
 	}
 
-	const auto currentMap = g_gui.GetCurrentMapTab()->GetMap();
-	if (currentMap != map) {
-		SetMap(currentMap);
-	}
-
 	if (whatbrush->isHouse() && map) {
 		const HouseBrush* house_brush = static_cast<const HouseBrush*>(whatbrush);
 		for (HouseMap::iterator house_iter = map->houses.begin(); house_iter != map->houses.end(); ++house_iter) {
