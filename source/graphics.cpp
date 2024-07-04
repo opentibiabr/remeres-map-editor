@@ -1390,7 +1390,7 @@ uint8_t* GameSprite::OutfitImage::getRGBAData() {
 		return nullptr;
 	}
 
-	const auto offBounds = m_parent->spriteList.size() >= m_spriteId;
+	const auto offBounds = m_parent->spriteList.size() <= m_spriteIndex + 1;
 	const auto templateIndex = offBounds ? m_spriteIndex : m_spriteIndex + 1;
 	const auto &spriteTemplate = g_spriteAppearances.getSprite(m_parent->spriteList[templateIndex]->getHardwareID());
 	if (!spriteTemplate) {
