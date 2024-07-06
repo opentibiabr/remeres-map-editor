@@ -52,53 +52,9 @@ const wxEventType EVT_UPDATE_ACTIONS = wxNewEventType();
 // Global GUI instance
 GUI g_gui;
 
-// GUI class implementation
-GUI::GUI() :
-	aui_manager(nullptr),
-	root(nullptr),
-	minimap(nullptr),
-	gem(nullptr),
-	search_result_window(nullptr),
-	actions_history_window(nullptr),
-	secondary_map(nullptr),
-	doodad_buffer_map(nullptr),
-
-	house_brush(nullptr),
-	house_exit_brush(nullptr),
-	waypoint_brush(nullptr),
-	optional_brush(nullptr),
-	eraser(nullptr),
-	normal_door_brush(nullptr),
-	locked_door_brush(nullptr),
-	magic_door_brush(nullptr),
-	quest_door_brush(nullptr),
-	hatch_door_brush(nullptr),
-	window_door_brush(nullptr),
-
-	OGLContext(nullptr),
-	loaded_version(CLIENT_VERSION_NONE),
-	mode(SELECTION_MODE),
-	pasting(false),
-	hotkeys_enabled(true),
-
-	current_brush(nullptr),
-	previous_brush(nullptr),
-	brush_shape(BRUSHSHAPE_SQUARE),
-	brush_size(0),
-	brush_variation(0),
-
-	monster_spawntime(0),
-	npc_spawntime(0),
-	use_custom_thickness(false),
-	custom_thickness_mod(0.0),
-	progressBar(nullptr),
-	disabled_counter(0) {
-	doodad_buffer_map = newd BaseMap();
-}
-
 GUI::~GUI() {
-	delete doodad_buffer_map;
-	delete g_gui.aui_manager;
+	delete doodadBufferMap;
+	delete g_gui.auiManager;
 	delete OGLContext;
 }
 
@@ -121,38 +77,35 @@ wxGLContext* GUI::GetGLContext(wxGLCanvas* win) {
 }
 
 wxString GUI::GetDataDirectory() {
-	std::string cfg_str = g_settings.getString(Config::DATA_DIRECTORY);
-	if (!cfg_str.empty()) {
+	const auto &configDataDirectory = g_settings.getString(Config::DATA_DIRECTORY);
+	if (!configDataDirectory.empty()) {
 		FileName dir;
-		dir.Assign(wxstr(cfg_str));
-		wxString path;
+		dir.Assign(wxstr(configDataDirectory));
 		if (dir.DirExists()) {
-			path = dir.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR);
-			return path;
+			return dir.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR);
 		}
 	}
 
 	// Silently reset directory
-	FileName exec_directory;
-	try {
-		exec_directory = dynamic_cast<wxStandardPaths &>(wxStandardPaths::Get()).GetExecutablePath();
-	} catch (const std::bad_cast &) {
-		throw; // Crash application (this should never happend anyways...)
-	}
-
-	exec_directory.AppendDir("data");
-	return exec_directory.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR);
+	FileName executableDirectory = GetExecFileName();
+	executableDirectory.AppendDir("data");
+	return executableDirectory.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR);
 }
 
-wxString GUI::GetExecDirectory() {
+FileName GUI::GetExecFileName() {
 	// Silently reset directory
-	FileName exec_directory;
+	FileName executableDirectory;
 	try {
-		exec_directory = dynamic_cast<wxStandardPaths &>(wxStandardPaths::Get()).GetExecutablePath();
+		executableDirectory = dynamic_cast<wxStandardPaths &>(wxStandardPaths::Get()).GetExecutablePath();
 	} catch (const std::bad_cast &) {
 		wxLogError("Could not fetch executable directory.");
 	}
-	return exec_directory.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR);
+
+	return executableDirectory;
+}
+
+wxString GUI::GetExecDirectory() {
+	return GetExecFileName().GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR);
 }
 
 wxString GUI::GetLocalDataDirectory() {
@@ -196,50 +149,48 @@ wxString GUI::GetLocalDirectory() {
 }
 
 wxString GUI::GetExtensionsDirectory() {
-	std::string cfg_str = g_settings.getString(Config::EXTENSIONS_DIRECTORY);
-	if (!cfg_str.empty()) {
+	const auto &configDataDirectory = g_settings.getString(Config::EXTENSIONS_DIRECTORY);
+	if (!configDataDirectory.empty()) {
 		FileName dir;
-		dir.Assign(wxstr(cfg_str));
-		wxString path;
+		dir.Assign(wxstr(configDataDirectory));
 		if (dir.DirExists()) {
-			path = dir.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR);
-			return path;
+			return dir.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR);
 		}
 	}
 
 	// Silently reset directory
-	FileName local_directory = GetLocalDirectory();
-	local_directory.AppendDir("extensions");
-	local_directory.Mkdir(0755, wxPATH_MKDIR_FULL);
-	return local_directory.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR);
+	FileName localDirectory = GetLocalDirectory();
+	localDirectory.AppendDir("extensions");
+	localDirectory.Mkdir(0755, wxPATH_MKDIR_FULL);
+	return localDirectory.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR);
 }
 
 void GUI::discoverDataDirectory(const wxString &existentFile) {
-	wxString currentDir = wxGetCwd();
-	wxString execDir = GetExecDirectory();
+	wxString currentDirectory = wxGetCwd();
+	wxString execDirectory = GetExecDirectory();
 
 	wxString possiblePaths[] = {
-		execDir,
-		currentDir + "/",
+		execDirectory,
+		currentDirectory + "/",
 
 		// these are used usually when running from build directories
-		execDir + "/../",
-		execDir + "/../../",
-		execDir + "/../../../",
-		currentDir + "/../",
+		execDirectory + "/../",
+		execDirectory + "/../../",
+		execDirectory + "/../../../",
+		currentDirectory + "/../",
 	};
 
-	bool found = false;
-	for (const wxString &path : possiblePaths) {
-		if (wxFileName(path + "data/" + existentFile).FileExists()) {
-			m_dataDirectory = path + "data/";
+	auto found = false;
+	for (const auto &path : possiblePaths) {
+		if (wxFileName(wxString::Format("%sdata/%s", path, existentFile)).FileExists()) {
+			m_dataDirectory = wxString::Format("%sdata/", path);
 			found = true;
 			break;
 		}
 	}
 
 	if (!found) {
-		wxLogError(wxString() + "Could not find data directory.\n");
+		wxLogError(wxString::Format("Could not find data directory.\n"));
 	}
 }
 
@@ -249,7 +200,7 @@ bool GUI::LoadVersion(ClientVersionID version, wxString &error, wxArrayString &w
 		return false;
 	}
 
-	if (version != loaded_version || force) {
+	if (version != loadedVersion || force) {
 		if (getLoadedVersion() != nullptr) {
 			// There is another version loaded right now, save window layout
 			g_gui.SavePerspective();
@@ -263,20 +214,20 @@ bool GUI::LoadVersion(ClientVersionID version, wxString &error, wxArrayString &w
 		// Destroy the previous version
 		UnloadVersion();
 
-		loaded_version = version;
+		loadedVersion = version;
 		if (!getLoadedVersion()->hasValidPaths()) {
 			if (!getLoadedVersion()->loadValidPaths()) {
 				error = "Couldn't load relevant asset files";
-				loaded_version = CLIENT_VERSION_NONE;
+				loadedVersion = CLIENT_VERSION_NONE;
 				return false;
 			}
 		}
 
-		bool ret = LoadDataFiles(error, warnings);
+		const auto ret = LoadDataFiles(error, warnings);
 		if (ret) {
 			g_gui.LoadPerspective();
 		} else {
-			loaded_version = CLIENT_VERSION_NONE;
+			loadedVersion = CLIENT_VERSION_NONE;
 		}
 
 		return ret;
@@ -284,27 +235,15 @@ bool GUI::LoadVersion(ClientVersionID version, wxString &error, wxArrayString &w
 	return true;
 }
 
-void GUI::EnableHotkeys() {
-	hotkeys_enabled = true;
-}
-
-void GUI::DisableHotkeys() {
-	hotkeys_enabled = false;
-}
-
-bool GUI::AreHotkeysEnabled() const {
-	return hotkeys_enabled;
-}
-
 ClientVersionID GUI::GetCurrentVersionID() const {
-	if (loaded_version != CLIENT_VERSION_NONE) {
+	if (loadedVersion != CLIENT_VERSION_NONE) {
 		return getLoadedVersion()->getID();
 	}
 	return CLIENT_VERSION_NONE;
 }
 
 const ClientVersion &GUI::GetCurrentVersion() const {
-	assert(loaded_version);
+	assert(loadedVersion);
 	return *getLoadedVersion();
 }
 
@@ -313,13 +252,13 @@ void GUI::CycleTab(bool forward) {
 }
 
 bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
-	FileName data_path = getLoadedVersion()->getDataPath();
-	FileName client_path = getLoadedVersion()->getClientPath();
-	FileName extension_path = GetExtensionsDirectory();
+	const auto &dataPath = getLoadedVersion()->getDataPath();
+	const auto &clientPath = getLoadedVersion()->getClientPath();
+	const auto &extensionPath = GetExtensionsDirectory();
 
-	FileName exec_directory;
+	FileName executableDirectory;
 	try {
-		exec_directory = dynamic_cast<wxStandardPaths &>(wxStandardPaths::Get()).GetExecutablePath();
+		executableDirectory = dynamic_cast<wxStandardPaths &>(wxStandardPaths::Get()).GetExecutablePath();
 	} catch (std::bad_cast &) {
 		error = "Couldn't establish working directory...";
 		return false;
@@ -327,8 +266,8 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 
 	g_gui.gfx.client_version = getLoadedVersion();
 
-	if (!g_gui.gfx.loadOTFI(client_path.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR), error, warnings)) {
-		error = "Couldn't load otfi file: " + error;
+	if (!g_gui.gfx.loadOTFI(clientPath.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR), error, warnings)) {
+		error = wxString::Format("Couldn't load otfi file: %s", error);
 		g_gui.DestroyLoadBar();
 		UnloadVersion();
 		return false;
@@ -337,9 +276,9 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 	g_gui.CreateLoadBar("Loading asset files");
 	g_gui.SetLoadDone(0, "Loading metadata file...");
 
-	wxFileName metadata_path = g_gui.gfx.getMetadataFileName();
-	if (!g_gui.gfx.loadSpriteMetadata(metadata_path, error, warnings)) {
-		error = "Couldn't load metadata: " + error;
+	const auto &metadataPath = g_gui.gfx.getMetadataFileName();
+	if (!g_gui.gfx.loadSpriteMetadata(metadataPath, error, warnings)) {
+		error = wxString::Format("Couldn't load metadata: %s", error);
 		g_gui.DestroyLoadBar();
 		UnloadVersion();
 		return false;
@@ -347,9 +286,9 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 
 	g_gui.SetLoadDone(10, "Loading sprites file...");
 
-	wxFileName sprites_path = g_gui.gfx.getSpritesFileName();
-	if (!g_gui.gfx.loadSpriteData(sprites_path.GetFullPath(), error, warnings)) {
-		error = "Couldn't load sprites: " + error;
+	const auto &spritesPath = g_gui.gfx.getSpritesFileName();
+	if (!g_gui.gfx.loadSpriteData(spritesPath.GetFullPath(), error, warnings)) {
+		error = wxString::Format("Couldn't load sprites: %s", error);
 		g_gui.DestroyLoadBar();
 		UnloadVersion();
 		return false;
@@ -357,7 +296,7 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 
 	g_gui.SetLoadDone(20, "Loading items.otb file...");
 	if (!g_items.loadFromOtb(wxString("data/items/items.otb"), error, warnings)) {
-		error = "Couldn't load items.otb: " + error;
+		error = wxString::Format("Couldn't load items.otb: %s", error);
 		g_gui.DestroyLoadBar();
 		UnloadVersion();
 		return false;
@@ -365,48 +304,48 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 
 	g_gui.SetLoadDone(30, "Loading items.xml ...");
 	if (!g_items.loadFromGameXml(wxString("data/items/items.xml"), error, warnings)) {
-		warnings.push_back("Couldn't load items.xml: " + error);
+		warnings.push_back(wxString::Format("Couldn't load items.xml: %s", error));
 	}
 
 	g_gui.SetLoadDone(45, "Loading monsters.xml ...");
 	if (!g_monsters.loadFromXML(wxString("data/creatures/monsters.xml"), true, error, warnings)) {
-		warnings.push_back("Couldn't load monsters.xml: " + error);
+		warnings.push_back(wxString::Format("Couldn't load monsters.xml: %s", error));
 	}
 
 	g_gui.SetLoadDone(45, "Loading user monsters.xml ...");
 	{
-		FileName cdb = getLoadedVersion()->getLocalDataPath();
-		cdb.SetFullName("monsters.xml");
-		wxString nerr;
-		wxArrayString nwarn;
-		g_monsters.loadFromXML(cdb, false, nerr, nwarn);
+		FileName monstersDataPath = getLoadedVersion()->getLocalDataPath();
+		monstersDataPath.SetFullName("monsters.xml");
+		wxString monstersError;
+		wxArrayString monstersWarning;
+		g_monsters.loadFromXML(monstersDataPath, false, monstersError, monstersWarning);
 	}
 
 	g_gui.SetLoadDone(45, "Loading npcs.xml ...");
 	if (!g_npcs.loadFromXML(wxString("data/creatures/npcs.xml"), true, error, warnings)) {
-		warnings.push_back("Couldn't load npcs.xml: " + error);
+		warnings.push_back(wxString::Format("Couldn't load npcs.xml: %s", error));
 	}
 
 	g_gui.SetLoadDone(45, "Loading user npcs.xml ...");
 	{
-		FileName cdb = getLoadedVersion()->getLocalDataPath();
-		cdb.SetFullName("npcs.xml");
-		wxString nerr;
-		wxArrayString nwarn;
-		g_npcs.loadFromXML(cdb, false, nerr, nwarn);
+		FileName npcsDataPath = getLoadedVersion()->getLocalDataPath();
+		npcsDataPath.SetFullName("npcs.xml");
+		wxString npcsError;
+		wxArrayString npcWarnings;
+		g_npcs.loadFromXML(npcsDataPath, false, npcsError, npcWarnings);
 	}
 
 	g_gui.SetLoadDone(50, "Loading materials.xml ...");
-	if (!g_materials.loadMaterials(wxString(data_path.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + "materials.xml"), error, warnings)) {
-		warnings.push_back("Couldn't load materials.xml: " + error);
+	if (!g_materials.loadMaterials(wxString::Format("%smaterials.xml", dataPath.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR)), error, warnings)) {
+		warnings.push_back(wxString::Format("Couldn't load materials.xml: %s", error));
 	}
 
 	g_gui.SetLoadDone(70, "Loading extensions...");
-	if (!g_materials.loadExtensions(extension_path, error, warnings)) {
+	if (!g_materials.loadExtensions(extensionPath, error, warnings)) {
 		// warnings.push_back("Couldn't load extensions: " + error);
 	}
 
-	g_gui.SetLoadDone(70, "Finishing...");
+	g_gui.SetLoadDone(90, "Finishing...");
 	g_brushes.init();
 	g_materials.createOtherTileset();
 	g_materials.createNpcTileset();
@@ -418,54 +357,52 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 void GUI::UnloadVersion() {
 	UnnamedRenderingLock();
 	gfx.clear();
-	current_brush = nullptr;
-	previous_brush = nullptr;
+	currentBrush = nullptr;
+	previousBrush = nullptr;
 
-	house_brush = nullptr;
-	house_exit_brush = nullptr;
-	waypoint_brush = nullptr;
-	optional_brush = nullptr;
+	houseBrush = nullptr;
+	houseExitBrush = nullptr;
+	waypointBrush = nullptr;
+	optionalBrush = nullptr;
 	eraser = nullptr;
-	normal_door_brush = nullptr;
-	locked_door_brush = nullptr;
-	magic_door_brush = nullptr;
-	quest_door_brush = nullptr;
-	hatch_door_brush = nullptr;
-	window_door_brush = nullptr;
+	normalDoorBrush = nullptr;
+	lockedDoorBrush = nullptr;
+	magicDoorBrush = nullptr;
+	questDoorBrush = nullptr;
+	hatchDoorBrush = nullptr;
+	windowDoorBrush = nullptr;
 
-	if (loaded_version != CLIENT_VERSION_NONE) {
+	if (loadedVersion != CLIENT_VERSION_NONE) {
 		// g_gui.UnloadVersion();
 		g_materials.clear();
 		g_brushes.clear();
 		g_items.clear();
 		gfx.clear();
 
-		FileName cdb = getLoadedVersion()->getLocalDataPath();
-		cdb.SetFullName("monsters.xml");
-		g_monsters.saveToXML(cdb);
+		FileName localDataPath = getLoadedVersion()->getLocalDataPath();
+		localDataPath.SetFullName("monsters.xml");
+		g_monsters.saveToXML(localDataPath);
 		g_monsters.clear();
 
-		cdb.SetFullName("npcs.xml");
-		g_npcs.saveToXML(cdb);
+		localDataPath.SetFullName("npcs.xml");
+		g_npcs.saveToXML(localDataPath);
 		g_npcs.clear();
 
-		loaded_version = CLIENT_VERSION_NONE;
+		loadedVersion = CLIENT_VERSION_NONE;
 	}
 }
 
 void GUI::SaveCurrentMap(FileName filename, bool showdialog) {
-	MapTab* mapTab = GetCurrentMapTab();
+	const auto &mapTab = GetCurrentMapTab();
 	if (mapTab) {
-		Editor* editor = mapTab->GetEditor();
+		const auto &editor = mapTab->GetEditor();
 		if (editor) {
 			editor->saveMap(filename, showdialog);
 
-			const std::string &filename = editor->getMap().getFilename();
-			const Position &position = mapTab->GetScreenCenterPosition();
-			std::ostringstream stream;
-			stream << position;
-			g_settings.setString(Config::RECENT_EDITED_MAP_PATH, filename);
-			g_settings.setString(Config::RECENT_EDITED_MAP_POSITION, stream.str());
+			const auto &mapName = editor->getMap().getFilename();
+			const auto &position = mapTab->GetScreenCenterPosition();
+			g_settings.setString(Config::RECENT_EDITED_MAP_PATH, mapName);
+			g_settings.setString(Config::RECENT_EDITED_MAP_POSITION, position.toString());
 		}
 	}
 
@@ -479,7 +416,7 @@ bool GUI::IsEditorOpen() const {
 }
 
 double GUI::GetCurrentZoom() {
-	MapTab* tab = GetCurrentMapTab();
+	const auto &tab = GetCurrentMapTab();
 	if (tab) {
 		return tab->GetCanvas()->GetZoom();
 	}
@@ -487,7 +424,7 @@ double GUI::GetCurrentZoom() {
 }
 
 void GUI::SetCurrentZoom(double zoom) {
-	MapTab* tab = GetCurrentMapTab();
+	const auto &tab = GetCurrentMapTab();
 	if (tab) {
 		tab->GetCanvas()->SetZoom(zoom);
 	}
@@ -495,7 +432,7 @@ void GUI::SetCurrentZoom(double zoom) {
 
 void GUI::FitViewToMap() {
 	for (int index = 0; index < tabbook->GetTabCount(); ++index) {
-		if (auto* tab = dynamic_cast<MapTab*>(tabbook->GetTab(index))) {
+		if (const auto &tab = dynamic_cast<MapTab*>(tabbook->GetTab(index))) {
 			tab->GetView()->FitToMap();
 		}
 	}
@@ -503,7 +440,7 @@ void GUI::FitViewToMap() {
 
 void GUI::FitViewToMap(MapTab* mt) {
 	for (int index = 0; index < tabbook->GetTabCount(); ++index) {
-		if (auto* tab = dynamic_cast<MapTab*>(tabbook->GetTab(index))) {
+		if (const auto &tab = dynamic_cast<MapTab*>(tabbook->GetTab(index))) {
 			if (tab->HasSameReference(mt)) {
 				tab->GetView()->FitToMap();
 			}
@@ -517,12 +454,12 @@ bool GUI::NewMap() {
 	Editor* editor;
 	try {
 		editor = newd Editor(copybuffer);
-	} catch (std::runtime_error &e) {
+	} catch (const std::runtime_error &e) {
 		PopupDialog(root, "Error!", wxString(e.what(), wxConvUTF8), wxOK);
 		return false;
 	}
 
-	auto* mapTab = newd MapTab(tabbook, editor);
+	const auto mapTab = newd MapTab(tabbook, editor);
 	mapTab->OnSwitchEditorMode(mode);
 	editor->clearChanges();
 
@@ -535,7 +472,7 @@ bool GUI::NewMap() {
 }
 
 void GUI::OpenMap() {
-	wxString wildcard = g_settings.getInteger(Config::USE_OTGZ) != 0 ? MAP_LOAD_FILE_WILDCARD_OTGZ : MAP_LOAD_FILE_WILDCARD;
+	const auto &wildcard = g_settings.getInteger(Config::USE_OTGZ) != 0 ? MAP_LOAD_FILE_WILDCARD_OTGZ : MAP_LOAD_FILE_WILDCARD;
 	wxFileDialog dialog(root, "Open map file", wxEmptyString, wxEmptyString, wildcard, wxFD_OPEN | wxFD_FILE_MUST_EXIST);
 
 	if (dialog.ShowModal() == wxID_OK) {
@@ -551,7 +488,7 @@ void GUI::SaveMap() {
 	if (GetCurrentMap().hasFile()) {
 		SaveCurrentMap(true);
 	} else {
-		wxString wildcard = g_settings.getInteger(Config::USE_OTGZ) != 0 ? MAP_SAVE_FILE_WILDCARD_OTGZ : MAP_SAVE_FILE_WILDCARD;
+		const auto &wildcard = g_settings.getInteger(Config::USE_OTGZ) != 0 ? MAP_SAVE_FILE_WILDCARD_OTGZ : MAP_SAVE_FILE_WILDCARD;
 		wxFileDialog dialog(root, "Save...", wxEmptyString, wxEmptyString, wildcard, wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
 
 		if (dialog.ShowModal() == wxID_OK) {
@@ -565,7 +502,7 @@ void GUI::SaveMapAs() {
 		return;
 	}
 
-	wxString wildcard = g_settings.getInteger(Config::USE_OTGZ) != 0 ? MAP_SAVE_FILE_WILDCARD_OTGZ : MAP_SAVE_FILE_WILDCARD;
+	const auto &wildcard = g_settings.getInteger(Config::USE_OTGZ) != 0 ? MAP_SAVE_FILE_WILDCARD_OTGZ : MAP_SAVE_FILE_WILDCARD;
 	wxFileDialog dialog(root, "Save As...", "", "", wildcard, wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
 
 	if (dialog.ShowModal() == wxID_OK) {
@@ -586,12 +523,12 @@ bool GUI::LoadMap(const FileName &fileName) {
 	Editor* editor;
 	try {
 		editor = newd Editor(copybuffer, fileName);
-	} catch (std::runtime_error &e) {
+	} catch (const std::runtime_error &e) {
 		PopupDialog(root, "Error!", wxString(e.what(), wxConvUTF8), wxOK);
 		return false;
 	}
 
-	auto* mapTab = newd MapTab(tabbook, editor);
+	const auto mapTab = newd MapTab(tabbook, editor);
 	mapTab->OnSwitchEditorMode(mode);
 
 	root->AddRecentFile(fileName);
@@ -609,9 +546,7 @@ bool GUI::LoadMap(const FileName &fileName) {
 	if (!path.empty()) {
 		FileName file(path);
 		if (file == fileName) {
-			std::istringstream stream(g_settings.getString(Config::RECENT_EDITED_MAP_POSITION));
-			Position position;
-			stream >> position;
+			Position position = Position(g_settings.getString(Config::RECENT_EDITED_MAP_POSITION));
 			mapTab->SetScreenCenterPosition(position);
 		}
 	}
@@ -619,7 +554,7 @@ bool GUI::LoadMap(const FileName &fileName) {
 }
 
 Editor* GUI::GetCurrentEditor() {
-	MapTab* mapTab = GetCurrentMapTab();
+	const auto &mapTab = GetCurrentMapTab();
 	if (mapTab) {
 		return mapTab->GetEditor();
 	}
@@ -640,40 +575,40 @@ EditorTab* GUI::GetCurrentTab() {
 
 MapTab* GUI::GetCurrentMapTab() const {
 	if (tabbook && tabbook->GetTabCount() > 0) {
-		EditorTab* editorTab = tabbook->GetCurrentTab();
-		auto* mapTab = dynamic_cast<MapTab*>(editorTab);
+		const auto &editorTab = tabbook->GetCurrentTab();
+		const auto &mapTab = dynamic_cast<MapTab*>(editorTab);
 		return mapTab;
 	}
 	return nullptr;
 }
 
 Map &GUI::GetCurrentMap() {
-	Editor* editor = GetCurrentEditor();
+	const auto &editor = GetCurrentEditor();
 	ASSERT(editor);
 	return editor->getMap();
 }
 
 int GUI::GetOpenMapCount() {
-	std::set<Map*> open_maps;
+	std::set<Map*> openMaps;
 
 	for (int i = 0; i < tabbook->GetTabCount(); ++i) {
-		auto* tab = dynamic_cast<MapTab*>(tabbook->GetTab(i));
+		const auto &tab = dynamic_cast<MapTab*>(tabbook->GetTab(i));
 		if (tab) {
-			open_maps.insert(open_maps.begin(), tab->GetMap());
+			openMaps.insert(openMaps.begin(), tab->GetMap());
 		}
 	}
 
-	return static_cast<int>(open_maps.size());
+	return static_cast<int>(openMaps.size());
 }
 
 bool GUI::ShouldSave() {
-	Editor* editor = GetCurrentEditor();
+	const auto &editor = GetCurrentEditor();
 	ASSERT(editor);
 	return editor->hasChanges();
 }
 
 void GUI::AddPendingCanvasEvent(wxEvent &event) {
-	MapTab* mapTab = GetCurrentMapTab();
+	const auto &mapTab = GetCurrentMapTab();
 	if (mapTab) {
 		mapTab->GetCanvas()->GetEventHandler()->AddPendingEvent(event);
 	}
@@ -686,19 +621,19 @@ void GUI::CloseCurrentEditor() {
 }
 
 bool GUI::CloseLiveEditors(LiveSocket* sock) {
-	for (int i = 0; i < tabbook->GetTabCount(); ++i) {
-		auto* mapTab = dynamic_cast<MapTab*>(tabbook->GetTab(i));
+	for (auto tabIndex = 0; tabIndex < tabbook->GetTabCount(); ++tabIndex) {
+		const auto &mapTab = dynamic_cast<MapTab*>(tabbook->GetTab(tabIndex));
 		if (mapTab) {
-			Editor* editor = mapTab->GetEditor();
+			const auto &editor = mapTab->GetEditor();
 			if (editor->GetLiveClient() == sock) {
-				tabbook->DeleteTab(i--);
+				tabbook->DeleteTab(tabIndex--);
 			}
 		}
-		auto* liveLogTab = dynamic_cast<LiveLogTab*>(tabbook->GetTab(i));
+		const auto &liveLogTab = dynamic_cast<LiveLogTab*>(tabbook->GetTab(tabIndex));
 		if (liveLogTab) {
 			if (liveLogTab->GetSocket() == sock) {
 				liveLogTab->Disconnect();
-				tabbook->DeleteTab(i--);
+				tabbook->DeleteTab(tabIndex--);
 			}
 		}
 	}
@@ -707,19 +642,19 @@ bool GUI::CloseLiveEditors(LiveSocket* sock) {
 }
 
 bool GUI::CloseAllEditors() {
-	for (int i = 0; i < tabbook->GetTabCount(); ++i) {
-		auto* mapTab = dynamic_cast<MapTab*>(tabbook->GetTab(i));
+	for (auto tabIndex = 0; tabIndex < tabbook->GetTabCount(); ++tabIndex) {
+		const auto &mapTab = dynamic_cast<MapTab*>(tabbook->GetTab(tabIndex));
 		if (mapTab) {
 			if (mapTab->IsUniqueReference() && mapTab->GetMap() && mapTab->GetMap()->hasChanged()) {
-				tabbook->SetFocusedTab(i);
+				tabbook->SetFocusedTab(tabIndex);
 				if (!root->DoQuerySave(false)) {
 					return false;
 				} else {
 					RefreshPalettes();
-					tabbook->DeleteTab(i--);
+					tabbook->DeleteTab(tabIndex--);
 				}
 			} else {
-				tabbook->DeleteTab(i--);
+				tabbook->DeleteTab(tabIndex--);
 			}
 		}
 	}
@@ -730,9 +665,9 @@ bool GUI::CloseAllEditors() {
 }
 
 void GUI::NewMapView() {
-	MapTab* mapTab = GetCurrentMapTab();
+	const auto &mapTab = GetCurrentMapTab();
 	if (mapTab) {
-		auto* newMapTab = newd MapTab(mapTab);
+		const auto newMapTab = newd MapTab(mapTab);
 		newMapTab->OnSwitchEditorMode(mode);
 
 		SetStatusText("Created new view");
@@ -757,10 +692,10 @@ void GUI::LoadPerspective() {
 		std::string tmp;
 		std::string layout = g_settings.getString(Config::PALETTE_LAYOUT);
 
-		std::vector<std::string> palette_list;
-		for (char c : layout) {
+		std::vector<std::string> paletteList;
+		for (const auto &c : layout) {
 			if (c == '|') {
-				palette_list.push_back(tmp);
+				paletteList.push_back(tmp);
 				tmp.clear();
 			} else {
 				tmp.push_back(c);
@@ -768,27 +703,27 @@ void GUI::LoadPerspective() {
 		}
 
 		if (!tmp.empty()) {
-			palette_list.push_back(tmp);
+			paletteList.push_back(tmp);
 		}
 
-		for (const std::string &name : palette_list) {
-			PaletteWindow* palette = CreatePalette();
+		for (const auto &name : paletteList) {
+			const auto &palette = CreatePalette();
 
-			wxAuiPaneInfo &info = aui_manager->GetPane(palette);
-			aui_manager->LoadPaneInfo(wxstr(name), info);
+			auto &info = auiManager->GetPane(palette);
+			auiManager->LoadPaneInfo(wxstr(name), info);
 
 			if (info.IsFloatable()) {
-				bool offscreen = true;
-				for (uint32_t index = 0; index < wxDisplay::GetCount(); ++index) {
+				bool offScreen = true;
+				for (auto index = 0; index < wxDisplay::GetCount(); ++index) {
 					wxDisplay display(index);
-					wxRect rect = display.GetClientArea();
+					const auto &rect = display.GetClientArea();
 					if (rect.Contains(info.floating_pos)) {
-						offscreen = false;
+						offScreen = false;
 						break;
 					}
 				}
 
-				if (offscreen) {
+				if (offScreen) {
 					info.Dock();
 				}
 			}
@@ -798,24 +733,24 @@ void GUI::LoadPerspective() {
 			if (!minimap) {
 				wxAuiPaneInfo info;
 
-				const wxString &data = wxstr(g_settings.getString(Config::MINIMAP_LAYOUT));
-				aui_manager->LoadPaneInfo(data, info);
+				const auto &data = wxstr(g_settings.getString(Config::MINIMAP_LAYOUT));
+				auiManager->LoadPaneInfo(data, info);
 
 				minimap = newd MinimapWindow(root);
-				aui_manager->AddPane(minimap, info);
+				auiManager->AddPane(minimap, info);
 			} else {
-				wxAuiPaneInfo &info = aui_manager->GetPane(minimap);
+				auto &info = auiManager->GetPane(minimap);
 
-				const wxString &data = wxstr(g_settings.getString(Config::MINIMAP_LAYOUT));
-				aui_manager->LoadPaneInfo(data, info);
+				const auto &data = wxstr(g_settings.getString(Config::MINIMAP_LAYOUT));
+				auiManager->LoadPaneInfo(data, info);
 			}
 
-			wxAuiPaneInfo &info = aui_manager->GetPane(minimap);
+			auto &info = auiManager->GetPane(minimap);
 			if (info.IsFloatable()) {
 				bool offscreen = true;
-				for (uint32_t index = 0; index < wxDisplay::GetCount(); ++index) {
+				for (auto index = 0; index < wxDisplay::GetCount(); ++index) {
 					wxDisplay display(index);
-					wxRect rect = display.GetClientArea();
+					const auto &rect = display.GetClientArea();
 					if (rect.Contains(info.floating_pos)) {
 						offscreen = false;
 						break;
@@ -829,26 +764,26 @@ void GUI::LoadPerspective() {
 		}
 
 		if (g_settings.getInteger(Config::ACTIONS_HISTORY_VISIBLE)) {
-			if (!actions_history_window) {
+			if (!actionsHistoryWindow) {
 				wxAuiPaneInfo info;
 
-				const wxString &data = wxstr(g_settings.getString(Config::ACTIONS_HISTORY_LAYOUT));
-				aui_manager->LoadPaneInfo(data, info);
+				const auto &data = wxstr(g_settings.getString(Config::ACTIONS_HISTORY_LAYOUT));
+				auiManager->LoadPaneInfo(data, info);
 
-				actions_history_window = new ActionsHistoryWindow(root);
-				aui_manager->AddPane(actions_history_window, info);
+				actionsHistoryWindow = new ActionsHistoryWindow(root);
+				auiManager->AddPane(actionsHistoryWindow, info);
 			} else {
-				wxAuiPaneInfo &info = aui_manager->GetPane(actions_history_window);
-				const wxString &data = wxstr(g_settings.getString(Config::ACTIONS_HISTORY_LAYOUT));
-				aui_manager->LoadPaneInfo(data, info);
+				auto &info = auiManager->GetPane(actionsHistoryWindow);
+				const auto &data = wxstr(g_settings.getString(Config::ACTIONS_HISTORY_LAYOUT));
+				auiManager->LoadPaneInfo(data, info);
 			}
 
-			wxAuiPaneInfo &info = aui_manager->GetPane(actions_history_window);
+			auto &info = auiManager->GetPane(actionsHistoryWindow);
 			if (info.IsFloatable()) {
 				bool offscreen = true;
-				for (uint32_t index = 0; index < wxDisplay::GetCount(); ++index) {
+				for (auto index = 0; index < wxDisplay::GetCount(); ++index) {
 					wxDisplay display(index);
-					wxRect rect = display.GetClientArea();
+					const auto &rect = display.GetClientArea();
 					if (rect.Contains(info.floating_pos)) {
 						offscreen = false;
 						break;
@@ -861,7 +796,7 @@ void GUI::LoadPerspective() {
 			}
 		}
 
-		aui_manager->Update();
+		auiManager->Update();
 		root->UpdateMenubar();
 	}
 
@@ -873,64 +808,64 @@ void GUI::SavePerspective() {
 	g_settings.setInteger(Config::WINDOW_WIDTH, root->GetSize().GetWidth());
 	g_settings.setInteger(Config::WINDOW_HEIGHT, root->GetSize().GetHeight());
 	g_settings.setInteger(Config::MINIMAP_VISIBLE, minimap ? 1 : 0);
-	g_settings.setInteger(Config::ACTIONS_HISTORY_VISIBLE, actions_history_window ? 1 : 0);
+	g_settings.setInteger(Config::ACTIONS_HISTORY_VISIBLE, actionsHistoryWindow ? 1 : 0);
 
-	wxString pinfo;
-	for (auto &palette : palettes) {
-		if (aui_manager->GetPane(palette).IsShown()) {
-			pinfo << aui_manager->SavePaneInfo(aui_manager->GetPane(palette)) << "|";
+	wxString panelInfo;
+	for (const auto &palette : palettes) {
+		if (auiManager->GetPane(palette).IsShown()) {
+			panelInfo << auiManager->SavePaneInfo(auiManager->GetPane(palette)) << "|";
 		}
 	}
-	g_settings.setString(Config::PALETTE_LAYOUT, nstr(pinfo));
+	g_settings.setString(Config::PALETTE_LAYOUT, nstr(panelInfo));
 
 	if (minimap) {
-		wxString s = aui_manager->SavePaneInfo(aui_manager->GetPane(minimap));
-		g_settings.setString(Config::MINIMAP_LAYOUT, nstr(s));
+		wxString minimapInfo = auiManager->SavePaneInfo(auiManager->GetPane(minimap));
+		g_settings.setString(Config::MINIMAP_LAYOUT, nstr(minimapInfo));
 	}
 
-	if (actions_history_window) {
-		wxString info = aui_manager->SavePaneInfo(aui_manager->GetPane(actions_history_window));
-		g_settings.setString(Config::ACTIONS_HISTORY_LAYOUT, nstr(info));
+	if (actionsHistoryWindow) {
+		wxString actionsHistoryInfo = auiManager->SavePaneInfo(auiManager->GetPane(actionsHistoryWindow));
+		g_settings.setString(Config::ACTIONS_HISTORY_LAYOUT, nstr(actionsHistoryInfo));
 	}
 
 	root->GetAuiToolBar()->SavePerspective();
 }
 
 void GUI::HideSearchWindow() {
-	if (search_result_window) {
-		aui_manager->GetPane(search_result_window).Show(false);
-		aui_manager->Update();
+	if (searchResultWindow) {
+		auiManager->GetPane(searchResultWindow).Show(false);
+		auiManager->Update();
 	}
 }
 
 SearchResultWindow* GUI::ShowSearchWindow() {
-	if (search_result_window == nullptr) {
-		search_result_window = newd SearchResultWindow(root);
-		aui_manager->AddPane(search_result_window, wxAuiPaneInfo().Caption("Search Results"));
+	if (searchResultWindow == nullptr) {
+		searchResultWindow = newd SearchResultWindow(root);
+		auiManager->AddPane(searchResultWindow, wxAuiPaneInfo().Caption("Search Results"));
 	} else {
-		aui_manager->GetPane(search_result_window).Show();
+		auiManager->GetPane(searchResultWindow).Show();
 	}
-	aui_manager->Update();
-	return search_result_window;
+	auiManager->Update();
+	return searchResultWindow;
 }
 
 ActionsHistoryWindow* GUI::ShowActionsWindow() {
-	if (!actions_history_window) {
-		actions_history_window = new ActionsHistoryWindow(root);
-		aui_manager->AddPane(actions_history_window, wxAuiPaneInfo().Caption("Actions History"));
+	if (!actionsHistoryWindow) {
+		actionsHistoryWindow = new ActionsHistoryWindow(root);
+		auiManager->AddPane(actionsHistoryWindow, wxAuiPaneInfo().Caption("Actions History"));
 	} else {
-		aui_manager->GetPane(actions_history_window).Show();
+		auiManager->GetPane(actionsHistoryWindow).Show();
 	}
 
-	aui_manager->Update();
-	actions_history_window->RefreshActions();
-	return actions_history_window;
+	auiManager->Update();
+	actionsHistoryWindow->RefreshActions();
+	return actionsHistoryWindow;
 }
 
 void GUI::HideActionsWindow() {
-	if (actions_history_window) {
-		aui_manager->GetPane(actions_history_window).Show(false);
-		aui_manager->Update();
+	if (actionsHistoryWindow) {
+		auiManager->GetPane(actionsHistoryWindow).Show(false);
+		auiManager->Update();
 	}
 }
 
@@ -948,18 +883,18 @@ PaletteWindow* GUI::NewPalette() {
 	return CreatePalette();
 }
 
-void GUI::RefreshPalettes(Map* m, bool usedefault) {
-	for (auto &palette : palettes) {
-		palette->OnUpdate(m ? m : (usedefault ? (IsEditorOpen() ? &GetCurrentMap() : nullptr) : nullptr));
+void GUI::RefreshPalettes(Map* map, bool usedefault) {
+	for (const auto &palette : palettes) {
+		palette->OnUpdate(map ? map : (usedefault ? (IsEditorOpen() ? &GetCurrentMap() : nullptr) : nullptr));
 	}
 	SelectBrush();
 
 	RefreshActions();
 }
 
-void GUI::RefreshOtherPalettes(PaletteWindow* p) {
-	for (auto &palette : palettes) {
-		if (palette != p) {
+void GUI::RefreshOtherPalettes(PaletteWindow* paletteWindow) {
+	for (const auto &palette : palettes) {
+		if (palette != paletteWindow) {
 			palette->OnUpdate(IsEditorOpen() ? &GetCurrentMap() : nullptr);
 		}
 	}
@@ -971,9 +906,9 @@ PaletteWindow* GUI::CreatePalette() {
 		return nullptr;
 	}
 
-	auto* palette = newd PaletteWindow(root, g_materials.tilesets);
-	aui_manager->AddPane(palette, wxAuiPaneInfo().Caption("Palette").TopDockable(false).BottomDockable(false));
-	aui_manager->Update();
+	const auto palette = newd PaletteWindow(root, g_materials.tilesets);
+	auiManager->AddPane(palette, wxAuiPaneInfo().Caption("Palette").TopDockable(false).BottomDockable(false));
+	auiManager->Update();
 
 	// Make us the active palette
 	palettes.push_front(palette);
@@ -983,29 +918,29 @@ PaletteWindow* GUI::CreatePalette() {
 	return palette;
 }
 
-void GUI::ActivatePalette(PaletteWindow* p) {
-	palettes.erase(std::find(palettes.begin(), palettes.end(), p));
-	palettes.push_front(p);
+void GUI::ActivatePalette(PaletteWindow* paletteWindow) {
+	palettes.erase(std::find(palettes.begin(), palettes.end(), paletteWindow));
+	palettes.push_front(paletteWindow);
 }
 
 void GUI::DestroyPalettes() {
-	for (auto palette : palettes) {
-		aui_manager->DetachPane(palette);
+	for (auto &palette : palettes) {
+		auiManager->DetachPane(palette);
 		palette->Destroy();
 		palette = nullptr;
 	}
 	palettes.clear();
-	aui_manager->Update();
+	auiManager->Update();
 }
 
 void GUI::RebuildPalettes() {
 	// Palette lits might be modified due to active palette changes
 	// Use a temporary list for iterating
-	PaletteList tmp = palettes;
-	for (auto &piter : tmp) {
+	const auto &tmp = palettes;
+	for (const auto &piter : tmp) {
 		piter->ReloadSettings(IsEditorOpen() ? &GetCurrentMap() : nullptr);
 	}
-	aui_manager->Update();
+	auiManager->Update();
 }
 
 void GUI::ShowPalette() {
@@ -1013,29 +948,29 @@ void GUI::ShowPalette() {
 		return;
 	}
 
-	for (auto &palette : palettes) {
-		if (aui_manager->GetPane(palette).IsShown()) {
+	for (const auto &palette : palettes) {
+		if (auiManager->GetPane(palette).IsShown()) {
 			return;
 		}
 	}
 
-	aui_manager->GetPane(palettes.front()).Show(true);
-	aui_manager->Update();
+	auiManager->GetPane(palettes.front()).Show(true);
+	auiManager->Update();
 }
 
-void GUI::SelectPalettePage(PaletteType pt) {
+void GUI::SelectPalettePage(PaletteType paletteType) {
 	if (palettes.empty()) {
 		CreatePalette();
 	}
-	PaletteWindow* p = GetPalette();
-	if (!p) {
+	const auto &paletteWindow = GetPalette();
+	if (!paletteWindow) {
 		return;
 	}
 
 	ShowPalette();
-	p->SelectPage(pt);
-	aui_manager->Update();
-	SelectBrushInternal(p->GetSelectedBrush());
+	paletteWindow->SelectPage(paletteType);
+	auiManager->Update();
+	SelectBrushInternal(paletteWindow->GetSelectedBrush());
 }
 
 //=============================================================================
@@ -1047,26 +982,26 @@ void GUI::CreateMinimap() {
 	}
 
 	if (minimap) {
-		aui_manager->GetPane(minimap).Show(true);
+		auiManager->GetPane(minimap).Show(true);
 	} else {
 		minimap = newd MinimapWindow(root);
 		minimap->Show(true);
-		aui_manager->AddPane(minimap, wxAuiPaneInfo().Caption("Minimap"));
+		auiManager->AddPane(minimap, wxAuiPaneInfo().Caption("Minimap"));
 	}
-	aui_manager->Update();
+	auiManager->Update();
 }
 
 void GUI::HideMinimap() {
 	if (minimap) {
-		aui_manager->GetPane(minimap).Show(false);
-		aui_manager->Update();
+		auiManager->GetPane(minimap).Show(false);
+		auiManager->Update();
 	}
 }
 
 void GUI::DestroyMinimap() {
 	if (minimap) {
-		aui_manager->DetachPane(minimap);
-		aui_manager->Update();
+		auiManager->DetachPane(minimap);
+		auiManager->Update();
 		minimap->Destroy();
 		minimap = nullptr;
 	}
@@ -1084,7 +1019,7 @@ void GUI::UpdateMinimap(bool immediate) {
 
 bool GUI::IsMinimapVisible() const {
 	if (minimap) {
-		const wxAuiPaneInfo &pi = aui_manager->GetPane(minimap);
+		const wxAuiPaneInfo &pi = auiManager->GetPane(minimap);
 		if (pi.IsShown()) {
 			return true;
 		}
@@ -1095,7 +1030,7 @@ bool GUI::IsMinimapVisible() const {
 //=============================================================================
 
 void GUI::RefreshView() {
-	EditorTab* editorTab = GetCurrentTab();
+	const auto &editorTab = GetCurrentTab();
 	if (!editorTab) {
 		return;
 	}
@@ -1106,19 +1041,19 @@ void GUI::RefreshView() {
 	}
 
 	std::vector<EditorTab*> editorTabs;
-	for (int32_t index = 0; index < tabbook->GetTabCount(); ++index) {
-		auto* mapTab = dynamic_cast<MapTab*>(tabbook->GetTab(index));
+	for (auto index = 0; index < tabbook->GetTabCount(); ++index) {
+		const auto &mapTab = dynamic_cast<MapTab*>(tabbook->GetTab(index));
 		if (mapTab) {
 			editorTabs.push_back(mapTab);
 		}
 	}
 
-	for (EditorTab* editorTab : editorTabs) {
+	for (const auto &editorTab : editorTabs) {
 		editorTab->GetWindow()->Refresh();
 	}
 }
 
-void GUI::CreateLoadBar(wxString message, bool canCancel /* = false */) {
+void GUI::CreateLoadBar(const wxString &message, bool canCancel /* = false */) {
 	progressText = message;
 
 	progressFrom = 0;
@@ -1129,10 +1064,10 @@ void GUI::CreateLoadBar(wxString message, bool canCancel /* = false */) {
 	progressBar->SetSize(280, -1);
 	progressBar->Show(true);
 
-	for (int idx = 0; idx < tabbook->GetTabCount(); ++idx) {
-		auto* mt = dynamic_cast<MapTab*>(tabbook->GetTab(idx));
-		if (mt && mt->GetEditor()->IsLiveServer()) {
-			mt->GetEditor()->GetLiveServer()->startOperation(progressText);
+	for (int tabIndex = 0; tabIndex < tabbook->GetTabCount(); ++tabIndex) {
+		const auto &mapTab = dynamic_cast<MapTab*>(tabbook->GetTab(tabIndex));
+		if (mapTab && mapTab->GetEditor()->IsLiveServer()) {
+			mapTab->GetEditor()->GetLiveServer()->startOperation(progressText);
 		}
 	}
 	progressBar->Update(0);
@@ -1155,7 +1090,7 @@ bool GUI::SetLoadDone(int32_t done, const wxString &newMessage) {
 		progressText = newMessage;
 	}
 
-	int32_t newProgress = progressFrom + static_cast<int32_t>((done / 100.f) * (progressTo - progressFrom));
+	auto newProgress = progressFrom + static_cast<int32_t>((done / 100.f) * (progressTo - progressFrom));
 	newProgress = std::max<int32_t>(0, std::min<int32_t>(100, newProgress));
 
 	bool skip = false;
@@ -1168,10 +1103,10 @@ bool GUI::SetLoadDone(int32_t done, const wxString &newMessage) {
 		currentProgress = newProgress;
 	}
 
-	for (int32_t index = 0; index < tabbook->GetTabCount(); ++index) {
-		auto* mapTab = dynamic_cast<MapTab*>(tabbook->GetTab(index));
+	for (auto index = 0; index < tabbook->GetTabCount(); ++index) {
+		const auto &mapTab = dynamic_cast<MapTab*>(tabbook->GetTab(index));
 		if (mapTab && mapTab->GetEditor()) {
-			LiveServer* server = mapTab->GetEditor()->GetLiveServer();
+			const auto &server = mapTab->GetEditor()->GetLiveServer();
 			if (server) {
 				server->updateOperation(newProgress);
 			}
@@ -1198,8 +1133,8 @@ void GUI::DestroyLoadBar() {
 }
 
 void GUI::ShowWelcomeDialog(const wxBitmap &icon) {
-	std::vector<wxString> recent_files = root->GetRecentFiles();
-	welcomeDialog = newd WelcomeDialog(__W_RME_APPLICATION_NAME__, "Version " + __W_RME_VERSION__, FROM_DIP(root, wxSize(800, 480)), icon, recent_files);
+	const auto &recentFiles = root->GetRecentFiles();
+	welcomeDialog = newd WelcomeDialog(__W_RME_APPLICATION_NAME__, "Version " + __W_RME_VERSION__, FROM_DIP(root, wxSize(800, 480)), icon, recentFiles);
 	welcomeDialog->Bind(wxEVT_CLOSE_WINDOW, &GUI::OnWelcomeDialogClosed, this);
 	welcomeDialog->Bind(WELCOME_DIALOG_ACTION, &GUI::OnWelcomeDialogAction, this);
 	welcomeDialog->Show();
@@ -1237,7 +1172,7 @@ void GUI::UpdateMenubar() {
 }
 
 void GUI::SetScreenCenterPosition(const Position &position, bool showIndicator) {
-	MapTab* mapTab = GetCurrentMapTab();
+	const auto &mapTab = GetCurrentMapTab();
 	if (mapTab) {
 		mapTab->SetScreenCenterPosition(position, showIndicator);
 	}
@@ -1248,7 +1183,7 @@ void GUI::DoCut() {
 		return;
 	}
 
-	Editor* editor = GetCurrentEditor();
+	const auto &editor = GetCurrentEditor();
 	if (!editor) {
 		return;
 	}
@@ -1263,7 +1198,7 @@ void GUI::DoCopy() {
 		return;
 	}
 
-	Editor* editor = GetCurrentEditor();
+	const auto &editor = GetCurrentEditor();
 	if (!editor) {
 		return;
 	}
@@ -1274,17 +1209,17 @@ void GUI::DoCopy() {
 }
 
 void GUI::DoPaste() {
-	MapTab* mapTab = GetCurrentMapTab();
+	const auto &mapTab = GetCurrentMapTab();
 	if (mapTab) {
 		copybuffer.paste(*mapTab->GetEditor(), mapTab->GetCanvas()->GetCursorPosition());
 	}
 }
 
 void GUI::PreparePaste() {
-	Editor* editor = GetCurrentEditor();
+	const auto &editor = GetCurrentEditor();
 	if (editor) {
 		SetSelectionMode();
-		Selection &selection = editor->getSelection();
+		auto &selection = editor->getSelection();
 		selection.start();
 		selection.clear();
 		selection.finish();
@@ -1296,29 +1231,29 @@ void GUI::PreparePaste() {
 void GUI::StartPasting() {
 	if (GetCurrentEditor()) {
 		pasting = true;
-		secondary_map = &copybuffer.getBufferMap();
+		secondaryMap = &copybuffer.getBufferMap();
 	}
 }
 
 void GUI::EndPasting() {
 	if (pasting) {
 		pasting = false;
-		secondary_map = nullptr;
+		secondaryMap = nullptr;
 	}
 }
 
 bool GUI::CanUndo() {
-	Editor* editor = GetCurrentEditor();
+	const auto &editor = GetCurrentEditor();
 	return (editor && editor->canUndo());
 }
 
 bool GUI::CanRedo() {
-	Editor* editor = GetCurrentEditor();
+	const auto &editor = GetCurrentEditor();
 	return (editor && editor->canRedo());
 }
 
 bool GUI::DoUndo() {
-	Editor* editor = GetCurrentEditor();
+	const auto &editor = GetCurrentEditor();
 	if (editor && editor->canUndo()) {
 		editor->undo();
 		if (editor->hasSelection()) {
@@ -1334,7 +1269,7 @@ bool GUI::DoUndo() {
 }
 
 bool GUI::DoRedo() {
-	Editor* editor = GetCurrentEditor();
+	const auto &editor = GetCurrentEditor();
 	if (editor && editor->canRedo()) {
 		editor->redo();
 		if (editor->hasSelection()) {
@@ -1350,26 +1285,26 @@ bool GUI::DoRedo() {
 }
 
 int GUI::GetCurrentFloor() {
-	MapTab* tab = GetCurrentMapTab();
+	const auto &tab = GetCurrentMapTab();
 	ASSERT(tab);
 	return tab->GetCanvas()->GetFloor();
 }
 
-void GUI::ChangeFloor(int new_floor) {
-	MapTab* tab = GetCurrentMapTab();
+void GUI::ChangeFloor(int newFloor) {
+	const auto &tab = GetCurrentMapTab();
 	if (tab) {
-		int old_floor = GetCurrentFloor();
-		if (new_floor < rme::MapMinLayer || new_floor > rme::MapMaxLayer) {
+		int oldFloor = GetCurrentFloor();
+		if (newFloor < rme::MapMinLayer || newFloor > rme::MapMaxLayer) {
 			return;
 		}
 
-		if (old_floor != new_floor) {
-			tab->GetCanvas()->ChangeFloor(new_floor);
+		if (oldFloor != newFloor) {
+			tab->GetCanvas()->ChangeFloor(newFloor);
 		}
 	}
 }
 
-void GUI::SetStatusText(wxString text) {
+void GUI::SetStatusText(const wxString &text) {
 	g_gui.root->SetStatusText(text, 0);
 }
 
@@ -1415,9 +1350,9 @@ void GUI::SetTitle(wxString title) {
 void GUI::UpdateTitle() {
 	if (tabbook->GetTabCount() > 0) {
 		SetTitle(tabbook->GetCurrentTab()->GetTitle());
-		for (int idx = 0; idx < tabbook->GetTabCount(); ++idx) {
-			if (tabbook->GetTab(idx)) {
-				tabbook->SetTabLabel(idx, tabbook->GetTab(idx)->GetTitle());
+		for (auto tabIndex = 0; tabIndex < tabbook->GetTabCount(); ++tabIndex) {
+			if (tabbook->GetTab(tabIndex)) {
+				tabbook->SetTabLabel(tabIndex, tabbook->GetTab(tabIndex)->GetTitle());
 			}
 		}
 	} else {
@@ -1436,8 +1371,8 @@ void GUI::UpdateActions() {
 }
 
 void GUI::RefreshActions() {
-	if (actions_history_window) {
-		actions_history_window->RefreshActions();
+	if (actionsHistoryWindow) {
+		actionsHistoryWindow->RefreshActions();
 	}
 }
 
@@ -1460,8 +1395,8 @@ void GUI::SetSelectionMode() {
 		return;
 	}
 
-	if (current_brush && current_brush->isDoodad()) {
-		secondary_map = nullptr;
+	if (currentBrush && currentBrush->isDoodad()) {
+		secondaryMap = nullptr;
 	}
 
 	tabbook->OnSwitchEditorMode(SELECTION_MODE);
@@ -1473,87 +1408,85 @@ void GUI::SetDrawingMode() {
 		return;
 	}
 
-	std::set<MapTab*> al;
+	std::set<MapTab*> mapTabs;
 	for (int idx = 0; idx < tabbook->GetTabCount(); ++idx) {
-		EditorTab* editorTab = tabbook->GetTab(idx);
-		if (MapTab* mapTab = dynamic_cast<MapTab*>(editorTab)) {
-			if (al.find(mapTab) != al.end()) {
+		const auto &editorTab = tabbook->GetTab(idx);
+		if (const auto &mapTab = dynamic_cast<MapTab*>(editorTab)) {
+			if (mapTabs.find(mapTab) != mapTabs.end()) {
 				continue;
 			}
 
-			Editor* editor = mapTab->GetEditor();
-			Selection &selection = editor->getSelection();
+			const auto &editor = mapTab->GetEditor();
+			auto &selection = editor->getSelection();
 			selection.start(Selection::NONE, ACTION_UNSELECT);
 			selection.clear();
 			selection.finish();
 			selection.updateSelectionCount();
-			al.insert(mapTab);
+			mapTabs.insert(mapTab);
 		}
 	}
 
-	if (current_brush && current_brush->isDoodad()) {
-		secondary_map = doodad_buffer_map;
+	if (currentBrush && currentBrush->isDoodad()) {
+		secondaryMap = doodadBufferMap;
 	} else {
-		secondary_map = nullptr;
+		secondaryMap = nullptr;
 	}
 
 	tabbook->OnSwitchEditorMode(DRAWING_MODE);
 	mode = DRAWING_MODE;
 }
 
-void GUI::SetBrushSizeInternal(int nz) {
-	if (nz != brush_size && current_brush && current_brush->isDoodad() && !current_brush->oneSizeFitsAll()) {
-		brush_size = nz;
+void GUI::SetBrushSizeInternal(uint8_t newBrushSize) {
+	if (newBrushSize != brushSize && currentBrush && currentBrush->isDoodad() && !currentBrush->oneSizeFitsAll()) {
+		brushSize = newBrushSize;
 		FillDoodadPreviewBuffer();
-		secondary_map = doodad_buffer_map;
+		secondaryMap = doodadBufferMap;
 	} else {
-		brush_size = nz;
+		brushSize = newBrushSize;
 	}
 }
 
-void GUI::SetBrushSize(int nz) {
-	SetBrushSizeInternal(nz);
+void GUI::SetBrushSize(uint8_t newBrushSize) {
+	SetBrushSizeInternal(newBrushSize);
 
-	for (auto &palette : palettes) {
-		palette->OnUpdateBrushSize(brush_shape, brush_size);
+	for (const auto &palette : palettes) {
+		palette->OnUpdateBrushSize(brushShape, brushSize);
 	}
 
-	root->GetAuiToolBar()->UpdateBrushSize(brush_shape, brush_size);
+	root->GetAuiToolBar()->UpdateBrushSize(brushShape, brushSize);
 }
 
-void GUI::SetBrushVariation(int nz) {
-	if (nz != brush_variation && current_brush && current_brush->isDoodad()) {
-		// Monkey!
-		brush_variation = nz;
+void GUI::SetBrushVariation(int newBrushVariation) {
+	if (newBrushVariation != brushVariation && currentBrush && currentBrush->isDoodad()) {
+		brushVariation = newBrushVariation;
 		FillDoodadPreviewBuffer();
-		secondary_map = doodad_buffer_map;
+		secondaryMap = doodadBufferMap;
 	}
 }
 
-void GUI::SetBrushShape(BrushShape bs) {
-	if (bs != brush_shape && current_brush && current_brush->isDoodad() && !current_brush->oneSizeFitsAll()) {
-		// Donkey!
-		brush_shape = bs;
+void GUI::SetBrushShape(BrushShape newBrushShape) {
+	if (newBrushShape != brushShape && currentBrush && currentBrush->isDoodad() && !currentBrush->oneSizeFitsAll()) {
+		brushShape = newBrushShape;
 		FillDoodadPreviewBuffer();
-		secondary_map = doodad_buffer_map;
+		secondaryMap = doodadBufferMap;
 	}
-	brush_shape = bs;
+	brushShape = newBrushShape;
 
-	for (auto &palette : palettes) {
-		palette->OnUpdateBrushSize(brush_shape, brush_size);
+	for (const auto &palette : palettes) {
+		palette->OnUpdateBrushSize(brushShape, brushSize);
 	}
 
-	root->GetAuiToolBar()->UpdateBrushSize(brush_shape, brush_size);
+	root->GetAuiToolBar()->UpdateBrushSize(brushShape, brushSize);
 }
 
 void GUI::SetBrushThickness(bool on, int x, int y) {
-	use_custom_thickness = on;
+	useCustomThickness = on;
 
 	if (x != -1 || y != -1) {
-		custom_thickness_mod = std::max<float>(x, 1.f) / std::max<float>(y, 1.f);
+		customThicknessMod = std::max<float>(x, 1.f) / std::max<float>(y, 1.f);
 	}
 
-	if (current_brush && current_brush->isDoodad()) {
+	if (currentBrush && currentBrush->isDoodad()) {
 		FillDoodadPreviewBuffer();
 	}
 
@@ -1561,9 +1494,9 @@ void GUI::SetBrushThickness(bool on, int x, int y) {
 }
 
 void GUI::SetBrushThickness(int low, int ceil) {
-	custom_thickness_mod = std::max<float>(low, 1.f) / std::max<float>(ceil, 1.f);
+	useCustomThickness = std::max<float>(low, 1.f) / std::max<float>(ceil, 1.f);
 
-	if (use_custom_thickness && current_brush && current_brush->isDoodad()) {
+	if (useCustomThickness && currentBrush && currentBrush->isDoodad()) {
 		FillDoodadPreviewBuffer();
 	}
 
@@ -1571,7 +1504,7 @@ void GUI::SetBrushThickness(int low, int ceil) {
 }
 
 void GUI::DecreaseBrushSize(bool wrap) {
-	switch (brush_size) {
+	switch (brushSize) {
 		case 0: {
 			if (wrap) {
 				SetBrushSize(11);
@@ -1612,7 +1545,7 @@ void GUI::DecreaseBrushSize(bool wrap) {
 }
 
 void GUI::IncreaseBrushSize(bool wrap) {
-	switch (brush_size) {
+	switch (brushSize) {
 		case 0: {
 			SetBrushSize(1);
 			break;
@@ -1652,36 +1585,36 @@ void GUI::IncreaseBrushSize(bool wrap) {
 	}
 }
 
-Brush* GUI::GetCurrentBrush() const {
-	return current_brush;
+Brush* GUI::GetCurrentBrush() const noexcept {
+	return currentBrush;
 }
 
-BrushShape GUI::GetBrushShape() const {
-	if (current_brush == spawn_brush) {
+BrushShape GUI::GetBrushShape() const noexcept {
+	if (currentBrush == spawnBrush) {
 		return BRUSHSHAPE_SQUARE;
 	}
 
-	if (current_brush == spawn_npc_brush) {
+	if (currentBrush == spawnNpcBrush) {
 		return BRUSHSHAPE_SQUARE;
 	}
 
-	return brush_shape;
+	return brushShape;
 }
 
-int GUI::GetBrushSize() const {
-	return brush_size;
+uint8_t GUI::GetBrushSize() const noexcept {
+	return brushSize;
 }
 
-int GUI::GetBrushVariation() const {
-	return brush_variation;
+int GUI::GetBrushVariation() const noexcept {
+	return brushVariation;
 }
 
-int GUI::GetSpawnMonsterTime() const {
-	return monster_spawntime;
+int GUI::GetSpawnMonsterTime() const noexcept {
+	return monsterSpawntime;
 }
 
-int GUI::GetSpawnNpcTime() const {
-	return npc_spawntime;
+int GUI::GetSpawnNpcTime() const noexcept {
+	return npcSpawntime;
 }
 
 void GUI::SelectBrush() {
@@ -1694,37 +1627,37 @@ void GUI::SelectBrush() {
 	RefreshView();
 }
 
-bool GUI::SelectBrush(const Brush* whatbrush, PaletteType primary) {
+bool GUI::SelectBrush(const Brush* whatBrush, PaletteType paletteType /* = TILESET_UNKNOWN */) {
 	if (palettes.empty()) {
 		if (!CreatePalette()) {
 			return false;
 		}
 	}
 
-	if (!palettes.front()->OnSelectBrush(whatbrush, primary)) {
+	if (!palettes.front()->OnSelectBrush(whatBrush, paletteType)) {
 		return false;
 	}
 
-	SelectBrushInternal(const_cast<Brush*>(whatbrush));
+	SelectBrushInternal(const_cast<Brush*>(whatBrush));
 	root->GetAuiToolBar()->UpdateBrushButtons();
 	return true;
 }
 
 void GUI::SelectBrushInternal(Brush* brush) {
 	// Fear no evil don't you say no evil
-	if (current_brush != brush && brush) {
-		previous_brush = current_brush;
+	if (currentBrush != brush && brush) {
+		previousBrush = currentBrush;
 	}
 
-	current_brush = brush;
-	if (!current_brush) {
+	currentBrush = brush;
+	if (!currentBrush) {
 		return;
 	}
 
-	brush_variation = std::min(brush_variation, brush->getMaxVariation());
+	brushVariation = std::min(brushVariation, brush->getMaxVariation());
 	FillDoodadPreviewBuffer();
 	if (brush->isDoodad()) {
-		secondary_map = doodad_buffer_map;
+		secondaryMap = doodadBufferMap;
 	}
 
 	SetDrawingMode();
@@ -1732,24 +1665,24 @@ void GUI::SelectBrushInternal(Brush* brush) {
 }
 
 void GUI::SelectPreviousBrush() {
-	if (previous_brush) {
-		SelectBrush(previous_brush);
+	if (previousBrush) {
+		SelectBrush(previousBrush);
 	}
 }
 
 void GUI::FillDoodadPreviewBuffer() {
-	if (!current_brush || !current_brush->isDoodad()) {
+	if (!currentBrush || !currentBrush->isDoodad()) {
 		return;
 	}
 
-	doodad_buffer_map->clear();
+	doodadBufferMap->clear();
 
-	DoodadBrush* brush = current_brush->asDoodad();
+	const auto &brush = currentBrush->asDoodad();
 	if (brush->isEmpty(GetBrushVariation())) {
 		return;
 	}
 
-	int object_count = 0;
+	auto objectCount = 0;
 	int area;
 	if (GetBrushShape() == BRUSHSHAPE_SQUARE) {
 		area = 2 * GetBrushSize();
@@ -1762,54 +1695,54 @@ void GUI::FillDoodadPreviewBuffer() {
 			area = int(0.5 + GetBrushSize() * GetBrushSize() * rme::PI);
 		}
 	}
-	const int object_range = (use_custom_thickness ? int(area * custom_thickness_mod) : brush->getThickness() * area / std::max(1, brush->getThicknessCeiling()));
-	const int final_object_count = std::max(1, object_range + random(object_range));
+	const auto objectRange = (useCustomThickness ? int(area * customThicknessMod) : brush->getThickness() * area / std::max(1, brush->getThicknessCeiling()));
+	const auto finalObjectCount = std::max(1, objectRange + random(objectRange));
 
-	Position center_pos(0x8000, 0x8000, 0x8);
+	Position centerPos(0x8000, 0x8000, 0x8);
 
-	if (brush_size > 0 && !brush->oneSizeFitsAll()) {
-		while (object_count < final_object_count) {
-			int retries = 0;
-			bool exit = false;
+	if (brushSize > 0 && !brush->oneSizeFitsAll()) {
+		while (objectCount < finalObjectCount) {
+			auto retries = 0;
+			auto exit = false;
 
 			// Try to place objects 5 times
 			while (retries < 5 && !exit) {
 
-				int pos_retries = 0;
-				int xpos = 0, ypos = 0;
-				bool found_pos = false;
+				auto posRetries = 0;
+				auto xPos = 0, yPos = 0;
+				auto foundPos = false;
 				if (GetBrushShape() == BRUSHSHAPE_CIRCLE) {
-					while (pos_retries < 5 && !found_pos) {
-						xpos = random(-brush_size, brush_size);
-						ypos = random(-brush_size, brush_size);
-						float distance = sqrt(float(xpos * xpos) + float(ypos * ypos));
+					while (posRetries < 5 && !foundPos) {
+						xPos = random(-brushSize, brushSize);
+						yPos = random(-brushSize, brushSize);
+						float distance = sqrt(float(xPos * xPos) + float(yPos * yPos));
 						if (distance < g_gui.GetBrushSize() + 0.005) {
-							found_pos = true;
+							foundPos = true;
 						} else {
-							++pos_retries;
+							++posRetries;
 						}
 					}
 				} else {
-					found_pos = true;
-					xpos = random(-brush_size, brush_size);
-					ypos = random(-brush_size, brush_size);
+					foundPos = true;
+					xPos = random(-brushSize, brushSize);
+					yPos = random(-brushSize, brushSize);
 				}
 
-				if (!found_pos) {
+				if (!foundPos) {
 					++retries;
 					continue;
 				}
 
 				// Decide whether the zone should have a composite or several single objects.
-				bool fail = false;
+				auto fail = false;
 				if (random(brush->getTotalChance(GetBrushVariation())) <= brush->getCompositeChance(GetBrushVariation())) {
 					// Composite
-					const CompositeTileList &composites = brush->getComposite(GetBrushVariation());
+					const auto &composites = brush->getComposite(GetBrushVariation());
 
 					// Figure out if the placement is valid
 					for (const auto &composite : composites) {
-						Position pos = center_pos + composite.first + Position(xpos, ypos, 0);
-						if (Tile* tile = doodad_buffer_map->getTile(pos)) {
+						const auto &pos = centerPos + composite.first + Position(xPos, yPos, 0);
+						if (const auto &tile = doodadBufferMap->getTile(pos)) {
 							if (!tile->empty()) {
 								fail = true;
 								break;
@@ -1823,35 +1756,35 @@ void GUI::FillDoodadPreviewBuffer() {
 
 					// Transfer items to the stack
 					for (const auto &composite : composites) {
-						Position pos = center_pos + composite.first + Position(xpos, ypos, 0);
-						const ItemVector &items = composite.second;
-						Tile* tile = doodad_buffer_map->getTile(pos);
+						const auto &pos = centerPos + composite.first + Position(xPos, yPos, 0);
+						const auto &items = composite.second;
+						auto tile = doodadBufferMap->getTile(pos);
 
 						if (!tile) {
-							tile = doodad_buffer_map->allocator(doodad_buffer_map->createTileL(pos));
+							tile = doodadBufferMap->allocator(doodadBufferMap->createTileL(pos));
 						}
 
-						for (auto item : items) {
+						for (const auto &item : items) {
 							tile->addItem(item->deepCopy());
 						}
-						doodad_buffer_map->setTile(tile->getPosition(), tile);
+						doodadBufferMap->setTile(tile->getPosition(), tile);
 					}
 					exit = true;
 				} else if (brush->hasSingleObjects(GetBrushVariation())) {
-					Position pos = center_pos + Position(xpos, ypos, 0);
-					Tile* tile = doodad_buffer_map->getTile(pos);
+					const auto &pos = centerPos + Position(xPos, yPos, 0);
+					auto tile = doodadBufferMap->getTile(pos);
 					if (tile) {
 						if (!tile->empty()) {
 							fail = true;
 							break;
 						}
 					} else {
-						tile = doodad_buffer_map->allocator(doodad_buffer_map->createTileL(pos));
+						tile = doodadBufferMap->allocator(doodadBufferMap->createTileL(pos));
 					}
-					int variation = GetBrushVariation();
-					brush->draw(doodad_buffer_map, tile, &variation);
+					auto variation = GetBrushVariation();
+					brush->draw(doodadBufferMap, tile, &variation);
 					// std::cout << "\tpos: " << tile->getPosition() << std::endl;
-					doodad_buffer_map->setTile(tile->getPosition(), tile);
+					doodadBufferMap->setTile(tile->getPosition(), tile);
 					exit = true;
 				}
 				if (fail) {
@@ -1859,101 +1792,101 @@ void GUI::FillDoodadPreviewBuffer() {
 					break;
 				}
 			}
-			++object_count;
+			++objectCount;
 		}
 	} else {
 		if (brush->hasCompositeObjects(GetBrushVariation()) && random(brush->getTotalChance(GetBrushVariation())) <= brush->getCompositeChance(GetBrushVariation())) {
 			// Composite
-			const CompositeTileList &composites = brush->getComposite(GetBrushVariation());
+			const auto &composites = brush->getComposite(GetBrushVariation());
 
 			// All placement is valid...
 
 			// Transfer items to the buffer
 			for (const auto &composite : composites) {
-				Position pos = center_pos + composite.first;
-				const ItemVector &items = composite.second;
-				Tile* tile = doodad_buffer_map->allocator(doodad_buffer_map->createTileL(pos));
+				const auto &position = centerPos + composite.first;
+				const auto &items = composite.second;
+				const auto &tile = doodadBufferMap->allocator(doodadBufferMap->createTileL(position));
 				// std::cout << pos << " = " << center_pos << " + " << buffer_tile->getPosition() << std::endl;
 
-				for (auto item : items) {
+				for (const auto &item : items) {
 					tile->addItem(item->deepCopy());
 				}
-				doodad_buffer_map->setTile(tile->getPosition(), tile);
+				doodadBufferMap->setTile(tile->getPosition(), tile);
 			}
 		} else if (brush->hasSingleObjects(GetBrushVariation())) {
-			Tile* tile = doodad_buffer_map->allocator(doodad_buffer_map->createTileL(center_pos));
+			const auto &tile = doodadBufferMap->allocator(doodadBufferMap->createTileL(centerPos));
 			int variation = GetBrushVariation();
-			brush->draw(doodad_buffer_map, tile, &variation);
-			doodad_buffer_map->setTile(center_pos, tile);
+			brush->draw(doodadBufferMap, tile, &variation);
+			doodadBufferMap->setTile(centerPos, tile);
 		}
 	}
 }
 
-long GUI::PopupDialog(wxWindow* parent, wxString title, wxString text, long style, wxString confisavename, uint32_t configsavevalue) {
+long GUI::PopupDialog(wxWindow* parent, const wxString &title, const wxString &text, long style, const wxString &configSaveName, uint32_t configSaveValue) {
 	if (text.empty()) {
 		return wxID_ANY;
 	}
 
-	wxMessageDialog dlg(parent, text, title, style);
-	return dlg.ShowModal();
+	wxMessageDialog dialog(parent, text, title, style);
+	return dialog.ShowModal();
 }
 
-long GUI::PopupDialog(wxString title, wxString text, long style, wxString configsavename, uint32_t configsavevalue) {
-	return g_gui.PopupDialog(g_gui.root, title, text, style, configsavename, configsavevalue);
+long GUI::PopupDialog(const wxString &title, const wxString &text, long style, const wxString &configSaveName, uint32_t configSaveValue) {
+	return g_gui.PopupDialog(g_gui.root, title, text, style, configSaveName, configSaveValue);
 }
 
-void GUI::ListDialog(wxWindow* parent, wxString title, const wxArrayString &param_items) {
-	if (param_items.empty()) {
+void GUI::ListDialog(wxWindow* parent, const wxString &title, const wxArrayString &strings) {
+	if (strings.empty()) {
 		return;
 	}
 
-	wxArrayString list_items(param_items);
+	wxArrayString listItems(strings);
 
 	// Create the window
-	wxDialog* dlg = newd wxDialog(parent, wxID_ANY, title, wxDefaultPosition, wxDefaultSize, wxRESIZE_BORDER | wxCAPTION | wxCLOSE_BOX);
+	const auto dialog = newd wxDialog(parent, wxID_ANY, title, wxDefaultPosition, wxDefaultSize, wxRESIZE_BORDER | wxCAPTION | wxCLOSE_BOX);
 
-	wxSizer* sizer = newd wxBoxSizer(wxVERTICAL);
-	wxListBox* item_list = newd wxListBox(dlg, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0, nullptr, wxLB_SINGLE);
-	item_list->SetMinSize(wxSize(500, 300));
+	const auto sizer = newd wxBoxSizer(wxVERTICAL);
+	const auto listBox = newd wxListBox(dialog, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0, nullptr, wxLB_SINGLE);
+	listBox->SetMinSize(wxSize(500, 300));
 
-	for (size_t i = 0; i != list_items.GetCount();) {
-		wxString str = list_items[i];
-		size_t pos = str.find("\n");
-		if (pos != wxString::npos) {
+	for (auto i = 0; i != listItems.GetCount(); ++i) {
+		auto string = listItems[i];
+		auto position = string.find("\n");
+		if (position != wxString::npos) {
 			// Split string!
-			item_list->Append(str.substr(0, pos));
-			list_items[i] = str.substr(pos + 1);
+			listBox->Append(string.substr(0, position));
+			listItems[i] = string.substr(position + 1);
 			continue;
 		}
-		item_list->Append(list_items[i]);
+		listBox->Append(listItems[i]);
 		++i;
 	}
-	sizer->Add(item_list, 1, wxEXPAND);
+	sizer->Add(listBox, 1, wxEXPAND);
 
-	wxSizer* stdsizer = newd wxBoxSizer(wxHORIZONTAL);
-	stdsizer->Add(newd wxButton(dlg, wxID_OK, "OK"), wxSizerFlags(1).Center());
-	sizer->Add(stdsizer, wxSizerFlags(0).Center());
+	const auto stdSizer = newd wxBoxSizer(wxHORIZONTAL);
+	stdSizer->Add(newd wxButton(dialog, wxID_OK, "OK"), wxSizerFlags(1).Center());
+	sizer->Add(stdSizer, wxSizerFlags(0).Center());
 
-	dlg->SetSizerAndFit(sizer);
+	dialog->SetSizerAndFit(sizer);
 
 	// Show the window
-	dlg->ShowModal();
-	delete dlg;
+	dialog->ShowModal();
+	delete dialog;
 }
 
 void GUI::ShowTextBox(wxWindow* parent, wxString title, wxString content) {
-	wxDialog* dlg = newd wxDialog(parent, wxID_ANY, title, wxDefaultPosition, wxDefaultSize, wxRESIZE_BORDER | wxCAPTION | wxCLOSE_BOX);
-	wxSizer* topsizer = newd wxBoxSizer(wxVERTICAL);
-	wxTextCtrl* text_field = newd wxTextCtrl(dlg, wxID_ANY, content, wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY);
-	text_field->SetMinSize(wxSize(400, 550));
-	topsizer->Add(text_field, wxSizerFlags(5).Expand());
+	const auto dialog = newd wxDialog(parent, wxID_ANY, title, wxDefaultPosition, wxDefaultSize, wxRESIZE_BORDER | wxCAPTION | wxCLOSE_BOX);
+	const auto topSizer = newd wxBoxSizer(wxVERTICAL);
+	const auto textField = newd wxTextCtrl(dialog, wxID_ANY, content, wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY);
+	textField->SetMinSize(wxSize(400, 550));
+	topSizer->Add(textField, wxSizerFlags(5).Expand());
 
-	wxSizer* choicesizer = newd wxBoxSizer(wxHORIZONTAL);
-	choicesizer->Add(newd wxButton(dlg, wxID_CANCEL, "OK"), wxSizerFlags(1).Center());
-	topsizer->Add(choicesizer, wxSizerFlags(0).Center());
-	dlg->SetSizerAndFit(topsizer);
+	const auto choiceSizer = newd wxBoxSizer(wxHORIZONTAL);
+	choiceSizer->Add(newd wxButton(dialog, wxID_CANCEL, "OK"), wxSizerFlags(1).Center());
+	topSizer->Add(choiceSizer, wxSizerFlags(0).Center());
+	dialog->SetSizerAndFit(topSizer);
 
-	dlg->ShowModal();
+	dialog->ShowModal();
 }
 
 void GUI::SetHotkey(int index, Hotkey &hotkey) {
@@ -1990,40 +1923,31 @@ void GUI::LoadHotkeys() {
 	}
 }
 
-Hotkey::Hotkey() :
-	type(NONE) {
+Hotkey::Hotkey(const Position &position) :
+	type(POSITION), position(position) {
 	////
 }
 
-Hotkey::Hotkey(Position _pos) :
-	type(POSITION), pos(_pos) {
+Hotkey::Hotkey(const Brush* brush) :
+	type(BRUSH), brushName(brush->getName()) {
 	////
 }
 
-Hotkey::Hotkey(Brush* brush) :
-	type(BRUSH), brushname(brush->getName()) {
-	////
-}
-
-Hotkey::Hotkey(std::string _name) :
-	type(BRUSH), brushname(_name) {
-	////
-}
-
-Hotkey::~Hotkey() {
+Hotkey::Hotkey(const std::string &name) :
+	type(BRUSH), brushName(name) {
 	////
 }
 
 std::ostream &operator<<(std::ostream &os, const Hotkey &hotkey) {
 	switch (hotkey.type) {
 		case Hotkey::POSITION: {
-			os << "pos:{" << hotkey.pos << "}";
+			os << "pos:{" << hotkey.position << "}";
 		} break;
 		case Hotkey::BRUSH: {
-			if (hotkey.brushname.find('{') != std::string::npos || hotkey.brushname.find('}') != std::string::npos) {
+			if (hotkey.brushName.find('{') != std::string::npos || hotkey.brushName.find('}') != std::string::npos) {
 				break;
 			}
-			os << "brush:{" << hotkey.brushname << "}";
+			os << "brush:{" << hotkey.brushName << "}";
 		} break;
 		default: {
 			os << "none:{}";
@@ -2039,15 +1963,15 @@ std::istream &operator>>(std::istream &is, Hotkey &hotkey) {
 		is.ignore(2); // ignore "{}"
 	} else if (type == "pos") {
 		is.ignore(1); // ignore "{"
-		Position pos;
-		is >> pos;
-		hotkey = Hotkey(pos);
+		Position position;
+		is >> position;
+		hotkey = Hotkey(position);
 		is.ignore(1); // ignore "}"
 	} else if (type == "brush") {
 		is.ignore(1); // ignore "{"
-		std::string brushname;
-		getline(is, brushname, '}');
-		hotkey = Hotkey(brushname);
+		std::string brushName;
+		getline(is, brushName, '}');
+		hotkey = Hotkey(brushName);
 	} else {
 		// Do nothing...
 	}
@@ -2055,11 +1979,11 @@ std::istream &operator>>(std::istream &is, Hotkey &hotkey) {
 	return is;
 }
 
-void SetWindowToolTip(wxWindow* a, const wxString &tip) {
-	a->SetToolTip(tip);
+void SetWindowToolTip(wxWindow* window, const wxString &tip) {
+	window->SetToolTip(tip);
 }
 
-void SetWindowToolTip(wxWindow* a, wxWindow* b, const wxString &tip) {
-	a->SetToolTip(tip);
-	b->SetToolTip(tip);
+void SetWindowToolTip(wxWindow* firstWindow, wxWindow* secondWindow, const wxString &tip) {
+	firstWindow->SetToolTip(tip);
+	secondWindow->SetToolTip(tip);
 }

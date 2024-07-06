@@ -2285,8 +2285,8 @@ void MapCanvas::OnSelectHouseBrush(wxCommandEvent &WXUNUSED(event)) {
 	if (tile->isHouseTile()) {
 		House* house = editor.getMap().houses.getHouse(tile->getHouseID());
 		if (house) {
-			g_gui.house_brush->setHouse(house);
-			g_gui.SelectBrush(g_gui.house_brush, TILESET_HOUSE);
+			g_gui.houseBrush->setHouse(house);
+			g_gui.SelectBrush(g_gui.houseBrush, TILESET_HOUSE);
 		}
 	}
 }
@@ -2303,7 +2303,7 @@ void MapCanvas::OnSelectMonsterBrush(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void MapCanvas::OnSelectSpawnBrush(wxCommandEvent &WXUNUSED(event)) {
-	g_gui.SelectBrush(g_gui.spawn_brush, TILESET_MONSTER);
+	g_gui.SelectBrush(g_gui.spawnBrush, TILESET_MONSTER);
 }
 
 void MapCanvas::OnSelectNpcBrush(wxCommandEvent &WXUNUSED(event)) {
@@ -2318,7 +2318,7 @@ void MapCanvas::OnSelectNpcBrush(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void MapCanvas::OnSelectSpawnNpcBrush(wxCommandEvent &WXUNUSED(event)) {
-	g_gui.SelectBrush(g_gui.spawn_npc_brush, TILESET_NPC);
+	g_gui.SelectBrush(g_gui.spawnNpcBrush, TILESET_NPC);
 }
 
 void MapCanvas::OnSelectMoveTo(wxCommandEvent &WXUNUSED(event)) {

@@ -70,25 +70,25 @@ void Brushes::clear() {
 }
 
 void Brushes::init() {
-	addBrush(g_gui.optional_brush = newd OptionalBorderBrush());
+	addBrush(g_gui.optionalBrush = newd OptionalBorderBrush());
 	addBrush(g_gui.eraser = newd EraserBrush());
-	addBrush(g_gui.spawn_brush = newd SpawnMonsterBrush());
-	addBrush(g_gui.spawn_npc_brush = newd SpawnNpcBrush());
-	addBrush(g_gui.normal_door_brush = newd DoorBrush(WALL_DOOR_NORMAL));
-	addBrush(g_gui.locked_door_brush = newd DoorBrush(WALL_DOOR_LOCKED));
-	addBrush(g_gui.magic_door_brush = newd DoorBrush(WALL_DOOR_MAGIC));
-	addBrush(g_gui.quest_door_brush = newd DoorBrush(WALL_DOOR_QUEST));
-	addBrush(g_gui.hatch_door_brush = newd DoorBrush(WALL_HATCH_WINDOW));
-	addBrush(g_gui.window_door_brush = newd DoorBrush(WALL_WINDOW));
-	addBrush(g_gui.house_brush = newd HouseBrush());
-	addBrush(g_gui.house_exit_brush = newd HouseExitBrush());
-	addBrush(g_gui.waypoint_brush = newd WaypointBrush());
+	addBrush(g_gui.spawnBrush = newd SpawnMonsterBrush());
+	addBrush(g_gui.spawnNpcBrush = newd SpawnNpcBrush());
+	addBrush(g_gui.normalDoorBrush = newd DoorBrush(WALL_DOOR_NORMAL));
+	addBrush(g_gui.lockedDoorBrush = newd DoorBrush(WALL_DOOR_LOCKED));
+	addBrush(g_gui.magicDoorBrush = newd DoorBrush(WALL_DOOR_MAGIC));
+	addBrush(g_gui.questDoorBrush = newd DoorBrush(WALL_DOOR_QUEST));
+	addBrush(g_gui.hatchDoorBrush = newd DoorBrush(WALL_HATCH_WINDOW));
+	addBrush(g_gui.windowDoorBrush = newd DoorBrush(WALL_WINDOW));
+	addBrush(g_gui.houseBrush = newd HouseBrush());
+	addBrush(g_gui.houseExitBrush = newd HouseExitBrush());
+	addBrush(g_gui.waypointBrush = newd WaypointBrush());
 
-	addBrush(g_gui.pz_brush = newd FlagBrush(TILESTATE_PROTECTIONZONE));
-	addBrush(g_gui.rook_brush = newd FlagBrush(TILESTATE_NOPVP));
-	addBrush(g_gui.nolog_brush = newd FlagBrush(TILESTATE_NOLOGOUT));
-	addBrush(g_gui.pvp_brush = newd FlagBrush(TILESTATE_PVPZONE));
-	addBrush(g_gui.zone_brush = newd ZoneBrush());
+	addBrush(g_gui.pzBrush = newd FlagBrush(TILESTATE_PROTECTIONZONE));
+	addBrush(g_gui.rookBrush = newd FlagBrush(TILESTATE_NOPVP));
+	addBrush(g_gui.noLogoutBrush = newd FlagBrush(TILESTATE_NOLOGOUT));
+	addBrush(g_gui.pvpBrush = newd FlagBrush(TILESTATE_PVPZONE));
+	addBrush(g_gui.zoneBrush = newd ZoneBrush());
 
 	GroundBrush::init();
 	WallBrush::init();
