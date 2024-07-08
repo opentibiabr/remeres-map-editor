@@ -40,9 +40,9 @@ wxString NumberTextCtrl::TextFilterDigits(const wxString &text) {
 	return newText;
 }
 
-void NumberTextCtrl::EnsureOnlyNumbers(wxCommandEvent& evt) {
+void NumberTextCtrl::EnsureOnlyNumbers(wxCommandEvent &evt) {
 	const auto newText = TextFilterDigits(GetValue().ToStdString());
-	
+
 	ChangeValue(newText);
 }
 
