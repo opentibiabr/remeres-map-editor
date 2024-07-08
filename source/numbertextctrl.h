@@ -21,11 +21,11 @@
 // Text ctrl that only allows number input
 class NumberTextCtrl : public wxTextCtrl {
 public:
-	// Please avoid using wxTextValidator rather than wxFILTER_NONE, because it prevents the event clipboard paste to fire.
+	// Please avoid using wxTextValidator rather than wxFILTER_NONE, because it prevents the event clipboard paste to be fired.
 	NumberTextCtrl(wxWindow* parent, wxWindowID id, long value, long minValue, long maxValue, const wxPoint &pos, const wxSize &sz, long style, const wxString &name) :
 		wxTextCtrl(parent, id, wxString::Format("%i", value), pos, sz, style, wxTextValidator(wxFILTER_NONE), name),
 		minValue(minValue), maxValue(maxValue), lastValue(value) { }
-	// Please avoid using wxTextValidator rather than wxFILTER_NONE, because it prevents the event clipboard paste to fire.
+	// Please avoid using wxTextValidator rather than wxFILTER_NONE, because it prevents the event clipboard paste to be fired.
 	NumberTextCtrl(wxWindow* parent, wxWindowID id, long value, long minValue, long maxValue, long style, const wxString &name, const wxPoint &pos, const wxSize &sz) :
 		wxTextCtrl(parent, id, wxString::Format("%i", value), pos, sz, style, wxTextValidator(wxFILTER_NONE), name),
 		minValue(minValue), maxValue(maxValue), lastValue(value) { }
