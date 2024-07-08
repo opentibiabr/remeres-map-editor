@@ -35,10 +35,6 @@ PositionCtrl::PositionCtrl(wxWindow* parent, const wxString &label, int x, int y
 	Add(z_field, 1, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
 }
 
-PositionCtrl::~PositionCtrl() {
-	////
-}
-
 Position PositionCtrl::GetPosition() const {
 	Position pos;
 	pos.x = x_field->GetIntValue();
