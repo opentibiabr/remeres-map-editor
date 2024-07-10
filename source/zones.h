@@ -33,11 +33,11 @@ public:
 		}
 		return it->second;
 	}
-	bool addZone(std::string name);
-	bool addZone(std::string name, unsigned int id);
-	bool hasZone(std::string name);
+	bool addZone(const std::string &name);
+	bool addZone(const std::string &name, unsigned int id);
+	bool hasZone(const std::string &name);
 	bool hasZone(unsigned int id);
-	void removeZone(std::string name);
+	void removeZone(const std::string &name);
 
 	ZoneMap zones;
 
