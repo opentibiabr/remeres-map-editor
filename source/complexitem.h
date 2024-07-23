@@ -89,6 +89,9 @@ public:
 	}
 	void setDestination(const Position &position) noexcept {
 		destination = position;
+		setAttribute("destination.x", position.x);
+		setAttribute("destination.y", position.y);
+		setAttribute("destination.z", position.z);
 	}
 	bool hasDestination() const noexcept {
 		return destination.isValid();

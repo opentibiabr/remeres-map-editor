@@ -285,7 +285,26 @@ void PropertiesWindow::saveAttributesPanel() {
 		} else {
 			continue;
 		}
-		edit_item->setAttribute(nstr(attributesGrid->GetCellValue(rowIndex, 0)), attr);
+		const auto key = nstr(attributesGrid->GetCellValue(rowIndex, 0));
+
+		edit_item->setAttribute(key, attr);
+		auto teleportItem = dynamic_cast<Teleport*>(edit_item);
+		if (!teleportItem) {
+			continue;
+		}
+
+		auto position = teleportItem->getDestination();
+		int value;
+		attributesGrid->GetCellValue(rowIndex, 2).ToInt(&value);
+		if (strcmp(key.c_str(), "destination.x") == 0) {
+			position.x = value;
+		} else if (strcmp(key.c_str(), "destination.y") == 0) {
+			position.y = value;
+		} else if (strcmp(key.c_str(), "destination.z") == 0) {
+			position.z = value;
+		}
+
+		teleportItem->setDestination(position);
 	}
 
 	edit_item->setAttribute("aid", ItemAttribute(simpleActionIdField->GetValue()));
