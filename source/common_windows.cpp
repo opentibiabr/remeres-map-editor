@@ -69,10 +69,12 @@ MapPropertiesWindow::MapPropertiesWindow(wxWindow* parent, MapTab* view, Editor 
 	// Map version
 	grid_sizer->Add(newd wxStaticText(this, wxID_ANY, "Map Version"));
 	version_choice = newd wxChoice(this, MAP_PROPERTIES_VERSION);
-	version_choice->Append("OTServ 0.5.0");
-	version_choice->Append("OTServ 0.6.0");
-	version_choice->Append("OTServ 0.6.1");
-	version_choice->Append("OTServ 0.7.0 (revscriptsys)");
+	version_choice->Append("0.5.0");
+	version_choice->Append("0.6.0");
+	version_choice->Append("0.6.1");
+	version_choice->Append("0.7.0 (revscriptsys)");
+	version_choice->Append("1.0.0");
+	version_choice->Append("1.1.0 (revscriptsys)");
 
 	switch (map.getVersion().otbm) {
 		case MAP_OTBM_1:
@@ -87,19 +89,17 @@ MapPropertiesWindow::MapPropertiesWindow(wxWindow* parent, MapTab* view, Editor 
 		case MAP_OTBM_4:
 			version_choice->SetSelection(3);
 			break;
+		case MAP_OTBM_5:
+			version_choice->SetSelection(4);
+			break;
+		case MAP_OTBM_6:
+			version_choice->SetSelection(5);
+			break;
 		default:
 			version_choice->SetSelection(0);
 	}
 
 	grid_sizer->Add(version_choice, wxSizerFlags(1).Expand());
-
-	// Client directory
-	grid_sizer->Add(newd wxStaticText(this, wxID_ANY, "Client Folder"));
-	protocol_choice = newd wxChoice(this, wxID_ANY);
-
-	protocol_choice->SetStringSelection(wxstr(ClientAssets::getVersionName()));
-
-	grid_sizer->Add(protocol_choice, wxSizerFlags(1).Expand());
 
 	// Dimensions
 	grid_sizer->Add(newd wxStaticText(this, wxID_ANY, "Map Dimensions"));
@@ -156,22 +156,10 @@ MapPropertiesWindow::MapPropertiesWindow(wxWindow* parent, MapTab* view, Editor 
 
 	SetSizerAndFit(topsizer);
 	Centre(wxBOTH);
-	UpdateProtocolList();
-
-	protocol_choice->SetStringSelection(wxstr(ClientAssets::getVersionName()));
-}
-
-void MapPropertiesWindow::UpdateProtocolList() {
-	wxString ver = version_choice->GetStringSelection();
-	wxString client = protocol_choice->GetStringSelection();
-
-	protocol_choice->Clear();
-	protocol_choice->SetSelection(0);
-	protocol_choice->SetStringSelection(client);
 }
 
 void MapPropertiesWindow::OnChangeVersion(wxCommandEvent &) {
-	UpdateProtocolList();
+	//
 }
 
 struct MapConversionContext {
@@ -228,6 +216,10 @@ void MapPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 		new_ver.otbm = MAP_OTBM_3;
 	} else if (ver.Contains("0.7.0")) {
 		new_ver.otbm = MAP_OTBM_4;
+	} else if (ver.Contains("1.0.0")) {
+		new_ver.otbm = MAP_OTBM_5;
+	} else if (ver.Contains("1.1.0")) {
+		new_ver.otbm = MAP_OTBM_6;
 	}
 
 	if (new_ver.otbm != old_ver.otbm) {

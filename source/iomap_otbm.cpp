@@ -175,7 +175,7 @@ void Item::serializeItemAttributes_OTBM(const IOMap &maphandle, NodeFileWriteHan
 		}
 	}
 
-	if (maphandle.version.otbm >= MAP_OTBM_4) {
+	if (maphandle.version.otbm == MAP_OTBM_4 || maphandle.version.otbm > MAP_OTBM_5) {
 		if (attributes && !attributes->empty()) {
 			stream.addU8(OTBM_ATTR_ATTRIBUTE_MAP);
 			serializeAttributeMap(maphandle, stream);
@@ -186,13 +186,13 @@ void Item::serializeItemAttributes_OTBM(const IOMap &maphandle, NodeFileWriteHan
 			stream.addU16(getSubtype());
 		}
 
-		uint16_t actionId = getActionID();
+		const auto actionId = getActionID();
 		if (actionId > 0) {
 			stream.addU8(OTBM_ATTR_ACTION_ID);
 			stream.addU16(actionId);
 		}
 
-		uint16_t uniqueId = getUniqueID();
+		const auto uniqueId = getUniqueID();
 		if (uniqueId > 0) {
 			stream.addU8(OTBM_ATTR_UNIQUE_ID);
 			stream.addU16(uniqueId);
@@ -664,7 +664,7 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 
 	version.otbm = (MapVersionID)u32;
 
-	if (version.otbm > MAP_OTBM_5) {
+	if (version.otbm > MAP_OTBM_LAST_VERSION) {
 		// Failed to read version
 		if (g_gui.PopupDialog("Map error", "The loaded map appears to be a OTBM format that is not supported by the editor."
 										   "Do you still want to attempt to load the map?",
@@ -1536,7 +1536,8 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 	FileName tmpName;
 	f.addNode(0);
 	{
-		f.addU32(MapVersionID::MAP_OTBM_5); // Map version
+		const auto mapVersion = map.mapVersion.otbm < MapVersionID::MAP_OTBM_5 ? MapVersionID::MAP_OTBM_5 : map.mapVersion.otbm;
+		f.addU32(mapVersion); // Map version
 
 		f.addU16(map.width);
 		f.addU16(map.height);

@@ -28,6 +28,9 @@ enum MapVersionID {
 	MAP_OTBM_3 = 2,
 	MAP_OTBM_4 = 3,
 	MAP_OTBM_5 = 4,
+	MAP_OTBM_6 = 5,
+
+	MAP_OTBM_LAST_VERSION = MAP_OTBM_6
 };
 
 // The composed version of a otbm file (otbm version)
