@@ -42,16 +42,23 @@ std::string SpawnNpcBrush::getName() const {
 }
 
 bool SpawnNpcBrush::canDraw(BaseMap* map, const Position &position) const {
-	Tile* tile = map->getTile(position);
-	if (tile) {
-		if (tile->spawnNpc) {
-			return false;
-		}
+	const auto tile = map->getTile(position);
+	if (!tile || !tile->ground) {
+		return false;
 	}
+
+	if (tile->spawnNpc) {
+		return false;
+	}
+
 	return true;
 }
 
 void SpawnNpcBrush::undraw(BaseMap* map, Tile* tile) {
+	if (!tile || !tile->spawnNpc) {
+		return;
+	}
+
 	delete tile->spawnNpc;
 	tile->spawnNpc = nullptr;
 }
@@ -59,7 +66,7 @@ void SpawnNpcBrush::undraw(BaseMap* map, Tile* tile) {
 void SpawnNpcBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 	ASSERT(tile);
 	ASSERT(parameter); // Should contain an int which is the size of the newd spawn npc
-	if (tile->spawnNpc == nullptr) {
+	if (canDraw(map, tile->getPosition())) {
 		tile->spawnNpc = newd SpawnNpc(std::max(1, *(int*)parameter));
 	}
 }

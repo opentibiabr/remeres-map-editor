@@ -18,7 +18,7 @@
 #ifndef RME_MAP_IO_H_
 #define RME_MAP_IO_H_
 
-#include "client_version.h"
+#include "client_assets.h"
 
 enum ImportType {
 	IMPORT_DONT,
@@ -41,7 +41,6 @@ protected:
 public:
 	IOMap() {
 		version.otbm = MAP_OTBM_1;
-		version.client = CLIENT_VERSION_NONE;
 	}
 	virtual ~IOMap() { }
 

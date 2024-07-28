@@ -103,6 +103,8 @@ _Ret_bytecap_(_Size) inline void* __CRTDECL operator new[](size_t _Size, const c
 // PugiXML
 #include <pugixml.hpp>
 
+#include <spdlog/spdlog.h>
+
 // Libarchive, for OTGZ
 #if OTGZ_SUPPORT > 0
 	#include <archive.h>
@@ -161,5 +163,14 @@ typedef wxFileName FileName;
 #else
 	#define FROM_DIP(widget, size) size
 #endif
+
+const auto wxAID_CTRL = wxWindow::NewControlId();
+const auto wxUID_CTRL = wxWindow::NewControlId();
+const auto wxDOOR_CTRL = wxWindow::NewControlId();
+const auto wxDEPOT_CTRL = wxWindow::NewControlId();
+const auto wxDESTINATION_CTRL = wxWindow::NewControlId();
+const auto wxX_DESTINATION_CTRL = wxWindow::NewControlId();
+const auto wxY_DESTINATION_CTRL = wxWindow::NewControlId();
+const auto wxZ_DESTINATION_CTRL = wxWindow::NewControlId();
 
 #endif
