@@ -595,13 +595,13 @@ void PropertiesWindow::OnClickCancel(wxCommandEvent &) {
 	EndModal(0);
 }
 
-void PropertiesWindow::OnClipboardText(wxClipboardTextEvent& evt) {
+void PropertiesWindow::OnClipboardText(wxClipboardTextEvent &evt) {
 	if (!clipboardPositionToFields(destinationXField, destinationYField, destinationZField)) {
 		evt.Skip();
 	}
 }
 
-void PropertiesWindow::OnKillFocus(wxFocusEvent& evt) {
+void PropertiesWindow::OnKillFocus(wxFocusEvent &evt) {
 	const auto numberTextCtrl = static_cast<NumberTextCtrl*>(evt.GetEventObject());
 	const auto specificPosition = numberTextCtrl->GetValue();
 	const auto ctrlId = numberTextCtrl->GetId();
