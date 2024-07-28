@@ -164,4 +164,13 @@ typedef wxFileName FileName;
 	#define FROM_DIP(widget, size) size
 #endif
 
+const auto wxAID_CTRL = wxWindow::NewControlId();
+const auto wxUID_CTRL = wxWindow::NewControlId();
+const auto wxDOOR_CTRL = wxWindow::NewControlId();
+const auto wxDEPOT_CTRL = wxWindow::NewControlId();
+const auto wxDESTINATION_CTRL = wxWindow::NewControlId();
+const auto wxX_DESTINATION_CTRL = wxWindow::NewControlId();
+const auto wxY_DESTINATION_CTRL = wxWindow::NewControlId();
+const auto wxZ_DESTINATION_CTRL = wxWindow::NewControlId();
+
 #endif

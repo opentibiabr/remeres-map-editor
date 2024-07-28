@@ -52,9 +52,9 @@ public:
 	void OnClipboardText(wxClipboardTextEvent &);
 
 protected:
-	NumberTextCtrl* x_field;
-	NumberTextCtrl* y_field;
-	NumberTextCtrl* z_field;
+	NumberTextCtrl* x_field = nullptr;
+	NumberTextCtrl* y_field = nullptr;
+	NumberTextCtrl* z_field = nullptr;
 };
 
 #endif

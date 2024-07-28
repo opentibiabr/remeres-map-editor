@@ -115,6 +115,7 @@ public:
 	}
 	void setDoorID(uint8_t id) {
 		doorId = id;
+		setAttribute("doorid", doorId);
 	}
 
 	virtual void serializeItemAttributes_OTBM(const IOMap &maphandle, NodeFileWriteHandle &f) const override;
@@ -138,6 +139,7 @@ public:
 	}
 	void setDepotID(uint8_t id) {
 		depotId = id;
+		setAttribute("depotid", depotId);
 	}
 
 	virtual void serializeItemAttributes_OTBM(const IOMap &maphandle, NodeFileWriteHandle &f) const override;

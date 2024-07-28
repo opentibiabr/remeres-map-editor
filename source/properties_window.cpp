@@ -33,6 +33,7 @@ const wxArrayString PropertiesWindow::types = {
 BEGIN_EVENT_TABLE(PropertiesWindow, wxDialog)
 EVT_BUTTON(wxID_OK, PropertiesWindow::OnClickOK)
 EVT_BUTTON(wxID_CANCEL, PropertiesWindow::OnClickCancel)
+EVT_CHOICE(wxDEPOT_CTRL, PropertiesWindow::OnDepotChoice)
 
 EVT_BUTTON(ITEM_PROPERTIES_ADD_ATTRIBUTE, PropertiesWindow::OnClickAddAttribute)
 EVT_BUTTON(ITEM_PROPERTIES_REMOVE_ATTRIBUTE, PropertiesWindow::OnClickRemoveAttribute)
@@ -69,7 +70,21 @@ PropertiesWindow::PropertiesWindow(wxWindow* parent, const Map* map, const Tile*
 }
 
 PropertiesWindow::~PropertiesWindow() {
-	;
+	if (destinationXField) {
+		destinationXField->Unbind(wxEVT_TEXT, &PropertiesWindow::OnTextPosition, this);
+		destinationXField->Unbind(wxEVT_KILL_FOCUS, &PropertiesWindow::OnKillFocus, this);
+		destinationXField->Unbind(wxEVT_TEXT_PASTE, &PropertiesWindow::OnClipboardText, this);
+	}
+	if (destinationYField) {
+		destinationYField->Unbind(wxEVT_TEXT, &PropertiesWindow::OnTextPosition, this);
+		destinationYField->Unbind(wxEVT_KILL_FOCUS, &PropertiesWindow::OnKillFocus, this);
+		destinationYField->Unbind(wxEVT_TEXT_PASTE, &PropertiesWindow::OnClipboardText, this);
+	}
+	if (destinationZField) {
+		destinationZField->Unbind(wxEVT_TEXT, &PropertiesWindow::OnTextPosition, this);
+		destinationZField->Unbind(wxEVT_KILL_FOCUS, &PropertiesWindow::OnKillFocus, this);
+		destinationZField->Unbind(wxEVT_TEXT_PASTE, &PropertiesWindow::OnClipboardText, this);
+	}
 }
 
 void PropertiesWindow::Update() {
@@ -82,6 +97,106 @@ void PropertiesWindow::Update() {
 	wxDialog::Update();
 }
 
+void PropertiesWindow::SetAdvancedPropertyNumberData(const wxString &attributeName, int value) {
+	const auto rowsCount = attributesGrid->GetNumberRows();
+
+	bool found = false;
+
+	if (rowsCount > 0) {
+		for (int32_t rowIndex = 0; rowIndex < rowsCount; ++rowIndex) {
+			wxString attributeKey = attributesGrid->GetCellValue(rowIndex, 0);
+			if (strcmp(attributeKey, attributeName.c_str()) == 0) {
+				attributesGrid->SetCellValue(rowIndex, 1, "Number");
+				attributesGrid->SetCellValue(rowIndex, 2, wxString::Format("%i", value));
+				found = true;
+			}
+		}
+	}
+
+	if (!found) {
+		attributesGrid->InsertRows(0, 1);
+		attributesGrid->SetCellValue(0, 0, attributeName);
+		attributesGrid->SetCellValue(0, 1, "Number");
+		attributesGrid->SetCellValue(0, 2, wxString::Format("%i", value));
+	}
+}
+
+void PropertiesWindow::createTeleportDestinationCtrl(wxPanel* panel, wxFlexGridSizer* gridsizer) {
+	if (const auto teleport = edit_item->getTeleport()) {
+
+		wxSizer* subGridSizer = newd wxBoxSizer(wxHORIZONTAL);
+
+		gridsizer->Add(newd wxStaticText(panel, wxID_ANY, "Destination"));
+
+		destinationXField = newd NumberTextCtrl(panel, wxX_DESTINATION_CTRL, teleport->getX(), 0, edit_map->getWidth(), wxTE_PROCESS_ENTER, "X", wxDefaultPosition, wxSize(60, 20));
+		subGridSizer->Add(destinationXField, 2, wxEXPAND | wxLEFT | wxBOTTOM, 5);
+		destinationXField->Bind(wxEVT_TEXT, &PropertiesWindow::OnTextPosition, this);
+		destinationXField->Bind(wxEVT_KILL_FOCUS, &PropertiesWindow::OnKillFocus, this);
+		destinationXField->Bind(wxEVT_TEXT_PASTE, &PropertiesWindow::OnClipboardText, this);
+
+		destinationYField = newd NumberTextCtrl(panel, wxY_DESTINATION_CTRL, teleport->getY(), 0, edit_map->getHeight(), wxTE_PROCESS_ENTER, "Y", wxDefaultPosition, wxSize(60, 20));
+		subGridSizer->Add(destinationYField, 2, wxEXPAND | wxLEFT | wxBOTTOM, 5);
+		destinationYField->Bind(wxEVT_TEXT, &PropertiesWindow::OnTextPosition, this);
+		destinationYField->Bind(wxEVT_KILL_FOCUS, &PropertiesWindow::OnKillFocus, this);
+		destinationXField->Bind(wxEVT_TEXT_PASTE, &PropertiesWindow::OnClipboardText, this);
+
+		destinationZField = newd NumberTextCtrl(panel, wxZ_DESTINATION_CTRL, teleport->getZ(), 0, rme::MapMaxLayer, wxTE_PROCESS_ENTER, "Z", wxDefaultPosition, wxSize(60, 20));
+		subGridSizer->Add(destinationZField, 1, wxEXPAND | wxLEFT | wxBOTTOM, 5);
+		destinationZField->Bind(wxEVT_TEXT, &PropertiesWindow::OnTextPosition, this);
+		destinationZField->Bind(wxEVT_KILL_FOCUS, &PropertiesWindow::OnKillFocus, this);
+		destinationXField->Bind(wxEVT_TEXT_PASTE, &PropertiesWindow::OnClipboardText, this);
+		gridsizer->Add(subGridSizer);
+
+		/*
+		gridsizer->Add(newd wxStaticText(panel, wxDESTINATION_CTRL, "Destination"));
+
+		teleportDestinationField = newd PositionCtrl(panel, "", teleport->getX(), teleport->getY(), teleport->getZ(), edit_map->getWidth(), edit_map->getHeight());
+		gridsizer->Add(teleportDestinationField, wxSizerFlags(1).Expand());
+		*/
+	}
+}
+
+void PropertiesWindow::createDoorIdCtrl(wxPanel* panel, wxFlexGridSizer* gridsizer) {
+	if (const auto door = edit_item->getDoor()) {
+		gridsizer->Add(newd wxStaticText(panel, wxID_ANY, "Door ID"));
+		doorIdField = newd wxSpinCtrl(panel, wxDOOR_CTRL, i2ws(door->getDoorID()), wxDefaultPosition, wxSize(-1, 20), wxSP_ARROW_KEYS, 0, 0xFFFF, door->getDoorID());
+		gridsizer->Add(doorIdField, wxSizerFlags(1).Expand());
+	}
+}
+
+void PropertiesWindow::createDepotIdChoice(wxPanel* panel, wxFlexGridSizer* gridsizer) {
+	if (const auto depot = edit_item->getDepot()) {
+		const auto &towns = edit_map->towns;
+		gridsizer->Add(newd wxStaticText(panel, wxID_ANY, "Depot ID"));
+		depotIdField = newd wxChoice(panel, wxDEPOT_CTRL);
+		int selectIndex = 0;
+		if (towns.count() > 0) {
+			bool found = false;
+			for (auto townIt = towns.begin(); townIt != towns.end(); ++townIt) {
+				if (townIt->second->getID() == depot->getDepotID()) {
+					found = true;
+				}
+				depotIdField->Append(wxstr(townIt->second->getName()), newd int(townIt->second->getID()));
+				if (!found) {
+					++selectIndex;
+				}
+			}
+			if (!found) {
+				if (depot->getDepotID() != 0) {
+					depotIdField->Append("Undefined Town (id:" + i2ws(depot->getDepotID()) + ")", newd int(depot->getDepotID()));
+				}
+			}
+		}
+		depotIdField->Append("No Town", newd int(0));
+		if (depot->getDepotID() == 0) {
+			selectIndex = depotIdField->GetCount() - 1;
+		}
+		depotIdField->SetSelection(selectIndex);
+
+		gridsizer->Add(depotIdField, wxSizerFlags(1).Expand());
+	}
+}
+
 wxWindow* PropertiesWindow::createGeneralPanel(wxWindow* parent) {
 	wxPanel* panel = newd wxPanel(parent, ITEM_PROPERTIES_GENERAL_TAB);
 	wxFlexGridSizer* gridsizer = newd wxFlexGridSizer(2, 10, 10);
@@ -91,12 +206,16 @@ wxWindow* PropertiesWindow::createGeneralPanel(wxWindow* parent) {
 	gridsizer->Add(newd wxStaticText(panel, wxID_ANY, "\"" + wxstr(edit_item->getName()) + "\""));
 
 	gridsizer->Add(newd wxStaticText(panel, wxID_ANY, "Action ID"));
-	simpleActionIdField = newd wxSpinCtrl(panel, 1, i2ws(edit_item->getActionID()), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 0xFFFF, edit_item->getActionID());
+	simpleActionIdField = newd wxSpinCtrl(panel, wxAID_CTRL, i2ws(edit_item->getActionID()), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 0xFFFF, edit_item->getActionID());
 	gridsizer->Add(simpleActionIdField, wxSizerFlags(1).Expand());
 
 	gridsizer->Add(newd wxStaticText(panel, wxID_ANY, "Unique ID"));
-	simpleUniqueIdField = newd wxSpinCtrl(panel, 2, i2ws(edit_item->getUniqueID()), wxDefaultPosition, wxSize(-1, 20), wxSP_ARROW_KEYS, 0, 0xFFFF, edit_item->getUniqueID());
+	simpleUniqueIdField = newd wxSpinCtrl(panel, wxUID_CTRL, i2ws(edit_item->getUniqueID()), wxDefaultPosition, wxSize(-1, 20), wxSP_ARROW_KEYS, 0, 0xFFFF, edit_item->getUniqueID());
 	gridsizer->Add(simpleUniqueIdField, wxSizerFlags(1).Expand());
+
+	createDepotIdChoice(panel, gridsizer);
+	createDoorIdCtrl(panel, gridsizer);
+	createTeleportDestinationCtrl(panel, gridsizer);
 
 	panel->SetSizerAndFit(gridsizer);
 
@@ -262,53 +381,117 @@ void PropertiesWindow::saveContainerPanel() {
 	////
 }
 
+void PropertiesWindow::setBasicAttributes() {
+	const auto aid = simpleActionIdField->GetValue();
+	const auto uid = simpleUniqueIdField->GetValue();
+
+	if (aid > 0) {
+		edit_item->setAttribute("aid", ItemAttribute(aid));
+	}
+
+	if (uid > 0) {
+		edit_item->setAttribute("uid", ItemAttribute(uid));
+	}
+}
+
+void PropertiesWindow::setTeleportAttributes(const std::string &key, int value) {
+	if (!edit_item) {
+		return;
+	}
+
+	setBasicAttributes();
+
+	auto teleportItem = dynamic_cast<Teleport*>(edit_item);
+	if (!teleportItem) {
+		return;
+	}
+
+	auto position = teleportItem->getDestination();
+	if (strcmp(key.c_str(), "destination.x") == 0) {
+		position.x = value;
+	} else if (strcmp(key.c_str(), "destination.y") == 0) {
+		position.y = value;
+	} else if (strcmp(key.c_str(), "destination.z") == 0) {
+		position.z = value;
+	}
+
+	teleportItem->setDestination(position);
+}
+
+void PropertiesWindow::setDepotAttributes(const std::string &key, int value) {
+	if (!edit_item) {
+		return;
+	}
+
+	setBasicAttributes();
+
+	auto depot = dynamic_cast<Depot*>(edit_item);
+	if (!depot) {
+		return;
+	}
+
+	if (strcmp(key.c_str(), "depotid") == 0) {
+		depot->setDepotID(value);
+	}
+}
+
+void PropertiesWindow::setDoorAttributes(const std::string &key, int value) {
+	if (!edit_item) {
+		return;
+	}
+
+	setBasicAttributes();
+
+	auto door = dynamic_cast<Door*>(edit_item);
+	if (!door) {
+		return;
+	}
+
+	if (strcmp(key.c_str(), "doorid") == 0) {
+		door->setDoorID(value);
+	}
+}
+
 void PropertiesWindow::saveAttributesPanel() {
 	edit_item->clearAllAttributes();
 
 	for (int32_t rowIndex = 0; rowIndex < attributesGrid->GetNumberRows(); ++rowIndex) {
 		ItemAttribute attr;
 		wxString type = attributesGrid->GetCellValue(rowIndex, 1);
+		const auto cellValue = attributesGrid->GetCellValue(rowIndex, 2);
 		if (type == "String") {
-			attr.set(nstr(attributesGrid->GetCellValue(rowIndex, 2)));
+			attr.set(nstr(cellValue));
 		} else if (type == "Float") {
 			double value;
-			if (attributesGrid->GetCellValue(rowIndex, 2).ToDouble(&value)) {
+			if (cellValue.ToDouble(&value)) {
 				attr.set(value);
 			}
 		} else if (type == "Number") {
 			long value;
-			if (attributesGrid->GetCellValue(rowIndex, 2).ToLong(&value)) {
+			if (cellValue.ToLong(&value)) {
 				attr.set(static_cast<int32_t>(value));
 			}
 		} else if (type == "Boolean") {
-			attr.set(attributesGrid->GetCellValue(rowIndex, 2) == "1");
+			attr.set(cellValue == "1");
 		} else {
 			continue;
 		}
+
 		const auto key = nstr(attributesGrid->GetCellValue(rowIndex, 0));
 
-		edit_item->setAttribute(key, attr);
-		auto teleportItem = dynamic_cast<Teleport*>(edit_item);
-		if (!teleportItem) {
-			continue;
-		}
-
-		auto position = teleportItem->getDestination();
 		int value;
-		attributesGrid->GetCellValue(rowIndex, 2).ToInt(&value);
-		if (strcmp(key.c_str(), "destination.x") == 0) {
-			position.x = value;
-		} else if (strcmp(key.c_str(), "destination.y") == 0) {
-			position.y = value;
-		} else if (strcmp(key.c_str(), "destination.z") == 0) {
-			position.z = value;
+		const auto gotValue = cellValue.ToInt(&value);
+
+		if (dynamic_cast<Teleport*>(edit_item) && gotValue) {
+			setTeleportAttributes(key, value);
+		} else if (dynamic_cast<Depot*>(edit_item) && gotValue) {
+			setDepotAttributes(key, value);
+		} else if (dynamic_cast<Door*>(edit_item) && gotValue) {
+			setDoorAttributes(key, value);
+		} else {
+			edit_item->setAttribute(key, attr);
 		}
-
-		teleportItem->setDestination(position);
 	}
-
-	edit_item->setAttribute("aid", ItemAttribute(simpleActionIdField->GetValue()));
-	edit_item->setAttribute("uid", ItemAttribute(simpleUniqueIdField->GetValue()));
 }
 
 void PropertiesWindow::OnGridValueChanged(wxGridEvent &event) {
@@ -336,6 +519,30 @@ void PropertiesWindow::OnGridValueChanged(wxGridEvent &event) {
 			simpleActionIdField->SetValue(value);
 		} else if (strcmp(attributeKey, "uid") == 0) {
 			simpleUniqueIdField->SetValue(value);
+		} else if (strcmp(attributeKey, "doorid") == 0) {
+			doorIdField->SetValue(value);
+		} else if (strcmp(attributeKey, "destination.x") == 0) {
+			destinationXField->ChangeValue(value);
+		} else if (strcmp(attributeKey, "destination.y") == 0) {
+			destinationYField->ChangeValue(value);
+		} else if (strcmp(attributeKey, "destination.z") == 0) {
+			destinationZField->ChangeValue(value);
+		} else if (strcmp(attributeKey, "depotid") == 0) {
+			int depotIdCellValue;
+			if (value.ToInt(&depotIdCellValue)) {
+				bool selected = false;
+				for (auto i = 0; i < depotIdField->GetCount(); ++i) {
+					const auto depotId = reinterpret_cast<int*>(depotIdField->GetClientData(i));
+					if (depotId && *depotId == depotIdCellValue) {
+						depotIdField->SetSelection(i);
+						selected = true;
+					}
+				}
+				if (!selected) {
+					depotIdField->Append(wxString::Format("Undefined Town (id: %i)", depotIdCellValue));
+					depotIdField->SetSelection(depotIdField->GetCount() - 1);
+				}
+			}
 		}
 	}
 }
@@ -375,21 +582,78 @@ void PropertiesWindow::OnSpinArrowAttributeUpdate(wxSpinEvent &event) {
 
 	const auto spinCtrlId = spinCtrl->GetId();
 
-	if (spinCtrlId == 1) {
-		edit_item->setAttribute("aid", ItemAttribute(number));
-	} else if (spinCtrlId == 2) {
-		edit_item->setAttribute("uid", ItemAttribute(number));
-	}
-
-	for (int32_t rowIndex = 0; rowIndex < attributesGrid->GetNumberRows(); ++rowIndex) {
-		wxString attributeKey = attributesGrid->GetCellValue(rowIndex, 0);
-		if ((strcmp(attributeKey, "aid") == 0 && spinCtrlId == 1) || (strcmp(attributeKey, "uid") == 0 && spinCtrlId == 2)) {
-			attributesGrid->SetCellValue(rowIndex, 1, "Number");
-			attributesGrid->SetCellValue(rowIndex, 2, wxString::Format("%i", number));
-		}
+	if (spinCtrlId == wxAID_CTRL) {
+		SetAdvancedPropertyNumberData("aid", number);
+	} else if (spinCtrlId == wxUID_CTRL) {
+		SetAdvancedPropertyNumberData("uid", number);
+	} else if (spinCtrlId == wxDOOR_CTRL) {
+		SetAdvancedPropertyNumberData("doorid", number);
 	}
 }
 
 void PropertiesWindow::OnClickCancel(wxCommandEvent &) {
 	EndModal(0);
+}
+
+void PropertiesWindow::OnClipboardText(wxClipboardTextEvent& evt) {
+	if (!clipboardPositionToFields(destinationXField, destinationYField, destinationZField)) {
+		evt.Skip();
+	}
+}
+
+void PropertiesWindow::OnKillFocus(wxFocusEvent& evt) {
+	const auto numberTextCtrl = static_cast<NumberTextCtrl*>(evt.GetEventObject());
+	const auto specificPosition = numberTextCtrl->GetValue();
+	const auto ctrlId = numberTextCtrl->GetId();
+
+	numberTextCtrl->OnKillFocus(evt);
+
+	int value;
+	const auto gotValue = specificPosition.ToInt(&value);
+
+	if (!gotValue) {
+		return;
+	}
+
+	OnDestinationUpdate(ctrlId, value);
+}
+
+void PropertiesWindow::OnTextPosition(wxCommandEvent &evt) {
+	const auto numberTextCtrl = static_cast<NumberTextCtrl*>(evt.GetEventObject());
+	const auto specificPosition = evt.GetString();
+
+	numberTextCtrl->EnsureOnlyNumbers(evt);
+
+	const auto ctrlId = numberTextCtrl->GetId();
+
+	int value;
+	const auto gotValue = specificPosition.ToInt(&value);
+
+	if (!gotValue) {
+		return;
+	}
+
+	OnDestinationUpdate(ctrlId, value);
+}
+
+void PropertiesWindow::OnDestinationUpdate(const wxWindowID &ctrlId, int value) {
+	if (ctrlId == wxX_DESTINATION_CTRL) {
+		SetAdvancedPropertyNumberData("destination.x", value);
+	} else if (ctrlId == wxY_DESTINATION_CTRL) {
+		SetAdvancedPropertyNumberData("destination.y", value);
+	} else if (ctrlId == wxZ_DESTINATION_CTRL) {
+		SetAdvancedPropertyNumberData("destination.z", value);
+	}
+}
+
+void PropertiesWindow::OnDepotChoice(wxCommandEvent &event) {
+	if (!depotIdField) {
+		return;
+	}
+
+	const auto newDepotId = static_cast<int*>(depotIdField->GetClientData(depotIdField->GetSelection()));
+
+	const auto rowsCount = attributesGrid->GetNumberRows();
+
+	SetAdvancedPropertyNumberData("depotid", *newDepotId);
 }

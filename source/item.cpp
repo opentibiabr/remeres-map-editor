@@ -158,6 +158,7 @@ void Item::setID(uint16_t new_id) {
 
 void Item::setSubtype(uint16_t _subtype) {
 	subtype = _subtype;
+	setAttribute("subtype", subtype);
 }
 
 bool Item::hasSubtype() const {

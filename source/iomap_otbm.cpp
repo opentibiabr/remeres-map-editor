@@ -248,7 +248,7 @@ bool Teleport::readItemAttribute_OTBM(const IOMap &maphandle, OTBM_ItemAttribute
 		if (!stream->getU16(x) || !stream->getU16(y) || !stream->getU8(z)) {
 			return false;
 		}
-		destination = Position(x, y, z);
+		setDestination(Position(x, y, z));
 		return true;
 	} else {
 		return Item::readItemAttribute_OTBM(maphandle, attribute, stream);
@@ -273,7 +273,7 @@ bool Door::readItemAttribute_OTBM(const IOMap &maphandle, OTBM_ItemAttribute att
 		if (!stream->getU8(id)) {
 			return false;
 		}
-		doorId = id;
+		setDoorID(id);
 		return true;
 	} else {
 		return Item::readItemAttribute_OTBM(maphandle, attribute, stream);
@@ -294,11 +294,9 @@ void Door::serializeItemAttributes_OTBM(const IOMap &maphandle, NodeFileWriteHan
 bool Depot::readItemAttribute_OTBM(const IOMap &maphandle, OTBM_ItemAttribute attribute, BinaryNode* stream) {
 	if (OTBM_ATTR_DEPOT_ID == attribute) {
 		uint16_t id = 0;
-		if (!stream->getU16(id)) {
-			return false;
-		}
-		depotId = id;
-		return true;
+		const auto read = stream->getU16(id);
+		setDepotID(id);
+		return read;
 	} else {
 		return Item::readItemAttribute_OTBM(maphandle, attribute, stream);
 	}
