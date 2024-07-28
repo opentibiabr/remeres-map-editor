@@ -146,13 +146,6 @@ void PropertiesWindow::createTeleportDestinationCtrl(wxPanel* panel, wxFlexGridS
 		destinationZField->Bind(wxEVT_KILL_FOCUS, &PropertiesWindow::OnKillFocus, this);
 		destinationXField->Bind(wxEVT_TEXT_PASTE, &PropertiesWindow::OnClipboardText, this);
 		gridsizer->Add(subGridSizer);
-
-		/*
-		gridsizer->Add(newd wxStaticText(panel, wxDESTINATION_CTRL, "Destination"));
-
-		teleportDestinationField = newd PositionCtrl(panel, "", teleport->getX(), teleport->getY(), teleport->getZ(), edit_map->getWidth(), edit_map->getHeight());
-		gridsizer->Add(teleportDestinationField, wxSizerFlags(1).Expand());
-		*/
 	}
 }
 
