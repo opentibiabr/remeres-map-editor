@@ -21,12 +21,21 @@
 // Text ctrl that only allows number input
 class NumberTextCtrl : public wxTextCtrl {
 public:
-	NumberTextCtrl(wxWindow* parent, wxWindowID id = wxID_ANY, long value = 0, long minvalue = 0, long maxvalue = 100, const wxPoint &pos = wxDefaultPosition, const wxSize &sz = wxDefaultSize, long style = 0, const wxString &name = wxTextCtrlNameStr);
-	NumberTextCtrl(wxWindow* parent, wxWindowID id = wxID_ANY, long value = 0, long minvalue = 0, long maxvalue = 100, long style = 0, const wxString &name = wxTextCtrlNameStr, const wxPoint &pos = wxDefaultPosition, const wxSize &sz = wxDefaultSize);
-	~NumberTextCtrl();
+	// Please avoid using wxTextValidator rather than wxFILTER_NONE, because it prevents the event clipboard paste to be fired.
+	NumberTextCtrl(wxWindow* parent, wxWindowID id, long value, long minValue, long maxValue, const wxPoint &pos, const wxSize &sz, long style, const wxString &name) :
+		wxTextCtrl(parent, id, wxString::Format("%i", value), pos, sz, style, wxTextValidator(wxFILTER_NONE), name),
+		minValue(minValue), maxValue(maxValue), lastValue(value) { }
+	// Please avoid using wxTextValidator rather than wxFILTER_NONE, because it prevents the event clipboard paste to be fired.
+	NumberTextCtrl(wxWindow* parent, wxWindowID id, long value, long minValue, long maxValue, long style, const wxString &name, const wxPoint &pos, const wxSize &sz) :
+		wxTextCtrl(parent, id, wxString::Format("%i", value), pos, sz, style, wxTextValidator(wxFILTER_NONE), name),
+		minValue(minValue), maxValue(maxValue), lastValue(value) { }
+	~NumberTextCtrl() = default;
 
 	void OnKillFocus(wxFocusEvent &);
 	void OnTextEnter(wxCommandEvent &);
+	void EnsureOnlyNumbers(wxCommandEvent &evt);
+
+	wxString TextFilterDigits(const wxString &string);
 
 	long GetIntValue();
 	void SetIntValue(long value);
@@ -37,7 +46,7 @@ public:
 protected:
 	void CheckRange();
 
-	long minval, maxval, lastval;
+	long minValue, maxValue, lastValue;
 	DECLARE_EVENT_TABLE();
 };
 
