@@ -322,18 +322,19 @@ void HousePalettePanel::OnListBoxChange(wxCommandEvent &event) {
 }
 
 void HousePalettePanel::OnListBoxDoubleClick(wxCommandEvent &event) {
-	if (House* house = reinterpret_cast<House*>(event.GetClientData())) {
+	if (const auto house = reinterpret_cast<House*>(event.GetClientData())) {
 		const Position &position = house->getExit();
-		if (!position.isValid()) {
-			// find a valid tile position
-			for (const Position &tilePosition : house->getTiles()) {
-				if (tilePosition.isValid()) {
-					g_gui.SetScreenCenterPosition(tilePosition);
-					break;
-				}
-			}
-		} else {
+		if (position.isValid()) {
 			g_gui.SetScreenCenterPosition(position);
+			return;
+		}
+
+		// find a valid tile position
+		for (const Position &tilePosition : house->getTiles()) {
+			if (tilePosition.isValid()) {
+				g_gui.SetScreenCenterPosition(tilePosition);
+				break;
+			}
 		}
 	}
 }
