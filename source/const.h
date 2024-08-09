@@ -55,6 +55,8 @@ namespace rme {
 	constexpr int MinActionId = 100;
 	constexpr int MaxActionId = 65535;
 
+	constexpr int PositionIndicatorDuration = 5000;
+
 } // namespace rme
 
 #endif // RME_CONST_H_
