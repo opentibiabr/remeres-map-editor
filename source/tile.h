@@ -261,6 +261,10 @@ public: // Functions
 	void unsetStatFlags(uint16_t flags);
 	uint16_t getStatFlags() const noexcept;
 
+	bool hasZone() const {
+		return zones.size() > 0;
+	}
+
 	bool hasZone(unsigned int zone) const {
 		return zones.find(zone) != zones.end();
 	}
@@ -274,6 +278,10 @@ public: // Functions
 
 	void removeZone(unsigned int zone) {
 		zones.erase(zone);
+	}
+
+	void removeZones() {
+		zones.clear();
 	}
 
 protected:
