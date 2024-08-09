@@ -70,15 +70,23 @@ void EraserBrush::undraw(BaseMap* map, Tile* tile) {
 
 void EraserBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 	// Draw is undraw, undraw is super-undraw!
-	for (ItemVector::iterator item_iter = tile->items.begin(); item_iter != tile->items.end();) {
-		Item* item = *item_iter;
+	for (auto itemIter = tile->items.begin(); itemIter != tile->items.end();) {
+		const auto item = *itemIter;
 		if ((item->isComplex() || item->isBorder()) && g_settings.getInteger(Config::ERASER_LEAVE_UNIQUE)) {
-			++item_iter;
+			++itemIter;
 			//} else if(item->getDoodadBrush()) {
 			//++item_iter;
 		} else {
 			delete item;
-			item_iter = tile->items.erase(item_iter);
+			itemIter = tile->items.erase(itemIter);
 		}
+	}
+
+	if (tile->hasZone() && !g_settings.getInteger(Config::ERASER_KEEP_ZONES)) {
+		tile->removeZones();
+	}
+
+	if (!g_settings.getInteger(Config::ERASER_KEEP_MAP_FLAGS)) {
+		tile->unsetMapFlags(tile->getMapFlags());
 	}
 }
