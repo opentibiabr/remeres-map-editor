@@ -197,9 +197,9 @@ wxNotebookPage* PreferencesWindow::CreateEditorPage() {
 	eraserKeepZonesCheckbox->SetToolTip("The eraser will keep Zones, will not delete them.");
 	sizer->Add(eraserKeepZonesCheckbox, 0, wxLEFT | wxTOP, 5);
 
-	eraserKeepMapFlagsCheckbox = newd wxCheckBox(editor_page, wxID_ANY, "Eraser keep Map Flags (PVP, noPVP, etc)");
+	eraserKeepMapFlagsCheckbox = newd wxCheckBox(editor_page, wxID_ANY, "Eraser keep Map Flags (PZ, NO PVP, PVP and NO LOGOUT)");
 	eraserKeepMapFlagsCheckbox->SetValue(g_settings.getBoolean(Config::ERASER_KEEP_MAP_FLAGS));
-	eraserKeepMapFlagsCheckbox->SetToolTip("The eraser will keep map flags, such as PVP, noPVP, PZ and No Logout.");
+	eraserKeepMapFlagsCheckbox->SetToolTip("The eraser will keep map flags, such as PZ, NO PVP, PVP and NO LOGOUT.");
 	sizer->Add(eraserKeepMapFlagsCheckbox, 0, wxLEFT | wxTOP, 5);
 
 	auto_create_spawn_chkbox = newd wxCheckBox(editor_page, wxID_ANY, "Auto create spawn when placing monster");
