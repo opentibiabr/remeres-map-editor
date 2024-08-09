@@ -262,7 +262,7 @@ public: // Functions
 	uint16_t getStatFlags() const noexcept;
 
 	bool hasZone() const {
-		return zones.size() > 0;
+		return !zones.empty();
 	}
 
 	bool hasZone(unsigned int zone) const {
