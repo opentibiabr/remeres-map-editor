@@ -192,6 +192,16 @@ wxNotebookPage* PreferencesWindow::CreateEditorPage() {
 	eraser_leave_unique_chkbox->SetToolTip("The eraser will leave containers with items in them, items with unique or action id and items.");
 	sizer->Add(eraser_leave_unique_chkbox, 0, wxLEFT | wxTOP, 5);
 
+	eraserKeepZonesCheckbox = newd wxCheckBox(editor_page, wxID_ANY, "Eraser keep Zones");
+	eraserKeepZonesCheckbox->SetValue(g_settings.getBoolean(Config::ERASER_KEEP_ZONES));
+	eraserKeepZonesCheckbox->SetToolTip("The eraser will keep Zones, will not delete them.");
+	sizer->Add(eraserKeepZonesCheckbox, 0, wxLEFT | wxTOP, 5);
+
+	eraserKeepMapFlagsCheckbox = newd wxCheckBox(editor_page, wxID_ANY, "Eraser keep Map Flags (PZ, NO PVP, PVP and NO LOGOUT)");
+	eraserKeepMapFlagsCheckbox->SetValue(g_settings.getBoolean(Config::ERASER_KEEP_MAP_FLAGS));
+	eraserKeepMapFlagsCheckbox->SetToolTip("The eraser will keep map flags, such as PZ, NO PVP, PVP and NO LOGOUT.");
+	sizer->Add(eraserKeepMapFlagsCheckbox, 0, wxLEFT | wxTOP, 5);
+
 	auto_create_spawn_chkbox = newd wxCheckBox(editor_page, wxID_ANY, "Auto create spawn when placing monster");
 	auto_create_spawn_chkbox->SetValue(g_settings.getBoolean(Config::AUTO_CREATE_SPAWN_MONSTER));
 	auto_create_spawn_chkbox->SetToolTip("When this option is checked, you can place monsters without placing a spawn manually, the spawn will be place automatically.");
@@ -619,6 +629,8 @@ void PreferencesWindow::Apply() {
 	g_settings.setInteger(Config::HOUSE_BRUSH_REMOVE_ITEMS, house_remove_chkbox->GetValue());
 	g_settings.setInteger(Config::AUTO_ASSIGN_DOORID, auto_assign_doors_chkbox->GetValue());
 	g_settings.setInteger(Config::ERASER_LEAVE_UNIQUE, eraser_leave_unique_chkbox->GetValue());
+	g_settings.setInteger(Config::ERASER_KEEP_ZONES, eraserKeepZonesCheckbox->GetValue());
+	g_settings.setInteger(Config::ERASER_KEEP_MAP_FLAGS, eraserKeepMapFlagsCheckbox->GetValue());
 	g_settings.setInteger(Config::DOODAD_BRUSH_ERASE_LIKE, doodad_erase_same_chkbox->GetValue());
 	g_settings.setInteger(Config::AUTO_CREATE_SPAWN_MONSTER, auto_create_spawn_chkbox->GetValue());
 	g_settings.setInteger(Config::AUTO_CREATE_SPAWN_NPC, auto_create_spawn_npc_chkbox->GetValue());
