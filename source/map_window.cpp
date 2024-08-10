@@ -153,6 +153,7 @@ void MapWindow::SetScreenCenterPosition(const Position &position, bool showIndic
 
 	if (showIndicator) {
 		canvas->ShowPositionIndicator(position);
+		Refresh();
 	}
 }
 
