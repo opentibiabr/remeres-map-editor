@@ -29,6 +29,7 @@ world
 *.vs
 
 vcproj/
+vcproj/generated/
 vcproj/ipch/
 vcproj/Beta Release/
 vcproj/Debug/

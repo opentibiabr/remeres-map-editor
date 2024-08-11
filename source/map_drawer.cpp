@@ -1756,9 +1756,8 @@ void MapDrawer::DrawPositionIndicator(int z) {
 		return;
 	}
 
-	constexpr int duration = 5000;
-	const long time = pos_indicator_timer.Time();
-	if (time >= duration) {
+	const long time = GetPositionIndicatorTime();
+	if (time == 0) {
 		return;
 	}
 

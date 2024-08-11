@@ -61,6 +61,8 @@ protected:
 	wxCheckBox* house_remove_chkbox;
 	wxCheckBox* auto_assign_doors_chkbox;
 	wxCheckBox* eraser_leave_unique_chkbox;
+	wxCheckBox* eraserKeepZonesCheckbox = nullptr;
+	wxCheckBox* eraserKeepMapFlagsCheckbox = nullptr;
 	wxCheckBox* doodad_erase_same_chkbox;
 	wxCheckBox* auto_create_spawn_chkbox;
 	wxCheckBox* auto_create_spawn_npc_chkbox;
