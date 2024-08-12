@@ -33,6 +33,8 @@ public:
 	void RemoveSelected();
 	void OnItemDoubleClick(wxCommandEvent &);
 
+	void OpenPropertiesWindow(int index);
+
 protected:
 	void UpdateItems();
 

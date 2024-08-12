@@ -110,12 +110,7 @@ void BrowseTileListBox::UpdateItems() {
 	SetItemCount(index);
 }
 
-void BrowseTileListBox::OnItemDoubleClick(wxCommandEvent &evt) {
-	const auto index = evt.GetSelection();
-	if (index == wxNOT_FOUND) {
-		return;
-	}
-
+void BrowseTileListBox::OpenPropertiesWindow(int index) {
 	const auto* currentMap = &g_gui.GetCurrentEditor()->getMap();
 
 	wxDialog* dialog;
@@ -126,6 +121,15 @@ void BrowseTileListBox::OnItemDoubleClick(wxCommandEvent &evt) {
 	}
 	dialog->ShowModal();
 	dialog->Destroy();
+}
+
+void BrowseTileListBox::OnItemDoubleClick(wxCommandEvent &evt) {
+	const auto index = evt.GetSelection();
+	if (index == wxNOT_FOUND) {
+		return;
+	}
+
+	OpenPropertiesWindow(index);
 }
 
 // ============================================================================
@@ -218,7 +222,12 @@ void BrowseTileWindow::OnClickSelectRaw(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void BrowseTileWindow::OnClickProperties(wxCommandEvent &evt) {
-	itemList->OnItemDoubleClick(evt);
+	const auto index = itemList->GetSelection();
+	if (index == wxNOT_FOUND) {
+		return;
+	}
+
+	itemList->OpenPropertiesWindow(index);
 }
 
 void BrowseTileWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
