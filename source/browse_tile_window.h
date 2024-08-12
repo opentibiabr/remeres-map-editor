@@ -22,7 +22,26 @@
 #include "map.h"
 #include "tile.h"
 
-class BrowseTileListBox;
+class BrowseTileListBox : public wxVListBox {
+public:
+	BrowseTileListBox(wxWindow* parent, wxWindowID id, Tile* tile);
+	~BrowseTileListBox() = default;
+
+	void OnDrawItem(wxDC &dc, const wxRect &rect, size_t index) const;
+	wxCoord OnMeasureItem(size_t index) const;
+	Item* GetSelectedItem();
+	void RemoveSelected();
+	void OnItemDoubleClick(wxCommandEvent &);
+
+protected:
+	void UpdateItems();
+
+	using ItemsMap = std::map<int, Item*>;
+	ItemsMap items;
+	Tile* editTile = nullptr;
+
+	DECLARE_EVENT_TABLE();
+};
 
 class BrowseTileWindow : public wxDialog {
 public:
@@ -32,14 +51,16 @@ public:
 	void OnItemSelected(wxCommandEvent &);
 	void OnClickDelete(wxCommandEvent &);
 	void OnClickSelectRaw(wxCommandEvent &);
+	void OnClickProperties(wxCommandEvent &);
 	void OnClickOK(wxCommandEvent &);
 	void OnClickCancel(wxCommandEvent &);
 
 protected:
-	BrowseTileListBox* item_list;
-	wxStaticText* item_count_txt;
-	wxButton* delete_button;
-	wxButton* select_raw_button;
+	BrowseTileListBox* itemList = nullptr;
+	wxStaticText* itemCountText = nullptr;
+	wxButton* deleteButton = nullptr;
+	wxButton* selectRawButton = nullptr;
+	wxButton* propertiesButton = nullptr;
 
 	DECLARE_EVENT_TABLE();
 };
