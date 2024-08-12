@@ -54,7 +54,7 @@ void BrowseTileListBox::OnDrawItem(wxDC &dc, const wxRect &rect, size_t index) c
 
 	if (IsSelected(index)) {
 		item->select();
-		const auto color = HasFocus() ? wxColor(0xFF, 0xFF, 0xFF) : wxColor(0xFF, 0xFF, 0xFF);
+		const auto color = HasFocus() ? wxColor(0xFF, 0xFF, 0xFF) : wxColor(0x00, 0x00, 0xFF);
 		dc.SetTextForeground(color);
 	} else {
 		item->deselect();
