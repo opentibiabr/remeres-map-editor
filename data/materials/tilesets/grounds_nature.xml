@@ -16,6 +16,7 @@
 			<brush name="clear water"/>
 			<brush name="sea"/>
 			<brush name="walkable sea"/>
+			<brush name="swimmable sea"/>
 			<brush name="small brook"/>
 			<brush name="shallow water"/>
 			<brush name="dirty water"/>

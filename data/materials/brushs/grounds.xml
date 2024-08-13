@@ -145,7 +145,7 @@
 		<border align="inner" to="ice" id="48"/>
 	</brush>
 
-	<brush name="walkable sea outfit" type="ground" lookid="629" z-order="7600">
+	<brush name="swimmable sea" type="ground" lookid="629" z-order="7600">
 		<item id="629" chance="3"/>
 		<item id="630" chance="1"/>
 		<item id="631" chance="1"/>

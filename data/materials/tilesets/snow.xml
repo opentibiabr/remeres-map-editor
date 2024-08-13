@@ -3,6 +3,7 @@
 		<terrain>
 			<brush name="sea"/>
 			<brush name="walkable sea"/>
+			<brush name="swimmable sea"/>
 			<brush name="mountain"/>
 			<brush name="snowy mountain"/>
 			<brush name="icy mountain"/>
