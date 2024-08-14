@@ -156,6 +156,7 @@ MainToolBar::MainToolBar(wxWindow* parent, wxAuiManager* manager) {
 	indicators_toolbar->ToggleTool(TOOLBAR_HOOKS, g_settings.getBoolean(Config::SHOW_WALL_HOOKS));
 	indicators_toolbar->ToggleTool(TOOLBAR_PICKUPABLES, g_settings.getBoolean(Config::SHOW_PICKUPABLES));
 	indicators_toolbar->ToggleTool(TOOLBAR_MOVEABLES, g_settings.getBoolean(Config::SHOW_MOVEABLES));
+	indicators_toolbar->ToggleTool(TOOLBAR_AVOIDABLES, g_settings.getBoolean(Config::SHOW_AVOIDABLES));
 
 	manager->AddPane(standard_toolbar, wxAuiPaneInfo().Name(STANDARD_BAR_NAME).ToolbarPane().Top().Row(1).Position(1).Floatable(false));
 	manager->AddPane(brushes_toolbar, wxAuiPaneInfo().Name(BRUSHES_BAR_NAME).ToolbarPane().Top().Row(1).Position(2).Floatable(false));
@@ -285,6 +286,7 @@ void MainToolBar::UpdateIndicators() {
 	indicators_toolbar->ToggleTool(TOOLBAR_HOOKS, g_settings.getBoolean(Config::SHOW_WALL_HOOKS));
 	indicators_toolbar->ToggleTool(TOOLBAR_PICKUPABLES, g_settings.getBoolean(Config::SHOW_PICKUPABLES));
 	indicators_toolbar->ToggleTool(TOOLBAR_MOVEABLES, g_settings.getBoolean(Config::SHOW_MOVEABLES));
+	indicators_toolbar->ToggleTool(TOOLBAR_AVOIDABLES, g_settings.getBoolean(Config::SHOW_AVOIDABLES));
 
 	g_gui.GetAuiManager()->Update();
 }
@@ -625,6 +627,11 @@ void MainToolBar::OnIndicatorsButtonClick(wxCommandEvent &event) {
 			break;
 		case TOOLBAR_MOVEABLES:
 			g_settings.setInteger(Config::SHOW_MOVEABLES, toggled);
+			g_gui.root->UpdateIndicatorsMenu();
+			g_gui.RefreshView();
+			break;
+		case TOOLBAR_AVOIDABLES:
+			g_settings.setInteger(Config::SHOW_AVOIDABLES, toggled);
 			g_gui.root->UpdateIndicatorsMenu();
 			g_gui.RefreshView();
 			break;

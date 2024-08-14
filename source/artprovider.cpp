@@ -18,6 +18,7 @@
 #include "main.h"
 #include "artprovider.h"
 
+#include "../icons/avoidable.xpm"
 #include "../icons/circular_1.xpm"
 #include "../icons/circular_2.xpm"
 #include "../icons/circular_3.xpm"
@@ -158,6 +159,8 @@ wxBitmap ArtProvider::CreateBitmap(const wxArtID &id, const wxArtClient &client,
 			return wxBitmap(moveable_xpm);
 		} else if (id == ART_PICKUPABLE_MOVEABLE) {
 			return wxBitmap(pickupable_moveable_xpm);
+		} else if (id == ART_AVOIDABLE) {
+			return wxBitmap(avoidable_xpm);
 		}
 	}
 

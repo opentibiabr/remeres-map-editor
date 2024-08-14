@@ -84,6 +84,7 @@ public:
 	bool show_hooks;
 	bool show_pickupables;
 	bool show_moveables;
+	bool show_avoidables;
 	bool hide_items_when_zoomed;
 };
 

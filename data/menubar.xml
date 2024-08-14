@@ -152,6 +152,7 @@
             <item name="Show Wall Hoo$ks" hotkey="K" action="SHOW_WALL_HOOKS" help="Show indicators for wall hooks."/>
             <item name="Show Pickupables" action="SHOW_PICKUPABLES" help="Show indicators for pickupable items."/>
             <item name="Show Moveables" action="SHOW_MOVEABLES" help="Show indicators for moveable items."/>
+            <item name="Show Avoidables" action="SHOW_AVOIDABLES" help="Show indicators for avoidable items."/>
         </menu>
     </menu>
     <menu name="$Window">
