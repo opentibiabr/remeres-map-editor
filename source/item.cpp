@@ -400,7 +400,44 @@ void Item::animate() {
 // ============================================================================
 // Static conversions
 
-std::string Item::LiquidID2Name(uint16_t id) {
+uint8_t Item::liquidSubTypeToSpriteSubType(uint8_t id) {
+	switch (id) {
+		case LIQUID_WATER:
+			return 1;
+		case LIQUID_BLOOD:
+		case LIQUID_LIFEFLUID:
+			return 2;
+		case LIQUID_BEER:
+		case LIQUID_MUD:
+		case LIQUID_OIL:
+		case LIQUID_RUM:
+		case LIQUID_MEAD:
+		case LIQUID_TEA:
+			return 3;
+		case LIQUID_SLIME:
+			return 4;
+		case LIQUID_URINE:
+		case LIQUID_LEMONADE:
+		case LIQUID_FRUIT_JUICE:
+			return 5;
+		case LIQUID_MILK:
+		case LIQUID_COCONUT_MILK:
+			return 6;
+		case LIQUID_MANAFLUID:
+		case LIQUID_WINE:
+			return 7;
+		case LIQUID_INK:
+			return 8;
+		case LIQUID_CHOCOLATE:
+			return 9;
+		case LIQUID_UNKNOWN:
+			return 10;
+		default:
+			return 0;
+	}
+}
+
+std::string Item::LiquidID2Name(uint8_t id) {
 	switch (id) {
 		case LIQUID_NONE:
 			return "None";
@@ -418,14 +455,10 @@ std::string Item::LiquidID2Name(uint16_t id) {
 			return "Milk";
 		case LIQUID_MANAFLUID:
 			return "Manafluid";
-		case LIQUID_WATER2:
-			return "Water";
 		case LIQUID_LIFEFLUID:
 			return "Lifefluid";
 		case LIQUID_OIL:
 			return "Oil";
-		case LIQUID_SLIME2:
-			return "Slime";
 		case LIQUID_URINE:
 			return "Urine";
 		case LIQUID_COCONUT_MILK:
@@ -436,24 +469,22 @@ std::string Item::LiquidID2Name(uint16_t id) {
 			return "Mud";
 		case LIQUID_FRUIT_JUICE:
 			return "Fruit Juice";
-		case LIQUID_LAVA:
-			return "Lava";
 		case LIQUID_RUM:
 			return "Rum";
-		case LIQUID_SWAMP:
-			return "Swamp";
 		case LIQUID_INK:
 			return "Ink";
 		case LIQUID_TEA:
 			return "Tea";
 		case LIQUID_MEAD:
 			return "Mead";
+		case LIQUID_CHOCOLATE:
+			return "Chocolate";
 		default:
 			return "Unknown";
 	}
 }
 
-uint16_t Item::LiquidName2ID(std::string liquid) {
+uint8_t Item::LiquidName2ID(std::string liquid) {
 	to_lower_str(liquid);
 	if (liquid == "none") {
 		return LIQUID_NONE;
@@ -500,14 +531,8 @@ uint16_t Item::LiquidName2ID(std::string liquid) {
 	if (liquid == "fruit juice") {
 		return LIQUID_FRUIT_JUICE;
 	}
-	if (liquid == "lava") {
-		return LIQUID_LAVA;
-	}
 	if (liquid == "rum") {
 		return LIQUID_RUM;
-	}
-	if (liquid == "swamp") {
-		return LIQUID_SWAMP;
 	}
 	if (liquid == "ink") {
 		return LIQUID_INK;
@@ -518,7 +543,10 @@ uint16_t Item::LiquidName2ID(std::string liquid) {
 	if (liquid == "mead") {
 		return LIQUID_MEAD;
 	}
-	return LIQUID_NONE;
+	if (liquid == "chocolate") {
+		return LIQUID_CHOCOLATE;
+	}
+	return LIQUID_UNKNOWN;
 }
 
 // ============================================================================

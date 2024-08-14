@@ -1162,7 +1162,7 @@ void MapDrawer::BlitItem(int &draw_x, int &draw_y, const Tile* tile, const Item*
 	int pattern_z = pos.z % sprite->pattern_z;
 
 	if (type.isSplash() || type.isFluidContainer()) {
-		subtype = item->getSubtype();
+		subtype = Item::liquidSubTypeToSpriteSubType(item->getSubtype());
 	} else if (type.isHangable) {
 		if (tile->hasProperty(HOOK_SOUTH)) {
 			pattern_x = 1;

@@ -35,33 +35,31 @@ enum ITEMPROPERTY {
 	BLOCKINGANDNOTMOVEABLE
 };
 
-enum SplashType {
+enum SplashType : uint8_t {
 	LIQUID_NONE = 0,
 	LIQUID_WATER = 1,
-	LIQUID_BLOOD = 2,
+	LIQUID_WINE = 2,
 	LIQUID_BEER = 3,
-	LIQUID_SLIME = 4,
-	LIQUID_LEMONADE = 5,
-	LIQUID_MILK = 6,
-	LIQUID_MANAFLUID = 7,
-	LIQUID_INK = 8,
-	LIQUID_WATER2 = 9,
-	LIQUID_LIFEFLUID = 10,
-	LIQUID_OIL = 11,
-	LIQUID_SLIME2 = 12,
-	LIQUID_URINE = 13,
-	LIQUID_COCONUT_MILK = 14,
-	LIQUID_WINE = 15,
-	LIQUID_MUD = 19,
-	LIQUID_FRUIT_JUICE = 21,
-	LIQUID_LAVA = 26,
-	LIQUID_RUM = 27,
-	LIQUID_SWAMP = 28,
-	LIQUID_TEA = 35,
-	LIQUID_MEAD = 43,
-
+	LIQUID_MUD = 4,
+	LIQUID_BLOOD = 5,
+	LIQUID_SLIME = 6,
+	LIQUID_OIL = 7,
+	LIQUID_URINE = 8,
+	LIQUID_MILK = 9,
+	LIQUID_MANAFLUID = 10,
+	LIQUID_LIFEFLUID = 11,
+	LIQUID_LEMONADE = 12,
+	LIQUID_RUM = 13,
+	LIQUID_FRUIT_JUICE = 14,
+	LIQUID_COCONUT_MILK = 15,
+	LIQUID_MEAD = 16,
+	LIQUID_TEA = 17,
+	LIQUID_INK = 18,
+	LIQUID_UNKNOWN = 19,
+	LIQUID_CHOCOLATE = 20,
+	
 	LIQUID_FIRST = LIQUID_WATER,
-	LIQUID_LAST = LIQUID_MEAD
+	LIQUID_LAST = LIQUID_CHOCOLATE
 };
 
 IMPLEMENT_INCREMENT_OP(SplashType)
@@ -140,8 +138,9 @@ public:
 	*/
 
 	// Static conversions
-	static std::string LiquidID2Name(uint16_t id);
-	static uint16_t LiquidName2ID(std::string id);
+	static uint8_t liquidSubTypeToSpriteSubType(uint8_t id);
+	static std::string LiquidID2Name(uint8_t id);
+	static uint8_t LiquidName2ID(std::string id);
 
 	const ItemType &getItemType() const noexcept {
 		return g_items.getItemType(id);

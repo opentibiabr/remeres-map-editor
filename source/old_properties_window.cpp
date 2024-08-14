@@ -151,8 +151,12 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 
 		// SetSize(220, 310);
 	} else if (edit_item->isSplash() || edit_item->isFluidContainer()) {
+
+
+		const auto subTypeName = edit_item->isSplash() ? "Splash" : "Fluid Container";
+
 		// Splash
-		wxSizer* boxsizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Splash Properties");
+		wxSizer* boxsizer = newd wxStaticBoxSizer(wxVERTICAL, this, wxString::Format("%s Properties", subTypeName));
 
 		wxFlexGridSizer* subsizer = newd wxFlexGridSizer(2, 10, 10);
 		subsizer->AddGrowableCol(1);
@@ -165,17 +169,20 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 		// Splash types
 		splash_type_field = newd wxChoice(this, wxID_ANY);
 		if (edit_item->isFluidContainer()) {
-			splash_type_field->Append(wxstr(Item::LiquidID2Name(LIQUID_NONE)), newd int32_t(LIQUID_NONE));
+			splash_type_field->Append(wxstr(Item::LiquidID2Name(LIQUID_NONE)), newd uint8_t(LIQUID_NONE));
 		}
 
-		for (SplashType splashType = LIQUID_FIRST; splashType != LIQUID_LAST; ++splashType) {
-			splash_type_field->Append(wxstr(Item::LiquidID2Name(splashType)), newd int32_t(splashType));
+		for (SplashType splashType = LIQUID_FIRST; splashType <= LIQUID_LAST; ++splashType) {
+			const auto splashTypeName = wxstr(Item::LiquidID2Name(splashType));
+			if (splashTypeName != "Unknown") {
+				splash_type_field->Append(splashTypeName, newd uint8_t(splashType));
+			}
 		}
 
 		if (item->getSubtype()) {
 			const std::string &what = Item::LiquidID2Name(item->getSubtype());
 			if (what == "Unknown") {
-				splash_type_field->Append(wxstr(Item::LiquidID2Name(LIQUID_NONE)), newd int32_t(LIQUID_NONE));
+				splash_type_field->Append(wxstr(Item::LiquidID2Name(LIQUID_UNKNOWN)), newd uint8_t(LIQUID_UNKNOWN));
 			}
 			splash_type_field->SetStringSelection(wxstr(what));
 		} else {
@@ -538,7 +545,7 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 OldPropertiesWindow::~OldPropertiesWindow() {
 	// Warning: edit_item may no longer be valid, DONT USE IT!
 	if (splash_type_field) {
-		for (uint32_t i = 0; i < splash_type_field->GetCount(); ++i) {
+		for (uint8_t i = 0; i < splash_type_field->GetCount(); ++i) {
 			delete reinterpret_cast<int*>(splash_type_field->GetClientData(i));
 		}
 	}
