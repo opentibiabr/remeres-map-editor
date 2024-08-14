@@ -223,6 +223,9 @@ public:
 
 	// Item types
 	bool hasProperty(enum ITEMPROPERTY prop) const;
+	bool isAvoidable() const {
+		return getItemType().blockPathfinder;
+	}
 	bool isBlocking() const {
 		return getItemType().unpassable;
 	}

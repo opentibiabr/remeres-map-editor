@@ -383,6 +383,10 @@ public:
 	bool blockPathfinder;
 	bool hasElevation;
 
+	bool isAnimation;
+	bool fullGround;
+	bool forceUse;
+
 	int alwaysOnTopOrder;
 	uint16_t rotateTo;
 	BorderType border_alignment;

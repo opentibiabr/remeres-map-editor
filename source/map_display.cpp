@@ -222,6 +222,7 @@ void MapCanvas::OnPaint(wxPaintEvent &event) {
 			options.show_hooks = g_settings.getBoolean(Config::SHOW_WALL_HOOKS);
 			options.show_pickupables = g_settings.getBoolean(Config::SHOW_PICKUPABLES);
 			options.show_moveables = g_settings.getBoolean(Config::SHOW_MOVEABLES);
+			options.show_avoidables = g_settings.getBoolean(Config::SHOW_AVOIDABLES);
 			options.hide_items_when_zoomed = g_settings.getBoolean(Config::HIDE_ITEMS_WHEN_ZOOMED);
 		}
 
