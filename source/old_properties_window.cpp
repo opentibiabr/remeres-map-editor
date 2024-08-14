@@ -152,7 +152,6 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 		// SetSize(220, 310);
 	} else if (edit_item->isSplash() || edit_item->isFluidContainer()) {
 
-
 		const auto subTypeName = edit_item->isSplash() ? "Splash" : "Fluid Container";
 
 		// Splash
