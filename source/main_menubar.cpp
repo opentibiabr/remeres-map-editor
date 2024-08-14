@@ -203,10 +203,10 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(GOTO_WEBSITE, wxITEM_NORMAL, OnGotoWebsite);
 	MAKE_ACTION(ABOUT, wxITEM_NORMAL, OnAbout);
 
-	MAKE_ACTION(SEARCH_ON_MAP_DUPLICATE, wxITEM_NORMAL, OnSearchForDuplicateItemsOnMap);
-	MAKE_ACTION(SEARCH_ON_SELECTION_DUPLICATE, wxITEM_NORMAL, OnSearchForDuplicateItemsOnSelection);
-	MAKE_ACTION(REMOVE_ON_MAP_DUPLICATE_ITEMS, wxITEM_NORMAL, OnRemoveForDuplicateItemsOnMap);
-	MAKE_ACTION(REMOVE_ON_SELECTION_DUPLICATE_ITEMS, wxITEM_NORMAL, OnRemoveForDuplicateItemsOnSelection);
+	MAKE_ACTION(SEARCH_ON_MAP_DUPLICATED_ITEMS, wxITEM_NORMAL, OnSearchForDuplicateItemsOnMap);
+	MAKE_ACTION(SEARCH_ON_SELECTION_DUPLICATED_ITEMS, wxITEM_NORMAL, OnSearchForDuplicateItemsOnSelection);
+	MAKE_ACTION(REMOVE_ON_MAP_DUPLICATED_ITEMS, wxITEM_NORMAL, OnRemoveForDuplicateItemsOnMap);
+	MAKE_ACTION(REMOVE_ON_SELECTION_DUPLICATED_ITEMS, wxITEM_NORMAL, OnRemoveForDuplicateItemsOnSelection);
 
 	MAKE_ACTION(SEARCH_ON_MAP_WALLS_UPON_WALLS, wxITEM_NORMAL, OnSearchForWallsUponWallsOnMap);
 	MAKE_ACTION(SEARCH_ON_SELECTION_WALLS_UPON_WALLS, wxITEM_NORMAL, OnSearchForWallsUponWallsOnSelection);
@@ -420,10 +420,10 @@ void MainMenuBar::Update() {
 
 	EnableItem(DEBUG_VIEW_DAT, loaded);
 
-	EnableItem(SEARCH_ON_MAP_DUPLICATE, is_host);
-	EnableItem(SEARCH_ON_SELECTION_DUPLICATE, has_selection && is_host);
-	EnableItem(REMOVE_ON_MAP_DUPLICATE_ITEMS, is_local);
-	EnableItem(REMOVE_ON_SELECTION_DUPLICATE_ITEMS, is_local && has_selection);
+	EnableItem(SEARCH_ON_MAP_DUPLICATED_ITEMS, is_host);
+	EnableItem(SEARCH_ON_SELECTION_DUPLICATED_ITEMS, has_selection && is_host);
+	EnableItem(REMOVE_ON_MAP_DUPLICATED_ITEMS, is_local);
+	EnableItem(REMOVE_ON_SELECTION_DUPLICATED_ITEMS, is_local && has_selection);
 
 	EnableItem(SEARCH_ON_MAP_WALLS_UPON_WALLS, is_host);
 	EnableItem(SEARCH_ON_SELECTION_WALLS_UPON_WALLS, is_host && has_selection);
@@ -1160,9 +1160,8 @@ void MainMenuBar::OnSearchForItemOnSelection(wxCommandEvent &WXUNUSED(event)) {
 		g_gui.DestroyLoadBar();
 
 		if (finder.limitReached()) {
-			wxString msg;
-			msg << "The configured limit has been reached. Only " << finder.maxCount << " results will be displayed.";
-			g_gui.PopupDialog("Notice", msg, wxOK);
+			const auto message = wxString::Format("The configured limit has been reached. Only %d results will be displayed.", finder.maxCount);
+			g_gui.PopupDialog("Notice", message, wxOK);
 		}
 
 		SearchResultWindow* window = g_gui.ShowSearchWindow();
@@ -1201,12 +1200,10 @@ void MainMenuBar::OnRemoveItemOnSelection(wxCommandEvent &WXUNUSED(event)) {
 		g_gui.GetCurrentEditor()->clearActions();
 		g_gui.CreateLoadBar("Searching item on selection to remove...");
 		OnMapRemoveItems::RemoveItemCondition condition(dialog.getResultID());
-		int64_t count = RemoveItemOnMap(g_gui.GetCurrentMap(), condition, true);
+		const auto itemsRemoved = RemoveItemOnMap(g_gui.GetCurrentMap(), condition, true);
 		g_gui.DestroyLoadBar();
 
-		wxString msg;
-		msg << count << " items removed.";
-		g_gui.PopupDialog("Remove Item", msg, wxOK);
+		g_gui.PopupDialog("Remove Item", wxString::Format("%d items removed.", itemsRemoved), wxOK);
 		g_gui.GetCurrentMap().doChange();
 		g_gui.RefreshView();
 	}
@@ -1220,12 +1217,10 @@ void MainMenuBar::OnRemoveMonstersOnSelection(wxCommandEvent &WXUNUSED(event)) {
 
 	g_gui.GetCurrentEditor()->clearActions();
 	g_gui.CreateLoadBar("Searching monsters on selection to remove...");
-	int64_t count = RemoveMonstersOnMap(g_gui.GetCurrentMap(), true);
+	const auto monstersRemoved = RemoveMonstersOnMap(g_gui.GetCurrentMap(), true);
 	g_gui.DestroyLoadBar();
 
-	wxString msg;
-	msg << count << " monsters removed.";
-	g_gui.PopupDialog("Remove Monsters", msg, wxOK);
+	g_gui.PopupDialog("Remove Monsters", wxString::Format("%d monsters removed.", monstersRemoved), wxOK);
 	g_gui.GetCurrentMap().doChange();
 	g_gui.RefreshView();
 }
@@ -2333,11 +2328,9 @@ void MainMenuBar::SearchItems(bool unique, bool action, bool container, bool wri
 		return;
 	}
 
-	if (onSelection) {
-		g_gui.CreateLoadBar("Searching on selected area...");
-	} else {
-		g_gui.CreateLoadBar("Searching on map...");
-	}
+	const auto searchType = onSelection ? "selected area" : "map";
+
+	g_gui.CreateLoadBar(wxString::Format("Searching on %s...", searchType));
 
 	OnSearchForStuff::Searcher searcher;
 	searcher.search_unique = unique;
@@ -2423,11 +2416,9 @@ void MainMenuBar::SearchDuplicatedItems(bool onSelection /* = false*/) {
 		return;
 	}
 
-	if (onSelection) {
-		g_gui.CreateLoadBar("Searching on selected area...");
-	} else {
-		g_gui.CreateLoadBar("Searching on map...");
-	}
+	const auto searchType = onSelection ? "selected area" : "map";
+
+	g_gui.CreateLoadBar(wxString::Format("Searching on %s...", searchType));
 
 	SearchDuplicatedItems::condition finder;
 
@@ -2436,17 +2427,14 @@ void MainMenuBar::SearchDuplicatedItems(bool onSelection /* = false*/) {
 
 	g_gui.DestroyLoadBar();
 
-	size_t setSize = foundTiles.size();
+	const auto tilesFoundAmount = foundTiles.size();
 
-	wxString msg;
-	msg << setSize << " duplicate items founded.";
-
-	g_gui.PopupDialog("Search completed", msg, wxOK);
+	g_gui.PopupDialog("Search completed", wxString::Format("%d tiles with duplicated items founded.", tilesFoundAmount), wxOK);
 
 	SearchResultWindow* result = g_gui.ShowSearchWindow();
 	result->Clear();
 	for (const Tile* tile : foundTiles) {
-		result->AddPosition("Duplicate items", tile->getPosition());
+		result->AddPosition("Duplicated items", tile->getPosition());
 	}
 }
 
@@ -2499,28 +2487,22 @@ void MainMenuBar::RemoveDuplicatesItems(bool onSelection /* = false*/) {
 		return;
 	}
 
-	int ok = g_gui.PopupDialog("Remove Duplicate Items", "Do you want to remove all duplicates items from the map?", wxYES | wxNO);
+	const auto removalType = onSelection ? "selected area" : "map";
 
-	if (ok == wxID_YES) {
-		g_gui.GetCurrentEditor()->getSelection().clear();
+	const auto dialogResult = g_gui.PopupDialog("Remove Duplicated Items", wxString::Format("Do you want to remove all duplicated items from the %s?", removalType), wxYES | wxNO);
+
+	if (dialogResult == wxID_YES) {
 		g_gui.GetCurrentEditor()->clearActions();
 
 		RemoveDuplicatesItems::condition func;
 
-		if (onSelection) {
-			g_gui.CreateLoadBar("Searching on selected area for items to remove...");
-		} else {
-			g_gui.CreateLoadBar("Searching on map for items to remove...");
-		}
+		g_gui.CreateLoadBar(wxString::Format("Searching on %s for items to remove...", removalType));
 
-		long long removed = RemoveItemDuplicateOnMap(g_gui.GetCurrentMap(), func, onSelection);
+		const auto removedAmount = RemoveItemDuplicateOnMap(g_gui.GetCurrentMap(), func, onSelection);
 
 		g_gui.DestroyLoadBar();
 
-		wxString msg;
-		msg << removed << " duplicate items deleted.";
-
-		g_gui.PopupDialog("Search completed", msg, wxOK);
+		g_gui.PopupDialog("Search completed", wxString::Format("%d duplicated items removed.", removedAmount), wxOK);
 
 		g_gui.GetCurrentMap().doChange();
 	}
@@ -2576,11 +2558,9 @@ void MainMenuBar::SearchWallsUponWalls(bool onSelection /* = false*/) {
 		return;
 	}
 
-	if (onSelection) {
-		g_gui.CreateLoadBar("Searching on selected area...");
-	} else {
-		g_gui.CreateLoadBar("Searching on map...");
-	}
+	const auto searchType = onSelection ? "selected area" : "map";
+
+	g_gui.CreateLoadBar(wxString::Format("Searching on %s...", searchType));
 
 	SearchWallsUponWalls::condition finder;
 
@@ -2590,12 +2570,9 @@ void MainMenuBar::SearchWallsUponWalls(bool onSelection /* = false*/) {
 
 	g_gui.DestroyLoadBar();
 
-	size_t setSize = foundTiles.size();
+	const auto tilesFoundAmount = foundTiles.size();
 
-	wxString msg;
-	msg << setSize << " items under walls and doors founded.";
-
-	g_gui.PopupDialog("Search completed", msg, wxOK);
+	g_gui.PopupDialog("Search completed", wxString::Format("%d items under walls and doors founded.", tilesFoundAmount), wxOK);
 
 	SearchResultWindow* result = g_gui.ShowSearchWindow();
 	result->Clear();
