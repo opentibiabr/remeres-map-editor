@@ -496,6 +496,10 @@ bool ItemDatabase::loadFromProtobuf(wxString &error, wxArrayString &warnings, ca
 			t->group = ITEM_GROUP_SPLASH;
 		}
 
+		if (object.flags().has_clip() || object.flags().has_top() || object.flags().has_bottom()) {
+			t->alwaysOnBottom = true;
+		}
+
 		if (object.flags().clip()) {
 			t->alwaysOnTopOrder = 1;
 		} else if (object.flags().top()) {
