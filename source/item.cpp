@@ -430,7 +430,7 @@ uint8_t Item::liquidSubTypeToSpriteSubType(uint8_t id) {
 			return 8;
 		case LIQUID_CHOCOLATE:
 			return 9;
-		case LIQUID_UNKNOWN:
+		case LIQUID_CANDY:
 			return 10;
 		default:
 			return 0;
@@ -477,6 +477,8 @@ std::string Item::LiquidID2Name(uint8_t id) {
 			return "Tea";
 		case LIQUID_MEAD:
 			return "Mead";
+		case LIQUID_CANDY:
+			return "Candyfluid";
 		case LIQUID_CHOCOLATE:
 			return "Chocolate";
 		default:
@@ -546,7 +548,7 @@ uint8_t Item::LiquidName2ID(std::string liquid) {
 	if (liquid == "chocolate") {
 		return LIQUID_CHOCOLATE;
 	}
-	return LIQUID_UNKNOWN;
+	return LIQUID_NONE;
 }
 
 // ============================================================================
