@@ -114,7 +114,7 @@ void BrowseTileListBox::OpenPropertiesWindow(int index) {
 	const auto* currentMap = &g_gui.GetCurrentEditor()->getMap();
 
 	wxDialog* dialog;
-	if (currentMap->getVersion().otbm >= MAP_OTBM_4) {
+	if (!g_settings.getInteger(Config::USE_OLD_ITEM_PROPERTIES_WINDOW)) {
 		dialog = newd PropertiesWindow(g_gui.root, currentMap, editTile, items[index]);
 	} else {
 		dialog = newd OldPropertiesWindow(g_gui.root, currentMap, editTile, items[index]);

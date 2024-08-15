@@ -626,7 +626,7 @@ void MapCanvas::OnMouseLeftDoubleClick(wxMouseEvent &event) {
 		else if (new_tile->spawnNpc && g_settings.getInteger(Config::SHOW_SPAWNS_NPC)) {
 			dialog = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, new_tile->spawnNpc);
 		} else if (Item* item = new_tile->getTopItem()) {
-			if (editor.getMap().getVersion().otbm >= MAP_OTBM_4) {
+			if (!g_settings.getInteger(Config::USE_OLD_ITEM_PROPERTIES_WINDOW)) {
 				dialog = newd PropertiesWindow(g_gui.root, &editor.getMap(), new_tile, item);
 			} else {
 				dialog = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, item);
@@ -2389,7 +2389,7 @@ void MapCanvas::OnProperties(wxCommandEvent &WXUNUSED(event)) {
 		}
 
 		if (item) {
-			if (editor.getMap().getVersion().otbm >= MAP_OTBM_4) {
+			if (!g_settings.getInteger(Config::USE_OLD_ITEM_PROPERTIES_WINDOW)) {
 				w = newd PropertiesWindow(g_gui.root, &editor.getMap(), new_tile, item);
 			} else {
 				w = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, item);

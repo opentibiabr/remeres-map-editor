@@ -91,6 +91,11 @@ wxNotebookPage* PreferencesWindow::CreateGeneralPage() {
 	enable_tileset_editing_chkbox->SetToolTip("Show tileset editing options.");
 	sizer->Add(enable_tileset_editing_chkbox, 0, wxLEFT | wxTOP, 5);
 
+	use_old_item_properties_window = newd wxCheckBox(general_page, wxID_ANY, "Use old item properties window");
+	use_old_item_properties_window->SetValue(g_settings.getInteger(Config::USE_OLD_ITEM_PROPERTIES_WINDOW) == 1);
+	use_old_item_properties_window->SetToolTip("Enables the use of the old item properties window");
+	sizer->Add(use_old_item_properties_window, 0, wxLEFT | wxTOP, 5);
+
 	sizer->AddSpacer(10);
 
 	auto* grid_sizer = newd wxFlexGridSizer(2, 10, 10);
@@ -593,6 +598,7 @@ void PreferencesWindow::Apply() {
 		palette_update_needed = true;
 	}
 	g_settings.setInteger(Config::SHOW_TILESET_EDITOR, enable_tileset_editing_chkbox->GetValue());
+	g_settings.setInteger(Config::USE_OLD_ITEM_PROPERTIES_WINDOW, use_old_item_properties_window->GetValue());
 
 	// Editor
 	g_settings.setInteger(Config::GROUP_ACTIONS, group_actions_chkbox->GetValue());

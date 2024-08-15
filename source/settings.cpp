@@ -325,6 +325,7 @@ void Settings::IO(IOMode mode) {
 	Int(WINDOW_WIDTH, 700);
 	Int(WINDOW_MAXIMIZED, 0);
 	Int(WELCOME_DIALOG, 1);
+	Int(USE_OLD_ITEM_PROPERTIES_WINDOW, 1);
 
 	section("Hotkeys");
 	String(NUMERICAL_HOTKEYS, "none:{}\nnone:{}\nnone:{}\nnone:{}\nnone:{}\nnone:{}\nnone:{}\nnone:{}\nnone:{}\nnone:{}\n");
