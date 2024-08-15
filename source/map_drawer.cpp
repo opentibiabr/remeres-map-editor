@@ -79,6 +79,7 @@ void DrawingOptions::SetDefault() {
 	show_hooks = false;
 	show_pickupables = false;
 	show_moveables = false;
+	show_avoidables = false;
 	hide_items_when_zoomed = true;
 }
 
@@ -112,6 +113,7 @@ void DrawingOptions::SetIngame() {
 	show_hooks = false;
 	show_pickupables = false;
 	show_moveables = false;
+	show_avoidables = false;
 	hide_items_when_zoomed = false;
 }
 
@@ -1162,7 +1164,7 @@ void MapDrawer::BlitItem(int &draw_x, int &draw_y, const Tile* tile, const Item*
 	int pattern_z = pos.z % sprite->pattern_z;
 
 	if (type.isSplash() || type.isFluidContainer()) {
-		subtype = item->getSubtype();
+		subtype = Item::liquidSubTypeToSpriteSubType(item->getSubtype());
 	} else if (type.isHangable) {
 		if (tile->hasProperty(HOOK_SOUTH)) {
 			pattern_x = 1;
@@ -1736,12 +1738,13 @@ void MapDrawer::DrawTileIndicators(TileLocation* location) {
 	int x, y;
 	getDrawPosition(location->getPosition(), x, y);
 
-	if (zoom < 10.0 && (options.show_pickupables || options.show_moveables)) {
+	if (zoom < 10.0 && (options.show_pickupables || options.show_moveables || options.show_avoidables)) {
 		uint8_t red = 0xFF, green = 0xFF, blue = 0xFF;
 		if (tile->isHouseTile()) {
 			green = 0x00;
 			blue = 0x00;
 		}
+
 		for (const Item* item : tile->items) {
 			const ItemType &type = g_items.getItemType(item->getID());
 			if ((type.pickupable && options.show_pickupables) || (type.moveable && options.show_moveables)) {
@@ -1753,7 +1756,15 @@ void MapDrawer::DrawTileIndicators(TileLocation* location) {
 					DrawIndicator(x, y, EDITOR_SPRITE_MOVEABLE_ITEM, red, green, blue);
 				}
 			}
+
+			if (type.blockPathfinder && options.show_avoidables) {
+				DrawIndicator(x, y, EDITOR_SPRITE_AVOIDABLE_ITEM, red, green, blue);
+			}
 		}
+	}
+
+	if (options.show_avoidables && tile->ground && tile->ground->isAvoidable()) {
+		DrawIndicator(x, y, EDITOR_SPRITE_AVOIDABLE_ITEM);
 	}
 
 	if (options.show_houses && tile->isHouseExit()) {

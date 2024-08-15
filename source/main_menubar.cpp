@@ -161,6 +161,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(SHOW_WALL_HOOKS, wxITEM_CHECK, OnChangeViewSettings);
 	MAKE_ACTION(SHOW_PICKUPABLES, wxITEM_CHECK, OnChangeViewSettings);
 	MAKE_ACTION(SHOW_MOVEABLES, wxITEM_CHECK, OnChangeViewSettings);
+	MAKE_ACTION(SHOW_AVOIDABLES, wxITEM_CHECK, OnChangeViewSettings);
 
 	MAKE_ACTION(WIN_MINIMAP, wxITEM_NORMAL, OnMinimapWindow);
 	MAKE_ACTION(WIN_ACTIONS_HISTORY, wxITEM_NORMAL, OnActionsHistoryWindow);
@@ -491,6 +492,7 @@ void MainMenuBar::LoadValues() {
 	CheckItem(SHOW_WALL_HOOKS, g_settings.getBoolean(Config::SHOW_WALL_HOOKS));
 	CheckItem(SHOW_PICKUPABLES, g_settings.getBoolean(Config::SHOW_PICKUPABLES));
 	CheckItem(SHOW_MOVEABLES, g_settings.getBoolean(Config::SHOW_MOVEABLES));
+	CheckItem(SHOW_AVOIDABLES, g_settings.getBoolean(Config::SHOW_AVOIDABLES));
 }
 
 void MainMenuBar::LoadRecentFiles() {
@@ -537,6 +539,7 @@ void MainMenuBar::UpdateIndicatorsMenu() {
 	CheckItem(SHOW_WALL_HOOKS, g_settings.getBoolean(Config::SHOW_WALL_HOOKS));
 	CheckItem(SHOW_PICKUPABLES, g_settings.getBoolean(Config::SHOW_PICKUPABLES));
 	CheckItem(SHOW_MOVEABLES, g_settings.getBoolean(Config::SHOW_MOVEABLES));
+	CheckItem(SHOW_AVOIDABLES, g_settings.getBoolean(Config::SHOW_AVOIDABLES));
 }
 
 bool MainMenuBar::Load(const FileName &path, wxArrayString &warnings, wxString &error) {
@@ -2097,6 +2100,7 @@ void MainMenuBar::OnChangeViewSettings(wxCommandEvent &event) {
 	g_settings.setInteger(Config::SHOW_WALL_HOOKS, IsItemChecked(MenuBar::SHOW_WALL_HOOKS));
 	g_settings.setInteger(Config::SHOW_PICKUPABLES, IsItemChecked(MenuBar::SHOW_PICKUPABLES));
 	g_settings.setInteger(Config::SHOW_MOVEABLES, IsItemChecked(MenuBar::SHOW_MOVEABLES));
+	g_settings.setInteger(Config::SHOW_AVOIDABLES, IsItemChecked(MenuBar::SHOW_AVOIDABLES));
 
 	g_gui.RefreshView();
 	g_gui.root->GetAuiToolBar()->UpdateIndicators();
