@@ -2468,7 +2468,7 @@ namespace RemoveDuplicatesItems {
 			std::unordered_set<int> itemIDsDuplicates;
 			for (const auto &itemInTile : tile->items) {
 				if (itemInTile && itemInTile->getID() == item->getID()) {
-					if (itemIDsDuplicates.count(itemInTile->getID()) > 0 && !itemInTile->hasElevation()) {
+					if (itemIDsDuplicates.count(itemInTile->getID()) > 0) {
 						itemIDsDuplicates.clear();
 						return true;
 					}
