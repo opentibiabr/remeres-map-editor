@@ -36,6 +36,7 @@ public:
 	void OnKillFocus(wxFocusEvent &evt);
 	void OnTextPosition(wxCommandEvent &);
 	void OnDepotChoice(wxCommandEvent &);
+	void OnLiquidChoice(wxCommandEvent &);
 	void OnClickOK(wxCommandEvent &);
 	void OnClickCancel(wxCommandEvent &);
 	void OnClickAddAttribute(wxCommandEvent &);
@@ -54,9 +55,10 @@ protected:
 	// Simple pane
 	wxWindow* createGeneralPanel(wxWindow* parent);
 	void SetAdvancedPropertyNumberData(const wxString &attributeName, int value);
-	void createDepotIdChoice(wxPanel* panel, wxFlexGridSizer* gridsizer);
+	void createDepotIdChoiceCtrl(wxPanel* panel, wxFlexGridSizer* gridsizer);
 	void createDoorIdCtrl(wxPanel* panel, wxFlexGridSizer* gridsizer);
 	void createTeleportDestinationCtrl(wxPanel* panel, wxFlexGridSizer* gridsizer);
+	void createLiquidChoiceCtrl(wxPanel* panel, wxFlexGridSizer* gridsizer);
 	void saveGeneralPanel();
 
 	// Container pane
@@ -75,6 +77,7 @@ protected:
 	void setTeleportAttributes(const std::string &key, int value);
 	void setDepotAttributes(const std::string &key, int value);
 	void setDoorAttributes(const std::string &key, int value);
+	void setLiquidAttributes(const std::string &key, int value);
 
 protected:
 	const static wxArrayString types;
@@ -85,6 +88,7 @@ protected:
 	wxSpinCtrl* simpleUniqueIdField = nullptr;
 	wxSpinCtrl* doorIdField = nullptr;
 	wxChoice* depotIdField = nullptr;
+	wxChoice* liquidTypeField = nullptr;
 
 	NumberTextCtrl* destinationXField = nullptr;
 	NumberTextCtrl* destinationYField = nullptr;

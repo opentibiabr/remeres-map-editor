@@ -34,6 +34,7 @@ BEGIN_EVENT_TABLE(PropertiesWindow, wxDialog)
 EVT_BUTTON(wxID_OK, PropertiesWindow::OnClickOK)
 EVT_BUTTON(wxID_CANCEL, PropertiesWindow::OnClickCancel)
 EVT_CHOICE(wxDEPOT_CTRL, PropertiesWindow::OnDepotChoice)
+EVT_CHOICE(wxLIQUID_CTRL, PropertiesWindow::OnLiquidChoice)
 
 EVT_BUTTON(ITEM_PROPERTIES_ADD_ATTRIBUTE, PropertiesWindow::OnClickAddAttribute)
 EVT_BUTTON(ITEM_PROPERTIES_REMOVE_ATTRIBUTE, PropertiesWindow::OnClickRemoveAttribute)
@@ -157,7 +158,7 @@ void PropertiesWindow::createDoorIdCtrl(wxPanel* panel, wxFlexGridSizer* gridsiz
 	}
 }
 
-void PropertiesWindow::createDepotIdChoice(wxPanel* panel, wxFlexGridSizer* gridsizer) {
+void PropertiesWindow::createDepotIdChoiceCtrl(wxPanel* panel, wxFlexGridSizer* gridsizer) {
 	if (const auto depot = edit_item->getDepot()) {
 		const auto &towns = edit_map->towns;
 		gridsizer->Add(newd wxStaticText(panel, wxID_ANY, "Depot ID"));
@@ -190,6 +191,40 @@ void PropertiesWindow::createDepotIdChoice(wxPanel* panel, wxFlexGridSizer* grid
 	}
 }
 
+void PropertiesWindow::createLiquidChoiceCtrl(wxPanel* panel, wxFlexGridSizer* gridsizer) {
+	if (edit_item->isSplash() || edit_item->isFluidContainer()) {
+		gridsizer->Add(newd wxStaticText(panel, wxID_ANY, "Fluid Type"));
+
+		const auto liquidNoneName = wxstr(Item::LiquidID2Name(LIQUID_NONE));
+		const auto liquidNoneUInt = newd uint8_t(LIQUID_NONE);
+
+		liquidTypeField = newd wxChoice(panel, wxLIQUID_CTRL);
+
+		if (edit_item->isFluidContainer()) {
+			liquidTypeField->Append(liquidNoneName, liquidNoneUInt);
+		}
+
+		for (SplashType splashType = LIQUID_FIRST; splashType <= LIQUID_LAST; ++splashType) {
+			const auto splashTypeName = wxstr(Item::LiquidID2Name(splashType));
+			if (splashTypeName != "Unknown") {
+				liquidTypeField->Append(splashTypeName, newd uint8_t(splashType));
+			}
+		}
+
+		if (edit_item->getSubtype()) {
+			const std::string &what = Item::LiquidID2Name(edit_item->getSubtype());
+			if (what == "Unknown") {
+				liquidTypeField->Append(what, newd uint8_t(LIQUID_UNKNOWN));
+			}
+			liquidTypeField->SetStringSelection(what);
+		} else {
+			liquidTypeField->SetSelection(0);
+		}
+
+		gridsizer->Add(liquidTypeField, wxSizerFlags(1).Expand());
+	}
+}
+
 wxWindow* PropertiesWindow::createGeneralPanel(wxWindow* parent) {
 	wxPanel* panel = newd wxPanel(parent, ITEM_PROPERTIES_GENERAL_TAB);
 	wxFlexGridSizer* gridsizer = newd wxFlexGridSizer(2, 10, 10);
@@ -206,9 +241,10 @@ wxWindow* PropertiesWindow::createGeneralPanel(wxWindow* parent) {
 	simpleUniqueIdField = newd wxSpinCtrl(panel, wxUID_CTRL, i2ws(edit_item->getUniqueID()), wxDefaultPosition, wxSize(-1, 20), wxSP_ARROW_KEYS, 0, 0xFFFF, edit_item->getUniqueID());
 	gridsizer->Add(simpleUniqueIdField, wxSizerFlags(1).Expand());
 
-	createDepotIdChoice(panel, gridsizer);
+	createDepotIdChoiceCtrl(panel, gridsizer);
 	createDoorIdCtrl(panel, gridsizer);
 	createTeleportDestinationCtrl(panel, gridsizer);
+	createLiquidChoiceCtrl(panel, gridsizer);
 
 	panel->SetSizerAndFit(gridsizer);
 
@@ -445,6 +481,22 @@ void PropertiesWindow::setDoorAttributes(const std::string &key, int value) {
 	}
 }
 
+void PropertiesWindow::setLiquidAttributes(const std::string &key, int value) {
+	if (!edit_item) {
+		return;
+	}
+
+	setBasicAttributes();
+
+	if (!edit_item->isSplash() && !edit_item->isFluidContainer()) {
+		return;
+	}
+
+	if (strcmp(key.c_str(), "subtype") == 0) {
+		edit_item->setSubtype(value);
+	}
+}
+
 void PropertiesWindow::saveAttributesPanel() {
 	edit_item->clearAllAttributes();
 
@@ -481,6 +533,8 @@ void PropertiesWindow::saveAttributesPanel() {
 			setDepotAttributes(key, value);
 		} else if (dynamic_cast<Door*>(edit_item) && gotValue) {
 			setDoorAttributes(key, value);
+		} else if (edit_item->isSplash() || edit_item->isFluidContainer()) {
+			setLiquidAttributes(key, value);
 		} else {
 			edit_item->setAttribute(key, attr);
 		}
@@ -532,8 +586,27 @@ void PropertiesWindow::OnGridValueChanged(wxGridEvent &event) {
 					}
 				}
 				if (!selected) {
-					depotIdField->Append(wxString::Format("Undefined Town (id: %i)", depotIdCellValue));
-					depotIdField->SetSelection(depotIdField->GetCount() - 1);
+					const auto unknownDepotId = wxString::Format("Undefined Town (id: %i)", depotIdCellValue);
+					depotIdField->Append(unknownDepotId);
+					depotIdField->SetStringSelection(unknownDepotId);
+				}
+			}
+		} else if (strcmp(attributeKey, "subtype") == 0 && (edit_item->isSplash() || edit_item->isFluidContainer())) {
+			int liquidTypeCellValue;
+			if (value.ToInt(&liquidTypeCellValue)) {
+				bool selected = false;
+				for (auto i = 0; i < liquidTypeField->GetCount(); ++i) {
+					const auto depotId = reinterpret_cast<int*>(liquidTypeField->GetClientData(i));
+					if (depotId && *depotId == liquidTypeCellValue) {
+						liquidTypeField->SetSelection(i);
+						selected = true;
+					}
+				}
+
+				if (!selected) {
+					const auto unknownType = Item::LiquidID2Name(LIQUID_NONE);
+					liquidTypeField->Append(unknownType, newd uint8_t(LIQUID_NONE));
+					liquidTypeField->SetStringSelection(unknownType);
 				}
 			}
 		}
@@ -649,4 +722,16 @@ void PropertiesWindow::OnDepotChoice(wxCommandEvent &event) {
 	const auto rowsCount = attributesGrid->GetNumberRows();
 
 	SetAdvancedPropertyNumberData("depotid", *newDepotId);
+}
+
+void PropertiesWindow::OnLiquidChoice(wxCommandEvent &event) {
+	if (!liquidTypeField) {
+		return;
+	}
+
+	const auto newLiquidType = static_cast<uint8_t*>(liquidTypeField->GetClientData(liquidTypeField->GetSelection()));
+
+	const auto rowsCount = attributesGrid->GetNumberRows();
+
+	SetAdvancedPropertyNumberData("subtype", *newLiquidType);
 }
