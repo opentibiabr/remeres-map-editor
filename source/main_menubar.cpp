@@ -2400,7 +2400,7 @@ namespace SearchDuplicatedItems {
 			if (foundTiles.count(tile) == 0) {
 				std::unordered_set<int> itemIDs;
 				for (Item* existingItem : tile->items) {
-					if (itemIDs.count(existingItem->getID()) > 0) {
+					if (itemIDs.count(existingItem->getID()) > 0 && !existingItem->hasElevation()) {
 						foundTiles.insert(tile);
 						break;
 					}
@@ -2466,9 +2466,9 @@ namespace RemoveDuplicatesItems {
 			}
 
 			std::unordered_set<int> itemIDsDuplicates;
-			for (Item* itemInTile : tile->items) {
+			for (const auto &itemInTile : tile->items) {
 				if (itemInTile && itemInTile->getID() == item->getID()) {
-					if (itemIDsDuplicates.count(itemInTile->getID()) > 0) {
+					if (itemIDsDuplicates.count(itemInTile->getID()) > 0 && !itemInTile->hasElevation()) {
 						itemIDsDuplicates.clear();
 						return true;
 					}
