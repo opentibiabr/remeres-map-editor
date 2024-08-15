@@ -936,6 +936,8 @@ PaletteWindow* GUI::CreatePalette() {
 	// Select brush from this palette
 	SelectBrushInternal(palette->GetSelectedBrush());
 
+	RefreshPalettes();
+
 	return palette;
 }
 

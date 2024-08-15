@@ -198,8 +198,12 @@ bool posFromClipboard(int &x, int &y, int &z) {
 					if (text[s] >= '0' && text[s] <= '9') {
 						sv << text[s];
 						r = true;
+
+						if (s + 1 == text.size()) {
+							values.emplace_back(ws2i(sv));
+						}
 					} else if (r) {
-						values.push_back(ws2i(sv));
+						values.emplace_back(ws2i(sv));
 						sv.Clear();
 						r = false;
 

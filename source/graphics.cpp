@@ -419,6 +419,8 @@ bool GraphicManager::loadEditorSprites() {
 	sprite_space[EDITOR_SPRITE_PICKUPABLE_ITEM] = GameSprite::createFromBitmap(ART_PICKUPABLE);
 	sprite_space[EDITOR_SPRITE_MOVEABLE_ITEM] = GameSprite::createFromBitmap(ART_MOVEABLE);
 	sprite_space[EDITOR_SPRITE_PICKUPABLE_MOVEABLE_ITEM] = GameSprite::createFromBitmap(ART_PICKUPABLE_MOVEABLE);
+	sprite_space[EDITOR_SPRITE_AVOIDABLE_ITEM] = GameSprite::createFromBitmap(ART_AVOIDABLE);
+
 	return true;
 }
 
