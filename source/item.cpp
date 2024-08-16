@@ -443,40 +443,40 @@ std::string Item::LiquidID2Name(uint8_t id) {
 			return "None";
 		case LIQUID_WATER:
 			return "Water";
-		case LIQUID_BLOOD:
-			return "Blood";
+		case LIQUID_WINE:
+			return "Wine";
 		case LIQUID_BEER:
 			return "Beer";
+		case LIQUID_MUD:
+			return "Mud";
+		case LIQUID_BLOOD:
+			return "Blood";
 		case LIQUID_SLIME:
 			return "Slime";
-		case LIQUID_LEMONADE:
-			return "Lemonade";
+		case LIQUID_OIL:
+			return "Oil";
+		case LIQUID_URINE:
+			return "Urine";
 		case LIQUID_MILK:
 			return "Milk";
 		case LIQUID_MANAFLUID:
 			return "Manafluid";
 		case LIQUID_LIFEFLUID:
 			return "Lifefluid";
-		case LIQUID_OIL:
-			return "Oil";
-		case LIQUID_URINE:
-			return "Urine";
-		case LIQUID_COCONUT_MILK:
-			return "Coconut Milk";
-		case LIQUID_WINE:
-			return "Wine";
-		case LIQUID_MUD:
-			return "Mud";
-		case LIQUID_FRUIT_JUICE:
-			return "Fruit Juice";
+		case LIQUID_LEMONADE:
+			return "Lemonade";
 		case LIQUID_RUM:
 			return "Rum";
-		case LIQUID_INK:
-			return "Ink";
-		case LIQUID_TEA:
-			return "Tea";
+		case LIQUID_FRUIT_JUICE:
+			return "Fruit Juice";
+		case LIQUID_COCONUT_MILK:
+			return "Coconut Milk";
 		case LIQUID_MEAD:
 			return "Mead";
+		case LIQUID_TEA:
+			return "Tea";
+		case LIQUID_INK:
+			return "Ink";
 		case LIQUID_CANDY:
 			return "Candyfluid";
 		case LIQUID_CHOCOLATE:
@@ -494,17 +494,26 @@ uint8_t Item::LiquidName2ID(std::string liquid) {
 	if (liquid == "water") {
 		return LIQUID_WATER;
 	}
-	if (liquid == "blood") {
-		return LIQUID_BLOOD;
+	if (liquid == "wine") {
+		return LIQUID_WINE;
 	}
 	if (liquid == "beer") {
 		return LIQUID_BEER;
 	}
+	if (liquid == "mud") {
+		return LIQUID_MUD;
+	}
+	if (liquid == "blood") {
+		return LIQUID_BLOOD;
+	}
 	if (liquid == "slime") {
 		return LIQUID_SLIME;
 	}
-	if (liquid == "lemonade") {
-		return LIQUID_LEMONADE;
+	if (liquid == "oil") {
+		return LIQUID_OIL;
+	}
+	if (liquid == "urine") {
+		return LIQUID_URINE;
 	}
 	if (liquid == "milk") {
 		return LIQUID_MILK;
@@ -515,35 +524,29 @@ uint8_t Item::LiquidName2ID(std::string liquid) {
 	if (liquid == "lifefluid") {
 		return LIQUID_LIFEFLUID;
 	}
-	if (liquid == "oil") {
-		return LIQUID_OIL;
-	}
-	if (liquid == "urine") {
-		return LIQUID_URINE;
-	}
-	if (liquid == "coconut milk") {
-		return LIQUID_COCONUT_MILK;
-	}
-	if (liquid == "wine") {
-		return LIQUID_WINE;
-	}
-	if (liquid == "mud") {
-		return LIQUID_MUD;
-	}
-	if (liquid == "fruit juice") {
-		return LIQUID_FRUIT_JUICE;
+	if (liquid == "lemonade") {
+		return LIQUID_LEMONADE;
 	}
 	if (liquid == "rum") {
 		return LIQUID_RUM;
 	}
-	if (liquid == "ink") {
-		return LIQUID_INK;
+	if (liquid == "fruit juice") {
+		return LIQUID_FRUIT_JUICE;
+	}
+	if (liquid == "coconut milk") {
+		return LIQUID_COCONUT_MILK;
+	}
+	if (liquid == "mead") {
+		return LIQUID_MEAD;
 	}
 	if (liquid == "tea") {
 		return LIQUID_TEA;
 	}
-	if (liquid == "mead") {
-		return LIQUID_MEAD;
+	if (liquid == "ink") {
+		return LIQUID_INK;
+	}
+	if (liquid == "candyfluid") {
+		return LIQUID_CANDY;
 	}
 	if (liquid == "chocolate") {
 		return LIQUID_CHOCOLATE;
