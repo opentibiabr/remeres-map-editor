@@ -141,6 +141,8 @@ EVT_BUTTON(wxID_FIND, BrowseTileWindow::OnClickSelectRaw)
 EVT_BUTTON(wxID_ABOUT, BrowseTileWindow::OnClickProperties)
 EVT_BUTTON(wxID_OK, BrowseTileWindow::OnClickOK)
 EVT_BUTTON(wxID_CANCEL, BrowseTileWindow::OnClickCancel)
+EVT_BUTTON(wxID_UP, BrowseTileWindow::OnButtonUpClick)
+EVT_BUTTON(wxID_DOWN, BrowseTileWindow::OnButtonDownClick)
 END_EVENT_TABLE()
 
 BrowseTileWindow::BrowseTileWindow(wxWindow* parent, Tile* tile, wxPoint position /* = wxDefaultPosition */) :
@@ -149,39 +151,17 @@ BrowseTileWindow::BrowseTileWindow(wxWindow* parent, Tile* tile, wxPoint positio
 	itemList = newd BrowseTileListBox(this, wxID_ANY, tile);
 	sizer->Add(itemList, wxSizerFlags(1).Expand());
 
-	const auto positionString = wxString::Format("x=%i, y=%i, z=%i", tile->getX(), tile->getY(), tile->getZ());
-
 	const auto infoSizer = newd wxBoxSizer(wxVERTICAL);
 
-	const auto buttons = newd wxBoxSizer(wxHORIZONTAL);
-
-	deleteButton = newd wxButton(this, wxID_REMOVE, "Delete");
-	deleteButton->Enable(false);
-	buttons->Add(deleteButton);
-
-	buttons->AddSpacer(5);
-
-	selectRawButton = newd wxButton(this, wxID_FIND, "Select RAW");
-	selectRawButton->Enable(false);
-	buttons->Add(selectRawButton);
-
-	buttons->AddSpacer(5);
-
-	propertiesButton = newd wxButton(this, wxID_ABOUT, "Properties");
-	propertiesButton->Enable(false);
-	buttons->Add(propertiesButton);
-
-	infoSizer->Add(buttons);
+	AddTopOrderButtons(infoSizer);
 	infoSizer->AddSpacer(5);
-	infoSizer->Add(newd wxStaticText(this, wxID_ANY, wxString::Format("Position: %s", positionString)), wxSizerFlags(0).Left());
-	infoSizer->Add(itemCountText = newd wxStaticText(this, wxID_ANY, wxString::Format("Item count: %i", itemList->GetItemCount())), wxSizerFlags(0).Left());
-	infoSizer->Add(newd wxStaticText(this, wxID_ANY, "Protection zone:  " + b2yn(tile->isPZ())), wxSizerFlags(0).Left());
-	infoSizer->Add(newd wxStaticText(this, wxID_ANY, "No PvP:  " + b2yn(tile->getMapFlags() & TILESTATE_NOPVP)), wxSizerFlags(0).Left());
-	infoSizer->Add(newd wxStaticText(this, wxID_ANY, "No logout:  " + b2yn(tile->getMapFlags() & TILESTATE_NOLOGOUT)), wxSizerFlags(0).Left());
-	infoSizer->Add(newd wxStaticText(this, wxID_ANY, "PvP zone:  " + b2yn(tile->getMapFlags() & TILESTATE_PVPZONE)), wxSizerFlags(0).Left());
-	infoSizer->Add(newd wxStaticText(this, wxID_ANY, "House:  " + b2yn(tile->isHouseTile())), wxSizerFlags(0).Left());
 
-	sizer->Add(infoSizer, wxSizerFlags(0).Left().DoubleBorder());
+	AddActionButtons(infoSizer);
+	infoSizer->AddSpacer(5);
+
+	AddInformations(infoSizer);
+
+	sizer->Add(infoSizer, wxSizerFlags(0).Center().DoubleBorder());
 
 	// OK/Cancel buttons
 	const auto btnSizer = newd wxBoxSizer(wxHORIZONTAL);
@@ -200,11 +180,75 @@ BrowseTileWindow::~BrowseTileWindow() {
 	itemList->Unbind(wxEVT_COMMAND_LISTBOX_SELECTED, &BrowseTileWindow::OnItemSelected, this);
 }
 
-void BrowseTileWindow::OnItemSelected(wxCommandEvent &WXUNUSED(event)) {
+void BrowseTileWindow::AddTopOrderButtons(wxSizer* sizer) {
+	const auto topOrderButtons = newd wxBoxSizer(wxHORIZONTAL);
+
+	upButton = newd wxButton(this, wxID_UP, "Up /\\");
+	upButton->Enable(false);
+	topOrderButtons->Add(upButton);
+
+	topOrderButtons->AddSpacer(5);
+
+	downButton = newd wxButton(this, wxID_DOWN, "Down \\/");
+	downButton->Enable(false);
+	topOrderButtons->Add(downButton);
+
+	sizer->Add(topOrderButtons, wxSizerFlags(0).Center());
+}
+
+void BrowseTileWindow::AddActionButtons(wxSizer* sizer) {
+	const auto actionButtons = newd wxBoxSizer(wxHORIZONTAL);
+
+	deleteButton = newd wxButton(this, wxID_REMOVE, "Delete");
+	deleteButton->Enable(false);
+	actionButtons->Add(deleteButton);
+
+	actionButtons->AddSpacer(5);
+
+	selectRawButton = newd wxButton(this, wxID_FIND, "Select RAW");
+	selectRawButton->Enable(false);
+	actionButtons->Add(selectRawButton);
+
+	actionButtons->AddSpacer(5);
+
+	propertiesButton = newd wxButton(this, wxID_ABOUT, "Properties");
+	propertiesButton->Enable(false);
+
+	actionButtons->Add(propertiesButton);
+
+	sizer->Add(actionButtons);
+}
+
+void BrowseTileWindow::AddInformations(wxSizer* sizer) {
+	const auto tile = itemList->GetTile();
+	const auto positionString = wxString::Format("x=%i, y=%i, z=%i", tile->getX(), tile->getY(), tile->getZ());
+
+	sizer->Add(newd wxStaticText(this, wxID_ANY, wxString::Format("Position: %s", positionString)), wxSizerFlags(0).Left());
+	sizer->Add(itemCountText = newd wxStaticText(this, wxID_ANY, wxString::Format("Item count: %i", itemList->GetItemCount())), wxSizerFlags(0).Left());
+	sizer->Add(newd wxStaticText(this, wxID_ANY, wxString::Format("Protection zone: %s", b2yn(tile->isPZ()))), wxSizerFlags(0).Left());
+	sizer->Add(newd wxStaticText(this, wxID_ANY, wxString::Format("No PvP: %s", b2yn(tile->getMapFlags() & TILESTATE_NOPVP))), wxSizerFlags(0).Left());
+	sizer->Add(newd wxStaticText(this, wxID_ANY, wxString::Format("No logout: %s", b2yn(tile->getMapFlags() & TILESTATE_NOLOGOUT))), wxSizerFlags(0).Left());
+	sizer->Add(newd wxStaticText(this, wxID_ANY, wxString::Format("PvP zone: %s", b2yn(tile->getMapFlags() & TILESTATE_PVPZONE))), wxSizerFlags(0).Left());
+	sizer->Add(newd wxStaticText(this, wxID_ANY, wxString::Format("House: %s", b2yn(tile->isHouseTile()))), wxSizerFlags(0).Left());
+}
+
+void BrowseTileWindow::UpdateButtons(int selection) {
 	const auto count = itemList->GetSelectedCount();
+	const auto tile = itemList->GetTile();
+	const auto itemsAmount = itemList->GetItemCount();
+	const auto items = itemList->GetItems();
+	const auto nextItemIsGround = itemsAmount - 1 == selection ? false : items.at(selection + 1) == tile->ground;
+
 	deleteButton->Enable(count != 0);
 	selectRawButton->Enable(count == 1);
-	propertiesButton->Enable(count != 0);
+	propertiesButton->Enable(count == 1);
+	upButton->Enable(count == 1 && selection != 0 && items.at(selection) != tile->ground);
+	downButton->Enable(count == 1 && selection != itemsAmount - 1 && !nextItemIsGround);
+}
+
+void BrowseTileWindow::OnItemSelected(wxCommandEvent &evt) {
+	UpdateButtons(evt.GetSelection());
+	const auto count = itemList->GetSelectedCount();
 }
 
 void BrowseTileWindow::OnClickDelete(wxCommandEvent &WXUNUSED(event)) {
@@ -236,4 +280,32 @@ void BrowseTileWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 
 void BrowseTileWindow::OnClickCancel(wxCommandEvent &WXUNUSED(event)) {
 	EndModal(0);
+}
+
+void BrowseTileWindow::ChangeItemIndex(bool up /* = true*/) {
+	const auto i = up ? 1 : -1;
+	const auto tile = itemList->GetTile();
+
+	const auto selectedItemIndex = itemList->GetSelection();
+	const auto tileItemsSize = tile->items.size() - 1;
+	auto index = tileItemsSize - selectedItemIndex;
+
+	const auto tmpItem = tile->items[index];
+	tile->items[index] = tile->items[index + i];
+	tile->items[index + i] = tmpItem;
+
+	itemList->UpdateItems();
+
+	itemList->DeselectAll();
+	itemList->SetSelection(selectedItemIndex - i);
+	UpdateButtons(selectedItemIndex - i);
+	Refresh();
+}
+
+void BrowseTileWindow::OnButtonUpClick(wxCommandEvent &evt) {
+	ChangeItemIndex();
+}
+
+void BrowseTileWindow::OnButtonDownClick(wxCommandEvent &evt) {
+	ChangeItemIndex(false);
 }

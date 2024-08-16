@@ -165,10 +165,13 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 
 		subsizer->Add(newd wxStaticText(this, wxID_ANY, "Type"));
 
+		const auto liquidNoneName = wxstr(Item::LiquidID2Name(LIQUID_NONE));
+		const auto liquidNoneUInt = newd uint8_t(LIQUID_NONE);
+
 		// Splash types
 		splash_type_field = newd wxChoice(this, wxID_ANY);
 		if (edit_item->isFluidContainer()) {
-			splash_type_field->Append(wxstr(Item::LiquidID2Name(LIQUID_NONE)), newd uint8_t(LIQUID_NONE));
+			splash_type_field->Append(liquidNoneName, liquidNoneUInt);
 		}
 
 		for (SplashType splashType = LIQUID_FIRST; splashType <= LIQUID_LAST; ++splashType) {
@@ -181,9 +184,9 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 		if (item->getSubtype()) {
 			const std::string &what = Item::LiquidID2Name(item->getSubtype());
 			if (what == "Unknown") {
-				splash_type_field->Append(wxstr(Item::LiquidID2Name(LIQUID_UNKNOWN)), newd uint8_t(LIQUID_UNKNOWN));
+				splash_type_field->Append(what, liquidNoneUInt);
 			}
-			splash_type_field->SetStringSelection(wxstr(what));
+			splash_type_field->SetStringSelection(what);
 		} else {
 			splash_type_field->SetSelection(0);
 		}
