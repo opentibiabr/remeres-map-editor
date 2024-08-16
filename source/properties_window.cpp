@@ -154,6 +154,9 @@ void PropertiesWindow::createDoorIdCtrl(wxPanel* panel, wxFlexGridSizer* gridsiz
 	if (const auto door = edit_item->getDoor()) {
 		gridsizer->Add(newd wxStaticText(panel, wxID_ANY, "Door ID"));
 		doorIdField = newd wxSpinCtrl(panel, wxDOOR_CTRL, i2ws(door->getDoorID()), wxDefaultPosition, wxSize(-1, 20), wxSP_ARROW_KEYS, 0, 0xFFFF, door->getDoorID());
+		if (!edit_tile->isHouseTile()) {
+			doorIdField->Disable();
+		}
 		gridsizer->Add(doorIdField, wxSizerFlags(1).Expand());
 	}
 }

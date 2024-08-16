@@ -116,7 +116,7 @@ void ContainerItemButton::OnEditItem(wxCommandEvent &WXUNUSED(event)) {
 
 	wxDialog* d;
 
-	if (!g_settings.getInteger(Config::USE_OLD_ITEM_PROPERTIES_WINDOW) {
+	if (!g_settings.getInteger(Config::USE_OLD_ITEM_PROPERTIES_WINDOW)) {
 		d = newd PropertiesWindow(this, edit_map, nullptr, edit_item, newDialogAt);
 	} else {
 		d = newd OldPropertiesWindow(this, edit_map, nullptr, edit_item, newDialogAt);
