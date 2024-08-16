@@ -22,6 +22,8 @@
 #include "map.h"
 #include "tile.h"
 
+using ItemsMap = std::map<int, Item*>;
+
 class BrowseTileListBox : public wxVListBox {
 public:
 	BrowseTileListBox(wxWindow* parent, wxWindowID id, Tile* tile);
@@ -33,12 +35,23 @@ public:
 	void RemoveSelected();
 	void OnItemDoubleClick(wxCommandEvent &);
 
+	Tile* GetTile() const {
+		return editTile;
+	}
+
+	ItemsMap GetItems() const {
+		return items;
+	}
+
+	void SetItems(ItemsMap newItems) {
+		items = newItems;
+	}
+
 	void OpenPropertiesWindow(int index);
 
-protected:
 	void UpdateItems();
 
-	using ItemsMap = std::map<int, Item*>;
+protected:
 	ItemsMap items;
 	Tile* editTile = nullptr;
 
@@ -56,13 +69,25 @@ public:
 	void OnClickProperties(wxCommandEvent &);
 	void OnClickOK(wxCommandEvent &);
 	void OnClickCancel(wxCommandEvent &);
+	void OnButtonUpClick(wxCommandEvent &);
+	void OnButtonDownClick(wxCommandEvent &);
+
+	void ChangeItemIndex(bool up = true);
+	void UpdateButtons(int selection);
 
 protected:
+	void AddTopOrderButtons(wxSizer* sizer);
+	void AddActionButtons(wxSizer* sizer);
+	void AddInformations(wxSizer* sizer);
+
+	friend class BrowseTileListBox;
 	BrowseTileListBox* itemList = nullptr;
 	wxStaticText* itemCountText = nullptr;
 	wxButton* deleteButton = nullptr;
 	wxButton* selectRawButton = nullptr;
 	wxButton* propertiesButton = nullptr;
+	wxButton* upButton = nullptr;
+	wxButton* downButton = nullptr;
 
 	DECLARE_EVENT_TABLE();
 };
