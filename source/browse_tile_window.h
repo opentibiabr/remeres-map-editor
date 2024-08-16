@@ -35,16 +35,12 @@ public:
 	void RemoveSelected();
 	void OnItemDoubleClick(wxCommandEvent &);
 
-	Tile* GetTile() const {
+	Tile* GetTile() const noexcept {
 		return editTile;
 	}
 
-	ItemsMap GetItems() const {
+	ItemsMap GetItems() const noexcept {
 		return items;
-	}
-
-	void SetItems(ItemsMap newItems) {
-		items = newItems;
 	}
 
 	void OpenPropertiesWindow(int index);
