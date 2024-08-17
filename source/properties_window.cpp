@@ -217,7 +217,7 @@ void PropertiesWindow::createLiquidChoiceCtrl(wxPanel* panel, wxFlexGridSizer* g
 		if (edit_item->getSubtype()) {
 			const std::string &what = Item::LiquidID2Name(edit_item->getSubtype());
 			if (what == "Unknown") {
-				liquidTypeField->Append(what, newd uint8_t(LIQUID_UNKNOWN));
+				liquidTypeField->Append(what, newd uint8_t(LIQUID_NONE));
 			}
 			liquidTypeField->SetStringSelection(what);
 		} else {
