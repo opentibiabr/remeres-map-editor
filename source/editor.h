@@ -150,7 +150,7 @@ public: // Functions
 	void undraw(const PositionVector &todraw, PositionVector &toborder, bool alt);
 
 	void ensureBackupDirectoryExists(const std::string &backup_path);
-	void deleteOldBackups(const std::string &backup_path, int days_old);
+	void deleteOldBackups(const std::string &backup_path);
 
 protected:
 	void drawInternal(const Position offset, bool alt, bool dodraw);

@@ -116,6 +116,12 @@ wxNotebookPage* PreferencesWindow::CreateGeneralPage() {
 	grid_sizer->Add(replace_size_spin, 0);
 	SetWindowToolTip(tmptext, replace_size_spin, "How many items you can replace on the map using the Replace Item tool.");
 
+	grid_sizer->Add(tmptext = newd wxStaticText(general_page, wxID_ANY, "Delete backup after X days: "), 0);
+	delete_backup_days_spin = newd wxSpinCtrl(general_page, wxID_ANY, i2ws(g_settings.getInteger(Config::DELETE_BACKUP_DAYS)), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 365);
+	grid_sizer->Add(delete_backup_days_spin, 0);
+	SetWindowToolTip(tmptext, delete_backup_days_spin, "Configure the number of days after which backups will be automatically deleted.");
+
+
 	sizer->Add(grid_sizer, 0, wxALL, 5);
 	sizer->AddSpacer(10);
 
@@ -616,6 +622,7 @@ void PreferencesWindow::Apply() {
 	g_settings.setInteger(Config::UNDO_MEM_SIZE, undo_mem_size_spin->GetValue());
 	g_settings.setInteger(Config::WORKER_THREADS, worker_threads_spin->GetValue());
 	g_settings.setInteger(Config::REPLACE_SIZE, replace_size_spin->GetValue());
+	g_settings.setInteger(Config::DELETE_BACKUP_DAYS, delete_backup_days_spin->GetValue());
 	g_settings.setInteger(Config::COPY_POSITION_FORMAT, position_format->GetSelection());
 	g_settings.setInteger(Config::COPY_AREA_FORMAT, area_format->GetSelection());
 	if (g_settings.getBoolean(Config::SHOW_TILESET_EDITOR) != enable_tileset_editing_chkbox->GetValue()) {
