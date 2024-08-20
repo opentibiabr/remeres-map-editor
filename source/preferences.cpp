@@ -121,7 +121,6 @@ wxNotebookPage* PreferencesWindow::CreateGeneralPage() {
 	grid_sizer->Add(delete_backup_days_spin, 0);
 	SetWindowToolTip(tmptext, delete_backup_days_spin, "Configure the number of days after which backups will be automatically deleted.");
 
-
 	sizer->Add(grid_sizer, 0, wxALL, 5);
 	sizer->AddSpacer(10);
 
