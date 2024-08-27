@@ -57,7 +57,9 @@ public:
 	void OnListBoxChange(wxCommandEvent &event);
 	void OnClickMonsterBrushButton(wxCommandEvent &event);
 	void OnClickSpawnMonsterBrushButton(wxCommandEvent &event);
-	void OnChangeMonsterName(wxCommandEvent &event);
+	void OnSetFocus(wxFocusEvent &event);
+	void OnKillFocus(wxFocusEvent &event);
+	void OnChangeMonsterNameSearch(wxCommandEvent &event);
 
 protected:
 	void SelectMonsterBrush();
@@ -65,6 +67,7 @@ protected:
 
 	wxChoice* tileset_choice;
 	wxTextCtrl* monster_name_text;
+	wxButton* monster_search_button;
 	SortableListBox* monster_list;
 	wxToggleButton* monster_brush_button;
 	wxToggleButton* spawn_monster_brush_button;
