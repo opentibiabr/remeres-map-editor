@@ -432,7 +432,7 @@
 			<item id="1361" chance="0"/>
 			<item id="5009" chance="0"/>
 
-			<door id="1668" type="normal" open="false"/>
+			<door id="1668" type="locked" open="false"/>
 			<door id="1669" type="normal" open="false"/>
 			<door id="1670" type="normal" open="true"/>
 			<!--<door id="6197" type="locked" open="false"/>-->
