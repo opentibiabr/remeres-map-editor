@@ -38,8 +38,6 @@ EVT_TOGGLEBUTTON(PALETTE_SPAWN_MONSTER_BRUSH_BUTTON, MonsterPalettePanel::OnClic
 
 EVT_SPINCTRL(PALETTE_MONSTER_SPAWN_TIME, MonsterPalettePanel::OnChangeSpawnMonsterTime)
 EVT_SPINCTRL(PALETTE_MONSTER_SPAWN_SIZE, MonsterPalettePanel::OnChangeSpawnMonsterSize)
-
-EVT_TEXT_ENTER(PALETTE_MONSTER_SEARCH, MonsterPalettePanel::OnChangeMonsterName)
 END_EVENT_TABLE()
 
 MonsterPalettePanel::MonsterPalettePanel(wxWindow* parent, wxWindowID id) :
@@ -52,8 +50,18 @@ MonsterPalettePanel::MonsterPalettePanel(wxWindow* parent, wxWindowID id) :
 	tileset_choice = newd wxChoice(this, PALETTE_MONSTER_TILESET_CHOICE, wxDefaultPosition, wxDefaultSize, (int)0, (const wxString*)nullptr);
 	sidesizer->Add(tileset_choice, 0, wxEXPAND);
 
-	monster_name_text = newd wxTextCtrl(this, PALETTE_MONSTER_SEARCH, "Name");
-	sidesizer->Add(monster_name_text, 0, wxEXPAND);
+	wxSizer* monsterNameSizer = newd wxStaticBoxSizer(wxHORIZONTAL, this);
+	monster_name_text = newd wxTextCtrl(this, PALETTE_MONSTER_SEARCH, "Search name", wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
+	monster_name_text->Bind(wxEVT_SET_FOCUS, &MonsterPalettePanel::OnSetFocus, this);
+	monster_name_text->Bind(wxEVT_KILL_FOCUS, &MonsterPalettePanel::OnKillFocus, this);
+	monster_name_text->Bind(wxEVT_TEXT_ENTER, &MonsterPalettePanel::OnChangeMonsterNameSearch, this);
+
+	monster_search_button = newd wxButton(this, wxID_ANY, "Search");
+	monster_search_button->Bind(wxEVT_BUTTON, &MonsterPalettePanel::OnChangeMonsterNameSearch, this);
+
+	monsterNameSizer->Add(monster_name_text, 2, wxEXPAND);
+	monsterNameSizer->Add(monster_search_button, 1, wxEXPAND);
+	sidesizer->Add(monsterNameSizer);
 
 	monster_list = newd SortableListBox(this, PALETTE_MONSTER_LISTBOX);
 	sidesizer->Add(monster_list, 1, wxEXPAND);
@@ -90,7 +98,9 @@ MonsterPalettePanel::MonsterPalettePanel(wxWindow* parent, wxWindowID id) :
 }
 
 MonsterPalettePanel::~MonsterPalettePanel() {
-	////
+	monster_name_text->Unbind(wxEVT_SET_FOCUS, &MonsterPalettePanel::OnSetFocus, this);
+	monster_name_text->Unbind(wxEVT_KILL_FOCUS, &MonsterPalettePanel::OnKillFocus, this);
+	monster_name_text->Unbind(wxEVT_TEXT_ENTER, &MonsterPalettePanel::OnChangeMonsterNameSearch, this);
 }
 
 PaletteType MonsterPalettePanel::GetType() const {
@@ -208,7 +218,6 @@ void MonsterPalettePanel::SelectTileset(size_t index) {
 		monster_brush_button->Enable(false);
 	} else {
 		const TilesetCategory* tsc = reinterpret_cast<const TilesetCategory*>(tileset_choice->GetClientData(index));
-		// Select first house
 		for (BrushVector::const_iterator iter = tsc->brushlist.begin();
 			 iter != tsc->brushlist.end();
 			 ++iter) {
@@ -297,5 +306,35 @@ void MonsterPalettePanel::OnChangeSpawnMonsterSize(wxSpinEvent &event) {
 	}
 }
 
-void MonsterPalettePanel::OnChangeMonsterName(wxCommandEvent &event) {
+void MonsterPalettePanel::OnSetFocus(wxFocusEvent &event) {
+	g_gui.DisableHotkeys();
+	event.Skip();
+}
+
+void MonsterPalettePanel::OnKillFocus(wxFocusEvent &event) {
+	g_gui.EnableHotkeys();
+	event.Skip();
+}
+
+void MonsterPalettePanel::OnChangeMonsterNameSearch(wxCommandEvent &event) {
+	const auto monsterNameSearch = as_lower_str(monster_name_text->GetValue().ToStdString());
+
+	const auto index = tileset_choice->GetSelection();
+
+	if (monsterNameSearch.empty()) {
+		SelectTileset(index);
+		return;
+	}
+
+	monster_list->Clear();
+	const auto tilesetCategory = reinterpret_cast<const TilesetCategory*>(tileset_choice->GetClientData(index));
+	for (auto it = tilesetCategory->brushlist.begin(); it != tilesetCategory->brushlist.end(); ++it) {
+		const auto monsterName = wxstr((*it)->getName());
+		const auto regexPattern = std::regex(monsterNameSearch);
+		if (std::regex_search(as_lower_str(monsterName.ToStdString()), regexPattern)) {
+			monster_list->Append(monsterName, *it);
+		}
+	}
+	monster_list->Sort();
+	Update();
 }

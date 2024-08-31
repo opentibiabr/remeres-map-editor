@@ -546,8 +546,8 @@ bool ItemDatabase::loadItemFromGameXml(pugi::xml_node itemNode, uint16_t id) {
 		return true;
 	}
 
-	// Não verificar isValidID se o ID estiver entre 1 e 18, mas verificar para outros IDs.
-	if (!(id >= 1 && id <= 18) && !isValidID(id)) {
+	// Não verificar isValidID se o ID estiver entre LIQUID_FIRST e LIQUID_LAST, mas verificar para outros IDs.
+	if (!(id >= LIQUID_FIRST && id <= LIQUID_LAST) && !isValidID(id)) {
 		return false;
 	}
 

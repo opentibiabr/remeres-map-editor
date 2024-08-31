@@ -58,6 +58,7 @@ namespace MenuBar {
 		REPLACE_ON_SELECTION_ITEMS,
 		REMOVE_ON_SELECTION_ITEM,
 		REMOVE_ON_SELECTION_MONSTER,
+		COUNT_ON_SELECTION_MONSTER,
 		SELECT_MODE_COMPENSATE,
 		SELECT_MODE_CURRENT,
 		SELECT_MODE_LOWER,
@@ -257,6 +258,7 @@ public:
 	void OnReplaceItemsOnSelection(wxCommandEvent &event);
 	void OnRemoveItemOnSelection(wxCommandEvent &event);
 	void OnRemoveMonstersOnSelection(wxCommandEvent &event);
+	void OnCountMonstersOnSelection(wxCommandEvent &event);
 
 	// Map menu
 	void OnMapEditTowns(wxCommandEvent &event);
