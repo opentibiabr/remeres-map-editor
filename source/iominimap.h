@@ -72,7 +72,7 @@ private:
 
 class IOMinimap {
 public:
-	IOMinimap(Editor* editor, MinimapExportFormat format, MinimapExportMode mode, bool updateLoadbar);
+	IOMinimap(Editor* editor, MinimapExportFormat format, MinimapExportMode mode, bool updateLoadbar, int imageSize = 1024);
 
 	bool saveMinimap(const std::string &directory, const std::string &name, int floor = -1);
 
@@ -95,6 +95,7 @@ private:
 	MinimapExportMode m_mode;
 	bool m_updateLoadbar = false;
 	int m_floor = -1;
+	int m_imageSize = 1024;
 	std::unordered_map<uint32_t, MinimapBlock> m_blocks[rme::MapLayers];
 	std::string m_error;
 };

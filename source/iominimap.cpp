@@ -31,11 +31,12 @@ void MinimapBlock::updateTile(int x, int y, const MinimapTile &tile) {
 	m_tiles[getTileIndex(x, y)] = tile;
 }
 
-IOMinimap::IOMinimap(Editor* editor, MinimapExportFormat format, MinimapExportMode mode, bool updateLoadbar) :
+IOMinimap::IOMinimap(Editor* editor, MinimapExportFormat format, MinimapExportMode mode, bool updateLoadbar, int imageSize /* = 1024 */) :
 	m_editor(editor),
 	m_format(format),
 	m_mode(mode),
-	m_updateLoadbar(updateLoadbar) {
+	m_updateLoadbar(updateLoadbar),
+	m_imageSize(imageSize) {
 }
 
 bool IOMinimap::saveMinimap(const std::string &directory, const std::string &name, int floor) {
@@ -188,10 +189,9 @@ bool IOMinimap::exportMinimap(const std::string &directory) {
 		totalTiles++;
 	}
 
-	constexpr int image_size = 1024;
-	constexpr int pixels_size = image_size * image_size * rme::PixelFormatRGB;
+	int pixels_size = m_imageSize * m_imageSize * rme::PixelFormatRGB;
 	uint8_t* pixels = new uint8_t[pixels_size];
-	auto image = new wxImage(image_size, image_size, pixels, true);
+	auto image = new wxImage(m_imageSize, m_imageSize, pixels, true);
 
 	int processedTiles = 0;
 	int lastShownProgress = -1;
@@ -201,8 +201,8 @@ bool IOMinimap::exportMinimap(const std::string &directory) {
 			continue;
 		}
 
-		for (int h = 0; h < rme::MapMaxHeight; h += image_size) {
-			for (int w = 0; w < rme::MapMaxWidth; w += image_size) {
+		for (int h = 0; h < rme::MapMaxHeight; h += m_imageSize) {
+			for (int w = 0; w < rme::MapMaxWidth; w += m_imageSize) {
 				if (w < rect.x || w > rect.width || h < rect.y || h > rect.height) {
 					continue;
 				}
@@ -211,8 +211,8 @@ bool IOMinimap::exportMinimap(const std::string &directory) {
 				memset(pixels, 0, pixels_size);
 
 				int index = 0;
-				for (int y = 0; y < image_size; y++) {
-					for (int x = 0; x < image_size; x++) {
+				for (int y = 0; y < m_imageSize; y++) {
+					for (int x = 0; x < m_imageSize; x++) {
 						auto tile = map.getTile(w + x, h + y, z);
 						if (!tile || (!tile->ground && tile->items.empty())) {
 							index += rme::PixelFormatRGB;

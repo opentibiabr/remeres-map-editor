@@ -126,6 +126,7 @@ protected:
 
 	Editor &editor;
 
+	wxChoice* imageSizeOptions;
 	wxChoice* format_options;
 	wxStaticText* error_field;
 	wxTextCtrl* directory_text_field;
