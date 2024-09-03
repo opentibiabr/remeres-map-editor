@@ -882,3 +882,30 @@ int64_t RemoveMonstersOnMap(Map &map, bool selectedOnly) {
 	}
 	return removed;
 }
+
+std::pair<int64_t, std::unordered_map<std::string, int64_t>> CountMonstersOnMap(Map &map, bool selectedOnly) {
+	int64_t done = 0;
+	int64_t total = 0;
+	std::unordered_map<std::string, int64_t> monsterCount;
+
+	MapIterator it = map.begin();
+	MapIterator end = map.end();
+
+	while (it != end) {
+		++done;
+		Tile* tile = (*it)->get();
+		if (selectedOnly && !tile->isSelected()) {
+			++it;
+			continue;
+		}
+		if (tile->monster) {
+			++total;
+			std::string monsterName = tile->monster->getName();
+			++monsterCount[monsterName];
+		}
+
+		++it;
+	}
+
+	return std::make_pair(total, monsterCount);
+}

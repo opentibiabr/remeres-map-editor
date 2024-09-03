@@ -43,6 +43,12 @@
 #include "live_client.h"
 #include "live_action.h"
 
+#include <filesystem>
+#include <chrono>
+#include <iostream>
+
+namespace fs = std::filesystem;
+
 Editor::Editor(CopyBuffer &copybuffer) :
 	live_server(nullptr),
 	live_client(nullptr),
@@ -451,6 +457,8 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 		std::remove(backup_spawn_npc.c_str());
 		std::remove(backup_zones.c_str());
 	}
+
+	deleteOldBackups(map_path + "backups/");
 
 	clearChanges();
 }
@@ -2020,5 +2028,30 @@ void Editor::QueryNode(int ndx, int ndy, bool underground) {
 void Editor::SendNodeRequests() {
 	if (live_client) {
 		live_client->sendNodeRequests();
+	}
+}
+
+void Editor::deleteOldBackups(const std::string &backup_path) {
+	int days_to_delete = g_settings.getInteger(Config::DELETE_BACKUP_DAYS);
+	if (days_to_delete <= 0) {
+		return; // Se o valor é zero ou negativo, não deletar backups
+	}
+
+	try {
+		auto now = std::chrono::system_clock::now();
+		for (const auto &entry : fs::directory_iterator(backup_path)) {
+			if (fs::is_regular_file(entry.status())) {
+				auto file_time = fs::last_write_time(entry);
+				auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(file_time - fs::file_time_type::clock::now() + now);
+				auto file_age = std::chrono::duration_cast<std::chrono::hours>(now - sctp).count() / 24;
+
+				if (file_age > days_to_delete) {
+					fs::remove(entry);
+					std::cout << "Deleted old backup: " << entry.path() << std::endl;
+				}
+			}
+		}
+	} catch (const fs::filesystem_error &e) {
+		std::cerr << "Error: " << e.what() << std::endl;
 	}
 }

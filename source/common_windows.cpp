@@ -515,7 +515,7 @@ EVT_CHOICE(wxID_ANY, ExportMiniMapWindow::OnExportTypeChange)
 END_EVENT_TABLE()
 
 ExportMiniMapWindow::ExportMiniMapWindow(wxWindow* parent, Editor &editor) :
-	wxDialog(parent, wxID_ANY, "Export Minimap", wxDefaultPosition, wxSize(400, 300)),
+	wxDialog(parent, wxID_ANY, "Export Minimap", wxDefaultPosition, wxSize(400, 350)),
 	editor(editor) {
 	wxSizer* sizer = newd wxBoxSizer(wxVERTICAL);
 	wxSizer* tmpsizer;
@@ -534,6 +534,18 @@ ExportMiniMapWindow::ExportMiniMapWindow(wxWindow* parent, Editor &editor) :
 	tmpsizer = newd wxStaticBoxSizer(wxHORIZONTAL, this, "Output Folder");
 	tmpsizer->Add(directory_text_field, 1, wxALL, 5);
 	tmpsizer->Add(newd wxButton(this, MAP_WINDOW_FILE_BUTTON, "Browse"), 0, wxALL, 5);
+	sizer->Add(tmpsizer, 0, wxALL | wxEXPAND, 5);
+
+	// Format options
+	wxArrayString imageFormatChoices;
+	imageFormatChoices.Add("1024x1024");
+	imageFormatChoices.Add("2048x2048");
+	imageFormatChoices.Add("4096x4096");
+	imageSizeOptions = new wxChoice(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, imageFormatChoices);
+	imageSizeOptions->SetSelection(0);
+	imageSizeOptions->Disable();
+	tmpsizer = newd wxStaticBoxSizer(wxHORIZONTAL, this, "Image Size");
+	tmpsizer->Add(imageSizeOptions, 1, wxALL, 5);
 	sizer->Add(tmpsizer, 0, wxALL | wxEXPAND, 5);
 
 	// File name
@@ -588,6 +600,7 @@ ExportMiniMapWindow::ExportMiniMapWindow(wxWindow* parent, Editor &editor) :
 ExportMiniMapWindow::~ExportMiniMapWindow() = default;
 
 void ExportMiniMapWindow::OnExportTypeChange(wxCommandEvent &event) {
+	imageSizeOptions->Enable(event.GetSelection() > 0);
 	floor_number->Enable(event.GetSelection() == 2);
 }
 
@@ -613,6 +626,14 @@ void ExportMiniMapWindow::OnFileNameChanged(wxKeyEvent &event) {
 void ExportMiniMapWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 	g_gui.CreateLoadBar("Exporting minimap...");
 
+	const auto imageSizeSelection = imageSizeOptions->GetSelection();
+	auto imageSize = 1024;
+	if (imageSizeSelection == 1) {
+		imageSize = 2048;
+	} else if (imageSizeSelection == 2) {
+		imageSize = 4096;
+	}
+
 	auto format = static_cast<MinimapExportFormat>(format_options->GetSelection());
 	auto mode = static_cast<MinimapExportMode>(floor_options->GetSelection());
 	std::string directory = directory_text_field->GetValue().ToStdString();
@@ -621,7 +642,7 @@ void ExportMiniMapWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 
 	g_settings.setString(Config::MINIMAP_EXPORT_DIR, directory);
 
-	IOMinimap io(&editor, format, mode, true);
+	IOMinimap io(&editor, format, mode, true, imageSize);
 	if (!io.saveMinimap(directory, file_name, floor)) {
 		g_gui.PopupDialog("Error", io.getError(), wxOK);
 	}

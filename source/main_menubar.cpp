@@ -88,6 +88,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(REPLACE_ON_SELECTION_ITEMS, wxITEM_NORMAL, OnReplaceItemsOnSelection);
 	MAKE_ACTION(REMOVE_ON_SELECTION_ITEM, wxITEM_NORMAL, OnRemoveItemOnSelection);
 	MAKE_ACTION(REMOVE_ON_SELECTION_MONSTER, wxITEM_NORMAL, OnRemoveMonstersOnSelection);
+	MAKE_ACTION(COUNT_ON_SELECTION_MONSTER, wxITEM_NORMAL, OnCountMonstersOnSelection);
 	MAKE_ACTION(SELECT_MODE_COMPENSATE, wxITEM_RADIO, OnSelectionTypeChange);
 	MAKE_ACTION(SELECT_MODE_LOWER, wxITEM_RADIO, OnSelectionTypeChange);
 	MAKE_ACTION(SELECT_MODE_CURRENT, wxITEM_RADIO, OnSelectionTypeChange);
@@ -361,6 +362,7 @@ void MainMenuBar::Update() {
 	EnableItem(REPLACE_ON_SELECTION_ITEMS, has_selection && is_host);
 	EnableItem(REMOVE_ON_SELECTION_ITEM, has_selection && is_host);
 	EnableItem(REMOVE_ON_SELECTION_MONSTER, has_selection && is_host);
+	EnableItem(COUNT_ON_SELECTION_MONSTER, has_selection && is_host);
 
 	EnableItem(CUT, has_map);
 	EnableItem(COPY, has_map);
@@ -1226,6 +1228,26 @@ void MainMenuBar::OnRemoveMonstersOnSelection(wxCommandEvent &WXUNUSED(event)) {
 	g_gui.PopupDialog("Remove Monsters", wxString::Format("%d monsters removed.", monstersRemoved), wxOK);
 	g_gui.GetCurrentMap().doChange();
 	g_gui.RefreshView();
+}
+
+void MainMenuBar::OnCountMonstersOnSelection(wxCommandEvent &WXUNUSED(event)) {
+	if (!g_gui.IsEditorOpen()) {
+		return;
+	}
+
+	g_gui.CreateLoadBar("Counting monsters on selection...");
+	const auto result = CountMonstersOnMap(g_gui.GetCurrentMap(), true);
+	g_gui.DestroyLoadBar();
+
+	int64_t totalMonsters = result.first;
+	const std::unordered_map<std::string, int64_t> &monsterCounts = result.second;
+
+	wxString message = wxString::Format("There are %d monsters in total.\n\n", totalMonsters);
+	for (const auto &pair : monsterCounts) {
+		message += wxString::Format("%s: %d\n", pair.first, pair.second);
+	}
+
+	g_gui.PopupDialog("Count Monsters", message, wxOK);
 }
 
 void MainMenuBar::OnSelectionTypeChange(wxCommandEvent &WXUNUSED(event)) {
