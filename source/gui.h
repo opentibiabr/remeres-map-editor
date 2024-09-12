@@ -187,6 +187,9 @@ public:
 		return disabled_counter == 0;
 	}
 
+	void OnSetFocus(wxFocusEvent &event);
+	void OnKillFocus(wxFocusEvent &event);
+
 	void EnableHotkeys();
 	void DisableHotkeys();
 	bool AreHotkeysEnabled() const;

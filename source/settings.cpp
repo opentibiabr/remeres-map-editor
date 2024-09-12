@@ -313,6 +313,7 @@ void Settings::IO(IOMode mode) {
 	Int(USE_LARGE_RAW_SIZEBAR, 1);
 	Int(USE_GUI_SELECTION_SHADOW, 0);
 	Int(PALETTE_COL_COUNT, 8);
+	Int(PALETTE_ROW_COUNT, 30);
 	String(PALETTE_TERRAIN_STYLE, "large icons");
 	String(PALETTE_DOODAD_STYLE, "large icons");
 	String(PALETTE_ITEM_STYLE, "listbox");

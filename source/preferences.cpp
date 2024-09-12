@@ -265,6 +265,18 @@ wxNotebookPage* PreferencesWindow::CreateGraphicsPage() {
 	auto* subsizer = newd wxFlexGridSizer(2, 10, 10);
 	subsizer->AddGrowableCol(1);
 
+	palette_icons_col_size = newd wxTextCtrl(graphics_page, wxID_ANY, wxString::Format("%d", g_settings.getInteger(Config::PALETTE_COL_COUNT)), wxDefaultPosition, wxDefaultSize, 0, wxTextValidator(wxFILTER_DIGITS));
+	palette_icons_col_size->SetMaxLength(2);
+	subsizer->Add(tmp = newd wxStaticText(graphics_page, wxID_ANY, "Icons column size: "), 0);
+	subsizer->Add(palette_icons_col_size, 0);
+	SetWindowToolTip(palette_icons_col_size, tmp, "This will set the column size of the palette when using SMALL ICONS and LARGE ICONS will be the value divided by 2. The max columns are 99.");
+
+	palette_icons_row_size = newd wxTextCtrl(graphics_page, wxID_ANY, wxString::Format("%d", g_settings.getInteger(Config::PALETTE_ROW_COUNT)), wxDefaultPosition, wxDefaultSize, 0, wxTextValidator(wxFILTER_DIGITS));
+	palette_icons_row_size->SetMaxLength(2);
+	subsizer->Add(tmp = newd wxStaticText(graphics_page, wxID_ANY, "Icons row size: "), 0);
+	subsizer->Add(palette_icons_row_size, 0);
+	SetWindowToolTip(palette_icons_row_size, tmp, "This will set the row size of the palette when using SMALL ICONS and LARGE ICONS will be the value divided by 2. The max rows are 99.");
+
 	// Icon background color
 	icon_background_choice = newd wxChoice(graphics_page, wxID_ANY);
 	icon_background_choice->Append("Black background");
@@ -647,6 +659,16 @@ void PreferencesWindow::Apply() {
 	// Graphics
 	g_settings.setInteger(Config::USE_GUI_SELECTION_SHADOW, icon_selection_shadow_chkbox->GetValue());
 	if (g_settings.getBoolean(Config::USE_MEMCACHED_SPRITES) != use_memcached_chkbox->GetValue()) {
+		must_restart = true;
+	}
+	int iconsColSize;
+	if (palette_icons_col_size->GetValue().ToInt(&iconsColSize) && g_settings.getInteger(Config::PALETTE_COL_COUNT) != iconsColSize) {
+		g_settings.setInteger(Config::PALETTE_COL_COUNT, iconsColSize);
+		must_restart = true;
+	}
+	int iconsRowSize;
+	if (palette_icons_row_size->GetValue().ToInt(&iconsRowSize) && g_settings.getInteger(Config::PALETTE_ROW_COUNT) != iconsRowSize) {
+		g_settings.setInteger(Config::PALETTE_ROW_COUNT, iconsRowSize);
 		must_restart = true;
 	}
 	g_settings.setInteger(Config::USE_MEMCACHED_SPRITES_TO_SAVE, use_memcached_chkbox->GetValue());

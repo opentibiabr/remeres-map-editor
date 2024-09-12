@@ -31,6 +31,8 @@
 BEGIN_EVENT_TABLE(BrushPalettePanel, PalettePanel)
 EVT_BUTTON(wxID_ADD, BrushPalettePanel::OnClickAddItemToTileset)
 EVT_BUTTON(wxID_NEW, BrushPalettePanel::OnClickAddTileset)
+EVT_BUTTON(wxID_FORWARD, BrushPalettePanel::OnNextPage)
+EVT_BUTTON(wxID_BACKWARD, BrushPalettePanel::OnPreviousPage)
 EVT_CHOICEBOOK_PAGE_CHANGING(wxID_ANY, BrushPalettePanel::OnSwitchingPage)
 EVT_CHOICEBOOK_PAGE_CHANGED(wxID_ANY, BrushPalettePanel::OnPageChanged)
 END_EVENT_TABLE()
@@ -38,17 +40,21 @@ END_EVENT_TABLE()
 BrushPalettePanel::BrushPalettePanel(wxWindow* parent, const TilesetContainer &tilesets, TilesetCategoryType category, wxWindowID id) :
 	PalettePanel(parent, id),
 	paletteType(category) {
-	const auto topsizer = newd wxBoxSizer(wxVERTICAL);
+
+	sizer = newd wxBoxSizer(wxVERTICAL);
+	pageInfoSizer = newd wxFlexGridSizer(7, 1, 1);
 
 	// Create the tileset panel
 	const auto tsSizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Tileset");
 	choicebook = newd wxChoicebook(this, wxID_ANY, wxDefaultPosition, wxSize(180, 250));
 	tsSizer->Add(choicebook, 1, wxEXPAND);
-	topsizer->Add(tsSizer, 1, wxEXPAND);
+	sizer->Add(tsSizer, 1, wxEXPAND);
 
 	if (g_settings.getBoolean(Config::SHOW_TILESET_EDITOR)) {
-		AddTilesetEditor(topsizer);
+		AddTilesetEditor();
 	}
+
+	sizer->Add(pageInfoSizer);
 
 	for (auto it = tilesets.begin(); it != tilesets.end(); ++it) {
 		const auto tilesetCategory = it->second->getCategory(category);
@@ -58,10 +64,57 @@ BrushPalettePanel::BrushPalettePanel(wxWindow* parent, const TilesetContainer &t
 		}
 	}
 
-	SetSizerAndFit(topsizer);
+	SetSizerAndFit(sizer);
 }
 
-void BrushPalettePanel::AddTilesetEditor(wxSizer* sizer) {
+BrushPalettePanel::~BrushPalettePanel() {
+	if (currentPageCtrl) {
+		currentPageCtrl->Unbind(wxEVT_SET_FOCUS, &BrushPalettePanel::OnSetFocus, this);
+		currentPageCtrl->Unbind(wxEVT_KILL_FOCUS, &BrushPalettePanel::OnKillFocus, this);
+		currentPageCtrl->Unbind(wxEVT_TEXT_ENTER, &BrushPalettePanel::OnSetPage, this);
+	}
+}
+
+void BrushPalettePanel::OnSetFocus(wxFocusEvent &event) {
+	g_gui.DisableHotkeys();
+	event.Skip();
+}
+
+void BrushPalettePanel::OnKillFocus(wxFocusEvent &event) {
+	g_gui.EnableHotkeys();
+	event.Skip();
+}
+
+void BrushPalettePanel::RemovePagination() {
+	pageInfoSizer->ShowItems(false);
+	pageInfoSizer->Clear();
+}
+
+void BrushPalettePanel::AddPagination() {
+	RemovePagination();
+
+	const auto buttonsSize = wxSize(55, 25);
+	const auto middleElementsSize = wxSize(35, 25);
+
+	nextPageButton = newd wxButton(this, wxID_FORWARD, "->", wxDefaultPosition, buttonsSize);
+	currentPageCtrl = newd wxTextCtrl(this, wxID_ANY, "1", wxDefaultPosition, middleElementsSize, wxTE_PROCESS_ENTER, wxTextValidator(wxFILTER_DIGITS));
+	pageInfo = newd wxStaticText(this, wxID_ANY, "/x", wxPoint(0, 5), middleElementsSize);
+	previousPageButton = newd wxButton(this, wxID_BACKWARD, "<-", wxDefaultPosition, buttonsSize);
+
+	currentPageCtrl->Bind(wxEVT_SET_FOCUS, &BrushPalettePanel::OnSetFocus, this);
+	currentPageCtrl->Bind(wxEVT_KILL_FOCUS, &BrushPalettePanel::OnKillFocus, this);
+	currentPageCtrl->Bind(wxEVT_TEXT_ENTER, &BrushPalettePanel::OnSetPage, this);
+
+	pageInfoSizer->Add(previousPageButton, wxEXPAND);
+	pageInfoSizer->AddSpacer(15);
+	pageInfoSizer->Add(currentPageCtrl);
+	pageInfoSizer->AddSpacer(5);
+	pageInfoSizer->Add(pageInfo);
+	pageInfoSizer->AddSpacer(15);
+	pageInfoSizer->Add(nextPageButton, wxEXPAND);
+}
+
+void BrushPalettePanel::AddTilesetEditor() {
 	const auto tmpsizer = newd wxBoxSizer(wxHORIZONTAL);
 	const auto buttonAddTileset = newd wxButton(this, wxID_NEW, "Add new Tileset");
 	tmpsizer->Add(buttonAddTileset, wxSizerFlags(0).Center());
@@ -101,24 +154,36 @@ PaletteType BrushPalettePanel::GetType() const {
 	return paletteType;
 }
 
-void BrushPalettePanel::SetListType(BrushListType newListType) const {
+void BrushPalettePanel::SetListType(BrushListType newListType) {
 	if (!choicebook) {
 		return;
 	}
+
+	RemovePagination();
+
+	if (newListType == BRUSHLIST_SMALL_ICONS || newListType == BRUSHLIST_LARGE_ICONS) {
+		AddPagination();
+	}
+
 	for (auto pageIndex = 0; pageIndex < choicebook->GetPageCount(); ++pageIndex) {
 		const auto panel = dynamic_cast<BrushPanel*>(choicebook->GetPage(pageIndex));
 		panel->SetListType(newListType);
 	}
 }
 
-void BrushPalettePanel::SetListType(const wxString &newListType) const {
+void BrushPalettePanel::SetListType(const wxString &newListType) {
 	if (!choicebook) {
 		return;
 	}
-	for (auto pageIndex = 0; pageIndex < choicebook->GetPageCount(); ++pageIndex) {
-		const auto panel = dynamic_cast<BrushPanel*>(choicebook->GetPage(pageIndex));
-		panel->SetListType(newListType);
+
+	const auto it = listTypeMap.find(newListType);
+	if (it == listTypeMap.end()) {
+		return;
 	}
+
+	const auto newListTypeEnum = (*it).second;
+
+	SetListType(newListTypeEnum);
 }
 
 Brush* BrushPalettePanel::GetSelectedBrush() const {
@@ -209,6 +274,13 @@ void BrushPalettePanel::OnSwitchingPage(wxChoicebookEvent &event) {
 	const auto panel = dynamic_cast<BrushPanel*>(page);
 	if (panel) {
 		panel->OnSwitchIn();
+		const auto &brushbox = panel->GetBrushBox();
+		const auto currentPage = brushbox->GetCurrentPage();
+		const auto totalPages = brushbox->GetTotalPages();
+		SetPageInfo(wxString::Format("/%d", totalPages));
+		SetCurrentPage(wxString::Format("%d", currentPage));
+		EnableNextPage(totalPages > currentPage);
+		EnablePreviousPage(currentPage > 1);
 		for (const auto palettePanel : tool_bars) {
 			palettePanel->SelectBrush(rememberedBrushes[panel]);
 		}
@@ -262,6 +334,70 @@ void BrushPalettePanel::OnClickAddItemToTileset(wxCommandEvent &WXUNUSED(event))
 			g_gui.RebuildPalettes();
 		}
 	}
+}
+
+void BrushPalettePanel::OnPageUpdate(BrushBoxInterface* brushbox, int page) {
+	if (brushbox->SetPage(page)) {
+		const auto currentPage = brushbox->GetCurrentPage();
+		const auto totalPages = brushbox->GetTotalPages();
+		currentPageCtrl->SetValue(wxString::Format("%d", currentPage));
+		Fit();
+		g_gui.aui_manager->Update();
+		brushbox->SelectFirstBrush();
+		nextPageButton->Enable(totalPages > currentPage);
+		previousPageButton->Enable(currentPage > 1);
+	}
+}
+
+void BrushPalettePanel::OnSetPage(wxCommandEvent &WXUNUSED(event)) {
+	const auto &brushPanel = dynamic_cast<BrushPanel*>(choicebook->GetCurrentPage());
+	if (!brushPanel) {
+		return;
+	}
+
+	const auto &brushbox = brushPanel->GetBrushBox();
+
+	int page;
+	if (!currentPageCtrl->GetValue().ToInt(&page)) {
+		return;
+	}
+
+	if (page > brushbox->GetTotalPages() || page < 1) {
+		return;
+	}
+
+	OnPageUpdate(brushbox, page);
+}
+
+void BrushPalettePanel::OnNextPage(wxCommandEvent &WXUNUSED(event)) {
+	const auto &brushPanel = dynamic_cast<BrushPanel*>(choicebook->GetCurrentPage());
+	if (brushPanel) {
+		const auto &brushbox = brushPanel->GetBrushBox();
+		OnPageUpdate(brushbox, brushbox->GetCurrentPage() + 1);
+	}
+}
+void BrushPalettePanel::OnPreviousPage(wxCommandEvent &WXUNUSED(event)) {
+	const auto &brushPanel = dynamic_cast<BrushPanel*>(choicebook->GetCurrentPage());
+	if (brushPanel) {
+		const auto &brushbox = brushPanel->GetBrushBox();
+		OnPageUpdate(brushbox, brushbox->GetCurrentPage() - 1);
+	}
+}
+
+void BrushPalettePanel::EnableNextPage(bool enable /* = true*/) {
+	nextPageButton->Enable(enable);
+}
+
+void BrushPalettePanel::EnablePreviousPage(bool enable /* = true*/) {
+	previousPageButton->Enable(enable);
+}
+
+void BrushPalettePanel::SetPageInfo(const wxString &text) {
+	pageInfo->SetLabelText(text);
+}
+
+void BrushPalettePanel::SetCurrentPage(const wxString &value) {
+	currentPageCtrl->SetValue(value);
 }
 
 // ============================================================================
@@ -387,6 +523,10 @@ void BrushPanel::OnClickListBoxRow(wxCommandEvent &event) {
 	g_gui.SelectBrush(tileset->brushlist[index], tileset->getType());
 }
 
+BrushBoxInterface* BrushPanel::GetBrushBox() const {
+	return brushbox;
+}
+
 // ============================================================================
 // BrushIconBox
 
@@ -400,31 +540,70 @@ BrushIconBox::BrushIconBox(wxWindow* parent, const TilesetCategory* tileset, Ren
 	BrushBoxInterface(tileset),
 	iconSize(rsz) {
 	ASSERT(tileset->getType() >= TILESET_UNKNOWN && tileset->getType() <= TILESET_HOUSE);
-	const auto width = iconSize == RENDER_SIZE_32x32 ? std::max(g_settings.getInteger(Config::PALETTE_COL_COUNT) / 2 + 1, 1) : std::max(g_settings.getInteger(Config::PALETTE_COL_COUNT) + 1, 1);
+	width = iconSize == RENDER_SIZE_32x32 ? std::max(g_settings.getInteger(Config::PALETTE_COL_COUNT) / 2 + 1, 1) : std::max(g_settings.getInteger(Config::PALETTE_COL_COUNT) + 1, 1);
+	height = iconSize == RENDER_SIZE_32x32 ? std::max(g_settings.getInteger(Config::PALETTE_ROW_COUNT) / 2 + 1, 1) : std::max(g_settings.getInteger(Config::PALETTE_ROW_COUNT) + 1, 1);
 
-	// Create buttons
+	const auto totalItems = (width * height);
+	totalPages = (tileset->brushlist.size() / totalItems) + 1;
+
+	SetScrollbars(20, 20, 8, 0, 0, 0, false);
+
+	brushButtons.reserve(totalItems);
+
+	LoadContentByPage();
+
+	const auto &brushPalettePanel = g_gui.GetParentWindowByType<BrushPalettePanel*>(this);
+	brushPalettePanel->SetPageInfo(wxString::Format("/%d", totalPages));
+	brushPalettePanel->EnableNextPage(totalPages > currentPage);
+	brushPalettePanel->EnablePreviousPage(currentPage > 1);
+}
+
+bool BrushIconBox::LoadContentByPage(int page /* = 1 */) {
+	if (page <= 0 || page > totalPages) {
+		return false;
+	}
+
+	currentPage = page;
+
+	const auto startOffset = (width * height) * (page - 1);
+	auto endOffset = (width * height) * page;
+	endOffset = page > 1 ? endOffset : startOffset + endOffset;
+	endOffset = endOffset > tileset->brushlist.size() ? tileset->brushlist.size() : endOffset;
+
+	if (stacksizer) {
+		stacksizer->ShowItems(false);
+		stacksizer->Clear();
+		rowsizers.clear();
+		brushButtons.clear();
+	}
+
 	stacksizer = newd wxBoxSizer(wxVERTICAL);
 	SetSizer(stacksizer);
 
-	SetScrollbars(20, 20, 8, tileset->brushlist.size() / width, 0, 0, false);
+	auto rowSizer = newd wxBoxSizer(wxHORIZONTAL);
 
-	auto rowsizer = newd wxBoxSizer(wxHORIZONTAL);
-
-	for (const auto brush : tileset->brushlist) {
-		const auto brushButton = newd BrushButton(this, brush, rsz);
-		rowsizer->Add(brushButton);
+	for (auto i = startOffset; i < endOffset; ++i) {
+		const auto brushButton = newd BrushButton(this, tileset->brushlist[i], iconSize);
 		brushButtons.emplace_back(brushButton);
+		rowSizer->Add(brushButton);
 
-		if (brushButtons.size() % width == 0) { // new row
-			stacksizer->Add(rowsizer);
-			rowsizers.emplace_back(rowsizer);
-			rowsizer = newd wxBoxSizer(wxHORIZONTAL);
+		if (brushButtons.size() % width == 0) {
+			stacksizer->Add(rowSizer);
+			rowsizers.emplace_back(rowSizer);
+			rowSizer = newd wxBoxSizer(wxHORIZONTAL);
 		}
 	}
 
-	if (rowsizers.size() <= 0 || rowsizer != rowsizers.back()) {
-		stacksizer->Add(rowsizer);
+	if (rowsizers.size() <= 0 || rowSizer != rowsizers.back()) {
+		stacksizer->Add(rowSizer);
+		rowsizers.emplace_back(rowSizer);
 	}
+
+	if (!stacksizer->AreAnyItemsShown()) {
+		stacksizer->ShowItems(true);
+	}
+
+	return true;
 }
 
 void BrushIconBox::SelectFirstBrush() {
@@ -448,7 +627,7 @@ bool BrushIconBox::SelectBrush(const Brush* whatBrush) {
 		return false;
 	}
 
-	const auto it = std::ranges::find_if(brushButtons.begin(), brushButtons.end(), [&](const auto brushButton) {
+	const auto it = std::ranges::find_if(brushButtons.begin(), brushButtons.end(), [&](const auto &brushButton) {
 		return brushButton->brush == whatBrush;
 	});
 
@@ -458,6 +637,18 @@ bool BrushIconBox::SelectBrush(const Brush* whatBrush) {
 	}
 
 	return false;
+}
+
+bool BrushIconBox::NextPage() {
+	return LoadContentByPage(currentPage + 1);
+}
+
+bool BrushIconBox::SetPage(int page) {
+	return LoadContentByPage(page);
+}
+
+bool BrushIconBox::PreviousPage() {
+	return LoadContentByPage(currentPage - 1);
 }
 
 void BrushIconBox::Select(BrushButton* brushButton) {

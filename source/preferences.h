@@ -74,6 +74,8 @@ protected:
 	wxCheckBox* icon_selection_shadow_chkbox;
 	wxChoice* icon_background_choice;
 	wxCheckBox* use_memcached_chkbox;
+	wxTextCtrl* palette_icons_col_size;
+	wxTextCtrl* palette_icons_row_size;
 	wxDirPickerCtrl* screenshot_directory_picker;
 	wxChoice* screenshot_format_choice;
 	wxCheckBox* hide_items_when_zoomed_chkbox;
