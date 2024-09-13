@@ -50,6 +50,7 @@ public:
 	// Returns the currently selected brush (First brush if panel is not loaded)
 	virtual Brush* GetSelectedBrush() const = 0;
 	// Select the brush in the parameter, this only changes the look of the panel
+	virtual bool SelectPaginatedBrush(const Brush* brush, BrushPalettePanel* brushPalettePanel) = 0;
 	virtual bool SelectBrush(const Brush* brush) = 0;
 
 	virtual bool NextPage() = 0;
@@ -85,6 +86,7 @@ public:
 	// Returns the currently selected brush (First brush if panel is not loaded)
 	Brush* GetSelectedBrush() const;
 	// Select the brush in the parameter, this only changes the look of the panel
+	bool SelectPaginatedBrush(const Brush* whatBrush, BrushPalettePanel* brushPalettePanel) noexcept override;
 	bool SelectBrush(const Brush* whatBrush) override;
 
 	bool NextPage() override {
@@ -127,6 +129,7 @@ public:
 	// Returns the currently selected brush (First brush if panel is not loaded)
 	Brush* GetSelectedBrush() const;
 	// Select the brush in the parameter, this only changes the look of the panel
+	bool SelectPaginatedBrush(const Brush* whatBrush, BrushPalettePanel* brushPalettePanel) override;
 	bool SelectBrush(const Brush* whatBrush) override;
 
 	bool NextPage() override;
@@ -171,6 +174,8 @@ public:
 	void InvalidateContents();
 	// Loads the content (This must be called before the panel is displayed, else it will appear empty
 	void LoadContents();
+
+	BrushListType GetListType() const;
 
 	// Sets the display type (list or icons)
 	void SetListType(BrushListType newListType);
@@ -223,6 +228,7 @@ public:
 	void LoadAllContents();
 
 	PaletteType GetType() const;
+	BrushListType GetListType() const;
 
 	// Sets the display type (list or icons)
 	void SetListType(BrushListType newListType);
@@ -258,8 +264,8 @@ public:
 	void SetCurrentPage(const wxString &text);
 
 protected:
-	wxSizer* sizer = nullptr;
-	wxSizer* pageInfoSizer = nullptr;
+	wxSizer* sizer = newd wxBoxSizer(wxVERTICAL);
+	wxSizer* pageInfoSizer = newd wxFlexGridSizer(7, 1, 1);
 	PaletteType paletteType;
 	wxChoicebook* choicebook = nullptr;
 	wxButton* nextPageButton = nullptr;

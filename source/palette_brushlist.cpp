@@ -41,9 +41,6 @@ BrushPalettePanel::BrushPalettePanel(wxWindow* parent, const TilesetContainer &t
 	PalettePanel(parent, id),
 	paletteType(category) {
 
-	sizer = newd wxBoxSizer(wxVERTICAL);
-	pageInfoSizer = newd wxFlexGridSizer(7, 1, 1);
-
 	// Create the tileset panel
 	const auto tsSizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Tileset");
 	choicebook = newd wxChoicebook(this, wxID_ANY, wxDefaultPosition, wxSize(180, 250));
@@ -152,6 +149,15 @@ void BrushPalettePanel::LoadAllContents() {
 
 PaletteType BrushPalettePanel::GetType() const {
 	return paletteType;
+}
+
+BrushListType BrushPalettePanel::GetListType() const {
+	if (!choicebook) {
+		return BRUSHLIST_LISTBOX;
+	}
+
+	const auto panel = dynamic_cast<BrushPanel*>(choicebook->GetPage(0));
+	return panel->GetListType();
 }
 
 void BrushPalettePanel::SetListType(BrushListType newListType) {
@@ -433,6 +439,10 @@ void BrushPanel::AssignTileset(const TilesetCategory* newTileset) {
 	}
 }
 
+BrushListType BrushPanel::GetListType() const {
+	return listType;
+}
+
 void BrushPanel::SetListType(BrushListType newListType) {
 	if (listType != newListType) {
 		InvalidateContents();
@@ -632,6 +642,30 @@ Brush* BrushIconBox::GetSelectedBrush() const {
 	return selectedButton ? selectedButton->brush : nullptr;
 }
 
+bool BrushIconBox::SelectPaginatedBrush(const Brush* whatBrush, BrushPalettePanel* brushPalettePanel) {
+	const auto index = std::ranges::find(tileset->brushlist.begin(), tileset->brushlist.end(), whatBrush) - tileset->brushlist.begin();
+
+	if (index < tileset->brushlist.size()) {
+		const auto page = std::ceil(index / (width * height)) + 1;
+		if (currentPage != page) {
+			brushPalettePanel->OnPageUpdate(this, page);
+		}
+
+		const auto it = std::ranges::find_if(brushButtons, [&](const auto &brushButton) {
+			return brushButton->brush == whatBrush;
+		});
+
+		if (it != brushButtons.end()) {
+			Select(*it);
+			return true;
+		}
+
+		return false;
+	}
+
+	return false;
+}
+
 bool BrushIconBox::SelectBrush(const Brush* whatBrush) {
 	Deselect();
 
@@ -639,7 +673,13 @@ bool BrushIconBox::SelectBrush(const Brush* whatBrush) {
 		return false;
 	}
 
-	const auto it = std::ranges::find_if(brushButtons.begin(), brushButtons.end(), [&](const auto &brushButton) {
+	const auto &brushPalettePanel = g_gui.GetParentWindowByType<BrushPalettePanel*>(GetSelfWindow());
+	const auto listType = brushPalettePanel->GetListType();
+	if (listType == BRUSHLIST_LARGE_ICONS || listType == BRUSHLIST_SMALL_ICONS) {
+		return SelectPaginatedBrush(whatBrush, brushPalettePanel);
+	}
+
+	const auto it = std::ranges::find_if(brushButtons, [&](const auto &brushButton) {
 		return brushButton->brush == whatBrush;
 	});
 
@@ -745,6 +785,10 @@ Brush* BrushListBox::GetSelectedBrush() const {
 		return tileset->brushlist[0];
 	}
 	return nullptr;
+}
+
+bool BrushListBox::SelectPaginatedBrush(const Brush* whatBrush, BrushPalettePanel* brushPalettePanel) noexcept {
+	return false;
 }
 
 bool BrushListBox::SelectBrush(const Brush* whatBrush) {

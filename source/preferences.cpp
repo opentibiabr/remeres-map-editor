@@ -661,13 +661,11 @@ void PreferencesWindow::Apply() {
 	if (g_settings.getBoolean(Config::USE_MEMCACHED_SPRITES) != use_memcached_chkbox->GetValue()) {
 		must_restart = true;
 	}
-	int iconsColSize;
-	if (palette_icons_col_size->GetValue().ToInt(&iconsColSize) && g_settings.getInteger(Config::PALETTE_COL_COUNT) != iconsColSize) {
+	if (int iconsColSize; palette_icons_col_size->GetValue().ToInt(&iconsColSize) && g_settings.getInteger(Config::PALETTE_COL_COUNT) != iconsColSize) {
 		g_settings.setInteger(Config::PALETTE_COL_COUNT, iconsColSize);
 		must_restart = true;
 	}
-	int iconsRowSize;
-	if (palette_icons_row_size->GetValue().ToInt(&iconsRowSize) && g_settings.getInteger(Config::PALETTE_ROW_COUNT) != iconsRowSize) {
+	if (int iconsRowSize; palette_icons_row_size->GetValue().ToInt(&iconsRowSize) && g_settings.getInteger(Config::PALETTE_ROW_COUNT) != iconsRowSize) {
 		g_settings.setInteger(Config::PALETTE_ROW_COUNT, iconsRowSize);
 		must_restart = true;
 	}
