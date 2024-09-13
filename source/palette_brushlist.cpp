@@ -385,18 +385,30 @@ void BrushPalettePanel::OnPreviousPage(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void BrushPalettePanel::EnableNextPage(bool enable /* = true*/) {
+	if (!nextPageButton) {
+		return;
+	}
 	nextPageButton->Enable(enable);
 }
 
 void BrushPalettePanel::EnablePreviousPage(bool enable /* = true*/) {
+	if (!previousPageButton) {
+		return;
+	}
 	previousPageButton->Enable(enable);
 }
 
 void BrushPalettePanel::SetPageInfo(const wxString &text) {
+	if (!pageInfo) {
+		return;
+	}
 	pageInfo->SetLabelText(text);
 }
 
 void BrushPalettePanel::SetCurrentPage(const wxString &value) {
+	if (!currentPageCtrl) {
+		return;
+	}
 	currentPageCtrl->SetValue(value);
 }
 
