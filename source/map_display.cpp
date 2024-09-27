@@ -412,9 +412,14 @@ void MapCanvas::UpdatePositionStatus(int x, int y) {
 	if (tile) {
 		if (tile->spawnMonster && g_settings.getInteger(Config::SHOW_SPAWNS_MONSTER)) {
 			ss << "Monster spawn radius: " << tile->spawnMonster->getSize();
-		} else if (tile->monster && g_settings.getInteger(Config::SHOW_MONSTERS)) {
-			ss << ("Monster");
-			ss << " \"" << wxstr(tile->monster->getName()) << "\" spawntime: " << tile->monster->getSpawnMonsterTime();
+		} else if (!tile->monsters.empty() && g_settings.getInteger(Config::SHOW_MONSTERS)) {
+			for (const auto monster : tile->monsters) {
+				ss << ("Monster");
+				ss << " \"" << wxstr(monster->getName()) << "\" spawntime: " << monster->getSpawnMonsterTime();
+				if (monster != tile->monsters.back()) {
+					ss << " - ";
+				}
+			}
 		} else if (tile->spawnNpc && g_settings.getInteger(Config::SHOW_SPAWNS_NPC)) {
 			ss << "Npc spawn radius: " << tile->spawnNpc->getSize();
 		} else if (tile->npc && g_settings.getInteger(Config::SHOW_NPCS)) {
@@ -617,8 +622,8 @@ void MapCanvas::OnMouseLeftDoubleClick(wxMouseEvent &event) {
 			dialog = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, new_tile->spawnMonster);
 		}
 		// Show monster
-		else if (new_tile->monster && g_settings.getInteger(Config::SHOW_MONSTERS)) {
-			dialog = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, new_tile->monster);
+		else if (const auto monster = new_tile->getTopMonster(); monster && g_settings.getInteger(Config::SHOW_MONSTERS)) {
+			dialog = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, monster);
 		}
 		// Show npc
 		else if (new_tile->npc && g_settings.getInteger(Config::SHOW_NPCS)) {
@@ -727,6 +732,7 @@ void MapCanvas::OnMouseActionClick(wxMouseEvent &event) {
 					}
 				} else if (event.ControlDown()) {
 					Tile* tile = editor.getMap().getTile(mouse_map_x, mouse_map_y, floor);
+					const auto monster = tile->getTopMonster();
 					if (tile) {
 						// Show monster spawn
 						if (tile->spawnMonster && g_settings.getInteger(Config::SHOW_SPAWNS_MONSTER)) {
@@ -739,30 +745,16 @@ void MapCanvas::OnMouseActionClick(wxMouseEvent &event) {
 							selection.finish(); // Finish selection session
 							selection.updateSelectionCount();
 							// Show monsters
-						} else if (tile->monster && g_settings.getInteger(Config::SHOW_MONSTERS)) {
+						} else if (monster && g_settings.getInteger(Config::SHOW_MONSTERS)) {
 							selection.start(); // Start selection session
-							if (tile->monster->isSelected()) {
-								selection.remove(tile, tile->monster);
+							if (monster->isSelected()) {
+								selection.remove(tile, monster);
 							} else {
-								selection.add(tile, tile->monster);
+								selection.add(tile, monster);
 							}
-							selection.finish(); // Finish selection session
+							selection.finish();
 							selection.updateSelectionCount();
-						} else {
-							Item* item = tile->getTopItem();
-							if (item) {
-								selection.start(); // Start selection session
-								if (item->isSelected()) {
-									selection.remove(tile, item);
-								} else {
-									selection.add(tile, item);
-								}
-								selection.finish(); // Finish selection session
-								selection.updateSelectionCount();
-							}
-						}
-						// Show npcs
-						if (tile->spawnNpc && g_settings.getInteger(Config::SHOW_SPAWNS_NPC)) {
+						} else if (tile->spawnNpc && g_settings.getInteger(Config::SHOW_SPAWNS_NPC)) {
 							selection.start(); // Start selection session
 							if (tile->spawnNpc->isSelected()) {
 								selection.remove(tile, tile->spawnNpc);
@@ -819,8 +811,8 @@ void MapCanvas::OnMouseActionClick(wxMouseEvent &event) {
 							drag_start_y = mouse_map_y;
 							drag_start_z = floor;
 							// Show monsters
-						} else if (tile->monster && g_settings.getInteger(Config::SHOW_MONSTERS)) {
-							selection.add(tile, tile->monster);
+						} else if (const auto monster = tile->getTopMonster(); monster && g_settings.getInteger(Config::SHOW_MONSTERS)) {
+							selection.add(tile, monster);
 							dragging = true;
 							drag_start_x = mouse_map_x;
 							drag_start_y = mouse_map_y;
@@ -1192,10 +1184,10 @@ void MapCanvas::OnMouseActionRelease(wxMouseEvent &event) {
 							selection.finish(); // Finish the selection session
 							selection.updateSelectionCount();
 						}
-					} else if (tile->monster && g_settings.getInteger(Config::SHOW_MONSTERS)) {
-						if (!tile->monster->isSelected()) {
+					} else if (const auto monster = tile->getTopMonster(); monster && g_settings.getInteger(Config::SHOW_MONSTERS)) {
+						if (!monster->isSelected()) {
 							selection.start(); // Start a selection session
-							selection.add(tile, tile->monster);
+							selection.add(tile, monster);
 							selection.finish(); // Finish the selection session
 							selection.updateSelectionCount();
 						}
@@ -1209,7 +1201,7 @@ void MapCanvas::OnMouseActionRelease(wxMouseEvent &event) {
 					} else if (tile->npc && g_settings.getInteger(Config::SHOW_NPCS)) {
 						if (!tile->npc->isSelected()) {
 							selection.start(); // Start a selection session
-							selection.add(tile, tile->monster);
+							selection.add(tile, tile->npc);
 							selection.finish(); // Finish the selection session
 							selection.updateSelectionCount();
 						}
@@ -1443,8 +1435,8 @@ void MapCanvas::OnMousePropertiesClick(wxMouseEvent &event) {
 		selection.commit();
 		if (tile->spawnMonster && g_settings.getInteger(Config::SHOW_SPAWNS_MONSTER)) {
 			selection.add(tile, tile->spawnMonster);
-		} else if (tile->monster && g_settings.getInteger(Config::SHOW_MONSTERS)) {
-			selection.add(tile, tile->monster);
+		} else if (const auto monster = tile->getTopMonster(); monster && g_settings.getInteger(Config::SHOW_MONSTERS)) {
+			selection.add(tile, monster);
 		} else if (tile->npc && g_settings.getInteger(Config::SHOW_NPCS)) {
 			selection.add(tile, tile->npc);
 		} else if (tile->spawnNpc && g_settings.getInteger(Config::SHOW_SPAWNS_NPC)) {
@@ -2305,8 +2297,8 @@ void MapCanvas::OnSelectMonsterBrush(wxCommandEvent &WXUNUSED(event)) {
 		return;
 	}
 
-	if (tile->monster) {
-		g_gui.SelectBrush(tile->monster->getBrush(), TILESET_MONSTER);
+	if (const auto monster = tile->getTopMonster(); monster) {
+		g_gui.SelectBrush(monster->getBrush(), TILESET_MONSTER);
 	}
 }
 
@@ -2390,8 +2382,19 @@ void MapCanvas::OnProperties(wxCommandEvent &WXUNUSED(event)) {
 
 	if (new_tile->spawnMonster && g_settings.getInteger(Config::SHOW_SPAWNS_MONSTER)) {
 		w = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, new_tile->spawnMonster);
-	} else if (new_tile->monster && g_settings.getInteger(Config::SHOW_MONSTERS)) {
-		w = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, new_tile->monster);
+	} else if (g_settings.getInteger(Config::SHOW_MONSTERS)) {
+		std::vector<Monster*> selectedMonsters = new_tile->getSelectedMonsters();
+
+		Monster* monster = nullptr;
+		int count = 0;
+		for (auto it = selectedMonsters.begin(); it != selectedMonsters.end(); ++it) {
+			++count;
+			const auto itMonster = (*it);
+			if (itMonster->isSelected()) {
+				monster = itMonster;
+			}
+		}
+		w = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, monster);
 	} else if (new_tile->npc && g_settings.getInteger(Config::SHOW_NPCS)) {
 		w = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, new_tile->npc);
 	} else if (new_tile->spawnNpc && g_settings.getInteger(Config::SHOW_SPAWNS_NPC)) {
@@ -2539,13 +2542,15 @@ void MapPopupMenu::Update() {
 		if (editor.getSelection().size() == 1) {
 			Tile* tile = editor.getSelection().getSelectedTile();
 			ItemVector selected_items = tile->getSelectedItems();
+			std::vector<Monster*> selectedMonsters = tile->getSelectedMonsters();
 
 			bool hasWall = false;
 			bool hasCarpet = false;
 			bool hasTable = false;
 			Item* topItem = nullptr;
 			Item* topSelectedItem = (selected_items.size() == 1 ? selected_items.back() : nullptr);
-			Monster* topMonster = tile->monster;
+			Monster* topMonster = nullptr;
+			Monster* topSelectedMonster = (selectedMonsters.size() == 1 ? selectedMonsters.back() : nullptr);
 			SpawnMonster* topSpawnMonster = tile->spawnMonster;
 			Npc* topNpc = tile->npc;
 			SpawnNpc* topSpawnNpc = tile->spawnNpc;
@@ -2586,7 +2591,7 @@ void MapPopupMenu::Update() {
 				AppendSeparator();
 			}
 
-			if (topSelectedItem || topMonster || topNpc || topItem) {
+			if (topSelectedItem || topMonster || topSelectedMonster || topNpc || topItem) {
 				Teleport* teleport = dynamic_cast<Teleport*>(topSelectedItem);
 				if (topSelectedItem && (topSelectedItem->isBrushDoor() || topSelectedItem->isRoteable() || teleport)) {
 
@@ -2613,7 +2618,7 @@ void MapPopupMenu::Update() {
 					}
 				}
 
-				if (topMonster) {
+				if (topMonster || topSelectedMonster) {
 					Append(MAP_POPUP_MENU_SELECT_MONSTER_BRUSH, "Select Monster", "Uses the current monster as a monster brush");
 				}
 

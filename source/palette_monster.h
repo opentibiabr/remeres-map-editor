@@ -74,6 +74,7 @@ protected:
 	wxSpinCtrl* monster_spawntime_spin;
 	wxSpinCtrl* spawn_monster_size_spin;
 	wxSpinCtrl* monster_spawndensity_spin;
+	wxSpinCtrl* monsterDefaultWeight = nullptr;
 
 	bool handling_event;
 

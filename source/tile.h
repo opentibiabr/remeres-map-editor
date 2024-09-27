@@ -52,7 +52,7 @@ public: // Members
 	TileLocation* location;
 	Item* ground;
 	ItemVector items;
-	Monster* monster;
+	std::vector<Monster*> monsters;
 	SpawnMonster* spawnMonster;
 	Npc* npc;
 	SpawnNpc* spawnNpc;
@@ -159,6 +159,13 @@ public: // Functions
 
 	void select();
 	void deselect();
+
+	void addMonster(Monster* monster);
+	Monster* getTopMonster() const; // Returns the topmost monster, or nullptr
+	std::vector<Monster*> popSelectedMonsters();
+	std::vector<Monster*> getSelectedMonsters();
+	bool isMonsterRepeated(const std::string &searchMonster) const;
+
 	// This selects borders too
 	void selectGround();
 	void deselectGround();

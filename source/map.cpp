@@ -893,11 +893,12 @@ int64_t RemoveMonstersOnMap(Map &map, bool selectedOnly) {
 			++it;
 			continue;
 		}
-		if (tile->monster) {
-			delete tile->monster;
-			tile->monster = nullptr;
+		for (auto monster : tile->monsters) {
+			delete monster;
 			++removed;
 		}
+
+		tile->monsters.clear();
 
 		++it;
 	}
@@ -919,10 +920,10 @@ std::pair<int64_t, std::unordered_map<std::string, int64_t>> CountMonstersOnMap(
 			++it;
 			continue;
 		}
-		if (tile->monster) {
+
+		for (const auto monster : tile->monsters) {
 			++total;
-			std::string monsterName = tile->monster->getName();
-			++monsterCount[monsterName];
+			++monsterCount[monster->getName()];
 		}
 
 		++it;

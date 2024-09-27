@@ -1540,7 +1540,7 @@ void MainMenuBar::OnMapRemoveEmptyMonsterSpawns(wxCommandEvent &WXUNUSED(event))
 		g_gui.CreateLoadBar("Searching map for empty monsters spawns to remove...");
 
 		Map &map = g_gui.GetCurrentMap();
-		MonsterVector monster;
+		MonsterVector monsters;
 		TileVector toDeleteSpawns;
 		for (const auto &spawnPosition : map.spawnsMonster) {
 			Tile* tile = map.getTile(spawnPosition);
@@ -1554,10 +1554,19 @@ void MainMenuBar::OnMapRemoveEmptyMonsterSpawns(wxCommandEvent &WXUNUSED(event))
 			for (int32_t y = -radius; y <= radius; ++y) {
 				for (int32_t x = -radius; x <= radius; ++x) {
 					Tile* creature_tile = map.getTile(spawnPosition + Position(x, y, 0));
-					if (creature_tile && creature_tile->monster && !creature_tile->monster->isSaved()) {
-						creature_tile->monster->save();
-						monster.push_back(creature_tile->monster);
-						empty = false;
+					if (creature_tile) {
+						for (const auto monster : creature_tile->monsters) {
+							if (empty) {
+								empty = false;
+							}
+
+							if (monster->isSaved()) {
+								continue;
+							}
+
+							monster->save();
+							monsters.push_back(monster);
+						}
 					}
 				}
 			}
@@ -1567,7 +1576,7 @@ void MainMenuBar::OnMapRemoveEmptyMonsterSpawns(wxCommandEvent &WXUNUSED(event))
 			}
 		}
 
-		for (Monster* monster : monster) {
+		for (const auto monster : monsters) {
 			monster->reset();
 		}
 
@@ -1847,9 +1856,7 @@ void MainMenuBar::OnMapStatistics(wxCommandEvent &WXUNUSED(event)) {
 			spawn_npc_count += 1;
 		}
 
-		if (tile->monster) {
-			monster_count += 1;
-		}
+		monster_count += tile->monsters.size();
 
 		if (tile->npc) {
 			npc_count += 1;

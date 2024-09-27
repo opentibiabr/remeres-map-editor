@@ -1058,6 +1058,11 @@ bool IOMapOTBM::loadSpawnsMonster(Map &map, pugi::xml_document &doc) {
 				spawntime = g_settings.getInteger(Config::DEFAULT_SPAWN_MONSTER_TIME);
 			}
 
+			uint8_t weight = monsterNode.attribute("weight").as_uint();
+			if (weight == 0) {
+				weight = g_settings.getInteger(Config::MONSTER_DEFAULT_WEIGHT);
+			}
+
 			Direction direction = NORTH;
 			int dir = monsterNode.attribute("direction").as_int(-1);
 			if (dir >= DIRECTION_FIRST && dir <= DIRECTION_LAST) {
@@ -1090,16 +1095,14 @@ bool IOMapOTBM::loadSpawnsMonster(Map &map, pugi::xml_document &doc) {
 			}
 
 			if (!monsterTile) {
-				wxString err;
-				err << "Discarding monster \"" << name << "\" at " << monsterPosition.x << ":" << monsterPosition.y << ":" << monsterPosition.z << " due to invalid position.";
-				warnings.Add(err);
+				const auto error = fmt::format("Discarding monster \"{}\" at {}:{}:{} due to invalid position", name, monsterPosition.x, monsterPosition.y, monsterPosition.z);
+				warnings.Add(error);
 				break;
 			}
 
-			if (monsterTile->monster) {
-				wxString err;
-				err << "Duplicate monster \"" << name << "\" at " << monsterPosition.x << ":" << monsterPosition.y << ":" << monsterPosition.z << " was discarded.";
-				warnings.Add(err);
+			if (monsterTile->isMonsterRepeated(name)) {
+				const auto error = fmt::format("Duplicate monster \"{}\" at {}:{}:{} was discarded.", name, monsterPosition.x, monsterPosition.y, monsterPosition.z);
+				warnings.Add(error);
 				break;
 			}
 
@@ -1111,7 +1114,8 @@ bool IOMapOTBM::loadSpawnsMonster(Map &map, pugi::xml_document &doc) {
 			Monster* monster = newd Monster(type);
 			monster->setDirection(direction);
 			monster->setSpawnMonsterTime(spawntime);
-			monsterTile->monster = monster;
+			monster->setWeight(weight);
+			monsterTile->monsters.emplace_back(monster);
 
 			if (monsterTile->getLocation()->getSpawnMonsterCount() == 0) {
 				// No monster spawn, create a newd one
@@ -1766,26 +1770,32 @@ bool IOMapOTBM::saveSpawns(Map &map, pugi::xml_document &doc) {
 			for (int32_t x = -radius; x <= radius; ++x) {
 				Tile* monster_tile = map.getTile(spawnPosition + Position(x, y, 0));
 				if (monster_tile) {
-					Monster* monster = monster_tile->monster;
-					if (monster && !monster->isSaved()) {
-						pugi::xml_node monsterNode = spawnNode.append_child("monster");
-						monsterNode.append_attribute("name") = monster->getName().c_str();
-						monsterNode.append_attribute("x") = x;
-						monsterNode.append_attribute("y") = y;
-						monsterNode.append_attribute("z") = spawnPosition.z;
-						auto monsterSpawnTime = monster->getSpawnMonsterTime();
-						if (monsterSpawnTime > std::numeric_limits<uint32_t>::max() || monsterSpawnTime < std::numeric_limits<uint32_t>::min()) {
-							monsterSpawnTime = 60;
-						}
+					for (const auto monster : monster_tile->monsters) {
+						if (monster && !monster->isSaved()) {
+							pugi::xml_node monsterNode = spawnNode.append_child("monster");
+							monsterNode.append_attribute("name") = monster->getName().c_str();
+							monsterNode.append_attribute("x") = x;
+							monsterNode.append_attribute("y") = y;
+							monsterNode.append_attribute("z") = spawnPosition.z;
+							auto monsterSpawnTime = monster->getSpawnMonsterTime();
+							if (monsterSpawnTime > std::numeric_limits<uint32_t>::max() || monsterSpawnTime < std::numeric_limits<uint32_t>::min()) {
+								monsterSpawnTime = 60;
+							}
 
-						monsterNode.append_attribute("spawntime") = monsterSpawnTime;
-						if (monster->getDirection() != NORTH) {
-							monsterNode.append_attribute("direction") = monster->getDirection();
-						}
+							monsterNode.append_attribute("spawntime") = monsterSpawnTime;
+							if (monster->getDirection() != NORTH) {
+								monsterNode.append_attribute("direction") = monster->getDirection();
+							}
 
-						// Mark as saved
-						monster->save();
-						monsterList.push_back(monster);
+							if (monster_tile->monsters.size() > 1) {
+								const auto weight = monster->getWeight();
+								monsterNode.append_attribute("weight") = weight > 0 ? weight : g_settings.getInteger(Config::MONSTER_DEFAULT_WEIGHT);
+							}
+
+							// Mark as saved
+							monster->save();
+							monsterList.push_back(monster);
+						}
 					}
 				}
 			}
