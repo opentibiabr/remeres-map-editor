@@ -421,8 +421,9 @@ std::vector<Monster*> Tile::getSelectedMonsters() {
 
 bool Tile::isMonsterRepeated(const std::string &searchMonster) const {
 	return std::ranges::find_if(monsters, [&](const auto monster) {
-		return monster->getTypeName() == searchMonster;
-	}) != monsters.end();
+			   return monster->getTypeName() == searchMonster;
+		   })
+		!= monsters.end();
 }
 
 Item* Tile::getTopSelectedItem() {
