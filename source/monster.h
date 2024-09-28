@@ -50,7 +50,7 @@ public:
 		selected = true;
 	}
 
-	[[nodiscard]] const std::string& getTypeName() const noexcept {
+	[[nodiscard]] const std::string &getTypeName() const noexcept {
 		return type_name;
 	}
 
