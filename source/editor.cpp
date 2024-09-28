@@ -1101,19 +1101,9 @@ void Editor::moveSelection(const Position &offset) {
 		}
 		// Move monster
 		const auto monstersSelection = new_tile->popSelectedMonsters();
-		for (const auto monster : monstersSelection) {
+		std::ranges::for_each(monstersSelection, [&](const auto monster) {
 			storage_tile->addMonster(monster);
-		}
-		/*
-		if (!new_tile->monsters.empty()) {
-			const auto view = std::ranges::remove_if(new_tile->monsters.begin(), new_tile->monsters.end(), [](const auto monster) {
-				return monster->isSelected();
-			});
-
-			storage_tile->monsters = std::vector<Monster*>(view.begin(), view.end());
-			new_tile->monsters.erase(view.begin(), view.end());
-		}
-		*/
+		});
 		// Move npc
 		if (new_tile->npc && new_tile->npc->isSelected()) {
 			storage_tile->npc = new_tile->npc;
@@ -1354,12 +1344,21 @@ void Editor::destroySelection() {
 				delete *iit;
 			}
 
-			const auto monstersSelection = newtile->popSelectedMonsters();
+			auto monstersSelection = newtile->popSelectedMonsters();
+			std::ranges::for_each(monstersSelection, [&](auto monster) {
+				++monsterCount;
+				delete monster;
+			});
+			// Clear the vector to avoid being used anywhere else in this block with nullptrs
+			monstersSelection.clear();
+
+			/*
 			for (auto monsterIt = monstersSelection.begin(); monsterIt != monstersSelection.end(); ++monsterIt) {
 				++monsterCount;
 				// Delete the monsters from the tile
 				delete *monsterIt;
 			}
+			*/
 
 			if (newtile->spawnMonster && newtile->spawnMonster->isSelected()) {
 				delete newtile->spawnMonster;

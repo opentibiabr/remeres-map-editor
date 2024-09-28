@@ -1551,11 +1551,11 @@ void MainMenuBar::OnMapRemoveEmptyMonsterSpawns(wxCommandEvent &WXUNUSED(event))
 			const int32_t radius = tile->spawnMonster->getSize();
 
 			bool empty = true;
-			for (int32_t y = -radius; y <= radius; ++y) {
-				for (int32_t x = -radius; x <= radius; ++x) {
-					Tile* creature_tile = map.getTile(spawnPosition + Position(x, y, 0));
-					if (creature_tile) {
-						for (const auto monster : creature_tile->monsters) {
+			for (auto y = -radius; y <= radius; ++y) {
+				for (auto x = -radius; x <= radius; ++x) {
+					const auto creatureTile = map.getTile(spawnPosition + Position(x, y, 0));
+					if (creatureTile) {
+						for (const auto monster : creatureTile->monsters) {
 							if (empty) {
 								empty = false;
 							}

@@ -1058,9 +1058,9 @@ bool IOMapOTBM::loadSpawnsMonster(Map &map, pugi::xml_document &doc) {
 				spawntime = g_settings.getInteger(Config::DEFAULT_SPAWN_MONSTER_TIME);
 			}
 
-			uint8_t weight = monsterNode.attribute("weight").as_uint();
+			auto weight = static_cast<uint8_t>(monsterNode.attribute("weight").as_uint());
 			if (weight == 0) {
-				weight = g_settings.getInteger(Config::MONSTER_DEFAULT_WEIGHT);
+				weight = static_cast<uint8_t>(g_settings.getInteger(Config::MONSTER_DEFAULT_WEIGHT));
 			}
 
 			Direction direction = NORTH;
@@ -1766,11 +1766,11 @@ bool IOMapOTBM::saveSpawns(Map &map, pugi::xml_document &doc) {
 		int32_t radius = spawnMonster->getSize();
 		spawnNode.append_attribute("radius") = radius;
 
-		for (int32_t y = -radius; y <= radius; ++y) {
-			for (int32_t x = -radius; x <= radius; ++x) {
-				Tile* monster_tile = map.getTile(spawnPosition + Position(x, y, 0));
-				if (monster_tile) {
-					for (const auto monster : monster_tile->monsters) {
+		for (auto y = -radius; y <= radius; ++y) {
+			for (auto x = -radius; x <= radius; ++x) {
+				const auto monsterTile = map.getTile(spawnPosition + Position(x, y, 0));
+				if (monsterTile) {
+					for (const auto monster : monsterTile->monsters) {
 						if (monster && !monster->isSaved()) {
 							pugi::xml_node monsterNode = spawnNode.append_child("monster");
 							monsterNode.append_attribute("name") = monster->getName().c_str();
@@ -1787,7 +1787,7 @@ bool IOMapOTBM::saveSpawns(Map &map, pugi::xml_document &doc) {
 								monsterNode.append_attribute("direction") = monster->getDirection();
 							}
 
-							if (monster_tile->monsters.size() > 1) {
+							if (monsterTile->monsters.size() > 1) {
 								const auto weight = monster->getWeight();
 								monsterNode.append_attribute("weight") = weight > 0 ? weight : g_settings.getInteger(Config::MONSTER_DEFAULT_WEIGHT);
 							}

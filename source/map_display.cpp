@@ -393,65 +393,55 @@ Position MapCanvas::GetCursorPosition() const {
 }
 
 void MapCanvas::UpdatePositionStatus(int x, int y) {
-	if (x == -1) {
-		x = cursor_x;
-	}
-	if (y == -1) {
-		y = cursor_y;
-	}
+
+	x == -1 ? cursor_x : x;
+	y == -1 ? cursor_y : y;
 
 	int map_x, map_y;
 	ScreenToMap(x, y, &map_x, &map_y);
 
-	wxString ss;
-	ss << "x: " << map_x << " y:" << map_y << " z:" << floor;
-	g_gui.root->SetStatusText(ss, 2);
+	g_gui.root->SetStatusText(fmt::format("x: {} y: {} z: {}", map_x, map_y, floor), 2);
 
-	ss = "";
-	Tile* tile = editor.getMap().getTile(map_x, map_y, floor);
-	if (tile) {
-		if (tile->spawnMonster && g_settings.getInteger(Config::SHOW_SPAWNS_MONSTER)) {
-			ss << "Monster spawn radius: " << tile->spawnMonster->getSize();
-		} else if (!tile->monsters.empty() && g_settings.getInteger(Config::SHOW_MONSTERS)) {
-			for (const auto monster : tile->monsters) {
-				ss << ("Monster");
-				ss << " \"" << wxstr(monster->getName()) << "\" spawntime: " << monster->getSpawnMonsterTime();
-				if (monster != tile->monsters.back()) {
-					ss << " - ";
-				}
-			}
-		} else if (tile->spawnNpc && g_settings.getInteger(Config::SHOW_SPAWNS_NPC)) {
-			ss << "Npc spawn radius: " << tile->spawnNpc->getSize();
-		} else if (tile->npc && g_settings.getInteger(Config::SHOW_NPCS)) {
-			ss << ("NPC");
-			ss << " \"" << wxstr(tile->npc->getName()) << "\" spawntime: " << tile->npc->getSpawnNpcTime();
-		} else if (Item* item = tile->getTopItem()) {
-			ss << "Item \"" << wxstr(item->getName()) << "\"";
-			ss << " id:" << item->getID();
-			ss << " cid:" << item->getClientID();
-			if (item->getUniqueID()) {
-				ss << " uid:" << item->getUniqueID();
-			}
-			if (item->getActionID()) {
-				ss << " aid:" << item->getActionID();
-			}
-			if (item->hasWeight()) {
-				wxString s;
-				s.Printf("%.2f", item->getWeight());
-				ss << " weight: " << s;
-			}
-		} else {
-			ss << "Nothing";
-		}
-	} else {
-		ss << "Nothing";
-	}
+	const auto tile = editor.getMap().getTile(map_x, map_y, floor);
+
+	std::string description = "Nothing";
 
 	if (editor.IsLive()) {
 		editor.GetLive().updateCursor(Position(map_x, map_y, floor));
 	}
 
-	g_gui.root->SetStatusText(ss, 1);
+	if (!tile) {
+		g_gui.root->SetStatusText(description, 1);
+		return;
+	}
+
+	description.clear();
+	if (tile->spawnMonster && g_settings.getInteger(Config::SHOW_SPAWNS_MONSTER)) {
+		description = fmt::format("Monster spawn radius: {}", tile->spawnMonster->getSize());
+	} else if (!tile->monsters.empty() && g_settings.getInteger(Config::SHOW_MONSTERS)) {
+		std::vector<std::string> texts;
+		for (const auto monster : tile->monsters) {
+			const auto monsterWeight = tile->monsters.size() > 1 ? std::to_string(monster->getWeight()) : "0";
+			texts.emplace_back(fmt::format("Monster \"{}\", spawntime: {}, weight: {}", monster->getName(), monster->getSpawnMonsterTime(), monsterWeight));
+		}
+		description = fmt::format("{}", fmt::join(texts, " - "));
+	} else if (tile->spawnNpc && g_settings.getInteger(Config::SHOW_SPAWNS_NPC)) {
+		description = fmt::format("Npc spawn radius: {}", tile->spawnNpc->getSize());
+	} else if (tile->npc && g_settings.getInteger(Config::SHOW_NPCS)) {
+		description = fmt::format("NPC \"{}\", spawntime: {}", tile->npc->getName(), tile->npc->getSpawnNpcTime());
+	} else if (const auto item = tile->getTopItem()) {
+		description = fmt::format("Item \"{}\", id: {}, cid: {}", item->getName(), item->getID(), item->getClientID());
+
+		description = item->getUniqueID() ? fmt::format("{}, uid: {}", description, item->getUniqueID()) : description;
+
+		description = item->getActionID() ? fmt::format("{}, aid: {}", description, item->getActionID()) : description;
+
+		description = item->hasWeight() ? fmt::format("{}, weight: {:.2f}", description, item->getWeight()) : description;
+	} else {
+		description = "Nothing";
+	}
+
+	g_gui.root->SetStatusText(description, 1);
 }
 
 void MapCanvas::UpdateZoomStatus() {
@@ -2371,65 +2361,58 @@ void MapCanvas::OnProperties(wxCommandEvent &WXUNUSED(event)) {
 		return;
 	}
 
-	Tile* tile = editor.getSelection().getSelectedTile();
+	const auto tile = editor.getSelection().getSelectedTile();
 	if (!tile) {
 		return;
 	}
 	ASSERT(tile->isSelected());
-	Tile* new_tile = tile->deepCopy(editor.getMap());
+	const auto newTile = tile->deepCopy(editor.getMap());
 
 	wxDialog* w = nullptr;
 
-	if (new_tile->spawnMonster && g_settings.getInteger(Config::SHOW_SPAWNS_MONSTER)) {
-		w = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, new_tile->spawnMonster);
+	if (newTile->spawnMonster && g_settings.getInteger(Config::SHOW_SPAWNS_MONSTER)) {
+		w = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), newTile, newTile->spawnMonster);
 	} else if (g_settings.getInteger(Config::SHOW_MONSTERS)) {
-		std::vector<Monster*> selectedMonsters = new_tile->getSelectedMonsters();
+		std::vector<Monster*> selectedMonsters = newTile->getSelectedMonsters();
 
-		Monster* monster = nullptr;
-		int count = 0;
-		for (auto it = selectedMonsters.begin(); it != selectedMonsters.end(); ++it) {
-			++count;
-			const auto itMonster = (*it);
-			if (itMonster->isSelected()) {
-				monster = itMonster;
-			}
-		}
-		w = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, monster);
-	} else if (new_tile->npc && g_settings.getInteger(Config::SHOW_NPCS)) {
-		w = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, new_tile->npc);
-	} else if (new_tile->spawnNpc && g_settings.getInteger(Config::SHOW_SPAWNS_NPC)) {
-		w = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, new_tile->spawnNpc);
-	} else {
-		ItemVector selected_items = new_tile->getSelectedItems();
+		const auto it = std::ranges::find_if(selectedMonsters | std::views::reverse, [&](const auto itMonster) {
+			return itMonster->isSelected();
+		});
 
-		Item* item = nullptr;
-		int count = 0;
-		for (ItemVector::iterator it = selected_items.begin(); it != selected_items.end(); ++it) {
-			++count;
-			if ((*it)->isSelected()) {
-				item = *it;
-			}
-		}
-
-		if (item) {
-			if (editor.getMap().getVersion().otbm >= MAP_OTBM_4) {
-				w = newd PropertiesWindow(g_gui.root, &editor.getMap(), new_tile, item);
-			} else {
-				w = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, item);
-			}
-		} else {
+		if (it == selectedMonsters.rend()) {
 			return;
+		}
+
+		w = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), newTile, *it);
+	} else if (newTile->npc && g_settings.getInteger(Config::SHOW_NPCS)) {
+		w = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), newTile, newTile->npc);
+	} else if (newTile->spawnNpc && g_settings.getInteger(Config::SHOW_SPAWNS_NPC)) {
+		w = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), newTile, newTile->spawnNpc);
+	} else {
+		const auto selectedItems = newTile->getSelectedItems();
+
+		const auto it = std::ranges::find_if(selectedItems | std::views::reverse, [&](const auto itItem) {
+			return itItem->isSelected();
+		});
+
+		if (it == selectedItems.rend()) {
+			return;
+		}
+
+		if (editor.getMap().getVersion().otbm >= MAP_OTBM_4) {
+			w = newd PropertiesWindow(g_gui.root, &editor.getMap(), newTile, *it);
+		} else {
+			w = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), newTile, *it);
 		}
 	}
 
-	int ret = w->ShowModal();
-	if (ret != 0) {
-		Action* action = editor.createAction(ACTION_CHANGE_PROPERTIES);
-		action->addChange(newd Change(new_tile));
+	if (w->ShowModal() != 0) {
+		const auto action = editor.createAction(ACTION_CHANGE_PROPERTIES);
+		action->addChange(newd Change(newTile));
 		editor.addAction(action);
 	} else {
 		// Cancel!
-		delete new_tile;
+		delete newTile;
 	}
 	w->Destroy();
 }

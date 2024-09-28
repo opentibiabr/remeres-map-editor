@@ -85,11 +85,10 @@ void CopyBuffer::copy(Editor &editor, int floor) {
 
 		// Monster
 		const auto monstersSelection = tile->getSelectedMonsters();
-		for (auto monsterIt = monstersSelection.begin(); monsterIt != monstersSelection.end(); ++monsterIt) {
+		std::ranges::for_each(monstersSelection, [&](const auto monster) {
 			++monsterCount;
-			// Copy items to copybuffer
-			copied_tile->addMonster((*monsterIt)->deepCopy());
-		}
+			copied_tile->addMonster(monster->deepCopy());
+		});
 
 		if (tile->spawnMonster && tile->spawnMonster->isSelected()) {
 			copied_tile->spawnMonster = tile->spawnMonster->deepCopy();
