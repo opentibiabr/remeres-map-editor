@@ -220,19 +220,28 @@ wxImage SpriteAppearances::getWxImageBySpriteId(int id, bool toSavePng /* = fals
 	}
 
 	const int bgshade = g_settings.getInteger(Config::ICON_BACKGROUND);
-	const uint32_t magenta = 0xFF00FF;
-	const uint32_t lightMagenta = 0xD000CF;
+	constexpr uint32_t magenta = 0xFF00FF;
+	constexpr uint32_t lightMagenta = 0xD000CF;
 
-	const int width = sprite->size.width;
+	const int width = sprite->size.height <= rme::SpritePixels && sprite->size.width <= rme::SpritePixels ? sprite->size.width : rme::SpritePixels + 32;
 	const int height = sprite->size.height;
 	auto pixels = sprite->pixels.data();
 	wxImage image(width, height);
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
 			const int index = (y * width + x) * 4;
-			uint8_t r = pixels[index + 2];
-			uint8_t g = pixels[index + 1];
-			uint8_t b = pixels[index];
+
+			// Starts with magenta color
+			uint8_t r = 255;
+			uint8_t g = 0;
+			uint8_t b = 255;
+
+			// If index is inside pixels bounds applies the color of the sprite
+			if (sprite->pixels.size() > index) {
+				r = pixels[index + 2];
+				g = pixels[index + 1];
+				b = pixels[index];
+			}
 
 			// Combines the color channels into a single 32-bit value
 			uint32_t color = (r << 16) | (g << 8) | b;
@@ -241,8 +250,15 @@ wxImage SpriteAppearances::getWxImageBySpriteId(int id, bool toSavePng /* = fals
 			if (color == magenta || color == lightMagenta) {
 				r = g = b = bgshade; // Sets RGB to the background color
 			}
+
 			image.SetRGB(x, y, r, g, b);
 		}
+	}
+
+	// Cut duplicated image and sets to the selected bgshade the empty background
+	if (sprite->size.width > rme::SpritePixels && sprite->size.height <= rme::SpritePixels) {
+		const auto imageSize = image.GetSize();
+		image.Resize(wxSize(imageSize.x, imageSize.y), wxPoint(-imageSize.x + rme::SpritePixels, 0), bgshade, bgshade, bgshade);
 	}
 
 	return image;
