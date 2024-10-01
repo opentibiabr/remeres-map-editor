@@ -41,11 +41,11 @@ FindItemDialog::FindItemDialog(wxWindow* parent, const wxString &title, bool onl
 	wxBoxSizer* optionsBoxSizer = newd wxBoxSizer(wxVERTICAL);
 
 	wxString radioBoxChoices[] = { "Find by Server ID",
-									"Find by Client ID",
-									"Find by Name",
-									"Find by Types",
-									"Find by Tile Types",
-									"Find by Properties" };
+								   "Find by Client ID",
+								   "Find by Name",
+								   "Find by Types",
+								   "Find by Tile Types",
+								   "Find by Properties" };
 
 	int radioBoxChoicesSize = sizeof(radioBoxChoices) / sizeof(wxString);
 	optionsRadioBox = newd wxRadioBox(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, radioBoxChoicesSize, radioBoxChoices, 1, wxRA_SPECIFY_COLS);
@@ -87,14 +87,14 @@ FindItemDialog::FindItemDialog(wxWindow* parent, const wxString &title, bool onl
 	wxStaticBoxSizer* typeBoxSizer = newd wxStaticBoxSizer(newd wxStaticBox(this, wxID_ANY, "Types"), wxVERTICAL);
 
 	wxString typesChoices[] = { "Depot",
-								 "Mailbox",
-								 "Trash Holder",
-								 "Container",
-								 "Door",
-								 "Magic Field",
-								 "Teleport",
-								 "Bed",
-								 "Key" };
+								"Mailbox",
+								"Trash Holder",
+								"Container",
+								"Door",
+								"Magic Field",
+								"Teleport",
+								"Bed",
+								"Key" };
 
 	int typesChoicesCount = sizeof(typesChoices) / sizeof(wxString);
 	typesRadioBox = newd wxRadioBox(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, typesChoicesCount, typesChoices, 1, wxRA_SPECIFY_COLS);
