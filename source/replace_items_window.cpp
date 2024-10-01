@@ -258,7 +258,7 @@ void ReplaceItemsDialog::OnListSelected(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void ReplaceItemsDialog::OnReplaceItemClicked(wxMouseEvent &WXUNUSED(event)) {
-	FindItemDialog dialog(this, "Replace Item");
+	FindItemDialog dialog(this, "Replace Item", false, true);
 	if (dialog.ShowModal() == wxID_OK) {
 		uint16_t id = dialog.getResultID();
 		if (id != with_button->GetItemId()) {
@@ -274,7 +274,7 @@ void ReplaceItemsDialog::OnWithItemClicked(wxMouseEvent &WXUNUSED(event)) {
 		return;
 	}
 
-	FindItemDialog dialog(this, "With Item");
+	FindItemDialog dialog(this, "With Item", false, true);
 	if (dialog.ShowModal() == wxID_OK) {
 		uint16_t id = dialog.getResultID();
 		if (id != replace_button->GetItemId()) {

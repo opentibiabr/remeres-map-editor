@@ -1153,10 +1153,10 @@ void MainMenuBar::OnSearchForItemOnSelection(wxCommandEvent &WXUNUSED(event)) {
 		return;
 	}
 
-	FindItemDialog dialog(frame, "Search on Selection");
+	FindItemDialog dialog(frame, "Search on Selection", false, true);
 	dialog.setSearchMode((FindItemDialog::SearchMode)g_settings.getInteger(Config::FIND_ITEM_MODE));
 	if (dialog.ShowModal() == wxID_OK) {
-		OnSearchForItem::Finder finder(dialog.getResultID(), (uint32_t)g_settings.getInteger(Config::REPLACE_SIZE));
+		OnSearchForItem::Finder finder(dialog.getResultID(), (uint32_t)g_settings.getInteger(Config::REPLACE_SIZE), false);
 		g_gui.CreateLoadBar("Searching on selected area...");
 
 		foreach_ItemOnMap(g_gui.GetCurrentMap(), finder, true);
@@ -1200,7 +1200,7 @@ void MainMenuBar::OnRemoveItemOnSelection(wxCommandEvent &WXUNUSED(event)) {
 		return;
 	}
 
-	FindItemDialog dialog(frame, "Remove Item on Selection");
+	FindItemDialog dialog(frame, "Remove Item on Selection", false, true);
 	if (dialog.ShowModal() == wxID_OK) {
 		g_gui.GetCurrentEditor()->clearActions();
 		g_gui.CreateLoadBar("Searching item on selection to remove...");
