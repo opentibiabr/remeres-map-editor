@@ -1100,10 +1100,10 @@ void Editor::moveSelection(const Position &offset) {
 			new_tile->spawnMonster = nullptr;
 		}
 		// Move monster
-		if (new_tile->monster && new_tile->monster->isSelected()) {
-			storage_tile->monster = new_tile->monster;
-			new_tile->monster = nullptr;
-		}
+		const auto monstersSelection = new_tile->popSelectedMonsters();
+		std::ranges::for_each(monstersSelection, [&](const auto monster) {
+			storage_tile->addMonster(monster);
+		});
 		// Move npc
 		if (new_tile->npc && new_tile->npc->isSelected()) {
 			storage_tile->npc = new_tile->npc;
@@ -1325,6 +1325,7 @@ void Editor::destroySelection() {
 	} else {
 		int tile_count = 0;
 		int item_count = 0;
+		int monsterCount = 0;
 		PositionList tilestoborder;
 
 		BatchAction* batch = actionQueue->createBatch(ACTION_DELETE_TILES);
@@ -1342,11 +1343,22 @@ void Editor::destroySelection() {
 				// Delete the items from the tile
 				delete *iit;
 			}
-			// Monster
-			if (newtile->monster && newtile->monster->isSelected()) {
-				delete newtile->monster;
-				newtile->monster = nullptr;
+
+			auto monstersSelection = newtile->popSelectedMonsters();
+			std::ranges::for_each(monstersSelection, [&](auto monster) {
+				++monsterCount;
+				delete monster;
+			});
+			// Clear the vector to avoid being used anywhere else in this block with nullptrs
+			monstersSelection.clear();
+
+			/*
+			for (auto monsterIt = monstersSelection.begin(); monsterIt != monstersSelection.end(); ++monsterIt) {
+				++monsterCount;
+				// Delete the monsters from the tile
+				delete *monsterIt;
 			}
+			*/
 
 			if (newtile->spawnMonster && newtile->spawnMonster->isSelected()) {
 				delete newtile->spawnMonster;

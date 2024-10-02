@@ -23,8 +23,8 @@
 
 class Monster {
 public:
-	Monster(MonsterType* type);
-	Monster(const std::string &type_name);
+	Monster(MonsterType* type, uint8_t weight = 0);
+	Monster(const std::string &type_name, uint8_t weight = 0);
 
 	Monster* deepCopy() const;
 
@@ -50,8 +50,20 @@ public:
 		selected = true;
 	}
 
+	[[nodiscard]] const std::string &getTypeName() const noexcept {
+		return type_name;
+	}
+
 	std::string getName() const;
 	MonsterBrush* getBrush() const;
+
+	[[nodiscard]] int getWeight() const noexcept {
+		return weight;
+	}
+
+	void setWeight(int newWeight) noexcept {
+		weight = newWeight;
+	}
 
 	int getSpawnMonsterTime() const noexcept {
 		return spawntime;
@@ -74,6 +86,7 @@ public:
 protected:
 	std::string type_name;
 	Direction direction;
+	uint8_t weight;
 	int spawntime;
 	bool saved;
 	bool selected;

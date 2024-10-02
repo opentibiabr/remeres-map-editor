@@ -64,18 +64,22 @@ bool MonsterBrush::canDraw(BaseMap* map, const Position &position) const {
 }
 
 void MonsterBrush::undraw(BaseMap* map, Tile* tile) {
-	delete tile->monster;
-	tile->monster = nullptr;
+	// It does nothing
 }
 
 void MonsterBrush::drawMonster(BaseMap* map, Tile* tile, void* parameter) {
 	ASSERT(tile);
 	ASSERT(parameter);
-	if (canDraw(map, tile->getPosition())) {
-		undraw(map, tile);
+	if (tile && canDraw(map, tile->getPosition())) {
 		if (monster_type) {
-			tile->monster = newd Monster(monster_type);
-			tile->monster->setSpawnMonsterTime(*(int*)parameter);
+			const auto it = std::ranges::find_if(tile->monsters, [&](const auto monster) {
+				return strcmp(monster->getTypeName().c_str(), monster_type->name.c_str()) == 0;
+			});
+			if (it == tile->monsters.end()) {
+				const auto monster = newd Monster(monster_type);
+				monster->setSpawnMonsterTime(*(int*)parameter);
+				tile->monsters.emplace_back(monster);
+			}
 		}
 	}
 }
@@ -83,8 +87,7 @@ void MonsterBrush::drawMonster(BaseMap* map, Tile* tile, void* parameter) {
 void MonsterBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 	ASSERT(tile);
 	ASSERT(parameter);
-	if (canDraw(map, tile->getPosition())) {
-		undraw(map, tile);
+	if (tile && canDraw(map, tile->getPosition())) {
 		if (monster_type) {
 			if (tile->spawnMonster == nullptr && tile->getLocation()->getSpawnMonsterCount() == 0) {
 				// manually place spawnMonster on location

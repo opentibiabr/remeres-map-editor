@@ -38,12 +38,14 @@ public:
 	void add(const Tile* tile, Item* item);
 	void add(const Tile* tile, SpawnMonster* spawnMonster);
 	void add(const Tile* tile, SpawnNpc* spawnNpc);
+	void add(const Tile* tile, const std::vector<Monster*> &monsters);
 	void add(const Tile* tile, Monster* monster);
 	void add(const Tile* tile, Npc* npc);
 	void add(const Tile* tile);
 	void remove(Tile* tile, Item* item);
 	void remove(Tile* tile, SpawnMonster* spawnMonster);
 	void remove(Tile* tile, SpawnNpc* spawnNpc);
+	void remove(Tile* tile, const std::vector<Monster*> &monsters);
 	void remove(Tile* tile, Monster* monster);
 	void remove(Tile* tile, Npc* npc);
 	void remove(Tile* tile);

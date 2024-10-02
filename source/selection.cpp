@@ -137,6 +137,23 @@ void Selection::add(const Tile* tile, SpawnNpc* spawnNpc) {
 	subsession->addChange(newd Change(new_tile));
 }
 
+void Selection::add(const Tile* tile, const std::vector<Monster*> &monsters) {
+	ASSERT(subsession);
+	ASSERT(tile);
+	ASSERT(monster);
+
+	// Make a copy of the tile with the monsters selected
+	for (const auto monster : monsters) {
+		monster->select();
+	}
+	Tile* new_tile = tile->deepCopy(editor.getMap());
+	for (const auto monster : monsters) {
+		monster->deselect();
+	}
+
+	subsession->addChange(newd Change(new_tile));
+}
+
 void Selection::add(const Tile* tile, Monster* monster) {
 	ASSERT(subsession);
 	ASSERT(tile);
@@ -224,6 +241,26 @@ void Selection::remove(Tile* tile, SpawnNpc* spawnNpc) {
 	Tile* new_tile = tile->deepCopy(editor.getMap());
 	if (selected) {
 		spawnNpc->select();
+	}
+
+	subsession->addChange(newd Change(new_tile));
+}
+
+void Selection::remove(Tile* tile, const std::vector<Monster*> &monsters) {
+	ASSERT(subsession);
+	ASSERT(tile);
+	ASSERT(monster);
+
+	std::vector<Monster*> selectedMonsters;
+	for (const auto monster : monsters) {
+		if (monster->isSelected()) {
+			selectedMonsters.emplace_back(monster);
+		}
+		monster->deselect();
+	}
+	Tile* new_tile = tile->deepCopy(editor.getMap());
+	for (const auto monster : selectedMonsters) {
+		monster->select();
 	}
 
 	subsession->addChange(newd Change(new_tile));

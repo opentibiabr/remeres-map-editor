@@ -389,6 +389,10 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 	// count_field->SetSelection(-1, -1);
 	subsizer->Add(count_field, wxSizerFlags(1).Expand());
 
+	subsizer->Add(newd wxStaticText(this, wxID_ANY, "Weight"));
+	monsterWeightField = newd wxSpinCtrl(this, wxID_ANY, i2ws(edit_monster->getWeight()), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 100);
+	subsizer->Add(monsterWeightField, wxSizerFlags(1).Expand());
+
 	subsizer->Add(newd wxStaticText(this, wxID_ANY, "Direction"));
 	direction_field = newd wxChoice(this, wxID_ANY);
 
@@ -699,12 +703,17 @@ void OldPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 			edit_item->setActionID(new_aid);
 		}
 	} else if (edit_monster) {
-		int new_spawn_monster_time = count_field->GetValue();
+		const auto new_spawn_monster_time = count_field->GetValue();
+		const auto newWeight = static_cast<uint8_t>(monsterWeightField->GetValue());
 		edit_monster->setSpawnMonsterTime(new_spawn_monster_time);
 
 		int* new_dir = reinterpret_cast<int*>(direction_field->GetClientData(
 			direction_field->GetSelection()
 		));
+
+		if (newWeight) {
+			edit_monster->setWeight(newWeight);
+		}
 
 		if (new_dir) {
 			edit_monster->setDirection((Direction)*new_dir);

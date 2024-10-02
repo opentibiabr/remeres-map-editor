@@ -72,7 +72,7 @@ MonsterPalettePanel::MonsterPalettePanel(wxWindow* parent, wxWindowID id) :
 
 	// sidesizer->Add(180, 1, wxEXPAND);
 
-	wxFlexGridSizer* grid = newd wxFlexGridSizer(3, 10, 10);
+	wxFlexGridSizer* grid = newd wxFlexGridSizer(4, 3, 10, 10);
 	grid->AddGrowableCol(1);
 
 	grid->Add(newd wxStaticText(this, wxID_ANY, "Spawntime"));
@@ -86,9 +86,15 @@ MonsterPalettePanel::MonsterPalettePanel(wxWindow* parent, wxWindowID id) :
 	grid->Add(spawn_monster_size_spin, 0, wxEXPAND);
 	spawn_monster_brush_button = newd wxToggleButton(this, PALETTE_SPAWN_MONSTER_BRUSH_BUTTON, "Place Spawn");
 	grid->Add(spawn_monster_brush_button, 0, wxEXPAND);
+
 	grid->Add(newd wxStaticText(this, wxID_ANY, "Spawn density %"));
 	monster_spawndensity_spin = newd wxSpinCtrl(this, PALETTE_MONSTER_SPAWN_DENSITY, i2ws(g_settings.getInteger(Config::SPAWN_MONSTER_DENSITY)), wxDefaultPosition, wxSize(50, 20), wxSP_ARROW_KEYS, 0, 3600, g_settings.getInteger(Config::SPAWN_MONSTER_DENSITY));
-	grid->Add(monster_spawndensity_spin, 0, wxEXPAND);
+	grid->Add(monster_spawndensity_spin);
+
+	grid->AddSpacer(1);
+	grid->Add(newd wxStaticText(this, wxID_ANY, "Default weight %"));
+	monsterDefaultWeight = newd wxSpinCtrl(this, PALETTE_MONSTER_DEFAULT_WEIGHT, i2ws(g_settings.getInteger(Config::MONSTER_DEFAULT_WEIGHT)), wxDefaultPosition, wxSize(50, 20), wxSP_ARROW_KEYS, 0, 100, g_settings.getInteger(Config::MONSTER_DEFAULT_WEIGHT));
+	grid->Add(monsterDefaultWeight);
 
 	sidesizer->Add(grid, 0, wxEXPAND);
 	topsizer->Add(sidesizer, 0, wxEXPAND);
