@@ -142,6 +142,7 @@ private:
 
 	static bool processed[BLOCK_SIZE * BLOCK_SIZE];
 
+	Tile* lastTile;
 	Editor &editor;
 	MapDrawer* drawer;
 	int keyCode;

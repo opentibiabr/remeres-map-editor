@@ -62,6 +62,7 @@ void CopyBuffer::copy(Editor &editor, int floor) {
 
 	int tile_count = 0;
 	int item_count = 0;
+	int monsterCount = 0;
 	copyPos = Position(0xFFFF, 0xFFFF, floor);
 
 	for (Tile* tile : editor.getSelection()) {
@@ -83,9 +84,12 @@ void CopyBuffer::copy(Editor &editor, int floor) {
 		}
 
 		// Monster
-		if (tile->monster && tile->monster->isSelected()) {
-			copied_tile->monster = tile->monster->deepCopy();
-		}
+		const auto monstersSelection = tile->getSelectedMonsters();
+		std::ranges::for_each(monstersSelection, [&](const auto monster) {
+			++monsterCount;
+			copied_tile->addMonster(monster->deepCopy());
+		});
+
 		if (tile->spawnMonster && tile->spawnMonster->isSelected()) {
 			copied_tile->spawnMonster = tile->spawnMonster->deepCopy();
 		}
@@ -108,9 +112,16 @@ void CopyBuffer::copy(Editor &editor, int floor) {
 		}
 	}
 
-	std::ostringstream ss;
-	ss << "Copied " << tile_count << " tile" << (tile_count > 1 ? "s" : "") << " (" << item_count << " item" << (item_count > 1 ? "s" : "") << ")";
-	g_gui.SetStatusText(wxstr(ss.str()));
+	fmt::dynamic_format_arg_store<fmt::format_context> store;
+
+	store.push_back(tile_count);
+	tile_count > 1 ? store.push_back("s") : store.push_back("");
+	store.push_back(item_count);
+	item_count > 1 ? store.push_back("s") : store.push_back("");
+	store.push_back(monsterCount);
+	monsterCount > 1 ? store.push_back("s") : store.push_back("");
+
+	g_gui.SetStatusText(fmt::vformat("Copied {} tile{}, {} item{} and {} monster{}", store));
 }
 
 void CopyBuffer::cut(Editor &editor, int floor) {
@@ -125,6 +136,7 @@ void CopyBuffer::cut(Editor &editor, int floor) {
 	Map &map = editor.getMap();
 	int tile_count = 0;
 	int item_count = 0;
+	int monsterCount = 0;
 	copyPos = Position(0xFFFF, 0xFFFF, floor);
 
 	BatchAction* batch = editor.createBatch(ACTION_CUT_TILES);
@@ -153,9 +165,10 @@ void CopyBuffer::cut(Editor &editor, int floor) {
 		}
 
 		// Monster
-		if (newtile->monster && newtile->monster->isSelected()) {
-			copied_tile->monster = newtile->monster;
-			newtile->monster = nullptr;
+		const auto monsterSelection = newtile->popSelectedMonsters();
+		for (auto monsterIt = monsterSelection.begin(); monsterIt != monsterSelection.end(); ++monsterIt) {
+			++monsterCount;
+			copied_tile->monsters.emplace_back(*monsterIt);
 		}
 
 		if (newtile->spawnMonster && newtile->spawnMonster->isSelected()) {
@@ -226,9 +239,16 @@ void CopyBuffer::cut(Editor &editor, int floor) {
 	editor.addBatch(batch);
 	editor.updateActions();
 
-	std::stringstream ss;
-	ss << "Cut out " << tile_count << " tile" << (tile_count > 1 ? "s" : "") << " (" << item_count << " item" << (item_count > 1 ? "s" : "") << ")";
-	g_gui.SetStatusText(wxstr(ss.str()));
+	fmt::dynamic_format_arg_store<fmt::format_context> store;
+
+	store.push_back(tile_count);
+	tile_count > 1 ? store.push_back("s") : store.push_back("");
+	store.push_back(item_count);
+	item_count > 1 ? store.push_back("s") : store.push_back("");
+	store.push_back(monsterCount);
+	monsterCount > 1 ? store.push_back("s") : store.push_back("");
+
+	g_gui.SetStatusText(fmt::vformat("Cut out {} tile{}, {} item{} and {} monster{}", store));
 }
 
 void CopyBuffer::paste(Editor &editor, const Position &toPosition) {

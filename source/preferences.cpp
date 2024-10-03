@@ -265,6 +265,18 @@ wxNotebookPage* PreferencesWindow::CreateGraphicsPage() {
 	auto* subsizer = newd wxFlexGridSizer(2, 10, 10);
 	subsizer->AddGrowableCol(1);
 
+	palette_icons_col_size = newd wxTextCtrl(graphics_page, wxID_ANY, wxString::Format("%d", g_settings.getInteger(Config::PALETTE_COL_COUNT)), wxDefaultPosition, wxDefaultSize, 0, wxTextValidator(wxFILTER_DIGITS));
+	palette_icons_col_size->SetMaxLength(2);
+	subsizer->Add(tmp = newd wxStaticText(graphics_page, wxID_ANY, "Icons column size: "), 0);
+	subsizer->Add(palette_icons_col_size, 0);
+	SetWindowToolTip(palette_icons_col_size, tmp, "This will set the column size of the palette when using SMALL ICONS and LARGE ICONS will be the value divided by 2. The max columns are 99.");
+
+	palette_icons_row_size = newd wxTextCtrl(graphics_page, wxID_ANY, wxString::Format("%d", g_settings.getInteger(Config::PALETTE_ROW_COUNT)), wxDefaultPosition, wxDefaultSize, 0, wxTextValidator(wxFILTER_DIGITS));
+	palette_icons_row_size->SetMaxLength(2);
+	subsizer->Add(tmp = newd wxStaticText(graphics_page, wxID_ANY, "Icons row size: "), 0);
+	subsizer->Add(palette_icons_row_size, 0);
+	SetWindowToolTip(palette_icons_row_size, tmp, "This will set the row size of the palette when using SMALL ICONS and LARGE ICONS will be the value divided by 2. The max rows are 99.");
+
 	// Icon background color
 	icon_background_choice = newd wxChoice(graphics_page, wxID_ANY);
 	icon_background_choice->Append("Black background");

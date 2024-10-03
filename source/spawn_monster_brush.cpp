@@ -69,7 +69,7 @@ void SpawnMonsterBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 	auto side = size * 2 + 1;
 	int time = g_settings.getInteger(Config::DEFAULT_SPAWN_MONSTER_TIME);
 	int density = g_settings.getInteger(Config::SPAWN_MONSTER_DENSITY);
-	if (tile->spawnMonster == nullptr) {
+	if (tile && tile->spawnMonster == nullptr) {
 		tile->spawnMonster = newd SpawnMonster(size);
 		auto toSpawn = (int)std::ceil((side * side) * (density / 100.0));
 		std::set<Position> positions;

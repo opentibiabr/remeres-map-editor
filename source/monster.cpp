@@ -19,28 +19,31 @@
 
 #include "monster.h"
 
-Monster::Monster(MonsterType* type) :
+Monster::Monster(MonsterType* type, uint8_t weight) :
 	direction(NORTH),
 	spawntime(0),
 	saved(false),
-	selected(false) {
+	selected(false),
+	weight(weight) {
 	if (type) {
 		type_name = type->name;
 	}
 }
 
-Monster::Monster(const std::string &type_name) :
+Monster::Monster(const std::string &type_name, uint8_t weight) :
 	type_name(type_name),
 	direction(NORTH),
 	spawntime(0),
 	saved(false),
-	selected(false) {
+	selected(false),
+	weight(weight) {
 	////
 }
 
 Monster* Monster::deepCopy() const {
 	Monster* copy = newd Monster(type_name);
 	copy->spawntime = spawntime;
+	copy->weight = weight;
 	copy->direction = direction;
 	copy->selected = selected;
 	copy->saved = saved;

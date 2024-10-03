@@ -1040,6 +1040,11 @@ bool IOMapOTBM::loadSpawnsMonster(Map &map, pugi::xml_document &doc) {
 				spawntime = g_settings.getInteger(Config::DEFAULT_SPAWN_MONSTER_TIME);
 			}
 
+			auto weight = static_cast<uint8_t>(monsterNode.attribute("weight").as_uint());
+			if (weight == 0) {
+				weight = static_cast<uint8_t>(g_settings.getInteger(Config::MONSTER_DEFAULT_WEIGHT));
+			}
+
 			Direction direction = NORTH;
 			int dir = monsterNode.attribute("direction").as_int(-1);
 			if (dir >= DIRECTION_FIRST && dir <= DIRECTION_LAST) {
@@ -1072,16 +1077,14 @@ bool IOMapOTBM::loadSpawnsMonster(Map &map, pugi::xml_document &doc) {
 			}
 
 			if (!monsterTile) {
-				wxString err;
-				err << "Discarding monster \"" << name << "\" at " << monsterPosition.x << ":" << monsterPosition.y << ":" << monsterPosition.z << " due to invalid position.";
-				warnings.Add(err);
+				const auto error = fmt::format("Discarding monster \"{}\" at {}:{}:{} due to invalid position", name, monsterPosition.x, monsterPosition.y, monsterPosition.z);
+				warnings.Add(error);
 				break;
 			}
 
-			if (monsterTile->monster) {
-				wxString err;
-				err << "Duplicate monster \"" << name << "\" at " << monsterPosition.x << ":" << monsterPosition.y << ":" << monsterPosition.z << " was discarded.";
-				warnings.Add(err);
+			if (monsterTile->isMonsterRepeated(name)) {
+				const auto error = fmt::format("Duplicate monster \"{}\" at {}:{}:{} was discarded.", name, monsterPosition.x, monsterPosition.y, monsterPosition.z);
+				warnings.Add(error);
 				break;
 			}
 
@@ -1093,7 +1096,8 @@ bool IOMapOTBM::loadSpawnsMonster(Map &map, pugi::xml_document &doc) {
 			Monster* monster = newd Monster(type);
 			monster->setDirection(direction);
 			monster->setSpawnMonsterTime(spawntime);
-			monsterTile->monster = monster;
+			monster->setWeight(weight);
+			monsterTile->monsters.emplace_back(monster);
 
 			if (monsterTile->getLocation()->getSpawnMonsterCount() == 0) {
 				// No monster spawn, create a newd one
@@ -1758,31 +1762,38 @@ bool IOMapOTBM::saveSpawns(Map &map, pugi::xml_document &doc) {
 		int32_t radius = spawnMonster->getSize();
 		spawnNode.append_attribute("radius") = radius;
 
-		for (int32_t y = -radius; y <= radius; ++y) {
-			for (int32_t x = -radius; x <= radius; ++x) {
-				Tile* monster_tile = map.getTile(spawnPosition + Position(x, y, 0));
-				if (monster_tile) {
-					Monster* monster = monster_tile->monster;
-					if (monster && !monster->isSaved()) {
-						pugi::xml_node monsterNode = spawnNode.append_child("monster");
-						monsterNode.append_attribute("name") = monster->getName().c_str();
-						monsterNode.append_attribute("x") = x;
-						monsterNode.append_attribute("y") = y;
-						monsterNode.append_attribute("z") = spawnPosition.z;
-						int monsterSpawnTime = monster->getSpawnMonsterTime();
-						uint16_t maxUint16 = std::numeric_limits<uint16_t>::max();
-						if (std::cmp_greater(monsterSpawnTime, maxUint16)) {
-							monsterSpawnTime = 60;
-						}
+		for (auto y = -radius; y <= radius; ++y) {
+			for (auto x = -radius; x <= radius; ++x) {
+				const auto monsterTile = map.getTile(spawnPosition + Position(x, y, 0));
+				if (monsterTile) {
+					for (const auto monster : monsterTile->monsters) {
+						if (monster && !monster->isSaved()) {
+							pugi::xml_node monsterNode = spawnNode.append_child("monster");
+							monsterNode.append_attribute("name") = monster->getName().c_str();
+							monsterNode.append_attribute("x") = x;
+							monsterNode.append_attribute("y") = y;
+							monsterNode.append_attribute("z") = spawnPosition.z;
+							auto monsterSpawnTime = monster->getSpawnMonsterTime();
+							uint16_t maxUint16 = std::numeric_limits<uint16_t>::max();
+							uint16_t minUint16 = std::numeric_limits<uint16_t>::min();
+							if (std::cmp_greater(monsterSpawnTime, maxUint16) || std::cmp_greater(monsterSpawnTime, minUint16)) {
+								monsterSpawnTime = 60;
+							}
 
-						monsterNode.append_attribute("spawntime") = monsterSpawnTime;
-						if (monster->getDirection() != NORTH) {
-							monsterNode.append_attribute("direction") = monster->getDirection();
-						}
+							monsterNode.append_attribute("spawntime") = monsterSpawnTime;
+							if (monster->getDirection() != NORTH) {
+								monsterNode.append_attribute("direction") = monster->getDirection();
+							}
 
-						// Mark as saved
-						monster->save();
-						monsterList.push_back(monster);
+							if (monsterTile->monsters.size() > 1) {
+								const auto weight = monster->getWeight();
+								monsterNode.append_attribute("weight") = weight > 0 ? weight : g_settings.getInteger(Config::MONSTER_DEFAULT_WEIGHT);
+							}
+
+							// Mark as saved
+							monster->save();
+							monsterList.push_back(monster);
+						}
 					}
 				}
 			}

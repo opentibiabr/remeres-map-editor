@@ -80,6 +80,8 @@ protected:
 	wxCheckBox* hide_items_when_zoomed_chkbox;
 	wxColourPickerCtrl* cursor_color_pick;
 	wxColourPickerCtrl* cursor_alt_color_pick;
+	wxTextCtrl* palette_icons_col_size;
+	wxTextCtrl* palette_icons_row_size;
 	/*
 	wxCheckBox* texture_managment_chkbox;
 	wxSpinCtrl* clean_interval_spin;

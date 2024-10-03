@@ -178,14 +178,14 @@ struct MapConversionContext {
 	NpcMap npcType;
 
 	void operator()(Map &map, Tile* tile, long long done) {
-		if (tile->monster) {
-			MonsterMap::iterator f = monsterType.find(tile->monster->getName());
-			if (f == monsterType.end()) {
-				MonsterInfo info = {
-					tile->monster->getName(),
-					tile->monster->getLookType()
+		for (const auto monster : tile->monsters) {
+			const auto it = monsterType.find(monster->getName());
+			if (it == monsterType.end()) {
+				MonsterInfo monsterInfo = {
+					monster->getName(),
+					monster->getLookType()
 				};
-				monsterType[tile->monster->getName()] = info;
+				monsterType[monster->getName()] = monsterInfo;
 			}
 		}
 		if (tile->npc) {

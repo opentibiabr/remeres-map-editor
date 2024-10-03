@@ -475,9 +475,12 @@ void MapDrawer::DrawSecondaryMap(int map_z) {
 			}
 
 			// Monsters
-			if (!hidden && options.show_monsters && tile->monster) {
-				BlitCreature(draw_x, draw_y, tile->monster);
+			if (!hidden && options.show_monsters && !tile->monsters.empty()) {
+				for (auto monster : tile->monsters) {
+					BlitCreature(draw_x, draw_y, monster);
+				}
 			}
+
 			// NPCS
 			if (!hidden && options.show_npcs && tile->npc) {
 				BlitCreature(draw_x, draw_y, tile->npc);
@@ -610,9 +613,16 @@ void MapDrawer::DrawDraggingShadow() {
 				}
 			}
 
-			if (options.show_monsters && tile->monster && tile->monster->isSelected()) {
-				BlitCreature(draw_x, draw_y, tile->monster);
+			if (options.show_monsters && !tile->monsters.empty()) {
+				for (auto monster : tile->monsters) {
+					if (!monster->isSelected()) {
+						continue;
+					}
+
+					BlitCreature(draw_x, draw_y, monster);
+				}
 			}
+
 			if (tile->spawnMonster && tile->spawnMonster->isSelected()) {
 				DrawIndicator(draw_x, draw_y, EDITOR_SPRITE_MONSTERS, 160, 160, 160, 160);
 			}
@@ -1572,8 +1582,10 @@ void MapDrawer::DrawTile(TileLocation* location) {
 		}
 	}
 
-	if (!hidden && options.show_monsters && tile->monster) {
-		BlitCreature(draw_x, draw_y, tile->monster);
+	if (!hidden && options.show_monsters && !tile->monsters.empty()) {
+		for (auto monster : tile->monsters) {
+			BlitCreature(draw_x, draw_y, monster);
+		}
 	}
 
 	if (!hidden && options.show_npcs && tile->npc) {

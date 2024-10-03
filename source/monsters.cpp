@@ -180,6 +180,10 @@ void MonsterDatabase::clear() {
 }
 
 MonsterType* MonsterDatabase::operator[](const std::string &name) {
+	if (name.empty()) {
+		return nullptr;
+	}
+
 	MonsterMap::iterator iter = monster_map.find(as_lower_str(name));
 	if (iter != monster_map.end()) {
 		return iter->second;
