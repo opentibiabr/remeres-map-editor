@@ -110,6 +110,7 @@ def process_lua_files(root_folder, output_xml):
 # Chamada da função principal com o diretório de entrada e arquivo XML de saída
 root_folder = 'C:/Users/Usuario/Documents/GitHub/fork-canary/data-otservbr-global/monster'
 output_xml = 'monstros.xml'
-process_lua_files(root_folder, output_xml)
+if __name__ == '__main__':
+    process_lua_files(root_folder, output_xml)
 
-print(f"Arquivo XML gerado com sucesso: {output_xml}")
+    print(f"Arquivo XML gerado com sucesso: {output_xml}")
