@@ -97,9 +97,12 @@ bool Application::OnInit() {
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
 
-	std::cout << "This is free software: you are free to change and redistribute it." << std::endl;
-	std::cout << "There is NO WARRANTY, to the extent permitted by law." << std::endl;
-	std::cout << "Review COPYING in RME distribution for details." << std::endl;
+	spdlog::info("This is free software: you are free to change and redistribute it");
+	spdlog::info("There is NO WARRANTY, to the extent permitted by law");
+	spdlog::info("Review COPYING in RME distribution for details");
+	spdlog::info("Visit our website for updates, support, and resources: https://docs.opentibiabr.com/");
+	spdlog::info("Application started sucessfull!\n");
+
 	mt_seed(time(nullptr));
 	srand(time(nullptr));
 
@@ -112,17 +115,15 @@ bool Application::OnInit() {
 
 #if defined(__LINUX__) || defined(__WINDOWS__)
 	int argc = 1;
-	char* arg = strdup(wxString(this->argv[0]).char_str());
-	char* argv[] = { arg };
+	auto arg = wxString(this->argv[0]).ToStdString();
+	char* argv[] = { &arg[0] };
 	glutInit(&argc, argv);
-	free(arg);
 #endif
 
 	// Load some internal stuff
 	g_settings.load();
-	FixVersionDiscrapencies();
 	g_gui.LoadHotkeys();
-	ClientVersion::loadVersions();
+	ClientAssets::load();
 
 #ifdef _USE_PROCESS_COM
 	m_single_instance_checker = newd wxSingleInstanceChecker; // Instance checker has to stay alive throughout the applications lifetime
@@ -159,9 +160,6 @@ bool Application::OnInit() {
 #ifndef __DEBUG_MODE__
 	// wxHandleFatalExceptions(true);
 #endif
-	// Load all the dependency files
-	std::string error;
-	StringVector warnings;
 
 	m_file_to_open = wxEmptyString;
 	ParseCommandLineMap(m_file_to_open);
@@ -283,11 +281,6 @@ void Application::OnEventLoopEnter(wxEventLoopBase* loop) {
 	}
 	m_startup = false;
 
-	// Don't try to create a map if we didn't load the client map.
-	if (ClientVersion::getLatestVersion() == nullptr) {
-		return;
-	}
-
 	// Open a map.
 	if (m_file_to_open != wxEmptyString) {
 		g_gui.LoadMap(FileName(m_file_to_open));
@@ -303,37 +296,12 @@ void Application::MacOpenFiles(const wxArrayString &fileNames) {
 	}
 }
 
-void Application::FixVersionDiscrapencies() {
-	// Here the registry should be fixed, if the version has been changed
-	if (g_settings.getInteger(Config::VERSION_ID) < MAKE_VERSION_ID(1, 0, 5)) {
-		g_settings.setInteger(Config::USE_MEMCACHED_SPRITES_TO_SAVE, 0);
-	}
-
-	if (g_settings.getInteger(Config::VERSION_ID) < __RME_VERSION_ID__ && ClientVersion::getLatestVersion() != nullptr) {
-		g_settings.setInteger(Config::DEFAULT_CLIENT_VERSION, ClientVersion::getLatestVersion()->getID());
-	}
-
-	wxString ss = wxstr(g_settings.getString(Config::SCREENSHOT_DIRECTORY));
-	if (ss.empty()) {
-		ss = wxStandardPaths::Get().GetDocumentsDir();
-#ifdef __WINDOWS__
-		ss += "/My Pictures/RME/";
-#endif
-	}
-	g_settings.setString(Config::SCREENSHOT_DIRECTORY, nstr(ss));
-
-	// Set registry to newest version
-	g_settings.setInteger(Config::VERSION_ID, __RME_VERSION_ID__);
-}
-
 void Application::Unload() {
 	g_gui.CloseAllEditors();
-	g_gui.UnloadVersion();
 	g_gui.SaveHotkeys();
 	g_gui.SavePerspective();
 	g_gui.root->SaveRecentFiles();
-	ClientVersion::saveVersions();
-	ClientVersion::unloadVersions();
+	ClientAssets::save();
 	g_settings.save(true);
 	g_gui.root = nullptr;
 }
@@ -583,6 +551,26 @@ bool MainFrame::DoQuerySave(bool doclose) {
 	return true;
 }
 
+void MainFrame::ShowMissingMonsters() {
+	wxArrayString missingMonsters = g_monsters.getMissingMonsterNames();
+
+	if (!missingMonsters.IsEmpty()) {
+		wxString missingMonstersStr = "Missing Monsters:\n" + wxJoin(missingMonsters, '\n');
+		wxMessageDialog dialog(this, missingMonstersStr, "Missing Monsters Outfit (data/monsters.xml)", wxOK | wxICON_INFORMATION);
+		dialog.ShowModal();
+	}
+}
+
+void MainFrame::ShowMissingNpcs() {
+	wxArrayString missingMonsters = g_npcs.getMissingNpcNames();
+
+	if (!missingMonsters.IsEmpty()) {
+		wxString missingMonstersStr = "Missing Npcs:\n" + wxJoin(missingMonsters, '\n');
+		wxMessageDialog dialog(this, missingMonstersStr, "Missing Npcs Outfit (data/npcs.xml)", wxOK | wxICON_INFORMATION);
+		dialog.ShowModal();
+	}
+}
+
 bool MainFrame::DoQueryImportCreatures() {
 	// Monsters
 	if (g_monsters.hasMissing()) {
@@ -608,6 +596,8 @@ bool MainFrame::DoQueryImportCreatures() {
 				}
 			} while (g_monsters.hasMissing());
 		}
+
+		ShowMissingMonsters();
 	}
 	// Npcs
 	if (g_npcs.hasMissing()) {
@@ -633,6 +623,8 @@ bool MainFrame::DoQueryImportCreatures() {
 				}
 			} while (g_npcs.hasMissing());
 		}
+
+		ShowMissingNpcs();
 	}
 	g_gui.RefreshPalettes();
 	return true;

@@ -23,7 +23,7 @@
 class PositionCtrl : public wxStaticBoxSizer {
 public:
 	PositionCtrl(wxWindow* parent, const wxString &label, int x, int y, int z, int maxx = rme::MapMaxWidth, int maxy = rme::MapMaxHeight, int maxz = rme::MapMaxLayer);
-	~PositionCtrl();
+	~PositionCtrl() = default;
 
 	long GetX() const {
 		return x_field->GetIntValue();
@@ -52,9 +52,9 @@ public:
 	void OnClipboardText(wxClipboardTextEvent &);
 
 protected:
-	NumberTextCtrl* x_field;
-	NumberTextCtrl* y_field;
-	NumberTextCtrl* z_field;
+	NumberTextCtrl* x_field = nullptr;
+	NumberTextCtrl* y_field = nullptr;
+	NumberTextCtrl* z_field = nullptr;
 };
 
 #endif

@@ -17,6 +17,8 @@
 
 #include "main.h"
 #include "live_socket.h"
+
+#include "client_assets.h"
 #include "map_region.h"
 #include "iomap_otbm.h"
 #include "live_tab.h"
@@ -24,7 +26,7 @@
 
 LiveSocket::LiveSocket() :
 	cursors(), mapReader(nullptr, 0), mapWriter(),
-	mapVersion(MapVersion(MAP_OTBM_4, CLIENT_VERSION_NONE)), log(nullptr),
+	mapVersion(MapVersion()), log(nullptr),
 	name("User"), password("") {
 	//
 }

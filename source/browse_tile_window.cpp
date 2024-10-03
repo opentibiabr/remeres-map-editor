@@ -47,7 +47,7 @@ void BrowseTileListBox::OnDrawItem(wxDC &dc, const wxRect &rect, size_t index) c
 		return;
 	}
 
-	const auto sprite = g_gui.gfx.getSprite(item->getClientID());
+	const auto sprite = g_gui.gfx.getSprite(item->getID());
 	if (sprite) {
 		sprite->DrawTo(&dc, SPRITE_SIZE_32x32, rect.GetX(), rect.GetY(), rect.GetWidth(), rect.GetHeight());
 	}
@@ -114,7 +114,7 @@ void BrowseTileListBox::OpenPropertiesWindow(int index) {
 	const auto* currentMap = &g_gui.GetCurrentEditor()->getMap();
 
 	wxDialog* dialog;
-	if (currentMap->getVersion().otbm >= MAP_OTBM_4) {
+	if (!g_settings.getInteger(Config::USE_OLD_ITEM_PROPERTIES_WINDOW)) {
 		dialog = newd PropertiesWindow(g_gui.root, currentMap, editTile, items[index]);
 	} else {
 		dialog = newd OldPropertiesWindow(g_gui.root, currentMap, editTile, items[index]);
