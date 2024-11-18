@@ -89,8 +89,8 @@ FindItemDialog::FindItemDialog(wxWindow* parent, const wxString &title, bool onl
 								"Bed",
 								"Key" };
 
-	int types_choices_count = sizeof(typesChoices) / sizeof(wxString);
-	typesRadioBox = newd wxRadioBox(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, types_choices_count, typesChoices, 1, wxRA_SPECIFY_COLS);
+	int typesChoicesCount = sizeof(typesChoices) / sizeof(wxString);
+	typesRadioBox = newd wxRadioBox(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, typesChoicesCount, typesChoices, 1, wxRA_SPECIFY_COLS);
 	typesRadioBox->SetSelection(0);
 	typesRadioBox->Enable(false);
 	typeBoxSizer->Add(typesRadioBox, 0, wxALL | wxEXPAND, 5);
@@ -178,10 +178,10 @@ FindItemDialog::FindItemDialog(wxWindow* parent, const wxString &title, bool onl
 	this->RefreshContentsInternal();
 
 	// Connect Events
-	optionsRadioBox->Connect(wxEVT_COMMAND_RADIOBOX_SELECTED, wxCommandEventHandler(FindItemDialog::OnOptionChange), NULL, this);
-	itemIdSpin->Connect(wxEVT_COMMAND_SPINCTRL_UPDATED, wxCommandEventHandler(FindItemDialog::OnItemIdChange), NULL, this);
-	itemIdSpin->Connect(wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler(FindItemDialog::OnItemIdChange), NULL, this);
-	nameTextInput->Connect(wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler(FindItemDialog::OnText), NULL, this);
+	optionsRadioBox->Connect(wxEVT_COMMAND_RADIOBOX_SELECTED, wxCommandEventHandler(FindItemDialog::OnOptionChange), nullptr, this);
+	itemIdSpin->Connect(wxEVT_COMMAND_SPINCTRL_UPDATED, wxCommandEventHandler(FindItemDialog::OnItemIdChange), nullptr, this);
+	itemIdSpin->Connect(wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler(FindItemDialog::OnItemIdChange), nullptr, this);
+	nameTextInput->Connect(wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler(FindItemDialog::OnText), nullptr, this);
 
 	typesRadioBox->Connect(wxEVT_COMMAND_RADIOBOX_SELECTED, wxCommandEventHandler(FindItemDialog::OnTypeChange), nullptr, this);
 	tileTypesRadioBox->Connect(wxEVT_COMMAND_RADIOBOX_SELECTED, wxCommandEventHandler(FindItemDialog::OnTypeChange), nullptr, this);
@@ -291,8 +291,8 @@ void FindItemDialog::RefreshContentsInternal() {
 				continue;
 			}
 
-			RAWBrush* raw_brush = item.raw_brush;
-			if (!raw_brush) {
+			RAWBrush* rawBrush = item.raw_brush;
+			if (!rawBrush) {
 				continue;
 			}
 
@@ -301,7 +301,7 @@ void FindItemDialog::RefreshContentsInternal() {
 			}
 
 			foundSearchResults = true;
-			itemsList->AddBrush(raw_brush);
+			itemsList->AddBrush(rawBrush);
 		}
 	} else if (selection == SearchMode::Names) {
 		std::string searchString = as_lower_str(nstr(nameTextInput->GetValue()));
@@ -312,8 +312,8 @@ void FindItemDialog::RefreshContentsInternal() {
 					continue;
 				}
 
-				RAWBrush* raw_brush = item.raw_brush;
-				if (!raw_brush) {
+				RAWBrush* rawBrush = item.raw_brush;
+				if (!rawBrush) {
 					continue;
 				}
 
@@ -321,12 +321,12 @@ void FindItemDialog::RefreshContentsInternal() {
 					continue;
 				}
 
-				if (as_lower_str(raw_brush->getName()).find(searchString) == std::string::npos) {
+				if (as_lower_str(rawBrush->getName()).find(searchString) == std::string::npos) {
 					continue;
 				}
 
 				foundSearchResults = true;
-				itemsList->AddBrush(raw_brush);
+				itemsList->AddBrush(rawBrush);
 			}
 		}
 	} else if (selection == SearchMode::Types) {
@@ -336,8 +336,8 @@ void FindItemDialog::RefreshContentsInternal() {
 				continue;
 			}
 
-			RAWBrush* raw_brush = item.raw_brush;
-			if (!raw_brush) {
+			RAWBrush* rawBrush = item.raw_brush;
+			if (!rawBrush) {
 				continue;
 			}
 
@@ -351,7 +351,7 @@ void FindItemDialog::RefreshContentsInternal() {
 			}
 
 			foundSearchResults = true;
-			itemsList->AddBrush(raw_brush);
+			itemsList->AddBrush(rawBrush);
 		}
 	} else if (selection == SearchMode::Properties) {
 		bool hasSelected = (unpassable->GetValue() || unmovable->GetValue() || blockMissiles->GetValue() || blockPathfinder->GetValue() || readable->GetValue() || writeable->GetValue() || pickupable->GetValue() || stackable->GetValue() || rotatable->GetValue() || hangable->GetValue() || hookEast->GetValue() || hookSouth->GetValue() || hasElevation->GetValue() || ignoreLook->GetValue() || floorChange->GetValue());
