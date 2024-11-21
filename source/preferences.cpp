@@ -18,9 +18,8 @@
 #include "main.h"
 
 #include "settings.h"
-#include "client_version.h"
 #include "editor.h"
-
+#include "client_assets.h"
 #include "gui.h"
 
 #include "preferences.h"
@@ -32,7 +31,7 @@ EVT_BUTTON(wxID_APPLY, PreferencesWindow::OnClickApply)
 EVT_COLLAPSIBLEPANE_CHANGED(wxID_ANY, PreferencesWindow::OnCollapsiblePane)
 END_EVENT_TABLE()
 
-PreferencesWindow::PreferencesWindow(wxWindow* parent, bool clientVersionSelected = false) :
+PreferencesWindow::PreferencesWindow(wxWindow* parent) :
 	wxDialog(parent, wxID_ANY, "Preferences", wxDefaultPosition, wxSize(400, 400), wxCAPTION | wxCLOSE_BOX) {
 	wxSizer* sizer = newd wxBoxSizer(wxVERTICAL);
 
@@ -43,7 +42,8 @@ PreferencesWindow::PreferencesWindow(wxWindow* parent, bool clientVersionSelecte
 	book->AddPage(CreateEditorPage(), "Editor");
 	book->AddPage(CreateGraphicsPage(), "Graphics");
 	book->AddPage(CreateUIPage(), "Interface");
-	book->AddPage(CreateClientPage(), "Client Version", clientVersionSelected);
+	book->AddPage(CreateClientPage(), "Client Folder");
+	version_dir_picker->Bind(wxEVT_DIRPICKER_CHANGED, &PreferencesWindow::SelectNewAssetsFolder, this);
 
 	sizer->Add(book, 1, wxEXPAND | wxALL, 10);
 
@@ -90,6 +90,11 @@ wxNotebookPage* PreferencesWindow::CreateGeneralPage() {
 	enable_tileset_editing_chkbox->SetValue(g_settings.getInteger(Config::SHOW_TILESET_EDITOR) == 1);
 	enable_tileset_editing_chkbox->SetToolTip("Show tileset editing options.");
 	sizer->Add(enable_tileset_editing_chkbox, 0, wxLEFT | wxTOP, 5);
+
+	use_old_item_properties_window = newd wxCheckBox(general_page, wxID_ANY, "Use old item properties window");
+	use_old_item_properties_window->SetValue(g_settings.getInteger(Config::USE_OLD_ITEM_PROPERTIES_WINDOW) == 1);
+	use_old_item_properties_window->SetToolTip("Enables the use of the old item properties window");
+	sizer->Add(use_old_item_properties_window, 0, wxLEFT | wxTOP, 5);
 
 	sizer->AddSpacer(10);
 
@@ -153,7 +158,7 @@ wxNotebookPage* PreferencesWindow::CreateGeneralPage() {
 								"  Position(x, y, z), Position(x, y, z)" };
 	int area_radio_choices = sizeof(area_choices) / sizeof(wxString);
 	area_format = newd wxRadioBox(general_page, wxID_ANY, "Copy Area Format", wxDefaultPosition, wxDefaultSize, area_radio_choices, area_choices, 1, wxRA_SPECIFY_COLS);
-	area_format->SetSelection(g_settings.getInteger(Config::COPY_POSITION_FORMAT));
+	area_format->SetSelection(g_settings.getInteger(Config::COPY_AREA_FORMAT));
 	sizer->Add(area_format, 0, wxALL | wxEXPAND, 5);
 	SetWindowToolTip(tmptext, area_format, "The area format when copying from the map.");
 
@@ -255,12 +260,7 @@ wxNotebookPage* PreferencesWindow::CreateGraphicsPage() {
 	sizer->Add(icon_selection_shadow_chkbox, 0, wxLEFT | wxTOP, 5);
 	SetWindowToolTip(icon_selection_shadow_chkbox, "When this option is checked, selected items in the palette menu will be shaded.");
 
-	use_memcached_chkbox = newd wxCheckBox(graphics_page, wxID_ANY, "Use memcached sprites");
-	use_memcached_chkbox->SetValue(g_settings.getBoolean(Config::USE_MEMCACHED_SPRITES));
-	sizer->Add(use_memcached_chkbox, 0, wxLEFT | wxTOP, 5);
-	SetWindowToolTip(use_memcached_chkbox, "When this is checked, sprites will be loaded into memory at startup and unpacked at runtime. This is faster but consumes more memory.\nIf it is not checked, the editor will use less memory but there will be a performance decrease due to reading sprites from the disk.");
-
-	sizer->AddSpacer(10);
+	sizer->AddSpacer(5);
 
 	auto* subsizer = newd wxFlexGridSizer(2, 10, 10);
 	subsizer->AddGrowableCol(1);
@@ -531,62 +531,26 @@ wxNotebookPage* PreferencesWindow::CreateClientPage() {
 	wxNotebookPage* client_page = newd wxPanel(book, wxID_ANY);
 
 	// Refresh g_settings
-	ClientVersion::saveVersions();
-	ClientVersionList versions = ClientVersion::getAllVisible();
+	ClientAssets::save();
 
 	wxSizer* topsizer = newd wxBoxSizer(wxVERTICAL);
-
-	auto* options_sizer = newd wxFlexGridSizer(2, 10, 10);
-	options_sizer->AddGrowableCol(1);
-
-	// Default client version choice control
-	default_version_choice = newd wxChoice(client_page, wxID_ANY);
-	wxStaticText* default_client_tooltip = newd wxStaticText(client_page, wxID_ANY, "Default client version:");
-	options_sizer->Add(default_client_tooltip, 0, wxLEFT | wxTOP, 5);
-	options_sizer->Add(default_version_choice, 0, wxTOP, 5);
-	SetWindowToolTip(default_client_tooltip, default_version_choice, "This will decide what client version will be used when new maps are created.");
-
-	// Check file sigs checkbox
-	check_sigs_chkbox = newd wxCheckBox(client_page, wxID_ANY, "Check file signatures");
-	check_sigs_chkbox->SetValue(g_settings.getBoolean(Config::CHECK_SIGNATURES));
-	check_sigs_chkbox->SetToolTip("When this option is not checked, the editor will load any OTB/DAT/SPR combination without complaints. This may cause graphics bugs.");
-	options_sizer->Add(check_sigs_chkbox, 0, wxLEFT | wxRIGHT | wxTOP, 5);
-
-	// Add the grid sizer
-	topsizer->Add(options_sizer, wxSizerFlags(0).Expand());
-	topsizer->AddSpacer(10);
 
 	wxScrolledWindow* client_list_window = newd wxScrolledWindow(client_page, wxID_ANY, wxDefaultPosition, wxDefaultSize);
 	client_list_window->SetMinSize(FROM_DIP(this, wxSize(450, 450)));
 	auto* client_list_sizer = newd wxFlexGridSizer(2, 10, 10);
 	client_list_sizer->AddGrowableCol(1);
 
-	int version_counter = 0;
-	for (auto version : versions) {
-		if (!version->isVisible()) {
-			continue;
-		}
+	wxStaticText* tmp_text = newd wxStaticText(client_list_window, wxID_ANY, wxString("Select path:"));
+	client_list_sizer->Add(tmp_text, wxSizerFlags(0).Expand());
 
-		default_version_choice->Append(wxstr(version->getName()));
+	wxDirPickerCtrl* dir_picker = newd wxDirPickerCtrl(client_list_window, wxID_ANY, ClientAssets::getPath());
+	version_dir_picker = dir_picker;
+	client_list_sizer->Add(dir_picker, wxSizerFlags(0).Border(wxRIGHT, 10).Expand());
 
-		wxStaticText* tmp_text = newd wxStaticText(client_list_window, wxID_ANY, wxString(version->getName()));
-		client_list_sizer->Add(tmp_text, wxSizerFlags(0).Expand());
-
-		wxDirPickerCtrl* dir_picker = newd wxDirPickerCtrl(client_list_window, wxID_ANY, version->getClientPath().GetFullPath());
-		version_dir_pickers.push_back(dir_picker);
-		client_list_sizer->Add(dir_picker, wxSizerFlags(0).Border(wxRIGHT, 10).Expand());
-
-		wxString tooltip;
-		tooltip << "The editor will look for " << wxstr(version->getName()) << " DAT & SPR here.";
-		tmp_text->SetToolTip(tooltip);
-		dir_picker->SetToolTip(tooltip);
-
-		if (version->getID() == g_settings.getInteger(Config::DEFAULT_CLIENT_VERSION)) {
-			default_version_choice->SetSelection(version_counter);
-		}
-
-		version_counter++;
-	}
+	wxString tooltip;
+	tooltip << "The editor will look for client directory here.";
+	tmp_text->SetToolTip(tooltip);
+	dir_picker->SetToolTip(tooltip);
 
 	// Set the sizers
 	client_list_window->SetSizer(client_list_sizer);
@@ -611,6 +575,18 @@ void PreferencesWindow::OnClickCancel(wxCommandEvent &WXUNUSED(event)) {
 
 void PreferencesWindow::OnClickApply(wxCommandEvent &WXUNUSED(event)) {
 	Apply();
+}
+
+void PreferencesWindow::SelectNewAssetsFolder(wxCommandEvent &event) {
+	wxDirPickerCtrl* dir_picker = static_cast<wxDirPickerCtrl*>(event.GetEventObject());
+	wxString path = dir_picker->GetPath();
+	if (!path.IsEmpty()) {
+		ClientAssets::setPath(path.ToUTF8().data());
+		spdlog::debug("New directory selected: {}", path.ToUTF8().data());
+	} else {
+		wxMessageDialog dialog(this, "Directory is empty, please, select a valid directory", "Error", wxOK | wxICON_ERROR);
+		dialog.ShowModal();
+	}
 }
 
 void PreferencesWindow::OnCollapsiblePane(wxCollapsiblePaneEvent &event) {
@@ -640,6 +616,7 @@ void PreferencesWindow::Apply() {
 		palette_update_needed = true;
 	}
 	g_settings.setInteger(Config::SHOW_TILESET_EDITOR, enable_tileset_editing_chkbox->GetValue());
+	g_settings.setInteger(Config::USE_OLD_ITEM_PROPERTIES_WINDOW, use_old_item_properties_window->GetValue());
 
 	// Editor
 	g_settings.setInteger(Config::GROUP_ACTIONS, group_actions_chkbox->GetValue());
@@ -657,19 +634,6 @@ void PreferencesWindow::Apply() {
 	g_settings.setInteger(Config::MERGE_PASTE, merge_paste_chkbox->GetValue());
 
 	// Graphics
-	g_settings.setInteger(Config::USE_GUI_SELECTION_SHADOW, icon_selection_shadow_chkbox->GetValue());
-	if (g_settings.getBoolean(Config::USE_MEMCACHED_SPRITES) != use_memcached_chkbox->GetValue()) {
-		must_restart = true;
-	}
-	if (int iconsColSize; palette_icons_col_size->GetValue().ToInt(&iconsColSize) && g_settings.getInteger(Config::PALETTE_COL_COUNT) != iconsColSize) {
-		g_settings.setInteger(Config::PALETTE_COL_COUNT, iconsColSize);
-		must_restart = true;
-	}
-	if (int iconsRowSize; palette_icons_row_size->GetValue().ToInt(&iconsRowSize) && g_settings.getInteger(Config::PALETTE_ROW_COUNT) != iconsRowSize) {
-		g_settings.setInteger(Config::PALETTE_ROW_COUNT, iconsRowSize);
-		must_restart = true;
-	}
-	g_settings.setInteger(Config::USE_MEMCACHED_SPRITES_TO_SAVE, use_memcached_chkbox->GetValue());
 	if (icon_background_choice->GetSelection() == 0) {
 		if (g_settings.getInteger(Config::ICON_BACKGROUND) != 0) {
 			g_gui.gfx.cleanSoftwareSprites();
@@ -746,27 +710,8 @@ void PreferencesWindow::Apply() {
 	g_settings.setFloat(Config::SCROLL_SPEED, scroll_mul * scroll_speed_slider->GetValue() / 10.f);
 	g_settings.setFloat(Config::ZOOM_SPEED, zoom_speed_slider->GetValue() / 10.f);
 
-	// Client
-	ClientVersionList versions = ClientVersion::getAllVisible();
-	int version_counter = 0;
-	for (auto version : versions) {
-		auto dir = version_dir_pickers[version_counter]->GetPath().ToStdString();
-		if (dir.size() > 0 && dir.back() != '/' && dir.back() != '\\') {
-			dir.push_back('/');
-		}
-		version->setClientPath(FileName(dir));
-
-		if (version->getName() == default_version_choice->GetStringSelection()) {
-			g_settings.setInteger(Config::DEFAULT_CLIENT_VERSION, version->getID());
-		}
-
-		version_counter++;
-	}
-	g_settings.setInteger(Config::CHECK_SIGNATURES, check_sigs_chkbox->GetValue());
-
-	// Make sure to reload client paths
-	ClientVersion::saveVersions();
-	ClientVersion::loadVersions();
+	ClientAssets::save();
+	ClientAssets::load();
 
 	g_settings.save();
 
@@ -781,8 +726,9 @@ void PreferencesWindow::Apply() {
 		// change palette structure
 		wxString error;
 		wxArrayString warnings;
-		g_gui.LoadVersion(g_gui.GetCurrentVersionID(), error, warnings, true);
-		g_gui.PopupDialog("Error", error, wxOK);
-		g_gui.ListDialog("Warnings", warnings);
+		if (!g_gui.loadMapWindow(error, warnings)) {
+			g_gui.PopupDialog("Error", error, wxOK);
+			g_gui.ListDialog("Warnings", warnings);
+		}
 	}
 }

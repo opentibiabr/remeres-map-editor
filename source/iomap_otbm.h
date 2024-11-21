@@ -20,9 +20,6 @@
 
 #include "iomap.h"
 
-// Pragma pack is VERY important since otherwise it won't be able to load the structs correctly
-#pragma pack(1)
-
 enum OTBM_ItemAttribute {
 	OTBM_ATTR_DESCRIPTION = 1,
 	OTBM_ATTR_EXT_FILE = 2,
@@ -111,13 +108,14 @@ struct OTBM_HouseTile_coords {
 	uint32_t houseid;
 };
 
-#pragma pack()
+struct MapVersion;
+class NodeFileReadHandle;
+class NodeFileWriteHandle;
+class Map;
 
 class IOMapOTBM : public IOMap {
 public:
-	IOMapOTBM(MapVersion ver) {
-		version = ver;
-	}
+	IOMapOTBM(MapVersion ver);
 	~IOMapOTBM() { }
 
 	static bool getVersionInfo(const FileName &identifier, MapVersion &out_ver);

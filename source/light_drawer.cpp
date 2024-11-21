@@ -134,7 +134,6 @@ void LightDrawer::clear() noexcept {
 
 void LightDrawer::createGLTexture() {
 	glGenTextures(1, &texture);
-	ASSERT(texture == 0);
 }
 
 void LightDrawer::unloadGLTexture() {

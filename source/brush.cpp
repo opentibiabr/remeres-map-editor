@@ -139,7 +139,7 @@ bool Brushes::unserializeBrush(pugi::xml_node node, wxArrayString &warnings) {
 	}
 
 	if (!node.first_child()) {
-		brushes.insert(std::make_pair(brush->getName(), brush));
+		addBrush(brush);
 		return true;
 	}
 
@@ -167,7 +167,7 @@ bool Brushes::unserializeBrush(pugi::xml_node node, wxArrayString &warnings) {
 		}
 	}
 
-	brushes.insert(std::make_pair(brush->getName(), brush));
+	addBrush(brush);
 	return true;
 }
 
@@ -191,7 +191,9 @@ bool Brushes::unserializeBorder(pugi::xml_node node, wxArrayString &warnings) {
 }
 
 void Brushes::addBrush(Brush* brush) {
-	brushes.insert(std::make_pair(brush->getName(), brush));
+	if (brush) {
+		brushes.insert(std::make_pair(brush->getName(), brush));
+	}
 }
 
 Brush* Brushes::getBrush(const std::string &name) const {

@@ -140,7 +140,6 @@ void Selection::add(const Tile* tile, SpawnNpc* spawnNpc) {
 void Selection::add(const Tile* tile, const std::vector<Monster*> &monsters) {
 	ASSERT(subsession);
 	ASSERT(tile);
-	ASSERT(monster);
 
 	// Make a copy of the tile with the monsters selected
 	for (const auto monster : monsters) {
@@ -249,7 +248,6 @@ void Selection::remove(Tile* tile, SpawnNpc* spawnNpc) {
 void Selection::remove(Tile* tile, const std::vector<Monster*> &monsters) {
 	ASSERT(subsession);
 	ASSERT(tile);
-	ASSERT(monster);
 
 	std::vector<Monster*> selectedMonsters;
 	for (const auto monster : monsters) {

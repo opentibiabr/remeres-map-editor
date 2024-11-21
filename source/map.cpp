@@ -17,9 +17,10 @@
 
 #include "main.h"
 
-#include "gui.h" // loadbar
-
+#include "gui.h"
 #include "map.h"
+
+#include "client_assets.h"
 
 Map::Map() :
 	BaseMap(),
@@ -33,7 +34,6 @@ Map::Map() :
 	// Earliest version possible
 	// Caller is responsible for converting us to proper version
 	mapVersion.otbm = MAP_OTBM_1;
-	mapVersion.client = CLIENT_VERSION_NONE;
 }
 
 Map::~Map() {
@@ -114,27 +114,6 @@ bool Map::open(const std::string file) {
 }
 
 bool Map::convert(MapVersion to, bool showdialog) {
-	if (mapVersion.client == to.client) {
-		// Only OTBM version differs
-		// No changes necessary
-		mapVersion = to;
-		return true;
-	}
-
-	/* TODO
-
-	if(to.otbm == MAP_OTBM_4 && to.client < CLIENT_VERSION_850)
-		return false;
-
-	if(mapVersion.client >= CLIENT_VERSION_760 && to.client < CLIENT_VERSION_760)
-		convert(getReplacementMapFrom760To740(), showdialog);
-
-	if(mapVersion.client < CLIENT_VERSION_810 && to.client >= CLIENT_VERSION_810)
-		convert(getReplacementMapFrom800To810(), showdialog);
-
-	if(mapVersion.client == CLIENT_VERSION_854_BAD && to.client >= CLIENT_VERSION_854)
-		convert(getReplacementMapFrom854To854(), showdialog);
-	*/
 	mapVersion = to;
 
 	return true;
