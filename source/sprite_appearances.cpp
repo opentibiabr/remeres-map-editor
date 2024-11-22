@@ -163,7 +163,6 @@ bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr &sheet) {
 	uint8_t* bufferStart = decompressed.get() + data;
 
 	// Flip vertically
-	// Flip vertically
 	for (int y = 0; y < SPRITE_SHEET_HEIGHT / 2; ++y) {
 		uint8_t* itr1 = &bufferStart[y * SPRITE_SHEET_WIDTH_BYTES];
 		uint8_t* itr2 = &bufferStart[(SPRITE_SHEET_WIDTH - y - 1) * SPRITE_SHEET_WIDTH_BYTES];
