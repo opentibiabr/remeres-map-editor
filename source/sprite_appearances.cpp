@@ -266,7 +266,7 @@ SpritePtr SpriteAppearances::getSprite(int spriteId) {
 	}
 
 	// Retrieve sprite sheet
-	const auto& sheet = getSheetBySpriteId(spriteId);
+	const auto &sheet = getSheetBySpriteId(spriteId);
 	if (!sheet || !sheet->loaded) {
 		spdlog::warn("Sprite sheet for sprite {} is not loaded or null.", spriteId);
 		return nullptr;
@@ -319,8 +319,7 @@ SpritePtr SpriteAppearances::getSprite(int spriteId) {
 	// Validate pixel buffer size
 	size_t pixelBufferSize = sprite->pixels.size();
 	if (pixelBufferSize < static_cast<size_t>(spriteWidth * spriteHeight * 4)) {
-		spdlog::error("Insufficient pixel buffer size for sprite {}: pixelBufferSize = {}, expected = {}", 
-			spriteId, pixelBufferSize, spriteWidth * spriteHeight * 4);
+		spdlog::error("Insufficient pixel buffer size for sprite {}: pixelBufferSize = {}, expected = {}", spriteId, pixelBufferSize, spriteWidth * spriteHeight * 4);
 		return nullptr;
 	}
 
@@ -332,8 +331,7 @@ SpritePtr SpriteAppearances::getSprite(int spriteId) {
 
 		// Validate access
 		if (bufferDataStart + spriteWidthBytes > bufferSize) {
-			spdlog::error("Out-of-bounds access during copy: spriteId = {}, height = {}, offset = {}, bufferDataStart = {}, bufferSize = {}",
-				spriteId, height, offset, bufferDataStart, bufferSize);
+			spdlog::error("Out-of-bounds access during copy: spriteId = {}, height = {}, offset = {}, bufferDataStart = {}, bufferSize = {}", spriteId, height, offset, bufferDataStart, bufferSize);
 			return nullptr;
 		}
 
