@@ -24,12 +24,6 @@
 
 #include <lzma.h>
 
-// APPEARANCES
-#define BYTES_IN_SPRITE_SHEET 384 * 384 * 4
-#define LZMA_UNCOMPRESSED_SIZE BYTES_IN_SPRITE_SHEET + 122
-#define LZMA_HEADER_SIZE LZMA_PROPS_SIZE + 8
-#define SPRITE_SHEET_WIDTH_BYTES 384 * 4
-
 namespace fs = std::filesystem;
 
 SpriteAppearances g_spriteAppearances;
@@ -169,13 +163,12 @@ bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr &sheet) {
 	uint8_t* bufferStart = decompressed.get() + data;
 
 	// Flip vertically
-	for (int y = 0; y < 192; ++y) {
+	// Flip vertically
+	for (int y = 0; y < SPRITE_SHEET_HEIGHT / 2; ++y) {
 		uint8_t* itr1 = &bufferStart[y * SPRITE_SHEET_WIDTH_BYTES];
-		uint8_t* itr2 = &bufferStart[(384 - y - 1) * SPRITE_SHEET_WIDTH_BYTES];
+		uint8_t* itr2 = &bufferStart[(SPRITE_SHEET_WIDTH - y - 1) * SPRITE_SHEET_WIDTH_BYTES];
 
-		for (std::size_t x = 0; x < SPRITE_SHEET_WIDTH_BYTES; ++x) {
-			std::swap(*(itr1 + x), *(itr2 + x));
-		}
+		std::swap_ranges(itr1, itr1 + SPRITE_SHEET_WIDTH_BYTES, itr2);
 	}
 
 	sheet->data = std::make_unique<uint8_t[]>(LZMA_UNCOMPRESSED_SIZE);
@@ -265,35 +258,93 @@ wxImage SpriteAppearances::getWxImageBySpriteId(int id, bool toSavePng /* = fals
 }
 
 SpritePtr SpriteAppearances::getSprite(int spriteId) {
-	// caching
+	// Caching
 	auto it = sprites.find(spriteId);
 	if (it != sprites.end()) {
+		spdlog::debug("Sprite {} found in cache.", spriteId);
 		return it->second;
 	}
 
-	const auto &sheet = getSheetBySpriteId(spriteId);
+	// Retrieve sprite sheet
+	const auto& sheet = getSheetBySpriteId(spriteId);
 	if (!sheet || !sheet->loaded) {
+		spdlog::warn("Sprite sheet for sprite {} is not loaded or null.", spriteId);
 		return nullptr;
 	}
 
+	// Get sprite dimensions
 	auto spriteWidth = sheet->getSpriteSize().width;
 	auto spriteHeight = sheet->getSpriteSize().height;
 
-	SpritePtr sprite = SpritePtr(new Sprites(spriteWidth, spriteHeight));
-
-	int spriteOffset = spriteId - sheet->firstId;
-	int allColumns = spriteWidth == 32 ? 12 : 6; // 64 pixel width == 6 columns each 64x or 32 pixels, 12 columns
-	int spriteRow = static_cast<int>(std::floor(static_cast<float>(spriteOffset) / static_cast<float>(allColumns)));
-	int spriteColumn = spriteOffset % allColumns;
-
-	int spriteWidthBytes = spriteWidth * 4;
-
-	for (int height = spriteHeight * spriteRow, offset = 0; height < spriteHeight + (spriteRow * spriteHeight); height++, offset++) {
-		auto bufferData = &sheet->data[(height * SPRITE_SHEET_WIDTH_BYTES) + (spriteColumn * spriteWidthBytes)];
-		std::memcpy(&sprite->pixels[offset * spriteWidthBytes], bufferData, spriteWidthBytes);
+	// Validate dimensions
+	if (spriteWidth <= 0 || spriteHeight <= 0) {
+		spdlog::error("Invalid sprite dimensions: width = {}, height = {}", spriteWidth, spriteHeight);
+		return nullptr;
 	}
 
-	// cache it for faster later access
+	// Allocate sprite
+	SpritePtr sprite = SpritePtr(new Sprites(spriteWidth, spriteHeight));
+
+	// Calculate sprite offset
+	int spriteOffset = spriteId - sheet->firstId;
+	int allColumns = (spriteWidth == 32) ? 12 : 6;
+
+	// Validate sprite offset
+	int totalNumberOfSpritesInSheet = sheet->getTotalSprites();
+	if (spriteOffset < 0 || spriteOffset >= totalNumberOfSpritesInSheet) {
+		spdlog::warn("Sprite offset out of range: offset = {}, total sprites = {}", spriteOffset, totalNumberOfSpritesInSheet);
+		return nullptr;
+	}
+
+	// Calculate row and column
+	int spriteRow = spriteOffset / allColumns;
+	int spriteColumn = spriteOffset % allColumns;
+
+	// Validate row and column
+	int totalRows = sheet->getTotalRows();
+	if (spriteRow < 0 || spriteRow >= totalRows || spriteColumn < 0 || spriteColumn >= allColumns) {
+		spdlog::warn("Invalid sprite row/column: row = {}, column = {}, total rows = {}, allColumns = {}", spriteRow, spriteColumn, totalRows, allColumns);
+		return nullptr;
+	}
+
+	// Validate memory for sheet->data
+	if (!sheet->data) {
+		spdlog::error("Sheet data is null for sprite {}.", spriteId);
+		return nullptr;
+	}
+
+	// Update bufferSize based on actual sheet height
+	size_t bufferSize = SPRITE_SHEET_HEIGHT * SPRITE_SHEET_WIDTH_BYTES;
+
+	// Validate pixel buffer size
+	size_t pixelBufferSize = sprite->pixels.size();
+	if (pixelBufferSize < static_cast<size_t>(spriteWidth * spriteHeight * 4)) {
+		spdlog::error("Insufficient pixel buffer size for sprite {}: pixelBufferSize = {}, expected = {}", 
+			spriteId, pixelBufferSize, spriteWidth * spriteHeight * 4);
+		return nullptr;
+	}
+
+	// Adjust loop to prevent height from exceeding SPRITE_SHEET_HEIGHT
+	int maxHeight = std::min((spriteRow + 1) * spriteHeight, SPRITE_SHEET_HEIGHT);
+	int spriteWidthBytes = spriteWidth * 4;
+	for (int height = spriteHeight * spriteRow, offset = 0; height < maxHeight; height++, offset++) {
+		size_t bufferDataStart = (height * SPRITE_SHEET_WIDTH_BYTES) + (spriteColumn * spriteWidthBytes);
+
+		// Validate access
+		if (bufferDataStart + spriteWidthBytes > bufferSize) {
+			spdlog::error("Out-of-bounds access during copy: spriteId = {}, height = {}, offset = {}, bufferDataStart = {}, bufferSize = {}",
+				spriteId, height, offset, bufferDataStart, bufferSize);
+			return nullptr;
+		}
+
+		auto bufferData = &sheet->data[bufferDataStart];
+		auto dest = &sprite->pixels[offset * spriteWidthBytes];
+
+		// Copy data using std::ranges::copy
+		std::ranges::copy(std::span(bufferData, spriteWidthBytes), dest);
+	}
+
+	// Cache the sprite
 	sprites[spriteId] = sprite;
 
 	return sprite;

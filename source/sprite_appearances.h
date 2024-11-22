@@ -24,6 +24,15 @@
 
 class GameSprite;
 
+// APPEARANCES
+#define LZMA_UNCOMPRESSED_SIZE BYTES_IN_SPRITE_SHEET + 122
+#define LZMA_HEADER_SIZE LZMA_PROPS_SIZE + 8
+
+#define SPRITE_SHEET_WIDTH 384
+#define SPRITE_SHEET_HEIGHT 384
+#define BYTES_IN_SPRITE_SHEET SPRITE_SHEET_WIDTH * SPRITE_SHEET_WIDTH * 4
+#define SPRITE_SHEET_WIDTH_BYTES SPRITE_SHEET_WIDTH * 4
+
 enum class SpriteLayout {
 	ONE_BY_ONE = 0,
 	ONE_BY_TWO = 1,
@@ -86,7 +95,7 @@ public:
 	SpriteSheet(int firstId, int lastId, SpriteLayout spriteLayout, const std::string &path) :
 		firstId(firstId), lastId(lastId), spriteLayout(spriteLayout), path(path) { }
 
-	SpritesSize getSpriteSize() {
+	SpritesSize getSpriteSize() const {
 		SpritesSize size(rme::SpritePixels, rme::SpritePixels);
 
 		switch (spriteLayout) {
@@ -105,6 +114,25 @@ public:
 				break;
 		}
 		return size;
+	}
+
+	int getTotalSprites() const {
+		return lastId - firstId + 1;
+	}
+
+	int getTotalRows() const {
+		auto spriteSize = getSpriteSize();
+		if (spriteSize.width == 0) {
+			return 0; // Avoid division by zero
+		}
+
+		int spritesPerRow = SPRITE_SHEET_WIDTH / spriteSize.width; // Use the actual sheet width
+		if (spritesPerRow == 0) {
+			return 0; // No rows if sprites don't fit in a line
+		}
+
+		// Calculate total sprites and round up division for rows
+		return (getTotalSprites() + spritesPerRow - 1) / spritesPerRow;
 	}
 
 	bool exportSheetImage(const std::string &file, bool fixMagenta = false) {

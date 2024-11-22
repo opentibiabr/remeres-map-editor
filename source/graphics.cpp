@@ -1136,6 +1136,15 @@ std::shared_ptr<GameSprite::OutfitImage> GameSprite::getOutfitImage(int spriteId
 wxMemoryDC* GameSprite::getDC(SpriteSize spriteSize) {
 	ASSERT(spriteSize == SPRITE_SIZE_16x16 || spriteSize == SPRITE_SIZE_32x32);
 
+	if (!width && !height) {
+		// Initialize default draw offset
+		const auto &sheet = g_spriteAppearances.getSheetBySpriteId(spriteList[0]->getHardwareID(), false);
+		if (sheet) {
+			width = sheet->getSpriteSize().width;
+			height = sheet->getSpriteSize().height;
+		}
+	}
+
 	if (!m_wxMemoryDc[spriteSize]) {
 		ASSERT(width >= 1 && height >= 1);
 
@@ -1274,7 +1283,7 @@ void GameSprite::NormalImage::clean(int time) {
 uint8_t* GameSprite::NormalImage::getRGBAData() {
 	if (!m_cachedData) {
 		if (!g_gui.gfx.loadSpriteDump(m_cachedData, size, id)) {
-			spdlog::info("[GameSprite::NormalImage::getRGBAData] - Failed when parsing sprite id {}", id);
+			spdlog::error("[GameSprite::NormalImage::getRGBAData] - Failed when parsing sprite id {}", id);
 			return nullptr;
 		}
 	}
