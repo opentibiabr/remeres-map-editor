@@ -2372,7 +2372,7 @@ void MapCanvas::OnProperties(wxCommandEvent &WXUNUSED(event)) {
 
 	if (newTile->spawnMonster && g_settings.getInteger(Config::SHOW_SPAWNS_MONSTER)) {
 		w = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), newTile, newTile->spawnMonster);
-	} else if (g_settings.getInteger(Config::SHOW_MONSTERS)) {
+	} else if (!newTile->monsters.empty() && g_settings.getInteger(Config::SHOW_MONSTERS)) {
 		std::vector<Monster*> selectedMonsters = newTile->getSelectedMonsters();
 
 		const auto it = std::ranges::find_if(selectedMonsters | std::views::reverse, [&](const auto itMonster) {
