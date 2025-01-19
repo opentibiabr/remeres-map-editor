@@ -67,7 +67,7 @@ void SpawnMonsterBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 
 	auto size = std::max(1, *(int*)parameter);
 	auto side = size * 2 + 1;
-	int time = g_settings.getInteger(Config::DEFAULT_SPAWN_MONSTER_TIME);
+	uint16_t spawnTime = g_settings.getInteger(Config::DEFAULT_SPAWN_MONSTER_TIME);
 	int density = g_settings.getInteger(Config::SPAWN_MONSTER_DENSITY);
 	if (tile && tile->spawnMonster == nullptr) {
 		tile->spawnMonster = newd SpawnMonster(size);
@@ -99,7 +99,7 @@ void SpawnMonsterBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 
 			if (tileSpawn) {
 				auto monsterBrush = monsters[rand() % monsters.size()];
-				monsterBrush->drawMonster(map, tileSpawn, &time);
+				monsterBrush->drawMonster(map, tileSpawn, &spawnTime);
 			}
 		}
 	}
