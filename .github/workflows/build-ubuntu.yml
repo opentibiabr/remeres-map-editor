@@ -12,6 +12,7 @@ on:
       - 'CMakeLists.txt'
       - 'CMakePresets.json'
       - 'vcpkg.json'
+  merge_group:
   push:
     paths:
       - 'src/**'
