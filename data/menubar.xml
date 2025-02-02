@@ -87,6 +87,7 @@
         <item name="Remove Monsters on Selection" action="REMOVE_ON_SELECTION_MONSTER" help="Remove monsters on selected area."/>
 		<item name="Count Monsters on Selection" action="COUNT_ON_SELECTION_MONSTER" help="Count monsters on selected area."/>
         <item name="Remove Duplicated Items on Selection" action="REMOVE_ON_SELECTION_DUPLICATED_ITEMS" help="Removes all items duplicated selected area."/>
+        <item name="Update Monster Spawntime on Selection" action="ON_EDIT_EDIT_MONSTER_SPAWN_TIME" help="Edit the spawn time of monsters on the selected area."/>
         <separator/>
         <menu name="$Find on Selection">
             <item name="Find $Everything" action="SEARCH_ON_SELECTION_EVERYTHING" help="Find all unique/action/text/container items."/>

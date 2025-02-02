@@ -90,6 +90,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(REMOVE_ON_SELECTION_ITEM, wxITEM_NORMAL, OnRemoveItemOnSelection);
 	MAKE_ACTION(REMOVE_ON_SELECTION_MONSTER, wxITEM_NORMAL, OnRemoveMonstersOnSelection);
 	MAKE_ACTION(COUNT_ON_SELECTION_MONSTER, wxITEM_NORMAL, OnCountMonstersOnSelection);
+	MAKE_ACTION(ON_EDIT_EDIT_MONSTER_SPAWN_TIME, wxITEM_NORMAL, OnEditMonsterSpawnTime);
 	MAKE_ACTION(SELECT_MODE_COMPENSATE, wxITEM_RADIO, OnSelectionTypeChange);
 	MAKE_ACTION(SELECT_MODE_LOWER, wxITEM_RADIO, OnSelectionTypeChange);
 	MAKE_ACTION(SELECT_MODE_CURRENT, wxITEM_RADIO, OnSelectionTypeChange);
@@ -1226,6 +1227,20 @@ void MainMenuBar::OnRemoveMonstersOnSelection(wxCommandEvent &WXUNUSED(event)) {
 	g_gui.DestroyLoadBar();
 
 	g_gui.PopupDialog("Remove Monsters", wxString::Format("%d monsters removed.", monstersRemoved), wxOK);
+	g_gui.GetCurrentMap().doChange();
+	g_gui.RefreshView();
+}
+
+void MainMenuBar::OnEditMonsterSpawnTime(wxCommandEvent &WXUNUSED(event)) {
+	if (!g_gui.IsEditorOpen()) {
+		return;
+	}
+	g_gui.GetCurrentEditor()->clearActions();
+	g_gui.CreateLoadBar("Editing monster spawn time on selection...");
+	const auto monstersUpdated = EditMonsterSpawnTime(g_gui.GetCurrentMap(), true);
+	g_gui.PopupDialog(wxString("Edit Monster Spawn Time"), wxString::Format("%d monsters updated.", monstersUpdated), wxOK);
+
+	g_gui.PopupDialog("Edit Monster Spawn Time", wxString::Format("%i monsters updated.", monstersUpdated), wxOK);
 	g_gui.GetCurrentMap().doChange();
 	g_gui.RefreshView();
 }
