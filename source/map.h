@@ -324,6 +324,8 @@ inline int64_t RemoveItemOnMap(Map &map, RemoveIfType &condition, bool selectedO
 int64_t RemoveMonstersOnMap(Map &map, bool selectedOnly);
 std::pair<int64_t, std::unordered_map<std::string, int64_t>> CountMonstersOnMap(Map &map, bool selectedOnly);
 
+int64_t EditMonsterSpawnTime(Map &map, bool selectedOnly, int32_t spawnTime);
+
 template <typename RemoveIfType>
 inline int64_t RemoveItemDuplicateOnMap(Map &map, RemoveIfType &condition, bool selectedOnly) {
 	int64_t done = 0;
