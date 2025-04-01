@@ -90,6 +90,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(REPLACE_ON_SELECTION_MONSTER, wxITEM_NORMAL, OnReplaceMonstersOnSelection);
 	MAKE_ACTION(REMOVE_ON_SELECTION_MONSTER, wxITEM_NORMAL, OnRemoveMonstersOnSelection);
 	MAKE_ACTION(COUNT_ON_SELECTION_MONSTER, wxITEM_NORMAL, OnCountMonstersOnSelection);
+	MAKE_ACTION(ON_EDIT_EDIT_MONSTER_SPAWN_TIME, wxITEM_NORMAL, OnEditMonsterSpawnTime);
 	MAKE_ACTION(SELECT_MODE_COMPENSATE, wxITEM_RADIO, OnSelectionTypeChange);
 	MAKE_ACTION(SELECT_MODE_LOWER, wxITEM_RADIO, OnSelectionTypeChange);
 	MAKE_ACTION(SELECT_MODE_CURRENT, wxITEM_RADIO, OnSelectionTypeChange);
@@ -1291,6 +1292,42 @@ void MainMenuBar::OnRemoveMonstersOnSelection(wxCommandEvent &WXUNUSED(event)) {
 	g_gui.PopupDialog("Remove Monsters", wxString::Format("%d monsters removed.", monstersRemoved), wxOK);
 	g_gui.GetCurrentMap().doChange();
 	g_gui.RefreshView();
+}
+
+
+void MainMenuBar::OnEditMonsterSpawnTime(wxCommandEvent &WXUNUSED(event)) {
+	if (!g_gui.IsEditorOpen()) {
+		return;
+	}
+
+	wxTextEntryDialog dialog(
+		frame,
+		"Enter the new spawn time (must be 1 or greater):",
+		"Spawn Time:"
+	);
+	dialog.SetValue(wxString::Format("%d", g_gui.GetSpawnMonsterTime()));
+	if (dialog.ShowModal() == wxID_OK) {
+		long spawnTime;
+		wxString inputValue = dialog.GetValue();
+		if (!inputValue.IsNumber() || !inputValue.ToLong(&spawnTime) || spawnTime < 1 || spawnTime > std::numeric_limits<int32_t>::max()) {
+			g_gui.PopupDialog("Error", "Invalid spawn time. Please enter a numeric value of 1 or greater.", wxOK);
+			return;
+		}
+
+		g_gui.GetCurrentEditor()->clearActions();
+		g_gui.CreateLoadBar("Editing monster spawn time on selection...");
+		const auto monstersUpdated = EditMonsterSpawnTime(g_gui.GetCurrentMap(), true, static_cast<int32_t>(spawnTime));
+		g_gui.DestroyLoadBar();
+
+		if (monstersUpdated == 0) {
+			g_gui.PopupDialog("Edit Monster Spawn Time", "No monsters found in the selected area.", wxOK);
+		} else {
+			g_gui.PopupDialog("Edit Monster Spawn Time", wxString::Format("%d monsters updated.", monstersUpdated), wxOK);
+		}
+		
+		g_gui.GetCurrentMap().doChange();
+		g_gui.RefreshView();
+	}
 }
 
 void MainMenuBar::OnCountMonstersOnSelection(wxCommandEvent &WXUNUSED(event)) {
