@@ -244,7 +244,7 @@ bool IOMinimap::exportMinimap(const std::string &directory) {
 					wxString extension_wx = wxString::FromAscii(extension.mb_str());
 					wxFileName file;
 					file.AssignDir(directory);
-					file.SetName(wxString::Format("%s-%d", name, z));
+					file.SetName(wxString::Format("%s-%d", wxString(name), z));
 					file.SetExt(extension);
 					image->SaveFile(file.GetFullPath(), type);
 				}
@@ -345,7 +345,7 @@ bool IOMinimap::exportSelection(const std::string &directory, const std::string 
 			wxBitmapType type = m_format == MinimapExportFormat::Png ? wxBITMAP_TYPE_PNG : wxBITMAP_TYPE_BMP;
 			wxFileName file;
 			file.AssignDir(directory);
-			file.SetName(wxString::Format("%s-%d", name, z));
+			file.SetName(wxString::Format("%s-%d", wxString(name), z));
 			file.SetExt(extension);
 			image->SaveFile(file.GetFullPath(), type);
 		}
