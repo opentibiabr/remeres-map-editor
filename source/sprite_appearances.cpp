@@ -157,21 +157,21 @@ bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr &sheet) {
 	lzma_end(&stream); // free memory
 
 	// pixel data start (bmp header end offset)
-	uint32_t data;
-	std::memcpy(&data, decompressed.get() + 10, sizeof(uint32_t));
+	uint32_t pixelOffset;
+	std::memcpy(&pixelOffset, decompressed.get() + 10, sizeof(uint32_t));
 
-	uint8_t* bufferStart = decompressed.get() + data;
+	uint8_t* pixelData = decompressed.get() + pixelOffset;
 
 	// Flip vertically
 	for (int y = 0; y < SPRITE_SHEET_HEIGHT / 2; ++y) {
-		uint8_t* itr1 = &bufferStart[y * SPRITE_SHEET_WIDTH_BYTES];
-		uint8_t* itr2 = &bufferStart[(SPRITE_SHEET_WIDTH - y - 1) * SPRITE_SHEET_WIDTH_BYTES];
+		uint8_t* itr1 = &pixelData[y * SPRITE_SHEET_WIDTH_BYTES];
+		uint8_t* itr2 = &pixelData[(SPRITE_SHEET_WIDTH - y - 1) * SPRITE_SHEET_WIDTH_BYTES];
 
 		std::swap_ranges(itr1, itr1 + SPRITE_SHEET_WIDTH_BYTES, itr2);
 	}
 
 	sheet->data = std::make_unique<uint8_t[]>(LZMA_UNCOMPRESSED_SIZE);
-	std::memcpy(sheet->data.get(), bufferStart, BYTES_IN_SPRITE_SHEET);
+	std::memcpy(sheet->data.get(), pixelData, BYTES_IN_SPRITE_SHEET);
 
 	sheet->loaded = true;
 	return true;
@@ -219,17 +219,20 @@ wxImage SpriteAppearances::getWxImageBySpriteId(int id, bool toSavePng /* = fals
 	const int height = sprite->size.height;
 	auto pixels = sprite->pixels.data();
 	wxImage image(width, height);
+	image.InitAlpha();
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
 			const int index = (y * width + x) * 4;
 
 			// Starts with magenta color
+			uint8_t a = 255;
 			uint8_t r = 255;
 			uint8_t g = 0;
 			uint8_t b = 255;
 
 			// If index is inside pixels bounds applies the color of the sprite
 			if (sprite->pixels.size() > index) {
+				a = pixels[index + 3];
 				r = pixels[index + 2];
 				g = pixels[index + 1];
 				b = pixels[index];
@@ -243,6 +246,7 @@ wxImage SpriteAppearances::getWxImageBySpriteId(int id, bool toSavePng /* = fals
 				r = g = b = bgshade; // Sets RGB to the background color
 			}
 
+			image.SetAlpha(x, y, a);
 			image.SetRGB(x, y, r, g, b);
 		}
 	}
