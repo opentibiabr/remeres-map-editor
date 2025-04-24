@@ -224,7 +224,7 @@ void BrowseTileWindow::AddInformations(wxSizer* sizer) {
 	const auto positionString = wxString::Format("x=%i, y=%i, z=%i", tile->getX(), tile->getY(), tile->getZ());
 
 	sizer->Add(newd wxStaticText(this, wxID_ANY, wxString::Format("Position: %s", positionString)), wxSizerFlags(0).Left());
-	sizer->Add(itemCountText = newd wxStaticText(this, wxID_ANY, wxString::Format("Item count: %i", itemList->GetItemCount())), wxSizerFlags(0).Left());
+	sizer->Add(itemCountText = newd wxStaticText(this, wxID_ANY, wxString::Format("Item count: %i", static_cast<int>(itemList->GetItemCount()))), wxSizerFlags(0).Left());
 	sizer->Add(newd wxStaticText(this, wxID_ANY, wxString::Format("Protection zone: %s", b2yn(tile->isPZ()))), wxSizerFlags(0).Left());
 	sizer->Add(newd wxStaticText(this, wxID_ANY, wxString::Format("No PvP: %s", b2yn(tile->getMapFlags() & TILESTATE_NOPVP))), wxSizerFlags(0).Left());
 	sizer->Add(newd wxStaticText(this, wxID_ANY, wxString::Format("No logout: %s", b2yn(tile->getMapFlags() & TILESTATE_NOLOGOUT))), wxSizerFlags(0).Left());
@@ -286,7 +286,18 @@ void BrowseTileWindow::ChangeItemIndex(bool up /* = true*/) {
 	const auto i = up ? 1 : -1;
 	const auto tile = itemList->GetTile();
 
-	const auto selectedItemIndex = itemList->GetSelection();
+	if (itemList->GetSelectedCount() > 1) {
+		return;
+	}
+
+	int selectedItemIndex;
+	for (unsigned int i = 0; i < itemList->GetItemCount(); ++i) {
+		if (itemList->IsSelected(i)) {
+			selectedItemIndex = i;
+			break;
+		}
+	}
+
 	const auto tileItemsSize = tile->items.size() - 1;
 	auto index = tileItemsSize - selectedItemIndex;
 
