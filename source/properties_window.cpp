@@ -33,8 +33,8 @@ const wxArrayString PropertiesWindow::types = {
 BEGIN_EVENT_TABLE(PropertiesWindow, wxDialog)
 EVT_BUTTON(wxID_OK, PropertiesWindow::OnClickOK)
 EVT_BUTTON(wxID_CANCEL, PropertiesWindow::OnClickCancel)
-EVT_CHOICE(wxDEPOT_CTRL, PropertiesWindow::OnDepotChoice)
-EVT_CHOICE(wxLIQUID_CTRL, PropertiesWindow::OnLiquidChoice)
+EVT_CHOICE(wxID_ANY, PropertiesWindow::OnDepotChoice)
+EVT_CHOICE(wxID_ANY, PropertiesWindow::OnLiquidChoice)
 
 EVT_BUTTON(ITEM_PROPERTIES_ADD_ATTRIBUTE, PropertiesWindow::OnClickAddAttribute)
 EVT_BUTTON(ITEM_PROPERTIES_REMOVE_ATTRIBUTE, PropertiesWindow::OnClickRemoveAttribute)
@@ -129,19 +129,19 @@ void PropertiesWindow::createTeleportDestinationCtrl(wxPanel* panel, wxFlexGridS
 
 		gridsizer->Add(newd wxStaticText(panel, wxID_ANY, "Destination"));
 
-		destinationXField = newd NumberTextCtrl(panel, wxX_DESTINATION_CTRL, teleport->getX(), 0, edit_map->getWidth(), wxTE_PROCESS_ENTER, "X", wxDefaultPosition, wxSize(60, 20));
+		destinationXField = newd NumberTextCtrl(panel, wxID_ANY, teleport->getX(), 0, edit_map->getWidth(), wxTE_PROCESS_ENTER, "X", wxDefaultPosition, wxSize(60, 20));
 		subGridSizer->Add(destinationXField, 2, wxEXPAND | wxLEFT | wxBOTTOM, 5);
 		destinationXField->Bind(wxEVT_TEXT, &PropertiesWindow::OnTextPosition, this);
 		destinationXField->Bind(wxEVT_KILL_FOCUS, &PropertiesWindow::OnKillFocus, this);
 		destinationXField->Bind(wxEVT_TEXT_PASTE, &PropertiesWindow::OnClipboardText, this);
 
-		destinationYField = newd NumberTextCtrl(panel, wxY_DESTINATION_CTRL, teleport->getY(), 0, edit_map->getHeight(), wxTE_PROCESS_ENTER, "Y", wxDefaultPosition, wxSize(60, 20));
+		destinationYField = newd NumberTextCtrl(panel, wxID_ANY, teleport->getY(), 0, edit_map->getHeight(), wxTE_PROCESS_ENTER, "Y", wxDefaultPosition, wxSize(60, 20));
 		subGridSizer->Add(destinationYField, 2, wxEXPAND | wxLEFT | wxBOTTOM, 5);
 		destinationYField->Bind(wxEVT_TEXT, &PropertiesWindow::OnTextPosition, this);
 		destinationYField->Bind(wxEVT_KILL_FOCUS, &PropertiesWindow::OnKillFocus, this);
 		destinationXField->Bind(wxEVT_TEXT_PASTE, &PropertiesWindow::OnClipboardText, this);
 
-		destinationZField = newd NumberTextCtrl(panel, wxZ_DESTINATION_CTRL, teleport->getZ(), 0, rme::MapMaxLayer, wxTE_PROCESS_ENTER, "Z", wxDefaultPosition, wxSize(60, 20));
+		destinationZField = newd NumberTextCtrl(panel, wxID_ANY, teleport->getZ(), 0, rme::MapMaxLayer, wxTE_PROCESS_ENTER, "Z", wxDefaultPosition, wxSize(60, 20));
 		subGridSizer->Add(destinationZField, 1, wxEXPAND | wxLEFT | wxBOTTOM, 5);
 		destinationZField->Bind(wxEVT_TEXT, &PropertiesWindow::OnTextPosition, this);
 		destinationZField->Bind(wxEVT_KILL_FOCUS, &PropertiesWindow::OnKillFocus, this);
@@ -153,7 +153,7 @@ void PropertiesWindow::createTeleportDestinationCtrl(wxPanel* panel, wxFlexGridS
 void PropertiesWindow::createDoorIdCtrl(wxPanel* panel, wxFlexGridSizer* gridsizer) {
 	if (const auto door = edit_item->getDoor()) {
 		gridsizer->Add(newd wxStaticText(panel, wxID_ANY, "Door ID"));
-		doorIdField = newd wxSpinCtrl(panel, wxDOOR_CTRL, i2ws(door->getDoorID()), wxDefaultPosition, wxSize(-1, 20), wxSP_ARROW_KEYS, 0, 0xFFFF, door->getDoorID());
+		doorIdField = newd wxSpinCtrl(panel, wxID_ANY, i2ws(door->getDoorID()), wxDefaultPosition, wxSize(-1, 20), wxSP_ARROW_KEYS, 0, 0xFFFF, door->getDoorID());
 		if (!edit_tile->isHouseTile()) {
 			doorIdField->Disable();
 		}
@@ -165,7 +165,7 @@ void PropertiesWindow::createDepotIdChoiceCtrl(wxPanel* panel, wxFlexGridSizer* 
 	if (const auto depot = edit_item->getDepot()) {
 		const auto &towns = edit_map->towns;
 		gridsizer->Add(newd wxStaticText(panel, wxID_ANY, "Depot ID"));
-		depotIdField = newd wxChoice(panel, wxDEPOT_CTRL);
+		depotIdField = newd wxChoice(panel, wxID_ANY);
 		int selectIndex = 0;
 		if (towns.count() > 0) {
 			bool found = false;
@@ -201,7 +201,7 @@ void PropertiesWindow::createLiquidChoiceCtrl(wxPanel* panel, wxFlexGridSizer* g
 		const auto liquidNoneName = wxstr(Item::LiquidID2Name(LIQUID_NONE));
 		const auto liquidNoneUInt = newd uint8_t(LIQUID_NONE);
 
-		liquidTypeField = newd wxChoice(panel, wxLIQUID_CTRL);
+		liquidTypeField = newd wxChoice(panel, wxID_ANY);
 
 		if (edit_item->isFluidContainer()) {
 			liquidTypeField->Append(liquidNoneName, liquidNoneUInt);
@@ -237,11 +237,11 @@ wxWindow* PropertiesWindow::createGeneralPanel(wxWindow* parent) {
 	gridsizer->Add(newd wxStaticText(panel, wxID_ANY, "\"" + wxstr(edit_item->getName()) + "\""));
 
 	gridsizer->Add(newd wxStaticText(panel, wxID_ANY, "Action ID"));
-	simpleActionIdField = newd wxSpinCtrl(panel, wxAID_CTRL, i2ws(edit_item->getActionID()), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 0xFFFF, edit_item->getActionID());
+	simpleActionIdField = newd wxSpinCtrl(panel, wxID_ANY, i2ws(edit_item->getActionID()), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 0xFFFF, edit_item->getActionID());
 	gridsizer->Add(simpleActionIdField, wxSizerFlags(1).Expand());
 
 	gridsizer->Add(newd wxStaticText(panel, wxID_ANY, "Unique ID"));
-	simpleUniqueIdField = newd wxSpinCtrl(panel, wxUID_CTRL, i2ws(edit_item->getUniqueID()), wxDefaultPosition, wxSize(-1, 20), wxSP_ARROW_KEYS, 0, 0xFFFF, edit_item->getUniqueID());
+	simpleUniqueIdField = newd wxSpinCtrl(panel, wxID_ANY, i2ws(edit_item->getUniqueID()), wxDefaultPosition, wxSize(-1, 20), wxSP_ARROW_KEYS, 0, 0xFFFF, edit_item->getUniqueID());
 	gridsizer->Add(simpleUniqueIdField, wxSizerFlags(1).Expand());
 
 	createDepotIdChoiceCtrl(panel, gridsizer);
@@ -649,13 +649,11 @@ void PropertiesWindow::OnSpinArrowAttributeUpdate(wxSpinEvent &event) {
 		return;
 	}
 
-	const auto spinCtrlId = spinCtrl->GetId();
-
-	if (spinCtrlId == wxAID_CTRL) {
+	if (spinCtrl == simpleActionIdField) {
 		SetAdvancedPropertyNumberData("aid", number);
-	} else if (spinCtrlId == wxUID_CTRL) {
+	} else if (spinCtrl == simpleUniqueIdField) {
 		SetAdvancedPropertyNumberData("uid", number);
-	} else if (spinCtrlId == wxDOOR_CTRL) {
+	} else if (spinCtrl == doorIdField) {
 		SetAdvancedPropertyNumberData("doorid", number);
 	}
 }
@@ -706,17 +704,22 @@ void PropertiesWindow::OnTextPosition(wxCommandEvent &evt) {
 }
 
 void PropertiesWindow::OnDestinationUpdate(const wxWindowID &ctrlId, int value) {
-	if (ctrlId == wxX_DESTINATION_CTRL) {
+	if (ctrlId == destinationXField->GetId()) {
 		SetAdvancedPropertyNumberData("destination.x", value);
-	} else if (ctrlId == wxY_DESTINATION_CTRL) {
+	} else if (ctrlId == destinationYField->GetId()) {
 		SetAdvancedPropertyNumberData("destination.y", value);
-	} else if (ctrlId == wxZ_DESTINATION_CTRL) {
+	} else if (ctrlId == destinationZField->GetId()) {
 		SetAdvancedPropertyNumberData("destination.z", value);
 	}
 }
 
 void PropertiesWindow::OnDepotChoice(wxCommandEvent &event) {
 	if (!depotIdField) {
+		return;
+	}
+
+	const auto choiceCtrl = dynamic_cast<wxChoice*>(event.GetEventObject());
+	if (!choiceCtrl || choiceCtrl != depotIdField) {
 		return;
 	}
 
@@ -729,6 +732,11 @@ void PropertiesWindow::OnDepotChoice(wxCommandEvent &event) {
 
 void PropertiesWindow::OnLiquidChoice(wxCommandEvent &event) {
 	if (!liquidTypeField) {
+		return;
+	}
+
+	const auto choiceCtrl = dynamic_cast<wxChoice*>(event.GetEventObject());
+	if (!choiceCtrl || choiceCtrl != liquidTypeField) {
 		return;
 	}
 
