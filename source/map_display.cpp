@@ -721,8 +721,8 @@ void MapCanvas::OnMouseActionClick(wxMouseEvent &event) {
 					}
 				} else if (event.ControlDown()) {
 					Tile* tile = editor.getMap().getTile(mouse_map_x, mouse_map_y, floor);
-					const auto monster = tile->getTopMonster();
 					if (tile) {
+						const auto monster = tile->getTopMonster();
 						// Show monster spawn
 						if (tile->spawnMonster && g_settings.getInteger(Config::SHOW_SPAWNS_MONSTER)) {
 							selection.start(); // Start selection session
