@@ -150,6 +150,7 @@ _Ret_bytecap_(_Size) inline void* __CRTDECL operator new[](size_t _Size, const c
 #include <ranges>
 #include <regex>
 #include <random>
+#include <span>
 
 typedef std::vector<std::string> StringVector;
 typedef wxFileName FileName;
