@@ -21,6 +21,7 @@
 #include "main.h"
 
 #include "common_windows.h"
+#include "map.h"
 
 class ContainerItemButton;
 class ContainerItemPopupMenu;
@@ -31,20 +32,33 @@ public:
 	PropertiesWindow(wxWindow* parent, const Map* map, const Tile* tile, Item* item, wxPoint position = wxDefaultPosition);
 	~PropertiesWindow();
 
+	void OnClipboardText(wxClipboardTextEvent &evt);
+	void OnKillFocus(wxFocusEvent &evt);
+	void OnTextPosition(wxCommandEvent &);
+	void OnDepotChoice(wxCommandEvent &);
+	void OnLiquidChoice(wxCommandEvent &);
 	void OnClickOK(wxCommandEvent &);
 	void OnClickCancel(wxCommandEvent &);
 	void OnClickAddAttribute(wxCommandEvent &);
 	void OnClickRemoveAttribute(wxCommandEvent &);
+	void OnSpinArrowAttributeUpdate(wxSpinEvent &event);
 
 	void OnResize(wxSizeEvent &);
 	void OnNotebookPageChanged(wxNotebookEvent &);
 	void OnGridValueChanged(wxGridEvent &);
+
+	void OnDestinationUpdate(const wxWindowID &ctrlId, int value);
 
 	void Update();
 
 protected:
 	// Simple pane
 	wxWindow* createGeneralPanel(wxWindow* parent);
+	void SetAdvancedPropertyNumberData(const wxString &attributeName, int value);
+	void createDepotIdChoiceCtrl(wxPanel* panel, wxFlexGridSizer* gridsizer);
+	void createDoorIdCtrl(wxPanel* panel, wxFlexGridSizer* gridsizer);
+	void createTeleportDestinationCtrl(wxPanel* panel, wxFlexGridSizer* gridsizer);
+	void createLiquidChoiceCtrl(wxPanel* panel, wxFlexGridSizer* gridsizer);
 	void saveGeneralPanel();
 
 	// Container pane
@@ -58,7 +72,28 @@ protected:
 	void saveAttributesPanel();
 	void SetGridValue(wxGrid* grid, int rowIndex, std::string name, const ItemAttribute &attr);
 
+	// Attributes
+	void setBasicAttributes();
+	void setTeleportAttributes(const std::string &key, int value);
+	void setDepotAttributes(const std::string &key, int value);
+	void setDoorAttributes(const std::string &key, int value);
+	void setLiquidAttributes(const std::string &key, int value);
+
 protected:
+	const static wxArrayString types;
+
+	wxPanel* panel = nullptr;
+
+	wxSpinCtrl* simpleActionIdField = nullptr;
+	wxSpinCtrl* simpleUniqueIdField = nullptr;
+	wxSpinCtrl* doorIdField = nullptr;
+	wxChoice* depotIdField = nullptr;
+	wxChoice* liquidTypeField = nullptr;
+
+	NumberTextCtrl* destinationXField = nullptr;
+	NumberTextCtrl* destinationYField = nullptr;
+	NumberTextCtrl* destinationZField = nullptr;
+
 	wxNotebook* notebook;
 	wxWindow* currentPanel;
 

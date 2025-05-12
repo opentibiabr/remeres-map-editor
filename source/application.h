@@ -48,7 +48,6 @@ public:
 private:
 	bool m_startup;
 	wxString m_file_to_open;
-	void FixVersionDiscrapencies();
 	bool ParseCommandLineMap(wxString &fileName);
 
 	virtual void OnFatalException();
@@ -70,6 +69,8 @@ public:
 	bool DoQueryClose();
 	bool DoQuerySave(bool doclose = true);
 	bool DoQuerySaveTileset(bool doclose = true);
+	void ShowMissingMonsters();
+	void ShowMissingNpcs();
 	bool DoQueryImportCreatures();
 	bool LoadMap(FileName name);
 

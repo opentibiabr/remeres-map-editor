@@ -61,8 +61,6 @@ public:
 	void OnClickCancel(wxCommandEvent &);
 
 protected:
-	void UpdateProtocolList();
-
 	MapTab* view;
 	Editor &editor;
 	wxSpinCtrl* height_spin;
@@ -72,7 +70,6 @@ protected:
 	wxSpinCtrl* custom_height_field = nullptr;
 	// --
 	wxChoice* version_choice;
-	wxChoice* protocol_choice;
 	wxTextCtrl* description_ctrl;
 	wxTextCtrl* house_filename_ctrl;
 	wxTextCtrl* spawn_filename_ctrl;

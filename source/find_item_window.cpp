@@ -40,8 +40,7 @@ FindItemDialog::FindItemDialog(wxWindow* parent, const wxString &title, bool onl
 
 	wxBoxSizer* optionsBoxSizer = newd wxBoxSizer(wxVERTICAL);
 
-	wxString radioBoxChoices[] = { "Find by Server ID",
-								   "Find by Client ID",
+	wxString radioBoxChoices[] = { "Find by Item ID",
 								   "Find by Name",
 								   "Find by Types",
 								   "Find by Tile Types",
@@ -49,19 +48,13 @@ FindItemDialog::FindItemDialog(wxWindow* parent, const wxString &title, bool onl
 
 	int radioBoxChoicesSize = sizeof(radioBoxChoices) / sizeof(wxString);
 	optionsRadioBox = newd wxRadioBox(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, radioBoxChoicesSize, radioBoxChoices, 1, wxRA_SPECIFY_COLS);
-	optionsRadioBox->SetSelection(SearchMode::ServerIDs);
+	optionsRadioBox->SetSelection(SearchMode::ItemIDs);
 	optionsBoxSizer->Add(optionsRadioBox, 0, wxALL | wxEXPAND, 5);
 
-	wxStaticBoxSizer* serverIdBoxSizer = newd wxStaticBoxSizer(newd wxStaticBox(this, wxID_ANY, "Server ID"), wxVERTICAL);
-	serverIdSpin = newd wxSpinCtrl(serverIdBoxSizer->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, g_items.getMinID(), g_items.getMaxID(), g_items.getMinID());
-	serverIdBoxSizer->Add(serverIdSpin, 0, wxALL | wxEXPAND, 5);
-	optionsBoxSizer->Add(serverIdBoxSizer, 1, wxALL | wxEXPAND, 5);
-
-	wxStaticBoxSizer* clientIdBoxSizer = newd wxStaticBoxSizer(newd wxStaticBox(this, wxID_ANY, "Client ID"), wxVERTICAL);
-	clientIdSpin = newd wxSpinCtrl(clientIdBoxSizer->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, g_gui.gfx.getItemSpriteMinID(), g_gui.gfx.getItemSpriteMaxID(), g_gui.gfx.getItemSpriteMinID());
-	clientIdSpin->Enable(false);
-	clientIdBoxSizer->Add(clientIdSpin, 0, wxALL | wxEXPAND, 5);
-	optionsBoxSizer->Add(clientIdBoxSizer, 1, wxALL | wxEXPAND, 5);
+	wxStaticBoxSizer* itemIdBoxSizer = newd wxStaticBoxSizer(newd wxStaticBox(this, wxID_ANY, "Item ID"), wxVERTICAL);
+	itemIdSpin = newd wxSpinCtrl(itemIdBoxSizer->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 100, g_items.getMaxID(), 100);
+	itemIdBoxSizer->Add(itemIdSpin, 0, wxALL | wxEXPAND, 5);
+	optionsBoxSizer->Add(itemIdBoxSizer, 1, wxALL | wxEXPAND, 5);
 
 	wxStaticBoxSizer* nameBoxSizer = newd wxStaticBoxSizer(newd wxStaticBox(this, wxID_ANY, "Name"), wxVERTICAL);
 	nameTextInput = newd wxTextCtrl(nameBoxSizer->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
@@ -186,10 +179,8 @@ FindItemDialog::FindItemDialog(wxWindow* parent, const wxString &title, bool onl
 
 	// Connect Events
 	optionsRadioBox->Connect(wxEVT_COMMAND_RADIOBOX_SELECTED, wxCommandEventHandler(FindItemDialog::OnOptionChange), nullptr, this);
-	serverIdSpin->Connect(wxEVT_COMMAND_SPINCTRL_UPDATED, wxCommandEventHandler(FindItemDialog::OnServerIdChange), nullptr, this);
-	serverIdSpin->Connect(wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler(FindItemDialog::OnServerIdChange), nullptr, this);
-	clientIdSpin->Connect(wxEVT_COMMAND_SPINCTRL_UPDATED, wxCommandEventHandler(FindItemDialog::OnClientIdChange), nullptr, this);
-	clientIdSpin->Connect(wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler(FindItemDialog::OnClientIdChange), nullptr, this);
+	itemIdSpin->Connect(wxEVT_COMMAND_SPINCTRL_UPDATED, wxCommandEventHandler(FindItemDialog::OnItemIdChange), nullptr, this);
+	itemIdSpin->Connect(wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler(FindItemDialog::OnItemIdChange), nullptr, this);
 	nameTextInput->Connect(wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler(FindItemDialog::OnText), nullptr, this);
 
 	typesRadioBox->Connect(wxEVT_COMMAND_RADIOBOX_SELECTED, wxCommandEventHandler(FindItemDialog::OnTypeChange), nullptr, this);
@@ -214,12 +205,10 @@ FindItemDialog::FindItemDialog(wxWindow* parent, const wxString &title, bool onl
 
 FindItemDialog::~FindItemDialog() {
 	// Disconnect Events
-	optionsRadioBox->Disconnect(wxEVT_COMMAND_RADIOBOX_SELECTED, wxCommandEventHandler(FindItemDialog::OnOptionChange), nullptr, this);
-	serverIdSpin->Disconnect(wxEVT_COMMAND_SPINCTRL_UPDATED, wxCommandEventHandler(FindItemDialog::OnServerIdChange), nullptr, this);
-	serverIdSpin->Disconnect(wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler(FindItemDialog::OnServerIdChange), nullptr, this);
-	clientIdSpin->Disconnect(wxEVT_COMMAND_SPINCTRL_UPDATED, wxCommandEventHandler(FindItemDialog::OnClientIdChange), nullptr, this);
-	clientIdSpin->Disconnect(wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler(FindItemDialog::OnClientIdChange), nullptr, this);
-	nameTextInput->Disconnect(wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler(FindItemDialog::OnText), nullptr, this);
+	optionsRadioBox->Disconnect(wxEVT_COMMAND_RADIOBOX_SELECTED, wxCommandEventHandler(FindItemDialog::OnOptionChange), NULL, this);
+	itemIdSpin->Disconnect(wxEVT_COMMAND_SPINCTRL_UPDATED, wxCommandEventHandler(FindItemDialog::OnItemIdChange), NULL, this);
+	itemIdSpin->Disconnect(wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler(FindItemDialog::OnItemIdChange), NULL, this);
+	nameTextInput->Disconnect(wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler(FindItemDialog::OnText), NULL, this);
 
 	typesRadioBox->Disconnect(wxEVT_COMMAND_RADIOBOX_SELECTED, wxCommandEventHandler(FindItemDialog::OnTypeChange), nullptr, this);
 	tileTypesRadioBox->Disconnect(wxEVT_COMMAND_RADIOBOX_SELECTED, wxCommandEventHandler(FindItemDialog::OnTypeChange), nullptr, this);
@@ -254,20 +243,16 @@ void FindItemDialog::setSearchMode(SearchMode mode) {
 		optionsRadioBox->SetSelection(mode);
 	}
 
-	serverIdSpin->Enable(mode == SearchMode::ServerIDs);
-	clientIdSpin->Enable(mode == SearchMode::ClientIDs);
+	itemIdSpin->Enable(mode == SearchMode::ItemIDs);
 	nameTextInput->Enable(mode == SearchMode::Names);
 	typesRadioBox->Enable(mode == SearchMode::Types);
 	tileTypesRadioBox->Enable(mode == SearchMode::TileTypes);
 	EnableProperties(mode == SearchMode::Properties);
 	RefreshContentsInternal();
 
-	if (mode == SearchMode::ServerIDs) {
-		serverIdSpin->SetFocus();
-		serverIdSpin->SetSelection(-1, -1);
-	} else if (mode == SearchMode::ClientIDs) {
-		clientIdSpin->SetFocus();
-		clientIdSpin->SetSelection(-1, -1);
+	if (mode == SearchMode::ItemIDs) {
+		itemIdSpin->SetFocus();
+		itemIdSpin->SetSelection(-1, -1);
 	} else if (mode == SearchMode::Names) {
 		nameTextInput->SetFocus();
 	}
@@ -298,31 +283,11 @@ void FindItemDialog::RefreshContentsInternal() {
 	SearchMode selection = (SearchMode)optionsRadioBox->GetSelection();
 	bool foundSearchResults = false;
 
-	if (selection == SearchMode::ServerIDs) {
-		uint16_t serverID = (uint16_t)serverIdSpin->GetValue();
+	if (selection == SearchMode::ItemIDs) {
+		uint16_t itemID = (uint16_t)itemIdSpin->GetValue();
 		for (int id = g_items.getMinID(); id <= g_items.getMaxID(); ++id) {
 			const ItemType &item = g_items.getItemType(id);
-			if (item.id != serverID) {
-				continue;
-			}
-
-			RAWBrush* rawBrush = item.raw_brush;
-			if (!rawBrush) {
-				continue;
-			}
-
-			if (onlyPickupables && !item.pickupable) {
-				continue;
-			}
-
-			foundSearchResults = true;
-			itemsList->AddBrush(rawBrush);
-		}
-	} else if (selection == SearchMode::ClientIDs) {
-		uint16_t clientID = static_cast<uint16_t>(clientIdSpin->GetValue());
-		for (int id = g_items.getMinID(); id <= g_items.getMaxID(); ++id) {
-			const ItemType &item = g_items.getItemType(id);
-			if (item.id == 0 || item.clientID != clientID) {
+			if (item.id == 0 || item.id != itemID) {
 				continue;
 			}
 
@@ -403,7 +368,7 @@ void FindItemDialog::RefreshContentsInternal() {
 					continue;
 				}
 
-				if ((unpassable->GetValue() && !item.unpassable) || (unmovable->GetValue() && item.moveable) || (blockMissiles->GetValue() && !item.blockMissiles) || (blockPathfinder->GetValue() && !item.blockPathfinder) || (readable->GetValue() && !item.canReadText) || (writeable->GetValue() && !item.canWriteText) || (pickupable->GetValue() && !item.pickupable) || (stackable->GetValue() && !item.stackable) || (rotatable->GetValue() && !item.rotable) || (hangable->GetValue() && !item.isHangable) || (hookEast->GetValue() && !item.hookEast) || (hookSouth->GetValue() && !item.hookSouth) || (hasElevation->GetValue() && !item.hasElevation) || (ignoreLook->GetValue() && !item.ignoreLook) || (floorChange->GetValue() && !item.isFloorChange())) {
+				if ((unpassable->GetValue() && !item.unpassable) || (unmovable->GetValue() && item.moveable) || (blockMissiles->GetValue() && !item.blockMissiles) || (blockPathfinder->GetValue() && !item.blockPathfinder) || (readable->GetValue() && !item.canReadText) || (writeable->GetValue() && !item.canWriteText) || (pickupable->GetValue() && !item.pickupable) || (stackable->GetValue() && !item.stackable) || (rotatable->GetValue() && !item.rotable) || (hangable->GetValue() && !item.isHangable) || (hookEast->GetValue() && (!item.hookEast && item.hook != ITEM_HOOK_EAST)) || (hookSouth->GetValue() && (!item.hookSouth && item.hook != ITEM_HOOK_SOUTH)) || (hasElevation->GetValue() && !item.hasElevation) || (ignoreLook->GetValue() && !item.ignoreLook) || (floorChange->GetValue() && !item.isFloorChange())) {
 					continue;
 				}
 
@@ -427,11 +392,7 @@ void FindItemDialog::OnOptionChange(wxCommandEvent &WXUNUSED(event)) {
 	setSearchMode(static_cast<SearchMode>(optionsRadioBox->GetSelection()));
 }
 
-void FindItemDialog::OnServerIdChange(wxCommandEvent &WXUNUSED(event)) {
-	RefreshContentsInternal();
-}
-
-void FindItemDialog::OnClientIdChange(wxCommandEvent &WXUNUSED(event)) {
+void FindItemDialog::OnItemIdChange(wxCommandEvent &WXUNUSED(event)) {
 	RefreshContentsInternal();
 }
 

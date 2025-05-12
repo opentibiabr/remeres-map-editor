@@ -50,8 +50,13 @@ std::string MonsterBrush::getName() const {
 }
 
 bool MonsterBrush::canDraw(BaseMap* map, const Position &position) const {
-	Tile* tile = map->getTile(position);
-	if (monster_type && tile && !tile->isBlocking()) {
+	const auto tile = map->getTile(position);
+
+	if (!tile || !tile->ground) {
+		return false;
+	}
+
+	if (monster_type && !tile->isBlocking()) {
 		if (tile->getLocation()->getSpawnMonsterCount() != 0 || g_settings.getInteger(Config::AUTO_CREATE_SPAWN_MONSTER)) {
 			if (tile->isPZ()) {
 				return false;
@@ -77,7 +82,7 @@ void MonsterBrush::drawMonster(BaseMap* map, Tile* tile, void* parameter) {
 			});
 			if (it == tile->monsters.end()) {
 				const auto monster = newd Monster(monster_type);
-				monster->setSpawnMonsterTime(*(int*)parameter);
+				monster->setSpawnMonsterTime(*(uint16_t*)parameter);
 				tile->monsters.emplace_back(monster);
 			}
 		}

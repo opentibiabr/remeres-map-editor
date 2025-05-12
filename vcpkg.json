@@ -8,7 +8,10 @@
 		"nlohmann-json",
 		"fmt",
 		"wxwidgets",
-		"opengl"
+		"opengl",
+		"protobuf",
+		"liblzma",
+		"spdlog"
 	],
-	"builtin-baseline": "67cc1677c3bf5c23ea14b9d2416c7422fdeac492"
+	"builtin-baseline": "6760f636e7bcd0dd034c5c0906f6174009465c29"
 }

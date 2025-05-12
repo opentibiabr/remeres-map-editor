@@ -87,8 +87,7 @@ EVT_MENU(MAP_POPUP_MENU_COPY_POSITION, MapCanvas::OnCopyPosition)
 EVT_MENU(MAP_POPUP_MENU_PASTE, MapCanvas::OnPaste)
 EVT_MENU(MAP_POPUP_MENU_DELETE, MapCanvas::OnDelete)
 //----
-EVT_MENU(MAP_POPUP_MENU_COPY_SERVER_ID, MapCanvas::OnCopyServerId)
-EVT_MENU(MAP_POPUP_MENU_COPY_CLIENT_ID, MapCanvas::OnCopyClientId)
+EVT_MENU(MAP_POPUP_MENU_COPY_ITEM_ID, MapCanvas::OnCopyItemId)
 EVT_MENU(MAP_POPUP_MENU_COPY_NAME, MapCanvas::OnCopyName)
 // ----
 EVT_MENU(MAP_POPUP_MENU_ROTATE, MapCanvas::OnRotateItem)
@@ -619,7 +618,7 @@ void MapCanvas::UpdatePositionStatus(int x, int y) {
 	} else if (tile->npc && g_settings.getInteger(Config::SHOW_NPCS)) {
 		description = fmt::format("NPC \"{}\", spawntime: {}", tile->npc->getName(), tile->npc->getSpawnNpcTime());
 	} else if (const auto item = tile->getTopItem()) {
-		description = fmt::format("Item \"{}\", id: {}, cid: {}", item->getName(), item->getID(), item->getClientID());
+		description = fmt::format("Item \"{}\", id: {}", item->getName(), item->getID());
 
 		description = item->getUniqueID() ? fmt::format("{}, uid: {}", description, item->getUniqueID()) : description;
 
@@ -812,7 +811,7 @@ void MapCanvas::OnMouseLeftDoubleClick(wxMouseEvent &event) {
 		else if (new_tile->spawnNpc && g_settings.getInteger(Config::SHOW_SPAWNS_NPC)) {
 			dialog = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, new_tile->spawnNpc);
 		} else if (Item* item = new_tile->getTopItem()) {
-			if (editor.getMap().getVersion().otbm >= MAP_OTBM_4) {
+			if (!g_settings.getInteger(Config::USE_OLD_ITEM_PROPERTIES_WINDOW)) {
 				dialog = newd PropertiesWindow(g_gui.root, &editor.getMap(), new_tile, item);
 			} else {
 				dialog = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), new_tile, item);
@@ -911,8 +910,8 @@ void MapCanvas::OnMouseActionClick(wxMouseEvent &event) {
 					}
 				} else if (event.ControlDown()) {
 					Tile* tile = editor.getMap().getTile(mouse_map_x, mouse_map_y, floor);
-					const auto monster = tile->getTopMonster();
 					if (tile) {
+						const auto monster = tile->getTopMonster();
 						// Show monster spawn
 						if (tile->spawnMonster && g_settings.getInteger(Config::SHOW_SPAWNS_MONSTER)) {
 							selection.start(); // Start selection session
@@ -2188,7 +2187,7 @@ void MapCanvas::OnCopyPosition(wxCommandEvent &WXUNUSED(event)) {
 	}
 }
 
-void MapCanvas::OnCopyServerId(wxCommandEvent &WXUNUSED(event)) {
+void MapCanvas::OnCopyItemId(wxCommandEvent &WXUNUSED(event)) {
 	ASSERT(editor.getSelection().size() == 1);
 
 	if (wxTheClipboard->Open()) {
@@ -2200,24 +2199,6 @@ void MapCanvas::OnCopyServerId(wxCommandEvent &WXUNUSED(event)) {
 
 		wxTextDataObject* obj = new wxTextDataObject();
 		obj->SetText(i2ws(item->getID()));
-		wxTheClipboard->SetData(obj);
-
-		wxTheClipboard->Close();
-	}
-}
-
-void MapCanvas::OnCopyClientId(wxCommandEvent &WXUNUSED(event)) {
-	ASSERT(editor.getSelection().size() == 1);
-
-	if (wxTheClipboard->Open()) {
-		Tile* tile = editor.getSelection().getSelectedTile();
-		ItemVector selected_items = tile->getSelectedItems();
-		ASSERT(selected_items.size() == 1);
-
-		const Item* item = selected_items.front();
-
-		wxTextDataObject* obj = new wxTextDataObject();
-		obj->SetText(i2ws(item->getClientID()));
 		wxTheClipboard->SetData(obj);
 
 		wxTheClipboard->Close();
@@ -2586,7 +2567,7 @@ void MapCanvas::OnProperties(wxCommandEvent &WXUNUSED(event)) {
 			return;
 		}
 
-		if (editor.getMap().getVersion().otbm >= MAP_OTBM_4) {
+		if (!g_settings.getInteger(Config::USE_OLD_ITEM_PROPERTIES_WINDOW)) {
 			w = newd PropertiesWindow(g_gui.root, &editor.getMap(), newTile, *it);
 		} else {
 			w = newd OldPropertiesWindow(g_gui.root, &editor.getMap(), newTile, *it);
@@ -2755,8 +2736,7 @@ void MapPopupMenu::Update() {
 			AppendSeparator();
 
 			if (topSelectedItem) {
-				Append(MAP_POPUP_MENU_COPY_SERVER_ID, "Copy Item Server Id", "Copy the server id of this item");
-				Append(MAP_POPUP_MENU_COPY_CLIENT_ID, "Copy Item Client Id", "Copy the client id of this item");
+				Append(MAP_POPUP_MENU_COPY_ITEM_ID, "Copy Item Id", "Copy the id of this item");
 				Append(MAP_POPUP_MENU_COPY_NAME, "Copy Item Name", "Copy the name of this item");
 				AppendSeparator();
 			}
@@ -3011,7 +2991,7 @@ void AnimationTimer::Notify() {
 	if (map_canvas->GetZoom() <= 2.0) {
 		map_canvas->Refresh();
 	}
-};
+}
 
 void AnimationTimer::Start() {
 	if (!started) {

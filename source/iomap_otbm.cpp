@@ -17,9 +17,11 @@
 
 #include "main.h"
 
+#include "iomap_otbm.h"
+
 #include "settings.h"
 #include "gui.h" // Loadbar
-
+#include "client_assets.h"
 #include "monsters.h"
 #include "monster.h"
 #include "npcs.h"
@@ -29,8 +31,6 @@
 #include "item.h"
 #include "complexitem.h"
 #include "town.h"
-
-#include "iomap_otbm.h"
 
 typedef uint8_t attribute_t;
 typedef uint32_t flags_t;
@@ -175,24 +175,24 @@ void Item::serializeItemAttributes_OTBM(const IOMap &maphandle, NodeFileWriteHan
 		}
 	}
 
-	if (maphandle.version.otbm >= MAP_OTBM_4) {
+	if (maphandle.version.otbm == MAP_OTBM_4 || maphandle.version.otbm > MAP_OTBM_5) {
 		if (attributes && !attributes->empty()) {
 			stream.addU8(OTBM_ATTR_ATTRIBUTE_MAP);
 			serializeAttributeMap(maphandle, stream);
 		}
 	} else {
-		if (g_items.MinorVersion >= CLIENT_VERSION_820 && isCharged()) {
+		if (isCharged()) {
 			stream.addU8(OTBM_ATTR_CHARGES);
 			stream.addU16(getSubtype());
 		}
 
-		uint16_t actionId = getActionID();
+		const auto actionId = getActionID();
 		if (actionId > 0) {
 			stream.addU8(OTBM_ATTR_ACTION_ID);
 			stream.addU16(actionId);
 		}
 
-		uint16_t uniqueId = getUniqueID();
+		const auto uniqueId = getUniqueID();
 		if (uniqueId > 0) {
 			stream.addU8(OTBM_ATTR_UNIQUE_ID);
 			stream.addU16(uniqueId);
@@ -248,7 +248,7 @@ bool Teleport::readItemAttribute_OTBM(const IOMap &maphandle, OTBM_ItemAttribute
 		if (!stream->getU16(x) || !stream->getU16(y) || !stream->getU8(z)) {
 			return false;
 		}
-		destination = Position(x, y, z);
+		setDestination(Position(x, y, z));
 		return true;
 	} else {
 		return Item::readItemAttribute_OTBM(maphandle, attribute, stream);
@@ -273,7 +273,7 @@ bool Door::readItemAttribute_OTBM(const IOMap &maphandle, OTBM_ItemAttribute att
 		if (!stream->getU8(id)) {
 			return false;
 		}
-		doorId = id;
+		setDoorID(id);
 		return true;
 	} else {
 		return Item::readItemAttribute_OTBM(maphandle, attribute, stream);
@@ -294,11 +294,9 @@ void Door::serializeItemAttributes_OTBM(const IOMap &maphandle, NodeFileWriteHan
 bool Depot::readItemAttribute_OTBM(const IOMap &maphandle, OTBM_ItemAttribute attribute, BinaryNode* stream) {
 	if (OTBM_ATTR_DEPOT_ID == attribute) {
 		uint16_t id = 0;
-		if (!stream->getU16(id)) {
-			return false;
-		}
-		depotId = id;
-		return true;
+		const auto read = stream->getU16(id);
+		setDepotID(id);
+		return read;
 	} else {
 		return Item::readItemAttribute_OTBM(maphandle, attribute, stream);
 	}
@@ -389,6 +387,10 @@ bool Container::serializeItemNode_OTBM(const IOMap &maphandle, NodeFileWriteHand
 	|--- OTBM_ITEM_DEF (not implemented)
 */
 
+IOMapOTBM::IOMapOTBM(MapVersion ver) {
+	version = ver;
+}
+
 bool IOMapOTBM::getVersionInfo(const FileName &filename, MapVersion &out_ver) {
 #if OTGZ_SUPPORT > 0
 	if (filename.GetExt() == "otgz") {
@@ -453,17 +455,14 @@ bool IOMapOTBM::getVersionInfo(NodeFileReadHandle* f, MapVersion &out_ver) {
 	if (!root->getU32(u32)) { // Version
 		return false;
 	}
+
 	out_ver.otbm = (MapVersionID)u32;
 
 	root->getU16(u16);
 	root->getU16(u16);
 	root->getU32(u32);
+	root->skip(4); // Skip the otb version (deprecated)
 
-	if (!root->getU32(u32)) { // OTB minor version
-		return false;
-	}
-
-	out_ver.client = ClientVersionID(u32);
 	return true;
 }
 
@@ -665,7 +664,7 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 
 	version.otbm = (MapVersionID)u32;
 
-	if (version.otbm > MAP_OTBM_4) {
+	if (version.otbm > MAP_OTBM_LAST_VERSION) {
 		// Failed to read version
 		if (g_gui.PopupDialog("Map error", "The loaded map appears to be a OTBM format that is not supported by the editor."
 										   "Do you still want to attempt to load the map?",
@@ -688,23 +687,6 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 	}
 
 	map.height = u16;
-
-	if (!root->getU32(u32) || u32 > (unsigned long)g_items.MajorVersion) { // OTB major version
-		if (g_gui.PopupDialog("Map error", "The loaded map appears to be a items.otb format that deviates from the "
-										   "items.otb loaded by the editor. Do you still want to attempt to load the map?",
-							  wxYES | wxNO)
-			== wxID_YES) {
-			warning("Unsupported or damaged map version");
-		} else {
-			error("Outdated items.otb, could not load map");
-			return false;
-		}
-	}
-
-	if (!root->getU32(u32) || u32 > (unsigned long)g_items.MinorVersion) { // OTB minor version
-		warning("This editor needs an updated items.otb version");
-	}
-	version.client = (ClientVersionID)u32;
 
 	BinaryNode* mapHeaderNode = root->getChild();
 	if (mapHeaderNode == nullptr || !mapHeaderNode->getByte(u8) || u8 != OTBM_MAP_DATA) {
@@ -1053,7 +1035,7 @@ bool IOMapOTBM::loadSpawnsMonster(Map &map, pugi::xml_document &doc) {
 				break;
 			}
 
-			int32_t spawntime = monsterNode.attribute("spawntime").as_int();
+			uint16_t spawntime = monsterNode.attribute("spawntime").as_uint(0);
 			if (spawntime == 0) {
 				spawntime = g_settings.getInteger(Config::DEFAULT_SPAWN_MONSTER_TIME);
 			}
@@ -1172,10 +1154,12 @@ bool IOMapOTBM::loadHouses(Map &map, pugi::xml_document &doc) {
 			continue;
 		}
 
-		if ((attribute = houseNode.attribute("name"))) {
-			house->name = attribute.as_string();
-		} else {
-			house->name = "House #" + std::to_string(house->id);
+		if (house != nullptr) {
+			if ((attribute = houseNode.attribute("name"))) {
+				house->name = attribute.as_string();
+			} else {
+				house->name = "House #" + std::to_string(house->id);
+			}
 		}
 
 		Position exitPosition(
@@ -1212,6 +1196,7 @@ bool IOMapOTBM::loadHouses(Map &map, pugi::xml_document &doc) {
 	}
 	return true;
 }
+
 bool IOMapOTBM::loadZones(Map &map, const FileName &dir) {
 	std::string fn = (const char*)(dir.GetPath(wxPATH_GET_SEPARATOR | wxPATH_GET_VOLUME).mb_str(wxConvUTF8));
 	fn += map.zonefile;
@@ -1553,23 +1538,22 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 	const IOMapOTBM &self = *this;
 
 	FileName tmpName;
-	MapVersion mapVersion = map.getVersion();
-
 	f.addNode(0);
 	{
-		f.addU32(mapVersion.otbm); // Version
+		const auto mapVersion = map.mapVersion.otbm < MapVersionID::MAP_OTBM_5 ? MapVersionID::MAP_OTBM_5 : map.mapVersion.otbm;
+		f.addU32(mapVersion); // Map version
 
 		f.addU16(map.width);
 		f.addU16(map.height);
 
-		f.addU32(g_items.MajorVersion);
-		f.addU32(g_items.MinorVersion);
+		f.addU32(4); // Major otb version (deprecated)
+		f.addU32(4); // Minor otb version (deprecated)
 
 		f.addNode(OTBM_MAP_DATA);
 		{
 			f.addByte(OTBM_ATTR_DESCRIPTION);
 			// Neither SimOne's nor OpenTibia cares for additional description tags
-			f.addString("Saved with Remere's Map Editor " + __RME_VERSION__);
+			f.addString("Saved with Canary's Map Editor " + __RME_VERSION__);
 
 			f.addU8(OTBM_ATTR_DESCRIPTION);
 			f.addString(map.description);
@@ -1659,18 +1643,30 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 						}
 
 						if (!found) {
+							if (ground->getID() == 0) {
+								continue;
+							}
 							ground->serializeItemNode_OTBM(self, f);
 						}
 					} else if (ground->isComplex()) {
+						if (ground->getID() == 0) {
+							continue;
+						}
 						ground->serializeItemNode_OTBM(self, f);
 					} else {
 						f.addByte(OTBM_ATTR_ITEM);
+						if (ground->getID() == 0) {
+							continue;
+						}
 						ground->serializeItemCompact_OTBM(self, f);
 					}
 				}
 
 				for (Item* item : save_tile->items) {
 					if (!item->isMetaItem()) {
+						if (item->getID() == 0) {
+							continue;
+						}
 						item->serializeItemNode_OTBM(self, f);
 					}
 				}
@@ -1777,12 +1773,7 @@ bool IOMapOTBM::saveSpawns(Map &map, pugi::xml_document &doc) {
 							monsterNode.append_attribute("x") = x;
 							monsterNode.append_attribute("y") = y;
 							monsterNode.append_attribute("z") = spawnPosition.z;
-							auto monsterSpawnTime = monster->getSpawnMonsterTime();
-							if (monsterSpawnTime > std::numeric_limits<uint32_t>::max() || monsterSpawnTime < std::numeric_limits<uint32_t>::min()) {
-								monsterSpawnTime = 60;
-							}
-
-							monsterNode.append_attribute("spawntime") = monsterSpawnTime;
+							monsterNode.append_attribute("spawntime") = monster->getSpawnMonsterTime();
 							if (monster->getDirection() != NORTH) {
 								monsterNode.append_attribute("direction") = monster->getDirection();
 							}

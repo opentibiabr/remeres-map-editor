@@ -14,6 +14,14 @@ if(DEFINED ENV{VCPKG_DEFAULT_TRIPLET} AND NOT DEFINED VCPKG_TARGET_TRIPLET)
 	set(VCPKG_TARGET_TRIPLET "$ENV{VCPKG_DEFAULT_TRIPLET}" CACHE STRING "")
 endif()
 
+if(MSVC)
+	if(BUILD_STATIC_LIBRARY)
+		set(VCPKG_TARGET_TRIPLET "x64-windows-static" CACHE STRING "")
+	else()
+		set(VCPKG_TARGET_TRIPLET "x64-windows" CACHE STRING "")
+	endif()
+endif()
+
 set(VCPKG_FEATURE_FLAGS "versions")
 set(VCPKG_BUILD_TYPE "release")
 
@@ -119,4 +127,5 @@ endif()
 # *****************************************************************************
 # Add source project
 # *****************************************************************************
+add_subdirectory(source/protobuf)
 add_subdirectory(source)

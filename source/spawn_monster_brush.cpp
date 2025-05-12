@@ -44,7 +44,7 @@ std::string SpawnMonsterBrush::getName() const {
 
 bool SpawnMonsterBrush::canDraw(BaseMap* map, const Position &position) const {
 	Tile* tile = map->getTile(position);
-	if (tile) {
+	if (tile && tile->ground) {
 		if (tile->spawnMonster) {
 			return false;
 		}
@@ -60,9 +60,14 @@ void SpawnMonsterBrush::undraw(BaseMap* map, Tile* tile) {
 void SpawnMonsterBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 	ASSERT(tile);
 	ASSERT(parameter); // Should contain an int which is the size of the newd monster spawn
+
+	if (!tile->ground) {
+		return;
+	}
+
 	auto size = std::max(1, *(int*)parameter);
 	auto side = size * 2 + 1;
-	int time = g_settings.getInteger(Config::DEFAULT_SPAWN_MONSTER_TIME);
+	uint16_t spawnTime = g_settings.getInteger(Config::DEFAULT_SPAWN_MONSTER_TIME);
 	int density = g_settings.getInteger(Config::SPAWN_MONSTER_DENSITY);
 	if (tile && tile->spawnMonster == nullptr) {
 		tile->spawnMonster = newd SpawnMonster(size);
@@ -74,13 +79,27 @@ void SpawnMonsterBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 			}
 		}
 
-		if (monsters.size() > 0) {
-			for (int i = 0; i < toSpawn; ++i) {
-				auto iter = positions.begin();
+		if (monsters.empty()) {
+			return;
+		}
+
+		for (int i = 0; i < toSpawn; ++i) {
+			Tile* tileSpawn = nullptr;
+
+			auto iter = positions.begin();
+			while (!positions.empty() && (!tileSpawn || !tileSpawn->ground)) {
 				std::advance(iter, rand() % positions.size());
-				auto monsterBrush = monsters[rand() % monsters.size()];
-				monsterBrush->drawMonster(map, map->getTile(*iter), &time);
+				tileSpawn = map->getTile(*iter);
+				if (tileSpawn) {
+					tileSpawn = tileSpawn->getPosition() == tile->getPosition() ? tile : tileSpawn;
+				}
 				positions.erase(iter);
+				iter = positions.begin();
+			}
+
+			if (tileSpawn) {
+				auto monsterBrush = monsters[rand() % monsters.size()];
+				monsterBrush->drawMonster(map, tileSpawn, &spawnTime);
 			}
 		}
 	}

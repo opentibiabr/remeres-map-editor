@@ -19,6 +19,7 @@
 
 #include "common.h"
 #include "math.h"
+#include "position.h"
 
 // random generator
 std::mt19937 &getRandomGenerator() {
@@ -280,6 +281,18 @@ bool posToClipboard(int fromx, int fromy, int fromz, int tox, int toy, int toz, 
 	wxTheClipboard->SetData(data);
 	wxTheClipboard->Close();
 	return true;
+}
+
+bool clipboardPositionToFields(NumberTextCtrl* xField, NumberTextCtrl* yField, NumberTextCtrl* zField) {
+	Position position;
+	if (posFromClipboard(position.x, position.y, position.z)) {
+		xField->SetIntValue(position.x);
+		yField->SetIntValue(position.y);
+		zField->SetIntValue(position.z);
+		return true;
+	}
+
+	return false;
 }
 
 wxString b2yn(bool value) {

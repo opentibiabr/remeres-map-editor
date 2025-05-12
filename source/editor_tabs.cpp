@@ -60,37 +60,40 @@ void MapTabbook::CycleTab(bool forward) {
 }
 
 void MapTabbook::OnNotebookPageClose(wxAuiNotebookEvent &event) {
-	EditorTab* editor_tab = GetTab(event.GetInt());
+	const auto editorTab = GetTab(event.GetSelection());
+	const auto mapTab = dynamic_cast<MapTab*>(editorTab);
 
-	MapTab* map_tab = dynamic_cast<MapTab*>(editor_tab);
-	if (map_tab && map_tab->IsUniqueReference() && map_tab->GetMap()) {
-		bool need_refresh = true;
-		Editor* editor = map_tab->GetEditor();
+	if (!mapTab) {
+		return;
+	}
+
+	const auto editor = mapTab->GetEditor();
+
+	if (mapTab->IsUniqueReference() && mapTab->GetMap()) {
+		bool refresh = true;
 		if (editor->IsLive()) {
 			if (editor->hasChanges()) {
-				SetFocusedTab(event.GetInt());
 				if (!g_gui.root->DoQuerySave(false)) {
-					need_refresh = false;
+					refresh = false;
 					event.Veto();
 				}
 			}
 		} else if (editor->hasChanges()) {
-			SetFocusedTab(event.GetInt());
-			if (!g_gui.root->DoQuerySave()) {
-				need_refresh = false;
+			if (!g_gui.root->DoQuerySave(false)) {
+				refresh = false;
 				event.Veto();
 			}
 		}
 
-		if (need_refresh) {
+		if (refresh) {
 			g_gui.RefreshPalettes(nullptr, false);
 			g_gui.UpdateMenus();
 		}
 		return;
 	}
 
-	LiveLogTab* live_tab = dynamic_cast<LiveLogTab*>(editor_tab);
-	if (live_tab && live_tab->IsConnected()) {
+	const auto liveTab = dynamic_cast<LiveLogTab*>(editorTab);
+	if (liveTab && liveTab->IsConnected()) {
 		event.Veto();
 	}
 }

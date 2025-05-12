@@ -47,7 +47,7 @@ void BrowseTileListBox::OnDrawItem(wxDC &dc, const wxRect &rect, size_t index) c
 		return;
 	}
 
-	const auto sprite = g_gui.gfx.getSprite(item->getClientID());
+	const auto sprite = g_gui.gfx.getSprite(item->getID());
 	if (sprite) {
 		sprite->DrawTo(&dc, SPRITE_SIZE_32x32, rect.GetX(), rect.GetY(), rect.GetWidth(), rect.GetHeight());
 	}
@@ -114,7 +114,7 @@ void BrowseTileListBox::OpenPropertiesWindow(int index) {
 	const auto* currentMap = &g_gui.GetCurrentEditor()->getMap();
 
 	wxDialog* dialog;
-	if (currentMap->getVersion().otbm >= MAP_OTBM_4) {
+	if (!g_settings.getInteger(Config::USE_OLD_ITEM_PROPERTIES_WINDOW)) {
 		dialog = newd PropertiesWindow(g_gui.root, currentMap, editTile, items[index]);
 	} else {
 		dialog = newd OldPropertiesWindow(g_gui.root, currentMap, editTile, items[index]);
@@ -224,7 +224,7 @@ void BrowseTileWindow::AddInformations(wxSizer* sizer) {
 	const auto positionString = wxString::Format("x=%i, y=%i, z=%i", tile->getX(), tile->getY(), tile->getZ());
 
 	sizer->Add(newd wxStaticText(this, wxID_ANY, wxString::Format("Position: %s", positionString)), wxSizerFlags(0).Left());
-	sizer->Add(itemCountText = newd wxStaticText(this, wxID_ANY, wxString::Format("Item count: %i", itemList->GetItemCount())), wxSizerFlags(0).Left());
+	sizer->Add(itemCountText = newd wxStaticText(this, wxID_ANY, wxString::Format("Item count: %i", static_cast<int>(itemList->GetItemCount()))), wxSizerFlags(0).Left());
 	sizer->Add(newd wxStaticText(this, wxID_ANY, wxString::Format("Protection zone: %s", b2yn(tile->isPZ()))), wxSizerFlags(0).Left());
 	sizer->Add(newd wxStaticText(this, wxID_ANY, wxString::Format("No PvP: %s", b2yn(tile->getMapFlags() & TILESTATE_NOPVP))), wxSizerFlags(0).Left());
 	sizer->Add(newd wxStaticText(this, wxID_ANY, wxString::Format("No logout: %s", b2yn(tile->getMapFlags() & TILESTATE_NOLOGOUT))), wxSizerFlags(0).Left());
@@ -286,7 +286,18 @@ void BrowseTileWindow::ChangeItemIndex(bool up /* = true*/) {
 	const auto i = up ? 1 : -1;
 	const auto tile = itemList->GetTile();
 
-	const auto selectedItemIndex = itemList->GetSelection();
+	if (itemList->GetSelectedCount() > 1) {
+		return;
+	}
+
+	int selectedItemIndex;
+	for (unsigned int i = 0; i < itemList->GetItemCount(); ++i) {
+		if (itemList->IsSelected(i)) {
+			selectedItemIndex = i;
+			break;
+		}
+	}
+
 	const auto tileItemsSize = tile->items.size() - 1;
 	auto index = tileItemsSize - selectedItemIndex;
 

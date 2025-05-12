@@ -35,10 +35,6 @@ PositionCtrl::PositionCtrl(wxWindow* parent, const wxString &label, int x, int y
 	Add(z_field, 1, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
 }
 
-PositionCtrl::~PositionCtrl() {
-	////
-}
-
 Position PositionCtrl::GetPosition() const {
 	Position pos;
 	pos.x = x_field->GetIntValue();
@@ -58,12 +54,7 @@ bool PositionCtrl::Enable(bool enable) {
 }
 
 void PositionCtrl::OnClipboardText(wxClipboardTextEvent &evt) {
-	Position position;
-	if (posFromClipboard(position.x, position.y, position.z)) {
-		x_field->SetIntValue(position.x);
-		y_field->SetIntValue(position.y);
-		z_field->SetIntValue(position.z);
-	} else {
+	if (!clipboardPositionToFields(x_field, y_field, z_field)) {
 		evt.Skip();
 	}
 }

@@ -36,7 +36,7 @@ RAWBrush::~RAWBrush() {
 
 int RAWBrush::getLookID() const {
 	if (itemtype) {
-		return itemtype->clientID;
+		return itemtype->id;
 	}
 	return 0;
 }
@@ -50,13 +50,15 @@ std::string RAWBrush::getName() const {
 		return "RAWBrush";
 	}
 
-	if (itemtype->hookSouth) {
-		return i2s(itemtype->id) + " - " + itemtype->name + " (Hook South)";
-	} else if (itemtype->hookEast) {
-		return i2s(itemtype->id) + " - " + itemtype->name + " (Hook East)";
+	auto brushName = fmt::format("{} - {}", itemtype->id, itemtype->name);
+
+	if (itemtype->hookSouth || itemtype->hook == ITEM_HOOK_SOUTH) {
+		return brushName.append(" (Hook South)");
+	} else if (itemtype->hookEast || itemtype->hook == ITEM_HOOK_EAST) {
+		return brushName.append(" (Hook East)");
 	}
 
-	return i2s(itemtype->id) + " - " + itemtype->name + itemtype->editorsuffix;
+	return brushName.append(itemtype->editorsuffix);
 }
 
 void RAWBrush::undraw(BaseMap* map, Tile* tile) {

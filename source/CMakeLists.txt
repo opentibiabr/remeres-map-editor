@@ -2,7 +2,11 @@
 # *****************************************************************************
 # Project remeres
 # *****************************************************************************
-project(remeres)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    project(canary-map-editor-debug LANGUAGES CXX)
+else()
+    project(canary-map-editor LANGUAGES CXX)
+endif()
 
 find_package(asio CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
@@ -13,11 +17,15 @@ find_package(Threads REQUIRED)
 find_package(wxWidgets COMPONENTS html aui gl adv core net base CONFIG REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(pugixml CONFIG REQUIRED)
+find_package(liblzma CONFIG REQUIRED)
+find_package(Protobuf REQUIRED)
 
+# *****************************************************************************
+# Options
+# *****************************************************************************
 option(TOGGLE_BIN_FOLDER "Use build/bin folder for generate compilation files" OFF)
 option(OPTIONS_ENABLE_OPENMP "Enable Open Multi-Processing support." ON)
 option(DEBUG_LOG "Enable Debug Log" OFF)
-option(BUILD_STATIC_LIBRARY "Build using static libraries" ON)
 option(SPEED_UP_BUILD_UNITY "Compile using build unity for speed up build" ON)
 
 # LibArchive disabled in compilation level by default, see "#define OTGZ_SUPPORT" in the "definitions.h" file
@@ -32,9 +40,7 @@ option(SPEED_UP_BUILD_UNITY "Compile using build unity for speed up build" ON)
 if(BUILD_STATIC_LIBRARY)
 	log_option_enabled("STATIC_LIBRARY")
 
-	if(MSVC)
-		set(CMAKE_FIND_LIBRARY_SUFFIXES ".lib")
-	elseif(UNIX AND NOT APPLE)
+	if(UNIX AND NOT APPLE)
 		set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 	elseif(APPLE)
 		set(CMAKE_FIND_LIBRARY_SUFFIXES ".a" ".dylib")
@@ -56,9 +62,6 @@ if (MSVC)
 	add_executable(${PROJECT_NAME} "" ../cmake/remeres.rc)
 
 	if(BUILD_STATIC_LIBRARY)
-		set(CMAKE_CXX_FLAGS_RELEASE "/MT")
-		set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/MT")
-		set(CMAKE_CXX_FLAGS_DEBUG "/MTd")
 		set_property(TARGET ${PROJECT_NAME} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 	endif()
 
@@ -86,13 +89,14 @@ else()
 	message(WARNING "IPO is not supported: ${output}")
 endif()
 
-# === PRECOMPILED HEADER ===
-target_precompile_headers(${PROJECT_NAME} PRIVATE main.h)
 
 # === UNITY BUILD (compile time reducer) ===
 if(SPEED_UP_BUILD_UNITY)
 	set_target_properties(${PROJECT_NAME} PROPERTIES UNITY_BUILD ON)
 	log_option_enabled("Build unity for speed up compilation")
+else()
+	# === PRECOMPILED HEADER ===
+	target_precompile_headers(${PROJECT_NAME} PRIVATE main.h)
 endif()
 
 
@@ -111,7 +115,7 @@ target_sources(${PROJECT_NAME}
 	browse_tile_window.cpp
 	positionctrl.cpp
 	carpet_brush.cpp
-	client_version.cpp
+	client_assets.cpp
 	common.cpp
 	common_windows.cpp
 	complexitem.cpp
@@ -126,8 +130,6 @@ target_sources(${PROJECT_NAME}
 	editor.cpp
 	editor_tabs.cpp
 	eraser_brush.cpp
-	extension.cpp
-	extension_window.cpp
 	find_item_window.cpp
 	filehandle.cpp
 	graphics.cpp
@@ -189,6 +191,7 @@ target_sources(${PROJECT_NAME}
 	spawn_monster.cpp
 	spawn_npc.cpp
 	spawn_npc_brush.cpp
+	sprite_appearances.cpp
 	table_brush.cpp
 	templatemap76-74.cpp
 	templatemap81.cpp
@@ -225,6 +228,11 @@ target_link_libraries(${PROJECT_NAME}
 	nlohmann_json::nlohmann_json
 	pugixml::pugixml
 	wx::base wx::core wx::net wx::gl wx::html wx::aui wx::adv
+	liblzma::liblzma
+	OpenGL::GL
+	protobuf
+
+	$<$<PLATFORM_ID:Linux>:xcb>
 )
 
 ## Link compilation files to build/bin folder, else link to the main dir

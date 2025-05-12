@@ -22,17 +22,18 @@
 
 class PreferencesWindow : public wxDialog {
 public:
-	explicit PreferencesWindow(wxWindow* parent) :
-		PreferencesWindow(parent, false) {};
-	PreferencesWindow(wxWindow* parent, bool clientVersionSelected);
+	explicit PreferencesWindow(wxWindow* parent);
 	virtual ~PreferencesWindow();
 
 	void OnClickDefaults(wxCommandEvent &);
 	void OnClickApply(wxCommandEvent &);
 	void OnClickOK(wxCommandEvent &);
 	void OnClickCancel(wxCommandEvent &);
-
+	void SelectNewAssetsFolder(wxCommandEvent &event);
 	void OnCollapsiblePane(wxCollapsiblePaneEvent &);
+	wxBookCtrl &getBookCtrl() {
+		return *book;
+	}
 
 protected:
 	void SetDefaults();
@@ -47,6 +48,7 @@ protected:
 	wxCheckBox* only_one_instance_chkbox;
 	wxCheckBox* show_welcome_dialog_chkbox;
 	wxCheckBox* enable_tileset_editing_chkbox;
+	wxCheckBox* use_old_item_properties_window;
 	wxSpinCtrl* undo_size_spin;
 	wxSpinCtrl* undo_mem_size_spin;
 	wxSpinCtrl* worker_threads_spin;
@@ -73,14 +75,13 @@ protected:
 	// Graphics
 	wxCheckBox* icon_selection_shadow_chkbox;
 	wxChoice* icon_background_choice;
-	wxCheckBox* use_memcached_chkbox;
-	wxTextCtrl* palette_icons_col_size;
-	wxTextCtrl* palette_icons_row_size;
 	wxDirPickerCtrl* screenshot_directory_picker;
 	wxChoice* screenshot_format_choice;
 	wxCheckBox* hide_items_when_zoomed_chkbox;
 	wxColourPickerCtrl* cursor_color_pick;
 	wxColourPickerCtrl* cursor_alt_color_pick;
+	wxTextCtrl* palette_icons_col_size;
+	wxTextCtrl* palette_icons_row_size;
 	/*
 	wxCheckBox* texture_managment_chkbox;
 	wxSpinCtrl* clean_interval_spin;
@@ -112,7 +113,7 @@ protected:
 
 	// Client info
 	wxChoice* default_version_choice;
-	std::vector<wxDirPickerCtrl*> version_dir_pickers;
+	wxDirPickerCtrl* version_dir_picker;
 	wxCheckBox* check_sigs_chkbox;
 
 	// Create controls

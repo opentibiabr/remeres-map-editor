@@ -21,6 +21,7 @@
 #include "main.h"
 
 #include "mt_rand.h"
+#include "numbertextctrl.h"
 
 //
 inline bool testFlags(size_t flags, size_t test) noexcept {
@@ -66,6 +67,7 @@ std::wstring string2wstring(const std::string &utf8string);
 std::string wstring2string(const std::wstring &widestring);
 
 // Gets position values from ClipBoard
+bool clipboardPositionToFields(NumberTextCtrl* xField, NumberTextCtrl* yField, NumberTextCtrl* zField);
 bool posFromClipboard(int &x, int &y, int &z);
 bool posToClipboard(int x, int y, int z, int format);
 bool posToClipboard(int fromx, int fromy, int fromz, int tox, int toy, int toz, int format);

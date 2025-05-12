@@ -28,8 +28,15 @@
 #include "editor_tabs.h"
 #include "map_tab.h"
 #include "palette_window.h"
-#include "client_version.h"
 #include "zone_brush.h"
+
+namespace canary {
+	namespace protobuf {
+		namespace appearances {
+			class Appearances;
+		}
+	}
+}
 
 class BaseMap;
 class Map;
@@ -307,23 +314,15 @@ public:
 	static wxString GetDataDirectory();
 	static wxString GetLocalDataDirectory();
 	static wxString GetLocalDirectory();
-	static wxString GetExtensionsDirectory();
 
 	void discoverDataDirectory(const wxString &existentFile);
 	wxString getFoundDataDirectory() {
 		return m_dataDirectory;
 	}
 
-	// Load/unload a client version (takes care of dialogs aswell)
-	void UnloadVersion();
-	bool LoadVersion(ClientVersionID ver, wxString &error, wxArrayString &warnings, bool force = false);
-	// The current version loaded (returns CLIENT_VERSION_NONE if no version is loaded)
-	const ClientVersion &GetCurrentVersion() const;
-	ClientVersionID GetCurrentVersionID() const;
-	// If any version is loaded at all
-	bool IsVersionLoaded() const {
-		return loaded_version != CLIENT_VERSION_NONE;
-	}
+	// Load/unload a map tabs (takes care of dialogs aswell)
+	void unloadMapWindow();
+	bool loadMapWindow(wxString &error, wxArrayString &warnings, bool force = false);
 
 	// Centers current view on position
 	void SetScreenCenterPosition(const Position &position, bool showIndicator = true);
@@ -378,12 +377,12 @@ public:
 	void SaveMap();
 	void SaveMapAs();
 	bool LoadMap(const FileName &fileName);
+	const MapVersion &getLoadedMapVersion() const {
+		return m_loadedMapVersion;
+	}
 
 protected:
 	bool LoadDataFiles(wxString &error, wxArrayString &warnings);
-	ClientVersion* getLoadedVersion() const {
-		return loaded_version == CLIENT_VERSION_NONE ? nullptr : ClientVersion::get(loaded_version);
-	}
 
 	//=========================================================================
 	// Palette Interface
@@ -457,6 +456,8 @@ public:
 	FlagBrush* pvp_brush;
 	ZoneBrush* zone_brush;
 
+	std::unique_ptr<canary::protobuf::appearances::Appearances> m_appearancesPtr; // Protobuf appearances file parsed
+
 protected:
 	//=========================================================================
 	// Global GUI state
@@ -466,7 +467,7 @@ protected:
 
 	wxGLContext* OGLContext;
 
-	ClientVersionID loaded_version;
+	MapVersion m_loadedMapVersion;
 	EditorMode mode;
 	bool pasting;
 

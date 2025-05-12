@@ -65,10 +65,10 @@ public:
 		weight = newWeight;
 	}
 
-	int getSpawnMonsterTime() const noexcept {
+	uint16_t getSpawnMonsterTime() const noexcept {
 		return spawntime;
 	}
-	void setSpawnMonsterTime(int time) noexcept {
+	void setSpawnMonsterTime(uint16_t time) noexcept {
 		spawntime = time;
 	}
 
@@ -87,7 +87,7 @@ protected:
 	std::string type_name;
 	Direction direction;
 	uint8_t weight;
-	int spawntime;
+	uint16_t spawntime;
 	bool saved;
 	bool selected;
 };

@@ -18,12 +18,12 @@
 #ifndef RME_DEFINITIONS_H_
 #define RME_DEFINITIONS_H_
 
-#define __W_RME_APPLICATION_NAME__ wxString("Remere's Map Editor")
+#define __W_RME_APPLICATION_NAME__ wxString("Canary's Map Editor")
 
 // Version info
 // xxyyzzt (major, minor, subversion)
-#define __RME_VERSION_MAJOR__ 3
-#define __RME_VERSION_MINOR__ 8
+#define __RME_VERSION_MAJOR__ 4
+#define __RME_VERSION_MINOR__ 0
 #define __RME_SUBVERSION__ 0
 
 #define __LIVE_NET_VERSION__ 5
@@ -50,6 +50,7 @@
 // OS
 
 #define OTGZ_SUPPORT 0
+#define CLIENT_VERSION 1100
 
 #define ASSETS_NAME "Tibia"
 
