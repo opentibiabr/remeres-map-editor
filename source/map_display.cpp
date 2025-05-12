@@ -47,6 +47,18 @@
 #include "spawn_npc_brush.h"
 #include "npc_brush.h"
 
+#include "iominimap.h"
+#include "filehandle.h"
+#include <wx/image.h>
+#include <zlib.h>
+
+#include "materials.h"
+#include "items.h"
+#include "item.h"
+#include "complexitem.h"
+#include "common_windows.h"
+#include "positionctrl.h"
+
 BEGIN_EVENT_TABLE(MapCanvas, wxGLCanvas)
 EVT_KEY_DOWN(MapCanvas::OnKeyDown)
 EVT_KEY_DOWN(MapCanvas::OnKeyUp)
@@ -188,6 +200,16 @@ void MapCanvas::GetViewBox(int* view_scroll_x, int* view_scroll_y, int* screensi
 	window->GetViewStart(view_scroll_x, view_scroll_y);
 }
 
+void MapCanvas::GetViewBoxSatelite(int* view_scroll_x, int* view_scroll_y, int* screensize_x, int* screensize_y) const {
+	// Mantém o posicionamento da view atual
+	MapWindow* window = GetMapWindow();
+	window->GetViewStart(view_scroll_x, view_scroll_y);
+
+	// Força o tamanho fixo de 512x512 independentemente do tamanho da janela ou zoom
+	if (screensize_x) *screensize_x = 512;
+	if (screensize_y) *screensize_y = 512;
+}
+
 void MapCanvas::OnPaint(wxPaintEvent &event) {
 	SetCurrent(*g_gui.GetGLContext(this));
 
@@ -262,6 +284,173 @@ void MapCanvas::ShowPositionIndicator(const Position &position) {
 			Update();
 		}
 	}
+}
+
+void MapCanvas::ExportSatellite(const std::string& directory, const std::string& filename, MinimapExportMode mode, int floor, int imageSize) {
+    const auto& selection = editor.getSelection();
+    const auto& tiles = selection.getTiles();
+    if (tiles.empty()) return;
+
+    int min_x = rme::MapMaxWidth + 1;
+    int min_y = rme::MapMaxHeight + 1;
+    int max_x = 0, max_y = 0;
+
+    for (auto tile : tiles) {
+        if (!tile || (!tile->ground && tile->items.empty())) continue;
+        const auto& pos = tile->getPosition();
+        min_x = std::min(min_x, pos.x);
+        min_y = std::min(min_y, pos.y);
+        max_x = std::max(max_x, pos.x);
+        max_y = std::max(max_y, pos.y);
+    }
+
+    // Ajusta bloco baseado em SQM que cabe em imageSize
+    const int tile_size = 32;
+    const int blockWidthSQM = imageSize / tile_size;
+    const int blockHeightSQM = imageSize / tile_size;
+
+    int widthSQM = max_x - min_x + 1;
+    int heightSQM = max_y - min_y + 1;
+    int blocksX = (widthSQM + blockWidthSQM - 1) / blockWidthSQM;
+    int blocksY = (heightSQM + blockHeightSQM - 1) / blockHeightSQM;
+
+    // Prepara imagem final
+    wxImage finalImage(imageSize * blocksX, imageSize * blocksY);
+    finalImage.SetRGB(wxRect(0, 0, finalImage.GetWidth(), finalImage.GetHeight()), 0, 0, 0);
+
+    // Caminho temporário para salvar screenshots
+    wxFileName tempFile(wxString::FromUTF8(directory));
+    wxString tempPath = tempFile.GetPath();
+
+	for (int by = 0; by < blocksY; ++by) {
+		for (int bx = 0; bx < blocksX; ++bx) {
+			int startX = min_x + bx * blockWidthSQM;
+			int startY = min_y + by * blockHeightSQM;
+			int centerX = startX + blockWidthSQM / 2;
+			int centerY = startY + blockHeightSQM / 2;
+	
+			Position center(centerX, centerY, floor);
+			g_gui.SetCurrentZoom(16.69); // ou valor adequado
+			SetCurrent(*g_gui.GetGLContext(this));
+			g_gui.SetScreenCenterPosition(center);
+	
+			wxTheApp->Yield(true);
+			wxMilliSleep(500); // tempo para renderizar, pode ajustar
+	
+			TakeSateliteshot(wxFileName(tempPath, "temp.png"), "PNG");
+	
+			// Procura screenshot
+			wxDir dir(tempPath);
+			wxString imageName;
+			if (!dir.GetFirst(&imageName, "screenshot_*.png", wxDIR_FILES)) {
+				wxLogError("Falha ao capturar imagem em bloco [%d,%d]", bx, by);
+				continue;
+			}
+	
+			wxImage captured(wxFileName(tempPath, imageName).GetFullPath());
+			if (!captured.IsOk()) {
+				wxLogError("Imagem inválida [%s]", imageName);
+				continue;
+			}
+	
+			// Cola no finalImage
+			finalImage.Paste(captured, bx * imageSize, by * imageSize);
+	
+			// Remove screenshot temporário
+			wxRemoveFile(wxFileName(tempPath, imageName).GetFullPath());
+		}
+	}	
+
+    wxString finalPath = wxString::Format("%s/%s.png", directory, filename);
+    finalImage.SaveFile(finalPath, wxBITMAP_TYPE_PNG);
+}
+
+void MapCanvas::TakeSateliteshot(wxFileName path, wxString format) {
+	int screensize_x, screensize_y;
+	GetViewBoxSatelite(&view_scroll_x, &view_scroll_y, &screensize_x, &screensize_y);
+	delete[] screenshot_buffer;
+	screenshot_buffer = newd uint8_t[3 * screensize_x * screensize_y];
+
+	// Draw the window
+	Refresh();
+	wxGLCanvas::Update(); // Forces immediate redraws the window.
+
+	// screenshot_buffer should now contain the screenbuffer
+	if (screenshot_buffer == nullptr) {
+		g_gui.PopupDialog("Capture failed", "Image capture failed. Old Video Driver?", wxOK);
+	} else {
+		// We got the shit
+		int screensize_x, screensize_y;
+		GetMapWindow()->GetViewSize(&screensize_x, &screensize_y);
+		wxImage screenshot(512, 512, screenshot_buffer);
+
+		screenshot.InitAlpha();
+		unsigned char* alpha = screenshot.GetAlpha();
+		if (alpha) {
+			for (int i = 0; i < 512 * 512; ++i) {
+				alpha[i] = 255;
+			}
+		}
+		time_t t = time(nullptr);
+		struct tm current_time;
+#ifdef _WIN32
+		localtime_s(&current_time, &t);
+#else
+		localtime_r(&t, &current_time);
+#endif
+
+		wxString date;
+		date << "screenshot_";
+		date << (1900 + current_time.tm_year);
+		if (current_time.tm_mon < 9) {
+			date << "-0" << (current_time.tm_mon + 1);
+		} else {
+			date << "-" << (current_time.tm_mon + 1);
+		}
+		date << "-" << current_time.tm_mday;
+		date << "-" << current_time.tm_hour;
+		date << "-" << current_time.tm_min;
+		date << "-" << current_time.tm_sec;
+
+		ASSERT(&current_time != nullptr);
+
+		int type = 0;
+		path.SetName(date);
+		if (format == "bmp") {
+			path.SetExt(format);
+			type = wxBITMAP_TYPE_BMP;
+		} else if (format == "png") {
+			path.SetExt(format);
+			type = wxBITMAP_TYPE_PNG;
+		} else if (format == "jpg" || format == "jpeg") {
+			path.SetExt(format);
+			type = wxBITMAP_TYPE_JPEG;
+		} else if (format == "tga") {
+			path.SetExt(format);
+			type = wxBITMAP_TYPE_TGA;
+		} else {
+			g_gui.SetStatusText("Unknown screenshot format \'" + format + "\", switching to default (png)");
+			path.SetExt("png");
+			;
+			type = wxBITMAP_TYPE_PNG;
+		}
+
+		path.Mkdir(0755, wxPATH_MKDIR_FULL);
+		wxFileOutputStream of(path.GetFullPath());
+		if (of.IsOk()) {
+			if (screenshot.SaveFile(of, static_cast<wxBitmapType>(type))) {
+				g_gui.SetStatusText("Took screenshot and saved as " + path.GetFullName());
+			} else {
+				g_gui.PopupDialog("File error", "Couldn't save image file correctly.", wxOK);
+			}
+		} else {
+			g_gui.PopupDialog("File error", "Couldn't open file " + path.GetFullPath() + " for writing.", wxOK);
+		}
+	}
+
+	Refresh();
+
+	screenshot_buffer = nullptr;
 }
 
 void MapCanvas::TakeScreenshot(wxFileName path, wxString format) {
@@ -1844,8 +2033,7 @@ void MapCanvas::OnKeyDown(wxKeyEvent &event) {
 			g_gui.RefreshView();
 			break;
 		}
-		case 'z':
-		case 'Z': { // Rotate counterclockwise (actually shift variaton, but whatever... :P)
+		case '.': { // Rotate counterclockwise (actually shift variaton, but whatever... :P)
 			int nv = g_gui.GetBrushVariation();
 			--nv;
 			if (nv < 0) {
@@ -1855,8 +2043,7 @@ void MapCanvas::OnKeyDown(wxKeyEvent &event) {
 			g_gui.RefreshView();
 			break;
 		}
-		case 'x':
-		case 'X': { // Rotate clockwise (actually shift variaton, but whatever... :P)
+		case ',': { // Rotate clockwise (actually shift variaton, but whatever... :P)
 			int nv = g_gui.GetBrushVariation();
 			++nv;
 			if (nv >= (g_gui.GetCurrentBrush() ? g_gui.GetCurrentBrush()->getMaxVariation() : 0)) {

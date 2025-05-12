@@ -305,7 +305,7 @@
 		<borderitem edge="dse" item="4514"/>
 	</border>
 	
-	<border id="21"> -- cave wall border --
+	<border id="21"> <!-- cave wall border -->
 		<borderitem edge="n"   item="5631"/>
 		<borderitem edge="e"   item="5636"/>
 		<borderitem edge="s"   item="5637"/>

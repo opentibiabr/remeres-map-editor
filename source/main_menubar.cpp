@@ -64,7 +64,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(IMPORT_MINIMAP, wxITEM_NORMAL, OnImportMinimap);
 	MAKE_ACTION(EXPORT_MINIMAP, wxITEM_NORMAL, OnExportMinimap);
 	MAKE_ACTION(EXPORT_TILESETS, wxITEM_NORMAL, OnExportTilesets);
-
+	MAKE_ACTION(EXPORT_SATELLITE, wxITEM_NORMAL, OnExportSatellites);
 	MAKE_ACTION(RELOAD_DATA, wxITEM_NORMAL, OnReloadDataFiles);
 	// MAKE_ACTION(RECENT_FILES, wxITEM_NORMAL, OnRecent);
 	MAKE_ACTION(PREFERENCES, wxITEM_NORMAL, OnPreferences);
@@ -347,6 +347,7 @@ void MainMenuBar::Update() {
 	EnableItem(IMPORT_MINIMAP, false);
 	EnableItem(EXPORT_MINIMAP, is_local);
 	EnableItem(EXPORT_TILESETS, loaded);
+	EnableItem(EXPORT_SATELLITE, is_local);
 
 	EnableItem(FIND_ITEM, is_host);
 	EnableItem(REPLACE_ITEMS, is_local);
@@ -858,6 +859,15 @@ void MainMenuBar::OnExportMinimap(wxCommandEvent &WXUNUSED(event)) {
 	}
 
 	ExportMiniMapWindow dialog(frame, *g_gui.GetCurrentEditor());
+	dialog.ShowModal();
+}
+
+void MainMenuBar::OnExportSatellites(wxCommandEvent &WXUNUSED(event)) {
+	if (!g_gui.IsEditorOpen()) {
+		return;
+	}
+
+	ExportSatelliteWindow dialog(frame, *g_gui.GetCurrentEditor());
 	dialog.ShowModal();
 }
 

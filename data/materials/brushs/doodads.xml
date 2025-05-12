@@ -2656,6 +2656,12 @@
 		<alternate>
 			<composite chance="10">
 				<tile x="0" y="0" z="0">  <item id="24236" chance="10"/> </tile>
+				<tile x="-1" y="0" z="0">  <item id="24239" chance="10"/> </tile>
+			</composite>
+		</alternate>
+		<alternate>
+			<composite chance="10">
+				<tile x="0" y="0" z="0">  <item id="24236" chance="10"/> </tile>
 				<tile x="0" y="0" z="0">  <item id="24239" chance="10"/> </tile>
 			</composite>
 		</alternate>

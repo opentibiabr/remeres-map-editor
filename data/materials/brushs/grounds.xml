@@ -44,7 +44,7 @@
 		<item id="7761" chance="2500"/>
 		
 		<border align="outer" id="2"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
 		<optional id="120"/>
 	</brush>
 
@@ -62,7 +62,7 @@
 		<item id="993" chance="2500"/>
 		
 		<border align="outer" id="128"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
 	</brush>
 
 	<brush name="grass open stone pile" type="ground" lookid="594" z-order="3000">
@@ -173,7 +173,22 @@
 		<border align="outer" id="43"/>
 		<border align="inner" to="sea" id="6"/>
 		<border align="inner" to="walkable sea" id="6"/>
-		<border align="inner" to="none" id="1"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="800">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
+		<!--<border align="inner" to="none" id="1"/>-->
 	</brush>
 
 	<brush name="ice open stone pile" type="ground" lookid="609" z-order="5500">
@@ -183,6 +198,21 @@
 		<border align="inner" to="sea" id="6"/>
 		<border align="inner" to="walkable sea" id="6"/>
 		<border align="inner" to="none" id="6"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="609">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 		
 		<friend name="ice"/>
 	</brush>
@@ -194,6 +224,21 @@
 		<border align="inner" to="sea" id="6"/>
 		<border align="inner" to="walkable sea" id="6"/>
 		<border align="inner" to="none" id="6"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="608">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 		
 		<friend name="ice"/>
 		<friend name="ice open stone pile"/>
@@ -268,9 +313,24 @@
 		<item id="6924" chance="0"/>
 		
 		<border align="inner" to="sea" id="33"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
 		<border align="inner" to="walkable sea" id="33"/>
 		<border align="outer" id="6">
+
+		<border align="inner" to="walkable sea" ground_equivalent="6838">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 			-- snow vs. grass/whatever with normal sea border --
 			<specific>
 				<conditions>
@@ -655,7 +715,22 @@
 		<item id="109" chance="1"/>
 		
 		<border align="outer" id="8"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="106">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="cave" type="ground" lookid="351" z-order="200">
@@ -669,8 +744,23 @@
 		<item id="10480" chance="1000"/>
 		
 		<border align="outer" id="7"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
 		<optional id="121"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="351">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="cave hole" type="ground" lookid="385" z-order="200">
@@ -678,6 +768,21 @@
 		
 		<border align="outer" id="7"/>
 		<friend name="cave"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="385">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="cave ropespot" type="ground" lookid="386" z-order="2000">
@@ -686,6 +791,21 @@
 		<border align="outer" id="7"/>
 		<friend name="cave"/>
 		<friend name="cave hole"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="386">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="cave small hole" type="ground" lookid="387" z-order="2000">
@@ -695,6 +815,21 @@
 		<friend name="cave"/>
 		<friend name="cave hole"/>
 		<friend name="cave ropespot"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="387">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="cave pickhole" type="ground" lookid="394" z-order="2000">
@@ -710,7 +845,7 @@
 	<brush name="dry earth" type="ground" lookid="982" z-order="1">
 		<item id="982" chance="1"/>
 		
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
 	</brush>
 
 	<brush name="sand" type="ground" lookid="231" z-order="4650">
@@ -740,6 +875,8 @@
 			<borderitem edge="dne" item="4627"/>
 			<borderitem edge="dsw" item="4626"/>
 			<borderitem edge="dse" item="4625"/>
+
+		
 			
 			-- Handles for the 8 different specific cases which might occur with water/sand borders --
 			<specific>
@@ -832,7 +969,23 @@
 				</actions>
 			</specific>
 		</border>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<!-- Border for transitioning to "walkable sea" -->
+        <border align="inner" to="walkable sea" ground_equivalent="231">
+            <borderitem edge="n" item="6639"/>
+            <borderitem edge="e" item="6640"/>
+            <borderitem edge="s" item="6641"/>
+            <borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+        </border>
 		
 		<optional id="129"/>
 	</brush>
@@ -841,7 +994,22 @@
 		<item id="615" chance="1"/>
 		
 		<border align="outer" id="16"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="615">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 		
 		<friend name="sand"/>
 	</brush>
@@ -850,7 +1018,22 @@
 		<item id="606" chance="1"/>
 		
 		<border align="outer" id="16"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="606">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 		
 		<friend name="sand"/>
 		<friend name="sand open stone pile"/>
@@ -860,7 +1043,22 @@
 		<item id="5731" chance="0"/>
 		
 		<border align="outer" id="16"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="5731">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 		
 		<friend name="sand"/>
 		<friend name="sand open stone pile"/>
@@ -1055,6 +1253,21 @@
 
 	<brush name="cobblestone" type="ground" lookid="870" z-order="1">
 		<item id="870" chance="1000"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="870">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="dark cobblestone" type="ground" lookid="7593" z-order="70">
@@ -1068,6 +1281,21 @@
 		<item id="7601" chance="1000"/>
 		
 		<border align="outer" id="127"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="7593">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="ugly cobblestone" type="ground" lookid="7594" z-order="65">
@@ -1077,10 +1305,40 @@
 		<item id="7604" chance="1000"/>
 		
 		<border align="outer" id="126"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="7594">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="grassy cobblestone" type="ground" lookid="937" z-order="1">
 		<item id="937" chance="1000"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="937">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="grass (jungle)" type="ground" lookid="1019" z-order="3600">
@@ -1088,14 +1346,44 @@
 		<item id="10197" chance="1000"/>
 		
 		<border align="outer" id="9"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="1019">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="jungle dirt" type="ground" lookid="1020" z-order="1">
 		<item id="1020" chance="11"/>
 		<item id="1021" chance="1"/>
 		
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="1020">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="mountain ground" type="ground" lookid="1127" z-order="1">
@@ -1103,6 +1391,21 @@
 		
 		<border align="inner" to="sea" id="47"/>
 		<border align="outer" id="10"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="1127">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="dirt mountain ground" type="ground" lookid="8085" z-order="4800">
@@ -1113,7 +1416,22 @@
 		<item id="8089" chance="1000"/>
 		
 		<border align="outer" id="125"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="8085">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="rock soil" type="ground" lookid="4394" z-order="5">
@@ -1137,6 +1455,21 @@
 		
 		<border align="outer" id="20"/>
 		<border align="inner" to="none" id="58"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="4394">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="lava" type="ground" lookid="21477" z-order="7700">
@@ -1148,6 +1481,21 @@
 		<item id="21482" chance="2"/>
 		
 		<border align="outer" id="211"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="21477">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="lava (rock soil & cave ground)" type="ground" lookid="21477" z-order="7700">
@@ -1162,6 +1510,21 @@
 		<border align="inner" to="cave" id="18"/>
 		<border align="inner" to="rock soil" id="30"/>
 		<friend name="sea"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="21477">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="rocky ground" type="ground" lookid="4559" z-order="2000">
@@ -1179,14 +1542,44 @@
 		<item id="4555" chance="0"/>
 		
 		<border align="outer" id="11"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="4559">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="white gravel" type="ground" lookid="104" z-order="4500">
 		<item id="104" chance="1000"/>
 		
 		<border align="outer" id="12"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="104">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="frozen mud" type="ground" lookid="7062" z-order="10">
@@ -1441,7 +1834,22 @@
 				</actions>
 			</specific>
 		</border>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="7062">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 		<optional id="46"/>
 	</brush>
 
@@ -1453,14 +1861,44 @@
 		<item id="950" chance="0"/>
 		
 		<border align="outer" id="13"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="103">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="light swampdirt" type="ground" lookid="194" z-order="500">
 		<item id="194" chance="1"/>
 		
 		<border align="outer" id="14"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="194">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="fur roof" type="ground" lookid="6804" z-order="100">
@@ -1473,13 +1911,43 @@
 		
 		<border align="outer" id="56"/>
 		<border align="outer" to="none" id="56"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="6804">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="melting ground" type="ground" lookid="5815" z-order="1500">
 		<item id="5815" chance="1"/>
 		
 		<border align="outer" id="42"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="5815">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="tar pit" type="ground" lookid="837" z-order="1">
@@ -1490,6 +1958,21 @@
 		
 		<friend name="lava"/>
 		<friend name="sea"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="837">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="clear water" type="ground" lookid="622" z-order="1">
@@ -1498,6 +1981,21 @@
 		<friend name="sea"/>
 		<friend name="tar pit"/>
 		<friend name="lava"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="622">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="swamp" type="ground" lookid="4680" z-order="5000">
@@ -1521,7 +2019,22 @@
 		<item id="4744" chance="12"/>
 		
 		<border align="outer" id="15"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="4680">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="dark swamp" type="ground" lookid="4691" z-order="5100">
@@ -1538,14 +2051,29 @@
 		<item id="4701" chance="1"/>
 		
 		<border align="outer" id="57"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="4691">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="walkable swamp" type="ground" lookid="4680" z-order="4900">
 		<item id="6352" chance="220"/>
 		
 		<border align="outer" id="15"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
 	</brush>
 
 	<brush name="scale roof" type="ground" lookid="9967" z-order="110">
@@ -1553,6 +2081,21 @@
 		
 		<border align="outer" id="212"/>
 		<border align="outer" to="none" id="212"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="9967">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="flat roof" type="ground" lookid="1152" z-order="30">
@@ -1562,6 +2105,21 @@
 		
 		<border align="outer" id="4"/>
 		<border align="outer" to="none" id="4"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="1152">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="green bamboo roof" type="ground" lookid="6171" z-order="10">
@@ -1571,6 +2129,21 @@
 		
 		<border align="outer" to="none" id="32"/>
 		<border align="outer" id="32"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="6171">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="brown bamboo roof" type="ground" lookid="1197" z-order="20">
@@ -1578,6 +2151,21 @@
 		
 		<border align="outer" to="none" id="31"/>
 		<border align="outer" id="31"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="1197">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="stiff bamboo roof, horizontal" type="ground" lookid="6212" z-order="5">
@@ -1585,6 +2173,21 @@
 		
 		<border align="outer" to="none" id="123"/>
 		<border align="outer" id="123"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="6212">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="stiff bamboo roof, vertical" type="ground" lookid="6209" z-order="5">
@@ -1592,6 +2195,21 @@
 		
 		<border align="outer" to="none" id="124"/>
 		<border align="outer" id="124"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="6209">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="mountain" type="ground" lookid="1128" z-order="9900">
@@ -1604,6 +2222,21 @@
 		<border align="outer" id="10"/>
 		<border align="inner" id="3"/>
 		<optional id="29"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="1128">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 	
 
@@ -1612,6 +2245,21 @@
 			
 			<border align="outer" id="59"/>
 			<border align="outer" to="none" id="59"/>
+
+			<border align="inner" to="walkable sea" ground_equivalent="9246">
+				<borderitem edge="n" item="6639"/>
+				<borderitem edge="e" item="6640"/>
+				<borderitem edge="s" item="6641"/>
+				<borderitem edge="w" item="6642"/>
+				<borderitem edge="cnw" item="6647"/>
+				<borderitem edge="cne" item="6648"/>
+				<borderitem edge="csw" item="6649"/>
+				<borderitem edge="cse" item="6650"/>
+				<borderitem edge="dnw" item="6643"/>
+				<borderitem edge="dne" item="6644"/>
+				<borderitem edge="dsw" item="6645"/>
+				<borderitem edge="dse" item="6646"/>
+			</border>
 	</brush>
 
 	<brush name="ice mountain" type="ground" lookid="6925" z-order="9900">
@@ -1621,6 +2269,21 @@
 			<border align="inner" to="none" id="72"/>
 			<border align="outer" id="71"/>
 			<border align="inner" id="72"/>
+
+			<border align="inner" to="walkable sea" ground_equivalent="6925">
+				<borderitem edge="n" item="6639"/>
+				<borderitem edge="e" item="6640"/>
+				<borderitem edge="s" item="6641"/>
+				<borderitem edge="w" item="6642"/>
+				<borderitem edge="cnw" item="6647"/>
+				<borderitem edge="cne" item="6648"/>
+				<borderitem edge="csw" item="6649"/>
+				<borderitem edge="cse" item="6650"/>
+				<borderitem edge="dnw" item="6643"/>
+				<borderitem edge="dne" item="6644"/>
+				<borderitem edge="dsw" item="6645"/>
+				<borderitem edge="dse" item="6646"/>
+			</border>
 	</brush>
 
 	<brush name="stone floor" type="ground" lookid="436" z-order="1">
@@ -1639,6 +2302,21 @@
 		<!-- <border align="inner" to="icy mountain" id="133"/> -->
 		<border align="inner" id="53"/>
 		<border align="outer" id="52"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="6869">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="icy earth" type="ground" lookid="6618" z-order="10600">
@@ -1977,6 +2655,21 @@
 		<item id="408" chance="1"/>
 
 		<optional id="41"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="16487">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="wooden ladder trapdoor" type="ground" lookid="432" z-order="7505">
@@ -2115,6 +2808,21 @@
 			<borderitem edge="dsw" item="931"/>
 			<borderitem edge="dse" item="930"/>
 		</border>
+
+		<border align="inner" to="walkable sea" ground_equivalent="923">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="stairs" type="ground" lookid="469" z-order="7950">
@@ -2214,6 +2922,20 @@
 		<border align="outer" to="none" id="40"/>
 		
 		<friend name="all"/>
+		<border align="inner" to="walkable sea" ground_equivalent="486">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="brick roof, vertical" type="ground" lookid="1161" z-order="50">
@@ -2309,7 +3031,22 @@
 		<item id="9531" chance="2000"/>
 		
 		<border align="outer" id="138"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="9524">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="dirt mud" type="ground" lookid="9700" z-order="2900">
@@ -2323,7 +3060,22 @@
 		<item id="9707" chance="2000"/>
 		
 		<border align="outer" id="139"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="9700">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="muddy sand" type="ground" lookid="19271" z-order="3150">
@@ -2337,7 +3089,22 @@
 		<item id="19278" chance="2000"/>
 		
 		<border align="outer" id="140"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="19271">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="dark dirt" type="ground" lookid="10228" z-order="1200">
@@ -2351,7 +3118,22 @@
 		<item id="10235" chance="400"/>
 		
 		<border align="outer" id="134"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="10228">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="light dirt" type="ground" lookid="10237" z-order="600">
@@ -2363,7 +3145,22 @@
 		<item id="10243" chance="1000"/>
 		
 		<border align="outer" id="146"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="10237">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="mysterious ground" type="ground" lookid="10535" z-order="6500">
@@ -2371,7 +3168,22 @@
 		<item id="10535" chance="1000"/>
 		
 		<border align="outer" id="154"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="10535">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="darkest mud" type="ground" lookid="10549" z-order="6700">
@@ -2382,7 +3194,22 @@
 		<item id="10553" chance="1000"/>
 		
 		<border align="outer" id="151"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="10549">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="dark spikes" type="ground" lookid="11278" z-order="5900">
@@ -2392,7 +3219,22 @@
 		<item id="11281" chance="2500"/>
 		
 		<border align="outer" id="155"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="11278">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="red spikes" type="ground" lookid="11282" z-order="6000">
@@ -2402,7 +3244,22 @@
 		<item id="11285" chance="2500"/>
 		
 		<border align="outer" id="156"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="11282">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="dirty water" type="ground" lookid="12558" z-order="7500">
@@ -2415,6 +3272,21 @@
 		
 		<border align="outer" id="173"/>
 		<border align="outer" to="none" id="173"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="12558">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="rocky red floor" type="ground" lookid="12379" z-order="4300">
@@ -2428,7 +3300,22 @@
 		<item id="12386" chance="1000"/>
 		
 		<border align="outer" id="158"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="12379">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="blue sea floor" type="ground" lookid="13533" z-order="2600">
@@ -2440,7 +3327,22 @@
 		<item id="13538" chance="2500"/>
 		
 		<border align="outer" id="159"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="13533">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="brown sea floor" type="ground" lookid="13805" z-order="2700">
@@ -2452,7 +3354,22 @@
 		<item id="13810" chance="2500"/>
 		
 		<border align="outer" id="160"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="13805">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="crystal floor" type="ground" lookid="14770" z-order="7000">
@@ -2467,6 +3384,21 @@
 		
 		<border align="outer" id="161"/>
 		<border align="outer" to="none" id="162"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="14770">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="basalt floor" type="ground" lookid="15000" z-order="5700">
@@ -2476,7 +3408,22 @@
 		<item id="15003" chance="2500"/>
 		
 		<border align="outer" id="163"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="15000">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="mold floor" type="ground" lookid="15022" z-order="5800">
@@ -2488,7 +3435,22 @@
 		<item id="15027" chance="1500"/>
 		
 		<border align="outer" id="164"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="15022">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="mossy floor" type="ground" lookid="15040" z-order="3500">
@@ -2502,7 +3464,22 @@
 		<item id="15047" chance="2500"/>
 		
 		<border align="outer" id="136"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="15040">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="mushroom sponge" type="ground" lookid="15532" z-order="3610">
@@ -2511,7 +3488,22 @@
 		<item id="15534" chance="1500"/>
 		
 		<border align="outer" id="165"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="15532">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="salt floor" type="ground" lookid="15641" z-order="5500">
@@ -2522,7 +3514,22 @@
 		<item id="15645" chance="2500"/>
 		
 		<border align="outer" id="166"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="15641">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="cookie floor" type="ground" lookid="15646" z-order="5600">
@@ -2533,7 +3540,22 @@
 		<item id="15650" chance="2500"/>
 		
 		<border align="outer" id="167"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="15646">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="branch floor" type="ground" lookid="18454" z-order="3800">
@@ -2543,7 +3565,22 @@
 		<item id="18458" chance="1500"/>
 		
 		<border align="outer" id="168"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="18454">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="forest floor" type="ground" lookid="18459" z-order="3600">
@@ -2555,7 +3592,22 @@
 		<item id="18464" chance="2000"/>
 		
 		<border align="outer" id="137"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="18459">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="blood water" type="ground" lookid="18615" z-order="1700">
@@ -2567,6 +3619,21 @@
 		<item id="18620" chance="2500"/>
 		
 		<border align="outer" id="177"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="18615">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="blood water (walkable)" type="ground" lookid="18615" z-order="1700">
@@ -2605,6 +3672,21 @@
 		<item id="8288" chance="100"/>
 		<item id="8289" chance="100"/>
 		<item id="8290" chance="100"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="8276">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="darkest wooden floor" type="ground" lookid="8308" z-order="1">
@@ -2619,6 +3701,21 @@
 		<item id="8316" chance="20"/>
 		
 		<border align="outer" to="none" id="186"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="8308">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="red hive structure" type="ground" lookid="13029" z-order="6200">
@@ -2634,7 +3731,22 @@
 		<item id="13038" chance="2500"/>
 		
 		<border align="outer" id="197"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="13029">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="hive structure" type="ground" lookid="12851" z-order="6100">
@@ -2650,7 +3762,22 @@
 		<item id="12860" chance="2500"/>
 		
 		<border align="outer" id="196"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="12851">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="dark hive structure" type="ground" lookid="13227" z-order="6300">
@@ -2666,7 +3793,22 @@
 		<item id="13236" chance="2500"/>
 		
 		<border align="outer" id="198"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="13227">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="colourful honeycomb floor" type="ground" lookid="13324" z-order="4100">
@@ -2677,7 +3819,22 @@
 		<item id="13328" chance="1500"/>
 		
 		<border align="outer" id="199"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="13324">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="bland honeycomb floor" type="ground" lookid="13329" z-order="4200">
@@ -2688,19 +3845,64 @@
 		<item id="13333" chance="1500"/>
 		
 		<border align="outer" id="200"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="13329">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="big colourful honeycomb floor" type="ground" lookid="13400" z-order="1">
 		<item id="13400" chance="1"/>
 		
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="13400">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="big bland honeycomb floor" type="ground" lookid="13334" z-order="1">
 		<item id="13334" chance="1"/>
 		
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="13334">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="serpent seacrest ground" type="ground" lookid="21575" z-order="2200">
@@ -2712,7 +3914,22 @@
 		<item id="21580" chance="2500"/>
 		
 		<border align="outer" id="170"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="21575">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="ocean floor" type="ground" lookid="9291" z-order="2300">
@@ -2724,7 +3941,22 @@
 		<item id="5409" chance="2500"/>
 		
 		<border align="outer" id="201"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="9291">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="grotto" type="ground" lookid="13644" z-order="9900">
@@ -2734,6 +3966,21 @@
 		
 		<border align="outer" to="none" id="60"/>
 		<border align="outer" id="60"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="13644">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="crystal wall" type="ground" lookid="15290" z-order="9900">
@@ -2746,6 +3993,21 @@
 		<border align="inner" to="none" id="74"/>
 		<border align="outer" id="73"/>
 		<border align="inner" id="74"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="15290">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="basalt" type="ground" lookid="15298" z-order="9900">
@@ -2756,6 +4018,21 @@
 		
 		<border align="outer" to="none" id="61"/>
 		<border align="outer" id="61"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="15298">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="mossy wall mountain" type="ground" lookid="15347" z-order="9900">
@@ -2768,6 +4045,21 @@
 		<border align="outer" id="62"/>
 		<border align="inner" to="none" id="63"/>
 		<border align="inner" id="63"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="15347">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="muddy mountain" type="ground" lookid="16861" z-order="9900">
@@ -2821,6 +4113,21 @@
 		<item id="9487" chance="1000"/>
 		
 		<border align="outer" id="192"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="9481">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="dark pavement" type="ground" lookid="9575" z-order="35">
@@ -2833,6 +4140,21 @@
 		<item id="9581" chance="1000"/>
 		
 		<border align="outer" id="193"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="9575">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="dark stone floor" type="ground" lookid="9849" z-order="1">
@@ -2845,6 +4167,21 @@
 		<item id="9855" chance="2500"/>
 		<item id="9856" chance="2500"/>
 		<item id="9857" chance="2500"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="9849">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="blue marble floor" type="ground" lookid="10986" z-order="1">
@@ -2857,6 +4194,21 @@
 		<item id="11000" chance="2500"/>
 		<item id="11001" chance="2500"/>
 		<item id="11002" chance="2500"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="10986">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="broken blue marble floor" type="ground" lookid="11417" z-order="2500">
@@ -2871,6 +4223,21 @@
 		<item id="11425" chance="2500"/>
 		
 		<border align="outer" id="222"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="11417">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="deepling marble floor" type="ground" lookid="13430" z-order="1">
@@ -2883,6 +4250,21 @@
 		<item id="13436" chance="2500"/>
 		<item id="13437" chance="2500"/>
 		<item id="13438" chance="2500"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="13430">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="broken deepling marble floor" type="ground" lookid="13457" z-order="2400">
@@ -2897,6 +4279,21 @@
 		<item id="13465" chance="2500"/>
 		
 		<border align="outer" id="223"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="13457">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="crystal glass floor" type="ground" lookid="15468" z-order="1">
@@ -2905,6 +4302,21 @@
 		<item id="15470" chance="2500"/>
 		<item id="15471" chance="2500"/>
 		<item id="15472" chance="2500"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="15468">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="venore cobblestone" type="ground" lookid="17464" z-order="50">
@@ -2915,6 +4327,21 @@
 		<item id="17468" chance="2500"/>
 		
 		<border align="outer" id="181"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="17464">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="venore plaster" type="ground" lookid="17505" z-order="2800">
@@ -2926,18 +4353,63 @@
 		<item id="17510" chance="2500"/>
 		
 		<border align="outer" id="182"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="17505">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="parquet floor" type="ground" lookid="17516" z-order="1">
 		<item id="17516" chance="10"/>
 		<item id="17517" chance="10"/>
 		<item id="17518" chance="10"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="17516">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="dark parquet floor" type="ground" lookid="20658" z-order="1">
 		<item id="20658" chance="10"/>
 		<item id="20713" chance="10"/>
 		<item id="20714" chance="10"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="20658">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="terracotta" type="ground" lookid="17544" z-order="40">
@@ -2947,6 +4419,21 @@
 		<item id="17547" chance="1000"/>
 		
 		<border align="outer" id="183"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="17544">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="timber floor" type="ground" lookid="11731" z-order="95">
@@ -2962,6 +4449,21 @@
 		
 		<border align="outer" id="188"/>
 		<border align="outer" to="none" id="188"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="11731">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="roshamuul pavement" type="ground" lookid="19825" z-order="45">
@@ -2975,6 +4477,21 @@
 		<item id="19832" chance="2500"/>
 		
 		<border align="outer" id="184"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="19825">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="unknown1" type="ground" lookid="19841" z-order="25">
@@ -2988,6 +4505,21 @@
 		<item id="19847" chance="2500"/>
 		
 		<border align="outer" id="185"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="19841">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="oramond pavement" type="ground" lookid="20374" z-order="60">
@@ -3000,6 +4532,21 @@
 		
 		<border align="outer" id="178"/>
 		<border align="inner" to="none" id="179"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="20374">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="oramond other pavement" type="ground" lookid="20533" z-order="55">
@@ -3017,6 +4564,21 @@
 		<item id="20545" chance="400"/>
 		
 		<border align="outer" id="180"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="20533">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="grass (lush)" type="ground" lookid="11711" z-order="3400">
@@ -3028,7 +4590,22 @@
 		<item id="11718" chance="2500"/>
 		
 		<border align="outer" id="135"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="11711">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="venore muddy floor" type="ground" lookid="16280" z-order="1600">
@@ -3042,7 +4619,22 @@
 		<item id="16287" chance="2500"/>
 		
 		<border align="outer" id="150"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="16280">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="venore swamp" type="ground" lookid="16301" z-order="5200">
@@ -3058,7 +4650,22 @@
 		<item id="16310" chance="2500"/>
 		
 		<border align="outer" id="148"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="16301">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="cake tile" type="ground" lookid="12090" z-order="3700">
@@ -3070,7 +4677,22 @@
 		<item id="12095" chance="2500"/>
 		
 		<border align="outer" id="147"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="12090">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="unknown2" type="ground" lookid="19558" z-order="1400">
@@ -3096,7 +4718,22 @@
 		<item id="19577" chance="500"/>
 		
 		<border align="outer" id="141"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="19558">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="crystal dirt" type="ground" lookid="19608" z-order="1300">
@@ -3110,7 +4747,22 @@
 		<item id="19615" chance="1000"/>
 		
 		<border align="outer" id="176"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="19608">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="unknown4" type="ground" lookid="19833" z-order="2100">
@@ -3124,7 +4776,22 @@
 		<item id="19840" chance="2500"/>
 		
 		<border align="outer" id="169"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="19833">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="unknown5" type="ground" lookid="20953" z-order="1800">
@@ -3133,7 +4800,22 @@
 		<item id="20955" chance="2500"/>
 		
 		<border align="outer" id="209"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="20953">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="unknown6" type="ground" lookid="21772" z-order="1900">
@@ -3142,7 +4824,22 @@
 		<item id="21774" chance="2500"/>
 		
 		<border align="outer" id="210"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="21772">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="grimy wooden plank horizontal" type="ground" lookid="16484" z-order="85">
@@ -3152,6 +4849,21 @@
 		
 		<border align="outer" id="189"/>
 		<border align="outer" to="none" id="189"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="16484">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="grimy wooden plank vertical" type="ground" lookid="16487" z-order="90">
@@ -3161,6 +4873,22 @@
 		
 		<border align="outer" id="190"/>
 		<border align="outer" to="none" id="190"/>
+
+		<!-- Border for transitioning to "walkable sea" -->
+		<border align="inner" to="walkable sea" ground_equivalent="16487">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="stone floor2" type="ground" lookid="500" z-order="1">
@@ -3169,6 +4897,21 @@
 		<item id="502" chance="500"/>
 		<item id="503" chance="300"/>
 		<item id="504" chance="100"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="500">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 	
 
@@ -3178,6 +4921,21 @@
 		
 		<border align="outer" id="174"/>
 		<border align="outer" to="none" id="174"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="13988">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="earth floor" type="ground" lookid="1724" z-order="6400">
@@ -3188,54 +4946,174 @@
 		<item id="1728" chance="2500"/>
 		
 		<border align="outer" id="132"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="1724">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="earth ground" type="ground" lookid="280" z-order="1">
 		<item id="280" chance="10000"/>
 		
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="280">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="pink sand" type="ground" lookid="9720" z-order="4600">
 		<item id="9720" chance="10000"/>
 		
 		<border align="outer" id="142"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="9720">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="dark sand" type="ground" lookid="11925" z-order="5300">
 		<item id="11925" chance="10000"/>
 		
 		<border align="outer" id="143"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="11925">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="mud sand" type="ground" lookid="10160" z-order="100">
 		<item id="10160" chance="10000"/>
 		
 		<border align="outer" id="144"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="10160">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="muddy floor" type="ground" lookid="10605" z-order="1100">
 		<item id="10605" chance="10000"/>
 		
 		<border align="outer" id="149"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="10605">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="purple mud" type="ground" lookid="10548" z-order="6800">
 		<item id="10548" chance="10000"/>
 		
 		<border align="outer" id="152"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="10548">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 	<brush name="slime fungus" type="ground" lookid="12355" z-order="700">
 		<item id="12355" chance="10000"/>
 		
 		<border align="outer" id="157"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="12355">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="muddy water" type="ground" lookid="10494" z-order="7200">
@@ -3243,13 +5121,43 @@
 		
 		<border align="outer" id="171"/>
 		<border align="outer" to="none" id="171"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="10494">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="acid" type="ground" lookid="10592" z-order="7100">
 		<item id="10592" chance="10000"/>
 		
 		<border align="outer" id="172"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="10592">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="light wooden floor" type="ground" lookid="15596" z-order="75">
@@ -3257,6 +5165,21 @@
 		
 		<border align="outer" id="187"/>
 		<border align="outer" to="none" id="187"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="15596">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="pink wooden planks" type="ground" lookid="16584" z-order="80">
@@ -3264,18 +5187,63 @@
 		
 		<border align="outer" id="191"/>
 		<border align="outer" to="none" id="191"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="16584">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="serpent ground" type="ground" lookid="9929" z-order="2800">
 		<item id="9929" chance="10000"/>
 		
 		<border align="outer" id="194"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="9929">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="dark ice stone floor" type="ground" lookid="15785" z-order="20">
 		<item id="15785" chance="10000"/>
 		
 		<border align="outer" id="195"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="15785">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="tree leaves" type="ground" lookid="18515">
@@ -3286,6 +5254,21 @@
 		
 		<border align="outer" to="none" id="69"/>
 		<border align="outer" id="69"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="18515">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="teal leaves" type="ground" lookid="18560">
@@ -3296,6 +5279,21 @@
 		
 		<border align="outer" to="none" id="70"/>
 		<border align="outer" id="70"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="18560">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="grass (krailos)" type="ground" lookid="22348" z-order="3000">
@@ -3308,7 +5306,22 @@
 		<item id="22354" chance="2"/>
 		
 		<border align="outer" id="202"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="22348">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="krailos dirt" type="ground" lookid="22355" z-order="4400">
@@ -3323,7 +5336,22 @@
 		<item id="22543" chance="2"/>
 		
 		<border align="outer" id="203"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="22355">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="dark scaled ground" type="ground" lookid="22893" z-order="6900"> 
@@ -3335,7 +5363,22 @@
 		<item id="23052" chance="10"/>
 		
 		<border align="outer" id="204"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="22893">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="dark scaled ground (colours)" type="ground" lookid="23054" z-order="6900">
@@ -3343,6 +5386,21 @@
 		<item id="23054" chance="10"/>
 		<item id="23055" chance="5"/>
 		<item id="23056" chance="5"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="23054">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="unknown7" type="ground" lookid="23097" z-order="5400">
@@ -3350,7 +5408,22 @@
 		<item id="23098" chance="10"/>
 		
 		<border align="outer" id="205"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="23097">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="krailos orange" type="ground" lookid="22410" z-order="900">
@@ -3360,7 +5433,22 @@
 		<item id="22413" chance="1"/>
 		
 		<border align="outer" id="206"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="22410">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="krailos yellow" type="ground" lookid="22414" z-order="800">
@@ -3370,7 +5458,22 @@
 		<item id="22417" chance="1"/>
 		
 		<border align="outer" id="207"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="22414">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="krailos purple" type="ground" lookid="22418" z-order="1000">
@@ -3380,71 +5483,326 @@
 		<item id="22421" chance="1"/>
 		
 		<border align="outer" id="208"/>
-		<border align="inner" to="none" id="1"/>
+		<!--<border align="inner" to="none" id="1"/>-->
+
+		<border align="inner" to="walkable sea" ground_equivalent="22418">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="vortex floor1" type="ground" lookid="23140" z-order="1">
 		<item id="23140" chance="10"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="23140">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="vortex floor2" type="ground" lookid="23344" z-order="1">
 		<item id="23344" chance="10"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="23344">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="vortex floor3" type="ground" lookid="23360" z-order="1">
 		<item id="23360" chance="10"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="23360">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="vortex floor4" type="ground" lookid="23362" z-order="1">
 		<item id="23362" chance="10"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="23362">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="black chess board" type="ground" lookid="1211" z-order="1">
 		<item id="1211" chance="10"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="1211">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="white chess board" type="ground" lookid="1210" z-order="1">
 		<item id="1210" chance="10"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="1210">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="shiny white marble floor1" type="ground" lookid="8230" z-order="1">
 		<item id="8230" chance="10"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="8230">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="shiny white marble floor2" type="ground" lookid="8228" z-order="1">
 		<item id="8228" chance="10"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="8228">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="shiny white marble floor3" type="ground" lookid="8229" z-order="1">
 		<item id="8229" chance="10"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="8229">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="oramond marble floor1" type="ground" lookid="20712" z-order="1">
 		<item id="20712" chance="10"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="20712">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="oramond marble floor2" type="ground" lookid="20888" z-order="1">
 		<item id="20888" chance="10"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="20888">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="wet temple floor1" type="ground" lookid="13441" z-order="1">
 		<item id="13441" chance="10"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="13441">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="wet temple floor2" type="ground" lookid="13444" z-order="1">
 		<item id="13444" chance="10"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="13444">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="pink stone floor" type="ground" lookid="9848" z-order="1">
 		<item id="9848" chance="10"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="9848">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="carlin wooden floor" type="ground" lookid="464" z-order="1">
 		<item id="464" chance="10"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="464">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="svargrond wooden floor" type="ground" lookid="454" z-order="1">
 		<item id="454" chance="10"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="454">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="striped marquee red white (vertical)" type="ground" lookid="5188" z-order="80">
@@ -3452,6 +5810,21 @@
 		
 		<border align="outer" to="none" id="214"/>
 		<border align="outer" id="214"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="5188">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="striped marquee red white (horizontal)" type="ground" lookid="5159" z-order="80">
@@ -3459,6 +5832,21 @@
 		
 		<border align="outer" to="none" id="215"/>
 		<border align="outer" id="215"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="5159">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="striped marquee blue yellow (vertical)" type="ground" lookid="5199" z-order="90">
@@ -3466,6 +5854,21 @@
 		
 		<border align="outer" to="none" id="216"/>
 		<border align="outer" id="216"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="5199">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="striped marquee blue yellow (horizontal)" type="ground" lookid="5173" z-order="90">
@@ -3473,6 +5876,21 @@
 		
 		<border align="outer" to="none" id="217"/>
 		<border align="outer" id="217"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="5173">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="marquee green (vertical)" type="ground" lookid="5223" z-order="60">
@@ -3480,6 +5898,21 @@
 		
 		<border align="outer" to="none" id="218"/>
 		<border align="outer" id="218"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="5223">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="marquee green (horizontal)" type="ground" lookid="5212" z-order="60">
@@ -3487,6 +5920,21 @@
 		
 		<border align="outer" to="none" id="219"/>
 		<border align="outer" id="219"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="5212">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="marquee blue (vertical)" type="ground" lookid="5247" z-order="70">
@@ -3494,6 +5942,21 @@
 		
 		<border align="outer" to="none" id="220"/>
 		<border align="outer" id="220"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="5247">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="marquee blue (horizontal)" type="ground" lookid="5236" z-order="70">
@@ -3501,6 +5964,21 @@
 		
 		<border align="outer" to="none" id="221"/>
 		<border align="outer" id="221"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="5236">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="orange zao carpet" type="ground" lookid="11159" z-order="6010">
@@ -3509,6 +5987,21 @@
 		<item id="11163" chance="10"/>
 		
 		<border align="outer" id="224"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="11159">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="brown zao carpet" type="ground" lookid="11164" z-order="6020">
@@ -3517,6 +6010,21 @@
 		<item id="11168" chance="10"/>
 		
 		<border align="outer" id="225"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="11164">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="ancient paving" type="ground" lookid="30719" z-order="4000">
@@ -3528,6 +6036,21 @@
 		<item id="30723" chance="2500"/>
 		
 		<border align="outer" id="226"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="30719">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="reed" type="ground" lookid="30701" z-order="3500">
@@ -3538,6 +6061,21 @@
 		<item id="30705" chance="2500"/>
 		
 		<border align="outer" id="227"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="30701">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="new icy floor" type="ground" lookid="29000" z-order="4000">
@@ -3552,6 +6090,21 @@
 		<item id="29008" chance="2500"/>
 		<item id="29009" chance="2500"/>
 		<border align="outer" id="228"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="29000">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="new icy city floor" type="ground" lookid="29022" z-order="4000">
@@ -3566,6 +6119,21 @@
 		<item id="29030" chance="2500"/>
 		<item id="29031" chance="2500"/>
 		<border align="outer" id="229"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="29022">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="new grass pavement" type="ground" lookid="29044" z-order="40000">
@@ -3580,6 +6148,21 @@
 		<item id="29052" chance="2500"/>
 		<item id="29053" chance="2500"/>
 		<border align="outer" id="230"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="29044">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="new ornamented pavement" type="ground" lookid="29066" z-order="40000">
@@ -3594,6 +6177,21 @@
 		<item id="29074" chance="2500"/>
 		<item id="29075" chance="2500"/>
 		<border align="outer" id="231"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="29066">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="short stone mountain" type="ground" lookid="26995" z-order="9900">
@@ -3614,6 +6212,21 @@
 		<item id="23899" chance="2500"/>
 		<item id="23900" chance="2500"/>
 		<border align="outer" id="240"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="23897">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="ornamented stone floor 2" type="ground" lookid="23949" z-order="40000">
@@ -3622,6 +6235,21 @@
 		<item id="23951" chance="2500"/>
 		<item id="23952" chance="2500"/>
 		<border align="outer" id="241"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="23949">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="ornamented stone floor 3" type="ground" lookid="23901" z-order="40000">
@@ -3634,6 +6262,21 @@
 		<item id="23916" chance="2500"/>
 		<item id="23912" chance="2500"/>
 		<border align="outer" id="242"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="23901">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="ornamented stone floor 4" type="ground" lookid="23902" z-order="40000">
@@ -3645,6 +6288,21 @@
 		<item id="23909" chance="2500"/>
 		<item id="23910" chance="2500"/>
 		<border align="outer" id="243"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="23902">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="stone path grass 1" type="ground" lookid="25245" z-order="40000">
@@ -3654,6 +6312,21 @@
 		<item id="25255" chance="2500"/>
 		<item id="25256" chance="2500"/>
 		<border align="outer" id="245"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="25245">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="stone path grass 2" type="ground" lookid="25254" z-order="40000">
@@ -3664,6 +6337,21 @@
 		<item id="25250" chance="2500"/>
 		<item id="25249" chance="2500"/>
 		<item id="25248" chance="2500"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="25254">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="lush meadow" type="ground" lookid="25269" z-order="40000">
@@ -3672,6 +6360,21 @@
 		<item id="25271" chance="2500"/>
 		<item id="25272" chance="2500"/>
 		<border align="outer" id="246"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="25269">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="lush meadow 2" type="ground" lookid="25276" z-order="40000">
@@ -3685,17 +6388,62 @@
 		<item id="25280" chance="2500"/>
 		<item id="25281" chance="2500"/>
 		<item id="25282" chance="2500"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="25276">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="new dark sand floor" type="ground" lookid="24952" z-order="40000">
 		<item id="24952" chance="2500"/>
 		<border align="outer" id="244"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="24952">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="slate floor 1" type="ground" lookid="28284" z-order="40000">
 		<item id="28284" chance="2500"/>
 		<item id="28288" chance="2500"/>
 		<border align="outer" id="237"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="28284">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="slate floor 2" type="ground" lookid="28284" z-order="40000">
@@ -3712,6 +6460,21 @@
 		<item id="28322" chance="2500"/>
 		<item id="28323" chance="2500"/>
 		<border align="outer" id="239"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="28318">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 
 	<brush name="green tree floor" type="ground" lookid="24089" z-order="40000">
@@ -3726,6 +6489,21 @@
 		<item id="25427" chance="2500"/>
 
 		<border align="outer" id="248"/>
+
+		<border align="inner" to="walkable sea" ground_equivalent="25427">
+			<borderitem edge="n" item="6639"/>
+			<borderitem edge="e" item="6640"/>
+			<borderitem edge="s" item="6641"/>
+			<borderitem edge="w" item="6642"/>
+			<borderitem edge="cnw" item="6647"/>
+			<borderitem edge="cne" item="6648"/>
+			<borderitem edge="csw" item="6649"/>
+			<borderitem edge="cse" item="6650"/>
+			<borderitem edge="dnw" item="6643"/>
+			<borderitem edge="dne" item="6644"/>
+			<borderitem edge="dsw" item="6645"/>
+			<borderitem edge="dse" item="6646"/>
+		</border>
 	</brush>
 	
 	
