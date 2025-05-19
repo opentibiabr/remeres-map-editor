@@ -22,10 +22,6 @@
 #include "tile.h"
 #include "monster.h"
 #include "npc.h"
-#include "iominimap.h"
-#include "filehandle.h"
-#include <wx/image.h>
-#include <zlib.h>
 
 class Item;
 class Monster;
@@ -124,13 +120,11 @@ public:
 	}
 	void SetZoom(double value);
 	void GetViewBox(int* view_scroll_x, int* view_scroll_y, int* screensize_x, int* screensize_y) const;
-	void GetViewBoxSatelite(int* view_scroll_x, int* view_scroll_y, int* screensize_x, int* screensize_y) const;
+
 	MapWindow* GetMapWindow() const;
 	Position GetCursorPosition() const;
 
 	void ShowPositionIndicator(const Position &position);
-	void ExportSatellite(const std::string& directory, const std::string& filename, MinimapExportMode mode, int floor, int imageSize);
-	void TakeSateliteshot(wxFileName path, wxString format);
 	void TakeScreenshot(wxFileName path, wxString format);
 
 protected:

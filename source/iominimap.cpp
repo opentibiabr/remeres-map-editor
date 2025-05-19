@@ -153,18 +153,17 @@ bool IOMinimap::exportMinimap(const std::string &directory) {
 		return true;
 	}
 
-	struct LayerBounds {
-		int min_x = INT_MAX;
-		int min_y = INT_MAX;
-		int max_x = 0;
-		int max_y = 0;
-		bool has_tiles = false;
-	};
-
-	LayerBounds bounds[rme::MapLayers];
-
+	wxRect bounds[rme::MapLayers];
 	int min_z = m_floor == -1 ? 0 : m_floor;
 	int max_z = m_floor == -1 ? rme::MapMaxLayer : m_floor;
+
+	for (size_t z = min_z; z <= max_z; z++) {
+		auto &rect = bounds[z];
+		rect.x = rme::MapMaxWidth + 1;
+		rect.y = rme::MapMaxHeight + 1;
+		rect.width = 0;
+		rect.height = 0;
+	}
 
 	int totalTiles = 0;
 	for (auto it = map.begin(); it != map.end(); ++it) {
@@ -174,14 +173,19 @@ bool IOMinimap::exportMinimap(const std::string &directory) {
 		}
 
 		const auto &position = tile->getPosition();
-		if (position.z < min_z || position.z > max_z) continue;
-
-		auto &b = bounds[position.z];
-		b.has_tiles = true;
-		b.min_x = std::min(b.min_x, position.x);
-		b.max_x = std::max(b.max_x, position.x);
-		b.min_y = std::min(b.min_y, position.y);
-		b.max_y = std::max(b.max_y, position.y);
+		auto &rect = bounds[position.z];
+		if (position.x < rect.x) {
+			rect.x = position.x;
+		}
+		if (position.y < rect.y) {
+			rect.y = position.y;
+		}
+		if (position.x > rect.width) {
+			rect.width = position.x;
+		}
+		if (position.y > rect.height) {
+			rect.height = position.y;
+		}
 		totalTiles++;
 	}
 
@@ -191,20 +195,25 @@ bool IOMinimap::exportMinimap(const std::string &directory) {
 
 	int processedTiles = 0;
 	int lastShownProgress = -1;
+	for (size_t z = min_z; z <= max_z; z++) {
+		auto &rect = bounds[z];
+		if (rect.IsEmpty()) {
+			continue;
+		}
 
-	for (int z = min_z; z <= max_z; z++) {
-		const auto& b = bounds[z];
-		if (!b.has_tiles) continue;
+		for (int h = 0; h < rme::MapMaxHeight; h += m_imageSize) {
+			for (int w = 0; w < rme::MapMaxWidth; w += m_imageSize) {
+				if (w < rect.x || w > rect.width || h < rect.y || h > rect.height) {
+					continue;
+				}
 
-		for (int y = b.min_y; y <= b.max_y; y += m_imageSize) {
-			for (int x = b.min_x; x <= b.max_x; x += m_imageSize) {
 				bool empty = true;
 				memset(pixels, 0, pixels_size);
 
 				int index = 0;
-				for (int j = 0; j < m_imageSize; ++j) {
-					for (int i = 0; i < m_imageSize; ++i) {
-						auto tile = map.getTile(x + i, y + j, z);
+				for (int y = 0; y < m_imageSize; y++) {
+					for (int x = 0; x < m_imageSize; x++) {
+						auto tile = map.getTile(w + x, h + y, z);
 						if (!tile || (!tile->ground && tile->items.empty())) {
 							index += rme::PixelFormatRGB;
 							continue;
@@ -220,9 +229,9 @@ bool IOMinimap::exportMinimap(const std::string &directory) {
 						}
 
 						uint8_t color = tile->getMiniMapColor();
-						pixels[index]     = (uint8_t)((int(color) / 36) % 6 * 51); // R
-						pixels[index + 1] = (uint8_t)((int(color) / 6) % 6 * 51);  // G
-						pixels[index + 2] = (uint8_t)((int(color) % 6) * 51);      // B
+						pixels[index] = (uint8_t)(static_cast<int>(color / 36) % 6 * 51); // red
+						pixels[index + 1] = (uint8_t)(static_cast<int>(color / 6) % 6 * 51); // green
+						pixels[index + 2] = (uint8_t)(color % 6 * 51); // blue
 						index += rme::PixelFormatRGB;
 						empty = false;
 					}
@@ -232,10 +241,9 @@ bool IOMinimap::exportMinimap(const std::string &directory) {
 					image->SetData(pixels, true);
 					wxString extension = m_format == MinimapExportFormat::Png ? "png" : "bmp";
 					wxBitmapType type = m_format == MinimapExportFormat::Png ? wxBITMAP_TYPE_PNG : wxBITMAP_TYPE_BMP;
-					wxFileName file;
-					file.AssignDir(directory);
-					file.SetName(wxString::Format("z%d_x%d_y%d", z, x, y));
-					file.SetExt(extension);
+					wxString extension_wx = wxString::FromAscii(extension.mb_str());
+					wxFileName file = wxString::Format("%s-%s-%s.%s", std::to_string(h), std::to_string(w), std::to_string(z), extension_wx);
+					file.Normalize(wxPATH_NORM_DOTS | wxPATH_NORM_TILDE | wxPATH_NORM_CASE | wxPATH_NORM_ABSOLUTE, directory);
 					image->SaveFile(file.GetFullPath(), type);
 				}
 			}
@@ -333,10 +341,8 @@ bool IOMinimap::exportSelection(const std::string &directory, const std::string 
 			image->SetData(pixels, true);
 			wxString extension = m_format == MinimapExportFormat::Png ? "png" : "bmp";
 			wxBitmapType type = m_format == MinimapExportFormat::Png ? wxBITMAP_TYPE_PNG : wxBITMAP_TYPE_BMP;
-			wxFileName file;
-			file.AssignDir(directory);
-			file.SetName(wxString::Format("%s-%d", name, z));
-			file.SetExt(extension);
+			wxFileName file = wxString::Format("%s-%d.%s", name, z, extension);
+			file.Normalize(wxPATH_NORM_DOTS | wxPATH_NORM_TILDE | wxPATH_NORM_CASE, directory);
 			image->SaveFile(file.GetFullPath(), type);
 		}
 	}
