@@ -65,10 +65,6 @@ protected:
 	Editor &editor;
 	wxSpinCtrl* height_spin;
 	wxSpinCtrl* width_spin;
-	// Custom size
-	wxSpinCtrl* custom_width_field = nullptr;
-	wxSpinCtrl* custom_height_field = nullptr;
-	// --
 	wxChoice* version_choice;
 	wxTextCtrl* description_ctrl;
 	wxTextCtrl* house_filename_ctrl;
@@ -138,38 +134,6 @@ protected:
 
 	DECLARE_EVENT_TABLE();
 };
-
-/**
- * The export satellite dialog, select output path and what floors to export.
- */
- class ExportSatelliteWindow : public wxDialog {
-	public:
-	ExportSatelliteWindow(wxWindow* parent, Editor &editor);
-		virtual ~ExportSatelliteWindow();
-	
-		void OnClickBrowse(wxCommandEvent &);
-		void OnDirectoryChanged(wxKeyEvent &);
-		void OnFileNameChanged(wxKeyEvent &);
-		void OnClickOK(wxCommandEvent &);
-		void OnClickCancel(wxCommandEvent &);
-		void OnExportTypeChange(wxCommandEvent &);
-	
-	protected:
-		void CheckValues();
-	
-		Editor &editor;
-	
-		wxChoice* imageSizeOptions;
-		wxChoice* format_options;
-		wxStaticText* error_field;
-		wxTextCtrl* directory_text_field;
-		wxTextCtrl* file_name_text_field;
-		wxChoice* floor_options;
-		wxSpinCtrl* floor_number;
-		wxButton* ok_button;
-	
-		DECLARE_EVENT_TABLE();
-	};
 
 /**
  * The export tilesets dialog, select output path.

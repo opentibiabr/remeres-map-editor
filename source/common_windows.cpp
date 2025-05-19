@@ -538,8 +538,6 @@ ExportMiniMapWindow::ExportMiniMapWindow(wxWindow* parent, Editor &editor) :
 
 	// Format options
 	wxArrayString imageFormatChoices;
-	imageFormatChoices.Add("256x256");
-	imageFormatChoices.Add("512x512");
 	imageFormatChoices.Add("1024x1024");
 	imageFormatChoices.Add("2048x2048");
 	imageFormatChoices.Add("4096x4096");
@@ -629,14 +627,10 @@ void ExportMiniMapWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 	g_gui.CreateLoadBar("Exporting minimap...");
 
 	const auto imageSizeSelection = imageSizeOptions->GetSelection();
-	auto imageSize = 256;
+	auto imageSize = 1024;
 	if (imageSizeSelection == 1) {
-		imageSize = 512;
-	} else if (imageSizeSelection == 2) {
-		imageSize = 1024;
-	} else if (imageSizeSelection == 3) {
 		imageSize = 2048;
-	} else if (imageSizeSelection == 4) {
+	} else if (imageSizeSelection == 2) {
 		imageSize = 4096;
 	}
 
@@ -851,198 +845,6 @@ void ExportTilesetsWindow::OnClickCancel(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void ExportTilesetsWindow::CheckValues() {
-	if (directory_text_field->IsEmpty()) {
-		error_field->SetLabel("Type or select an output folder.");
-		ok_button->Enable(false);
-		return;
-	}
-
-	if (file_name_text_field->IsEmpty()) {
-		error_field->SetLabel("Type a name for the file.");
-		ok_button->Enable(false);
-		return;
-	}
-
-	FileName directory(directory_text_field->GetValue());
-
-	if (!directory.Exists()) {
-		error_field->SetLabel("Output folder not found.");
-		ok_button->Enable(false);
-		return;
-	}
-
-	if (!directory.IsDirWritable()) {
-		error_field->SetLabel("Output folder is not writable.");
-		ok_button->Enable(false);
-		return;
-	}
-
-	error_field->SetLabel(wxEmptyString);
-	ok_button->Enable(true);
-}
-
-// ============================================================================
-// Export Satellite window
-
-BEGIN_EVENT_TABLE(ExportSatelliteWindow, wxDialog)
-EVT_BUTTON(MAP_WINDOW_FILE_BUTTON, ExportSatelliteWindow::OnClickBrowse)
-EVT_BUTTON(wxID_OK, ExportSatelliteWindow::OnClickOK)
-EVT_BUTTON(wxID_CANCEL, ExportSatelliteWindow::OnClickCancel)
-EVT_CHOICE(wxID_ANY, ExportSatelliteWindow::OnExportTypeChange)
-END_EVENT_TABLE()
-
-ExportSatelliteWindow::ExportSatelliteWindow(wxWindow* parent, Editor &editor) :
-	wxDialog(parent, wxID_ANY, "Export Satellite", wxDefaultPosition, wxSize(400, 450)),
-	editor(editor) {
-	wxSizer* sizer = newd wxBoxSizer(wxVERTICAL);
-	wxSizer* tmpsizer;
-
-	// Error field
-	error_field = newd wxStaticText(this, wxID_VIEW_DETAILS, "", wxDefaultPosition, wxDefaultSize);
-	error_field->SetForegroundColour(*wxRED);
-	tmpsizer = newd wxBoxSizer(wxHORIZONTAL);
-	tmpsizer->Add(error_field, 0, wxALL, 5);
-	sizer->Add(tmpsizer, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 5);
-
-	// Output folder
-	directory_text_field = newd wxTextCtrl(this, wxID_ANY, "", wxDefaultPosition, wxDefaultSize);
-	directory_text_field->Bind(wxEVT_KEY_UP, &ExportSatelliteWindow::OnDirectoryChanged, this);
-	directory_text_field->SetValue(wxString(g_settings.getString(Config::MINIMAP_EXPORT_DIR)));
-	tmpsizer = newd wxStaticBoxSizer(wxHORIZONTAL, this, "Output Folder");
-	tmpsizer->Add(directory_text_field, 1, wxALL, 5);
-	tmpsizer->Add(newd wxButton(this, MAP_WINDOW_FILE_BUTTON, "Browse"), 0, wxALL, 5);
-	sizer->Add(tmpsizer, 0, wxALL | wxEXPAND, 5);
-
-	// Format options
-	wxArrayString imageFormatChoices;
-	imageFormatChoices.Add("256x256");
-	imageFormatChoices.Add("512x512");
-	imageFormatChoices.Add("1024x1024");
-	imageFormatChoices.Add("2048x2048");
-	imageFormatChoices.Add("4096x4096");
-	imageSizeOptions = new wxChoice(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, imageFormatChoices);
-	imageSizeOptions->SetSelection(0);
-	imageSizeOptions->Disable();
-	tmpsizer = newd wxStaticBoxSizer(wxHORIZONTAL, this, "Image Size");
-	tmpsizer->Add(imageSizeOptions, 1, wxALL, 5);
-	sizer->Add(tmpsizer, 0, wxALL | wxEXPAND, 5);
-
-	// File name
-	wxString mapName(editor.getMap().getName().c_str(), wxConvUTF8);
-	file_name_text_field = newd wxTextCtrl(this, wxID_ANY, mapName.BeforeLast('.'), wxDefaultPosition, wxDefaultSize);
-	file_name_text_field->Bind(wxEVT_KEY_UP, &ExportSatelliteWindow::OnFileNameChanged, this);
-	tmpsizer = newd wxStaticBoxSizer(wxHORIZONTAL, this, "File Name");
-	tmpsizer->Add(file_name_text_field, 1, wxALL, 5);
-	sizer->Add(tmpsizer, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 5);
-
-	// Format options
-	wxArrayString format_choices;
-	format_choices.Add(".otmm (Client Minimap)");
-	format_choices.Add(".png (PNG Image)");
-	format_choices.Add(".bmp (Bitmap Image)");
-	format_options = new wxChoice(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, format_choices);
-	format_options->SetSelection(0);
-	tmpsizer->Add(format_options, 1, wxALL, 5);
-
-	// Export options
-	wxArrayString choices;
-	choices.Add("All Floors");
-	choices.Add("Ground Floor");
-	choices.Add("Specific Floor");
-
-	if (editor.hasSelection()) {
-		choices.Add("Selected Area");
-	}
-
-	// Area options
-	tmpsizer = newd wxStaticBoxSizer(wxHORIZONTAL, this, "Area Options");
-	floor_options = newd wxChoice(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, choices);
-	floor_number = newd wxSpinCtrl(this, wxID_ANY, i2ws(rme::MapGroundLayer), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, rme::MapMinLayer, rme::MapMaxLayer, rme::MapGroundLayer);
-	floor_number->Enable(false);
-	floor_options->SetSelection(0);
-	tmpsizer->Add(floor_options, 1, wxALL, 5);
-	tmpsizer->Add(floor_number, 0, wxALL, 5);
-	sizer->Add(tmpsizer, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 5);
-
-	// OK/Cancel buttons
-	tmpsizer = newd wxBoxSizer(wxHORIZONTAL);
-	tmpsizer->Add(ok_button = newd wxButton(this, wxID_OK, "OK"), wxSizerFlags(1).Center());
-	tmpsizer->Add(newd wxButton(this, wxID_CANCEL, "Cancel"), wxSizerFlags(1).Center());
-	sizer->Add(tmpsizer, 0, wxCENTER, 10);
-
-	SetSizer(sizer);
-	Layout();
-	Centre(wxBOTH);
-	CheckValues();
-}
-
-ExportSatelliteWindow::~ExportSatelliteWindow() = default;
-
-void ExportSatelliteWindow::OnExportTypeChange(wxCommandEvent &event) {
-	imageSizeOptions->Enable(event.GetSelection() > 0);
-	floor_number->Enable(event.GetSelection() == 2);
-}
-
-void ExportSatelliteWindow::OnClickBrowse(wxCommandEvent &WXUNUSED(event)) {
-	wxDirDialog dialog(NULL, "Select the output folder", "", wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
-	if (dialog.ShowModal() == wxID_OK) {
-		const wxString &directory = dialog.GetPath();
-		directory_text_field->ChangeValue(directory);
-	}
-	CheckValues();
-}
-
-void ExportSatelliteWindow::OnDirectoryChanged(wxKeyEvent &event) {
-	CheckValues();
-	event.Skip();
-}
-
-void ExportSatelliteWindow::OnFileNameChanged(wxKeyEvent &event) {
-	CheckValues();
-	event.Skip();
-}
-
-void ExportSatelliteWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
-	g_gui.CreateLoadBar("Exporting satellite...");
-
-	const auto imageSizeSelection = imageSizeOptions->GetSelection();
-	auto imageSize = 256;
-	if (imageSizeSelection == 1) {
-		imageSize = 512;
-	} else if (imageSizeSelection == 2) {
-		imageSize = 1024;
-	} else if (imageSizeSelection == 3) {
-		imageSize = 2048;
-	} else if (imageSizeSelection == 4) {
-		imageSize = 4096;
-	}
-
-	auto format = static_cast<MinimapExportFormat>(format_options->GetSelection());
-	auto mode = static_cast<MinimapExportMode>(floor_options->GetSelection());
-	std::string directory = directory_text_field->GetValue().ToStdString();
-	std::string file_name = file_name_text_field->GetValue().ToStdString();
-	int floor = floor_number->GetValue();
-
-	g_settings.setString(Config::MINIMAP_EXPORT_DIR, directory);
-
-	MapTab* tab = g_gui.GetCurrentMapTab();
-	if (tab) {
-		MapCanvas* canvas = tab->GetCanvas();
-		if (canvas) {
-			canvas->ExportSatellite(directory, file_name, mode, floor, imageSize);
-		}
-	}
-
-	g_gui.DestroyLoadBar();
-	EndModal(wxID_OK);
-}
-
-void ExportSatelliteWindow::OnClickCancel(wxCommandEvent &WXUNUSED(event)) {
-	// Just close this window
-	EndModal(wxID_CANCEL);
-}
-
-void ExportSatelliteWindow::CheckValues() {
 	if (directory_text_field->IsEmpty()) {
 		error_field->SetLabel("Type or select an output folder.");
 		ok_button->Enable(false);
