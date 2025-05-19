@@ -55,6 +55,8 @@ public:
 	void OnEditZoneLabel(wxListEvent &event);
 	void OnClickAddZone(wxCommandEvent &event);
 	void OnClickRemoveZone(wxCommandEvent &event);
+	void OnClickImportZone(wxCommandEvent &event);
+	void OnClickExportZone(wxCommandEvent &event);
 
 	void SetMap(Map* map);
 
@@ -63,6 +65,8 @@ protected:
 	wxListCtrl* zone_list;
 	wxButton* add_zone_button;
 	wxButton* remove_zone_button;
+	wxButton* import_zone_button;
+	wxButton* export_zone_button;
 
 	DECLARE_EVENT_TABLE()
 };

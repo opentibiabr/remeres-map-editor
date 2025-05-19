@@ -24,10 +24,15 @@
 #include "palette_zones.h"
 #include "zone_brush.h"
 #include "map.h"
+#include <wx/wfstream.h>
+#include <fstream>
+#include "pugixml.hpp"
 
 BEGIN_EVENT_TABLE(ZonesPalettePanel, PalettePanel)
 EVT_BUTTON(PALETTE_ZONES_ADD_ZONE, ZonesPalettePanel::OnClickAddZone)
 EVT_BUTTON(PALETTE_ZONES_REMOVE_ZONE, ZonesPalettePanel::OnClickRemoveZone)
+EVT_BUTTON(PALETTE_ZONES_IMPORT_ZONE, ZonesPalettePanel::OnClickImportZone)
+EVT_BUTTON(PALETTE_ZONES_EXPORT_ZONE, ZonesPalettePanel::OnClickExportZone)
 
 EVT_LIST_BEGIN_LABEL_EDIT(PALETTE_ZONES_LISTBOX, ZonesPalettePanel::OnBeginEditZoneLabel)
 EVT_LIST_END_LABEL_EDIT(PALETTE_ZONES_LISTBOX, ZonesPalettePanel::OnEditZoneLabel)
@@ -36,20 +41,25 @@ EVT_LIST_ITEM_RIGHT_CLICK(PALETTE_ZONES_LISTBOX, ZonesPalettePanel::OnRightClick
 END_EVENT_TABLE()
 
 ZonesPalettePanel::ZonesPalettePanel(wxWindow* parent, wxWindowID id) :
-	PalettePanel(parent, id),
-	map(nullptr) {
-	wxSizer* sidesizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Zones");
+    PalettePanel(parent, id),
+    map(nullptr) {
+    wxSizer* sidesizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Zones");
 
-	zone_list = newd wxListCtrl(this, PALETTE_ZONES_LISTBOX, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL | wxLC_EDIT_LABELS | wxLC_NO_HEADER);
-	zone_list->InsertColumn(0, "UNNAMED", wxLIST_FORMAT_LEFT, 200);
-	sidesizer->Add(zone_list, 1, wxEXPAND);
+    zone_list = newd wxListCtrl(this, PALETTE_ZONES_LISTBOX, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL | wxLC_EDIT_LABELS | wxLC_NO_HEADER);
+    zone_list->InsertColumn(0, "UNNAMED", wxLIST_FORMAT_LEFT, 200);
+    sidesizer->Add(zone_list, 1, wxEXPAND);
 
-	wxSizer* tmpsizer = newd wxBoxSizer(wxHORIZONTAL);
-	tmpsizer->Add(add_zone_button = newd wxButton(this, PALETTE_ZONES_ADD_ZONE, "Add", wxDefaultPosition, wxSize(50, -1)), 1, wxEXPAND);
-	tmpsizer->Add(remove_zone_button = newd wxButton(this, PALETTE_ZONES_REMOVE_ZONE, "Remove", wxDefaultPosition, wxSize(70, -1)), 1, wxEXPAND);
-	sidesizer->Add(tmpsizer, 0, wxEXPAND);
+    wxSizer* top_button_sizer = newd wxBoxSizer(wxHORIZONTAL);
+    top_button_sizer->Add(add_zone_button = newd wxButton(this, PALETTE_ZONES_ADD_ZONE, "Add", wxDefaultPosition, wxSize(50, -1)), 1, wxEXPAND);
+    top_button_sizer->Add(remove_zone_button = newd wxButton(this, PALETTE_ZONES_REMOVE_ZONE, "Remove", wxDefaultPosition, wxSize(70, -1)), 1, wxEXPAND);
+    sidesizer->Add(top_button_sizer, 0, wxEXPAND);
 
-	SetSizerAndFit(sidesizer);
+    wxSizer* bottom_button_sizer = newd wxBoxSizer(wxHORIZONTAL);
+    bottom_button_sizer->Add(import_zone_button = newd wxButton(this, PALETTE_ZONES_IMPORT_ZONE, "Import", wxDefaultPosition, wxSize(70, -1)), 1, wxEXPAND);
+    bottom_button_sizer->Add(export_zone_button = newd wxButton(this, PALETTE_ZONES_EXPORT_ZONE, "Export", wxDefaultPosition, wxSize(70, -1)), 1, wxEXPAND);
+    sidesizer->Add(bottom_button_sizer, 0, wxEXPAND);
+
+    SetSizerAndFit(sidesizer);
 }
 
 ZonesPalettePanel::~ZonesPalettePanel() {
@@ -112,10 +122,14 @@ void ZonesPalettePanel::OnUpdate() {
 		zone_list->Enable(false);
 		add_zone_button->Enable(false);
 		remove_zone_button->Enable(false);
+		import_zone_button->Enable(false);
+		export_zone_button->Enable(false);
 	} else {
 		zone_list->Enable(true);
 		add_zone_button->Enable(true);
 		remove_zone_button->Enable(true);
+		import_zone_button->Enable(true);
+		export_zone_button->Enable(true);
 
 		Zones &zones = map->zones;
 
@@ -224,4 +238,100 @@ void ZonesPalettePanel::OnClickRemoveZone(wxCommandEvent &event) {
 		zone_list->DeleteItem(item);
 		refresh_timer.Start(300, true);
 	}
+}
+
+void ZonesPalettePanel::OnClickExportZone(wxCommandEvent &event) {
+    if (!map) {
+        g_gui.SetStatusText("No map loaded.");
+        return;
+    }
+
+    wxFileDialog dlg(this, "Export Zones", "", "", "XML files (*.xml)|*.xml", wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
+    if (dlg.ShowModal() == wxID_OK) {
+        std::string filepath = nstr(dlg.GetPath());
+        pugi::xml_document doc;
+
+        pugi::xml_node decl = doc.prepend_child(pugi::node_declaration);
+        decl.append_attribute("version") = "1.0";
+
+        pugi::xml_node zones_node = doc.append_child("zones");
+
+        for (const auto& [name, id] : map->zones.zones) {
+            pugi::xml_node zone_node = zones_node.append_child("zone");
+            zone_node.append_attribute("name").set_value(name.c_str());
+            zone_node.append_attribute("id").set_value(id);
+
+            // Collect all positions for this zone
+            for (MapIterator miter = map->begin(); miter != map->end(); ++miter) {
+                Tile* tile = (*miter)->get();
+                if (!tile || tile->size() == 0) {
+                    continue;
+                }
+                if (tile->zones.find(id) != tile->zones.end()) {
+                    Position pos = tile->getPosition();
+                    pugi::xml_node pos_node = zone_node.append_child("position");
+                    pos_node.append_attribute("x").set_value(pos.x);
+                    pos_node.append_attribute("y").set_value(pos.y);
+                    pos_node.append_attribute("z").set_value(pos.z);
+                }
+            }
+        }
+
+        if (doc.save_file(filepath.c_str(), "\t", pugi::format_default, pugi::encoding_utf8)) {
+            g_gui.SetStatusText("Zones exported successfully to " + filepath);
+        } else {
+            g_gui.SetStatusText("Failed to export zones.");
+        }
+    }
+}
+
+void ZonesPalettePanel::OnClickImportZone(wxCommandEvent &event) {
+    if (!map) {
+        g_gui.SetStatusText("No map loaded.");
+        return;
+    }
+
+    wxFileDialog dlg(this, "Import Zones", "", "", "XML files (*.xml)|*.xml", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+    if (dlg.ShowModal() == wxID_OK) {
+        std::string filepath = nstr(dlg.GetPath());
+        pugi::xml_document doc;
+        pugi::xml_parse_result result = doc.load_file(filepath.c_str());
+
+        if (result) {
+            int imported = 0;
+            for (pugi::xml_node zone_node : doc.child("zones").children("zone")) {
+                std::string name = zone_node.attribute("name").as_string();
+                unsigned int id = zone_node.attribute("id").as_uint();
+
+                // Add the zone if it doesn't exist
+                if (!map->zones.hasZone(name) && !map->zones.hasZone(id)) {
+                    if (map->zones.addZone(name, id)) {
+                        imported++;
+
+                        // Apply zone to all specified positions
+                        for (pugi::xml_node pos_node : zone_node.children("position")) {
+                            int x = pos_node.attribute("x").as_int();
+                            int y = pos_node.attribute("y").as_int();
+                            int z = pos_node.attribute("z").as_int();
+                            Position pos(x, y, z);
+
+                            Tile* tile = map->getTile(pos);
+                            if (tile && tile->hasGround()) {
+                                tile->addZone(id);
+                            } else {
+                                g_gui.SetStatusText("Warning: Invalid tile at (" + 
+                                    std::to_string(x) + "," + std::to_string(y) + "," + 
+                                    std::to_string(z) + ") for zone '" + name + "'.");
+                            }
+                        }
+                    }
+                }
+            }
+
+            g_gui.RefreshPalettes();
+            g_gui.SetStatusText("Imported " + std::to_string(imported) + " zones successfully.");
+        } else {
+            g_gui.SetStatusText("Failed to import zones: Invalid XML format.");
+        }
+    }
 }
