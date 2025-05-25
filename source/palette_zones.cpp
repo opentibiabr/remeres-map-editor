@@ -247,41 +247,43 @@ void ZonesPalettePanel::OnClickExportZone(wxCommandEvent &event) {
     }
 
     wxFileDialog dlg(this, "Export Zones", "", "", "XML files (*.xml)|*.xml", wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
-    if (dlg.ShowModal() == wxID_OK) {
-        std::string filepath = nstr(dlg.GetPath());
-        pugi::xml_document doc;
+    if (dlg.ShowModal() != wxID_OK) {
+        return;
+    }
+    
+    std::string filepath = nstr(dlg.GetPath());
+    pugi::xml_document doc;
 
-        pugi::xml_node decl = doc.prepend_child(pugi::node_declaration);
-        decl.append_attribute("version") = "1.0";
+    pugi::xml_node decl = doc.prepend_child(pugi::node_declaration);
+    decl.append_attribute("version") = "1.0";
 
-        pugi::xml_node zones_node = doc.append_child("zones");
+    pugi::xml_node zones_node = doc.append_child("zones");
 
-        for (const auto& [name, id] : map->zones.zones) {
-            pugi::xml_node zone_node = zones_node.append_child("zone");
-            zone_node.append_attribute("name").set_value(name.c_str());
-            zone_node.append_attribute("id").set_value(id);
+    for (const auto &[name, id] : map->zones.zones) {
+        pugi::xml_node zone_node = zones_node.append_child("zone");
+        zone_node.append_attribute("name").set_value(name.c_str());
+        zone_node.append_attribute("id").set_value(id);
 
-            // Collect all positions for this zone
-            for (MapIterator miter = map->begin(); miter != map->end(); ++miter) {
-                Tile* tile = (*miter)->get();
-                if (!tile || tile->size() == 0) {
-                    continue;
-                }
-                if (tile->zones.find(id) != tile->zones.end()) {
-                    Position pos = tile->getPosition();
-                    pugi::xml_node pos_node = zone_node.append_child("position");
-                    pos_node.append_attribute("x").set_value(pos.x);
-                    pos_node.append_attribute("y").set_value(pos.y);
-                    pos_node.append_attribute("z").set_value(pos.z);
-                }
+        // Collect all positions for this zone
+        for (MapIterator miter = map->begin(); miter != map->end(); ++miter) {
+            Tile* tile = (*miter)->get();
+            if (!tile || tile->size() == 0) {
+                continue;
+            }
+            if (tile->zones.find(id) != tile->zones.end()) {
+                Position pos = tile->getPosition();
+                pugi::xml_node pos_node = zone_node.append_child("position");
+                pos_node.append_attribute("x").set_value(pos.x);
+                pos_node.append_attribute("y").set_value(pos.y);
+                pos_node.append_attribute("z").set_value(pos.z);
             }
         }
+    }
 
-        if (doc.save_file(filepath.c_str(), "\t", pugi::format_default, pugi::encoding_utf8)) {
-            g_gui.SetStatusText("Zones exported successfully to " + filepath);
-        } else {
-            g_gui.SetStatusText("Failed to export zones.");
-        }
+    if (doc.save_file(filepath.c_str(), "\t", pugi::format_default, pugi::encoding_utf8)) {
+        g_gui.SetStatusText("Zones exported successfully to " + filepath);
+    } else {
+        g_gui.SetStatusText("Failed to export zones.");
     }
 }
 
