@@ -240,23 +240,6 @@ void ZonesPalettePanel::OnClickRemoveZone(wxCommandEvent &event) {
 	}
 }
 
-void ZonesPalettePanel::OnClickRemoveZone(wxCommandEvent &event) {
-	if (!map) {
-		return;
-	}
-
-	long item = zone_list->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-	if (item != -1) {
-		std::string name = nstr(zone_list->GetItemText(item));
-		if (map->zones.hasZone(name)) {
-			map->zones.removeZone(name);
-			map->cleanDeletedZones();
-		}
-		zone_list->DeleteItem(item);
-		refresh_timer.Start(300, true);
-	}
-}
-
 void ZonesPalettePanel::OnClickExportZone(wxCommandEvent &event) {
     if (!map) {
         g_gui.SetStatusText("No map loaded.");
