@@ -45,6 +45,7 @@ enum ActionIdentifier {
 	ACTION_ROTATE_ITEM,
 	ACTION_REPLACE_ITEMS,
 	ACTION_CHANGE_PROPERTIES,
+	ACTION_CHANGE
 };
 
 enum ChangeType {

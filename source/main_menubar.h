@@ -56,6 +56,7 @@ namespace MenuBar {
 		SEARCH_ON_SELECTION_WRITEABLE,
 		SEARCH_ON_SELECTION_ITEM,
 		REPLACE_ON_SELECTION_ITEMS,
+		REPLACE_ON_SELECTION_MONSTER,
 		REMOVE_ON_SELECTION_ITEM,
 		REMOVE_ON_SELECTION_MONSTER,
 		COUNT_ON_SELECTION_MONSTER,
@@ -256,10 +257,11 @@ public:
 	void OnSearchForItemOnSelection(wxCommandEvent &event);
 	void OnReplaceItemsOnSelection(wxCommandEvent &event);
 	void OnRemoveItemOnSelection(wxCommandEvent &event);
+	void OnReplaceMonstersOnSelection(wxCommandEvent& event);
 	void OnRemoveMonstersOnSelection(wxCommandEvent &event);
 	void OnCountMonstersOnSelection(wxCommandEvent &event);
 
-	// Map menu
+    // Map menu
 	void OnMapEditTowns(wxCommandEvent &event);
 	void OnMapEditItems(wxCommandEvent &event);
 	void OnMapEditMonsters(wxCommandEvent &event);

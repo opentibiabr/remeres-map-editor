@@ -87,6 +87,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(SEARCH_ON_SELECTION_ITEM, wxITEM_NORMAL, OnSearchForItemOnSelection);
 	MAKE_ACTION(REPLACE_ON_SELECTION_ITEMS, wxITEM_NORMAL, OnReplaceItemsOnSelection);
 	MAKE_ACTION(REMOVE_ON_SELECTION_ITEM, wxITEM_NORMAL, OnRemoveItemOnSelection);
+	MAKE_ACTION(REPLACE_ON_SELECTION_MONSTER, wxITEM_NORMAL, OnReplaceMonstersOnSelection);
 	MAKE_ACTION(REMOVE_ON_SELECTION_MONSTER, wxITEM_NORMAL, OnRemoveMonstersOnSelection);
 	MAKE_ACTION(COUNT_ON_SELECTION_MONSTER, wxITEM_NORMAL, OnCountMonstersOnSelection);
 	MAKE_ACTION(SELECT_MODE_COMPENSATE, wxITEM_RADIO, OnSelectionTypeChange);
@@ -1213,6 +1214,68 @@ void MainMenuBar::OnRemoveItemOnSelection(wxCommandEvent &WXUNUSED(event)) {
 		g_gui.RefreshView();
 	}
 	dialog.Destroy();
+}
+
+void MainMenuBar::OnReplaceMonstersOnSelection(wxCommandEvent &WXUNUSED(event)) {
+	if (!g_gui.IsEditorOpen()) {
+		return;
+	}
+
+	Editor* editor = g_gui.GetCurrentEditor();
+	if (!editor->hasSelection()) {
+		g_gui.PopupDialog("Error", "You must select an area first.", wxOK);
+		return;
+	}
+
+	wxDialog dialog(frame, wxID_ANY, "Replace Monsters", wxDefaultPosition, wxDefaultSize);
+	wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
+	
+	wxBoxSizer* findSizer = new wxBoxSizer(wxHORIZONTAL);
+	findSizer->Add(new wxStaticText(&dialog, wxID_ANY, "Find monster:"), 0, wxALIGN_CENTER_VERTICAL|wxALL, 5);
+	wxTextCtrl* findCtrl = new wxTextCtrl(&dialog, wxID_ANY);
+	findSizer->Add(findCtrl, 1, wxEXPAND|wxALL, 5);
+	sizer->Add(findSizer, 0, wxEXPAND);
+	
+	wxBoxSizer* replaceSizer = new wxBoxSizer(wxHORIZONTAL);
+	replaceSizer->Add(new wxStaticText(&dialog, wxID_ANY, "Replace with:"), 0, wxALIGN_CENTER_VERTICAL|wxALL, 5);
+	wxTextCtrl* replaceCtrl = new wxTextCtrl(&dialog, wxID_ANY);
+	replaceSizer->Add(replaceCtrl, 1, wxEXPAND|wxALL, 5);
+	sizer->Add(replaceSizer, 0, wxEXPAND);
+	
+	wxStdDialogButtonSizer* buttonSizer = new wxStdDialogButtonSizer();
+	buttonSizer->AddButton(new wxButton(&dialog, wxID_OK));
+	buttonSizer->AddButton(new wxButton(&dialog, wxID_CANCEL));
+	buttonSizer->Realize();
+	sizer->Add(buttonSizer, 0, wxALIGN_CENTER|wxALL, 5);
+	
+	dialog.SetSizer(sizer);
+	dialog.Fit();
+	
+	if (dialog.ShowModal() == wxID_OK) {
+		std::string monsterToFind = findCtrl->GetValue().ToStdString();
+		std::string monsterToReplace = replaceCtrl->GetValue().ToStdString();
+
+		if (monsterToFind.empty() || monsterToReplace.empty()) {
+			g_gui.PopupDialog("Error", "Both monsters must be specified.", wxOK);
+			return;
+		}
+
+		g_gui.CreateLoadBar("Replacing monsters...");
+		
+		BatchAction* batch = editor->createBatch(ACTION_CHANGE);
+		Action* action = editor->createAction(batch);
+		
+		const auto monstersReplaced = ReplaceMonstersOnMap(editor->getMap(), monsterToFind, monsterToReplace, true);
+		
+		batch->addAndCommitAction(action);
+		editor->addBatch(batch);
+		
+		g_gui.DestroyLoadBar();
+		
+		wxString message;
+		message << monstersReplaced << " monsters replaced.";
+		g_gui.PopupDialog("Replace Monsters", message, wxOK);
+	}
 }
 
 void MainMenuBar::OnRemoveMonstersOnSelection(wxCommandEvent &WXUNUSED(event)) {

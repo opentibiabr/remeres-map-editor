@@ -884,6 +884,51 @@ int64_t RemoveMonstersOnMap(Map &map, bool selectedOnly) {
 	return removed;
 }
 
+int64_t ReplaceMonstersOnMap(Map &map, const std::string &oldMonsterName, const std::string &newMonsterName, bool selectedOnly) {
+    int64_t done = 0;
+    int64_t replaced = 0;
+
+    MonsterType* newType = g_monsters[newMonsterName];
+    if (!newType) {
+        newType = g_monsters.addMissingMonsterType(newMonsterName);
+    }
+
+    MapIterator it = map.begin();
+    MapIterator end = map.end();
+
+    while (it != end) {
+        ++done;
+        Tile* tile = (*it)->get();
+        if (selectedOnly && !tile->isSelected()) {
+            ++it;
+            continue;
+        }
+
+        for (auto monsterIter = tile->monsters.begin(); monsterIter != tile->monsters.end();) {
+            Monster* monster = *monsterIter;
+            if (monster && monster->getName() == oldMonsterName) {
+                Monster* replacement = newd Monster(newType); 
+                if (replacement) {
+                    replacement->setSpawnMonsterTime(monster->getSpawnMonsterTime());
+                    replacement->setDirection(monster->getDirection());
+                    replacement->setWeight(monster->getWeight());
+
+                    monsterIter = tile->monsters.erase(monsterIter);
+                    delete monster;
+                    
+                    tile->monsters.push_back(replacement);
+                    ++replaced;
+                    continue;
+                }
+            }
+            ++monsterIter;
+        }
+
+        ++it;
+    }
+    return replaced;
+}
+
 std::pair<int64_t, std::unordered_map<std::string, int64_t>> CountMonstersOnMap(Map &map, bool selectedOnly) {
 	int64_t done = 0;
 	int64_t total = 0;
