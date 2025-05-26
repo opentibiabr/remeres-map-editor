@@ -257,11 +257,11 @@ public:
 	void OnSearchForItemOnSelection(wxCommandEvent &event);
 	void OnReplaceItemsOnSelection(wxCommandEvent &event);
 	void OnRemoveItemOnSelection(wxCommandEvent &event);
-	void OnReplaceMonstersOnSelection(wxCommandEvent& event);
+	void OnReplaceMonstersOnSelection(wxCommandEvent &event);
 	void OnRemoveMonstersOnSelection(wxCommandEvent &event);
 	void OnCountMonstersOnSelection(wxCommandEvent &event);
 
-    // Map menu
+	// Map menu
 	void OnMapEditTowns(wxCommandEvent &event);
 	void OnMapEditItems(wxCommandEvent &event);
 	void OnMapEditMonsters(wxCommandEvent &event);

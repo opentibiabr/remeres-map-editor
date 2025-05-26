@@ -1229,28 +1229,28 @@ void MainMenuBar::OnReplaceMonstersOnSelection(wxCommandEvent &WXUNUSED(event)) 
 
 	wxDialog dialog(frame, wxID_ANY, "Replace Monsters", wxDefaultPosition, wxDefaultSize);
 	wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
-	
+
 	wxBoxSizer* findSizer = new wxBoxSizer(wxHORIZONTAL);
-	findSizer->Add(new wxStaticText(&dialog, wxID_ANY, "Find monster:"), 0, wxALIGN_CENTER_VERTICAL|wxALL, 5);
+	findSizer->Add(new wxStaticText(&dialog, wxID_ANY, "Find monster:"), 0, wxALIGN_CENTER_VERTICAL | wxALL, 5);
 	wxTextCtrl* findCtrl = new wxTextCtrl(&dialog, wxID_ANY);
-	findSizer->Add(findCtrl, 1, wxEXPAND|wxALL, 5);
+	findSizer->Add(findCtrl, 1, wxEXPAND | wxALL, 5);
 	sizer->Add(findSizer, 0, wxEXPAND);
-	
+
 	wxBoxSizer* replaceSizer = new wxBoxSizer(wxHORIZONTAL);
-	replaceSizer->Add(new wxStaticText(&dialog, wxID_ANY, "Replace with:"), 0, wxALIGN_CENTER_VERTICAL|wxALL, 5);
+	replaceSizer->Add(new wxStaticText(&dialog, wxID_ANY, "Replace with:"), 0, wxALIGN_CENTER_VERTICAL | wxALL, 5);
 	wxTextCtrl* replaceCtrl = new wxTextCtrl(&dialog, wxID_ANY);
-	replaceSizer->Add(replaceCtrl, 1, wxEXPAND|wxALL, 5);
+	replaceSizer->Add(replaceCtrl, 1, wxEXPAND | wxALL, 5);
 	sizer->Add(replaceSizer, 0, wxEXPAND);
-	
+
 	wxStdDialogButtonSizer* buttonSizer = new wxStdDialogButtonSizer();
 	buttonSizer->AddButton(new wxButton(&dialog, wxID_OK));
 	buttonSizer->AddButton(new wxButton(&dialog, wxID_CANCEL));
 	buttonSizer->Realize();
-	sizer->Add(buttonSizer, 0, wxALIGN_CENTER|wxALL, 5);
-	
+	sizer->Add(buttonSizer, 0, wxALIGN_CENTER | wxALL, 5);
+
 	dialog.SetSizer(sizer);
 	dialog.Fit();
-	
+
 	if (dialog.ShowModal() == wxID_OK) {
 		std::string monsterToFind = findCtrl->GetValue().ToStdString();
 		std::string monsterToReplace = replaceCtrl->GetValue().ToStdString();
@@ -1261,17 +1261,17 @@ void MainMenuBar::OnReplaceMonstersOnSelection(wxCommandEvent &WXUNUSED(event)) 
 		}
 
 		g_gui.CreateLoadBar("Replacing monsters...");
-		
+
 		BatchAction* batch = editor->createBatch(ACTION_CHANGE);
 		Action* action = editor->createAction(batch);
-		
+
 		const auto monstersReplaced = ReplaceMonstersOnMap(editor->getMap(), monsterToFind, monsterToReplace, true);
-		
+
 		batch->addAndCommitAction(action);
 		editor->addBatch(batch);
-		
+
 		g_gui.DestroyLoadBar();
-		
+
 		wxString message;
 		message << monstersReplaced << " monsters replaced.";
 		g_gui.PopupDialog("Replace Monsters", message, wxOK);
