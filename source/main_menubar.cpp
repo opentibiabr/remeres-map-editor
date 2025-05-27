@@ -1294,7 +1294,6 @@ void MainMenuBar::OnRemoveMonstersOnSelection(wxCommandEvent &WXUNUSED(event)) {
 	g_gui.RefreshView();
 }
 
-
 void MainMenuBar::OnEditMonsterSpawnTime(wxCommandEvent &WXUNUSED(event)) {
 	if (!g_gui.IsEditorOpen()) {
 		return;
@@ -1324,7 +1323,7 @@ void MainMenuBar::OnEditMonsterSpawnTime(wxCommandEvent &WXUNUSED(event)) {
 		} else {
 			g_gui.PopupDialog("Edit Monster Spawn Time", wxString::Format("%d monsters updated.", monstersUpdated), wxOK);
 		}
-		
+
 		g_gui.GetCurrentMap().doChange();
 		g_gui.RefreshView();
 	}
