@@ -1228,7 +1228,7 @@ void MainMenuBar::OnReplaceMonstersOnSelection(wxCommandEvent &WXUNUSED(event)) 
 	}
 
 	wxDialog* dialog = newd wxDialog(frame, wxID_ANY, "Replace Monsters", wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE);
-	
+
 	wxFlexGridSizer* grid = newd wxFlexGridSizer(2, 10, 10);
 	grid->AddGrowableCol(1);
 
@@ -1244,7 +1244,7 @@ void MainMenuBar::OnReplaceMonstersOnSelection(wxCommandEvent &WXUNUSED(event)) 
 
 	wxBoxSizer* topsizer = newd wxBoxSizer(wxVERTICAL);
 	topsizer->Add(grid, 0, wxEXPAND | wxALL, 5);
-	topsizer->Add(dialog->CreateButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxALL, 5); 
+	topsizer->Add(dialog->CreateButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxALL, 5);
 
 	dialog->SetSizerAndFit(topsizer);
 
@@ -1274,7 +1274,7 @@ void MainMenuBar::OnReplaceMonstersOnSelection(wxCommandEvent &WXUNUSED(event)) 
 		message << monstersReplaced << " monsters replaced.";
 		g_gui.PopupDialog("Replace Monsters", message, wxOK);
 	}
-	
+
 	dialog->Destroy();
 }
 
