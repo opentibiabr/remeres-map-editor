@@ -1227,36 +1227,34 @@ void MainMenuBar::OnReplaceMonstersOnSelection(wxCommandEvent &WXUNUSED(event)) 
 		return;
 	}
 
-	wxDialog dialog(frame, wxID_ANY, "Replace Monsters", wxDefaultPosition, wxDefaultSize);
-	wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
+	wxDialog* dialog = newd wxDialog(frame, wxID_ANY, "Replace Monsters", wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE);
+	
+	wxFlexGridSizer* grid = newd wxFlexGridSizer(2, 10, 10);
+	grid->AddGrowableCol(1);
 
-	wxBoxSizer* findSizer = new wxBoxSizer(wxHORIZONTAL);
-	findSizer->Add(new wxStaticText(&dialog, wxID_ANY, "Find monster:"), 0, wxALIGN_CENTER_VERTICAL | wxALL, 5);
-	wxTextCtrl* findCtrl = new wxTextCtrl(&dialog, wxID_ANY);
-	findSizer->Add(findCtrl, 1, wxEXPAND | wxALL, 5);
-	sizer->Add(findSizer, 0, wxEXPAND);
+	// Find monster field
+	wxTextCtrl* findCtrl = newd wxTextCtrl(dialog, wxID_ANY, wxEmptyString);
+	grid->Add(newd wxStaticText(dialog, wxID_ANY, "Find monster:"), 0, wxALIGN_CENTER_VERTICAL);
+	grid->Add(findCtrl, 1, wxEXPAND);
 
-	wxBoxSizer* replaceSizer = new wxBoxSizer(wxHORIZONTAL);
-	replaceSizer->Add(new wxStaticText(&dialog, wxID_ANY, "Replace with:"), 0, wxALIGN_CENTER_VERTICAL | wxALL, 5);
-	wxTextCtrl* replaceCtrl = new wxTextCtrl(&dialog, wxID_ANY);
-	replaceSizer->Add(replaceCtrl, 1, wxEXPAND | wxALL, 5);
-	sizer->Add(replaceSizer, 0, wxEXPAND);
+	// Replace with field
+	wxTextCtrl* replaceCtrl = newd wxTextCtrl(dialog, wxID_ANY, wxEmptyString);
+	grid->Add(newd wxStaticText(dialog, wxID_ANY, "Replace with:"), 0, wxALIGN_CENTER_VERTICAL);
+	grid->Add(replaceCtrl, 1, wxEXPAND);
 
-	wxStdDialogButtonSizer* buttonSizer = new wxStdDialogButtonSizer();
-	buttonSizer->AddButton(new wxButton(&dialog, wxID_OK));
-	buttonSizer->AddButton(new wxButton(&dialog, wxID_CANCEL));
-	buttonSizer->Realize();
-	sizer->Add(buttonSizer, 0, wxALIGN_CENTER | wxALL, 5);
+	wxBoxSizer* topsizer = newd wxBoxSizer(wxVERTICAL);
+	topsizer->Add(grid, 0, wxEXPAND | wxALL, 5);
+	topsizer->Add(dialog->CreateButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxALL, 5); 
 
-	dialog.SetSizer(sizer);
-	dialog.Fit();
+	dialog->SetSizerAndFit(topsizer);
 
-	if (dialog.ShowModal() == wxID_OK) {
+	if (dialog->ShowModal() == wxID_OK) {
 		std::string monsterToFind = findCtrl->GetValue().ToStdString();
 		std::string monsterToReplace = replaceCtrl->GetValue().ToStdString();
 
 		if (monsterToFind.empty() || monsterToReplace.empty()) {
 			g_gui.PopupDialog("Error", "Both monsters must be specified.", wxOK);
+			dialog->Destroy();
 			return;
 		}
 
@@ -1276,6 +1274,8 @@ void MainMenuBar::OnReplaceMonstersOnSelection(wxCommandEvent &WXUNUSED(event)) 
 		message << monstersReplaced << " monsters replaced.";
 		g_gui.PopupDialog("Replace Monsters", message, wxOK);
 	}
+	
+	dialog->Destroy();
 }
 
 void MainMenuBar::OnRemoveMonstersOnSelection(wxCommandEvent &WXUNUSED(event)) {
