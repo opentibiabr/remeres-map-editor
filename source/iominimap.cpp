@@ -155,8 +155,6 @@ bool IOMinimap::exportMinimap(const std::string &directory) {
 
     int min_z = m_floor == -1 ? 0 : m_floor;
     int max_z = m_floor == -1 ? rme::MapMaxLayer : m_floor;
-
-    // Descobrir o maior x/y do mapa para limitar a exportação
     int max_x = 0, max_y = 0;
     for (auto it = map.begin(); it != map.end(); ++it) {
         auto tile = (*it)->get();
@@ -168,7 +166,6 @@ bool IOMinimap::exportMinimap(const std::string &directory) {
         if (position.y > max_y) max_y = position.y;
     }
 
-    // Ajusta para exportar até o próximo múltiplo de m_imageSize
     int last_x = ((max_x / m_imageSize) + 1) * m_imageSize - 1;
     int last_y = ((max_y / m_imageSize) + 1) * m_imageSize - 1;
 
@@ -183,7 +180,7 @@ bool IOMinimap::exportMinimap(const std::string &directory) {
         for (int h = 0; h <= last_y; h += m_imageSize) {
             for (int w = 0; w <= last_x; w += m_imageSize) {
                 memset(pixels, 0, pixels_size);
-                bool empty = true; // <- checagem de bloco vazio
+                bool empty = true;
 
                 int index = 0;
                 for (int y = 0; y < m_imageSize; y++) {
@@ -210,15 +207,14 @@ bool IOMinimap::exportMinimap(const std::string &directory) {
                         }
 
                         uint8_t color = tile->getMiniMapColor();
-                        pixels[index] = (uint8_t)(static_cast<int>(color / 36) % 6 * 51); // red
-                        pixels[index + 1] = (uint8_t)(static_cast<int>(color / 6) % 6 * 51); // green
-                        pixels[index + 2] = (uint8_t)(color % 6 * 51); // blue
+                        pixels[index] = (uint8_t)(static_cast<int>(color / 36) % 6 * 51);
+                        pixels[index + 1] = (uint8_t)(static_cast<int>(color / 6) % 6 * 51);
+                        pixels[index + 2] = (uint8_t)(color % 6 * 51);
                         index += rme::PixelFormatRGB;
-                        empty = false; // achou pelo menos um pixel preenchido
+                        empty = false;
                     }
                 }
 
-                // Só salva se houver pelo menos um pixel preenchido
                 if (!empty) {
                     image->SetData(pixels, true);
                     wxString extension = m_format == MinimapExportFormat::Png ? "png" : "bmp";
