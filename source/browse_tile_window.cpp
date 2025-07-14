@@ -253,7 +253,7 @@ void BrowseTileWindow::OnItemSelected(wxCommandEvent &evt) {
 
 void BrowseTileWindow::OnClickDelete(wxCommandEvent &WXUNUSED(event)) {
 	itemList->RemoveSelected();
-	itemCountText->SetLabelText(wxString::Format("Item count: %i", itemList->GetItemCount()));
+	itemCountText->SetLabelText(wxString::Format("Item count: %zu", itemList->GetItemCount()));
 }
 
 void BrowseTileWindow::OnClickSelectRaw(wxCommandEvent &WXUNUSED(event)) {
