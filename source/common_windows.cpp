@@ -633,14 +633,30 @@ void ExportMiniMapWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 	const auto imageSizeSelection = imageSizeOptions->GetSelection();
 	int imageSize = 64;
 	switch (imageSizeSelection) {
-		case 0: imageSize = 64; break;
-		case 1: imageSize = 128; break;
-		case 2: imageSize = 256; break;
-		case 3: imageSize = 512; break;
-		case 4: imageSize = 1024; break;
-		case 5: imageSize = 2048; break;
-		case 6: imageSize = 4096; break;
-		default: imageSize = 1024; break;
+		case 0:
+			imageSize = 64;
+			break;
+		case 1:
+			imageSize = 128;
+			break;
+		case 2:
+			imageSize = 256;
+			break;
+		case 3:
+			imageSize = 512;
+			break;
+		case 4:
+			imageSize = 1024;
+			break;
+		case 5:
+			imageSize = 2048;
+			break;
+		case 6:
+			imageSize = 4096;
+			break;
+		default:
+			imageSize = 1024;
+			break;
 	}
 
 	auto format = static_cast<MinimapExportFormat>(format_options->GetSelection());
