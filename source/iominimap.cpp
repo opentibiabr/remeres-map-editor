@@ -153,41 +153,25 @@ bool IOMinimap::exportMinimap(const std::string &directory) {
 		return true;
 	}
 
-	wxRect bounds[rme::MapLayers];
 	int min_z = m_floor == -1 ? 0 : m_floor;
 	int max_z = m_floor == -1 ? rme::MapMaxLayer : m_floor;
-
-	for (size_t z = min_z; z <= max_z; z++) {
-		auto &rect = bounds[z];
-		rect.x = rme::MapMaxWidth + 1;
-		rect.y = rme::MapMaxHeight + 1;
-		rect.width = 0;
-		rect.height = 0;
-	}
-
-	int totalTiles = 0;
+	int max_x = 0, max_y = 0;
 	for (auto it = map.begin(); it != map.end(); ++it) {
 		auto tile = (*it)->get();
 		if (!tile || (!tile->ground && tile->items.empty())) {
 			continue;
 		}
-
 		const auto &position = tile->getPosition();
-		auto &rect = bounds[position.z];
-		if (position.x < rect.x) {
-			rect.x = position.x;
+		if (position.x > max_x) {
+			max_x = position.x;
 		}
-		if (position.y < rect.y) {
-			rect.y = position.y;
+		if (position.y > max_y) {
+			max_y = position.y;
 		}
-		if (position.x > rect.width) {
-			rect.width = position.x;
-		}
-		if (position.y > rect.height) {
-			rect.height = position.y;
-		}
-		totalTiles++;
 	}
+
+	int last_x = ((max_x / m_imageSize) + 1) * m_imageSize - 1;
+	int last_y = ((max_y / m_imageSize) + 1) * m_imageSize - 1;
 
 	int pixels_size = m_imageSize * m_imageSize * rme::PixelFormatRGB;
 	uint8_t* pixels = new uint8_t[pixels_size];
@@ -195,32 +179,30 @@ bool IOMinimap::exportMinimap(const std::string &directory) {
 
 	int processedTiles = 0;
 	int lastShownProgress = -1;
+
 	for (size_t z = min_z; z <= max_z; z++) {
-		auto &rect = bounds[z];
-		if (rect.IsEmpty()) {
-			continue;
-		}
-
-		for (int h = 0; h < rme::MapMaxHeight; h += m_imageSize) {
-			for (int w = 0; w < rme::MapMaxWidth; w += m_imageSize) {
-				if (w < rect.x || w > rect.width || h < rect.y || h > rect.height) {
-					continue;
-				}
-
-				bool empty = true;
+		for (int h = 0; h <= last_y; h += m_imageSize) {
+			for (int w = 0; w <= last_x; w += m_imageSize) {
 				memset(pixels, 0, pixels_size);
+				bool empty = true;
 
 				int index = 0;
 				for (int y = 0; y < m_imageSize; y++) {
 					for (int x = 0; x < m_imageSize; x++) {
-						auto tile = map.getTile(w + x, h + y, z);
+						int tile_x = w + x;
+						int tile_y = h + y;
+						if (tile_x > max_x || tile_y > max_y) {
+							index += rme::PixelFormatRGB;
+							continue;
+						}
+						auto tile = map.getTile(tile_x, tile_y, z);
 						if (!tile || (!tile->ground && tile->items.empty())) {
 							index += rme::PixelFormatRGB;
 							continue;
 						}
 
 						processedTiles++;
-						int progress = static_cast<int>((static_cast<double>(processedTiles) / totalTiles) * 100);
+						int progress = static_cast<int>((static_cast<double>(processedTiles) / map.size()) * 100);
 						if (progress > lastShownProgress) {
 							if (m_updateLoadbar) {
 								g_gui.SetLoadDone(progress);
@@ -229,9 +211,9 @@ bool IOMinimap::exportMinimap(const std::string &directory) {
 						}
 
 						uint8_t color = tile->getMiniMapColor();
-						pixels[index] = (uint8_t)(static_cast<int>(color / 36) % 6 * 51); // red
-						pixels[index + 1] = (uint8_t)(static_cast<int>(color / 6) % 6 * 51); // green
-						pixels[index + 2] = (uint8_t)(color % 6 * 51); // blue
+						pixels[index] = (uint8_t)(static_cast<int>(color / 36) % 6 * 51);
+						pixels[index + 1] = (uint8_t)(static_cast<int>(color / 6) % 6 * 51);
+						pixels[index + 2] = (uint8_t)(color % 6 * 51);
 						index += rme::PixelFormatRGB;
 						empty = false;
 					}
@@ -242,7 +224,7 @@ bool IOMinimap::exportMinimap(const std::string &directory) {
 					wxString extension = m_format == MinimapExportFormat::Png ? "png" : "bmp";
 					wxBitmapType type = m_format == MinimapExportFormat::Png ? wxBITMAP_TYPE_PNG : wxBITMAP_TYPE_BMP;
 					wxString extension_wx = wxString::FromAscii(extension.mb_str());
-					wxFileName file = wxString::Format("%s-%s-%s.%s", std::to_string(h), std::to_string(w), std::to_string(z), extension_wx);
+					wxFileName file = wxString::Format("Minimap_Color_%d_%d_%d.%s", w, h, (int)z, extension_wx);
 					file.Normalize(wxPATH_NORM_DOTS | wxPATH_NORM_TILDE | wxPATH_NORM_CASE | wxPATH_NORM_ABSOLUTE, directory);
 					image->SaveFile(file.GetFullPath(), type);
 				}
