@@ -308,16 +308,27 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 
 	g_gui.SetLoadDone(30, "Loading items.xml ...");
 	spdlog::info("Loading items");
-	if (!g_items.loadFromGameXml(wxString("data/items/items.xml"), error, warnings)) {
+	FileName itemsPath(exec_directory);
+	itemsPath.AppendDir("data");
+	itemsPath.AppendDir("items");
+	itemsPath.SetFullName("items.xml");
+
+	if (!g_items.loadFromGameXml(itemsPath, error, warnings)) {
 		warnings.push_back("Couldn't load items.xml: " + error);
-		spdlog::warn("[GUI::LoadDataFiles] {}: {}", wxString("data/items/items.xml").ToStdString(), error.ToStdString());
+		spdlog::warn("[GUI::LoadDataFiles] {}: {}", itemsPath.GetFullPath().ToStdString(), error.ToStdString());
 	}
+
 
 	g_gui.SetLoadDone(45, "Loading monsters.xml ...");
 	spdlog::info("Loading monsters");
-	if (!g_monsters.loadFromXML(wxString("data/creatures/monsters.xml"), true, error, warnings)) {
+	FileName monstersPath(exec_directory);
+	monstersPath.AppendDir("data");
+	monstersPath.AppendDir("creatures");
+	monstersPath.SetFullName("monsters.xml");
+
+	if (!g_monsters.loadFromXML(monstersPath, true, error, warnings)) {
 		warnings.push_back("Couldn't load monsters.xml: " + error);
-		spdlog::warn("[GUI::LoadDataFiles] {}: {}", wxString("data/creatures/monsters.xml").ToStdString(), error.ToStdString());
+		spdlog::warn("[GUI::LoadDataFiles] {}: {}", monstersPath.GetFullPath().ToStdString(), error.ToStdString());
 	}
 
 	g_gui.SetLoadDone(45, "Loading user monsters.xml ...");
@@ -333,10 +344,16 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 
 	g_gui.SetLoadDone(45, "Loading npcs.xml ...");
 	spdlog::info("Loading npcs");
-	if (!g_npcs.loadFromXML(wxString("data/creatures/npcs.xml"), true, error, warnings)) {
+	FileName npcsPath(exec_directory);
+	npcsPath.AppendDir("data");
+	npcsPath.AppendDir("creatures");
+	npcsPath.SetFullName("npcs.xml");
+
+	if (!g_npcs.loadFromXML(npcsPath, true, error, warnings)) {
 		warnings.push_back("Couldn't load npcs.xml: " + error);
-		spdlog::warn("[GUI::LoadDataFiles] {}: {}", wxString("data/creatures/npcs.xml").ToStdString(), error.ToStdString());
+		spdlog::warn("[GUI::LoadDataFiles] {}: {}", npcsPath.GetFullPath().ToStdString(), error.ToStdString());
 	}
+
 
 	g_gui.SetLoadDone(45, "Loading user npcs.xml ...");
 	spdlog::info("Loading user npcs");
