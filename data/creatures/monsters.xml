@@ -148,9 +148,11 @@
   <monster name="Bretzecutioner" looktype="236"/>
   <monster name="Bright Percht Sleigh" looktype="1164"/>
   <monster name="Brimstone Bug" looktype="352"/>
+  <monster name="Brinebrute Inferniarch" looktype="1794"/>
   <monster name="Brittle Skeleton" looktype="33"/>
   <monster name="Broken Shaper" looktype="932" lookhead="94" lookbody="76" lookfeet="82"/>
   <monster name="Brokul" looktype="1076"/>
+  <monster name="Broodrider Inferniarch" looktype="1796"/>
   <monster name="Brother Chill" looktype="261"/>
   <monster name="Brother Freeze" looktype="261"/>
   <monster name="Brown Horse" looktype="436"/>
@@ -611,6 +613,7 @@
   <monster name="Golgordan" looktype="12" lookhead="52" lookbody="99" looklegs="52" lookfeet="91"/>
   <monster name="Gore Horn" looktype="1548" lookhead="85" lookbody="1" looklegs="85" lookfeet="105" lookaddons="3"/>
   <monster name="Gorerilla" looktype="1559" lookhead="85" lookbody="1" looklegs="85" lookfeet="105" lookaddons="3"/>
+  <monster name="Gorger Inferniarch" looktype="1797"/>
   <monster name="Gorgo" looktype="330"/>
   <monster name="Gorzindel" looktype="1062" lookhead="94" lookbody="81" looklegs="10" lookaddons="1"/>
   <monster name="Goshnar's Cruelty" looktype="1303"/>
@@ -671,6 +674,7 @@
   <monster name="Hellflayer" looktype="856"/>
   <monster name="Hellgorak" looktype="12" lookhead="19" lookbody="77" looklegs="3" lookfeet="80"/>
   <monster name="Hellhound" looktype="240"/>
+  <monster name="Hellhunter Inferniarch" looktype="1793"/>
   <monster name="Hellspawn" looktype="322"/>
   <monster name="Hemming" looktype="308"/>
   <monster name="Heoni" looktype="239"/>
@@ -1251,6 +1255,7 @@
   <monster name="Silencer" looktype="585"/>
   <monster name="Silver Rabbit" looktype="262"/>
   <monster name="Sin Devourer" looktype="320"/>
+  <monster name="Sineater Inferniarch" looktype="1795"/>
   <monster name="Sir Baeloc" looktype="1222" lookhead="57" lookbody="81" looklegs="3" lookfeet="93" lookaddons="1"/>
   <monster name="Sir Nictros" looktype="1222" lookhead="101" lookbody="79" lookaddons="2"/>
   <monster name="Sir Valorcrest" looktype="287"/>
@@ -1293,6 +1298,7 @@
   <monster name="Spawn of the Welter" looktype="121"/>
   <monster name="Spectral Scum" looktype="195"/>
   <monster name="Spectre" looktype="235"/>
+  <monster name="Spellreaper Inferniarch" looktype="1792"/>
   <monster name="Sphere of Wrath" looktype="979"/>
   <monster name="Sphinx" looktype="1188" lookbody="39" lookfeet="3" lookaddons="1"/>
   <monster name="Spider" looktype="30"/>
