@@ -562,7 +562,39 @@ json IOMapJSON::serializeTowns(const Map &map) {
 	return towns;
 }
 
-json IOMapJSON::serializeHouses(const Map &map) { return json::array(); }
+json IOMapJSON::serializeHouses(const Map &map) {
+	json houses = json::array();
+
+	for (const auto &houseEntry : map.houses) {
+		const House* house = houseEntry.second;
+		if (!house) {
+			continue;
+		}
+
+		json houseData;
+		houseData["id"] = house->id;
+		houseData["name"] = house->name;
+		houseData["rent"] = house->rent;
+		houseData["clientid"] = house->clientid;
+		houseData["beds"] = house->beds;
+		houseData["townid"] = house->townid;
+		houseData["guildhall"] = house->guildhall;
+		houseData["size"] = static_cast<uint32_t>(house->size());
+
+		// Entry/exit position
+		const Position &exitPos = house->getExit();
+		json entry;
+		entry["x"] = exitPos.x;
+		entry["y"] = exitPos.y;
+		entry["z"] = exitPos.z;
+		houseData["entry"] = entry;
+
+		houses.push_back(houseData);
+	}
+
+	return houses;
+}
+
 json IOMapJSON::serializeWaypoints(const Map &map) { return json::array(); }
 json IOMapJSON::serializeZones(const Map &map) { return json::array(); }
 json IOMapJSON::serializeSpawns(const Map &map) { return json::array(); }
