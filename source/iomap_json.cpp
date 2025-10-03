@@ -670,7 +670,7 @@ json IOMapJSON::serializeSpawns(const Map &map) {
 								monsterData["y"] = y - pos.y;
 								monsterData["z"] = pos.z; // Z level
 								monsterData["spawntime"] = monster->getSpawnMonsterTime();
-								
+
 								// Add direction if it's not the default
 								Direction dir = monster->getDirection();
 								if (dir != NORTH) { // Only include if not default
@@ -683,13 +683,13 @@ json IOMapJSON::serializeSpawns(const Map &map) {
 									}
 									monsterData["direction"] = dirName;
 								}
-								
+
 								// Add weight if it's not the default
 								int weight = monster->getWeight();
-								if (weight != 0) {
-									monsterData["weight"] = weight;
+								if (weight != g_settings.getInteger(Config::MONSTER_DEFAULT_WEIGHT)) {
+									monsterData["weight"] = weight > 0 ? weight : g_settings.getInteger(Config::MONSTER_DEFAULT_WEIGHT);
 								}
-								
+
 								monsters.push_back(monsterData);
 							}
 						}
@@ -739,7 +739,7 @@ json IOMapJSON::serializeNpcSpawns(const Map &map) {
 						npcData["y"] = y - pos.y;
 						npcData["z"] = pos.z; // Z level
 						npcData["spawntime"] = tile->npc->getSpawnNpcTime();
-						
+
 						// Add direction if it's not the default
 						Direction dir = tile->npc->getDirection();
 						if (dir != NORTH) { // Only include if not default
@@ -752,7 +752,7 @@ json IOMapJSON::serializeNpcSpawns(const Map &map) {
 							}
 							npcData["direction"] = dirName;
 						}
-						
+
 						npcs.push_back(npcData);
 					}
 				}
