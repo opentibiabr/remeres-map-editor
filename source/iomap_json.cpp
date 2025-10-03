@@ -145,9 +145,174 @@ json IOMapJSON::serializeMapData(const Map &map) {
 	return mapData;
 }
 
-// Simplified implementations for now
-json IOMapJSON::serializeTile(const Tile &tile) { return json{}; }
-json IOMapJSON::serializeItem(const Item &item) { return json{}; }
+json IOMapJSON::serializeTile(const Tile &tile) {
+	json tileData;
+
+	// Add position information
+	const Position &pos = tile.getPosition();
+	tileData["x"] = pos.x;
+	tileData["y"] = pos.y;
+	tileData["z"] = pos.z;
+
+	// Add map flags (PZ, PVP, etc.)
+	uint16_t mapFlags = tile.getMapFlags();
+	if (mapFlags != 0) {
+		json flags;
+		if (tile.isPZ()) flags["protection_zone"] = true;
+		if (tile.isPVP()) flags["pvp_zone"] = true;
+		if (tile.isNoPVP()) flags["no_pvp"] = true;
+		if (tile.isNoLogout()) flags["no_logout"] = true;
+		if (!flags.empty()) {
+			tileData["flags"] = flags;
+		}
+	}
+
+	// Add house information
+	if (tile.isHouseTile()) {
+		tileData["house_id"] = tile.getHouseID();
+	}
+
+	// Add zones
+	if (tile.hasZone()) {
+		json zones = json::array();
+		for (unsigned int zone : tile.zones) {
+			zones.push_back(zone);
+		}
+		tileData["zones"] = zones;
+	}
+
+	// Add ground item
+	if (tile.hasGround()) {
+		tileData["ground"] = serializeItem(*tile.ground);
+	}
+
+	// Add items
+	if (!tile.items.empty()) {
+		json items = json::array();
+		for (const Item* item : tile.items) {
+			if (item) {
+				items.push_back(serializeItem(*item));
+			}
+		}
+		if (!items.empty()) {
+			tileData["items"] = items;
+		}
+	}
+
+	// Add monster spawns
+	if (tile.spawnMonster) {
+		json spawn;
+		spawn["radius"] = tile.spawnMonster->getSize();
+		json monsters = json::array();
+		for (const Monster* monster : tile.monsters) {
+			if (monster) {
+				json monsterData;
+				monsterData["name"] = monster->getName();
+				// Add more monster properties as needed
+				monsters.push_back(monsterData);
+			}
+		}
+		if (!monsters.empty()) {
+			spawn["monsters"] = monsters;
+		}
+		tileData["spawn"] = spawn;
+	}
+
+	// Add NPC
+	if (tile.npc) {
+		json npcData;
+		npcData["name"] = tile.npc->getName();
+		// Add more NPC properties as needed
+		tileData["npc"] = npcData;
+	}
+
+	return tileData;
+}
+
+json IOMapJSON::serializeItem(const Item &item) {
+	json itemData;
+
+	// Basic item properties
+	itemData["id"] = item.getID();
+
+	// Add subtype/count if it's not the default
+	uint16_t subtype = item.getSubtype();
+	if (subtype != 0 && subtype != 0xFFFF) {
+		itemData["count"] = subtype;
+	}
+
+	// Add unique ID if present
+	uint16_t uid = item.getUniqueID();
+	if (uid != 0) {
+		itemData["unique_id"] = uid;
+	}
+
+	// Add action ID if present
+	uint16_t aid = item.getActionID();
+	if (aid != 0) {
+		itemData["action_id"] = aid;
+	}
+
+	// Add text if present
+	std::string text = item.getText();
+	if (!text.empty()) {
+		itemData["text"] = text;
+	}
+
+	// Add description if present
+	std::string desc = item.getDescription();
+	if (!desc.empty()) {
+		itemData["description"] = desc;
+	}
+
+	// Need to cast away const since getter methods are not const
+	Item* nonConstItem = const_cast<Item*>(&item);
+
+	// Add container contents if it's a container
+	if (nonConstItem->getContainer()) {
+		const Container* container = nonConstItem->getContainer();
+		json contents = json::array();
+		// Need const cast for getVector too since it's not const
+		Container* nonConstContainer = const_cast<Container*>(container);
+		for (const Item* containerItem : nonConstContainer->getVector()) {
+			if (containerItem) {
+				contents.push_back(serializeItem(*containerItem));
+			}
+		}
+		if (!contents.empty()) {
+			itemData["contents"] = contents;
+		}
+	}
+
+	// Add depot info if it's a depot
+	if (nonConstItem->getDepot()) {
+		const Depot* depot = nonConstItem->getDepot();
+		json depotData;
+		depotData["depot_id"] = depot->getDepotID();
+		itemData["depot"] = depotData;
+	}
+
+	// Add teleport destination if it's a teleport
+	if (nonConstItem->getTeleport()) {
+		const Teleport* teleport = nonConstItem->getTeleport();
+		const Position& dest = teleport->getDestination();
+		json teleportData;
+		teleportData["x"] = dest.x;
+		teleportData["y"] = dest.y;
+		teleportData["z"] = dest.z;
+		itemData["teleport"] = teleportData;
+	}
+
+	// Add door properties if it's a door
+	if (nonConstItem->getDoor()) {
+		const Door* door = nonConstItem->getDoor();
+		json doorData;
+		doorData["door_id"] = door->getDoorID();
+		itemData["door"] = doorData;
+	}
+
+	return itemData;
+}
 json IOMapJSON::serializeTowns(const Map &map) { return json::array(); }
 json IOMapJSON::serializeHouses(const Map &map) { return json::array(); }
 json IOMapJSON::serializeWaypoints(const Map &map) { return json::array(); }
