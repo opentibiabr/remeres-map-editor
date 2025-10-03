@@ -131,6 +131,40 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 						}
 					}
 
+					// Load tile flags if present
+					if (rleData.contains("flags")) {
+						const json &flags = rleData["flags"];
+
+						if (flags.contains("protection_zone") && flags["protection_zone"]) {
+							tile->setMapFlags(tile->getMapFlags() | TILESTATE_PROTECTIONZONE);
+						}
+						if (flags.contains("pvp_zone") && flags["pvp_zone"]) {
+							tile->setMapFlags(tile->getMapFlags() | TILESTATE_PVPZONE);
+						}
+						if (flags.contains("no_pvp") && flags["no_pvp"]) {
+							tile->setMapFlags(tile->getMapFlags() | TILESTATE_NOPVP);
+						}
+						if (flags.contains("no_logout") && flags["no_logout"]) {
+							tile->setMapFlags(tile->getMapFlags() | TILESTATE_NOLOGOUT);
+						}
+					}
+
+					// Load house information if present
+					if (rleData.contains("house_id")) {
+						uint32_t houseId = rleData["house_id"];
+						tile->house_id = houseId; // Direct access to public member
+					}
+
+					// Load zones if present
+					if (rleData.contains("zones")) {
+						const json &zones = rleData["zones"];
+						if (zones.is_array()) {
+							for (const auto &zoneId : zones) {
+								tile->addZone(zoneId);
+							}
+						}
+					}
+
 					// Add the tile to the map (this is crucial!)
 					map.setTile(pos, tile);
 				}
@@ -259,6 +293,16 @@ bool IOMapJSON::saveMap(Map &map, const FileName &identifier) {
 					groundData = nullptr;  // JSON null for tiles with no ground
 				}
 
+				// Capture tile properties for RLE
+				uint16_t mapFlags = tile->getMapFlags();
+				uint32_t houseId = tile->isHouseTile() ? tile->getHouseID() : 0;
+				std::vector<unsigned int> zones;
+				if (tile->hasZone()) {
+					for (unsigned int zone : tile->zones) {
+						zones.push_back(zone);
+					}
+				}
+
 				// Find consecutive identical simple tiles on the same row
 				size_t j = i + 1;
 				while (j < allTiles.size()) {
@@ -291,6 +335,37 @@ bool IOMapJSON::saveMap(Map &map, const FileName &identifier) {
 						}
 					}
 
+					// Check tile properties similarity
+					if (isIdenticalSimpleTile) {
+						// Check map flags
+						if (nextTile->getMapFlags() != mapFlags) {
+							isIdenticalSimpleTile = false;
+						}
+						// Check house ID
+						else if ((nextTile->isHouseTile() ? nextTile->getHouseID() : 0) != houseId) {
+							isIdenticalSimpleTile = false;
+						}
+						// Check zones
+						else {
+							std::vector<unsigned int> nextZones;
+							if (nextTile->hasZone()) {
+								for (unsigned int zone : nextTile->zones) {
+									nextZones.push_back(zone);
+								}
+							}
+							if (zones.size() != nextZones.size()) {
+								isIdenticalSimpleTile = false;
+							} else {
+								for (size_t k = 0; k < zones.size(); k++) {
+									if (zones[k] != nextZones[k]) {
+										isIdenticalSimpleTile = false;
+										break;
+									}
+								}
+							}
+						}
+					}
+
 					if (isIdenticalSimpleTile) {
 						endPos.x = nextTile->getX();
 						j++;
@@ -308,6 +383,31 @@ bool IOMapJSON::saveMap(Map &map, const FileName &identifier) {
 					rleEntry["y"] = startPos.y;
 					rleEntry["z"] = startPos.z;
 					rleEntry["count"] = (endPos.x - startPos.x + 1);
+
+					// Add tile properties if they exist
+					if (mapFlags != 0) {
+						json flags;
+						if (tile->isPZ()) flags["protection_zone"] = true;
+						if (tile->isPVP()) flags["pvp_zone"] = true;
+						if (tile->isNoPVP()) flags["no_pvp"] = true;
+						if (tile->isNoLogout()) flags["no_logout"] = true;
+						if (!flags.empty()) {
+							rleEntry["flags"] = flags;
+						}
+					}
+
+					if (houseId != 0) {
+						rleEntry["house_id"] = houseId;
+					}
+
+					if (!zones.empty()) {
+						json zonesArray = json::array();
+						for (unsigned int zone : zones) {
+							zonesArray.push_back(zone);
+						}
+						rleEntry["zones"] = zonesArray;
+					}
+
 					ground_rle.push_back(rleEntry);
 
 					i = j; // Skip all compressed tiles
