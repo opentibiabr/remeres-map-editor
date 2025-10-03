@@ -270,11 +270,47 @@ json IOMapJSON::serializeItem(const Item &item) {
 		itemData["description"] = desc;
 	}
 
-	// Add stacking properties
-	if (item.isAlwaysOnBottom()) {
-		itemData["always_on_bottom"] = true;
-		itemData["top_order"] = item.getTopOrder();
+	// Add comprehensive stacking and positioning properties
+	json stackingJson;
+	stackingJson["always_on_bottom"] = item.isAlwaysOnBottom();
+	stackingJson["top_order"] = item.getTopOrder();
+	stackingJson["moveable"] = item.isMoveable();
+	stackingJson["pickupable"] = item.isPickupable();
+	stackingJson["stackable"] = item.isStackable();
+	stackingJson["blocking"] = item.isBlocking();
+	stackingJson["ground_tile"] = item.isGroundTile();
+	stackingJson["hangable"] = item.isHangable();
+
+	// Special tile types that affect positioning
+	if (item.isSplash()) {
+		stackingJson["is_splash"] = true;
 	}
+	if (item.isMagicField()) {
+		stackingJson["is_magic_field"] = true;
+	}
+
+	// Floor change properties (affects rendering layer)
+	const ItemType& itemType = item.getItemType();
+	if (itemType.floorChange) {
+		json floorChangeJson;
+		floorChangeJson["floor_change"] = true;
+		if (itemType.floorChangeDown) floorChangeJson["down"] = true;
+		if (itemType.floorChangeNorth) floorChangeJson["north"] = true;
+		if (itemType.floorChangeSouth) floorChangeJson["south"] = true;
+		if (itemType.floorChangeEast) floorChangeJson["east"] = true;
+		if (itemType.floorChangeWest) floorChangeJson["west"] = true;
+		stackingJson["floor_change"] = floorChangeJson;
+	}
+
+	// Height and elevation properties
+	if (itemType.hasHeight) {
+		stackingJson["has_height"] = true;
+	}
+	if (itemType.hasElevation) {
+		stackingJson["has_elevation"] = true;
+	}
+
+	itemData["stacking"] = stackingJson;
 
 	// Need to cast away const since getter methods are not const
 	Item* nonConstItem = const_cast<Item*>(&item);
