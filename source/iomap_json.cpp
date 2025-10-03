@@ -147,6 +147,9 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 						if (flags.contains("no_logout") && flags["no_logout"]) {
 							tile->setMapFlags(tile->getMapFlags() | TILESTATE_NOLOGOUT);
 						}
+						if (flags.contains("refresh") && flags["refresh"]) {
+							tile->setMapFlags(tile->getMapFlags() | TILESTATE_REFRESH);
+						}
 					}
 
 					// Load house information if present
@@ -167,6 +170,9 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 
 					// Add the tile to the map (this is crucial!)
 					map.setTile(pos, tile);
+
+					// Update tile to recalculate statflags (blocking, etc.) for proper visual appearance
+					tile->update();
 				}
 			}
 		}
@@ -391,6 +397,7 @@ bool IOMapJSON::saveMap(Map &map, const FileName &identifier) {
 						if (tile->isPVP()) flags["pvp_zone"] = true;
 						if (tile->isNoPVP()) flags["no_pvp"] = true;
 						if (tile->isNoLogout()) flags["no_logout"] = true;
+						if (mapFlags & TILESTATE_REFRESH) flags["refresh"] = true;
 						if (!flags.empty()) {
 							rleEntry["flags"] = flags;
 						}
@@ -517,6 +524,7 @@ json IOMapJSON::serializeTile(const Tile &tile) {
 		if (tile.isPVP()) flags["pvp_zone"] = true;
 		if (tile.isNoPVP()) flags["no_pvp"] = true;
 		if (tile.isNoLogout()) flags["no_logout"] = true;
+		if (mapFlags & TILESTATE_REFRESH) flags["refresh"] = true;
 		if (!flags.empty()) {
 			tileData["flags"] = flags;
 		}
@@ -1106,6 +1114,9 @@ bool IOMapJSON::deserializeTile(Map &map, const json &jsonData, const Position &
 			if (flags.contains("no_logout") && flags["no_logout"]) {
 				tile->setMapFlags(tile->getMapFlags() | TILESTATE_NOLOGOUT);
 			}
+			if (flags.contains("refresh") && flags["refresh"]) {
+				tile->setMapFlags(tile->getMapFlags() | TILESTATE_REFRESH);
+			}
 		}
 
 		// Set house information if present
@@ -1165,6 +1176,9 @@ bool IOMapJSON::deserializeTile(Map &map, const json &jsonData, const Position &
 
 		// Add the tile to the map (this is crucial!)
 		map.setTile(pos, tile);
+
+		// Update tile to recalculate statflags (blocking, etc.) for proper visual appearance
+		tile->update();
 
 		// Note: Monster spawns and NPC spawns are handled by deserializeSpawns and deserializeNpcSpawns
 		// because they need special handling and are stored in the map's spawn collections
