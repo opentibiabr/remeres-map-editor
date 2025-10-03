@@ -189,9 +189,14 @@ json IOMapJSON::serializeTile(const Tile &tile) {
 	// Add items
 	if (!tile.items.empty()) {
 		json items = json::array();
+		int stackPosition = 0;
 		for (const Item* item : tile.items) {
 			if (item) {
-				items.push_back(serializeItem(*item));
+				json itemData = serializeItem(*item);
+				// Add stack position (0 = bottom, higher = closer to top)
+				itemData["stack_position"] = stackPosition;
+				items.push_back(itemData);
+				stackPosition++;
 			}
 		}
 		if (!items.empty()) {
@@ -263,6 +268,12 @@ json IOMapJSON::serializeItem(const Item &item) {
 	std::string desc = item.getDescription();
 	if (!desc.empty()) {
 		itemData["description"] = desc;
+	}
+
+	// Add stacking properties
+	if (item.isAlwaysOnBottom()) {
+		itemData["always_on_bottom"] = true;
+		itemData["top_order"] = item.getTopOrder();
 	}
 
 	// Need to cast away const since getter methods are not const
