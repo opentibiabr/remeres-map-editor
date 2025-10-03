@@ -646,9 +646,9 @@ json IOMapJSON::serializeSpawns(const Map &map) {
 
 		if (spawnTile && spawnTile->spawnMonster) {
 			json spawn;
-			spawn["x"] = pos.x;
-			spawn["y"] = pos.y;
-			spawn["z"] = pos.z;
+			spawn["centerx"] = pos.x;
+			spawn["centery"] = pos.y;
+			spawn["centerz"] = pos.z;
 			int radius = spawnTile->spawnMonster->getSize();
 			spawn["radius"] = radius;
 
@@ -665,8 +665,31 @@ json IOMapJSON::serializeSpawns(const Map &map) {
 							if (monster) {
 								json monsterData;
 								monsterData["name"] = monster->getName();
-								monsterData["x"] = x;
-								monsterData["y"] = y;
+								// Relative positioning from spawn center
+								monsterData["x"] = x - pos.x;
+								monsterData["y"] = y - pos.y;
+								monsterData["z"] = pos.z; // Z level
+								monsterData["spawntime"] = monster->getSpawnMonsterTime();
+								
+								// Add direction if it's not the default
+								Direction dir = monster->getDirection();
+								if (dir != NORTH) { // Only include if not default
+									std::string dirName;
+									switch (dir) {
+										case NORTH: dirName = "north"; break;
+										case EAST: dirName = "east"; break;
+										case SOUTH: dirName = "south"; break;
+										case WEST: dirName = "west"; break;
+									}
+									monsterData["direction"] = dirName;
+								}
+								
+								// Add weight if it's not the default
+								int weight = monster->getWeight();
+								if (weight != 0) {
+									monsterData["weight"] = weight;
+								}
+								
 								monsters.push_back(monsterData);
 							}
 						}
@@ -695,9 +718,9 @@ json IOMapJSON::serializeNpcSpawns(const Map &map) {
 
 		if (spawnTile && spawnTile->spawnNpc) {
 			json npcSpawn;
-			npcSpawn["x"] = pos.x;
-			npcSpawn["y"] = pos.y;
-			npcSpawn["z"] = pos.z;
+			npcSpawn["centerx"] = pos.x;
+			npcSpawn["centery"] = pos.y;
+			npcSpawn["centerz"] = pos.z;
 			int radius = spawnTile->spawnNpc->getSize();
 			npcSpawn["radius"] = radius;
 
@@ -711,8 +734,25 @@ json IOMapJSON::serializeNpcSpawns(const Map &map) {
 					if (tile && tile->npc) {
 						json npcData;
 						npcData["name"] = tile->npc->getName();
-						npcData["x"] = x;
-						npcData["y"] = y;
+						// Relative positioning from spawn center
+						npcData["x"] = x - pos.x;
+						npcData["y"] = y - pos.y;
+						npcData["z"] = pos.z; // Z level
+						npcData["spawntime"] = tile->npc->getSpawnNpcTime();
+						
+						// Add direction if it's not the default
+						Direction dir = tile->npc->getDirection();
+						if (dir != NORTH) { // Only include if not default
+							std::string dirName;
+							switch (dir) {
+								case NORTH: dirName = "north"; break;
+								case EAST: dirName = "east"; break;
+								case SOUTH: dirName = "south"; break;
+								case WEST: dirName = "west"; break;
+							}
+							npcData["direction"] = dirName;
+						}
+						
 						npcs.push_back(npcData);
 					}
 				}
