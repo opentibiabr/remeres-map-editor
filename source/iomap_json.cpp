@@ -615,7 +615,19 @@ json IOMapJSON::serializeWaypoints(const Map &map) {
 
 	return waypoints;
 }
-json IOMapJSON::serializeZones(const Map &map) { return json::array(); }
+json IOMapJSON::serializeZones(const Map &map) {
+	json zones = json::array();
+
+	for (ZoneMap::const_iterator iter = map.zones.begin(); iter != map.zones.end(); ++iter) {
+		json zone;
+		zone["name"] = iter->first;
+		zone["id"] = iter->second;
+
+		zones.push_back(zone);
+	}
+
+	return zones;
+}
 json IOMapJSON::serializeSpawns(const Map &map) { return json::array(); }
 json IOMapJSON::serializeNpcSpawns(const Map &map) { return json::array(); }
 
