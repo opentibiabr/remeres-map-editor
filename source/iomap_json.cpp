@@ -534,7 +534,34 @@ json IOMapJSON::serializeItem(const Item &item) {
 
 	return itemData;
 }
-json IOMapJSON::serializeTowns(const Map &map) { return json::array(); }
+
+json IOMapJSON::serializeTowns(const Map &map) {
+	json towns = json::array();
+
+	for (const auto &townEntry : map.towns) {
+		const Town* town = townEntry.second;
+		if (!town) {
+			continue;
+		}
+
+		json townData;
+		townData["id"] = town->getID();
+		townData["name"] = town->getName();
+
+		// Temple position
+		const Position &templePos = town->getTemplePosition();
+		json temple;
+		temple["x"] = templePos.x;
+		temple["y"] = templePos.y;
+		temple["z"] = templePos.z;
+		townData["temple"] = temple;
+
+		towns.push_back(townData);
+	}
+
+	return towns;
+}
+
 json IOMapJSON::serializeHouses(const Map &map) { return json::array(); }
 json IOMapJSON::serializeWaypoints(const Map &map) { return json::array(); }
 json IOMapJSON::serializeZones(const Map &map) { return json::array(); }
