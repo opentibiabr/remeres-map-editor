@@ -669,7 +669,12 @@ json IOMapJSON::serializeSpawns(const Map &map) {
 								monsterData["x"] = x - pos.x;
 								monsterData["y"] = y - pos.y;
 								monsterData["z"] = pos.z; // Z level
-								monsterData["spawntime"] = monster->getSpawnMonsterTime();
+
+								// Add spawntime if it's not the default
+								uint16_t spawntime = monster->getSpawnMonsterTime();
+								if (spawntime != g_settings.getInteger(Config::DEFAULT_SPAWN_MONSTER_TIME)) {
+									monsterData["spawntime"] = spawntime;
+								}
 
 								// Add direction if it's not the default
 								Direction dir = monster->getDirection();
@@ -738,7 +743,12 @@ json IOMapJSON::serializeNpcSpawns(const Map &map) {
 						npcData["x"] = x - pos.x;
 						npcData["y"] = y - pos.y;
 						npcData["z"] = pos.z; // Z level
-						npcData["spawntime"] = tile->npc->getSpawnNpcTime();
+
+						// Add spawntime if it's not the default
+						int spawntime = tile->npc->getSpawnNpcTime();
+						if (spawntime != g_settings.getInteger(Config::DEFAULT_SPAWN_NPC_TIME)) {
+							npcData["spawntime"] = spawntime;
+						}
 
 						// Add direction if it's not the default
 						Direction dir = tile->npc->getDirection();
