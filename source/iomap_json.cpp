@@ -333,6 +333,13 @@ json IOMapJSON::serializeTile(const Tile &tile) {
 		tileData["npc"] = npcData;
 	}
 
+	// Add NPC spawn
+	if (tile.spawnNpc) {
+		json npcSpawn;
+		npcSpawn["radius"] = tile.spawnNpc->getSize();
+		tileData["npc_spawn"] = npcSpawn;
+	}
+
 	return tileData;
 }
 
@@ -628,8 +635,99 @@ json IOMapJSON::serializeZones(const Map &map) {
 
 	return zones;
 }
-json IOMapJSON::serializeSpawns(const Map &map) { return json::array(); }
-json IOMapJSON::serializeNpcSpawns(const Map &map) { return json::array(); }
+
+json IOMapJSON::serializeSpawns(const Map &map) {
+	json spawns = json::array();
+
+	// Iterate through all spawn positions
+	for (auto iter = map.spawnsMonster.begin(); iter != map.spawnsMonster.end(); ++iter) {
+		const Position &pos = *iter;
+		const Tile* spawnTile = map.getTile(pos);
+
+		if (spawnTile && spawnTile->spawnMonster) {
+			json spawn;
+			spawn["x"] = pos.x;
+			spawn["y"] = pos.y;
+			spawn["z"] = pos.z;
+			int radius = spawnTile->spawnMonster->getSize();
+			spawn["radius"] = radius;
+
+			// Collect all monsters within this spawn's radius
+			json monsters = json::array();
+
+			// Scan all tiles within the spawn radius
+			for (int x = pos.x - radius; x <= pos.x + radius; ++x) {
+				for (int y = pos.y - radius; y <= pos.y + radius; ++y) {
+					const Tile* tile = map.getTile(Position(x, y, pos.z));
+					if (tile) {
+						// Add all monsters from this tile
+						for (const Monster* monster : tile->monsters) {
+							if (monster) {
+								json monsterData;
+								monsterData["name"] = monster->getName();
+								monsterData["x"] = x;
+								monsterData["y"] = y;
+								monsters.push_back(monsterData);
+							}
+						}
+					}
+				}
+			}
+
+			if (!monsters.empty()) {
+				spawn["monsters"] = monsters;
+			}
+
+			spawns.push_back(spawn);
+		}
+	}
+
+	return spawns;
+}
+
+json IOMapJSON::serializeNpcSpawns(const Map &map) {
+	json npcSpawns = json::array();
+
+	// Iterate through all NPC spawn positions
+	for (auto iter = map.spawnsNpc.begin(); iter != map.spawnsNpc.end(); ++iter) {
+		const Position &pos = *iter;
+		const Tile* spawnTile = map.getTile(pos);
+
+		if (spawnTile && spawnTile->spawnNpc) {
+			json npcSpawn;
+			npcSpawn["x"] = pos.x;
+			npcSpawn["y"] = pos.y;
+			npcSpawn["z"] = pos.z;
+			int radius = spawnTile->spawnNpc->getSize();
+			npcSpawn["radius"] = radius;
+
+			// Collect all NPCs within this spawn's radius
+			json npcs = json::array();
+
+			// Scan all tiles within the spawn radius
+			for (int x = pos.x - radius; x <= pos.x + radius; ++x) {
+				for (int y = pos.y - radius; y <= pos.y + radius; ++y) {
+					const Tile* tile = map.getTile(Position(x, y, pos.z));
+					if (tile && tile->npc) {
+						json npcData;
+						npcData["name"] = tile->npc->getName();
+						npcData["x"] = x;
+						npcData["y"] = y;
+						npcs.push_back(npcData);
+					}
+				}
+			}
+
+			if (!npcs.empty()) {
+				npcSpawn["npcs"] = npcs;
+			}
+
+			npcSpawns.push_back(npcSpawn);
+		}
+	}
+
+	return npcSpawns;
+}
 
 // Stub implementations for deserialization
 bool IOMapJSON::deserializeMapData(Map &map, const json &jsonData) { return false; }
