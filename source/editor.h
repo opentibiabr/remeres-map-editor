@@ -76,6 +76,7 @@ public: // Functions
 
 	// Map handling
 	void saveMap(FileName filename, bool showdialog); // "" means default filename
+	void saveMapAsJson(FileName filename, bool showdialog); // JSON export
 
 	Map &getMap() noexcept {
 		return map;

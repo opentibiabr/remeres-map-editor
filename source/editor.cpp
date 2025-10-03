@@ -18,6 +18,7 @@
 #include "main.h"
 
 #include "editor.h"
+#include "iomap_json.h"
 #include "materials.h"
 #include "map.h"
 #include "client_assets.h"
@@ -461,6 +462,43 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 	deleteOldBackups(map_path + "backups/");
 
 	clearChanges();
+}
+
+void Editor::saveMapAsJson(FileName filename, bool showdialog) {
+	if (showdialog) {
+		g_gui.CreateLoadBar("Exporting map to JSON...");
+	}
+
+	try {
+		IOMapJSON jsonExporter;
+		bool success = jsonExporter.saveMap(map, filename);
+
+		if (showdialog) {
+			g_gui.DestroyLoadBar();
+		}
+
+		if (!success) {
+			wxMessageBox("Failed to export map to JSON format. Please check the console for error details.", "Export Error", wxOK | wxICON_ERROR);
+		} else {
+			if (showdialog) {
+				wxMessageBox("Map successfully exported to JSON format!", "Export Complete", wxOK | wxICON_INFORMATION);
+			}
+		}
+
+		// Show any warnings
+		if (!jsonExporter.getWarnings().empty()) {
+			wxString warning_text = "Export completed with warnings:\n";
+			for (const auto &warning : jsonExporter.getWarnings()) {
+				warning_text += "- " + warning + "\n";
+			}
+			wxMessageBox(warning_text, "Export Warnings", wxOK | wxICON_WARNING);
+		}
+	} catch (const std::exception &e) {
+		if (showdialog) {
+			g_gui.DestroyLoadBar();
+		}
+		wxMessageBox(wxString::Format("Exception while exporting to JSON: %s", e.what()), "Export Error", wxOK | wxICON_ERROR);
+	}
 }
 
 bool Editor::importMiniMap(FileName filename, int import, int import_x_offset, int import_y_offset, int import_z_offset) {

@@ -54,6 +54,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(OPEN, wxITEM_NORMAL, OnOpen);
 	MAKE_ACTION(SAVE, wxITEM_NORMAL, OnSave);
 	MAKE_ACTION(SAVE_AS, wxITEM_NORMAL, OnSaveAs);
+	MAKE_ACTION(SAVE_AS_JSON, wxITEM_NORMAL, OnSaveAsJson);
 	MAKE_ACTION(GENERATE_MAP, wxITEM_NORMAL, OnGenerateMap);
 	MAKE_ACTION(CLOSE, wxITEM_NORMAL, OnClose);
 
@@ -339,6 +340,7 @@ void MainMenuBar::Update() {
 	EnableItem(CLOSE, is_local);
 	EnableItem(SAVE, is_host);
 	EnableItem(SAVE_AS, is_host);
+	EnableItem(SAVE_AS_JSON, is_host);
 	EnableItem(GENERATE_MAP, false);
 
 	EnableItem(IMPORT_MAP, is_local);
@@ -785,6 +787,10 @@ void MainMenuBar::OnSave(wxCommandEvent &WXUNUSED(event)) {
 
 void MainMenuBar::OnSaveAs(wxCommandEvent &WXUNUSED(event)) {
 	g_gui.SaveMapAs();
+}
+
+void MainMenuBar::OnSaveAsJson(wxCommandEvent &WXUNUSED(event)) {
+	g_gui.SaveMapAsJson();
 }
 
 void MainMenuBar::OnPreferences(wxCommandEvent &WXUNUSED(event)) {
