@@ -105,23 +105,19 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 		if (document.contains("ground_rle")) {
 			const json &groundRLE = document["ground_rle"];
 			for (const auto &rleData : groundRLE) {
-				if (!rleData.contains("start") || !rleData.contains("end") ||
-					!rleData["start"].contains("x") || !rleData["start"].contains("y") || !rleData["start"].contains("z") ||
-					!rleData["end"].contains("x") || !rleData["end"].contains("y") || !rleData["end"].contains("z")) {
+				if (!rleData.contains("from_x") || !rleData.contains("to_x") ||
+					!rleData.contains("y") || !rleData.contains("z")) {
 					continue; // Skip malformed RLE data
 				}
 
-				Position startPos(rleData["start"]["x"], rleData["start"]["y"], rleData["start"]["z"]);
-				Position endPos(rleData["end"]["x"], rleData["end"]["y"], rleData["end"]["z"]);
-
-				// Only process same-row RLE data (z and y must match)
-				if (startPos.z != endPos.z || startPos.y != endPos.y) {
-					continue;
-				}
+				int fromX = rleData["from_x"];
+				int toX = rleData["to_x"];
+				int y = rleData["y"];
+				int z = rleData["z"];
 
 				// Apply RLE ground data to all positions in range
-				for (int x = startPos.x; x <= endPos.x; ++x) {
-					Position pos(x, startPos.y, startPos.z);
+				for (int x = fromX; x <= toX; ++x) {
+					Position pos(x, y, z);
 					Tile* tile = map.getTile(pos);
 					if (!tile) {
 						tile = map.allocator(map.createTileL(pos));
@@ -134,6 +130,9 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 							tile->addItem(ground);
 						}
 					}
+
+					// Add the tile to the map (this is crucial!)
+					map.setTile(pos, tile);
 				}
 			}
 		}
