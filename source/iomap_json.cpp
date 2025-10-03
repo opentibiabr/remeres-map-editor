@@ -39,10 +39,161 @@
 #include <vector>
 
 bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
-	// JSON loading is not implemented in this version
-	// This could be added later for round-trip compatibility
-	error("Loading JSON maps is not yet supported.");
-	return false;
+	std::string fullPath = identifier.GetFullPath().mb_str(wxConvUTF8).data();
+
+	try {
+		// Read the JSON file
+		std::ifstream file(fullPath);
+		if (!file.is_open()) {
+			error("Could not open JSON file for reading: %s", fullPath.c_str());
+			return false;
+		}
+
+		// Parse JSON
+		json document;
+		try {
+			file >> document;
+		} catch (const json::exception &e) {
+			error("Failed to parse JSON file: %s", e.what());
+			return false;
+		}
+		file.close();
+
+		// Validate JSON structure
+		if (!document.contains("version") || !document.contains("map")) {
+			error("Invalid JSON map file: missing required fields 'version' and 'map'");
+			return false;
+		}
+
+		// Check version compatibility
+		if (document["version"].contains("format")) {
+			std::string format = document["version"]["format"];
+			if (format != "RME_JSON") {
+				error("Unsupported JSON format: %s", format.c_str());
+				return false;
+			}
+		}
+
+		// Clear existing map data
+		map.clearVisible(0xFFFFFFFF); // Clear all visible tiles
+
+		// Load map metadata
+		if (!deserializeMapData(map, document["map"])) {
+			error("Failed to load map metadata");
+			return false;
+		}
+
+		// Set loading progress
+		g_gui.SetLoadDone(0, "Loading tiles...");
+
+		// Load tiles
+		if (document.contains("tiles")) {
+			const json &tiles = document["tiles"];
+			for (const auto &tileData : tiles) {
+				if (!tileData.contains("x") || !tileData.contains("y") || !tileData.contains("z")) {
+					continue; // Skip malformed tiles
+				}
+
+				Position pos(tileData["x"], tileData["y"], tileData["z"]);
+				if (!deserializeTile(map, tileData, pos)) {
+					warning("Failed to load tile at position (%d, %d, %d)", pos.x, pos.y, pos.z);
+				}
+			}
+		}
+
+		// Load ground RLE data
+		if (document.contains("ground_rle")) {
+			const json &groundRLE = document["ground_rle"];
+			for (const auto &rleData : groundRLE) {
+				if (!rleData.contains("start") || !rleData.contains("end") ||
+					!rleData["start"].contains("x") || !rleData["start"].contains("y") || !rleData["start"].contains("z") ||
+					!rleData["end"].contains("x") || !rleData["end"].contains("y") || !rleData["end"].contains("z")) {
+					continue; // Skip malformed RLE data
+				}
+
+				Position startPos(rleData["start"]["x"], rleData["start"]["y"], rleData["start"]["z"]);
+				Position endPos(rleData["end"]["x"], rleData["end"]["y"], rleData["end"]["z"]);
+
+				// Only process same-row RLE data (z and y must match)
+				if (startPos.z != endPos.z || startPos.y != endPos.y) {
+					continue;
+				}
+
+				// Apply RLE ground data to all positions in range
+				for (int x = startPos.x; x <= endPos.x; ++x) {
+					Position pos(x, startPos.y, startPos.z);
+					Tile* tile = map.getTile(pos);
+					if (!tile) {
+						tile = map.allocator(map.createTileL(pos));
+					}
+
+					// Load ground item if present
+					if (rleData.contains("ground") && !rleData["ground"].is_null()) {
+						Item* ground = deserializeItem(rleData["ground"]);
+						if (ground) {
+							tile->addItem(ground);
+						}
+					}
+				}
+			}
+		}
+
+		// Load towns
+		g_gui.SetLoadDone(25, "Loading towns...");
+		if (document.contains("towns")) {
+			if (!deserializeTowns(map, document["towns"])) {
+				warning("Failed to load some towns");
+			}
+		}
+
+		// Load houses
+		g_gui.SetLoadDone(35, "Loading houses...");
+		if (document.contains("houses")) {
+			if (!deserializeHouses(map, document["houses"])) {
+				warning("Failed to load some houses");
+			}
+		}
+
+		// Load waypoints
+		g_gui.SetLoadDone(45, "Loading waypoints...");
+		if (document.contains("waypoints")) {
+			if (!deserializeWaypoints(map, document["waypoints"])) {
+				warning("Failed to load some waypoints");
+			}
+		}
+
+		// Load zones
+		g_gui.SetLoadDone(55, "Loading zones...");
+		if (document.contains("zones")) {
+			if (!deserializeZones(map, document["zones"])) {
+				warning("Failed to load some zones");
+			}
+		}
+
+		// Load monster spawns
+		g_gui.SetLoadDone(75, "Loading monster spawns...");
+		if (document.contains("spawns")) {
+			if (!deserializeSpawns(map, document["spawns"])) {
+				warning("Failed to load some monster spawns");
+			}
+		}
+
+		// Load NPC spawns
+		g_gui.SetLoadDone(90, "Loading NPC spawns...");
+		if (document.contains("npc_spawns")) {
+			if (!deserializeNpcSpawns(map, document["npc_spawns"])) {
+				warning("Failed to load some NPC spawns");
+			}
+		}
+
+		g_gui.SetLoadDone(100, "Map loaded successfully");
+
+		return true;
+
+	} catch (const std::exception &e) {
+		error("Unexpected error while loading JSON map: %s", e.what());
+		return false;
+	}
 }
 
 bool IOMapJSON::saveMap(Map &map, const FileName &identifier) {
@@ -783,12 +934,604 @@ json IOMapJSON::serializeNpcSpawns(const Map &map) {
 }
 
 // Stub implementations for deserialization
-bool IOMapJSON::deserializeMapData(Map &map, const json &jsonData) { return false; }
-bool IOMapJSON::deserializeTile(Map &map, const json &jsonData, const Position &pos) { return false; }
-Item* IOMapJSON::deserializeItem(const json &jsonData) { return nullptr; }
-bool IOMapJSON::deserializeTowns(Map &map, const json &jsonData) { return false; }
-bool IOMapJSON::deserializeHouses(Map &map, const json &jsonData) { return false; }
-bool IOMapJSON::deserializeWaypoints(Map &map, const json &jsonData) { return false; }
-bool IOMapJSON::deserializeZones(Map &map, const json &jsonData) { return false; }
-bool IOMapJSON::deserializeSpawns(Map &map, const json &jsonData) { return false; }
-bool IOMapJSON::deserializeNpcSpawns(Map &map, const json &jsonData) { return false; }
+bool IOMapJSON::deserializeMapData(Map &map, const json &jsonData) {
+	try {
+		// Load basic map properties
+		if (jsonData.contains("width")) {
+			map.setWidth(jsonData["width"]);
+		}
+		if (jsonData.contains("height")) {
+			map.setHeight(jsonData["height"]);
+		}
+		if (jsonData.contains("description")) {
+			map.setMapDescription(jsonData["description"]);
+		}
+
+		// Load file references
+		if (jsonData.contains("files")) {
+			const json &files = jsonData["files"];
+
+			if (files.contains("spawn_monster")) {
+				map.setSpawnMonsterFilename(files["spawn_monster"]);
+			}
+			if (files.contains("spawn_npc")) {
+				map.setSpawnNpcFilename(files["spawn_npc"]);
+			}
+			if (files.contains("house")) {
+				map.setHouseFilename(files["house"]);
+			}
+			if (files.contains("zone")) {
+				map.setZoneFilename(files["zone"]);
+			}
+		}
+
+		// Load version information
+		// Note: Map version cannot be set directly as it's protected
+		// and there's no public setter method available
+		if (jsonData.contains("version")) {
+			// Version information is read but not applied
+			// The map will use default version settings
+		}
+
+		return true;
+
+	} catch (const json::exception &e) {
+		error("Error deserializing map data: %s", e.what());
+		return false;
+	} catch (const std::exception &e) {
+		error("Unexpected error deserializing map data: %s", e.what());
+		return false;
+	}
+}
+bool IOMapJSON::deserializeTile(Map &map, const json &jsonData, const Position &pos) {
+	try {
+		// Get or create the tile at the position
+		Tile* tile = map.getTile(pos);
+		if (!tile) {
+			tile = map.allocator(map.createTileL(pos));
+		}
+
+		// Set map flags if present
+		if (jsonData.contains("flags")) {
+			const json &flags = jsonData["flags"];
+
+			if (flags.contains("protection_zone") && flags["protection_zone"]) {
+				tile->setMapFlags(tile->getMapFlags() | TILESTATE_PROTECTIONZONE);
+			}
+			if (flags.contains("pvp_zone") && flags["pvp_zone"]) {
+				tile->setMapFlags(tile->getMapFlags() | TILESTATE_PVPZONE);
+			}
+			if (flags.contains("no_pvp") && flags["no_pvp"]) {
+				tile->setMapFlags(tile->getMapFlags() | TILESTATE_NOPVP);
+			}
+			if (flags.contains("no_logout") && flags["no_logout"]) {
+				tile->setMapFlags(tile->getMapFlags() | TILESTATE_NOLOGOUT);
+			}
+		}
+
+		// Set house information if present
+		if (jsonData.contains("house_id")) {
+			uint32_t houseId = jsonData["house_id"];
+			tile->house_id = houseId; // Direct access to public member
+		}
+
+		// Set zones if present
+		if (jsonData.contains("zones")) {
+			const json &zones = jsonData["zones"];
+			if (zones.is_array()) {
+				for (const auto &zoneId : zones) {
+					tile->addZone(zoneId);
+				}
+			}
+		}
+
+		// Add ground item if present
+		if (jsonData.contains("ground")) {
+			Item* ground = deserializeItem(jsonData["ground"]);
+			if (ground) {
+				tile->addItem(ground);
+			}
+		}
+
+		// Add items if present
+		if (jsonData.contains("items")) {
+			const json &items = jsonData["items"];
+			if (items.is_array()) {
+				// Sort items by stack position to maintain proper stacking order
+				std::vector<std::pair<int, json>> sortedItems;
+
+				for (const auto &itemData : items) {
+					int stackPosition = 0;
+					if (itemData.contains("stack_position")) {
+						stackPosition = itemData["stack_position"];
+					}
+					sortedItems.push_back(std::make_pair(stackPosition, itemData));
+				}
+
+				// Sort by stack position (lowest first = bottom of stack)
+				std::sort(sortedItems.begin(), sortedItems.end(),
+						 [](const std::pair<int, json> &a, const std::pair<int, json> &b) {
+							 return a.first < b.first;
+						 });
+
+				// Add items in sorted order
+				for (const auto &sortedItem : sortedItems) {
+					Item* item = deserializeItem(sortedItem.second);
+					if (item) {
+						tile->addItem(item);
+					}
+				}
+			}
+		}
+
+		// Add the tile to the map (this is crucial!)
+		map.setTile(pos, tile);
+
+		// Note: Monster spawns and NPC spawns are handled by deserializeSpawns and deserializeNpcSpawns
+		// because they need special handling and are stored in the map's spawn collections
+
+		return true;
+
+	} catch (const json::exception &e) {
+		error("Error deserializing tile at position (%d, %d, %d): %s", pos.x, pos.y, pos.z, e.what());
+		return false;
+	} catch (const std::exception &e) {
+		error("Unexpected error deserializing tile at position (%d, %d, %d): %s", pos.x, pos.y, pos.z, e.what());
+		return false;
+	}
+}
+Item* IOMapJSON::deserializeItem(const json &jsonData) {
+	try {
+		// Get item ID - this is required
+		if (!jsonData.contains("id")) {
+			error("Item missing required 'id' field");
+			return nullptr;
+		}
+
+		uint16_t itemId = jsonData["id"];
+		uint16_t count = 0xFFFF; // Default subtype
+
+		// Get count/subtype if present
+		if (jsonData.contains("count")) {
+			count = jsonData["count"];
+		}
+
+		// Create the base item
+		Item* item = Item::Create(itemId, count);
+		if (!item) {
+			error("Failed to create item with ID %d", itemId);
+			return nullptr;
+		}
+
+		// Set unique ID if present
+		if (jsonData.contains("unique_id")) {
+			item->setUniqueID(jsonData["unique_id"]);
+		}
+
+		// Set action ID if present
+		if (jsonData.contains("action_id")) {
+			item->setActionID(jsonData["action_id"]);
+		}
+
+		// Set text if present
+		if (jsonData.contains("text")) {
+			std::string text = jsonData["text"];
+			item->setText(text);
+		}
+
+		// Set description if present
+		if (jsonData.contains("description")) {
+			std::string desc = jsonData["description"];
+			item->setDescription(desc);
+		}
+
+		// Handle container contents if it's a container
+		if (jsonData.contains("contents") && item->getContainer()) {
+			Container* container = item->getContainer();
+			const json &contents = jsonData["contents"];
+
+			if (contents.is_array()) {
+				for (const auto &itemData : contents) {
+					Item* containerItem = deserializeItem(itemData);
+					if (containerItem) {
+						container->getVector().push_back(containerItem);
+					}
+				}
+			}
+		}
+
+		// Handle depot properties if it's a depot
+		if (jsonData.contains("depot") && item->getDepot()) {
+			const json &depotData = jsonData["depot"];
+			if (depotData.contains("depot_id")) {
+				item->getDepot()->setDepotID(depotData["depot_id"]);
+			}
+		}
+
+		// Handle teleport destination if it's a teleport
+		if (jsonData.contains("teleport") && item->getTeleport()) {
+			const json &teleportData = jsonData["teleport"];
+			if (teleportData.contains("x") && teleportData.contains("y") && teleportData.contains("z")) {
+				Position dest(teleportData["x"], teleportData["y"], teleportData["z"]);
+				item->getTeleport()->setDestination(dest);
+			}
+		}
+
+		// Handle door properties if it's a door
+		if (jsonData.contains("door") && item->getDoor()) {
+			const json &doorData = jsonData["door"];
+			if (doorData.contains("door_id")) {
+				item->getDoor()->setDoorID(doorData["door_id"]);
+			}
+		}
+
+		// Note: Most other properties in the JSON (stacking, stats, text_properties, etc.)
+		// are read-only properties of the ItemType and don't need to be set during deserialization.
+		// They are included in serialization for documentation/debugging purposes.
+
+		return item;
+
+	} catch (const json::exception &e) {
+		error("Error deserializing item: %s", e.what());
+		return nullptr;
+	} catch (const std::exception &e) {
+		error("Unexpected error deserializing item: %s", e.what());
+		return nullptr;
+	}
+}
+bool IOMapJSON::deserializeTowns(Map &map, const json &jsonData) {
+	try {
+		if (!jsonData.is_array()) {
+			error("Towns data is not an array");
+			return false;
+		}
+
+		for (const auto &townData : jsonData) {
+			// Get required fields
+			if (!townData.contains("id") || !townData.contains("name")) {
+				warning("Town missing required 'id' or 'name' field, skipping");
+				continue;
+			}
+
+			uint32_t townId = townData["id"];
+			std::string townName = townData["name"];
+
+			// Create new town
+			Town* town = new Town(townId);
+			town->setName(townName);
+
+			// Set temple position if present
+			if (townData.contains("temple")) {
+				const json &temple = townData["temple"];
+				if (temple.contains("x") && temple.contains("y") && temple.contains("z")) {
+					Position templePos(temple["x"], temple["y"], temple["z"]);
+					town->setTemplePosition(templePos);
+				}
+			}
+
+			// Add town to the map
+			if (!map.towns.addTown(town)) {
+				warning("Failed to add town '%s' with ID %d to map", townName.c_str(), townId);
+				delete town; // Clean up if adding failed
+			}
+		}
+
+		return true;
+
+	} catch (const json::exception &e) {
+		error("Error deserializing towns: %s", e.what());
+		return false;
+	} catch (const std::exception &e) {
+		error("Unexpected error deserializing towns: %s", e.what());
+		return false;
+	}
+}
+bool IOMapJSON::deserializeHouses(Map &map, const json &jsonData) {
+	try {
+		if (!jsonData.is_array()) {
+			error("Houses data is not an array");
+			return false;
+		}
+
+		for (const auto &houseData : jsonData) {
+			// Get required fields
+			if (!houseData.contains("id") || !houseData.contains("name")) {
+				warning("House missing required 'id' or 'name' field, skipping");
+				continue;
+			}
+
+			// Create new house
+			House* house = new House(map);
+
+			// Set basic properties
+			house->id = houseData["id"];
+			house->name = houseData["name"];
+
+			// Set optional properties with defaults
+			house->rent = houseData.contains("rent") ? static_cast<int>(houseData["rent"]) : 0;
+			house->clientid = houseData.contains("clientid") ? static_cast<int>(houseData["clientid"]) : 0;
+			house->beds = houseData.contains("beds") ? static_cast<int>(houseData["beds"]) : 0;
+			house->townid = houseData.contains("townid") ? static_cast<uint32_t>(houseData["townid"]) : 0;
+			house->guildhall = houseData.contains("guildhall") ? static_cast<bool>(houseData["guildhall"]) : false;
+
+			// Set entry position if present
+			if (houseData.contains("entry")) {
+				const json &entry = houseData["entry"];
+				if (entry.contains("x") && entry.contains("y") && entry.contains("z")) {
+					Position entryPos(entry["x"], entry["y"], entry["z"]);
+					house->setExit(entryPos);
+				}
+			}
+
+			// Add house to the map
+			map.houses.addHouse(house);
+		}
+
+		return true;
+
+	} catch (const json::exception &e) {
+		error("Error deserializing houses: %s", e.what());
+		return false;
+	} catch (const std::exception &e) {
+		error("Unexpected error deserializing houses: %s", e.what());
+		return false;
+	}
+}
+bool IOMapJSON::deserializeWaypoints(Map &map, const json &jsonData) {
+	try {
+		if (!jsonData.is_array()) {
+			error("Waypoints data is not an array");
+			return false;
+		}
+
+		for (const auto &waypointData : jsonData) {
+			// Get required fields
+			if (!waypointData.contains("name") || !waypointData.contains("x") ||
+				!waypointData.contains("y") || !waypointData.contains("z")) {
+				warning("Waypoint missing required fields, skipping");
+				continue;
+			}
+
+			// Create new waypoint
+			Waypoint* waypoint = new Waypoint();
+			waypoint->name = waypointData["name"];
+			waypoint->pos = Position(waypointData["x"], waypointData["y"], waypointData["z"]);
+
+			// Add waypoint to the map
+			map.waypoints.addWaypoint(waypoint);
+		}
+
+		return true;
+
+	} catch (const json::exception &e) {
+		error("Error deserializing waypoints: %s", e.what());
+		return false;
+	} catch (const std::exception &e) {
+		error("Unexpected error deserializing waypoints: %s", e.what());
+		return false;
+	}
+}
+bool IOMapJSON::deserializeZones(Map &map, const json &jsonData) {
+	try {
+		if (!jsonData.is_array()) {
+			error("Zones data is not an array");
+			return false;
+		}
+
+		for (const auto &zoneData : jsonData) {
+			// Get required fields
+			if (!zoneData.contains("name") || !zoneData.contains("id")) {
+				warning("Zone missing required 'name' or 'id' field, skipping");
+				continue;
+			}
+
+			std::string zoneName = zoneData["name"];
+			unsigned int zoneId = zoneData["id"];
+
+			// Add zone to the map
+			if (!map.zones.addZone(zoneName, zoneId)) {
+				warning("Failed to add zone '%s' with ID %d", zoneName.c_str(), zoneId);
+			}
+		}
+
+		return true;
+
+	} catch (const json::exception &e) {
+		error("Error deserializing zones: %s", e.what());
+		return false;
+	} catch (const std::exception &e) {
+		error("Unexpected error deserializing zones: %s", e.what());
+		return false;
+	}
+}
+bool IOMapJSON::deserializeSpawns(Map &map, const json &jsonData) {
+	try {
+		if (!jsonData.is_array()) {
+			error("Spawns data is not an array");
+			return false;
+		}
+
+		for (const auto &spawnData : jsonData) {
+			// Get required fields
+			if (!spawnData.contains("centerx") || !spawnData.contains("centery") ||
+				!spawnData.contains("centerz") || !spawnData.contains("radius")) {
+				warning("Spawn missing required center position or radius, skipping");
+				continue;
+			}
+
+			Position centerPos(spawnData["centerx"], spawnData["centery"], spawnData["centerz"]);
+			int radius = spawnData["radius"];
+
+			// Get or create the spawn tile
+			Tile* spawnTile = map.getTile(centerPos);
+			if (!spawnTile) {
+				spawnTile = map.allocator(map.createTileL(centerPos));
+			}
+
+			// Create and set the spawn
+			SpawnMonster* spawn = new SpawnMonster(radius);
+			spawnTile->spawnMonster = spawn;
+			map.addSpawnMonster(spawnTile);
+
+			// Load monsters if present
+			if (spawnData.contains("monsters") && spawnData["monsters"].is_array()) {
+				const json &monsters = spawnData["monsters"];
+
+				for (const auto &monsterData : monsters) {
+					if (!monsterData.contains("name")) {
+						warning("Monster missing name, skipping");
+						continue;
+					}
+
+					std::string monsterName = monsterData["name"];
+
+					// Get position relative to spawn center (default to center)
+					int relX = monsterData.contains("x") ? static_cast<int>(monsterData["x"]) : 0;
+					int relY = monsterData.contains("y") ? static_cast<int>(monsterData["y"]) : 0;
+					int z = monsterData.contains("z") ? static_cast<int>(monsterData["z"]) : centerPos.z;
+
+					Position monsterPos(centerPos.x + relX, centerPos.y + relY, z);
+
+					// Get or create the monster tile
+					Tile* monsterTile = map.getTile(monsterPos);
+					if (!monsterTile) {
+						monsterTile = map.allocator(map.createTileL(monsterPos));
+					}
+
+					// Create the monster
+					int weight = g_settings.getInteger(Config::MONSTER_DEFAULT_WEIGHT); // Default weight
+					if (monsterData.contains("weight")) {
+						weight = monsterData["weight"];
+					}
+
+					Monster* monster = new Monster(monsterName, weight);
+
+					// Set spawntime if present
+					if (monsterData.contains("spawntime")) {
+						monster->setSpawnMonsterTime(monsterData["spawntime"]);
+					} else {
+						monster->setSpawnMonsterTime(g_settings.getInteger(Config::DEFAULT_SPAWN_MONSTER_TIME));
+					}
+
+					// Set direction if present
+					if (monsterData.contains("direction")) {
+						std::string dirName = monsterData["direction"];
+						Direction dir = NORTH; // Default
+						if (dirName == "north") dir = NORTH;
+						else if (dirName == "east") dir = EAST;
+						else if (dirName == "south") dir = SOUTH;
+						else if (dirName == "west") dir = WEST;
+						monster->setDirection(dir);
+					} else {
+						monster->setDirection(NORTH); // Default
+					}
+
+					// Add monster to tile
+					monsterTile->monsters.push_back(monster);
+				}
+			}
+		}
+
+		return true;
+
+	} catch (const json::exception &e) {
+		error("Error deserializing monster spawns: %s", e.what());
+		return false;
+	} catch (const std::exception &e) {
+		error("Unexpected error deserializing monster spawns: %s", e.what());
+		return false;
+	}
+}
+bool IOMapJSON::deserializeNpcSpawns(Map &map, const json &jsonData) {
+	try {
+		if (!jsonData.is_array()) {
+			error("NPC spawns data is not an array");
+			return false;
+		}
+
+		for (const auto &spawnData : jsonData) {
+			// Get required fields
+			if (!spawnData.contains("centerx") || !spawnData.contains("centery") ||
+				!spawnData.contains("centerz") || !spawnData.contains("radius")) {
+				warning("NPC spawn missing required center position or radius, skipping");
+				continue;
+			}
+
+			Position centerPos(spawnData["centerx"], spawnData["centery"], spawnData["centerz"]);
+			int radius = spawnData["radius"];
+
+			// Get or create the spawn tile
+			Tile* spawnTile = map.getTile(centerPos);
+			if (!spawnTile) {
+				spawnTile = map.allocator(map.createTileL(centerPos));
+			}
+
+			// Create and set the spawn
+			SpawnNpc* spawn = new SpawnNpc(radius);
+			spawnTile->spawnNpc = spawn;
+			map.addSpawnNpc(spawnTile);
+
+			// Load NPCs if present
+			if (spawnData.contains("npcs") && spawnData["npcs"].is_array()) {
+				const json &npcs = spawnData["npcs"];
+
+				for (const auto &npcData : npcs) {
+					if (!npcData.contains("name")) {
+						warning("NPC missing name, skipping");
+						continue;
+					}
+
+					std::string npcName = npcData["name"];
+
+					// Get position relative to spawn center (default to center)
+					int relX = npcData.contains("x") ? static_cast<int>(npcData["x"]) : 0;
+					int relY = npcData.contains("y") ? static_cast<int>(npcData["y"]) : 0;
+					int z = npcData.contains("z") ? static_cast<int>(npcData["z"]) : centerPos.z;
+
+					Position npcPos(centerPos.x + relX, centerPos.y + relY, z);
+
+					// Get or create the NPC tile
+					Tile* npcTile = map.getTile(npcPos);
+					if (!npcTile) {
+						npcTile = map.allocator(map.createTileL(npcPos));
+					}
+
+					// Create the NPC
+					Npc* npc = new Npc(npcName);
+
+					// Set spawntime if present
+					if (npcData.contains("spawntime")) {
+						npc->setSpawnNpcTime(npcData["spawntime"]);
+					} else {
+						npc->setSpawnNpcTime(g_settings.getInteger(Config::DEFAULT_SPAWN_NPC_TIME));
+					}
+
+					// Set direction if present
+					if (npcData.contains("direction")) {
+						std::string dirName = npcData["direction"];
+						Direction dir = NORTH; // Default
+						if (dirName == "north") dir = NORTH;
+						else if (dirName == "east") dir = EAST;
+						else if (dirName == "south") dir = SOUTH;
+						else if (dirName == "west") dir = WEST;
+						npc->setDirection(dir);
+					} else {
+						npc->setDirection(NORTH); // Default
+					}
+
+					// Set NPC to tile
+					npcTile->npc = npc;
+				}
+			}
+		}
+
+		return true;
+
+	} catch (const json::exception &e) {
+		error("Error deserializing NPC spawns: %s", e.what());
+		return false;
+	} catch (const std::exception &e) {
+		error("Unexpected error deserializing NPC spawns: %s", e.what());
+		return false;
+	}
+}

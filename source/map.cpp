@@ -19,6 +19,7 @@
 
 #include "gui.h"
 #include "map.h"
+#include "iomap_json.h"
 
 #include "client_assets.h"
 
@@ -47,17 +48,31 @@ bool Map::open(const std::string file) {
 
 	tilecount = 0;
 
-	IOMapOTBM maploader(getVersion());
+	// Determine file format based on extension
+	FileName fileName(wxstr(file));
+	wxString extension = fileName.GetExt().Lower();
 
-	bool success = maploader.loadMap(*this, wxstr(file));
+	bool success = false;
 
-	mapVersion = maploader.version;
-
-	warnings = maploader.getWarnings();
-
-	if (!success) {
-		error = maploader.getError();
-		return false;
+	if (extension == "json") {
+		// Load JSON map
+		IOMapJSON jsonloader;
+		success = jsonloader.loadMap(*this, fileName);
+		warnings = jsonloader.getWarnings();
+		if (!success) {
+			error = jsonloader.getError();
+			return false;
+		}
+	} else {
+		// Load OTBM map (default)
+		IOMapOTBM maploader(getVersion());
+		success = maploader.loadMap(*this, fileName);
+		mapVersion = maploader.version;
+		warnings = maploader.getWarnings();
+		if (!success) {
+			error = maploader.getError();
+			return false;
+		}
 	}
 
 	has_changed = false;

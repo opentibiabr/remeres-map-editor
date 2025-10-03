@@ -92,21 +92,31 @@ Editor::Editor(CopyBuffer &copybuffer, const FileName &fn) :
 	selection(*this),
 	copybuffer(copybuffer),
 	replace_brush(nullptr) {
-	MapVersion ver;
-	if (!IOMapOTBM::getVersionInfo(fn, ver)) {
-		spdlog::error("Could not open file {}. This is not a valid OTBM file or it does not exist.", nstr(fn.GetFullPath()));
-		throw std::runtime_error("Could not open file \"" + nstr(fn.GetFullPath()) + "\".\nThis is not a valid OTBM file or it does not exist.");
-	}
 
-	if (ver.otbm != g_gui.getLoadedMapVersion().otbm) {
-		auto result = g_gui.PopupDialog("Map error", "The loaded map appears to be a OTBM format that is not supported by the editor. Do you still want to attempt to load the map? Caution: this will close your current map!", wxYES | wxNO);
-		if (result == wxID_YES) {
-			if (!g_gui.CloseAllEditors()) {
-				spdlog::error("All maps of different versions were not closed.");
-				throw std::runtime_error("All maps of different versions were not closed.");
+	// Determine file format based on extension
+	wxString extension = fn.GetExt().Lower();
+
+	if (extension == "json") {
+		// For JSON files, we don't need version checking as they are format-agnostic
+		// The Map::open method will handle the JSON loading
+	} else {
+		// For OTBM files, check version compatibility
+		MapVersion ver;
+		if (!IOMapOTBM::getVersionInfo(fn, ver)) {
+			spdlog::error("Could not open file {}. This is not a valid OTBM file or it does not exist.", nstr(fn.GetFullPath()));
+			throw std::runtime_error("Could not open file \"" + nstr(fn.GetFullPath()) + "\".\nThis is not a valid OTBM file or it does not exist.");
+		}
+
+		if (ver.otbm != g_gui.getLoadedMapVersion().otbm) {
+			auto result = g_gui.PopupDialog("Map error", "The loaded map appears to be a OTBM format that is not supported by the editor. Do you still want to attempt to load the map? Caution: this will close your current map!", wxYES | wxNO);
+			if (result == wxID_YES) {
+				if (!g_gui.CloseAllEditors()) {
+					spdlog::error("All maps of different versions were not closed.");
+					throw std::runtime_error("All maps of different versions were not closed.");
+				}
+			} else if (result == wxID_NO) {
+				throw std::runtime_error("Maps of different versions can't be loaded at same time. Save and close your current map and try again.");
 			}
-		} else if (result == wxID_NO) {
-			throw std::runtime_error("Maps of different versions can't be loaded at same time. Save and close your current map and try again.");
 		}
 	}
 
@@ -129,7 +139,7 @@ Editor::Editor(CopyBuffer &copybuffer, const FileName &fn) :
 	}
 
 	if (success) {
-		ScopedLoadingBar LoadingBar("Loading OTBM map...");
+		ScopedLoadingBar LoadingBar("Loading map...");
 		success = map.open(nstr(fn.GetFullPath()));
 	}
 }
