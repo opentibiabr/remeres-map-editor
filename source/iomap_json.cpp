@@ -312,6 +312,78 @@ json IOMapJSON::serializeItem(const Item &item) {
 
 	itemData["stacking"] = stackingJson;
 
+	// Combat and character stats
+	json statsJson;
+	statsJson["weight"] = item.getWeight();
+	statsJson["attack"] = item.getAttack();
+	statsJson["defense"] = item.getDefense();
+	statsJson["armor"] = item.getArmor();
+	itemData["stats"] = statsJson;
+
+	// Text and interaction properties
+	json textPropsJson;
+	textPropsJson["can_read_text"] = itemType.canReadText;
+	textPropsJson["can_write_text"] = itemType.canWriteText;
+	textPropsJson["allow_dist_read"] = itemType.allowDistRead;
+	textPropsJson["max_text_length"] = itemType.maxTextLen;
+	textPropsJson["readable"] = item.isReadable();
+	textPropsJson["can_write"] = item.canWriteText();
+	itemData["text_properties"] = textPropsJson;
+
+	// Charges and usage properties
+	json usageJson;
+	usageJson["client_chargeable"] = item.isClientCharged();
+	usageJson["extra_chargeable"] = item.isExtraCharged();
+	usageJson["chargeable"] = item.isCharged();
+	usageJson["fluid_container"] = item.isFluidContainer();
+	itemData["usage"] = usageJson;
+
+	// Physical properties and states
+	json physicalJson;
+	physicalJson["replaceable"] = itemType.replaceable;
+	physicalJson["decays"] = itemType.decays;
+	physicalJson["rotable"] = itemType.rotable;
+	physicalJson["is_corpse"] = itemType.isCorpse;
+	physicalJson["is_vertical"] = itemType.isVertical;
+	physicalJson["is_horizontal"] = itemType.isHorizontal;
+	physicalJson["is_podium"] = itemType.isPodium;
+	physicalJson["hook_east"] = itemType.hookEast;
+	physicalJson["hook_south"] = itemType.hookSouth;
+	itemData["physical"] = physicalJson;
+
+	// Construction and building properties
+	json buildingJson;
+	buildingJson["is_border"] = itemType.isBorder;
+	buildingJson["is_optional_border"] = itemType.isOptionalBorder;
+	buildingJson["is_wall"] = itemType.isWall;
+	buildingJson["is_brush_door"] = itemType.isBrushDoor;
+	buildingJson["is_open"] = itemType.isOpen;
+	buildingJson["is_table"] = itemType.isTable;
+	buildingJson["is_carpet"] = itemType.isCarpet;
+	buildingJson["wall_hate_me"] = itemType.wall_hate_me;
+	itemData["building"] = buildingJson;
+
+	// Movement and pathfinding properties
+	json movementJson;
+	movementJson["block_pathfinder"] = itemType.blockPathfinder;
+	movementJson["block_missiles"] = itemType.blockMissiles;
+	movementJson["block_pickupable"] = itemType.blockPickupable;
+	movementJson["walk_stack"] = itemType.walkStack;
+	movementJson["avoidable"] = item.isAvoidable();
+	itemData["movement"] = movementJson;
+
+	// Metadata and editor properties
+	json metaJson;
+	metaJson["is_metaitem"] = itemType.is_metaitem;
+	metaJson["has_raw"] = itemType.has_raw;
+	metaJson["in_other_tileset"] = itemType.in_other_tileset;
+	metaJson["has_equivalent"] = itemType.has_equivalent;
+	metaJson["ground_equivalent"] = itemType.ground_equivalent;
+	metaJson["ignore_look"] = itemType.ignoreLook;
+	metaJson["force_use"] = itemType.forceUse;
+	metaJson["no_move_animation"] = itemType.noMoveAnimation;
+	itemData["metadata"] = metaJson;
+
 	// Need to cast away const since getter methods are not const
 	Item* nonConstItem = const_cast<Item*>(&item);
 
