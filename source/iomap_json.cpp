@@ -595,7 +595,26 @@ json IOMapJSON::serializeHouses(const Map &map) {
 	return houses;
 }
 
-json IOMapJSON::serializeWaypoints(const Map &map) { return json::array(); }
+json IOMapJSON::serializeWaypoints(const Map &map) {
+	json waypoints = json::array();
+
+	for (WaypointMap::const_iterator iter = map.waypoints.begin(); iter != map.waypoints.end(); ++iter) {
+		const Waypoint* wp = iter->second;
+		if (!wp) {
+			continue;
+		}
+
+		json waypoint;
+		waypoint["name"] = wp->name;
+		waypoint["x"] = wp->pos.x;
+		waypoint["y"] = wp->pos.y;
+		waypoint["z"] = wp->pos.z;
+
+		waypoints.push_back(waypoint);
+	}
+
+	return waypoints;
+}
 json IOMapJSON::serializeZones(const Map &map) { return json::array(); }
 json IOMapJSON::serializeSpawns(const Map &map) { return json::array(); }
 json IOMapJSON::serializeNpcSpawns(const Map &map) { return json::array(); }
