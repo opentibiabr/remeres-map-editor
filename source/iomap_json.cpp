@@ -32,6 +32,8 @@
 #include "gui.h"
 
 #include <fstream>
+#include <algorithm>
+#include <vector>
 
 bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 	// JSON loading is not implemented in this version
@@ -57,18 +59,114 @@ bool IOMapJSON::saveMap(Map &map, const FileName &identifier) {
 		// Add map metadata
 		document["map"] = serializeMapData(map);
 
-		// Add tiles
+		// Add tiles with RLE compression for ground tiles
 		json tiles = json::array();
+		json ground_rle = json::array();
 
 		g_gui.SetLoadDone(0, "Exporting map tiles...");
 
 		uint32_t processed_tiles = 0;
 		uint32_t total_tiles = map.getTileCount();
 
+		// Collect all tiles first for RLE processing
+		std::vector<Tile*> allTiles;
 		for (auto it = map.begin(); it != map.end(); ++it) {
 			Tile *tile = it->get();
 			if (tile && !tile->empty()) {
+				allTiles.push_back(tile);
+			}
+		}
+
+		// Sort tiles by z, y, x for optimal RLE compression
+		std::sort(allTiles.begin(), allTiles.end(), [](const Tile* a, const Tile* b) {
+			if (a->getZ() != b->getZ()) return a->getZ() < b->getZ();
+			if (a->getY() != b->getY()) return a->getY() < b->getY();
+			return a->getX() < b->getX();
+		});
+
+		// Process tiles with RLE compression for ground tiles
+		size_t i = 0;
+		while (i < allTiles.size()) {
+			Tile* tile = allTiles[i];
+
+			// Check if this is a simple tile (candidate for RLE)
+			// A simple tile has no stacked items (only ground or no ground), no spawns, no NPCs
+			bool isSimpleTile = tile->items.empty() && !tile->spawnMonster && !tile->npc && tile->monsters.empty();
+
+			if (isSimpleTile) {
+				// Start RLE sequence
+				Position startPos(tile->getX(), tile->getY(), tile->getZ());
+				Position endPos = startPos;
+				json groundData;
+
+				// Serialize ground data (or null if no ground)
+				if (tile->hasGround()) {
+					groundData = serializeItem(*tile->ground);
+				} else {
+					groundData = nullptr;  // JSON null for tiles with no ground
+				}
+
+				// Find consecutive identical simple tiles on the same row
+				size_t j = i + 1;
+				while (j < allTiles.size()) {
+					Tile* nextTile = allTiles[j];
+
+					// Check if next tile is identical simple tile on same z level and consecutive position
+					bool isIdenticalSimpleTile = nextTile->items.empty() &&
+												!nextTile->spawnMonster &&
+												!nextTile->npc &&
+												nextTile->monsters.empty() &&
+												nextTile->getZ() == startPos.z &&
+												nextTile->getY() == endPos.y &&
+												nextTile->getX() == endPos.x + 1;
+
+					// Check ground similarity
+					if (isIdenticalSimpleTile) {
+						if (tile->hasGround() && nextTile->hasGround()) {
+							// Both have ground - check if identical
+							isIdenticalSimpleTile = nextTile->ground->getID() == tile->ground->getID() &&
+													nextTile->ground->getSubtype() == tile->ground->getSubtype() &&
+													nextTile->ground->getUniqueID() == tile->ground->getUniqueID() &&
+													nextTile->ground->getActionID() == tile->ground->getActionID() &&
+													nextTile->ground->getText() == tile->ground->getText();
+						} else if (!tile->hasGround() && !nextTile->hasGround()) {
+							// Both have no ground - identical
+							isIdenticalSimpleTile = true;
+						} else {
+							// One has ground, other doesn't - not identical
+							isIdenticalSimpleTile = false;
+						}
+					}
+
+					if (isIdenticalSimpleTile) {
+						endPos.x = nextTile->getX();
+						j++;
+					} else {
+						break;
+					}
+				}
+
+				// Create RLE entry if we have more than one consecutive tile
+				if (endPos.x > startPos.x) {
+					json rleEntry;
+					rleEntry["ground"] = groundData;
+					rleEntry["from_x"] = startPos.x;
+					rleEntry["to_x"] = endPos.x;
+					rleEntry["y"] = startPos.y;
+					rleEntry["z"] = startPos.z;
+					rleEntry["count"] = (endPos.x - startPos.x + 1);
+					ground_rle.push_back(rleEntry);
+
+					i = j; // Skip all compressed tiles
+				} else {
+					// Single tile, add normally
+					tiles.push_back(serializeTile(*tile));
+					i++;
+				}
+			} else {
+				// Complex tile, add normally
 				tiles.push_back(serializeTile(*tile));
+				i++;
 			}
 
 			processed_tiles++;
@@ -76,7 +174,11 @@ bool IOMapJSON::saveMap(Map &map, const FileName &identifier) {
 				g_gui.SetLoadDone(processed_tiles * 100 / total_tiles, "Exporting map tiles...");
 			}
 		}
+
 		document["tiles"] = tiles;
+		if (!ground_rle.empty()) {
+			document["ground_rle"] = ground_rle;
+		}
 
 		// Add towns
 		g_gui.SetLoadDone(80, "Exporting towns...");
