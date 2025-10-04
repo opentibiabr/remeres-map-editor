@@ -1918,14 +1918,22 @@ bool IOMapJSON::loadMultipleFloorFiles(Map &map, const std::vector<std::string> 
 		wxYield();
 		map.clearVisible(0xFFFFFFFF);
 
+		// Parse all floor files first to avoid multiple file I/O operations
+		std::vector<json> floorDocuments;
+		floorDocuments.reserve(floorFiles.size());
 		bool mapMetadataLoaded = false;
-		size_t filesProcessed = 0;
 
-		for (const std::string& floorFile : floorFiles) {
+		// Phase 1: Parse all JSON files and load map metadata
+		g_gui.SetLoadDone(5, "Parsing floor files...");
+		wxYield();
+
+		for (size_t i = 0; i < floorFiles.size(); ++i) {
+			const std::string& floorFile = floorFiles[i];
+
 			g_gui.SetLoadDone(
-				static_cast<int>(filesProcessed * 90 / floorFiles.size()),
-				wxString::Format("Loading floor file %zu/%zu: %s",
-					filesProcessed + 1, floorFiles.size(),
+				5 + static_cast<int>(i * 15 / floorFiles.size()),
+				wxString::Format("Parsing file %zu/%zu: %s",
+					i + 1, floorFiles.size(),
 					std::filesystem::path(floorFile).filename().string().c_str())
 			);
 			wxYield();
@@ -1934,7 +1942,7 @@ bool IOMapJSON::loadMultipleFloorFiles(Map &map, const std::vector<std::string> 
 			std::ifstream file(floorFile);
 			if (!file.is_open()) {
 				warning("Could not open floor file: %s", floorFile.c_str());
-				filesProcessed++;
+				floorDocuments.emplace_back(); // Add empty document to maintain index alignment
 				continue;
 			}
 
@@ -1943,14 +1951,14 @@ bool IOMapJSON::loadMultipleFloorFiles(Map &map, const std::vector<std::string> 
 				file >> document;
 			} catch (const json::exception &e) {
 				warning("Failed to parse floor file %s: %s", floorFile.c_str(), e.what());
-				filesProcessed++;
+				floorDocuments.emplace_back(); // Add empty document to maintain index alignment
 				continue;
 			}
 
 			// Validate JSON structure
 			if (!document.contains("version") || !document.contains("map")) {
 				warning("Invalid floor file %s: missing required fields", floorFile.c_str());
-				filesProcessed++;
+				floorDocuments.emplace_back(); // Add empty document to maintain index alignment
 				continue;
 			}
 
@@ -1963,60 +1971,125 @@ bool IOMapJSON::loadMultipleFloorFiles(Map &map, const std::vector<std::string> 
 				}
 			}
 
-			// Load tiles from this floor
-			if (document.contains("tiles") && document["tiles"].is_array()) {
-				auto &tilesArray = document["tiles"];
-				for (const auto &tileJson : tilesArray) {
-					// Extract position from tile JSON
-					if (!tileJson.contains("x") || !tileJson.contains("y") || !tileJson.contains("z")) {
-						continue; // Skip invalid tiles
-					}
-
-					Position pos(
-						tileJson["x"].get<int>(),
-						tileJson["y"].get<int>(),
-						tileJson["z"].get<int>()
-					);
-
-					if (!deserializeTile(map, tileJson, pos)) {
-						warning("Failed to deserialize tile at position (%d,%d,%d) from %s",
-							pos.x, pos.y, pos.z, floorFile.c_str());
-					}
-				}
-			}
-
-			// Load other data from each floor file (towns, houses, waypoints, etc.)
-			// Note: This means each floor file can contribute these elements
-			if (document.contains("towns")) {
-				deserializeTowns(map, document["towns"]);
-			}
-			if (document.contains("houses")) {
-				deserializeHouses(map, document["houses"]);
-			}
-			if (document.contains("waypoints")) {
-				deserializeWaypoints(map, document["waypoints"]);
-			}
-			if (document.contains("zones")) {
-				deserializeZones(map, document["zones"]);
-			}
-			if (document.contains("spawns")) {
-				deserializeSpawns(map, document["spawns"]);
-			}
-			if (document.contains("npc_spawns")) {
-				deserializeNpcSpawns(map, document["npc_spawns"]);
-			}
-
-			filesProcessed++;
+			floorDocuments.push_back(std::move(document));
 		}
 
-		// Final cleanup and validation
-		g_gui.SetLoadDone(95, "Finalizing map data...");
+		// Phase 2: Load ALL tiles from all floors first
+		g_gui.SetLoadDone(20, "Loading tiles from all floors...");
 		wxYield();
 
-		// Link house tiles (this needs to be done after all tiles are loaded)
+		size_t totalTilesLoaded = 0;
+		for (size_t i = 0; i < floorDocuments.size(); ++i) {
+			const json& document = floorDocuments[i];
+
+			if (document.is_null() || !document.contains("tiles") || !document["tiles"].is_array()) {
+				continue; // Skip invalid or empty documents
+			}
+
+			g_gui.SetLoadDone(
+				20 + static_cast<int>(i * 50 / floorDocuments.size()),
+				wxString::Format("Loading tiles from floor %zu/%zu...", i + 1, floorDocuments.size())
+			);
+			wxYield();
+
+			auto &tilesArray = document["tiles"];
+			for (const auto &tileJson : tilesArray) {
+				// Extract position from tile JSON
+				if (!tileJson.contains("x") || !tileJson.contains("y") || !tileJson.contains("z")) {
+					continue; // Skip invalid tiles
+				}
+
+				Position pos(
+					tileJson["x"].get<int>(),
+					tileJson["y"].get<int>(),
+					tileJson["z"].get<int>()
+				);
+
+				if (!deserializeTile(map, tileJson, pos)) {
+					warning("Failed to deserialize tile at position (%d,%d,%d) from floor %zu",
+						pos.x, pos.y, pos.z, i + 1);
+				} else {
+					totalTilesLoaded++;
+				}
+			}
+		}
+
+		g_gui.SetLoadDone(70, wxString::Format("All tiles loaded (%zu tiles from %zu floors)",
+			totalTilesLoaded, floorFiles.size()));
+		wxYield();
+
+		// Phase 3: Load all other data elements (towns, houses, waypoints, zones, spawns, npc_spawns)
+		// These are global entities that should only be loaded ONCE from the first valid floor file
+		// This prevents duplicate entity creation when the same entities are saved to multiple floor files
+		g_gui.SetLoadDone(75, "Loading towns from first valid floor file...");
+		wxYield();
+
+		for (const json& document : floorDocuments) {
+			if (!document.is_null() && document.contains("towns")) {
+				deserializeTowns(map, document["towns"]);
+				break; // Only load towns from the first floor file that has them
+			}
+		}
+
+		g_gui.SetLoadDone(80, "Loading houses from first valid floor file...");
+		wxYield();
+
+		for (const json& document : floorDocuments) {
+			if (!document.is_null() && document.contains("houses")) {
+				deserializeHouses(map, document["houses"]);
+				break; // Only load houses from the first floor file that has them
+			}
+		}
+
+		g_gui.SetLoadDone(85, "Loading waypoints from first valid floor file...");
+		wxYield();
+
+		for (const json& document : floorDocuments) {
+			if (!document.is_null() && document.contains("waypoints")) {
+				deserializeWaypoints(map, document["waypoints"]);
+				break; // Only load waypoints from the first floor file that has them
+			}
+		}
+
+		g_gui.SetLoadDone(90, "Loading zones from first valid floor file...");
+		wxYield();
+
+		for (const json& document : floorDocuments) {
+			if (!document.is_null() && document.contains("zones")) {
+				deserializeZones(map, document["zones"]);
+				break; // Only load zones from the first floor file that has them
+			}
+		}
+
+		g_gui.SetLoadDone(93, "Loading spawns from first valid floor file...");
+		wxYield();
+
+		for (const json& document : floorDocuments) {
+			if (!document.is_null() && document.contains("spawns")) {
+				deserializeSpawns(map, document["spawns"]);
+				break; // Only load spawns from the first floor file that has them
+			}
+		}
+
+		g_gui.SetLoadDone(96, "Loading NPC spawns from first valid floor file...");
+		wxYield();
+
+		for (const json& document : floorDocuments) {
+			if (!document.is_null() && document.contains("npc_spawns")) {
+				deserializeNpcSpawns(map, document["npc_spawns"]);
+				break; // Only load NPC spawns from the first floor file that has them
+			}
+		}
+
+		// Phase 4: Final linking and validation
+		g_gui.SetLoadDone(98, "Linking house tiles...");
+		wxYield();
+
+		// Link house tiles (this needs to be done after all tiles and houses are loaded)
 		linkHouseTiles(map);
 
-		g_gui.SetLoadDone(100, wxString::Format("Successfully loaded %zu floor files!", floorFiles.size()));
+		g_gui.SetLoadDone(100, wxString::Format("Successfully loaded %zu floor files with %zu tiles!",
+			floorFiles.size(), totalTilesLoaded));
 		wxYield();
 
 		return true;
