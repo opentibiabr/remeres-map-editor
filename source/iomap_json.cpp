@@ -259,6 +259,12 @@ bool IOMapJSON::saveMap(Map &map, const FileName &identifier) {
 		basePath = basePath.substr(0, lastDot);
 	}
 
+	// Remove existing floor suffix if present (e.g., "map_floor_0" -> "map")
+	size_t floorPos = basePath.find("_floor_");
+	if (floorPos != std::string::npos) {
+		basePath = basePath.substr(0, floorPos);
+	}
+
 	try {
 		// Get all floors that have tiles
 		std::set<int> floors = getUsedFloors(map);
@@ -266,9 +272,7 @@ bool IOMapJSON::saveMap(Map &map, const FileName &identifier) {
 		if (floors.empty()) {
 			g_gui.SetLoadDone(100, "No tiles found to export!");
 			return true;
-		}
-
-		g_gui.SetLoadDone(0, wxString::Format("Found %zu floors to export...", floors.size()));
+		}		g_gui.SetLoadDone(0, wxString::Format("Found %zu floors to export...", floors.size()));
 		wxYield();
 
 		int floorIndex = 0;
@@ -307,6 +311,12 @@ bool IOMapJSON::saveMapQuiet(Map &map, const FileName &identifier) {
 	size_t lastDot = basePath.find_last_of('.');
 	if (lastDot != std::string::npos) {
 		basePath = basePath.substr(0, lastDot);
+	}
+
+	// Remove existing floor suffix if present (e.g., "map_floor_0" -> "map")
+	size_t floorPos = basePath.find("_floor_");
+	if (floorPos != std::string::npos) {
+		basePath = basePath.substr(0, floorPos);
 	}
 
 	try {
