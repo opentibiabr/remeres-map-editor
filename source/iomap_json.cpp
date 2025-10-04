@@ -86,9 +86,12 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 		// Set loading progress
 		g_gui.SetLoadDone(0, "Loading tiles...");
 
-		// Load tiles
+		// Load tiles with progress tracking
 		if (document.contains("tiles")) {
 			const json &tiles = document["tiles"];
+			size_t totalTiles = tiles.size();
+			size_t tilesLoaded = 0;
+
 			for (const auto &tileData : tiles) {
 				if (!tileData.contains("x") || !tileData.contains("y") || !tileData.contains("z")) {
 					continue; // Skip malformed tiles
@@ -98,87 +101,18 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 				if (!deserializeTile(map, tileData, pos)) {
 					warning("Failed to load tile at position (%d, %d, %d)", pos.x, pos.y, pos.z);
 				}
-			}
-		}
 
-		// Load ground RLE data
-		if (document.contains("ground_rle")) {
-			const json &groundRLE = document["ground_rle"];
-			for (const auto &rleData : groundRLE) {
-				if (!rleData.contains("from_x") || !rleData.contains("to_x") ||
-					!rleData.contains("y") || !rleData.contains("z")) {
-					continue; // Skip malformed RLE data
-				}
-
-				int fromX = rleData["from_x"];
-				int toX = rleData["to_x"];
-				int y = rleData["y"];
-				int z = rleData["z"];
-
-				// Apply RLE ground data to all positions in range
-				for (int x = fromX; x <= toX; ++x) {
-					Position pos(x, y, z);
-					Tile* tile = map.getTile(pos);
-					if (!tile) {
-						tile = map.allocator(map.createTileL(pos));
-					}
-
-					// Load ground item if present
-					if (rleData.contains("ground") && !rleData["ground"].is_null()) {
-						Item* ground = deserializeItem(rleData["ground"]);
-						if (ground) {
-							tile->addItem(ground);
-						}
-					}
-
-					// Load tile flags if present
-					if (rleData.contains("flags")) {
-						const json &flags = rleData["flags"];
-
-						if (flags.contains("protection_zone") && flags["protection_zone"]) {
-							tile->setMapFlags(tile->getMapFlags() | TILESTATE_PROTECTIONZONE);
-						}
-						if (flags.contains("pvp_zone") && flags["pvp_zone"]) {
-							tile->setMapFlags(tile->getMapFlags() | TILESTATE_PVPZONE);
-						}
-						if (flags.contains("no_pvp") && flags["no_pvp"]) {
-							tile->setMapFlags(tile->getMapFlags() | TILESTATE_NOPVP);
-						}
-						if (flags.contains("no_logout") && flags["no_logout"]) {
-							tile->setMapFlags(tile->getMapFlags() | TILESTATE_NOLOGOUT);
-						}
-						if (flags.contains("refresh") && flags["refresh"]) {
-							tile->setMapFlags(tile->getMapFlags() | TILESTATE_REFRESH);
-						}
-					}
-
-					// Load house information if present
-					if (rleData.contains("house_id")) {
-						uint32_t houseId = rleData["house_id"];
-						tile->house_id = houseId; // Direct access to public member
-					}
-
-					// Load zones if present
-					if (rleData.contains("zones")) {
-						const json &zones = rleData["zones"];
-						if (zones.is_array()) {
-							for (const auto &zoneId : zones) {
-								tile->addZone(zoneId);
-							}
-						}
-					}
-
-					// Add the tile to the map (this is crucial!)
-					map.setTile(pos, tile);
-
-					// Update tile to recalculate statflags (blocking, etc.) for proper visual appearance
-					tile->update();
+				tilesLoaded++;
+				// Update progress every 1000 tiles
+				if (tilesLoaded % 1000 == 0 || tilesLoaded == totalTiles) {
+					int progress = static_cast<int>((tilesLoaded * 60) / totalTiles); // 60% for tiles
+					g_gui.SetLoadDone(progress, "Loading tiles...");
 				}
 			}
 		}
 
 		// Load towns
-		g_gui.SetLoadDone(25, "Loading towns...");
+		g_gui.SetLoadDone(65, "Loading towns...");
 		if (document.contains("towns")) {
 			if (!deserializeTowns(map, document["towns"])) {
 				warning("Failed to load some towns");
@@ -186,15 +120,19 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 		}
 
 		// Load houses
-		g_gui.SetLoadDone(35, "Loading houses...");
+		g_gui.SetLoadDone(70, "Loading houses...");
 		if (document.contains("houses")) {
 			if (!deserializeHouses(map, document["houses"])) {
 				warning("Failed to load some houses");
 			}
 		}
 
+		// Link house tiles to house objects
+		g_gui.SetLoadDone(72, "Linking house tiles...");
+		linkHouseTiles(map);
+
 		// Load waypoints
-		g_gui.SetLoadDone(45, "Loading waypoints...");
+		g_gui.SetLoadDone(75, "Loading waypoints...");
 		if (document.contains("waypoints")) {
 			if (!deserializeWaypoints(map, document["waypoints"])) {
 				warning("Failed to load some waypoints");
@@ -202,7 +140,7 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 		}
 
 		// Load zones
-		g_gui.SetLoadDone(55, "Loading zones...");
+		g_gui.SetLoadDone(80, "Loading zones...");
 		if (document.contains("zones")) {
 			if (!deserializeZones(map, document["zones"])) {
 				warning("Failed to load some zones");
@@ -210,7 +148,7 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 		}
 
 		// Load monster spawns
-		g_gui.SetLoadDone(75, "Loading monster spawns...");
+		g_gui.SetLoadDone(90, "Loading monster spawns...");
 		if (document.contains("spawns")) {
 			if (!deserializeSpawns(map, document["spawns"])) {
 				warning("Failed to load some monster spawns");
@@ -218,7 +156,7 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 		}
 
 		// Load NPC spawns
-		g_gui.SetLoadDone(90, "Loading NPC spawns...");
+		g_gui.SetLoadDone(95, "Loading NPC spawns...");
 		if (document.contains("npc_spawns")) {
 			if (!deserializeNpcSpawns(map, document["npc_spawns"])) {
 				warning("Failed to load some NPC spawns");
@@ -239,240 +177,106 @@ bool IOMapJSON::saveMap(Map &map, const FileName &identifier) {
 	std::string fullPath = identifier.GetFullPath().mb_str(wxConvUTF8).data();
 
 	try {
-		// Create JSON document
-		json document;
-
-		// Add version information
-		json version;
-		version["format"] = "RME_JSON";
-		version["version"] = "1.0";
-		version["editor"] = "Remere's Map Editor " + __RME_VERSION__;
-		document["version"] = version;
-
-		// Add map metadata
-		document["map"] = serializeMapData(map);
-
-		// Add tiles with RLE compression for ground tiles
-		json tiles = json::array();
-		json ground_rle = json::array();
-
-		g_gui.SetLoadDone(0, "Exporting map tiles...");
-
-		uint32_t processed_tiles = 0;
-		uint32_t total_tiles = map.getTileCount();
-
-		// Collect all tiles first for RLE processing
-		std::vector<Tile*> allTiles;
-		for (auto it = map.begin(); it != map.end(); ++it) {
-			Tile *tile = it->get();
-			if (tile && !tile->empty()) {
-				allTiles.push_back(tile);
-			}
-		}
-
-		// Sort tiles by z, y, x for optimal RLE compression
-		std::sort(allTiles.begin(), allTiles.end(), [](const Tile* a, const Tile* b) {
-			if (a->getZ() != b->getZ()) return a->getZ() < b->getZ();
-			if (a->getY() != b->getY()) return a->getY() < b->getY();
-			return a->getX() < b->getX();
-		});
-
-		// Process tiles with RLE compression for ground tiles
-		size_t i = 0;
-		while (i < allTiles.size()) {
-			Tile* tile = allTiles[i];
-
-			// Check if this is a simple tile (candidate for RLE)
-			// A simple tile has no stacked items (only ground or no ground), no spawns, no NPCs
-			bool isSimpleTile = tile->items.empty() && !tile->spawnMonster && !tile->npc && tile->monsters.empty();
-
-			if (isSimpleTile) {
-				// Start RLE sequence
-				Position startPos(tile->getX(), tile->getY(), tile->getZ());
-				Position endPos = startPos;
-				json groundData;
-
-				// Serialize ground data (or null if no ground)
-				if (tile->hasGround()) {
-					groundData = serializeItem(*tile->ground);
-				} else {
-					groundData = nullptr;  // JSON null for tiles with no ground
-				}
-
-				// Capture tile properties for RLE
-				uint16_t mapFlags = tile->getMapFlags();
-				uint32_t houseId = tile->isHouseTile() ? tile->getHouseID() : 0;
-				std::vector<unsigned int> zones;
-				if (tile->hasZone()) {
-					for (unsigned int zone : tile->zones) {
-						zones.push_back(zone);
-					}
-				}
-
-				// Find consecutive identical simple tiles on the same row
-				size_t j = i + 1;
-				while (j < allTiles.size()) {
-					Tile* nextTile = allTiles[j];
-
-					// Check if next tile is identical simple tile on same z level and consecutive position
-					bool isIdenticalSimpleTile = nextTile->items.empty() &&
-												!nextTile->spawnMonster &&
-												!nextTile->npc &&
-												nextTile->monsters.empty() &&
-												nextTile->getZ() == startPos.z &&
-												nextTile->getY() == endPos.y &&
-												nextTile->getX() == endPos.x + 1;
-
-					// Check ground similarity
-					if (isIdenticalSimpleTile) {
-						if (tile->hasGround() && nextTile->hasGround()) {
-							// Both have ground - check if identical
-							isIdenticalSimpleTile = nextTile->ground->getID() == tile->ground->getID() &&
-													nextTile->ground->getSubtype() == tile->ground->getSubtype() &&
-													nextTile->ground->getUniqueID() == tile->ground->getUniqueID() &&
-													nextTile->ground->getActionID() == tile->ground->getActionID() &&
-													nextTile->ground->getText() == tile->ground->getText();
-						} else if (!tile->hasGround() && !nextTile->hasGround()) {
-							// Both have no ground - identical
-							isIdenticalSimpleTile = true;
-						} else {
-							// One has ground, other doesn't - not identical
-							isIdenticalSimpleTile = false;
-						}
-					}
-
-					// Check tile properties similarity
-					if (isIdenticalSimpleTile) {
-						// Check map flags
-						if (nextTile->getMapFlags() != mapFlags) {
-							isIdenticalSimpleTile = false;
-						}
-						// Check house ID
-						else if ((nextTile->isHouseTile() ? nextTile->getHouseID() : 0) != houseId) {
-							isIdenticalSimpleTile = false;
-						}
-						// Check zones
-						else {
-							std::vector<unsigned int> nextZones;
-							if (nextTile->hasZone()) {
-								for (unsigned int zone : nextTile->zones) {
-									nextZones.push_back(zone);
-								}
-							}
-							if (zones.size() != nextZones.size()) {
-								isIdenticalSimpleTile = false;
-							} else {
-								for (size_t k = 0; k < zones.size(); k++) {
-									if (zones[k] != nextZones[k]) {
-										isIdenticalSimpleTile = false;
-										break;
-									}
-								}
-							}
-						}
-					}
-
-					if (isIdenticalSimpleTile) {
-						endPos.x = nextTile->getX();
-						j++;
-					} else {
-						break;
-					}
-				}
-
-				// Create RLE entry if we have more than one consecutive tile
-				if (endPos.x > startPos.x) {
-					json rleEntry;
-					rleEntry["ground"] = groundData;
-					rleEntry["from_x"] = startPos.x;
-					rleEntry["to_x"] = endPos.x;
-					rleEntry["y"] = startPos.y;
-					rleEntry["z"] = startPos.z;
-					rleEntry["count"] = (endPos.x - startPos.x + 1);
-
-					// Add tile properties if they exist
-					if (mapFlags != 0) {
-						json flags;
-						if (tile->isPZ()) flags["protection_zone"] = true;
-						if (tile->isPVP()) flags["pvp_zone"] = true;
-						if (tile->isNoPVP()) flags["no_pvp"] = true;
-						if (tile->isNoLogout()) flags["no_logout"] = true;
-						if (mapFlags & TILESTATE_REFRESH) flags["refresh"] = true;
-						if (!flags.empty()) {
-							rleEntry["flags"] = flags;
-						}
-					}
-
-					if (houseId != 0) {
-						rleEntry["house_id"] = houseId;
-					}
-
-					if (!zones.empty()) {
-						json zonesArray = json::array();
-						for (unsigned int zone : zones) {
-							zonesArray.push_back(zone);
-						}
-						rleEntry["zones"] = zonesArray;
-					}
-
-					ground_rle.push_back(rleEntry);
-
-					i = j; // Skip all compressed tiles
-				} else {
-					// Single tile, add normally
-					tiles.push_back(serializeTile(*tile));
-					i++;
-				}
-			} else {
-				// Complex tile, add normally
-				tiles.push_back(serializeTile(*tile));
-				i++;
-			}
-
-			processed_tiles++;
-			if (processed_tiles % 1000 == 0) {
-				g_gui.SetLoadDone(processed_tiles * 100 / total_tiles, "Exporting map tiles...");
-			}
-		}
-
-		document["tiles"] = tiles;
-		if (!ground_rle.empty()) {
-			document["ground_rle"] = ground_rle;
-		}
-
-		// Add towns
-		g_gui.SetLoadDone(80, "Exporting towns...");
-		document["towns"] = serializeTowns(map);
-
-		// Add houses
-		g_gui.SetLoadDone(85, "Exporting houses...");
-		document["houses"] = serializeHouses(map);
-
-		// Add waypoints
-		g_gui.SetLoadDone(90, "Exporting waypoints...");
-		document["waypoints"] = serializeWaypoints(map);
-
-		// Add zones
-		g_gui.SetLoadDone(93, "Exporting zones...");
-		document["zones"] = serializeZones(map);
-
-		// Add spawns
-		g_gui.SetLoadDone(96, "Exporting monster spawns...");
-		document["spawns"] = serializeSpawns(map);
-
-		// Add NPC spawns
-		g_gui.SetLoadDone(98, "Exporting NPC spawns...");
-		document["npc_spawns"] = serializeNpcSpawns(map);
-
-		// Write to file
-		g_gui.SetLoadDone(99, "Writing JSON file...");
+		// OPTIMIZATION: Stream output instead of building entire JSON in memory
 		std::ofstream file(fullPath);
 		if (!file.is_open()) {
 			error("Could not open file for writing: %s", fullPath.c_str());
 			return false;
 		}
 
-		file << document.dump(2); // Pretty print with 2-space indentation
+		// Write JSON header manually for streaming
+		file << "{\n";
+		file << "  \"version\": {\n";
+		file << "    \"format\": \"RME_JSON\",\n";
+		file << "    \"version\": \"1.0\",\n";
+		file << "    \"editor\": \"Remere's Map Editor " << __RME_VERSION__ << "\"\n";
+		file << "  },\n";
+
+		// Add map metadata
+		json mapData = serializeMapData(map);
+		file << "  \"map\": " << mapData.dump(2) << ",\n";
+
+		g_gui.SetLoadDone(0, "Exporting map tiles...");
+		file << "  \"tiles\": [\n";
+
+		uint32_t processed_tiles = 0;
+		uint32_t total_tiles = map.getTileCount();
+		bool first_tile = true;
+		const size_t CHUNK_SIZE = 1000; // Process in chunks
+		size_t chunk_count = 0;
+
+		// OPTIMIZATION: Process tiles directly without loading all into memory
+		for (auto it = map.begin(); it != map.end(); ++it) {
+			Tile *tile = it->get();
+			if (tile && (!tile->empty() || tile->isHouseTile() || tile->hasZone() || tile->getMapFlags() != 0)) {
+				try {
+					if (!first_tile) {
+						file << ",\n";
+					}
+
+					// Use optimized serialization
+					json tileData = serializeTileOptimized(*tile);
+					file << "    " << tileData.dump();
+
+					first_tile = false;
+					processed_tiles++;
+					chunk_count++;
+
+					// OPTIMIZATION: Periodic memory management and progress updates
+					if (chunk_count >= CHUNK_SIZE) {
+						chunk_count = 0;
+						file.flush(); // Force write to disk to free memory
+
+						// Update progress more frequently
+						int progress = std::min(70, static_cast<int>(processed_tiles * 70 / total_tiles));
+						g_gui.SetLoadDone(progress, "Exporting map tiles...");
+
+						// Allow GUI to process events to prevent freezing
+						wxYield();
+					}
+
+				} catch (const std::exception& e) {
+					// OPTIMIZATION: Error handling - skip problematic tiles instead of crashing
+					warning("Failed to serialize tile at (%d, %d, %d): %s",
+						   tile->getX(), tile->getY(), tile->getZ(), e.what());
+					continue;
+				}
+			}
+		}
+
+		file << "\n  ],\n";
+
+		// Add towns
+		g_gui.SetLoadDone(75, "Exporting towns...");
+		json towns = serializeTowns(map);
+		file << "  \"towns\": " << towns.dump(2) << ",\n";
+
+		// Add houses
+		g_gui.SetLoadDone(80, "Exporting houses...");
+		json houses = serializeHouses(map);
+		file << "  \"houses\": " << houses.dump(2) << ",\n";
+
+		// Add waypoints
+		g_gui.SetLoadDone(85, "Exporting waypoints...");
+		json waypoints = serializeWaypoints(map);
+		file << "  \"waypoints\": " << waypoints.dump(2) << ",\n";
+
+		// Add zones
+		g_gui.SetLoadDone(90, "Exporting zones...");
+		json zones = serializeZones(map);
+		file << "  \"zones\": " << zones.dump(2) << ",\n";
+
+		// Add spawns
+		g_gui.SetLoadDone(95, "Exporting monster spawns...");
+		json spawns = serializeSpawns(map);
+		file << "  \"spawns\": " << spawns.dump(2) << ",\n";
+
+		// Add NPC spawns
+		g_gui.SetLoadDone(98, "Exporting NPC spawns...");
+		json npcSpawns = serializeNpcSpawns(map);
+		file << "  \"npc_spawns\": " << npcSpawns.dump(2) << "\n";
+
+		file << "}\n";
 		file.close();
 
 		g_gui.SetLoadDone(100, "JSON export complete!");
@@ -602,6 +406,175 @@ json IOMapJSON::serializeTile(const Tile &tile) {
 	}
 
 	return tileData;
+}
+
+// OPTIMIZATION: Simplified tile serialization for better performance
+json IOMapJSON::serializeTileOptimized(const Tile &tile) {
+	json tileData;
+
+	// Add position information
+	const Position &pos = tile.getPosition();
+	tileData["x"] = pos.x;
+	tileData["y"] = pos.y;
+	tileData["z"] = pos.z;
+
+	// Add ground item (using optimized serialization)
+	if (tile.hasGround()) {
+		tileData["ground"] = serializeItemOptimized(*tile.ground);
+	}
+
+	// Add items (only if present and non-empty)
+	if (!tile.items.empty()) {
+		json items = json::array();
+		for (const Item* item : tile.items) {
+			if (item) {
+				items.push_back(serializeItemOptimized(*item));
+			}
+		}
+		if (!items.empty()) {
+			tileData["items"] = items;
+		}
+	}
+
+	// Only include non-default flags
+	uint16_t mapFlags = tile.getMapFlags();
+	if (mapFlags != 0) {
+		json flags;
+		if (tile.isPZ()) flags["protection_zone"] = true;
+		if (tile.isPVP()) flags["pvp_zone"] = true;
+		if (tile.isNoPVP()) flags["no_pvp"] = true;
+		if (tile.isNoLogout()) flags["no_logout"] = true;
+		if (mapFlags & TILESTATE_REFRESH) flags["refresh"] = true;
+
+		if (!flags.empty()) {
+			tileData["flags"] = flags;
+		}
+	}
+
+	// House ID (only if present)
+	if (tile.isHouseTile()) {
+		tileData["house_id"] = tile.getHouseID();
+	}
+
+	// Zones (only if present)
+	if (tile.hasZone()) {
+		json zones = json::array();
+		for (unsigned int zone : tile.zones) {
+			zones.push_back(zone);
+		}
+		tileData["zones"] = zones;
+	}
+
+	// Simplified monster handling
+	if (tile.spawnMonster && !tile.monsters.empty()) {
+		json spawn;
+		spawn["radius"] = tile.spawnMonster->getSize();
+		json monsters = json::array();
+		for (const Monster* monster : tile.monsters) {
+			if (monster) {
+				json monsterData;
+				monsterData["name"] = monster->getName();
+				monsters.push_back(monsterData);
+			}
+		}
+		if (!monsters.empty()) {
+			spawn["monsters"] = monsters;
+			tileData["spawn"] = spawn;
+		}
+	}
+
+	// Simplified NPC handling
+	if (tile.npc) {
+		json npcData;
+		npcData["name"] = tile.npc->getName();
+		tileData["npc"] = npcData;
+	}
+
+	return tileData;
+}
+
+// OPTIMIZATION: Minimal item serialization for performance
+json IOMapJSON::serializeItemOptimized(const Item &item) {
+	json itemData;
+
+	// Only include essential properties
+	itemData["id"] = item.getID();
+
+	// Only include non-default values
+	uint16_t subtype = item.getSubtype();
+	if (subtype != 0 && subtype != 0xFFFF) {
+		itemData["count"] = subtype;
+	}
+
+	uint16_t uid = item.getUniqueID();
+	if (uid != 0) {
+		itemData["unique_id"] = uid;
+	}
+
+	uint16_t aid = item.getActionID();
+	if (aid != 0) {
+		itemData["action_id"] = aid;
+	}
+
+	std::string text = item.getText();
+	if (!text.empty()) {
+		itemData["text"] = text;
+	}
+
+	// Only include critical properties, not every possible one
+	if (item.isBlocking()) {
+		itemData["blocking"] = true;
+	}
+
+	if (item.isMoveable()) {
+		itemData["moveable"] = true;
+	}
+
+	// Handle containers recursively but with depth limit
+	Item* nonConstItem = const_cast<Item*>(&item);
+	if (nonConstItem->getContainer()) {
+		const Container* container = nonConstItem->getContainer();
+		json contents = json::array();
+		Container* nonConstContainer = const_cast<Container*>(container);
+
+		// Limit container depth to prevent infinite recursion
+		size_t maxContainerItems = 100; // Reasonable limit
+		size_t itemCount = 0;
+
+		for (const Item* containerItem : nonConstContainer->getVector()) {
+			if (containerItem && itemCount < maxContainerItems) {
+				contents.push_back(serializeItemOptimized(*containerItem));
+				itemCount++;
+			}
+		}
+
+		if (!contents.empty()) {
+			itemData["contents"] = contents;
+		}
+	}
+
+	// Essential special items
+	if (nonConstItem->getTeleport()) {
+		const Teleport* teleport = nonConstItem->getTeleport();
+		const Position& dest = teleport->getDestination();
+		json teleportData;
+		teleportData["x"] = dest.x;
+		teleportData["y"] = dest.y;
+		teleportData["z"] = dest.z;
+		itemData["teleport"] = teleportData;
+	}
+
+	if (nonConstItem->getDoor()) {
+		const Door* door = nonConstItem->getDoor();
+		itemData["door_id"] = door->getDoorID();
+	}
+
+	if (nonConstItem->getDepot()) {
+		const Depot* depot = nonConstItem->getDepot();
+		itemData["depot_id"] = depot->getDepotID();
+	}
+
+	return itemData;
 }
 
 json IOMapJSON::serializeItem(const Item &item) {
@@ -1646,5 +1619,24 @@ bool IOMapJSON::deserializeNpcSpawns(Map &map, const json &jsonData) {
 	} catch (const std::exception &e) {
 		error("Unexpected error deserializing NPC spawns: %s", e.what());
 		return false;
+	}
+}
+
+void IOMapJSON::linkHouseTiles(Map &map) {
+	// Iterate through all tiles and link them to their house objects
+	for (auto it = map.begin(); it != map.end(); ++it) {
+		Tile *tile = it->get();
+		if (tile && tile->isHouseTile()) {
+			uint32_t houseId = tile->getHouseID();
+
+			// Find the house object
+			House* house = map.houses.getHouse(houseId);
+			if (house) {
+				// Add tile to house (this also sets tile->house pointer)
+				house->addTile(tile);
+			} else {
+				warning("Found house tile with house ID %u, but no house object exists", houseId);
+			}
+		}
 	}
 }

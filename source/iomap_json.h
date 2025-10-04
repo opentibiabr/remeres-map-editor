@@ -43,6 +43,10 @@ private:
 	json serializeSpawns(const Map &map);
 	json serializeNpcSpawns(const Map &map);
 
+	// Optimized serialization functions
+	json serializeTileOptimized(const Tile &tile);
+	json serializeItemOptimized(const Item &item);
+
 	// JSON deserialization functions (for future loading support)
 	bool deserializeMapData(Map &map, const json &jsonData);
 	bool deserializeTile(Map &map, const json &jsonData, const Position &pos);
@@ -53,6 +57,9 @@ private:
 	bool deserializeZones(Map &map, const json &jsonData);
 	bool deserializeSpawns(Map &map, const json &jsonData);
 	bool deserializeNpcSpawns(Map &map, const json &jsonData);
+
+	// Helper functions
+	void linkHouseTiles(Map &map);
 };
 
 #endif // RME_JSON_MAP_IO_H_
