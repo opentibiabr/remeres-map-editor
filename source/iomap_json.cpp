@@ -288,7 +288,7 @@ bool IOMapJSON::saveMap(Map &map, const FileName &identifier) {
 	}
 
 	// Remove existing floor suffix if present (e.g., "map_floor_0" -> "map")
-	size_t floorPos = basePath.find("_floor_");
+	size_t floorPos = basePath.rfind("_floor_"); // Use last occurrence!
 	if (floorPos != std::string::npos) {
 		basePath = basePath.substr(0, floorPos);
 	}
@@ -342,7 +342,7 @@ bool IOMapJSON::saveMapQuiet(Map &map, const FileName &identifier) {
 	}
 
 	// Remove existing floor suffix if present (e.g., "map_floor_0" -> "map")
-	size_t floorPos = basePath.find("_floor_");
+	size_t floorPos = basePath.rfind("_floor_"); // Use last occurrence!
 	if (floorPos != std::string::npos) {
 		basePath = basePath.substr(0, floorPos);
 	}
