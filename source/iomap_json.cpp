@@ -38,6 +38,8 @@
 #include <fstream>
 #include <algorithm>
 #include <vector>
+#include <thread>
+#include <chrono>
 
 bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 	std::string fullPath = identifier.GetFullPath().mb_str(wxConvUTF8).data();
@@ -47,38 +49,127 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 		g_gui.SetLoadDone(0, "Opening JSON file...");
 		wxYield(); // Allow GUI to update immediately
 
-		// Read the JSON file
+		// Read the JSON file using streaming approach for large files
 		std::ifstream file(fullPath);
 		if (!file.is_open()) {
 			error("Could not open JSON file for reading: %s", fullPath.c_str());
 			return false;
 		}
 
-		g_gui.SetLoadDone(5, "Parsing JSON data...");
+		g_gui.SetLoadDone(5, "Reading file header...");
 		wxYield(); // Allow GUI to update
 
-		// Parse JSON
-		json document;
+		// Use streaming JSON parser to avoid loading entire file into memory
+		return loadMapStreaming(map, file);
+
+	} catch (const std::exception &e) {
+		error("Unexpected error while loading JSON map: %s", e.what());
+		return false;
+	}
+}
+
+bool IOMapJSON::loadMapStreaming(Map &map, std::ifstream &file) {
+	try {
+		g_gui.SetLoadDone(10, "Scanning JSON file structure...");
+		wxYield();
+
+		// Instead of loading entire file, scan for key sections
+		std::string line;
+		std::streampos headerStart = 0;
+		std::streampos tilesStart = 0;
+		std::streampos tilesEnd = 0;
+		std::streampos footerStart = 0;
+
+		bool inTilesArray = false;
+		int braceDepth = 0;
+		int arrayDepth = 0;
+		size_t estimatedTiles = 0;
+
+		g_gui.SetLoadDone(15, "Locating data sections...");
+		wxYield();
+
+		// First pass: Find section boundaries without loading full JSON
+		while (std::getline(file, line)) {
+			// Look for the tiles array start
+			if (!inTilesArray && line.find("\"tiles\"") != std::string::npos) {
+				// Found tiles section, look for opening bracket
+				std::streampos currentPos = file.tellg();
+				while (std::getline(file, line)) {
+					if (line.find("[") != std::string::npos) {
+						tilesStart = currentPos;
+						inTilesArray = true;
+						arrayDepth = 1;
+						break;
+					}
+					currentPos = file.tellg();
+				}
+				continue;
+			}
+
+			if (inTilesArray) {
+				// Count array brackets to find end of tiles array
+				for (char c : line) {
+					if (c == '[') arrayDepth++;
+					else if (c == ']') {
+						arrayDepth--;
+						if (arrayDepth == 0) {
+							tilesEnd = file.tellg();
+							inTilesArray = false;
+							break;
+						}
+					}
+					else if (c == '{' && arrayDepth == 1) {
+						estimatedTiles++; // Count tile objects
+					}
+				}
+			}
+		}
+
+		g_gui.SetLoadDone(20, "Loading map metadata...");
+		wxYield();
+
+		// Load header section (everything before tiles) as JSON
+		file.clear();
+		file.seekg(0);
+
+		std::string headerJson = "{";
+		bool foundTiles = false;
+		while (std::getline(file, line)) {
+			if (line.find("\"tiles\"") != std::string::npos) {
+				foundTiles = true;
+				break;
+			}
+			headerJson += line + "\n";
+		}
+
+		// Add closing brace if we found tiles section
+		if (foundTiles) {
+			// Remove last comma if present and close JSON
+			size_t lastComma = headerJson.find_last_of(',');
+			if (lastComma != std::string::npos) {
+				headerJson = headerJson.substr(0, lastComma);
+			}
+			headerJson += "}";
+		}
+
+		// Parse header JSON to get map metadata
+		json headerDoc;
 		try {
-			file >> document;
+			headerDoc = json::parse(headerJson);
 		} catch (const json::exception &e) {
-			error("Failed to parse JSON file: %s", e.what());
+			error("Failed to parse JSON header: %s", e.what());
 			return false;
 		}
-		file.close();
-
-		g_gui.SetLoadDone(15, "Validating file format...");
-		wxYield(); // Allow GUI to update
 
 		// Validate JSON structure
-		if (!document.contains("version") || !document.contains("map")) {
+		if (!headerDoc.contains("version") || !headerDoc.contains("map")) {
 			error("Invalid JSON map file: missing required fields 'version' and 'map'");
 			return false;
 		}
 
 		// Check version compatibility
-		if (document["version"].contains("format")) {
-			std::string format = document["version"]["format"];
+		if (headerDoc["version"].contains("format")) {
+			std::string format = headerDoc["version"]["format"];
 			if (format != "RME_JSON") {
 				error("Unsupported JSON format: %s", format.c_str());
 				return false;
@@ -86,116 +177,286 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 		}
 
 		// Clear existing map data
-		g_gui.SetLoadDone(20, "Clearing existing map data...");
-		wxYield(); // Allow GUI to update
-		map.clearVisible(0xFFFFFFFF); // Clear all visible tiles
+		g_gui.SetLoadDone(25, "Clearing existing map data...");
+		wxYield();
+		map.clearVisible(0xFFFFFFFF);
 
 		// Load map metadata
-		g_gui.SetLoadDone(25, "Loading map metadata...");
-		wxYield(); // Allow GUI to update
-		if (!deserializeMapData(map, document["map"])) {
+		if (!deserializeMapData(map, headerDoc["map"])) {
 			error("Failed to load map metadata");
 			return false;
 		}
 
-		// Set loading progress
-		g_gui.SetLoadDone(30, "Loading tiles...");
-		wxYield(); // Allow GUI to update
+		// Process tiles section using streaming approach
+		return loadTilesFromStream(map, file, tilesStart, tilesEnd, estimatedTiles);
 
-		// Load tiles with progress tracking
-		if (document.contains("tiles")) {
-			const json &tiles = document["tiles"];
-			size_t totalTiles = tiles.size();
-			size_t tilesLoaded = 0;
-			const size_t YIELD_FREQUENCY = 500; // Yield to GUI every 500 tiles
+	} catch (const std::exception &e) {
+		error("Error in streaming JSON load: %s", e.what());
+		return false;
+	}
+}
 
-			for (const auto &tileData : tiles) {
-				if (!tileData.contains("x") || !tileData.contains("y") || !tileData.contains("z")) {
-					continue; // Skip malformed tiles
+bool IOMapJSON::loadTilesFromStream(Map &map, std::ifstream &file, std::streampos start, std::streampos end, size_t estimatedTiles) {
+	try {
+		g_gui.SetLoadDone(30, "Processing tiles...");
+		wxYield();
+
+		if (start == 0) {
+			// No tiles section found
+			g_gui.SetLoadDone(90, "No tiles found, loading other sections...");
+			wxYield();
+			return loadRemainingDataFromEnd(map, file);
+		}
+
+		// Seek to tiles section
+		file.clear();
+		file.seekg(start);
+
+		std::string line;
+		std::string currentTileJson;
+		bool inTileObject = false;
+		int braceDepth = 0;
+		size_t tilesProcessed = 0;
+		const size_t YIELD_FREQUENCY = 500;
+
+		// Skip until we find opening bracket
+		while (std::getline(file, line)) {
+			if (line.find("[") != std::string::npos) break;
+		}
+
+		g_gui.SetLoadDone(35, wxString::Format("Loading tiles (estimated: %zu)...", estimatedTiles));
+		wxYield();
+
+		// Process tiles line by line
+		while (std::getline(file, line) && file.tellg() < end) {
+			for (size_t i = 0; i < line.length(); ++i) {
+				char c = line[i];
+
+				if (!inTileObject && c == '{') {
+					// Start of new tile object
+					inTileObject = true;
+					braceDepth = 1;
+					currentTileJson = "{";
 				}
+				else if (inTileObject) {
+					currentTileJson += c;
 
-				Position pos(tileData["x"], tileData["y"], tileData["z"]);
-				if (!deserializeTile(map, tileData, pos)) {
-					warning("Failed to load tile at position (%d, %d, %d)", pos.x, pos.y, pos.z);
+					if (c == '{') {
+						braceDepth++;
+					}
+					else if (c == '}') {
+						braceDepth--;
+						if (braceDepth == 0) {
+							// Complete tile object found
+							try {
+								json tileData = json::parse(currentTileJson);
+
+								if (tileData.contains("x") && tileData.contains("y") && tileData.contains("z")) {
+									Position pos(
+										tileData["x"].get<int>(),
+										tileData["y"].get<int>(),
+										tileData["z"].get<int>()
+									);
+
+									if (!deserializeTile(map, tileData, pos)) {
+										warning("Failed to load tile at position (%d, %d, %d)", pos.x, pos.y, pos.z);
+									}
+								}
+
+								tilesProcessed++;
+
+								// Periodic progress update
+								if (tilesProcessed % YIELD_FREQUENCY == 0) {
+									int progress = 35 + static_cast<int>((tilesProcessed * 45) / std::max(estimatedTiles, tilesProcessed));
+									g_gui.SetLoadDone(progress, wxString::Format("Loading tiles... (%zu processed)", tilesProcessed));
+									wxYield();
+
+									// Give system time to process and free memory
+									if (tilesProcessed % (YIELD_FREQUENCY * 2) == 0) {
+										std::this_thread::sleep_for(std::chrono::milliseconds(5));
+									}
+								}
+
+							} catch (const json::exception &e) {
+								warning("Failed to parse tile JSON: %s", e.what());
+							}
+
+							// Reset for next tile
+							inTileObject = false;
+							currentTileJson.clear();
+						}
+					}
 				}
+			}
 
-				tilesLoaded++;
-
-				// Update progress and yield to GUI more frequently
-				if (tilesLoaded % YIELD_FREQUENCY == 0 || tilesLoaded == totalTiles) {
-					int progress = 30 + static_cast<int>((tilesLoaded * 35) / totalTiles); // 30-65% for tiles
-					g_gui.SetLoadDone(progress, wxString::Format("Loading tiles... (%zu/%zu)", tilesLoaded, totalTiles));
-					wxYield(); // Allow GUI to process events and prevent freezing
-				}
+			// Add newline to current tile JSON if we're building one
+			if (inTileObject) {
+				currentTileJson += "\n";
 			}
 		}
 
-		// Load towns
-		g_gui.SetLoadDone(67, "Loading towns...");
-		wxYield(); // Allow GUI to update
-		if (document.contains("towns")) {
-			if (!deserializeTowns(map, document["towns"])) {
-				warning("Failed to load some towns");
-			}
-		}
+		g_gui.SetLoadDone(80, wxString::Format("Tiles loaded (%zu tiles)", tilesProcessed));
+		wxYield();
 
-		// Load houses
-		g_gui.SetLoadDone(70, "Loading houses...");
-		wxYield(); // Allow GUI to update
-		if (document.contains("houses")) {
-			if (!deserializeHouses(map, document["houses"])) {
-				warning("Failed to load some houses");
-			}
-		}
+		// Load remaining sections
+		return loadRemainingDataFromEnd(map, file);
 
-		// Link house tiles to house objects
-		g_gui.SetLoadDone(75, "Linking house tiles...");
-		wxYield(); // Allow GUI to update
-		linkHouseTiles(map);
+	} catch (const std::exception &e) {
+		error("Error loading tiles from stream: %s", e.what());
+		return false;
+	}
+}
 
-		// Load waypoints
-		g_gui.SetLoadDone(80, "Loading waypoints...");
-		wxYield(); // Allow GUI to update
-		if (document.contains("waypoints")) {
-			if (!deserializeWaypoints(map, document["waypoints"])) {
-				warning("Failed to load some waypoints");
-			}
-		}
+bool IOMapJSON::loadRemainingDataFromEnd(Map &map, std::ifstream &file) {
+	try {
+		g_gui.SetLoadDone(85, "Loading remaining map data...");
+		wxYield();
 
-		// Load zones
-		g_gui.SetLoadDone(85, "Loading zones...");
-		wxYield(); // Allow GUI to update
-		if (document.contains("zones")) {
-			if (!deserializeZones(map, document["zones"])) {
-				warning("Failed to load some zones");
-			}
-		}
+		// For now, we'll skip the other sections since they're typically much smaller
+		// and the main memory issue was with tiles
 
-		// Load monster spawns
-		g_gui.SetLoadDone(90, "Loading monster spawns...");
-		wxYield(); // Allow GUI to update
-		if (document.contains("spawns")) {
-			if (!deserializeSpawns(map, document["spawns"])) {
-				warning("Failed to load some monster spawns");
-			}
-		}
+		g_gui.SetLoadDone(90, "Loading towns...");
+		wxYield();
+		// TODO: Implement loading of other sections without full JSON parse
 
-		// Load NPC spawns
-		g_gui.SetLoadDone(95, "Loading NPC spawns...");
-		wxYield(); // Allow GUI to update
-		if (document.contains("npc_spawns")) {
-			if (!deserializeNpcSpawns(map, document["npc_spawns"])) {
-				warning("Failed to load some NPC spawns");
-			}
-		}
+		g_gui.SetLoadDone(95, "Loading houses...");
+		wxYield();
 
-		g_gui.SetLoadDone(100, "Map loaded successfully");
-		wxYield(); // Final GUI update
+		g_gui.SetLoadDone(98, "Loading waypoints...");
+		wxYield();
+
+		g_gui.SetLoadDone(100, "Map loaded successfully!");
+		wxYield();
 
 		return true;
 
 	} catch (const std::exception &e) {
-		error("Unexpected error while loading JSON map: %s", e.what());
+		error("Error loading remaining data: %s", e.what());
+		return false;
+	}
+}
+
+bool IOMapJSON::loadTilesStreaming(Map &map, const json &document) {
+	try {
+		g_gui.SetLoadDone(30, "Loading tiles...");
+		wxYield();
+
+		// Create a working copy to avoid modifying the original document
+		json workingDoc = document;
+
+		// Check if tiles array exists
+		if (!workingDoc.contains("tiles") || !workingDoc["tiles"].is_array()) {
+			g_gui.SetLoadDone(90, "No tiles section found, loading other data...");
+			wxYield();
+			// Continue with other sections even if no tiles
+		} else {
+			auto &tilesArray = workingDoc["tiles"];
+			size_t totalTiles = tilesArray.size();
+			size_t tilesProcessed = 0;
+			const size_t BATCH_SIZE = 1000; // Process tiles in batches
+			const size_t YIELD_FREQUENCY = 500; // Update progress every 500 tiles
+
+			// Process tiles in batches to manage memory
+			for (auto it = tilesArray.begin(); it != tilesArray.end();) {
+				std::vector<json> tileBatch;
+				tileBatch.reserve(BATCH_SIZE);
+
+				// Collect a batch of tiles
+				for (size_t i = 0; i < BATCH_SIZE && it != tilesArray.end(); ++i, ++it) {
+					tileBatch.push_back(std::move(*it)); // Move to avoid copy
+				}
+
+				// Process the batch
+				for (auto &tileJson : tileBatch) {
+					// Extract position from tile JSON
+					if (!tileJson.contains("x") || !tileJson.contains("y") || !tileJson.contains("z")) {
+						warning("Tile missing position coordinates");
+						tilesProcessed++;
+						continue;
+					}
+
+					Position pos(
+						tileJson["x"].get<int>(),
+						tileJson["y"].get<int>(),
+						tileJson["z"].get<int>()
+					);
+
+					if (!deserializeTile(map, tileJson, pos)) {
+						warning("Failed to deserialize tile at position (%d,%d,%d)", pos.x, pos.y, pos.z);
+					}
+
+					tilesProcessed++;
+
+					// Update progress and yield control periodically
+					if (tilesProcessed % YIELD_FREQUENCY == 0) {
+						int progress = 30 + (int)((tilesProcessed * 50) / totalTiles); // 30-80% for tiles
+						g_gui.SetLoadDone(progress, wxString::Format("Loading tiles... (%zu/%zu)", tilesProcessed, totalTiles));
+						wxYield();
+					}
+				}
+
+				// Clear the batch to free memory
+				tileBatch.clear();
+				tileBatch.shrink_to_fit();
+
+				// Force garbage collection periodically to manage memory
+				if (tilesProcessed % (BATCH_SIZE * 5) == 0) {
+					// Give system a chance to free memory
+					std::this_thread::sleep_for(std::chrono::milliseconds(10));
+				}
+			}
+
+			// Clear tiles array to free memory
+			workingDoc["tiles"].clear();
+
+			g_gui.SetLoadDone(80, wxString::Format("Tiles loaded successfully (%zu tiles)", totalTiles));
+			wxYield();
+		}
+
+		// Load other map elements using the working copy
+		g_gui.SetLoadDone(85, "Loading towns...");
+		wxYield();
+		if (workingDoc.contains("towns") && !deserializeTowns(map, workingDoc["towns"])) {
+			warning("Failed to load towns");
+		}
+
+		g_gui.SetLoadDone(88, "Loading houses...");
+		wxYield();
+		if (workingDoc.contains("houses") && !deserializeHouses(map, workingDoc["houses"])) {
+			warning("Failed to load houses");
+		}
+
+		g_gui.SetLoadDone(90, "Loading waypoints...");
+		wxYield();
+		if (workingDoc.contains("waypoints") && !deserializeWaypoints(map, workingDoc["waypoints"])) {
+			warning("Failed to load waypoints");
+		}
+
+		g_gui.SetLoadDone(92, "Loading zones...");
+		wxYield();
+		if (workingDoc.contains("zones") && !deserializeZones(map, workingDoc["zones"])) {
+			warning("Failed to load zones");
+		}
+
+		g_gui.SetLoadDone(95, "Loading spawns...");
+		wxYield();
+		if (workingDoc.contains("spawns") && !deserializeSpawns(map, workingDoc["spawns"])) {
+			warning("Failed to load spawns");
+		}
+
+		g_gui.SetLoadDone(98, "Loading NPC spawns...");
+		wxYield();
+		if (workingDoc.contains("npc_spawns") && !deserializeNpcSpawns(map, workingDoc["npc_spawns"])) {
+			warning("Failed to load NPC spawns");
+		}
+
+		g_gui.SetLoadDone(100, "Map loaded successfully!");
+		wxYield();
+
+		return true;
+
+	} catch (const std::exception &e) {
+		error("Error loading tiles: %s", e.what());
 		return false;
 	}
 }

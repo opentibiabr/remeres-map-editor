@@ -33,6 +33,12 @@ public:
 	bool saveMapQuiet(Map &map, const FileName &identifier); // Save without progress dialogs
 
 private:
+	// Streaming JSON loading for large files
+	bool loadMapStreaming(Map &map, std::ifstream &file);
+	bool loadTilesStreaming(Map &map, const json &document);
+	bool loadTilesFromStream(Map &map, std::ifstream &file, std::streampos start, std::streampos end, size_t estimatedTiles);
+	bool loadRemainingDataFromEnd(Map &map, std::ifstream &file);
+
 	// JSON serialization functions
 	json serializeMapData(const Map &map);
 	json serializeTile(const Tile &tile);
