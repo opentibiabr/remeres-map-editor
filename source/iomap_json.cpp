@@ -42,6 +42,8 @@
 #include <string>
 #include <thread>
 #include <chrono>
+#include <filesystem>
+#include <regex>
 
 bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 	std::string fullPath = identifier.GetFullPath().mb_str(wxConvUTF8).data();
@@ -51,18 +53,44 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 		g_gui.SetLoadDone(0, "Opening JSON file...");
 		wxYield(); // Allow GUI to update immediately
 
-		// Read the JSON file using streaming approach for large files
-		std::ifstream file(fullPath);
-		if (!file.is_open()) {
-			error("Could not open JSON file for reading: %s", fullPath.c_str());
-			return false;
+		// Check if this is a floor-based JSON file and find all related floor files
+		std::string basePath = fullPath;
+
+		// Remove extension
+		size_t lastDot = basePath.find_last_of('.');
+		if (lastDot != std::string::npos) {
+			basePath = basePath.substr(0, lastDot);
 		}
 
-		g_gui.SetLoadDone(5, "Reading file header...");
-		wxYield(); // Allow GUI to update
+		// Remove existing floor suffix if present (e.g., "map_floor_0" -> "map")
+		size_t floorPos = basePath.find("_floor_");
+		if (floorPos != std::string::npos) {
+			basePath = basePath.substr(0, floorPos);
+		}
 
-		// Use streaming JSON parser to avoid loading entire file into memory
-		return loadMapStreaming(map, file);
+		g_gui.SetLoadDone(5, "Searching for related floor files...");
+		wxYield();
+
+		// Find all related floor files
+		std::vector<std::string> floorFiles = findRelatedFloorFiles(basePath);
+
+		if (floorFiles.empty()) {
+			// No floor files found, try to load the original file as a single JSON
+			g_gui.SetLoadDone(10, "Loading single JSON file...");
+			wxYield();
+
+			std::ifstream file(fullPath);
+			if (!file.is_open()) {
+				error("Could not open JSON file for reading: %s", fullPath.c_str());
+				return false;
+			}
+			return loadMapStreaming(map, file);
+		} else {
+			// Load multiple floor files
+			g_gui.SetLoadDone(10, wxString::Format("Found %zu floor files, loading...", floorFiles.size()));
+			wxYield();
+			return loadMultipleFloorFiles(map, floorFiles);
+		}
 
 	} catch (const std::exception &e) {
 		error("Unexpected error while loading JSON map: %s", e.what());
@@ -1841,6 +1869,160 @@ bool IOMapJSON::saveFloorToFile(Map &map, int floor, const std::string &filePath
 
 	} catch (const std::exception &e) {
 		error("Error exporting floor %d to JSON: %s", floor, e.what());
+		return false;
+	}
+}
+
+std::vector<std::string> IOMapJSON::findRelatedFloorFiles(const std::string &basePath) {
+	std::vector<std::string> floorFiles;
+
+	try {
+		// Get the directory containing the base file
+		std::filesystem::path basePathObj(basePath);
+		std::filesystem::path directory = basePathObj.parent_path();
+		std::string baseFilename = basePathObj.filename().string();
+
+		// Check if directory exists
+		if (!std::filesystem::exists(directory) || !std::filesystem::is_directory(directory)) {
+			return floorFiles; // Return empty vector
+		}
+
+		// Create regex pattern to match floor files: baseFilename_floor_*.json
+		std::string pattern = baseFilename + "_floor_\\d+\\.json";
+		std::regex floorRegex(pattern);
+
+		// Search for matching files in the directory
+		for (const auto& entry : std::filesystem::directory_iterator(directory)) {
+			if (entry.is_regular_file()) {
+				std::string filename = entry.path().filename().string();
+				if (std::regex_match(filename, floorRegex)) {
+					floorFiles.push_back(entry.path().string());
+				}
+			}
+		}
+
+		// Sort files to ensure consistent loading order
+		std::sort(floorFiles.begin(), floorFiles.end());
+
+	} catch (const std::exception& e) {
+		warning("Error searching for floor files: %s", e.what());
+	}
+
+	return floorFiles;
+}
+
+bool IOMapJSON::loadMultipleFloorFiles(Map &map, const std::vector<std::string> &floorFiles) {
+	try {
+		// Clear existing map data first
+		g_gui.SetLoadDone(0, "Clearing existing map data...");
+		wxYield();
+		map.clearVisible(0xFFFFFFFF);
+
+		bool mapMetadataLoaded = false;
+		size_t filesProcessed = 0;
+
+		for (const std::string& floorFile : floorFiles) {
+			g_gui.SetLoadDone(
+				static_cast<int>(filesProcessed * 90 / floorFiles.size()),
+				wxString::Format("Loading floor file %zu/%zu: %s",
+					filesProcessed + 1, floorFiles.size(),
+					std::filesystem::path(floorFile).filename().string().c_str())
+			);
+			wxYield();
+
+			// Open and parse the floor file
+			std::ifstream file(floorFile);
+			if (!file.is_open()) {
+				warning("Could not open floor file: %s", floorFile.c_str());
+				filesProcessed++;
+				continue;
+			}
+
+			json document;
+			try {
+				file >> document;
+			} catch (const json::exception &e) {
+				warning("Failed to parse floor file %s: %s", floorFile.c_str(), e.what());
+				filesProcessed++;
+				continue;
+			}
+
+			// Validate JSON structure
+			if (!document.contains("version") || !document.contains("map")) {
+				warning("Invalid floor file %s: missing required fields", floorFile.c_str());
+				filesProcessed++;
+				continue;
+			}
+
+			// Load map metadata from the first valid file only
+			if (!mapMetadataLoaded) {
+				if (!deserializeMapData(map, document["map"])) {
+					warning("Failed to load map metadata from %s", floorFile.c_str());
+				} else {
+					mapMetadataLoaded = true;
+				}
+			}
+
+			// Load tiles from this floor
+			if (document.contains("tiles") && document["tiles"].is_array()) {
+				auto &tilesArray = document["tiles"];
+				for (const auto &tileJson : tilesArray) {
+					// Extract position from tile JSON
+					if (!tileJson.contains("x") || !tileJson.contains("y") || !tileJson.contains("z")) {
+						continue; // Skip invalid tiles
+					}
+
+					Position pos(
+						tileJson["x"].get<int>(),
+						tileJson["y"].get<int>(),
+						tileJson["z"].get<int>()
+					);
+
+					if (!deserializeTile(map, tileJson, pos)) {
+						warning("Failed to deserialize tile at position (%d,%d,%d) from %s",
+							pos.x, pos.y, pos.z, floorFile.c_str());
+					}
+				}
+			}
+
+			// Load other data from each floor file (towns, houses, waypoints, etc.)
+			// Note: This means each floor file can contribute these elements
+			if (document.contains("towns")) {
+				deserializeTowns(map, document["towns"]);
+			}
+			if (document.contains("houses")) {
+				deserializeHouses(map, document["houses"]);
+			}
+			if (document.contains("waypoints")) {
+				deserializeWaypoints(map, document["waypoints"]);
+			}
+			if (document.contains("zones")) {
+				deserializeZones(map, document["zones"]);
+			}
+			if (document.contains("spawns")) {
+				deserializeSpawns(map, document["spawns"]);
+			}
+			if (document.contains("npc_spawns")) {
+				deserializeNpcSpawns(map, document["npc_spawns"]);
+			}
+
+			filesProcessed++;
+		}
+
+		// Final cleanup and validation
+		g_gui.SetLoadDone(95, "Finalizing map data...");
+		wxYield();
+
+		// Link house tiles (this needs to be done after all tiles are loaded)
+		linkHouseTiles(map);
+
+		g_gui.SetLoadDone(100, wxString::Format("Successfully loaded %zu floor files!", floorFiles.size()));
+		wxYield();
+
+		return true;
+
+	} catch (const std::exception &e) {
+		error("Error loading multiple floor files: %s", e.what());
 		return false;
 	}
 }

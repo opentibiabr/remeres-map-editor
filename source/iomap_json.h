@@ -69,6 +69,8 @@ private:
 	void linkHouseTiles(Map &map);
 	std::set<int> getUsedFloors(Map &map);
 	bool saveFloorToFile(Map &map, int floor, const std::string &filePath, bool showProgress = true);
+	std::vector<std::string> findRelatedFloorFiles(const std::string &basePath);
+	bool loadMultipleFloorFiles(Map &map, const std::vector<std::string> &floorFiles);
 };
 
 #endif // RME_JSON_MAP_IO_H_
