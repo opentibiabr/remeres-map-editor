@@ -34,6 +34,7 @@
 #include "npc.h"
 #include "gui.h"
 
+#include <wx/app.h> // For wxYield()
 #include <fstream>
 #include <algorithm>
 #include <vector>
@@ -42,12 +43,19 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 	std::string fullPath = identifier.GetFullPath().mb_str(wxConvUTF8).data();
 
 	try {
+		// Set initial loading progress immediately
+		g_gui.SetLoadDone(0, "Opening JSON file...");
+		wxYield(); // Allow GUI to update immediately
+
 		// Read the JSON file
 		std::ifstream file(fullPath);
 		if (!file.is_open()) {
 			error("Could not open JSON file for reading: %s", fullPath.c_str());
 			return false;
 		}
+
+		g_gui.SetLoadDone(5, "Parsing JSON data...");
+		wxYield(); // Allow GUI to update
 
 		// Parse JSON
 		json document;
@@ -58,6 +66,9 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 			return false;
 		}
 		file.close();
+
+		g_gui.SetLoadDone(15, "Validating file format...");
+		wxYield(); // Allow GUI to update
 
 		// Validate JSON structure
 		if (!document.contains("version") || !document.contains("map")) {
@@ -75,22 +86,28 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 		}
 
 		// Clear existing map data
+		g_gui.SetLoadDone(20, "Clearing existing map data...");
+		wxYield(); // Allow GUI to update
 		map.clearVisible(0xFFFFFFFF); // Clear all visible tiles
 
 		// Load map metadata
+		g_gui.SetLoadDone(25, "Loading map metadata...");
+		wxYield(); // Allow GUI to update
 		if (!deserializeMapData(map, document["map"])) {
 			error("Failed to load map metadata");
 			return false;
 		}
 
 		// Set loading progress
-		g_gui.SetLoadDone(0, "Loading tiles...");
+		g_gui.SetLoadDone(30, "Loading tiles...");
+		wxYield(); // Allow GUI to update
 
 		// Load tiles with progress tracking
 		if (document.contains("tiles")) {
 			const json &tiles = document["tiles"];
 			size_t totalTiles = tiles.size();
 			size_t tilesLoaded = 0;
+			const size_t YIELD_FREQUENCY = 500; // Yield to GUI every 500 tiles
 
 			for (const auto &tileData : tiles) {
 				if (!tileData.contains("x") || !tileData.contains("y") || !tileData.contains("z")) {
@@ -103,16 +120,19 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 				}
 
 				tilesLoaded++;
-				// Update progress every 1000 tiles
-				if (tilesLoaded % 1000 == 0 || tilesLoaded == totalTiles) {
-					int progress = static_cast<int>((tilesLoaded * 60) / totalTiles); // 60% for tiles
-					g_gui.SetLoadDone(progress, "Loading tiles...");
+
+				// Update progress and yield to GUI more frequently
+				if (tilesLoaded % YIELD_FREQUENCY == 0 || tilesLoaded == totalTiles) {
+					int progress = 30 + static_cast<int>((tilesLoaded * 35) / totalTiles); // 30-65% for tiles
+					g_gui.SetLoadDone(progress, wxString::Format("Loading tiles... (%zu/%zu)", tilesLoaded, totalTiles));
+					wxYield(); // Allow GUI to process events and prevent freezing
 				}
 			}
 		}
 
 		// Load towns
-		g_gui.SetLoadDone(65, "Loading towns...");
+		g_gui.SetLoadDone(67, "Loading towns...");
+		wxYield(); // Allow GUI to update
 		if (document.contains("towns")) {
 			if (!deserializeTowns(map, document["towns"])) {
 				warning("Failed to load some towns");
@@ -121,6 +141,7 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 
 		// Load houses
 		g_gui.SetLoadDone(70, "Loading houses...");
+		wxYield(); // Allow GUI to update
 		if (document.contains("houses")) {
 			if (!deserializeHouses(map, document["houses"])) {
 				warning("Failed to load some houses");
@@ -128,11 +149,13 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 		}
 
 		// Link house tiles to house objects
-		g_gui.SetLoadDone(72, "Linking house tiles...");
+		g_gui.SetLoadDone(75, "Linking house tiles...");
+		wxYield(); // Allow GUI to update
 		linkHouseTiles(map);
 
 		// Load waypoints
-		g_gui.SetLoadDone(75, "Loading waypoints...");
+		g_gui.SetLoadDone(80, "Loading waypoints...");
+		wxYield(); // Allow GUI to update
 		if (document.contains("waypoints")) {
 			if (!deserializeWaypoints(map, document["waypoints"])) {
 				warning("Failed to load some waypoints");
@@ -140,7 +163,8 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 		}
 
 		// Load zones
-		g_gui.SetLoadDone(80, "Loading zones...");
+		g_gui.SetLoadDone(85, "Loading zones...");
+		wxYield(); // Allow GUI to update
 		if (document.contains("zones")) {
 			if (!deserializeZones(map, document["zones"])) {
 				warning("Failed to load some zones");
@@ -149,6 +173,7 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 
 		// Load monster spawns
 		g_gui.SetLoadDone(90, "Loading monster spawns...");
+		wxYield(); // Allow GUI to update
 		if (document.contains("spawns")) {
 			if (!deserializeSpawns(map, document["spawns"])) {
 				warning("Failed to load some monster spawns");
@@ -157,6 +182,7 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 
 		// Load NPC spawns
 		g_gui.SetLoadDone(95, "Loading NPC spawns...");
+		wxYield(); // Allow GUI to update
 		if (document.contains("npc_spawns")) {
 			if (!deserializeNpcSpawns(map, document["npc_spawns"])) {
 				warning("Failed to load some NPC spawns");
@@ -164,6 +190,7 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 		}
 
 		g_gui.SetLoadDone(100, "Map loaded successfully");
+		wxYield(); // Final GUI update
 
 		return true;
 
@@ -284,6 +311,107 @@ bool IOMapJSON::saveMap(Map &map, const FileName &identifier) {
 
 	} catch (const std::exception &e) {
 		error("Error exporting to JSON: %s", e.what());
+		return false;
+	}
+}
+
+bool IOMapJSON::saveMapQuiet(Map &map, const FileName &identifier) {
+	std::string fullPath = identifier.GetFullPath().mb_str(wxConvUTF8).data();
+
+	try {
+		// OPTIMIZATION: Stream output instead of building entire JSON in memory
+		std::ofstream file(fullPath);
+		if (!file.is_open()) {
+			error("Could not open file for writing: %s", fullPath.c_str());
+			return false;
+		}
+
+		// Write JSON header manually for streaming
+		file << "{\n";
+		file << "  \"version\": {\n";
+		file << "    \"format\": \"RME_JSON\",\n";
+		file << "    \"version\": \"1.0\",\n";
+		file << "    \"editor\": \"Remere's Map Editor " << __RME_VERSION__ << "\"\n";
+		file << "  },\n";
+
+		// Add map metadata
+		json mapData = serializeMapData(map);
+		file << "  \"map\": " << mapData.dump(2) << ",\n";
+
+		// No progress dialogs for quiet save
+		file << "  \"tiles\": [\n";
+
+		uint32_t processed_tiles = 0;
+		bool first_tile = true;
+		const size_t CHUNK_SIZE = 2000; // Larger chunks for quiet saves
+		size_t chunk_count = 0;
+
+		// OPTIMIZATION: Process tiles directly without loading all into memory
+		for (auto it = map.begin(); it != map.end(); ++it) {
+			Tile *tile = it->get();
+			if (tile && (!tile->empty() || tile->isHouseTile() || tile->hasZone() || tile->getMapFlags() != 0)) {
+				try {
+					if (!first_tile) {
+						file << ",\n";
+					}
+
+					// Use optimized serialization
+					json tileData = serializeTileOptimized(*tile);
+					file << "    " << tileData.dump();
+
+					first_tile = false;
+					processed_tiles++;
+					chunk_count++;
+
+					// OPTIMIZATION: Periodic memory management without GUI updates
+					if (chunk_count >= CHUNK_SIZE) {
+						chunk_count = 0;
+						file.flush(); // Force write to disk to free memory
+					}
+
+				} catch (const std::exception& e) {
+					// OPTIMIZATION: Error handling - skip problematic tiles instead of crashing
+					warning("Failed to serialize tile at (%d, %d, %d): %s",
+						   tile->getX(), tile->getY(), tile->getZ(), e.what());
+					continue;
+				}
+			}
+		}
+
+		file << "\n  ],\n";
+
+		// Add towns (no progress updates)
+		json towns = serializeTowns(map);
+		file << "  \"towns\": " << towns.dump(2) << ",\n";
+
+		// Add houses
+		json houses = serializeHouses(map);
+		file << "  \"houses\": " << houses.dump(2) << ",\n";
+
+		// Add waypoints
+		json waypoints = serializeWaypoints(map);
+		file << "  \"waypoints\": " << waypoints.dump(2) << ",\n";
+
+		// Add zones
+		json zones = serializeZones(map);
+		file << "  \"zones\": " << zones.dump(2) << ",\n";
+
+		// Add spawns
+		json spawns = serializeSpawns(map);
+		file << "  \"spawns\": " << spawns.dump(2) << ",\n";
+
+		// Add NPC spawns
+		json npcSpawns = serializeNpcSpawns(map);
+		file << "  \"npc_spawns\": " << npcSpawns.dump(2) << "\n";
+
+		file << "}\n";
+		file.close();
+
+		// No completion message for quiet saves
+		return true;
+
+	} catch (const std::exception &e) {
+		error("Error saving to JSON: %s", e.what());
 		return false;
 	}
 }

@@ -27,6 +27,7 @@ Map::Map() :
 	BaseMap(),
 	width(512),
 	height(512),
+	isJsonFormat(false),
 	houses(*this),
 	has_changed(false),
 	unnamed(false),
@@ -63,6 +64,8 @@ bool Map::open(const std::string file) {
 			error = jsonloader.getError();
 			return false;
 		}
+		// Mark as JSON format
+		isJsonFormat = true;
 	} else {
 		// Load OTBM map (default)
 		IOMapOTBM maploader(getVersion());
@@ -73,6 +76,8 @@ bool Map::open(const std::string file) {
 			error = maploader.getError();
 			return false;
 		}
+		// Mark as OTBM format
+		isJsonFormat = false;
 	}
 
 	has_changed = false;

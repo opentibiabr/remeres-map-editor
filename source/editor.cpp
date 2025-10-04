@@ -250,6 +250,24 @@ void Editor::clearChanges() {
 }
 
 void Editor::saveMap(FileName filename, bool showdialog) {
+	// Check if this is a JSON format map and delegate to JSON save
+	if (map.getIsJsonFormat()) {
+		// Handle empty filename case (like OTBM save does)
+		FileName jsonFilename = filename;
+		if (jsonFilename.GetFullPath().IsEmpty()) {
+			// Use the current map filename if no filename provided
+			jsonFilename = FileName(wxstr(map.filename));
+		}
+
+		// Ensure the filename has .json extension
+		if (jsonFilename.GetExt().Lower() != "json") {
+			jsonFilename.SetExt("json");
+		}
+		// For regular saves (File->Save), use quiet mode (false for export-style dialogs)
+		saveMapAsJsonQuiet(jsonFilename, showdialog);
+		return;
+	}
+
 	std::string savefile = filename.GetFullPath().mb_str(wxConvUTF8).data();
 	bool save_as = false;
 	bool save_otgz = false;
@@ -475,6 +493,7 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 }
 
 void Editor::saveMapAsJson(FileName filename, bool showdialog) {
+	// This function is for export operations - shows progress and success dialogs
 	if (showdialog) {
 		g_gui.CreateLoadBar("Exporting map to JSON...");
 	}
@@ -488,8 +507,17 @@ void Editor::saveMapAsJson(FileName filename, bool showdialog) {
 		}
 
 		if (!success) {
-			wxMessageBox("Failed to export map to JSON format. Please check the console for error details.", "Export Error", wxOK | wxICON_ERROR);
+			wxString errorMsg = "Failed to export map to JSON format.";
+			if (!jsonExporter.getError().IsEmpty()) {
+				errorMsg += "\n\nError details:\n" + jsonExporter.getError();
+			}
+			wxMessageBox(errorMsg, "Export Error", wxOK | wxICON_ERROR);
 		} else {
+			// Update map properties for successful save
+			map.filename = filename.GetFullPath().mb_str(wxConvUTF8).data();
+			map.setIsJsonFormat(true);
+			map.has_changed = false;
+
 			if (showdialog) {
 				wxMessageBox("Map successfully exported to JSON format!", "Export Complete", wxOK | wxICON_INFORMATION);
 			}
@@ -508,6 +536,32 @@ void Editor::saveMapAsJson(FileName filename, bool showdialog) {
 			g_gui.DestroyLoadBar();
 		}
 		wxMessageBox(wxString::Format("Exception while exporting to JSON: %s", e.what()), "Export Error", wxOK | wxICON_ERROR);
+	}
+}
+
+void Editor::saveMapAsJsonQuiet(FileName filename, bool showdialog) {
+	// This function is for regular saves - behaves like OTBM saves (quiet operation)
+	try {
+		IOMapJSON jsonExporter;
+		bool success = jsonExporter.saveMapQuiet(map, filename);
+
+		if (!success) {
+			wxString errorMsg = "Failed to save map.";
+			if (!jsonExporter.getError().IsEmpty()) {
+				errorMsg += "\n\nError details:\n" + jsonExporter.getError();
+			}
+			g_gui.PopupDialog("Error", errorMsg, wxOK);
+		} else {
+			// Update map properties for successful save
+			map.filename = filename.GetFullPath().mb_str(wxConvUTF8).data();
+			map.setIsJsonFormat(true);
+			map.has_changed = false;
+			// No success dialog for regular saves
+		}
+
+		// Don't show warnings for regular saves (like OTBM behavior)
+	} catch (const std::exception &e) {
+		g_gui.PopupDialog("Error", wxString::Format("Exception while saving: %s", e.what()), wxOK);
 	}
 }
 

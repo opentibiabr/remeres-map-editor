@@ -112,6 +112,14 @@ public:
 		name = _name;
 	}
 
+	// File format tracking
+	bool getIsJsonFormat() const noexcept {
+		return isJsonFormat;
+	}
+	void setIsJsonFormat(bool _isJsonFormat) noexcept {
+		isJsonFormat = _isJsonFormat;
+	}
+
 	// Get map data
 	int getWidth() const {
 		return width;
@@ -164,6 +172,7 @@ protected:
 	std::string name; // The map name, NOT the same as filename
 	std::string filename; // the maps filename
 	std::string description; // The description of the map
+	bool isJsonFormat; // Whether the map was loaded from JSON format
 
 	MapVersion mapVersion;
 

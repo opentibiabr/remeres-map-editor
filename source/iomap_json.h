@@ -30,6 +30,7 @@ public:
 
 	virtual bool loadMap(Map &map, const FileName &identifier) override;
 	virtual bool saveMap(Map &map, const FileName &identifier) override;
+	bool saveMapQuiet(Map &map, const FileName &identifier); // Save without progress dialogs
 
 private:
 	// JSON serialization functions
