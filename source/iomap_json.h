@@ -20,6 +20,8 @@
 
 #include "iomap.h"
 #include <nlohmann/json.hpp>
+#include <set>
+#include <string>
 
 using json = nlohmann::ordered_json;
 
@@ -36,8 +38,6 @@ private:
 	// Streaming JSON loading for large files
 	bool loadMapStreaming(Map &map, std::ifstream &file);
 	bool loadTilesStreaming(Map &map, const json &document);
-	bool loadTilesFromStream(Map &map, std::ifstream &file, std::streampos start, std::streampos end, size_t estimatedTiles);
-	bool loadRemainingDataFromEnd(Map &map, std::ifstream &file);
 
 	// JSON serialization functions
 	json serializeMapData(const Map &map);
@@ -67,6 +67,8 @@ private:
 
 	// Helper functions
 	void linkHouseTiles(Map &map);
+	std::set<int> getUsedFloors(Map &map);
+	bool saveFloorToFile(Map &map, int floor, const std::string &filePath, bool showProgress = true);
 };
 
 #endif // RME_JSON_MAP_IO_H_

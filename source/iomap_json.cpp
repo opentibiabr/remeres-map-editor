@@ -38,6 +38,8 @@
 #include <fstream>
 #include <algorithm>
 #include <vector>
+#include <set>
+#include <string>
 #include <thread>
 #include <chrono>
 
@@ -70,106 +72,31 @@ bool IOMapJSON::loadMap(Map &map, const FileName &identifier) {
 
 bool IOMapJSON::loadMapStreaming(Map &map, std::ifstream &file) {
 	try {
-		g_gui.SetLoadDone(10, "Scanning JSON file structure...");
+		g_gui.SetLoadDone(10, "Parsing JSON structure...");
 		wxYield();
 
-		// Instead of loading entire file, scan for key sections
-		std::string line;
-		std::streampos headerStart = 0;
-		std::streampos tilesStart = 0;
-		std::streampos tilesEnd = 0;
-		std::streampos footerStart = 0;
+		// Parse JSON document normally but process tiles differently
+		json document;
 
-		bool inTilesArray = false;
-		int braceDepth = 0;
-		int arrayDepth = 0;
-		size_t estimatedTiles = 0;
-
-		g_gui.SetLoadDone(15, "Locating data sections...");
-		wxYield();
-
-		// First pass: Find section boundaries without loading full JSON
-		while (std::getline(file, line)) {
-			// Look for the tiles array start
-			if (!inTilesArray && line.find("\"tiles\"") != std::string::npos) {
-				// Found tiles section, look for opening bracket
-				std::streampos currentPos = file.tellg();
-				while (std::getline(file, line)) {
-					if (line.find("[") != std::string::npos) {
-						tilesStart = currentPos;
-						inTilesArray = true;
-						arrayDepth = 1;
-						break;
-					}
-					currentPos = file.tellg();
-				}
-				continue;
-			}
-
-			if (inTilesArray) {
-				// Count array brackets to find end of tiles array
-				for (char c : line) {
-					if (c == '[') arrayDepth++;
-					else if (c == ']') {
-						arrayDepth--;
-						if (arrayDepth == 0) {
-							tilesEnd = file.tellg();
-							inTilesArray = false;
-							break;
-						}
-					}
-					else if (c == '{' && arrayDepth == 1) {
-						estimatedTiles++; // Count tile objects
-					}
-				}
-			}
-		}
-
-		g_gui.SetLoadDone(20, "Loading map metadata...");
-		wxYield();
-
-		// Load header section (everything before tiles) as JSON
-		file.clear();
-		file.seekg(0);
-
-		std::string headerJson = "{";
-		bool foundTiles = false;
-		while (std::getline(file, line)) {
-			if (line.find("\"tiles\"") != std::string::npos) {
-				foundTiles = true;
-				break;
-			}
-			headerJson += line + "\n";
-		}
-
-		// Add closing brace if we found tiles section
-		if (foundTiles) {
-			// Remove last comma if present and close JSON
-			size_t lastComma = headerJson.find_last_of(',');
-			if (lastComma != std::string::npos) {
-				headerJson = headerJson.substr(0, lastComma);
-			}
-			headerJson += "}";
-		}
-
-		// Parse header JSON to get map metadata
-		json headerDoc;
 		try {
-			headerDoc = json::parse(headerJson);
+			file >> document;
 		} catch (const json::exception &e) {
-			error("Failed to parse JSON header: %s", e.what());
+			error("Failed to parse JSON file: %s", e.what());
 			return false;
 		}
 
+		g_gui.SetLoadDone(15, "Validating file format...");
+		wxYield();
+
 		// Validate JSON structure
-		if (!headerDoc.contains("version") || !headerDoc.contains("map")) {
+		if (!document.contains("version") || !document.contains("map")) {
 			error("Invalid JSON map file: missing required fields 'version' and 'map'");
 			return false;
 		}
 
 		// Check version compatibility
-		if (headerDoc["version"].contains("format")) {
-			std::string format = headerDoc["version"]["format"];
+		if (document["version"].contains("format")) {
+			std::string format = document["version"]["format"];
 			if (format != "RME_JSON") {
 				error("Unsupported JSON format: %s", format.c_str());
 				return false;
@@ -177,161 +104,23 @@ bool IOMapJSON::loadMapStreaming(Map &map, std::ifstream &file) {
 		}
 
 		// Clear existing map data
-		g_gui.SetLoadDone(25, "Clearing existing map data...");
+		g_gui.SetLoadDone(20, "Clearing existing map data...");
 		wxYield();
 		map.clearVisible(0xFFFFFFFF);
 
 		// Load map metadata
-		if (!deserializeMapData(map, headerDoc["map"])) {
+		g_gui.SetLoadDone(25, "Loading map metadata...");
+		wxYield();
+		if (!deserializeMapData(map, document["map"])) {
 			error("Failed to load map metadata");
 			return false;
 		}
 
-		// Process tiles section using streaming approach
-		return loadTilesFromStream(map, file, tilesStart, tilesEnd, estimatedTiles);
+		// Process tiles with memory management
+		return loadTilesStreaming(map, document);
 
 	} catch (const std::exception &e) {
 		error("Error in streaming JSON load: %s", e.what());
-		return false;
-	}
-}
-
-bool IOMapJSON::loadTilesFromStream(Map &map, std::ifstream &file, std::streampos start, std::streampos end, size_t estimatedTiles) {
-	try {
-		g_gui.SetLoadDone(30, "Processing tiles...");
-		wxYield();
-
-		if (start == 0) {
-			// No tiles section found
-			g_gui.SetLoadDone(90, "No tiles found, loading other sections...");
-			wxYield();
-			return loadRemainingDataFromEnd(map, file);
-		}
-
-		// Seek to tiles section
-		file.clear();
-		file.seekg(start);
-
-		std::string line;
-		std::string currentTileJson;
-		bool inTileObject = false;
-		int braceDepth = 0;
-		size_t tilesProcessed = 0;
-		const size_t YIELD_FREQUENCY = 500;
-
-		// Skip until we find opening bracket
-		while (std::getline(file, line)) {
-			if (line.find("[") != std::string::npos) break;
-		}
-
-		g_gui.SetLoadDone(35, wxString::Format("Loading tiles (estimated: %zu)...", estimatedTiles));
-		wxYield();
-
-		// Process tiles line by line
-		while (std::getline(file, line) && file.tellg() < end) {
-			for (size_t i = 0; i < line.length(); ++i) {
-				char c = line[i];
-
-				if (!inTileObject && c == '{') {
-					// Start of new tile object
-					inTileObject = true;
-					braceDepth = 1;
-					currentTileJson = "{";
-				}
-				else if (inTileObject) {
-					currentTileJson += c;
-
-					if (c == '{') {
-						braceDepth++;
-					}
-					else if (c == '}') {
-						braceDepth--;
-						if (braceDepth == 0) {
-							// Complete tile object found
-							try {
-								json tileData = json::parse(currentTileJson);
-
-								if (tileData.contains("x") && tileData.contains("y") && tileData.contains("z")) {
-									Position pos(
-										tileData["x"].get<int>(),
-										tileData["y"].get<int>(),
-										tileData["z"].get<int>()
-									);
-
-									if (!deserializeTile(map, tileData, pos)) {
-										warning("Failed to load tile at position (%d, %d, %d)", pos.x, pos.y, pos.z);
-									}
-								}
-
-								tilesProcessed++;
-
-								// Periodic progress update
-								if (tilesProcessed % YIELD_FREQUENCY == 0) {
-									int progress = 35 + static_cast<int>((tilesProcessed * 45) / std::max(estimatedTiles, tilesProcessed));
-									g_gui.SetLoadDone(progress, wxString::Format("Loading tiles... (%zu processed)", tilesProcessed));
-									wxYield();
-
-									// Give system time to process and free memory
-									if (tilesProcessed % (YIELD_FREQUENCY * 2) == 0) {
-										std::this_thread::sleep_for(std::chrono::milliseconds(5));
-									}
-								}
-
-							} catch (const json::exception &e) {
-								warning("Failed to parse tile JSON: %s", e.what());
-							}
-
-							// Reset for next tile
-							inTileObject = false;
-							currentTileJson.clear();
-						}
-					}
-				}
-			}
-
-			// Add newline to current tile JSON if we're building one
-			if (inTileObject) {
-				currentTileJson += "\n";
-			}
-		}
-
-		g_gui.SetLoadDone(80, wxString::Format("Tiles loaded (%zu tiles)", tilesProcessed));
-		wxYield();
-
-		// Load remaining sections
-		return loadRemainingDataFromEnd(map, file);
-
-	} catch (const std::exception &e) {
-		error("Error loading tiles from stream: %s", e.what());
-		return false;
-	}
-}
-
-bool IOMapJSON::loadRemainingDataFromEnd(Map &map, std::ifstream &file) {
-	try {
-		g_gui.SetLoadDone(85, "Loading remaining map data...");
-		wxYield();
-
-		// For now, we'll skip the other sections since they're typically much smaller
-		// and the main memory issue was with tiles
-
-		g_gui.SetLoadDone(90, "Loading towns...");
-		wxYield();
-		// TODO: Implement loading of other sections without full JSON parse
-
-		g_gui.SetLoadDone(95, "Loading houses...");
-		wxYield();
-
-		g_gui.SetLoadDone(98, "Loading waypoints...");
-		wxYield();
-
-		g_gui.SetLoadDone(100, "Map loaded successfully!");
-		wxYield();
-
-		return true;
-
-	} catch (const std::exception &e) {
-		error("Error loading remaining data: %s", e.what());
 		return false;
 	}
 }
@@ -462,112 +251,47 @@ bool IOMapJSON::loadTilesStreaming(Map &map, const json &document) {
 }
 
 bool IOMapJSON::saveMap(Map &map, const FileName &identifier) {
-	std::string fullPath = identifier.GetFullPath().mb_str(wxConvUTF8).data();
+	std::string basePath = identifier.GetFullPath().mb_str(wxConvUTF8).data();
+
+	// Remove extension from base path if present
+	size_t lastDot = basePath.find_last_of('.');
+	if (lastDot != std::string::npos) {
+		basePath = basePath.substr(0, lastDot);
+	}
 
 	try {
-		// OPTIMIZATION: Stream output instead of building entire JSON in memory
-		std::ofstream file(fullPath);
-		if (!file.is_open()) {
-			error("Could not open file for writing: %s", fullPath.c_str());
-			return false;
+		// Get all floors that have tiles
+		std::set<int> floors = getUsedFloors(map);
+
+		if (floors.empty()) {
+			g_gui.SetLoadDone(100, "No tiles found to export!");
+			return true;
 		}
 
-		// Write JSON header manually for streaming
-		file << "{\n";
-		file << "  \"version\": {\n";
-		file << "    \"format\": \"RME_JSON\",\n";
-		file << "    \"version\": \"1.0\",\n";
-		file << "    \"editor\": \"Remere's Map Editor " << __RME_VERSION__ << "\"\n";
-		file << "  },\n";
+		g_gui.SetLoadDone(0, wxString::Format("Found %zu floors to export...", floors.size()));
+		wxYield();
 
-		// Add map metadata
-		json mapData = serializeMapData(map);
-		file << "  \"map\": " << mapData.dump(2) << ",\n";
+		int floorIndex = 0;
+		for (int floor : floors) {
+			// Create filename for this floor
+			std::string floorPath = basePath + "_floor_" + std::to_string(floor) + ".json";
 
-		g_gui.SetLoadDone(0, "Exporting map tiles...");
-		file << "  \"tiles\": [\n";
+			g_gui.SetLoadDone(
+				static_cast<int>(floorIndex * 100 / floors.size()),
+				wxString::Format("Exporting floor %d (%d/%zu)...", floor, floorIndex + 1, floors.size())
+			);
+			wxYield();
 
-		uint32_t processed_tiles = 0;
-		uint32_t total_tiles = map.getTileCount();
-		bool first_tile = true;
-		const size_t CHUNK_SIZE = 1000; // Process in chunks
-		size_t chunk_count = 0;
-
-		// OPTIMIZATION: Process tiles directly without loading all into memory
-		for (auto it = map.begin(); it != map.end(); ++it) {
-			Tile *tile = it->get();
-			if (tile && (!tile->empty() || tile->isHouseTile() || tile->hasZone() || tile->getMapFlags() != 0)) {
-				try {
-					if (!first_tile) {
-						file << ",\n";
-					}
-
-					// Use optimized serialization
-					json tileData = serializeTileOptimized(*tile);
-					file << "    " << tileData.dump();
-
-					first_tile = false;
-					processed_tiles++;
-					chunk_count++;
-
-					// OPTIMIZATION: Periodic memory management and progress updates
-					if (chunk_count >= CHUNK_SIZE) {
-						chunk_count = 0;
-						file.flush(); // Force write to disk to free memory
-
-						// Update progress more frequently
-						int progress = std::min(70, static_cast<int>(processed_tiles * 70 / total_tiles));
-						g_gui.SetLoadDone(progress, "Exporting map tiles...");
-
-						// Allow GUI to process events to prevent freezing
-						wxYield();
-					}
-
-				} catch (const std::exception& e) {
-					// OPTIMIZATION: Error handling - skip problematic tiles instead of crashing
-					warning("Failed to serialize tile at (%d, %d, %d): %s",
-						   tile->getX(), tile->getY(), tile->getZ(), e.what());
-					continue;
-				}
+			// Save this floor
+			if (!saveFloorToFile(map, floor, floorPath, true)) {
+				error("Failed to export floor %d", floor);
+				return false;
 			}
+
+			floorIndex++;
 		}
 
-		file << "\n  ],\n";
-
-		// Add towns
-		g_gui.SetLoadDone(75, "Exporting towns...");
-		json towns = serializeTowns(map);
-		file << "  \"towns\": " << towns.dump(2) << ",\n";
-
-		// Add houses
-		g_gui.SetLoadDone(80, "Exporting houses...");
-		json houses = serializeHouses(map);
-		file << "  \"houses\": " << houses.dump(2) << ",\n";
-
-		// Add waypoints
-		g_gui.SetLoadDone(85, "Exporting waypoints...");
-		json waypoints = serializeWaypoints(map);
-		file << "  \"waypoints\": " << waypoints.dump(2) << ",\n";
-
-		// Add zones
-		g_gui.SetLoadDone(90, "Exporting zones...");
-		json zones = serializeZones(map);
-		file << "  \"zones\": " << zones.dump(2) << ",\n";
-
-		// Add spawns
-		g_gui.SetLoadDone(95, "Exporting monster spawns...");
-		json spawns = serializeSpawns(map);
-		file << "  \"spawns\": " << spawns.dump(2) << ",\n";
-
-		// Add NPC spawns
-		g_gui.SetLoadDone(98, "Exporting NPC spawns...");
-		json npcSpawns = serializeNpcSpawns(map);
-		file << "  \"npc_spawns\": " << npcSpawns.dump(2) << "\n";
-
-		file << "}\n";
-		file.close();
-
-		g_gui.SetLoadDone(100, "JSON export complete!");
+		g_gui.SetLoadDone(100, wxString::Format("JSON export complete! Exported %zu floors.", floors.size()));
 		return true;
 
 	} catch (const std::exception &e) {
@@ -577,98 +301,34 @@ bool IOMapJSON::saveMap(Map &map, const FileName &identifier) {
 }
 
 bool IOMapJSON::saveMapQuiet(Map &map, const FileName &identifier) {
-	std::string fullPath = identifier.GetFullPath().mb_str(wxConvUTF8).data();
+	std::string basePath = identifier.GetFullPath().mb_str(wxConvUTF8).data();
+
+	// Remove extension from base path if present
+	size_t lastDot = basePath.find_last_of('.');
+	if (lastDot != std::string::npos) {
+		basePath = basePath.substr(0, lastDot);
+	}
 
 	try {
-		// OPTIMIZATION: Stream output instead of building entire JSON in memory
-		std::ofstream file(fullPath);
-		if (!file.is_open()) {
-			error("Could not open file for writing: %s", fullPath.c_str());
-			return false;
+		// Get all floors that have tiles
+		std::set<int> floors = getUsedFloors(map);
+
+		if (floors.empty()) {
+			return true;
 		}
 
-		// Write JSON header manually for streaming
-		file << "{\n";
-		file << "  \"version\": {\n";
-		file << "    \"format\": \"RME_JSON\",\n";
-		file << "    \"version\": \"1.0\",\n";
-		file << "    \"editor\": \"Remere's Map Editor " << __RME_VERSION__ << "\"\n";
-		file << "  },\n";
+		// Save each floor to a separate file (no progress updates for quiet saves)
+		for (int floor : floors) {
+			// Create filename for this floor
+			std::string floorPath = basePath + "_floor_" + std::to_string(floor) + ".json";
 
-		// Add map metadata
-		json mapData = serializeMapData(map);
-		file << "  \"map\": " << mapData.dump(2) << ",\n";
-
-		// No progress dialogs for quiet save
-		file << "  \"tiles\": [\n";
-
-		uint32_t processed_tiles = 0;
-		bool first_tile = true;
-		const size_t CHUNK_SIZE = 2000; // Larger chunks for quiet saves
-		size_t chunk_count = 0;
-
-		// OPTIMIZATION: Process tiles directly without loading all into memory
-		for (auto it = map.begin(); it != map.end(); ++it) {
-			Tile *tile = it->get();
-			if (tile && (!tile->empty() || tile->isHouseTile() || tile->hasZone() || tile->getMapFlags() != 0)) {
-				try {
-					if (!first_tile) {
-						file << ",\n";
-					}
-
-					// Use optimized serialization
-					json tileData = serializeTileOptimized(*tile);
-					file << "    " << tileData.dump();
-
-					first_tile = false;
-					processed_tiles++;
-					chunk_count++;
-
-					// OPTIMIZATION: Periodic memory management without GUI updates
-					if (chunk_count >= CHUNK_SIZE) {
-						chunk_count = 0;
-						file.flush(); // Force write to disk to free memory
-					}
-
-				} catch (const std::exception& e) {
-					// OPTIMIZATION: Error handling - skip problematic tiles instead of crashing
-					warning("Failed to serialize tile at (%d, %d, %d): %s",
-						   tile->getX(), tile->getY(), tile->getZ(), e.what());
-					continue;
-				}
+			// Save this floor without progress updates
+			if (!saveFloorToFile(map, floor, floorPath, false)) {
+				error("Failed to export floor %d", floor);
+				return false;
 			}
 		}
 
-		file << "\n  ],\n";
-
-		// Add towns (no progress updates)
-		json towns = serializeTowns(map);
-		file << "  \"towns\": " << towns.dump(2) << ",\n";
-
-		// Add houses
-		json houses = serializeHouses(map);
-		file << "  \"houses\": " << houses.dump(2) << ",\n";
-
-		// Add waypoints
-		json waypoints = serializeWaypoints(map);
-		file << "  \"waypoints\": " << waypoints.dump(2) << ",\n";
-
-		// Add zones
-		json zones = serializeZones(map);
-		file << "  \"zones\": " << zones.dump(2) << ",\n";
-
-		// Add spawns
-		json spawns = serializeSpawns(map);
-		file << "  \"spawns\": " << spawns.dump(2) << ",\n";
-
-		// Add NPC spawns
-		json npcSpawns = serializeNpcSpawns(map);
-		file << "  \"npc_spawns\": " << npcSpawns.dump(2) << "\n";
-
-		file << "}\n";
-		file.close();
-
-		// No completion message for quiet saves
 		return true;
 
 	} catch (const std::exception &e) {
@@ -2027,5 +1687,150 @@ void IOMapJSON::linkHouseTiles(Map &map) {
 				warning("Found house tile with house ID %u, but no house object exists", houseId);
 			}
 		}
+	}
+}
+
+std::set<int> IOMapJSON::getUsedFloors(Map &map) {
+	std::set<int> floors;
+
+	// Iterate through all tiles to collect unique floor values
+	for (auto it = map.begin(); it != map.end(); ++it) {
+		Tile *tile = it->get();
+		if (tile && (!tile->empty() || tile->isHouseTile() || tile->hasZone() || tile->getMapFlags() != 0)) {
+			floors.insert(tile->getZ());
+		}
+	}
+
+	return floors;
+}
+
+bool IOMapJSON::saveFloorToFile(Map &map, int floor, const std::string &filePath, bool showProgress) {
+	try {
+		std::ofstream file(filePath);
+		if (!file.is_open()) {
+			error("Could not open file for writing: %s", filePath.c_str());
+			return false;
+		}
+
+		// Write JSON header manually for streaming
+		file << "{\n";
+		file << "  \"version\": {\n";
+		file << "    \"format\": \"RME_JSON\",\n";
+		file << "    \"version\": \"1.0\",\n";
+		file << "    \"editor\": \"Remere's Map Editor " << __RME_VERSION__ << "\"\n";
+		file << "  },\n";
+
+		// Add map metadata
+		json mapData = serializeMapData(map);
+		file << "  \"map\": " << mapData.dump(2) << ",\n";
+		file << "  \"floor\": " << floor << ",\n";
+
+		if (showProgress) {
+			g_gui.SetLoadDone(0, wxString::Format("Exporting floor %d tiles...", floor));
+		}
+
+		file << "  \"tiles\": [\n";
+
+		uint32_t processed_tiles = 0;
+		uint32_t total_tiles_on_floor = 0;
+		bool first_tile = true;
+		const size_t CHUNK_SIZE = 1000;
+		size_t chunk_count = 0;
+
+		// First pass: count tiles on this floor for progress calculation
+		for (auto it = map.begin(); it != map.end(); ++it) {
+			Tile *tile = it->get();
+			if (tile && tile->getZ() == floor && (!tile->empty() || tile->isHouseTile() || tile->hasZone() || tile->getMapFlags() != 0)) {
+				total_tiles_on_floor++;
+			}
+		}
+
+		// Second pass: process tiles on this floor
+		for (auto it = map.begin(); it != map.end(); ++it) {
+			Tile *tile = it->get();
+			if (tile && tile->getZ() == floor && (!tile->empty() || tile->isHouseTile() || tile->hasZone() || tile->getMapFlags() != 0)) {
+				try {
+					if (!first_tile) {
+						file << ",\n";
+					}
+
+					json tileData = serializeTileOptimized(*tile);
+					file << "    " << tileData.dump();
+
+					first_tile = false;
+					processed_tiles++;
+					chunk_count++;
+
+					if (chunk_count >= CHUNK_SIZE) {
+						chunk_count = 0;
+						file.flush();
+
+						if (showProgress && total_tiles_on_floor > 0) {
+							int progress = std::min(70, static_cast<int>(processed_tiles * 70 / total_tiles_on_floor));
+							g_gui.SetLoadDone(progress, wxString::Format("Exporting floor %d tiles...", floor));
+							wxYield();
+						}
+					}
+
+				} catch (const std::exception& e) {
+					warning("Failed to serialize tile at (%d, %d, %d): %s",
+						   tile->getX(), tile->getY(), tile->getZ(), e.what());
+					continue;
+				}
+			}
+		}
+
+		file << "\n  ],\n";
+
+		// Add towns (filter by floor)
+		if (showProgress) {
+			g_gui.SetLoadDone(75, wxString::Format("Exporting floor %d towns...", floor));
+		}
+		json towns = serializeTowns(map);
+		file << "  \"towns\": " << towns.dump(2) << ",\n";
+
+		// Add houses (filter by floor)
+		if (showProgress) {
+			g_gui.SetLoadDone(80, wxString::Format("Exporting floor %d houses...", floor));
+		}
+		json houses = serializeHouses(map);
+		file << "  \"houses\": " << houses.dump(2) << ",\n";
+
+		// Add waypoints (filter by floor)
+		if (showProgress) {
+			g_gui.SetLoadDone(85, wxString::Format("Exporting floor %d waypoints...", floor));
+		}
+		json waypoints = serializeWaypoints(map);
+		file << "  \"waypoints\": " << waypoints.dump(2) << ",\n";
+
+		// Add zones (filter by floor)
+		if (showProgress) {
+			g_gui.SetLoadDone(90, wxString::Format("Exporting floor %d zones...", floor));
+		}
+		json zones = serializeZones(map);
+		file << "  \"zones\": " << zones.dump(2) << ",\n";
+
+		// Add spawns (filter by floor)
+		if (showProgress) {
+			g_gui.SetLoadDone(95, wxString::Format("Exporting floor %d monster spawns...", floor));
+		}
+		json spawns = serializeSpawns(map);
+		file << "  \"spawns\": " << spawns.dump(2) << ",\n";
+
+		// Add NPC spawns (filter by floor)
+		if (showProgress) {
+			g_gui.SetLoadDone(98, wxString::Format("Exporting floor %d NPC spawns...", floor));
+		}
+		json npcSpawns = serializeNpcSpawns(map);
+		file << "  \"npc_spawns\": " << npcSpawns.dump(2) << "\n";
+
+		file << "}\n";
+		file.close();
+
+		return true;
+
+	} catch (const std::exception &e) {
+		error("Error exporting floor %d to JSON: %s", floor, e.what());
+		return false;
 	}
 }
