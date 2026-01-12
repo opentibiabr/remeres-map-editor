@@ -484,10 +484,14 @@ bool GUI::NewMap() {
 
 void GUI::OpenMap() {
 	wxString wildcard = MAP_LOAD_FILE_WILDCARD;
-	wxFileDialog dialog(root, "Open map file", wxEmptyString, wxEmptyString, wildcard, wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+	wxFileDialog dialog(root, "Open map file", wxEmptyString, wxEmptyString, wildcard, wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE);
 
 	if (dialog.ShowModal() == wxID_OK) {
-		LoadMap(dialog.GetPath());
+		wxArrayString paths;
+		dialog.GetPaths(paths);
+		for (uint32_t i = 0; i < paths.GetCount(); ++i) {
+			LoadMap(FileName(paths[i]));
+		}
 	}
 }
 
