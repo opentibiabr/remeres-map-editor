@@ -19,6 +19,7 @@
 
 #include "gui.h"
 #include "map.h"
+#include "iomap_json.h"
 
 #include "client_assets.h"
 
@@ -26,6 +27,7 @@ Map::Map() :
 	BaseMap(),
 	width(512),
 	height(512),
+	isJsonFormat(false),
 	houses(*this),
 	has_changed(false),
 	unnamed(false),
@@ -47,17 +49,35 @@ bool Map::open(const std::string file) {
 
 	tilecount = 0;
 
-	IOMapOTBM maploader(getVersion());
+	// Determine file format based on extension
+	FileName fileName(wxstr(file));
+	wxString extension = fileName.GetExt().Lower();
 
-	bool success = maploader.loadMap(*this, wxstr(file));
+	bool success = false;
 
-	mapVersion = maploader.version;
-
-	warnings = maploader.getWarnings();
-
-	if (!success) {
-		error = maploader.getError();
-		return false;
+	if (extension == "json") {
+		// Load JSON map
+		IOMapJSON jsonloader;
+		success = jsonloader.loadMap(*this, fileName);
+		warnings = jsonloader.getWarnings();
+		if (!success) {
+			error = jsonloader.getError();
+			return false;
+		}
+		// Mark as JSON format
+		isJsonFormat = true;
+	} else {
+		// Load OTBM map (default)
+		IOMapOTBM maploader(getVersion());
+		success = maploader.loadMap(*this, fileName);
+		mapVersion = maploader.version;
+		warnings = maploader.getWarnings();
+		if (!success) {
+			error = maploader.getError();
+			return false;
+		}
+		// Mark as OTBM format
+		isJsonFormat = false;
 	}
 
 	has_changed = false;

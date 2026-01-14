@@ -372,10 +372,12 @@ public:
 	void SaveCurrentMap(bool showdialog = true) {
 		SaveCurrentMap(wxString(""), showdialog);
 	}
+	void SaveCurrentMapAsJson(FileName filename, bool showdialog); // JSON export
 	bool NewMap();
 	void OpenMap();
 	void SaveMap();
 	void SaveMapAs();
+	void SaveMapAsJson();
 	bool LoadMap(const FileName &fileName);
 	const MapVersion &getLoadedMapVersion() const {
 		return m_loadedMapVersion;

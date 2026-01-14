@@ -28,9 +28,12 @@
 
 class BaseMap;
 class CopyBuffer;
+class DoodadBrush;
+class Houses;
 class LiveClient;
 class LiveServer;
 class LiveSocket;
+class Towns;
 
 class Editor {
 public:
@@ -76,6 +79,9 @@ public: // Functions
 
 	// Map handling
 	void saveMap(FileName filename, bool showdialog); // "" means default filename
+	void saveMapAsJson(FileName filename, bool showdialog); // JSON export
+	void saveMapAsJsonQuiet(FileName filename, bool showdialog); // JSON save (quiet mode)
+	void saveMapAsJsonWithProgress(FileName filename, bool showdialog); // JSON save with progress indication
 
 	Map &getMap() noexcept {
 		return map;
@@ -151,6 +157,26 @@ public: // Functions
 
 	void ensureBackupDirectoryExists(const std::string &backup_path);
 	void deleteOldBackups(const std::string &backup_path);
+
+private:
+	// Helper methods for reducing nesting complexity
+	void validateOTBMFile(const FileName &fn) const;
+	void handleVersionMismatch(const MapVersion &ver) const;
+
+	// Helper methods for importMap function
+	void handleTownImport(Town* imported_town, Town* current_town, ImportType house_import_type,
+	                      std::map<uint32_t, uint32_t>& town_id_map, TownMap::iterator& tit,
+	                      Towns& towns, const Position& offset);
+	void handleHouseImport(House* imported_house, House* current_house, ImportType house_import_type,
+	                       std::map<uint32_t, uint32_t>& house_id_map, HouseMap::iterator& hit,
+	                       Houses& houses, const Position& offset, const Position& oldexit);
+
+	// Helper methods for doodad placement
+	bool shouldPlaceDoodadItem(DoodadBrush* doodad_brush, Tile* tile, bool alt) const;
+	void placeDoodadOnTile(DoodadBrush* doodad_brush, Tile* buffer_tile, Tile* existing_tile,
+	                       TileLocation* location, Action* action, PositionList& tilestoborder, bool alt);
+	void placeDoodadOnNewTile(DoodadBrush* doodad_brush, Tile* buffer_tile,
+	                          TileLocation* location, Action* action, PositionList& tilestoborder);
 
 protected:
 	void drawInternal(const Position offset, bool alt, bool dodraw);

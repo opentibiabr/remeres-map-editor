@@ -469,6 +469,8 @@
     <ClCompile Include="..\..\source\iomap.cpp" />
     <ClInclude Include="..\..\source\iomap_otbm.h" />
     <ClCompile Include="..\..\source\iomap_otbm.cpp" />
+    <ClInclude Include="..\..\source\iomap_json.h" />
+    <ClCompile Include="..\..\source\iomap_json.cpp" />
     <ClInclude Include="..\..\source\main.h" />
     <ClInclude Include="..\..\source\waypoint_brush.h" />
     <ClCompile Include="..\..\source\waypoint_brush.cpp" />

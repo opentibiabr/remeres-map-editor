@@ -437,6 +437,20 @@ void GUI::SaveCurrentMap(FileName filename, bool showdialog) {
 	root->Refresh();
 }
 
+void GUI::SaveCurrentMapAsJson(FileName filename, bool showdialog) {
+	MapTab* mapTab = GetCurrentMapTab();
+	if (mapTab) {
+		Editor* editor = mapTab->GetEditor();
+		if (editor) {
+			editor->saveMapAsJson(filename, showdialog);
+		}
+	}
+
+	UpdateTitle();
+	root->UpdateMenubar();
+	root->Refresh();
+}
+
 bool GUI::IsEditorOpen() const {
 	return tabbook != nullptr && GetCurrentMapTab();
 }
@@ -540,6 +554,19 @@ void GUI::SaveMapAs() {
 		UpdateTitle();
 		root->menu_bar->AddRecentFile(dialog.GetPath());
 		root->UpdateMenubar();
+	}
+}
+
+void GUI::SaveMapAsJson() {
+	if (!IsEditorOpen()) {
+		return;
+	}
+
+	wxString wildcard = "JSON files (*.json)|*.json";
+	wxFileDialog dialog(root, "Export as JSON...", "", "", wildcard, wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
+
+	if (dialog.ShowModal() == wxID_OK) {
+		SaveCurrentMapAsJson(dialog.GetPath(), true);
 	}
 }
 

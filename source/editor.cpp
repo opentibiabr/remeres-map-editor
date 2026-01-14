@@ -18,6 +18,7 @@
 #include "main.h"
 
 #include "editor.h"
+#include "iomap_json.h"
 #include "materials.h"
 #include "map.h"
 #include "client_assets.h"
@@ -91,22 +92,16 @@ Editor::Editor(CopyBuffer &copybuffer, const FileName &fn) :
 	selection(*this),
 	copybuffer(copybuffer),
 	replace_brush(nullptr) {
-	MapVersion ver;
-	if (!IOMapOTBM::getVersionInfo(fn, ver)) {
-		spdlog::error("Could not open file {}. This is not a valid OTBM file or it does not exist.", nstr(fn.GetFullPath()));
-		throw std::runtime_error("Could not open file \"" + nstr(fn.GetFullPath()) + "\".\nThis is not a valid OTBM file or it does not exist.");
-	}
 
-	if (ver.otbm != g_gui.getLoadedMapVersion().otbm) {
-		auto result = g_gui.PopupDialog("Map error", "The loaded map appears to be a OTBM format that is not supported by the editor. Do you still want to attempt to load the map? Caution: this will close your current map!", wxYES | wxNO);
-		if (result == wxID_YES) {
-			if (!g_gui.CloseAllEditors()) {
-				spdlog::error("All maps of different versions were not closed.");
-				throw std::runtime_error("All maps of different versions were not closed.");
-			}
-		} else if (result == wxID_NO) {
-			throw std::runtime_error("Maps of different versions can't be loaded at same time. Save and close your current map and try again.");
-		}
+	// Determine file format based on extension
+	wxString extension = fn.GetExt().Lower();
+
+	if (extension == "json") {
+		// For JSON files, we don't need version checking as they are format-agnostic
+		// The Map::open method will handle the JSON loading
+	} else {
+		// For OTBM files, check version compatibility
+		validateOTBMFile(fn);
 	}
 
 	bool success = true;
@@ -128,7 +123,7 @@ Editor::Editor(CopyBuffer &copybuffer, const FileName &fn) :
 	}
 
 	if (success) {
-		ScopedLoadingBar LoadingBar("Loading OTBM map...");
+		ScopedLoadingBar LoadingBar("Loading map...");
 		success = map.open(nstr(fn.GetFullPath()));
 	}
 }
@@ -239,6 +234,24 @@ void Editor::clearChanges() {
 }
 
 void Editor::saveMap(FileName filename, bool showdialog) {
+	// Check if this is a JSON format map and delegate to JSON save
+	if (map.getIsJsonFormat()) {
+		// Handle empty filename case (like OTBM save does)
+		FileName jsonFilename = filename;
+		if (jsonFilename.GetFullPath().IsEmpty()) {
+			// Use the current map filename if no filename provided
+			jsonFilename = FileName(wxstr(map.filename));
+		}
+
+		// Ensure the filename has .json extension
+		if (jsonFilename.GetExt().Lower() != "json") {
+			jsonFilename.SetExt("json");
+		}
+		// For regular saves (File->Save), show progress but not verbose dialogs
+		saveMapAsJsonWithProgress(jsonFilename, showdialog);
+		return;
+	}
+
 	std::string savefile = filename.GetFullPath().mb_str(wxConvUTF8).data();
 	bool save_as = false;
 	bool save_otgz = false;
@@ -463,6 +476,116 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 	clearChanges();
 }
 
+void Editor::saveMapAsJson(FileName filename, bool showdialog) {
+	// This function is for export operations - shows progress and success dialogs
+	if (showdialog) {
+		g_gui.CreateLoadBar("Exporting map to JSON...");
+	}
+
+	try {
+		IOMapJSON jsonExporter;
+		bool success = jsonExporter.saveMap(map, filename);
+
+		if (showdialog) {
+			g_gui.DestroyLoadBar();
+		}
+
+		if (!success) {
+			wxString errorMsg = "Failed to export map to JSON format.";
+			if (!jsonExporter.getError().IsEmpty()) {
+				errorMsg += "\n\nError details:\n" + jsonExporter.getError();
+			}
+			wxMessageBox(errorMsg, "Export Error", wxOK | wxICON_ERROR);
+		} else {
+			// Update map properties for successful save
+			map.filename = filename.GetFullPath().mb_str(wxConvUTF8).data();
+			map.setIsJsonFormat(true);
+			map.has_changed = false;
+
+			if (showdialog) {
+				wxMessageBox("Map successfully exported to JSON format!", "Export Complete", wxOK | wxICON_INFORMATION);
+			}
+		}
+
+		// Show any warnings
+		if (!jsonExporter.getWarnings().empty()) {
+			wxString warning_text = "Export completed with warnings:\n";
+			for (const auto &warning : jsonExporter.getWarnings()) {
+				warning_text += "- " + warning + "\n";
+			}
+			wxMessageBox(warning_text, "Export Warnings", wxOK | wxICON_WARNING);
+		}
+	} catch (const std::exception &e) {
+		if (showdialog) {
+			g_gui.DestroyLoadBar();
+		}
+		wxMessageBox(wxString::Format("Exception while exporting to JSON: %s", e.what()), "Export Error", wxOK | wxICON_ERROR);
+	}
+}
+
+void Editor::saveMapAsJsonQuiet(FileName filename, bool showdialog) {
+	// This function is for regular saves - behaves like OTBM saves (quiet operation)
+	try {
+		IOMapJSON jsonExporter;
+		bool success = jsonExporter.saveMapQuiet(map, filename);
+
+		if (!success) {
+			wxString errorMsg = "Failed to save map.";
+			if (!jsonExporter.getError().IsEmpty()) {
+				errorMsg += "\n\nError details:\n" + jsonExporter.getError();
+			}
+			g_gui.PopupDialog("Error", errorMsg, wxOK);
+		} else {
+			// Update map properties for successful save
+			map.filename = filename.GetFullPath().mb_str(wxConvUTF8).data();
+			map.setIsJsonFormat(true);
+			map.has_changed = false;
+			// No success dialog for regular saves
+		}
+
+		// Don't show warnings for regular saves (like OTBM behavior)
+	} catch (const std::exception &e) {
+		g_gui.PopupDialog("Error", wxString::Format("Exception while saving: %s", e.what()), wxOK);
+	}
+}
+
+void Editor::saveMapAsJsonWithProgress(FileName filename, bool showdialog) {
+	// This function shows progress during save but doesn't show success dialogs
+	if (showdialog) {
+		g_gui.CreateLoadBar("Saving map...");
+	}
+
+	try {
+		IOMapJSON jsonExporter;
+		bool success = jsonExporter.saveMap(map, filename);
+
+		if (showdialog) {
+			g_gui.DestroyLoadBar();
+		}
+
+		if (!success) {
+			wxString errorMsg = "Failed to save map.";
+			if (!jsonExporter.getError().IsEmpty()) {
+				errorMsg += "\n\nError details:\n" + jsonExporter.getError();
+			}
+			g_gui.PopupDialog("Error", errorMsg, wxOK);
+		} else {
+			// Update map properties for successful save
+			map.filename = filename.GetFullPath().mb_str(wxConvUTF8).data();
+			map.setIsJsonFormat(true);
+			map.has_changed = false;
+			// No success dialog for regular saves - just like OTBM behavior
+		}
+
+		// Don't show warnings for regular saves (like OTBM behavior)
+	} catch (const std::exception &e) {
+		if (showdialog) {
+			g_gui.DestroyLoadBar();
+		}
+		g_gui.PopupDialog("Error", wxString::Format("Exception while saving: %s", e.what()), wxOK);
+	}
+}
+
 bool Editor::importMiniMap(FileName filename, int import, int import_x_offset, int import_y_offset, int import_z_offset) {
 	return false;
 }
@@ -503,51 +626,7 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 				imported_town->setTemplePosition(newexit);
 			}
 
-			switch (house_import_type) {
-				case IMPORT_MERGE: {
-					town_id_map[imported_town->getID()] = imported_town->getID();
-					if (current_town) {
-						++tit;
-						continue;
-					}
-					break;
-				}
-				case IMPORT_SMART_MERGE: {
-					if (current_town) {
-						// Compare and insert/merge depending on parameters
-						if (current_town->getName() == imported_town->getName() && current_town->getID() == imported_town->getID()) {
-							// Just add to map
-							town_id_map[imported_town->getID()] = current_town->getID();
-							++tit;
-							continue;
-						} else {
-							// Conflict! Find a newd id and replace old
-							uint32_t new_id = map.towns.getEmptyID();
-							imported_town->setID(new_id);
-							town_id_map[imported_town->getID()] = new_id;
-						}
-					} else {
-						town_id_map[imported_town->getID()] = imported_town->getID();
-					}
-					break;
-				}
-				case IMPORT_INSERT: {
-					// Find a newd id and replace old
-					uint32_t new_id = map.towns.getEmptyID();
-					imported_town->setID(new_id);
-					town_id_map[imported_town->getID()] = new_id;
-					break;
-				}
-				case IMPORT_DONT: {
-					++tit;
-					continue; // Should never happend..?
-					break; // Continue or break ?
-				}
-			}
-
-			map.towns.addTown(imported_town);
-
-			tit = imported_map.towns.erase(tit);
+			handleTownImport(imported_town, current_town, house_import_type, town_id_map, tit, imported_map.towns, offset);
 		}
 
 		for (HouseMap::iterator hit = imported_map.houses.begin(); hit != imported_map.houses.end();) {
@@ -558,67 +637,7 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 			const Position &oldexit = imported_house->getExit();
 			imported_house->setExit(nullptr, Position()); // Reset it
 
-			switch (house_import_type) {
-				case IMPORT_MERGE: {
-					house_id_map[imported_house->id] = imported_house->id;
-					if (current_house) {
-						++hit;
-						Position newexit = oldexit + offset;
-						if (newexit.isValid()) {
-							current_house->setExit(&map, newexit);
-						}
-						continue;
-					}
-					break;
-				}
-				case IMPORT_SMART_MERGE: {
-					if (current_house) {
-						// Compare and insert/merge depending on parameters
-						if (current_house->name == imported_house->name && current_house->townid == imported_house->townid) {
-							// Just add to map
-							house_id_map[imported_house->id] = current_house->id;
-							++hit;
-							Position newexit = oldexit + offset;
-							if (newexit.isValid()) {
-								imported_house->setExit(&map, newexit);
-							}
-							continue;
-						} else {
-							// Conflict! Find a newd id and replace old
-							uint32_t new_id = map.houses.getEmptyID();
-							house_id_map[imported_house->id] = new_id;
-							imported_house->id = new_id;
-						}
-					} else {
-						house_id_map[imported_house->id] = imported_house->id;
-					}
-					break;
-				}
-				case IMPORT_INSERT: {
-					// Find a newd id and replace old
-					uint32_t new_id = map.houses.getEmptyID();
-					house_id_map[imported_house->id] = new_id;
-					imported_house->id = new_id;
-					break;
-				}
-				case IMPORT_DONT: {
-					++hit;
-					Position newexit = oldexit + offset;
-					if (newexit.isValid()) {
-						imported_house->setExit(&map, newexit);
-					}
-					continue; // Should never happend..?
-					break;
-				}
-			}
-
-			Position newexit = oldexit + offset;
-			if (newexit.isValid()) {
-				imported_house->setExit(&map, newexit);
-			}
-			map.houses.addHouse(imported_house);
-
-			hit = imported_map.houses.erase(hit);
+			handleHouseImport(imported_house, current_house, house_import_type, house_id_map, hit, imported_map.houses, offset, oldexit);
 		}
 	}
 
@@ -1426,47 +1445,13 @@ void Editor::drawInternal(Position offset, bool alt, bool dodraw) {
 
 			if (doodad_brush->placeOnBlocking() || alt) {
 				if (tile) {
-					bool place = true;
-					if (!doodad_brush->placeOnDuplicate() && !alt) {
-						for (ItemVector::const_iterator iter = tile->items.begin(); iter != tile->items.end(); ++iter) {
-							if (doodad_brush->ownsItem(*iter)) {
-								place = false;
-								break;
-							}
-						}
-					}
-					if (place) {
-						Tile* new_tile = tile->deepCopy(map);
-						removeDuplicateWalls(buffer_tile, new_tile);
-						doSurroundingBorders(doodad_brush, tilestoborder, buffer_tile, new_tile);
-						new_tile->merge(buffer_tile);
-						action->addChange(newd Change(new_tile));
-					}
+					placeDoodadOnTile(doodad_brush, buffer_tile, tile, location, action, tilestoborder, alt);
 				} else {
-					Tile* new_tile = map.allocator(location);
-					removeDuplicateWalls(buffer_tile, new_tile);
-					doSurroundingBorders(doodad_brush, tilestoborder, buffer_tile, new_tile);
-					new_tile->merge(buffer_tile);
-					action->addChange(newd Change(new_tile));
+					placeDoodadOnNewTile(doodad_brush, buffer_tile, location, action, tilestoborder);
 				}
 			} else {
 				if (tile && !tile->isBlocking()) {
-					bool place = true;
-					if (!doodad_brush->placeOnDuplicate() && !alt) {
-						for (ItemVector::const_iterator iter = tile->items.begin(); iter != tile->items.end(); ++iter) {
-							if (doodad_brush->ownsItem(*iter)) {
-								place = false;
-								break;
-							}
-						}
-					}
-					if (place) {
-						Tile* new_tile = tile->deepCopy(map);
-						removeDuplicateWalls(buffer_tile, new_tile);
-						doSurroundingBorders(doodad_brush, tilestoborder, buffer_tile, new_tile);
-						new_tile->merge(buffer_tile);
-						action->addChange(newd Change(new_tile));
-					}
+					placeDoodadOnTile(doodad_brush, buffer_tile, tile, location, action, tilestoborder, alt);
 				}
 			}
 		}
@@ -2066,4 +2051,174 @@ void Editor::deleteOldBackups(const std::string &backup_path) {
 	} catch (const fs::filesystem_error &e) {
 		std::cerr << "Error: " << e.what() << std::endl;
 	}
+}
+
+void Editor::validateOTBMFile(const FileName &fn) const {
+	MapVersion ver;
+	if (!IOMapOTBM::getVersionInfo(fn, ver)) {
+		spdlog::error("Could not open file {}. This is not a valid OTBM file or it does not exist.", nstr(fn.GetFullPath()));
+		throw std::runtime_error("Could not open file \"" + nstr(fn.GetFullPath()) + "\".\nThis is not a valid OTBM file or it does not exist.");
+	}
+
+	if (ver.otbm != g_gui.getLoadedMapVersion().otbm) {
+		handleVersionMismatch(ver);
+	}
+}
+
+void Editor::handleVersionMismatch(const MapVersion &ver) const {
+	auto result = g_gui.PopupDialog("Map error", "The loaded map appears to be a OTBM format that is not supported by the editor. Do you still want to attempt to load the map? Caution: this will close your current map!", wxYES | wxNO);
+
+	if (result == wxID_YES) {
+		if (!g_gui.CloseAllEditors()) {
+			spdlog::error("All maps of different versions were not closed.");
+			throw std::runtime_error("All maps of different versions were not closed.");
+		}
+	} else if (result == wxID_NO) {
+		throw std::runtime_error("Maps of different versions can't be loaded at same time. Save and close your current map and try again.");
+	}
+}
+
+void Editor::handleTownImport(Town* imported_town, Town* current_town, ImportType house_import_type,
+                              std::map<uint32_t, uint32_t>& town_id_map, TownMap::iterator& tit,
+                              Towns& towns, const Position& offset) {
+	switch (house_import_type) {
+		case IMPORT_MERGE: {
+			town_id_map[imported_town->getID()] = imported_town->getID();
+			if (current_town) {
+				++tit;
+				return; // Skip adding this town
+			}
+			break;
+		}
+		case IMPORT_SMART_MERGE: {
+			if (current_town) {
+				// Compare and insert/merge depending on parameters
+				if (current_town->getName() == imported_town->getName() && current_town->getID() == imported_town->getID()) {
+					// Just add to map
+					town_id_map[imported_town->getID()] = current_town->getID();
+					++tit;
+					return; // Skip adding this town
+				} else {
+					// Conflict! Find a new id and replace old
+					uint32_t new_id = map.towns.getEmptyID();
+					imported_town->setID(new_id);
+					town_id_map[imported_town->getID()] = new_id;
+				}
+			} else {
+				town_id_map[imported_town->getID()] = imported_town->getID();
+			}
+			break;
+		}
+		case IMPORT_INSERT: {
+			// Find a new id and replace old
+			uint32_t new_id = map.towns.getEmptyID();
+			imported_town->setID(new_id);
+			town_id_map[imported_town->getID()] = new_id;
+			break;
+		}
+		case IMPORT_DONT: {
+			++tit;
+			return; // Should never happen..?
+		}
+	}
+
+	map.towns.addTown(imported_town);
+	tit = towns.erase(tit);
+}
+
+void Editor::handleHouseImport(House* imported_house, House* current_house, ImportType house_import_type,
+                               std::map<uint32_t, uint32_t>& house_id_map, HouseMap::iterator& hit,
+                               Houses& houses, const Position& offset, const Position& oldexit) {
+	switch (house_import_type) {
+		case IMPORT_MERGE: {
+			house_id_map[imported_house->id] = imported_house->id;
+			if (current_house) {
+				++hit;
+				Position newexit = oldexit + offset;
+				if (newexit.isValid()) {
+					current_house->setExit(&map, newexit);
+				}
+				return; // Skip adding this house
+			}
+			break;
+		}
+		case IMPORT_SMART_MERGE: {
+			if (current_house) {
+				// Compare and insert/merge depending on parameters
+				if (current_house->name == imported_house->name && current_house->townid == imported_house->townid) {
+					// Just add to map
+					house_id_map[imported_house->id] = current_house->id;
+					++hit;
+					Position newexit = oldexit + offset;
+					if (newexit.isValid()) {
+						imported_house->setExit(&map, newexit);
+					}
+					return; // Skip adding this house
+				} else {
+					// Conflict! Find a new id and replace old
+					uint32_t new_id = map.houses.getEmptyID();
+					house_id_map[imported_house->id] = new_id;
+					imported_house->id = new_id;
+				}
+			} else {
+				house_id_map[imported_house->id] = imported_house->id;
+			}
+			break;
+		}
+		case IMPORT_INSERT: {
+			// Find a new id and replace old
+			uint32_t new_id = map.houses.getEmptyID();
+			house_id_map[imported_house->id] = new_id;
+			imported_house->id = new_id;
+			break;
+		}
+		case IMPORT_DONT: {
+			++hit;
+			Position newexit = oldexit + offset;
+			if (newexit.isValid()) {
+				imported_house->setExit(&map, newexit);
+			}
+			return; // Should never happen..?
+		}
+	}
+
+	Position newexit = oldexit + offset;
+	if (newexit.isValid()) {
+		imported_house->setExit(&map, newexit);
+	}
+	map.houses.addHouse(imported_house);
+	hit = houses.erase(hit);
+}
+
+bool Editor::shouldPlaceDoodadItem(DoodadBrush* doodad_brush, Tile* tile, bool alt) const {
+	if (!doodad_brush->placeOnDuplicate() && !alt) {
+		for (ItemVector::const_iterator iter = tile->items.begin(); iter != tile->items.end(); ++iter) {
+			if (doodad_brush->ownsItem(*iter)) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+void Editor::placeDoodadOnTile(DoodadBrush* doodad_brush, Tile* buffer_tile, Tile* existing_tile,
+                               TileLocation* location, Action* action, PositionList& tilestoborder, bool alt) {
+	if (!shouldPlaceDoodadItem(doodad_brush, existing_tile, alt)) {
+		return;
+	}
+
+	Tile* new_tile = existing_tile->deepCopy(map);
+	removeDuplicateWalls(buffer_tile, new_tile);
+	doSurroundingBorders(doodad_brush, tilestoborder, buffer_tile, new_tile);
+	new_tile->merge(buffer_tile);
+	action->addChange(newd Change(new_tile));
+}
+
+void Editor::placeDoodadOnNewTile(DoodadBrush* doodad_brush, Tile* buffer_tile,
+                                  TileLocation* location, Action* action, PositionList& tilestoborder) {
+	Tile* new_tile = map.allocator(location);
+	removeDuplicateWalls(buffer_tile, new_tile);
+	doSurroundingBorders(doodad_brush, tilestoborder, buffer_tile, new_tile);
+	new_tile->merge(buffer_tile);
+	action->addChange(newd Change(new_tile));
 }

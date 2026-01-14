@@ -28,6 +28,7 @@ namespace MenuBar {
 		OPEN,
 		SAVE,
 		SAVE_AS,
+		SAVE_AS_JSON,
 		GENERATE_MAP,
 		CLOSE,
 		IMPORT_MAP,
@@ -203,6 +204,7 @@ public:
 	void OnOpenRecent(wxCommandEvent &event);
 	void OnSave(wxCommandEvent &event);
 	void OnSaveAs(wxCommandEvent &event);
+	void OnSaveAsJson(wxCommandEvent &event);
 	void OnClose(wxCommandEvent &event);
 	void OnPreferences(wxCommandEvent &event);
 	void OnQuit(wxCommandEvent &event);
