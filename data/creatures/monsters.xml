@@ -1,5 +1,76 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <monsters>
+<!-- Custom Mobs-->
+    <monster name="Grimroot" looktype="3076" />
+    <monster name="Dabura" looktype="3066" />
+    <monster name="Future Trunks SS" looktype="3065" />
+    <monster name="Goku SS3" looktype="3064" />
+    <monster name="Goku SS4" looktype="3067" />
+    <monster name="Good Bu" looktype="3063" />
+    <monster name="Super Buu" looktype="3062" />
+    <monster name="Vegeta" looktype="3060" />
+    <monster name="Beerus" looktype="3061" />
+
+    <monster name="Bomb Trapper" looktype="3059" />
+    <monster name="Bomb Guardian Statue" looktype="3058" />
+    <monster name="Fangmirth Imp" looktype="3057" />
+    <monster name="Blightrock Beast" looktype="3056" />
+    <monster name="Necroclaw Drake" looktype="3055" />
+    <monster name="Hard Trapper" looktype="3054" />
+    <monster name="Icecleaver Minotaur" looktype="3053" />
+    <monster name="Skulldrive Enforcer" looktype="3052" />
+    <monster name="Rotfang Spider" looktype="3051" />
+    <monster name="The Primall Menace" looktype="1566" />
+    <monster name="Dragon Slayer Outfit" looktype="1288" lookhead="114" lookbody="114" looklegs="114" lookfeet="114" lookaddons="3" />
+    <monster name="Magma Crawler Mount" looktype="503" />
+    <monster name="Champion Tower" lookitem="6973" />
+    <monster name="Phoenix Castle" lookitem="7807" />
+    <monster name="Quests" lookitem="28945" />
+    <monster name="Trainers" lookitem="27617"/>
+    <monster name="Ancient Remains" looktype="3015" />
+    <monster name="Armored Cyclops" looktype="3008" />
+    <monster name="Baguette" looktype="3007" />
+    <monster name="Blood Bug" looktype="3030" />
+    <monster name="Bosses" looktype="1143" />
+    <monster name="Bosses Invasion" looktype="591" />
+    <monster name="Brutainer" looktype="3034" />
+    <monster name="Cannabis Sativa" looktype="3036" />
+    <monster name="Caudimordax" looktype="3024" />
+    <monster name="Corrupted Magician" looktype="3040" />
+    <monster name="Cyclops Assassin" looktype="3006" />
+    <monster name="Darkness Magician" looktype="3037" />
+    <monster name="Deeper Scorpion" looktype="3027" />
+    <monster name="Demonic Bug" looktype="3026" />
+    <monster name="Dick" looktype="3035" />
+    <monster name="Driders" looktype="3004" />
+    <monster name="Evolved Lizzard" looktype="3013" />
+    <monster name="Faunus Archer" looktype="3016" />
+    <monster name="Faunus Chopper" looktype="3018" />
+    <monster name="Faunus Servant" looktype="3017" />
+    <monster name="Horror Beast" looktype="3021" />
+    <monster name="Horror Operator" looktype="3019" />
+    <monster name="Horror Servant" looktype="3020" />
+    <monster name="Hunts" looktype="35" />
+    <monster name="Iron Claw" looktype="3039" />
+    <monster name="Liquid Tomb" looktype="3028" />
+    <monster name="Mimic Terror" looktype="3025" />
+    <monster name="Mutated Behemoth" looktype="3014" />
+    <monster name="Oficial Remains" looktype="3003" />
+    <monster name="Oneye Bones" looktype="3001" />
+    <monster name="Orc Assassin" looktype="3012" />
+    <monster name="Orc Chopper" looktype="3010" />
+    <monster name="Orc Reinforcement" looktype="3011" />
+    <monster name="Pirate Remains" looktype="3002" />
+    <monster name="Possessed Skeleton" looktype="3033" />
+    <monster name="Retro Hero" looktype="3009" />
+    <monster name="Slyfthan" looktype="3022" />
+    <monster name="Sombrisco" looktype="3032" />
+    <monster name="Steeders" looktype="3005" />
+    <monster name="Vampire Majesty" looktype="3038" />
+    <monster name="Vesaria" looktype="3023" />
+    <monster name="Voraxion" looktype="3031" />
+<!-- Original Mobs-->    
+  <monster name="Arbaziloth" looktype="1802" />
   <monster name="A Greedy Eye" looktype="925"/>
   <monster name="A Shielded Astral Glyph" lookitem="24226"/>
   <monster name="Abyssador" looktype="495"/>

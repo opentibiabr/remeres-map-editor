@@ -1,5 +1,42 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <items>
+	<!-- custom runes writeable-->
+	<item id="59244" article="a" name="Rune Of Rarity">
+		<attribute key="description" value="Changes the rarity of the item."/>
+		<attribute key="writeable" value="1"/>
+		<attribute key="maxtextlen" value="1023"/>
+		<attribute key="weight" value="1300"/>
+	</item>
+	<item id="59245" article="a" name="Rune of New Bonus">
+		<attribute key="description" value="Adds 1 random bonus (+1 to +5)."/>
+		<attribute key="writeable" value="1"/>
+		<attribute key="maxtextlen" value="1023"/>
+		<attribute key="weight" value="1300"/>
+	</item>
+	<item id="59246" article="a" name="Rune of Clear Bonuses">
+		<attribute key="description" value="Remove all bonuses."/>
+		<attribute key="writeable" value="1"/>
+		<attribute key="maxtextlen" value="1023"/>
+		<attribute key="weight" value="1300"/>
+	</item>
+	<item id="59247" article="a" name="Rune of Clear Last Bonus">
+		<attribute key="description" value="Remove the last bonus."/>
+		<attribute key="writeable" value="1"/>
+		<attribute key="maxtextlen" value="1023"/>
+		<attribute key="weight" value="1300"/>
+	</item>
+	<item id="59248" article="a" name="Rune of Reroll Last Bonus">
+		<attribute key="description" value="Swap the last bonus for another random one."/>
+		<attribute key="writeable" value="1"/>
+		<attribute key="maxtextlen" value="1023"/>
+		<attribute key="weight" value="1300"/>
+	</item>	
+	<item id="59249" article="a" name="Rune Of reroll Last Bonus Value">
+		<attribute key="description" value="Exchange the value of the last bonus."/>
+		<attribute key="writeable" value="1"/>
+		<attribute key="maxtextlen" value="1023"/>
+		<attribute key="weight" value="1300"/>
+	</item>
 	<!-- Liquids -->
 	<!-- Fluid type 0 is same as water (id="1") -->
 	<item id="1" name="water"/>

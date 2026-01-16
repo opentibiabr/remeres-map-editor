@@ -141,18 +141,17 @@
 	</border>
 	
 	<border id="10" group="1"> -- mountain edge border --
-		<borderitem edge="n"   item="4445"/>
-		<borderitem edge="e"   item="4446"/>
-		<borderitem edge="s"   item="4447"/>
-		<borderitem edge="w"   item="4448"/>
-		<borderitem edge="cnw" item="4449"/>
-		<borderitem edge="cne" item="4450"/>
-		<borderitem edge="cse" item="4451"/>
-		<borderitem edge="csw" item="4452"/>
-		<borderitem edge="dnw" item="4453"/>
-		<borderitem edge="dne" item="4454"/>
-		<borderitem edge="dse" item="4455"/>
-		<borderitem edge="dsw" item="4456"/>
+		<borderitem edge="n"   item="4460"/>
+		<borderitem edge="e"   item="4457"/>
+		<borderitem edge="s"   item="4458"/>
+		<borderitem edge="w"   item="4461"/>
+		<borderitem edge="cnw" item="4464"/>
+		<borderitem edge="cne" item="4463"/>
+		<borderitem edge="csw" item="4462"/>
+		<borderitem edge="cse" item="4459"/>
+		<borderitem edge="dnw" item="4465"/>
+		<borderitem edge="dsw" item="4466"/>
+		<borderitem edge="dse" item="4468"/>
 	</border>
 	
 	<border id="11" group="1"> -- rock border --
@@ -871,9 +870,16 @@
 	</border>
 	
 	<border id="51"> -- partial mountain gravel border --
+		<borderitem edge="n"   item="4460"/>
 		<borderitem edge="e"   item="4457"/>
 		<borderitem edge="s"   item="4458"/>
+		<borderitem edge="w"   item="4461"/>
+		<borderitem edge="cnw" item="4464"/>
+		<borderitem edge="cne" item="4463"/>
+		<borderitem edge="csw" item="4462"/>
 		<borderitem edge="cse" item="4459"/>
+		<borderitem edge="dnw" item="4465"/>
+		<borderitem edge="dsw" item="4466"/>
 		<borderitem edge="dse" item="4468"/>
 	</border>
 	
@@ -2778,6 +2784,21 @@
 		<borderitem edge="dne" item="25438"/>
 		<borderitem edge="dsw" item="25437"/>
 		<borderitem edge="dse" item="25436"/>
+	</border>
+
+	<border id="249"> -- floor --
+		<borderitem edge="n"   item="42985"/>
+		<borderitem edge="e"   item="42986"/>
+		<borderitem edge="s"   item="42984"/>
+		<borderitem edge="w"   item="42987"/>
+		<borderitem edge="cnw" item="42991"/>
+		<borderitem edge="cne" item="42990"/>
+		<borderitem edge="csw" item="42989"/>
+		<borderitem edge="cse" item="42988"/>
+		<borderitem edge="dnw" item="42995"/>
+		<borderitem edge="dne" item="42994"/>
+		<borderitem edge="dsw" item="42993"/>
+		<borderitem edge="dse" item="42992"/>
 	</border>	
 	
 </materials>

@@ -1,5 +1,15 @@
 <?xml version="1.0"?>
 <npcs>
+<!-- Custom NPCS -->
+    <npc name="Rune Master" looktype="3075" lookhead="0" lookbody="0" looklegs="0" lookfeet="0" lookaddons="0" />
+    <npc name="Teacher Rune Master" looktype="3075" lookhead="0" lookbody="0" looklegs="0" lookfeet="0" lookaddons="0" />
+    <npc name="information Merchant" looktype="1292" lookhead="114" lookbody="114" looklegs="20" lookfeet="58" lookaddons="2" />
+	<npc name="Mount Master" looktype="128" lookhead="78" lookbody="114" looklegs="58" lookfeet="76" lookaddons="1" />
+    <npc name="Master of the Renaissance" looktype="3000" lookhead="0" lookbody="0" looklegs="0" lookfeet="0" lookaddons="0" />
+    <npc name="Phoenix Imbuiment" looktype="1331" lookhead="114" lookbody="94" looklegs="94" lookfeet="114" lookaddons="3" />
+    <npc name="Addoner" looktype="130" lookhead="115" lookbody="39" looklegs="96" lookfeet="118" lookaddons="3" />
+
+<!-- Original Mobs-->   
 	<npc name="..." looktype="294" lookitem="0" lookaddon="0" lookhead="0" lookbody="0" looklegs="0" lookfeet="0" />
 	<npc name="A Bearded Woman" looktype="140" lookitem="0" lookaddon="0" lookhead="60" lookbody="22" looklegs="24" lookfeet="32" />
 	<npc name="A Beautiful Girl" looktype="140" lookitem="0" lookaddon="0" lookhead="77" lookbody="81" looklegs="79" lookfeet="95" />
