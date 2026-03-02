@@ -189,12 +189,6 @@ void Tile::merge(Tile* other) {
 		other->spawnNpc = nullptr;
 	}
 
-	if (other->npc) {
-		delete npc;
-		npc = other->npc;
-		other->npc = nullptr;
-	}
-
 	for (const auto monster : other->monsters) {
 		addMonster(monster);
 	}

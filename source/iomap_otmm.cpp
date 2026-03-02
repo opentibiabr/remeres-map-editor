@@ -413,7 +413,7 @@ bool IOMapOTMM::loadMap(Map &map, NodeFileReadHandle &f, const FileName &identif
 							uint16_t x_offset, y_offset;
 							uint8_t z_offset;
 							if (!tileNode->getU16(x_offset) || !tileNode->getU16(y_offset) || !tileNode->getU8(z_offset)) {
-								warning("Could not read position of tile");
+								warning("Could not read position of tile (OTMM format, corrupted tile node)");
 								continue;
 							}
 							const Position pos(x_offset, y_offset, z_offset);

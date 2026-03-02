@@ -1124,7 +1124,10 @@ bool GUI::SetLoadDone(int32_t done, const wxString &newMessage) {
 	if (done == 100) {
 		DestroyLoadBar();
 		return true;
-	} else if (done == currentProgress) {
+	}
+
+	bool messageChanged = !newMessage.empty() && newMessage != progressText;
+	if (done == currentProgress && !messageChanged) {
 		return true;
 	}
 

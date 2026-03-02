@@ -49,7 +49,7 @@ public:
 	}
 
 	void setSize(int newsize) {
-		ASSERT(size < 100);
+		ASSERT(newsize >= 0 && newsize < 100);
 		size = newsize;
 	}
 
