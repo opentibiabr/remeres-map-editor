@@ -1088,7 +1088,8 @@ void MainMenuBar::OnExportCyclopediaMapData(wxCommandEvent &WXUNUSED(event)) {
 	struct CyclopediaExportGuard final {
 		bool &running;
 		MainToolBar* toolbar = nullptr;
-		explicit CyclopediaExportGuard(bool &value) : running(value) { }
+		explicit CyclopediaExportGuard(bool &value) :
+			running(value) { }
 		~CyclopediaExportGuard() {
 			if (toolbar) {
 				toolbar->HideTaskProgress();
@@ -1102,16 +1103,19 @@ void MainMenuBar::OnExportCyclopediaMapData(wxCommandEvent &WXUNUSED(event)) {
 		toolbar->ShowTaskProgress(wxString::Format("Cyclopedia export (%d px/tile): preparing...", satellitePixelsPerSquare));
 	}
 
-	if (!mapsaver.saveCyclopediaMapData(g_gui.GetCurrentMap(), makeDirectoryFileName(outputPath), [&](const int32_t done, const std::string &message) {
-			const wxString progressMessage = message.empty() ? wxString("Exporting cyclopedia minimap/satellite...") : wxstr(message);
-			if (toolbar) {
-				toolbar->UpdateTaskProgress(done, wxString::Format("%s (%d%%)", progressMessage, done));
-			}
-			g_gui.SetStatusText(wxString::Format("Cyclopedia export: %d%% - %s", done, progressMessage));
-			if (wxTheApp) {
-				wxTheApp->Yield(true);
-			}
-		}, satellitePixelsPerSquare)) {
+	if (!mapsaver.saveCyclopediaMapData(
+			g_gui.GetCurrentMap(), makeDirectoryFileName(outputPath), [&](const int32_t done, const std::string &message) {
+				const wxString progressMessage = message.empty() ? wxString("Exporting cyclopedia minimap/satellite...") : wxstr(message);
+				if (toolbar) {
+					toolbar->UpdateTaskProgress(done, wxString::Format("%s (%d%%)", progressMessage, done));
+				}
+				g_gui.SetStatusText(wxString::Format("Cyclopedia export: %d%% - %s", done, progressMessage));
+				if (wxTheApp) {
+					wxTheApp->Yield(true);
+				}
+			},
+			satellitePixelsPerSquare
+		)) {
 		g_gui.SetStatusText("Cyclopedia export failed.");
 		g_gui.PopupDialog("Error", "Failed to export cyclopedia minimap/satellite.", wxOK);
 		return;
