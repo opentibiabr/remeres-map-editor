@@ -1,50 +1,68 @@
 syntax = "proto2";
 
-package canary.protobuf.staticdata;
+package clienteditor.protobuf.staticdata;
 
-message Staticdata {
-	repeated House houses = 3;
+message StaticData {
+	repeated Monster monster = 1;
+	repeated Achievement achievements = 2;
+	repeated House house = 3;
+	repeated Boss boss = 4;
+	repeated Quest quest = 5;
 }
 
-message Position {
-	optional uint32 x = 1;
-	optional uint32 y = 2;
-	optional uint32 z = 3;
+message Colors {
+	optional uint32 lookhead = 1;
+	optional uint32 lookbody = 2;
+	optional uint32 looklegs = 3;
+	optional uint32 lookfeet = 4;
+}
+
+message Appearance_Type {
+	optional uint32 outfittype = 1;
+	optional Colors colors = 2;
+	optional uint32 outfitaddon = 3;
+	optional uint32 itemtype = 4;
+}
+
+message Monster {
+	optional uint32 raceid = 1;
+	optional string name = 2;
+	optional Appearance_Type appearance_type = 3;
+}
+
+message Achievement {
+	optional uint32 achievement_id = 1;
+	optional string name = 2;
+	optional string description = 3;
+	optional uint32 grade = 4;
+}
+
+message HousePosition {
+	optional uint32 pos_x = 1;
+	optional uint32 pos_y = 2;
+	optional uint32 pos_z = 3;
 }
 
 message House {
+	optional uint32 house_id = 1;
+	optional string name = 2;
+	optional string unknownstring = 3;
+	optional uint32 price = 4;
+	optional uint32 beds = 5;
+	optional HousePosition housePosition = 6;
+	optional uint32 size_sqm = 7;
+	optional bool guildhall = 8;
+	optional string city = 9;
+	optional bool shop = 10;
+}
+
+message Boss {
 	optional uint32 id = 1;
 	optional string name = 2;
-	optional string description = 3;
-	optional uint32 rent = 4;
-	optional uint32 beds = 5;
-	optional Position position = 6;
-	optional uint32 SQMs = 7;
-	optional bool isGuildHall = 8;
-	optional string city = 9;
-	optional bool isShop = 10;
-	optional HousePreview preview = 11;
+	optional Appearance_Type appearance_type = 3;
 }
 
-message HousePreview {
-	optional uint32 width = 1;
-	optional uint32 height = 2;
-	optional uint32 floor = 3;
-	optional bytes colors = 4;
-	repeated HousePreviewTile tiles = 5;
-}
-
-message HousePreviewTile {
-	optional uint32 x = 1;
-	optional uint32 y = 2;
-	optional uint32 color = 3;
-	repeated HousePreviewItem items = 4;
-	optional bool isHouseTile = 5;
-}
-
-message HousePreviewItem {
-	optional uint32 clientId = 1;
-	optional uint32 xPattern = 2;
-	optional uint32 yPattern = 3;
-	optional uint32 zPattern = 4;
+message Quest {
+	optional uint32 id = 1;
+	optional string name = 2;
 }

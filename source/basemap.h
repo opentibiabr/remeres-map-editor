@@ -118,6 +118,7 @@ public:
 	}
 
 	// Assigns a tile, it might seem pointless to provide position, but it is not, as the passed tile may be nullptr
+	void setTile(TileLocation* location, Tile* new_tile, bool remove = false);
 	void setTile(int x, int y, int z, Tile* new_tile, bool remove = false);
 	void setTile(const Position &position, Tile* new_tile, bool remove = false);
 	void setTile(Tile* new_tile, bool remove = false);

@@ -26,16 +26,182 @@
 #include "result_window.h"
 #include "find_item_window.h"
 #include "settings.h"
+#include "iomap_otbm.h"
 
 #include "gui.h"
 
 #include <wx/chartype.h>
+#include <wx/choicdlg.h>
+#include <wx/dirdlg.h>
+#include <wx/textdlg.h>
+#include <wx/tokenzr.h>
 
 #include "items.h"
 #include "editor.h"
 #include "materials.h"
 #include "live_client.h"
 #include "live_server.h"
+
+namespace {
+	bool selectAssetsOrCustomExportFolder(wxWindow* parent, const wxString &title, wxString &outputPath) {
+		wxArrayString choices;
+		choices.Add("Current loaded client assets (recommended)");
+		choices.Add("Choose a specific folder");
+
+		wxSingleChoiceDialog choiceDialog(parent, "Select where to export the files.", title, choices);
+		choiceDialog.SetSelection(0);
+		if (choiceDialog.ShowModal() != wxID_OK) {
+			return false;
+		}
+
+		if (choiceDialog.GetSelection() == 0) {
+			const wxString clientPath = ClientAssets::getPath();
+			if (clientPath.empty() || !wxDirExists(clientPath)) {
+				g_gui.PopupDialog("Error", "Current client path is not configured. Load/select the client assets path first.", wxOK);
+				return false;
+			}
+
+			outputPath = clientPath;
+			return true;
+		}
+
+		wxDirDialog directoryDialog(parent, "Select output folder", "", wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+		if (directoryDialog.ShowModal() != wxID_OK) {
+			return false;
+		}
+
+		outputPath = directoryDialog.GetPath();
+		return true;
+	}
+
+	FileName makeDirectoryFileName(const wxString &directoryPath) {
+		FileName directory;
+		directory.AssignDir(directoryPath);
+		return directory;
+	}
+
+	bool selectStaticHouseExportFilter(wxWindow* parent, std::vector<std::string> &houseNamesFilter) {
+		houseNamesFilter.clear();
+
+		wxArrayString choices;
+		choices.Add("Export all houses");
+		choices.Add("Export only specific house names");
+
+		wxSingleChoiceDialog modeDialog(parent, "Select which houses should be exported.", "Export Static House Data", choices);
+		modeDialog.SetSelection(0);
+		if (modeDialog.ShowModal() != wxID_OK) {
+			return false;
+		}
+
+		if (modeDialog.GetSelection() == 0) {
+			return true;
+		}
+
+		wxTextEntryDialog namesDialog(
+			parent,
+			"Enter one or more house names separated by comma, semicolon, or line break.\n"
+			"Example:\n"
+			"Coastwood 3\n"
+			"Coastwood 4",
+			"Specific House Names"
+		);
+		if (namesDialog.ShowModal() != wxID_OK) {
+			return false;
+		}
+
+		const wxString rawNames = namesDialog.GetValue();
+		wxStringTokenizer tokenizer(rawNames, ",;\n\r", wxTOKEN_STRTOK);
+		while (tokenizer.HasMoreTokens()) {
+			wxString token = tokenizer.GetNextToken();
+			token.Trim(true);
+			token.Trim(false);
+			if (token.empty()) {
+				continue;
+			}
+			houseNamesFilter.emplace_back(nstr(token));
+		}
+
+		if (houseNamesFilter.empty()) {
+			g_gui.PopupDialog("Error", "No valid house names were provided.", wxOK);
+			return false;
+		}
+
+		return true;
+	}
+
+	wxString buildStaticHouseExportSummary(const IOMapOTBM::StaticHouseExportReport &report) {
+		const auto asU64 = [](size_t value) {
+			return static_cast<unsigned long long>(value);
+		};
+
+		wxString summary;
+		summary += report.success ? "Static house export completed.\n\n" : "Static house export failed.\n\n";
+
+		if (!report.outputBasePath.empty()) {
+			summary += "Output base: " + wxstr(report.outputBasePath) + "\n";
+			summary += "Backups: " + wxstr(report.outputBasePath + "/bkps") + "\n";
+		}
+		if (!report.staticDataFileName.empty()) {
+			summary += "staticdata file: " + wxstr(report.staticDataFileName) + "\n";
+		}
+		if (!report.staticMapDataFileName.empty()) {
+			summary += "staticmapdata file: " + wxstr(report.staticMapDataFileName) + "\n";
+		}
+		summary += "\n";
+
+		summary += "Export mode: ";
+		summary += report.filtered ? "specific houses\n" : "all houses\n";
+		if (report.filtered) {
+			summary += wxString::Format("Requested house names: %llu\n", asU64(report.selectedFilterCount));
+			summary += wxString::Format("Matched house names on map: %llu\n", asU64(report.matchedFilterCount));
+		}
+		summary += wxString::Format("Total houses on map: %llu\n\n", asU64(report.mapHousesTotal));
+
+		summary += "Counts:\n";
+		summary += wxString::Format(" - staticdata: generated=%llu, final=%llu\n", asU64(report.staticDataGeneratedHouses), asU64(report.staticDataFinalHouses));
+		summary += wxString::Format(
+			" - staticmapdata: attempted=%llu, generated=%llu, final=%llu\n\n",
+			asU64(report.staticMapAttemptedHouses),
+			asU64(report.staticMapGeneratedHouses),
+			asU64(report.staticMapFinalHouses)
+		);
+
+		if (!report.failedStaticMapHouses.empty()) {
+			summary += wxString::Format("Houses with staticmap build failure (%llu):\n", asU64(report.failedStaticMapHouses.size()));
+			const size_t maxFailedLines = 20;
+			size_t shown = 0;
+			for (const std::string &houseName : report.failedStaticMapHouses) {
+				if (shown >= maxFailedLines) {
+					break;
+				}
+				summary += " - " + wxstr(houseName) + "\n";
+				++shown;
+			}
+			if (report.failedStaticMapHouses.size() > shown) {
+				summary += wxString::Format(" - ... and %llu more\n", asU64(report.failedStaticMapHouses.size() - shown));
+			}
+			summary += "\n";
+		}
+
+		if (!report.errors.empty()) {
+			summary += wxString::Format("Errors/Warnings (%llu):\n", asU64(report.errors.size()));
+			const size_t maxErrorLines = 20;
+			size_t shown = 0;
+			for (const std::string &errorMessage : report.errors) {
+				if (shown >= maxErrorLines) {
+					break;
+				}
+				summary += " - " + wxstr(errorMessage) + "\n";
+				++shown;
+			}
+			if (report.errors.size() > shown) {
+				summary += wxString::Format(" - ... and %llu more\n", asU64(report.errors.size() - shown));
+			}
+		}
+
+		return summary;
+	}
+}
 
 BEGIN_EVENT_TABLE(MainMenuBar, wxEvtHandler)
 END_EVENT_TABLE()
@@ -62,6 +228,8 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(IMPORT_NPCS, wxITEM_NORMAL, OnImportNpcData);
 	MAKE_ACTION(IMPORT_MINIMAP, wxITEM_NORMAL, OnImportMinimap);
 	MAKE_ACTION(EXPORT_MINIMAP, wxITEM_NORMAL, OnExportMinimap);
+	MAKE_ACTION(EXPORT_STATIC_HOUSE_DATA, wxITEM_NORMAL, OnExportStaticHouseData);
+	MAKE_ACTION(EXPORT_CYCLOPEDIA_MAP, wxITEM_NORMAL, OnExportCyclopediaMapData);
 	MAKE_ACTION(EXPORT_TILESETS, wxITEM_NORMAL, OnExportTilesets);
 
 	MAKE_ACTION(RELOAD_DATA, wxITEM_NORMAL, OnReloadDataFiles);
@@ -345,6 +513,8 @@ void MainMenuBar::Update() {
 	EnableItem(IMPORT_MONSTERS, is_local);
 	EnableItem(IMPORT_MINIMAP, false);
 	EnableItem(EXPORT_MINIMAP, is_local);
+	EnableItem(EXPORT_STATIC_HOUSE_DATA, is_local);
+	EnableItem(EXPORT_CYCLOPEDIA_MAP, is_local);
 	EnableItem(EXPORT_TILESETS, loaded);
 
 	EnableItem(FIND_ITEM, is_host);
@@ -858,6 +1028,100 @@ void MainMenuBar::OnExportMinimap(wxCommandEvent &WXUNUSED(event)) {
 
 	ExportMiniMapWindow dialog(frame, *g_gui.GetCurrentEditor());
 	dialog.ShowModal();
+}
+
+void MainMenuBar::OnExportStaticHouseData(wxCommandEvent &WXUNUSED(event)) {
+	if (!g_gui.IsEditorOpen()) {
+		return;
+	}
+
+	std::vector<std::string> houseNamesFilter;
+	if (!selectStaticHouseExportFilter(g_gui.root, houseNamesFilter)) {
+		return;
+	}
+
+	wxString outputPath;
+	if (!selectAssetsOrCustomExportFolder(g_gui.root, "Export Static House Data", outputPath)) {
+		return;
+	}
+
+	IOMapOTBM mapsaver(g_gui.GetCurrentMap().getVersion());
+	const bool exportOk = mapsaver.saveStaticData(g_gui.GetCurrentMap(), makeDirectoryFileName(outputPath), houseNamesFilter);
+	const IOMapOTBM::StaticHouseExportReport &report = mapsaver.getLastStaticHouseExportReport();
+	const wxString summary = buildStaticHouseExportSummary(report);
+	if (!exportOk) {
+		const wxString failureMessage = summary.empty() ? wxString("Failed to export static house data.") : summary;
+		g_gui.PopupDialog("Export failed", failureMessage, wxOK);
+		return;
+	}
+
+	if (!report.errors.empty() || !report.failedStaticMapHouses.empty()) {
+		g_gui.PopupDialog("Export completed with warnings", summary, wxOK);
+	} else {
+		g_gui.PopupDialog("Export completed", summary, wxOK);
+	}
+}
+
+void MainMenuBar::OnExportCyclopediaMapData(wxCommandEvent &WXUNUSED(event)) {
+	static bool cyclopediaExportRunning = false;
+
+	if (cyclopediaExportRunning) {
+		g_gui.PopupDialog("Export in progress", "Cyclopedia export is already running.", wxOK);
+		return;
+	}
+
+	if (!g_gui.IsEditorOpen()) {
+		return;
+	}
+
+	// CipSoft cyclopedia assets are expected around 2 px/tile for satellite (scale = 1/16).
+	const int satellitePixelsPerSquare = 2;
+
+	wxString outputPath;
+	if (!selectAssetsOrCustomExportFolder(g_gui.root, "Export Cyclopedia Map Data", outputPath)) {
+		return;
+	}
+
+	IOMapOTBM mapsaver(g_gui.GetCurrentMap().getVersion());
+	MainToolBar* toolbar = g_gui.root ? g_gui.root->GetAuiToolBar() : nullptr;
+	cyclopediaExportRunning = true;
+	struct CyclopediaExportGuard final {
+		bool &running;
+		MainToolBar* toolbar = nullptr;
+		explicit CyclopediaExportGuard(bool &value) : running(value) { }
+		~CyclopediaExportGuard() {
+			if (toolbar) {
+				toolbar->HideTaskProgress();
+			}
+			running = false;
+		}
+	} exportGuard(cyclopediaExportRunning);
+	exportGuard.toolbar = toolbar;
+
+	if (toolbar) {
+		toolbar->ShowTaskProgress(wxString::Format("Cyclopedia export (%d px/tile): preparing...", satellitePixelsPerSquare));
+	}
+
+	if (!mapsaver.saveCyclopediaMapData(g_gui.GetCurrentMap(), makeDirectoryFileName(outputPath), [&](const int32_t done, const std::string &message) {
+			const wxString progressMessage = message.empty() ? wxString("Exporting cyclopedia minimap/satellite...") : wxstr(message);
+			if (toolbar) {
+				toolbar->UpdateTaskProgress(done, wxString::Format("%s (%d%%)", progressMessage, done));
+			}
+			g_gui.SetStatusText(wxString::Format("Cyclopedia export: %d%% - %s", done, progressMessage));
+			if (wxTheApp) {
+				wxTheApp->Yield(true);
+			}
+		}, satellitePixelsPerSquare)) {
+		g_gui.SetStatusText("Cyclopedia export failed.");
+		g_gui.PopupDialog("Error", "Failed to export cyclopedia minimap/satellite.", wxOK);
+		return;
+	}
+
+	if (toolbar) {
+		toolbar->UpdateTaskProgress(100, "Cyclopedia export: completed (100%)");
+	}
+	g_gui.SetStatusText("Cyclopedia export completed.");
+	g_gui.PopupDialog("Export completed", "Cyclopedia minimap/satellite exported successfully (backups in /bkps).", wxOK);
 }
 
 void MainMenuBar::OnExportTilesets(wxCommandEvent &WXUNUSED(event)) {

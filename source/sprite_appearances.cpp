@@ -79,13 +79,26 @@ bool SpriteAppearances::loadCatalogContent(const std::string &dir, bool loadData
 }
 
 bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr &sheet) {
-	if (sheet->loaded) {
+	if (!sheet) {
 		return false;
 	}
 
+	if (sheet->loaded) {
+		return true;
+	}
+
+	if (sheet->loadFailed) {
+		return false;
+	}
+
+	sheet->loadAttempted = true;
+
 	std::ifstream file(sheet->path, std::ios::binary | std::ios::in);
 	if (!file.is_open()) {
-		spdlog::error("[SpriteAppearances::loadSpriteSheet] - Unable to open given sheets files");
+		sheet->loadFailed = true;
+		if (failedSheetPathsLogged.insert(sheet->path).second) {
+			spdlog::error("[SpriteAppearances::loadSpriteSheet] - Unable to open given sheets file '{}'", sheet->path);
+		}
 		return false;
 	}
 
@@ -137,6 +150,7 @@ bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr &sheet) {
 
 	lzma_ret ret = lzma_raw_decoder(&stream, filters);
 	if (ret != LZMA_OK) {
+		sheet->loadFailed = true;
 		spdlog::error("Failed to initialize lzma raw decoder result: {}", static_cast<int>(ret));
 		return false;
 	}
@@ -150,7 +164,9 @@ bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr &sheet) {
 
 	ret = lzma_code(&stream, LZMA_RUN);
 	if (ret != LZMA_STREAM_END) {
+		sheet->loadFailed = true;
 		spdlog::error("Failed to decode lzma buffer result: {}", static_cast<int>(ret));
+		lzma_end(&stream);
 		return false;
 	}
 
@@ -174,11 +190,14 @@ bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr &sheet) {
 	std::memcpy(sheet->data.get(), pixelData, BYTES_IN_SPRITE_SHEET);
 
 	sheet->loaded = true;
+	sheet->loadFailed = false;
 	return true;
 }
 
 void SpriteAppearances::unload() {
 	spritesCount = 0;
+	failedSheetPathsLogged.clear();
+	missingSpriteSheetLogged.clear();
 	sheets.clear();
 }
 
@@ -241,9 +260,15 @@ wxImage SpriteAppearances::getWxImageBySpriteId(int id, bool toSavePng /* = fals
 			// Combines the color channels into a single 32-bit value
 			uint32_t color = (r << 16) | (g << 8) | b;
 
-			// Replaces magenta with the background color
+			// When exporting images (toSavePng=true), treat sprite-sheet magenta as transparent.
+			// For normal editor rendering keep current background replacement behavior.
 			if (color == magenta || color == lightMagenta) {
-				r = g = b = bgshade; // Sets RGB to the background color
+				if (toSavePng) {
+					a = 0;
+					r = g = b = 0;
+				} else {
+					r = g = b = bgshade; // Sets RGB to the background color
+				}
 			}
 
 			image.SetAlpha(x, y, a);
@@ -271,7 +296,9 @@ SpritePtr SpriteAppearances::getSprite(int spriteId) {
 	// Retrieve sprite sheet
 	const auto &sheet = getSheetBySpriteId(spriteId);
 	if (!sheet || !sheet->loaded) {
-		spdlog::warn("Sprite sheet for sprite {} is not loaded or null.", spriteId);
+		if (missingSpriteSheetLogged.insert(spriteId).second) {
+			spdlog::warn("Sprite sheet for sprite {} is not loaded or null.", spriteId);
+		}
 		return nullptr;
 	}
 

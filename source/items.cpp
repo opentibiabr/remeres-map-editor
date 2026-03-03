@@ -49,6 +49,7 @@ void ItemDatabase::clear() {
 	for (size_t i = 0; i < items.size(); i++) {
 		items[i].reset();
 		items.set(i, nullptr);
+		items_raw.set(i, nullptr);
 	}
 }
 
@@ -446,8 +447,10 @@ bool ItemDatabase::loadFromOtb(const FileName &datafile, wxString &error, wxArra
 		if (items[item->id]) {
 			warnings.push_back("items.otb: Duplicate items");
 			items[item->id].reset();
+			items_raw.set(item->id, nullptr);
 		}
 		items.set(item->id, item);
+		items_raw.set(item->id, item.get());
 	}
 	return true;
 }
@@ -468,6 +471,7 @@ bool ItemDatabase::loadFromProtobuf(wxString &error, wxArrayString &warnings, ca
 
 		if (object.id() >= items.size()) {
 			items.resize(object.id() + 1);
+			items_raw.resize(object.id() + 1);
 		}
 
 		if (!object.has_id()) {
@@ -583,8 +587,10 @@ bool ItemDatabase::loadFromProtobuf(wxString &error, wxArrayString &warnings, ca
 			if (items[t->id]) {
 				wxLogWarning("appearances.dat: Duplicate items");
 				items[t->id].reset();
+				items_raw.set(t->id, nullptr);
 			}
 			items.set(t->id, t);
+			items_raw.set(t->id, t.get());
 		}
 	}
 
@@ -780,7 +786,7 @@ bool ItemDatabase::loadFromGameXml(const FileName &identifier, wxString &error, 
 bool ItemDatabase::loadMetaItem(pugi::xml_node node) {
 	if (const pugi::xml_attribute attribute = node.attribute("id")) {
 		const uint16_t id = attribute.as_uint();
-		if (id == 0 || items[id]) {
+		if (id == 0 || items_raw[id]) {
 			return false;
 		}
 
@@ -788,6 +794,7 @@ bool ItemDatabase::loadMetaItem(pugi::xml_node node) {
 		item->is_metaitem = true;
 		item->id = id;
 		items.set(id, item);
+		items_raw.set(id, item.get());
 		return true;
 	}
 	return false;
@@ -798,7 +805,7 @@ ItemType &ItemDatabase::getItemType(uint16_t id) {
 		return dummy;
 	}
 
-	auto type = items[id];
+	ItemType* type = items_raw[id];
 	if (type) {
 		return *type;
 	}
@@ -817,5 +824,5 @@ bool ItemDatabase::isValidID(uint16_t id) const {
 	if (id == 0 || id > maxItemId) {
 		return false;
 	}
-	return items[id] != nullptr;
+	return items_raw[id] != nullptr;
 }
