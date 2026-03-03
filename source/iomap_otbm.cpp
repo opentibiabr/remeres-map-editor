@@ -73,7 +73,7 @@ namespace {
 	constexpr unsigned char CyclopediaSeaColorR = 39;
 	constexpr unsigned char CyclopediaSeaColorG = 77;
 	constexpr unsigned char CyclopediaSeaColorB = 166;
-	constexpr std::array<char, 4> CyclopediaProgressSpinner{ '|', '/', '-', '\\' };
+	constexpr std::array<char, 4> CyclopediaProgressSpinner { '|', '/', '-', '\\' };
 
 	struct CyclopediaAssetLayerConfig {
 		bool minimap = false;
@@ -82,12 +82,12 @@ namespace {
 		double pixelsPerSquare = 1.0;
 	};
 
-	constexpr std::array<CyclopediaAssetLayerConfig, 2> CyclopediaMinimapLayers{ {
+	constexpr std::array<CyclopediaAssetLayerConfig, 2> CyclopediaMinimapLayers { {
 		{ true, 1.0 / 64.0, 1024, 0.5 },
 		{ true, 1.0 / 32.0, 512, 1.0 },
 	} };
 
-	constexpr std::array<CyclopediaAssetLayerConfig, 3> CyclopediaSatelliteLayers{ {
+	constexpr std::array<CyclopediaAssetLayerConfig, 3> CyclopediaSatelliteLayers { {
 		{ false, 1.0 / 64.0, 1024, 0.5 },
 		{ false, 1.0 / 32.0, 512, 1.0 },
 		{ false, 1.0 / 16.0, 256, 2.0 },
@@ -118,9 +118,9 @@ namespace {
 
 	struct PositionHash {
 		size_t operator()(const Position &position) const noexcept {
-			size_t hash = std::hash<int>{}(position.x);
-			hash ^= std::hash<int>{}(position.y) + 0x9e3779b9u + (hash << 6) + (hash >> 2);
-			hash ^= std::hash<int>{}(position.z) + 0x9e3779b9u + (hash << 6) + (hash >> 2);
+			size_t hash = std::hash<int> {}(position.x);
+			hash ^= std::hash<int> {}(position.y) + 0x9e3779b9u + (hash << 6) + (hash >> 2);
+			hash ^= std::hash<int> {}(position.z) + 0x9e3779b9u + (hash << 6) + (hash >> 2);
 			return hash;
 		}
 	};
@@ -137,9 +137,9 @@ namespace {
 
 	struct HousePositionKeyHash {
 		size_t operator()(const HousePositionKey &position) const noexcept {
-			size_t hash = std::hash<uint32_t>{}(position.x);
-			hash ^= std::hash<uint32_t>{}(position.y) + 0x9e3779b9u + (hash << 6) + (hash >> 2);
-			hash ^= std::hash<uint32_t>{}(position.z) + 0x9e3779b9u + (hash << 6) + (hash >> 2);
+			size_t hash = std::hash<uint32_t> {}(position.x);
+			hash ^= std::hash<uint32_t> {}(position.y) + 0x9e3779b9u + (hash << 6) + (hash >> 2);
+			hash ^= std::hash<uint32_t> {}(position.z) + 0x9e3779b9u + (hash << 6) + (hash >> 2);
 			return hash;
 		}
 	};
@@ -241,7 +241,7 @@ namespace {
 	}
 
 	void resetStaticMapHouseExportDebugStats() {
-		g_staticMapHouseExportDebugStats = StaticMapHouseExportDebugStats{};
+		g_staticMapHouseExportDebugStats = StaticMapHouseExportDebugStats {};
 	}
 
 	void logStaticMapHouseExportDebugSummary() {
@@ -267,7 +267,6 @@ namespace {
 			stats.droppedInvalidItems
 		);
 	}
-
 
 	std::string normalizeHouseName(std::string name) {
 		std::string normalized;
@@ -318,7 +317,7 @@ namespace {
 	}
 
 	std::string normalizeHouseNameAlias(const std::string &name) {
-		static const std::unordered_set<std::string> aliasStopWords{
+		static const std::unordered_set<std::string> aliasStopWords {
 			"street",
 			"place",
 			"lane",
@@ -397,13 +396,13 @@ namespace {
 	}
 
 	constexpr size_t CyclopediaCipHeaderSize = 32;
-	constexpr std::array<uint8_t, 5> CyclopediaCipLzmaSignature{ 0x70, 0x0A, 0xFA, 0x80, 0x40 };
+	constexpr std::array<uint8_t, 5> CyclopediaCipLzmaSignature { 0x70, 0x0A, 0xFA, 0x80, 0x40 };
 	constexpr uint32_t CyclopediaLzmaDictionarySize = 33554432;
 	constexpr double CyclopediaVirtualCameraHeight = 0.175;
 
 	struct Sha256Context {
-		std::array<uint8_t, 64> data{};
-		std::array<uint32_t, 8> state{
+		std::array<uint8_t, 64> data {};
+		std::array<uint32_t, 8> state {
 			0x6A09E667u,
 			0xBB67AE85u,
 			0x3C6EF372u,
@@ -422,7 +421,7 @@ namespace {
 	}
 
 	void sha256Transform(Sha256Context &context, const uint8_t block[64]) {
-		static constexpr std::array<uint32_t, 64> k{
+		static constexpr std::array<uint32_t, 64> k {
 			0x428A2F98u, 0x71374491u, 0xB5C0FBCFu, 0xE9B5DBA5u, 0x3956C25Bu, 0x59F111F1u, 0x923F82A4u, 0xAB1C5ED5u,
 			0xD807AA98u, 0x12835B01u, 0x243185BEu, 0x550C7DC3u, 0x72BE5D74u, 0x80DEB1FEu, 0x9BDC06A7u, 0xC19BF174u,
 			0xE49B69C1u, 0xEFBE4786u, 0x0FC19DC6u, 0x240CA1CCu, 0x2DE92C6Fu, 0x4A7484AAu, 0x5CB0A9DCu, 0x76F988DAu,
@@ -433,7 +432,7 @@ namespace {
 			0x748F82EEu, 0x78A5636Fu, 0x84C87814u, 0x8CC70208u, 0x90BEFFFAu, 0xA4506CEBu, 0xBEF9A3F7u, 0xC67178F2u
 		};
 
-		std::array<uint32_t, 64> words{};
+		std::array<uint32_t, 64> words {};
 		for (size_t i = 0; i < 16; ++i) {
 			const size_t idx = i * 4;
 			words[i] = (static_cast<uint32_t>(block[idx]) << 24)
@@ -497,7 +496,7 @@ namespace {
 	}
 
 	std::array<uint8_t, 32> sha256Finalize(Sha256Context &context) {
-		std::array<uint8_t, 32> hash{};
+		std::array<uint8_t, 32> hash {};
 		size_t i = context.dataLength;
 
 		if (context.dataLength < 56) {
@@ -658,7 +657,7 @@ namespace {
 	bool compressLzmaRaw(const std::vector<uint8_t> &input, std::vector<uint8_t> &compressedRaw) {
 		compressedRaw.clear();
 
-		lzma_options_lzma options{};
+		lzma_options_lzma options {};
 		options.dict_size = CyclopediaLzmaDictionarySize;
 		options.lc = 3;
 		options.lp = 0;
@@ -750,12 +749,12 @@ namespace {
 
 		std::ostringstream filename;
 		filename << (minimap ? "minimap-" : "satellite-")
-			<< std::setw(2) << std::setfill('0') << scalePrefix << '-'
-			<< std::setw(4) << std::setfill('0') << chunkX << '-'
-			<< std::setw(4) << std::setfill('0') << chunkY << '-'
-			<< std::setw(2) << std::setfill('0') << floor << '-'
-			<< hashHex
-			<< ".bmp.lzma";
+				 << std::setw(2) << std::setfill('0') << scalePrefix << '-'
+				 << std::setw(4) << std::setfill('0') << chunkX << '-'
+				 << std::setw(4) << std::setfill('0') << chunkY << '-'
+				 << std::setw(2) << std::setfill('0') << floor << '-'
+				 << hashHex
+				 << ".bmp.lzma";
 		return filename.str();
 	}
 
@@ -1127,7 +1126,7 @@ namespace {
 			return false;
 		}
 
-		SatelliteTinySprite sampled{};
+		SatelliteTinySprite sampled {};
 		if (!sampleSpriteToTiny(spriteImage, sampled)) {
 			return false;
 		}
@@ -1194,7 +1193,8 @@ namespace {
 				for (int py = 0; py < outputPixelsPerSquare; ++py) {
 					for (int px = 0; px < outputPixelsPerSquare; ++px) {
 						const size_t outIndex = (static_cast<size_t>(y * outputPixelsPerSquare + py) * static_cast<size_t>(outWidth)
-							+ static_cast<size_t>(x * outputPixelsPerSquare + px)) * rme::PixelFormatRGB;
+												 + static_cast<size_t>(x * outputPixelsPerSquare + px))
+							* rme::PixelFormatRGB;
 						outData[outIndex] = baseR;
 						outData[outIndex + 1] = baseG;
 						outData[outIndex + 2] = baseB;
@@ -1238,7 +1238,7 @@ namespace {
 						continue;
 					}
 
-					SatelliteTinySprite tinySprite{};
+					SatelliteTinySprite tinySprite {};
 					if (!getTinySpriteForSpriteId(spriteId, spriteTinyCache, tinySprite)) {
 						continue;
 					}
@@ -1249,7 +1249,8 @@ namespace {
 							const int tinyX = (px * CyclopediaSatelliteBasePixelsPerSquare) / outputPixelsPerSquare;
 							const int tinyIndex = tinyY * CyclopediaSatelliteBasePixelsPerSquare + tinyX;
 							const size_t outIndex = (static_cast<size_t>(y * outputPixelsPerSquare + py) * static_cast<size_t>(outWidth)
-								+ static_cast<size_t>(x * outputPixelsPerSquare + px)) * rme::PixelFormatRGB;
+													 + static_cast<size_t>(x * outputPixelsPerSquare + px))
+								* rme::PixelFormatRGB;
 							blendTinyPixel(outData[outIndex], outData[outIndex + 1], outData[outIndex + 2], tinySprite[tinyIndex]);
 						}
 					}
@@ -1502,8 +1503,8 @@ namespace {
 		const Position &position,
 		const Tile* tile,
 		std::vector<uint32_t> &clientIds,
-		size_t *droppedByCap = nullptr,
-		size_t *droppedInvalid = nullptr
+		size_t* droppedByCap = nullptr,
+		size_t* droppedInvalid = nullptr
 	) {
 		clientIds.clear();
 		if (droppedByCap) {
@@ -1571,7 +1572,7 @@ namespace {
 		Map &map,
 		const House &house,
 		clienteditor::protobuf::staticmapdata::HouseEntry &houseEntry,
-		const StaticMapHouseTemplate *houseTemplate = nullptr
+		const StaticMapHouseTemplate* houseTemplate = nullptr
 	) {
 		struct SerializedTile final {
 			std::vector<uint32_t> itemValues;
@@ -2314,8 +2315,8 @@ namespace {
 		const clienteditor::protobuf::staticdata::StaticData &templateStaticData,
 		const std::string &generatedBuffer,
 		std::string &mergedBuffer,
-		std::unordered_map<uint32_t, uint32_t> *houseIdRemap = nullptr,
-		std::unordered_map<uint32_t, HousePositionDelta> *housePositionDeltaRemap = nullptr
+		std::unordered_map<uint32_t, uint32_t>* houseIdRemap = nullptr,
+		std::unordered_map<uint32_t, HousePositionDelta>* housePositionDeltaRemap = nullptr
 	) {
 		using namespace clienteditor::protobuf::staticdata;
 		using StaticHouse = clienteditor::protobuf::staticdata::House;
@@ -2357,7 +2358,7 @@ namespace {
 			}
 		}
 
-		const auto pickUnusedGeneratedIndex = [&generatedHouseUsed](const std::vector<int> *candidates) -> int {
+		const auto pickUnusedGeneratedIndex = [&generatedHouseUsed](const std::vector<int>* candidates) -> int {
 			if (!candidates) {
 				return -1;
 			}
@@ -2423,7 +2424,7 @@ namespace {
 			generatedHouseUsed[static_cast<size_t>(matchedGeneratedIndex)] = true;
 			const StaticHouse &generatedHouse = generatedStaticData.house(matchedGeneratedIndex);
 			++matchedTemplateHouses;
-			StaticHouse *mergedHouse = mergedStaticData.add_house();
+			StaticHouse* mergedHouse = mergedStaticData.add_house();
 			*mergedHouse = templateHouse;
 
 			// Keep template housePosition for matched houses. CIP uses this anchor
@@ -2492,7 +2493,7 @@ namespace {
 
 			const StaticHouse &generatedHouse = generatedStaticData.house(index);
 			++appendedGeneratedHouses;
-			StaticHouse *mergedHouse = mergedStaticData.add_house();
+			StaticHouse* mergedHouse = mergedStaticData.add_house();
 			*mergedHouse = generatedHouse;
 
 			uint32_t targetHouseId = generatedHouse.house_id();
@@ -2512,7 +2513,7 @@ namespace {
 				}
 			}
 			if (housePositionDeltaRemap) {
-				(*housePositionDeltaRemap)[generatedHouse.house_id()] = HousePositionDelta{};
+				(*housePositionDeltaRemap)[generatedHouse.house_id()] = HousePositionDelta {};
 			}
 		}
 
@@ -2560,7 +2561,7 @@ namespace {
 				continue;
 			}
 
-			HouseEntry *mergedHouseEntry = mergedStaticMapData.add_house();
+			HouseEntry* mergedHouseEntry = mergedStaticMapData.add_house();
 			*mergedHouseEntry = generatedHouseEntry;
 			mergedHouseEntry->set_house_id(targetHouseId);
 		}
@@ -4723,7 +4724,7 @@ bool IOMapOTBM::serializeStaticMapDataHouses(
 			++(*attemptedHouseCount);
 		}
 
-		const StaticMapHouseTemplate *houseTemplate = nullptr;
+		const StaticMapHouseTemplate* houseTemplate = nullptr;
 		if (g_activeStaticMapHouseTemplates) {
 			const auto templateIt = g_activeStaticMapHouseTemplates->find(house->id);
 			if (templateIt != g_activeStaticMapHouseTemplates->end()) {
@@ -4754,7 +4755,7 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 	namespace pb_staticdata = clienteditor::protobuf::staticdata;
 	namespace pb_staticmapdata = clienteditor::protobuf::staticmapdata;
 
-	m_lastStaticHouseExportReport = StaticHouseExportReport{};
+	m_lastStaticHouseExportReport = StaticHouseExportReport {};
 
 	const std::filesystem::path requestedOutputPath = nstr(dir.GetPath(wxPATH_GET_SEPARATOR | wxPATH_GET_VOLUME));
 	const std::filesystem::path basePath = resolveCyclopediaCatalogBasePath(requestedOutputPath);
@@ -5246,9 +5247,12 @@ bool IOMapOTBM::saveCyclopediaMapData(Map &map, const FileName &dir, const Cyclo
 
 	std::string mapDataBuffer;
 	std::vector<std::pair<std::string, std::vector<uint8_t>>> assets;
-	if (!serializeCyclopediaMapData(map, mapDataBuffer, assets, [&](const int32_t done, const std::string &message) {
-			reportProgress(std::min<int32_t>(95, done), message);
-		}, satellitePixelsPerSquare)) {
+	if (!serializeCyclopediaMapData(
+			map, mapDataBuffer, assets, [&](const int32_t done, const std::string &message) {
+				reportProgress(std::min<int32_t>(95, done), message);
+			},
+			satellitePixelsPerSquare
+		)) {
 		return false;
 	}
 
