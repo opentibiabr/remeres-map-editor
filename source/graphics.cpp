@@ -32,6 +32,7 @@
 #include <wx/rawbmp.h>
 
 #include <appearances.pb.h>
+#include <unordered_set>
 
 GraphicManager g_graphics;
 GameSprite g_gameSprite;
@@ -1283,7 +1284,10 @@ void GameSprite::NormalImage::clean(int time) {
 uint8_t* GameSprite::NormalImage::getRGBAData() {
 	if (!m_cachedData) {
 		if (!g_gui.gfx.loadSpriteDump(m_cachedData, size, id)) {
-			spdlog::error("[GameSprite::NormalImage::getRGBAData] - Failed when parsing sprite id {}", id);
+			static std::unordered_set<GLuint> loggedSpriteParseFailures;
+			if (loggedSpriteParseFailures.insert(id).second) {
+				spdlog::error("[GameSprite::NormalImage::getRGBAData] - Failed when parsing sprite id {}", id);
+			}
 			return nullptr;
 		}
 	}

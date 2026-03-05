@@ -22,6 +22,8 @@
 #include "main.h"
 #include "graphics.h"
 
+#include <unordered_set>
+
 class GameSprite;
 
 // APPEARANCES
@@ -146,6 +148,8 @@ public:
 	std::unique_ptr<uint8_t[]> data;
 	std::string path;
 	bool loaded = false;
+	bool loadAttempted = false;
+	bool loadFailed = false;
 };
 
 using SpritePtr = std::shared_ptr<Sprites>;
@@ -205,6 +209,8 @@ private:
 	std::vector<SpriteSheetPtr> sheets;
 	std::map<int, SpritePtr> sprites;
 	std::string appearanceFile;
+	std::unordered_set<std::string> failedSheetPathsLogged;
+	std::unordered_set<int> missingSpriteSheetLogged;
 };
 
 extern SpriteAppearances g_spriteAppearances;

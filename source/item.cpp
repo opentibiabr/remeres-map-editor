@@ -71,7 +71,9 @@ Item::Item(unsigned short _type, unsigned short _count) :
 	subtype(1),
 	selected(false),
 	frame(0) {
-	if (hasSubtype()) {
+	const ItemType &type = g_items.getItemType(id);
+	const bool hasSubtypeValue = type.isFluidContainer() || type.stackable || type.charges != 0 || type.isSplash() || type.isClientCharged() || type.isExtraCharged();
+	if (hasSubtypeValue) {
 		subtype = _count;
 	}
 }
