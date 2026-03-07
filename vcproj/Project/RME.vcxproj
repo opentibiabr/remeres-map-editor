@@ -142,6 +142,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <PrecompiledHeaderFile>main.h</PrecompiledHeaderFile>
+      <AdditionalOptions>/bigobj /utf-8 %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp23</LanguageStandard>
     </ClCompile>
     <Link>
@@ -207,6 +208,7 @@
       <PrecompiledHeaderFile>main.h</PrecompiledHeaderFile>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <BufferSecurityCheck>false</BufferSecurityCheck>
+      <AdditionalOptions>/bigobj /utf-8 %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp23</LanguageStandard>
     </ClCompile>
     <Link>
@@ -241,7 +243,7 @@
       <PrecompiledHeaderFile>main.h</PrecompiledHeaderFile>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <BufferSecurityCheck>false</BufferSecurityCheck>
-      <AdditionalOptions>-Zm114 /utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/bigobj -Zm114 /utf-8 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalUsingDirectories>
       </AdditionalUsingDirectories>
       <LanguageStandard>stdcpp23</LanguageStandard>
@@ -273,7 +275,26 @@
     <ClCompile Include="..\..\source\zones.cpp" />
     <ClCompile Include="..\..\source\zone_brush.cpp" />
     <ClCompile Include="..\..\source\lua\lua_engine.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_script.cpp" />
     <ClCompile Include="..\..\source\lua\lua_script_manager.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_app.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_position.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_item.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_tile.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_map.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_selection.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_dialog.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_color.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_creature.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_brush.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_image.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_geo.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_http.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_noise.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_json.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_algo.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_scripts_window.cpp" />
     <ClInclude Include="..\..\source\actions_history_window.h" />
     <ClInclude Include="..\..\source\add_item_window.h" />
     <ClInclude Include="..\..\source\add_tileset_window.h" />
