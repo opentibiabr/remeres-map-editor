@@ -41,6 +41,9 @@ inline wxBitmap* _wxGetBitmapFromMemory(const unsigned char* data, int length) {
 }
 
 MainToolBar::MainToolBar(wxWindow* parent, wxAuiManager* manager) {
+	task_progress_label = nullptr;
+	task_progress_gauge = nullptr;
+
 	wxSize icon_size = FROM_DIP(parent, wxSize(16, 16));
 	wxBitmap new_bitmap = wxArtProvider::GetBitmap(wxART_NEW, wxART_TOOLBAR, icon_size);
 	wxBitmap open_bitmap = wxArtProvider::GetBitmap(wxART_FILE_OPEN, wxART_TOOLBAR, icon_size);
@@ -65,6 +68,15 @@ MainToolBar::MainToolBar(wxWindow* parent, wxAuiManager* manager) {
 	standard_toolbar->AddTool(wxID_CUT, wxEmptyString, cut_bitmap, wxNullBitmap, wxITEM_NORMAL, "Cut", wxEmptyString, NULL);
 	standard_toolbar->AddTool(wxID_COPY, wxEmptyString, copy_bitmap, wxNullBitmap, wxITEM_NORMAL, "Copy", wxEmptyString, NULL);
 	standard_toolbar->AddTool(wxID_PASTE, wxEmptyString, paste_bitmap, wxNullBitmap, wxITEM_NORMAL, "Paste", wxEmptyString, NULL);
+	standard_toolbar->AddSeparator();
+	task_progress_label = newd wxStaticText(standard_toolbar, wxID_ANY, "");
+	task_progress_label->SetMinSize(FROM_DIP(parent, wxSize(280, -1)));
+	task_progress_gauge = newd wxGauge(standard_toolbar, wxID_ANY, 100, wxDefaultPosition, FROM_DIP(parent, wxSize(120, 14)));
+	task_progress_gauge->SetValue(0);
+	task_progress_label->Hide();
+	task_progress_gauge->Hide();
+	standard_toolbar->AddControl(task_progress_label);
+	standard_toolbar->AddControl(task_progress_gauge);
 	standard_toolbar->Realize();
 
 	wxBitmap* border_bitmap = loadPNGFile(optional_border_small_png);
@@ -637,6 +649,49 @@ void MainToolBar::OnIndicatorsButtonClick(wxCommandEvent &event) {
 			break;
 		default:
 			break;
+	}
+}
+
+void MainToolBar::ShowTaskProgress(const wxString &label) {
+	if (!task_progress_label || !task_progress_gauge) {
+		return;
+	}
+
+	task_progress_label->SetLabel(label);
+	task_progress_gauge->SetValue(0);
+	task_progress_label->Show();
+	task_progress_gauge->Show();
+	standard_toolbar->Realize();
+	if (auto* manager = g_gui.GetAuiManager()) {
+		manager->Update();
+	}
+}
+
+void MainToolBar::UpdateTaskProgress(int32_t percent, const wxString &label) {
+	if (!task_progress_label || !task_progress_gauge) {
+		return;
+	}
+
+	const int32_t clamped = std::max<int32_t>(0, std::min<int32_t>(100, percent));
+	task_progress_label->SetLabel(label);
+	task_progress_gauge->SetValue(clamped);
+	task_progress_label->Show();
+	task_progress_gauge->Show();
+	standard_toolbar->Refresh();
+}
+
+void MainToolBar::HideTaskProgress() {
+	if (!task_progress_label || !task_progress_gauge) {
+		return;
+	}
+
+	task_progress_label->SetLabel(wxEmptyString);
+	task_progress_gauge->SetValue(0);
+	task_progress_label->Hide();
+	task_progress_gauge->Hide();
+	standard_toolbar->Realize();
+	if (auto* manager = g_gui.GetAuiManager()) {
+		manager->Update();
 	}
 }
 

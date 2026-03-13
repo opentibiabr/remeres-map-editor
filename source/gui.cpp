@@ -1095,16 +1095,27 @@ void GUI::RefreshView() {
 	}
 }
 
-void GUI::CreateLoadBar(wxString message, bool canCancel /* = false */) {
+void GUI::CreateLoadBar(wxString message, bool canCancel /* = false */, bool appModal /* = true */) {
 	progressText = message;
 
 	progressFrom = 0;
 	progressTo = 100;
 	currentProgress = -1;
 
-	progressBar = newd wxGenericProgressDialog("Loading", progressText + " (0%)", 100, root, wxPD_APP_MODAL | wxPD_SMOOTH | (canCancel ? wxPD_CAN_ABORT : 0));
+	const long style = wxPD_SMOOTH
+		| (appModal ? wxPD_APP_MODAL : 0)
+		| (canCancel ? wxPD_CAN_ABORT : 0);
+	progressBar = newd wxGenericProgressDialog("Loading", progressText + " (0%)", 100, root, style);
 	progressBar->SetSize(280, -1);
 	progressBar->Show(true);
+	if (!appModal && root) {
+		const wxSize frameSize = root->GetSize();
+		const wxSize barSize = progressBar->GetSize();
+		const int offsetX = std::max(10, frameSize.GetWidth() - barSize.GetWidth() - 24);
+		const int offsetY = 52;
+		const wxPoint anchored = root->ClientToScreen(wxPoint(offsetX, offsetY));
+		progressBar->Move(anchored);
+	}
 
 	for (int idx = 0; idx < tabbook->GetTabCount(); ++idx) {
 		auto* mt = dynamic_cast<MapTab*>(tabbook->GetTab(idx));
@@ -1121,10 +1132,12 @@ void GUI::SetLoadScale(int32_t from, int32_t to) {
 }
 
 bool GUI::SetLoadDone(int32_t done, const wxString &newMessage) {
+	const bool messageChanged = !newMessage.empty() && newMessage != progressText;
+
 	if (done == 100) {
 		DestroyLoadBar();
 		return true;
-	} else if (done == currentProgress) {
+	} else if (done == currentProgress && !messageChanged) {
 		return true;
 	}
 

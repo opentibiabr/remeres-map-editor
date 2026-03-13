@@ -1,0 +1,53 @@
+syntax = "proto2";
+
+package clienteditor.protobuf.mapdata;
+
+message MapData {
+	repeated AreaData areadata = 1;
+	repeated NpcData npcdata = 2;
+	repeated MapAssets mapassets = 3;
+	optional Position topleftedge = 4;
+	optional Position bottomrightedge = 5;
+}
+
+message Position {
+	optional uint32 posx = 1;
+	optional uint32 posy = 2;
+	optional uint32 posz = 3;
+}
+
+message AreaData {
+	optional uint32 areaid = 1;
+	optional string name = 2;
+	enum AreaType {
+		UNDEFINED = 0;
+		AREA = 1;
+		SUBAREA = 2;
+	}
+	optional AreaType type = 3;
+	repeated uint32 subarea = 4;
+	optional Position areaposition = 5;
+	optional bool donate = 6;
+	optional string akaname = 7;
+}
+
+message NpcData {
+	optional string name = 1;
+	optional Position position = 2;
+	optional uint32 subareaid = 3;
+}
+
+message MapAssets {
+	enum AssetsType {
+		SUBAREA = 0;
+		SATELLITE = 1;
+		MINIMAP = 2;
+	}
+	optional AssetsType type = 1;
+	optional Position topleft = 2;
+	optional string filename = 3;
+	optional uint32 widthsquare = 4;
+	optional uint32 heightsquare = 5;
+	optional uint32 areaid = 6;
+	optional double scale = 7;
+}
