@@ -15,49 +15,15 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //////////////////////////////////////////////////////////////////////
 
-#ifndef RME_LUA_ENGINE_H
-#define RME_LUA_ENGINE_H
-
-#include <string>
-#include <functional>
+#ifndef RME_LUA_API_HTTP_H
+#define RME_LUA_API_HTTP_H
 
 #include <sol/sol.hpp>
 
-class LuaEngine {
-public:
-	using PrintCallback = std::function<void(const std::string &)>;
-	LuaEngine() = default;
-	~LuaEngine();
+namespace LuaAPI {
 
-	bool initialize();
-	void shutdown();
-	bool isInitialized() const {
-		return initialized;
-	}
+	void registerHttp(sol::state &lua);
 
-	void setPrintCallback(PrintCallback callback);
+} // namespace LuaAPI
 
-	bool executeFile(const std::string &filepath);
-	bool executeString(const std::string &code, const std::string &chunkName = "chunk");
-
-	sol::state &getState() {
-		return lua;
-	}
-	std::string getLastError() const {
-		return lastError;
-	}
-
-private:
-	sol::state lua;
-	bool initialized = false;
-	std::string lastError;
-	PrintCallback printCallback;
-	std::string currentScriptDir;
-
-	void handlePrint(sol::variadic_args va);
-	void setupSandbox();
-	void registerBaseLibraries();
-	std::string sanitizeScriptPath(const std::string &filename);
-};
-
-#endif // RME_LUA_ENGINE_H
+#endif // RME_LUA_API_HTTP_H

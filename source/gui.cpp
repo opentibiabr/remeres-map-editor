@@ -40,6 +40,7 @@
 #include "welcome_dialog.h"
 #include "spawn_npc_brush.h"
 #include "actions_history_window.h"
+#include "lua/lua_scripts_window.h"
 #include "sprite_appearances.h"
 #include "preferences.h"
 
@@ -76,6 +77,7 @@ GUI::GUI() :
 	gem(nullptr),
 	search_result_window(nullptr),
 	actions_history_window(nullptr),
+	script_manager_window(nullptr),
 	secondary_map(nullptr),
 	doodad_buffer_map(nullptr),
 
@@ -904,6 +906,19 @@ void GUI::HideActionsWindow() {
 		aui_manager->GetPane(actions_history_window).Show(false);
 		aui_manager->Update();
 	}
+}
+
+LuaScriptsWindow* GUI::ShowScriptManagerWindow() {
+	if (!script_manager_window) {
+		script_manager_window = new LuaScriptsWindow(root);
+		LuaScriptsWindow::SetInstance(script_manager_window);
+		aui_manager->AddPane(script_manager_window, wxAuiPaneInfo().Caption("Script Manager").Right().Layer(1).CloseButton(true).MinSize(300, 200).BestSize(400, 300));
+	} else {
+		aui_manager->GetPane(script_manager_window).Show();
+	}
+	aui_manager->Update();
+	script_manager_window->RefreshScriptList();
+	return script_manager_window;
 }
 
 //=============================================================================

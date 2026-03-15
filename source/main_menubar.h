@@ -188,6 +188,7 @@ public:
 	void AddRecentFile(FileName file);
 	void LoadRecentFiles();
 	void SaveRecentFiles();
+	void LoadScriptsMenu();
 	std::vector<wxString> GetRecentFiles();
 
 	// Interface
@@ -326,6 +327,7 @@ protected:
 protected:
 	MainFrame* frame;
 	wxMenuBar* menubar;
+	wxMenu* scriptsMenu = nullptr;
 
 	// Used so that calling Check on menu items don't trigger events (avoids infinite recursion)
 	bool checking_programmaticly;
