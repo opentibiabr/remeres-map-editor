@@ -524,7 +524,7 @@ bool ItemDatabase::loadFromProtobuf(wxString &error, wxArrayString &warnings, ca
 
 			if (animation.sprite_phase().size() > 0) {
 				const auto &spritesPhases = animation.sprite_phase();
-				t->start_frame = animation.default_start_phase();
+				t->start_frame = static_cast<int8_t>(animation.default_start_phase());
 				t->loop_count = animation.loop_count();
 				t->async_animation = !animation.synchronized();
 				for (int k = 0; k < spritesPhases.size(); k++) {

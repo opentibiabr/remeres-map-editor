@@ -854,7 +854,7 @@ bool GraphicManager::loadItemSpriteMetadata(const std::shared_ptr<ItemType> &t, 
 	has_frame_durations = t->m_animationPhases.size() > 0;
 
 	if (sType->sprite_phase_size > 0) {
-		sType->animator = newd Animator(sType->sprite_phase_size, t->start_frame, t->loop_count, t->async_animation);
+		sType->animator = newd Animator(sType->sprite_phase_size, static_cast<int>(t->start_frame), t->loop_count, t->async_animation);
 		if (has_frame_durations) {
 			int frameIndex = 0;
 			for (const auto phase : t->m_animationPhases) {
@@ -904,7 +904,7 @@ bool GraphicManager::loadOutfitSpriteMetadata(canary::protobuf::appearances::App
 	has_frame_durations = animation.sprite_phase().size() > 0;
 
 	if (sType->sprite_phase_size > 0) {
-		sType->animator = newd Animator(sType->sprite_phase_size, animation.default_start_phase(), animation.loop_count(), !animation.synchronized());
+		sType->animator = newd Animator(sType->sprite_phase_size, static_cast<int8_t>(animation.default_start_phase()), animation.loop_count(), !animation.synchronized());
 		if (has_frame_durations) {
 			int frameIndex = 0;
 			for (const auto &phase : animation.sprite_phase()) {
@@ -1515,6 +1515,7 @@ GameSprite* GameSprite::createFromBitmap(const wxArtID &bitmapId) {
 
 // ============================================================================
 // Animator
+// ============================================================================
 
 Animator::Animator(int frame_count, int start_frame, int loop_count, bool async) :
 	frame_count(frame_count),
