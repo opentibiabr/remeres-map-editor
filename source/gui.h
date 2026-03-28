@@ -61,6 +61,7 @@ class MapCanvas;
 class SearchResultWindow;
 class MinimapWindow;
 class ActionsHistoryWindow;
+class LuaScriptsWindow;
 class PaletteWindow;
 class OldPropertiesWindow;
 class TilesetWindow;
@@ -245,6 +246,8 @@ public:
 	ActionsHistoryWindow* ShowActionsWindow();
 	void HideActionsWindow();
 
+	LuaScriptsWindow* ShowScriptManagerWindow();
+
 	// Minimap
 	void CreateMinimap();
 	void HideMinimap();
@@ -428,6 +431,7 @@ public:
 	DCButton* gem; // The small gem in the lower-right corner
 	SearchResultWindow* search_result_window;
 	ActionsHistoryWindow* actions_history_window;
+	LuaScriptsWindow* script_manager_window;
 	GraphicManager gfx;
 
 	BaseMap* secondary_map; // A buffer map

@@ -26,7 +26,8 @@
 #include "result_window.h"
 #include "find_item_window.h"
 #include "settings.h"
-
+#include "lua/lua_script_manager.h"
+#include "lua/lua_scripts_window.h"
 #include "gui.h"
 
 #include <wx/chartype.h>
@@ -504,6 +505,59 @@ void MainMenuBar::SaveRecentFiles() {
 	recentFiles.Save(g_settings.getConfigObject());
 }
 
+void MainMenuBar::LoadScriptsMenu() {
+	if (!g_luaScripts.isInitialized()) {
+		spdlog::warn("LoadScriptsMenu: Lua not initialized");
+		return;
+	}
+
+	if (!scriptsMenu) {
+		spdlog::warn("LoadScriptsMenu: Scripts menu not found (add <menu name=\"$Scripts\"> to menubar.xml)");
+		return;
+	}
+
+	// Remove old dynamic items
+	while (scriptsMenu->GetMenuItemCount() > 0) {
+		scriptsMenu->Delete(scriptsMenu->FindItemByPosition(0));
+	}
+
+	// Add "Script Manager" at the top
+	wxMenuItem* managerItem = scriptsMenu->Append(wxID_ANY, "Script Manager");
+	frame->Bind(
+		wxEVT_MENU, [](wxCommandEvent &) {
+			g_gui.ShowScriptManagerWindow();
+		},
+		managerItem->GetId()
+	);
+	scriptsMenu->AppendSeparator();
+
+	// Add one menu item per discovered script
+	const auto &scripts = g_luaScripts.getScripts();
+	for (size_t i = 0; i < scripts.size(); ++i) {
+		const auto &script = scripts[i];
+		wxString label = wxString::FromUTF8(script->getDisplayName());
+		wxMenuItem* item = scriptsMenu->Append(wxID_ANY, label);
+		frame->Bind(
+			wxEVT_MENU, [i](wxCommandEvent &) {  
+			std::string error;  
+			if (!g_luaScripts.executeScript(i, error)) {  
+				wxMessageBox(wxString::FromUTF8(error), "Script Error", wxOK | wxICON_ERROR);  
+			} }, item->GetId()
+		);
+	}
+
+	// Add separator + "Reload Scripts" at the bottom
+	if (!scripts.empty()) {
+		scriptsMenu->AppendSeparator();
+	}
+	wxMenuItem* reloadItem = scriptsMenu->Append(wxID_ANY, "Reload Scripts");
+	frame->Bind(
+		wxEVT_MENU, [this](wxCommandEvent &) {  
+		g_luaScripts.reloadScripts();  
+		LoadScriptsMenu(); }, reloadItem->GetId()
+	);
+}
+
 void MainMenuBar::AddRecentFile(FileName file) {
 	recentFiles.AddFileToHistory(file.GetFullPath());
 }
@@ -564,12 +618,20 @@ bool MainMenuBar::Load(const FileName &path, wxArrayString &warnings, wxString &
 	}
 
 	// Load succeded
+	scriptsMenu = nullptr; // reset
 	for (pugi::xml_node menuNode = node.first_child(); menuNode; menuNode = menuNode.next_sibling()) {
-		// For each child node, load it
 		wxObject* i = LoadItem(menuNode, nullptr, warnings, error);
 		wxMenu* m = dynamic_cast<wxMenu*>(i);
 		if (m) {
-			menubar->Append(m, m->GetTitle());
+			wxString title = m->GetTitle();
+			menubar->Append(m, title);
+
+			// Store pointer to Scripts menu for later use
+			wxString cleanTitle = wxMenuItem::GetLabelText(title);
+			if (cleanTitle == "Scripts") {
+				scriptsMenu = m;
+			}
+
 #ifdef __APPLE__
 			m->SetTitle(m->GetTitle());
 #else

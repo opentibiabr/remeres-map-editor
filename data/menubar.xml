@@ -202,6 +202,8 @@
         <item name="Floor 14" action="FLOOR_14" help=""/>
         <item name="Floor 15" action="FLOOR_15" help=""/>
     </menu>
+    <menu name="$Scripts">
+    </menu>
     <menu name="$About">
         <item name="Goto $Website" hotkey="F3" action="GOTO_WEBSITE" help=""/>
         <item name="$About..." hotkey="F1" action="ABOUT" help=""/>

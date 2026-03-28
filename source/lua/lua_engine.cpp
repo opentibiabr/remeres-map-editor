@@ -324,6 +324,12 @@ bool LuaEngine::executeFile(const std::string &filepath) {
 	} catch (const sol::error &e) {
 		lastError = std::string("Exception executing script '") + filepath + "': " + e.what();
 		return false;
+	} catch (const std::exception &e) {
+		lastError = std::string("Exception executing script '") + filepath + "': " + e.what();
+		return false;
+	} catch (...) {
+		lastError = std::string("Unknown exception executing script '") + filepath + "'";
+		return false;
 	}
 }
 
@@ -353,6 +359,12 @@ bool LuaEngine::executeString(const std::string &code, const std::string &chunkN
 		return true;
 	} catch (const sol::error &e) {
 		lastError = std::string("Exception executing code: ") + e.what();
+		return false;
+	} catch (const std::exception &e) {
+		lastError = std::string("Exception executing code: ") + e.what();
+		return false;
+	} catch (...) {
+		lastError = "Unknown exception executing code";
 		return false;
 	}
 }

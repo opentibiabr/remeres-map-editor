@@ -57,9 +57,9 @@ jobs:
       - name: Install Linux Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-13 g++-13 ccache linux-headers-$(uname -r)
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100 --slave /usr/bin/g++ g++ /usr/bin/g++-13
-          sudo update-alternatives --set gcc /usr/bin/gcc-13
+          sudo apt-get install -y gcc-14 g++-14 ccache linux-headers-$(uname -r)
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100 --slave /usr/bin/g++ g++ /usr/bin/g++-14
+          sudo update-alternatives --set gcc /usr/bin/gcc-14
 
       - name: CCache
         uses: hendrikmuhs/ccache-action@main

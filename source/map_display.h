@@ -95,21 +95,21 @@ public:
 	// ---
 	void OnProperties(wxCommandEvent &event);
 
-	void Refresh();
+	virtual void Refresh();
 
-	void ScreenToMap(int screen_x, int screen_y, int* map_x, int* map_y);
+	virtual void ScreenToMap(int screen_x, int screen_y, int* map_x, int* map_y);
 	void MouseToMap(int* map_x, int* map_y) {
 		ScreenToMap(cursor_x, cursor_y, map_x, map_y);
 	}
-	void GetScreenCenter(int* map_x, int* map_y);
+	virtual void GetScreenCenter(int* map_x, int* map_y);
 
 	void StartPasting();
 	void EndPasting();
 	void EnterSelectionMode();
 	void EnterDrawingMode();
 
-	void UpdatePositionStatus(int x = -1, int y = -1);
-	void UpdateZoomStatus();
+	virtual void UpdatePositionStatus(int x = -1, int y = -1);
+	virtual void UpdateZoomStatus();
 
 	void ChangeFloor(int new_floor);
 	int GetFloor() const noexcept {
@@ -118,8 +118,8 @@ public:
 	double GetZoom() const noexcept {
 		return zoom;
 	}
-	void SetZoom(double value);
-	void GetViewBox(int* view_scroll_x, int* view_scroll_y, int* screensize_x, int* screensize_y) const;
+	virtual void SetZoom(double value);
+	virtual void GetViewBox(int* view_scroll_x, int* view_scroll_y, int* screensize_x, int* screensize_y) const;
 
 	MapWindow* GetMapWindow() const;
 	Position GetCursorPosition() const;

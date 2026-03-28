@@ -19,6 +19,15 @@ find_package(ZLIB REQUIRED)
 find_package(pugixml CONFIG REQUIRED)
 find_package(liblzma CONFIG REQUIRED)
 find_package(Protobuf REQUIRED)
+find_package(cpr CONFIG REQUIRED)
+
+include(FetchContent)
+FetchContent_Declare(
+    FastNoiseLite
+    GIT_REPOSITORY https://github.com/Auburn/FastNoiseLite.git
+    GIT_TAG        v1.1.1
+)
+FetchContent_MakeAvailable(FastNoiseLite)
 
 # *****************************************************************************
 # Options
@@ -65,7 +74,7 @@ if (MSVC)
 		set_property(TARGET ${PROJECT_NAME} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 	endif()
 
-	target_compile_options(${PROJECT_NAME} PUBLIC /MP /FS /Zf /EHsc )
+	target_compile_options(${PROJECT_NAME} PUBLIC /MP /FS /Zf /EHsc /bigobj)
 else()
 	add_executable(${PROJECT_NAME} "")
 endif()
@@ -101,7 +110,7 @@ if(LUA_LIB_TARGET)
 	if(VCPKG_LUA_INCLUDES)
 		target_include_directories(${PROJECT_NAME} PRIVATE ${VCPKG_LUA_INCLUDES})
 	endif()
-	target_compile_definitions(${PROJECT_NAME} PRIVATE SOL_USING_CXX_LUA_HPP=1)
+	target_compile_definitions(${PROJECT_NAME} PRIVATE SOL_USING_CXX_LUA_HPP=1 SOL_ALL_SAFETIES_ON=1)
 endif()
 
 # === UNITY BUILD (compile time reducer) ===
@@ -166,7 +175,26 @@ target_sources(${PROJECT_NAME}
 	live_socket.cpp
 	live_tab.cpp
 	lua/lua_engine.cpp
+	lua/lua_script.cpp
 	lua/lua_script_manager.cpp
+	lua/lua_api.cpp
+	lua/lua_api_app.cpp
+	lua/lua_api_position.cpp
+	lua/lua_api_item.cpp
+	lua/lua_api_tile.cpp
+	lua/lua_api_map.cpp
+	lua/lua_api_selection.cpp
+	lua/lua_dialog.cpp
+	lua/lua_api_color.cpp
+	lua/lua_api_creature.cpp
+	lua/lua_api_brush.cpp
+	lua/lua_api_image.cpp
+	lua/lua_api_geo.cpp
+	lua/lua_api_http.cpp
+	lua/lua_api_noise.cpp
+	lua/lua_api_json.cpp
+	lua/lua_api_algo.cpp
+	lua/lua_scripts_window.cpp
 	main_menubar.cpp
 	main_toolbar.cpp
 	map.cpp
@@ -232,6 +260,7 @@ target_include_directories(${PROJECT_NAME}
 	${OPENGL_INCLUDE_DIR}
 	${GLUT_INCLUDE_DIRS}
 	${ZLIB_INCLUDE_DIR}
+	${fastnoiselite_SOURCE_DIR}/Cpp
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -249,6 +278,7 @@ target_link_libraries(${PROJECT_NAME}
 	protobuf
 	${LUA_LIB_TARGET}
 	sol2::sol2
+	cpr::cpr
 
 	$<$<PLATFORM_ID:Linux>:xcb>
 	$<$<PLATFORM_ID:Windows>:psapi>

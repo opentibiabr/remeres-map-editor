@@ -131,6 +131,7 @@
       <AdditionalIncludeDirectories>
       vcpkg_installed\$(VcpkgTriplet)\include\;
       generated;
+      ..\..\source;
       %(AdditionalIncludeDirectories)
       </AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_CRTDBG_MAP_ALLOC;__DEBUG__;WXUSINGDLL;wxMSVC_VERSION_AUTO;__EXPERIMENTAL__;LIVE_SERVER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -142,6 +143,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <PrecompiledHeaderFile>main.h</PrecompiledHeaderFile>
+      <AdditionalOptions>/bigobj /utf-8 %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp23</LanguageStandard>
     </ClCompile>
     <Link>
@@ -162,6 +164,7 @@
       <AdditionalIncludeDirectories>
       vcpkg_installed\$(VcpkgTriplet)\include\;
       generated;
+      ..\..\source;
 	  %(AdditionalIncludeDirectories)
       </AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_CRTDBG_MAP_ALLOC;__DEBUG__;WXUSINGDLL;wxMSVC_VERSION_AUTO;__EXPERIMENTAL__;LIVE_SERVER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -196,6 +199,7 @@
       <AdditionalIncludeDirectories>
       vcpkg_installed\$(VcpkgTriplet)\include\;
       generated;
+      ..\..\source;
       %(AdditionalIncludeDirectories)
       </AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NDEBUG;__RELEASE__;WXUSINGDLL;wxMSVC_VERSION_AUTO;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -207,6 +211,7 @@
       <PrecompiledHeaderFile>main.h</PrecompiledHeaderFile>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <BufferSecurityCheck>false</BufferSecurityCheck>
+      <AdditionalOptions>/bigobj /utf-8 %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp23</LanguageStandard>
     </ClCompile>
     <Link>
@@ -230,6 +235,7 @@
       <AdditionalIncludeDirectories>
       vcpkg_installed\$(VcpkgTriplet)\include\;
       generated;
+      ..\..\source;
 	  %(AdditionalIncludeDirectories)
       </AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NDEBUG;__RELEASE__;WXUSINGDLL;wxMSVC_VERSION_AUTO;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -241,7 +247,7 @@
       <PrecompiledHeaderFile>main.h</PrecompiledHeaderFile>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <BufferSecurityCheck>false</BufferSecurityCheck>
-      <AdditionalOptions>-Zm114 /utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/bigobj -Zm114 /utf-8 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalUsingDirectories>
       </AdditionalUsingDirectories>
       <LanguageStandard>stdcpp23</LanguageStandard>
@@ -273,7 +279,26 @@
     <ClCompile Include="..\..\source\zones.cpp" />
     <ClCompile Include="..\..\source\zone_brush.cpp" />
     <ClCompile Include="..\..\source\lua\lua_engine.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_script.cpp" />
     <ClCompile Include="..\..\source\lua\lua_script_manager.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_app.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_position.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_item.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_tile.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_map.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_selection.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_dialog.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_color.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_creature.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_brush.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_image.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_geo.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_http.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_noise.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_json.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_api_algo.cpp" />
+    <ClCompile Include="..\..\source\lua\lua_scripts_window.cpp" />
     <ClInclude Include="..\..\source\actions_history_window.h" />
     <ClInclude Include="..\..\source\add_item_window.h" />
     <ClInclude Include="..\..\source\add_tileset_window.h" />
@@ -525,6 +550,13 @@
         <IncludeInUnityFile>false</IncludeInUnityFile>
       </ClInclude>
     </ItemGroup>
+  </Target>
+  <Target Name="DownloadFastNoiseLite" BeforeTargets="ClCompile"
+          Condition="!Exists('$(ProjectDir)..\..\source\lua\FastNoiseLite.h')">
+    <DownloadFile
+      SourceUrl="https://raw.githubusercontent.com/Auburn/FastNoiseLite/v1.1.1/Cpp/FastNoiseLite.h"
+      DestinationFolder="$(ProjectDir)..\..\source\lua"
+      DestinationFileName="FastNoiseLite.h" />
   </Target>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

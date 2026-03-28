@@ -3,6 +3,7 @@
 	"version-string": "1.0.0",
 	"dependencies": [
 		"asio",
+		"cpr",
 		"pugixml",
 		"freeglut",
 		"nlohmann-json",
@@ -13,7 +14,8 @@
 		"liblzma",
 		"spdlog",
 		"lua",
-		"sol2"
+		"sol2",
+		"zlib"
 	],
 	"builtin-baseline": "6760f636e7bcd0dd034c5c0906f6174009465c29"
 }

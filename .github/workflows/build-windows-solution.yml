@@ -64,10 +64,15 @@ jobs:
           Write-Host "Vcpkg Path: $env:GITHUB_WORKSPACE\vcpkg"
           Write-Host "Triplet: ${{ matrix.triplet }}"
 
+      - name: Download FastNoiseLite
+        run: |
+          New-Item -ItemType Directory -Force -Path "source"
+          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Auburn/FastNoiseLite/v1.1.1/Cpp/FastNoiseLite.h" -OutFile "source/lua/FastNoiseLite.h"
+
       - name: Build project
         env:
           GITHUB_WORKSPACE: ${{ github.workspace }}
-        run: msbuild.exe /p:VcpkgEnableManifest=true /p:Configuration=Debug /p:Platform=x64 /p:GITHUB_WORKSPACE="$env:GITHUB_WORKSPACE" vcproj/RME.sln
+        run: msbuild.exe /p:VcpkgEnableManifest=true /p:Configuration=${{ matrix.buildtype }} /p:Platform=x64 /p:GITHUB_WORKSPACE="$env:GITHUB_WORKSPACE" vcproj/RME.sln
 
       - name: Upload artifacts
         uses: actions/upload-artifact@main
