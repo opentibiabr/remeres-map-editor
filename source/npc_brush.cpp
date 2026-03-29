@@ -26,11 +26,13 @@
 
 //=============================================================================
 // Npc brush
+//=============================================================================
 
 NpcBrush::NpcBrush(NpcType* type) :
 	Brush(),
 	npc_type(type) {
 	ASSERT(type->brush == nullptr);
+	type->brush = this;
 }
 
 NpcBrush::~NpcBrush() {

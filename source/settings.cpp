@@ -343,6 +343,11 @@ void Settings::IO(IOMode mode) {
 	String(TOOLBAR_BRUSHES_LAYOUT, "");
 	String(TOOLBAR_POSITION_LAYOUT, "");
 	String(TOOLBAR_SIZES_LAYOUT, "");
+	String(TOOLBAR_INDICATORS_LAYOUT, "");
+
+	section("Creatures");
+	String(MONSTERS_LUA_DIRECTORY, "");
+	String(NPCS_LUA_DIRECTORY, "");
 
 	section("");
 	Int(GOTO_WEBSITE_ON_BOOT, 0);

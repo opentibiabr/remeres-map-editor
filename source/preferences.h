@@ -115,6 +115,8 @@ protected:
 	// Client info
 	wxChoice* default_version_choice;
 	wxDirPickerCtrl* version_dir_picker;
+	wxDirPickerCtrl* monsters_lua_dir_picker;
+	wxDirPickerCtrl* npcs_lua_dir_picker;
 	wxCheckBox* check_sigs_chkbox;
 
 	// Create controls
