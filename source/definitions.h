@@ -59,6 +59,7 @@
 	#pragma warning(disable : 4800) // Bool conversion warning
 	#pragma warning(disable : 4100) // Unused parameter warning ( I like to name unused stuff... )
 	#pragma warning(disable : 4706) // Assignment within conditional expression
+	#pragma warning(disable : 4251) // dll-interface warnings from external libraries
 #endif
 
 #ifndef FORCEINLINE
