@@ -60,7 +60,6 @@
 	#pragma warning(disable : 4100) // Unused parameter warning ( I like to name unused stuff... )
 	#pragma warning(disable : 4706) // Assignment within conditional expression
 	#pragma warning(disable : 4251) // dll-interface warnings from external libraries
-	#pragma warning(disable : 4267) // size_t to int conversions in external headers
 #endif
 
 #ifndef FORCEINLINE
