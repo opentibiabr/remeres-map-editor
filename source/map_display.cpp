@@ -1063,7 +1063,6 @@ void MapCanvas::OnMouseActionRelease(wxMouseEvent &event) {
 						last_click_map_y = tmp;
 					}
 
-					int numtiles = 0;
 					int threadcount = std::max(g_settings.getInteger(Config::WORKER_THREADS), 1);
 
 					int start_x = 0, start_y = 0, start_z = 0;
@@ -1094,7 +1093,6 @@ void MapCanvas::OnMouseActionRelease(wxMouseEvent &event) {
 								end_y -= (floor < rme::MapGroundLayer ? rme::MapGroundLayer - floor : 0);
 							}
 
-							numtiles = (start_z - end_z) * (end_x - start_x) * (end_y - start_y);
 							break;
 						}
 						case SELECT_VISIBLE_FLOORS: {
@@ -1120,15 +1118,22 @@ void MapCanvas::OnMouseActionRelease(wxMouseEvent &event) {
 						}
 					}
 
-					if (numtiles < 500) {
-						// No point in threading for such a small set.
+					int width = end_x - start_x;
+					int height = end_y - start_y;
+					int floor_span = start_z - end_z;
+					long long selection_volume = static_cast<long long>(width + 1) * (height + 1) * (floor_span + 1);
+
+					// This check must use a mode-agnostic volume; relying on mode-specific counters
+					// incorrectly forced single-threading in floor modes where that counter was never populated.
+					if (selection_volume < 500) {
 						threadcount = 1;
 					}
 					// Subdivide the selection area
 					// We know it's a square, just split it into several areas
-					int width = end_x - start_x;
 					if (width < threadcount) {
-						threadcount = std::min(1, width);
+						// Clamp workers to the horizontal split count so we do not create idle/empty chunks;
+						// keep at least one worker so single-column selections still execute safely.
+						threadcount = std::max(1, width);
 					}
 					// Let's divide!
 					int remainder = width;
