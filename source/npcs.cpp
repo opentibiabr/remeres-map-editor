@@ -23,9 +23,14 @@
 #include "npcs.h"
 #include "npc_brush.h"
 
+#include <wx/dir.h>
+
+#include "lua_parser.h"
+
 NpcDatabase g_npcs;
 
 NpcType::NpcType() :
+	isNpc(true),
 	missing(false),
 	in_other_tileset(false),
 	standard(false),
@@ -35,6 +40,7 @@ NpcType::NpcType() :
 }
 
 NpcType::NpcType(const NpcType &npc) :
+	isNpc(npc.isNpc),
 	missing(npc.missing),
 	in_other_tileset(npc.in_other_tileset),
 	standard(npc.standard),
@@ -45,6 +51,7 @@ NpcType::NpcType(const NpcType &npc) :
 }
 
 NpcType &NpcType::operator=(const NpcType &npc) {
+	isNpc = npc.isNpc;
 	missing = npc.missing;
 	in_other_tileset = npc.in_other_tileset;
 	standard = npc.standard;
@@ -56,50 +63,6 @@ NpcType &NpcType::operator=(const NpcType &npc) {
 
 NpcType::~NpcType() {
 	////
-}
-
-NpcType* NpcType::loadFromXML(pugi::xml_node node, wxArrayString &warnings) {
-	pugi::xml_attribute attribute;
-	if (!(attribute = node.attribute("name"))) {
-		warnings.push_back("Couldn't read name tag of npc node.");
-		return nullptr;
-	}
-
-	NpcType* npcType = newd NpcType();
-	npcType->name = attribute.as_string();
-	npcType->outfit.name = npcType->name;
-
-	if ((attribute = node.attribute("looktype"))) {
-		npcType->outfit.lookType = attribute.as_int();
-		if (g_gui.gfx.getCreatureSprite(npcType->outfit.lookType) == nullptr) {
-			warnings.push_back("Invalid npc \"" + wxstr(npcType->name) + "\" look type #" + std::to_string(npcType->outfit.lookType));
-		}
-	}
-
-	if ((attribute = node.attribute("lookitem"))) {
-		npcType->outfit.lookItem = attribute.as_int();
-	}
-
-	if ((attribute = node.attribute("lookaddon"))) {
-		npcType->outfit.lookAddon = attribute.as_int();
-	}
-
-	if ((attribute = node.attribute("lookhead"))) {
-		npcType->outfit.lookHead = attribute.as_int();
-	}
-
-	if ((attribute = node.attribute("lookbody"))) {
-		npcType->outfit.lookBody = attribute.as_int();
-	}
-
-	if ((attribute = node.attribute("looklegs"))) {
-		npcType->outfit.lookLegs = attribute.as_int();
-	}
-
-	if ((attribute = node.attribute("lookfeet"))) {
-		npcType->outfit.lookFeet = attribute.as_int();
-	}
-	return npcType;
 }
 
 NpcType* NpcType::loadFromOTXML(const FileName &filename, pugi::xml_document &doc, wxArrayString &warnings) {
@@ -212,39 +175,6 @@ bool NpcDatabase::hasMissing() const {
 	return false;
 }
 
-bool NpcDatabase::loadFromXML(const FileName &filename, bool standard, wxString &error, wxArrayString &warnings) {
-	pugi::xml_document doc;
-	pugi::xml_parse_result result = doc.load_file(filename.GetFullPath().mb_str());
-	if (!result) {
-		error = "Couldn't open file \"" + filename.GetFullName() + "\", invalid format?";
-		return false;
-	}
-
-	pugi::xml_node node = doc.child("npcs");
-	if (!node) {
-		error = "Invalid file signature, this file is not a valid npc file.";
-		return false;
-	}
-
-	for (pugi::xml_node npcNode = node.first_child(); npcNode; npcNode = npcNode.next_sibling()) {
-		if (as_lower_str(npcNode.name()) != "npc") {
-			continue;
-		}
-
-		NpcType* npcType = NpcType::loadFromXML(npcNode, warnings);
-		if (npcType) {
-			npcType->standard = standard;
-			if ((*this)[npcType->name]) {
-				warnings.push_back("Duplicate npc with name \"" + wxstr(npcType->name) + "\"! Discarding...");
-				delete npcType;
-			} else {
-				npcMap[as_lower_str(npcType->name)] = npcType;
-			}
-		}
-	}
-	return true;
-}
-
 bool NpcDatabase::importXMLFromOT(const FileName &filename, wxString &error, wxArrayString &warnings) {
 	pugi::xml_document doc;
 	pugi::xml_parse_result result = doc.load_file(filename.GetFullPath().mb_str());
@@ -319,4 +249,57 @@ wxArrayString NpcDatabase::getMissingNpcNames() const {
 		}
 	}
 	return missingNpcs;
+}
+
+bool NpcDatabase::loadFromLuaDir(const wxString &directory, wxString &error, wxArrayString &warnings) {
+	if (directory.IsEmpty() || !wxDir::Exists(directory)) {
+		return true;
+	}
+
+	wxArrayString luaFiles;
+	wxDir::GetAllFiles(directory, &luaFiles, "*.lua", wxDIR_FILES | wxDIR_DIRS);
+
+	int fileCount = 0;
+	for (const auto &filePath : luaFiles) {
+		if (++fileCount % 50 == 0) {
+			wxSafeYield();
+		}
+		std::string content = LuaParser::readFileContent(filePath.ToStdString());
+		if (content.empty()) {
+			warnings.push_back("Could not open: " + filePath);
+			continue;
+		}
+
+		std::string name = LuaParser::parseCreateCall(content, "Game.createNpcType");
+		if (name.empty()) {
+			name = LuaParser::parseLocalString(content, "internalNpcName");
+		}
+		if (name.empty()) {
+			continue;
+		}
+
+		NpcType* existing = (*this)[name];
+		if (existing) {
+			if (!existing->missing) {
+				continue;
+			}
+			if (LuaParser::parseOutfit(content, existing->outfit)) {
+				existing->missing = false;
+			}
+			continue;
+		}
+
+		NpcType* npcType = newd NpcType();
+		npcType->name = name;
+		npcType->outfit.name = name;
+		npcType->standard = false;
+
+		if (!LuaParser::parseOutfit(content, npcType->outfit)) {
+			delete npcType;
+			continue;
+		}
+
+		npcMap[as_lower_str(npcType->name)] = npcType;
+	}
+	return true;
 }

@@ -111,6 +111,9 @@ public: // Functions
 	void updateActions();
 	void resetActionsTimer();
 	void clearActions();
+	ActionQueue* getActionQueue() const noexcept {
+		return actionQueue;
+	}
 
 	// Selection
 	Selection &getSelection() noexcept {

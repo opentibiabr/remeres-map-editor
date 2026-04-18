@@ -21,6 +21,8 @@
 #include "graphics.h"
 #include "position.h"
 
+class GLRenderer;
+
 class LightDrawer {
 	struct Light {
 		uint16_t map_x = 0;
@@ -33,7 +35,7 @@ public:
 	LightDrawer();
 	virtual ~LightDrawer();
 
-	void draw(int map_x, int map_y, int end_x, int end_y, int scroll_x, int scroll_y);
+	void draw(int map_x, int map_y, int end_x, int end_y, int scroll_x, int scroll_y, GLRenderer* renderer);
 
 	void setGlobalLightColor(uint8_t color);
 	void addLight(int map_x, int map_y, int map_z, const SpriteLight &light);

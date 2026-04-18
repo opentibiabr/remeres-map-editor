@@ -30,7 +30,7 @@ set(VCPKG_BUILD_TYPE "release")
 # *****************************************************************************
 
 set(CMAKE_CXX_STANDARD 23)
-set(GNUCXX_MINIMUM_VERSION 13)
+set(GNUCXX_MINIMUM_VERSION 14)
 set(MSVC_MINIMUM_VERSION "19.37")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -68,6 +68,21 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 	if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS MSVC_MINIMUM_VERSION)
 		message(FATAL_ERROR "Visual Studio version must be at least ${MSVC_MINIMUM_VERSION}")
 	endif()
+endif()
+
+# *****************************************************************************
+# Lua Scripting Support
+# *****************************************************************************
+
+find_package(lua CONFIG REQUIRED)
+find_package(sol2 CONFIG REQUIRED)
+
+if(TARGET lua::lua)
+	set(LUA_LIB_TARGET lua::lua)
+elseif(TARGET lua)
+	set(LUA_LIB_TARGET lua)
+else()
+	message(FATAL_ERROR "Lua target not found!")
 endif()
 
 # *****************************************************************************

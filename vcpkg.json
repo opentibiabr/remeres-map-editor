@@ -3,15 +3,20 @@
 	"version-string": "1.0.0",
 	"dependencies": [
 		"asio",
+		"cpr",
 		"pugixml",
-		"freeglut",
+		"glad",
 		"nlohmann-json",
 		"fmt",
 		"wxwidgets",
 		"opengl",
 		"protobuf",
 		"liblzma",
-		"spdlog"
+		"spdlog",
+		"lua",
+		"sol2",
+		"stb",
+		"zlib"
 	],
 	"builtin-baseline": "6760f636e7bcd0dd034c5c0906f6174009465c29"
 }

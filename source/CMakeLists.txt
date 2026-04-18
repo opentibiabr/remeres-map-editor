@@ -10,7 +10,8 @@ endif()
 
 find_package(asio CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
-find_package(GLUT REQUIRED)
+find_package(glad CONFIG REQUIRED)
+find_path(STB_INCLUDE_DIRS "stb_truetype.h")
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(Threads REQUIRED)
@@ -19,6 +20,15 @@ find_package(ZLIB REQUIRED)
 find_package(pugixml CONFIG REQUIRED)
 find_package(liblzma CONFIG REQUIRED)
 find_package(Protobuf REQUIRED)
+find_package(cpr CONFIG REQUIRED)
+
+include(FetchContent)
+FetchContent_Declare(
+    FastNoiseLite
+    GIT_REPOSITORY https://github.com/Auburn/FastNoiseLite.git
+    GIT_TAG        v1.1.1
+)
+FetchContent_MakeAvailable(FastNoiseLite)
 
 # *****************************************************************************
 # Options
@@ -65,7 +75,7 @@ if (MSVC)
 		set_property(TARGET ${PROJECT_NAME} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 	endif()
 
-	target_compile_options(${PROJECT_NAME} PUBLIC /MP /FS /Zf /EHsc )
+	target_compile_options(${PROJECT_NAME} PUBLIC /MP /FS /Zf /EHsc /bigobj)
 else()
 	add_executable(${PROJECT_NAME} "")
 endif()
@@ -89,10 +99,25 @@ else()
 	message(WARNING "IPO is not supported: ${output}")
 endif()
 
+# Lua includes (target-specific)
+if(TARGET lua::lua)
+	set(LUA_LIB_TARGET lua::lua)
+elseif(TARGET lua)
+	set(LUA_LIB_TARGET lua)
+endif()
+
+if(LUA_LIB_TARGET)
+	get_target_property(VCPKG_LUA_INCLUDES ${LUA_LIB_TARGET} INTERFACE_INCLUDE_DIRECTORIES)
+	if(VCPKG_LUA_INCLUDES)
+		target_include_directories(${PROJECT_NAME} PRIVATE ${VCPKG_LUA_INCLUDES})
+	endif()
+	target_compile_definitions(${PROJECT_NAME} PRIVATE SOL_USING_CXX_LUA_HPP=1 SOL_ALL_SAFETIES_ON=1)
+endif()
 
 # === UNITY BUILD (compile time reducer) ===
 if(SPEED_UP_BUILD_UNITY)
 	set_target_properties(${PROJECT_NAME} PROPERTIES UNITY_BUILD ON)
+	set_source_files_properties(gl_renderer.cpp PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 	log_option_enabled("Build unity for speed up compilation")
 else()
 	# === PRECOMPILED HEADER ===
@@ -133,6 +158,7 @@ target_sources(${PROJECT_NAME}
 	find_item_window.cpp
 	filehandle.cpp
 	graphics.cpp
+	gl_renderer.cpp
 	ground_brush.cpp
 	gui.cpp
 	house_brush.cpp
@@ -151,6 +177,27 @@ target_sources(${PROJECT_NAME}
 	live_server.cpp
 	live_socket.cpp
 	live_tab.cpp
+	lua/lua_engine.cpp
+	lua/lua_script.cpp
+	lua/lua_script_manager.cpp
+	lua/lua_api.cpp
+	lua/lua_api_app.cpp
+	lua/lua_api_position.cpp
+	lua/lua_api_item.cpp
+	lua/lua_api_tile.cpp
+	lua/lua_api_map.cpp
+	lua/lua_api_selection.cpp
+	lua/lua_dialog.cpp
+	lua/lua_api_color.cpp
+	lua/lua_api_creature.cpp
+	lua/lua_api_brush.cpp
+	lua/lua_api_image.cpp
+	lua/lua_api_geo.cpp
+	lua/lua_api_http.cpp
+	lua/lua_api_noise.cpp
+	lua/lua_api_json.cpp
+	lua/lua_api_algo.cpp
+	lua/lua_scripts_window.cpp
 	main_menubar.cpp
 	main_toolbar.cpp
 	map.cpp
@@ -192,6 +239,7 @@ target_sources(${PROJECT_NAME}
 	spawn_npc.cpp
 	spawn_npc_brush.cpp
 	sprite_appearances.cpp
+	stb_truetype_impl.cpp
 	table_brush.cpp
 	templatemap76-74.cpp
 	templatemap81.cpp
@@ -214,15 +262,16 @@ target_include_directories(${PROJECT_NAME}
 	PRIVATE
 	${CMAKE_SOURCE_DIR}/source
 	${OPENGL_INCLUDE_DIR}
-	${GLUT_INCLUDE_DIRS}
 	${ZLIB_INCLUDE_DIR}
+	${fastnoiselite_SOURCE_DIR}/Cpp
+	${STB_INCLUDE_DIRS}
 )
 
 target_link_libraries(${PROJECT_NAME}
 	PRIVATE
 	${OPENGL_LIBRARIES}
-	${GLUT_LIBRARIES}
 	${ZLIB_LIBRARIES}
+	glad::glad
 	fmt::fmt
 	asio::asio
 	nlohmann_json::nlohmann_json
@@ -231,6 +280,9 @@ target_link_libraries(${PROJECT_NAME}
 	liblzma::liblzma
 	OpenGL::GL
 	protobuf
+	${LUA_LIB_TARGET}
+	sol2::sol2
+	cpr::cpr
 
 	$<$<PLATFORM_ID:Linux>:xcb>
 	$<$<PLATFORM_ID:Windows>:psapi>

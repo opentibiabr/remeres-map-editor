@@ -91,6 +91,8 @@ public:
 
 	int getIndex(int width, int height, int layer, int pattern_x, int pattern_y, int pattern_z, int frame) const;
 	GLuint getHardwareID(int _layer, int _count, int _pattern_x, int _pattern_y, int _pattern_z, int _frame);
+	uint32_t getSpriteID(int _layer, int _count, int _pattern_x, int _pattern_y, int /*_pattern_z*/, int _frame);
+
 	virtual void DrawTo(wxDC* dc, SpriteSize sz, int start_x, int start_y, int width = -1, int height = -1);
 
 	virtual void unloadDC();
@@ -99,7 +101,7 @@ public:
 	wxPoint getDrawOffset();
 	uint8_t getWidth();
 	uint8_t getHeight();
-	static uint8_t* invertGLColors(int spriteHeight, int spriteWidth, uint8_t* rgba);
+	static std::vector<uint8_t> invertGLColors(int spriteHeight, int spriteWidth, const uint8_t* rgba);
 	uint8_t getMiniMapColor() const;
 
 	bool hasLight() const noexcept {
@@ -145,8 +147,8 @@ protected:
 		NormalImage();
 		virtual ~NormalImage();
 
-		// We use the sprite id as GL texture id
-		uint32_t id;
+		uint32_t id; // sprite ID (game data)
+		GLuint glTextureId = 0; // GL texture ID (driver-assigned)
 
 		// This contains the pixel data
 		uint16_t size;
@@ -205,7 +207,7 @@ protected:
 	wxMemoryDC* m_wxMemoryDc[SPRITE_SIZE_COUNT];
 
 public:
-	std::shared_ptr<GameSprite::OutfitImage> getOutfitImage(int spriteId, Direction direction, const Outfit &outfit);
+	std::shared_ptr<GameSprite::OutfitImage> getOutfitImage(int spriteId, int spriteIndex, const Outfit &outfit);
 
 	uint32_t getID() const {
 		return id;

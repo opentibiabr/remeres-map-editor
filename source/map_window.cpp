@@ -26,10 +26,15 @@ MapWindow::MapWindow(wxWindow* parent, Editor &editor) :
 	wxPanel(parent, PANE_MAIN),
 	editor(editor),
 	replaceItemsDialog(nullptr) {
-	int GL_settings[3];
+	int GL_settings[8];
 	GL_settings[0] = WX_GL_RGBA;
 	GL_settings[1] = WX_GL_DOUBLEBUFFER;
-	GL_settings[2] = 0;
+	GL_settings[2] = WX_GL_CORE_PROFILE;
+	GL_settings[3] = WX_GL_MAJOR_VERSION;
+	GL_settings[4] = 3;
+	GL_settings[5] = WX_GL_MINOR_VERSION;
+	GL_settings[6] = 3;
+	GL_settings[7] = 0;
 	canvas = newd MapCanvas(this, editor, GL_settings);
 
 	vScroll = newd MapScrollBar(this, MAP_WINDOW_VSCROLL, wxVERTICAL, canvas);
@@ -90,7 +95,6 @@ void MapWindow::SetSize(int x, int y, bool center) {
 
 	hScroll->SetScrollbar(center ? (x - windowSizeX) / 2 : hScroll->GetThumbPosition(), windowSizeX / x, x, windowSizeX / x);
 	vScroll->SetScrollbar(center ? (y - windowSizeY) / 2 : vScroll->GetThumbPosition(), windowSizeY / y, y, windowSizeX / y);
-	// wxPanel::SetSize(x, y);
 }
 
 void MapWindow::UpdateScrollbars(int nx, int ny) {

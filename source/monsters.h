@@ -53,8 +53,8 @@ public:
 		return monster_map.end();
 	}
 
-	bool loadFromXML(const FileName &filename, bool standard, wxString &error, wxArrayString &warnings);
 	bool importXMLFromOT(const FileName &filename, wxString &error, wxArrayString &warnings);
+	bool loadFromLuaDir(const wxString &directory, wxString &error, wxArrayString &warnings);
 
 	bool saveToXML(const FileName &filename);
 	wxArrayString getMissingMonsterNames() const;
@@ -74,7 +74,6 @@ public:
 	Outfit outfit;
 	MonsterBrush* brush;
 
-	static MonsterType* loadFromXML(pugi::xml_node node, wxArrayString &warnings);
 	static MonsterType* loadFromOTXML(const FileName &filename, pugi::xml_document &node, wxArrayString &warnings);
 };
 

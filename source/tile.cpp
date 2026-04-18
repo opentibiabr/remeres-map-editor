@@ -342,6 +342,39 @@ void Tile::addItem(Item* item) {
 	}
 }
 
+bool Tile::removeItem(const Item* item) {
+	for (auto it = items.begin(); it != items.end(); ++it) {
+		if (*it == item) {
+			delete *it;
+			items.erase(it);
+			return true;
+		}
+	}
+	return false;
+}
+
+void Tile::clearGround() {
+	delete ground;
+	ground = nullptr;
+}
+
+void Tile::replaceGround(Item* newGround) {
+	delete ground;
+	ground = newGround;
+}
+
+void Tile::clearMonsters() {
+	for (Monster* m : monsters) {
+		delete m;
+	}
+	monsters.clear();
+}
+
+void Tile::clearSpawnMonster() {
+	delete spawnMonster;
+	spawnMonster = nullptr;
+}
+
 void Tile::select() {
 	if (size() == 0) {
 		return;

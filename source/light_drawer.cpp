@@ -17,13 +17,16 @@
 
 #include "main.h"
 #include "light_drawer.h"
+#include "gl_renderer.h"
+
+#ifndef GL_CLAMP_TO_EDGE
+static constexpr uint32_t GL_CLAMP_TO_EDGE = 0x812F;
+#endif
 
 LightDrawer::LightDrawer() {
 	texture = 0;
 	buffer.resize(static_cast<size_t>(rme::ClientMapWidth * rme::ClientMapHeight * rme::PixelFormatRGBA));
 	global_color = wxColor(50, 50, 50, 255);
-
-	createGLTexture();
 }
 
 LightDrawer::~LightDrawer() {
@@ -32,7 +35,7 @@ LightDrawer::~LightDrawer() {
 	lights.clear();
 }
 
-void LightDrawer::draw(int map_x, int map_y, int end_x, int end_y, int scroll_x, int scroll_y) {
+void LightDrawer::draw(int map_x, int map_y, int end_x, int end_y, int scroll_x, int scroll_y, GLRenderer* renderer) {
 	if (texture == 0) {
 		createGLTexture();
 	}
@@ -79,24 +82,13 @@ void LightDrawer::draw(int map_x, int map_y, int end_x, int end_y, int scroll_x,
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, 0x812F);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, 0x812F);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, buffer.data());
 	glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA);
 
-	glColor4ub(255, 255, 255, 255); // reset color
-	glEnable(GL_TEXTURE_2D);
-	glBegin(GL_QUADS);
-	glTexCoord2f(0.f, 0.f);
-	glVertex2f(draw_x, draw_y);
-	glTexCoord2f(1.f, 0.f);
-	glVertex2f(draw_x + draw_width, draw_y);
-	glTexCoord2f(1.f, 1.f);
-	glVertex2f(draw_x + draw_width, draw_y + draw_height);
-	glTexCoord2f(0.f, 1.f);
-	glVertex2f(draw_x, draw_y + draw_height);
-	glEnd();
-	glDisable(GL_TEXTURE_2D);
+	renderer->drawTexturedQuad(static_cast<float>(draw_x), static_cast<float>(draw_y), static_cast<float>(draw_width), static_cast<float>(draw_height), texture, { 255, 255, 255, 255 });
+	renderer->flush();
 
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
@@ -138,6 +130,7 @@ void LightDrawer::createGLTexture() {
 
 void LightDrawer::unloadGLTexture() {
 	if (texture != 0) {
+		GLRenderer::invalidateTexture(texture);
 		glDeleteTextures(1, &texture);
 	}
 }

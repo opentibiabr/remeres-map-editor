@@ -28,6 +28,8 @@
 #include "settings.h"
 #include "iomap_otbm.h"
 
+#include "lua/lua_script_manager.h"
+#include "lua/lua_scripts_window.h"
 #include "gui.h"
 
 #include <wx/chartype.h>
@@ -674,6 +676,59 @@ void MainMenuBar::SaveRecentFiles() {
 	recentFiles.Save(g_settings.getConfigObject());
 }
 
+void MainMenuBar::LoadScriptsMenu() {
+	if (!g_luaScripts.isInitialized()) {
+		spdlog::warn("LoadScriptsMenu: Lua not initialized");
+		return;
+	}
+
+	if (!scriptsMenu) {
+		spdlog::warn("LoadScriptsMenu: Scripts menu not found (add <menu name=\"$Scripts\"> to menubar.xml)");
+		return;
+	}
+
+	// Remove old dynamic items
+	while (scriptsMenu->GetMenuItemCount() > 0) {
+		scriptsMenu->Delete(scriptsMenu->FindItemByPosition(0));
+	}
+
+	// Add "Script Manager" at the top
+	wxMenuItem* managerItem = scriptsMenu->Append(wxID_ANY, "Script Manager");
+	frame->Bind(
+		wxEVT_MENU, [](wxCommandEvent &) {
+			g_gui.ShowScriptManagerWindow();
+		},
+		managerItem->GetId()
+	);
+	scriptsMenu->AppendSeparator();
+
+	// Add one menu item per discovered script
+	const auto &scripts = g_luaScripts.getScripts();
+	for (size_t i = 0; i < scripts.size(); ++i) {
+		const auto &script = scripts[i];
+		wxString label = wxString::FromUTF8(script->getDisplayName());
+		wxMenuItem* item = scriptsMenu->Append(wxID_ANY, label);
+		frame->Bind(
+			wxEVT_MENU, [i](wxCommandEvent &) {  
+			std::string error;  
+			if (!g_luaScripts.executeScript(i, error)) {  
+				wxMessageBox(wxString::FromUTF8(error), "Script Error", wxOK | wxICON_ERROR);  
+			} }, item->GetId()
+		);
+	}
+
+	// Add separator + "Reload Scripts" at the bottom
+	if (!scripts.empty()) {
+		scriptsMenu->AppendSeparator();
+	}
+	wxMenuItem* reloadItem = scriptsMenu->Append(wxID_ANY, "Reload Scripts");
+	frame->Bind(
+		wxEVT_MENU, [this](wxCommandEvent &) {  
+		g_luaScripts.reloadScripts();  
+		LoadScriptsMenu(); }, reloadItem->GetId()
+	);
+}
+
 void MainMenuBar::AddRecentFile(FileName file) {
 	recentFiles.AddFileToHistory(file.GetFullPath());
 }
@@ -734,12 +789,20 @@ bool MainMenuBar::Load(const FileName &path, wxArrayString &warnings, wxString &
 	}
 
 	// Load succeded
+	scriptsMenu = nullptr; // reset
 	for (pugi::xml_node menuNode = node.first_child(); menuNode; menuNode = menuNode.next_sibling()) {
-		// For each child node, load it
 		wxObject* i = LoadItem(menuNode, nullptr, warnings, error);
 		wxMenu* m = dynamic_cast<wxMenu*>(i);
 		if (m) {
-			menubar->Append(m, m->GetTitle());
+			wxString title = m->GetTitle();
+			menubar->Append(m, title);
+
+			// Store pointer to Scripts menu for later use
+			wxString cleanTitle = wxMenuItem::GetLabelText(title);
+			if (cleanTitle == "Scripts") {
+				scriptsMenu = m;
+			}
+
 #ifdef __APPLE__
 			m->SetTitle(m->GetTitle());
 #else
@@ -750,66 +813,6 @@ bool MainMenuBar::Load(const FileName &path, wxArrayString &warnings, wxString &
 			warnings.push_back(path.GetFullName() + ": Only menus can be subitems of main menu");
 		}
 	}
-
-#ifdef __LINUX__
-	const int count = 47;
-	wxAcceleratorEntry entries[count];
-	// Edit
-	entries[0].Set(wxACCEL_CTRL, (int)'Z', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::UNDO));
-	entries[1].Set(wxACCEL_CTRL | wxACCEL_SHIFT, (int)'Z', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::REDO));
-	entries[2].Set(wxACCEL_CTRL, (int)'F', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::FIND_ITEM));
-	entries[3].Set(wxACCEL_CTRL | wxACCEL_SHIFT, (int)'F', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::REPLACE_ITEMS));
-	entries[4].Set(wxACCEL_NORMAL, (int)'A', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::AUTOMAGIC));
-	entries[5].Set(wxACCEL_CTRL, (int)'B', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::BORDERIZE_SELECTION));
-	entries[6].Set(wxACCEL_NORMAL, (int)'P', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::GOTO_PREVIOUS_POSITION));
-	entries[7].Set(wxACCEL_CTRL, (int)'G', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::GOTO_POSITION));
-	entries[8].Set(wxACCEL_NORMAL, (int)'J', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::JUMP_TO_BRUSH));
-	entries[9].Set(wxACCEL_CTRL, (int)'X', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::CUT));
-	entries[10].Set(wxACCEL_CTRL, (int)'C', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::COPY));
-	entries[11].Set(wxACCEL_CTRL, (int)'V', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::PASTE));
-
-	// View
-	entries[12].Set(wxACCEL_CTRL, (int)'=', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::ZOOM_IN));
-	entries[13].Set(wxACCEL_CTRL, (int)'-', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::ZOOM_OUT));
-	entries[14].Set(wxACCEL_CTRL, (int)'0', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::ZOOM_NORMAL));
-	entries[15].Set(wxACCEL_NORMAL, (int)'Q', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_SHADE));
-	entries[16].Set(wxACCEL_CTRL, (int)'W', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_ALL_FLOORS));
-	entries[17].Set(wxACCEL_NORMAL, (int)'Q', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::GHOST_ITEMS));
-	entries[18].Set(wxACCEL_CTRL, (int)'L', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::GHOST_HIGHER_FLOORS));
-	entries[19].Set(wxACCEL_SHIFT, (int)'I', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_INGAME_BOX));
-	entries[20].Set(wxACCEL_SHIFT, (int)'L', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_LIGHTS));
-	entries[21].Set(wxACCEL_SHIFT, (int)'K', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_LIGHT_STRENGTH));
-	entries[22].Set(wxACCEL_SHIFT, (int)'G', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_GRID));
-	entries[23].Set(wxACCEL_NORMAL, (int)'V', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::HIGHLIGHT_ITEMS));
-	entries[24].Set(wxACCEL_NORMAL, (int)'F', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_MONSTERS));
-	entries[25].Set(wxACCEL_NORMAL, (int)'S', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_SPAWNS_MONSTER));
-	entries[26].Set(wxACCEL_NORMAL, (int)'X', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_NPCS));
-	entries[27].Set(wxACCEL_NORMAL, (int)'U', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_SPAWNS_NPC));
-	entries[28].Set(wxACCEL_NORMAL, (int)'E', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_SPECIAL));
-	entries[29].Set(wxACCEL_SHIFT, (int)'E', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_AS_MINIMAP));
-	entries[30].Set(wxACCEL_CTRL, (int)'E', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_ONLY_COLORS));
-	entries[31].Set(wxACCEL_CTRL, (int)'M', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_ONLY_MODIFIED));
-	entries[32].Set(wxACCEL_CTRL, (int)'H', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_HOUSES));
-	entries[33].Set(wxACCEL_NORMAL, (int)'O', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_PATHING));
-	entries[34].Set(wxACCEL_NORMAL, (int)'Y', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_TOOLTIPS));
-	entries[35].Set(wxACCEL_NORMAL, (int)'L', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_PREVIEW));
-	entries[36].Set(wxACCEL_NORMAL, (int)'K', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SHOW_WALL_HOOKS));
-
-	// Window
-	entries[37].Set(wxACCEL_NORMAL, (int)'M', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::WIN_MINIMAP));
-	entries[38].Set(wxACCEL_NORMAL, (int)'T', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_TERRAIN));
-	entries[39].Set(wxACCEL_NORMAL, (int)'D', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_DOODAD));
-	entries[40].Set(wxACCEL_NORMAL, (int)'I', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_ITEM));
-	entries[41].Set(wxACCEL_NORMAL, (int)'H', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_HOUSE));
-	entries[42].Set(wxACCEL_NORMAL, (int)'C', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_MONSTER));
-	entries[43].Set(wxACCEL_NORMAL, (int)'N', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_NPC));
-	entries[44].Set(wxACCEL_NORMAL, (int)'W', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_WAYPOINT));
-	entries[45].Set(wxACCEL_NORMAL, (int)'Z', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_ZONES));
-	entries[46].Set(wxACCEL_NORMAL, (int)'R', static_cast<int>(MAIN_FRAME_MENU) + static_cast<int>(MenuBar::SELECT_RAW));
-
-	wxAcceleratorTable accelerator(count, entries);
-	frame->SetAcceleratorTable(accelerator);
-#endif
 
 	/*
 	// Create accelerator table

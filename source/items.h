@@ -347,7 +347,7 @@ public:
 	uint32_t height = 0;
 	uint32_t sprite_id = 0;
 	uint32_t loop_count = 0;
-	uint32_t start_frame = 0;
+	int32_t start_frame = 0;
 	uint32_t patternWidth = 0;
 	uint32_t charges = 0;
 

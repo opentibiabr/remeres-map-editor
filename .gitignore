@@ -15,6 +15,7 @@ rme
 rme.cfg
 data/user
 world
+source/lua/FastNoiseLite.h
 
 # Visual Studio
 *.MAP
@@ -63,3 +64,4 @@ cmake-build-debug/
 *.lzma
 *.dat
 *.manifest
+canary-map-editor

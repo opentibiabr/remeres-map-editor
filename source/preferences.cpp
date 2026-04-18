@@ -557,6 +557,20 @@ wxNotebookPage* PreferencesWindow::CreateClientPage() {
 	tmp_text->SetToolTip(tooltip);
 	dir_picker->SetToolTip(tooltip);
 
+	wxStaticText* monsters_lua_text = newd wxStaticText(client_list_window, wxID_ANY, wxString("Monsters Lua directory:"));
+	client_list_sizer->Add(monsters_lua_text, wxSizerFlags(0).Expand());
+	monsters_lua_dir_picker = newd wxDirPickerCtrl(client_list_window, wxID_ANY, wxstr(g_settings.getString(Config::MONSTERS_LUA_DIRECTORY)));
+	client_list_sizer->Add(monsters_lua_dir_picker, wxSizerFlags(0).Border(wxRIGHT, 10).Expand());
+	monsters_lua_text->SetToolTip("Path to Canary server monster Lua files (e.g. data-otservbr-global/monster/)");
+	monsters_lua_dir_picker->SetToolTip("Path to Canary server monster Lua files (e.g. data-otservbr-global/monster/)");
+
+	wxStaticText* npcs_lua_text = newd wxStaticText(client_list_window, wxID_ANY, wxString("NPCs Lua directory:"));
+	client_list_sizer->Add(npcs_lua_text, wxSizerFlags(0).Expand());
+	npcs_lua_dir_picker = newd wxDirPickerCtrl(client_list_window, wxID_ANY, wxstr(g_settings.getString(Config::NPCS_LUA_DIRECTORY)));
+	client_list_sizer->Add(npcs_lua_dir_picker, wxSizerFlags(0).Border(wxRIGHT, 10).Expand());
+	npcs_lua_text->SetToolTip("Path to Canary server NPC Lua files (e.g. data-otservbr-global/npc/)");
+	npcs_lua_dir_picker->SetToolTip("Path to Canary server NPC Lua files (e.g. data-otservbr-global/npc/)");
+
 	// Set the sizers
 	client_list_window->SetSizer(client_list_sizer);
 	client_list_window->FitInside();
@@ -715,6 +729,9 @@ void PreferencesWindow::Apply() {
 	}
 	g_settings.setFloat(Config::SCROLL_SPEED, scroll_mul * scroll_speed_slider->GetValue() / 10.f);
 	g_settings.setFloat(Config::ZOOM_SPEED, zoom_speed_slider->GetValue() / 10.f);
+
+	g_settings.setString(Config::MONSTERS_LUA_DIRECTORY, nstr(monsters_lua_dir_picker->GetPath()));
+	g_settings.setString(Config::NPCS_LUA_DIRECTORY, nstr(npcs_lua_dir_picker->GetPath()));
 
 	ClientAssets::save();
 	ClientAssets::load();
