@@ -142,7 +142,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
-      <PrecompiledHeaderFile>main.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile>app\main.h</PrecompiledHeaderFile>
       <AdditionalOptions>/bigobj /utf-8 %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp23</LanguageStandard>
     </ClCompile>
@@ -174,7 +174,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
-      <PrecompiledHeaderFile>main.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile>app\main.h</PrecompiledHeaderFile>
       <AdditionalOptions>/bigobj /utf-8 %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp23</LanguageStandard>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
@@ -208,7 +208,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <PrecompiledHeaderFile>main.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile>app\main.h</PrecompiledHeaderFile>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <AdditionalOptions>/bigobj /utf-8 %(AdditionalOptions)</AdditionalOptions>
@@ -244,7 +244,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <PrecompiledHeaderFile>main.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile>app\main.h</PrecompiledHeaderFile>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <AdditionalOptions>/bigobj -Zm114 /utf-8 %(AdditionalOptions)</AdditionalOptions>
@@ -263,27 +263,27 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\source\actions_history_window.cpp" />
-    <ClCompile Include="..\..\source\add_item_window.cpp" />
-    <ClCompile Include="..\..\source\add_tileset_window.cpp" />
-    <ClCompile Include="..\..\source\artprovider.cpp" />
-    <ClCompile Include="..\..\source\brush_tables.cpp" />
-    <ClCompile Include="..\..\source\container_properties_window.cpp" />
-    <ClCompile Include="..\..\source\find_item_window.cpp" />
-    <ClCompile Include="..\..\source\gl_renderer.cpp">
+    <ClCompile Include="..\..\source\ui\windows\actions_history_window.cpp" />
+    <ClCompile Include="..\..\source\ui\windows\add_item_window.cpp" />
+    <ClCompile Include="..\..\source\ui\windows\add_tileset_window.cpp" />
+    <ClCompile Include="..\..\source\app\artprovider.cpp" />
+    <ClCompile Include="..\..\source\brushes\brush_tables.cpp" />
+    <ClCompile Include="..\..\source\ui\dialogs\container_properties_window.cpp" />
+    <ClCompile Include="..\..\source\ui\windows\find_item_window.cpp" />
+    <ClCompile Include="..\..\source\rendering\gl_renderer.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="..\..\source\stb_truetype_impl.cpp">
+    <ClCompile Include="..\..\source\util\stb_truetype_impl.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="..\..\source\light_drawer.cpp" />
-    <ClCompile Include="..\..\source\iominimap.cpp" />
-    <ClCompile Include="..\..\source\palette_zones.cpp" />
-    <ClCompile Include="..\..\source\replace_items_window.cpp" />
-    <ClCompile Include="..\..\source\tileset_window.cpp" />
-    <ClCompile Include="..\..\source\welcome_dialog.cpp" />
-    <ClCompile Include="..\..\source\zones.cpp" />
-    <ClCompile Include="..\..\source\zone_brush.cpp" />
+    <ClCompile Include="..\..\source\rendering\light_drawer.cpp" />
+    <ClCompile Include="..\..\source\io\iominimap.cpp" />
+    <ClCompile Include="..\..\source\ui\palette\palette_zones.cpp" />
+    <ClCompile Include="..\..\source\ui\windows\replace_items_window.cpp" />
+    <ClCompile Include="..\..\source\ui\windows\tileset_window.cpp" />
+    <ClCompile Include="..\..\source\ui\windows\welcome_dialog.cpp" />
+    <ClCompile Include="..\..\source\game\zones.cpp" />
+    <ClCompile Include="..\..\source\brushes\zone_brush.cpp" />
     <ClCompile Include="..\..\source\lua\lua_engine.cpp" />
     <ClCompile Include="..\..\source\lua\lua_script.cpp" />
     <ClCompile Include="..\..\source\lua\lua_script_manager.cpp" />
@@ -305,224 +305,224 @@
     <ClCompile Include="..\..\source\lua\lua_api_json.cpp" />
     <ClCompile Include="..\..\source\lua\lua_api_algo.cpp" />
     <ClCompile Include="..\..\source\lua\lua_scripts_window.cpp" />
-    <ClInclude Include="..\..\source\actions_history_window.h" />
-    <ClInclude Include="..\..\source\add_item_window.h" />
-    <ClInclude Include="..\..\source\add_tileset_window.h" />
-    <ClInclude Include="..\..\source\artprovider.h" />
-    <ClInclude Include="..\..\source\const.h" />
-    <ClInclude Include="..\..\source\gl_renderer.h" />
-    <ClInclude Include="..\..\source\light_drawer.h" />
-    <ClInclude Include="..\..\source\main_toolbar.h" />
-    <ClInclude Include="..\..\source\otml.h" />
-    <ClInclude Include="..\..\source\browse_tile_window.h" />
-    <ClCompile Include="..\..\source\browse_tile_window.cpp" />
-    <ClInclude Include="..\..\source\iominimap.h" />
-    <ClInclude Include="..\..\source\palette_zones.h" />
-    <ClInclude Include="..\..\source\positionctrl.h" />
-    <ClCompile Include="..\..\source\main_toolbar.cpp" />
-    <ClCompile Include="..\..\source\positionctrl.cpp" />
-    <ClInclude Include="..\..\source\carpet_brush.h" />
-    <ClCompile Include="..\..\source\carpet_brush.cpp" />
-    <ClInclude Include="..\..\source\common.h" />
-    <ClCompile Include="..\..\source\common.cpp" />
-    <ClInclude Include="..\..\source\container_properties_window.h" />
-    <ClInclude Include="..\..\source\con_vector.h" />
-    <ClInclude Include="..\..\source\monster_brush.h" />
-    <ClCompile Include="..\..\source\monster_brush.cpp" />
-    <ClInclude Include="..\..\source\dat_debug_view.h" />
-    <ClCompile Include="..\..\source\dat_debug_view.cpp" />
-    <ClInclude Include="..\..\source\definitions.h" />
-    <ClInclude Include="..\..\source\doodad_brush.h" />
-    <ClCompile Include="..\..\source\doodad_brush.cpp" />
-    <ClCompile Include="..\..\source\eraser_brush.cpp" />
-    <ClInclude Include="..\..\source\filehandle.h" />
-    <ClCompile Include="..\..\source\filehandle.cpp" />
-    <ClInclude Include="..\..\source\ground_brush.h" />
-    <ClCompile Include="..\..\source\ground_brush.cpp" />
-    <ClInclude Include="..\..\source\house_brush.h" />
-    <ClCompile Include="..\..\source\house_brush.cpp" />
-    <ClInclude Include="..\..\source\house_exit_brush.h" />
-    <ClCompile Include="..\..\source\house_exit_brush.cpp" />
-    <ClInclude Include="..\..\source\live_action.h" />
-    <ClCompile Include="..\..\source\live_action.cpp" />
-    <ClInclude Include="..\..\source\live_client.h" />
-    <ClCompile Include="..\..\source\live_client.cpp" />
-    <ClInclude Include="..\..\source\live_packets.h" />
-    <ClInclude Include="..\..\source\live_peer.h" />
-    <ClCompile Include="..\..\source\live_peer.cpp" />
-    <ClInclude Include="..\..\source\live_server.h" />
-    <ClCompile Include="..\..\source\live_server.cpp" />
-    <ClInclude Include="..\..\source\live_socket.h" />
-    <ClCompile Include="..\..\source\live_socket.cpp" />
-    <ClInclude Include="..\..\source\live_tab.h" />
-    <ClCompile Include="..\..\source\live_tab.cpp" />
-    <ClInclude Include="..\..\source\map_allocator.h" />
-    <ClInclude Include="..\..\source\map_region.h" />
-    <ClCompile Include="..\..\source\map_region.cpp" />
-    <ClInclude Include="..\..\source\mt_rand.h" />
-    <ClCompile Include="..\..\source\mt_rand.cpp" />
-    <ClInclude Include="..\..\source\net_connection.h" />
-    <ClCompile Include="..\..\source\net_connection.cpp" />
-    <ClInclude Include="..\..\source\npc.h" />
-    <ClCompile Include="..\..\source\npc.cpp" />
-    <ClInclude Include="..\..\source\npc_brush.h" />
-    <ClCompile Include="..\..\source\npc_brush.cpp" />
-    <ClInclude Include="..\..\source\npcs.h" />
-    <ClCompile Include="..\..\source\npcs.cpp" />
-    <ClInclude Include="..\..\source\numbertextctrl.h" />
-    <ClInclude Include="..\..\source\properties_window.h" />
-    <ClInclude Include="..\..\source\raw_brush.h" />
-    <ClCompile Include="..\..\source\numbertextctrl.cpp" />
-    <ClCompile Include="..\..\source\properties_window.cpp" />
-    <ClCompile Include="..\..\source\raw_brush.cpp" />
-    <ClInclude Include="..\..\source\replace_items_window.h" />
-    <ClInclude Include="..\..\source\rme_forward_declarations.h" />
-    <ClInclude Include="..\..\source\rme_net.h" />
-    <ClCompile Include="..\..\source\rme_net.cpp" />
-    <ClInclude Include="..\..\source\settings.h" />
-    <ClCompile Include="..\..\source\settings.cpp" />
-    <ClInclude Include="..\..\source\spawn_monster_brush.h" />
-    <ClCompile Include="..\..\source\spawn_monster_brush.cpp" />
-    <ClInclude Include="..\..\source\table_brush.h" />
-    <ClInclude Include="..\..\source\threads.h" />
-    <ClInclude Include="..\..\source\graphics.h" />
-    <ClCompile Include="..\..\source\graphics.cpp" />
-    <ClInclude Include="..\..\source\pngfiles.h" />
-    <ClInclude Include="..\..\source\sprites.h" />
-    <ClInclude Include="..\..\source\application.h" />
-    <ClCompile Include="..\..\source\application.cpp" />
-    <ClInclude Include="..\..\source\dcbutton.h" />
-    <ClCompile Include="..\..\source\dcbutton.cpp" />
-    <ClInclude Include="..\..\source\editor_tabs.h" />
-    <ClCompile Include="..\..\source\editor_tabs.cpp" />
-    <ClInclude Include="..\..\source\enums.h" />
-    <ClInclude Include="..\..\source\gui.h" />
-    <ClCompile Include="..\..\source\gui.cpp" />
-    <ClInclude Include="..\..\source\gui_ids.h" />
-    <ClInclude Include="..\..\source\main_menubar.h" />
-    <ClCompile Include="..\..\source\main_menubar.cpp" />
-    <ClInclude Include="..\..\source\map_tab.h" />
-    <ClCompile Include="..\..\source\map_tab.cpp" />
-    <ClInclude Include="..\..\source\minimap_window.h" />
-    <ClCompile Include="..\..\source\minimap_window.cpp" />
-    <ClInclude Include="..\..\source\process_com.h" />
-    <ClCompile Include="..\..\source\process_com.cpp" />
-    <ClInclude Include="..\..\source\palette_brushlist.h" />
-    <ClCompile Include="..\..\source\palette_brushlist.cpp" />
-    <ClInclude Include="..\..\source\palette_common.h" />
-    <ClCompile Include="..\..\source\palette_common.cpp" />
-    <ClInclude Include="..\..\source\palette_monster.h" />
-    <ClCompile Include="..\..\source\palette_monster.cpp" />
-    <ClInclude Include="..\..\source\palette_house.h" />
-    <ClCompile Include="..\..\source\palette_house.cpp" />
-    <ClInclude Include="..\..\source\palette_waypoints.h" />
-    <ClCompile Include="..\..\source\palette_waypoints.cpp" />
-    <ClInclude Include="..\..\source\palette_npc.h" />
-    <ClCompile Include="..\..\source\palette_npc.cpp" />
-    <ClInclude Include="..\..\source\palette_window.h" />
-    <ClCompile Include="..\..\source\palette_window.cpp" />
-    <ClInclude Include="..\..\source\about_window.h" />
-    <ClCompile Include="..\..\source\about_window.cpp" />
-    <ClInclude Include="..\..\source\common_windows.h" />
-    <ClCompile Include="..\..\source\common_windows.cpp" />
-    <ClInclude Include="..\..\source\preferences.h" />
-    <ClCompile Include="..\..\source\preferences.cpp" />
-    <ClInclude Include="..\..\source\old_properties_window.h" />
-    <ClCompile Include="..\..\source\old_properties_window.cpp" />
-    <ClInclude Include="..\..\source\result_window.h" />
-    <ClCompile Include="..\..\source\result_window.cpp" />
-    <ClInclude Include="..\..\source\map_display.h" />
-    <ClCompile Include="..\..\source\map_display.cpp" />
-    <ClInclude Include="..\..\source\map_drawer.h" />
-    <ClCompile Include="..\..\source\map_drawer.cpp" />
-    <ClInclude Include="..\..\source\map_window.h" />
-    <ClCompile Include="..\..\source\map_window.cpp" />
-    <ClInclude Include="..\..\source\action.h" />
-    <ClCompile Include="..\..\source\action.cpp" />
+    <ClInclude Include="..\..\source\ui\windows\actions_history_window.h" />
+    <ClInclude Include="..\..\source\ui\windows\add_item_window.h" />
+    <ClInclude Include="..\..\source\ui\windows\add_tileset_window.h" />
+    <ClInclude Include="..\..\source\app\artprovider.h" />
+    <ClInclude Include="..\..\source\util\const.h" />
+    <ClInclude Include="..\..\source\rendering\gl_renderer.h" />
+    <ClInclude Include="..\..\source\rendering\light_drawer.h" />
+    <ClInclude Include="..\..\source\ui\toolbar\main_toolbar.h" />
+    <ClInclude Include="..\..\source\util\otml.h" />
+    <ClInclude Include="..\..\source\ui\windows\browse_tile_window.h" />
+    <ClCompile Include="..\..\source\ui\windows\browse_tile_window.cpp" />
+    <ClInclude Include="..\..\source\io\iominimap.h" />
+    <ClInclude Include="..\..\source\ui\palette\palette_zones.h" />
+    <ClInclude Include="..\..\source\ui\positionctrl.h" />
+    <ClCompile Include="..\..\source\ui\toolbar\main_toolbar.cpp" />
+    <ClCompile Include="..\..\source\ui\positionctrl.cpp" />
+    <ClInclude Include="..\..\source\brushes\carpet_brush.h" />
+    <ClCompile Include="..\..\source\brushes\carpet_brush.cpp" />
+    <ClInclude Include="..\..\source\util\common.h" />
+    <ClCompile Include="..\..\source\util\common.cpp" />
+    <ClInclude Include="..\..\source\ui\dialogs\container_properties_window.h" />
+    <ClInclude Include="..\..\source\util\con_vector.h" />
+    <ClInclude Include="..\..\source\brushes\monster_brush.h" />
+    <ClCompile Include="..\..\source\brushes\monster_brush.cpp" />
+    <ClInclude Include="..\..\source\ui\windows\dat_debug_view.h" />
+    <ClCompile Include="..\..\source\ui\windows\dat_debug_view.cpp" />
+    <ClInclude Include="..\..\source\app\definitions.h" />
+    <ClInclude Include="..\..\source\brushes\doodad_brush.h" />
+    <ClCompile Include="..\..\source\brushes\doodad_brush.cpp" />
+    <ClCompile Include="..\..\source\brushes\eraser_brush.cpp" />
+    <ClInclude Include="..\..\source\io\filehandle.h" />
+    <ClCompile Include="..\..\source\io\filehandle.cpp" />
+    <ClInclude Include="..\..\source\brushes\ground_brush.h" />
+    <ClCompile Include="..\..\source\brushes\ground_brush.cpp" />
+    <ClInclude Include="..\..\source\brushes\house_brush.h" />
+    <ClCompile Include="..\..\source\brushes\house_brush.cpp" />
+    <ClInclude Include="..\..\source\brushes\house_exit_brush.h" />
+    <ClCompile Include="..\..\source\brushes\house_exit_brush.cpp" />
+    <ClInclude Include="..\..\source\live\live_action.h" />
+    <ClCompile Include="..\..\source\live\live_action.cpp" />
+    <ClInclude Include="..\..\source\live\live_client.h" />
+    <ClCompile Include="..\..\source\live\live_client.cpp" />
+    <ClInclude Include="..\..\source\live\live_packets.h" />
+    <ClInclude Include="..\..\source\live\live_peer.h" />
+    <ClCompile Include="..\..\source\live\live_peer.cpp" />
+    <ClInclude Include="..\..\source\live\live_server.h" />
+    <ClCompile Include="..\..\source\live\live_server.cpp" />
+    <ClInclude Include="..\..\source\live\live_socket.h" />
+    <ClCompile Include="..\..\source\live\live_socket.cpp" />
+    <ClInclude Include="..\..\source\live\live_tab.h" />
+    <ClCompile Include="..\..\source\live\live_tab.cpp" />
+    <ClInclude Include="..\..\source\map\map_allocator.h" />
+    <ClInclude Include="..\..\source\map\map_region.h" />
+    <ClCompile Include="..\..\source\map\map_region.cpp" />
+    <ClInclude Include="..\..\source\util\mt_rand.h" />
+    <ClCompile Include="..\..\source\util\mt_rand.cpp" />
+    <ClInclude Include="..\..\source\net\net_connection.h" />
+    <ClCompile Include="..\..\source\net\net_connection.cpp" />
+    <ClInclude Include="..\..\source\game\npc.h" />
+    <ClCompile Include="..\..\source\game\npc.cpp" />
+    <ClInclude Include="..\..\source\brushes\npc_brush.h" />
+    <ClCompile Include="..\..\source\brushes\npc_brush.cpp" />
+    <ClInclude Include="..\..\source\game\npcs.h" />
+    <ClCompile Include="..\..\source\game\npcs.cpp" />
+    <ClInclude Include="..\..\source\ui\numbertextctrl.h" />
+    <ClInclude Include="..\..\source\ui\dialogs\properties_window.h" />
+    <ClInclude Include="..\..\source\brushes\raw_brush.h" />
+    <ClCompile Include="..\..\source\ui\numbertextctrl.cpp" />
+    <ClCompile Include="..\..\source\ui\dialogs\properties_window.cpp" />
+    <ClCompile Include="..\..\source\brushes\raw_brush.cpp" />
+    <ClInclude Include="..\..\source\ui\windows\replace_items_window.h" />
+    <ClInclude Include="..\..\source\util\rme_forward_declarations.h" />
+    <ClInclude Include="..\..\source\net\rme_net.h" />
+    <ClCompile Include="..\..\source\net\rme_net.cpp" />
+    <ClInclude Include="..\..\source\app\settings.h" />
+    <ClCompile Include="..\..\source\app\settings.cpp" />
+    <ClInclude Include="..\..\source\brushes\spawn_monster_brush.h" />
+    <ClCompile Include="..\..\source\brushes\spawn_monster_brush.cpp" />
+    <ClInclude Include="..\..\source\brushes\table_brush.h" />
+    <ClInclude Include="..\..\source\util\threads.h" />
+    <ClInclude Include="..\..\source\rendering\graphics.h" />
+    <ClCompile Include="..\..\source\rendering\graphics.cpp" />
+    <ClInclude Include="..\..\source\io\pngfiles.h" />
+    <ClInclude Include="..\..\source\rendering\sprites.h" />
+    <ClInclude Include="..\..\source\app\application.h" />
+    <ClCompile Include="..\..\source\app\application.cpp" />
+    <ClInclude Include="..\..\source\ui\dcbutton.h" />
+    <ClCompile Include="..\..\source\ui\dcbutton.cpp" />
+    <ClInclude Include="..\..\source\editor\editor_tabs.h" />
+    <ClCompile Include="..\..\source\editor\editor_tabs.cpp" />
+    <ClInclude Include="..\..\source\util\enums.h" />
+    <ClInclude Include="..\..\source\ui\gui.h" />
+    <ClCompile Include="..\..\source\ui\gui.cpp" />
+    <ClInclude Include="..\..\source\ui\gui_ids.h" />
+    <ClInclude Include="..\..\source\ui\menubar\main_menubar.h" />
+    <ClCompile Include="..\..\source\ui\menubar\main_menubar.cpp" />
+    <ClInclude Include="..\..\source\ui\map_tab.h" />
+    <ClCompile Include="..\..\source\ui\map_tab.cpp" />
+    <ClInclude Include="..\..\source\ui\windows\minimap_window.h" />
+    <ClCompile Include="..\..\source\ui\windows\minimap_window.cpp" />
+    <ClInclude Include="..\..\source\app\process_com.h" />
+    <ClCompile Include="..\..\source\app\process_com.cpp" />
+    <ClInclude Include="..\..\source\ui\palette\palette_brushlist.h" />
+    <ClCompile Include="..\..\source\ui\palette\palette_brushlist.cpp" />
+    <ClInclude Include="..\..\source\ui\palette\palette_common.h" />
+    <ClCompile Include="..\..\source\ui\palette\palette_common.cpp" />
+    <ClInclude Include="..\..\source\ui\palette\palette_monster.h" />
+    <ClCompile Include="..\..\source\ui\palette\palette_monster.cpp" />
+    <ClInclude Include="..\..\source\ui\palette\palette_house.h" />
+    <ClCompile Include="..\..\source\ui\palette\palette_house.cpp" />
+    <ClInclude Include="..\..\source\ui\palette\palette_waypoints.h" />
+    <ClCompile Include="..\..\source\ui\palette\palette_waypoints.cpp" />
+    <ClInclude Include="..\..\source\ui\palette\palette_npc.h" />
+    <ClCompile Include="..\..\source\ui\palette\palette_npc.cpp" />
+    <ClInclude Include="..\..\source\ui\palette\palette_window.h" />
+    <ClCompile Include="..\..\source\ui\palette\palette_window.cpp" />
+    <ClInclude Include="..\..\source\ui\dialogs\about_window.h" />
+    <ClCompile Include="..\..\source\ui\dialogs\about_window.cpp" />
+    <ClInclude Include="..\..\source\ui\dialogs\common_windows.h" />
+    <ClCompile Include="..\..\source\ui\dialogs\common_windows.cpp" />
+    <ClInclude Include="..\..\source\ui\dialogs\preferences.h" />
+    <ClCompile Include="..\..\source\ui\dialogs\preferences.cpp" />
+    <ClInclude Include="..\..\source\ui\dialogs\old_properties_window.h" />
+    <ClCompile Include="..\..\source\ui\dialogs\old_properties_window.cpp" />
+    <ClInclude Include="..\..\source\ui\windows\result_window.h" />
+    <ClCompile Include="..\..\source\ui\windows\result_window.cpp" />
+    <ClInclude Include="..\..\source\rendering\map_display.h" />
+    <ClCompile Include="..\..\source\rendering\map_display.cpp" />
+    <ClInclude Include="..\..\source\rendering\map_drawer.h" />
+    <ClCompile Include="..\..\source\rendering\map_drawer.cpp" />
+    <ClInclude Include="..\..\source\rendering\map_window.h" />
+    <ClCompile Include="..\..\source\rendering\map_window.cpp" />
+    <ClInclude Include="..\..\source\editor\action.h" />
+    <ClCompile Include="..\..\source\editor\action.cpp" />
     <ClInclude Include="..\..\source\client_assets.h" />
     <ClCompile Include="..\..\source\client_assets.cpp" />
-    <ClInclude Include="..\..\source\copybuffer.h" />
-    <ClCompile Include="..\..\source\copybuffer.cpp" />
-    <ClInclude Include="..\..\source\monsters.h" />
-    <ClCompile Include="..\..\source\monsters.cpp" />
-    <ClInclude Include="..\..\source\editor.h" />
-    <ClCompile Include="..\..\source\editor.cpp" />
-    <ClInclude Include="..\..\source\items.h" />
-    <ClCompile Include="..\..\source\items.cpp" />
-    <ClInclude Include="..\..\source\selection.h" />
-    <ClCompile Include="..\..\source\selection.cpp" />
-    <ClInclude Include="..\..\source\tileset_window.h" />
-    <ClInclude Include="..\..\source\updater.h" />
-    <ClCompile Include="..\..\source\table_brush.cpp" />
-    <ClCompile Include="..\..\source\templatemapclassic.cpp" />
-    <ClCompile Include="..\..\source\updater.cpp" />
-    <ClInclude Include="..\..\source\brush.h" />
-    <ClCompile Include="..\..\source\brush.cpp" />
-    <ClInclude Include="..\..\source\brush_enums.h" />
-    <ClInclude Include="..\..\source\materials.h" />
-    <ClCompile Include="..\..\source\materials.cpp" />
-    <ClInclude Include="..\..\source\tileset.h" />
-    <ClCompile Include="..\..\source\tileset.cpp" />
-    <ClInclude Include="..\..\source\basemap.h" />
-    <ClCompile Include="..\..\source\basemap.cpp" />
-    <ClInclude Include="..\..\source\complexitem.h" />
-    <ClCompile Include="..\..\source\complexitem.cpp" />
-    <ClInclude Include="..\..\source\monster.h" />
-    <ClCompile Include="..\..\source\monster.cpp" />
-    <ClInclude Include="..\..\source\house.h" />
-    <ClCompile Include="..\..\source\house.cpp" />
-    <ClInclude Include="..\..\source\item.h" />
-    <ClCompile Include="..\..\source\item.cpp" />
-    <ClInclude Include="..\..\source\item_attributes.h" />
-    <ClCompile Include="..\..\source\item_attributes.cpp" />
-    <ClInclude Include="..\..\source\map.h" />
-    <ClCompile Include="..\..\source\map.cpp" />
-    <ClInclude Include="..\..\source\outfit.h" />
-    <ClInclude Include="..\..\source\position.h" />
-    <ClInclude Include="..\..\source\spawn_monster.h" />
-    <ClCompile Include="..\..\source\spawn_monster.cpp" />
-    <ClInclude Include="..\..\source\spawn_npc.h" />
-    <ClCompile Include="..\..\source\spawn_npc.cpp" />
-    <ClInclude Include="..\..\source\spawn_npc_brush.h" />
-    <ClCompile Include="..\..\source\spawn_npc_brush.cpp" />
-    <ClCompile Include="..\..\source\sprite_appearances.cpp" />
-    <ClInclude Include="..\..\source\sprite_appearances.h" />
-    <ClCompile Include="..\..\source\templatemap76-74.cpp" />
-    <ClCompile Include="..\..\source\templatemap81.cpp" />
-    <ClCompile Include="..\..\source\templatemap854.cpp" />
-    <ClInclude Include="..\..\source\templates.h" />
-    <ClInclude Include="..\..\source\tile.h" />
-    <ClCompile Include="..\..\source\tile.cpp" />
-    <ClInclude Include="..\..\source\town.h" />
-    <ClCompile Include="..\..\source\town.cpp" />
-    <ClInclude Include="..\..\source\wall_brush.h" />
-    <ClCompile Include="..\..\source\wall_brush.cpp" />
-    <ClInclude Include="..\..\source\waypoints.h" />
-    <ClCompile Include="..\..\source\waypoints.cpp" />
-    <ClInclude Include="..\..\source\iomap.h" />
-    <ClCompile Include="..\..\source\iomap.cpp" />
-    <ClInclude Include="..\..\source\iomap_otbm.h" />
-    <ClCompile Include="..\..\source\iomap_otbm.cpp" />
-    <ClInclude Include="..\..\source\main.h" />
-    <ClInclude Include="..\..\source\waypoint_brush.h" />
-    <ClCompile Include="..\..\source\waypoint_brush.cpp" />
-    <ClInclude Include="..\..\source\find_item_window.h" />
-    <ClInclude Include="..\..\source\welcome_dialog.h" />
-    <ClInclude Include="..\..\source\zones.h" />
-    <ClInclude Include="..\..\source\zone_brush.h" />
-    <ClCompile Include="..\..\source\bitmap_to_map_window.cpp" />
-    <ClInclude Include="..\..\source\bitmap_to_map_window.h" />
-    <ClCompile Include="..\..\source\bitmap_to_map_converter.cpp" />
-    <ClInclude Include="..\..\source\bitmap_to_map_converter.h" />
+    <ClInclude Include="..\..\source\editor\copybuffer.h" />
+    <ClCompile Include="..\..\source\editor\copybuffer.cpp" />
+    <ClInclude Include="..\..\source\game\monsters.h" />
+    <ClCompile Include="..\..\source\game\monsters.cpp" />
+    <ClInclude Include="..\..\source\editor\editor.h" />
+    <ClCompile Include="..\..\source\editor\editor.cpp" />
+    <ClInclude Include="..\..\source\game\items.h" />
+    <ClCompile Include="..\..\source\game\items.cpp" />
+    <ClInclude Include="..\..\source\editor\selection.h" />
+    <ClCompile Include="..\..\source\editor\selection.cpp" />
+    <ClInclude Include="..\..\source\ui\windows\tileset_window.h" />
+    <ClInclude Include="..\..\source\app\updater.h" />
+    <ClCompile Include="..\..\source\brushes\table_brush.cpp" />
+    <ClCompile Include="..\..\source\templates\templatemapclassic.cpp" />
+    <ClCompile Include="..\..\source\app\updater.cpp" />
+    <ClInclude Include="..\..\source\brushes\brush.h" />
+    <ClCompile Include="..\..\source\brushes\brush.cpp" />
+    <ClInclude Include="..\..\source\brushes\brush_enums.h" />
+    <ClInclude Include="..\..\source\game\materials.h" />
+    <ClCompile Include="..\..\source\game\materials.cpp" />
+    <ClInclude Include="..\..\source\game\tileset.h" />
+    <ClCompile Include="..\..\source\game\tileset.cpp" />
+    <ClInclude Include="..\..\source\map\basemap.h" />
+    <ClCompile Include="..\..\source\map\basemap.cpp" />
+    <ClInclude Include="..\..\source\game\complexitem.h" />
+    <ClCompile Include="..\..\source\game\complexitem.cpp" />
+    <ClInclude Include="..\..\source\game\monster.h" />
+    <ClCompile Include="..\..\source\game\monster.cpp" />
+    <ClInclude Include="..\..\source\game\house.h" />
+    <ClCompile Include="..\..\source\game\house.cpp" />
+    <ClInclude Include="..\..\source\game\item.h" />
+    <ClCompile Include="..\..\source\game\item.cpp" />
+    <ClInclude Include="..\..\source\game\item_attributes.h" />
+    <ClCompile Include="..\..\source\game\item_attributes.cpp" />
+    <ClInclude Include="..\..\source\map\map.h" />
+    <ClCompile Include="..\..\source\map\map.cpp" />
+    <ClInclude Include="..\..\source\util\outfit.h" />
+    <ClInclude Include="..\..\source\util\position.h" />
+    <ClInclude Include="..\..\source\game\spawn_monster.h" />
+    <ClCompile Include="..\..\source\game\spawn_monster.cpp" />
+    <ClInclude Include="..\..\source\game\spawn_npc.h" />
+    <ClCompile Include="..\..\source\game\spawn_npc.cpp" />
+    <ClInclude Include="..\..\source\brushes\spawn_npc_brush.h" />
+    <ClCompile Include="..\..\source\brushes\spawn_npc_brush.cpp" />
+    <ClCompile Include="..\..\source\rendering\sprite_appearances.cpp" />
+    <ClInclude Include="..\..\source\rendering\sprite_appearances.h" />
+    <ClCompile Include="..\..\source\templates\templatemap76-74.cpp" />
+    <ClCompile Include="..\..\source\templates\templatemap81.cpp" />
+    <ClCompile Include="..\..\source\templates\templatemap854.cpp" />
+    <ClInclude Include="..\..\source\templates\templates.h" />
+    <ClInclude Include="..\..\source\map\tile.h" />
+    <ClCompile Include="..\..\source\map\tile.cpp" />
+    <ClInclude Include="..\..\source\game\town.h" />
+    <ClCompile Include="..\..\source\game\town.cpp" />
+    <ClInclude Include="..\..\source\brushes\wall_brush.h" />
+    <ClCompile Include="..\..\source\brushes\wall_brush.cpp" />
+    <ClInclude Include="..\..\source\game\waypoints.h" />
+    <ClCompile Include="..\..\source\game\waypoints.cpp" />
+    <ClInclude Include="..\..\source\io\iomap.h" />
+    <ClCompile Include="..\..\source\io\iomap.cpp" />
+    <ClInclude Include="..\..\source\io\otbm\iomap_otbm.h" />
+    <ClCompile Include="..\..\source\io\otbm\iomap_otbm.cpp" />
+    <ClInclude Include="..\..\source\app\main.h" />
+    <ClInclude Include="..\..\source\brushes\waypoint_brush.h" />
+    <ClCompile Include="..\..\source\brushes\waypoint_brush.cpp" />
+    <ClInclude Include="..\..\source\ui\windows\find_item_window.h" />
+    <ClInclude Include="..\..\source\ui\windows\welcome_dialog.h" />
+    <ClInclude Include="..\..\source\game\zones.h" />
+    <ClInclude Include="..\..\source\brushes\zone_brush.h" />
+    <ClCompile Include="..\..\source\ui\windows\bitmap_to_map_window.cpp" />
+    <ClInclude Include="..\..\source\ui\windows\bitmap_to_map_window.h" />
+    <ClCompile Include="..\..\source\io\bitmap_to_map\bitmap_to_map_converter.cpp" />
+    <ClInclude Include="..\..\source\io\bitmap_to_map\bitmap_to_map_converter.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\source\mkpch.cpp">
+    <ClCompile Include="..\..\source\util\mkpch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="..\..\source\pngfiles.cpp" />
+    <ClCompile Include="..\..\source\io\pngfiles.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="rme.rc" />
@@ -560,7 +560,74 @@
       <ClInclude Include="generated\%(ProtoFiles.Filename).pb.h">
         <IncludeInUnityFile>false</IncludeInUnityFile>
       </ClInclude>
-    </ItemGroup>
+        <ClCompile Include="..\..\source\editor\editor_draw.cpp" />
+    <ClCompile Include="..\..\source\editor\editor_import.cpp" />
+    <ClCompile Include="..\..\source\editor\editor_save.cpp" />
+    <ClCompile Include="..\..\source\editor\editor_selection_ops.cpp" />
+    <ClCompile Include="..\..\source\editor\hotkey.cpp" />
+    <ClCompile Include="..\..\source\editor\hotkey_manager.cpp" />
+    <ClCompile Include="..\..\source\io\iomap_otmm.cpp" />
+    <ClCompile Include="..\..\source\io\otbm\otbm_item_serialization.cpp" />
+    <ClCompile Include="..\..\source\io\xml\house_xml_serializer.cpp" />
+    <ClCompile Include="..\..\source\io\xml\otbm_houses.cpp" />
+    <ClCompile Include="..\..\source\io\xml\otbm_spawns.cpp" />
+    <ClCompile Include="..\..\source\io\xml\otbm_zones.cpp" />
+    <ClCompile Include="..\..\source\io\xml\spawn_xml_serializer.cpp" />
+    <ClCompile Include="..\..\source\io\xml\zone_xml_serializer.cpp" />
+    <ClCompile Include="..\..\source\map\tile_operations.cpp" />
+    <ClCompile Include="..\..\source\rendering\canvas_context_menu.cpp" />
+    <ClCompile Include="..\..\source\rendering\canvas_keyboard_handlers.cpp" />
+    <ClCompile Include="..\..\source\rendering\canvas_mouse_handlers.cpp" />
+    <ClCompile Include="..\..\source\rendering\draw_brush.cpp" />
+    <ClCompile Include="..\..\source\rendering\draw_tile_detail.cpp" />
+    <ClCompile Include="..\..\source\rendering\draw_tooltips.cpp" />
+    <ClCompile Include="..\..\source\ui\gui_brush_state.cpp" />
+    <ClCompile Include="..\..\source\ui\gui_file_ops.cpp" />
+    <ClCompile Include="..\..\source\ui\gui_loading.cpp" />
+    <ClCompile Include="..\..\source\ui\gui_palette.cpp" />
+    <ClCompile Include="..\..\source\ui\menubar\edit_menu_handlers.cpp" />
+    <ClCompile Include="..\..\source\ui\menubar\file_menu_handlers.cpp" />
+    <ClCompile Include="..\..\source\ui\menubar\map_menu_handlers.cpp" />
+    <ClCompile Include="..\..\source\ui\menubar\menu_search_handlers.cpp" />
+    <ClCompile Include="..\..\source\ui\menubar\view_menu_handlers.cpp" />
+    <ClCompile Include="..\..\source\ui\menubar\window_menu_handlers.cpp" />
+    <ClInclude Include="..\..\source\editor\hotkey.h" />
+    <ClInclude Include="..\..\source\editor\hotkey_manager.h" />
+    <ClInclude Include="..\..\source\io\iomap_otmm.h" />
+    <ClInclude Include="..\..\source\io\otbm\otbm_types.h" />
+    <ClInclude Include="..\..\source\io\xml\house_xml_serializer.h" />
+    <ClInclude Include="..\..\source\io\xml\spawn_xml_serializer.h" />
+    <ClInclude Include="..\..\source\io\xml\zone_xml_serializer.h" />
+    <ClInclude Include="..\..\source\lua\lua_api.h" />
+    <ClInclude Include="..\..\source\lua\lua_api_algo.h" />
+    <ClInclude Include="..\..\source\lua\lua_api_app.h" />
+    <ClInclude Include="..\..\source\lua\lua_api_brush.h" />
+    <ClInclude Include="..\..\source\lua\lua_api_color.h" />
+    <ClInclude Include="..\..\source\lua\lua_api_creature.h" />
+    <ClInclude Include="..\..\source\lua\lua_api_geo.h" />
+    <ClInclude Include="..\..\source\lua\lua_api_http.h" />
+    <ClInclude Include="..\..\source\lua\lua_api_image.h" />
+    <ClInclude Include="..\..\source\lua\lua_api_item.h" />
+    <ClInclude Include="..\..\source\lua\lua_api_json.h" />
+    <ClInclude Include="..\..\source\lua\lua_api_map.h" />
+    <ClInclude Include="..\..\source\lua\lua_api_noise.h" />
+    <ClInclude Include="..\..\source\lua\lua_api_position.h" />
+    <ClInclude Include="..\..\source\lua\lua_api_selection.h" />
+    <ClInclude Include="..\..\source\lua\lua_api_tile.h" />
+    <ClInclude Include="..\..\source\lua\lua_dialog.h" />
+    <ClInclude Include="..\..\source\lua\lua_engine.h" />
+    <ClInclude Include="..\..\source\lua\lua_overlay_manager.h" />
+    <ClInclude Include="..\..\source\lua\lua_script.h" />
+    <ClInclude Include="..\..\source\lua\lua_script_manager.h" />
+    <ClInclude Include="..\..\source\lua\lua_scripts_window.h" />
+    <ClInclude Include="..\..\source\map\map_overlay.h" />
+    <ClInclude Include="..\..\source\map\tile_operations.h" />
+    <ClInclude Include="..\..\source\rendering\drawing_options.h" />
+    <ClInclude Include="..\..\source\rendering\gl_compat.h" />
+    <ClInclude Include="..\..\source\ui\menubar\menu_action_ids.h" />
+    <ClInclude Include="..\..\source\util\lua_parser.h" />
+    <ClInclude Include="..\..\source\util\sprite_types.h" />
+</ItemGroup>
   </Target>
   <Target Name="DownloadFastNoiseLite" BeforeTargets="ClCompile"
           Condition="!Exists('$(ProjectDir)..\..\source\lua\FastNoiseLite.h')">
