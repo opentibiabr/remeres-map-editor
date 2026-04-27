@@ -13,7 +13,7 @@
 
 bool SpawnXmlSerializer::loadMonsters(Map &map, const FileName &dir, wxArrayString &warnings) {
 	std::string fn = (const char*)(dir.GetPath(wxPATH_GET_SEPARATOR | wxPATH_GET_VOLUME).mb_str(wxConvUTF8));
-	fn += map.spawnmonsterfile;
+	fn += map.getSpawnFilename();
 
 	FileName filename(wxstr(fn));
 	if (!filename.FileExists()) {
@@ -163,7 +163,7 @@ bool SpawnXmlSerializer::loadMonsters(Map &map, pugi::xml_document &doc, wxArray
 
 bool SpawnXmlSerializer::loadNpcs(Map &map, const FileName &dir, wxArrayString &warnings) {
 	std::string fn = (const char*)(dir.GetPath(wxPATH_GET_SEPARATOR | wxPATH_GET_VOLUME).mb_str(wxConvUTF8));
-	fn += map.spawnnpcfile;
+	fn += map.getSpawnNpcFilename();
 
 	FileName filename(wxstr(fn));
 	if (!filename.FileExists()) {
@@ -309,11 +309,11 @@ bool SpawnXmlSerializer::loadNpcs(Map &map, pugi::xml_document &doc, wxArrayStri
 
 bool SpawnXmlSerializer::saveMonsters(Map &map, const FileName &dir) {
 	wxString filepath = dir.GetPath(wxPATH_GET_SEPARATOR | wxPATH_GET_VOLUME);
-	filepath += wxString(map.spawnmonsterfile.c_str(), wxConvUTF8);
+	filepath += wxString(map.getSpawnFilename().c_str(), wxConvUTF8);
 
 	// Create the XML file
 	pugi::xml_document doc;
-	if (saveSpawns(map, doc)) {
+	if (saveMonsters(map, doc)) {
 		return doc.save_file(filepath.wc_str(), "\t", pugi::format_default, pugi::encoding_utf8);
 	}
 	return false;
@@ -386,11 +386,11 @@ bool SpawnXmlSerializer::saveMonsters(Map &map, pugi::xml_document &doc) {
 
 bool SpawnXmlSerializer::saveNpcs(Map &map, const FileName &dir) {
 	wxString filepath = dir.GetPath(wxPATH_GET_SEPARATOR | wxPATH_GET_VOLUME);
-	filepath += wxString(map.spawnnpcfile.c_str(), wxConvUTF8);
+	filepath += wxString(map.getSpawnNpcFilename().c_str(), wxConvUTF8);
 
 	// Create the XML file
 	pugi::xml_document doc;
-	if (saveSpawnsNpc(map, doc)) {
+	if (saveNpcs(map, doc)) {
 		return doc.save_file(filepath.wc_str(), "\t", pugi::format_default, pugi::encoding_utf8);
 	}
 	return false;

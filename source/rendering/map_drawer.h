@@ -83,6 +83,7 @@ protected:
 #else
 	uint64_t last_total_time = 0;
 	uint64_t last_process_time = 0;
+#endif
 
 	inline int getFloorAdjustment(int floor) {
 		if (floor > rme::MapGroundLayer) {
@@ -91,8 +92,6 @@ protected:
 			return rme::TileSize * (rme::MapGroundLayer - floor);
 		}
 	}
-
-#endif
 
 public:
 	MapDrawer(MapCanvas* canvas);
