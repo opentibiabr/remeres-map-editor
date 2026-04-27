@@ -288,7 +288,6 @@ bool posToClipboard(int fromx, int fromy, int fromz, int tox, int toy, int toz, 
 	return true;
 }
 
-
 wxString b2yn(bool value) {
 	return value ? "Yes" : "No";
 }

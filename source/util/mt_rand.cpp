@@ -15,7 +15,6 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //////////////////////////////////////////////////////////////////////
 
-
 static inline unsigned long int mt_get(void* vstate);
 static double mt_get_double(void* vstate);
 static void mt_set(void* state, unsigned long int s);
