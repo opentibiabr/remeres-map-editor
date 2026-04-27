@@ -4,7 +4,6 @@
 #include <wx/arrstr.h>
 
 class Map;
-class FileName;
 namespace pugi {
 	class xml_document;
 }

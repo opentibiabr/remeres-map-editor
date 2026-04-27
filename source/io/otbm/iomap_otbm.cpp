@@ -16,8 +16,10 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "app/main.h"
+#if OTGZ_SUPPORT > 0
 #include <archive.h>
 #include <archive_entry.h>
+#endif
 
 #include "io/otbm/iomap_otbm.h"
 

@@ -566,7 +566,6 @@
     <ClCompile Include="..\..\source\editor\editor_selection_ops.cpp" />
     <ClCompile Include="..\..\source\editor\hotkey.cpp" />
     <ClCompile Include="..\..\source\editor\hotkey_manager.cpp" />
-    <ClCompile Include="..\..\source\io\iomap_otmm.cpp" />
     <ClCompile Include="..\..\source\io\otbm\otbm_item_serialization.cpp" />
     <ClCompile Include="..\..\source\io\xml\house_xml_serializer.cpp" />
     <ClCompile Include="..\..\source\io\xml\otbm_houses.cpp" />
@@ -593,7 +592,6 @@
     <ClCompile Include="..\..\source\ui\menubar\window_menu_handlers.cpp" />
     <ClInclude Include="..\..\source\editor\hotkey.h" />
     <ClInclude Include="..\..\source\editor\hotkey_manager.h" />
-    <ClInclude Include="..\..\source\io\iomap_otmm.h" />
     <ClInclude Include="..\..\source\io\otbm\otbm_types.h" />
     <ClInclude Include="..\..\source\io\xml\house_xml_serializer.h" />
     <ClInclude Include="..\..\source\io\xml\spawn_xml_serializer.h" />

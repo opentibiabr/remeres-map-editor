@@ -1,7 +1,7 @@
 #include "app/main.h"
 
 #include "io/xml/spawn_xml_serializer.h"
-#include "editor/settings.h"
+#include "app/settings.h"
 #include "game/monsters.h"
 #include "game/monster.h"
 #include "game/npcs.h"

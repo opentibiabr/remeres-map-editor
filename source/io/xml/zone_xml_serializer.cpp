@@ -6,7 +6,7 @@
 
 bool ZoneXmlSerializer::load(Map &map, const FileName &dir, wxArrayString &warnings) {
 	std::string fn = (const char*)(dir.GetPath(wxPATH_GET_SEPARATOR | wxPATH_GET_VOLUME).mb_str(wxConvUTF8));
-	fn += map.zonefile;
+	fn += map.getZoneFilename();
 	FileName filename(wxstr(fn));
 	if (!filename.FileExists()) {
 		return false;
@@ -42,11 +42,11 @@ bool ZoneXmlSerializer::load(Map &map, pugi::xml_document &doc, wxArrayString &w
 
 bool ZoneXmlSerializer::save(Map &map, const FileName &dir) {
 	wxString filepath = dir.GetPath(wxPATH_GET_SEPARATOR | wxPATH_GET_VOLUME);
-	filepath += wxString(map.zonefile.c_str(), wxConvUTF8);
+	filepath += wxString(map.getZoneFilename().c_str(), wxConvUTF8);
 
 	// Create the XML file
 	pugi::xml_document doc;
-	if (saveZones(map, doc)) {
+	if (save(map, doc)) {
 		return doc.save_file(filepath.wc_str(), "\t", pugi::format_default, pugi::encoding_utf8);
 	}
 	return false;

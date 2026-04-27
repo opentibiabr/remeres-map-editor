@@ -6,7 +6,7 @@
 
 bool HouseXmlSerializer::load(Map &map, const FileName &dir, wxArrayString &warnings) {
 	std::string fn = (const char*)(dir.GetPath(wxPATH_GET_SEPARATOR | wxPATH_GET_VOLUME).mb_str(wxConvUTF8));
-	fn += map.housefile;
+	fn += map.getHouseFilename();
 	FileName filename(wxstr(fn));
 	if (!filename.FileExists()) {
 		return false;
@@ -92,11 +92,11 @@ bool HouseXmlSerializer::load(Map &map, pugi::xml_document &doc, wxArrayString &
 
 bool HouseXmlSerializer::save(Map &map, const FileName &dir) {
 	wxString filepath = dir.GetPath(wxPATH_GET_SEPARATOR | wxPATH_GET_VOLUME);
-	filepath += wxString(map.housefile.c_str(), wxConvUTF8);
+	filepath += wxString(map.getHouseFilename().c_str(), wxConvUTF8);
 
 	// Create the XML file
 	pugi::xml_document doc;
-	if (saveHouses(map, doc)) {
+	if (save(map, doc)) {
 		return doc.save_file(filepath.wc_str(), "\t", pugi::format_default, pugi::encoding_utf8);
 	}
 	return false;
