@@ -17,7 +17,7 @@
 
 #include "app/main.h"
 
-#include "ui/gui.h"
+#include "ui/gui.h" // KNOWN_VIOLATION
 #include "map/map.h"
 
 #include "client_assets.h"

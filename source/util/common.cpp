@@ -15,14 +15,16 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //////////////////////////////////////////////////////////////////////
 
-#include "app/main.h"
+#include <cstdlib>
+#include <cmath>
+#include <sstream>
+#include <algorithm>
 #include <random>
 #include <wx/clipbrd.h>
 
 #include "util/common.h"
 #include "math.h"
 #include "util/position.h"
-#include "ui/numbertextctrl.h"
 
 // random generator
 std::mt19937 &getRandomGenerator() {
@@ -286,17 +288,6 @@ bool posToClipboard(int fromx, int fromy, int fromz, int tox, int toy, int toz, 
 	return true;
 }
 
-bool clipboardPositionToFields(NumberTextCtrl* xField, NumberTextCtrl* yField, NumberTextCtrl* zField) {
-	Position position;
-	if (posFromClipboard(position.x, position.y, position.z)) {
-		xField->SetIntValue(position.x);
-		yField->SetIntValue(position.y);
-		zField->SetIntValue(position.z);
-		return true;
-	}
-
-	return false;
-}
 
 wxString b2yn(bool value) {
 	return value ? "Yes" : "No";

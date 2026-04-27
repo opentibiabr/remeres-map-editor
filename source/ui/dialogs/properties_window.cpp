@@ -16,6 +16,7 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "app/main.h"
+#include "ui/numbertextctrl.h"
 
 #include "ui/dialogs/properties_window.h"
 

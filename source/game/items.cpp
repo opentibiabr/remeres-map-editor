@@ -18,11 +18,11 @@
 #include "app/main.h"
 
 #include "game/materials.h"
-#include "ui/gui.h"
+#include "ui/gui.h" // KNOWN_VIOLATION
 
 #include "game/items.h"
 #include "game/item.h"
-#include "rendering/sprite_appearances.h"
+#include "rendering/sprite_appearances.h" // KNOWN_VIOLATION
 
 #include <appearances.pb.h>
 

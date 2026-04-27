@@ -24,7 +24,7 @@
 #include "brushes/ground_brush.h"
 #include "brushes/brush.h"
 #include "editor/action.h"
-#include "ui/gui.h"
+#include "ui/gui.h" // KNOWN_VIOLATION
 #include "app/settings.h"
 #include "map/tile_operations.h"
 

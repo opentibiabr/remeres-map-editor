@@ -18,7 +18,7 @@
 #ifndef RME_NPCS_H_
 #define RME_NPCS_H_
 
-#include "game/outfit.h"
+#include "util/outfit.h"
 
 #include <string>
 #include <map>

@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "game/outfit.h"
+#include "util/outfit.h"
 #include "util/sprite_types.h"
 
 struct TooltipEntry {

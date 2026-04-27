@@ -17,6 +17,8 @@
 
 #include "app/main.h"
 #include "ui/numbertextctrl.h"
+#include "util/common.h"
+#include "util/position.h"
 
 BEGIN_EVENT_TABLE(NumberTextCtrl, wxTextCtrl)
 EVT_KILL_FOCUS(NumberTextCtrl::OnKillFocus)
@@ -103,4 +105,16 @@ void NumberTextCtrl::CheckRange() {
 		// ChangeValue doesn't generate events
 		ChangeValue(newText);
 	}
+}
+
+bool clipboardPositionToFields(NumberTextCtrl* xField, NumberTextCtrl* yField, NumberTextCtrl* zField) {
+	Position position;
+	if (posFromClipboard(position.x, position.y, position.z)) {
+		xField->SetIntValue(position.x);
+		yField->SetIntValue(position.y);
+		zField->SetIntValue(position.z);
+		return true;
+	}
+
+	return false;
 }

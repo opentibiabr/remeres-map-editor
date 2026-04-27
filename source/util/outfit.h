@@ -15,8 +15,11 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //////////////////////////////////////////////////////////////////////
 
-#ifndef RME_OUTFIT_H_
-#define RME_OUTFIT_H_
+#ifndef RME_UTIL_OUTFIT_H_
+#define RME_UTIL_OUTFIT_H_
+
+#include <string>
+#include <cstdint>
 
 struct Outfit {
 	Outfit() :

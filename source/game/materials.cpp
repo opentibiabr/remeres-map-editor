@@ -17,12 +17,12 @@
 
 #include "app/main.h"
 
-#include "editor/editor.h"
 #include "game/items.h"
 #include "game/monsters.h"
 #include <algorithm>
+#include "game/npcs.h"
+#include "game/item.h"
 
-#include "ui/gui.h"
 #include "game/materials.h"
 #include "brushes/brush.h"
 #include "brushes/monster_brush.h"

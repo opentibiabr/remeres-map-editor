@@ -24,7 +24,7 @@
 #include "app/artprovider.h"
 #include "io/filehandle.h"
 #include "app/settings.h"
-#include "ui/gui.h"
+#include "ui/gui.h" // KNOWN_VIOLATION
 #include "util/otml.h"
 #include "rendering/sprite_appearances.h"
 #include "rendering/sprites.h"

@@ -35,7 +35,7 @@
 #include <array>
 
 #include "editor/editor.h"
-#include "ui/gui.h"
+#include "ui/gui.h" // KNOWN_VIOLATION
 #include "rendering/sprites.h"
 #include "rendering/map_drawer.h"
 #include <unordered_set>
@@ -44,20 +44,20 @@
 #include "live/live_socket.h"
 #include "rendering/graphics.h"
 
-#include "brushes/doodad_brush.h"
-#include "brushes/monster_brush.h"
-#include "brushes/house_exit_brush.h"
-#include "brushes/house_brush.h"
-#include "brushes/spawn_monster_brush.h"
+#include "brushes/doodad_brush.h" // KNOWN_VIOLATION
+#include "brushes/monster_brush.h" // KNOWN_VIOLATION
+#include "brushes/house_exit_brush.h" // KNOWN_VIOLATION
+#include "brushes/house_brush.h" // KNOWN_VIOLATION
+#include "brushes/spawn_monster_brush.h" // KNOWN_VIOLATION
 #include "rendering/sprite_appearances.h"
-#include "brushes/npc_brush.h"
-#include "brushes/spawn_npc_brush.h"
-#include "brushes/wall_brush.h"
-#include "brushes/carpet_brush.h"
-#include "brushes/raw_brush.h"
-#include "brushes/table_brush.h"
-#include "brushes/waypoint_brush.h"
-#include "brushes/zone_brush.h"
+#include "brushes/npc_brush.h" // KNOWN_VIOLATION
+#include "brushes/spawn_npc_brush.h" // KNOWN_VIOLATION
+#include "brushes/wall_brush.h" // KNOWN_VIOLATION
+#include "brushes/carpet_brush.h" // KNOWN_VIOLATION
+#include "brushes/raw_brush.h" // KNOWN_VIOLATION
+#include "brushes/table_brush.h" // KNOWN_VIOLATION
+#include "brushes/waypoint_brush.h" // KNOWN_VIOLATION
+#include "brushes/zone_brush.h" // KNOWN_VIOLATION
 #include "rendering/light_drawer.h"
 #include "rendering/gl_renderer.h"
 

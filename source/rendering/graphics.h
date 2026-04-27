@@ -19,7 +19,7 @@
 #define RME_GRAPHICS_H_
 #include <wx/glcanvas.h>
 
-#include "game/outfit.h"
+#include "util/outfit.h"
 #include "util/common.h"
 #include "util/enums.h"
 #include "util/sprite_types.h"

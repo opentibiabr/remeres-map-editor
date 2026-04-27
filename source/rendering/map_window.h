@@ -19,7 +19,7 @@
 #define RME_MAP_WINDOW_H_
 
 #include "util/position.h"
-#include "ui/windows/replace_items_window.h"
+#include "ui/windows/replace_items_window.h" // KNOWN_VIOLATION
 
 class MapCanvas;
 class DCButton;

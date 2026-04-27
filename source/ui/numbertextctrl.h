@@ -50,4 +50,7 @@ protected:
 	DECLARE_EVENT_TABLE();
 };
 
+class Position;
+bool clipboardPositionToFields(NumberTextCtrl* xField, NumberTextCtrl* yField, NumberTextCtrl* zField);
+
 #endif

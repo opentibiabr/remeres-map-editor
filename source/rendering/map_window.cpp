@@ -18,7 +18,7 @@
 #include "app/main.h"
 
 #include "rendering/map_window.h"
-#include "ui/gui.h"
+#include "ui/gui.h" // KNOWN_VIOLATION
 #include "rendering/sprites.h"
 #include "editor/editor.h"
 

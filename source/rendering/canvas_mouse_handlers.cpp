@@ -24,37 +24,37 @@
 #include <fmt/ranges.h>
 #include <array>
 
-#include "ui/gui.h"
+#include "ui/gui.h" // KNOWN_VIOLATION
 #include "editor/editor.h"
-#include "brushes/brush.h"
+#include "brushes/brush.h" // KNOWN_VIOLATION
 #include "rendering/sprites.h"
 #include "map/map.h"
 #include "map/tile.h"
-#include "ui/dialogs/old_properties_window.h"
-#include "ui/dialogs/properties_window.h"
-#include "ui/windows/tileset_window.h"
-#include "ui/palette/palette_window.h"
+#include "ui/dialogs/old_properties_window.h" // KNOWN_VIOLATION
+#include "ui/dialogs/properties_window.h" // KNOWN_VIOLATION
+#include "ui/windows/tileset_window.h" // KNOWN_VIOLATION
+#include "ui/palette/palette_window.h" // KNOWN_VIOLATION
 #include "rendering/map_display.h"
 #include "rendering/map_drawer.h"
 #include "app/application.h"
 #include "live/live_server.h"
-#include "ui/windows/browse_tile_window.h"
+#include "ui/windows/browse_tile_window.h" // KNOWN_VIOLATION
 
-#include "ui/menubar/main_menubar.h"
+#include "ui/menubar/main_menubar.h" // KNOWN_VIOLATION
 
-#include "brushes/doodad_brush.h"
-#include "brushes/house_exit_brush.h"
-#include "brushes/house_brush.h"
-#include "brushes/wall_brush.h"
-#include "brushes/spawn_monster_brush.h"
-#include "brushes/monster_brush.h"
-#include "brushes/ground_brush.h"
-#include "brushes/waypoint_brush.h"
-#include "brushes/raw_brush.h"
-#include "brushes/carpet_brush.h"
-#include "brushes/table_brush.h"
-#include "brushes/spawn_npc_brush.h"
-#include "brushes/npc_brush.h"
+#include "brushes/doodad_brush.h" // KNOWN_VIOLATION
+#include "brushes/house_exit_brush.h" // KNOWN_VIOLATION
+#include "brushes/house_brush.h" // KNOWN_VIOLATION
+#include "brushes/wall_brush.h" // KNOWN_VIOLATION
+#include "brushes/spawn_monster_brush.h" // KNOWN_VIOLATION
+#include "brushes/monster_brush.h" // KNOWN_VIOLATION
+#include "brushes/ground_brush.h" // KNOWN_VIOLATION
+#include "brushes/waypoint_brush.h" // KNOWN_VIOLATION
+#include "brushes/raw_brush.h" // KNOWN_VIOLATION
+#include "brushes/carpet_brush.h" // KNOWN_VIOLATION
+#include "brushes/table_brush.h" // KNOWN_VIOLATION
+#include "brushes/spawn_npc_brush.h" // KNOWN_VIOLATION
+#include "brushes/npc_brush.h" // KNOWN_VIOLATION
 
 void MapCanvas::OnMouseMove(wxMouseEvent &event) {
 	if (screendragging) {

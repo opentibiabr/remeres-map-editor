@@ -15,4 +15,4 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //////////////////////////////////////////////////////////////////////
 
-#include "app/main.h"
+#include "app/main.h" // KNOWN_VIOLATION

@@ -21,7 +21,7 @@
 #include <string>
 #include <string_view>
 #include <fstream>
-#include "game/outfit.h"
+#include "util/outfit.h"
 
 namespace LuaParser {
 

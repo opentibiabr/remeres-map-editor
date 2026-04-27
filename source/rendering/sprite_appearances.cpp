@@ -24,7 +24,7 @@
 #include "rendering/graphics.h"
 #include "app/settings.h"
 #include "io/filehandle.h"
-#include "ui/gui.h"
+#include "ui/gui.h" // KNOWN_VIOLATION
 #include "rendering/gl_renderer.h"
 
 #include <lzma.h>

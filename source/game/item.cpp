@@ -18,8 +18,8 @@
 #include "app/main.h"
 
 #include "brushes/brush.h"
-#include "rendering/graphics.h"
-#include "ui/gui.h"
+#include "rendering/graphics.h" // KNOWN_VIOLATION
+#include "ui/gui.h" // KNOWN_VIOLATION
 #include "map/tile.h"
 #include "game/complexitem.h"
 #include "io/iomap.h"
