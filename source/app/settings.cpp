@@ -17,6 +17,7 @@
 
 #include "app/main.h"
 #include <wx/config.h>
+#include <wx/fileconf.h>
 #include <wx/sstream.h>
 #include <wx/wfstream.h>
 
