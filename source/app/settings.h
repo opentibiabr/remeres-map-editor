@@ -19,6 +19,7 @@
 #define RME_SETTINGS_H_
 
 #include "app/main.h"
+#include <wx/config.h>
 
 namespace Config {
 	enum Key {
@@ -194,8 +195,6 @@ namespace Config {
 		LAST,
 	};
 }
-
-#include <wx/config.h>
 
 class Settings {
 public:
