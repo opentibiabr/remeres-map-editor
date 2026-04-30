@@ -1,0 +1,45 @@
+name: Reusable Fast Checks
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: read
+
+jobs:
+  run-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup reviewdog
+        uses: reviewdog/action-setup@v1.0.3
+
+      - name: Setup dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format-17 cppcheck libxml2-utils yamllint
+
+      - name: Run clang-format lint
+        uses: DoozyX/clang-format-lint-action@v0.17
+        with:
+          source: "source"
+          extensions: "cpp,hpp,h"
+          clangFormatVersion: 17
+
+      - name: Run yamllint
+        run: yamllint .github .yamllint.yaml
+
+      - name: Run analysis with reviewdog
+        if: github.event_name == 'pull_request'
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
+          REVIEWDOG_REPORTER: github-pr-check
+        run: |
+          reviewdog -reporter="${REVIEWDOG_REPORTER}" -runners=xmllint -fail-level=error -filter-mode=added
+          reviewdog -reporter="${REVIEWDOG_REPORTER}" -runners=cppcheck -filter-mode=added || true

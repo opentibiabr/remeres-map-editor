@@ -23,7 +23,9 @@ if(MSVC)
 endif()
 
 set(VCPKG_FEATURE_FLAGS "versions")
-set(VCPKG_BUILD_TYPE "release")
+if(NOT DEFINED VCPKG_BUILD_TYPE)
+	set(VCPKG_BUILD_TYPE "release")
+endif()
 
 # *****************************************************************************
 # Set Configs
