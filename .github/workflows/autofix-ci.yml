@@ -1,0 +1,61 @@
+name: autofix.ci
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "source/**"
+      - "scripts/**"
+      - "cmake/**"
+      - "data/**"
+      - "brushes/**"
+      - "icons/**"
+      - "tools/**"
+      - "vcproj/**"
+      - "vcpkg.json"
+      - "CMakeLists.txt"
+      - "CMakePresets.json"
+      - ".clang-format"
+      - ".github/workflows/**"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  format:
+    if: github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+
+      - name: Run clang-format lint
+        uses: DoozyX/clang-format-lint-action@bcb4eb2cb0d707ee4f3e5cc3b456eb075f12cf73
+        with:
+          source: "source"
+          extensions: "cpp,hpp,h"
+          clangFormatVersion: 17
+          inplace: true
+
+      - name: Run StyLua
+        uses: JohnnyMorganz/stylua-action@762d02aa393cd7c7f196feb932d16db1e5c5aa77
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: 2.4.1
+          args: scripts
+
+      - name: Run cmake-format
+        run: |
+          pip install cmakelang PyYAML
+          find . \( -path "./build" -o -path "*/vcpkg_installed" \) -prune -o \( -name "CMakeLists.txt" -o -name "*.cmake" \) -print0 | xargs -0 cmake-format -i
+
+      - name: Apply formatting with autofix.ci
+        uses: autofix-ci/action@c5b2d67aa2274e7b5a18224e8171550871fc7e4a
+        with:
+          commit-message: "style: auto-formatting (clang/stylua/cmake)"
