@@ -7,6 +7,7 @@ ENV DEBIAN_FRONTEND=${DEBIAN_FRONTEND}
 ENV TZ=Etc/UTC
 ARG VCPKG_FEED_URL
 ARG VCPKG_FEED_USERNAME
+ARG VCPKG_BINARY_CACHE_ACCESS=read
 ARG VCPKG_BINARY_SOURCES
 ENV VCPKG_BINARY_SOURCES=${VCPKG_BINARY_SOURCES}
 
@@ -96,7 +97,7 @@ RUN --mount=type=secret,id=github_token \
 				"</configuration>" \
 				> "${nuget_config}"; \
 			export VCPKG_NUGET_API_KEY="${nuget_auth_token}"; \
-			export VCPKG_BINARY_SOURCES="clear;nugetconfig,${nuget_config},readwrite;nugettimeout,1200"; \
+			export VCPKG_BINARY_SOURCES="clear;nugetconfig,${nuget_config},${VCPKG_BINARY_CACHE_ACCESS};nugettimeout,1200"; \
 		elif [ -n "${VCPKG_BINARY_SOURCES:-}" ]; then \
 			echo "Using provided VCPKG_BINARY_SOURCES."; \
 		else \
