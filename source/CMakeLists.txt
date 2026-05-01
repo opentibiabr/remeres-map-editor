@@ -278,8 +278,12 @@ target_include_directories(${PROJECT_NAME}
 	${CMAKE_SOURCE_DIR}/source
 	${OPENGL_INCLUDE_DIR}
 	${ZLIB_INCLUDE_DIR}
-	${fastnoiselite_SOURCE_DIR}/Cpp
 	${STB_INCLUDE_DIRS}
+)
+
+target_include_directories(${PROJECT_NAME}
+	SYSTEM PRIVATE
+	${fastnoiselite_SOURCE_DIR}/Cpp
 )
 
 target_link_libraries(${PROJECT_NAME}
