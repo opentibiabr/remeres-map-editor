@@ -26,6 +26,7 @@ set(VCPKG_FEATURE_FLAGS "versions")
 if(NOT DEFINED VCPKG_BUILD_TYPE)
 	set(VCPKG_BUILD_TYPE "release")
 endif()
+set(VCPKG_BUILD_TYPE "${VCPKG_BUILD_TYPE}" CACHE STRING "vcpkg build type")
 
 # *****************************************************************************
 # Set Configs
