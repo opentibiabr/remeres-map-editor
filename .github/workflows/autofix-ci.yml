@@ -19,7 +19,7 @@ on:
       - ".github/workflows/**"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -27,16 +27,16 @@ concurrency:
 
 jobs:
   format:
-    if: github.event.pull_request.draft == false
+    if: github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
 
       - name: Run clang-format lint
-        uses: DoozyX/clang-format-lint-action@v0.20
+        uses: DoozyX/clang-format-lint-action@bcb4eb2cb0d707ee4f3e5cc3b456eb075f12cf73
         with:
           source: "source"
           extensions: "cpp,hpp,h"
@@ -44,7 +44,7 @@ jobs:
           inplace: true
 
       - name: Run StyLua
-        uses: JohnnyMorganz/stylua-action@v3
+        uses: JohnnyMorganz/stylua-action@762d02aa393cd7c7f196feb932d16db1e5c5aa77
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           version: 2.4.1

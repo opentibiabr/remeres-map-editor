@@ -207,6 +207,7 @@ jobs:
         with:
           name: ${{ matrix.artifact }}
           path: build/windows-release/bin/
+          if-no-files-found: error
 
       - name: Upload artifacts (Solution)
         if: matrix.type == 'Solution'
@@ -217,3 +218,4 @@ jobs:
             *.exe
             *.dll
             *.pdb
+          if-no-files-found: error
