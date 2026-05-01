@@ -20,6 +20,7 @@ on:
       - "Dockerfile"
       - ".dockerignore"
       - ".clang-format"
+      - ".yamllint.yaml"
       - ".reviewdog.yml"
       - ".github/workflows/**"
   merge_group:
@@ -42,6 +43,7 @@ on:
       - "Dockerfile"
       - ".dockerignore"
       - ".clang-format"
+      - ".yamllint.yaml"
       - ".reviewdog.yml"
       - ".github/workflows/**"
 
@@ -82,11 +84,13 @@ jobs:
               - "CMakeLists.txt"
               - "CMakePresets.json"
               - ".clang-format"
+              - ".yamllint.yaml"
               - ".reviewdog.yml"
               - ".github/workflows/ci.yml"
               - ".github/workflows/reusable-build-linux.yml"
               - ".github/workflows/reusable-build-windows.yml"
               - ".github/workflows/reusable-checks.yml"
+              - ".github/workflows/autofix-ci.yml"
             docker:
               - "Dockerfile"
               - ".dockerignore"
@@ -118,7 +122,7 @@ jobs:
     if: needs.changes.outputs.compile == 'true' && needs.checks.result == 'success' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     permissions:
       contents: read
-      packages: write
+      packages: read
     uses: ./.github/workflows/reusable-build-linux.yml
     secrets: inherit
 
@@ -128,7 +132,7 @@ jobs:
     if: needs.changes.outputs.compile == 'true' && needs.checks.result == 'success' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     permissions:
       contents: read
-      packages: write
+      packages: read
     uses: ./.github/workflows/reusable-build-windows.yml
     secrets: inherit
 

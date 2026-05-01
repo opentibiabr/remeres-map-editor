@@ -545,7 +545,6 @@
     <ProtoPath>$(ProjectDir)..\..\source\protobuf</ProtoPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(RunProtoCompile)'=='true' and '$(GITHUB_WORKSPACE)' != ''">
-    <ProtocPath>$(ProjectDir)vcpkg_installed\$(VcpkgTriplet)\tools\protobuf\protoc.exe</ProtocPath>
     <ProtoPath>$(GITHUB_WORKSPACE)\source\protobuf</ProtoPath>
   </PropertyGroup>
   <ItemGroup>
