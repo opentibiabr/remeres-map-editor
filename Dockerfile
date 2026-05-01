@@ -114,8 +114,12 @@ RUN --mount=type=secret,id=github_token \
 
 FROM dependencies AS build
 
-COPY . /srv/
 WORKDIR /srv
+COPY CMakeLists.txt CMakePresets.json vcpkg.json /srv/
+COPY cmake /srv/cmake
+COPY source /srv/source
+COPY brushes /srv/brushes
+COPY icons /srv/icons
 COPY --from=dependencies /opt/vcpkg_installed /srv/vcpkg_installed
 
 RUN export VCPKG_ROOT=/opt/vcpkg \
@@ -159,13 +163,17 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 	&& ln -snf "/usr/share/zoneinfo/${TZ}" /etc/localtime \
 	&& echo "${TZ}" > /etc/timezone \
 	&& apt-get clean \
-	&& rm -rf /var/lib/apt/lists/*
+	&& rm -rf /var/lib/apt/lists/* \
+	&& groupadd --system rme \
+	&& useradd --system --create-home --gid rme --home-dir /home/rme rme \
+	&& install -d -o rme -g rme /rme
 
 WORKDIR /rme
-COPY --from=build /srv/build/linux-release/bin/ /rme/
-COPY brushes /rme/brushes
-COPY data /rme/data
-COPY icons /rme/icons
-COPY rme_icon.ico remeres.exe.manifest LICENSE.rtf /rme/
+COPY --from=build --chown=rme:rme /srv/build/linux-release/bin/ /rme/
+COPY --chown=rme:rme brushes /rme/brushes
+COPY --chown=rme:rme data /rme/data
+COPY --chown=rme:rme icons /rme/icons
+COPY --chown=rme:rme rme_icon.ico remeres.exe.manifest LICENSE.rtf /rme/
 
+USER rme
 CMD ["./canary-map-editor"]

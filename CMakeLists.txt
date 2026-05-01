@@ -76,13 +76,17 @@ endif()
 # Lua Scripting Support
 # *****************************************************************************
 
-find_package(lua CONFIG REQUIRED)
+find_package(Lua REQUIRED)
 find_package(sol2 CONFIG REQUIRED)
 
 if(TARGET lua::lua)
 	set(LUA_LIB_TARGET lua::lua)
 elseif(TARGET lua)
 	set(LUA_LIB_TARGET lua)
+elseif(TARGET unofficial::lua::lua)
+	set(LUA_LIB_TARGET unofficial::lua::lua)
+elseif(LUA_LIBRARIES)
+	set(LUA_LIB_TARGET ${LUA_LIBRARIES})
 else()
 	message(FATAL_ERROR "Lua target not found!")
 endif()
