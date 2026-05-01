@@ -49,6 +49,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 	ninja-build \
 	pkg-config \
 	python3 \
+	python3-venv \
 	tar \
 	tzdata \
 	unzip \
