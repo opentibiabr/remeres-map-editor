@@ -22,6 +22,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 	ca-certificates \
 	cmake \
 	curl \
+	g++-14 \
+	gcc-14 \
 	git \
 	libasound2-dev \
 	libdbus-1-dev \
@@ -54,10 +56,15 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 	tzdata \
 	unzip \
 	zip \
+	&& update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100 --slave /usr/bin/g++ g++ /usr/bin/g++-14 \
+	&& update-alternatives --set gcc /usr/bin/gcc-14 \
 	&& ln -snf "/usr/share/zoneinfo/${TZ}" /etc/localtime \
 	&& echo "${TZ}" > /etc/timezone \
 	&& apt-get clean \
 	&& rm -rf /var/lib/apt/lists/*
+
+ENV CC=gcc-14
+ENV CXX=g++-14
 
 WORKDIR /opt
 COPY vcpkg.json /opt/vcpkg.json
@@ -79,6 +86,8 @@ RUN --mount=type=secret,id=github_token \
 	/bin/bash -euo pipefail -c '\
 		nuget_config=""; \
 		if [ -s /run/secrets/github_token ] && [ -n "${VCPKG_FEED_URL:-}" ] && [ -n "${VCPKG_FEED_USERNAME:-}" ]; then \
+			cache_access="${VCPKG_BINARY_CACHE_ACCESS:-read}"; \
+			case "${cache_access}" in read|readwrite) ;; *) cache_access="read";; esac; \
 			nuget_auth_token="$(cat /run/secrets/github_token)"; \
 			nuget_config="/tmp/nuget.config"; \
 			printf "%s\n" \
@@ -99,7 +108,7 @@ RUN --mount=type=secret,id=github_token \
 				"</configuration>" \
 				> "${nuget_config}"; \
 			export VCPKG_NUGET_API_KEY="${nuget_auth_token}"; \
-			export VCPKG_BINARY_SOURCES="clear;nugetconfig,${nuget_config},${VCPKG_BINARY_CACHE_ACCESS};nugettimeout,1200"; \
+			export VCPKG_BINARY_SOURCES="clear;nugetconfig,${nuget_config},${cache_access};nugettimeout,1200"; \
 		elif [ -n "${VCPKG_BINARY_SOURCES:-}" ]; then \
 			echo "Using provided VCPKG_BINARY_SOURCES."; \
 		else \

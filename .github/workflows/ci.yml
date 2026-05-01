@@ -60,7 +60,7 @@ jobs:
       docker: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'merge_group') && 'true' || steps.filter.outputs.docker }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 

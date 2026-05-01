@@ -1,13 +1,18 @@
-#include <glad/glad.h>
-
 #ifdef _WIN32
-	#define WIN32_LEAN_AND_MEAN
+	#ifndef WIN32_LEAN_AND_MEAN
+		#define WIN32_LEAN_AND_MEAN
+	#endif
+	#ifndef NOMINMAX
+		#define NOMINMAX
+	#endif
 	#include <Windows.h>
 #elif defined(__APPLE__)
 	#include <dlfcn.h>
 #else
 	#include <dlfcn.h>
 #endif
+
+#include <glad/glad.h>
 
 #include "main.h"
 #include "gl_renderer.h"

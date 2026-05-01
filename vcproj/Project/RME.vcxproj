@@ -96,11 +96,11 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <TargetName>$(ProjectName)_x64</TargetName>
-    <OutDir>$(SolutionDir)\..</OutDir>
+    <OutDir>$(SolutionDir)..\</OutDir>
     <SourcePath>$(OutDirFullPath)source</SourcePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(SolutionDir)\..</OutDir>
+    <OutDir>$(SolutionDir)..\</OutDir>
     <SourcePath>$(OutDirFullPath)source</SourcePath>
     <TargetName>$(ProjectName)_Debug</TargetName>
   </PropertyGroup>
@@ -129,17 +129,18 @@
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>
-      vcpkg_installed\$(VcpkgTriplet)\include\;
       generated;
       ..\..\source;
       %(AdditionalIncludeDirectories)
       </AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_CRTDBG_MAP_ALLOC;__DEBUG__;WXUSINGDLL;wxMSVC_VERSION_AUTO;__EXPERIMENTAL__;LIVE_SERVER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_CRTDBG_MAP_ALLOC;__DEBUG__;WXUSINGDLL;wxMSVC_VERSION_AUTO;_CRT_SECURE_NO_WARNINGS;__EXPERIMENTAL__;LIVE_SERVER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>false</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <TreatAngleIncludeAsExternal>true</TreatAngleIncludeAsExternal>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <PrecompiledHeaderFile>main.h</PrecompiledHeaderFile>
@@ -147,7 +148,7 @@
       <LanguageStandard>stdcpp23</LanguageStandard>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>wxmsw32ud_core.lib;wxbase32ud.lib;wxmsw32ud_adv.lib;wxmsw32ud_html.lib;wxmsw32ud_aui.lib;wxmsw32ud_gl.lib;wxbase32ud_net.lib;comctl32.lib;Rpcrt4.lib;WS2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wxmsw33ud_core.lib;wxbase33ud.lib;wxmsw33ud_adv.lib;wxmsw33ud_html.lib;wxmsw33ud_aui.lib;wxmsw33ud_gl.lib;wxbase33ud_net.lib;comctl32.lib;Rpcrt4.lib;WS2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)..\dependencies\vs\lib\</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <GenerateMapFile>true</GenerateMapFile>
@@ -162,16 +163,17 @@
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>
-      vcpkg_installed\$(VcpkgTriplet)\include\;
       generated;
       ..\..\source;
 	  %(AdditionalIncludeDirectories)
       </AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_CRTDBG_MAP_ALLOC;__DEBUG__;WXUSINGDLL;wxMSVC_VERSION_AUTO;__EXPERIMENTAL__;LIVE_SERVER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_CRTDBG_MAP_ALLOC;__DEBUG__;WXUSINGDLL;wxMSVC_VERSION_AUTO;_CRT_SECURE_NO_WARNINGS;__EXPERIMENTAL__;LIVE_SERVER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <TreatAngleIncludeAsExternal>true</TreatAngleIncludeAsExternal>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <PrecompiledHeaderFile>main.h</PrecompiledHeaderFile>
@@ -180,7 +182,7 @@
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>wxbase32ud.lib;wxmsw32ud_core.lib;wxmsw32ud_html.lib;wxbase32ud_xml.lib;wxmsw32ud_adv.lib;wxmsw32ud_aui.lib;wxmsw32ud_gl.lib;wxbase32ud_net.lib;comctl32.lib;Rpcrt4.lib;WS2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wxbase33ud.lib;wxmsw33ud_core.lib;wxmsw33ud_html.lib;wxbase33ud_xml.lib;wxmsw33ud_adv.lib;wxmsw33ud_aui.lib;wxmsw33ud_gl.lib;wxbase33ud_net.lib;comctl32.lib;Rpcrt4.lib;WS2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(ProjectDir)vcpkg_installed\x64-windows\debug\lib\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <GenerateMapFile>true</GenerateMapFile>
@@ -197,16 +199,17 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <AdditionalIncludeDirectories>
-      vcpkg_installed\$(VcpkgTriplet)\include\;
       generated;
       ..\..\source;
       %(AdditionalIncludeDirectories)
       </AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>NDEBUG;__RELEASE__;WXUSINGDLL;wxMSVC_VERSION_AUTO;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;__RELEASE__;WXUSINGDLL;wxMSVC_VERSION_AUTO;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <TreatAngleIncludeAsExternal>true</TreatAngleIncludeAsExternal>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <PrecompiledHeaderFile>main.h</PrecompiledHeaderFile>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -215,7 +218,7 @@
       <LanguageStandard>stdcpp23</LanguageStandard>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>wxbase32u.lib;wxmsw32u_core.lib;wxmsw32u_html.lib;wxbase32u_xml.lib;wxmsw32u_adv.lib;wxmsw32u_aui.lib;wxmsw32u_gl.lib;wxbase32u_net.lib;comctl32.lib;WS2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wxbase33u.lib;wxmsw33u_core.lib;wxmsw33u_html.lib;wxbase33u_xml.lib;wxmsw33u_adv.lib;wxmsw33u_aui.lib;wxmsw33u_gl.lib;wxbase33u_net.lib;comctl32.lib;WS2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
       <LargeAddressAware>true</LargeAddressAware>
@@ -233,7 +236,6 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <AdditionalIncludeDirectories>
-      vcpkg_installed\$(VcpkgTriplet)\include\;
       generated;
       ..\..\source;
 	  %(AdditionalIncludeDirectories)
@@ -243,6 +245,8 @@
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <TreatAngleIncludeAsExternal>true</TreatAngleIncludeAsExternal>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <PrecompiledHeaderFile>main.h</PrecompiledHeaderFile>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -253,7 +257,7 @@
       <LanguageStandard>stdcpp23</LanguageStandard>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>wxmsw32u_core.lib;wxbase32u.lib;wxmsw32u_adv.lib;wxmsw32u_html.lib;wxmsw32u_aui.lib;wxmsw32u_gl.lib;wxbase32u_net.lib;comctl32.lib;WS2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wxmsw33u_core.lib;wxbase33u.lib;wxmsw33u_adv.lib;wxmsw33u_html.lib;wxmsw33u_aui.lib;wxmsw33u_gl.lib;wxbase33u_net.lib;comctl32.lib;WS2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
       <LargeAddressAware>true</LargeAddressAware>

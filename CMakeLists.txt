@@ -27,6 +27,9 @@ if(NOT DEFINED VCPKG_BUILD_TYPE)
 	set(VCPKG_BUILD_TYPE "release")
 endif()
 set(VCPKG_BUILD_TYPE "${VCPKG_BUILD_TYPE}" CACHE STRING "vcpkg build type")
+if(DEFINED VCPKG_PLATFORM_TOOLSET)
+	set(VCPKG_PLATFORM_TOOLSET "${VCPKG_PLATFORM_TOOLSET}" CACHE STRING "vcpkg platform toolset")
+endif()
 
 # *****************************************************************************
 # Set Configs
