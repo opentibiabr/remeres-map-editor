@@ -541,16 +541,22 @@
     <Message Text="RunProtoCompile value: $(RunProtoCompile)" Importance="high" />
   </Target>
   <PropertyGroup Condition="'$(RunProtoCompile)'=='true'">
-    <ProtocPath>$(ProjectDir)vcpkg_installed\$(VcpkgTriplet)\tools\protobuf\protoc.exe</ProtocPath>
+    <ProtocPath>$(VcpkgInstalledDir)\$(VcpkgTriplet)\tools\protobuf\protoc.exe</ProtocPath>
     <ProtoPath>$(ProjectDir)..\..\source\protobuf</ProtoPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(RunProtoCompile)'=='true' and '$(GITHUB_WORKSPACE)' != ''">
     <ProtoPath>$(GITHUB_WORKSPACE)\source\protobuf</ProtoPath>
   </PropertyGroup>
-  <ItemGroup>
+  <PropertyGroup>
+    <ProtoCompileDependsOn Condition="Exists('$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.targets')">VcpkgInstallManifestDependencies</ProtoCompileDependsOn>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(RunProtoCompile)'=='true'">
     <ProtoFiles Include="$(ProtoPath)\*.proto" />
   </ItemGroup>
-  <Target Name="ProtoCompile" BeforeTargets="PrepareForBuild" DependsOnTargets="VcpkgInstallManifestDependencies">
+  <Target Name="ProtoCompile"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(RunProtoCompile)'=='true'"
+          DependsOnTargets="$(ProtoCompileDependsOn)">
     <Exec Command="&quot;$(ProtocPath)&quot; --proto_path=&quot;$(ProtoPath)&quot; --cpp_out=&quot;generated&quot; &quot;%(ProtoFiles.Identity)&quot;" />
     <ItemGroup>
       <ClCompile Include="generated\%(ProtoFiles.Filename).pb.cc">

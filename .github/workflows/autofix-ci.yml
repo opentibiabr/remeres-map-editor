@@ -47,13 +47,13 @@ jobs:
         uses: JohnnyMorganz/stylua-action@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          version: latest
+          version: 2.4.1
           args: scripts
 
       - name: Run cmake-format
         run: |
           pip install cmakelang PyYAML
-          find . -name "CMakeLists.txt" -o -name "*.cmake" | grep -v build/ | grep -v vcpkg_installed/ | xargs cmake-format -i
+          find . \( -path "./build" -o -path "*/vcpkg_installed" \) -prune -o \( -name "CMakeLists.txt" -o -name "*.cmake" \) -print0 | xargs -0 cmake-format -i
 
       - name: Apply formatting with autofix.ci
         uses: autofix-ci/action@c5b2d67aa2274e7b5a18224e8171550871fc7e4a
