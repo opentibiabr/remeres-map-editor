@@ -273,6 +273,13 @@ target_sources(${PROJECT_NAME}
 	zones.cpp
 )
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	set_source_files_properties(lua/lua_api_noise.cpp PROPERTIES
+		SKIP_UNITY_BUILD_INCLUSION ON
+		COMPILE_OPTIONS "-Wno-aggressive-loop-optimizations"
+	)
+endif()
+
 target_include_directories(${PROJECT_NAME}
 	PRIVATE
 	${CMAKE_SOURCE_DIR}/source
