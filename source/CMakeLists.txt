@@ -95,7 +95,8 @@ else()
 endif()
 
 if(WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
-  set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${PROJECT_NAME}-x64")
+  set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME
+                                                   "${PROJECT_NAME}-x64")
 endif()
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE RME_CMAKE_BUILD=1)
