@@ -25,6 +25,12 @@ find_package(
              base
              CONFIG
   REQUIRED)
+if(DEFINED VCPKG_TARGET_TRIPLET)
+  unset(ZLIB_LIBRARY CACHE)
+  unset(ZLIB_LIBRARY_DEBUG CACHE)
+  unset(ZLIB_LIBRARY_RELEASE CACHE)
+  unset(ZLIB_INCLUDE_DIR CACHE)
+endif()
 find_package(ZLIB REQUIRED)
 find_package(pugixml CONFIG REQUIRED)
 find_package(liblzma CONFIG REQUIRED)
@@ -89,6 +95,13 @@ else()
   add_executable(${PROJECT_NAME} "")
 endif()
 
+if(WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+  set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME
+                                                   "${PROJECT_NAME}-x64")
+endif()
+
+target_compile_definitions(${PROJECT_NAME} PRIVATE RME_CMAKE_BUILD=1)
+
 # === OpenMP ===
 if(OPTIONS_ENABLE_OPENMP)
   log_option_enabled("openmp")
@@ -148,6 +161,8 @@ if(SPEED_UP_BUILD_UNITY)
 else()
   # === PRECOMPILED HEADER ===
   target_precompile_headers(${PROJECT_NAME} PRIVATE main.h)
+  set_source_files_properties(gl_renderer.cpp PROPERTIES SKIP_PRECOMPILE_HEADERS
+                                                         ON)
 endif()
 
 target_sources(
@@ -301,7 +316,7 @@ target_include_directories(${PROJECT_NAME} SYSTEM
 target_link_libraries(
   ${PROJECT_NAME}
   PRIVATE ${OPENGL_LIBRARIES}
-          ${ZLIB_LIBRARIES}
+          ZLIB::ZLIB
           glad::glad
           fmt::fmt
           asio::asio

@@ -143,9 +143,6 @@ bool ClientAssets::loadAppearanceProtobuf(wxString &error, wxArrayString &warnin
 
 	fileStream.close();
 
-	// Disposing allocated objects.
-	google::protobuf::ShutdownProtobufLibrary();
-
 	// Client loaded
 	setLoaded(true);
 	return true;
