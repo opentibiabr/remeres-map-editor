@@ -161,6 +161,8 @@ if(SPEED_UP_BUILD_UNITY)
 else()
   # === PRECOMPILED HEADER ===
   target_precompile_headers(${PROJECT_NAME} PRIVATE main.h)
+  set_source_files_properties(gl_renderer.cpp
+                              PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
 endif()
 
 target_sources(
