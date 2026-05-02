@@ -83,7 +83,11 @@ EVT_SET_FOCUS(MapScrollBar::OnFocus)
 EVT_MOUSEWHEEL(MapScrollBar::OnWheel)
 END_EVENT_TABLE()
 
+#ifdef RME_CMAKE_BUILD
+wxIMPLEMENT_APP_NO_MAIN(Application);
+#else
 wxIMPLEMENT_APP(Application);
+#endif
 
 Application::~Application() {
 	// Destroy
@@ -701,14 +705,10 @@ void MainFrame::PrepareDC(wxDC &dc) {
 	dc.SetMapMode(wxMM_TEXT);
 }
 
-#ifdef _MSC_VER
-// This is necessary for cmake with visual studio link the executable
+#ifdef RME_CMAKE_BUILD
+// CMake builds use the console subsystem, so provide main without letting
+// wxIMPLEMENT_APP generate a second wx entrypoint.
 int main(int argc, char** argv) {
-	wxEntryStart(argc, argv); // Start the wxWidgets library
-	Application* app = new Application(); // Create the application object
-	wxApp::SetInstance(app); // Informs wxWidgets that app is the application object
-	wxEntry(); // Call the wxEntry() function to start the application execution
-	wxEntryCleanup(); // Clear the wxWidgets library
-	return 0;
+	return wxEntry(argc, argv);
 }
 #endif

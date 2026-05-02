@@ -16,7 +16,8 @@
           "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
           "type": "FILEPATH"
         },
-        "CMAKE_COLOR_DIAGNOSTICS": "ON"
+        "CMAKE_COLOR_DIAGNOSTICS": "ON",
+        "SPEED_UP_BUILD_UNITY": "ON"
       }
     },
     {
