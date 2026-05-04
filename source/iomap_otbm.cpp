@@ -58,6 +58,11 @@ typedef uint8_t attribute_t;
 typedef uint32_t flags_t;
 
 namespace {
+	IOMapOTBM::StaticHouseExportReport &staticHouseExportReportState() {
+		static auto* report = new IOMapOTBM::StaticHouseExportReport();
+		return *report;
+	}
+
 	constexpr int HousePreviewContextMargin = 2;
 	constexpr int HouseStaticMapContextMargin = 0;
 	constexpr int HouseStaticMapContextTileRadius = 0;
@@ -3299,6 +3304,10 @@ IOMapOTBM::IOMapOTBM(MapVersion ver) {
 	version = ver;
 }
 
+const IOMapOTBM::StaticHouseExportReport &IOMapOTBM::getLastStaticHouseExportReport() const {
+	return staticHouseExportReportState();
+}
+
 bool IOMapOTBM::getVersionInfo(const FileName &filename, MapVersion &out_ver) {
 #if OTGZ_SUPPORT > 0
 	if (filename.GetExt() == "otgz") {
@@ -4959,12 +4968,13 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 	namespace pb_staticdata = clienteditor::protobuf::staticdata;
 	namespace pb_staticmapdata = clienteditor::protobuf::staticmapdata;
 
-	m_lastStaticHouseExportReport = StaticHouseExportReport {};
+	auto &lastStaticHouseExportReport = staticHouseExportReportState();
+	lastStaticHouseExportReport = StaticHouseExportReport {};
 
 	const std::filesystem::path requestedOutputPath = nstr(dir.GetPath(wxPATH_GET_SEPARATOR | wxPATH_GET_VOLUME));
 	const std::filesystem::path basePath = resolveCyclopediaCatalogBasePath(requestedOutputPath);
 	const std::filesystem::path backupRootPath = basePath / "bkps";
-	m_lastStaticHouseExportReport.outputBasePath = basePath.string();
+	lastStaticHouseExportReport.outputBasePath = basePath.string();
 	std::unordered_set<std::string> normalizedHouseNameFilter;
 	normalizedHouseNameFilter.reserve(houseNamesFilter.size() * 2);
 	for (const std::string &houseName : houseNamesFilter) {
@@ -4974,8 +4984,8 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 		}
 	}
 	const bool hasHouseNameFilter = !normalizedHouseNameFilter.empty();
-	m_lastStaticHouseExportReport.filtered = hasHouseNameFilter;
-	m_lastStaticHouseExportReport.selectedFilterCount = normalizedHouseNameFilter.size();
+	lastStaticHouseExportReport.filtered = hasHouseNameFilter;
+	lastStaticHouseExportReport.selectedFilterCount = normalizedHouseNameFilter.size();
 
 	size_t mapHouseCount = 0;
 	size_t matchedFilteredHouseCount = 0;
@@ -4993,11 +5003,11 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 			++matchedFilteredHouseCount;
 		}
 	}
-	m_lastStaticHouseExportReport.mapHousesTotal = mapHouseCount;
-	m_lastStaticHouseExportReport.matchedFilterCount = matchedFilteredHouseCount;
+	lastStaticHouseExportReport.mapHousesTotal = mapHouseCount;
+	lastStaticHouseExportReport.matchedFilterCount = matchedFilteredHouseCount;
 
 	const auto registerExportError = [&](const std::string &errorMessage) {
-		m_lastStaticHouseExportReport.errors.push_back(errorMessage);
+		lastStaticHouseExportReport.errors.push_back(errorMessage);
 		warning("%s", wxstr(errorMessage));
 	};
 
@@ -5057,7 +5067,7 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 	{
 		pb_staticdata::StaticData generatedStaticData;
 		if (generatedStaticData.ParseFromString(buffer)) {
-			m_lastStaticHouseExportReport.staticDataGeneratedHouses = static_cast<size_t>(generatedStaticData.house_size());
+			lastStaticHouseExportReport.staticDataGeneratedHouses = static_cast<size_t>(generatedStaticData.house_size());
 		}
 	}
 	if (hasHouseNameFilter) {
@@ -5131,12 +5141,12 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 	{
 		pb_staticdata::StaticData finalStaticData;
 		if (finalStaticData.ParseFromString(buffer)) {
-			m_lastStaticHouseExportReport.staticDataFinalHouses = static_cast<size_t>(finalStaticData.house_size());
+			lastStaticHouseExportReport.staticDataFinalHouses = static_cast<size_t>(finalStaticData.house_size());
 		}
 	}
 
 	std::string staticDataFileName = buildCatalogDataFilename("staticdata", buffer);
-	m_lastStaticHouseExportReport.staticDataFileName = staticDataFileName;
+	lastStaticHouseExportReport.staticDataFileName = staticDataFileName;
 
 	const std::filesystem::path outputPath = basePath / staticDataFileName;
 	if (!outputPath.parent_path().empty()) {
@@ -5229,9 +5239,9 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 		registerExportError("Failed to serialize staticmapdata protobuf.");
 		return false;
 	}
-	m_lastStaticHouseExportReport.staticMapAttemptedHouses = attemptedStaticMapHouses;
-	m_lastStaticHouseExportReport.staticMapGeneratedHouses = exportedStaticMapHouses;
-	m_lastStaticHouseExportReport.failedStaticMapHouses = std::move(failedStaticMapHouses);
+	lastStaticHouseExportReport.staticMapAttemptedHouses = attemptedStaticMapHouses;
+	lastStaticHouseExportReport.staticMapGeneratedHouses = exportedStaticMapHouses;
+	lastStaticHouseExportReport.failedStaticMapHouses = std::move(failedStaticMapHouses);
 	if (!houseIdRemap.empty()) {
 		std::string remappedStaticMapDataBuffer;
 		if (remapStaticMapDataHouseIds(houseIdRemap, staticMapDataBuffer, remappedStaticMapDataBuffer)) {
@@ -5261,12 +5271,12 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 	{
 		pb_staticmapdata::StaticMapData finalStaticMapData;
 		if (finalStaticMapData.ParseFromString(staticMapDataBuffer)) {
-			m_lastStaticHouseExportReport.staticMapFinalHouses = static_cast<size_t>(finalStaticMapData.house_size());
+			lastStaticHouseExportReport.staticMapFinalHouses = static_cast<size_t>(finalStaticMapData.house_size());
 		}
 	}
 
 	std::string staticMapDataFileName = buildCatalogDataFilename("staticmapdata", staticMapDataBuffer);
-	m_lastStaticHouseExportReport.staticMapDataFileName = staticMapDataFileName;
+	lastStaticHouseExportReport.staticMapDataFileName = staticMapDataFileName;
 
 	const std::filesystem::path staticMapDataPath = basePath / staticMapDataFileName;
 	if (!staticMapDataPath.parent_path().empty()) {
@@ -5295,7 +5305,7 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 		return false;
 	}
 
-	m_lastStaticHouseExportReport.success = true;
+	lastStaticHouseExportReport.success = true;
 	return true;
 }
 

@@ -147,9 +147,7 @@ public:
 	virtual bool saveMap(Map &map, const FileName &identifier);
 	bool saveStaticData(Map &map, const FileName &dir, const std::vector<std::string> &houseNamesFilter = {});
 	bool saveCyclopediaMapData(Map &map, const FileName &dir, const CyclopediaExportProgressFn &progress = CyclopediaExportProgressFn {}, int satellitePixelsPerSquare = 2);
-	const StaticHouseExportReport &getLastStaticHouseExportReport() const {
-		return m_lastStaticHouseExportReport;
-	}
+	const StaticHouseExportReport &getLastStaticHouseExportReport() const;
 
 protected:
 	static bool getVersionInfo(NodeFileReadHandle* f, MapVersion &out_ver);
@@ -185,8 +183,6 @@ protected:
 	std::string getStaticMapDataFilename(const Map &map) const;
 	bool serializeCyclopediaMapData(Map &map, std::string &buffer, std::vector<std::pair<std::string, std::vector<uint8_t>>> &assets, const CyclopediaExportProgressFn &progress = CyclopediaExportProgressFn {}, int satellitePixelsPerSquare = 2);
 	std::string getCyclopediaMapDataFilename(const Map &map) const;
-
-	StaticHouseExportReport m_lastStaticHouseExportReport;
 };
 
 #endif
