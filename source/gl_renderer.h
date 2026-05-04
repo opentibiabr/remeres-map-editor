@@ -23,7 +23,7 @@ public:
 	void init();
 	void shutdown();
 
-	void drawTexturedQuad(float x, float y, float w, float h, GLuint textureId, const GLColor &color);
+	void drawTexturedQuad(float x, float y, float w, float h, GLuint textureId, const GLColor &color, float u0 = 0.f, float v0 = 0.f, float u1 = 1.f, float v1 = 1.f);
 	void drawColoredQuad(float x, float y, float w, float h, const GLColor &color);
 
 	void drawRect(float x, float y, float w, float h, const GLColor &color, float lineWidth = 1.0f);
@@ -47,17 +47,35 @@ public:
 
 	void setOrtho(float left, float right, float bottom, float top);
 
+	void setBlendMode(unsigned int src, unsigned int dst);
+	void resetBlendMode();
+
+	void ensureFBO(int w, int h);
+	void destroyFBO();
+	void beginFBO();
+	void endFBO();
+	void blitFBO(float w, float h);
+	bool hasFBO() const {
+		return fboData.fbo != 0;
+	}
+
 	void flush();
 	static void invalidateTexture(GLuint id);
 
 private:
 	static std::vector<GLRenderer*> s_instances;
 	bool initialized = false;
+	static constexpr size_t STREAM_VBO_CAPACITY = 64 * 1024;
+	static constexpr size_t STREAM_EBO_CAPACITY = 96 * 1024;
+
 	GLuint vao = 0;
 	GLuint vbo = 0;
+	GLuint ebo = 0;
+	size_t vboOffset = 0;
+	size_t eboOffset = 0;
+	GLuint whitePixelTexture = 0;
 	GLuint program = 0;
 	GLint loc_projection = -1;
-	GLint loc_useTexture = -1;
 	GLint loc_texture = -1;
 	GLint loc_stipple = -1;
 
@@ -72,10 +90,37 @@ private:
 		uint8_t a;
 	};
 
+	struct DrawState {
+		GLuint textureId = 0;
+		unsigned int blendSrc = 0;
+		unsigned int blendDst = 0;
+		bool operator==(const DrawState &o) const = default;
+	};
+
+	struct DrawCommand {
+		DrawState state;
+		std::vector<Vertex> vertices;
+		bool isQuadBatch = true;
+	};
+
 	std::vector<Vertex> batch;
+	std::vector<GLuint> indexBatch;
 	GLuint current_texture = 0;
+	std::vector<DrawCommand> commandList;
+	unsigned int activeBlendSrc = 0;
+	unsigned int activeBlendDst = 0;
+
+	struct FBOData {
+		GLuint fbo = 0;
+		GLuint texture = 0;
+		int width = 0;
+		int height = 0;
+	};
+	FBOData fboData;
 
 	void flushBatch();
+	void mergeCommands();
+	void flushCommands();
 	void drawThickLineSegment(float x1, float y1, float x2, float y2, float width, const GLColor &color);
 
 	struct GlyphInfo {
@@ -101,15 +146,14 @@ private:
 		bool loaded = false;
 		std::array<GlyphInfo, 96> glyphs {};
 		std::array<float, 96> advances {};
+		float cursorX = 0;
+		float cursorY = 0;
+		GLColor textColor { 255, 255, 255, 255 };
 	};
 
 	FontData font;
 	void initFontAtlas();
 	void initFontAtlasFallback();
-
-	float cursorX = 0;
-	float cursorY = 0;
-	GLColor textColor { 255, 255, 255, 255 };
 };
 
 #endif

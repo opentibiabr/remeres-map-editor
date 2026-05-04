@@ -1,141 +1,156 @@
 {
-	"version": 3,
-	"cmakeMinimumRequired": {
-		"major": 3,
-		"minor": 22,
-		"patch": 0
-	},
-	"configurePresets": [
-		{
-			"name": "windows-release",
-			"displayName": "Windows - Release",
-			"description": "Sets Ninja generator, compilers, build and install directory and set build type as release",
-			"generator": "Ninja",
-			"binaryDir": "${sourceDir}/build/${presetName}",
-			"cacheVariables": {
-				"CMAKE_TOOLCHAIN_FILE": {
-					"value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-					"type": "FILEPATH"
-				},
-				"VCPKG_TARGET_TRIPLET": "x64-windows-static",
-				"CMAKE_BUILD_TYPE": "RelWithDebInfo",
-				"OPTIONS_ENABLE_SCCACHE": "ON",
-				"BUILD_STATIC_LIBRARY": "ON"
-			},
-			"architecture": {
-				"value": "x64",
-				"strategy": "external"
-			},
-			"vendor": {
-				"microsoft.com/VisualStudioSettings/CMake/1.0": {
-					"hostOS": ["Windows"]
-				}
-			},
-			"condition": {
-				"type": "equals",
-				"lhs": "${hostSystemName}",
-				"rhs": "Windows"
-			}
-		},
-		{
-			"name": "linux-release",
-			"displayName": "Linux - Release",
-			"description": "Sets Ninja generator, compilers, build and install directory and set build type as release",
-			"generator": "Ninja",
-			"binaryDir": "${sourceDir}/build/${presetName}",
-			"cacheVariables": {
-				"CMAKE_TOOLCHAIN_FILE": {
-					"value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-					"type": "FILEPATH"
-				},
-				"CMAKE_BUILD_TYPE": "Release",
-				"OPTIONS_ENABLE_CCACHE": "ON"
-			},
-			"condition": {
-				"type": "equals",
-				"lhs": "${hostSystemName}",
-				"rhs": "Linux"
-			}
-		},
-		{
-			"name": "macos-release",
-			"displayName": "macOS - Release",
-			"description": "Sets Ninja generator, compilers, build and install directory and set build type as release",
-			"generator": "Ninja",
-			"binaryDir": "${sourceDir}/build/${presetName}",
-			"cacheVariables": {
-				"CMAKE_TOOLCHAIN_FILE": {
-					"value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-					"type": "FILEPATH"
-				},
-				"CMAKE_BUILD_TYPE": "Release",
-				"OPTIONS_ENABLE_CCACHE": "ON"
-			},
-			"condition": {
-				"type": "equals",
-				"lhs": "${hostSystemName}",
-				"rhs": "Darwin"
-			}
-		},
-		{
-			"name": "windows-debug",
-			"inherits": "windows-release",
-			"displayName": "Windows - Debug",
-			"description": "Build Debug Mode",
-			"cacheVariables": {
-				"CMAKE_BUILD_TYPE": "Debug",
-				"DEBUG_LOG": "ON"
-			},
-			"architecture": {
-				"value": "x64",
-				"strategy": "external"
-			}
-		},
-		{
-			"name": "linux-debug",
-			"inherits": "linux-release",
-			"displayName": "Linux - Debug Build",
-			"description": "Build Debug Mode",
-			"cacheVariables": {
-				"CMAKE_BUILD_TYPE": "Debug",
-				"DEBUG_LOG": "ON"
-			}
-		},
-		{
-			"name": "macos-debug",
-			"inherits": "macos-release",
-			"displayName": "macOS - Debug Build",
-			"description": "Build Debug Mode",
-			"cacheVariables": {
-				"CMAKE_BUILD_TYPE": "Debug",
-				"DEBUG_LOG": "ON"
-			}
-		}
-	],
-	"buildPresets": [
-		{
-			"name": "linux-release",
-			"configurePreset": "linux-release"
-		},
-		{
-			"name": "linux-debug",
-			"configurePreset": "linux-debug"
-		},
-		{
-			"name": "windows-release",
-			"configurePreset": "windows-release"
-		},
-		{
-			"name": "windows-Xdebug",
-			"configurePreset": "windows-debug"
-		},
-		{
-			"name": "macos-release",
-			"configurePreset": "macos-release"
-		},
-		{
-			"name": "macos-debug",
-			"configurePreset": "macos-debug"
-		}
-	]
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+          "type": "FILEPATH"
+        },
+        "CMAKE_COLOR_DIAGNOSTICS": "ON",
+        "SPEED_UP_BUILD_UNITY": "ON"
+      }
+    },
+    {
+      "name": "windows-release",
+      "inherits": "base",
+      "displayName": "Windows - Release",
+      "description": "Windows release build with Ninja and vcpkg",
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x64-windows-static",
+        "VCPKG_HOST_TRIPLET": "x64-windows-static",
+        "VCPKG_BUILD_TYPE": "release",
+        "VCPKG_PLATFORM_TOOLSET": "v145",
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "OPTIONS_ENABLE_SCCACHE": "ON",
+        "BUILD_STATIC_LIBRARY": "ON"
+      },
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "vendor": {
+        "microsoft.com/VisualStudioSettings/CMake/1.0": {
+          "hostOS": [
+            "Windows"
+          ]
+        }
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "windows-debug",
+      "inherits": "windows-release",
+      "displayName": "Windows - Debug",
+      "description": "Windows debug build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "DEBUG_LOG": "ON",
+        "BUILD_STATIC_LIBRARY": "OFF",
+        "SPEED_UP_BUILD_UNITY": "OFF",
+        "VCPKG_TARGET_TRIPLET": "x64-windows",
+        "VCPKG_HOST_TRIPLET": "x64-windows",
+        "VCPKG_BUILD_TYPE": "debug"
+      }
+    },
+    {
+      "name": "linux-release",
+      "inherits": "base",
+      "displayName": "Linux - Release",
+      "description": "Linux release build with Ninja and vcpkg",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "VCPKG_TARGET_TRIPLET": "x64-linux",
+        "VCPKG_HOST_TRIPLET": "x64-linux",
+        "VCPKG_BUILD_TYPE": "release",
+        "OPTIONS_ENABLE_CCACHE": "ON"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "linux-debug",
+      "inherits": "linux-release",
+      "displayName": "Linux - Debug",
+      "description": "Linux debug build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "DEBUG_LOG": "ON",
+        "SPEED_UP_BUILD_UNITY": "OFF",
+        "VCPKG_BUILD_TYPE": "debug"
+      }
+    },
+    {
+      "name": "macos-release",
+      "inherits": "base",
+      "displayName": "macOS - Release",
+      "description": "macOS release build with Ninja and vcpkg",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "VCPKG_TARGET_TRIPLET": "arm64-osx",
+        "VCPKG_HOST_TRIPLET": "arm64-osx",
+        "VCPKG_BUILD_TYPE": "release",
+        "OPTIONS_ENABLE_CCACHE": "ON"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      }
+    },
+    {
+      "name": "macos-debug",
+      "inherits": "macos-release",
+      "displayName": "macOS - Debug",
+      "description": "macOS debug build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "DEBUG_LOG": "ON",
+        "SPEED_UP_BUILD_UNITY": "OFF",
+        "VCPKG_BUILD_TYPE": "debug"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "linux-release",
+      "configurePreset": "linux-release"
+    },
+    {
+      "name": "linux-debug",
+      "configurePreset": "linux-debug"
+    },
+    {
+      "name": "windows-release",
+      "configurePreset": "windows-release"
+    },
+    {
+      "name": "windows-debug",
+      "configurePreset": "windows-debug"
+    },
+    {
+      "name": "macos-release",
+      "configurePreset": "macos-release"
+    },
+    {
+      "name": "macos-debug",
+      "configurePreset": "macos-debug"
+    }
+  ]
 }

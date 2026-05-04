@@ -34,6 +34,7 @@ MonsterType::MonsterType() :
 	in_other_tileset(false),
 	standard(false),
 	name(""),
+	folder(""),
 	brush(nullptr) {
 	////
 }
@@ -43,6 +44,7 @@ MonsterType::MonsterType(const MonsterType &ct) :
 	in_other_tileset(ct.in_other_tileset),
 	standard(ct.standard),
 	name(ct.name),
+	folder(ct.folder),
 	outfit(ct.outfit),
 	brush(ct.brush) {
 	////
@@ -53,6 +55,7 @@ MonsterType &MonsterType::operator=(const MonsterType &ct) {
 	in_other_tileset = ct.in_other_tileset;
 	standard = ct.standard;
 	name = ct.name;
+	folder = ct.folder;
 	outfit = ct.outfit;
 	brush = ct.brush;
 	return *this;
@@ -297,6 +300,31 @@ wxArrayString MonsterDatabase::getMissingMonsterNames() const {
 	return missingMonsters;
 }
 
+static std::string extractTopFolder(const wxString &filePath, const wxString &directory) {
+	wxFileName fn(filePath);
+	wxString relPath = fn.GetPath().Lower();
+	wxString dirLower = directory.Lower();
+	if (!relPath.StartsWith(dirLower)) {
+		return "";
+	}
+	relPath = relPath.Mid(dirLower.Length());
+	if (!relPath.IsEmpty() && (relPath[0] == '/' || relPath[0] == '\\')) {
+		relPath = relPath.Mid(1);
+	}
+	const int slash = relPath.Find('/');
+	const int backslash = relPath.Find('\\');
+	int sep = wxNOT_FOUND;
+	if (slash != wxNOT_FOUND && backslash != wxNOT_FOUND) {
+		sep = std::min(slash, backslash);
+	} else if (slash != wxNOT_FOUND) {
+		sep = slash;
+	} else if (backslash != wxNOT_FOUND) {
+		sep = backslash;
+	}
+	wxString fld = (sep == wxNOT_FOUND) ? relPath : relPath.Left(sep);
+	return fld.ToStdString();
+}
+
 bool MonsterDatabase::loadFromLuaDir(const wxString &directory, wxString &error, wxArrayString &warnings) {
 	if (directory.IsEmpty()) {
 		return true;
@@ -307,7 +335,7 @@ bool MonsterDatabase::loadFromLuaDir(const wxString &directory, wxString &error,
 	}
 
 	wxArrayString luaFiles;
-	wxDir::GetAllFiles(directory, &luaFiles, "*.lua", wxDIR_FILES | wxDIR_DIRS);
+	wxDir::GetAllFiles(directory, &luaFiles, "*.lua", wxDIR_FILES | wxDIR_DIRS | wxDIR_HIDDEN);
 
 	int fileCount = 0;
 	for (const auto &filePath : luaFiles) {
@@ -330,6 +358,9 @@ bool MonsterDatabase::loadFromLuaDir(const wxString &directory, wxString &error,
 
 		MonsterType* existing = (*this)[name];
 		if (existing) {
+			if (existing->folder.empty()) {
+				existing->folder = extractTopFolder(filePath, directory);
+			}
 			if (!existing->missing) {
 				continue;
 			}
@@ -346,6 +377,8 @@ bool MonsterDatabase::loadFromLuaDir(const wxString &directory, wxString &error,
 		ct->name = name;
 		ct->outfit.name = name;
 		ct->standard = false;
+
+		ct->folder = extractTopFolder(filePath, directory);
 
 		if (!LuaParser::parseOutfit(content, ct->outfit)) {
 			delete ct;

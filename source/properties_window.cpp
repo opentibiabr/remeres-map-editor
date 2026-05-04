@@ -581,7 +581,7 @@ void PropertiesWindow::OnGridValueChanged(wxGridEvent &event) {
 			int depotIdCellValue;
 			if (value.ToInt(&depotIdCellValue)) {
 				bool selected = false;
-				for (auto i = 0; i < depotIdField->GetCount(); ++i) {
+				for (unsigned int i = 0; i < depotIdField->GetCount(); ++i) {
 					const auto depotId = reinterpret_cast<int*>(depotIdField->GetClientData(i));
 					if (depotId && *depotId == depotIdCellValue) {
 						depotIdField->SetSelection(i);
@@ -598,7 +598,7 @@ void PropertiesWindow::OnGridValueChanged(wxGridEvent &event) {
 			int liquidTypeCellValue;
 			if (value.ToInt(&liquidTypeCellValue)) {
 				bool selected = false;
-				for (auto i = 0; i < liquidTypeField->GetCount(); ++i) {
+				for (unsigned int i = 0; i < liquidTypeField->GetCount(); ++i) {
 					const auto depotId = reinterpret_cast<int*>(liquidTypeField->GetClientData(i));
 					if (depotId && *depotId == liquidTypeCellValue) {
 						liquidTypeField->SetSelection(i);

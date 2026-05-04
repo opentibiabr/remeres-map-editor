@@ -13,6 +13,7 @@
             <item name="Import $Monsters..." action="IMPORT_MONSTERS" help="Import either a monsters.xml file or a specific monster."/>
             <item name="Import $NPC..." action="IMPORT_NPCS" help="Import either a npc.xml file or a specific NPC."/>
             <item name="Import Mi$nimap..." action="IMPORT_MINIMAP" help="Import map data from a .bmp file."/>
+            <item name="Import $Bitmap to Map..." action="IMPORT_BITMAP_TO_MAP" help="Import an image and convert colors to map tiles using brushes."/>
         </menu>
         <menu name="$Export">
             <item name="$Export Minimap..." action="EXPORT_MINIMAP" help="Export minimap to an image file."/>

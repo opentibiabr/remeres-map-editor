@@ -1,7 +1,12 @@
 #include <glad/glad.h>
 
 #ifdef _WIN32
-	#define WIN32_LEAN_AND_MEAN
+	#ifndef WIN32_LEAN_AND_MEAN
+		#define WIN32_LEAN_AND_MEAN
+	#endif
+	#ifndef NOMINMAX
+		#define NOMINMAX
+	#endif
 	#include <Windows.h>
 #elif defined(__APPLE__)
 	#include <dlfcn.h>
@@ -12,6 +17,7 @@
 #include "main.h"
 #include "gl_renderer.h"
 #include <array>
+#include <cstring>
 #include <cmath>
 #include <numbers>
 #include <fstream>
@@ -63,24 +69,20 @@ void main(){
 }
 )";
 
-static const char* const fragSrc = R"(
-#version 330
-in vec2 vUV;
-in vec4 vColor;
-uniform sampler2D uTexture;
-uniform int uUseTexture;
-uniform int uStipple;
-out vec4 FragColor;
-void main() {
-    if (uStipple != 0) {
-        float p = gl_FragCoord.x + gl_FragCoord.y;
-        if (mod(p, 4.0) < 2.0) discard;
-    }
-    if (uUseTexture != 0)
-        FragColor = texture(uTexture, vUV) * vColor;
-    else
-        FragColor = vColor;
-}
+static const char* const fragSrc = R"(  
+#version 330  
+in vec2 vUV;  
+in vec4 vColor;  
+uniform sampler2D uTexture;  
+uniform int uStipple;  
+out vec4 FragColor;  
+void main() {  
+    if (uStipple != 0) {  
+        float p = gl_FragCoord.x + gl_FragCoord.y;  
+        if (mod(p, 4.0) < 2.0) discard;  
+    }  
+    FragColor = texture(uTexture, vUV) * vColor;  
+}  
 )";
 
 void GLRenderer::initFontAtlas() {
@@ -337,15 +339,18 @@ void GLRenderer::init() {
 	glDeleteShader(fs);
 
 	loc_projection = glGetUniformLocation(program, "uProjection");
-	loc_useTexture = glGetUniformLocation(program, "uUseTexture");
 	loc_texture = glGetUniformLocation(program, "uTexture");
 	loc_stipple = glGetUniformLocation(program, "uStipple");
 
 	glGenVertexArrays(1, &vao);
 	glGenBuffers(1, &vbo);
+	glGenBuffers(1, &ebo);
 
 	glBindVertexArray(vao);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferData(GL_ARRAY_BUFFER, STREAM_VBO_CAPACITY * sizeof(Vertex), nullptr, GL_DYNAMIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, STREAM_EBO_CAPACITY * sizeof(GLuint), nullptr, GL_DYNAMIC_DRAW);
 
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, x));
@@ -361,6 +366,14 @@ void GLRenderer::init() {
 
 	initFontAtlas();
 
+	std::array<uint8_t, 4> white = { 255, 255, 255, 255 };
+	glGenTextures(1, &whitePixelTexture);
+	glBindTexture(GL_TEXTURE_2D, whitePixelTexture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, white.data());
+	glBindTexture(GL_TEXTURE_2D, 0);
+
 	initialized = true;
 }
 
@@ -370,6 +383,7 @@ void GLRenderer::shutdown() {
 	if (!initialized) {
 		return;
 	}
+	destroyFBO();
 	if (program) {
 		glDeleteProgram(program);
 		program = 0;
@@ -378,9 +392,17 @@ void GLRenderer::shutdown() {
 		glDeleteBuffers(1, &vbo);
 		vbo = 0;
 	}
+	if (ebo) {
+		glDeleteBuffers(1, &ebo);
+		ebo = 0;
+	}
 	if (vao) {
 		glDeleteVertexArrays(1, &vao);
 		vao = 0;
+	}
+	if (whitePixelTexture) {
+		glDeleteTextures(1, &whitePixelTexture);
+		whitePixelTexture = 0;
 	}
 	if (font.texture) {
 		glDeleteTextures(1, &font.texture);
@@ -408,63 +430,96 @@ void GLRenderer::flushBatch() {
 		return;
 	}
 
+	size_t vertexCount = batch.size();
+	size_t indexCount = indexBatch.size();
+	size_t vertexBytes = vertexCount * sizeof(Vertex);
+	size_t indexBytes = indexCount * sizeof(GLuint);
+
 	glUseProgram(program);
 	glBindVertexArray(vao);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBufferData(GL_ARRAY_BUFFER, batch.size() * sizeof(Vertex), batch.data(), GL_DYNAMIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
 
-	if (current_texture != 0) {
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, current_texture);
-		glUniform1i(loc_useTexture, 1);
-		glUniform1i(loc_texture, 0);
-	} else {
-		glUniform1i(loc_useTexture, 0);
+	if (vertexCount > STREAM_VBO_CAPACITY || indexCount > STREAM_EBO_CAPACITY) {
+		batch.clear();
+		indexBatch.clear();
+		glBindVertexArray(0);
+		glUseProgram(0);
+		return;
 	}
 
-	glDrawArrays(GL_TRIANGLES, 0, (GLsizei)batch.size());
+	if (vboOffset + vertexCount > STREAM_VBO_CAPACITY || eboOffset + indexCount > STREAM_EBO_CAPACITY) {
+		glBufferData(GL_ARRAY_BUFFER, STREAM_VBO_CAPACITY * sizeof(Vertex), nullptr, GL_DYNAMIC_DRAW);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, STREAM_EBO_CAPACITY * sizeof(GLuint), nullptr, GL_DYNAMIC_DRAW);
+		vboOffset = 0;
+		eboOffset = 0;
+	}
+
+	void* vboPtr = glMapBufferRange(GL_ARRAY_BUFFER, vboOffset * sizeof(Vertex), vertexBytes, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
+	if (!vboPtr) {
+		batch.clear();
+		indexBatch.clear();
+		glBindVertexArray(0);
+		glUseProgram(0);
+		return;
+	}
+	std::memcpy(vboPtr, batch.data(), vertexBytes);
+	glUnmapBuffer(GL_ARRAY_BUFFER);
+
+	void* eboPtr = glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER, eboOffset * sizeof(GLuint), indexBytes, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
+	if (!eboPtr) {
+		batch.clear();
+		indexBatch.clear();
+		glBindVertexArray(0);
+		glUseProgram(0);
+		return;
+	}
+	std::memcpy(eboPtr, indexBatch.data(), indexBytes);
+	glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, current_texture);
+	glUniform1i(loc_texture, 0);
+
+	glDrawElementsBaseVertex(GL_TRIANGLES, (GLsizei)indexCount, GL_UNSIGNED_INT, (void*)(eboOffset * sizeof(GLuint)), (GLint)vboOffset);
+
+	vboOffset += vertexCount;
+	eboOffset += indexCount;
 
 	glBindVertexArray(0);
 	glUseProgram(0);
 	batch.clear();
+	indexBatch.clear();
 }
 
-void GLRenderer::drawTexturedQuad(float x, float y, float w, float h, GLuint textureId, const GLColor &color) {
-	if (current_texture != textureId && !batch.empty()) {
-		flushBatch();
-	}
-	current_texture = textureId;
-
-	Vertex v0 = { x, y, 0, 0, color.r, color.g, color.b, color.a };
-	Vertex v1 = { x + w, y, 1, 0, color.r, color.g, color.b, color.a };
-	Vertex v2 = { x + w, y + h, 1, 1, color.r, color.g, color.b, color.a };
-	Vertex v3 = { x, y + h, 0, 1, color.r, color.g, color.b, color.a };
-
-	batch.push_back(v0);
-	batch.push_back(v1);
-	batch.push_back(v2);
-	batch.push_back(v0);
-	batch.push_back(v2);
-	batch.push_back(v3);
+void GLRenderer::drawTexturedQuad(float x, float y, float w, float h, GLuint textureId, const GLColor &color, float u0, float v0_, float u1, float v1_) {
+	DrawCommand cmd;
+	cmd.state.textureId = textureId;
+	cmd.state.blendSrc = activeBlendSrc;
+	cmd.state.blendDst = activeBlendDst;
+	cmd.isQuadBatch = true;
+	cmd.vertices = {
+		{ x, y, u0, v0_, color.r, color.g, color.b, color.a },
+		{ x + w, y, u1, v0_, color.r, color.g, color.b, color.a },
+		{ x + w, y + h, u1, v1_, color.r, color.g, color.b, color.a },
+		{ x, y + h, u0, v1_, color.r, color.g, color.b, color.a },
+	};
+	commandList.push_back(std::move(cmd));
 }
 
 void GLRenderer::drawColoredQuad(float x, float y, float w, float h, const GLColor &color) {
-	if (current_texture != 0 && !batch.empty()) {
-		flushBatch();
-	}
-	current_texture = 0;
-
-	Vertex v0 = { x, y, 0, 0, color.r, color.g, color.b, color.a };
-	Vertex v1 = { x + w, y, 0, 0, color.r, color.g, color.b, color.a };
-	Vertex v2 = { x + w, y + h, 0, 0, color.r, color.g, color.b, color.a };
-	Vertex v3 = { x, y + h, 0, 0, color.r, color.g, color.b, color.a };
-
-	batch.push_back(v0);
-	batch.push_back(v1);
-	batch.push_back(v2);
-	batch.push_back(v0);
-	batch.push_back(v2);
-	batch.push_back(v3);
+	DrawCommand cmd;
+	cmd.state.textureId = whitePixelTexture;
+	cmd.state.blendSrc = activeBlendSrc;
+	cmd.state.blendDst = activeBlendDst;
+	cmd.isQuadBatch = true;
+	cmd.vertices = {
+		{ x, y, 0, 0, color.r, color.g, color.b, color.a },
+		{ x + w, y, 0, 0, color.r, color.g, color.b, color.a },
+		{ x + w, y + h, 0, 0, color.r, color.g, color.b, color.a },
+		{ x, y + h, 0, 0, color.r, color.g, color.b, color.a },
+	};
+	commandList.push_back(std::move(cmd));
 }
 
 void GLRenderer::drawThickLineSegment(float x1, float y1, float x2, float y2, float width, const GLColor &color) {
@@ -477,22 +532,18 @@ void GLRenderer::drawThickLineSegment(float x1, float y1, float x2, float y2, fl
 	float nx = (-dy / len) * (width * 0.5f);
 	float ny = (dx / len) * (width * 0.5f);
 
-	if (current_texture != 0 && !batch.empty()) {
-		flushBatch();
-	}
-	current_texture = 0;
-
-	Vertex v0 = { x1 + nx, y1 + ny, 0, 0, color.r, color.g, color.b, color.a };
-	Vertex v1 = { x1 - nx, y1 - ny, 0, 0, color.r, color.g, color.b, color.a };
-	Vertex v2 = { x2 - nx, y2 - ny, 0, 0, color.r, color.g, color.b, color.a };
-	Vertex v3 = { x2 + nx, y2 + ny, 0, 0, color.r, color.g, color.b, color.a };
-
-	batch.push_back(v0);
-	batch.push_back(v1);
-	batch.push_back(v2);
-	batch.push_back(v0);
-	batch.push_back(v2);
-	batch.push_back(v3);
+	DrawCommand cmd;
+	cmd.state.textureId = whitePixelTexture;
+	cmd.state.blendSrc = activeBlendSrc;
+	cmd.state.blendDst = activeBlendDst;
+	cmd.isQuadBatch = true;
+	cmd.vertices = {
+		{ x1 + nx, y1 + ny, 0, 0, color.r, color.g, color.b, color.a },
+		{ x1 - nx, y1 - ny, 0, 0, color.r, color.g, color.b, color.a },
+		{ x2 - nx, y2 - ny, 0, 0, color.r, color.g, color.b, color.a },
+		{ x2 + nx, y2 + ny, 0, 0, color.r, color.g, color.b, color.a },
+	};
+	commandList.push_back(std::move(cmd));
 }
 
 void GLRenderer::drawRect(float x, float y, float w, float h, const GLColor &color, float lineWidth) {
@@ -504,15 +555,11 @@ void GLRenderer::drawRect(float x, float y, float w, float h, const GLColor &col
 
 void GLRenderer::drawRoundedRect(float x, float y, float w, float h, float radius, const GLColor &fill) {
 	const int segments = 8;
-	flushBatch();
 
-	std::vector<Vertex> verts;
-	// center vertex for fan
 	float cx = x + w * 0.5f;
 	float cy = y + h * 0.5f;
 	Vertex center = { cx, cy, 0, 0, fill.r, fill.g, fill.b, fill.a };
 
-	// corners: top-left, top-right, bottom-right, bottom-left
 	std::array<std::array<float, 2>, 4> corners = { {
 		{ x + radius, y + radius },
 		{ x + w - radius, y + radius },
@@ -523,7 +570,6 @@ void GLRenderer::drawRoundedRect(float x, float y, float w, float h, float radiu
 	constexpr float pi = std::numbers::pi_v<float>;
 	std::array<float, 4> startAngle = { pi, 1.5f * pi, 0.0f, 0.5f * pi };
 
-	// build perimeter vertices
 	std::vector<Vertex> perimeter;
 	for (int c = 0; c < 4; ++c) {
 		for (int s = 0; s <= segments; ++s) {
@@ -534,23 +580,18 @@ void GLRenderer::drawRoundedRect(float x, float y, float w, float h, float radiu
 		}
 	}
 
-	// triangle fan from center
-	std::vector<Vertex> tris;
+	DrawCommand cmd;
+	cmd.state.textureId = whitePixelTexture;
+	cmd.state.blendSrc = activeBlendSrc;
+	cmd.state.blendDst = activeBlendDst;
+	cmd.isQuadBatch = false;
 	for (size_t i = 0; i < perimeter.size(); ++i) {
 		size_t next = (i + 1) % perimeter.size();
-		tris.push_back(center);
-		tris.push_back(perimeter[i]);
-		tris.push_back(perimeter[next]);
+		cmd.vertices.push_back(center);
+		cmd.vertices.push_back(perimeter[i]);
+		cmd.vertices.push_back(perimeter[next]);
 	}
-
-	glUseProgram(program);
-	glBindVertexArray(vao);
-	glUniform1i(loc_useTexture, 0);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBufferData(GL_ARRAY_BUFFER, tris.size() * sizeof(Vertex), tris.data(), GL_DYNAMIC_DRAW);
-	glDrawArrays(GL_TRIANGLES, 0, (GLsizei)tris.size());
-	glBindVertexArray(0);
-	glUseProgram(0);
+	commandList.push_back(std::move(cmd));
 }
 
 void GLRenderer::drawRoundedRectOutline(float x, float y, float w, float h, float radius, const GLColor &color, float lineWidth) {
@@ -641,46 +682,38 @@ void GLRenderer::drawPolygon(const float* vertices, int vertexCount, uint8_t r, 
 	if (vertexCount < 3) {
 		return;
 	}
-	flushBatch();
-	std::vector<Vertex> verts;
-	for (int i = 0; i < vertexCount; ++i) {
-		verts.push_back({ vertices[i * 2], vertices[i * 2 + 1], 0, 0, r, g, b, a });
+	DrawCommand cmd;
+	cmd.state.textureId = whitePixelTexture;
+	cmd.state.blendSrc = activeBlendSrc;
+	cmd.state.blendDst = activeBlendDst;
+	cmd.isQuadBatch = false;
+	for (int i = 1; i < vertexCount - 1; ++i) {
+		cmd.vertices.push_back({ vertices[0], vertices[1], 0, 0, r, g, b, a });
+		cmd.vertices.push_back({ vertices[i * 2], vertices[i * 2 + 1], 0, 0, r, g, b, a });
+		cmd.vertices.push_back({ vertices[(i + 1) * 2], vertices[(i + 1) * 2 + 1], 0, 0, r, g, b, a });
 	}
-	glUseProgram(program);
-	glBindVertexArray(vao);
-	glUniform1i(loc_useTexture, 0);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(Vertex), verts.data(), GL_DYNAMIC_DRAW);
-	glDrawArrays(GL_TRIANGLE_FAN, 0, (GLsizei)verts.size());
-	glBindVertexArray(0);
-	glUseProgram(0);
+	commandList.push_back(std::move(cmd));
 }
 
 void GLRenderer::drawTriangleFan(const float* vertices, int vertexCount, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
 	if (vertexCount < 3) {
 		return;
 	}
-	flushBatch();
-	std::vector<Vertex> verts;
-	for (int i = 0; i < vertexCount; ++i) {
-		verts.push_back({ vertices[i * 2], vertices[i * 2 + 1], 0, 0, r, g, b, a });
+	DrawCommand cmd;
+	cmd.state.textureId = whitePixelTexture;
+	cmd.state.blendSrc = activeBlendSrc;
+	cmd.state.blendDst = activeBlendDst;
+	cmd.isQuadBatch = false;
+	for (int i = 1; i < vertexCount - 1; ++i) {
+		cmd.vertices.push_back({ vertices[0], vertices[1], 0, 0, r, g, b, a });
+		cmd.vertices.push_back({ vertices[i * 2], vertices[i * 2 + 1], 0, 0, r, g, b, a });
+		cmd.vertices.push_back({ vertices[(i + 1) * 2], vertices[(i + 1) * 2 + 1], 0, 0, r, g, b, a });
 	}
-	glUseProgram(program);
-	glBindVertexArray(vao);
-	glUniform1i(loc_useTexture, 0);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(Vertex), verts.data(), GL_DYNAMIC_DRAW);
-	glDrawArrays(GL_TRIANGLE_FAN, 0, (GLsizei)verts.size());
-	glBindVertexArray(0);
-	glUseProgram(0);
+	commandList.push_back(std::move(cmd));
 }
 
 void GLRenderer::drawText(float x, float y, const std::string &text, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
-	if (current_texture != font.texture && !batch.empty()) {
-		flushBatch();
-	}
-	current_texture = font.texture;
-	setColor(r, g, b, a);
+	font.textColor = { r, g, b, a };
 	setRasterPos(x, y);
 	for (char c : text) {
 		drawBitmapChar(c);
@@ -703,40 +736,147 @@ float GLRenderer::getAscent() const {
 }
 
 void GLRenderer::setRasterPos(float x, float y) {
-	cursorX = x;
-	cursorY = y;
+	font.cursorX = x;
+	font.cursorY = y;
 }
 
 void GLRenderer::drawBitmapChar(char c) {
 	if (c < 32 || c > 127) {
 		return;
 	}
-	if (current_texture != font.texture) {
-		flushBatch();
-		current_texture = font.texture;
-	}
 	int idx = c - 32;
 	const auto &g = font.glyphs[idx];
-	float qx = cursorX + g.xoff;
-	float qy = cursorY + g.yoff;
+	float qx = font.cursorX + g.xoff;
+	float qy = font.cursorY + g.yoff;
 	float qw = g.w;
 	float qh = g.h;
-	batch.push_back({ qx, qy, g.u0, g.v0, textColor.r, textColor.g, textColor.b, textColor.a });
-	batch.push_back({ qx + qw, qy, g.u1, g.v0, textColor.r, textColor.g, textColor.b, textColor.a });
-	batch.push_back({ qx + qw, qy + qh, g.u1, g.v1, textColor.r, textColor.g, textColor.b, textColor.a });
-	batch.push_back({ qx, qy, g.u0, g.v0, textColor.r, textColor.g, textColor.b, textColor.a });
-	batch.push_back({ qx + qw, qy + qh, g.u1, g.v1, textColor.r, textColor.g, textColor.b, textColor.a });
-	batch.push_back({ qx, qy + qh, g.u0, g.v1, textColor.r, textColor.g, textColor.b, textColor.a });
-	cursorX += g.advance;
+	DrawCommand cmd;
+	cmd.state.textureId = font.texture;
+	cmd.state.blendSrc = activeBlendSrc;
+	cmd.state.blendDst = activeBlendDst;
+	cmd.isQuadBatch = true;
+	cmd.vertices = {
+		{ qx, qy, g.u0, g.v0, font.textColor.r, font.textColor.g, font.textColor.b, font.textColor.a },
+		{ qx + qw, qy, g.u1, g.v0, font.textColor.r, font.textColor.g, font.textColor.b, font.textColor.a },
+		{ qx + qw, qy + qh, g.u1, g.v1, font.textColor.r, font.textColor.g, font.textColor.b, font.textColor.a },
+		{ qx, qy + qh, g.u0, g.v1, font.textColor.r, font.textColor.g, font.textColor.b, font.textColor.a },
+	};
+	commandList.push_back(std::move(cmd));
+	font.cursorX += g.advance;
 }
 
 void GLRenderer::setColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+	font.textColor = { r, g, b, a };
+}
+
+void GLRenderer::mergeCommands() {
+	if (commandList.size() <= 1) {
+		return;
+	}
+	size_t write = 0;
+	for (size_t read = 1; read < commandList.size(); ++read) {
+		if (commandList[write].state == commandList[read].state && commandList[write].isQuadBatch == commandList[read].isQuadBatch) {
+			auto &src = commandList[read].vertices;
+			auto &dst = commandList[write].vertices;
+			dst.insert(dst.end(), src.begin(), src.end());
+		} else {
+			++write;
+			if (write != read) {
+				commandList[write] = std::move(commandList[read]);
+			}
+		}
+	}
+	commandList.resize(write + 1);
+}
+
+void GLRenderer::flushCommands() {
+	mergeCommands();
+
+	unsigned int currentBlendSrc = 0;
+	unsigned int currentBlendDst = 0;
+
+	for (auto &cmd : commandList) {
+		bool textureChanged = current_texture != cmd.state.textureId;
+		bool blendChanged = cmd.state.blendSrc != currentBlendSrc || cmd.state.blendDst != currentBlendDst;
+
+		if ((textureChanged || blendChanged) && !batch.empty()) {
+			flushBatch();
+		}
+
+		if (blendChanged) {
+			currentBlendSrc = cmd.state.blendSrc;
+			currentBlendDst = cmd.state.blendDst;
+			if (currentBlendSrc != 0) {
+				glBlendFunc(currentBlendSrc, currentBlendDst);
+			} else {
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			}
+		}
+
+		current_texture = cmd.state.textureId;
+
+		// Processes command vertices in slices that fit into the buffer
+		const auto &verts = cmd.vertices;
+		size_t vertStep = cmd.isQuadBatch ? 4 : 3;
+		size_t idxPerStep = cmd.isQuadBatch ? 6 : 3;
+		size_t i = 0;
+
+		while (i < verts.size()) {
+			size_t remaining = verts.size() - i;
+			size_t batchFree = STREAM_VBO_CAPACITY - batch.size();
+			// Number of vertices that still fit (rounded to a multiple of vertStep)
+			size_t canTake = (batchFree / vertStep) * vertStep;
+
+			if (canTake == 0) {
+				flushBatch();
+				canTake = (STREAM_VBO_CAPACITY / vertStep) * vertStep;
+			}
+
+			size_t take = std::min(remaining, canTake);
+
+			if (cmd.isQuadBatch) {
+				auto base = (GLuint)batch.size();
+				batch.insert(batch.end(), verts.begin() + i, verts.begin() + i + take);
+				for (size_t q = 0; q < take; q += 4) {
+					GLuint b = base + (GLuint)q;
+					indexBatch.push_back(b);
+					indexBatch.push_back(b + 1);
+					indexBatch.push_back(b + 2);
+					indexBatch.push_back(b);
+					indexBatch.push_back(b + 2);
+					indexBatch.push_back(b + 3);
+				}
+			} else {
+				auto base = (GLuint)batch.size();
+				batch.insert(batch.end(), verts.begin() + i, verts.begin() + i + take);
+				for (GLuint j = 0; j < (GLuint)take; ++j) {
+					indexBatch.push_back(base + j);
+				}
+			}
+
+			i += take;
+		}
+	}
+	commandList.clear();
 	flushBatch();
-	textColor = { r, g, b, a };
+
+	if (currentBlendSrc != 0) {
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	}
+}
+
+void GLRenderer::setBlendMode(unsigned int src, unsigned int dst) {
+	activeBlendSrc = src;
+	activeBlendDst = dst;
+}
+
+void GLRenderer::resetBlendMode() {
+	activeBlendSrc = 0;
+	activeBlendDst = 0;
 }
 
 void GLRenderer::flush() {
-	flushBatch();
+	flushCommands();
 }
 
 void GLRenderer::invalidateTexture(GLuint id) {
@@ -745,4 +885,70 @@ void GLRenderer::invalidateTexture(GLuint id) {
 			inst->current_texture = 0;
 		}
 	}
+}
+
+void GLRenderer::ensureFBO(int w, int h) {
+	if (fboData.fbo != 0 && fboData.width == w && fboData.height == h) {
+		return;
+	}
+	destroyFBO();
+
+	glGenFramebuffers(1, &fboData.fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, fboData.fbo);
+
+	glGenTextures(1, &fboData.texture);
+	glBindTexture(GL_TEXTURE_2D, fboData.texture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fboData.texture, 0);
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		spdlog::error("[GLRenderer::ensureFBO] Framebuffer incomplete");
+		glDeleteTextures(1, &fboData.texture);
+		glDeleteFramebuffers(1, &fboData.fbo);
+		fboData.fbo = 0;
+		fboData.texture = 0;
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	fboData.width = w;
+	fboData.height = h;
+}
+
+void GLRenderer::destroyFBO() {
+	if (fboData.texture != 0) {
+		glDeleteTextures(1, &fboData.texture);
+		fboData.texture = 0;
+	}
+	if (fboData.fbo != 0) {
+		glDeleteFramebuffers(1, &fboData.fbo);
+		fboData.fbo = 0;
+	}
+	fboData.width = 0;
+	fboData.height = 0;
+}
+
+void GLRenderer::beginFBO() {
+	if (fboData.fbo != 0) {
+		glBindFramebuffer(GL_FRAMEBUFFER, fboData.fbo);
+	}
+}
+
+void GLRenderer::endFBO() {
+	if (fboData.fbo != 0) {
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
+}
+
+void GLRenderer::blitFBO(float w, float h) {
+	if (fboData.fbo == 0) {
+		return;
+	}
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_BLEND);
+	drawTexturedQuad(0, 0, w, h, fboData.texture, { 255, 255, 255, 255 }, 0.f, 1.f, 1.f, 0.f);
+	flush();
 }

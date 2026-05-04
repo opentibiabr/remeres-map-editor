@@ -1096,7 +1096,9 @@ void GUI::RefreshView() {
 	}
 
 	for (EditorTab* editorTab : editorTabs) {
-		editorTab->GetWindow()->Refresh();
+		auto* mapTab = static_cast<MapTab*>(editorTab);
+		mapTab->GetCanvas()->Refresh(); // MapCanvas::Refresh() → markDirty() + wxGLCanvas::Refresh()
+		editorTab->GetWindow()->Update();
 	}
 }
 
@@ -1137,21 +1139,22 @@ void GUI::SetLoadScale(int32_t from, int32_t to) {
 }
 
 bool GUI::SetLoadDone(int32_t done, const wxString &newMessage) {
-	const bool messageChanged = !newMessage.empty() && newMessage != progressText;
-
 	if (done == 100) {
 		DestroyLoadBar();
 		return true;
-	} else if (done == currentProgress && !messageChanged) {
+	}
+
+	int32_t newProgress = progressFrom + static_cast<int32_t>((done / 100.f) * (progressTo - progressFrom));
+	newProgress = std::max<int32_t>(0, std::min<int32_t>(100, newProgress));
+
+	const bool messageChanged = !newMessage.empty() && newMessage != progressText;
+	if (newProgress == currentProgress && !messageChanged) {
 		return true;
 	}
 
 	if (!newMessage.empty()) {
 		progressText = newMessage;
 	}
-
-	int32_t newProgress = progressFrom + static_cast<int32_t>((done / 100.f) * (progressTo - progressFrom));
-	newProgress = std::max<int32_t>(0, std::min<int32_t>(100, newProgress));
 
 	bool skip = false;
 	if (progressBar) {
@@ -1322,7 +1325,7 @@ bool GUI::DoUndo() {
 		SetStatusText("Undo action");
 		UpdateMinimap();
 		root->UpdateMenubar();
-		root->Refresh();
+		RefreshView();
 		return true;
 	}
 	return false;
@@ -1338,7 +1341,7 @@ bool GUI::DoRedo() {
 		SetStatusText("Redo action");
 		UpdateMinimap();
 		root->UpdateMenubar();
-		root->Refresh();
+		RefreshView();
 		return true;
 	}
 	return false;

@@ -83,7 +83,11 @@ EVT_SET_FOCUS(MapScrollBar::OnFocus)
 EVT_MOUSEWHEEL(MapScrollBar::OnWheel)
 END_EVENT_TABLE()
 
+#ifdef RME_CMAKE_BUILD
+wxIMPLEMENT_APP_NO_MAIN(Application);
+#else
 wxIMPLEMENT_APP(Application);
+#endif
 
 Application::~Application() {
 	// Destroy
@@ -312,6 +316,14 @@ int Application::OnExit() {
 	return 1;
 }
 
+void Application::ShutdownServices() {
+	g_luaScripts.shutdown();
+#ifdef _USE_PROCESS_COM
+	wxDELETE(m_proc_server);
+	wxDELETE(m_single_instance_checker);
+#endif
+}
+
 void Application::OnFatalException() {
 	////
 }
@@ -480,12 +492,12 @@ bool MainFrame::DoQuerySaveTileset(bool doclose) {
 	return !g_materials.needSave();
 }
 
-bool MainFrame::DoQuerySave(bool doclose) {
+bool MainFrame::DoQuerySave(bool doclose, bool checkTileset) {
 	if (!g_gui.IsEditorOpen()) {
 		return true;
 	}
 
-	if (!DoQuerySaveTileset()) {
+	if (checkTileset && !DoQuerySaveTileset()) {
 		return false;
 	}
 
@@ -636,26 +648,38 @@ bool MainFrame::LoadMap(FileName name) {
 }
 
 void MainFrame::OnExit(wxCloseEvent &event) {
-	// clicking 'x' button
+	if (!DoQuerySaveTileset()) {
+		if (event.CanVeto()) {
+			event.Veto();
+			return;
+		}
+	}
 
-	// do you want to save map changes?
-	while (g_gui.IsEditorOpen()) {
-		if (!DoQuerySave()) {
+	std::set<Map*> prompted;
+	for (int i = 0; i < g_gui.tabbook->GetTabCount(); ++i) {
+		auto* mapTab = dynamic_cast<MapTab*>(g_gui.tabbook->GetTab(i));
+		if (!mapTab || !mapTab->GetMap() || !mapTab->GetMap()->hasChanged()
+			|| prompted.contains(mapTab->GetMap())) {
+			continue;
+		}
+		prompted.insert(mapTab->GetMap());
+		g_gui.tabbook->SetFocusedTab(i);
+		if (!DoQuerySave(false, false)) {
 			if (event.CanVeto()) {
 				event.Veto();
 				return;
-			} else {
-				break;
 			}
+			break;
 		}
 	}
-	g_gui.aui_manager->UnInit();
-	((Application &)wxGetApp()).Unload();
-#ifdef __RELEASE__
-	// Hack, "crash" gracefully in release builds, let OS handle cleanup of windows
+
+	g_gui.SaveHotkeys();
+	g_gui.SavePerspective();
+	g_gui.root->SaveRecentFiles();
+	ClientAssets::save();
+	g_settings.save(true);
+	wxGetApp().ShutdownServices();
 	exit(0);
-#endif
-	Destroy();
 }
 
 void MainFrame::AddRecentFile(const FileName &file) {
@@ -681,14 +705,10 @@ void MainFrame::PrepareDC(wxDC &dc) {
 	dc.SetMapMode(wxMM_TEXT);
 }
 
-#ifdef _MSC_VER
-// This is necessary for cmake with visual studio link the executable
+#ifdef RME_CMAKE_BUILD
+// CMake builds use the console subsystem, so provide main without letting
+// wxIMPLEMENT_APP generate a second wx entrypoint.
 int main(int argc, char** argv) {
-	wxEntryStart(argc, argv); // Start the wxWidgets library
-	Application* app = new Application(); // Create the application object
-	wxApp::SetInstance(app); // Informs wxWidgets that app is the application object
-	wxEntry(); // Call the wxEntry() function to start the application execution
-	wxEntryCleanup(); // Clear the wxWidgets library
-	return 0;
+	return wxEntry(argc, argv);
 }
 #endif

@@ -51,6 +51,7 @@ protected:
 	bool unserializeTileset(pugi::xml_node node, wxArrayString &warnings);
 
 private:
+	void populateRawBrushes(Tileset* others);
 	bool modified = false;
 	Materials(const Materials &);
 	Materials &operator=(const Materials &);

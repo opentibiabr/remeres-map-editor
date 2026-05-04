@@ -3564,7 +3564,7 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 			uint16_t base_x, base_y;
 			uint8_t base_z;
 			if (!mapNode->getU16(base_x) || !mapNode->getU16(base_y) || !mapNode->getU8(base_z)) {
-				warning("Invalid map node, no base coordinate");
+				warning("Invalid map node (type %d), no base coordinate", node_type);
 				continue;
 			}
 
@@ -3572,14 +3572,14 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 				Tile* tile = nullptr;
 				uint8_t tile_type;
 				if (!tileNode->getByte(tile_type)) {
-					warning("Invalid tile type");
+					warning("Invalid tile type in area %d:%d:%d", base_x, base_y, base_z);
 					continue;
 				}
 				if (tile_type == OTBM_TILE || tile_type == OTBM_HOUSETILE) {
 					// printf("Start\n");
 					uint8_t x_offset, y_offset;
 					if (!tileNode->getU8(x_offset) || !tileNode->getU8(y_offset)) {
-						warning("Could not read position of tile");
+						warning("Could not read position of tile in area %d:%d:%d", base_x, base_y, base_z);
 						continue;
 					}
 					const Position pos(base_x + x_offset, base_y + y_offset, base_z);
@@ -3769,7 +3769,7 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 	}
 
 	if (!f.isOk()) {
-		warning(wxstr(f.getErrorMessage()).wc_str());
+		warning("OTBM loading error: %s (at file position %zu of %zu bytes)", wxstr(f.getErrorMessage()).wc_str(), f.tell(), f.size());
 	}
 	return true;
 }
@@ -3843,7 +3843,7 @@ bool IOMapOTBM::loadSpawnsMonster(Map &map, pugi::xml_document &doc) {
 			const std::string &name = monsterNode.attribute("name").as_string();
 			if (name.empty()) {
 				wxString err;
-				err << "Bad monster position data, discarding monster at spawn " << spawnPosition.x << ":" << spawnPosition.y << ":" << spawnPosition.z << " due missing name.";
+				err << "Bad monster position data, discarding monster at spawn " << spawnPosition.x << ":" << spawnPosition.y << ":" << spawnPosition.z << " due to missing name.";
 				warnings.Add(err);
 				break;
 			}
@@ -4115,7 +4115,7 @@ bool IOMapOTBM::loadSpawnsNpc(Map &map, pugi::xml_document &doc) {
 			const std::string &name = npcNode.attribute("name").as_string();
 			if (name.empty()) {
 				wxString err;
-				err << "Bad npc position data, discarding npc at spawn " << spawnPosition.x << ":" << spawnPosition.y << ":" << spawnPosition.z << " due missing name.";
+				err << "Bad npc position data, discarding npc at spawn " << spawnPosition.x << ":" << spawnPosition.y << ":" << spawnPosition.z << " due to missing name.";
 				warnings.Add(err);
 				break;
 			}

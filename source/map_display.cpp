@@ -155,6 +155,7 @@ MapCanvas::~MapCanvas() {
 }
 
 void MapCanvas::Refresh() {
+	drawer->markDirty();
 	if (refresh_watch.Time() > g_settings.getInteger(Config::HARD_REFRESH_RATE)) {
 		refresh_watch.Start();
 		wxGLCanvas::Update();
@@ -191,6 +192,9 @@ void MapCanvas::GetViewBox(int* view_scroll_x, int* view_scroll_y, int* screensi
 }
 
 void MapCanvas::OnPaint(wxPaintEvent &event) {
+	if (!IsShownOnScreen()) {
+		return;
+	}
 	SetCurrent(*g_gui.GetGLContext(this));
 
 	if (g_gui.IsRenderingEnabled()) {

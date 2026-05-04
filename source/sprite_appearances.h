@@ -21,6 +21,7 @@
 #include "definitions.h"
 #include "main.h"
 #include "graphics.h"
+#include <chrono>
 
 #include <unordered_set>
 
@@ -44,10 +45,10 @@ enum class SpriteLayout {
 
 struct SpritesSize {
 public:
-	SpritesSize(int height, int width) :
+	SpritesSize(int width, int height) :
 		height(height), width(width) { }
 
-	void resize(int height, int width) {
+	void resize(int width, int height) {
 		this->height = height;
 		this->width = width;
 	}
@@ -138,9 +139,16 @@ public:
 	}
 
 	bool exportSheetImage(const std::string &file, bool fixMagenta = false) {
+		if (!data) {
+			return false;
+		}
 		wxImage image(384, 384, data.get(), true);
 		return image.SaveFile(wxString(file), wxBITMAP_TYPE_PNG);
 	};
+
+	GLuint getOrUploadGLTexture();
+	void releaseGLTexture();
+	SpriteUV getSpriteUVs(int spriteId) const;
 
 	int firstId = 0;
 	int lastId = 0;
@@ -150,6 +158,8 @@ public:
 	bool loaded = false;
 	bool loadAttempted = false;
 	bool loadFailed = false;
+	GLuint glTextureId = 0;
+	std::chrono::steady_clock::time_point lastaccess;
 };
 
 using SpritePtr = std::shared_ptr<Sprites>;
@@ -196,7 +206,15 @@ public:
 	bool loadSpriteSheet(const SpriteSheetPtr &sheet);
 	void saveSheetToFileBySprite(int id, const std::string &file);
 	void saveSheetToFile(const SpriteSheetPtr &sheet, const std::string &file);
+	struct AtlasInfo {
+		GLuint textureId;
+		SpriteUV uvs;
+	};
+	AtlasInfo getAtlasInfo(int spriteId);
 	SpriteSheetPtr getSheetBySpriteId(int id, bool load = true);
+	std::vector<SpriteSheetPtr> &getSheets() {
+		return sheets;
+	}
 
 	void addSpriteSheet(SpriteSheetPtr sheet) {
 		sheets.push_back(sheet);

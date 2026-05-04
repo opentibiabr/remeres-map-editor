@@ -44,6 +44,7 @@ public:
 	virtual void MacOpenFiles(const wxArrayString &fileNames);
 	virtual int OnExit();
 	void Unload();
+	void ShutdownServices();
 
 private:
 	bool m_startup;
@@ -67,7 +68,7 @@ public:
 
 	void UpdateMenubar();
 	bool DoQueryClose();
-	bool DoQuerySave(bool doclose = true);
+	bool DoQuerySave(bool doclose = true, bool checkTileset = true);
 	bool DoQuerySaveTileset(bool doclose = true);
 	void ShowMissingMonsters();
 	void ShowMissingNpcs();

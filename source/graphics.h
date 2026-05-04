@@ -23,6 +23,7 @@
 #include "enums.h"
 
 #include <wx/artprov.h>
+#include <chrono>
 
 // Forward declarations
 namespace canary {
@@ -60,6 +61,13 @@ struct SpriteLight {
 	uint8_t color = 0;
 };
 
+struct SpriteUV {
+	float u0;
+	float v0;
+	float u1;
+	float v1;
+};
+
 class Sprite {
 public:
 	Sprite() { }
@@ -91,6 +99,7 @@ public:
 
 	int getIndex(int width, int height, int layer, int pattern_x, int pattern_y, int pattern_z, int frame) const;
 	GLuint getHardwareID(int _layer, int _count, int _pattern_x, int _pattern_y, int _pattern_z, int _frame);
+	SpriteUV getAtlasUVs(int _layer, int _count, int _pattern_x, int _pattern_y, int _pattern_z, int _frame);
 	uint32_t getSpriteID(int _layer, int _count, int _pattern_x, int _pattern_y, int /*_pattern_z*/, int _frame);
 
 	virtual void DrawTo(wxDC* dc, SpriteSize sz, int start_x, int start_y, int width = -1, int height = -1);
@@ -101,7 +110,6 @@ public:
 	wxPoint getDrawOffset();
 	uint8_t getWidth();
 	uint8_t getHeight();
-	static std::vector<uint8_t> invertGLColors(int spriteHeight, int spriteWidth, const uint8_t* rgba);
 	uint8_t getMiniMapColor() const;
 
 	bool hasLight() const noexcept {
@@ -122,14 +130,14 @@ protected:
 
 	class Image {
 	public:
-		Image();
+		Image() = default;
 		virtual ~Image();
 
-		bool isGLLoaded;
-		int lastaccess;
+		bool isGLLoaded = false;
+		std::chrono::steady_clock::time_point lastaccess {};
 
 		void visit();
-		virtual void clean(int time);
+		virtual void clean(std::chrono::steady_clock::time_point now);
 
 		virtual GLuint getHardwareID() = 0;
 #if CLIENT_VERSION < 1100
@@ -144,19 +152,27 @@ protected:
 
 	class NormalImage : public Image {
 	public:
-		NormalImage();
+		NormalImage() = default;
 		virtual ~NormalImage();
 
-		uint32_t id; // sprite ID (game data)
-		GLuint glTextureId = 0; // GL texture ID (driver-assigned)
+		uint32_t id = 0;
+		GLuint glTextureId = 0; // used by EditorImage (which inherits from NormalImage)
 
-		// This contains the pixel data
-		uint16_t size;
-		uint8_t* m_cachedData;
+		float atlasU0 = 0;
+		float atlasV0 = 0;
+		float atlasU1 = 1;
+		float atlasV1 = 1;
+		GLuint atlasTextureId = 0;
 
-		virtual void clean(int time);
+		uint16_t size = 0;
+		uint8_t* m_cachedData = nullptr;
+
+		void clean(std::chrono::steady_clock::time_point now) override;
 
 		virtual GLuint getHardwareID();
+		SpriteUV getAtlasUVs() const {
+			return { atlasU0, atlasV0, atlasU1, atlasV1 };
+		}
 #if CLIENT_VERSION < 1100
 		virtual uint8_t* getRGBData() = 0;
 #endif
@@ -170,6 +186,8 @@ protected:
 	class EditorImage : public NormalImage {
 	public:
 		EditorImage(const wxArtID &bitmapId);
+
+		GLuint getHardwareID() override;
 
 	protected:
 		void createGLTexture(GLuint textureId) override;
@@ -371,7 +389,7 @@ private:
 	wxFileName sprites_file;
 
 	int loaded_textures;
-	int lastclean;
+	std::chrono::steady_clock::time_point lastclean;
 
 	wxStopWatch* animation_timer;
 

@@ -1,0 +1,16 @@
+/.git/
+/.github/
+/.vs/
+/build/
+/build-*/
+/cmake-build*/
+/tmp/
+/vcpkg/
+/vcpkg_installed/
+/vcproj/Project/generated/
+Dockerfile
+*.dll
+*.exe
+*.ilk
+*.log
+*.pdb

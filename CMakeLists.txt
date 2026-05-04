@@ -7,23 +7,41 @@ project(cmake)
 # *****************************************************************************
 
 if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
-	set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+  set(CMAKE_TOOLCHAIN_FILE
+      "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+      CACHE STRING "")
 endif()
 
 if(DEFINED ENV{VCPKG_DEFAULT_TRIPLET} AND NOT DEFINED VCPKG_TARGET_TRIPLET)
-	set(VCPKG_TARGET_TRIPLET "$ENV{VCPKG_DEFAULT_TRIPLET}" CACHE STRING "")
+  set(VCPKG_TARGET_TRIPLET
+      "$ENV{VCPKG_DEFAULT_TRIPLET}"
+      CACHE STRING "")
 endif()
 
 if(MSVC)
-	if(BUILD_STATIC_LIBRARY)
-		set(VCPKG_TARGET_TRIPLET "x64-windows-static" CACHE STRING "")
-	else()
-		set(VCPKG_TARGET_TRIPLET "x64-windows" CACHE STRING "")
-	endif()
+  if(BUILD_STATIC_LIBRARY)
+    set(VCPKG_TARGET_TRIPLET
+        "x64-windows-static"
+        CACHE STRING "")
+  else()
+    set(VCPKG_TARGET_TRIPLET
+        "x64-windows"
+        CACHE STRING "")
+  endif()
 endif()
 
 set(VCPKG_FEATURE_FLAGS "versions")
-set(VCPKG_BUILD_TYPE "release")
+if(NOT DEFINED VCPKG_BUILD_TYPE)
+  set(VCPKG_BUILD_TYPE "release")
+endif()
+set(VCPKG_BUILD_TYPE
+    "${VCPKG_BUILD_TYPE}"
+    CACHE STRING "vcpkg build type")
+if(DEFINED VCPKG_PLATFORM_TOOLSET)
+  set(VCPKG_PLATFORM_TOOLSET
+      "${VCPKG_PLATFORM_TOOLSET}"
+      CACHE STRING "vcpkg platform toolset")
+endif()
 
 # *****************************************************************************
 # Set Configs
@@ -48,41 +66,49 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # *****************************************************************************
 option(OPTIONS_ENABLE_CCACHE "Enable ccache" OFF)
 option(OPTIONS_ENABLE_SCCACHE "Use sccache to speed up compilation process" OFF)
-option(OPTIONS_ENABLE_IPO "Check and Enable interprocedural optimization (IPO/LTO)" ON)
+option(OPTIONS_ENABLE_IPO
+       "Check and Enable interprocedural optimization (IPO/LTO)" ON)
 
 # *****************************************************************************
 # Set Sanity Check
 # *****************************************************************************
 
 # === GCC Minimum Version ===
-if (CMAKE_COMPILER_IS_GNUCXX)
-	message("-- Compiler: GCC - Version: ${CMAKE_CXX_COMPILER_VERSION}")
-	if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS GNUCXX_MINIMUM_VERSION)
-		message(FATAL_ERROR "GCC version must be at least ${GNUCXX_MINIMUM_VERSION}!")
-	endif()
+if(CMAKE_COMPILER_IS_GNUCXX)
+  message("-- Compiler: GCC - Version: ${CMAKE_CXX_COMPILER_VERSION}")
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS GNUCXX_MINIMUM_VERSION)
+    message(
+      FATAL_ERROR "GCC version must be at least ${GNUCXX_MINIMUM_VERSION}!")
+  endif()
 endif()
 
 # === Minimum required version for visual studio ===
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-	message("-- Compiler: Visual Studio - Version: ${CMAKE_CXX_COMPILER_VERSION}")
-	if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS MSVC_MINIMUM_VERSION)
-		message(FATAL_ERROR "Visual Studio version must be at least ${MSVC_MINIMUM_VERSION}")
-	endif()
+  message("-- Compiler: Visual Studio - Version: ${CMAKE_CXX_COMPILER_VERSION}")
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS MSVC_MINIMUM_VERSION)
+    message(
+      FATAL_ERROR
+        "Visual Studio version must be at least ${MSVC_MINIMUM_VERSION}")
+  endif()
 endif()
 
 # *****************************************************************************
 # Lua Scripting Support
 # *****************************************************************************
 
-find_package(lua CONFIG REQUIRED)
+find_package(Lua REQUIRED)
 find_package(sol2 CONFIG REQUIRED)
 
 if(TARGET lua::lua)
-	set(LUA_LIB_TARGET lua::lua)
+  set(LUA_LIB_TARGET lua::lua)
 elseif(TARGET lua)
-	set(LUA_LIB_TARGET lua)
+  set(LUA_LIB_TARGET lua)
+elseif(TARGET unofficial::lua::lua)
+  set(LUA_LIB_TARGET unofficial::lua::lua)
+elseif(LUA_LIBRARIES)
+  set(LUA_LIB_TARGET ${LUA_LIBRARIES})
 else()
-	message(FATAL_ERROR "Lua target not found!")
+  message(FATAL_ERROR "Lua target not found!")
 endif()
 
 # *****************************************************************************
@@ -102,40 +128,40 @@ include(LoggingHelper)
 
 # === CCACHE ===
 if(OPTIONS_ENABLE_CCACHE)
-	find_program(CCACHE ccache)
-	if(CCACHE)
-		log_option_enabled("ccache")
-		set(CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE})
-	else()
-		log_option_disabled("ccache")
-	endif()
+  find_program(CCACHE ccache)
+  if(CCACHE)
+    log_option_enabled("ccache")
+    set(CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE})
+  else()
+    log_option_disabled("ccache")
+  endif()
 endif()
 
 # === SCCACHE ===
 if(OPTIONS_ENABLE_SCCACHE)
-	find_program(SCCACHE_PATH sccache)
-	if(SCCACHE_PATH)
-		log_option_enabled("sccache")
-		set(CMAKE_C_COMPILER_LAUNCHER ${SCCACHE_PATH})
-		set(CMAKE_CXX_COMPILER_LAUNCHER ${SCCACHE_PATH})
-	else()
-		log_option_disabled("sccache")
-	endif()
+  find_program(SCCACHE_PATH sccache)
+  if(SCCACHE_PATH)
+    log_option_enabled("sccache")
+    set(CMAKE_C_COMPILER_LAUNCHER ${SCCACHE_PATH})
+    set(CMAKE_CXX_COMPILER_LAUNCHER ${SCCACHE_PATH})
+  else()
+    log_option_disabled("sccache")
+  endif()
 endif()
 
 # === IPO ===
 if(OPTIONS_ENABLE_IPO)
-	log_option_enabled("ipo")
+  log_option_enabled("ipo")
 
-	include(CheckIPOSupported)
-	check_ipo_supported(RESULT result OUTPUT output)
-	if(result)
-		set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-	else()
-		log_war("IPO is not supported: ${output}")
-	endif()
+  include(CheckIPOSupported)
+  check_ipo_supported(RESULT result OUTPUT output)
+  if(result)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+  else()
+    log_war("IPO is not supported: ${output}")
+  endif()
 else()
-	log_option_disabled("ipo")
+  log_option_disabled("ipo")
 endif()
 
 # *****************************************************************************

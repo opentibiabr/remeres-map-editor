@@ -645,10 +645,12 @@ Brush* BrushIconBox::GetSelectedBrush() const {
 }
 
 bool BrushIconBox::SelectPaginatedBrush(const Brush* whatBrush, BrushPalettePanel* brushPalettePanel) {
-	const auto index = std::ranges::find(tileset->brushlist.begin(), tileset->brushlist.end(), whatBrush) - tileset->brushlist.begin();
+	const auto brushIt = std::ranges::find(tileset->brushlist.begin(), tileset->brushlist.end(), whatBrush);
 
-	if (index < tileset->brushlist.size()) {
-		const auto page = std::ceil(index / (width * height)) + 1;
+	if (brushIt != tileset->brushlist.end()) {
+		const auto index = static_cast<size_t>(std::distance(tileset->brushlist.begin(), brushIt));
+		const auto pageSize = static_cast<size_t>(width * height);
+		const auto page = static_cast<int>(index / pageSize) + 1;
 		if (currentPage != page) {
 			brushPalettePanel->OnPageUpdate(this, page);
 		}
@@ -818,6 +820,9 @@ void BrushListBox::OnDrawItem(wxDC &dc, const wxRect &rect, size_t index) const 
 			lookType = monsterType->outfit.lookType;
 		} else if (npcType) {
 			lookType = npcType->outfit.lookType;
+		}
+		if (lookType == 0) {
+			lookType = 197; // This looktype is a tribute to our beloved Carl-bot from OpenTibiaBR Discord.
 		}
 		auto creatureSprite = g_gui.gfx.getCreatureSprite(lookType);
 		if (creatureSprite) {

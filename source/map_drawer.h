@@ -103,12 +103,32 @@ public:
 
 class MapCanvas;
 
+struct BlitOptions {
+	bool adjustZoom = false;
+	bool isEditorSprite = false;
+	Outfit outfit = {};
+	int spriteId = 0;
+	SpriteUV uv = { 0.f, 0.f, 1.f, 1.f };
+};
+
 class MapDrawer {
 	MapCanvas* canvas;
 	Editor &editor;
 	DrawingOptions options;
 	std::shared_ptr<LightDrawer> light_drawer = std::make_shared<LightDrawer>();
 	std::unique_ptr<GLRenderer> renderer = std::make_unique<GLRenderer>();
+
+	bool isSceneDirty() const;
+
+	// Scene cache tracking
+	int prevScrollX = -1;
+	int prevScrollY = -1;
+	float prevZoom = -1.f;
+	int prevFloor = -1;
+	int prevStartZ = -1;
+	int prevScreenW = -1;
+	int prevScreenH = -1;
+	bool fboDirty = true;
 
 	float zoom;
 	float globalTooltipFade = 0.0f;
@@ -150,6 +170,9 @@ protected:
 public:
 	MapDrawer(MapCanvas* canvas);
 	~MapDrawer();
+	void markDirty() {
+		fboDirty = true;
+	}
 
 	bool dragging;
 	bool dragging_draw;
@@ -230,7 +253,8 @@ protected:
 	};
 
 	void getColor(Brush* brush, const Position &position, uint8_t &r, uint8_t &g, uint8_t &b);
-	void glBlitTexture(int x, int y, int textureId, int red, int green, int blue, int alpha, bool adjustZoom = false, bool isEditorSprite = false, const Outfit &outfit = {}, int spriteId = 0);
+
+	void glBlitTexture(int x, int y, int textureId, const GLColor &color, const BlitOptions &opts = BlitOptions {});
 	void glBlitSquare(int x, int y, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha, int size = rme::TileSize) const;
 	void glBlitSquare(int x, int y, const wxColor &color, int size = rme::TileSize) const;
 	void getBrushColor(BrushColor color, uint8_t &r, uint8_t &g, uint8_t &b, uint8_t &a);
