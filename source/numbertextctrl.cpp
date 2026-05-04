@@ -52,7 +52,7 @@ void NumberTextCtrl::OnTextEnter(wxCommandEvent &evt) {
 
 void NumberTextCtrl::SetIntValue(long value) {
 	// Will generate events
-	SetValue(wxString::Format("%i", value));
+	SetValue(wxString::Format("%ld", value));
 }
 
 long NumberTextCtrl::GetIntValue() {
@@ -91,11 +91,11 @@ void NumberTextCtrl::CheckRange() {
 		}
 
 		newText.clear();
-		newText = wxString::Format("%i", v);
+		newText = wxString::Format("%ld", v);
 		lastValue = v;
 	} else {
 		newText.clear();
-		newText = wxString::Format("%i", lastValue);
+		newText = wxString::Format("%ld", lastValue);
 	}
 
 	// Check if there was any change

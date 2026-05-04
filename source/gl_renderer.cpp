@@ -814,24 +814,47 @@ void GLRenderer::flushCommands() {
 		}
 
 		current_texture = cmd.state.textureId;
-		if (cmd.isQuadBatch) {
-			auto base = (GLuint)batch.size();
-			batch.insert(batch.end(), cmd.vertices.begin(), cmd.vertices.end());
-			for (size_t q = 0; q < cmd.vertices.size(); q += 4) {
-				GLuint b = base + (GLuint)q;
-				indexBatch.push_back(b);
-				indexBatch.push_back(b + 1);
-				indexBatch.push_back(b + 2);
-				indexBatch.push_back(b);
-				indexBatch.push_back(b + 2);
-				indexBatch.push_back(b + 3);
+
+		// Processes command vertices in slices that fit into the buffer
+		const auto &verts = cmd.vertices;
+		size_t vertStep = cmd.isQuadBatch ? 4 : 3;
+		size_t idxPerStep = cmd.isQuadBatch ? 6 : 3;
+		size_t i = 0;
+
+		while (i < verts.size()) {
+			size_t remaining = verts.size() - i;
+			size_t batchFree = STREAM_VBO_CAPACITY - batch.size();
+			// Number of vertices that still fit (rounded to a multiple of vertStep)
+			size_t canTake = (batchFree / vertStep) * vertStep;
+
+			if (canTake == 0) {
+				flushBatch();
+				canTake = (STREAM_VBO_CAPACITY / vertStep) * vertStep;
 			}
-		} else {
-			auto base = (GLuint)batch.size();
-			batch.insert(batch.end(), cmd.vertices.begin(), cmd.vertices.end());
-			for (GLuint i = 0; i < (GLuint)cmd.vertices.size(); ++i) {
-				indexBatch.push_back(base + i);
+
+			size_t take = std::min(remaining, canTake);
+
+			if (cmd.isQuadBatch) {
+				auto base = (GLuint)batch.size();
+				batch.insert(batch.end(), verts.begin() + i, verts.begin() + i + take);
+				for (size_t q = 0; q < take; q += 4) {
+					GLuint b = base + (GLuint)q;
+					indexBatch.push_back(b);
+					indexBatch.push_back(b + 1);
+					indexBatch.push_back(b + 2);
+					indexBatch.push_back(b);
+					indexBatch.push_back(b + 2);
+					indexBatch.push_back(b + 3);
+				}
+			} else {
+				auto base = (GLuint)batch.size();
+				batch.insert(batch.end(), verts.begin() + i, verts.begin() + i + take);
+				for (GLuint j = 0; j < (GLuint)take; ++j) {
+					indexBatch.push_back(base + j);
+				}
 			}
+
+			i += take;
 		}
 	}
 	commandList.clear();
