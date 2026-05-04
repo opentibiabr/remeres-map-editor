@@ -3299,6 +3299,8 @@ IOMapOTBM::IOMapOTBM(MapVersion ver) {
 	version = ver;
 }
 
+IOMapOTBM::~IOMapOTBM() = default;
+
 bool IOMapOTBM::getVersionInfo(const FileName &filename, MapVersion &out_ver) {
 #if OTGZ_SUPPORT > 0
 	if (filename.GetExt() == "otgz") {

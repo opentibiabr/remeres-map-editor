@@ -139,7 +139,7 @@ public:
 	};
 
 	IOMapOTBM(MapVersion ver);
-	~IOMapOTBM() { }
+	~IOMapOTBM();
 
 	static bool getVersionInfo(const FileName &identifier, MapVersion &out_ver);
 
