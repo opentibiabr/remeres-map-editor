@@ -17,6 +17,8 @@
         </menu>
         <menu name="$Export">
             <item name="$Export Minimap..." action="EXPORT_MINIMAP" help="Export minimap to an image file."/>
+            <item name="Export $Static House Data..." action="EXPORT_STATIC_HOUSE_DATA" help="Export staticdata (protobuf, cip-compatible)."/>
+            <item name="Export $Cyclopedia Minimap/Satellite..." action="EXPORT_CYCLOPEDIA_MAP" help="Export cyclopedia minimap and satellite assets."/>
             <item name="$Export Tilesets..." action="EXPORT_TILESETS" help="Export tilesets to an xml file."/>
         </menu>
         <menu name="$Reload">

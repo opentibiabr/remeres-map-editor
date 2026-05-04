@@ -19,6 +19,10 @@
 #define RME_OTBM_MAP_IO_H_
 
 #include "iomap.h"
+#include <functional>
+#include <string>
+#include <utility>
+#include <vector>
 
 enum OTBM_ItemAttribute {
 	OTBM_ATTR_DESCRIPTION = 1,
@@ -112,18 +116,47 @@ struct MapVersion;
 class NodeFileReadHandle;
 class NodeFileWriteHandle;
 class Map;
+using CyclopediaExportProgressFn = std::function<bool(int32_t, const std::string &)>;
 
 class IOMapOTBM : public IOMap {
 public:
+	struct StaticHouseExportReport {
+		bool success = false;
+		bool filtered = false;
+		size_t selectedFilterCount = 0;
+		size_t matchedFilterCount = 0;
+		size_t mapHousesTotal = 0;
+		size_t staticDataGeneratedHouses = 0;
+		size_t staticDataFinalHouses = 0;
+		size_t staticMapAttemptedHouses = 0;
+		size_t staticMapGeneratedHouses = 0;
+		size_t staticMapFinalHouses = 0;
+		std::vector<std::string> failedStaticMapHouses;
+		std::vector<std::string> errors;
+		std::string outputBasePath;
+		std::string staticDataFileName;
+		std::string staticMapDataFileName;
+	};
+
 	IOMapOTBM(MapVersion ver);
-	~IOMapOTBM() { }
+	~IOMapOTBM() = default;
 
 	static bool getVersionInfo(const FileName &identifier, MapVersion &out_ver);
 
 	virtual bool loadMap(Map &map, const FileName &identifier);
 	virtual bool saveMap(Map &map, const FileName &identifier);
+	bool saveStaticData(Map &map, const FileName &dir, const std::vector<std::string> &houseNamesFilter = {});
+	bool saveCyclopediaMapData(Map &map, const FileName &dir, const CyclopediaExportProgressFn &progress = CyclopediaExportProgressFn {}, int satellitePixelsPerSquare = 2);
+	const StaticHouseExportReport &getLastStaticHouseExportReport() const {
+		return staticHouseExportReportState();
+	}
 
 protected:
+	static StaticHouseExportReport &staticHouseExportReportState() {
+		static auto* report = new StaticHouseExportReport();
+		return *report;
+	}
+
 	static bool getVersionInfo(NodeFileReadHandle* f, MapVersion &out_ver);
 
 	virtual bool loadMap(Map &map, NodeFileReadHandle &handle);
@@ -145,6 +178,18 @@ protected:
 	bool saveSpawnsNpc(Map &map, pugi::xml_document &doc);
 	bool saveZones(Map &map, const FileName &dir);
 	bool saveZones(Map &map, pugi::xml_document &doc);
+	bool serializeStaticDataHouses(Map &map, std::string &buffer);
+	std::string getStaticDataFilename(const Map &map) const;
+	bool serializeStaticMapDataHouses(
+		Map &map,
+		std::string &buffer,
+		size_t* attemptedHouseCount = nullptr,
+		size_t* exportedHouseCount = nullptr,
+		std::vector<std::string>* failedHouseNames = nullptr
+	);
+	std::string getStaticMapDataFilename(const Map &map) const;
+	bool serializeCyclopediaMapData(Map &map, std::string &buffer, std::vector<std::pair<std::string, std::vector<uint8_t>>> &assets, const CyclopediaExportProgressFn &progress = CyclopediaExportProgressFn {}, int satellitePixelsPerSquare = 2);
+	std::string getCyclopediaMapDataFilename(const Map &map) const;
 };
 
 #endif

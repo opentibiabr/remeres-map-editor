@@ -164,6 +164,7 @@ public:
 	 * The default scale is 0 - 100
 	 */
 	void CreateLoadBar(wxString message, bool canCancel = false);
+	void CreateLoadBar(wxString message, bool canCancel, bool appModal);
 
 	/**
 	 * Sets how much of the load has completed, the scale can be set with
