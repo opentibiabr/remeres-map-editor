@@ -58,11 +58,6 @@ typedef uint8_t attribute_t;
 typedef uint32_t flags_t;
 
 namespace {
-	IOMapOTBM::StaticHouseExportReport &staticHouseExportReportState() {
-		static auto* report = new IOMapOTBM::StaticHouseExportReport();
-		return *report;
-	}
-
 	constexpr int HousePreviewContextMargin = 2;
 	constexpr int HouseStaticMapContextMargin = 0;
 	constexpr int HouseStaticMapContextTileRadius = 0;
@@ -3302,10 +3297,6 @@ bool Container::serializeItemNode_OTBM(const IOMap &maphandle, NodeFileWriteHand
 
 IOMapOTBM::IOMapOTBM(MapVersion ver) {
 	version = ver;
-}
-
-const IOMapOTBM::StaticHouseExportReport &IOMapOTBM::getLastStaticHouseExportReport() const {
-	return staticHouseExportReportState();
 }
 
 bool IOMapOTBM::getVersionInfo(const FileName &filename, MapVersion &out_ver) {
