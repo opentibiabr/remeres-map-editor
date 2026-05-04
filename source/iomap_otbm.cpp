@@ -4362,77 +4362,6 @@ bool IOMapOTBM::saveMap(Map &map, const FileName &identifier) {
 			streamData.str("");
 		}
 
-		g_gui.SetLoadDone(0, "Saving staticdata...");
-		std::string staticDataBuffer;
-		if (serializeStaticDataHouses(map, staticDataBuffer)) {
-			std::string staticDataFilename = getStaticDataFilename(map);
-			const wxString clientAssetsRoot = ClientAssets::getPath();
-			const std::filesystem::path clientAssetsPath = clientAssetsRoot.empty() ? std::filesystem::path() : resolveCyclopediaCatalogBasePath(std::filesystem::path(nstr(clientAssetsRoot)));
-			CyclopediaCatalogFiles sourceCatalogFiles;
-			if (!clientAssetsPath.empty()) {
-				loadCyclopediaCatalogFiles(clientAssetsPath, sourceCatalogFiles);
-				if (!sourceCatalogFiles.staticDataFileName.empty()) {
-					staticDataFilename = sourceCatalogFiles.staticDataFileName;
-				}
-			}
-
-			clienteditor::protobuf::staticdata::StaticData templateStaticData;
-			if (!clientAssetsPath.empty()) {
-				const std::filesystem::path templatePath = clientAssetsPath / staticDataFilename;
-				if (loadStaticDataTemplate(templatePath, templateStaticData)) {
-					std::string mergedBuffer;
-					if (mergeStaticDataTemplate(templateStaticData, staticDataBuffer, mergedBuffer)) {
-						staticDataBuffer = std::move(mergedBuffer);
-					} else {
-						warning("Failed to merge template staticdata protobuf content.");
-					}
-				}
-			}
-
-			entry = archive_entry_new();
-			archive_entry_set_pathname(entry, ("world/" + staticDataFilename).c_str());
-			archive_entry_set_size(entry, staticDataBuffer.size());
-			archive_entry_set_filetype(entry, AE_IFREG);
-			archive_entry_set_perm(entry, 0644);
-
-			archive_write_header(a, entry);
-			archive_write_data(a, staticDataBuffer.data(), staticDataBuffer.size());
-			archive_entry_free(entry);
-		} else {
-			warning("Failed to generate staticdata protobuf with houses.");
-		}
-
-		g_gui.SetLoadDone(0, "Saving cyclopedia map data...");
-		std::string cyclopediaMapDataBuffer;
-		std::vector<std::pair<std::string, std::vector<uint8_t>>> cyclopediaAssets;
-		if (serializeCyclopediaMapData(map, cyclopediaMapDataBuffer, cyclopediaAssets)) {
-			const std::string mapDataFilename = getCyclopediaMapDataFilename(map);
-
-			entry = archive_entry_new();
-			archive_entry_set_pathname(entry, ("world/" + mapDataFilename).c_str());
-			archive_entry_set_size(entry, cyclopediaMapDataBuffer.size());
-			archive_entry_set_filetype(entry, AE_IFREG);
-			archive_entry_set_perm(entry, 0644);
-
-			archive_write_header(a, entry);
-			archive_write_data(a, cyclopediaMapDataBuffer.data(), cyclopediaMapDataBuffer.size());
-			archive_entry_free(entry);
-
-			for (const auto &[relativePath, fileBytes] : cyclopediaAssets) {
-				entry = archive_entry_new();
-				archive_entry_set_pathname(entry, ("world/" + relativePath).c_str());
-				archive_entry_set_size(entry, fileBytes.size());
-				archive_entry_set_filetype(entry, AE_IFREG);
-				archive_entry_set_perm(entry, 0644);
-
-				archive_write_header(a, entry);
-				if (!fileBytes.empty()) {
-					archive_write_data(a, fileBytes.data(), fileBytes.size());
-				}
-				archive_entry_free(entry);
-			}
-		}
-
 		g_gui.SetLoadDone(0, "Saving npcs...");
 
 		pugi::xml_document npcDoc;
@@ -4508,12 +4437,6 @@ bool IOMapOTBM::saveMap(Map &map, const FileName &identifier) {
 
 	g_gui.SetLoadDone(99, "Saving houses...");
 	saveHouses(map, identifier);
-
-	g_gui.SetLoadDone(99, "Saving staticdata...");
-	saveStaticData(map, identifier);
-
-	g_gui.SetLoadDone(99, "Saving cyclopedia map data...");
-	saveCyclopediaMapData(map, identifier);
 
 	g_gui.SetLoadDone(99, "Saving zones...");
 	saveZones(map, identifier);
