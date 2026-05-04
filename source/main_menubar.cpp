@@ -1107,18 +1107,32 @@ void MainMenuBar::OnExportCyclopediaMapData(wxCommandEvent &WXUNUSED(event)) {
 		}
 	} exportGuard(cyclopediaExportRunning);
 
+	g_gui.CreateLoadBar("Exporting cyclopedia minimap/satellite...", true);
+	bool exportCancelled = false;
 	if (!mapsaver.saveCyclopediaMapData(
 			g_gui.GetCurrentMap(), makeDirectoryFileName(outputPath), [&](const int32_t done, const std::string &message) {
 				const wxString progressMessage = message.empty() ? wxString("Exporting cyclopedia minimap/satellite...") : wxstr(message);
 				g_gui.SetStatusText(wxString::Format("Cyclopedia export: %d%% - %s", done, progressMessage.c_str()));
+				if (!g_gui.SetLoadDone(done, progressMessage)) {
+					exportCancelled = true;
+					return false;
+				}
+				return true;
 			},
 			satellitePixelsPerSquare
 		)) {
-		g_gui.SetStatusText("Cyclopedia export failed.");
-		g_gui.PopupDialog("Error", "Failed to export cyclopedia minimap/satellite.", wxOK);
+		g_gui.DestroyLoadBar();
+		if (exportCancelled) {
+			g_gui.SetStatusText("Cyclopedia export cancelled.");
+			g_gui.PopupDialog("Export cancelled", "Cyclopedia minimap/satellite export was cancelled.", wxOK);
+		} else {
+			g_gui.SetStatusText("Cyclopedia export failed.");
+			g_gui.PopupDialog("Error", "Failed to export cyclopedia minimap/satellite.", wxOK);
+		}
 		return;
 	}
 
+	g_gui.SetLoadDone(100, "Cyclopedia export completed.");
 	g_gui.SetStatusText("Cyclopedia export completed.");
 	g_gui.PopupDialog("Export completed", "Cyclopedia minimap/satellite exported successfully (backups in /bkps).", wxOK);
 }

@@ -1151,8 +1151,9 @@ bool GUI::SetLoadDone(int32_t done, const wxString &newMessage) {
 	}
 
 	bool skip = false;
+	bool continueProcessing = true;
 	if (progressBar) {
-		progressBar->Update(
+		continueProcessing = progressBar->Update(
 			newProgress,
 			wxString::Format("%s (%d%%)", progressText, newProgress),
 			&skip
@@ -1170,7 +1171,7 @@ bool GUI::SetLoadDone(int32_t done, const wxString &newMessage) {
 		}
 	}
 
-	return skip;
+	return continueProcessing && !skip;
 }
 
 void GUI::DestroyLoadBar() {

@@ -405,7 +405,7 @@ namespace {
 
 	constexpr size_t CyclopediaCipHeaderSize = 32;
 	constexpr std::array<uint8_t, 5> CyclopediaCipLzmaSignature { 0x70, 0x0A, 0xFA, 0x80, 0x40 };
-	constexpr uint32_t CyclopediaLzmaDictionarySize = 33554432;
+	constexpr uint32_t CyclopediaLzmaDictionarySize = 8 * 1024 * 1024;
 	constexpr double CyclopediaVirtualCameraHeight = 0.175;
 
 	struct Sha256Context {
@@ -682,10 +682,10 @@ namespace {
 		options.lc = 3;
 		options.lp = 0;
 		options.pb = 2;
-		options.mode = LZMA_MODE_NORMAL;
-		options.nice_len = 32;
-		options.mf = LZMA_MF_BT4;
-		options.depth = 0;
+		options.mode = LZMA_MODE_FAST;
+		options.nice_len = 16;
+		options.mf = LZMA_MF_HC3;
+		options.depth = 4;
 
 		lzma_filter filters[2] = {
 			{ LZMA_FILTER_LZMA1, &options },
@@ -1135,25 +1135,24 @@ namespace {
 		return true;
 	}
 
-	bool getTinySpriteForSpriteId(const uint32_t spriteId, std::unordered_map<uint32_t, SatelliteTinySprite> &cache, SatelliteTinySprite &tinySprite) {
+	const SatelliteTinySprite* getTinySpriteForSpriteId(const uint32_t spriteId, std::unordered_map<uint32_t, SatelliteTinySprite> &cache) {
 		if (auto it = cache.find(spriteId); it != cache.end()) {
-			tinySprite = it->second;
-			return true;
+			return &it->second;
 		}
 
 		const wxImage spriteImage = g_spriteAppearances.getWxImageBySpriteId(static_cast<int>(spriteId), true);
 		if (!spriteImage.IsOk()) {
-			return false;
+			return nullptr;
 		}
 
 		SatelliteTinySprite sampled {};
 		if (!sampleSpriteToTiny(spriteImage, sampled)) {
-			return false;
+			return nullptr;
 		}
 
-		cache.emplace(spriteId, sampled);
-		tinySprite = sampled;
-		return true;
+		auto [it, inserted] = cache.emplace(spriteId, std::move(sampled));
+		(void)inserted;
+		return &it->second;
 	}
 
 	void blendTinyPixel(unsigned char &dstR, unsigned char &dstG, unsigned char &dstB, const SatelliteTinyPixel &src) {
@@ -1258,8 +1257,8 @@ namespace {
 						continue;
 					}
 
-					SatelliteTinySprite tinySprite {};
-					if (!getTinySpriteForSpriteId(spriteId, spriteTinyCache, tinySprite)) {
+					const SatelliteTinySprite* tinySprite = getTinySpriteForSpriteId(spriteId, spriteTinyCache);
+					if (!tinySprite) {
 						continue;
 					}
 
@@ -1271,7 +1270,7 @@ namespace {
 							const size_t outIndex = (static_cast<size_t>(y * outputPixelsPerSquare + py) * static_cast<size_t>(outWidth)
 													 + static_cast<size_t>(x * outputPixelsPerSquare + px))
 								* rme::PixelFormatRGB;
-							blendTinyPixel(outData[outIndex], outData[outIndex + 1], outData[outIndex + 2], tinySprite[tinyIndex]);
+							blendTinyPixel(outData[outIndex], outData[outIndex + 1], outData[outIndex + 2], (*tinySprite)[tinyIndex]);
 						}
 					}
 				}
@@ -5311,13 +5310,15 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 	assets.clear();
 	buffer.clear();
 	MapData mapData;
-	auto reportProgress = [&](const int32_t done, const std::string &message = std::string()) {
+	auto reportProgress = [&](const int32_t done, const std::string &message = std::string()) -> bool {
 		if (!progress) {
-			return;
+			return true;
 		}
-		progress(std::max<int32_t>(0, std::min<int32_t>(100, done)), message);
+		return progress(std::max<int32_t>(0, std::min<int32_t>(100, done)), message);
 	};
-	reportProgress(0, "Scanning map floors... [|]");
+	if (!reportProgress(0, "Scanning map floors... [|]")) {
+		return false;
+	}
 
 	int minX = 0;
 	int minY = 0;
@@ -5404,11 +5405,13 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 		const int32_t done = static_cast<int32_t>((processedChunks * 100ll) / totalChunks);
 		const char spinner = CyclopediaProgressSpinner[processedChunks % CyclopediaProgressSpinner.size()];
 		const std::string chunkMessage = "Rendering chunks... (" + std::to_string(processedChunks) + "/" + std::to_string(totalChunks) + ") [" + std::string(1, spinner) + "]";
+		if (!reportProgress(done, chunkMessage)) {
+			return false;
+		}
 
 		wxImage minimapChunk;
 		bool chunkHasData = false;
 		if (!buildCyclopediaMinimapChunk(map, job.floor, job.startX, job.startY, job.width, job.height, minimapChunk, chunkHasData) || !chunkHasData) {
-			reportProgress(done, chunkMessage);
 			continue;
 		}
 
@@ -5435,6 +5438,9 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 
 		std::vector<uint8_t> assetBytes;
 		std::string assetHash;
+		if (!reportProgress(done, "Encoding assets... (" + std::to_string(processedChunks) + "/" + std::to_string(totalChunks) + ") [" + std::string(1, spinner) + "]")) {
+			return false;
+		}
 		if (!encodeCyclopediaAsset(outputAssetChunk, assetBytes, assetHash)) {
 			continue;
 		}
@@ -5454,28 +5460,31 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 
 		assets.emplace_back(assetFilename, std::move(assetBytes));
 		hasAnyAsset = true;
-		reportProgress(done, chunkMessage);
 	}
 
 	if (!hasAnyAsset) {
 		return false;
 	}
 
-	reportProgress(100, "Rendering chunks... done [|]");
+	if (!reportProgress(100, "Rendering chunks... done [|]")) {
+		return false;
+	}
 	return mapData.SerializeToString(&buffer);
 }
 
 bool IOMapOTBM::saveCyclopediaMapData(Map &map, const FileName &dir, const CyclopediaExportProgressFn &progress, int satellitePixelsPerSquare) {
 	using namespace clienteditor::protobuf::mapdata;
 
-	auto reportProgress = [&](const int32_t done, const std::string &message = std::string()) {
+	auto reportProgress = [&](const int32_t done, const std::string &message = std::string()) -> bool {
 		if (!progress) {
-			return;
+			return true;
 		}
-		progress(std::max<int32_t>(0, std::min<int32_t>(99, done)), message);
+		return progress(std::max<int32_t>(0, std::min<int32_t>(99, done)), message);
 	};
 
-	reportProgress(0, "Preparing cyclopedia export... [|]");
+	if (!reportProgress(0, "Preparing cyclopedia export... [|]")) {
+		return false;
+	}
 
 	const std::filesystem::path requestedOutputPath = nstr(dir.GetPath(wxPATH_GET_SEPARATOR | wxPATH_GET_VOLUME));
 	const std::filesystem::path basePath = resolveCyclopediaCatalogBasePath(requestedOutputPath);
@@ -5502,7 +5511,7 @@ bool IOMapOTBM::saveCyclopediaMapData(Map &map, const FileName &dir, const Cyclo
 	std::vector<std::pair<std::string, std::vector<uint8_t>>> assets;
 	if (!serializeCyclopediaMapData(
 			map, mapDataBuffer, assets, [&](const int32_t done, const std::string &message) {
-				reportProgress(std::min<int32_t>(95, done), message);
+				return reportProgress(std::min<int32_t>(95, done), message);
 			},
 			satellitePixelsPerSquare
 		)) {
@@ -5527,7 +5536,9 @@ bool IOMapOTBM::saveCyclopediaMapData(Map &map, const FileName &dir, const Cyclo
 	}
 
 	const std::string mapDataFileName = buildCatalogDataFilename("map", mapDataBuffer);
-	reportProgress(96, "Writing map protobuf... [|]");
+	if (!reportProgress(96, "Writing map protobuf... [|]")) {
+		return false;
+	}
 	const std::filesystem::path mapDataPath = basePath / mapDataFileName;
 	if (!mapDataPath.parent_path().empty()) {
 		std::filesystem::create_directories(mapDataPath.parent_path(), ec);
@@ -5572,7 +5583,9 @@ bool IOMapOTBM::saveCyclopediaMapData(Map &map, const FileName &dir, const Cyclo
 		++writtenAssets;
 		const int32_t done = 96 + static_cast<int32_t>((writtenAssets * 3ll) / totalAssets);
 		const char spinner = CyclopediaProgressSpinner[writtenAssets % CyclopediaProgressSpinner.size()];
-		reportProgress(done, "Writing assets... (" + std::to_string(writtenAssets) + "/" + std::to_string(totalAssets) + ") [" + std::string(1, spinner) + "]");
+		if (!reportProgress(done, "Writing assets... (" + std::to_string(writtenAssets) + "/" + std::to_string(totalAssets) + ") [" + std::string(1, spinner) + "]")) {
+			return false;
+		}
 	}
 
 	std::string staticMapDataFileName = outputCatalogFiles.staticMapDataFileName;
@@ -5614,7 +5627,9 @@ bool IOMapOTBM::saveCyclopediaMapData(Map &map, const FileName &dir, const Cyclo
 		return false;
 	}
 
-	reportProgress(99, "Cyclopedia export completed. [|]");
+	if (!reportProgress(99, "Cyclopedia export completed. [|]")) {
+		return false;
+	}
 	return true;
 }
 

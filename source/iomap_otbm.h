@@ -116,7 +116,7 @@ struct MapVersion;
 class NodeFileReadHandle;
 class NodeFileWriteHandle;
 class Map;
-using CyclopediaExportProgressFn = std::function<void(int32_t, const std::string &)>;
+using CyclopediaExportProgressFn = std::function<bool(int32_t, const std::string &)>;
 
 class IOMapOTBM : public IOMap {
 public:
