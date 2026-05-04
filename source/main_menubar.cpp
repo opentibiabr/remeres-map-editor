@@ -1121,12 +1121,9 @@ void MainMenuBar::OnExportCyclopediaMapData(wxCommandEvent &WXUNUSED(event)) {
 			g_gui.GetCurrentMap(), makeDirectoryFileName(outputPath), [&](const int32_t done, const std::string &message) {
 				const wxString progressMessage = message.empty() ? wxString("Exporting cyclopedia minimap/satellite...") : wxstr(message);
 				if (toolbar) {
-					toolbar->UpdateTaskProgress(done, wxString::Format("%s (%d%%)", progressMessage, done));
+					toolbar->UpdateTaskProgress(done, wxString::Format("%s (%d%%)", progressMessage.c_str(), done));
 				}
-				g_gui.SetStatusText(wxString::Format("Cyclopedia export: %d%% - %s", done, progressMessage));
-				if (wxTheApp) {
-					wxTheApp->Yield(true);
-				}
+				g_gui.SetStatusText(wxString::Format("Cyclopedia export: %d%% - %s", done, progressMessage.c_str()));
 			},
 			satellitePixelsPerSquare
 		)) {

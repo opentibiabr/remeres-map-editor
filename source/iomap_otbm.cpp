@@ -31,6 +31,7 @@
 #include "item.h"
 #include "complexitem.h"
 #include "town.h"
+#include "sprite_appearances.h"
 
 #include <mapdata.pb.h>
 #include <staticdata.pb.h>
@@ -168,6 +169,15 @@ namespace {
 		int dx = 0;
 		int dy = 0;
 		int dz = 0;
+	};
+
+	struct StaticDataTemplateMergeStats {
+		size_t generatedHouses = 0;
+		size_t matchedTemplateHouses = 0;
+		size_t missingTemplateHouses = 0;
+		size_t appendedGeneratedHouses = 0;
+		size_t remappedIds = 0;
+		size_t finalHouses = 0;
 	};
 
 	struct StaticMapHouseExportDebugStats {
@@ -542,6 +552,18 @@ namespace {
 			stream << std::setw(2) << static_cast<int>(byte);
 		}
 		return stream.str();
+	}
+
+	std::string sha256Hex(const std::string &bytes) {
+		Sha256Context context;
+		if (!bytes.empty()) {
+			sha256Update(context, reinterpret_cast<const uint8_t*>(bytes.data()), bytes.size());
+		}
+		return toHex(sha256Finalize(context));
+	}
+
+	std::string buildCatalogDataFilename(const std::string &prefix, const std::string &bytes) {
+		return prefix + "-" + sha256Hex(bytes) + ".dat";
 	}
 
 	void appendU16(std::vector<uint8_t> &buffer, const uint16_t value) {
@@ -2409,10 +2431,15 @@ namespace {
 		const std::string &generatedBuffer,
 		std::string &mergedBuffer,
 		std::unordered_map<uint32_t, uint32_t>* houseIdRemap = nullptr,
-		std::unordered_map<uint32_t, HousePositionDelta>* housePositionDeltaRemap = nullptr
+		std::unordered_map<uint32_t, HousePositionDelta>* housePositionDeltaRemap = nullptr,
+		StaticDataTemplateMergeStats* mergeStats = nullptr
 	) {
 		using namespace clienteditor::protobuf::staticdata;
 		using StaticHouse = clienteditor::protobuf::staticdata::House;
+
+		if (mergeStats) {
+			*mergeStats = StaticDataTemplateMergeStats {};
+		}
 
 		StaticData generatedStaticData;
 		if (!generatedStaticData.ParseFromString(generatedBuffer)) {
@@ -2621,6 +2648,15 @@ namespace {
 			mergedStaticData.house_size()
 		);
 
+		if (mergeStats) {
+			mergeStats->generatedHouses = static_cast<size_t>(generatedStaticData.house_size());
+			mergeStats->matchedTemplateHouses = matchedTemplateHouses;
+			mergeStats->missingTemplateHouses = missingTemplateHouses;
+			mergeStats->appendedGeneratedHouses = appendedGeneratedHouses;
+			mergeStats->remappedIds = remappedIdsCount;
+			mergeStats->finalHouses = static_cast<size_t>(mergedStaticData.house_size());
+		}
+
 		return mergedStaticData.SerializeToString(&mergedBuffer);
 	}
 
@@ -2828,6 +2864,82 @@ namespace {
 			return false;
 		}
 		return true;
+	}
+
+	bool updateCyclopediaCatalogFiles(
+		const std::filesystem::path &basePath,
+		const CyclopediaCatalogFiles &catalogFiles,
+		const std::filesystem::path &backupRootPath
+	) {
+		if (basePath.empty()) {
+			return false;
+		}
+
+		const std::filesystem::path catalogPath = basePath / "catalog-content.json";
+		nlohmann::json catalog = nlohmann::json::array();
+		if (std::filesystem::exists(catalogPath)) {
+			std::ifstream input(catalogPath, std::ios::binary);
+			if (!input.is_open()) {
+				return false;
+			}
+
+			nlohmann::json parsed = nlohmann::json::parse(input, nullptr, false);
+			if (!parsed.is_array()) {
+				return false;
+			}
+			catalog = std::move(parsed);
+		}
+
+		bool changed = false;
+		const auto upsertFile = [&](const std::string &type, const std::string &fileName) {
+			if (fileName.empty()) {
+				return;
+			}
+
+			for (auto &entry : catalog) {
+				if (!entry.is_object() || entry.value("type", std::string()) != type) {
+					continue;
+				}
+
+				if (entry.value("file", std::string()) != fileName) {
+					entry["file"] = fileName;
+					changed = true;
+				}
+				return;
+			}
+
+			nlohmann::json entry;
+			entry["type"] = type;
+			entry["file"] = fileName;
+			catalog.push_back(std::move(entry));
+			changed = true;
+		};
+
+		upsertFile("map", catalogFiles.mapFileName);
+		upsertFile("staticmapdata", catalogFiles.staticMapDataFileName);
+		upsertFile("staticdata", catalogFiles.staticDataFileName);
+
+		if (!changed && std::filesystem::exists(catalogPath)) {
+			return true;
+		}
+
+		std::error_code ec;
+		std::filesystem::create_directories(basePath, ec);
+		if (ec) {
+			return false;
+		}
+
+		if (!backupFileIfExists(catalogPath, basePath, backupRootPath)) {
+			return false;
+		}
+
+		std::ofstream output(catalogPath, std::ios::binary | std::ios::trunc);
+		if (!output.is_open()) {
+			return false;
+		}
+
+		output << catalog.dump(2) << '\n';
+		return output.good();
 	}
 }
 
@@ -4929,14 +5041,13 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 		loadCyclopediaCatalogFiles(clientAssetsPath, sourceCatalogFiles);
 	}
 
-	std::string staticDataFileName = outputCatalogFiles.staticDataFileName;
-	if (staticDataFileName.empty()) {
-		staticDataFileName = sourceCatalogFiles.staticDataFileName;
+	std::string staticDataTemplateFileName = outputCatalogFiles.staticDataFileName;
+	if (staticDataTemplateFileName.empty()) {
+		staticDataTemplateFileName = sourceCatalogFiles.staticDataFileName;
 	}
-	if (staticDataFileName.empty()) {
-		staticDataFileName = getStaticDataFilename(map);
+	if (staticDataTemplateFileName.empty()) {
+		staticDataTemplateFileName = getStaticDataFilename(map);
 	}
-	m_lastStaticHouseExportReport.staticDataFileName = staticDataFileName;
 
 	std::string buffer;
 	if (!serializeStaticDataHouses(map, buffer)) {
@@ -4964,7 +5075,7 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 	std::filesystem::path loadedStaticDataTemplatePath;
 	std::vector<std::filesystem::path> staticDataTemplateCandidates;
 	staticDataTemplateCandidates.reserve(2);
-	staticDataTemplateCandidates.emplace_back(basePath / staticDataFileName);
+	staticDataTemplateCandidates.emplace_back(basePath / staticDataTemplateFileName);
 	if (!sourceCatalogFiles.staticDataFileName.empty() && !clientAssetsPath.empty()) {
 		staticDataTemplateCandidates.emplace_back(clientAssetsPath / sourceCatalogFiles.staticDataFileName);
 	}
@@ -4975,7 +5086,7 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 		&loadedStaticDataTemplatePath
 	);
 	if (!hasTemplateStaticData) {
-		const auto siblingTemplatePath = findValidTemplateAssetSibling(basePath, staticDataFileName);
+		const auto siblingTemplatePath = findValidTemplateAssetSibling(basePath, staticDataTemplateFileName);
 		if (!siblingTemplatePath.empty()) {
 			if (loadStaticDataTemplate(siblingTemplatePath, templateStaticData)) {
 				loadedStaticDataTemplatePath = siblingTemplatePath;
@@ -4983,21 +5094,32 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 			}
 		}
 	}
-	if (loadedStaticDataTemplatePath.empty()) {
-		registerExportError("Cyclopedia export requires a valid staticdata template file.");
-		return false;
-	}
 
-	std::string mergedBuffer;
-	if (mergeStaticDataTemplate(templateStaticData, buffer, mergedBuffer, &houseIdRemap, &housePositionDeltaRemap)) {
-		buffer = std::move(mergedBuffer);
+	bool useStaticDataTemplate = false;
+	if (!loadedStaticDataTemplatePath.empty()) {
+		std::string mergedBuffer;
+		StaticDataTemplateMergeStats mergeStats;
+		if (mergeStaticDataTemplate(templateStaticData, buffer, mergedBuffer, &houseIdRemap, &housePositionDeltaRemap, &mergeStats)) {
+			if (mergeStats.matchedTemplateHouses > 0) {
+				buffer = std::move(mergedBuffer);
+				useStaticDataTemplate = true;
+			} else {
+				houseIdRemap.clear();
+				housePositionDeltaRemap.clear();
+				registerExportError("Staticdata template did not match any current map house; exporting current map houses without CIP template merge.");
+			}
+		} else {
+			houseIdRemap.clear();
+			housePositionDeltaRemap.clear();
+			registerExportError("Failed to merge template staticdata protobuf content; exporting current map houses without CIP template merge.");
+		}
 	} else {
-		registerExportError("Failed to merge template staticdata protobuf content.");
-		return false;
+		registerExportError("No valid staticdata template file found; exporting current map houses without CIP template merge.");
 	}
 	spdlog::info(
-		"[house-debug] staticdata stage: template='{}' remap_size={} position_delta_size={}",
+		"[house-debug] staticdata stage: template='{}' template_used={} remap_size={} position_delta_size={}",
 		loadedStaticDataTemplatePath.string(),
+		useStaticDataTemplate,
 		houseIdRemap.size(),
 		housePositionDeltaRemap.size()
 	);
@@ -5013,6 +5135,9 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 			m_lastStaticHouseExportReport.staticDataFinalHouses = static_cast<size_t>(finalStaticData.house_size());
 		}
 	}
+
+	std::string staticDataFileName = buildCatalogDataFilename("staticdata", buffer);
+	m_lastStaticHouseExportReport.staticDataFileName = staticDataFileName;
 
 	const std::filesystem::path outputPath = basePath / staticDataFileName;
 	if (!outputPath.parent_path().empty()) {
@@ -5032,21 +5157,21 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 	output.write(buffer.data(), static_cast<std::streamsize>(buffer.size()));
 	output.close();
 
-	std::string staticMapDataFileName = outputCatalogFiles.staticMapDataFileName;
-	if (staticMapDataFileName.empty()) {
-		staticMapDataFileName = sourceCatalogFiles.staticMapDataFileName;
+	std::string staticMapDataTemplateFileName = outputCatalogFiles.staticMapDataFileName;
+	if (staticMapDataTemplateFileName.empty()) {
+		staticMapDataTemplateFileName = sourceCatalogFiles.staticMapDataFileName;
 	}
-	if (staticMapDataFileName.empty()) {
-		staticMapDataFileName = getStaticMapDataFilename(map);
+	if (staticMapDataTemplateFileName.empty()) {
+		staticMapDataTemplateFileName = getStaticMapDataFilename(map);
 	}
-	m_lastStaticHouseExportReport.staticMapDataFileName = staticMapDataFileName;
 
-	if (!staticMapDataFileName.empty()) {
-		pb_staticmapdata::StaticMapData templateStaticMapData;
-		std::filesystem::path loadedStaticMapDataTemplatePath;
+	pb_staticmapdata::StaticMapData templateStaticMapData;
+	std::filesystem::path loadedStaticMapDataTemplatePath;
+	bool useStaticMapDataTemplate = false;
+	if (useStaticDataTemplate) {
 		std::vector<std::filesystem::path> staticMapDataTemplateCandidates;
 		staticMapDataTemplateCandidates.reserve(2);
-		staticMapDataTemplateCandidates.emplace_back(basePath / staticMapDataFileName);
+		staticMapDataTemplateCandidates.emplace_back(basePath / staticMapDataTemplateFileName);
 		if (!sourceCatalogFiles.staticMapDataFileName.empty() && !clientAssetsPath.empty()) {
 			staticMapDataTemplateCandidates.emplace_back(clientAssetsPath / sourceCatalogFiles.staticMapDataFileName);
 		}
@@ -5057,7 +5182,7 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 			&loadedStaticMapDataTemplatePath
 		);
 		if (!hasTemplateStaticMapData) {
-			const auto siblingTemplatePath = findValidTemplateAssetSibling(basePath, staticMapDataFileName);
+			const auto siblingTemplatePath = findValidTemplateAssetSibling(basePath, staticMapDataTemplateFileName);
 			if (!siblingTemplatePath.empty()) {
 				if (loadStaticMapDataTemplate(siblingTemplatePath, templateStaticMapData)) {
 					loadedStaticMapDataTemplatePath = siblingTemplatePath;
@@ -5065,97 +5190,110 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 				}
 			}
 		}
-		if (loadedStaticMapDataTemplatePath.empty()) {
-			registerExportError("Cyclopedia export requires a valid staticmapdata template file.");
-			return false;
-		}
-		spdlog::info(
-			"[house-debug] staticmap template stage: template='{}' template_houses={} filename='{}'",
-			loadedStaticMapDataTemplatePath.string(),
-			templateStaticMapData.house_size(),
-			staticMapDataFileName
-		);
-
-		std::unordered_map<uint32_t, StaticMapHouseTemplate> staticMapHouseTemplates;
 		if (!loadedStaticMapDataTemplatePath.empty()) {
-			buildStaticMapHouseTemplates(templateStaticMapData, houseIdRemap, housePositionDeltaRemap, staticMapHouseTemplates);
+			useStaticMapDataTemplate = true;
+		} else {
+			registerExportError("No valid staticmapdata template file found; exporting dynamic staticmapdata from current map.");
 		}
+	}
+	spdlog::info(
+		"[house-debug] staticmap template stage: template='{}' template_used={} template_houses={} filename='{}'",
+		loadedStaticMapDataTemplatePath.string(),
+		useStaticMapDataTemplate,
+		templateStaticMapData.house_size(),
+		staticMapDataTemplateFileName
+	);
 
-		struct StaticMapTemplateScopeGuard final {
-			~StaticMapTemplateScopeGuard() {
-				g_activeStaticMapHouseTemplates = nullptr;
-			}
-		} staticMapTemplateScopeGuard;
-		g_activeStaticMapHouseTemplates = staticMapHouseTemplates.empty() ? nullptr : &staticMapHouseTemplates;
-		resetStaticMapHouseExportDebugStats();
-		spdlog::info(
-			"[house-debug] staticmap export stage: active_templates={} total_templates={}",
-			g_activeStaticMapHouseTemplates != nullptr,
-			staticMapHouseTemplates.size()
-		);
+	std::unordered_map<uint32_t, StaticMapHouseTemplate> staticMapHouseTemplates;
+	if (useStaticMapDataTemplate) {
+		buildStaticMapHouseTemplates(templateStaticMapData, houseIdRemap, housePositionDeltaRemap, staticMapHouseTemplates);
+	}
 
-		std::string staticMapDataBuffer;
-		size_t attemptedStaticMapHouses = 0;
-		size_t exportedStaticMapHouses = 0;
-		std::vector<std::string> failedStaticMapHouses;
-		if (!serializeStaticMapDataHouses(map, staticMapDataBuffer, &attemptedStaticMapHouses, &exportedStaticMapHouses, &failedStaticMapHouses)) {
-			registerExportError("Failed to serialize staticmapdata protobuf.");
+	struct StaticMapTemplateScopeGuard final {
+		~StaticMapTemplateScopeGuard() {
+			g_activeStaticMapHouseTemplates = nullptr;
+		}
+	} staticMapTemplateScopeGuard;
+	g_activeStaticMapHouseTemplates = staticMapHouseTemplates.empty() ? nullptr : &staticMapHouseTemplates;
+	resetStaticMapHouseExportDebugStats();
+	spdlog::info(
+		"[house-debug] staticmap export stage: active_templates={} total_templates={}",
+		g_activeStaticMapHouseTemplates != nullptr,
+		staticMapHouseTemplates.size()
+	);
+
+	std::string staticMapDataBuffer;
+	size_t attemptedStaticMapHouses = 0;
+	size_t exportedStaticMapHouses = 0;
+	std::vector<std::string> failedStaticMapHouses;
+	if (!serializeStaticMapDataHouses(map, staticMapDataBuffer, &attemptedStaticMapHouses, &exportedStaticMapHouses, &failedStaticMapHouses)) {
+		registerExportError("Failed to serialize staticmapdata protobuf.");
+		return false;
+	}
+	m_lastStaticHouseExportReport.staticMapAttemptedHouses = attemptedStaticMapHouses;
+	m_lastStaticHouseExportReport.staticMapGeneratedHouses = exportedStaticMapHouses;
+	m_lastStaticHouseExportReport.failedStaticMapHouses = std::move(failedStaticMapHouses);
+	if (!houseIdRemap.empty()) {
+		std::string remappedStaticMapDataBuffer;
+		if (remapStaticMapDataHouseIds(houseIdRemap, staticMapDataBuffer, remappedStaticMapDataBuffer)) {
+			staticMapDataBuffer = std::move(remappedStaticMapDataBuffer);
+		} else {
+			registerExportError("Failed to remap staticmapdata house ids to template house ids.");
+		}
+	}
+	if (hasHouseNameFilter && useStaticMapDataTemplate) {
+		std::string mergedStaticMapDataBuffer;
+		if (mergeStaticMapDataTemplate(templateStaticMapData, staticMapDataBuffer, mergedStaticMapDataBuffer)) {
+			staticMapDataBuffer = std::move(mergedStaticMapDataBuffer);
+		} else {
+			registerExportError("Failed to merge staticmapdata house filter with template data.");
 			return false;
 		}
-		m_lastStaticHouseExportReport.staticMapAttemptedHouses = attemptedStaticMapHouses;
-		m_lastStaticHouseExportReport.staticMapGeneratedHouses = exportedStaticMapHouses;
-		m_lastStaticHouseExportReport.failedStaticMapHouses = std::move(failedStaticMapHouses);
-		if (!houseIdRemap.empty()) {
-			std::string remappedStaticMapDataBuffer;
-			if (remapStaticMapDataHouseIds(houseIdRemap, staticMapDataBuffer, remappedStaticMapDataBuffer)) {
-				staticMapDataBuffer = std::move(remappedStaticMapDataBuffer);
-			} else {
-				registerExportError("Failed to remap staticmapdata house ids to template house ids.");
-			}
+	}
+	if (!staticDataHouseOrder.empty()) {
+		std::string orderedStaticMapDataBuffer;
+		if (reorderStaticMapDataHouseEntries(staticMapDataBuffer, staticDataHouseOrder, orderedStaticMapDataBuffer)) {
+			staticMapDataBuffer = std::move(orderedStaticMapDataBuffer);
+		} else {
+			registerExportError("Failed to sort staticmapdata houses to staticdata order.");
 		}
-		if (hasHouseNameFilter) {
-			std::string mergedStaticMapDataBuffer;
-			if (mergeStaticMapDataTemplate(templateStaticMapData, staticMapDataBuffer, mergedStaticMapDataBuffer)) {
-				staticMapDataBuffer = std::move(mergedStaticMapDataBuffer);
-			} else {
-				registerExportError("Failed to merge staticmapdata house filter with template data.");
-				return false;
-			}
-		}
-		if (!staticDataHouseOrder.empty()) {
-			std::string orderedStaticMapDataBuffer;
-			if (reorderStaticMapDataHouseEntries(staticMapDataBuffer, staticDataHouseOrder, orderedStaticMapDataBuffer)) {
-				staticMapDataBuffer = std::move(orderedStaticMapDataBuffer);
-			} else {
-				registerExportError("Failed to sort staticmapdata houses to staticdata order.");
-			}
-		}
+	}
 
-		{
-			pb_staticmapdata::StaticMapData finalStaticMapData;
-			if (finalStaticMapData.ParseFromString(staticMapDataBuffer)) {
-				m_lastStaticHouseExportReport.staticMapFinalHouses = static_cast<size_t>(finalStaticMapData.house_size());
-			}
+	{
+		pb_staticmapdata::StaticMapData finalStaticMapData;
+		if (finalStaticMapData.ParseFromString(staticMapDataBuffer)) {
+			m_lastStaticHouseExportReport.staticMapFinalHouses = static_cast<size_t>(finalStaticMapData.house_size());
 		}
+	}
 
-		const std::filesystem::path staticMapDataPath = basePath / staticMapDataFileName;
-		if (!staticMapDataPath.parent_path().empty()) {
-			std::filesystem::create_directories(staticMapDataPath.parent_path(), ec);
-		}
-		if (!backupFileIfExists(staticMapDataPath, basePath, backupRootPath)) {
-			registerExportError("Failed to create backup for staticmapdata file.");
-			return false;
-		}
+	std::string staticMapDataFileName = buildCatalogDataFilename("staticmapdata", staticMapDataBuffer);
+	m_lastStaticHouseExportReport.staticMapDataFileName = staticMapDataFileName;
 
-		std::ofstream staticMapDataOutput(staticMapDataPath, std::ios::binary | std::ios::trunc);
-		if (!staticMapDataOutput.is_open()) {
-			registerExportError("Failed to save staticmapdata protobuf file.");
-			return false;
-		}
+	const std::filesystem::path staticMapDataPath = basePath / staticMapDataFileName;
+	if (!staticMapDataPath.parent_path().empty()) {
+		std::filesystem::create_directories(staticMapDataPath.parent_path(), ec);
+	}
+	if (!backupFileIfExists(staticMapDataPath, basePath, backupRootPath)) {
+		registerExportError("Failed to create backup for staticmapdata file.");
+		return false;
+	}
 
-		staticMapDataOutput.write(staticMapDataBuffer.data(), static_cast<std::streamsize>(staticMapDataBuffer.size()));
-		staticMapDataOutput.close();
-		logStaticMapHouseExportDebugSummary();
+	std::ofstream staticMapDataOutput(staticMapDataPath, std::ios::binary | std::ios::trunc);
+	if (!staticMapDataOutput.is_open()) {
+		registerExportError("Failed to save staticmapdata protobuf file.");
+		return false;
+	}
+
+	staticMapDataOutput.write(staticMapDataBuffer.data(), static_cast<std::streamsize>(staticMapDataBuffer.size()));
+	staticMapDataOutput.close();
+	logStaticMapHouseExportDebugSummary();
+
+	CyclopediaCatalogFiles updatedCatalogFiles = outputCatalogFiles;
+	updatedCatalogFiles.staticDataFileName = staticDataFileName;
+	updatedCatalogFiles.staticMapDataFileName = staticMapDataFileName;
+	if (!updateCyclopediaCatalogFiles(basePath, updatedCatalogFiles, backupRootPath)) {
+		registerExportError("Failed to update catalog-content.json for static house export.");
+		return false;
 	}
 
 	m_lastStaticHouseExportReport.success = true;
@@ -5355,9 +5493,9 @@ bool IOMapOTBM::saveCyclopediaMapData(Map &map, const FileName &dir, const Cyclo
 		loadCyclopediaCatalogFiles(clientAssetsPath, sourceCatalogFiles);
 	}
 
-	std::string mapDataFileName = !outputCatalogFiles.mapFileName.empty() ? outputCatalogFiles.mapFileName : getCyclopediaMapDataFilename(map);
-	if (mapDataFileName == getCyclopediaMapDataFilename(map) && !sourceCatalogFiles.mapFileName.empty()) {
-		mapDataFileName = sourceCatalogFiles.mapFileName;
+	std::string mapDataTemplateFileName = !outputCatalogFiles.mapFileName.empty() ? outputCatalogFiles.mapFileName : getCyclopediaMapDataFilename(map);
+	if (mapDataTemplateFileName == getCyclopediaMapDataFilename(map) && !sourceCatalogFiles.mapFileName.empty()) {
+		mapDataTemplateFileName = sourceCatalogFiles.mapFileName;
 	}
 
 	std::string mapDataBuffer;
@@ -5373,8 +5511,8 @@ bool IOMapOTBM::saveCyclopediaMapData(Map &map, const FileName &dir, const Cyclo
 
 	MapData templateMapData;
 	bool hasTemplateMapData = false;
-	if (!mapDataFileName.empty()) {
-		hasTemplateMapData = loadCyclopediaMapDataTemplate(basePath / mapDataFileName, templateMapData);
+	if (!mapDataTemplateFileName.empty()) {
+		hasTemplateMapData = loadCyclopediaMapDataTemplate(basePath / mapDataTemplateFileName, templateMapData);
 	}
 	if (!hasTemplateMapData && !sourceCatalogFiles.mapFileName.empty() && !clientAssetsPath.empty()) {
 		hasTemplateMapData = loadCyclopediaMapDataTemplate(clientAssetsPath / sourceCatalogFiles.mapFileName, templateMapData);
@@ -5388,6 +5526,7 @@ bool IOMapOTBM::saveCyclopediaMapData(Map &map, const FileName &dir, const Cyclo
 		}
 	}
 
+	const std::string mapDataFileName = buildCatalogDataFilename("map", mapDataBuffer);
 	reportProgress(96, "Writing map protobuf... [|]");
 	const std::filesystem::path mapDataPath = basePath / mapDataFileName;
 	if (!mapDataPath.parent_path().empty()) {
@@ -5439,26 +5578,40 @@ bool IOMapOTBM::saveCyclopediaMapData(Map &map, const FileName &dir, const Cyclo
 	std::string staticMapDataFileName = outputCatalogFiles.staticMapDataFileName;
 	if (staticMapDataFileName.empty()) {
 		staticMapDataFileName = sourceCatalogFiles.staticMapDataFileName;
-	}
-
-	if (!staticMapDataFileName.empty() && !sourceCatalogFiles.staticMapDataFileName.empty() && !clientAssetsPath.empty()) {
-		const std::filesystem::path sourceStaticMapDataPath = clientAssetsPath / sourceCatalogFiles.staticMapDataFileName;
-		const std::filesystem::path targetStaticMapDataPath = basePath / staticMapDataFileName;
-		if (std::filesystem::exists(sourceStaticMapDataPath)) {
-			bool samePath = false;
-			std::error_code compareEc;
-			samePath = std::filesystem::equivalent(sourceStaticMapDataPath, targetStaticMapDataPath, compareEc);
-			if (!samePath) {
-				if (!targetStaticMapDataPath.parent_path().empty()) {
-					std::filesystem::create_directories(targetStaticMapDataPath.parent_path(), ec);
+		if (!staticMapDataFileName.empty() && !clientAssetsPath.empty()) {
+			const std::filesystem::path sourceStaticMapDataPath = clientAssetsPath / sourceCatalogFiles.staticMapDataFileName;
+			const std::filesystem::path targetStaticMapDataPath = basePath / staticMapDataFileName;
+			if (std::filesystem::exists(sourceStaticMapDataPath)) {
+				bool samePath = false;
+				std::error_code compareEc;
+				samePath = std::filesystem::equivalent(sourceStaticMapDataPath, targetStaticMapDataPath, compareEc);
+				if (!samePath) {
+					if (!targetStaticMapDataPath.parent_path().empty()) {
+						std::filesystem::create_directories(targetStaticMapDataPath.parent_path(), ec);
+					}
+					if (!backupFileIfExists(targetStaticMapDataPath, basePath, backupRootPath)) {
+						warning("Failed to create backup for staticmapdata file.");
+						return false;
+					}
+					ec.clear();
+					std::filesystem::copy_file(sourceStaticMapDataPath, targetStaticMapDataPath, std::filesystem::copy_options::overwrite_existing, ec);
+					if (ec) {
+						warning("Failed to copy staticmapdata file.");
+						return false;
+					}
 				}
-				if (!backupFileIfExists(targetStaticMapDataPath, basePath, backupRootPath)) {
-					warning("Failed to create backup for staticmapdata file.");
-					return false;
-				}
-				std::filesystem::copy_file(sourceStaticMapDataPath, targetStaticMapDataPath, std::filesystem::copy_options::overwrite_existing, ec);
 			}
 		}
+	}
+
+	CyclopediaCatalogFiles updatedCatalogFiles = outputCatalogFiles;
+	updatedCatalogFiles.mapFileName = mapDataFileName;
+	if (!staticMapDataFileName.empty()) {
+		updatedCatalogFiles.staticMapDataFileName = staticMapDataFileName;
+	}
+	if (!updateCyclopediaCatalogFiles(basePath, updatedCatalogFiles, backupRootPath)) {
+		warning("Failed to update catalog-content.json for cyclopedia map export.");
+		return false;
 	}
 
 	reportProgress(99, "Cyclopedia export completed. [|]");

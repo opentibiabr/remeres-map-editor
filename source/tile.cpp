@@ -28,6 +28,7 @@
 #include "wall_brush.h"
 #include "carpet_brush.h"
 #include "table_brush.h"
+#include "graphics.h"
 #include "npc.h"
 #include "spawn_npc.h"
 

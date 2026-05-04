@@ -96,19 +96,19 @@ Absolute world coordinate:
 
 Simplified flow:
 
-1. load `staticdata` and `staticmapdata` templates (hash-validated).
+1. load `staticdata` and `staticmapdata` templates when they are available.
 2. serialize current map house data.
-3. merge generated `staticdata` with template to preserve CIP ids/anchors.
-4. build house preview templates from template `staticmapdata`.
-5. export each house preview while preserving template framing when available.
-6. write final files into `assets`.
+3. merge generated `staticdata` with the template only when at least one current-map house matches it.
+4. build house preview templates from template `staticmapdata` only for compatible template exports.
+5. export each house preview while preserving template framing when available, otherwise use dynamic map framing.
+6. write hash-named final files into `assets` and update `catalog-content.json`.
 
 Compatibility details currently applied:
 
 - no per-tile house/context mask is serialized in compatibility export.
 - when a valid template is present, template framing (`origin/dimensions/skip`) is preserved.
 - template item payload can be preserved to keep visual parity with CIP client.
-- dynamic fallback still exists for houses without a matching template entry, but template-based export is the intended path.
+- dynamic fallback is used for custom maps or houses without a matching template entry.
 
 ## 6. How the Client Receives and Renders
 
@@ -142,7 +142,8 @@ Current exporter protections:
 - validates embedded hash in filename
 - rejects invalid templates
 - tries a hash-valid sibling template when available
-- aborts export if no valid template is found
+- falls back to current-map dynamic export when no compatible template is found
+- writes filenames whose embedded hash matches the generated content
 
 ## 8. Validation Checklist
 
@@ -172,11 +173,12 @@ Get-FileHash .\assets\staticdata-<hash>.dat -Algorithm SHA256
 
 ## 9. Regression Prevention Rules
 
-1. always export using a hash-valid CIP template.
+1. use hash-valid CIP templates for original CIP-compatible maps.
 2. do not reintroduce per-tile house/context mask serialization in the compatibility path.
 3. do not shift template framing during merge/remap.
 4. keep linear decode semantics (`+ skip + 1`).
-5. validate changes on real CIP client after exporter modifications.
+5. keep custom-map exports independent from unmatched CIP templates.
+6. validate changes on real CIP client after exporter modifications.
 
 ## 10. Summary
 

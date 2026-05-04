@@ -1102,7 +1102,11 @@ void GUI::RefreshView() {
 	}
 }
 
-void GUI::CreateLoadBar(wxString message, bool canCancel /* = false */, bool appModal /* = true */) {
+void GUI::CreateLoadBar(wxString message, bool canCancel) {
+	CreateLoadBar(message, canCancel, true);
+}
+
+void GUI::CreateLoadBar(wxString message, bool canCancel, bool appModal) {
 	progressText = message;
 
 	progressFrom = 0;
