@@ -447,7 +447,6 @@ public:
 
 	// typedef std::map<int32_t, std::shared_ptr<ItemType>> ItemMap;
 	typedef contigous_vector<std::shared_ptr<ItemType>> ItemMap;
-	typedef contigous_vector<ItemType*> ItemRawMap;
 	typedef std::map<std::string, std::shared_ptr<ItemType>> ItemNameMap;
 
 	// Version information
@@ -467,7 +466,6 @@ protected:
 
 protected:
 	ItemMap items;
-	ItemRawMap items_raw;
 
 	// Count of GameSprite types
 	uint16_t item_count = 0;

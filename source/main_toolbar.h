@@ -39,9 +39,6 @@ public:
 	void HideAll(bool update = true);
 	void LoadPerspective();
 	void SavePerspective();
-	void ShowTaskProgress(const wxString &label);
-	void UpdateTaskProgress(int32_t percent, const wxString &label);
-	void HideTaskProgress();
 
 	void OnStandardButtonClick(wxCommandEvent &event);
 	void OnBrushesButtonClick(wxCommandEvent &event);
@@ -59,8 +56,6 @@ private:
 	static const wxString INDICATORS_BAR_NAME;
 
 	wxAuiToolBar* standard_toolbar;
-	wxStaticText* task_progress_label;
-	wxGauge* task_progress_gauge;
 	wxAuiToolBar* brushes_toolbar;
 	wxAuiToolBar* position_toolbar;
 	NumberTextCtrl* x_control;

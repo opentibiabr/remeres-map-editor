@@ -36,7 +36,6 @@
 #include <wx/rawbmp.h>
 
 #include <appearances.pb.h>
-#include <unordered_set>
 
 #ifndef GL_CLAMP_TO_EDGE
 	#define GL_CLAMP_TO_EDGE 0x812F
@@ -1283,10 +1282,7 @@ GameSprite::NormalImage::~NormalImage() {
 uint8_t* GameSprite::NormalImage::getRGBAData() {
 	if (!m_cachedData) {
 		if (!g_gui.gfx.loadSpriteDump(m_cachedData, size, id)) {
-			static std::unordered_set<GLuint> loggedSpriteParseFailures;
-			if (loggedSpriteParseFailures.insert(id).second) {
-				spdlog::error("[GameSprite::NormalImage::getRGBAData] - Failed when parsing sprite id {}", id);
-			}
+			spdlog::error("[GameSprite::NormalImage::getRGBAData] - Failed when parsing sprite id {}", id);
 			return nullptr;
 		}
 	}

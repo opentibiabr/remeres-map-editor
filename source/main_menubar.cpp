@@ -1097,32 +1097,19 @@ void MainMenuBar::OnExportCyclopediaMapData(wxCommandEvent &WXUNUSED(event)) {
 	}
 
 	IOMapOTBM mapsaver(g_gui.GetCurrentMap().getVersion());
-	MainToolBar* toolbar = g_gui.root ? g_gui.root->GetAuiToolBar() : nullptr;
 	cyclopediaExportRunning = true;
 	struct CyclopediaExportGuard final {
 		bool &running;
-		MainToolBar* toolbar = nullptr;
 		explicit CyclopediaExportGuard(bool &value) :
 			running(value) { }
 		~CyclopediaExportGuard() {
-			if (toolbar) {
-				toolbar->HideTaskProgress();
-			}
 			running = false;
 		}
 	} exportGuard(cyclopediaExportRunning);
-	exportGuard.toolbar = toolbar;
-
-	if (toolbar) {
-		toolbar->ShowTaskProgress(wxString::Format("Cyclopedia export (%d px/tile): preparing...", satellitePixelsPerSquare));
-	}
 
 	if (!mapsaver.saveCyclopediaMapData(
 			g_gui.GetCurrentMap(), makeDirectoryFileName(outputPath), [&](const int32_t done, const std::string &message) {
 				const wxString progressMessage = message.empty() ? wxString("Exporting cyclopedia minimap/satellite...") : wxstr(message);
-				if (toolbar) {
-					toolbar->UpdateTaskProgress(done, wxString::Format("%s (%d%%)", progressMessage.c_str(), done));
-				}
 				g_gui.SetStatusText(wxString::Format("Cyclopedia export: %d%% - %s", done, progressMessage.c_str()));
 			},
 			satellitePixelsPerSquare
@@ -1132,9 +1119,6 @@ void MainMenuBar::OnExportCyclopediaMapData(wxCommandEvent &WXUNUSED(event)) {
 		return;
 	}
 
-	if (toolbar) {
-		toolbar->UpdateTaskProgress(100, "Cyclopedia export: completed (100%)");
-	}
 	g_gui.SetStatusText("Cyclopedia export completed.");
 	g_gui.PopupDialog("Export completed", "Cyclopedia minimap/satellite exported successfully (backups in /bkps).", wxOK);
 }

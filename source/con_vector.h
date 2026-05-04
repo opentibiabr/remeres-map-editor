@@ -54,13 +54,8 @@ public:
 	}
 
 	T at(size_t index) const {
-		return at_ref(index);
-	}
-
-	const T &at_ref(size_t index) const {
-		static const T empty {};
 		if (index >= sz) {
-			return empty;
+			return nullptr;
 		}
 		return start[index];
 	}
