@@ -105,6 +105,7 @@ public:
 	friend class Floor;
 	friend class QTreeNode;
 	friend class Waypoints;
+	friend class BaseMap;
 };
 
 class Floor {

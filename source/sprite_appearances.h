@@ -23,6 +23,8 @@
 #include "graphics.h"
 #include <chrono>
 
+#include <unordered_set>
+
 class GameSprite;
 
 // APPEARANCES
@@ -154,6 +156,8 @@ public:
 	std::unique_ptr<uint8_t[]> data;
 	std::string path;
 	bool loaded = false;
+	bool loadAttempted = false;
+	bool loadFailed = false;
 	GLuint glTextureId = 0;
 	std::chrono::steady_clock::time_point lastaccess;
 };
@@ -223,6 +227,8 @@ private:
 	std::vector<SpriteSheetPtr> sheets;
 	std::map<int, SpritePtr> sprites;
 	std::string appearanceFile;
+	std::unordered_set<std::string> failedSheetPathsLogged;
+	std::unordered_set<int> missingSpriteSheetLogged;
 };
 
 extern SpriteAppearances g_spriteAppearances;

@@ -28,6 +28,7 @@
 #include "wall_brush.h"
 #include "carpet_brush.h"
 #include "table_brush.h"
+#include "graphics.h"
 #include "npc.h"
 #include "spawn_npc.h"
 
@@ -325,7 +326,11 @@ void Tile::addItem(Item* item) {
 		}
 	}
 
-	items.insert(it, item);
+	if (it == items.end()) {
+		items.emplace_back(item);
+	} else {
+		items.insert(it, item);
+	}
 
 	if (item->isSelected()) {
 		statflags |= TILESTATE_SELECTED;
@@ -553,32 +558,39 @@ void Tile::update() {
 	}
 
 	if (ground) {
+		const ItemType &groundType = ground->getItemType();
 		if (ground->isSelected()) {
 			statflags |= TILESTATE_SELECTED;
 		}
-		if (ground->isBlocking()) {
+		if (groundType.unpassable) {
 			statflags |= TILESTATE_BLOCKING;
 		}
 		if (ground->getUniqueID() != 0) {
 			statflags |= TILESTATE_UNIQUE;
 		}
-		if (ground->getMiniMapColor() != 0) {
-			minimapColor = ground->getMiniMapColor();
+		if (groundType.sprite) {
+			const uint8_t color = groundType.sprite->getMiniMapColor();
+			if (color != 0) {
+				minimapColor = color;
+			}
 		}
 	}
 
 	for (const Item* item : items) {
+		const ItemType &type = item->getItemType();
+
 		if (item->isSelected()) {
 			statflags |= TILESTATE_SELECTED;
 		}
 		if (item->getUniqueID() != 0) {
 			statflags |= TILESTATE_UNIQUE;
 		}
-		if (item->getMiniMapColor() != 0) {
-			minimapColor = item->getMiniMapColor();
+		if (type.sprite) {
+			const uint8_t color = type.sprite->getMiniMapColor();
+			if (color != 0) {
+				minimapColor = color;
+			}
 		}
-
-		const ItemType &type = g_items.getItemType(item->getID());
 
 		if (type.unpassable) {
 			statflags |= TILESTATE_BLOCKING;
