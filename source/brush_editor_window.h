@@ -295,7 +295,7 @@ private:
     struct BorderDraftState {
         bool dirty = false;
         int currentBorderId = 0;
-        wxString name;
+        wxString borderName;
         bool group = false;
         bool optional = false;
         bool ground = false;
@@ -305,7 +305,6 @@ private:
     struct GroundDraftState {
         bool dirty = false;
         wxString name;
-        int serverLookId = 0;
         int zOrder = 0;
         int borderAlignmentSelection = 0;
         bool includeToNone = true;
@@ -315,8 +314,7 @@ private:
 
     struct WallDraftState {
         bool dirty = false;
-        wxString name;
-        int serverLookId = 0;
+        wxString brushName;
         std::map<std::string, WallTypeData> wallTypes;
         std::string selectedType;
     };
@@ -360,9 +358,10 @@ private:
     wxToggleButton* m_wallModeBtn;
     
     // Common controls
-    wxTextCtrl* m_nameCtrl;
     wxTextCtrl* m_groundNameCtrl;
     wxButton* m_newButton;  // "New Border/Ground/Wall" button with dynamic label
+
+    wxString m_loadedBorderName;
     
     // Sidebar (Tree view - legacy, may not be used)
     wxTextCtrl* m_searchCtrl;
@@ -399,7 +398,6 @@ private:
     
     // ===== Ground Tab =====
     wxPanel* m_groundPanel;
-    wxSpinCtrl* m_serverLookIdCtrl;
     wxSpinCtrl* m_zOrderCtrl;
     wxButton* m_borderAlignmentButton;
     wxCheckBox* m_includeToNoneCheck;
@@ -460,8 +458,6 @@ private:
     
     // ===== Wall Tab =====
     wxPanel* m_wallPanel;
-    wxTextCtrl* m_wallNameCtrl; // Added name control for walls
-    wxSpinCtrl* m_wallServerLookIdCtrl;
     wxSpinCtrl* m_wallGroupCtrl;
     wxSpinCtrl* m_wallZOrderCtrl;
     wxSpinCtrl* m_wallItemIdCtrl;
