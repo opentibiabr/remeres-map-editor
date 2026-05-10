@@ -168,10 +168,12 @@ namespace MenuBar {
 		SEARCH_ON_MAP_WALLS_UPON_WALLS,
 		SEARCH_ON_SELECTION_WALLS_UPON_WALLS,
 		IMPORT_BITMAP_TO_MAP,
+		BRUSH_EDITOR,
 	};
 }
 
 class MainFrame;
+class BrushEditorPanel;
 
 class MainMenuBar : public wxEvtHandler {
 public:
@@ -292,6 +294,7 @@ public:
 	void OnActionsHistoryWindow(wxCommandEvent &event);
 	void OnNewPalette(wxCommandEvent &event);
 	void OnTakeScreenshot(wxCommandEvent &event);
+	void OnBrushEditor(wxCommandEvent &event);
 	void OnSelectTerrainPalette(wxCommandEvent &event);
 	void OnSelectDoodadPalette(wxCommandEvent &event);
 	void OnSelectItemPalette(wxCommandEvent &event);
@@ -330,6 +333,7 @@ protected:
 	MainFrame* frame;
 	wxMenuBar* menubar;
 	wxMenu* scriptsMenu = nullptr;
+	BrushEditorPanel* brush_editor_dialog = nullptr;
 
 	// Used so that calling Check on menu items don't trigger events (avoids infinite recursion)
 	bool checking_programmaticly;
