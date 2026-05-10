@@ -47,6 +47,7 @@
 #include <pugixml.hpp>
 #include <wx/file.h>
 #include <wx/stdpaths.h>
+#include <sstream>
 
 #define BorderEditorPanel BrushEditorPanel
 
@@ -103,6 +104,171 @@ struct GridMetrics {
 #define ID_GROUND_ITEM_LIST wxID_HIGHEST + 2
 
 static std::vector<std::pair<wxString, wxString>> GetBrowserTilesetOptions();
+
+static bool ReadAllText(const wxString& path, wxString& out) {
+    wxFile file(path, wxFile::read);
+    if (!file.IsOpened()) {
+        return false;
+    }
+    file.ReadAll(&out);
+    file.Close();
+    return true;
+}
+
+static bool WriteAllText(const wxString& path, const wxString& content) {
+    wxFile file;
+    if (!file.Create(path, true)) {
+        return false;
+    }
+    file.Write(content);
+    file.Close();
+    return true;
+}
+
+static wxString DetectNewline(const wxString& text) {
+    return (text.Find("\r\n") != wxNOT_FOUND) ? "\r\n" : "\n";
+}
+
+static wxString IndentBeforePos(const wxString& text, size_t pos) {
+    if (pos > text.length()) {
+        pos = text.length();
+    }
+    size_t lineStart = text.rfind('\n', pos);
+    if (lineStart == wxString::npos) {
+        lineStart = 0;
+    } else {
+        lineStart += 1;
+    }
+    size_t i = lineStart;
+    while (i < pos && (text[i] == ' ' || text[i] == '\t')) {
+        ++i;
+    }
+    return text.Mid(lineStart, i - lineStart);
+}
+
+static wxString DetectChildIndent(const wxString& text, const wxString& elementName) {
+    const wxString open = "<" + elementName;
+    const size_t pos = text.find(open);
+    if (pos == wxString::npos) {
+        return "    ";
+    }
+    return IndentBeforePos(text, pos);
+}
+
+static bool FindXmlElementRangeSimple(const wxString& text, const wxString& elementName, const wxString& attrNeedle, size_t& outStart, size_t& outEnd) {
+    const wxString open = "<" + elementName;
+    const wxString close = "</" + elementName + ">";
+
+    size_t pos = 0;
+    while ((pos = text.find(open, pos)) != wxString::npos) {
+        const size_t tagEnd = text.find('>', pos);
+        if (tagEnd == wxString::npos) {
+            return false;
+        }
+
+        const wxString startTag = text.Mid(pos, tagEnd - pos + 1);
+        if (startTag.find(attrNeedle) == wxString::npos) {
+            pos = tagEnd + 1;
+            continue;
+        }
+
+        const size_t closePos = text.find(close, tagEnd + 1);
+        if (closePos == wxString::npos) {
+            return false;
+        }
+
+        size_t end = closePos + close.length();
+        if (end < text.length() && text[end] == '\r') {
+            if (end + 1 < text.length() && text[end + 1] == '\n') {
+                end += 2;
+            } else {
+                end += 1;
+            }
+        } else if (end < text.length() && text[end] == '\n') {
+            end += 1;
+        }
+
+        outStart = pos;
+        outEnd = end;
+        return true;
+    }
+
+    return false;
+}
+
+static void ExpandStartToIncludePrevSingleLineComment(const wxString& text, size_t& start) {
+    if (start == 0) {
+        return;
+    }
+
+    size_t lineStart = text.rfind('\n', start - 1);
+    if (lineStart == wxString::npos) {
+        lineStart = 0;
+    } else {
+        lineStart += 1;
+    }
+
+    wxString line = text.Mid(lineStart, start - lineStart);
+    line.Trim(true);
+    line.Trim(false);
+
+    if (line.StartsWith("<!--") && line.EndsWith("-->")) {
+        start = lineStart;
+    }
+}
+
+static wxString PrintNodeIndented(const pugi::xml_node& node, const wxString& baseIndent, const wxString& nl) {
+    std::ostringstream oss;
+    node.print(oss, "  ", pugi::format_default, pugi::encoding_utf8);
+
+    const std::string s = oss.str();
+    wxString out = wxString::FromUTF8(s.c_str());
+
+    if (out.EndsWith("\n")) {
+        out.RemoveLast();
+    }
+
+    out.Replace("\n", "\n" + baseIndent);
+    out = baseIndent + out;
+
+    if (nl != "\n") {
+        out.Replace("\n", nl);
+    }
+
+    if (!out.EndsWith(nl)) {
+        out += nl;
+    }
+
+    return out;
+}
+
+static bool ReplaceOrInsertChildSimple(wxString& text, const wxString& elementName, const wxString& attrNeedle, const wxString& newBlock, bool includePrevSingleLineComment) {
+    size_t start = 0;
+    size_t end = 0;
+
+    if (FindXmlElementRangeSimple(text, elementName, attrNeedle, start, end)) {
+        if (includePrevSingleLineComment) {
+            ExpandStartToIncludePrevSingleLineComment(text, start);
+        }
+        text = text.Mid(0, start) + newBlock + text.Mid(end);
+        return true;
+    }
+
+    const size_t insertPos = text.rfind("</materials>");
+    if (insertPos == wxString::npos) {
+        return false;
+    }
+
+    const wxString nl = DetectNewline(text);
+    wxString insertion = newBlock;
+    const wxString before = text.Mid(0, insertPos);
+    if (!before.EndsWith(nl)) {
+        insertion = nl + insertion;
+    }
+
+    text = before + insertion + text.Mid(insertPos);
+    return true;
+}
 
 // Utility functions for edge string/position conversion
 BorderEdgePosition edgeStringToPosition(const std::string& edgeStr) {
@@ -1436,17 +1602,33 @@ void BorderEditorPanel::SaveWallBrush() {
         }
     }
     
-    // Save
-    if (doc.save_file(nstr(wallsFile).c_str())) {
-        DiscardDraft(2, mainTileId);
-
-        TriggerReloadDataFiles();
-        ReloadCurrentBrushEditorXml(wxString::Format("%u", (unsigned)mainTileId));
-
-        wxMessageBox("Wall brush saved successfully.", "Success", wxOK | wxICON_INFORMATION | wxSTAY_ON_TOP, this);
-    } else {
-        wxMessageBox("Failed to save walls.xml", "Error", wxICON_ERROR);
+    wxString xmlText;
+    if (!ReadAllText(wallsFile, xmlText) || xmlText.IsEmpty()) {
+        xmlText = "<materials>\n</materials>\n";
     }
+
+    const wxString nl = DetectNewline(xmlText);
+    const wxString baseIndent = DetectChildIndent(xmlText, "brush");
+    const wxString newBlock = PrintNodeIndented(brushNode, baseIndent, nl);
+    const wxString attrNeedle = "name=\"" + name + "\"";
+
+    wxString oldText = xmlText;
+    if (!ReplaceOrInsertChildSimple(xmlText, "brush", attrNeedle, newBlock, false)) {
+        wxMessageBox("Invalid walls.xml file: missing '</materials>'", "Error", wxICON_ERROR);
+        return;
+    }
+
+    if (xmlText != oldText && !WriteAllText(wallsFile, xmlText)) {
+        wxMessageBox("Failed to save walls.xml", "Error", wxICON_ERROR);
+        return;
+    }
+
+    DiscardDraft(2, mainTileId);
+
+    TriggerReloadDataFiles();
+    ReloadCurrentBrushEditorXml(wxString::Format("%u", (unsigned)mainTileId));
+
+    wxMessageBox("Wall brush saved successfully.", "Success", wxOK | wxICON_INFORMATION | wxSTAY_ON_TOP, this);
 }
 
 void BorderEditorPanel::LoadExistingWallBrushes() {
@@ -2094,8 +2276,24 @@ void BorderEditorPanel::SaveBorder() {
         itemNode.append_attribute("item").set_value(item.itemId);
     }
     
-    // Save the file
-    if (!doc.save_file(nstr(bordersFile).c_str())) {
+    wxString xmlText;
+    if (!ReadAllText(bordersFile, xmlText) || xmlText.IsEmpty()) {
+        wxMessageBox("Failed to read borders.xml", "Error", wxICON_ERROR);
+        return;
+    }
+
+    const wxString nl = DetectNewline(xmlText);
+    const wxString baseIndent = DetectChildIndent(xmlText, "border");
+    const wxString newBlock = PrintNodeIndented(borderNode, baseIndent, nl);
+    const wxString attrNeedle = wxString::Format("id=\"%d\"", id);
+
+    wxString oldText = xmlText;
+    if (!ReplaceOrInsertChildSimple(xmlText, "border", attrNeedle, newBlock, true)) {
+        wxMessageBox("Invalid borders.xml file: missing '</materials>'", "Error", wxICON_ERROR);
+        return;
+    }
+
+    if (xmlText != oldText && !WriteAllText(bordersFile, xmlText)) {
         wxMessageBox("Failed to save changes to borders.xml", "Error", wxICON_ERROR);
         return;
     }
@@ -5077,22 +5275,41 @@ void BorderEditorPanel::SaveGroundBrush() {
         }
     }
     
-    // Save the file
-    if (doc.save_file(nstr(groundsFile).c_str())) {
-        DiscardDraft(1, mainTileId);
-
-        TriggerReloadDataFiles();
-        ReloadCurrentBrushEditorXml(wxString::Format("%u", (unsigned)mainTileId));
-
-        wxMessageBox(
-            wxString::Format("Ground brush '%s' saved successfully.", name),
-            "Success",
-            wxOK | wxICON_INFORMATION | wxSTAY_ON_TOP,
-            this
-        );
-    } else {
-        wxMessageBox("Failed to save ground brush file.", "Error", wxOK | wxICON_ERROR);
+    wxString xmlText;
+    if (wxFileExists(groundsFile)) {
+        ReadAllText(groundsFile, xmlText);
     }
+    if (xmlText.IsEmpty()) {
+        xmlText = "<materials>\n</materials>\n";
+    }
+
+    const wxString nl = DetectNewline(xmlText);
+    const wxString baseIndent = DetectChildIndent(xmlText, "brush");
+    const wxString newBlock = PrintNodeIndented(brushNode, baseIndent, nl);
+    const wxString attrNeedle = "name=\"" + name + "\"";
+
+    wxString oldText = xmlText;
+    if (!ReplaceOrInsertChildSimple(xmlText, "brush", attrNeedle, newBlock, false)) {
+        wxMessageBox("Invalid grounds.xml file: missing '</materials>'", "Error", wxOK | wxICON_ERROR);
+        return;
+    }
+
+    if (xmlText != oldText && !WriteAllText(groundsFile, xmlText)) {
+        wxMessageBox("Failed to save ground brush file.", "Error", wxOK | wxICON_ERROR);
+        return;
+    }
+
+    DiscardDraft(1, mainTileId);
+
+    TriggerReloadDataFiles();
+    ReloadCurrentBrushEditorXml(wxString::Format("%u", (unsigned)mainTileId));
+
+    wxMessageBox(
+        wxString::Format("Ground brush '%s' saved successfully.", name),
+        "Success",
+        wxOK | wxICON_INFORMATION | wxSTAY_ON_TOP,
+        this
+    );
 }
 
 void BorderEditorPanel::LoadBorderByMainTileId(uint16_t tileId) {
