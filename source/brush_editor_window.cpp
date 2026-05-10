@@ -354,6 +354,188 @@ BorderEditorPanel::~BorderEditorPanel() {
     // Nothing to destroy manually
 }
 
+void BorderEditorPanel::SaveDraft(int tab, uint16_t tileId, bool markDirty) {
+    if (m_isRestoringDraft) {
+        return;
+    }
+    if (tileId == 0) {
+        return;
+    }
+
+    switch (tab) {
+        case 0: {
+            BorderDraftState& d = m_borderDrafts[tileId];
+            d.currentBorderId = m_currentBorderId;
+            d.name = m_nameCtrl ? m_nameCtrl->GetValue() : wxString();
+            d.group = m_groupCheck ? m_groupCheck->GetValue() : false;
+            d.optional = m_isOptionalCheck ? m_isOptionalCheck->GetValue() : false;
+            d.ground = m_isGroundCheck ? m_isGroundCheck->GetValue() : false;
+            d.items = m_borderItems;
+            d.dirty = d.dirty || markDirty;
+            break;
+        }
+        case 1: {
+            GroundDraftState& d = m_groundDrafts[tileId];
+            d.name = m_groundNameCtrl ? m_groundNameCtrl->GetValue() : wxString();
+            d.serverLookId = m_serverLookIdCtrl ? m_serverLookIdCtrl->GetValue() : 0;
+            d.zOrder = m_zOrderCtrl ? m_zOrderCtrl->GetValue() : 0;
+            d.borderAlignmentSelection = m_borderAlignmentSelection;
+            d.includeToNone = m_includeToNoneCheck ? m_includeToNoneCheck->GetValue() : true;
+            d.includeInner = m_includeInnerCheck ? m_includeInnerCheck->GetValue() : false;
+            d.items = m_groundGridContainer ? m_groundGridContainer->GetAllItemsWithChance() : std::vector<std::pair<uint16_t, int>>();
+            d.dirty = d.dirty || markDirty;
+            break;
+        }
+        case 2: {
+            WallDraftState& d = m_wallDrafts[tileId];
+            d.name = m_wallNameCtrl ? m_wallNameCtrl->GetValue() : wxString();
+            d.serverLookId = m_wallServerLookIdCtrl ? m_wallServerLookIdCtrl->GetValue() : 0;
+            d.wallTypes = m_wallTypes;
+            d.selectedType = m_wallGridPanel ? m_wallGridPanel->GetSelectedType() : std::string();
+            d.dirty = d.dirty || markDirty;
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+bool BorderEditorPanel::RestoreDraft(int tab, uint16_t tileId) {
+    if (tileId == 0) {
+        return false;
+    }
+
+    if (tab == 0) {
+        auto it = m_borderDrafts.find(tileId);
+        if (it == m_borderDrafts.end()) return false;
+
+        m_isRestoringDraft = true;
+        ClearItems(false);
+
+        const BorderDraftState& d = it->second;
+        m_currentBorderId = d.currentBorderId;
+        if (m_nameCtrl) m_nameCtrl->SetValue(d.name);
+        if (m_groupCheck) m_groupCheck->SetValue(d.group);
+        if (m_isOptionalCheck) m_isOptionalCheck->SetValue(d.optional);
+        if (m_isGroundCheck) m_isGroundCheck->SetValue(d.ground);
+
+        m_borderItems = d.items;
+        if (m_gridPanel) {
+            for (const BorderItem& item : m_borderItems) {
+                m_gridPanel->SetItemId(item.position, item.itemId);
+            }
+        }
+        UpdatePreview();
+        m_isRestoringDraft = false;
+        return true;
+    }
+
+    if (tab == 1) {
+        auto it = m_groundDrafts.find(tileId);
+        if (it == m_groundDrafts.end()) return false;
+
+        m_isRestoringDraft = true;
+        ClearGroundItems(false);
+
+        const GroundDraftState& d = it->second;
+        if (m_groundNameCtrl) m_groundNameCtrl->SetValue(d.name);
+        if (m_serverLookIdCtrl) m_serverLookIdCtrl->SetValue(d.serverLookId);
+        if (m_zOrderCtrl) m_zOrderCtrl->SetValue(d.zOrder);
+        m_borderAlignmentSelection = d.borderAlignmentSelection;
+        if (m_borderAlignmentButton) {
+            m_borderAlignmentButton->SetLabel((m_borderAlignmentSelection == 1 ? "Inner" : "Outer") + wxString(" \u25BC"));
+        }
+        if (m_includeToNoneCheck) m_includeToNoneCheck->SetValue(d.includeToNone);
+        if (m_includeInnerCheck) m_includeInnerCheck->SetValue(d.includeInner);
+
+        if (m_groundGridContainer) {
+            m_groundGridContainer->Clear();
+            for (const auto& item : d.items) {
+                if (item.first > 0) {
+                    m_groundGridContainer->AddItem(item.first, item.second, true);
+                }
+            }
+        }
+        if (m_groundPreviewPanel && m_groundGridContainer) {
+            m_groundPreviewPanel->UpdateFromContainer(m_groundGridContainer);
+        }
+
+        m_isRestoringDraft = false;
+        return true;
+    }
+
+    if (tab == 2) {
+        auto it = m_wallDrafts.find(tileId);
+        if (it == m_wallDrafts.end()) return false;
+
+        m_isRestoringDraft = true;
+        ClearWallItems(false);
+
+        const WallDraftState& d = it->second;
+        if (m_wallNameCtrl) m_wallNameCtrl->SetValue(d.name);
+        if (m_wallServerLookIdCtrl) m_wallServerLookIdCtrl->SetValue(d.serverLookId);
+
+        m_wallTypes = d.wallTypes;
+        if (m_wallGridPanel) {
+            m_wallGridPanel->SetWallTypes(m_wallTypes);
+            m_wallGridPanel->SetSelectedType(d.selectedType.empty() ? std::string("vertical") : d.selectedType);
+        }
+        if (m_wallVisualPanel) {
+            m_wallVisualPanel->SetWallItems(m_wallTypes);
+        }
+        UpdateWallItemsList();
+
+        m_isRestoringDraft = false;
+        return true;
+    }
+
+    return false;
+}
+
+void BorderEditorPanel::DiscardDraft(int tab, uint16_t tileId) {
+    if (tileId == 0) {
+        return;
+    }
+
+    switch (tab) {
+        case 0: m_borderDrafts.erase(tileId); break;
+        case 1: m_groundDrafts.erase(tileId); break;
+        case 2: m_wallDrafts.erase(tileId); break;
+        default: break;
+    }
+}
+
+void BorderEditorPanel::SaveCurrentDraft(bool markDirty) {
+    if (m_selectedBrowserTileId == 0) {
+        return;
+    }
+
+    SaveDraft(m_activeTab, m_selectedBrowserTileId, markDirty);
+}
+
+void BorderEditorPanel::DiscardCurrentDraft() {
+    if (m_selectedBrowserTileId == 0) {
+        return;
+    }
+
+    DiscardDraft(m_activeTab, m_selectedBrowserTileId);
+}
+
+void BorderEditorPanel::OnBorderDraftChange(wxCommandEvent& event) {
+    SaveCurrentDraft(true);
+    event.Skip();
+}
+
+void BorderEditorPanel::OnGroundDraftChange(wxCommandEvent& event) {
+    SaveCurrentDraft(true);
+    event.Skip();
+}
+
+void BorderEditorPanel::OnWallDraftChange(wxCommandEvent& event) {
+    SaveCurrentDraft(true);
+    event.Skip();
+}
+
 void BorderEditorPanel::CreateGUIControls() {
     wxBoxSizer* topSizer = new wxBoxSizer(wxVERTICAL);
     
@@ -372,19 +554,23 @@ void BorderEditorPanel::CreateGUIControls() {
     toolbarSizer->Add(new wxStaticText(m_borderPanel, wxID_ANY, "Name:"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5);
     m_nameCtrl = new wxTextCtrl(m_borderPanel, wxID_ANY);
     m_nameCtrl->SetToolTip("Descriptive name for the border/brush");
+    m_nameCtrl->Bind(wxEVT_TEXT, &BorderEditorPanel::OnBorderDraftChange, this);
     toolbarSizer->Add(m_nameCtrl, 1, wxEXPAND | wxRIGHT, 15);
     
     // Checkboxes (Right side of toolbar)
     m_groupCheck = new wxCheckBox(m_borderPanel, wxID_ANY, "Group");
     m_groupCheck->SetToolTip("Check to assign this border to a group");
+    m_groupCheck->Bind(wxEVT_CHECKBOX, &BorderEditorPanel::OnBorderDraftChange, this);
     toolbarSizer->Add(m_groupCheck, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 15);
     
     m_isOptionalCheck = new wxCheckBox(m_borderPanel, wxID_ANY, "Optional");
     m_isOptionalCheck->SetToolTip("Marks this border as optional");
+    m_isOptionalCheck->Bind(wxEVT_CHECKBOX, &BorderEditorPanel::OnBorderDraftChange, this);
     toolbarSizer->Add(m_isOptionalCheck, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 15);
     
     m_isGroundCheck = new wxCheckBox(m_borderPanel, wxID_ANY, "Ground");
     m_isGroundCheck->SetToolTip("Marks this border as a ground border");
+    m_isGroundCheck->Bind(wxEVT_CHECKBOX, &BorderEditorPanel::OnBorderDraftChange, this);
     toolbarSizer->Add(m_isGroundCheck, 0, wxALIGN_CENTER_VERTICAL);
     
     borderSizer->Add(toolbarSizer, 0, wxEXPAND | wxALL, 5);
@@ -471,12 +657,14 @@ void BorderEditorPanel::CreateGUIControls() {
     wxBoxSizer* row1 = new wxBoxSizer(wxHORIZONTAL);
     row1->Add(new wxStaticText(m_groundPanel, wxID_ANY, "Name:"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5);
     m_groundNameCtrl = new wxTextCtrl(m_groundPanel, wxID_ANY, "");
+    m_groundNameCtrl->Bind(wxEVT_TEXT, &BorderEditorPanel::OnGroundDraftChange, this);
     row1->Add(m_groundNameCtrl, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, 15);
 
     row1->Add(new wxStaticText(m_groundPanel, wxID_ANY, "ID:"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5);
     m_serverLookIdCtrl = new wxSpinCtrl(m_groundPanel, wxID_ANY, "", wxDefaultPosition, wxSize(80, -1));
     m_serverLookIdCtrl->SetRange(0, 99999);
     m_serverLookIdCtrl->SetToolTip("Server-side item ID");
+    m_serverLookIdCtrl->Bind(wxEVT_SPINCTRL, &BorderEditorPanel::OnGroundDraftChange, this);
     row1->Add(m_serverLookIdCtrl, 0, wxALIGN_CENTER_VERTICAL);
     groundLeftSizer->Add(row1, 0, wxEXPAND | wxBOTTOM, 5);
 
@@ -484,6 +672,7 @@ void BorderEditorPanel::CreateGUIControls() {
     row2->Add(new wxStaticText(m_groundPanel, wxID_ANY, "Z-Order:"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5);
     m_zOrderCtrl = new wxSpinCtrl(m_groundPanel, wxID_ANY, "0", wxDefaultPosition, wxSize(60, -1));
     m_zOrderCtrl->SetRange(-100, 100);
+    m_zOrderCtrl->Bind(wxEVT_SPINCTRL, &BorderEditorPanel::OnGroundDraftChange, this);
     row2->Add(m_zOrderCtrl, 0);
     groundLeftSizer->Add(row2, 0, wxEXPAND | wxBOTTOM, 5);
     
@@ -562,9 +751,11 @@ void BorderEditorPanel::CreateGUIControls() {
     
     m_includeToNoneCheck = new wxCheckBox(borderOptionsBoxSizer->GetStaticBox(), wxID_ANY, "To None");
     m_includeToNoneCheck->SetValue(true);
+    m_includeToNoneCheck->Bind(wxEVT_CHECKBOX, &BorderEditorPanel::OnGroundDraftChange, this);
     borderOptionsRow->Add(m_includeToNoneCheck, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
     
     m_includeInnerCheck = new wxCheckBox(borderOptionsBoxSizer->GetStaticBox(), wxID_ANY, "Inner Border");
+    m_includeInnerCheck->Bind(wxEVT_CHECKBOX, &BorderEditorPanel::OnGroundDraftChange, this);
     borderOptionsRow->Add(m_includeInnerCheck, 0, wxALIGN_CENTER_VERTICAL);
     
     borderOptionsBoxSizer->Add(borderOptionsRow, 0, wxEXPAND | wxALL, 5);
@@ -604,6 +795,7 @@ void BorderEditorPanel::CreateGUIControls() {
     // Name Field (Expand)
     wallHeaderSizer->Add(new wxStaticText(m_wallPanel, wxID_ANY, "Name:"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5);
     m_wallNameCtrl = new wxTextCtrl(m_wallPanel, wxID_ANY);
+    m_wallNameCtrl->Bind(wxEVT_TEXT, &BorderEditorPanel::OnWallDraftChange, this);
     wallHeaderSizer->Add(m_wallNameCtrl, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, 15);
     
     // wallHeaderSizer->AddStretchSpacer(1); // Spacer usage adjustments if needed, but 1 expand on Name is good.
@@ -612,6 +804,7 @@ void BorderEditorPanel::CreateGUIControls() {
     wallHeaderSizer->Add(new wxStaticText(m_wallPanel, wxID_ANY, "ID:"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5);
     m_wallServerLookIdCtrl = new wxSpinCtrl(m_wallPanel, wxID_ANY, "0", wxDefaultPosition, wxSize(70, -1), wxSP_ARROW_KEYS, 0, 65535);
     m_wallServerLookIdCtrl->SetToolTip("Server-side item ID");
+    m_wallServerLookIdCtrl->Bind(wxEVT_SPINCTRL, &BorderEditorPanel::OnWallDraftChange, this);
     wallHeaderSizer->Add(m_wallServerLookIdCtrl, 0, wxALIGN_CENTER_VERTICAL);
     
     wallSizer->Add(wallHeaderSizer, 0, wxEXPAND | wxALL, 5);
@@ -708,6 +901,7 @@ void BorderEditorPanel::CreateGUIControls() {
     wxButton* wallNewButton = new wxButton(m_wallPanel, wxID_ANY, "New Wall");
     wallNewButton->SetToolTip("Start creating a new wall brush (clears current form)");
     wallNewButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent& ev) { 
+        DiscardCurrentDraft();
         ClearWallItems();
         m_nameCtrl->SetValue("");
         if (m_wallServerLookIdCtrl) m_wallServerLookIdCtrl->SetValue(0);
@@ -947,6 +1141,7 @@ void BorderEditorPanel::OnBorderAlignmentMenuSelect(wxCommandEvent& event) {
         m_borderAlignmentButton->SetLabel((id == 0 ? "Outer" : "Inner") + wxString(" \u25BC"));
     }
 
+    SaveCurrentDraft(true);
     FilterBrowserList(m_browserSearchCtrl ? m_browserSearchCtrl->GetValue() : wxString());
 }
 
@@ -964,6 +1159,8 @@ void BorderEditorPanel::OnWallPaletteSelect(wxCommandEvent& event) {
 void BorderEditorPanel::OnWallGridSelect(wxCommandEvent& event) {
     std::string type = event.GetString().ToStdString();
     if (type.empty()) return;
+
+    bool changed = false;
 
     // Select the type
     m_wallGridPanel->SetSelectedType(type);
@@ -984,6 +1181,7 @@ void BorderEditorPanel::OnWallGridSelect(wxCommandEvent& event) {
         
         if (!exists) {
             data.items.push_back(GroundItem(m_currentWallItemId, 10)); // Default chance
+            changed = true;
             
             // Refresh previews
             m_wallVisualPanel->SetWallItems(m_wallTypes);
@@ -992,6 +1190,7 @@ void BorderEditorPanel::OnWallGridSelect(wxCommandEvent& event) {
     }
     
     UpdateWallItemsList(); // Keeps internal logic sync if needed (pointer null checked inside)
+    SaveCurrentDraft(changed);
 }
 
 
@@ -1279,6 +1478,8 @@ void BorderEditorPanel::SaveWallBrush() {
     
     // Save
     if (doc.save_file(nstr(wallsFile).c_str())) {
+        DiscardDraft(2, m_selectedBrowserTileId);
+
         TriggerReloadDataFiles();
         ReloadCurrentBrushEditorXml(name);
 
@@ -1323,6 +1524,7 @@ void BorderEditorPanel::ClearWallItems(bool clearBrowser) {
 
     if (clearBrowser && m_borderBrowserList) {
         m_borderBrowserList->SetSelection(wxNOT_FOUND);
+        m_selectedBrowserTileId = 0;
     }
 }
 
@@ -1494,6 +1696,8 @@ void BorderEditorPanel::LoadBorderById(int borderId) {
 
 // Browser sidebar selection handler - dispatches based on active tab
 void BorderEditorPanel::OnBorderBrowserSelection(wxCommandEvent& event) {
+    SaveCurrentDraft(false);
+
     if (!m_borderBrowserList) return;
 
     int selection = m_borderBrowserList->GetSelection();
@@ -1517,6 +1721,8 @@ void BorderEditorPanel::OnBorderBrowserSelection(wxCommandEvent& event) {
 }
 
 void BorderEditorPanel::OnBrowserGridSelection(wxCommandEvent& event) {
+    SaveCurrentDraft(false);
+
     const wxString key = event.GetString();
     if (key.IsEmpty()) {
         return;
@@ -1653,6 +1859,7 @@ void BorderEditorPanel::OnPositionSelected(wxCommandEvent& event) {
         
         // Update the preview
         UpdatePreview();
+        SaveCurrentDraft(true);
         
         // Log the addition
         wxLogDebug("Added border item at position %s with item ID %d", 
@@ -1756,6 +1963,8 @@ void BorderEditorPanel::OnAddItem(wxCommandEvent& event) {
 }
 
 void BorderEditorPanel::OnClear(wxCommandEvent& event) {
+    DiscardCurrentDraft();
+
     if (m_activeTab == 0) {
         // Border tab
     ClearItems();
@@ -1780,6 +1989,7 @@ void BorderEditorPanel::ClearItems(bool clearBrowser) {
     // Deselect browser list
     if (clearBrowser && m_borderBrowserList) {
         m_borderBrowserList->SetSelection(wxNOT_FOUND);
+        m_selectedBrowserTileId = 0;
     }
 }
 
@@ -1945,6 +2155,8 @@ void BorderEditorPanel::SaveBorder() {
         wxMessageBox("Failed to save changes to borders.xml", "Error", wxICON_ERROR);
         return;
     }
+
+    DiscardDraft(0, m_selectedBrowserTileId);
 
     TriggerReloadDataFiles();
     ReloadCurrentBrushEditorXml(wxString::Format("%d", id));
@@ -2906,10 +3118,13 @@ void BorderEditorPanel::ClearGroundItems(bool clearBrowser) {
     // Deselect browser list
     if (clearBrowser && m_borderBrowserList) {
         m_borderBrowserList->SetSelection(wxNOT_FOUND);
+        m_selectedBrowserTileId = 0;
     }
 }
 
 void BorderEditorPanel::OnPageChanged(wxBookCtrlEvent& event) {
+    SaveCurrentDraft(false);
+
     m_activeTab = event.GetSelection();
 
     LoadTilesets();
@@ -2947,6 +3162,8 @@ void BorderEditorPanel::UpdateBrowserLabel() {
 }
 
 void BorderEditorPanel::OnModeSwitch(wxCommandEvent& event) {
+    SaveCurrentDraft(false);
+
     wxToggleButton* clickedBtn = dynamic_cast<wxToggleButton*>(event.GetEventObject());
     if (!clickedBtn) return;
     
@@ -4773,6 +4990,7 @@ void BorderEditorPanel::OnGroundPaletteSelect(wxCommandEvent& event) {
         if (m_groundPreviewPanel) {
             m_groundPreviewPanel->UpdateFromContainer(m_groundGridContainer);
         }
+        SaveCurrentDraft(true);
     }
 }
 
@@ -4780,6 +4998,7 @@ void BorderEditorPanel::OnGroundContainerChange(wxCommandEvent& event) {
     if (m_groundPreviewPanel && m_groundGridContainer) {
         m_groundPreviewPanel->UpdateFromContainer(m_groundGridContainer);
     }
+    SaveCurrentDraft(true);
 }
 
 void BorderEditorPanel::SaveGroundBrush() {
@@ -4916,6 +5135,8 @@ void BorderEditorPanel::SaveGroundBrush() {
     
     // Save the file
     if (doc.save_file(nstr(groundsFile).c_str())) {
+        DiscardDraft(1, m_selectedBrowserTileId);
+
         TriggerReloadDataFiles();
         ReloadCurrentBrushEditorXml(name);
 
@@ -4931,6 +5152,10 @@ void BorderEditorPanel::SaveGroundBrush() {
 }
 
 void BorderEditorPanel::LoadBorderByMainTileId(uint16_t tileId) {
+    if (RestoreDraft(0, tileId)) {
+        return;
+    }
+
     ClearItems(false);
     if (tileId == 0) {
         return;
@@ -4990,6 +5215,10 @@ void BorderEditorPanel::LoadBorderByMainTileId(uint16_t tileId) {
 }
 
 void BorderEditorPanel::LoadGroundBrushByMainTileId(uint16_t tileId) {
+    if (RestoreDraft(1, tileId)) {
+        return;
+    }
+
     ClearGroundItems(false);
     if (tileId == 0) {
         return;
@@ -5040,6 +5269,10 @@ void BorderEditorPanel::LoadGroundBrushByMainTileId(uint16_t tileId) {
 }
 
 void BorderEditorPanel::LoadWallBrushByMainTileId(uint16_t tileId) {
+    if (RestoreDraft(2, tileId)) {
+        return;
+    }
+
     ClearWallItems(false);
     if (tileId == 0) {
         return;

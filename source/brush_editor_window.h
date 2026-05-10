@@ -25,6 +25,8 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <unordered_map>
+#include <utility>
 #include <wx/treectrl.h>
 #include <wx/checklst.h>
 
@@ -290,6 +292,50 @@ protected:
     void LoadWallBrushByMainTileId(uint16_t tileId);
 
 private:
+    struct BorderDraftState {
+        bool dirty = false;
+        int currentBorderId = 0;
+        wxString name;
+        bool group = false;
+        bool optional = false;
+        bool ground = false;
+        std::vector<BorderItem> items;
+    };
+
+    struct GroundDraftState {
+        bool dirty = false;
+        wxString name;
+        int serverLookId = 0;
+        int zOrder = 0;
+        int borderAlignmentSelection = 0;
+        bool includeToNone = true;
+        bool includeInner = false;
+        std::vector<std::pair<uint16_t, int>> items;
+    };
+
+    struct WallDraftState {
+        bool dirty = false;
+        wxString name;
+        int serverLookId = 0;
+        std::map<std::string, WallTypeData> wallTypes;
+        std::string selectedType;
+    };
+
+    void SaveDraft(int tab, uint16_t tileId, bool markDirty);
+    bool RestoreDraft(int tab, uint16_t tileId);
+    void DiscardDraft(int tab, uint16_t tileId);
+    void SaveCurrentDraft(bool markDirty);
+    void DiscardCurrentDraft();
+
+    void OnBorderDraftChange(wxCommandEvent& event);
+    void OnGroundDraftChange(wxCommandEvent& event);
+    void OnWallDraftChange(wxCommandEvent& event);
+
+    bool m_isRestoringDraft = false;
+    std::unordered_map<uint16_t, BorderDraftState> m_borderDrafts;
+    std::unordered_map<uint16_t, GroundDraftState> m_groundDrafts;
+    std::unordered_map<uint16_t, WallDraftState> m_wallDrafts;
+
     // ===== State =====
     int m_maxBorderId;
     int m_nextBorderId;
