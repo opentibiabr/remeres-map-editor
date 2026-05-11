@@ -2195,7 +2195,7 @@ void BorderEditorPanel::OnPositionSelected(wxCommandEvent &event) {
 		*/
 		wxLogDebug("No valid item ID found from current brush: %s", currentBrush ? wxString(currentBrush->getName()).c_str() : wxT("NULL"));
 
-		wxMessageBox("Could not get a valid item ID from the current brush. Please select an item brush or use the Browse button to select an item manually.", "Invalid Brush", wxICON_INFORMATION);
+		ShowErrorDialog("Could not get a valid item ID from the current brush. Please select an item brush or use the Browse button to select an item manually.", ErrorSeverity::Info);
 		// }
 	}
 }
@@ -2203,7 +2203,7 @@ void BorderEditorPanel::OnPositionSelected(wxCommandEvent &event) {
 void BorderEditorPanel::OnAddItem(wxCommandEvent &event) {
 	// This function is now obsolete as manual add buttons and m_itemIdCtrl are removed.
 	// If it were to be used, it would need to get the item ID from the currently selected brush.
-	wxMessageBox("This 'Add Item' functionality is no longer available. Please select an item brush and click on the grid to add items.", "Information", wxICON_INFORMATION);
+	ShowErrorDialog("This 'Add Item' functionality is no longer available. Please select an item brush and click on the grid to add items.", ErrorSeverity::Info);
 	return;
 
 	/*
