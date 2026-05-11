@@ -3968,7 +3968,7 @@ void BorderEditorPanel::PopulateUnifiedList() {
 
 	if (wxFileExists(groundsFile)) {
 		pugi::xml_document doc;
-		if (doc.load_file(nstr(groundsFile).c_str())) {
+		if (LoadXmlWithCache(groundsFile, doc)) {
 			pugi::xml_node materials = doc.child("materials");
 			for (pugi::xml_node brushNode = materials.child("brush"); brushNode; brushNode = brushNode.next_sibling("brush")) {
 				pugi::xml_attribute typeAttr = brushNode.attribute("type");
@@ -4013,7 +4013,7 @@ void BorderEditorPanel::PopulateUnifiedList() {
 
 	if (wxFileExists(wallsFile)) {
 		pugi::xml_document doc;
-		if (doc.load_file(nstr(wallsFile).c_str())) {
+		if (LoadXmlWithCache(wallsFile, doc)) {
 			pugi::xml_node materials = doc.child("materials");
 			for (pugi::xml_node brushNode = materials.child("brush"); brushNode; brushNode = brushNode.next_sibling("brush")) {
 				pugi::xml_attribute nameAttr = brushNode.attribute("name");
