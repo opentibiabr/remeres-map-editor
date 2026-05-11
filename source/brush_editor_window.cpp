@@ -1766,6 +1766,7 @@ void BorderEditorPanel::SaveWallBrush() {
 		ShowErrorDialog("Failed to save wall brush file.", ErrorSeverity::Error);
 		return;
 	}
+	InvalidateXmlCache(wallsFile);
 
 	DiscardDraft(2, mainTileId);
 
@@ -5658,6 +5659,7 @@ void BorderEditorPanel::SaveGroundBrush() {
 		ShowErrorDialog("Failed to save ground brush file.", ErrorSeverity::Error);
 		return;
 	}
+	InvalidateXmlCache(groundsFile);
 
 	DiscardDraft(1, mainTileId);
 
