@@ -5482,13 +5482,13 @@ void BorderEditorPanel::SaveGroundBrush() {
 	// Validate input
 	wxString name = m_groundNameCtrl->GetValue().Trim();
 	if (name.IsEmpty()) {
-		wxMessageBox("Please enter a name for the ground brush.", "Validation Error", wxOK | wxICON_WARNING);
+		ShowErrorDialog("Please enter a name for the ground brush.", ErrorSeverity::Warning);
 		return;
 	}
 
 	std::vector<std::pair<uint16_t, int>> items = m_groundGridContainer ? m_groundGridContainer->GetAllItemsWithChance() : std::vector<std::pair<uint16_t, int>>();
 	if (items.empty()) {
-		wxMessageBox("Please add at least one item to the ground brush by clicking on tiles in the palette.", "Validation Error", wxOK | wxICON_WARNING);
+		ShowErrorDialog("Please add at least one item to the ground brush by clicking on tiles in the palette.", ErrorSeverity::Warning);
 		return;
 	}
 
@@ -5623,12 +5623,12 @@ void BorderEditorPanel::SaveGroundBrush() {
 
 	wxString oldText = xmlText;
 	if (!ReplaceOrInsertChildSimple(xmlText, "brush", attrNeedle, newBlock, false)) {
-		wxMessageBox("Invalid grounds.xml file: missing '</materials>'", "Error", wxOK | wxICON_ERROR);
+		ShowErrorDialog("Invalid grounds.xml file: missing '</materials>'", ErrorSeverity::Error);
 		return;
 	}
 
 	if (xmlText != oldText && !WriteAllText(groundsFile, xmlText)) {
-		wxMessageBox("Failed to save ground brush file.", "Error", wxOK | wxICON_ERROR);
+		ShowErrorDialog("Failed to save ground brush file.", ErrorSeverity::Error);
 		return;
 	}
 
@@ -5637,11 +5637,9 @@ void BorderEditorPanel::SaveGroundBrush() {
 	TriggerReloadDataFiles();
 	ReloadCurrentBrushEditorXml(wxString::Format("%u", (unsigned)mainTileId));
 
-	wxMessageBox(
+	ShowErrorDialog(
 		wxString::Format("Ground brush '%s' saved successfully.", name),
-		"Success",
-		wxOK | wxICON_INFORMATION | wxSTAY_ON_TOP,
-		this
+		ErrorSeverity::Info
 	);
 }
 
