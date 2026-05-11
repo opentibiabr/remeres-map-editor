@@ -151,20 +151,24 @@ void BorderEditorPanel::ShowErrorDialog(const wxString &message, ErrorSeverity s
 	long style;
 	switch (severity) {
 		case ErrorSeverity::Info:
-			style = wxOK | wxICON_INFORMATION;
+			style = wxOK | wxICON_INFORMATION | wxSTAY_ON_TOP;
 			break;
 		case ErrorSeverity::Warning:
-			style = wxOK | wxICON_WARNING;
+			style = wxOK | wxICON_WARNING | wxSTAY_ON_TOP;
 			break;
 		case ErrorSeverity::Error:
-			style = wxOK | wxICON_ERROR;
+			style = wxOK | wxICON_ERROR | wxSTAY_ON_TOP;
 			break;
 		case ErrorSeverity::Critical:
-			style = wxOK | wxICON_ERROR;
+			style = wxOK | wxICON_ERROR | wxSTAY_ON_TOP;
 			break;
 	}
 
-	wxMessageBox(message, "Brush Editor", style, this);
+	if (GetParent()) {
+		GetParent()->Raise();
+	}
+	wxSafeYield();
+	wxMessageBox(message, "Brush Editor", style, nullptr);
 }
 
 bool BorderEditorPanel::LoadXmlWithCache(const wxString &path, pugi::xml_document &doc) {
@@ -1772,11 +1776,6 @@ void BorderEditorPanel::SaveWallBrush() {
 
 	TriggerReloadDataFiles();
 	ReloadCurrentBrushEditorXml(wxString::Format("%u", (unsigned)mainTileId));
-
-	ShowErrorDialog(
-		wxString::Format("Wall brush '%s' saved successfully.", name),
-		ErrorSeverity::Info
-	);
 }
 
 void BorderEditorPanel::LoadExistingWallBrushes() {
@@ -2491,8 +2490,6 @@ void BorderEditorPanel::SaveBorder() {
 
 	TriggerReloadDataFiles();
 	ReloadCurrentBrushEditorXml(wxString::Format("%d", id));
-
-	ShowErrorDialog("Border saved successfully.", ErrorSeverity::Info);
 }
 
 void BorderEditorPanel::OnSave(wxCommandEvent &event) {
@@ -5664,11 +5661,6 @@ void BorderEditorPanel::SaveGroundBrush() {
 
 	TriggerReloadDataFiles();
 	ReloadCurrentBrushEditorXml(wxString::Format("%u", (unsigned)mainTileId));
-
-	ShowErrorDialog(
-		wxString::Format("Ground brush '%s' saved successfully.", name),
-		ErrorSeverity::Info
-	);
 }
 
 void BorderEditorPanel::LoadBorderByMainTileId(uint16_t tileId) {
