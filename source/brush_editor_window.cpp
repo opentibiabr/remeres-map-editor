@@ -3716,7 +3716,6 @@ void BorderEditorPanel::PopulateBorderList() {
 
 	{
 		pugi::xml_document doc;
-		pugi::xml_document doc;
 		if (!LoadXmlWithCache(bordersFile, doc)) {
 			return;
 		}
