@@ -4070,25 +4070,54 @@ static wxString FindTilesetByPreferredOrContains(const wxString &preferred, cons
 static std::vector<std::pair<wxString, wxString>> GetBrowserTilesetOptions() {
 	std::vector<std::pair<wxString, wxString>> options;
 
-	wxString mountains = FindTilesetByPreferredOrContains("Grounds - Mountains", { "mountain", "montain" });
-	if (!mountains.IsEmpty()) {
-		options.push_back({ "Mountains", mountains });
+	// Iterate over all tilesets and find those with terrain or doodad category
+	// that have at least one brush with variation, wall, or border support
+	for (const auto &pair : g_materials.tilesets) {
+		wxString tilesetName = wxString(pair.first);
+		Tileset* tileset = pair.second;
+		if (!tileset) {
+			continue;
+		}
+
+		bool hasValidBrush = false;
+
+		// Check terrain category
+		const TilesetCategory* terrainCat = tileset->getCategory(TILESET_TERRAIN);
+		if (terrainCat && !terrainCat->brushlist.empty()) {
+			for (Brush* brush : terrainCat->brushlist) {
+				if (!brush) {
+					continue;
+				}
+				if (brush->getMaxVariation() > 0 || brush->isWall() || brush->needBorders()) {
+					hasValidBrush = true;
+					break;
+				}
+			}
+		}
+
+		// Check doodad category
+		if (!hasValidBrush) {
+			const TilesetCategory* doodadCat = tileset->getCategory(TILESET_DOODAD);
+			if (doodadCat && !doodadCat->brushlist.empty()) {
+				for (Brush* brush : doodadCat->brushlist) {
+					if (!brush) {
+						continue;
+					}
+					if (brush->getMaxVariation() > 0 || brush->isWall() || brush->needBorders()) {
+						hasValidBrush = true;
+						break;
+					}
+				}
+			}
+		}
+
+		if (hasValidBrush) {
+			options.push_back({ tilesetName, tilesetName });
+		}
 	}
 
-	wxString nature = FindTilesetByPreferredOrContains("Grounds - Nature", { "nature" });
-	if (!nature.IsEmpty()) {
-		options.push_back({ "Nature", nature });
-	}
-
-	wxString ornamented = FindTilesetByPreferredOrContains("Grounds - Ornamented", { "ornament" });
-	if (!ornamented.IsEmpty()) {
-		options.push_back({ "Ornamented", ornamented });
-	}
-
-	wxString wall = FindTilesetByPreferredOrContains("Walls", { "wall" });
-	if (!wall.IsEmpty()) {
-		options.push_back({ "Wall", wall });
-	}
+	// Sort alphabetically
+	std::sort(options.begin(), options.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
 
 	return options;
 }
