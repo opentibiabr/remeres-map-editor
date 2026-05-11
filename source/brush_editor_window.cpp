@@ -4070,48 +4070,86 @@ static wxString FindTilesetByPreferredOrContains(const wxString &preferred, cons
 static std::vector<std::pair<wxString, wxString>> GetBrowserTilesetOptions() {
 	std::vector<std::pair<wxString, wxString>> options;
 
-	// Iterate over all tilesets and find those with terrain or doodad category
-	// that have at least one brush with variation, wall, or border support
-	for (const auto &pair : g_materials.tilesets) {
-		wxString tilesetName = wxString(pair.first);
-		Tileset* tileset = pair.second;
-		if (!tileset) {
-			continue;
-		}
+	// Load saved brushes from grounds.xml and walls.xml to check which tilesets have brushes
+	std::set<wxString> tilesetsWithSavedBrushes;
 
-		bool hasValidBrush = false;
+	wxString dataDir = g_gui.GetDataDirectory();
+	wxString groundsFile = dataDir + wxFileName::GetPathSeparator() + "materials" + wxFileName::GetPathSeparator() + "brushs" + wxFileName::GetPathSeparator() + "grounds.xml";
+	wxString wallsFile = dataDir + wxFileName::GetPathSeparator() + "materials" + wxFileName::GetPathSeparator() + "brushs" + wxFileName::GetPathSeparator() + "walls.xml";
 
-		// Check terrain category
-		const TilesetCategory* terrainCat = tileset->getCategory(TILESET_TERRAIN);
-		if (terrainCat && !terrainCat->brushlist.empty()) {
-			for (Brush* brush : terrainCat->brushlist) {
-				if (!brush) {
+	// Check grounds.xml
+	if (wxFileExists(groundsFile)) {
+		pugi::xml_document doc;
+		if (doc.load_file(nstr(groundsFile).c_str())) {
+			pugi::xml_node materials = doc.child("materials");
+			for (pugi::xml_node brushNode = materials.child("brush"); brushNode; brushNode = brushNode.next_sibling("brush")) {
+				pugi::xml_attribute typeAttr = brushNode.attribute("type");
+				if (!typeAttr || std::string(typeAttr.as_string()) != "ground") {
 					continue;
 				}
-				if (brush->getMaxVariation() > 0 || brush->isWall() || brush->needBorders()) {
-					hasValidBrush = true;
-					break;
+
+				uint16_t tileId = 0;
+				if (pugi::xml_attribute a = brushNode.attribute("server_lookid")) {
+					tileId = a.as_uint();
+				} else if (pugi::xml_attribute a = brushNode.attribute("lookid")) {
+					tileId = a.as_uint();
+				} else if (pugi::xml_node itemNode = brushNode.child("item")) {
+					tileId = itemNode.attribute("id").as_uint();
+				}
+
+				if (tileId == 0) {
+					continue;
+				}
+
+				// Find which tileset this item belongs to
+				const ItemType &type = g_items.getItemType(tileId);
+				if (type.id != 0) {
+					for (const auto &pair : g_materials.tilesets) {
+						const std::string tsName = pair.first;
+						if (g_materials.isInTileset(type.brush, tsName) || g_materials.isInTileset(type.doodad_brush, tsName) || g_materials.isInTileset(type.raw_brush, tsName)) {
+							tilesetsWithSavedBrushes.insert(wxString(pair.first));
+							break;
+						}
+					}
 				}
 			}
 		}
+	}
 
-		// Check doodad category
-		if (!hasValidBrush) {
-			const TilesetCategory* doodadCat = tileset->getCategory(TILESET_DOODAD);
-			if (doodadCat && !doodadCat->brushlist.empty()) {
-				for (Brush* brush : doodadCat->brushlist) {
-					if (!brush) {
-						continue;
-					}
-					if (brush->getMaxVariation() > 0 || brush->isWall() || brush->needBorders()) {
-						hasValidBrush = true;
-						break;
+	// Check walls.xml
+	if (wxFileExists(wallsFile)) {
+		pugi::xml_document doc;
+		if (doc.load_file(nstr(wallsFile).c_str())) {
+			pugi::xml_node materials = doc.child("materials");
+			for (pugi::xml_node brushNode = materials.child("brush"); brushNode; brushNode = brushNode.next_sibling("brush")) {
+				uint16_t tileId = 0;
+				if (pugi::xml_attribute a = brushNode.attribute("server_lookid")) {
+					tileId = a.as_uint();
+				}
+
+				if (tileId == 0) {
+					continue;
+				}
+
+				// Find which tileset this item belongs to
+				const ItemType &type = g_items.getItemType(tileId);
+				if (type.id != 0) {
+					for (const auto &pair : g_materials.tilesets) {
+						const std::string tsName = pair.first;
+						if (g_materials.isInTileset(type.brush, tsName) || g_materials.isInTileset(type.doodad_brush, tsName) || g_materials.isInTileset(type.raw_brush, tsName)) {
+							tilesetsWithSavedBrushes.insert(wxString(pair.first));
+							break;
+						}
 					}
 				}
 			}
 		}
+	}
 
-		if (hasValidBrush) {
+	// Now filter tilesets to only show those that have saved brushes
+	for (const auto &pair : g_materials.tilesets) {
+		wxString tilesetName = wxString(pair.first);
+		if (tilesetsWithSavedBrushes.find(tilesetName) != tilesetsWithSavedBrushes.end()) {
 			options.push_back({ tilesetName, tilesetName });
 		}
 	}
