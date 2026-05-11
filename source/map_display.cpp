@@ -81,6 +81,8 @@ EVT_MENU(MAP_POPUP_MENU_COPY_NAME, MapCanvas::OnCopyName)
 EVT_MENU(MAP_POPUP_MENU_ROTATE, MapCanvas::OnRotateItem)
 EVT_MENU(MAP_POPUP_MENU_GOTO, MapCanvas::OnGotoDestination)
 EVT_MENU(MAP_POPUP_MENU_COPY_DESTINATION, MapCanvas::OnCopyDestination)
+EVT_MENU(MAP_POPUP_MENU_PASTE_DESTINATION, MapCanvas::OnPasteDestination)
+EVT_MENU(MAP_POPUP_MENU_SET_TELEPORT_LOCAL_POSITION, MapCanvas::OnSetTeleportLocalPosition)
 EVT_MENU(MAP_POPUP_MENU_SWITCH_DOOR, MapCanvas::OnSwitchDoor)
 // ----
 EVT_MENU(MAP_POPUP_MENU_SELECT_RAW_BRUSH, MapCanvas::OnSelectRAWBrush)
@@ -2120,6 +2122,110 @@ void MapCanvas::OnCopyDestination(wxCommandEvent &WXUNUSED(event)) {
 	}
 }
 
+void MapCanvas::OnSetTeleportLocalPosition(wxCommandEvent &WXUNUSED(event)) {
+	if (!editor.hasSelection()) {
+		return;
+	}
+
+	Tile* tile = editor.getSelection().getSelectedTile();
+	if (!tile) {
+		return;
+	}
+
+	ItemVector selected_items = tile->getSelectedItems();
+	if (selected_items.empty()) {
+		return;
+	}
+
+	Teleport* teleport = dynamic_cast<Teleport*>(selected_items.front());
+	if (!teleport) {
+		return;
+	}
+
+	const Position local_position = tile->getPosition();
+
+	Tile* new_tile = tile->deepCopy(editor.getMap());
+	if (!new_tile) {
+		return;
+	}
+
+	ItemVector new_selected_items = new_tile->getSelectedItems();
+	if (new_selected_items.empty()) {
+		delete new_tile;
+		return;
+	}
+
+	Teleport* new_teleport = dynamic_cast<Teleport*>(new_selected_items.front());
+	if (!new_teleport) {
+		delete new_tile;
+		return;
+	}
+
+	new_teleport->setDestination(local_position);
+
+	Action* action = editor.createAction(ACTION_CHANGE_PROPERTIES);
+	action->addChange(newd Change(new_tile));
+	editor.addAction(action);
+	editor.updateActions();
+	g_gui.RefreshView();
+}
+
+void MapCanvas::OnPasteDestination(wxCommandEvent &WXUNUSED(event)) {
+	if (!editor.hasSelection()) {
+		return;
+	}
+
+	Tile* tile = editor.getSelection().getSelectedTile();
+	if (!tile) {
+		return;
+	}
+
+	ItemVector selected_items = tile->getSelectedItems();
+	if (selected_items.empty()) {
+		return;
+	}
+
+	Teleport* teleport = dynamic_cast<Teleport*>(selected_items.front());
+	if (!teleport) {
+		return;
+	}
+
+	int x;
+	int y;
+	int z;
+	if (!posFromClipboard(x, y, z)) {
+		g_gui.PopupDialog("Paste Destination", "Clipboard does not contain a valid position.", wxOK);
+		return;
+	}
+
+	Position destination(x, y, z);
+
+	Tile* new_tile = tile->deepCopy(editor.getMap());
+	if (!new_tile) {
+		return;
+	}
+
+	ItemVector new_selected_items = new_tile->getSelectedItems();
+	if (new_selected_items.empty()) {
+		delete new_tile;
+		return;
+	}
+
+	Teleport* new_teleport = dynamic_cast<Teleport*>(new_selected_items.front());
+	if (!new_teleport) {
+		delete new_tile;
+		return;
+	}
+
+	new_teleport->setDestination(destination);
+
+	Action* action = editor.createAction(ACTION_CHANGE_PROPERTIES);
+	action->addChange(newd Change(new_tile));
+	editor.addAction(action);
+	editor.updateActions();
+	g_gui.RefreshView();
+}
+
 void MapCanvas::OnSwitchDoor(wxCommandEvent &WXUNUSED(event)) {
 	Tile* tile = editor.getSelection().getSelectedTile();
 
@@ -2562,14 +2668,21 @@ void MapPopupMenu::Update() {
 						Append(MAP_POPUP_MENU_ROTATE, "&Rotate item", "Rotate this item");
 					}
 
-					if (teleport) {
-						bool enabled = teleport->hasDestination();
-						wxMenuItem* goto_menu = Append(MAP_POPUP_MENU_GOTO, "&Go To Destination", "Go to the destination of this teleport");
-						goto_menu->Enable(enabled);
-						wxMenuItem* dest_menu = Append(MAP_POPUP_MENU_COPY_DESTINATION, "Copy &Destination", "Copy the destination of this teleport");
-						dest_menu->Enable(enabled);
-						AppendSeparator();
-					}
+				if (teleport) {
+					bool enabled = teleport->hasDestination();
+					wxMenuItem* goto_menu = Append(MAP_POPUP_MENU_GOTO, "&Go To Destination", "Go to the destination of this teleport");
+					goto_menu->Enable(enabled);
+					wxMenuItem* dest_menu = Append(MAP_POPUP_MENU_COPY_DESTINATION, "Copy &Destination", "Copy the destination of this teleport");
+					dest_menu->Enable(enabled);
+					int clipboard_x = 0;
+					int clipboard_y = 0;
+					int clipboard_z = 0;
+					bool clipboard_has_position = posFromClipboard(clipboard_x, clipboard_y, clipboard_z);
+					wxMenuItem* paste_menu = Append(MAP_POPUP_MENU_PASTE_DESTINATION, "Paste &Destination", "Paste the position into this teleport");
+					paste_menu->Enable(clipboard_has_position);
+					Append(MAP_POPUP_MENU_SET_TELEPORT_LOCAL_POSITION, "Set Local Position", "Use the teleport's position as its destination");
+					AppendSeparator();
+				}
 
 					if (topSelectedItem->isDoor()) {
 						if (topSelectedItem->isOpen()) {

@@ -1,6 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <monsters>
 <!-- Custom Mobs-->
+    <monster name="Events" looktype="3080" />
+    <monster name="Nyxflare Skin" looktype="3068" />
+    <monster name="Darkwing Skin" looktype="3069" />
+    <monster name="Pyroo Skin" looktype="3070" />
+    <monster name="Mochi Skin" looktype="3071" />
+    <monster name="Shyra Skin" looktype="3072" />
+    <monster name="Voltix Skin" looktype="3074" />
+    <monster name="Balu Skin" looktype="3077" />
+    <monster name="Taurus Skin" looktype="3078" />
+    <monster name="Bingo Skin" looktype="3079" />
+    <monster name="Astryx Skin" looktype="3073" />
+    <monster name="Familiar Skin" looktype="3073" />
+    <monster name="Goshnar's Megalomania" looktype="1308" />
     <monster name="Grimroot" looktype="3076" />
     <monster name="Dabura" looktype="3066" />
     <monster name="Future Trunks SS" looktype="3065" />
@@ -10,7 +23,6 @@
     <monster name="Super Buu" looktype="3062" />
     <monster name="Vegeta" looktype="3060" />
     <monster name="Beerus" looktype="3061" />
-
     <monster name="Bomb Trapper" looktype="3059" />
     <monster name="Bomb Guardian Statue" looktype="3058" />
     <monster name="Fangmirth Imp" looktype="3057" />

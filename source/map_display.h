@@ -76,6 +76,8 @@ public:
 	// ----
 	void OnGotoDestination(wxCommandEvent &event);
 	void OnCopyDestination(wxCommandEvent &event);
+	void OnPasteDestination(wxCommandEvent &event);
+	void OnSetTeleportLocalPosition(wxCommandEvent &event);
 	void OnRotateItem(wxCommandEvent &event);
 	void OnSwitchDoor(wxCommandEvent &event);
 	// ----

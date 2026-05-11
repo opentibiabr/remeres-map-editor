@@ -1,12 +1,20 @@
 <?xml version="1.0"?>
 <npcs>
 <!-- Custom NPCS -->
+	<npc name="Skillbinder Orlan" looktype="1642" lookhead="0" lookbody="33" looklegs="0" lookfeet="85" lookaddons="3" />
+	<npc name="Timba" looktype="268" lookhead="132" lookbody="113" looklegs="95" lookfeet="0" lookaddons="3" />
+	<npc name="Task Token" looktype="144" lookhead="76" lookbody="114" looklegs="114" lookfeet="77" lookaddons="3" />
+	<npc name="Grand Sanguine Evolver" looktype="1663" lookhead="114" lookbody="114" looklegs="114" lookfeet="144" lookaddons="3" />
+	<npc name="Daily Tasks" looktype="155" lookhead="78" lookbody="88" looklegs="98" lookfeet="114" lookaddons="0" />
+	<npc name="Chronos" looktype="433" lookhead="47" lookbody="78" looklegs="72" lookfeet="88" lookaddons="3" />
+    <npc name="Kaelis" looktype="141" lookhead="41" lookbody="72" looklegs="39" lookfeet="96" lookaddons="3" />
     <npc name="Rune Master" looktype="3075" lookhead="0" lookbody="0" looklegs="0" lookfeet="0" lookaddons="0" />
     <npc name="Teacher Rune Master" looktype="3075" lookhead="0" lookbody="0" looklegs="0" lookfeet="0" lookaddons="0" />
     <npc name="information Merchant" looktype="1292" lookhead="114" lookbody="114" looklegs="20" lookfeet="58" lookaddons="2" />
 	<npc name="Mount Master" looktype="128" lookhead="78" lookbody="114" looklegs="58" lookfeet="76" lookaddons="1" />
     <npc name="Master of the Renaissance" looktype="3000" lookhead="0" lookbody="0" looklegs="0" lookfeet="0" lookaddons="0" />
     <npc name="Phoenix Imbuiment" looktype="1331" lookhead="114" lookbody="94" looklegs="94" lookfeet="114" lookaddons="3" />
+    <npc name="Imbuement Assistant" looktype="141" lookhead="41" lookbody="72" looklegs="39" lookfeet="96" lookaddons="3" />
     <npc name="Addoner" looktype="130" lookhead="115" lookbody="39" looklegs="96" lookfeet="118" lookaddons="3" />
 
 <!-- Original Mobs-->   
@@ -498,7 +506,6 @@
 	<npc name="Hyacinth" looktype="130" lookitem="0" lookaddon="0" lookhead="11" lookbody="123" looklegs="123" lookfeet="94" />
 	<npc name="Ikassis" looktype="28" lookitem="0" lookaddon="0" lookhead="0" lookbody="0" looklegs="0" lookfeet="0" />
 	<npc name="Imalas" looktype="128" lookitem="0" lookaddon="0" lookhead="115" lookbody="9" looklegs="39" lookfeet="114" />
-	<npc name="Imbuement Assistant" looktype="141" lookitem="0" lookaddon="0" lookhead="41" lookbody="72" looklegs="39" lookfeet="96" />
 	<npc name="Imbul" looktype="128" lookitem="0" lookaddon="0" lookhead="95" lookbody="2" looklegs="63" lookfeet="115" />
 	<npc name="Inigo" looktype="472" lookitem="0" lookaddon="0" lookhead="59" lookbody="114" looklegs="0" lookfeet="94" />
 	<npc name="Inkaef" looktype="146" lookitem="0" lookaddon="0" lookhead="114" lookbody="86" looklegs="0" lookfeet="86" />
