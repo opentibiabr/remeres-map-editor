@@ -2453,7 +2453,7 @@ void BorderEditorPanel::SaveBorder() {
 
 	wxString oldText = xmlText;
 	if (!ReplaceOrInsertChildSimple(xmlText, "border", attrNeedle, newBlock, true)) {
-		wxMessageBox("Invalid borders.xml file: missing '</materials>'", "Error", wxICON_ERROR);
+		ShowErrorDialog("Invalid borders.xml file: missing '</materials>'", ErrorSeverity::Error);
 		return;
 	}
 
@@ -2467,7 +2467,7 @@ void BorderEditorPanel::SaveBorder() {
 	TriggerReloadDataFiles();
 	ReloadCurrentBrushEditorXml(wxString::Format("%d", id));
 
-	wxMessageBox("Border saved successfully.", "Success", wxOK | wxICON_INFORMATION | wxSTAY_ON_TOP, this);
+	ShowErrorDialog("Border saved successfully.", ErrorSeverity::Info);
 }
 
 void BorderEditorPanel::OnSave(wxCommandEvent &event) {
