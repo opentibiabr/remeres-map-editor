@@ -465,6 +465,15 @@ private:
 	void LogError(const wxString &message, ErrorSeverity severity);
 	void ShowErrorDialog(const wxString &message, ErrorSeverity severity);
 
+	// XML Cache
+	struct XmlCacheEntry {
+		pugi::xml_document doc;
+		wxDateTime lastModified;
+	};
+	std::unordered_map<wxString, XmlCacheEntry> m_xmlCache;
+	bool LoadXmlWithCache(const wxString &path, pugi::xml_document &doc);
+	void InvalidateXmlCache(const wxString &path);
+
 	// BrushPalettePanel* m_groundPalette;  // Removed duplicate
 
 	// ===== Wall Tab =====
