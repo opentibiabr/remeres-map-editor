@@ -2355,7 +2355,7 @@ void BorderEditorPanel::SaveBorder() {
 	wxString bordersFile = dataDir + wxFileName::GetPathSeparator() + "materials" + wxFileName::GetPathSeparator() + "borders" + wxFileName::GetPathSeparator() + "borders.xml";
 
 	if (!wxFileExists(bordersFile)) {
-		wxMessageBox("Cannot find borders.xml file in the data directory.", "Error", wxICON_ERROR);
+		ShowErrorDialog("Cannot find borders.xml file in the data directory.", ErrorSeverity::Error);
 		return;
 	}
 
@@ -2364,13 +2364,13 @@ void BorderEditorPanel::SaveBorder() {
 	pugi::xml_parse_result result = doc.load_file(nstr(bordersFile).c_str());
 
 	if (!result) {
-		wxMessageBox("Failed to load borders.xml: " + wxString(result.description()), "Error", wxICON_ERROR);
+		ShowErrorDialog("Failed to load borders.xml: " + wxString(result.description()), ErrorSeverity::Error);
 		return;
 	}
 
 	pugi::xml_node materials = doc.child("materials");
 	if (!materials) {
-		wxMessageBox("Invalid borders.xml file: missing 'materials' node", "Error", wxICON_ERROR);
+		ShowErrorDialog("Invalid borders.xml file: missing 'materials' node", ErrorSeverity::Error);
 		return;
 	}
 
@@ -2439,7 +2439,7 @@ void BorderEditorPanel::SaveBorder() {
 
 	wxString xmlText;
 	if (!ReadAllText(bordersFile, xmlText) || xmlText.IsEmpty()) {
-		wxMessageBox("Failed to read borders.xml", "Error", wxICON_ERROR);
+		ShowErrorDialog("Failed to read borders.xml", ErrorSeverity::Error);
 		return;
 	}
 
@@ -2455,7 +2455,7 @@ void BorderEditorPanel::SaveBorder() {
 	}
 
 	if (xmlText != oldText && !WriteAllText(bordersFile, xmlText)) {
-		wxMessageBox("Failed to save changes to borders.xml", "Error", wxICON_ERROR);
+		ShowErrorDialog("Failed to save changes to borders.xml", ErrorSeverity::Error);
 		return;
 	}
 
