@@ -2302,7 +2302,7 @@ void BorderEditorPanel::UpdatePreview() {
 
 bool BorderEditorPanel::ValidateBorder() {
 	if (m_borderItems.empty()) {
-		wxMessageBox("The border must have at least one item.", "Validation Error", wxICON_ERROR);
+		ShowErrorDialog("The border must have at least one item.", ErrorSeverity::Error);
 		return false;
 	}
 
@@ -2310,7 +2310,7 @@ bool BorderEditorPanel::ValidateBorder() {
 	std::set<BorderEdgePosition> positions;
 	for (const BorderItem &item : m_borderItems) {
 		if (positions.find(item.position) != positions.end()) {
-			wxMessageBox("The border contains duplicate positions.", "Validation Error", wxICON_ERROR);
+			ShowErrorDialog("The border contains duplicate positions.", ErrorSeverity::Error);
 			return false;
 		}
 		positions.insert(item.position);
@@ -2319,7 +2319,7 @@ bool BorderEditorPanel::ValidateBorder() {
 	// Check for ID validity (using m_currentBorderId)
 	int id = m_currentBorderId; // Use m_currentBorderId
 	if (id <= 0) {
-		wxMessageBox("Border ID must be greater than 0.", "Validation Error", wxICON_ERROR);
+		ShowErrorDialog("Border ID must be greater than 0.", ErrorSeverity::Error);
 		return false;
 	}
 
