@@ -167,6 +167,32 @@ void BorderEditorPanel::ShowErrorDialog(const wxString &message, ErrorSeverity s
 	wxMessageBox(message, "Brush Editor", style, this);
 }
 
+bool BorderEditorPanel::LoadXmlWithCache(const wxString &path, pugi::xml_document &doc) {
+	wxFileName fn(path);
+	wxDateTime lastModified = fn.GetModificationTime();
+
+	auto it = m_xmlCache.find(path);
+	if (it != m_xmlCache.end() && it->second.lastModified == lastModified) {
+		doc.reset(it->second.doc);
+		return true;
+	}
+
+	pugi::xml_parse_result result = doc.load_file(nstr(path).c_str());
+	if (!result) {
+		return false;
+	}
+
+	XmlCacheEntry entry;
+	entry.doc.reset(doc);
+	entry.lastModified = lastModified;
+	m_xmlCache[path] = std::move(entry);
+	return true;
+}
+
+void BorderEditorPanel::InvalidateXmlCache(const wxString &path) {
+	m_xmlCache.erase(path);
+}
+
 static wxString DetectNewline(const wxString &text) {
 	return (text.Find("\r\n") != wxNOT_FOUND) ? "\r\n" : "\n";
 }
