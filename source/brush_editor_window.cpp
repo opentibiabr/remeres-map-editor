@@ -1635,7 +1635,7 @@ void BorderEditorPanel::SaveWallBrush() {
 	wxString name = m_groundNameCtrl ? m_groundNameCtrl->GetValue().Trim() : wxString();
 
 	if (name.IsEmpty()) {
-		wxMessageBox("Please enter a name for the wall brush.", "Error", wxICON_ERROR);
+		ShowErrorDialog("Please enter a name for the wall brush.", ErrorSeverity::Warning);
 		return;
 	}
 
@@ -1732,12 +1732,12 @@ void BorderEditorPanel::SaveWallBrush() {
 
 	wxString oldText = xmlText;
 	if (!ReplaceOrInsertChildSimple(xmlText, "brush", attrNeedle, newBlock, false)) {
-		wxMessageBox("Invalid walls.xml file: missing '</materials>'", "Error", wxICON_ERROR);
+		ShowErrorDialog("Invalid walls.xml file: missing '</materials>'", ErrorSeverity::Error);
 		return;
 	}
 
 	if (xmlText != oldText && !WriteAllText(wallsFile, xmlText)) {
-		wxMessageBox("Failed to save walls.xml", "Error", wxICON_ERROR);
+		ShowErrorDialog("Failed to save wall brush file.", ErrorSeverity::Error);
 		return;
 	}
 
@@ -1746,7 +1746,10 @@ void BorderEditorPanel::SaveWallBrush() {
 	TriggerReloadDataFiles();
 	ReloadCurrentBrushEditorXml(wxString::Format("%u", (unsigned)mainTileId));
 
-	wxMessageBox("Wall brush saved successfully.", "Success", wxOK | wxICON_INFORMATION | wxSTAY_ON_TOP, this);
+	ShowErrorDialog(
+		wxString::Format("Wall brush '%s' saved successfully.", name),
+		ErrorSeverity::Info
+	);
 }
 
 void BorderEditorPanel::LoadExistingWallBrushes() {
