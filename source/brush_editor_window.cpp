@@ -1593,7 +1593,7 @@ void BorderEditorPanel::LoadWallBrushByName(const wxString &name) {
 
 	// Load XML
 	pugi::xml_document doc;
-	if (!doc.load_file(nstr(wallsFile).c_str())) {
+	if (!LoadXmlWithCache(wallsFile, doc)) {
 		return;
 	}
 
@@ -1901,8 +1901,7 @@ void BorderEditorPanel::LoadExistingBorders() {
 
 	// Load XML
 	pugi::xml_document doc;
-	pugi::xml_parse_result result = doc.load_file(nstr(bordersFile).c_str());
-	if (!result) {
+	if (!LoadXmlWithCache(bordersFile, doc)) {
 		return;
 	}
 
@@ -2390,10 +2389,8 @@ void BorderEditorPanel::SaveBorder() {
 
 	// Load the XML file
 	pugi::xml_document doc;
-	pugi::xml_parse_result result = doc.load_file(nstr(bordersFile).c_str());
-
-	if (!result) {
-		ShowErrorDialog("Failed to load borders.xml: " + wxString(result.description()), ErrorSeverity::Error);
+	if (!LoadXmlWithCache(bordersFile, doc)) {
+		ShowErrorDialog("Failed to load borders.xml", ErrorSeverity::Error);
 		return;
 	}
 
@@ -2487,6 +2484,7 @@ void BorderEditorPanel::SaveBorder() {
 		ShowErrorDialog("Failed to save changes to borders.xml", ErrorSeverity::Error);
 		return;
 	}
+	InvalidateXmlCache(bordersFile);
 
 	DiscardDraft(0, m_selectedBrowserTileId);
 
@@ -3717,8 +3715,8 @@ void BorderEditorPanel::PopulateBorderList() {
 
 	{
 		pugi::xml_document doc;
-		pugi::xml_parse_result result = doc.load_file(nstr(bordersFile).c_str());
-		if (!result) {
+		pugi::xml_document doc;
+		if (!LoadXmlWithCache(bordersFile, doc)) {
 			return;
 		}
 
@@ -3771,7 +3769,7 @@ void BorderEditorPanel::PopulateBorderList() {
 
 	{
 		pugi::xml_document doc;
-		if (!doc.load_file(nstr(groundsFile).c_str())) {
+		if (!LoadXmlWithCache(groundsFile, doc)) {
 			return;
 		}
 
@@ -3867,7 +3865,7 @@ void BorderEditorPanel::PopulateGroundList() {
 	}
 
 	pugi::xml_document doc;
-	if (!doc.load_file(nstr(groundsFile).c_str())) {
+	if (!LoadXmlWithCache(groundsFile, doc)) {
 		return;
 	}
 
@@ -5690,7 +5688,7 @@ void BorderEditorPanel::LoadBorderByMainTileId(uint16_t tileId) {
 	}
 
 	pugi::xml_document doc;
-	if (!doc.load_file(nstr(groundsFile).c_str())) {
+	if (!LoadXmlWithCache(groundsFile, doc)) {
 		return;
 	}
 
@@ -5751,7 +5749,7 @@ void BorderEditorPanel::LoadGroundBrushByMainTileId(uint16_t tileId) {
 	}
 
 	pugi::xml_document doc;
-	if (!doc.load_file(nstr(groundsFile).c_str())) {
+	if (!LoadXmlWithCache(groundsFile, doc)) {
 		return;
 	}
 
@@ -5839,7 +5837,7 @@ void BorderEditorPanel::LoadGroundBrushByName(const wxString &name) {
 	}
 
 	pugi::xml_document doc;
-	if (!doc.load_file(nstr(groundsFile).c_str())) {
+	if (!LoadXmlWithCache(groundsFile, doc)) {
 		return;
 	}
 
