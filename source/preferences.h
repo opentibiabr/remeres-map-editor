@@ -30,6 +30,7 @@ public:
 	void OnClickOK(wxCommandEvent &);
 	void OnClickCancel(wxCommandEvent &);
 	void SelectNewAssetsFolder(wxCommandEvent &event);
+	void OnBrowseClientPath(wxCommandEvent &event);
 	void OnCollapsiblePane(wxCollapsiblePaneEvent &);
 	wxBookCtrl &getBookCtrl() {
 		return *book;
@@ -114,7 +115,7 @@ protected:
 
 	// Client info
 	wxChoice* default_version_choice;
-	wxDirPickerCtrl* version_dir_picker;
+	wxTextCtrl* version_dir_picker;
 	wxDirPickerCtrl* monsters_lua_dir_picker;
 	wxDirPickerCtrl* npcs_lua_dir_picker;
 	wxCheckBox* check_sigs_chkbox;

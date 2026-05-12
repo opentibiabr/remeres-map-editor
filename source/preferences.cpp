@@ -548,14 +548,19 @@ wxNotebookPage* PreferencesWindow::CreateClientPage() {
 	wxStaticText* tmp_text = newd wxStaticText(client_list_window, wxID_ANY, wxString("Select path:"));
 	client_list_sizer->Add(tmp_text, wxSizerFlags(0).Expand());
 
-	wxDirPickerCtrl* dir_picker = newd wxDirPickerCtrl(client_list_window, wxID_ANY, ClientAssets::getPath());
-	version_dir_picker = dir_picker;
-	client_list_sizer->Add(dir_picker, wxSizerFlags(0).Border(wxRIGHT, 10).Expand());
+	wxBoxSizer* path_sizer = newd wxBoxSizer(wxHORIZONTAL);
+	version_dir_picker = newd wxTextCtrl(client_list_window, wxID_ANY, ClientAssets::getPath());
+	version_dir_picker->SetEditable(false);
+	wxButton* browse_button = newd wxButton(client_list_window, wxID_ANY, "Browse...");
+	browse_button->Bind(wxEVT_BUTTON, &PreferencesWindow::OnBrowseClientPath, this);
+	path_sizer->Add(version_dir_picker, wxSizerFlags(1).Expand());
+	path_sizer->Add(browse_button, wxSizerFlags(0).Border(wxLEFT, 5));
+	client_list_sizer->Add(path_sizer, wxSizerFlags(0).Border(wxRIGHT, 10).Expand());
 
 	wxString tooltip;
 	tooltip << "The editor will look for client directory here.";
 	tmp_text->SetToolTip(tooltip);
-	dir_picker->SetToolTip(tooltip);
+	version_dir_picker->SetToolTip(tooltip);
 
 	wxStaticText* monsters_lua_text = newd wxStaticText(client_list_window, wxID_ANY, wxString("Monsters Lua directory:"));
 	client_list_sizer->Add(monsters_lua_text, wxSizerFlags(0).Expand());
@@ -597,14 +602,17 @@ void PreferencesWindow::OnClickApply(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void PreferencesWindow::SelectNewAssetsFolder(wxCommandEvent &event) {
-	wxDirPickerCtrl* dir_picker = static_cast<wxDirPickerCtrl*>(event.GetEventObject());
-	wxString path = dir_picker->GetPath();
-	if (!path.IsEmpty()) {
+	// Este método não é mais necessário com o novo approach
+	// O path é atualizado diretamente em OnBrowseClientPath
+}
+
+void PreferencesWindow::OnBrowseClientPath(wxCommandEvent &WXUNUSED(event)) {
+	wxDirDialog dialog(this, "Select client directory", version_dir_picker->GetValue(), wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+	if (dialog.ShowModal() == wxID_OK) {
+		wxString path = dialog.GetPath();
+		version_dir_picker->SetValue(path);
 		ClientAssets::setPath(path.ToUTF8().data());
 		spdlog::debug("New directory selected: {}", path.ToUTF8().data());
-	} else {
-		wxMessageDialog dialog(this, "Directory is empty, please, select a valid directory", "Error", wxOK | wxICON_ERROR);
-		dialog.ShowModal();
 	}
 }
 
