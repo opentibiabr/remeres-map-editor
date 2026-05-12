@@ -29,8 +29,9 @@ public:
 	void OnClickApply(wxCommandEvent &);
 	void OnClickOK(wxCommandEvent &);
 	void OnClickCancel(wxCommandEvent &);
-	void SelectNewAssetsFolder(wxCommandEvent &event);
 	void OnBrowseClientPath(wxCommandEvent &event);
+	void OnBrowseMonstersPath(wxCommandEvent &event);
+	void OnBrowseNpcsPath(wxCommandEvent &event);
 	void OnCollapsiblePane(wxCollapsiblePaneEvent &);
 	wxBookCtrl &getBookCtrl() {
 		return *book;
@@ -116,8 +117,8 @@ protected:
 	// Client info
 	wxChoice* default_version_choice;
 	wxTextCtrl* version_dir_picker;
-	wxDirPickerCtrl* monsters_lua_dir_picker;
-	wxDirPickerCtrl* npcs_lua_dir_picker;
+	wxTextCtrl* monsters_lua_dir_picker;
+	wxTextCtrl* npcs_lua_dir_picker;
 	wxCheckBox* check_sigs_chkbox;
 
 	// Create controls
