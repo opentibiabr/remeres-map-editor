@@ -176,6 +176,8 @@ target_sources(
           artprovider.cpp
           basemap.cpp
           brush_editor_window.cpp
+          brush_editor_model.cpp
+          brush_editor_catalog_service.cpp
           bitmap_to_map_window.cpp
           bitmap_to_map_converter.cpp
           brush.cpp

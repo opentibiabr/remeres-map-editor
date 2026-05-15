@@ -29,6 +29,7 @@
 #include <utility>
 #include <wx/treectrl.h>
 #include <wx/checklst.h>
+#include "brush_editor_model.h"
 
 // Forward declarations
 class BorderItemButton;
@@ -249,10 +250,24 @@ public:
 	void OnBorderBrowserSelection(wxCommandEvent &event);
 	void OnBrowserGridSelection(wxCommandEvent &event);
 	void OnBrowserSearch(wxCommandEvent &event);
+	void OnBrowserPaletteCategoryButtonClick(wxCommandEvent &event);
 	void OnBrowserTilesetFilterButtonClick(wxCommandEvent &event);
+	void OnBrowserNewEntity(wxCommandEvent &event);
+	void OnBrowserDuplicateEntity(wxCommandEvent &event);
+	void OnBrowserReloadEntity(wxCommandEvent &event);
+	void OnBrowserDeleteEntity(wxCommandEvent &event);
+	void OnBrowserPaletteSelection(wxCommandEvent &event);
+	void OnBrowserApplyPaletteFilter(wxCommandEvent &event);
+	void OnBrowserViewModeChanged(wxCommandEvent &event);
+	void OnBrowserClearPaletteFilter(wxCommandEvent &event);
+	void OnBrowserAttachPalette(wxCommandEvent &event);
+	void OnBrowserDetachPalette(wxCommandEvent &event);
+	void OnBrowserNewPalette(wxCommandEvent &event);
+	void OnBrowserDeletePalette(wxCommandEvent &event);
 
 	// Mode switcher events
 	void OnModeSwitch(wxCommandEvent &event);
+	void OnInspectorSectionClick(wxCommandEvent &event);
 
 protected:
 	void CreateGUIControls();
@@ -285,8 +300,28 @@ protected:
 	void PopulateGroundList();
 	void PopulateWallList();
 	void PopulateUnifiedList();
+	void CacheBrowserDataForActiveTab();
+	bool RestoreCachedBrowserDataForTab(int tab);
+	bool PopulateUnifiedListFromCatalog();
+	bool PopulatePaletteBrowserListFromCatalog();
+	bool RebuildBrushCatalog();
+	bool EnsureBrushCatalogUpToDate();
+	void MarkBrushCatalogDirty();
 	void FilterBrowserList(const wxString &query);
 	void UpdateBrowserLabel();
+	void UpdateInspectorHeader();
+	void UpdateBrowserViewButtons();
+	void UpdateBrowserActionButtons();
+	void UpdateInspectorSectionButtons();
+	void RefreshBrowserPaletteList();
+	void ApplyBrowserPaletteFilter(const wxString &paletteName);
+	void SetActiveInspectorSection(int section);
+	wxString GetSelectedPaletteKey() const;
+	const BrushEditorPaletteDefinition* FindPaletteDefinitionForLabel(const wxString &paletteLabel) const;
+	wxString FindTilesetSourceFile(const wxString &tilesetName) const;
+	wxString GetCustomPaletteFilePath() const;
+	bool PersistBrushPaletteMembership(const wxString &brushName, const wxString &paletteLabel, bool attach);
+	bool PersistPaletteDefinition(const wxString &tilesetName, TilesetCategoryType categoryType, bool create);
 	bool RestoreBrowserSelection(const wxString &selectionKey);
 	void ReloadCurrentBrushEditorXml(const wxString &selectionKey);
 
@@ -323,10 +358,18 @@ private:
 	};
 
 	void SaveDraft(int tab, uint16_t tileId, bool markDirty);
+	void SaveDraft(int tab, const wxString &brushName, bool markDirty);
 	bool RestoreDraft(int tab, uint16_t tileId);
+	bool RestoreDraft(int tab, const wxString &brushName);
 	void DiscardDraft(int tab, uint16_t tileId);
+	void DiscardDraft(int tab, const wxString &brushName);
 	void SaveCurrentDraft(bool markDirty);
 	void DiscardCurrentDraft();
+	wxString GetSelectionKeyForTab(int tab) const;
+	bool HasSelectionForTab(int tab) const;
+	void SetSelectionKeyForTab(int tab, const wxString &selectionKey);
+	void ClearSelectionForTab(int tab);
+	void LoadSelectionForTab(int tab, const wxString &selectionKey);
 
 	void OnBorderDraftChange(wxCommandEvent &event);
 	void OnGroundDraftChange(wxCommandEvent &event);
@@ -334,8 +377,8 @@ private:
 
 	bool m_isRestoringDraft = false;
 	std::unordered_map<uint16_t, BorderDraftState> m_borderDrafts;
-	std::unordered_map<uint16_t, GroundDraftState> m_groundDrafts;
-	std::unordered_map<uint16_t, WallDraftState> m_wallDrafts;
+	std::map<wxString, GroundDraftState> m_groundDrafts;
+	std::map<wxString, WallDraftState> m_wallDrafts;
 
 	// ===== State =====
 	int m_maxBorderId;
@@ -343,17 +386,45 @@ private:
 	int m_currentBorderId; // Currently edited border ID (replaces m_idCtrl)
 	int m_activeTab; // 0 = border, 1 = ground, 2 = wall
 	uint16_t m_selectedBrowserTileId;
+	wxString m_selectedBrowserBrushName;
+	wxString m_browserSelectionKeys[3];
+	int m_browserViewMode = 0; // 0 = brushes, 1 = palettes
+	int m_activeInspectorSection = 0; // 0 = general, 1 = palettes, 2 = editor, 3 = preview
 
 	// Storage for unfiltered browser list items
 	wxArrayString m_fullBrowserList;
 	wxArrayString m_fullBrowserIds;
 	std::vector<uint16_t> m_fullBrowserPreviewIds;
+	BrushEditorCatalog m_catalog;
+	wxArrayString m_catalogWarnings;
+	bool m_catalogDirty = true;
+	bool m_browserPaletteListDirty = true;
+	int m_browserPaletteListBuiltForTab = -1;
+	wxString m_browserPaletteListBuiltForCategory;
+	wxString m_browserPaletteSelections[3];
+	wxString m_browserTilesetFiltersByTab[3];
+	wxString m_browserPaletteCategoriesByTab[3];
+	wxString m_browserSearchQueriesByTab[3];
+	wxArrayString m_cachedBrowserLists[3];
+	wxArrayString m_cachedBrowserIds[3];
+	std::vector<uint16_t> m_cachedBrowserPreviewIds[3];
+	bool m_tabInitialized[3] = { false, false, false };
 
 	// Animation timer for preview
 	wxTimer* m_previewTimer;
 
 	// ===== UI Controls =====
 	wxSimplebook* m_notebook;
+	wxStaticText* m_inspectorTitleLabel;
+	wxStaticText* m_inspectorMetaLabel;
+	wxButton* m_inspectorGeneralButton;
+	wxButton* m_inspectorPaletteButton;
+	wxButton* m_inspectorEditorButton;
+	wxButton* m_inspectorPreviewButton;
+	wxStaticText* m_inspectorGeneralStateLabel;
+	wxStaticText* m_inspectorPalettesStateLabel;
+	wxStaticText* m_inspectorFlagsStateLabel;
+	wxStaticText* m_inspectorAdvancedStateLabel;
 
 	// Mode switcher buttons
 	wxToggleButton* m_borderModeBtn;
@@ -362,6 +433,7 @@ private:
 
 	// Common controls
 	wxTextCtrl* m_groundNameCtrl;
+	wxTextCtrl* m_wallNameCtrl;
 	wxButton* m_newButton; // "New Border/Ground/Wall" button with dynamic label
 
 	wxString m_loadedBorderName;
@@ -378,10 +450,27 @@ private:
 	wxPanel* m_borderPanel;
 	wxListBox* m_borderBrowserList; // Sidebar browser for existing items (hidden)
 	BrushBrowserGridPanel* m_browserGrid;
+	wxButton* m_browserPaletteCategoryButton;
 	wxButton* m_browserTilesetFilterButton;
+	wxString m_browserPaletteCategoryFilter;
 	wxString m_browserTilesetFilter;
+	wxToggleButton* m_browserBrushesViewBtn;
+	wxToggleButton* m_browserPalettesViewBtn;
 	wxSearchCtrl* m_browserSearchCtrl; // Search control for sidebar
-	wxStaticText* m_browserLabel; // Dynamic label for sidebar
+	wxStaticText* m_browserLabel; // Selection title in browser sidebar
+	wxStaticText* m_browserMetaLabel; // Selection meta in browser sidebar
+	wxButton* m_browserNewEntityButton;
+	wxButton* m_browserDuplicateButton;
+	wxButton* m_browserDeleteButton;
+	wxButton* m_browserSaveButton;
+	wxButton* m_browserReloadButton;
+	wxListBox* m_browserPaletteList;
+	wxButton* m_browserNewPaletteButton;
+	wxButton* m_browserDeletePaletteButton;
+	wxButton* m_browserAttachPaletteButton;
+	wxButton* m_browserDetachPaletteButton;
+	wxButton* m_browserApplyPaletteFilterButton;
+	wxButton* m_browserClearPaletteFilterButton;
 	wxCheckBox* m_isOptionalCheck;
 	wxCheckBox* m_isGroundCheck;
 	wxCheckBox* m_groupCheck; // NEW: Replaces m_groupCtrl SpinCtrl
@@ -550,6 +639,8 @@ private:
 	int m_itemSize = 32;
 	int m_padding = 2;
 	int m_hoverIndex = -1;
+	wxString m_loadedCategoryName;
+	PaletteFilterMode m_loadedFilterMode = FILTER_NONE;
 
 	void RecalculateLayout();
 	int HitTest(const wxPoint &pt) const;
