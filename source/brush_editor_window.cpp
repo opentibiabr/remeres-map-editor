@@ -1616,10 +1616,6 @@ void BorderEditorPanel::CreateGUIControls() {
 	m_browserPaletteCategoryButton->Bind(wxEVT_BUTTON, &BorderEditorPanel::OnBrowserPaletteCategoryButtonClick, this);
 	browserSizer->Add(m_browserPaletteCategoryButton, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
 
-	m_browserTilesetFilterButton = new wxButton(this, wxID_ANY, "Tileset: All ▼", wxDefaultPosition, wxSize(240, -1), wxBU_LEFT);
-	m_browserTilesetFilterButton->Bind(wxEVT_BUTTON, &BorderEditorPanel::OnBrowserTilesetFilterButtonClick, this);
-	browserSizer->Add(m_browserTilesetFilterButton, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
-
 	m_browserBrushesViewBtn = nullptr;
 	m_browserPalettesViewBtn = nullptr;
 
@@ -4319,9 +4315,6 @@ void BorderEditorPanel::ApplyBrowserPaletteFilter(const wxString &paletteName) {
 	}
 	m_browserTilesetFilter = newTilesetFilter;
 	m_browserTilesetFiltersByTab[m_activeTab] = m_browserTilesetFilter;
-	if (m_browserTilesetFilterButton) {
-		m_browserTilesetFilterButton->SetLabel(m_browserTilesetFilter.IsEmpty() ? "Tileset: Select ▼" : "Tileset: " + m_browserTilesetFilter + " ▼");
-	}
 	if (!m_tabInitialized[m_activeTab]) {
 		PopulateUnifiedList();
 	}
@@ -4821,9 +4814,6 @@ void BorderEditorPanel::OnModeSwitch(wxCommandEvent &event) {
 	m_browserPaletteCategoryFilter = m_browserPaletteCategoriesByTab[m_activeTab].IsEmpty() ? "Terrain" : m_browserPaletteCategoriesByTab[m_activeTab];
 	m_browserPaletteListDirty = true;
 	m_browserTilesetFilter = m_browserTilesetFiltersByTab[m_activeTab];
-	if (m_browserTilesetFilterButton) {
-		m_browserTilesetFilterButton->SetLabel(m_browserTilesetFilter.IsEmpty() ? "Tileset: Select ▼" : "Tileset: " + m_browserTilesetFilter + " ▼");
-	}
 	if (m_browserSearchCtrl) {
 		m_browserSearchCtrl->ChangeValue(m_browserSearchQueriesByTab[m_activeTab]);
 	}
@@ -5096,10 +5086,6 @@ void BorderEditorPanel::UpdateBrowserViewButtons() {
 		m_browserPalettesViewBtn->Hide();
 		m_browserPalettesViewBtn->SetValue(false);
 	}
-	if (m_browserTilesetFilterButton) {
-		m_browserTilesetFilterButton->Hide();
-		m_browserTilesetFilterButton->Enable(false);
-	}
 }
 
 void BorderEditorPanel::PopulateUnifiedList() {
@@ -5281,58 +5267,6 @@ void BorderEditorPanel::OnBrowserPaletteCategoryButtonClick(wxCommandEvent &even
 	PopupMenu(&menu);
 }
 
-void BorderEditorPanel::OnBrowserTilesetFilterButtonClick(wxCommandEvent &event) {
-	wxMenu menu;
-
-	const auto &options = GetBrowserTilesetOptionsCached();
-	if (options.empty()) {
-		return;
-	}
-
-	auto addRadio = [&](const wxString &shown, const wxString &value) {
-		wxMenuItem* item = menu.AppendRadioItem(wxID_ANY, shown);
-		if (value == m_browserTilesetFilter) {
-			item->Check(true);
-		}
-		menu.Bind(wxEVT_MENU, [this, shown, value](wxCommandEvent &) {
-			const wxString keepSelectionKey = GetSelectionKeyForTab(m_activeTab);
-			if (value == m_browserTilesetFilter) {
-				return;
-			}
-
-			m_browserTilesetFilter = value;
-			if (m_browserTilesetFilterButton) {
-				m_browserTilesetFilterButton->SetLabel("Tileset: " + shown + " ▼");
-			}
-
-			if (!m_tabInitialized[m_activeTab]) {
-				PopulateUnifiedList();
-			}
-			FilterBrowserList(m_browserSearchCtrl ? m_browserSearchCtrl->GetValue() : wxString());
-
-			bool restored = false;
-			if (!keepSelectionKey.IsEmpty()) {
-				restored = RestoreBrowserSelection(keepSelectionKey);
-			}
-
-			if (restored) {
-				LoadSelectionForTab(m_activeTab, keepSelectionKey);
-			} else {
-				switch (m_activeTab) {
-					case 0: ClearItems(false); break;
-					case 1: ClearGroundItems(false); break;
-					case 2: ClearWallItems(false); break;
-				}
-			}
-		}, item->GetId());
-	};
-
-	for (const auto &opt : options) {
-		addRadio(opt.first, opt.second);
-	}
-
-	PopupMenu(&menu);
-}
 
 void BorderEditorPanel::FilterBrowserList(const wxString &query) {
 	if (!m_borderBrowserList) {

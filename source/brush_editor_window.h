@@ -251,7 +251,6 @@ public:
 	void OnBrowserGridSelection(wxCommandEvent &event);
 	void OnBrowserSearch(wxCommandEvent &event);
 	void OnBrowserPaletteCategoryButtonClick(wxCommandEvent &event);
-	void OnBrowserTilesetFilterButtonClick(wxCommandEvent &event);
 	void OnBrowserNewEntity(wxCommandEvent &event);
 	void OnBrowserDuplicateEntity(wxCommandEvent &event);
 	void OnBrowserReloadEntity(wxCommandEvent &event);
@@ -461,7 +460,6 @@ private:
 	wxListBox* m_borderBrowserList; // Sidebar browser for existing items (hidden)
 	BrushBrowserGridPanel* m_browserGrid;
 	wxButton* m_browserPaletteCategoryButton;
-	wxButton* m_browserTilesetFilterButton;
 	wxString m_browserPaletteCategoryFilter;
 	wxString m_browserTilesetFilter;
 	wxToggleButton* m_browserBrushesViewBtn;
