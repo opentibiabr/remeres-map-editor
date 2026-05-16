@@ -30,8 +30,10 @@
 #include "lua/lua_script_manager.h"
 #include "lua/lua_scripts_window.h"
 #include "gui.h"
+#include "brush_editor_window.h"
 
 #include <wx/chartype.h>
+#include <wx/display.h>
 
 #include "items.h"
 #include "editor.h"
@@ -64,6 +66,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(IMPORT_NPCS, wxITEM_NORMAL, OnImportNpcData);
 	MAKE_ACTION(IMPORT_MINIMAP, wxITEM_NORMAL, OnImportMinimap);
 	MAKE_ACTION(IMPORT_BITMAP_TO_MAP, wxITEM_NORMAL, OnImportBitmapToMap);
+	MAKE_ACTION(BRUSH_EDITOR, wxITEM_NORMAL, OnBrushEditor);
 
 	MAKE_ACTION(EXPORT_MINIMAP, wxITEM_NORMAL, OnExportMinimap);
 	MAKE_ACTION(EXPORT_TILESETS, wxITEM_NORMAL, OnExportTilesets);
@@ -2207,6 +2210,63 @@ void MainMenuBar::OnActionsHistoryWindow(wxCommandEvent &WXUNUSED(event)) {
 
 void MainMenuBar::OnNewPalette(wxCommandEvent &event) {
 	g_gui.NewPalette();
+}
+
+void MainMenuBar::OnBrushEditor(wxCommandEvent &WXUNUSED(event)) {
+	auto maximizeBrushEditorPane = [&](wxWindow* paneWindow) {
+		if (!g_gui.aui_manager || !paneWindow) {
+			return;
+		}
+
+		wxAuiPaneInfo& info = g_gui.aui_manager->GetPane(paneWindow);
+		if (!info.IsOk()) {
+			return;
+		}
+
+		int displayIndex = wxNOT_FOUND;
+		if (g_gui.root) {
+			displayIndex = wxDisplay::GetFromWindow(g_gui.root);
+		}
+		if (displayIndex == wxNOT_FOUND) {
+			displayIndex = wxDisplay::GetFromWindow(paneWindow);
+		}
+		if (displayIndex == wxNOT_FOUND) {
+			displayIndex = 0;
+		}
+
+		wxDisplay display(displayIndex);
+		wxRect rect = display.GetClientArea();
+
+		info.Float();
+		info.FloatingPosition(rect.GetTopLeft());
+		info.FloatingSize(rect.GetSize());
+		info.BestSize(rect.GetSize());
+		info.Show();
+	};
+
+	if (brush_editor_dialog) {
+		maximizeBrushEditorPane(brush_editor_dialog);
+		g_gui.aui_manager->Update();
+	} else {
+		brush_editor_dialog = new BrushEditorPanel(g_gui.root);
+		brush_editor_dialog->Bind(wxEVT_DESTROY, [this](wxWindowDestroyEvent& event) {
+			if (event.GetEventObject() == brush_editor_dialog) {
+				brush_editor_dialog = nullptr;
+			}
+			event.Skip();
+		});
+
+		g_gui.aui_manager->AddPane(brush_editor_dialog, wxAuiPaneInfo().
+			Name("BrushEditor").
+			Caption("Brush Editor").
+			Float().
+			Dockable(true).
+			CloseButton(true).
+			BestSize(850, 650));
+
+		maximizeBrushEditorPane(brush_editor_dialog);
+		g_gui.aui_manager->Update();
+	}
 }
 
 void MainMenuBar::OnSelectTerrainPalette(wxCommandEvent &WXUNUSED(event)) {

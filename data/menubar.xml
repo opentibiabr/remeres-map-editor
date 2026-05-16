@@ -52,16 +52,6 @@
             <item name="Ra$ndomize Selection" action="RANDOMIZE_SELECTION" help="Randomizes the ground tiles of the selected area."/>
             <item name="$Randomize Map" action="RANDOMIZE_MAP" help="Randomizes all tiles of the entire map."/>
         </menu>
-        <menu name="$Tools">
-            <item name="$Remove Items by ID..." action="MAP_REMOVE_ITEMS" help="Removes all items with the selected ID from the map."/>
-            <item name="Remove $all corpses..." action="MAP_REMOVE_CORPSES" help="Removes all corpses from the map."/>
-            <item name="Remove all $unreachable tiles..." action="MAP_REMOVE_UNREACHABLE_TILES" help="Removes all tiles that cannot be reached (or seen) by the player from the map."/>
-            <item name="Remove all $duplicated items..." action="REMOVE_ON_MAP_DUPLICATED_ITEMS" help="Removes all items duplicated on map."/>
-            <item name="Remove empty monsters spawns" action="MAP_REMOVE_EMPTY_MONSTERS_SPAWNS" help="Removes all empty monsters spawns from the map."/>
-            <item name="Remove empty npcs spawns" action="MAP_REMOVE_EMPTY_NPCS_SPAWNS" help="Removes all empty npcs spawns from the map."/>
-            <item name="$Clear Invalid Houses" action="CLEAR_INVALID_HOUSES" help="Clears house tiles not belonging to any house."/>
-            <item name="Clear $Modified State" action="CLEAR_MODIFIED_STATE" help="Clears the modified state from all tiles."/>
-        </menu>
         <separator/>
         <item name="Go To P$revious Position" hotkey="P" action="GOTO_PREVIOUS_POSITION" help="Go to the previous screen center position."/>
         <item name="$Go To Position..." hotkey="Ctrl+G" action="GOTO_POSITION" help="Go to a specific XYZ position."/>
@@ -72,14 +62,30 @@
         <item name="C$opy" hotkey="Ctrl+C" action="COPY" help="Copy a part of the map."/>
         <item name="$Paste" hotkey="Ctrl+V" action="PASTE" help="Paste a part of the map."/>
     </menu>
-    <menu name="$Map">
-        <item name="Edit $Towns" hotkey="Ctrl+T" action="EDIT_TOWNS" help="Edit towns."/>
-        <item name="Edit $Items" hotkey="Ctrl+I" action="EDIT_ITEMS" help="Edit items."/>
-        <item name="Edit $Monsters" action="EDIT_MONSTERS" help="Edit monsters."/>
-        <separator/>
-        <item name="$Cleanup..." action="MAP_CLEANUP" help="Removes all unknown items from the map."/>
-        <item name="$Properties..." hotkey="Ctrl+P" action="MAP_PROPERTIES" help="Show and change the map properties."/>
-        <item name="$Statistics" hotkey="F8" action="MAP_STATISTICS" help="Show map statistics."/>
+    <menu name="$World">  
+        <item name="Edit $Towns" hotkey="Ctrl+T" action="EDIT_TOWNS" help="Edit towns."/>  
+        <separator/>  
+        <menu name="$Items">  
+            <item name="$Remove Items by ID..." action="MAP_REMOVE_ITEMS" help="Removes all items with the selected ID from the map."/>  
+            <item name="Remove all $duplicated items..." action="REMOVE_ON_MAP_DUPLICATED_ITEMS" help="Removes all items duplicated on map."/>  
+        </menu>  
+        <menu name="$NPCs">  
+            <item name="Remove empty npcs spawns" action="MAP_REMOVE_EMPTY_NPCS_SPAWNS" help="Removes all empty npcs spawns from the map."/>  
+        </menu>  
+        <menu name="$Monsters">  
+            <item name="Remove empty monsters spawns" action="MAP_REMOVE_EMPTY_MONSTERS_SPAWNS" help="Removes all empty monsters spawns from the map."/>  
+        </menu>  
+        <menu name="$Houses">  
+            <item name="$Clear Invalid Houses" action="CLEAR_INVALID_HOUSES" help="Clears house tiles not belonging to any house."/>  
+        </menu>  
+        <separator/>  
+        <item name="Remove $all corpses..." action="MAP_REMOVE_CORPSES" help="Removes all corpses from the map."/>  
+        <item name="Remove all $unreachable tiles..." action="MAP_REMOVE_UNREACHABLE_TILES" help="Removes all tiles that cannot be reached (or seen) by the player from the map."/>  
+        <item name="Clear $Modified State" action="CLEAR_MODIFIED_STATE" help="Clears the modified state from all tiles."/>  
+        <separator/>  
+        <item name="$Cleanup..." action="MAP_CLEANUP" help="Removes all unknown items from the map."/>  
+        <item name="$Properties..." hotkey="Ctrl+P" action="MAP_PROPERTIES" help="Show and change the map properties."/>  
+        <item name="$Statistics" hotkey="F8" action="MAP_STATISTICS" help="Show map statistics."/>  
     </menu>
     <menu name="$Select">
         <item name="Replace Items on Selection" action="REPLACE_ON_SELECTION_ITEMS" help="Replace items on selected area."/>
@@ -172,6 +178,9 @@
         <item name="$Waypoint Palette" hotkey="W" action="SELECT_WAYPOINT" help="Select the Waypoint palette."/>
         <item name="$Zones Palette" hotkey="Z" action="SELECT_ZONES" help="Select the Zones palette."/>
         <item name="$RAW Palette" hotkey="R" action="SELECT_RAW" help="Select the RAW palette."/>
+    </menu>
+    <menu name="$Tools">
+        <item name="$Brush Editor" action="BRUSH_EDITOR" help="Visual editor for brushs and border patterns."/>
     </menu>
     <!--
     <menu name="$Live">

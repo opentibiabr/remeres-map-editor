@@ -19,6 +19,7 @@
 #define RME_PALETTE_H_
 
 #include "palette_common.h"
+#include "settings.h"
 
 class BrushPalettePanel;
 class MonsterPalettePanel;
