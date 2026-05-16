@@ -307,6 +307,9 @@ protected:
 	bool RebuildBrushCatalog();
 	bool EnsureBrushCatalogUpToDate();
 	void MarkBrushCatalogDirty();
+	void InvalidateTilesetCache(int tab = -1);
+	void EnsureActiveTabBrowserLoaded();
+	void EnsureActiveTabPaletteLoaded();
 	void FilterBrowserList(const wxString &query);
 	void UpdateBrowserLabel();
 	void UpdateInspectorHeader();
@@ -324,6 +327,9 @@ protected:
 	bool PersistPaletteDefinition(const wxString &tilesetName, TilesetCategoryType categoryType, bool create);
 	bool RestoreBrowserSelection(const wxString &selectionKey);
 	void ReloadCurrentBrushEditorXml(const wxString &selectionKey);
+	bool ApplyGroundBrushFromCatalog(const wxString &name);
+	bool ApplyWallBrushFromCatalog(const wxString &name);
+	const std::vector<std::pair<wxString, wxString>>& GetBrowserTilesetOptionsCached();
 
 	void LoadBorderByMainTileId(uint16_t tileId);
 	void LoadGroundBrushByMainTileId(uint16_t tileId);
@@ -408,6 +414,10 @@ private:
 	wxArrayString m_cachedBrowserLists[3];
 	wxArrayString m_cachedBrowserIds[3];
 	std::vector<uint16_t> m_cachedBrowserPreviewIds[3];
+	wxArrayString m_cachedTilesetListData[3];
+	std::vector<std::pair<wxString, wxString>> m_cachedBrowserTilesetOptions[3];
+	bool m_tilesetListDirty[3] = { true, true, true };
+	bool m_browserTilesetOptionsDirty[3] = { true, true, true };
 	bool m_tabInitialized[3] = { false, false, false };
 
 	// Animation timer for preview

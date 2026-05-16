@@ -181,6 +181,43 @@ static const char* GetPaletteCategoryXmlNodeName(TilesetCategoryType type) {
 	}
 }
 
+static wxArrayString BuildFallbackPaletteLabelsFromTilesets(int activeTab, const wxString &categoryFilter) {
+	wxArrayString labels;
+	std::set<wxString> seen;
+	const TilesetCategoryType activeCategoryType = GetPaletteCategoryTypeFromLabel(categoryFilter);
+
+	for (const auto &pair : g_materials.tilesets) {
+		Tileset* tileset = pair.second;
+		if (!tileset) continue;
+		const wxString tilesetName = wxString(pair.first);
+		if (activeTab == 2 && tilesetName.Lower().Contains("tiny borders")) continue;
+
+		auto appendPaletteLabel = [&](TilesetCategory* category) {
+			if (!category || category->getType() == TILESET_UNKNOWN || category->brushlist.empty()) return;
+			const wxString paletteLabel = tilesetName + " [" + GetPaletteCategoryLabel(category->getType()) + "]";
+			if (seen.insert(paletteLabel).second) labels.Add(paletteLabel);
+		};
+
+		if (activeCategoryType != TILESET_UNKNOWN) {
+			appendPaletteLabel(tileset->getCategory(activeCategoryType));
+			continue;
+		}
+
+		for (TilesetCategory* category : tileset->categories) appendPaletteLabel(category);
+	}
+
+	labels.Sort();
+	return labels;
+}
+
+static bool ItemIdBelongsToTileset(uint16_t itemId, const wxString &tilesetName) {
+	if (itemId == 0 || tilesetName.IsEmpty()) return false;
+	const ItemType &type = g_items.getItemType(itemId);
+	if (type.id == 0) return false;
+	const std::string tsName = nstr(tilesetName);
+	return g_materials.isInTileset(type.brush, tsName) || g_materials.isInTileset(type.doodad_brush, tsName) || g_materials.isInTileset(type.raw_brush, tsName);
+}
+
 static bool BrushHasPaletteMembership(const BrushEditorBrushDefinition &brush, const wxString &paletteName) {
 	for (const BrushEditorPaletteMembership &membership : brush.memberships) {
 		if (membership.tilesetName.IsEmpty()) continue;
@@ -701,8 +738,6 @@ BorderEditorPanel::BorderEditorPanel(wxWindow* parent) :
 	m_selectedBrowserTileId(0),
 	m_lastInteractionTime(0) {
 
-	// Load saved filter configuration (before creating UI)
-	LoadFilterConfig();
 	m_browserPaletteCategoryFilter = "Terrain";
 
 	CreateGUIControls();
@@ -724,14 +759,17 @@ BorderEditorPanel::BorderEditorPanel(wxWindow* parent) :
 
 	CallAfter([this]() {
 		Layout();
-		if (!m_tabInitialized[m_activeTab]) {
-			PopulateUnifiedList();
-		}
-		RefreshBrowserPaletteList();
 		UpdateBrowserLabel();
 		CallAfter([this]() {
+			LoadFilterConfig();
+			InvalidateTilesetCache();
 			LoadTilesets();
+			CallAfter([this]() {
+			PopulateUnifiedList();
+			RefreshBrowserPaletteList();
+			UpdateBrowserActionButtons();
 			UpdateBrowserLabel();
+		});
 		});
 	});
 }
@@ -826,7 +864,107 @@ void BorderEditorPanel::MarkBrushCatalogDirty() {
 		m_cachedBrowserLists[i].Clear();
 		m_cachedBrowserIds[i].Clear();
 		m_cachedBrowserPreviewIds[i].clear();
+		m_cachedBrowserTilesetOptions[i].clear();
+		m_browserTilesetOptionsDirty[i] = true;
 	}
+}
+
+void BorderEditorPanel::InvalidateTilesetCache(int tab) {
+	if (tab >= 0 && tab < 3) {
+		m_cachedTilesetListData[tab].Clear();
+		m_tilesetListDirty[tab] = true;
+		return;
+	}
+	for (int i = 0; i < 3; ++i) {
+		m_cachedTilesetListData[i].Clear();
+		m_tilesetListDirty[i] = true;
+	}
+}
+
+void BorderEditorPanel::EnsureActiveTabBrowserLoaded() {
+	if (!m_tabInitialized[m_activeTab]) {
+		m_fullBrowserList.Clear();
+		m_fullBrowserIds.Clear();
+		m_fullBrowserPreviewIds.clear();
+		if (m_borderBrowserList) {
+			m_borderBrowserList->Clear();
+		}
+		if (m_browserGrid) {
+			std::vector<BrushBrowserGridPanel::Entry> emptyEntries;
+			m_browserGrid->SetEntries(std::move(emptyEntries));
+			m_browserGrid->SetSelectionByKey(wxString());
+		}
+	}
+	RefreshBrowserPaletteList();
+}
+
+void BorderEditorPanel::EnsureActiveTabPaletteLoaded() {
+	LoadTilesets();
+	if (m_activeTab == 0 && m_itemPalettePanel && !m_tilesetListData.IsEmpty()) {
+		int selection = (m_rawCategorySelection >= 0 && m_rawCategorySelection < (int)m_tilesetListData.GetCount()) ? m_rawCategorySelection : 0;
+		m_rawCategorySelection = selection;
+		m_itemPalettePanel->LoadTileset(m_tilesetListData[selection]);
+	} else if (m_activeTab == 1 && m_groundPalette && !m_tilesetListData.IsEmpty()) {
+		if (m_groundTilesetSelection < 0 || m_groundTilesetSelection >= (int)m_tilesetListData.GetCount()) m_groundTilesetSelection = 0;
+		m_groundPalette->LoadTileset(m_tilesetListData[m_groundTilesetSelection], FILTER_GROUND);
+	} else if (m_activeTab == 2 && m_wallPalette && !m_tilesetListData.IsEmpty()) {
+		if (m_wallTilesetSelection < 0 || m_wallTilesetSelection >= (int)m_tilesetListData.GetCount()) m_wallTilesetSelection = 0;
+		m_wallPalette->LoadTileset(m_tilesetListData[m_wallTilesetSelection], FILTER_WALL);
+	}
+}
+
+const std::vector<std::pair<wxString, wxString>>& BorderEditorPanel::GetBrowserTilesetOptionsCached() {
+	const int tab = std::max(0, std::min(m_activeTab, 2));
+	if (m_browserTilesetOptionsDirty[tab]) {
+		const BrushEditorCatalog* catalog = (tab == 0 || m_catalogDirty) ? nullptr : &m_catalog;
+		m_cachedBrowserTilesetOptions[tab] = GetBrowserTilesetOptions(tab, catalog);
+		m_browserTilesetOptionsDirty[tab] = false;
+	}
+	return m_cachedBrowserTilesetOptions[tab];
+}
+
+bool BorderEditorPanel::ApplyWallBrushFromCatalog(const wxString &name) {
+	if (m_catalogDirty) {
+		return false;
+	}
+	const BrushEditorBrushDefinition* brushDef = m_catalog.FindBrushByName(name);
+	if (!brushDef || brushDef->kind != BrushEditorBrushKind::Wall || brushDef->wallParts.empty()) return false;
+	ClearWallItems(false);
+	if (m_wallNameCtrl) m_wallNameCtrl->SetValue(name);
+	m_wallTypes.clear();
+	for (const auto &entry : brushDef->wallParts) {
+		WallTypeData typeData; typeData.typeName = nstr(entry.first);
+		for (const auto &item : entry.second.items) typeData.items.push_back(GroundItem(item.first, item.second));
+		m_wallTypes[entry.first.ToStdString()] = typeData;
+	}
+	const wxString selectedType = brushDef->wallParts.count("vertical") ? "vertical" : brushDef->wallParts.begin()->first;
+	if (m_wallGridPanel) { m_wallGridPanel->SetWallTypes(m_wallTypes); m_wallGridPanel->SetSelectedType(nstr(selectedType)); }
+	UpdateWallItemsList();
+	if (m_wallVisualPanel) m_wallVisualPanel->SetWallItems(m_wallTypes);
+	UpdateBrowserLabel();
+	return true;
+}
+
+bool BorderEditorPanel::ApplyGroundBrushFromCatalog(const wxString &name) {
+	if (m_catalogDirty) {
+		return false;
+	}
+	const BrushEditorBrushDefinition* brushDef = m_catalog.FindBrushByName(name);
+	if (!brushDef || brushDef->kind != BrushEditorBrushKind::Ground) return false;
+	ClearGroundItems(false);
+	if (m_groundNameCtrl) m_groundNameCtrl->SetValue(name);
+	if (m_zOrderCtrl) m_zOrderCtrl->SetValue(brushDef->zOrder);
+	if (m_groundGridContainer) for (const BrushEditorVariation &variation : brushDef->variations) if (variation.tiles.size() == 1 && variation.tiles.front().itemId != 0) m_groundGridContainer->AddItem(variation.tiles.front().itemId, std::max(1, variation.chance), true);
+	if (!brushDef->borders.empty()) {
+		const BrushEditorBorderConfig &border = brushDef->borders.front();
+		m_borderAlignmentSelection = border.alignment == "inner" ? 1 : 0;
+		if (m_borderAlignmentButton) m_borderAlignmentButton->SetLabel(m_borderAlignmentSelection == 1 ? "Inner ▼" : "Outer ▼");
+		if (m_includeToNoneCheck) m_includeToNoneCheck->SetValue(border.includeToNone);
+		if (m_includeInnerCheck) m_includeInnerCheck->SetValue(border.includeInner);
+	}
+	if (m_groundPreviewPanel && m_groundGridContainer) m_groundPreviewPanel->UpdateFromContainer(m_groundGridContainer);
+	UpdateBrowserLabel();
+	return true;
 }
 
 void BorderEditorPanel::CacheBrowserDataForActiveTab() {
@@ -1583,7 +1721,10 @@ void BorderEditorPanel::CreateGUIControls() {
 
 void BorderEditorPanel::OnRawCategoryButtonClick(wxCommandEvent &event) {
 	if (m_rawCategoryNames.IsEmpty()) {
-		return;
+		EnsureActiveTabPaletteLoaded();
+		if (m_rawCategoryNames.IsEmpty()) {
+			return;
+		}
 	}
 
 	wxMenu menu;
@@ -1619,7 +1760,10 @@ void BorderEditorPanel::OnRawCategoryMenuSelect(wxCommandEvent &event) {
 
 void BorderEditorPanel::OnGroundTilesetButtonClick(wxCommandEvent &event) {
 	if (m_tilesetListData.IsEmpty()) {
-		return;
+		EnsureActiveTabPaletteLoaded();
+		if (m_tilesetListData.IsEmpty()) {
+			return;
+		}
 	}
 
 	wxMenu menu;
@@ -1655,7 +1799,10 @@ void BorderEditorPanel::OnGroundTilesetMenuSelect(wxCommandEvent &event) {
 
 void BorderEditorPanel::OnWallTilesetButtonClick(wxCommandEvent &event) {
 	if (m_tilesetListData.IsEmpty()) {
-		return;
+		EnsureActiveTabPaletteLoaded();
+		if (m_tilesetListData.IsEmpty()) {
+			return;
+		}
 	}
 
 	wxMenu menu;
@@ -1786,6 +1933,7 @@ void BorderEditorPanel::OnOpenTilesetFilter(wxCommandEvent &event) {
 	if (dlg.ShowModal() == wxID_OK) {
 		currentWhitelist = dlg.GetEnabledTilesets();
 		SaveFilterConfig(); // Save to file immediately
+		InvalidateTilesetCache(m_activeTab);
 		LoadTilesets(); // Refresh the ComboBox with filtered list
 	}
 
@@ -1880,6 +2028,9 @@ void BorderEditorPanel::LoadWallBrushByName(const wxString &name) {
 	if (RestoreDraft(2, name)) {
 		return;
 	}
+	if (ApplyWallBrushFromCatalog(name)) {
+		return;
+	}
 
 	EnsureBrushCatalogUpToDate();
 	const BrushEditorBrushDefinition* brushDef = m_catalog.FindBrushByName(name);
@@ -1963,7 +2114,7 @@ void BorderEditorPanel::SaveWallBrush() {
 	}
 
 	int preSave = wxMessageBox(
-		"This action will save the wall brush and reload data files (F5). Continue?",
+		"This action will save the wall brush. Continue?",
 		"Confirm Save",
 		wxYES_NO | wxICON_QUESTION | wxSTAY_ON_TOP,
 		this
@@ -2067,8 +2218,7 @@ void BorderEditorPanel::SaveWallBrush() {
 	InvalidateXmlCache(wallsFile);
 
 	DiscardDraft(2, name);
-
-	TriggerReloadDataFiles();
+	MarkBrushCatalogDirty();
 	ReloadCurrentBrushEditorXml(name);
 }
 
@@ -2642,7 +2792,7 @@ void BorderEditorPanel::SaveBorder() {
 	}
 
 	int preSave = wxMessageBox(
-		"This action will save the border and reload data files (F5). Continue?",
+		"This action will save the border. Continue?",
 		"Confirm Save",
 		wxYES_NO | wxICON_QUESTION | wxSTAY_ON_TOP,
 		this
@@ -2769,8 +2919,7 @@ void BorderEditorPanel::SaveBorder() {
 	InvalidateXmlCache(bordersFile);
 
 	DiscardDraft(0, m_selectedBrowserTileId);
-
-	TriggerReloadDataFiles();
+	MarkBrushCatalogDirty();
 	ReloadCurrentBrushEditorXml(wxString::Format("%d", id));
 }
 
@@ -4000,7 +4149,6 @@ bool BorderEditorPanel::PersistPaletteDefinition(const wxString &tilesetName, Ti
 		return false;
 	}
 	InvalidateXmlCache(filePath);
-	TriggerReloadDataFiles();
 	MarkBrushCatalogDirty();
 	return true;
 }
@@ -4067,7 +4215,7 @@ bool BorderEditorPanel::PersistBrushPaletteMembership(const wxString &brushName,
 	if (!doc.save_file(nstr(filePath).c_str(), PUGIXML_TEXT("\t"))) {
 		return false;
 	}
-	TriggerReloadDataFiles();
+	InvalidateXmlCache(filePath);
 	MarkBrushCatalogDirty();
 	return true;
 }
@@ -4108,6 +4256,22 @@ void BorderEditorPanel::RefreshBrowserPaletteList() {
 	if (m_browserPaletteCategoryButton) {
 		m_browserPaletteCategoryButton->Enable(true);
 		m_browserPaletteCategoryButton->SetLabel(m_browserPaletteCategoryFilter.IsEmpty() ? "Category: All ▼" : "Category: " + m_browserPaletteCategoryFilter + " ▼");
+	}
+	if (m_catalogDirty) {
+		const wxArrayString fallbackPalettes = BuildFallbackPaletteLabelsFromTilesets(m_activeTab, m_browserPaletteCategoryFilter);
+		if (fallbackPalettes.IsEmpty()) {
+			m_browserPaletteList->Append("No palettes available");
+			m_browserPaletteList->Enable(false);
+			m_browserPaletteList->SetSelection(wxNOT_FOUND);
+		} else {
+			m_browserPaletteList->Append(fallbackPalettes);
+			restoreSelection();
+		}
+		m_browserPaletteListDirty = false;
+		m_browserPaletteListBuiltForTab = m_activeTab;
+		m_browserPaletteListBuiltForCategory = m_browserPaletteCategoryFilter;
+		UpdateBrowserActionButtons();
+		return;
 	}
 	const BrushEditorBrushKind wantedKind = (m_activeTab == 2) ? BrushEditorBrushKind::Wall : BrushEditorBrushKind::Ground;
 	const TilesetCategoryType activeCategoryType = GetPaletteCategoryTypeFromLabel(m_browserPaletteCategoryFilter);
@@ -4157,6 +4321,9 @@ void BorderEditorPanel::ApplyBrowserPaletteFilter(const wxString &paletteName) {
 	m_browserTilesetFiltersByTab[m_activeTab] = m_browserTilesetFilter;
 	if (m_browserTilesetFilterButton) {
 		m_browserTilesetFilterButton->SetLabel(m_browserTilesetFilter.IsEmpty() ? "Tileset: Select ▼" : "Tileset: " + m_browserTilesetFilter + " ▼");
+	}
+	if (!m_tabInitialized[m_activeTab]) {
+		PopulateUnifiedList();
 	}
 	FilterBrowserList(m_browserSearchCtrl ? m_browserSearchCtrl->GetValue() : wxString());
 	const wxString selectionKey = GetSelectionKeyForTab(m_activeTab);
@@ -4381,7 +4548,7 @@ void BorderEditorPanel::OnBrowserDeleteEntity(wxCommandEvent &event) {
 		pugi::xml_document doc; if (!doc.load_file(nstr(bordersFile).c_str())) { ShowErrorDialog("Failed to load borders.xml", ErrorSeverity::Error); return; }
 		for (pugi::xml_node n = doc.child("materials").child("border"); n; n = n.next_sibling("border")) if (n.attribute("id").as_int() == m_currentBorderId) { doc.child("materials").remove_child(n); break; }
 		if (!doc.save_file(nstr(bordersFile).c_str(), PUGIXML_TEXT("\t"))) { ShowErrorDialog("Failed to save borders.xml", ErrorSeverity::Error); return; }
-		InvalidateXmlCache(bordersFile); TriggerReloadDataFiles(); MarkBrushCatalogDirty(); ClearItems(); PopulateUnifiedList(); return;
+		InvalidateXmlCache(bordersFile); MarkBrushCatalogDirty(); ClearItems(); PopulateUnifiedList(); return;
 	}
 	const BrushEditorBrushDefinition* brush = m_catalog.FindBrushByName(selectionKey);
 	if (brush && !brush->memberships.empty()) {
@@ -4402,7 +4569,7 @@ void BorderEditorPanel::OnBrowserDeleteEntity(wxCommandEvent &event) {
 	bool removed = false; for (pugi::xml_node n = doc.child("materials").child("brush"); n; n = n.next_sibling("brush")) if (wxString(n.attribute("name").as_string()) == selectionKey) { doc.child("materials").remove_child(n); removed = true; break; }
 	if (!removed) { ShowErrorDialog("The selected brush was not found in its source XML.", ErrorSeverity::Warning); return; }
 	if (!doc.save_file(nstr(filePath).c_str(), PUGIXML_TEXT("\t"))) { ShowErrorDialog("Failed to save source XML after deletion.", ErrorSeverity::Error); return; }
-	InvalidateXmlCache(filePath); DiscardDraft(m_activeTab, selectionKey); TriggerReloadDataFiles(); MarkBrushCatalogDirty(); if (m_activeTab == 1) ClearGroundItems(); else ClearWallItems(); PopulateUnifiedList();
+	InvalidateXmlCache(filePath); DiscardDraft(m_activeTab, selectionKey); MarkBrushCatalogDirty(); if (m_activeTab == 1) ClearGroundItems(); else ClearWallItems(); PopulateUnifiedList();
 }
 
 void BorderEditorPanel::OnBrowserViewModeChanged(wxCommandEvent &event) {
@@ -4415,6 +4582,11 @@ void BorderEditorPanel::OnBrowserPaletteSelection(wxCommandEvent &event) {
 	const wxString paletteName = GetSelectedPaletteKey();
 	m_browserPaletteSelections[m_activeTab] = (paletteName == "No palettes available") ? wxString() : paletteName;
 	if (!paletteName.IsEmpty() && paletteName != "No palettes available") {
+		if (m_fullBrowserIds.IsEmpty()) {
+			if (m_activeTab == 0) PopulateBorderList();
+			else if (m_activeTab == 1) PopulateGroundList();
+			else if (m_activeTab == 2) PopulateWallList();
+		}
 		ApplyBrowserPaletteFilter(paletteName);
 	}
 	UpdateBrowserLabel();
@@ -4572,6 +4744,11 @@ void BorderEditorPanel::SetActiveInspectorSection(int section) {
 	m_activeInspectorSection = section;
 	m_browserViewMode = 0;
 	UpdateInspectorSectionButtons();
+	if (section == 1) {
+		EnsureActiveTabBrowserLoaded();
+	} else if (section == 2) {
+		EnsureActiveTabPaletteLoaded();
+	}
 	if (section == 0) {
 		if (m_activeTab == 0 && m_groupCheck) m_groupCheck->SetFocus();
 		else if (m_activeTab == 2 && m_wallNameCtrl) m_wallNameCtrl->SetFocus();
@@ -4651,7 +4828,8 @@ void BorderEditorPanel::OnModeSwitch(wxCommandEvent &event) {
 		m_browserSearchCtrl->ChangeValue(m_browserSearchQueriesByTab[m_activeTab]);
 	}
 	LoadTilesets();
-	if (!RestoreCachedBrowserDataForTab(m_activeTab)) {
+	const bool restoredBrowserData = RestoreCachedBrowserDataForTab(m_activeTab);
+	if (!restoredBrowserData) {
 		PopulateUnifiedList();
 	}
 	RefreshBrowserPaletteList();
@@ -4668,15 +4846,25 @@ void BorderEditorPanel::OnModeSwitch(wxCommandEvent &event) {
 	}
 
 	const wxString paletteSelection = m_browserPaletteSelections[m_activeTab];
+	bool restoredPaletteSelection = false;
 	if (!paletteSelection.IsEmpty() && m_browserPaletteList) {
 		for (unsigned int i = 0; i < m_browserPaletteList->GetCount(); ++i) {
 			if (m_browserPaletteList->GetString(i) == paletteSelection) {
 				m_browserPaletteList->SetSelection(i);
-				ApplyBrowserPaletteFilter(paletteSelection);
-				UpdateBrowserLabel();
-				return;
+				restoredPaletteSelection = true;
+				if (m_tabInitialized[m_activeTab]) {
+					ApplyBrowserPaletteFilter(paletteSelection);
+					UpdateBrowserLabel();
+					return;
+				}
+				break;
 			}
 		}
+	}
+
+	if (restoredPaletteSelection) {
+		UpdateBrowserLabel();
+		UpdateBrowserActionButtons();
 	}
 
 	switch (m_activeTab) {
@@ -4698,31 +4886,46 @@ void BorderEditorPanel::PopulateBorderList() {
 	m_fullBrowserPreviewIds.clear();
 	m_borderBrowserList->Clear();
 
-	EnsureBrushCatalogUpToDate();
-
 	int maxId = 0;
-	for (const BrushEditorBrushDefinition &brush : m_catalog.brushes) {
-		if (brush.kind != BrushEditorBrushKind::Border) {
-			continue;
+	wxString dataDir = g_gui.GetDataDirectory();
+	wxString groundsFile = dataDir + wxFileName::GetPathSeparator() + "materials" + wxFileName::GetPathSeparator() + "brushs" + wxFileName::GetPathSeparator() + "grounds.xml";
+	pugi::xml_document groundsDoc;
+	std::set<wxString> seen;
+	if (LoadXmlWithCache(groundsFile, groundsDoc)) {
+		for (pugi::xml_node brushNode = groundsDoc.child("materials").child("brush"); brushNode; brushNode = brushNode.next_sibling("brush")) {
+			if (std::string(brushNode.attribute("type").as_string()) != "ground") continue;
+			const uint16_t mainTileId = brushNode.attribute("server_lookid").as_uint(brushNode.attribute("lookid").as_uint());
+			if (mainTileId == 0) continue;
+			const wxString brushName = wxString(brushNode.attribute("name").as_string());
+			for (pugi::xml_node borderNode = brushNode.child("border"); borderNode; borderNode = borderNode.next_sibling("border")) {
+				const int borderId = borderNode.attribute("id").as_int();
+				const wxString align = wxString(borderNode.attribute("align").as_string());
+				if (borderId <= 0 || (!align.IsEmpty() && align != "outer")) continue;
+				maxId = std::max(maxId, borderId);
+				const wxString dedupe = wxString::Format("%u|%d", mainTileId, borderId);
+				if (!seen.insert(dedupe).second) continue;
+				const wxString label = wxString::Format("%s -> Border #%d", brushName.IsEmpty() ? wxString::Format("Ground %u", mainTileId) : brushName, borderId);
+				m_fullBrowserList.Add(label);
+				m_fullBrowserIds.Add(wxString::Format("%d", borderId));
+				m_fullBrowserPreviewIds.push_back(mainTileId);
+			}
 		}
+	}
 
-		const BrushEditorStorageLocation* storage = brush.GetPrimaryStorage();
-		if (!storage) {
-			continue;
+	if (m_fullBrowserList.IsEmpty()) {
+		wxString bordersFile = dataDir + wxFileName::GetPathSeparator() + "materials" + wxFileName::GetPathSeparator() + "borders" + wxFileName::GetPathSeparator() + "borders.xml";
+		pugi::xml_document bordersDoc;
+		if (LoadXmlWithCache(bordersFile, bordersDoc)) {
+			for (pugi::xml_node borderNode = bordersDoc.child("materials").child("border"); borderNode; borderNode = borderNode.next_sibling("border")) {
+				const int borderId = borderNode.attribute("id").as_int();
+				if (borderId <= 0) continue;
+				maxId = std::max(maxId, borderId);
+				const wxString borderName = wxString(borderNode.attribute("name").as_string());
+				m_fullBrowserList.Add(wxString::Format("%d - %s", borderId, borderName.IsEmpty() ? wxString::Format("Border %d", borderId) : borderName));
+				m_fullBrowserIds.Add(wxString::Format("%d", borderId));
+				m_fullBrowserPreviewIds.push_back(0);
+			}
 		}
-
-		const int borderId = wxAtoi(storage->logicalId);
-		if (borderId <= 0) {
-			continue;
-		}
-
-		maxId = std::max(maxId, borderId);
-		const uint16_t previewId = brush.previewItemId != 0 ? brush.previewItemId : brush.serverLookId;
-		const wxString label = wxString::Format("%d - %s", borderId, BuildCatalogBrowserLabel(brush));
-
-		m_fullBrowserList.Add(label);
-		m_fullBrowserIds.Add(wxString::Format("%d", borderId));
-		m_fullBrowserPreviewIds.push_back(previewId);
 	}
 
 	m_nextBorderId = maxId + 1;
@@ -4908,12 +5111,22 @@ void BorderEditorPanel::PopulateUnifiedList() {
 	}
 	m_browserViewMode = 0;
 	UpdateBrowserViewButtons();
-	EnsureBrushCatalogUpToDate();
-	PopulateUnifiedListFromCatalog();
+	if (m_catalogDirty) {
+		if (m_activeTab == 1) {
+			PopulateGroundList();
+		} else {
+			PopulateWallList();
+		}
+	} else {
+		PopulateUnifiedListFromCatalog();
+	}
 	CacheBrowserDataForActiveTab();
 }
 
 void BorderEditorPanel::OnBrowserSearch(wxCommandEvent &event) {
+	if (!m_tabInitialized[m_activeTab]) {
+		PopulateUnifiedList();
+	}
 	FilterBrowserList(m_browserSearchCtrl->GetValue());
 }
 
@@ -5071,7 +5284,7 @@ void BorderEditorPanel::OnBrowserPaletteCategoryButtonClick(wxCommandEvent &even
 void BorderEditorPanel::OnBrowserTilesetFilterButtonClick(wxCommandEvent &event) {
 	wxMenu menu;
 
-	const auto options = GetBrowserTilesetOptions(m_activeTab, m_activeTab == 0 ? nullptr : &m_catalog);
+	const auto &options = GetBrowserTilesetOptionsCached();
 	if (options.empty()) {
 		return;
 	}
@@ -5082,32 +5295,36 @@ void BorderEditorPanel::OnBrowserTilesetFilterButtonClick(wxCommandEvent &event)
 			item->Check(true);
 		}
 		menu.Bind(wxEVT_MENU, [this, shown, value](wxCommandEvent &) {
-            const wxString keepSelectionKey = GetSelectionKeyForTab(m_activeTab);
-            if (value == m_browserTilesetFilter) {
-                return;
-            }
+			const wxString keepSelectionKey = GetSelectionKeyForTab(m_activeTab);
+			if (value == m_browserTilesetFilter) {
+				return;
+			}
 
-            m_browserTilesetFilter = value;
-            if (m_browserTilesetFilterButton) {
-                m_browserTilesetFilterButton->SetLabel("Tileset: " + shown + " ▼");
-            }
+			m_browserTilesetFilter = value;
+			if (m_browserTilesetFilterButton) {
+				m_browserTilesetFilterButton->SetLabel("Tileset: " + shown + " ▼");
+			}
 
-            FilterBrowserList(m_browserSearchCtrl ? m_browserSearchCtrl->GetValue() : wxString());
+			if (!m_tabInitialized[m_activeTab]) {
+				PopulateUnifiedList();
+			}
+			FilterBrowserList(m_browserSearchCtrl ? m_browserSearchCtrl->GetValue() : wxString());
 
-            bool restored = false;
-            if (!keepSelectionKey.IsEmpty()) {
-                restored = RestoreBrowserSelection(keepSelectionKey);
-            }
+			bool restored = false;
+			if (!keepSelectionKey.IsEmpty()) {
+				restored = RestoreBrowserSelection(keepSelectionKey);
+			}
 
-            if (restored) {
-                LoadSelectionForTab(m_activeTab, keepSelectionKey);
-            } else {
-                switch (m_activeTab) {
-                    case 0: ClearItems(false); break;
-                    case 1: ClearGroundItems(false); break;
-                    case 2: ClearWallItems(false); break;
-                }
-            } }, item->GetId());
+			if (restored) {
+				LoadSelectionForTab(m_activeTab, keepSelectionKey);
+			} else {
+				switch (m_activeTab) {
+					case 0: ClearItems(false); break;
+					case 1: ClearGroundItems(false); break;
+					case 2: ClearWallItems(false); break;
+				}
+			}
+		}, item->GetId());
 	};
 
 	for (const auto &opt : options) {
@@ -5126,7 +5343,7 @@ void BorderEditorPanel::FilterBrowserList(const wxString &query) {
 	wxString lowerQuery = query.Lower();
 
 	const bool useTilesetFilter = !m_browserTilesetFilter.IsEmpty();
-	const auto filterOptions = useTilesetFilter ? GetBrowserTilesetOptions(m_activeTab, &m_catalog) : std::vector<std::pair<wxString, wxString>>();
+	const auto &filterOptions = useTilesetFilter ? GetBrowserTilesetOptionsCached() : m_cachedBrowserTilesetOptions[m_activeTab];
 	wxString selectedTilesetShown;
 	if (useTilesetFilter) {
 		for (const auto &opt : filterOptions) {
@@ -5156,7 +5373,11 @@ void BorderEditorPanel::FilterBrowserList(const wxString &query) {
 				if (!CatalogBrushHasTileset(*catalogBrush, m_browserTilesetFilter)) {
 					continue;
 				}
-			} else {
+			} else if (previewId != 0 && (m_activeTab != 0 || m_catalogDirty)) {
+				if (!ItemIdBelongsToTileset(previewId, m_browserTilesetFilter)) {
+					continue;
+				}
+			} else if (m_activeTab == 0) {
 				const int borderId = wxAtoi(m_fullBrowserIds[i]);
 				if (borderId <= 0 || !CatalogBorderHasTileset(m_catalog, borderId, m_browserTilesetFilter)) {
 					continue;
@@ -5229,14 +5450,8 @@ void BorderEditorPanel::LoadTilesets() {
 			m_rawCategorySelection = selection;
 			m_rawCategoryButton->SetLabel(m_tilesetListData[selection] + " \u25BC");
 
-			if (m_itemPalettePanel) {
-				m_itemPalettePanel->LoadTileset(m_tilesetListData[selection]);
-			}
 		} else {
 			m_rawCategoryButton->SetLabel("Select \u25BC");
-			if (m_itemPalettePanel) {
-				m_itemPalettePanel->LoadTileset("");
-			}
 		}
 	} else if (m_activeTab == 1 && m_groundTilesetButton) {
 		// Ground tab
@@ -5244,9 +5459,6 @@ void BorderEditorPanel::LoadTilesets() {
 			if (m_groundTilesetSelection < 0 || m_groundTilesetSelection >= (int)m_tilesetListData.GetCount()) m_groundTilesetSelection = 0;
 			m_groundTilesetButton->SetLabel(m_tilesetListData[m_groundTilesetSelection] + " \u25BC");
 
-			if (m_groundPalette) {
-				m_groundPalette->LoadTileset(m_tilesetListData[m_groundTilesetSelection], FILTER_GROUND);
-			}
 		} else {
 			m_groundTilesetButton->SetLabel("Select \u25BC");
 		}
@@ -5256,9 +5468,6 @@ void BorderEditorPanel::LoadTilesets() {
 			if (m_wallTilesetSelection < 0 || m_wallTilesetSelection >= (int)m_tilesetListData.GetCount()) m_wallTilesetSelection = 0;
 			m_wallTilesetButton->SetLabel(m_tilesetListData[m_wallTilesetSelection] + " \u25BC");
 
-			if (m_wallPalette) {
-				m_wallPalette->LoadTileset(m_tilesetListData[m_wallTilesetSelection], FILTER_WALL);
-			}
 		} else {
 			m_wallTilesetButton->SetLabel("Select \u25BC");
 		}
@@ -5384,6 +5593,7 @@ void BorderEditorPanel::LoadFilterConfig() {
 	m_borderEnabledTilesets = parseArray("border_enabled");
 	m_groundEnabledTilesets = parseArray("ground_enabled");
 	m_wallEnabledTilesets = parseArray("wall_enabled");
+	InvalidateTilesetCache();
 }
 
 // ============================================================================
@@ -6430,7 +6640,7 @@ void BorderEditorPanel::SaveGroundBrush() {
 	}
 
 	int preSave = wxMessageBox(
-		"This action will save the ground brush and reload data files (F5). Continue?",
+		"This action will save the ground brush. Continue?",
 		"Confirm Save",
 		wxYES_NO | wxICON_QUESTION | wxSTAY_ON_TOP,
 		this
@@ -6569,8 +6779,7 @@ void BorderEditorPanel::SaveGroundBrush() {
 	InvalidateXmlCache(groundsFile);
 
 	DiscardDraft(1, name);
-
-	TriggerReloadDataFiles();
+	MarkBrushCatalogDirty();
 	ReloadCurrentBrushEditorXml(name);
 }
 
@@ -6715,6 +6924,9 @@ void BorderEditorPanel::LoadGroundBrushByName(const wxString &name) {
 		return;
 	}
 	if (RestoreDraft(1, name)) {
+		return;
+	}
+	if (ApplyGroundBrushFromCatalog(name)) {
 		return;
 	}
 
