@@ -619,7 +619,6 @@ void PreferencesWindow::OnBrowseClientPath(wxCommandEvent &WXUNUSED(event)) {
 	if (dialog.ShowModal() == wxID_OK) {
 		wxString path = dialog.GetPath();
 		version_dir_picker->SetValue(path);
-		ClientAssets::setPath(path);
 		spdlog::debug("New client directory selected: {}", path.ToUTF8().data());
 	}
 }
@@ -767,6 +766,7 @@ void PreferencesWindow::Apply() {
 	g_settings.setString(Config::MONSTERS_LUA_DIRECTORY, nstr(monsters_lua_dir_picker->GetValue()));
 	g_settings.setString(Config::NPCS_LUA_DIRECTORY, nstr(npcs_lua_dir_picker->GetValue()));
 
+	ClientAssets::setPath(version_dir_picker->GetValue());
 	ClientAssets::save();
 	ClientAssets::load();
 
