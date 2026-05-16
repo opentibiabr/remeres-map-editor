@@ -619,7 +619,7 @@ void PreferencesWindow::OnBrowseClientPath(wxCommandEvent &WXUNUSED(event)) {
 	if (dialog.ShowModal() == wxID_OK) {
 		wxString path = dialog.GetPath();
 		version_dir_picker->SetValue(path);
-		ClientAssets::setPath(path.ToUTF8().data());
+		ClientAssets::setPath(path);
 		spdlog::debug("New client directory selected: {}", path.ToUTF8().data());
 	}
 }
