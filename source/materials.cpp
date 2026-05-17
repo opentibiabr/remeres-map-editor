@@ -24,6 +24,7 @@
 
 #include "gui.h"
 #include "materials.h"
+#include "brush_database.h"
 #include "brush.h"
 #include "monster_brush.h"
 #include "npc_brush.h"
@@ -45,6 +46,26 @@ void Materials::clear() {
 	}
 
 	tilesets.clear();
+}
+
+bool Materials::initializeBrushDatabase(wxArrayString &warnings) {
+	if (!g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
+		return true;
+	}
+
+	const wxString databasePath = GUI::GetLocalDataDirectory() + "materials.db";
+	if (!g_brush_database.initialize(databasePath)) {
+		warnings.push_back("SQLite brush database initialization failed: " + g_brush_database.getLastError());
+		return false;
+	}
+
+	if (!g_brush_database.testDatabaseConnection()) {
+		warnings.push_back("SQLite brush database connection test failed: " + g_brush_database.getLastError());
+		return false;
+	}
+
+	spdlog::info("SQLite brush backend is enabled at {}", databasePath.ToStdString());
+	return true;
 }
 
 bool Materials::loadMaterials(const FileName &identifier, wxString &error, wxArrayString &warnings) {

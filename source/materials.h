@@ -28,6 +28,7 @@ public:
 	~Materials();
 
 	void clear();
+	bool initializeBrushDatabase(wxArrayString &warnings);
 
 	TilesetContainer tilesets;
 

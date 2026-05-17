@@ -36,6 +36,7 @@ find_package(pugixml CONFIG REQUIRED)
 find_package(liblzma CONFIG REQUIRED)
 find_package(Protobuf REQUIRED)
 find_package(cpr CONFIG REQUIRED)
+find_package(SQLite3 REQUIRED)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -178,6 +179,7 @@ target_sources(
           bitmap_to_map_window.cpp
           bitmap_to_map_converter.cpp
           brush.cpp
+          brush_database.cpp
           brush_tables.cpp
           browse_tile_window.cpp
           positionctrl.cpp
@@ -335,6 +337,7 @@ target_link_libraries(
           ${LUA_LIB_TARGET}
           sol2::sol2
           cpr::cpr
+          SQLite3::SQLite3
           $<$<PLATFORM_ID:Linux>:xcb>
           $<$<PLATFORM_ID:Windows>:psapi>)
 

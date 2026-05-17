@@ -358,6 +358,7 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 
 	g_gui.SetLoadDone(50, "Loading materials.xml ...");
 	spdlog::info("Loading materials");
+	g_materials.initializeBrushDatabase(warnings);
 	auto materialsPath = wxString(data_path.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + "materials/materials.xml");
 	if (!g_materials.loadMaterials(materialsPath, error, warnings)) {
 		warnings.push_back("Couldn't load materials.xml: " + error);
