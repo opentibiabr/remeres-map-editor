@@ -32,6 +32,92 @@
 
 Materials g_materials;
 
+namespace {
+bool ExtractSimpleBrushNode(pugi::xml_node brushNode, BrushRecord &outBrush, std::vector<BrushItemRecord> &outItems, wxString &error, wxArrayString &warnings) {
+	pugi::xml_attribute nameAttr = brushNode.attribute("name");
+	pugi::xml_attribute typeAttr = brushNode.attribute("type");
+	if (!nameAttr || !typeAttr) {
+		error = "Brush node is missing required name/type attributes.";
+		return false;
+	}
+
+	outBrush.name = wxString(nameAttr.as_string(), wxConvUTF8);
+	outBrush.type = wxString(typeAttr.as_string(), wxConvUTF8);
+	outBrush.lookId = brushNode.attribute("server_lookid") ? brushNode.attribute("server_lookid").as_int() : brushNode.attribute("lookid").as_int();
+	outBrush.zOrder = brushNode.attribute("z-order").as_int();
+
+	outItems.clear();
+	for (pugi::xml_node childNode = brushNode.first_child(); childNode; childNode = childNode.next_sibling()) {
+		const std::string childName = as_lower_str(childNode.name());
+		if (childName == "item") {
+			pugi::xml_attribute itemIdAttr = childNode.attribute("id");
+			if (!itemIdAttr) {
+				continue;
+			}
+
+			BrushItemRecord item;
+			item.itemId = itemIdAttr.as_int();
+			item.chance = std::max(1, childNode.attribute("chance").as_int(1));
+			outItems.push_back(item);
+		} else if (childName == "composite") {
+			error = "Only simple brushes with direct <item> nodes are supported by the SQLite validation import.";
+			return false;
+		}
+	}
+
+	if (outItems.empty()) {
+		warnings.push_back("SQLite validation import found brush \"" + outBrush.name + "\" without direct item nodes.");
+	}
+
+	return true;
+}
+
+bool FindAndExtractSimpleBrushRecursive(const FileName &filename, const wxString &brushName, BrushRecord &outBrush, std::vector<BrushItemRecord> &outItems, wxString &error, wxArrayString &warnings, std::set<wxString> &visited) {
+	const wxString normalizedPath = filename.GetFullPath();
+	if (visited.find(normalizedPath) != visited.end()) {
+		return false;
+	}
+	visited.insert(normalizedPath);
+
+	pugi::xml_document doc;
+	pugi::xml_parse_result result = doc.load_file(filename.GetFullPath().mb_str());
+	if (!result) {
+		warnings.push_back("SQLite validation import could not read " + filename.GetFullName());
+		return false;
+	}
+
+	pugi::xml_node materialsNode = doc.child("materials");
+	if (!materialsNode) {
+		warnings.push_back("SQLite validation import found invalid root in " + filename.GetFullName());
+		return false;
+	}
+
+	for (pugi::xml_node childNode = materialsNode.first_child(); childNode; childNode = childNode.next_sibling()) {
+		const std::string childName = as_lower_str(childNode.name());
+		if (childName == "brush") {
+			pugi::xml_attribute nameAttr = childNode.attribute("name");
+			if (nameAttr && wxString(nameAttr.as_string(), wxConvUTF8) == brushName) {
+				return ExtractSimpleBrushNode(childNode, outBrush, outItems, error, warnings);
+			}
+		} else if (childName == "include") {
+			pugi::xml_attribute includeAttr = childNode.attribute("file");
+			if (!includeAttr) {
+				continue;
+			}
+
+			FileName includeName;
+			includeName.SetPath(filename.GetPath());
+			includeName.SetName(wxString(includeAttr.as_string(), wxConvUTF8));
+			if (FindAndExtractSimpleBrushRecursive(includeName, brushName, outBrush, outItems, error, warnings, visited)) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+} // namespace
+
 Materials::Materials() {
 	////
 }
@@ -53,7 +139,7 @@ bool Materials::initializeBrushDatabase(wxArrayString &warnings) {
 		return true;
 	}
 
-	const wxString databasePath = GUI::GetLocalDataDirectory() + "materials.db";
+	const wxString databasePath = GUI::GetDataDirectory() + "materials/materials.db";
 	if (!g_brush_database.initialize(databasePath)) {
 		warnings.push_back("SQLite brush database initialization failed: " + g_brush_database.getLastError());
 		return false;
@@ -65,6 +151,43 @@ bool Materials::initializeBrushDatabase(wxArrayString &warnings) {
 	}
 
 	spdlog::info("SQLite brush backend is enabled at {}", databasePath.ToStdString());
+	return true;
+}
+
+bool Materials::migrateSingleBrushToSQLite(const FileName &identifier, const wxString &brushName, wxString &error, wxArrayString &warnings) {
+	if (!g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
+		return true;
+	}
+	if (!g_brush_database.isOpen()) {
+		error = "SQLite brush database is not open.";
+		return false;
+	}
+
+	BrushRecord brush;
+	std::vector<BrushItemRecord> items;
+	std::set<wxString> visited;
+	if (!FindAndExtractSimpleBrushRecursive(identifier, brushName, brush, items, error, warnings, visited)) {
+		if (error.IsEmpty()) {
+			error = "Brush \"" + brushName + "\" was not found in materials XML includes.";
+		}
+		return false;
+	}
+
+	int64_t brushId = 0;
+	if (!g_brush_database.upsertBrush(brush, brushId)) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
+
+	for (BrushItemRecord &item : items) {
+		item.brushId = brushId;
+	}
+	if (!g_brush_database.replaceBrushItems(brushId, items)) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
+
+	spdlog::info("SQLite validation import migrated brush '{}' with {} items", brush.name.ToStdString(), items.size());
 	return true;
 }
 

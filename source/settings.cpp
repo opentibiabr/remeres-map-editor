@@ -226,7 +226,7 @@ void Settings::IO(IOMode mode) {
 	Int(VERSION_ID, 0);
 	Int(USE_CUSTOM_DATA_DIRECTORY, 0);
 	String(DATA_DIRECTORY, "");
-	Int(USE_SQLITE_MATERIALS, 0);
+	Int(USE_SQLITE_MATERIALS, 1);
 	String(ASSETS_DATA_DIRS, "");
 
 	section("Editor");

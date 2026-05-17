@@ -360,6 +360,13 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 	spdlog::info("Loading materials");
 	g_materials.initializeBrushDatabase(warnings);
 	auto materialsPath = wxString(data_path.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + "materials/materials.xml");
+	if (g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
+		wxString sqliteImportError;
+		if (!g_materials.migrateSingleBrushToSQLite(FileName(materialsPath), "void", sqliteImportError, warnings)) {
+			warnings.push_back("SQLite validation import failed: " + sqliteImportError);
+			spdlog::warn("[GUI::LoadDataFiles] SQLite validation import failed: {}", sqliteImportError.ToStdString());
+		}
+	}
 	if (!g_materials.loadMaterials(materialsPath, error, warnings)) {
 		warnings.push_back("Couldn't load materials.xml: " + error);
 		spdlog::warn("[GUI::LoadDataFiles] {}: {}", materialsPath.ToStdString(), error.ToStdString());

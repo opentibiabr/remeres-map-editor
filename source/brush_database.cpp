@@ -291,6 +291,21 @@ bool BrushDatabase::insertBrush(const BrushRecord &brush, int64_t &insertedId) {
 	return true;
 }
 
+bool BrushDatabase::upsertBrush(const BrushRecord &brush, int64_t &brushId) {
+	BrushRecord existingBrush;
+	if (findBrushByNameAndType(brush.name, brush.type, existingBrush)) {
+		BrushRecord updatedBrush = brush;
+		updatedBrush.id = existingBrush.id;
+		if (!updateBrush(updatedBrush)) {
+			return false;
+		}
+		brushId = existingBrush.id;
+		return true;
+	}
+
+	return insertBrush(brush, brushId);
+}
+
 bool BrushDatabase::getBrushById(int64_t brushId, BrushRecord &outBrush) {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
@@ -315,6 +330,40 @@ bool BrushDatabase::getBrushById(int64_t brushId, BrushRecord &outBrush) {
 	outBrush.lookId = sqlite3_column_int(stmt, 3);
 	outBrush.zOrder = sqlite3_column_int(stmt, 4);
 
+	sqlite3_finalize(stmt);
+	return true;
+}
+
+bool BrushDatabase::findBrushByNameAndType(const wxString &name, const wxString &type, BrushRecord &outBrush) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+
+	sqlite3_stmt* stmt = nullptr;
+	if (!prepare("SELECT id, name, type, look_id, z_order "
+	             "FROM brushes WHERE name = ? AND type = ? LIMIT 1;", &stmt)) {
+		return false;
+	}
+
+	sqlite3_bind_text(stmt, 1, name.utf8_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_text(stmt, 2, type.utf8_str(), -1, SQLITE_TRANSIENT);
+
+	const int rc = sqlite3_step(stmt);
+	if (rc == SQLITE_DONE) {
+		sqlite3_finalize(stmt);
+		return false;
+	}
+	if (rc != SQLITE_ROW) {
+		sqlite3_finalize(stmt);
+		setErrorFromDatabase("Failed to query brush by name and type");
+		return false;
+	}
+
+	outBrush.id = sqlite3_column_int64(stmt, 0);
+	outBrush.name = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+	outBrush.type = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+	outBrush.lookId = sqlite3_column_int(stmt, 3);
+	outBrush.zOrder = sqlite3_column_int(stmt, 4);
 	sqlite3_finalize(stmt);
 	return true;
 }

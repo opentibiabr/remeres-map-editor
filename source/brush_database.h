@@ -37,7 +37,9 @@ public:
 	bool testBasicCRUD();
 
 	bool insertBrush(const BrushRecord &brush, int64_t &insertedId);
+	bool upsertBrush(const BrushRecord &brush, int64_t &brushId);
 	bool getBrushById(int64_t brushId, BrushRecord &outBrush);
+	bool findBrushByNameAndType(const wxString &name, const wxString &type, BrushRecord &outBrush);
 	bool updateBrush(const BrushRecord &brush);
 	bool deleteBrush(int64_t brushId);
 
