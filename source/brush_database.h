@@ -166,6 +166,30 @@ struct DoodadAlternativeRecord {
 	std::vector<DoodadCompositeRecord> composites;
 };
 
+struct TilesetEntryRecord {
+	wxString entryKind;
+	int64_t brushId = 0;
+	wxString brushName;
+	int itemId = 0;
+	int fromItemId = 0;
+	int toItemId = 0;
+	wxString afterBrushName;
+	int afterItemId = 0;
+	int sortOrder = 0;
+};
+
+struct TilesetSectionRecord {
+	wxString sectionType;
+	int sortOrder = 0;
+	std::vector<TilesetEntryRecord> entries;
+};
+
+struct TilesetStorageRecord {
+	wxString name;
+	wxString sourceFile;
+	std::vector<TilesetSectionRecord> sections;
+};
+
 class BrushDatabase {
 public:
 	BrushDatabase();
@@ -204,6 +228,7 @@ public:
 	bool replaceCarpetNodes(int64_t brushId, const std::vector<CarpetNodeRecord> &nodes);
 	bool replaceTableNodes(int64_t brushId, const std::vector<TableNodeRecord> &nodes);
 	bool replaceDoodadAlternatives(int64_t brushId, const std::vector<DoodadAlternativeRecord> &alternatives);
+	bool replaceAllTilesets(const std::vector<TilesetStorageRecord> &tilesets);
 	bool resolveGroundReferenceNames();
 
 private:
@@ -214,6 +239,8 @@ private:
 	bool migrateToVersion2();
 	bool migrateToVersion3();
 	bool migrateToVersion4();
+	bool migrateToVersion5();
+	bool migrateToVersion6();
 	bool columnExists(const wxString &tableName, const wxString &columnName, bool &exists);
 
 	bool execute(const wxString &sql);

@@ -33,6 +33,7 @@ public:
 	bool migrateGroundsToSQLite(wxString &error, wxArrayString &warnings);
 	bool migrateWallsToSQLite(wxString &error, wxArrayString &warnings);
 	bool migrateDecorativeBrushesToSQLite(wxString &error, wxArrayString &warnings);
+	bool migrateTilesetsToSQLite(wxString &error, wxArrayString &warnings);
 
 	TilesetContainer tilesets;
 

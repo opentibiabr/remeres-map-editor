@@ -5,7 +5,7 @@
 BrushDatabase g_brush_database;
 
 namespace {
-constexpr int kBrushDatabaseSchemaVersion = 4;
+constexpr int kBrushDatabaseSchemaVersion = 6;
 
 static wxString ToWxString(const char* value) {
 	return value ? wxString::FromUTF8(value) : wxString();
@@ -635,6 +635,22 @@ bool BrushDatabase::initializeSchema() {
 		version = 4;
 	}
 
+	if (version < 5) {
+		if (!migrateToVersion5() || !setSchemaVersion(5)) {
+			rollbackTransaction();
+			return false;
+		}
+		version = 5;
+	}
+
+	if (version < 6) {
+		if (!migrateToVersion6() || !setSchemaVersion(6)) {
+			rollbackTransaction();
+			return false;
+		}
+		version = 6;
+	}
+
 	if (!commitTransaction()) {
 		rollbackTransaction();
 		return false;
@@ -720,6 +736,86 @@ bool BrushDatabase::migrateToVersion4() {
 		");"
 		"CREATE INDEX idx_brush_items_item_id ON brush_items(item_id);"
 		"CREATE INDEX idx_brush_items_brush_sort ON brush_items(brush_id, sort_order);";
+	return execute(recreateSql);
+}
+
+bool BrushDatabase::migrateToVersion5() {
+	const wxString recreateSql =
+		"DROP TABLE IF EXISTS tileset_brush_entries;"
+		"DROP TABLE IF EXISTS tileset_sections;"
+		"DROP TABLE IF EXISTS tilesets;"
+		"CREATE TABLE tilesets ("
+		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
+		"name TEXT NOT NULL UNIQUE,"
+		"source_file TEXT NOT NULL DEFAULT '',"
+		"created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+		"updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
+		");"
+		"CREATE TABLE tileset_sections ("
+		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
+		"tileset_id INTEGER NOT NULL,"
+		"section_type TEXT NOT NULL,"
+		"sort_order INTEGER NOT NULL DEFAULT 0,"
+		"FOREIGN KEY (tileset_id) REFERENCES tilesets(id) ON DELETE CASCADE"
+		");"
+		"CREATE TABLE tileset_brush_entries ("
+		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
+		"tileset_section_id INTEGER NOT NULL,"
+		"entry_kind TEXT NOT NULL DEFAULT 'brush',"
+		"brush_id INTEGER,"
+		"brush_name TEXT NOT NULL DEFAULT '',"
+		"item_id INTEGER NOT NULL DEFAULT 0,"
+		"from_item_id INTEGER NOT NULL DEFAULT 0,"
+		"to_item_id INTEGER NOT NULL DEFAULT 0,"
+		"after_brush_name TEXT NOT NULL DEFAULT '',"
+		"after_item_id INTEGER NOT NULL DEFAULT 0,"
+		"sort_order INTEGER NOT NULL DEFAULT 0,"
+		"FOREIGN KEY (tileset_section_id) REFERENCES tileset_sections(id) ON DELETE CASCADE,"
+		"FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE SET NULL"
+		");"
+		"CREATE INDEX idx_tileset_brush_entries_section ON tileset_brush_entries(tileset_section_id, sort_order);"
+		"CREATE INDEX idx_tileset_brush_entries_name ON tileset_brush_entries(brush_name);"
+		"CREATE INDEX idx_tileset_brush_entries_item ON tileset_brush_entries(item_id, from_item_id, to_item_id);";
+	return execute(recreateSql);
+}
+
+bool BrushDatabase::migrateToVersion6() {
+	const wxString recreateSql =
+		"DROP TABLE IF EXISTS tileset_brush_entries;"
+		"DROP TABLE IF EXISTS tileset_sections;"
+		"DROP TABLE IF EXISTS tilesets;"
+		"CREATE TABLE tilesets ("
+		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
+		"name TEXT NOT NULL UNIQUE,"
+		"source_file TEXT NOT NULL DEFAULT '',"
+		"created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+		"updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
+		");"
+		"CREATE TABLE tileset_sections ("
+		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
+		"tileset_id INTEGER NOT NULL,"
+		"section_type TEXT NOT NULL,"
+		"sort_order INTEGER NOT NULL DEFAULT 0,"
+		"FOREIGN KEY (tileset_id) REFERENCES tilesets(id) ON DELETE CASCADE"
+		");"
+		"CREATE TABLE tileset_brush_entries ("
+		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
+		"tileset_section_id INTEGER NOT NULL,"
+		"entry_kind TEXT NOT NULL DEFAULT 'brush',"
+		"brush_id INTEGER,"
+		"brush_name TEXT NOT NULL DEFAULT '',"
+		"item_id INTEGER NOT NULL DEFAULT 0,"
+		"from_item_id INTEGER NOT NULL DEFAULT 0,"
+		"to_item_id INTEGER NOT NULL DEFAULT 0,"
+		"after_brush_name TEXT NOT NULL DEFAULT '',"
+		"after_item_id INTEGER NOT NULL DEFAULT 0,"
+		"sort_order INTEGER NOT NULL DEFAULT 0,"
+		"FOREIGN KEY (tileset_section_id) REFERENCES tileset_sections(id) ON DELETE CASCADE,"
+		"FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE SET NULL"
+		");"
+		"CREATE INDEX idx_tileset_brush_entries_section ON tileset_brush_entries(tileset_section_id, sort_order);"
+		"CREATE INDEX idx_tileset_brush_entries_name ON tileset_brush_entries(brush_name);"
+		"CREATE INDEX idx_tileset_brush_entries_item ON tileset_brush_entries(item_id, from_item_id, to_item_id);";
 	return execute(recreateSql);
 }
 
@@ -1922,6 +2018,150 @@ bool BrushDatabase::replaceDoodadAlternatives(int64_t brushId, const std::vector
 	sqlite3_finalize(insertCompositeStmt);
 	sqlite3_finalize(insertTileStmt);
 	sqlite3_finalize(insertTileItemStmt);
+	if (!commitTransaction()) {
+		rollbackTransaction();
+		return false;
+	}
+	return true;
+}
+
+bool BrushDatabase::replaceAllTilesets(const std::vector<TilesetStorageRecord> &tilesets) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+	if (!beginTransaction()) {
+		return false;
+	}
+
+	if (!execute("DELETE FROM tilesets;")) {
+		rollbackTransaction();
+		return false;
+	}
+
+	sqlite3_stmt* insertTilesetStmt = nullptr;
+	if (!prepare("INSERT INTO tilesets(name, source_file) VALUES (?, ?);", &insertTilesetStmt)) {
+		rollbackTransaction();
+		return false;
+	}
+	sqlite3_stmt* insertSectionStmt = nullptr;
+	if (!prepare("INSERT INTO tileset_sections(tileset_id, section_type, sort_order) VALUES (?, ?, ?);", &insertSectionStmt)) {
+		sqlite3_finalize(insertTilesetStmt);
+		rollbackTransaction();
+		return false;
+	}
+	sqlite3_stmt* insertEntryStmt = nullptr;
+	if (!prepare("INSERT INTO tileset_brush_entries(tileset_section_id, entry_kind, brush_id, brush_name, item_id, from_item_id, to_item_id, after_brush_name, after_item_id, sort_order) "
+	             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", &insertEntryStmt)) {
+		sqlite3_finalize(insertTilesetStmt);
+		sqlite3_finalize(insertSectionStmt);
+		rollbackTransaction();
+		return false;
+	}
+	sqlite3_stmt* findBrushStmt = nullptr;
+	if (!prepare("SELECT id FROM brushes WHERE name = ? LIMIT 2;", &findBrushStmt)) {
+		sqlite3_finalize(insertTilesetStmt);
+		sqlite3_finalize(insertSectionStmt);
+		sqlite3_finalize(insertEntryStmt);
+		rollbackTransaction();
+		return false;
+	}
+
+	for (const TilesetStorageRecord &tileset : tilesets) {
+		sqlite3_reset(insertTilesetStmt);
+		sqlite3_clear_bindings(insertTilesetStmt);
+		sqlite3_bind_text(insertTilesetStmt, 1, tileset.name.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_text(insertTilesetStmt, 2, tileset.sourceFile.utf8_str(), -1, SQLITE_TRANSIENT);
+		int rc = sqlite3_step(insertTilesetStmt);
+		if (rc != SQLITE_DONE) {
+			sqlite3_finalize(insertTilesetStmt);
+			sqlite3_finalize(insertSectionStmt);
+			sqlite3_finalize(insertEntryStmt);
+			sqlite3_finalize(findBrushStmt);
+			rollbackTransaction();
+			return setErrorFromDatabase("Failed to insert tileset");
+		}
+		const int64_t tilesetId = sqlite3_last_insert_rowid(connection_);
+
+		for (const TilesetSectionRecord &section : tileset.sections) {
+			sqlite3_reset(insertSectionStmt);
+			sqlite3_clear_bindings(insertSectionStmt);
+			sqlite3_bind_int64(insertSectionStmt, 1, tilesetId);
+			sqlite3_bind_text(insertSectionStmt, 2, section.sectionType.utf8_str(), -1, SQLITE_TRANSIENT);
+			sqlite3_bind_int(insertSectionStmt, 3, section.sortOrder);
+			rc = sqlite3_step(insertSectionStmt);
+			if (rc != SQLITE_DONE) {
+				sqlite3_finalize(insertTilesetStmt);
+				sqlite3_finalize(insertSectionStmt);
+				sqlite3_finalize(insertEntryStmt);
+				sqlite3_finalize(findBrushStmt);
+				rollbackTransaction();
+				return setErrorFromDatabase("Failed to insert tileset section");
+			}
+			const int64_t sectionId = sqlite3_last_insert_rowid(connection_);
+
+			for (const TilesetEntryRecord &entry : section.entries) {
+				int64_t resolvedBrushId = entry.brushId;
+				if (resolvedBrushId == 0 && !entry.brushName.IsEmpty()) {
+					sqlite3_reset(findBrushStmt);
+					sqlite3_clear_bindings(findBrushStmt);
+					sqlite3_bind_text(findBrushStmt, 1, entry.brushName.utf8_str(), -1, SQLITE_TRANSIENT);
+					const int firstRc = sqlite3_step(findBrushStmt);
+					if (firstRc == SQLITE_ROW) {
+						resolvedBrushId = sqlite3_column_int64(findBrushStmt, 0);
+						const int secondRc = sqlite3_step(findBrushStmt);
+						if (secondRc == SQLITE_ROW) {
+							resolvedBrushId = 0;
+						} else if (secondRc != SQLITE_DONE) {
+							sqlite3_finalize(insertTilesetStmt);
+							sqlite3_finalize(insertSectionStmt);
+							sqlite3_finalize(insertEntryStmt);
+							sqlite3_finalize(findBrushStmt);
+							rollbackTransaction();
+							return setErrorFromDatabase("Failed to resolve tileset brush reference");
+						}
+					} else if (firstRc != SQLITE_DONE) {
+						sqlite3_finalize(insertTilesetStmt);
+						sqlite3_finalize(insertSectionStmt);
+						sqlite3_finalize(insertEntryStmt);
+						sqlite3_finalize(findBrushStmt);
+						rollbackTransaction();
+						return setErrorFromDatabase("Failed to resolve tileset brush reference");
+					}
+				}
+
+				sqlite3_reset(insertEntryStmt);
+				sqlite3_clear_bindings(insertEntryStmt);
+				sqlite3_bind_int64(insertEntryStmt, 1, sectionId);
+				sqlite3_bind_text(insertEntryStmt, 2, entry.entryKind.utf8_str(), -1, SQLITE_TRANSIENT);
+				if (resolvedBrushId != 0) {
+					sqlite3_bind_int64(insertEntryStmt, 3, resolvedBrushId);
+				} else {
+					sqlite3_bind_null(insertEntryStmt, 3);
+				}
+				sqlite3_bind_text(insertEntryStmt, 4, entry.brushName.utf8_str(), -1, SQLITE_TRANSIENT);
+				sqlite3_bind_int(insertEntryStmt, 5, entry.itemId);
+				sqlite3_bind_int(insertEntryStmt, 6, entry.fromItemId);
+				sqlite3_bind_int(insertEntryStmt, 7, entry.toItemId);
+				sqlite3_bind_text(insertEntryStmt, 8, entry.afterBrushName.utf8_str(), -1, SQLITE_TRANSIENT);
+				sqlite3_bind_int(insertEntryStmt, 9, entry.afterItemId);
+				sqlite3_bind_int(insertEntryStmt, 10, entry.sortOrder);
+				rc = sqlite3_step(insertEntryStmt);
+				if (rc != SQLITE_DONE) {
+					sqlite3_finalize(insertTilesetStmt);
+					sqlite3_finalize(insertSectionStmt);
+					sqlite3_finalize(insertEntryStmt);
+					sqlite3_finalize(findBrushStmt);
+					rollbackTransaction();
+					return setErrorFromDatabase("Failed to insert tileset entry");
+				}
+			}
+		}
+	}
+
+	sqlite3_finalize(insertTilesetStmt);
+	sqlite3_finalize(insertSectionStmt);
+	sqlite3_finalize(insertEntryStmt);
+	sqlite3_finalize(findBrushStmt);
 	if (!commitTransaction()) {
 		rollbackTransaction();
 		return false;

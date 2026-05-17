@@ -973,6 +973,120 @@ bool ParseTableBrushNode(const FileName &sourceFile, pugi::xml_node brushNode, B
 	return true;
 }
 
+bool NormalizeTilesetSectionType(const std::string &nodeName, wxString &sectionType) {
+	if (nodeName == "terrain" || nodeName == "terrain_and_raw") {
+		sectionType = "terrain";
+		return true;
+	}
+	if (nodeName == "doodad" || nodeName == "doodad_and_raw") {
+		sectionType = "doodad";
+		return true;
+	}
+	if (nodeName == "items" || nodeName == "items_and_raw") {
+		sectionType = "items";
+		return true;
+	}
+	return false;
+}
+
+void CollectTilesetSectionEntries(pugi::xml_node sectionNode, TilesetSectionRecord &section) {
+	int sortOrder = 0;
+	for (pugi::xml_node entryNode = sectionNode.first_child(); entryNode; entryNode = entryNode.next_sibling()) {
+		const std::string entryNodeName = as_lower_str(entryNode.name());
+		if (entryNodeName != "brush" && entryNodeName != "item") {
+			continue;
+		}
+
+		TilesetEntryRecord entry;
+		entry.entryKind = wxString::FromUTF8(entryNodeName.c_str());
+		entry.brushName = wxString(entryNode.attribute("name").as_string(), wxConvUTF8);
+		entry.itemId = entryNode.attribute("id").as_int();
+		entry.fromItemId = entryNode.attribute("fromid").as_int();
+		entry.toItemId = entryNode.attribute("toid").as_int();
+		entry.afterBrushName = wxString(entryNode.attribute("after").as_string(), wxConvUTF8);
+		entry.afterItemId = entryNode.attribute("afteritem").as_int();
+		if (entry.toItemId == 0) {
+			entry.toItemId = entry.fromItemId != 0 ? entry.fromItemId : entry.itemId;
+		}
+		entry.sortOrder = sortOrder++;
+
+		if (entry.entryKind == "brush" && !entry.brushName.IsEmpty()) {
+			section.entries.push_back(entry);
+		} else if (entry.entryKind == "item" && (entry.itemId > 0 || entry.fromItemId > 0)) {
+			section.entries.push_back(entry);
+		}
+	}
+}
+
+bool ParseTilesetNode(const FileName &sourceFile, pugi::xml_node tilesetNode, TilesetStorageRecord &outTileset, wxArrayString &warnings) {
+	outTileset = TilesetStorageRecord();
+	outTileset.name = wxString(tilesetNode.attribute("name").as_string(), wxConvUTF8);
+	outTileset.sourceFile = MaterialSourcePath(sourceFile);
+	if (outTileset.name.IsEmpty()) {
+		warnings.push_back("SQLite tileset import found tileset without name in " + sourceFile.GetFullName());
+		return false;
+	}
+
+	int sectionSortOrder = 0;
+	for (pugi::xml_node childNode = tilesetNode.first_child(); childNode; childNode = childNode.next_sibling()) {
+		wxString sectionType;
+		if (!NormalizeTilesetSectionType(as_lower_str(childNode.name()), sectionType)) {
+			continue;
+		}
+
+		TilesetSectionRecord section;
+		section.sectionType = sectionType;
+		section.sortOrder = sectionSortOrder++;
+		CollectTilesetSectionEntries(childNode, section);
+		outTileset.sections.push_back(section);
+	}
+
+	return true;
+}
+
+bool ImportTilesetsRecursive(const FileName &filename, wxArrayString &warnings, std::set<wxString> &visited, std::vector<TilesetStorageRecord> &outTilesets) {
+	const wxString normalizedPath = filename.GetFullPath();
+	if (visited.find(normalizedPath) != visited.end()) {
+		return true;
+	}
+	visited.insert(normalizedPath);
+
+	pugi::xml_document doc;
+	pugi::xml_parse_result result = doc.load_file(filename.GetFullPath().mb_str());
+	if (!result) {
+		warnings.push_back("SQLite tileset import could not read " + filename.GetFullName());
+		return false;
+	}
+
+	pugi::xml_node materialsNode = doc.child("materials");
+	if (!materialsNode) {
+		warnings.push_back("SQLite tileset import found invalid root in " + filename.GetFullName());
+		return false;
+	}
+
+	for (pugi::xml_node childNode = materialsNode.first_child(); childNode; childNode = childNode.next_sibling()) {
+		const std::string childName = as_lower_str(childNode.name());
+		if (childName == "include") {
+			const wxString includePath = wxString(childNode.attribute("file").as_string(), wxConvUTF8);
+			if (!includePath.empty() && !ImportTilesetsRecursive(ResolveMaterialInclude(filename, includePath), warnings, visited, outTilesets)) {
+				return false;
+			}
+			continue;
+		}
+
+		if (childName != "tileset") {
+			continue;
+		}
+
+		TilesetStorageRecord tileset;
+		if (ParseTilesetNode(filename, childNode, tileset, warnings)) {
+			outTilesets.push_back(tileset);
+		}
+	}
+
+	return true;
+}
+
 bool ImportDecorativeBrushesRecursive(const FileName &filename, wxArrayString &warnings, std::set<wxString> &visited) {
 	const wxString normalizedPath = filename.GetFullPath();
 	if (visited.find(normalizedPath) != visited.end()) {
@@ -1220,6 +1334,31 @@ bool Materials::migrateDecorativeBrushesToSQLite(wxString &error, wxArrayString 
 	}
 
 	spdlog::info("SQLite decorative brush import completed from {}", brushsRoot.GetFullPath().ToStdString());
+	return true;
+}
+
+bool Materials::migrateTilesetsToSQLite(wxString &error, wxArrayString &warnings) {
+	if (!g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
+		return true;
+	}
+	if (!g_brush_database.isOpen()) {
+		error = "SQLite brush database is not open.";
+		return false;
+	}
+
+	const FileName tilesetsRoot(GUI::GetDataDirectory() + "materials/tilesets.xml");
+	std::vector<TilesetStorageRecord> tilesetsToStore;
+	std::set<wxString> visited;
+	if (!ImportTilesetsRecursive(tilesetsRoot, warnings, visited, tilesetsToStore)) {
+		error = "Failed to import tilesets into SQLite.";
+		return false;
+	}
+	if (!g_brush_database.replaceAllTilesets(tilesetsToStore)) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
+
+	spdlog::info("SQLite tileset import completed from {}", tilesetsRoot.GetFullPath().ToStdString());
 	return true;
 }
 
