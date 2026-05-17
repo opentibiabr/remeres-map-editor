@@ -28,6 +28,7 @@ struct BrushItemRecord {
 	int64_t brushId = 0;
 	int itemId = 0;
 	int chance = 0;
+	int sortOrder = 0;
 };
 
 struct BorderSetRecord {
@@ -212,6 +213,7 @@ private:
 	bool migrateToVersion1();
 	bool migrateToVersion2();
 	bool migrateToVersion3();
+	bool migrateToVersion4();
 	bool columnExists(const wxString &tableName, const wxString &columnName, bool &exists);
 
 	bool execute(const wxString &sql);

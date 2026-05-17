@@ -5,7 +5,7 @@
 BrushDatabase g_brush_database;
 
 namespace {
-constexpr int kBrushDatabaseSchemaVersion = 3;
+constexpr int kBrushDatabaseSchemaVersion = 4;
 
 static wxString ToWxString(const char* value) {
 	return value ? wxString::FromUTF8(value) : wxString();
@@ -174,10 +174,11 @@ bool BrushDatabase::migrateToVersion1() {
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS brush_items ("
+	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
 	             "brush_id INTEGER NOT NULL,"
 	             "item_id INTEGER NOT NULL,"
 	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
-	             "PRIMARY KEY (brush_id, item_id),"
+	             "sort_order INTEGER NOT NULL DEFAULT 0,"
 	             "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
 	             ");")) {
 		return false;
@@ -185,6 +186,11 @@ bool BrushDatabase::migrateToVersion1() {
 
 	if (!execute("CREATE INDEX IF NOT EXISTS idx_brush_items_item_id "
 	             "ON brush_items(item_id);")) {
+		return false;
+	}
+
+	if (!execute("CREATE INDEX IF NOT EXISTS idx_brush_items_brush_sort "
+	             "ON brush_items(brush_id, sort_order);")) {
 		return false;
 	}
 
@@ -621,6 +627,14 @@ bool BrushDatabase::initializeSchema() {
 		version = 3;
 	}
 
+	if (version < 4) {
+		if (!migrateToVersion4() || !setSchemaVersion(4)) {
+			rollbackTransaction();
+			return false;
+		}
+		version = 4;
+	}
+
 	if (!commitTransaction()) {
 		rollbackTransaction();
 		return false;
@@ -691,6 +705,22 @@ bool BrushDatabase::migrateToVersion3() {
 		return false;
 	}
 	return true;
+}
+
+bool BrushDatabase::migrateToVersion4() {
+	const wxString recreateSql =
+		"DROP TABLE IF EXISTS brush_items;"
+		"CREATE TABLE brush_items ("
+		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
+		"brush_id INTEGER NOT NULL,"
+		"item_id INTEGER NOT NULL,"
+		"chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
+		"sort_order INTEGER NOT NULL DEFAULT 0,"
+		"FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
+		");"
+		"CREATE INDEX idx_brush_items_item_id ON brush_items(item_id);"
+		"CREATE INDEX idx_brush_items_brush_sort ON brush_items(brush_id, sort_order);";
+	return execute(recreateSql);
 }
 
 bool BrushDatabase::testDatabaseConnection() {
@@ -1015,17 +1045,19 @@ bool BrushDatabase::replaceBrushItems(int64_t brushId, const std::vector<BrushIt
 	}
 
 	sqlite3_stmt* insertStmt = nullptr;
-	if (!prepare("INSERT INTO brush_items(brush_id, item_id, chance) VALUES (?, ?, ?);", &insertStmt)) {
+	if (!prepare("INSERT INTO brush_items(brush_id, item_id, chance, sort_order) VALUES (?, ?, ?, ?);", &insertStmt)) {
 		rollbackTransaction();
 		return false;
 	}
 
+	int sortOrder = 0;
 	for (const BrushItemRecord &item : items) {
 		sqlite3_reset(insertStmt);
 		sqlite3_clear_bindings(insertStmt);
 		sqlite3_bind_int64(insertStmt, 1, brushId);
 		sqlite3_bind_int(insertStmt, 2, item.itemId);
 		sqlite3_bind_int(insertStmt, 3, item.chance);
+		sqlite3_bind_int(insertStmt, 4, item.sortOrder != 0 ? item.sortOrder : sortOrder);
 
 		rc = sqlite3_step(insertStmt);
 		if (rc != SQLITE_DONE) {
@@ -1033,6 +1065,7 @@ bool BrushDatabase::replaceBrushItems(int64_t brushId, const std::vector<BrushIt
 			rollbackTransaction();
 			return setErrorFromDatabase("Failed to insert brush item");
 		}
+		++sortOrder;
 	}
 
 	sqlite3_finalize(insertStmt);
@@ -1053,8 +1086,8 @@ bool BrushDatabase::getBrushItems(int64_t brushId, std::vector<BrushItemRecord> 
 	}
 
 	sqlite3_stmt* stmt = nullptr;
-	if (!prepare("SELECT brush_id, item_id, chance "
-	             "FROM brush_items WHERE brush_id = ? ORDER BY item_id ASC;", &stmt)) {
+	if (!prepare("SELECT brush_id, item_id, chance, sort_order "
+	             "FROM brush_items WHERE brush_id = ? ORDER BY sort_order ASC, id ASC;", &stmt)) {
 		return false;
 	}
 
@@ -1074,6 +1107,7 @@ bool BrushDatabase::getBrushItems(int64_t brushId, std::vector<BrushItemRecord> 
 		item.brushId = sqlite3_column_int64(stmt, 0);
 		item.itemId = sqlite3_column_int(stmt, 1);
 		item.chance = sqlite3_column_int(stmt, 2);
+		item.sortOrder = sqlite3_column_int(stmt, 3);
 		outItems.push_back(item);
 	}
 
