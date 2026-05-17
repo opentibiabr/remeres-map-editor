@@ -1403,6 +1403,427 @@ bool BrushDatabase::replaceBrushLinks(int64_t brushId, const std::vector<BrushLi
 	return true;
 }
 
+bool BrushDatabase::replaceWallParts(int64_t brushId, const std::vector<WallPartRecord> &parts) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+	if (!beginTransaction()) {
+		return false;
+	}
+
+	sqlite3_stmt* deleteStmt = nullptr;
+	if (!prepare("DELETE FROM wall_parts WHERE brush_id = ?;", &deleteStmt)) {
+		rollbackTransaction();
+		return false;
+	}
+	sqlite3_bind_int64(deleteStmt, 1, brushId);
+	int rc = sqlite3_step(deleteStmt);
+	sqlite3_finalize(deleteStmt);
+	if (rc != SQLITE_DONE) {
+		rollbackTransaction();
+		return setErrorFromDatabase("Failed to clear wall parts");
+	}
+
+	sqlite3_stmt* insertPartStmt = nullptr;
+	if (!prepare("INSERT INTO wall_parts(brush_id, part_type, sort_order) VALUES (?, ?, ?);", &insertPartStmt)) {
+		rollbackTransaction();
+		return false;
+	}
+
+	sqlite3_stmt* insertItemStmt = nullptr;
+	if (!prepare("INSERT INTO wall_part_items(wall_part_id, item_id, chance, sort_order) VALUES (?, ?, ?, ?);", &insertItemStmt)) {
+		sqlite3_finalize(insertPartStmt);
+		rollbackTransaction();
+		return false;
+	}
+
+	sqlite3_stmt* insertDoorStmt = nullptr;
+	if (!prepare("INSERT INTO wall_part_doors(wall_part_id, item_id, door_type, is_open, wall_hate_me, sort_order) "
+	             "VALUES (?, ?, ?, ?, ?, ?);", &insertDoorStmt)) {
+		sqlite3_finalize(insertPartStmt);
+		sqlite3_finalize(insertItemStmt);
+		rollbackTransaction();
+		return false;
+	}
+
+	for (const WallPartRecord &part : parts) {
+		sqlite3_reset(insertPartStmt);
+		sqlite3_clear_bindings(insertPartStmt);
+		sqlite3_bind_int64(insertPartStmt, 1, brushId);
+		sqlite3_bind_text(insertPartStmt, 2, part.partType.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_int(insertPartStmt, 3, part.sortOrder);
+		rc = sqlite3_step(insertPartStmt);
+		if (rc != SQLITE_DONE) {
+			sqlite3_finalize(insertPartStmt);
+			sqlite3_finalize(insertItemStmt);
+			sqlite3_finalize(insertDoorStmt);
+			rollbackTransaction();
+			return setErrorFromDatabase("Failed to insert wall part");
+		}
+
+		const int64_t wallPartId = sqlite3_last_insert_rowid(connection_);
+
+		for (const WallPartItemRecord &item : part.items) {
+			sqlite3_reset(insertItemStmt);
+			sqlite3_clear_bindings(insertItemStmt);
+			sqlite3_bind_int64(insertItemStmt, 1, wallPartId);
+			sqlite3_bind_int(insertItemStmt, 2, item.itemId);
+			sqlite3_bind_int(insertItemStmt, 3, item.chance);
+			sqlite3_bind_int(insertItemStmt, 4, item.sortOrder);
+			rc = sqlite3_step(insertItemStmt);
+			if (rc != SQLITE_DONE) {
+				sqlite3_finalize(insertPartStmt);
+				sqlite3_finalize(insertItemStmt);
+				sqlite3_finalize(insertDoorStmt);
+				rollbackTransaction();
+				return setErrorFromDatabase("Failed to insert wall part item");
+			}
+		}
+
+		for (const WallPartDoorRecord &door : part.doors) {
+			sqlite3_reset(insertDoorStmt);
+			sqlite3_clear_bindings(insertDoorStmt);
+			sqlite3_bind_int64(insertDoorStmt, 1, wallPartId);
+			sqlite3_bind_int(insertDoorStmt, 2, door.itemId);
+			sqlite3_bind_text(insertDoorStmt, 3, door.doorType.utf8_str(), -1, SQLITE_TRANSIENT);
+			sqlite3_bind_int(insertDoorStmt, 4, door.isOpen ? 1 : 0);
+			sqlite3_bind_int(insertDoorStmt, 5, door.wallHateMe ? 1 : 0);
+			sqlite3_bind_int(insertDoorStmt, 6, door.sortOrder);
+			rc = sqlite3_step(insertDoorStmt);
+			if (rc != SQLITE_DONE) {
+				sqlite3_finalize(insertPartStmt);
+				sqlite3_finalize(insertItemStmt);
+				sqlite3_finalize(insertDoorStmt);
+				rollbackTransaction();
+				return setErrorFromDatabase("Failed to insert wall part door");
+			}
+		}
+	}
+
+	sqlite3_finalize(insertPartStmt);
+	sqlite3_finalize(insertItemStmt);
+	sqlite3_finalize(insertDoorStmt);
+	if (!commitTransaction()) {
+		rollbackTransaction();
+		return false;
+	}
+	return true;
+}
+
+bool BrushDatabase::replaceCarpetNodes(int64_t brushId, const std::vector<CarpetNodeRecord> &nodes) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+	if (!beginTransaction()) {
+		return false;
+	}
+
+	sqlite3_stmt* deleteStmt = nullptr;
+	if (!prepare("DELETE FROM carpet_nodes WHERE brush_id = ?;", &deleteStmt)) {
+		rollbackTransaction();
+		return false;
+	}
+	sqlite3_bind_int64(deleteStmt, 1, brushId);
+	int rc = sqlite3_step(deleteStmt);
+	sqlite3_finalize(deleteStmt);
+	if (rc != SQLITE_DONE) {
+		rollbackTransaction();
+		return setErrorFromDatabase("Failed to clear carpet nodes");
+	}
+
+	sqlite3_stmt* insertNodeStmt = nullptr;
+	if (!prepare("INSERT INTO carpet_nodes(brush_id, align, sort_order) VALUES (?, ?, ?);", &insertNodeStmt)) {
+		rollbackTransaction();
+		return false;
+	}
+
+	sqlite3_stmt* insertItemStmt = nullptr;
+	if (!prepare("INSERT INTO carpet_node_items(carpet_node_id, item_id, chance, sort_order) VALUES (?, ?, ?, ?);", &insertItemStmt)) {
+		sqlite3_finalize(insertNodeStmt);
+		rollbackTransaction();
+		return false;
+	}
+
+	for (const CarpetNodeRecord &node : nodes) {
+		sqlite3_reset(insertNodeStmt);
+		sqlite3_clear_bindings(insertNodeStmt);
+		sqlite3_bind_int64(insertNodeStmt, 1, brushId);
+		sqlite3_bind_text(insertNodeStmt, 2, node.align.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_int(insertNodeStmt, 3, node.sortOrder);
+		rc = sqlite3_step(insertNodeStmt);
+		if (rc != SQLITE_DONE) {
+			sqlite3_finalize(insertNodeStmt);
+			sqlite3_finalize(insertItemStmt);
+			rollbackTransaction();
+			return setErrorFromDatabase("Failed to insert carpet node");
+		}
+
+		const int64_t nodeId = sqlite3_last_insert_rowid(connection_);
+		for (const CarpetNodeItemRecord &item : node.items) {
+			sqlite3_reset(insertItemStmt);
+			sqlite3_clear_bindings(insertItemStmt);
+			sqlite3_bind_int64(insertItemStmt, 1, nodeId);
+			sqlite3_bind_int(insertItemStmt, 2, item.itemId);
+			sqlite3_bind_int(insertItemStmt, 3, item.chance);
+			sqlite3_bind_int(insertItemStmt, 4, item.sortOrder);
+			rc = sqlite3_step(insertItemStmt);
+			if (rc != SQLITE_DONE) {
+				sqlite3_finalize(insertNodeStmt);
+				sqlite3_finalize(insertItemStmt);
+				rollbackTransaction();
+				return setErrorFromDatabase("Failed to insert carpet node item");
+			}
+		}
+	}
+
+	sqlite3_finalize(insertNodeStmt);
+	sqlite3_finalize(insertItemStmt);
+	if (!commitTransaction()) {
+		rollbackTransaction();
+		return false;
+	}
+	return true;
+}
+
+bool BrushDatabase::replaceTableNodes(int64_t brushId, const std::vector<TableNodeRecord> &nodes) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+	if (!beginTransaction()) {
+		return false;
+	}
+
+	sqlite3_stmt* deleteStmt = nullptr;
+	if (!prepare("DELETE FROM table_nodes WHERE brush_id = ?;", &deleteStmt)) {
+		rollbackTransaction();
+		return false;
+	}
+	sqlite3_bind_int64(deleteStmt, 1, brushId);
+	int rc = sqlite3_step(deleteStmt);
+	sqlite3_finalize(deleteStmt);
+	if (rc != SQLITE_DONE) {
+		rollbackTransaction();
+		return setErrorFromDatabase("Failed to clear table nodes");
+	}
+
+	sqlite3_stmt* insertNodeStmt = nullptr;
+	if (!prepare("INSERT INTO table_nodes(brush_id, align, sort_order) VALUES (?, ?, ?);", &insertNodeStmt)) {
+		rollbackTransaction();
+		return false;
+	}
+
+	sqlite3_stmt* insertItemStmt = nullptr;
+	if (!prepare("INSERT INTO table_node_items(table_node_id, item_id, chance, sort_order) VALUES (?, ?, ?, ?);", &insertItemStmt)) {
+		sqlite3_finalize(insertNodeStmt);
+		rollbackTransaction();
+		return false;
+	}
+
+	for (const TableNodeRecord &node : nodes) {
+		sqlite3_reset(insertNodeStmt);
+		sqlite3_clear_bindings(insertNodeStmt);
+		sqlite3_bind_int64(insertNodeStmt, 1, brushId);
+		sqlite3_bind_text(insertNodeStmt, 2, node.align.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_int(insertNodeStmt, 3, node.sortOrder);
+		rc = sqlite3_step(insertNodeStmt);
+		if (rc != SQLITE_DONE) {
+			sqlite3_finalize(insertNodeStmt);
+			sqlite3_finalize(insertItemStmt);
+			rollbackTransaction();
+			return setErrorFromDatabase("Failed to insert table node");
+		}
+
+		const int64_t nodeId = sqlite3_last_insert_rowid(connection_);
+		for (const TableNodeItemRecord &item : node.items) {
+			sqlite3_reset(insertItemStmt);
+			sqlite3_clear_bindings(insertItemStmt);
+			sqlite3_bind_int64(insertItemStmt, 1, nodeId);
+			sqlite3_bind_int(insertItemStmt, 2, item.itemId);
+			sqlite3_bind_int(insertItemStmt, 3, item.chance);
+			sqlite3_bind_int(insertItemStmt, 4, item.sortOrder);
+			rc = sqlite3_step(insertItemStmt);
+			if (rc != SQLITE_DONE) {
+				sqlite3_finalize(insertNodeStmt);
+				sqlite3_finalize(insertItemStmt);
+				rollbackTransaction();
+				return setErrorFromDatabase("Failed to insert table node item");
+			}
+		}
+	}
+
+	sqlite3_finalize(insertNodeStmt);
+	sqlite3_finalize(insertItemStmt);
+	if (!commitTransaction()) {
+		rollbackTransaction();
+		return false;
+	}
+	return true;
+}
+
+bool BrushDatabase::replaceDoodadAlternatives(int64_t brushId, const std::vector<DoodadAlternativeRecord> &alternatives) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+	if (!beginTransaction()) {
+		return false;
+	}
+
+	sqlite3_stmt* deleteStmt = nullptr;
+	if (!prepare("DELETE FROM doodad_alternatives WHERE brush_id = ?;", &deleteStmt)) {
+		rollbackTransaction();
+		return false;
+	}
+	sqlite3_bind_int64(deleteStmt, 1, brushId);
+	int rc = sqlite3_step(deleteStmt);
+	sqlite3_finalize(deleteStmt);
+	if (rc != SQLITE_DONE) {
+		rollbackTransaction();
+		return setErrorFromDatabase("Failed to clear doodad alternatives");
+	}
+
+	sqlite3_stmt* insertAltStmt = nullptr;
+	if (!prepare("INSERT INTO doodad_alternatives(brush_id, sort_order) VALUES (?, ?);", &insertAltStmt)) {
+		rollbackTransaction();
+		return false;
+	}
+	sqlite3_stmt* insertSingleStmt = nullptr;
+	if (!prepare("INSERT INTO doodad_single_items(doodad_alternative_id, item_id, chance, sort_order) VALUES (?, ?, ?, ?);", &insertSingleStmt)) {
+		sqlite3_finalize(insertAltStmt);
+		rollbackTransaction();
+		return false;
+	}
+	sqlite3_stmt* insertCompositeStmt = nullptr;
+	if (!prepare("INSERT INTO doodad_composites(doodad_alternative_id, chance, sort_order) VALUES (?, ?, ?);", &insertCompositeStmt)) {
+		sqlite3_finalize(insertAltStmt);
+		sqlite3_finalize(insertSingleStmt);
+		rollbackTransaction();
+		return false;
+	}
+	sqlite3_stmt* insertTileStmt = nullptr;
+	if (!prepare("INSERT INTO doodad_composite_tiles(doodad_composite_id, offset_x, offset_y, offset_z, sort_order) VALUES (?, ?, ?, ?, ?);", &insertTileStmt)) {
+		sqlite3_finalize(insertAltStmt);
+		sqlite3_finalize(insertSingleStmt);
+		sqlite3_finalize(insertCompositeStmt);
+		rollbackTransaction();
+		return false;
+	}
+	sqlite3_stmt* insertTileItemStmt = nullptr;
+	if (!prepare("INSERT INTO doodad_composite_tile_items(doodad_composite_tile_id, item_id, sort_order) VALUES (?, ?, ?);", &insertTileItemStmt)) {
+		sqlite3_finalize(insertAltStmt);
+		sqlite3_finalize(insertSingleStmt);
+		sqlite3_finalize(insertCompositeStmt);
+		sqlite3_finalize(insertTileStmt);
+		rollbackTransaction();
+		return false;
+	}
+
+	for (const DoodadAlternativeRecord &alternative : alternatives) {
+		sqlite3_reset(insertAltStmt);
+		sqlite3_clear_bindings(insertAltStmt);
+		sqlite3_bind_int64(insertAltStmt, 1, brushId);
+		sqlite3_bind_int(insertAltStmt, 2, alternative.sortOrder);
+		rc = sqlite3_step(insertAltStmt);
+		if (rc != SQLITE_DONE) {
+			sqlite3_finalize(insertAltStmt);
+			sqlite3_finalize(insertSingleStmt);
+			sqlite3_finalize(insertCompositeStmt);
+			sqlite3_finalize(insertTileStmt);
+			sqlite3_finalize(insertTileItemStmt);
+			rollbackTransaction();
+			return setErrorFromDatabase("Failed to insert doodad alternative");
+		}
+
+		const int64_t alternativeId = sqlite3_last_insert_rowid(connection_);
+		for (const DoodadSingleItemRecord &single : alternative.singleItems) {
+			sqlite3_reset(insertSingleStmt);
+			sqlite3_clear_bindings(insertSingleStmt);
+			sqlite3_bind_int64(insertSingleStmt, 1, alternativeId);
+			sqlite3_bind_int(insertSingleStmt, 2, single.itemId);
+			sqlite3_bind_int(insertSingleStmt, 3, single.chance);
+			sqlite3_bind_int(insertSingleStmt, 4, single.sortOrder);
+			rc = sqlite3_step(insertSingleStmt);
+			if (rc != SQLITE_DONE) {
+				sqlite3_finalize(insertAltStmt);
+				sqlite3_finalize(insertSingleStmt);
+				sqlite3_finalize(insertCompositeStmt);
+				sqlite3_finalize(insertTileStmt);
+				sqlite3_finalize(insertTileItemStmt);
+				rollbackTransaction();
+				return setErrorFromDatabase("Failed to insert doodad single item");
+			}
+		}
+
+		for (const DoodadCompositeRecord &composite : alternative.composites) {
+			sqlite3_reset(insertCompositeStmt);
+			sqlite3_clear_bindings(insertCompositeStmt);
+			sqlite3_bind_int64(insertCompositeStmt, 1, alternativeId);
+			sqlite3_bind_int(insertCompositeStmt, 2, composite.chance);
+			sqlite3_bind_int(insertCompositeStmt, 3, composite.sortOrder);
+			rc = sqlite3_step(insertCompositeStmt);
+			if (rc != SQLITE_DONE) {
+				sqlite3_finalize(insertAltStmt);
+				sqlite3_finalize(insertSingleStmt);
+				sqlite3_finalize(insertCompositeStmt);
+				sqlite3_finalize(insertTileStmt);
+				sqlite3_finalize(insertTileItemStmt);
+				rollbackTransaction();
+				return setErrorFromDatabase("Failed to insert doodad composite");
+			}
+
+			const int64_t compositeId = sqlite3_last_insert_rowid(connection_);
+			for (const DoodadCompositeTileRecord &tile : composite.tiles) {
+				sqlite3_reset(insertTileStmt);
+				sqlite3_clear_bindings(insertTileStmt);
+				sqlite3_bind_int64(insertTileStmt, 1, compositeId);
+				sqlite3_bind_int(insertTileStmt, 2, tile.offsetX);
+				sqlite3_bind_int(insertTileStmt, 3, tile.offsetY);
+				sqlite3_bind_int(insertTileStmt, 4, tile.offsetZ);
+				sqlite3_bind_int(insertTileStmt, 5, tile.sortOrder);
+				rc = sqlite3_step(insertTileStmt);
+				if (rc != SQLITE_DONE) {
+					sqlite3_finalize(insertAltStmt);
+					sqlite3_finalize(insertSingleStmt);
+					sqlite3_finalize(insertCompositeStmt);
+					sqlite3_finalize(insertTileStmt);
+					sqlite3_finalize(insertTileItemStmt);
+					rollbackTransaction();
+					return setErrorFromDatabase("Failed to insert doodad composite tile");
+				}
+
+				const int64_t tileId = sqlite3_last_insert_rowid(connection_);
+				for (const DoodadCompositeTileItemRecord &item : tile.items) {
+					sqlite3_reset(insertTileItemStmt);
+					sqlite3_clear_bindings(insertTileItemStmt);
+					sqlite3_bind_int64(insertTileItemStmt, 1, tileId);
+					sqlite3_bind_int(insertTileItemStmt, 2, item.itemId);
+					sqlite3_bind_int(insertTileItemStmt, 3, item.sortOrder);
+					rc = sqlite3_step(insertTileItemStmt);
+					if (rc != SQLITE_DONE) {
+						sqlite3_finalize(insertAltStmt);
+						sqlite3_finalize(insertSingleStmt);
+						sqlite3_finalize(insertCompositeStmt);
+						sqlite3_finalize(insertTileStmt);
+						sqlite3_finalize(insertTileItemStmt);
+						rollbackTransaction();
+						return setErrorFromDatabase("Failed to insert doodad composite tile item");
+					}
+				}
+			}
+		}
+	}
+
+	sqlite3_finalize(insertAltStmt);
+	sqlite3_finalize(insertSingleStmt);
+	sqlite3_finalize(insertCompositeStmt);
+	sqlite3_finalize(insertTileStmt);
+	sqlite3_finalize(insertTileItemStmt);
+	if (!commitTransaction()) {
+		rollbackTransaction();
+		return false;
+	}
+	return true;
+}
+
 bool BrushDatabase::resolveGroundReferenceNames() {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");

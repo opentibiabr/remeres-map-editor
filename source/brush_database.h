@@ -89,6 +89,82 @@ struct BrushLinkRecord {
 	int sortOrder = 0;
 };
 
+struct WallPartItemRecord {
+	int itemId = 0;
+	int chance = 0;
+	int sortOrder = 0;
+};
+
+struct WallPartDoorRecord {
+	int itemId = 0;
+	wxString doorType;
+	bool isOpen = false;
+	bool wallHateMe = false;
+	int sortOrder = 0;
+};
+
+struct WallPartRecord {
+	wxString partType;
+	int sortOrder = 0;
+	std::vector<WallPartItemRecord> items;
+	std::vector<WallPartDoorRecord> doors;
+};
+
+struct CarpetNodeItemRecord {
+	int itemId = 0;
+	int chance = 0;
+	int sortOrder = 0;
+};
+
+struct CarpetNodeRecord {
+	wxString align;
+	int sortOrder = 0;
+	std::vector<CarpetNodeItemRecord> items;
+};
+
+struct TableNodeItemRecord {
+	int itemId = 0;
+	int chance = 0;
+	int sortOrder = 0;
+};
+
+struct TableNodeRecord {
+	wxString align;
+	int sortOrder = 0;
+	std::vector<TableNodeItemRecord> items;
+};
+
+struct DoodadSingleItemRecord {
+	int itemId = 0;
+	int chance = 0;
+	int sortOrder = 0;
+};
+
+struct DoodadCompositeTileItemRecord {
+	int itemId = 0;
+	int sortOrder = 0;
+};
+
+struct DoodadCompositeTileRecord {
+	int offsetX = 0;
+	int offsetY = 0;
+	int offsetZ = 0;
+	int sortOrder = 0;
+	std::vector<DoodadCompositeTileItemRecord> items;
+};
+
+struct DoodadCompositeRecord {
+	int chance = 0;
+	int sortOrder = 0;
+	std::vector<DoodadCompositeTileRecord> tiles;
+};
+
+struct DoodadAlternativeRecord {
+	int sortOrder = 0;
+	std::vector<DoodadSingleItemRecord> singleItems;
+	std::vector<DoodadCompositeRecord> composites;
+};
+
 class BrushDatabase {
 public:
 	BrushDatabase();
@@ -123,6 +199,10 @@ public:
 	bool deleteOwnedBorderSetsForBrush(int64_t brushId);
 	bool replaceGroundBrushBorders(int64_t brushId, const std::vector<GroundBrushBorderRecord> &borders);
 	bool replaceBrushLinks(int64_t brushId, const std::vector<BrushLinkRecord> &links);
+	bool replaceWallParts(int64_t brushId, const std::vector<WallPartRecord> &parts);
+	bool replaceCarpetNodes(int64_t brushId, const std::vector<CarpetNodeRecord> &nodes);
+	bool replaceTableNodes(int64_t brushId, const std::vector<TableNodeRecord> &nodes);
+	bool replaceDoodadAlternatives(int64_t brushId, const std::vector<DoodadAlternativeRecord> &alternatives);
 	bool resolveGroundReferenceNames();
 
 private:

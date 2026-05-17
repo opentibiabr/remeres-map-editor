@@ -366,6 +366,14 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 			warnings.push_back("SQLite ground import failed: " + sqliteImportError);
 			spdlog::warn("[GUI::LoadDataFiles] SQLite ground import failed: {}", sqliteImportError.ToStdString());
 		}
+		if (!g_materials.migrateWallsToSQLite(sqliteImportError, warnings)) {
+			warnings.push_back("SQLite wall import failed: " + sqliteImportError);
+			spdlog::warn("[GUI::LoadDataFiles] SQLite wall import failed: {}", sqliteImportError.ToStdString());
+		}
+		if (!g_materials.migrateDecorativeBrushesToSQLite(sqliteImportError, warnings)) {
+			warnings.push_back("SQLite decorative import failed: " + sqliteImportError);
+			spdlog::warn("[GUI::LoadDataFiles] SQLite decorative import failed: {}", sqliteImportError.ToStdString());
+		}
 	}
 	if (!g_materials.loadMaterials(materialsPath, error, warnings)) {
 		warnings.push_back("Couldn't load materials.xml: " + error);
