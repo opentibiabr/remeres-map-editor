@@ -211,6 +211,7 @@ private:
 	bool setSchemaVersion(int version);
 	bool migrateToVersion1();
 	bool migrateToVersion2();
+	bool migrateToVersion3();
 	bool columnExists(const wxString &tableName, const wxString &columnName, bool &exists);
 
 	bool execute(const wxString &sql);

@@ -5,7 +5,7 @@
 BrushDatabase g_brush_database;
 
 namespace {
-constexpr int kBrushDatabaseSchemaVersion = 2;
+constexpr int kBrushDatabaseSchemaVersion = 3;
 
 static wxString ToWxString(const char* value) {
 	return value ? wxString::FromUTF8(value) : wxString();
@@ -176,7 +176,7 @@ bool BrushDatabase::migrateToVersion1() {
 	if (!execute("CREATE TABLE IF NOT EXISTS brush_items ("
 	             "brush_id INTEGER NOT NULL,"
 	             "item_id INTEGER NOT NULL,"
-	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance > 0),"
+	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
 	             "PRIMARY KEY (brush_id, item_id),"
 	             "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
 	             ");")) {
@@ -410,7 +410,7 @@ bool BrushDatabase::migrateToVersion2() {
 	if (!execute("CREATE TABLE IF NOT EXISTS wall_part_items ("
 	             "wall_part_id INTEGER NOT NULL,"
 	             "item_id INTEGER NOT NULL,"
-	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance > 0),"
+	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
 	             "sort_order INTEGER NOT NULL DEFAULT 0,"
 	             "PRIMARY KEY (wall_part_id, item_id),"
 	             "FOREIGN KEY (wall_part_id) REFERENCES wall_parts(id) ON DELETE CASCADE"
@@ -449,7 +449,7 @@ bool BrushDatabase::migrateToVersion2() {
 	if (!execute("CREATE TABLE IF NOT EXISTS carpet_node_items ("
 	             "carpet_node_id INTEGER NOT NULL,"
 	             "item_id INTEGER NOT NULL,"
-	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance > 0),"
+	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
 	             "sort_order INTEGER NOT NULL DEFAULT 0,"
 	             "PRIMARY KEY (carpet_node_id, item_id),"
 	             "FOREIGN KEY (carpet_node_id) REFERENCES carpet_nodes(id) ON DELETE CASCADE"
@@ -470,7 +470,7 @@ bool BrushDatabase::migrateToVersion2() {
 	if (!execute("CREATE TABLE IF NOT EXISTS table_node_items ("
 	             "table_node_id INTEGER NOT NULL,"
 	             "item_id INTEGER NOT NULL,"
-	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance > 0),"
+	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
 	             "sort_order INTEGER NOT NULL DEFAULT 0,"
 	             "PRIMARY KEY (table_node_id, item_id),"
 	             "FOREIGN KEY (table_node_id) REFERENCES table_nodes(id) ON DELETE CASCADE"
@@ -491,7 +491,7 @@ bool BrushDatabase::migrateToVersion2() {
 	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
 	             "doodad_alternative_id INTEGER NOT NULL,"
 	             "item_id INTEGER NOT NULL,"
-	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance > 0),"
+	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
 	             "sort_order INTEGER NOT NULL DEFAULT 0,"
 	             "FOREIGN KEY (doodad_alternative_id) REFERENCES doodad_alternatives(id) ON DELETE CASCADE"
 	             ");")) {
@@ -501,7 +501,7 @@ bool BrushDatabase::migrateToVersion2() {
 	if (!execute("CREATE TABLE IF NOT EXISTS doodad_composites ("
 	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
 	             "doodad_alternative_id INTEGER NOT NULL,"
-	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance > 0),"
+	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
 	             "sort_order INTEGER NOT NULL DEFAULT 0,"
 	             "FOREIGN KEY (doodad_alternative_id) REFERENCES doodad_alternatives(id) ON DELETE CASCADE"
 	             ");")) {
@@ -613,12 +613,83 @@ bool BrushDatabase::initializeSchema() {
 		version = 2;
 	}
 
+	if (version < 3) {
+		if (!migrateToVersion3() || !setSchemaVersion(3)) {
+			rollbackTransaction();
+			return false;
+		}
+		version = 3;
+	}
+
 	if (!commitTransaction()) {
 		rollbackTransaction();
 		return false;
 	}
 
 	spdlog::info("SQLite brush database schema initialized at version {}", version);
+	return true;
+}
+
+bool BrushDatabase::migrateToVersion3() {
+	const wxString recreateSql =
+		"DROP TABLE IF EXISTS brush_items;"
+		"DROP TABLE IF EXISTS wall_part_items;"
+		"DROP TABLE IF EXISTS carpet_node_items;"
+		"DROP TABLE IF EXISTS table_node_items;"
+		"DROP TABLE IF EXISTS doodad_single_items;"
+		"DROP TABLE IF EXISTS doodad_composites;"
+		"CREATE TABLE brush_items ("
+		"brush_id INTEGER NOT NULL,"
+		"item_id INTEGER NOT NULL,"
+		"chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
+		"PRIMARY KEY (brush_id, item_id),"
+		"FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
+		");"
+		"CREATE INDEX idx_brush_items_item_id ON brush_items(item_id);"
+		"CREATE TABLE wall_part_items ("
+		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
+		"wall_part_id INTEGER NOT NULL,"
+		"item_id INTEGER NOT NULL,"
+		"chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
+		"sort_order INTEGER NOT NULL DEFAULT 0,"
+		"FOREIGN KEY (wall_part_id) REFERENCES wall_parts(id) ON DELETE CASCADE"
+		");"
+		"CREATE INDEX idx_wall_part_items_item ON wall_part_items(item_id);"
+		"CREATE TABLE carpet_node_items ("
+		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
+		"carpet_node_id INTEGER NOT NULL,"
+		"item_id INTEGER NOT NULL,"
+		"chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
+		"sort_order INTEGER NOT NULL DEFAULT 0,"
+		"FOREIGN KEY (carpet_node_id) REFERENCES carpet_nodes(id) ON DELETE CASCADE"
+		");"
+		"CREATE TABLE table_node_items ("
+		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
+		"table_node_id INTEGER NOT NULL,"
+		"item_id INTEGER NOT NULL,"
+		"chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
+		"sort_order INTEGER NOT NULL DEFAULT 0,"
+		"FOREIGN KEY (table_node_id) REFERENCES table_nodes(id) ON DELETE CASCADE"
+		");"
+		"CREATE TABLE doodad_single_items ("
+		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
+		"doodad_alternative_id INTEGER NOT NULL,"
+		"item_id INTEGER NOT NULL,"
+		"chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
+		"sort_order INTEGER NOT NULL DEFAULT 0,"
+		"FOREIGN KEY (doodad_alternative_id) REFERENCES doodad_alternatives(id) ON DELETE CASCADE"
+		");"
+		"CREATE TABLE doodad_composites ("
+		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
+		"doodad_alternative_id INTEGER NOT NULL,"
+		"chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
+		"sort_order INTEGER NOT NULL DEFAULT 0,"
+		"FOREIGN KEY (doodad_alternative_id) REFERENCES doodad_alternatives(id) ON DELETE CASCADE"
+		");";
+
+	if (!execute(recreateSql)) {
+		return false;
+	}
 	return true;
 }
 
