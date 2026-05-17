@@ -116,6 +116,421 @@ bool FindAndExtractSimpleBrushRecursive(const FileName &filename, const wxString
 
 	return false;
 }
+
+struct PendingBorderSetImport {
+	BorderSetRecord borderSet;
+	std::vector<BorderSetItemRecord> items;
+};
+
+struct PendingGroundBrushBorderImport {
+	int xmlBorderId = 0;
+	int inlineBorderIndex = -1;
+	GroundBrushBorderRecord border;
+};
+
+struct PendingGroundBrushImport {
+	BrushRecord brush;
+	std::vector<BrushItemRecord> items;
+	std::vector<PendingBorderSetImport> optionalInlineBorders;
+	std::vector<PendingGroundBrushBorderImport> optionalBorders;
+	std::vector<PendingBorderSetImport> normalInlineBorders;
+	std::vector<PendingGroundBrushBorderImport> normalBorders;
+	std::vector<BrushLinkRecord> links;
+};
+
+wxString MaterialSourcePath(const FileName &filename) {
+	return filename.GetFullPath();
+}
+
+FileName ResolveMaterialInclude(const FileName &baseFile, const wxString &includePath) {
+	return FileName(baseFile.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + includePath);
+}
+
+wxString ParseBorderTargetMode(pugi::xml_node borderNode, wxString &targetBrushName) {
+	const wxString toValue = wxString(borderNode.attribute("to").as_string(), wxConvUTF8);
+	if (toValue.IsEmpty() || toValue == "all") {
+		targetBrushName.clear();
+		return "all";
+	}
+	if (toValue == "none") {
+		targetBrushName.clear();
+		return "none";
+	}
+	targetBrushName = toValue;
+	return "brush";
+}
+
+wxString ParseBorderAlign(pugi::xml_node borderNode) {
+	const wxString align = wxString(borderNode.attribute("align").as_string(), wxConvUTF8);
+	return align.IsEmpty() ? "outer" : align;
+}
+
+void CollectBorderSetItems(pugi::xml_node borderNode, std::vector<BorderSetItemRecord> &outItems) {
+	outItems.clear();
+	int sortOrder = 0;
+	for (pugi::xml_node childNode = borderNode.first_child(); childNode; childNode = childNode.next_sibling()) {
+		if (as_lower_str(childNode.name()) != "borderitem") {
+			continue;
+		}
+
+		const wxString edge = wxString(childNode.attribute("edge").as_string(), wxConvUTF8);
+		const int itemId = childNode.attribute("item").as_int();
+		if (edge.IsEmpty() || itemId <= 0) {
+			continue;
+		}
+
+		BorderSetItemRecord item;
+		item.edge = edge;
+		item.itemId = itemId;
+		item.sortOrder = sortOrder++;
+		outItems.push_back(item);
+	}
+}
+
+bool ImportGlobalBordersRecursive(const FileName &filename, wxArrayString &warnings, std::set<wxString> &visited) {
+	const wxString normalizedPath = filename.GetFullPath();
+	if (visited.find(normalizedPath) != visited.end()) {
+		return true;
+	}
+	visited.insert(normalizedPath);
+
+	pugi::xml_document doc;
+	pugi::xml_parse_result result = doc.load_file(filename.GetFullPath().mb_str());
+	if (!result) {
+		warnings.push_back("SQLite border import could not read " + filename.GetFullName());
+		return false;
+	}
+
+	pugi::xml_node materialsNode = doc.child("materials");
+	if (!materialsNode) {
+		warnings.push_back("SQLite border import found invalid root in " + filename.GetFullName());
+		return false;
+	}
+
+	for (pugi::xml_node childNode = materialsNode.first_child(); childNode; childNode = childNode.next_sibling()) {
+		const std::string childName = as_lower_str(childNode.name());
+		if (childName == "include") {
+			const wxString includePath = wxString(childNode.attribute("file").as_string(), wxConvUTF8);
+			if (!includePath.empty() && !ImportGlobalBordersRecursive(ResolveMaterialInclude(filename, includePath), warnings, visited)) {
+				return false;
+			}
+		} else if (childName == "border") {
+			const int xmlBorderId = childNode.attribute("id").as_int();
+			if (xmlBorderId <= 0) {
+				continue;
+			}
+
+			BorderSetRecord borderSet;
+			borderSet.xmlBorderId = xmlBorderId;
+			borderSet.borderScope = "global";
+			borderSet.borderType = wxString(childNode.attribute("type").as_string(), wxConvUTF8);
+			if (borderSet.borderType.IsEmpty()) {
+				borderSet.borderType = "normal";
+			}
+			borderSet.borderGroup = childNode.attribute("group").as_int();
+			borderSet.sourceFile = MaterialSourcePath(filename);
+
+			int64_t borderSetId = 0;
+			if (!g_brush_database.upsertBorderSet(borderSet, borderSetId)) {
+				warnings.push_back("SQLite border import failed for border id " + std::to_string(xmlBorderId) + ": " + g_brush_database.getLastError());
+				return false;
+			}
+
+			std::vector<BorderSetItemRecord> items;
+			CollectBorderSetItems(childNode, items);
+			if (!g_brush_database.replaceBorderSetItems(borderSetId, items)) {
+				warnings.push_back("SQLite border item import failed for border id " + std::to_string(xmlBorderId) + ": " + g_brush_database.getLastError());
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+bool ParseGroundSpecificCases(pugi::xml_node borderNode, std::vector<GroundBorderCaseRecord> &outCases) {
+	outCases.clear();
+	int caseSortOrder = 0;
+	for (pugi::xml_node specificNode = borderNode.first_child(); specificNode; specificNode = specificNode.next_sibling()) {
+		if (as_lower_str(specificNode.name()) != "specific") {
+			continue;
+		}
+
+		GroundBorderCaseRecord caseRecord;
+		caseRecord.sortOrder = caseSortOrder++;
+
+		int conditionSortOrder = 0;
+		int actionSortOrder = 0;
+		for (pugi::xml_node branchNode = specificNode.first_child(); branchNode; branchNode = branchNode.next_sibling()) {
+			const std::string branchName = as_lower_str(branchNode.name());
+			if (branchName == "conditions") {
+				for (pugi::xml_node conditionNode = branchNode.first_child(); conditionNode; conditionNode = conditionNode.next_sibling()) {
+					const std::string conditionName = as_lower_str(conditionNode.name());
+					GroundBorderCaseConditionRecord condition;
+					condition.conditionType = wxString::FromUTF8(conditionName.c_str());
+					condition.sortOrder = conditionSortOrder++;
+					if (conditionName == "match_border") {
+						condition.matchValue = conditionNode.attribute("id").as_int();
+						condition.edge = wxString(conditionNode.attribute("edge").as_string(), wxConvUTF8);
+					} else if (conditionName == "match_group") {
+						condition.matchValue = conditionNode.attribute("group").as_int();
+						condition.edge = wxString(conditionNode.attribute("edge").as_string(), wxConvUTF8);
+					} else if (conditionName == "match_item") {
+						condition.matchValue = conditionNode.attribute("id").as_int();
+					} else {
+						continue;
+					}
+					caseRecord.conditions.push_back(condition);
+				}
+			} else if (branchName == "actions") {
+				for (pugi::xml_node actionNode = branchNode.first_child(); actionNode; actionNode = actionNode.next_sibling()) {
+					const std::string actionName = as_lower_str(actionNode.name());
+					GroundBorderCaseActionRecord action;
+					action.actionType = wxString::FromUTF8(actionName.c_str());
+					action.sortOrder = actionSortOrder++;
+					if (actionName == "replace_border") {
+						action.targetValue = actionNode.attribute("id").as_int();
+						action.edge = wxString(actionNode.attribute("edge").as_string(), wxConvUTF8);
+						action.replacementValue = actionNode.attribute("with").as_int();
+					} else if (actionName == "replace_item") {
+						action.targetValue = actionNode.attribute("id").as_int();
+						action.replacementValue = actionNode.attribute("with").as_int();
+					} else if (actionName == "delete_borders") {
+						// No extra payload needed.
+					} else {
+						continue;
+					}
+					caseRecord.actions.push_back(action);
+				}
+			}
+		}
+
+		outCases.push_back(caseRecord);
+	}
+
+	return true;
+}
+
+PendingBorderSetImport BuildInlineBorderSet(pugi::xml_node node, const wxString &borderType, const FileName &sourceFile) {
+	PendingBorderSetImport pending;
+	pending.borderSet.borderScope = "inline";
+	pending.borderSet.borderType = borderType;
+	pending.borderSet.groundEquivalent = node.attribute("ground_equivalent").as_int();
+	pending.borderSet.sourceFile = MaterialSourcePath(sourceFile);
+	CollectBorderSetItems(node, pending.items);
+	return pending;
+}
+
+bool ParseGroundBrushNode(const FileName &sourceFile, pugi::xml_node brushNode, PendingGroundBrushImport &outBrush, wxArrayString &warnings) {
+	if (wxString(brushNode.attribute("type").as_string(), wxConvUTF8) != "ground") {
+		return false;
+	}
+
+	outBrush = PendingGroundBrushImport();
+	outBrush.brush.name = wxString(brushNode.attribute("name").as_string(), wxConvUTF8);
+	outBrush.brush.type = "ground";
+	outBrush.brush.lookId = brushNode.attribute("lookid").as_int();
+	outBrush.brush.serverLookId = brushNode.attribute("server_lookid").as_int();
+	outBrush.brush.zOrder = brushNode.attribute("z-order").as_int();
+	outBrush.brush.randomize = brushNode.attribute("randomize").as_bool();
+	outBrush.brush.soloOptional = brushNode.attribute("solo_optional").as_bool();
+	outBrush.brush.sourceFile = MaterialSourcePath(sourceFile);
+
+	if (outBrush.brush.name.IsEmpty()) {
+		warnings.push_back("SQLite ground import found ground brush without name in " + sourceFile.GetFullName());
+		return false;
+	}
+
+	int linkSortOrder = 0;
+	int optionalSortOrder = 0;
+	int borderSortOrder = 0;
+	for (pugi::xml_node childNode = brushNode.first_child(); childNode; childNode = childNode.next_sibling()) {
+		const std::string childName = as_lower_str(childNode.name());
+		if (childName == "item") {
+			const int itemId = childNode.attribute("id").as_int();
+			if (itemId <= 0) {
+				continue;
+			}
+
+			BrushItemRecord item;
+			item.itemId = itemId;
+			item.chance = std::max(1, childNode.attribute("chance").as_int(1));
+			outBrush.items.push_back(item);
+		} else if (childName == "optional") {
+			PendingGroundBrushBorderImport borderImport;
+			borderImport.border.borderRole = "optional";
+			borderImport.border.align = "optional";
+			borderImport.border.targetMode = "none";
+			borderImport.border.sortOrder = optionalSortOrder++;
+
+			if (childNode.attribute("id")) {
+				borderImport.xmlBorderId = childNode.attribute("id").as_int();
+			} else if (childNode.attribute("ground_equivalent")) {
+				borderImport.inlineBorderIndex = static_cast<int>(outBrush.optionalInlineBorders.size());
+				outBrush.optionalInlineBorders.push_back(BuildInlineBorderSet(childNode, "optional", sourceFile));
+			}
+
+			outBrush.optionalBorders.push_back(borderImport);
+		} else if (childName == "border") {
+			PendingGroundBrushBorderImport borderImport;
+			borderImport.border.borderRole = "normal";
+			borderImport.border.align = ParseBorderAlign(childNode);
+			borderImport.border.targetMode = ParseBorderTargetMode(childNode, borderImport.border.targetBrushName);
+			borderImport.border.superBorder = childNode.attribute("super").as_bool();
+			borderImport.border.sortOrder = borderSortOrder++;
+
+			if (childNode.attribute("id")) {
+				borderImport.xmlBorderId = childNode.attribute("id").as_int();
+			} else if (childNode.attribute("ground_equivalent")) {
+				borderImport.inlineBorderIndex = static_cast<int>(outBrush.normalInlineBorders.size());
+				outBrush.normalInlineBorders.push_back(BuildInlineBorderSet(childNode, "normal", sourceFile));
+			}
+
+			ParseGroundSpecificCases(childNode, borderImport.border.cases);
+			outBrush.normalBorders.push_back(borderImport);
+		} else if (childName == "friend" || childName == "enemy") {
+			BrushLinkRecord link;
+			link.relationType = wxString::FromUTF8(childName.c_str());
+			link.targetBrushName = wxString(childNode.attribute("name").as_string(), wxConvUTF8);
+			link.sortOrder = linkSortOrder++;
+			outBrush.links.push_back(link);
+		} else if (childName == "clear_borders") {
+			outBrush.normalInlineBorders.clear();
+			outBrush.normalBorders.clear();
+			borderSortOrder = 0;
+		} else if (childName == "clear_friends") {
+			outBrush.links.clear();
+			linkSortOrder = 0;
+		}
+	}
+
+	return true;
+}
+
+bool ImportGroundBrushesFile(const FileName &groundsFile, wxArrayString &warnings) {
+	pugi::xml_document doc;
+	pugi::xml_parse_result result = doc.load_file(groundsFile.GetFullPath().mb_str());
+	if (!result) {
+		warnings.push_back("SQLite ground import could not read " + groundsFile.GetFullName());
+		return false;
+	}
+
+	pugi::xml_node materialsNode = doc.child("materials");
+	if (!materialsNode) {
+		warnings.push_back("SQLite ground import found invalid root in " + groundsFile.GetFullName());
+		return false;
+	}
+
+	for (pugi::xml_node brushNode = materialsNode.first_child(); brushNode; brushNode = brushNode.next_sibling()) {
+		if (as_lower_str(brushNode.name()) != "brush") {
+			continue;
+		}
+
+		PendingGroundBrushImport pending;
+		if (!ParseGroundBrushNode(groundsFile, brushNode, pending, warnings)) {
+			continue;
+		}
+
+		int64_t brushId = 0;
+		if (!g_brush_database.upsertBrush(pending.brush, brushId)) {
+			warnings.push_back("SQLite ground import failed for brush \"" + pending.brush.name + "\": " + g_brush_database.getLastError());
+			return false;
+		}
+
+		if (!g_brush_database.deleteOwnedBorderSetsForBrush(brushId)) {
+			warnings.push_back("SQLite ground import failed cleaning inline borders for \"" + pending.brush.name + "\": " + g_brush_database.getLastError());
+			return false;
+		}
+
+		for (BrushItemRecord &item : pending.items) {
+			item.brushId = brushId;
+		}
+		if (!g_brush_database.replaceBrushItems(brushId, pending.items)) {
+			warnings.push_back("SQLite ground import failed writing items for \"" + pending.brush.name + "\": " + g_brush_database.getLastError());
+			return false;
+		}
+
+		std::vector<int64_t> optionalInlineIds(pending.optionalInlineBorders.size(), 0);
+		for (size_t i = 0; i < pending.optionalInlineBorders.size(); ++i) {
+			pending.optionalInlineBorders[i].borderSet.ownerBrushId = brushId;
+			int64_t borderSetId = 0;
+			if (!g_brush_database.upsertBorderSet(pending.optionalInlineBorders[i].borderSet, borderSetId)) {
+				warnings.push_back("SQLite optional border import failed for \"" + pending.brush.name + "\": " + g_brush_database.getLastError());
+				return false;
+			}
+			optionalInlineIds[i] = borderSetId;
+			if (!g_brush_database.replaceBorderSetItems(borderSetId, pending.optionalInlineBorders[i].items)) {
+				warnings.push_back("SQLite optional border item import failed for \"" + pending.brush.name + "\": " + g_brush_database.getLastError());
+				return false;
+			}
+		}
+
+		std::vector<int64_t> normalInlineIds(pending.normalInlineBorders.size(), 0);
+		for (size_t i = 0; i < pending.normalInlineBorders.size(); ++i) {
+			pending.normalInlineBorders[i].borderSet.ownerBrushId = brushId;
+			int64_t borderSetId = 0;
+			if (!g_brush_database.upsertBorderSet(pending.normalInlineBorders[i].borderSet, borderSetId)) {
+				warnings.push_back("SQLite inline border import failed for \"" + pending.brush.name + "\": " + g_brush_database.getLastError());
+				return false;
+			}
+			normalInlineIds[i] = borderSetId;
+			if (!g_brush_database.replaceBorderSetItems(borderSetId, pending.normalInlineBorders[i].items)) {
+				warnings.push_back("SQLite inline border item import failed for \"" + pending.brush.name + "\": " + g_brush_database.getLastError());
+				return false;
+			}
+		}
+
+		std::vector<GroundBrushBorderRecord> borders;
+		for (PendingGroundBrushBorderImport &pendingBorder : pending.optionalBorders) {
+			GroundBrushBorderRecord border = pendingBorder.border;
+			if (pendingBorder.xmlBorderId > 0) {
+				BorderSetRecord borderSet;
+				if (!g_brush_database.findBorderSetByXmlBorderId(pendingBorder.xmlBorderId, borderSet)) {
+					warnings.push_back("SQLite optional border id " + std::to_string(pendingBorder.xmlBorderId) + " not found for \"" + pending.brush.name + "\"");
+					return false;
+				}
+				border.borderSetId = borderSet.id;
+			} else if (pendingBorder.inlineBorderIndex >= 0 && pendingBorder.inlineBorderIndex < static_cast<int>(optionalInlineIds.size())) {
+				border.borderSetId = optionalInlineIds[pendingBorder.inlineBorderIndex];
+			}
+			if (border.borderSetId > 0) {
+				borders.push_back(border);
+			}
+		}
+
+		for (PendingGroundBrushBorderImport &pendingBorder : pending.normalBorders) {
+			GroundBrushBorderRecord border = pendingBorder.border;
+			if (pendingBorder.xmlBorderId > 0) {
+				BorderSetRecord borderSet;
+				if (!g_brush_database.findBorderSetByXmlBorderId(pendingBorder.xmlBorderId, borderSet)) {
+					warnings.push_back("SQLite border id " + std::to_string(pendingBorder.xmlBorderId) + " not found for \"" + pending.brush.name + "\"");
+					return false;
+				}
+				border.borderSetId = borderSet.id;
+			} else if (pendingBorder.inlineBorderIndex >= 0 && pendingBorder.inlineBorderIndex < static_cast<int>(normalInlineIds.size())) {
+				border.borderSetId = normalInlineIds[pendingBorder.inlineBorderIndex];
+			}
+			if (border.borderSetId > 0) {
+				borders.push_back(border);
+			}
+		}
+
+		if (!g_brush_database.replaceGroundBrushBorders(brushId, borders)) {
+			warnings.push_back("SQLite ground border import failed for \"" + pending.brush.name + "\": " + g_brush_database.getLastError());
+			return false;
+		}
+
+		for (BrushLinkRecord &link : pending.links) {
+			link.brushId = brushId;
+		}
+		if (!g_brush_database.replaceBrushLinks(brushId, pending.links)) {
+			warnings.push_back("SQLite brush link import failed for \"" + pending.brush.name + "\": " + g_brush_database.getLastError());
+			return false;
+		}
+	}
+
+	return true;
+}
 } // namespace
 
 Materials::Materials() {
@@ -188,6 +603,45 @@ bool Materials::migrateSingleBrushToSQLite(const FileName &identifier, const wxS
 	}
 
 	spdlog::info("SQLite validation import migrated brush '{}' with {} items", brush.name.ToStdString(), items.size());
+	return true;
+}
+
+bool Materials::migrateGroundsToSQLite(wxString &error, wxArrayString &warnings) {
+	if (!g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
+		return true;
+	}
+	if (!g_brush_database.isOpen()) {
+		error = "SQLite brush database is not open.";
+		return false;
+	}
+
+	const FileName bordersFile(GUI::GetDataDirectory() + "materials/borders.xml");
+	const FileName groundsFile(GUI::GetDataDirectory() + "materials/brushs/grounds.xml");
+
+	if (!g_brush_database.deleteBrushesByType("ground")) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
+	if (!g_brush_database.deleteBorderSetsByScope("global")) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
+
+	std::set<wxString> visited;
+	if (!ImportGlobalBordersRecursive(bordersFile, warnings, visited)) {
+		error = "Failed to import border sets into SQLite.";
+		return false;
+	}
+	if (!ImportGroundBrushesFile(groundsFile, warnings)) {
+		error = "Failed to import ground brushes into SQLite.";
+		return false;
+	}
+	if (!g_brush_database.resolveGroundReferenceNames()) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
+
+	spdlog::info("SQLite ground import completed from {}", groundsFile.GetFullPath().ToStdString());
 	return true;
 }
 

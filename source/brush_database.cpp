@@ -702,8 +702,11 @@ bool BrushDatabase::insertBrush(const BrushRecord &brush, int64_t &insertedId) {
 	}
 
 	sqlite3_stmt* stmt = nullptr;
-	if (!prepare("INSERT INTO brushes(name, type, look_id, z_order, updated_at) "
-	             "VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP);", &stmt)) {
+	if (!prepare("INSERT INTO brushes("
+	             "name, type, look_id, z_order, source_file, server_look_id, "
+	             "draggable, on_blocking, on_duplicate, redo_borders, randomize, "
+	             "one_size, solo_optional, thickness, thickness_ceiling, updated_at"
+	             ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);", &stmt)) {
 		return false;
 	}
 
@@ -711,6 +714,17 @@ bool BrushDatabase::insertBrush(const BrushRecord &brush, int64_t &insertedId) {
 	sqlite3_bind_text(stmt, 2, brush.type.utf8_str(), -1, SQLITE_TRANSIENT);
 	sqlite3_bind_int(stmt, 3, brush.lookId);
 	sqlite3_bind_int(stmt, 4, brush.zOrder);
+	sqlite3_bind_text(stmt, 5, brush.sourceFile.utf8_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_int(stmt, 6, brush.serverLookId);
+	sqlite3_bind_int(stmt, 7, brush.draggable ? 1 : 0);
+	sqlite3_bind_int(stmt, 8, brush.onBlocking ? 1 : 0);
+	sqlite3_bind_int(stmt, 9, brush.onDuplicate ? 1 : 0);
+	sqlite3_bind_int(stmt, 10, brush.redoBorders ? 1 : 0);
+	sqlite3_bind_int(stmt, 11, brush.randomize ? 1 : 0);
+	sqlite3_bind_int(stmt, 12, brush.oneSize ? 1 : 0);
+	sqlite3_bind_int(stmt, 13, brush.soloOptional ? 1 : 0);
+	sqlite3_bind_int(stmt, 14, brush.thickness);
+	sqlite3_bind_int(stmt, 15, brush.thicknessCeiling);
 
 	const int rc = sqlite3_step(stmt);
 	sqlite3_finalize(stmt);
@@ -743,7 +757,10 @@ bool BrushDatabase::getBrushById(int64_t brushId, BrushRecord &outBrush) {
 	}
 
 	sqlite3_stmt* stmt = nullptr;
-	if (!prepare("SELECT id, name, type, look_id, z_order FROM brushes WHERE id = ?;", &stmt)) {
+	if (!prepare("SELECT id, name, type, look_id, z_order, source_file, server_look_id, "
+	             "draggable, on_blocking, on_duplicate, redo_borders, randomize, "
+	             "one_size, solo_optional, thickness, thickness_ceiling "
+	             "FROM brushes WHERE id = ?;", &stmt)) {
 		return false;
 	}
 
@@ -760,6 +777,17 @@ bool BrushDatabase::getBrushById(int64_t brushId, BrushRecord &outBrush) {
 	outBrush.type = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
 	outBrush.lookId = sqlite3_column_int(stmt, 3);
 	outBrush.zOrder = sqlite3_column_int(stmt, 4);
+	outBrush.sourceFile = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5)));
+	outBrush.serverLookId = sqlite3_column_int(stmt, 6);
+	outBrush.draggable = sqlite3_column_int(stmt, 7) != 0;
+	outBrush.onBlocking = sqlite3_column_int(stmt, 8) != 0;
+	outBrush.onDuplicate = sqlite3_column_int(stmt, 9) != 0;
+	outBrush.redoBorders = sqlite3_column_int(stmt, 10) != 0;
+	outBrush.randomize = sqlite3_column_int(stmt, 11) != 0;
+	outBrush.oneSize = sqlite3_column_int(stmt, 12) != 0;
+	outBrush.soloOptional = sqlite3_column_int(stmt, 13) != 0;
+	outBrush.thickness = sqlite3_column_int(stmt, 14);
+	outBrush.thicknessCeiling = sqlite3_column_int(stmt, 15);
 
 	sqlite3_finalize(stmt);
 	return true;
@@ -771,7 +799,9 @@ bool BrushDatabase::findBrushByNameAndType(const wxString &name, const wxString 
 	}
 
 	sqlite3_stmt* stmt = nullptr;
-	if (!prepare("SELECT id, name, type, look_id, z_order "
+	if (!prepare("SELECT id, name, type, look_id, z_order, source_file, server_look_id, "
+	             "draggable, on_blocking, on_duplicate, redo_borders, randomize, "
+	             "one_size, solo_optional, thickness, thickness_ceiling "
 	             "FROM brushes WHERE name = ? AND type = ? LIMIT 1;", &stmt)) {
 		return false;
 	}
@@ -795,6 +825,17 @@ bool BrushDatabase::findBrushByNameAndType(const wxString &name, const wxString 
 	outBrush.type = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
 	outBrush.lookId = sqlite3_column_int(stmt, 3);
 	outBrush.zOrder = sqlite3_column_int(stmt, 4);
+	outBrush.sourceFile = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5)));
+	outBrush.serverLookId = sqlite3_column_int(stmt, 6);
+	outBrush.draggable = sqlite3_column_int(stmt, 7) != 0;
+	outBrush.onBlocking = sqlite3_column_int(stmt, 8) != 0;
+	outBrush.onDuplicate = sqlite3_column_int(stmt, 9) != 0;
+	outBrush.redoBorders = sqlite3_column_int(stmt, 10) != 0;
+	outBrush.randomize = sqlite3_column_int(stmt, 11) != 0;
+	outBrush.oneSize = sqlite3_column_int(stmt, 12) != 0;
+	outBrush.soloOptional = sqlite3_column_int(stmt, 13) != 0;
+	outBrush.thickness = sqlite3_column_int(stmt, 14);
+	outBrush.thicknessCeiling = sqlite3_column_int(stmt, 15);
 	sqlite3_finalize(stmt);
 	return true;
 }
@@ -806,7 +847,9 @@ bool BrushDatabase::updateBrush(const BrushRecord &brush) {
 
 	sqlite3_stmt* stmt = nullptr;
 	if (!prepare("UPDATE brushes "
-	             "SET name = ?, type = ?, look_id = ?, z_order = ?, updated_at = CURRENT_TIMESTAMP "
+	             "SET name = ?, type = ?, look_id = ?, z_order = ?, source_file = ?, server_look_id = ?, "
+	             "draggable = ?, on_blocking = ?, on_duplicate = ?, redo_borders = ?, randomize = ?, "
+	             "one_size = ?, solo_optional = ?, thickness = ?, thickness_ceiling = ?, updated_at = CURRENT_TIMESTAMP "
 	             "WHERE id = ?;", &stmt)) {
 		return false;
 	}
@@ -815,7 +858,18 @@ bool BrushDatabase::updateBrush(const BrushRecord &brush) {
 	sqlite3_bind_text(stmt, 2, brush.type.utf8_str(), -1, SQLITE_TRANSIENT);
 	sqlite3_bind_int(stmt, 3, brush.lookId);
 	sqlite3_bind_int(stmt, 4, brush.zOrder);
-	sqlite3_bind_int64(stmt, 5, brush.id);
+	sqlite3_bind_text(stmt, 5, brush.sourceFile.utf8_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_int(stmt, 6, brush.serverLookId);
+	sqlite3_bind_int(stmt, 7, brush.draggable ? 1 : 0);
+	sqlite3_bind_int(stmt, 8, brush.onBlocking ? 1 : 0);
+	sqlite3_bind_int(stmt, 9, brush.onDuplicate ? 1 : 0);
+	sqlite3_bind_int(stmt, 10, brush.redoBorders ? 1 : 0);
+	sqlite3_bind_int(stmt, 11, brush.randomize ? 1 : 0);
+	sqlite3_bind_int(stmt, 12, brush.oneSize ? 1 : 0);
+	sqlite3_bind_int(stmt, 13, brush.soloOptional ? 1 : 0);
+	sqlite3_bind_int(stmt, 14, brush.thickness);
+	sqlite3_bind_int(stmt, 15, brush.thicknessCeiling);
+	sqlite3_bind_int64(stmt, 16, brush.id);
 
 	const int rc = sqlite3_step(stmt);
 	sqlite3_finalize(stmt);
@@ -844,6 +898,25 @@ bool BrushDatabase::deleteBrush(int64_t brushId) {
 		return setErrorFromDatabase("Failed to delete brush");
 	}
 
+	return true;
+}
+
+bool BrushDatabase::deleteBrushesByType(const wxString &type) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+
+	sqlite3_stmt* stmt = nullptr;
+	if (!prepare("DELETE FROM brushes WHERE type = ?;", &stmt)) {
+		return false;
+	}
+
+	sqlite3_bind_text(stmt, 1, type.utf8_str(), -1, SQLITE_TRANSIENT);
+	const int rc = sqlite3_step(stmt);
+	sqlite3_finalize(stmt);
+	if (rc != SQLITE_DONE) {
+		return setErrorFromDatabase("Failed to delete brushes by type");
+	}
 	return true;
 }
 
@@ -935,6 +1008,423 @@ bool BrushDatabase::getBrushItems(int64_t brushId, std::vector<BrushItemRecord> 
 
 	sqlite3_finalize(stmt);
 	return true;
+}
+
+bool BrushDatabase::upsertBorderSet(const BorderSetRecord &borderSet, int64_t &borderSetId) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+
+	if (borderSet.xmlBorderId > 0) {
+		BorderSetRecord existing;
+		if (findBorderSetByXmlBorderId(borderSet.xmlBorderId, existing)) {
+			sqlite3_stmt* updateStmt = nullptr;
+			if (!prepare("UPDATE border_sets SET owner_brush_id = ?, border_scope = ?, border_type = ?, "
+			             "border_group = ?, ground_equivalent = ?, source_file = ?, updated_at = CURRENT_TIMESTAMP "
+			             "WHERE id = ?;", &updateStmt)) {
+				return false;
+			}
+
+			if (borderSet.ownerBrushId > 0) {
+				sqlite3_bind_int64(updateStmt, 1, borderSet.ownerBrushId);
+			} else {
+				sqlite3_bind_null(updateStmt, 1);
+			}
+			sqlite3_bind_text(updateStmt, 2, borderSet.borderScope.utf8_str(), -1, SQLITE_TRANSIENT);
+			sqlite3_bind_text(updateStmt, 3, borderSet.borderType.utf8_str(), -1, SQLITE_TRANSIENT);
+			sqlite3_bind_int(updateStmt, 4, borderSet.borderGroup);
+			sqlite3_bind_int(updateStmt, 5, borderSet.groundEquivalent);
+			sqlite3_bind_text(updateStmt, 6, borderSet.sourceFile.utf8_str(), -1, SQLITE_TRANSIENT);
+			sqlite3_bind_int64(updateStmt, 7, existing.id);
+
+			const int rc = sqlite3_step(updateStmt);
+			sqlite3_finalize(updateStmt);
+			if (rc != SQLITE_DONE) {
+				return setErrorFromDatabase("Failed to update border set");
+			}
+
+			borderSetId = existing.id;
+			return true;
+		}
+	}
+
+	sqlite3_stmt* stmt = nullptr;
+	if (!prepare("INSERT INTO border_sets(xml_border_id, owner_brush_id, border_scope, border_type, border_group, ground_equivalent, source_file, updated_at) "
+	             "VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);", &stmt)) {
+		return false;
+	}
+
+	if (borderSet.xmlBorderId > 0) {
+		sqlite3_bind_int(stmt, 1, borderSet.xmlBorderId);
+	} else {
+		sqlite3_bind_null(stmt, 1);
+	}
+	if (borderSet.ownerBrushId > 0) {
+		sqlite3_bind_int64(stmt, 2, borderSet.ownerBrushId);
+	} else {
+		sqlite3_bind_null(stmt, 2);
+	}
+	sqlite3_bind_text(stmt, 3, borderSet.borderScope.utf8_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_text(stmt, 4, borderSet.borderType.utf8_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_int(stmt, 5, borderSet.borderGroup);
+	sqlite3_bind_int(stmt, 6, borderSet.groundEquivalent);
+	sqlite3_bind_text(stmt, 7, borderSet.sourceFile.utf8_str(), -1, SQLITE_TRANSIENT);
+
+	const int rc = sqlite3_step(stmt);
+	sqlite3_finalize(stmt);
+	if (rc != SQLITE_DONE) {
+		return setErrorFromDatabase("Failed to insert border set");
+	}
+
+	borderSetId = sqlite3_last_insert_rowid(connection_);
+	return true;
+}
+
+bool BrushDatabase::findBorderSetByXmlBorderId(int xmlBorderId, BorderSetRecord &outBorderSet) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+
+	sqlite3_stmt* stmt = nullptr;
+	if (!prepare("SELECT id, xml_border_id, owner_brush_id, border_scope, border_type, border_group, ground_equivalent, source_file "
+	             "FROM border_sets WHERE xml_border_id = ? LIMIT 1;", &stmt)) {
+		return false;
+	}
+
+	sqlite3_bind_int(stmt, 1, xmlBorderId);
+	const int rc = sqlite3_step(stmt);
+	if (rc == SQLITE_DONE) {
+		sqlite3_finalize(stmt);
+		return false;
+	}
+	if (rc != SQLITE_ROW) {
+		sqlite3_finalize(stmt);
+		return setErrorFromDatabase("Failed to query border set by xml id");
+	}
+
+	outBorderSet.id = sqlite3_column_int64(stmt, 0);
+	outBorderSet.xmlBorderId = sqlite3_column_int(stmt, 1);
+	outBorderSet.ownerBrushId = sqlite3_column_type(stmt, 2) == SQLITE_NULL ? 0 : sqlite3_column_int64(stmt, 2);
+	outBorderSet.borderScope = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
+	outBorderSet.borderType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)));
+	outBorderSet.borderGroup = sqlite3_column_int(stmt, 5);
+	outBorderSet.groundEquivalent = sqlite3_column_int(stmt, 6);
+	outBorderSet.sourceFile = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7)));
+	sqlite3_finalize(stmt);
+	return true;
+}
+
+bool BrushDatabase::replaceBorderSetItems(int64_t borderSetId, const std::vector<BorderSetItemRecord> &items) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+	if (!beginTransaction()) {
+		return false;
+	}
+
+	sqlite3_stmt* deleteStmt = nullptr;
+	if (!prepare("DELETE FROM border_set_items WHERE border_set_id = ?;", &deleteStmt)) {
+		rollbackTransaction();
+		return false;
+	}
+	sqlite3_bind_int64(deleteStmt, 1, borderSetId);
+	int rc = sqlite3_step(deleteStmt);
+	sqlite3_finalize(deleteStmt);
+	if (rc != SQLITE_DONE) {
+		rollbackTransaction();
+		return setErrorFromDatabase("Failed to clear border set items");
+	}
+
+	sqlite3_stmt* insertStmt = nullptr;
+	if (!prepare("INSERT INTO border_set_items(border_set_id, edge, item_id, sort_order) VALUES (?, ?, ?, ?);", &insertStmt)) {
+		rollbackTransaction();
+		return false;
+	}
+
+	for (const BorderSetItemRecord &item : items) {
+		sqlite3_reset(insertStmt);
+		sqlite3_clear_bindings(insertStmt);
+		sqlite3_bind_int64(insertStmt, 1, borderSetId);
+		sqlite3_bind_text(insertStmt, 2, item.edge.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_int(insertStmt, 3, item.itemId);
+		sqlite3_bind_int(insertStmt, 4, item.sortOrder);
+		rc = sqlite3_step(insertStmt);
+		if (rc != SQLITE_DONE) {
+			sqlite3_finalize(insertStmt);
+			rollbackTransaction();
+			return setErrorFromDatabase("Failed to insert border set item");
+		}
+	}
+
+	sqlite3_finalize(insertStmt);
+	if (!commitTransaction()) {
+		rollbackTransaction();
+		return false;
+	}
+	return true;
+}
+
+bool BrushDatabase::deleteBorderSetsByScope(const wxString &borderScope) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+	sqlite3_stmt* stmt = nullptr;
+	if (!prepare("DELETE FROM border_sets WHERE border_scope = ?;", &stmt)) {
+		return false;
+	}
+	sqlite3_bind_text(stmt, 1, borderScope.utf8_str(), -1, SQLITE_TRANSIENT);
+	const int rc = sqlite3_step(stmt);
+	sqlite3_finalize(stmt);
+	if (rc != SQLITE_DONE) {
+		return setErrorFromDatabase("Failed to delete border sets by scope");
+	}
+	return true;
+}
+
+bool BrushDatabase::deleteOwnedBorderSetsForBrush(int64_t brushId) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+	sqlite3_stmt* stmt = nullptr;
+	if (!prepare("DELETE FROM border_sets WHERE owner_brush_id = ?;", &stmt)) {
+		return false;
+	}
+	sqlite3_bind_int64(stmt, 1, brushId);
+	const int rc = sqlite3_step(stmt);
+	sqlite3_finalize(stmt);
+	if (rc != SQLITE_DONE) {
+		return setErrorFromDatabase("Failed to delete owned border sets for brush");
+	}
+	return true;
+}
+
+bool BrushDatabase::replaceGroundBrushBorders(int64_t brushId, const std::vector<GroundBrushBorderRecord> &borders) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+	if (!beginTransaction()) {
+		return false;
+	}
+
+	sqlite3_stmt* deleteStmt = nullptr;
+	if (!prepare("DELETE FROM ground_brush_borders WHERE brush_id = ?;", &deleteStmt)) {
+		rollbackTransaction();
+		return false;
+	}
+	sqlite3_bind_int64(deleteStmt, 1, brushId);
+	int rc = sqlite3_step(deleteStmt);
+	sqlite3_finalize(deleteStmt);
+	if (rc != SQLITE_DONE) {
+		rollbackTransaction();
+		return setErrorFromDatabase("Failed to clear ground brush borders");
+	}
+
+	sqlite3_stmt* insertBorderStmt = nullptr;
+	if (!prepare("INSERT INTO ground_brush_borders("
+	             "brush_id, border_set_id, border_role, align, target_mode, target_brush_id, target_brush_name, super_border, sort_order"
+	             ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);", &insertBorderStmt)) {
+		rollbackTransaction();
+		return false;
+	}
+
+	sqlite3_stmt* insertCaseStmt = nullptr;
+	if (!prepare("INSERT INTO ground_border_cases(ground_brush_border_id, sort_order) VALUES (?, ?);", &insertCaseStmt)) {
+		sqlite3_finalize(insertBorderStmt);
+		rollbackTransaction();
+		return false;
+	}
+
+	sqlite3_stmt* insertConditionStmt = nullptr;
+	if (!prepare("INSERT INTO ground_border_case_conditions(ground_border_case_id, condition_type, match_value, edge, sort_order) "
+	             "VALUES (?, ?, ?, ?, ?);", &insertConditionStmt)) {
+		sqlite3_finalize(insertBorderStmt);
+		sqlite3_finalize(insertCaseStmt);
+		rollbackTransaction();
+		return false;
+	}
+
+	sqlite3_stmt* insertActionStmt = nullptr;
+	if (!prepare("INSERT INTO ground_border_case_actions(ground_border_case_id, action_type, target_value, edge, replacement_value, sort_order) "
+	             "VALUES (?, ?, ?, ?, ?, ?);", &insertActionStmt)) {
+		sqlite3_finalize(insertBorderStmt);
+		sqlite3_finalize(insertCaseStmt);
+		sqlite3_finalize(insertConditionStmt);
+		rollbackTransaction();
+		return false;
+	}
+
+	for (const GroundBrushBorderRecord &border : borders) {
+		sqlite3_reset(insertBorderStmt);
+		sqlite3_clear_bindings(insertBorderStmt);
+		sqlite3_bind_int64(insertBorderStmt, 1, brushId);
+		sqlite3_bind_int64(insertBorderStmt, 2, border.borderSetId);
+		sqlite3_bind_text(insertBorderStmt, 3, border.borderRole.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_text(insertBorderStmt, 4, border.align.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_text(insertBorderStmt, 5, border.targetMode.utf8_str(), -1, SQLITE_TRANSIENT);
+		if (border.targetBrushId > 0) {
+			sqlite3_bind_int64(insertBorderStmt, 6, border.targetBrushId);
+		} else {
+			sqlite3_bind_null(insertBorderStmt, 6);
+		}
+		sqlite3_bind_text(insertBorderStmt, 7, border.targetBrushName.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_int(insertBorderStmt, 8, border.superBorder ? 1 : 0);
+		sqlite3_bind_int(insertBorderStmt, 9, border.sortOrder);
+		rc = sqlite3_step(insertBorderStmt);
+		if (rc != SQLITE_DONE) {
+			sqlite3_finalize(insertBorderStmt);
+			sqlite3_finalize(insertCaseStmt);
+			sqlite3_finalize(insertConditionStmt);
+			sqlite3_finalize(insertActionStmt);
+			rollbackTransaction();
+			return setErrorFromDatabase("Failed to insert ground brush border");
+		}
+
+		const int64_t groundBrushBorderId = sqlite3_last_insert_rowid(connection_);
+		for (const GroundBorderCaseRecord &caseRecord : border.cases) {
+			sqlite3_reset(insertCaseStmt);
+			sqlite3_clear_bindings(insertCaseStmt);
+			sqlite3_bind_int64(insertCaseStmt, 1, groundBrushBorderId);
+			sqlite3_bind_int(insertCaseStmt, 2, caseRecord.sortOrder);
+			rc = sqlite3_step(insertCaseStmt);
+			if (rc != SQLITE_DONE) {
+				sqlite3_finalize(insertBorderStmt);
+				sqlite3_finalize(insertCaseStmt);
+				sqlite3_finalize(insertConditionStmt);
+				sqlite3_finalize(insertActionStmt);
+				rollbackTransaction();
+				return setErrorFromDatabase("Failed to insert ground border case");
+			}
+
+			const int64_t caseId = sqlite3_last_insert_rowid(connection_);
+			for (const GroundBorderCaseConditionRecord &condition : caseRecord.conditions) {
+				sqlite3_reset(insertConditionStmt);
+				sqlite3_clear_bindings(insertConditionStmt);
+				sqlite3_bind_int64(insertConditionStmt, 1, caseId);
+				sqlite3_bind_text(insertConditionStmt, 2, condition.conditionType.utf8_str(), -1, SQLITE_TRANSIENT);
+				sqlite3_bind_int(insertConditionStmt, 3, condition.matchValue);
+				sqlite3_bind_text(insertConditionStmt, 4, condition.edge.utf8_str(), -1, SQLITE_TRANSIENT);
+				sqlite3_bind_int(insertConditionStmt, 5, condition.sortOrder);
+				rc = sqlite3_step(insertConditionStmt);
+				if (rc != SQLITE_DONE) {
+					sqlite3_finalize(insertBorderStmt);
+					sqlite3_finalize(insertCaseStmt);
+					sqlite3_finalize(insertConditionStmt);
+					sqlite3_finalize(insertActionStmt);
+					rollbackTransaction();
+					return setErrorFromDatabase("Failed to insert ground border condition");
+				}
+			}
+
+			for (const GroundBorderCaseActionRecord &action : caseRecord.actions) {
+				sqlite3_reset(insertActionStmt);
+				sqlite3_clear_bindings(insertActionStmt);
+				sqlite3_bind_int64(insertActionStmt, 1, caseId);
+				sqlite3_bind_text(insertActionStmt, 2, action.actionType.utf8_str(), -1, SQLITE_TRANSIENT);
+				sqlite3_bind_int(insertActionStmt, 3, action.targetValue);
+				sqlite3_bind_text(insertActionStmt, 4, action.edge.utf8_str(), -1, SQLITE_TRANSIENT);
+				sqlite3_bind_int(insertActionStmt, 5, action.replacementValue);
+				sqlite3_bind_int(insertActionStmt, 6, action.sortOrder);
+				rc = sqlite3_step(insertActionStmt);
+				if (rc != SQLITE_DONE) {
+					sqlite3_finalize(insertBorderStmt);
+					sqlite3_finalize(insertCaseStmt);
+					sqlite3_finalize(insertConditionStmt);
+					sqlite3_finalize(insertActionStmt);
+					rollbackTransaction();
+					return setErrorFromDatabase("Failed to insert ground border action");
+				}
+			}
+		}
+	}
+
+	sqlite3_finalize(insertBorderStmt);
+	sqlite3_finalize(insertCaseStmt);
+	sqlite3_finalize(insertConditionStmt);
+	sqlite3_finalize(insertActionStmt);
+	if (!commitTransaction()) {
+		rollbackTransaction();
+		return false;
+	}
+	return true;
+}
+
+bool BrushDatabase::replaceBrushLinks(int64_t brushId, const std::vector<BrushLinkRecord> &links) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+	if (!beginTransaction()) {
+		return false;
+	}
+
+	sqlite3_stmt* deleteStmt = nullptr;
+	if (!prepare("DELETE FROM brush_links WHERE brush_id = ?;", &deleteStmt)) {
+		rollbackTransaction();
+		return false;
+	}
+	sqlite3_bind_int64(deleteStmt, 1, brushId);
+	int rc = sqlite3_step(deleteStmt);
+	sqlite3_finalize(deleteStmt);
+	if (rc != SQLITE_DONE) {
+		rollbackTransaction();
+		return setErrorFromDatabase("Failed to clear brush links");
+	}
+
+	sqlite3_stmt* insertStmt = nullptr;
+	if (!prepare("INSERT INTO brush_links(brush_id, target_brush_id, target_brush_name, relation_type, sort_order) VALUES (?, ?, ?, ?, ?);", &insertStmt)) {
+		rollbackTransaction();
+		return false;
+	}
+
+	for (const BrushLinkRecord &link : links) {
+		sqlite3_reset(insertStmt);
+		sqlite3_clear_bindings(insertStmt);
+		sqlite3_bind_int64(insertStmt, 1, brushId);
+		if (link.targetBrushId > 0) {
+			sqlite3_bind_int64(insertStmt, 2, link.targetBrushId);
+		} else {
+			sqlite3_bind_null(insertStmt, 2);
+		}
+		sqlite3_bind_text(insertStmt, 3, link.targetBrushName.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_text(insertStmt, 4, link.relationType.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_int(insertStmt, 5, link.sortOrder);
+		rc = sqlite3_step(insertStmt);
+		if (rc != SQLITE_DONE) {
+			sqlite3_finalize(insertStmt);
+			rollbackTransaction();
+			return setErrorFromDatabase("Failed to insert brush link");
+		}
+	}
+
+	sqlite3_finalize(insertStmt);
+	if (!commitTransaction()) {
+		rollbackTransaction();
+		return false;
+	}
+	return true;
+}
+
+bool BrushDatabase::resolveGroundReferenceNames() {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+
+	if (!execute("UPDATE ground_brush_borders "
+	             "SET target_brush_id = ("
+	             "SELECT id FROM brushes b "
+	             "WHERE b.name = ground_brush_borders.target_brush_name AND b.type = 'ground' "
+	             "LIMIT 1"
+	             ") "
+	             "WHERE target_brush_name <> '' AND target_mode = 'brush';")) {
+		return false;
+	}
+
+	return execute("UPDATE brush_links "
+	               "SET target_brush_id = ("
+	               "SELECT id FROM brushes b "
+	               "WHERE b.name = brush_links.target_brush_name "
+	               "LIMIT 1"
+	               ") "
+	               "WHERE target_brush_name <> '' AND target_brush_name <> 'all';");
 }
 
 bool BrushDatabase::execute(const wxString &sql) {

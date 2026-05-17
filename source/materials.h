@@ -30,6 +30,7 @@ public:
 	void clear();
 	bool initializeBrushDatabase(wxArrayString &warnings);
 	bool migrateSingleBrushToSQLite(const FileName &identifier, const wxString &brushName, wxString &error, wxArrayString &warnings);
+	bool migrateGroundsToSQLite(wxString &error, wxArrayString &warnings);
 
 	TilesetContainer tilesets;
 

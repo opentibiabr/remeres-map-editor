@@ -11,12 +11,82 @@ struct BrushRecord {
 	wxString type;
 	int lookId = 0;
 	int zOrder = 0;
+	wxString sourceFile;
+	int serverLookId = 0;
+	bool draggable = false;
+	bool onBlocking = false;
+	bool onDuplicate = false;
+	bool redoBorders = false;
+	bool randomize = false;
+	bool oneSize = false;
+	bool soloOptional = false;
+	int thickness = 0;
+	int thicknessCeiling = 0;
 };
 
 struct BrushItemRecord {
 	int64_t brushId = 0;
 	int itemId = 0;
 	int chance = 0;
+};
+
+struct BorderSetRecord {
+	int64_t id = 0;
+	int xmlBorderId = 0;
+	int64_t ownerBrushId = 0;
+	wxString borderScope;
+	wxString borderType;
+	int borderGroup = 0;
+	int groundEquivalent = 0;
+	wxString sourceFile;
+};
+
+struct BorderSetItemRecord {
+	int64_t borderSetId = 0;
+	wxString edge;
+	int itemId = 0;
+	int sortOrder = 0;
+};
+
+struct GroundBorderCaseConditionRecord {
+	wxString conditionType;
+	int matchValue = 0;
+	wxString edge;
+	int sortOrder = 0;
+};
+
+struct GroundBorderCaseActionRecord {
+	wxString actionType;
+	int targetValue = 0;
+	wxString edge;
+	int replacementValue = 0;
+	int sortOrder = 0;
+};
+
+struct GroundBorderCaseRecord {
+	int sortOrder = 0;
+	std::vector<GroundBorderCaseConditionRecord> conditions;
+	std::vector<GroundBorderCaseActionRecord> actions;
+};
+
+struct GroundBrushBorderRecord {
+	int64_t borderSetId = 0;
+	wxString borderRole;
+	wxString align;
+	wxString targetMode;
+	int64_t targetBrushId = 0;
+	wxString targetBrushName;
+	bool superBorder = false;
+	int sortOrder = 0;
+	std::vector<GroundBorderCaseRecord> cases;
+};
+
+struct BrushLinkRecord {
+	int64_t brushId = 0;
+	int64_t targetBrushId = 0;
+	wxString targetBrushName;
+	wxString relationType;
+	int sortOrder = 0;
 };
 
 class BrushDatabase {
@@ -42,9 +112,18 @@ public:
 	bool findBrushByNameAndType(const wxString &name, const wxString &type, BrushRecord &outBrush);
 	bool updateBrush(const BrushRecord &brush);
 	bool deleteBrush(int64_t brushId);
+	bool deleteBrushesByType(const wxString &type);
 
 	bool replaceBrushItems(int64_t brushId, const std::vector<BrushItemRecord> &items);
 	bool getBrushItems(int64_t brushId, std::vector<BrushItemRecord> &outItems);
+	bool upsertBorderSet(const BorderSetRecord &borderSet, int64_t &borderSetId);
+	bool findBorderSetByXmlBorderId(int xmlBorderId, BorderSetRecord &outBorderSet);
+	bool replaceBorderSetItems(int64_t borderSetId, const std::vector<BorderSetItemRecord> &items);
+	bool deleteBorderSetsByScope(const wxString &borderScope);
+	bool deleteOwnedBorderSetsForBrush(int64_t brushId);
+	bool replaceGroundBrushBorders(int64_t brushId, const std::vector<GroundBrushBorderRecord> &borders);
+	bool replaceBrushLinks(int64_t brushId, const std::vector<BrushLinkRecord> &links);
+	bool resolveGroundReferenceNames();
 
 private:
 	bool ensureSchemaVersionTable();
