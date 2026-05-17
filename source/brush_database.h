@@ -47,6 +47,13 @@ public:
 	bool getBrushItems(int64_t brushId, std::vector<BrushItemRecord> &outItems);
 
 private:
+	bool ensureSchemaVersionTable();
+	bool getSchemaVersion(int &version);
+	bool setSchemaVersion(int version);
+	bool migrateToVersion1();
+	bool migrateToVersion2();
+	bool columnExists(const wxString &tableName, const wxString &columnName, bool &exists);
+
 	bool execute(const wxString &sql);
 	bool prepare(const char* sql, sqlite3_stmt** stmt);
 	bool beginTransaction();

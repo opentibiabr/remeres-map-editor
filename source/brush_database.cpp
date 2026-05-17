@@ -5,7 +5,7 @@
 BrushDatabase g_brush_database;
 
 namespace {
-constexpr int kBrushDatabaseSchemaVersion = 1;
+constexpr int kBrushDatabaseSchemaVersion = 2;
 
 static wxString ToWxString(const char* value) {
 	return value ? wxString::FromUTF8(value) : wxString();
@@ -80,26 +80,82 @@ const wxString &BrushDatabase::getLastError() const {
 	return lastError_;
 }
 
-bool BrushDatabase::initializeSchema() {
-	if (!isOpen()) {
-		return setError("SQLite database is not open.");
-	}
-
-	if (!beginTransaction()) {
-		return false;
-	}
-
+bool BrushDatabase::ensureSchemaVersionTable() {
 	if (!execute("CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);")) {
-		rollbackTransaction();
+		return false;
+	}
+	return execute("INSERT INTO schema_version(version) "
+	               "SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM schema_version);");
+}
+
+bool BrushDatabase::getSchemaVersion(int &version) {
+	version = 0;
+
+	sqlite3_stmt* stmt = nullptr;
+	if (!prepare("SELECT version FROM schema_version LIMIT 1;", &stmt)) {
 		return false;
 	}
 
-	if (!execute("INSERT INTO schema_version(version) "
-	             "SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM schema_version);")) {
-		rollbackTransaction();
+	const int rc = sqlite3_step(stmt);
+	if (rc == SQLITE_ROW) {
+		version = sqlite3_column_int(stmt, 0);
+		sqlite3_finalize(stmt);
+		return true;
+	}
+
+	sqlite3_finalize(stmt);
+	if (rc == SQLITE_DONE) {
+		return setError("SQLite schema version row was not found.");
+	}
+	return setErrorFromDatabase("Failed to query SQLite schema version");
+}
+
+bool BrushDatabase::setSchemaVersion(int version) {
+	sqlite3_stmt* stmt = nullptr;
+	if (!prepare("UPDATE schema_version SET version = ?;", &stmt)) {
 		return false;
 	}
 
+	sqlite3_bind_int(stmt, 1, version);
+	const int rc = sqlite3_step(stmt);
+	sqlite3_finalize(stmt);
+	if (rc != SQLITE_DONE) {
+		return setErrorFromDatabase("Failed to update SQLite schema version");
+	}
+	return true;
+}
+
+bool BrushDatabase::columnExists(const wxString &tableName, const wxString &columnName, bool &exists) {
+	exists = false;
+
+	sqlite3_stmt* stmt = nullptr;
+	const wxString sql = "PRAGMA table_info(" + tableName + ");";
+	if (!prepare(sql.utf8_str(), &stmt)) {
+		return false;
+	}
+
+	for (;;) {
+		const int rc = sqlite3_step(stmt);
+		if (rc == SQLITE_DONE) {
+			break;
+		}
+		if (rc != SQLITE_ROW) {
+			sqlite3_finalize(stmt);
+			return setErrorFromDatabase("Failed to inspect SQLite table info");
+		}
+
+		const wxString currentName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+		if (currentName == columnName) {
+			exists = true;
+			break;
+		}
+	}
+
+	sqlite3_finalize(stmt);
+	return true;
+}
+
+bool BrushDatabase::migrateToVersion1() {
 	if (!execute("CREATE TABLE IF NOT EXISTS brushes ("
 	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
 	             "name TEXT NOT NULL,"
@@ -109,13 +165,11 @@ bool BrushDatabase::initializeSchema() {
 	             "created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
 	             "updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
 	             ");")) {
-		rollbackTransaction();
 		return false;
 	}
 
 	if (!execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_brushes_type_name "
 	             "ON brushes(type, name);")) {
-		rollbackTransaction();
 		return false;
 	}
 
@@ -126,13 +180,11 @@ bool BrushDatabase::initializeSchema() {
 	             "PRIMARY KEY (brush_id, item_id),"
 	             "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
 	             ");")) {
-		rollbackTransaction();
 		return false;
 	}
 
 	if (!execute("CREATE INDEX IF NOT EXISTS idx_brush_items_item_id "
 	             "ON brush_items(item_id);")) {
-		rollbackTransaction();
 		return false;
 	}
 
@@ -145,7 +197,6 @@ bool BrushDatabase::initializeSchema() {
 	             "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE,"
 	             "FOREIGN KEY (to_brush_id) REFERENCES brushes(id) ON DELETE SET NULL"
 	             ");")) {
-		rollbackTransaction();
 		return false;
 	}
 
@@ -155,7 +206,6 @@ bool BrushDatabase::initializeSchema() {
 	             "PRIMARY KEY (brush_id, border_id),"
 	             "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
 	             ");")) {
-		rollbackTransaction();
 		return false;
 	}
 
@@ -167,19 +217,400 @@ bool BrushDatabase::initializeSchema() {
 	             "FOREIGN KEY (from_brush_id) REFERENCES brushes(id) ON DELETE CASCADE,"
 	             "FOREIGN KEY (to_brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
 	             ");")) {
+		return false;
+	}
+
+	return execute("CREATE INDEX IF NOT EXISTS idx_brush_relationships_to "
+	               "ON brush_relationships(to_brush_id, relationship_type);");
+}
+
+bool BrushDatabase::migrateToVersion2() {
+	const auto addColumnIfMissing = [this](const wxString &tableName, const wxString &columnName, const wxString &definition) -> bool {
+		bool exists = false;
+		if (!columnExists(tableName, columnName, exists)) {
+			return false;
+		}
+		if (exists) {
+			return true;
+		}
+		return execute("ALTER TABLE " + tableName + " ADD COLUMN " + definition + ";");
+	};
+
+	if (!addColumnIfMissing("brushes", "source_file", "source_file TEXT NOT NULL DEFAULT ''")) {
+		return false;
+	}
+	if (!addColumnIfMissing("brushes", "server_look_id", "server_look_id INTEGER NOT NULL DEFAULT 0")) {
+		return false;
+	}
+	if (!addColumnIfMissing("brushes", "draggable", "draggable INTEGER NOT NULL DEFAULT 0 CHECK(draggable IN (0, 1))")) {
+		return false;
+	}
+	if (!addColumnIfMissing("brushes", "on_blocking", "on_blocking INTEGER NOT NULL DEFAULT 0 CHECK(on_blocking IN (0, 1))")) {
+		return false;
+	}
+	if (!addColumnIfMissing("brushes", "on_duplicate", "on_duplicate INTEGER NOT NULL DEFAULT 0 CHECK(on_duplicate IN (0, 1))")) {
+		return false;
+	}
+	if (!addColumnIfMissing("brushes", "redo_borders", "redo_borders INTEGER NOT NULL DEFAULT 0 CHECK(redo_borders IN (0, 1))")) {
+		return false;
+	}
+	if (!addColumnIfMissing("brushes", "randomize", "randomize INTEGER NOT NULL DEFAULT 0 CHECK(randomize IN (0, 1))")) {
+		return false;
+	}
+	if (!addColumnIfMissing("brushes", "one_size", "one_size INTEGER NOT NULL DEFAULT 0 CHECK(one_size IN (0, 1))")) {
+		return false;
+	}
+	if (!addColumnIfMissing("brushes", "solo_optional", "solo_optional INTEGER NOT NULL DEFAULT 0 CHECK(solo_optional IN (0, 1))")) {
+		return false;
+	}
+	if (!addColumnIfMissing("brushes", "thickness", "thickness INTEGER NOT NULL DEFAULT 0")) {
+		return false;
+	}
+	if (!addColumnIfMissing("brushes", "thickness_ceiling", "thickness_ceiling INTEGER NOT NULL DEFAULT 0")) {
+		return false;
+	}
+
+	if (!execute("CREATE INDEX IF NOT EXISTS idx_brushes_name ON brushes(name);")) {
+		return false;
+	}
+
+	if (!execute("CREATE TABLE IF NOT EXISTS border_sets ("
+	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+	             "xml_border_id INTEGER UNIQUE,"
+	             "owner_brush_id INTEGER,"
+	             "border_scope TEXT NOT NULL DEFAULT 'global',"
+	             "border_type TEXT NOT NULL DEFAULT 'normal',"
+	             "border_group INTEGER NOT NULL DEFAULT 0,"
+	             "ground_equivalent INTEGER NOT NULL DEFAULT 0,"
+	             "source_file TEXT NOT NULL DEFAULT '',"
+	             "created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+	             "updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+	             "FOREIGN KEY (owner_brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
+	             ");")) {
+		return false;
+	}
+
+	if (!execute("CREATE INDEX IF NOT EXISTS idx_border_sets_owner_scope "
+	             "ON border_sets(owner_brush_id, border_scope);")) {
+		return false;
+	}
+
+	if (!execute("CREATE TABLE IF NOT EXISTS border_set_items ("
+	             "border_set_id INTEGER NOT NULL,"
+	             "edge TEXT NOT NULL,"
+	             "item_id INTEGER NOT NULL,"
+	             "sort_order INTEGER NOT NULL DEFAULT 0,"
+	             "PRIMARY KEY (border_set_id, edge, item_id),"
+	             "FOREIGN KEY (border_set_id) REFERENCES border_sets(id) ON DELETE CASCADE"
+	             ");")) {
+		return false;
+	}
+
+	if (!execute("CREATE INDEX IF NOT EXISTS idx_border_set_items_item "
+	             "ON border_set_items(item_id);")) {
+		return false;
+	}
+
+	if (!execute("CREATE TABLE IF NOT EXISTS ground_brush_borders ("
+	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+	             "brush_id INTEGER NOT NULL,"
+	             "border_set_id INTEGER NOT NULL,"
+	             "border_role TEXT NOT NULL DEFAULT 'normal',"
+	             "align TEXT NOT NULL DEFAULT 'outer',"
+	             "target_mode TEXT NOT NULL DEFAULT 'all',"
+	             "target_brush_id INTEGER,"
+	             "target_brush_name TEXT NOT NULL DEFAULT '',"
+	             "super_border INTEGER NOT NULL DEFAULT 0 CHECK(super_border IN (0, 1)),"
+	             "sort_order INTEGER NOT NULL DEFAULT 0,"
+	             "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE,"
+	             "FOREIGN KEY (border_set_id) REFERENCES border_sets(id) ON DELETE CASCADE,"
+	             "FOREIGN KEY (target_brush_id) REFERENCES brushes(id) ON DELETE SET NULL"
+	             ");")) {
+		return false;
+	}
+
+	if (!execute("CREATE INDEX IF NOT EXISTS idx_ground_brush_borders_brush "
+	             "ON ground_brush_borders(brush_id, border_role, align, sort_order);")) {
+		return false;
+	}
+
+	if (!execute("CREATE INDEX IF NOT EXISTS idx_ground_brush_borders_target "
+	             "ON ground_brush_borders(target_brush_name, target_mode);")) {
+		return false;
+	}
+
+	if (!execute("CREATE TABLE IF NOT EXISTS ground_border_cases ("
+	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+	             "ground_brush_border_id INTEGER NOT NULL,"
+	             "sort_order INTEGER NOT NULL DEFAULT 0,"
+	             "FOREIGN KEY (ground_brush_border_id) REFERENCES ground_brush_borders(id) ON DELETE CASCADE"
+	             ");")) {
+		return false;
+	}
+
+	if (!execute("CREATE TABLE IF NOT EXISTS ground_border_case_conditions ("
+	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+	             "ground_border_case_id INTEGER NOT NULL,"
+	             "condition_type TEXT NOT NULL,"
+	             "match_value INTEGER NOT NULL DEFAULT 0,"
+	             "edge TEXT NOT NULL DEFAULT '',"
+	             "sort_order INTEGER NOT NULL DEFAULT 0,"
+	             "FOREIGN KEY (ground_border_case_id) REFERENCES ground_border_cases(id) ON DELETE CASCADE"
+	             ");")) {
+		return false;
+	}
+
+	if (!execute("CREATE TABLE IF NOT EXISTS ground_border_case_actions ("
+	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+	             "ground_border_case_id INTEGER NOT NULL,"
+	             "action_type TEXT NOT NULL,"
+	             "target_value INTEGER NOT NULL DEFAULT 0,"
+	             "edge TEXT NOT NULL DEFAULT '',"
+	             "replacement_value INTEGER NOT NULL DEFAULT 0,"
+	             "sort_order INTEGER NOT NULL DEFAULT 0,"
+	             "FOREIGN KEY (ground_border_case_id) REFERENCES ground_border_cases(id) ON DELETE CASCADE"
+	             ");")) {
+		return false;
+	}
+
+	if (!execute("CREATE TABLE IF NOT EXISTS brush_links ("
+	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+	             "brush_id INTEGER NOT NULL,"
+	             "target_brush_id INTEGER,"
+	             "target_brush_name TEXT NOT NULL DEFAULT '',"
+	             "relation_type TEXT NOT NULL,"
+	             "sort_order INTEGER NOT NULL DEFAULT 0,"
+	             "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE,"
+	             "FOREIGN KEY (target_brush_id) REFERENCES brushes(id) ON DELETE SET NULL"
+	             ");")) {
+		return false;
+	}
+
+	if (!execute("CREATE INDEX IF NOT EXISTS idx_brush_links_type "
+	             "ON brush_links(brush_id, relation_type, sort_order);")) {
+		return false;
+	}
+
+	if (!execute("CREATE INDEX IF NOT EXISTS idx_brush_links_target_name "
+	             "ON brush_links(target_brush_name);")) {
+		return false;
+	}
+
+	if (!execute("CREATE TABLE IF NOT EXISTS wall_parts ("
+	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+	             "brush_id INTEGER NOT NULL,"
+	             "part_type TEXT NOT NULL,"
+	             "sort_order INTEGER NOT NULL DEFAULT 0,"
+	             "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE,"
+	             "UNIQUE (brush_id, part_type)"
+	             ");")) {
+		return false;
+	}
+
+	if (!execute("CREATE TABLE IF NOT EXISTS wall_part_items ("
+	             "wall_part_id INTEGER NOT NULL,"
+	             "item_id INTEGER NOT NULL,"
+	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance > 0),"
+	             "sort_order INTEGER NOT NULL DEFAULT 0,"
+	             "PRIMARY KEY (wall_part_id, item_id),"
+	             "FOREIGN KEY (wall_part_id) REFERENCES wall_parts(id) ON DELETE CASCADE"
+	             ");")) {
+		return false;
+	}
+
+	if (!execute("CREATE TABLE IF NOT EXISTS wall_part_doors ("
+	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+	             "wall_part_id INTEGER NOT NULL,"
+	             "item_id INTEGER NOT NULL,"
+	             "door_type TEXT NOT NULL DEFAULT 'normal',"
+	             "is_open INTEGER NOT NULL DEFAULT 0 CHECK(is_open IN (0, 1)),"
+	             "wall_hate_me INTEGER NOT NULL DEFAULT 0 CHECK(wall_hate_me IN (0, 1)),"
+	             "sort_order INTEGER NOT NULL DEFAULT 0,"
+	             "FOREIGN KEY (wall_part_id) REFERENCES wall_parts(id) ON DELETE CASCADE"
+	             ");")) {
+		return false;
+	}
+
+	if (!execute("CREATE INDEX IF NOT EXISTS idx_wall_part_doors_part "
+	             "ON wall_part_doors(wall_part_id, sort_order);")) {
+		return false;
+	}
+
+	if (!execute("CREATE TABLE IF NOT EXISTS carpet_nodes ("
+	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+	             "brush_id INTEGER NOT NULL,"
+	             "align TEXT NOT NULL,"
+	             "sort_order INTEGER NOT NULL DEFAULT 0,"
+	             "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
+	             ");")) {
+		return false;
+	}
+
+	if (!execute("CREATE TABLE IF NOT EXISTS carpet_node_items ("
+	             "carpet_node_id INTEGER NOT NULL,"
+	             "item_id INTEGER NOT NULL,"
+	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance > 0),"
+	             "sort_order INTEGER NOT NULL DEFAULT 0,"
+	             "PRIMARY KEY (carpet_node_id, item_id),"
+	             "FOREIGN KEY (carpet_node_id) REFERENCES carpet_nodes(id) ON DELETE CASCADE"
+	             ");")) {
+		return false;
+	}
+
+	if (!execute("CREATE TABLE IF NOT EXISTS table_nodes ("
+	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+	             "brush_id INTEGER NOT NULL,"
+	             "align TEXT NOT NULL,"
+	             "sort_order INTEGER NOT NULL DEFAULT 0,"
+	             "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
+	             ");")) {
+		return false;
+	}
+
+	if (!execute("CREATE TABLE IF NOT EXISTS table_node_items ("
+	             "table_node_id INTEGER NOT NULL,"
+	             "item_id INTEGER NOT NULL,"
+	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance > 0),"
+	             "sort_order INTEGER NOT NULL DEFAULT 0,"
+	             "PRIMARY KEY (table_node_id, item_id),"
+	             "FOREIGN KEY (table_node_id) REFERENCES table_nodes(id) ON DELETE CASCADE"
+	             ");")) {
+		return false;
+	}
+
+	if (!execute("CREATE TABLE IF NOT EXISTS doodad_alternatives ("
+	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+	             "brush_id INTEGER NOT NULL,"
+	             "sort_order INTEGER NOT NULL DEFAULT 0,"
+	             "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
+	             ");")) {
+		return false;
+	}
+
+	if (!execute("CREATE TABLE IF NOT EXISTS doodad_single_items ("
+	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+	             "doodad_alternative_id INTEGER NOT NULL,"
+	             "item_id INTEGER NOT NULL,"
+	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance > 0),"
+	             "sort_order INTEGER NOT NULL DEFAULT 0,"
+	             "FOREIGN KEY (doodad_alternative_id) REFERENCES doodad_alternatives(id) ON DELETE CASCADE"
+	             ");")) {
+		return false;
+	}
+
+	if (!execute("CREATE TABLE IF NOT EXISTS doodad_composites ("
+	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+	             "doodad_alternative_id INTEGER NOT NULL,"
+	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance > 0),"
+	             "sort_order INTEGER NOT NULL DEFAULT 0,"
+	             "FOREIGN KEY (doodad_alternative_id) REFERENCES doodad_alternatives(id) ON DELETE CASCADE"
+	             ");")) {
+		return false;
+	}
+
+	if (!execute("CREATE TABLE IF NOT EXISTS doodad_composite_tiles ("
+	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+	             "doodad_composite_id INTEGER NOT NULL,"
+	             "offset_x INTEGER NOT NULL DEFAULT 0,"
+	             "offset_y INTEGER NOT NULL DEFAULT 0,"
+	             "offset_z INTEGER NOT NULL DEFAULT 0,"
+	             "sort_order INTEGER NOT NULL DEFAULT 0,"
+	             "FOREIGN KEY (doodad_composite_id) REFERENCES doodad_composites(id) ON DELETE CASCADE"
+	             ");")) {
+		return false;
+	}
+
+	if (!execute("CREATE TABLE IF NOT EXISTS doodad_composite_tile_items ("
+	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+	             "doodad_composite_tile_id INTEGER NOT NULL,"
+	             "item_id INTEGER NOT NULL,"
+	             "sort_order INTEGER NOT NULL DEFAULT 0,"
+	             "FOREIGN KEY (doodad_composite_tile_id) REFERENCES doodad_composite_tiles(id) ON DELETE CASCADE"
+	             ");")) {
+		return false;
+	}
+
+	if (!execute("CREATE TABLE IF NOT EXISTS tilesets ("
+	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+	             "name TEXT NOT NULL UNIQUE,"
+	             "source_file TEXT NOT NULL DEFAULT '',"
+	             "created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+	             "updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
+	             ");")) {
+		return false;
+	}
+
+	if (!execute("CREATE TABLE IF NOT EXISTS tileset_sections ("
+	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+	             "tileset_id INTEGER NOT NULL,"
+	             "section_type TEXT NOT NULL,"
+	             "sort_order INTEGER NOT NULL DEFAULT 0,"
+	             "FOREIGN KEY (tileset_id) REFERENCES tilesets(id) ON DELETE CASCADE,"
+	             "UNIQUE (tileset_id, section_type)"
+	             ");")) {
+		return false;
+	}
+
+	if (!execute("CREATE TABLE IF NOT EXISTS tileset_brush_entries ("
+	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+	             "tileset_section_id INTEGER NOT NULL,"
+	             "brush_id INTEGER,"
+	             "brush_name TEXT NOT NULL DEFAULT '',"
+	             "after_brush_name TEXT NOT NULL DEFAULT '',"
+	             "sort_order INTEGER NOT NULL DEFAULT 0,"
+	             "FOREIGN KEY (tileset_section_id) REFERENCES tileset_sections(id) ON DELETE CASCADE,"
+	             "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE SET NULL"
+	             ");")) {
+		return false;
+	}
+
+	if (!execute("CREATE INDEX IF NOT EXISTS idx_tileset_brush_entries_section "
+	             "ON tileset_brush_entries(tileset_section_id, sort_order);")) {
+		return false;
+	}
+
+	return execute("CREATE INDEX IF NOT EXISTS idx_tileset_brush_entries_name "
+	               "ON tileset_brush_entries(brush_name);");
+}
+
+bool BrushDatabase::initializeSchema() {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+
+	if (!beginTransaction()) {
+		return false;
+	}
+
+	if (!ensureSchemaVersionTable()) {
 		rollbackTransaction();
 		return false;
 	}
 
-	if (!execute("CREATE INDEX IF NOT EXISTS idx_brush_relationships_to "
-	             "ON brush_relationships(to_brush_id, relationship_type);")) {
+	int version = 0;
+	if (!getSchemaVersion(version)) {
 		rollbackTransaction();
 		return false;
 	}
-
-	if (!execute(wxString::Format("UPDATE schema_version SET version = %d;", kBrushDatabaseSchemaVersion))) {
+	if (version > kBrushDatabaseSchemaVersion) {
 		rollbackTransaction();
-		return false;
+		return setError(wxString::Format("SQLite schema version %d is newer than supported version %d.", version, kBrushDatabaseSchemaVersion));
+	}
+
+	if (version < 1) {
+		if (!migrateToVersion1() || !setSchemaVersion(1)) {
+			rollbackTransaction();
+			return false;
+		}
+		version = 1;
+	}
+
+	if (version < 2) {
+		if (!migrateToVersion2() || !setSchemaVersion(2)) {
+			rollbackTransaction();
+			return false;
+		}
+		version = 2;
 	}
 
 	if (!commitTransaction()) {
@@ -187,7 +618,7 @@ bool BrushDatabase::initializeSchema() {
 		return false;
 	}
 
-	spdlog::info("SQLite brush database schema initialized at version {}", kBrushDatabaseSchemaVersion);
+	spdlog::info("SQLite brush database schema initialized at version {}", version);
 	return true;
 }
 
