@@ -6,6 +6,46 @@ BrushDatabase g_brush_database;
 
 namespace {
 constexpr int kBrushDatabaseSchemaVersion = 6;
+constexpr const char* kBrushSelectColumns =
+	"id, name, type, look_id, z_order, source_file, server_look_id, "
+	"draggable, on_blocking, on_duplicate, redo_borders, randomize, "
+	"one_size, solo_optional, thickness, thickness_ceiling";
+constexpr const char* kRecreateTilesetTablesSql =
+	"DROP TABLE IF EXISTS tileset_brush_entries;"
+	"DROP TABLE IF EXISTS tileset_sections;"
+	"DROP TABLE IF EXISTS tilesets;"
+	"CREATE TABLE tilesets ("
+	"id INTEGER PRIMARY KEY AUTOINCREMENT,"
+	"name TEXT NOT NULL UNIQUE,"
+	"source_file TEXT NOT NULL DEFAULT '',"
+	"created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+	"updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
+	");"
+	"CREATE TABLE tileset_sections ("
+	"id INTEGER PRIMARY KEY AUTOINCREMENT,"
+	"tileset_id INTEGER NOT NULL,"
+	"section_type TEXT NOT NULL,"
+	"sort_order INTEGER NOT NULL DEFAULT 0,"
+	"FOREIGN KEY (tileset_id) REFERENCES tilesets(id) ON DELETE CASCADE"
+	");"
+	"CREATE TABLE tileset_brush_entries ("
+	"id INTEGER PRIMARY KEY AUTOINCREMENT,"
+	"tileset_section_id INTEGER NOT NULL,"
+	"entry_kind TEXT NOT NULL DEFAULT 'brush',"
+	"brush_id INTEGER,"
+	"brush_name TEXT NOT NULL DEFAULT '',"
+	"item_id INTEGER NOT NULL DEFAULT 0,"
+	"from_item_id INTEGER NOT NULL DEFAULT 0,"
+	"to_item_id INTEGER NOT NULL DEFAULT 0,"
+	"after_brush_name TEXT NOT NULL DEFAULT '',"
+	"after_item_id INTEGER NOT NULL DEFAULT 0,"
+	"sort_order INTEGER NOT NULL DEFAULT 0,"
+	"FOREIGN KEY (tileset_section_id) REFERENCES tileset_sections(id) ON DELETE CASCADE,"
+	"FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE SET NULL"
+	");"
+	"CREATE INDEX idx_tileset_brush_entries_section ON tileset_brush_entries(tileset_section_id, sort_order);"
+	"CREATE INDEX idx_tileset_brush_entries_name ON tileset_brush_entries(brush_name);"
+	"CREATE INDEX idx_tileset_brush_entries_item ON tileset_brush_entries(item_id, from_item_id, to_item_id);";
 
 static wxString ToWxString(const char* value) {
 	return value ? wxString::FromUTF8(value) : wxString();
@@ -13,6 +53,45 @@ static wxString ToWxString(const char* value) {
 
 static wxString MakeTransactionSavepointName(int savepointId) {
 	return wxString::Format("brushdb_sp_%d", savepointId);
+}
+
+static void FinalizeStatements(std::initializer_list<sqlite3_stmt*> statements) {
+	for (sqlite3_stmt* stmt : statements) {
+		if (stmt) {
+			sqlite3_finalize(stmt);
+		}
+	}
+}
+
+static void BindNullableInt64(sqlite3_stmt* stmt, int index, int64_t value) {
+	if (value > 0) {
+		sqlite3_bind_int64(stmt, index, value);
+	} else {
+		sqlite3_bind_null(stmt, index);
+	}
+}
+
+static int64_t ReadNullableInt64(sqlite3_stmt* stmt, int index) {
+	return sqlite3_column_type(stmt, index) == SQLITE_NULL ? 0 : sqlite3_column_int64(stmt, index);
+}
+
+static int BindBrushRecordFields(sqlite3_stmt* stmt, const BrushRecord &brush, int parameterIndex) {
+	sqlite3_bind_text(stmt, parameterIndex++, brush.name.utf8_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_text(stmt, parameterIndex++, brush.type.utf8_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_int(stmt, parameterIndex++, brush.lookId);
+	sqlite3_bind_int(stmt, parameterIndex++, brush.zOrder);
+	sqlite3_bind_text(stmt, parameterIndex++, brush.sourceFile.utf8_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_int(stmt, parameterIndex++, brush.serverLookId);
+	sqlite3_bind_int(stmt, parameterIndex++, brush.draggable ? 1 : 0);
+	sqlite3_bind_int(stmt, parameterIndex++, brush.onBlocking ? 1 : 0);
+	sqlite3_bind_int(stmt, parameterIndex++, brush.onDuplicate ? 1 : 0);
+	sqlite3_bind_int(stmt, parameterIndex++, brush.redoBorders ? 1 : 0);
+	sqlite3_bind_int(stmt, parameterIndex++, brush.randomize ? 1 : 0);
+	sqlite3_bind_int(stmt, parameterIndex++, brush.oneSize ? 1 : 0);
+	sqlite3_bind_int(stmt, parameterIndex++, brush.soloOptional ? 1 : 0);
+	sqlite3_bind_int(stmt, parameterIndex++, brush.thickness);
+	sqlite3_bind_int(stmt, parameterIndex++, brush.thicknessCeiling);
+	return parameterIndex;
 }
 
 static void ReadBrushRecordFromStatement(sqlite3_stmt* stmt, BrushRecord &outBrush) {
@@ -32,6 +111,96 @@ static void ReadBrushRecordFromStatement(sqlite3_stmt* stmt, BrushRecord &outBru
 	outBrush.soloOptional = sqlite3_column_int(stmt, 13) != 0;
 	outBrush.thickness = sqlite3_column_int(stmt, 14);
 	outBrush.thicknessCeiling = sqlite3_column_int(stmt, 15);
+}
+
+template <typename NodeRecord, typename ItemRecord, typename SetErrorFn>
+static bool WriteAlignedNodesWithItems(
+	sqlite3* connection,
+	int64_t brushId,
+	const std::vector<NodeRecord> &nodes,
+	sqlite3_stmt* insertNodeStmt,
+	sqlite3_stmt* insertItemStmt,
+	const wxString &insertNodeError,
+	const wxString &insertItemError,
+	SetErrorFn &&setErrorFromDatabase
+) {
+	for (const NodeRecord &node : nodes) {
+		sqlite3_reset(insertNodeStmt);
+		sqlite3_clear_bindings(insertNodeStmt);
+		sqlite3_bind_int64(insertNodeStmt, 1, brushId);
+		sqlite3_bind_text(insertNodeStmt, 2, node.align.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_int(insertNodeStmt, 3, node.sortOrder);
+		int rc = sqlite3_step(insertNodeStmt);
+		if (rc != SQLITE_DONE) {
+			return setErrorFromDatabase(insertNodeError);
+		}
+
+		const int64_t nodeId = sqlite3_last_insert_rowid(connection);
+		for (const ItemRecord &item : node.items) {
+			sqlite3_reset(insertItemStmt);
+			sqlite3_clear_bindings(insertItemStmt);
+			sqlite3_bind_int64(insertItemStmt, 1, nodeId);
+			sqlite3_bind_int(insertItemStmt, 2, item.itemId);
+			sqlite3_bind_int(insertItemStmt, 3, item.chance);
+			sqlite3_bind_int(insertItemStmt, 4, item.sortOrder);
+			rc = sqlite3_step(insertItemStmt);
+			if (rc != SQLITE_DONE) {
+				return setErrorFromDatabase(insertItemError);
+			}
+		}
+	}
+
+	return true;
+}
+
+template <typename NodeRecord, typename ItemRecord, typename SetErrorFn>
+static bool ReadAlignedNodesWithItems(
+	sqlite3_stmt* nodeStmt,
+	sqlite3_stmt* itemStmt,
+	std::vector<NodeRecord> &outNodes,
+	const wxString &readNodesError,
+	const wxString &readItemsError,
+	SetErrorFn &&setErrorFromDatabase
+) {
+	for (;;) {
+		const int nodeRc = sqlite3_step(nodeStmt);
+		if (nodeRc == SQLITE_DONE) {
+			break;
+		}
+		if (nodeRc != SQLITE_ROW) {
+			return setErrorFromDatabase(readNodesError);
+		}
+
+		const int64_t nodeId = sqlite3_column_int64(nodeStmt, 0);
+
+		NodeRecord node;
+		node.align = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(nodeStmt, 1)));
+		node.sortOrder = sqlite3_column_int(nodeStmt, 2);
+
+		sqlite3_reset(itemStmt);
+		sqlite3_clear_bindings(itemStmt);
+		sqlite3_bind_int64(itemStmt, 1, nodeId);
+
+		for (;;) {
+			const int itemRc = sqlite3_step(itemStmt);
+			if (itemRc == SQLITE_DONE) {
+				break;
+			}
+			if (itemRc != SQLITE_ROW) {
+				return setErrorFromDatabase(readItemsError);
+			}
+
+			ItemRecord item;
+			item.itemId = sqlite3_column_int(itemStmt, 0);
+			item.chance = sqlite3_column_int(itemStmt, 1);
+			item.sortOrder = sqlite3_column_int(itemStmt, 2);
+			node.items.push_back(item);
+		}
+
+		outNodes.push_back(node);
+	}
+
+	return true;
 }
 } // namespace
 
@@ -800,83 +969,11 @@ bool BrushDatabase::migrateToVersion4() {
 }
 
 bool BrushDatabase::migrateToVersion5() {
-	const wxString recreateSql =
-		"DROP TABLE IF EXISTS tileset_brush_entries;"
-		"DROP TABLE IF EXISTS tileset_sections;"
-		"DROP TABLE IF EXISTS tilesets;"
-		"CREATE TABLE tilesets ("
-		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
-		"name TEXT NOT NULL UNIQUE,"
-		"source_file TEXT NOT NULL DEFAULT '',"
-		"created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
-		"updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
-		");"
-		"CREATE TABLE tileset_sections ("
-		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
-		"tileset_id INTEGER NOT NULL,"
-		"section_type TEXT NOT NULL,"
-		"sort_order INTEGER NOT NULL DEFAULT 0,"
-		"FOREIGN KEY (tileset_id) REFERENCES tilesets(id) ON DELETE CASCADE"
-		");"
-		"CREATE TABLE tileset_brush_entries ("
-		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
-		"tileset_section_id INTEGER NOT NULL,"
-		"entry_kind TEXT NOT NULL DEFAULT 'brush',"
-		"brush_id INTEGER,"
-		"brush_name TEXT NOT NULL DEFAULT '',"
-		"item_id INTEGER NOT NULL DEFAULT 0,"
-		"from_item_id INTEGER NOT NULL DEFAULT 0,"
-		"to_item_id INTEGER NOT NULL DEFAULT 0,"
-		"after_brush_name TEXT NOT NULL DEFAULT '',"
-		"after_item_id INTEGER NOT NULL DEFAULT 0,"
-		"sort_order INTEGER NOT NULL DEFAULT 0,"
-		"FOREIGN KEY (tileset_section_id) REFERENCES tileset_sections(id) ON DELETE CASCADE,"
-		"FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE SET NULL"
-		");"
-		"CREATE INDEX idx_tileset_brush_entries_section ON tileset_brush_entries(tileset_section_id, sort_order);"
-		"CREATE INDEX idx_tileset_brush_entries_name ON tileset_brush_entries(brush_name);"
-		"CREATE INDEX idx_tileset_brush_entries_item ON tileset_brush_entries(item_id, from_item_id, to_item_id);";
-	return execute(recreateSql);
+	return execute(kRecreateTilesetTablesSql);
 }
 
 bool BrushDatabase::migrateToVersion6() {
-	const wxString recreateSql =
-		"DROP TABLE IF EXISTS tileset_brush_entries;"
-		"DROP TABLE IF EXISTS tileset_sections;"
-		"DROP TABLE IF EXISTS tilesets;"
-		"CREATE TABLE tilesets ("
-		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
-		"name TEXT NOT NULL UNIQUE,"
-		"source_file TEXT NOT NULL DEFAULT '',"
-		"created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
-		"updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
-		");"
-		"CREATE TABLE tileset_sections ("
-		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
-		"tileset_id INTEGER NOT NULL,"
-		"section_type TEXT NOT NULL,"
-		"sort_order INTEGER NOT NULL DEFAULT 0,"
-		"FOREIGN KEY (tileset_id) REFERENCES tilesets(id) ON DELETE CASCADE"
-		");"
-		"CREATE TABLE tileset_brush_entries ("
-		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
-		"tileset_section_id INTEGER NOT NULL,"
-		"entry_kind TEXT NOT NULL DEFAULT 'brush',"
-		"brush_id INTEGER,"
-		"brush_name TEXT NOT NULL DEFAULT '',"
-		"item_id INTEGER NOT NULL DEFAULT 0,"
-		"from_item_id INTEGER NOT NULL DEFAULT 0,"
-		"to_item_id INTEGER NOT NULL DEFAULT 0,"
-		"after_brush_name TEXT NOT NULL DEFAULT '',"
-		"after_item_id INTEGER NOT NULL DEFAULT 0,"
-		"sort_order INTEGER NOT NULL DEFAULT 0,"
-		"FOREIGN KEY (tileset_section_id) REFERENCES tileset_sections(id) ON DELETE CASCADE,"
-		"FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE SET NULL"
-		");"
-		"CREATE INDEX idx_tileset_brush_entries_section ON tileset_brush_entries(tileset_section_id, sort_order);"
-		"CREATE INDEX idx_tileset_brush_entries_name ON tileset_brush_entries(brush_name);"
-		"CREATE INDEX idx_tileset_brush_entries_item ON tileset_brush_entries(item_id, from_item_id, to_item_id);";
-	return execute(recreateSql);
+	return execute(kRecreateTilesetTablesSql);
 }
 
 bool BrushDatabase::testDatabaseConnection() {
@@ -967,21 +1064,7 @@ bool BrushDatabase::insertBrush(const BrushRecord &brush, int64_t &insertedId) {
 		return false;
 	}
 
-	sqlite3_bind_text(stmt, 1, brush.name.utf8_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 2, brush.type.utf8_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_int(stmt, 3, brush.lookId);
-	sqlite3_bind_int(stmt, 4, brush.zOrder);
-	sqlite3_bind_text(stmt, 5, brush.sourceFile.utf8_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_int(stmt, 6, brush.serverLookId);
-	sqlite3_bind_int(stmt, 7, brush.draggable ? 1 : 0);
-	sqlite3_bind_int(stmt, 8, brush.onBlocking ? 1 : 0);
-	sqlite3_bind_int(stmt, 9, brush.onDuplicate ? 1 : 0);
-	sqlite3_bind_int(stmt, 10, brush.redoBorders ? 1 : 0);
-	sqlite3_bind_int(stmt, 11, brush.randomize ? 1 : 0);
-	sqlite3_bind_int(stmt, 12, brush.oneSize ? 1 : 0);
-	sqlite3_bind_int(stmt, 13, brush.soloOptional ? 1 : 0);
-	sqlite3_bind_int(stmt, 14, brush.thickness);
-	sqlite3_bind_int(stmt, 15, brush.thicknessCeiling);
+	BindBrushRecordFields(stmt, brush, 1);
 
 	const int rc = sqlite3_step(stmt);
 	sqlite3_finalize(stmt);
@@ -1014,10 +1097,7 @@ bool BrushDatabase::getBrushById(int64_t brushId, BrushRecord &outBrush) {
 	}
 
 	sqlite3_stmt* stmt = nullptr;
-	if (!prepare("SELECT id, name, type, look_id, z_order, source_file, server_look_id, "
-	             "draggable, on_blocking, on_duplicate, redo_borders, randomize, "
-	             "one_size, solo_optional, thickness, thickness_ceiling "
-	             "FROM brushes WHERE id = ?;", &stmt)) {
+	if (!prepare(("SELECT " + wxString::FromUTF8(kBrushSelectColumns) + " FROM brushes WHERE id = ?;").utf8_str(), &stmt)) {
 		return false;
 	}
 
@@ -1043,10 +1123,7 @@ bool BrushDatabase::listBrushesByType(const wxString &type, std::vector<BrushRec
 	}
 
 	sqlite3_stmt* stmt = nullptr;
-	if (!prepare("SELECT id, name, type, look_id, z_order, source_file, server_look_id, "
-	             "draggable, on_blocking, on_duplicate, redo_borders, randomize, "
-	             "one_size, solo_optional, thickness, thickness_ceiling "
-	             "FROM brushes WHERE type = ? ORDER BY name ASC, id ASC;", &stmt)) {
+	if (!prepare(("SELECT " + wxString::FromUTF8(kBrushSelectColumns) + " FROM brushes WHERE type = ? ORDER BY name ASC, id ASC;").utf8_str(), &stmt)) {
 		return false;
 	}
 
@@ -1077,10 +1154,7 @@ bool BrushDatabase::findBrushByNameAndType(const wxString &name, const wxString 
 	}
 
 	sqlite3_stmt* stmt = nullptr;
-	if (!prepare("SELECT id, name, type, look_id, z_order, source_file, server_look_id, "
-	             "draggable, on_blocking, on_duplicate, redo_borders, randomize, "
-	             "one_size, solo_optional, thickness, thickness_ceiling "
-	             "FROM brushes WHERE name = ? AND type = ? LIMIT 1;", &stmt)) {
+	if (!prepare(("SELECT " + wxString::FromUTF8(kBrushSelectColumns) + " FROM brushes WHERE name = ? AND type = ? LIMIT 1;").utf8_str(), &stmt)) {
 		return false;
 	}
 
@@ -1144,22 +1218,7 @@ bool BrushDatabase::updateBrush(const BrushRecord &brush) {
 		return false;
 	}
 
-	sqlite3_bind_text(stmt, 1, brush.name.utf8_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, 2, brush.type.utf8_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_int(stmt, 3, brush.lookId);
-	sqlite3_bind_int(stmt, 4, brush.zOrder);
-	sqlite3_bind_text(stmt, 5, brush.sourceFile.utf8_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_int(stmt, 6, brush.serverLookId);
-	sqlite3_bind_int(stmt, 7, brush.draggable ? 1 : 0);
-	sqlite3_bind_int(stmt, 8, brush.onBlocking ? 1 : 0);
-	sqlite3_bind_int(stmt, 9, brush.onDuplicate ? 1 : 0);
-	sqlite3_bind_int(stmt, 10, brush.redoBorders ? 1 : 0);
-	sqlite3_bind_int(stmt, 11, brush.randomize ? 1 : 0);
-	sqlite3_bind_int(stmt, 12, brush.oneSize ? 1 : 0);
-	sqlite3_bind_int(stmt, 13, brush.soloOptional ? 1 : 0);
-	sqlite3_bind_int(stmt, 14, brush.thickness);
-	sqlite3_bind_int(stmt, 15, brush.thicknessCeiling);
-	sqlite3_bind_int64(stmt, 16, brush.id);
+	sqlite3_bind_int64(stmt, BindBrushRecordFields(stmt, brush, 1), brush.id);
 
 	const int rc = sqlite3_step(stmt);
 	sqlite3_finalize(stmt);
@@ -1319,11 +1378,7 @@ bool BrushDatabase::upsertBorderSet(const BorderSetRecord &borderSet, int64_t &b
 				return false;
 			}
 
-			if (borderSet.ownerBrushId > 0) {
-				sqlite3_bind_int64(updateStmt, 1, borderSet.ownerBrushId);
-			} else {
-				sqlite3_bind_null(updateStmt, 1);
-			}
+			BindNullableInt64(updateStmt, 1, borderSet.ownerBrushId);
 			sqlite3_bind_text(updateStmt, 2, borderSet.borderScope.utf8_str(), -1, SQLITE_TRANSIENT);
 			sqlite3_bind_text(updateStmt, 3, borderSet.borderType.utf8_str(), -1, SQLITE_TRANSIENT);
 			sqlite3_bind_int(updateStmt, 4, borderSet.borderGroup);
@@ -1353,11 +1408,7 @@ bool BrushDatabase::upsertBorderSet(const BorderSetRecord &borderSet, int64_t &b
 	} else {
 		sqlite3_bind_null(stmt, 1);
 	}
-	if (borderSet.ownerBrushId > 0) {
-		sqlite3_bind_int64(stmt, 2, borderSet.ownerBrushId);
-	} else {
-		sqlite3_bind_null(stmt, 2);
-	}
+	BindNullableInt64(stmt, 2, borderSet.ownerBrushId);
 	sqlite3_bind_text(stmt, 3, borderSet.borderScope.utf8_str(), -1, SQLITE_TRANSIENT);
 	sqlite3_bind_text(stmt, 4, borderSet.borderType.utf8_str(), -1, SQLITE_TRANSIENT);
 	sqlite3_bind_int(stmt, 5, borderSet.borderGroup);
@@ -1398,7 +1449,7 @@ bool BrushDatabase::findBorderSetByXmlBorderId(int xmlBorderId, BorderSetRecord 
 
 	outBorderSet.id = sqlite3_column_int64(stmt, 0);
 	outBorderSet.xmlBorderId = sqlite3_column_int(stmt, 1);
-	outBorderSet.ownerBrushId = sqlite3_column_type(stmt, 2) == SQLITE_NULL ? 0 : sqlite3_column_int64(stmt, 2);
+	outBorderSet.ownerBrushId = ReadNullableInt64(stmt, 2);
 	outBorderSet.borderScope = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
 	outBorderSet.borderType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)));
 	outBorderSet.borderGroup = sqlite3_column_int(stmt, 5);
@@ -1555,11 +1606,7 @@ bool BrushDatabase::replaceGroundBrushBorders(int64_t brushId, const std::vector
 		sqlite3_bind_text(insertBorderStmt, 3, border.borderRole.utf8_str(), -1, SQLITE_TRANSIENT);
 		sqlite3_bind_text(insertBorderStmt, 4, border.align.utf8_str(), -1, SQLITE_TRANSIENT);
 		sqlite3_bind_text(insertBorderStmt, 5, border.targetMode.utf8_str(), -1, SQLITE_TRANSIENT);
-		if (border.targetBrushId > 0) {
-			sqlite3_bind_int64(insertBorderStmt, 6, border.targetBrushId);
-		} else {
-			sqlite3_bind_null(insertBorderStmt, 6);
-		}
+		BindNullableInt64(insertBorderStmt, 6, border.targetBrushId);
 		sqlite3_bind_text(insertBorderStmt, 7, border.targetBrushName.utf8_str(), -1, SQLITE_TRANSIENT);
 		sqlite3_bind_int(insertBorderStmt, 8, border.superBorder ? 1 : 0);
 		sqlite3_bind_int(insertBorderStmt, 9, border.sortOrder);
@@ -1703,7 +1750,7 @@ bool BrushDatabase::getGroundBrushBorders(int64_t brushId, std::vector<GroundBru
 		border.borderRole = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderStmt, 2)));
 		border.align = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderStmt, 3)));
 		border.targetMode = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderStmt, 4)));
-		border.targetBrushId = sqlite3_column_type(borderStmt, 5) == SQLITE_NULL ? 0 : sqlite3_column_int64(borderStmt, 5);
+		border.targetBrushId = ReadNullableInt64(borderStmt, 5);
 		border.targetBrushName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderStmt, 6)));
 		border.superBorder = sqlite3_column_int(borderStmt, 7) != 0;
 		border.sortOrder = sqlite3_column_int(borderStmt, 8);
@@ -1825,11 +1872,7 @@ bool BrushDatabase::replaceBrushLinks(int64_t brushId, const std::vector<BrushLi
 		sqlite3_reset(insertStmt);
 		sqlite3_clear_bindings(insertStmt);
 		sqlite3_bind_int64(insertStmt, 1, brushId);
-		if (link.targetBrushId > 0) {
-			sqlite3_bind_int64(insertStmt, 2, link.targetBrushId);
-		} else {
-			sqlite3_bind_null(insertStmt, 2);
-		}
+		BindNullableInt64(insertStmt, 2, link.targetBrushId);
 		sqlite3_bind_text(insertStmt, 3, link.targetBrushName.utf8_str(), -1, SQLITE_TRANSIENT);
 		sqlite3_bind_text(insertStmt, 4, link.relationType.utf8_str(), -1, SQLITE_TRANSIENT);
 		sqlite3_bind_int(insertStmt, 5, link.sortOrder);
@@ -1876,7 +1919,7 @@ bool BrushDatabase::getBrushLinks(int64_t brushId, std::vector<BrushLinkRecord> 
 
 		BrushLinkRecord link;
 		link.brushId = sqlite3_column_int64(stmt, 0);
-		link.targetBrushId = sqlite3_column_type(stmt, 1) == SQLITE_NULL ? 0 : sqlite3_column_int64(stmt, 1);
+		link.targetBrushId = ReadNullableInt64(stmt, 1);
 		link.targetBrushName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
 		link.relationType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
 		link.sortOrder = sqlite3_column_int(stmt, 4);
@@ -2133,40 +2176,21 @@ bool BrushDatabase::replaceCarpetNodes(int64_t brushId, const std::vector<Carpet
 		return false;
 	}
 
-	for (const CarpetNodeRecord &node : nodes) {
-		sqlite3_reset(insertNodeStmt);
-		sqlite3_clear_bindings(insertNodeStmt);
-		sqlite3_bind_int64(insertNodeStmt, 1, brushId);
-		sqlite3_bind_text(insertNodeStmt, 2, node.align.utf8_str(), -1, SQLITE_TRANSIENT);
-		sqlite3_bind_int(insertNodeStmt, 3, node.sortOrder);
-		rc = sqlite3_step(insertNodeStmt);
-		if (rc != SQLITE_DONE) {
-			sqlite3_finalize(insertNodeStmt);
-			sqlite3_finalize(insertItemStmt);
-			rollbackTransaction();
-			return setErrorFromDatabase("Failed to insert carpet node");
-		}
-
-		const int64_t nodeId = sqlite3_last_insert_rowid(connection_);
-		for (const CarpetNodeItemRecord &item : node.items) {
-			sqlite3_reset(insertItemStmt);
-			sqlite3_clear_bindings(insertItemStmt);
-			sqlite3_bind_int64(insertItemStmt, 1, nodeId);
-			sqlite3_bind_int(insertItemStmt, 2, item.itemId);
-			sqlite3_bind_int(insertItemStmt, 3, item.chance);
-			sqlite3_bind_int(insertItemStmt, 4, item.sortOrder);
-			rc = sqlite3_step(insertItemStmt);
-			if (rc != SQLITE_DONE) {
-				sqlite3_finalize(insertNodeStmt);
-				sqlite3_finalize(insertItemStmt);
-				rollbackTransaction();
-				return setErrorFromDatabase("Failed to insert carpet node item");
-			}
-		}
+	if (!WriteAlignedNodesWithItems<CarpetNodeRecord, CarpetNodeItemRecord>(
+		    connection_,
+		    brushId,
+		    nodes,
+		    insertNodeStmt,
+		    insertItemStmt,
+		    "Failed to insert carpet node",
+		    "Failed to insert carpet node item",
+		    [this](const wxString &message) { return setErrorFromDatabase(message); })) {
+		FinalizeStatements({ insertNodeStmt, insertItemStmt });
+		rollbackTransaction();
+		return false;
 	}
 
-	sqlite3_finalize(insertNodeStmt);
-	sqlite3_finalize(insertItemStmt);
+	FinalizeStatements({ insertNodeStmt, insertItemStmt });
 	if (!commitTransaction()) {
 		rollbackTransaction();
 		return false;
@@ -2196,50 +2220,18 @@ bool BrushDatabase::getCarpetNodes(int64_t brushId, std::vector<CarpetNodeRecord
 
 	sqlite3_bind_int64(nodeStmt, 1, brushId);
 
-	for (;;) {
-		const int nodeRc = sqlite3_step(nodeStmt);
-		if (nodeRc == SQLITE_DONE) {
-			break;
-		}
-		if (nodeRc != SQLITE_ROW) {
-			sqlite3_finalize(nodeStmt);
-			sqlite3_finalize(itemStmt);
-			return setErrorFromDatabase("Failed to read carpet nodes");
-		}
-
-		const int64_t nodeId = sqlite3_column_int64(nodeStmt, 0);
-
-		CarpetNodeRecord node;
-		node.align = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(nodeStmt, 1)));
-		node.sortOrder = sqlite3_column_int(nodeStmt, 2);
-
-		sqlite3_reset(itemStmt);
-		sqlite3_clear_bindings(itemStmt);
-		sqlite3_bind_int64(itemStmt, 1, nodeId);
-
-		for (;;) {
-			const int itemRc = sqlite3_step(itemStmt);
-			if (itemRc == SQLITE_DONE) {
-				break;
-			}
-			if (itemRc != SQLITE_ROW) {
-				sqlite3_finalize(nodeStmt);
-				sqlite3_finalize(itemStmt);
-				return setErrorFromDatabase("Failed to read carpet node items");
-			}
-
-			CarpetNodeItemRecord item;
-			item.itemId = sqlite3_column_int(itemStmt, 0);
-			item.chance = sqlite3_column_int(itemStmt, 1);
-			item.sortOrder = sqlite3_column_int(itemStmt, 2);
-			node.items.push_back(item);
-		}
-
-		outNodes.push_back(node);
+	if (!ReadAlignedNodesWithItems<CarpetNodeRecord, CarpetNodeItemRecord>(
+		    nodeStmt,
+		    itemStmt,
+		    outNodes,
+		    "Failed to read carpet nodes",
+		    "Failed to read carpet node items",
+		    [this](const wxString &message) { return setErrorFromDatabase(message); })) {
+		FinalizeStatements({ nodeStmt, itemStmt });
+		return false;
 	}
 
-	sqlite3_finalize(nodeStmt);
-	sqlite3_finalize(itemStmt);
+	FinalizeStatements({ nodeStmt, itemStmt });
 	return true;
 }
 
@@ -2277,40 +2269,21 @@ bool BrushDatabase::replaceTableNodes(int64_t brushId, const std::vector<TableNo
 		return false;
 	}
 
-	for (const TableNodeRecord &node : nodes) {
-		sqlite3_reset(insertNodeStmt);
-		sqlite3_clear_bindings(insertNodeStmt);
-		sqlite3_bind_int64(insertNodeStmt, 1, brushId);
-		sqlite3_bind_text(insertNodeStmt, 2, node.align.utf8_str(), -1, SQLITE_TRANSIENT);
-		sqlite3_bind_int(insertNodeStmt, 3, node.sortOrder);
-		rc = sqlite3_step(insertNodeStmt);
-		if (rc != SQLITE_DONE) {
-			sqlite3_finalize(insertNodeStmt);
-			sqlite3_finalize(insertItemStmt);
-			rollbackTransaction();
-			return setErrorFromDatabase("Failed to insert table node");
-		}
-
-		const int64_t nodeId = sqlite3_last_insert_rowid(connection_);
-		for (const TableNodeItemRecord &item : node.items) {
-			sqlite3_reset(insertItemStmt);
-			sqlite3_clear_bindings(insertItemStmt);
-			sqlite3_bind_int64(insertItemStmt, 1, nodeId);
-			sqlite3_bind_int(insertItemStmt, 2, item.itemId);
-			sqlite3_bind_int(insertItemStmt, 3, item.chance);
-			sqlite3_bind_int(insertItemStmt, 4, item.sortOrder);
-			rc = sqlite3_step(insertItemStmt);
-			if (rc != SQLITE_DONE) {
-				sqlite3_finalize(insertNodeStmt);
-				sqlite3_finalize(insertItemStmt);
-				rollbackTransaction();
-				return setErrorFromDatabase("Failed to insert table node item");
-			}
-		}
+	if (!WriteAlignedNodesWithItems<TableNodeRecord, TableNodeItemRecord>(
+		    connection_,
+		    brushId,
+		    nodes,
+		    insertNodeStmt,
+		    insertItemStmt,
+		    "Failed to insert table node",
+		    "Failed to insert table node item",
+		    [this](const wxString &message) { return setErrorFromDatabase(message); })) {
+		FinalizeStatements({ insertNodeStmt, insertItemStmt });
+		rollbackTransaction();
+		return false;
 	}
 
-	sqlite3_finalize(insertNodeStmt);
-	sqlite3_finalize(insertItemStmt);
+	FinalizeStatements({ insertNodeStmt, insertItemStmt });
 	if (!commitTransaction()) {
 		rollbackTransaction();
 		return false;
@@ -2340,50 +2313,18 @@ bool BrushDatabase::getTableNodes(int64_t brushId, std::vector<TableNodeRecord> 
 
 	sqlite3_bind_int64(nodeStmt, 1, brushId);
 
-	for (;;) {
-		const int nodeRc = sqlite3_step(nodeStmt);
-		if (nodeRc == SQLITE_DONE) {
-			break;
-		}
-		if (nodeRc != SQLITE_ROW) {
-			sqlite3_finalize(nodeStmt);
-			sqlite3_finalize(itemStmt);
-			return setErrorFromDatabase("Failed to read table nodes");
-		}
-
-		const int64_t nodeId = sqlite3_column_int64(nodeStmt, 0);
-
-		TableNodeRecord node;
-		node.align = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(nodeStmt, 1)));
-		node.sortOrder = sqlite3_column_int(nodeStmt, 2);
-
-		sqlite3_reset(itemStmt);
-		sqlite3_clear_bindings(itemStmt);
-		sqlite3_bind_int64(itemStmt, 1, nodeId);
-
-		for (;;) {
-			const int itemRc = sqlite3_step(itemStmt);
-			if (itemRc == SQLITE_DONE) {
-				break;
-			}
-			if (itemRc != SQLITE_ROW) {
-				sqlite3_finalize(nodeStmt);
-				sqlite3_finalize(itemStmt);
-				return setErrorFromDatabase("Failed to read table node items");
-			}
-
-			TableNodeItemRecord item;
-			item.itemId = sqlite3_column_int(itemStmt, 0);
-			item.chance = sqlite3_column_int(itemStmt, 1);
-			item.sortOrder = sqlite3_column_int(itemStmt, 2);
-			node.items.push_back(item);
-		}
-
-		outNodes.push_back(node);
+	if (!ReadAlignedNodesWithItems<TableNodeRecord, TableNodeItemRecord>(
+		    nodeStmt,
+		    itemStmt,
+		    outNodes,
+		    "Failed to read table nodes",
+		    "Failed to read table node items",
+		    [this](const wxString &message) { return setErrorFromDatabase(message); })) {
+		FinalizeStatements({ nodeStmt, itemStmt });
+		return false;
 	}
 
-	sqlite3_finalize(nodeStmt);
-	sqlite3_finalize(itemStmt);
+	FinalizeStatements({ nodeStmt, itemStmt });
 	return true;
 }
 
@@ -2956,7 +2897,7 @@ bool BrushDatabase::getTilesetByName(const wxString &name, TilesetStorageRecord 
 
 			TilesetEntryRecord entry;
 			entry.entryKind = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(entryStmt, 0)));
-			entry.brushId = sqlite3_column_type(entryStmt, 1) == SQLITE_NULL ? 0 : sqlite3_column_int64(entryStmt, 1);
+			entry.brushId = ReadNullableInt64(entryStmt, 1);
 			entry.brushName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(entryStmt, 2)));
 			entry.itemId = sqlite3_column_int(entryStmt, 3);
 			entry.fromItemId = sqlite3_column_int(entryStmt, 4);

@@ -142,6 +142,22 @@ wxString MaterialSourcePath(const FileName &filename) {
 	return filename.GetFullPath();
 }
 
+bool LoadMaterialsDocumentRoot(const FileName &filename, const wxString &context, pugi::xml_document &doc, pugi::xml_node &materialsNode, wxArrayString &warnings) {
+	pugi::xml_parse_result result = doc.load_file(filename.GetFullPath().mb_str());
+	if (!result) {
+		warnings.push_back(context + " could not read " + filename.GetFullName());
+		return false;
+	}
+
+	materialsNode = doc.child("materials");
+	if (!materialsNode) {
+		warnings.push_back(context + " found invalid root in " + filename.GetFullName());
+		return false;
+	}
+
+	return true;
+}
+
 FileName ResolveMaterialInclude(const FileName &baseFile, const wxString &includePath) {
 	return FileName(baseFile.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + includePath);
 }
@@ -213,15 +229,8 @@ bool ImportGlobalBordersRecursive(const FileName &filename, wxArrayString &warni
 	visited.insert(normalizedPath);
 
 	pugi::xml_document doc;
-	pugi::xml_parse_result result = doc.load_file(filename.GetFullPath().mb_str());
-	if (!result) {
-		warnings.push_back("SQLite border import could not read " + filename.GetFullName());
-		return false;
-	}
-
-	pugi::xml_node materialsNode = doc.child("materials");
-	if (!materialsNode) {
-		warnings.push_back("SQLite border import found invalid root in " + filename.GetFullName());
+	pugi::xml_node materialsNode;
+	if (!LoadMaterialsDocumentRoot(filename, "SQLite border import", doc, materialsNode, warnings)) {
 		return false;
 	}
 
@@ -427,15 +436,8 @@ bool ParseGroundBrushNode(const FileName &sourceFile, pugi::xml_node brushNode, 
 
 bool ImportGroundBrushesFile(const FileName &groundsFile, wxArrayString &warnings) {
 	pugi::xml_document doc;
-	pugi::xml_parse_result result = doc.load_file(groundsFile.GetFullPath().mb_str());
-	if (!result) {
-		warnings.push_back("SQLite ground import could not read " + groundsFile.GetFullName());
-		return false;
-	}
-
-	pugi::xml_node materialsNode = doc.child("materials");
-	if (!materialsNode) {
-		warnings.push_back("SQLite ground import found invalid root in " + groundsFile.GetFullName());
+	pugi::xml_node materialsNode;
+	if (!LoadMaterialsDocumentRoot(groundsFile, "SQLite ground import", doc, materialsNode, warnings)) {
 		return false;
 	}
 
@@ -684,15 +686,8 @@ bool ParseWallBrushNode(const FileName &sourceFile, pugi::xml_node brushNode, Br
 
 bool ImportWallBrushesFile(const FileName &wallsFile, wxArrayString &warnings) {
 	pugi::xml_document doc;
-	pugi::xml_parse_result result = doc.load_file(wallsFile.GetFullPath().mb_str());
-	if (!result) {
-		warnings.push_back("SQLite wall import could not read " + wallsFile.GetFullName());
-		return false;
-	}
-
-	pugi::xml_node materialsNode = doc.child("materials");
-	if (!materialsNode) {
-		warnings.push_back("SQLite wall import found invalid root in " + wallsFile.GetFullName());
+	pugi::xml_node materialsNode;
+	if (!LoadMaterialsDocumentRoot(wallsFile, "SQLite wall import", doc, materialsNode, warnings)) {
 		return false;
 	}
 
@@ -853,31 +848,41 @@ bool ParseDoodadBrushNode(const FileName &sourceFile, pugi::xml_node brushNode, 
 	return true;
 }
 
-bool ParseCarpetBrushNode(const FileName &sourceFile, pugi::xml_node brushNode, BrushRecord &outBrush, std::vector<CarpetNodeRecord> &outNodes, wxArrayString &warnings) {
-	if (wxString(brushNode.attribute("type").as_string(), wxConvUTF8) != "carpet") {
+template <typename NodeRecord, typename ItemRecord>
+bool ParseAlignedBrushNode(
+	const FileName &sourceFile,
+	pugi::xml_node brushNode,
+	const wxString &expectedBrushType,
+	const char* containerNodeName,
+	bool allowDirectIdFallback,
+	BrushRecord &outBrush,
+	std::vector<NodeRecord> &outNodes,
+	wxArrayString &warnings
+) {
+	if (wxString(brushNode.attribute("type").as_string(), wxConvUTF8) != expectedBrushType) {
 		return false;
 	}
 
 	outBrush = BrushRecord();
 	outBrush.name = wxString(brushNode.attribute("name").as_string(), wxConvUTF8);
-	outBrush.type = "carpet";
+	outBrush.type = expectedBrushType;
 	outBrush.lookId = brushNode.attribute("lookid").as_int();
 	outBrush.serverLookId = brushNode.attribute("server_lookid").as_int();
 	outBrush.sourceFile = MaterialSourcePath(sourceFile);
 
 	if (outBrush.name.IsEmpty()) {
-		warnings.push_back("SQLite carpet import found brush without name in " + sourceFile.GetFullName());
+		warnings.push_back("SQLite " + expectedBrushType + " import found brush without name in " + sourceFile.GetFullName());
 		return false;
 	}
 
 	outNodes.clear();
 	int nodeSortOrder = 0;
 	for (pugi::xml_node childNode = brushNode.first_child(); childNode; childNode = childNode.next_sibling()) {
-		if (as_lower_str(childNode.name()) != "carpet") {
+		if (as_lower_str(childNode.name()) != containerNodeName) {
 			continue;
 		}
 
-		CarpetNodeRecord node;
+		NodeRecord node;
 		node.align = wxString(childNode.attribute("align").as_string(), wxConvUTF8);
 		node.sortOrder = nodeSortOrder++;
 
@@ -887,23 +892,24 @@ bool ParseCarpetBrushNode(const FileName &sourceFile, pugi::xml_node brushNode, 
 			if (as_lower_str(itemNode.name()) != "item") {
 				continue;
 			}
+
 			hasNestedItems = true;
 			const int itemId = itemNode.attribute("id").as_int();
 			if (itemId <= 0) {
 				continue;
 			}
 
-			CarpetNodeItemRecord item;
+			ItemRecord item;
 			item.itemId = itemId;
 			item.chance = itemNode.attribute("chance").as_int();
 			item.sortOrder = itemSortOrder++;
 			node.items.push_back(item);
 		}
 
-		if (!hasNestedItems) {
+		if (allowDirectIdFallback && !hasNestedItems) {
 			const int itemId = childNode.attribute("id").as_int();
 			if (itemId > 0) {
-				CarpetNodeItemRecord item;
+				ItemRecord item;
 				item.itemId = itemId;
 				item.chance = 1;
 				item.sortOrder = 0;
@@ -919,58 +925,28 @@ bool ParseCarpetBrushNode(const FileName &sourceFile, pugi::xml_node brushNode, 
 	return true;
 }
 
+bool ParseCarpetBrushNode(const FileName &sourceFile, pugi::xml_node brushNode, BrushRecord &outBrush, std::vector<CarpetNodeRecord> &outNodes, wxArrayString &warnings) {
+	return ParseAlignedBrushNode<CarpetNodeRecord, CarpetNodeItemRecord>(
+		sourceFile,
+		brushNode,
+		"carpet",
+		"carpet",
+		true,
+		outBrush,
+		outNodes,
+		warnings);
+}
+
 bool ParseTableBrushNode(const FileName &sourceFile, pugi::xml_node brushNode, BrushRecord &outBrush, std::vector<TableNodeRecord> &outNodes, wxArrayString &warnings) {
-	if (wxString(brushNode.attribute("type").as_string(), wxConvUTF8) != "table") {
-		return false;
-	}
-
-	outBrush = BrushRecord();
-	outBrush.name = wxString(brushNode.attribute("name").as_string(), wxConvUTF8);
-	outBrush.type = "table";
-	outBrush.lookId = brushNode.attribute("lookid").as_int();
-	outBrush.serverLookId = brushNode.attribute("server_lookid").as_int();
-	outBrush.sourceFile = MaterialSourcePath(sourceFile);
-
-	if (outBrush.name.IsEmpty()) {
-		warnings.push_back("SQLite table import found brush without name in " + sourceFile.GetFullName());
-		return false;
-	}
-
-	outNodes.clear();
-	int nodeSortOrder = 0;
-	for (pugi::xml_node childNode = brushNode.first_child(); childNode; childNode = childNode.next_sibling()) {
-		if (as_lower_str(childNode.name()) != "table") {
-			continue;
-		}
-
-		TableNodeRecord node;
-		node.align = wxString(childNode.attribute("align").as_string(), wxConvUTF8);
-		node.sortOrder = nodeSortOrder++;
-
-		int itemSortOrder = 0;
-		for (pugi::xml_node itemNode = childNode.first_child(); itemNode; itemNode = itemNode.next_sibling()) {
-			if (as_lower_str(itemNode.name()) != "item") {
-				continue;
-			}
-
-			const int itemId = itemNode.attribute("id").as_int();
-			if (itemId <= 0) {
-				continue;
-			}
-
-			TableNodeItemRecord item;
-			item.itemId = itemId;
-			item.chance = itemNode.attribute("chance").as_int();
-			item.sortOrder = itemSortOrder++;
-			node.items.push_back(item);
-		}
-
-		if (!node.items.empty()) {
-			outNodes.push_back(node);
-		}
-	}
-
-	return true;
+	return ParseAlignedBrushNode<TableNodeRecord, TableNodeItemRecord>(
+		sourceFile,
+		brushNode,
+		"table",
+		"table",
+		false,
+		outBrush,
+		outNodes,
+		warnings);
 }
 
 bool NormalizeTilesetSectionType(const std::string &nodeName, wxString &sectionType) {
@@ -1052,15 +1028,8 @@ bool ImportTilesetsRecursive(const FileName &filename, wxArrayString &warnings, 
 	visited.insert(normalizedPath);
 
 	pugi::xml_document doc;
-	pugi::xml_parse_result result = doc.load_file(filename.GetFullPath().mb_str());
-	if (!result) {
-		warnings.push_back("SQLite tileset import could not read " + filename.GetFullName());
-		return false;
-	}
-
-	pugi::xml_node materialsNode = doc.child("materials");
-	if (!materialsNode) {
-		warnings.push_back("SQLite tileset import found invalid root in " + filename.GetFullName());
+	pugi::xml_node materialsNode;
+	if (!LoadMaterialsDocumentRoot(filename, "SQLite tileset import", doc, materialsNode, warnings)) {
 		return false;
 	}
 
@@ -1095,15 +1064,8 @@ bool ImportDecorativeBrushesRecursive(const FileName &filename, wxArrayString &w
 	visited.insert(normalizedPath);
 
 	pugi::xml_document doc;
-	pugi::xml_parse_result result = doc.load_file(filename.GetFullPath().mb_str());
-	if (!result) {
-		warnings.push_back("SQLite decorative import could not read " + filename.GetFullName());
-		return false;
-	}
-
-	pugi::xml_node materialsNode = doc.child("materials");
-	if (!materialsNode) {
-		warnings.push_back("SQLite decorative import found invalid root in " + filename.GetFullName());
+	pugi::xml_node materialsNode;
+	if (!LoadMaterialsDocumentRoot(filename, "SQLite decorative import", doc, materialsNode, warnings)) {
 		return false;
 	}
 
