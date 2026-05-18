@@ -57,7 +57,7 @@ bool ExtractSimpleBrushNode(pugi::xml_node brushNode, BrushRecord &outBrush, std
 
 			BrushItemRecord item;
 			item.itemId = itemIdAttr.as_int();
-			item.chance = std::max(1, childNode.attribute("chance").as_int(1));
+			item.chance = childNode.attribute("chance").as_int(1);
 			outItems.push_back(item);
 		} else if (childName == "composite") {
 			error = "Only simple brushes with direct <item> nodes are supported by the SQLite validation import.";
@@ -372,7 +372,7 @@ bool ParseGroundBrushNode(const FileName &sourceFile, pugi::xml_node brushNode, 
 
 			BrushItemRecord item;
 			item.itemId = itemId;
-			item.chance = std::max(1, childNode.attribute("chance").as_int(1));
+			item.chance = childNode.attribute("chance").as_int(1);
 			outBrush.items.push_back(item);
 		} else if (childName == "optional") {
 			PendingGroundBrushBorderImport borderImport;
