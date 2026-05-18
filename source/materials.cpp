@@ -1201,6 +1201,31 @@ bool Materials::initializeBrushDatabase(wxArrayString &warnings) {
 	return true;
 }
 
+bool Materials::shouldSkipSqliteBootstrapImports(bool &outSkip, wxString &reason) {
+	outSkip = false;
+	reason.clear();
+
+	if (!g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
+		return true;
+	}
+	if (!g_brush_database.isOpen()) {
+		reason = "SQLite brush database is not open.";
+		return false;
+	}
+
+	if (!g_brush_database.hasCompleteImportForCurrentSchema(outSkip)) {
+		reason = g_brush_database.getLastError();
+		return false;
+	}
+
+	if (outSkip) {
+		reason = wxString::Format("SQLite materials import skipped: materials.db already matches schema version %d and contains imported data.", g_brush_database.getExpectedSchemaVersion());
+	} else {
+		reason = wxString::Format("SQLite materials import required: materials.db is missing imported data for schema version %d.", g_brush_database.getExpectedSchemaVersion());
+	}
+	return true;
+}
+
 bool Materials::migrateSingleBrushToSQLite(const FileName &identifier, const wxString &brushName, wxString &error, wxArrayString &warnings) {
 	if (!g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
 		return true;

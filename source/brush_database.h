@@ -268,6 +268,8 @@ public:
 	bool getTilesetByName(const wxString &name, TilesetStorageRecord &outTileset);
 	bool getAllTilesets(std::vector<TilesetStorageRecord> &outTilesets);
 	bool generateAuditReport(MaterialsDatabaseAuditReport &outReport);
+	bool hasCompleteImportForCurrentSchema(bool &outReady);
+	int getExpectedSchemaVersion() const;
 	bool resolveGroundReferenceNames();
 
 private:

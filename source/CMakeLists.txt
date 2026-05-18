@@ -278,6 +278,7 @@ target_sources(
           rme_net.cpp
           selection.cpp
           settings.cpp
+          sqlite_materials_inspector.cpp
           spawn_monster_brush.cpp
           spawn_monster.cpp
           spawn_npc.cpp

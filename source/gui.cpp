@@ -361,22 +361,31 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 	g_materials.initializeBrushDatabase(warnings);
 	auto materialsPath = wxString(data_path.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + "materials/materials.xml");
 	if (g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
-		wxString sqliteImportError;
-		if (!g_materials.migrateGroundsToSQLite(sqliteImportError, warnings)) {
-			warnings.push_back("SQLite ground import failed: " + sqliteImportError);
-			spdlog::warn("[GUI::LoadDataFiles] SQLite ground import failed: {}", sqliteImportError.ToStdString());
-		}
-		if (!g_materials.migrateWallsToSQLite(sqliteImportError, warnings)) {
-			warnings.push_back("SQLite wall import failed: " + sqliteImportError);
-			spdlog::warn("[GUI::LoadDataFiles] SQLite wall import failed: {}", sqliteImportError.ToStdString());
-		}
-		if (!g_materials.migrateDecorativeBrushesToSQLite(sqliteImportError, warnings)) {
-			warnings.push_back("SQLite decorative import failed: " + sqliteImportError);
-			spdlog::warn("[GUI::LoadDataFiles] SQLite decorative import failed: {}", sqliteImportError.ToStdString());
-		}
-		if (!g_materials.migrateTilesetsToSQLite(sqliteImportError, warnings)) {
-			warnings.push_back("SQLite tileset import failed: " + sqliteImportError);
-			spdlog::warn("[GUI::LoadDataFiles] SQLite tileset import failed: {}", sqliteImportError.ToStdString());
+		bool skipSqliteImport = false;
+		wxString sqliteImportStatus;
+		if (!g_materials.shouldSkipSqliteBootstrapImports(skipSqliteImport, sqliteImportStatus)) {
+			warnings.push_back("SQLite import bootstrap check failed: " + sqliteImportStatus);
+			spdlog::warn("[GUI::LoadDataFiles] SQLite import bootstrap check failed: {}", sqliteImportStatus.ToStdString());
+		} else if (skipSqliteImport) {
+			spdlog::info("{}", sqliteImportStatus.ToStdString());
+		} else {
+			wxString sqliteImportError;
+			if (!g_materials.migrateGroundsToSQLite(sqliteImportError, warnings)) {
+				warnings.push_back("SQLite ground import failed: " + sqliteImportError);
+				spdlog::warn("[GUI::LoadDataFiles] SQLite ground import failed: {}", sqliteImportError.ToStdString());
+			}
+			if (!g_materials.migrateWallsToSQLite(sqliteImportError, warnings)) {
+				warnings.push_back("SQLite wall import failed: " + sqliteImportError);
+				spdlog::warn("[GUI::LoadDataFiles] SQLite wall import failed: {}", sqliteImportError.ToStdString());
+			}
+			if (!g_materials.migrateDecorativeBrushesToSQLite(sqliteImportError, warnings)) {
+				warnings.push_back("SQLite decorative import failed: " + sqliteImportError);
+				spdlog::warn("[GUI::LoadDataFiles] SQLite decorative import failed: {}", sqliteImportError.ToStdString());
+			}
+			if (!g_materials.migrateTilesetsToSQLite(sqliteImportError, warnings)) {
+				warnings.push_back("SQLite tileset import failed: " + sqliteImportError);
+				spdlog::warn("[GUI::LoadDataFiles] SQLite tileset import failed: {}", sqliteImportError.ToStdString());
+			}
 		}
 	}
 	if (!g_materials.loadMaterials(materialsPath, error, warnings)) {

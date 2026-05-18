@@ -29,6 +29,7 @@ public:
 
 	void clear();
 	bool initializeBrushDatabase(wxArrayString &warnings);
+	bool shouldSkipSqliteBootstrapImports(bool &outSkip, wxString &reason);
 	bool migrateSingleBrushToSQLite(const FileName &identifier, const wxString &brushName, wxString &error, wxArrayString &warnings);
 	bool migrateGroundsToSQLite(wxString &error, wxArrayString &warnings);
 	bool migrateWallsToSQLite(wxString &error, wxArrayString &warnings);

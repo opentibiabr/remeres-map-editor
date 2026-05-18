@@ -3029,6 +3029,53 @@ bool BrushDatabase::generateAuditReport(MaterialsDatabaseAuditReport &outReport)
 	return true;
 }
 
+bool BrushDatabase::hasCompleteImportForCurrentSchema(bool &outReady) {
+	outReady = false;
+
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+
+	int version = 0;
+	if (!getSchemaVersion(version)) {
+		return false;
+	}
+	if (version != kBrushDatabaseSchemaVersion) {
+		return true;
+	}
+
+	MaterialsDatabaseAuditReport report;
+	if (!generateAuditReport(report)) {
+		return false;
+	}
+
+	bool hasGround = false;
+	bool hasWall = false;
+	bool hasDoodad = false;
+	bool hasCarpet = false;
+	bool hasTable = false;
+	for (const BrushTypeCountRecord &typeCount : report.brushTypeCounts) {
+		if (typeCount.type == "ground" && typeCount.count > 0) {
+			hasGround = true;
+		} else if (typeCount.type == "wall" && typeCount.count > 0) {
+			hasWall = true;
+		} else if (typeCount.type == "doodad" && typeCount.count > 0) {
+			hasDoodad = true;
+		} else if (typeCount.type == "carpet" && typeCount.count > 0) {
+			hasCarpet = true;
+		} else if (typeCount.type == "table" && typeCount.count > 0) {
+			hasTable = true;
+		}
+	}
+
+	outReady = hasGround && hasWall && hasDoodad && hasCarpet && hasTable && report.borderSetCount > 0 && report.tilesetCount > 0;
+	return true;
+}
+
+int BrushDatabase::getExpectedSchemaVersion() const {
+	return kBrushDatabaseSchemaVersion;
+}
+
 bool BrushDatabase::resolveGroundReferenceNames() {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
