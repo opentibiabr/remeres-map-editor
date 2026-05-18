@@ -44,19 +44,35 @@ bool BrushDatabase::initialize(const wxString &databasePath) {
 	return initializeSchema();
 }
 
+bool BrushDatabase::openReadOnly(const wxString &databasePath) {
+	return openInternal(databasePath, true);
+}
+
 bool BrushDatabase::open(const wxString &databasePath) {
+	return openInternal(databasePath, false);
+}
+
+bool BrushDatabase::openInternal(const wxString &databasePath, bool readOnly) {
 	if (connection_ && databasePath_ == databasePath) {
-		return true;
+		if (readOnly_ == readOnly) {
+			return true;
+		}
+		close();
+	}
+	if (connection_) {
+		close();
 	}
 
-	close();
+	if (!readOnly) {
+		wxFileName dbFile(databasePath);
+		if (!dbFile.DirExists() && !dbFile.Mkdir(0755, wxPATH_MKDIR_FULL)) {
+			return setError("Failed to create SQLite directory: " + dbFile.GetPath());
+		}
+	}
 
 	wxFileName dbFile(databasePath);
-	if (!dbFile.DirExists() && !dbFile.Mkdir(0755, wxPATH_MKDIR_FULL)) {
-		return setError("Failed to create SQLite directory: " + dbFile.GetPath());
-	}
-
-	const int rc = sqlite3_open(dbFile.GetFullPath().utf8_str(), &connection_);
+	const int flags = readOnly ? SQLITE_OPEN_READONLY : (SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE);
+	const int rc = sqlite3_open_v2(dbFile.GetFullPath().utf8_str(), &connection_, flags, nullptr);
 	if (rc != SQLITE_OK) {
 		const wxString dbError = ToWxString(sqlite3_errmsg(connection_));
 		close();
@@ -65,6 +81,7 @@ bool BrushDatabase::open(const wxString &databasePath) {
 
 	databasePath_ = dbFile.GetFullPath();
 	lastError_.clear();
+	readOnly_ = readOnly;
 
 	if (!execute("PRAGMA foreign_keys = ON;")) {
 		close();
@@ -74,8 +91,17 @@ bool BrushDatabase::open(const wxString &databasePath) {
 		close();
 		return false;
 	}
+	if (!readOnly) {
+		if (!execute("PRAGMA journal_mode = WAL;")) {
+			close();
+			return false;
+		}
+	} else if (!execute("PRAGMA query_only = ON;")) {
+		close();
+		return false;
+	}
 
-	spdlog::info("SQLite brush database opened: {}", databasePath_.ToStdString());
+	spdlog::info("SQLite brush database opened ({}): {}", readOnly ? "read-only" : "read-write", databasePath_.ToStdString());
 	return true;
 }
 
@@ -85,10 +111,15 @@ void BrushDatabase::close() {
 		connection_ = nullptr;
 	}
 	databasePath_.clear();
+	readOnly_ = false;
 }
 
 bool BrushDatabase::isOpen() const {
 	return connection_ != nullptr;
+}
+
+bool BrushDatabase::isReadOnly() const {
+	return readOnly_;
 }
 
 const wxString &BrushDatabase::getDatabasePath() const {
@@ -601,6 +632,9 @@ bool BrushDatabase::migrateToVersion2() {
 bool BrushDatabase::initializeSchema() {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
+	}
+	if (readOnly_) {
+		return setError("SQLite schema initialization requires a read-write connection.");
 	}
 
 	if (!beginTransaction()) {
@@ -3120,14 +3154,23 @@ bool BrushDatabase::prepare(const char* sql, sqlite3_stmt** stmt) {
 }
 
 bool BrushDatabase::beginTransaction() {
+	if (readOnly_) {
+		return setError("SQLite transaction requires a read-write connection.");
+	}
 	return execute("BEGIN IMMEDIATE TRANSACTION;");
 }
 
 bool BrushDatabase::commitTransaction() {
+	if (readOnly_) {
+		return setError("SQLite transaction requires a read-write connection.");
+	}
 	return execute("COMMIT;");
 }
 
 bool BrushDatabase::rollbackTransaction() {
+	if (readOnly_) {
+		return setError("SQLite transaction requires a read-write connection.");
+	}
 	return execute("ROLLBACK;");
 }
 

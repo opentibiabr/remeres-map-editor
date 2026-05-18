@@ -7,10 +7,10 @@ wxString BoolToText(bool value) {
 	return value ? "yes" : "no";
 }
 
-wxString FormatAuditReport(const MaterialsDatabaseAuditReport &report) {
+wxString FormatAuditReport(const BrushDatabase &database, const MaterialsDatabaseAuditReport &report) {
 	wxString text;
-	text << "Database: " << g_brush_database.getDatabasePath() << "\n";
-	text << "Schema version: " << g_brush_database.getExpectedSchemaVersion() << "\n\n";
+	text << "Database: " << database.getDatabasePath() << "\n";
+	text << "Schema version: " << database.getExpectedSchemaVersion() << "\n\n";
 	text << "Brushes: " << report.brushCount << "\n";
 	text << "Border sets: " << report.borderSetCount << "\n";
 	text << "Tilesets: " << report.tilesetCount << "\n";
@@ -198,18 +198,29 @@ void SQLiteMaterialsInspectorDialog::ReloadData() {
 		brushDetailsText_->Clear();
 		tilesetList_->Clear();
 		tilesetDetailsText_->Clear();
+		inspectorDatabase_.close();
 		return;
 	}
 
-	if (!g_brush_database.generateAuditReport(auditReport_)) {
-		const wxString error = g_brush_database.getLastError();
+	if (!inspectorDatabase_.openReadOnly(g_brush_database.getDatabasePath())) {
+		const wxString error = inspectorDatabase_.getLastError();
+		summaryText_->SetValue(error);
+		brushList_->Clear();
+		brushDetailsText_->SetValue(error);
+		tilesetList_->Clear();
+		tilesetDetailsText_->SetValue(error);
+		return;
+	}
+
+	if (!inspectorDatabase_.generateAuditReport(auditReport_)) {
+		const wxString error = inspectorDatabase_.getLastError();
 		summaryText_->SetValue(error);
 		brushDetailsText_->SetValue(error);
 		tilesetDetailsText_->SetValue(error);
 		return;
 	}
-	if (!g_brush_database.getAllTilesets(tilesets_)) {
-		const wxString error = g_brush_database.getLastError();
+	if (!inspectorDatabase_.getAllTilesets(tilesets_)) {
+		const wxString error = inspectorDatabase_.getLastError();
 		summaryText_->SetValue(error);
 		brushDetailsText_->SetValue(error);
 		tilesetDetailsText_->SetValue(error);
@@ -222,7 +233,7 @@ void SQLiteMaterialsInspectorDialog::ReloadData() {
 }
 
 void SQLiteMaterialsInspectorDialog::RefreshSummary() {
-	summaryText_->SetValue(FormatAuditReport(auditReport_));
+	summaryText_->SetValue(FormatAuditReport(inspectorDatabase_, auditReport_));
 }
 
 void SQLiteMaterialsInspectorDialog::RefreshBrushList() {
@@ -231,8 +242,8 @@ void SQLiteMaterialsInspectorDialog::RefreshBrushList() {
 	brushDetailsText_->Clear();
 
 	const wxString selectedType = brushTypeChoice_->GetStringSelection();
-	if (!g_brush_database.listBrushesByType(selectedType, currentBrushes_)) {
-		brushDetailsText_->SetValue(g_brush_database.getLastError());
+	if (!inspectorDatabase_.listBrushesByType(selectedType, currentBrushes_)) {
+		brushDetailsText_->SetValue(inspectorDatabase_.getLastError());
 		return;
 	}
 
@@ -255,8 +266,8 @@ void SQLiteMaterialsInspectorDialog::RefreshBrushDetails() {
 	}
 
 	BrushStorageRecord storage;
-	if (!g_brush_database.getCompleteBrushById(currentBrushes_[selection].id, storage)) {
-		brushDetailsText_->SetValue(g_brush_database.getLastError());
+	if (!inspectorDatabase_.getCompleteBrushById(currentBrushes_[selection].id, storage)) {
+		brushDetailsText_->SetValue(inspectorDatabase_.getLastError());
 		return;
 	}
 

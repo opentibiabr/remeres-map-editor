@@ -30,6 +30,7 @@ private:
 	wxListBox* tilesetList_ = nullptr;
 	wxTextCtrl* tilesetDetailsText_ = nullptr;
 
+	BrushDatabase inspectorDatabase_;
 	MaterialsDatabaseAuditReport auditReport_;
 	std::vector<BrushRecord> currentBrushes_;
 	std::vector<TilesetStorageRecord> tilesets_;

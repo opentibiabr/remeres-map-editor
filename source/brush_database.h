@@ -224,10 +224,12 @@ public:
 	~BrushDatabase();
 
 	bool initialize(const wxString &databasePath);
+	bool openReadOnly(const wxString &databasePath);
 	bool open(const wxString &databasePath);
 	void close();
 
 	bool isOpen() const;
+	bool isReadOnly() const;
 	const wxString &getDatabasePath() const;
 	const wxString &getLastError() const;
 
@@ -291,10 +293,12 @@ private:
 	bool rollbackTransaction();
 	bool setError(const wxString &message);
 	bool setErrorFromDatabase(const wxString &prefix);
+	bool openInternal(const wxString &databasePath, bool readOnly);
 
 	sqlite3* connection_ = nullptr;
 	wxString databasePath_;
 	wxString lastError_;
+	bool readOnly_ = false;
 };
 
 extern BrushDatabase g_brush_database;
