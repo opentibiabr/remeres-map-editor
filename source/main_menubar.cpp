@@ -411,7 +411,7 @@ void MainMenuBar::Update() {
 	CheckItem(SHOW_SPAWNS_NPC, g_settings.getBoolean(Config::SHOW_SPAWNS_NPC));
 
 	EnableItem(WIN_MINIMAP, loaded);
-	EnableItem(WIN_SQLITE_MATERIALS_INSPECTOR, loaded && g_settings.getBoolean(Config::USE_SQLITE_MATERIALS));
+	EnableItem(WIN_SQLITE_MATERIALS_INSPECTOR, loaded && g_settings.getBoolean(Config::USE_SQLITE_MATERIALS) && !g_gui.IsAsyncSqliteBootstrapRunning());
 	EnableItem(NEW_PALETTE, loaded);
 	EnableItem(SELECT_TERRAIN, loaded);
 	EnableItem(SELECT_DOODAD, loaded);

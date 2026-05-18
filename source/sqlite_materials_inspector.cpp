@@ -182,6 +182,16 @@ SQLiteMaterialsInspectorDialog::SQLiteMaterialsInspectorDialog(wxWindow* parent)
 }
 
 void SQLiteMaterialsInspectorDialog::ReloadData() {
+	if (g_gui.IsAsyncSqliteBootstrapRunning()) {
+		const wxString message = "SQLite materials database is currently being built in background. Please reopen or reload this inspector when the bootstrap import finishes.";
+		summaryText_->SetValue(message);
+		brushList_->Clear();
+		brushDetailsText_->SetValue(message);
+		tilesetList_->Clear();
+		tilesetDetailsText_->SetValue(message);
+		return;
+	}
+
 	if (!g_brush_database.isOpen()) {
 		summaryText_->SetValue("SQLite brush database is not open.");
 		brushList_->Clear();

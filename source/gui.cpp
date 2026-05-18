@@ -114,6 +114,9 @@ GUI::GUI() :
 }
 
 GUI::~GUI() {
+	if (sqlite_bootstrap_thread_.joinable()) {
+		sqlite_bootstrap_thread_.join();
+	}
 	delete doodad_buffer_map;
 	delete g_gui.aui_manager;
 	delete OGLContext;
@@ -360,6 +363,7 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 	spdlog::info("Loading materials");
 	g_materials.initializeBrushDatabase(warnings);
 	auto materialsPath = wxString(data_path.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + "materials/materials.xml");
+	bool startAsyncSqliteBootstrap = false;
 	if (g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
 		bool skipSqliteImport = false;
 		wxString sqliteImportStatus;
@@ -369,23 +373,8 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 		} else if (skipSqliteImport) {
 			spdlog::info("{}", sqliteImportStatus.ToStdString());
 		} else {
-			wxString sqliteImportError;
-			if (!g_materials.migrateGroundsToSQLite(sqliteImportError, warnings)) {
-				warnings.push_back("SQLite ground import failed: " + sqliteImportError);
-				spdlog::warn("[GUI::LoadDataFiles] SQLite ground import failed: {}", sqliteImportError.ToStdString());
-			}
-			if (!g_materials.migrateWallsToSQLite(sqliteImportError, warnings)) {
-				warnings.push_back("SQLite wall import failed: " + sqliteImportError);
-				spdlog::warn("[GUI::LoadDataFiles] SQLite wall import failed: {}", sqliteImportError.ToStdString());
-			}
-			if (!g_materials.migrateDecorativeBrushesToSQLite(sqliteImportError, warnings)) {
-				warnings.push_back("SQLite decorative import failed: " + sqliteImportError);
-				spdlog::warn("[GUI::LoadDataFiles] SQLite decorative import failed: {}", sqliteImportError.ToStdString());
-			}
-			if (!g_materials.migrateTilesetsToSQLite(sqliteImportError, warnings)) {
-				warnings.push_back("SQLite tileset import failed: " + sqliteImportError);
-				spdlog::warn("[GUI::LoadDataFiles] SQLite tileset import failed: {}", sqliteImportError.ToStdString());
-			}
+			spdlog::info("{}", sqliteImportStatus.ToStdString());
+			startAsyncSqliteBootstrap = true;
 		}
 	}
 	if (!g_materials.loadMaterials(materialsPath, error, warnings)) {
@@ -402,6 +391,9 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 
 	g_gui.DestroyLoadBar();
 	spdlog::info("Assets loaded");
+	if (startAsyncSqliteBootstrap) {
+		StartAsyncSqliteBootstrapImport();
+	}
 	return true;
 }
 
@@ -1249,6 +1241,9 @@ void GUI::OnWelcomeDialogAction(wxCommandEvent &event) {
 }
 
 void GUI::UpdateMenubar() {
+	if (root == nullptr) {
+		return;
+	}
 	root->UpdateMenubar();
 }
 
@@ -1386,7 +1381,59 @@ void GUI::ChangeFloor(int new_floor) {
 }
 
 void GUI::SetStatusText(wxString text) {
+	if (g_gui.root == nullptr) {
+		return;
+	}
 	g_gui.root->SetStatusText(text, 0);
+}
+
+bool GUI::IsAsyncSqliteBootstrapRunning() const {
+	return sqlite_bootstrap_running_.load();
+}
+
+void GUI::StartAsyncSqliteBootstrapImport() {
+	if (sqlite_bootstrap_running_.exchange(true)) {
+		return;
+	}
+	if (sqlite_bootstrap_thread_.joinable()) {
+		sqlite_bootstrap_thread_.join();
+	}
+
+	SetStatusText("Building SQLite materials database in background...");
+	UpdateMenubar();
+
+	sqlite_bootstrap_thread_ = std::thread([this]() {
+		wxString sqliteImportError;
+		wxArrayString sqliteWarnings;
+		const bool success = g_materials.bootstrapSqliteDatabase(sqliteImportError, sqliteWarnings);
+
+		for (const wxString &warning : sqliteWarnings) {
+			spdlog::warn("[SQLiteBootstrap] {}", warning.ToStdString());
+		}
+		if (!success && !sqliteImportError.IsEmpty()) {
+			spdlog::error("[SQLiteBootstrap] {}", sqliteImportError.ToStdString());
+		}
+
+		sqlite_bootstrap_running_.store(false);
+
+		if (wxTheApp) {
+			wxTheApp->CallAfter([success, sqliteImportError, sqliteWarnings]() {
+				g_gui.UpdateMenubar();
+				if (success) {
+					if (sqliteWarnings.IsEmpty()) {
+						g_gui.SetStatusText("SQLite materials database built in background.");
+					} else {
+						g_gui.SetStatusText("SQLite materials database built in background with warnings.");
+					}
+				} else {
+					g_gui.SetStatusText("SQLite materials background build failed.");
+					if (g_gui.root) {
+						g_gui.PopupDialog(g_gui.root, "SQLite Materials Import Failed", sqliteImportError, wxOK | wxICON_WARNING);
+					}
+				}
+			});
+		}
+	});
 }
 
 void GUI::SetTitle(wxString title) {

@@ -1226,6 +1226,27 @@ bool Materials::shouldSkipSqliteBootstrapImports(bool &outSkip, wxString &reason
 	return true;
 }
 
+bool Materials::bootstrapSqliteDatabase(wxString &error, wxArrayString &warnings) {
+	if (!g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
+		return true;
+	}
+	if (!g_brush_database.isOpen()) {
+		error = "SQLite brush database is not open.";
+		return false;
+	}
+
+	if (!migrateGroundsToSQLite(error, warnings)) {
+		return false;
+	}
+	if (!migrateWallsToSQLite(error, warnings)) {
+		return false;
+	}
+	if (!migrateDecorativeBrushesToSQLite(error, warnings)) {
+		return false;
+	}
+	return migrateTilesetsToSQLite(error, warnings);
+}
+
 bool Materials::migrateSingleBrushToSQLite(const FileName &identifier, const wxString &brushName, wxString &error, wxArrayString &warnings) {
 	if (!g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
 		return true;
