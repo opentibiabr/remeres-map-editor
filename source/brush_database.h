@@ -190,6 +190,34 @@ struct TilesetStorageRecord {
 	std::vector<TilesetSectionRecord> sections;
 };
 
+struct BrushStorageRecord {
+	BrushRecord brush;
+	std::vector<BrushItemRecord> items;
+	std::vector<GroundBrushBorderRecord> borders;
+	std::vector<BrushLinkRecord> links;
+	std::vector<WallPartRecord> wallParts;
+	std::vector<CarpetNodeRecord> carpetNodes;
+	std::vector<TableNodeRecord> tableNodes;
+	std::vector<DoodadAlternativeRecord> doodadAlternatives;
+};
+
+struct BrushTypeCountRecord {
+	wxString type;
+	int count = 0;
+};
+
+struct MaterialsDatabaseAuditReport {
+	int brushCount = 0;
+	int borderSetCount = 0;
+	int tilesetCount = 0;
+	int tilesetSectionCount = 0;
+	int tilesetEntryCount = 0;
+	int unresolvedGroundTargets = 0;
+	int unresolvedBrushLinks = 0;
+	int unresolvedTilesetEntries = 0;
+	std::vector<BrushTypeCountRecord> brushTypeCounts;
+};
+
 class BrushDatabase {
 public:
 	BrushDatabase();
@@ -210,7 +238,9 @@ public:
 	bool insertBrush(const BrushRecord &brush, int64_t &insertedId);
 	bool upsertBrush(const BrushRecord &brush, int64_t &brushId);
 	bool getBrushById(int64_t brushId, BrushRecord &outBrush);
+	bool listBrushesByType(const wxString &type, std::vector<BrushRecord> &outBrushes);
 	bool findBrushByNameAndType(const wxString &name, const wxString &type, BrushRecord &outBrush);
+	bool getCompleteBrushById(int64_t brushId, BrushStorageRecord &outBrush);
 	bool updateBrush(const BrushRecord &brush);
 	bool deleteBrush(int64_t brushId);
 	bool deleteBrushesByType(const wxString &type);
@@ -223,12 +253,21 @@ public:
 	bool deleteBorderSetsByScope(const wxString &borderScope);
 	bool deleteOwnedBorderSetsForBrush(int64_t brushId);
 	bool replaceGroundBrushBorders(int64_t brushId, const std::vector<GroundBrushBorderRecord> &borders);
+	bool getGroundBrushBorders(int64_t brushId, std::vector<GroundBrushBorderRecord> &outBorders);
 	bool replaceBrushLinks(int64_t brushId, const std::vector<BrushLinkRecord> &links);
+	bool getBrushLinks(int64_t brushId, std::vector<BrushLinkRecord> &outLinks);
 	bool replaceWallParts(int64_t brushId, const std::vector<WallPartRecord> &parts);
+	bool getWallParts(int64_t brushId, std::vector<WallPartRecord> &outParts);
 	bool replaceCarpetNodes(int64_t brushId, const std::vector<CarpetNodeRecord> &nodes);
+	bool getCarpetNodes(int64_t brushId, std::vector<CarpetNodeRecord> &outNodes);
 	bool replaceTableNodes(int64_t brushId, const std::vector<TableNodeRecord> &nodes);
+	bool getTableNodes(int64_t brushId, std::vector<TableNodeRecord> &outNodes);
 	bool replaceDoodadAlternatives(int64_t brushId, const std::vector<DoodadAlternativeRecord> &alternatives);
+	bool getDoodadAlternatives(int64_t brushId, std::vector<DoodadAlternativeRecord> &outAlternatives);
 	bool replaceAllTilesets(const std::vector<TilesetStorageRecord> &tilesets);
+	bool getTilesetByName(const wxString &name, TilesetStorageRecord &outTileset);
+	bool getAllTilesets(std::vector<TilesetStorageRecord> &outTilesets);
+	bool generateAuditReport(MaterialsDatabaseAuditReport &outReport);
 	bool resolveGroundReferenceNames();
 
 private:
