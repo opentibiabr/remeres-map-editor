@@ -11,6 +11,10 @@ static wxString ToWxString(const char* value) {
 	return value ? wxString::FromUTF8(value) : wxString();
 }
 
+static wxString MakeTransactionSavepointName(int savepointId) {
+	return wxString::Format("brushdb_sp_%d", savepointId);
+}
+
 static void ReadBrushRecordFromStatement(sqlite3_stmt* stmt, BrushRecord &outBrush) {
 	outBrush.id = sqlite3_column_int64(stmt, 0);
 	outBrush.name = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
@@ -112,6 +116,9 @@ void BrushDatabase::close() {
 	}
 	databasePath_.clear();
 	readOnly_ = false;
+	transactionDepth_ = 0;
+	nextSavepointId_ = 0;
+	savepointIds_.clear();
 }
 
 bool BrushDatabase::isOpen() const {
@@ -3134,6 +3141,24 @@ bool BrushDatabase::resolveGroundReferenceNames() {
 	               "WHERE target_brush_name <> '' AND target_brush_name <> 'all';");
 }
 
+bool BrushDatabase::runInTransaction(const std::function<bool()> &operation) {
+	if (!beginTransaction()) {
+		return false;
+	}
+
+	if (!operation()) {
+		rollbackTransaction();
+		return false;
+	}
+
+	if (!commitTransaction()) {
+		rollbackTransaction();
+		return false;
+	}
+
+	return true;
+}
+
 bool BrushDatabase::execute(const wxString &sql) {
 	char* errorMessage = nullptr;
 	const int rc = sqlite3_exec(connection_, sql.utf8_str(), nullptr, nullptr, &errorMessage);
@@ -3157,21 +3182,84 @@ bool BrushDatabase::beginTransaction() {
 	if (readOnly_) {
 		return setError("SQLite transaction requires a read-write connection.");
 	}
-	return execute("BEGIN IMMEDIATE TRANSACTION;");
+
+	if (transactionDepth_ == 0) {
+		if (!execute("BEGIN IMMEDIATE TRANSACTION;")) {
+			return false;
+		}
+		transactionDepth_ = 1;
+		savepointIds_.clear();
+		return true;
+	}
+
+	const int savepointId = nextSavepointId_++;
+	const wxString savepointName = MakeTransactionSavepointName(savepointId);
+	if (!execute("SAVEPOINT " + savepointName + ";")) {
+		return false;
+	}
+
+	savepointIds_.push_back(savepointId);
+	++transactionDepth_;
+	return true;
 }
 
 bool BrushDatabase::commitTransaction() {
 	if (readOnly_) {
 		return setError("SQLite transaction requires a read-write connection.");
 	}
-	return execute("COMMIT;");
+	if (transactionDepth_ <= 0) {
+		return setError("SQLite commit requested without an active transaction.");
+	}
+
+	if (transactionDepth_ == 1) {
+		if (!execute("COMMIT;")) {
+			return false;
+		}
+		transactionDepth_ = 0;
+		savepointIds_.clear();
+		return true;
+	}
+
+	const int savepointId = savepointIds_.back();
+	const wxString savepointName = MakeTransactionSavepointName(savepointId);
+	if (!execute("RELEASE SAVEPOINT " + savepointName + ";")) {
+		return false;
+	}
+
+	savepointIds_.pop_back();
+	--transactionDepth_;
+	return true;
 }
 
 bool BrushDatabase::rollbackTransaction() {
 	if (readOnly_) {
 		return setError("SQLite transaction requires a read-write connection.");
 	}
-	return execute("ROLLBACK;");
+	if (transactionDepth_ <= 0) {
+		return setError("SQLite rollback requested without an active transaction.");
+	}
+
+	if (transactionDepth_ == 1) {
+		if (!execute("ROLLBACK;")) {
+			return false;
+		}
+		transactionDepth_ = 0;
+		savepointIds_.clear();
+		return true;
+	}
+
+	const int savepointId = savepointIds_.back();
+	const wxString savepointName = MakeTransactionSavepointName(savepointId);
+	if (!execute("ROLLBACK TO SAVEPOINT " + savepointName + ";")) {
+		return false;
+	}
+	if (!execute("RELEASE SAVEPOINT " + savepointName + ";")) {
+		return false;
+	}
+
+	savepointIds_.pop_back();
+	--transactionDepth_;
+	return true;
 }
 
 bool BrushDatabase::setError(const wxString &message) {

@@ -1235,16 +1235,24 @@ bool Materials::bootstrapSqliteDatabase(wxString &error, wxArrayString &warnings
 		return false;
 	}
 
-	if (!migrateGroundsToSQLite(error, warnings)) {
-		return false;
+	const bool imported = g_brush_database.runInTransaction([&]() {
+		if (!migrateGroundsToSQLite(error, warnings)) {
+			return false;
+		}
+		if (!migrateWallsToSQLite(error, warnings)) {
+			return false;
+		}
+		if (!migrateDecorativeBrushesToSQLite(error, warnings)) {
+			return false;
+		}
+		return migrateTilesetsToSQLite(error, warnings);
+	});
+
+	if (!imported && error.IsEmpty()) {
+		error = g_brush_database.getLastError();
 	}
-	if (!migrateWallsToSQLite(error, warnings)) {
-		return false;
-	}
-	if (!migrateDecorativeBrushesToSQLite(error, warnings)) {
-		return false;
-	}
-	return migrateTilesetsToSQLite(error, warnings);
+
+	return imported;
 }
 
 bool Materials::migrateSingleBrushToSQLite(const FileName &identifier, const wxString &brushName, wxString &error, wxArrayString &warnings) {

@@ -3,6 +3,7 @@
 
 #include "main.h"
 
+#include <functional>
 #include <sqlite3.h>
 
 struct BrushRecord {
@@ -273,6 +274,7 @@ public:
 	bool hasCompleteImportForCurrentSchema(bool &outReady);
 	int getExpectedSchemaVersion() const;
 	bool resolveGroundReferenceNames();
+	bool runInTransaction(const std::function<bool()> &operation);
 
 private:
 	bool ensureSchemaVersionTable();
@@ -299,6 +301,9 @@ private:
 	wxString databasePath_;
 	wxString lastError_;
 	bool readOnly_ = false;
+	int transactionDepth_ = 0;
+	int nextSavepointId_ = 0;
+	std::vector<int> savepointIds_;
 };
 
 extern BrushDatabase g_brush_database;
