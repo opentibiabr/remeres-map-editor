@@ -181,7 +181,7 @@ namespace {
 
 	wxString ParseBorderAlign(pugi::xml_node borderNode) {
 		const wxString align = wxString(borderNode.attribute("align").as_string(), wxConvUTF8);
-		return align.IsEmpty() ? "outer" : align;
+		return align.IsEmpty() ? wxString("outer") : align;
 	}
 
 	void ParseThicknessString(const wxString &thicknessString, int &thickness, int &thicknessCeiling) {
