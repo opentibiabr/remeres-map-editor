@@ -182,48 +182,42 @@ SQLiteMaterialsInspectorDialog::SQLiteMaterialsInspectorDialog(wxWindow* parent)
 }
 
 void SQLiteMaterialsInspectorDialog::ReloadData() {
+	const auto resetInspectorState = [this](const wxString &summary, const wxString &brushDetails, const wxString &tilesetDetails) {
+		currentBrushes_.clear();
+		tilesets_.clear();
+		brushList_->Clear();
+		brushDetailsText_->SetValue(brushDetails);
+		tilesetList_->Clear();
+		tilesetDetailsText_->SetValue(tilesetDetails);
+		summaryText_->SetValue(summary);
+	};
+
 	if (g_gui.IsAsyncSqliteBootstrapRunning()) {
 		const wxString message = "SQLite materials database is currently being built in background. Please reopen or reload this inspector when the bootstrap import finishes.";
-		summaryText_->SetValue(message);
-		brushList_->Clear();
-		brushDetailsText_->SetValue(message);
-		tilesetList_->Clear();
-		tilesetDetailsText_->SetValue(message);
+		resetInspectorState(message, message, message);
 		return;
 	}
 
 	if (!g_brush_database.isOpen()) {
-		summaryText_->SetValue("SQLite brush database is not open.");
-		brushList_->Clear();
-		brushDetailsText_->Clear();
-		tilesetList_->Clear();
-		tilesetDetailsText_->Clear();
+		resetInspectorState("SQLite brush database is not open.", "", "");
 		inspectorDatabase_.close();
 		return;
 	}
 
 	if (!inspectorDatabase_.openReadOnly(g_brush_database.getDatabasePath())) {
 		const wxString error = inspectorDatabase_.getLastError();
-		summaryText_->SetValue(error);
-		brushList_->Clear();
-		brushDetailsText_->SetValue(error);
-		tilesetList_->Clear();
-		tilesetDetailsText_->SetValue(error);
+		resetInspectorState(error, error, error);
 		return;
 	}
 
 	if (!inspectorDatabase_.generateAuditReport(auditReport_)) {
 		const wxString error = inspectorDatabase_.getLastError();
-		summaryText_->SetValue(error);
-		brushDetailsText_->SetValue(error);
-		tilesetDetailsText_->SetValue(error);
+		resetInspectorState(error, error, error);
 		return;
 	}
 	if (!inspectorDatabase_.getAllTilesets(tilesets_)) {
 		const wxString error = inspectorDatabase_.getLastError();
-		summaryText_->SetValue(error);
-		brushDetailsText_->SetValue(error);
-		tilesetDetailsText_->SetValue(error);
+		resetInspectorState(error, error, error);
 		return;
 	}
 
