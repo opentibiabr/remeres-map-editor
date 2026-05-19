@@ -668,7 +668,8 @@ bool ParseWallBrushNode(const FileName &sourceFile, pugi::xml_node brushNode, Br
 				alternatePart.partType = part.partType + wxString::Format("/alternate/%d", localAlternateIndex++);
 				alternatePart.sortOrder = partSortOrder++;
 				CollectWallItemNodes(subChild, alternatePart.items);
-				if (!alternatePart.items.empty()) {
+				CollectWallDoorNodes(subChild, alternatePart.doors);
+				if (!alternatePart.items.empty() || !alternatePart.doors.empty()) {
 					outParts.push_back(alternatePart);
 				}
 			}
@@ -679,7 +680,8 @@ bool ParseWallBrushNode(const FileName &sourceFile, pugi::xml_node brushNode, Br
 			alternatePart.partType = wxString::Format("alternate/%d", alternateIndex++);
 			alternatePart.sortOrder = partSortOrder++;
 			CollectWallItemNodes(childNode, alternatePart.items);
-			if (!alternatePart.items.empty()) {
+			CollectWallDoorNodes(childNode, alternatePart.doors);
+			if (!alternatePart.items.empty() || !alternatePart.doors.empty()) {
 				outParts.push_back(alternatePart);
 			}
 		} else if (childName == "friend") {
