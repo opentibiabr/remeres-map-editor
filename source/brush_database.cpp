@@ -3241,6 +3241,6 @@ bool BrushDatabase::setError(const wxString &message) {
 }
 
 bool BrushDatabase::setErrorFromDatabase(const wxString &prefix) {
-	const wxString dbMessage = connection_ ? ToWxString(sqlite3_errmsg(connection_)) : "No SQLite connection";
+	const wxString dbMessage = connection_ ? ToWxString(sqlite3_errmsg(connection_)) : wxString("No SQLite connection");
 	return setError(prefix + ": " + dbMessage);
 }
