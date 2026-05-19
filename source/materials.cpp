@@ -162,6 +162,9 @@ FileName ResolveMaterialInclude(const FileName &baseFile, const wxString &includ
 	return FileName(baseFile.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + includePath);
 }
 
+bool ImportGroundBrushesRecursive(const FileName &groundsFile, wxArrayString &warnings, std::set<wxString> &visited);
+bool ImportWallBrushesRecursive(const FileName &wallsFile, wxArrayString &warnings, std::set<wxString> &visited);
+
 wxString ParseBorderTargetMode(pugi::xml_node borderNode, wxString &targetBrushName) {
 	const wxString toValue = wxString(borderNode.attribute("to").as_string(), wxConvUTF8);
 	if (toValue.IsEmpty() || toValue == "all") {
@@ -435,6 +438,17 @@ bool ParseGroundBrushNode(const FileName &sourceFile, pugi::xml_node brushNode, 
 }
 
 bool ImportGroundBrushesFile(const FileName &groundsFile, wxArrayString &warnings) {
+	std::set<wxString> visited;
+	return ImportGroundBrushesRecursive(groundsFile, warnings, visited);
+}
+
+bool ImportGroundBrushesRecursive(const FileName &groundsFile, wxArrayString &warnings, std::set<wxString> &visited) {
+	const wxString normalizedPath = groundsFile.GetFullPath();
+	if (visited.find(normalizedPath) != visited.end()) {
+		return true;
+	}
+	visited.insert(normalizedPath);
+
 	pugi::xml_document doc;
 	pugi::xml_node materialsNode;
 	if (!LoadMaterialsDocumentRoot(groundsFile, "SQLite ground import", doc, materialsNode, warnings)) {
@@ -442,7 +456,16 @@ bool ImportGroundBrushesFile(const FileName &groundsFile, wxArrayString &warning
 	}
 
 	for (pugi::xml_node brushNode = materialsNode.first_child(); brushNode; brushNode = brushNode.next_sibling()) {
-		if (as_lower_str(brushNode.name()) != "brush") {
+		const std::string childName = as_lower_str(brushNode.name());
+		if (childName == "include") {
+			const wxString includePath = wxString(brushNode.attribute("file").as_string(), wxConvUTF8);
+			if (!includePath.empty() && !ImportGroundBrushesRecursive(ResolveMaterialInclude(groundsFile, includePath), warnings, visited)) {
+				return false;
+			}
+			continue;
+		}
+
+		if (childName != "brush") {
 			continue;
 		}
 
@@ -685,6 +708,17 @@ bool ParseWallBrushNode(const FileName &sourceFile, pugi::xml_node brushNode, Br
 }
 
 bool ImportWallBrushesFile(const FileName &wallsFile, wxArrayString &warnings) {
+	std::set<wxString> visited;
+	return ImportWallBrushesRecursive(wallsFile, warnings, visited);
+}
+
+bool ImportWallBrushesRecursive(const FileName &wallsFile, wxArrayString &warnings, std::set<wxString> &visited) {
+	const wxString normalizedPath = wallsFile.GetFullPath();
+	if (visited.find(normalizedPath) != visited.end()) {
+		return true;
+	}
+	visited.insert(normalizedPath);
+
 	pugi::xml_document doc;
 	pugi::xml_node materialsNode;
 	if (!LoadMaterialsDocumentRoot(wallsFile, "SQLite wall import", doc, materialsNode, warnings)) {
@@ -692,7 +726,16 @@ bool ImportWallBrushesFile(const FileName &wallsFile, wxArrayString &warnings) {
 	}
 
 	for (pugi::xml_node brushNode = materialsNode.first_child(); brushNode; brushNode = brushNode.next_sibling()) {
-		if (as_lower_str(brushNode.name()) != "brush") {
+		const std::string childName = as_lower_str(brushNode.name());
+		if (childName == "include") {
+			const wxString includePath = wxString(brushNode.attribute("file").as_string(), wxConvUTF8);
+			if (!includePath.empty() && !ImportWallBrushesRecursive(ResolveMaterialInclude(wallsFile, includePath), warnings, visited)) {
+				return false;
+			}
+			continue;
+		}
+
+		if (childName != "brush") {
 			continue;
 		}
 
