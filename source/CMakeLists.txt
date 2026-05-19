@@ -37,6 +37,9 @@ find_package(liblzma CONFIG REQUIRED)
 find_package(Protobuf REQUIRED)
 find_package(cpr CONFIG REQUIRED)
 find_package(SQLite3 REQUIRED)
+if(TARGET SQLite::SQLite3 AND NOT TARGET SQLite3::SQLite3)
+  add_library(SQLite3::SQLite3 ALIAS SQLite::SQLite3)
+endif()
 
 include(FetchContent)
 FetchContent_Declare(
