@@ -114,9 +114,7 @@ GUI::GUI() :
 }
 
 GUI::~GUI() {
-	if (sqlite_bootstrap_thread_.joinable()) {
-		sqlite_bootstrap_thread_.join();
-	}
+	JoinAsyncSqliteBootstrapThread();
 	delete doodad_buffer_map;
 	delete g_gui.aui_manager;
 	delete OGLContext;
@@ -414,6 +412,10 @@ void GUI::unloadMapWindow() {
 	quest_door_brush = nullptr;
 	hatch_door_brush = nullptr;
 	window_door_brush = nullptr;
+
+	// Reload/unload tears down the in-memory materials graph, so wait for the
+	// background SQLite bootstrap to stop reading shared brush/items state first.
+	JoinAsyncSqliteBootstrapThread();
 
 	g_materials.clear();
 	g_brushes.clear();
@@ -1391,13 +1393,20 @@ bool GUI::IsAsyncSqliteBootstrapRunning() const {
 	return sqlite_bootstrap_running_.load();
 }
 
+void GUI::JoinAsyncSqliteBootstrapThread() {
+	if (!sqlite_bootstrap_thread_.joinable()) {
+		return;
+	}
+
+	sqlite_bootstrap_thread_.join();
+	sqlite_bootstrap_running_.store(false);
+}
+
 void GUI::StartAsyncSqliteBootstrapImport() {
 	if (sqlite_bootstrap_running_.exchange(true)) {
 		return;
 	}
-	if (sqlite_bootstrap_thread_.joinable()) {
-		sqlite_bootstrap_thread_.join();
-	}
+	JoinAsyncSqliteBootstrapThread();
 
 	SetStatusText("Building SQLite materials database in background...");
 	UpdateMenubar();

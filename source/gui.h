@@ -139,6 +139,7 @@ private:
 	GUI(const GUI &g_gui); // Don't copy me
 	GUI &operator=(const GUI &g_gui); // Don't assign me
 	bool operator==(const GUI &g_gui); // Don't compare me
+	void JoinAsyncSqliteBootstrapThread();
 
 public:
 	template <typename T>
