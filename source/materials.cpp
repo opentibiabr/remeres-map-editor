@@ -643,38 +643,53 @@ namespace {
 		outParts.clear();
 		outLinks.clear();
 
+	const auto getOrCreatePart = [&outParts](const wxString &partType, int sortOrder) -> WallPartRecord& {
+		for (WallPartRecord &existingPart : outParts) {
+			if (existingPart.partType == partType) {
+				return existingPart;
+			}
+		}
+
+		WallPartRecord part;
+		part.partType = partType;
+		part.sortOrder = sortOrder;
+		outParts.push_back(part);
+		return outParts.back();
+	};
+
 		int partSortOrder = 0;
 		int alternateIndex = 0;
 		int linkSortOrder = 0;
 		for (pugi::xml_node childNode = brushNode.first_child(); childNode; childNode = childNode.next_sibling()) {
 			const std::string childName = as_lower_str(childNode.name());
 			if (childName == "wall") {
-				WallPartRecord part;
-				part.partType = wxString(childNode.attribute("type").as_string(), wxConvUTF8);
-				part.sortOrder = partSortOrder++;
-				if (part.partType.IsEmpty()) {
+			const wxString partType = wxString(childNode.attribute("type").as_string(), wxConvUTF8);
+			if (partType.IsEmpty()) {
 					continue;
 				}
 
-				CollectWallItemNodes(childNode, part.items);
-				CollectWallDoorNodes(childNode, part.doors);
+			WallPartRecord &part = getOrCreatePart(partType, partSortOrder);
+			if (part.items.empty() && part.doors.empty()) {
+				partSortOrder++;
+			}
+
+			CollectWallItemNodes(childNode, part.items);
+			CollectWallDoorNodes(childNode, part.doors);
 				int localAlternateIndex = 0;
 				for (pugi::xml_node subChild = childNode.first_child(); subChild; subChild = subChild.next_sibling()) {
 					if (as_lower_str(subChild.name()) != "alternate") {
 						continue;
 					}
 
-					WallPartRecord alternatePart;
-					alternatePart.partType = part.partType + wxString::Format("/alternate/%d", localAlternateIndex++);
-					alternatePart.sortOrder = partSortOrder++;
-					CollectWallItemNodes(subChild, alternatePart.items);
-					CollectWallDoorNodes(subChild, alternatePart.doors);
-					if (!alternatePart.items.empty() || !alternatePart.doors.empty()) {
-						outParts.push_back(alternatePart);
+				const wxString alternatePartType = part.partType + wxString::Format("/alternate/%d", localAlternateIndex++);
+				WallPartRecord &alternatePart = getOrCreatePart(alternatePartType, partSortOrder);
+				const bool wasEmpty = alternatePart.items.empty() && alternatePart.doors.empty();
+				CollectWallItemNodes(subChild, alternatePart.items);
+				CollectWallDoorNodes(subChild, alternatePart.doors);
+				if (wasEmpty && (!alternatePart.items.empty() || !alternatePart.doors.empty())) {
+					partSortOrder++;
 					}
 				}
-
-				outParts.push_back(part);
 			} else if (childName == "alternate") {
 				WallPartRecord alternatePart;
 				alternatePart.partType = wxString::Format("alternate/%d", alternateIndex++);
@@ -1311,7 +1326,9 @@ bool Materials::migrateGroundsToSQLite(wxString &error, wxArrayString &warnings)
 	}
 
 	const FileName bordersFile(GUI::GetDataDirectory() + "materials/borders.xml");
-	const FileName groundsFile(GUI::GetDataDirectory() + "materials/brushs/grounds.xml");
+	// Ground brushes are not confined to grounds.xml in the current dataset, so import
+	// every ground brush reachable from the shared brushs.xml include tree.
+	const FileName brushsRoot(GUI::GetDataDirectory() + "materials/brushs.xml");
 
 	if (!g_brush_database.deleteBrushesByType("ground")) {
 		error = g_brush_database.getLastError();
@@ -1327,7 +1344,7 @@ bool Materials::migrateGroundsToSQLite(wxString &error, wxArrayString &warnings)
 		error = "Failed to import border sets into SQLite.";
 		return false;
 	}
-	if (!ImportGroundBrushesFile(groundsFile, warnings)) {
+	if (!ImportGroundBrushesFile(brushsRoot, warnings)) {
 		error = "Failed to import ground brushes into SQLite.";
 		return false;
 	}
@@ -1336,7 +1353,7 @@ bool Materials::migrateGroundsToSQLite(wxString &error, wxArrayString &warnings)
 		return false;
 	}
 
-	spdlog::info("SQLite ground import completed from {}", groundsFile.GetFullPath().ToStdString());
+	spdlog::info("SQLite ground import completed from {}", brushsRoot.GetFullPath().ToStdString());
 	return true;
 }
 
@@ -1349,12 +1366,14 @@ bool Materials::migrateWallsToSQLite(wxString &error, wxArrayString &warnings) {
 		return false;
 	}
 
-	const FileName wallsFile(GUI::GetDataDirectory() + "materials/brushs/walls.xml");
+	// Wall brushes are not confined to walls.xml in the current dataset, so import
+	// every wall brush reachable from the shared brushs.xml include tree.
+	const FileName brushsRoot(GUI::GetDataDirectory() + "materials/brushs.xml");
 	if (!g_brush_database.deleteBrushesByType("wall")) {
 		error = g_brush_database.getLastError();
 		return false;
 	}
-	if (!ImportWallBrushesFile(wallsFile, warnings)) {
+	if (!ImportWallBrushesFile(brushsRoot, warnings)) {
 		error = "Failed to import wall brushes into SQLite.";
 		return false;
 	}
@@ -1363,7 +1382,7 @@ bool Materials::migrateWallsToSQLite(wxString &error, wxArrayString &warnings) {
 		return false;
 	}
 
-	spdlog::info("SQLite wall import completed from {}", wallsFile.GetFullPath().ToStdString());
+	spdlog::info("SQLite wall import completed from {}", brushsRoot.GetFullPath().ToStdString());
 	return true;
 }
 
