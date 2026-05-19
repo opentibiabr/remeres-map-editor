@@ -5,203 +5,201 @@
 BrushDatabase g_brush_database;
 
 namespace {
-constexpr int kBrushDatabaseSchemaVersion = 6;
-constexpr const char* kBrushSelectColumns =
-	"id, name, type, look_id, z_order, source_file, server_look_id, "
-	"draggable, on_blocking, on_duplicate, redo_borders, randomize, "
-	"one_size, solo_optional, thickness, thickness_ceiling";
-constexpr const char* kRecreateTilesetTablesSql =
-	"DROP TABLE IF EXISTS tileset_brush_entries;"
-	"DROP TABLE IF EXISTS tileset_sections;"
-	"DROP TABLE IF EXISTS tilesets;"
-	"CREATE TABLE tilesets ("
-	"id INTEGER PRIMARY KEY AUTOINCREMENT,"
-	"name TEXT NOT NULL UNIQUE,"
-	"source_file TEXT NOT NULL DEFAULT '',"
-	"created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
-	"updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
-	");"
-	"CREATE TABLE tileset_sections ("
-	"id INTEGER PRIMARY KEY AUTOINCREMENT,"
-	"tileset_id INTEGER NOT NULL,"
-	"section_type TEXT NOT NULL,"
-	"sort_order INTEGER NOT NULL DEFAULT 0,"
-	"FOREIGN KEY (tileset_id) REFERENCES tilesets(id) ON DELETE CASCADE"
-	");"
-	"CREATE TABLE tileset_brush_entries ("
-	"id INTEGER PRIMARY KEY AUTOINCREMENT,"
-	"tileset_section_id INTEGER NOT NULL,"
-	"entry_kind TEXT NOT NULL DEFAULT 'brush',"
-	"brush_id INTEGER,"
-	"brush_name TEXT NOT NULL DEFAULT '',"
-	"item_id INTEGER NOT NULL DEFAULT 0,"
-	"from_item_id INTEGER NOT NULL DEFAULT 0,"
-	"to_item_id INTEGER NOT NULL DEFAULT 0,"
-	"after_brush_name TEXT NOT NULL DEFAULT '',"
-	"after_item_id INTEGER NOT NULL DEFAULT 0,"
-	"sort_order INTEGER NOT NULL DEFAULT 0,"
-	"FOREIGN KEY (tileset_section_id) REFERENCES tileset_sections(id) ON DELETE CASCADE,"
-	"FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE SET NULL"
-	");"
-	"CREATE INDEX idx_tileset_brush_entries_section ON tileset_brush_entries(tileset_section_id, sort_order);"
-	"CREATE INDEX idx_tileset_brush_entries_name ON tileset_brush_entries(brush_name);"
-	"CREATE INDEX idx_tileset_brush_entries_item ON tileset_brush_entries(item_id, from_item_id, to_item_id);";
+	constexpr int kBrushDatabaseSchemaVersion = 6;
+	constexpr const char* kBrushSelectColumns = "id, name, type, look_id, z_order, source_file, server_look_id, "
+												"draggable, on_blocking, on_duplicate, redo_borders, randomize, "
+												"one_size, solo_optional, thickness, thickness_ceiling";
+	constexpr const char* kRecreateTilesetTablesSql = "DROP TABLE IF EXISTS tileset_brush_entries;"
+													  "DROP TABLE IF EXISTS tileset_sections;"
+													  "DROP TABLE IF EXISTS tilesets;"
+													  "CREATE TABLE tilesets ("
+													  "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+													  "name TEXT NOT NULL UNIQUE,"
+													  "source_file TEXT NOT NULL DEFAULT '',"
+													  "created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+													  "updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
+													  ");"
+													  "CREATE TABLE tileset_sections ("
+													  "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+													  "tileset_id INTEGER NOT NULL,"
+													  "section_type TEXT NOT NULL,"
+													  "sort_order INTEGER NOT NULL DEFAULT 0,"
+													  "FOREIGN KEY (tileset_id) REFERENCES tilesets(id) ON DELETE CASCADE"
+													  ");"
+													  "CREATE TABLE tileset_brush_entries ("
+													  "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+													  "tileset_section_id INTEGER NOT NULL,"
+													  "entry_kind TEXT NOT NULL DEFAULT 'brush',"
+													  "brush_id INTEGER,"
+													  "brush_name TEXT NOT NULL DEFAULT '',"
+													  "item_id INTEGER NOT NULL DEFAULT 0,"
+													  "from_item_id INTEGER NOT NULL DEFAULT 0,"
+													  "to_item_id INTEGER NOT NULL DEFAULT 0,"
+													  "after_brush_name TEXT NOT NULL DEFAULT '',"
+													  "after_item_id INTEGER NOT NULL DEFAULT 0,"
+													  "sort_order INTEGER NOT NULL DEFAULT 0,"
+													  "FOREIGN KEY (tileset_section_id) REFERENCES tileset_sections(id) ON DELETE CASCADE,"
+													  "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE SET NULL"
+													  ");"
+													  "CREATE INDEX idx_tileset_brush_entries_section ON tileset_brush_entries(tileset_section_id, sort_order);"
+													  "CREATE INDEX idx_tileset_brush_entries_name ON tileset_brush_entries(brush_name);"
+													  "CREATE INDEX idx_tileset_brush_entries_item ON tileset_brush_entries(item_id, from_item_id, to_item_id);";
 
-static wxString ToWxString(const char* value) {
-	return value ? wxString::FromUTF8(value) : wxString();
-}
-
-static wxString MakeTransactionSavepointName(int savepointId) {
-	return wxString::Format("brushdb_sp_%d", savepointId);
-}
-
-static void FinalizeStatements(std::initializer_list<sqlite3_stmt*> statements) {
-	for (sqlite3_stmt* stmt : statements) {
-		if (stmt) {
-			sqlite3_finalize(stmt);
-		}
+	static wxString ToWxString(const char* value) {
+		return value ? wxString::FromUTF8(value) : wxString();
 	}
-}
 
-static void BindNullableInt64(sqlite3_stmt* stmt, int index, int64_t value) {
-	if (value > 0) {
-		sqlite3_bind_int64(stmt, index, value);
-	} else {
-		sqlite3_bind_null(stmt, index);
+	static wxString MakeTransactionSavepointName(int savepointId) {
+		return wxString::Format("brushdb_sp_%d", savepointId);
 	}
-}
 
-static int64_t ReadNullableInt64(sqlite3_stmt* stmt, int index) {
-	return sqlite3_column_type(stmt, index) == SQLITE_NULL ? 0 : sqlite3_column_int64(stmt, index);
-}
-
-static int BindBrushRecordFields(sqlite3_stmt* stmt, const BrushRecord &brush, int parameterIndex) {
-	sqlite3_bind_text(stmt, parameterIndex++, brush.name.utf8_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(stmt, parameterIndex++, brush.type.utf8_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_int(stmt, parameterIndex++, brush.lookId);
-	sqlite3_bind_int(stmt, parameterIndex++, brush.zOrder);
-	sqlite3_bind_text(stmt, parameterIndex++, brush.sourceFile.utf8_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_int(stmt, parameterIndex++, brush.serverLookId);
-	sqlite3_bind_int(stmt, parameterIndex++, brush.draggable ? 1 : 0);
-	sqlite3_bind_int(stmt, parameterIndex++, brush.onBlocking ? 1 : 0);
-	sqlite3_bind_int(stmt, parameterIndex++, brush.onDuplicate ? 1 : 0);
-	sqlite3_bind_int(stmt, parameterIndex++, brush.redoBorders ? 1 : 0);
-	sqlite3_bind_int(stmt, parameterIndex++, brush.randomize ? 1 : 0);
-	sqlite3_bind_int(stmt, parameterIndex++, brush.oneSize ? 1 : 0);
-	sqlite3_bind_int(stmt, parameterIndex++, brush.soloOptional ? 1 : 0);
-	sqlite3_bind_int(stmt, parameterIndex++, brush.thickness);
-	sqlite3_bind_int(stmt, parameterIndex++, brush.thicknessCeiling);
-	return parameterIndex;
-}
-
-static void ReadBrushRecordFromStatement(sqlite3_stmt* stmt, BrushRecord &outBrush) {
-	outBrush.id = sqlite3_column_int64(stmt, 0);
-	outBrush.name = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
-	outBrush.type = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
-	outBrush.lookId = sqlite3_column_int(stmt, 3);
-	outBrush.zOrder = sqlite3_column_int(stmt, 4);
-	outBrush.sourceFile = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5)));
-	outBrush.serverLookId = sqlite3_column_int(stmt, 6);
-	outBrush.draggable = sqlite3_column_int(stmt, 7) != 0;
-	outBrush.onBlocking = sqlite3_column_int(stmt, 8) != 0;
-	outBrush.onDuplicate = sqlite3_column_int(stmt, 9) != 0;
-	outBrush.redoBorders = sqlite3_column_int(stmt, 10) != 0;
-	outBrush.randomize = sqlite3_column_int(stmt, 11) != 0;
-	outBrush.oneSize = sqlite3_column_int(stmt, 12) != 0;
-	outBrush.soloOptional = sqlite3_column_int(stmt, 13) != 0;
-	outBrush.thickness = sqlite3_column_int(stmt, 14);
-	outBrush.thicknessCeiling = sqlite3_column_int(stmt, 15);
-}
-
-template <typename NodeRecord, typename ItemRecord, typename SetErrorFn>
-static bool WriteAlignedNodesWithItems(
-	sqlite3* connection,
-	int64_t brushId,
-	const std::vector<NodeRecord> &nodes,
-	sqlite3_stmt* insertNodeStmt,
-	sqlite3_stmt* insertItemStmt,
-	const wxString &insertNodeError,
-	const wxString &insertItemError,
-	SetErrorFn &&setErrorFromDatabase
-) {
-	for (const NodeRecord &node : nodes) {
-		sqlite3_reset(insertNodeStmt);
-		sqlite3_clear_bindings(insertNodeStmt);
-		sqlite3_bind_int64(insertNodeStmt, 1, brushId);
-		sqlite3_bind_text(insertNodeStmt, 2, node.align.utf8_str(), -1, SQLITE_TRANSIENT);
-		sqlite3_bind_int(insertNodeStmt, 3, node.sortOrder);
-		int rc = sqlite3_step(insertNodeStmt);
-		if (rc != SQLITE_DONE) {
-			return setErrorFromDatabase(insertNodeError);
-		}
-
-		const int64_t nodeId = sqlite3_last_insert_rowid(connection);
-		for (const ItemRecord &item : node.items) {
-			sqlite3_reset(insertItemStmt);
-			sqlite3_clear_bindings(insertItemStmt);
-			sqlite3_bind_int64(insertItemStmt, 1, nodeId);
-			sqlite3_bind_int(insertItemStmt, 2, item.itemId);
-			sqlite3_bind_int(insertItemStmt, 3, item.chance);
-			sqlite3_bind_int(insertItemStmt, 4, item.sortOrder);
-			rc = sqlite3_step(insertItemStmt);
-			if (rc != SQLITE_DONE) {
-				return setErrorFromDatabase(insertItemError);
+	static void FinalizeStatements(std::initializer_list<sqlite3_stmt*> statements) {
+		for (sqlite3_stmt* stmt : statements) {
+			if (stmt) {
+				sqlite3_finalize(stmt);
 			}
 		}
 	}
 
-	return true;
-}
-
-template <typename NodeRecord, typename ItemRecord, typename SetErrorFn>
-static bool ReadAlignedNodesWithItems(
-	sqlite3_stmt* nodeStmt,
-	sqlite3_stmt* itemStmt,
-	std::vector<NodeRecord> &outNodes,
-	const wxString &readNodesError,
-	const wxString &readItemsError,
-	SetErrorFn &&setErrorFromDatabase
-) {
-	for (;;) {
-		const int nodeRc = sqlite3_step(nodeStmt);
-		if (nodeRc == SQLITE_DONE) {
-			break;
+	static void BindNullableInt64(sqlite3_stmt* stmt, int index, int64_t value) {
+		if (value > 0) {
+			sqlite3_bind_int64(stmt, index, value);
+		} else {
+			sqlite3_bind_null(stmt, index);
 		}
-		if (nodeRc != SQLITE_ROW) {
-			return setErrorFromDatabase(readNodesError);
+	}
+
+	static int64_t ReadNullableInt64(sqlite3_stmt* stmt, int index) {
+		return sqlite3_column_type(stmt, index) == SQLITE_NULL ? 0 : sqlite3_column_int64(stmt, index);
+	}
+
+	static int BindBrushRecordFields(sqlite3_stmt* stmt, const BrushRecord &brush, int parameterIndex) {
+		sqlite3_bind_text(stmt, parameterIndex++, brush.name.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_text(stmt, parameterIndex++, brush.type.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_int(stmt, parameterIndex++, brush.lookId);
+		sqlite3_bind_int(stmt, parameterIndex++, brush.zOrder);
+		sqlite3_bind_text(stmt, parameterIndex++, brush.sourceFile.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_int(stmt, parameterIndex++, brush.serverLookId);
+		sqlite3_bind_int(stmt, parameterIndex++, brush.draggable ? 1 : 0);
+		sqlite3_bind_int(stmt, parameterIndex++, brush.onBlocking ? 1 : 0);
+		sqlite3_bind_int(stmt, parameterIndex++, brush.onDuplicate ? 1 : 0);
+		sqlite3_bind_int(stmt, parameterIndex++, brush.redoBorders ? 1 : 0);
+		sqlite3_bind_int(stmt, parameterIndex++, brush.randomize ? 1 : 0);
+		sqlite3_bind_int(stmt, parameterIndex++, brush.oneSize ? 1 : 0);
+		sqlite3_bind_int(stmt, parameterIndex++, brush.soloOptional ? 1 : 0);
+		sqlite3_bind_int(stmt, parameterIndex++, brush.thickness);
+		sqlite3_bind_int(stmt, parameterIndex++, brush.thicknessCeiling);
+		return parameterIndex;
+	}
+
+	static void ReadBrushRecordFromStatement(sqlite3_stmt* stmt, BrushRecord &outBrush) {
+		outBrush.id = sqlite3_column_int64(stmt, 0);
+		outBrush.name = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+		outBrush.type = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+		outBrush.lookId = sqlite3_column_int(stmt, 3);
+		outBrush.zOrder = sqlite3_column_int(stmt, 4);
+		outBrush.sourceFile = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5)));
+		outBrush.serverLookId = sqlite3_column_int(stmt, 6);
+		outBrush.draggable = sqlite3_column_int(stmt, 7) != 0;
+		outBrush.onBlocking = sqlite3_column_int(stmt, 8) != 0;
+		outBrush.onDuplicate = sqlite3_column_int(stmt, 9) != 0;
+		outBrush.redoBorders = sqlite3_column_int(stmt, 10) != 0;
+		outBrush.randomize = sqlite3_column_int(stmt, 11) != 0;
+		outBrush.oneSize = sqlite3_column_int(stmt, 12) != 0;
+		outBrush.soloOptional = sqlite3_column_int(stmt, 13) != 0;
+		outBrush.thickness = sqlite3_column_int(stmt, 14);
+		outBrush.thicknessCeiling = sqlite3_column_int(stmt, 15);
+	}
+
+	template <typename NodeRecord, typename ItemRecord, typename SetErrorFn>
+	static bool WriteAlignedNodesWithItems(
+		sqlite3* connection,
+		int64_t brushId,
+		const std::vector<NodeRecord> &nodes,
+		sqlite3_stmt* insertNodeStmt,
+		sqlite3_stmt* insertItemStmt,
+		const wxString &insertNodeError,
+		const wxString &insertItemError,
+		SetErrorFn &&setErrorFromDatabase
+	) {
+		for (const NodeRecord &node : nodes) {
+			sqlite3_reset(insertNodeStmt);
+			sqlite3_clear_bindings(insertNodeStmt);
+			sqlite3_bind_int64(insertNodeStmt, 1, brushId);
+			sqlite3_bind_text(insertNodeStmt, 2, node.align.utf8_str(), -1, SQLITE_TRANSIENT);
+			sqlite3_bind_int(insertNodeStmt, 3, node.sortOrder);
+			int rc = sqlite3_step(insertNodeStmt);
+			if (rc != SQLITE_DONE) {
+				return setErrorFromDatabase(insertNodeError);
+			}
+
+			const int64_t nodeId = sqlite3_last_insert_rowid(connection);
+			for (const ItemRecord &item : node.items) {
+				sqlite3_reset(insertItemStmt);
+				sqlite3_clear_bindings(insertItemStmt);
+				sqlite3_bind_int64(insertItemStmt, 1, nodeId);
+				sqlite3_bind_int(insertItemStmt, 2, item.itemId);
+				sqlite3_bind_int(insertItemStmt, 3, item.chance);
+				sqlite3_bind_int(insertItemStmt, 4, item.sortOrder);
+				rc = sqlite3_step(insertItemStmt);
+				if (rc != SQLITE_DONE) {
+					return setErrorFromDatabase(insertItemError);
+				}
+			}
 		}
 
-		const int64_t nodeId = sqlite3_column_int64(nodeStmt, 0);
+		return true;
+	}
 
-		NodeRecord node;
-		node.align = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(nodeStmt, 1)));
-		node.sortOrder = sqlite3_column_int(nodeStmt, 2);
-
-		sqlite3_reset(itemStmt);
-		sqlite3_clear_bindings(itemStmt);
-		sqlite3_bind_int64(itemStmt, 1, nodeId);
-
+	template <typename NodeRecord, typename ItemRecord, typename SetErrorFn>
+	static bool ReadAlignedNodesWithItems(
+		sqlite3_stmt* nodeStmt,
+		sqlite3_stmt* itemStmt,
+		std::vector<NodeRecord> &outNodes,
+		const wxString &readNodesError,
+		const wxString &readItemsError,
+		SetErrorFn &&setErrorFromDatabase
+	) {
 		for (;;) {
-			const int itemRc = sqlite3_step(itemStmt);
-			if (itemRc == SQLITE_DONE) {
+			const int nodeRc = sqlite3_step(nodeStmt);
+			if (nodeRc == SQLITE_DONE) {
 				break;
 			}
-			if (itemRc != SQLITE_ROW) {
-				return setErrorFromDatabase(readItemsError);
+			if (nodeRc != SQLITE_ROW) {
+				return setErrorFromDatabase(readNodesError);
 			}
 
-			ItemRecord item;
-			item.itemId = sqlite3_column_int(itemStmt, 0);
-			item.chance = sqlite3_column_int(itemStmt, 1);
-			item.sortOrder = sqlite3_column_int(itemStmt, 2);
-			node.items.push_back(item);
+			const int64_t nodeId = sqlite3_column_int64(nodeStmt, 0);
+
+			NodeRecord node;
+			node.align = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(nodeStmt, 1)));
+			node.sortOrder = sqlite3_column_int(nodeStmt, 2);
+
+			sqlite3_reset(itemStmt);
+			sqlite3_clear_bindings(itemStmt);
+			sqlite3_bind_int64(itemStmt, 1, nodeId);
+
+			for (;;) {
+				const int itemRc = sqlite3_step(itemStmt);
+				if (itemRc == SQLITE_DONE) {
+					break;
+				}
+				if (itemRc != SQLITE_ROW) {
+					return setErrorFromDatabase(readItemsError);
+				}
+
+				ItemRecord item;
+				item.itemId = sqlite3_column_int(itemStmt, 0);
+				item.chance = sqlite3_column_int(itemStmt, 1);
+				item.sortOrder = sqlite3_column_int(itemStmt, 2);
+				node.items.push_back(item);
+			}
+
+			outNodes.push_back(node);
 		}
 
-		outNodes.push_back(node);
+		return true;
 	}
-
-	return true;
-}
 } // namespace
 
 BrushDatabase::BrushDatabase() = default;
@@ -311,7 +309,7 @@ bool BrushDatabase::ensureSchemaVersionTable() {
 		return false;
 	}
 	return execute("INSERT INTO schema_version(version) "
-	               "SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM schema_version);");
+				   "SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM schema_version);");
 }
 
 bool BrushDatabase::getSchemaVersion(int &version) {
@@ -383,77 +381,77 @@ bool BrushDatabase::columnExists(const wxString &tableName, const wxString &colu
 
 bool BrushDatabase::migrateToVersion1() {
 	if (!execute("CREATE TABLE IF NOT EXISTS brushes ("
-	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-	             "name TEXT NOT NULL,"
-	             "type TEXT NOT NULL,"
-	             "look_id INTEGER NOT NULL DEFAULT 0,"
-	             "z_order INTEGER NOT NULL DEFAULT 0,"
-	             "created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
-	             "updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
-	             ");")) {
+				 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+				 "name TEXT NOT NULL,"
+				 "type TEXT NOT NULL,"
+				 "look_id INTEGER NOT NULL DEFAULT 0,"
+				 "z_order INTEGER NOT NULL DEFAULT 0,"
+				 "created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+				 "updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_brushes_type_name "
-	             "ON brushes(type, name);")) {
+				 "ON brushes(type, name);")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS brush_items ("
-	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-	             "brush_id INTEGER NOT NULL,"
-	             "item_id INTEGER NOT NULL,"
-	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
-	             "sort_order INTEGER NOT NULL DEFAULT 0,"
-	             "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
-	             ");")) {
+				 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+				 "brush_id INTEGER NOT NULL,"
+				 "item_id INTEGER NOT NULL,"
+				 "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
+				 "sort_order INTEGER NOT NULL DEFAULT 0,"
+				 "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE INDEX IF NOT EXISTS idx_brush_items_item_id "
-	             "ON brush_items(item_id);")) {
+				 "ON brush_items(item_id);")) {
 		return false;
 	}
 
 	if (!execute("CREATE INDEX IF NOT EXISTS idx_brush_items_brush_sort "
-	             "ON brush_items(brush_id, sort_order);")) {
+				 "ON brush_items(brush_id, sort_order);")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS ground_borders ("
-	             "brush_id INTEGER NOT NULL,"
-	             "border_id INTEGER NOT NULL,"
-	             "align TEXT NOT NULL DEFAULT 'outer',"
-	             "to_brush_id INTEGER,"
-	             "PRIMARY KEY (brush_id, border_id),"
-	             "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE,"
-	             "FOREIGN KEY (to_brush_id) REFERENCES brushes(id) ON DELETE SET NULL"
-	             ");")) {
+				 "brush_id INTEGER NOT NULL,"
+				 "border_id INTEGER NOT NULL,"
+				 "align TEXT NOT NULL DEFAULT 'outer',"
+				 "to_brush_id INTEGER,"
+				 "PRIMARY KEY (brush_id, border_id),"
+				 "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE,"
+				 "FOREIGN KEY (to_brush_id) REFERENCES brushes(id) ON DELETE SET NULL"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS ground_optional_borders ("
-	             "brush_id INTEGER NOT NULL,"
-	             "border_id INTEGER NOT NULL,"
-	             "PRIMARY KEY (brush_id, border_id),"
-	             "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
-	             ");")) {
+				 "brush_id INTEGER NOT NULL,"
+				 "border_id INTEGER NOT NULL,"
+				 "PRIMARY KEY (brush_id, border_id),"
+				 "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS brush_relationships ("
-	             "from_brush_id INTEGER NOT NULL,"
-	             "to_brush_id INTEGER NOT NULL,"
-	             "relationship_type TEXT NOT NULL,"
-	             "PRIMARY KEY (from_brush_id, to_brush_id, relationship_type),"
-	             "FOREIGN KEY (from_brush_id) REFERENCES brushes(id) ON DELETE CASCADE,"
-	             "FOREIGN KEY (to_brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
-	             ");")) {
+				 "from_brush_id INTEGER NOT NULL,"
+				 "to_brush_id INTEGER NOT NULL,"
+				 "relationship_type TEXT NOT NULL,"
+				 "PRIMARY KEY (from_brush_id, to_brush_id, relationship_type),"
+				 "FOREIGN KEY (from_brush_id) REFERENCES brushes(id) ON DELETE CASCADE,"
+				 "FOREIGN KEY (to_brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
+				 ");")) {
 		return false;
 	}
 
 	return execute("CREATE INDEX IF NOT EXISTS idx_brush_relationships_to "
-	               "ON brush_relationships(to_brush_id, relationship_type);");
+				   "ON brush_relationships(to_brush_id, relationship_type);");
 }
 
 bool BrushDatabase::migrateToVersion2() {
@@ -507,302 +505,302 @@ bool BrushDatabase::migrateToVersion2() {
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS border_sets ("
-	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-	             "xml_border_id INTEGER UNIQUE,"
-	             "owner_brush_id INTEGER,"
-	             "border_scope TEXT NOT NULL DEFAULT 'global',"
-	             "border_type TEXT NOT NULL DEFAULT 'normal',"
-	             "border_group INTEGER NOT NULL DEFAULT 0,"
-	             "ground_equivalent INTEGER NOT NULL DEFAULT 0,"
-	             "source_file TEXT NOT NULL DEFAULT '',"
-	             "created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
-	             "updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
-	             "FOREIGN KEY (owner_brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
-	             ");")) {
+				 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+				 "xml_border_id INTEGER UNIQUE,"
+				 "owner_brush_id INTEGER,"
+				 "border_scope TEXT NOT NULL DEFAULT 'global',"
+				 "border_type TEXT NOT NULL DEFAULT 'normal',"
+				 "border_group INTEGER NOT NULL DEFAULT 0,"
+				 "ground_equivalent INTEGER NOT NULL DEFAULT 0,"
+				 "source_file TEXT NOT NULL DEFAULT '',"
+				 "created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+				 "updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+				 "FOREIGN KEY (owner_brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE INDEX IF NOT EXISTS idx_border_sets_owner_scope "
-	             "ON border_sets(owner_brush_id, border_scope);")) {
+				 "ON border_sets(owner_brush_id, border_scope);")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS border_set_items ("
-	             "border_set_id INTEGER NOT NULL,"
-	             "edge TEXT NOT NULL,"
-	             "item_id INTEGER NOT NULL,"
-	             "sort_order INTEGER NOT NULL DEFAULT 0,"
-	             "PRIMARY KEY (border_set_id, edge, item_id),"
-	             "FOREIGN KEY (border_set_id) REFERENCES border_sets(id) ON DELETE CASCADE"
-	             ");")) {
+				 "border_set_id INTEGER NOT NULL,"
+				 "edge TEXT NOT NULL,"
+				 "item_id INTEGER NOT NULL,"
+				 "sort_order INTEGER NOT NULL DEFAULT 0,"
+				 "PRIMARY KEY (border_set_id, edge, item_id),"
+				 "FOREIGN KEY (border_set_id) REFERENCES border_sets(id) ON DELETE CASCADE"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE INDEX IF NOT EXISTS idx_border_set_items_item "
-	             "ON border_set_items(item_id);")) {
+				 "ON border_set_items(item_id);")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS ground_brush_borders ("
-	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-	             "brush_id INTEGER NOT NULL,"
-	             "border_set_id INTEGER NOT NULL,"
-	             "border_role TEXT NOT NULL DEFAULT 'normal',"
-	             "align TEXT NOT NULL DEFAULT 'outer',"
-	             "target_mode TEXT NOT NULL DEFAULT 'all',"
-	             "target_brush_id INTEGER,"
-	             "target_brush_name TEXT NOT NULL DEFAULT '',"
-	             "super_border INTEGER NOT NULL DEFAULT 0 CHECK(super_border IN (0, 1)),"
-	             "sort_order INTEGER NOT NULL DEFAULT 0,"
-	             "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE,"
-	             "FOREIGN KEY (border_set_id) REFERENCES border_sets(id) ON DELETE CASCADE,"
-	             "FOREIGN KEY (target_brush_id) REFERENCES brushes(id) ON DELETE SET NULL"
-	             ");")) {
+				 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+				 "brush_id INTEGER NOT NULL,"
+				 "border_set_id INTEGER NOT NULL,"
+				 "border_role TEXT NOT NULL DEFAULT 'normal',"
+				 "align TEXT NOT NULL DEFAULT 'outer',"
+				 "target_mode TEXT NOT NULL DEFAULT 'all',"
+				 "target_brush_id INTEGER,"
+				 "target_brush_name TEXT NOT NULL DEFAULT '',"
+				 "super_border INTEGER NOT NULL DEFAULT 0 CHECK(super_border IN (0, 1)),"
+				 "sort_order INTEGER NOT NULL DEFAULT 0,"
+				 "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE,"
+				 "FOREIGN KEY (border_set_id) REFERENCES border_sets(id) ON DELETE CASCADE,"
+				 "FOREIGN KEY (target_brush_id) REFERENCES brushes(id) ON DELETE SET NULL"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE INDEX IF NOT EXISTS idx_ground_brush_borders_brush "
-	             "ON ground_brush_borders(brush_id, border_role, align, sort_order);")) {
+				 "ON ground_brush_borders(brush_id, border_role, align, sort_order);")) {
 		return false;
 	}
 
 	if (!execute("CREATE INDEX IF NOT EXISTS idx_ground_brush_borders_target "
-	             "ON ground_brush_borders(target_brush_name, target_mode);")) {
+				 "ON ground_brush_borders(target_brush_name, target_mode);")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS ground_border_cases ("
-	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-	             "ground_brush_border_id INTEGER NOT NULL,"
-	             "sort_order INTEGER NOT NULL DEFAULT 0,"
-	             "FOREIGN KEY (ground_brush_border_id) REFERENCES ground_brush_borders(id) ON DELETE CASCADE"
-	             ");")) {
+				 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+				 "ground_brush_border_id INTEGER NOT NULL,"
+				 "sort_order INTEGER NOT NULL DEFAULT 0,"
+				 "FOREIGN KEY (ground_brush_border_id) REFERENCES ground_brush_borders(id) ON DELETE CASCADE"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS ground_border_case_conditions ("
-	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-	             "ground_border_case_id INTEGER NOT NULL,"
-	             "condition_type TEXT NOT NULL,"
-	             "match_value INTEGER NOT NULL DEFAULT 0,"
-	             "edge TEXT NOT NULL DEFAULT '',"
-	             "sort_order INTEGER NOT NULL DEFAULT 0,"
-	             "FOREIGN KEY (ground_border_case_id) REFERENCES ground_border_cases(id) ON DELETE CASCADE"
-	             ");")) {
+				 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+				 "ground_border_case_id INTEGER NOT NULL,"
+				 "condition_type TEXT NOT NULL,"
+				 "match_value INTEGER NOT NULL DEFAULT 0,"
+				 "edge TEXT NOT NULL DEFAULT '',"
+				 "sort_order INTEGER NOT NULL DEFAULT 0,"
+				 "FOREIGN KEY (ground_border_case_id) REFERENCES ground_border_cases(id) ON DELETE CASCADE"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS ground_border_case_actions ("
-	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-	             "ground_border_case_id INTEGER NOT NULL,"
-	             "action_type TEXT NOT NULL,"
-	             "target_value INTEGER NOT NULL DEFAULT 0,"
-	             "edge TEXT NOT NULL DEFAULT '',"
-	             "replacement_value INTEGER NOT NULL DEFAULT 0,"
-	             "sort_order INTEGER NOT NULL DEFAULT 0,"
-	             "FOREIGN KEY (ground_border_case_id) REFERENCES ground_border_cases(id) ON DELETE CASCADE"
-	             ");")) {
+				 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+				 "ground_border_case_id INTEGER NOT NULL,"
+				 "action_type TEXT NOT NULL,"
+				 "target_value INTEGER NOT NULL DEFAULT 0,"
+				 "edge TEXT NOT NULL DEFAULT '',"
+				 "replacement_value INTEGER NOT NULL DEFAULT 0,"
+				 "sort_order INTEGER NOT NULL DEFAULT 0,"
+				 "FOREIGN KEY (ground_border_case_id) REFERENCES ground_border_cases(id) ON DELETE CASCADE"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS brush_links ("
-	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-	             "brush_id INTEGER NOT NULL,"
-	             "target_brush_id INTEGER,"
-	             "target_brush_name TEXT NOT NULL DEFAULT '',"
-	             "relation_type TEXT NOT NULL,"
-	             "sort_order INTEGER NOT NULL DEFAULT 0,"
-	             "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE,"
-	             "FOREIGN KEY (target_brush_id) REFERENCES brushes(id) ON DELETE SET NULL"
-	             ");")) {
+				 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+				 "brush_id INTEGER NOT NULL,"
+				 "target_brush_id INTEGER,"
+				 "target_brush_name TEXT NOT NULL DEFAULT '',"
+				 "relation_type TEXT NOT NULL,"
+				 "sort_order INTEGER NOT NULL DEFAULT 0,"
+				 "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE,"
+				 "FOREIGN KEY (target_brush_id) REFERENCES brushes(id) ON DELETE SET NULL"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE INDEX IF NOT EXISTS idx_brush_links_type "
-	             "ON brush_links(brush_id, relation_type, sort_order);")) {
+				 "ON brush_links(brush_id, relation_type, sort_order);")) {
 		return false;
 	}
 
 	if (!execute("CREATE INDEX IF NOT EXISTS idx_brush_links_target_name "
-	             "ON brush_links(target_brush_name);")) {
+				 "ON brush_links(target_brush_name);")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS wall_parts ("
-	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-	             "brush_id INTEGER NOT NULL,"
-	             "part_type TEXT NOT NULL,"
-	             "sort_order INTEGER NOT NULL DEFAULT 0,"
-	             "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE,"
-	             "UNIQUE (brush_id, part_type)"
-	             ");")) {
+				 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+				 "brush_id INTEGER NOT NULL,"
+				 "part_type TEXT NOT NULL,"
+				 "sort_order INTEGER NOT NULL DEFAULT 0,"
+				 "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE,"
+				 "UNIQUE (brush_id, part_type)"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS wall_part_items ("
-	             "wall_part_id INTEGER NOT NULL,"
-	             "item_id INTEGER NOT NULL,"
-	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
-	             "sort_order INTEGER NOT NULL DEFAULT 0,"
-	             "PRIMARY KEY (wall_part_id, item_id),"
-	             "FOREIGN KEY (wall_part_id) REFERENCES wall_parts(id) ON DELETE CASCADE"
-	             ");")) {
+				 "wall_part_id INTEGER NOT NULL,"
+				 "item_id INTEGER NOT NULL,"
+				 "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
+				 "sort_order INTEGER NOT NULL DEFAULT 0,"
+				 "PRIMARY KEY (wall_part_id, item_id),"
+				 "FOREIGN KEY (wall_part_id) REFERENCES wall_parts(id) ON DELETE CASCADE"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS wall_part_doors ("
-	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-	             "wall_part_id INTEGER NOT NULL,"
-	             "item_id INTEGER NOT NULL,"
-	             "door_type TEXT NOT NULL DEFAULT 'normal',"
-	             "is_open INTEGER NOT NULL DEFAULT 0 CHECK(is_open IN (0, 1)),"
-	             "wall_hate_me INTEGER NOT NULL DEFAULT 0 CHECK(wall_hate_me IN (0, 1)),"
-	             "sort_order INTEGER NOT NULL DEFAULT 0,"
-	             "FOREIGN KEY (wall_part_id) REFERENCES wall_parts(id) ON DELETE CASCADE"
-	             ");")) {
+				 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+				 "wall_part_id INTEGER NOT NULL,"
+				 "item_id INTEGER NOT NULL,"
+				 "door_type TEXT NOT NULL DEFAULT 'normal',"
+				 "is_open INTEGER NOT NULL DEFAULT 0 CHECK(is_open IN (0, 1)),"
+				 "wall_hate_me INTEGER NOT NULL DEFAULT 0 CHECK(wall_hate_me IN (0, 1)),"
+				 "sort_order INTEGER NOT NULL DEFAULT 0,"
+				 "FOREIGN KEY (wall_part_id) REFERENCES wall_parts(id) ON DELETE CASCADE"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE INDEX IF NOT EXISTS idx_wall_part_doors_part "
-	             "ON wall_part_doors(wall_part_id, sort_order);")) {
+				 "ON wall_part_doors(wall_part_id, sort_order);")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS carpet_nodes ("
-	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-	             "brush_id INTEGER NOT NULL,"
-	             "align TEXT NOT NULL,"
-	             "sort_order INTEGER NOT NULL DEFAULT 0,"
-	             "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
-	             ");")) {
+				 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+				 "brush_id INTEGER NOT NULL,"
+				 "align TEXT NOT NULL,"
+				 "sort_order INTEGER NOT NULL DEFAULT 0,"
+				 "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS carpet_node_items ("
-	             "carpet_node_id INTEGER NOT NULL,"
-	             "item_id INTEGER NOT NULL,"
-	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
-	             "sort_order INTEGER NOT NULL DEFAULT 0,"
-	             "PRIMARY KEY (carpet_node_id, item_id),"
-	             "FOREIGN KEY (carpet_node_id) REFERENCES carpet_nodes(id) ON DELETE CASCADE"
-	             ");")) {
+				 "carpet_node_id INTEGER NOT NULL,"
+				 "item_id INTEGER NOT NULL,"
+				 "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
+				 "sort_order INTEGER NOT NULL DEFAULT 0,"
+				 "PRIMARY KEY (carpet_node_id, item_id),"
+				 "FOREIGN KEY (carpet_node_id) REFERENCES carpet_nodes(id) ON DELETE CASCADE"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS table_nodes ("
-	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-	             "brush_id INTEGER NOT NULL,"
-	             "align TEXT NOT NULL,"
-	             "sort_order INTEGER NOT NULL DEFAULT 0,"
-	             "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
-	             ");")) {
+				 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+				 "brush_id INTEGER NOT NULL,"
+				 "align TEXT NOT NULL,"
+				 "sort_order INTEGER NOT NULL DEFAULT 0,"
+				 "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS table_node_items ("
-	             "table_node_id INTEGER NOT NULL,"
-	             "item_id INTEGER NOT NULL,"
-	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
-	             "sort_order INTEGER NOT NULL DEFAULT 0,"
-	             "PRIMARY KEY (table_node_id, item_id),"
-	             "FOREIGN KEY (table_node_id) REFERENCES table_nodes(id) ON DELETE CASCADE"
-	             ");")) {
+				 "table_node_id INTEGER NOT NULL,"
+				 "item_id INTEGER NOT NULL,"
+				 "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
+				 "sort_order INTEGER NOT NULL DEFAULT 0,"
+				 "PRIMARY KEY (table_node_id, item_id),"
+				 "FOREIGN KEY (table_node_id) REFERENCES table_nodes(id) ON DELETE CASCADE"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS doodad_alternatives ("
-	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-	             "brush_id INTEGER NOT NULL,"
-	             "sort_order INTEGER NOT NULL DEFAULT 0,"
-	             "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
-	             ");")) {
+				 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+				 "brush_id INTEGER NOT NULL,"
+				 "sort_order INTEGER NOT NULL DEFAULT 0,"
+				 "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS doodad_single_items ("
-	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-	             "doodad_alternative_id INTEGER NOT NULL,"
-	             "item_id INTEGER NOT NULL,"
-	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
-	             "sort_order INTEGER NOT NULL DEFAULT 0,"
-	             "FOREIGN KEY (doodad_alternative_id) REFERENCES doodad_alternatives(id) ON DELETE CASCADE"
-	             ");")) {
+				 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+				 "doodad_alternative_id INTEGER NOT NULL,"
+				 "item_id INTEGER NOT NULL,"
+				 "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
+				 "sort_order INTEGER NOT NULL DEFAULT 0,"
+				 "FOREIGN KEY (doodad_alternative_id) REFERENCES doodad_alternatives(id) ON DELETE CASCADE"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS doodad_composites ("
-	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-	             "doodad_alternative_id INTEGER NOT NULL,"
-	             "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
-	             "sort_order INTEGER NOT NULL DEFAULT 0,"
-	             "FOREIGN KEY (doodad_alternative_id) REFERENCES doodad_alternatives(id) ON DELETE CASCADE"
-	             ");")) {
+				 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+				 "doodad_alternative_id INTEGER NOT NULL,"
+				 "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
+				 "sort_order INTEGER NOT NULL DEFAULT 0,"
+				 "FOREIGN KEY (doodad_alternative_id) REFERENCES doodad_alternatives(id) ON DELETE CASCADE"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS doodad_composite_tiles ("
-	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-	             "doodad_composite_id INTEGER NOT NULL,"
-	             "offset_x INTEGER NOT NULL DEFAULT 0,"
-	             "offset_y INTEGER NOT NULL DEFAULT 0,"
-	             "offset_z INTEGER NOT NULL DEFAULT 0,"
-	             "sort_order INTEGER NOT NULL DEFAULT 0,"
-	             "FOREIGN KEY (doodad_composite_id) REFERENCES doodad_composites(id) ON DELETE CASCADE"
-	             ");")) {
+				 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+				 "doodad_composite_id INTEGER NOT NULL,"
+				 "offset_x INTEGER NOT NULL DEFAULT 0,"
+				 "offset_y INTEGER NOT NULL DEFAULT 0,"
+				 "offset_z INTEGER NOT NULL DEFAULT 0,"
+				 "sort_order INTEGER NOT NULL DEFAULT 0,"
+				 "FOREIGN KEY (doodad_composite_id) REFERENCES doodad_composites(id) ON DELETE CASCADE"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS doodad_composite_tile_items ("
-	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-	             "doodad_composite_tile_id INTEGER NOT NULL,"
-	             "item_id INTEGER NOT NULL,"
-	             "sort_order INTEGER NOT NULL DEFAULT 0,"
-	             "FOREIGN KEY (doodad_composite_tile_id) REFERENCES doodad_composite_tiles(id) ON DELETE CASCADE"
-	             ");")) {
+				 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+				 "doodad_composite_tile_id INTEGER NOT NULL,"
+				 "item_id INTEGER NOT NULL,"
+				 "sort_order INTEGER NOT NULL DEFAULT 0,"
+				 "FOREIGN KEY (doodad_composite_tile_id) REFERENCES doodad_composite_tiles(id) ON DELETE CASCADE"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS tilesets ("
-	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-	             "name TEXT NOT NULL UNIQUE,"
-	             "source_file TEXT NOT NULL DEFAULT '',"
-	             "created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
-	             "updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
-	             ");")) {
+				 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+				 "name TEXT NOT NULL UNIQUE,"
+				 "source_file TEXT NOT NULL DEFAULT '',"
+				 "created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+				 "updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS tileset_sections ("
-	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-	             "tileset_id INTEGER NOT NULL,"
-	             "section_type TEXT NOT NULL,"
-	             "sort_order INTEGER NOT NULL DEFAULT 0,"
-	             "FOREIGN KEY (tileset_id) REFERENCES tilesets(id) ON DELETE CASCADE,"
-	             "UNIQUE (tileset_id, section_type)"
-	             ");")) {
+				 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+				 "tileset_id INTEGER NOT NULL,"
+				 "section_type TEXT NOT NULL,"
+				 "sort_order INTEGER NOT NULL DEFAULT 0,"
+				 "FOREIGN KEY (tileset_id) REFERENCES tilesets(id) ON DELETE CASCADE,"
+				 "UNIQUE (tileset_id, section_type)"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE TABLE IF NOT EXISTS tileset_brush_entries ("
-	             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-	             "tileset_section_id INTEGER NOT NULL,"
-	             "brush_id INTEGER,"
-	             "brush_name TEXT NOT NULL DEFAULT '',"
-	             "after_brush_name TEXT NOT NULL DEFAULT '',"
-	             "sort_order INTEGER NOT NULL DEFAULT 0,"
-	             "FOREIGN KEY (tileset_section_id) REFERENCES tileset_sections(id) ON DELETE CASCADE,"
-	             "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE SET NULL"
-	             ");")) {
+				 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+				 "tileset_section_id INTEGER NOT NULL,"
+				 "brush_id INTEGER,"
+				 "brush_name TEXT NOT NULL DEFAULT '',"
+				 "after_brush_name TEXT NOT NULL DEFAULT '',"
+				 "sort_order INTEGER NOT NULL DEFAULT 0,"
+				 "FOREIGN KEY (tileset_section_id) REFERENCES tileset_sections(id) ON DELETE CASCADE,"
+				 "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE SET NULL"
+				 ");")) {
 		return false;
 	}
 
 	if (!execute("CREATE INDEX IF NOT EXISTS idx_tileset_brush_entries_section "
-	             "ON tileset_brush_entries(tileset_section_id, sort_order);")) {
+				 "ON tileset_brush_entries(tileset_section_id, sort_order);")) {
 		return false;
 	}
 
 	return execute("CREATE INDEX IF NOT EXISTS idx_tileset_brush_entries_name "
-	               "ON tileset_brush_entries(brush_name);");
+				   "ON tileset_brush_entries(brush_name);");
 }
 
 bool BrushDatabase::initializeSchema() {
@@ -890,61 +888,60 @@ bool BrushDatabase::initializeSchema() {
 }
 
 bool BrushDatabase::migrateToVersion3() {
-	const wxString recreateSql =
-		"DROP TABLE IF EXISTS brush_items;"
-		"DROP TABLE IF EXISTS wall_part_items;"
-		"DROP TABLE IF EXISTS carpet_node_items;"
-		"DROP TABLE IF EXISTS table_node_items;"
-		"DROP TABLE IF EXISTS doodad_single_items;"
-		"DROP TABLE IF EXISTS doodad_composites;"
-		"CREATE TABLE brush_items ("
-		"brush_id INTEGER NOT NULL,"
-		"item_id INTEGER NOT NULL,"
-		"chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
-		"PRIMARY KEY (brush_id, item_id),"
-		"FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
-		");"
-		"CREATE INDEX idx_brush_items_item_id ON brush_items(item_id);"
-		"CREATE TABLE wall_part_items ("
-		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
-		"wall_part_id INTEGER NOT NULL,"
-		"item_id INTEGER NOT NULL,"
-		"chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
-		"sort_order INTEGER NOT NULL DEFAULT 0,"
-		"FOREIGN KEY (wall_part_id) REFERENCES wall_parts(id) ON DELETE CASCADE"
-		");"
-		"CREATE INDEX idx_wall_part_items_item ON wall_part_items(item_id);"
-		"CREATE TABLE carpet_node_items ("
-		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
-		"carpet_node_id INTEGER NOT NULL,"
-		"item_id INTEGER NOT NULL,"
-		"chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
-		"sort_order INTEGER NOT NULL DEFAULT 0,"
-		"FOREIGN KEY (carpet_node_id) REFERENCES carpet_nodes(id) ON DELETE CASCADE"
-		");"
-		"CREATE TABLE table_node_items ("
-		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
-		"table_node_id INTEGER NOT NULL,"
-		"item_id INTEGER NOT NULL,"
-		"chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
-		"sort_order INTEGER NOT NULL DEFAULT 0,"
-		"FOREIGN KEY (table_node_id) REFERENCES table_nodes(id) ON DELETE CASCADE"
-		");"
-		"CREATE TABLE doodad_single_items ("
-		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
-		"doodad_alternative_id INTEGER NOT NULL,"
-		"item_id INTEGER NOT NULL,"
-		"chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
-		"sort_order INTEGER NOT NULL DEFAULT 0,"
-		"FOREIGN KEY (doodad_alternative_id) REFERENCES doodad_alternatives(id) ON DELETE CASCADE"
-		");"
-		"CREATE TABLE doodad_composites ("
-		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
-		"doodad_alternative_id INTEGER NOT NULL,"
-		"chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
-		"sort_order INTEGER NOT NULL DEFAULT 0,"
-		"FOREIGN KEY (doodad_alternative_id) REFERENCES doodad_alternatives(id) ON DELETE CASCADE"
-		");";
+	const wxString recreateSql = "DROP TABLE IF EXISTS brush_items;"
+								 "DROP TABLE IF EXISTS wall_part_items;"
+								 "DROP TABLE IF EXISTS carpet_node_items;"
+								 "DROP TABLE IF EXISTS table_node_items;"
+								 "DROP TABLE IF EXISTS doodad_single_items;"
+								 "DROP TABLE IF EXISTS doodad_composites;"
+								 "CREATE TABLE brush_items ("
+								 "brush_id INTEGER NOT NULL,"
+								 "item_id INTEGER NOT NULL,"
+								 "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
+								 "PRIMARY KEY (brush_id, item_id),"
+								 "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
+								 ");"
+								 "CREATE INDEX idx_brush_items_item_id ON brush_items(item_id);"
+								 "CREATE TABLE wall_part_items ("
+								 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+								 "wall_part_id INTEGER NOT NULL,"
+								 "item_id INTEGER NOT NULL,"
+								 "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
+								 "sort_order INTEGER NOT NULL DEFAULT 0,"
+								 "FOREIGN KEY (wall_part_id) REFERENCES wall_parts(id) ON DELETE CASCADE"
+								 ");"
+								 "CREATE INDEX idx_wall_part_items_item ON wall_part_items(item_id);"
+								 "CREATE TABLE carpet_node_items ("
+								 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+								 "carpet_node_id INTEGER NOT NULL,"
+								 "item_id INTEGER NOT NULL,"
+								 "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
+								 "sort_order INTEGER NOT NULL DEFAULT 0,"
+								 "FOREIGN KEY (carpet_node_id) REFERENCES carpet_nodes(id) ON DELETE CASCADE"
+								 ");"
+								 "CREATE TABLE table_node_items ("
+								 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+								 "table_node_id INTEGER NOT NULL,"
+								 "item_id INTEGER NOT NULL,"
+								 "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
+								 "sort_order INTEGER NOT NULL DEFAULT 0,"
+								 "FOREIGN KEY (table_node_id) REFERENCES table_nodes(id) ON DELETE CASCADE"
+								 ");"
+								 "CREATE TABLE doodad_single_items ("
+								 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+								 "doodad_alternative_id INTEGER NOT NULL,"
+								 "item_id INTEGER NOT NULL,"
+								 "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
+								 "sort_order INTEGER NOT NULL DEFAULT 0,"
+								 "FOREIGN KEY (doodad_alternative_id) REFERENCES doodad_alternatives(id) ON DELETE CASCADE"
+								 ");"
+								 "CREATE TABLE doodad_composites ("
+								 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+								 "doodad_alternative_id INTEGER NOT NULL,"
+								 "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
+								 "sort_order INTEGER NOT NULL DEFAULT 0,"
+								 "FOREIGN KEY (doodad_alternative_id) REFERENCES doodad_alternatives(id) ON DELETE CASCADE"
+								 ");";
 
 	if (!execute(recreateSql)) {
 		return false;
@@ -953,18 +950,17 @@ bool BrushDatabase::migrateToVersion3() {
 }
 
 bool BrushDatabase::migrateToVersion4() {
-	const wxString recreateSql =
-		"DROP TABLE IF EXISTS brush_items;"
-		"CREATE TABLE brush_items ("
-		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
-		"brush_id INTEGER NOT NULL,"
-		"item_id INTEGER NOT NULL,"
-		"chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
-		"sort_order INTEGER NOT NULL DEFAULT 0,"
-		"FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
-		");"
-		"CREATE INDEX idx_brush_items_item_id ON brush_items(item_id);"
-		"CREATE INDEX idx_brush_items_brush_sort ON brush_items(brush_id, sort_order);";
+	const wxString recreateSql = "DROP TABLE IF EXISTS brush_items;"
+								 "CREATE TABLE brush_items ("
+								 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+								 "brush_id INTEGER NOT NULL,"
+								 "item_id INTEGER NOT NULL,"
+								 "chance INTEGER NOT NULL DEFAULT 1 CHECK(chance >= 0),"
+								 "sort_order INTEGER NOT NULL DEFAULT 0,"
+								 "FOREIGN KEY (brush_id) REFERENCES brushes(id) ON DELETE CASCADE"
+								 ");"
+								 "CREATE INDEX idx_brush_items_item_id ON brush_items(item_id);"
+								 "CREATE INDEX idx_brush_items_brush_sort ON brush_items(brush_id, sort_order);";
 	return execute(recreateSql);
 }
 
@@ -1057,10 +1053,11 @@ bool BrushDatabase::insertBrush(const BrushRecord &brush, int64_t &insertedId) {
 
 	sqlite3_stmt* stmt = nullptr;
 	if (!prepare("INSERT INTO brushes("
-	             "name, type, look_id, z_order, source_file, server_look_id, "
-	             "draggable, on_blocking, on_duplicate, redo_borders, randomize, "
-	             "one_size, solo_optional, thickness, thickness_ceiling, updated_at"
-	             ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);", &stmt)) {
+				 "name, type, look_id, z_order, source_file, server_look_id, "
+				 "draggable, on_blocking, on_duplicate, redo_borders, randomize, "
+				 "one_size, solo_optional, thickness, thickness_ceiling, updated_at"
+				 ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);",
+				 &stmt)) {
 		return false;
 	}
 
@@ -1211,10 +1208,11 @@ bool BrushDatabase::updateBrush(const BrushRecord &brush) {
 
 	sqlite3_stmt* stmt = nullptr;
 	if (!prepare("UPDATE brushes "
-	             "SET name = ?, type = ?, look_id = ?, z_order = ?, source_file = ?, server_look_id = ?, "
-	             "draggable = ?, on_blocking = ?, on_duplicate = ?, redo_borders = ?, randomize = ?, "
-	             "one_size = ?, solo_optional = ?, thickness = ?, thickness_ceiling = ?, updated_at = CURRENT_TIMESTAMP "
-	             "WHERE id = ?;", &stmt)) {
+				 "SET name = ?, type = ?, look_id = ?, z_order = ?, source_file = ?, server_look_id = ?, "
+				 "draggable = ?, on_blocking = ?, on_duplicate = ?, redo_borders = ?, randomize = ?, "
+				 "one_size = ?, solo_optional = ?, thickness = ?, thickness_ceiling = ?, updated_at = CURRENT_TIMESTAMP "
+				 "WHERE id = ?;",
+				 &stmt)) {
 		return false;
 	}
 
@@ -1335,7 +1333,8 @@ bool BrushDatabase::getBrushItems(int64_t brushId, std::vector<BrushItemRecord> 
 
 	sqlite3_stmt* stmt = nullptr;
 	if (!prepare("SELECT brush_id, item_id, chance, sort_order "
-	             "FROM brush_items WHERE brush_id = ? ORDER BY sort_order ASC, id ASC;", &stmt)) {
+				 "FROM brush_items WHERE brush_id = ? ORDER BY sort_order ASC, id ASC;",
+				 &stmt)) {
 		return false;
 	}
 
@@ -1373,8 +1372,9 @@ bool BrushDatabase::upsertBorderSet(const BorderSetRecord &borderSet, int64_t &b
 		if (findBorderSetByXmlBorderId(borderSet.xmlBorderId, existing)) {
 			sqlite3_stmt* updateStmt = nullptr;
 			if (!prepare("UPDATE border_sets SET owner_brush_id = ?, border_scope = ?, border_type = ?, "
-			             "border_group = ?, ground_equivalent = ?, source_file = ?, updated_at = CURRENT_TIMESTAMP "
-			             "WHERE id = ?;", &updateStmt)) {
+						 "border_group = ?, ground_equivalent = ?, source_file = ?, updated_at = CURRENT_TIMESTAMP "
+						 "WHERE id = ?;",
+						 &updateStmt)) {
 				return false;
 			}
 
@@ -1399,7 +1399,8 @@ bool BrushDatabase::upsertBorderSet(const BorderSetRecord &borderSet, int64_t &b
 
 	sqlite3_stmt* stmt = nullptr;
 	if (!prepare("INSERT INTO border_sets(xml_border_id, owner_brush_id, border_scope, border_type, border_group, ground_equivalent, source_file, updated_at) "
-	             "VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);", &stmt)) {
+				 "VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);",
+				 &stmt)) {
 		return false;
 	}
 
@@ -1432,7 +1433,8 @@ bool BrushDatabase::findBorderSetByXmlBorderId(int xmlBorderId, BorderSetRecord 
 
 	sqlite3_stmt* stmt = nullptr;
 	if (!prepare("SELECT id, xml_border_id, owner_brush_id, border_scope, border_type, border_group, ground_equivalent, source_file "
-	             "FROM border_sets WHERE xml_border_id = ? LIMIT 1;", &stmt)) {
+				 "FROM border_sets WHERE xml_border_id = ? LIMIT 1;",
+				 &stmt)) {
 		return false;
 	}
 
@@ -1566,8 +1568,9 @@ bool BrushDatabase::replaceGroundBrushBorders(int64_t brushId, const std::vector
 
 	sqlite3_stmt* insertBorderStmt = nullptr;
 	if (!prepare("INSERT INTO ground_brush_borders("
-	             "brush_id, border_set_id, border_role, align, target_mode, target_brush_id, target_brush_name, super_border, sort_order"
-	             ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);", &insertBorderStmt)) {
+				 "brush_id, border_set_id, border_role, align, target_mode, target_brush_id, target_brush_name, super_border, sort_order"
+				 ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);",
+				 &insertBorderStmt)) {
 		rollbackTransaction();
 		return false;
 	}
@@ -1581,7 +1584,8 @@ bool BrushDatabase::replaceGroundBrushBorders(int64_t brushId, const std::vector
 
 	sqlite3_stmt* insertConditionStmt = nullptr;
 	if (!prepare("INSERT INTO ground_border_case_conditions(ground_border_case_id, condition_type, match_value, edge, sort_order) "
-	             "VALUES (?, ?, ?, ?, ?);", &insertConditionStmt)) {
+				 "VALUES (?, ?, ?, ?, ?);",
+				 &insertConditionStmt)) {
 		sqlite3_finalize(insertBorderStmt);
 		sqlite3_finalize(insertCaseStmt);
 		rollbackTransaction();
@@ -1590,7 +1594,8 @@ bool BrushDatabase::replaceGroundBrushBorders(int64_t brushId, const std::vector
 
 	sqlite3_stmt* insertActionStmt = nullptr;
 	if (!prepare("INSERT INTO ground_border_case_actions(ground_border_case_id, action_type, target_value, edge, replacement_value, sort_order) "
-	             "VALUES (?, ?, ?, ?, ?, ?);", &insertActionStmt)) {
+				 "VALUES (?, ?, ?, ?, ?, ?);",
+				 &insertActionStmt)) {
 		sqlite3_finalize(insertBorderStmt);
 		sqlite3_finalize(insertCaseStmt);
 		sqlite3_finalize(insertConditionStmt);
@@ -1698,21 +1703,24 @@ bool BrushDatabase::getGroundBrushBorders(int64_t brushId, std::vector<GroundBru
 
 	sqlite3_stmt* borderStmt = nullptr;
 	if (!prepare("SELECT id, border_set_id, border_role, align, target_mode, target_brush_id, target_brush_name, super_border, sort_order "
-	             "FROM ground_brush_borders WHERE brush_id = ? ORDER BY sort_order ASC, id ASC;", &borderStmt)) {
+				 "FROM ground_brush_borders WHERE brush_id = ? ORDER BY sort_order ASC, id ASC;",
+				 &borderStmt)) {
 		return false;
 	}
 
 	sqlite3_stmt* caseStmt = nullptr;
 	if (!prepare("SELECT id, sort_order FROM ground_border_cases "
-	             "WHERE ground_brush_border_id = ? ORDER BY sort_order ASC, id ASC;", &caseStmt)) {
+				 "WHERE ground_brush_border_id = ? ORDER BY sort_order ASC, id ASC;",
+				 &caseStmt)) {
 		sqlite3_finalize(borderStmt);
 		return false;
 	}
 
 	sqlite3_stmt* conditionStmt = nullptr;
 	if (!prepare("SELECT condition_type, match_value, edge, sort_order "
-	             "FROM ground_border_case_conditions WHERE ground_border_case_id = ? "
-	             "ORDER BY sort_order ASC, id ASC;", &conditionStmt)) {
+				 "FROM ground_border_case_conditions WHERE ground_border_case_id = ? "
+				 "ORDER BY sort_order ASC, id ASC;",
+				 &conditionStmt)) {
 		sqlite3_finalize(borderStmt);
 		sqlite3_finalize(caseStmt);
 		return false;
@@ -1720,8 +1728,9 @@ bool BrushDatabase::getGroundBrushBorders(int64_t brushId, std::vector<GroundBru
 
 	sqlite3_stmt* actionStmt = nullptr;
 	if (!prepare("SELECT action_type, target_value, edge, replacement_value, sort_order "
-	             "FROM ground_border_case_actions WHERE ground_border_case_id = ? "
-	             "ORDER BY sort_order ASC, id ASC;", &actionStmt)) {
+				 "FROM ground_border_case_actions WHERE ground_border_case_id = ? "
+				 "ORDER BY sort_order ASC, id ASC;",
+				 &actionStmt)) {
 		sqlite3_finalize(borderStmt);
 		sqlite3_finalize(caseStmt);
 		sqlite3_finalize(conditionStmt);
@@ -1901,7 +1910,8 @@ bool BrushDatabase::getBrushLinks(int64_t brushId, std::vector<BrushLinkRecord> 
 
 	sqlite3_stmt* stmt = nullptr;
 	if (!prepare("SELECT brush_id, target_brush_id, target_brush_name, relation_type, sort_order "
-	             "FROM brush_links WHERE brush_id = ? ORDER BY sort_order ASC, id ASC;", &stmt)) {
+				 "FROM brush_links WHERE brush_id = ? ORDER BY sort_order ASC, id ASC;",
+				 &stmt)) {
 		return false;
 	}
 
@@ -1966,7 +1976,8 @@ bool BrushDatabase::replaceWallParts(int64_t brushId, const std::vector<WallPart
 
 	sqlite3_stmt* insertDoorStmt = nullptr;
 	if (!prepare("INSERT INTO wall_part_doors(wall_part_id, item_id, door_type, is_open, wall_hate_me, sort_order) "
-	             "VALUES (?, ?, ?, ?, ?, ?);", &insertDoorStmt)) {
+				 "VALUES (?, ?, ?, ?, ?, ?);",
+				 &insertDoorStmt)) {
 		sqlite3_finalize(insertPartStmt);
 		sqlite3_finalize(insertItemStmt);
 		rollbackTransaction();
@@ -2046,20 +2057,23 @@ bool BrushDatabase::getWallParts(int64_t brushId, std::vector<WallPartRecord> &o
 
 	sqlite3_stmt* partStmt = nullptr;
 	if (!prepare("SELECT id, part_type, sort_order FROM wall_parts "
-	             "WHERE brush_id = ? ORDER BY sort_order ASC, id ASC;", &partStmt)) {
+				 "WHERE brush_id = ? ORDER BY sort_order ASC, id ASC;",
+				 &partStmt)) {
 		return false;
 	}
 
 	sqlite3_stmt* itemStmt = nullptr;
 	if (!prepare("SELECT item_id, chance, sort_order FROM wall_part_items "
-	             "WHERE wall_part_id = ? ORDER BY sort_order ASC, id ASC;", &itemStmt)) {
+				 "WHERE wall_part_id = ? ORDER BY sort_order ASC, id ASC;",
+				 &itemStmt)) {
 		sqlite3_finalize(partStmt);
 		return false;
 	}
 
 	sqlite3_stmt* doorStmt = nullptr;
 	if (!prepare("SELECT item_id, door_type, is_open, wall_hate_me, sort_order FROM wall_part_doors "
-	             "WHERE wall_part_id = ? ORDER BY sort_order ASC, id ASC;", &doorStmt)) {
+				 "WHERE wall_part_id = ? ORDER BY sort_order ASC, id ASC;",
+				 &doorStmt)) {
 		sqlite3_finalize(partStmt);
 		sqlite3_finalize(itemStmt);
 		return false;
@@ -2177,14 +2191,15 @@ bool BrushDatabase::replaceCarpetNodes(int64_t brushId, const std::vector<Carpet
 	}
 
 	if (!WriteAlignedNodesWithItems<CarpetNodeRecord, CarpetNodeItemRecord>(
-		    connection_,
-		    brushId,
-		    nodes,
-		    insertNodeStmt,
-		    insertItemStmt,
-		    "Failed to insert carpet node",
-		    "Failed to insert carpet node item",
-		    [this](const wxString &message) { return setErrorFromDatabase(message); })) {
+			connection_,
+			brushId,
+			nodes,
+			insertNodeStmt,
+			insertItemStmt,
+			"Failed to insert carpet node",
+			"Failed to insert carpet node item",
+			[this](const wxString &message) { return setErrorFromDatabase(message); }
+		)) {
 		FinalizeStatements({ insertNodeStmt, insertItemStmt });
 		rollbackTransaction();
 		return false;
@@ -2207,13 +2222,15 @@ bool BrushDatabase::getCarpetNodes(int64_t brushId, std::vector<CarpetNodeRecord
 
 	sqlite3_stmt* nodeStmt = nullptr;
 	if (!prepare("SELECT id, align, sort_order FROM carpet_nodes "
-	             "WHERE brush_id = ? ORDER BY sort_order ASC, id ASC;", &nodeStmt)) {
+				 "WHERE brush_id = ? ORDER BY sort_order ASC, id ASC;",
+				 &nodeStmt)) {
 		return false;
 	}
 
 	sqlite3_stmt* itemStmt = nullptr;
 	if (!prepare("SELECT item_id, chance, sort_order FROM carpet_node_items "
-	             "WHERE carpet_node_id = ? ORDER BY sort_order ASC, id ASC;", &itemStmt)) {
+				 "WHERE carpet_node_id = ? ORDER BY sort_order ASC, id ASC;",
+				 &itemStmt)) {
 		sqlite3_finalize(nodeStmt);
 		return false;
 	}
@@ -2221,12 +2238,13 @@ bool BrushDatabase::getCarpetNodes(int64_t brushId, std::vector<CarpetNodeRecord
 	sqlite3_bind_int64(nodeStmt, 1, brushId);
 
 	if (!ReadAlignedNodesWithItems<CarpetNodeRecord, CarpetNodeItemRecord>(
-		    nodeStmt,
-		    itemStmt,
-		    outNodes,
-		    "Failed to read carpet nodes",
-		    "Failed to read carpet node items",
-		    [this](const wxString &message) { return setErrorFromDatabase(message); })) {
+			nodeStmt,
+			itemStmt,
+			outNodes,
+			"Failed to read carpet nodes",
+			"Failed to read carpet node items",
+			[this](const wxString &message) { return setErrorFromDatabase(message); }
+		)) {
 		FinalizeStatements({ nodeStmt, itemStmt });
 		return false;
 	}
@@ -2270,14 +2288,15 @@ bool BrushDatabase::replaceTableNodes(int64_t brushId, const std::vector<TableNo
 	}
 
 	if (!WriteAlignedNodesWithItems<TableNodeRecord, TableNodeItemRecord>(
-		    connection_,
-		    brushId,
-		    nodes,
-		    insertNodeStmt,
-		    insertItemStmt,
-		    "Failed to insert table node",
-		    "Failed to insert table node item",
-		    [this](const wxString &message) { return setErrorFromDatabase(message); })) {
+			connection_,
+			brushId,
+			nodes,
+			insertNodeStmt,
+			insertItemStmt,
+			"Failed to insert table node",
+			"Failed to insert table node item",
+			[this](const wxString &message) { return setErrorFromDatabase(message); }
+		)) {
 		FinalizeStatements({ insertNodeStmt, insertItemStmt });
 		rollbackTransaction();
 		return false;
@@ -2300,13 +2319,15 @@ bool BrushDatabase::getTableNodes(int64_t brushId, std::vector<TableNodeRecord> 
 
 	sqlite3_stmt* nodeStmt = nullptr;
 	if (!prepare("SELECT id, align, sort_order FROM table_nodes "
-	             "WHERE brush_id = ? ORDER BY sort_order ASC, id ASC;", &nodeStmt)) {
+				 "WHERE brush_id = ? ORDER BY sort_order ASC, id ASC;",
+				 &nodeStmt)) {
 		return false;
 	}
 
 	sqlite3_stmt* itemStmt = nullptr;
 	if (!prepare("SELECT item_id, chance, sort_order FROM table_node_items "
-	             "WHERE table_node_id = ? ORDER BY sort_order ASC, id ASC;", &itemStmt)) {
+				 "WHERE table_node_id = ? ORDER BY sort_order ASC, id ASC;",
+				 &itemStmt)) {
 		sqlite3_finalize(nodeStmt);
 		return false;
 	}
@@ -2314,12 +2335,13 @@ bool BrushDatabase::getTableNodes(int64_t brushId, std::vector<TableNodeRecord> 
 	sqlite3_bind_int64(nodeStmt, 1, brushId);
 
 	if (!ReadAlignedNodesWithItems<TableNodeRecord, TableNodeItemRecord>(
-		    nodeStmt,
-		    itemStmt,
-		    outNodes,
-		    "Failed to read table nodes",
-		    "Failed to read table node items",
-		    [this](const wxString &message) { return setErrorFromDatabase(message); })) {
+			nodeStmt,
+			itemStmt,
+			outNodes,
+			"Failed to read table nodes",
+			"Failed to read table node items",
+			[this](const wxString &message) { return setErrorFromDatabase(message); }
+		)) {
 		FinalizeStatements({ nodeStmt, itemStmt });
 		return false;
 	}
@@ -2501,20 +2523,23 @@ bool BrushDatabase::getDoodadAlternatives(int64_t brushId, std::vector<DoodadAlt
 
 	sqlite3_stmt* altStmt = nullptr;
 	if (!prepare("SELECT id, sort_order FROM doodad_alternatives "
-	             "WHERE brush_id = ? ORDER BY sort_order ASC, id ASC;", &altStmt)) {
+				 "WHERE brush_id = ? ORDER BY sort_order ASC, id ASC;",
+				 &altStmt)) {
 		return false;
 	}
 
 	sqlite3_stmt* singleStmt = nullptr;
 	if (!prepare("SELECT item_id, chance, sort_order FROM doodad_single_items "
-	             "WHERE doodad_alternative_id = ? ORDER BY sort_order ASC, id ASC;", &singleStmt)) {
+				 "WHERE doodad_alternative_id = ? ORDER BY sort_order ASC, id ASC;",
+				 &singleStmt)) {
 		sqlite3_finalize(altStmt);
 		return false;
 	}
 
 	sqlite3_stmt* compositeStmt = nullptr;
 	if (!prepare("SELECT id, chance, sort_order FROM doodad_composites "
-	             "WHERE doodad_alternative_id = ? ORDER BY sort_order ASC, id ASC;", &compositeStmt)) {
+				 "WHERE doodad_alternative_id = ? ORDER BY sort_order ASC, id ASC;",
+				 &compositeStmt)) {
 		sqlite3_finalize(altStmt);
 		sqlite3_finalize(singleStmt);
 		return false;
@@ -2522,7 +2547,8 @@ bool BrushDatabase::getDoodadAlternatives(int64_t brushId, std::vector<DoodadAlt
 
 	sqlite3_stmt* tileStmt = nullptr;
 	if (!prepare("SELECT id, offset_x, offset_y, offset_z, sort_order FROM doodad_composite_tiles "
-	             "WHERE doodad_composite_id = ? ORDER BY sort_order ASC, id ASC;", &tileStmt)) {
+				 "WHERE doodad_composite_id = ? ORDER BY sort_order ASC, id ASC;",
+				 &tileStmt)) {
 		sqlite3_finalize(altStmt);
 		sqlite3_finalize(singleStmt);
 		sqlite3_finalize(compositeStmt);
@@ -2531,7 +2557,8 @@ bool BrushDatabase::getDoodadAlternatives(int64_t brushId, std::vector<DoodadAlt
 
 	sqlite3_stmt* tileItemStmt = nullptr;
 	if (!prepare("SELECT item_id, sort_order FROM doodad_composite_tile_items "
-	             "WHERE doodad_composite_tile_id = ? ORDER BY sort_order ASC, id ASC;", &tileItemStmt)) {
+				 "WHERE doodad_composite_tile_id = ? ORDER BY sort_order ASC, id ASC;",
+				 &tileItemStmt)) {
 		sqlite3_finalize(altStmt);
 		sqlite3_finalize(singleStmt);
 		sqlite3_finalize(compositeStmt);
@@ -2702,7 +2729,8 @@ bool BrushDatabase::replaceAllTilesets(const std::vector<TilesetStorageRecord> &
 	}
 	sqlite3_stmt* insertEntryStmt = nullptr;
 	if (!prepare("INSERT INTO tileset_brush_entries(tileset_section_id, entry_kind, brush_id, brush_name, item_id, from_item_id, to_item_id, after_brush_name, after_item_id, sort_order) "
-	             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", &insertEntryStmt)) {
+				 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+				 &insertEntryStmt)) {
 		sqlite3_finalize(insertTilesetStmt);
 		sqlite3_finalize(insertSectionStmt);
 		rollbackTransaction();
@@ -2850,13 +2878,15 @@ bool BrushDatabase::getTilesetByName(const wxString &name, TilesetStorageRecord 
 
 	sqlite3_stmt* sectionStmt = nullptr;
 	if (!prepare("SELECT id, section_type, sort_order FROM tileset_sections "
-	             "WHERE tileset_id = ? ORDER BY sort_order ASC, id ASC;", &sectionStmt)) {
+				 "WHERE tileset_id = ? ORDER BY sort_order ASC, id ASC;",
+				 &sectionStmt)) {
 		return false;
 	}
 
 	sqlite3_stmt* entryStmt = nullptr;
 	if (!prepare("SELECT entry_kind, brush_id, brush_name, item_id, from_item_id, to_item_id, after_brush_name, after_item_id, sort_order "
-	             "FROM tileset_brush_entries WHERE tileset_section_id = ? ORDER BY sort_order ASC, id ASC;", &entryStmt)) {
+				 "FROM tileset_brush_entries WHERE tileset_section_id = ? ORDER BY sort_order ASC, id ASC;",
+				 &entryStmt)) {
 		sqlite3_finalize(sectionStmt);
 		return false;
 	}
@@ -2959,14 +2989,15 @@ bool BrushDatabase::generateAuditReport(MaterialsDatabaseAuditReport &outReport)
 
 	sqlite3_stmt* countStmt = nullptr;
 	if (!prepare("SELECT "
-	             "(SELECT COUNT(*) FROM brushes), "
-	             "(SELECT COUNT(*) FROM border_sets), "
-	             "(SELECT COUNT(*) FROM tilesets), "
-	             "(SELECT COUNT(*) FROM tileset_sections), "
-	             "(SELECT COUNT(*) FROM tileset_brush_entries), "
-	             "(SELECT COUNT(*) FROM ground_brush_borders WHERE target_mode = 'brush' AND target_brush_name <> '' AND target_brush_id IS NULL), "
-	             "(SELECT COUNT(*) FROM brush_links WHERE target_brush_name <> '' AND target_brush_name <> 'all' AND target_brush_id IS NULL), "
-	             "(SELECT COUNT(*) FROM tileset_brush_entries WHERE brush_name <> '' AND brush_id IS NULL);", &countStmt)) {
+				 "(SELECT COUNT(*) FROM brushes), "
+				 "(SELECT COUNT(*) FROM border_sets), "
+				 "(SELECT COUNT(*) FROM tilesets), "
+				 "(SELECT COUNT(*) FROM tileset_sections), "
+				 "(SELECT COUNT(*) FROM tileset_brush_entries), "
+				 "(SELECT COUNT(*) FROM ground_brush_borders WHERE target_mode = 'brush' AND target_brush_name <> '' AND target_brush_id IS NULL), "
+				 "(SELECT COUNT(*) FROM brush_links WHERE target_brush_name <> '' AND target_brush_name <> 'all' AND target_brush_id IS NULL), "
+				 "(SELECT COUNT(*) FROM tileset_brush_entries WHERE brush_name <> '' AND brush_id IS NULL);",
+				 &countStmt)) {
 		return false;
 	}
 
@@ -3064,22 +3095,22 @@ bool BrushDatabase::resolveGroundReferenceNames() {
 	}
 
 	if (!execute("UPDATE ground_brush_borders "
-	             "SET target_brush_id = ("
-	             "SELECT id FROM brushes b "
-	             "WHERE b.name = ground_brush_borders.target_brush_name AND b.type = 'ground' "
-	             "LIMIT 1"
-	             ") "
-	             "WHERE target_brush_name <> '' AND target_mode = 'brush';")) {
+				 "SET target_brush_id = ("
+				 "SELECT id FROM brushes b "
+				 "WHERE b.name = ground_brush_borders.target_brush_name AND b.type = 'ground' "
+				 "LIMIT 1"
+				 ") "
+				 "WHERE target_brush_name <> '' AND target_mode = 'brush';")) {
 		return false;
 	}
 
 	return execute("UPDATE brush_links "
-	               "SET target_brush_id = ("
-	               "SELECT id FROM brushes b "
-	               "WHERE b.name = brush_links.target_brush_name "
-	               "LIMIT 1"
-	               ") "
-	               "WHERE target_brush_name <> '' AND target_brush_name <> 'all';");
+				   "SET target_brush_id = ("
+				   "SELECT id FROM brushes b "
+				   "WHERE b.name = brush_links.target_brush_name "
+				   "LIMIT 1"
+				   ") "
+				   "WHERE target_brush_name <> '' AND target_brush_name <> 'all';");
 }
 
 bool BrushDatabase::runInTransaction(const std::function<bool()> &operation) {
