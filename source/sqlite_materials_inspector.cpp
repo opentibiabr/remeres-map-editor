@@ -1,6 +1,7 @@
 #include "main.h"
 
 #include "sqlite_materials_inspector.h"
+#include "gui.h"
 
 namespace {
 	wxString BoolToText(bool value) {
