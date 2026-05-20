@@ -200,6 +200,492 @@ namespace {
 
 		return true;
 	}
+
+	template <typename SetErrorFn>
+	bool WriteGroundBorderConditions(
+		int64_t caseId,
+		const std::vector<GroundBorderCaseConditionRecord> &conditions,
+		sqlite3_stmt* insertConditionStmt,
+		SetErrorFn &&setErrorFromDatabase
+	) {
+		for (const GroundBorderCaseConditionRecord &condition : conditions) {
+			sqlite3_reset(insertConditionStmt);
+			sqlite3_clear_bindings(insertConditionStmt);
+			sqlite3_bind_int64(insertConditionStmt, 1, caseId);
+			sqlite3_bind_text(insertConditionStmt, 2, condition.conditionType.utf8_str(), -1, SQLITE_TRANSIENT);
+			sqlite3_bind_int(insertConditionStmt, 3, condition.matchValue);
+			sqlite3_bind_text(insertConditionStmt, 4, condition.edge.utf8_str(), -1, SQLITE_TRANSIENT);
+			sqlite3_bind_int(insertConditionStmt, 5, condition.sortOrder);
+			if (sqlite3_step(insertConditionStmt) != SQLITE_DONE) {
+				return setErrorFromDatabase("Failed to insert ground border condition");
+			}
+		}
+
+		return true;
+	}
+
+	template <typename SetErrorFn>
+	bool WriteGroundBorderActions(
+		int64_t caseId,
+		const std::vector<GroundBorderCaseActionRecord> &actions,
+		sqlite3_stmt* insertActionStmt,
+		SetErrorFn &&setErrorFromDatabase
+	) {
+		for (const GroundBorderCaseActionRecord &action : actions) {
+			sqlite3_reset(insertActionStmt);
+			sqlite3_clear_bindings(insertActionStmt);
+			sqlite3_bind_int64(insertActionStmt, 1, caseId);
+			sqlite3_bind_text(insertActionStmt, 2, action.actionType.utf8_str(), -1, SQLITE_TRANSIENT);
+			sqlite3_bind_int(insertActionStmt, 3, action.targetValue);
+			sqlite3_bind_text(insertActionStmt, 4, action.edge.utf8_str(), -1, SQLITE_TRANSIENT);
+			sqlite3_bind_int(insertActionStmt, 5, action.replacementValue);
+			sqlite3_bind_int(insertActionStmt, 6, action.sortOrder);
+			if (sqlite3_step(insertActionStmt) != SQLITE_DONE) {
+				return setErrorFromDatabase("Failed to insert ground border action");
+			}
+		}
+
+		return true;
+	}
+
+	template <typename SetErrorFn>
+	bool WriteGroundBorderCases(
+		sqlite3* connection,
+		int64_t groundBrushBorderId,
+		const std::vector<GroundBorderCaseRecord> &cases,
+		sqlite3_stmt* insertCaseStmt,
+		sqlite3_stmt* insertConditionStmt,
+		sqlite3_stmt* insertActionStmt,
+		SetErrorFn &&setErrorFromDatabase
+	) {
+		for (const GroundBorderCaseRecord &caseRecord : cases) {
+			sqlite3_reset(insertCaseStmt);
+			sqlite3_clear_bindings(insertCaseStmt);
+			sqlite3_bind_int64(insertCaseStmt, 1, groundBrushBorderId);
+			sqlite3_bind_int(insertCaseStmt, 2, caseRecord.sortOrder);
+			if (sqlite3_step(insertCaseStmt) != SQLITE_DONE) {
+				return setErrorFromDatabase("Failed to insert ground border case");
+			}
+
+			const int64_t caseId = sqlite3_last_insert_rowid(connection);
+			if (!WriteGroundBorderConditions(caseId, caseRecord.conditions, insertConditionStmt, setErrorFromDatabase)) {
+				return false;
+			}
+			if (!WriteGroundBorderActions(caseId, caseRecord.actions, insertActionStmt, setErrorFromDatabase)) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	template <typename SetErrorFn>
+	bool ReadGroundBorderConditions(
+		int64_t caseId,
+		sqlite3_stmt* conditionStmt,
+		std::vector<GroundBorderCaseConditionRecord> &outConditions,
+		SetErrorFn &&setErrorFromDatabase
+	) {
+		sqlite3_reset(conditionStmt);
+		sqlite3_clear_bindings(conditionStmt);
+		sqlite3_bind_int64(conditionStmt, 1, caseId);
+
+		for (;;) {
+			const int conditionRc = sqlite3_step(conditionStmt);
+			if (conditionRc == SQLITE_DONE) {
+				break;
+			}
+			if (conditionRc != SQLITE_ROW) {
+				return setErrorFromDatabase("Failed to read ground border case conditions");
+			}
+
+			GroundBorderCaseConditionRecord condition;
+			condition.conditionType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(conditionStmt, 0)));
+			condition.matchValue = sqlite3_column_int(conditionStmt, 1);
+			condition.edge = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(conditionStmt, 2)));
+			condition.sortOrder = sqlite3_column_int(conditionStmt, 3);
+			outConditions.push_back(condition);
+		}
+
+		return true;
+	}
+
+	template <typename SetErrorFn>
+	bool ReadGroundBorderActions(
+		int64_t caseId,
+		sqlite3_stmt* actionStmt,
+		std::vector<GroundBorderCaseActionRecord> &outActions,
+		SetErrorFn &&setErrorFromDatabase
+	) {
+		sqlite3_reset(actionStmt);
+		sqlite3_clear_bindings(actionStmt);
+		sqlite3_bind_int64(actionStmt, 1, caseId);
+
+		for (;;) {
+			const int actionRc = sqlite3_step(actionStmt);
+			if (actionRc == SQLITE_DONE) {
+				break;
+			}
+			if (actionRc != SQLITE_ROW) {
+				return setErrorFromDatabase("Failed to read ground border case actions");
+			}
+
+			GroundBorderCaseActionRecord action;
+			action.actionType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(actionStmt, 0)));
+			action.targetValue = sqlite3_column_int(actionStmt, 1);
+			action.edge = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(actionStmt, 2)));
+			action.replacementValue = sqlite3_column_int(actionStmt, 3);
+			action.sortOrder = sqlite3_column_int(actionStmt, 4);
+			outActions.push_back(action);
+		}
+
+		return true;
+	}
+
+	template <typename SetErrorFn>
+	bool ReadGroundBorderCases(
+		sqlite3_stmt* caseStmt,
+		sqlite3_stmt* conditionStmt,
+		sqlite3_stmt* actionStmt,
+		std::vector<GroundBorderCaseRecord> &outCases,
+		SetErrorFn &&setErrorFromDatabase
+	) {
+		for (;;) {
+			const int caseRc = sqlite3_step(caseStmt);
+			if (caseRc == SQLITE_DONE) {
+				break;
+			}
+			if (caseRc != SQLITE_ROW) {
+				return setErrorFromDatabase("Failed to read ground border cases");
+			}
+
+			const int64_t caseId = sqlite3_column_int64(caseStmt, 0);
+
+			GroundBorderCaseRecord caseRecord;
+			caseRecord.sortOrder = sqlite3_column_int(caseStmt, 1);
+			if (!ReadGroundBorderConditions(caseId, conditionStmt, caseRecord.conditions, setErrorFromDatabase)) {
+				return false;
+			}
+			if (!ReadGroundBorderActions(caseId, actionStmt, caseRecord.actions, setErrorFromDatabase)) {
+				return false;
+			}
+
+			outCases.push_back(caseRecord);
+		}
+
+		return true;
+	}
+
+	template <typename SetErrorFn>
+	bool WriteDoodadSingleItems(
+		int64_t alternativeId,
+		const std::vector<DoodadSingleItemRecord> &singleItems,
+		sqlite3_stmt* insertSingleStmt,
+		SetErrorFn &&setErrorFromDatabase
+	) {
+		for (const DoodadSingleItemRecord &single : singleItems) {
+			sqlite3_reset(insertSingleStmt);
+			sqlite3_clear_bindings(insertSingleStmt);
+			sqlite3_bind_int64(insertSingleStmt, 1, alternativeId);
+			sqlite3_bind_int(insertSingleStmt, 2, single.itemId);
+			sqlite3_bind_int(insertSingleStmt, 3, single.chance);
+			sqlite3_bind_int(insertSingleStmt, 4, single.sortOrder);
+			if (sqlite3_step(insertSingleStmt) != SQLITE_DONE) {
+				return setErrorFromDatabase("Failed to insert doodad single item");
+			}
+		}
+
+		return true;
+	}
+
+	template <typename SetErrorFn>
+	bool WriteDoodadCompositeTileItems(
+		int64_t tileId,
+		const std::vector<DoodadCompositeTileItemRecord> &items,
+		sqlite3_stmt* insertTileItemStmt,
+		SetErrorFn &&setErrorFromDatabase
+	) {
+		for (const DoodadCompositeTileItemRecord &item : items) {
+			sqlite3_reset(insertTileItemStmt);
+			sqlite3_clear_bindings(insertTileItemStmt);
+			sqlite3_bind_int64(insertTileItemStmt, 1, tileId);
+			sqlite3_bind_int(insertTileItemStmt, 2, item.itemId);
+			sqlite3_bind_int(insertTileItemStmt, 3, item.sortOrder);
+			if (sqlite3_step(insertTileItemStmt) != SQLITE_DONE) {
+				return setErrorFromDatabase("Failed to insert doodad composite tile item");
+			}
+		}
+
+		return true;
+	}
+
+	template <typename SetErrorFn>
+	bool WriteDoodadCompositeTiles(
+		sqlite3* connection,
+		int64_t compositeId,
+		const std::vector<DoodadCompositeTileRecord> &tiles,
+		sqlite3_stmt* insertTileStmt,
+		sqlite3_stmt* insertTileItemStmt,
+		SetErrorFn &&setErrorFromDatabase
+	) {
+		for (const DoodadCompositeTileRecord &tile : tiles) {
+			sqlite3_reset(insertTileStmt);
+			sqlite3_clear_bindings(insertTileStmt);
+			sqlite3_bind_int64(insertTileStmt, 1, compositeId);
+			sqlite3_bind_int(insertTileStmt, 2, tile.offsetX);
+			sqlite3_bind_int(insertTileStmt, 3, tile.offsetY);
+			sqlite3_bind_int(insertTileStmt, 4, tile.offsetZ);
+			sqlite3_bind_int(insertTileStmt, 5, tile.sortOrder);
+			if (sqlite3_step(insertTileStmt) != SQLITE_DONE) {
+				return setErrorFromDatabase("Failed to insert doodad composite tile");
+			}
+
+			const int64_t tileId = sqlite3_last_insert_rowid(connection);
+			if (!WriteDoodadCompositeTileItems(tileId, tile.items, insertTileItemStmt, setErrorFromDatabase)) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	template <typename SetErrorFn>
+	bool WriteDoodadComposites(
+		sqlite3* connection,
+		int64_t alternativeId,
+		const std::vector<DoodadCompositeRecord> &composites,
+		sqlite3_stmt* insertCompositeStmt,
+		sqlite3_stmt* insertTileStmt,
+		sqlite3_stmt* insertTileItemStmt,
+		SetErrorFn &&setErrorFromDatabase
+	) {
+		for (const DoodadCompositeRecord &composite : composites) {
+			sqlite3_reset(insertCompositeStmt);
+			sqlite3_clear_bindings(insertCompositeStmt);
+			sqlite3_bind_int64(insertCompositeStmt, 1, alternativeId);
+			sqlite3_bind_int(insertCompositeStmt, 2, composite.chance);
+			sqlite3_bind_int(insertCompositeStmt, 3, composite.sortOrder);
+			if (sqlite3_step(insertCompositeStmt) != SQLITE_DONE) {
+				return setErrorFromDatabase("Failed to insert doodad composite");
+			}
+
+			const int64_t compositeId = sqlite3_last_insert_rowid(connection);
+			if (!WriteDoodadCompositeTiles(connection, compositeId, composite.tiles, insertTileStmt, insertTileItemStmt, setErrorFromDatabase)) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	template <typename SetErrorFn>
+	bool ReadDoodadSingleItems(
+		int64_t alternativeId,
+		sqlite3_stmt* singleStmt,
+		std::vector<DoodadSingleItemRecord> &outSingleItems,
+		SetErrorFn &&setErrorFromDatabase
+	) {
+		sqlite3_reset(singleStmt);
+		sqlite3_clear_bindings(singleStmt);
+		sqlite3_bind_int64(singleStmt, 1, alternativeId);
+
+		for (;;) {
+			const int singleRc = sqlite3_step(singleStmt);
+			if (singleRc == SQLITE_DONE) {
+				break;
+			}
+			if (singleRc != SQLITE_ROW) {
+				return setErrorFromDatabase("Failed to read doodad single items");
+			}
+
+			DoodadSingleItemRecord item;
+			item.itemId = sqlite3_column_int(singleStmt, 0);
+			item.chance = sqlite3_column_int(singleStmt, 1);
+			item.sortOrder = sqlite3_column_int(singleStmt, 2);
+			outSingleItems.push_back(item);
+		}
+
+		return true;
+	}
+
+	template <typename SetErrorFn>
+	bool ReadDoodadCompositeTileItems(
+		int64_t tileId,
+		sqlite3_stmt* tileItemStmt,
+		std::vector<DoodadCompositeTileItemRecord> &outItems,
+		SetErrorFn &&setErrorFromDatabase
+	) {
+		sqlite3_reset(tileItemStmt);
+		sqlite3_clear_bindings(tileItemStmt);
+		sqlite3_bind_int64(tileItemStmt, 1, tileId);
+
+		for (;;) {
+			const int tileItemRc = sqlite3_step(tileItemStmt);
+			if (tileItemRc == SQLITE_DONE) {
+				break;
+			}
+			if (tileItemRc != SQLITE_ROW) {
+				return setErrorFromDatabase("Failed to read doodad composite tile items");
+			}
+
+			DoodadCompositeTileItemRecord item;
+			item.itemId = sqlite3_column_int(tileItemStmt, 0);
+			item.sortOrder = sqlite3_column_int(tileItemStmt, 1);
+			outItems.push_back(item);
+		}
+
+		return true;
+	}
+
+	template <typename SetErrorFn>
+	bool ReadDoodadCompositeTiles(
+		int64_t compositeId,
+		sqlite3_stmt* tileStmt,
+		sqlite3_stmt* tileItemStmt,
+		std::vector<DoodadCompositeTileRecord> &outTiles,
+		SetErrorFn &&setErrorFromDatabase
+	) {
+		sqlite3_reset(tileStmt);
+		sqlite3_clear_bindings(tileStmt);
+		sqlite3_bind_int64(tileStmt, 1, compositeId);
+
+		for (;;) {
+			const int tileRc = sqlite3_step(tileStmt);
+			if (tileRc == SQLITE_DONE) {
+				break;
+			}
+			if (tileRc != SQLITE_ROW) {
+				return setErrorFromDatabase("Failed to read doodad composite tiles");
+			}
+
+			const int64_t tileId = sqlite3_column_int64(tileStmt, 0);
+
+			DoodadCompositeTileRecord tile;
+			tile.offsetX = sqlite3_column_int(tileStmt, 1);
+			tile.offsetY = sqlite3_column_int(tileStmt, 2);
+			tile.offsetZ = sqlite3_column_int(tileStmt, 3);
+			tile.sortOrder = sqlite3_column_int(tileStmt, 4);
+			if (!ReadDoodadCompositeTileItems(tileId, tileItemStmt, tile.items, setErrorFromDatabase)) {
+				return false;
+			}
+
+			outTiles.push_back(tile);
+		}
+
+		return true;
+	}
+
+	template <typename SetErrorFn>
+	bool ReadDoodadComposites(
+		int64_t alternativeId,
+		sqlite3_stmt* compositeStmt,
+		sqlite3_stmt* tileStmt,
+		sqlite3_stmt* tileItemStmt,
+		std::vector<DoodadCompositeRecord> &outComposites,
+		SetErrorFn &&setErrorFromDatabase
+	) {
+		sqlite3_reset(compositeStmt);
+		sqlite3_clear_bindings(compositeStmt);
+		sqlite3_bind_int64(compositeStmt, 1, alternativeId);
+
+		for (;;) {
+			const int compositeRc = sqlite3_step(compositeStmt);
+			if (compositeRc == SQLITE_DONE) {
+				break;
+			}
+			if (compositeRc != SQLITE_ROW) {
+				return setErrorFromDatabase("Failed to read doodad composites");
+			}
+
+			const int64_t compositeId = sqlite3_column_int64(compositeStmt, 0);
+
+			DoodadCompositeRecord composite;
+			composite.chance = sqlite3_column_int(compositeStmt, 1);
+			composite.sortOrder = sqlite3_column_int(compositeStmt, 2);
+			if (!ReadDoodadCompositeTiles(compositeId, tileStmt, tileItemStmt, composite.tiles, setErrorFromDatabase)) {
+				return false;
+			}
+
+			outComposites.push_back(composite);
+		}
+
+		return true;
+	}
+
+	template <typename SetErrorFn>
+	bool ResolveTilesetBrushReference(
+		sqlite3_stmt* findBrushStmt,
+		const TilesetEntryRecord &entry,
+		int64_t &resolvedBrushId,
+		SetErrorFn &&setErrorFromDatabase
+	) {
+		resolvedBrushId = entry.brushId;
+		if (resolvedBrushId != 0 || entry.brushName.IsEmpty()) {
+			return true;
+		}
+
+		sqlite3_reset(findBrushStmt);
+		sqlite3_clear_bindings(findBrushStmt);
+		sqlite3_bind_text(findBrushStmt, 1, entry.brushName.utf8_str(), -1, SQLITE_TRANSIENT);
+
+		const int firstRc = sqlite3_step(findBrushStmt);
+		if (firstRc == SQLITE_DONE) {
+			return true;
+		}
+		if (firstRc != SQLITE_ROW) {
+			return setErrorFromDatabase("Failed to resolve tileset brush reference");
+		}
+
+		resolvedBrushId = sqlite3_column_int64(findBrushStmt, 0);
+		const int secondRc = sqlite3_step(findBrushStmt);
+		if (secondRc == SQLITE_ROW) {
+			resolvedBrushId = 0;
+			return true;
+		}
+		if (secondRc != SQLITE_DONE) {
+			return setErrorFromDatabase("Failed to resolve tileset brush reference");
+		}
+
+		return true;
+	}
+
+	template <typename SetErrorFn>
+	bool WriteTilesetEntries(
+		int64_t sectionId,
+		const std::vector<TilesetEntryRecord> &entries,
+		sqlite3_stmt* insertEntryStmt,
+		sqlite3_stmt* findBrushStmt,
+		SetErrorFn &&setErrorFromDatabase
+	) {
+		for (const TilesetEntryRecord &entry : entries) {
+			int64_t resolvedBrushId = 0;
+			if (!ResolveTilesetBrushReference(findBrushStmt, entry, resolvedBrushId, setErrorFromDatabase)) {
+				return false;
+			}
+
+			sqlite3_reset(insertEntryStmt);
+			sqlite3_clear_bindings(insertEntryStmt);
+			sqlite3_bind_int64(insertEntryStmt, 1, sectionId);
+			sqlite3_bind_text(insertEntryStmt, 2, entry.entryKind.utf8_str(), -1, SQLITE_TRANSIENT);
+			if (resolvedBrushId != 0) {
+				sqlite3_bind_int64(insertEntryStmt, 3, resolvedBrushId);
+			} else {
+				sqlite3_bind_null(insertEntryStmt, 3);
+			}
+			sqlite3_bind_text(insertEntryStmt, 4, entry.brushName.utf8_str(), -1, SQLITE_TRANSIENT);
+			sqlite3_bind_int(insertEntryStmt, 5, entry.itemId);
+			sqlite3_bind_int(insertEntryStmt, 6, entry.fromItemId);
+			sqlite3_bind_int(insertEntryStmt, 7, entry.toItemId);
+			sqlite3_bind_text(insertEntryStmt, 8, entry.afterBrushName.utf8_str(), -1, SQLITE_TRANSIENT);
+			sqlite3_bind_int(insertEntryStmt, 9, entry.afterItemId);
+			sqlite3_bind_int(insertEntryStmt, 10, entry.sortOrder);
+			if (sqlite3_step(insertEntryStmt) != SQLITE_DONE) {
+				return setErrorFromDatabase("Failed to insert tileset entry");
+			}
+		}
+
+		return true;
+	}
 } // namespace
 
 BrushDatabase::BrushDatabase() = default;
@@ -1530,6 +2016,16 @@ bool BrushDatabase::replaceGroundBrushBorders(int64_t brushId, const std::vector
 		return false;
 	}
 
+	const auto fail = [this, &insertBorderStmt, &insertCaseStmt, &insertConditionStmt, &insertActionStmt](const wxString &message) {
+		FinalizeStatements({ insertBorderStmt, insertCaseStmt, insertConditionStmt, insertActionStmt });
+		rollbackTransaction();
+		return setErrorFromDatabase(message);
+	};
+
+	const auto setDbError = [this](const wxString &message) {
+		return setErrorFromDatabase(message);
+	};
+
 	for (const GroundBrushBorderRecord &border : borders) {
 		sqlite3_reset(insertBorderStmt);
 		sqlite3_clear_bindings(insertBorderStmt);
@@ -1542,78 +2038,25 @@ bool BrushDatabase::replaceGroundBrushBorders(int64_t brushId, const std::vector
 		sqlite3_bind_text(insertBorderStmt, 7, border.targetBrushName.utf8_str(), -1, SQLITE_TRANSIENT);
 		sqlite3_bind_int(insertBorderStmt, 8, border.superBorder ? 1 : 0);
 		sqlite3_bind_int(insertBorderStmt, 9, border.sortOrder);
-		rc = sqlite3_step(insertBorderStmt);
-		if (rc != SQLITE_DONE) {
-			sqlite3_finalize(insertBorderStmt);
-			sqlite3_finalize(insertCaseStmt);
-			sqlite3_finalize(insertConditionStmt);
-			sqlite3_finalize(insertActionStmt);
-			rollbackTransaction();
-			return setErrorFromDatabase("Failed to insert ground brush border");
+		if (sqlite3_step(insertBorderStmt) != SQLITE_DONE) {
+			return fail("Failed to insert ground brush border");
 		}
 
 		const int64_t groundBrushBorderId = sqlite3_last_insert_rowid(connection_);
-		for (const GroundBorderCaseRecord &caseRecord : border.cases) {
-			sqlite3_reset(insertCaseStmt);
-			sqlite3_clear_bindings(insertCaseStmt);
-			sqlite3_bind_int64(insertCaseStmt, 1, groundBrushBorderId);
-			sqlite3_bind_int(insertCaseStmt, 2, caseRecord.sortOrder);
-			rc = sqlite3_step(insertCaseStmt);
-			if (rc != SQLITE_DONE) {
-				sqlite3_finalize(insertBorderStmt);
-				sqlite3_finalize(insertCaseStmt);
-				sqlite3_finalize(insertConditionStmt);
-				sqlite3_finalize(insertActionStmt);
-				rollbackTransaction();
-				return setErrorFromDatabase("Failed to insert ground border case");
-			}
-
-			const int64_t caseId = sqlite3_last_insert_rowid(connection_);
-			for (const GroundBorderCaseConditionRecord &condition : caseRecord.conditions) {
-				sqlite3_reset(insertConditionStmt);
-				sqlite3_clear_bindings(insertConditionStmt);
-				sqlite3_bind_int64(insertConditionStmt, 1, caseId);
-				sqlite3_bind_text(insertConditionStmt, 2, condition.conditionType.utf8_str(), -1, SQLITE_TRANSIENT);
-				sqlite3_bind_int(insertConditionStmt, 3, condition.matchValue);
-				sqlite3_bind_text(insertConditionStmt, 4, condition.edge.utf8_str(), -1, SQLITE_TRANSIENT);
-				sqlite3_bind_int(insertConditionStmt, 5, condition.sortOrder);
-				rc = sqlite3_step(insertConditionStmt);
-				if (rc != SQLITE_DONE) {
-					sqlite3_finalize(insertBorderStmt);
-					sqlite3_finalize(insertCaseStmt);
-					sqlite3_finalize(insertConditionStmt);
-					sqlite3_finalize(insertActionStmt);
-					rollbackTransaction();
-					return setErrorFromDatabase("Failed to insert ground border condition");
-				}
-			}
-
-			for (const GroundBorderCaseActionRecord &action : caseRecord.actions) {
-				sqlite3_reset(insertActionStmt);
-				sqlite3_clear_bindings(insertActionStmt);
-				sqlite3_bind_int64(insertActionStmt, 1, caseId);
-				sqlite3_bind_text(insertActionStmt, 2, action.actionType.utf8_str(), -1, SQLITE_TRANSIENT);
-				sqlite3_bind_int(insertActionStmt, 3, action.targetValue);
-				sqlite3_bind_text(insertActionStmt, 4, action.edge.utf8_str(), -1, SQLITE_TRANSIENT);
-				sqlite3_bind_int(insertActionStmt, 5, action.replacementValue);
-				sqlite3_bind_int(insertActionStmt, 6, action.sortOrder);
-				rc = sqlite3_step(insertActionStmt);
-				if (rc != SQLITE_DONE) {
-					sqlite3_finalize(insertBorderStmt);
-					sqlite3_finalize(insertCaseStmt);
-					sqlite3_finalize(insertConditionStmt);
-					sqlite3_finalize(insertActionStmt);
-					rollbackTransaction();
-					return setErrorFromDatabase("Failed to insert ground border action");
-				}
-			}
+		if (!WriteGroundBorderCases(
+				connection_,
+				groundBrushBorderId,
+				border.cases,
+				insertCaseStmt,
+				insertConditionStmt,
+				insertActionStmt,
+				setDbError
+			)) {
+			return fail(lastError_);
 		}
 	}
 
-	sqlite3_finalize(insertBorderStmt);
-	sqlite3_finalize(insertCaseStmt);
-	sqlite3_finalize(insertConditionStmt);
-	sqlite3_finalize(insertActionStmt);
+	FinalizeStatements({ insertBorderStmt, insertCaseStmt, insertConditionStmt, insertActionStmt });
 	if (!commitTransaction()) {
 		rollbackTransaction();
 		return false;
@@ -1666,17 +2109,22 @@ bool BrushDatabase::getGroundBrushBorders(int64_t brushId, std::vector<GroundBru
 
 	sqlite3_bind_int64(borderStmt, 1, brushId);
 
+	const auto fail = [this, &borderStmt, &caseStmt, &conditionStmt, &actionStmt](const wxString &message) {
+		FinalizeStatements({ borderStmt, caseStmt, conditionStmt, actionStmt });
+		return setErrorFromDatabase(message);
+	};
+
+	const auto setDbError = [this](const wxString &message) {
+		return setErrorFromDatabase(message);
+	};
+
 	for (;;) {
 		const int borderRc = sqlite3_step(borderStmt);
 		if (borderRc == SQLITE_DONE) {
 			break;
 		}
 		if (borderRc != SQLITE_ROW) {
-			sqlite3_finalize(borderStmt);
-			sqlite3_finalize(caseStmt);
-			sqlite3_finalize(conditionStmt);
-			sqlite3_finalize(actionStmt);
-			return setErrorFromDatabase("Failed to read ground brush borders");
+			return fail("Failed to read ground brush borders");
 		}
 
 		const int64_t groundBrushBorderId = sqlite3_column_int64(borderStmt, 0);
@@ -1694,86 +2142,14 @@ bool BrushDatabase::getGroundBrushBorders(int64_t brushId, std::vector<GroundBru
 		sqlite3_reset(caseStmt);
 		sqlite3_clear_bindings(caseStmt);
 		sqlite3_bind_int64(caseStmt, 1, groundBrushBorderId);
-
-		for (;;) {
-			const int caseRc = sqlite3_step(caseStmt);
-			if (caseRc == SQLITE_DONE) {
-				break;
-			}
-			if (caseRc != SQLITE_ROW) {
-				sqlite3_finalize(borderStmt);
-				sqlite3_finalize(caseStmt);
-				sqlite3_finalize(conditionStmt);
-				sqlite3_finalize(actionStmt);
-				return setErrorFromDatabase("Failed to read ground border cases");
-			}
-
-			const int64_t caseId = sqlite3_column_int64(caseStmt, 0);
-
-			GroundBorderCaseRecord caseRecord;
-			caseRecord.sortOrder = sqlite3_column_int(caseStmt, 1);
-
-			sqlite3_reset(conditionStmt);
-			sqlite3_clear_bindings(conditionStmt);
-			sqlite3_bind_int64(conditionStmt, 1, caseId);
-
-			for (;;) {
-				const int conditionRc = sqlite3_step(conditionStmt);
-				if (conditionRc == SQLITE_DONE) {
-					break;
-				}
-				if (conditionRc != SQLITE_ROW) {
-					sqlite3_finalize(borderStmt);
-					sqlite3_finalize(caseStmt);
-					sqlite3_finalize(conditionStmt);
-					sqlite3_finalize(actionStmt);
-					return setErrorFromDatabase("Failed to read ground border case conditions");
-				}
-
-				GroundBorderCaseConditionRecord condition;
-				condition.conditionType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(conditionStmt, 0)));
-				condition.matchValue = sqlite3_column_int(conditionStmt, 1);
-				condition.edge = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(conditionStmt, 2)));
-				condition.sortOrder = sqlite3_column_int(conditionStmt, 3);
-				caseRecord.conditions.push_back(condition);
-			}
-
-			sqlite3_reset(actionStmt);
-			sqlite3_clear_bindings(actionStmt);
-			sqlite3_bind_int64(actionStmt, 1, caseId);
-
-			for (;;) {
-				const int actionRc = sqlite3_step(actionStmt);
-				if (actionRc == SQLITE_DONE) {
-					break;
-				}
-				if (actionRc != SQLITE_ROW) {
-					sqlite3_finalize(borderStmt);
-					sqlite3_finalize(caseStmt);
-					sqlite3_finalize(conditionStmt);
-					sqlite3_finalize(actionStmt);
-					return setErrorFromDatabase("Failed to read ground border case actions");
-				}
-
-				GroundBorderCaseActionRecord action;
-				action.actionType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(actionStmt, 0)));
-				action.targetValue = sqlite3_column_int(actionStmt, 1);
-				action.edge = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(actionStmt, 2)));
-				action.replacementValue = sqlite3_column_int(actionStmt, 3);
-				action.sortOrder = sqlite3_column_int(actionStmt, 4);
-				caseRecord.actions.push_back(action);
-			}
-
-			border.cases.push_back(caseRecord);
+		if (!ReadGroundBorderCases(caseStmt, conditionStmt, actionStmt, border.cases, setDbError)) {
+			return fail(lastError_);
 		}
 
 		outBorders.push_back(border);
 	}
 
-	sqlite3_finalize(borderStmt);
-	sqlite3_finalize(caseStmt);
-	sqlite3_finalize(conditionStmt);
-	sqlite3_finalize(actionStmt);
+	FinalizeStatements({ borderStmt, caseStmt, conditionStmt, actionStmt });
 	return true;
 }
 
@@ -2334,106 +2710,43 @@ bool BrushDatabase::replaceDoodadAlternatives(int64_t brushId, const std::vector
 		return false;
 	}
 
+	const auto fail = [this, &insertAltStmt, &insertSingleStmt, &insertCompositeStmt, &insertTileStmt, &insertTileItemStmt](const wxString &message) {
+		FinalizeStatements({ insertAltStmt, insertSingleStmt, insertCompositeStmt, insertTileStmt, insertTileItemStmt });
+		rollbackTransaction();
+		return setErrorFromDatabase(message);
+	};
+
+	const auto setDbError = [this](const wxString &message) {
+		return setErrorFromDatabase(message);
+	};
+
 	for (const DoodadAlternativeRecord &alternative : alternatives) {
 		sqlite3_reset(insertAltStmt);
 		sqlite3_clear_bindings(insertAltStmt);
 		sqlite3_bind_int64(insertAltStmt, 1, brushId);
 		sqlite3_bind_int(insertAltStmt, 2, alternative.sortOrder);
-		rc = sqlite3_step(insertAltStmt);
-		if (rc != SQLITE_DONE) {
-			sqlite3_finalize(insertAltStmt);
-			sqlite3_finalize(insertSingleStmt);
-			sqlite3_finalize(insertCompositeStmt);
-			sqlite3_finalize(insertTileStmt);
-			sqlite3_finalize(insertTileItemStmt);
-			rollbackTransaction();
-			return setErrorFromDatabase("Failed to insert doodad alternative");
+		if (sqlite3_step(insertAltStmt) != SQLITE_DONE) {
+			return fail("Failed to insert doodad alternative");
 		}
 
 		const int64_t alternativeId = sqlite3_last_insert_rowid(connection_);
-		for (const DoodadSingleItemRecord &single : alternative.singleItems) {
-			sqlite3_reset(insertSingleStmt);
-			sqlite3_clear_bindings(insertSingleStmt);
-			sqlite3_bind_int64(insertSingleStmt, 1, alternativeId);
-			sqlite3_bind_int(insertSingleStmt, 2, single.itemId);
-			sqlite3_bind_int(insertSingleStmt, 3, single.chance);
-			sqlite3_bind_int(insertSingleStmt, 4, single.sortOrder);
-			rc = sqlite3_step(insertSingleStmt);
-			if (rc != SQLITE_DONE) {
-				sqlite3_finalize(insertAltStmt);
-				sqlite3_finalize(insertSingleStmt);
-				sqlite3_finalize(insertCompositeStmt);
-				sqlite3_finalize(insertTileStmt);
-				sqlite3_finalize(insertTileItemStmt);
-				rollbackTransaction();
-				return setErrorFromDatabase("Failed to insert doodad single item");
-			}
+		if (!WriteDoodadSingleItems(alternativeId, alternative.singleItems, insertSingleStmt, setDbError)) {
+			return fail(lastError_);
 		}
-
-		for (const DoodadCompositeRecord &composite : alternative.composites) {
-			sqlite3_reset(insertCompositeStmt);
-			sqlite3_clear_bindings(insertCompositeStmt);
-			sqlite3_bind_int64(insertCompositeStmt, 1, alternativeId);
-			sqlite3_bind_int(insertCompositeStmt, 2, composite.chance);
-			sqlite3_bind_int(insertCompositeStmt, 3, composite.sortOrder);
-			rc = sqlite3_step(insertCompositeStmt);
-			if (rc != SQLITE_DONE) {
-				sqlite3_finalize(insertAltStmt);
-				sqlite3_finalize(insertSingleStmt);
-				sqlite3_finalize(insertCompositeStmt);
-				sqlite3_finalize(insertTileStmt);
-				sqlite3_finalize(insertTileItemStmt);
-				rollbackTransaction();
-				return setErrorFromDatabase("Failed to insert doodad composite");
-			}
-
-			const int64_t compositeId = sqlite3_last_insert_rowid(connection_);
-			for (const DoodadCompositeTileRecord &tile : composite.tiles) {
-				sqlite3_reset(insertTileStmt);
-				sqlite3_clear_bindings(insertTileStmt);
-				sqlite3_bind_int64(insertTileStmt, 1, compositeId);
-				sqlite3_bind_int(insertTileStmt, 2, tile.offsetX);
-				sqlite3_bind_int(insertTileStmt, 3, tile.offsetY);
-				sqlite3_bind_int(insertTileStmt, 4, tile.offsetZ);
-				sqlite3_bind_int(insertTileStmt, 5, tile.sortOrder);
-				rc = sqlite3_step(insertTileStmt);
-				if (rc != SQLITE_DONE) {
-					sqlite3_finalize(insertAltStmt);
-					sqlite3_finalize(insertSingleStmt);
-					sqlite3_finalize(insertCompositeStmt);
-					sqlite3_finalize(insertTileStmt);
-					sqlite3_finalize(insertTileItemStmt);
-					rollbackTransaction();
-					return setErrorFromDatabase("Failed to insert doodad composite tile");
-				}
-
-				const int64_t tileId = sqlite3_last_insert_rowid(connection_);
-				for (const DoodadCompositeTileItemRecord &item : tile.items) {
-					sqlite3_reset(insertTileItemStmt);
-					sqlite3_clear_bindings(insertTileItemStmt);
-					sqlite3_bind_int64(insertTileItemStmt, 1, tileId);
-					sqlite3_bind_int(insertTileItemStmt, 2, item.itemId);
-					sqlite3_bind_int(insertTileItemStmt, 3, item.sortOrder);
-					rc = sqlite3_step(insertTileItemStmt);
-					if (rc != SQLITE_DONE) {
-						sqlite3_finalize(insertAltStmt);
-						sqlite3_finalize(insertSingleStmt);
-						sqlite3_finalize(insertCompositeStmt);
-						sqlite3_finalize(insertTileStmt);
-						sqlite3_finalize(insertTileItemStmt);
-						rollbackTransaction();
-						return setErrorFromDatabase("Failed to insert doodad composite tile item");
-					}
-				}
-			}
+		if (!WriteDoodadComposites(
+				connection_,
+				alternativeId,
+				alternative.composites,
+				insertCompositeStmt,
+				insertTileStmt,
+				insertTileItemStmt,
+				setDbError
+			)) {
+			return fail(lastError_);
 		}
 	}
 
-	sqlite3_finalize(insertAltStmt);
-	sqlite3_finalize(insertSingleStmt);
-	sqlite3_finalize(insertCompositeStmt);
-	sqlite3_finalize(insertTileStmt);
-	sqlite3_finalize(insertTileItemStmt);
+	FinalizeStatements({ insertAltStmt, insertSingleStmt, insertCompositeStmt, insertTileStmt, insertTileItemStmt });
 	if (!commitTransaction()) {
 		rollbackTransaction();
 		return false;
@@ -2495,138 +2808,46 @@ bool BrushDatabase::getDoodadAlternatives(int64_t brushId, std::vector<DoodadAlt
 
 	sqlite3_bind_int64(altStmt, 1, brushId);
 
+	const auto fail = [this, &altStmt, &singleStmt, &compositeStmt, &tileStmt, &tileItemStmt](const wxString &message) {
+		FinalizeStatements({ altStmt, singleStmt, compositeStmt, tileStmt, tileItemStmt });
+		return setErrorFromDatabase(message);
+	};
+
+	const auto setDbError = [this](const wxString &message) {
+		return setErrorFromDatabase(message);
+	};
+
 	for (;;) {
 		const int altRc = sqlite3_step(altStmt);
 		if (altRc == SQLITE_DONE) {
 			break;
 		}
 		if (altRc != SQLITE_ROW) {
-			sqlite3_finalize(altStmt);
-			sqlite3_finalize(singleStmt);
-			sqlite3_finalize(compositeStmt);
-			sqlite3_finalize(tileStmt);
-			sqlite3_finalize(tileItemStmt);
-			return setErrorFromDatabase("Failed to read doodad alternatives");
+			return fail("Failed to read doodad alternatives");
 		}
 
 		const int64_t alternativeId = sqlite3_column_int64(altStmt, 0);
 
 		DoodadAlternativeRecord alternative;
 		alternative.sortOrder = sqlite3_column_int(altStmt, 1);
-
-		sqlite3_reset(singleStmt);
-		sqlite3_clear_bindings(singleStmt);
-		sqlite3_bind_int64(singleStmt, 1, alternativeId);
-
-		for (;;) {
-			const int singleRc = sqlite3_step(singleStmt);
-			if (singleRc == SQLITE_DONE) {
-				break;
-			}
-			if (singleRc != SQLITE_ROW) {
-				sqlite3_finalize(altStmt);
-				sqlite3_finalize(singleStmt);
-				sqlite3_finalize(compositeStmt);
-				sqlite3_finalize(tileStmt);
-				sqlite3_finalize(tileItemStmt);
-				return setErrorFromDatabase("Failed to read doodad single items");
-			}
-
-			DoodadSingleItemRecord item;
-			item.itemId = sqlite3_column_int(singleStmt, 0);
-			item.chance = sqlite3_column_int(singleStmt, 1);
-			item.sortOrder = sqlite3_column_int(singleStmt, 2);
-			alternative.singleItems.push_back(item);
+		if (!ReadDoodadSingleItems(alternativeId, singleStmt, alternative.singleItems, setDbError)) {
+			return fail(lastError_);
 		}
-
-		sqlite3_reset(compositeStmt);
-		sqlite3_clear_bindings(compositeStmt);
-		sqlite3_bind_int64(compositeStmt, 1, alternativeId);
-
-		for (;;) {
-			const int compositeRc = sqlite3_step(compositeStmt);
-			if (compositeRc == SQLITE_DONE) {
-				break;
-			}
-			if (compositeRc != SQLITE_ROW) {
-				sqlite3_finalize(altStmt);
-				sqlite3_finalize(singleStmt);
-				sqlite3_finalize(compositeStmt);
-				sqlite3_finalize(tileStmt);
-				sqlite3_finalize(tileItemStmt);
-				return setErrorFromDatabase("Failed to read doodad composites");
-			}
-
-			const int64_t compositeId = sqlite3_column_int64(compositeStmt, 0);
-
-			DoodadCompositeRecord composite;
-			composite.chance = sqlite3_column_int(compositeStmt, 1);
-			composite.sortOrder = sqlite3_column_int(compositeStmt, 2);
-
-			sqlite3_reset(tileStmt);
-			sqlite3_clear_bindings(tileStmt);
-			sqlite3_bind_int64(tileStmt, 1, compositeId);
-
-			for (;;) {
-				const int tileRc = sqlite3_step(tileStmt);
-				if (tileRc == SQLITE_DONE) {
-					break;
-				}
-				if (tileRc != SQLITE_ROW) {
-					sqlite3_finalize(altStmt);
-					sqlite3_finalize(singleStmt);
-					sqlite3_finalize(compositeStmt);
-					sqlite3_finalize(tileStmt);
-					sqlite3_finalize(tileItemStmt);
-					return setErrorFromDatabase("Failed to read doodad composite tiles");
-				}
-
-				const int64_t tileId = sqlite3_column_int64(tileStmt, 0);
-
-				DoodadCompositeTileRecord tile;
-				tile.offsetX = sqlite3_column_int(tileStmt, 1);
-				tile.offsetY = sqlite3_column_int(tileStmt, 2);
-				tile.offsetZ = sqlite3_column_int(tileStmt, 3);
-				tile.sortOrder = sqlite3_column_int(tileStmt, 4);
-
-				sqlite3_reset(tileItemStmt);
-				sqlite3_clear_bindings(tileItemStmt);
-				sqlite3_bind_int64(tileItemStmt, 1, tileId);
-
-				for (;;) {
-					const int tileItemRc = sqlite3_step(tileItemStmt);
-					if (tileItemRc == SQLITE_DONE) {
-						break;
-					}
-					if (tileItemRc != SQLITE_ROW) {
-						sqlite3_finalize(altStmt);
-						sqlite3_finalize(singleStmt);
-						sqlite3_finalize(compositeStmt);
-						sqlite3_finalize(tileStmt);
-						sqlite3_finalize(tileItemStmt);
-						return setErrorFromDatabase("Failed to read doodad composite tile items");
-					}
-
-					DoodadCompositeTileItemRecord item;
-					item.itemId = sqlite3_column_int(tileItemStmt, 0);
-					item.sortOrder = sqlite3_column_int(tileItemStmt, 1);
-					tile.items.push_back(item);
-				}
-
-				composite.tiles.push_back(tile);
-			}
-
-			alternative.composites.push_back(composite);
+		if (!ReadDoodadComposites(
+				alternativeId,
+				compositeStmt,
+				tileStmt,
+				tileItemStmt,
+				alternative.composites,
+				setDbError
+			)) {
+			return fail(lastError_);
 		}
 
 		outAlternatives.push_back(alternative);
 	}
 
-	sqlite3_finalize(altStmt);
-	sqlite3_finalize(singleStmt);
-	sqlite3_finalize(compositeStmt);
-	sqlite3_finalize(tileStmt);
-	sqlite3_finalize(tileItemStmt);
+	FinalizeStatements({ altStmt, singleStmt, compositeStmt, tileStmt, tileItemStmt });
 	return true;
 }
 
@@ -2672,19 +2893,23 @@ bool BrushDatabase::replaceAllTilesets(const std::vector<TilesetStorageRecord> &
 		return false;
 	}
 
+	const auto fail = [this, &insertTilesetStmt, &insertSectionStmt, &insertEntryStmt, &findBrushStmt](const wxString &message) {
+		FinalizeStatements({ insertTilesetStmt, insertSectionStmt, insertEntryStmt, findBrushStmt });
+		rollbackTransaction();
+		return setErrorFromDatabase(message);
+	};
+
+	const auto setDbError = [this](const wxString &message) {
+		return setErrorFromDatabase(message);
+	};
+
 	for (const TilesetStorageRecord &tileset : tilesets) {
 		sqlite3_reset(insertTilesetStmt);
 		sqlite3_clear_bindings(insertTilesetStmt);
 		sqlite3_bind_text(insertTilesetStmt, 1, tileset.name.utf8_str(), -1, SQLITE_TRANSIENT);
 		sqlite3_bind_text(insertTilesetStmt, 2, tileset.sourceFile.utf8_str(), -1, SQLITE_TRANSIENT);
-		int rc = sqlite3_step(insertTilesetStmt);
-		if (rc != SQLITE_DONE) {
-			sqlite3_finalize(insertTilesetStmt);
-			sqlite3_finalize(insertSectionStmt);
-			sqlite3_finalize(insertEntryStmt);
-			sqlite3_finalize(findBrushStmt);
-			rollbackTransaction();
-			return setErrorFromDatabase("Failed to insert tileset");
+		if (sqlite3_step(insertTilesetStmt) != SQLITE_DONE) {
+			return fail("Failed to insert tileset");
 		}
 		const int64_t tilesetId = sqlite3_last_insert_rowid(connection_);
 
@@ -2694,80 +2919,17 @@ bool BrushDatabase::replaceAllTilesets(const std::vector<TilesetStorageRecord> &
 			sqlite3_bind_int64(insertSectionStmt, 1, tilesetId);
 			sqlite3_bind_text(insertSectionStmt, 2, section.sectionType.utf8_str(), -1, SQLITE_TRANSIENT);
 			sqlite3_bind_int(insertSectionStmt, 3, section.sortOrder);
-			rc = sqlite3_step(insertSectionStmt);
-			if (rc != SQLITE_DONE) {
-				sqlite3_finalize(insertTilesetStmt);
-				sqlite3_finalize(insertSectionStmt);
-				sqlite3_finalize(insertEntryStmt);
-				sqlite3_finalize(findBrushStmt);
-				rollbackTransaction();
-				return setErrorFromDatabase("Failed to insert tileset section");
+			if (sqlite3_step(insertSectionStmt) != SQLITE_DONE) {
+				return fail("Failed to insert tileset section");
 			}
 			const int64_t sectionId = sqlite3_last_insert_rowid(connection_);
-
-			for (const TilesetEntryRecord &entry : section.entries) {
-				int64_t resolvedBrushId = entry.brushId;
-				if (resolvedBrushId == 0 && !entry.brushName.IsEmpty()) {
-					sqlite3_reset(findBrushStmt);
-					sqlite3_clear_bindings(findBrushStmt);
-					sqlite3_bind_text(findBrushStmt, 1, entry.brushName.utf8_str(), -1, SQLITE_TRANSIENT);
-					const int firstRc = sqlite3_step(findBrushStmt);
-					if (firstRc == SQLITE_ROW) {
-						resolvedBrushId = sqlite3_column_int64(findBrushStmt, 0);
-						const int secondRc = sqlite3_step(findBrushStmt);
-						if (secondRc == SQLITE_ROW) {
-							resolvedBrushId = 0;
-						} else if (secondRc != SQLITE_DONE) {
-							sqlite3_finalize(insertTilesetStmt);
-							sqlite3_finalize(insertSectionStmt);
-							sqlite3_finalize(insertEntryStmt);
-							sqlite3_finalize(findBrushStmt);
-							rollbackTransaction();
-							return setErrorFromDatabase("Failed to resolve tileset brush reference");
-						}
-					} else if (firstRc != SQLITE_DONE) {
-						sqlite3_finalize(insertTilesetStmt);
-						sqlite3_finalize(insertSectionStmt);
-						sqlite3_finalize(insertEntryStmt);
-						sqlite3_finalize(findBrushStmt);
-						rollbackTransaction();
-						return setErrorFromDatabase("Failed to resolve tileset brush reference");
-					}
-				}
-
-				sqlite3_reset(insertEntryStmt);
-				sqlite3_clear_bindings(insertEntryStmt);
-				sqlite3_bind_int64(insertEntryStmt, 1, sectionId);
-				sqlite3_bind_text(insertEntryStmt, 2, entry.entryKind.utf8_str(), -1, SQLITE_TRANSIENT);
-				if (resolvedBrushId != 0) {
-					sqlite3_bind_int64(insertEntryStmt, 3, resolvedBrushId);
-				} else {
-					sqlite3_bind_null(insertEntryStmt, 3);
-				}
-				sqlite3_bind_text(insertEntryStmt, 4, entry.brushName.utf8_str(), -1, SQLITE_TRANSIENT);
-				sqlite3_bind_int(insertEntryStmt, 5, entry.itemId);
-				sqlite3_bind_int(insertEntryStmt, 6, entry.fromItemId);
-				sqlite3_bind_int(insertEntryStmt, 7, entry.toItemId);
-				sqlite3_bind_text(insertEntryStmt, 8, entry.afterBrushName.utf8_str(), -1, SQLITE_TRANSIENT);
-				sqlite3_bind_int(insertEntryStmt, 9, entry.afterItemId);
-				sqlite3_bind_int(insertEntryStmt, 10, entry.sortOrder);
-				rc = sqlite3_step(insertEntryStmt);
-				if (rc != SQLITE_DONE) {
-					sqlite3_finalize(insertTilesetStmt);
-					sqlite3_finalize(insertSectionStmt);
-					sqlite3_finalize(insertEntryStmt);
-					sqlite3_finalize(findBrushStmt);
-					rollbackTransaction();
-					return setErrorFromDatabase("Failed to insert tileset entry");
-				}
+			if (!WriteTilesetEntries(sectionId, section.entries, insertEntryStmt, findBrushStmt, setDbError)) {
+				return fail(lastError_);
 			}
 		}
 	}
 
-	sqlite3_finalize(insertTilesetStmt);
-	sqlite3_finalize(insertSectionStmt);
-	sqlite3_finalize(insertEntryStmt);
-	sqlite3_finalize(findBrushStmt);
+	FinalizeStatements({ insertTilesetStmt, insertSectionStmt, insertEntryStmt, findBrushStmt });
 	if (!commitTransaction()) {
 		rollbackTransaction();
 		return false;
