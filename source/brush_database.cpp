@@ -45,15 +45,15 @@ namespace {
 													  "CREATE INDEX idx_tileset_brush_entries_name ON tileset_brush_entries(brush_name);"
 													  "CREATE INDEX idx_tileset_brush_entries_item ON tileset_brush_entries(item_id, from_item_id, to_item_id);";
 
-	static wxString ToWxString(const char* value) {
+wxString ToWxString(const char* value) {
 		return value ? wxString::FromUTF8(value) : wxString();
 	}
 
-	static wxString MakeTransactionSavepointName(int savepointId) {
+wxString MakeTransactionSavepointName(int savepointId) {
 		return wxString::Format("brushdb_sp_%d", savepointId);
 	}
 
-	static void FinalizeStatements(std::initializer_list<sqlite3_stmt*> statements) {
+void FinalizeStatements(std::initializer_list<sqlite3_stmt*> statements) {
 		for (sqlite3_stmt* stmt : statements) {
 			if (stmt) {
 				sqlite3_finalize(stmt);
@@ -61,7 +61,7 @@ namespace {
 		}
 	}
 
-	static void BindNullableInt64(sqlite3_stmt* stmt, int index, int64_t value) {
+void BindNullableInt64(sqlite3_stmt* stmt, int index, int64_t value) {
 		if (value > 0) {
 			sqlite3_bind_int64(stmt, index, value);
 		} else {
@@ -69,11 +69,11 @@ namespace {
 		}
 	}
 
-	static int64_t ReadNullableInt64(sqlite3_stmt* stmt, int index) {
+int64_t ReadNullableInt64(sqlite3_stmt* stmt, int index) {
 		return sqlite3_column_type(stmt, index) == SQLITE_NULL ? 0 : sqlite3_column_int64(stmt, index);
 	}
 
-	static int BindBrushRecordFields(sqlite3_stmt* stmt, const BrushRecord &brush, int parameterIndex) {
+int BindBrushRecordFields(sqlite3_stmt* stmt, const BrushRecord &brush, int parameterIndex) {
 		sqlite3_bind_text(stmt, parameterIndex++, brush.name.utf8_str(), -1, SQLITE_TRANSIENT);
 		sqlite3_bind_text(stmt, parameterIndex++, brush.type.utf8_str(), -1, SQLITE_TRANSIENT);
 		sqlite3_bind_int(stmt, parameterIndex++, brush.lookId);
@@ -92,7 +92,7 @@ namespace {
 		return parameterIndex;
 	}
 
-	static void ReadBrushRecordFromStatement(sqlite3_stmt* stmt, BrushRecord &outBrush) {
+void ReadBrushRecordFromStatement(sqlite3_stmt* stmt, BrushRecord &outBrush) {
 		outBrush.id = sqlite3_column_int64(stmt, 0);
 		outBrush.name = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
 		outBrush.type = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
@@ -112,7 +112,7 @@ namespace {
 	}
 
 	template <typename NodeRecord, typename ItemRecord, typename SetErrorFn>
-	static bool WriteAlignedNodesWithItems(
+bool WriteAlignedNodesWithItems(
 		sqlite3* connection,
 		int64_t brushId,
 		const std::vector<NodeRecord> &nodes,
@@ -152,7 +152,7 @@ namespace {
 	}
 
 	template <typename NodeRecord, typename ItemRecord, typename SetErrorFn>
-	static bool ReadAlignedNodesWithItems(
+bool ReadAlignedNodesWithItems(
 		sqlite3_stmt* nodeStmt,
 		sqlite3_stmt* itemStmt,
 		std::vector<NodeRecord> &outNodes,
@@ -358,7 +358,7 @@ bool BrushDatabase::columnExists(const wxString &tableName, const wxString &colu
 		return false;
 	}
 
-	for (;;) {
+	while (!exists) {
 		const int rc = sqlite3_step(stmt);
 		if (rc == SQLITE_DONE) {
 			break;
@@ -371,7 +371,6 @@ bool BrushDatabase::columnExists(const wxString &tableName, const wxString &colu
 		const wxString currentName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
 		if (currentName == columnName) {
 			exists = true;
-			break;
 		}
 	}
 
