@@ -286,6 +286,12 @@ private:
 	bool migrateToVersion4();
 	bool migrateToVersion5();
 	bool migrateToVersion6();
+	bool addColumnIfMissing(const wxString &tableName, const wxString &columnName, const wxString &definition);
+	bool executeStatements(std::initializer_list<const char*> statements);
+	bool addVersion2BrushColumns();
+	bool createVersion2BorderSchema();
+	bool createVersion2BrushDetailSchema();
+	bool createVersion2TilesetSchema();
 	bool columnExists(const wxString &tableName, const wxString &columnName, bool &exists);
 
 	bool execute(const wxString &sql);
