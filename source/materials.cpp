@@ -643,19 +643,19 @@ namespace {
 		outParts.clear();
 		outLinks.clear();
 
-	const auto getOrCreatePart = [&outParts](const wxString &partType, int sortOrder) -> WallPartRecord& {
-		for (WallPartRecord &existingPart : outParts) {
-			if (existingPart.partType == partType) {
-				return existingPart;
+		const auto getOrCreatePart = [&outParts](const wxString &partType, int sortOrder) -> WallPartRecord & {
+			for (WallPartRecord &existingPart : outParts) {
+				if (existingPart.partType == partType) {
+					return existingPart;
+				}
 			}
-		}
 
-		WallPartRecord part;
-		part.partType = partType;
-		part.sortOrder = sortOrder;
-		outParts.push_back(part);
-		return outParts.back();
-	};
+			WallPartRecord part;
+			part.partType = partType;
+			part.sortOrder = sortOrder;
+			outParts.push_back(part);
+			return outParts.back();
+		};
 
 		int partSortOrder = 0;
 		int alternateIndex = 0;
@@ -663,31 +663,32 @@ namespace {
 		for (pugi::xml_node childNode = brushNode.first_child(); childNode; childNode = childNode.next_sibling()) {
 			const std::string childName = as_lower_str(childNode.name());
 			if (childName == "wall") {
-			const wxString partType = wxString(childNode.attribute("type").as_string(), wxConvUTF8);
-			if (partType.IsEmpty()) {
+				const wxString partType = wxString(childNode.attribute("type").as_string(), wxConvUTF8);
+				if (partType.IsEmpty()) {
 					continue;
 				}
 
-			WallPartRecord &part = getOrCreatePart(partType, partSortOrder);
-			if (part.items.empty() && part.doors.empty()) {
-				partSortOrder++;
-			}
+				WallPartRecord &part = getOrCreatePart(partType, partSortOrder);
+				if (part.items.empty() && part.doors.empty()) {
+					partSortOrder++;
+				}
 
-			CollectWallItemNodes(childNode, part.items);
-			CollectWallDoorNodes(childNode, part.doors);
+				CollectWallItemNodes(childNode, part.items);
+				CollectWallDoorNodes(childNode, part.doors);
+				const wxString basePartType = part.partType;
 				int localAlternateIndex = 0;
 				for (pugi::xml_node subChild = childNode.first_child(); subChild; subChild = subChild.next_sibling()) {
 					if (as_lower_str(subChild.name()) != "alternate") {
 						continue;
 					}
 
-				const wxString alternatePartType = part.partType + wxString::Format("/alternate/%d", localAlternateIndex++);
-				WallPartRecord &alternatePart = getOrCreatePart(alternatePartType, partSortOrder);
-				const bool wasEmpty = alternatePart.items.empty() && alternatePart.doors.empty();
-				CollectWallItemNodes(subChild, alternatePart.items);
-				CollectWallDoorNodes(subChild, alternatePart.doors);
-				if (wasEmpty && (!alternatePart.items.empty() || !alternatePart.doors.empty())) {
-					partSortOrder++;
+					const wxString alternatePartType = basePartType + wxString::Format("/alternate/%d", localAlternateIndex++);
+					WallPartRecord &alternatePart = getOrCreatePart(alternatePartType, partSortOrder);
+					const bool wasEmpty = alternatePart.items.empty() && alternatePart.doors.empty();
+					CollectWallItemNodes(subChild, alternatePart.items);
+					CollectWallDoorNodes(subChild, alternatePart.doors);
+					if (wasEmpty && (!alternatePart.items.empty() || !alternatePart.doors.empty())) {
+						partSortOrder++;
 					}
 				}
 			} else if (childName == "alternate") {
