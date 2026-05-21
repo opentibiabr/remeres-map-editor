@@ -437,8 +437,23 @@ void BinaryNode::load() {
 			}
 		}
 
-		uint8_t op = cache[local_read_index];
-		++local_read_index;
+		const size_t chunk_start = local_read_index;
+		while (local_read_index < cache_length) {
+			const uint8_t op = cache[local_read_index];
+			if (op == NODE_START || op == NODE_END || op == ESCAPE_CHAR) {
+				break;
+			}
+			++local_read_index;
+		}
+
+		if (local_read_index > chunk_start) {
+			data.append(reinterpret_cast<const char*>(cache + chunk_start), local_read_index - chunk_start);
+			if (local_read_index >= cache_length) {
+				continue;
+			}
+		}
+
+		uint8_t op = cache[local_read_index++];
 
 		switch (op) {
 			case NODE_START: {
@@ -462,14 +477,13 @@ void BinaryNode::load() {
 
 				op = cache[local_read_index];
 				++local_read_index;
-				break;
+				data.append(1, op);
+				continue;
 			}
 
 			default:
 				break;
 		}
-		// std::cout << "Appending..." << std::endl;
-		data.append(1, op);
 	}
 }
 
