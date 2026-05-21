@@ -680,27 +680,38 @@ bool NodeFileWriteHandle::endNode() {
 }
 
 bool NodeFileWriteHandle::addU8(uint8_t u8) {
-	writeBytes(&u8, sizeof(u8));
+	writeByte(u8);
 	return error_code == FILE_NO_ERROR;
 }
 
 bool NodeFileWriteHandle::addByte(uint8_t u8) {
-	writeBytes(&u8, sizeof(u8));
+	writeByte(u8);
 	return error_code == FILE_NO_ERROR;
 }
 
 bool NodeFileWriteHandle::addU16(uint16_t u16) {
-	writeBytes(reinterpret_cast<uint8_t*>(&u16), sizeof(u16));
+	writeByte(static_cast<uint8_t>(u16));
+	writeByte(static_cast<uint8_t>(u16 >> 8));
 	return error_code == FILE_NO_ERROR;
 }
 
 bool NodeFileWriteHandle::addU32(uint32_t u32) {
-	writeBytes(reinterpret_cast<uint8_t*>(&u32), sizeof(u32));
+	writeByte(static_cast<uint8_t>(u32));
+	writeByte(static_cast<uint8_t>(u32 >> 8));
+	writeByte(static_cast<uint8_t>(u32 >> 16));
+	writeByte(static_cast<uint8_t>(u32 >> 24));
 	return error_code == FILE_NO_ERROR;
 }
 
 bool NodeFileWriteHandle::addU64(uint64_t u64) {
-	writeBytes(reinterpret_cast<uint8_t*>(&u64), sizeof(u64));
+	writeByte(static_cast<uint8_t>(u64));
+	writeByte(static_cast<uint8_t>(u64 >> 8));
+	writeByte(static_cast<uint8_t>(u64 >> 16));
+	writeByte(static_cast<uint8_t>(u64 >> 24));
+	writeByte(static_cast<uint8_t>(u64 >> 32));
+	writeByte(static_cast<uint8_t>(u64 >> 40));
+	writeByte(static_cast<uint8_t>(u64 >> 48));
+	writeByte(static_cast<uint8_t>(u64 >> 56));
 	return error_code == FILE_NO_ERROR;
 }
 

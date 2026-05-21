@@ -367,6 +367,18 @@ protected:
 		}
 	}
 
+	FORCEINLINE void writeByte(uint8_t byte) {
+		if (byte == NODE_START || byte == NODE_END || byte == ESCAPE_CHAR) {
+			writeEscapedByte(byte);
+			return;
+		}
+
+		cache[local_write_index++] = byte;
+		if (local_write_index >= cache_size) {
+			renewCache();
+		}
+	}
+
 	FORCEINLINE void writeBytes(const uint8_t* ptr, size_t sz) {
 		while (sz != 0) {
 			size_t plain_size = 0;
