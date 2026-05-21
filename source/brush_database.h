@@ -380,7 +380,7 @@ private:
 
 class BrushDatabase {
 public:
-	BrushDatabase();
+	BrushDatabase() = default;
 	~BrushDatabase();
 
 	bool initialize(const wxString &databasePath);
@@ -424,9 +424,9 @@ public:
 
 private:
 	BrushDatabaseSession session_;
-	BrushDatabaseSchemaManager schemaManager_;
-	BrushDatabaseBrushRepository brushRepository_;
-	BrushDatabaseCatalogRepository catalogRepository_;
+	BrushDatabaseSchemaManager schemaManager_ { session_ };
+	BrushDatabaseBrushRepository brushRepository_ { session_ };
+	BrushDatabaseCatalogRepository catalogRepository_ { session_, schemaManager_ };
 };
 
 extern BrushDatabase g_brush_database;

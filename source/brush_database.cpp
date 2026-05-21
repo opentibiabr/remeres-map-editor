@@ -764,13 +764,6 @@ BrushDatabaseCatalogRepository::BrushDatabaseCatalogRepository(BrushDatabaseSess
 	schemaManager_(schemaManager) {
 }
 
-BrushDatabase::BrushDatabase() :
-	session_(),
-	schemaManager_(session_),
-	brushRepository_(session_),
-	catalogRepository_(session_, schemaManager_) {
-}
-
 BrushDatabase::~BrushDatabase() = default;
 
 bool BrushDatabase::initialize(const wxString &databasePath) {
