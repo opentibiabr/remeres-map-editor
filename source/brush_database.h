@@ -298,7 +298,8 @@ private:
 	bool ensureSchemaVersionTable();
 	bool getSchemaVersion(int &version);
 	bool setSchemaVersion(int version);
-	bool applySchemaMigrationStep(int &version, int targetVersion, bool (BrushDatabase::*migration)());
+	template <auto Migration>
+	bool applySchemaMigrationStep(int &version, int targetVersion);
 	bool migrateToVersion1();
 	bool migrateToVersion2();
 	bool migrateToVersion3();

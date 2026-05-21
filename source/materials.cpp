@@ -816,6 +816,87 @@ namespace {
 		outLinks.push_back(redirectLink);
 	}
 
+	bool TryAppendDoodadSingleItem(pugi::xml_node childNode, int &singleSortOrder, DoodadAlternativeRecord &alternative) {
+		if (as_lower_str(childNode.name()) != "item") {
+			return false;
+		}
+
+		const int itemId = childNode.attribute("id").as_int();
+		if (itemId <= 0) {
+			return true;
+		}
+
+		DoodadSingleItemRecord item;
+		item.itemId = itemId;
+		item.chance = childNode.attribute("chance").as_int();
+		item.sortOrder = singleSortOrder++;
+		alternative.singleItems.push_back(item);
+		return true;
+	}
+
+	bool TryAppendDoodadCompositeTileItem(pugi::xml_node itemNode, int &tileItemSortOrder, DoodadCompositeTileRecord &tile) {
+		if (as_lower_str(itemNode.name()) != "item") {
+			return false;
+		}
+
+		const int itemId = itemNode.attribute("id").as_int();
+		if (itemId <= 0) {
+			return true;
+		}
+
+		DoodadCompositeTileItemRecord item;
+		item.itemId = itemId;
+		item.sortOrder = tileItemSortOrder++;
+		tile.items.push_back(item);
+		return true;
+	}
+
+	void CollectDoodadCompositeTileItems(pugi::xml_node tileNode, DoodadCompositeTileRecord &tile) {
+		int tileItemSortOrder = 0;
+		for (pugi::xml_node itemNode = tileNode.first_child(); itemNode; itemNode = itemNode.next_sibling()) {
+			TryAppendDoodadCompositeTileItem(itemNode, tileItemSortOrder, tile);
+		}
+	}
+
+	bool TryAppendDoodadCompositeTile(pugi::xml_node tileNode, int &tileSortOrder, DoodadCompositeRecord &composite) {
+		if (as_lower_str(tileNode.name()) != "tile") {
+			return false;
+		}
+
+		DoodadCompositeTileRecord tile;
+		tile.offsetX = tileNode.attribute("x").as_int();
+		tile.offsetY = tileNode.attribute("y").as_int();
+		tile.offsetZ = tileNode.attribute("z").as_int();
+		tile.sortOrder = tileSortOrder++;
+		CollectDoodadCompositeTileItems(tileNode, tile);
+		if (!tile.items.empty()) {
+			composite.tiles.push_back(tile);
+		}
+		return true;
+	}
+
+	void CollectDoodadCompositeTiles(pugi::xml_node compositeNode, DoodadCompositeRecord &composite) {
+		int tileSortOrder = 0;
+		for (pugi::xml_node tileNode = compositeNode.first_child(); tileNode; tileNode = tileNode.next_sibling()) {
+			TryAppendDoodadCompositeTile(tileNode, tileSortOrder, composite);
+		}
+	}
+
+	bool TryAppendDoodadComposite(pugi::xml_node childNode, int &compositeSortOrder, DoodadAlternativeRecord &alternative) {
+		if (as_lower_str(childNode.name()) != "composite") {
+			return false;
+		}
+
+		DoodadCompositeRecord composite;
+		composite.chance = childNode.attribute("chance").as_int();
+		composite.sortOrder = compositeSortOrder++;
+		CollectDoodadCompositeTiles(childNode, composite);
+		if (!composite.tiles.empty()) {
+			alternative.composites.push_back(composite);
+		}
+		return true;
+	}
+
 	bool ParseWallBrushNode(const FileName &sourceFile, pugi::xml_node brushNode, BrushRecord &outBrush, std::vector<WallPartRecord> &outParts, std::vector<BrushLinkRecord> &outLinks, wxArrayString &warnings) {
 		if (wxString(brushNode.attribute("type").as_string(), wxConvUTF8) != "wall") {
 			return false;
@@ -929,61 +1010,10 @@ namespace {
 		auto singleSortOrder = static_cast<int>(alternative.singleItems.size());
 		auto compositeSortOrder = static_cast<int>(alternative.composites.size());
 		for (pugi::xml_node childNode = sourceNode.first_child(); childNode; childNode = childNode.next_sibling()) {
-			const std::string childName = as_lower_str(childNode.name());
-			if (childName == "item") {
-				const int itemId = childNode.attribute("id").as_int();
-				if (itemId <= 0) {
-					continue;
-				}
-
-				DoodadSingleItemRecord item;
-				item.itemId = itemId;
-				item.chance = childNode.attribute("chance").as_int();
-				item.sortOrder = singleSortOrder++;
-				alternative.singleItems.push_back(item);
-			} else if (childName == "composite") {
-				DoodadCompositeRecord composite;
-				composite.chance = childNode.attribute("chance").as_int();
-				composite.sortOrder = compositeSortOrder++;
-
-				int tileSortOrder = 0;
-				for (pugi::xml_node tileNode = childNode.first_child(); tileNode; tileNode = tileNode.next_sibling()) {
-					if (as_lower_str(tileNode.name()) != "tile") {
-						continue;
-					}
-
-					DoodadCompositeTileRecord tile;
-					tile.offsetX = tileNode.attribute("x").as_int();
-					tile.offsetY = tileNode.attribute("y").as_int();
-					tile.offsetZ = tileNode.attribute("z").as_int();
-					tile.sortOrder = tileSortOrder++;
-
-					int tileItemSortOrder = 0;
-					for (pugi::xml_node itemNode = tileNode.first_child(); itemNode; itemNode = itemNode.next_sibling()) {
-						if (as_lower_str(itemNode.name()) != "item") {
-							continue;
-						}
-
-						const int itemId = itemNode.attribute("id").as_int();
-						if (itemId <= 0) {
-							continue;
-						}
-
-						DoodadCompositeTileItemRecord item;
-						item.itemId = itemId;
-						item.sortOrder = tileItemSortOrder++;
-						tile.items.push_back(item);
-					}
-
-					if (!tile.items.empty()) {
-						composite.tiles.push_back(tile);
-					}
-				}
-
-				if (!composite.tiles.empty()) {
-					alternative.composites.push_back(composite);
-				}
+			if (TryAppendDoodadSingleItem(childNode, singleSortOrder, alternative)) {
+				continue;
 			}
+			TryAppendDoodadComposite(childNode, compositeSortOrder, alternative);
 		}
 	}
 
@@ -1275,44 +1305,48 @@ namespace {
 	};
 
 	bool ParseDecorativeBrushNode(const FileName &filename, pugi::xml_node brushNode, ParsedDecorativeBrush &outParsed, wxArrayString &warnings) {
+		using enum DecorativeBrushKind;
+
 		outParsed = ParsedDecorativeBrush();
 		if (ParseDoodadBrushNode(filename, brushNode, outParsed.brush, outParsed.doodadAlternatives, warnings)) {
-			outParsed.kind = DecorativeBrushKind::Doodad;
+			outParsed.kind = Doodad;
 			return true;
 		}
 		if (ParseCarpetBrushNode(filename, brushNode, outParsed.brush, outParsed.carpetNodes, warnings)) {
-			outParsed.kind = DecorativeBrushKind::Carpet;
+			outParsed.kind = Carpet;
 			return true;
 		}
 		if (ParseTableBrushNode(filename, brushNode, outParsed.brush, outParsed.tableNodes, warnings)) {
-			outParsed.kind = DecorativeBrushKind::Table;
+			outParsed.kind = Table;
 			return true;
 		}
 		return false;
 	}
 
 	bool StoreDecorativeBrushContent(const ParsedDecorativeBrush &parsed, int64_t brushId, wxArrayString &warnings) {
+		using enum DecorativeBrushKind;
+
 		const wxString &brushName = parsed.brush.name;
 		switch (parsed.kind) {
-			case DecorativeBrushKind::Doodad:
+			case Doodad:
 				if (g_brush_database.replaceDoodadAlternatives(brushId, parsed.doodadAlternatives)) {
 					return true;
 				}
 				warnings.push_back("SQLite doodad import failed for brush \"" + brushName + "\": " + g_brush_database.getLastError());
 				return false;
-			case DecorativeBrushKind::Carpet:
+			case Carpet:
 				if (g_brush_database.replaceCarpetNodes(brushId, parsed.carpetNodes)) {
 					return true;
 				}
 				warnings.push_back("SQLite carpet import failed for brush \"" + brushName + "\": " + g_brush_database.getLastError());
 				return false;
-			case DecorativeBrushKind::Table:
+			case Table:
 				if (g_brush_database.replaceTableNodes(brushId, parsed.tableNodes)) {
 					return true;
 				}
 				warnings.push_back("SQLite table import failed for brush \"" + brushName + "\": " + g_brush_database.getLastError());
 				return false;
-			case DecorativeBrushKind::None:
+			case None:
 				return false;
 		}
 

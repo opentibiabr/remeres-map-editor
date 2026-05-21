@@ -691,11 +691,6 @@ namespace {
 		return true;
 	}
 
-	struct BrushSchemaMigrationStep {
-		int version = 0;
-		bool (BrushDatabase::*migration)() = nullptr;
-	};
-
 	template <typename SetErrorFn>
 	bool WriteWallPartItems(
 		int64_t wallPartId,
@@ -1271,11 +1266,12 @@ bool BrushDatabase::migrateToVersion2() {
 	return addVersion2BrushColumns() && createVersion2BorderSchema() && createVersion2BrushDetailSchema() && createVersion2TilesetSchema();
 }
 
-bool BrushDatabase::applySchemaMigrationStep(int &version, int targetVersion, bool (BrushDatabase::*migration)()) {
+template <auto Migration>
+bool BrushDatabase::applySchemaMigrationStep(int &version, int targetVersion) {
 	if (version >= targetVersion) {
 		return true;
 	}
-	if (!(this->*migration)()) {
+	if (!(this->*Migration)()) {
 		return false;
 	}
 	if (!setSchemaVersion(targetVersion)) {
@@ -1315,20 +1311,8 @@ bool BrushDatabase::initializeSchema() {
 		rollbackTransaction();
 		return setError(wxString::Format("SQLite schema version %d is newer than supported version %d.", version, kBrushDatabaseSchemaVersion));
 	}
-
-	static constexpr std::array<BrushSchemaMigrationStep, 6> kMigrationSteps = { {
-		{ 1, &BrushDatabase::migrateToVersion1 },
-		{ 2, &BrushDatabase::migrateToVersion2 },
-		{ 3, &BrushDatabase::migrateToVersion3 },
-		{ 4, &BrushDatabase::migrateToVersion4 },
-		{ 5, &BrushDatabase::migrateToVersion5 },
-		{ 6, &BrushDatabase::migrateToVersion6 },
-	} };
-
-	for (const BrushSchemaMigrationStep &step : kMigrationSteps) {
-		if (!applySchemaMigrationStep(version, step.version, step.migration)) {
-			return rollback();
-		}
+	if (!applySchemaMigrationStep<&BrushDatabase::migrateToVersion1>(version, 1) || !applySchemaMigrationStep<&BrushDatabase::migrateToVersion2>(version, 2) || !applySchemaMigrationStep<&BrushDatabase::migrateToVersion3>(version, 3) || !applySchemaMigrationStep<&BrushDatabase::migrateToVersion4>(version, 4) || !applySchemaMigrationStep<&BrushDatabase::migrateToVersion5>(version, 5) || !applySchemaMigrationStep<&BrushDatabase::migrateToVersion6>(version, 6)) {
+		return rollback();
 	}
 
 	if (!commitTransaction()) {
