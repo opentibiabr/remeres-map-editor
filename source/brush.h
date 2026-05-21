@@ -75,6 +75,7 @@ public:
 
 	bool unserializeBorder(pugi::xml_node node, wxArrayString &warnings);
 	bool unserializeBrush(pugi::xml_node node, wxArrayString &warnings);
+	bool loadFromDatabase(wxArrayString &warnings);
 
 	const BrushMap &getMap() const noexcept {
 		return brushes;

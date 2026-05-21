@@ -55,6 +55,11 @@ struct BorderSetItemRecord {
 	int sortOrder = 0;
 };
 
+struct BorderSetStorageRecord {
+	BorderSetRecord borderSet;
+	std::vector<BorderSetItemRecord> items;
+};
+
 struct GroundBorderCaseConditionRecord {
 	wxString conditionType;
 	int matchValue = 0;
@@ -349,8 +354,11 @@ public:
 	bool replaceBrushItems(int64_t brushId, const std::vector<BrushItemRecord> &items);
 	bool getBrushItems(int64_t brushId, std::vector<BrushItemRecord> &outItems);
 	bool upsertBorderSet(const BorderSetRecord &borderSet, int64_t &borderSetId);
+	bool getBorderSetById(int64_t borderSetId, BorderSetRecord &outBorderSet);
 	bool findBorderSetByXmlBorderId(int xmlBorderId, BorderSetRecord &outBorderSet);
+	bool listBorderSetsByScope(const wxString &borderScope, std::vector<BorderSetRecord> &outBorderSets);
 	bool replaceBorderSetItems(int64_t borderSetId, const std::vector<BorderSetItemRecord> &items);
+	bool getBorderSetItems(int64_t borderSetId, std::vector<BorderSetItemRecord> &outItems);
 	bool deleteBorderSetsByScope(const wxString &borderScope);
 	bool deleteOwnedBorderSetsForBrush(int64_t brushId);
 	bool replaceGroundBrushBorders(int64_t brushId, const std::vector<GroundBrushBorderRecord> &borders);
@@ -405,8 +413,11 @@ public:
 	bool deleteBrushesByType(const wxString &type);
 	bool replaceBrushItems(int64_t brushId, const std::vector<BrushItemRecord> &items);
 	bool upsertBorderSet(const BorderSetRecord &borderSet, int64_t &borderSetId);
+	bool getBorderSetById(int64_t borderSetId, BorderSetRecord &outBorderSet);
 	bool findBorderSetByXmlBorderId(int xmlBorderId, BorderSetRecord &outBorderSet);
+	bool listBorderSetsByScope(const wxString &borderScope, std::vector<BorderSetRecord> &outBorderSets);
 	bool replaceBorderSetItems(int64_t borderSetId, const std::vector<BorderSetItemRecord> &items);
+	bool getBorderSetItems(int64_t borderSetId, std::vector<BorderSetItemRecord> &outItems);
 	bool deleteBorderSetsByScope(const wxString &borderScope);
 	bool deleteOwnedBorderSetsForBrush(int64_t brushId);
 	bool replaceGroundBrushBorders(int64_t brushId, const std::vector<GroundBrushBorderRecord> &borders);

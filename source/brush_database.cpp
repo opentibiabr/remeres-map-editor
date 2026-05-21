@@ -831,12 +831,24 @@ bool BrushDatabase::upsertBorderSet(const BorderSetRecord &borderSet, int64_t &b
 	return brushRepository_.upsertBorderSet(borderSet, borderSetId);
 }
 
+bool BrushDatabase::getBorderSetById(int64_t borderSetId, BorderSetRecord &outBorderSet) {
+	return brushRepository_.getBorderSetById(borderSetId, outBorderSet);
+}
+
 bool BrushDatabase::findBorderSetByXmlBorderId(int xmlBorderId, BorderSetRecord &outBorderSet) {
 	return brushRepository_.findBorderSetByXmlBorderId(xmlBorderId, outBorderSet);
 }
 
+bool BrushDatabase::listBorderSetsByScope(const wxString &borderScope, std::vector<BorderSetRecord> &outBorderSets) {
+	return brushRepository_.listBorderSetsByScope(borderScope, outBorderSets);
+}
+
 bool BrushDatabase::replaceBorderSetItems(int64_t borderSetId, const std::vector<BorderSetItemRecord> &items) {
 	return brushRepository_.replaceBorderSetItems(borderSetId, items);
+}
+
+bool BrushDatabase::getBorderSetItems(int64_t borderSetId, std::vector<BorderSetItemRecord> &outItems) {
+	return brushRepository_.getBorderSetItems(borderSetId, outItems);
 }
 
 bool BrushDatabase::deleteBorderSetsByScope(const wxString &borderScope) {
@@ -2062,6 +2074,41 @@ bool BrushDatabaseBrushRepository::upsertBorderSet(const BorderSetRecord &border
 	return true;
 }
 
+bool BrushDatabaseBrushRepository::getBorderSetById(int64_t borderSetId, BorderSetRecord &outBorderSet) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+
+	sqlite3_stmt* stmt = nullptr;
+	if (!prepare("SELECT id, xml_border_id, owner_brush_id, border_scope, border_type, border_group, ground_equivalent, source_file "
+				 "FROM border_sets WHERE id = ? LIMIT 1;",
+				 &stmt)) {
+		return false;
+	}
+
+	sqlite3_bind_int64(stmt, 1, borderSetId);
+	const int rc = sqlite3_step(stmt);
+	if (rc == SQLITE_DONE) {
+		sqlite3_finalize(stmt);
+		return false;
+	}
+	if (rc != SQLITE_ROW) {
+		sqlite3_finalize(stmt);
+		return setErrorFromDatabase("Failed to query border set by id");
+	}
+
+	outBorderSet.id = sqlite3_column_int64(stmt, 0);
+	outBorderSet.xmlBorderId = sqlite3_column_int(stmt, 1);
+	outBorderSet.ownerBrushId = ReadNullableInt64(stmt, 2);
+	outBorderSet.borderScope = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
+	outBorderSet.borderType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)));
+	outBorderSet.borderGroup = sqlite3_column_int(stmt, 5);
+	outBorderSet.groundEquivalent = sqlite3_column_int(stmt, 6);
+	outBorderSet.sourceFile = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7)));
+	sqlite3_finalize(stmt);
+	return true;
+}
+
 bool BrushDatabaseBrushRepository::findBorderSetByXmlBorderId(int xmlBorderId, BorderSetRecord &outBorderSet) {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
@@ -2093,6 +2140,47 @@ bool BrushDatabaseBrushRepository::findBorderSetByXmlBorderId(int xmlBorderId, B
 	outBorderSet.borderGroup = sqlite3_column_int(stmt, 5);
 	outBorderSet.groundEquivalent = sqlite3_column_int(stmt, 6);
 	outBorderSet.sourceFile = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7)));
+	sqlite3_finalize(stmt);
+	return true;
+}
+
+bool BrushDatabaseBrushRepository::listBorderSetsByScope(const wxString &borderScope, std::vector<BorderSetRecord> &outBorderSets) {
+	outBorderSets.clear();
+
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+
+	sqlite3_stmt* stmt = nullptr;
+	if (!prepare("SELECT id, xml_border_id, owner_brush_id, border_scope, border_type, border_group, ground_equivalent, source_file "
+				 "FROM border_sets WHERE border_scope = ? ORDER BY id ASC;",
+				 &stmt)) {
+		return false;
+	}
+
+	sqlite3_bind_text(stmt, 1, borderScope.utf8_str(), -1, SQLITE_TRANSIENT);
+	for (;;) {
+		const int rc = sqlite3_step(stmt);
+		if (rc == SQLITE_DONE) {
+			break;
+		}
+		if (rc != SQLITE_ROW) {
+			sqlite3_finalize(stmt);
+			return setErrorFromDatabase("Failed to list border sets by scope");
+		}
+
+		BorderSetRecord borderSet;
+		borderSet.id = sqlite3_column_int64(stmt, 0);
+		borderSet.xmlBorderId = sqlite3_column_int(stmt, 1);
+		borderSet.ownerBrushId = ReadNullableInt64(stmt, 2);
+		borderSet.borderScope = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
+		borderSet.borderType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)));
+		borderSet.borderGroup = sqlite3_column_int(stmt, 5);
+		borderSet.groundEquivalent = sqlite3_column_int(stmt, 6);
+		borderSet.sourceFile = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7)));
+		outBorderSets.push_back(borderSet);
+	}
+
 	sqlite3_finalize(stmt);
 	return true;
 }
@@ -2144,6 +2232,43 @@ bool BrushDatabaseBrushRepository::replaceBorderSetItems(int64_t borderSetId, co
 		rollbackTransaction();
 		return false;
 	}
+	return true;
+}
+
+bool BrushDatabaseBrushRepository::getBorderSetItems(int64_t borderSetId, std::vector<BorderSetItemRecord> &outItems) {
+	outItems.clear();
+
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+
+	sqlite3_stmt* stmt = nullptr;
+	if (!prepare("SELECT border_set_id, edge, item_id, sort_order "
+				 "FROM border_set_items WHERE border_set_id = ? ORDER BY sort_order ASC, id ASC;",
+				 &stmt)) {
+		return false;
+	}
+
+	sqlite3_bind_int64(stmt, 1, borderSetId);
+	for (;;) {
+		const int rc = sqlite3_step(stmt);
+		if (rc == SQLITE_DONE) {
+			break;
+		}
+		if (rc != SQLITE_ROW) {
+			sqlite3_finalize(stmt);
+			return setErrorFromDatabase("Failed to read border set items");
+		}
+
+		BorderSetItemRecord item;
+		item.borderSetId = sqlite3_column_int64(stmt, 0);
+		item.edge = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+		item.itemId = sqlite3_column_int(stmt, 2);
+		item.sortOrder = sqlite3_column_int(stmt, 3);
+		outItems.push_back(item);
+	}
+
+	sqlite3_finalize(stmt);
 	return true;
 }
 

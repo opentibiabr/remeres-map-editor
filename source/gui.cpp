@@ -363,6 +363,7 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 	g_materials.initializeBrushDatabase(warnings);
 	auto materialsPath = wxString(data_path.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + "materials/materials.xml");
 	bool startAsyncSqliteBootstrap = false;
+	bool shouldLoadFromSqlite = false;
 	if (g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
 		bool skipSqliteImport = false;
 		wxString sqliteImportStatus;
@@ -371,19 +372,25 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 			spdlog::warn("[GUI::LoadDataFiles] SQLite import bootstrap check failed: {}", sqliteImportStatus.ToStdString());
 		} else if (skipSqliteImport) {
 			spdlog::info("{}", sqliteImportStatus.ToStdString());
+			shouldLoadFromSqlite = g_brush_database.isOpen();
 		} else {
 			spdlog::info("{}", sqliteImportStatus.ToStdString());
 			startAsyncSqliteBootstrap = true;
 		}
 	}
-	if (!g_materials.loadMaterials(materialsPath, error, warnings)) {
+
+	bool loadedMaterialsFromSqlite = false;
+	if (shouldLoadFromSqlite) {
+		loadedMaterialsFromSqlite = g_brushes.loadFromDatabase(warnings) && g_materials.loadTilesetsFromDatabase(warnings);
+		if (!loadedMaterialsFromSqlite) {
+			spdlog::warn("[GUI::LoadDataFiles] Falling back to XML materials after SQLite load failure.");
+			g_materials.clear();
+			g_brushes.clear();
+		}
+	}
+	if (!loadedMaterialsFromSqlite && !g_materials.loadMaterials(materialsPath, error, warnings)) {
 		warnings.push_back("Couldn't load materials.xml: " + error);
 		spdlog::warn("[GUI::LoadDataFiles] {}: {}", materialsPath.ToStdString(), error.ToStdString());
-	}
-	if (g_settings.getBoolean(Config::USE_SQLITE_MATERIALS) && g_brush_database.isOpen()) {
-		if (!g_materials.loadTilesetsFromDatabase(warnings)) {
-			spdlog::warn("[GUI::LoadDataFiles] Falling back to XML-loaded tilesets after SQLite load failure.");
-		}
 	}
 
 	g_gui.SetLoadDone(70, "Finishing...");
