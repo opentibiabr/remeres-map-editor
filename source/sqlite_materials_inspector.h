@@ -24,11 +24,6 @@ private:
 	void RefreshTilesetList();
 	void RefreshTilesetDetails();
 
-	void OnReload(wxCommandEvent &event);
-	void OnBrushTypeChanged(wxCommandEvent &event);
-	void OnBrushSelected(wxCommandEvent &event);
-	void OnTilesetSelected(wxCommandEvent &event);
-
 	wxNotebook* notebook_ = nullptr;
 	wxTextCtrl* summaryText_ = nullptr;
 	wxChoice* brushTypeChoice_ = nullptr;

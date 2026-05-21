@@ -174,10 +174,10 @@ SQLiteMaterialsInspectorDialog::SQLiteMaterialsInspectorDialog(wxWindow* parent)
 	topSizer->Add(CreateSeparatedButtonSizer(wxCLOSE), 0, wxEXPAND | wxALL, FromDIP(5));
 	SetSizer(topSizer);
 
-	reloadButton->Bind(wxEVT_BUTTON, &SQLiteMaterialsInspectorDialog::OnReload, this);
-	brushTypeChoice_->Bind(wxEVT_CHOICE, &SQLiteMaterialsInspectorDialog::OnBrushTypeChanged, this);
-	brushList_->Bind(wxEVT_LISTBOX, &SQLiteMaterialsInspectorDialog::OnBrushSelected, this);
-	tilesetList_->Bind(wxEVT_LISTBOX, &SQLiteMaterialsInspectorDialog::OnTilesetSelected, this);
+	reloadButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { ReloadData(); });
+	brushTypeChoice_->Bind(wxEVT_CHOICE, [this](wxCommandEvent &) { RefreshBrushList(); });
+	brushList_->Bind(wxEVT_LISTBOX, [this](wxCommandEvent &) { RefreshBrushDetails(); });
+	tilesetList_->Bind(wxEVT_LISTBOX, [this](wxCommandEvent &) { RefreshTilesetDetails(); });
 
 	ReloadData();
 }
@@ -292,20 +292,4 @@ void SQLiteMaterialsInspectorDialog::RefreshTilesetDetails() {
 	}
 
 	tilesetDetailsText_->SetValue(FormatTilesetDetails(tilesets_[selection]));
-}
-
-void SQLiteMaterialsInspectorDialog::OnReload(wxCommandEvent &WXUNUSED(event)) {
-	ReloadData();
-}
-
-void SQLiteMaterialsInspectorDialog::OnBrushTypeChanged(wxCommandEvent &WXUNUSED(event)) {
-	RefreshBrushList();
-}
-
-void SQLiteMaterialsInspectorDialog::OnBrushSelected(wxCommandEvent &WXUNUSED(event)) {
-	RefreshBrushDetails();
-}
-
-void SQLiteMaterialsInspectorDialog::OnTilesetSelected(wxCommandEvent &WXUNUSED(event)) {
-	RefreshTilesetDetails();
 }
