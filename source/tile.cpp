@@ -291,7 +291,15 @@ void Tile::addItem(Item* item) {
 	if (!item) {
 		return;
 	}
-	if (item->isGroundTile()) {
+
+	addItem(item, item->getItemType());
+}
+
+void Tile::addItem(Item* item, const ItemType &type) {
+	if (!item) {
+		return;
+	}
+	if (type.isGroundTile()) {
 		// printf("ADDING GROUND\n");
 		delete ground;
 		ground = item;
@@ -305,24 +313,27 @@ void Tile::addItem(Item* item) {
 
 	ItemVector::iterator it;
 
-	uint16_t gid = item->getGroundEquivalent();
+	uint16_t gid = type.ground_equivalent;
 	if (gid != 0) {
 		delete ground;
 		ground = Item::Create(gid);
 		// At the very bottom!
 		it = items.begin();
 	} else {
-		if (item->isAlwaysOnBottom()) {
+		if (type.alwaysOnBottom) {
+			const int topOrder = type.alwaysOnTopOrder;
 			it = items.begin();
 			while (true) {
 				if (it == items.end()) {
 					break;
-				} else if ((*it)->isAlwaysOnBottom()) {
-					if (item->getTopOrder() < (*it)->getTopOrder()) {
+				} else {
+					const ItemType &existingType = (*it)->getItemType();
+					if (!existingType.alwaysOnBottom) {
 						break;
 					}
-				} else { // Always on top
-					break;
+					if (topOrder < existingType.alwaysOnTopOrder) {
+						break;
+					}
 				}
 				++it;
 			}

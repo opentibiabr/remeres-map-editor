@@ -58,13 +58,21 @@ void reform(Map* map, Tile* tile, Item* item) {
 // ============================================================================
 // Item
 
-Item* Item::Create_OTBM(const IOMap &maphandle, BinaryNode* stream) {
+Item* Item::Create_OTBM(const IOMap &maphandle, BinaryNode* stream, const ItemType** itemType) {
+	if (itemType) {
+		*itemType = nullptr;
+	}
+
 	uint16_t id;
 	if (!stream->getU16(id)) {
 		return nullptr;
 	}
 
 	const ItemType &type = g_items.getItemType(id);
+	if (itemType) {
+		*itemType = &type;
+	}
+
 	uint8_t count = 0;
 	if (maphandle.version.otbm == MAP_OTBM_1) {
 		if (type.stackable || type.isSplash() || type.isFluidContainer()) {
@@ -845,11 +853,13 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 								break;
 							}
 							case OTBM_ATTR_ITEM: {
-								Item* item = Item::Create_OTBM(*this, tileNode);
+								const ItemType* itemType = nullptr;
+								Item* item = Item::Create_OTBM(*this, tileNode, &itemType);
 								if (item == nullptr) {
 									warning("Invalid item at tile %d:%d:%d", pos.x, pos.y, pos.z);
+								} else {
+									tile->addItem(item, *itemType);
 								}
-								tile->addItem(item);
 								break;
 							}
 							default: {
@@ -869,13 +879,14 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 							continue;
 						}
 						if (node_type == OTBM_ITEM) {
-							item = Item::Create_OTBM(*this, childNode);
+							const ItemType* itemType = nullptr;
+							item = Item::Create_OTBM(*this, childNode, &itemType);
 							if (item) {
 								if (!item->unserializeItemNode_OTBM(*this, childNode)) {
 									warning("Couldn't unserialize item attributes at %d:%d:%d", pos.x, pos.y, pos.z);
 								}
 								// reform(&map, tile, item);
-								tile->addItem(item);
+								tile->addItem(item, *itemType);
 							}
 						} else if (node_type == OTBM_TILE_ZONE) {
 							uint16_t zone_count;

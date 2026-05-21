@@ -158,6 +158,7 @@ public: // Functions
 	Item* getTopItem() const; // Returns the topmost item, or nullptr if the tile is empty
 	Item* getItemAt(int index) const;
 	void addItem(Item* item);
+	void addItem(Item* item, const ItemType &type);
 	bool removeItem(const Item* item);
 	void clearGround();
 	void replaceGround(Item* newGround);

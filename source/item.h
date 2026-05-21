@@ -81,7 +81,7 @@ public:
 	static Item* Create(uint16_t id, uint16_t subtype = 0xFFFF);
 	static Item* Create(uint16_t id, const ItemType &type, uint16_t subtype = 0xFFFF);
 	static Item* Create(pugi::xml_node);
-	static Item* Create_OTBM(const IOMap &maphandle, BinaryNode* stream);
+	static Item* Create_OTBM(const IOMap &maphandle, BinaryNode* stream, const ItemType** itemType = nullptr);
 	// static Item* Create_OTMM(const IOMap& maphandle, BinaryNode* stream);
 
 protected:
