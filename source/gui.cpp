@@ -1402,6 +1402,44 @@ void GUI::JoinAsyncSqliteBootstrapThread() {
 	sqlite_bootstrap_running_.store(false);
 }
 
+void GUI::RunAsyncSqliteBootstrapImport() {
+	wxString sqliteImportError;
+	wxArrayString sqliteWarnings;
+	const bool success = g_materials.bootstrapSqliteDatabase(sqliteImportError, sqliteWarnings);
+
+	for (const wxString &warning : sqliteWarnings) {
+		spdlog::warn("[SQLiteBootstrap] {}", warning.ToStdString());
+	}
+	if (!success && !sqliteImportError.IsEmpty()) {
+		spdlog::error("[SQLiteBootstrap] {}", sqliteImportError.ToStdString());
+	}
+
+	sqlite_bootstrap_running_.store(false);
+
+	if (wxTheApp) {
+		wxTheApp->CallAfter([this, success, sqliteImportError, sqliteWarnings]() {
+			HandleAsyncSqliteBootstrapResult(success, sqliteImportError, sqliteWarnings);
+		});
+	}
+}
+
+void GUI::HandleAsyncSqliteBootstrapResult(bool success, const wxString &sqliteImportError, const wxArrayString &sqliteWarnings) {
+	g_gui.UpdateMenubar();
+	if (success) {
+		if (sqliteWarnings.IsEmpty()) {
+			g_gui.SetStatusText("SQLite materials database built in background.");
+		} else {
+			g_gui.SetStatusText("SQLite materials database built in background with warnings.");
+		}
+		return;
+	}
+
+	g_gui.SetStatusText("SQLite materials background build failed.");
+	if (g_gui.root) {
+		g_gui.PopupDialog(g_gui.root, "SQLite Materials Import Failed", sqliteImportError, wxOK | wxICON_WARNING);
+	}
+}
+
 void GUI::StartAsyncSqliteBootstrapImport() {
 	if (sqlite_bootstrap_running_.exchange(true)) {
 		return;
@@ -1411,38 +1449,7 @@ void GUI::StartAsyncSqliteBootstrapImport() {
 	SetStatusText("Building SQLite materials database in background...");
 	UpdateMenubar();
 
-	sqlite_bootstrap_thread_ = std::thread([this]() {
-		wxString sqliteImportError;
-		wxArrayString sqliteWarnings;
-		const bool success = g_materials.bootstrapSqliteDatabase(sqliteImportError, sqliteWarnings);
-
-		for (const wxString &warning : sqliteWarnings) {
-			spdlog::warn("[SQLiteBootstrap] {}", warning.ToStdString());
-		}
-		if (!success && !sqliteImportError.IsEmpty()) {
-			spdlog::error("[SQLiteBootstrap] {}", sqliteImportError.ToStdString());
-		}
-
-		sqlite_bootstrap_running_.store(false);
-
-		if (wxTheApp) {
-			wxTheApp->CallAfter([success, sqliteImportError, sqliteWarnings]() {
-				g_gui.UpdateMenubar();
-				if (success) {
-					if (sqliteWarnings.IsEmpty()) {
-						g_gui.SetStatusText("SQLite materials database built in background.");
-					} else {
-						g_gui.SetStatusText("SQLite materials database built in background with warnings.");
-					}
-				} else {
-					g_gui.SetStatusText("SQLite materials background build failed.");
-					if (g_gui.root) {
-						g_gui.PopupDialog(g_gui.root, "SQLite Materials Import Failed", sqliteImportError, wxOK | wxICON_WARNING);
-					}
-				}
-			});
-		}
-	});
+	sqlite_bootstrap_thread_ = std::jthread(&GUI::RunAsyncSqliteBootstrapImport, this);
 }
 
 void GUI::SetTitle(wxString title) {

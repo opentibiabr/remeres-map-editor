@@ -140,6 +140,8 @@ private:
 	GUI &operator=(const GUI &g_gui); // Don't assign me
 	bool operator==(const GUI &g_gui); // Don't compare me
 	void JoinAsyncSqliteBootstrapThread();
+	void RunAsyncSqliteBootstrapImport();
+	void HandleAsyncSqliteBootstrapResult(bool success, const wxString &sqliteImportError, const wxArrayString &sqliteWarnings);
 
 public:
 	template <typename T>
@@ -510,7 +512,7 @@ protected:
 
 	wxWindowDisabler* winDisabler;
 	int disabled_counter;
-	std::thread sqlite_bootstrap_thread_;
+	std::jthread sqlite_bootstrap_thread_;
 	std::atomic<bool> sqlite_bootstrap_running_ = false;
 
 	friend class RenderingLock;
