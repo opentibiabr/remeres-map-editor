@@ -906,7 +906,7 @@ void MainMenuBar::OnReloadDataFiles(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void MainMenuBar::OnGotoWebsite(wxCommandEvent &WXUNUSED(event)) {
-	::wxLaunchDefaultBrowser("http://www.remeresmapeditor.com/", wxBROWSER_NEW_WINDOW);
+	::wxLaunchDefaultBrowser("https://www.remeresmapeditor.com/", wxBROWSER_NEW_WINDOW);
 }
 
 void MainMenuBar::OnAbout(wxCommandEvent &WXUNUSED(event)) {
