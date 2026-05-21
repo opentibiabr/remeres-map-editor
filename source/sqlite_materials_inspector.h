@@ -1,9 +1,16 @@
 #ifndef RME_SQLITE_MATERIALS_INSPECTOR_H_
 #define RME_SQLITE_MATERIALS_INSPECTOR_H_
 
-#include "main.h"
-
 #include "brush_database.h"
+
+#include <wx/dialog.h>
+
+class wxChoice;
+class wxCommandEvent;
+class wxListBox;
+class wxNotebook;
+class wxTextCtrl;
+class wxWindow;
 
 class SQLiteMaterialsInspectorDialog : public wxDialog {
 public:

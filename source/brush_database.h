@@ -1,11 +1,15 @@
 #ifndef RME_BRUSH_DATABASE_H_
 #define RME_BRUSH_DATABASE_H_
 
-#include "main.h"
-
-#include <array>
-#include <sqlite3.h>
+#include <cstdint>
+#include <initializer_list>
 #include <utility>
+#include <vector>
+
+#include <wx/string.h>
+
+struct sqlite3;
+struct sqlite3_stmt;
 
 struct BrushRecord {
 	int64_t id = 0;

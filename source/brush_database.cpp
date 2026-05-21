@@ -1,5 +1,7 @@
 #include "main.h"
 
+#include <sqlite3.h>
+
 #include "brush_database.h"
 
 BrushDatabase g_brush_database;
