@@ -261,9 +261,7 @@ bool NpcDatabase::loadFromLuaDir(const wxString &directory, wxString &error, wxA
 
 	int fileCount = 0;
 	for (const auto &filePath : luaFiles) {
-		if (++fileCount % 50 == 0) {
-			wxSafeYield();
-		}
+		++fileCount;
 		std::string content = LuaParser::readFileContent(filePath.ToStdString());
 		if (content.empty()) {
 			warnings.push_back("Could not open: " + filePath);
