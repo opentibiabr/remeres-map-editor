@@ -182,12 +182,19 @@ void Item::setSubtype(uint16_t _subtype) {
 }
 
 bool Item::hasSubtype() const {
-	const ItemType &type = g_items.getItemType(id);
+	return hasSubtype(g_items.getItemType(id));
+}
+
+bool Item::hasSubtype(const ItemType &type) const noexcept {
 	return itemTypeHasSubtype(type);
 }
 
 uint16_t Item::getSubtype() const {
-	return hasSubtype() ? subtype : 0;
+	return getSubtype(g_items.getItemType(id));
+}
+
+uint16_t Item::getSubtype(const ItemType &type) const noexcept {
+	return hasSubtype(type) ? subtype : 0;
 }
 
 bool Item::hasProperty(enum ITEMPROPERTY prop) const {

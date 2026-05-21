@@ -202,11 +202,11 @@ bool Item::unserializeItemNode_OTBM(const IOMap &maphandle, BinaryNode* node) {
 }
 
 void Item::serializeItemAttributes_OTBM(const IOMap &maphandle, NodeFileWriteHandle &stream) const {
+	const ItemType &type = g_items.getItemType(id);
 	if (maphandle.version.otbm >= MAP_OTBM_2) {
-		const ItemType &type = g_items.getItemType(id);
 		if (type.stackable || type.isSplash() || type.isFluidContainer()) {
 			stream.addU8(OTBM_ATTR_COUNT);
-			stream.addU8(getSubtype());
+			stream.addU8(getSubtype(type));
 		}
 	}
 
@@ -216,9 +216,9 @@ void Item::serializeItemAttributes_OTBM(const IOMap &maphandle, NodeFileWriteHan
 			serializeAttributeMap(maphandle, stream);
 		}
 	} else {
-		if (isCharged()) {
+		if (type.isClientCharged() || type.isExtraCharged()) {
 			stream.addU8(OTBM_ATTR_CHARGES);
-			stream.addU16(getSubtype());
+			stream.addU16(getSubtype(type));
 		}
 
 		const auto actionId = getActionID();
@@ -233,16 +233,16 @@ void Item::serializeItemAttributes_OTBM(const IOMap &maphandle, NodeFileWriteHan
 			stream.addU16(uniqueId);
 		}
 
-		const std::string &text = getText();
-		if (!text.empty()) {
+		const std::string* text = getStringAttribute("text");
+		if (text && !text->empty()) {
 			stream.addU8(OTBM_ATTR_TEXT);
-			stream.addString(text);
+			stream.addString(*text);
 		}
 
-		const std::string &description = getDescription();
-		if (!description.empty()) {
+		const std::string* description = getStringAttribute("desc");
+		if (description && !description->empty()) {
 			stream.addU8(OTBM_ATTR_DESC);
-			stream.addString(description);
+			stream.addString(*description);
 		}
 	}
 }
@@ -265,7 +265,7 @@ bool Item::serializeItemNode_OTBM(const IOMap &maphandle, NodeFileWriteHandle &f
 	if (maphandle.version.otbm == MAP_OTBM_1) {
 		const ItemType &type = g_items.getItemType(id);
 		if (type.stackable || type.isSplash() || type.isFluidContainer()) {
-			file.addU8(getSubtype());
+			file.addU8(getSubtype(type));
 		}
 	}
 	serializeItemAttributes_OTBM(maphandle, file);

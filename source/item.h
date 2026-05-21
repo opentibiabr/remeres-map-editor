@@ -352,8 +352,10 @@ public:
 	// Subtype (count, fluid, charges)
 	int getCount() const;
 	uint16_t getSubtype() const;
+	uint16_t getSubtype(const ItemType &type) const noexcept;
 	void setSubtype(uint16_t subtype);
 	bool hasSubtype() const;
+	bool hasSubtype(const ItemType &type) const noexcept;
 
 	void setUniqueID(uint16_t n);
 	uint16_t getUniqueID() const;
