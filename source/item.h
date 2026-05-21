@@ -86,6 +86,7 @@ public:
 protected:
 	// Constructor for items
 	Item(unsigned short _type, unsigned short _count);
+	Item(unsigned short _type, unsigned short _count, bool hasSubtype);
 
 public:
 	virtual ~Item();

@@ -30,6 +30,13 @@
 #include "table_brush.h"
 #include "wall_brush.h"
 
+namespace {
+bool itemTypeHasSubtype(const ItemType &type) {
+	return type.isFluidContainer() || type.stackable || type.charges != 0 || type.isSplash() ||
+		type.isClientCharged() || type.isExtraCharged();
+}
+}
+
 Item* Item::Create(uint16_t id, uint16_t subtype /*= 0xFFFF*/) {
 	if (id == 0) {
 		return nullptr;
@@ -37,7 +44,7 @@ Item* Item::Create(uint16_t id, uint16_t subtype /*= 0xFFFF*/) {
 
 	const ItemType &type = g_items.getItemType(id);
 	if (type.id == 0) {
-		return newd Item(id, subtype);
+		return newd Item(id, subtype, false);
 	}
 
 	if (!type.sprite) {
@@ -53,25 +60,30 @@ Item* Item::Create(uint16_t id, uint16_t subtype /*= 0xFFFF*/) {
 	} else if (type.isDoor()) {
 		return new Door(id);
 	} else if (subtype == 0xFFFF) {
+		const bool hasSubtype = itemTypeHasSubtype(type);
 		if (type.isFluidContainer()) {
-			return new Item(id, LIQUID_NONE);
+			return new Item(id, LIQUID_NONE, hasSubtype);
 		} else if (type.isSplash()) {
-			return new Item(id, LIQUID_WATER);
+			return new Item(id, LIQUID_WATER, hasSubtype);
 		} else if (type.charges > 0) {
-			return new Item(id, type.charges);
+			return new Item(id, type.charges, hasSubtype);
 		} else {
-			return new Item(id, 1);
+			return new Item(id, 1, hasSubtype);
 		}
 	}
-	return new Item(id, subtype);
+	return new Item(id, subtype, itemTypeHasSubtype(type));
 }
 
 Item::Item(unsigned short _type, unsigned short _count) :
+	Item(_type, _count, itemTypeHasSubtype(g_items.getItemType(_type))) {
+}
+
+Item::Item(unsigned short _type, unsigned short _count, bool typeHasSubtype) :
 	id(_type),
 	subtype(1),
 	selected(false),
 	frame(0) {
-	if (hasSubtype()) {
+	if (typeHasSubtype) {
 		subtype = _count;
 	}
 }
@@ -163,7 +175,7 @@ void Item::setSubtype(uint16_t _subtype) {
 
 bool Item::hasSubtype() const {
 	const ItemType &type = g_items.getItemType(id);
-	return (type.isFluidContainer() || type.stackable || type.charges != 0 || type.isSplash() || isCharged());
+	return itemTypeHasSubtype(type);
 }
 
 uint16_t Item::getSubtype() const {
