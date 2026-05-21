@@ -25,10 +25,22 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <mutex>
 #include <new>
 #include <thread>
 #include <vector>
+
+#ifdef _WIN32
+	#ifndef NOMINMAX
+		#define NOMINMAX
+	#endif
+	#include <windows.h>
+#endif
+
+#ifndef RME_OBJECT_POOL_STATS
+	#define RME_OBJECT_POOL_STATS 1
+#endif
 
 namespace {
 constexpr std::size_t kAlignment = alignof(std::max_align_t);
@@ -52,6 +64,101 @@ static_assert(kClassSizes[kClassCount - 1] == kMaxClassSize, "max class size mus
 
 constexpr std::size_t kSlabBytes = 256 * 1024;
 constexpr std::size_t kMinBlocksPerSlab = 64;
+
+#if RME_OBJECT_POOL_STATS
+constexpr std::memory_order kStatsMemoryOrder = std::memory_order_relaxed;
+
+void emitStatsLine(const char* line) noexcept {
+#ifdef _WIN32
+	OutputDebugStringA(line);
+	OutputDebugStringA("\n");
+#endif
+	std::fputs(line, stderr);
+	std::fputc('\n', stderr);
+}
+
+void updateMax(std::atomic<uint64_t> &target, uint64_t value) noexcept {
+	uint64_t current = target.load(kStatsMemoryOrder);
+	while (current < value && !target.compare_exchange_weak(current, value, kStatsMemoryOrder, kStatsMemoryOrder)) {
+	}
+}
+
+struct PoolStats {
+	std::atomic<uint64_t> allocCalls { 0 };
+	std::atomic<uint64_t> pooledAllocCalls { 0 };
+	std::atomic<uint64_t> fallbackSizeAllocCalls { 0 };
+	std::atomic<uint64_t> fallbackThreadAllocCalls { 0 };
+	std::atomic<uint64_t> fallbackFreeCalls { 0 };
+	std::atomic<uint64_t> remoteFreeCalls { 0 };
+	std::atomic<uint64_t> remoteDrainCalls { 0 };
+	std::atomic<uint64_t> slabRefillCalls { 0 };
+	std::atomic<uint64_t> maxFallbackPayloadSize { 0 };
+	std::array<std::atomic<uint64_t>, kClassCount> allocByClass {};
+	std::array<std::atomic<uint64_t>, kClassCount> refillByClass {};
+
+	PoolStats() noexcept {
+		reset();
+	}
+
+	void reset() noexcept {
+		allocCalls.store(0, kStatsMemoryOrder);
+		pooledAllocCalls.store(0, kStatsMemoryOrder);
+		fallbackSizeAllocCalls.store(0, kStatsMemoryOrder);
+		fallbackThreadAllocCalls.store(0, kStatsMemoryOrder);
+		fallbackFreeCalls.store(0, kStatsMemoryOrder);
+		remoteFreeCalls.store(0, kStatsMemoryOrder);
+		remoteDrainCalls.store(0, kStatsMemoryOrder);
+		slabRefillCalls.store(0, kStatsMemoryOrder);
+		maxFallbackPayloadSize.store(0, kStatsMemoryOrder);
+
+		for (auto &counter : allocByClass) {
+			counter.store(0, kStatsMemoryOrder);
+		}
+
+		for (auto &counter : refillByClass) {
+			counter.store(0, kStatsMemoryOrder);
+		}
+	}
+
+	void dump() const noexcept {
+		char line[512];
+		std::snprintf(
+			line,
+			sizeof(line),
+			"[object_pool] alloc=%llu pooled=%llu fallback_size=%llu fallback_thread=%llu fallback_free=%llu remote_free=%llu remote_drain=%llu slab_refill=%llu max_fallback_payload=%llu",
+			static_cast<unsigned long long>(allocCalls.load(kStatsMemoryOrder)),
+			static_cast<unsigned long long>(pooledAllocCalls.load(kStatsMemoryOrder)),
+			static_cast<unsigned long long>(fallbackSizeAllocCalls.load(kStatsMemoryOrder)),
+			static_cast<unsigned long long>(fallbackThreadAllocCalls.load(kStatsMemoryOrder)),
+			static_cast<unsigned long long>(fallbackFreeCalls.load(kStatsMemoryOrder)),
+			static_cast<unsigned long long>(remoteFreeCalls.load(kStatsMemoryOrder)),
+			static_cast<unsigned long long>(remoteDrainCalls.load(kStatsMemoryOrder)),
+			static_cast<unsigned long long>(slabRefillCalls.load(kStatsMemoryOrder)),
+			static_cast<unsigned long long>(maxFallbackPayloadSize.load(kStatsMemoryOrder))
+		);
+		emitStatsLine(line);
+
+		for (std::size_t i = 0; i < kClassCount; ++i) {
+			const auto allocCount = allocByClass[i].load(kStatsMemoryOrder);
+			const auto refillCount = refillByClass[i].load(kStatsMemoryOrder);
+			if (allocCount == 0 && refillCount == 0) {
+				continue;
+			}
+
+			std::snprintf(
+				line,
+				sizeof(line),
+				"[object_pool] class=%zu block_size=%zu alloc=%llu refill=%llu",
+				i,
+				kClassSizes[i],
+				static_cast<unsigned long long>(allocCount),
+				static_cast<unsigned long long>(refillCount)
+			);
+			emitStatsLine(line);
+		}
+	}
+};
+#endif
 
 struct alignas(std::max_align_t) AllocationHeader {
 	uint32_t magic;
@@ -138,15 +245,43 @@ public:
 		assert(ownerThread_ == currentThread);
 	}
 
+	void resetStats() noexcept {
+#if RME_OBJECT_POOL_STATS
+		stats_.reset();
+#endif
+	}
+
+	void dumpStats() noexcept {
+#if RME_OBJECT_POOL_STATS
+		stats_.dump();
+#endif
+	}
+
 	void* allocate(std::size_t payloadSize) {
+#if RME_OBJECT_POOL_STATS
+		stats_.allocCalls.fetch_add(1, kStatsMemoryOrder);
+#endif
+
 		const uint16_t cls = classForPayloadSize(payloadSize);
 		if (cls == kFallbackClass) {
+#if RME_OBJECT_POOL_STATS
+			stats_.fallbackSizeAllocCalls.fetch_add(1, kStatsMemoryOrder);
+			updateMax(stats_.maxFallbackPayloadSize, static_cast<uint64_t>(payloadSize));
+#endif
 			return allocateFallback(payloadSize);
 		}
 
 		if (!becomeOwnerOrIsOwner()) {
+#if RME_OBJECT_POOL_STATS
+			stats_.fallbackThreadAllocCalls.fetch_add(1, kStatsMemoryOrder);
+#endif
 			return allocateFallback(payloadSize);
 		}
+
+#if RME_OBJECT_POOL_STATS
+		stats_.pooledAllocCalls.fetch_add(1, kStatsMemoryOrder);
+		stats_.allocByClass[cls].fetch_add(1, kStatsMemoryOrder);
+#endif
 
 		FreeNode* node = localFreeLists_[cls];
 		if (!node) {
@@ -181,6 +316,9 @@ public:
 
 		const uint16_t cls = header->classIndex;
 		if (cls == kFallbackClass) {
+#if RME_OBJECT_POOL_STATS
+			stats_.fallbackFreeCalls.fetch_add(1, kStatsMemoryOrder);
+#endif
 			deallocateFallback(header);
 			return;
 		}
@@ -197,6 +335,9 @@ public:
 			return;
 		}
 
+#if RME_OBJECT_POOL_STATS
+		stats_.remoteFreeCalls.fetch_add(1, kStatsMemoryOrder);
+#endif
 		std::lock_guard<std::mutex> lock(remoteMutex_);
 		node->next = remoteFreeLists_[cls];
 		remoteFreeLists_[cls] = node;
@@ -224,11 +365,21 @@ private:
 		assert(localFreeLists_[cls] == nullptr);
 
 		std::lock_guard<std::mutex> lock(remoteMutex_);
+#if RME_OBJECT_POOL_STATS
+		if (remoteFreeLists_[cls]) {
+			stats_.remoteDrainCalls.fetch_add(1, kStatsMemoryOrder);
+		}
+#endif
 		localFreeLists_[cls] = remoteFreeLists_[cls];
 		remoteFreeLists_[cls] = nullptr;
 	}
 
 	void refill(uint16_t cls) {
+#if RME_OBJECT_POOL_STATS
+		stats_.slabRefillCalls.fetch_add(1, kStatsMemoryOrder);
+		stats_.refillByClass[cls].fetch_add(1, kStatsMemoryOrder);
+#endif
+
 		const std::size_t blockSize = kClassSizes[cls];
 		const std::size_t blockCount = std::max<std::size_t>(
 			kMinBlocksPerSlab,
@@ -254,6 +405,9 @@ private:
 	std::array<FreeNode*, kClassCount> remoteFreeLists_ {};
 	std::mutex remoteMutex_;
 	std::vector<void*> slabs_;
+#if RME_OBJECT_POOL_STATS
+	PoolStats stats_;
+#endif
 };
 
 SmallObjectPool &pooledObjectResource() {
@@ -274,4 +428,12 @@ void rme::deallocatePooledObject(void* ptr) noexcept {
 
 void rme::bindPooledObjectOwnerThread() noexcept {
 	pooledObjectResource().bindOwnerThread();
+}
+
+void rme::resetPooledObjectStats() noexcept {
+	pooledObjectResource().resetStats();
+}
+
+void rme::dumpPooledObjectStats() noexcept {
+	pooledObjectResource().dumpStats();
 }

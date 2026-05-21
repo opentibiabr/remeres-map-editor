@@ -545,13 +545,18 @@ bool GUI::LoadMap(const FileName &fileName) {
 		g_gui.CloseCurrentEditor();
 	}
 
+	rme::resetPooledObjectStats();
+
 	Editor* editor;
 	try {
 		editor = newd Editor(copybuffer, fileName);
 	} catch (std::runtime_error &e) {
+		rme::dumpPooledObjectStats();
 		PopupDialog(root, "Error!", wxString(e.what(), wxConvUTF8), wxOK);
 		return false;
 	}
+
+	rme::dumpPooledObjectStats();
 
 	auto* mapTab = newd MapTab(tabbook, editor);
 	mapTab->OnSwitchEditorMode(mode);
