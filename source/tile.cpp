@@ -354,6 +354,25 @@ void Tile::addItem(Item* item, const ItemType &type) {
 	}
 }
 
+void Tile::addLoadedItem(Item* item, const ItemType &type) {
+	if (!item) {
+		return;
+	}
+
+	const bool createsGroundEquivalent = !type.isGroundTile() && type.ground_equivalent != 0;
+	addItem(item, type);
+
+	if (type.isGroundTile()) {
+		updateStateForItem(item, type);
+		return;
+	}
+
+	if (createsGroundEquivalent && ground) {
+		updateStateForItem(ground, ground->getItemType());
+	}
+	updateStateForItem(item, type);
+}
+
 bool Tile::removeItem(const Item* item) {
 	for (auto it = items.begin(); it != items.end(); ++it) {
 		if (*it == item) {
@@ -551,6 +570,41 @@ uint8_t Tile::getMiniMapColor() const {
 	}
 
 	return 0;
+}
+
+void Tile::updateStateForItem(const Item* item, const ItemType &type) {
+	if (item->isSelected()) {
+		statflags |= TILESTATE_SELECTED;
+	}
+	if (item->getUniqueID() != 0) {
+		statflags |= TILESTATE_UNIQUE;
+	}
+	if (type.sprite) {
+		const uint8_t color = type.sprite->getMiniMapColor();
+		if (color != 0) {
+			minimapColor = color;
+		}
+	}
+	if (type.unpassable) {
+		statflags |= TILESTATE_BLOCKING;
+	}
+	if (type.isOptionalBorder) {
+		statflags |= TILESTATE_OP_BORDER;
+	}
+	if (type.isTable) {
+		statflags |= TILESTATE_HAS_TABLE;
+	}
+	if (type.isCarpet) {
+		statflags |= TILESTATE_HAS_CARPET;
+	}
+}
+
+void Tile::finalizeLoadedState() {
+	if ((statflags & TILESTATE_BLOCKING) == 0) {
+		if (!ground && items.empty()) {
+			statflags |= TILESTATE_BLOCKING;
+		}
+	}
 }
 
 void Tile::update() {

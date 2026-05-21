@@ -159,6 +159,7 @@ public: // Functions
 	Item* getItemAt(int index) const;
 	void addItem(Item* item);
 	void addItem(Item* item, const ItemType &type);
+	void addLoadedItem(Item* item, const ItemType &type);
 	bool removeItem(const Item* item);
 	void clearGround();
 	void replaceGround(Item* newGround);
@@ -191,6 +192,7 @@ public: // Functions
 
 	// Refresh internal flags (such as selected etc.)
 	void update();
+	void finalizeLoadedState();
 
 	uint8_t getMiniMapColor() const;
 
@@ -310,6 +312,8 @@ protected:
 
 private:
 	uint8_t minimapColor;
+
+	void updateStateForItem(const Item* item, const ItemType &type);
 
 	Tile(const Tile &tile); // No copy
 	Tile &operator=(const Tile &i); // Can't copy

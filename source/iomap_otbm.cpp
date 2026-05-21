@@ -868,6 +868,7 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 
 					// printf("So far so good\n");
 
+					bool needsFullTileUpdate = false;
 					uint8_t attribute;
 					while (tileNode->getU8(attribute)) {
 						switch (attribute) {
@@ -885,7 +886,11 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 								if (item == nullptr) {
 									warning("Invalid item at tile %d:%d:%d", pos.x, pos.y, pos.z);
 								} else {
-									tile->addItem(item, *itemType);
+									if (((itemType->isGroundTile() || itemType->ground_equivalent != 0) && tile->ground) ||
+											(itemType->alwaysOnBottom && !tile->items.empty())) {
+										needsFullTileUpdate = true;
+									}
+									tile->addLoadedItem(item, *itemType);
 								}
 								break;
 							}
@@ -913,7 +918,11 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 									warning("Couldn't unserialize item attributes at %d:%d:%d", pos.x, pos.y, pos.z);
 								}
 								// reform(&map, tile, item);
-								tile->addItem(item, *itemType);
+								if (((itemType->isGroundTile() || itemType->ground_equivalent != 0) && tile->ground) ||
+										(itemType->alwaysOnBottom && !tile->items.empty())) {
+									needsFullTileUpdate = true;
+								}
+								tile->addLoadedItem(item, *itemType);
 							}
 						} else if (node_type == OTBM_TILE_ZONE) {
 							uint16_t zone_count;
@@ -934,7 +943,11 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 						}
 					}
 
-					tile->update();
+					if (needsFullTileUpdate) {
+						tile->update();
+					} else {
+						tile->finalizeLoadedState();
+					}
 					if (house) {
 						house->addTile(tile);
 					}
