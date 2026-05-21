@@ -297,6 +297,11 @@ void Tile::addItem(Item* item) {
 		return;
 	}
 
+	if (items.empty()) {
+		constexpr size_t initialTileItemCapacity = 4;
+		items.reserve(initialTileItemCapacity);
+	}
+
 	ItemVector::iterator it;
 
 	uint16_t gid = item->getGroundEquivalent();
@@ -321,7 +326,12 @@ void Tile::addItem(Item* item) {
 				++it;
 			}
 		} else {
-			it = items.end();
+			items.emplace_back(item);
+
+			if (item->isSelected()) {
+				statflags |= TILESTATE_SELECTED;
+			}
+			return;
 		}
 	}
 
