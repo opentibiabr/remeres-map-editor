@@ -798,9 +798,9 @@ ItemType &ItemDatabase::getItemType(uint16_t id) {
 		return dummy;
 	}
 
-	auto type = items[id];
-	if (type) {
-		return *type;
+	const auto type = items.ptr(id);
+	if (type && *type) {
+		return **type;
 	}
 
 	return dummy;
