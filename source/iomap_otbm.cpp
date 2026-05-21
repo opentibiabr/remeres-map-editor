@@ -1715,12 +1715,14 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 
 				if (save_tile->ground) {
 					Item* ground = save_tile->ground;
-					if (ground->isMetaItem()) {
+					const ItemType &groundType = ground->getItemType();
+					const uint16_t groundId = ground->getID();
+					if (groundType.isMetaItem()) {
 						// Do nothing, we don't save metaitems...
-					} else if (ground->hasBorderEquivalent()) {
+					} else if (groundType.has_equivalent) {
 						bool found = false;
 						for (Item* item : save_tile->items) {
-							if (item->getGroundEquivalent() == ground->getID()) {
+							if (item->getItemType().ground_equivalent == groundId) {
 								// Do nothing
 								// Found equivalent
 								found = true;
@@ -1729,19 +1731,19 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 						}
 
 						if (!found) {
-							if (ground->getID() == 0) {
+							if (groundId == 0) {
 								return;
 							}
 							ground->serializeItemNode_OTBM(self, f);
 						}
 					} else if (ground->isComplex()) {
-						if (ground->getID() == 0) {
+						if (groundId == 0) {
 							return;
 						}
 						ground->serializeItemNode_OTBM(self, f);
 					} else {
 						f.addByte(OTBM_ATTR_ITEM);
-						if (ground->getID() == 0) {
+						if (groundId == 0) {
 							return;
 						}
 						ground->serializeItemCompact_OTBM(self, f);
@@ -1749,8 +1751,10 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 				}
 
 				for (Item* item : save_tile->items) {
-					if (!item->isMetaItem()) {
-						if (item->getID() == 0) {
+					const ItemType &itemType = item->getItemType();
+					if (!itemType.isMetaItem()) {
+						const uint16_t itemId = item->getID();
+						if (itemId == 0) {
 							continue;
 						}
 						item->serializeItemNode_OTBM(self, f);
