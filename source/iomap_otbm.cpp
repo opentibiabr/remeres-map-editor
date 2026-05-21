@@ -1058,8 +1058,9 @@ bool IOMapOTBM::loadSpawnsMonster(Map &map, pugi::xml_document &doc) {
 
 		SpawnMonster* spawnMonster = newd SpawnMonster(radius);
 		if (!tile) {
-			tile = map.allocator(map.createTileL(spawnPosition));
-			map.setTile(spawnPosition, tile);
+			TileLocation* tileLocation = map.createTileL(spawnPosition);
+			tile = map.allocator(tileLocation);
+			map.setTile(tileLocation, tile);
 		}
 
 		tile->spawnMonster = spawnMonster;
@@ -1330,8 +1331,9 @@ bool IOMapOTBM::loadSpawnsNpc(Map &map, pugi::xml_document &doc) {
 
 		SpawnNpc* spawnNpc = newd SpawnNpc(radius);
 		if (!spawnTile) {
-			spawnTile = map.allocator(map.createTileL(spawnPosition));
-			map.setTile(spawnPosition, spawnTile);
+			TileLocation* tileLocation = map.createTileL(spawnPosition);
+			spawnTile = map.allocator(tileLocation);
+			map.setTile(tileLocation, spawnTile);
 		}
 
 		spawnTile->spawnNpc = spawnNpc;
