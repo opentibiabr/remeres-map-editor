@@ -71,7 +71,7 @@ Item* Item::Create_OTBM(const IOMap &maphandle, BinaryNode* stream) {
 			stream->getU8(count);
 		}
 	}
-	return Item::Create(id, count);
+	return Item::Create(id, type, count);
 }
 
 bool Item::readItemAttribute_OTBM(const IOMap &maphandle, OTBM_ItemAttribute attr, BinaryNode* stream) {
