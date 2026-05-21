@@ -24,6 +24,7 @@
 #include "complexitem.h"
 #include "iomap.h"
 #include "item.h"
+#include "object_pool.h"
 
 #include "ground_brush.h"
 #include "carpet_brush.h"
@@ -36,6 +37,28 @@ bool itemTypeHasSubtype(const ItemType &type) {
 		type.isClientCharged() || type.isExtraCharged();
 }
 }
+
+void* Item::operator new(size_t size) {
+	return rme::allocatePooledObject(size);
+}
+
+void Item::operator delete(void* ptr) noexcept {
+	rme::deallocatePooledObject(ptr);
+}
+
+void Item::operator delete(void* ptr, size_t) noexcept {
+	rme::deallocatePooledObject(ptr);
+}
+
+#ifdef DEBUG_MEM
+void* Item::operator new(size_t size, const char*, int) {
+	return rme::allocatePooledObject(size);
+}
+
+void Item::operator delete(void* ptr, const char*, int) noexcept {
+	rme::deallocatePooledObject(ptr);
+}
+#endif
 
 Item* Item::Create(uint16_t id, uint16_t subtype /*= 0xFFFF*/) {
 	if (id == 0) {

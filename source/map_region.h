@@ -110,6 +110,14 @@ public:
 
 class Floor {
 public:
+	static void* operator new(size_t size);
+	static void operator delete(void* ptr) noexcept;
+	static void operator delete(void* ptr, size_t size) noexcept;
+#ifdef DEBUG_MEM
+	static void* operator new(size_t size, const char* file, int line);
+	static void operator delete(void* ptr, const char* file, int line) noexcept;
+#endif
+
 	Floor(int x, int y, int z);
 	TileLocation locs[rme::MapLayers];
 };

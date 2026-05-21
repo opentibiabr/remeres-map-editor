@@ -31,6 +31,29 @@
 #include "graphics.h"
 #include "npc.h"
 #include "spawn_npc.h"
+#include "object_pool.h"
+
+void* Tile::operator new(size_t size) {
+	return rme::allocatePooledObject(size);
+}
+
+void Tile::operator delete(void* ptr) noexcept {
+	rme::deallocatePooledObject(ptr);
+}
+
+void Tile::operator delete(void* ptr, size_t) noexcept {
+	rme::deallocatePooledObject(ptr);
+}
+
+#ifdef DEBUG_MEM
+void* Tile::operator new(size_t size, const char*, int) {
+	return rme::allocatePooledObject(size);
+}
+
+void Tile::operator delete(void* ptr, const char*, int) noexcept {
+	rme::deallocatePooledObject(ptr);
+}
+#endif
 
 Tile::Tile(int x, int y, int z) :
 	location(nullptr),

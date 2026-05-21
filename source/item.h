@@ -77,6 +77,14 @@ struct SpriteLight;
 
 class Item : public ItemAttributes {
 public:
+	static void* operator new(size_t size);
+	static void operator delete(void* ptr) noexcept;
+	static void operator delete(void* ptr, size_t size) noexcept;
+#ifdef DEBUG_MEM
+	static void* operator new(size_t size, const char* file, int line);
+	static void operator delete(void* ptr, const char* file, int line) noexcept;
+#endif
+
 	// Factory member to create item of right type based on type
 	static Item* Create(uint16_t id, uint16_t subtype = 0xFFFF);
 	static Item* Create(uint16_t id, const ItemType &type, uint16_t subtype = 0xFFFF);
