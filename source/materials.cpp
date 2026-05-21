@@ -247,7 +247,7 @@ namespace {
 	}
 
 	void CollectGroundCaseConditions(pugi::xml_node conditionsNode, std::vector<GroundBorderCaseConditionRecord> &outConditions) {
-		int sortOrder = static_cast<int>(outConditions.size());
+		auto sortOrder = static_cast<int>(outConditions.size());
 		for (pugi::xml_node conditionNode = conditionsNode.first_child(); conditionNode; conditionNode = conditionNode.next_sibling()) {
 			GroundBorderCaseConditionRecord condition;
 			if (!TryParseGroundCaseCondition(conditionNode, sortOrder, condition)) {
@@ -275,7 +275,7 @@ namespace {
 	}
 
 	void CollectGroundCaseActions(pugi::xml_node actionsNode, std::vector<GroundBorderCaseActionRecord> &outActions) {
-		int sortOrder = static_cast<int>(outActions.size());
+		auto sortOrder = static_cast<int>(outActions.size());
 		for (pugi::xml_node actionNode = actionsNode.first_child(); actionNode; actionNode = actionNode.next_sibling()) {
 			GroundBorderCaseActionRecord action;
 			if (!TryParseGroundCaseAction(actionNode, sortOrder, action)) {
@@ -686,7 +686,7 @@ namespace {
 	}
 
 	void CollectWallItemNodes(pugi::xml_node parentNode, std::vector<WallPartItemRecord> &outItems) {
-		int sortOrder = static_cast<int>(outItems.size());
+		auto sortOrder = static_cast<int>(outItems.size());
 		for (pugi::xml_node childNode = parentNode.first_child(); childNode; childNode = childNode.next_sibling()) {
 			if (as_lower_str(childNode.name()) != "item") {
 				continue;
@@ -706,7 +706,7 @@ namespace {
 	}
 
 	void CollectWallDoorNodes(pugi::xml_node parentNode, std::vector<WallPartDoorRecord> &outDoors) {
-		int sortOrder = static_cast<int>(outDoors.size());
+		auto sortOrder = static_cast<int>(outDoors.size());
 		for (pugi::xml_node childNode = parentNode.first_child(); childNode; childNode = childNode.next_sibling()) {
 			if (as_lower_str(childNode.name()) != "door") {
 				continue;
@@ -725,6 +725,95 @@ namespace {
 			door.sortOrder = sortOrder++;
 			outDoors.push_back(door);
 		}
+	}
+
+	bool WallPartHasContent(const WallPartRecord &part) {
+		return !part.items.empty() || !part.doors.empty();
+	}
+
+	WallPartRecord &GetOrCreateWallPart(std::vector<WallPartRecord> &outParts, const wxString &partType, int sortOrder) {
+		for (auto &existingPart : outParts) {
+			if (existingPart.partType == partType) {
+				return existingPart;
+			}
+		}
+
+		WallPartRecord part;
+		part.partType = partType;
+		part.sortOrder = sortOrder;
+		outParts.push_back(part);
+		return outParts.back();
+	}
+
+	bool PopulateWallPartContent(pugi::xml_node sourceNode, WallPartRecord &part) {
+		const bool wasEmpty = !WallPartHasContent(part);
+		CollectWallItemNodes(sourceNode, part.items);
+		CollectWallDoorNodes(sourceNode, part.doors);
+		return wasEmpty && WallPartHasContent(part);
+	}
+
+	void CollectNestedWallAlternates(pugi::xml_node wallNode, const wxString &basePartType, std::vector<WallPartRecord> &outParts, int &partSortOrder) {
+		int localAlternateIndex = 0;
+		for (pugi::xml_node subChild = wallNode.first_child(); subChild; subChild = subChild.next_sibling()) {
+			if (as_lower_str(subChild.name()) != "alternate") {
+				continue;
+			}
+
+			const wxString alternatePartType = basePartType + wxString::Format("/alternate/%d", localAlternateIndex++);
+			auto &alternatePart = GetOrCreateWallPart(outParts, alternatePartType, partSortOrder);
+			if (PopulateWallPartContent(subChild, alternatePart)) {
+				++partSortOrder;
+			}
+		}
+	}
+
+	void CollectWallPartNode(pugi::xml_node childNode, std::vector<WallPartRecord> &outParts, int &partSortOrder) {
+		const wxString partType = wxString(childNode.attribute("type").as_string(), wxConvUTF8);
+		if (partType.IsEmpty()) {
+			return;
+		}
+
+		auto &part = GetOrCreateWallPart(outParts, partType, partSortOrder);
+		if (PopulateWallPartContent(childNode, part)) {
+			++partSortOrder;
+		}
+
+		CollectNestedWallAlternates(childNode, part.partType, outParts, partSortOrder);
+	}
+
+	void CollectStandaloneWallAlternateNode(pugi::xml_node childNode, std::vector<WallPartRecord> &outParts, int &partSortOrder, int &alternateIndex) {
+		WallPartRecord alternatePart;
+		alternatePart.partType = wxString::Format("alternate/%d", alternateIndex++);
+		alternatePart.sortOrder = partSortOrder;
+		if (!PopulateWallPartContent(childNode, alternatePart)) {
+			return;
+		}
+
+		++partSortOrder;
+		outParts.push_back(alternatePart);
+	}
+
+	void AppendWallFriendLinks(pugi::xml_node childNode, std::vector<BrushLinkRecord> &outLinks, int &linkSortOrder) {
+		const wxString targetName = wxString(childNode.attribute("name").as_string(), wxConvUTF8);
+		if (targetName.IsEmpty()) {
+			return;
+		}
+
+		BrushLinkRecord friendLink;
+		friendLink.targetBrushName = targetName;
+		friendLink.relationType = "friend";
+		friendLink.sortOrder = linkSortOrder++;
+		outLinks.push_back(friendLink);
+
+		if (!childNode.attribute("redirect").as_bool()) {
+			return;
+		}
+
+		BrushLinkRecord redirectLink;
+		redirectLink.targetBrushName = targetName;
+		redirectLink.relationType = "redirect";
+		redirectLink.sortOrder = linkSortOrder++;
+		outLinks.push_back(redirectLink);
 	}
 
 	bool ParseWallBrushNode(const FileName &sourceFile, pugi::xml_node brushNode, BrushRecord &outBrush, std::vector<WallPartRecord> &outParts, std::vector<BrushLinkRecord> &outLinks, wxArrayString &warnings) {
@@ -753,82 +842,21 @@ namespace {
 		outParts.clear();
 		outLinks.clear();
 
-		const auto getOrCreatePart = [&outParts](const wxString &partType, int sortOrder) -> WallPartRecord & {
-			for (WallPartRecord &existingPart : outParts) {
-				if (existingPart.partType == partType) {
-					return existingPart;
-				}
-			}
-
-			WallPartRecord part;
-			part.partType = partType;
-			part.sortOrder = sortOrder;
-			outParts.push_back(part);
-			return outParts.back();
-		};
-
 		int partSortOrder = 0;
 		int alternateIndex = 0;
 		int linkSortOrder = 0;
 		for (pugi::xml_node childNode = brushNode.first_child(); childNode; childNode = childNode.next_sibling()) {
 			const std::string childName = as_lower_str(childNode.name());
 			if (childName == "wall") {
-				const wxString partType = wxString(childNode.attribute("type").as_string(), wxConvUTF8);
-				if (partType.IsEmpty()) {
-					continue;
-				}
-
-				WallPartRecord &part = getOrCreatePart(partType, partSortOrder);
-				if (part.items.empty() && part.doors.empty()) {
-					partSortOrder++;
-				}
-
-				CollectWallItemNodes(childNode, part.items);
-				CollectWallDoorNodes(childNode, part.doors);
-				const wxString basePartType = part.partType;
-				int localAlternateIndex = 0;
-				for (pugi::xml_node subChild = childNode.first_child(); subChild; subChild = subChild.next_sibling()) {
-					if (as_lower_str(subChild.name()) != "alternate") {
-						continue;
-					}
-
-					const wxString alternatePartType = basePartType + wxString::Format("/alternate/%d", localAlternateIndex++);
-					WallPartRecord &alternatePart = getOrCreatePart(alternatePartType, partSortOrder);
-					const bool wasEmpty = alternatePart.items.empty() && alternatePart.doors.empty();
-					CollectWallItemNodes(subChild, alternatePart.items);
-					CollectWallDoorNodes(subChild, alternatePart.doors);
-					if (wasEmpty && (!alternatePart.items.empty() || !alternatePart.doors.empty())) {
-						partSortOrder++;
-					}
-				}
-			} else if (childName == "alternate") {
-				WallPartRecord alternatePart;
-				alternatePart.partType = wxString::Format("alternate/%d", alternateIndex++);
-				alternatePart.sortOrder = partSortOrder++;
-				CollectWallItemNodes(childNode, alternatePart.items);
-				CollectWallDoorNodes(childNode, alternatePart.doors);
-				if (!alternatePart.items.empty() || !alternatePart.doors.empty()) {
-					outParts.push_back(alternatePart);
-				}
-			} else if (childName == "friend") {
-				const wxString targetName = wxString(childNode.attribute("name").as_string(), wxConvUTF8);
-				if (targetName.IsEmpty()) {
-					continue;
-				}
-
-				BrushLinkRecord friendLink;
-				friendLink.targetBrushName = targetName;
-				friendLink.relationType = "friend";
-				friendLink.sortOrder = linkSortOrder++;
-				outLinks.push_back(friendLink);
-
-				if (childNode.attribute("redirect").as_bool()) {
-					BrushLinkRecord redirectLink;
-					redirectLink.targetBrushName = targetName;
-					redirectLink.relationType = "redirect";
-					redirectLink.sortOrder = linkSortOrder++;
-					outLinks.push_back(redirectLink);
-				}
+				CollectWallPartNode(childNode, outParts, partSortOrder);
+				continue;
+			}
+			if (childName == "alternate") {
+				CollectStandaloneWallAlternateNode(childNode, outParts, partSortOrder, alternateIndex);
+				continue;
+			}
+			if (childName == "friend") {
+				AppendWallFriendLinks(childNode, outLinks, linkSortOrder);
 			}
 		}
 
@@ -898,8 +926,8 @@ namespace {
 	}
 
 	void CollectDoodadAlternativeContent(pugi::xml_node sourceNode, DoodadAlternativeRecord &alternative) {
-		int singleSortOrder = static_cast<int>(alternative.singleItems.size());
-		int compositeSortOrder = static_cast<int>(alternative.composites.size());
+		auto singleSortOrder = static_cast<int>(alternative.singleItems.size());
+		auto compositeSortOrder = static_cast<int>(alternative.composites.size());
 		for (pugi::xml_node childNode = sourceNode.first_child(); childNode; childNode = childNode.next_sibling()) {
 			const std::string childName = as_lower_str(childNode.name());
 			if (childName == "item") {
@@ -1019,37 +1047,41 @@ namespace {
 		return true;
 	}
 
+	struct AlignedBrushParseOptions {
+		wxString expectedBrushType;
+		const char* containerNodeName = nullptr;
+		bool allowDirectIdFallback = false;
+	};
+
 	template <typename NodeRecord, typename ItemRecord>
 	bool ParseAlignedBrushNode(
 		const FileName &sourceFile,
 		pugi::xml_node brushNode,
-		const wxString &expectedBrushType,
-		const char* containerNodeName,
-		bool allowDirectIdFallback,
+		const AlignedBrushParseOptions &options,
 		BrushRecord &outBrush,
 		std::vector<NodeRecord> &outNodes,
 		wxArrayString &warnings
 	) {
-		if (wxString(brushNode.attribute("type").as_string(), wxConvUTF8) != expectedBrushType) {
+		if (wxString(brushNode.attribute("type").as_string(), wxConvUTF8) != options.expectedBrushType) {
 			return false;
 		}
 
 		outBrush = BrushRecord();
 		outBrush.name = wxString(brushNode.attribute("name").as_string(), wxConvUTF8);
-		outBrush.type = expectedBrushType;
+		outBrush.type = options.expectedBrushType;
 		outBrush.lookId = brushNode.attribute("lookid").as_int();
 		outBrush.serverLookId = brushNode.attribute("server_lookid").as_int();
 		outBrush.sourceFile = MaterialSourcePath(sourceFile);
 
 		if (outBrush.name.IsEmpty()) {
-			warnings.push_back("SQLite " + expectedBrushType + " import found brush without name in " + sourceFile.GetFullName());
+			warnings.push_back("SQLite " + options.expectedBrushType + " import found brush without name in " + sourceFile.GetFullName());
 			return false;
 		}
 
 		outNodes.clear();
 		int nodeSortOrder = 0;
 		for (pugi::xml_node childNode = brushNode.first_child(); childNode; childNode = childNode.next_sibling()) {
-			if (as_lower_str(childNode.name()) != containerNodeName) {
+			if (as_lower_str(childNode.name()) != options.containerNodeName) {
 				continue;
 			}
 
@@ -1077,7 +1109,7 @@ namespace {
 				node.items.push_back(item);
 			}
 
-			if (allowDirectIdFallback && !hasNestedItems) {
+			if (options.allowDirectIdFallback && !hasNestedItems) {
 				const int itemId = childNode.attribute("id").as_int();
 				if (itemId > 0) {
 					ItemRecord item;
@@ -1097,12 +1129,11 @@ namespace {
 	}
 
 	bool ParseCarpetBrushNode(const FileName &sourceFile, pugi::xml_node brushNode, BrushRecord &outBrush, std::vector<CarpetNodeRecord> &outNodes, wxArrayString &warnings) {
+		static const AlignedBrushParseOptions options = { "carpet", "carpet", true };
 		return ParseAlignedBrushNode<CarpetNodeRecord, CarpetNodeItemRecord>(
 			sourceFile,
 			brushNode,
-			"carpet",
-			"carpet",
-			true,
+			options,
 			outBrush,
 			outNodes,
 			warnings
@@ -1110,12 +1141,11 @@ namespace {
 	}
 
 	bool ParseTableBrushNode(const FileName &sourceFile, pugi::xml_node brushNode, BrushRecord &outBrush, std::vector<TableNodeRecord> &outNodes, wxArrayString &warnings) {
+		static const AlignedBrushParseOptions options = { "table", "table", false };
 		return ParseAlignedBrushNode<TableNodeRecord, TableNodeItemRecord>(
 			sourceFile,
 			brushNode,
-			"table",
-			"table",
-			false,
+			options,
 			outBrush,
 			outNodes,
 			warnings
@@ -1229,6 +1259,66 @@ namespace {
 		return true;
 	}
 
+	enum class DecorativeBrushKind {
+		None,
+		Doodad,
+		Carpet,
+		Table,
+	};
+
+	struct ParsedDecorativeBrush {
+		DecorativeBrushKind kind = DecorativeBrushKind::None;
+		BrushRecord brush;
+		std::vector<DoodadAlternativeRecord> doodadAlternatives;
+		std::vector<CarpetNodeRecord> carpetNodes;
+		std::vector<TableNodeRecord> tableNodes;
+	};
+
+	bool ParseDecorativeBrushNode(const FileName &filename, pugi::xml_node brushNode, ParsedDecorativeBrush &outParsed, wxArrayString &warnings) {
+		outParsed = ParsedDecorativeBrush();
+		if (ParseDoodadBrushNode(filename, brushNode, outParsed.brush, outParsed.doodadAlternatives, warnings)) {
+			outParsed.kind = DecorativeBrushKind::Doodad;
+			return true;
+		}
+		if (ParseCarpetBrushNode(filename, brushNode, outParsed.brush, outParsed.carpetNodes, warnings)) {
+			outParsed.kind = DecorativeBrushKind::Carpet;
+			return true;
+		}
+		if (ParseTableBrushNode(filename, brushNode, outParsed.brush, outParsed.tableNodes, warnings)) {
+			outParsed.kind = DecorativeBrushKind::Table;
+			return true;
+		}
+		return false;
+	}
+
+	bool StoreDecorativeBrushContent(const ParsedDecorativeBrush &parsed, int64_t brushId, wxArrayString &warnings) {
+		const wxString &brushName = parsed.brush.name;
+		switch (parsed.kind) {
+			case DecorativeBrushKind::Doodad:
+				if (g_brush_database.replaceDoodadAlternatives(brushId, parsed.doodadAlternatives)) {
+					return true;
+				}
+				warnings.push_back("SQLite doodad import failed for brush \"" + brushName + "\": " + g_brush_database.getLastError());
+				return false;
+			case DecorativeBrushKind::Carpet:
+				if (g_brush_database.replaceCarpetNodes(brushId, parsed.carpetNodes)) {
+					return true;
+				}
+				warnings.push_back("SQLite carpet import failed for brush \"" + brushName + "\": " + g_brush_database.getLastError());
+				return false;
+			case DecorativeBrushKind::Table:
+				if (g_brush_database.replaceTableNodes(brushId, parsed.tableNodes)) {
+					return true;
+				}
+				warnings.push_back("SQLite table import failed for brush \"" + brushName + "\": " + g_brush_database.getLastError());
+				return false;
+			case DecorativeBrushKind::None:
+				return false;
+		}
+
+		return false;
+	}
+
 	bool ImportDecorativeBrushesRecursive(const FileName &filename, wxArrayString &warnings, std::set<wxString> &visited) {
 		const wxString normalizedPath = filename.GetFullPath();
 		if (visited.find(normalizedPath) != visited.end()) {
@@ -1255,43 +1345,23 @@ namespace {
 				continue;
 			}
 
-			BrushRecord brush;
-			std::vector<DoodadAlternativeRecord> doodadAlternatives;
-			std::vector<CarpetNodeRecord> carpetNodes;
-			std::vector<TableNodeRecord> tableNodes;
-
-			const bool isDoodad = ParseDoodadBrushNode(filename, childNode, brush, doodadAlternatives, warnings);
-			const bool isCarpet = !isDoodad && ParseCarpetBrushNode(filename, childNode, brush, carpetNodes, warnings);
-			const bool isTable = !isDoodad && !isCarpet && ParseTableBrushNode(filename, childNode, brush, tableNodes, warnings);
-			if (!isDoodad && !isCarpet && !isTable) {
+			ParsedDecorativeBrush parsed;
+			if (!ParseDecorativeBrushNode(filename, childNode, parsed, warnings)) {
 				continue;
 			}
 
 			int64_t brushId = 0;
-			if (!g_brush_database.upsertBrush(brush, brushId)) {
-				warnings.push_back("SQLite decorative import failed for brush \"" + brush.name + "\": " + g_brush_database.getLastError());
+			if (!g_brush_database.upsertBrush(parsed.brush, brushId)) {
+				warnings.push_back("SQLite decorative import failed for brush \"" + parsed.brush.name + "\": " + g_brush_database.getLastError());
 				return false;
 			}
 
-			if (isDoodad) {
-				if (!g_brush_database.replaceDoodadAlternatives(brushId, doodadAlternatives)) {
-					warnings.push_back("SQLite doodad import failed for brush \"" + brush.name + "\": " + g_brush_database.getLastError());
-					return false;
-				}
-			} else if (isCarpet) {
-				if (!g_brush_database.replaceCarpetNodes(brushId, carpetNodes)) {
-					warnings.push_back("SQLite carpet import failed for brush \"" + brush.name + "\": " + g_brush_database.getLastError());
-					return false;
-				}
-			} else if (isTable) {
-				if (!g_brush_database.replaceTableNodes(brushId, tableNodes)) {
-					warnings.push_back("SQLite table import failed for brush \"" + brush.name + "\": " + g_brush_database.getLastError());
-					return false;
-				}
+			if (!StoreDecorativeBrushContent(parsed, brushId, warnings)) {
+				return false;
 			}
 
 			if (!g_brush_database.replaceBrushLinks(brushId, {})) {
-				warnings.push_back("SQLite decorative link cleanup failed for brush \"" + brush.name + "\": " + g_brush_database.getLastError());
+				warnings.push_back("SQLite decorative link cleanup failed for brush \"" + parsed.brush.name + "\": " + g_brush_database.getLastError());
 				return false;
 			}
 		}
