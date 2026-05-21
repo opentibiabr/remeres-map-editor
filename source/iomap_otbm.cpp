@@ -1612,7 +1612,7 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 				Tile* save_tile = (*map_iterator)->get();
 
 				// Is it an empty tile that we can skip? (Leftovers...)
-				if (!save_tile || save_tile->size() == 0) {
+				if (!save_tile || save_tile->empty()) {
 					++map_iterator;
 					continue;
 				}
