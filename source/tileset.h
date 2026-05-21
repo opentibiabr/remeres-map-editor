@@ -19,6 +19,8 @@
 #define RME_TILESET_H_
 
 class Brushes;
+struct TilesetEntryRecord;
+struct TilesetStorageRecord;
 
 enum TilesetCategoryType {
 	TILESET_UNKNOWN,
@@ -47,6 +49,7 @@ public:
 	}
 
 	void loadBrush(pugi::xml_node node, wxArrayString &warnings);
+	void loadEntry(const TilesetEntryRecord &entry, wxArrayString &warnings);
 	void clear();
 
 	bool containsBrush(Brush* brush) const;
@@ -74,6 +77,7 @@ public:
 	const TilesetCategory* getCategory(TilesetCategoryType type) const;
 
 	void loadCategory(pugi::xml_node node, wxArrayString &warnings);
+	void loadFromStorage(const TilesetStorageRecord &storage, wxArrayString &warnings);
 	void clear();
 
 	bool containsBrush(Brush* brush) const;

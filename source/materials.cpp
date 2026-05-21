@@ -1182,20 +1182,8 @@ namespace {
 		);
 	}
 
-	bool NormalizeTilesetSectionType(const std::string &nodeName, wxString &sectionType) {
-		if (nodeName == "terrain" || nodeName == "terrain_and_raw") {
-			sectionType = "terrain";
-			return true;
-		}
-		if (nodeName == "doodad" || nodeName == "doodad_and_raw") {
-			sectionType = "doodad";
-			return true;
-		}
-		if (nodeName == "items" || nodeName == "items_and_raw") {
-			sectionType = "items";
-			return true;
-		}
-		return false;
+	bool IsSupportedTilesetSectionType(const std::string &nodeName) {
+		return nodeName == "terrain" || nodeName == "terrain_and_raw" || nodeName == "doodad" || nodeName == "doodad_and_raw" || nodeName == "items" || nodeName == "items_and_raw";
 	}
 
 	void CollectTilesetSectionEntries(pugi::xml_node sectionNode, TilesetSectionRecord &section) {
@@ -1238,13 +1226,13 @@ namespace {
 
 		int sectionSortOrder = 0;
 		for (pugi::xml_node childNode = tilesetNode.first_child(); childNode; childNode = childNode.next_sibling()) {
-			wxString sectionType;
-			if (!NormalizeTilesetSectionType(as_lower_str(childNode.name()), sectionType)) {
+			const std::string sectionNodeName = as_lower_str(childNode.name());
+			if (!IsSupportedTilesetSectionType(sectionNodeName)) {
 				continue;
 			}
 
 			TilesetSectionRecord section;
-			section.sectionType = sectionType;
+			section.sectionType = wxString::FromUTF8(sectionNodeName.c_str());
 			section.sortOrder = sectionSortOrder++;
 			CollectTilesetSectionEntries(childNode, section);
 			outTileset.sections.push_back(section);
@@ -1413,6 +1401,10 @@ Materials::~Materials() {
 }
 
 void Materials::clear() {
+	clearTilesets();
+}
+
+void Materials::clearTilesets() {
 	for (TilesetContainer::iterator iter = tilesets.begin(); iter != tilesets.end(); ++iter) {
 		delete iter->second;
 	}
@@ -1656,6 +1648,33 @@ bool Materials::migrateTilesetsToSQLite(wxString &error, wxArrayString &warnings
 	}
 
 	spdlog::info("SQLite tileset import completed from {}", tilesetsRoot.GetFullPath().ToStdString());
+	return true;
+}
+
+bool Materials::loadTilesetsFromDatabase(wxArrayString &warnings) {
+	if (!g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
+		return true;
+	}
+	if (!g_brush_database.isOpen()) {
+		warnings.push_back("SQLite tileset load skipped because the brush database is not open.");
+		return false;
+	}
+
+	std::vector<TilesetStorageRecord> tilesetsFromDatabase;
+	if (!g_brush_database.getAllTilesets(tilesetsFromDatabase)) {
+		warnings.push_back("Failed to load tilesets from SQLite: " + g_brush_database.getLastError());
+		return false;
+	}
+
+	clearTilesets();
+	for (const TilesetStorageRecord &storage : tilesetsFromDatabase) {
+		const std::string tilesetName = storage.name.ToStdString();
+		Tileset* tileset = newd Tileset(g_brushes, tilesetName);
+		tileset->loadFromStorage(storage, warnings);
+		tilesets.insert(std::make_pair(tilesetName, tileset));
+	}
+
+	spdlog::info("Loaded {} tilesets from SQLite materials database", tilesetsFromDatabase.size());
 	return true;
 }
 

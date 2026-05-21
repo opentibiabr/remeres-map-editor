@@ -17,6 +17,7 @@
 
 #include "main.h"
 
+#include "brush_database.h"
 #include "gui.h"
 
 #include "application.h"
@@ -378,6 +379,11 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 	if (!g_materials.loadMaterials(materialsPath, error, warnings)) {
 		warnings.push_back("Couldn't load materials.xml: " + error);
 		spdlog::warn("[GUI::LoadDataFiles] {}: {}", materialsPath.ToStdString(), error.ToStdString());
+	}
+	if (g_settings.getBoolean(Config::USE_SQLITE_MATERIALS) && g_brush_database.isOpen()) {
+		if (!g_materials.loadTilesetsFromDatabase(warnings)) {
+			spdlog::warn("[GUI::LoadDataFiles] Falling back to XML-loaded tilesets after SQLite load failure.");
+		}
 	}
 
 	g_gui.SetLoadDone(70, "Finishing...");

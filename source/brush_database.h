@@ -322,6 +322,7 @@ private:
 	bool migrateToVersion4();
 	bool migrateToVersion5();
 	bool migrateToVersion6();
+	bool migrateToVersion7();
 	bool addColumnIfMissing(const wxString &tableName, const wxString &columnName, const wxString &definition);
 	bool executeStatements(std::initializer_list<const char*> statements);
 	bool addVersion2BrushColumns();
