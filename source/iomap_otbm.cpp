@@ -55,6 +55,33 @@ void reform(Map* map, Tile* tile, Item* item) {
 	*/
 }
 
+namespace {
+struct FloorLookupCache {
+	Floor* floor = nullptr;
+	int floorX = -1;
+	int floorY = -1;
+	int floorZ = -1;
+};
+
+Tile* getCachedTile(Map &map, const Position &position, FloorLookupCache &cache) {
+	const int floorX = position.x & ~3;
+	const int floorY = position.y & ~3;
+	if (!cache.floor || cache.floorX != floorX || cache.floorY != floorY || cache.floorZ != position.z) {
+		QTreeNode* leaf = map.getLeaf(position.x, position.y);
+		cache.floor = leaf ? leaf->getFloor(position.z) : nullptr;
+		cache.floorX = floorX;
+		cache.floorY = floorY;
+		cache.floorZ = position.z;
+	}
+
+	if (!cache.floor) {
+		return nullptr;
+	}
+
+	return cache.floor->locs[(position.x & 3) * 4 + (position.y & 3)].get();
+}
+}
+
 // ============================================================================
 // Item
 
@@ -1029,6 +1056,7 @@ bool IOMapOTBM::loadSpawnsMonster(Map &map, pugi::xml_document &doc) {
 		return false;
 	}
 
+	FloorLookupCache tileCache;
 	for (pugi::xml_node spawnNode = node.first_child(); spawnNode; spawnNode = spawnNode.next_sibling()) {
 		if (as_lower_str(spawnNode.name()) != "monster") {
 			continue;
@@ -1050,7 +1078,7 @@ bool IOMapOTBM::loadSpawnsMonster(Map &map, pugi::xml_document &doc) {
 			continue;
 		}
 
-		Tile* tile = map.getTile(spawnPosition);
+		Tile* tile = getCachedTile(map, spawnPosition, tileCache);
 		if (tile && tile->spawnMonster) {
 			warning("Duplicate monster spawn on position %d:%d:%d\n", tile->getX(), tile->getY(), tile->getZ());
 			continue;
@@ -1118,7 +1146,7 @@ bool IOMapOTBM::loadSpawnsMonster(Map &map, pugi::xml_document &doc) {
 			if (monsterPosition == spawnPosition) {
 				monsterTile = tile;
 			} else {
-				monsterTile = map.getTile(monsterPosition);
+				monsterTile = getCachedTile(map, monsterPosition, tileCache);
 			}
 
 			if (!monsterTile) {
@@ -1302,6 +1330,7 @@ bool IOMapOTBM::loadSpawnsNpc(Map &map, pugi::xml_document &doc) {
 		return false;
 	}
 
+	FloorLookupCache tileCache;
 	for (pugi::xml_node spawnNpcNode = node.first_child(); spawnNpcNode; spawnNpcNode = spawnNpcNode.next_sibling()) {
 		if (as_lower_str(spawnNpcNode.name()) != "npc") {
 			continue;
@@ -1323,7 +1352,7 @@ bool IOMapOTBM::loadSpawnsNpc(Map &map, pugi::xml_document &doc) {
 			continue;
 		}
 
-		Tile* spawnTile = map.getTile(spawnPosition);
+		Tile* spawnTile = getCachedTile(map, spawnPosition, tileCache);
 		if (spawnTile && spawnTile->spawnNpc) {
 			warning("Duplicate npc spawn on position %d:%d:%d\n", spawnTile->getX(), spawnTile->getY(), spawnTile->getZ());
 			continue;
@@ -1386,7 +1415,7 @@ bool IOMapOTBM::loadSpawnsNpc(Map &map, pugi::xml_document &doc) {
 			if (npcPosition == spawnPosition) {
 				npcTile = spawnTile;
 			} else {
-				npcTile = map.getTile(npcPosition);
+				npcTile = getCachedTile(map, npcPosition, tileCache);
 			}
 
 			if (!npcTile) {
