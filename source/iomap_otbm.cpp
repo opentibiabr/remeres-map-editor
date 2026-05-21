@@ -791,12 +791,13 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 					}
 					const Position pos(base_x + x_offset, base_y + y_offset, base_z);
 
-					if (map.getTile(pos)) {
+					TileLocation* tileLocation = map.createTileL(pos);
+					if (tileLocation->get()) {
 						warning("Duplicate tile at %d:%d:%d, discarding duplicate", pos.x, pos.y, pos.z);
 						continue;
 					}
 
-					tile = map.allocator(map.createTileL(pos));
+					tile = map.allocator(tileLocation);
 					House* house = nullptr;
 					if (tile_type == OTBM_HOUSETILE) {
 						uint32_t house_id;
@@ -887,7 +888,7 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 						house->addTile(tile);
 					}
 
-					map.setTile(pos.x, pos.y, pos.z, tile);
+					map.setTile(tileLocation, tile);
 				} else {
 					warning("Unknown type of tile node");
 				}
