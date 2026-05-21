@@ -1668,8 +1668,7 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 
 			int local_x = -1, local_y = -1, local_z = -1;
 
-			MapIterator map_iterator = map.begin();
-			while (map_iterator != map.end()) {
+			auto saveTileLocation = [&](TileLocation* tileLocation) {
 				// Update progressbar
 				++tiles_saved;
 				if (tiles_saved % 8192 == 0) {
@@ -1677,12 +1676,11 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 				}
 
 				// Get tile
-				Tile* save_tile = (*map_iterator)->get();
+				Tile* save_tile = tileLocation->get();
 
 				// Is it an empty tile that we can skip? (Leftovers...)
 				if (!save_tile || save_tile->empty()) {
-					++map_iterator;
-					continue;
+					return;
 				}
 
 				const Position &pos = save_tile->getPosition();
@@ -1732,19 +1730,19 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 
 						if (!found) {
 							if (ground->getID() == 0) {
-								continue;
+								return;
 							}
 							ground->serializeItemNode_OTBM(self, f);
 						}
 					} else if (ground->isComplex()) {
 						if (ground->getID() == 0) {
-							continue;
+							return;
 						}
 						ground->serializeItemNode_OTBM(self, f);
 					} else {
 						f.addByte(OTBM_ATTR_ITEM);
 						if (ground->getID() == 0) {
-							continue;
+							return;
 						}
 						ground->serializeItemCompact_OTBM(self, f);
 					}
@@ -1768,8 +1766,8 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 				}
 
 				f.endNode();
-				++map_iterator;
-			}
+			};
+			map.forEachTileLocation(saveTileLocation);
 
 			// Only close the last node if one has actually been created
 			if (!first) {

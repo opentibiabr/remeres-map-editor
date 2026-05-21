@@ -92,6 +92,12 @@ public:
 	void clear(bool del = true);
 	MapIterator begin();
 	MapIterator end();
+
+	template <typename Fn>
+	void forEachTileLocation(Fn &fn) {
+		forEachTileLocation(root, fn);
+	}
+
 	uint64_t size() const noexcept {
 		return tilecount;
 	}
@@ -138,6 +144,33 @@ public:
 
 protected:
 	virtual void updateUniqueIds(Tile* old_tile, Tile* new_tile) { }
+
+	template <typename Fn>
+	void forEachTileLocation(QTreeNode &node, Fn &fn) {
+		if (node.isLeaf) {
+			for (int z = 0; z < rme::MapLayers; ++z) {
+				Floor* floor = node.array[z];
+				if (!floor) {
+					continue;
+				}
+
+				for (int index = 0; index < rme::MapLayers; ++index) {
+					TileLocation &location = floor->locs[index];
+					if (location.get()) {
+						fn(&location);
+					}
+				}
+			}
+			return;
+		}
+
+		for (int index = 0; index < rme::MapLayers; ++index) {
+			QTreeNode* child = node.child[index];
+			if (child) {
+				forEachTileLocation(*child, fn);
+			}
+		}
+	}
 
 	uint64_t tilecount;
 
