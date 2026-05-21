@@ -125,6 +125,19 @@ void deallocateFallback(AllocationHeader* header) noexcept {
 
 class SmallObjectPool {
 public:
+	void bindOwnerThread() noexcept {
+		std::lock_guard<std::mutex> lock(ownerMutex_);
+
+		const auto currentThread = std::this_thread::get_id();
+		if (!ownerSet_.load(std::memory_order_relaxed)) {
+			ownerThread_ = currentThread;
+			ownerSet_.store(true, std::memory_order_release);
+			return;
+		}
+
+		assert(ownerThread_ == currentThread);
+	}
+
 	void* allocate(std::size_t payloadSize) {
 		const uint16_t cls = classForPayloadSize(payloadSize);
 		if (cls == kFallbackClass) {
@@ -257,4 +270,8 @@ void* rme::allocatePooledObject(std::size_t size) {
 
 void rme::deallocatePooledObject(void* ptr) noexcept {
 	pooledObjectResource().deallocate(ptr);
+}
+
+void rme::bindPooledObjectOwnerThread() noexcept {
+	pooledObjectResource().bindOwnerThread();
 }

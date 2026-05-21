@@ -30,6 +30,7 @@
 #include "materials.h"
 #include "doodad_brush.h"
 #include "spawn_monster_brush.h"
+#include "object_pool.h"
 
 #include "common_windows.h"
 #include "result_window.h"
@@ -536,6 +537,8 @@ void GUI::SaveMapAs() {
 }
 
 bool GUI::LoadMap(const FileName &fileName) {
+	rme::bindPooledObjectOwnerThread();
+
 	FinishWelcomeDialog();
 
 	if (GetCurrentEditor() && !GetCurrentMap().hasChanged() && !GetCurrentMap().hasFile()) {
