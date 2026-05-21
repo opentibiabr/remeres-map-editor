@@ -92,6 +92,13 @@ namespace {
 		return parameterIndex;
 	}
 
+	struct AlignedNodeWriteContext {
+		sqlite3_stmt* insertNodeStmt = nullptr;
+		sqlite3_stmt* insertItemStmt = nullptr;
+		wxString insertNodeError;
+		wxString insertItemError;
+	};
+
 	void ReadBrushRecordFromStatement(sqlite3_stmt* stmt, BrushRecord &outBrush) {
 		outBrush.id = sqlite3_column_int64(stmt, 0);
 		outBrush.name = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
@@ -116,34 +123,31 @@ namespace {
 		sqlite3* connection,
 		int64_t brushId,
 		const std::vector<NodeRecord> &nodes,
-		sqlite3_stmt* insertNodeStmt,
-		sqlite3_stmt* insertItemStmt,
-		const wxString &insertNodeError,
-		const wxString &insertItemError,
+		const AlignedNodeWriteContext &context,
 		SetErrorFn &&setErrorFromDatabase
 	) {
 		for (const NodeRecord &node : nodes) {
-			sqlite3_reset(insertNodeStmt);
-			sqlite3_clear_bindings(insertNodeStmt);
-			sqlite3_bind_int64(insertNodeStmt, 1, brushId);
-			sqlite3_bind_text(insertNodeStmt, 2, node.align.utf8_str(), -1, SQLITE_TRANSIENT);
-			sqlite3_bind_int(insertNodeStmt, 3, node.sortOrder);
-			int rc = sqlite3_step(insertNodeStmt);
+			sqlite3_reset(context.insertNodeStmt);
+			sqlite3_clear_bindings(context.insertNodeStmt);
+			sqlite3_bind_int64(context.insertNodeStmt, 1, brushId);
+			sqlite3_bind_text(context.insertNodeStmt, 2, node.align.utf8_str(), -1, SQLITE_TRANSIENT);
+			sqlite3_bind_int(context.insertNodeStmt, 3, node.sortOrder);
+			int rc = sqlite3_step(context.insertNodeStmt);
 			if (rc != SQLITE_DONE) {
-				return setErrorFromDatabase(insertNodeError);
+				return setErrorFromDatabase(context.insertNodeError);
 			}
 
 			const int64_t nodeId = sqlite3_last_insert_rowid(connection);
 			for (const ItemRecord &item : node.items) {
-				sqlite3_reset(insertItemStmt);
-				sqlite3_clear_bindings(insertItemStmt);
-				sqlite3_bind_int64(insertItemStmt, 1, nodeId);
-				sqlite3_bind_int(insertItemStmt, 2, item.itemId);
-				sqlite3_bind_int(insertItemStmt, 3, item.chance);
-				sqlite3_bind_int(insertItemStmt, 4, item.sortOrder);
-				rc = sqlite3_step(insertItemStmt);
+				sqlite3_reset(context.insertItemStmt);
+				sqlite3_clear_bindings(context.insertItemStmt);
+				sqlite3_bind_int64(context.insertItemStmt, 1, nodeId);
+				sqlite3_bind_int(context.insertItemStmt, 2, item.itemId);
+				sqlite3_bind_int(context.insertItemStmt, 3, item.chance);
+				sqlite3_bind_int(context.insertItemStmt, 4, item.sortOrder);
+				rc = sqlite3_step(context.insertItemStmt);
 				if (rc != SQLITE_DONE) {
-					return setErrorFromDatabase(insertItemError);
+					return setErrorFromDatabase(context.insertItemError);
 				}
 			}
 		}
@@ -686,6 +690,57 @@ namespace {
 
 		return true;
 	}
+
+	struct BrushSchemaMigrationStep {
+		int version = 0;
+		bool (BrushDatabase::*migration)() = nullptr;
+	};
+
+	template <typename SetErrorFn>
+	bool WriteWallPartItems(
+		int64_t wallPartId,
+		const std::vector<WallPartItemRecord> &items,
+		sqlite3_stmt* insertItemStmt,
+		SetErrorFn &&setErrorFromDatabase
+	) {
+		for (const WallPartItemRecord &item : items) {
+			sqlite3_reset(insertItemStmt);
+			sqlite3_clear_bindings(insertItemStmt);
+			sqlite3_bind_int64(insertItemStmt, 1, wallPartId);
+			sqlite3_bind_int(insertItemStmt, 2, item.itemId);
+			sqlite3_bind_int(insertItemStmt, 3, item.chance);
+			sqlite3_bind_int(insertItemStmt, 4, item.sortOrder);
+			if (sqlite3_step(insertItemStmt) != SQLITE_DONE) {
+				return setErrorFromDatabase("Failed to insert wall part item");
+			}
+		}
+
+		return true;
+	}
+
+	template <typename SetErrorFn>
+	bool WriteWallPartDoors(
+		int64_t wallPartId,
+		const std::vector<WallPartDoorRecord> &doors,
+		sqlite3_stmt* insertDoorStmt,
+		SetErrorFn &&setErrorFromDatabase
+	) {
+		for (const WallPartDoorRecord &door : doors) {
+			sqlite3_reset(insertDoorStmt);
+			sqlite3_clear_bindings(insertDoorStmt);
+			sqlite3_bind_int64(insertDoorStmt, 1, wallPartId);
+			sqlite3_bind_int(insertDoorStmt, 2, door.itemId);
+			sqlite3_bind_text(insertDoorStmt, 3, door.doorType.utf8_str(), -1, SQLITE_TRANSIENT);
+			sqlite3_bind_int(insertDoorStmt, 4, door.isOpen ? 1 : 0);
+			sqlite3_bind_int(insertDoorStmt, 5, door.wallHateMe ? 1 : 0);
+			sqlite3_bind_int(insertDoorStmt, 6, door.sortOrder);
+			if (sqlite3_step(insertDoorStmt) != SQLITE_DONE) {
+				return setErrorFromDatabase("Failed to insert wall part door");
+			}
+		}
+
+		return true;
+	}
 } // namespace
 
 BrushDatabase::BrushDatabase() = default;
@@ -965,7 +1020,7 @@ bool BrushDatabase::addVersion2BrushColumns() {
 		const char* definition;
 	};
 
-	static const ColumnDefinition kBrushColumns[] = {
+	static constexpr std::array<ColumnDefinition, 11> kBrushColumns = { {
 		{ "source_file", "source_file TEXT NOT NULL DEFAULT ''" },
 		{ "server_look_id", "server_look_id INTEGER NOT NULL DEFAULT 0" },
 		{ "draggable", "draggable INTEGER NOT NULL DEFAULT 0 CHECK(draggable IN (0, 1))" },
@@ -977,7 +1032,7 @@ bool BrushDatabase::addVersion2BrushColumns() {
 		{ "solo_optional", "solo_optional INTEGER NOT NULL DEFAULT 0 CHECK(solo_optional IN (0, 1))" },
 		{ "thickness", "thickness INTEGER NOT NULL DEFAULT 0" },
 		{ "thickness_ceiling", "thickness_ceiling INTEGER NOT NULL DEFAULT 0" },
-	};
+	} };
 
 	for (const ColumnDefinition &column : kBrushColumns) {
 		if (!addColumnIfMissing("brushes", column.name, column.definition)) {
@@ -1216,6 +1271,21 @@ bool BrushDatabase::migrateToVersion2() {
 	return addVersion2BrushColumns() && createVersion2BorderSchema() && createVersion2BrushDetailSchema() && createVersion2TilesetSchema();
 }
 
+bool BrushDatabase::applySchemaMigrationStep(int &version, int targetVersion, bool (BrushDatabase::*migration)()) {
+	if (version >= targetVersion) {
+		return true;
+	}
+	if (!(this->*migration)()) {
+		return false;
+	}
+	if (!setSchemaVersion(targetVersion)) {
+		return false;
+	}
+
+	version = targetVersion;
+	return true;
+}
+
 bool BrushDatabase::initializeSchema() {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
@@ -1228,72 +1298,41 @@ bool BrushDatabase::initializeSchema() {
 		return false;
 	}
 
-	if (!ensureSchemaVersionTable()) {
+	const auto rollback = [this]() {
 		rollbackTransaction();
 		return false;
+	};
+
+	if (!ensureSchemaVersionTable()) {
+		return rollback();
 	}
 
 	int version = 0;
 	if (!getSchemaVersion(version)) {
-		rollbackTransaction();
-		return false;
+		return rollback();
 	}
 	if (version > kBrushDatabaseSchemaVersion) {
 		rollbackTransaction();
 		return setError(wxString::Format("SQLite schema version %d is newer than supported version %d.", version, kBrushDatabaseSchemaVersion));
 	}
 
-	if (version < 1) {
-		if (!migrateToVersion1() || !setSchemaVersion(1)) {
-			rollbackTransaction();
-			return false;
-		}
-		version = 1;
-	}
+	static constexpr std::array<BrushSchemaMigrationStep, 6> kMigrationSteps = { {
+		{ 1, &BrushDatabase::migrateToVersion1 },
+		{ 2, &BrushDatabase::migrateToVersion2 },
+		{ 3, &BrushDatabase::migrateToVersion3 },
+		{ 4, &BrushDatabase::migrateToVersion4 },
+		{ 5, &BrushDatabase::migrateToVersion5 },
+		{ 6, &BrushDatabase::migrateToVersion6 },
+	} };
 
-	if (version < 2) {
-		if (!migrateToVersion2() || !setSchemaVersion(2)) {
-			rollbackTransaction();
-			return false;
+	for (const BrushSchemaMigrationStep &step : kMigrationSteps) {
+		if (!applySchemaMigrationStep(version, step.version, step.migration)) {
+			return rollback();
 		}
-		version = 2;
-	}
-
-	if (version < 3) {
-		if (!migrateToVersion3() || !setSchemaVersion(3)) {
-			rollbackTransaction();
-			return false;
-		}
-		version = 3;
-	}
-
-	if (version < 4) {
-		if (!migrateToVersion4() || !setSchemaVersion(4)) {
-			rollbackTransaction();
-			return false;
-		}
-		version = 4;
-	}
-
-	if (version < 5) {
-		if (!migrateToVersion5() || !setSchemaVersion(5)) {
-			rollbackTransaction();
-			return false;
-		}
-		version = 5;
-	}
-
-	if (version < 6) {
-		if (!migrateToVersion6() || !setSchemaVersion(6)) {
-			rollbackTransaction();
-			return false;
-		}
-		version = 6;
 	}
 
 	if (!commitTransaction()) {
-		rollbackTransaction();
-		return false;
+		return rollback();
 	}
 
 	spdlog::info("SQLite brush database schema initialized at version {}", version);
@@ -2287,63 +2326,42 @@ bool BrushDatabase::replaceWallParts(int64_t brushId, const std::vector<WallPart
 		return false;
 	}
 
+	const auto failWithDatabaseError = [this, &insertPartStmt, &insertItemStmt, &insertDoorStmt](const wxString &message) {
+		FinalizeStatements({ insertPartStmt, insertItemStmt, insertDoorStmt });
+		rollbackTransaction();
+		return setErrorFromDatabase(message);
+	};
+
+	const auto fail = [this, &insertPartStmt, &insertItemStmt, &insertDoorStmt]() {
+		FinalizeStatements({ insertPartStmt, insertItemStmt, insertDoorStmt });
+		rollbackTransaction();
+		return false;
+	};
+
+	const auto setDbError = [this](const wxString &message) {
+		return setErrorFromDatabase(message);
+	};
+
 	for (const WallPartRecord &part : parts) {
 		sqlite3_reset(insertPartStmt);
 		sqlite3_clear_bindings(insertPartStmt);
 		sqlite3_bind_int64(insertPartStmt, 1, brushId);
 		sqlite3_bind_text(insertPartStmt, 2, part.partType.utf8_str(), -1, SQLITE_TRANSIENT);
 		sqlite3_bind_int(insertPartStmt, 3, part.sortOrder);
-		rc = sqlite3_step(insertPartStmt);
-		if (rc != SQLITE_DONE) {
-			sqlite3_finalize(insertPartStmt);
-			sqlite3_finalize(insertItemStmt);
-			sqlite3_finalize(insertDoorStmt);
-			rollbackTransaction();
-			return setErrorFromDatabase("Failed to insert wall part");
+		if (sqlite3_step(insertPartStmt) != SQLITE_DONE) {
+			return failWithDatabaseError("Failed to insert wall part");
 		}
 
 		const int64_t wallPartId = sqlite3_last_insert_rowid(connection_);
-
-		for (const WallPartItemRecord &item : part.items) {
-			sqlite3_reset(insertItemStmt);
-			sqlite3_clear_bindings(insertItemStmt);
-			sqlite3_bind_int64(insertItemStmt, 1, wallPartId);
-			sqlite3_bind_int(insertItemStmt, 2, item.itemId);
-			sqlite3_bind_int(insertItemStmt, 3, item.chance);
-			sqlite3_bind_int(insertItemStmt, 4, item.sortOrder);
-			rc = sqlite3_step(insertItemStmt);
-			if (rc != SQLITE_DONE) {
-				sqlite3_finalize(insertPartStmt);
-				sqlite3_finalize(insertItemStmt);
-				sqlite3_finalize(insertDoorStmt);
-				rollbackTransaction();
-				return setErrorFromDatabase("Failed to insert wall part item");
-			}
+		if (!WriteWallPartItems(wallPartId, part.items, insertItemStmt, setDbError)) {
+			return fail();
 		}
-
-		for (const WallPartDoorRecord &door : part.doors) {
-			sqlite3_reset(insertDoorStmt);
-			sqlite3_clear_bindings(insertDoorStmt);
-			sqlite3_bind_int64(insertDoorStmt, 1, wallPartId);
-			sqlite3_bind_int(insertDoorStmt, 2, door.itemId);
-			sqlite3_bind_text(insertDoorStmt, 3, door.doorType.utf8_str(), -1, SQLITE_TRANSIENT);
-			sqlite3_bind_int(insertDoorStmt, 4, door.isOpen ? 1 : 0);
-			sqlite3_bind_int(insertDoorStmt, 5, door.wallHateMe ? 1 : 0);
-			sqlite3_bind_int(insertDoorStmt, 6, door.sortOrder);
-			rc = sqlite3_step(insertDoorStmt);
-			if (rc != SQLITE_DONE) {
-				sqlite3_finalize(insertPartStmt);
-				sqlite3_finalize(insertItemStmt);
-				sqlite3_finalize(insertDoorStmt);
-				rollbackTransaction();
-				return setErrorFromDatabase("Failed to insert wall part door");
-			}
+		if (!WriteWallPartDoors(wallPartId, part.doors, insertDoorStmt, setDbError)) {
+			return fail();
 		}
 	}
 
-	sqlite3_finalize(insertPartStmt);
-	sqlite3_finalize(insertItemStmt);
-	sqlite3_finalize(insertDoorStmt);
+	FinalizeStatements({ insertPartStmt, insertItemStmt, insertDoorStmt });
 	if (!commitTransaction()) {
 		rollbackTransaction();
 		return false;
@@ -2497,10 +2515,7 @@ bool BrushDatabase::replaceCarpetNodes(int64_t brushId, const std::vector<Carpet
 			connection_,
 			brushId,
 			nodes,
-			insertNodeStmt,
-			insertItemStmt,
-			"Failed to insert carpet node",
-			"Failed to insert carpet node item",
+			{ insertNodeStmt, insertItemStmt, "Failed to insert carpet node", "Failed to insert carpet node item" },
 			[this](const wxString &message) { return setErrorFromDatabase(message); }
 		)) {
 		FinalizeStatements({ insertNodeStmt, insertItemStmt });
@@ -2594,10 +2609,7 @@ bool BrushDatabase::replaceTableNodes(int64_t brushId, const std::vector<TableNo
 			connection_,
 			brushId,
 			nodes,
-			insertNodeStmt,
-			insertItemStmt,
-			"Failed to insert table node",
-			"Failed to insert table node item",
+			{ insertNodeStmt, insertItemStmt, "Failed to insert table node", "Failed to insert table node item" },
 			[this](const wxString &message) { return setErrorFromDatabase(message); }
 		)) {
 		FinalizeStatements({ insertNodeStmt, insertItemStmt });
@@ -3200,24 +3212,6 @@ bool BrushDatabase::resolveGroundReferenceNames() {
 				   "LIMIT 1"
 				   ") "
 				   "WHERE target_brush_name <> '' AND target_brush_name <> 'all';");
-}
-
-bool BrushDatabase::runInTransaction(const std::function<bool()> &operation) {
-	if (!beginTransaction()) {
-		return false;
-	}
-
-	if (!operation()) {
-		rollbackTransaction();
-		return false;
-	}
-
-	if (!commitTransaction()) {
-		rollbackTransaction();
-		return false;
-	}
-
-	return true;
 }
 
 bool BrushDatabase::execute(const wxString &sql) {

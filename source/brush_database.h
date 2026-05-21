@@ -3,8 +3,9 @@
 
 #include "main.h"
 
-#include <functional>
+#include <array>
 #include <sqlite3.h>
+#include <utility>
 
 struct BrushRecord {
 	int64_t id = 0;
@@ -274,12 +275,30 @@ public:
 	bool hasCompleteImportForCurrentSchema(bool &outReady);
 	int getExpectedSchemaVersion() const;
 	bool resolveGroundReferenceNames();
-	bool runInTransaction(const std::function<bool()> &operation);
+	template <typename Operation>
+	bool runInTransaction(Operation &&operation) {
+		if (!beginTransaction()) {
+			return false;
+		}
+
+		if (!std::forward<Operation>(operation)()) {
+			rollbackTransaction();
+			return false;
+		}
+
+		if (!commitTransaction()) {
+			rollbackTransaction();
+			return false;
+		}
+
+		return true;
+	}
 
 private:
 	bool ensureSchemaVersionTable();
 	bool getSchemaVersion(int &version);
 	bool setSchemaVersion(int version);
+	bool applySchemaMigrationStep(int &version, int targetVersion, bool (BrushDatabase::*migration)());
 	bool migrateToVersion1();
 	bool migrateToVersion2();
 	bool migrateToVersion3();
