@@ -616,12 +616,31 @@ bool IOMapOTBM::loadMap(Map &map, const FileName &filename) {
 	}
 #endif
 
-	DiskNodeFileReadHandle f(nstr(filename.GetFullPath()), StringVector(1, "OTBM"));
-	if (!f.isOk()) {
-		error(("Couldn't open file for reading\nThe error reported was: " + wxstr(f.getErrorMessage())).wc_str());
+	FileReadHandle otbmFile(nstr(filename.GetFullPath()));
+	if (!otbmFile.isOk()) {
+		error(("Couldn't open file for reading\nThe error reported was: " + wxstr(otbmFile.getErrorMessage())).wc_str());
 		return false;
 	}
 
+	const size_t otbmSize = otbmFile.size();
+	if (otbmSize < 4) {
+		error("Could not read OTBM file header.");
+		return false;
+	}
+
+	std::vector<uint8_t> otbmBuffer(otbmSize);
+	if (!otbmFile.getRAW(otbmBuffer.data(), otbmBuffer.size())) {
+		error(("Couldn't read file\nThe error reported was: " + wxstr(otbmFile.getErrorMessage())).wc_str());
+		return false;
+	}
+
+	const bool wildcardIdentifier = otbmBuffer[0] == 0 && otbmBuffer[1] == 0 && otbmBuffer[2] == 0 && otbmBuffer[3] == 0;
+	if (!wildcardIdentifier && memcmp(otbmBuffer.data(), "OTBM", 4) != 0) {
+		error("File magic number not recognized.");
+		return false;
+	}
+
+	MemoryNodeFileReadHandle f(otbmBuffer.data() + 4, otbmSize - 4);
 	if (!loadMap(map, f)) {
 		return false;
 	}
