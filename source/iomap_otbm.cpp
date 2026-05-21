@@ -775,6 +775,10 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 				continue;
 			}
 
+			Floor* cachedFloor = nullptr;
+			int cachedFloorX = -1;
+			int cachedFloorY = -1;
+			int cachedFloorZ = -1;
 			for (BinaryNode* tileNode = mapNode->getChild(); tileNode != nullptr; tileNode = tileNode->advance()) {
 				Tile* tile = nullptr;
 				uint8_t tile_type;
@@ -791,7 +795,16 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 					}
 					const Position pos(base_x + x_offset, base_y + y_offset, base_z);
 
-					TileLocation* tileLocation = map.createTileL(pos);
+					const int floorX = pos.x & ~3;
+					const int floorY = pos.y & ~3;
+					if (!cachedFloor || cachedFloorX != floorX || cachedFloorY != floorY || cachedFloorZ != pos.z) {
+						cachedFloor = map.createLeaf(pos.x, pos.y)->createFloor(pos.x, pos.y, pos.z);
+						cachedFloorX = floorX;
+						cachedFloorY = floorY;
+						cachedFloorZ = pos.z;
+					}
+
+					TileLocation* tileLocation = &cachedFloor->locs[(pos.x & 3) * 4 + (pos.y & 3)];
 					if (tileLocation->get()) {
 						warning("Duplicate tile at %d:%d:%d, discarding duplicate", pos.x, pos.y, pos.z);
 						continue;
