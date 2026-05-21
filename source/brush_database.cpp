@@ -738,28 +738,181 @@ namespace {
 	}
 } // namespace
 
-BrushDatabase::BrushDatabase() = default;
+BrushDatabaseSession::BrushDatabaseSession() = default;
 
-BrushDatabase::~BrushDatabase() {
+BrushDatabaseSession::~BrushDatabaseSession() {
 	close();
 }
 
+BrushDatabaseComponent::BrushDatabaseComponent(BrushDatabaseSession &session) :
+	session_(session),
+	connection_(session.connection_),
+	lastError_(session.lastError_),
+	readOnly_(session.readOnly_) {
+}
+
+BrushDatabaseSchemaManager::BrushDatabaseSchemaManager(BrushDatabaseSession &session) :
+	BrushDatabaseComponent(session) {
+}
+
+BrushDatabaseBrushRepository::BrushDatabaseBrushRepository(BrushDatabaseSession &session) :
+	BrushDatabaseComponent(session) {
+}
+
+BrushDatabaseCatalogRepository::BrushDatabaseCatalogRepository(BrushDatabaseSession &session, BrushDatabaseSchemaManager &schemaManager) :
+	BrushDatabaseComponent(session),
+	schemaManager_(schemaManager) {
+}
+
+BrushDatabase::BrushDatabase() :
+	session_(),
+	schemaManager_(session_),
+	brushRepository_(session_),
+	catalogRepository_(session_, schemaManager_) {
+}
+
+BrushDatabase::~BrushDatabase() = default;
+
 bool BrushDatabase::initialize(const wxString &databasePath) {
-	if (!open(databasePath)) {
+	if (!session_.open(databasePath)) {
 		return false;
 	}
-	return initializeSchema();
+	return schemaManager_.initializeSchema();
 }
 
 bool BrushDatabase::openReadOnly(const wxString &databasePath) {
-	return openInternal(databasePath, true);
+	return session_.openReadOnly(databasePath);
 }
 
 bool BrushDatabase::open(const wxString &databasePath) {
+	return session_.open(databasePath);
+}
+
+void BrushDatabase::close() {
+	session_.close();
+}
+
+bool BrushDatabase::isOpen() const {
+	return session_.isOpen();
+}
+
+bool BrushDatabase::isReadOnly() const {
+	return session_.isReadOnly();
+}
+
+const wxString &BrushDatabase::getDatabasePath() const {
+	return session_.getDatabasePath();
+}
+
+const wxString &BrushDatabase::getLastError() const {
+	return session_.getLastError();
+}
+
+bool BrushDatabase::testDatabaseConnection() {
+	return session_.testDatabaseConnection();
+}
+
+bool BrushDatabase::upsertBrush(const BrushRecord &brush, int64_t &brushId) {
+	return brushRepository_.upsertBrush(brush, brushId);
+}
+
+bool BrushDatabase::listBrushesByType(const wxString &type, std::vector<BrushRecord> &outBrushes) {
+	return brushRepository_.listBrushesByType(type, outBrushes);
+}
+
+bool BrushDatabase::getCompleteBrushById(int64_t brushId, BrushStorageRecord &outBrush) {
+	return brushRepository_.getCompleteBrushById(brushId, outBrush);
+}
+
+bool BrushDatabase::deleteBrushesByType(const wxString &type) {
+	return brushRepository_.deleteBrushesByType(type);
+}
+
+bool BrushDatabase::replaceBrushItems(int64_t brushId, const std::vector<BrushItemRecord> &items) {
+	return brushRepository_.replaceBrushItems(brushId, items);
+}
+
+bool BrushDatabase::upsertBorderSet(const BorderSetRecord &borderSet, int64_t &borderSetId) {
+	return brushRepository_.upsertBorderSet(borderSet, borderSetId);
+}
+
+bool BrushDatabase::findBorderSetByXmlBorderId(int xmlBorderId, BorderSetRecord &outBorderSet) {
+	return brushRepository_.findBorderSetByXmlBorderId(xmlBorderId, outBorderSet);
+}
+
+bool BrushDatabase::replaceBorderSetItems(int64_t borderSetId, const std::vector<BorderSetItemRecord> &items) {
+	return brushRepository_.replaceBorderSetItems(borderSetId, items);
+}
+
+bool BrushDatabase::deleteBorderSetsByScope(const wxString &borderScope) {
+	return brushRepository_.deleteBorderSetsByScope(borderScope);
+}
+
+bool BrushDatabase::deleteOwnedBorderSetsForBrush(int64_t brushId) {
+	return brushRepository_.deleteOwnedBorderSetsForBrush(brushId);
+}
+
+bool BrushDatabase::replaceGroundBrushBorders(int64_t brushId, const std::vector<GroundBrushBorderRecord> &borders) {
+	return brushRepository_.replaceGroundBrushBorders(brushId, borders);
+}
+
+bool BrushDatabase::replaceBrushLinks(int64_t brushId, const std::vector<BrushLinkRecord> &links) {
+	return brushRepository_.replaceBrushLinks(brushId, links);
+}
+
+bool BrushDatabase::replaceWallParts(int64_t brushId, const std::vector<WallPartRecord> &parts) {
+	return brushRepository_.replaceWallParts(brushId, parts);
+}
+
+bool BrushDatabase::replaceCarpetNodes(int64_t brushId, const std::vector<CarpetNodeRecord> &nodes) {
+	return brushRepository_.replaceCarpetNodes(brushId, nodes);
+}
+
+bool BrushDatabase::replaceTableNodes(int64_t brushId, const std::vector<TableNodeRecord> &nodes) {
+	return brushRepository_.replaceTableNodes(brushId, nodes);
+}
+
+bool BrushDatabase::replaceDoodadAlternatives(int64_t brushId, const std::vector<DoodadAlternativeRecord> &alternatives) {
+	return brushRepository_.replaceDoodadAlternatives(brushId, alternatives);
+}
+
+bool BrushDatabase::resolveGroundReferenceNames() {
+	return brushRepository_.resolveGroundReferenceNames();
+}
+
+bool BrushDatabase::replaceAllTilesets(const std::vector<TilesetStorageRecord> &tilesets) {
+	return catalogRepository_.replaceAllTilesets(tilesets);
+}
+
+bool BrushDatabase::getAllTilesets(std::vector<TilesetStorageRecord> &outTilesets) {
+	return catalogRepository_.getAllTilesets(outTilesets);
+}
+
+bool BrushDatabase::generateAuditReport(MaterialsDatabaseAuditReport &outReport) {
+	return catalogRepository_.generateAuditReport(outReport);
+}
+
+bool BrushDatabase::hasCompleteImportForCurrentSchema(bool &outReady) {
+	return catalogRepository_.hasCompleteImportForCurrentSchema(outReady);
+}
+
+int BrushDatabase::getExpectedSchemaVersion() const {
+	return catalogRepository_.getExpectedSchemaVersion();
+}
+
+bool BrushDatabaseSession::initialize(const wxString &databasePath) {
+	return open(databasePath);
+}
+
+bool BrushDatabaseSession::openReadOnly(const wxString &databasePath) {
+	return openInternal(databasePath, true);
+}
+
+bool BrushDatabaseSession::open(const wxString &databasePath) {
 	return openInternal(databasePath, false);
 }
 
-bool BrushDatabase::openInternal(const wxString &databasePath, bool readOnly) {
+bool BrushDatabaseSession::openInternal(const wxString &databasePath, bool readOnly) {
 	if (connection_ && databasePath_ == databasePath) {
 		if (readOnly_ == readOnly) {
 			return true;
@@ -812,7 +965,7 @@ bool BrushDatabase::openInternal(const wxString &databasePath, bool readOnly) {
 	return true;
 }
 
-void BrushDatabase::close() {
+void BrushDatabaseSession::close() {
 	if (connection_) {
 		sqlite3_close(connection_);
 		connection_ = nullptr;
@@ -824,23 +977,71 @@ void BrushDatabase::close() {
 	savepointIds_.clear();
 }
 
-bool BrushDatabase::isOpen() const {
+bool BrushDatabaseSession::isOpen() const {
 	return connection_ != nullptr;
 }
 
-bool BrushDatabase::isReadOnly() const {
+bool BrushDatabaseSession::isReadOnly() const {
 	return readOnly_;
 }
 
-const wxString &BrushDatabase::getDatabasePath() const {
+const wxString &BrushDatabaseSession::getDatabasePath() const {
 	return databasePath_;
 }
 
-const wxString &BrushDatabase::getLastError() const {
+const wxString &BrushDatabaseSession::getLastError() const {
 	return lastError_;
 }
 
-bool BrushDatabase::ensureSchemaVersionTable() {
+sqlite3* BrushDatabaseSession::connection() const {
+	return connection_;
+}
+
+sqlite3* BrushDatabaseComponent::connection() const {
+	return session_.connection();
+}
+
+bool BrushDatabaseComponent::isOpen() const {
+	return session_.isOpen();
+}
+
+bool BrushDatabaseComponent::isReadOnly() const {
+	return session_.isReadOnly();
+}
+
+const wxString &BrushDatabaseComponent::lastError() const {
+	return session_.getLastError();
+}
+
+bool BrushDatabaseComponent::execute(const wxString &sql) {
+	return session_.execute(sql);
+}
+
+bool BrushDatabaseComponent::prepare(const char* sql, sqlite3_stmt** stmt) {
+	return session_.prepare(sql, stmt);
+}
+
+bool BrushDatabaseComponent::beginTransaction() {
+	return session_.beginTransaction();
+}
+
+bool BrushDatabaseComponent::commitTransaction() {
+	return session_.commitTransaction();
+}
+
+bool BrushDatabaseComponent::rollbackTransaction() {
+	return session_.rollbackTransaction();
+}
+
+bool BrushDatabaseComponent::setError(const wxString &message) {
+	return session_.setError(message);
+}
+
+bool BrushDatabaseComponent::setErrorFromDatabase(const wxString &prefix) {
+	return session_.setErrorFromDatabase(prefix);
+}
+
+bool BrushDatabaseSchemaManager::ensureSchemaVersionTable() {
 	if (!execute("CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);")) {
 		return false;
 	}
@@ -848,7 +1049,7 @@ bool BrushDatabase::ensureSchemaVersionTable() {
 				   "SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM schema_version);");
 }
 
-bool BrushDatabase::getSchemaVersion(int &version) {
+bool BrushDatabaseSchemaManager::getCurrentSchemaVersion(int &version) {
 	version = 0;
 
 	sqlite3_stmt* stmt = nullptr;
@@ -870,7 +1071,7 @@ bool BrushDatabase::getSchemaVersion(int &version) {
 	return setErrorFromDatabase("Failed to query SQLite schema version");
 }
 
-bool BrushDatabase::setSchemaVersion(int version) {
+bool BrushDatabaseSchemaManager::setSchemaVersion(int version) {
 	sqlite3_stmt* stmt = nullptr;
 	if (!prepare("UPDATE schema_version SET version = ?;", &stmt)) {
 		return false;
@@ -885,7 +1086,7 @@ bool BrushDatabase::setSchemaVersion(int version) {
 	return true;
 }
 
-bool BrushDatabase::columnExists(const wxString &tableName, const wxString &columnName, bool &exists) {
+bool BrushDatabaseSchemaManager::columnExists(const wxString &tableName, const wxString &columnName, bool &exists) {
 	exists = false;
 
 	sqlite3_stmt* stmt = nullptr;
@@ -914,7 +1115,7 @@ bool BrushDatabase::columnExists(const wxString &tableName, const wxString &colu
 	return true;
 }
 
-bool BrushDatabase::migrateToVersion1() {
+bool BrushDatabaseSchemaManager::migrateToVersion1() {
 	if (!execute("CREATE TABLE IF NOT EXISTS brushes ("
 				 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
 				 "name TEXT NOT NULL,"
@@ -989,7 +1190,7 @@ bool BrushDatabase::migrateToVersion1() {
 				   "ON brush_relationships(to_brush_id, relationship_type);");
 }
 
-bool BrushDatabase::addColumnIfMissing(const wxString &tableName, const wxString &columnName, const wxString &definition) {
+bool BrushDatabaseSchemaManager::addColumnIfMissing(const wxString &tableName, const wxString &columnName, const wxString &definition) {
 	bool exists = false;
 	if (!columnExists(tableName, columnName, exists)) {
 		return false;
@@ -1000,7 +1201,7 @@ bool BrushDatabase::addColumnIfMissing(const wxString &tableName, const wxString
 	return execute("ALTER TABLE " + tableName + " ADD COLUMN " + definition + ";");
 }
 
-bool BrushDatabase::executeStatements(std::initializer_list<const char*> statements) {
+bool BrushDatabaseSchemaManager::executeStatements(std::initializer_list<const char*> statements) {
 	for (const char* statement : statements) {
 		if (!execute(statement)) {
 			return false;
@@ -1009,7 +1210,7 @@ bool BrushDatabase::executeStatements(std::initializer_list<const char*> stateme
 	return true;
 }
 
-bool BrushDatabase::addVersion2BrushColumns() {
+bool BrushDatabaseSchemaManager::addVersion2BrushColumns() {
 	struct ColumnDefinition {
 		const char* name;
 		const char* definition;
@@ -1040,7 +1241,7 @@ bool BrushDatabase::addVersion2BrushColumns() {
 	});
 }
 
-bool BrushDatabase::createVersion2BorderSchema() {
+bool BrushDatabaseSchemaManager::createVersion2BorderSchema() {
 	return executeStatements({
 		"CREATE TABLE IF NOT EXISTS border_sets ("
 		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -1114,7 +1315,7 @@ bool BrushDatabase::createVersion2BorderSchema() {
 	});
 }
 
-bool BrushDatabase::createVersion2BrushDetailSchema() {
+bool BrushDatabaseSchemaManager::createVersion2BrushDetailSchema() {
 	return executeStatements({
 		"CREATE TABLE IF NOT EXISTS brush_links ("
 		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -1228,7 +1429,7 @@ bool BrushDatabase::createVersion2BrushDetailSchema() {
 	});
 }
 
-bool BrushDatabase::createVersion2TilesetSchema() {
+bool BrushDatabaseSchemaManager::createVersion2TilesetSchema() {
 	return executeStatements({
 		"CREATE TABLE IF NOT EXISTS tilesets ("
 		"id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -1262,12 +1463,12 @@ bool BrushDatabase::createVersion2TilesetSchema() {
 	});
 }
 
-bool BrushDatabase::migrateToVersion2() {
+bool BrushDatabaseSchemaManager::migrateToVersion2() {
 	return addVersion2BrushColumns() && createVersion2BorderSchema() && createVersion2BrushDetailSchema() && createVersion2TilesetSchema();
 }
 
 template <auto Migration>
-bool BrushDatabase::applySchemaMigrationStep(int &version, int targetVersion) {
+bool BrushDatabaseSchemaManager::applySchemaMigrationStep(int &version, int targetVersion) {
 	if (version >= targetVersion) {
 		return true;
 	}
@@ -1282,7 +1483,7 @@ bool BrushDatabase::applySchemaMigrationStep(int &version, int targetVersion) {
 	return true;
 }
 
-bool BrushDatabase::initializeSchema() {
+bool BrushDatabaseSchemaManager::initializeSchema() {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -1304,14 +1505,14 @@ bool BrushDatabase::initializeSchema() {
 	}
 
 	int version = 0;
-	if (!getSchemaVersion(version)) {
+	if (!getCurrentSchemaVersion(version)) {
 		return rollback();
 	}
 	if (version > kBrushDatabaseSchemaVersion) {
 		rollbackTransaction();
 		return setError(wxString::Format("SQLite schema version %d is newer than supported version %d.", version, kBrushDatabaseSchemaVersion));
 	}
-	if (!applySchemaMigrationStep<&BrushDatabase::migrateToVersion1>(version, 1) || !applySchemaMigrationStep<&BrushDatabase::migrateToVersion2>(version, 2) || !applySchemaMigrationStep<&BrushDatabase::migrateToVersion3>(version, 3) || !applySchemaMigrationStep<&BrushDatabase::migrateToVersion4>(version, 4) || !applySchemaMigrationStep<&BrushDatabase::migrateToVersion5>(version, 5) || !applySchemaMigrationStep<&BrushDatabase::migrateToVersion6>(version, 6)) {
+	if (!applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion1>(version, 1) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion2>(version, 2) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion3>(version, 3) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion4>(version, 4) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion5>(version, 5) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion6>(version, 6)) {
 		return rollback();
 	}
 
@@ -1323,7 +1524,7 @@ bool BrushDatabase::initializeSchema() {
 	return true;
 }
 
-bool BrushDatabase::migrateToVersion3() {
+bool BrushDatabaseSchemaManager::migrateToVersion3() {
 	const wxString recreateSql = "DROP TABLE IF EXISTS brush_items;"
 								 "DROP TABLE IF EXISTS wall_part_items;"
 								 "DROP TABLE IF EXISTS carpet_node_items;"
@@ -1385,7 +1586,7 @@ bool BrushDatabase::migrateToVersion3() {
 	return true;
 }
 
-bool BrushDatabase::migrateToVersion4() {
+bool BrushDatabaseSchemaManager::migrateToVersion4() {
 	const wxString recreateSql = "DROP TABLE IF EXISTS brush_items;"
 								 "CREATE TABLE brush_items ("
 								 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -1400,15 +1601,15 @@ bool BrushDatabase::migrateToVersion4() {
 	return execute(recreateSql);
 }
 
-bool BrushDatabase::migrateToVersion5() {
+bool BrushDatabaseSchemaManager::migrateToVersion5() {
 	return execute(kRecreateTilesetTablesSql);
 }
 
-bool BrushDatabase::migrateToVersion6() {
+bool BrushDatabaseSchemaManager::migrateToVersion6() {
 	return execute(kRecreateTilesetTablesSql);
 }
 
-bool BrushDatabase::testDatabaseConnection() {
+bool BrushDatabaseSession::testDatabaseConnection() {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -1427,7 +1628,7 @@ bool BrushDatabase::testDatabaseConnection() {
 	return true;
 }
 
-bool BrushDatabase::testBasicCRUD() {
+bool BrushDatabaseBrushRepository::testBasicCRUD() {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -1482,7 +1683,7 @@ bool BrushDatabase::testBasicCRUD() {
 	return true;
 }
 
-bool BrushDatabase::insertBrush(const BrushRecord &brush, int64_t &insertedId) {
+bool BrushDatabaseBrushRepository::insertBrush(const BrushRecord &brush, int64_t &insertedId) {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -1509,7 +1710,7 @@ bool BrushDatabase::insertBrush(const BrushRecord &brush, int64_t &insertedId) {
 	return true;
 }
 
-bool BrushDatabase::upsertBrush(const BrushRecord &brush, int64_t &brushId) {
+bool BrushDatabaseBrushRepository::upsertBrush(const BrushRecord &brush, int64_t &brushId) {
 	BrushRecord existingBrush;
 	if (findBrushByNameAndType(brush.name, brush.type, existingBrush)) {
 		BrushRecord updatedBrush = brush;
@@ -1524,7 +1725,7 @@ bool BrushDatabase::upsertBrush(const BrushRecord &brush, int64_t &brushId) {
 	return insertBrush(brush, brushId);
 }
 
-bool BrushDatabase::getBrushById(int64_t brushId, BrushRecord &outBrush) {
+bool BrushDatabaseBrushRepository::getBrushById(int64_t brushId, BrushRecord &outBrush) {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -1548,7 +1749,7 @@ bool BrushDatabase::getBrushById(int64_t brushId, BrushRecord &outBrush) {
 	return true;
 }
 
-bool BrushDatabase::listBrushesByType(const wxString &type, std::vector<BrushRecord> &outBrushes) {
+bool BrushDatabaseBrushRepository::listBrushesByType(const wxString &type, std::vector<BrushRecord> &outBrushes) {
 	outBrushes.clear();
 
 	if (!isOpen()) {
@@ -1581,7 +1782,7 @@ bool BrushDatabase::listBrushesByType(const wxString &type, std::vector<BrushRec
 	return true;
 }
 
-bool BrushDatabase::findBrushByNameAndType(const wxString &name, const wxString &type, BrushRecord &outBrush) {
+bool BrushDatabaseBrushRepository::findBrushByNameAndType(const wxString &name, const wxString &type, BrushRecord &outBrush) {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -1610,7 +1811,7 @@ bool BrushDatabase::findBrushByNameAndType(const wxString &name, const wxString 
 	return true;
 }
 
-bool BrushDatabase::getCompleteBrushById(int64_t brushId, BrushStorageRecord &outBrush) {
+bool BrushDatabaseBrushRepository::getCompleteBrushById(int64_t brushId, BrushStorageRecord &outBrush) {
 	outBrush = BrushStorageRecord();
 
 	if (!getBrushById(brushId, outBrush.brush)) {
@@ -1637,7 +1838,7 @@ bool BrushDatabase::getCompleteBrushById(int64_t brushId, BrushStorageRecord &ou
 	return getDoodadAlternatives(brushId, outBrush.doodadAlternatives);
 }
 
-bool BrushDatabase::updateBrush(const BrushRecord &brush) {
+bool BrushDatabaseBrushRepository::updateBrush(const BrushRecord &brush) {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -1663,7 +1864,7 @@ bool BrushDatabase::updateBrush(const BrushRecord &brush) {
 	return sqlite3_changes(connection_) > 0 || setError(wxString::Format("Brush %lld was not updated.", static_cast<long long>(brush.id)));
 }
 
-bool BrushDatabase::deleteBrush(int64_t brushId) {
+bool BrushDatabaseBrushRepository::deleteBrush(int64_t brushId) {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -1684,7 +1885,7 @@ bool BrushDatabase::deleteBrush(int64_t brushId) {
 	return true;
 }
 
-bool BrushDatabase::deleteBrushesByType(const wxString &type) {
+bool BrushDatabaseBrushRepository::deleteBrushesByType(const wxString &type) {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -1703,7 +1904,7 @@ bool BrushDatabase::deleteBrushesByType(const wxString &type) {
 	return true;
 }
 
-bool BrushDatabase::replaceBrushItems(int64_t brushId, const std::vector<BrushItemRecord> &items) {
+bool BrushDatabaseBrushRepository::replaceBrushItems(int64_t brushId, const std::vector<BrushItemRecord> &items) {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -1760,7 +1961,7 @@ bool BrushDatabase::replaceBrushItems(int64_t brushId, const std::vector<BrushIt
 	return true;
 }
 
-bool BrushDatabase::getBrushItems(int64_t brushId, std::vector<BrushItemRecord> &outItems) {
+bool BrushDatabaseBrushRepository::getBrushItems(int64_t brushId, std::vector<BrushItemRecord> &outItems) {
 	outItems.clear();
 
 	if (!isOpen()) {
@@ -1798,7 +1999,7 @@ bool BrushDatabase::getBrushItems(int64_t brushId, std::vector<BrushItemRecord> 
 	return true;
 }
 
-bool BrushDatabase::upsertBorderSet(const BorderSetRecord &borderSet, int64_t &borderSetId) {
+bool BrushDatabaseBrushRepository::upsertBorderSet(const BorderSetRecord &borderSet, int64_t &borderSetId) {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -1862,7 +2063,7 @@ bool BrushDatabase::upsertBorderSet(const BorderSetRecord &borderSet, int64_t &b
 	return true;
 }
 
-bool BrushDatabase::findBorderSetByXmlBorderId(int xmlBorderId, BorderSetRecord &outBorderSet) {
+bool BrushDatabaseBrushRepository::findBorderSetByXmlBorderId(int xmlBorderId, BorderSetRecord &outBorderSet) {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -1897,7 +2098,7 @@ bool BrushDatabase::findBorderSetByXmlBorderId(int xmlBorderId, BorderSetRecord 
 	return true;
 }
 
-bool BrushDatabase::replaceBorderSetItems(int64_t borderSetId, const std::vector<BorderSetItemRecord> &items) {
+bool BrushDatabaseBrushRepository::replaceBorderSetItems(int64_t borderSetId, const std::vector<BorderSetItemRecord> &items) {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -1947,7 +2148,7 @@ bool BrushDatabase::replaceBorderSetItems(int64_t borderSetId, const std::vector
 	return true;
 }
 
-bool BrushDatabase::deleteBorderSetsByScope(const wxString &borderScope) {
+bool BrushDatabaseBrushRepository::deleteBorderSetsByScope(const wxString &borderScope) {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -1964,7 +2165,7 @@ bool BrushDatabase::deleteBorderSetsByScope(const wxString &borderScope) {
 	return true;
 }
 
-bool BrushDatabase::deleteOwnedBorderSetsForBrush(int64_t brushId) {
+bool BrushDatabaseBrushRepository::deleteOwnedBorderSetsForBrush(int64_t brushId) {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -1981,7 +2182,7 @@ bool BrushDatabase::deleteOwnedBorderSetsForBrush(int64_t brushId) {
 	return true;
 }
 
-bool BrushDatabase::replaceGroundBrushBorders(int64_t brushId, const std::vector<GroundBrushBorderRecord> &borders) {
+bool BrushDatabaseBrushRepository::replaceGroundBrushBorders(int64_t brushId, const std::vector<GroundBrushBorderRecord> &borders) {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -2087,7 +2288,7 @@ bool BrushDatabase::replaceGroundBrushBorders(int64_t brushId, const std::vector
 	return true;
 }
 
-bool BrushDatabase::getGroundBrushBorders(int64_t brushId, std::vector<GroundBrushBorderRecord> &outBorders) {
+bool BrushDatabaseBrushRepository::getGroundBrushBorders(int64_t brushId, std::vector<GroundBrushBorderRecord> &outBorders) {
 	outBorders.clear();
 
 	if (!isOpen()) {
@@ -2176,7 +2377,7 @@ bool BrushDatabase::getGroundBrushBorders(int64_t brushId, std::vector<GroundBru
 	return true;
 }
 
-bool BrushDatabase::replaceBrushLinks(int64_t brushId, const std::vector<BrushLinkRecord> &links) {
+bool BrushDatabaseBrushRepository::replaceBrushLinks(int64_t brushId, const std::vector<BrushLinkRecord> &links) {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -2227,7 +2428,7 @@ bool BrushDatabase::replaceBrushLinks(int64_t brushId, const std::vector<BrushLi
 	return true;
 }
 
-bool BrushDatabase::getBrushLinks(int64_t brushId, std::vector<BrushLinkRecord> &outLinks) {
+bool BrushDatabaseBrushRepository::getBrushLinks(int64_t brushId, std::vector<BrushLinkRecord> &outLinks) {
 	outLinks.clear();
 
 	if (!isOpen()) {
@@ -2266,7 +2467,7 @@ bool BrushDatabase::getBrushLinks(int64_t brushId, std::vector<BrushLinkRecord> 
 	return true;
 }
 
-bool BrushDatabase::replaceWallParts(int64_t brushId, const std::vector<WallPartRecord> &parts) {
+bool BrushDatabaseBrushRepository::replaceWallParts(int64_t brushId, const std::vector<WallPartRecord> &parts) {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -2353,7 +2554,7 @@ bool BrushDatabase::replaceWallParts(int64_t brushId, const std::vector<WallPart
 	return true;
 }
 
-bool BrushDatabase::getWallParts(int64_t brushId, std::vector<WallPartRecord> &outParts) {
+bool BrushDatabaseBrushRepository::getWallParts(int64_t brushId, std::vector<WallPartRecord> &outParts) {
 	outParts.clear();
 
 	if (!isOpen()) {
@@ -2461,7 +2662,7 @@ bool BrushDatabase::getWallParts(int64_t brushId, std::vector<WallPartRecord> &o
 	return true;
 }
 
-bool BrushDatabase::replaceCarpetNodes(int64_t brushId, const std::vector<CarpetNodeRecord> &nodes) {
+bool BrushDatabaseBrushRepository::replaceCarpetNodes(int64_t brushId, const std::vector<CarpetNodeRecord> &nodes) {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -2515,7 +2716,7 @@ bool BrushDatabase::replaceCarpetNodes(int64_t brushId, const std::vector<Carpet
 	return true;
 }
 
-bool BrushDatabase::getCarpetNodes(int64_t brushId, std::vector<CarpetNodeRecord> &outNodes) {
+bool BrushDatabaseBrushRepository::getCarpetNodes(int64_t brushId, std::vector<CarpetNodeRecord> &outNodes) {
 	outNodes.clear();
 
 	if (!isOpen()) {
@@ -2555,7 +2756,7 @@ bool BrushDatabase::getCarpetNodes(int64_t brushId, std::vector<CarpetNodeRecord
 	return true;
 }
 
-bool BrushDatabase::replaceTableNodes(int64_t brushId, const std::vector<TableNodeRecord> &nodes) {
+bool BrushDatabaseBrushRepository::replaceTableNodes(int64_t brushId, const std::vector<TableNodeRecord> &nodes) {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -2609,7 +2810,7 @@ bool BrushDatabase::replaceTableNodes(int64_t brushId, const std::vector<TableNo
 	return true;
 }
 
-bool BrushDatabase::getTableNodes(int64_t brushId, std::vector<TableNodeRecord> &outNodes) {
+bool BrushDatabaseBrushRepository::getTableNodes(int64_t brushId, std::vector<TableNodeRecord> &outNodes) {
 	outNodes.clear();
 
 	if (!isOpen()) {
@@ -2649,7 +2850,7 @@ bool BrushDatabase::getTableNodes(int64_t brushId, std::vector<TableNodeRecord> 
 	return true;
 }
 
-bool BrushDatabase::replaceDoodadAlternatives(int64_t brushId, const std::vector<DoodadAlternativeRecord> &alternatives) {
+bool BrushDatabaseBrushRepository::replaceDoodadAlternatives(int64_t brushId, const std::vector<DoodadAlternativeRecord> &alternatives) {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -2750,7 +2951,7 @@ bool BrushDatabase::replaceDoodadAlternatives(int64_t brushId, const std::vector
 	return true;
 }
 
-bool BrushDatabase::getDoodadAlternatives(int64_t brushId, std::vector<DoodadAlternativeRecord> &outAlternatives) {
+bool BrushDatabaseBrushRepository::getDoodadAlternatives(int64_t brushId, std::vector<DoodadAlternativeRecord> &outAlternatives) {
 	outAlternatives.clear();
 
 	if (!isOpen()) {
@@ -2847,7 +3048,7 @@ bool BrushDatabase::getDoodadAlternatives(int64_t brushId, std::vector<DoodadAlt
 	return true;
 }
 
-bool BrushDatabase::replaceAllTilesets(const std::vector<TilesetStorageRecord> &tilesets) {
+bool BrushDatabaseCatalogRepository::replaceAllTilesets(const std::vector<TilesetStorageRecord> &tilesets) {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -2933,7 +3134,7 @@ bool BrushDatabase::replaceAllTilesets(const std::vector<TilesetStorageRecord> &
 	return true;
 }
 
-bool BrushDatabase::getTilesetByName(const wxString &name, TilesetStorageRecord &outTileset) {
+bool BrushDatabaseCatalogRepository::getTilesetByName(const wxString &name, TilesetStorageRecord &outTileset) {
 	outTileset = TilesetStorageRecord();
 
 	if (!isOpen()) {
@@ -3031,7 +3232,7 @@ bool BrushDatabase::getTilesetByName(const wxString &name, TilesetStorageRecord 
 	return true;
 }
 
-bool BrushDatabase::getAllTilesets(std::vector<TilesetStorageRecord> &outTilesets) {
+bool BrushDatabaseCatalogRepository::getAllTilesets(std::vector<TilesetStorageRecord> &outTilesets) {
 	outTilesets.clear();
 
 	if (!isOpen()) {
@@ -3065,7 +3266,7 @@ bool BrushDatabase::getAllTilesets(std::vector<TilesetStorageRecord> &outTileset
 	return true;
 }
 
-bool BrushDatabase::generateAuditReport(MaterialsDatabaseAuditReport &outReport) {
+bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditReport &outReport) {
 	outReport = MaterialsDatabaseAuditReport();
 
 	if (!isOpen()) {
@@ -3127,7 +3328,7 @@ bool BrushDatabase::generateAuditReport(MaterialsDatabaseAuditReport &outReport)
 	return true;
 }
 
-bool BrushDatabase::hasCompleteImportForCurrentSchema(bool &outReady) {
+bool BrushDatabaseCatalogRepository::hasCompleteImportForCurrentSchema(bool &outReady) {
 	outReady = false;
 
 	if (!isOpen()) {
@@ -3135,7 +3336,7 @@ bool BrushDatabase::hasCompleteImportForCurrentSchema(bool &outReady) {
 	}
 
 	int version = 0;
-	if (!getSchemaVersion(version)) {
+	if (!schemaManager_.getCurrentSchemaVersion(version)) {
 		return false;
 	}
 	if (version != kBrushDatabaseSchemaVersion) {
@@ -3170,11 +3371,11 @@ bool BrushDatabase::hasCompleteImportForCurrentSchema(bool &outReady) {
 	return true;
 }
 
-int BrushDatabase::getExpectedSchemaVersion() const {
+int BrushDatabaseCatalogRepository::getExpectedSchemaVersion() const {
 	return kBrushDatabaseSchemaVersion;
 }
 
-bool BrushDatabase::resolveGroundReferenceNames() {
+bool BrushDatabaseBrushRepository::resolveGroundReferenceNames() {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -3198,7 +3399,7 @@ bool BrushDatabase::resolveGroundReferenceNames() {
 				   "WHERE target_brush_name <> '' AND target_brush_name <> 'all';");
 }
 
-bool BrushDatabase::execute(const wxString &sql) {
+bool BrushDatabaseSession::execute(const wxString &sql) {
 	char* errorMessage = nullptr;
 	const int rc = sqlite3_exec(connection_, sql.utf8_str(), nullptr, nullptr, &errorMessage);
 	if (rc != SQLITE_OK) {
@@ -3209,7 +3410,7 @@ bool BrushDatabase::execute(const wxString &sql) {
 	return true;
 }
 
-bool BrushDatabase::prepare(const char* sql, sqlite3_stmt** stmt) {
+bool BrushDatabaseSession::prepare(const char* sql, sqlite3_stmt** stmt) {
 	const int rc = sqlite3_prepare_v2(connection_, sql, -1, stmt, nullptr);
 	if (rc != SQLITE_OK) {
 		return setErrorFromDatabase("Failed to prepare SQLite statement");
@@ -3217,7 +3418,7 @@ bool BrushDatabase::prepare(const char* sql, sqlite3_stmt** stmt) {
 	return true;
 }
 
-bool BrushDatabase::beginTransaction() {
+bool BrushDatabaseSession::beginTransaction() {
 	if (readOnly_) {
 		return setError("SQLite transaction requires a read-write connection.");
 	}
@@ -3242,7 +3443,7 @@ bool BrushDatabase::beginTransaction() {
 	return true;
 }
 
-bool BrushDatabase::commitTransaction() {
+bool BrushDatabaseSession::commitTransaction() {
 	if (readOnly_) {
 		return setError("SQLite transaction requires a read-write connection.");
 	}
@@ -3270,7 +3471,7 @@ bool BrushDatabase::commitTransaction() {
 	return true;
 }
 
-bool BrushDatabase::rollbackTransaction() {
+bool BrushDatabaseSession::rollbackTransaction() {
 	if (readOnly_) {
 		return setError("SQLite transaction requires a read-write connection.");
 	}
@@ -3301,13 +3502,13 @@ bool BrushDatabase::rollbackTransaction() {
 	return true;
 }
 
-bool BrushDatabase::setError(const wxString &message) {
+bool BrushDatabaseSession::setError(const wxString &message) {
 	lastError_ = message;
 	spdlog::error("[BrushDatabase] {}", lastError_.ToStdString());
 	return false;
 }
 
-bool BrushDatabase::setErrorFromDatabase(const wxString &prefix) {
+bool BrushDatabaseSession::setErrorFromDatabase(const wxString &prefix) {
 	const wxString dbMessage = connection_ ? ToWxString(sqlite3_errmsg(connection_)) : wxString("No SQLite connection");
 	return setError(prefix + ": " + dbMessage);
 }
