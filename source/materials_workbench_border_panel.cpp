@@ -17,6 +17,7 @@
 
 #include "common_windows.h"
 #include "find_item_window.h"
+#include "items.h"
 #include "materials_workbench_controller.h"
 
 namespace {
@@ -51,7 +52,7 @@ namespace {
 		return nullptr;
 	}
 
-	wxStaticText* CreateSectionLabel(wxWindow* parent, const wxString &label) {
+	wxStaticText* CreateBorderSectionLabel(wxWindow* parent, const wxString &label) {
 		wxStaticText* text = new wxStaticText(parent, wxID_ANY, label);
 		wxFont font = text->GetFont();
 		font.SetWeight(wxFONTWEIGHT_BOLD);
@@ -116,7 +117,7 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	borderGroupCtrl_ = new wxSpinCtrl(scrolled, wxID_ANY);
 	borderGroupCtrl_->SetRange(0, 1000000);
 	groundEquivalentCtrl_ = new wxSpinCtrl(scrolled, wxID_ANY);
-	groundEquivalentCtrl_->SetRange(0, std::max(100000, g_items.getMaxID()));
+	groundEquivalentCtrl_->SetRange(0, std::max(100000, static_cast<int>(g_items.getMaxID())));
 	ownerBrushIdCtrl_ = new wxTextCtrl(scrolled, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
 	sourceCtrl_ = new wxTextCtrl(scrolled, wxID_ANY);
 
@@ -204,7 +205,7 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	wxStaticBoxSizer* editorBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Selected Slot");
 	selectedEdgeLabel_ = new wxStaticText(scrolled, wxID_ANY, "Edge: none");
 	selectedItemIdCtrl_ = new wxSpinCtrl(scrolled, wxID_ANY);
-	selectedItemIdCtrl_->SetRange(0, std::max(100000, g_items.getMaxID()));
+	selectedItemIdCtrl_->SetRange(0, std::max(100000, static_cast<int>(g_items.getMaxID())));
 	selectedItemPreview_ = new ItemButton(scrolled, RENDER_SIZE_32x32, 0);
 
 	wxBoxSizer* selectionRow = new wxBoxSizer(wxHORIZONTAL);
