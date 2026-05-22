@@ -314,6 +314,18 @@ void Tile::addItem(Item* item) {
 	addItem(item, item->getItemType());
 }
 
+namespace {
+	ItemVector::iterator findBottomInsertPosition(ItemVector &items, int topOrder) {
+		for (auto it = items.begin(); it != items.end(); ++it) {
+			const ItemType &existingType = (*it)->getItemType();
+			if (!existingType.alwaysOnBottom || topOrder < existingType.alwaysOnTopOrder) {
+				return it;
+			}
+		}
+		return items.end();
+	}
+}
+
 void Tile::addItem(Item* item, const ItemType &type) {
 	if (!item) {
 		return;
@@ -340,22 +352,7 @@ void Tile::addItem(Item* item, const ItemType &type) {
 		it = items.begin();
 	} else {
 		if (type.alwaysOnBottom) {
-			const int topOrder = type.alwaysOnTopOrder;
-			it = items.begin();
-			while (true) {
-				if (it == items.end()) {
-					break;
-				} else {
-					const ItemType &existingType = (*it)->getItemType();
-					if (!existingType.alwaysOnBottom) {
-						break;
-					}
-					if (topOrder < existingType.alwaysOnTopOrder) {
-						break;
-					}
-				}
-				++it;
-			}
+			it = findBottomInsertPosition(items, type.alwaysOnTopOrder);
 		} else {
 			items.emplace_back(item);
 
@@ -619,10 +616,8 @@ void Tile::updateStateForItem(const Item* item, const ItemType &type) {
 }
 
 void Tile::finalizeLoadedState() {
-	if ((statflags & TILESTATE_BLOCKING) == 0) {
-		if (!ground && items.empty()) {
-			statflags |= TILESTATE_BLOCKING;
-		}
+	if ((statflags & TILESTATE_BLOCKING) == 0 && !ground && items.empty()) {
+		statflags |= TILESTATE_BLOCKING;
 	}
 }
 

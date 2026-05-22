@@ -146,26 +146,31 @@ protected:
 	virtual void updateUniqueIds(Tile* old_tile, Tile* new_tile) { }
 
 	template <typename Fn>
-	void forEachTileLocation(QTreeNode &node, Fn &fn) {
-		if (node.isLeaf) {
-			for (int z = 0; z < rme::MapLayers; ++z) {
-				Floor* floor = node.array[z];
-				if (!floor) {
-					continue;
-				}
-
-				for (int index = 0; index < rme::MapLayers; ++index) {
-					TileLocation &location = floor->locs[index];
-					if (location.get()) {
-						fn(&location);
-					}
-				}
+	void forEachFloorTileLocation(Floor &floor, Fn &fn) {
+		for (TileLocation &location : floor.locs) {
+			if (location.get()) {
+				fn(&location);
 			}
+		}
+	}
+
+	template <typename Fn>
+	void forEachLeafTileLocation(const QTreeNode &node, Fn &fn) {
+		for (Floor* floor : node.array) {
+			if (floor) {
+				forEachFloorTileLocation(*floor, fn);
+			}
+		}
+	}
+
+	template <typename Fn>
+	void forEachTileLocation(const QTreeNode &node, Fn &fn) {
+		if (node.isLeaf) {
+			forEachLeafTileLocation(node, fn);
 			return;
 		}
 
-		for (int index = 0; index < rme::MapLayers; ++index) {
-			QTreeNode* child = node.child[index];
+		for (QTreeNode* child : node.child) {
 			if (child) {
 				forEachTileLocation(*child, fn);
 			}

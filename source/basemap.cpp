@@ -20,6 +20,8 @@
 #include "tile.h"
 #include "basemap.h"
 
+#include <memory>
+
 BaseMap::BaseMap() :
 	allocator(),
 	tilecount(0),
@@ -119,7 +121,8 @@ void BaseMap::setTile(TileLocation* location, Tile* new_tile, bool remove) {
 	}
 
 	if (remove) {
-		delete old_tile;
+		std::unique_ptr<Tile> removedTile(old_tile);
+		removedTile.reset();
 	}
 }
 
@@ -136,7 +139,8 @@ void BaseMap::setTile(int x, int y, int z, Tile* new_tile, bool remove) {
 	}
 
 	if (remove) {
-		delete old_tile;
+		std::unique_ptr<Tile> removedTile(old_tile);
+		removedTile.reset();
 	}
 }
 
