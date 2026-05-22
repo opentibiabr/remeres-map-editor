@@ -155,7 +155,13 @@ MapCanvas::~MapCanvas() {
 }
 
 void MapCanvas::Refresh() {
-	drawer->markDirty();
+	QueueRefresh(true);
+}
+
+void MapCanvas::QueueRefresh(bool mark_scene_dirty) {
+	if (mark_scene_dirty) {
+		drawer->markDirty();
+	}
 	if (refresh_watch.Time() > g_settings.getInteger(Config::HARD_REFRESH_RATE)) {
 		refresh_watch.Start();
 		wxGLCanvas::Update();
@@ -235,8 +241,14 @@ void MapCanvas::OnPaint(wxPaintEvent &event) {
 
 		options.dragging = boundbox_selection;
 
-		if (options.show_preview || drawer->GetPositionIndicatorTime() != 0 || options.show_performance_stats) {
-			animation_timer->Start();
+		const bool animate_position_indicator = drawer->GetPositionIndicatorTime() != 0;
+		const bool animate_preview = options.show_preview && zoom <= 2.0f;
+		if (animate_position_indicator) {
+			animation_timer->StartRefresh(16, true);
+		} else if (animate_preview) {
+			animation_timer->StartRefresh(250, true);
+		} else if (options.show_performance_stats) {
+			animation_timer->StartRefresh(500, false);
 		} else {
 			animation_timer->Stop();
 		}
@@ -3004,24 +3016,30 @@ bool MapCanvas::floodFill(Map* map, const Position &center, int x, int y, Ground
 AnimationTimer::AnimationTimer(MapCanvas* canvas) :
 	wxTimer(),
 	map_canvas(canvas),
-	started(false) {
+	started(false),
+	mark_scene_dirty(false),
+	interval(0) {
 		////
 	};
 
 void AnimationTimer::Notify() {
-	map_canvas->Refresh();
+	map_canvas->QueueRefresh(mark_scene_dirty);
 }
 
-void AnimationTimer::Start() {
-	if (!started) {
+void AnimationTimer::StartRefresh(int new_interval, bool new_mark_scene_dirty) {
+	if (!started || interval != new_interval || mark_scene_dirty != new_mark_scene_dirty) {
 		started = true;
-		wxTimer::Start(16);
+		interval = new_interval;
+		mark_scene_dirty = new_mark_scene_dirty;
+		wxTimer::Start(interval);
 	}
 };
 
 void AnimationTimer::Stop() {
 	if (started) {
 		started = false;
+		mark_scene_dirty = false;
+		interval = 0;
 		wxTimer::Stop();
 	}
 };

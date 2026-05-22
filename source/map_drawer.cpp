@@ -33,6 +33,7 @@
 #include <fstream>
 #include <format>
 #include <array>
+#include <algorithm>
 
 #include "editor.h"
 #include "gui.h"
@@ -1904,8 +1905,10 @@ void MapDrawer::DrawTooltips() {
 		return;
 	}
 
+	const float tooltip_scale = std::clamp(1.0f / zoom, 0.55f, 1.0f);
+
 	renderer->flush();
-	renderer->setOrtho(0, static_cast<float>(screensize_x), static_cast<float>(screensize_y), 0);
+	renderer->setOrtho(0, static_cast<float>(screensize_x) / tooltip_scale, static_cast<float>(screensize_y) / tooltip_scale, 0);
 
 	for (const auto &tp : tooltips) {
 		auto [width, height] = MeasureTooltipText(tp);
@@ -1914,8 +1917,8 @@ void MapDrawer::DrawTooltips() {
 		int screen_y;
 		getDrawPosition(Position(tp.map_x, tp.map_y, tp.map_z), screen_x, screen_y);
 
-		float x = static_cast<float>(screen_x + rme::TileSize / 2) / zoom;
-		float y = static_cast<float>(screen_y + rme::TileSize / 2) / zoom;
+		float x = (static_cast<float>(screen_x + rme::TileSize / 2) / zoom) / tooltip_scale;
+		float y = (static_cast<float>(screen_y + rme::TileSize / 2) / zoom) / tooltip_scale;
 		float center = width / 2.0f;
 		float space = 7.0f;
 		float startx = x - center;
