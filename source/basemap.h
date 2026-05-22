@@ -170,7 +170,7 @@ protected:
 			return;
 		}
 
-		for (QTreeNode* child : node.child) {
+		for (const QTreeNode* child : node.child) {
 			if (child) {
 				forEachTileLocation(*child, fn);
 			}

@@ -130,7 +130,8 @@ namespace {
 
 		while (true) {
 			const bool hasLeft = readNormalizedLineEndingChar(left, leftOffset, leftChar);
-			if (const bool hasRight = readNormalizedLineEndingChar(right, rightOffset, rightChar); hasLeft != hasRight) {
+			const bool hasRight = readNormalizedLineEndingChar(right, rightOffset, rightChar);
+			if (hasLeft != hasRight) {
 				return false;
 			}
 			if (!hasLeft) {
