@@ -404,6 +404,7 @@ public:
 	void ActivatePalette(PaletteWindow* p);
 	// Rebuild forces palette to reload the entire contents
 	void RebuildPalettes();
+	bool ReloadMaterialPalettesFromDatabase(wxString &error, wxArrayString &warnings);
 	// Refresh only updates the content (such as house/waypoint list)
 	void RefreshPalettes(Map* m = nullptr, bool usedfault = true);
 	// Won't refresh the palette in the parameter

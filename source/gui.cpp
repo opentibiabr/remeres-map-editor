@@ -1002,7 +1002,7 @@ PaletteWindow* GUI::CreatePalette() {
 
 	auto* palette = newd PaletteWindow(root, g_materials.tilesets);
 	aui_manager->AddPane(palette, wxAuiPaneInfo().Caption("Palette").TopDockable(false).BottomDockable(false));
-	palette->OnUpdate(GetCurrentMapTab()->GetMap());
+	palette->OnUpdate(IsEditorOpen() ? &GetCurrentMap() : nullptr);
 	aui_manager->Update();
 
 	// Make us the active palette
@@ -1038,6 +1038,87 @@ void GUI::RebuildPalettes() {
 		piter->ReloadSettings(IsEditorOpen() ? &GetCurrentMap() : nullptr);
 	}
 	aui_manager->Update();
+}
+
+bool GUI::ReloadMaterialPalettesFromDatabase(wxString &error, wxArrayString &warnings) {
+	error.clear();
+	warnings.clear();
+
+	if (!g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
+		error = "SQLite materials backend is disabled.";
+		return false;
+	}
+	if (!g_brush_database.isOpen()) {
+		error = "SQLite materials database is not open.";
+		return false;
+	}
+
+	struct PaletteRestoreState {
+		PaletteType selectedPage = TILESET_UNKNOWN;
+		Brush* selectedBrush = nullptr;
+		bool shown = true;
+	};
+
+	std::vector<PaletteRestoreState> states;
+	states.reserve(palettes.size());
+	for (PaletteWindow* palette : palettes) {
+		PaletteRestoreState state;
+		state.selectedPage = palette->GetSelectedPage();
+		state.selectedBrush = palette->GetSelectedBrush();
+		state.shown = aui_manager->GetPane(palette).IsShown();
+		states.push_back(state);
+	}
+
+	if (!g_materials.loadTilesetsFromDatabase(warnings)) {
+		error = "Failed to reload runtime tilesets from SQLite.";
+		if (!g_brush_database.getLastError().IsEmpty()) {
+			error += " " + g_brush_database.getLastError();
+		}
+		return false;
+	}
+
+	g_materials.createOtherTileset();
+	g_materials.createNpcTileset();
+
+	if (states.empty()) {
+		return true;
+	}
+
+	DestroyPalettes();
+
+	std::vector<PaletteWindow*> rebuiltPalettes;
+	rebuiltPalettes.reserve(states.size());
+	for (auto it = states.rbegin(); it != states.rend(); ++it) {
+		PaletteWindow* palette = CreatePalette();
+		if (!palette) {
+			error = "Failed to recreate runtime palettes after reloading materials.";
+			return false;
+		}
+		rebuiltPalettes.push_back(palette);
+	}
+
+	std::reverse(rebuiltPalettes.begin(), rebuiltPalettes.end());
+
+	for (size_t i = 0; i < rebuiltPalettes.size(); ++i) {
+		PaletteWindow* palette = rebuiltPalettes[i];
+		const PaletteRestoreState &state = states[i];
+		palette->SelectPage(state.selectedPage);
+		if (state.selectedBrush) {
+			palette->OnSelectBrush(state.selectedBrush, state.selectedPage);
+		}
+		palette->OnUpdateBrushSize(brush_shape, brush_size);
+		aui_manager->GetPane(palette).Show(state.shown);
+	}
+
+	if (current_brush) {
+		SelectBrushInternal(current_brush);
+	} else {
+		SelectBrush();
+	}
+
+	aui_manager->Update();
+	root->GetAuiToolBar()->UpdateBrushButtons();
+	return true;
 }
 
 void GUI::ShowPalette() {

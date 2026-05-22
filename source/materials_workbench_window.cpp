@@ -9,6 +9,7 @@
 #include <wx/textctrl.h>
 #include <wx/treectrl.h>
 
+#include "gui.h"
 #include "materials_workbench_brush_panel.h"
 #include "materials_workbench_palette_panel.h"
 
@@ -142,6 +143,15 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 	wxPanel* overviewPanel = CreateOverviewTextPanel(workspaceBook_, controller_, overviewText_);
 	palettePanel_ = new MaterialsWorkbenchPalettePanel(workspaceBook_, controller_);
 	palettePanel_->SetOnPaletteSaved([this]() {
+		wxString error;
+		wxArrayString warnings;
+		if (!g_gui.ReloadMaterialPalettesFromDatabase(error, warnings)) {
+			spdlog::warn("Materials Workbench runtime palette refresh failed: {}", error.ToStdString());
+		}
+		for (const wxString &warning : warnings) {
+			spdlog::warn("Materials Workbench runtime palette refresh warning: {}", warning.ToStdString());
+		}
+
 		auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(navigationTree_->GetSelection()));
 		if (!itemData) {
 			return;
