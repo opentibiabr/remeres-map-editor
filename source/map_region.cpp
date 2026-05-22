@@ -68,10 +68,6 @@ void Floor::operator delete(void* ptr) noexcept {
 	rme::deallocatePooledObject(ptr);
 }
 
-void Floor::operator delete(void* ptr, size_t) noexcept {
-	rme::deallocatePooledObject(ptr);
-}
-
 #ifdef DEBUG_MEM
 void* Floor::operator new(size_t size, const char*, int) {
 	return rme::allocatePooledObject(size);

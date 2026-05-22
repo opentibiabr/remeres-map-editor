@@ -45,10 +45,6 @@ void Item::operator delete(void* ptr) noexcept {
 	rme::deallocatePooledObject(ptr);
 }
 
-void Item::operator delete(void* ptr, size_t) noexcept {
-	rme::deallocatePooledObject(ptr);
-}
-
 #ifdef DEBUG_MEM
 void* Item::operator new(size_t size, const char*, int) {
 	return rme::allocatePooledObject(size);
