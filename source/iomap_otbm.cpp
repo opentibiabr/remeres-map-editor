@@ -171,6 +171,20 @@ namespace {
 		return file.Close();
 	}
 
+	FORCEINLINE bool isWildcardOtbmIdentifier(const uint8_t* data) {
+		return data[0] == 0 && data[1] == 0 && data[2] == 0 && data[3] == 0;
+	}
+
+	FORCEINLINE bool hasValidOtbmPrefix(const uint8_t* data, size_t size) {
+		if (size < 5) {
+			return false;
+		}
+		if (!isWildcardOtbmIdentifier(data) && memcmp(data, "OTBM", 4) != 0) {
+			return false;
+		}
+		return data[4] == NODE_START;
+	}
+
 	bool saveXmlFileIfChanged(const pugi::xml_document &doc, const wxString &filepath) {
 		std::ostringstream stream;
 		doc.save(stream, "\t", pugi::format_default, pugi::encoding_utf8);
@@ -673,15 +687,17 @@ bool IOMapOTBM::getVersionInfo(const FileName &filename, MapVersion &out_ver) {
 				memset(buffer, 0, 8096);
 
 				// Read from the archive
-				int read_bytes = archive_read_data(a.get(), buffer, 8096);
+				const auto readBytes = archive_read_data(a.get(), buffer, 8096);
+				if (readBytes < 0) {
+					return false;
+				}
 
-				// Check so it at least contains the 4-byte file id
-				if (read_bytes < 4) {
+				if (!hasValidOtbmPrefix(buffer, static_cast<size_t>(readBytes))) {
 					return false;
 				}
 
 				// Create a read handle on it
-				std::shared_ptr<NodeFileReadHandle> f(new MemoryNodeFileReadHandle(buffer + 4, read_bytes - 4));
+				std::shared_ptr<NodeFileReadHandle> f(new MemoryNodeFileReadHandle(buffer + 4, static_cast<size_t>(readBytes) - 4));
 
 				// Read the version info
 				return getVersionInfo(f.get(), out_ver);
@@ -760,15 +776,13 @@ bool IOMapOTBM::loadMap(Map &map, const FileName &filename) {
 				std::shared_ptr<uint8_t> otbm_buffer(new uint8_t[otbm_size], [](uint8_t* p) { delete[] p; });
 
 				// Read from the archive
-				size_t read_bytes = archive_read_data(a.get(), otbm_buffer.get(), otbm_size);
-
-				// Check so it at least contains the 4-byte file id
-				if (read_bytes < 4) {
+				const auto readBytes = archive_read_data(a.get(), otbm_buffer.get(), otbm_size);
+				if (readBytes < 0 || static_cast<size_t>(readBytes) < otbm_size) {
+					error("Could not read file.");
 					return false;
 				}
-
-				if (read_bytes < otbm_size) {
-					error("Could not read file.");
+				if (!hasValidOtbmPrefix(otbm_buffer.get(), static_cast<size_t>(readBytes))) {
+					error("Could not read OTBM file header.");
 					return false;
 				}
 
@@ -883,7 +897,7 @@ bool IOMapOTBM::loadMap(Map &map, const FileName &filename) {
 	}
 
 	const size_t otbmSize = otbmFile.size();
-	if (otbmSize < 4) {
+	if (otbmSize < 5) {
 		error("Could not read OTBM file header.");
 		return false;
 	}
@@ -894,9 +908,13 @@ bool IOMapOTBM::loadMap(Map &map, const FileName &filename) {
 		return false;
 	}
 
-	const bool wildcardIdentifier = otbmBuffer[0] == 0 && otbmBuffer[1] == 0 && otbmBuffer[2] == 0 && otbmBuffer[3] == 0;
-	if (!wildcardIdentifier && memcmp(otbmBuffer.data(), "OTBM", 4) != 0) {
+	const bool hasKnownIdentifier = isWildcardOtbmIdentifier(otbmBuffer.data()) || memcmp(otbmBuffer.data(), "OTBM", 4) == 0;
+	if (!hasKnownIdentifier) {
 		error("File magic number not recognized.");
+		return false;
+	}
+	if (otbmBuffer[4] != NODE_START) {
+		error("Could not read root node.");
 		return false;
 	}
 
