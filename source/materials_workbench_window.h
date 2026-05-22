@@ -19,6 +19,7 @@ public:
 private:
 	void BuildLayout();
 	void PopulateNavigation();
+	void RefreshWorkbenchState();
 	void BindEvents();
 	void OnClose(wxCloseEvent &event);
 

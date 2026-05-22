@@ -11,6 +11,19 @@
 namespace {
 	MaterialsWorkbenchWindow* g_materials_workbench_window = nullptr;
 
+	class MaterialsWorkbenchTreeItemData : public wxTreeItemData {
+	public:
+		MaterialsWorkbenchTreeItemData(MaterialsWorkbenchNodeKind kind, wxString contextKey, int itemIndex) :
+			kind(kind),
+			contextKey(std::move(contextKey)),
+			itemIndex(itemIndex) {
+		}
+
+		MaterialsWorkbenchNodeKind kind;
+		wxString contextKey;
+		int itemIndex = -1;
+	};
+
 	wxPanel* CreateSidebarPanel(wxWindow* parent, wxTreeCtrl*& outTree) {
 		wxPanel* panel = new wxPanel(parent, wxID_ANY);
 		wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
@@ -85,6 +98,7 @@ void MaterialsWorkbenchWindow::Open(wxWindow* parent) {
 MaterialsWorkbenchWindow::MaterialsWorkbenchWindow(wxWindow* parent) :
 	wxFrame(parent, wxID_ANY, "Materials Workbench", wxDefaultPosition, wxSize(1400, 900), wxDEFAULT_FRAME_STYLE | wxRESIZE_BORDER | wxCLIP_CHILDREN) {
 	BuildLayout();
+	RefreshWorkbenchState();
 	PopulateNavigation();
 	BindEvents();
 }
@@ -110,17 +124,36 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 	SetSizer(sizer);
 }
 
+void MaterialsWorkbenchWindow::RefreshWorkbenchState() {
+	controller_.ReloadCatalog();
+	overviewText_->SetValue(controller_.GetOverviewText());
+	inspectorText_->SetValue(controller_.GetInspectorText());
+}
+
 void MaterialsWorkbenchWindow::PopulateNavigation() {
+	navigationTree_->DeleteAllItems();
 	wxTreeItemId root = navigationTree_->AddRoot("Materials Workbench");
-	for (const wxString &section : controller_.GetNavigationSections()) {
-		navigationTree_->AppendItem(root, section);
-	}
-	if (navigationTree_->GetCount() > 0) {
-		wxTreeItemIdValue cookie;
-		wxTreeItemId firstChild = navigationTree_->GetFirstChild(root, cookie);
-		if (firstChild.IsOk()) {
-			navigationTree_->SelectItem(firstChild);
+	const auto appendNodes = [&](auto &&self, const wxTreeItemId &parentItem, const std::vector<MaterialsWorkbenchTreeNode> &nodes) -> void {
+		for (const MaterialsWorkbenchTreeNode &node : nodes) {
+			wxTreeItemId item = navigationTree_->AppendItem(
+				parentItem,
+				node.label,
+				-1,
+				-1,
+				newd MaterialsWorkbenchTreeItemData(node.kind, node.contextKey, node.itemIndex)
+			);
+			if (!node.children.empty()) {
+				self(self, item, node.children);
+			}
 		}
+	};
+
+	appendNodes(appendNodes, root, controller_.BuildNavigationTree());
+
+	wxTreeItemIdValue cookie;
+	wxTreeItemId firstChild = navigationTree_->GetFirstChild(root, cookie);
+	if (firstChild.IsOk()) {
+		navigationTree_->SelectItem(firstChild);
 	}
 }
 
@@ -136,13 +169,15 @@ void MaterialsWorkbenchWindow::BindEvents() {
 			return;
 		}
 
-		overviewText_->SetValue(
-			controller_.GetOverviewText() + "\n\nCurrent workspace selection: " + selection
-		);
-		inspectorText_->SetValue(
-			"Inspector placeholder\n\nSelected workspace: " + selection +
-			"\n\nSubsequent stages will replace this placeholder with contextual properties, validation and editing controls."
-		);
+		auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(item));
+		if (!itemData) {
+			overviewText_->SetValue(controller_.GetOverviewText());
+			inspectorText_->SetValue(controller_.GetInspectorText());
+			return;
+		}
+
+		overviewText_->SetValue(controller_.BuildSelectionOverview(itemData->kind, itemData->contextKey, itemData->itemIndex));
+		inspectorText_->SetValue(controller_.BuildSelectionInspector(itemData->kind, itemData->contextKey, itemData->itemIndex));
 	});
 }
 
