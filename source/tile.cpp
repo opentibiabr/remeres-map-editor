@@ -315,7 +315,7 @@ void Tile::addItem(Item* item) {
 }
 
 namespace {
-	ItemVector::iterator findBottomInsertPosition(ItemVector &items, int topOrder) {
+	FORCEINLINE ItemVector::iterator findBottomInsertPosition(ItemVector &items, int topOrder) {
 		for (auto it = items.begin(); it != items.end(); ++it) {
 			const ItemType &existingType = (*it)->getItemType();
 			if (!existingType.alwaysOnBottom || topOrder < existingType.alwaysOnTopOrder) {

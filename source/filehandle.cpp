@@ -679,8 +679,9 @@ bool NodeFileWriteHandle::addU8(uint8_t u8) {
 	return error_code == FILE_NO_ERROR;
 }
 
-bool NodeFileWriteHandle::addByte(uint8_t u8) {
-	return addU8(u8);
+bool NodeFileWriteHandle::addByte(uint8_t u8) { // NOSONAR - keep this direct to avoid an extra call in the save hot path.
+	writeByte(u8);
+	return error_code == FILE_NO_ERROR;
 }
 
 bool NodeFileWriteHandle::addU16(uint16_t u16) {

@@ -240,9 +240,9 @@ namespace {
 			std::scoped_lock lock(ownerMutex_);
 
 			const auto currentThread = std::this_thread::get_id();
-			if (!ownerSet_.load()) {
+			if (!ownerSet_.load(std::memory_order_relaxed)) { // NOSONAR - relaxed is enough while ownerMutex_ is held.
 				ownerThread_ = currentThread;
-				ownerSet_.store(true);
+				ownerSet_.store(true, std::memory_order_release); // NOSONAR - paired with acquire loads on the allocation fast path.
 				return;
 			}
 
@@ -350,11 +350,11 @@ namespace {
 
 	private:
 		bool becomeOwnerOrIsOwner() {
-			if (!ownerSet_.load()) {
+			if (!ownerSet_.load(std::memory_order_acquire)) { // NOSONAR - acquire/release keeps the allocator fast path cheaper than seq_cst.
 				std::scoped_lock lock(ownerMutex_);
-				if (!ownerSet_.load()) {
+				if (!ownerSet_.load(std::memory_order_relaxed)) { // NOSONAR - ownerMutex_ protects ownerThread_ initialization here.
 					ownerThread_ = std::this_thread::get_id();
-					ownerSet_.store(true);
+					ownerSet_.store(true, std::memory_order_release); // NOSONAR - paired with acquire loads on the allocation fast path.
 					return true;
 				}
 			}
@@ -363,7 +363,7 @@ namespace {
 		}
 
 		bool isCurrentThreadOwner() const noexcept {
-			return ownerSet_.load() && ownerThread_ == std::this_thread::get_id();
+			return ownerSet_.load(std::memory_order_acquire) && ownerThread_ == std::this_thread::get_id(); // NOSONAR
 		}
 
 		void drainRemoteIntoEmptyLocal(uint16_t cls) {

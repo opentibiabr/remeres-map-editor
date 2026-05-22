@@ -195,7 +195,7 @@ namespace {
 		int localZ = -1;
 	};
 
-	void updateTileSaveProgress(const Map &map, TileAreaSaveState &state) {
+	FORCEINLINE void updateTileSaveProgress(const Map &map, TileAreaSaveState &state) {
 		++state.tilesSaved;
 		const uint64_t tileCount = map.getTileCount();
 		if (tileCount != 0 && state.tilesSaved % 8192 == 0) {
@@ -203,11 +203,11 @@ namespace {
 		}
 	}
 
-	bool needsNewTileArea(const Position &position, const TileAreaSaveState &state) {
+	FORCEINLINE bool needsNewTileArea(const Position &position, const TileAreaSaveState &state) {
 		return position.x < state.localX || position.x >= state.localX + 256 || position.y < state.localY || position.y >= state.localY + 256 || position.z != state.localZ;
 	}
 
-	void beginTileArea(NodeFileWriteHandle &file, const Position &position, TileAreaSaveState &state) {
+	FORCEINLINE void beginTileArea(NodeFileWriteHandle &file, const Position &position, TileAreaSaveState &state) {
 		if (!state.firstArea) {
 			file.endNode();
 		}
@@ -219,7 +219,7 @@ namespace {
 		file.addU8(state.localZ = position.z);
 	}
 
-	void saveTileGround(const IOMapOTBM &mapHandle, NodeFileWriteHandle &file, const Tile &tile) {
+	FORCEINLINE void saveTileGround(const IOMapOTBM &mapHandle, NodeFileWriteHandle &file, const Tile &tile) {
 		if (!tile.ground) {
 			return;
 		}
@@ -250,7 +250,7 @@ namespace {
 		ground->serializeItemCompact_OTBM(mapHandle, file);
 	}
 
-	void saveTileItems(const IOMapOTBM &mapHandle, NodeFileWriteHandle &file, const Tile &tile) {
+	FORCEINLINE void saveTileItems(const IOMapOTBM &mapHandle, NodeFileWriteHandle &file, const Tile &tile) {
 		for (Item* item : tile.items) {
 			const ItemType &itemType = item->getItemType();
 			if (itemType.isMetaItem() || item->getID() == 0) {
@@ -260,7 +260,7 @@ namespace {
 		}
 	}
 
-	void saveTileZones(NodeFileWriteHandle &file, const Tile &tile) {
+	FORCEINLINE void saveTileZones(NodeFileWriteHandle &file, const Tile &tile) {
 		if (tile.zones.empty()) {
 			return;
 		}
@@ -273,7 +273,7 @@ namespace {
 		file.endNode();
 	}
 
-	void saveTileLocation(const IOMapOTBM &mapHandle, Map &map, NodeFileWriteHandle &file, TileAreaSaveState &state, TileLocation* tileLocation) {
+	FORCEINLINE void saveTileLocation(const IOMapOTBM &mapHandle, Map &map, NodeFileWriteHandle &file, TileAreaSaveState &state, TileLocation* tileLocation) {
 		updateTileSaveProgress(map, state);
 
 		Tile* saveTile = tileLocation->get();
