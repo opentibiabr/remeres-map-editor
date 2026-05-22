@@ -13,6 +13,7 @@ class wxTreeCtrl;
 class MaterialsWorkbenchBorderPanel;
 class MaterialsWorkbenchBrushPanel;
 class MaterialsWorkbenchPalettePanel;
+class MaterialsWorkbenchWallPanel;
 
 class MaterialsWorkbenchWindow : public wxFrame {
 public:
@@ -36,6 +37,7 @@ private:
 	MaterialsWorkbenchPalettePanel* palettePanel_ = nullptr;
 	MaterialsWorkbenchBorderPanel* borderPanel_ = nullptr;
 	MaterialsWorkbenchBrushPanel* brushPanel_ = nullptr;
+	MaterialsWorkbenchWallPanel* wallPanel_ = nullptr;
 
 	DECLARE_EVENT_TABLE()
 };

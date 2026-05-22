@@ -453,6 +453,8 @@
     <ClInclude Include="..\..\source\materials_workbench_repository.h" />
     <ClCompile Include="..\..\source\materials_workbench_repository.cpp" />
     <ClInclude Include="..\..\source\materials_workbench_types.h" />
+    <ClInclude Include="..\..\source\materials_workbench_wall_panel.h" />
+    <ClCompile Include="..\..\source\materials_workbench_wall_panel.cpp" />
     <ClInclude Include="..\..\source\materials_workbench_window.h" />
     <ClCompile Include="..\..\source\materials_workbench_window.cpp" />
     <ClInclude Include="..\..\source\action.h" />

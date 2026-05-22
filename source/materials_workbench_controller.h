@@ -17,6 +17,7 @@ public:
 	bool GetTilesetByIndex(int itemIndex, TilesetStorageRecord &outTileset) const;
 	bool GetBrushDetails(const wxString &contextKey, int itemIndex, BrushStorageRecord &outBrush, wxString &error) const;
 	bool SaveBrush(BrushRecord &brush, wxString &error);
+	bool SaveWallBrushParts(BrushStorageRecord &brushStorage, wxString &error);
 	bool LocateBrushNode(int64_t brushId, wxString &outContextKey, int &outItemIndex) const;
 	bool GetBorderSetDetails(const wxString &contextKey, int itemIndex, BorderSetStorageRecord &outBorderSet, wxString &error) const;
 	bool SaveBorderSet(BorderSetStorageRecord &borderSet, wxString &error);

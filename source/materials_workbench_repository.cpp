@@ -111,6 +111,21 @@ bool MaterialsWorkbenchRepository::SaveBrush(BrushRecord &brush, wxString &error
 	return true;
 }
 
+bool MaterialsWorkbenchRepository::SaveWallBrushParts(const BrushStorageRecord &brushStorage, wxString &error) const {
+	error.clear();
+
+	if (brushStorage.brush.id <= 0) {
+		error = "Wall brush id is invalid.";
+		return false;
+	}
+	if (!g_brush_database.replaceWallParts(brushStorage.brush.id, brushStorage.wallParts)) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
+
+	return true;
+}
+
 bool MaterialsWorkbenchRepository::LoadBorderSetDetails(int64_t borderSetId, BorderSetStorageRecord &outBorderSet, wxString &error) const {
 	outBorderSet = BorderSetStorageRecord();
 	error.clear();

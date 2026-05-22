@@ -247,6 +247,19 @@ bool MaterialsWorkbenchController::SaveBrush(BrushRecord &brush, wxString &error
 	return true;
 }
 
+bool MaterialsWorkbenchController::SaveWallBrushParts(BrushStorageRecord &brushStorage, wxString &error) {
+	if (!repository_.SaveWallBrushParts(brushStorage, error)) {
+		return false;
+	}
+
+	if (!ReloadCatalog()) {
+		error = lastError_;
+		return false;
+	}
+
+	return true;
+}
+
 bool MaterialsWorkbenchController::SaveBorderSet(BorderSetStorageRecord &borderSet, wxString &error) {
 	if (!repository_.SaveBorderSet(borderSet, error)) {
 		return false;

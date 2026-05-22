@@ -258,6 +258,7 @@ target_sources(
           materials_workbench_controller.cpp
           materials_workbench_palette_panel.cpp
           materials_workbench_repository.cpp
+          materials_workbench_wall_panel.cpp
           materials_workbench_window.cpp
           materials.cpp
           minimap_window.cpp

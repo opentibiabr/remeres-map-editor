@@ -13,6 +13,7 @@
 #include "materials_workbench_border_panel.h"
 #include "materials_workbench_brush_panel.h"
 #include "materials_workbench_palette_panel.h"
+#include "materials_workbench_wall_panel.h"
 
 namespace {
 	MaterialsWorkbenchWindow* g_materials_workbench_window = nullptr;
@@ -181,10 +182,22 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 			SelectNavigationNode(MaterialsWorkbenchNodeKind::Brush, contextKey, itemIndex);
 		}
 	});
+	wallPanel_ = new MaterialsWorkbenchWallPanel(workspaceBook_, controller_);
+	wallPanel_->SetOnWallBrushSaved([this](int64_t brushId) {
+		RefreshWorkbenchState();
+		PopulateNavigation();
+
+		wxString contextKey;
+		int itemIndex = -1;
+		if (controller_.LocateBrushNode(brushId, contextKey, itemIndex)) {
+			SelectNavigationNode(MaterialsWorkbenchNodeKind::Brush, contextKey, itemIndex);
+		}
+	});
 	workspaceBook_->AddPage(overviewPanel, "Overview");
 	workspaceBook_->AddPage(palettePanel_, "Palette");
 	workspaceBook_->AddPage(borderPanel_, "Border");
 	workspaceBook_->AddPage(brushPanel_, "Brush");
+	workspaceBook_->AddPage(wallPanel_, "Wall");
 	workspaceBook_->SetSelection(0);
 	wxPanel* inspectorPanel = CreateInspectorPanel(contentSplitter, controller_, inspectorText_);
 
@@ -262,6 +275,14 @@ void MaterialsWorkbenchWindow::BindEvents() {
 		}
 
 		if (itemData->kind == MaterialsWorkbenchNodeKind::Brush) {
+			if (itemData->contextKey == "wall") {
+				if (wallPanel_->LoadWallBrush(itemData->contextKey, itemData->itemIndex)) {
+					workspaceBook_->SetSelection(4);
+					return;
+				}
+				wallPanel_->ClearWorkspace("Failed to load the selected wall workspace.");
+			}
+
 			if (brushPanel_->LoadBrush(itemData->contextKey, itemData->itemIndex)) {
 				workspaceBook_->SetSelection(3);
 				return;
