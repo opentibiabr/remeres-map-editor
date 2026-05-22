@@ -3015,12 +3015,9 @@ bool MapCanvas::floodFill(Map* map, const Position &center, int x, int y, Ground
 
 AnimationTimer::AnimationTimer(MapCanvas* canvas) :
 	wxTimer(),
-	map_canvas(canvas),
-	started(false),
-	mark_scene_dirty(false),
-	interval(0) {
-		////
-	};
+	map_canvas(canvas) {
+	////
+}
 
 void AnimationTimer::Notify() {
 	map_canvas->QueueRefresh(mark_scene_dirty);

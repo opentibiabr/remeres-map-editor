@@ -225,9 +225,9 @@ public:
 
 private:
 	MapCanvas* map_canvas;
-	bool started;
-	bool mark_scene_dirty;
-	int interval;
+	bool started = false;
+	bool mark_scene_dirty = false;
+	int interval = 0;
 };
 
 #endif
