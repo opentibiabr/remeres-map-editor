@@ -214,6 +214,53 @@ bool MaterialsWorkbenchController::GetTilesetByIndex(int itemIndex, TilesetStora
 	return true;
 }
 
+bool MaterialsWorkbenchController::GetBrushDetails(const wxString &contextKey, int itemIndex, BrushStorageRecord &outBrush, wxString &error) const {
+	const BrushRecord* brush = FindBrushRecord(contextKey, itemIndex);
+	if (!brush) {
+		error = "Brush details are unavailable.";
+		outBrush = BrushStorageRecord();
+		return false;
+	}
+	return repository_.LoadBrushDetails(brush->id, outBrush, error);
+}
+
+bool MaterialsWorkbenchController::SaveBrush(BrushRecord &brush, wxString &error) {
+	if (!repository_.SaveBrush(brush, error)) {
+		return false;
+	}
+
+	if (!ReloadCatalog()) {
+		error = lastError_;
+		return false;
+	}
+
+	return true;
+}
+
+bool MaterialsWorkbenchController::LocateBrushNode(int64_t brushId, wxString &outContextKey, int &outItemIndex) const {
+	for (size_t i = 0; i < catalog_.wallBrushes.size(); ++i) {
+		if (catalog_.wallBrushes[i].id == brushId) {
+			outContextKey = "wall";
+			outItemIndex = static_cast<int>(i);
+			return true;
+		}
+	}
+
+	for (const MaterialsWorkbenchBrushGroup &group : catalog_.brushGroups) {
+		for (size_t i = 0; i < group.brushes.size(); ++i) {
+			if (group.brushes[i].id == brushId) {
+				outContextKey = group.brushType;
+				outItemIndex = static_cast<int>(i);
+				return true;
+			}
+		}
+	}
+
+	outContextKey.clear();
+	outItemIndex = -1;
+	return false;
+}
+
 bool MaterialsWorkbenchController::SaveTileset(const TilesetStorageRecord &tileset, wxString &error) {
 	if (!repository_.SaveTileset(tileset, error)) {
 		return false;

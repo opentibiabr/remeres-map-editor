@@ -90,6 +90,27 @@ bool MaterialsWorkbenchRepository::LoadBrushDetails(int64_t brushId, BrushStorag
 	return true;
 }
 
+bool MaterialsWorkbenchRepository::SaveBrush(BrushRecord &brush, wxString &error) const {
+	error.clear();
+
+	if (brush.id > 0) {
+		if (!g_brush_database.updateBrush(brush)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+		return true;
+	}
+
+	int64_t insertedBrushId = 0;
+	if (!g_brush_database.upsertBrush(brush, insertedBrushId)) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
+
+	brush.id = insertedBrushId;
+	return true;
+}
+
 bool MaterialsWorkbenchRepository::LoadBorderSetDetails(int64_t borderSetId, BorderSetStorageRecord &outBorderSet, wxString &error) const {
 	outBorderSet = BorderSetStorageRecord();
 	error.clear();

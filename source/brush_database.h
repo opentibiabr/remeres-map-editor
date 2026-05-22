@@ -409,6 +409,7 @@ public:
 	bool testDatabaseConnection();
 
 	bool upsertBrush(const BrushRecord &brush, int64_t &brushId);
+	bool updateBrush(const BrushRecord &brush);
 	bool listBrushesByType(const wxString &type, std::vector<BrushRecord> &outBrushes);
 	bool getCompleteBrushById(int64_t brushId, BrushStorageRecord &outBrush);
 	bool deleteBrushesByType(const wxString &type);

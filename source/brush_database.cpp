@@ -811,6 +811,10 @@ bool BrushDatabase::upsertBrush(const BrushRecord &brush, int64_t &brushId) {
 	return brushRepository_.upsertBrush(brush, brushId);
 }
 
+bool BrushDatabase::updateBrush(const BrushRecord &brush) {
+	return brushRepository_.updateBrush(brush);
+}
+
 bool BrushDatabase::listBrushesByType(const wxString &type, std::vector<BrushRecord> &outBrushes) {
 	return brushRepository_.listBrushesByType(type, outBrushes);
 }

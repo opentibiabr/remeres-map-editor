@@ -15,6 +15,9 @@ public:
 	wxString GetInspectorText() const;
 	std::vector<MaterialsWorkbenchTreeNode> BuildNavigationTree() const;
 	bool GetTilesetByIndex(int itemIndex, TilesetStorageRecord &outTileset) const;
+	bool GetBrushDetails(const wxString &contextKey, int itemIndex, BrushStorageRecord &outBrush, wxString &error) const;
+	bool SaveBrush(BrushRecord &brush, wxString &error);
+	bool LocateBrushNode(int64_t brushId, wxString &outContextKey, int &outItemIndex) const;
 	bool SaveTileset(const TilesetStorageRecord &tileset, wxString &error);
 	const std::vector<MaterialsWorkbenchBrushGroup> &GetBrushGroups() const;
 	const std::vector<BrushRecord> &GetWallBrushes() const;

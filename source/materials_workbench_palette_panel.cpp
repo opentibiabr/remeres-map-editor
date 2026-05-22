@@ -27,10 +27,10 @@ class MaterialsWorkbenchBrushGridPanel : public wxScrolledWindow {
 public:
 	explicit MaterialsWorkbenchBrushGridPanel(wxWindow* parent) :
 		wxScrolledWindow(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL | wxHSCROLL | wxBORDER_THEME) {
-		SetScrollRate(FromDIP(12), FromDIP(12));
+		SetScrollRate(FromDIP(8), FromDIP(8));
 
 		rootSizer_ = new wxWrapSizer(wxHORIZONTAL);
-		rootSizer_->SetMinSize(wxSize(-1, FromDIP(180)));
+		rootSizer_->SetMinSize(wxSize(-1, FromDIP(144)));
 		SetSizer(rootSizer_);
 	}
 
@@ -52,17 +52,17 @@ public:
 			wxBoxSizer* tileSizer = new wxBoxSizer(wxVERTICAL);
 
 			BrushButton* button = new BrushButton(tilePanel, item.brush, RENDER_SIZE_32x32);
-			button->SetMinSize(wxSize(36, 36));
-			button->SetMaxSize(wxSize(36, 36));
+			button->SetMinSize(wxSize(32, 32));
+			button->SetMaxSize(wxSize(32, 32));
 
-			wxStaticText* label = new wxStaticText(tilePanel, wxID_ANY, item.label, wxDefaultPosition, wxSize(FromDIP(96), -1), wxALIGN_CENTER_HORIZONTAL);
-			label->Wrap(FromDIP(96));
+			wxStaticText* label = new wxStaticText(tilePanel, wxID_ANY, item.label, wxDefaultPosition, wxSize(FromDIP(84), -1), wxALIGN_CENTER_HORIZONTAL);
+			label->Wrap(FromDIP(84));
 
-			tileSizer->Add(button, 0, wxALIGN_CENTER_HORIZONTAL | wxBOTTOM, FromDIP(6));
+			tileSizer->Add(button, 0, wxALIGN_CENTER_HORIZONTAL | wxBOTTOM, FromDIP(4));
 			tileSizer->Add(label, 0, wxALIGN_CENTER_HORIZONTAL);
 			tilePanel->SetSizerAndFit(tileSizer);
 
-			rootSizer_->Add(tilePanel, 0, wxALL, FromDIP(6));
+			rootSizer_->Add(tilePanel, 0, wxALL, FromDIP(4));
 			tilePanels_.push_back(tilePanel);
 			buttons_.push_back(button);
 			items_.push_back(item);
@@ -165,48 +165,50 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	wxBoxSizer* toolbarSizer = new wxBoxSizer(wxHORIZONTAL);
 	sectionChoice_ = new wxChoice(this, wxID_ANY);
 	availableBrushGroupChoice_ = new wxChoice(this, wxID_ANY);
+	sectionChoice_->SetMinSize(wxSize(FromDIP(210), -1));
+	availableBrushGroupChoice_->SetMinSize(wxSize(FromDIP(210), -1));
 	addBrushButton_ = new wxButton(this, wxID_ANY, "Add Brush");
 	removeBrushButton_ = new wxButton(this, wxID_ANY, "Remove Brush");
 	moveUpButton_ = new wxButton(this, wxID_ANY, "Move Up");
 	moveDownButton_ = new wxButton(this, wxID_ANY, "Move Down");
 
 	toolbarSizer->Add(new wxStaticText(this, wxID_ANY, "Section"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
-	toolbarSizer->Add(sectionChoice_, 0, wxRIGHT, FromDIP(12));
+	toolbarSizer->Add(sectionChoice_, 0, wxRIGHT, FromDIP(8));
 	toolbarSizer->Add(new wxStaticText(this, wxID_ANY, "Available"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
-	toolbarSizer->Add(availableBrushGroupChoice_, 0, wxRIGHT, FromDIP(12));
+	toolbarSizer->Add(availableBrushGroupChoice_, 0, wxRIGHT, FromDIP(8));
 	toolbarSizer->Add(addBrushButton_, 0, wxRIGHT, FromDIP(6));
 	toolbarSizer->Add(removeBrushButton_, 0, wxRIGHT, FromDIP(6));
 	toolbarSizer->Add(moveUpButton_, 0, wxRIGHT, FromDIP(6));
 	toolbarSizer->Add(moveDownButton_, 0);
 
 	wxSplitterWindow* contentSplitter = new wxSplitterWindow(this, wxID_ANY);
-	contentSplitter->SetSashGravity(0.58);
-	contentSplitter->SetMinimumPaneSize(FromDIP(260));
+	contentSplitter->SetSashGravity(0.54);
+	contentSplitter->SetMinimumPaneSize(FromDIP(240));
 
 	wxPanel* currentSectionPanel = new wxPanel(contentSplitter, wxID_ANY);
 	wxBoxSizer* currentSectionSizer = new wxBoxSizer(wxVERTICAL);
-	currentSectionSizer->Add(new wxStaticText(currentSectionPanel, wxID_ANY, "Palette Brushes"), 0, wxBOTTOM, FromDIP(6));
+	currentSectionSizer->Add(new wxStaticText(currentSectionPanel, wxID_ANY, "Palette Brushes"), 0, wxBOTTOM, FromDIP(4));
 	sectionSummaryLabel_ = new wxStaticText(currentSectionPanel, wxID_ANY, "");
-	currentSectionSizer->Add(sectionSummaryLabel_, 0, wxBOTTOM, FromDIP(8));
+	currentSectionSizer->Add(sectionSummaryLabel_, 0, wxBOTTOM, FromDIP(6));
 	sectionBrushGrid_ = new MaterialsWorkbenchBrushGridPanel(currentSectionPanel);
 	currentSectionSizer->Add(sectionBrushGrid_, 1, wxEXPAND);
 	currentSectionPanel->SetSizer(currentSectionSizer);
 
 	wxPanel* availablePanel = new wxPanel(contentSplitter, wxID_ANY);
 	wxBoxSizer* availableSizer = new wxBoxSizer(wxVERTICAL);
-	availableSizer->Add(new wxStaticText(availablePanel, wxID_ANY, "Available Brushes"), 0, wxBOTTOM, FromDIP(6));
-	availableSizer->Add(new wxStaticText(availablePanel, wxID_ANY, "Choose a brush type and add the selected brush to the current section."), 0, wxBOTTOM, FromDIP(8));
+	availableSizer->Add(new wxStaticText(availablePanel, wxID_ANY, "Available Brushes"), 0, wxBOTTOM, FromDIP(4));
+	availableSizer->Add(new wxStaticText(availablePanel, wxID_ANY, "Choose a type and add the selected brush to the current section."), 0, wxBOTTOM, FromDIP(6));
 	availableBrushGrid_ = new MaterialsWorkbenchBrushGridPanel(availablePanel);
 	availableSizer->Add(availableBrushGrid_, 1, wxEXPAND);
 	availablePanel->SetSizer(availableSizer);
 
-	contentSplitter->SplitVertically(currentSectionPanel, availablePanel, FromDIP(760));
+	contentSplitter->SplitVertically(currentSectionPanel, availablePanel, FromDIP(680));
 
-	rootSizer->Add(headerSizer, 0, wxEXPAND | wxALL, FromDIP(14));
-	rootSizer->Add(new wxStaticLine(this), 0, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(14));
-	rootSizer->Add(toolbarSizer, 0, wxEXPAND | wxALL, FromDIP(14));
-	rootSizer->Add(contentSplitter, 1, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(14));
-	rootSizer->Add(statusLabel_, 0, wxEXPAND | wxALL, FromDIP(14));
+	rootSizer->Add(headerSizer, 0, wxEXPAND | wxALL, FromDIP(10));
+	rootSizer->Add(new wxStaticLine(this), 0, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(10));
+	rootSizer->Add(toolbarSizer, 0, wxEXPAND | wxALL, FromDIP(10));
+	rootSizer->Add(contentSplitter, 1, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(10));
+	rootSizer->Add(statusLabel_, 0, wxEXPAND | wxALL, FromDIP(10));
 	SetSizer(rootSizer);
 
 	sectionChoice_->Bind(wxEVT_CHOICE, &MaterialsWorkbenchPalettePanel::OnSectionChanged, this);

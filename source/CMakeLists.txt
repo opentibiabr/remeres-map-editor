@@ -253,6 +253,7 @@ target_sources(
           map_region.cpp
           map_tab.cpp
           map_window.cpp
+          materials_workbench_brush_panel.cpp
           materials_workbench_controller.cpp
           materials_workbench_palette_panel.cpp
           materials_workbench_repository.cpp

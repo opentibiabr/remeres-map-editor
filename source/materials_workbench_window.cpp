@@ -9,6 +9,7 @@
 #include <wx/textctrl.h>
 #include <wx/treectrl.h>
 
+#include "materials_workbench_brush_panel.h"
 #include "materials_workbench_palette_panel.h"
 
 namespace {
@@ -75,6 +76,27 @@ namespace {
 		panel->SetSizer(sizer);
 		return panel;
 	}
+
+	bool SelectMatchingNodeRecursive(
+		wxTreeCtrl* tree,
+		const wxTreeItemId &parent,
+		MaterialsWorkbenchNodeKind kind,
+		const wxString &contextKey,
+		int itemIndex
+	) {
+		wxTreeItemIdValue cookie;
+		for (wxTreeItemId child = tree->GetFirstChild(parent, cookie); child.IsOk(); child = tree->GetNextChild(parent, cookie)) {
+			auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(tree->GetItemData(child));
+			if (itemData && itemData->kind == kind && itemData->contextKey == contextKey && itemData->itemIndex == itemIndex) {
+				tree->SelectItem(child);
+				return true;
+			}
+			if (SelectMatchingNodeRecursive(tree, child, kind, contextKey, itemIndex)) {
+				return true;
+			}
+		}
+		return false;
+	}
 } // namespace
 
 BEGIN_EVENT_TABLE(MaterialsWorkbenchWindow, wxFrame)
@@ -126,8 +148,20 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 		}
 		inspectorText_->SetValue(controller_.BuildSelectionInspector(itemData->kind, itemData->contextKey, itemData->itemIndex));
 	});
+	brushPanel_ = new MaterialsWorkbenchBrushPanel(workspaceBook_, controller_);
+	brushPanel_->SetOnBrushSaved([this](int64_t brushId) {
+		RefreshWorkbenchState();
+		PopulateNavigation();
+
+		wxString contextKey;
+		int itemIndex = -1;
+		if (controller_.LocateBrushNode(brushId, contextKey, itemIndex)) {
+			SelectNavigationNode(MaterialsWorkbenchNodeKind::Brush, contextKey, itemIndex);
+		}
+	});
 	workspaceBook_->AddPage(overviewPanel, "Overview");
 	workspaceBook_->AddPage(palettePanel_, "Palette");
+	workspaceBook_->AddPage(brushPanel_, "Brush");
 	workspaceBook_->SetSelection(0);
 	wxPanel* inspectorPanel = CreateInspectorPanel(contentSplitter, controller_, inspectorText_);
 
@@ -204,8 +238,29 @@ void MaterialsWorkbenchWindow::BindEvents() {
 			palettePanel_->ClearWorkspace("Failed to load the selected palette workspace.");
 		}
 
+		if (itemData->kind == MaterialsWorkbenchNodeKind::Brush) {
+			if (brushPanel_->LoadBrush(itemData->contextKey, itemData->itemIndex)) {
+				workspaceBook_->SetSelection(2);
+				return;
+			}
+			brushPanel_->ClearWorkspace("Failed to load the selected brush workspace.");
+		}
+
 		workspaceBook_->SetSelection(0);
 	});
+}
+
+bool MaterialsWorkbenchWindow::SelectNavigationNode(MaterialsWorkbenchNodeKind kind, const wxString &contextKey, int itemIndex) {
+	if (!navigationTree_) {
+		return false;
+	}
+
+	const wxTreeItemId root = navigationTree_->GetRootItem();
+	if (!root.IsOk()) {
+		return false;
+	}
+
+	return SelectMatchingNodeRecursive(navigationTree_, root, kind, contextKey, itemIndex);
 }
 
 void MaterialsWorkbenchWindow::OnClose(wxCloseEvent &event) {

@@ -11,6 +11,7 @@ public:
 	bool LoadCatalog(MaterialsWorkbenchCatalogSnapshot &outCatalog, wxString &error) const;
 	bool SaveTileset(const TilesetStorageRecord &tileset, wxString &error) const;
 	bool LoadBrushDetails(int64_t brushId, BrushStorageRecord &outBrush, wxString &error) const;
+	bool SaveBrush(BrushRecord &brush, wxString &error) const;
 	bool LoadBorderSetDetails(int64_t borderSetId, BorderSetStorageRecord &outBorderSet, wxString &error) const;
 };
 

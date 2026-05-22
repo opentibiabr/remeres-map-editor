@@ -10,6 +10,7 @@ class wxSplitterWindow;
 class wxSimplebook;
 class wxTextCtrl;
 class wxTreeCtrl;
+class MaterialsWorkbenchBrushPanel;
 class MaterialsWorkbenchPalettePanel;
 
 class MaterialsWorkbenchWindow : public wxFrame {
@@ -23,6 +24,7 @@ private:
 	void PopulateNavigation();
 	void RefreshWorkbenchState();
 	void BindEvents();
+	bool SelectNavigationNode(MaterialsWorkbenchNodeKind kind, const wxString &contextKey, int itemIndex);
 	void OnClose(wxCloseEvent &event);
 
 	MaterialsWorkbenchController controller_;
@@ -31,6 +33,7 @@ private:
 	wxTextCtrl* overviewText_ = nullptr;
 	wxTextCtrl* inspectorText_ = nullptr;
 	MaterialsWorkbenchPalettePanel* palettePanel_ = nullptr;
+	MaterialsWorkbenchBrushPanel* brushPanel_ = nullptr;
 
 	DECLARE_EVENT_TABLE()
 };
