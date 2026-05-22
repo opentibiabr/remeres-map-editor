@@ -56,135 +56,135 @@ void reform(Map* map, Tile* tile, Item* item) {
 }
 
 namespace {
-struct FloorLookupCache {
-	Floor* floor = nullptr;
-	int floorX = -1;
-	int floorY = -1;
-	int floorZ = -1;
-};
+	struct FloorLookupCache {
+		Floor* floor = nullptr;
+		int floorX = -1;
+		int floorY = -1;
+		int floorZ = -1;
+	};
 
-Tile* getCachedTile(Map &map, const Position &position, FloorLookupCache &cache) {
-	const int floorX = position.x & ~3;
-	const int floorY = position.y & ~3;
-	if (!cache.floor || cache.floorX != floorX || cache.floorY != floorY || cache.floorZ != position.z) {
-		QTreeNode* leaf = map.getLeaf(position.x, position.y);
-		cache.floor = leaf ? leaf->getFloor(position.z) : nullptr;
-		cache.floorX = floorX;
-		cache.floorY = floorY;
-		cache.floorZ = position.z;
-	}
-
-	if (!cache.floor) {
-		return nullptr;
-	}
-
-	return cache.floor->locs[(position.x & 3) * 4 + (position.y & 3)].get();
-}
-
-bool readFileContent(const wxString &filepath, std::string &content) {
-	if (!wxFileExists(filepath)) {
-		return false;
-	}
-
-	wxFile file(filepath, wxFile::read);
-	if (!file.IsOpened()) {
-		return false;
-	}
-
-	const wxFileOffset fileSize = file.Length();
-	if (fileSize < 0) {
-		return false;
-	}
-
-	content.resize(static_cast<size_t>(fileSize));
-	if (content.empty()) {
-		return true;
-	}
-
-	const auto bytesRead = file.Read(content.data(), content.size());
-	return static_cast<size_t>(bytesRead) == content.size();
-}
-
-bool readNormalizedLineEndingChar(const std::string &content, size_t &offset, char &out) {
-	if (offset >= content.size()) {
-		return false;
-	}
-
-	out = content[offset++];
-	if (out == '\r') {
-		if (offset < content.size() && content[offset] == '\n') {
-			++offset;
+	Tile* getCachedTile(Map &map, const Position &position, FloorLookupCache &cache) {
+		const int floorX = position.x & ~3;
+		const int floorY = position.y & ~3;
+		if (!cache.floor || cache.floorX != floorX || cache.floorY != floorY || cache.floorZ != position.z) {
+			QTreeNode* leaf = map.getLeaf(position.x, position.y);
+			cache.floor = leaf ? leaf->getFloor(position.z) : nullptr;
+			cache.floorX = floorX;
+			cache.floorY = floorY;
+			cache.floorZ = position.z;
 		}
-		out = '\n';
+
+		if (!cache.floor) {
+			return nullptr;
+		}
+
+		return cache.floor->locs[(position.x & 3) * 4 + (position.y & 3)].get();
 	}
-	return true;
-}
 
-bool contentMatchesIgnoringLineEndings(const std::string &left, const std::string &right) {
-	size_t leftOffset = 0;
-	size_t rightOffset = 0;
-	char leftChar = '\0';
-	char rightChar = '\0';
-
-	while (true) {
-		const bool hasLeft = readNormalizedLineEndingChar(left, leftOffset, leftChar);
-		const bool hasRight = readNormalizedLineEndingChar(right, rightOffset, rightChar);
-		if (hasLeft != hasRight) {
+	bool readFileContent(const wxString &filepath, std::string &content) {
+		if (!wxFileExists(filepath)) {
 			return false;
 		}
-		if (!hasLeft) {
+
+		wxFile file(filepath, wxFile::read);
+		if (!file.IsOpened()) {
+			return false;
+		}
+
+		const wxFileOffset fileSize = file.Length();
+		if (fileSize < 0) {
+			return false;
+		}
+
+		content.resize(static_cast<size_t>(fileSize));
+		if (content.empty()) {
 			return true;
 		}
-		if (leftChar != rightChar) {
+
+		const auto bytesRead = file.Read(content.data(), content.size());
+		return static_cast<size_t>(bytesRead) == content.size();
+	}
+
+	bool readNormalizedLineEndingChar(const std::string &content, size_t &offset, char &out) {
+		if (offset >= content.size()) {
 			return false;
 		}
-	}
-}
 
-bool fileMatchesXmlContent(const wxString &filepath, const std::string &content) {
-	std::string existingContent;
-	if (!readFileContent(filepath, existingContent)) {
-		return false;
-	}
-
-	if (existingContent == content) {
+		out = content[offset++];
+		if (out == '\r') {
+			if (offset < content.size() && content[offset] == '\n') {
+				++offset;
+			}
+			out = '\n';
+		}
 		return true;
 	}
 
-	return contentMatchesIgnoringLineEndings(existingContent, content);
-}
+	bool contentMatchesIgnoringLineEndings(const std::string &left, const std::string &right) {
+		size_t leftOffset = 0;
+		size_t rightOffset = 0;
+		char leftChar = '\0';
+		char rightChar = '\0';
 
-bool writeContentToFile(const wxString &filepath, const std::string &content) {
-	wxFile file(filepath, wxFile::write);
-	if (!file.IsOpened()) {
-		return false;
-	}
-
-	if (!content.empty()) {
-		const auto bytesWritten = file.Write(content.data(), content.size());
-		if (static_cast<size_t>(bytesWritten) != content.size()) {
-			return false;
+		while (true) {
+			const bool hasLeft = readNormalizedLineEndingChar(left, leftOffset, leftChar);
+			const bool hasRight = readNormalizedLineEndingChar(right, rightOffset, rightChar);
+			if (hasLeft != hasRight) {
+				return false;
+			}
+			if (!hasLeft) {
+				return true;
+			}
+			if (leftChar != rightChar) {
+				return false;
+			}
 		}
 	}
-	return file.Close();
-}
 
-bool saveXmlFileIfChanged(const pugi::xml_document &doc, const wxString &filepath) {
-	std::ostringstream stream;
-	doc.save(stream, "\t", pugi::format_default, pugi::encoding_utf8);
-	const std::string content = stream.str();
+	bool fileMatchesXmlContent(const wxString &filepath, const std::string &content) {
+		std::string existingContent;
+		if (!readFileContent(filepath, existingContent)) {
+			return false;
+		}
 
-	if (fileMatchesXmlContent(filepath, content)) {
-		return true;
+		if (existingContent == content) {
+			return true;
+		}
+
+		return contentMatchesIgnoringLineEndings(existingContent, content);
 	}
 
-	const wxString backupPath = filepath + "~";
-	if (!wxFileExists(filepath) && fileMatchesXmlContent(backupPath, content)) {
-		return wxRenameFile(backupPath, filepath, false);
+	bool writeContentToFile(const wxString &filepath, const std::string &content) {
+		wxFile file(filepath, wxFile::write);
+		if (!file.IsOpened()) {
+			return false;
+		}
+
+		if (!content.empty()) {
+			const auto bytesWritten = file.Write(content.data(), content.size());
+			if (static_cast<size_t>(bytesWritten) != content.size()) {
+				return false;
+			}
+		}
+		return file.Close();
 	}
 
-	return writeContentToFile(filepath, content);
-}
+	bool saveXmlFileIfChanged(const pugi::xml_document &doc, const wxString &filepath) {
+		std::ostringstream stream;
+		doc.save(stream, "\t", pugi::format_default, pugi::encoding_utf8);
+		const std::string content = stream.str();
+
+		if (fileMatchesXmlContent(filepath, content)) {
+			return true;
+		}
+
+		const wxString backupPath = filepath + "~";
+		if (!wxFileExists(filepath) && fileMatchesXmlContent(backupPath, content)) {
+			return wxRenameFile(backupPath, filepath, false);
+		}
+
+		return writeContentToFile(filepath, content);
+	}
 }
 
 // ============================================================================
@@ -991,8 +991,7 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 								if (item == nullptr) {
 									warning("Invalid item at tile %d:%d:%d", pos.x, pos.y, pos.z);
 								} else {
-									if (((itemType->isGroundTile() || itemType->ground_equivalent != 0) && tile->ground) ||
-											(itemType->alwaysOnBottom && !tile->items.empty())) {
+									if (((itemType->isGroundTile() || itemType->ground_equivalent != 0) && tile->ground) || (itemType->alwaysOnBottom && !tile->items.empty())) {
 										needsFullTileUpdate = true;
 									}
 									tile->addLoadedItem(item, *itemType);
@@ -1023,8 +1022,7 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 									warning("Couldn't unserialize item attributes at %d:%d:%d", pos.x, pos.y, pos.z);
 								}
 								// reform(&map, tile, item);
-								if (((itemType->isGroundTile() || itemType->ground_equivalent != 0) && tile->ground) ||
-										(itemType->alwaysOnBottom && !tile->items.empty())) {
+								if (((itemType->isGroundTile() || itemType->ground_equivalent != 0) && tile->ground) || (itemType->alwaysOnBottom && !tile->items.empty())) {
 									needsFullTileUpdate = true;
 								}
 								tile->addLoadedItem(item, *itemType);

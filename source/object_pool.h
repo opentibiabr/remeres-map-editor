@@ -21,11 +21,11 @@
 #include <cstddef>
 
 namespace rme {
-void* allocatePooledObject(std::size_t size);
-void deallocatePooledObject(void* ptr) noexcept;
-void bindPooledObjectOwnerThread() noexcept;
-void resetPooledObjectStats() noexcept;
-void dumpPooledObjectStats() noexcept;
+	void* allocatePooledObject(std::size_t size);
+	void deallocatePooledObject(void* ptr) noexcept;
+	void bindPooledObjectOwnerThread() noexcept;
+	void resetPooledObjectStats() noexcept;
+	void dumpPooledObjectStats() noexcept;
 }
 
 #endif

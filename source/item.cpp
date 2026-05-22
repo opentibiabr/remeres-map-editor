@@ -32,10 +32,9 @@
 #include "wall_brush.h"
 
 namespace {
-bool itemTypeHasSubtype(const ItemType &type) {
-	return type.isFluidContainer() || type.stackable || type.charges != 0 || type.isSplash() ||
-		type.isClientCharged() || type.isExtraCharged();
-}
+	bool itemTypeHasSubtype(const ItemType &type) {
+		return type.isFluidContainer() || type.stackable || type.charges != 0 || type.isSplash() || type.isClientCharged() || type.isExtraCharged();
+	}
 }
 
 void* Item::operator new(size_t size) {

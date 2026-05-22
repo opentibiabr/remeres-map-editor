@@ -125,9 +125,7 @@ public: // Functions
 	uint32_t memsize() const;
 	// Get number of items on the tile
 	bool empty() const {
-		return !ground && items.empty() && monsters.empty() && !spawnMonster && !npc && !spawnNpc && (!location || (
-			!location->getHouseExits() && !location->getSpawnMonsterCount() && !location->getSpawnNpcCount() && !location->getWaypointCount()
-		));
+		return !ground && items.empty() && monsters.empty() && !spawnMonster && !npc && !spawnNpc && (!location || (!location->getHouseExits() && !location->getSpawnMonsterCount() && !location->getSpawnNpcCount() && !location->getWaypointCount()));
 	}
 	int size() const;
 
