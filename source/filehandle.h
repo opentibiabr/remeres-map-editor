@@ -351,16 +351,17 @@ protected:
 		}
 	}
 
-	FORCEINLINE void writeEscapedByte(uint8_t byte) {
-		cache[local_write_index++] = ESCAPE_CHAR;
+	FORCEINLINE void writeCacheByte(uint8_t byte) {
 		if (local_write_index >= cache_size) {
 			renewCache();
 		}
 
 		cache[local_write_index++] = byte;
-		if (local_write_index >= cache_size) {
-			renewCache();
-		}
+	}
+
+	FORCEINLINE void writeEscapedByte(uint8_t byte) {
+		writeCacheByte(ESCAPE_CHAR);
+		writeCacheByte(byte);
 	}
 
 	FORCEINLINE void writeByte(uint8_t byte) {
@@ -369,10 +370,7 @@ protected:
 			return;
 		}
 
-		cache[local_write_index++] = byte;
-		if (local_write_index >= cache_size) {
-			renewCache();
-		}
+		writeCacheByte(byte);
 	}
 
 	FORCEINLINE void writeBytes(const uint8_t* ptr, size_t sz) {

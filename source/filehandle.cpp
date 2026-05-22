@@ -652,24 +652,14 @@ NodeFileWriteHandle::~NodeFileWriteHandle() {
 }
 
 bool NodeFileWriteHandle::addNode(uint8_t nodetype) {
-	cache[local_write_index++] = NODE_START;
-	if (local_write_index >= cache_size) {
-		renewCache();
-	}
-
-	cache[local_write_index++] = nodetype;
-	if (local_write_index >= cache_size) {
-		renewCache();
-	}
+	writeCacheByte(NODE_START);
+	writeCacheByte(nodetype);
 
 	return error_code == FILE_NO_ERROR;
 }
 
 bool NodeFileWriteHandle::endNode() {
-	cache[local_write_index++] = NODE_END;
-	if (local_write_index >= cache_size) {
-		renewCache();
-	}
+	writeCacheByte(NODE_END);
 
 	return error_code == FILE_NO_ERROR;
 }
