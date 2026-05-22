@@ -65,7 +65,7 @@ constexpr std::size_t kClassCount = kClassSizes.size();
 constexpr std::size_t kMaxClassSize = 1024;
 static_assert(kClassSizes[kClassCount - 1] == kMaxClassSize, "max class size must match the largest pool class");
 
-constexpr std::size_t kSlabBytes = 2 * 1024 * 1024;
+constexpr std::size_t kSlabBytes = 4 * 1024 * 1024;
 constexpr std::size_t kMinBlocksPerSlab = 64;
 
 #if RME_OBJECT_POOL_STATS
