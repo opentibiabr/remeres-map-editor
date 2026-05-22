@@ -121,7 +121,7 @@ void BaseMap::setTile(TileLocation* location, Tile* new_tile, bool remove) {
 	}
 
 	if (remove) {
-		std::unique_ptr<Tile>{ old_tile };
+		std::unique_ptr<Tile> { old_tile };
 	}
 }
 
@@ -138,7 +138,7 @@ void BaseMap::setTile(int x, int y, int z, Tile* new_tile, bool remove) {
 	}
 
 	if (remove) {
-		std::unique_ptr<Tile>{ old_tile };
+		std::unique_ptr<Tile> { old_tile };
 	}
 }
 
