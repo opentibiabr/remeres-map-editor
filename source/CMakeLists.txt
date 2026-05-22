@@ -258,6 +258,7 @@ target_sources(
           npcs.cpp
           numbertextctrl.cpp
           old_properties_window.cpp
+          object_pool.cpp
           palette_brushlist.cpp
           palette_common.cpp
           palette_monster.cpp

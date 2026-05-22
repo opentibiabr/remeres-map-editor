@@ -429,16 +429,28 @@ void BinaryNode::load() {
 	size_t &cache_length = file->cache_length;
 	size_t &local_read_index = file->local_read_index;
 	while (true) {
-		if (local_read_index >= cache_length) {
-			if (!file->renewCache()) {
-				// Failed to renew, exit
-				file->error_code = FILE_PREMATURE_END;
-				return;
+		if (local_read_index >= cache_length && !file->renewCache()) {
+			// Failed to renew, exit
+			file->error_code = FILE_PREMATURE_END;
+			return;
+		}
+
+		const size_t chunk_start = local_read_index;
+		while (local_read_index < cache_length) {
+			if (const uint8_t op = cache[local_read_index]; op == NODE_START || op == NODE_END || op == ESCAPE_CHAR) {
+				break;
+			}
+			++local_read_index;
+		}
+
+		if (local_read_index > chunk_start) {
+			data.append(reinterpret_cast<const char*>(cache + chunk_start), local_read_index - chunk_start);
+			if (local_read_index >= cache_length) {
+				continue;
 			}
 		}
 
-		uint8_t op = cache[local_read_index];
-		++local_read_index;
+		uint8_t op = cache[local_read_index++];
 
 		switch (op) {
 			case NODE_START: {
@@ -452,24 +464,21 @@ void BinaryNode::load() {
 			}
 
 			case ESCAPE_CHAR: {
-				if (local_read_index >= cache_length) {
-					if (!file->renewCache()) {
-						// Failed to renew, exit
-						file->error_code = FILE_PREMATURE_END;
-						return;
-					}
+				if (local_read_index >= cache_length && !file->renewCache()) {
+					// Failed to renew, exit
+					file->error_code = FILE_PREMATURE_END;
+					return;
 				}
 
 				op = cache[local_read_index];
 				++local_read_index;
-				break;
+				data.append(1, op);
+				continue;
 			}
 
 			default:
 				break;
 		}
-		// std::cout << "Appending..." << std::endl;
-		data.append(1, op);
 	}
 }
 
@@ -643,50 +652,51 @@ NodeFileWriteHandle::~NodeFileWriteHandle() {
 }
 
 bool NodeFileWriteHandle::addNode(uint8_t nodetype) {
-	cache[local_write_index++] = NODE_START;
-	if (local_write_index >= cache_size) {
-		renewCache();
-	}
-
-	cache[local_write_index++] = nodetype;
-	if (local_write_index >= cache_size) {
-		renewCache();
-	}
+	writeCacheByte(NODE_START);
+	writeCacheByte(nodetype);
 
 	return error_code == FILE_NO_ERROR;
 }
 
 bool NodeFileWriteHandle::endNode() {
-	cache[local_write_index++] = NODE_END;
-	if (local_write_index >= cache_size) {
-		renewCache();
-	}
+	writeCacheByte(NODE_END);
 
 	return error_code == FILE_NO_ERROR;
 }
 
 bool NodeFileWriteHandle::addU8(uint8_t u8) {
-	writeBytes(&u8, sizeof(u8));
+	writeByte(u8);
 	return error_code == FILE_NO_ERROR;
 }
 
-bool NodeFileWriteHandle::addByte(uint8_t u8) {
-	writeBytes(&u8, sizeof(u8));
+bool NodeFileWriteHandle::addByte(uint8_t u8) { // NOSONAR - keep this direct to avoid an extra call in the save hot path.
+	writeByte(u8);
 	return error_code == FILE_NO_ERROR;
 }
 
 bool NodeFileWriteHandle::addU16(uint16_t u16) {
-	writeBytes(reinterpret_cast<uint8_t*>(&u16), sizeof(u16));
+	writeByte(static_cast<uint8_t>(u16));
+	writeByte(static_cast<uint8_t>(u16 >> 8));
 	return error_code == FILE_NO_ERROR;
 }
 
 bool NodeFileWriteHandle::addU32(uint32_t u32) {
-	writeBytes(reinterpret_cast<uint8_t*>(&u32), sizeof(u32));
+	writeByte(static_cast<uint8_t>(u32));
+	writeByte(static_cast<uint8_t>(u32 >> 8));
+	writeByte(static_cast<uint8_t>(u32 >> 16));
+	writeByte(static_cast<uint8_t>(u32 >> 24));
 	return error_code == FILE_NO_ERROR;
 }
 
 bool NodeFileWriteHandle::addU64(uint64_t u64) {
-	writeBytes(reinterpret_cast<uint8_t*>(&u64), sizeof(u64));
+	writeByte(static_cast<uint8_t>(u64));
+	writeByte(static_cast<uint8_t>(u64 >> 8));
+	writeByte(static_cast<uint8_t>(u64 >> 16));
+	writeByte(static_cast<uint8_t>(u64 >> 24));
+	writeByte(static_cast<uint8_t>(u64 >> 32));
+	writeByte(static_cast<uint8_t>(u64 >> 40));
+	writeByte(static_cast<uint8_t>(u64 >> 48));
+	writeByte(static_cast<uint8_t>(u64 >> 56));
 	return error_code == FILE_NO_ERROR;
 }
 

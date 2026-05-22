@@ -30,6 +30,7 @@
 #include "materials.h"
 #include "doodad_brush.h"
 #include "spawn_monster_brush.h"
+#include "object_pool.h"
 
 #include "common_windows.h"
 #include "result_window.h"
@@ -536,19 +537,26 @@ void GUI::SaveMapAs() {
 }
 
 bool GUI::LoadMap(const FileName &fileName) {
+	rme::bindPooledObjectOwnerThread();
+
 	FinishWelcomeDialog();
 
 	if (GetCurrentEditor() && !GetCurrentMap().hasChanged() && !GetCurrentMap().hasFile()) {
 		g_gui.CloseCurrentEditor();
 	}
 
+	rme::resetPooledObjectStats();
+
 	Editor* editor;
 	try {
 		editor = newd Editor(copybuffer, fileName);
 	} catch (std::runtime_error &e) {
+		rme::dumpPooledObjectStats();
 		PopupDialog(root, "Error!", wxString(e.what(), wxConvUTF8), wxOK);
 		return false;
 	}
+
+	rme::dumpPooledObjectStats();
 
 	auto* mapTab = newd MapTab(tabbook, editor);
 	mapTab->OnSwitchEditorMode(mode);

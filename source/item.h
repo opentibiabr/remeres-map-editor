@@ -77,15 +77,24 @@ struct SpriteLight;
 
 class Item : public ItemAttributes {
 public:
+	static void* operator new(size_t size);
+	static void operator delete(void* ptr) noexcept;
+#ifdef DEBUG_MEM
+	static void* operator new(size_t size, const char* file, int line);
+	static void operator delete(void* ptr, const char* file, int line) noexcept;
+#endif
+
 	// Factory member to create item of right type based on type
 	static Item* Create(uint16_t id, uint16_t subtype = 0xFFFF);
+	static Item* Create(uint16_t id, const ItemType &type, uint16_t subtype = 0xFFFF);
 	static Item* Create(pugi::xml_node);
-	static Item* Create_OTBM(const IOMap &maphandle, BinaryNode* stream);
+	static Item* Create_OTBM(const IOMap &maphandle, BinaryNode* stream, const ItemType** itemType = nullptr);
 	// static Item* Create_OTMM(const IOMap& maphandle, BinaryNode* stream);
 
 protected:
 	// Constructor for items
 	Item(unsigned short _type, unsigned short _count);
+	Item(unsigned short _type, unsigned short _count, bool hasSubtype);
 
 public:
 	virtual ~Item();
@@ -350,8 +359,10 @@ public:
 	// Subtype (count, fluid, charges)
 	int getCount() const;
 	uint16_t getSubtype() const;
+	uint16_t getSubtype(const ItemType &type) const noexcept;
 	void setSubtype(uint16_t subtype);
 	bool hasSubtype() const;
+	bool hasSubtype(const ItemType &type) const noexcept;
 
 	void setUniqueID(uint16_t n);
 	uint16_t getUniqueID() const;

@@ -60,6 +60,13 @@ public: // Members
 	std::set<unsigned int> zones;
 
 public:
+	static void* operator new(size_t size);
+	static void operator delete(void* ptr) noexcept;
+#ifdef DEBUG_MEM
+	static void* operator new(size_t size, const char* file, int line);
+	static void operator delete(void* ptr, const char* file, int line) noexcept;
+#endif
+
 	// ALWAYS use this constructor if the Tile is EVER going to be placed on a map
 	Tile(TileLocation &location);
 	// Use this when the tile is only used internally by the editor (like in certain brushes)
@@ -117,7 +124,7 @@ public: // Functions
 	uint32_t memsize() const;
 	// Get number of items on the tile
 	bool empty() const {
-		return size() == 0;
+		return !ground && items.empty() && monsters.empty() && !spawnMonster && !npc && !spawnNpc && (!location || (!location->getHouseExits() && !location->getSpawnMonsterCount() && !location->getSpawnNpcCount() && !location->getWaypointCount()));
 	}
 	int size() const;
 
@@ -156,6 +163,8 @@ public: // Functions
 	Item* getTopItem() const; // Returns the topmost item, or nullptr if the tile is empty
 	Item* getItemAt(int index) const;
 	void addItem(Item* item);
+	void addItem(Item* item, const ItemType &type);
+	void addLoadedItem(Item* item, const ItemType &type);
 	bool removeItem(const Item* item);
 	void clearGround();
 	void replaceGround(Item* newGround);
@@ -188,6 +197,7 @@ public: // Functions
 
 	// Refresh internal flags (such as selected etc.)
 	void update();
+	void finalizeLoadedState();
 
 	uint8_t getMiniMapColor() const;
 
@@ -307,6 +317,8 @@ protected:
 
 private:
 	uint8_t minimapColor;
+
+	void updateStateForItem(const Item* item, const ItemType &type);
 
 	Tile(const Tile &tile); // No copy
 	Tile &operator=(const Tile &i); // Can't copy

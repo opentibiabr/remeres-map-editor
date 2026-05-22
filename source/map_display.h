@@ -136,6 +136,8 @@ protected:
 	bool floodFill(Map* map, const Position &center, int x, int y, GroundBrush* brush, PositionVector* positions);
 
 private:
+	void QueueRefresh(bool mark_scene_dirty);
+
 	enum {
 		BLOCK_SIZE = 64
 	};
@@ -196,6 +198,7 @@ private:
 	AnimationTimer* animation_timer;
 
 	friend class MapDrawer;
+	friend class AnimationTimer;
 
 	DECLARE_EVENT_TABLE()
 };
@@ -217,12 +220,14 @@ public:
 	AnimationTimer(MapCanvas* canvas);
 
 	void Notify();
-	void Start();
+	void StartRefresh(int interval, bool mark_scene_dirty);
 	void Stop();
 
 private:
 	MapCanvas* map_canvas;
-	bool started;
+	bool started = false;
+	bool mark_scene_dirty = false;
+	int interval = 0;
 };
 
 #endif
