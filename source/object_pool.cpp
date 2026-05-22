@@ -245,7 +245,10 @@ namespace {
 				return;
 			}
 
-			assert(ownerThread_ == currentThread);
+			if (ownerThread_ != currentThread) {
+				// A different owner falls back to the regular heap instead of crashing debug builds.
+				return;
+			}
 		}
 
 		void resetStats() noexcept {
@@ -390,6 +393,7 @@ namespace {
 			);
 			const std::size_t slabSize = blockCount * blockSize;
 
+			slabs_.reserve(slabs_.size() + 1);
 			auto* slab = static_cast<unsigned char*>(::operator new(slabSize));
 			slabs_.push_back(slab);
 
