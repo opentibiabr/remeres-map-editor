@@ -25,21 +25,24 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <cstdio>
 #include <mutex>
 #include <new>
 #include <thread>
 #include <vector>
 
-#ifdef _WIN32
-	#ifndef NOMINMAX
-		#define NOMINMAX
-	#endif
-	#include <windows.h>
+#ifndef RME_OBJECT_POOL_STATS
+	#define RME_OBJECT_POOL_STATS 0
 #endif
 
-#ifndef RME_OBJECT_POOL_STATS
-	#define RME_OBJECT_POOL_STATS 1
+#if RME_OBJECT_POOL_STATS
+	#include <cstdio>
+
+	#ifdef _WIN32
+		#ifndef NOMINMAX
+			#define NOMINMAX
+		#endif
+		#include <windows.h>
+	#endif
 #endif
 
 namespace {
