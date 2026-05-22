@@ -348,10 +348,6 @@ protected:
 			local_write_index += writable;
 			ptr += writable;
 			sz -= writable;
-
-			if (local_write_index >= cache_size) {
-				renewCache();
-			}
 		}
 	}
 
