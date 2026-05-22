@@ -364,6 +364,8 @@
     <ClInclude Include="..\..\source\map_allocator.h" />
     <ClInclude Include="..\..\source\map_region.h" />
     <ClCompile Include="..\..\source\map_region.cpp" />
+    <ClInclude Include="..\..\source\object_pool.h" />
+    <ClCompile Include="..\..\source\object_pool.cpp" />
     <ClInclude Include="..\..\source\mt_rand.h" />
     <ClCompile Include="..\..\source\mt_rand.cpp" />
     <ClInclude Include="..\..\source\net_connection.h" />

@@ -59,7 +59,6 @@ struct BorderSetStorageRecord {
 	BorderSetRecord borderSet;
 	std::vector<BorderSetItemRecord> items;
 };
-
 struct GroundBorderCaseConditionRecord {
 	wxString conditionType;
 	int matchValue = 0;

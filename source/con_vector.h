@@ -60,6 +60,13 @@ public:
 		return start[index];
 	}
 
+	const T* ptr(size_t index) const {
+		if (index >= sz) {
+			return nullptr;
+		}
+		return &start[index];
+	}
+
 	void set(size_t index, T value) {
 		locate(index) = value;
 	}

@@ -2214,7 +2214,6 @@ void MainMenuBar::OnActionsHistoryWindow(wxCommandEvent &WXUNUSED(event)) {
 void MainMenuBar::OnMaterialsWorkbench(wxCommandEvent &WXUNUSED(event)) {
 	MaterialsWorkbenchWindow::Open(frame);
 }
-
 void MainMenuBar::OnSQLiteMaterialsInspector(wxCommandEvent &WXUNUSED(event)) {
 	SQLiteMaterialsInspectorDialog dialog(frame);
 	dialog.ShowModal();

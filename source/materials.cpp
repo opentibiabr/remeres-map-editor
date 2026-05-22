@@ -1677,7 +1677,6 @@ bool Materials::loadTilesetsFromDatabase(wxArrayString &warnings) {
 	spdlog::info("Loaded {} tilesets from SQLite materials database", tilesetsFromDatabase.size());
 	return true;
 }
-
 bool Materials::loadMaterials(const FileName &identifier, wxString &error, wxArrayString &warnings) {
 	pugi::xml_document doc;
 	pugi::xml_parse_result result = doc.load_file(identifier.GetFullPath().mb_str());

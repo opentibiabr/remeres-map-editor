@@ -20,6 +20,8 @@
 #include "tile.h"
 #include "basemap.h"
 
+#include <memory>
+
 BaseMap::BaseMap() :
 	allocator(),
 	tilecount(0),
@@ -99,6 +101,30 @@ TileLocation* BaseMap::createTileL(const Position &pos) {
 	return createTileL(pos.x, pos.y, pos.z);
 }
 
+void BaseMap::setTile(TileLocation* location, Tile* new_tile, bool remove) {
+	ASSERT(location);
+	ASSERT(!new_tile || new_tile->getX() == location->getX());
+	ASSERT(!new_tile || new_tile->getY() == location->getY());
+	ASSERT(!new_tile || new_tile->getZ() == location->getZ());
+
+	Tile* old_tile = location->tile;
+	location->tile = new_tile;
+
+	if ((remove && old_tile) || new_tile) {
+		updateUniqueIds(remove ? old_tile : nullptr, new_tile);
+	}
+
+	if (new_tile && !old_tile) {
+		++tilecount;
+	} else if (old_tile && !new_tile) {
+		--tilecount;
+	}
+
+	if (remove) {
+		std::unique_ptr<Tile> { old_tile };
+	}
+}
+
 void BaseMap::setTile(int x, int y, int z, Tile* new_tile, bool remove) {
 	ASSERT(!new_tile || new_tile->getX() == x);
 	ASSERT(!new_tile || new_tile->getY() == y);
@@ -112,7 +138,7 @@ void BaseMap::setTile(int x, int y, int z, Tile* new_tile, bool remove) {
 	}
 
 	if (remove) {
-		delete old_tile;
+		std::unique_ptr<Tile> { old_tile };
 	}
 }
 
