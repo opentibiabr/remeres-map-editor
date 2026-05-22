@@ -33,6 +33,7 @@
 #include "town.h"
 
 #include <algorithm>
+#include <array>
 
 typedef uint8_t attribute_t;
 typedef uint32_t flags_t;
@@ -130,8 +131,7 @@ namespace {
 
 		while (true) {
 			const bool hasLeft = readNormalizedLineEndingChar(left, leftOffset, leftChar);
-			const bool hasRight = readNormalizedLineEndingChar(right, rightOffset, rightChar);
-			if (hasLeft != hasRight) {
+			if (const bool hasRight = readNormalizedLineEndingChar(right, rightOffset, rightChar); hasLeft != hasRight) {
 				return false;
 			}
 			if (!hasLeft) {
@@ -246,9 +246,12 @@ namespace {
 		state.firstArea = false;
 
 		file.addNode(OTBM_TILE_AREA);
-		file.addU16(state.localX = position.x & 0xFF00);
-		file.addU16(state.localY = position.y & 0xFF00);
-		file.addU8(state.localZ = position.z);
+		state.localX = position.x & 0xFF00;
+		state.localY = position.y & 0xFF00;
+		state.localZ = position.z;
+		file.addU16(state.localX);
+		file.addU16(state.localY);
+		file.addU8(state.localZ);
 	}
 
 	FORCEINLINE void saveTileGround(const IOMapOTBM &mapHandle, NodeFileWriteHandle &file, const Tile &tile) {
@@ -730,14 +733,14 @@ bool IOMapOTBM::getVersionInfo(const FileName &filename, MapVersion &out_ver) {
 		return false;
 	}
 
-	uint8_t otbmPrefix[5] {};
-	if (otbmProbe.size() < sizeof(otbmPrefix)) {
+	std::array<uint8_t, 5> otbmPrefix {};
+	if (otbmProbe.size() < otbmPrefix.size()) {
 		return false;
 	}
-	if (!otbmProbe.getRAW(otbmPrefix, sizeof(otbmPrefix))) {
+	if (!otbmProbe.getRAW(otbmPrefix.data(), otbmPrefix.size())) {
 		return false;
 	}
-	if (!hasValidOtbmPrefix(otbmPrefix, sizeof(otbmPrefix))) {
+	if (!hasValidOtbmPrefix(otbmPrefix.data(), otbmPrefix.size())) {
 		return false;
 	}
 

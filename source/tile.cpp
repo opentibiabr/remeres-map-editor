@@ -316,13 +316,10 @@ void Tile::addItem(Item* item) {
 
 namespace {
 	FORCEINLINE ItemVector::iterator findBottomInsertPosition(ItemVector &items, int topOrder) {
-		for (auto it = items.begin(); it != items.end(); ++it) {
-			const ItemType &existingType = (*it)->getItemType();
-			if (!existingType.alwaysOnBottom || topOrder < existingType.alwaysOnTopOrder) {
-				return it;
-			}
-		}
-		return items.end();
+		return std::find_if(items.begin(), items.end(), [topOrder](const Item* existingItem) {
+			const ItemType &existingType = existingItem->getItemType();
+			return !existingType.alwaysOnBottom || topOrder < existingType.alwaysOnTopOrder;
+		});
 	}
 }
 
