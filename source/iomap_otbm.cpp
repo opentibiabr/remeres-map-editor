@@ -1820,7 +1820,9 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 					Item* ground = save_tile->ground;
 					const ItemType &groundType = ground->getItemType();
 					const uint16_t groundId = ground->getID();
-					if (groundType.isMetaItem()) {
+					if (groundId == 0) {
+						// Skip invalid placeholder grounds without dropping the tile's items or zones.
+					} else if (groundType.isMetaItem()) {
 						// Do nothing, we don't save metaitems...
 					} else if (groundType.has_equivalent) {
 						bool found = false;
@@ -1834,21 +1836,12 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 						}
 
 						if (!found) {
-							if (groundId == 0) {
-								return;
-							}
 							ground->serializeItemNode_OTBM(self, f);
 						}
 					} else if (ground->isComplex()) {
-						if (groundId == 0) {
-							return;
-						}
 						ground->serializeItemNode_OTBM(self, f);
 					} else {
 						f.addByte(OTBM_ATTR_ITEM);
-						if (groundId == 0) {
-							return;
-						}
 						ground->serializeItemCompact_OTBM(self, f);
 					}
 				}
