@@ -32,6 +32,8 @@
 #include "complexitem.h"
 #include "town.h"
 
+#include <algorithm>
+
 typedef uint8_t attribute_t;
 typedef uint32_t flags_t;
 
@@ -128,8 +130,7 @@ namespace {
 
 		while (true) {
 			const bool hasLeft = readNormalizedLineEndingChar(left, leftOffset, leftChar);
-			const bool hasRight = readNormalizedLineEndingChar(right, rightOffset, rightChar);
-			if (hasLeft != hasRight) {
+			if (const bool hasRight = readNormalizedLineEndingChar(right, rightOffset, rightChar); hasLeft != hasRight) {
 				return false;
 			}
 			if (!hasLeft) {
@@ -184,6 +185,124 @@ namespace {
 		}
 
 		return writeContentToFile(filepath, content);
+	}
+
+	struct TileAreaSaveState {
+		uint32_t tilesSaved = 0;
+		bool firstArea = true;
+		int localX = -1;
+		int localY = -1;
+		int localZ = -1;
+	};
+
+	void updateTileSaveProgress(const Map &map, TileAreaSaveState &state) {
+		++state.tilesSaved;
+		const uint64_t tileCount = map.getTileCount();
+		if (tileCount != 0 && state.tilesSaved % 8192 == 0) {
+			g_gui.SetLoadDone(int(state.tilesSaved / double(tileCount) * 100.0));
+		}
+	}
+
+	bool needsNewTileArea(const Position &position, const TileAreaSaveState &state) {
+		return position.x < state.localX || position.x >= state.localX + 256 || position.y < state.localY || position.y >= state.localY + 256 || position.z != state.localZ;
+	}
+
+	void beginTileArea(NodeFileWriteHandle &file, const Position &position, TileAreaSaveState &state) {
+		if (!state.firstArea) {
+			file.endNode();
+		}
+		state.firstArea = false;
+
+		file.addNode(OTBM_TILE_AREA);
+		file.addU16(state.localX = position.x & 0xFF00);
+		file.addU16(state.localY = position.y & 0xFF00);
+		file.addU8(state.localZ = position.z);
+	}
+
+	void saveTileGround(const IOMapOTBM &mapHandle, NodeFileWriteHandle &file, const Tile &tile) {
+		if (!tile.ground) {
+			return;
+		}
+
+		Item* ground = tile.ground;
+		const ItemType &groundType = ground->getItemType();
+		const uint16_t groundId = ground->getID();
+		if (groundId == 0 || groundType.isMetaItem()) {
+			return;
+		}
+
+		if (groundType.has_equivalent) {
+			const bool found = std::any_of(tile.items.begin(), tile.items.end(), [groundId](const Item* item) {
+				return item->getItemType().ground_equivalent == groundId;
+			});
+			if (!found) {
+				ground->serializeItemNode_OTBM(mapHandle, file);
+			}
+			return;
+		}
+
+		if (ground->isComplex()) {
+			ground->serializeItemNode_OTBM(mapHandle, file);
+			return;
+		}
+
+		file.addByte(OTBM_ATTR_ITEM);
+		ground->serializeItemCompact_OTBM(mapHandle, file);
+	}
+
+	void saveTileItems(const IOMapOTBM &mapHandle, NodeFileWriteHandle &file, const Tile &tile) {
+		for (Item* item : tile.items) {
+			const ItemType &itemType = item->getItemType();
+			if (itemType.isMetaItem() || item->getID() == 0) {
+				continue;
+			}
+			item->serializeItemNode_OTBM(mapHandle, file);
+		}
+	}
+
+	void saveTileZones(NodeFileWriteHandle &file, const Tile &tile) {
+		if (tile.zones.empty()) {
+			return;
+		}
+
+		file.addNode(OTBM_TILE_ZONE);
+		file.addU16(tile.zones.size());
+		for (const auto &zoneId : tile.zones) {
+			file.addU16(zoneId);
+		}
+		file.endNode();
+	}
+
+	void saveTileLocation(const IOMapOTBM &mapHandle, Map &map, NodeFileWriteHandle &file, TileAreaSaveState &state, TileLocation* tileLocation) {
+		updateTileSaveProgress(map, state);
+
+		Tile* saveTile = tileLocation->get();
+		if (!saveTile || saveTile->empty()) {
+			return;
+		}
+
+		const Position &position = saveTile->getPosition();
+		if (needsNewTileArea(position, state)) {
+			beginTileArea(file, position, state);
+		}
+
+		file.addNode(saveTile->isHouseTile() ? OTBM_HOUSETILE : OTBM_TILE);
+		file.addU8(saveTile->getX() & 0xFF);
+		file.addU8(saveTile->getY() & 0xFF);
+
+		if (saveTile->isHouseTile()) {
+			file.addU32(saveTile->getHouseID());
+		}
+
+		if (saveTile->getMapFlags()) {
+			file.addByte(OTBM_ATTR_TILE_FLAGS);
+			file.addU32(saveTile->getMapFlags());
+		}
+
+		saveTileGround(mapHandle, file, *saveTile);
+		saveTileItems(mapHandle, file, *saveTile);
+		saveTileZones(file, *saveTile);
+		file.endNode();
 	}
 }
 
@@ -1766,111 +1885,14 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 			f.addString(nstr(tmpName.GetFullName()));
 
 			// Start writing tiles
-			uint32_t tiles_saved = 0;
-			bool first = true;
-
-			int local_x = -1, local_y = -1, local_z = -1;
-
-			auto saveTileLocation = [&](TileLocation* tileLocation) {
-				// Update progressbar
-				++tiles_saved;
-				if (tiles_saved % 8192 == 0) {
-					g_gui.SetLoadDone(int(tiles_saved / double(map.getTileCount()) * 100.0));
-				}
-
-				// Get tile
-				Tile* save_tile = tileLocation->get();
-
-				// Is it an empty tile that we can skip? (Leftovers...)
-				if (!save_tile || save_tile->empty()) {
-					return;
-				}
-
-				const Position &pos = save_tile->getPosition();
-
-				// Decide if newd node should be created
-				if (pos.x < local_x || pos.x >= local_x + 256 || pos.y < local_y || pos.y >= local_y + 256 || pos.z != local_z) {
-					// End last node
-					if (!first) {
-						f.endNode();
-					}
-					first = false;
-
-					// Start newd node
-					f.addNode(OTBM_TILE_AREA);
-					f.addU16(local_x = pos.x & 0xFF00);
-					f.addU16(local_y = pos.y & 0xFF00);
-					f.addU8(local_z = pos.z);
-				}
-				f.addNode(save_tile->isHouseTile() ? OTBM_HOUSETILE : OTBM_TILE);
-
-				f.addU8(save_tile->getX() & 0xFF);
-				f.addU8(save_tile->getY() & 0xFF);
-
-				if (save_tile->isHouseTile()) {
-					f.addU32(save_tile->getHouseID());
-				}
-
-				if (save_tile->getMapFlags()) {
-					f.addByte(OTBM_ATTR_TILE_FLAGS);
-					f.addU32(save_tile->getMapFlags());
-				}
-
-				if (save_tile->ground) {
-					Item* ground = save_tile->ground;
-					const ItemType &groundType = ground->getItemType();
-					const uint16_t groundId = ground->getID();
-					if (groundId == 0) {
-						// Skip invalid placeholder grounds without dropping the tile's items or zones.
-					} else if (groundType.isMetaItem()) {
-						// Do nothing, we don't save metaitems...
-					} else if (groundType.has_equivalent) {
-						bool found = false;
-						for (Item* item : save_tile->items) {
-							if (item->getItemType().ground_equivalent == groundId) {
-								// Do nothing
-								// Found equivalent
-								found = true;
-								break;
-							}
-						}
-
-						if (!found) {
-							ground->serializeItemNode_OTBM(self, f);
-						}
-					} else if (ground->isComplex()) {
-						ground->serializeItemNode_OTBM(self, f);
-					} else {
-						f.addByte(OTBM_ATTR_ITEM);
-						ground->serializeItemCompact_OTBM(self, f);
-					}
-				}
-
-				for (Item* item : save_tile->items) {
-					const ItemType &itemType = item->getItemType();
-					if (!itemType.isMetaItem()) {
-						const uint16_t itemId = item->getID();
-						if (itemId == 0) {
-							continue;
-						}
-						item->serializeItemNode_OTBM(self, f);
-					}
-				}
-				if (!save_tile->zones.empty()) {
-					f.addNode(OTBM_TILE_ZONE);
-					f.addU16(save_tile->zones.size());
-					for (const auto &zoneId : save_tile->zones) {
-						f.addU16(zoneId);
-					}
-					f.endNode();
-				}
-
-				f.endNode();
+			TileAreaSaveState tileAreaState;
+			auto writeTileLocation = [&](TileLocation* tileLocation) {
+				saveTileLocation(self, map, f, tileAreaState, tileLocation);
 			};
-			map.forEachTileLocation(saveTileLocation);
+			map.forEachTileLocation(writeTileLocation);
 
 			// Only close the last node if one has actually been created
-			if (!first) {
+			if (!tileAreaState.firstArea) {
 				f.endNode();
 			}
 
