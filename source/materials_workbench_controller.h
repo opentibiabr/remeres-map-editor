@@ -18,6 +18,9 @@ public:
 	bool GetBrushDetails(const wxString &contextKey, int itemIndex, BrushStorageRecord &outBrush, wxString &error) const;
 	bool SaveBrush(BrushRecord &brush, wxString &error);
 	bool LocateBrushNode(int64_t brushId, wxString &outContextKey, int &outItemIndex) const;
+	bool GetBorderSetDetails(const wxString &contextKey, int itemIndex, BorderSetStorageRecord &outBorderSet, wxString &error) const;
+	bool SaveBorderSet(BorderSetStorageRecord &borderSet, wxString &error);
+	bool LocateBorderSetNode(int64_t borderSetId, wxString &outContextKey, int &outItemIndex) const;
 	bool SaveTileset(const TilesetStorageRecord &tileset, wxString &error);
 	const std::vector<MaterialsWorkbenchBrushGroup> &GetBrushGroups() const;
 	const std::vector<BrushRecord> &GetWallBrushes() const;

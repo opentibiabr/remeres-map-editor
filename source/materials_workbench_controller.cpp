@@ -224,8 +224,31 @@ bool MaterialsWorkbenchController::GetBrushDetails(const wxString &contextKey, i
 	return repository_.LoadBrushDetails(brush->id, outBrush, error);
 }
 
+bool MaterialsWorkbenchController::GetBorderSetDetails(const wxString &contextKey, int itemIndex, BorderSetStorageRecord &outBorderSet, wxString &error) const {
+	const BorderSetRecord* borderSet = FindBorderSetRecord(contextKey, itemIndex);
+	if (!borderSet) {
+		error = "Border set details are unavailable.";
+		outBorderSet = BorderSetStorageRecord();
+		return false;
+	}
+	return repository_.LoadBorderSetDetails(borderSet->id, outBorderSet, error);
+}
+
 bool MaterialsWorkbenchController::SaveBrush(BrushRecord &brush, wxString &error) {
 	if (!repository_.SaveBrush(brush, error)) {
+		return false;
+	}
+
+	if (!ReloadCatalog()) {
+		error = lastError_;
+		return false;
+	}
+
+	return true;
+}
+
+bool MaterialsWorkbenchController::SaveBorderSet(BorderSetStorageRecord &borderSet, wxString &error) {
+	if (!repository_.SaveBorderSet(borderSet, error)) {
 		return false;
 	}
 
@@ -253,6 +276,28 @@ bool MaterialsWorkbenchController::LocateBrushNode(int64_t brushId, wxString &ou
 				outItemIndex = static_cast<int>(i);
 				return true;
 			}
+		}
+	}
+
+	outContextKey.clear();
+	outItemIndex = -1;
+	return false;
+}
+
+bool MaterialsWorkbenchController::LocateBorderSetNode(int64_t borderSetId, wxString &outContextKey, int &outItemIndex) const {
+	for (size_t i = 0; i < catalog_.globalBorderSets.size(); ++i) {
+		if (catalog_.globalBorderSets[i].id == borderSetId) {
+			outContextKey = "global";
+			outItemIndex = static_cast<int>(i);
+			return true;
+		}
+	}
+
+	for (size_t i = 0; i < catalog_.inlineBorderSets.size(); ++i) {
+		if (catalog_.inlineBorderSets[i].id == borderSetId) {
+			outContextKey = "inline";
+			outItemIndex = static_cast<int>(i);
+			return true;
 		}
 	}
 

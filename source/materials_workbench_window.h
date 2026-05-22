@@ -10,6 +10,7 @@ class wxSplitterWindow;
 class wxSimplebook;
 class wxTextCtrl;
 class wxTreeCtrl;
+class MaterialsWorkbenchBorderPanel;
 class MaterialsWorkbenchBrushPanel;
 class MaterialsWorkbenchPalettePanel;
 
@@ -33,6 +34,7 @@ private:
 	wxTextCtrl* overviewText_ = nullptr;
 	wxTextCtrl* inspectorText_ = nullptr;
 	MaterialsWorkbenchPalettePanel* palettePanel_ = nullptr;
+	MaterialsWorkbenchBorderPanel* borderPanel_ = nullptr;
 	MaterialsWorkbenchBrushPanel* brushPanel_ = nullptr;
 
 	DECLARE_EVENT_TABLE()

@@ -126,3 +126,23 @@ bool MaterialsWorkbenchRepository::LoadBorderSetDetails(int64_t borderSetId, Bor
 
 	return true;
 }
+
+bool MaterialsWorkbenchRepository::SaveBorderSet(BorderSetStorageRecord &borderSet, wxString &error) const {
+	error.clear();
+
+	int64_t borderSetId = borderSet.borderSet.id;
+	if (!g_brush_database.upsertBorderSet(borderSet.borderSet, borderSetId)) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
+	if (!g_brush_database.replaceBorderSetItems(borderSetId, borderSet.items)) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
+
+	borderSet.borderSet.id = borderSetId;
+	for (BorderSetItemRecord &item : borderSet.items) {
+		item.borderSetId = borderSetId;
+	}
+	return true;
+}

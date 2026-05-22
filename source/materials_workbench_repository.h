@@ -13,6 +13,7 @@ public:
 	bool LoadBrushDetails(int64_t brushId, BrushStorageRecord &outBrush, wxString &error) const;
 	bool SaveBrush(BrushRecord &brush, wxString &error) const;
 	bool LoadBorderSetDetails(int64_t borderSetId, BorderSetStorageRecord &outBorderSet, wxString &error) const;
+	bool SaveBorderSet(BorderSetStorageRecord &borderSet, wxString &error) const;
 };
 
 #endif

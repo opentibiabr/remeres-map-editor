@@ -10,6 +10,7 @@
 #include <wx/treectrl.h>
 
 #include "gui.h"
+#include "materials_workbench_border_panel.h"
 #include "materials_workbench_brush_panel.h"
 #include "materials_workbench_palette_panel.h"
 
@@ -158,6 +159,17 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 		}
 		inspectorText_->SetValue(controller_.BuildSelectionInspector(itemData->kind, itemData->contextKey, itemData->itemIndex));
 	});
+	borderPanel_ = new MaterialsWorkbenchBorderPanel(workspaceBook_, controller_);
+	borderPanel_->SetOnBorderSetSaved([this](int64_t borderSetId) {
+		RefreshWorkbenchState();
+		PopulateNavigation();
+
+		wxString contextKey;
+		int itemIndex = -1;
+		if (controller_.LocateBorderSetNode(borderSetId, contextKey, itemIndex)) {
+			SelectNavigationNode(MaterialsWorkbenchNodeKind::BorderSet, contextKey, itemIndex);
+		}
+	});
 	brushPanel_ = new MaterialsWorkbenchBrushPanel(workspaceBook_, controller_);
 	brushPanel_->SetOnBrushSaved([this](int64_t brushId) {
 		RefreshWorkbenchState();
@@ -171,6 +183,7 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 	});
 	workspaceBook_->AddPage(overviewPanel, "Overview");
 	workspaceBook_->AddPage(palettePanel_, "Palette");
+	workspaceBook_->AddPage(borderPanel_, "Border");
 	workspaceBook_->AddPage(brushPanel_, "Brush");
 	workspaceBook_->SetSelection(0);
 	wxPanel* inspectorPanel = CreateInspectorPanel(contentSplitter, controller_, inspectorText_);
@@ -250,10 +263,18 @@ void MaterialsWorkbenchWindow::BindEvents() {
 
 		if (itemData->kind == MaterialsWorkbenchNodeKind::Brush) {
 			if (brushPanel_->LoadBrush(itemData->contextKey, itemData->itemIndex)) {
-				workspaceBook_->SetSelection(2);
+				workspaceBook_->SetSelection(3);
 				return;
 			}
 			brushPanel_->ClearWorkspace("Failed to load the selected brush workspace.");
+		}
+
+		if (itemData->kind == MaterialsWorkbenchNodeKind::BorderSet) {
+			if (borderPanel_->LoadBorderSet(itemData->contextKey, itemData->itemIndex)) {
+				workspaceBook_->SetSelection(2);
+				return;
+			}
+			borderPanel_->ClearWorkspace("Failed to load the selected border workspace.");
 		}
 
 		workspaceBook_->SetSelection(0);
