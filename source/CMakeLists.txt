@@ -36,6 +36,10 @@ find_package(pugixml CONFIG REQUIRED)
 find_package(liblzma CONFIG REQUIRED)
 find_package(Protobuf REQUIRED)
 find_package(cpr CONFIG REQUIRED)
+find_package(SQLite3 REQUIRED)
+if(TARGET SQLite::SQLite3 AND NOT TARGET SQLite3::SQLite3)
+  add_library(SQLite3::SQLite3 ALIAS SQLite::SQLite3)
+endif()
 
 include(FetchContent)
 FetchContent_Declare(
@@ -178,6 +182,7 @@ target_sources(
           bitmap_to_map_window.cpp
           bitmap_to_map_converter.cpp
           brush.cpp
+          brush_database.cpp
           brush_tables.cpp
           browse_tile_window.cpp
           positionctrl.cpp
@@ -277,6 +282,7 @@ target_sources(
           rme_net.cpp
           selection.cpp
           settings.cpp
+          sqlite_materials_inspector.cpp
           spawn_monster_brush.cpp
           spawn_monster.cpp
           spawn_npc.cpp
@@ -336,6 +342,7 @@ target_link_libraries(
           ${LUA_LIB_TARGET}
           sol2::sol2
           cpr::cpr
+          SQLite3::SQLite3
           $<$<PLATFORM_ID:Linux>:xcb>
           $<$<PLATFORM_ID:Windows>:psapi>)
 

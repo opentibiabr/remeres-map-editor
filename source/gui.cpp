@@ -115,6 +115,7 @@ GUI::GUI() :
 }
 
 GUI::~GUI() {
+	JoinAsyncSqliteBootstrapThread();
 	delete doodad_buffer_map;
 	delete g_gui.aui_manager;
 	delete OGLContext;
@@ -359,7 +360,22 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 
 	g_gui.SetLoadDone(50, "Loading materials.xml ...");
 	spdlog::info("Loading materials");
+	g_materials.initializeBrushDatabase(warnings);
 	auto materialsPath = wxString(data_path.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + "materials/materials.xml");
+	bool startAsyncSqliteBootstrap = false;
+	if (g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
+		bool skipSqliteImport = false;
+		wxString sqliteImportStatus;
+		if (!g_materials.shouldSkipSqliteBootstrapImports(skipSqliteImport, sqliteImportStatus)) {
+			warnings.push_back("SQLite import bootstrap check failed: " + sqliteImportStatus);
+			spdlog::warn("[GUI::LoadDataFiles] SQLite import bootstrap check failed: {}", sqliteImportStatus.ToStdString());
+		} else if (skipSqliteImport) {
+			spdlog::info("{}", sqliteImportStatus.ToStdString());
+		} else {
+			spdlog::info("{}", sqliteImportStatus.ToStdString());
+			startAsyncSqliteBootstrap = true;
+		}
+	}
 	if (!g_materials.loadMaterials(materialsPath, error, warnings)) {
 		warnings.push_back("Couldn't load materials.xml: " + error);
 		spdlog::warn("[GUI::LoadDataFiles] {}: {}", materialsPath.ToStdString(), error.ToStdString());
@@ -374,6 +390,9 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 
 	g_gui.DestroyLoadBar();
 	spdlog::info("Assets loaded");
+	if (startAsyncSqliteBootstrap) {
+		StartAsyncSqliteBootstrapImport();
+	}
 	return true;
 }
 
@@ -394,6 +413,10 @@ void GUI::unloadMapWindow() {
 	quest_door_brush = nullptr;
 	hatch_door_brush = nullptr;
 	window_door_brush = nullptr;
+
+	// Reload/unload tears down the in-memory materials graph, so wait for the
+	// background SQLite bootstrap to stop reading shared brush/items state first.
+	JoinAsyncSqliteBootstrapThread();
 
 	g_materials.clear();
 	g_brushes.clear();
@@ -1228,6 +1251,9 @@ void GUI::OnWelcomeDialogAction(wxCommandEvent &event) {
 }
 
 void GUI::UpdateMenubar() {
+	if (root == nullptr) {
+		return;
+	}
 	root->UpdateMenubar();
 }
 
@@ -1365,7 +1391,73 @@ void GUI::ChangeFloor(int new_floor) {
 }
 
 void GUI::SetStatusText(wxString text) {
+	if (g_gui.root == nullptr) {
+		return;
+	}
 	g_gui.root->SetStatusText(text, 0);
+}
+
+bool GUI::IsAsyncSqliteBootstrapRunning() const {
+	return sqlite_bootstrap_running_.load();
+}
+
+void GUI::JoinAsyncSqliteBootstrapThread() {
+	if (!sqlite_bootstrap_thread_.joinable()) {
+		return;
+	}
+
+	sqlite_bootstrap_thread_.join();
+	sqlite_bootstrap_running_.store(false);
+}
+
+void GUI::RunAsyncSqliteBootstrapImport() {
+	wxString sqliteImportError;
+	wxArrayString sqliteWarnings;
+	const bool success = g_materials.bootstrapSqliteDatabase(sqliteImportError, sqliteWarnings);
+
+	for (const wxString &warning : sqliteWarnings) {
+		spdlog::warn("[SQLiteBootstrap] {}", warning.ToStdString());
+	}
+	if (!success && !sqliteImportError.IsEmpty()) {
+		spdlog::error("[SQLiteBootstrap] {}", sqliteImportError.ToStdString());
+	}
+
+	sqlite_bootstrap_running_.store(false);
+
+	if (wxTheApp) {
+		wxTheApp->CallAfter([this, success, sqliteImportError, sqliteWarnings]() {
+			HandleAsyncSqliteBootstrapResult(success, sqliteImportError, sqliteWarnings);
+		});
+	}
+}
+
+void GUI::HandleAsyncSqliteBootstrapResult(bool success, const wxString &sqliteImportError, const wxArrayString &sqliteWarnings) {
+	g_gui.UpdateMenubar();
+	if (success) {
+		if (sqliteWarnings.IsEmpty()) {
+			g_gui.SetStatusText("SQLite materials database built in background.");
+		} else {
+			g_gui.SetStatusText("SQLite materials database built in background with warnings.");
+		}
+		return;
+	}
+
+	g_gui.SetStatusText("SQLite materials background build failed.");
+	if (g_gui.root) {
+		g_gui.PopupDialog(g_gui.root, "SQLite Materials Import Failed", sqliteImportError, wxOK | wxICON_WARNING);
+	}
+}
+
+void GUI::StartAsyncSqliteBootstrapImport() {
+	if (sqlite_bootstrap_running_.exchange(true)) {
+		return;
+	}
+	JoinAsyncSqliteBootstrapThread();
+
+	SetStatusText("Building SQLite materials database in background...");
+	UpdateMenubar();
+
+	sqlite_bootstrap_thread_ = std::jthread(&GUI::RunAsyncSqliteBootstrapImport, this);
 }
 
 void GUI::SetTitle(wxString title) {

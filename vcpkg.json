@@ -15,6 +15,7 @@
 		"spdlog",
 		"lua",
 		"sol2",
+		"sqlite3",
 		"stb",
 		"zlib"
 	],

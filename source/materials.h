@@ -28,6 +28,14 @@ public:
 	~Materials();
 
 	void clear();
+	bool initializeBrushDatabase(wxArrayString &warnings);
+	bool shouldSkipSqliteBootstrapImports(bool &outSkip, wxString &reason);
+	bool bootstrapSqliteDatabase(wxString &error, wxArrayString &warnings);
+	bool migrateSingleBrushToSQLite(const FileName &identifier, const wxString &brushName, wxString &error, wxArrayString &warnings);
+	bool migrateGroundsToSQLite(wxString &error, wxArrayString &warnings);
+	bool migrateWallsToSQLite(wxString &error, wxArrayString &warnings);
+	bool migrateDecorativeBrushesToSQLite(wxString &error, wxArrayString &warnings);
+	bool migrateTilesetsToSQLite(wxString &error, wxArrayString &warnings);
 
 	TilesetContainer tilesets;
 
