@@ -75,6 +75,7 @@ namespace MenuBar {
 		JUMP_TO_ITEM_BRUSH,
 		CLEAR_INVALID_HOUSES,
 		CLEAR_MODIFIED_STATE,
+		TOOLS_MATERIALS_WORKBENCH,
 		CUT,
 		COPY,
 		PASTE,
@@ -239,6 +240,7 @@ public:
 	void OnMapRemoveEmptyNpcSpawns(wxCommandEvent &event);
 	void OnClearHouseTiles(wxCommandEvent &event);
 	void OnClearModifiedState(wxCommandEvent &event);
+	void OnMaterialsWorkbench(wxCommandEvent &event);
 	void OnToggleAutomagic(wxCommandEvent &event);
 	void OnSelectionTypeChange(wxCommandEvent &event);
 	void OnCut(wxCommandEvent &event);

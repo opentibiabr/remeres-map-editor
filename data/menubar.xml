@@ -61,6 +61,8 @@
             <item name="Remove empty npcs spawns" action="MAP_REMOVE_EMPTY_NPCS_SPAWNS" help="Removes all empty npcs spawns from the map."/>
             <item name="$Clear Invalid Houses" action="CLEAR_INVALID_HOUSES" help="Clears house tiles not belonging to any house."/>
             <item name="Clear $Modified State" action="CLEAR_MODIFIED_STATE" help="Clears the modified state from all tiles."/>
+            <separator/>
+            <item name="$Materials Workbench" action="TOOLS_MATERIALS_WORKBENCH" help="Opens the full-area materials authoring workbench backed by materials.db."/>
         </menu>
         <separator/>
         <item name="Go To P$revious Position" hotkey="P" action="GOTO_PREVIOUS_POSITION" help="Go to the previous screen center position."/>

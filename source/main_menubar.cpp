@@ -27,6 +27,7 @@
 #include "result_window.h"
 #include "find_item_window.h"
 #include "settings.h"
+#include "materials_workbench_window.h"
 #include "sqlite_materials_inspector.h"
 #include "lua/lua_script_manager.h"
 #include "lua/lua_scripts_window.h"
@@ -120,6 +121,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 
 	MAKE_ACTION(CLEAR_INVALID_HOUSES, wxITEM_NORMAL, OnClearHouseTiles);
 	MAKE_ACTION(CLEAR_MODIFIED_STATE, wxITEM_NORMAL, OnClearModifiedState);
+	MAKE_ACTION(TOOLS_MATERIALS_WORKBENCH, wxITEM_NORMAL, OnMaterialsWorkbench);
 	MAKE_ACTION(MAP_REMOVE_ITEMS, wxITEM_NORMAL, OnMapRemoveItems);
 	MAKE_ACTION(MAP_REMOVE_CORPSES, wxITEM_NORMAL, OnMapRemoveCorpses);
 	MAKE_ACTION(MAP_REMOVE_UNREACHABLE_TILES, wxITEM_NORMAL, OnMapRemoveUnreachable);
@@ -391,6 +393,7 @@ void MainMenuBar::Update() {
 	EnableItem(MAP_REMOVE_EMPTY_NPCS_SPAWNS, is_local);
 	EnableItem(CLEAR_INVALID_HOUSES, is_local);
 	EnableItem(CLEAR_MODIFIED_STATE, is_local);
+	EnableItem(TOOLS_MATERIALS_WORKBENCH, loaded && g_settings.getBoolean(Config::USE_SQLITE_MATERIALS));
 
 	EnableItem(EDIT_TOWNS, is_local);
 	EnableItem(EDIT_ITEMS, false);
@@ -2206,6 +2209,10 @@ void MainMenuBar::OnMinimapWindow(wxCommandEvent &event) {
 
 void MainMenuBar::OnActionsHistoryWindow(wxCommandEvent &WXUNUSED(event)) {
 	g_gui.ShowActionsWindow();
+}
+
+void MainMenuBar::OnMaterialsWorkbench(wxCommandEvent &WXUNUSED(event)) {
+	MaterialsWorkbenchWindow::Open(frame);
 }
 
 void MainMenuBar::OnSQLiteMaterialsInspector(wxCommandEvent &WXUNUSED(event)) {

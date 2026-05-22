@@ -253,6 +253,8 @@ target_sources(
           map_region.cpp
           map_tab.cpp
           map_window.cpp
+          materials_workbench_controller.cpp
+          materials_workbench_window.cpp
           materials.cpp
           minimap_window.cpp
           mkpch.cpp
