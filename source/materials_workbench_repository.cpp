@@ -67,6 +67,17 @@ bool MaterialsWorkbenchRepository::LoadCatalog(MaterialsWorkbenchCatalogSnapshot
 	return true;
 }
 
+bool MaterialsWorkbenchRepository::SaveTileset(const TilesetStorageRecord &tileset, wxString &error) const {
+	error.clear();
+
+	if (!g_brush_database.saveTileset(tileset)) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
+
+	return true;
+}
+
 bool MaterialsWorkbenchRepository::LoadBrushDetails(int64_t brushId, BrushStorageRecord &outBrush, wxString &error) const {
 	outBrush = BrushStorageRecord();
 	error.clear();

@@ -2,11 +2,14 @@
 
 #include "materials_workbench_window.h"
 
+#include <wx/simplebook.h>
 #include <wx/splitter.h>
 #include <wx/statline.h>
 #include <wx/stattext.h>
 #include <wx/textctrl.h>
 #include <wx/treectrl.h>
+
+#include "materials_workbench_palette_panel.h"
 
 namespace {
 	MaterialsWorkbenchWindow* g_materials_workbench_window = nullptr;
@@ -38,7 +41,7 @@ namespace {
 		return panel;
 	}
 
-	wxPanel* CreateOverviewPanel(wxWindow* parent, const MaterialsWorkbenchController &controller, wxTextCtrl*& outOverview) {
+	wxPanel* CreateOverviewTextPanel(wxWindow* parent, const MaterialsWorkbenchController &controller, wxTextCtrl*& outOverview) {
 		wxPanel* panel = new wxPanel(parent, wxID_ANY);
 		wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 
@@ -113,10 +116,22 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 	contentSplitter->SetMinimumPaneSize(FromDIP(260));
 
 	wxPanel* sidebarPanel = CreateSidebarPanel(rootSplitter, navigationTree_);
-	wxPanel* overviewPanel = CreateOverviewPanel(contentSplitter, controller_, overviewText_);
+	workspaceBook_ = new wxSimplebook(contentSplitter, wxID_ANY);
+	wxPanel* overviewPanel = CreateOverviewTextPanel(workspaceBook_, controller_, overviewText_);
+	palettePanel_ = new MaterialsWorkbenchPalettePanel(workspaceBook_, controller_);
+	palettePanel_->SetOnPaletteSaved([this]() {
+		auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(navigationTree_->GetSelection()));
+		if (!itemData) {
+			return;
+		}
+		inspectorText_->SetValue(controller_.BuildSelectionInspector(itemData->kind, itemData->contextKey, itemData->itemIndex));
+	});
+	workspaceBook_->AddPage(overviewPanel, "Overview");
+	workspaceBook_->AddPage(palettePanel_, "Palette");
+	workspaceBook_->SetSelection(0);
 	wxPanel* inspectorPanel = CreateInspectorPanel(contentSplitter, controller_, inspectorText_);
 
-	contentSplitter->SplitVertically(overviewPanel, inspectorPanel, FromDIP(1020));
+	contentSplitter->SplitVertically(workspaceBook_, inspectorPanel, FromDIP(1020));
 	rootSplitter->SplitVertically(sidebarPanel, contentSplitter, FromDIP(260));
 
 	wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
@@ -171,6 +186,7 @@ void MaterialsWorkbenchWindow::BindEvents() {
 
 		auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(item));
 		if (!itemData) {
+			workspaceBook_->SetSelection(0);
 			overviewText_->SetValue(controller_.GetOverviewText());
 			inspectorText_->SetValue(controller_.GetInspectorText());
 			return;
@@ -178,6 +194,17 @@ void MaterialsWorkbenchWindow::BindEvents() {
 
 		overviewText_->SetValue(controller_.BuildSelectionOverview(itemData->kind, itemData->contextKey, itemData->itemIndex));
 		inspectorText_->SetValue(controller_.BuildSelectionInspector(itemData->kind, itemData->contextKey, itemData->itemIndex));
+
+		if (itemData->kind == MaterialsWorkbenchNodeKind::Tileset) {
+			TilesetStorageRecord tileset;
+			if (controller_.GetTilesetByIndex(itemData->itemIndex, tileset) && palettePanel_->LoadPalette(tileset)) {
+				workspaceBook_->SetSelection(1);
+				return;
+			}
+			palettePanel_->ClearWorkspace("Failed to load the selected palette workspace.");
+		}
+
+		workspaceBook_->SetSelection(0);
 	});
 }
 

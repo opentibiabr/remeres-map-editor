@@ -444,6 +444,8 @@
     <ClCompile Include="..\..\source\map_window.cpp" />
     <ClInclude Include="..\..\source\materials_workbench_controller.h" />
     <ClCompile Include="..\..\source\materials_workbench_controller.cpp" />
+    <ClInclude Include="..\..\source\materials_workbench_palette_panel.h" />
+    <ClCompile Include="..\..\source\materials_workbench_palette_panel.cpp" />
     <ClInclude Include="..\..\source\materials_workbench_repository.h" />
     <ClCompile Include="..\..\source\materials_workbench_repository.cpp" />
     <ClInclude Include="..\..\source\materials_workbench_types.h" />

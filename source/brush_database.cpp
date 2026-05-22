@@ -891,6 +891,10 @@ bool BrushDatabase::replaceAllTilesets(const std::vector<TilesetStorageRecord> &
 	return catalogRepository_.replaceAllTilesets(tilesets);
 }
 
+bool BrushDatabase::saveTileset(const TilesetStorageRecord &tileset) {
+	return catalogRepository_.saveTileset(tileset);
+}
+
 bool BrushDatabase::getAllTilesets(std::vector<TilesetStorageRecord> &outTilesets) {
 	return catalogRepository_.getAllTilesets(outTilesets);
 }
@@ -3247,6 +3251,94 @@ bool BrushDatabaseCatalogRepository::replaceAllTilesets(const std::vector<Tilese
 			if (!WriteTilesetEntries(sectionId, section.entries, insertEntryStmt, findBrushStmt, setDbError)) {
 				return fail(lastError_);
 			}
+		}
+	}
+
+	FinalizeStatements({ insertTilesetStmt, insertSectionStmt, insertEntryStmt, findBrushStmt });
+	if (!commitTransaction()) {
+		rollbackTransaction();
+		return false;
+	}
+	return true;
+}
+
+bool BrushDatabaseCatalogRepository::saveTileset(const TilesetStorageRecord &tileset) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+	if (!beginTransaction()) {
+		return false;
+	}
+
+	sqlite3_stmt* deleteTilesetStmt = nullptr;
+	if (!prepare("DELETE FROM tilesets WHERE name = ?;", &deleteTilesetStmt)) {
+		rollbackTransaction();
+		return false;
+	}
+	sqlite3_bind_text(deleteTilesetStmt, 1, tileset.name.utf8_str(), -1, SQLITE_TRANSIENT);
+	if (sqlite3_step(deleteTilesetStmt) != SQLITE_DONE) {
+		sqlite3_finalize(deleteTilesetStmt);
+		rollbackTransaction();
+		return setErrorFromDatabase("Failed to delete existing tileset");
+	}
+	sqlite3_finalize(deleteTilesetStmt);
+
+	sqlite3_stmt* insertTilesetStmt = nullptr;
+	if (!prepare("INSERT INTO tilesets(name, source_file) VALUES (?, ?);", &insertTilesetStmt)) {
+		rollbackTransaction();
+		return false;
+	}
+	sqlite3_stmt* insertSectionStmt = nullptr;
+	if (!prepare("INSERT INTO tileset_sections(tileset_id, section_type, sort_order) VALUES (?, ?, ?);", &insertSectionStmt)) {
+		sqlite3_finalize(insertTilesetStmt);
+		rollbackTransaction();
+		return false;
+	}
+	sqlite3_stmt* insertEntryStmt = nullptr;
+	if (!prepare("INSERT INTO tileset_brush_entries(tileset_section_id, entry_kind, brush_id, brush_name, item_id, from_item_id, to_item_id, after_brush_name, after_item_id, sort_order) "
+				 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+				 &insertEntryStmt)) {
+		sqlite3_finalize(insertTilesetStmt);
+		sqlite3_finalize(insertSectionStmt);
+		rollbackTransaction();
+		return false;
+	}
+	sqlite3_stmt* findBrushStmt = nullptr;
+	if (!prepare("SELECT id FROM brushes WHERE name = ? LIMIT 2;", &findBrushStmt)) {
+		FinalizeStatements({ insertTilesetStmt, insertSectionStmt, insertEntryStmt });
+		rollbackTransaction();
+		return false;
+	}
+
+	const auto fail = [this, &insertTilesetStmt, &insertSectionStmt, &insertEntryStmt, &findBrushStmt](const wxString &message) {
+		FinalizeStatements({ insertTilesetStmt, insertSectionStmt, insertEntryStmt, findBrushStmt });
+		rollbackTransaction();
+		return setErrorFromDatabase(message);
+	};
+
+	const auto setDbError = [this](const wxString &message) {
+		return setErrorFromDatabase(message);
+	};
+
+	sqlite3_bind_text(insertTilesetStmt, 1, tileset.name.utf8_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_text(insertTilesetStmt, 2, tileset.sourceFile.utf8_str(), -1, SQLITE_TRANSIENT);
+	if (sqlite3_step(insertTilesetStmt) != SQLITE_DONE) {
+		return fail("Failed to insert tileset");
+	}
+	const int64_t tilesetId = sqlite3_last_insert_rowid(connection_);
+
+	for (const TilesetSectionRecord &section : tileset.sections) {
+		sqlite3_reset(insertSectionStmt);
+		sqlite3_clear_bindings(insertSectionStmt);
+		sqlite3_bind_int64(insertSectionStmt, 1, tilesetId);
+		sqlite3_bind_text(insertSectionStmt, 2, section.sectionType.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_int(insertSectionStmt, 3, section.sortOrder);
+		if (sqlite3_step(insertSectionStmt) != SQLITE_DONE) {
+			return fail("Failed to insert tileset section");
+		}
+		const int64_t sectionId = sqlite3_last_insert_rowid(connection_);
+		if (!WriteTilesetEntries(sectionId, section.entries, insertEntryStmt, findBrushStmt, setDbError)) {
+			return fail(lastError_);
 		}
 	}
 

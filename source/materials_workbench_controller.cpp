@@ -205,6 +205,39 @@ std::vector<MaterialsWorkbenchTreeNode> MaterialsWorkbenchController::BuildNavig
 	return nodes;
 }
 
+bool MaterialsWorkbenchController::GetTilesetByIndex(int itemIndex, TilesetStorageRecord &outTileset) const {
+	outTileset = TilesetStorageRecord();
+	if (itemIndex < 0 || itemIndex >= static_cast<int>(catalog_.tilesets.size())) {
+		return false;
+	}
+	outTileset = catalog_.tilesets[itemIndex];
+	return true;
+}
+
+bool MaterialsWorkbenchController::SaveTileset(const TilesetStorageRecord &tileset, wxString &error) {
+	if (!repository_.SaveTileset(tileset, error)) {
+		return false;
+	}
+
+	for (TilesetStorageRecord &storedTileset : catalog_.tilesets) {
+		if (storedTileset.name == tileset.name) {
+			storedTileset = tileset;
+			return true;
+		}
+	}
+
+	catalog_.tilesets.push_back(tileset);
+	return true;
+}
+
+const std::vector<MaterialsWorkbenchBrushGroup> &MaterialsWorkbenchController::GetBrushGroups() const {
+	return catalog_.brushGroups;
+}
+
+const std::vector<BrushRecord> &MaterialsWorkbenchController::GetWallBrushes() const {
+	return catalog_.wallBrushes;
+}
+
 const MaterialsWorkbenchBrushGroup* MaterialsWorkbenchController::FindBrushGroup(const wxString &contextKey) const {
 	for (const MaterialsWorkbenchBrushGroup &group : catalog_.brushGroups) {
 		if (group.brushType == contextKey) {

@@ -7,8 +7,10 @@
 
 class wxPanel;
 class wxSplitterWindow;
+class wxSimplebook;
 class wxTextCtrl;
 class wxTreeCtrl;
+class MaterialsWorkbenchPalettePanel;
 
 class MaterialsWorkbenchWindow : public wxFrame {
 public:
@@ -25,8 +27,10 @@ private:
 
 	MaterialsWorkbenchController controller_;
 	wxTreeCtrl* navigationTree_ = nullptr;
+	wxSimplebook* workspaceBook_ = nullptr;
 	wxTextCtrl* overviewText_ = nullptr;
 	wxTextCtrl* inspectorText_ = nullptr;
+	MaterialsWorkbenchPalettePanel* palettePanel_ = nullptr;
 
 	DECLARE_EVENT_TABLE()
 };

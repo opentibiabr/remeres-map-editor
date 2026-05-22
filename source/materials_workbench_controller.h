@@ -14,6 +14,10 @@ public:
 	wxString GetOverviewText() const;
 	wxString GetInspectorText() const;
 	std::vector<MaterialsWorkbenchTreeNode> BuildNavigationTree() const;
+	bool GetTilesetByIndex(int itemIndex, TilesetStorageRecord &outTileset) const;
+	bool SaveTileset(const TilesetStorageRecord &tileset, wxString &error);
+	const std::vector<MaterialsWorkbenchBrushGroup> &GetBrushGroups() const;
+	const std::vector<BrushRecord> &GetWallBrushes() const;
 	wxString BuildSelectionOverview(MaterialsWorkbenchNodeKind kind, const wxString &contextKey, int itemIndex) const;
 	wxString BuildSelectionInspector(MaterialsWorkbenchNodeKind kind, const wxString &contextKey, int itemIndex) const;
 
