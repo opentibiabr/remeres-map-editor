@@ -21,8 +21,8 @@
 #include <cstddef>
 
 namespace rme {
-	void* allocatePooledObject(std::size_t size);
-	void deallocatePooledObject(void* ptr) noexcept;
+	void* allocatePooledObject(std::size_t size); // NOSONAR - pooled operator new API.
+	void deallocatePooledObject(void* ptr) noexcept; // NOSONAR - pooled operator delete API.
 	void bindPooledObjectOwnerThread() noexcept;
 	void resetPooledObjectStats() noexcept;
 	void dumpPooledObjectStats() noexcept;

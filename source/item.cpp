@@ -78,26 +78,26 @@ Item* Item::Create(uint16_t id, const ItemType &type, uint16_t subtype /*= 0xFFF
 	}
 
 	if (type.isDepot()) {
-		return new Depot(id);
+		return new Depot(id); // NOSONAR - item factories return raw pointers owned by tiles and maps.
 	} else if (type.isContainer()) {
-		return new Container(id);
+		return new Container(id); // NOSONAR - item factories return raw pointers owned by tiles and maps.
 	} else if (type.isTeleport()) {
-		return new Teleport(id);
+		return new Teleport(id); // NOSONAR - item factories return raw pointers owned by tiles and maps.
 	} else if (type.isDoor()) {
-		return new Door(id);
+		return new Door(id); // NOSONAR - item factories return raw pointers owned by tiles and maps.
 	} else if (subtype == 0xFFFF) {
 		const bool hasSubtype = itemTypeHasSubtype(type);
 		if (type.isFluidContainer()) {
-			return new Item(id, LIQUID_NONE, hasSubtype);
+			return new Item(id, LIQUID_NONE, hasSubtype); // NOSONAR - item factories return raw pointers owned by tiles and maps.
 		} else if (type.isSplash()) {
-			return new Item(id, LIQUID_WATER, hasSubtype);
+			return new Item(id, LIQUID_WATER, hasSubtype); // NOSONAR - item factories return raw pointers owned by tiles and maps.
 		} else if (type.charges > 0) {
-			return new Item(id, type.charges, hasSubtype);
+			return new Item(id, type.charges, hasSubtype); // NOSONAR - item factories return raw pointers owned by tiles and maps.
 		} else {
-			return new Item(id, 1, hasSubtype);
+			return new Item(id, 1, hasSubtype); // NOSONAR - item factories return raw pointers owned by tiles and maps.
 		}
 	}
-	return new Item(id, subtype, itemTypeHasSubtype(type));
+	return new Item(id, subtype, itemTypeHasSubtype(type)); // NOSONAR - item factories return raw pointers owned by tiles and maps.
 }
 
 Item::Item(unsigned short _type, unsigned short _count) :

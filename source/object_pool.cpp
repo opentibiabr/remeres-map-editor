@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <bit>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -47,7 +48,7 @@
 
 namespace {
 	constexpr std::size_t kAlignment = alignof(std::max_align_t);
-	static_assert((kAlignment & (kAlignment - 1)) == 0, "pool alignment must be a power of two");
+	static_assert(std::has_single_bit(kAlignment), "pool alignment must be a power of two");
 
 	constexpr uint32_t kMagic = 0x524D4550; // "RMEP"
 	constexpr uint16_t kFallbackClass = 0xFFFF;
@@ -216,7 +217,7 @@ namespace {
 		return kClassLookup[totalSize / kAlignment];
 	}
 
-	void* allocateFallback(std::size_t payloadSize) {
+	void* allocateFallback(std::size_t payloadSize) { // NOSONAR - operator new requires a void pointer payload.
 		const std::size_t totalSize = alignUp(
 			sizeof(AllocationHeader) + std::max<std::size_t>(payloadSize, 1),
 			kAlignment
@@ -236,12 +237,12 @@ namespace {
 	class SmallObjectPool {
 	public:
 		void bindOwnerThread() noexcept {
-			std::lock_guard<std::mutex> lock(ownerMutex_);
+			std::scoped_lock lock(ownerMutex_);
 
 			const auto currentThread = std::this_thread::get_id();
-			if (!ownerSet_.load(std::memory_order_relaxed)) {
+			if (!ownerSet_.load()) {
 				ownerThread_ = currentThread;
-				ownerSet_.store(true, std::memory_order_release);
+				ownerSet_.store(true);
 				return;
 			}
 
@@ -251,19 +252,17 @@ namespace {
 			}
 		}
 
+#if RME_OBJECT_POOL_STATS
 		void resetStats() noexcept {
-#if RME_OBJECT_POOL_STATS
 			stats_.reset();
-#endif
 		}
 
-		void dumpStats() noexcept {
-#if RME_OBJECT_POOL_STATS
+		void dumpStats() const noexcept {
 			stats_.dump();
-#endif
 		}
+#endif
 
-		void* allocate(std::size_t payloadSize) {
+		void* allocate(std::size_t payloadSize) { // NOSONAR - this backs class operator new overloads.
 #if RME_OBJECT_POOL_STATS
 			stats_.allocCalls.fetch_add(1, kStatsMemoryOrder);
 #endif
@@ -302,14 +301,14 @@ namespace {
 
 			localFreeLists_[cls] = node->next;
 
-			auto* header = reinterpret_cast<AllocationHeader*>(node);
+			auto* header = reinterpret_cast<AllocationHeader*>(node); // NOSONAR - freelist storage is reused as an allocation header.
 			header->magic = kMagic;
 			header->classIndex = cls;
 			header->reserved = 0;
 			return header + 1;
 		}
 
-		void deallocate(void* ptr) noexcept {
+		void deallocate(void* ptr) noexcept { // NOSONAR - this backs class operator delete overloads.
 			if (!ptr) {
 				return;
 			}
@@ -334,7 +333,7 @@ namespace {
 				return;
 			}
 
-			auto* node = reinterpret_cast<FreeNode*>(header);
+			auto* node = reinterpret_cast<FreeNode*>(header); // NOSONAR - returned blocks become freelist nodes.
 			if (isCurrentThreadOwner()) {
 				node->next = localFreeLists_[cls];
 				localFreeLists_[cls] = node;
@@ -344,18 +343,18 @@ namespace {
 #if RME_OBJECT_POOL_STATS
 			stats_.remoteFreeCalls.fetch_add(1, kStatsMemoryOrder);
 #endif
-			std::lock_guard<std::mutex> lock(remoteMutex_);
+			std::scoped_lock lock(remoteMutex_);
 			node->next = remoteFreeLists_[cls];
 			remoteFreeLists_[cls] = node;
 		}
 
 	private:
 		bool becomeOwnerOrIsOwner() {
-			if (!ownerSet_.load(std::memory_order_acquire)) {
-				std::lock_guard<std::mutex> lock(ownerMutex_);
-				if (!ownerSet_.load(std::memory_order_relaxed)) {
+			if (!ownerSet_.load()) {
+				std::scoped_lock lock(ownerMutex_);
+				if (!ownerSet_.load()) {
 					ownerThread_ = std::this_thread::get_id();
-					ownerSet_.store(true, std::memory_order_release);
+					ownerSet_.store(true);
 					return true;
 				}
 			}
@@ -364,13 +363,13 @@ namespace {
 		}
 
 		bool isCurrentThreadOwner() const noexcept {
-			return ownerSet_.load(std::memory_order_acquire) && ownerThread_ == std::this_thread::get_id();
+			return ownerSet_.load() && ownerThread_ == std::this_thread::get_id();
 		}
 
 		void drainRemoteIntoEmptyLocal(uint16_t cls) {
 			assert(localFreeLists_[cls] == nullptr);
 
-			std::lock_guard<std::mutex> lock(remoteMutex_);
+			std::scoped_lock lock(remoteMutex_);
 #if RME_OBJECT_POOL_STATS
 			if (remoteFreeLists_[cls]) {
 				stats_.remoteDrainCalls.fetch_add(1, kStatsMemoryOrder);
@@ -398,7 +397,7 @@ namespace {
 			slabs_.push_back(slab);
 
 			for (std::size_t i = 0; i < blockCount; ++i) {
-				auto* node = reinterpret_cast<FreeNode*>(slab + i * blockSize);
+				auto* node = reinterpret_cast<FreeNode*>(slab + i * blockSize); // NOSONAR - slab bytes are partitioned into freelist nodes.
 				node->next = localFreeLists_[cls];
 				localFreeLists_[cls] = node;
 			}
@@ -411,7 +410,7 @@ namespace {
 		std::array<FreeNode*, kClassCount> localFreeLists_ {};
 		std::array<FreeNode*, kClassCount> remoteFreeLists_ {};
 		std::mutex remoteMutex_;
-		std::vector<void*> slabs_;
+		std::vector<void*> slabs_; // NOSONAR - raw slab ownership is intentionally process-lifetime pooled storage.
 #if RME_OBJECT_POOL_STATS
 		PoolStats stats_;
 #endif
@@ -420,16 +419,16 @@ namespace {
 	SmallObjectPool &pooledObjectResource() {
 		// Intentionally kept alive for the process lifetime. Map objects can be
 		// destroyed from detached threads, so static destruction order is unsafe.
-		static auto* pool = new SmallObjectPool();
+		static auto* pool = new SmallObjectPool(); // NOSONAR
 		return *pool;
 	}
 }
 
-void* rme::allocatePooledObject(std::size_t size) {
+void* rme::allocatePooledObject(std::size_t size) { // NOSONAR - public API mirrors operator new.
 	return pooledObjectResource().allocate(size);
 }
 
-void rme::deallocatePooledObject(void* ptr) noexcept {
+void rme::deallocatePooledObject(void* ptr) noexcept { // NOSONAR - public API mirrors operator delete.
 	pooledObjectResource().deallocate(ptr);
 }
 
@@ -438,9 +437,13 @@ void rme::bindPooledObjectOwnerThread() noexcept {
 }
 
 void rme::resetPooledObjectStats() noexcept {
+#if RME_OBJECT_POOL_STATS
 	pooledObjectResource().resetStats();
+#endif
 }
 
 void rme::dumpPooledObjectStats() noexcept {
+#if RME_OBJECT_POOL_STATS
 	pooledObjectResource().dumpStats();
+#endif
 }
