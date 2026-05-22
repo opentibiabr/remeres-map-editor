@@ -358,13 +358,15 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 		}
 	}
 
-	g_gui.SetLoadDone(50, "Loading materials.xml ...");
-	spdlog::info("Loading materials");
+	g_gui.SetLoadDone(50, "Loading materials catalog...");
+	spdlog::info("Loading materials catalog");
 	g_materials.initializeBrushDatabase(warnings);
 	auto materialsPath = wxString(data_path.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + "materials/materials.xml");
 	bool startAsyncSqliteBootstrap = false;
 	bool shouldLoadFromSqlite = false;
+	bool sqliteImportIncomplete = false;
 	if (g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
+		shouldLoadFromSqlite = g_brush_database.isOpen();
 		bool skipSqliteImport = false;
 		wxString sqliteImportStatus;
 		if (!g_materials.shouldSkipSqliteBootstrapImports(skipSqliteImport, sqliteImportStatus)) {
@@ -372,21 +374,33 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 			spdlog::warn("[GUI::LoadDataFiles] SQLite import bootstrap check failed: {}", sqliteImportStatus.ToStdString());
 		} else if (skipSqliteImport) {
 			spdlog::info("{}", sqliteImportStatus.ToStdString());
-			shouldLoadFromSqlite = g_brush_database.isOpen();
 		} else {
 			spdlog::info("{}", sqliteImportStatus.ToStdString());
-			startAsyncSqliteBootstrap = true;
+			sqliteImportIncomplete = true;
 		}
 	}
 
 	bool loadedMaterialsFromSqlite = false;
 	if (shouldLoadFromSqlite) {
+		spdlog::info("[GUI::LoadDataFiles] Attempting to load materials catalog from SQLite.");
 		loadedMaterialsFromSqlite = g_brushes.loadFromDatabase(warnings) && g_materials.loadTilesetsFromDatabase(warnings);
+		if (loadedMaterialsFromSqlite && sqliteImportIncomplete) {
+			spdlog::info("[GUI::LoadDataFiles] SQLite catalog loaded successfully; background XML bootstrap deferred.");
+		}
 		if (!loadedMaterialsFromSqlite) {
+			warnings.push_back("SQLite materials load failed at runtime; falling back to XML and scheduling a rebuild.");
 			spdlog::warn("[GUI::LoadDataFiles] Falling back to XML materials after SQLite load failure.");
 			g_materials.clear();
 			g_brushes.clear();
+			if (g_brush_database.isOpen()) {
+				startAsyncSqliteBootstrap = true;
+				spdlog::info("[GUI::LoadDataFiles] Scheduling background SQLite rebuild after runtime load failure.");
+			}
 		}
+	}
+	if (!loadedMaterialsFromSqlite) {
+		error.clear();
+		spdlog::info("[GUI::LoadDataFiles] Loading materials catalog from XML.");
 	}
 	if (!loadedMaterialsFromSqlite && !g_materials.loadMaterials(materialsPath, error, warnings)) {
 		warnings.push_back("Couldn't load materials.xml: " + error);

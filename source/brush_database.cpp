@@ -2244,7 +2244,7 @@ bool BrushDatabaseBrushRepository::getBorderSetItems(int64_t borderSetId, std::v
 
 	sqlite3_stmt* stmt = nullptr;
 	if (!prepare("SELECT border_set_id, edge, item_id, sort_order "
-				 "FROM border_set_items WHERE border_set_id = ? ORDER BY sort_order ASC, id ASC;",
+				 "FROM border_set_items WHERE border_set_id = ? ORDER BY sort_order ASC, edge ASC, item_id ASC;",
 				 &stmt)) {
 		return false;
 	}

@@ -581,6 +581,7 @@ bool Brushes::loadFromDatabase(wxArrayString &warnings) {
 		}
 	}
 
+	size_t shellCount = 0;
 	for (const BrushStorageRecord &storage : storages) {
 		pugi::xml_document shellDoc;
 		pugi::xml_node shellNode = shellDoc.append_child("brush");
@@ -588,25 +589,45 @@ bool Brushes::loadFromDatabase(wxArrayString &warnings) {
 		AppendStringAttribute(shellNode, "type", storage.brush.type);
 		if (!unserializeBrush(shellNode, warnings)) {
 			warnings.push_back("Failed to create SQLite brush shell for \"" + storage.brush.name + "\".");
-			return false;
+			continue;
 		}
+		++shellCount;
 	}
 
+	size_t hydratedCount = 0;
 	for (const BrushStorageRecord &storage : storages) {
 		try {
 			pugi::xml_document brushDoc;
 			BuildBrushNode(brushDoc, storage);
 			if (!unserializeBrush(brushDoc.child("brush"), warnings)) {
 				warnings.push_back("Failed to hydrate SQLite brush \"" + storage.brush.name + "\".");
-				return false;
+				continue;
 			}
+			++hydratedCount;
 		} catch (const std::exception &ex) {
 			warnings.push_back("Failed to build SQLite brush \"" + storage.brush.name + "\": " + wxString::FromUTF8(ex.what()));
-			return false;
+			continue;
 		}
 	}
 
-	spdlog::info("Loaded {} brushes from SQLite materials database", storages.size());
+	if (shellCount == 0) {
+		warnings.push_back("SQLite brush load did not create any brush shells.");
+		return false;
+	}
+
+	if (hydratedCount != storages.size()) {
+		warnings.push_back(wxString::Format(
+			"SQLite brush load hydrated %zu of %zu brushes; keeping shell brushes for the remaining entries.",
+			hydratedCount,
+			storages.size()
+		));
+	}
+
+	spdlog::info(
+		"Loaded {} SQLite brush shells and fully hydrated {} brushes from the materials database",
+		shellCount,
+		hydratedCount
+	);
 	return true;
 }
 
