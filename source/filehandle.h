@@ -383,8 +383,7 @@ protected:
 		while (sz != 0) {
 			size_t plain_size = 0;
 			while (plain_size < sz) {
-				const uint8_t byte = ptr[plain_size];
-				if (byte == NODE_START || byte == NODE_END || byte == ESCAPE_CHAR) {
+				if (const uint8_t byte = ptr[plain_size]; byte == NODE_START || byte == NODE_END || byte == ESCAPE_CHAR) {
 					break;
 				}
 				++plain_size;

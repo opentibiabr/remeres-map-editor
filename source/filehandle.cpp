@@ -429,18 +429,15 @@ void BinaryNode::load() {
 	size_t &cache_length = file->cache_length;
 	size_t &local_read_index = file->local_read_index;
 	while (true) {
-		if (local_read_index >= cache_length) {
-			if (!file->renewCache()) {
-				// Failed to renew, exit
-				file->error_code = FILE_PREMATURE_END;
-				return;
-			}
+		if (local_read_index >= cache_length && !file->renewCache()) {
+			// Failed to renew, exit
+			file->error_code = FILE_PREMATURE_END;
+			return;
 		}
 
 		const size_t chunk_start = local_read_index;
 		while (local_read_index < cache_length) {
-			const uint8_t op = cache[local_read_index];
-			if (op == NODE_START || op == NODE_END || op == ESCAPE_CHAR) {
+			if (const uint8_t op = cache[local_read_index]; op == NODE_START || op == NODE_END || op == ESCAPE_CHAR) {
 				break;
 			}
 			++local_read_index;
@@ -467,12 +464,10 @@ void BinaryNode::load() {
 			}
 
 			case ESCAPE_CHAR: {
-				if (local_read_index >= cache_length) {
-					if (!file->renewCache()) {
-						// Failed to renew, exit
-						file->error_code = FILE_PREMATURE_END;
-						return;
-					}
+				if (local_read_index >= cache_length && !file->renewCache()) {
+					// Failed to renew, exit
+					file->error_code = FILE_PREMATURE_END;
+					return;
 				}
 
 				op = cache[local_read_index];
@@ -685,8 +680,7 @@ bool NodeFileWriteHandle::addU8(uint8_t u8) {
 }
 
 bool NodeFileWriteHandle::addByte(uint8_t u8) {
-	writeByte(u8);
-	return error_code == FILE_NO_ERROR;
+	return addU8(u8);
 }
 
 bool NodeFileWriteHandle::addU16(uint16_t u16) {
