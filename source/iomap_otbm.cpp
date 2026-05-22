@@ -185,6 +185,23 @@ namespace {
 		return data[4] == NODE_START;
 	}
 
+#if OTGZ_SUPPORT > 0
+	bool readArchiveDataFully(struct archive* archive, uint8_t* buffer, size_t targetSize, size_t &outReadBytes) {
+		outReadBytes = 0;
+		while (outReadBytes < targetSize) {
+			const auto readNow = archive_read_data(archive, buffer + outReadBytes, targetSize - outReadBytes);
+			if (readNow < 0) {
+				return false;
+			}
+			if (readNow == 0) {
+				break;
+			}
+			outReadBytes += static_cast<size_t>(readNow);
+		}
+		return true;
+	}
+#endif
+
 	bool saveXmlFileIfChanged(const pugi::xml_document &doc, const wxString &filepath) {
 		std::ostringstream stream;
 		doc.save(stream, "\t", pugi::format_default, pugi::encoding_utf8);
@@ -686,18 +703,17 @@ bool IOMapOTBM::getVersionInfo(const FileName &filename, MapVersion &out_ver) {
 				uint8_t buffer[8096];
 				memset(buffer, 0, 8096);
 
-				// Read from the archive
-				const auto readBytes = archive_read_data(a.get(), buffer, 8096);
-				if (readBytes < 0) {
+				size_t readBytes = 0;
+				if (!readArchiveDataFully(a.get(), buffer, sizeof(buffer), readBytes)) {
 					return false;
 				}
 
-				if (!hasValidOtbmPrefix(buffer, static_cast<size_t>(readBytes))) {
+				if (!hasValidOtbmPrefix(buffer, readBytes)) {
 					return false;
 				}
 
 				// Create a read handle on it
-				std::shared_ptr<NodeFileReadHandle> f(new MemoryNodeFileReadHandle(buffer + 4, static_cast<size_t>(readBytes) - 4));
+				std::shared_ptr<NodeFileReadHandle> f(new MemoryNodeFileReadHandle(buffer + 4, readBytes - 4));
 
 				// Read the version info
 				return getVersionInfo(f.get(), out_ver);
@@ -709,7 +725,22 @@ bool IOMapOTBM::getVersionInfo(const FileName &filename, MapVersion &out_ver) {
 	}
 #endif
 
-	// Just open a disk-based read handle
+	FileReadHandle otbmProbe(nstr(filename.GetFullPath()));
+	if (!otbmProbe.isOk()) {
+		return false;
+	}
+
+	uint8_t otbmPrefix[5] {};
+	if (otbmProbe.size() < sizeof(otbmPrefix)) {
+		return false;
+	}
+	if (!otbmProbe.getRAW(otbmPrefix, sizeof(otbmPrefix))) {
+		return false;
+	}
+	if (!hasValidOtbmPrefix(otbmPrefix, sizeof(otbmPrefix))) {
+		return false;
+	}
+
 	DiskNodeFileReadHandle f(nstr(filename.GetFullPath()), StringVector(1, "OTBM"));
 	if (!f.isOk()) {
 		return false;
@@ -775,13 +806,16 @@ bool IOMapOTBM::loadMap(Map &map, const FileName &filename) {
 				size_t otbm_size = archive_entry_size(entry);
 				std::shared_ptr<uint8_t> otbm_buffer(new uint8_t[otbm_size], [](uint8_t* p) { delete[] p; });
 
-				// Read from the archive
-				const auto readBytes = archive_read_data(a.get(), otbm_buffer.get(), otbm_size);
-				if (readBytes < 0 || static_cast<size_t>(readBytes) < otbm_size) {
+				size_t readBytes = 0;
+				if (!readArchiveDataFully(a.get(), otbm_buffer.get(), otbm_size, readBytes)) {
 					error("Could not read file.");
 					return false;
 				}
-				if (!hasValidOtbmPrefix(otbm_buffer.get(), static_cast<size_t>(readBytes))) {
+				if (readBytes < otbm_size) {
+					error("Could not read file.");
+					return false;
+				}
+				if (!hasValidOtbmPrefix(otbm_buffer.get(), readBytes)) {
 					error("Could not read OTBM file header.");
 					return false;
 				}
