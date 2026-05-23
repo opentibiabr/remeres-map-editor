@@ -348,6 +348,7 @@ public:
 	bool findBrushByNameAndType(const wxString &name, const wxString &type, BrushRecord &outBrush);
 	bool getCompleteBrushById(int64_t brushId, BrushStorageRecord &outBrush);
 	bool updateBrush(const BrushRecord &brush);
+	bool updateBrushReferenceNames(int64_t brushId, const wxString &oldName, const wxString &newName);
 	bool deleteBrush(int64_t brushId);
 	bool deleteBrushesByType(const wxString &type);
 	bool replaceBrushItems(int64_t brushId, const std::vector<BrushItemRecord> &items);
@@ -408,9 +409,11 @@ public:
 	bool testDatabaseConnection();
 
 	bool upsertBrush(const BrushRecord &brush, int64_t &brushId);
+	bool getBrushById(int64_t brushId, BrushRecord &outBrush);
 	bool updateBrush(const BrushRecord &brush);
 	bool listBrushesByType(const wxString &type, std::vector<BrushRecord> &outBrushes);
 	bool getCompleteBrushById(int64_t brushId, BrushStorageRecord &outBrush);
+	bool updateBrushReferenceNames(int64_t brushId, const wxString &oldName, const wxString &newName);
 	bool deleteBrushesByType(const wxString &type);
 	bool replaceBrushItems(int64_t brushId, const std::vector<BrushItemRecord> &items);
 	bool upsertBorderSet(const BorderSetRecord &borderSet, int64_t &borderSetId);

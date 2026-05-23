@@ -7,6 +7,7 @@
 #include <wx/button.h>
 #include <wx/checkbox.h>
 #include <wx/listbox.h>
+#include <wx/msgdlg.h>
 #include <wx/notebook.h>
 #include <wx/panel.h>
 #include <wx/scrolwin.h>
@@ -89,6 +90,236 @@ namespace {
 	wxString FormatDoodadTileItemLabel(int itemId, size_t index) {
 		return wxString::Format("%zu. item %d", index + 1, itemId);
 	}
+
+	void NormalizeVariationSortOrdersForStorage(BrushStorageRecord &storage) {
+		for (size_t i = 0; i < storage.items.size(); ++i) {
+			storage.items[i].sortOrder = static_cast<int>(i);
+		}
+		for (size_t i = 0; i < storage.carpetNodes.size(); ++i) {
+			storage.carpetNodes[i].sortOrder = static_cast<int>(i);
+			for (size_t j = 0; j < storage.carpetNodes[i].items.size(); ++j) {
+				storage.carpetNodes[i].items[j].sortOrder = static_cast<int>(j);
+			}
+		}
+		for (size_t i = 0; i < storage.tableNodes.size(); ++i) {
+			storage.tableNodes[i].sortOrder = static_cast<int>(i);
+			for (size_t j = 0; j < storage.tableNodes[i].items.size(); ++j) {
+				storage.tableNodes[i].items[j].sortOrder = static_cast<int>(j);
+			}
+		}
+		for (size_t i = 0; i < storage.doodadAlternatives.size(); ++i) {
+			DoodadAlternativeRecord &alternative = storage.doodadAlternatives[i];
+			alternative.sortOrder = static_cast<int>(i);
+			for (size_t j = 0; j < alternative.singleItems.size(); ++j) {
+				alternative.singleItems[j].sortOrder = static_cast<int>(j);
+			}
+			for (size_t j = 0; j < alternative.composites.size(); ++j) {
+				DoodadCompositeRecord &composite = alternative.composites[j];
+				composite.sortOrder = static_cast<int>(j);
+				for (size_t k = 0; k < composite.tiles.size(); ++k) {
+					DoodadCompositeTileRecord &tile = composite.tiles[k];
+					tile.sortOrder = static_cast<int>(k);
+					for (size_t l = 0; l < tile.items.size(); ++l) {
+						tile.items[l].sortOrder = static_cast<int>(l);
+					}
+				}
+			}
+		}
+	}
+
+	void NormalizeBrushStorageForEditing(BrushStorageRecord &storage) {
+		storage.brush.type.MakeLower();
+		if (storage.brush.type == "ground") {
+			storage.carpetNodes.clear();
+			storage.tableNodes.clear();
+			storage.doodadAlternatives.clear();
+		} else if (storage.brush.type == "carpet") {
+			storage.items.clear();
+			storage.tableNodes.clear();
+			storage.doodadAlternatives.clear();
+		} else if (storage.brush.type == "table") {
+			storage.items.clear();
+			storage.carpetNodes.clear();
+			storage.doodadAlternatives.clear();
+		} else if (storage.brush.type == "doodad") {
+			storage.items.clear();
+			storage.carpetNodes.clear();
+			storage.tableNodes.clear();
+		} else {
+			storage.items.clear();
+			storage.carpetNodes.clear();
+			storage.tableNodes.clear();
+			storage.doodadAlternatives.clear();
+		}
+		NormalizeVariationSortOrdersForStorage(storage);
+	}
+
+	template <typename T, typename Compare>
+	bool VectorsEqual(const std::vector<T> &left, const std::vector<T> &right, Compare compare) {
+		if (left.size() != right.size()) {
+			return false;
+		}
+		for (size_t i = 0; i < left.size(); ++i) {
+			if (!compare(left[i], right[i])) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	bool AreBrushRecordsEqual(const BrushRecord &left, const BrushRecord &right) {
+		return left.id == right.id &&
+			   left.name == right.name &&
+			   left.type == right.type &&
+			   left.lookId == right.lookId &&
+			   left.zOrder == right.zOrder &&
+			   left.sourceFile == right.sourceFile &&
+			   left.serverLookId == right.serverLookId &&
+			   left.draggable == right.draggable &&
+			   left.onBlocking == right.onBlocking &&
+			   left.onDuplicate == right.onDuplicate &&
+			   left.redoBorders == right.redoBorders &&
+			   left.randomize == right.randomize &&
+			   left.oneSize == right.oneSize &&
+			   left.soloOptional == right.soloOptional &&
+			   left.thickness == right.thickness &&
+			   left.thicknessCeiling == right.thicknessCeiling;
+	}
+
+	bool AreBrushItemRecordsEqual(const BrushItemRecord &left, const BrushItemRecord &right) {
+		return left.brushId == right.brushId &&
+			   left.itemId == right.itemId &&
+			   left.chance == right.chance &&
+			   left.sortOrder == right.sortOrder;
+	}
+
+	bool AreGroundBorderCaseConditionRecordsEqual(const GroundBorderCaseConditionRecord &left, const GroundBorderCaseConditionRecord &right) {
+		return left.conditionType == right.conditionType &&
+			   left.matchValue == right.matchValue &&
+			   left.edge == right.edge &&
+			   left.sortOrder == right.sortOrder;
+	}
+
+	bool AreGroundBorderCaseActionRecordsEqual(const GroundBorderCaseActionRecord &left, const GroundBorderCaseActionRecord &right) {
+		return left.actionType == right.actionType &&
+			   left.targetValue == right.targetValue &&
+			   left.edge == right.edge &&
+			   left.replacementValue == right.replacementValue &&
+			   left.sortOrder == right.sortOrder;
+	}
+
+	bool AreGroundBorderCaseRecordsEqual(const GroundBorderCaseRecord &left, const GroundBorderCaseRecord &right) {
+		return left.sortOrder == right.sortOrder &&
+			   VectorsEqual(left.conditions, right.conditions, AreGroundBorderCaseConditionRecordsEqual) &&
+			   VectorsEqual(left.actions, right.actions, AreGroundBorderCaseActionRecordsEqual);
+	}
+
+	bool AreGroundBrushBorderRecordsEqual(const GroundBrushBorderRecord &left, const GroundBrushBorderRecord &right) {
+		return left.borderSetId == right.borderSetId &&
+			   left.borderRole == right.borderRole &&
+			   left.align == right.align &&
+			   left.targetMode == right.targetMode &&
+			   left.targetBrushId == right.targetBrushId &&
+			   left.targetBrushName == right.targetBrushName &&
+			   left.superBorder == right.superBorder &&
+			   left.sortOrder == right.sortOrder &&
+			   VectorsEqual(left.cases, right.cases, AreGroundBorderCaseRecordsEqual);
+	}
+
+	bool AreBrushLinkRecordsEqual(const BrushLinkRecord &left, const BrushLinkRecord &right) {
+		return left.brushId == right.brushId &&
+			   left.targetBrushId == right.targetBrushId &&
+			   left.targetBrushName == right.targetBrushName &&
+			   left.relationType == right.relationType &&
+			   left.sortOrder == right.sortOrder;
+	}
+
+	bool AreWallPartItemRecordsEqual(const WallPartItemRecord &left, const WallPartItemRecord &right) {
+		return left.itemId == right.itemId &&
+			   left.chance == right.chance &&
+			   left.sortOrder == right.sortOrder;
+	}
+
+	bool AreWallPartDoorRecordsEqual(const WallPartDoorRecord &left, const WallPartDoorRecord &right) {
+		return left.itemId == right.itemId &&
+			   left.doorType == right.doorType &&
+			   left.isOpen == right.isOpen &&
+			   left.wallHateMe == right.wallHateMe &&
+			   left.sortOrder == right.sortOrder;
+	}
+
+	bool AreWallPartRecordsEqual(const WallPartRecord &left, const WallPartRecord &right) {
+		return left.partType == right.partType &&
+			   left.sortOrder == right.sortOrder &&
+			   VectorsEqual(left.items, right.items, AreWallPartItemRecordsEqual) &&
+			   VectorsEqual(left.doors, right.doors, AreWallPartDoorRecordsEqual);
+	}
+
+	bool AreCarpetNodeItemRecordsEqual(const CarpetNodeItemRecord &left, const CarpetNodeItemRecord &right) {
+		return left.itemId == right.itemId &&
+			   left.chance == right.chance &&
+			   left.sortOrder == right.sortOrder;
+	}
+
+	bool AreCarpetNodeRecordsEqual(const CarpetNodeRecord &left, const CarpetNodeRecord &right) {
+		return left.align == right.align &&
+			   left.sortOrder == right.sortOrder &&
+			   VectorsEqual(left.items, right.items, AreCarpetNodeItemRecordsEqual);
+	}
+
+	bool AreTableNodeItemRecordsEqual(const TableNodeItemRecord &left, const TableNodeItemRecord &right) {
+		return left.itemId == right.itemId &&
+			   left.chance == right.chance &&
+			   left.sortOrder == right.sortOrder;
+	}
+
+	bool AreTableNodeRecordsEqual(const TableNodeRecord &left, const TableNodeRecord &right) {
+		return left.align == right.align &&
+			   left.sortOrder == right.sortOrder &&
+			   VectorsEqual(left.items, right.items, AreTableNodeItemRecordsEqual);
+	}
+
+	bool AreDoodadSingleItemRecordsEqual(const DoodadSingleItemRecord &left, const DoodadSingleItemRecord &right) {
+		return left.itemId == right.itemId &&
+			   left.chance == right.chance &&
+			   left.sortOrder == right.sortOrder;
+	}
+
+	bool AreDoodadCompositeTileItemRecordsEqual(const DoodadCompositeTileItemRecord &left, const DoodadCompositeTileItemRecord &right) {
+		return left.itemId == right.itemId &&
+			   left.sortOrder == right.sortOrder;
+	}
+
+	bool AreDoodadCompositeTileRecordsEqual(const DoodadCompositeTileRecord &left, const DoodadCompositeTileRecord &right) {
+		return left.offsetX == right.offsetX &&
+			   left.offsetY == right.offsetY &&
+			   left.offsetZ == right.offsetZ &&
+			   left.sortOrder == right.sortOrder &&
+			   VectorsEqual(left.items, right.items, AreDoodadCompositeTileItemRecordsEqual);
+	}
+
+	bool AreDoodadCompositeRecordsEqual(const DoodadCompositeRecord &left, const DoodadCompositeRecord &right) {
+		return left.chance == right.chance &&
+			   left.sortOrder == right.sortOrder &&
+			   VectorsEqual(left.tiles, right.tiles, AreDoodadCompositeTileRecordsEqual);
+	}
+
+	bool AreDoodadAlternativeRecordsEqual(const DoodadAlternativeRecord &left, const DoodadAlternativeRecord &right) {
+		return left.sortOrder == right.sortOrder &&
+			   VectorsEqual(left.singleItems, right.singleItems, AreDoodadSingleItemRecordsEqual) &&
+			   VectorsEqual(left.composites, right.composites, AreDoodadCompositeRecordsEqual);
+	}
+
+	bool AreBrushStorageRecordsEqual(const BrushStorageRecord &left, const BrushStorageRecord &right) {
+		return AreBrushRecordsEqual(left.brush, right.brush) &&
+			   VectorsEqual(left.items, right.items, AreBrushItemRecordsEqual) &&
+			   VectorsEqual(left.borders, right.borders, AreGroundBrushBorderRecordsEqual) &&
+			   VectorsEqual(left.links, right.links, AreBrushLinkRecordsEqual) &&
+			   VectorsEqual(left.wallParts, right.wallParts, AreWallPartRecordsEqual) &&
+			   VectorsEqual(left.carpetNodes, right.carpetNodes, AreCarpetNodeRecordsEqual) &&
+			   VectorsEqual(left.tableNodes, right.tableNodes, AreTableNodeRecordsEqual) &&
+			   VectorsEqual(left.doodadAlternatives, right.doodadAlternatives, AreDoodadAlternativeRecordsEqual);
+	}
 } // namespace
 
 MaterialsWorkbenchBrushPanel::MaterialsWorkbenchBrushPanel(wxWindow* parent, MaterialsWorkbenchController &controller) :
@@ -98,8 +329,45 @@ MaterialsWorkbenchBrushPanel::MaterialsWorkbenchBrushPanel(wxWindow* parent, Mat
 	ClearWorkspace("Select a brush in the navigation tree to edit its properties.");
 }
 
-void MaterialsWorkbenchBrushPanel::SetOnBrushSaved(std::function<void(int64_t)> callback) {
+void MaterialsWorkbenchBrushPanel::SetOnBrushSaved(std::function<void(int64_t, const wxString&, const wxString&)> callback) {
 	onBrushSaved_ = std::move(callback);
+}
+
+bool MaterialsWorkbenchBrushPanel::HasPendingChanges() const {
+	return hasBrush_ && dirty_;
+}
+
+bool MaterialsWorkbenchBrushPanel::IsCurrentBrushSelection(const wxString &contextKey, int itemIndex) const {
+	return hasBrush_ && currentContextKey_ == contextKey && currentItemIndex_ == itemIndex;
+}
+
+bool MaterialsWorkbenchBrushPanel::ResolvePendingChangesBeforeSwitch(wxWindow* parent, const wxString &targetLabel) {
+	if (!HasPendingChanges()) {
+		return true;
+	}
+
+	const wxString destination = targetLabel.IsEmpty() ? "the selected entry" : "\"" + targetLabel + "\"";
+	wxMessageDialog dialog(
+		parent,
+		"Brush \"" + brushStorage_.brush.name + "\" has unsaved changes.\n\n"
+		"You are switching to " + destination + ".\n\n"
+		"Yes: save and continue\n"
+		"No: discard local changes and continue\n"
+		"Cancel: stay on the current brush",
+		"Unsaved Brush Changes",
+		wxYES_NO | wxCANCEL | wxICON_WARNING
+	);
+	dialog.SetYesNoCancelLabels("Save", "Discard", "Cancel");
+
+	switch (dialog.ShowModal()) {
+	case wxID_YES:
+		return SaveCurrentBrush();
+	case wxID_NO:
+		return LoadBrush(currentContextKey_, currentItemIndex_);
+	default:
+		SetStatusMessage("Selection change canceled. Pending brush edits were kept.");
+		return false;
+	}
 }
 
 void MaterialsWorkbenchBrushPanel::BuildLayout() {
@@ -124,10 +392,10 @@ void MaterialsWorkbenchBrushPanel::BuildLayout() {
 	headerSizer->Add(subtitleLabel_, 0);
 
 	wxBoxSizer* actionSizer = new wxBoxSizer(wxHORIZONTAL);
-	wxButton* saveButton = new wxButton(this, wxID_SAVE, "Save Brush");
-	wxButton* revertButton = new wxButton(this, wxID_ANY, "Revert");
-	actionSizer->Add(saveButton, 0, wxRIGHT, FromDIP(6));
-	actionSizer->Add(revertButton, 0);
+	saveButton_ = new wxButton(this, wxID_SAVE, "Save Brush");
+	revertButton_ = new wxButton(this, wxID_ANY, "Revert");
+	actionSizer->Add(saveButton_, 0, wxRIGHT, FromDIP(6));
+	actionSizer->Add(revertButton_, 0);
 
 	statusLabel_ = new wxStaticText(this, wxID_ANY, "");
 
@@ -138,8 +406,8 @@ void MaterialsWorkbenchBrushPanel::BuildLayout() {
 	rootSizer->Add(statusLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(10));
 	SetSizer(rootSizer);
 
-	saveButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnSave, this);
-	revertButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnRevert, this);
+	saveButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnSave, this);
+	revertButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnRevert, this);
 }
 
 wxPanel* MaterialsWorkbenchBrushPanel::BuildMetadataPage(wxNotebook* notebook) {
@@ -223,6 +491,27 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildMetadataPage(wxNotebook* notebook) {
 	contentSizer->Add(summaryLabel_, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
 
 	scrolled->SetSizer(contentSizer);
+
+	nameCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
+	typeCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
+	sourceCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
+	lookIdCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
+	lookIdCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
+	serverLookIdCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
+	serverLookIdCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
+	zOrderCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
+	zOrderCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
+	thicknessCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
+	thicknessCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
+	thicknessCeilingCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
+	thicknessCeilingCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
+	draggableCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
+	onBlockingCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
+	onDuplicateCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
+	redoBordersCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
+	randomizeCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
+	oneSizeCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
+	soloOptionalCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
 	return scrolled;
 }
 
@@ -508,13 +797,14 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 
 void MaterialsWorkbenchBrushPanel::ClearWorkspace(const wxString &message) {
 	brushStorage_ = BrushStorageRecord();
+	loadedBrushStorage_ = BrushStorageRecord();
 	currentContextKey_.clear();
 	currentItemIndex_ = -1;
 	hasBrush_ = false;
+	dirty_ = false;
 	ResetVariationSelection();
 
-	titleLabel_->SetLabel("No brush selected");
-	subtitleLabel_->SetLabel("Select a brush in the navigation tree to edit its properties.");
+	UpdateWorkspaceHeader();
 	summaryLabel_->SetLabel(message);
 
 	internalUpdate_ = true;
@@ -537,6 +827,7 @@ void MaterialsWorkbenchBrushPanel::ClearWorkspace(const wxString &message) {
 	internalUpdate_ = false;
 
 	SetFieldsEnabled(false);
+	UpdateActionButtons();
 	RefreshVariationEditor();
 	if (workspaceTabs_) {
 		workspaceTabs_->SetSelection(0);
@@ -554,13 +845,16 @@ bool MaterialsWorkbenchBrushPanel::LoadBrush(const wxString &contextKey, int ite
 	}
 
 	brushStorage_ = storage;
+	loadedBrushStorage_ = storage;
 	currentContextKey_ = contextKey;
 	currentItemIndex_ = itemIndex;
 	hasBrush_ = true;
+	dirty_ = false;
 	ResetVariationSelection();
 
 	PopulateFields();
 	SetFieldsEnabled(true);
+	UpdateActionButtons();
 	SetStatusMessage("Brush loaded from materials.db.");
 	Layout();
 	return true;
@@ -575,8 +869,7 @@ void MaterialsWorkbenchBrushPanel::PopulateFields() {
 void MaterialsWorkbenchBrushPanel::PopulateMetadataFields() {
 	const BrushRecord &brush = brushStorage_.brush;
 
-	titleLabel_->SetLabel("Editing brush: " + brush.name);
-	subtitleLabel_->SetLabel("Update metadata and variations for the SQLite-backed brush without leaving the main workbench flow.");
+	UpdateWorkspaceHeader();
 
 	internalUpdate_ = true;
 	idCtrl_->SetValue(wxString::Format("%lld", static_cast<long long>(brush.id)));
@@ -615,6 +908,67 @@ void MaterialsWorkbenchBrushPanel::UpdateSummary() {
 
 void MaterialsWorkbenchBrushPanel::SetStatusMessage(const wxString &message) {
 	statusLabel_->SetLabel(message);
+}
+
+BrushStorageRecord MaterialsWorkbenchBrushPanel::BuildEditableStorageFromCurrentState() const {
+	BrushStorageRecord storage = brushStorage_;
+	BrushRecord &brush = storage.brush;
+	brush.name = TrimmedValue(nameCtrl_);
+	brush.type = TrimmedValue(typeCtrl_);
+	brush.sourceFile = TrimmedValue(sourceCtrl_);
+	brush.lookId = lookIdCtrl_->GetValue();
+	brush.serverLookId = serverLookIdCtrl_->GetValue();
+	brush.zOrder = zOrderCtrl_->GetValue();
+	brush.thickness = thicknessCtrl_->GetValue();
+	brush.thicknessCeiling = thicknessCeilingCtrl_->GetValue();
+	brush.draggable = draggableCtrl_->GetValue();
+	brush.onBlocking = onBlockingCtrl_->GetValue();
+	brush.onDuplicate = onDuplicateCtrl_->GetValue();
+	brush.redoBorders = redoBordersCtrl_->GetValue();
+	brush.randomize = randomizeCtrl_->GetValue();
+	brush.oneSize = oneSizeCtrl_->GetValue();
+	brush.soloOptional = soloOptionalCtrl_->GetValue();
+	NormalizeBrushStorageForEditing(storage);
+	return storage;
+}
+
+void MaterialsWorkbenchBrushPanel::RefreshDirtyState() {
+	if (!hasBrush_) {
+		dirty_ = false;
+		UpdateWorkspaceHeader();
+		UpdateActionButtons();
+		return;
+	}
+
+	dirty_ = !AreBrushStorageRecordsEqual(BuildEditableStorageFromCurrentState(), loadedBrushStorage_);
+	UpdateWorkspaceHeader();
+	UpdateActionButtons();
+}
+
+void MaterialsWorkbenchBrushPanel::UpdateWorkspaceHeader() {
+	if (!hasBrush_) {
+		titleLabel_->SetLabel("No brush selected");
+		subtitleLabel_->SetLabel("Select a brush in the navigation tree to edit its properties.");
+		return;
+	}
+
+	const wxString modifiedSuffix = dirty_ ? " [modified]" : "";
+	const wxString displayName = hasBrush_ ? TrimmedValue(nameCtrl_) : "";
+	titleLabel_->SetLabel("Editing brush: " + (displayName.IsEmpty() ? brushStorage_.brush.name : displayName) + modifiedSuffix);
+	subtitleLabel_->SetLabel(
+		dirty_
+			? "Local edits differ from materials.db. Save, revert or switch brushes carefully."
+			: "Update metadata and variations for the SQLite-backed brush without leaving the main workbench flow."
+	);
+}
+
+void MaterialsWorkbenchBrushPanel::UpdateActionButtons() {
+	if (saveButton_) {
+		saveButton_->Enable(hasBrush_ && dirty_);
+	}
+	if (revertButton_) {
+		revertButton_->Enable(hasBrush_ && dirty_);
+	}
 }
 
 void MaterialsWorkbenchBrushPanel::SetFieldsEnabled(bool enabled) {
@@ -1091,39 +1445,7 @@ void MaterialsWorkbenchBrushPanel::RefreshDoodadSelection() {
 }
 
 void MaterialsWorkbenchBrushPanel::NormalizeVariationSortOrders() {
-	for (size_t i = 0; i < brushStorage_.items.size(); ++i) {
-		brushStorage_.items[i].sortOrder = static_cast<int>(i);
-	}
-	for (size_t i = 0; i < brushStorage_.carpetNodes.size(); ++i) {
-		brushStorage_.carpetNodes[i].sortOrder = static_cast<int>(i);
-		for (size_t j = 0; j < brushStorage_.carpetNodes[i].items.size(); ++j) {
-			brushStorage_.carpetNodes[i].items[j].sortOrder = static_cast<int>(j);
-		}
-	}
-	for (size_t i = 0; i < brushStorage_.tableNodes.size(); ++i) {
-		brushStorage_.tableNodes[i].sortOrder = static_cast<int>(i);
-		for (size_t j = 0; j < brushStorage_.tableNodes[i].items.size(); ++j) {
-			brushStorage_.tableNodes[i].items[j].sortOrder = static_cast<int>(j);
-		}
-	}
-	for (size_t i = 0; i < brushStorage_.doodadAlternatives.size(); ++i) {
-		DoodadAlternativeRecord &alternative = brushStorage_.doodadAlternatives[i];
-		alternative.sortOrder = static_cast<int>(i);
-		for (size_t j = 0; j < alternative.singleItems.size(); ++j) {
-			alternative.singleItems[j].sortOrder = static_cast<int>(j);
-		}
-		for (size_t j = 0; j < alternative.composites.size(); ++j) {
-			DoodadCompositeRecord &composite = alternative.composites[j];
-			composite.sortOrder = static_cast<int>(j);
-			for (size_t k = 0; k < composite.tiles.size(); ++k) {
-				DoodadCompositeTileRecord &tile = composite.tiles[k];
-				tile.sortOrder = static_cast<int>(k);
-				for (size_t l = 0; l < tile.items.size(); ++l) {
-					tile.items[l].sortOrder = static_cast<int>(l);
-				}
-			}
-		}
-	}
+	NormalizeVariationSortOrdersForStorage(brushStorage_);
 }
 
 bool MaterialsWorkbenchBrushPanel::ValidateBrushStorage(wxString &error) const {
@@ -1252,47 +1574,7 @@ bool MaterialsWorkbenchBrushPanel::SaveCurrentBrush() {
 		return false;
 	}
 
-	BrushRecord &brush = brushStorage_.brush;
-	brush.name = TrimmedValue(nameCtrl_);
-	brush.type = TrimmedValue(typeCtrl_);
-	brush.type.MakeLower();
-	brush.sourceFile = TrimmedValue(sourceCtrl_);
-	brush.lookId = lookIdCtrl_->GetValue();
-	brush.serverLookId = serverLookIdCtrl_->GetValue();
-	brush.zOrder = zOrderCtrl_->GetValue();
-	brush.thickness = thicknessCtrl_->GetValue();
-	brush.thicknessCeiling = thicknessCeilingCtrl_->GetValue();
-	brush.draggable = draggableCtrl_->GetValue();
-	brush.onBlocking = onBlockingCtrl_->GetValue();
-	brush.onDuplicate = onDuplicateCtrl_->GetValue();
-	brush.redoBorders = redoBordersCtrl_->GetValue();
-	brush.randomize = randomizeCtrl_->GetValue();
-	brush.oneSize = oneSizeCtrl_->GetValue();
-	brush.soloOptional = soloOptionalCtrl_->GetValue();
-
-	if (brush.type == "ground") {
-		brushStorage_.carpetNodes.clear();
-		brushStorage_.tableNodes.clear();
-		brushStorage_.doodadAlternatives.clear();
-	} else if (brush.type == "carpet") {
-		brushStorage_.items.clear();
-		brushStorage_.tableNodes.clear();
-		brushStorage_.doodadAlternatives.clear();
-	} else if (brush.type == "table") {
-		brushStorage_.items.clear();
-		brushStorage_.carpetNodes.clear();
-		brushStorage_.doodadAlternatives.clear();
-	} else if (brush.type == "doodad") {
-		brushStorage_.items.clear();
-		brushStorage_.carpetNodes.clear();
-		brushStorage_.tableNodes.clear();
-	} else {
-		brushStorage_.carpetNodes.clear();
-		brushStorage_.tableNodes.clear();
-		brushStorage_.doodadAlternatives.clear();
-	}
-
-	NormalizeVariationSortOrders();
+	brushStorage_ = BuildEditableStorageFromCurrentState();
 
 	wxString validationError;
 	if (!ValidateBrushStorage(validationError)) {
@@ -1301,16 +1583,20 @@ bool MaterialsWorkbenchBrushPanel::SaveCurrentBrush() {
 	}
 
 	wxString error;
+	const wxString previousName = loadedBrushStorage_.brush.name;
 	if (!controller_.SaveBrushDetails(brushStorage_, error)) {
 		SetStatusMessage("Failed to save brush: " + error);
 		return false;
 	}
 
+	loadedBrushStorage_ = brushStorage_;
+	dirty_ = false;
 	PopulateFields();
+	UpdateActionButtons();
 	SetStatusMessage("Brush and variations saved to materials.db.");
 
 	if (onBrushSaved_) {
-		onBrushSaved_(brush.id);
+		onBrushSaved_(brushStorage_.brush.id, previousName, brushStorage_.brush.name);
 	}
 	return true;
 }
@@ -1332,6 +1618,18 @@ void MaterialsWorkbenchBrushPanel::OnRevert(wxCommandEvent &WXUNUSED(event)) {
 	SetStatusMessage("Brush fields and variations reloaded from materials.db.");
 }
 
+void MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged(wxCommandEvent &event) {
+	if (internalUpdate_ || !hasBrush_) {
+		event.Skip();
+		return;
+	}
+
+	UpdateWorkspaceHeader();
+	RefreshVariationEditor();
+	RefreshDirtyState();
+	event.Skip();
+}
+
 void MaterialsWorkbenchBrushPanel::OnAddGroundItem(wxCommandEvent &WXUNUSED(event)) {
 	if (!hasBrush_ || !UsesGroundVariationEditor()) {
 		return;
@@ -1344,6 +1642,7 @@ void MaterialsWorkbenchBrushPanel::OnAddGroundItem(wxCommandEvent &WXUNUSED(even
 	RefreshGroundItemList();
 	RefreshGroundSelection();
 	UpdateSummary();
+	RefreshDirtyState();
 	SetStatusMessage("Added ground variation item.");
 }
 
@@ -1363,6 +1662,7 @@ void MaterialsWorkbenchBrushPanel::OnRemoveGroundItem(wxCommandEvent &WXUNUSED(e
 	RefreshGroundItemList();
 	RefreshGroundSelection();
 	UpdateSummary();
+	RefreshDirtyState();
 	SetStatusMessage("Removed ground variation item.");
 }
 
@@ -1386,6 +1686,7 @@ void MaterialsWorkbenchBrushPanel::OnGroundItemValueChanged(wxCommandEvent &WXUN
 		groundItemsList_->SetSelection(groundItemIndex_);
 	}
 	UpdateSummary();
+	RefreshDirtyState();
 }
 
 void MaterialsWorkbenchBrushPanel::OnAddAlignedNode(wxCommandEvent &WXUNUSED(event)) {
@@ -1407,6 +1708,7 @@ void MaterialsWorkbenchBrushPanel::OnAddAlignedNode(wxCommandEvent &WXUNUSED(eve
 	RefreshAlignedNodeList();
 	RefreshAlignedSelection();
 	UpdateSummary();
+	RefreshDirtyState();
 	SetStatusMessage("Added variation node.");
 }
 
@@ -1439,6 +1741,7 @@ void MaterialsWorkbenchBrushPanel::OnRemoveAlignedNode(wxCommandEvent &WXUNUSED(
 	RefreshAlignedNodeList();
 	RefreshAlignedSelection();
 	UpdateSummary();
+	RefreshDirtyState();
 	SetStatusMessage("Removed variation node.");
 }
 
@@ -1469,6 +1772,7 @@ void MaterialsWorkbenchBrushPanel::OnAlignedNodeAlignChanged(wxCommandEvent &WXU
 	if (alignedNodeIndex_ >= 0) {
 		alignedNodesList_->SetSelection(alignedNodeIndex_);
 	}
+	RefreshDirtyState();
 }
 
 void MaterialsWorkbenchBrushPanel::OnAddAlignedItem(wxCommandEvent &WXUNUSED(event)) {
@@ -1498,6 +1802,7 @@ void MaterialsWorkbenchBrushPanel::OnAddAlignedItem(wxCommandEvent &WXUNUSED(eve
 	}
 	RefreshAlignedSelection();
 	UpdateSummary();
+	RefreshDirtyState();
 	SetStatusMessage("Added node item.");
 }
 
@@ -1538,6 +1843,7 @@ void MaterialsWorkbenchBrushPanel::OnRemoveAlignedItem(wxCommandEvent &WXUNUSED(
 	}
 	RefreshAlignedSelection();
 	UpdateSummary();
+	RefreshDirtyState();
 	SetStatusMessage("Removed node item.");
 }
 
@@ -1577,6 +1883,7 @@ void MaterialsWorkbenchBrushPanel::OnAlignedItemValueChanged(wxCommandEvent &WXU
 	if (alignedItemIndex_ >= 0) {
 		alignedItemsList_->SetSelection(alignedItemIndex_);
 	}
+	RefreshDirtyState();
 }
 
 void MaterialsWorkbenchBrushPanel::OnAddDoodadAlternative(wxCommandEvent &WXUNUSED(event)) {
@@ -1592,6 +1899,7 @@ void MaterialsWorkbenchBrushPanel::OnAddDoodadAlternative(wxCommandEvent &WXUNUS
 	RefreshDoodadAlternativeList();
 	RefreshDoodadSelection();
 	UpdateSummary();
+	RefreshDirtyState();
 	SetStatusMessage("Added doodad alternative.");
 }
 
@@ -1614,6 +1922,7 @@ void MaterialsWorkbenchBrushPanel::OnRemoveDoodadAlternative(wxCommandEvent &WXU
 	RefreshDoodadAlternativeList();
 	RefreshDoodadSelection();
 	UpdateSummary();
+	RefreshDirtyState();
 	SetStatusMessage("Removed doodad alternative.");
 }
 
@@ -1641,6 +1950,7 @@ void MaterialsWorkbenchBrushPanel::OnAddDoodadSingleItem(wxCommandEvent &WXUNUSE
 	doodadSingleItemIndex_ = static_cast<int>(singleItems.size()) - 1;
 	RefreshDoodadSelection();
 	UpdateSummary();
+	RefreshDirtyState();
 	SetStatusMessage("Added doodad single item.");
 }
 
@@ -1663,6 +1973,7 @@ void MaterialsWorkbenchBrushPanel::OnRemoveDoodadSingleItem(wxCommandEvent &WXUN
 	}
 	RefreshDoodadSelection();
 	UpdateSummary();
+	RefreshDirtyState();
 	SetStatusMessage("Removed doodad single item.");
 }
 
@@ -1692,6 +2003,7 @@ void MaterialsWorkbenchBrushPanel::OnDoodadSingleItemValueChanged(wxCommandEvent
 	if (doodadAlternativeIndex_ >= 0) {
 		doodadAlternativesList_->SetSelection(doodadAlternativeIndex_);
 	}
+	RefreshDirtyState();
 }
 
 void MaterialsWorkbenchBrushPanel::OnAddDoodadComposite(wxCommandEvent &WXUNUSED(event)) {
@@ -1711,6 +2023,7 @@ void MaterialsWorkbenchBrushPanel::OnAddDoodadComposite(wxCommandEvent &WXUNUSED
 	doodadTileItemIndex_ = -1;
 	RefreshDoodadSelection();
 	UpdateSummary();
+	RefreshDirtyState();
 	SetStatusMessage("Added doodad composite.");
 }
 
@@ -1735,6 +2048,7 @@ void MaterialsWorkbenchBrushPanel::OnRemoveDoodadComposite(wxCommandEvent &WXUNU
 	doodadTileItemIndex_ = -1;
 	RefreshDoodadSelection();
 	UpdateSummary();
+	RefreshDirtyState();
 	SetStatusMessage("Removed doodad composite.");
 }
 
@@ -1765,6 +2079,7 @@ void MaterialsWorkbenchBrushPanel::OnDoodadCompositeChanceChanged(wxCommandEvent
 	if (doodadAlternativeIndex_ >= 0) {
 		doodadAlternativesList_->SetSelection(doodadAlternativeIndex_);
 	}
+	RefreshDirtyState();
 }
 
 void MaterialsWorkbenchBrushPanel::OnAddDoodadTile(wxCommandEvent &WXUNUSED(event)) {
@@ -1785,6 +2100,7 @@ void MaterialsWorkbenchBrushPanel::OnAddDoodadTile(wxCommandEvent &WXUNUSED(even
 	doodadTileItemIndex_ = -1;
 	RefreshDoodadSelection();
 	UpdateSummary();
+	RefreshDirtyState();
 	SetStatusMessage("Added doodad composite tile.");
 }
 
@@ -1813,6 +2129,7 @@ void MaterialsWorkbenchBrushPanel::OnRemoveDoodadTile(wxCommandEvent &WXUNUSED(e
 	doodadTileItemIndex_ = -1;
 	RefreshDoodadSelection();
 	UpdateSummary();
+	RefreshDirtyState();
 	SetStatusMessage("Removed doodad composite tile.");
 }
 
@@ -1844,6 +2161,7 @@ void MaterialsWorkbenchBrushPanel::OnDoodadTileOffsetChanged(wxCommandEvent &WXU
 	if (doodadTileIndex_ >= 0) {
 		doodadTilesList_->SetSelection(doodadTileIndex_);
 	}
+	RefreshDirtyState();
 }
 
 void MaterialsWorkbenchBrushPanel::OnAddDoodadTileItem(wxCommandEvent &WXUNUSED(event)) {
@@ -1868,6 +2186,7 @@ void MaterialsWorkbenchBrushPanel::OnAddDoodadTileItem(wxCommandEvent &WXUNUSED(
 	doodadTileItemIndex_ = static_cast<int>(tiles[doodadTileIndex_].items.size()) - 1;
 	RefreshDoodadSelection();
 	UpdateSummary();
+	RefreshDirtyState();
 	SetStatusMessage("Added doodad tile item.");
 }
 
@@ -1900,6 +2219,7 @@ void MaterialsWorkbenchBrushPanel::OnRemoveDoodadTileItem(wxCommandEvent &WXUNUS
 	}
 	RefreshDoodadSelection();
 	UpdateSummary();
+	RefreshDirtyState();
 	SetStatusMessage("Removed doodad tile item.");
 }
 
@@ -1944,4 +2264,5 @@ void MaterialsWorkbenchBrushPanel::OnDoodadTileItemValueChanged(wxCommandEvent &
 	if (doodadAlternativeIndex_ >= 0) {
 		doodadAlternativesList_->SetSelection(doodadAlternativeIndex_);
 	}
+	RefreshDirtyState();
 }

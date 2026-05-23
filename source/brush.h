@@ -72,6 +72,7 @@ public:
 	Brush* getBrush(const std::string &name) const;
 
 	void addBrush(Brush* brush);
+	bool renameBrush(Brush* brush, const std::string &oldName, const std::string &newName);
 
 	bool unserializeBorder(pugi::xml_node node, wxArrayString &warnings);
 	bool unserializeBrush(pugi::xml_node node, wxArrayString &warnings);

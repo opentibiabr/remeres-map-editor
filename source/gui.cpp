@@ -1064,7 +1064,7 @@ bool GUI::ReloadMaterialPalettesFromDatabase(wxString &error, wxArrayString &war
 
 	struct PaletteRestoreState {
 		PaletteType selectedPage = TILESET_UNKNOWN;
-		Brush* selectedBrush = nullptr;
+		std::string selectedBrushName;
 		bool shown = true;
 	};
 
@@ -1073,9 +1073,34 @@ bool GUI::ReloadMaterialPalettesFromDatabase(wxString &error, wxArrayString &war
 	for (PaletteWindow* palette : palettes) {
 		PaletteRestoreState state;
 		state.selectedPage = palette->GetSelectedPage();
-		state.selectedBrush = palette->GetSelectedBrush();
+		if (Brush* selectedBrush = palette->GetSelectedBrush()) {
+			state.selectedBrushName = selectedBrush->getName();
+		}
 		state.shown = aui_manager->GetPane(palette).IsShown();
 		states.push_back(state);
+	}
+
+	std::string currentBrushName;
+	if (current_brush) {
+		currentBrushName = current_brush->getName();
+	}
+
+	const bool hadPalettes = !states.empty();
+	if (hadPalettes) {
+		DestroyPalettes();
+	}
+
+	current_brush = nullptr;
+	previous_brush = nullptr;
+
+	g_brushes.clear();
+	g_brushes.init();
+	if (!g_brushes.loadFromDatabase(warnings)) {
+		error = "Failed to reload runtime brushes from SQLite.";
+		if (!g_brush_database.getLastError().IsEmpty()) {
+			error += " " + g_brush_database.getLastError();
+		}
+		return false;
 	}
 
 	if (!g_materials.loadTilesetsFromDatabase(warnings)) {
@@ -1089,11 +1114,9 @@ bool GUI::ReloadMaterialPalettesFromDatabase(wxString &error, wxArrayString &war
 	g_materials.createOtherTileset();
 	g_materials.createNpcTileset();
 
-	if (states.empty()) {
+	if (!hadPalettes) {
 		return true;
 	}
-
-	DestroyPalettes();
 
 	std::vector<PaletteWindow*> rebuiltPalettes;
 	rebuiltPalettes.reserve(states.size());
@@ -1112,17 +1135,73 @@ bool GUI::ReloadMaterialPalettesFromDatabase(wxString &error, wxArrayString &war
 		PaletteWindow* palette = rebuiltPalettes[i];
 		const PaletteRestoreState &state = states[i];
 		palette->SelectPage(state.selectedPage);
-		if (state.selectedBrush) {
-			palette->OnSelectBrush(state.selectedBrush, state.selectedPage);
+		if (!state.selectedBrushName.empty()) {
+			if (Brush* restoredBrush = g_brushes.getBrush(state.selectedBrushName)) {
+				palette->OnSelectBrush(restoredBrush, state.selectedPage);
+			}
 		}
 		palette->OnUpdateBrushSize(brush_shape, brush_size);
 		aui_manager->GetPane(palette).Show(state.shown);
+	}
+
+	if (!currentBrushName.empty()) {
+		SelectBrushInternal(g_brushes.getBrush(currentBrushName));
 	}
 
 	if (current_brush) {
 		SelectBrushInternal(current_brush);
 	} else {
 		SelectBrush();
+	}
+
+	aui_manager->Update();
+	root->GetAuiToolBar()->UpdateBrushButtons();
+	return true;
+}
+
+bool GUI::RenameBrushInPalettes(const wxString &oldName, const wxString &newName) {
+	if (oldName.IsEmpty() || newName.IsEmpty() || oldName == newName) {
+		return true;
+	}
+
+	Brush* runtimeBrush = g_brushes.getBrush(oldName.ToStdString());
+	if (!runtimeBrush) {
+		return false;
+	}
+
+	g_brushes.renameBrush(runtimeBrush, oldName.ToStdString(), newName.ToStdString());
+
+	struct PaletteRestoreState {
+		PaletteWindow* palette = nullptr;
+		PaletteType selectedPage = TILESET_UNKNOWN;
+		Brush* selectedBrush = nullptr;
+	};
+
+	std::vector<PaletteRestoreState> states;
+	states.reserve(palettes.size());
+	for (PaletteWindow* palette : palettes) {
+		PaletteRestoreState state;
+		state.palette = palette;
+		state.selectedPage = palette->GetSelectedPage();
+		state.selectedBrush = palette->GetSelectedBrush();
+		states.push_back(state);
+	}
+
+	for (const PaletteRestoreState &state : states) {
+		if (!state.palette) {
+			continue;
+		}
+
+		state.palette->InvalidateContents();
+		state.palette->SelectPage(state.selectedPage);
+		if (state.selectedBrush) {
+			state.palette->OnSelectBrush(state.selectedBrush, state.selectedPage);
+		}
+		state.palette->OnUpdateBrushSize(brush_shape, brush_size);
+	}
+
+	if (current_brush) {
+		SelectBrushInternal(current_brush);
 	}
 
 	aui_manager->Update();

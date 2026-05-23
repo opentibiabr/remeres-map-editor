@@ -145,53 +145,23 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 	wxPanel* overviewPanel = CreateOverviewTextPanel(workspaceBook_, controller_, overviewText_);
 	palettePanel_ = new MaterialsWorkbenchPalettePanel(workspaceBook_, controller_);
 	palettePanel_->SetOnPaletteSaved([this]() {
-		wxString error;
-		wxArrayString warnings;
-		if (!g_gui.ReloadMaterialPalettesFromDatabase(error, warnings)) {
-			spdlog::warn("Materials Workbench runtime palette refresh failed: {}", error.ToStdString());
-		}
-		for (const wxString &warning : warnings) {
-			spdlog::warn("Materials Workbench runtime palette refresh warning: {}", warning.ToStdString());
-		}
-
-		auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(navigationTree_->GetSelection()));
-		if (!itemData) {
-			return;
-		}
-		inspectorText_->SetValue(controller_.BuildSelectionInspector(itemData->kind, itemData->contextKey, itemData->itemIndex));
+		CallAfter(&MaterialsWorkbenchWindow::HandlePaletteSaved);
 	});
 	borderPanel_ = new MaterialsWorkbenchBorderPanel(workspaceBook_, controller_);
 	borderPanel_->SetOnBorderSetSaved([this](int64_t borderSetId) {
-		RefreshWorkbenchState();
-		PopulateNavigation();
-
-		wxString contextKey;
-		int itemIndex = -1;
-		if (controller_.LocateBorderSetNode(borderSetId, contextKey, itemIndex)) {
-			SelectNavigationNode(MaterialsWorkbenchNodeKind::BorderSet, contextKey, itemIndex);
-		}
+		CallAfter([this, borderSetId]() {
+			HandleBorderSetSaved(borderSetId);
+		});
 	});
 	brushPanel_ = new MaterialsWorkbenchBrushPanel(workspaceBook_, controller_);
-	brushPanel_->SetOnBrushSaved([this](int64_t brushId) {
-		RefreshWorkbenchState();
-		PopulateNavigation();
-
-		wxString contextKey;
-		int itemIndex = -1;
-		if (controller_.LocateBrushNode(brushId, contextKey, itemIndex)) {
-			SelectNavigationNode(MaterialsWorkbenchNodeKind::Brush, contextKey, itemIndex);
-		}
+	brushPanel_->SetOnBrushSaved([this](int64_t brushId, const wxString &oldName, const wxString &newName) {
+		HandleBrushSaved(brushId, oldName, newName);
 	});
 	wallPanel_ = new MaterialsWorkbenchWallPanel(workspaceBook_, controller_);
 	wallPanel_->SetOnWallBrushSaved([this](int64_t brushId) {
-		RefreshWorkbenchState();
-		PopulateNavigation();
-
-		wxString contextKey;
-		int itemIndex = -1;
-		if (controller_.LocateBrushNode(brushId, contextKey, itemIndex)) {
-			SelectNavigationNode(MaterialsWorkbenchNodeKind::Brush, contextKey, itemIndex);
-		}
+		CallAfter([this, brushId]() {
+			HandleWallBrushSaved(brushId);
+		});
 	});
 	workspaceBook_->AddPage(overviewPanel, "Overview");
 	workspaceBook_->AddPage(palettePanel_, "Palette");
@@ -213,6 +183,72 @@ void MaterialsWorkbenchWindow::RefreshWorkbenchState() {
 	controller_.ReloadCatalog();
 	overviewText_->SetValue(controller_.GetOverviewText());
 	inspectorText_->SetValue(controller_.GetInspectorText());
+}
+
+void MaterialsWorkbenchWindow::RefreshInspectorForCurrentSelection() {
+	auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(navigationTree_->GetSelection()));
+	if (!itemData) {
+		inspectorText_->SetValue(controller_.GetInspectorText());
+		return;
+	}
+
+	inspectorText_->SetValue(controller_.BuildSelectionInspector(itemData->kind, itemData->contextKey, itemData->itemIndex));
+}
+
+void MaterialsWorkbenchWindow::HandlePaletteSaved() {
+	wxString error;
+	wxArrayString warnings;
+	if (!g_gui.ReloadMaterialPalettesFromDatabase(error, warnings)) {
+		spdlog::warn("Materials Workbench runtime palette refresh failed: {}", error.ToStdString());
+	}
+	for (const wxString &warning : warnings) {
+		spdlog::warn("Materials Workbench runtime palette refresh warning: {}", warning.ToStdString());
+	}
+
+	RefreshInspectorForCurrentSelection();
+}
+
+void MaterialsWorkbenchWindow::HandleBorderSetSaved(int64_t borderSetId) {
+	RefreshWorkbenchState();
+	PopulateNavigation();
+
+	wxString contextKey;
+	int itemIndex = -1;
+	if (controller_.LocateBorderSetNode(borderSetId, contextKey, itemIndex)) {
+		SelectNavigationNode(MaterialsWorkbenchNodeKind::BorderSet, contextKey, itemIndex);
+	}
+}
+
+void MaterialsWorkbenchWindow::HandleBrushSaved(int64_t brushId, const wxString &oldName, const wxString &newName) {
+	if (!g_gui.RenameBrushInPalettes(oldName, newName)) {
+		spdlog::warn(
+			"Materials Workbench runtime brush rename sync skipped: old='{}' new='{}'",
+			oldName.ToStdString(),
+			newName.ToStdString()
+		);
+	}
+
+	RefreshWorkbenchState();
+	PopulateNavigation();
+
+	wxString contextKey;
+	int itemIndex = -1;
+	if (controller_.LocateBrushNode(brushId, contextKey, itemIndex)) {
+		SelectNavigationNode(MaterialsWorkbenchNodeKind::Brush, contextKey, itemIndex);
+	} else {
+		RefreshInspectorForCurrentSelection();
+	}
+}
+
+void MaterialsWorkbenchWindow::HandleWallBrushSaved(int64_t brushId) {
+	RefreshWorkbenchState();
+	PopulateNavigation();
+
+	wxString contextKey;
+	int itemIndex = -1;
+	if (controller_.LocateBrushNode(brushId, contextKey, itemIndex)) {
+		SelectNavigationNode(MaterialsWorkbenchNodeKind::Brush, contextKey, itemIndex);
+	}
 }
 
 void MaterialsWorkbenchWindow::PopulateNavigation() {
@@ -243,6 +279,23 @@ void MaterialsWorkbenchWindow::PopulateNavigation() {
 }
 
 void MaterialsWorkbenchWindow::BindEvents() {
+	navigationTree_->Bind(wxEVT_TREE_SEL_CHANGING, [this](wxTreeEvent &event) {
+		const wxTreeItemId item = event.GetItem();
+		if (!item.IsOk() || !brushPanel_->HasPendingChanges()) {
+			return;
+		}
+
+		auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(item));
+		if (itemData && itemData->kind == MaterialsWorkbenchNodeKind::Brush &&
+			brushPanel_->IsCurrentBrushSelection(itemData->contextKey, itemData->itemIndex)) {
+			return;
+		}
+
+		if (!brushPanel_->ResolvePendingChangesBeforeSwitch(this, navigationTree_->GetItemText(item))) {
+			event.Veto();
+		}
+	});
+
 	navigationTree_->Bind(wxEVT_TREE_SEL_CHANGED, [this](wxTreeEvent &event) {
 		const wxTreeItemId item = event.GetItem();
 		if (!item.IsOk()) {

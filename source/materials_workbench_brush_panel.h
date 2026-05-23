@@ -8,6 +8,7 @@
 #include "brush_database.h"
 
 class MaterialsWorkbenchController;
+class wxButton;
 class wxCheckBox;
 class wxListBox;
 class wxNotebook;
@@ -23,7 +24,10 @@ public:
 
 	void ClearWorkspace(const wxString &message);
 	bool LoadBrush(const wxString &contextKey, int itemIndex);
-	void SetOnBrushSaved(std::function<void(int64_t)> callback);
+	void SetOnBrushSaved(std::function<void(int64_t, const wxString&, const wxString&)> callback);
+	bool HasPendingChanges() const;
+	bool IsCurrentBrushSelection(const wxString &contextKey, int itemIndex) const;
+	bool ResolvePendingChangesBeforeSwitch(wxWindow* parent, const wxString &targetLabel);
 
 private:
 	void BuildLayout();
@@ -52,6 +56,10 @@ private:
 	void RefreshDoodadTileItemList();
 	void RefreshDoodadSelection();
 	void NormalizeVariationSortOrders();
+	BrushStorageRecord BuildEditableStorageFromCurrentState() const;
+	void RefreshDirtyState();
+	void UpdateWorkspaceHeader();
+	void UpdateActionButtons();
 	bool SaveCurrentBrush();
 	bool ValidateBrushStorage(wxString &error) const;
 	wxString GetEffectiveBrushType() const;
@@ -92,19 +100,24 @@ private:
 	void OnRemoveDoodadTileItem(wxCommandEvent &event);
 	void OnDoodadTileItemSelected(wxCommandEvent &event);
 	void OnDoodadTileItemValueChanged(wxCommandEvent &event);
+	void OnMetadataFieldChanged(wxCommandEvent &event);
 
 	MaterialsWorkbenchController &controller_;
-	std::function<void(int64_t)> onBrushSaved_;
+	std::function<void(int64_t, const wxString&, const wxString&)> onBrushSaved_;
 	BrushStorageRecord brushStorage_;
+	BrushStorageRecord loadedBrushStorage_;
 	wxString currentContextKey_;
 	int currentItemIndex_ = -1;
 	bool hasBrush_ = false;
 	bool internalUpdate_ = false;
+	bool dirty_ = false;
 
 	wxNotebook* workspaceTabs_ = nullptr;
 	wxStaticText* titleLabel_ = nullptr;
 	wxStaticText* subtitleLabel_ = nullptr;
 	wxStaticText* summaryLabel_ = nullptr;
+	wxButton* saveButton_ = nullptr;
+	wxButton* revertButton_ = nullptr;
 	wxTextCtrl* nameCtrl_ = nullptr;
 	wxTextCtrl* typeCtrl_ = nullptr;
 	wxTextCtrl* idCtrl_ = nullptr;

@@ -26,6 +26,11 @@ private:
 	void PopulateNavigation();
 	void RefreshWorkbenchState();
 	void BindEvents();
+	void RefreshInspectorForCurrentSelection();
+	void HandlePaletteSaved();
+	void HandleBorderSetSaved(int64_t borderSetId);
+	void HandleBrushSaved(int64_t brushId, const wxString &oldName, const wxString &newName);
+	void HandleWallBrushSaved(int64_t brushId);
 	bool SelectNavigationNode(MaterialsWorkbenchNodeKind kind, const wxString &contextKey, int itemIndex);
 	void OnClose(wxCloseEvent &event);
 

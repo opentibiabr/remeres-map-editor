@@ -811,6 +811,10 @@ bool BrushDatabase::upsertBrush(const BrushRecord &brush, int64_t &brushId) {
 	return brushRepository_.upsertBrush(brush, brushId);
 }
 
+bool BrushDatabase::getBrushById(int64_t brushId, BrushRecord &outBrush) {
+	return brushRepository_.getBrushById(brushId, outBrush);
+}
+
 bool BrushDatabase::updateBrush(const BrushRecord &brush) {
 	return brushRepository_.updateBrush(brush);
 }
@@ -820,6 +824,10 @@ bool BrushDatabase::listBrushesByType(const wxString &type, std::vector<BrushRec
 
 bool BrushDatabase::getCompleteBrushById(int64_t brushId, BrushStorageRecord &outBrush) {
 	return brushRepository_.getCompleteBrushById(brushId, outBrush);
+}
+
+bool BrushDatabase::updateBrushReferenceNames(int64_t brushId, const wxString &oldName, const wxString &newName) {
+	return brushRepository_.updateBrushReferenceNames(brushId, oldName, newName);
 }
 
 bool BrushDatabase::deleteBrushesByType(const wxString &type) {
@@ -1876,6 +1884,87 @@ bool BrushDatabaseBrushRepository::updateBrush(const BrushRecord &brush) {
 	}
 
 	return sqlite3_changes(connection_) > 0 || setError(wxString::Format("Brush %lld was not updated.", static_cast<long long>(brush.id)));
+}
+
+bool BrushDatabaseBrushRepository::updateBrushReferenceNames(int64_t brushId, const wxString &oldName, const wxString &newName) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+	if (brushId <= 0) {
+		return setError("Brush id is invalid.");
+	}
+	if (oldName == newName) {
+		return true;
+	}
+
+	const auto executeRenameByIdOrName = [&](const char* sql, const char* failureMessage) -> bool {
+		sqlite3_stmt* stmt = nullptr;
+		if (!prepare(sql, &stmt)) {
+			return false;
+		}
+
+		sqlite3_bind_text(stmt, 1, newName.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_int64(stmt, 2, brushId);
+		sqlite3_bind_text(stmt, 3, oldName.utf8_str(), -1, SQLITE_TRANSIENT);
+
+		const int rc = sqlite3_step(stmt);
+		sqlite3_finalize(stmt);
+		if (rc != SQLITE_DONE) {
+			return setErrorFromDatabase(failureMessage);
+		}
+		return true;
+	};
+
+	const auto executeRenameByNameOnly = [&](const char* sql, const char* failureMessage) -> bool {
+		sqlite3_stmt* stmt = nullptr;
+		if (!prepare(sql, &stmt)) {
+			return false;
+		}
+
+		sqlite3_bind_text(stmt, 1, newName.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_text(stmt, 2, oldName.utf8_str(), -1, SQLITE_TRANSIENT);
+
+		const int rc = sqlite3_step(stmt);
+		sqlite3_finalize(stmt);
+		if (rc != SQLITE_DONE) {
+			return setErrorFromDatabase(failureMessage);
+		}
+		return true;
+	};
+
+	if (!executeRenameByIdOrName(
+			"UPDATE tileset_brush_entries "
+			"SET brush_name = ? "
+			"WHERE brush_id = ? OR brush_name = ?;",
+			"Failed to update tileset brush names")) {
+		return false;
+	}
+
+	if (!executeRenameByNameOnly(
+			"UPDATE tileset_brush_entries "
+			"SET after_brush_name = ? "
+			"WHERE after_brush_name = ?;",
+			"Failed to update tileset after-brush names")) {
+		return false;
+	}
+
+	if (!executeRenameByIdOrName(
+			"UPDATE ground_brush_borders "
+			"SET target_brush_name = ? "
+			"WHERE target_brush_id = ? OR target_brush_name = ?;",
+			"Failed to update ground border target brush names")) {
+		return false;
+	}
+
+	if (!executeRenameByIdOrName(
+			"UPDATE brush_links "
+			"SET target_brush_name = ? "
+			"WHERE target_brush_id = ? OR target_brush_name = ?;",
+			"Failed to update brush link target names")) {
+		return false;
+	}
+
+	return resolveGroundReferenceNames();
 }
 
 bool BrushDatabaseBrushRepository::deleteBrush(int64_t brushId) {

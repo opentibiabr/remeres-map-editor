@@ -637,6 +637,26 @@ void Brushes::addBrush(Brush* brush) {
 	}
 }
 
+bool Brushes::renameBrush(Brush* brush, const std::string &oldName, const std::string &newName) {
+	if (!brush || oldName == newName) {
+		return false;
+	}
+
+	const auto range = brushes.equal_range(oldName);
+	for (auto it = range.first; it != range.second; ++it) {
+		if (it->second == brush) {
+			brushes.erase(it);
+			brush->setName(newName);
+			brushes.insert(std::make_pair(brush->getName(), brush));
+			return true;
+		}
+	}
+
+	brush->setName(newName);
+	brushes.insert(std::make_pair(brush->getName(), brush));
+	return true;
+}
+
 Brush* Brushes::getBrush(const std::string &name) const {
 	auto it = brushes.find(name);
 	if (it != brushes.end()) {

@@ -95,6 +95,16 @@ bool MaterialsWorkbenchRepository::SaveBrushDetails(BrushStorageRecord &brushSto
 
 	BrushRecord &brush = brushStorage.brush;
 	return g_brush_database.runInTransaction([&]() {
+		BrushRecord persistedBrush;
+		bool hadPersistedBrush = false;
+		if (brush.id > 0) {
+			if (!g_brush_database.getBrushById(brush.id, persistedBrush)) {
+				error = g_brush_database.getLastError();
+				return false;
+			}
+			hadPersistedBrush = true;
+		}
+
 		if (brush.id > 0) {
 			if (!g_brush_database.updateBrush(brush)) {
 				error = g_brush_database.getLastError();
@@ -107,6 +117,13 @@ bool MaterialsWorkbenchRepository::SaveBrushDetails(BrushStorageRecord &brushSto
 				return false;
 			}
 			brush.id = insertedBrushId;
+		}
+
+		if (hadPersistedBrush && persistedBrush.name != brush.name) {
+			if (!g_brush_database.updateBrushReferenceNames(brush.id, persistedBrush.name, brush.name)) {
+				error = g_brush_database.getLastError();
+				return false;
+			}
 		}
 
 		if (!g_brush_database.replaceCarpetNodes(brush.id, brushStorage.carpetNodes)) {
