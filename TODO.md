@@ -1,84 +1,97 @@
-# TODO - Materials Workbench Finalizacao
+# TODO - Materials Workbench Finalization
 
-## Fechado
-- [x] Materials Workbench como modulo principal
-- [x] Leitura do catalogo via `materials.db`
-- [x] Edicao visual de `palettes`
-- [x] Edicao de propriedades de `brush`
-- [x] Border Workspace visual inicial
-- [x] Wall Workspace visual inicial
-- [x] Refresh principal de palettes no runtime
-- [x] Base de persistencia SQLite para continuar evoluindo sem gambiarra
+## Completed Foundation
+- [x] Materials Workbench is the main editing module
+- [x] Catalog reads from `materials.db`
+- [x] Visual `palette` editing exists
+- [x] Visual `brush` metadata editing exists
+- [x] Initial visual Border Workspace exists
+- [x] Initial visual Wall Workspace exists
+- [x] SQLite persistence is the base for future evolution
 
-## Pendente Antes De Chamar De Pronto
-- [ ] Implementar edicao de `variations`
-- [ ] Implementar `dirty state` por workspace
-- [ ] Confirmar troca de selecao com alteracoes pendentes
-- [ ] Melhorar validacoes antes de salvar
-- [ ] Criar previews mais ricos para `borders` e `walls`
-- [ ] Permitir criacao e remocao de entidades, nao so edicao das existentes
-- [ ] Melhorar clareza semantica dos metadados de origem
-- [ ] Lapidar visualmente a UI e compactar melhor os workspaces
-- [ ] Implementar fluxo profissional de `deprecated` para XML
+## Completed Recently
+- [x] Initial `variations` editing inside the Brush Workspace
+- [x] `ground` variations editing
+- [x] `carpet` variations editing
+- [x] `table` variations editing
+- [x] `doodad` variations editing
+- [x] Brush save persists metadata and variations together
+- [x] Brush save preserves rename references safely in SQLite
+- [x] Brush save no longer crashes when renaming
+- [x] Brush rename updates palette labels safely without full runtime reload
+- [x] Palette save no longer crashes by reloading the full brush runtime
+- [x] Initial Brush Workspace `dirty state`
+- [x] Initial brush selection-change guard with pending edits
+- [x] Initial Brush Workspace `Save`, `Revert`, and `Reload from DB` behavior
+- [x] Initial rename of legacy `Source` semantics to `Imported From` in brush metadata
 
-## Ajustes Finos De UI E UX
-- [ ] Reduzir espacamentos e padding em todos os workspaces para ganhar densidade
-- [ ] Unificar cabecalhos, status bars e botoes de acao para todas as telas da Workbench
-- [ ] Destacar visualmente campos alterados desde o ultimo save
-- [ ] Mostrar badge `modified` na arvore de navegacao
-- [ ] Adicionar `Save`, `Revert` e `Reload from DB` com comportamento consistente
-- [ ] Melhorar textos de status para mensagens mais uteis e menos genericas
-- [ ] Preservar selecao e scroll ao recarregar listas e grids
-- [ ] Adicionar tooltips ricos com `id`, tipo, source e relacionamentos
-- [ ] Renomear labels ambiguos de proveniencia
-- [ ] Melhorar contraste visual e alinhamento dos grids de preview
-- [ ] Padronizar labels tecnicos como `lookId`, `serverLookId`, `zOrder`, `partType`
+## Remaining Before Calling It Ready
+- [ ] Extend `dirty state` beyond the Brush Workspace
+- [ ] Highlight modified fields visually
+- [ ] Show `modified` badges in the navigation tree
+- [ ] Preserve selection and scroll more consistently across reloads
+- [ ] Improve validation before save
+- [ ] Add richer `border` and `wall` previews
+- [ ] Support entity creation and removal, not only editing
+- [ ] Improve semantic clarity for origin metadata
+- [ ] Polish the UI visually and compact workspace layouts
+- [ ] Implement a professional XML deprecation flow
 
-## Clareza Semantica E Proveniencia
-- [ ] Trocar `Source` por `Imported From` na UI quando o campo representar origem legada
-- [ ] Avaliar trocar `Source` por `Legacy XML Source`
-- [ ] Avaliar trocar `Source` por `Origin File`
-- [ ] Exibir separadamente `Storage: materials.db`
-- [ ] Exibir separadamente `Imported from: ...`
+## UI And UX Polish
+- [ ] Reduce spacing and padding across all workspaces
+- [ ] Unify headers, status bars, and action buttons across the Workbench
+- [ ] Improve status text quality and usefulness
+- [ ] Add rich tooltips with `id`, type, source, and relationships
+- [ ] Improve preview grid contrast and alignment
+- [ ] Standardize technical labels such as `lookId`, `serverLookId`, `zOrder`, and `partType`
 
-## Robustez E Validacoes
-- [ ] Validar `item id` inexistente antes de salvar
-- [ ] Validar duplicidade indevida em slots de border quando fizer sentido
-- [ ] Validar `door type` compativel com o `item id`
-- [ ] Impedir save de brush com `type` invalido ou inesperado
-- [ ] Proteger melhor transicoes de selecao em grids recriados dinamicamente
-- [ ] Adicionar logs mais especificos para falhas de save/reload
-- [ ] Revisar refresh de `walls` e `borders` no runtime, como ja foi feito com palettes
-- [ ] Adicionar testes focados para serializacao SQLite de `wallParts`, `borderSetItems` e `tilesets`
+## Semantics And Provenance
+- [x] Use `Imported From` in the UI where the field represents legacy origin
+- [ ] Decide whether `Legacy XML Source` is clearer than the current wording
+- [ ] Decide whether `Origin File` is clearer than the current wording
+- [ ] Show `Storage: materials.db` separately
+- [ ] Show `Imported from: ...` separately
 
-## Features Novas
-- [ ] Criar editor de `variations` para walls, doodads e alternates conforme o dominio
-- [ ] Criar preview composto real de `wall brush`, nao so grid de partes
-- [ ] Criar preview de border aplicada em mini-cena, nao so matriz de slots
-- [ ] Permitir duplicar `border set`, `wall part set` ou `palette`
-- [ ] Permitir criar novo `brush`, `palette` e `border set` direto pela Workbench
-- [ ] Permitir remover entidades com confirmacao segura e validacao de referencias
-- [ ] Adicionar busca e filtro em tempo real na arvore
-- [ ] Criar inspector de referencias: onde este brush e usado
-- [ ] Criar historico local de edicao por sessao
-- [ ] Permitir export/import pontual de `brush`, `palette` ou `border set`
-- [ ] Adicionar comando de `sync runtime` manual apos save
-- [ ] Adicionar comparacao `DB vs XML` durante a fase hibrida
+## Robustness And Validation
+- [ ] Validate missing `item id` before save
+- [ ] Validate invalid duplicate usage in border slots where applicable
+- [ ] Validate `door type` compatibility with the selected `item id`
+- [ ] Block saving a brush with an invalid or unexpected `type`
+- [ ] Harden selection transitions in dynamically recreated grids
+- [ ] Add more specific save and reload logs
+- [ ] Revisit runtime refresh for `walls` and `borders`
+- [ ] Add focused tests for SQLite serialization of `wallParts`, `borderSetItems`, and `tilesets`
 
-## Variations
-- [ ] Priorizar `variations` como proxima feature funcional relevante
-- [ ] Recuperar o valor funcional que existia no editor antigo
-- [ ] Implementar `variations` com arquitetura limpa, sem repetir o espaguete antigo
+## New Features
+- [ ] Add `variations` editing for additional domains where still missing
+- [ ] Add a real composed preview for `wall brush`, not only a parts grid
+- [ ] Add a mini-scene preview for `border` application, not only a slot matrix
+- [ ] Allow duplicating `border set`, `wall part set`, or `palette`
+- [ ] Allow creating new `brush`, `palette`, and `border set` directly from the Workbench
+- [ ] Allow removing entities with safe confirmation and reference validation
+- [ ] Add real-time search and filtering in the navigation tree
+- [ ] Add a reference inspector showing where a brush is used
+- [ ] Add local per-session edit history
+- [ ] Allow targeted export/import for `brush`, `palette`, or `border set`
+- [ ] Add a manual `sync runtime` command after save
+- [ ] Add `DB vs XML` comparison during the hybrid phase
 
-## Roadmap Sugerido
-- [ ] Etapa 8: Variations Workspace ou suporte de `variations` dentro dos workspaces existentes
-- [ ] Etapa 9: Dirty state, validacoes, save workflow, protecao contra perda de alteracoes e revisao dos labels/metadados de origem na UI
-- [ ] Etapa 10: Lapidacao visual pesada + previews mais ricos
-- [ ] Etapa 11: Fluxo XML `deprecated` + utilitarios de migracao/sync
+## Variations Status
+- [x] `variations` are now a delivered functional milestone for the Brush Workspace
+- [x] Core functional value from the old editor has started to return
+- [x] The new implementation avoids reviving the old spaghetti structure
+- [ ] Extend the same level of completeness where more domains still need it
+- [ ] Add richer previews and UX around the current variations editors
 
-## Resumo Executivo
-- [ ] Fechar gap funcional principal: `variations`
-- [ ] Fechar polish fino de UX/UI
-- [ ] Fechar validacoes e robustez
-- [ ] Fechar UX de edicao profissional
-- [ ] Fechar transicao profissional para XML `deprecated`
+## Suggested Roadmap
+- [x] Stage 8: Variations support inside existing workspaces
+- [ ] Stage 9: Dirty state, validations, save workflow, loss-prevention, and origin metadata review
+- [ ] Stage 10: Heavy visual polish and richer previews
+- [ ] Stage 11: XML deprecation flow and migration/sync utilities
+
+## Executive Summary
+- [x] Close the main functional gap: `variations` in the Brush Workspace
+- [ ] Finish fine UX and UI polish
+- [ ] Finish validations and robustness
+- [ ] Finish a professional editing UX across all workspaces
+- [ ] Finish the professional transition to deprecated XML editing
