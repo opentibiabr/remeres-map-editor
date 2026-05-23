@@ -27,6 +27,7 @@ private:
 	void RefreshWorkbenchState();
 	void BindEvents();
 	void RefreshInspectorForCurrentSelection();
+	void UpdateBrushNavigationBadge();
 	void HandlePaletteSaved();
 	void HandleBorderSetSaved(int64_t borderSetId);
 	void HandleBrushSaved(int64_t brushId, const wxString &oldName, const wxString &newName);

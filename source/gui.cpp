@@ -1130,17 +1130,26 @@ bool GUI::ReloadMaterialPalettesFromDatabase(wxString &error, wxArrayString &war
 	return true;
 }
 
-bool GUI::RenameBrushInPalettes(const wxString &oldName, const wxString &newName) {
-	if (oldName.IsEmpty() || newName.IsEmpty() || oldName == newName) {
-		return true;
+bool GUI::SyncBrushInPalettes(const wxString &oldName, const wxString &newName, uint16_t effectiveLookId) {
+	if (newName.IsEmpty()) {
+		return false;
 	}
 
-	Brush* runtimeBrush = g_brushes.getBrush(oldName.ToStdString());
+	Brush* runtimeBrush = nullptr;
+	if (!oldName.IsEmpty()) {
+		runtimeBrush = g_brushes.getBrush(oldName.ToStdString());
+	}
+	if (!runtimeBrush) {
+		runtimeBrush = g_brushes.getBrush(newName.ToStdString());
+	}
 	if (!runtimeBrush) {
 		return false;
 	}
 
-	g_brushes.renameBrush(runtimeBrush, oldName.ToStdString(), newName.ToStdString());
+	if (!oldName.IsEmpty() && oldName != newName) {
+		g_brushes.renameBrush(runtimeBrush, oldName.ToStdString(), newName.ToStdString());
+	}
+	runtimeBrush->setLookID(effectiveLookId);
 
 	struct PaletteRestoreState {
 		PaletteWindow* palette = nullptr;

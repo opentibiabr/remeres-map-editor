@@ -13,6 +13,7 @@
 #include <wx/scrolwin.h>
 #include <wx/simplebook.h>
 #include <wx/sizer.h>
+#include <wx/settings.h>
 #include <wx/spinctrl.h>
 #include <wx/statline.h>
 #include <wx/stattext.h>
@@ -89,6 +90,40 @@ namespace {
 
 	wxString FormatDoodadTileItemLabel(int itemId, size_t index) {
 		return wxString::Format("%zu. item %d", index + 1, itemId);
+	}
+
+	wxString FormatBrushOverviewText(const BrushStorageRecord &storage) {
+		const BrushRecord &brush = storage.brush;
+		wxString text;
+		text << "Brush: " << brush.name << "\n";
+		text << "Type: " << brush.type << "\n";
+		text << "ID: " << brush.id << "\n";
+		text << "Source: " << brush.sourceFile << "\n\n";
+		text << "lookId: " << brush.lookId << "\n";
+		text << "serverLookId: " << brush.serverLookId << "\n";
+		text << "zOrder: " << brush.zOrder << "\n";
+		return text;
+	}
+
+	wxString FormatBrushInspectorText(const BrushStorageRecord &storage) {
+		const BrushRecord &brush = storage.brush;
+		wxString text = FormatBrushOverviewText(storage);
+		text << "\nFlags\n";
+		text << "  draggable: " << (brush.draggable ? "yes" : "no") << "\n";
+		text << "  onBlocking: " << (brush.onBlocking ? "yes" : "no") << "\n";
+		text << "  onDuplicate: " << (brush.onDuplicate ? "yes" : "no") << "\n";
+		text << "  redoBorders: " << (brush.redoBorders ? "yes" : "no") << "\n";
+		text << "  randomize: " << (brush.randomize ? "yes" : "no") << "\n";
+		text << "  oneSize: " << (brush.oneSize ? "yes" : "no") << "\n";
+		text << "  soloOptional: " << (brush.soloOptional ? "yes" : "no") << "\n";
+		text << "\nBrush items: " << storage.items.size() << "\n";
+		text << "Ground borders: " << storage.borders.size() << "\n";
+		text << "Links: " << storage.links.size() << "\n";
+		text << "Wall parts: " << storage.wallParts.size() << "\n";
+		text << "Carpet nodes: " << storage.carpetNodes.size() << "\n";
+		text << "Table nodes: " << storage.tableNodes.size() << "\n";
+		text << "Doodad alternatives: " << storage.doodadAlternatives.size() << "\n";
+		return text;
 	}
 
 	void NormalizeVariationSortOrdersForStorage(BrushStorageRecord &storage) {
@@ -320,6 +355,47 @@ namespace {
 			   VectorsEqual(left.tableNodes, right.tableNodes, AreTableNodeRecordsEqual) &&
 			   VectorsEqual(left.doodadAlternatives, right.doodadAlternatives, AreDoodadAlternativeRecordsEqual);
 	}
+
+	wxColour GetModifiedFieldColour() {
+		return wxColour(255, 248, 214);
+	}
+
+	void ApplyModifiedEditorStyle(wxWindow* window, bool modified) {
+		if (!window) {
+			return;
+		}
+
+		wxFont font = window->GetFont();
+		font.SetWeight(modified ? wxFONTWEIGHT_BOLD : wxFONTWEIGHT_NORMAL);
+		window->SetFont(font);
+		window->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
+		window->SetForegroundColour(modified ? wxColour(176, 102, 0) : wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT));
+		window->Refresh();
+	}
+
+	void ApplyModifiedToggleStyle(wxCheckBox* checkBox, bool modified) {
+		if (!checkBox) {
+			return;
+		}
+
+		wxFont font = checkBox->GetFont();
+		font.SetWeight(modified ? wxFONTWEIGHT_BOLD : wxFONTWEIGHT_NORMAL);
+		checkBox->SetFont(font);
+		checkBox->Refresh();
+	}
+
+	void ApplyModifiedLabelStyle(wxStaticText* label, const wxString &baseLabel, bool modified) {
+		if (!label) {
+			return;
+		}
+
+		wxFont font = label->GetFont();
+		font.SetWeight(modified ? wxFONTWEIGHT_BOLD : wxFONTWEIGHT_NORMAL);
+		label->SetFont(font);
+		label->SetLabel(modified ? baseLabel + " [modified]" : baseLabel);
+		label->SetForegroundColour(modified ? wxColour(176, 102, 0) : wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT));
+		label->Refresh();
+	}
 } // namespace
 
 MaterialsWorkbenchBrushPanel::MaterialsWorkbenchBrushPanel(wxWindow* parent, MaterialsWorkbenchController &controller) :
@@ -333,12 +409,33 @@ void MaterialsWorkbenchBrushPanel::SetOnBrushSaved(std::function<void(int64_t, c
 	onBrushSaved_ = std::move(callback);
 }
 
+void MaterialsWorkbenchBrushPanel::SetOnBrushStateChanged(std::function<void()> callback) {
+	onBrushStateChanged_ = std::move(callback);
+}
+
 bool MaterialsWorkbenchBrushPanel::HasPendingChanges() const {
 	return hasBrush_ && dirty_;
 }
 
 bool MaterialsWorkbenchBrushPanel::IsCurrentBrushSelection(const wxString &contextKey, int itemIndex) const {
 	return hasBrush_ && currentContextKey_ == contextKey && currentItemIndex_ == itemIndex;
+}
+
+wxString MaterialsWorkbenchBrushPanel::GetCurrentBrushDisplayName() const {
+	if (!hasBrush_) {
+		return "";
+	}
+
+	const wxString displayName = nameCtrl_ ? TrimmedValue(nameCtrl_) : "";
+	return displayName.IsEmpty() ? brushStorage_.brush.name : displayName;
+}
+
+wxString MaterialsWorkbenchBrushPanel::GetCurrentBrushInspectorText() const {
+	if (!hasBrush_) {
+		return "Select a palette, brush, border set or wall entry in the navigation tree to inspect its SQLite-backed metadata.";
+	}
+
+	return FormatBrushInspectorText(BuildEditableStorageFromCurrentState());
 }
 
 bool MaterialsWorkbenchBrushPanel::ResolvePendingChangesBeforeSwitch(wxWindow* parent, const wxString &targetLabel) {
@@ -529,6 +626,9 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildVariationsPage(wxNotebook* notebook)
 		wxEXPAND | wxBOTTOM,
 		FromDIP(8)
 	);
+
+	variationsStatusLabel_ = new wxStaticText(panel, wxID_ANY, "Variation Data");
+	rootSizer->Add(variationsStatusLabel_, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
 
 	variationsBook_ = new wxSimplebook(panel, wxID_ANY);
 	variationsBook_->AddPage(BuildUnsupportedVariationsPage(variationsBook_), "Unsupported");
@@ -829,6 +929,8 @@ void MaterialsWorkbenchBrushPanel::ClearWorkspace(const wxString &message) {
 	SetFieldsEnabled(false);
 	UpdateActionButtons();
 	RefreshVariationEditor();
+	UpdateModifiedHighlights();
+	NotifyBrushStateChanged();
 	if (workspaceTabs_) {
 		workspaceTabs_->SetSelection(0);
 	}
@@ -855,6 +957,8 @@ bool MaterialsWorkbenchBrushPanel::LoadBrush(const wxString &contextKey, int ite
 	PopulateFields();
 	SetFieldsEnabled(true);
 	UpdateActionButtons();
+	UpdateModifiedHighlights();
+	NotifyBrushStateChanged();
 	SetStatusMessage("Brush loaded from materials.db.");
 	Layout();
 	return true;
@@ -937,12 +1041,121 @@ void MaterialsWorkbenchBrushPanel::RefreshDirtyState() {
 		dirty_ = false;
 		UpdateWorkspaceHeader();
 		UpdateActionButtons();
+		UpdateModifiedHighlights();
+		NotifyBrushStateChanged();
 		return;
 	}
 
 	dirty_ = !AreBrushStorageRecordsEqual(BuildEditableStorageFromCurrentState(), loadedBrushStorage_);
 	UpdateWorkspaceHeader();
 	UpdateActionButtons();
+	UpdateModifiedHighlights();
+	NotifyBrushStateChanged();
+}
+
+void MaterialsWorkbenchBrushPanel::NotifyBrushStateChanged() {
+	if (onBrushStateChanged_) {
+		onBrushStateChanged_();
+	}
+}
+
+void MaterialsWorkbenchBrushPanel::UpdateModifiedHighlights() {
+	if (!hasBrush_) {
+		ApplyModifiedEditorStyle(nameCtrl_, false);
+		ApplyModifiedEditorStyle(typeCtrl_, false);
+		ApplyModifiedEditorStyle(sourceCtrl_, false);
+		ApplyModifiedEditorStyle(lookIdCtrl_, false);
+		ApplyModifiedEditorStyle(serverLookIdCtrl_, false);
+		ApplyModifiedEditorStyle(zOrderCtrl_, false);
+		ApplyModifiedEditorStyle(thicknessCtrl_, false);
+		ApplyModifiedEditorStyle(thicknessCeilingCtrl_, false);
+		ApplyModifiedToggleStyle(draggableCtrl_, false);
+		ApplyModifiedToggleStyle(onBlockingCtrl_, false);
+		ApplyModifiedToggleStyle(onDuplicateCtrl_, false);
+		ApplyModifiedToggleStyle(redoBordersCtrl_, false);
+		ApplyModifiedToggleStyle(randomizeCtrl_, false);
+		ApplyModifiedToggleStyle(oneSizeCtrl_, false);
+		ApplyModifiedToggleStyle(soloOptionalCtrl_, false);
+		ApplyModifiedLabelStyle(variationsStatusLabel_, "Variation Data", false);
+		ApplyModifiedLabelStyle(alignedSectionLabel_, UsesAlignedVariationEditor() && GetEffectiveBrushType() == "table" ? "Table Nodes" : "Carpet Nodes", false);
+		ApplyModifiedEditorStyle(groundItemsList_, false);
+		ApplyModifiedEditorStyle(groundItemIdCtrl_, false);
+		ApplyModifiedEditorStyle(groundItemChanceCtrl_, false);
+		ApplyModifiedEditorStyle(alignedNodesList_, false);
+		ApplyModifiedEditorStyle(alignedNodeAlignCtrl_, false);
+		ApplyModifiedEditorStyle(alignedItemsList_, false);
+		ApplyModifiedEditorStyle(alignedItemIdCtrl_, false);
+		ApplyModifiedEditorStyle(alignedItemChanceCtrl_, false);
+		ApplyModifiedEditorStyle(doodadAlternativesList_, false);
+		ApplyModifiedEditorStyle(doodadSingleItemsList_, false);
+		ApplyModifiedEditorStyle(doodadSingleItemIdCtrl_, false);
+		ApplyModifiedEditorStyle(doodadSingleItemChanceCtrl_, false);
+		ApplyModifiedEditorStyle(doodadCompositesList_, false);
+		ApplyModifiedEditorStyle(doodadCompositeChanceCtrl_, false);
+		ApplyModifiedEditorStyle(doodadTilesList_, false);
+		ApplyModifiedEditorStyle(doodadTileOffsetXCtrl_, false);
+		ApplyModifiedEditorStyle(doodadTileOffsetYCtrl_, false);
+		ApplyModifiedEditorStyle(doodadTileOffsetZCtrl_, false);
+		ApplyModifiedEditorStyle(doodadTileItemsList_, false);
+		ApplyModifiedEditorStyle(doodadTileItemIdCtrl_, false);
+		return;
+	}
+
+	const BrushStorageRecord editableStorage = BuildEditableStorageFromCurrentState();
+	UpdateMetadataModifiedHighlights(editableStorage.brush);
+	UpdateVariationModifiedHighlights(editableStorage);
+}
+
+void MaterialsWorkbenchBrushPanel::UpdateMetadataModifiedHighlights(const BrushRecord &editableBrush) {
+	ApplyModifiedEditorStyle(nameCtrl_, editableBrush.name != loadedBrushStorage_.brush.name);
+	ApplyModifiedEditorStyle(typeCtrl_, editableBrush.type != loadedBrushStorage_.brush.type);
+	ApplyModifiedEditorStyle(sourceCtrl_, editableBrush.sourceFile != loadedBrushStorage_.brush.sourceFile);
+	ApplyModifiedEditorStyle(lookIdCtrl_, editableBrush.lookId != loadedBrushStorage_.brush.lookId);
+	ApplyModifiedEditorStyle(serverLookIdCtrl_, editableBrush.serverLookId != loadedBrushStorage_.brush.serverLookId);
+	ApplyModifiedEditorStyle(zOrderCtrl_, editableBrush.zOrder != loadedBrushStorage_.brush.zOrder);
+	ApplyModifiedEditorStyle(thicknessCtrl_, editableBrush.thickness != loadedBrushStorage_.brush.thickness);
+	ApplyModifiedEditorStyle(thicknessCeilingCtrl_, editableBrush.thicknessCeiling != loadedBrushStorage_.brush.thicknessCeiling);
+	ApplyModifiedToggleStyle(draggableCtrl_, editableBrush.draggable != loadedBrushStorage_.brush.draggable);
+	ApplyModifiedToggleStyle(onBlockingCtrl_, editableBrush.onBlocking != loadedBrushStorage_.brush.onBlocking);
+	ApplyModifiedToggleStyle(onDuplicateCtrl_, editableBrush.onDuplicate != loadedBrushStorage_.brush.onDuplicate);
+	ApplyModifiedToggleStyle(redoBordersCtrl_, editableBrush.redoBorders != loadedBrushStorage_.brush.redoBorders);
+	ApplyModifiedToggleStyle(randomizeCtrl_, editableBrush.randomize != loadedBrushStorage_.brush.randomize);
+	ApplyModifiedToggleStyle(oneSizeCtrl_, editableBrush.oneSize != loadedBrushStorage_.brush.oneSize);
+	ApplyModifiedToggleStyle(soloOptionalCtrl_, editableBrush.soloOptional != loadedBrushStorage_.brush.soloOptional);
+}
+
+void MaterialsWorkbenchBrushPanel::UpdateVariationModifiedHighlights(const BrushStorageRecord &editableStorage) {
+	const bool groundModified = !VectorsEqual(editableStorage.items, loadedBrushStorage_.items, AreBrushItemRecordsEqual);
+	const bool carpetModified = !VectorsEqual(editableStorage.carpetNodes, loadedBrushStorage_.carpetNodes, AreCarpetNodeRecordsEqual);
+	const bool tableModified = !VectorsEqual(editableStorage.tableNodes, loadedBrushStorage_.tableNodes, AreTableNodeRecordsEqual);
+	const bool doodadModified = !VectorsEqual(editableStorage.doodadAlternatives, loadedBrushStorage_.doodadAlternatives, AreDoodadAlternativeRecordsEqual);
+	const bool variationsModified = groundModified || carpetModified || tableModified || doodadModified;
+
+	ApplyModifiedLabelStyle(variationsStatusLabel_, "Variation Data", variationsModified);
+	ApplyModifiedEditorStyle(groundItemsList_, groundModified);
+	ApplyModifiedEditorStyle(groundItemIdCtrl_, groundModified);
+	ApplyModifiedEditorStyle(groundItemChanceCtrl_, groundModified);
+
+	const bool alignedModified = GetEffectiveBrushType() == "table" ? tableModified : carpetModified;
+	ApplyModifiedLabelStyle(alignedSectionLabel_, GetEffectiveBrushType() == "table" ? "Table Nodes" : "Carpet Nodes", alignedModified);
+	ApplyModifiedEditorStyle(alignedNodesList_, alignedModified);
+	ApplyModifiedEditorStyle(alignedNodeAlignCtrl_, alignedModified);
+	ApplyModifiedEditorStyle(alignedItemsList_, alignedModified);
+	ApplyModifiedEditorStyle(alignedItemIdCtrl_, alignedModified);
+	ApplyModifiedEditorStyle(alignedItemChanceCtrl_, alignedModified);
+
+	ApplyModifiedEditorStyle(doodadAlternativesList_, doodadModified);
+	ApplyModifiedEditorStyle(doodadSingleItemsList_, doodadModified);
+	ApplyModifiedEditorStyle(doodadSingleItemIdCtrl_, doodadModified);
+	ApplyModifiedEditorStyle(doodadSingleItemChanceCtrl_, doodadModified);
+	ApplyModifiedEditorStyle(doodadCompositesList_, doodadModified);
+	ApplyModifiedEditorStyle(doodadCompositeChanceCtrl_, doodadModified);
+	ApplyModifiedEditorStyle(doodadTilesList_, doodadModified);
+	ApplyModifiedEditorStyle(doodadTileOffsetXCtrl_, doodadModified);
+	ApplyModifiedEditorStyle(doodadTileOffsetYCtrl_, doodadModified);
+	ApplyModifiedEditorStyle(doodadTileOffsetZCtrl_, doodadModified);
+	ApplyModifiedEditorStyle(doodadTileItemsList_, doodadModified);
+	ApplyModifiedEditorStyle(doodadTileItemIdCtrl_, doodadModified);
 }
 
 void MaterialsWorkbenchBrushPanel::UpdateWorkspaceHeader() {
@@ -1590,9 +1803,8 @@ bool MaterialsWorkbenchBrushPanel::SaveCurrentBrush() {
 	}
 
 	loadedBrushStorage_ = brushStorage_;
-	dirty_ = false;
 	PopulateFields();
-	UpdateActionButtons();
+	RefreshDirtyState();
 	SetStatusMessage("Brush and variations saved to materials.db.");
 
 	if (onBrushSaved_) {

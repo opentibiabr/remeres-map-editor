@@ -118,6 +118,8 @@ public:
 	virtual void setName(const std::string &newName) {
 		ASSERT(_MSG("setName attempted on nameless brush!"));
 	}
+	virtual void setLookID(uint16_t newLookId) {
+	}
 
 	virtual int getLookID() const = 0;
 
@@ -299,6 +301,9 @@ public:
 	}
 	virtual void setName(const std::string &newName) {
 		name = newName;
+	}
+	virtual void setLookID(uint16_t newLookId) {
+		look_id = newLookId;
 	}
 
 	virtual int32_t getZ() const {

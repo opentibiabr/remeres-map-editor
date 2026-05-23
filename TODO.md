@@ -27,8 +27,8 @@
 
 ## Remaining Before Calling It Ready
 - [ ] Extend `dirty state` beyond the Brush Workspace
-- [ ] Highlight modified fields visually
-- [ ] Show `modified` badges in the navigation tree
+- [x] Highlight modified fields visually in the Brush Workspace
+- [x] Show `modified` badges in the navigation tree for dirty brush edits
 - [ ] Preserve selection and scroll more consistently across reloads
 - [ ] Improve validation before save
 - [ ] Add richer `border` and `wall` previews

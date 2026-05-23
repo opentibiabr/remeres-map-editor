@@ -25,8 +25,11 @@ public:
 	void ClearWorkspace(const wxString &message);
 	bool LoadBrush(const wxString &contextKey, int itemIndex);
 	void SetOnBrushSaved(std::function<void(int64_t, const wxString&, const wxString&)> callback);
+	void SetOnBrushStateChanged(std::function<void()> callback);
 	bool HasPendingChanges() const;
 	bool IsCurrentBrushSelection(const wxString &contextKey, int itemIndex) const;
+	wxString GetCurrentBrushDisplayName() const;
+	wxString GetCurrentBrushInspectorText() const;
 	bool ResolvePendingChangesBeforeSwitch(wxWindow* parent, const wxString &targetLabel);
 
 private:
@@ -58,8 +61,12 @@ private:
 	void NormalizeVariationSortOrders();
 	BrushStorageRecord BuildEditableStorageFromCurrentState() const;
 	void RefreshDirtyState();
+	void NotifyBrushStateChanged();
 	void UpdateWorkspaceHeader();
 	void UpdateActionButtons();
+	void UpdateModifiedHighlights();
+	void UpdateMetadataModifiedHighlights(const BrushRecord &editableBrush);
+	void UpdateVariationModifiedHighlights(const BrushStorageRecord &editableStorage);
 	bool SaveCurrentBrush();
 	bool ValidateBrushStorage(wxString &error) const;
 	wxString GetEffectiveBrushType() const;
@@ -104,6 +111,7 @@ private:
 
 	MaterialsWorkbenchController &controller_;
 	std::function<void(int64_t, const wxString&, const wxString&)> onBrushSaved_;
+	std::function<void()> onBrushStateChanged_;
 	BrushStorageRecord brushStorage_;
 	BrushStorageRecord loadedBrushStorage_;
 	wxString currentContextKey_;
@@ -116,6 +124,7 @@ private:
 	wxStaticText* titleLabel_ = nullptr;
 	wxStaticText* subtitleLabel_ = nullptr;
 	wxStaticText* summaryLabel_ = nullptr;
+	wxStaticText* variationsStatusLabel_ = nullptr;
 	wxButton* saveButton_ = nullptr;
 	wxButton* revertButton_ = nullptr;
 	wxTextCtrl* nameCtrl_ = nullptr;

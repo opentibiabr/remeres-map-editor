@@ -6,6 +6,7 @@
 #include <wx/splitter.h>
 #include <wx/statline.h>
 #include <wx/stattext.h>
+#include <wx/settings.h>
 #include <wx/textctrl.h>
 #include <wx/treectrl.h>
 
@@ -20,15 +21,17 @@ namespace {
 
 	class MaterialsWorkbenchTreeItemData : public wxTreeItemData {
 	public:
-		MaterialsWorkbenchTreeItemData(MaterialsWorkbenchNodeKind kind, wxString contextKey, int itemIndex) :
+		MaterialsWorkbenchTreeItemData(MaterialsWorkbenchNodeKind kind, wxString contextKey, int itemIndex, wxString baseLabel) :
 			kind(kind),
 			contextKey(std::move(contextKey)),
-			itemIndex(itemIndex) {
+			itemIndex(itemIndex),
+			baseLabel(std::move(baseLabel)) {
 		}
 
 		MaterialsWorkbenchNodeKind kind;
 		wxString contextKey;
 		int itemIndex = -1;
+		wxString baseLabel;
 	};
 
 	wxPanel* CreateSidebarPanel(wxWindow* parent, wxTreeCtrl*& outTree) {
@@ -154,6 +157,10 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 		});
 	});
 	brushPanel_ = new MaterialsWorkbenchBrushPanel(workspaceBook_, controller_);
+	brushPanel_->SetOnBrushStateChanged([this]() {
+		UpdateBrushNavigationBadge();
+		RefreshInspectorForCurrentSelection();
+	});
 	brushPanel_->SetOnBrushSaved([this](int64_t brushId, const wxString &oldName, const wxString &newName) {
 		HandleBrushSaved(brushId, oldName, newName);
 	});
@@ -192,6 +199,13 @@ void MaterialsWorkbenchWindow::RefreshInspectorForCurrentSelection() {
 		return;
 	}
 
+	if (itemData->kind == MaterialsWorkbenchNodeKind::Brush &&
+		brushPanel_ &&
+		brushPanel_->IsCurrentBrushSelection(itemData->contextKey, itemData->itemIndex)) {
+		inspectorText_->SetValue(brushPanel_->GetCurrentBrushInspectorText());
+		return;
+	}
+
 	inspectorText_->SetValue(controller_.BuildSelectionInspector(itemData->kind, itemData->contextKey, itemData->itemIndex));
 }
 
@@ -220,24 +234,35 @@ void MaterialsWorkbenchWindow::HandleBorderSetSaved(int64_t borderSetId) {
 }
 
 void MaterialsWorkbenchWindow::HandleBrushSaved(int64_t brushId, const wxString &oldName, const wxString &newName) {
-	if (!g_gui.RenameBrushInPalettes(oldName, newName)) {
+	wxString contextKey;
+	int itemIndex = -1;
+	uint16_t effectiveLookId = 0;
+	if (controller_.LocateBrushNode(brushId, contextKey, itemIndex)) {
+		BrushStorageRecord savedBrush;
+		wxString error;
+		if (controller_.GetBrushDetails(contextKey, itemIndex, savedBrush, error)) {
+			effectiveLookId = static_cast<uint16_t>(savedBrush.brush.serverLookId > 0 ? savedBrush.brush.serverLookId : savedBrush.brush.lookId);
+		} else {
+			spdlog::warn("Materials Workbench could not reload saved brush metadata for palette sync: {}", error.ToStdString());
+		}
+	}
+
+	if (!g_gui.SyncBrushInPalettes(oldName, newName, effectiveLookId)) {
 		spdlog::warn(
-			"Materials Workbench runtime brush rename sync skipped: old='{}' new='{}'",
+			"Materials Workbench runtime brush palette sync skipped: old='{}' new='{}' lookId={}",
 			oldName.ToStdString(),
-			newName.ToStdString()
+			newName.ToStdString(),
+			effectiveLookId
 		);
 	}
 
 	RefreshWorkbenchState();
 	PopulateNavigation();
 
-	wxString contextKey;
-	int itemIndex = -1;
 	if (controller_.LocateBrushNode(brushId, contextKey, itemIndex)) {
 		SelectNavigationNode(MaterialsWorkbenchNodeKind::Brush, contextKey, itemIndex);
-	} else {
-		RefreshInspectorForCurrentSelection();
 	}
+	RefreshInspectorForCurrentSelection();
 }
 
 void MaterialsWorkbenchWindow::HandleWallBrushSaved(int64_t brushId) {
@@ -251,6 +276,41 @@ void MaterialsWorkbenchWindow::HandleWallBrushSaved(int64_t brushId) {
 	}
 }
 
+void MaterialsWorkbenchWindow::UpdateBrushNavigationBadge() {
+	if (!navigationTree_) {
+		return;
+	}
+
+	const wxTreeItemId root = navigationTree_->GetRootItem();
+	if (!root.IsOk()) {
+		return;
+	}
+
+	const bool hasDirtyBrush = brushPanel_ && brushPanel_->HasPendingChanges();
+	const wxString dirtyBrushName = hasDirtyBrush ? brushPanel_->GetCurrentBrushDisplayName() : "";
+	const wxColour defaultTextColour = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT);
+	const wxColour modifiedTextColour(176, 102, 0);
+
+	const auto applyBadge = [&](auto &&self, const wxTreeItemId &parentItem) -> void {
+		wxTreeItemIdValue cookie;
+		for (wxTreeItemId child = navigationTree_->GetFirstChild(parentItem, cookie); child.IsOk(); child = navigationTree_->GetNextChild(parentItem, cookie)) {
+			auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(child));
+			if (itemData) {
+				const bool isModifiedBrush = hasDirtyBrush &&
+					itemData->kind == MaterialsWorkbenchNodeKind::Brush &&
+					brushPanel_->IsCurrentBrushSelection(itemData->contextKey, itemData->itemIndex);
+				const wxString displayLabel = isModifiedBrush && !dirtyBrushName.IsEmpty() ? dirtyBrushName : itemData->baseLabel;
+				navigationTree_->SetItemText(child, isModifiedBrush ? displayLabel + " [modified]" : itemData->baseLabel);
+				navigationTree_->SetItemTextColour(child, isModifiedBrush ? modifiedTextColour : defaultTextColour);
+			}
+
+			self(self, child);
+		}
+	};
+
+	applyBadge(applyBadge, root);
+}
+
 void MaterialsWorkbenchWindow::PopulateNavigation() {
 	navigationTree_->DeleteAllItems();
 	wxTreeItemId root = navigationTree_->AddRoot("Materials Workbench");
@@ -261,7 +321,7 @@ void MaterialsWorkbenchWindow::PopulateNavigation() {
 				node.label,
 				-1,
 				-1,
-				newd MaterialsWorkbenchTreeItemData(node.kind, node.contextKey, node.itemIndex)
+				newd MaterialsWorkbenchTreeItemData(node.kind, node.contextKey, node.itemIndex, node.label)
 			);
 			if (!node.children.empty()) {
 				self(self, item, node.children);
@@ -276,6 +336,8 @@ void MaterialsWorkbenchWindow::PopulateNavigation() {
 	if (firstChild.IsOk()) {
 		navigationTree_->SelectItem(firstChild);
 	}
+
+	UpdateBrushNavigationBadge();
 }
 
 void MaterialsWorkbenchWindow::BindEvents() {
