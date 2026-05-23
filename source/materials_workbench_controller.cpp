@@ -234,8 +234,8 @@ bool MaterialsWorkbenchController::GetBorderSetDetails(const wxString &contextKe
 	return repository_.LoadBorderSetDetails(borderSet->id, outBorderSet, error);
 }
 
-bool MaterialsWorkbenchController::SaveBrush(BrushRecord &brush, wxString &error) {
-	if (!repository_.SaveBrush(brush, error)) {
+bool MaterialsWorkbenchController::SaveBrushDetails(BrushStorageRecord &brushStorage, wxString &error) {
+	if (!repository_.SaveBrushDetails(brushStorage, error)) {
 		return false;
 	}
 

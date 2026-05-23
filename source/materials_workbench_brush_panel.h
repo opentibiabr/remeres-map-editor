@@ -9,6 +9,10 @@
 
 class MaterialsWorkbenchController;
 class wxCheckBox;
+class wxListBox;
+class wxNotebook;
+class wxPanel;
+class wxSimplebook;
 class wxSpinCtrl;
 class wxStaticText;
 class wxTextCtrl;
@@ -23,14 +27,63 @@ public:
 
 private:
 	void BuildLayout();
+	wxPanel* BuildMetadataPage(wxNotebook* notebook);
+	wxPanel* BuildVariationsPage(wxNotebook* notebook);
+	wxPanel* BuildUnsupportedVariationsPage(wxSimplebook* book);
+	wxPanel* BuildAlignedVariationsPage(wxSimplebook* book);
+	wxPanel* BuildDoodadVariationsPage(wxSimplebook* book);
 	void PopulateFields();
+	void PopulateMetadataFields();
 	void UpdateSummary();
 	void SetStatusMessage(const wxString &message);
 	void SetFieldsEnabled(bool enabled);
+	void ResetVariationSelection();
+	void RefreshVariationEditor();
+	void RefreshAlignedNodeList();
+	void RefreshAlignedItemList();
+	void RefreshAlignedSelection();
+	void RefreshDoodadAlternativeList();
+	void RefreshDoodadSingleItemList();
+	void RefreshDoodadCompositeList();
+	void RefreshDoodadTileList();
+	void RefreshDoodadTileItemList();
+	void RefreshDoodadSelection();
+	void NormalizeVariationSortOrders();
 	bool SaveCurrentBrush();
+	bool ValidateBrushStorage(wxString &error) const;
+	wxString GetEffectiveBrushType() const;
+	bool UsesAlignedVariationEditor() const;
+	bool UsesDoodadVariationEditor() const;
 
 	void OnSave(wxCommandEvent &event);
 	void OnRevert(wxCommandEvent &event);
+	void OnAddAlignedNode(wxCommandEvent &event);
+	void OnRemoveAlignedNode(wxCommandEvent &event);
+	void OnAlignedNodeSelected(wxCommandEvent &event);
+	void OnAlignedNodeAlignChanged(wxCommandEvent &event);
+	void OnAddAlignedItem(wxCommandEvent &event);
+	void OnRemoveAlignedItem(wxCommandEvent &event);
+	void OnAlignedItemSelected(wxCommandEvent &event);
+	void OnAlignedItemValueChanged(wxCommandEvent &event);
+	void OnAddDoodadAlternative(wxCommandEvent &event);
+	void OnRemoveDoodadAlternative(wxCommandEvent &event);
+	void OnDoodadAlternativeSelected(wxCommandEvent &event);
+	void OnAddDoodadSingleItem(wxCommandEvent &event);
+	void OnRemoveDoodadSingleItem(wxCommandEvent &event);
+	void OnDoodadSingleItemSelected(wxCommandEvent &event);
+	void OnDoodadSingleItemValueChanged(wxCommandEvent &event);
+	void OnAddDoodadComposite(wxCommandEvent &event);
+	void OnRemoveDoodadComposite(wxCommandEvent &event);
+	void OnDoodadCompositeSelected(wxCommandEvent &event);
+	void OnDoodadCompositeChanceChanged(wxCommandEvent &event);
+	void OnAddDoodadTile(wxCommandEvent &event);
+	void OnRemoveDoodadTile(wxCommandEvent &event);
+	void OnDoodadTileSelected(wxCommandEvent &event);
+	void OnDoodadTileOffsetChanged(wxCommandEvent &event);
+	void OnAddDoodadTileItem(wxCommandEvent &event);
+	void OnRemoveDoodadTileItem(wxCommandEvent &event);
+	void OnDoodadTileItemSelected(wxCommandEvent &event);
+	void OnDoodadTileItemValueChanged(wxCommandEvent &event);
 
 	MaterialsWorkbenchController &controller_;
 	std::function<void(int64_t)> onBrushSaved_;
@@ -38,7 +91,9 @@ private:
 	wxString currentContextKey_;
 	int currentItemIndex_ = -1;
 	bool hasBrush_ = false;
+	bool internalUpdate_ = false;
 
+	wxNotebook* workspaceTabs_ = nullptr;
 	wxStaticText* titleLabel_ = nullptr;
 	wxStaticText* subtitleLabel_ = nullptr;
 	wxStaticText* summaryLabel_ = nullptr;
@@ -58,6 +113,33 @@ private:
 	wxCheckBox* randomizeCtrl_ = nullptr;
 	wxCheckBox* oneSizeCtrl_ = nullptr;
 	wxCheckBox* soloOptionalCtrl_ = nullptr;
+	wxSimplebook* variationsBook_ = nullptr;
+	wxStaticText* variationsEmptyLabel_ = nullptr;
+	wxStaticText* alignedSectionLabel_ = nullptr;
+	wxListBox* alignedNodesList_ = nullptr;
+	wxTextCtrl* alignedNodeAlignCtrl_ = nullptr;
+	wxListBox* alignedItemsList_ = nullptr;
+	wxSpinCtrl* alignedItemIdCtrl_ = nullptr;
+	wxSpinCtrl* alignedItemChanceCtrl_ = nullptr;
+	int alignedNodeIndex_ = -1;
+	int alignedItemIndex_ = -1;
+	wxListBox* doodadAlternativesList_ = nullptr;
+	wxListBox* doodadSingleItemsList_ = nullptr;
+	wxSpinCtrl* doodadSingleItemIdCtrl_ = nullptr;
+	wxSpinCtrl* doodadSingleItemChanceCtrl_ = nullptr;
+	wxListBox* doodadCompositesList_ = nullptr;
+	wxSpinCtrl* doodadCompositeChanceCtrl_ = nullptr;
+	wxListBox* doodadTilesList_ = nullptr;
+	wxSpinCtrl* doodadTileOffsetXCtrl_ = nullptr;
+	wxSpinCtrl* doodadTileOffsetYCtrl_ = nullptr;
+	wxSpinCtrl* doodadTileOffsetZCtrl_ = nullptr;
+	wxListBox* doodadTileItemsList_ = nullptr;
+	wxSpinCtrl* doodadTileItemIdCtrl_ = nullptr;
+	int doodadAlternativeIndex_ = -1;
+	int doodadSingleItemIndex_ = -1;
+	int doodadCompositeIndex_ = -1;
+	int doodadTileIndex_ = -1;
+	int doodadTileItemIndex_ = -1;
 	wxStaticText* statusLabel_ = nullptr;
 };
 

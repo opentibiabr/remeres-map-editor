@@ -16,7 +16,7 @@ public:
 	std::vector<MaterialsWorkbenchTreeNode> BuildNavigationTree() const;
 	bool GetTilesetByIndex(int itemIndex, TilesetStorageRecord &outTileset) const;
 	bool GetBrushDetails(const wxString &contextKey, int itemIndex, BrushStorageRecord &outBrush, wxString &error) const;
-	bool SaveBrush(BrushRecord &brush, wxString &error);
+	bool SaveBrushDetails(BrushStorageRecord &brushStorage, wxString &error);
 	bool SaveWallBrushParts(BrushStorageRecord &brushStorage, wxString &error);
 	bool LocateBrushNode(int64_t brushId, wxString &outContextKey, int &outItemIndex) const;
 	bool GetBorderSetDetails(const wxString &contextKey, int itemIndex, BorderSetStorageRecord &outBorderSet, wxString &error) const;
