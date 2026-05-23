@@ -30,6 +30,7 @@ private:
 	wxPanel* BuildMetadataPage(wxNotebook* notebook);
 	wxPanel* BuildVariationsPage(wxNotebook* notebook);
 	wxPanel* BuildUnsupportedVariationsPage(wxSimplebook* book);
+	wxPanel* BuildGroundVariationsPage(wxSimplebook* book);
 	wxPanel* BuildAlignedVariationsPage(wxSimplebook* book);
 	wxPanel* BuildDoodadVariationsPage(wxSimplebook* book);
 	void PopulateFields();
@@ -39,6 +40,8 @@ private:
 	void SetFieldsEnabled(bool enabled);
 	void ResetVariationSelection();
 	void RefreshVariationEditor();
+	void RefreshGroundItemList();
+	void RefreshGroundSelection();
 	void RefreshAlignedNodeList();
 	void RefreshAlignedItemList();
 	void RefreshAlignedSelection();
@@ -52,11 +55,16 @@ private:
 	bool SaveCurrentBrush();
 	bool ValidateBrushStorage(wxString &error) const;
 	wxString GetEffectiveBrushType() const;
+	bool UsesGroundVariationEditor() const;
 	bool UsesAlignedVariationEditor() const;
 	bool UsesDoodadVariationEditor() const;
 
 	void OnSave(wxCommandEvent &event);
 	void OnRevert(wxCommandEvent &event);
+	void OnAddGroundItem(wxCommandEvent &event);
+	void OnRemoveGroundItem(wxCommandEvent &event);
+	void OnGroundItemSelected(wxCommandEvent &event);
+	void OnGroundItemValueChanged(wxCommandEvent &event);
 	void OnAddAlignedNode(wxCommandEvent &event);
 	void OnRemoveAlignedNode(wxCommandEvent &event);
 	void OnAlignedNodeSelected(wxCommandEvent &event);
@@ -115,6 +123,10 @@ private:
 	wxCheckBox* soloOptionalCtrl_ = nullptr;
 	wxSimplebook* variationsBook_ = nullptr;
 	wxStaticText* variationsEmptyLabel_ = nullptr;
+	wxListBox* groundItemsList_ = nullptr;
+	wxSpinCtrl* groundItemIdCtrl_ = nullptr;
+	wxSpinCtrl* groundItemChanceCtrl_ = nullptr;
+	int groundItemIndex_ = -1;
 	wxStaticText* alignedSectionLabel_ = nullptr;
 	wxListBox* alignedNodesList_ = nullptr;
 	wxTextCtrl* alignedNodeAlignCtrl_ = nullptr;

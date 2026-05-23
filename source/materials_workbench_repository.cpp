@@ -113,6 +113,10 @@ bool MaterialsWorkbenchRepository::SaveBrushDetails(BrushStorageRecord &brushSto
 			error = g_brush_database.getLastError();
 			return false;
 		}
+		if (!g_brush_database.replaceBrushItems(brush.id, brushStorage.items)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
 		if (!g_brush_database.replaceTableNodes(brush.id, brushStorage.tableNodes)) {
 			error = g_brush_database.getLastError();
 			return false;

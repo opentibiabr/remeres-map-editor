@@ -53,6 +53,10 @@ namespace {
 		return wxString::Format("%zu. item %d (chance %d)", index + 1, itemId, chance);
 	}
 
+	wxString FormatGroundItemLabel(int itemId, int chance, size_t index) {
+		return wxString::Format("%zu. item %d (chance %d)", index + 1, itemId, chance);
+	}
+
 	wxString FormatDoodadAlternativeLabel(const DoodadAlternativeRecord &alternative, size_t index) {
 		return wxString::Format(
 			"%zu. %zu single | %zu composite",
@@ -230,7 +234,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildVariationsPage(wxNotebook* notebook)
 		new wxStaticText(
 			panel,
 			wxID_ANY,
-			"Brush variations are stored in materials.db and edited per domain: aligned nodes for carpet/table, alternatives for doodads."
+			"Brush variations are stored in materials.db and edited per domain: weighted items for grounds, aligned nodes for carpet/table, alternatives for doodads."
 		),
 		0,
 		wxEXPAND | wxBOTTOM,
@@ -239,6 +243,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildVariationsPage(wxNotebook* notebook)
 
 	variationsBook_ = new wxSimplebook(panel, wxID_ANY);
 	variationsBook_->AddPage(BuildUnsupportedVariationsPage(variationsBook_), "Unsupported");
+	variationsBook_->AddPage(BuildGroundVariationsPage(variationsBook_), "Ground");
 	variationsBook_->AddPage(BuildAlignedVariationsPage(variationsBook_), "Aligned");
 	variationsBook_->AddPage(BuildDoodadVariationsPage(variationsBook_), "Doodad");
 
@@ -255,6 +260,54 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildUnsupportedVariationsPage(wxSimplebo
 	sizer->Add(variationsEmptyLabel_, 0, wxALIGN_CENTER | wxALL, FromDIP(12));
 	sizer->AddStretchSpacer();
 	panel->SetSizer(sizer);
+	return panel;
+}
+
+wxPanel* MaterialsWorkbenchBrushPanel::BuildGroundVariationsPage(wxSimplebook* book) {
+	wxPanel* panel = new wxPanel(book, wxID_ANY);
+	wxBoxSizer* rootSizer = new wxBoxSizer(wxHORIZONTAL);
+
+	wxBoxSizer* listSizer = new wxBoxSizer(wxVERTICAL);
+	listSizer->Add(CreateSectionLabel(panel, "Ground Items"), 0, wxBOTTOM, FromDIP(6));
+	groundItemsList_ = new wxListBox(panel, wxID_ANY);
+	listSizer->Add(groundItemsList_, 1, wxEXPAND | wxBOTTOM, FromDIP(6));
+	wxBoxSizer* buttonsSizer = new wxBoxSizer(wxHORIZONTAL);
+	wxButton* addButton = new wxButton(panel, wxID_ANY, "Add Item");
+	wxButton* removeButton = new wxButton(panel, wxID_ANY, "Remove");
+	buttonsSizer->Add(addButton, 1, wxRIGHT, FromDIP(4));
+	buttonsSizer->Add(removeButton, 1);
+	listSizer->Add(buttonsSizer, 0, wxEXPAND);
+
+	wxBoxSizer* editorSizer = new wxBoxSizer(wxVERTICAL);
+	editorSizer->Add(CreateSectionLabel(panel, "Selected Item"), 0, wxBOTTOM, FromDIP(6));
+	editorSizer->Add(
+		new wxStaticText(panel, wxID_ANY, "Ground variations currently edit weighted item entries. Border rules stay in the dedicated border workflow."),
+		0,
+		wxEXPAND | wxBOTTOM,
+		FromDIP(10)
+	);
+	wxFlexGridSizer* form = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
+	form->AddGrowableCol(1, 1);
+	groundItemIdCtrl_ = CreateSpinField(panel, 0, 1000000);
+	groundItemChanceCtrl_ = CreateSpinField(panel, 0, 1000000);
+	form->Add(new wxStaticText(panel, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
+	form->Add(groundItemIdCtrl_, 1, wxEXPAND);
+	form->Add(new wxStaticText(panel, wxID_ANY, "Chance"), 0, wxALIGN_CENTER_VERTICAL);
+	form->Add(groundItemChanceCtrl_, 1, wxEXPAND);
+	editorSizer->Add(form, 0, wxEXPAND);
+
+	rootSizer->Add(listSizer, 0, wxEXPAND | wxRIGHT, FromDIP(10));
+	rootSizer->Add(new wxStaticLine(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_VERTICAL), 0, wxEXPAND | wxRIGHT, FromDIP(10));
+	rootSizer->Add(editorSizer, 1, wxEXPAND);
+	panel->SetSizer(rootSizer);
+
+	addButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnAddGroundItem, this);
+	removeButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnRemoveGroundItem, this);
+	groundItemsList_->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBrushPanel::OnGroundItemSelected, this);
+	groundItemIdCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBrushPanel::OnGroundItemValueChanged, this);
+	groundItemChanceCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBrushPanel::OnGroundItemValueChanged, this);
+	groundItemIdCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnGroundItemValueChanged, this);
+	groundItemChanceCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnGroundItemValueChanged, this);
 	return panel;
 }
 
@@ -586,6 +639,7 @@ void MaterialsWorkbenchBrushPanel::SetFieldsEnabled(bool enabled) {
 }
 
 void MaterialsWorkbenchBrushPanel::ResetVariationSelection() {
+	groundItemIndex_ = -1;
 	alignedNodeIndex_ = -1;
 	alignedItemIndex_ = -1;
 	doodadAlternativeIndex_ = -1;
@@ -602,6 +656,10 @@ wxString MaterialsWorkbenchBrushPanel::GetEffectiveBrushType() const {
 	}
 	type.MakeLower();
 	return type;
+}
+
+bool MaterialsWorkbenchBrushPanel::UsesGroundVariationEditor() const {
+	return GetEffectiveBrushType() == "ground";
 }
 
 bool MaterialsWorkbenchBrushPanel::UsesAlignedVariationEditor() const {
@@ -624,16 +682,23 @@ void MaterialsWorkbenchBrushPanel::RefreshVariationEditor() {
 		return;
 	}
 
+	if (UsesGroundVariationEditor()) {
+		variationsBook_->SetSelection(1);
+		RefreshGroundItemList();
+		RefreshGroundSelection();
+		return;
+	}
+
 	if (UsesAlignedVariationEditor()) {
 		alignedSectionLabel_->SetLabel(GetEffectiveBrushType() == "carpet" ? "Carpet Nodes" : "Table Nodes");
-		variationsBook_->SetSelection(1);
+		variationsBook_->SetSelection(2);
 		RefreshAlignedNodeList();
 		RefreshAlignedSelection();
 		return;
 	}
 
 	if (UsesDoodadVariationEditor()) {
-		variationsBook_->SetSelection(2);
+		variationsBook_->SetSelection(3);
 		RefreshDoodadAlternativeList();
 		RefreshDoodadSelection();
 		return;
@@ -643,6 +708,45 @@ void MaterialsWorkbenchBrushPanel::RefreshVariationEditor() {
 		"Variations are not yet exposed for '" + GetEffectiveBrushType() + "' brushes in this first workbench pass."
 	);
 	variationsBook_->SetSelection(0);
+}
+
+void MaterialsWorkbenchBrushPanel::RefreshGroundItemList() {
+	if (!groundItemsList_) {
+		return;
+	}
+
+	groundItemsList_->Clear();
+	for (size_t i = 0; i < brushStorage_.items.size(); ++i) {
+		groundItemsList_->Append(FormatGroundItemLabel(brushStorage_.items[i].itemId, brushStorage_.items[i].chance, i));
+	}
+
+	if (brushStorage_.items.empty()) {
+		groundItemIndex_ = -1;
+	} else if (groundItemIndex_ < 0 || groundItemIndex_ >= static_cast<int>(brushStorage_.items.size())) {
+		groundItemIndex_ = 0;
+	}
+
+	if (groundItemIndex_ >= 0) {
+		groundItemsList_->SetSelection(groundItemIndex_);
+	}
+}
+
+void MaterialsWorkbenchBrushPanel::RefreshGroundSelection() {
+	internalUpdate_ = true;
+
+	const bool hasItem = groundItemIndex_ >= 0 && groundItemIndex_ < static_cast<int>(brushStorage_.items.size());
+	groundItemIdCtrl_->Enable(hasItem);
+	groundItemChanceCtrl_->Enable(hasItem);
+
+	if (hasItem) {
+		groundItemIdCtrl_->SetValue(brushStorage_.items[groundItemIndex_].itemId);
+		groundItemChanceCtrl_->SetValue(brushStorage_.items[groundItemIndex_].chance);
+	} else {
+		groundItemIdCtrl_->SetValue(0);
+		groundItemChanceCtrl_->SetValue(0);
+	}
+
+	internalUpdate_ = false;
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshAlignedNodeList() {
@@ -987,6 +1091,9 @@ void MaterialsWorkbenchBrushPanel::RefreshDoodadSelection() {
 }
 
 void MaterialsWorkbenchBrushPanel::NormalizeVariationSortOrders() {
+	for (size_t i = 0; i < brushStorage_.items.size(); ++i) {
+		brushStorage_.items[i].sortOrder = static_cast<int>(i);
+	}
 	for (size_t i = 0; i < brushStorage_.carpetNodes.size(); ++i) {
 		brushStorage_.carpetNodes[i].sortOrder = static_cast<int>(i);
 		for (size_t j = 0; j < brushStorage_.carpetNodes[i].items.size(); ++j) {
@@ -1031,6 +1138,20 @@ bool MaterialsWorkbenchBrushPanel::ValidateBrushStorage(wxString &error) const {
 	}
 
 	const wxString type = brush.type.Lower();
+	if (type == "ground") {
+		if (brushStorage_.items.empty()) {
+			error = "Ground brush must contain at least one weighted item.";
+			return false;
+		}
+		for (size_t itemIndex = 0; itemIndex < brushStorage_.items.size(); ++itemIndex) {
+			const BrushItemRecord &item = brushStorage_.items[itemIndex];
+			if (item.itemId <= 0) {
+				error = wxString::Format("Ground item %zu must use a positive item id.", itemIndex + 1);
+				return false;
+			}
+		}
+	}
+
 	if (type == "carpet" || type == "table") {
 		if (type == "carpet") {
 			for (size_t nodeIndex = 0; nodeIndex < brushStorage_.carpetNodes.size(); ++nodeIndex) {
@@ -1149,13 +1270,20 @@ bool MaterialsWorkbenchBrushPanel::SaveCurrentBrush() {
 	brush.oneSize = oneSizeCtrl_->GetValue();
 	brush.soloOptional = soloOptionalCtrl_->GetValue();
 
-	if (brush.type == "carpet") {
+	if (brush.type == "ground") {
+		brushStorage_.carpetNodes.clear();
+		brushStorage_.tableNodes.clear();
+		brushStorage_.doodadAlternatives.clear();
+	} else if (brush.type == "carpet") {
+		brushStorage_.items.clear();
 		brushStorage_.tableNodes.clear();
 		brushStorage_.doodadAlternatives.clear();
 	} else if (brush.type == "table") {
+		brushStorage_.items.clear();
 		brushStorage_.carpetNodes.clear();
 		brushStorage_.doodadAlternatives.clear();
 	} else if (brush.type == "doodad") {
+		brushStorage_.items.clear();
 		brushStorage_.carpetNodes.clear();
 		brushStorage_.tableNodes.clear();
 	} else {
@@ -1202,6 +1330,62 @@ void MaterialsWorkbenchBrushPanel::OnRevert(wxCommandEvent &WXUNUSED(event)) {
 	}
 
 	SetStatusMessage("Brush fields and variations reloaded from materials.db.");
+}
+
+void MaterialsWorkbenchBrushPanel::OnAddGroundItem(wxCommandEvent &WXUNUSED(event)) {
+	if (!hasBrush_ || !UsesGroundVariationEditor()) {
+		return;
+	}
+
+	BrushItemRecord item;
+	item.chance = 1;
+	brushStorage_.items.push_back(item);
+	groundItemIndex_ = static_cast<int>(brushStorage_.items.size()) - 1;
+	RefreshGroundItemList();
+	RefreshGroundSelection();
+	UpdateSummary();
+	SetStatusMessage("Added ground variation item.");
+}
+
+void MaterialsWorkbenchBrushPanel::OnRemoveGroundItem(wxCommandEvent &WXUNUSED(event)) {
+	if (!hasBrush_ || !UsesGroundVariationEditor()) {
+		return;
+	}
+	if (groundItemIndex_ < 0 || groundItemIndex_ >= static_cast<int>(brushStorage_.items.size())) {
+		SetStatusMessage("Select a ground item before removing it.");
+		return;
+	}
+
+	brushStorage_.items.erase(brushStorage_.items.begin() + groundItemIndex_);
+	if (groundItemIndex_ >= static_cast<int>(brushStorage_.items.size())) {
+		groundItemIndex_ = static_cast<int>(brushStorage_.items.size()) - 1;
+	}
+	RefreshGroundItemList();
+	RefreshGroundSelection();
+	UpdateSummary();
+	SetStatusMessage("Removed ground variation item.");
+}
+
+void MaterialsWorkbenchBrushPanel::OnGroundItemSelected(wxCommandEvent &event) {
+	groundItemIndex_ = event.GetSelection();
+	RefreshGroundSelection();
+}
+
+void MaterialsWorkbenchBrushPanel::OnGroundItemValueChanged(wxCommandEvent &WXUNUSED(event)) {
+	if (internalUpdate_ || !hasBrush_ || !UsesGroundVariationEditor()) {
+		return;
+	}
+	if (groundItemIndex_ < 0 || groundItemIndex_ >= static_cast<int>(brushStorage_.items.size())) {
+		return;
+	}
+
+	brushStorage_.items[groundItemIndex_].itemId = groundItemIdCtrl_->GetValue();
+	brushStorage_.items[groundItemIndex_].chance = groundItemChanceCtrl_->GetValue();
+	RefreshGroundItemList();
+	if (groundItemIndex_ >= 0) {
+		groundItemsList_->SetSelection(groundItemIndex_);
+	}
+	UpdateSummary();
 }
 
 void MaterialsWorkbenchBrushPanel::OnAddAlignedNode(wxCommandEvent &WXUNUSED(event)) {
