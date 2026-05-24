@@ -42,6 +42,7 @@ private:
 	void SetStatusMessage(const wxString &message);
 	void SetFieldsEnabled(bool enabled);
 	BorderSetStorageRecord BuildComparableStorageFromCurrentState() const;
+	bool ValidateBorderSetStorage(const BorderSetStorageRecord &storage, wxString &error) const;
 	void RefreshDirtyState();
 	void NotifyBorderSetStateChanged();
 	void UpdateWorkspaceHeader();

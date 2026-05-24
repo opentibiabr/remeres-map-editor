@@ -22,6 +22,13 @@
 #include "materials_workbench_controller.h"
 
 namespace {
+	bool IsKnownBorderPanelItemId(int itemId) {
+		if (itemId <= 0 || itemId > std::numeric_limits<uint16_t>::max()) {
+			return false;
+		}
+		return g_items.isValidID(static_cast<uint16_t>(itemId));
+	}
+
 	struct BorderEdgeSpec {
 		const char* edge;
 		const char* label;
@@ -554,6 +561,51 @@ BorderSetStorageRecord MaterialsWorkbenchBorderPanel::BuildComparableStorageFrom
 	return storage;
 }
 
+bool MaterialsWorkbenchBorderPanel::ValidateBorderSetStorage(const BorderSetStorageRecord &storage, wxString &error) const {
+	if (storage.borderSet.borderScope.IsEmpty()) {
+		error = "Border scope must be selected.";
+		return false;
+	}
+
+	if (storage.borderSet.groundEquivalent < 0) {
+		error = "Ground equivalent cannot be negative.";
+		return false;
+	}
+
+	if (storage.borderSet.groundEquivalent > 0 && !IsKnownBorderPanelItemId(storage.borderSet.groundEquivalent)) {
+		error = wxString::Format("Ground equivalent uses unknown item id %d.", storage.borderSet.groundEquivalent);
+		return false;
+	}
+
+	std::map<int, wxString> itemEdgeById;
+	for (const BorderSetItemRecord &item : storage.items) {
+		if (item.itemId <= 0) {
+			error = wxString::Format("Border slot \"%s\" must use a positive item id.", item.edge);
+			return false;
+		}
+		if (!IsKnownBorderPanelItemId(item.itemId)) {
+			error = wxString::Format("Border slot \"%s\" uses unknown item id %d.", item.edge, item.itemId);
+			return false;
+		}
+
+		const auto duplicateIt = itemEdgeById.find(item.itemId);
+		if (duplicateIt != itemEdgeById.end() && duplicateIt->second != item.edge) {
+			error = wxString::Format(
+				"Item id %d is used by both border slots \"%s\" and \"%s\". Each slot must use its own item id so runtime border alignment stays unambiguous.",
+				item.itemId,
+				duplicateIt->second,
+				item.edge
+			);
+			return false;
+		}
+
+		itemEdgeById[item.itemId] = item.edge;
+	}
+
+	error.clear();
+	return true;
+}
+
 void MaterialsWorkbenchBorderPanel::RefreshDirtyState() {
 	if (!hasBorderSet_) {
 		dirty_ = false;
@@ -690,12 +742,15 @@ bool MaterialsWorkbenchBorderPanel::SaveCurrentBorderSet() {
 		SetStatusMessage("Select a border set before saving.");
 		return false;
 	}
-	if (scopeChoice_->GetSelection() == wxNOT_FOUND) {
-		SetStatusMessage("Border scope must be selected.");
+
+	BorderSetStorageRecord comparableStorage = BuildComparableStorageFromCurrentState();
+	wxString validationError;
+	if (!ValidateBorderSetStorage(comparableStorage, validationError)) {
+		SetStatusMessage("Cannot save border set: " + validationError);
 		return false;
 	}
 
-	borderSetStorage_ = BuildComparableStorageFromCurrentState();
+	borderSetStorage_ = comparableStorage;
 
 	wxString error;
 	if (!controller_.SaveBorderSet(borderSetStorage_, error)) {
