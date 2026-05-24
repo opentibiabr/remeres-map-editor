@@ -103,11 +103,14 @@
 
 ## Next Task Handoff
 - Current focus remains `Stage 9`
+- `Stage 9` is not finished yet; the Brush Workspace is close, but there are still remaining selection/scroll, logging, and provenance tasks before calling it complete
 - Brush Workspace already has: initial variations editing, stable save/revert flow, rename-safe palette sync, dirty state, modified badges, selection guard, and stronger save-time validation for `item id`, `lookId`, `serverLookId`, and `type`
 - Brush palette runtime sync already updates renamed brushes and saved `lookId` changes without full runtime reload
 - The current modified-field highlight works functionally but still needs a more professional visual treatment
 - Recent progress: variation list refreshes now preserve the visible list position more consistently during `Clear()`/`Append()` rebuilds
 - Recent progress: reloading the same brush now preserves more of the active variation editor context, including internal selection state and visible list position
-- Next recommended step: extend that preservation to the remaining reload paths and harden dynamic selection transitions in recreated UI controls
+- Remaining blockers for closing `Stage 9`: preserve selection/scroll more consistently across the remaining reload paths, harden dynamic selection transitions in recreated UI controls, add more specific save/reload logs, and clarify provenance metadata in the UI
+- Best next implementation cut: harden dynamic variation selection transitions and extend state preservation to the remaining reload paths in the Brush Workspace
 - After that, continue `Stage 9` with more specific save/reload logs and clearer provenance metadata (`Storage: materials.db` and `Imported from: ...`)
+- If a follow-up task must be split, keep the next task scoped to `Stage 9` only; do not jump to previews or Stage 10 polish until the items above are closed
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`
