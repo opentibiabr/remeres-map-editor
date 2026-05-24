@@ -613,6 +613,12 @@ void MaterialsWorkbenchWallPanel::RefreshSelectedPart() {
 }
 
 void MaterialsWorkbenchWallPanel::RefreshItemGrid() {
+	int viewX = 0;
+	int viewY = 0;
+	if (itemGridScroll_) {
+		itemGridScroll_->GetViewStart(&viewX, &viewY);
+	}
+
 	itemGridSizer_->Clear(true);
 	itemButtons_.clear();
 
@@ -645,9 +651,16 @@ void MaterialsWorkbenchWallPanel::RefreshItemGrid() {
 
 	itemGridScroll_->FitInside();
 	itemGridScroll_->Layout();
+	itemGridScroll_->Scroll(viewX, viewY);
 }
 
 void MaterialsWorkbenchWallPanel::RefreshDoorGrid() {
+	int viewX = 0;
+	int viewY = 0;
+	if (doorGridScroll_) {
+		doorGridScroll_->GetViewStart(&viewX, &viewY);
+	}
+
 	doorGridSizer_->Clear(true);
 	doorButtons_.clear();
 
@@ -681,6 +694,7 @@ void MaterialsWorkbenchWallPanel::RefreshDoorGrid() {
 
 	doorGridScroll_->FitInside();
 	doorGridScroll_->Layout();
+	doorGridScroll_->Scroll(viewX, viewY);
 }
 
 void MaterialsWorkbenchWallPanel::SyncSelectedItemEditor() {
@@ -756,6 +770,12 @@ BrushStorageRecord MaterialsWorkbenchWallPanel::BuildComparableStorageFromCurren
 MaterialsWorkbenchWallPanel::WallEditorState MaterialsWorkbenchWallPanel::CaptureEditorState() const {
 	WallEditorState state;
 	state.valid = hasWallBrush_;
+	if (itemGridScroll_) {
+		itemGridScroll_->GetViewStart(&state.itemGridViewX, &state.itemGridViewY);
+	}
+	if (doorGridScroll_) {
+		doorGridScroll_->GetViewStart(&state.doorGridViewX, &state.doorGridViewY);
+	}
 
 	const WallPartRecord* part = GetSelectedPart();
 	if (!part) {
@@ -839,6 +859,12 @@ void MaterialsWorkbenchWallPanel::RestoreEditorState(const WallEditorState &stat
 
 	RefreshPartChoice();
 	RefreshSelectedPart();
+	if (itemGridScroll_ && state.itemGridViewX >= 0 && state.itemGridViewY >= 0) {
+		itemGridScroll_->Scroll(state.itemGridViewX, state.itemGridViewY);
+	}
+	if (doorGridScroll_ && state.doorGridViewX >= 0 && state.doorGridViewY >= 0) {
+		doorGridScroll_->Scroll(state.doorGridViewX, state.doorGridViewY);
+	}
 }
 
 void MaterialsWorkbenchWallPanel::RefreshDirtyState() {

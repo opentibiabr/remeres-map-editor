@@ -37,8 +37,12 @@ private:
 	struct WallEditorState {
 		bool valid = false;
 		wxString partType;
+		int itemGridViewX = -1;
+		int itemGridViewY = -1;
 		int itemSortOrder = -1;
 		int itemId = 0;
+		int doorGridViewX = -1;
+		int doorGridViewY = -1;
 		int doorSortOrder = -1;
 		int doorItemId = 0;
 		wxString doorType;

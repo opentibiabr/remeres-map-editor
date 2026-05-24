@@ -39,6 +39,7 @@
 - [x] Wall Workspace now guards selection changes and window close against losing pending edits
 - [x] Wall Workspace now preserves the selected wall part/item/door more often across save and reload
 - [x] Wall Workspace now validates door type compatibility against the selected item id and runtime wall-door metadata
+- [x] Wall Workspace now preserves item and door grid scroll more often when refreshing dynamically recreated selections
 
 ## Remaining Before Calling It Ready
 - [ ] Extend `dirty state` beyond the Brush Workspace
@@ -119,6 +120,6 @@
 - The current modified-field highlight works functionally but still needs a more professional visual treatment
 - Remaining Brush Workspace follow-up is now small and mostly polish-level: final reassessment of any residual selection/scroll edge cases and whether the modified highlight needs one more visual pass
 - `Wall Workspace` has now started its `Stage 9` pass with dirty state, save/revert consistency, selection-change protection, close protection, navigation badge integration, and basic context preservation across save/reload
-- Recommended next task goal: keep `Stage 9` on `Wall Workspace`, focusing next on any remaining selection/scroll edge cases before moving on to previews
+- Recommended next task goal: keep `Stage 9` on `Wall Workspace`, focusing next on runtime refresh behavior for walls/borders and any remaining edge cases before moving on to previews
 - If a follow-up task must be split, keep the next task scoped to `Stage 9` only; do not jump to previews or Stage 10 polish until the items above are closed
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`
