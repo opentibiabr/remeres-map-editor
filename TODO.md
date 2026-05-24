@@ -74,7 +74,7 @@
 - [x] Validate `door type` compatibility with the selected `item id`
 - [x] Block saving a brush with an invalid or unexpected `type` in the Brush Workspace
 - [ ] Harden selection transitions in dynamically recreated grids
-- [ ] Add more specific save and reload logs
+- [x] Add more specific save and reload logs
 - [ ] Revisit runtime refresh for `walls` and `borders`
 - [ ] Add focused tests for SQLite serialization of `wallParts`, `borderSetItems`, and `tilesets`
 
@@ -119,6 +119,6 @@
 - The current modified-field highlight works functionally but still needs a more professional visual treatment
 - Remaining Brush Workspace follow-up is now small and mostly polish-level: final reassessment of any residual selection/scroll edge cases and whether the modified highlight needs one more visual pass
 - `Wall Workspace` has now started its `Stage 9` pass with dirty state, save/revert consistency, selection-change protection, close protection, navigation badge integration, and basic context preservation across save/reload
-- Recommended next task goal: keep `Stage 9` on `Wall Workspace`, focusing next on any remaining selection/scroll edge cases and save/reload diagnostics before moving on to previews
+- Recommended next task goal: keep `Stage 9` on `Wall Workspace`, focusing next on any remaining selection/scroll edge cases before moving on to previews
 - If a follow-up task must be split, keep the next task scoped to `Stage 9` only; do not jump to previews or Stage 10 polish until the items above are closed
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`

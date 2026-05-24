@@ -495,6 +495,12 @@ bool MaterialsWorkbenchWallPanel::LoadWallBrush(const wxString &contextKey, int 
 	wxString error;
 	BrushStorageRecord storage;
 	if (!controller_.GetBrushDetails(contextKey, itemIndex, storage, error)) {
+		spdlog::warn(
+			"Materials Workbench failed to load wall brush details: context='{}' index={} error='{}'",
+			contextKey.ToStdString(),
+			itemIndex,
+			error.ToStdString()
+		);
 		ClearWorkspace("Failed to load wall brush details: " + error);
 		return false;
 	}
@@ -526,6 +532,12 @@ bool MaterialsWorkbenchWallPanel::LoadWallBrush(const wxString &contextKey, int 
 	UpdateActionButtons();
 	NotifyWallBrushStateChanged();
 	SetStatusMessage("Wall brush loaded from materials.db.");
+	spdlog::info(
+		"Materials Workbench loaded wall brush from materials.db: id={} name='{}' preserved_context={}",
+		static_cast<long long>(wallBrushStorage_.brush.id),
+		wallBrushStorage_.brush.name.ToStdString(),
+		preserveEditorState
+	);
 	Layout();
 	return true;
 }
@@ -1007,12 +1019,24 @@ bool MaterialsWorkbenchWallPanel::SaveCurrentWallBrush() {
 
 	wxString validationError;
 	if (!ValidateWallBrushStorage(validationError)) {
+		spdlog::warn(
+			"Materials Workbench blocked wall brush save for id={} name='{}': {}",
+			static_cast<long long>(wallBrushStorage_.brush.id),
+			wallBrushStorage_.brush.name.ToStdString(),
+			validationError.ToStdString()
+		);
 		SetStatusMessage("Cannot save wall brush: " + validationError);
 		return false;
 	}
 
 	wxString error;
 	if (!controller_.SaveWallBrushParts(wallBrushStorage_, error)) {
+		spdlog::warn(
+			"Materials Workbench failed to save wall brush parts after validation: id={} name='{}' error='{}'",
+			static_cast<long long>(wallBrushStorage_.brush.id),
+			wallBrushStorage_.brush.name.ToStdString(),
+			error.ToStdString()
+		);
 		SetStatusMessage("Failed to save wall brush parts: " + error);
 		return false;
 	}
@@ -1024,6 +1048,12 @@ bool MaterialsWorkbenchWallPanel::SaveCurrentWallBrush() {
 	}
 	RefreshDirtyState();
 	SetStatusMessage("Wall brush parts saved to materials.db.");
+	spdlog::info(
+		"Materials Workbench saved wall brush parts: id={} name='{}' preserved_context={}",
+		static_cast<long long>(wallBrushStorage_.brush.id),
+		wallBrushStorage_.brush.name.ToStdString(),
+		previousEditorState.valid
+	);
 	if (onWallBrushSaved_) {
 		onWallBrushSaved_(wallBrushStorage_.brush.id);
 	}
@@ -1162,6 +1192,15 @@ void MaterialsWorkbenchWallPanel::OnApplyDoor(wxCommandEvent &event) {
 	NormalizeWallPartRecord(*part);
 	wxString validationError;
 	if (!ValidateWallBrushStorage(validationError)) {
+		spdlog::warn(
+			"Materials Workbench blocked wall door apply for brush id={} name='{}' part='{}' item_id={} type='{}': {}",
+			static_cast<long long>(wallBrushStorage_.brush.id),
+			wallBrushStorage_.brush.name.ToStdString(),
+			part->partType.ToStdString(),
+			record.itemId,
+			record.doorType.ToStdString(),
+			validationError.ToStdString()
+		);
 		if (replacingExistingDoor && selectedDoorIndex_ >= 0 && selectedDoorIndex_ < static_cast<int>(part->doors.size())) {
 			part->doors[selectedDoorIndex_] = previousDoorRecord;
 		} else if (selectedDoorIndex_ >= 0 && selectedDoorIndex_ < static_cast<int>(part->doors.size())) {
@@ -1202,16 +1241,28 @@ void MaterialsWorkbenchWallPanel::OnRevert(wxCommandEvent &event) {
 		ClearWorkspace("Select a wall brush in the navigation tree to edit its wall parts.");
 		return;
 	}
+	const int64_t brushId = wallBrushStorage_.brush.id;
+	const wxString brushName = wallBrushStorage_.brush.name;
 	if (!dirty_) {
 		SetStatusMessage("Wall brush already matches materials.db.");
 		return;
 	}
 
 	if (!LoadWallBrush(currentContextKey_, currentItemIndex_)) {
+		spdlog::warn(
+			"Materials Workbench failed to revert wall brush from materials.db: id={} name='{}'",
+			static_cast<long long>(brushId),
+			brushName.ToStdString()
+		);
 		return;
 	}
 
 	SetStatusMessage("Wall brush reloaded from materials.db.");
+	spdlog::info(
+		"Materials Workbench reverted wall brush from materials.db: id={} name='{}'",
+		static_cast<long long>(brushId),
+		brushName.ToStdString()
+	);
 }
 
 void MaterialsWorkbenchWallPanel::OnItemIdChanged(wxCommandEvent &event) {
