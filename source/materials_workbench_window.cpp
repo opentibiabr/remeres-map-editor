@@ -41,6 +41,7 @@ namespace {
 		MaterialsWorkbenchNodeKind selectedKind = MaterialsWorkbenchNodeKind::Group;
 		wxString selectedContextKey;
 		int selectedItemIndex = -1;
+		wxString firstVisibleNodeKey;
 		std::vector<wxString> expandedNodeKeys;
 	};
 
@@ -61,6 +62,13 @@ namespace {
 				state.selectedKind = itemData->kind;
 				state.selectedContextKey = itemData->contextKey;
 				state.selectedItemIndex = itemData->itemIndex;
+			}
+		}
+
+		const wxTreeItemId firstVisible = tree->GetFirstVisibleItem();
+		if (firstVisible.IsOk()) {
+			if (auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(tree->GetItemData(firstVisible))) {
+				state.firstVisibleNodeKey = BuildNavigationNodeKey(itemData->kind, itemData->contextKey, itemData->itemIndex);
 			}
 		}
 
@@ -86,6 +94,27 @@ namespace {
 
 	bool NavigationStateContainsExpandedKey(const NavigationTreeState &state, const wxString &key) {
 		return std::find(state.expandedNodeKeys.begin(), state.expandedNodeKeys.end(), key) != state.expandedNodeKeys.end();
+	}
+
+	bool FindNavigationNodeByKeyRecursive(
+		wxTreeCtrl* tree,
+		const wxTreeItemId &parent,
+		const wxString &targetKey,
+		wxTreeItemId &outItem
+	) {
+		wxTreeItemIdValue cookie;
+		for (wxTreeItemId child = tree->GetFirstChild(parent, cookie); child.IsOk(); child = tree->GetNextChild(parent, cookie)) {
+			if (auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(tree->GetItemData(child))) {
+				if (BuildNavigationNodeKey(itemData->kind, itemData->contextKey, itemData->itemIndex) == targetKey) {
+					outItem = child;
+					return true;
+				}
+			}
+			if (FindNavigationNodeByKeyRecursive(tree, child, targetKey, outItem)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	wxPanel* CreateSidebarPanel(wxWindow* parent, wxTreeCtrl*& outTree) {
@@ -396,6 +425,13 @@ void MaterialsWorkbenchWindow::PopulateNavigation() {
 		wxTreeItemId firstChild = navigationTree_->GetFirstChild(root, cookie);
 		if (firstChild.IsOk()) {
 			navigationTree_->SelectItem(firstChild);
+		}
+	}
+
+	if (!previousState.firstVisibleNodeKey.IsEmpty()) {
+		wxTreeItemId firstVisibleItem;
+		if (FindNavigationNodeByKeyRecursive(navigationTree_, root, previousState.firstVisibleNodeKey, firstVisibleItem)) {
+			navigationTree_->ScrollTo(firstVisibleItem);
 		}
 	}
 

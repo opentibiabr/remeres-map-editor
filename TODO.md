@@ -34,6 +34,7 @@
 - [x] Saving the same brush now preserves more of the current variation editor context
 - [x] Navigation tree refreshes now preserve expanded groups and current selection more often
 - [x] Brush reload now preserves variation context by brush id even when refresh changes the item index
+- [x] Navigation tree refreshes now preserve the first visible region more often instead of jumping to the top
 
 ## Remaining Before Calling It Ready
 - [ ] Extend `dirty state` beyond the Brush Workspace
@@ -122,6 +123,7 @@
 - Recent progress: saving the same brush now restores more of the active variation editor context instead of rebuilding the panel more bluntly
 - Recent progress: navigation tree refreshes now preserve expanded groups and the current selection more often instead of jumping back to the first node
 - Recent progress: brush reload now preserves variation context by brush id even if rename or refresh changes the brush index in navigation
+- Recent progress: navigation tree refreshes now preserve the first visible region more often instead of jumping back to the top
 - Remaining blockers for closing `Stage 9`: preserve selection/scroll more consistently across the remaining reload paths and harden any last unstable dynamic selection transitions in recreated UI controls
 - Best next implementation cut: finish the remaining selection/scroll preservation paths in the Brush Workspace, then reassess whether `Stage 9` is ready to close
 - If a follow-up task must be split, keep the next task scoped to `Stage 9` only; do not jump to previews or Stage 10 polish until the items above are closed
