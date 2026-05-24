@@ -631,6 +631,35 @@ bool Brushes::loadFromDatabase(wxArrayString &warnings) {
 	return true;
 }
 
+bool Brushes::reloadBrushFromDatabase(int64_t brushId, wxArrayString &warnings, wxString &error) {
+	error.clear();
+
+	if (!g_brush_database.isOpen()) {
+		error = "SQLite brush database is not open.";
+		return false;
+	}
+
+	BrushStorageRecord storage;
+	if (!g_brush_database.getCompleteBrushById(brushId, storage)) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
+
+	try {
+		pugi::xml_document brushDoc;
+		BuildBrushNode(brushDoc, storage);
+		if (!unserializeBrush(brushDoc.child("brush"), warnings)) {
+			error = "Failed to hydrate runtime brush from SQLite storage.";
+			return false;
+		}
+	} catch (const std::exception &ex) {
+		error = wxString::FromUTF8(ex.what());
+		return false;
+	}
+
+	return true;
+}
+
 void Brushes::addBrush(Brush* brush) {
 	if (brush) {
 		brushes.insert(std::make_pair(brush->getName(), brush));

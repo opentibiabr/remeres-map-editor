@@ -365,6 +365,23 @@ void MaterialsWorkbenchWindow::HandleBrushSaved(int64_t brushId, const wxString 
 }
 
 void MaterialsWorkbenchWindow::HandleWallBrushSaved(int64_t brushId) {
+	wxArrayString warnings;
+	wxString error;
+	if (!g_brushes.reloadBrushFromDatabase(brushId, warnings, error)) {
+		spdlog::warn(
+			"Materials Workbench runtime wall brush refresh failed after wall save: id={} error='{}'",
+			static_cast<long long>(brushId),
+			error.ToStdString()
+		);
+	}
+	for (const wxString &warning : warnings) {
+		spdlog::warn(
+			"Materials Workbench runtime wall brush refresh warning after wall save: id={} warning='{}'",
+			static_cast<long long>(brushId),
+			warning.ToStdString()
+		);
+	}
+
 	RefreshWorkbenchState();
 	PopulateNavigation();
 
@@ -373,6 +390,7 @@ void MaterialsWorkbenchWindow::HandleWallBrushSaved(int64_t brushId) {
 	if (controller_.LocateBrushNode(brushId, contextKey, itemIndex)) {
 		SelectNavigationNode(MaterialsWorkbenchNodeKind::Brush, contextKey, itemIndex);
 	}
+	RefreshInspectorForCurrentSelection();
 }
 
 void MaterialsWorkbenchWindow::UpdateBrushNavigationBadge() {

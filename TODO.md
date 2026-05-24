@@ -45,6 +45,7 @@
 - [x] Border slot preview now reacts immediately when editing the selected item id
 - [x] Border set navigation labels now reflect XML border ids and type more clearly instead of only showing the SQLite id
 - [x] Border Workspace layout now gives metadata and selected-slot editing enough space on narrower window widths
+- [x] Saving a wall brush now refreshes the runtime wall brush state from `materials.db` without using the unsafe global reload path
 
 ## Remaining Before Calling It Ready
 - [ ] Extend `dirty state` beyond the Brush Workspace
@@ -125,6 +126,6 @@
 - The current modified-field highlight works functionally but still needs a more professional visual treatment
 - Remaining Brush Workspace follow-up is now small and mostly polish-level: final reassessment of any residual selection/scroll edge cases and whether the modified highlight needs one more visual pass
 - `Wall Workspace` has now started its `Stage 9` pass with dirty state, save/revert consistency, selection-change protection, close protection, navigation badge integration, and basic context preservation across save/reload
-- Recommended next task goal: keep `Stage 9` on `Wall Workspace`, focusing next on targeted runtime refresh behavior for saved wall brushes and any remaining edge cases before moving on to previews
+- Recommended next task goal: keep `Stage 9` on `Wall Workspace`, focusing next on any remaining edge cases and then reassessing what still blocks the move to previews
 - If a follow-up task must be split, keep the next task scoped to `Stage 9` only; do not jump to previews or Stage 10 polish until the items above are closed
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`
