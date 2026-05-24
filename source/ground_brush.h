@@ -40,6 +40,7 @@ public:
 	}
 
 	virtual bool load(pugi::xml_node node, wxArrayString &warnings);
+	void resetRuntimeState();
 
 	virtual void draw(BaseMap* map, Tile* tile, void* parameter);
 	virtual void undraw(BaseMap* map, Tile* tile);

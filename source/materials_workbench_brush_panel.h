@@ -92,6 +92,9 @@ private:
 	void UpdateModifiedHighlights();
 	void UpdateMetadataModifiedHighlights(const BrushRecord &editableBrush);
 	void UpdateVariationModifiedHighlights(const BrushStorageRecord &editableStorage);
+	void UpdateItemOwnershipHint(wxStaticText* label, int itemId, bool hasSelection) const;
+	bool TryGetRuntimeBrushOwnerName(int itemId, wxString &ownerName) const;
+	bool IsCurrentBrushOwnerName(const wxString &ownerName) const;
 	VariationEditorState CaptureVariationEditorState() const;
 	void RestoreVariationEditorState(const VariationEditorState &state);
 	bool SaveCurrentBrush();
@@ -177,6 +180,7 @@ private:
 	wxListBox* groundItemsList_ = nullptr;
 	wxSpinCtrl* groundItemIdCtrl_ = nullptr;
 	wxSpinCtrl* groundItemChanceCtrl_ = nullptr;
+	wxStaticText* groundItemOwnershipLabel_ = nullptr;
 	int groundItemIndex_ = -1;
 	wxStaticText* alignedSectionLabel_ = nullptr;
 	wxListBox* alignedNodesList_ = nullptr;
@@ -184,12 +188,14 @@ private:
 	wxListBox* alignedItemsList_ = nullptr;
 	wxSpinCtrl* alignedItemIdCtrl_ = nullptr;
 	wxSpinCtrl* alignedItemChanceCtrl_ = nullptr;
+	wxStaticText* alignedItemOwnershipLabel_ = nullptr;
 	int alignedNodeIndex_ = -1;
 	int alignedItemIndex_ = -1;
 	wxListBox* doodadAlternativesList_ = nullptr;
 	wxListBox* doodadSingleItemsList_ = nullptr;
 	wxSpinCtrl* doodadSingleItemIdCtrl_ = nullptr;
 	wxSpinCtrl* doodadSingleItemChanceCtrl_ = nullptr;
+	wxStaticText* doodadSingleItemOwnershipLabel_ = nullptr;
 	wxListBox* doodadCompositesList_ = nullptr;
 	wxSpinCtrl* doodadCompositeChanceCtrl_ = nullptr;
 	wxListBox* doodadTilesList_ = nullptr;
@@ -198,6 +204,7 @@ private:
 	wxSpinCtrl* doodadTileOffsetZCtrl_ = nullptr;
 	wxListBox* doodadTileItemsList_ = nullptr;
 	wxSpinCtrl* doodadTileItemIdCtrl_ = nullptr;
+	wxStaticText* doodadTileItemOwnershipLabel_ = nullptr;
 	int doodadAlternativeIndex_ = -1;
 	int doodadSingleItemIndex_ = -1;
 	int doodadCompositeIndex_ = -1;

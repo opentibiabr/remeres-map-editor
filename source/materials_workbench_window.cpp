@@ -346,6 +346,29 @@ void MaterialsWorkbenchWindow::HandleBrushSaved(int64_t brushId, const wxString 
 		}
 	}
 
+	if (oldName != newName) {
+		if (Brush* runtimeBrush = g_brushes.getBrush(oldName.ToStdString())) {
+			g_brushes.renameBrush(runtimeBrush, oldName.ToStdString(), newName.ToStdString());
+		}
+	}
+
+	wxArrayString warnings;
+	wxString reloadError;
+	if (!g_brushes.reloadBrushFromDatabase(brushId, warnings, reloadError)) {
+		spdlog::warn(
+			"Materials Workbench runtime brush refresh failed after brush save: id={} error='{}'",
+			static_cast<long long>(brushId),
+			reloadError.ToStdString()
+		);
+	}
+	for (const wxString &warning : warnings) {
+		spdlog::warn(
+			"Materials Workbench runtime brush refresh warning after brush save: id={} warning='{}'",
+			static_cast<long long>(brushId),
+			warning.ToStdString()
+		);
+	}
+
 	if (!g_gui.SyncBrushInPalettes(oldName, newName, effectiveLookId)) {
 		spdlog::warn(
 			"Materials Workbench runtime brush palette sync skipped: old='{}' new='{}' lookId={}",

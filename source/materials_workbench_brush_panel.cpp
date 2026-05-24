@@ -20,6 +20,7 @@
 #include <wx/stattext.h>
 #include <wx/textctrl.h>
 
+#include "brush.h"
 #include "items.h"
 #include "materials_workbench_controller.h"
 
@@ -744,8 +745,11 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildGroundVariationsPage(wxSimplebook* b
 	form->AddGrowableCol(1, 1);
 	groundItemIdCtrl_ = CreateItemIdSpinField(panel);
 	groundItemChanceCtrl_ = CreateSpinField(panel, 0, 1000000);
+	groundItemOwnershipLabel_ = new wxStaticText(panel, wxID_ANY, "Runtime owner: select an item entry.");
 	form->Add(new wxStaticText(panel, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
 	form->Add(groundItemIdCtrl_, 1, wxEXPAND);
+	form->AddSpacer(0);
+	form->Add(groundItemOwnershipLabel_, 1, wxEXPAND);
 	form->Add(new wxStaticText(panel, wxID_ANY, "Chance"), 0, wxALIGN_CENTER_VERTICAL);
 	form->Add(groundItemChanceCtrl_, 1, wxEXPAND);
 	editorSizer->Add(form, 0, wxEXPAND);
@@ -806,8 +810,11 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildAlignedVariationsPage(wxSimplebook* 
 	itemForm->AddGrowableCol(1, 1);
 	alignedItemIdCtrl_ = CreateItemIdSpinField(panel);
 	alignedItemChanceCtrl_ = CreateSpinField(panel, 0, 1000000);
+	alignedItemOwnershipLabel_ = new wxStaticText(panel, wxID_ANY, "Runtime owner: select an item entry.");
 	itemForm->Add(new wxStaticText(panel, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
 	itemForm->Add(alignedItemIdCtrl_, 1, wxEXPAND);
+	itemForm->AddSpacer(0);
+	itemForm->Add(alignedItemOwnershipLabel_, 1, wxEXPAND);
 	itemForm->Add(new wxStaticText(panel, wxID_ANY, "Chance"), 0, wxALIGN_CENTER_VERTICAL);
 	itemForm->Add(alignedItemChanceCtrl_, 1, wxEXPAND);
 	editorSizer->Add(itemForm, 0, wxEXPAND);
@@ -860,8 +867,11 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 	singleForm->AddGrowableCol(1, 1);
 	doodadSingleItemIdCtrl_ = CreateItemIdSpinField(panel);
 	doodadSingleItemChanceCtrl_ = CreateSpinField(panel, 0, 1000000);
+	doodadSingleItemOwnershipLabel_ = new wxStaticText(panel, wxID_ANY, "Runtime owner: select an item entry.");
 	singleForm->Add(new wxStaticText(panel, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
 	singleForm->Add(doodadSingleItemIdCtrl_, 1, wxEXPAND);
+	singleForm->AddSpacer(0);
+	singleForm->Add(doodadSingleItemOwnershipLabel_, 1, wxEXPAND);
 	singleForm->Add(new wxStaticText(panel, wxID_ANY, "Chance"), 0, wxALIGN_CENTER_VERTICAL);
 	singleForm->Add(doodadSingleItemChanceCtrl_, 1, wxEXPAND);
 	midSizer->Add(singleForm, 0, wxEXPAND | wxBOTTOM, FromDIP(12));
@@ -917,8 +927,11 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 	wxFlexGridSizer* tileItemForm = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
 	tileItemForm->AddGrowableCol(1, 1);
 	doodadTileItemIdCtrl_ = CreateItemIdSpinField(panel);
+	doodadTileItemOwnershipLabel_ = new wxStaticText(panel, wxID_ANY, "Runtime owner: select an item entry.");
 	tileItemForm->Add(new wxStaticText(panel, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
 	tileItemForm->Add(doodadTileItemIdCtrl_, 1, wxEXPAND);
+	tileItemForm->AddSpacer(0);
+	tileItemForm->Add(doodadTileItemOwnershipLabel_, 1, wxEXPAND);
 	rightSizer->Add(tileItemForm, 0, wxEXPAND);
 
 	rootSizer->Add(altSizer, 0, wxEXPAND | wxRIGHT, FromDIP(10));
@@ -1319,6 +1332,76 @@ void MaterialsWorkbenchBrushPanel::UpdateVariationModifiedHighlights(const Brush
 	ApplyModifiedEditorStyle(doodadTileItemIdCtrl_, doodadModified);
 }
 
+bool MaterialsWorkbenchBrushPanel::TryGetRuntimeBrushOwnerName(int itemId, wxString &ownerName) const {
+	ownerName.clear();
+	if (!IsKnownItemId(itemId)) {
+		return false;
+	}
+
+	const ItemType &itemType = g_items.getItemType(static_cast<uint16_t>(itemId));
+	if (!itemType.brush) {
+		return false;
+	}
+
+	ownerName = wxString::FromUTF8(itemType.brush->getName());
+	return !ownerName.IsEmpty();
+}
+
+bool MaterialsWorkbenchBrushPanel::IsCurrentBrushOwnerName(const wxString &ownerName) const {
+	if (ownerName.IsEmpty()) {
+		return false;
+	}
+
+	const wxString editedName = hasBrush_ ? TrimmedValue(nameCtrl_) : "";
+	return ownerName == editedName || ownerName == brushStorage_.brush.name || ownerName == loadedBrushStorage_.brush.name;
+}
+
+void MaterialsWorkbenchBrushPanel::UpdateItemOwnershipHint(wxStaticText* label, int itemId, bool hasSelection) const {
+	if (!label) {
+		return;
+	}
+
+	if (!hasSelection) {
+		label->SetLabel("Runtime owner: select an item entry.");
+		label->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_GRAYTEXT));
+		label->Refresh();
+		return;
+	}
+
+	if (itemId <= 0) {
+		label->SetLabel("Runtime owner: item id must be greater than 0.");
+		label->SetForegroundColour(wxColour(176, 102, 0));
+		label->Refresh();
+		return;
+	}
+
+	if (!IsKnownItemId(itemId)) {
+		label->SetLabel(wxString::Format("Runtime owner: item id %d does not exist in the catalog.", itemId));
+		label->SetForegroundColour(wxColour(176, 102, 0));
+		label->Refresh();
+		return;
+	}
+
+	wxString ownerName;
+	if (!TryGetRuntimeBrushOwnerName(itemId, ownerName)) {
+		label->SetLabel("Runtime owner: free item id.");
+		label->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_GRAYTEXT));
+		label->Refresh();
+		return;
+	}
+
+	if (IsCurrentBrushOwnerName(ownerName)) {
+		label->SetLabel(wxString::Format("Runtime owner: this brush (%s).", ownerName));
+		label->SetForegroundColour(wxColour(46, 125, 50));
+		label->Refresh();
+		return;
+	}
+
+	label->SetLabel(wxString::Format("Runtime owner: already used by brush \"%s\".", ownerName));
+	label->SetForegroundColour(wxColour(176, 102, 0));
+	label->Refresh();
+}
+
 MaterialsWorkbenchBrushPanel::VariationEditorState MaterialsWorkbenchBrushPanel::CaptureVariationEditorState() const {
 	VariationEditorState state;
 	state.valid = hasBrush_;
@@ -1574,6 +1657,7 @@ void MaterialsWorkbenchBrushPanel::RefreshGroundSelection() {
 	}
 
 	internalUpdate_ = false;
+	UpdateItemOwnershipHint(groundItemOwnershipLabel_, groundItemIdCtrl_->GetValue(), hasItem);
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshAlignedNodeList() {
@@ -1714,6 +1798,7 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedSelection() {
 	alignedItemIdCtrl_->Enable(hasItem);
 	alignedItemChanceCtrl_->Enable(hasItem);
 	internalUpdate_ = false;
+	UpdateItemOwnershipHint(alignedItemOwnershipLabel_, alignedItemIdCtrl_->GetValue(), hasItem);
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshDoodadAlternativeList() {
@@ -1929,6 +2014,8 @@ void MaterialsWorkbenchBrushPanel::RefreshDoodadSelection() {
 	doodadTileItemIdCtrl_->Enable(hasTileItem);
 
 	internalUpdate_ = false;
+	UpdateItemOwnershipHint(doodadSingleItemOwnershipLabel_, doodadSingleItemIdCtrl_->GetValue(), hasSingleItem);
+	UpdateItemOwnershipHint(doodadTileItemOwnershipLabel_, doodadTileItemIdCtrl_->GetValue(), hasTileItem);
 }
 
 void MaterialsWorkbenchBrushPanel::NormalizeVariationSortOrders() {
@@ -1937,6 +2024,14 @@ void MaterialsWorkbenchBrushPanel::NormalizeVariationSortOrders() {
 
 bool MaterialsWorkbenchBrushPanel::ValidateBrushStorage(wxString &error) const {
 	const BrushRecord &brush = brushStorage_.brush;
+	const auto isOwnedByDifferentRuntimeBrush = [&](int itemId, wxString &ownerName) -> bool {
+		if (!TryGetRuntimeBrushOwnerName(itemId, ownerName)) {
+			return false;
+		}
+
+		return ownerName != brush.name && ownerName != loadedBrushStorage_.brush.name;
+	};
+
 	if (brush.name.IsEmpty()) {
 		error = "Brush name cannot be empty.";
 		return false;
@@ -1984,6 +2079,21 @@ bool MaterialsWorkbenchBrushPanel::ValidateBrushStorage(wxString &error) const {
 				error = wxString::Format("Ground item %zu uses unknown item id %d.", itemIndex + 1, item.itemId);
 				return false;
 			}
+			const ItemType &itemType = g_items.getItemType(static_cast<uint16_t>(item.itemId));
+			if (!itemType.isGroundTile()) {
+				error = wxString::Format("Ground item %zu uses item id %d, which is not a ground item.", itemIndex + 1, item.itemId);
+				return false;
+			}
+			wxString ownerName;
+			if (isOwnedByDifferentRuntimeBrush(item.itemId, ownerName)) {
+				error = wxString::Format(
+					"Ground item %zu uses item id %d, which already belongs to brush \"%s\" in the runtime catalog.",
+					itemIndex + 1,
+					item.itemId,
+					ownerName
+				);
+				return false;
+			}
 		}
 	}
 
@@ -2009,6 +2119,17 @@ bool MaterialsWorkbenchBrushPanel::ValidateBrushStorage(wxString &error) const {
 						error = wxString::Format("Node %zu item %zu uses unknown item id %d.", nodeIndex + 1, itemIndex + 1, item.itemId);
 						return false;
 					}
+					wxString ownerName;
+					if (isOwnedByDifferentRuntimeBrush(item.itemId, ownerName)) {
+						error = wxString::Format(
+							"Node %zu item %zu uses item id %d, which already belongs to brush \"%s\" in the runtime catalog.",
+							nodeIndex + 1,
+							itemIndex + 1,
+							item.itemId,
+							ownerName
+						);
+						return false;
+					}
 				}
 			}
 		} else {
@@ -2032,6 +2153,17 @@ bool MaterialsWorkbenchBrushPanel::ValidateBrushStorage(wxString &error) const {
 						error = wxString::Format("Node %zu item %zu uses unknown item id %d.", nodeIndex + 1, itemIndex + 1, item.itemId);
 						return false;
 					}
+					wxString ownerName;
+					if (isOwnedByDifferentRuntimeBrush(item.itemId, ownerName)) {
+						error = wxString::Format(
+							"Node %zu item %zu uses item id %d, which already belongs to brush \"%s\" in the runtime catalog.",
+							nodeIndex + 1,
+							itemIndex + 1,
+							item.itemId,
+							ownerName
+						);
+						return false;
+					}
 				}
 			}
 		}
@@ -2052,6 +2184,17 @@ bool MaterialsWorkbenchBrushPanel::ValidateBrushStorage(wxString &error) const {
 				}
 				if (!IsKnownItemId(item.itemId)) {
 					error = wxString::Format("Alternative %zu single item %zu uses unknown item id %d.", altIndex + 1, itemIndex + 1, item.itemId);
+					return false;
+				}
+				wxString ownerName;
+				if (isOwnedByDifferentRuntimeBrush(item.itemId, ownerName)) {
+					error = wxString::Format(
+						"Alternative %zu single item %zu uses item id %d, which already belongs to brush \"%s\" in the runtime catalog.",
+						altIndex + 1,
+						itemIndex + 1,
+						item.itemId,
+						ownerName
+					);
 					return false;
 				}
 			}
@@ -2091,6 +2234,19 @@ bool MaterialsWorkbenchBrushPanel::ValidateBrushStorage(wxString &error) const {
 								tileIndex + 1,
 								tileItemIndex + 1,
 								tile.items[tileItemIndex].itemId
+							);
+							return false;
+						}
+						wxString ownerName;
+						if (isOwnedByDifferentRuntimeBrush(tile.items[tileItemIndex].itemId, ownerName)) {
+							error = wxString::Format(
+								"Alternative %zu composite %zu tile %zu item %zu uses item id %d, which already belongs to brush \"%s\" in the runtime catalog.",
+								altIndex + 1,
+								compositeIndex + 1,
+								tileIndex + 1,
+								tileItemIndex + 1,
+								tile.items[tileItemIndex].itemId,
+								ownerName
 							);
 							return false;
 						}
@@ -2259,6 +2415,7 @@ void MaterialsWorkbenchBrushPanel::OnGroundItemValueChanged(wxCommandEvent &WXUN
 	if (groundItemIndex_ >= 0) {
 		groundItemsList_->SetSelection(groundItemIndex_);
 	}
+	UpdateItemOwnershipHint(groundItemOwnershipLabel_, groundItemIdCtrl_->GetValue(), true);
 	UpdateSummary();
 	RefreshDirtyState();
 }
@@ -2454,6 +2611,7 @@ void MaterialsWorkbenchBrushPanel::OnAlignedItemValueChanged(wxCommandEvent &WXU
 	if (alignedItemIndex_ >= 0) {
 		alignedItemsList_->SetSelection(alignedItemIndex_);
 	}
+	UpdateItemOwnershipHint(alignedItemOwnershipLabel_, alignedItemIdCtrl_->GetValue(), true);
 	RefreshDirtyState();
 }
 
@@ -2562,6 +2720,7 @@ void MaterialsWorkbenchBrushPanel::OnDoodadSingleItemValueChanged(wxCommandEvent
 	if (doodadAlternativeIndex_ >= 0) {
 		doodadAlternativesList_->SetSelection(doodadAlternativeIndex_);
 	}
+	UpdateItemOwnershipHint(doodadSingleItemOwnershipLabel_, doodadSingleItemIdCtrl_->GetValue(), true);
 	RefreshDirtyState();
 }
 
@@ -2632,6 +2791,7 @@ void MaterialsWorkbenchBrushPanel::OnDoodadCompositeChanceChanged(wxCommandEvent
 	if (doodadAlternativeIndex_ >= 0) {
 		doodadAlternativesList_->SetSelection(doodadAlternativeIndex_);
 	}
+	UpdateItemOwnershipHint(doodadTileItemOwnershipLabel_, doodadTileItemIdCtrl_->GetValue(), true);
 	RefreshDirtyState();
 }
 
