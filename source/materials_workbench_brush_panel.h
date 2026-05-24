@@ -13,6 +13,7 @@ class wxCheckBox;
 class wxListBox;
 class wxNotebook;
 class wxPanel;
+class wxScrolledWindow;
 class wxSimplebook;
 class wxSpinCtrl;
 class wxStaticText;
@@ -36,6 +37,8 @@ private:
 	struct VariationEditorState {
 		bool valid = false;
 		int workspaceTabSelection = 0;
+		int metadataViewX = -1;
+		int metadataViewY = -1;
 		int groundItemIndex = -1;
 		int alignedNodeIndex = -1;
 		int alignedItemIndex = -1;
@@ -145,6 +148,7 @@ private:
 	bool dirty_ = false;
 
 	wxNotebook* workspaceTabs_ = nullptr;
+	wxScrolledWindow* metadataPage_ = nullptr;
 	wxStaticText* titleLabel_ = nullptr;
 	wxStaticText* subtitleLabel_ = nullptr;
 	wxStaticText* summaryLabel_ = nullptr;

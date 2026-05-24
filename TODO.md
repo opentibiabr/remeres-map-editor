@@ -110,21 +110,11 @@
 
 ## Next Task Handoff
 - Current focus remains `Stage 9`
-- `Stage 9` is not finished yet; the Brush Workspace is close, but there are still remaining selection/scroll, logging, and provenance tasks before calling it complete
-- `Stage 9` is not finished yet; the Brush Workspace is close, but there are still remaining selection/scroll tasks before calling it complete
-- Brush Workspace already has: initial variations editing, stable save/revert flow, rename-safe palette sync, dirty state, modified badges, selection guard, and stronger save-time validation for `item id`, `lookId`, `serverLookId`, and `type`
+- Brush Workspace is now near the end of its `Stage 9` pass: variations, dirty state, save/revert flow, rename-safe palette sync, stronger validation, provenance clarity, navigation preservation, and context-preserving refreshes are already in place
 - Brush palette runtime sync already updates renamed brushes and saved `lookId` changes without full runtime reload
 - The current modified-field highlight works functionally but still needs a more professional visual treatment
-- Recent progress: variation list refreshes now preserve the visible list position more consistently during `Clear()`/`Append()` rebuilds
-- Recent progress: reloading the same brush now preserves more of the active variation editor context, including internal selection state and visible list position
-- Recent progress: parent/child variation transitions now keep more existing selection context instead of clearing child selections eagerly before refresh
-- Recent progress: brush load/save/revert and controller catalog reload now emit more specific logs with brush identifiers and reload context
-- Recent progress: brush metadata and inspector now show `Storage: materials.db` separately from legacy `Imported from`
-- Recent progress: saving the same brush now restores more of the active variation editor context instead of rebuilding the panel more bluntly
-- Recent progress: navigation tree refreshes now preserve expanded groups and the current selection more often instead of jumping back to the first node
-- Recent progress: brush reload now preserves variation context by brush id even if rename or refresh changes the brush index in navigation
-- Recent progress: navigation tree refreshes now preserve the first visible region more often instead of jumping back to the top
-- Remaining blockers for closing `Stage 9`: preserve selection/scroll more consistently across the remaining reload paths and harden any last unstable dynamic selection transitions in recreated UI controls
-- Best next implementation cut: finish the remaining selection/scroll preservation paths in the Brush Workspace, then reassess whether `Stage 9` is ready to close
+- Remaining Brush Workspace follow-up is now small and mostly polish-level: final reassessment of any residual selection/scroll edge cases and whether the modified highlight needs one more visual pass
+- The next new implementation cut should move to `Wall Workspace` to extend `Stage 9` beyond Brush Workspace
+- Recommended next task goal: bring `Wall Workspace` closer to the same quality bar already reached in Brush Workspace, starting with save workflow consistency, local-edit safety, and context preservation
 - If a follow-up task must be split, keep the next task scoped to `Stage 9` only; do not jump to previews or Stage 10 polish until the items above are closed
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`

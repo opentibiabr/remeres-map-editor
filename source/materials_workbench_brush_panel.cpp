@@ -570,6 +570,7 @@ void MaterialsWorkbenchBrushPanel::BuildLayout() {
 
 wxPanel* MaterialsWorkbenchBrushPanel::BuildMetadataPage(wxNotebook* notebook) {
 	wxScrolledWindow* scrolled = new wxScrolledWindow(notebook, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL);
+	metadataPage_ = scrolled;
 	scrolled->SetScrollRate(FromDIP(10), FromDIP(10));
 
 	wxBoxSizer* contentSizer = new wxBoxSizer(wxVERTICAL);
@@ -1322,6 +1323,9 @@ MaterialsWorkbenchBrushPanel::VariationEditorState MaterialsWorkbenchBrushPanel:
 	VariationEditorState state;
 	state.valid = hasBrush_;
 	state.workspaceTabSelection = workspaceTabs_ ? workspaceTabs_->GetSelection() : 0;
+	if (metadataPage_) {
+		metadataPage_->GetViewStart(&state.metadataViewX, &state.metadataViewY);
+	}
 	state.groundItemIndex = groundItemIndex_;
 	state.alignedNodeIndex = alignedNodeIndex_;
 	state.alignedItemIndex = alignedItemIndex_;
@@ -1349,6 +1353,10 @@ void MaterialsWorkbenchBrushPanel::RestoreVariationEditorState(const VariationEd
 	if (workspaceTabs_ && workspaceTabs_->GetPageCount() > 0) {
 		const int tabSelection = std::min<int>(std::max(0, state.workspaceTabSelection), static_cast<int>(workspaceTabs_->GetPageCount()) - 1);
 		workspaceTabs_->SetSelection(tabSelection);
+	}
+
+	if (metadataPage_ && state.metadataViewX != -1 && state.metadataViewY != -1) {
+		metadataPage_->Scroll(state.metadataViewX, state.metadataViewY);
 	}
 
 	groundItemIndex_ = ClampIndexForCount(state.groundItemIndex, brushStorage_.items.size());
