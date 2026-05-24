@@ -54,6 +54,7 @@
 - [x] Border Workspace now shows `modified` badges in the navigation tree for dirty border set edits
 - [x] Border Workspace no longer marks entries as `modified` from programmatic selection/loading refreshes; the badge now reflects real local edits only
 - [x] Border Workspace now validates border slot `item id` values before save and blocks reusing the same runtime item across multiple border edges
+- [x] Border Workspace now uses a canonical 5x5 slot geometry: outer corners in the true corners, diagonals in the inner corner cells, and cardinals centered on each side
 
 ## Remaining Before Calling It Ready
 - [x] Extend `dirty state` beyond the Brush Workspace
@@ -140,6 +141,7 @@
 - `Border Workspace` dirty-state tracking now ignores programmatic UI refreshes triggered by loading or slot selection changes, so `modified` reflects real edits instead of selection-only interactions
 - `Border Workspace` now also blocks duplicate runtime item ownership across multiple border edges in the same set, avoiding ambiguous `border_alignment` registration during runtime refresh
 - `Border Workspace` save now refreshes the actual `g_brushes` runtime state as well as palettes: inline sets reload only the owning ground brush, while global sets reset/reload global borders and then rehydrate ground brushes from SQLite
+- `Border Workspace` slot/preview grids now keep the corrected runtime-driven geometry; cardinals/corners use the screen-facing labels, and the diagonal labels were finally realigned to the preview quadrants after the preview positions themselves were validated
 - Recommended next task goal: reassess the remaining `Stage 9` state and runtime-refresh edge cases in wall/border flows after the latest validation and dirty-state fixes, then decide what still blocks the move to previews
 - If a follow-up task must be split, keep the next task scoped to `Stage 9` only; do not jump to previews or Stage 10 polish until the items above are closed
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`

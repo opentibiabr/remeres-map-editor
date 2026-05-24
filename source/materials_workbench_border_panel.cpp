@@ -37,18 +37,18 @@ namespace {
 	};
 
 	const std::array<BorderEdgeSpec, 12> kBorderEdgeSpecs = {{
-		{ "dnw", "Diag NW", 0, 1 },
-		{ "n", "North", 0, 2 },
-		{ "dne", "Diag NE", 0, 3 },
-		{ "cnw", "Corner NW", 1, 1 },
-		{ "cne", "Corner NE", 1, 3 },
-		{ "w", "West", 2, 0 },
-		{ "e", "East", 2, 4 },
-		{ "csw", "Corner SW", 3, 1 },
-		{ "cse", "Corner SE", 3, 3 },
-		{ "dsw", "Diag SW", 4, 1 },
-		{ "s", "South", 4, 2 },
-		{ "dse", "Diag SE", 4, 3 },
+		{ "cnw", "Corner SE", 4, 4 },
+		{ "n", "South", 4, 2 },
+		{ "cne", "Corner SW", 4, 0 },
+		{ "dnw", "Diag SW", 3, 3 },
+		{ "dne", "Diag SE", 3, 1 },
+		{ "w", "East", 2, 4 },
+		{ "e", "West", 2, 0 },
+		{ "dsw", "Diag NW", 1, 3 },
+		{ "dse", "Diag NE", 1, 1 },
+		{ "csw", "Corner NE", 0, 4 },
+		{ "s", "North", 0, 2 },
+		{ "cse", "Corner NW", 0, 0 },
 	}};
 
 	const BorderEdgeSpec* FindEdgeSpec(const wxString &edge) {
