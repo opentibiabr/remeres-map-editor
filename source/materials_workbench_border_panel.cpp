@@ -426,6 +426,7 @@ void MaterialsWorkbenchBorderPanel::ClearWorkspace(const wxString &message) {
 	UpdateWorkspaceHeader();
 	summaryLabel_->SetLabel(message);
 
+	internalUpdate_ = true;
 	idCtrl_->SetValue("");
 	xmlBorderIdCtrl_->SetValue(0);
 	scopeChoice_->SetSelection(wxNOT_FOUND);
@@ -437,6 +438,7 @@ void MaterialsWorkbenchBorderPanel::ClearWorkspace(const wxString &message) {
 	selectedEdgeLabel_->SetLabel("Edge: none");
 	selectedItemIdCtrl_->SetValue(0);
 	selectedItemPreview_->SetSprite(0);
+	internalUpdate_ = false;
 
 	for (const auto &entry : slotButtons_) {
 		entry.second->SetSprite(0);
@@ -493,6 +495,7 @@ void MaterialsWorkbenchBorderPanel::PopulateFields() {
 		static_cast<long long>(borderSet.id)
 	));
 
+	internalUpdate_ = true;
 	idCtrl_->SetValue(wxString::Format("%lld", static_cast<long long>(borderSet.id)));
 	xmlBorderIdCtrl_->SetValue(borderSet.xmlBorderId);
 	scopeChoice_->SetStringSelection(borderSet.borderScope);
@@ -501,6 +504,7 @@ void MaterialsWorkbenchBorderPanel::PopulateFields() {
 	groundEquivalentCtrl_->SetValue(borderSet.groundEquivalent);
 	ownerBrushIdCtrl_->SetValue(borderSet.ownerBrushId > 0 ? wxString::Format("%lld", static_cast<long long>(borderSet.ownerBrushId)) : "");
 	sourceCtrl_->SetValue(borderSet.sourceFile);
+	internalUpdate_ = false;
 
 	slotItemIds_.clear();
 	for (const BorderSetItemRecord &item : borderSetStorage_.items) {
@@ -636,8 +640,10 @@ void MaterialsWorkbenchBorderPanel::UpdateSelectedEdgeEditor() {
 	} else {
 		selectedEdgeLabel_->SetLabel("Edge: " + selectedEdge_);
 	}
+	internalUpdate_ = true;
 	selectedItemIdCtrl_->SetValue(itemId);
 	selectedItemPreview_->SetSprite(itemId);
+	internalUpdate_ = false;
 }
 
 void MaterialsWorkbenchBorderPanel::SyncSelectedSlotFromEditor(bool updateStatus) {
@@ -767,17 +773,25 @@ void MaterialsWorkbenchBorderPanel::OnRevert(wxCommandEvent &event) {
 }
 
 void MaterialsWorkbenchBorderPanel::OnSelectedItemIdChanged(wxCommandEvent &event) {
+	if (internalUpdate_) {
+		event.Skip();
+		return;
+	}
 	SyncSelectedSlotFromEditor(false);
 	event.Skip();
 }
 
 void MaterialsWorkbenchBorderPanel::OnSelectedItemIdSpin(wxSpinEvent &event) {
+	if (internalUpdate_) {
+		event.Skip();
+		return;
+	}
 	SyncSelectedSlotFromEditor(false);
 	event.Skip();
 }
 
 void MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged(wxCommandEvent &event) {
-	if (!hasBorderSet_) {
+	if (internalUpdate_ || !hasBorderSet_) {
 		event.Skip();
 		return;
 	}

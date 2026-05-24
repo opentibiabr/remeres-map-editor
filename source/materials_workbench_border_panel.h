@@ -66,6 +66,7 @@ private:
 	int currentItemIndex_ = -1;
 	bool hasBorderSet_ = false;
 	bool dirty_ = false;
+	bool internalUpdate_ = false;
 	wxString selectedEdge_;
 	std::map<wxString, int> slotItemIds_;
 	std::map<wxString, ItemToggleButton*> slotButtons_;
