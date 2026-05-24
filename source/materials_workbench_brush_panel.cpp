@@ -2100,6 +2100,7 @@ bool MaterialsWorkbenchBrushPanel::SaveCurrentBrush() {
 		return false;
 	}
 
+	const VariationEditorState previousVariationState = CaptureVariationEditorState();
 	CommitVariationEditorState();
 	brushStorage_ = BuildEditableStorageFromCurrentState();
 
@@ -2131,14 +2132,18 @@ bool MaterialsWorkbenchBrushPanel::SaveCurrentBrush() {
 
 	loadedBrushStorage_ = brushStorage_;
 	PopulateFields();
+	if (previousVariationState.valid) {
+		RestoreVariationEditorState(previousVariationState);
+	}
 	RefreshDirtyState();
 	SetStatusMessage("Brush and variations saved to materials.db.");
 	spdlog::info(
-		"Materials Workbench saved brush and variations: id={} old_name='{}' new_name='{}' type='{}'",
+		"Materials Workbench saved brush and variations: id={} old_name='{}' new_name='{}' type='{}' preserved_context={}",
 		static_cast<long long>(brushStorage_.brush.id),
 		previousName.ToStdString(),
 		brushStorage_.brush.name.ToStdString(),
-		brushStorage_.brush.type.ToStdString()
+		brushStorage_.brush.type.ToStdString(),
+		previousVariationState.valid
 	);
 
 	if (onBrushSaved_) {
