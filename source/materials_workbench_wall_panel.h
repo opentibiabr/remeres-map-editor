@@ -66,6 +66,7 @@ private:
 	void NotifyWallBrushStateChanged();
 	void UpdateWorkspaceHeader();
 	void UpdateActionButtons();
+	bool ValidateWallBrushStorage(wxString &error) const;
 	bool SaveCurrentWallBrush();
 
 	void OnPartChanged(wxCommandEvent &event);

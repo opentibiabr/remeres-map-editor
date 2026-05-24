@@ -38,6 +38,7 @@
 - [x] Wall Workspace now tracks local dirty state and only enables save/revert when needed
 - [x] Wall Workspace now guards selection changes and window close against losing pending edits
 - [x] Wall Workspace now preserves the selected wall part/item/door more often across save and reload
+- [x] Wall Workspace now validates door type compatibility against the selected item id and runtime wall-door metadata
 
 ## Remaining Before Calling It Ready
 - [ ] Extend `dirty state` beyond the Brush Workspace
@@ -70,7 +71,7 @@
 - [x] Validate missing or unknown `item id` before save in the Brush Workspace
 - [x] Validate `lookId` and `serverLookId` against the real item catalog in the Brush Workspace
 - [ ] Validate invalid duplicate usage in border slots where applicable
-- [ ] Validate `door type` compatibility with the selected `item id`
+- [x] Validate `door type` compatibility with the selected `item id`
 - [x] Block saving a brush with an invalid or unexpected `type` in the Brush Workspace
 - [ ] Harden selection transitions in dynamically recreated grids
 - [ ] Add more specific save and reload logs
@@ -118,6 +119,6 @@
 - The current modified-field highlight works functionally but still needs a more professional visual treatment
 - Remaining Brush Workspace follow-up is now small and mostly polish-level: final reassessment of any residual selection/scroll edge cases and whether the modified highlight needs one more visual pass
 - `Wall Workspace` has now started its `Stage 9` pass with dirty state, save/revert consistency, selection-change protection, close protection, navigation badge integration, and basic context preservation across save/reload
-- Recommended next task goal: keep `Stage 9` on `Wall Workspace`, focusing next on stronger validation and any remaining selection/scroll edge cases before moving on to previews
+- Recommended next task goal: keep `Stage 9` on `Wall Workspace`, focusing next on any remaining selection/scroll edge cases and save/reload diagnostics before moving on to previews
 - If a follow-up task must be split, keep the next task scoped to `Stage 9` only; do not jump to previews or Stage 10 polish until the items above are closed
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`

@@ -3,6 +3,7 @@
 #include "materials_workbench_wall_panel.h"
 
 #include <algorithm>
+#include <limits>
 #include <utility>
 
 #include <wx/button.h>
@@ -20,9 +21,26 @@
 
 #include "common_windows.h"
 #include "find_item_window.h"
+#include "items.h"
 #include "materials_workbench_controller.h"
+#include "wall_brush.h"
 
 namespace {
+	enum class WallPanelDoorFamily {
+		Unknown,
+		Door,
+		Window,
+	};
+
+	struct WallPanelDoorTypeSpec {
+		bool valid = false;
+		bool allowAny = false;
+		bool expectsExact = false;
+		::DoorType exactType = WALL_UNDEFINED;
+		WallPanelDoorFamily family = WallPanelDoorFamily::Unknown;
+		wxString normalizedLabel;
+	};
+
 	class WallWorkspaceToggleButton : public ItemToggleButton {
 	public:
 		WallWorkspaceToggleButton(wxWindow* parent, int itemId) :
@@ -79,6 +97,109 @@ namespace {
 			   left.sortOrder == right.sortOrder &&
 			   WallPanelVectorsEqual(left.items, right.items, AreWallPanelPartItemRecordsEqual) &&
 			   WallPanelVectorsEqual(left.doors, right.doors, AreWallPanelPartDoorRecordsEqual);
+	}
+
+	bool IsKnownWallPanelItemId(int itemId) {
+		if (itemId <= 0 || itemId > std::numeric_limits<uint16_t>::max()) {
+			return false;
+		}
+		return g_items.isValidID(static_cast<uint16_t>(itemId));
+	}
+
+	int GetWallPanelMaxEditableItemId() {
+		return static_cast<int>(std::min<uint32_t>(g_items.getMaxID(), std::numeric_limits<uint16_t>::max()));
+	}
+
+	WallPanelDoorFamily GetWallPanelDoorFamily(::DoorType doorType) {
+		switch (doorType) {
+		case WALL_ARCHWAY:
+		case WALL_DOOR_NORMAL:
+		case WALL_DOOR_LOCKED:
+		case WALL_DOOR_QUEST:
+		case WALL_DOOR_MAGIC:
+			return WallPanelDoorFamily::Door;
+		case WALL_WINDOW:
+		case WALL_HATCH_WINDOW:
+			return WallPanelDoorFamily::Window;
+		default:
+			return WallPanelDoorFamily::Unknown;
+		}
+	}
+
+	wxString DescribeWallPanelDoorType(::DoorType doorType) {
+		switch (doorType) {
+		case WALL_ARCHWAY:
+			return "archway";
+		case WALL_DOOR_NORMAL:
+			return "normal";
+		case WALL_DOOR_LOCKED:
+			return "locked";
+		case WALL_DOOR_QUEST:
+			return "quest";
+		case WALL_DOOR_MAGIC:
+			return "magic";
+		case WALL_WINDOW:
+			return "window";
+		case WALL_HATCH_WINDOW:
+			return "hatch_window";
+		default:
+			return "unknown";
+		}
+	}
+
+	WallPanelDoorTypeSpec ParseWallPanelDoorTypeSpec(const wxString &doorType) {
+		WallPanelDoorTypeSpec spec;
+		const wxString normalized = doorType.Lower();
+		spec.normalizedLabel = normalized;
+
+		if (normalized == "archway") {
+			spec.valid = true;
+			spec.expectsExact = true;
+			spec.exactType = WALL_ARCHWAY;
+			spec.family = WallPanelDoorFamily::Door;
+		} else if (normalized == "normal") {
+			spec.valid = true;
+			spec.expectsExact = true;
+			spec.exactType = WALL_DOOR_NORMAL;
+			spec.family = WallPanelDoorFamily::Door;
+		} else if (normalized == "locked") {
+			spec.valid = true;
+			spec.expectsExact = true;
+			spec.exactType = WALL_DOOR_LOCKED;
+			spec.family = WallPanelDoorFamily::Door;
+		} else if (normalized == "quest") {
+			spec.valid = true;
+			spec.expectsExact = true;
+			spec.exactType = WALL_DOOR_QUEST;
+			spec.family = WallPanelDoorFamily::Door;
+		} else if (normalized == "magic") {
+			spec.valid = true;
+			spec.expectsExact = true;
+			spec.exactType = WALL_DOOR_MAGIC;
+			spec.family = WallPanelDoorFamily::Door;
+		} else if (normalized == "window") {
+			spec.valid = true;
+			spec.expectsExact = true;
+			spec.exactType = WALL_WINDOW;
+			spec.family = WallPanelDoorFamily::Window;
+		} else if (normalized == "hatch_window" || normalized == "hatch window") {
+			spec.valid = true;
+			spec.expectsExact = true;
+			spec.exactType = WALL_HATCH_WINDOW;
+			spec.family = WallPanelDoorFamily::Window;
+			spec.normalizedLabel = "hatch_window";
+		} else if (normalized == "any door") {
+			spec.valid = true;
+			spec.family = WallPanelDoorFamily::Door;
+		} else if (normalized == "any window") {
+			spec.valid = true;
+			spec.family = WallPanelDoorFamily::Window;
+		} else if (normalized == "any") {
+			spec.valid = true;
+			spec.allowAny = true;
+		}
+
+		return spec;
 	}
 } // namespace
 
@@ -217,7 +338,7 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	selectedItemLabel_ = new wxStaticText(scrolled, wxID_ANY, "No wall item selected");
 	itemPreviewButton_ = new ItemButton(scrolled, RENDER_SIZE_32x32, 0);
 	itemIdCtrl_ = new wxSpinCtrl(scrolled, wxID_ANY);
-	itemIdCtrl_->SetRange(0, 100000);
+	itemIdCtrl_->SetRange(0, GetWallPanelMaxEditableItemId());
 	itemChanceCtrl_ = new wxSpinCtrl(scrolled, wxID_ANY);
 	itemChanceCtrl_->SetRange(0, 100000);
 
@@ -246,7 +367,7 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	selectedDoorLabel_ = new wxStaticText(scrolled, wxID_ANY, "No door selected");
 	doorPreviewButton_ = new ItemButton(scrolled, RENDER_SIZE_32x32, 0);
 	doorItemIdCtrl_ = new wxSpinCtrl(scrolled, wxID_ANY);
-	doorItemIdCtrl_->SetRange(0, 100000);
+	doorItemIdCtrl_->SetRange(0, GetWallPanelMaxEditableItemId());
 	doorTypeChoice_ = new wxChoice(scrolled, wxID_ANY);
 	const wxString doorTypes[] = { "archway", "normal", "locked", "quest", "magic", "window", "hatch_window", "hatch window", "any door", "any window", "any" };
 	for (const wxString &doorType : doorTypes) {
@@ -717,7 +838,7 @@ void MaterialsWorkbenchWallPanel::RefreshDirtyState() {
 		return;
 	}
 
-	dirty_ = !VectorsEqual(
+	dirty_ = !WallPanelVectorsEqual(
 		BuildComparableStorageFromCurrentState().wallParts,
 		loadedWallBrushStorage_.wallParts,
 		AreWallPanelPartRecordsEqual
@@ -757,6 +878,119 @@ void MaterialsWorkbenchWallPanel::UpdateActionButtons() {
 	}
 }
 
+bool MaterialsWorkbenchWallPanel::ValidateWallBrushStorage(wxString &error) const {
+	for (size_t partIndex = 0; partIndex < wallBrushStorage_.wallParts.size(); ++partIndex) {
+		const WallPartRecord &part = wallBrushStorage_.wallParts[partIndex];
+
+		for (size_t itemIndex = 0; itemIndex < part.items.size(); ++itemIndex) {
+			const WallPartItemRecord &item = part.items[itemIndex];
+			if (item.itemId <= 0) {
+				error = wxString::Format("Wall part %zu item %zu must use an item id greater than zero.", partIndex + 1, itemIndex + 1);
+				return false;
+			}
+			if (!IsKnownWallPanelItemId(item.itemId)) {
+				error = wxString::Format("Wall part %zu item %zu uses unknown item id %d.", partIndex + 1, itemIndex + 1, item.itemId);
+				return false;
+			}
+		}
+
+		for (size_t doorIndex = 0; doorIndex < part.doors.size(); ++doorIndex) {
+			const WallPartDoorRecord &door = part.doors[doorIndex];
+			if (door.itemId <= 0) {
+				error = wxString::Format("Wall part %zu door %zu must use an item id greater than zero.", partIndex + 1, doorIndex + 1);
+				return false;
+			}
+			if (!IsKnownWallPanelItemId(door.itemId)) {
+				error = wxString::Format("Wall part %zu door %zu uses unknown item id %d.", partIndex + 1, doorIndex + 1, door.itemId);
+				return false;
+			}
+
+			const WallPanelDoorTypeSpec doorTypeSpec = ParseWallPanelDoorTypeSpec(door.doorType);
+			if (!doorTypeSpec.valid) {
+				error = wxString::Format(
+					"Wall part %zu door %zu uses unsupported door type \"%s\".",
+					partIndex + 1,
+					doorIndex + 1,
+					door.doorType
+				);
+				return false;
+			}
+
+			const ItemType &itemType = g_items.getItemType(static_cast<uint16_t>(door.itemId));
+			if (!itemType.isWall || !itemType.isBrushDoor || !itemType.brush || !itemType.brush->isWall()) {
+				error = wxString::Format(
+					"Wall part %zu door %zu item id %d is not registered as a wall door/window item.",
+					partIndex + 1,
+					doorIndex + 1,
+					door.itemId
+				);
+				return false;
+			}
+			if (itemType.isOpen != door.isOpen) {
+				error = wxString::Format(
+					"Wall part %zu door %zu uses item id %d with open=%s, but the selected record is %s.",
+					partIndex + 1,
+					doorIndex + 1,
+					door.itemId,
+					itemType.isOpen ? "true" : "false",
+					door.isOpen ? "open" : "closed"
+				);
+				return false;
+			}
+			if (itemType.wall_hate_me != door.wallHateMe) {
+				error = wxString::Format(
+					"Wall part %zu door %zu uses item id %d with hate=%s, but the selected record is %s.",
+					partIndex + 1,
+					doorIndex + 1,
+					door.itemId,
+					itemType.wall_hate_me ? "true" : "false",
+					door.wallHateMe ? "hate" : "not hate"
+				);
+				return false;
+			}
+
+			const ::DoorType runtimeDoorType = itemType.brush->asWall()->getDoorTypeFromID(static_cast<uint16_t>(door.itemId));
+			if (runtimeDoorType == WALL_UNDEFINED) {
+				error = wxString::Format(
+					"Wall part %zu door %zu item id %d is not mapped to a wall door type in the runtime catalog.",
+					partIndex + 1,
+					doorIndex + 1,
+					door.itemId
+				);
+				return false;
+			}
+			const WallPanelDoorFamily runtimeDoorFamily = GetWallPanelDoorFamily(runtimeDoorType);
+			if (doorTypeSpec.expectsExact && runtimeDoorType != doorTypeSpec.exactType) {
+				error = wxString::Format(
+					"Wall part %zu door %zu uses item id %d for \"%s\", but the runtime door type is \"%s\".",
+					partIndex + 1,
+					doorIndex + 1,
+					door.itemId,
+					doorTypeSpec.normalizedLabel,
+					DescribeWallPanelDoorType(runtimeDoorType)
+				);
+				return false;
+			}
+			if (!doorTypeSpec.allowAny &&
+				doorTypeSpec.family != WallPanelDoorFamily::Unknown &&
+				runtimeDoorFamily != WallPanelDoorFamily::Unknown &&
+				runtimeDoorFamily != doorTypeSpec.family) {
+				error = wxString::Format(
+					"Wall part %zu door %zu uses item id %d for \"%s\", but the item belongs to \"%s\".",
+					partIndex + 1,
+					doorIndex + 1,
+					door.itemId,
+					doorTypeSpec.normalizedLabel,
+					DescribeWallPanelDoorType(runtimeDoorType)
+				);
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
 bool MaterialsWorkbenchWallPanel::SaveCurrentWallBrush() {
 	if (!hasWallBrush_) {
 		SetStatusMessage("Select a wall brush before saving.");
@@ -770,6 +1004,12 @@ bool MaterialsWorkbenchWallPanel::SaveCurrentWallBrush() {
 
 	const WallEditorState previousEditorState = CaptureEditorState();
 	wallBrushStorage_ = BuildComparableStorageFromCurrentState();
+
+	wxString validationError;
+	if (!ValidateWallBrushStorage(validationError)) {
+		SetStatusMessage("Cannot save wall brush: " + validationError);
+		return false;
+	}
 
 	wxString error;
 	if (!controller_.SaveWallBrushParts(wallBrushStorage_, error)) {
@@ -826,6 +1066,10 @@ void MaterialsWorkbenchWallPanel::OnApplyItem(wxCommandEvent &event) {
 	record.chance = itemChanceCtrl_->GetValue();
 	if (record.itemId <= 0) {
 		SetStatusMessage("Wall item id must be greater than zero.");
+		return;
+	}
+	if (!IsKnownWallPanelItemId(record.itemId)) {
+		SetStatusMessage(wxString::Format("Wall item id %d is not present in the current item catalog.", record.itemId));
 		return;
 	}
 
@@ -895,6 +1139,16 @@ void MaterialsWorkbenchWallPanel::OnApplyDoor(wxCommandEvent &event) {
 		SetStatusMessage("Door item id must be greater than zero.");
 		return;
 	}
+	if (!IsKnownWallPanelItemId(record.itemId)) {
+		SetStatusMessage(wxString::Format("Door item id %d is not present in the current item catalog.", record.itemId));
+		return;
+	}
+
+	const bool replacingExistingDoor = selectedDoorIndex_ >= 0 && selectedDoorIndex_ < static_cast<int>(part->doors.size());
+	WallPartDoorRecord previousDoorRecord;
+	if (replacingExistingDoor) {
+		previousDoorRecord = part->doors[selectedDoorIndex_];
+	}
 
 	if (selectedDoorIndex_ >= 0 && selectedDoorIndex_ < static_cast<int>(part->doors.size())) {
 		record.sortOrder = part->doors[selectedDoorIndex_].sortOrder;
@@ -906,6 +1160,19 @@ void MaterialsWorkbenchWallPanel::OnApplyDoor(wxCommandEvent &event) {
 	}
 
 	NormalizeWallPartRecord(*part);
+	wxString validationError;
+	if (!ValidateWallBrushStorage(validationError)) {
+		if (replacingExistingDoor && selectedDoorIndex_ >= 0 && selectedDoorIndex_ < static_cast<int>(part->doors.size())) {
+			part->doors[selectedDoorIndex_] = previousDoorRecord;
+		} else if (selectedDoorIndex_ >= 0 && selectedDoorIndex_ < static_cast<int>(part->doors.size())) {
+			part->doors.erase(part->doors.begin() + selectedDoorIndex_);
+			selectedDoorIndex_ = -1;
+		}
+		NormalizeWallPartRecord(*part);
+		RefreshSelectedPart();
+		SetStatusMessage("Cannot apply door: " + validationError);
+		return;
+	}
 	RefreshSelectedPart();
 	RefreshDirtyState();
 	SetStatusMessage("Door updated locally. Save the wall brush to persist.");
