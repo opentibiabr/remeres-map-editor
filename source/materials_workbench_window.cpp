@@ -2,6 +2,8 @@
 
 #include "materials_workbench_window.h"
 
+#include <algorithm>
+
 #include <wx/simplebook.h>
 #include <wx/splitter.h>
 #include <wx/statline.h>
@@ -33,6 +35,58 @@ namespace {
 		int itemIndex = -1;
 		wxString baseLabel;
 	};
+
+	struct NavigationTreeState {
+		bool hasSelection = false;
+		MaterialsWorkbenchNodeKind selectedKind = MaterialsWorkbenchNodeKind::Group;
+		wxString selectedContextKey;
+		int selectedItemIndex = -1;
+		std::vector<wxString> expandedNodeKeys;
+	};
+
+	wxString BuildNavigationNodeKey(MaterialsWorkbenchNodeKind kind, const wxString &contextKey, int itemIndex) {
+		return wxString::Format("%d|%s|%d", static_cast<int>(kind), contextKey, itemIndex);
+	}
+
+	NavigationTreeState CaptureNavigationTreeState(wxTreeCtrl* tree) {
+		NavigationTreeState state;
+		if (!tree) {
+			return state;
+		}
+
+		const wxTreeItemId selection = tree->GetSelection();
+		if (selection.IsOk()) {
+			if (auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(tree->GetItemData(selection))) {
+				state.hasSelection = true;
+				state.selectedKind = itemData->kind;
+				state.selectedContextKey = itemData->contextKey;
+				state.selectedItemIndex = itemData->itemIndex;
+			}
+		}
+
+		const auto captureExpanded = [&](auto &&self, const wxTreeItemId &parent) -> void {
+			wxTreeItemIdValue cookie;
+			for (wxTreeItemId child = tree->GetFirstChild(parent, cookie); child.IsOk(); child = tree->GetNextChild(parent, cookie)) {
+				if (tree->IsExpanded(child)) {
+					if (auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(tree->GetItemData(child))) {
+						state.expandedNodeKeys.push_back(BuildNavigationNodeKey(itemData->kind, itemData->contextKey, itemData->itemIndex));
+					}
+				}
+				self(self, child);
+			}
+		};
+
+		const wxTreeItemId root = tree->GetRootItem();
+		if (root.IsOk()) {
+			captureExpanded(captureExpanded, root);
+		}
+
+		return state;
+	}
+
+	bool NavigationStateContainsExpandedKey(const NavigationTreeState &state, const wxString &key) {
+		return std::find(state.expandedNodeKeys.begin(), state.expandedNodeKeys.end(), key) != state.expandedNodeKeys.end();
+	}
 
 	wxPanel* CreateSidebarPanel(wxWindow* parent, wxTreeCtrl*& outTree) {
 		wxPanel* panel = new wxPanel(parent, wxID_ANY);
@@ -312,6 +366,7 @@ void MaterialsWorkbenchWindow::UpdateBrushNavigationBadge() {
 }
 
 void MaterialsWorkbenchWindow::PopulateNavigation() {
+	const NavigationTreeState previousState = CaptureNavigationTreeState(navigationTree_);
 	navigationTree_->DeleteAllItems();
 	wxTreeItemId root = navigationTree_->AddRoot("Materials Workbench");
 	const auto appendNodes = [&](auto &&self, const wxTreeItemId &parentItem, const std::vector<MaterialsWorkbenchTreeNode> &nodes) -> void {
@@ -326,15 +381,22 @@ void MaterialsWorkbenchWindow::PopulateNavigation() {
 			if (!node.children.empty()) {
 				self(self, item, node.children);
 			}
+
+			if (NavigationStateContainsExpandedKey(previousState, BuildNavigationNodeKey(node.kind, node.contextKey, node.itemIndex))) {
+				navigationTree_->Expand(item);
+			}
 		}
 	};
 
 	appendNodes(appendNodes, root, controller_.BuildNavigationTree());
 
-	wxTreeItemIdValue cookie;
-	wxTreeItemId firstChild = navigationTree_->GetFirstChild(root, cookie);
-	if (firstChild.IsOk()) {
-		navigationTree_->SelectItem(firstChild);
+	if (!previousState.hasSelection ||
+		!SelectNavigationNode(previousState.selectedKind, previousState.selectedContextKey, previousState.selectedItemIndex)) {
+		wxTreeItemIdValue cookie;
+		wxTreeItemId firstChild = navigationTree_->GetFirstChild(root, cookie);
+		if (firstChild.IsOk()) {
+			navigationTree_->SelectItem(firstChild);
+		}
 	}
 
 	UpdateBrushNavigationBadge();
