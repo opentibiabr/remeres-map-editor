@@ -2209,7 +2209,6 @@ void MaterialsWorkbenchBrushPanel::OnAddAlignedNode(wxCommandEvent &WXUNUSED(eve
 		brushStorage_.tableNodes.push_back(node);
 		alignedNodeIndex_ = static_cast<int>(brushStorage_.tableNodes.size()) - 1;
 	}
-	alignedItemIndex_ = -1;
 	RefreshAlignedNodeList();
 	RefreshAlignedSelection();
 	UpdateSummary();
@@ -2242,7 +2241,6 @@ void MaterialsWorkbenchBrushPanel::OnRemoveAlignedNode(wxCommandEvent &WXUNUSED(
 			alignedNodeIndex_ = static_cast<int>(nodes.size()) - 1;
 		}
 	}
-	alignedItemIndex_ = -1;
 	RefreshAlignedNodeList();
 	RefreshAlignedSelection();
 	UpdateSummary();
@@ -2252,7 +2250,6 @@ void MaterialsWorkbenchBrushPanel::OnRemoveAlignedNode(wxCommandEvent &WXUNUSED(
 
 void MaterialsWorkbenchBrushPanel::OnAlignedNodeSelected(wxCommandEvent &event) {
 	alignedNodeIndex_ = event.GetSelection();
-	alignedItemIndex_ = -1;
 	RefreshAlignedSelection();
 }
 
@@ -2397,10 +2394,6 @@ void MaterialsWorkbenchBrushPanel::OnAddDoodadAlternative(wxCommandEvent &WXUNUS
 	}
 	brushStorage_.doodadAlternatives.emplace_back();
 	doodadAlternativeIndex_ = static_cast<int>(brushStorage_.doodadAlternatives.size()) - 1;
-	doodadSingleItemIndex_ = -1;
-	doodadCompositeIndex_ = -1;
-	doodadTileIndex_ = -1;
-	doodadTileItemIndex_ = -1;
 	RefreshDoodadAlternativeList();
 	RefreshDoodadSelection();
 	UpdateSummary();
@@ -2420,10 +2413,6 @@ void MaterialsWorkbenchBrushPanel::OnRemoveDoodadAlternative(wxCommandEvent &WXU
 	if (doodadAlternativeIndex_ >= static_cast<int>(brushStorage_.doodadAlternatives.size())) {
 		doodadAlternativeIndex_ = static_cast<int>(brushStorage_.doodadAlternatives.size()) - 1;
 	}
-	doodadSingleItemIndex_ = -1;
-	doodadCompositeIndex_ = -1;
-	doodadTileIndex_ = -1;
-	doodadTileItemIndex_ = -1;
 	RefreshDoodadAlternativeList();
 	RefreshDoodadSelection();
 	UpdateSummary();
@@ -2433,10 +2422,6 @@ void MaterialsWorkbenchBrushPanel::OnRemoveDoodadAlternative(wxCommandEvent &WXU
 
 void MaterialsWorkbenchBrushPanel::OnDoodadAlternativeSelected(wxCommandEvent &event) {
 	doodadAlternativeIndex_ = event.GetSelection();
-	doodadSingleItemIndex_ = -1;
-	doodadCompositeIndex_ = -1;
-	doodadTileIndex_ = -1;
-	doodadTileItemIndex_ = -1;
 	RefreshDoodadSelection();
 }
 
@@ -2524,8 +2509,6 @@ void MaterialsWorkbenchBrushPanel::OnAddDoodadComposite(wxCommandEvent &WXUNUSED
 	auto &composites = brushStorage_.doodadAlternatives[doodadAlternativeIndex_].composites;
 	composites.push_back(composite);
 	doodadCompositeIndex_ = static_cast<int>(composites.size()) - 1;
-	doodadTileIndex_ = -1;
-	doodadTileItemIndex_ = -1;
 	RefreshDoodadSelection();
 	UpdateSummary();
 	RefreshDirtyState();
@@ -2549,8 +2532,6 @@ void MaterialsWorkbenchBrushPanel::OnRemoveDoodadComposite(wxCommandEvent &WXUNU
 	if (doodadCompositeIndex_ >= static_cast<int>(composites.size())) {
 		doodadCompositeIndex_ = static_cast<int>(composites.size()) - 1;
 	}
-	doodadTileIndex_ = -1;
-	doodadTileItemIndex_ = -1;
 	RefreshDoodadSelection();
 	UpdateSummary();
 	RefreshDirtyState();
@@ -2559,8 +2540,6 @@ void MaterialsWorkbenchBrushPanel::OnRemoveDoodadComposite(wxCommandEvent &WXUNU
 
 void MaterialsWorkbenchBrushPanel::OnDoodadCompositeSelected(wxCommandEvent &event) {
 	doodadCompositeIndex_ = event.GetSelection();
-	doodadTileIndex_ = -1;
-	doodadTileItemIndex_ = -1;
 	RefreshDoodadSelection();
 }
 
@@ -2602,7 +2581,6 @@ void MaterialsWorkbenchBrushPanel::OnAddDoodadTile(wxCommandEvent &WXUNUSED(even
 	}
 	composites[doodadCompositeIndex_].tiles.emplace_back();
 	doodadTileIndex_ = static_cast<int>(composites[doodadCompositeIndex_].tiles.size()) - 1;
-	doodadTileItemIndex_ = -1;
 	RefreshDoodadSelection();
 	UpdateSummary();
 	RefreshDirtyState();
@@ -2631,7 +2609,6 @@ void MaterialsWorkbenchBrushPanel::OnRemoveDoodadTile(wxCommandEvent &WXUNUSED(e
 	if (doodadTileIndex_ >= static_cast<int>(tiles.size())) {
 		doodadTileIndex_ = static_cast<int>(tiles.size()) - 1;
 	}
-	doodadTileItemIndex_ = -1;
 	RefreshDoodadSelection();
 	UpdateSummary();
 	RefreshDirtyState();
@@ -2640,7 +2617,6 @@ void MaterialsWorkbenchBrushPanel::OnRemoveDoodadTile(wxCommandEvent &WXUNUSED(e
 
 void MaterialsWorkbenchBrushPanel::OnDoodadTileSelected(wxCommandEvent &event) {
 	doodadTileIndex_ = event.GetSelection();
-	doodadTileItemIndex_ = -1;
 	RefreshDoodadSelection();
 }
 

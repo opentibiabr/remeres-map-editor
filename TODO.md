@@ -28,6 +28,7 @@
 - [x] Brush save now blocks unknown `lookId` and `serverLookId` values
 - [x] Variation list refreshes now preserve the visible list position more consistently
 - [x] Reloading the same brush now preserves more of the current variation editor context
+- [x] Variation parent/child selection transitions now preserve child selection more often instead of resetting it blindly
 
 ## Remaining Before Calling It Ready
 - [ ] Extend `dirty state` beyond the Brush Workspace
@@ -109,6 +110,7 @@
 - The current modified-field highlight works functionally but still needs a more professional visual treatment
 - Recent progress: variation list refreshes now preserve the visible list position more consistently during `Clear()`/`Append()` rebuilds
 - Recent progress: reloading the same brush now preserves more of the active variation editor context, including internal selection state and visible list position
+- Recent progress: parent/child variation transitions now keep more existing selection context instead of clearing child selections eagerly before refresh
 - Remaining blockers for closing `Stage 9`: preserve selection/scroll more consistently across the remaining reload paths, harden dynamic selection transitions in recreated UI controls, add more specific save/reload logs, and clarify provenance metadata in the UI
 - Best next implementation cut: harden dynamic variation selection transitions and extend state preservation to the remaining reload paths in the Brush Workspace
 - After that, continue `Stage 9` with more specific save/reload logs and clearer provenance metadata (`Storage: materials.db` and `Imported from: ...`)
