@@ -88,7 +88,7 @@
 - [x] Validate invalid duplicate usage in border slots where applicable
 - [x] Validate `door type` compatibility with the selected `item id`
 - [x] Block saving a brush with an invalid or unexpected `type` in the Brush Workspace
-- [ ] Harden selection transitions in dynamically recreated grids
+- [x] Harden selection transitions in dynamically recreated grids
 - [x] Add more specific save and reload logs
 - [ ] Revisit runtime refresh for `walls` and `borders`
 - [ ] Add focused tests for SQLite serialization of `wallParts`, `borderSetItems`, and `tilesets`
@@ -135,6 +135,7 @@
 - The current modified-field highlight works functionally but still needs a more professional visual treatment
 - Remaining Brush Workspace follow-up is now small and mostly polish-level: final reassessment of any residual selection/scroll edge cases and whether the modified highlight needs one more visual pass
 - `Wall Workspace` has now started its `Stage 9` pass with dirty state, save/revert consistency, selection-change protection, close protection, navigation badge integration, and basic context preservation across save/reload
+- `Wall Workspace` now also remembers item/door selection and scroll per `wall part`, so switching between parts restores the last local editing context instead of resetting the dynamic grids every time
 - `Border Workspace` now also has dirty state, selection-change/close protection, and navigation badge integration; the remaining `Stage 9` pass there is now mainly validation and residual state-preservation edge cases
 - `Border Workspace` dirty-state tracking now ignores programmatic UI refreshes triggered by loading or slot selection changes, so `modified` reflects real edits instead of selection-only interactions
 - `Border Workspace` now also blocks duplicate runtime item ownership across multiple border edges in the same set, avoiding ambiguous `border_alignment` registration during runtime refresh

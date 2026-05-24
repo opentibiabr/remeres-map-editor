@@ -2,6 +2,7 @@
 #define RME_MATERIALS_WORKBENCH_WALL_PANEL_H_
 
 #include <functional>
+#include <map>
 #include <vector>
 
 #include <wx/panel.h>
@@ -66,6 +67,8 @@ private:
 	BrushStorageRecord BuildComparableStorageFromCurrentState() const;
 	WallEditorState CaptureEditorState() const;
 	void RestoreEditorState(const WallEditorState &state);
+	void SaveCurrentPartEditorState();
+	void RestoreCurrentPartEditorState();
 	void RefreshDirtyState();
 	void NotifyWallBrushStateChanged();
 	void UpdateWorkspaceHeader();
@@ -99,6 +102,7 @@ private:
 	int selectedDoorIndex_ = -1;
 	bool hasWallBrush_ = false;
 	bool dirty_ = false;
+	std::map<wxString, WallEditorState> partEditorStates_;
 
 	wxStaticText* titleLabel_ = nullptr;
 	wxStaticText* subtitleLabel_ = nullptr;

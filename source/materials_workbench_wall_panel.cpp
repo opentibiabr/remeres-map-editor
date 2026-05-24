@@ -457,6 +457,7 @@ void MaterialsWorkbenchWallPanel::ClearWorkspace(const wxString &message) {
 	selectedDoorIndex_ = -1;
 	hasWallBrush_ = false;
 	dirty_ = false;
+	partEditorStates_.clear();
 
 	UpdateWorkspaceHeader();
 	summaryLabel_->SetLabel(message);
@@ -520,6 +521,7 @@ bool MaterialsWorkbenchWallPanel::LoadWallBrush(const wxString &contextKey, int 
 	currentItemIndex_ = itemIndex;
 	hasWallBrush_ = true;
 	dirty_ = false;
+	partEditorStates_.clear();
 	selectedPartIndex_ = storage.wallParts.empty() ? -1 : 0;
 	selectedItemIndex_ = -1;
 	selectedDoorIndex_ = -1;
@@ -865,6 +867,82 @@ void MaterialsWorkbenchWallPanel::RestoreEditorState(const WallEditorState &stat
 	if (doorGridScroll_ && state.doorGridViewX >= 0 && state.doorGridViewY >= 0) {
 		doorGridScroll_->Scroll(state.doorGridViewX, state.doorGridViewY);
 	}
+	SaveCurrentPartEditorState();
+}
+
+void MaterialsWorkbenchWallPanel::SaveCurrentPartEditorState() {
+	if (!hasWallBrush_) {
+		return;
+	}
+
+	const WallEditorState state = CaptureEditorState();
+	if (!state.valid || state.partType.IsEmpty()) {
+		return;
+	}
+
+	partEditorStates_[state.partType] = state;
+}
+
+void MaterialsWorkbenchWallPanel::RestoreCurrentPartEditorState() {
+	const WallPartRecord* part = GetSelectedPart();
+	selectedItemIndex_ = -1;
+	selectedDoorIndex_ = -1;
+	if (!part) {
+		RefreshSelectedPart();
+		return;
+	}
+
+	auto it = partEditorStates_.find(part->partType);
+	if (it == partEditorStates_.end()) {
+		RefreshSelectedPart();
+		return;
+	}
+
+	const WallEditorState &state = it->second;
+	for (size_t i = 0; i < part->items.size(); ++i) {
+		const WallPartItemRecord &item = part->items[i];
+		if (item.sortOrder == state.itemSortOrder && item.itemId == state.itemId) {
+			selectedItemIndex_ = static_cast<int>(i);
+			break;
+		}
+	}
+	if (selectedItemIndex_ == -1 && state.itemId > 0) {
+		for (size_t i = 0; i < part->items.size(); ++i) {
+			if (part->items[i].itemId == state.itemId) {
+				selectedItemIndex_ = static_cast<int>(i);
+				break;
+			}
+		}
+	}
+
+	for (size_t i = 0; i < part->doors.size(); ++i) {
+		const WallPartDoorRecord &door = part->doors[i];
+		if (door.sortOrder == state.doorSortOrder &&
+			door.itemId == state.doorItemId &&
+			door.doorType == state.doorType &&
+			door.isOpen == state.doorIsOpen &&
+			door.wallHateMe == state.doorWallHateMe) {
+			selectedDoorIndex_ = static_cast<int>(i);
+			break;
+		}
+	}
+	if (selectedDoorIndex_ == -1 && state.doorItemId > 0) {
+		for (size_t i = 0; i < part->doors.size(); ++i) {
+			const WallPartDoorRecord &door = part->doors[i];
+			if (door.itemId == state.doorItemId && door.doorType == state.doorType) {
+				selectedDoorIndex_ = static_cast<int>(i);
+				break;
+			}
+		}
+	}
+
+	RefreshSelectedPart();
+	if (itemGridScroll_ && state.itemGridViewX >= 0 && state.itemGridViewY >= 0) {
+		itemGridScroll_->Scroll(state.itemGridViewX, state.itemGridViewY);
+	}
+	if (doorGridScroll_ && state.doorGridViewX >= 0 && state.doorGridViewY >= 0) {
+		doorGridScroll_->Scroll(state.doorGridViewX, state.doorGridViewY);
+	}
 }
 
 void MaterialsWorkbenchWallPanel::RefreshDirtyState() {
@@ -1085,10 +1163,9 @@ bool MaterialsWorkbenchWallPanel::SaveCurrentWallBrush() {
 }
 
 void MaterialsWorkbenchWallPanel::OnPartChanged(wxCommandEvent &event) {
+	SaveCurrentPartEditorState();
 	selectedPartIndex_ = partChoice_->GetSelection();
-	selectedItemIndex_ = -1;
-	selectedDoorIndex_ = -1;
-	RefreshSelectedPart();
+	RestoreCurrentPartEditorState();
 	event.Skip();
 }
 
