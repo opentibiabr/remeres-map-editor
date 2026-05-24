@@ -111,8 +111,7 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	summaryLabel_ = new wxStaticText(scrolled, wxID_ANY, "");
 
 	wxStaticBoxSizer* metadataBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Border Set Metadata");
-	wxFlexGridSizer* metadataGrid = new wxFlexGridSizer(2, FromDIP(8), FromDIP(10));
-	metadataGrid->AddGrowableCol(1, 1);
+	wxBoxSizer* metadataGrid = new wxBoxSizer(wxVERTICAL);
 
 	idCtrl_ = new wxTextCtrl(scrolled, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
 	xmlBorderIdCtrl_ = new wxSpinCtrl(scrolled, wxID_ANY);
@@ -128,28 +127,35 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	ownerBrushIdCtrl_ = new wxTextCtrl(scrolled, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
 	sourceCtrl_ = new wxTextCtrl(scrolled, wxID_ANY);
 
-	metadataGrid->Add(new wxStaticText(scrolled, wxID_ANY, "SQLite ID"), 0, wxALIGN_CENTER_VERTICAL);
-	metadataGrid->Add(idCtrl_, 1, wxEXPAND);
-	metadataGrid->Add(new wxStaticText(scrolled, wxID_ANY, "XML Border ID"), 0, wxALIGN_CENTER_VERTICAL);
-	metadataGrid->Add(xmlBorderIdCtrl_, 1, wxEXPAND);
-	metadataGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Scope"), 0, wxALIGN_CENTER_VERTICAL);
-	metadataGrid->Add(scopeChoice_, 1, wxEXPAND);
-	metadataGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Type"), 0, wxALIGN_CENTER_VERTICAL);
-	metadataGrid->Add(typeCtrl_, 1, wxEXPAND);
-	metadataGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Border Group"), 0, wxALIGN_CENTER_VERTICAL);
-	metadataGrid->Add(borderGroupCtrl_, 1, wxEXPAND);
-	metadataGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Ground Equivalent"), 0, wxALIGN_CENTER_VERTICAL);
-	metadataGrid->Add(groundEquivalentCtrl_, 1, wxEXPAND);
-	metadataGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Owner Brush ID"), 0, wxALIGN_CENTER_VERTICAL);
-	metadataGrid->Add(ownerBrushIdCtrl_, 1, wxEXPAND);
-	metadataGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Source"), 0, wxALIGN_CENTER_VERTICAL);
-	metadataGrid->Add(sourceCtrl_, 1, wxEXPAND);
+	const wxSize metadataFieldSize(FromDIP(170), -1);
+	idCtrl_->SetMinSize(metadataFieldSize);
+	xmlBorderIdCtrl_->SetMinSize(metadataFieldSize);
+	scopeChoice_->SetMinSize(metadataFieldSize);
+	typeCtrl_->SetMinSize(metadataFieldSize);
+	borderGroupCtrl_->SetMinSize(metadataFieldSize);
+	groundEquivalentCtrl_->SetMinSize(metadataFieldSize);
+	ownerBrushIdCtrl_->SetMinSize(metadataFieldSize);
+	sourceCtrl_->SetMinSize(metadataFieldSize);
+
+	const auto addMetadataField = [&](const wxString &label, wxWindow* control) {
+		metadataGrid->Add(new wxStaticText(scrolled, wxID_ANY, label), 0, wxBOTTOM, FromDIP(2));
+		metadataGrid->Add(control, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+	};
+
+	addMetadataField("SQLite ID", idCtrl_);
+	addMetadataField("XML Border ID", xmlBorderIdCtrl_);
+	addMetadataField("Scope", scopeChoice_);
+	addMetadataField("Type", typeCtrl_);
+	addMetadataField("Border Group", borderGroupCtrl_);
+	addMetadataField("Ground Equivalent", groundEquivalentCtrl_);
+	addMetadataField("Owner Brush ID", ownerBrushIdCtrl_);
+	addMetadataField("Source", sourceCtrl_);
 	metadataBox->Add(metadataGrid, 1, wxEXPAND | wxALL, FromDIP(8));
 
 	wxBoxSizer* workspaceSizer = new wxBoxSizer(wxHORIZONTAL);
 
 	wxStaticBoxSizer* gridBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Slot Grid");
-	wxFlexGridSizer* slotGridSizer = new wxFlexGridSizer(5, 5, FromDIP(6), FromDIP(6));
+	wxFlexGridSizer* slotGridSizer = new wxFlexGridSizer(5, 5, FromDIP(4), FromDIP(4));
 
 	for (int row = 0; row < 5; ++row) {
 		for (int col = 0; col < 5; ++col) {
@@ -173,13 +179,13 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 				centerSizer->Add(new wxStaticText(centerPanel, wxID_ANY, "ground"), 0, wxALIGN_CENTER);
 				centerSizer->AddStretchSpacer(1);
 				centerPanel->SetSizer(centerSizer);
-				centerPanel->SetMinSize(wxSize(FromDIP(88), FromDIP(88)));
+				centerPanel->SetMinSize(wxSize(FromDIP(76), FromDIP(76)));
 				slotGridSizer->Add(centerPanel, 0, wxEXPAND);
 				continue;
 			}
 
 			if (!specForCell) {
-				slotGridSizer->Add(CreateSpacerCell(scrolled, 78), 0, wxEXPAND);
+				slotGridSizer->Add(CreateSpacerCell(scrolled, 60), 0, wxEXPAND);
 				continue;
 			}
 
@@ -199,7 +205,7 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 			cellSizer->Add(button, 0, wxALIGN_CENTER | wxBOTTOM, FromDIP(2));
 			cellSizer->Add(value, 0, wxALIGN_CENTER);
 			cell->SetSizer(cellSizer);
-			cell->SetMinSize(wxSize(FromDIP(88), FromDIP(88)));
+			cell->SetMinSize(wxSize(FromDIP(76), FromDIP(76)));
 
 			slotButtons_[edge] = button;
 			slotValueLabels_[edge] = value;
@@ -214,25 +220,30 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	selectedItemIdCtrl_ = new wxSpinCtrl(scrolled, wxID_ANY);
 	selectedItemIdCtrl_->SetRange(0, std::max(100000, static_cast<int>(g_items.getMaxID())));
 	selectedItemPreview_ = new ItemButton(scrolled, RENDER_SIZE_32x32, 0);
+	selectedItemIdCtrl_->SetMinSize(wxSize(FromDIP(110), -1));
 
 	wxBoxSizer* selectionRow = new wxBoxSizer(wxHORIZONTAL);
-	selectionRow->Add(selectedEdgeLabel_, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(8));
 	selectionRow->Add(selectedItemPreview_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(8));
-	selectionRow->Add(selectedItemIdCtrl_, 0, wxALIGN_CENTER_VERTICAL);
+	selectionRow->Add(selectedItemIdCtrl_, 1, wxALIGN_CENTER_VERTICAL);
 
-	wxBoxSizer* selectionActions = new wxBoxSizer(wxHORIZONTAL);
+	wxGridSizer* selectionActions = new wxGridSizer(2, FromDIP(6), FromDIP(6));
 	wxButton* pickItemButton = new wxButton(scrolled, wxID_ANY, "Pick Item");
 	wxButton* applyButton = new wxButton(scrolled, wxID_ANY, "Apply To Slot");
 	wxButton* clearButton = new wxButton(scrolled, wxID_ANY, "Clear Slot");
-	selectionActions->Add(pickItemButton, 0, wxRIGHT, FromDIP(6));
-	selectionActions->Add(applyButton, 0, wxRIGHT, FromDIP(6));
-	selectionActions->Add(clearButton, 0);
+	pickItemButton->SetMinSize(wxSize(FromDIP(108), -1));
+	applyButton->SetMinSize(wxSize(FromDIP(108), -1));
+	clearButton->SetMinSize(wxSize(FromDIP(108), -1));
+	selectionActions->Add(pickItemButton, 0, wxEXPAND);
+	selectionActions->Add(applyButton, 0, wxEXPAND);
+	selectionActions->Add(clearButton, 0, wxEXPAND);
+	selectionActions->AddSpacer(0);
 
+	editorBox->Add(selectedEdgeLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, FromDIP(8));
 	editorBox->Add(selectionRow, 0, wxEXPAND | wxALL, FromDIP(8));
 	editorBox->Add(selectionActions, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
 
 	wxStaticBoxSizer* previewBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Preview Matrix");
-	wxFlexGridSizer* previewGridSizer = new wxFlexGridSizer(5, 5, FromDIP(4), FromDIP(4));
+	wxFlexGridSizer* previewGridSizer = new wxFlexGridSizer(5, 5, FromDIP(2), FromDIP(2));
 
 	for (int row = 0; row < 5; ++row) {
 		for (int col = 0; col < 5; ++col) {
@@ -253,7 +264,7 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 			}
 
 			if (!specForCell) {
-				previewGridSizer->Add(CreateSpacerCell(scrolled, 24), 0, wxEXPAND);
+				previewGridSizer->Add(CreateSpacerCell(scrolled, 18), 0, wxEXPAND);
 				continue;
 			}
 
@@ -270,9 +281,11 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	wxBoxSizer* leftColumn = new wxBoxSizer(wxVERTICAL);
 	leftColumn->Add(metadataBox, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
 	leftColumn->Add(editorBox, 0, wxEXPAND);
+	leftColumn->SetMinSize(wxSize(FromDIP(225), -1));
+	previewBox->SetMinSize(wxSize(FromDIP(120), -1));
 
-	workspaceSizer->Add(leftColumn, 1, wxRIGHT | wxEXPAND, FromDIP(10));
-	workspaceSizer->Add(gridBox, 0, wxRIGHT | wxEXPAND, FromDIP(10));
+	workspaceSizer->Add(leftColumn, 0, wxRIGHT | wxEXPAND, FromDIP(8));
+	workspaceSizer->Add(gridBox, 1, wxRIGHT | wxEXPAND, FromDIP(8));
 	workspaceSizer->Add(previewBox, 0, wxEXPAND);
 
 	contentSizer->Add(summaryLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, FromDIP(8));

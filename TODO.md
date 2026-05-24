@@ -44,6 +44,7 @@
 - [x] Border set save now updates the existing record by SQLite id instead of duplicating inline entries or losing XML border id changes
 - [x] Border slot preview now reacts immediately when editing the selected item id
 - [x] Border set navigation labels now reflect XML border ids and type more clearly instead of only showing the SQLite id
+- [x] Border Workspace layout now gives metadata and selected-slot editing enough space on narrower window widths
 
 ## Remaining Before Calling It Ready
 - [ ] Extend `dirty state` beyond the Brush Workspace
