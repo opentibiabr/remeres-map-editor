@@ -82,6 +82,16 @@ namespace {
 		}
 	}
 
+	int ClampIndexForCount(int index, size_t count) {
+		if (count == 0) {
+			return -1;
+		}
+		if (index < 0) {
+			return 0;
+		}
+		return std::min<int>(index, static_cast<int>(count) - 1);
+	}
+
 	wxString TrimmedValue(const wxTextCtrl* ctrl) {
 		wxString value = ctrl->GetValue();
 		value.Trim(true);
@@ -981,6 +991,9 @@ void MaterialsWorkbenchBrushPanel::ClearWorkspace(const wxString &message) {
 }
 
 bool MaterialsWorkbenchBrushPanel::LoadBrush(const wxString &contextKey, int itemIndex) {
+	const bool preserveVariationState = hasBrush_ && currentContextKey_ == contextKey && currentItemIndex_ == itemIndex;
+	const VariationEditorState previousVariationState = preserveVariationState ? CaptureVariationEditorState() : VariationEditorState();
+
 	wxString error;
 	BrushStorageRecord storage;
 	if (!controller_.GetBrushDetails(contextKey, itemIndex, storage, error)) {
@@ -997,6 +1010,9 @@ bool MaterialsWorkbenchBrushPanel::LoadBrush(const wxString &contextKey, int ite
 	ResetVariationSelection();
 
 	PopulateFields();
+	if (previousVariationState.valid) {
+		RestoreVariationEditorState(previousVariationState);
+	}
 	SetFieldsEnabled(true);
 	UpdateActionButtons();
 	UpdateModifiedHighlights();
@@ -1271,6 +1287,96 @@ void MaterialsWorkbenchBrushPanel::UpdateVariationModifiedHighlights(const Brush
 	ApplyModifiedEditorStyle(doodadTileOffsetZCtrl_, doodadModified);
 	ApplyModifiedEditorStyle(doodadTileItemsList_, doodadModified);
 	ApplyModifiedEditorStyle(doodadTileItemIdCtrl_, doodadModified);
+}
+
+MaterialsWorkbenchBrushPanel::VariationEditorState MaterialsWorkbenchBrushPanel::CaptureVariationEditorState() const {
+	VariationEditorState state;
+	state.valid = hasBrush_;
+	state.workspaceTabSelection = workspaceTabs_ ? workspaceTabs_->GetSelection() : 0;
+	state.groundItemIndex = groundItemIndex_;
+	state.alignedNodeIndex = alignedNodeIndex_;
+	state.alignedItemIndex = alignedItemIndex_;
+	state.doodadAlternativeIndex = doodadAlternativeIndex_;
+	state.doodadSingleItemIndex = doodadSingleItemIndex_;
+	state.doodadCompositeIndex = doodadCompositeIndex_;
+	state.doodadTileIndex = doodadTileIndex_;
+	state.doodadTileItemIndex = doodadTileItemIndex_;
+	state.groundTopItem = CaptureListTopItem(groundItemsList_);
+	state.alignedNodesTopItem = CaptureListTopItem(alignedNodesList_);
+	state.alignedItemsTopItem = CaptureListTopItem(alignedItemsList_);
+	state.doodadAlternativesTopItem = CaptureListTopItem(doodadAlternativesList_);
+	state.doodadSingleItemsTopItem = CaptureListTopItem(doodadSingleItemsList_);
+	state.doodadCompositesTopItem = CaptureListTopItem(doodadCompositesList_);
+	state.doodadTilesTopItem = CaptureListTopItem(doodadTilesList_);
+	state.doodadTileItemsTopItem = CaptureListTopItem(doodadTileItemsList_);
+	return state;
+}
+
+void MaterialsWorkbenchBrushPanel::RestoreVariationEditorState(const VariationEditorState &state) {
+	if (!state.valid || !hasBrush_) {
+		return;
+	}
+
+	if (workspaceTabs_ && workspaceTabs_->GetPageCount() > 0) {
+		const int tabSelection = std::min<int>(std::max(0, state.workspaceTabSelection), static_cast<int>(workspaceTabs_->GetPageCount()) - 1);
+		workspaceTabs_->SetSelection(tabSelection);
+	}
+
+	groundItemIndex_ = ClampIndexForCount(state.groundItemIndex, brushStorage_.items.size());
+
+	if (GetEffectiveBrushType() == "carpet") {
+		alignedNodeIndex_ = ClampIndexForCount(state.alignedNodeIndex, brushStorage_.carpetNodes.size());
+		if (alignedNodeIndex_ >= 0) {
+			alignedItemIndex_ = ClampIndexForCount(state.alignedItemIndex, brushStorage_.carpetNodes[alignedNodeIndex_].items.size());
+		} else {
+			alignedItemIndex_ = -1;
+		}
+	} else if (GetEffectiveBrushType() == "table") {
+		alignedNodeIndex_ = ClampIndexForCount(state.alignedNodeIndex, brushStorage_.tableNodes.size());
+		if (alignedNodeIndex_ >= 0) {
+			alignedItemIndex_ = ClampIndexForCount(state.alignedItemIndex, brushStorage_.tableNodes[alignedNodeIndex_].items.size());
+		} else {
+			alignedItemIndex_ = -1;
+		}
+	} else {
+		alignedNodeIndex_ = -1;
+		alignedItemIndex_ = -1;
+	}
+
+	doodadAlternativeIndex_ = ClampIndexForCount(state.doodadAlternativeIndex, brushStorage_.doodadAlternatives.size());
+	if (doodadAlternativeIndex_ >= 0) {
+		const auto &alternative = brushStorage_.doodadAlternatives[doodadAlternativeIndex_];
+		doodadSingleItemIndex_ = ClampIndexForCount(state.doodadSingleItemIndex, alternative.singleItems.size());
+		doodadCompositeIndex_ = ClampIndexForCount(state.doodadCompositeIndex, alternative.composites.size());
+		if (doodadCompositeIndex_ >= 0) {
+			const auto &composite = alternative.composites[doodadCompositeIndex_];
+			doodadTileIndex_ = ClampIndexForCount(state.doodadTileIndex, composite.tiles.size());
+			if (doodadTileIndex_ >= 0) {
+				doodadTileItemIndex_ = ClampIndexForCount(state.doodadTileItemIndex, composite.tiles[doodadTileIndex_].items.size());
+			} else {
+				doodadTileItemIndex_ = -1;
+			}
+		} else {
+			doodadTileIndex_ = -1;
+			doodadTileItemIndex_ = -1;
+		}
+	} else {
+		doodadSingleItemIndex_ = -1;
+		doodadCompositeIndex_ = -1;
+		doodadTileIndex_ = -1;
+		doodadTileItemIndex_ = -1;
+	}
+
+	RefreshVariationEditor();
+
+	RestoreListTopItem(groundItemsList_, state.groundTopItem);
+	RestoreListTopItem(alignedNodesList_, state.alignedNodesTopItem);
+	RestoreListTopItem(alignedItemsList_, state.alignedItemsTopItem);
+	RestoreListTopItem(doodadAlternativesList_, state.doodadAlternativesTopItem);
+	RestoreListTopItem(doodadSingleItemsList_, state.doodadSingleItemsTopItem);
+	RestoreListTopItem(doodadCompositesList_, state.doodadCompositesTopItem);
+	RestoreListTopItem(doodadTilesList_, state.doodadTilesTopItem);
+	RestoreListTopItem(doodadTileItemsList_, state.doodadTileItemsTopItem);
 }
 
 void MaterialsWorkbenchBrushPanel::UpdateWorkspaceHeader() {

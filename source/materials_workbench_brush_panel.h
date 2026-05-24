@@ -33,6 +33,27 @@ public:
 	bool ResolvePendingChangesBeforeSwitch(wxWindow* parent, const wxString &targetLabel);
 
 private:
+	struct VariationEditorState {
+		bool valid = false;
+		int workspaceTabSelection = 0;
+		int groundItemIndex = -1;
+		int alignedNodeIndex = -1;
+		int alignedItemIndex = -1;
+		int doodadAlternativeIndex = -1;
+		int doodadSingleItemIndex = -1;
+		int doodadCompositeIndex = -1;
+		int doodadTileIndex = -1;
+		int doodadTileItemIndex = -1;
+		int groundTopItem = -1;
+		int alignedNodesTopItem = -1;
+		int alignedItemsTopItem = -1;
+		int doodadAlternativesTopItem = -1;
+		int doodadSingleItemsTopItem = -1;
+		int doodadCompositesTopItem = -1;
+		int doodadTilesTopItem = -1;
+		int doodadTileItemsTopItem = -1;
+	};
+
 	void BuildLayout();
 	wxPanel* BuildMetadataPage(wxNotebook* notebook);
 	wxPanel* BuildVariationsPage(wxNotebook* notebook);
@@ -68,6 +89,8 @@ private:
 	void UpdateModifiedHighlights();
 	void UpdateMetadataModifiedHighlights(const BrushRecord &editableBrush);
 	void UpdateVariationModifiedHighlights(const BrushStorageRecord &editableStorage);
+	VariationEditorState CaptureVariationEditorState() const;
+	void RestoreVariationEditorState(const VariationEditorState &state);
 	bool SaveCurrentBrush();
 	bool ValidateBrushStorage(wxString &error) const;
 	wxString GetEffectiveBrushType() const;

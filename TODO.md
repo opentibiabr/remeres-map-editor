@@ -27,6 +27,7 @@
 - [x] Brush metadata `lookId` and `serverLookId` now follow the real item-catalog limit
 - [x] Brush save now blocks unknown `lookId` and `serverLookId` values
 - [x] Variation list refreshes now preserve the visible list position more consistently
+- [x] Reloading the same brush now preserves more of the current variation editor context
 
 ## Remaining Before Calling It Ready
 - [ ] Extend `dirty state` beyond the Brush Workspace
@@ -106,6 +107,7 @@
 - Brush palette runtime sync already updates renamed brushes and saved `lookId` changes without full runtime reload
 - The current modified-field highlight works functionally but still needs a more professional visual treatment
 - Recent progress: variation list refreshes now preserve the visible list position more consistently during `Clear()`/`Append()` rebuilds
+- Recent progress: reloading the same brush now preserves more of the active variation editor context, including internal selection state and visible list position
 - Next recommended step: extend that preservation to the remaining reload paths and harden dynamic selection transitions in recreated UI controls
 - After that, continue `Stage 9` with more specific save/reload logs and clearer provenance metadata (`Storage: materials.db` and `Imported from: ...`)
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`
