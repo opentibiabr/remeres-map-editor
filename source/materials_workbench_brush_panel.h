@@ -46,6 +46,7 @@ private:
 	void SetStatusMessage(const wxString &message);
 	void SetFieldsEnabled(bool enabled);
 	void ResetVariationSelection();
+	void CommitVariationEditorState();
 	void RefreshVariationEditor();
 	void RefreshGroundItemList();
 	void RefreshGroundSelection();

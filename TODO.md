@@ -24,13 +24,16 @@
 - [x] Initial brush selection-change guard with pending edits
 - [x] Initial Brush Workspace `Save`, `Revert`, and `Reload from DB` behavior
 - [x] Initial rename of legacy `Source` semantics to `Imported From` in brush metadata
+- [x] Brush metadata `lookId` and `serverLookId` now follow the real item-catalog limit
+- [x] Brush save now blocks unknown `lookId` and `serverLookId` values
+- [x] Variation list refreshes now preserve the visible list position more consistently
 
 ## Remaining Before Calling It Ready
 - [ ] Extend `dirty state` beyond the Brush Workspace
 - [x] Highlight modified fields visually in the Brush Workspace
 - [x] Show `modified` badges in the navigation tree for dirty brush edits
 - [ ] Preserve selection and scroll more consistently across reloads
-- [ ] Improve validation before save
+- [ ] Improve validation before save across the remaining Workbench domains
 - [ ] Add richer `border` and `wall` previews
 - [ ] Support entity creation and removal, not only editing
 - [ ] Improve semantic clarity for origin metadata
@@ -53,10 +56,11 @@
 - [ ] Show `Imported from: ...` separately
 
 ## Robustness And Validation
-- [ ] Validate missing `item id` before save
+- [x] Validate missing or unknown `item id` before save in the Brush Workspace
+- [x] Validate `lookId` and `serverLookId` against the real item catalog in the Brush Workspace
 - [ ] Validate invalid duplicate usage in border slots where applicable
 - [ ] Validate `door type` compatibility with the selected `item id`
-- [ ] Block saving a brush with an invalid or unexpected `type`
+- [x] Block saving a brush with an invalid or unexpected `type` in the Brush Workspace
 - [ ] Harden selection transitions in dynamically recreated grids
 - [ ] Add more specific save and reload logs
 - [ ] Revisit runtime refresh for `walls` and `borders`
@@ -95,3 +99,13 @@
 - [ ] Finish validations and robustness
 - [ ] Finish a professional editing UX across all workspaces
 - [ ] Finish the professional transition to deprecated XML editing
+
+## Next Task Handoff
+- Current focus remains `Stage 9`
+- Brush Workspace already has: initial variations editing, stable save/revert flow, rename-safe palette sync, dirty state, modified badges, selection guard, and stronger save-time validation for `item id`, `lookId`, `serverLookId`, and `type`
+- Brush palette runtime sync already updates renamed brushes and saved `lookId` changes without full runtime reload
+- The current modified-field highlight works functionally but still needs a more professional visual treatment
+- Recent progress: variation list refreshes now preserve the visible list position more consistently during `Clear()`/`Append()` rebuilds
+- Next recommended step: extend that preservation to the remaining reload paths and harden dynamic selection transitions in recreated UI controls
+- After that, continue `Stage 9` with more specific save/reload logs and clearer provenance metadata (`Storage: materials.db` and `Imported from: ...`)
+- Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`

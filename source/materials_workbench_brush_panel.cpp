@@ -2,6 +2,7 @@
 
 #include "materials_workbench_brush_panel.h"
 
+#include <limits>
 #include <utility>
 
 #include <wx/button.h>
@@ -19,9 +20,21 @@
 #include <wx/stattext.h>
 #include <wx/textctrl.h>
 
+#include "items.h"
 #include "materials_workbench_controller.h"
 
 namespace {
+	bool IsValidBrushEditorType(const wxString &type) {
+		return type == "ground" || type == "carpet" || type == "table" || type == "doodad";
+	}
+
+	bool IsKnownItemId(int itemId) {
+		if (itemId <= 0 || itemId > std::numeric_limits<uint16_t>::max()) {
+			return false;
+		}
+		return g_items.isValidID(static_cast<uint16_t>(itemId));
+	}
+
 	wxStaticText* CreateSectionLabel(wxWindow* parent, const wxString &label) {
 		wxStaticText* text = new wxStaticText(parent, wxID_ANY, label);
 		wxFont font = text->GetFont();
@@ -38,6 +51,35 @@ namespace {
 		wxSpinCtrl* ctrl = new wxSpinCtrl(parent, wxID_ANY);
 		ctrl->SetRange(minValue, maxValue);
 		return ctrl;
+	}
+
+	int GetMaxEditableItemId() {
+		return static_cast<int>(std::min<uint32_t>(g_items.getMaxID(), std::numeric_limits<uint16_t>::max()));
+	}
+
+	wxSpinCtrl* CreateItemIdSpinField(wxWindow* parent) {
+		return CreateSpinField(parent, 0, GetMaxEditableItemId());
+	}
+
+	wxSpinCtrl* CreateLookIdSpinField(wxWindow* parent) {
+		return CreateSpinField(parent, 0, GetMaxEditableItemId());
+	}
+
+	int CaptureListTopItem(wxListBox* listBox) {
+		if (!listBox || listBox->GetCount() == 0) {
+			return wxNOT_FOUND;
+		}
+		return listBox->GetTopItem();
+	}
+
+	void RestoreListTopItem(wxListBox* listBox, int topItem) {
+		if (!listBox || listBox->GetCount() == 0 || topItem == wxNOT_FOUND) {
+			return;
+		}
+		const int clampedTopItem = std::min<int>(topItem, static_cast<int>(listBox->GetCount()) - 1);
+		if (clampedTopItem >= 0) {
+			listBox->SetFirstItem(clampedTopItem);
+		}
 	}
 
 	wxString TrimmedValue(const wxTextCtrl* ctrl) {
@@ -541,8 +583,8 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildMetadataPage(wxNotebook* notebook) {
 	wxFlexGridSizer* numericGrid = new wxFlexGridSizer(2, FromDIP(8), FromDIP(10));
 	numericGrid->AddGrowableCol(1, 1);
 
-	lookIdCtrl_ = CreateSpinField(scrolled, 0, 1000000);
-	serverLookIdCtrl_ = CreateSpinField(scrolled, 0, 1000000);
+	lookIdCtrl_ = CreateLookIdSpinField(scrolled);
+	serverLookIdCtrl_ = CreateLookIdSpinField(scrolled);
 	zOrderCtrl_ = CreateSpinField(scrolled, -1000000, 1000000);
 	thicknessCtrl_ = CreateSpinField(scrolled, 0, 1000000);
 	thicknessCeilingCtrl_ = CreateSpinField(scrolled, 0, 1000000);
@@ -677,7 +719,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildGroundVariationsPage(wxSimplebook* b
 	);
 	wxFlexGridSizer* form = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
 	form->AddGrowableCol(1, 1);
-	groundItemIdCtrl_ = CreateSpinField(panel, 0, 1000000);
+	groundItemIdCtrl_ = CreateItemIdSpinField(panel);
 	groundItemChanceCtrl_ = CreateSpinField(panel, 0, 1000000);
 	form->Add(new wxStaticText(panel, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
 	form->Add(groundItemIdCtrl_, 1, wxEXPAND);
@@ -739,7 +781,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildAlignedVariationsPage(wxSimplebook* 
 
 	wxFlexGridSizer* itemForm = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
 	itemForm->AddGrowableCol(1, 1);
-	alignedItemIdCtrl_ = CreateSpinField(panel, 0, 1000000);
+	alignedItemIdCtrl_ = CreateItemIdSpinField(panel);
 	alignedItemChanceCtrl_ = CreateSpinField(panel, 0, 1000000);
 	itemForm->Add(new wxStaticText(panel, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
 	itemForm->Add(alignedItemIdCtrl_, 1, wxEXPAND);
@@ -793,7 +835,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 	midSizer->Add(singleButtons, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
 	wxFlexGridSizer* singleForm = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
 	singleForm->AddGrowableCol(1, 1);
-	doodadSingleItemIdCtrl_ = CreateSpinField(panel, 0, 1000000);
+	doodadSingleItemIdCtrl_ = CreateItemIdSpinField(panel);
 	doodadSingleItemChanceCtrl_ = CreateSpinField(panel, 0, 1000000);
 	singleForm->Add(new wxStaticText(panel, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
 	singleForm->Add(doodadSingleItemIdCtrl_, 1, wxEXPAND);
@@ -851,7 +893,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 	rightSizer->Add(tileItemButtons, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
 	wxFlexGridSizer* tileItemForm = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
 	tileItemForm->AddGrowableCol(1, 1);
-	doodadTileItemIdCtrl_ = CreateSpinField(panel, 0, 1000000);
+	doodadTileItemIdCtrl_ = CreateItemIdSpinField(panel);
 	tileItemForm->Add(new wxStaticText(panel, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
 	tileItemForm->Add(doodadTileItemIdCtrl_, 1, wxEXPAND);
 	rightSizer->Add(tileItemForm, 0, wxEXPAND);
@@ -1106,6 +1148,79 @@ void MaterialsWorkbenchBrushPanel::UpdateModifiedHighlights() {
 	UpdateVariationModifiedHighlights(editableStorage);
 }
 
+void MaterialsWorkbenchBrushPanel::CommitVariationEditorState() {
+	const wxString type = GetEffectiveBrushType();
+	if (type == "ground") {
+		const int selection = groundItemsList_ ? groundItemsList_->GetSelection() : wxNOT_FOUND;
+		if (selection != wxNOT_FOUND && static_cast<size_t>(selection) < brushStorage_.items.size()) {
+			brushStorage_.items[static_cast<size_t>(selection)].itemId = groundItemIdCtrl_->GetValue();
+			brushStorage_.items[static_cast<size_t>(selection)].chance = groundItemChanceCtrl_->GetValue();
+		}
+		return;
+	}
+
+	if (type == "carpet") {
+		const int nodeSelection = alignedNodesList_ ? alignedNodesList_->GetSelection() : wxNOT_FOUND;
+		if (nodeSelection != wxNOT_FOUND && static_cast<size_t>(nodeSelection) < brushStorage_.carpetNodes.size()) {
+			auto &node = brushStorage_.carpetNodes[static_cast<size_t>(nodeSelection)];
+			node.align = alignedNodeAlignCtrl_->GetValue();
+			const int itemSelection = alignedItemsList_ ? alignedItemsList_->GetSelection() : wxNOT_FOUND;
+			if (itemSelection != wxNOT_FOUND && static_cast<size_t>(itemSelection) < node.items.size()) {
+				node.items[static_cast<size_t>(itemSelection)].itemId = alignedItemIdCtrl_->GetValue();
+				node.items[static_cast<size_t>(itemSelection)].chance = alignedItemChanceCtrl_->GetValue();
+			}
+		}
+		return;
+	}
+
+	if (type == "table") {
+		const int nodeSelection = alignedNodesList_ ? alignedNodesList_->GetSelection() : wxNOT_FOUND;
+		if (nodeSelection != wxNOT_FOUND && static_cast<size_t>(nodeSelection) < brushStorage_.tableNodes.size()) {
+			auto &node = brushStorage_.tableNodes[static_cast<size_t>(nodeSelection)];
+			node.align = alignedNodeAlignCtrl_->GetValue();
+			const int itemSelection = alignedItemsList_ ? alignedItemsList_->GetSelection() : wxNOT_FOUND;
+			if (itemSelection != wxNOT_FOUND && static_cast<size_t>(itemSelection) < node.items.size()) {
+				node.items[static_cast<size_t>(itemSelection)].itemId = alignedItemIdCtrl_->GetValue();
+				node.items[static_cast<size_t>(itemSelection)].chance = alignedItemChanceCtrl_->GetValue();
+			}
+		}
+		return;
+	}
+
+	if (type == "doodad") {
+		const int alternativeSelection = doodadAlternativesList_ ? doodadAlternativesList_->GetSelection() : wxNOT_FOUND;
+		if (alternativeSelection == wxNOT_FOUND || static_cast<size_t>(alternativeSelection) >= brushStorage_.doodadAlternatives.size()) {
+			return;
+		}
+
+		auto &alternative = brushStorage_.doodadAlternatives[static_cast<size_t>(alternativeSelection)];
+		const int singleSelection = doodadSingleItemsList_ ? doodadSingleItemsList_->GetSelection() : wxNOT_FOUND;
+		if (singleSelection != wxNOT_FOUND && static_cast<size_t>(singleSelection) < alternative.singleItems.size()) {
+			alternative.singleItems[static_cast<size_t>(singleSelection)].itemId = doodadSingleItemIdCtrl_->GetValue();
+			alternative.singleItems[static_cast<size_t>(singleSelection)].chance = doodadSingleItemChanceCtrl_->GetValue();
+		}
+
+		const int compositeSelection = doodadCompositesList_ ? doodadCompositesList_->GetSelection() : wxNOT_FOUND;
+		if (compositeSelection != wxNOT_FOUND && static_cast<size_t>(compositeSelection) < alternative.composites.size()) {
+			auto &composite = alternative.composites[static_cast<size_t>(compositeSelection)];
+			composite.chance = doodadCompositeChanceCtrl_->GetValue();
+
+			const int tileSelection = doodadTilesList_ ? doodadTilesList_->GetSelection() : wxNOT_FOUND;
+			if (tileSelection != wxNOT_FOUND && static_cast<size_t>(tileSelection) < composite.tiles.size()) {
+				auto &tile = composite.tiles[static_cast<size_t>(tileSelection)];
+				tile.offsetX = doodadTileOffsetXCtrl_->GetValue();
+				tile.offsetY = doodadTileOffsetYCtrl_->GetValue();
+				tile.offsetZ = doodadTileOffsetZCtrl_->GetValue();
+
+				const int tileItemSelection = doodadTileItemsList_ ? doodadTileItemsList_->GetSelection() : wxNOT_FOUND;
+				if (tileItemSelection != wxNOT_FOUND && static_cast<size_t>(tileItemSelection) < tile.items.size()) {
+					tile.items[static_cast<size_t>(tileItemSelection)].itemId = doodadTileItemIdCtrl_->GetValue();
+				}
+			}
+		}
+	}
+}
+
 void MaterialsWorkbenchBrushPanel::UpdateMetadataModifiedHighlights(const BrushRecord &editableBrush) {
 	ApplyModifiedEditorStyle(nameCtrl_, editableBrush.name != loadedBrushStorage_.brush.name);
 	ApplyModifiedEditorStyle(typeCtrl_, editableBrush.type != loadedBrushStorage_.brush.type);
@@ -1282,6 +1397,7 @@ void MaterialsWorkbenchBrushPanel::RefreshGroundItemList() {
 		return;
 	}
 
+	const int topItem = CaptureListTopItem(groundItemsList_);
 	groundItemsList_->Clear();
 	for (size_t i = 0; i < brushStorage_.items.size(); ++i) {
 		groundItemsList_->Append(FormatGroundItemLabel(brushStorage_.items[i].itemId, brushStorage_.items[i].chance, i));
@@ -1296,6 +1412,7 @@ void MaterialsWorkbenchBrushPanel::RefreshGroundItemList() {
 	if (groundItemIndex_ >= 0) {
 		groundItemsList_->SetSelection(groundItemIndex_);
 	}
+	RestoreListTopItem(groundItemsList_, topItem);
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshGroundSelection() {
@@ -1321,6 +1438,7 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedNodeList() {
 		return;
 	}
 
+	const int topItem = CaptureListTopItem(alignedNodesList_);
 	alignedNodesList_->Clear();
 	if (GetEffectiveBrushType() == "carpet") {
 		const auto &nodes = brushStorage_.carpetNodes;
@@ -1349,6 +1467,7 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedNodeList() {
 	if (alignedNodeIndex_ >= 0) {
 		alignedNodesList_->SetSelection(alignedNodeIndex_);
 	}
+	RestoreListTopItem(alignedNodesList_, topItem);
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshAlignedItemList() {
@@ -1356,6 +1475,7 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedItemList() {
 		return;
 	}
 
+	const int topItem = CaptureListTopItem(alignedItemsList_);
 	alignedItemsList_->Clear();
 	if (GetEffectiveBrushType() == "carpet") {
 		const auto &nodes = brushStorage_.carpetNodes;
@@ -1396,6 +1516,7 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedItemList() {
 	if (alignedItemIndex_ >= 0) {
 		alignedItemsList_->SetSelection(alignedItemIndex_);
 	}
+	RestoreListTopItem(alignedItemsList_, topItem);
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshAlignedSelection() {
@@ -1457,6 +1578,7 @@ void MaterialsWorkbenchBrushPanel::RefreshDoodadAlternativeList() {
 		return;
 	}
 
+	const int topItem = CaptureListTopItem(doodadAlternativesList_);
 	doodadAlternativesList_->Clear();
 	for (size_t i = 0; i < brushStorage_.doodadAlternatives.size(); ++i) {
 		doodadAlternativesList_->Append(FormatDoodadAlternativeLabel(brushStorage_.doodadAlternatives[i], i));
@@ -1471,9 +1593,11 @@ void MaterialsWorkbenchBrushPanel::RefreshDoodadAlternativeList() {
 	if (doodadAlternativeIndex_ >= 0) {
 		doodadAlternativesList_->SetSelection(doodadAlternativeIndex_);
 	}
+	RestoreListTopItem(doodadAlternativesList_, topItem);
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshDoodadSingleItemList() {
+	const int topItem = CaptureListTopItem(doodadSingleItemsList_);
 	doodadSingleItemsList_->Clear();
 	if (doodadAlternativeIndex_ < 0 || doodadAlternativeIndex_ >= static_cast<int>(brushStorage_.doodadAlternatives.size())) {
 		doodadSingleItemIndex_ = -1;
@@ -1494,9 +1618,11 @@ void MaterialsWorkbenchBrushPanel::RefreshDoodadSingleItemList() {
 	if (doodadSingleItemIndex_ >= 0) {
 		doodadSingleItemsList_->SetSelection(doodadSingleItemIndex_);
 	}
+	RestoreListTopItem(doodadSingleItemsList_, topItem);
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshDoodadCompositeList() {
+	const int topItem = CaptureListTopItem(doodadCompositesList_);
 	doodadCompositesList_->Clear();
 	if (doodadAlternativeIndex_ < 0 || doodadAlternativeIndex_ >= static_cast<int>(brushStorage_.doodadAlternatives.size())) {
 		doodadCompositeIndex_ = -1;
@@ -1517,9 +1643,11 @@ void MaterialsWorkbenchBrushPanel::RefreshDoodadCompositeList() {
 	if (doodadCompositeIndex_ >= 0) {
 		doodadCompositesList_->SetSelection(doodadCompositeIndex_);
 	}
+	RestoreListTopItem(doodadCompositesList_, topItem);
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshDoodadTileList() {
+	const int topItem = CaptureListTopItem(doodadTilesList_);
 	doodadTilesList_->Clear();
 	if (doodadAlternativeIndex_ < 0 || doodadAlternativeIndex_ >= static_cast<int>(brushStorage_.doodadAlternatives.size())) {
 		doodadTileIndex_ = -1;
@@ -1545,9 +1673,11 @@ void MaterialsWorkbenchBrushPanel::RefreshDoodadTileList() {
 	if (doodadTileIndex_ >= 0) {
 		doodadTilesList_->SetSelection(doodadTileIndex_);
 	}
+	RestoreListTopItem(doodadTilesList_, topItem);
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshDoodadTileItemList() {
+	const int topItem = CaptureListTopItem(doodadTileItemsList_);
 	doodadTileItemsList_->Clear();
 	if (doodadAlternativeIndex_ < 0 || doodadAlternativeIndex_ >= static_cast<int>(brushStorage_.doodadAlternatives.size())) {
 		doodadTileItemIndex_ = -1;
@@ -1578,6 +1708,7 @@ void MaterialsWorkbenchBrushPanel::RefreshDoodadTileItemList() {
 	if (doodadTileItemIndex_ >= 0) {
 		doodadTileItemsList_->SetSelection(doodadTileItemIndex_);
 	}
+	RestoreListTopItem(doodadTileItemsList_, topItem);
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshDoodadSelection() {
@@ -1673,6 +1804,28 @@ bool MaterialsWorkbenchBrushPanel::ValidateBrushStorage(wxString &error) const {
 	}
 
 	const wxString type = brush.type.Lower();
+	if (!IsValidBrushEditorType(type)) {
+		error = "Brush type must be one of: ground, carpet, table or doodad.";
+		return false;
+	}
+
+	if (brush.lookId < 0) {
+		error = "lookId cannot be negative.";
+		return false;
+	}
+	if (brush.lookId > 0 && !IsKnownItemId(brush.lookId)) {
+		error = wxString::Format("lookId uses unknown item id %d.", brush.lookId);
+		return false;
+	}
+	if (brush.serverLookId < 0) {
+		error = "serverLookId cannot be negative.";
+		return false;
+	}
+	if (brush.serverLookId > 0 && !IsKnownItemId(brush.serverLookId)) {
+		error = wxString::Format("serverLookId uses unknown item id %d.", brush.serverLookId);
+		return false;
+	}
+
 	if (type == "ground") {
 		if (brushStorage_.items.empty()) {
 			error = "Ground brush must contain at least one weighted item.";
@@ -1682,6 +1835,10 @@ bool MaterialsWorkbenchBrushPanel::ValidateBrushStorage(wxString &error) const {
 			const BrushItemRecord &item = brushStorage_.items[itemIndex];
 			if (item.itemId <= 0) {
 				error = wxString::Format("Ground item %zu must use a positive item id.", itemIndex + 1);
+				return false;
+			}
+			if (!IsKnownItemId(item.itemId)) {
+				error = wxString::Format("Ground item %zu uses unknown item id %d.", itemIndex + 1, item.itemId);
 				return false;
 			}
 		}
@@ -1705,6 +1862,10 @@ bool MaterialsWorkbenchBrushPanel::ValidateBrushStorage(wxString &error) const {
 						error = wxString::Format("Node %zu item %zu must use a positive item id.", nodeIndex + 1, itemIndex + 1);
 						return false;
 					}
+					if (!IsKnownItemId(item.itemId)) {
+						error = wxString::Format("Node %zu item %zu uses unknown item id %d.", nodeIndex + 1, itemIndex + 1, item.itemId);
+						return false;
+					}
 				}
 			}
 		} else {
@@ -1724,6 +1885,10 @@ bool MaterialsWorkbenchBrushPanel::ValidateBrushStorage(wxString &error) const {
 						error = wxString::Format("Node %zu item %zu must use a positive item id.", nodeIndex + 1, itemIndex + 1);
 						return false;
 					}
+					if (!IsKnownItemId(item.itemId)) {
+						error = wxString::Format("Node %zu item %zu uses unknown item id %d.", nodeIndex + 1, itemIndex + 1, item.itemId);
+						return false;
+					}
 				}
 			}
 		}
@@ -1740,6 +1905,10 @@ bool MaterialsWorkbenchBrushPanel::ValidateBrushStorage(wxString &error) const {
 				const DoodadSingleItemRecord &item = alternative.singleItems[itemIndex];
 				if (item.itemId <= 0) {
 					error = wxString::Format("Alternative %zu single item %zu must use a positive item id.", altIndex + 1, itemIndex + 1);
+					return false;
+				}
+				if (!IsKnownItemId(item.itemId)) {
+					error = wxString::Format("Alternative %zu single item %zu uses unknown item id %d.", altIndex + 1, itemIndex + 1, item.itemId);
 					return false;
 				}
 			}
@@ -1771,6 +1940,17 @@ bool MaterialsWorkbenchBrushPanel::ValidateBrushStorage(wxString &error) const {
 							);
 							return false;
 						}
+						if (!IsKnownItemId(tile.items[tileItemIndex].itemId)) {
+							error = wxString::Format(
+								"Alternative %zu composite %zu tile %zu item %zu uses unknown item id %d.",
+								altIndex + 1,
+								compositeIndex + 1,
+								tileIndex + 1,
+								tileItemIndex + 1,
+								tile.items[tileItemIndex].itemId
+							);
+							return false;
+						}
 					}
 				}
 			}
@@ -1787,11 +1967,18 @@ bool MaterialsWorkbenchBrushPanel::SaveCurrentBrush() {
 		return false;
 	}
 
+	CommitVariationEditorState();
 	brushStorage_ = BuildEditableStorageFromCurrentState();
 
 	wxString validationError;
 	if (!ValidateBrushStorage(validationError)) {
-		SetStatusMessage(validationError);
+		spdlog::warn(
+			"Materials Workbench blocked brush save for id={} name='{}': {}",
+			static_cast<long long>(brushStorage_.brush.id),
+			brushStorage_.brush.name.ToStdString(),
+			validationError.ToStdString()
+		);
+		SetStatusMessage("Cannot save brush: " + validationError);
 		return false;
 	}
 
