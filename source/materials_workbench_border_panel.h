@@ -12,6 +12,7 @@
 class ItemButton;
 class ItemToggleButton;
 class MaterialsWorkbenchController;
+class wxButton;
 class wxChoice;
 class wxSpinCtrl;
 class wxStaticText;
@@ -24,6 +25,11 @@ public:
 	void ClearWorkspace(const wxString &message);
 	bool LoadBorderSet(const wxString &contextKey, int itemIndex);
 	void SetOnBorderSetSaved(std::function<void(int64_t)> callback);
+	void SetOnBorderSetStateChanged(std::function<void()> callback);
+	bool HasPendingChanges() const;
+	bool IsCurrentBorderSelection(const wxString &contextKey, int itemIndex) const;
+	wxString GetCurrentBorderSetDisplayName() const;
+	bool ResolvePendingChangesBeforeSwitch(wxWindow* parent, const wxString &targetLabel);
 
 private:
 	void BuildLayout();
@@ -35,6 +41,11 @@ private:
 	void SyncSelectedSlotFromEditor(bool updateStatus);
 	void SetStatusMessage(const wxString &message);
 	void SetFieldsEnabled(bool enabled);
+	BorderSetStorageRecord BuildComparableStorageFromCurrentState() const;
+	void RefreshDirtyState();
+	void NotifyBorderSetStateChanged();
+	void UpdateWorkspaceHeader();
+	void UpdateActionButtons();
 	bool SaveCurrentBorderSet();
 
 	void OnApplyToSlot(wxCommandEvent &event);
@@ -44,13 +55,17 @@ private:
 	void OnRevert(wxCommandEvent &event);
 	void OnSelectedItemIdChanged(wxCommandEvent &event);
 	void OnSelectedItemIdSpin(wxSpinEvent &event);
+	void OnMetadataFieldChanged(wxCommandEvent &event);
 
 	MaterialsWorkbenchController &controller_;
 	std::function<void(int64_t)> onBorderSetSaved_;
+	std::function<void()> onBorderSetStateChanged_;
 	BorderSetStorageRecord borderSetStorage_;
+	BorderSetStorageRecord loadedBorderSetStorage_;
 	wxString currentContextKey_;
 	int currentItemIndex_ = -1;
 	bool hasBorderSet_ = false;
+	bool dirty_ = false;
 	wxString selectedEdge_;
 	std::map<wxString, int> slotItemIds_;
 	std::map<wxString, ItemToggleButton*> slotButtons_;
@@ -60,6 +75,8 @@ private:
 	wxStaticText* titleLabel_ = nullptr;
 	wxStaticText* subtitleLabel_ = nullptr;
 	wxStaticText* summaryLabel_ = nullptr;
+	wxButton* saveButton_ = nullptr;
+	wxButton* revertButton_ = nullptr;
 	wxTextCtrl* idCtrl_ = nullptr;
 	wxSpinCtrl* xmlBorderIdCtrl_ = nullptr;
 	wxChoice* scopeChoice_ = nullptr;

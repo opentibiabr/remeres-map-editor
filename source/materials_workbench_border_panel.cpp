@@ -7,6 +7,7 @@
 
 #include <wx/button.h>
 #include <wx/choice.h>
+#include <wx/msgdlg.h>
 #include <wx/scrolwin.h>
 #include <wx/sizer.h>
 #include <wx/spinctrl.h>
@@ -79,6 +80,36 @@ namespace {
 			ItemToggleButton(parent, RENDER_SIZE_32x32, 0) {
 		}
 	};
+
+	bool AreBorderSetRecordsEqual(const BorderSetRecord &left, const BorderSetRecord &right) {
+		return left.id == right.id &&
+			   left.xmlBorderId == right.xmlBorderId &&
+			   left.borderScope == right.borderScope &&
+			   left.borderType == right.borderType &&
+			   left.borderGroup == right.borderGroup &&
+			   left.groundEquivalent == right.groundEquivalent &&
+			   left.ownerBrushId == right.ownerBrushId &&
+			   left.sourceFile == right.sourceFile;
+	}
+
+	bool AreBorderSetItemRecordsEqual(const BorderSetItemRecord &left, const BorderSetItemRecord &right) {
+		return left.borderSetId == right.borderSetId &&
+			   left.edge == right.edge &&
+			   left.itemId == right.itemId &&
+			   left.sortOrder == right.sortOrder;
+	}
+
+	bool AreBorderSetStorageRecordsEqual(const BorderSetStorageRecord &left, const BorderSetStorageRecord &right) {
+		if (!AreBorderSetRecordsEqual(left.borderSet, right.borderSet) || left.items.size() != right.items.size()) {
+			return false;
+		}
+		for (size_t i = 0; i < left.items.size(); ++i) {
+			if (!AreBorderSetItemRecordsEqual(left.items[i], right.items[i])) {
+				return false;
+			}
+		}
+		return true;
+	}
 } // namespace
 
 MaterialsWorkbenchBorderPanel::MaterialsWorkbenchBorderPanel(wxWindow* parent, MaterialsWorkbenchController &controller) :
@@ -90,6 +121,56 @@ MaterialsWorkbenchBorderPanel::MaterialsWorkbenchBorderPanel(wxWindow* parent, M
 
 void MaterialsWorkbenchBorderPanel::SetOnBorderSetSaved(std::function<void(int64_t)> callback) {
 	onBorderSetSaved_ = std::move(callback);
+}
+
+void MaterialsWorkbenchBorderPanel::SetOnBorderSetStateChanged(std::function<void()> callback) {
+	onBorderSetStateChanged_ = std::move(callback);
+}
+
+bool MaterialsWorkbenchBorderPanel::HasPendingChanges() const {
+	return hasBorderSet_ && dirty_;
+}
+
+bool MaterialsWorkbenchBorderPanel::IsCurrentBorderSelection(const wxString &contextKey, int itemIndex) const {
+	return hasBorderSet_ && currentContextKey_ == contextKey && currentItemIndex_ == itemIndex;
+}
+
+wxString MaterialsWorkbenchBorderPanel::GetCurrentBorderSetDisplayName() const {
+	if (!hasBorderSet_) {
+		return "";
+	}
+
+	return BuildBorderSetDisplayLabel(BuildComparableStorageFromCurrentState().borderSet);
+}
+
+bool MaterialsWorkbenchBorderPanel::ResolvePendingChangesBeforeSwitch(wxWindow* parent, const wxString &targetLabel) {
+	if (!HasPendingChanges()) {
+		return true;
+	}
+
+	const wxString currentLabel = BuildBorderSetDisplayLabel(borderSetStorage_.borderSet);
+	const wxString destination = targetLabel.IsEmpty() ? "the selected entry" : "\"" + targetLabel + "\"";
+	wxMessageDialog dialog(
+		parent,
+		"Border set \"" + currentLabel + "\" has unsaved changes.\n\n"
+		"You are switching to " + destination + ".\n\n"
+		"Yes: save and continue\n"
+		"No: discard local changes and continue\n"
+		"Cancel: stay on the current border set",
+		"Unsaved Border Changes",
+		wxYES_NO | wxCANCEL | wxICON_WARNING
+	);
+	dialog.SetYesNoCancelLabels("Save", "Discard", "Cancel");
+
+	switch (dialog.ShowModal()) {
+	case wxID_YES:
+		return SaveCurrentBorderSet();
+	case wxID_NO:
+		return LoadBorderSet(currentContextKey_, currentItemIndex_);
+	default:
+		SetStatusMessage("Selection change canceled. Pending border edits were kept.");
+		return false;
+	}
 }
 
 void MaterialsWorkbenchBorderPanel::BuildLayout() {
@@ -300,10 +381,10 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	headerSizer->Add(subtitleLabel_, 0);
 
 	wxBoxSizer* actionSizer = new wxBoxSizer(wxHORIZONTAL);
-	wxButton* saveButton = new wxButton(this, wxID_SAVE, "Save Border");
-	wxButton* revertButton = new wxButton(this, wxID_ANY, "Revert");
-	actionSizer->Add(saveButton, 0, wxRIGHT, FromDIP(6));
-	actionSizer->Add(revertButton, 0);
+	saveButton_ = new wxButton(this, wxID_SAVE, "Save Border");
+	revertButton_ = new wxButton(this, wxID_ANY, "Revert");
+	actionSizer->Add(saveButton_, 0, wxRIGHT, FromDIP(6));
+	actionSizer->Add(revertButton_, 0);
 
 	statusLabel_ = new wxStaticText(this, wxID_ANY, "");
 
@@ -317,22 +398,32 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	pickItemButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnPickItem, this);
 	applyButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnApplyToSlot, this);
 	clearButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnClearSlot, this);
-	saveButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnSave, this);
-	revertButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnRevert, this);
+	saveButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnSave, this);
+	revertButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnRevert, this);
 	selectedItemIdCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBorderPanel::OnSelectedItemIdChanged, this);
 	selectedItemIdCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBorderPanel::OnSelectedItemIdSpin, this);
+	xmlBorderIdCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
+	xmlBorderIdCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
+	scopeChoice_->Bind(wxEVT_CHOICE, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
+	typeCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
+	borderGroupCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
+	borderGroupCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
+	groundEquivalentCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
+	groundEquivalentCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
+	sourceCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
 }
 
 void MaterialsWorkbenchBorderPanel::ClearWorkspace(const wxString &message) {
 	borderSetStorage_ = BorderSetStorageRecord();
+	loadedBorderSetStorage_ = BorderSetStorageRecord();
 	currentContextKey_.clear();
 	currentItemIndex_ = -1;
 	hasBorderSet_ = false;
+	dirty_ = false;
 	selectedEdge_.clear();
 	slotItemIds_.clear();
 
-	titleLabel_->SetLabel("No border set selected");
-	subtitleLabel_->SetLabel("Select a border set in the navigation tree to edit its layout.");
+	UpdateWorkspaceHeader();
 	summaryLabel_->SetLabel(message);
 
 	idCtrl_->SetValue("");
@@ -359,6 +450,8 @@ void MaterialsWorkbenchBorderPanel::ClearWorkspace(const wxString &message) {
 	}
 
 	SetFieldsEnabled(false);
+	UpdateActionButtons();
+	NotifyBorderSetStateChanged();
 	SetStatusMessage(message);
 	Layout();
 }
@@ -372,12 +465,16 @@ bool MaterialsWorkbenchBorderPanel::LoadBorderSet(const wxString &contextKey, in
 	}
 
 	borderSetStorage_ = storage;
+	loadedBorderSetStorage_ = storage;
 	currentContextKey_ = contextKey;
 	currentItemIndex_ = itemIndex;
 	hasBorderSet_ = true;
+	dirty_ = false;
 
 	PopulateFields();
 	SetFieldsEnabled(true);
+	UpdateActionButtons();
+	NotifyBorderSetStateChanged();
 	SetStatusMessage("Border set loaded from materials.db.");
 	Layout();
 	return true;
@@ -386,8 +483,7 @@ bool MaterialsWorkbenchBorderPanel::LoadBorderSet(const wxString &contextKey, in
 void MaterialsWorkbenchBorderPanel::PopulateFields() {
 	const BorderSetRecord &borderSet = borderSetStorage_.borderSet;
 
-	titleLabel_->SetLabel("Editing " + BuildBorderSetDisplayLabel(borderSet));
-	subtitleLabel_->SetLabel("Assign border sprites to the correct slots, then save the layout back to materials.db.");
+	UpdateWorkspaceHeader();
 	summaryLabel_->SetLabel(wxString::Format(
 		"Items: %zu | Scope: %s | Type: %s | XML Border ID: %d | SQLite ID: %lld",
 		borderSetStorage_.items.size(),
@@ -418,6 +514,85 @@ void MaterialsWorkbenchBorderPanel::PopulateFields() {
 		SelectEdge("n");
 	} else {
 		UpdateSelectedEdgeEditor();
+	}
+}
+
+BorderSetStorageRecord MaterialsWorkbenchBorderPanel::BuildComparableStorageFromCurrentState() const {
+	BorderSetStorageRecord storage = borderSetStorage_;
+	storage.borderSet.xmlBorderId = xmlBorderIdCtrl_->GetValue();
+	storage.borderSet.borderScope = scopeChoice_->GetSelection() == wxNOT_FOUND ? "" : scopeChoice_->GetStringSelection();
+	storage.borderSet.borderType = typeCtrl_->GetValue().Trim(true).Trim(false);
+	storage.borderSet.borderGroup = borderGroupCtrl_->GetValue();
+	storage.borderSet.groundEquivalent = groundEquivalentCtrl_->GetValue();
+	storage.borderSet.sourceFile = sourceCtrl_->GetValue().Trim(true).Trim(false);
+
+	if (storage.borderSet.borderType.IsEmpty()) {
+		storage.borderSet.borderType = "normal";
+	}
+
+	storage.items.clear();
+	int sortOrder = 0;
+	for (const BorderEdgeSpec &spec : kBorderEdgeSpecs) {
+		const wxString edge = wxString::FromUTF8(spec.edge);
+		const int itemId = slotItemIds_.count(edge) > 0 ? slotItemIds_.at(edge) : 0;
+		if (itemId <= 0) {
+			continue;
+		}
+
+		BorderSetItemRecord item;
+		item.borderSetId = storage.borderSet.id;
+		item.edge = edge;
+		item.itemId = itemId;
+		item.sortOrder = sortOrder++;
+		storage.items.push_back(item);
+	}
+
+	return storage;
+}
+
+void MaterialsWorkbenchBorderPanel::RefreshDirtyState() {
+	if (!hasBorderSet_) {
+		dirty_ = false;
+		UpdateWorkspaceHeader();
+		UpdateActionButtons();
+		NotifyBorderSetStateChanged();
+		return;
+	}
+
+	dirty_ = !AreBorderSetStorageRecordsEqual(BuildComparableStorageFromCurrentState(), loadedBorderSetStorage_);
+	UpdateWorkspaceHeader();
+	UpdateActionButtons();
+	NotifyBorderSetStateChanged();
+}
+
+void MaterialsWorkbenchBorderPanel::NotifyBorderSetStateChanged() {
+	if (onBorderSetStateChanged_) {
+		onBorderSetStateChanged_();
+	}
+}
+
+void MaterialsWorkbenchBorderPanel::UpdateWorkspaceHeader() {
+	if (!hasBorderSet_) {
+		titleLabel_->SetLabel("No border set selected");
+		subtitleLabel_->SetLabel("Select a border set in the navigation tree to edit its layout.");
+		return;
+	}
+
+	const wxString modifiedSuffix = dirty_ ? " [modified]" : "";
+	titleLabel_->SetLabel("Editing " + BuildBorderSetDisplayLabel(BuildComparableStorageFromCurrentState().borderSet) + modifiedSuffix);
+	subtitleLabel_->SetLabel(
+		dirty_
+			? "Local edits differ from materials.db. Save, revert or switch border sets carefully."
+			: "Assign border sprites to the correct slots, then save the layout back to materials.db."
+	);
+}
+
+void MaterialsWorkbenchBorderPanel::UpdateActionButtons() {
+	if (saveButton_) {
+		saveButton_->Enable(hasBorderSet_ && dirty_);
+	}
+	if (revertButton_) {
+		revertButton_->Enable(hasBorderSet_ && dirty_);
 	}
 }
 
@@ -480,6 +655,7 @@ void MaterialsWorkbenchBorderPanel::SyncSelectedSlotFromEditor(bool updateStatus
 	selectedItemPreview_->SetSprite(itemId);
 	RefreshSlotGrid();
 	RefreshPreviewGrid();
+	RefreshDirtyState();
 	if (updateStatus) {
 		SetStatusMessage("Slot updated locally. Save the border set to persist.");
 	}
@@ -513,33 +689,7 @@ bool MaterialsWorkbenchBorderPanel::SaveCurrentBorderSet() {
 		return false;
 	}
 
-	borderSetStorage_.borderSet.xmlBorderId = xmlBorderIdCtrl_->GetValue();
-	borderSetStorage_.borderSet.borderScope = scopeChoice_->GetStringSelection();
-	borderSetStorage_.borderSet.borderType = typeCtrl_->GetValue().Trim(true).Trim(false);
-	borderSetStorage_.borderSet.borderGroup = borderGroupCtrl_->GetValue();
-	borderSetStorage_.borderSet.groundEquivalent = groundEquivalentCtrl_->GetValue();
-	borderSetStorage_.borderSet.sourceFile = sourceCtrl_->GetValue().Trim(true).Trim(false);
-
-	if (borderSetStorage_.borderSet.borderType.IsEmpty()) {
-		borderSetStorage_.borderSet.borderType = "normal";
-	}
-
-	borderSetStorage_.items.clear();
-	int sortOrder = 0;
-	for (const BorderEdgeSpec &spec : kBorderEdgeSpecs) {
-		const wxString edge = wxString::FromUTF8(spec.edge);
-		const int itemId = slotItemIds_.count(edge) > 0 ? slotItemIds_[edge] : 0;
-		if (itemId <= 0) {
-			continue;
-		}
-
-		BorderSetItemRecord item;
-		item.borderSetId = borderSetStorage_.borderSet.id;
-		item.edge = edge;
-		item.itemId = itemId;
-		item.sortOrder = sortOrder++;
-		borderSetStorage_.items.push_back(item);
-	}
+	borderSetStorage_ = BuildComparableStorageFromCurrentState();
 
 	wxString error;
 	if (!controller_.SaveBorderSet(borderSetStorage_, error)) {
@@ -547,7 +697,11 @@ bool MaterialsWorkbenchBorderPanel::SaveCurrentBorderSet() {
 		return false;
 	}
 
+	loadedBorderSetStorage_ = borderSetStorage_;
+	dirty_ = false;
 	PopulateFields();
+	UpdateActionButtons();
+	NotifyBorderSetStateChanged();
 	SetStatusMessage("Border set saved to materials.db.");
 	if (onBorderSetSaved_) {
 		onBorderSetSaved_(borderSetStorage_.borderSet.id);
@@ -575,6 +729,7 @@ void MaterialsWorkbenchBorderPanel::OnClearSlot(wxCommandEvent &event) {
 	selectedItemPreview_->SetSprite(0);
 	RefreshSlotGrid();
 	RefreshPreviewGrid();
+	RefreshDirtyState();
 	SetStatusMessage("Slot cleared locally. Save the border set to persist.");
 }
 
@@ -618,5 +773,17 @@ void MaterialsWorkbenchBorderPanel::OnSelectedItemIdChanged(wxCommandEvent &even
 
 void MaterialsWorkbenchBorderPanel::OnSelectedItemIdSpin(wxSpinEvent &event) {
 	SyncSelectedSlotFromEditor(false);
+	event.Skip();
+}
+
+void MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged(wxCommandEvent &event) {
+	if (!hasBorderSet_) {
+		event.Skip();
+		return;
+	}
+
+	UpdateWorkspaceHeader();
+	RefreshPreviewGrid();
+	RefreshDirtyState();
 	event.Skip();
 }

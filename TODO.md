@@ -50,9 +50,11 @@
 - [x] Brush save validation now blocks variation items that already belong to a different runtime brush, avoiding silent reload failures that left the brush drawing nothing
 - [x] Brush variation editors now show the current runtime brush owner for selected `item id` values before save
 - [x] Brush metadata now shows informational runtime-owner hints for `lookId` and `serverLookId` without blocking valid shared usage
+- [x] Border Workspace now tracks local dirty state, enables save/revert only when needed, and warns before losing pending edits on selection change or window close
+- [x] Border Workspace now shows `modified` badges in the navigation tree for dirty border set edits
 
 ## Remaining Before Calling It Ready
-- [ ] Extend `dirty state` beyond the Brush Workspace
+- [x] Extend `dirty state` beyond the Brush Workspace
 - [x] Highlight modified fields visually in the Brush Workspace
 - [x] Show `modified` badges in the navigation tree for dirty brush edits
 - [ ] Preserve selection and scroll more consistently across reloads
@@ -131,7 +133,7 @@
 - The current modified-field highlight works functionally but still needs a more professional visual treatment
 - Remaining Brush Workspace follow-up is now small and mostly polish-level: final reassessment of any residual selection/scroll edge cases and whether the modified highlight needs one more visual pass
 - `Wall Workspace` has now started its `Stage 9` pass with dirty state, save/revert consistency, selection-change protection, close protection, navigation badge integration, and basic context preservation across save/reload
-- `Border Workspace` has the main save/runtime fixes in place, but still needs a final `Stage 9` reassessment for any remaining validation and state-preservation edge cases before being considered done
-- Recommended next task goal: reassess the remaining `Stage 9` runtime and UX edge cases in wall/border flows after the latest brush and wall refresh fixes, then decide what still blocks the move to previews
+- `Border Workspace` now also has dirty state, selection-change/close protection, and navigation badge integration; the remaining `Stage 9` pass there is now mainly validation and residual state-preservation edge cases
+- Recommended next task goal: reassess the remaining `Stage 9` validation and state edge cases in wall/border flows after the latest dirty-state and runtime refresh fixes, then decide what still blocks the move to previews
 - If a follow-up task must be split, keep the next task scoped to `Stage 9` only; do not jump to previews or Stage 10 polish until the items above are closed
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`

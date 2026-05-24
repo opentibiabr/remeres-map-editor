@@ -253,6 +253,10 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 		CallAfter(&MaterialsWorkbenchWindow::HandlePaletteSaved);
 	});
 	borderPanel_ = new MaterialsWorkbenchBorderPanel(workspaceBook_, controller_);
+	borderPanel_->SetOnBorderSetStateChanged([this]() {
+		UpdateBrushNavigationBadge();
+		RefreshInspectorForCurrentSelection();
+	});
 	borderPanel_->SetOnBorderSetSaved([this](int64_t borderSetId) {
 		CallAfter([this, borderSetId]() {
 			HandleBorderSetSaved(borderSetId);
@@ -428,6 +432,8 @@ void MaterialsWorkbenchWindow::UpdateBrushNavigationBadge() {
 
 	const bool hasDirtyBrush = brushPanel_ && brushPanel_->HasPendingChanges();
 	const wxString dirtyBrushName = hasDirtyBrush ? brushPanel_->GetCurrentBrushDisplayName() : "";
+	const bool hasDirtyBorder = borderPanel_ && borderPanel_->HasPendingChanges();
+	const wxString dirtyBorderName = hasDirtyBorder ? borderPanel_->GetCurrentBorderSetDisplayName() : "";
 	const bool hasDirtyWall = wallPanel_ && wallPanel_->HasPendingChanges();
 	const wxString dirtyWallName = hasDirtyWall ? wallPanel_->GetCurrentWallDisplayName() : "";
 	const wxColour defaultTextColour = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT);
@@ -444,10 +450,14 @@ void MaterialsWorkbenchWindow::UpdateBrushNavigationBadge() {
 				const bool isModifiedWall = hasDirtyWall &&
 					itemData->kind == MaterialsWorkbenchNodeKind::Brush &&
 					wallPanel_->IsCurrentWallSelection(itemData->contextKey, itemData->itemIndex);
-				const bool isModified = isModifiedBrush || isModifiedWall;
+				const bool isModifiedBorder = hasDirtyBorder &&
+					itemData->kind == MaterialsWorkbenchNodeKind::BorderSet &&
+					borderPanel_->IsCurrentBorderSelection(itemData->contextKey, itemData->itemIndex);
+				const bool isModified = isModifiedBrush || isModifiedBorder || isModifiedWall;
 				const wxString displayLabel =
 					isModifiedBrush && !dirtyBrushName.IsEmpty() ? dirtyBrushName :
-					(isModifiedWall && !dirtyWallName.IsEmpty() ? dirtyWallName : itemData->baseLabel);
+					(isModifiedBorder && !dirtyBorderName.IsEmpty() ? dirtyBorderName :
+					(isModifiedWall && !dirtyWallName.IsEmpty() ? dirtyWallName : itemData->baseLabel));
 				navigationTree_->SetItemText(child, isModified ? displayLabel + " [modified]" : itemData->baseLabel);
 				navigationTree_->SetItemTextColour(child, isModified ? modifiedTextColour : defaultTextColour);
 			}
@@ -515,6 +525,10 @@ void MaterialsWorkbenchWindow::BindEvents() {
 			itemData &&
 			itemData->kind == MaterialsWorkbenchNodeKind::Brush &&
 			brushPanel_->IsCurrentBrushSelection(itemData->contextKey, itemData->itemIndex);
+		const bool isSameBorderSelection =
+			itemData &&
+			itemData->kind == MaterialsWorkbenchNodeKind::BorderSet &&
+			borderPanel_->IsCurrentBorderSelection(itemData->contextKey, itemData->itemIndex);
 		const bool isSameWallSelection =
 			itemData &&
 			itemData->kind == MaterialsWorkbenchNodeKind::Brush &&
@@ -522,6 +536,13 @@ void MaterialsWorkbenchWindow::BindEvents() {
 
 		if (brushPanel_->HasPendingChanges() && !isSameBrushSelection) {
 			if (!brushPanel_->ResolvePendingChangesBeforeSwitch(this, navigationTree_->GetItemText(item))) {
+				event.Veto();
+			}
+			return;
+		}
+
+		if (borderPanel_->HasPendingChanges() && !isSameBorderSelection) {
+			if (!borderPanel_->ResolvePendingChangesBeforeSwitch(this, navigationTree_->GetItemText(item))) {
 				event.Veto();
 			}
 			return;
@@ -610,6 +631,11 @@ void MaterialsWorkbenchWindow::OnClose(wxCloseEvent &event) {
 	if (event.CanVeto()) {
 		if (brushPanel_ && brushPanel_->HasPendingChanges() &&
 			!brushPanel_->ResolvePendingChangesBeforeSwitch(this, "closing the Materials Workbench window")) {
+			event.Veto();
+			return;
+		}
+		if (borderPanel_ && borderPanel_->HasPendingChanges() &&
+			!borderPanel_->ResolvePendingChangesBeforeSwitch(this, "closing the Materials Workbench window")) {
 			event.Veto();
 			return;
 		}
