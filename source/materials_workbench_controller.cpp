@@ -97,7 +97,18 @@ namespace {
 
 bool MaterialsWorkbenchController::ReloadCatalog() {
 	lastError_.clear();
-	return repository_.LoadCatalog(catalog_, lastError_);
+	if (!repository_.LoadCatalog(catalog_, lastError_)) {
+		spdlog::warn("Materials Workbench failed to reload catalog from materials.db: {}", lastError_.ToStdString());
+		return false;
+	}
+
+	spdlog::info(
+		"Materials Workbench reloaded catalog from materials.db: brushes={} palettes={} walls={}",
+		catalog_.auditReport.brushCount,
+		catalog_.tilesets.size(),
+		catalog_.wallBrushes.size()
+	);
+	return true;
 }
 
 wxString MaterialsWorkbenchController::GetWindowTitle() const {
@@ -236,13 +247,32 @@ bool MaterialsWorkbenchController::GetBorderSetDetails(const wxString &contextKe
 
 bool MaterialsWorkbenchController::SaveBrushDetails(BrushStorageRecord &brushStorage, wxString &error) {
 	if (!repository_.SaveBrushDetails(brushStorage, error)) {
+		spdlog::warn(
+			"Materials Workbench failed to save brush details: id={} name='{}' error='{}'",
+			static_cast<long long>(brushStorage.brush.id),
+			brushStorage.brush.name.ToStdString(),
+			error.ToStdString()
+		);
 		return false;
 	}
 
 	if (!ReloadCatalog()) {
 		error = lastError_;
+		spdlog::warn(
+			"Materials Workbench saved brush but failed to reload catalog: id={} name='{}' error='{}'",
+			static_cast<long long>(brushStorage.brush.id),
+			brushStorage.brush.name.ToStdString(),
+			error.ToStdString()
+		);
 		return false;
 	}
+
+	spdlog::info(
+		"Materials Workbench saved brush details and reloaded catalog: id={} name='{}' type='{}'",
+		static_cast<long long>(brushStorage.brush.id),
+		brushStorage.brush.name.ToStdString(),
+		brushStorage.brush.type.ToStdString()
+	);
 
 	return true;
 }

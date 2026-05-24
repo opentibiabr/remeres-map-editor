@@ -997,6 +997,12 @@ bool MaterialsWorkbenchBrushPanel::LoadBrush(const wxString &contextKey, int ite
 	wxString error;
 	BrushStorageRecord storage;
 	if (!controller_.GetBrushDetails(contextKey, itemIndex, storage, error)) {
+		spdlog::warn(
+			"Materials Workbench failed to load brush details: context='{}' index={} error='{}'",
+			contextKey.ToStdString(),
+			itemIndex,
+			error.ToStdString()
+		);
 		ClearWorkspace("Failed to load brush details: " + error);
 		return false;
 	}
@@ -1018,6 +1024,13 @@ bool MaterialsWorkbenchBrushPanel::LoadBrush(const wxString &contextKey, int ite
 	UpdateModifiedHighlights();
 	NotifyBrushStateChanged();
 	SetStatusMessage("Brush loaded from materials.db.");
+	spdlog::info(
+		"Materials Workbench loaded brush from materials.db: id={} name='{}' type='{}' preserved_context={}",
+		static_cast<long long>(brushStorage_.brush.id),
+		brushStorage_.brush.name.ToStdString(),
+		brushStorage_.brush.type.ToStdString(),
+		previousVariationState.valid
+	);
 	Layout();
 	return true;
 }
@@ -2091,6 +2104,13 @@ bool MaterialsWorkbenchBrushPanel::SaveCurrentBrush() {
 	wxString error;
 	const wxString previousName = loadedBrushStorage_.brush.name;
 	if (!controller_.SaveBrushDetails(brushStorage_, error)) {
+		spdlog::warn(
+			"Materials Workbench failed to save brush after validation: id={} name='{}' type='{}' error='{}'",
+			static_cast<long long>(brushStorage_.brush.id),
+			brushStorage_.brush.name.ToStdString(),
+			brushStorage_.brush.type.ToStdString(),
+			error.ToStdString()
+		);
 		SetStatusMessage("Failed to save brush: " + error);
 		return false;
 	}
@@ -2099,6 +2119,13 @@ bool MaterialsWorkbenchBrushPanel::SaveCurrentBrush() {
 	PopulateFields();
 	RefreshDirtyState();
 	SetStatusMessage("Brush and variations saved to materials.db.");
+	spdlog::info(
+		"Materials Workbench saved brush and variations: id={} old_name='{}' new_name='{}' type='{}'",
+		static_cast<long long>(brushStorage_.brush.id),
+		previousName.ToStdString(),
+		brushStorage_.brush.name.ToStdString(),
+		brushStorage_.brush.type.ToStdString()
+	);
 
 	if (onBrushSaved_) {
 		onBrushSaved_(brushStorage_.brush.id, previousName, brushStorage_.brush.name);
@@ -2116,11 +2143,24 @@ void MaterialsWorkbenchBrushPanel::OnRevert(wxCommandEvent &WXUNUSED(event)) {
 		return;
 	}
 
+	const int64_t brushId = brushStorage_.brush.id;
+	const wxString brushName = brushStorage_.brush.name;
+
 	if (!LoadBrush(currentContextKey_, currentItemIndex_)) {
+		spdlog::warn(
+			"Materials Workbench failed to revert brush from materials.db: id={} name='{}'",
+			static_cast<long long>(brushId),
+			brushName.ToStdString()
+		);
 		return;
 	}
 
 	SetStatusMessage("Brush fields and variations reloaded from materials.db.");
+	spdlog::info(
+		"Materials Workbench reverted brush from materials.db: id={} name='{}'",
+		static_cast<long long>(brushId),
+		brushName.ToStdString()
+	);
 }
 
 void MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged(wxCommandEvent &event) {

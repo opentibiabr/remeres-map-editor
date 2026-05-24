@@ -29,6 +29,7 @@
 - [x] Variation list refreshes now preserve the visible list position more consistently
 - [x] Reloading the same brush now preserves more of the current variation editor context
 - [x] Variation parent/child selection transitions now preserve child selection more often instead of resetting it blindly
+- [x] Brush load/save/revert and catalog reload now emit more specific diagnostic logs
 
 ## Remaining Before Calling It Ready
 - [ ] Extend `dirty state` beyond the Brush Workspace
@@ -111,8 +112,10 @@
 - Recent progress: variation list refreshes now preserve the visible list position more consistently during `Clear()`/`Append()` rebuilds
 - Recent progress: reloading the same brush now preserves more of the active variation editor context, including internal selection state and visible list position
 - Recent progress: parent/child variation transitions now keep more existing selection context instead of clearing child selections eagerly before refresh
+- Recent progress: brush load/save/revert and controller catalog reload now emit more specific logs with brush identifiers and reload context
 - Remaining blockers for closing `Stage 9`: preserve selection/scroll more consistently across the remaining reload paths, harden dynamic selection transitions in recreated UI controls, add more specific save/reload logs, and clarify provenance metadata in the UI
-- Best next implementation cut: harden dynamic variation selection transitions and extend state preservation to the remaining reload paths in the Brush Workspace
+- Remaining blockers for closing `Stage 9`: preserve selection/scroll more consistently across the remaining reload paths and clarify provenance metadata in the UI
+- Best next implementation cut: finish the remaining selection/scroll preservation paths in the Brush Workspace, then move to provenance metadata (`Storage: materials.db` and `Imported from: ...`)
 - After that, continue `Stage 9` with more specific save/reload logs and clearer provenance metadata (`Storage: materials.db` and `Imported from: ...`)
 - If a follow-up task must be split, keep the next task scoped to `Stage 9` only; do not jump to previews or Stage 10 polish until the items above are closed
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`
