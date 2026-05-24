@@ -2107,24 +2107,68 @@ bool BrushDatabaseBrushRepository::upsertBorderSet(const BorderSetRecord &border
 		return setError("SQLite database is not open.");
 	}
 
+	if (borderSet.id > 0) {
+		if (borderSet.xmlBorderId > 0) {
+			BorderSetRecord existing;
+			if (findBorderSetByXmlBorderId(borderSet.xmlBorderId, existing) && existing.id != borderSet.id) {
+				return setError(wxString::Format(
+					"XML border id %d already belongs to border set #%lld.",
+					borderSet.xmlBorderId,
+					static_cast<long long>(existing.id)
+				));
+			}
+		}
+
+		sqlite3_stmt* updateStmt = nullptr;
+		if (!prepare("UPDATE border_sets SET xml_border_id = ?, owner_brush_id = ?, border_scope = ?, border_type = ?, "
+					 "border_group = ?, ground_equivalent = ?, source_file = ?, updated_at = CURRENT_TIMESTAMP "
+					 "WHERE id = ?;",
+					 &updateStmt)) {
+			return false;
+		}
+
+		if (borderSet.xmlBorderId > 0) {
+			sqlite3_bind_int(updateStmt, 1, borderSet.xmlBorderId);
+		} else {
+			sqlite3_bind_null(updateStmt, 1);
+		}
+		BindNullableInt64(updateStmt, 2, borderSet.ownerBrushId);
+		sqlite3_bind_text(updateStmt, 3, borderSet.borderScope.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_text(updateStmt, 4, borderSet.borderType.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_int(updateStmt, 5, borderSet.borderGroup);
+		sqlite3_bind_int(updateStmt, 6, borderSet.groundEquivalent);
+		sqlite3_bind_text(updateStmt, 7, borderSet.sourceFile.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_int64(updateStmt, 8, borderSet.id);
+
+		const int rc = sqlite3_step(updateStmt);
+		sqlite3_finalize(updateStmt);
+		if (rc != SQLITE_DONE) {
+			return setErrorFromDatabase("Failed to update border set");
+		}
+
+		borderSetId = borderSet.id;
+		return true;
+	}
+
 	if (borderSet.xmlBorderId > 0) {
 		BorderSetRecord existing;
 		if (findBorderSetByXmlBorderId(borderSet.xmlBorderId, existing)) {
 			sqlite3_stmt* updateStmt = nullptr;
-			if (!prepare("UPDATE border_sets SET owner_brush_id = ?, border_scope = ?, border_type = ?, "
+			if (!prepare("UPDATE border_sets SET xml_border_id = ?, owner_brush_id = ?, border_scope = ?, border_type = ?, "
 						 "border_group = ?, ground_equivalent = ?, source_file = ?, updated_at = CURRENT_TIMESTAMP "
 						 "WHERE id = ?;",
 						 &updateStmt)) {
 				return false;
 			}
 
-			BindNullableInt64(updateStmt, 1, borderSet.ownerBrushId);
-			sqlite3_bind_text(updateStmt, 2, borderSet.borderScope.utf8_str(), -1, SQLITE_TRANSIENT);
-			sqlite3_bind_text(updateStmt, 3, borderSet.borderType.utf8_str(), -1, SQLITE_TRANSIENT);
-			sqlite3_bind_int(updateStmt, 4, borderSet.borderGroup);
-			sqlite3_bind_int(updateStmt, 5, borderSet.groundEquivalent);
-			sqlite3_bind_text(updateStmt, 6, borderSet.sourceFile.utf8_str(), -1, SQLITE_TRANSIENT);
-			sqlite3_bind_int64(updateStmt, 7, existing.id);
+			sqlite3_bind_int(updateStmt, 1, borderSet.xmlBorderId);
+			BindNullableInt64(updateStmt, 2, borderSet.ownerBrushId);
+			sqlite3_bind_text(updateStmt, 3, borderSet.borderScope.utf8_str(), -1, SQLITE_TRANSIENT);
+			sqlite3_bind_text(updateStmt, 4, borderSet.borderType.utf8_str(), -1, SQLITE_TRANSIENT);
+			sqlite3_bind_int(updateStmt, 5, borderSet.borderGroup);
+			sqlite3_bind_int(updateStmt, 6, borderSet.groundEquivalent);
+			sqlite3_bind_text(updateStmt, 7, borderSet.sourceFile.utf8_str(), -1, SQLITE_TRANSIENT);
+			sqlite3_bind_int64(updateStmt, 8, existing.id);
 
 			const int rc = sqlite3_step(updateStmt);
 			sqlite3_finalize(updateStmt);

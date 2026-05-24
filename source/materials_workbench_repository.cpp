@@ -186,14 +186,14 @@ bool MaterialsWorkbenchRepository::SaveBorderSet(BorderSetStorageRecord &borderS
 		error = g_brush_database.getLastError();
 		return false;
 	}
+	borderSet.borderSet.id = borderSetId;
+	for (BorderSetItemRecord &item : borderSet.items) {
+		item.borderSetId = borderSetId;
+	}
 	if (!g_brush_database.replaceBorderSetItems(borderSetId, borderSet.items)) {
 		error = g_brush_database.getLastError();
 		return false;
 	}
 
-	borderSet.borderSet.id = borderSetId;
-	for (BorderSetItemRecord &item : borderSet.items) {
-		item.borderSetId = borderSetId;
-	}
 	return true;
 }

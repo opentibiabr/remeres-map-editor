@@ -21,6 +21,25 @@
 namespace {
 	MaterialsWorkbenchWindow* g_materials_workbench_window = nullptr;
 
+	void RefreshRuntimeMaterialPalettes(const char* reason) {
+		wxString error;
+		wxArrayString warnings;
+		if (!g_gui.ReloadMaterialPalettesFromDatabase(error, warnings)) {
+			spdlog::warn(
+				"Materials Workbench runtime palette refresh failed after {}: {}",
+				reason,
+				error.ToStdString()
+			);
+		}
+		for (const wxString &warning : warnings) {
+			spdlog::warn(
+				"Materials Workbench runtime palette refresh warning after {}: {}",
+				reason,
+				warning.ToStdString()
+			);
+		}
+	}
+
 	class MaterialsWorkbenchTreeItemData : public wxTreeItemData {
 	public:
 		MaterialsWorkbenchTreeItemData(MaterialsWorkbenchNodeKind kind, wxString contextKey, int itemIndex, wxString baseLabel) :
@@ -296,19 +315,12 @@ void MaterialsWorkbenchWindow::RefreshInspectorForCurrentSelection() {
 }
 
 void MaterialsWorkbenchWindow::HandlePaletteSaved() {
-	wxString error;
-	wxArrayString warnings;
-	if (!g_gui.ReloadMaterialPalettesFromDatabase(error, warnings)) {
-		spdlog::warn("Materials Workbench runtime palette refresh failed: {}", error.ToStdString());
-	}
-	for (const wxString &warning : warnings) {
-		spdlog::warn("Materials Workbench runtime palette refresh warning: {}", warning.ToStdString());
-	}
-
+	RefreshRuntimeMaterialPalettes("palette save");
 	RefreshInspectorForCurrentSelection();
 }
 
 void MaterialsWorkbenchWindow::HandleBorderSetSaved(int64_t borderSetId) {
+	RefreshRuntimeMaterialPalettes("border set save");
 	RefreshWorkbenchState();
 	PopulateNavigation();
 
@@ -317,6 +329,7 @@ void MaterialsWorkbenchWindow::HandleBorderSetSaved(int64_t borderSetId) {
 	if (controller_.LocateBorderSetNode(borderSetId, contextKey, itemIndex)) {
 		SelectNavigationNode(MaterialsWorkbenchNodeKind::BorderSet, contextKey, itemIndex);
 	}
+	RefreshInspectorForCurrentSelection();
 }
 
 void MaterialsWorkbenchWindow::HandleBrushSaved(int64_t brushId, const wxString &oldName, const wxString &newName) {

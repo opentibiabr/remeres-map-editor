@@ -52,6 +52,13 @@ namespace {
 		return nullptr;
 	}
 
+	wxString BuildBorderSetDisplayLabel(const BorderSetRecord &borderSet) {
+		if (borderSet.xmlBorderId > 0) {
+			return wxString::Format("Border %d", borderSet.xmlBorderId);
+		}
+		return wxString::Format("Border Set #%lld", static_cast<long long>(borderSet.id));
+	}
+
 	wxStaticText* CreateBorderSectionLabel(wxWindow* parent, const wxString &label) {
 		wxStaticText* text = new wxStaticText(parent, wxID_ANY, label);
 		wxFont font = text->GetFont();
@@ -366,14 +373,15 @@ bool MaterialsWorkbenchBorderPanel::LoadBorderSet(const wxString &contextKey, in
 void MaterialsWorkbenchBorderPanel::PopulateFields() {
 	const BorderSetRecord &borderSet = borderSetStorage_.borderSet;
 
-	titleLabel_->SetLabel(wxString::Format("Editing border set #%lld", static_cast<long long>(borderSet.id)));
+	titleLabel_->SetLabel("Editing " + BuildBorderSetDisplayLabel(borderSet));
 	subtitleLabel_->SetLabel("Assign border sprites to the correct slots, then save the layout back to materials.db.");
 	summaryLabel_->SetLabel(wxString::Format(
-		"Items: %zu | Scope: %s | Type: %s | XML Border ID: %d",
+		"Items: %zu | Scope: %s | Type: %s | XML Border ID: %d | SQLite ID: %lld",
 		borderSetStorage_.items.size(),
 		borderSet.borderScope,
 		borderSet.borderType,
-		borderSet.xmlBorderId
+		borderSet.xmlBorderId,
+		static_cast<long long>(borderSet.id)
 	));
 
 	idCtrl_->SetValue(wxString::Format("%lld", static_cast<long long>(borderSet.id)));
@@ -442,6 +450,26 @@ void MaterialsWorkbenchBorderPanel::UpdateSelectedEdgeEditor() {
 	}
 	selectedItemIdCtrl_->SetValue(itemId);
 	selectedItemPreview_->SetSprite(itemId);
+}
+
+void MaterialsWorkbenchBorderPanel::SyncSelectedSlotFromEditor(bool updateStatus) {
+	if (!hasBorderSet_ || selectedEdge_.IsEmpty()) {
+		return;
+	}
+
+	const int itemId = selectedItemIdCtrl_->GetValue();
+	if (itemId > 0) {
+		slotItemIds_[selectedEdge_] = itemId;
+	} else {
+		slotItemIds_.erase(selectedEdge_);
+	}
+
+	selectedItemPreview_->SetSprite(itemId);
+	RefreshSlotGrid();
+	RefreshPreviewGrid();
+	if (updateStatus) {
+		SetStatusMessage("Slot updated locally. Save the border set to persist.");
+	}
 }
 
 void MaterialsWorkbenchBorderPanel::SetStatusMessage(const wxString &message) {
@@ -520,10 +548,7 @@ void MaterialsWorkbenchBorderPanel::OnApplyToSlot(wxCommandEvent &event) {
 		return;
 	}
 
-	slotItemIds_[selectedEdge_] = selectedItemIdCtrl_->GetValue();
-	RefreshSlotGrid();
-	RefreshPreviewGrid();
-	SetStatusMessage("Slot updated locally. Save the border set to persist.");
+	SyncSelectedSlotFromEditor(true);
 }
 
 void MaterialsWorkbenchBorderPanel::OnClearSlot(wxCommandEvent &event) {
@@ -574,11 +599,11 @@ void MaterialsWorkbenchBorderPanel::OnRevert(wxCommandEvent &event) {
 }
 
 void MaterialsWorkbenchBorderPanel::OnSelectedItemIdChanged(wxCommandEvent &event) {
-	selectedItemPreview_->SetSprite(selectedItemIdCtrl_->GetValue());
+	SyncSelectedSlotFromEditor(false);
 	event.Skip();
 }
 
 void MaterialsWorkbenchBorderPanel::OnSelectedItemIdSpin(wxSpinEvent &event) {
-	selectedItemPreview_->SetSprite(selectedItemIdCtrl_->GetValue());
+	SyncSelectedSlotFromEditor(false);
 	event.Skip();
 }

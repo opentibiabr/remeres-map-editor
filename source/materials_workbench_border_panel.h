@@ -32,6 +32,7 @@ private:
 	void RefreshPreviewGrid();
 	void SelectEdge(const wxString &edge);
 	void UpdateSelectedEdgeEditor();
+	void SyncSelectedSlotFromEditor(bool updateStatus);
 	void SetStatusMessage(const wxString &message);
 	void SetFieldsEnabled(bool enabled);
 	bool SaveCurrentBorderSet();

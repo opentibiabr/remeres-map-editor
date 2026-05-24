@@ -98,6 +98,19 @@ namespace {
 		}
 		return text;
 	}
+
+	wxString BuildBorderSetNavigationLabel(const BorderSetRecord &border) {
+		if (border.xmlBorderId > 0) {
+			if (!border.borderType.IsEmpty()) {
+				return wxString::Format("Border %d (%s)", border.xmlBorderId, border.borderType);
+			}
+			return wxString::Format("Border %d", border.xmlBorderId);
+		}
+		if (!border.borderType.IsEmpty()) {
+			return wxString::Format("Border Set #%lld (%s)", static_cast<long long>(border.id), border.borderType);
+		}
+		return wxString::Format("Border Set #%lld", static_cast<long long>(border.id));
+	}
 } // namespace
 
 bool MaterialsWorkbenchController::ReloadCatalog() {
@@ -195,7 +208,7 @@ std::vector<MaterialsWorkbenchTreeNode> MaterialsWorkbenchController::BuildNavig
 			const BorderSetRecord &record = (*scope.collection)[i];
 			MaterialsWorkbenchTreeNode item;
 			item.kind = MaterialsWorkbenchNodeKind::BorderSet;
-			item.label = wxString::Format("Border Set #%lld", static_cast<long long>(record.id));
+			item.label = BuildBorderSetNavigationLabel(record);
 			item.contextKey = wxString::FromUTF8(scope.contextKey);
 			item.itemIndex = static_cast<int>(i);
 			scopeNode.children.push_back(std::move(item));
