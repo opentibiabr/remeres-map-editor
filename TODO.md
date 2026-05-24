@@ -48,6 +48,8 @@
 - [x] Saving a wall brush now refreshes the runtime wall brush state from `materials.db` without using the unsafe global reload path
 - [x] Saving regular brushes now refreshes the runtime brush state so updated lookId and variation items are used immediately while painting
 - [x] Brush save validation now blocks variation items that already belong to a different runtime brush, avoiding silent reload failures that left the brush drawing nothing
+- [x] Brush variation editors now show the current runtime brush owner for selected `item id` values before save
+- [x] Brush metadata now shows informational runtime-owner hints for `lookId` and `serverLookId` without blocking valid shared usage
 
 ## Remaining Before Calling It Ready
 - [ ] Extend `dirty state` beyond the Brush Workspace
@@ -124,10 +126,12 @@
 ## Next Task Handoff
 - Current focus remains `Stage 9`
 - Brush Workspace is now near the end of its `Stage 9` pass: variations, dirty state, save/revert flow, rename-safe palette sync, stronger validation, provenance clarity, navigation preservation, and context-preserving refreshes are already in place
+- Brush Workspace now also exposes runtime-owner hints for variation `item id`, `lookId`, and `serverLookId`, making ownership conflicts visible before save without over-restricting metadata choices
 - Brush palette runtime sync already updates renamed brushes and saved `lookId` changes without full runtime reload
 - The current modified-field highlight works functionally but still needs a more professional visual treatment
 - Remaining Brush Workspace follow-up is now small and mostly polish-level: final reassessment of any residual selection/scroll edge cases and whether the modified highlight needs one more visual pass
 - `Wall Workspace` has now started its `Stage 9` pass with dirty state, save/revert consistency, selection-change protection, close protection, navigation badge integration, and basic context preservation across save/reload
-- Recommended next task goal: reassess the remaining `Stage 9` runtime edge cases after the latest brush and wall refresh fixes, then decide what still blocks the move to previews
+- `Border Workspace` has the main save/runtime fixes in place, but still needs a final `Stage 9` reassessment for any remaining validation and state-preservation edge cases before being considered done
+- Recommended next task goal: reassess the remaining `Stage 9` runtime and UX edge cases in wall/border flows after the latest brush and wall refresh fixes, then decide what still blocks the move to previews
 - If a follow-up task must be split, keep the next task scoped to `Stage 9` only; do not jump to previews or Stage 10 polish until the items above are closed
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`

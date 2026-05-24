@@ -93,6 +93,7 @@ private:
 	void UpdateMetadataModifiedHighlights(const BrushRecord &editableBrush);
 	void UpdateVariationModifiedHighlights(const BrushStorageRecord &editableStorage);
 	void UpdateItemOwnershipHint(wxStaticText* label, int itemId, bool hasSelection) const;
+	void RefreshLookIdOwnershipHints() const;
 	bool TryGetRuntimeBrushOwnerName(int itemId, wxString &ownerName) const;
 	bool IsCurrentBrushOwnerName(const wxString &ownerName) const;
 	VariationEditorState CaptureVariationEditorState() const;
@@ -165,6 +166,8 @@ private:
 	wxTextCtrl* sourceCtrl_ = nullptr;
 	wxSpinCtrl* lookIdCtrl_ = nullptr;
 	wxSpinCtrl* serverLookIdCtrl_ = nullptr;
+	wxStaticText* lookIdOwnershipLabel_ = nullptr;
+	wxStaticText* serverLookIdOwnershipLabel_ = nullptr;
 	wxSpinCtrl* zOrderCtrl_ = nullptr;
 	wxSpinCtrl* thicknessCtrl_ = nullptr;
 	wxSpinCtrl* thicknessCeilingCtrl_ = nullptr;

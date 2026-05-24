@@ -609,14 +609,20 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildMetadataPage(wxNotebook* notebook) {
 
 	lookIdCtrl_ = CreateLookIdSpinField(scrolled);
 	serverLookIdCtrl_ = CreateLookIdSpinField(scrolled);
+	lookIdOwnershipLabel_ = new wxStaticText(scrolled, wxID_ANY, "Runtime owner: select a brush.");
+	serverLookIdOwnershipLabel_ = new wxStaticText(scrolled, wxID_ANY, "Runtime owner: select a brush.");
 	zOrderCtrl_ = CreateSpinField(scrolled, -1000000, 1000000);
 	thicknessCtrl_ = CreateSpinField(scrolled, 0, 1000000);
 	thicknessCeilingCtrl_ = CreateSpinField(scrolled, 0, 1000000);
 
 	numericGrid->Add(new wxStaticText(scrolled, wxID_ANY, "lookId"), 0, wxALIGN_CENTER_VERTICAL);
 	numericGrid->Add(lookIdCtrl_, 1, wxEXPAND);
+	numericGrid->AddSpacer(0);
+	numericGrid->Add(lookIdOwnershipLabel_, 1, wxEXPAND);
 	numericGrid->Add(new wxStaticText(scrolled, wxID_ANY, "serverLookId"), 0, wxALIGN_CENTER_VERTICAL);
 	numericGrid->Add(serverLookIdCtrl_, 1, wxEXPAND);
+	numericGrid->AddSpacer(0);
+	numericGrid->Add(serverLookIdOwnershipLabel_, 1, wxEXPAND);
 	numericGrid->Add(new wxStaticText(scrolled, wxID_ANY, "zOrder"), 0, wxALIGN_CENTER_VERTICAL);
 	numericGrid->Add(zOrderCtrl_, 1, wxEXPAND);
 	numericGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Thickness"), 0, wxALIGN_CENTER_VERTICAL);
@@ -1004,6 +1010,7 @@ void MaterialsWorkbenchBrushPanel::ClearWorkspace(const wxString &message) {
 	oneSizeCtrl_->SetValue(false);
 	soloOptionalCtrl_->SetValue(false);
 	internalUpdate_ = false;
+	RefreshLookIdOwnershipHints();
 
 	SetFieldsEnabled(false);
 	UpdateActionButtons();
@@ -1094,6 +1101,7 @@ void MaterialsWorkbenchBrushPanel::PopulateMetadataFields() {
 	oneSizeCtrl_->SetValue(brush.oneSize);
 	soloOptionalCtrl_->SetValue(brush.soloOptional);
 	internalUpdate_ = false;
+	RefreshLookIdOwnershipHints();
 }
 
 void MaterialsWorkbenchBrushPanel::UpdateSummary() {
@@ -1400,6 +1408,25 @@ void MaterialsWorkbenchBrushPanel::UpdateItemOwnershipHint(wxStaticText* label, 
 	label->SetLabel(wxString::Format("Runtime owner: already used by brush \"%s\".", ownerName));
 	label->SetForegroundColour(wxColour(176, 102, 0));
 	label->Refresh();
+}
+
+void MaterialsWorkbenchBrushPanel::RefreshLookIdOwnershipHints() const {
+	if (!hasBrush_) {
+		if (lookIdOwnershipLabel_) {
+			lookIdOwnershipLabel_->SetLabel("Runtime owner: select a brush.");
+			lookIdOwnershipLabel_->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_GRAYTEXT));
+			lookIdOwnershipLabel_->Refresh();
+		}
+		if (serverLookIdOwnershipLabel_) {
+			serverLookIdOwnershipLabel_->SetLabel("Runtime owner: select a brush.");
+			serverLookIdOwnershipLabel_->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_GRAYTEXT));
+			serverLookIdOwnershipLabel_->Refresh();
+		}
+		return;
+	}
+
+	UpdateItemOwnershipHint(lookIdOwnershipLabel_, lookIdCtrl_ ? lookIdCtrl_->GetValue() : 0, true);
+	UpdateItemOwnershipHint(serverLookIdOwnershipLabel_, serverLookIdCtrl_ ? serverLookIdCtrl_->GetValue() : 0, true);
 }
 
 MaterialsWorkbenchBrushPanel::VariationEditorState MaterialsWorkbenchBrushPanel::CaptureVariationEditorState() const {
@@ -2355,6 +2382,7 @@ void MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged(wxCommandEvent &event)
 	}
 
 	UpdateWorkspaceHeader();
+	RefreshLookIdOwnershipHints();
 	RefreshVariationEditor();
 	RefreshDirtyState();
 	event.Skip();
