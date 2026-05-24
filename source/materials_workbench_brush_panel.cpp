@@ -1004,8 +1004,8 @@ void MaterialsWorkbenchBrushPanel::ClearWorkspace(const wxString &message) {
 }
 
 bool MaterialsWorkbenchBrushPanel::LoadBrush(const wxString &contextKey, int itemIndex) {
-	const bool preserveVariationState = hasBrush_ && currentContextKey_ == contextKey && currentItemIndex_ == itemIndex;
-	const VariationEditorState previousVariationState = preserveVariationState ? CaptureVariationEditorState() : VariationEditorState();
+	const int64_t previousBrushId = hasBrush_ ? brushStorage_.brush.id : 0;
+	const VariationEditorState previousVariationState = hasBrush_ ? CaptureVariationEditorState() : VariationEditorState();
 
 	wxString error;
 	BrushStorageRecord storage;
@@ -1019,6 +1019,8 @@ bool MaterialsWorkbenchBrushPanel::LoadBrush(const wxString &contextKey, int ite
 		ClearWorkspace("Failed to load brush details: " + error);
 		return false;
 	}
+
+	const bool preserveVariationState = previousVariationState.valid && previousBrushId == storage.brush.id;
 
 	brushStorage_ = storage;
 	loadedBrushStorage_ = storage;
