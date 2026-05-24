@@ -65,6 +65,14 @@ namespace {
 		return CreateSpinField(parent, 0, GetMaxEditableItemId());
 	}
 
+	wxString FormatImportedFromValue(const wxString &sourceFile) {
+		return sourceFile.IsEmpty() ? "Not imported from legacy XML" : sourceFile;
+	}
+
+	wxString ParseImportedFromEditorValue(const wxString &sourceFile) {
+		return sourceFile == "Not imported from legacy XML" ? "" : sourceFile;
+	}
+
 	int CaptureListTopItem(wxListBox* listBox) {
 		if (!listBox || listBox->GetCount() == 0) {
 			return wxNOT_FOUND;
@@ -150,7 +158,8 @@ namespace {
 		text << "Brush: " << brush.name << "\n";
 		text << "Type: " << brush.type << "\n";
 		text << "ID: " << brush.id << "\n";
-		text << "Source: " << brush.sourceFile << "\n\n";
+		text << "Storage: materials.db\n";
+		text << "Imported from: " << FormatImportedFromValue(brush.sourceFile) << "\n\n";
 		text << "lookId: " << brush.lookId << "\n";
 		text << "serverLookId: " << brush.serverLookId << "\n";
 		text << "zOrder: " << brush.zOrder << "\n";
@@ -572,12 +581,15 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildMetadataPage(wxNotebook* notebook) {
 	identityGrid->AddGrowableCol(1, 1);
 
 	idCtrl_ = CreateTextField(scrolled, wxTE_READONLY);
+	storageCtrl_ = CreateTextField(scrolled, wxTE_READONLY);
 	nameCtrl_ = CreateTextField(scrolled);
 	typeCtrl_ = CreateTextField(scrolled);
 	sourceCtrl_ = CreateTextField(scrolled);
 
 	identityGrid->Add(new wxStaticText(scrolled, wxID_ANY, "SQLite ID"), 0, wxALIGN_CENTER_VERTICAL);
 	identityGrid->Add(idCtrl_, 1, wxEXPAND);
+	identityGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Storage"), 0, wxALIGN_CENTER_VERTICAL);
+	identityGrid->Add(storageCtrl_, 1, wxEXPAND);
 	identityGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Name"), 0, wxALIGN_CENTER_VERTICAL);
 	identityGrid->Add(nameCtrl_, 1, wxEXPAND);
 	identityGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Type"), 0, wxALIGN_CENTER_VERTICAL);
@@ -961,6 +973,7 @@ void MaterialsWorkbenchBrushPanel::ClearWorkspace(const wxString &message) {
 
 	internalUpdate_ = true;
 	idCtrl_->SetValue("");
+	storageCtrl_->SetValue("");
 	nameCtrl_->SetValue("");
 	typeCtrl_->SetValue("");
 	sourceCtrl_->SetValue("");
@@ -1048,9 +1061,10 @@ void MaterialsWorkbenchBrushPanel::PopulateMetadataFields() {
 
 	internalUpdate_ = true;
 	idCtrl_->SetValue(wxString::Format("%lld", static_cast<long long>(brush.id)));
+	storageCtrl_->SetValue("materials.db");
 	nameCtrl_->SetValue(brush.name);
 	typeCtrl_->SetValue(brush.type);
-	sourceCtrl_->SetValue(brush.sourceFile);
+	sourceCtrl_->SetValue(FormatImportedFromValue(brush.sourceFile));
 	lookIdCtrl_->SetValue(brush.lookId);
 	serverLookIdCtrl_->SetValue(brush.serverLookId);
 	zOrderCtrl_->SetValue(brush.zOrder);
@@ -1090,7 +1104,7 @@ BrushStorageRecord MaterialsWorkbenchBrushPanel::BuildEditableStorageFromCurrent
 	BrushRecord &brush = storage.brush;
 	brush.name = TrimmedValue(nameCtrl_);
 	brush.type = TrimmedValue(typeCtrl_);
-	brush.sourceFile = TrimmedValue(sourceCtrl_);
+	brush.sourceFile = ParseImportedFromEditorValue(TrimmedValue(sourceCtrl_));
 	brush.lookId = lookIdCtrl_->GetValue();
 	brush.serverLookId = serverLookIdCtrl_->GetValue();
 	brush.zOrder = zOrderCtrl_->GetValue();

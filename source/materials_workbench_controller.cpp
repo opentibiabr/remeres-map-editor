@@ -5,6 +5,10 @@
 #include <wx/arrstr.h>
 
 namespace {
+	wxString FormatInspectorImportedFromValue(const wxString &sourceFile) {
+		return sourceFile.IsEmpty() ? "Not imported from legacy XML" : sourceFile;
+	}
+
 	wxString FormatAuditSummary(const MaterialsDatabaseAuditReport &audit) {
 		wxString text;
 		text << "SQLite materials catalog summary\n\n";
@@ -43,7 +47,8 @@ namespace {
 		text << "Brush: " << brush.name << "\n";
 		text << "Type: " << brush.type << "\n";
 		text << "ID: " << brush.id << "\n";
-		text << "Source: " << brush.sourceFile << "\n\n";
+		text << "Storage: materials.db\n";
+		text << "Imported from: " << FormatInspectorImportedFromValue(brush.sourceFile) << "\n\n";
 		text << "lookId: " << brush.lookId << "\n";
 		text << "serverLookId: " << brush.serverLookId << "\n";
 		text << "zOrder: " << brush.zOrder << "\n";

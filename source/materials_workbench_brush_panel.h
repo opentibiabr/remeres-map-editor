@@ -154,6 +154,7 @@ private:
 	wxTextCtrl* nameCtrl_ = nullptr;
 	wxTextCtrl* typeCtrl_ = nullptr;
 	wxTextCtrl* idCtrl_ = nullptr;
+	wxTextCtrl* storageCtrl_ = nullptr;
 	wxTextCtrl* sourceCtrl_ = nullptr;
 	wxSpinCtrl* lookIdCtrl_ = nullptr;
 	wxSpinCtrl* serverLookIdCtrl_ = nullptr;

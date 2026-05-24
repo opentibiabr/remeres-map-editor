@@ -30,6 +30,7 @@
 - [x] Reloading the same brush now preserves more of the current variation editor context
 - [x] Variation parent/child selection transitions now preserve child selection more often instead of resetting it blindly
 - [x] Brush load/save/revert and catalog reload now emit more specific diagnostic logs
+- [x] Brush metadata and inspector now separate `Storage: materials.db` from legacy `Imported from`
 
 ## Remaining Before Calling It Ready
 - [ ] Extend `dirty state` beyond the Brush Workspace
@@ -106,6 +107,7 @@
 ## Next Task Handoff
 - Current focus remains `Stage 9`
 - `Stage 9` is not finished yet; the Brush Workspace is close, but there are still remaining selection/scroll, logging, and provenance tasks before calling it complete
+- `Stage 9` is not finished yet; the Brush Workspace is close, but there are still remaining selection/scroll tasks before calling it complete
 - Brush Workspace already has: initial variations editing, stable save/revert flow, rename-safe palette sync, dirty state, modified badges, selection guard, and stronger save-time validation for `item id`, `lookId`, `serverLookId`, and `type`
 - Brush palette runtime sync already updates renamed brushes and saved `lookId` changes without full runtime reload
 - The current modified-field highlight works functionally but still needs a more professional visual treatment
@@ -113,9 +115,8 @@
 - Recent progress: reloading the same brush now preserves more of the active variation editor context, including internal selection state and visible list position
 - Recent progress: parent/child variation transitions now keep more existing selection context instead of clearing child selections eagerly before refresh
 - Recent progress: brush load/save/revert and controller catalog reload now emit more specific logs with brush identifiers and reload context
-- Remaining blockers for closing `Stage 9`: preserve selection/scroll more consistently across the remaining reload paths, harden dynamic selection transitions in recreated UI controls, add more specific save/reload logs, and clarify provenance metadata in the UI
-- Remaining blockers for closing `Stage 9`: preserve selection/scroll more consistently across the remaining reload paths and clarify provenance metadata in the UI
-- Best next implementation cut: finish the remaining selection/scroll preservation paths in the Brush Workspace, then move to provenance metadata (`Storage: materials.db` and `Imported from: ...`)
-- After that, continue `Stage 9` with more specific save/reload logs and clearer provenance metadata (`Storage: materials.db` and `Imported from: ...`)
+- Recent progress: brush metadata and inspector now show `Storage: materials.db` separately from legacy `Imported from`
+- Remaining blockers for closing `Stage 9`: preserve selection/scroll more consistently across the remaining reload paths and harden any last unstable dynamic selection transitions in recreated UI controls
+- Best next implementation cut: finish the remaining selection/scroll preservation paths in the Brush Workspace, then reassess whether `Stage 9` is ready to close
 - If a follow-up task must be split, keep the next task scoped to `Stage 9` only; do not jump to previews or Stage 10 polish until the items above are closed
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`
