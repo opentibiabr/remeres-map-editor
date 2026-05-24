@@ -248,6 +248,9 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 		HandleBrushSaved(brushId, oldName, newName);
 	});
 	wallPanel_ = new MaterialsWorkbenchWallPanel(workspaceBook_, controller_);
+	wallPanel_->SetOnWallBrushStateChanged([this]() {
+		UpdateBrushNavigationBadge();
+	});
 	wallPanel_->SetOnWallBrushSaved([this](int64_t brushId) {
 		CallAfter([this, brushId]() {
 			HandleWallBrushSaved(brushId);
@@ -371,6 +374,8 @@ void MaterialsWorkbenchWindow::UpdateBrushNavigationBadge() {
 
 	const bool hasDirtyBrush = brushPanel_ && brushPanel_->HasPendingChanges();
 	const wxString dirtyBrushName = hasDirtyBrush ? brushPanel_->GetCurrentBrushDisplayName() : "";
+	const bool hasDirtyWall = wallPanel_ && wallPanel_->HasPendingChanges();
+	const wxString dirtyWallName = hasDirtyWall ? wallPanel_->GetCurrentWallDisplayName() : "";
 	const wxColour defaultTextColour = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT);
 	const wxColour modifiedTextColour(176, 102, 0);
 
@@ -382,9 +387,15 @@ void MaterialsWorkbenchWindow::UpdateBrushNavigationBadge() {
 				const bool isModifiedBrush = hasDirtyBrush &&
 					itemData->kind == MaterialsWorkbenchNodeKind::Brush &&
 					brushPanel_->IsCurrentBrushSelection(itemData->contextKey, itemData->itemIndex);
-				const wxString displayLabel = isModifiedBrush && !dirtyBrushName.IsEmpty() ? dirtyBrushName : itemData->baseLabel;
-				navigationTree_->SetItemText(child, isModifiedBrush ? displayLabel + " [modified]" : itemData->baseLabel);
-				navigationTree_->SetItemTextColour(child, isModifiedBrush ? modifiedTextColour : defaultTextColour);
+				const bool isModifiedWall = hasDirtyWall &&
+					itemData->kind == MaterialsWorkbenchNodeKind::Brush &&
+					wallPanel_->IsCurrentWallSelection(itemData->contextKey, itemData->itemIndex);
+				const bool isModified = isModifiedBrush || isModifiedWall;
+				const wxString displayLabel =
+					isModifiedBrush && !dirtyBrushName.IsEmpty() ? dirtyBrushName :
+					(isModifiedWall && !dirtyWallName.IsEmpty() ? dirtyWallName : itemData->baseLabel);
+				navigationTree_->SetItemText(child, isModified ? displayLabel + " [modified]" : itemData->baseLabel);
+				navigationTree_->SetItemTextColour(child, isModified ? modifiedTextColour : defaultTextColour);
 			}
 
 			self(self, child);
@@ -441,18 +452,31 @@ void MaterialsWorkbenchWindow::PopulateNavigation() {
 void MaterialsWorkbenchWindow::BindEvents() {
 	navigationTree_->Bind(wxEVT_TREE_SEL_CHANGING, [this](wxTreeEvent &event) {
 		const wxTreeItemId item = event.GetItem();
-		if (!item.IsOk() || !brushPanel_->HasPendingChanges()) {
+		if (!item.IsOk()) {
 			return;
 		}
 
 		auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(item));
-		if (itemData && itemData->kind == MaterialsWorkbenchNodeKind::Brush &&
-			brushPanel_->IsCurrentBrushSelection(itemData->contextKey, itemData->itemIndex)) {
+		const bool isSameBrushSelection =
+			itemData &&
+			itemData->kind == MaterialsWorkbenchNodeKind::Brush &&
+			brushPanel_->IsCurrentBrushSelection(itemData->contextKey, itemData->itemIndex);
+		const bool isSameWallSelection =
+			itemData &&
+			itemData->kind == MaterialsWorkbenchNodeKind::Brush &&
+			wallPanel_->IsCurrentWallSelection(itemData->contextKey, itemData->itemIndex);
+
+		if (brushPanel_->HasPendingChanges() && !isSameBrushSelection) {
+			if (!brushPanel_->ResolvePendingChangesBeforeSwitch(this, navigationTree_->GetItemText(item))) {
+				event.Veto();
+			}
 			return;
 		}
 
-		if (!brushPanel_->ResolvePendingChangesBeforeSwitch(this, navigationTree_->GetItemText(item))) {
-			event.Veto();
+		if (wallPanel_->HasPendingChanges() && !isSameWallSelection) {
+			if (!wallPanel_->ResolvePendingChangesBeforeSwitch(this, navigationTree_->GetItemText(item))) {
+				event.Veto();
+			}
 		}
 	});
 
@@ -529,6 +553,19 @@ bool MaterialsWorkbenchWindow::SelectNavigationNode(MaterialsWorkbenchNodeKind k
 }
 
 void MaterialsWorkbenchWindow::OnClose(wxCloseEvent &event) {
+	if (event.CanVeto()) {
+		if (brushPanel_ && brushPanel_->HasPendingChanges() &&
+			!brushPanel_->ResolvePendingChangesBeforeSwitch(this, "closing the Materials Workbench window")) {
+			event.Veto();
+			return;
+		}
+		if (wallPanel_ && wallPanel_->HasPendingChanges() &&
+			!wallPanel_->ResolvePendingChangesBeforeSwitch(this, "closing the Materials Workbench window")) {
+			event.Veto();
+			return;
+		}
+	}
+
 	g_materials_workbench_window = nullptr;
 	Destroy();
 	event.Skip(false);

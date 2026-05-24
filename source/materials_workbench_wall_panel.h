@@ -11,6 +11,7 @@
 class ItemButton;
 class ItemToggleButton;
 class MaterialsWorkbenchController;
+class wxButton;
 class wxCheckBox;
 class wxChoice;
 class wxScrolledWindow;
@@ -26,8 +27,25 @@ public:
 	void ClearWorkspace(const wxString &message);
 	bool LoadWallBrush(const wxString &contextKey, int itemIndex);
 	void SetOnWallBrushSaved(std::function<void(int64_t)> callback);
+	void SetOnWallBrushStateChanged(std::function<void()> callback);
+	bool HasPendingChanges() const;
+	bool IsCurrentWallSelection(const wxString &contextKey, int itemIndex) const;
+	wxString GetCurrentWallDisplayName() const;
+	bool ResolvePendingChangesBeforeSwitch(wxWindow* parent, const wxString &targetLabel);
 
 private:
+	struct WallEditorState {
+		bool valid = false;
+		wxString partType;
+		int itemSortOrder = -1;
+		int itemId = 0;
+		int doorSortOrder = -1;
+		int doorItemId = 0;
+		wxString doorType;
+		bool doorIsOpen = false;
+		bool doorWallHateMe = false;
+	};
+
 	const WallPartRecord* GetSelectedPart() const;
 	WallPartRecord* GetSelectedPart();
 	void BuildLayout();
@@ -41,6 +59,13 @@ private:
 	void NormalizeWallParts();
 	void SetStatusMessage(const wxString &message);
 	void SetFieldsEnabled(bool enabled);
+	BrushStorageRecord BuildComparableStorageFromCurrentState() const;
+	WallEditorState CaptureEditorState() const;
+	void RestoreEditorState(const WallEditorState &state);
+	void RefreshDirtyState();
+	void NotifyWallBrushStateChanged();
+	void UpdateWorkspaceHeader();
+	void UpdateActionButtons();
 	bool SaveCurrentWallBrush();
 
 	void OnPartChanged(wxCommandEvent &event);
@@ -59,17 +84,22 @@ private:
 
 	MaterialsWorkbenchController &controller_;
 	std::function<void(int64_t)> onWallBrushSaved_;
+	std::function<void()> onWallBrushStateChanged_;
 	BrushStorageRecord wallBrushStorage_;
+	BrushStorageRecord loadedWallBrushStorage_;
 	wxString currentContextKey_;
 	int currentItemIndex_ = -1;
 	int selectedPartIndex_ = -1;
 	int selectedItemIndex_ = -1;
 	int selectedDoorIndex_ = -1;
 	bool hasWallBrush_ = false;
+	bool dirty_ = false;
 
 	wxStaticText* titleLabel_ = nullptr;
 	wxStaticText* subtitleLabel_ = nullptr;
 	wxStaticText* summaryLabel_ = nullptr;
+	wxButton* saveButton_ = nullptr;
+	wxButton* revertButton_ = nullptr;
 	wxTextCtrl* brushIdCtrl_ = nullptr;
 	wxTextCtrl* brushNameCtrl_ = nullptr;
 	wxTextCtrl* brushSourceCtrl_ = nullptr;

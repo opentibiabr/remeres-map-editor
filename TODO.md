@@ -35,6 +35,9 @@
 - [x] Navigation tree refreshes now preserve expanded groups and current selection more often
 - [x] Brush reload now preserves variation context by brush id even when refresh changes the item index
 - [x] Navigation tree refreshes now preserve the first visible region more often instead of jumping to the top
+- [x] Wall Workspace now tracks local dirty state and only enables save/revert when needed
+- [x] Wall Workspace now guards selection changes and window close against losing pending edits
+- [x] Wall Workspace now preserves the selected wall part/item/door more often across save and reload
 
 ## Remaining Before Calling It Ready
 - [ ] Extend `dirty state` beyond the Brush Workspace
@@ -114,7 +117,7 @@
 - Brush palette runtime sync already updates renamed brushes and saved `lookId` changes without full runtime reload
 - The current modified-field highlight works functionally but still needs a more professional visual treatment
 - Remaining Brush Workspace follow-up is now small and mostly polish-level: final reassessment of any residual selection/scroll edge cases and whether the modified highlight needs one more visual pass
-- The next new implementation cut should move to `Wall Workspace` to extend `Stage 9` beyond Brush Workspace
-- Recommended next task goal: bring `Wall Workspace` closer to the same quality bar already reached in Brush Workspace, starting with save workflow consistency, local-edit safety, and context preservation
+- `Wall Workspace` has now started its `Stage 9` pass with dirty state, save/revert consistency, selection-change protection, close protection, navigation badge integration, and basic context preservation across save/reload
+- Recommended next task goal: keep `Stage 9` on `Wall Workspace`, focusing next on stronger validation and any remaining selection/scroll edge cases before moving on to previews
 - If a follow-up task must be split, keep the next task scoped to `Stage 9` only; do not jump to previews or Stage 10 polish until the items above are closed
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`

@@ -8,6 +8,7 @@
 #include <wx/button.h>
 #include <wx/checkbox.h>
 #include <wx/choice.h>
+#include <wx/msgdlg.h>
 #include <wx/scrolwin.h>
 #include <wx/sizer.h>
 #include <wx/spinctrl.h>
@@ -45,6 +46,40 @@ namespace {
 			part.doors[i].sortOrder = static_cast<int>(i);
 		}
 	}
+
+	template <typename T, typename Compare>
+	bool WallPanelVectorsEqual(const std::vector<T> &left, const std::vector<T> &right, Compare compare) {
+		if (left.size() != right.size()) {
+			return false;
+		}
+		for (size_t i = 0; i < left.size(); ++i) {
+			if (!compare(left[i], right[i])) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	bool AreWallPanelPartItemRecordsEqual(const WallPartItemRecord &left, const WallPartItemRecord &right) {
+		return left.itemId == right.itemId &&
+			   left.chance == right.chance &&
+			   left.sortOrder == right.sortOrder;
+	}
+
+	bool AreWallPanelPartDoorRecordsEqual(const WallPartDoorRecord &left, const WallPartDoorRecord &right) {
+		return left.itemId == right.itemId &&
+			   left.doorType == right.doorType &&
+			   left.isOpen == right.isOpen &&
+			   left.wallHateMe == right.wallHateMe &&
+			   left.sortOrder == right.sortOrder;
+	}
+
+	bool AreWallPanelPartRecordsEqual(const WallPartRecord &left, const WallPartRecord &right) {
+		return left.partType == right.partType &&
+			   left.sortOrder == right.sortOrder &&
+			   WallPanelVectorsEqual(left.items, right.items, AreWallPanelPartItemRecordsEqual) &&
+			   WallPanelVectorsEqual(left.doors, right.doors, AreWallPanelPartDoorRecordsEqual);
+	}
 } // namespace
 
 MaterialsWorkbenchWallPanel::MaterialsWorkbenchWallPanel(wxWindow* parent, MaterialsWorkbenchController &controller) :
@@ -56,6 +91,51 @@ MaterialsWorkbenchWallPanel::MaterialsWorkbenchWallPanel(wxWindow* parent, Mater
 
 void MaterialsWorkbenchWallPanel::SetOnWallBrushSaved(std::function<void(int64_t)> callback) {
 	onWallBrushSaved_ = std::move(callback);
+}
+
+void MaterialsWorkbenchWallPanel::SetOnWallBrushStateChanged(std::function<void()> callback) {
+	onWallBrushStateChanged_ = std::move(callback);
+}
+
+bool MaterialsWorkbenchWallPanel::HasPendingChanges() const {
+	return hasWallBrush_ && dirty_;
+}
+
+bool MaterialsWorkbenchWallPanel::IsCurrentWallSelection(const wxString &contextKey, int itemIndex) const {
+	return hasWallBrush_ && currentContextKey_ == contextKey && currentItemIndex_ == itemIndex;
+}
+
+wxString MaterialsWorkbenchWallPanel::GetCurrentWallDisplayName() const {
+	return hasWallBrush_ ? wallBrushStorage_.brush.name : "";
+}
+
+bool MaterialsWorkbenchWallPanel::ResolvePendingChangesBeforeSwitch(wxWindow* parent, const wxString &targetLabel) {
+	if (!HasPendingChanges()) {
+		return true;
+	}
+
+	const wxString destination = targetLabel.IsEmpty() ? "the selected entry" : "\"" + targetLabel + "\"";
+	wxMessageDialog dialog(
+		parent,
+		"Wall brush \"" + wallBrushStorage_.brush.name + "\" has unsaved changes.\n\n"
+		"You are switching to " + destination + ".\n\n"
+		"Yes: save and continue\n"
+		"No: discard local changes and continue\n"
+		"Cancel: stay on the current wall brush",
+		"Unsaved Wall Changes",
+		wxYES_NO | wxCANCEL | wxICON_WARNING
+	);
+	dialog.SetYesNoCancelLabels("Save", "Discard", "Cancel");
+
+	switch (dialog.ShowModal()) {
+	case wxID_YES:
+		return SaveCurrentWallBrush();
+	case wxID_NO:
+		return LoadWallBrush(currentContextKey_, currentItemIndex_);
+	default:
+		SetStatusMessage("Selection change canceled. Pending wall edits were kept.");
+		return false;
+	}
 }
 
 const WallPartRecord* MaterialsWorkbenchWallPanel::GetSelectedPart() const {
@@ -217,10 +297,10 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	headerSizer->Add(subtitleLabel_, 0);
 
 	wxBoxSizer* actionSizer = new wxBoxSizer(wxHORIZONTAL);
-	wxButton* saveButton = new wxButton(this, wxID_SAVE, "Save Wall Brush");
-	wxButton* revertButton = new wxButton(this, wxID_ANY, "Revert");
-	actionSizer->Add(saveButton, 0, wxRIGHT, FromDIP(6));
-	actionSizer->Add(revertButton, 0);
+	saveButton_ = new wxButton(this, wxID_SAVE, "Save Wall Brush");
+	revertButton_ = new wxButton(this, wxID_ANY, "Revert");
+	actionSizer->Add(saveButton_, 0, wxRIGHT, FromDIP(6));
+	actionSizer->Add(revertButton_, 0);
 
 	statusLabel_ = new wxStaticText(this, wxID_ANY, "");
 
@@ -238,8 +318,8 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	pickDoorItemButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnPickDoorItem, this);
 	applyDoorButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnApplyDoor, this);
 	removeDoorButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnRemoveDoor, this);
-	saveButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnSave, this);
-	revertButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnRevert, this);
+	saveButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnSave, this);
+	revertButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnRevert, this);
 	itemIdCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchWallPanel::OnItemIdChanged, this);
 	itemIdCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchWallPanel::OnItemIdSpin, this);
 	doorItemIdCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchWallPanel::OnDoorItemIdChanged, this);
@@ -248,15 +328,16 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 
 void MaterialsWorkbenchWallPanel::ClearWorkspace(const wxString &message) {
 	wallBrushStorage_ = BrushStorageRecord();
+	loadedWallBrushStorage_ = BrushStorageRecord();
 	currentContextKey_.clear();
 	currentItemIndex_ = -1;
 	selectedPartIndex_ = -1;
 	selectedItemIndex_ = -1;
 	selectedDoorIndex_ = -1;
 	hasWallBrush_ = false;
+	dirty_ = false;
 
-	titleLabel_->SetLabel("No wall brush selected");
-	subtitleLabel_->SetLabel("Select a wall brush in the navigation tree to edit its wall parts.");
+	UpdateWorkspaceHeader();
 	summaryLabel_->SetLabel(message);
 	brushIdCtrl_->SetValue("");
 	brushNameCtrl_->SetValue("");
@@ -280,11 +361,16 @@ void MaterialsWorkbenchWallPanel::ClearWorkspace(const wxString &message) {
 	doorButtons_.clear();
 
 	SetFieldsEnabled(false);
+	UpdateActionButtons();
+	NotifyWallBrushStateChanged();
 	SetStatusMessage(message);
 	Layout();
 }
 
 bool MaterialsWorkbenchWallPanel::LoadWallBrush(const wxString &contextKey, int itemIndex) {
+	const int64_t previousBrushId = hasWallBrush_ ? wallBrushStorage_.brush.id : 0;
+	const WallEditorState previousEditorState = hasWallBrush_ ? CaptureEditorState() : WallEditorState();
+
 	wxString error;
 	BrushStorageRecord storage;
 	if (!controller_.GetBrushDetails(contextKey, itemIndex, storage, error)) {
@@ -292,16 +378,32 @@ bool MaterialsWorkbenchWallPanel::LoadWallBrush(const wxString &contextKey, int 
 		return false;
 	}
 
+	BrushStorageRecord comparableStorage = storage;
+	for (WallPartRecord &part : comparableStorage.wallParts) {
+		NormalizeWallPartRecord(part);
+	}
+	for (size_t i = 0; i < comparableStorage.wallParts.size(); ++i) {
+		comparableStorage.wallParts[i].sortOrder = static_cast<int>(i);
+	}
+
+	const bool preserveEditorState = previousEditorState.valid && previousBrushId == comparableStorage.brush.id;
 	wallBrushStorage_ = storage;
+	loadedWallBrushStorage_ = comparableStorage;
 	currentContextKey_ = contextKey;
 	currentItemIndex_ = itemIndex;
 	hasWallBrush_ = true;
-	selectedPartIndex_ = wallBrushStorage_.wallParts.empty() ? -1 : 0;
+	dirty_ = false;
+	selectedPartIndex_ = storage.wallParts.empty() ? -1 : 0;
 	selectedItemIndex_ = -1;
 	selectedDoorIndex_ = -1;
 
 	PopulateFields();
+	if (preserveEditorState) {
+		RestoreEditorState(previousEditorState);
+	}
 	SetFieldsEnabled(true);
+	UpdateActionButtons();
+	NotifyWallBrushStateChanged();
 	SetStatusMessage("Wall brush loaded from materials.db.");
 	Layout();
 	return true;
@@ -309,8 +411,7 @@ bool MaterialsWorkbenchWallPanel::LoadWallBrush(const wxString &contextKey, int 
 
 void MaterialsWorkbenchWallPanel::PopulateFields() {
 	const BrushRecord &brush = wallBrushStorage_.brush;
-	titleLabel_->SetLabel("Editing wall brush: " + brush.name);
-	subtitleLabel_->SetLabel("Edit wall parts, alternates and door definitions visually before polishing the full wall authoring flow.");
+	UpdateWorkspaceHeader();
 	summaryLabel_->SetLabel(wxString::Format(
 		"Wall parts: %zu | Links: %zu | Source: %s",
 		wallBrushStorage_.wallParts.size(),
@@ -510,13 +611,165 @@ void MaterialsWorkbenchWallPanel::SetFieldsEnabled(bool enabled) {
 	doorPreviewButton_->Enable(enabled);
 }
 
+BrushStorageRecord MaterialsWorkbenchWallPanel::BuildComparableStorageFromCurrentState() const {
+	BrushStorageRecord storage = wallBrushStorage_;
+	for (size_t i = 0; i < storage.wallParts.size(); ++i) {
+		storage.wallParts[i].sortOrder = static_cast<int>(i);
+		NormalizeWallPartRecord(storage.wallParts[i]);
+	}
+	return storage;
+}
+
+MaterialsWorkbenchWallPanel::WallEditorState MaterialsWorkbenchWallPanel::CaptureEditorState() const {
+	WallEditorState state;
+	state.valid = hasWallBrush_;
+
+	const WallPartRecord* part = GetSelectedPart();
+	if (!part) {
+		return state;
+	}
+
+	state.partType = part->partType;
+	if (selectedItemIndex_ >= 0 && selectedItemIndex_ < static_cast<int>(part->items.size())) {
+		state.itemSortOrder = part->items[selectedItemIndex_].sortOrder;
+		state.itemId = part->items[selectedItemIndex_].itemId;
+	}
+	if (selectedDoorIndex_ >= 0 && selectedDoorIndex_ < static_cast<int>(part->doors.size())) {
+		const WallPartDoorRecord &door = part->doors[selectedDoorIndex_];
+		state.doorSortOrder = door.sortOrder;
+		state.doorItemId = door.itemId;
+		state.doorType = door.doorType;
+		state.doorIsOpen = door.isOpen;
+		state.doorWallHateMe = door.wallHateMe;
+	}
+	return state;
+}
+
+void MaterialsWorkbenchWallPanel::RestoreEditorState(const WallEditorState &state) {
+	if (!state.valid || !hasWallBrush_) {
+		return;
+	}
+
+	selectedPartIndex_ = 0;
+	for (size_t i = 0; i < wallBrushStorage_.wallParts.size(); ++i) {
+		if (wallBrushStorage_.wallParts[i].partType == state.partType) {
+			selectedPartIndex_ = static_cast<int>(i);
+			break;
+		}
+	}
+
+	const WallPartRecord* part = GetSelectedPart();
+	selectedItemIndex_ = -1;
+	selectedDoorIndex_ = -1;
+	if (!part) {
+		RefreshPartChoice();
+		RefreshSelectedPart();
+		return;
+	}
+
+	for (size_t i = 0; i < part->items.size(); ++i) {
+		const WallPartItemRecord &item = part->items[i];
+		if (item.sortOrder == state.itemSortOrder && item.itemId == state.itemId) {
+			selectedItemIndex_ = static_cast<int>(i);
+			break;
+		}
+	}
+	if (selectedItemIndex_ == -1 && state.itemId > 0) {
+		for (size_t i = 0; i < part->items.size(); ++i) {
+			if (part->items[i].itemId == state.itemId) {
+				selectedItemIndex_ = static_cast<int>(i);
+				break;
+			}
+		}
+	}
+
+	for (size_t i = 0; i < part->doors.size(); ++i) {
+		const WallPartDoorRecord &door = part->doors[i];
+		if (door.sortOrder == state.doorSortOrder &&
+			door.itemId == state.doorItemId &&
+			door.doorType == state.doorType &&
+			door.isOpen == state.doorIsOpen &&
+			door.wallHateMe == state.doorWallHateMe) {
+			selectedDoorIndex_ = static_cast<int>(i);
+			break;
+		}
+	}
+	if (selectedDoorIndex_ == -1 && state.doorItemId > 0) {
+		for (size_t i = 0; i < part->doors.size(); ++i) {
+			const WallPartDoorRecord &door = part->doors[i];
+			if (door.itemId == state.doorItemId && door.doorType == state.doorType) {
+				selectedDoorIndex_ = static_cast<int>(i);
+				break;
+			}
+		}
+	}
+
+	RefreshPartChoice();
+	RefreshSelectedPart();
+}
+
+void MaterialsWorkbenchWallPanel::RefreshDirtyState() {
+	if (!hasWallBrush_) {
+		dirty_ = false;
+		UpdateWorkspaceHeader();
+		UpdateActionButtons();
+		NotifyWallBrushStateChanged();
+		return;
+	}
+
+	dirty_ = !VectorsEqual(
+		BuildComparableStorageFromCurrentState().wallParts,
+		loadedWallBrushStorage_.wallParts,
+		AreWallPanelPartRecordsEqual
+	);
+	UpdateWorkspaceHeader();
+	UpdateActionButtons();
+	NotifyWallBrushStateChanged();
+}
+
+void MaterialsWorkbenchWallPanel::NotifyWallBrushStateChanged() {
+	if (onWallBrushStateChanged_) {
+		onWallBrushStateChanged_();
+	}
+}
+
+void MaterialsWorkbenchWallPanel::UpdateWorkspaceHeader() {
+	if (!hasWallBrush_) {
+		titleLabel_->SetLabel("No wall brush selected");
+		subtitleLabel_->SetLabel("Select a wall brush in the navigation tree to edit its wall parts.");
+		return;
+	}
+
+	titleLabel_->SetLabel("Editing wall brush: " + wallBrushStorage_.brush.name + (dirty_ ? " [modified]" : ""));
+	subtitleLabel_->SetLabel(
+		dirty_
+			? "Local wall edits differ from materials.db. Save, revert or switch entries carefully."
+			: "Edit wall parts, alternates and door definitions visually before polishing the full wall authoring flow."
+	);
+}
+
+void MaterialsWorkbenchWallPanel::UpdateActionButtons() {
+	if (saveButton_) {
+		saveButton_->Enable(hasWallBrush_ && dirty_);
+	}
+	if (revertButton_) {
+		revertButton_->Enable(hasWallBrush_ && dirty_);
+	}
+}
+
 bool MaterialsWorkbenchWallPanel::SaveCurrentWallBrush() {
 	if (!hasWallBrush_) {
 		SetStatusMessage("Select a wall brush before saving.");
 		return false;
 	}
 
-	NormalizeWallParts();
+	if (!dirty_) {
+		SetStatusMessage("No pending wall changes to save.");
+		return true;
+	}
+
+	const WallEditorState previousEditorState = CaptureEditorState();
+	wallBrushStorage_ = BuildComparableStorageFromCurrentState();
 
 	wxString error;
 	if (!controller_.SaveWallBrushParts(wallBrushStorage_, error)) {
@@ -524,6 +777,12 @@ bool MaterialsWorkbenchWallPanel::SaveCurrentWallBrush() {
 		return false;
 	}
 
+	loadedWallBrushStorage_ = wallBrushStorage_;
+	PopulateFields();
+	if (previousEditorState.valid) {
+		RestoreEditorState(previousEditorState);
+	}
+	RefreshDirtyState();
 	SetStatusMessage("Wall brush parts saved to materials.db.");
 	if (onWallBrushSaved_) {
 		onWallBrushSaved_(wallBrushStorage_.brush.id);
@@ -581,6 +840,7 @@ void MaterialsWorkbenchWallPanel::OnApplyItem(wxCommandEvent &event) {
 
 	NormalizeWallPartRecord(*part);
 	RefreshSelectedPart();
+	RefreshDirtyState();
 	SetStatusMessage("Wall item updated locally. Save the wall brush to persist.");
 }
 
@@ -595,6 +855,7 @@ void MaterialsWorkbenchWallPanel::OnRemoveItem(wxCommandEvent &event) {
 	selectedItemIndex_ = -1;
 	NormalizeWallPartRecord(*part);
 	RefreshSelectedPart();
+	RefreshDirtyState();
 	SetStatusMessage("Wall item removed locally. Save the wall brush to persist.");
 }
 
@@ -646,6 +907,7 @@ void MaterialsWorkbenchWallPanel::OnApplyDoor(wxCommandEvent &event) {
 
 	NormalizeWallPartRecord(*part);
 	RefreshSelectedPart();
+	RefreshDirtyState();
 	SetStatusMessage("Door updated locally. Save the wall brush to persist.");
 }
 
@@ -660,6 +922,7 @@ void MaterialsWorkbenchWallPanel::OnRemoveDoor(wxCommandEvent &event) {
 	selectedDoorIndex_ = -1;
 	NormalizeWallPartRecord(*part);
 	RefreshSelectedPart();
+	RefreshDirtyState();
 	SetStatusMessage("Door removed locally. Save the wall brush to persist.");
 }
 
@@ -670,6 +933,10 @@ void MaterialsWorkbenchWallPanel::OnSave(wxCommandEvent &event) {
 void MaterialsWorkbenchWallPanel::OnRevert(wxCommandEvent &event) {
 	if (!hasWallBrush_) {
 		ClearWorkspace("Select a wall brush in the navigation tree to edit its wall parts.");
+		return;
+	}
+	if (!dirty_) {
+		SetStatusMessage("Wall brush already matches materials.db.");
 		return;
 	}
 
