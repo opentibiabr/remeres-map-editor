@@ -74,6 +74,7 @@ public:
 	void addBrush(Brush* brush);
 	bool renameBrush(Brush* brush, const std::string &oldName, const std::string &newName);
 	bool reloadBrushFromDatabase(int64_t brushId, wxArrayString &warnings, wxString &error);
+	bool reloadBorderSetFromDatabase(int64_t borderSetId, wxArrayString &warnings, wxString &error);
 
 	bool unserializeBorder(pugi::xml_node node, wxArrayString &warnings);
 	bool unserializeBrush(pugi::xml_node node, wxArrayString &warnings);

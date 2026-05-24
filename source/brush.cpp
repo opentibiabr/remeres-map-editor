@@ -413,6 +413,30 @@ namespace {
 
 		return true;
 	}
+
+	bool LoadGroundBrushIdsFromDatabase(std::vector<int64_t> &outBrushIds, wxString &error) {
+		outBrushIds.clear();
+		std::vector<BrushRecord> groundBrushes;
+		if (!g_brush_database.listBrushesByType("ground", groundBrushes)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+
+		outBrushIds.reserve(groundBrushes.size());
+		for (const BrushRecord &brush : groundBrushes) {
+			outBrushIds.push_back(brush.id);
+		}
+
+		return true;
+	}
+
+	void ResetGroundBrushRuntimeState(Brushes &brushes) {
+		for (const auto &entry : brushes.getMap()) {
+			if (Brush* brush = entry.second; brush && brush->isGround()) {
+				brush->asGround()->resetRuntimeState();
+			}
+		}
+	}
 }
 
 Brushes::Brushes() {
@@ -655,6 +679,53 @@ bool Brushes::reloadBrushFromDatabase(int64_t brushId, wxArrayString &warnings, 
 	} catch (const std::exception &ex) {
 		error = wxString::FromUTF8(ex.what());
 		return false;
+	}
+
+	return true;
+}
+
+bool Brushes::reloadBorderSetFromDatabase(int64_t borderSetId, wxArrayString &warnings, wxString &error) {
+	error.clear();
+
+	if (!g_brush_database.isOpen()) {
+		error = "SQLite brush database is not open.";
+		return false;
+	}
+
+	BorderSetStorageRecord borderSetStorage;
+	if (!FetchBorderSetStorage(borderSetId, borderSetStorage, error)) {
+		return false;
+	}
+
+	const BorderSetRecord &borderSet = borderSetStorage.borderSet;
+	if (borderSet.borderScope == "inline" && borderSet.ownerBrushId > 0) {
+		return reloadBrushFromDatabase(borderSet.ownerBrushId, warnings, error);
+	}
+
+	if (borderSet.borderScope != "global" || borderSet.xmlBorderId <= 0) {
+		error = "Unsupported border set runtime refresh configuration.";
+		return false;
+	}
+
+	std::vector<int64_t> groundBrushIds;
+	if (!LoadGroundBrushIdsFromDatabase(groundBrushIds, error)) {
+		return false;
+	}
+
+	ResetGroundBrushRuntimeState(*this);
+	for (auto &entry : borders) {
+		delete entry.second;
+	}
+	borders.clear();
+
+	if (!LoadGlobalBordersFromDatabase(*this, warnings, error)) {
+		return false;
+	}
+
+	for (int64_t groundBrushId : groundBrushIds) {
+		if (!reloadBrushFromDatabase(groundBrushId, warnings, error)) {
+			return false;
+		}
 	}
 
 	return true;

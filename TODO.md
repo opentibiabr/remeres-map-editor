@@ -90,7 +90,7 @@
 - [x] Block saving a brush with an invalid or unexpected `type` in the Brush Workspace
 - [x] Harden selection transitions in dynamically recreated grids
 - [x] Add more specific save and reload logs
-- [ ] Revisit runtime refresh for `walls` and `borders`
+- [x] Revisit runtime refresh for `walls` and `borders`
 - [ ] Add focused tests for SQLite serialization of `wallParts`, `borderSetItems`, and `tilesets`
 
 ## New Features
@@ -139,6 +139,7 @@
 - `Border Workspace` now also has dirty state, selection-change/close protection, and navigation badge integration; the remaining `Stage 9` pass there is now mainly validation and residual state-preservation edge cases
 - `Border Workspace` dirty-state tracking now ignores programmatic UI refreshes triggered by loading or slot selection changes, so `modified` reflects real edits instead of selection-only interactions
 - `Border Workspace` now also blocks duplicate runtime item ownership across multiple border edges in the same set, avoiding ambiguous `border_alignment` registration during runtime refresh
+- `Border Workspace` save now refreshes the actual `g_brushes` runtime state as well as palettes: inline sets reload only the owning ground brush, while global sets reset/reload global borders and then rehydrate ground brushes from SQLite
 - Recommended next task goal: reassess the remaining `Stage 9` state and runtime-refresh edge cases in wall/border flows after the latest validation and dirty-state fixes, then decide what still blocks the move to previews
 - If a follow-up task must be split, keep the next task scoped to `Stage 9` only; do not jump to previews or Stage 10 polish until the items above are closed
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`

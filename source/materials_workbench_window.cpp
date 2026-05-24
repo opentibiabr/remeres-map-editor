@@ -324,6 +324,23 @@ void MaterialsWorkbenchWindow::HandlePaletteSaved() {
 }
 
 void MaterialsWorkbenchWindow::HandleBorderSetSaved(int64_t borderSetId) {
+	wxArrayString runtimeWarnings;
+	wxString runtimeError;
+	if (!g_brushes.reloadBorderSetFromDatabase(borderSetId, runtimeWarnings, runtimeError)) {
+		spdlog::warn(
+			"Materials Workbench runtime border refresh failed after border save: id={} error='{}'",
+			static_cast<long long>(borderSetId),
+			runtimeError.ToStdString()
+		);
+	}
+	for (const wxString &warning : runtimeWarnings) {
+		spdlog::warn(
+			"Materials Workbench runtime border refresh warning after border save: id={} warning='{}'",
+			static_cast<long long>(borderSetId),
+			warning.ToStdString()
+		);
+	}
+
 	RefreshRuntimeMaterialPalettes("border set save");
 	RefreshWorkbenchState();
 	PopulateNavigation();
