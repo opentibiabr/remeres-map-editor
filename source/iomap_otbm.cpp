@@ -210,7 +210,7 @@ namespace {
 	};
 
 	using StaticMapHouseTemplatesPtr = const std::unordered_map<uint32_t, StaticMapHouseTemplate>*;
-	using StaticDataHouseNameFilter = std::set<std::string>;
+	using StaticDataHouseNameFilter = std::set<std::string, std::less<>>;
 	using StaticDataHouseNameFilterPtr = const StaticDataHouseNameFilter*;
 
 	StaticMapHouseTemplatesPtr &activeStaticMapHouseTemplates() {
@@ -338,8 +338,7 @@ namespace {
 			return false;
 		}
 
-		const auto* filter = activeStaticDataDebugHouseNameFilter();
-		if (filter && !filter->empty()) {
+		if (const auto* filter = activeStaticDataDebugHouseNameFilter(); filter && !filter->empty()) {
 			return filter->contains(normalizedName);
 		}
 		return false;
@@ -375,7 +374,7 @@ namespace {
 		std::string token;
 		std::string alias;
 		while (input >> token) {
-			if (std::find(aliasStopWords.begin(), aliasStopWords.end(), std::string_view(token)) != aliasStopWords.end()) {
+			if (std::ranges::find(aliasStopWords, std::string_view(token)) != aliasStopWords.end()) {
 				continue;
 			}
 			if (!alias.empty()) {
@@ -1323,7 +1322,7 @@ namespace {
 	}
 
 	void blendTinyPixel(unsigned char &dstR, unsigned char &dstG, unsigned char &dstB, const SatelliteTinyPixel &src) {
-		const int alpha = static_cast<int>(src.a);
+		const auto alpha = static_cast<int>(src.a);
 		if (alpha <= 0) {
 			return;
 		}
@@ -1490,7 +1489,7 @@ namespace {
 	}
 
 	bool isShopHouseName(const std::string_view name) {
-		return name.find("(Shop)") != std::string_view::npos || name.find("(shop)") != std::string_view::npos;
+		return name.contains("(Shop)") || name.contains("(shop)");
 	}
 
 	bool getHousePreviewFloor(const House &house, int &floor) {
@@ -1638,7 +1637,7 @@ namespace {
 					continue;
 				}
 
-				const size_t index = static_cast<size_t>(y * width + x);
+				const auto index = static_cast<size_t>(y * width + x);
 				colors[index] = tile->getMiniMapColor();
 
 				HousePreviewTileData tileData;
@@ -1648,7 +1647,7 @@ namespace {
 				tileData.isHouseTile = tile->getHouseID() == house.id;
 				tileData.items.reserve(HousePreviewMaxItemsPerTile);
 
-				const auto addPreviewItem = [&](const Item* item) {
+				const auto addPreviewItem = [&tileData, &position, tile](const Item* item) {
 					if (!item || tileData.items.size() >= HousePreviewMaxItemsPerTile) {
 						return;
 					}
@@ -1700,7 +1699,7 @@ namespace {
 		}
 
 		clientIds.reserve(HousePreviewMaxItemsPerTile);
-		const auto addPreviewItem = [&](const Item* item) {
+		const auto addPreviewItem = [&clientIds, &position, droppedByCap, droppedInvalid, tile](const Item* item) {
 			if (!item) {
 				return;
 			}
@@ -1785,7 +1784,7 @@ namespace {
 					continue;
 				}
 
-				const int linearIndex = static_cast<int>(templateTile.index);
+				const auto linearIndex = static_cast<int>(templateTile.index);
 				const int floorOffset = linearIndex / floorArea;
 				const int planeIndex = linearIndex % floorArea;
 				const int xOffset = planeIndex / height;
@@ -1925,10 +1924,10 @@ namespace {
 			for (const auto &position : houseTiles) {
 				minX = std::min(minX, position.x);
 				minY = std::min(minY, position.y);
-				minZ = std::min(minZ, static_cast<int>(position.z));
+				minZ = std::min(minZ, position.z);
 				maxX = std::max(maxX, position.x);
 				maxY = std::max(maxY, position.y);
-				maxZ = std::max(maxZ, static_cast<int>(position.z));
+				maxZ = std::max(maxZ, position.z);
 			}
 
 			if (minX > maxX || minY > maxY || minZ > maxZ) {
@@ -2376,9 +2375,9 @@ namespace {
 			return false;
 		}
 
-		const int width = static_cast<int>(data.dimensions().pos_x());
-		const int height = static_cast<int>(data.dimensions().pos_y());
-		const int floorCount = static_cast<int>(data.dimensions().pos_z());
+		const auto width = static_cast<int>(data.dimensions().pos_x());
+		const auto height = static_cast<int>(data.dimensions().pos_y());
+		const auto floorCount = static_cast<int>(data.dimensions().pos_z());
 		if (width <= 0 || height <= 0 || floorCount <= 0) {
 			return false;
 		}
@@ -2591,9 +2590,9 @@ namespace {
 			housePositionDeltaRemap->clear();
 		}
 
-		std::map<std::string, std::vector<int>> generatedHousesByName;
-		std::map<std::string, std::vector<int>> generatedHousesByNormalizedName;
-		std::map<std::string, std::vector<int>> generatedHousesByAliasName;
+		std::map<std::string, std::vector<int>, std::less<>> generatedHousesByName;
+		std::map<std::string, std::vector<int>, std::less<>> generatedHousesByNormalizedName;
+		std::map<std::string, std::vector<int>, std::less<>> generatedHousesByAliasName;
 		std::unordered_map<HousePositionKey, std::vector<int>, HousePositionKeyHash> generatedHousesByPosition;
 		std::vector<bool> generatedHouseUsed(static_cast<size_t>(generatedStaticData.house_size()), false);
 		size_t matchedTemplateHouses = 0;
@@ -2614,7 +2613,7 @@ namespace {
 			}
 		}
 
-		const auto pickUnusedGeneratedIndex = [&generatedHouseUsed](const std::vector<int>* candidates) -> int {
+		const auto pickUnusedGeneratedIndex = [&generatedHouseUsed](const std::vector<int>* candidates) {
 			if (!candidates) {
 				return -1;
 			}
@@ -4118,7 +4117,7 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 	for (BinaryNode* mapNode = mapHeaderNode->getChild(); mapNode != nullptr; mapNode = mapNode->advance()) {
 		++nodes_loaded;
 		if ((nodes_loaded & 127) == 0) {
-			const int64_t fileOffset = static_cast<int64_t>(f.tell());
+			const auto fileOffset = static_cast<int64_t>(f.tell());
 			const int32_t progress = std::min<int32_t>(100, static_cast<int32_t>((fileOffset * 100) / fileSize));
 			if (progress > lastProgress) {
 				const auto now = std::chrono::steady_clock::now();
@@ -5369,7 +5368,7 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 		loadCyclopediaCatalogFiles(clientAssetsPath, sourceCatalogFiles);
 	}
 
-	std::string staticDataTemplateFileName = outputCatalogFiles.staticDataFileName;
+	std::filesystem::path staticDataTemplateFileName = outputCatalogFiles.staticDataFileName;
 	if (staticDataTemplateFileName.empty()) {
 		staticDataTemplateFileName = sourceCatalogFiles.staticDataFileName;
 	}
@@ -5485,7 +5484,7 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 	output.write(buffer.data(), static_cast<std::streamsize>(buffer.size()));
 	output.close();
 
-	std::string staticMapDataTemplateFileName = outputCatalogFiles.staticMapDataFileName;
+	std::filesystem::path staticMapDataTemplateFileName = outputCatalogFiles.staticMapDataFileName;
 	if (staticMapDataTemplateFileName.empty()) {
 		staticMapDataTemplateFileName = sourceCatalogFiles.staticMapDataFileName;
 	}
@@ -5529,7 +5528,7 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 		loadedStaticMapDataTemplatePath.string(),
 		useStaticMapDataTemplate,
 		templateStaticMapData.house_size(),
-		staticMapDataTemplateFileName
+		staticMapDataTemplateFileName.string()
 	);
 
 	std::unordered_map<uint32_t, StaticMapHouseTemplate> staticMapHouseTemplates;
@@ -5701,10 +5700,10 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 					continue;
 				}
 
-				jobs.push_back(CyclopediaRenderJob {
+				jobs.emplace_back(
 					config,
-					CyclopediaChunkArea { floor, chunkStartX, chunkStartY, chunkWidth, chunkHeight },
-				});
+					CyclopediaChunkArea { floor, chunkStartX, chunkStartY, chunkWidth, chunkHeight }
+				);
 			}
 		};
 
@@ -5721,7 +5720,7 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 	}
 
 	int processedChunks = 0;
-	const int totalChunks = static_cast<int>(jobs.size());
+	const auto totalChunks = static_cast<int>(jobs.size());
 
 	bool hasAnyAsset = false;
 
