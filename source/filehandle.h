@@ -336,22 +336,64 @@ protected:
 	size_t cache_size;
 	size_t local_write_index;
 
+	FORCEINLINE void writeRawBytes(const uint8_t* ptr, size_t sz) {
+		while (sz != 0) {
+			if (local_write_index >= cache_size) {
+				renewCache();
+			}
+
+			const size_t available = cache_size - local_write_index;
+			const size_t writable = sz < available ? sz : available;
+			memcpy(cache + local_write_index, ptr, writable);
+			local_write_index += writable;
+			ptr += writable;
+			sz -= writable;
+		}
+	}
+
+	FORCEINLINE void writeCacheByte(uint8_t byte) {
+		if (local_write_index >= cache_size) {
+			renewCache();
+		}
+
+		cache[local_write_index++] = byte;
+	}
+
+	FORCEINLINE void writeEscapedByte(uint8_t byte) {
+		writeCacheByte(ESCAPE_CHAR);
+		writeCacheByte(byte);
+	}
+
+	FORCEINLINE void writeByte(uint8_t byte) {
+		if (byte == NODE_START || byte == NODE_END || byte == ESCAPE_CHAR) {
+			writeEscapedByte(byte);
+			return;
+		}
+
+		writeCacheByte(byte);
+	}
+
 	FORCEINLINE void writeBytes(const uint8_t* ptr, size_t sz) {
-		if (sz) {
-			do {
-				if (*ptr == NODE_START || *ptr == NODE_END || *ptr == ESCAPE_CHAR) {
-					cache[local_write_index++] = ESCAPE_CHAR;
-					if (local_write_index >= cache_size) {
-						renewCache();
-					}
+		while (sz != 0) {
+			size_t plain_size = 0;
+			while (plain_size < sz) {
+				if (const uint8_t byte = ptr[plain_size]; byte == NODE_START || byte == NODE_END || byte == ESCAPE_CHAR) {
+					break;
 				}
-				cache[local_write_index++] = *ptr;
-				if (local_write_index >= cache_size) {
-					renewCache();
-				}
-				++ptr;
-				--sz;
-			} while (sz != 0);
+				++plain_size;
+			}
+
+			writeRawBytes(ptr, plain_size);
+			ptr += plain_size;
+			sz -= plain_size;
+
+			if (sz == 0) {
+				break;
+			}
+
+			writeEscapedByte(*ptr);
+			++ptr;
+			--sz;
 		}
 	}
 };

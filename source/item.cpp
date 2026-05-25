@@ -24,11 +24,36 @@
 #include "complexitem.h"
 #include "iomap.h"
 #include "item.h"
+#include "object_pool.h"
 
 #include "ground_brush.h"
 #include "carpet_brush.h"
 #include "table_brush.h"
 #include "wall_brush.h"
+
+namespace {
+	bool itemTypeHasSubtype(const ItemType &type) {
+		return type.isFluidContainer() || type.stackable || type.charges != 0 || type.isSplash() || type.isClientCharged() || type.isExtraCharged();
+	}
+}
+
+void* Item::operator new(size_t size) {
+	return rme::allocatePooledObject(size);
+}
+
+void Item::operator delete(void* ptr) noexcept {
+	rme::deallocatePooledObject(ptr);
+}
+
+#ifdef DEBUG_MEM
+void* Item::operator new(size_t size, const char*, int) {
+	return rme::allocatePooledObject(size);
+}
+
+void Item::operator delete(void* ptr, const char*, int) noexcept {
+	rme::deallocatePooledObject(ptr);
+}
+#endif
 
 Item* Item::Create(uint16_t id, uint16_t subtype /*= 0xFFFF*/) {
 	if (id == 0) {
@@ -36,8 +61,16 @@ Item* Item::Create(uint16_t id, uint16_t subtype /*= 0xFFFF*/) {
 	}
 
 	const ItemType &type = g_items.getItemType(id);
+	return Create(id, type, subtype);
+}
+
+Item* Item::Create(uint16_t id, const ItemType &type, uint16_t subtype /*= 0xFFFF*/) {
+	if (id == 0) {
+		return nullptr;
+	}
+
 	if (type.id == 0) {
-		return newd Item(id, subtype);
+		return newd Item(id, subtype, false);
 	}
 
 	if (!type.sprite) {
@@ -45,33 +78,38 @@ Item* Item::Create(uint16_t id, uint16_t subtype /*= 0xFFFF*/) {
 	}
 
 	if (type.isDepot()) {
-		return new Depot(id);
+		return new Depot(id); // NOSONAR - item factories return raw pointers owned by tiles and maps.
 	} else if (type.isContainer()) {
-		return new Container(id);
+		return new Container(id); // NOSONAR - item factories return raw pointers owned by tiles and maps.
 	} else if (type.isTeleport()) {
-		return new Teleport(id);
+		return new Teleport(id); // NOSONAR - item factories return raw pointers owned by tiles and maps.
 	} else if (type.isDoor()) {
-		return new Door(id);
+		return new Door(id); // NOSONAR - item factories return raw pointers owned by tiles and maps.
 	} else if (subtype == 0xFFFF) {
+		const bool hasSubtype = itemTypeHasSubtype(type);
 		if (type.isFluidContainer()) {
-			return new Item(id, LIQUID_NONE);
+			return new Item(id, LIQUID_NONE, hasSubtype); // NOSONAR - item factories return raw pointers owned by tiles and maps.
 		} else if (type.isSplash()) {
-			return new Item(id, LIQUID_WATER);
+			return new Item(id, LIQUID_WATER, hasSubtype); // NOSONAR - item factories return raw pointers owned by tiles and maps.
 		} else if (type.charges > 0) {
-			return new Item(id, type.charges);
+			return new Item(id, type.charges, hasSubtype); // NOSONAR - item factories return raw pointers owned by tiles and maps.
 		} else {
-			return new Item(id, 1);
+			return new Item(id, 1, hasSubtype); // NOSONAR - item factories return raw pointers owned by tiles and maps.
 		}
 	}
-	return new Item(id, subtype);
+	return new Item(id, subtype, itemTypeHasSubtype(type)); // NOSONAR - item factories return raw pointers owned by tiles and maps.
 }
 
 Item::Item(unsigned short _type, unsigned short _count) :
+	Item(_type, _count, itemTypeHasSubtype(g_items.getItemType(_type))) {
+}
+
+Item::Item(unsigned short _type, unsigned short _count, bool typeHasSubtype) :
 	id(_type),
 	subtype(1),
 	selected(false),
 	frame(0) {
-	if (hasSubtype()) {
+	if (typeHasSubtype) {
 		subtype = _count;
 	}
 }
@@ -162,12 +200,19 @@ void Item::setSubtype(uint16_t _subtype) {
 }
 
 bool Item::hasSubtype() const {
-	const ItemType &type = g_items.getItemType(id);
-	return (type.isFluidContainer() || type.stackable || type.charges != 0 || type.isSplash() || isCharged());
+	return hasSubtype(g_items.getItemType(id));
+}
+
+bool Item::hasSubtype(const ItemType &type) const noexcept {
+	return itemTypeHasSubtype(type);
 }
 
 uint16_t Item::getSubtype() const {
-	return hasSubtype() ? subtype : 0;
+	return getSubtype(g_items.getItemType(id));
+}
+
+uint16_t Item::getSubtype(const ItemType &type) const noexcept {
+	return hasSubtype(type) ? subtype : 0;
 }
 
 bool Item::hasProperty(enum ITEMPROPERTY prop) const {

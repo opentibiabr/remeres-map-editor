@@ -42,8 +42,7 @@ PreferencesWindow::PreferencesWindow(wxWindow* parent) :
 	book->AddPage(CreateEditorPage(), "Editor");
 	book->AddPage(CreateGraphicsPage(), "Graphics");
 	book->AddPage(CreateUIPage(), "Interface");
-	book->AddPage(CreateClientPage(), "Client Folder");
-	version_dir_picker->Bind(wxEVT_DIRPICKER_CHANGED, &PreferencesWindow::SelectNewAssetsFolder, this);
+	book->AddPage(CreateClientPage(), "Directories");
 
 	sizer->Add(book, 1, wxEXPAND | wxALL, 10);
 
@@ -545,29 +544,48 @@ wxNotebookPage* PreferencesWindow::CreateClientPage() {
 	auto* client_list_sizer = newd wxFlexGridSizer(2, 10, 10);
 	client_list_sizer->AddGrowableCol(1);
 
-	wxStaticText* tmp_text = newd wxStaticText(client_list_window, wxID_ANY, wxString("Select path:"));
+	wxStaticText* tmp_text = newd wxStaticText(client_list_window, wxID_ANY, wxString("Client directory:"));
 	client_list_sizer->Add(tmp_text, wxSizerFlags(0).Expand());
 
-	wxDirPickerCtrl* dir_picker = newd wxDirPickerCtrl(client_list_window, wxID_ANY, ClientAssets::getPath());
-	version_dir_picker = dir_picker;
-	client_list_sizer->Add(dir_picker, wxSizerFlags(0).Border(wxRIGHT, 10).Expand());
+	wxBoxSizer* client_path_sizer = newd wxBoxSizer(wxHORIZONTAL);
+	version_dir_picker = newd wxTextCtrl(client_list_window, wxID_ANY, ClientAssets::getPath());
+	version_dir_picker->SetEditable(false);
+	wxButton* client_browse_button = newd wxButton(client_list_window, wxID_ANY, "Browse...");
+	client_browse_button->Bind(wxEVT_BUTTON, &PreferencesWindow::OnBrowseClientPath, this);
+	client_path_sizer->Add(version_dir_picker, wxSizerFlags(1).Expand());
+	client_path_sizer->Add(client_browse_button, wxSizerFlags(0).Border(wxLEFT, 5));
+	client_list_sizer->Add(client_path_sizer, wxSizerFlags(0).Border(wxRIGHT, 10).Expand());
 
 	wxString tooltip;
 	tooltip << "The editor will look for client directory here.";
 	tmp_text->SetToolTip(tooltip);
-	dir_picker->SetToolTip(tooltip);
+	version_dir_picker->SetToolTip(tooltip);
 
 	wxStaticText* monsters_lua_text = newd wxStaticText(client_list_window, wxID_ANY, wxString("Monsters Lua directory:"));
 	client_list_sizer->Add(monsters_lua_text, wxSizerFlags(0).Expand());
-	monsters_lua_dir_picker = newd wxDirPickerCtrl(client_list_window, wxID_ANY, wxstr(g_settings.getString(Config::MONSTERS_LUA_DIRECTORY)));
-	client_list_sizer->Add(monsters_lua_dir_picker, wxSizerFlags(0).Border(wxRIGHT, 10).Expand());
+
+	wxBoxSizer* monsters_path_sizer = newd wxBoxSizer(wxHORIZONTAL);
+	monsters_lua_dir_picker = newd wxTextCtrl(client_list_window, wxID_ANY, wxstr(g_settings.getString(Config::MONSTERS_LUA_DIRECTORY)));
+	monsters_lua_dir_picker->SetEditable(false);
+	wxButton* monsters_browse_button = newd wxButton(client_list_window, wxID_ANY, "Browse...");
+	monsters_browse_button->Bind(wxEVT_BUTTON, &PreferencesWindow::OnBrowseMonstersPath, this);
+	monsters_path_sizer->Add(monsters_lua_dir_picker, wxSizerFlags(1).Expand());
+	monsters_path_sizer->Add(monsters_browse_button, wxSizerFlags(0).Border(wxLEFT, 5));
+	client_list_sizer->Add(monsters_path_sizer, wxSizerFlags(0).Border(wxRIGHT, 10).Expand());
 	monsters_lua_text->SetToolTip("Path to Canary server monster Lua files (e.g. data-otservbr-global/monster/)");
 	monsters_lua_dir_picker->SetToolTip("Path to Canary server monster Lua files (e.g. data-otservbr-global/monster/)");
 
 	wxStaticText* npcs_lua_text = newd wxStaticText(client_list_window, wxID_ANY, wxString("NPCs Lua directory:"));
 	client_list_sizer->Add(npcs_lua_text, wxSizerFlags(0).Expand());
-	npcs_lua_dir_picker = newd wxDirPickerCtrl(client_list_window, wxID_ANY, wxstr(g_settings.getString(Config::NPCS_LUA_DIRECTORY)));
-	client_list_sizer->Add(npcs_lua_dir_picker, wxSizerFlags(0).Border(wxRIGHT, 10).Expand());
+
+	wxBoxSizer* npcs_path_sizer = newd wxBoxSizer(wxHORIZONTAL);
+	npcs_lua_dir_picker = newd wxTextCtrl(client_list_window, wxID_ANY, wxstr(g_settings.getString(Config::NPCS_LUA_DIRECTORY)));
+	npcs_lua_dir_picker->SetEditable(false);
+	wxButton* npcs_browse_button = newd wxButton(client_list_window, wxID_ANY, "Browse...");
+	npcs_browse_button->Bind(wxEVT_BUTTON, &PreferencesWindow::OnBrowseNpcsPath, this);
+	npcs_path_sizer->Add(npcs_lua_dir_picker, wxSizerFlags(1).Expand());
+	npcs_path_sizer->Add(npcs_browse_button, wxSizerFlags(0).Border(wxLEFT, 5));
+	client_list_sizer->Add(npcs_path_sizer, wxSizerFlags(0).Border(wxRIGHT, 10).Expand());
 	npcs_lua_text->SetToolTip("Path to Canary server NPC Lua files (e.g. data-otservbr-global/npc/)");
 	npcs_lua_dir_picker->SetToolTip("Path to Canary server NPC Lua files (e.g. data-otservbr-global/npc/)");
 
@@ -596,15 +614,30 @@ void PreferencesWindow::OnClickApply(wxCommandEvent &WXUNUSED(event)) {
 	Apply();
 }
 
-void PreferencesWindow::SelectNewAssetsFolder(wxCommandEvent &event) {
-	wxDirPickerCtrl* dir_picker = static_cast<wxDirPickerCtrl*>(event.GetEventObject());
-	wxString path = dir_picker->GetPath();
-	if (!path.IsEmpty()) {
-		ClientAssets::setPath(path.ToUTF8().data());
-		spdlog::debug("New directory selected: {}", path.ToUTF8().data());
-	} else {
-		wxMessageDialog dialog(this, "Directory is empty, please, select a valid directory", "Error", wxOK | wxICON_ERROR);
-		dialog.ShowModal();
+void PreferencesWindow::OnBrowseClientPath(wxCommandEvent &WXUNUSED(event)) {
+	wxDirDialog dialog(this, "Select client directory", version_dir_picker->GetValue(), wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+	if (dialog.ShowModal() == wxID_OK) {
+		wxString path = dialog.GetPath();
+		version_dir_picker->SetValue(path);
+		spdlog::debug("New client directory selected: {}", path.ToUTF8().data());
+	}
+}
+
+void PreferencesWindow::OnBrowseMonstersPath(wxCommandEvent &WXUNUSED(event)) {
+	wxDirDialog dialog(this, "Select monsters Lua directory", monsters_lua_dir_picker->GetValue(), wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+	if (dialog.ShowModal() == wxID_OK) {
+		wxString path = dialog.GetPath();
+		monsters_lua_dir_picker->SetValue(path);
+		spdlog::debug("New monsters Lua directory selected: {}", path.ToUTF8().data());
+	}
+}
+
+void PreferencesWindow::OnBrowseNpcsPath(wxCommandEvent &WXUNUSED(event)) {
+	wxDirDialog dialog(this, "Select NPCs Lua directory", npcs_lua_dir_picker->GetValue(), wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+	if (dialog.ShowModal() == wxID_OK) {
+		wxString path = dialog.GetPath();
+		npcs_lua_dir_picker->SetValue(path);
+		spdlog::debug("New NPCs Lua directory selected: {}", path.ToUTF8().data());
 	}
 }
 
@@ -730,9 +763,10 @@ void PreferencesWindow::Apply() {
 	g_settings.setFloat(Config::SCROLL_SPEED, scroll_mul * scroll_speed_slider->GetValue() / 10.f);
 	g_settings.setFloat(Config::ZOOM_SPEED, zoom_speed_slider->GetValue() / 10.f);
 
-	g_settings.setString(Config::MONSTERS_LUA_DIRECTORY, nstr(monsters_lua_dir_picker->GetPath()));
-	g_settings.setString(Config::NPCS_LUA_DIRECTORY, nstr(npcs_lua_dir_picker->GetPath()));
+	g_settings.setString(Config::MONSTERS_LUA_DIRECTORY, nstr(monsters_lua_dir_picker->GetValue()));
+	g_settings.setString(Config::NPCS_LUA_DIRECTORY, nstr(npcs_lua_dir_picker->GetValue()));
 
+	ClientAssets::setPath(version_dir_picker->GetValue());
 	ClientAssets::save();
 	ClientAssets::load();
 

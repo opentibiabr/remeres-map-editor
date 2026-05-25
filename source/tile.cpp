@@ -28,8 +28,28 @@
 #include "wall_brush.h"
 #include "carpet_brush.h"
 #include "table_brush.h"
+#include "graphics.h"
 #include "npc.h"
 #include "spawn_npc.h"
+#include "object_pool.h"
+
+void* Tile::operator new(size_t size) {
+	return rme::allocatePooledObject(size);
+}
+
+void Tile::operator delete(void* ptr) noexcept {
+	rme::deallocatePooledObject(ptr);
+}
+
+#ifdef DEBUG_MEM
+void* Tile::operator new(size_t size, const char*, int) {
+	return rme::allocatePooledObject(size);
+}
+
+void Tile::operator delete(void* ptr, const char*, int) noexcept {
+	rme::deallocatePooledObject(ptr);
+}
+#endif
 
 Tile::Tile(int x, int y, int z) :
 	location(nullptr),
@@ -290,38 +310,53 @@ void Tile::addItem(Item* item) {
 	if (!item) {
 		return;
 	}
-	if (item->isGroundTile()) {
+
+	addItem(item, item->getItemType());
+}
+
+namespace {
+	FORCEINLINE ItemVector::iterator findBottomInsertPosition(ItemVector &items, int topOrder) {
+		return std::find_if(items.begin(), items.end(), [topOrder](const Item* existingItem) {
+			const ItemType &existingType = existingItem->getItemType();
+			return !existingType.alwaysOnBottom || topOrder < existingType.alwaysOnTopOrder;
+		});
+	}
+}
+
+void Tile::addItem(Item* item, const ItemType &type) {
+	if (!item) {
+		return;
+	}
+	if (type.isGroundTile()) {
 		// printf("ADDING GROUND\n");
 		delete ground;
 		ground = item;
 		return;
 	}
 
+	if (items.empty()) {
+		constexpr size_t initialTileItemCapacity = 4;
+		items.reserve(initialTileItemCapacity);
+	}
+
 	ItemVector::iterator it;
 
-	uint16_t gid = item->getGroundEquivalent();
+	uint16_t gid = type.ground_equivalent;
 	if (gid != 0) {
 		delete ground;
 		ground = Item::Create(gid);
 		// At the very bottom!
 		it = items.begin();
 	} else {
-		if (item->isAlwaysOnBottom()) {
-			it = items.begin();
-			while (true) {
-				if (it == items.end()) {
-					break;
-				} else if ((*it)->isAlwaysOnBottom()) {
-					if (item->getTopOrder() < (*it)->getTopOrder()) {
-						break;
-					}
-				} else { // Always on top
-					break;
-				}
-				++it;
-			}
+		if (type.alwaysOnBottom) {
+			it = findBottomInsertPosition(items, type.alwaysOnTopOrder);
 		} else {
-			it = items.end();
+			items.emplace_back(item);
+
+			if (item->isSelected()) {
+				statflags |= TILESTATE_SELECTED;
+			}
+			return;
 		}
 	}
 
@@ -330,6 +365,25 @@ void Tile::addItem(Item* item) {
 	if (item->isSelected()) {
 		statflags |= TILESTATE_SELECTED;
 	}
+}
+
+void Tile::addLoadedItem(Item* item, const ItemType &type) {
+	if (!item) {
+		return;
+	}
+
+	const bool createsGroundEquivalent = !type.isGroundTile() && type.ground_equivalent != 0;
+	addItem(item, type);
+
+	if (type.isGroundTile()) {
+		updateStateForItem(item, type);
+		return;
+	}
+
+	if (createsGroundEquivalent && ground) {
+		updateStateForItem(ground, ground->getItemType());
+	}
+	updateStateForItem(item, type);
 }
 
 bool Tile::removeItem(const Item* item) {
@@ -531,6 +585,39 @@ uint8_t Tile::getMiniMapColor() const {
 	return 0;
 }
 
+void Tile::updateStateForItem(const Item* item, const ItemType &type) {
+	if (item->isSelected()) {
+		statflags |= TILESTATE_SELECTED;
+	}
+	if (item->getUniqueID() != 0) {
+		statflags |= TILESTATE_UNIQUE;
+	}
+	if (type.sprite) {
+		const uint8_t color = type.sprite->getMiniMapColor();
+		if (color != 0) {
+			minimapColor = color;
+		}
+	}
+	if (type.unpassable) {
+		statflags |= TILESTATE_BLOCKING;
+	}
+	if (type.isOptionalBorder) {
+		statflags |= TILESTATE_OP_BORDER;
+	}
+	if (type.isTable) {
+		statflags |= TILESTATE_HAS_TABLE;
+	}
+	if (type.isCarpet) {
+		statflags |= TILESTATE_HAS_CARPET;
+	}
+}
+
+void Tile::finalizeLoadedState() {
+	if ((statflags & TILESTATE_BLOCKING) == 0 && !ground && items.empty()) {
+		statflags |= TILESTATE_BLOCKING;
+	}
+}
+
 void Tile::update() {
 	statflags &= TILESTATE_MODIFIED;
 
@@ -553,32 +640,39 @@ void Tile::update() {
 	}
 
 	if (ground) {
+		const ItemType &groundType = ground->getItemType();
 		if (ground->isSelected()) {
 			statflags |= TILESTATE_SELECTED;
 		}
-		if (ground->isBlocking()) {
+		if (groundType.unpassable) {
 			statflags |= TILESTATE_BLOCKING;
 		}
 		if (ground->getUniqueID() != 0) {
 			statflags |= TILESTATE_UNIQUE;
 		}
-		if (ground->getMiniMapColor() != 0) {
-			minimapColor = ground->getMiniMapColor();
+		if (groundType.sprite) {
+			const uint8_t color = groundType.sprite->getMiniMapColor();
+			if (color != 0) {
+				minimapColor = color;
+			}
 		}
 	}
 
 	for (const Item* item : items) {
+		const ItemType &type = item->getItemType();
+
 		if (item->isSelected()) {
 			statflags |= TILESTATE_SELECTED;
 		}
 		if (item->getUniqueID() != 0) {
 			statflags |= TILESTATE_UNIQUE;
 		}
-		if (item->getMiniMapColor() != 0) {
-			minimapColor = item->getMiniMapColor();
+		if (type.sprite) {
+			const uint8_t color = type.sprite->getMiniMapColor();
+			if (color != 0) {
+				minimapColor = color;
+			}
 		}
-
-		const ItemType &type = g_items.getItemType(item->getID());
 
 		if (type.unpassable) {
 			statflags |= TILESTATE_BLOCKING;

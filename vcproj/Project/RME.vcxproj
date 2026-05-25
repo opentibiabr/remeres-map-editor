@@ -364,6 +364,8 @@
     <ClInclude Include="..\..\source\map_allocator.h" />
     <ClInclude Include="..\..\source\map_region.h" />
     <ClCompile Include="..\..\source\map_region.cpp" />
+    <ClInclude Include="..\..\source\object_pool.h" />
+    <ClCompile Include="..\..\source\object_pool.cpp" />
     <ClInclude Include="..\..\source\mt_rand.h" />
     <ClCompile Include="..\..\source\mt_rand.cpp" />
     <ClInclude Include="..\..\source\net_connection.h" />
@@ -463,9 +465,13 @@
     <ClCompile Include="..\..\source\updater.cpp" />
     <ClInclude Include="..\..\source\brush.h" />
     <ClCompile Include="..\..\source\brush.cpp" />
+    <ClInclude Include="..\..\source\brush_database.h" />
+    <ClCompile Include="..\..\source\brush_database.cpp" />
     <ClInclude Include="..\..\source\brush_enums.h" />
     <ClInclude Include="..\..\source\materials.h" />
     <ClCompile Include="..\..\source\materials.cpp" />
+    <ClInclude Include="..\..\source\sqlite_materials_inspector.h" />
+    <ClCompile Include="..\..\source\sqlite_materials_inspector.cpp" />
     <ClInclude Include="..\..\source\tileset.h" />
     <ClCompile Include="..\..\source\tileset.cpp" />
     <ClInclude Include="..\..\source\basemap.h" />

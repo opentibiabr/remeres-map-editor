@@ -92,6 +92,12 @@ public:
 	void clear(bool del = true);
 	MapIterator begin();
 	MapIterator end();
+
+	template <typename Fn>
+	void forEachTileLocation(Fn &fn) {
+		forEachTileLocation(root, fn);
+	}
+
 	uint64_t size() const noexcept {
 		return tilecount;
 	}
@@ -118,6 +124,7 @@ public:
 	}
 
 	// Assigns a tile, it might seem pointless to provide position, but it is not, as the passed tile may be nullptr
+	void setTile(TileLocation* location, Tile* new_tile, bool remove = false);
 	void setTile(int x, int y, int z, Tile* new_tile, bool remove = false);
 	void setTile(const Position &position, Tile* new_tile, bool remove = false);
 	void setTile(Tile* new_tile, bool remove = false);
@@ -137,6 +144,38 @@ public:
 
 protected:
 	virtual void updateUniqueIds(Tile* old_tile, Tile* new_tile) { }
+
+	template <typename Fn>
+	void forEachFloorTileLocation(Floor &floor, Fn &fn) {
+		for (TileLocation &location : floor.locs) {
+			if (location.get()) {
+				fn(&location);
+			}
+		}
+	}
+
+	template <typename Fn>
+	void forEachLeafTileLocation(const QTreeNode &node, Fn &fn) {
+		for (Floor* floor : node.array) {
+			if (floor) {
+				forEachFloorTileLocation(*floor, fn);
+			}
+		}
+	}
+
+	template <typename Fn>
+	void forEachTileLocation(const QTreeNode &node, Fn &fn) {
+		if (node.isLeaf) {
+			forEachLeafTileLocation(node, fn);
+			return;
+		}
+
+		for (const QTreeNode* child : node.child) {
+			if (child) {
+				forEachTileLocation(*child, fn);
+			}
+		}
+	}
 
 	uint64_t tilecount;
 

@@ -54,6 +54,9 @@
 #include <limits>
 #include <sstream>
 
+#include <algorithm>
+#include <array>
+
 typedef uint8_t attribute_t;
 typedef uint32_t flags_t;
 
@@ -2962,23 +2965,314 @@ void reform(Map* map, Tile* tile, Item* item) {
 	*/
 }
 
+namespace {
+	struct FloorLookupCache {
+		Floor* floor = nullptr;
+		int floorX = -1;
+		int floorY = -1;
+		int floorZ = -1;
+	};
+
+	Tile* getCachedTile(Map &map, const Position &position, FloorLookupCache &cache) {
+		const int floorX = position.x & ~3;
+		const int floorY = position.y & ~3;
+		if (!cache.floor || cache.floorX != floorX || cache.floorY != floorY || cache.floorZ != position.z) {
+			QTreeNode* leaf = map.getLeaf(position.x, position.y);
+			cache.floor = leaf ? leaf->getFloor(position.z) : nullptr;
+			cache.floorX = floorX;
+			cache.floorY = floorY;
+			cache.floorZ = position.z;
+		}
+
+		if (!cache.floor) {
+			return nullptr;
+		}
+
+		return cache.floor->locs[(position.x & 3) * 4 + (position.y & 3)].get();
+	}
+
+	bool readFileContent(const wxString &filepath, std::string &content) {
+		if (!wxFileExists(filepath)) {
+			return false;
+		}
+
+		wxFile file(filepath, wxFile::read);
+		if (!file.IsOpened()) {
+			return false;
+		}
+
+		const wxFileOffset fileSize = file.Length();
+		if (fileSize < 0) {
+			return false;
+		}
+
+		content.resize(static_cast<size_t>(fileSize));
+		if (content.empty()) {
+			return true;
+		}
+
+		const auto bytesRead = file.Read(content.data(), content.size());
+		return static_cast<size_t>(bytesRead) == content.size();
+	}
+
+	bool readNormalizedLineEndingChar(const std::string &content, size_t &offset, char &out) {
+		if (offset >= content.size()) {
+			return false;
+		}
+
+		out = content[offset++];
+		if (out == '\r') {
+			if (offset < content.size() && content[offset] == '\n') {
+				++offset;
+			}
+			out = '\n';
+		}
+		return true;
+	}
+
+	bool contentMatchesIgnoringLineEndings(const std::string &left, const std::string &right) {
+		size_t leftOffset = 0;
+		size_t rightOffset = 0;
+		char leftChar = '\0';
+		char rightChar = '\0';
+
+		while (true) {
+			const bool hasLeft = readNormalizedLineEndingChar(left, leftOffset, leftChar);
+			if (const bool hasRight = readNormalizedLineEndingChar(right, rightOffset, rightChar); hasLeft != hasRight) {
+				return false;
+			}
+			if (!hasLeft) {
+				return true;
+			}
+			if (leftChar != rightChar) {
+				return false;
+			}
+		}
+	}
+
+	bool fileMatchesXmlContent(const wxString &filepath, const std::string &content) {
+		std::string existingContent;
+		if (!readFileContent(filepath, existingContent)) {
+			return false;
+		}
+
+		if (existingContent == content) {
+			return true;
+		}
+
+		return contentMatchesIgnoringLineEndings(existingContent, content);
+	}
+
+	bool writeContentToFile(const wxString &filepath, const std::string &content) {
+		wxFile file(filepath, wxFile::write);
+		if (!file.IsOpened()) {
+			return false;
+		}
+
+		if (!content.empty()) {
+			const auto bytesWritten = file.Write(content.data(), content.size());
+			if (static_cast<size_t>(bytesWritten) != content.size()) {
+				return false;
+			}
+		}
+		return file.Close();
+	}
+
+	FORCEINLINE bool isWildcardOtbmIdentifier(const uint8_t* data) {
+		return data[0] == 0 && data[1] == 0 && data[2] == 0 && data[3] == 0;
+	}
+
+	FORCEINLINE bool hasValidOtbmPrefix(const uint8_t* data, size_t size) {
+		if (size < 5) {
+			return false;
+		}
+		if (!isWildcardOtbmIdentifier(data) && memcmp(data, "OTBM", 4) != 0) {
+			return false;
+		}
+		return data[4] == NODE_START;
+	}
+
+#if OTGZ_SUPPORT > 0
+	bool readArchiveDataFully(struct archive* archive, uint8_t* buffer, size_t targetSize, size_t &outReadBytes) {
+		outReadBytes = 0;
+		while (outReadBytes < targetSize) {
+			const auto readNow = archive_read_data(archive, buffer + outReadBytes, targetSize - outReadBytes);
+			if (readNow < 0) {
+				return false;
+			}
+			if (readNow == 0) {
+				break;
+			}
+			outReadBytes += static_cast<size_t>(readNow);
+		}
+		return true;
+	}
+#endif
+
+	bool saveXmlFileIfChanged(const pugi::xml_document &doc, const wxString &filepath) {
+		std::ostringstream stream;
+		doc.save(stream, "\t", pugi::format_default, pugi::encoding_utf8);
+		const std::string content = stream.str();
+
+		if (fileMatchesXmlContent(filepath, content)) {
+			return true;
+		}
+
+		const wxString backupPath = filepath + "~";
+		if (!wxFileExists(filepath) && fileMatchesXmlContent(backupPath, content)) {
+			return wxRenameFile(backupPath, filepath, false);
+		}
+
+		return writeContentToFile(filepath, content);
+	}
+
+	struct TileAreaSaveState {
+		uint32_t tilesSaved = 0;
+		bool firstArea = true;
+		int localX = -1;
+		int localY = -1;
+		int localZ = -1;
+	};
+
+	FORCEINLINE void updateTileSaveProgress(const Map &map, TileAreaSaveState &state) {
+		++state.tilesSaved;
+		const uint64_t tileCount = map.getTileCount();
+		if (tileCount != 0 && state.tilesSaved % 8192 == 0) {
+			g_gui.SetLoadDone(int(state.tilesSaved / double(tileCount) * 100.0));
+		}
+	}
+
+	FORCEINLINE bool needsNewTileArea(const Position &position, const TileAreaSaveState &state) {
+		return position.x < state.localX || position.x >= state.localX + 256 || position.y < state.localY || position.y >= state.localY + 256 || position.z != state.localZ;
+	}
+
+	FORCEINLINE void beginTileArea(NodeFileWriteHandle &file, const Position &position, TileAreaSaveState &state) {
+		if (!state.firstArea) {
+			file.endNode();
+		}
+		state.firstArea = false;
+
+		file.addNode(OTBM_TILE_AREA);
+		state.localX = position.x & 0xFF00;
+		state.localY = position.y & 0xFF00;
+		state.localZ = position.z;
+		file.addU16(state.localX);
+		file.addU16(state.localY);
+		file.addU8(state.localZ);
+	}
+
+	FORCEINLINE void saveTileGround(const IOMapOTBM &mapHandle, NodeFileWriteHandle &file, const Tile &tile) {
+		if (!tile.ground) {
+			return;
+		}
+
+		Item* ground = tile.ground;
+		const ItemType &groundType = ground->getItemType();
+		const uint16_t groundId = ground->getID();
+		if (groundId == 0 || groundType.isMetaItem()) {
+			return;
+		}
+
+		if (groundType.has_equivalent) {
+			const bool found = std::any_of(tile.items.begin(), tile.items.end(), [groundId](const Item* item) {
+				return item->getItemType().ground_equivalent == groundId;
+			});
+			if (!found) {
+				ground->serializeItemNode_OTBM(mapHandle, file);
+			}
+			return;
+		}
+
+		if (ground->isComplex()) {
+			ground->serializeItemNode_OTBM(mapHandle, file);
+			return;
+		}
+
+		file.addByte(OTBM_ATTR_ITEM);
+		ground->serializeItemCompact_OTBM(mapHandle, file);
+	}
+
+	FORCEINLINE void saveTileItems(const IOMapOTBM &mapHandle, NodeFileWriteHandle &file, const Tile &tile) {
+		for (Item* item : tile.items) {
+			const ItemType &itemType = item->getItemType();
+			if (itemType.isMetaItem() || item->getID() == 0) {
+				continue;
+			}
+			item->serializeItemNode_OTBM(mapHandle, file);
+		}
+	}
+
+	FORCEINLINE void saveTileZones(NodeFileWriteHandle &file, const Tile &tile) {
+		if (tile.zones.empty()) {
+			return;
+		}
+
+		file.addNode(OTBM_TILE_ZONE);
+		file.addU16(tile.zones.size());
+		for (const auto &zoneId : tile.zones) {
+			file.addU16(zoneId);
+		}
+		file.endNode();
+	}
+
+	FORCEINLINE void saveTileLocation(const IOMapOTBM &mapHandle, Map &map, NodeFileWriteHandle &file, TileAreaSaveState &state, TileLocation* tileLocation) {
+		updateTileSaveProgress(map, state);
+
+		Tile* saveTile = tileLocation->get();
+		if (!saveTile || saveTile->empty()) {
+			return;
+		}
+
+		const Position &position = saveTile->getPosition();
+		if (needsNewTileArea(position, state)) {
+			beginTileArea(file, position, state);
+		}
+
+		file.addNode(saveTile->isHouseTile() ? OTBM_HOUSETILE : OTBM_TILE);
+		file.addU8(saveTile->getX() & 0xFF);
+		file.addU8(saveTile->getY() & 0xFF);
+
+		if (saveTile->isHouseTile()) {
+			file.addU32(saveTile->getHouseID());
+		}
+
+		if (saveTile->getMapFlags()) {
+			file.addByte(OTBM_ATTR_TILE_FLAGS);
+			file.addU32(saveTile->getMapFlags());
+		}
+
+		saveTileGround(mapHandle, file, *saveTile);
+		saveTileItems(mapHandle, file, *saveTile);
+		saveTileZones(file, *saveTile);
+		file.endNode();
+	}
+}
+
 // ============================================================================
 // Item
 
-Item* Item::Create_OTBM(const IOMap &maphandle, BinaryNode* stream) {
+Item* Item::Create_OTBM(const IOMap &maphandle, BinaryNode* stream, const ItemType** itemType) {
+	if (itemType) {
+		*itemType = nullptr;
+	}
+
 	uint16_t id;
 	if (!stream->getU16(id)) {
 		return nullptr;
 	}
 
 	const ItemType &type = g_items.getItemType(id);
+	if (itemType) {
+		*itemType = &type;
+	}
+
 	uint8_t count = 0;
 	if (maphandle.version.otbm == MAP_OTBM_1) {
 		if (type.stackable || type.isSplash() || type.isFluidContainer()) {
 			stream->getU8(count);
 		}
 	}
-	return Item::Create(id, count);
+	return Item::Create(id, type, count);
 }
 
 bool Item::readItemAttribute_OTBM(const IOMap &maphandle, OTBM_ItemAttribute attr, BinaryNode* stream) {
@@ -3074,11 +3368,11 @@ bool Item::unserializeItemNode_OTBM(const IOMap &maphandle, BinaryNode* node) {
 }
 
 void Item::serializeItemAttributes_OTBM(const IOMap &maphandle, NodeFileWriteHandle &stream) const {
+	const ItemType &type = g_items.getItemType(id);
 	if (maphandle.version.otbm >= MAP_OTBM_2) {
-		const ItemType &type = g_items.getItemType(id);
 		if (type.stackable || type.isSplash() || type.isFluidContainer()) {
 			stream.addU8(OTBM_ATTR_COUNT);
-			stream.addU8(getSubtype());
+			stream.addU8(getSubtype(type));
 		}
 	}
 
@@ -3088,9 +3382,9 @@ void Item::serializeItemAttributes_OTBM(const IOMap &maphandle, NodeFileWriteHan
 			serializeAttributeMap(maphandle, stream);
 		}
 	} else {
-		if (isCharged()) {
+		if (type.isClientCharged() || type.isExtraCharged()) {
 			stream.addU8(OTBM_ATTR_CHARGES);
-			stream.addU16(getSubtype());
+			stream.addU16(getSubtype(type));
 		}
 
 		const auto actionId = getActionID();
@@ -3105,16 +3399,16 @@ void Item::serializeItemAttributes_OTBM(const IOMap &maphandle, NodeFileWriteHan
 			stream.addU16(uniqueId);
 		}
 
-		const std::string &text = getText();
-		if (!text.empty()) {
+		const std::string* text = getStringAttribute("text");
+		if (text && !text->empty()) {
 			stream.addU8(OTBM_ATTR_TEXT);
-			stream.addString(text);
+			stream.addString(*text);
 		}
 
-		const std::string &description = getDescription();
-		if (!description.empty()) {
+		const std::string* description = getStringAttribute("desc");
+		if (description && !description->empty()) {
 			stream.addU8(OTBM_ATTR_DESC);
-			stream.addString(description);
+			stream.addString(*description);
 		}
 	}
 }
@@ -3137,7 +3431,7 @@ bool Item::serializeItemNode_OTBM(const IOMap &maphandle, NodeFileWriteHandle &f
 	if (maphandle.version.otbm == MAP_OTBM_1) {
 		const ItemType &type = g_items.getItemType(id);
 		if (type.stackable || type.isSplash() || type.isFluidContainer()) {
-			file.addU8(getSubtype());
+			file.addU8(getSubtype(type));
 		}
 	}
 	serializeItemAttributes_OTBM(maphandle, file);
@@ -3319,16 +3613,17 @@ bool IOMapOTBM::getVersionInfo(const FileName &filename, MapVersion &out_ver) {
 				uint8_t buffer[8096];
 				memset(buffer, 0, 8096);
 
-				// Read from the archive
-				int read_bytes = archive_read_data(a.get(), buffer, 8096);
+				size_t readBytes = 0;
+				if (!readArchiveDataFully(a.get(), buffer, sizeof(buffer), readBytes)) {
+					return false;
+				}
 
-				// Check so it at least contains the 4-byte file id
-				if (read_bytes < 4) {
+				if (!hasValidOtbmPrefix(buffer, readBytes)) {
 					return false;
 				}
 
 				// Create a read handle on it
-				std::shared_ptr<NodeFileReadHandle> f(new MemoryNodeFileReadHandle(buffer + 4, read_bytes - 4));
+				std::shared_ptr<NodeFileReadHandle> f(new MemoryNodeFileReadHandle(buffer + 4, readBytes - 4));
 
 				// Read the version info
 				return getVersionInfo(f.get(), out_ver);
@@ -3340,7 +3635,22 @@ bool IOMapOTBM::getVersionInfo(const FileName &filename, MapVersion &out_ver) {
 	}
 #endif
 
-	// Just open a disk-based read handle
+	FileReadHandle otbmProbe(nstr(filename.GetFullPath()));
+	if (!otbmProbe.isOk()) {
+		return false;
+	}
+
+	std::array<uint8_t, 5> otbmPrefix {};
+	if (otbmProbe.size() < otbmPrefix.size()) {
+		return false;
+	}
+	if (!otbmProbe.getRAW(otbmPrefix.data(), otbmPrefix.size())) {
+		return false;
+	}
+	if (!hasValidOtbmPrefix(otbmPrefix.data(), otbmPrefix.size())) {
+		return false;
+	}
+
 	DiskNodeFileReadHandle f(nstr(filename.GetFullPath()), StringVector(1, "OTBM"));
 	if (!f.isOk()) {
 		return false;
@@ -3406,16 +3716,17 @@ bool IOMapOTBM::loadMap(Map &map, const FileName &filename) {
 				size_t otbm_size = archive_entry_size(entry);
 				std::shared_ptr<uint8_t> otbm_buffer(new uint8_t[otbm_size], [](uint8_t* p) { delete[] p; });
 
-				// Read from the archive
-				size_t read_bytes = archive_read_data(a.get(), otbm_buffer.get(), otbm_size);
-
-				// Check so it at least contains the 4-byte file id
-				if (read_bytes < 4) {
+				size_t readBytes = 0;
+				if (!readArchiveDataFully(a.get(), otbm_buffer.get(), otbm_size, readBytes)) {
+					error("Could not read file.");
 					return false;
 				}
-
-				if (read_bytes < otbm_size) {
+				if (readBytes < otbm_size) {
 					error("Could not read file.");
+					return false;
+				}
+				if (!hasValidOtbmPrefix(otbm_buffer.get(), readBytes)) {
+					error("Could not read OTBM file header.");
 					return false;
 				}
 
@@ -3523,12 +3834,35 @@ bool IOMapOTBM::loadMap(Map &map, const FileName &filename) {
 	}
 #endif
 
-	DiskNodeFileReadHandle f(nstr(filename.GetFullPath()), StringVector(1, "OTBM"));
-	if (!f.isOk()) {
-		error(("Couldn't open file for reading\nThe error reported was: " + wxstr(f.getErrorMessage())).wc_str());
+	FileReadHandle otbmFile(nstr(filename.GetFullPath()));
+	if (!otbmFile.isOk()) {
+		error(("Couldn't open file for reading\nThe error reported was: " + wxstr(otbmFile.getErrorMessage())).wc_str());
 		return false;
 	}
 
+	const size_t otbmSize = otbmFile.size();
+	if (otbmSize < 5) {
+		error("Could not read OTBM file header.");
+		return false;
+	}
+
+	std::vector<uint8_t> otbmBuffer(otbmSize);
+	if (!otbmFile.getRAW(otbmBuffer.data(), otbmBuffer.size())) {
+		error(("Couldn't read file\nThe error reported was: " + wxstr(otbmFile.getErrorMessage())).wc_str());
+		return false;
+	}
+
+	const bool hasKnownIdentifier = isWildcardOtbmIdentifier(otbmBuffer.data()) || memcmp(otbmBuffer.data(), "OTBM", 4) == 0;
+	if (!hasKnownIdentifier) {
+		error("File magic number not recognized.");
+		return false;
+	}
+	if (otbmBuffer[4] != NODE_START) {
+		error("Could not read root node.");
+		return false;
+	}
+
+	MemoryNodeFileReadHandle f(otbmBuffer.data() + 4, otbmSize - 4);
 	if (!loadMap(map, f)) {
 		return false;
 	}
@@ -3679,6 +4013,10 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 				continue;
 			}
 
+			Floor* cachedFloor = nullptr;
+			int cachedFloorX = -1;
+			int cachedFloorY = -1;
+			int cachedFloorZ = -1;
 			for (BinaryNode* tileNode = mapNode->getChild(); tileNode != nullptr; tileNode = tileNode->advance()) {
 				Tile* tile = nullptr;
 				uint8_t tile_type;
@@ -3695,12 +4033,22 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 					}
 					const Position pos(base_x + x_offset, base_y + y_offset, base_z);
 
-					if (map.getTile(pos)) {
+					const int floorX = pos.x & ~3;
+					const int floorY = pos.y & ~3;
+					if (!cachedFloor || cachedFloorX != floorX || cachedFloorY != floorY || cachedFloorZ != pos.z) {
+						cachedFloor = map.createLeaf(pos.x, pos.y)->createFloor(pos.x, pos.y, pos.z);
+						cachedFloorX = floorX;
+						cachedFloorY = floorY;
+						cachedFloorZ = pos.z;
+					}
+
+					TileLocation* tileLocation = &cachedFloor->locs[(pos.x & 3) * 4 + (pos.y & 3)];
+					if (tileLocation->get()) {
 						warning("Duplicate tile at %d:%d:%d, discarding duplicate", pos.x, pos.y, pos.z);
 						continue;
 					}
 
-					tile = map.allocator(map.createTileL(pos));
+					tile = map.allocator(tileLocation);
 					House* house = nullptr;
 					if (tile_type == OTBM_HOUSETILE) {
 						uint32_t house_id;
@@ -3723,6 +4071,7 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 
 					// printf("So far so good\n");
 
+					bool needsFullTileUpdate = false;
 					uint8_t attribute;
 					while (tileNode->getU8(attribute)) {
 						switch (attribute) {
@@ -3735,11 +4084,16 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 								break;
 							}
 							case OTBM_ATTR_ITEM: {
-								Item* item = Item::Create_OTBM(*this, tileNode);
+								const ItemType* itemType = nullptr;
+								Item* item = Item::Create_OTBM(*this, tileNode, &itemType);
 								if (item == nullptr) {
 									warning("Invalid item at tile %d:%d:%d", pos.x, pos.y, pos.z);
+								} else {
+									if (((itemType->isGroundTile() || itemType->ground_equivalent != 0) && tile->ground) || (itemType->alwaysOnBottom && !tile->items.empty())) {
+										needsFullTileUpdate = true;
+									}
+									tile->addLoadedItem(item, *itemType);
 								}
-								tile->addItem(item);
 								break;
 							}
 							default: {
@@ -3759,13 +4113,17 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 							continue;
 						}
 						if (node_type == OTBM_ITEM) {
-							item = Item::Create_OTBM(*this, childNode);
+							const ItemType* itemType = nullptr;
+							item = Item::Create_OTBM(*this, childNode, &itemType);
 							if (item) {
 								if (!item->unserializeItemNode_OTBM(*this, childNode)) {
 									warning("Couldn't unserialize item attributes at %d:%d:%d", pos.x, pos.y, pos.z);
 								}
 								// reform(&map, tile, item);
-								tile->addItem(item);
+								if (((itemType->isGroundTile() || itemType->ground_equivalent != 0) && tile->ground) || (itemType->alwaysOnBottom && !tile->items.empty())) {
+									needsFullTileUpdate = true;
+								}
+								tile->addLoadedItem(item, *itemType);
 							}
 						} else if (node_type == OTBM_TILE_ZONE) {
 							uint16_t zone_count;
@@ -3786,12 +4144,16 @@ bool IOMapOTBM::loadMap(Map &map, NodeFileReadHandle &f) {
 						}
 					}
 
-					tile->update();
+					if (needsFullTileUpdate) {
+						tile->update();
+					} else {
+						tile->finalizeLoadedState();
+					}
 					if (house) {
 						house->addTile(tile);
 					}
 
-					map.setTile(pos.x, pos.y, pos.z, tile);
+					map.setTile(tileLocation, tile);
 				} else {
 					warning("Unknown type of tile node");
 				}
@@ -3908,6 +4270,7 @@ bool IOMapOTBM::loadSpawnsMonster(Map &map, pugi::xml_document &doc) {
 		return false;
 	}
 
+	FloorLookupCache tileCache;
 	for (pugi::xml_node spawnNode = node.first_child(); spawnNode; spawnNode = spawnNode.next_sibling()) {
 		if (as_lower_str(spawnNode.name()) != "monster") {
 			continue;
@@ -3929,7 +4292,7 @@ bool IOMapOTBM::loadSpawnsMonster(Map &map, pugi::xml_document &doc) {
 			continue;
 		}
 
-		Tile* tile = map.getTile(spawnPosition);
+		Tile* tile = getCachedTile(map, spawnPosition, tileCache);
 		if (tile && tile->spawnMonster) {
 			warning("Duplicate monster spawn on position %d:%d:%d\n", tile->getX(), tile->getY(), tile->getZ());
 			continue;
@@ -3937,8 +4300,9 @@ bool IOMapOTBM::loadSpawnsMonster(Map &map, pugi::xml_document &doc) {
 
 		SpawnMonster* spawnMonster = newd SpawnMonster(radius);
 		if (!tile) {
-			tile = map.allocator(map.createTileL(spawnPosition));
-			map.setTile(spawnPosition, tile);
+			TileLocation* tileLocation = map.createTileL(spawnPosition);
+			tile = map.allocator(tileLocation);
+			map.setTile(tileLocation, tile);
 		}
 
 		tile->spawnMonster = spawnMonster;
@@ -3996,7 +4360,7 @@ bool IOMapOTBM::loadSpawnsMonster(Map &map, pugi::xml_document &doc) {
 			if (monsterPosition == spawnPosition) {
 				monsterTile = tile;
 			} else {
-				monsterTile = map.getTile(monsterPosition);
+				monsterTile = getCachedTile(map, monsterPosition, tileCache);
 			}
 
 			if (!monsterTile) {
@@ -4180,6 +4544,7 @@ bool IOMapOTBM::loadSpawnsNpc(Map &map, pugi::xml_document &doc) {
 		return false;
 	}
 
+	FloorLookupCache tileCache;
 	for (pugi::xml_node spawnNpcNode = node.first_child(); spawnNpcNode; spawnNpcNode = spawnNpcNode.next_sibling()) {
 		if (as_lower_str(spawnNpcNode.name()) != "npc") {
 			continue;
@@ -4201,7 +4566,7 @@ bool IOMapOTBM::loadSpawnsNpc(Map &map, pugi::xml_document &doc) {
 			continue;
 		}
 
-		Tile* spawnTile = map.getTile(spawnPosition);
+		Tile* spawnTile = getCachedTile(map, spawnPosition, tileCache);
 		if (spawnTile && spawnTile->spawnNpc) {
 			warning("Duplicate npc spawn on position %d:%d:%d\n", spawnTile->getX(), spawnTile->getY(), spawnTile->getZ());
 			continue;
@@ -4209,8 +4574,9 @@ bool IOMapOTBM::loadSpawnsNpc(Map &map, pugi::xml_document &doc) {
 
 		SpawnNpc* spawnNpc = newd SpawnNpc(radius);
 		if (!spawnTile) {
-			spawnTile = map.allocator(map.createTileL(spawnPosition));
-			map.setTile(spawnPosition, spawnTile);
+			TileLocation* tileLocation = map.createTileL(spawnPosition);
+			spawnTile = map.allocator(tileLocation);
+			map.setTile(tileLocation, spawnTile);
 		}
 
 		spawnTile->spawnNpc = spawnNpc;
@@ -4263,7 +4629,7 @@ bool IOMapOTBM::loadSpawnsNpc(Map &map, pugi::xml_document &doc) {
 			if (npcPosition == spawnPosition) {
 				npcTile = spawnTile;
 			} else {
-				npcTile = map.getTile(npcPosition);
+				npcTile = getCachedTile(map, npcPosition, tileCache);
 			}
 
 			if (!npcTile) {
@@ -4498,116 +4864,14 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 			f.addString(nstr(tmpName.GetFullName()));
 
 			// Start writing tiles
-			uint32_t tiles_saved = 0;
-			bool first = true;
-
-			int local_x = -1, local_y = -1, local_z = -1;
-
-			MapIterator map_iterator = map.begin();
-			while (map_iterator != map.end()) {
-				// Update progressbar
-				++tiles_saved;
-				if (tiles_saved % 8192 == 0) {
-					g_gui.SetLoadDone(int(tiles_saved / double(map.getTileCount()) * 100.0));
-				}
-
-				// Get tile
-				Tile* save_tile = (*map_iterator)->get();
-
-				// Is it an empty tile that we can skip? (Leftovers...)
-				if (!save_tile || save_tile->size() == 0) {
-					++map_iterator;
-					continue;
-				}
-
-				const Position &pos = save_tile->getPosition();
-
-				// Decide if newd node should be created
-				if (pos.x < local_x || pos.x >= local_x + 256 || pos.y < local_y || pos.y >= local_y + 256 || pos.z != local_z) {
-					// End last node
-					if (!first) {
-						f.endNode();
-					}
-					first = false;
-
-					// Start newd node
-					f.addNode(OTBM_TILE_AREA);
-					f.addU16(local_x = pos.x & 0xFF00);
-					f.addU16(local_y = pos.y & 0xFF00);
-					f.addU8(local_z = pos.z);
-				}
-				f.addNode(save_tile->isHouseTile() ? OTBM_HOUSETILE : OTBM_TILE);
-
-				f.addU8(save_tile->getX() & 0xFF);
-				f.addU8(save_tile->getY() & 0xFF);
-
-				if (save_tile->isHouseTile()) {
-					f.addU32(save_tile->getHouseID());
-				}
-
-				if (save_tile->getMapFlags()) {
-					f.addByte(OTBM_ATTR_TILE_FLAGS);
-					f.addU32(save_tile->getMapFlags());
-				}
-
-				if (save_tile->ground) {
-					Item* ground = save_tile->ground;
-					if (ground->isMetaItem()) {
-						// Do nothing, we don't save metaitems...
-					} else if (ground->hasBorderEquivalent()) {
-						bool found = false;
-						for (Item* item : save_tile->items) {
-							if (item->getGroundEquivalent() == ground->getID()) {
-								// Do nothing
-								// Found equivalent
-								found = true;
-								break;
-							}
-						}
-
-						if (!found) {
-							if (ground->getID() == 0) {
-								continue;
-							}
-							ground->serializeItemNode_OTBM(self, f);
-						}
-					} else if (ground->isComplex()) {
-						if (ground->getID() == 0) {
-							continue;
-						}
-						ground->serializeItemNode_OTBM(self, f);
-					} else {
-						f.addByte(OTBM_ATTR_ITEM);
-						if (ground->getID() == 0) {
-							continue;
-						}
-						ground->serializeItemCompact_OTBM(self, f);
-					}
-				}
-
-				for (Item* item : save_tile->items) {
-					if (!item->isMetaItem()) {
-						if (item->getID() == 0) {
-							continue;
-						}
-						item->serializeItemNode_OTBM(self, f);
-					}
-				}
-				if (!save_tile->zones.empty()) {
-					f.addNode(OTBM_TILE_ZONE);
-					f.addU16(save_tile->zones.size());
-					for (const auto &zoneId : save_tile->zones) {
-						f.addU16(zoneId);
-					}
-					f.endNode();
-				}
-
-				f.endNode();
-				++map_iterator;
-			}
+			TileAreaSaveState tileAreaState;
+			auto writeTileLocation = [&](TileLocation* tileLocation) {
+				saveTileLocation(self, map, f, tileAreaState, tileLocation);
+			};
+			map.forEachTileLocation(writeTileLocation);
 
 			// Only close the last node if one has actually been created
-			if (!first) {
+			if (!tileAreaState.firstArea) {
 				f.endNode();
 			}
 
@@ -4652,7 +4916,7 @@ bool IOMapOTBM::saveSpawns(Map &map, const FileName &dir) {
 	// Create the XML file
 	pugi::xml_document doc;
 	if (saveSpawns(map, doc)) {
-		return doc.save_file(filepath.wc_str(), "\t", pugi::format_default, pugi::encoding_utf8);
+		return saveXmlFileIfChanged(doc, filepath);
 	}
 	return false;
 }
@@ -4729,7 +4993,7 @@ bool IOMapOTBM::saveHouses(Map &map, const FileName &dir) {
 	// Create the XML file
 	pugi::xml_document doc;
 	if (saveHouses(map, doc)) {
-		return doc.save_file(filepath.wc_str(), "\t", pugi::format_default, pugi::encoding_utf8);
+		return saveXmlFileIfChanged(doc, filepath);
 	}
 	return false;
 }
@@ -5563,7 +5827,7 @@ bool IOMapOTBM::saveZones(Map &map, const FileName &dir) {
 	// Create the XML file
 	pugi::xml_document doc;
 	if (saveZones(map, doc)) {
-		return doc.save_file(filepath.wc_str(), "\t", pugi::format_default, pugi::encoding_utf8);
+		return saveXmlFileIfChanged(doc, filepath);
 	}
 	return false;
 }
@@ -5596,7 +5860,7 @@ bool IOMapOTBM::saveSpawnsNpc(Map &map, const FileName &dir) {
 	// Create the XML file
 	pugi::xml_document doc;
 	if (saveSpawnsNpc(map, doc)) {
-		return doc.save_file(filepath.wc_str(), "\t", pugi::format_default, pugi::encoding_utf8);
+		return saveXmlFileIfChanged(doc, filepath);
 	}
 	return false;
 }
