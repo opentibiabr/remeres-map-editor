@@ -149,10 +149,11 @@
 - Brush palette runtime sync already updates renamed brushes and saved `lookId` changes without full runtime reload
 - Brush Workspace now only restores variation tab/selection/scroll context when reloading the same brush; switching to a different brush no longer reuses stale context from the previous selection
 - Brush, Wall, and Border workspaces now share a more consistent Stage 10 structure: subdued subtitles, wrapped status area with stable height, action buttons with consistent width/tooltips, and improved ready/save/revert messaging
-- The left sidebar now presents a clearer split of responsibilities: `Palettes` is for palette composition, `Brushes` is for brush authoring by domain/subcategory, and `Walls`/`Borders` stay under `Specialized Editors`
-- `Brushes` now groups authoring work by domain (`Terrain`, `Doodad`, `Carpet`, `Table`) and then by palette-derived subcategory labels, while `Palettes` stays focused on runtime composition/editing of tilesets
-- `Palettes` in the tree now lists palettes directly by palette name for faster navigation; source/import-origin labels were removed from the main navigation to keep the UX focused on the actual palette entries
+- The left sidebar now presents a clearer split of responsibilities: `Palettes` is for palette composition, `Brushes` is for brush authoring, and `Walls`/`Borders` stay under `Specialized Editors`
+- `Brushes` now groups authoring work by runtime family (`Terrain`, `Doodad`, `Item`, legacy `Other`) and then by palette name, so brush editing follows the same high-level mental model as palette navigation without mixing the two editors
+- `Palettes` in the tree is now grouped by runtime family first and then palette name; source/import-origin labels were removed from the main navigation to keep the UX focused on the actual palette entries
 - `Stage 10A` is now in place: `Palettes` is grouped by runtime families (`Terrain Palette`, `Doodad Palette`, `Item Palette`) before listing palette names, giving the navigation the same first-level mental model as the classic runtime palettes
+- Legacy raw-only tilesets that do not map cleanly to `Terrain/Doodad/Item` may remain under `Other Palettes` for now; the plan is to let users reorganize them later through the real palette CRUD flows instead of forcing a premature remap
 - The shared Stage 10 workspace-polish helpers now stay unity-build-safe by using panel-specific helper names instead of duplicate anonymous-namespace symbols across multiple `.cpp` files
 - The current modified-field highlight still has room for a more professional visual treatment, but that now belongs to the remaining Stage 10 polish
 - `Wall Workspace` completed its `Stage 9` pass with dirty state, save/revert consistency, selection-change protection, close protection, navigation badge integration, and context preservation across save/reload
@@ -169,5 +170,5 @@
 - Palette saves now already repopulate the Workbench navigation tree right after refreshing runtime palettes, so tree/runtime drift is reduced before the deeper Stage 10 palette CRUD work lands
 - Palette UX should reflect runtime families (`Terrain Palette`, `Doodad Palette`, `Item Palette`) and their real categories, without introducing a parallel taxonomy for palette composition
 - Legacy XML remains for compatibility and first-time onboarding/import, but normal editing should continue DB-first in the Workbench after the initial import
-- Recommended next task goal: start Stage 10B by making the `Palette Workspace` itself faster and more structural, with clearer section/entry editing affordances inside each runtime palette family
+- Recommended next task goal: continue Stage 10B by making the `Palette Workspace` itself faster and more structural, with clearer section/entry editing affordances inside each runtime palette family
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`

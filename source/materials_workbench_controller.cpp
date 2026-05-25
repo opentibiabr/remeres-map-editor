@@ -180,6 +180,32 @@ namespace {
 		return "Other Palettes";
 	}
 
+	wxString BuildBrushFamilyKeyFromBrushType(const wxString &brushType) {
+		if (brushType == "ground") {
+			return "terrain";
+		}
+		if (brushType == "doodad") {
+			return "doodad";
+		}
+		if (brushType == "carpet" || brushType == "table") {
+			return "item";
+		}
+		return "other";
+	}
+
+	wxString BuildBrushFamilyLabel(const wxString &familyKey) {
+		if (familyKey == "terrain") {
+			return "Terrain";
+		}
+		if (familyKey == "doodad") {
+			return "Doodad";
+		}
+		if (familyKey == "item") {
+			return "Item";
+		}
+		return "Other";
+	}
+
 } // namespace
 
 bool MaterialsWorkbenchController::ReloadCatalog() {
@@ -264,15 +290,21 @@ std::vector<MaterialsWorkbenchTreeNode> MaterialsWorkbenchController::BuildNavig
 	brushesNode.label = FormatNavigationCountLabel("Brushes", catalog_.auditReport.brushCount);
 	brushesNode.contextKey = "group:brushes";
 
-	std::map<wxString, wxString> brushCategoryByKey;
-	std::vector<wxString> brushCategoryOrder;
-	for (const TilesetStorageRecord &tileset : catalog_.tilesets) {
-		for (const TilesetSectionRecord &section : tileset.sections) {
-			const wxString categoryLabel = section.sectionType;
-			if (std::find(brushCategoryOrder.begin(), brushCategoryOrder.end(), categoryLabel) == brushCategoryOrder.end()) {
-				brushCategoryOrder.push_back(categoryLabel);
-			}
+	struct BrushNavigationPlacement {
+		wxString familyKey;
+		wxString paletteLabel;
+	};
 
+	std::map<wxString, BrushNavigationPlacement> brushPlacementByKey;
+	std::map<wxString, std::vector<wxString>> paletteOrderByFamily;
+	for (const TilesetStorageRecord &tileset : catalog_.tilesets) {
+		const wxString familyKey = BuildPaletteFamilyKey(tileset);
+		auto &familyPaletteOrder = paletteOrderByFamily[familyKey];
+		if (std::find(familyPaletteOrder.begin(), familyPaletteOrder.end(), tileset.name) == familyPaletteOrder.end()) {
+			familyPaletteOrder.push_back(tileset.name);
+		}
+
+		for (const TilesetSectionRecord &section : tileset.sections) {
 			for (const TilesetEntryRecord &entry : section.entries) {
 				if (!entry.entryKind.IsSameAs("brush", false)) {
 					continue;
@@ -282,66 +314,77 @@ std::vector<MaterialsWorkbenchTreeNode> MaterialsWorkbenchController::BuildNavig
 				}
 
 				const wxString brushKey = BuildBrushLookupKey(entry.brushId, entry.brushName);
-				if (!brushCategoryByKey.count(brushKey)) {
-					brushCategoryByKey[brushKey] = categoryLabel;
+				if (!brushPlacementByKey.count(brushKey)) {
+					brushPlacementByKey[brushKey] = { familyKey, tileset.name };
 				}
 			}
 		}
 	}
 
+	std::map<wxString, std::vector<wxString>> brushPaletteLabelsByFamily;
+	std::map<wxString, std::map<wxString, std::vector<MaterialsWorkbenchTreeNode>>> brushNodesByFamilyAndPalette;
+	std::map<wxString, size_t> brushCountByFamily;
 	for (const MaterialsWorkbenchBrushGroup &group : catalog_.brushGroups) {
-		MaterialsWorkbenchTreeNode brushGroupNode;
-		brushGroupNode.kind = MaterialsWorkbenchNodeKind::Group;
-		brushGroupNode.label = FormatNavigationCountLabel(BuildBrushDomainLabel(group.brushType), group.brushes.size());
-		brushGroupNode.contextKey = "brush_group:" + group.brushType;
-
-		std::map<wxString, std::vector<int>> brushIndexesByCategory;
 		for (size_t i = 0; i < group.brushes.size(); ++i) {
 			const BrushRecord &brush = group.brushes[i];
 			const wxString brushKey = BuildBrushLookupKey(brush.id, brush.name);
-			const auto categoryIt = brushCategoryByKey.find(brushKey);
-			const wxString categoryLabel = categoryIt != brushCategoryByKey.end() ? categoryIt->second : "Uncategorized";
-			brushIndexesByCategory[categoryLabel].push_back(static_cast<int>(i));
+			const auto placementIt = brushPlacementByKey.find(brushKey);
+			const wxString familyKey = placementIt != brushPlacementByKey.end() ? placementIt->second.familyKey : BuildBrushFamilyKeyFromBrushType(group.brushType);
+			const wxString paletteLabel = placementIt != brushPlacementByKey.end() ? placementIt->second.paletteLabel : "Uncategorized";
+
+			auto &familyPaletteLabels = brushPaletteLabelsByFamily[familyKey];
+			if (std::find(familyPaletteLabels.begin(), familyPaletteLabels.end(), paletteLabel) == familyPaletteLabels.end()) {
+				familyPaletteLabels.push_back(paletteLabel);
+			}
+
+			MaterialsWorkbenchTreeNode item;
+			item.kind = MaterialsWorkbenchNodeKind::Brush;
+			item.label = brush.name;
+			item.contextKey = group.brushType;
+			item.itemIndex = static_cast<int>(i);
+			brushNodesByFamilyAndPalette[familyKey][paletteLabel].push_back(std::move(item));
+			++brushCountByFamily[familyKey];
+		}
+	}
+
+	const wxString brushFamilyOrder[] = { "terrain", "doodad", "item", "other" };
+	for (const wxString &familyKey : brushFamilyOrder) {
+		const size_t familyCount = brushCountByFamily[familyKey];
+		if (familyCount == 0) {
+			continue;
 		}
 
-		for (const wxString &categoryLabel : brushCategoryOrder) {
-			const auto categoryIt = brushIndexesByCategory.find(categoryLabel);
-			if (categoryIt == brushIndexesByCategory.end() || categoryIt->second.empty()) {
+		MaterialsWorkbenchTreeNode familyNode;
+		familyNode.kind = MaterialsWorkbenchNodeKind::Group;
+		familyNode.label = FormatNavigationCountLabel(BuildBrushFamilyLabel(familyKey), familyCount);
+		familyNode.contextKey = "brush_family:" + familyKey;
+
+		std::vector<wxString> paletteLabels = paletteOrderByFamily[familyKey];
+		for (const wxString &paletteLabel : brushPaletteLabelsByFamily[familyKey]) {
+			if (std::find(paletteLabels.begin(), paletteLabels.end(), paletteLabel) == paletteLabels.end()) {
+				paletteLabels.push_back(paletteLabel);
+			}
+		}
+
+		for (const wxString &paletteLabel : paletteLabels) {
+			auto familyIt = brushNodesByFamilyAndPalette.find(familyKey);
+			if (familyIt == brushNodesByFamilyAndPalette.end()) {
+				continue;
+			}
+			auto paletteIt = familyIt->second.find(paletteLabel);
+			if (paletteIt == familyIt->second.end() || paletteIt->second.empty()) {
 				continue;
 			}
 
-			MaterialsWorkbenchTreeNode categoryNode;
-			categoryNode.kind = MaterialsWorkbenchNodeKind::Group;
-			categoryNode.label = FormatNavigationCountLabel(categoryLabel, categoryIt->second.size());
-			categoryNode.contextKey = "brush_category:" + group.brushType + ":" + categoryLabel;
-			for (int brushIndex : categoryIt->second) {
-				MaterialsWorkbenchTreeNode item;
-				item.kind = MaterialsWorkbenchNodeKind::Brush;
-				item.label = group.brushes[brushIndex].name;
-				item.contextKey = group.brushType;
-				item.itemIndex = brushIndex;
-				categoryNode.children.push_back(std::move(item));
-			}
-			brushGroupNode.children.push_back(std::move(categoryNode));
+			MaterialsWorkbenchTreeNode paletteNode;
+			paletteNode.kind = MaterialsWorkbenchNodeKind::Group;
+			paletteNode.label = FormatNavigationCountLabel(paletteLabel, paletteIt->second.size());
+			paletteNode.contextKey = "brush_palette:" + familyKey + ":" + paletteLabel;
+			paletteNode.children = paletteIt->second;
+			familyNode.children.push_back(std::move(paletteNode));
 		}
 
-		const auto uncategorizedIt = brushIndexesByCategory.find("Uncategorized");
-		if (uncategorizedIt != brushIndexesByCategory.end() && !uncategorizedIt->second.empty()) {
-			MaterialsWorkbenchTreeNode categoryNode;
-			categoryNode.kind = MaterialsWorkbenchNodeKind::Group;
-			categoryNode.label = FormatNavigationCountLabel("Uncategorized", uncategorizedIt->second.size());
-			categoryNode.contextKey = "brush_category:" + group.brushType + ":uncategorized";
-			for (int brushIndex : uncategorizedIt->second) {
-				MaterialsWorkbenchTreeNode item;
-				item.kind = MaterialsWorkbenchNodeKind::Brush;
-				item.label = group.brushes[brushIndex].name;
-				item.contextKey = group.brushType;
-				item.itemIndex = brushIndex;
-				categoryNode.children.push_back(std::move(item));
-			}
-			brushGroupNode.children.push_back(std::move(categoryNode));
-		}
-		brushesNode.children.push_back(std::move(brushGroupNode));
+		brushesNode.children.push_back(std::move(familyNode));
 	}
 	catalogNode.children.push_back(std::move(brushesNode));
 	nodes.push_back(std::move(catalogNode));
@@ -624,7 +667,7 @@ wxString MaterialsWorkbenchController::BuildSelectionOverview(MaterialsWorkbench
 			for (const MaterialsWorkbenchBrushGroup &group : catalog_.brushGroups) {
 				brushCount += group.brushes.size();
 			}
-			return wxString::Format("Brushes workspace\n\nLoaded %zu editable brushes across %zu groups.", brushCount, catalog_.brushGroups.size());
+			return wxString::Format("Brushes workspace\n\nLoaded %zu editable brushes grouped by runtime family and palette.", brushCount);
 		}
 		if (contextKey == "group:borders") {
 			return wxString::Format("Borders workspace\n\nLoaded %zu global and %zu inline border sets.", catalog_.globalBorderSets.size(), catalog_.inlineBorderSets.size());
@@ -632,26 +675,27 @@ wxString MaterialsWorkbenchController::BuildSelectionOverview(MaterialsWorkbench
 		if (contextKey == "group:walls") {
 			return wxString::Format("Walls workspace\n\nLoaded %zu wall brushes.", catalog_.wallBrushes.size());
 		}
-		if (contextKey.StartsWith("brush_group:")) {
-			const wxString brushType = contextKey.AfterFirst(':');
-			const MaterialsWorkbenchBrushGroup* group = FindBrushGroup(brushType);
-			if (group) {
-				return BuildBrushDomainLabel(brushType) + wxString::Format("\n\nLoaded %zu brushes for this domain.", group->brushes.size());
+		if (contextKey.StartsWith("brush_family:")) {
+			const wxString familyKey = contextKey.AfterFirst(':');
+			size_t familyCount = 0;
+			for (const MaterialsWorkbenchBrushGroup &group : catalog_.brushGroups) {
+				for (const BrushRecord &brush : group.brushes) {
+					if (BuildBrushFamilyKeyFromBrushType(brush.type) == familyKey) {
+						++familyCount;
+					}
+				}
 			}
+			return wxString::Format("%s\n\nLoaded %zu brushes in this authoring family.", BuildBrushFamilyLabel(familyKey), familyCount);
 		}
-		if (contextKey.StartsWith("brush_category:")) {
+		if (contextKey.StartsWith("brush_palette:")) {
 			wxString remainder = contextKey.AfterFirst(':');
-			const wxString brushType = remainder.BeforeFirst(':');
-			const wxString categoryLabel = remainder.AfterFirst(':');
-			const MaterialsWorkbenchBrushGroup* group = FindBrushGroup(brushType);
-			if (group) {
-				return wxString::Format(
-					"%s -> %s\n\nBrush authoring subcategory derived from palette organization for the %s domain.",
-					BuildBrushDomainLabel(brushType),
-					categoryLabel,
-					BuildBrushDomainLabel(brushType)
-				);
-			}
+			const wxString familyKey = remainder.BeforeFirst(':');
+			const wxString paletteLabel = remainder.AfterFirst(':');
+			return wxString::Format(
+				"%s -> %s\n\nBrushes in this palette-aligned authoring bucket.",
+				BuildBrushFamilyLabel(familyKey),
+				paletteLabel
+			);
 		}
 		if (contextKey.StartsWith("border_scope:")) {
 			const wxString scope = contextKey.AfterFirst(':');
