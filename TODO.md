@@ -59,6 +59,7 @@
 - [x] Border Workspace now blocks saving `global` or `inline` sets whose metadata would make the targeted runtime refresh path unsupported after save
 - [x] Applying a border slot now validates the candidate layout immediately, so duplicate or unknown slot items are rejected before the user reaches Save
 - [x] Palette Workspace brush grids now reuse tile widgets instead of destroying/recreating them on every refresh, reducing GTK CSS/layout churn during palette and section switches
+- [x] Runtime icon palettes now reuse a stable `BrushButton` pool across page switches instead of rebuilding the full icon grid every time
 
 ## Remaining Before Calling It Ready
 - [x] Extend `dirty state` beyond the Brush Workspace
@@ -172,5 +173,6 @@
 - Palette UX should reflect runtime families (`Terrain Palette`, `Doodad Palette`, `Item Palette`) and their real categories, without introducing a parallel taxonomy for palette composition
 - Legacy XML remains for compatibility and first-time onboarding/import, but normal editing should continue DB-first in the Workbench after the initial import
 - `Stage 10B` is now in place: the `Palette Workspace` keeps the editor inside the `Materials Workbench` while reusing brush-grid widgets across refreshes, which cuts the worst palette/section switching churn identified in the profiling pass
+- Runtime palette perf now has a first targeted pass too: `BrushIconBox` keeps a stable icon-button pool and only rebinds visible brushes when the page changes, preserving the existing palette UX while cutting page-switch widget churn
 - Recommended next task goal: continue Stage 10C/10D with structural palette editing flows such as create/rename/delete/reorder palettes and sections plus richer brush membership editing inside each runtime palette family
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`

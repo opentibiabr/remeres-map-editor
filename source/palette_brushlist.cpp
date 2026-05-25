@@ -568,11 +568,13 @@ BrushIconBox::BrushIconBox(wxWindow* parent, const TilesetCategory* tileset, Ren
 	height = iconSize == RENDER_SIZE_32x32 ? std::max(g_settings.getInteger(Config::PALETTE_ROW_COUNT) / 2 + 1, 1) : std::max(g_settings.getInteger(Config::PALETTE_ROW_COUNT) + 1, 1);
 
 	const auto totalItems = (width * height);
-	totalPages = (tileset->brushlist.size() / totalItems) + 1;
+	totalPages = std::max(1, static_cast<int>((tileset->brushlist.size() + totalItems - 1) / totalItems));
 
 	SetScrollbars(20, 20, 8, 0, 0, 0, false);
 
 	brushButtons.reserve(totalItems);
+	rowsizers.reserve(height);
+	BuildButtonPool();
 
 	LoadContentByPage();
 
@@ -580,6 +582,57 @@ BrushIconBox::BrushIconBox(wxWindow* parent, const TilesetCategory* tileset, Ren
 	brushPalettePanel->SetPageInfo(wxString::Format("/%d", totalPages));
 	brushPalettePanel->EnableNextPage(totalPages > currentPage);
 	brushPalettePanel->EnablePreviousPage(currentPage > 1);
+}
+
+void BrushIconBox::BuildButtonPool() {
+	if (stacksizer) {
+		return;
+	}
+
+	stacksizer = newd wxBoxSizer(wxVERTICAL);
+	SetSizer(stacksizer);
+
+	if (tileset->brushlist.empty()) {
+		return;
+	}
+
+	const size_t buttonPoolSize = std::min(tileset->brushlist.size(), static_cast<size_t>(width * height));
+	for (int row = 0; row < height; ++row) {
+		auto rowSizer = newd wxBoxSizer(wxHORIZONTAL);
+		rowsizers.emplace_back(rowSizer);
+		stacksizer->Add(rowSizer);
+
+		for (int column = 0; column < width; ++column) {
+			if (brushButtons.size() >= buttonPoolSize) {
+				break;
+			}
+			const auto brushButton = newd BrushButton(this, tileset->brushlist.front(), iconSize);
+			rowSizer->Add(brushButton);
+			brushButtons.emplace_back(brushButton);
+		}
+	}
+}
+
+void BrushIconBox::RefreshPageButtons(size_t startOffset, size_t endOffset) {
+	Deselect();
+
+	size_t buttonIndex = 0;
+	for (size_t brushIndex = startOffset; brushIndex < endOffset && buttonIndex < brushButtons.size(); ++brushIndex, ++buttonIndex) {
+		auto* brushButton = brushButtons[buttonIndex];
+		brushButton->SetBrush(tileset->brushlist[brushIndex]);
+		if (!brushButton->IsShown()) {
+			brushButton->Show();
+		}
+		brushButton->SetValue(false);
+	}
+
+	for (; buttonIndex < brushButtons.size(); ++buttonIndex) {
+		auto* brushButton = brushButtons[buttonIndex];
+		brushButton->SetValue(false);
+		if (brushButton->IsShown()) {
+			brushButton->Hide();
+		}
+	}
 }
 
 bool BrushIconBox::LoadContentByPage(int page /* = 1 */) {
@@ -594,38 +647,11 @@ bool BrushIconBox::LoadContentByPage(int page /* = 1 */) {
 	endOffset = page > 1 ? endOffset : startOffset + endOffset;
 	endOffset = endOffset > tileset->brushlist.size() ? tileset->brushlist.size() : endOffset;
 
-	if (stacksizer) {
-		stacksizer->ShowItems(false);
-		stacksizer->Clear();
-		rowsizers.clear();
-		brushButtons.clear();
-	}
-
-	stacksizer = newd wxBoxSizer(wxVERTICAL);
-	SetSizer(stacksizer);
-
-	auto rowSizer = newd wxBoxSizer(wxHORIZONTAL);
-
-	for (auto i = startOffset; i < endOffset; ++i) {
-		const auto brushButton = newd BrushButton(this, tileset->brushlist[i], iconSize);
-		brushButtons.emplace_back(brushButton);
-		rowSizer->Add(brushButton);
-
-		if (brushButtons.size() % width == 0) {
-			stacksizer->Add(rowSizer);
-			rowsizers.emplace_back(rowSizer);
-			rowSizer = newd wxBoxSizer(wxHORIZONTAL);
-		}
-	}
-
-	if (rowsizers.size() <= 0 || rowSizer != rowsizers.back()) {
-		stacksizer->Add(rowSizer);
-		rowsizers.emplace_back(rowSizer);
-	}
-
-	if (!stacksizer->AreAnyItemsShown()) {
-		stacksizer->ShowItems(true);
-	}
+	Freeze();
+	RefreshPageButtons(startOffset, endOffset);
+	Layout();
+	FitInside();
+	Thaw();
 
 	return true;
 }

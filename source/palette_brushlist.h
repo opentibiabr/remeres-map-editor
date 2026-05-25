@@ -140,6 +140,8 @@ public:
 	void OnClickBrushButton(wxCommandEvent &event);
 
 private:
+	void BuildButtonPool();
+	void RefreshPageButtons(size_t startOffset, size_t endOffset);
 	// Used internally to select a button.
 	void Select(BrushButton* brushButton);
 	// Used internally to deselect a button before selecting a new one.
@@ -153,7 +155,7 @@ private:
 	RenderSize iconSize;
 
 	wxBoxSizer* stacksizer = nullptr;
-	std::vector<const wxBoxSizer*> rowsizers;
+	std::vector<wxBoxSizer*> rowsizers;
 
 	DECLARE_EVENT_TABLE();
 };
