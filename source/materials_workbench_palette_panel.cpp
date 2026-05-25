@@ -23,6 +23,13 @@ struct BrushGridItem {
 	int index = -1;
 };
 
+struct BrushGridTile {
+	wxPanel* panel = nullptr;
+	BrushButton* button = nullptr;
+	wxStaticText* label = nullptr;
+	int itemIndex = -1;
+};
+
 class MaterialsWorkbenchBrushGridPanel : public wxScrolledWindow {
 public:
 	explicit MaterialsWorkbenchBrushGridPanel(wxWindow* parent) :
@@ -39,44 +46,40 @@ public:
 	}
 
 	void SetItems(const std::vector<BrushGridItem> &items, int selectedIndex = -1) {
-		for (wxWindow* child : tilePanels_) {
-			child->Destroy();
-		}
-		tilePanels_.clear();
-		buttons_.clear();
+		Freeze();
+
+		bool layoutChanged = EnsureTileCount(items);
 		items_.clear();
+		items_.reserve(items.size());
 		selectedIndex_ = -1;
 
 		for (const BrushGridItem &item : items) {
-			wxPanel* tilePanel = new wxPanel(this, wxID_ANY);
-			wxBoxSizer* tileSizer = new wxBoxSizer(wxVERTICAL);
-
-			BrushButton* button = new BrushButton(tilePanel, item.brush, RENDER_SIZE_32x32);
-			button->SetMinSize(wxSize(32, 32));
-			button->SetMaxSize(wxSize(32, 32));
-
-			wxStaticText* label = new wxStaticText(tilePanel, wxID_ANY, item.label, wxDefaultPosition, wxSize(FromDIP(84), -1), wxALIGN_CENTER_HORIZONTAL);
-			label->Wrap(FromDIP(84));
-
-			tileSizer->Add(button, 0, wxALIGN_CENTER_HORIZONTAL | wxBOTTOM, FromDIP(4));
-			tileSizer->Add(label, 0, wxALIGN_CENTER_HORIZONTAL);
-			tilePanel->SetSizerAndFit(tileSizer);
-
-			rootSizer_->Add(tilePanel, 0, wxALL, FromDIP(4));
-			tilePanels_.push_back(tilePanel);
-			buttons_.push_back(button);
 			items_.push_back(item);
-
-			button->Bind(wxEVT_TOGGLEBUTTON, [this, item](wxCommandEvent &) {
-				SelectIndex(item.index);
-			});
 		}
 
-		Layout();
-		FitInside();
+		for (size_t i = 0; i < items.size(); ++i) {
+			layoutChanged = UpdateTile(i, items[i]) || layoutChanged;
+		}
+
+		for (size_t i = items.size(); i < tiles_.size(); ++i) {
+			BrushGridTile &tile = tiles_[i];
+			tile.itemIndex = -1;
+			tile.button->SetValue(false);
+			if (tile.panel->IsShown()) {
+				tile.panel->Hide();
+				layoutChanged = true;
+			}
+		}
+
+		if (layoutChanged) {
+			Layout();
+			FitInside();
+		}
+
+		Thaw();
 
 		if (!items_.empty()) {
-			if (selectedIndex >= 0) {
+			if (HasItemIndex(selectedIndex)) {
 				SelectIndex(selectedIndex);
 			} else {
 				SelectIndex(items_.front().index);
@@ -93,7 +96,7 @@ public:
 	void SelectIndex(int index) {
 		selectedIndex_ = index;
 		for (size_t i = 0; i < items_.size(); ++i) {
-			buttons_[i]->SetValue(items_[i].index == selectedIndex_);
+			tiles_[i].button->SetValue(items_[i].index == selectedIndex_);
 		}
 		if (onSelectionChanged_) {
 			onSelectionChanged_(selectedIndex_);
@@ -101,9 +104,68 @@ public:
 	}
 
 private:
+	bool EnsureTileCount(const std::vector<BrushGridItem> &items) {
+		bool layoutChanged = false;
+		const int labelWidth = FromDIP(84);
+		while (tiles_.size() < items.size()) {
+			const size_t tileIndex = tiles_.size();
+			const BrushGridItem &item = items[tileIndex];
+			BrushGridTile tile;
+			tile.panel = new wxPanel(this, wxID_ANY);
+
+			wxBoxSizer* tileSizer = new wxBoxSizer(wxVERTICAL);
+			tile.button = new BrushButton(tile.panel, item.brush, RENDER_SIZE_32x32);
+			tile.button->SetMinSize(wxSize(32, 32));
+			tile.button->SetMaxSize(wxSize(32, 32));
+
+			tile.label = new wxStaticText(tile.panel, wxID_ANY, item.label, wxDefaultPosition, wxSize(labelWidth, -1), wxALIGN_CENTER_HORIZONTAL);
+			tile.label->Wrap(labelWidth);
+
+			tileSizer->Add(tile.button, 0, wxALIGN_CENTER_HORIZONTAL | wxBOTTOM, FromDIP(4));
+			tileSizer->Add(tile.label, 0, wxALIGN_CENTER_HORIZONTAL);
+			tile.panel->SetSizerAndFit(tileSizer);
+			rootSizer_->Add(tile.panel, 0, wxALL, FromDIP(4));
+
+			tile.button->Bind(wxEVT_TOGGLEBUTTON, [this, tileIndex](wxCommandEvent &) {
+				if (tileIndex < tiles_.size() && tiles_[tileIndex].itemIndex >= 0) {
+					SelectIndex(tiles_[tileIndex].itemIndex);
+				}
+			});
+
+			tiles_.push_back(tile);
+			layoutChanged = true;
+		}
+		return layoutChanged;
+	}
+
+	bool UpdateTile(size_t tileIndex, const BrushGridItem &item) {
+		BrushGridTile &tile = tiles_[tileIndex];
+		bool layoutChanged = false;
+		tile.itemIndex = item.index;
+		tile.button->SetValue(false);
+		if (tile.button->brush != item.brush) {
+			tile.button->SetBrush(item.brush);
+		}
+		if (tile.label->GetLabel() != item.label) {
+			tile.label->SetLabel(item.label);
+			tile.label->Wrap(FromDIP(84));
+			layoutChanged = true;
+		}
+		if (!tile.panel->IsShown()) {
+			tile.panel->Show();
+			layoutChanged = true;
+		}
+		return layoutChanged;
+	}
+
+	bool HasItemIndex(int index) const {
+		return std::any_of(items_.begin(), items_.end(), [index](const BrushGridItem &item) {
+			return item.index == index;
+		});
+	}
+
 	wxWrapSizer* rootSizer_ = nullptr;
-	std::vector<wxWindow*> tilePanels_;
-	std::vector<BrushButton*> buttons_;
+	std::vector<BrushGridTile> tiles_;
 	std::vector<BrushGridItem> items_;
 	int selectedIndex_ = -1;
 	std::function<void(int)> onSelectionChanged_;

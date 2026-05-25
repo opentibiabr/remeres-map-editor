@@ -58,6 +58,7 @@
 - [x] Border Workspace now preserves the selected slot per border set across reloads and navigation switches instead of reusing only one global slot context
 - [x] Border Workspace now blocks saving `global` or `inline` sets whose metadata would make the targeted runtime refresh path unsupported after save
 - [x] Applying a border slot now validates the candidate layout immediately, so duplicate or unknown slot items are rejected before the user reaches Save
+- [x] Palette Workspace brush grids now reuse tile widgets instead of destroying/recreating them on every refresh, reducing GTK CSS/layout churn during palette and section switches
 
 ## Remaining Before Calling It Ready
 - [x] Extend `dirty state` beyond the Brush Workspace
@@ -114,7 +115,7 @@
 
 ## Palette Editor Roadmap
 - [x] Stage 10A: Rebuild `Palettes` navigation around runtime families (`Terrain Palette`, `Doodad Palette`, `Item Palette`) with clear entry points into a real palette editor
-- [ ] Stage 10B: Add a fast `Palette Editor` model/view for palette sections and entries, keeping editing inside the `Materials Workbench`
+- [x] Stage 10B: Add a fast `Palette Editor` model/view for palette sections and entries, keeping editing inside the `Materials Workbench`
 - [ ] Stage 10C: Support structural editing of palettes and sections: create, rename, delete, move, and reorder
 - [ ] Stage 10D: Support brush membership editing inside palettes: add, remove, move between sections/palettes, and reorder entries
 - [x] Stage 10E: After every palette save, repopulate the navigation tree and refresh runtime palette state so runtime and Workbench stay aligned
@@ -170,5 +171,6 @@
 - Palette saves now already repopulate the Workbench navigation tree right after refreshing runtime palettes, so tree/runtime drift is reduced before the deeper Stage 10 palette CRUD work lands
 - Palette UX should reflect runtime families (`Terrain Palette`, `Doodad Palette`, `Item Palette`) and their real categories, without introducing a parallel taxonomy for palette composition
 - Legacy XML remains for compatibility and first-time onboarding/import, but normal editing should continue DB-first in the Workbench after the initial import
-- Recommended next task goal: continue Stage 10B by making the `Palette Workspace` itself faster and more structural, with clearer section/entry editing affordances inside each runtime palette family
+- `Stage 10B` is now in place: the `Palette Workspace` keeps the editor inside the `Materials Workbench` while reusing brush-grid widgets across refreshes, which cuts the worst palette/section switching churn identified in the profiling pass
+- Recommended next task goal: continue Stage 10C/10D with structural palette editing flows such as create/rename/delete/reorder palettes and sections plus richer brush membership editing inside each runtime palette family
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`
