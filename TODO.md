@@ -83,8 +83,8 @@
 - [x] Use `Imported From` in the UI where the field represents legacy origin
 - [ ] Decide whether `Legacy XML Source` is clearer than the current wording
 - [ ] Decide whether `Origin File` is clearer than the current wording
-- [ ] Show `Storage: materials.db` separately
-- [ ] Show `Imported from: ...` separately
+- [x] Show `Storage: materials.db` separately
+- [x] Show `Imported from: ...` separately
 
 ## Robustness And Validation
 - [x] Validate missing or unknown `item id` before save in the Brush Workspace
@@ -136,6 +136,7 @@
 - Brush Workspace is now near the end of its `Stage 9` pass: variations, dirty state, save/revert flow, rename-safe palette sync, stronger validation, provenance clarity, navigation preservation, and context-preserving refreshes are already in place
 - Brush Workspace now also exposes runtime-owner hints for variation `item id`, `lookId`, and `serverLookId`, making ownership conflicts visible before save without over-restricting metadata choices
 - Brush palette runtime sync already updates renamed brushes and saved `lookId` changes without full runtime reload
+- Brush Workspace now only restores variation tab/selection/scroll context when reloading the same brush; switching to a different brush no longer reuses stale context from the previous selection
 - The current modified-field highlight works functionally but still needs a more professional visual treatment
 - Remaining Brush Workspace follow-up is now small and mostly polish-level: final reassessment of any residual selection/scroll edge cases and whether the modified highlight needs one more visual pass
 - `Wall Workspace` has now started its `Stage 9` pass with dirty state, save/revert consistency, selection-change protection, close protection, navigation badge integration, and basic context preservation across save/reload
@@ -146,7 +147,7 @@
 - `Border Workspace` save now refreshes the actual `g_brushes` runtime state as well as palettes: inline sets reload only the owning ground brush, while global sets reset/reload global borders and then rehydrate ground brushes from SQLite
 - `Border Workspace` slot/preview grids now keep the corrected runtime-driven geometry; cardinals/corners use the screen-facing labels, and the diagonal labels were finally realigned to the preview quadrants after the preview positions themselves were validated
 - `Border Workspace` now also preserves the selected edge per border set across reloads/switches and blocks metadata combinations that would make the targeted runtime refresh path unsupported after save
-- Final reassess result so far: `wall` and `border` no longer appear to be the main blockers for calling `Stage 9` done; the remaining blockers are now outside previews and look more like final Brush Workspace polish plus the unresolved origin/provenance wording review
-- Recommended next task goal: stay in `Stage 9`, confirm the residual Brush Workspace/origin-metadata blockers, and decide whether the stage can be closed without starting Stage 10 previews
+- Final reassess result so far: `wall` and `border` no longer appear to be the main blockers for calling `Stage 9` done; the remaining blockers now look closer to final Brush Workspace polish and any explicit wording decisions still desired for legacy-origin labels
+- Recommended next task goal: stay in `Stage 9`, do one last decision pass on Brush Workspace polish vs. "good enough", and decide whether the stage can be closed without starting Stage 10 previews
 - If a follow-up task must be split, keep the next task scoped to `Stage 9` only; do not jump to previews or Stage 10 polish until the items above are closed
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`

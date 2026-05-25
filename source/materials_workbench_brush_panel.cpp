@@ -1052,7 +1052,7 @@ bool MaterialsWorkbenchBrushPanel::LoadBrush(const wxString &contextKey, int ite
 	ResetVariationSelection();
 
 	PopulateFields();
-	if (previousVariationState.valid) {
+	if (preserveVariationState) {
 		RestoreVariationEditorState(previousVariationState);
 	}
 	SetFieldsEnabled(true);
@@ -1065,7 +1065,7 @@ bool MaterialsWorkbenchBrushPanel::LoadBrush(const wxString &contextKey, int ite
 		static_cast<long long>(brushStorage_.brush.id),
 		brushStorage_.brush.name.ToStdString(),
 		brushStorage_.brush.type.ToStdString(),
-		previousVariationState.valid
+		preserveVariationState
 	);
 	Layout();
 	return true;
