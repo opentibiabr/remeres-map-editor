@@ -1186,7 +1186,7 @@ bool GUI::SetLoadDone(int32_t done, const wxString &newMessage) {
 	if (progressBar) {
 		continueProcessing = progressBar->Update(
 			newProgress,
-			wxString::Format("%s (%d%%)", progressText, newProgress),
+			wxString::Format("%s (%d%%)", progressText.c_str(), newProgress),
 			&skip
 		);
 		currentProgress = newProgress;

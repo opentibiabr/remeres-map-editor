@@ -148,14 +148,11 @@ public:
 	bool saveStaticData(Map &map, const FileName &dir, const std::vector<std::string> &houseNamesFilter = {});
 	bool saveCyclopediaMapData(Map &map, const FileName &dir, const CyclopediaExportProgressFn &progress = CyclopediaExportProgressFn {}, int satellitePixelsPerSquare = 2);
 	const StaticHouseExportReport &getLastStaticHouseExportReport() const {
-		return staticHouseExportReportState();
+		return staticHouseExportReport_;
 	}
 
 protected:
-	static StaticHouseExportReport &staticHouseExportReportState() {
-		static auto* report = new StaticHouseExportReport();
-		return *report;
-	}
+	StaticHouseExportReport staticHouseExportReport_;
 
 	static bool getVersionInfo(NodeFileReadHandle* f, MapVersion &out_ver);
 

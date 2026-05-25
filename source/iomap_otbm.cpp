@@ -5145,7 +5145,7 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 	namespace pb_staticdata = clienteditor::protobuf::staticdata;
 	namespace pb_staticmapdata = clienteditor::protobuf::staticmapdata;
 
-	auto &lastStaticHouseExportReport = staticHouseExportReportState();
+	auto &lastStaticHouseExportReport = staticHouseExportReport_;
 	lastStaticHouseExportReport = StaticHouseExportReport {};
 
 	const std::filesystem::path requestedOutputPath = nstr(dir.GetPath(wxPATH_GET_SEPARATOR | wxPATH_GET_VOLUME));

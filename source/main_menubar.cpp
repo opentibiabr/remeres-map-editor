@@ -83,6 +83,32 @@ namespace {
 		return directory;
 	}
 
+	wxString resolveCyclopediaOutputDisplayPath(const wxString &directoryPath) {
+		FileName rootCatalog;
+		rootCatalog.AssignDir(directoryPath);
+		rootCatalog.SetFullName("catalog-content.json");
+		if (rootCatalog.FileExists()) {
+			return directoryPath;
+		}
+
+		FileName assetsCatalog;
+		assetsCatalog.AssignDir(directoryPath);
+		assetsCatalog.AppendDir("assets");
+		assetsCatalog.SetFullName("catalog-content.json");
+		if (assetsCatalog.FileExists()) {
+			return assetsCatalog.GetPath(wxPATH_GET_VOLUME);
+		}
+
+		return directoryPath;
+	}
+
+	wxString appendDisplaySubdirectory(const wxString &directoryPath, const wxString &subdirectory) {
+		FileName path;
+		path.AssignDir(directoryPath);
+		path.AppendDir(subdirectory);
+		return path.GetPath(wxPATH_GET_VOLUME);
+	}
+
 	bool selectStaticHouseExportFilter(wxWindow* parent, std::vector<std::string> &houseNamesFilter) {
 		houseNamesFilter.clear();
 
@@ -1135,8 +1161,18 @@ void MainMenuBar::OnExportCyclopediaMapData(wxCommandEvent &WXUNUSED(event)) {
 	}
 
 	g_gui.SetLoadDone(100, "Cyclopedia export completed.");
-	g_gui.SetStatusText("Cyclopedia export completed.");
-	g_gui.PopupDialog("Export completed", "Cyclopedia minimap/satellite exported successfully (backups in /bkps).", wxOK);
+	const wxString outputBasePath = resolveCyclopediaOutputDisplayPath(outputPath);
+	const wxString backupPath = appendDisplaySubdirectory(outputBasePath, "bkps");
+	g_gui.SetStatusText(wxString::Format("Cyclopedia export completed: %s", outputBasePath.c_str()));
+	g_gui.PopupDialog(
+		"Export completed",
+		wxString::Format(
+			"Cyclopedia minimap/satellite exported successfully.\n\nOutput: %s\nBackups: %s (backup-only)",
+			outputBasePath.c_str(),
+			backupPath.c_str()
+		),
+		wxOK
+	);
 }
 
 void MainMenuBar::OnExportTilesets(wxCommandEvent &WXUNUSED(event)) {
