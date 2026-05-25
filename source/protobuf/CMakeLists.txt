@@ -27,10 +27,10 @@ if(MSVC AND BUILD_STATIC_LIBRARY)
 endif()
 
 if(MSVC)
-  # Generated protobuf sources are built in parallel under sccache on CI. Use
-  # embedded debug information so MSVC does not contend on one shared PDB file.
-  target_compile_options(${PROJECT_NAME}
-                         PRIVATE "$<$<CONFIG:Debug,RelWithDebInfo>:/Z7>")
+  # sccache tries to package the target PDB emitted by generated protobuf
+  # sources and fails when parallel MSVC compiles race on that file. Keep the
+  # launcher enabled elsewhere and compile only this generated target directly.
+  set_target_properties(${PROJECT_NAME} PROPERTIES CXX_COMPILER_LAUNCHER "")
 endif()
 
 set(PROTOBUF_GENERATE_DEPENDENCIES)
