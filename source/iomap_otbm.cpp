@@ -1554,8 +1554,7 @@ namespace {
 			}
 		}
 
-		for (auto it = tile.items.rbegin(); it != tile.items.rend(); ++it) {
-			const Item* item = *it;
+		for (const Item* item : tile.items) {
 			if (!isHousePreviewBottomItem(item) && !isHousePreviewTopItem(item)) {
 				callback(item);
 			}
