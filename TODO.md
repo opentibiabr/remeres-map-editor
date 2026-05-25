@@ -81,8 +81,8 @@
 
 ## Semantics And Provenance
 - [x] Use `Imported From` in the UI where the field represents legacy origin
-- [ ] Decide whether `Legacy XML Source` is clearer than the current wording
-- [ ] Decide whether `Origin File` is clearer than the current wording
+- [x] Keep `Imported From` as the clearer Stage 9 wording for legacy origin metadata
+- [x] Defer any additional legacy-origin wording polish to later UI cleanup if needed
 - [x] Show `Storage: materials.db` separately
 - [x] Show `Imported from: ...` separately
 
@@ -120,34 +120,32 @@
 
 ## Suggested Roadmap
 - [x] Stage 8: Variations support inside existing workspaces
-- [ ] Stage 9: Dirty state, validations, save workflow, loss-prevention, and origin metadata review
+- [x] Stage 9: Dirty state, validations, save workflow, loss-prevention, and origin metadata review
 - [ ] Stage 10: Heavy visual polish and richer previews
 - [ ] Stage 11: XML deprecation flow and migration/sync utilities
 
 ## Executive Summary
 - [x] Close the main functional gap: `variations` in the Brush Workspace
 - [ ] Finish fine UX and UI polish
-- [ ] Finish validations and robustness
-- [ ] Finish a professional editing UX across all workspaces
+- [x] Finish Stage 9 validations and robustness
+- [x] Finish Stage 9 professional editing UX across all workspaces
 - [ ] Finish the professional transition to deprecated XML editing
 
 ## Next Task Handoff
-- Current focus remains `Stage 9`
-- Brush Workspace is now near the end of its `Stage 9` pass: variations, dirty state, save/revert flow, rename-safe palette sync, stronger validation, provenance clarity, navigation preservation, and context-preserving refreshes are already in place
+- `Stage 9` is now considered complete
+- Brush Workspace closed its `Stage 9` pass with variations, dirty state, save/revert flow, rename-safe palette sync, stronger validation, provenance clarity, navigation preservation, and context-preserving refreshes in place
 - Brush Workspace now also exposes runtime-owner hints for variation `item id`, `lookId`, and `serverLookId`, making ownership conflicts visible before save without over-restricting metadata choices
 - Brush palette runtime sync already updates renamed brushes and saved `lookId` changes without full runtime reload
 - Brush Workspace now only restores variation tab/selection/scroll context when reloading the same brush; switching to a different brush no longer reuses stale context from the previous selection
-- The current modified-field highlight works functionally but still needs a more professional visual treatment
-- Remaining Brush Workspace follow-up is now small and mostly polish-level: final reassessment of any residual selection/scroll edge cases and whether the modified highlight needs one more visual pass
-- `Wall Workspace` has now started its `Stage 9` pass with dirty state, save/revert consistency, selection-change protection, close protection, navigation badge integration, and basic context preservation across save/reload
+- The current modified-field highlight still has room for a more professional visual treatment, but that now belongs to Stage 10 polish instead of Stage 9 closure
+- `Wall Workspace` completed its `Stage 9` pass with dirty state, save/revert consistency, selection-change protection, close protection, navigation badge integration, and context preservation across save/reload
 - `Wall Workspace` now also remembers item/door selection and scroll per `wall part`, so switching between parts restores the last local editing context instead of resetting the dynamic grids every time
-- `Border Workspace` now also has dirty state, selection-change/close protection, and navigation badge integration; its remaining `Stage 9` pass is now mostly closed after the last validation and state-preservation fixes
+- `Border Workspace` completed its `Stage 9` pass with dirty state, selection-change/close protection, navigation badge integration, validation hardening, targeted runtime refresh, and state-preservation fixes
 - `Border Workspace` dirty-state tracking now ignores programmatic UI refreshes triggered by loading or slot selection changes, so `modified` reflects real edits instead of selection-only interactions
 - `Border Workspace` now also blocks duplicate runtime item ownership across multiple border edges in the same set, avoiding ambiguous `border_alignment` registration during runtime refresh
 - `Border Workspace` save now refreshes the actual `g_brushes` runtime state as well as palettes: inline sets reload only the owning ground brush, while global sets reset/reload global borders and then rehydrate ground brushes from SQLite
 - `Border Workspace` slot/preview grids now keep the corrected runtime-driven geometry; cardinals/corners use the screen-facing labels, and the diagonal labels were finally realigned to the preview quadrants after the preview positions themselves were validated
 - `Border Workspace` now also preserves the selected edge per border set across reloads/switches and blocks metadata combinations that would make the targeted runtime refresh path unsupported after save
-- Final reassess result so far: `wall` and `border` no longer appear to be the main blockers for calling `Stage 9` done; the remaining blockers now look closer to final Brush Workspace polish and any explicit wording decisions still desired for legacy-origin labels
-- Recommended next task goal: stay in `Stage 9`, do one last decision pass on Brush Workspace polish vs. "good enough", and decide whether the stage can be closed without starting Stage 10 previews
-- If a follow-up task must be split, keep the next task scoped to `Stage 9` only; do not jump to previews or Stage 10 polish until the items above are closed
+- Final reassess decision: the remaining open items are Stage 10 polish or later features, not Stage 9 blockers
+- Recommended next task goal: move to `Stage 10` for visual polish, richer previews, and broader UX cleanup without reopening Stage 9 save/validation/runtime-refresh work
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`
