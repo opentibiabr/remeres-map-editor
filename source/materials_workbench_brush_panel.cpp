@@ -44,6 +44,20 @@ namespace {
 		return text;
 	}
 
+	void StyleBrushWorkspaceSubtitle(wxStaticText* label) {
+		label->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_GRAYTEXT));
+	}
+
+	void StyleBrushWorkspaceStatusLabel(wxStaticText* label) {
+		label->SetMinSize(wxSize(-1, label->GetParent()->FromDIP(36)));
+		label->Wrap(label->GetParent()->FromDIP(760));
+	}
+
+	void StyleBrushWorkspaceActionButton(wxButton* button, const wxString &tooltip) {
+		button->SetMinSize(wxSize(button->GetParent()->FromDIP(120), -1));
+		button->SetToolTip(tooltip);
+	}
+
 	wxTextCtrl* CreateTextField(wxWindow* parent, long style = 0) {
 		return new wxTextCtrl(parent, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, style);
 	}
@@ -540,6 +554,7 @@ void MaterialsWorkbenchBrushPanel::BuildLayout() {
 
 	titleLabel_ = new wxStaticText(this, wxID_ANY, "No brush selected");
 	subtitleLabel_ = new wxStaticText(this, wxID_ANY, "Edit the SQLite-backed brush metadata and variations used by the runtime catalog.");
+	StyleBrushWorkspaceSubtitle(subtitleLabel_);
 
 	workspaceTabs_ = new wxNotebook(this, wxID_ANY);
 	workspaceTabs_->AddPage(BuildMetadataPage(workspaceTabs_), "Metadata");
@@ -553,16 +568,19 @@ void MaterialsWorkbenchBrushPanel::BuildLayout() {
 	wxBoxSizer* actionSizer = new wxBoxSizer(wxHORIZONTAL);
 	saveButton_ = new wxButton(this, wxID_SAVE, "Save Brush");
 	revertButton_ = new wxButton(this, wxID_ANY, "Revert");
+	StyleBrushWorkspaceActionButton(saveButton_, "Write the current brush metadata and variations to materials.db.");
+	StyleBrushWorkspaceActionButton(revertButton_, "Discard local brush edits and reload the current brush from materials.db.");
 	actionSizer->Add(saveButton_, 0, wxRIGHT, FromDIP(6));
 	actionSizer->Add(revertButton_, 0);
 
 	statusLabel_ = new wxStaticText(this, wxID_ANY, "");
+	StyleBrushWorkspaceStatusLabel(statusLabel_);
 
-	rootSizer->Add(headerSizer, 0, wxEXPAND | wxALL, FromDIP(10));
-	rootSizer->Add(new wxStaticLine(this), 0, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(10));
-	rootSizer->Add(workspaceTabs_, 1, wxEXPAND | wxALL, FromDIP(10));
-	rootSizer->Add(actionSizer, 0, wxALIGN_RIGHT | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(10));
-	rootSizer->Add(statusLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(10));
+	rootSizer->Add(headerSizer, 0, wxEXPAND | wxALL, FromDIP(8));
+	rootSizer->Add(new wxStaticLine(this), 0, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(8));
+	rootSizer->Add(workspaceTabs_, 1, wxEXPAND | wxALL, FromDIP(8));
+	rootSizer->Add(actionSizer, 0, wxALIGN_RIGHT | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
+	rootSizer->Add(statusLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
 	SetSizer(rootSizer);
 
 	saveButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnSave, this);
@@ -1059,7 +1077,7 @@ bool MaterialsWorkbenchBrushPanel::LoadBrush(const wxString &contextKey, int ite
 	UpdateActionButtons();
 	UpdateModifiedHighlights();
 	NotifyBrushStateChanged();
-	SetStatusMessage("Brush loaded from materials.db.");
+	SetStatusMessage("Ready. Editing brush data from materials.db. Update metadata or variations, then Save or Revert.");
 	spdlog::info(
 		"Materials Workbench loaded brush from materials.db: id={} name='{}' type='{}' preserved_context={}",
 		static_cast<long long>(brushStorage_.brush.id),
@@ -1121,6 +1139,7 @@ void MaterialsWorkbenchBrushPanel::UpdateSummary() {
 
 void MaterialsWorkbenchBrushPanel::SetStatusMessage(const wxString &message) {
 	statusLabel_->SetLabel(message);
+	statusLabel_->Wrap(FromDIP(760));
 }
 
 BrushStorageRecord MaterialsWorkbenchBrushPanel::BuildEditableStorageFromCurrentState() const {
@@ -1529,7 +1548,7 @@ void MaterialsWorkbenchBrushPanel::RestoreVariationEditorState(const VariationEd
 void MaterialsWorkbenchBrushPanel::UpdateWorkspaceHeader() {
 	if (!hasBrush_) {
 		titleLabel_->SetLabel("No brush selected");
-		subtitleLabel_->SetLabel("Select a brush in the navigation tree to edit its properties.");
+		subtitleLabel_->SetLabel("Select a brush in the navigation tree to edit metadata, variations, and runtime-facing identifiers.");
 		return;
 	}
 
@@ -1538,8 +1557,8 @@ void MaterialsWorkbenchBrushPanel::UpdateWorkspaceHeader() {
 	titleLabel_->SetLabel("Editing brush: " + (displayName.IsEmpty() ? brushStorage_.brush.name : displayName) + modifiedSuffix);
 	subtitleLabel_->SetLabel(
 		dirty_
-			? "Local edits differ from materials.db. Save, revert or switch brushes carefully."
-			: "Update metadata and variations for the SQLite-backed brush without leaving the main workbench flow."
+			? "Unsaved local edits differ from materials.db. Save to persist them or Revert to discard them before switching brushes."
+			: "Ready to edit metadata and variations for this SQLite-backed brush without leaving the main workbench flow."
 	);
 }
 
@@ -2329,7 +2348,7 @@ bool MaterialsWorkbenchBrushPanel::SaveCurrentBrush() {
 		RestoreVariationEditorState(previousVariationState);
 	}
 	RefreshDirtyState();
-	SetStatusMessage("Brush and variations saved to materials.db.");
+	SetStatusMessage("Saved brush metadata and variations to materials.db. Targeted runtime sync remained in place.");
 	spdlog::info(
 		"Materials Workbench saved brush and variations: id={} old_name='{}' new_name='{}' type='{}' preserved_context={}",
 		static_cast<long long>(brushStorage_.brush.id),
@@ -2367,7 +2386,7 @@ void MaterialsWorkbenchBrushPanel::OnRevert(wxCommandEvent &WXUNUSED(event)) {
 		return;
 	}
 
-	SetStatusMessage("Brush fields and variations reloaded from materials.db.");
+	SetStatusMessage("Reverted local brush edits and reloaded metadata and variations from materials.db.");
 	spdlog::info(
 		"Materials Workbench reverted brush from materials.db: id={} name='{}'",
 		static_cast<long long>(brushId),

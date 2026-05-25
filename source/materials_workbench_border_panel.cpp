@@ -9,6 +9,7 @@
 #include <wx/choice.h>
 #include <wx/msgdlg.h>
 #include <wx/scrolwin.h>
+#include <wx/settings.h>
 #include <wx/sizer.h>
 #include <wx/spinctrl.h>
 #include <wx/statbox.h>
@@ -73,6 +74,20 @@ namespace {
 		font.SetWeight(wxFONTWEIGHT_BOLD);
 		text->SetFont(font);
 		return text;
+	}
+
+	void StyleBorderWorkspaceSubtitle(wxStaticText* label) {
+		label->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_GRAYTEXT));
+	}
+
+	void StyleBorderWorkspaceStatusLabel(wxStaticText* label) {
+		label->SetMinSize(wxSize(-1, label->GetParent()->FromDIP(36)));
+		label->Wrap(label->GetParent()->FromDIP(760));
+	}
+
+	void StyleBorderWorkspaceActionButton(wxButton* button, const wxString &tooltip) {
+		button->SetMinSize(wxSize(button->GetParent()->FromDIP(120), -1));
+		button->SetToolTip(tooltip);
 	}
 
 	wxPanel* CreateSpacerCell(wxWindow* parent, int sizeDip) {
@@ -191,6 +206,7 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 
 	titleLabel_ = new wxStaticText(this, wxID_ANY, "No border set selected");
 	subtitleLabel_ = new wxStaticText(this, wxID_ANY, "Edit border slots visually, assign item ids and preview the resulting composition.");
+	StyleBorderWorkspaceSubtitle(subtitleLabel_);
 
 	wxScrolledWindow* scrolled = new wxScrolledWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL);
 	scrolled->SetScrollRate(FromDIP(10), FromDIP(10));
@@ -318,9 +334,9 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	wxButton* pickItemButton = new wxButton(scrolled, wxID_ANY, "Pick Item");
 	wxButton* applyButton = new wxButton(scrolled, wxID_ANY, "Apply To Slot");
 	wxButton* clearButton = new wxButton(scrolled, wxID_ANY, "Clear Slot");
-	pickItemButton->SetMinSize(wxSize(FromDIP(108), -1));
-	applyButton->SetMinSize(wxSize(FromDIP(108), -1));
-	clearButton->SetMinSize(wxSize(FromDIP(108), -1));
+	StyleBorderWorkspaceActionButton(pickItemButton, "Choose an item id from the picker for the selected border slot.");
+	StyleBorderWorkspaceActionButton(applyButton, "Apply the selected item id to the active border slot.");
+	StyleBorderWorkspaceActionButton(clearButton, "Clear the selected slot back to item id 0 in the local editor.");
 	selectionActions->Add(pickItemButton, 0, wxEXPAND);
 	selectionActions->Add(applyButton, 0, wxEXPAND);
 	selectionActions->Add(clearButton, 0, wxEXPAND);
@@ -390,16 +406,19 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	wxBoxSizer* actionSizer = new wxBoxSizer(wxHORIZONTAL);
 	saveButton_ = new wxButton(this, wxID_SAVE, "Save Border");
 	revertButton_ = new wxButton(this, wxID_ANY, "Revert");
+	StyleBorderWorkspaceActionButton(saveButton_, "Write the current border set metadata and slots to materials.db.");
+	StyleBorderWorkspaceActionButton(revertButton_, "Discard local border edits and reload the current border set from materials.db.");
 	actionSizer->Add(saveButton_, 0, wxRIGHT, FromDIP(6));
 	actionSizer->Add(revertButton_, 0);
 
 	statusLabel_ = new wxStaticText(this, wxID_ANY, "");
+	StyleBorderWorkspaceStatusLabel(statusLabel_);
 
-	rootSizer->Add(headerSizer, 0, wxEXPAND | wxALL, FromDIP(10));
-	rootSizer->Add(new wxStaticLine(this), 0, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(10));
-	rootSizer->Add(scrolled, 1, wxEXPAND | wxALL, FromDIP(10));
-	rootSizer->Add(actionSizer, 0, wxALIGN_RIGHT | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(10));
-	rootSizer->Add(statusLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(10));
+	rootSizer->Add(headerSizer, 0, wxEXPAND | wxALL, FromDIP(8));
+	rootSizer->Add(new wxStaticLine(this), 0, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(8));
+	rootSizer->Add(scrolled, 1, wxEXPAND | wxALL, FromDIP(8));
+	rootSizer->Add(actionSizer, 0, wxALIGN_RIGHT | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
+	rootSizer->Add(statusLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
 	SetSizer(rootSizer);
 
 	pickItemButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnPickItem, this);
@@ -486,7 +505,7 @@ bool MaterialsWorkbenchBorderPanel::LoadBorderSet(const wxString &contextKey, in
 	SetFieldsEnabled(true);
 	UpdateActionButtons();
 	NotifyBorderSetStateChanged();
-	SetStatusMessage("Border set loaded from materials.db.");
+	SetStatusMessage("Ready. Editing border data from materials.db. Update slots or metadata, then Save or Revert.");
 	Layout();
 	return true;
 }
@@ -672,7 +691,7 @@ void MaterialsWorkbenchBorderPanel::NotifyBorderSetStateChanged() {
 void MaterialsWorkbenchBorderPanel::UpdateWorkspaceHeader() {
 	if (!hasBorderSet_) {
 		titleLabel_->SetLabel("No border set selected");
-		subtitleLabel_->SetLabel("Select a border set in the navigation tree to edit its layout.");
+		subtitleLabel_->SetLabel("Select a border set in the navigation tree to edit metadata, slot ownership, and sprite layout.");
 		return;
 	}
 
@@ -680,8 +699,8 @@ void MaterialsWorkbenchBorderPanel::UpdateWorkspaceHeader() {
 	titleLabel_->SetLabel("Editing " + BuildBorderSetDisplayLabel(BuildComparableStorageFromCurrentState().borderSet) + modifiedSuffix);
 	subtitleLabel_->SetLabel(
 		dirty_
-			? "Local edits differ from materials.db. Save, revert or switch border sets carefully."
-			: "Assign border sprites to the correct slots, then save the layout back to materials.db."
+			? "Unsaved local border edits differ from materials.db. Save to persist them or Revert to discard them before switching sets."
+			: "Ready to assign border sprites to runtime slots and save the layout back to materials.db."
 	);
 }
 
@@ -777,6 +796,7 @@ void MaterialsWorkbenchBorderPanel::SyncSelectedSlotFromEditor(bool updateStatus
 
 void MaterialsWorkbenchBorderPanel::SetStatusMessage(const wxString &message) {
 	statusLabel_->SetLabel(message);
+	statusLabel_->Wrap(FromDIP(760));
 }
 
 void MaterialsWorkbenchBorderPanel::SetFieldsEnabled(bool enabled) {
@@ -819,7 +839,7 @@ bool MaterialsWorkbenchBorderPanel::SaveCurrentBorderSet() {
 	PopulateFields();
 	UpdateActionButtons();
 	NotifyBorderSetStateChanged();
-	SetStatusMessage("Border set saved to materials.db.");
+	SetStatusMessage("Saved border metadata and slots to materials.db. Targeted runtime sync remained in place.");
 	if (onBorderSetSaved_) {
 		onBorderSetSaved_(borderSetStorage_.borderSet.id);
 	}
@@ -880,7 +900,7 @@ void MaterialsWorkbenchBorderPanel::OnRevert(wxCommandEvent &event) {
 		return;
 	}
 
-	SetStatusMessage("Border set fields reloaded from materials.db.");
+	SetStatusMessage("Reverted local border edits and reloaded the border set from materials.db.");
 }
 
 void MaterialsWorkbenchBorderPanel::OnSelectedItemIdChanged(wxCommandEvent &event) {

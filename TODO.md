@@ -73,8 +73,8 @@
 
 ## UI And UX Polish
 - [ ] Reduce spacing and padding across all workspaces
-- [ ] Unify headers, status bars, and action buttons across the Workbench
-- [ ] Improve status text quality and usefulness
+- [x] Unify headers, status bars, and action buttons across the Workbench
+- [x] Improve status text quality and usefulness
 - [ ] Add rich tooltips with `id`, type, source, and relationships
 - [ ] Improve preview grid contrast and alignment
 - [ ] Standardize technical labels such as `lookId`, `serverLookId`, `zOrder`, and `partType`
@@ -121,7 +121,7 @@
 ## Suggested Roadmap
 - [x] Stage 8: Variations support inside existing workspaces
 - [x] Stage 9: Dirty state, validations, save workflow, loss-prevention, and origin metadata review
-- [ ] Stage 10: Heavy visual polish and richer previews
+- [ ] Stage 10: Heavy visual polish and richer previews (in progress)
 - [ ] Stage 11: XML deprecation flow and migration/sync utilities
 
 ## Executive Summary
@@ -133,11 +133,14 @@
 
 ## Next Task Handoff
 - `Stage 9` is now considered complete
+- `Stage 10` has started with a first polish pass focused on shared workspace structure instead of previews
 - Brush Workspace closed its `Stage 9` pass with variations, dirty state, save/revert flow, rename-safe palette sync, stronger validation, provenance clarity, navigation preservation, and context-preserving refreshes in place
 - Brush Workspace now also exposes runtime-owner hints for variation `item id`, `lookId`, and `serverLookId`, making ownership conflicts visible before save without over-restricting metadata choices
 - Brush palette runtime sync already updates renamed brushes and saved `lookId` changes without full runtime reload
 - Brush Workspace now only restores variation tab/selection/scroll context when reloading the same brush; switching to a different brush no longer reuses stale context from the previous selection
-- The current modified-field highlight still has room for a more professional visual treatment, but that now belongs to Stage 10 polish instead of Stage 9 closure
+- Brush, Wall, and Border workspaces now share a more consistent Stage 10 structure: subdued subtitles, wrapped status area with stable height, action buttons with consistent width/tooltips, and improved ready/save/revert messaging
+- The shared Stage 10 workspace-polish helpers now stay unity-build-safe by using panel-specific helper names instead of duplicate anonymous-namespace symbols across multiple `.cpp` files
+- The current modified-field highlight still has room for a more professional visual treatment, but that now belongs to the remaining Stage 10 polish
 - `Wall Workspace` completed its `Stage 9` pass with dirty state, save/revert consistency, selection-change protection, close protection, navigation badge integration, and context preservation across save/reload
 - `Wall Workspace` now also remembers item/door selection and scroll per `wall part`, so switching between parts restores the last local editing context instead of resetting the dynamic grids every time
 - `Border Workspace` completed its `Stage 9` pass with dirty state, selection-change/close protection, navigation badge integration, validation hardening, targeted runtime refresh, and state-preservation fixes
@@ -147,5 +150,5 @@
 - `Border Workspace` slot/preview grids now keep the corrected runtime-driven geometry; cardinals/corners use the screen-facing labels, and the diagonal labels were finally realigned to the preview quadrants after the preview positions themselves were validated
 - `Border Workspace` now also preserves the selected edge per border set across reloads/switches and blocks metadata combinations that would make the targeted runtime refresh path unsupported after save
 - Final reassess decision: the remaining open items are Stage 10 polish or later features, not Stage 9 blockers
-- Recommended next task goal: move to `Stage 10` for visual polish, richer previews, and broader UX cleanup without reopening Stage 9 save/validation/runtime-refresh work
+- Recommended next task goal: continue `Stage 10` with either compact spacing/label cleanup or richer preview work, without reopening Stage 9 save/validation/runtime-refresh work
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`

@@ -11,6 +11,7 @@
 #include <wx/choice.h>
 #include <wx/msgdlg.h>
 #include <wx/scrolwin.h>
+#include <wx/settings.h>
 #include <wx/sizer.h>
 #include <wx/spinctrl.h>
 #include <wx/statbox.h>
@@ -54,6 +55,20 @@ namespace {
 			door.itemId,
 			door.isOpen ? "open" : "closed",
 			door.wallHateMe ? " | hate" : "");
+	}
+
+	void StyleWallWorkspaceSubtitle(wxStaticText* label) {
+		label->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_GRAYTEXT));
+	}
+
+	void StyleWallWorkspaceStatusLabel(wxStaticText* label) {
+		label->SetMinSize(wxSize(-1, label->GetParent()->FromDIP(36)));
+		label->Wrap(label->GetParent()->FromDIP(760));
+	}
+
+	void StyleWallWorkspaceActionButton(wxButton* button, const wxString &tooltip) {
+		button->SetMinSize(wxSize(button->GetParent()->FromDIP(120), -1));
+		button->SetToolTip(tooltip);
 	}
 
 	void NormalizeWallPartRecord(WallPartRecord &part) {
@@ -284,6 +299,7 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 
 	titleLabel_ = new wxStaticText(this, wxID_ANY, "No wall brush selected");
 	subtitleLabel_ = new wxStaticText(this, wxID_ANY, "Edit persisted wall parts, door definitions and alternates from materials.db.");
+	StyleWallWorkspaceSubtitle(subtitleLabel_);
 
 	wxScrolledWindow* scrolled = new wxScrolledWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL);
 	scrolled->SetScrollRate(FromDIP(10), FromDIP(10));
@@ -420,16 +436,19 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	wxBoxSizer* actionSizer = new wxBoxSizer(wxHORIZONTAL);
 	saveButton_ = new wxButton(this, wxID_SAVE, "Save Wall Brush");
 	revertButton_ = new wxButton(this, wxID_ANY, "Revert");
+	StyleWallWorkspaceActionButton(saveButton_, "Write the current wall part and door edits to materials.db.");
+	StyleWallWorkspaceActionButton(revertButton_, "Discard local wall edits and reload the current wall brush from materials.db.");
 	actionSizer->Add(saveButton_, 0, wxRIGHT, FromDIP(6));
 	actionSizer->Add(revertButton_, 0);
 
 	statusLabel_ = new wxStaticText(this, wxID_ANY, "");
+	StyleWallWorkspaceStatusLabel(statusLabel_);
 
-	rootSizer->Add(headerSizer, 0, wxEXPAND | wxALL, FromDIP(10));
-	rootSizer->Add(new wxStaticLine(this), 0, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(10));
-	rootSizer->Add(scrolled, 1, wxEXPAND | wxALL, FromDIP(10));
-	rootSizer->Add(actionSizer, 0, wxALIGN_RIGHT | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(10));
-	rootSizer->Add(statusLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(10));
+	rootSizer->Add(headerSizer, 0, wxEXPAND | wxALL, FromDIP(8));
+	rootSizer->Add(new wxStaticLine(this), 0, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(8));
+	rootSizer->Add(scrolled, 1, wxEXPAND | wxALL, FromDIP(8));
+	rootSizer->Add(actionSizer, 0, wxALIGN_RIGHT | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
+	rootSizer->Add(statusLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
 	SetSizer(rootSizer);
 
 	partChoice_->Bind(wxEVT_CHOICE, &MaterialsWorkbenchWallPanel::OnPartChanged, this);
@@ -533,7 +552,7 @@ bool MaterialsWorkbenchWallPanel::LoadWallBrush(const wxString &contextKey, int 
 	SetFieldsEnabled(true);
 	UpdateActionButtons();
 	NotifyWallBrushStateChanged();
-	SetStatusMessage("Wall brush loaded from materials.db.");
+	SetStatusMessage("Ready. Editing wall data from materials.db. Update parts or doors, then Save or Revert.");
 	spdlog::info(
 		"Materials Workbench loaded wall brush from materials.db: id={} name='{}' preserved_context={}",
 		static_cast<long long>(wallBrushStorage_.brush.id),
@@ -746,6 +765,7 @@ void MaterialsWorkbenchWallPanel::NormalizeWallParts() {
 
 void MaterialsWorkbenchWallPanel::SetStatusMessage(const wxString &message) {
 	statusLabel_->SetLabel(message);
+	statusLabel_->Wrap(FromDIP(760));
 }
 
 void MaterialsWorkbenchWallPanel::SetFieldsEnabled(bool enabled) {
@@ -973,15 +993,15 @@ void MaterialsWorkbenchWallPanel::NotifyWallBrushStateChanged() {
 void MaterialsWorkbenchWallPanel::UpdateWorkspaceHeader() {
 	if (!hasWallBrush_) {
 		titleLabel_->SetLabel("No wall brush selected");
-		subtitleLabel_->SetLabel("Select a wall brush in the navigation tree to edit its wall parts.");
+		subtitleLabel_->SetLabel("Select a wall brush in the navigation tree to edit wall parts, alternates, and door definitions.");
 		return;
 	}
 
 	titleLabel_->SetLabel("Editing wall brush: " + wallBrushStorage_.brush.name + (dirty_ ? " [modified]" : ""));
 	subtitleLabel_->SetLabel(
 		dirty_
-			? "Local wall edits differ from materials.db. Save, revert or switch entries carefully."
-			: "Edit wall parts, alternates and door definitions visually before polishing the full wall authoring flow."
+			? "Unsaved local wall edits differ from materials.db. Save to persist them or Revert to discard them before switching entries."
+			: "Ready to edit wall parts, alternates, and door definitions for this SQLite-backed brush."
 	);
 }
 
@@ -1149,7 +1169,7 @@ bool MaterialsWorkbenchWallPanel::SaveCurrentWallBrush() {
 		RestoreEditorState(previousEditorState);
 	}
 	RefreshDirtyState();
-	SetStatusMessage("Wall brush parts saved to materials.db.");
+	SetStatusMessage("Saved wall parts and doors to materials.db. Targeted runtime sync remained in place.");
 	spdlog::info(
 		"Materials Workbench saved wall brush parts: id={} name='{}' preserved_context={}",
 		static_cast<long long>(wallBrushStorage_.brush.id),
@@ -1358,7 +1378,7 @@ void MaterialsWorkbenchWallPanel::OnRevert(wxCommandEvent &event) {
 		return;
 	}
 
-	SetStatusMessage("Wall brush reloaded from materials.db.");
+	SetStatusMessage("Reverted local wall edits and reloaded the wall brush from materials.db.");
 	spdlog::info(
 		"Materials Workbench reverted wall brush from materials.db: id={} name='{}'",
 		static_cast<long long>(brushId),
