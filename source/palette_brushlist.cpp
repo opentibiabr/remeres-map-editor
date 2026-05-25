@@ -349,8 +349,6 @@ void BrushPalettePanel::OnPageUpdate(BrushBoxInterface* brushbox, int page) {
 		const auto currentPage = brushbox->GetCurrentPage();
 		const auto totalPages = brushbox->GetTotalPages();
 		currentPageCtrl->SetValue(wxString::Format("%d", currentPage));
-		Fit();
-		g_gui.aui_manager->Update();
 		brushbox->SelectFirstBrush();
 		nextPageButton->Enable(totalPages > currentPage);
 		previousPageButton->Enable(currentPage > 1);
@@ -486,7 +484,7 @@ void BrushPanel::LoadContents() {
 	}
 	ASSERT(brushbox != nullptr);
 	sizer->Add(brushbox->GetSelfWindow(), 1, wxEXPAND);
-	Fit();
+	Layout();
 	brushbox->SelectFirstBrush();
 }
 
@@ -646,11 +644,16 @@ bool BrushIconBox::LoadContentByPage(int page /* = 1 */) {
 	auto endOffset = (width * height) * page;
 	endOffset = page > 1 ? endOffset : startOffset + endOffset;
 	endOffset = endOffset > tileset->brushlist.size() ? tileset->brushlist.size() : endOffset;
+	const size_t newVisibleButtonCount = endOffset - startOffset;
+	const bool needsLayout = visibleButtonCount != newVisibleButtonCount;
 
 	Freeze();
 	RefreshPageButtons(startOffset, endOffset);
-	Layout();
-	FitInside();
+	if (needsLayout) {
+		Layout();
+		FitInside();
+		visibleButtonCount = newVisibleButtonCount;
+	}
 	Thaw();
 
 	return true;

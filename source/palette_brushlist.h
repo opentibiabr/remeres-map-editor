@@ -153,6 +153,7 @@ private:
 	BrushButton* selectedButton = nullptr;
 	std::vector<BrushButton*> brushButtons;
 	RenderSize iconSize;
+	size_t visibleButtonCount = 0;
 
 	wxBoxSizer* stacksizer = nullptr;
 	std::vector<wxBoxSizer*> rowsizers;
