@@ -37,6 +37,8 @@ private:
 	void RefreshSlotGrid();
 	void RefreshPreviewGrid();
 	void SelectEdge(const wxString &edge);
+	void SaveCurrentBorderEditorState();
+	void RestoreCurrentBorderEditorState();
 	void UpdateSelectedEdgeEditor();
 	void SyncSelectedSlotFromEditor(bool updateStatus);
 	void SetStatusMessage(const wxString &message);
@@ -70,6 +72,7 @@ private:
 	bool internalUpdate_ = false;
 	wxString selectedEdge_;
 	std::map<wxString, int> slotItemIds_;
+	std::map<int64_t, wxString> borderSetSelectedEdges_;
 	std::map<wxString, ItemToggleButton*> slotButtons_;
 	std::map<wxString, wxStaticText*> slotValueLabels_;
 	std::map<wxString, ItemButton*> previewButtons_;

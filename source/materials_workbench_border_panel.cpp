@@ -466,6 +466,8 @@ void MaterialsWorkbenchBorderPanel::ClearWorkspace(const wxString &message) {
 }
 
 bool MaterialsWorkbenchBorderPanel::LoadBorderSet(const wxString &contextKey, int itemIndex) {
+	SaveCurrentBorderEditorState();
+
 	wxString error;
 	BorderSetStorageRecord storage;
 	if (!controller_.GetBorderSetDetails(contextKey, itemIndex, storage, error)) {
@@ -520,12 +522,7 @@ void MaterialsWorkbenchBorderPanel::PopulateFields() {
 
 	RefreshSlotGrid();
 	RefreshPreviewGrid();
-
-	if (selectedEdge_.IsEmpty()) {
-		SelectEdge("n");
-	} else {
-		UpdateSelectedEdgeEditor();
-	}
+	RestoreCurrentBorderEditorState();
 }
 
 BorderSetStorageRecord MaterialsWorkbenchBorderPanel::BuildComparableStorageFromCurrentState() const {
@@ -562,8 +559,21 @@ BorderSetStorageRecord MaterialsWorkbenchBorderPanel::BuildComparableStorageFrom
 }
 
 bool MaterialsWorkbenchBorderPanel::ValidateBorderSetStorage(const BorderSetStorageRecord &storage, wxString &error) const {
-	if (storage.borderSet.borderScope.IsEmpty()) {
+	const wxString scope = storage.borderSet.borderScope.Lower();
+	if (scope.IsEmpty()) {
 		error = "Border scope must be selected.";
+		return false;
+	}
+	if (scope != "global" && scope != "inline") {
+		error = wxString::Format("Border scope \"%s\" is not supported.", storage.borderSet.borderScope);
+		return false;
+	}
+	if (scope == "global" && storage.borderSet.xmlBorderId <= 0) {
+		error = "Global border sets must use an XML Border ID greater than zero so runtime refresh can target the saved set.";
+		return false;
+	}
+	if (scope == "inline" && storage.borderSet.ownerBrushId <= 0) {
+		error = "Inline border sets must stay linked to an owner brush before saving.";
 		return false;
 	}
 
@@ -604,6 +614,38 @@ bool MaterialsWorkbenchBorderPanel::ValidateBorderSetStorage(const BorderSetStor
 
 	error.clear();
 	return true;
+}
+
+void MaterialsWorkbenchBorderPanel::SaveCurrentBorderEditorState() {
+	if (!hasBorderSet_ || borderSetStorage_.borderSet.id <= 0) {
+		return;
+	}
+
+	if (selectedEdge_.IsEmpty()) {
+		borderSetSelectedEdges_.erase(borderSetStorage_.borderSet.id);
+		return;
+	}
+
+	borderSetSelectedEdges_[borderSetStorage_.borderSet.id] = selectedEdge_;
+}
+
+void MaterialsWorkbenchBorderPanel::RestoreCurrentBorderEditorState() {
+	wxString edgeToSelect;
+	if (borderSetStorage_.borderSet.id > 0) {
+		auto it = borderSetSelectedEdges_.find(borderSetStorage_.borderSet.id);
+		if (it != borderSetSelectedEdges_.end()) {
+			edgeToSelect = it->second;
+		}
+	}
+
+	if (edgeToSelect.IsEmpty() && slotButtons_.count(selectedEdge_)) {
+		edgeToSelect = selectedEdge_;
+	}
+	if (edgeToSelect.IsEmpty() || !slotButtons_.count(edgeToSelect)) {
+		edgeToSelect = "n";
+	}
+
+	SelectEdge(edgeToSelect);
 }
 
 void MaterialsWorkbenchBorderPanel::RefreshDirtyState() {
@@ -680,6 +722,7 @@ void MaterialsWorkbenchBorderPanel::SelectEdge(const wxString &edge) {
 	}
 
 	selectedEdge_ = edge;
+	SaveCurrentBorderEditorState();
 	RefreshSlotGrid();
 	UpdateSelectedEdgeEditor();
 }
@@ -704,10 +747,23 @@ void MaterialsWorkbenchBorderPanel::SyncSelectedSlotFromEditor(bool updateStatus
 	}
 
 	const int itemId = selectedItemIdCtrl_->GetValue();
+	const std::map<wxString, int> previousSlotItemIds = slotItemIds_;
 	if (itemId > 0) {
 		slotItemIds_[selectedEdge_] = itemId;
 	} else {
 		slotItemIds_.erase(selectedEdge_);
+	}
+
+	if (updateStatus) {
+		const BorderSetStorageRecord candidateStorage = BuildComparableStorageFromCurrentState();
+		wxString validationError;
+		if (!ValidateBorderSetStorage(candidateStorage, validationError)) {
+			slotItemIds_ = previousSlotItemIds;
+			RefreshSlotGrid();
+			RefreshPreviewGrid();
+			SetStatusMessage("Cannot apply slot: " + validationError);
+			return;
+		}
 	}
 
 	selectedItemPreview_->SetSprite(itemId);

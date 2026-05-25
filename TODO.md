@@ -55,13 +55,16 @@
 - [x] Border Workspace no longer marks entries as `modified` from programmatic selection/loading refreshes; the badge now reflects real local edits only
 - [x] Border Workspace now validates border slot `item id` values before save and blocks reusing the same runtime item across multiple border edges
 - [x] Border Workspace now uses a canonical 5x5 slot geometry: outer corners in the true corners, diagonals in the inner corner cells, and cardinals centered on each side
+- [x] Border Workspace now preserves the selected slot per border set across reloads and navigation switches instead of reusing only one global slot context
+- [x] Border Workspace now blocks saving `global` or `inline` sets whose metadata would make the targeted runtime refresh path unsupported after save
+- [x] Applying a border slot now validates the candidate layout immediately, so duplicate or unknown slot items are rejected before the user reaches Save
 
 ## Remaining Before Calling It Ready
 - [x] Extend `dirty state` beyond the Brush Workspace
 - [x] Highlight modified fields visually in the Brush Workspace
 - [x] Show `modified` badges in the navigation tree for dirty brush edits
-- [ ] Preserve selection and scroll more consistently across reloads
-- [ ] Improve validation before save across the remaining Workbench domains
+- [x] Preserve selection and scroll more consistently across reloads
+- [x] Improve validation before save across the remaining Workbench domains
 - [ ] Add richer `border` and `wall` previews
 - [ ] Support entity creation and removal, not only editing
 - [ ] Improve semantic clarity for origin metadata
@@ -137,11 +140,13 @@
 - Remaining Brush Workspace follow-up is now small and mostly polish-level: final reassessment of any residual selection/scroll edge cases and whether the modified highlight needs one more visual pass
 - `Wall Workspace` has now started its `Stage 9` pass with dirty state, save/revert consistency, selection-change protection, close protection, navigation badge integration, and basic context preservation across save/reload
 - `Wall Workspace` now also remembers item/door selection and scroll per `wall part`, so switching between parts restores the last local editing context instead of resetting the dynamic grids every time
-- `Border Workspace` now also has dirty state, selection-change/close protection, and navigation badge integration; the remaining `Stage 9` pass there is now mainly validation and residual state-preservation edge cases
+- `Border Workspace` now also has dirty state, selection-change/close protection, and navigation badge integration; its remaining `Stage 9` pass is now mostly closed after the last validation and state-preservation fixes
 - `Border Workspace` dirty-state tracking now ignores programmatic UI refreshes triggered by loading or slot selection changes, so `modified` reflects real edits instead of selection-only interactions
 - `Border Workspace` now also blocks duplicate runtime item ownership across multiple border edges in the same set, avoiding ambiguous `border_alignment` registration during runtime refresh
 - `Border Workspace` save now refreshes the actual `g_brushes` runtime state as well as palettes: inline sets reload only the owning ground brush, while global sets reset/reload global borders and then rehydrate ground brushes from SQLite
 - `Border Workspace` slot/preview grids now keep the corrected runtime-driven geometry; cardinals/corners use the screen-facing labels, and the diagonal labels were finally realigned to the preview quadrants after the preview positions themselves were validated
-- Recommended next task goal: reassess the remaining `Stage 9` state and runtime-refresh edge cases in wall/border flows after the latest validation and dirty-state fixes, then decide what still blocks the move to previews
+- `Border Workspace` now also preserves the selected edge per border set across reloads/switches and blocks metadata combinations that would make the targeted runtime refresh path unsupported after save
+- Final reassess result so far: `wall` and `border` no longer appear to be the main blockers for calling `Stage 9` done; the remaining blockers are now outside previews and look more like final Brush Workspace polish plus the unresolved origin/provenance wording review
+- Recommended next task goal: stay in `Stage 9`, confirm the residual Brush Workspace/origin-metadata blockers, and decide whether the stage can be closed without starting Stage 10 previews
 - If a follow-up task must be split, keep the next task scoped to `Stage 9` only; do not jump to previews or Stage 10 polish until the items above are closed
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`
