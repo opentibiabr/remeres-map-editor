@@ -50,12 +50,14 @@
 #include <unordered_set>
 #include <chrono>
 #include <cmath>
+#include <format>
 #include <iomanip>
 #include <limits>
+#include <map>
+#include <set>
+#include <span>
 #include <sstream>
-
-#include <algorithm>
-#include <array>
+#include <string_view>
 
 typedef uint8_t attribute_t;
 typedef uint32_t flags_t;
@@ -84,6 +86,14 @@ namespace {
 		double scale = 0.0;
 		int chunkSize = 0;
 		double pixelsPerSquare = 1.0;
+	};
+
+	struct CyclopediaChunkArea {
+		int floor = 0;
+		int startX = 0;
+		int startY = 0;
+		int width = 0;
+		int height = 0;
 	};
 
 	constexpr std::array<CyclopediaAssetLayerConfig, 3> CyclopediaMinimapLayers { {
@@ -135,9 +145,7 @@ namespace {
 		uint32_t y = 0;
 		uint32_t z = 0;
 
-		bool operator==(const HousePositionKey &other) const noexcept {
-			return x == other.x && y == other.y && z == other.z;
-		}
+		bool operator==(const HousePositionKey &other) const noexcept = default;
 	};
 
 	struct HousePositionKeyHash {
@@ -201,10 +209,29 @@ namespace {
 		uint64_t droppedInvalidItems = 0;
 	};
 
-	const std::unordered_map<uint32_t, StaticMapHouseTemplate>* g_activeStaticMapHouseTemplates = nullptr;
-	const std::unordered_set<std::string>* g_activeStaticDataHouseNameFilter = nullptr;
-	const std::unordered_set<std::string>* g_activeStaticDataDebugHouseNameFilter = nullptr;
-	StaticMapHouseExportDebugStats g_staticMapHouseExportDebugStats;
+	using StaticMapHouseTemplatesPtr = const std::unordered_map<uint32_t, StaticMapHouseTemplate>*;
+	using StaticDataHouseNameFilter = std::set<std::string>;
+	using StaticDataHouseNameFilterPtr = const StaticDataHouseNameFilter*;
+
+	StaticMapHouseTemplatesPtr &activeStaticMapHouseTemplates() {
+		static StaticMapHouseTemplatesPtr value = nullptr;
+		return value;
+	}
+
+	StaticDataHouseNameFilterPtr &activeStaticDataHouseNameFilter() {
+		static StaticDataHouseNameFilterPtr value = nullptr;
+		return value;
+	}
+
+	StaticDataHouseNameFilterPtr &activeStaticDataDebugHouseNameFilter() {
+		static StaticDataHouseNameFilterPtr value = nullptr;
+		return value;
+	}
+
+	StaticMapHouseExportDebugStats &staticMapHouseExportDebugStats() {
+		static StaticMapHouseExportDebugStats value;
+		return value;
+	}
 
 	std::string formatHousePreviewItemValues(const std::vector<uint32_t> &values, size_t maxValues = 12) {
 		if (values.empty()) {
@@ -253,11 +280,11 @@ namespace {
 	}
 
 	void resetStaticMapHouseExportDebugStats() {
-		g_staticMapHouseExportDebugStats = StaticMapHouseExportDebugStats {};
+		staticMapHouseExportDebugStats() = StaticMapHouseExportDebugStats {};
 	}
 
 	void logStaticMapHouseExportDebugSummary() {
-		const auto &stats = g_staticMapHouseExportDebugStats;
+		const auto &stats = staticMapHouseExportDebugStats();
 		spdlog::info(
 			"[house-debug] staticmapdata export summary: houses={} template_houses={} dynamic_houses={} template_mismatch_houses={} "
 			"tiles_written={} tiles_with_items={} template_tiles_compared={} template_tile_mismatches={} "
@@ -280,7 +307,7 @@ namespace {
 		);
 	}
 
-	std::string normalizeHouseName(std::string name) {
+	std::string normalizeHouseName(const std::string &name) {
 		std::string normalized;
 		normalized.reserve(name.size());
 
@@ -311,8 +338,9 @@ namespace {
 			return false;
 		}
 
-		if (g_activeStaticDataDebugHouseNameFilter && !g_activeStaticDataDebugHouseNameFilter->empty()) {
-			return g_activeStaticDataDebugHouseNameFilter->find(normalizedName) != g_activeStaticDataDebugHouseNameFilter->end();
+		const auto* filter = activeStaticDataDebugHouseNameFilter();
+		if (filter && !filter->empty()) {
+			return filter->contains(normalizedName);
 		}
 		return false;
 	}
@@ -322,14 +350,15 @@ namespace {
 	}
 
 	bool shouldIncludeHouseInStaticExport(const House &house) {
-		if (!g_activeStaticDataHouseNameFilter || g_activeStaticDataHouseNameFilter->empty()) {
+		const auto* filter = activeStaticDataHouseNameFilter();
+		if (!filter || filter->empty()) {
 			return true;
 		}
-		return g_activeStaticDataHouseNameFilter->find(normalizeHouseName(house.name)) != g_activeStaticDataHouseNameFilter->end();
+		return filter->contains(normalizeHouseName(house.name));
 	}
 
 	std::string normalizeHouseNameAlias(const std::string &name) {
-		static const std::unordered_set<std::string> aliasStopWords {
+		static constexpr std::array<std::string_view, 9> aliasStopWords {
 			"street",
 			"place",
 			"lane",
@@ -346,7 +375,7 @@ namespace {
 		std::string token;
 		std::string alias;
 		while (input >> token) {
-			if (aliasStopWords.find(token) != aliasStopWords.end()) {
+			if (std::find(aliasStopWords.begin(), aliasStopWords.end(), std::string_view(token)) != aliasStopWords.end()) {
 				continue;
 			}
 			if (!alias.empty()) {
@@ -379,7 +408,7 @@ namespace {
 	}
 
 	bool isStaticMapHousePreviewContextTile(const Position &position, const std::unordered_set<Position, PositionHash> &houseTiles) {
-		if (houseTiles.find(position) != houseTiles.end()) {
+		if (houseTiles.contains(position)) {
 			return true;
 		}
 
@@ -390,7 +419,7 @@ namespace {
 				}
 
 				const Position nearby(position.x + dx, position.y + dy, position.z);
-				if (houseTiles.find(nearby) != houseTiles.end()) {
+				if (houseTiles.contains(nearby)) {
 					return true;
 				}
 			}
@@ -496,9 +525,9 @@ namespace {
 		context.state[7] += h;
 	}
 
-	void sha256Update(Sha256Context &context, const uint8_t* data, const size_t length) {
-		for (size_t i = 0; i < length; ++i) {
-			context.data[context.dataLength++] = data[i];
+	void sha256Update(Sha256Context &context, const std::span<const uint8_t> bytes) {
+		for (const uint8_t byte : bytes) {
+			context.data[context.dataLength++] = byte;
 			if (context.dataLength == context.data.size()) {
 				sha256Transform(context, context.data.data());
 				context.bitLength += 512;
@@ -544,7 +573,7 @@ namespace {
 	std::array<uint8_t, 32> sha256Hash(const std::vector<uint8_t> &bytes) {
 		Sha256Context context;
 		if (!bytes.empty()) {
-			sha256Update(context, bytes.data(), bytes.size());
+			sha256Update(context, std::span<const uint8_t>(bytes.data(), bytes.size()));
 		}
 		return sha256Finalize(context);
 	}
@@ -558,16 +587,16 @@ namespace {
 		return stream.str();
 	}
 
-	std::string sha256Hex(const std::string &bytes) {
+	std::string sha256Hex(const std::string_view bytes) {
 		Sha256Context context;
 		if (!bytes.empty()) {
-			sha256Update(context, reinterpret_cast<const uint8_t*>(bytes.data()), bytes.size());
+			sha256Update(context, std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(bytes.data()), bytes.size()));
 		}
 		return toHex(sha256Finalize(context));
 	}
 
-	std::string buildCatalogDataFilename(const std::string &prefix, const std::string &bytes) {
-		return prefix + "-" + sha256Hex(bytes) + ".dat";
+	std::string buildCatalogDataFilename(const std::string_view prefix, const std::string_view bytes) {
+		return std::format("{}-{}.dat", prefix, sha256Hex(bytes));
 	}
 
 	void appendU16(std::vector<uint8_t> &buffer, const uint16_t value) {
@@ -610,8 +639,8 @@ namespace {
 		bytes.clear();
 		bytes.reserve(totalSize);
 
-		const int32_t xPixelsPerMeter = static_cast<int32_t>(static_cast<double>(width) / CyclopediaVirtualCameraHeight);
-		const int32_t yPixelsPerMeter = static_cast<int32_t>(static_cast<double>(height) / CyclopediaVirtualCameraHeight);
+		const auto xPixelsPerMeter = static_cast<int32_t>(static_cast<double>(width) / CyclopediaVirtualCameraHeight);
+		const auto yPixelsPerMeter = static_cast<int32_t>(static_cast<double>(height) / CyclopediaVirtualCameraHeight);
 
 		bytes.push_back(0x42);
 		bytes.push_back(0x4D);
@@ -650,7 +679,7 @@ namespace {
 
 		for (int y = height - 1; y >= 0; --y) {
 			for (int x = 0; x < width; ++x) {
-				const size_t sourceIndex = static_cast<size_t>(y * width + x);
+				const auto sourceIndex = static_cast<size_t>(y * width + x);
 				const size_t rgbIndex = sourceIndex * rme::PixelFormatRGB;
 				const uint8_t red = rgb[rgbIndex];
 				const uint8_t green = rgb[rgbIndex + 1];
@@ -669,7 +698,7 @@ namespace {
 
 	void write7BitEncodedInt(uint32_t value, std::vector<uint8_t> &bytes) {
 		do {
-			uint8_t current = static_cast<uint8_t>(value & 0x7F);
+			auto current = static_cast<uint8_t>(value & 0x7F);
 			value >>= 7;
 			if (value != 0) {
 				current |= 0x80;
@@ -691,13 +720,13 @@ namespace {
 		options.mf = LZMA_MF_HC3;
 		options.depth = 4;
 
-		lzma_filter filters[2] = {
+		std::array<lzma_filter, 2> filters { {
 			{ LZMA_FILTER_LZMA1, &options },
 			{ LZMA_VLI_UNKNOWN, nullptr }
-		};
+		} };
 
 		lzma_stream stream = LZMA_STREAM_INIT;
-		lzma_ret result = lzma_raw_encoder(&stream, filters);
+		lzma_ret result = lzma_raw_encoder(&stream, filters.data());
 		if (result != LZMA_OK) {
 			return false;
 		}
@@ -730,7 +759,7 @@ namespace {
 
 		std::vector<uint8_t> lzmaPayload;
 		lzmaPayload.reserve(13 + compressedRaw.size());
-		const uint8_t properties = static_cast<uint8_t>(((2 * 5) + 0) * 9 + 3);
+		const auto properties = static_cast<uint8_t>(((2 * 5) + 0) * 9 + 3);
 		lzmaPayload.push_back(properties);
 		appendU32(lzmaPayload, CyclopediaLzmaDictionarySize);
 		for (int i = 0; i < 8; ++i) {
@@ -750,8 +779,8 @@ namespace {
 
 		assetBytes.assign(CyclopediaCipHeaderSize, 0);
 		const size_t headerOffset = CyclopediaCipHeaderSize - CyclopediaCipLzmaSignature.size() - encodedSize.size();
-		std::copy(CyclopediaCipLzmaSignature.begin(), CyclopediaCipLzmaSignature.end(), assetBytes.begin() + headerOffset);
-		std::copy(encodedSize.begin(), encodedSize.end(), assetBytes.begin() + headerOffset + CyclopediaCipLzmaSignature.size());
+		std::ranges::copy(CyclopediaCipLzmaSignature, assetBytes.begin() + headerOffset);
+		std::ranges::copy(encodedSize, assetBytes.begin() + headerOffset + CyclopediaCipLzmaSignature.size());
 		assetBytes.insert(assetBytes.end(), lzmaPayload.begin(), lzmaPayload.end());
 		return true;
 	}
@@ -771,15 +800,7 @@ namespace {
 		const int chunkX = std::max(assetX / 32, 0);
 		const int chunkY = std::max(assetY / 32, 0);
 
-		std::ostringstream filename;
-		filename << (minimap ? "minimap-" : "satellite-")
-				 << std::setw(2) << std::setfill('0') << scalePrefix << '-'
-				 << std::setw(4) << std::setfill('0') << chunkX << '-'
-				 << std::setw(4) << std::setfill('0') << chunkY << '-'
-				 << std::setw(2) << std::setfill('0') << floor << '-'
-				 << hashHex
-				 << ".bmp.lzma";
-		return filename.str();
+		return std::format("{}{:02}-{:04}-{:04}-{:02}-{}.bmp.lzma", minimap ? "minimap-" : "satellite-", scalePrefix, chunkX, chunkY, floor, hashHex);
 	}
 
 	bool hasCyclopediaTileData(const Tile* tile) {
@@ -877,6 +898,83 @@ namespace {
 		return std::max(1, static_cast<int>(std::ceil(static_cast<double>(tileDimension) * clampedPixelsPerSquare)));
 	}
 
+	struct CyclopediaSampleRange {
+		double begin = 0.0;
+		double end = 0.0;
+		int first = 0;
+		int last = 0;
+	};
+
+	struct CyclopediaWeightedRgb {
+		double red = 0.0;
+		double green = 0.0;
+		double blue = 0.0;
+		double weight = 0.0;
+	};
+
+	CyclopediaSampleRange getCyclopediaSampleRange(const int targetIndex, const int targetSize, const int sourceSize) {
+		CyclopediaSampleRange range;
+		range.begin = (static_cast<double>(targetIndex) * sourceSize) / targetSize;
+		range.end = (static_cast<double>(targetIndex + 1) * sourceSize) / targetSize;
+		range.first = std::clamp(static_cast<int>(std::floor(range.begin)), 0, sourceSize - 1);
+		range.last = std::clamp(static_cast<int>(std::ceil(range.end)), range.first + 1, sourceSize);
+		return range;
+	}
+
+	double getCyclopediaSampleWeight(const CyclopediaSampleRange &range, const int sourceIndex) {
+		return std::min(range.end, static_cast<double>(sourceIndex + 1)) - std::max(range.begin, static_cast<double>(sourceIndex));
+	}
+
+	void accumulateCyclopediaSample(
+		CyclopediaWeightedRgb &sample,
+		const unsigned char* sourceData,
+		const int sourceWidth,
+		const int sourceX,
+		const int sourceY,
+		const double weight
+	) {
+		if (weight <= 0.0) {
+			return;
+		}
+
+		const size_t sourceIndex = (static_cast<size_t>(sourceY) * static_cast<size_t>(sourceWidth) + static_cast<size_t>(sourceX)) * rme::PixelFormatRGB;
+		sample.red += static_cast<double>(sourceData[sourceIndex]) * weight;
+		sample.green += static_cast<double>(sourceData[sourceIndex + 1]) * weight;
+		sample.blue += static_cast<double>(sourceData[sourceIndex + 2]) * weight;
+		sample.weight += weight;
+	}
+
+	CyclopediaWeightedRgb sampleCyclopediaRegion(
+		const unsigned char* sourceData,
+		const int sourceWidth,
+		const CyclopediaSampleRange &xRange,
+		const CyclopediaSampleRange &yRange
+	) {
+		CyclopediaWeightedRgb sample;
+		for (int sourceY = yRange.first; sourceY < yRange.last; ++sourceY) {
+			const double yWeight = getCyclopediaSampleWeight(yRange, sourceY);
+			for (int sourceX = xRange.first; sourceX < xRange.last; ++sourceX) {
+				accumulateCyclopediaSample(sample, sourceData, sourceWidth, sourceX, sourceY, yWeight * getCyclopediaSampleWeight(xRange, sourceX));
+			}
+		}
+		return sample;
+	}
+
+	unsigned char normalizeCyclopediaChannel(const double value, const double weight) {
+		if (weight <= 0.0) {
+			return 0;
+		}
+
+		return static_cast<unsigned char>(std::clamp(static_cast<int>(std::lround(value / weight)), 0, 255));
+	}
+
+	void writeCyclopediaSample(unsigned char* targetData, const int targetWidth, const int targetX, const int targetY, const CyclopediaWeightedRgb &sample) {
+		const size_t targetIndex = (static_cast<size_t>(targetY) * static_cast<size_t>(targetWidth) + static_cast<size_t>(targetX)) * rme::PixelFormatRGB;
+		targetData[targetIndex] = normalizeCyclopediaChannel(sample.red, sample.weight);
+		targetData[targetIndex + 1] = normalizeCyclopediaChannel(sample.green, sample.weight);
+		targetData[targetIndex + 2] = normalizeCyclopediaChannel(sample.blue, sample.weight);
+	}
+
 	bool downsampleCyclopediaChunk(wxImage &image, const int targetWidth, const int targetHeight) {
 		if (!image.IsOk() || targetWidth <= 0 || targetHeight <= 0) {
 			return false;
@@ -900,50 +998,10 @@ namespace {
 		}
 
 		for (int targetY = 0; targetY < targetHeight; ++targetY) {
-			const double sourceY0 = (static_cast<double>(targetY) * sourceHeight) / targetHeight;
-			const double sourceY1 = (static_cast<double>(targetY + 1) * sourceHeight) / targetHeight;
-			const int sourceYBegin = std::clamp(static_cast<int>(std::floor(sourceY0)), 0, sourceHeight - 1);
-			const int sourceYEnd = std::clamp(static_cast<int>(std::ceil(sourceY1)), sourceYBegin + 1, sourceHeight);
-
+			const CyclopediaSampleRange yRange = getCyclopediaSampleRange(targetY, targetHeight, sourceHeight);
 			for (int targetX = 0; targetX < targetWidth; ++targetX) {
-				const double sourceX0 = (static_cast<double>(targetX) * sourceWidth) / targetWidth;
-				const double sourceX1 = (static_cast<double>(targetX + 1) * sourceWidth) / targetWidth;
-				const int sourceXBegin = std::clamp(static_cast<int>(std::floor(sourceX0)), 0, sourceWidth - 1);
-				const int sourceXEnd = std::clamp(static_cast<int>(std::ceil(sourceX1)), sourceXBegin + 1, sourceWidth);
-
-				double red = 0.0;
-				double green = 0.0;
-				double blue = 0.0;
-				double totalWeight = 0.0;
-				for (int sourceY = sourceYBegin; sourceY < sourceYEnd; ++sourceY) {
-					const double yWeight = std::min(sourceY1, static_cast<double>(sourceY + 1)) - std::max(sourceY0, static_cast<double>(sourceY));
-					if (yWeight <= 0.0) {
-						continue;
-					}
-
-					for (int sourceX = sourceXBegin; sourceX < sourceXEnd; ++sourceX) {
-						const double xWeight = std::min(sourceX1, static_cast<double>(sourceX + 1)) - std::max(sourceX0, static_cast<double>(sourceX));
-						const double weight = xWeight * yWeight;
-						if (weight <= 0.0) {
-							continue;
-						}
-
-						const size_t sourceIndex = (static_cast<size_t>(sourceY) * static_cast<size_t>(sourceWidth) + static_cast<size_t>(sourceX)) * rme::PixelFormatRGB;
-						red += static_cast<double>(sourceData[sourceIndex]) * weight;
-						green += static_cast<double>(sourceData[sourceIndex + 1]) * weight;
-						blue += static_cast<double>(sourceData[sourceIndex + 2]) * weight;
-						totalWeight += weight;
-					}
-				}
-
-				if (totalWeight <= 0.0) {
-					continue;
-				}
-
-				const size_t targetIndex = (static_cast<size_t>(targetY) * static_cast<size_t>(targetWidth) + static_cast<size_t>(targetX)) * rme::PixelFormatRGB;
-				targetData[targetIndex] = static_cast<unsigned char>(std::clamp(static_cast<int>(std::lround(red / totalWeight)), 0, 255));
-				targetData[targetIndex + 1] = static_cast<unsigned char>(std::clamp(static_cast<int>(std::lround(green / totalWeight)), 0, 255));
-				targetData[targetIndex + 2] = static_cast<unsigned char>(std::clamp(static_cast<int>(std::lround(blue / totalWeight)), 0, 255));
+				const CyclopediaSampleRange xRange = getCyclopediaSampleRange(targetX, targetWidth, sourceWidth);
+				writeCyclopediaSample(targetData, targetWidth, targetX, targetY, sampleCyclopediaRegion(sourceData, sourceWidth, xRange, yRange));
 			}
 		}
 
@@ -974,21 +1032,7 @@ namespace {
 		return image.IsOk();
 	}
 
-	bool buildCyclopediaMinimapChunk(Map &map, const int floor, const int startX, const int startY, const int width, const int height, wxImage &image, bool &hasData) {
-		hasData = false;
-		if (width <= 0 || height <= 0) {
-			return false;
-		}
-
-		if (!image.Create(width, height, true)) {
-			return false;
-		}
-
-		unsigned char* data = image.GetData();
-		if (!data) {
-			return false;
-		}
-
+	void fillCyclopediaSea(unsigned char* data, const int width, const int height) {
 		for (int y = 0; y < height; ++y) {
 			for (int x = 0; x < width; ++x) {
 				const size_t index = (static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x)) * rme::PixelFormatRGB;
@@ -997,21 +1041,43 @@ namespace {
 				data[index + 2] = CyclopediaSeaColorB;
 			}
 		}
+	}
 
-		for (int y = 0; y < height; ++y) {
-			for (int x = 0; x < width; ++x) {
-				const Position position(startX + x, startY + y, floor);
-				Tile* tile = map.getTile(position);
-				if (!hasCyclopediaTileData(tile)) {
-					continue;
-				}
+	void writeCyclopediaMinimapTile(Map &map, const CyclopediaChunkArea &area, const int x, const int y, unsigned char* data, bool &hasData) {
+		const Position position(area.startX + x, area.startY + y, area.floor);
+		Tile* tile = map.getTile(position);
+		if (!hasCyclopediaTileData(tile)) {
+			return;
+		}
 
-				const wxColour rgb = mapColorToRgb(tile->getMiniMapColor());
-				const size_t index = (static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x)) * rme::PixelFormatRGB;
-				data[index] = rgb.Red();
-				data[index + 1] = rgb.Green();
-				data[index + 2] = rgb.Blue();
-				hasData = true;
+		const wxColour rgb = mapColorToRgb(tile->getMiniMapColor());
+		const size_t index = (static_cast<size_t>(y) * static_cast<size_t>(area.width) + static_cast<size_t>(x)) * rme::PixelFormatRGB;
+		data[index] = rgb.Red();
+		data[index + 1] = rgb.Green();
+		data[index + 2] = rgb.Blue();
+		hasData = true;
+	}
+
+	bool buildCyclopediaMinimapChunk(Map &map, const CyclopediaChunkArea &area, wxImage &image, bool &hasData) {
+		hasData = false;
+		if (area.width <= 0 || area.height <= 0) {
+			return false;
+		}
+
+		if (!image.Create(area.width, area.height, true)) {
+			return false;
+		}
+
+		unsigned char* data = image.GetData();
+		if (!data) {
+			return false;
+		}
+
+		fillCyclopediaSea(data, area.width, area.height);
+
+		for (int y = 0; y < area.height; ++y) {
+			for (int x = 0; x < area.width; ++x) {
+				writeCyclopediaMinimapTile(map, area, x, y, data, hasData);
 			}
 		}
 
@@ -1027,6 +1093,55 @@ namespace {
 
 	using SatelliteTinySprite = std::array<SatelliteTinyPixel, CyclopediaSatelliteBasePixelsPerSquare * CyclopediaSatelliteBasePixelsPerSquare>;
 
+	struct CyclopediaSatellitePaintContext {
+		int outputPixelsPerSquare = 1;
+		int outWidth = 0;
+		unsigned char* outData = nullptr;
+		std::unordered_map<uint32_t, SatelliteTinySprite>* spriteTinyCache = nullptr;
+	};
+
+	void resolveStackableCyclopediaPattern(const int subtype, int &patternX, int &patternY, int &patternZ) {
+		if (subtype <= 0) {
+			patternX = 0;
+			patternY = 0;
+		} else if (subtype < 5) {
+			patternX = subtype - 1;
+			patternY = 0;
+		} else if (subtype < 10) {
+			patternX = 0;
+			patternY = 1;
+		} else if (subtype < 25) {
+			patternX = 1;
+			patternY = 1;
+		} else if (subtype < 50) {
+			patternX = 2;
+			patternY = 1;
+		} else {
+			patternX = 3;
+			patternY = 1;
+		}
+		patternZ = 0;
+	}
+
+	void resolveHangableCyclopediaPattern(const Tile &tile, const int patternWidth, int &patternX, int &patternY, int &patternZ) {
+		patternY = 0;
+		patternZ = 0;
+		if (tile.hasProperty(HOOK_SOUTH)) {
+			patternX = patternWidth >= 2 ? 1 : 0;
+		} else if (tile.hasProperty(HOOK_EAST)) {
+			patternX = patternWidth >= 3 ? 2 : 0;
+		} else {
+			patternX = 0;
+		}
+	}
+
+	void resolveFluidCyclopediaPattern(const Item &item, const int patternWidth, const int patternHeight, int &patternX, int &patternY, int &patternZ) {
+		const auto subtype = static_cast<int>(Item::liquidSubTypeToSpriteSubType(static_cast<uint8_t>(item.getSubtype())));
+		patternX = (subtype % 4) % patternWidth;
+		patternY = (subtype / 4) % patternHeight;
+		patternZ = 0;
+	}
+
 	bool resolveCyclopediaItemPatterns(const Position &position, const Tile* tile, const Item* item, int &patternX, int &patternY, int &patternZ) {
 		if (!tile || !item) {
 			return false;
@@ -1037,7 +1152,7 @@ namespace {
 			return false;
 		}
 
-		GameSprite* sprite = type.sprite;
+		const GameSprite* sprite = type.sprite;
 		const int patternWidth = std::max<int>(1, static_cast<int>(sprite->pattern_x));
 		const int patternHeight = std::max<int>(1, static_cast<int>(sprite->pattern_y));
 		const int patternDepth = std::max<int>(1, static_cast<int>(sprite->pattern_z));
@@ -1047,42 +1162,11 @@ namespace {
 		patternZ = position.z % patternDepth;
 
 		if (type.stackable && patternWidth == 4 && patternHeight == 2) {
-			const auto subtype = static_cast<int>(item->getSubtype());
-			if (subtype <= 0) {
-				patternX = 0;
-				patternY = 0;
-			} else if (subtype < 5) {
-				patternX = subtype - 1;
-				patternY = 0;
-			} else if (subtype < 10) {
-				patternX = 0;
-				patternY = 1;
-			} else if (subtype < 25) {
-				patternX = 1;
-				patternY = 1;
-			} else if (subtype < 50) {
-				patternX = 2;
-				patternY = 1;
-			} else {
-				patternX = 3;
-				patternY = 1;
-			}
-			patternZ = 0;
+			resolveStackableCyclopediaPattern(static_cast<int>(item->getSubtype()), patternX, patternY, patternZ);
 		} else if (type.isHangable) {
-			patternY = 0;
-			patternZ = 0;
-			if (tile->hasProperty(HOOK_SOUTH)) {
-				patternX = patternWidth >= 2 ? 1 : 0;
-			} else if (tile->hasProperty(HOOK_EAST)) {
-				patternX = patternWidth >= 3 ? 2 : 0;
-			} else {
-				patternX = 0;
-			}
+			resolveHangableCyclopediaPattern(*tile, patternWidth, patternX, patternY, patternZ);
 		} else if (type.isSplash() || type.isFluidContainer()) {
-			const auto subtype = static_cast<int>(Item::liquidSubTypeToSpriteSubType(static_cast<uint8_t>(item->getSubtype())));
-			patternX = (subtype % 4) % patternWidth;
-			patternY = (subtype / 4) % patternHeight;
-			patternZ = 0;
+			resolveFluidCyclopediaPattern(*item, patternWidth, patternHeight, patternX, patternY, patternZ);
 		}
 
 		return true;
@@ -1166,12 +1250,12 @@ namespace {
 			const int x = index % width;
 			const int y = index / width;
 
-			const int neighbors[4][2] = {
+			const std::array<std::array<int, 2>, 4> neighbors { {
 				{ x - 1, y },
 				{ x + 1, y },
 				{ x, y - 1 },
 				{ x, y + 1 },
-			};
+			} };
 
 			for (const auto &neighbor : neighbors) {
 				const int nx = neighbor[0];
@@ -1205,7 +1289,10 @@ namespace {
 				const int index = row * CyclopediaSatelliteBasePixelsPerSquare + col;
 				const size_t spriteIndex = static_cast<size_t>(sy) * static_cast<size_t>(width) + static_cast<size_t>(sx);
 				const bool forceTransparent = edgeBlackMask[spriteIndex] != 0;
-				const uint8_t alpha = forceTransparent ? 0 : (hasAlpha ? spriteImage.GetAlpha(sx, sy) : 255);
+				uint8_t alpha = 0;
+				if (!forceTransparent) {
+					alpha = hasAlpha ? spriteImage.GetAlpha(sx, sy) : 255;
+				}
 
 				tinySprite[index].r = spriteImage.GetRed(sx, sy);
 				tinySprite[index].g = spriteImage.GetGreen(sx, sy);
@@ -1232,7 +1319,7 @@ namespace {
 			return nullptr;
 		}
 
-		auto [it, inserted] = cache.emplace(spriteId, std::move(sampled));
+		auto [it, inserted] = cache.try_emplace(spriteId, std::move(sampled));
 		(void)inserted;
 		return &it->second;
 	}
@@ -1256,30 +1343,19 @@ namespace {
 		dstB = static_cast<unsigned char>((static_cast<int>(src.b) * alpha + static_cast<int>(dstB) * invAlpha + 127) / 255);
 	}
 
-	bool buildCyclopediaSatelliteChunk(Map &map, const int floor, const int startX, const int startY, const int width, const int height, const double pixelsPerSquare, const wxImage &minimapChunk, wxImage &image) {
-		if (width <= 0 || height <= 0) {
-			return false;
-		}
-
-		const double requestedPixelsPerSquare = std::clamp(pixelsPerSquare, CyclopediaMinPixelsPerSquare, static_cast<double>(CyclopediaSatelliteBasePixelsPerSquare));
-		const int outputPixelsPerSquare = std::clamp(static_cast<int>(std::ceil(requestedPixelsPerSquare)), 1, CyclopediaSatelliteBasePixelsPerSquare);
-		const int outWidth = width * outputPixelsPerSquare;
-		const int outHeight = height * outputPixelsPerSquare;
-		if (!image.Create(outWidth, outHeight, false)) {
-			return false;
-		}
-
-		unsigned char* outData = image.GetData();
-		if (!outData) {
-			return false;
-		}
-
+	void fillCyclopediaSatelliteBackground(
+		const CyclopediaChunkArea &area,
+		const int outputPixelsPerSquare,
+		const int outWidth,
+		const wxImage &minimapChunk,
+		unsigned char* outData
+	) {
 		const unsigned char* minimapData = minimapChunk.IsOk() ? minimapChunk.GetData() : nullptr;
 		const int minimapWidth = minimapChunk.IsOk() ? minimapChunk.GetWidth() : 0;
 		const int minimapHeight = minimapChunk.IsOk() ? minimapChunk.GetHeight() : 0;
 
-		for (int y = 0; y < height; ++y) {
-			for (int x = 0; x < width; ++x) {
+		for (int y = 0; y < area.height; ++y) {
+			for (int x = 0; x < area.width; ++x) {
 				unsigned char baseR = CyclopediaSeaColorR;
 				unsigned char baseG = CyclopediaSeaColorG;
 				unsigned char baseB = CyclopediaSeaColorB;
@@ -1303,71 +1379,120 @@ namespace {
 				}
 			}
 		}
+	}
+
+	void collectCyclopediaSatelliteDrawItems(const Tile &tile, std::vector<const Item*> &drawItems) {
+		drawItems.clear();
+		drawItems.reserve(tile.items.size() + 1);
+		if (tile.ground) {
+			drawItems.push_back(tile.ground);
+		}
+
+		for (const Item* item : tile.items) {
+			if (item && item->isBorder()) {
+				drawItems.push_back(item);
+			}
+		}
+
+		for (const Item* item : tile.items) {
+			if (item && !item->isBorder()) {
+				drawItems.push_back(item);
+			}
+		}
+	}
+
+	void paintCyclopediaSatelliteSprite(
+		const SatelliteTinySprite &tinySprite,
+		const int tileX,
+		const int tileY,
+		const CyclopediaSatellitePaintContext &paintContext
+	) {
+		const int outputPixelsPerSquare = paintContext.outputPixelsPerSquare;
+		for (int py = 0; py < outputPixelsPerSquare; ++py) {
+			const int tinyY = (py * CyclopediaSatelliteBasePixelsPerSquare) / outputPixelsPerSquare;
+			for (int px = 0; px < outputPixelsPerSquare; ++px) {
+				const int tinyX = (px * CyclopediaSatelliteBasePixelsPerSquare) / outputPixelsPerSquare;
+				const int tinyIndex = tinyY * CyclopediaSatelliteBasePixelsPerSquare + tinyX;
+				const size_t outIndex = (static_cast<size_t>(tileY * outputPixelsPerSquare + py) * static_cast<size_t>(paintContext.outWidth)
+										 + static_cast<size_t>(tileX * outputPixelsPerSquare + px))
+					* rme::PixelFormatRGB;
+				blendTinyPixel(paintContext.outData[outIndex], paintContext.outData[outIndex + 1], paintContext.outData[outIndex + 2], tinySprite[tinyIndex]);
+			}
+		}
+	}
+
+	void paintCyclopediaSatelliteTile(
+		const Position &position,
+		const Tile &tile,
+		const int tileX,
+		const int tileY,
+		const CyclopediaSatellitePaintContext &paintContext
+	) {
+		std::vector<const Item*> drawItems;
+		collectCyclopediaSatelliteDrawItems(tile, drawItems);
+
+		for (const Item* item : drawItems) {
+			uint32_t spriteId = 0;
+			if (!resolveCyclopediaItemSpriteId(position, &tile, item, spriteId)) {
+				continue;
+			}
+
+			const SatelliteTinySprite* tinySprite = getTinySpriteForSpriteId(spriteId, *paintContext.spriteTinyCache);
+			if (!tinySprite) {
+				continue;
+			}
+
+			paintCyclopediaSatelliteSprite(*tinySprite, tileX, tileY, paintContext);
+		}
+	}
+
+	bool buildCyclopediaSatelliteChunk(Map &map, const CyclopediaChunkArea &area, const double pixelsPerSquare, const wxImage &minimapChunk, wxImage &image) {
+		if (area.width <= 0 || area.height <= 0) {
+			return false;
+		}
+
+		const double requestedPixelsPerSquare = std::clamp(pixelsPerSquare, CyclopediaMinPixelsPerSquare, static_cast<double>(CyclopediaSatelliteBasePixelsPerSquare));
+		const int outputPixelsPerSquare = std::clamp(static_cast<int>(std::ceil(requestedPixelsPerSquare)), 1, CyclopediaSatelliteBasePixelsPerSquare);
+		const int outWidth = area.width * outputPixelsPerSquare;
+		const int outHeight = area.height * outputPixelsPerSquare;
+		if (!image.Create(outWidth, outHeight, false)) {
+			return false;
+		}
+
+		unsigned char* outData = image.GetData();
+		if (!outData) {
+			return false;
+		}
+
+		fillCyclopediaSatelliteBackground(area, outputPixelsPerSquare, outWidth, minimapChunk, outData);
 
 		std::unordered_map<uint32_t, SatelliteTinySprite> spriteTinyCache;
 		spriteTinyCache.reserve(4096);
-
-		for (int y = 0; y < height; ++y) {
-			for (int x = 0; x < width; ++x) {
-				const Position position(startX + x, startY + y, floor);
+		const CyclopediaSatellitePaintContext paintContext {
+			.outputPixelsPerSquare = outputPixelsPerSquare,
+			.outWidth = outWidth,
+			.outData = outData,
+			.spriteTinyCache = &spriteTinyCache,
+		};
+		for (int y = 0; y < area.height; ++y) {
+			for (int x = 0; x < area.width; ++x) {
+				const Position position(area.startX + x, area.startY + y, area.floor);
 				Tile* tile = map.getTile(position);
-				if (!hasCyclopediaTileData(tile)) {
-					continue;
-				}
-
-				std::vector<const Item*> drawItems;
-				drawItems.reserve(tile->items.size() + 1);
-				if (tile->ground) {
-					drawItems.push_back(tile->ground);
-				}
-
-				for (const Item* item : tile->items) {
-					if (item && item->isBorder()) {
-						drawItems.push_back(item);
-					}
-				}
-
-				for (const Item* item : tile->items) {
-					if (item && !item->isBorder()) {
-						drawItems.push_back(item);
-					}
-				}
-
-				for (const Item* item : drawItems) {
-					uint32_t spriteId = 0;
-					if (!resolveCyclopediaItemSpriteId(position, tile, item, spriteId)) {
-						continue;
-					}
-
-					const SatelliteTinySprite* tinySprite = getTinySpriteForSpriteId(spriteId, spriteTinyCache);
-					if (!tinySprite) {
-						continue;
-					}
-
-					for (int py = 0; py < outputPixelsPerSquare; ++py) {
-						const int tinyY = (py * CyclopediaSatelliteBasePixelsPerSquare) / outputPixelsPerSquare;
-						for (int px = 0; px < outputPixelsPerSquare; ++px) {
-							const int tinyX = (px * CyclopediaSatelliteBasePixelsPerSquare) / outputPixelsPerSquare;
-							const int tinyIndex = tinyY * CyclopediaSatelliteBasePixelsPerSquare + tinyX;
-							const size_t outIndex = (static_cast<size_t>(y * outputPixelsPerSquare + py) * static_cast<size_t>(outWidth)
-													 + static_cast<size_t>(x * outputPixelsPerSquare + px))
-								* rme::PixelFormatRGB;
-							blendTinyPixel(outData[outIndex], outData[outIndex + 1], outData[outIndex + 2], (*tinySprite)[tinyIndex]);
-						}
-					}
+				if (hasCyclopediaTileData(tile)) {
+					paintCyclopediaSatelliteTile(position, *tile, x, y, paintContext);
 				}
 			}
 		}
 
-		if (!resampleCyclopediaChunk(image, width, height, requestedPixelsPerSquare)) {
+		if (!resampleCyclopediaChunk(image, area.width, area.height, requestedPixelsPerSquare)) {
 			return false;
 		}
 
 		return true;
 	}
 
-	bool isShopHouseName(const std::string &name) {
-		return name.find("(Shop)") != std::string::npos || name.find("(shop)") != std::string::npos;
+	bool isShopHouseName(const std::string_view name) {
+		return name.find("(Shop)") != std::string_view::npos || name.find("(shop)") != std::string_view::npos;
 	}
 
 	bool getHousePreviewFloor(const House &house, int &floor) {
@@ -1408,62 +1533,41 @@ namespace {
 		return item && (item->isBorder() || (item->isAlwaysOnBottom() && item->getTopOrder() < 3));
 	}
 
+	template <typename Callback>
+	void forEachHousePreviewItemInDrawOrder(const Tile &tile, Callback &&callback) {
+		callback(tile.ground);
+
+		for (const Item* item : tile.items) {
+			if (isHousePreviewBottomItem(item)) {
+				callback(item);
+			}
+		}
+
+		for (auto it = tile.items.rbegin(); it != tile.items.rend(); ++it) {
+			const Item* item = *it;
+			if (!isHousePreviewBottomItem(item) && !isHousePreviewTopItem(item)) {
+				callback(item);
+			}
+		}
+
+		for (const Item* item : tile.items) {
+			if (isHousePreviewTopItem(item)) {
+				callback(item);
+			}
+		}
+	}
+
 	bool fillHousePreviewItemData(const Position &position, const Tile* tile, const Item* item, HousePreviewItemData &itemData) {
 		if (!tile || !item) {
 			return false;
 		}
 
 		const ItemType &type = item->getItemType();
-		if (type.clientID == 0 || !type.sprite) {
+		int patternX = 0;
+		int patternY = 0;
+		int patternZ = 0;
+		if (!resolveCyclopediaItemPatterns(position, tile, item, patternX, patternY, patternZ)) {
 			return false;
-		}
-
-		GameSprite* sprite = type.sprite;
-		const int patternWidth = std::max<int>(1, static_cast<int>(sprite->pattern_x));
-		const int patternHeight = std::max<int>(1, static_cast<int>(sprite->pattern_y));
-		const int patternDepth = std::max<int>(1, static_cast<int>(sprite->pattern_z));
-
-		int patternX = position.x % patternWidth;
-		int patternY = position.y % patternHeight;
-		int patternZ = position.z % patternDepth;
-
-		if (type.stackable && patternWidth == 4 && patternHeight == 2) {
-			const auto subtype = static_cast<int>(item->getSubtype());
-			if (subtype <= 0) {
-				patternX = 0;
-				patternY = 0;
-			} else if (subtype < 5) {
-				patternX = subtype - 1;
-				patternY = 0;
-			} else if (subtype < 10) {
-				patternX = 0;
-				patternY = 1;
-			} else if (subtype < 25) {
-				patternX = 1;
-				patternY = 1;
-			} else if (subtype < 50) {
-				patternX = 2;
-				patternY = 1;
-			} else {
-				patternX = 3;
-				patternY = 1;
-			}
-			patternZ = 0;
-		} else if (type.isHangable) {
-			patternY = 0;
-			patternZ = 0;
-			if (tile->hasProperty(HOOK_SOUTH)) {
-				patternX = patternWidth >= 2 ? 1 : 0;
-			} else if (tile->hasProperty(HOOK_EAST)) {
-				patternX = patternWidth >= 3 ? 2 : 0;
-			} else {
-				patternX = 0;
-			}
-		} else if (type.isSplash() || type.isFluidContainer()) {
-			const auto subtype = static_cast<int>(Item::liquidSubTypeToSpriteSubType(static_cast<uint8_t>(item->getSubtype())));
-			patternX = (subtype % 4) % patternWidth;
-			patternY = (subtype / 4) % patternHeight;
-			patternZ = 0;
 		}
 
 		itemData.clientId = type.clientID;
@@ -1559,29 +1663,7 @@ namespace {
 					tileData.items.emplace_back(itemData);
 				};
 
-				addPreviewItem(tile->ground);
-
-				for (const Item* item : tile->items) {
-					if (!isHousePreviewBottomItem(item)) {
-						continue;
-					}
-					addPreviewItem(item);
-				}
-
-				for (auto it = tile->items.rbegin(); it != tile->items.rend(); ++it) {
-					const Item* item = *it;
-					if (isHousePreviewBottomItem(item) || isHousePreviewTopItem(item)) {
-						continue;
-					}
-					addPreviewItem(item);
-				}
-
-				for (const Item* item : tile->items) {
-					if (!isHousePreviewTopItem(item)) {
-						continue;
-					}
-					addPreviewItem(item);
-				}
+				forEachHousePreviewItemInDrawOrder(*tile, addPreviewItem);
 
 				tiles.emplace_back(std::move(tileData));
 				hasData = true;
@@ -1642,29 +1724,7 @@ namespace {
 			clientIds.emplace_back(itemData.clientId);
 		};
 
-		addPreviewItem(tile->ground);
-
-		for (const Item* item : tile->items) {
-			if (!isHousePreviewBottomItem(item)) {
-				continue;
-			}
-			addPreviewItem(item);
-		}
-
-		for (auto it = tile->items.rbegin(); it != tile->items.rend(); ++it) {
-			const Item* item = *it;
-			if (isHousePreviewBottomItem(item) || isHousePreviewTopItem(item)) {
-				continue;
-			}
-			addPreviewItem(item);
-		}
-
-		for (const Item* item : tile->items) {
-			if (!isHousePreviewTopItem(item)) {
-				continue;
-			}
-			addPreviewItem(item);
-		}
+		forEachHousePreviewItemInDrawOrder(*tile, addPreviewItem);
 
 		return !clientIds.empty();
 	}
@@ -1986,7 +2046,7 @@ namespace {
 			tile->set_skip(serializedTile.skip);
 		}
 
-		auto &exportStats = g_staticMapHouseExportDebugStats;
+		auto &exportStats = staticMapHouseExportDebugStats();
 		++exportStats.housesProcessed;
 		exportStats.tilesWritten += serializedTiles.size();
 		exportStats.tilesWithItems += tilesWithItems;
@@ -2074,14 +2134,12 @@ namespace {
 			return std::filesystem::path();
 		}
 
-		const std::filesystem::path catalogAtRoot = inputBasePath / "catalog-content.json";
-		if (std::filesystem::exists(catalogAtRoot)) {
+		if (const std::filesystem::path catalogAtRoot = inputBasePath / "catalog-content.json"; std::filesystem::exists(catalogAtRoot)) {
 			return inputBasePath;
 		}
 
 		const std::filesystem::path assetsPath = inputBasePath / "assets";
-		const std::filesystem::path catalogAtAssets = assetsPath / "catalog-content.json";
-		if (std::filesystem::exists(catalogAtAssets)) {
+		if (const std::filesystem::path catalogAtAssets = assetsPath / "catalog-content.json"; std::filesystem::exists(catalogAtAssets)) {
 			return assetsPath;
 		}
 
@@ -2126,7 +2184,7 @@ namespace {
 			}
 
 			return !catalogFiles.mapFileName.empty() || !catalogFiles.staticMapDataFileName.empty() || !catalogFiles.staticDataFileName.empty();
-		} catch (...) {
+		} catch (const nlohmann::json::exception&) {
 			return false;
 		}
 	}
@@ -2205,8 +2263,7 @@ namespace {
 			return false;
 		}
 
-		const std::string actualHash = toHex(sha256Hash(bytes));
-		if (actualHash != expectedHash) {
+		if (const std::string actualHash = toHex(sha256Hash(bytes)); actualHash != expectedHash) {
 			spdlog::warn(
 				"[house-debug] template hash mismatch for '{}': expected={} actual={}",
 				path.string(),
@@ -2261,7 +2318,7 @@ namespace {
 		return true;
 	}
 
-	std::filesystem::path findValidTemplateAssetSibling(const std::filesystem::path &basePath, const std::string &fileName) {
+	std::filesystem::path findValidTemplateAssetSibling(const std::filesystem::path &basePath, const std::filesystem::path &fileName) {
 		if (basePath.empty() || fileName.empty()) {
 			return std::filesystem::path();
 		}
@@ -2536,9 +2593,9 @@ namespace {
 			housePositionDeltaRemap->clear();
 		}
 
-		std::unordered_map<std::string, std::vector<int>> generatedHousesByName;
-		std::unordered_map<std::string, std::vector<int>> generatedHousesByNormalizedName;
-		std::unordered_map<std::string, std::vector<int>> generatedHousesByAliasName;
+		std::map<std::string, std::vector<int>> generatedHousesByName;
+		std::map<std::string, std::vector<int>> generatedHousesByNormalizedName;
+		std::map<std::string, std::vector<int>> generatedHousesByAliasName;
 		std::unordered_map<HousePositionKey, std::vector<int>, HousePositionKeyHash> generatedHousesByPosition;
 		std::vector<bool> generatedHouseUsed(static_cast<size_t>(generatedStaticData.house_size()), false);
 		size_t matchedTemplateHouses = 0;
@@ -2698,8 +2755,8 @@ namespace {
 			*mergedHouse = generatedHouse;
 
 			uint32_t targetHouseId = generatedHouse.house_id();
-			if (usedHouseIds.find(targetHouseId) != usedHouseIds.end()) {
-				while (usedHouseIds.find(nextHouseId) != usedHouseIds.end()) {
+			if (usedHouseIds.contains(targetHouseId)) {
+				while (usedHouseIds.contains(nextHouseId)) {
 					++nextHouseId;
 				}
 				targetHouseId = nextHouseId++;
@@ -5086,8 +5143,8 @@ bool IOMapOTBM::saveHouses(Map &map, pugi::xml_document &doc) {
 	decl.append_attribute("version") = "1.0";
 
 	pugi::xml_node houseNodes = doc.append_child("houses");
-	for (const auto &houseEntry : map.houses) {
-		const House* house = houseEntry.second;
+	for (const auto &[houseId, house] : map.houses) {
+		(void)houseId;
 		pugi::xml_node houseNode = houseNodes.append_child("house");
 
 		houseNode.append_attribute("name") = house->name.c_str();
@@ -5111,11 +5168,11 @@ bool IOMapOTBM::saveHouses(Map &map, pugi::xml_document &doc) {
 	return true;
 }
 
-std::string IOMapOTBM::getStaticDataFilename(const Map &map) const {
+std::string IOMapOTBM::getStaticDataFilename([[maybe_unused]] const Map &map) const {
 	return "staticdata.dat";
 }
 
-std::string IOMapOTBM::getStaticMapDataFilename(const Map &map) const {
+std::string IOMapOTBM::getStaticMapDataFilename([[maybe_unused]] const Map &map) const {
 	return "staticmapdata.dat";
 }
 
@@ -5123,8 +5180,8 @@ bool IOMapOTBM::serializeStaticDataHouses(Map &map, std::string &buffer) {
 	namespace pb_staticdata = clienteditor::protobuf::staticdata;
 
 	pb_staticdata::StaticData staticData;
-	for (const auto &houseEntry : map.houses) {
-		const House* house = houseEntry.second;
+	for (const auto &[houseId, house] : map.houses) {
+		(void)houseId;
 		if (!house) {
 			continue;
 		}
@@ -5181,8 +5238,8 @@ bool IOMapOTBM::serializeStaticMapDataHouses(
 	}
 
 	pb_staticmapdata::StaticMapData staticMapData;
-	for (const auto &houseEntry : map.houses) {
-		const House* house = houseEntry.second;
+	for (const auto &[houseId, house] : map.houses) {
+		(void)houseId;
 		if (!house || house->id == 0) {
 			continue;
 		}
@@ -5194,9 +5251,10 @@ bool IOMapOTBM::serializeStaticMapDataHouses(
 		}
 
 		const StaticMapHouseTemplate* houseTemplate = nullptr;
-		if (g_activeStaticMapHouseTemplates) {
-			const auto templateIt = g_activeStaticMapHouseTemplates->find(house->id);
-			if (templateIt != g_activeStaticMapHouseTemplates->end()) {
+		const auto* activeTemplates = activeStaticMapHouseTemplates();
+		if (activeTemplates) {
+			const auto templateIt = activeTemplates->find(house->id);
+			if (templateIt != activeTemplates->end()) {
 				houseTemplate = &templateIt->second;
 			}
 		}
@@ -5231,8 +5289,7 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 	const std::filesystem::path basePath = resolveCyclopediaCatalogBasePath(requestedOutputPath);
 	const std::filesystem::path backupRootPath = basePath / "bkps";
 	lastStaticHouseExportReport.outputBasePath = basePath.string();
-	std::unordered_set<std::string> normalizedHouseNameFilter;
-	normalizedHouseNameFilter.reserve(houseNamesFilter.size() * 2);
+	StaticDataHouseNameFilter normalizedHouseNameFilter;
 	for (const std::string &houseName : houseNamesFilter) {
 		const std::string normalizedHouseName = normalizeHouseName(houseName);
 		if (!normalizedHouseName.empty()) {
@@ -5245,8 +5302,8 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 
 	size_t mapHouseCount = 0;
 	size_t matchedFilteredHouseCount = 0;
-	for (const auto &houseEntry : map.houses) {
-		const House* house = houseEntry.second;
+	for (const auto &[houseId, house] : map.houses) {
+		(void)houseId;
 		if (!house || house->id == 0) {
 			continue;
 		}
@@ -5255,7 +5312,7 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 			continue;
 		}
 
-		if (normalizedHouseNameFilter.find(normalizeHouseName(house->name)) != normalizedHouseNameFilter.end()) {
+		if (normalizedHouseNameFilter.contains(normalizeHouseName(house->name))) {
 			++matchedFilteredHouseCount;
 		}
 	}
@@ -5268,22 +5325,28 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 	};
 
 	struct StaticHouseExportFilterScopeGuard final {
-		const std::unordered_set<std::string>* previousFilter = nullptr;
+		StaticDataHouseNameFilterPtr previousFilter = nullptr;
+		StaticHouseExportFilterScopeGuard(const StaticHouseExportFilterScopeGuard&) = delete;
+		StaticHouseExportFilterScopeGuard &operator=(const StaticHouseExportFilterScopeGuard&) = delete;
 		~StaticHouseExportFilterScopeGuard() {
-			g_activeStaticDataHouseNameFilter = previousFilter;
+			activeStaticDataHouseNameFilter() = previousFilter;
 		}
-	} staticHouseExportFilterScopeGuard;
-	staticHouseExportFilterScopeGuard.previousFilter = g_activeStaticDataHouseNameFilter;
-	g_activeStaticDataHouseNameFilter = hasHouseNameFilter ? &normalizedHouseNameFilter : nullptr;
+	};
+	StaticHouseExportFilterScopeGuard staticHouseExportFilterScopeGuard;
+	staticHouseExportFilterScopeGuard.previousFilter = activeStaticDataHouseNameFilter();
+	activeStaticDataHouseNameFilter() = hasHouseNameFilter ? &normalizedHouseNameFilter : nullptr;
 
 	struct StaticHouseDebugFilterScopeGuard final {
-		const std::unordered_set<std::string>* previousFilter = nullptr;
+		StaticDataHouseNameFilterPtr previousFilter = nullptr;
+		StaticHouseDebugFilterScopeGuard(const StaticHouseDebugFilterScopeGuard&) = delete;
+		StaticHouseDebugFilterScopeGuard &operator=(const StaticHouseDebugFilterScopeGuard&) = delete;
 		~StaticHouseDebugFilterScopeGuard() {
-			g_activeStaticDataDebugHouseNameFilter = previousFilter;
+			activeStaticDataDebugHouseNameFilter() = previousFilter;
 		}
-	} staticHouseDebugFilterScopeGuard;
-	staticHouseDebugFilterScopeGuard.previousFilter = g_activeStaticDataDebugHouseNameFilter;
-	g_activeStaticDataDebugHouseNameFilter = hasHouseNameFilter ? &normalizedHouseNameFilter : nullptr;
+	};
+	StaticHouseDebugFilterScopeGuard staticHouseDebugFilterScopeGuard;
+	staticHouseDebugFilterScopeGuard.previousFilter = activeStaticDataDebugHouseNameFilter();
+	activeStaticDataDebugHouseNameFilter() = hasHouseNameFilter ? &normalizedHouseNameFilter : nullptr;
 
 	std::error_code ec;
 	std::filesystem::create_directories(basePath, ec);
@@ -5475,15 +5538,18 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 	}
 
 	struct StaticMapTemplateScopeGuard final {
+		StaticMapTemplateScopeGuard(const StaticMapTemplateScopeGuard&) = delete;
+		StaticMapTemplateScopeGuard &operator=(const StaticMapTemplateScopeGuard&) = delete;
 		~StaticMapTemplateScopeGuard() {
-			g_activeStaticMapHouseTemplates = nullptr;
+			activeStaticMapHouseTemplates() = nullptr;
 		}
-	} staticMapTemplateScopeGuard;
-	g_activeStaticMapHouseTemplates = staticMapHouseTemplates.empty() ? nullptr : &staticMapHouseTemplates;
+	};
+	StaticMapTemplateScopeGuard staticMapTemplateScopeGuard;
+	activeStaticMapHouseTemplates() = staticMapHouseTemplates.empty() ? nullptr : &staticMapHouseTemplates;
 	resetStaticMapHouseExportDebugStats();
 	spdlog::info(
 		"[house-debug] staticmap export stage: active_templates={} total_templates={}",
-		g_activeStaticMapHouseTemplates != nullptr,
+		activeStaticMapHouseTemplates() != nullptr,
 		staticMapHouseTemplates.size()
 	);
 
@@ -5565,7 +5631,7 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 	return true;
 }
 
-std::string IOMapOTBM::getCyclopediaMapDataFilename(const Map &map) const {
+std::string IOMapOTBM::getCyclopediaMapDataFilename([[maybe_unused]] const Map &map) const {
 	return "map.dat";
 }
 
@@ -5576,7 +5642,7 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 	assets.clear();
 	buffer.clear();
 	MapData mapData;
-	auto reportProgress = [&](const int32_t done, const std::string &message = std::string()) -> bool {
+	auto reportProgress = [&](const int32_t done, const std::string &message = std::string()) {
 		if (!progress) {
 			return true;
 		}
@@ -5606,11 +5672,7 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 
 	struct CyclopediaRenderJob {
 		CyclopediaAssetLayerConfig config;
-		int floor = 0;
-		int startX = 0;
-		int startY = 0;
-		int width = 0;
-		int height = 0;
+		CyclopediaChunkArea area;
 	};
 
 	std::vector<CyclopediaRenderJob> jobs;
@@ -5638,14 +5700,10 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 					continue;
 				}
 
-				CyclopediaRenderJob job;
-				job.config = config;
-				job.floor = floor;
-				job.startX = chunkStartX;
-				job.startY = chunkStartY;
-				job.width = chunkWidth;
-				job.height = chunkHeight;
-				jobs.emplace_back(job);
+				jobs.push_back(CyclopediaRenderJob {
+					config,
+					CyclopediaChunkArea { floor, chunkStartX, chunkStartY, chunkWidth, chunkHeight },
+				});
 			}
 		};
 
@@ -5668,30 +5726,30 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 
 	for (const auto &job : jobs) {
 		++processedChunks;
-		const int32_t done = static_cast<int32_t>((processedChunks * 100ll) / totalChunks);
+		const auto done = static_cast<int32_t>((processedChunks * 100LL) / totalChunks);
 		const char spinner = CyclopediaProgressSpinner[processedChunks % CyclopediaProgressSpinner.size()];
-		const std::string chunkMessage = "Rendering chunks... (" + std::to_string(processedChunks) + "/" + std::to_string(totalChunks) + ") [" + std::string(1, spinner) + "]";
+		const std::string chunkMessage = std::format("Rendering chunks... ({}/{}) [{}]", processedChunks, totalChunks, spinner);
 		if (!reportProgress(done, chunkMessage)) {
 			return false;
 		}
 
 		wxImage minimapChunk;
 		bool chunkHasData = false;
-		if (!buildCyclopediaMinimapChunk(map, job.floor, job.startX, job.startY, job.width, job.height, minimapChunk, chunkHasData) || !chunkHasData) {
+		if (!buildCyclopediaMinimapChunk(map, job.area, minimapChunk, chunkHasData) || !chunkHasData) {
 			continue;
 		}
 
 		wxImage outputAssetChunk;
 		if (job.config.minimap) {
 			outputAssetChunk = minimapChunk.Copy();
-			if (!resampleCyclopediaChunk(outputAssetChunk, job.width, job.height, job.config.pixelsPerSquare)) {
+			if (!resampleCyclopediaChunk(outputAssetChunk, job.area.width, job.area.height, job.config.pixelsPerSquare)) {
 				continue;
 			}
 		} else {
 			wxImage satelliteChunk;
-			if (!buildCyclopediaSatelliteChunk(map, job.floor, job.startX, job.startY, job.width, job.height, job.config.pixelsPerSquare, minimapChunk, satelliteChunk)) {
+			if (!buildCyclopediaSatelliteChunk(map, job.area, job.config.pixelsPerSquare, minimapChunk, satelliteChunk)) {
 				satelliteChunk = minimapChunk.Copy();
-				if (!resampleCyclopediaChunk(satelliteChunk, job.width, job.height, job.config.pixelsPerSquare)) {
+				if (!resampleCyclopediaChunk(satelliteChunk, job.area.width, job.area.height, job.config.pixelsPerSquare)) {
 					continue;
 				}
 			}
@@ -5704,25 +5762,25 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 
 		std::vector<uint8_t> assetBytes;
 		std::string assetHash;
-		if (!reportProgress(done, "Encoding assets... (" + std::to_string(processedChunks) + "/" + std::to_string(totalChunks) + ") [" + std::string(1, spinner) + "]")) {
+		if (!reportProgress(done, std::format("Encoding assets... ({}/{}) [{}]", processedChunks, totalChunks, spinner))) {
 			return false;
 		}
 		if (!encodeCyclopediaAsset(outputAssetChunk, assetBytes, assetHash)) {
 			continue;
 		}
 
-		const std::string assetFilename = buildCyclopediaAssetFilename(job.config.minimap, job.config.scale, job.startX, job.startY, job.floor, assetHash);
+		const std::string assetFilename = buildCyclopediaAssetFilename(job.config.minimap, job.config.scale, job.area.startX, job.area.startY, job.area.floor, assetHash);
 		auto* mapAsset = mapData.add_mapassets();
 		mapAsset->set_type(job.config.minimap ? MapAssets_AssetsType_MINIMAP : MapAssets_AssetsType_SATELLITE);
 		mapAsset->set_filename(assetFilename);
-		mapAsset->set_widthsquare(static_cast<uint32_t>(job.width));
-		mapAsset->set_heightsquare(static_cast<uint32_t>(job.height));
+		mapAsset->set_widthsquare(static_cast<uint32_t>(job.area.width));
+		mapAsset->set_heightsquare(static_cast<uint32_t>(job.area.height));
 		mapAsset->set_areaid(0);
 		mapAsset->set_scale(job.config.scale);
 		auto* topLeft = mapAsset->mutable_topleft();
-		topLeft->set_posx(static_cast<uint32_t>(std::max(job.startX, 0)));
-		topLeft->set_posy(static_cast<uint32_t>(std::max(job.startY, 0)));
-		topLeft->set_posz(static_cast<uint32_t>(std::max(job.floor, 0)));
+		topLeft->set_posx(static_cast<uint32_t>(std::max(job.area.startX, 0)));
+		topLeft->set_posy(static_cast<uint32_t>(std::max(job.area.startY, 0)));
+		topLeft->set_posz(static_cast<uint32_t>(std::max(job.area.floor, 0)));
 
 		assets.emplace_back(assetFilename, std::move(assetBytes));
 		hasAnyAsset = true;
@@ -5741,7 +5799,7 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 bool IOMapOTBM::saveCyclopediaMapData(Map &map, const FileName &dir, const CyclopediaExportProgressFn &progress, int satellitePixelsPerSquare) {
 	using namespace clienteditor::protobuf::mapdata;
 
-	auto reportProgress = [&](const int32_t done, const std::string &message = std::string()) -> bool {
+	auto reportProgress = [&](const int32_t done, const std::string &message = std::string()) {
 		if (!progress) {
 			return true;
 		}
@@ -5776,7 +5834,7 @@ bool IOMapOTBM::saveCyclopediaMapData(Map &map, const FileName &dir, const Cyclo
 	std::string mapDataBuffer;
 	std::vector<std::pair<std::string, std::vector<uint8_t>>> assets;
 	if (!serializeCyclopediaMapData(
-			map, mapDataBuffer, assets, [&](const int32_t done, const std::string &message) {
+			map, mapDataBuffer, assets, [&reportProgress](const int32_t done, const std::string &message) {
 				return reportProgress(std::min<int32_t>(95, done), message);
 			},
 			satellitePixelsPerSquare
@@ -5847,9 +5905,9 @@ bool IOMapOTBM::saveCyclopediaMapData(Map &map, const FileName &dir, const Cyclo
 		assetFile.close();
 
 		++writtenAssets;
-		const int32_t done = 96 + static_cast<int32_t>((writtenAssets * 3ll) / totalAssets);
+		const int32_t done = 96 + static_cast<int32_t>((writtenAssets * 3LL) / totalAssets);
 		const char spinner = CyclopediaProgressSpinner[writtenAssets % CyclopediaProgressSpinner.size()];
-		if (!reportProgress(done, "Writing assets... (" + std::to_string(writtenAssets) + "/" + std::to_string(totalAssets) + ") [" + std::string(1, spinner) + "]")) {
+		if (!reportProgress(done, std::format("Writing assets... ({}/{}) [{}]", writtenAssets, totalAssets, spinner))) {
 			return false;
 		}
 	}

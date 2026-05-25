@@ -1072,7 +1072,7 @@ void MainMenuBar::OnExportMinimap(wxCommandEvent &WXUNUSED(event)) {
 	dialog.ShowModal();
 }
 
-void MainMenuBar::OnExportStaticHouseData(wxCommandEvent &WXUNUSED(event)) {
+void MainMenuBar::OnExportStaticHouseData(wxCommandEvent&) {
 	if (!g_gui.IsEditorOpen()) {
 		return;
 	}
@@ -1104,7 +1104,7 @@ void MainMenuBar::OnExportStaticHouseData(wxCommandEvent &WXUNUSED(event)) {
 	}
 }
 
-void MainMenuBar::OnExportCyclopediaMapData(wxCommandEvent &WXUNUSED(event)) {
+void MainMenuBar::OnExportCyclopediaMapData(wxCommandEvent&) {
 	static bool cyclopediaExportRunning = false;
 
 	if (cyclopediaExportRunning) {
@@ -1130,10 +1130,13 @@ void MainMenuBar::OnExportCyclopediaMapData(wxCommandEvent &WXUNUSED(event)) {
 		bool &running;
 		explicit CyclopediaExportGuard(bool &value) :
 			running(value) { }
+		CyclopediaExportGuard(const CyclopediaExportGuard&) = delete;
+		CyclopediaExportGuard &operator=(const CyclopediaExportGuard&) = delete;
 		~CyclopediaExportGuard() {
 			running = false;
 		}
-	} exportGuard(cyclopediaExportRunning);
+	};
+	CyclopediaExportGuard exportGuard(cyclopediaExportRunning);
 
 	g_gui.CreateLoadBar("Exporting cyclopedia minimap/satellite...", true);
 	bool exportCancelled = false;

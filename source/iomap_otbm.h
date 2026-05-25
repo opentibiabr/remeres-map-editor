@@ -151,9 +151,10 @@ public:
 		return staticHouseExportReport_;
 	}
 
-protected:
+private:
 	StaticHouseExportReport staticHouseExportReport_;
 
+protected:
 	static bool getVersionInfo(NodeFileReadHandle* f, MapVersion &out_ver);
 
 	virtual bool loadMap(Map &map, NodeFileReadHandle &handle);
