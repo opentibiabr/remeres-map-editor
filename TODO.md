@@ -112,6 +112,14 @@
 - [ ] Add a manual `sync runtime` command after save
 - [ ] Add `DB vs XML` comparison during the hybrid phase
 
+## Palette Editor Roadmap
+- [ ] Stage 10A: Rebuild `Palettes` navigation around runtime families (`Terrain Palette`, `Doodad Palette`, `Item Palette`) with clear entry points into a real palette editor
+- [ ] Stage 10B: Add a fast `Palette Editor` model/view for palette sections and entries, keeping editing inside the `Materials Workbench`
+- [ ] Stage 10C: Support structural editing of palettes and sections: create, rename, delete, move, and reorder
+- [ ] Stage 10D: Support brush membership editing inside palettes: add, remove, move between sections/palettes, and reorder entries
+- [ ] Stage 10E: After every palette save, repopulate the navigation tree and refresh runtime palette state so runtime and Workbench stay aligned
+- [ ] Stage 10F: Keep XML-first onboarding working: first import may come from legacy XML, then `materials.db` remains the primary editable source
+
 ## Variations Status
 - [x] `variations` are now a delivered functional milestone for the Brush Workspace
 - [x] Core functional value from the old editor has started to return
@@ -135,13 +143,15 @@
 ## Next Task Handoff
 - `Stage 9` is now considered complete
 - `Stage 10` has started with a first polish pass focused on shared workspace structure instead of previews
-- `Stage 10` navigation now also has a first professional categorization pass: the left tree separates `Catalog` from `Specialized Editors`, adds counts to group labels, groups palettes by source, and keeps brushes/walls/borders easier to scan
+- `Stage 10` navigation now also has a first professional categorization pass: the left tree separates `Catalog` from `Specialized Editors`, adds counts to group labels, and distinguishes `Palettes` from `Brushes` as different editing responsibilities
 - Brush Workspace closed its `Stage 9` pass with variations, dirty state, save/revert flow, rename-safe palette sync, stronger validation, provenance clarity, navigation preservation, and context-preserving refreshes in place
 - Brush Workspace now also exposes runtime-owner hints for variation `item id`, `lookId`, and `serverLookId`, making ownership conflicts visible before save without over-restricting metadata choices
 - Brush palette runtime sync already updates renamed brushes and saved `lookId` changes without full runtime reload
 - Brush Workspace now only restores variation tab/selection/scroll context when reloading the same brush; switching to a different brush no longer reuses stale context from the previous selection
 - Brush, Wall, and Border workspaces now share a more consistent Stage 10 structure: subdued subtitles, wrapped status area with stable height, action buttons with consistent width/tooltips, and improved ready/save/revert messaging
-- The left sidebar now presents a more professional information architecture: `Catalog` for palettes/brushes, `Specialized Editors` for walls/borders, and source/count grouping to reduce flat-list scanning
+- The left sidebar now presents a clearer split of responsibilities: `Palettes` is for palette composition, `Brushes` is for brush authoring by domain/subcategory, and `Walls`/`Borders` stay under `Specialized Editors`
+- `Brushes` now groups authoring work by domain (`Terrain`, `Doodad`, `Carpet`, `Table`) and then by palette-derived subcategory labels, while `Palettes` stays focused on runtime composition/editing of tilesets
+- `Palettes` in the tree now lists palettes directly by palette name for faster navigation; source/import-origin labels were removed from the main navigation to keep the UX focused on the actual palette entries
 - The shared Stage 10 workspace-polish helpers now stay unity-build-safe by using panel-specific helper names instead of duplicate anonymous-namespace symbols across multiple `.cpp` files
 - The current modified-field highlight still has room for a more professional visual treatment, but that now belongs to the remaining Stage 10 polish
 - `Wall Workspace` completed its `Stage 9` pass with dirty state, save/revert consistency, selection-change protection, close protection, navigation badge integration, and context preservation across save/reload
@@ -153,5 +163,9 @@
 - `Border Workspace` slot/preview grids now keep the corrected runtime-driven geometry; cardinals/corners use the screen-facing labels, and the diagonal labels were finally realigned to the preview quadrants after the preview positions themselves were validated
 - `Border Workspace` now also preserves the selected edge per border set across reloads/switches and blocks metadata combinations that would make the targeted runtime refresh path unsupported after save
 - Final reassess decision: the remaining open items are Stage 10 polish or later features, not Stage 9 blockers
-- Recommended next task goal: continue `Stage 10` with richer visual previews or a second navigation pass (search/filter + stronger palette-first grouping), without reopening Stage 9 save/validation/runtime-refresh work
+- Palette Editor direction is now explicit: `Palettes` must become a professional, simple, high-performance editor of the real runtime palette structure, still inside the `Materials Workbench`
+- Palette edits must stay authoritative and reflected after save in three places together: `materials.db`, the Workbench navigation tree, and the runtime palette state
+- Palette UX should reflect runtime families (`Terrain Palette`, `Doodad Palette`, `Item Palette`) and their real categories, without introducing a parallel taxonomy for palette composition
+- Legacy XML remains for compatibility and first-time onboarding/import, but normal editing should continue DB-first in the Workbench after the initial import
+- Recommended next task goal: start Stage 10A by reshaping `Palettes` navigation and entry points around runtime families before deeper CRUD/move operations
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`

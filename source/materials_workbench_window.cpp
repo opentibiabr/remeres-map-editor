@@ -141,7 +141,7 @@ namespace {
 		wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 
 		wxStaticText* title = new wxStaticText(panel, wxID_ANY, "Catalog");
-		wxStaticText* subtitle = new wxStaticText(panel, wxID_ANY, "Browse palettes first, then specialized editors for brushes, walls, and borders.");
+		wxStaticText* subtitle = new wxStaticText(panel, wxID_ANY, "Palettes edit composition. Brushes edit behavior.");
 		subtitle->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_GRAYTEXT));
 		outTree = new wxTreeCtrl(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTR_DEFAULT_STYLE | wxTR_HIDE_ROOT | wxTR_SINGLE);
 
