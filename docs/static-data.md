@@ -211,6 +211,7 @@ Current exporter protections:
 - rejects invalid templates.
 - tries a hash-valid sibling template when available.
 - falls back to current-map dynamic export when no compatible template is found.
+- skips out-of-bounds map coordinates before tile lookup so preview and map asset scans cannot alias negative coordinates into high map regions.
 - writes filenames whose embedded hash matches the generated content.
 - emits `1/64`, `1/32`, and `1/16` minimap/satellite layers.
 

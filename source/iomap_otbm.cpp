@@ -804,6 +804,20 @@ namespace {
 		return tile && (tile->ground || !tile->items.empty());
 	}
 
+	bool isValidMapTilePosition(const Position &position) {
+		return position.x >= 0 && position.x <= rme::MapMaxWidth
+			&& position.y >= 0 && position.y <= rme::MapMaxHeight
+			&& position.z >= rme::MapMinLayer && position.z <= rme::MapMaxLayer;
+	}
+
+	Tile* getCyclopediaMapTile(Map &map, const Position &position) {
+		if (!isValidMapTilePosition(position)) {
+			return nullptr;
+		}
+
+		return map.getTile(position);
+	}
+
 	bool getCyclopediaFloorBounds(Map &map, const int floor, int &minX, int &minY, int &maxX, int &maxY) {
 		minX = std::numeric_limits<int>::max();
 		minY = std::numeric_limits<int>::max();
@@ -1042,7 +1056,7 @@ namespace {
 
 	void writeCyclopediaMinimapTile(Map &map, const CyclopediaChunkArea &area, const int x, const int y, unsigned char* data, bool &hasData) {
 		const Position position(area.startX + x, area.startY + y, area.floor);
-		Tile* tile = map.getTile(position);
+		Tile* tile = getCyclopediaMapTile(map, position);
 		if (!hasCyclopediaTileData(tile)) {
 			return;
 		}
@@ -1474,7 +1488,7 @@ namespace {
 		for (int y = 0; y < area.height; ++y) {
 			for (int x = 0; x < area.width; ++x) {
 				const Position position(area.startX + x, area.startY + y, area.floor);
-				Tile* tile = map.getTile(position);
+				Tile* tile = getCyclopediaMapTile(map, position);
 				if (hasCyclopediaTileData(tile)) {
 					paintCyclopediaSatelliteTile(position, *tile, x, y, paintContext);
 				}
@@ -1632,7 +1646,7 @@ namespace {
 		for (int y = 0; y < height; ++y) {
 			for (int x = 0; x < width; ++x) {
 				const Position position(minX + x, minY + y, floor);
-				Tile* tile = map.getTile(position);
+				Tile* tile = getCyclopediaMapTile(map, position);
 				if (!tile || (!tile->ground && tile->items.empty())) {
 					continue;
 				}
@@ -1799,8 +1813,8 @@ namespace {
 				size_t droppedByCapForTile = 0;
 				size_t droppedInvalidForTile = 0;
 				std::vector<uint32_t> sampledTileItemValues;
-				Tile* tile = map.getTile(position);
-				Tile* alternativeTile = map.getTile(alternativePosition);
+				Tile* tile = getCyclopediaMapTile(map, position);
+				Tile* alternativeTile = getCyclopediaMapTile(map, alternativePosition);
 				if (!tile) {
 					++missingMapTileCount;
 				}
@@ -1847,7 +1861,7 @@ namespace {
 					}
 					if (houseDebugTarget && detailedMismatchLogs < HousePreviewDetailedLogLimit) {
 						collectRawTileClientIds(tile, rawTileClientIds);
-						collectRawTileClientIds(map.getTile(alternativePosition), rawAltTileClientIds);
+						collectRawTileClientIds(getCyclopediaMapTile(map, alternativePosition), rawAltTileClientIds);
 						spdlog::info(
 							"[house-debug] house={} name='{}' tile_mismatch idx={} rel=({}, {}, {}) world=({}, {}, {}) south={} template_items={} sampled_items={} raw_items={} "
 							"alt_rel=({}, {}, {}) alt_world=({}, {}, {}) alt_items={} alt_raw_items={} written_items={} drop_cap={} drop_invalid={} tile_exists={}",
@@ -1965,7 +1979,7 @@ namespace {
 							continue;
 						}
 
-						Tile* tile = map.getTile(position);
+						Tile* tile = getCyclopediaMapTile(map, position);
 						size_t droppedByCapForTile = 0;
 						size_t droppedInvalidForTile = 0;
 						const bool hasPreviewItems = tile && collectHousePreviewClientIds(position, tile, tileClientIds, &droppedByCapForTile, &droppedInvalidForTile);

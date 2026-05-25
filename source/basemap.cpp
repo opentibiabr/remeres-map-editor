@@ -126,6 +126,7 @@ void BaseMap::setTile(TileLocation* location, Tile* new_tile, bool remove) {
 }
 
 void BaseMap::setTile(int x, int y, int z, Tile* new_tile, bool remove) {
+	ASSERT(z >= 0 && z < rme::MapLayers);
 	ASSERT(!new_tile || new_tile->getX() == x);
 	ASSERT(!new_tile || new_tile->getY() == y);
 	ASSERT(!new_tile || new_tile->getZ() == z);
