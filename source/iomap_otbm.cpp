@@ -720,10 +720,8 @@ namespace {
 		options.mf = LZMA_MF_HC3;
 		options.depth = 4;
 
-		std::array<lzma_filter, 2> filters { {
-			{ LZMA_FILTER_LZMA1, &options },
-			{ LZMA_VLI_UNKNOWN, nullptr }
-		} };
+		std::array<lzma_filter, 2> filters { { { LZMA_FILTER_LZMA1, &options },
+											   { LZMA_VLI_UNKNOWN, nullptr } } };
 
 		lzma_stream stream = LZMA_STREAM_INIT;
 		lzma_ret result = lzma_raw_encoder(&stream, filters.data());
@@ -2184,7 +2182,7 @@ namespace {
 			}
 
 			return !catalogFiles.mapFileName.empty() || !catalogFiles.staticMapDataFileName.empty() || !catalogFiles.staticDataFileName.empty();
-		} catch (const nlohmann::json::exception&) {
+		} catch (const nlohmann::json::exception &) {
 			return false;
 		}
 	}
@@ -5326,8 +5324,8 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 
 	struct StaticHouseExportFilterScopeGuard final {
 		StaticDataHouseNameFilterPtr previousFilter = nullptr;
-		StaticHouseExportFilterScopeGuard(const StaticHouseExportFilterScopeGuard&) = delete;
-		StaticHouseExportFilterScopeGuard &operator=(const StaticHouseExportFilterScopeGuard&) = delete;
+		StaticHouseExportFilterScopeGuard(const StaticHouseExportFilterScopeGuard &) = delete;
+		StaticHouseExportFilterScopeGuard &operator=(const StaticHouseExportFilterScopeGuard &) = delete;
 		~StaticHouseExportFilterScopeGuard() {
 			activeStaticDataHouseNameFilter() = previousFilter;
 		}
@@ -5338,8 +5336,8 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 
 	struct StaticHouseDebugFilterScopeGuard final {
 		StaticDataHouseNameFilterPtr previousFilter = nullptr;
-		StaticHouseDebugFilterScopeGuard(const StaticHouseDebugFilterScopeGuard&) = delete;
-		StaticHouseDebugFilterScopeGuard &operator=(const StaticHouseDebugFilterScopeGuard&) = delete;
+		StaticHouseDebugFilterScopeGuard(const StaticHouseDebugFilterScopeGuard &) = delete;
+		StaticHouseDebugFilterScopeGuard &operator=(const StaticHouseDebugFilterScopeGuard &) = delete;
 		~StaticHouseDebugFilterScopeGuard() {
 			activeStaticDataDebugHouseNameFilter() = previousFilter;
 		}
@@ -5538,8 +5536,8 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 	}
 
 	struct StaticMapTemplateScopeGuard final {
-		StaticMapTemplateScopeGuard(const StaticMapTemplateScopeGuard&) = delete;
-		StaticMapTemplateScopeGuard &operator=(const StaticMapTemplateScopeGuard&) = delete;
+		StaticMapTemplateScopeGuard(const StaticMapTemplateScopeGuard &) = delete;
+		StaticMapTemplateScopeGuard &operator=(const StaticMapTemplateScopeGuard &) = delete;
 		~StaticMapTemplateScopeGuard() {
 			activeStaticMapHouseTemplates() = nullptr;
 		}
