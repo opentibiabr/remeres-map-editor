@@ -86,9 +86,10 @@ namespace {
 		double pixelsPerSquare = 1.0;
 	};
 
-	constexpr std::array<CyclopediaAssetLayerConfig, 2> CyclopediaMinimapLayers { {
+	constexpr std::array<CyclopediaAssetLayerConfig, 3> CyclopediaMinimapLayers { {
 		{ true, 1.0 / 64.0, 1024, 0.5 },
 		{ true, 1.0 / 32.0, 512, 1.0 },
+		{ true, 1.0 / 16.0, 256, 2.0 },
 	} };
 
 	constexpr std::array<CyclopediaAssetLayerConfig, 3> CyclopediaSatelliteLayers { {
@@ -876,6 +877,80 @@ namespace {
 		return std::max(1, static_cast<int>(std::ceil(static_cast<double>(tileDimension) * clampedPixelsPerSquare)));
 	}
 
+	bool downsampleCyclopediaChunk(wxImage &image, const int targetWidth, const int targetHeight) {
+		if (!image.IsOk() || targetWidth <= 0 || targetHeight <= 0) {
+			return false;
+		}
+
+		const int sourceWidth = image.GetWidth();
+		const int sourceHeight = image.GetHeight();
+		const unsigned char* sourceData = image.GetData();
+		if (!sourceData || sourceWidth <= 0 || sourceHeight <= 0) {
+			return false;
+		}
+
+		wxImage downsampled;
+		if (!downsampled.Create(targetWidth, targetHeight, false)) {
+			return false;
+		}
+
+		unsigned char* targetData = downsampled.GetData();
+		if (!targetData) {
+			return false;
+		}
+
+		for (int targetY = 0; targetY < targetHeight; ++targetY) {
+			const double sourceY0 = (static_cast<double>(targetY) * sourceHeight) / targetHeight;
+			const double sourceY1 = (static_cast<double>(targetY + 1) * sourceHeight) / targetHeight;
+			const int sourceYBegin = std::clamp(static_cast<int>(std::floor(sourceY0)), 0, sourceHeight - 1);
+			const int sourceYEnd = std::clamp(static_cast<int>(std::ceil(sourceY1)), sourceYBegin + 1, sourceHeight);
+
+			for (int targetX = 0; targetX < targetWidth; ++targetX) {
+				const double sourceX0 = (static_cast<double>(targetX) * sourceWidth) / targetWidth;
+				const double sourceX1 = (static_cast<double>(targetX + 1) * sourceWidth) / targetWidth;
+				const int sourceXBegin = std::clamp(static_cast<int>(std::floor(sourceX0)), 0, sourceWidth - 1);
+				const int sourceXEnd = std::clamp(static_cast<int>(std::ceil(sourceX1)), sourceXBegin + 1, sourceWidth);
+
+				double red = 0.0;
+				double green = 0.0;
+				double blue = 0.0;
+				double totalWeight = 0.0;
+				for (int sourceY = sourceYBegin; sourceY < sourceYEnd; ++sourceY) {
+					const double yWeight = std::min(sourceY1, static_cast<double>(sourceY + 1)) - std::max(sourceY0, static_cast<double>(sourceY));
+					if (yWeight <= 0.0) {
+						continue;
+					}
+
+					for (int sourceX = sourceXBegin; sourceX < sourceXEnd; ++sourceX) {
+						const double xWeight = std::min(sourceX1, static_cast<double>(sourceX + 1)) - std::max(sourceX0, static_cast<double>(sourceX));
+						const double weight = xWeight * yWeight;
+						if (weight <= 0.0) {
+							continue;
+						}
+
+						const size_t sourceIndex = (static_cast<size_t>(sourceY) * static_cast<size_t>(sourceWidth) + static_cast<size_t>(sourceX)) * rme::PixelFormatRGB;
+						red += static_cast<double>(sourceData[sourceIndex]) * weight;
+						green += static_cast<double>(sourceData[sourceIndex + 1]) * weight;
+						blue += static_cast<double>(sourceData[sourceIndex + 2]) * weight;
+						totalWeight += weight;
+					}
+				}
+
+				if (totalWeight <= 0.0) {
+					continue;
+				}
+
+				const size_t targetIndex = (static_cast<size_t>(targetY) * static_cast<size_t>(targetWidth) + static_cast<size_t>(targetX)) * rme::PixelFormatRGB;
+				targetData[targetIndex] = static_cast<unsigned char>(std::clamp(static_cast<int>(std::lround(red / totalWeight)), 0, 255));
+				targetData[targetIndex + 1] = static_cast<unsigned char>(std::clamp(static_cast<int>(std::lround(green / totalWeight)), 0, 255));
+				targetData[targetIndex + 2] = static_cast<unsigned char>(std::clamp(static_cast<int>(std::lround(blue / totalWeight)), 0, 255));
+			}
+		}
+
+		image = downsampled;
+		return image.IsOk();
+	}
+
 	bool resampleCyclopediaChunk(wxImage &image, const int tileWidth, const int tileHeight, const double pixelsPerSquare) {
 		if (!image.IsOk()) {
 			return false;
@@ -889,6 +964,10 @@ namespace {
 
 		if (image.GetWidth() == targetWidth && image.GetHeight() == targetHeight) {
 			return true;
+		}
+
+		if (targetWidth < image.GetWidth() || targetHeight < image.GetHeight()) {
+			return downsampleCyclopediaChunk(image, targetWidth, targetHeight);
 		}
 
 		image.Rescale(targetWidth, targetHeight, wxIMAGE_QUALITY_NEAREST);
