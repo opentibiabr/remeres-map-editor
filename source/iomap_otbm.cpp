@@ -5141,8 +5141,8 @@ bool IOMapOTBM::saveHouses(Map &map, pugi::xml_document &doc) {
 	decl.append_attribute("version") = "1.0";
 
 	pugi::xml_node houseNodes = doc.append_child("houses");
-	for (const auto &[houseId, house] : map.houses) {
-		(void)houseId;
+	for (const auto &[mapHouseId, house] : map.houses) {
+		(void)mapHouseId;
 		pugi::xml_node houseNode = houseNodes.append_child("house");
 
 		houseNode.append_attribute("name") = house->name.c_str();
@@ -5178,8 +5178,8 @@ bool IOMapOTBM::serializeStaticDataHouses(Map &map, std::string &buffer) {
 	namespace pb_staticdata = clienteditor::protobuf::staticdata;
 
 	pb_staticdata::StaticData staticData;
-	for (const auto &[houseId, house] : map.houses) {
-		(void)houseId;
+	for (const auto &[mapHouseId, house] : map.houses) {
+		(void)mapHouseId;
 		if (!house) {
 			continue;
 		}
@@ -5236,8 +5236,8 @@ bool IOMapOTBM::serializeStaticMapDataHouses(
 	}
 
 	pb_staticmapdata::StaticMapData staticMapData;
-	for (const auto &[houseId, house] : map.houses) {
-		(void)houseId;
+	for (const auto &[mapHouseId, house] : map.houses) {
+		(void)mapHouseId;
 		if (!house || house->id == 0) {
 			continue;
 		}
@@ -5300,8 +5300,8 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 
 	size_t mapHouseCount = 0;
 	size_t matchedFilteredHouseCount = 0;
-	for (const auto &[houseId, house] : map.houses) {
-		(void)houseId;
+	for (const auto &[mapHouseId, house] : map.houses) {
+		(void)mapHouseId;
 		if (!house || house->id == 0) {
 			continue;
 		}
@@ -5324,6 +5324,7 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 
 	struct StaticHouseExportFilterScopeGuard final {
 		StaticDataHouseNameFilterPtr previousFilter = nullptr;
+		StaticHouseExportFilterScopeGuard() = default;
 		StaticHouseExportFilterScopeGuard(const StaticHouseExportFilterScopeGuard &) = delete;
 		StaticHouseExportFilterScopeGuard &operator=(const StaticHouseExportFilterScopeGuard &) = delete;
 		~StaticHouseExportFilterScopeGuard() {
@@ -5336,6 +5337,7 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 
 	struct StaticHouseDebugFilterScopeGuard final {
 		StaticDataHouseNameFilterPtr previousFilter = nullptr;
+		StaticHouseDebugFilterScopeGuard() = default;
 		StaticHouseDebugFilterScopeGuard(const StaticHouseDebugFilterScopeGuard &) = delete;
 		StaticHouseDebugFilterScopeGuard &operator=(const StaticHouseDebugFilterScopeGuard &) = delete;
 		~StaticHouseDebugFilterScopeGuard() {
@@ -5536,6 +5538,7 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 	}
 
 	struct StaticMapTemplateScopeGuard final {
+		StaticMapTemplateScopeGuard() = default;
 		StaticMapTemplateScopeGuard(const StaticMapTemplateScopeGuard &) = delete;
 		StaticMapTemplateScopeGuard &operator=(const StaticMapTemplateScopeGuard &) = delete;
 		~StaticMapTemplateScopeGuard() {
