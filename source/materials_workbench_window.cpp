@@ -140,10 +140,13 @@ namespace {
 		wxPanel* panel = new wxPanel(parent, wxID_ANY);
 		wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 
-		wxStaticText* title = new wxStaticText(panel, wxID_ANY, "Workspaces");
+		wxStaticText* title = new wxStaticText(panel, wxID_ANY, "Catalog");
+		wxStaticText* subtitle = new wxStaticText(panel, wxID_ANY, "Browse palettes first, then specialized editors for brushes, walls, and borders.");
+		subtitle->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_GRAYTEXT));
 		outTree = new wxTreeCtrl(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTR_DEFAULT_STYLE | wxTR_HIDE_ROOT | wxTR_SINGLE);
 
 		sizer->Add(title, 0, wxEXPAND | wxALL, panel->FromDIP(8));
+		sizer->Add(subtitle, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, panel->FromDIP(8));
 		sizer->Add(new wxStaticLine(panel), 0, wxEXPAND | wxLEFT | wxRIGHT, panel->FromDIP(8));
 		sizer->Add(outTree, 1, wxEXPAND | wxALL, panel->FromDIP(8));
 		panel->SetSizer(sizer);

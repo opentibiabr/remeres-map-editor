@@ -2,7 +2,10 @@
 
 #include "materials_workbench_controller.h"
 
+#include <map>
+
 #include <wx/arrstr.h>
+#include <wx/filename.h>
 
 namespace {
 	wxString FormatInspectorImportedFromValue(const wxString &sourceFile) {
@@ -111,6 +114,24 @@ namespace {
 		}
 		return wxString::Format("Border Set #%lld", static_cast<long long>(border.id));
 	}
+
+	wxString FormatNavigationCountLabel(const wxString &label, size_t count) {
+		return wxString::Format("%s (%zu)", label, count);
+	}
+
+	wxString BuildPaletteSourceGroupKey(const wxString &sourceFile) {
+		return sourceFile.IsEmpty() ? "materials.db" : sourceFile;
+	}
+
+	wxString BuildPaletteSourceGroupLabel(const wxString &sourceFile) {
+		if (sourceFile.IsEmpty()) {
+			return "Stored Only";
+		}
+
+		wxFileName filename(sourceFile);
+		const wxString fullName = filename.GetFullName();
+		return fullName.IsEmpty() ? sourceFile : fullName;
+	}
 } // namespace
 
 bool MaterialsWorkbenchController::ReloadCatalog() {
@@ -152,28 +173,47 @@ wxString MaterialsWorkbenchController::GetInspectorText() const {
 std::vector<MaterialsWorkbenchTreeNode> MaterialsWorkbenchController::BuildNavigationTree() const {
 	std::vector<MaterialsWorkbenchTreeNode> nodes;
 
+	MaterialsWorkbenchTreeNode catalogNode;
+	catalogNode.kind = MaterialsWorkbenchNodeKind::Group;
+	catalogNode.label = "Catalog";
+	catalogNode.contextKey = "group:catalog";
+
 	MaterialsWorkbenchTreeNode palettesNode;
 	palettesNode.kind = MaterialsWorkbenchNodeKind::Group;
-	palettesNode.label = "Palettes";
+	palettesNode.label = FormatNavigationCountLabel("Palettes", catalog_.tilesets.size());
 	palettesNode.contextKey = "group:palettes";
+
+	std::map<wxString, std::vector<int>> paletteIndexesBySource;
 	for (size_t i = 0; i < catalog_.tilesets.size(); ++i) {
-		MaterialsWorkbenchTreeNode item;
-		item.kind = MaterialsWorkbenchNodeKind::Tileset;
-		item.label = catalog_.tilesets[i].name;
-		item.contextKey = "tilesets";
-		item.itemIndex = static_cast<int>(i);
-		palettesNode.children.push_back(std::move(item));
+		paletteIndexesBySource[BuildPaletteSourceGroupKey(catalog_.tilesets[i].sourceFile)].push_back(static_cast<int>(i));
 	}
-	nodes.push_back(std::move(palettesNode));
+
+	for (const auto &entry : paletteIndexesBySource) {
+		MaterialsWorkbenchTreeNode sourceNode;
+		sourceNode.kind = MaterialsWorkbenchNodeKind::Group;
+		const wxString sourceLabel = BuildPaletteSourceGroupLabel(entry.first == "materials.db" ? "" : entry.first);
+		sourceNode.label = FormatNavigationCountLabel(sourceLabel, entry.second.size());
+		sourceNode.contextKey = "tileset_source:" + entry.first;
+		for (int tilesetIndex : entry.second) {
+			MaterialsWorkbenchTreeNode item;
+			item.kind = MaterialsWorkbenchNodeKind::Tileset;
+			item.label = catalog_.tilesets[tilesetIndex].name;
+			item.contextKey = "tilesets";
+			item.itemIndex = tilesetIndex;
+			sourceNode.children.push_back(std::move(item));
+		}
+		palettesNode.children.push_back(std::move(sourceNode));
+	}
+	catalogNode.children.push_back(std::move(palettesNode));
 
 	MaterialsWorkbenchTreeNode brushesNode;
 	brushesNode.kind = MaterialsWorkbenchNodeKind::Group;
-	brushesNode.label = "Brushes";
+	brushesNode.label = FormatNavigationCountLabel("Brushes", catalog_.auditReport.brushCount);
 	brushesNode.contextKey = "group:brushes";
 	for (const MaterialsWorkbenchBrushGroup &group : catalog_.brushGroups) {
 		MaterialsWorkbenchTreeNode brushGroupNode;
 		brushGroupNode.kind = MaterialsWorkbenchNodeKind::Group;
-		brushGroupNode.label = group.label;
+		brushGroupNode.label = FormatNavigationCountLabel(group.label, group.brushes.size());
 		brushGroupNode.contextKey = "brush_group:" + group.brushType;
 		for (size_t i = 0; i < group.brushes.size(); ++i) {
 			MaterialsWorkbenchTreeNode item;
@@ -185,11 +225,17 @@ std::vector<MaterialsWorkbenchTreeNode> MaterialsWorkbenchController::BuildNavig
 		}
 		brushesNode.children.push_back(std::move(brushGroupNode));
 	}
-	nodes.push_back(std::move(brushesNode));
+	catalogNode.children.push_back(std::move(brushesNode));
+	nodes.push_back(std::move(catalogNode));
+
+	MaterialsWorkbenchTreeNode editorsNode;
+	editorsNode.kind = MaterialsWorkbenchNodeKind::Group;
+	editorsNode.label = "Specialized Editors";
+	editorsNode.contextKey = "group:specialized";
 
 	MaterialsWorkbenchTreeNode bordersNode;
 	bordersNode.kind = MaterialsWorkbenchNodeKind::Group;
-	bordersNode.label = "Borders";
+	bordersNode.label = FormatNavigationCountLabel("Borders", catalog_.globalBorderSets.size() + catalog_.inlineBorderSets.size());
 	bordersNode.contextKey = "group:borders";
 	const struct BorderScopeNode {
 		const char* label;
@@ -202,7 +248,7 @@ std::vector<MaterialsWorkbenchTreeNode> MaterialsWorkbenchController::BuildNavig
 	for (const BorderScopeNode &scope : borderScopes) {
 		MaterialsWorkbenchTreeNode scopeNode;
 		scopeNode.kind = MaterialsWorkbenchNodeKind::Group;
-		scopeNode.label = scope.label;
+		scopeNode.label = FormatNavigationCountLabel(scope.label, scope.collection->size());
 		scopeNode.contextKey = "border_scope:" + wxString::FromUTF8(scope.contextKey);
 		for (size_t i = 0; i < scope.collection->size(); ++i) {
 			const BorderSetRecord &record = (*scope.collection)[i];
@@ -215,11 +261,11 @@ std::vector<MaterialsWorkbenchTreeNode> MaterialsWorkbenchController::BuildNavig
 		}
 		bordersNode.children.push_back(std::move(scopeNode));
 	}
-	nodes.push_back(std::move(bordersNode));
+	editorsNode.children.push_back(std::move(bordersNode));
 
 	MaterialsWorkbenchTreeNode wallsNode;
 	wallsNode.kind = MaterialsWorkbenchNodeKind::Group;
-	wallsNode.label = "Walls";
+	wallsNode.label = FormatNavigationCountLabel("Walls", catalog_.wallBrushes.size());
 	wallsNode.contextKey = "group:walls";
 	for (size_t i = 0; i < catalog_.wallBrushes.size(); ++i) {
 		MaterialsWorkbenchTreeNode item;
@@ -229,7 +275,8 @@ std::vector<MaterialsWorkbenchTreeNode> MaterialsWorkbenchController::BuildNavig
 		item.itemIndex = static_cast<int>(i);
 		wallsNode.children.push_back(std::move(item));
 	}
-	nodes.push_back(std::move(wallsNode));
+	editorsNode.children.push_back(std::move(wallsNode));
+	nodes.push_back(std::move(editorsNode));
 
 	return nodes;
 }
