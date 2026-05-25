@@ -322,7 +322,21 @@ void MaterialsWorkbenchWindow::RefreshInspectorForCurrentSelection() {
 }
 
 void MaterialsWorkbenchWindow::HandlePaletteSaved() {
+	int selectedTilesetIndex = -1;
+	if (navigationTree_) {
+		if (auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(navigationTree_->GetSelection()))) {
+			if (itemData->kind == MaterialsWorkbenchNodeKind::Tileset) {
+				selectedTilesetIndex = itemData->itemIndex;
+			}
+		}
+	}
+
 	RefreshRuntimeMaterialPalettes("palette save");
+	RefreshWorkbenchState();
+	PopulateNavigation();
+	if (selectedTilesetIndex >= 0) {
+		SelectNavigationNode(MaterialsWorkbenchNodeKind::Tileset, "tilesets", selectedTilesetIndex);
+	}
 	RefreshInspectorForCurrentSelection();
 }
 

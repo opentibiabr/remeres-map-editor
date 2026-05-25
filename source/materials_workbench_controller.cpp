@@ -144,6 +144,42 @@ namespace {
 		return brushType;
 	}
 
+	wxString BuildPaletteFamilyKeyFromSectionType(const wxString &sectionType) {
+		if (sectionType.IsSameAs("terrain", false) || sectionType.IsSameAs("terrain_and_raw", false)) {
+			return "terrain";
+		}
+		if (sectionType.IsSameAs("doodad", false) || sectionType.IsSameAs("doodad_and_raw", false)) {
+			return "doodad";
+		}
+		if (sectionType.IsSameAs("items", false) || sectionType.IsSameAs("items_and_raw", false)) {
+			return "item";
+		}
+		return "";
+	}
+
+	wxString BuildPaletteFamilyKey(const TilesetStorageRecord &tileset) {
+		for (const TilesetSectionRecord &section : tileset.sections) {
+			const wxString familyKey = BuildPaletteFamilyKeyFromSectionType(section.sectionType);
+			if (!familyKey.IsEmpty()) {
+				return familyKey;
+			}
+		}
+		return "other";
+	}
+
+	wxString BuildPaletteFamilyLabel(const wxString &familyKey) {
+		if (familyKey == "terrain") {
+			return "Terrain Palette";
+		}
+		if (familyKey == "doodad") {
+			return "Doodad Palette";
+		}
+		if (familyKey == "item") {
+			return "Item Palette";
+		}
+		return "Other Palettes";
+	}
+
 } // namespace
 
 bool MaterialsWorkbenchController::ReloadCatalog() {
@@ -194,13 +230,32 @@ std::vector<MaterialsWorkbenchTreeNode> MaterialsWorkbenchController::BuildNavig
 	palettesNode.kind = MaterialsWorkbenchNodeKind::Group;
 	palettesNode.label = FormatNavigationCountLabel("Palettes", catalog_.tilesets.size());
 	palettesNode.contextKey = "group:palettes";
+
+	std::map<wxString, std::vector<int>> paletteIndexesByFamily;
 	for (size_t i = 0; i < catalog_.tilesets.size(); ++i) {
-		MaterialsWorkbenchTreeNode item;
-		item.kind = MaterialsWorkbenchNodeKind::Tileset;
-		item.label = catalog_.tilesets[i].name;
-		item.contextKey = "tilesets";
-		item.itemIndex = static_cast<int>(i);
-		palettesNode.children.push_back(std::move(item));
+		paletteIndexesByFamily[BuildPaletteFamilyKey(catalog_.tilesets[i])].push_back(static_cast<int>(i));
+	}
+
+	const wxString paletteFamilyOrder[] = { "terrain", "doodad", "item", "other" };
+	for (const wxString &familyKey : paletteFamilyOrder) {
+		const auto familyIt = paletteIndexesByFamily.find(familyKey);
+		if (familyIt == paletteIndexesByFamily.end() || familyIt->second.empty()) {
+			continue;
+		}
+
+		MaterialsWorkbenchTreeNode familyNode;
+		familyNode.kind = MaterialsWorkbenchNodeKind::Group;
+		familyNode.label = FormatNavigationCountLabel(BuildPaletteFamilyLabel(familyKey), familyIt->second.size());
+		familyNode.contextKey = "palette_family:" + familyKey;
+		for (int tilesetIndex : familyIt->second) {
+			MaterialsWorkbenchTreeNode item;
+			item.kind = MaterialsWorkbenchNodeKind::Tileset;
+			item.label = catalog_.tilesets[tilesetIndex].name;
+			item.contextKey = "tilesets";
+			item.itemIndex = tilesetIndex;
+			familyNode.children.push_back(std::move(item));
+		}
+		palettesNode.children.push_back(std::move(familyNode));
 	}
 	catalogNode.children.push_back(std::move(palettesNode));
 
@@ -548,7 +603,21 @@ wxString MaterialsWorkbenchController::BuildSelectionOverview(MaterialsWorkbench
 
 	if (kind == MaterialsWorkbenchNodeKind::Group) {
 		if (contextKey == "group:palettes") {
-			return wxString::Format("Palettes workspace\n\nLoaded %zu palettes from SQLite.", catalog_.tilesets.size());
+			return wxString::Format("Palettes workspace\n\nLoaded %zu palettes across the runtime palette families.", catalog_.tilesets.size());
+		}
+		if (contextKey.StartsWith("palette_family:")) {
+			const wxString familyKey = contextKey.AfterFirst(':');
+			size_t familyCount = 0;
+			for (const TilesetStorageRecord &tileset : catalog_.tilesets) {
+				if (BuildPaletteFamilyKey(tileset) == familyKey) {
+					++familyCount;
+				}
+			}
+			return wxString::Format(
+				"%s\n\nLoaded %zu palettes for this runtime family.",
+				BuildPaletteFamilyLabel(familyKey),
+				familyCount
+			);
 		}
 		if (contextKey == "group:brushes") {
 			size_t brushCount = 0;

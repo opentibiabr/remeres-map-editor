@@ -113,11 +113,11 @@
 - [ ] Add `DB vs XML` comparison during the hybrid phase
 
 ## Palette Editor Roadmap
-- [ ] Stage 10A: Rebuild `Palettes` navigation around runtime families (`Terrain Palette`, `Doodad Palette`, `Item Palette`) with clear entry points into a real palette editor
+- [x] Stage 10A: Rebuild `Palettes` navigation around runtime families (`Terrain Palette`, `Doodad Palette`, `Item Palette`) with clear entry points into a real palette editor
 - [ ] Stage 10B: Add a fast `Palette Editor` model/view for palette sections and entries, keeping editing inside the `Materials Workbench`
 - [ ] Stage 10C: Support structural editing of palettes and sections: create, rename, delete, move, and reorder
 - [ ] Stage 10D: Support brush membership editing inside palettes: add, remove, move between sections/palettes, and reorder entries
-- [ ] Stage 10E: After every palette save, repopulate the navigation tree and refresh runtime palette state so runtime and Workbench stay aligned
+- [x] Stage 10E: After every palette save, repopulate the navigation tree and refresh runtime palette state so runtime and Workbench stay aligned
 - [ ] Stage 10F: Keep XML-first onboarding working: first import may come from legacy XML, then `materials.db` remains the primary editable source
 
 ## Variations Status
@@ -152,6 +152,7 @@
 - The left sidebar now presents a clearer split of responsibilities: `Palettes` is for palette composition, `Brushes` is for brush authoring by domain/subcategory, and `Walls`/`Borders` stay under `Specialized Editors`
 - `Brushes` now groups authoring work by domain (`Terrain`, `Doodad`, `Carpet`, `Table`) and then by palette-derived subcategory labels, while `Palettes` stays focused on runtime composition/editing of tilesets
 - `Palettes` in the tree now lists palettes directly by palette name for faster navigation; source/import-origin labels were removed from the main navigation to keep the UX focused on the actual palette entries
+- `Stage 10A` is now in place: `Palettes` is grouped by runtime families (`Terrain Palette`, `Doodad Palette`, `Item Palette`) before listing palette names, giving the navigation the same first-level mental model as the classic runtime palettes
 - The shared Stage 10 workspace-polish helpers now stay unity-build-safe by using panel-specific helper names instead of duplicate anonymous-namespace symbols across multiple `.cpp` files
 - The current modified-field highlight still has room for a more professional visual treatment, but that now belongs to the remaining Stage 10 polish
 - `Wall Workspace` completed its `Stage 9` pass with dirty state, save/revert consistency, selection-change protection, close protection, navigation badge integration, and context preservation across save/reload
@@ -165,7 +166,8 @@
 - Final reassess decision: the remaining open items are Stage 10 polish or later features, not Stage 9 blockers
 - Palette Editor direction is now explicit: `Palettes` must become a professional, simple, high-performance editor of the real runtime palette structure, still inside the `Materials Workbench`
 - Palette edits must stay authoritative and reflected after save in three places together: `materials.db`, the Workbench navigation tree, and the runtime palette state
+- Palette saves now already repopulate the Workbench navigation tree right after refreshing runtime palettes, so tree/runtime drift is reduced before the deeper Stage 10 palette CRUD work lands
 - Palette UX should reflect runtime families (`Terrain Palette`, `Doodad Palette`, `Item Palette`) and their real categories, without introducing a parallel taxonomy for palette composition
 - Legacy XML remains for compatibility and first-time onboarding/import, but normal editing should continue DB-first in the Workbench after the initial import
-- Recommended next task goal: start Stage 10A by reshaping `Palettes` navigation and entry points around runtime families before deeper CRUD/move operations
+- Recommended next task goal: start Stage 10B by making the `Palette Workspace` itself faster and more structural, with clearer section/entry editing affordances inside each runtime palette family
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`
