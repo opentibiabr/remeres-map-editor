@@ -65,6 +65,7 @@
 - [x] The owner-drawn Workbench preview tiles now use a lighter 32x32 outline instead of the old heavy black frame, keeping the faster grid while cleaning up the icon presentation
 - [x] Runtime icon palettes now reuse a stable `BrushButton` pool across page switches instead of rebuilding the full icon grid every time
 - [x] Runtime palette pagination now avoids unnecessary `Fit`/AUI relayout churn and only relayouts icon pages when the visible button count actually changes
+- [x] Runtime palette brush selection now uses cached brush-to-page and brush-to-index lookups plus lighter current-page relayout, reducing extra scans and layout churn when switching categories or restoring the selected brush
 
 ## Remaining Before Calling It Ready
 - [x] Extend `dirty state` beyond the Brush Workspace
@@ -183,6 +184,7 @@
 - The owner-drawn Workbench brush grid now also uses a lighter 32x32 outline instead of the old heavy black icon frame, preserving the perf win while improving readability
 - Runtime palette perf now has a first targeted pass too: `BrushIconBox` keeps a stable icon-button pool and only rebinds visible brushes when the page changes, preserving the existing palette UX while cutting page-switch widget churn
 - Runtime palette pagination now also avoids unconditional `Fit`/AUI refresh work on every page change and only relayouts icon pages when the visible grid size really changes, which should help category/page switching feel lighter without changing behavior
+- Runtime palette selection now also avoids several repeated linear scans when restoring or selecting brushes across tilesets, and the common current-page load path uses `Layout()` instead of a broader `Fit()` relayout on every switch
 - Keep future perf work scoped to palette-level/UI-level paths for now; do not move the next task into `SpriteAppearances`, `loadSpriteSheet`, `sprite atlas`, or `lzma_decode` yet
 - Recommended next task goal: continue Stage 10C/10D with structural palette editing flows such as create/rename/delete/reorder palettes and sections plus richer brush membership editing inside each runtime palette family, while any additional perf pass stays focused on runtime/workbench palette switching paths above the sprite/decode layer
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`

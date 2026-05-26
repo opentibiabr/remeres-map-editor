@@ -60,6 +60,10 @@ BrushPalettePanel::BrushPalettePanel(wxWindow* parent, const TilesetContainer &t
 		if (tilesetCategory && !tilesetCategory->brushlist.empty()) {
 			const auto panel = newd BrushPanel(choicebook, tilesetCategory);
 			choicebook->AddPage(panel, wxstr(it->second->name));
+			const int pageIndex = static_cast<int>(choicebook->GetPageCount()) - 1;
+			for (Brush* brush : tilesetCategory->brushlist) {
+				pageIndexByBrush.try_emplace(brush, pageIndex);
+			}
 		}
 	}
 
@@ -243,6 +247,21 @@ bool BrushPalettePanel::SelectBrush(const Brush* whatBrush) {
 		if (palettePanel->SelectBrush(whatBrush)) {
 			panel->SelectBrush(nullptr);
 			return true;
+		}
+	}
+
+	const auto pageIndexIt = pageIndexByBrush.find(whatBrush);
+	if (pageIndexIt != pageIndexByBrush.end()) {
+		const int targetPageIndex = pageIndexIt->second;
+		if (targetPageIndex >= 0 && targetPageIndex < static_cast<int>(choicebook->GetPageCount()) && targetPageIndex != choicebook->GetSelection()) {
+			panel = dynamic_cast<BrushPanel*>(choicebook->GetPage(targetPageIndex));
+			if (panel && panel->SelectBrush(whatBrush)) {
+				choicebook->ChangeSelection(targetPageIndex);
+				for (const auto palettePanel : tool_bars) {
+					palettePanel->SelectBrush(nullptr);
+				}
+				return true;
+			}
 		}
 	}
 
@@ -430,12 +449,26 @@ END_EVENT_TABLE()
 BrushPanel::BrushPanel(wxWindow* parent, const TilesetCategory* tileset) :
 	wxPanel(parent, wxID_ANY), tileset(tileset) {
 	SetSizerAndFit(sizer);
+	RebuildBrushIndex();
 }
 
 void BrushPanel::AssignTileset(const TilesetCategory* newTileset) {
 	if (newTileset != tileset) {
 		InvalidateContents();
 		tileset = newTileset;
+		RebuildBrushIndex();
+	}
+}
+
+void BrushPanel::RebuildBrushIndex() {
+	brushIndices.clear();
+	if (!tileset) {
+		return;
+	}
+
+	brushIndices.reserve(tileset->brushlist.size());
+	for (size_t index = 0; index < tileset->brushlist.size(); ++index) {
+		brushIndices.emplace(tileset->brushlist[index], index);
 	}
 }
 
@@ -515,11 +548,9 @@ bool BrushPanel::SelectBrush(const Brush* whatBrush) {
 		return brushbox->SelectBrush(whatBrush);
 	}
 
-	for (const auto brush : tileset->brushlist) {
-		if (brush == whatBrush) {
-			LoadContents();
-			return brushbox->SelectBrush(whatBrush);
-		}
+	if (brushIndices.contains(whatBrush)) {
+		LoadContents();
+		return brushbox->SelectBrush(whatBrush);
 	}
 	return false;
 }
@@ -674,10 +705,9 @@ Brush* BrushIconBox::GetSelectedBrush() const {
 }
 
 bool BrushIconBox::SelectPaginatedBrush(const Brush* whatBrush, BrushPalettePanel* brushPalettePanel) {
-	const auto brushIt = std::ranges::find(tileset->brushlist.begin(), tileset->brushlist.end(), whatBrush);
-
-	if (brushIt != tileset->brushlist.end()) {
-		const auto index = static_cast<size_t>(std::distance(tileset->brushlist.begin(), brushIt));
+	const auto brushIndexIt = brushIndices.find(whatBrush);
+	if (brushIndexIt != brushIndices.end()) {
+		const size_t index = brushIndexIt->second;
 		const auto pageSize = static_cast<size_t>(width * height);
 		const auto page = static_cast<int>(index / pageSize) + 1;
 		if (currentPage != page) {
@@ -825,11 +855,10 @@ bool BrushListBox::SelectPaginatedBrush(const Brush* whatBrush, BrushPalettePane
 }
 
 bool BrushListBox::SelectBrush(const Brush* whatBrush) {
-	for (auto index = 0; index < tileset->brushlist.size(); ++index) {
-		if (tileset->brushlist[index] == whatBrush) {
-			SetSelection(index);
-			return true;
-		}
+	const auto brushIndexIt = brushIndices.find(whatBrush);
+	if (brushIndexIt != brushIndices.end()) {
+		SetSelection(brushIndexIt->second);
+		return true;
 	}
 	return false;
 }

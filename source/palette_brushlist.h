@@ -18,6 +18,8 @@
 #ifndef RME_PALETTE_BRUSHLIST_
 #define RME_PALETTE_BRUSHLIST_
 
+#include <unordered_map>
+
 #include "main.h"
 #include "palette_common.h"
 
@@ -40,6 +42,12 @@ public:
 	explicit BrushBoxInterface(const TilesetCategory* tileset) noexcept :
 		tileset(tileset) {
 		ASSERT(tileset);
+		if (tileset) {
+			brushIndices.reserve(tileset->brushlist.size());
+			for (size_t index = 0; index < tileset->brushlist.size(); ++index) {
+				brushIndices.emplace(tileset->brushlist[index], index);
+			}
+		}
 	}
 	virtual ~BrushBoxInterface() = default;
 
@@ -67,6 +75,7 @@ public:
 
 protected:
 	const TilesetCategory* const tileset;
+	std::unordered_map<const Brush*, size_t> brushIndices;
 	bool loaded = false;
 	int currentPage = 1;
 	int totalPages = 1;
@@ -204,11 +213,14 @@ public:
 	[[nodiscard]] BrushBoxInterface* GetBrushBox() const;
 
 protected:
+	void RebuildBrushIndex();
+
 	const TilesetCategory* tileset;
 	wxSizer* sizer = newd wxBoxSizer(wxVERTICAL);
 	BrushBoxInterface* brushbox;
 	bool loaded = false;
 	BrushListType listType = BRUSHLIST_LISTBOX;
+	std::unordered_map<const Brush*, size_t> brushIndices;
 
 	DECLARE_EVENT_TABLE();
 };
@@ -277,6 +289,7 @@ protected:
 	wxStaticText* pageInfo = nullptr;
 	BrushSizePanel* sizePanel = nullptr;
 	std::map<wxWindow*, Brush*> rememberedBrushes;
+	std::unordered_map<const Brush*, int> pageIndexByBrush;
 
 	DECLARE_EVENT_TABLE();
 };

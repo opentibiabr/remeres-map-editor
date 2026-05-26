@@ -60,7 +60,7 @@ void PalettePanel::LoadCurrentContents() {
 	for (ToolBarList::iterator iter = tool_bars.begin(); iter != tool_bars.end(); ++iter) {
 		(*iter)->OnSwitchIn();
 	}
-	Fit();
+	Layout();
 }
 
 void PalettePanel::LoadAllContents() {
