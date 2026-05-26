@@ -2,6 +2,8 @@
 
 This document explains how this RME fork exports Cyclopedia house data, map data, minimap assets, and satellite assets.
 
+For follow-up performance work that intentionally stays outside the compatibility contract, see [cyclopedia-export-roadmap.md](cyclopedia-export-roadmap.md).
+
 Scope:
 
 - `staticdata-<sha256>.dat`
