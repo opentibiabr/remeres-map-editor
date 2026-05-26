@@ -1025,7 +1025,12 @@ PaletteWindow* GUI::CreatePalette() {
 }
 
 void GUI::ActivatePalette(PaletteWindow* p) {
-	palettes.erase(std::find(palettes.begin(), palettes.end(), p));
+	const auto it = std::find(palettes.begin(), palettes.end(), p);
+	if (it == palettes.end()) {
+		return;
+	}
+
+	palettes.erase(it);
 	palettes.push_front(p);
 }
 

@@ -227,7 +227,14 @@ protected:
 
 class BrushPalettePanel : public PalettePanel {
 public:
-	BrushPalettePanel(wxWindow* parent, const TilesetContainer &tilesets, TilesetCategoryType category, wxWindowID id = wxID_ANY);
+	BrushPalettePanel(
+		wxWindow* parent,
+		const TilesetContainer &tilesets,
+		TilesetCategoryType category,
+		const wxString &displayName = wxString(),
+		const wxString &paletteGroupFilter = wxString(),
+		wxWindowID id = wxID_ANY
+	);
 	~BrushPalettePanel();
 
 	void RemovePagination();
@@ -243,7 +250,9 @@ public:
 	void LoadAllContents();
 
 	PaletteType GetType() const;
+	wxString GetName() const override;
 	BrushListType GetListType() const;
+	bool HasPages() const;
 
 	// Sets the display type (list or icons)
 	void SetListType(BrushListType newListType);
@@ -282,6 +291,8 @@ protected:
 	wxSizer* sizer = newd wxBoxSizer(wxVERTICAL);
 	wxSizer* pageInfoSizer = newd wxFlexGridSizer(7, 1, 1);
 	PaletteType paletteType;
+	wxString displayName_;
+	wxString paletteGroupFilter_;
 	wxChoicebook* choicebook = nullptr;
 	wxButton* nextPageButton = nullptr;
 	wxButton* previousPageButton = nullptr;

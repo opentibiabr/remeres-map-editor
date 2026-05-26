@@ -256,13 +256,6 @@ namespace {
 		return false;
 	}
 
-	bool IsSupportedPaletteRuntimeFamily(const wxString &runtimeFamily) {
-		return runtimeFamily.IsSameAs("terrain", false) ||
-			   runtimeFamily.IsSameAs("doodad", false) ||
-			   runtimeFamily.IsSameAs("item", false) ||
-			   runtimeFamily.IsSameAs("raw", false);
-	}
-
 	wxString DerivePaletteGroupFromSectionType(const wxString &sectionType) {
 		if (sectionType.IsSameAs("terrain", false) || sectionType.IsSameAs("terrain_and_raw", false)) {
 			return "terrain";
@@ -276,39 +269,12 @@ namespace {
 		return "other";
 	}
 
-	wxString DerivePaletteRuntimeFamilyFromSectionType(const wxString &sectionType) {
-		if (sectionType.IsSameAs("terrain", false) || sectionType.IsSameAs("terrain_and_raw", false)) {
-			return "terrain";
-		}
-		if (sectionType.IsSameAs("doodad", false) || sectionType.IsSameAs("doodad_and_raw", false)) {
-			return "doodad";
-		}
-		if (sectionType.IsSameAs("item", false) || sectionType.IsSameAs("items", false) || sectionType.IsSameAs("items_and_raw", false)) {
-			return "item";
-		}
-		return "raw";
-	}
-
 	wxString BuildPaletteGroupLabel(const PaletteGroupRecord &group) {
 		wxString label = group.name;
 		if (group.isBuiltin) {
 			label += " [built-in]";
 		}
-		label += " -> " + group.runtimeFamily;
 		return label;
-	}
-
-	wxString BuildPaletteRuntimeFamilyLabel(const wxString &runtimeFamily) {
-		if (runtimeFamily.IsSameAs("terrain", false)) {
-			return "terrain";
-		}
-		if (runtimeFamily.IsSameAs("doodad", false)) {
-			return "doodad";
-		}
-		if (runtimeFamily.IsSameAs("item", false)) {
-			return "item";
-		}
-		return "raw";
 	}
 
 	wxString BuildSectionLabel(const TilesetSectionRecord &section) {
@@ -449,11 +415,9 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	wxBoxSizer* sectionRowSizer = new wxBoxSizer(wxHORIZONTAL);
 	wxBoxSizer* entryRowSizer = new wxBoxSizer(wxHORIZONTAL);
 	paletteGroupChoice_ = new wxChoice(this, wxID_ANY);
-	paletteGroupRuntimeFamilyChoice_ = new wxChoice(this, wxID_ANY);
 	currentSectionChoice_ = new wxChoice(this, wxID_ANY);
 	availableBrushGroupChoice_ = new wxChoice(this, wxID_ANY);
 	paletteGroupChoice_->SetMinSize(wxSize(FromDIP(220), -1));
-	paletteGroupRuntimeFamilyChoice_->SetMinSize(wxSize(FromDIP(140), -1));
 	currentSectionChoice_->SetMinSize(wxSize(FromDIP(260), -1));
 	availableBrushGroupChoice_->SetMinSize(wxSize(FromDIP(260), -1));
 	createPaletteButton_ = new wxButton(this, wxID_ANY, "New Palette");
@@ -475,9 +439,7 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	paletteRowSizer->Add(deletePaletteButton_, 0);
 
 	groupRowSizer->Add(new wxStaticText(this, wxID_ANY, "Palette Group"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
-	groupRowSizer->Add(paletteGroupChoice_, 0, wxRIGHT, FromDIP(8));
-	groupRowSizer->Add(new wxStaticText(this, wxID_ANY, "Runtime Family"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
-	groupRowSizer->Add(paletteGroupRuntimeFamilyChoice_, 0, wxRIGHT, FromDIP(12));
+	groupRowSizer->Add(paletteGroupChoice_, 0, wxRIGHT, FromDIP(12));
 	groupRowSizer->Add(createPaletteGroupButton_, 0, wxRIGHT, FromDIP(6));
 	groupRowSizer->Add(renamePaletteGroupButton_, 0, wxRIGHT, FromDIP(6));
 	groupRowSizer->Add(deletePaletteGroupButton_, 0);
@@ -538,7 +500,6 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	createPaletteGroupButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchPalettePanel::OnCreatePaletteGroup, this);
 	renamePaletteGroupButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchPalettePanel::OnRenamePaletteGroup, this);
 	deletePaletteGroupButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchPalettePanel::OnDeletePaletteGroup, this);
-	paletteGroupRuntimeFamilyChoice_->Bind(wxEVT_CHOICE, &MaterialsWorkbenchPalettePanel::OnPaletteGroupRuntimeFamilyChanged, this);
 	currentSectionChoice_->Bind(wxEVT_CHOICE, &MaterialsWorkbenchPalettePanel::OnSectionChanged, this);
 	addSectionButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchPalettePanel::OnAddSection, this);
 	renameSectionButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchPalettePanel::OnRenameSection, this);
@@ -572,7 +533,6 @@ void MaterialsWorkbenchPalettePanel::ClearWorkspace(const wxString &message) {
 	titleLabel_->SetLabel("No palette selected");
 	sourceLabel_->SetLabel("");
 	paletteGroupChoice_->Clear();
-	paletteGroupRuntimeFamilyChoice_->Clear();
 	currentSectionChoice_->Clear();
 	availableBrushGroupChoice_->Clear();
 	sectionSummaryLabel_->SetLabel(message);
@@ -609,17 +569,11 @@ void MaterialsWorkbenchPalettePanel::RefreshWorkspace() {
 
 void MaterialsWorkbenchPalettePanel::RefreshPaletteGroupChoice() {
 	paletteGroupChoice_->Clear();
-	paletteGroupRuntimeFamilyChoice_->Clear();
 	paletteGroupKeys_.clear();
 
 	for (const PaletteGroupRecord &group : controller_.GetPaletteGroups()) {
 		paletteGroupChoice_->Append(BuildPaletteGroupLabel(group));
 		paletteGroupKeys_.push_back(group.name);
-	}
-
-	static const char* kRuntimeFamilies[] = { "terrain", "doodad", "item", "raw" };
-	for (const char* runtimeFamily : kRuntimeFamilies) {
-		paletteGroupRuntimeFamilyChoice_->Append(BuildPaletteRuntimeFamilyLabel(runtimeFamily));
 	}
 
 	if (paletteGroupKeys_.empty()) {
@@ -635,19 +589,6 @@ void MaterialsWorkbenchPalettePanel::RefreshPaletteGroupChoice() {
 		selectedGroupIndex = 0;
 	}
 	paletteGroupChoice_->SetSelection(selectedGroupIndex);
-
-	const PaletteGroupRecord* selectedGroup = GetSelectedPaletteGroup();
-	const wxString runtimeFamily = selectedGroup && !selectedGroup->runtimeFamily.IsEmpty()
-		? selectedGroup->runtimeFamily
-		: (palette_.paletteGroupRuntimeFamily.IsEmpty() ? wxString("raw") : palette_.paletteGroupRuntimeFamily);
-	int runtimeSelection = 3;
-	for (unsigned int i = 0; i < paletteGroupRuntimeFamilyChoice_->GetCount(); ++i) {
-		if (paletteGroupRuntimeFamilyChoice_->GetString(i).IsSameAs(runtimeFamily, false)) {
-			runtimeSelection = static_cast<int>(i);
-			break;
-		}
-	}
-	paletteGroupRuntimeFamilyChoice_->SetSelection(runtimeSelection);
 }
 
 void MaterialsWorkbenchPalettePanel::RefreshSectionChoice() {
@@ -830,7 +771,6 @@ void MaterialsWorkbenchPalettePanel::UpdateButtonState() {
 	const bool hasSelectedGroup = selectedGroup != nullptr;
 	const bool isBuiltinGroup = hasSelectedGroup && selectedGroup->isBuiltin;
 	paletteGroupChoice_->Enable(hasPalette_ && !paletteGroupKeys_.empty());
-	paletteGroupRuntimeFamilyChoice_->Enable(hasSelectedGroup && !isBuiltinGroup);
 	renamePaletteGroupButton_->Enable(hasSelectedGroup && !isBuiltinGroup);
 	deletePaletteGroupButton_->Enable(hasSelectedGroup && !isBuiltinGroup);
 
@@ -1062,7 +1002,6 @@ void MaterialsWorkbenchPalettePanel::OnCreatePalette(wxCommandEvent &event) {
 	palette_.name = newPaletteName;
 	palette_.sourceFile = "materials.db";
 	palette_.paletteGroupName = DerivePaletteGroupFromSectionType(initialSectionType);
-	palette_.paletteGroupRuntimeFamily = DerivePaletteRuntimeFamilyFromSectionType(initialSectionType);
 	palette_.sections.push_back({ initialSectionType, 0, {} });
 	hasPalette_ = true;
 	currentSectionIndex_ = 0;
@@ -1141,12 +1080,9 @@ void MaterialsWorkbenchPalettePanel::OnPaletteGroupChanged(wxCommandEvent &event
 	}
 
 	const wxString previousGroupName = palette_.paletteGroupName;
-	const wxString previousRuntimeFamily = palette_.paletteGroupRuntimeFamily;
 	palette_.paletteGroupName = group->name;
-	palette_.paletteGroupRuntimeFamily = group->runtimeFamily;
 	if (!CommitPalette("Moved palette \"" + palette_.name + "\" to group \"" + group->name + "\".")) {
 		palette_.paletteGroupName = previousGroupName;
-		palette_.paletteGroupRuntimeFamily = previousRuntimeFamily;
 		RefreshPaletteGroupChoice();
 		UpdateButtonState();
 		return;
@@ -1165,21 +1101,8 @@ void MaterialsWorkbenchPalettePanel::OnCreatePaletteGroup(wxCommandEvent &event)
 		return;
 	}
 
-	wxArrayString runtimeFamilyChoices;
-	runtimeFamilyChoices.Add("terrain");
-	runtimeFamilyChoices.Add("doodad");
-	runtimeFamilyChoices.Add("item");
-	runtimeFamilyChoices.Add("raw");
-
-	wxSingleChoiceDialog runtimeDialog(this, "Choose the runtime family for the new group:", "New Palette Group", runtimeFamilyChoices);
-	runtimeDialog.SetSelection(3);
-	if (runtimeDialog.ShowModal() != wxID_OK) {
-		return;
-	}
-
 	PaletteGroupRecord group;
 	group.name = groupName;
-	group.runtimeFamily = runtimeDialog.GetStringSelection();
 	wxString error;
 	if (!controller_.SavePaletteGroup(group, error)) {
 		SetStatusMessage("Failed to create palette group: " + error);
@@ -1187,7 +1110,6 @@ void MaterialsWorkbenchPalettePanel::OnCreatePaletteGroup(wxCommandEvent &event)
 	}
 
 	palette_.paletteGroupName = group.name;
-	palette_.paletteGroupRuntimeFamily = group.runtimeFamily;
 	SetStatusMessage("Created palette group \"" + group.name + "\".");
 	if (onPaletteSaved_) {
 		onPaletteSaved_(palette_.name);
@@ -1248,45 +1170,6 @@ void MaterialsWorkbenchPalettePanel::OnDeletePaletteGroup(wxCommandEvent &event)
 	}
 
 	SetStatusMessage("Deleted palette group \"" + selectedGroup->name + "\".");
-	if (onPaletteSaved_) {
-		onPaletteSaved_(palette_.name);
-	}
-}
-
-void MaterialsWorkbenchPalettePanel::OnPaletteGroupRuntimeFamilyChanged(wxCommandEvent &event) {
-	const PaletteGroupRecord* selectedGroup = GetSelectedPaletteGroup();
-	if (!selectedGroup || selectedGroup->isBuiltin) {
-		return;
-	}
-
-	const int runtimeSelection = event.GetSelection();
-	if (runtimeSelection == wxNOT_FOUND) {
-		return;
-	}
-
-	const wxString runtimeFamily = paletteGroupRuntimeFamilyChoice_->GetString(runtimeSelection);
-	if (!IsSupportedPaletteRuntimeFamily(runtimeFamily)) {
-		SetStatusMessage("Unsupported runtime family.");
-		return;
-	}
-	if (selectedGroup->runtimeFamily.IsSameAs(runtimeFamily, false)) {
-		return;
-	}
-
-	PaletteGroupRecord updatedGroup = *selectedGroup;
-	updatedGroup.runtimeFamily = runtimeFamily;
-	wxString error;
-	if (!controller_.SavePaletteGroup(updatedGroup, error)) {
-		SetStatusMessage("Failed to update palette group runtime family: " + error);
-		RefreshPaletteGroupChoice();
-		UpdateButtonState();
-		return;
-	}
-
-	if (palette_.paletteGroupName.IsSameAs(updatedGroup.name, false)) {
-		palette_.paletteGroupRuntimeFamily = runtimeFamily;
-	}
-	SetStatusMessage("Updated palette group \"" + updatedGroup.name + "\" to runtime family \"" + runtimeFamily + "\".");
 	if (onPaletteSaved_) {
 		onPaletteSaved_(palette_.name);
 	}

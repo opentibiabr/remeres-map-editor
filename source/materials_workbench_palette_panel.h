@@ -51,7 +51,6 @@ private:
 	void OnCreatePaletteGroup(wxCommandEvent &event);
 	void OnRenamePaletteGroup(wxCommandEvent &event);
 	void OnDeletePaletteGroup(wxCommandEvent &event);
-	void OnPaletteGroupRuntimeFamilyChanged(wxCommandEvent &event);
 	void OnSectionChanged(wxCommandEvent &event);
 	void OnAddSection(wxCommandEvent &event);
 	void OnRenameSection(wxCommandEvent &event);
@@ -76,7 +75,6 @@ private:
 	wxStaticText* titleLabel_ = nullptr;
 	wxStaticText* sourceLabel_ = nullptr;
 	wxChoice* paletteGroupChoice_ = nullptr;
-	wxChoice* paletteGroupRuntimeFamilyChoice_ = nullptr;
 	wxChoice* currentSectionChoice_ = nullptr;
 	wxStaticText* sectionSummaryLabel_ = nullptr;
 	MaterialsWorkbenchBrushGridPanel* sectionBrushGrid_ = nullptr;

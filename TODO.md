@@ -128,8 +128,9 @@
 - [ ] Stage 10D: Support brush membership editing inside palettes: add, remove, move between sections/palettes, and reorder entries
 - [x] Stage 10E: After every palette save, repopulate the navigation tree and refresh runtime palette state so runtime and Workbench stay aligned
 - [ ] Stage 10F: Keep XML-first onboarding working: first import may come from legacy XML, then `materials.db` remains the primary editable source
-- [ ] Stage 10G: Move palette grouping to a DB-first global model shared by Workbench and runtime palette trees, including custom groups with a persisted runtime family
-- [ ] Stage 10G progress: the `Palette Workspace` now exposes initial CRUD for custom `palette_groups`, protects built-in groups from rename/delete, lets the user change a custom group's `runtime_family`, and lets the current palette move between DB-backed groups directly from the workspace
+- [x] Stage 10G: Move palette grouping to a DB-first global model shared by Workbench and runtime palette trees, with built-in and custom groups coming directly from `palette_groups`
+- [x] Stage 10G progress: the `Palette Workspace` now exposes CRUD for custom `palette_groups`, protects built-in groups from rename/delete, and lets the current palette move between DB-backed groups directly from the workspace without a fake runtime-family selector
+- [x] Stage 10G runtime follow-up: the runtime palette top-level now comes from `palette_groups` themselves, so built-ins plus customs appear as first-class pages and mirror the Workbench grouping model directly
 
 ## Variations Status
 - [x] `variations` are now a delivered functional milestone for the Brush Workspace
@@ -185,8 +186,8 @@
 - `Stage 10C` now has a first delivered structural pass inside the `Palette Workspace`: users can create, rename, and delete palettes plus create, rename, delete, and reorder sections without leaving the Workbench; selection restore after palette save now follows palette identity by name instead of only the old tree index
 - The Workbench side inspector is gone, the toolbar is less cramped, and the abandoned `Current Section` move-target experiments are no longer the direction of record
 - `materials.db` schema work for DB-first palette grouping is now the active path: SQLite has `palette_groups`, tilesets persist `palette_group_id`, bootstrap import fills the four built-in groups (`terrain`, `doodad`, `item`, `other`) by fallback from legacy XML section types, and the Workbench navigation tree already reads palette grouping from the database instead of section order
-- The next runtime step is to persist each palette group's runtime family and expose group-aware labels/order in the runtime palette UI, so custom groups such as `test` can become visible there without overloading tileset sections
-- The first Workbench-side `palette_groups` CRUD pass is now in place too: users can create custom groups, choose their runtime family, rename/delete only non-built-ins, and move the selected palette between DB-backed groups directly in the `Palette Workspace`
+- `palette_groups` is now end-to-end in runtime too: the top-level runtime palette pages are built from the DB-backed groups themselves, so custom groups such as `test` can appear beside `terrain`, `doodad`, `item`, and `other` as real peers from the first import onward
+- The Workbench-side `palette_groups` CRUD pass now follows the same model too: users create/rename/delete only the groups themselves, built-ins stay protected, and the selected palette can move between DB-backed groups directly in the `Palette Workspace` without being mapped to a fake runtime family
 - Item-family sections inside the Palette Workspace now recommend and expose a combined `Item Brushes` source in the Workbench and can still render catalog-backed previews when a runtime `Brush*` is missing, so the item-side authoring flow no longer falls back to showing only `wall` brushes by default
 - `Item Palette` categories inside the Workbench now also render real SQLite `item` entries again instead of filtering them out as non-brush content, matching the runtime behavior more closely and keeping the palette editor usable for raw-item sections
 - The owner-drawn Workbench brush grid now also uses a lighter 32x32 outline instead of the old heavy black icon frame, preserving the perf win while improving readability
@@ -195,5 +196,5 @@
 - Runtime palette selection now also avoids several repeated linear scans when restoring or selecting brushes across tilesets, and the common current-page load path uses `Layout()` instead of a broader `Fit()` relayout on every switch
 - Later runtime-palette perf experiments around selection-coalescing and lighter invalidation were tested with fresh `perf` captures but reverted after failing to show a stable net win; the only runtime-palette perf changes that should currently be assumed as active are the stable button-pool/pagination pass plus the cached brush-selection/relayout-trim pass
 - Keep future perf work scoped to palette-level/UI-level paths for now; do not move the next task into `SpriteAppearances`, `loadSpriteSheet`, `sprite atlas`, or `lzma_decode` yet
-- Recommended next task goal: finish the DB-first `palette_groups` migration so both the Workbench and the runtime palette tree expose built-in plus custom palette groups directly from `materials.db`, then continue richer palette membership UX on top of that stable model
+- Recommended next task goal: move on to `Stage 10D` so palette membership editing inside the Workbench can add/remove/reorder brushes and move entries between sections/palettes on top of the now-stable DB-first `palette_groups` model
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`

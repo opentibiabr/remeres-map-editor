@@ -125,13 +125,6 @@ namespace {
 		return "raw";
 	}
 
-	bool IsSupportedPaletteRuntimeFamily(const wxString &runtimeFamily) {
-		return runtimeFamily.IsSameAs("terrain", false) ||
-			   runtimeFamily.IsSameAs("doodad", false) ||
-			   runtimeFamily.IsSameAs("item", false) ||
-			   runtimeFamily.IsSameAs("raw", false);
-	}
-
 	int BindBrushRecordFields(sqlite3_stmt* stmt, const BrushRecord &brush, int parameterIndex) {
 		sqlite3_bind_text(stmt, parameterIndex++, brush.name.utf8_str(), -1, SQLITE_TRANSIENT);
 		sqlite3_bind_text(stmt, parameterIndex++, brush.type.utf8_str(), -1, SQLITE_TRANSIENT);
@@ -3759,10 +3752,7 @@ bool BrushDatabaseCatalogRepository::savePaletteGroup(const PaletteGroupRecord &
 		return setError("Palette group name cannot be empty.");
 	}
 
-	const wxString runtimeFamily = group.runtimeFamily.IsEmpty() ? wxString("raw") : group.runtimeFamily;
-	if (!IsSupportedPaletteRuntimeFamily(runtimeFamily)) {
-		return setError("Palette group runtime family must be terrain, doodad, item, or raw.");
-	}
+	const wxString runtimeFamily = group.runtimeFamily;
 
 	if (!beginTransaction()) {
 		return false;
@@ -3845,10 +3835,10 @@ bool BrushDatabaseCatalogRepository::savePaletteGroup(const PaletteGroupRecord &
 			return fail("Failed to insert palette group");
 		}
 	} else {
-		if (existingIsBuiltin && (!groupName.IsSameAs(existingName, false) || !runtimeFamily.IsSameAs(existingRuntimeFamily, false))) {
+		if (existingIsBuiltin && !groupName.IsSameAs(existingName, false)) {
 			FinalizeStatements({ findExistingStmt, findByNameStmt, insertStmt, updateStmt });
 			rollbackTransaction();
-			return setError("Built-in palette groups cannot be renamed or moved to another runtime family.");
+			return setError("Built-in palette groups cannot be renamed.");
 		}
 
 		sqlite3_bind_text(updateStmt, 1, groupName.utf8_str(), -1, SQLITE_TRANSIENT);

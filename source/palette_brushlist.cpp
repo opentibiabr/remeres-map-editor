@@ -40,7 +40,30 @@ EVT_CHOICEBOOK_PAGE_CHANGED(wxID_ANY, BrushPalettePanel::OnPageChanged)
 END_EVENT_TABLE()
 
 namespace {
-	std::string DefaultPaletteGroupNameForCategory(TilesetCategoryType category) {
+	TilesetCategoryType ResolveRuntimePaletteCategory(const Tileset* tileset, TilesetCategoryType requestedCategory) {
+		if (!tileset) {
+			return TILESET_UNKNOWN;
+		}
+		if (requestedCategory != TILESET_UNKNOWN) {
+			return requestedCategory;
+		}
+
+		static const TilesetCategoryType kCandidateCategories[] = {
+			TILESET_TERRAIN,
+			TILESET_DOODAD,
+			TILESET_ITEM,
+			TILESET_RAW,
+		};
+		for (TilesetCategoryType category : kCandidateCategories) {
+			const TilesetCategory* tilesetCategory = tileset->getCategory(category);
+			if (tilesetCategory && !tilesetCategory->brushlist.empty()) {
+				return category;
+			}
+		}
+		return TILESET_UNKNOWN;
+	}
+
+	wxString DefaultPaletteGroupNameForCategory(TilesetCategoryType category) {
 		switch (category) {
 			case TILESET_TERRAIN:
 				return "terrain";
@@ -51,13 +74,33 @@ namespace {
 			case TILESET_RAW:
 				return "other";
 			default:
-				return std::string();
+				return wxString();
 		}
 	}
 
-	wxString BuildRuntimePalettePageLabel(const Tileset* tileset, TilesetCategoryType category) {
-		const std::string defaultGroup = DefaultPaletteGroupNameForCategory(category);
-		const wxString groupName = tileset->paletteGroupName.empty() ? wxString::FromUTF8(defaultGroup.c_str()) : wxString::FromUTF8(tileset->paletteGroupName.c_str());
+	wxString ResolveRuntimePaletteGroupName(const Tileset* tileset, TilesetCategoryType category) {
+		if (!tileset) {
+			return DefaultPaletteGroupNameForCategory(category);
+		}
+		if (!tileset->paletteGroupName.empty()) {
+			return wxString::FromUTF8(tileset->paletteGroupName.c_str());
+		}
+
+		const TilesetCategoryType resolvedCategory = ResolveRuntimePaletteCategory(tileset, category);
+		if (resolvedCategory != TILESET_UNKNOWN) {
+			return DefaultPaletteGroupNameForCategory(resolvedCategory);
+		}
+
+		const wxString defaultGroup = DefaultPaletteGroupNameForCategory(category);
+		return defaultGroup.IsEmpty() ? wxString("other") : defaultGroup;
+	}
+
+	wxString BuildRuntimePalettePageLabel(const Tileset* tileset, TilesetCategoryType category, const wxString &paletteGroupFilter) {
+		if (!paletteGroupFilter.IsEmpty()) {
+			return wxString::FromUTF8(tileset->name.c_str());
+		}
+		const wxString defaultGroup = DefaultPaletteGroupNameForCategory(category);
+		const wxString groupName = ResolveRuntimePaletteGroupName(tileset, category);
 		if (!groupName.IsEmpty() && !groupName.IsSameAs(defaultGroup, false)) {
 			return groupName + " / " + wxString::FromUTF8(tileset->name.c_str());
 		}
@@ -68,9 +111,18 @@ namespace {
 	}
 }
 
-BrushPalettePanel::BrushPalettePanel(wxWindow* parent, const TilesetContainer &tilesets, TilesetCategoryType category, wxWindowID id) :
+BrushPalettePanel::BrushPalettePanel(
+	wxWindow* parent,
+	const TilesetContainer &tilesets,
+	TilesetCategoryType category,
+	const wxString &displayName,
+	const wxString &paletteGroupFilter,
+	wxWindowID id
+) :
 	PalettePanel(parent, id),
-	paletteType(category) {
+	paletteType(category),
+	displayName_(displayName),
+	paletteGroupFilter_(paletteGroupFilter) {
 
 	// Create the tileset panel
 	const auto tsSizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Tileset");
@@ -95,14 +147,24 @@ BrushPalettePanel::BrushPalettePanel(wxWindow* parent, const TilesetContainer &t
 	std::vector<RuntimePalettePageSeed> pageSeeds;
 	pageSeeds.reserve(tilesets.size());
 	for (auto it = tilesets.begin(); it != tilesets.end(); ++it) {
-		const auto tilesetCategory = it->second->getCategory(category);
+		const TilesetCategoryType resolvedCategory = ResolveRuntimePaletteCategory(it->second, category);
+		if (resolvedCategory == TILESET_UNKNOWN) {
+			continue;
+		}
+
+		const wxString groupName = ResolveRuntimePaletteGroupName(it->second, resolvedCategory);
+		if (!paletteGroupFilter_.IsEmpty() && !groupName.IsSameAs(paletteGroupFilter_, false)) {
+			continue;
+		}
+
+		const auto tilesetCategory = it->second->getCategory(resolvedCategory);
 		if (tilesetCategory && !tilesetCategory->brushlist.empty()) {
 			RuntimePalettePageSeed seed;
 			seed.tileset = it->second;
 			seed.tilesetCategory = tilesetCategory;
-			seed.label = BuildRuntimePalettePageLabel(it->second, category);
+			seed.label = BuildRuntimePalettePageLabel(it->second, resolvedCategory, paletteGroupFilter_);
 			seed.sortOrder = it->second->paletteGroupSortOrder;
-			seed.groupName = it->second->paletteGroupName.empty() ? wxString::FromUTF8(DefaultPaletteGroupNameForCategory(category).c_str()) : wxString::FromUTF8(it->second->paletteGroupName.c_str());
+			seed.groupName = groupName;
 			pageSeeds.push_back(seed);
 		}
 	}
@@ -218,13 +280,24 @@ PaletteType BrushPalettePanel::GetType() const {
 	return paletteType;
 }
 
+wxString BrushPalettePanel::GetName() const {
+	if (!displayName_.IsEmpty()) {
+		return displayName_;
+	}
+	return PalettePanel::GetName();
+}
+
 BrushListType BrushPalettePanel::GetListType() const {
-	if (!choicebook) {
+	if (!choicebook || choicebook->GetPageCount() == 0) {
 		return BRUSHLIST_LISTBOX;
 	}
 
 	const auto panel = dynamic_cast<BrushPanel*>(choicebook->GetPage(0));
 	return panel->GetListType();
+}
+
+bool BrushPalettePanel::HasPages() const {
+	return choicebook && choicebook->GetPageCount() > 0;
 }
 
 void BrushPalettePanel::SetListType(BrushListType newListType) {
