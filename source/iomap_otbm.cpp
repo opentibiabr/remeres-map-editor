@@ -85,6 +85,9 @@ namespace {
 	constexpr unsigned char CyclopediaSatelliteSeaColorR = 39;
 	constexpr unsigned char CyclopediaSatelliteSeaColorG = 77;
 	constexpr unsigned char CyclopediaSatelliteSeaColorB = 166;
+	constexpr int CyclopediaProgressMinIntervalMs = 250;
+	constexpr int CyclopediaFloorCount = CyclopediaMaxFloor - CyclopediaMinFloor + 1;
+	constexpr std::array<int, 3> CyclopediaChunkSizes { 1024, 512, 256 };
 	constexpr std::array<char, 4> CyclopediaProgressSpinner { '|', '/', '-', '\\' };
 
 	struct CyclopediaAssetLayerConfig {
@@ -113,6 +116,21 @@ namespace {
 		{ false, 1.0 / 32.0, 512, 1.0 },
 		{ false, 1.0 / 16.0, 256, 2.0 },
 	} };
+
+	constexpr bool areCyclopediaAssetLayersPaired() {
+		if (CyclopediaMinimapLayers.size() != CyclopediaSatelliteLayers.size()) {
+			return false;
+		}
+		for (size_t index = 0; index < CyclopediaMinimapLayers.size(); ++index) {
+			if (CyclopediaMinimapLayers[index].scale != CyclopediaSatelliteLayers[index].scale
+				|| CyclopediaMinimapLayers[index].chunkSize != CyclopediaSatelliteLayers[index].chunkSize
+				|| CyclopediaMinimapLayers[index].pixelsPerSquare != CyclopediaSatelliteLayers[index].pixelsPerSquare) {
+				return false;
+			}
+		}
+		return true;
+	}
+	static_assert(areCyclopediaAssetLayersPaired());
 
 	struct HousePreviewItemData {
 		uint32_t clientId = 0;
@@ -682,7 +700,14 @@ namespace {
 		appendU32(bytes, 0);
 		appendU32(bytes, 0);
 
+		if (bytes.size() != pixelOffset) {
+			return false;
+		}
+		bytes.resize(totalSize);
+		uint8_t* pixelData = bytes.data() + pixelOffset;
+
 		for (int y = height - 1; y >= 0; --y) {
+			const size_t outputRow = static_cast<size_t>(height - 1 - y);
 			for (int x = 0; x < width; ++x) {
 				const auto sourceIndex = static_cast<size_t>(y * width + x);
 				const size_t rgbIndex = sourceIndex * rme::PixelFormatRGB;
@@ -690,11 +715,12 @@ namespace {
 				const uint8_t green = rgb[rgbIndex + 1];
 				const uint8_t blue = rgb[rgbIndex + 2];
 				const uint8_t alphaChannel = alpha ? alpha[sourceIndex] : 255;
+				const size_t outputIndex = (outputRow * static_cast<size_t>(width) + static_cast<size_t>(x)) * 4;
 
-				bytes.push_back(blue);
-				bytes.push_back(green);
-				bytes.push_back(red);
-				bytes.push_back(alphaChannel);
+				pixelData[outputIndex] = blue;
+				pixelData[outputIndex + 1] = green;
+				pixelData[outputIndex + 2] = red;
+				pixelData[outputIndex + 3] = alphaChannel;
 			}
 		}
 
@@ -828,7 +854,38 @@ namespace {
 		return map.getTile(position);
 	}
 
-	bool getCyclopediaFloorBounds(Map &map, const int floor, int &minX, int &minY, int &maxX, int &maxY) {
+	struct CyclopediaFloorBounds {
+		bool hasData = false;
+		int minX = std::numeric_limits<int>::max();
+		int minY = std::numeric_limits<int>::max();
+		int maxX = std::numeric_limits<int>::min();
+		int maxY = std::numeric_limits<int>::min();
+
+		void include(const Tile &tile) {
+			hasData = true;
+			minX = std::min(minX, tile.getX());
+			minY = std::min(minY, tile.getY());
+			maxX = std::max(maxX, tile.getX());
+			maxY = std::max(maxY, tile.getY());
+		}
+	};
+
+	struct CyclopediaFloorPlan {
+		CyclopediaFloorBounds bounds;
+		std::array<std::vector<std::pair<int, int>>, CyclopediaChunkSizes.size()> chunkStartsBySize;
+	};
+
+	int getCyclopediaChunkSizeIndex(const int chunkSize) {
+		for (size_t index = 0; index < CyclopediaChunkSizes.size(); ++index) {
+			if (CyclopediaChunkSizes[index] == chunkSize) {
+				return static_cast<int>(index);
+			}
+		}
+		return -1;
+	}
+
+	bool collectCyclopediaFloorPlans(Map &map, std::array<CyclopediaFloorPlan, CyclopediaFloorCount> &floorPlans, int &minX, int &minY, int &maxX, int &maxY) {
+		floorPlans = {};
 		minX = std::numeric_limits<int>::max();
 		minY = std::numeric_limits<int>::max();
 		maxX = std::numeric_limits<int>::min();
@@ -836,78 +893,85 @@ namespace {
 
 		for (MapIterator it = map.begin(); it != map.end(); ++it) {
 			Tile* tile = (*it)->get();
-			if (!tile || tile->getZ() != floor || !hasCyclopediaTileData(tile)) {
+			if (!tile || tile->getZ() < CyclopediaMinFloor || tile->getZ() > CyclopediaMaxFloor || !hasCyclopediaTileData(tile)) {
 				continue;
 			}
 
-			minX = std::min(minX, tile->getX());
-			minY = std::min(minY, tile->getY());
-			maxX = std::max(maxX, tile->getX());
-			maxY = std::max(maxY, tile->getY());
+			floorPlans[static_cast<size_t>(tile->getZ() - CyclopediaMinFloor)].bounds.include(*tile);
 		}
 
-		return minX <= maxX && minY <= maxY;
-	}
-
-	bool getCyclopediaWorldBounds(Map &map, int &minX, int &minY, int &maxX, int &maxY) {
-		minX = std::numeric_limits<int>::max();
-		minY = std::numeric_limits<int>::max();
-		maxX = std::numeric_limits<int>::min();
-		maxY = std::numeric_limits<int>::min();
-
 		bool hasData = false;
-		for (int floor = CyclopediaMinFloor; floor <= CyclopediaMaxFloor; ++floor) {
-			int floorMinX = 0;
-			int floorMinY = 0;
-			int floorMaxX = 0;
-			int floorMaxY = 0;
-			if (!getCyclopediaFloorBounds(map, floor, floorMinX, floorMinY, floorMaxX, floorMaxY)) {
+		for (const auto &floorPlan : floorPlans) {
+			if (!floorPlan.bounds.hasData) {
 				continue;
 			}
 
 			hasData = true;
-			minX = std::min(minX, floorMinX);
-			minY = std::min(minY, floorMinY);
-			maxX = std::max(maxX, floorMaxX);
-			maxY = std::max(maxY, floorMaxY);
+			minX = std::min(minX, floorPlan.bounds.minX);
+			minY = std::min(minY, floorPlan.bounds.minY);
+			maxX = std::max(maxX, floorPlan.bounds.maxX);
+			maxY = std::max(maxY, floorPlan.bounds.maxY);
+		}
+		if (!hasData) {
+			return false;
 		}
 
-		return hasData && minX <= maxX && minY <= maxY;
-	}
-
-	bool collectCyclopediaFloorChunks(Map &map, const int floor, const int minX, const int minY, const int chunkSize, std::vector<std::pair<int, int>> &chunkStarts) {
-		chunkStarts.clear();
-
-		std::unordered_set<uint64_t> seenChunks;
-		seenChunks.reserve(1024);
+		using CyclopediaSeenChunksBySize = std::array<std::unordered_set<uint64_t>, CyclopediaChunkSizes.size()>;
+		std::array<CyclopediaSeenChunksBySize, CyclopediaFloorCount> seenChunksByFloor;
+		for (auto &seenChunksBySize : seenChunksByFloor) {
+			for (auto &seenChunks : seenChunksBySize) {
+				seenChunks.reserve(1024);
+			}
+		}
 
 		for (MapIterator it = map.begin(); it != map.end(); ++it) {
 			Tile* tile = (*it)->get();
-			if (!tile || tile->getZ() != floor || !hasCyclopediaTileData(tile)) {
+			if (!tile || tile->getZ() < CyclopediaMinFloor || tile->getZ() > CyclopediaMaxFloor || !hasCyclopediaTileData(tile)) {
 				continue;
 			}
 
-			const int chunkIndexX = (tile->getX() - minX) / chunkSize;
-			const int chunkIndexY = (tile->getY() - minY) / chunkSize;
-			const uint64_t key = (static_cast<uint64_t>(static_cast<uint32_t>(chunkIndexX)) << 32)
-				| static_cast<uint64_t>(static_cast<uint32_t>(chunkIndexY));
-			if (!seenChunks.emplace(key).second) {
-				continue;
+			const size_t floorIndex = static_cast<size_t>(tile->getZ() - CyclopediaMinFloor);
+			const auto &bounds = floorPlans[floorIndex].bounds;
+			for (size_t sizeIndex = 0; sizeIndex < CyclopediaChunkSizes.size(); ++sizeIndex) {
+				const int chunkSize = CyclopediaChunkSizes[sizeIndex];
+				const int chunkIndexX = (tile->getX() - bounds.minX) / chunkSize;
+				const int chunkIndexY = (tile->getY() - bounds.minY) / chunkSize;
+				const uint64_t key = (static_cast<uint64_t>(static_cast<uint32_t>(chunkIndexX)) << 32)
+					| static_cast<uint64_t>(static_cast<uint32_t>(chunkIndexY));
+				seenChunksByFloor[floorIndex][sizeIndex].emplace(key);
 			}
-
-			const int chunkStartX = minX + chunkIndexX * chunkSize;
-			const int chunkStartY = minY + chunkIndexY * chunkSize;
-			chunkStarts.emplace_back(chunkStartX, chunkStartY);
 		}
 
-		std::sort(chunkStarts.begin(), chunkStarts.end(), [](const auto &left, const auto &right) {
-			if (left.second != right.second) {
-				return left.second < right.second;
+		for (size_t floorIndex = 0; floorIndex < floorPlans.size(); ++floorIndex) {
+			auto &floorPlan = floorPlans[floorIndex];
+			if (!floorPlan.bounds.hasData) {
+				continue;
 			}
-			return left.first < right.first;
-		});
 
-		return !chunkStarts.empty();
+			for (size_t sizeIndex = 0; sizeIndex < CyclopediaChunkSizes.size(); ++sizeIndex) {
+				auto &chunkStarts = floorPlan.chunkStartsBySize[sizeIndex];
+				const auto &seenChunks = seenChunksByFloor[floorIndex][sizeIndex];
+				chunkStarts.reserve(seenChunks.size());
+				const int chunkSize = CyclopediaChunkSizes[sizeIndex];
+				for (const uint64_t key : seenChunks) {
+					const int chunkIndexX = static_cast<int>(static_cast<uint32_t>(key >> 32));
+					const int chunkIndexY = static_cast<int>(static_cast<uint32_t>(key));
+					chunkStarts.emplace_back(
+						floorPlan.bounds.minX + chunkIndexX * chunkSize,
+						floorPlan.bounds.minY + chunkIndexY * chunkSize
+					);
+				}
+
+				std::sort(chunkStarts.begin(), chunkStarts.end(), [](const auto &left, const auto &right) {
+					if (left.second != right.second) {
+						return left.second < right.second;
+					}
+					return left.first < right.first;
+				});
+			}
+		}
+
+		return true;
 	}
 
 	int computeCyclopediaChunkPixelDimension(const int tileDimension, const double pixelsPerSquare) {
@@ -1183,6 +1247,16 @@ namespace {
 			size_t hash = SatelliteSpriteCacheKeyHash {}(key.sprite);
 			hash ^= static_cast<size_t>(key.outputPixelsPerSquare + 0x9E3779B9) + (hash << 6) + (hash >> 2);
 			return hash;
+		}
+	};
+
+	struct CyclopediaSatelliteRenderCache {
+		std::unordered_map<SatelliteSpriteCacheKey, SatelliteTinySprite, SatelliteSpriteCacheKeyHash> spriteTinyCache;
+		std::unordered_map<SatelliteSampledSpriteCacheKey, SatelliteSampledSprite, SatelliteSampledSpriteCacheKeyHash> spriteSampledCache;
+
+		CyclopediaSatelliteRenderCache() {
+			spriteTinyCache.reserve(16384);
+			spriteSampledCache.reserve(32768);
 		}
 	};
 
@@ -1499,7 +1573,7 @@ namespace {
 		const int outputPixelsPerSquare,
 		std::unordered_map<SatelliteSpriteCacheKey, SatelliteTinySprite, SatelliteSpriteCacheKeyHash> &tinyCache,
 		std::unordered_map<SatelliteSampledSpriteCacheKey, SatelliteSampledSprite, SatelliteSampledSpriteCacheKeyHash> &sampledCache,
-		const SatelliteSampledSprite*&sampledSprite
+		const SatelliteSampledSprite* &sampledSprite
 	) {
 		sampledSprite = nullptr;
 		if (outputPixelsPerSquare <= 0 || outputPixelsPerSquare > CyclopediaSatelliteBasePixelsPerSquare) {
@@ -1745,7 +1819,14 @@ namespace {
 		}
 	}
 
-	bool buildCyclopediaSatelliteChunk(Map &map, const CyclopediaChunkArea &area, const double pixelsPerSquare, const wxImage &minimapChunk, wxImage &image) {
+	bool buildCyclopediaSatelliteChunk(
+		Map &map,
+		const CyclopediaChunkArea &area,
+		const double pixelsPerSquare,
+		const wxImage &minimapChunk,
+		CyclopediaSatelliteRenderCache &renderCache,
+		wxImage &image
+	) {
 		if (area.width <= 0 || area.height <= 0) {
 			return false;
 		}
@@ -1774,10 +1855,6 @@ namespace {
 		std::memset(outData, 0, static_cast<size_t>(outWidth) * static_cast<size_t>(outHeight) * rme::PixelFormatRGB);
 		std::memset(outAlpha, 0, static_cast<size_t>(outWidth) * static_cast<size_t>(outHeight));
 
-		std::unordered_map<SatelliteSpriteCacheKey, SatelliteTinySprite, SatelliteSpriteCacheKeyHash> spriteTinyCache;
-		spriteTinyCache.reserve(4096);
-		std::unordered_map<SatelliteSampledSpriteCacheKey, SatelliteSampledSprite, SatelliteSampledSpriteCacheKeyHash> spriteSampledCache;
-		spriteSampledCache.reserve(8192);
 		std::vector<const Item*> drawItems;
 		drawItems.reserve(64);
 
@@ -1813,7 +1890,7 @@ namespace {
 							spriteKey.footprintOriginY -= sourceDy * rme::SpritePixels;
 
 							const SatelliteSampledSprite* sampledSprite = nullptr;
-							if (!getSampledSpriteForSpriteId(spriteKey, outputPixelsPerSquare, spriteTinyCache, spriteSampledCache, sampledSprite) || !sampledSprite) {
+							if (!getSampledSpriteForSpriteId(spriteKey, outputPixelsPerSquare, renderCache.spriteTinyCache, renderCache.spriteSampledCache, sampledSprite) || !sampledSprite) {
 								continue;
 							}
 
@@ -6456,13 +6533,22 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 	assets.clear();
 	buffer.clear();
 	MapData mapData;
-	auto reportProgress = [&](const int32_t done, const std::string &message = std::string()) {
+	bool hasProgressReport = false;
+	auto lastProgressReport = std::chrono::steady_clock::now();
+	auto reportProgress = [&](const int32_t done, const std::string &message = std::string(), const bool force = false) {
 		if (!progress) {
 			return true;
 		}
+		const auto now = std::chrono::steady_clock::now();
+		if (!force && hasProgressReport && now - lastProgressReport < std::chrono::milliseconds(CyclopediaProgressMinIntervalMs)) {
+			return true;
+		}
+
+		hasProgressReport = true;
+		lastProgressReport = now;
 		return progress(std::max<int32_t>(0, std::min<int32_t>(100, done)), message);
 	};
-	if (!reportProgress(0, "Scanning map floors... [|]")) {
+	if (!reportProgress(0, "Scanning map floors... [|]", true)) {
 		return false;
 	}
 
@@ -6470,7 +6556,8 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 	int minY = 0;
 	int maxX = 0;
 	int maxY = 0;
-	if (!getCyclopediaWorldBounds(map, minX, minY, maxX, maxY)) {
+	std::array<CyclopediaFloorPlan, CyclopediaFloorCount> floorPlans;
+	if (!collectCyclopediaFloorPlans(map, floorPlans, minX, minY, maxX, maxY)) {
 		return false;
 	}
 
@@ -6485,47 +6572,40 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 	bottomRightEdge->set_posz(CyclopediaMaxFloor);
 
 	struct CyclopediaRenderJob {
-		CyclopediaAssetLayerConfig config;
+		size_t layerIndex = 0;
 		CyclopediaChunkArea area;
 	};
 
 	std::vector<CyclopediaRenderJob> jobs;
 	jobs.reserve(4096);
 
-	for (int floor = CyclopediaMinFloor; floor <= CyclopediaMaxFloor; ++floor) {
-		int floorMinX = 0;
-		int floorMinY = 0;
-		int floorMaxX = 0;
-		int floorMaxY = 0;
-		if (!getCyclopediaFloorBounds(map, floor, floorMinX, floorMinY, floorMaxX, floorMaxY)) {
+	for (size_t floorIndex = 0; floorIndex < floorPlans.size(); ++floorIndex) {
+		const auto &floorPlan = floorPlans[floorIndex];
+		if (!floorPlan.bounds.hasData) {
 			continue;
 		}
 
-		const auto addFloorLayerJobs = [&](const CyclopediaAssetLayerConfig &config) {
-			std::vector<std::pair<int, int>> chunkStarts;
-			if (!collectCyclopediaFloorChunks(map, floor, floorMinX, floorMinY, config.chunkSize, chunkStarts)) {
-				return;
+		const int floor = CyclopediaMinFloor + static_cast<int>(floorIndex);
+		for (size_t layerIndex = 0; layerIndex < CyclopediaMinimapLayers.size(); ++layerIndex) {
+			const auto &config = CyclopediaMinimapLayers[layerIndex];
+			const int chunkSizeIndex = getCyclopediaChunkSizeIndex(config.chunkSize);
+			if (chunkSizeIndex < 0) {
+				continue;
 			}
 
+			const auto &chunkStarts = floorPlan.chunkStartsBySize[static_cast<size_t>(chunkSizeIndex)];
 			for (const auto &[chunkStartX, chunkStartY] : chunkStarts) {
-				const int chunkWidth = std::min(config.chunkSize, floorMaxX - chunkStartX + 1);
-				const int chunkHeight = std::min(config.chunkSize, floorMaxY - chunkStartY + 1);
+				const int chunkWidth = std::min(config.chunkSize, floorPlan.bounds.maxX - chunkStartX + 1);
+				const int chunkHeight = std::min(config.chunkSize, floorPlan.bounds.maxY - chunkStartY + 1);
 				if (chunkWidth <= 0 || chunkHeight <= 0) {
 					continue;
 				}
 
 				jobs.emplace_back(
-					config,
+					layerIndex,
 					CyclopediaChunkArea { floor, chunkStartX, chunkStartY, chunkWidth, chunkHeight }
 				);
 			}
-		};
-
-		for (const auto &config : CyclopediaMinimapLayers) {
-			addFloorLayerJobs(config);
-		}
-		for (const auto &config : CyclopediaSatelliteLayers) {
-			addFloorLayerJobs(config);
 		}
 	}
 
@@ -6537,6 +6617,42 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 	const auto totalChunks = static_cast<int>(jobs.size());
 
 	bool hasAnyAsset = false;
+	CyclopediaSatelliteRenderCache satelliteRenderCache;
+	int processedAssets = 0;
+	const int totalAssets = std::max<int>(1, totalChunks * 2);
+
+	auto appendCyclopediaAsset = [&](const CyclopediaAssetLayerConfig &config, const CyclopediaChunkArea &area, const wxImage &outputAssetChunk, const int32_t done, const char spinner) {
+		++processedAssets;
+		if (!outputAssetChunk.IsOk() || outputAssetChunk.GetWidth() <= 0 || outputAssetChunk.GetHeight() <= 0) {
+			return true;
+		}
+
+		std::vector<uint8_t> assetBytes;
+		std::string assetHash;
+		if (!reportProgress(done, std::format("Encoding assets... ({}/{}) [{}]", processedAssets, totalAssets, spinner))) {
+			return false;
+		}
+		if (!encodeCyclopediaAsset(outputAssetChunk, assetBytes, assetHash)) {
+			return true;
+		}
+
+		const std::string assetFilename = buildCyclopediaAssetFilename(config.minimap, config.scale, area.startX, area.startY, area.floor, assetHash);
+		auto* mapAsset = mapData.add_mapassets();
+		mapAsset->set_type(config.minimap ? MapAssets_AssetsType_MINIMAP : MapAssets_AssetsType_SATELLITE);
+		mapAsset->set_filename(assetFilename);
+		mapAsset->set_widthsquare(static_cast<uint32_t>(area.width));
+		mapAsset->set_heightsquare(static_cast<uint32_t>(area.height));
+		mapAsset->set_areaid(0);
+		mapAsset->set_scale(config.scale);
+		auto* topLeft = mapAsset->mutable_topleft();
+		topLeft->set_posx(static_cast<uint32_t>(std::max(area.startX, 0)));
+		topLeft->set_posy(static_cast<uint32_t>(std::max(area.startY, 0)));
+		topLeft->set_posz(static_cast<uint32_t>(std::max(area.floor, 0)));
+
+		assets.emplace_back(assetFilename, std::move(assetBytes));
+		hasAnyAsset = true;
+		return true;
+	};
 
 	for (const auto &job : jobs) {
 		++processedChunks;
@@ -6553,58 +6669,31 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 			continue;
 		}
 
-		wxImage outputAssetChunk;
-		if (job.config.minimap) {
-			outputAssetChunk = minimapChunk.Copy();
-			if (!resampleCyclopediaChunk(outputAssetChunk, job.area.width, job.area.height, job.config.pixelsPerSquare)) {
-				continue;
-			}
-		} else {
-			wxImage satelliteChunk;
-			if (!buildCyclopediaSatelliteChunk(map, job.area, job.config.pixelsPerSquare, minimapChunk, satelliteChunk)) {
-				satelliteChunk = minimapChunk.Copy();
-				if (!resampleCyclopediaChunk(satelliteChunk, job.area.width, job.area.height, job.config.pixelsPerSquare)) {
-					continue;
-				}
-			}
-			outputAssetChunk = satelliteChunk.Copy();
-		}
-
-		if (!outputAssetChunk.IsOk() || outputAssetChunk.GetWidth() <= 0 || outputAssetChunk.GetHeight() <= 0) {
-			continue;
-		}
-
-		std::vector<uint8_t> assetBytes;
-		std::string assetHash;
-		if (!reportProgress(done, std::format("Encoding assets... ({}/{}) [{}]", processedChunks, totalChunks, spinner))) {
+		const auto &minimapConfig = CyclopediaMinimapLayers[job.layerIndex];
+		wxImage minimapAssetChunk = minimapChunk.Copy();
+		if (resampleCyclopediaChunk(minimapAssetChunk, job.area.width, job.area.height, minimapConfig.pixelsPerSquare)
+			&& !appendCyclopediaAsset(minimapConfig, job.area, minimapAssetChunk, done, spinner)) {
 			return false;
 		}
-		if (!encodeCyclopediaAsset(outputAssetChunk, assetBytes, assetHash)) {
-			continue;
+
+		const auto &satelliteConfig = CyclopediaSatelliteLayers[job.layerIndex];
+		wxImage satelliteChunk;
+		if (!buildCyclopediaSatelliteChunk(map, job.area, satelliteConfig.pixelsPerSquare, minimapChunk, satelliteRenderCache, satelliteChunk)) {
+			satelliteChunk = minimapChunk.Copy();
+			if (!resampleCyclopediaChunk(satelliteChunk, job.area.width, job.area.height, satelliteConfig.pixelsPerSquare)) {
+				continue;
+			}
 		}
-
-		const std::string assetFilename = buildCyclopediaAssetFilename(job.config.minimap, job.config.scale, job.area.startX, job.area.startY, job.area.floor, assetHash);
-		auto* mapAsset = mapData.add_mapassets();
-		mapAsset->set_type(job.config.minimap ? MapAssets_AssetsType_MINIMAP : MapAssets_AssetsType_SATELLITE);
-		mapAsset->set_filename(assetFilename);
-		mapAsset->set_widthsquare(static_cast<uint32_t>(job.area.width));
-		mapAsset->set_heightsquare(static_cast<uint32_t>(job.area.height));
-		mapAsset->set_areaid(0);
-		mapAsset->set_scale(job.config.scale);
-		auto* topLeft = mapAsset->mutable_topleft();
-		topLeft->set_posx(static_cast<uint32_t>(std::max(job.area.startX, 0)));
-		topLeft->set_posy(static_cast<uint32_t>(std::max(job.area.startY, 0)));
-		topLeft->set_posz(static_cast<uint32_t>(std::max(job.area.floor, 0)));
-
-		assets.emplace_back(assetFilename, std::move(assetBytes));
-		hasAnyAsset = true;
+		if (!appendCyclopediaAsset(satelliteConfig, job.area, satelliteChunk, done, spinner)) {
+			return false;
+		}
 	}
 
 	if (!hasAnyAsset) {
 		return false;
 	}
 
-	if (!reportProgress(100, "Rendering chunks... done [|]")) {
+	if (!reportProgress(100, "Rendering chunks... done [|]", true)) {
 		return false;
 	}
 	return mapData.SerializeToString(&buffer);
