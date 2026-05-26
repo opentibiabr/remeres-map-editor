@@ -36,8 +36,20 @@
 #include <wx/chartype.h>
 #include <wx/choicdlg.h>
 #include <wx/dirdlg.h>
+#include <wx/msgdlg.h>
 #include <wx/textdlg.h>
 #include <wx/tokenzr.h>
+
+#include <algorithm>
+#include <chrono>
+#include <ctime>
+#include <filesystem>
+#include <format>
+#include <iomanip>
+#include <sstream>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 #include "items.h"
 #include "editor.h"
@@ -46,12 +58,18 @@
 #include "live_server.h"
 
 namespace {
-	bool selectAssetsOrCustomExportFolder(wxWindow* parent, const wxString &title, wxString &outputPath) {
+	bool selectAssetsOrCustomFolder(
+		wxWindow* parent,
+		const wxString &title,
+		const wxString &message,
+		const wxString &directoryDialogTitle,
+		wxString &outputPath
+	) {
 		wxArrayString choices;
 		choices.Add("Current loaded client assets (recommended)");
 		choices.Add("Choose a specific folder");
 
-		wxSingleChoiceDialog choiceDialog(parent, "Select where to export the files.", title, choices);
+		wxSingleChoiceDialog choiceDialog(parent, message, title, choices);
 		choiceDialog.SetSelection(0);
 		if (choiceDialog.ShowModal() != wxID_OK) {
 			return false;
@@ -68,13 +86,21 @@ namespace {
 			return true;
 		}
 
-		wxDirDialog directoryDialog(parent, "Select output folder", "", wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+		wxDirDialog directoryDialog(parent, directoryDialogTitle, "", wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
 		if (directoryDialog.ShowModal() != wxID_OK) {
 			return false;
 		}
 
 		outputPath = directoryDialog.GetPath();
 		return true;
+	}
+
+	bool selectAssetsOrCustomExportFolder(wxWindow* parent, const wxString &title, wxString &outputPath) {
+		return selectAssetsOrCustomFolder(parent, title, "Select where to export the files.", "Select output folder", outputPath);
+	}
+
+	bool selectAssetsOrCustomRestoreFolder(wxWindow* parent, const wxString &title, wxString &outputPath) {
+		return selectAssetsOrCustomFolder(parent, title, "Select which assets folder should be restored.", "Select assets folder to restore", outputPath);
 	}
 
 	FileName makeDirectoryFileName(const wxString &directoryPath) {
@@ -107,6 +133,304 @@ namespace {
 		path.AssignDir(directoryPath);
 		path.AppendDir(subdirectory);
 		return path.GetPath(wxPATH_GET_VOLUME);
+	}
+
+	struct AssetsBackupSnapshot {
+		std::filesystem::path rootPath;
+		wxString label;
+		size_t fileCount = 0;
+		bool legacy = false;
+	};
+
+	bool isSafeRelativeBackupPath(const std::filesystem::path &path) {
+		if (path.empty() || path.is_absolute()) {
+			return false;
+		}
+
+		for (const std::filesystem::path &part : path) {
+			if (part == std::filesystem::path(".") || part == std::filesystem::path("..")) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	bool isBackupFile(const std::filesystem::path &path) {
+		return path.has_extension() && path.extension() == ".bkp";
+	}
+
+	size_t countBackupFiles(const std::filesystem::path &rootPath, const bool legacy) {
+		if (rootPath.empty() || !std::filesystem::exists(rootPath)) {
+			return 0;
+		}
+
+		size_t count = 0;
+		if (legacy) {
+			for (const auto &entry : std::filesystem::directory_iterator(rootPath)) {
+				if (entry.is_regular_file() && isBackupFile(entry.path())) {
+					++count;
+				}
+			}
+			return count;
+		}
+
+		for (const auto &entry : std::filesystem::recursive_directory_iterator(rootPath)) {
+			if (entry.is_regular_file() && isBackupFile(entry.path())) {
+				++count;
+			}
+		}
+		return count;
+	}
+
+	bool getLocalBackupTime(const std::time_t value, std::tm &localTime) {
+#ifdef _WIN32
+		return localtime_s(&localTime, &value) == 0;
+#else
+		return localtime_r(&value, &localTime) != nullptr;
+#endif
+	}
+
+	std::string buildBackupSnapshotName(const std::string_view prefix) {
+		const std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+		std::tm localTime {};
+		if (!getLocalBackupTime(now, localTime)) {
+			return std::string(prefix) + "-unknown-time";
+		}
+
+		std::ostringstream name;
+		name << prefix << "-" << std::put_time(&localTime, "%Y-%m-%d_%H-%M-%S");
+		return name.str();
+	}
+
+	std::filesystem::path createBackupSnapshotPath(const std::filesystem::path &backupRootPath, const std::string_view prefix) {
+		std::error_code ec;
+		std::filesystem::create_directories(backupRootPath, ec);
+		if (ec) {
+			return std::filesystem::path();
+		}
+
+		const std::string baseName = buildBackupSnapshotName(prefix);
+		for (int attempt = 0; attempt < 1000; ++attempt) {
+			std::string snapshotName = baseName;
+			if (attempt > 0) {
+				snapshotName += std::format("-{:03}", attempt + 1);
+			}
+
+			std::filesystem::path snapshotPath = backupRootPath / snapshotName;
+			ec.clear();
+			if (std::filesystem::create_directory(snapshotPath, ec)) {
+				return snapshotPath;
+			}
+			if (ec) {
+				return std::filesystem::path();
+			}
+		}
+
+		return std::filesystem::path();
+	}
+
+	bool collectBackupSnapshots(const std::filesystem::path &basePath, std::vector<AssetsBackupSnapshot> &snapshots) {
+		snapshots.clear();
+		const std::filesystem::path backupRootPath = basePath / "bkps";
+		if (!std::filesystem::exists(backupRootPath) || !std::filesystem::is_directory(backupRootPath)) {
+			return false;
+		}
+
+		const size_t legacyFileCount = countBackupFiles(backupRootPath, true);
+		if (legacyFileCount > 0) {
+			AssetsBackupSnapshot legacySnapshot;
+			legacySnapshot.rootPath = backupRootPath;
+			legacySnapshot.fileCount = legacyFileCount;
+			legacySnapshot.legacy = true;
+			legacySnapshot.label = wxString::Format("legacy flat backup (%llu files)", static_cast<unsigned long long>(legacyFileCount));
+			snapshots.emplace_back(std::move(legacySnapshot));
+		}
+
+		for (const auto &entry : std::filesystem::directory_iterator(backupRootPath)) {
+			if (!entry.is_directory()) {
+				continue;
+			}
+
+			const size_t fileCount = countBackupFiles(entry.path(), false);
+			if (fileCount == 0) {
+				continue;
+			}
+
+			const wxString snapshotName = wxstr(entry.path().filename().string());
+			AssetsBackupSnapshot snapshot;
+			snapshot.rootPath = entry.path();
+			snapshot.fileCount = fileCount;
+			snapshot.label = wxString::Format("%s (%llu files)", snapshotName.c_str(), static_cast<unsigned long long>(fileCount));
+			snapshots.emplace_back(std::move(snapshot));
+		}
+
+		std::ranges::sort(snapshots, [](const AssetsBackupSnapshot &left, const AssetsBackupSnapshot &right) {
+			if (left.legacy != right.legacy) {
+				return !left.legacy;
+			}
+			std::error_code leftEc;
+			std::error_code rightEc;
+			const auto leftWriteTime = std::filesystem::last_write_time(left.rootPath, leftEc);
+			const auto rightWriteTime = std::filesystem::last_write_time(right.rootPath, rightEc);
+			if (!leftEc && !rightEc && leftWriteTime != rightWriteTime) {
+				return leftWriteTime > rightWriteTime;
+			}
+			return left.label.Cmp(right.label) > 0;
+		});
+		return !snapshots.empty();
+	}
+
+	bool collectBackupFilesForSnapshot(const AssetsBackupSnapshot &snapshot, std::vector<std::filesystem::path> &backupFiles) {
+		backupFiles.clear();
+		if (snapshot.rootPath.empty() || !std::filesystem::exists(snapshot.rootPath)) {
+			return false;
+		}
+
+		if (snapshot.legacy) {
+			for (const auto &entry : std::filesystem::directory_iterator(snapshot.rootPath)) {
+				if (entry.is_regular_file() && isBackupFile(entry.path())) {
+					backupFiles.emplace_back(entry.path());
+				}
+			}
+		} else {
+			for (const auto &entry : std::filesystem::recursive_directory_iterator(snapshot.rootPath)) {
+				if (entry.is_regular_file() && isBackupFile(entry.path())) {
+					backupFiles.emplace_back(entry.path());
+				}
+			}
+		}
+
+		std::ranges::sort(backupFiles, [](const std::filesystem::path &left, const std::filesystem::path &right) {
+			const bool leftCatalog = left.filename() == "catalog-content.json.bkp";
+			const bool rightCatalog = right.filename() == "catalog-content.json.bkp";
+			if (leftCatalog != rightCatalog) {
+				return !leftCatalog;
+			}
+			return left.generic_string() < right.generic_string();
+		});
+		return !backupFiles.empty();
+	}
+
+	bool getRestoreRelativePath(const AssetsBackupSnapshot &snapshot, const std::filesystem::path &backupFile, std::filesystem::path &relativePath) {
+		std::error_code ec;
+		relativePath = std::filesystem::relative(backupFile, snapshot.rootPath, ec);
+		if (ec || !isSafeRelativeBackupPath(relativePath) || !isBackupFile(relativePath)) {
+			return false;
+		}
+
+		const std::string filename = relativePath.filename().string();
+		constexpr std::string_view backupSuffix = ".bkp";
+		if (filename.size() <= backupSuffix.size() || !filename.ends_with(backupSuffix)) {
+			return false;
+		}
+
+		relativePath.replace_filename(filename.substr(0, filename.size() - backupSuffix.size()));
+		return isSafeRelativeBackupPath(relativePath);
+	}
+
+	std::filesystem::path makeRestoreBackupPath(const std::filesystem::path &snapshotPath, const std::filesystem::path &relativePath) {
+		std::filesystem::path backupPath = snapshotPath / relativePath;
+		backupPath += ".bkp";
+		return backupPath;
+	}
+
+	bool backupExistingTargetBeforeRestore(
+		const std::filesystem::path &basePath,
+		const std::filesystem::path &targetPath,
+		const std::filesystem::path &safetySnapshotPath,
+		wxString &errorMessage
+	) {
+		if (!std::filesystem::exists(targetPath)) {
+			return true;
+		}
+
+		std::error_code ec;
+		std::filesystem::path relativePath = std::filesystem::relative(targetPath, basePath, ec);
+		if (ec || !isSafeRelativeBackupPath(relativePath)) {
+			errorMessage = wxString::Format("Unsafe restore target path: %s", wxstr(targetPath.string()).c_str());
+			return false;
+		}
+
+		const std::filesystem::path backupPath = makeRestoreBackupPath(safetySnapshotPath, relativePath);
+		if (!backupPath.parent_path().empty()) {
+			std::filesystem::create_directories(backupPath.parent_path(), ec);
+			if (ec) {
+				errorMessage = wxString::Format("Failed to create restore safety backup folder: %s", wxstr(backupPath.parent_path().string()).c_str());
+				return false;
+			}
+		}
+
+		std::filesystem::rename(targetPath, backupPath, ec);
+		if (!ec) {
+			return true;
+		}
+
+		ec.clear();
+		std::filesystem::copy_file(targetPath, backupPath, std::filesystem::copy_options::none, ec);
+		if (ec) {
+			errorMessage = wxString::Format("Failed to backup current file before restore: %s", wxstr(targetPath.string()).c_str());
+			return false;
+		}
+
+		ec.clear();
+		std::filesystem::remove(targetPath, ec);
+		if (ec) {
+			errorMessage = wxString::Format("Failed to remove current file before restore: %s", wxstr(targetPath.string()).c_str());
+			return false;
+		}
+		return true;
+	}
+
+	bool restoreBackupSnapshot(
+		const std::filesystem::path &basePath,
+		const AssetsBackupSnapshot &snapshot,
+		size_t &restoredFileCount,
+		std::filesystem::path &safetySnapshotPath,
+		wxString &errorMessage
+	) {
+		restoredFileCount = 0;
+		std::vector<std::filesystem::path> backupFiles;
+		if (!collectBackupFilesForSnapshot(snapshot, backupFiles)) {
+			errorMessage = "Selected backup snapshot has no restorable files.";
+			return false;
+		}
+
+		safetySnapshotPath = createBackupSnapshotPath(basePath / "bkps", "restore");
+		if (safetySnapshotPath.empty()) {
+			errorMessage = "Failed to create restore safety backup snapshot.";
+			return false;
+		}
+
+		for (const std::filesystem::path &backupFile : backupFiles) {
+			std::filesystem::path relativePath;
+			if (!getRestoreRelativePath(snapshot, backupFile, relativePath)) {
+				errorMessage = wxString::Format("Unsafe backup file path: %s", wxstr(backupFile.string()).c_str());
+				return false;
+			}
+
+			const std::filesystem::path targetPath = basePath / relativePath;
+			if (!backupExistingTargetBeforeRestore(basePath, targetPath, safetySnapshotPath, errorMessage)) {
+				return false;
+			}
+
+			std::error_code ec;
+			if (!targetPath.parent_path().empty()) {
+				std::filesystem::create_directories(targetPath.parent_path(), ec);
+				if (ec) {
+					errorMessage = wxString::Format("Failed to create restore target folder: %s", wxstr(targetPath.parent_path().string()).c_str());
+					return false;
+				}
+			}
+
+			std::filesystem::copy_file(backupFile, targetPath, std::filesystem::copy_options::overwrite_existing, ec);
+			if (ec) {
+				errorMessage = wxString::Format("Failed to restore backup file: %s", wxstr(backupFile.string()).c_str());
+				return false;
+			}
+			++restoredFileCount;
+		}
+
+		return true;
 	}
 
 	bool selectStaticHouseExportFilter(wxWindow* parent, std::vector<std::string> &houseNamesFilter) {
@@ -261,6 +585,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(EXPORT_MINIMAP, wxITEM_NORMAL, OnExportMinimap);
 	MAKE_ACTION(EXPORT_STATIC_HOUSE_DATA, wxITEM_NORMAL, OnExportStaticHouseData);
 	MAKE_ACTION(EXPORT_CYCLOPEDIA_MAP, wxITEM_NORMAL, OnExportCyclopediaMapData);
+	MAKE_ACTION(REVERT_CYCLOPEDIA_ASSETS, wxITEM_NORMAL, OnRevertCyclopediaAssets);
 	MAKE_ACTION(EXPORT_TILESETS, wxITEM_NORMAL, OnExportTilesets);
 
 	MAKE_ACTION(RELOAD_DATA, wxITEM_NORMAL, OnReloadDataFiles);
@@ -547,6 +872,7 @@ void MainMenuBar::Update() {
 	EnableItem(EXPORT_MINIMAP, is_local);
 	EnableItem(EXPORT_STATIC_HOUSE_DATA, is_local);
 	EnableItem(EXPORT_CYCLOPEDIA_MAP, is_local);
+	EnableItem(REVERT_CYCLOPEDIA_ASSETS, true);
 	EnableItem(EXPORT_TILESETS, loaded);
 
 	EnableItem(FIND_ITEM, is_host);
@@ -1173,6 +1499,80 @@ void MainMenuBar::OnExportCyclopediaMapData(wxCommandEvent &) {
 			"Cyclopedia minimap/satellite exported successfully.\n\nOutput: %s\nBackups: %s (backup-only)",
 			outputBasePath.c_str(),
 			backupPath.c_str()
+		),
+		wxOK
+	);
+}
+
+void MainMenuBar::OnRevertCyclopediaAssets(wxCommandEvent &) {
+	wxString selectedPath;
+	if (!selectAssetsOrCustomRestoreFolder(g_gui.root, "Revert Client Assets Backup", selectedPath)) {
+		return;
+	}
+
+	const wxString outputBasePath = resolveCyclopediaOutputDisplayPath(selectedPath);
+	const std::filesystem::path basePath(nstr(outputBasePath));
+
+	std::vector<AssetsBackupSnapshot> snapshots;
+	if (!collectBackupSnapshots(basePath, snapshots)) {
+		g_gui.PopupDialog(
+			"No backups found",
+			wxString::Format("No restorable backups were found in:\n%s", appendDisplaySubdirectory(outputBasePath, "bkps").c_str()),
+			wxOK
+		);
+		return;
+	}
+
+	wxArrayString choices;
+	for (const AssetsBackupSnapshot &snapshot : snapshots) {
+		choices.Add(snapshot.label);
+	}
+
+	wxSingleChoiceDialog snapshotDialog(
+		g_gui.root,
+		"Select which backup snapshot should be restored.",
+		"Revert Client Assets Backup",
+		choices
+	);
+	snapshotDialog.SetSelection(0);
+	if (snapshotDialog.ShowModal() != wxID_OK) {
+		return;
+	}
+
+	const int selectedSnapshotIndex = snapshotDialog.GetSelection();
+	if (selectedSnapshotIndex < 0 || static_cast<size_t>(selectedSnapshotIndex) >= snapshots.size()) {
+		return;
+	}
+
+	const AssetsBackupSnapshot &snapshot = snapshots[static_cast<size_t>(selectedSnapshotIndex)];
+	const wxString confirmMessage = wxString::Format(
+		"Restore this backup snapshot?\n\nAssets folder:\n%s\n\nBackup:\n%s\n\nCurrent files that would be overwritten will be moved to a new restore backup snapshot first.",
+		outputBasePath.c_str(),
+		snapshot.label.c_str()
+	);
+	if (wxMessageBox(confirmMessage, "Confirm Restore", wxYES_NO | wxNO_DEFAULT | wxICON_WARNING, g_gui.root) != wxYES) {
+		return;
+	}
+
+	size_t restoredFileCount = 0;
+	std::filesystem::path safetySnapshotPath;
+	wxString errorMessage;
+	if (!restoreBackupSnapshot(basePath, snapshot, restoredFileCount, safetySnapshotPath, errorMessage)) {
+		g_gui.PopupDialog(
+			"Restore failed",
+			errorMessage.empty() ? wxString("Failed to restore selected backup snapshot.") : errorMessage,
+			wxOK
+		);
+		return;
+	}
+
+	g_gui.PopupDialog(
+		"Restore completed",
+		wxString::Format(
+			"Restored %llu files from backup.\n\nAssets folder: %s\nSafety backup: %s",
+			static_cast<unsigned long long>(restoredFileCount),
+			outputBasePath.c_str(),
+			wxstr(safetySnapshotPath.string()).c_str()
 		),
 		wxOK
 	);

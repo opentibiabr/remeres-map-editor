@@ -44,7 +44,9 @@
 #include <array>
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <cstdlib>
+#include <ctime>
 #include <deque>
 #include <unordered_map>
 #include <unordered_set>
@@ -74,11 +76,15 @@ namespace {
 	constexpr bool PreserveTemplateStaticMapHouseItems = true;
 	constexpr int CyclopediaMinFloor = 0;
 	constexpr int CyclopediaMaxFloor = 7;
+	constexpr int CyclopediaOpaqueSeaFloor = rme::MapGroundLayer;
 	constexpr int CyclopediaSatelliteBasePixelsPerSquare = 32;
 	constexpr double CyclopediaMinPixelsPerSquare = 0.5;
-	constexpr unsigned char CyclopediaSeaColorR = 39;
-	constexpr unsigned char CyclopediaSeaColorG = 77;
-	constexpr unsigned char CyclopediaSeaColorB = 166;
+	constexpr unsigned char CyclopediaMinimapSeaColorR = 51;
+	constexpr unsigned char CyclopediaMinimapSeaColorG = 102;
+	constexpr unsigned char CyclopediaMinimapSeaColorB = 153;
+	constexpr unsigned char CyclopediaSatelliteSeaColorR = 39;
+	constexpr unsigned char CyclopediaSatelliteSeaColorG = 77;
+	constexpr unsigned char CyclopediaSatelliteSeaColorB = 166;
 	constexpr std::array<char, 4> CyclopediaProgressSpinner { '|', '/', '-', '\\' };
 
 	struct CyclopediaAssetLayerConfig {
@@ -810,6 +816,10 @@ namespace {
 			&& position.z >= rme::MapMinLayer && position.z <= rme::MapMaxLayer;
 	}
 
+	uint32_t toCyclopediaProtoCoordinate(const int value) {
+		return value >= 0 ? static_cast<uint32_t>(value) : 0;
+	}
+
 	Tile* getCyclopediaMapTile(Map &map, const Position &position) {
 		if (!isValidMapTilePosition(position)) {
 			return nullptr;
@@ -920,6 +930,8 @@ namespace {
 		double red = 0.0;
 		double green = 0.0;
 		double blue = 0.0;
+		double alpha = 0.0;
+		double colorWeight = 0.0;
 		double weight = 0.0;
 	};
 
@@ -939,6 +951,7 @@ namespace {
 	void accumulateCyclopediaSample(
 		CyclopediaWeightedRgb &sample,
 		const unsigned char* sourceData,
+		const unsigned char* sourceAlpha,
 		const int sourceWidth,
 		const int sourceX,
 		const int sourceY,
@@ -949,14 +962,20 @@ namespace {
 		}
 
 		const size_t sourceIndex = (static_cast<size_t>(sourceY) * static_cast<size_t>(sourceWidth) + static_cast<size_t>(sourceX)) * rme::PixelFormatRGB;
-		sample.red += static_cast<double>(sourceData[sourceIndex]) * weight;
-		sample.green += static_cast<double>(sourceData[sourceIndex + 1]) * weight;
-		sample.blue += static_cast<double>(sourceData[sourceIndex + 2]) * weight;
+		const size_t sourcePixelIndex = static_cast<size_t>(sourceY) * static_cast<size_t>(sourceWidth) + static_cast<size_t>(sourceX);
+		const double alpha = sourceAlpha ? static_cast<double>(sourceAlpha[sourcePixelIndex]) : 255.0;
+		const double colorWeight = weight * (alpha / 255.0);
+		sample.red += static_cast<double>(sourceData[sourceIndex]) * colorWeight;
+		sample.green += static_cast<double>(sourceData[sourceIndex + 1]) * colorWeight;
+		sample.blue += static_cast<double>(sourceData[sourceIndex + 2]) * colorWeight;
+		sample.alpha += alpha * weight;
+		sample.colorWeight += colorWeight;
 		sample.weight += weight;
 	}
 
 	CyclopediaWeightedRgb sampleCyclopediaRegion(
 		const unsigned char* sourceData,
+		const unsigned char* sourceAlpha,
 		const int sourceWidth,
 		const CyclopediaSampleRange &xRange,
 		const CyclopediaSampleRange &yRange
@@ -965,7 +984,7 @@ namespace {
 		for (int sourceY = yRange.first; sourceY < yRange.last; ++sourceY) {
 			const double yWeight = getCyclopediaSampleWeight(yRange, sourceY);
 			for (int sourceX = xRange.first; sourceX < xRange.last; ++sourceX) {
-				accumulateCyclopediaSample(sample, sourceData, sourceWidth, sourceX, sourceY, yWeight * getCyclopediaSampleWeight(xRange, sourceX));
+				accumulateCyclopediaSample(sample, sourceData, sourceAlpha, sourceWidth, sourceX, sourceY, yWeight * getCyclopediaSampleWeight(xRange, sourceX));
 			}
 		}
 		return sample;
@@ -979,11 +998,22 @@ namespace {
 		return static_cast<unsigned char>(std::clamp(static_cast<int>(std::lround(value / weight)), 0, 255));
 	}
 
-	void writeCyclopediaSample(unsigned char* targetData, const int targetWidth, const int targetX, const int targetY, const CyclopediaWeightedRgb &sample) {
-		const size_t targetIndex = (static_cast<size_t>(targetY) * static_cast<size_t>(targetWidth) + static_cast<size_t>(targetX)) * rme::PixelFormatRGB;
-		targetData[targetIndex] = normalizeCyclopediaChannel(sample.red, sample.weight);
-		targetData[targetIndex + 1] = normalizeCyclopediaChannel(sample.green, sample.weight);
-		targetData[targetIndex + 2] = normalizeCyclopediaChannel(sample.blue, sample.weight);
+	void writeCyclopediaSample(
+		unsigned char* targetData,
+		unsigned char* targetAlpha,
+		const int targetWidth,
+		const int targetX,
+		const int targetY,
+		const CyclopediaWeightedRgb &sample
+	) {
+		const size_t targetPixelIndex = static_cast<size_t>(targetY) * static_cast<size_t>(targetWidth) + static_cast<size_t>(targetX);
+		const size_t targetIndex = targetPixelIndex * rme::PixelFormatRGB;
+		targetData[targetIndex] = normalizeCyclopediaChannel(sample.red, sample.colorWeight);
+		targetData[targetIndex + 1] = normalizeCyclopediaChannel(sample.green, sample.colorWeight);
+		targetData[targetIndex + 2] = normalizeCyclopediaChannel(sample.blue, sample.colorWeight);
+		if (targetAlpha) {
+			targetAlpha[targetPixelIndex] = normalizeCyclopediaChannel(sample.alpha, sample.weight);
+		}
 	}
 
 	bool downsampleCyclopediaChunk(wxImage &image, const int targetWidth, const int targetHeight) {
@@ -994,6 +1024,7 @@ namespace {
 		const int sourceWidth = image.GetWidth();
 		const int sourceHeight = image.GetHeight();
 		const unsigned char* sourceData = image.GetData();
+		const unsigned char* sourceAlpha = image.HasAlpha() ? image.GetAlpha() : nullptr;
 		if (!sourceData || sourceWidth <= 0 || sourceHeight <= 0) {
 			return false;
 		}
@@ -1002,9 +1033,16 @@ namespace {
 		if (!downsampled.Create(targetWidth, targetHeight, false)) {
 			return false;
 		}
+		if (sourceAlpha) {
+			downsampled.InitAlpha();
+		}
 
 		unsigned char* targetData = downsampled.GetData();
+		unsigned char* targetAlpha = sourceAlpha ? downsampled.GetAlpha() : nullptr;
 		if (!targetData) {
+			return false;
+		}
+		if (sourceAlpha && !targetAlpha) {
 			return false;
 		}
 
@@ -1012,7 +1050,7 @@ namespace {
 			const CyclopediaSampleRange yRange = getCyclopediaSampleRange(targetY, targetHeight, sourceHeight);
 			for (int targetX = 0; targetX < targetWidth; ++targetX) {
 				const CyclopediaSampleRange xRange = getCyclopediaSampleRange(targetX, targetWidth, sourceWidth);
-				writeCyclopediaSample(targetData, targetWidth, targetX, targetY, sampleCyclopediaRegion(sourceData, sourceWidth, xRange, yRange));
+				writeCyclopediaSample(targetData, targetAlpha, targetWidth, targetX, targetY, sampleCyclopediaRegion(sourceData, sourceAlpha, sourceWidth, xRange, yRange));
 			}
 		}
 
@@ -1047,9 +1085,9 @@ namespace {
 		for (int y = 0; y < height; ++y) {
 			for (int x = 0; x < width; ++x) {
 				const size_t index = (static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x)) * rme::PixelFormatRGB;
-				data[index] = CyclopediaSeaColorR;
-				data[index + 1] = CyclopediaSeaColorG;
-				data[index + 2] = CyclopediaSeaColorB;
+				data[index] = CyclopediaMinimapSeaColorR;
+				data[index + 1] = CyclopediaMinimapSeaColorG;
+				data[index + 2] = CyclopediaMinimapSeaColorB;
 			}
 		}
 	}
@@ -1061,7 +1099,12 @@ namespace {
 			return;
 		}
 
-		const wxColour rgb = mapColorToRgb(tile->getMiniMapColor());
+		const uint8_t minimapColor = tile->getMiniMapColor();
+		if (minimapColor == 0) {
+			return;
+		}
+
+		const wxColour rgb = mapColorToRgb(minimapColor);
 		const size_t index = (static_cast<size_t>(y) * static_cast<size_t>(area.width) + static_cast<size_t>(x)) * rme::PixelFormatRGB;
 		data[index] = rgb.Red();
 		data[index + 1] = rgb.Green();
@@ -1103,35 +1146,59 @@ namespace {
 	};
 
 	using SatelliteTinySprite = std::array<SatelliteTinyPixel, CyclopediaSatelliteBasePixelsPerSquare * CyclopediaSatelliteBasePixelsPerSquare>;
+	using SatelliteSampledSprite = std::vector<SatelliteTinyPixel>;
 
-	struct CyclopediaSatellitePaintContext {
-		int outputPixelsPerSquare = 1;
-		int outWidth = 0;
-		unsigned char* outData = nullptr;
-		std::unordered_map<uint32_t, SatelliteTinySprite>* spriteTinyCache = nullptr;
+	struct SatelliteSpriteCacheKey {
+		uint32_t spriteId = 0;
+		int footprintOriginX = 0;
+		int footprintOriginY = 0;
+
+		bool operator==(const SatelliteSpriteCacheKey &other) const noexcept {
+			return spriteId == other.spriteId
+				&& footprintOriginX == other.footprintOriginX
+				&& footprintOriginY == other.footprintOriginY;
+		}
 	};
 
-	void resolveStackableCyclopediaPattern(const int subtype, int &patternX, int &patternY, int &patternZ) {
-		if (subtype <= 0) {
-			patternX = 0;
-			patternY = 0;
-		} else if (subtype < 5) {
-			patternX = subtype - 1;
-			patternY = 0;
-		} else if (subtype < 10) {
-			patternX = 0;
-			patternY = 1;
-		} else if (subtype < 25) {
-			patternX = 1;
-			patternY = 1;
-		} else if (subtype < 50) {
-			patternX = 2;
-			patternY = 1;
-		} else {
-			patternX = 3;
-			patternY = 1;
+	struct SatelliteSpriteCacheKeyHash {
+		size_t operator()(const SatelliteSpriteCacheKey &key) const noexcept {
+			size_t hash = static_cast<size_t>(key.spriteId);
+			hash ^= static_cast<size_t>(key.footprintOriginX + 0x9E3779B9) + (hash << 6) + (hash >> 2);
+			hash ^= static_cast<size_t>(key.footprintOriginY + 0x9E3779B9) + (hash << 6) + (hash >> 2);
+			return hash;
 		}
-		patternZ = 0;
+	};
+
+	struct SatelliteSampledSpriteCacheKey {
+		SatelliteSpriteCacheKey sprite;
+		int outputPixelsPerSquare = 0;
+
+		bool operator==(const SatelliteSampledSpriteCacheKey &other) const noexcept {
+			return outputPixelsPerSquare == other.outputPixelsPerSquare && sprite == other.sprite;
+		}
+	};
+
+	struct SatelliteSampledSpriteCacheKeyHash {
+		size_t operator()(const SatelliteSampledSpriteCacheKey &key) const noexcept {
+			size_t hash = SatelliteSpriteCacheKeyHash {}(key.sprite);
+			hash ^= static_cast<size_t>(key.outputPixelsPerSquare + 0x9E3779B9) + (hash << 6) + (hash >> 2);
+			return hash;
+		}
+	};
+
+	int resolveStackableCyclopediaSubtype(const int subtype) {
+		if (subtype <= 0) {
+			return 0;
+		} else if (subtype < 5) {
+			return subtype - 1;
+		} else if (subtype < 10) {
+			return 4;
+		} else if (subtype < 25) {
+			return 5;
+		} else if (subtype < 50) {
+			return 6;
+		}
+		return 7;
 	}
 
 	void resolveHangableCyclopediaPattern(const Tile &tile, const int patternWidth, int &patternX, int &patternY, int &patternZ) {
@@ -1146,14 +1213,7 @@ namespace {
 		}
 	}
 
-	void resolveFluidCyclopediaPattern(const Item &item, const int patternWidth, const int patternHeight, int &patternX, int &patternY, int &patternZ) {
-		const auto subtype = static_cast<int>(Item::liquidSubTypeToSpriteSubType(static_cast<uint8_t>(item.getSubtype())));
-		patternX = (subtype % 4) % patternWidth;
-		patternY = (subtype / 4) % patternHeight;
-		patternZ = 0;
-	}
-
-	bool resolveCyclopediaItemPatterns(const Position &position, const Tile* tile, const Item* item, int &patternX, int &patternY, int &patternZ) {
+	bool resolveCyclopediaItemPatterns(const Position &position, const Tile* tile, const Item* item, int &patternX, int &patternY, int &patternZ, int &subtype, int &frame) {
 		if (!tile || !item) {
 			return false;
 		}
@@ -1171,23 +1231,27 @@ namespace {
 		patternX = position.x % patternWidth;
 		patternY = position.y % patternHeight;
 		patternZ = position.z % patternDepth;
+		subtype = -1;
+		frame = item->getFrame();
 
-		if (type.stackable && patternWidth == 4 && patternHeight == 2) {
-			resolveStackableCyclopediaPattern(static_cast<int>(item->getSubtype()), patternX, patternY, patternZ);
+		if (type.isSplash() || type.isFluidContainer()) {
+			subtype = static_cast<int>(Item::liquidSubTypeToSpriteSubType(static_cast<uint8_t>(item->getSubtype())));
 		} else if (type.isHangable) {
 			resolveHangableCyclopediaPattern(*tile, patternWidth, patternX, patternY, patternZ);
-		} else if (type.isSplash() || type.isFluidContainer()) {
-			resolveFluidCyclopediaPattern(*item, patternWidth, patternHeight, patternX, patternY, patternZ);
+		} else if (type.stackable) {
+			subtype = resolveStackableCyclopediaSubtype(static_cast<int>(item->getSubtype()));
 		}
 
 		return true;
 	}
 
-	bool resolveCyclopediaItemSpriteId(const Position &position, const Tile* tile, const Item* item, uint32_t &spriteId) {
+	bool resolveCyclopediaItemSpriteSample(const Position &position, const Tile* tile, const Item* item, SatelliteSpriteCacheKey &spriteKey) {
 		int patternX = 0;
 		int patternY = 0;
 		int patternZ = 0;
-		if (!resolveCyclopediaItemPatterns(position, tile, item, patternX, patternY, patternZ)) {
+		int subtype = -1;
+		int frame = 0;
+		if (!resolveCyclopediaItemPatterns(position, tile, item, patternX, patternY, patternZ, subtype, frame)) {
 			return false;
 		}
 
@@ -1197,11 +1261,14 @@ namespace {
 			return false;
 		}
 
-		spriteId = static_cast<uint32_t>(sprite->getHardwareID(0, -1, patternX, patternY, patternZ, 0));
-		return spriteId != 0;
+		spriteKey.spriteId = sprite->getSpriteID(0, subtype, patternX, patternY, patternZ, frame);
+		const wxPoint footprintOrigin = sprite->getDrawOffset();
+		spriteKey.footprintOriginX = footprintOrigin.x;
+		spriteKey.footprintOriginY = footprintOrigin.y;
+		return spriteKey.spriteId != 0;
 	}
 
-	bool sampleSpriteToTiny(const wxImage &spriteImage, SatelliteTinySprite &tinySprite) {
+	bool sampleSpriteToTiny(const wxImage &spriteImage, const int footprintOriginX, const int footprintOriginY, SatelliteTinySprite &tinySprite) {
 		if (!spriteImage.IsOk()) {
 			return false;
 		}
@@ -1292,168 +1359,389 @@ namespace {
 		const bool hasAlpha = spriteImage.HasAlpha();
 		for (int row = 0; row < CyclopediaSatelliteBasePixelsPerSquare; ++row) {
 			for (int col = 0; col < CyclopediaSatelliteBasePixelsPerSquare; ++col) {
-				int sx = ((col * 2 + 1) * width) / (CyclopediaSatelliteBasePixelsPerSquare * 2);
-				int sy = ((row * 2 + 1) * height) / (CyclopediaSatelliteBasePixelsPerSquare * 2);
-				sx = std::clamp(sx, 0, width - 1);
-				sy = std::clamp(sy, 0, height - 1);
-
 				const int index = row * CyclopediaSatelliteBasePixelsPerSquare + col;
-				const size_t spriteIndex = static_cast<size_t>(sy) * static_cast<size_t>(width) + static_cast<size_t>(sx);
-				const bool forceTransparent = edgeBlackMask[spriteIndex] != 0;
-				uint8_t alpha = 0;
-				if (!forceTransparent) {
-					alpha = hasAlpha ? spriteImage.GetAlpha(sx, sy) : 255;
+				const int sourceX = footprintOriginX + col;
+				const int sourceY = footprintOriginY + row;
+				if (sourceX < 0 || sourceY < 0 || sourceX >= width || sourceY >= height) {
+					tinySprite[index] = SatelliteTinyPixel {};
+					continue;
 				}
 
-				tinySprite[index].r = spriteImage.GetRed(sx, sy);
-				tinySprite[index].g = spriteImage.GetGreen(sx, sy);
-				tinySprite[index].b = spriteImage.GetBlue(sx, sy);
+				const size_t spriteIndex = static_cast<size_t>(sourceY) * static_cast<size_t>(width) + static_cast<size_t>(sourceX);
+				const bool forceTransparent = edgeBlackMask[spriteIndex] != 0;
+				const uint8_t alpha = forceTransparent ? 0 : (hasAlpha ? spriteImage.GetAlpha(sourceX, sourceY) : 255);
 				tinySprite[index].a = alpha;
+				if (alpha == 0) {
+					tinySprite[index].r = 0;
+					tinySprite[index].g = 0;
+					tinySprite[index].b = 0;
+					continue;
+				}
+
+				tinySprite[index].r = spriteImage.GetRed(sourceX, sourceY);
+				tinySprite[index].g = spriteImage.GetGreen(sourceX, sourceY);
+				tinySprite[index].b = spriteImage.GetBlue(sourceX, sourceY);
 			}
 		}
 
 		return true;
 	}
 
-	const SatelliteTinySprite* getTinySpriteForSpriteId(const uint32_t spriteId, std::unordered_map<uint32_t, SatelliteTinySprite> &cache) {
-		if (auto it = cache.find(spriteId); it != cache.end()) {
-			return &it->second;
+	bool getTinySpriteForSpriteId(
+		const SatelliteSpriteCacheKey &spriteKey,
+		std::unordered_map<SatelliteSpriteCacheKey, SatelliteTinySprite, SatelliteSpriteCacheKeyHash> &cache,
+		SatelliteTinySprite &tinySprite
+	) {
+		if (auto it = cache.find(spriteKey); it != cache.end()) {
+			tinySprite = it->second;
+			return true;
 		}
 
-		const wxImage spriteImage = g_spriteAppearances.getWxImageBySpriteId(static_cast<int>(spriteId), true);
+		const wxImage spriteImage = g_spriteAppearances.getWxImageBySpriteId(static_cast<int>(spriteKey.spriteId), true);
 		if (!spriteImage.IsOk()) {
-			return nullptr;
+			return false;
 		}
 
 		SatelliteTinySprite sampled {};
-		if (!sampleSpriteToTiny(spriteImage, sampled)) {
-			return nullptr;
+		if (!sampleSpriteToTiny(spriteImage, spriteKey.footprintOriginX, spriteKey.footprintOriginY, sampled)) {
+			return false;
 		}
 
-		auto [it, inserted] = cache.try_emplace(spriteId, std::move(sampled));
-		(void)inserted;
-		return &it->second;
+		cache.emplace(spriteKey, sampled);
+		tinySprite = sampled;
+		return true;
 	}
 
-	void blendTinyPixel(unsigned char &dstR, unsigned char &dstG, unsigned char &dstB, const SatelliteTinyPixel &src) {
-		const auto alpha = static_cast<int>(src.a);
-		if (alpha <= 0) {
-			return;
+	bool resampleTinySprite(const SatelliteTinySprite &tinySprite, const int outputPixelsPerSquare, SatelliteSampledSprite &sampledSprite) {
+		if (outputPixelsPerSquare <= 0 || outputPixelsPerSquare > CyclopediaSatelliteBasePixelsPerSquare) {
+			return false;
 		}
 
-		if (alpha >= 255) {
-			dstR = src.r;
-			dstG = src.g;
-			dstB = src.b;
-			return;
-		}
+		const size_t outputPixelCount = static_cast<size_t>(outputPixelsPerSquare) * static_cast<size_t>(outputPixelsPerSquare);
+		sampledSprite.assign(outputPixelCount, SatelliteTinyPixel {});
 
-		const int invAlpha = 255 - alpha;
-		dstR = static_cast<unsigned char>((static_cast<int>(src.r) * alpha + static_cast<int>(dstR) * invAlpha + 127) / 255);
-		dstG = static_cast<unsigned char>((static_cast<int>(src.g) * alpha + static_cast<int>(dstG) * invAlpha + 127) / 255);
-		dstB = static_cast<unsigned char>((static_cast<int>(src.b) * alpha + static_cast<int>(dstB) * invAlpha + 127) / 255);
-	}
+		const auto clampChannel = [](const double value) {
+			return static_cast<unsigned char>(std::clamp<int>(static_cast<int>(std::lround(value)), 0, 255));
+		};
 
-	void fillCyclopediaSatelliteBackground(
-		const CyclopediaChunkArea &area,
-		const int outputPixelsPerSquare,
-		const int outWidth,
-		const wxImage &minimapChunk,
-		unsigned char* outData
-	) {
-		const unsigned char* minimapData = minimapChunk.IsOk() ? minimapChunk.GetData() : nullptr;
-		const int minimapWidth = minimapChunk.IsOk() ? minimapChunk.GetWidth() : 0;
-		const int minimapHeight = minimapChunk.IsOk() ? minimapChunk.GetHeight() : 0;
+		for (int row = 0; row < outputPixelsPerSquare; ++row) {
+			const double sy0 = (static_cast<double>(row) * CyclopediaSatelliteBasePixelsPerSquare) / outputPixelsPerSquare;
+			const double sy1 = (static_cast<double>(row + 1) * CyclopediaSatelliteBasePixelsPerSquare) / outputPixelsPerSquare;
+			const int syBegin = std::clamp(static_cast<int>(std::floor(sy0)), 0, CyclopediaSatelliteBasePixelsPerSquare - 1);
+			const int syEnd = std::clamp(static_cast<int>(std::ceil(sy1)), syBegin + 1, CyclopediaSatelliteBasePixelsPerSquare);
 
-		for (int y = 0; y < area.height; ++y) {
-			for (int x = 0; x < area.width; ++x) {
-				unsigned char baseR = CyclopediaSeaColorR;
-				unsigned char baseG = CyclopediaSeaColorG;
-				unsigned char baseB = CyclopediaSeaColorB;
+			for (int col = 0; col < outputPixelsPerSquare; ++col) {
+				const size_t outIndex = static_cast<size_t>(row) * static_cast<size_t>(outputPixelsPerSquare) + static_cast<size_t>(col);
+				const double sx0 = (static_cast<double>(col) * CyclopediaSatelliteBasePixelsPerSquare) / outputPixelsPerSquare;
+				const double sx1 = (static_cast<double>(col + 1) * CyclopediaSatelliteBasePixelsPerSquare) / outputPixelsPerSquare;
+				const int sxBegin = std::clamp(static_cast<int>(std::floor(sx0)), 0, CyclopediaSatelliteBasePixelsPerSquare - 1);
+				const int sxEnd = std::clamp(static_cast<int>(std::ceil(sx1)), sxBegin + 1, CyclopediaSatelliteBasePixelsPerSquare);
 
-				if (minimapData && x < minimapWidth && y < minimapHeight) {
-					const size_t miniIndex = (static_cast<size_t>(y) * static_cast<size_t>(minimapWidth) + static_cast<size_t>(x)) * rme::PixelFormatRGB;
-					baseR = minimapData[miniIndex];
-					baseG = minimapData[miniIndex + 1];
-					baseB = minimapData[miniIndex + 2];
-				}
+				const double cellArea = std::max((sx1 - sx0) * (sy1 - sy0), 0.000001);
+				double weightedRed = 0.0;
+				double weightedGreen = 0.0;
+				double weightedBlue = 0.0;
+				double weightedAlpha = 0.0;
+				double weightedColorAlpha = 0.0;
 
-				for (int py = 0; py < outputPixelsPerSquare; ++py) {
-					for (int px = 0; px < outputPixelsPerSquare; ++px) {
-						const size_t outIndex = (static_cast<size_t>(y * outputPixelsPerSquare + py) * static_cast<size_t>(outWidth)
-												 + static_cast<size_t>(x * outputPixelsPerSquare + px))
-							* rme::PixelFormatRGB;
-						outData[outIndex] = baseR;
-						outData[outIndex + 1] = baseG;
-						outData[outIndex + 2] = baseB;
+				for (int sy = syBegin; sy < syEnd; ++sy) {
+					const double yOverlap = std::max(0.0, std::min(sy1, static_cast<double>(sy + 1)) - std::max(sy0, static_cast<double>(sy)));
+					if (yOverlap <= 0.0) {
+						continue;
+					}
+
+					for (int sx = sxBegin; sx < sxEnd; ++sx) {
+						const double xOverlap = std::max(0.0, std::min(sx1, static_cast<double>(sx + 1)) - std::max(sx0, static_cast<double>(sx)));
+						if (xOverlap <= 0.0) {
+							continue;
+						}
+
+						const double areaWeight = xOverlap * yOverlap;
+						const size_t sourceIndex = static_cast<size_t>(sy) * CyclopediaSatelliteBasePixelsPerSquare + static_cast<size_t>(sx);
+						const SatelliteTinyPixel &sourcePixel = tinySprite[sourceIndex];
+						weightedAlpha += areaWeight * static_cast<double>(sourcePixel.a);
+
+						if (sourcePixel.a == 0) {
+							continue;
+						}
+
+						const double alphaWeight = areaWeight * (static_cast<double>(sourcePixel.a) / 255.0);
+						weightedColorAlpha += alphaWeight;
+						weightedRed += static_cast<double>(sourcePixel.r) * alphaWeight;
+						weightedGreen += static_cast<double>(sourcePixel.g) * alphaWeight;
+						weightedBlue += static_cast<double>(sourcePixel.b) * alphaWeight;
 					}
 				}
+
+				SatelliteTinyPixel &outPixel = sampledSprite[outIndex];
+				outPixel.a = clampChannel(weightedAlpha / cellArea);
+				if (weightedColorAlpha > 0.0) {
+					outPixel.r = clampChannel(weightedRed / weightedColorAlpha);
+					outPixel.g = clampChannel(weightedGreen / weightedColorAlpha);
+					outPixel.b = clampChannel(weightedBlue / weightedColorAlpha);
+					continue;
+				}
+
+				const int fallbackX = std::clamp(static_cast<int>(std::lround((sx0 + sx1) * 0.5 - 0.5)), 0, CyclopediaSatelliteBasePixelsPerSquare - 1);
+				const int fallbackY = std::clamp(static_cast<int>(std::lround((sy0 + sy1) * 0.5 - 0.5)), 0, CyclopediaSatelliteBasePixelsPerSquare - 1);
+				const size_t fallbackIndex = static_cast<size_t>(fallbackY) * CyclopediaSatelliteBasePixelsPerSquare + static_cast<size_t>(fallbackX);
+				outPixel.r = tinySprite[fallbackIndex].r;
+				outPixel.g = tinySprite[fallbackIndex].g;
+				outPixel.b = tinySprite[fallbackIndex].b;
 			}
 		}
+
+		return true;
 	}
 
-	void collectCyclopediaSatelliteDrawItems(const Tile &tile, std::vector<const Item*> &drawItems) {
-		drawItems.clear();
-		drawItems.reserve(tile.items.size() + 1);
-		if (tile.ground) {
-			drawItems.push_back(tile.ground);
+	bool getSampledSpriteForSpriteId(
+		const SatelliteSpriteCacheKey &spriteKey,
+		const int outputPixelsPerSquare,
+		std::unordered_map<SatelliteSpriteCacheKey, SatelliteTinySprite, SatelliteSpriteCacheKeyHash> &tinyCache,
+		std::unordered_map<SatelliteSampledSpriteCacheKey, SatelliteSampledSprite, SatelliteSampledSpriteCacheKeyHash> &sampledCache,
+		const SatelliteSampledSprite* &sampledSprite
+	) {
+		sampledSprite = nullptr;
+		if (outputPixelsPerSquare <= 0 || outputPixelsPerSquare > CyclopediaSatelliteBasePixelsPerSquare) {
+			return false;
 		}
 
-		for (const Item* item : tile.items) {
+		const SatelliteSampledSpriteCacheKey cacheKey {
+			spriteKey,
+			outputPixelsPerSquare
+		};
+		if (auto it = sampledCache.find(cacheKey); it != sampledCache.end()) {
+			sampledSprite = &it->second;
+			return true;
+		}
+
+		SatelliteTinySprite tinySprite {};
+		if (!getTinySpriteForSpriteId(spriteKey, tinyCache, tinySprite)) {
+			return false;
+		}
+
+		SatelliteSampledSprite sampled;
+		if (!resampleTinySprite(tinySprite, outputPixelsPerSquare, sampled)) {
+			return false;
+		}
+
+		auto [it, inserted] = sampledCache.emplace(cacheKey, std::move(sampled));
+		if (!inserted) {
+			return false;
+		}
+
+		sampledSprite = &it->second;
+		return true;
+	}
+
+	void collectCyclopediaDrawItems(const Tile* tile, std::vector<const Item*> &drawItems, const bool includeGround) {
+		drawItems.clear();
+		if (!tile) {
+			return;
+		}
+
+		drawItems.reserve(tile->items.size() + 1);
+		if (includeGround && tile->ground) {
+			drawItems.push_back(tile->ground);
+		}
+
+		for (const Item* item : tile->items) {
 			if (item && item->isBorder()) {
 				drawItems.push_back(item);
 			}
 		}
 
-		for (const Item* item : tile.items) {
+		for (const Item* item : tile->items) {
 			if (item && !item->isBorder()) {
 				drawItems.push_back(item);
 			}
 		}
 	}
 
-	void paintCyclopediaSatelliteSprite(
-		const SatelliteTinySprite &tinySprite,
+	void blendTinyPixel(unsigned char &dstR, unsigned char &dstG, unsigned char &dstB, unsigned char &dstA, const SatelliteTinyPixel &src) {
+		const int srcAlpha = static_cast<int>(src.a);
+		if (srcAlpha <= 0) {
+			return;
+		}
+
+		if (srcAlpha >= 255) {
+			dstR = src.r;
+			dstG = src.g;
+			dstB = src.b;
+			dstA = 255;
+			return;
+		}
+
+		const int dstAlpha = static_cast<int>(dstA);
+		const int invSrcAlpha = 255 - srcAlpha;
+		const int outAlpha = srcAlpha + ((dstAlpha * invSrcAlpha + 127) / 255);
+		if (outAlpha <= 0) {
+			dstR = 0;
+			dstG = 0;
+			dstB = 0;
+			dstA = 0;
+			return;
+		}
+
+		const int dstScaledAlpha = (dstAlpha * invSrcAlpha + 127) / 255;
+		const int outRed = static_cast<int>(src.r) * srcAlpha + static_cast<int>(dstR) * dstScaledAlpha;
+		const int outGreen = static_cast<int>(src.g) * srcAlpha + static_cast<int>(dstG) * dstScaledAlpha;
+		const int outBlue = static_cast<int>(src.b) * srcAlpha + static_cast<int>(dstB) * dstScaledAlpha;
+
+		dstR = static_cast<unsigned char>((outRed + outAlpha / 2) / outAlpha);
+		dstG = static_cast<unsigned char>((outGreen + outAlpha / 2) / outAlpha);
+		dstB = static_cast<unsigned char>((outBlue + outAlpha / 2) / outAlpha);
+		dstA = static_cast<unsigned char>(outAlpha);
+	}
+
+	bool isCyclopediaRedDominantColor(const unsigned char red, const unsigned char green, const unsigned char blue) {
+		return red >= 180
+			&& static_cast<int>(red) * 5 >= static_cast<int>(green) * 8
+			&& static_cast<int>(red) * 5 >= static_cast<int>(blue) * 8;
+	}
+
+	bool resolveCyclopediaSatelliteBasePixel(const unsigned char red, const unsigned char green, const unsigned char blue, SatelliteTinyPixel &pixel) {
+		pixel.a = 255;
+		if (isCyclopediaRedDominantColor(red, green, blue)) {
+			pixel.r = 113;
+			pixel.g = 110;
+			pixel.b = 110;
+			return true;
+		}
+
+		if (blue >= 120 && blue >= red + 35 && green >= 70) {
+			pixel.r = CyclopediaSatelliteSeaColorR;
+			pixel.g = CyclopediaSatelliteSeaColorG;
+			pixel.b = CyclopediaSatelliteSeaColorB;
+			return true;
+		}
+
+		const int minChannel = std::min({ static_cast<int>(red), static_cast<int>(green), static_cast<int>(blue) });
+		const int maxChannel = std::max({ static_cast<int>(red), static_cast<int>(green), static_cast<int>(blue) });
+		if (minChannel >= 200) {
+			pixel.r = 231;
+			pixel.g = 240;
+			pixel.b = 242;
+			return true;
+		}
+		if (maxChannel - minChannel <= 24 && maxChannel >= 80) {
+			const bool lightStone = maxChannel >= 135;
+			pixel.r = lightStone ? 130 : 113;
+			pixel.g = lightStone ? 131 : 110;
+			pixel.b = lightStone ? 131 : 110;
+			return true;
+		}
+		if (red >= 190 && green >= 150 && blue >= 95 && red >= green && green >= blue) {
+			pixel.r = 227;
+			pixel.g = 204;
+			pixel.b = 141;
+			return true;
+		}
+		if (green >= red + 35 && green >= blue + 25) {
+			if (green >= 185) {
+				pixel.r = 76;
+				pixel.g = 109;
+				pixel.b = 30;
+			} else if (green >= 135) {
+				pixel.r = 78;
+				pixel.g = 112;
+				pixel.b = 34;
+			} else {
+				pixel.r = 75;
+				pixel.g = 101;
+				pixel.b = 34;
+			}
+			return true;
+		}
+		if (red >= green && green >= blue && red >= 90) {
+			pixel.r = 90;
+			pixel.g = 50;
+			pixel.b = 22;
+			return true;
+		}
+
+		const int luminance = (static_cast<int>(red) * 30 + static_cast<int>(green) * 59 + static_cast<int>(blue) * 11 + 50) / 100;
+		pixel.r = static_cast<unsigned char>(std::clamp((static_cast<int>(red) + luminance) / 4, 0, 255));
+		pixel.g = static_cast<unsigned char>(std::clamp((static_cast<int>(green) + luminance * 2) / 4, 0, 255));
+		pixel.b = static_cast<unsigned char>(std::clamp((static_cast<int>(blue) + luminance) / 4, 0, 255));
+		return true;
+	}
+
+	bool getCyclopediaSatelliteBasePixel(
+		const unsigned char* minimapData,
+		const unsigned char* minimapAlpha,
+		const int minimapWidth,
+		const int minimapHeight,
+		const int x,
+		const int y,
+		SatelliteTinyPixel &pixel
+	) {
+		if (!minimapData || x < 0 || y < 0 || x >= minimapWidth || y >= minimapHeight) {
+			return false;
+		}
+
+		const size_t pixelIndex = static_cast<size_t>(y) * static_cast<size_t>(minimapWidth) + static_cast<size_t>(x);
+		if (minimapAlpha && minimapAlpha[pixelIndex] == 0) {
+			return false;
+		}
+
+		const size_t rgbIndex = pixelIndex * rme::PixelFormatRGB;
+		return resolveCyclopediaSatelliteBasePixel(minimapData[rgbIndex], minimapData[rgbIndex + 1], minimapData[rgbIndex + 2], pixel);
+	}
+
+	void fillCyclopediaSatelliteTileBase(
+		unsigned char* outData,
+		unsigned char* outAlpha,
+		const int outWidth,
 		const int tileX,
 		const int tileY,
-		const CyclopediaSatellitePaintContext &paintContext
+		const int outputPixelsPerSquare,
+		const SatelliteTinyPixel &pixel
 	) {
-		const int outputPixelsPerSquare = paintContext.outputPixelsPerSquare;
 		for (int py = 0; py < outputPixelsPerSquare; ++py) {
-			const int tinyY = (py * CyclopediaSatelliteBasePixelsPerSquare) / outputPixelsPerSquare;
 			for (int px = 0; px < outputPixelsPerSquare; ++px) {
-				const int tinyX = (px * CyclopediaSatelliteBasePixelsPerSquare) / outputPixelsPerSquare;
-				const int tinyIndex = tinyY * CyclopediaSatelliteBasePixelsPerSquare + tinyX;
-				const size_t outIndex = (static_cast<size_t>(tileY * outputPixelsPerSquare + py) * static_cast<size_t>(paintContext.outWidth)
-										 + static_cast<size_t>(tileX * outputPixelsPerSquare + px))
-					* rme::PixelFormatRGB;
-				blendTinyPixel(paintContext.outData[outIndex], paintContext.outData[outIndex + 1], paintContext.outData[outIndex + 2], tinySprite[tinyIndex]);
+				const size_t outPixelIndex = static_cast<size_t>(tileY * outputPixelsPerSquare + py) * static_cast<size_t>(outWidth)
+					+ static_cast<size_t>(tileX * outputPixelsPerSquare + px);
+				const size_t outIndex = outPixelIndex * rme::PixelFormatRGB;
+				outData[outIndex] = pixel.r;
+				outData[outIndex + 1] = pixel.g;
+				outData[outIndex + 2] = pixel.b;
+				outAlpha[outPixelIndex] = pixel.a;
 			}
 		}
 	}
 
-	void paintCyclopediaSatelliteTile(
-		const Position &position,
-		const Tile &tile,
-		const int tileX,
-		const int tileY,
-		const CyclopediaSatellitePaintContext &paintContext
-	) {
-		std::vector<const Item*> drawItems;
-		collectCyclopediaSatelliteDrawItems(tile, drawItems);
+	void finalizeCyclopediaSatellitePixels(wxImage &image, const bool fillEmptyWithSea) {
+		if (!image.IsOk() || !image.HasAlpha()) {
+			return;
+		}
 
-		for (const Item* item : drawItems) {
-			uint32_t spriteId = 0;
-			if (!resolveCyclopediaItemSpriteId(position, &tile, item, spriteId)) {
-				continue;
+		unsigned char* data = image.GetData();
+		unsigned char* alpha = image.GetAlpha();
+		if (!data || !alpha) {
+			return;
+		}
+
+		const int width = image.GetWidth();
+		const int height = image.GetHeight();
+		for (int y = 0; y < height; ++y) {
+			for (int x = 0; x < width; ++x) {
+				const size_t pixelIndex = static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x);
+				const size_t rgbIndex = pixelIndex * rme::PixelFormatRGB;
+				if (alpha[pixelIndex] > 0) {
+					alpha[pixelIndex] = 255;
+					continue;
+				}
+
+				if (!fillEmptyWithSea) {
+					continue;
+				}
+
+				data[rgbIndex] = CyclopediaSatelliteSeaColorR;
+				data[rgbIndex + 1] = CyclopediaSatelliteSeaColorG;
+				data[rgbIndex + 2] = CyclopediaSatelliteSeaColorB;
+				alpha[pixelIndex] = 255;
 			}
-
-			const SatelliteTinySprite* tinySprite = getTinySpriteForSpriteId(spriteId, *paintContext.spriteTinyCache);
-			if (!tinySprite) {
-				continue;
-			}
-
-			paintCyclopediaSatelliteSprite(*tinySprite, tileX, tileY, paintContext);
 		}
 	}
 
@@ -1469,35 +1757,88 @@ namespace {
 		if (!image.Create(outWidth, outHeight, false)) {
 			return false;
 		}
+		image.InitAlpha();
 
 		unsigned char* outData = image.GetData();
-		if (!outData) {
+		unsigned char* outAlpha = image.GetAlpha();
+		if (!outData || !outAlpha) {
 			return false;
 		}
 
-		fillCyclopediaSatelliteBackground(area, outputPixelsPerSquare, outWidth, minimapChunk, outData);
+		const unsigned char* minimapData = minimapChunk.IsOk() ? minimapChunk.GetData() : nullptr;
+		const unsigned char* minimapAlpha = (minimapChunk.IsOk() && minimapChunk.HasAlpha()) ? minimapChunk.GetAlpha() : nullptr;
+		const int minimapWidth = minimapChunk.IsOk() ? minimapChunk.GetWidth() : 0;
+		const int minimapHeight = minimapChunk.IsOk() ? minimapChunk.GetHeight() : 0;
+		const bool opaqueSeaBackground = area.floor == CyclopediaOpaqueSeaFloor;
 
-		std::unordered_map<uint32_t, SatelliteTinySprite> spriteTinyCache;
+		std::memset(outData, 0, static_cast<size_t>(outWidth) * static_cast<size_t>(outHeight) * rme::PixelFormatRGB);
+		std::memset(outAlpha, 0, static_cast<size_t>(outWidth) * static_cast<size_t>(outHeight));
+
+		std::unordered_map<SatelliteSpriteCacheKey, SatelliteTinySprite, SatelliteSpriteCacheKeyHash> spriteTinyCache;
 		spriteTinyCache.reserve(4096);
-		const CyclopediaSatellitePaintContext paintContext {
-			.outputPixelsPerSquare = outputPixelsPerSquare,
-			.outWidth = outWidth,
-			.outData = outData,
-			.spriteTinyCache = &spriteTinyCache,
-		};
+		std::unordered_map<SatelliteSampledSpriteCacheKey, SatelliteSampledSprite, SatelliteSampledSpriteCacheKeyHash> spriteSampledCache;
+		spriteSampledCache.reserve(8192);
+		std::vector<const Item*> drawItems;
+		drawItems.reserve(64);
+
 		for (int y = 0; y < area.height; ++y) {
 			for (int x = 0; x < area.width; ++x) {
 				const Position position(area.startX + x, area.startY + y, area.floor);
 				Tile* tile = getCyclopediaMapTile(map, position);
-				if (hasCyclopediaTileData(tile)) {
-					paintCyclopediaSatelliteTile(position, *tile, x, y, paintContext);
+				if (!hasCyclopediaTileData(tile)) {
+					continue;
+				}
+
+				SatelliteTinyPixel basePixel {};
+				if (getCyclopediaSatelliteBasePixel(minimapData, minimapAlpha, minimapWidth, minimapHeight, x, y, basePixel)) {
+					fillCyclopediaSatelliteTileBase(outData, outAlpha, outWidth, x, y, outputPixelsPerSquare, basePixel);
+				}
+
+				for (int sourceDy = 0; sourceDy <= 1; ++sourceDy) {
+					for (int sourceDx = 0; sourceDx <= 1; ++sourceDx) {
+						const Position sourcePosition(position.x + sourceDx, position.y + sourceDy, area.floor);
+						Tile* sourceTile = getCyclopediaMapTile(map, sourcePosition);
+						if (!hasCyclopediaTileData(sourceTile)) {
+							continue;
+						}
+
+						collectCyclopediaDrawItems(sourceTile, drawItems, true);
+						for (const Item* item : drawItems) {
+							SatelliteSpriteCacheKey spriteKey {};
+							if (!resolveCyclopediaItemSpriteSample(sourcePosition, sourceTile, item, spriteKey)) {
+								continue;
+							}
+
+							spriteKey.footprintOriginX -= sourceDx * rme::SpritePixels;
+							spriteKey.footprintOriginY -= sourceDy * rme::SpritePixels;
+
+							const SatelliteSampledSprite* sampledSprite = nullptr;
+							if (!getSampledSpriteForSpriteId(spriteKey, outputPixelsPerSquare, spriteTinyCache, spriteSampledCache, sampledSprite) || !sampledSprite) {
+								continue;
+							}
+
+							for (int py = 0; py < outputPixelsPerSquare; ++py) {
+								for (int px = 0; px < outputPixelsPerSquare; ++px) {
+									const size_t tinyIndex = static_cast<size_t>(py) * static_cast<size_t>(outputPixelsPerSquare) + static_cast<size_t>(px);
+									const SatelliteTinyPixel &tinyPixel = (*sampledSprite)[tinyIndex];
+
+									const size_t outPixelIndex = static_cast<size_t>(y * outputPixelsPerSquare + py) * static_cast<size_t>(outWidth)
+										+ static_cast<size_t>(x * outputPixelsPerSquare + px);
+									const size_t outIndex = outPixelIndex * rme::PixelFormatRGB;
+									blendTinyPixel(outData[outIndex], outData[outIndex + 1], outData[outIndex + 2], outAlpha[outPixelIndex], tinyPixel);
+								}
+							}
+						}
+					}
 				}
 			}
 		}
 
+		finalizeCyclopediaSatellitePixels(image, opaqueSeaBackground);
 		if (!resampleCyclopediaChunk(image, area.width, area.height, requestedPixelsPerSquare)) {
 			return false;
 		}
+		finalizeCyclopediaSatellitePixels(image, false);
 
 		return true;
 	}
@@ -1576,7 +1917,9 @@ namespace {
 		int patternX = 0;
 		int patternY = 0;
 		int patternZ = 0;
-		if (!resolveCyclopediaItemPatterns(position, tile, item, patternX, patternY, patternZ)) {
+		int subtype = -1;
+		int frame = 0;
+		if (!resolveCyclopediaItemPatterns(position, tile, item, patternX, patternY, patternZ, subtype, frame)) {
 			return false;
 		}
 
@@ -2237,6 +2580,163 @@ namespace {
 		return true;
 	}
 
+	bool isSafeRelativePath(const std::filesystem::path &path) {
+		if (path.empty() || path.is_absolute()) {
+			return false;
+		}
+
+		for (const std::filesystem::path &part : path) {
+			if (part == std::filesystem::path(".") || part == std::filesystem::path("..")) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	bool getLocalTime(const std::time_t value, std::tm &localTime) {
+#ifdef _WIN32
+		return localtime_s(&localTime, &value) == 0;
+#else
+		return localtime_r(&value, &localTime) != nullptr;
+#endif
+	}
+
+	std::string buildCyclopediaBackupRunName(const std::string_view prefix) {
+		const std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+		std::tm localTime {};
+		if (!getLocalTime(now, localTime)) {
+			return std::string(prefix) + "-unknown-time";
+		}
+
+		std::ostringstream name;
+		name << prefix << "-" << std::put_time(&localTime, "%Y-%m-%d_%H-%M-%S");
+		return name.str();
+	}
+
+	std::filesystem::path createCyclopediaBackupRunPath(const std::filesystem::path &backupRootPath, const std::string_view prefix) {
+		if (backupRootPath.empty()) {
+			return std::filesystem::path();
+		}
+
+		std::error_code ec;
+		std::filesystem::create_directories(backupRootPath, ec);
+		if (ec) {
+			spdlog::warn("Failed to create backup root directory '{}': {}", backupRootPath.string(), ec.message());
+			return std::filesystem::path();
+		}
+
+		const std::string baseName = buildCyclopediaBackupRunName(prefix);
+		for (int attempt = 0; attempt < 1000; ++attempt) {
+			std::string runName = baseName;
+			if (attempt > 0) {
+				runName += std::format("-{:03}", attempt + 1);
+			}
+
+			std::filesystem::path runPath = backupRootPath / runName;
+			ec.clear();
+			if (std::filesystem::create_directory(runPath, ec)) {
+				return runPath;
+			}
+			if (ec) {
+				spdlog::warn("Failed to create backup run directory '{}': {}", runPath.string(), ec.message());
+				return std::filesystem::path();
+			}
+		}
+
+		spdlog::warn("Failed to create a unique backup run directory under '{}'", backupRootPath.string());
+		return std::filesystem::path();
+	}
+
+	std::filesystem::path buildCyclopediaBackupFilePath(const std::filesystem::path &backupRunPath, const std::filesystem::path &relativePath) {
+		std::filesystem::path backupPath = backupRunPath / relativePath;
+		backupPath += ".bkp";
+		return backupPath;
+	}
+
+	std::filesystem::path makeUniqueCyclopediaBackupFilePath(const std::filesystem::path &backupPath) {
+		if (!std::filesystem::exists(backupPath)) {
+			return backupPath;
+		}
+
+		const std::filesystem::path parentPath = backupPath.parent_path();
+		const std::string filename = backupPath.filename().string();
+		constexpr std::string_view backupSuffix = ".bkp";
+		std::string baseName = filename;
+		std::string suffix;
+		if (filename.size() > backupSuffix.size() && filename.ends_with(backupSuffix)) {
+			baseName = filename.substr(0, filename.size() - backupSuffix.size());
+			suffix = backupSuffix;
+		}
+
+		for (int attempt = 2; attempt < 1000; ++attempt) {
+			std::filesystem::path candidate = parentPath / std::format("{}.{}{}", baseName, attempt, suffix);
+			if (!std::filesystem::exists(candidate)) {
+				return candidate;
+			}
+		}
+
+		return std::filesystem::path();
+	}
+
+	void collectCyclopediaBackupFileCandidates(
+		const std::filesystem::path &backupPath,
+		const std::filesystem::path &relativePath,
+		std::vector<std::filesystem::path> &sourceCandidates
+	) {
+		sourceCandidates.clear();
+		if (backupPath.empty() || relativePath.empty()) {
+			return;
+		}
+
+		const auto addCandidate = [&](const std::filesystem::path &rootPath) {
+			if (rootPath.empty()) {
+				return;
+			}
+
+			std::filesystem::path candidate = buildCyclopediaBackupFilePath(rootPath, relativePath);
+			if (std::ranges::find(sourceCandidates, candidate) == sourceCandidates.end()) {
+				sourceCandidates.emplace_back(std::move(candidate));
+			}
+		};
+
+		addCandidate(backupPath);
+
+		std::filesystem::path backupRootPath;
+		if (backupPath.filename() == "bkps") {
+			backupRootPath = backupPath;
+		} else if (backupPath.parent_path().filename() == "bkps") {
+			backupRootPath = backupPath.parent_path();
+		}
+
+		if (backupRootPath.empty() || !std::filesystem::exists(backupRootPath)) {
+			return;
+		}
+
+		addCandidate(backupRootPath);
+
+		std::vector<std::filesystem::path> runPaths;
+		for (const auto &entry : std::filesystem::directory_iterator(backupRootPath)) {
+			if (!entry.is_directory()) {
+				continue;
+			}
+			runPaths.emplace_back(entry.path());
+		}
+		std::ranges::sort(runPaths, [](const std::filesystem::path &left, const std::filesystem::path &right) {
+			std::error_code leftEc;
+			std::error_code rightEc;
+			const auto leftWriteTime = std::filesystem::last_write_time(left, leftEc);
+			const auto rightWriteTime = std::filesystem::last_write_time(right, rightEc);
+			if (!leftEc && !rightEc && leftWriteTime != rightWriteTime) {
+				return leftWriteTime > rightWriteTime;
+			}
+			return left.generic_string() > right.generic_string();
+		});
+
+		for (const auto &runPath : runPaths) {
+			addCandidate(runPath);
+		}
+	}
+
 	bool readBinaryFile(const std::filesystem::path &path, std::vector<uint8_t> &bytes) {
 		std::ifstream input(path, std::ios::binary);
 		if (!input.is_open()) {
@@ -2259,6 +2759,35 @@ namespace {
 		}
 
 		return true;
+	}
+
+	bool writeBinaryFile(const std::filesystem::path &path, const char* data, const size_t size) {
+		if (size > static_cast<size_t>(std::numeric_limits<std::streamsize>::max())) {
+			return false;
+		}
+
+		std::ofstream output(path, std::ios::binary | std::ios::trunc);
+		if (!output.is_open()) {
+			return false;
+		}
+
+		if (size > 0) {
+			output.write(data, static_cast<std::streamsize>(size));
+			if (!output.good()) {
+				return false;
+			}
+		}
+
+		output.close();
+		return output.good();
+	}
+
+	bool writeBinaryFile(const std::filesystem::path &path, const std::string &bytes) {
+		return writeBinaryFile(path, bytes.data(), bytes.size());
+	}
+
+	bool writeBinaryFile(const std::filesystem::path &path, const std::vector<uint8_t> &bytes) {
+		return writeBinaryFile(path, reinterpret_cast<const char*>(bytes.data()), bytes.size());
 	}
 
 	bool hasMatchingEmbeddedSha256(const std::filesystem::path &path) {
@@ -2326,6 +2855,63 @@ namespace {
 			actualHash
 		);
 		return true;
+	}
+
+	bool isHashNamedCatalogDataFile(const std::filesystem::path &path, const std::string_view prefix) {
+		const std::string filename = path.filename().string();
+		const std::string expectedPrefix = std::string(prefix) + "-";
+		if (filename.rfind(expectedPrefix, 0) != 0 || path.extension() != ".dat") {
+			return false;
+		}
+
+		std::string hashHex;
+		return tryExtractSha256FromFilename(path, hashHex);
+	}
+
+	std::string getCyclopediaAssetReplacementKey(const std::filesystem::path &path) {
+		const std::string filename = path.filename().string();
+		if (filename.rfind("minimap-", 0) != 0 && filename.rfind("satellite-", 0) != 0) {
+			return std::string();
+		}
+
+		constexpr std::string_view suffix = ".bmp.lzma";
+		if (filename.size() <= suffix.size() || filename.compare(filename.size() - suffix.size(), suffix.size(), suffix.data(), suffix.size()) != 0) {
+			return std::string();
+		}
+
+		const std::string stem = filename.substr(0, filename.size() - suffix.size());
+		const size_t hashDashPos = stem.rfind('-');
+		if (hashDashPos == std::string::npos || hashDashPos + 1 >= stem.size()) {
+			return std::string();
+		}
+
+		const std::string_view hashValue(stem.data() + hashDashPos + 1, stem.size() - hashDashPos - 1);
+		if (hashValue.size() != 64 || !std::ranges::all_of(hashValue, [](const char ch) {
+				return std::isxdigit(static_cast<unsigned char>(ch));
+			})) {
+			return std::string();
+		}
+
+		return stem.substr(0, hashDashPos);
+	}
+
+	void collectCyclopediaAssetBackupKeys(
+		const std::vector<std::pair<std::string, std::vector<uint8_t>>> &assets,
+		std::unordered_set<std::string> &assetFileNames,
+		std::unordered_set<std::string> &assetReplacementKeys
+	) {
+		assetFileNames.clear();
+		assetReplacementKeys.clear();
+		assetFileNames.reserve(assets.size() * 2);
+		assetReplacementKeys.reserve(assets.size() * 2);
+
+		for (const auto &asset : assets) {
+			const std::filesystem::path assetPath(asset.first);
+			assetFileNames.insert(assetPath.generic_string());
+			if (const std::string replacementKey = getCyclopediaAssetReplacementKey(assetPath); !replacementKey.empty()) {
+				assetReplacementKeys.insert(replacementKey);
+			}
+		}
 	}
 
 	std::filesystem::path findValidTemplateAssetSibling(const std::filesystem::path &basePath, const std::filesystem::path &fileName) {
@@ -2975,20 +3561,15 @@ namespace {
 			}
 		}
 
-		std::filesystem::path backupPath = backupRootPath / relativePath;
-		backupPath += ".bkp";
+		std::filesystem::path backupPath = makeUniqueCyclopediaBackupFilePath(buildCyclopediaBackupFilePath(backupRootPath, relativePath));
+		if (backupPath.empty()) {
+			spdlog::warn("Failed to allocate unique backup path for: {}", targetPath.string());
+			return false;
+		}
 		if (!backupPath.parent_path().empty()) {
 			std::filesystem::create_directories(backupPath.parent_path(), ec);
 			if (ec) {
 				spdlog::warn("Failed to create backup directory: {}", backupPath.parent_path().string());
-				return false;
-			}
-		}
-
-		if (std::filesystem::exists(backupPath)) {
-			std::filesystem::remove(backupPath, ec);
-			if (ec) {
-				spdlog::warn("Failed to remove existing backup file: {}", backupPath.string());
 				return false;
 			}
 		}
@@ -2999,7 +3580,7 @@ namespace {
 		}
 
 		ec.clear();
-		std::filesystem::copy_file(targetPath, backupPath, std::filesystem::copy_options::overwrite_existing, ec);
+		std::filesystem::copy_file(targetPath, backupPath, std::filesystem::copy_options::none, ec);
 		if (ec) {
 			spdlog::warn("Failed to backup file before overwrite: {}", targetPath.string());
 			return false;
@@ -3011,6 +3592,212 @@ namespace {
 			spdlog::warn("Failed to remove original file after backup copy: {}", targetPath.string());
 			return false;
 		}
+		return true;
+	}
+
+	bool backupCatalogFileIfReplaced(
+		const std::filesystem::path &basePath,
+		const std::filesystem::path &backupRootPath,
+		const std::string &currentFileName,
+		const std::string &replacementFileName
+	) {
+		if (currentFileName.empty() || currentFileName == replacementFileName) {
+			return true;
+		}
+
+		const std::filesystem::path currentRelativePath(currentFileName);
+		if (!isSafeRelativePath(currentRelativePath)) {
+			return false;
+		}
+
+		return backupFileIfExists(basePath / currentRelativePath, basePath, backupRootPath);
+	}
+
+	bool backupStaleCatalogDataFiles(
+		const std::filesystem::path &basePath,
+		const std::filesystem::path &backupRootPath,
+		const std::string_view prefix,
+		const std::string &replacementFileName
+	) {
+		if (basePath.empty() || !std::filesystem::exists(basePath)) {
+			return true;
+		}
+
+		for (const auto &entry : std::filesystem::directory_iterator(basePath)) {
+			if (!entry.is_regular_file()) {
+				continue;
+			}
+
+			const std::filesystem::path path = entry.path();
+			if (path.filename().string() == replacementFileName || !isHashNamedCatalogDataFile(path, prefix)) {
+				continue;
+			}
+
+			if (!backupFileIfExists(path, basePath, backupRootPath)) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	bool backupMapAssetsFromPreviousMapData(
+		const std::filesystem::path &basePath,
+		const std::filesystem::path &backupRootPath,
+		const std::string &previousMapFileName,
+		const std::string &replacementMapFileName,
+		const std::unordered_set<std::string> &replacementAssetFileNames
+	) {
+		if (previousMapFileName.empty() || previousMapFileName == replacementMapFileName) {
+			return true;
+		}
+
+		const std::filesystem::path previousMapRelativePath(previousMapFileName);
+		if (!isSafeRelativePath(previousMapRelativePath)) {
+			return false;
+		}
+
+		clienteditor::protobuf::mapdata::MapData previousMapData;
+		if (!loadCyclopediaMapDataTemplate(basePath / previousMapRelativePath, previousMapData)) {
+			return true;
+		}
+
+		std::unordered_set<std::string> backedUpAssets;
+		backedUpAssets.reserve(static_cast<size_t>(previousMapData.mapassets_size() * 2));
+		for (const auto &mapAsset : previousMapData.mapassets()) {
+			if (mapAsset.type() == clienteditor::protobuf::mapdata::MapAssets_AssetsType_SUBAREA) {
+				continue;
+			}
+
+			if (!mapAsset.has_filename() || mapAsset.filename().empty()) {
+				continue;
+			}
+
+			const std::filesystem::path assetRelativePath(mapAsset.filename());
+			if (!isSafeRelativePath(assetRelativePath)) {
+				return false;
+			}
+
+			const std::string normalizedAssetFileName = assetRelativePath.generic_string();
+			if (replacementAssetFileNames.contains(normalizedAssetFileName) || !backedUpAssets.insert(normalizedAssetFileName).second) {
+				continue;
+			}
+
+			if (!backupFileIfExists(basePath / assetRelativePath, basePath, backupRootPath)) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	bool restoreCyclopediaMapAssetFile(
+		const std::filesystem::path &basePath,
+		const std::filesystem::path &backupRootPath,
+		const std::filesystem::path &templateBasePath,
+		const std::filesystem::path &assetRelativePath,
+		const std::string &normalizedAssetFileName
+	) {
+		const std::filesystem::path targetPath = basePath / assetRelativePath;
+		if (std::filesystem::exists(targetPath)) {
+			return true;
+		}
+
+		std::vector<std::filesystem::path> sourceCandidates;
+		collectCyclopediaBackupFileCandidates(backupRootPath, assetRelativePath, sourceCandidates);
+		if (!templateBasePath.empty()) {
+			sourceCandidates.emplace_back(templateBasePath / assetRelativePath);
+		}
+
+		for (const auto &sourcePath : sourceCandidates) {
+			if (!std::filesystem::exists(sourcePath) || !std::filesystem::is_regular_file(sourcePath)) {
+				continue;
+			}
+
+			std::error_code ec;
+			if (!targetPath.parent_path().empty()) {
+				std::filesystem::create_directories(targetPath.parent_path(), ec);
+			}
+			ec.clear();
+			std::filesystem::copy_file(sourcePath, targetPath, std::filesystem::copy_options::overwrite_existing, ec);
+			if (ec) {
+				spdlog::warn("Failed to restore cyclopedia map asset '{}': {}", normalizedAssetFileName, ec.message());
+				return false;
+			}
+
+			return true;
+		}
+
+		spdlog::warn("Missing cyclopedia map asset '{}'", normalizedAssetFileName);
+		return false;
+	}
+
+	bool restoreCyclopediaMapAssets(
+		const std::filesystem::path &basePath,
+		const std::filesystem::path &backupRootPath,
+		const std::filesystem::path &templateBasePath,
+		const clienteditor::protobuf::mapdata::MapData &mapData,
+		const bool subareaOnly
+	) {
+		std::unordered_set<std::string> restoredAssets;
+		restoredAssets.reserve(static_cast<size_t>(mapData.mapassets_size()));
+		for (const auto &mapAsset : mapData.mapassets()) {
+			if (subareaOnly && mapAsset.type() != clienteditor::protobuf::mapdata::MapAssets_AssetsType_SUBAREA) {
+				continue;
+			}
+			if (!mapAsset.has_filename() || mapAsset.filename().empty()) {
+				continue;
+			}
+
+			const std::filesystem::path assetRelativePath(mapAsset.filename());
+			if (!isSafeRelativePath(assetRelativePath)) {
+				return false;
+			}
+
+			const std::string normalizedAssetFileName = assetRelativePath.generic_string();
+			if (!restoredAssets.insert(normalizedAssetFileName).second) {
+				continue;
+			}
+
+			if (!restoreCyclopediaMapAssetFile(basePath, backupRootPath, templateBasePath, assetRelativePath, normalizedAssetFileName)) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	bool backupStaleCyclopediaAssetFiles(
+		const std::filesystem::path &basePath,
+		const std::filesystem::path &backupRootPath,
+		const std::unordered_set<std::string> &replacementAssetFileNames,
+		const std::unordered_set<std::string> &replacementAssetKeys
+	) {
+		if (basePath.empty() || !std::filesystem::exists(basePath) || replacementAssetKeys.empty()) {
+			return true;
+		}
+
+		for (const auto &entry : std::filesystem::directory_iterator(basePath)) {
+			if (!entry.is_regular_file()) {
+				continue;
+			}
+
+			const std::filesystem::path path = entry.path();
+			const std::string normalizedFileName = path.filename().generic_string();
+			if (replacementAssetFileNames.contains(normalizedFileName)) {
+				continue;
+			}
+
+			const std::string replacementKey = getCyclopediaAssetReplacementKey(path);
+			if (replacementKey.empty() || !replacementAssetKeys.contains(replacementKey)) {
+				continue;
+			}
+
+			if (!backupFileIfExists(path, basePath, backupRootPath)) {
+				return false;
+			}
+		}
+
 		return true;
 	}
 
@@ -5213,9 +6000,9 @@ bool IOMapOTBM::serializeStaticDataHouses(Map &map, std::string &buffer) {
 
 		const Position &exitPosition = house->getExit();
 		auto* position = houseNode->mutable_houseposition();
-		position->set_pos_x(exitPosition.x > 0 ? static_cast<uint32_t>(exitPosition.x) : 0);
-		position->set_pos_y(exitPosition.y > 0 ? static_cast<uint32_t>(exitPosition.y) : 0);
-		position->set_pos_z(exitPosition.z > 0 ? static_cast<uint32_t>(exitPosition.z) : 0);
+		position->set_pos_x(toCyclopediaProtoCoordinate(exitPosition.x));
+		position->set_pos_y(toCyclopediaProtoCoordinate(exitPosition.y));
+		position->set_pos_z(toCyclopediaProtoCoordinate(exitPosition.z));
 
 		houseNode->set_size_sqm(static_cast<uint32_t>(house->size()));
 		houseNode->set_guildhall(house->guildhall);
@@ -5297,7 +6084,8 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 
 	const std::filesystem::path requestedOutputPath = nstr(dir.GetPath(wxPATH_GET_SEPARATOR | wxPATH_GET_VOLUME));
 	const std::filesystem::path basePath = resolveCyclopediaCatalogBasePath(requestedOutputPath);
-	const std::filesystem::path backupRootPath = basePath / "bkps";
+	const std::filesystem::path backupRootBasePath = basePath / "bkps";
+	std::filesystem::path backupRootPath;
 	lastStaticHouseExportReport.outputBasePath = basePath.string();
 	StaticDataHouseNameFilter normalizedHouseNameFilter;
 	for (const std::string &houseName : houseNamesFilter) {
@@ -5362,6 +6150,11 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 
 	std::error_code ec;
 	std::filesystem::create_directories(basePath, ec);
+	backupRootPath = createCyclopediaBackupRunPath(backupRootBasePath, "export");
+	if (backupRootPath.empty()) {
+		registerExportError("Failed to create backup snapshot directory.");
+		return false;
+	}
 	spdlog::info(
 		"[house-debug] saveStaticData begin: requested='{}' resolved_base='{}' backup_root='{}' filter_enabled={} filter_count={}",
 		requestedOutputPath.string(),
@@ -5483,19 +6276,23 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 	if (!outputPath.parent_path().empty()) {
 		std::filesystem::create_directories(outputPath.parent_path(), ec);
 	}
+	if (!backupCatalogFileIfReplaced(basePath, backupRootPath, outputCatalogFiles.staticDataFileName, staticDataFileName)) {
+		registerExportError("Failed to backup previous staticdata file.");
+		return false;
+	}
+	if (!backupStaleCatalogDataFiles(basePath, backupRootPath, "staticdata", staticDataFileName)) {
+		registerExportError("Failed to backup stale staticdata files.");
+		return false;
+	}
 	if (!backupFileIfExists(outputPath, basePath, backupRootPath)) {
 		registerExportError("Failed to create backup for staticdata file.");
 		return false;
 	}
 
-	std::ofstream output(outputPath, std::ios::binary | std::ios::trunc);
-	if (!output.is_open()) {
+	if (!writeBinaryFile(outputPath, buffer)) {
 		registerExportError("Failed to save staticdata protobuf file.");
 		return false;
 	}
-
-	output.write(buffer.data(), static_cast<std::streamsize>(buffer.size()));
-	output.close();
 
 	std::filesystem::path staticMapDataTemplateFileName = outputCatalogFiles.staticMapDataFileName;
 	if (staticMapDataTemplateFileName.empty()) {
@@ -5617,19 +6414,23 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 	if (!staticMapDataPath.parent_path().empty()) {
 		std::filesystem::create_directories(staticMapDataPath.parent_path(), ec);
 	}
+	if (!backupCatalogFileIfReplaced(basePath, backupRootPath, outputCatalogFiles.staticMapDataFileName, staticMapDataFileName)) {
+		registerExportError("Failed to backup previous staticmapdata file.");
+		return false;
+	}
+	if (!backupStaleCatalogDataFiles(basePath, backupRootPath, "staticmapdata", staticMapDataFileName)) {
+		registerExportError("Failed to backup stale staticmapdata files.");
+		return false;
+	}
 	if (!backupFileIfExists(staticMapDataPath, basePath, backupRootPath)) {
 		registerExportError("Failed to create backup for staticmapdata file.");
 		return false;
 	}
 
-	std::ofstream staticMapDataOutput(staticMapDataPath, std::ios::binary | std::ios::trunc);
-	if (!staticMapDataOutput.is_open()) {
+	if (!writeBinaryFile(staticMapDataPath, staticMapDataBuffer)) {
 		registerExportError("Failed to save staticmapdata protobuf file.");
 		return false;
 	}
-
-	staticMapDataOutput.write(staticMapDataBuffer.data(), static_cast<std::streamsize>(staticMapDataBuffer.size()));
-	staticMapDataOutput.close();
 	logStaticMapHouseExportDebugSummary();
 
 	CyclopediaCatalogFiles updatedCatalogFiles = outputCatalogFiles;
@@ -5825,9 +6626,14 @@ bool IOMapOTBM::saveCyclopediaMapData(Map &map, const FileName &dir, const Cyclo
 
 	const std::filesystem::path requestedOutputPath = nstr(dir.GetPath(wxPATH_GET_SEPARATOR | wxPATH_GET_VOLUME));
 	const std::filesystem::path basePath = resolveCyclopediaCatalogBasePath(requestedOutputPath);
-	const std::filesystem::path backupRootPath = basePath / "bkps";
+	const std::filesystem::path backupRootBasePath = basePath / "bkps";
 	std::error_code ec;
 	std::filesystem::create_directories(basePath, ec);
+	const std::filesystem::path backupRootPath = createCyclopediaBackupRunPath(backupRootBasePath, "export");
+	if (backupRootPath.empty()) {
+		warning("Failed to create cyclopedia backup snapshot directory.");
+		return false;
+	}
 
 	CyclopediaCatalogFiles outputCatalogFiles;
 	loadCyclopediaCatalogFiles(basePath, outputCatalogFiles);
@@ -5857,22 +6663,36 @@ bool IOMapOTBM::saveCyclopediaMapData(Map &map, const FileName &dir, const Cyclo
 
 	MapData templateMapData;
 	bool hasTemplateMapData = false;
+	std::filesystem::path templateMapDataBasePath;
 	if (!mapDataTemplateFileName.empty()) {
 		hasTemplateMapData = loadCyclopediaMapDataTemplate(basePath / mapDataTemplateFileName, templateMapData);
+		if (hasTemplateMapData) {
+			templateMapDataBasePath = basePath;
+		}
 	}
 	if (!hasTemplateMapData && !sourceCatalogFiles.mapFileName.empty() && !clientAssetsPath.empty()) {
 		hasTemplateMapData = loadCyclopediaMapDataTemplate(clientAssetsPath / sourceCatalogFiles.mapFileName, templateMapData);
+		if (hasTemplateMapData) {
+			templateMapDataBasePath = clientAssetsPath;
+		}
 	}
 	if (hasTemplateMapData) {
 		std::string mergedMapDataBuffer;
 		if (mergeCyclopediaTemplateMapData(templateMapData, mapDataBuffer, mergedMapDataBuffer)) {
 			mapDataBuffer = std::move(mergedMapDataBuffer);
+			if (!restoreCyclopediaMapAssets(basePath, backupRootPath, templateMapDataBasePath, templateMapData, true)) {
+				warning("Failed to restore preserved cyclopedia subarea asset files.");
+				return false;
+			}
 		} else {
 			warning("Failed to merge template mapdata protobuf content.");
 		}
 	}
 
 	const std::string mapDataFileName = buildCatalogDataFilename("map", mapDataBuffer);
+	std::unordered_set<std::string> assetFileNames;
+	std::unordered_set<std::string> assetReplacementKeys;
+	collectCyclopediaAssetBackupKeys(assets, assetFileNames, assetReplacementKeys);
 	if (!reportProgress(96, "Writing map protobuf... [|]")) {
 		return false;
 	}
@@ -5880,18 +6700,30 @@ bool IOMapOTBM::saveCyclopediaMapData(Map &map, const FileName &dir, const Cyclo
 	if (!mapDataPath.parent_path().empty()) {
 		std::filesystem::create_directories(mapDataPath.parent_path(), ec);
 	}
+	if (!backupMapAssetsFromPreviousMapData(basePath, backupRootPath, outputCatalogFiles.mapFileName, mapDataFileName, assetFileNames)) {
+		warning("Failed to backup previous cyclopedia map asset files.");
+		return false;
+	}
+	if (!backupCatalogFileIfReplaced(basePath, backupRootPath, outputCatalogFiles.mapFileName, mapDataFileName)) {
+		warning("Failed to backup previous cyclopedia mapdata protobuf file.");
+		return false;
+	}
+	if (!backupStaleCatalogDataFiles(basePath, backupRootPath, "map", mapDataFileName)) {
+		warning("Failed to backup stale cyclopedia mapdata protobuf files.");
+		return false;
+	}
+	if (!backupStaleCyclopediaAssetFiles(basePath, backupRootPath, assetFileNames, assetReplacementKeys)) {
+		warning("Failed to backup stale cyclopedia asset files.");
+		return false;
+	}
 	if (!backupFileIfExists(mapDataPath, basePath, backupRootPath)) {
 		warning("Failed to create backup for cyclopedia mapdata protobuf file.");
 		return false;
 	}
-	std::ofstream output(mapDataPath, std::ios::binary | std::ios::trunc);
-	if (!output.is_open()) {
+	if (!writeBinaryFile(mapDataPath, mapDataBuffer)) {
 		warning("Failed to save cyclopedia mapdata protobuf file.");
 		return false;
 	}
-
-	output.write(mapDataBuffer.data(), static_cast<std::streamsize>(mapDataBuffer.size()));
-	output.close();
 
 	const int totalAssets = std::max<int>(1, static_cast<int>(assets.size()));
 	int writtenAssets = 0;
@@ -5906,16 +6738,10 @@ bool IOMapOTBM::saveCyclopediaMapData(Map &map, const FileName &dir, const Cyclo
 			return false;
 		}
 
-		std::ofstream assetFile(targetPath, std::ios::binary | std::ios::trunc);
-		if (!assetFile.is_open()) {
+		if (!writeBinaryFile(targetPath, fileBytes)) {
 			warning("Failed to save cyclopedia asset file.");
 			return false;
 		}
-
-		if (!fileBytes.empty()) {
-			assetFile.write(reinterpret_cast<const char*>(fileBytes.data()), static_cast<std::streamsize>(fileBytes.size()));
-		}
-		assetFile.close();
 
 		++writtenAssets;
 		const int32_t done = 96 + static_cast<int32_t>((writtenAssets * 3LL) / totalAssets);
@@ -5923,6 +6749,16 @@ bool IOMapOTBM::saveCyclopediaMapData(Map &map, const FileName &dir, const Cyclo
 		if (!reportProgress(done, std::format("Writing assets... ({}/{}) [{}]", writtenAssets, totalAssets, spinner))) {
 			return false;
 		}
+	}
+
+	MapData writtenMapData;
+	if (!writtenMapData.ParseFromString(mapDataBuffer)) {
+		warning("Failed to validate written cyclopedia mapdata protobuf content.");
+		return false;
+	}
+	if (!restoreCyclopediaMapAssets(basePath, backupRootPath, templateMapDataBasePath, writtenMapData, false)) {
+		warning("Failed to restore referenced cyclopedia map asset files.");
+		return false;
 	}
 
 	std::string staticMapDataFileName = outputCatalogFiles.staticMapDataFileName;

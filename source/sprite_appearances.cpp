@@ -337,10 +337,10 @@ wxImage SpriteAppearances::getWxImageBySpriteId(int id, bool toSavePng /* = fals
 	}
 
 	// Cut duplicated image and sets to the selected bgshade the empty background
-	if (sprite->size.width > rme::SpritePixels && sprite->size.height <= rme::SpritePixels) {
+	if (!toSavePng && sprite->size.width > rme::SpritePixels && sprite->size.height <= rme::SpritePixels) {
 		// TWO_BY_ONE (64x32): keep right 32 pixels
 		image.Resize(wxSize(rme::SpritePixels, rme::SpritePixels), wxPoint(-(sprite->size.width - rme::SpritePixels), 0), bgshade, bgshade, bgshade);
-	} else if (sprite->size.height > rme::SpritePixels && sprite->size.width <= rme::SpritePixels) {
+	} else if (!toSavePng && sprite->size.height > rme::SpritePixels && sprite->size.width <= rme::SpritePixels) {
 		// ONE_BY_TWO (32x64): keep bottom 32 pixels
 		image.Resize(wxSize(rme::SpritePixels, rme::SpritePixels), wxPoint(0, -(sprite->size.height - rme::SpritePixels)), bgshade, bgshade, bgshade);
 	}

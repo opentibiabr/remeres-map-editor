@@ -37,6 +37,7 @@ namespace MenuBar {
 		EXPORT_MINIMAP,
 		EXPORT_STATIC_HOUSE_DATA,
 		EXPORT_CYCLOPEDIA_MAP,
+		REVERT_CYCLOPEDIA_ASSETS,
 		EXPORT_TILESETS,
 		RELOAD_DATA,
 		RECENT_FILES,
@@ -222,6 +223,7 @@ public:
 	void OnExportMinimap(wxCommandEvent &event);
 	void OnExportStaticHouseData(wxCommandEvent &event);
 	void OnExportCyclopediaMapData(wxCommandEvent &event);
+	void OnRevertCyclopediaAssets(wxCommandEvent &event);
 	void OnExportTilesets(wxCommandEvent &event);
 	void OnReloadDataFiles(wxCommandEvent &event);
 

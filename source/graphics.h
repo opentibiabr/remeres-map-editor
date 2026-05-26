@@ -100,7 +100,7 @@ public:
 	int getIndex(int width, int height, int layer, int pattern_x, int pattern_y, int pattern_z, int frame) const;
 	GLuint getHardwareID(int _layer, int _count, int _pattern_x, int _pattern_y, int _pattern_z, int _frame);
 	SpriteUV getAtlasUVs(int _layer, int _count, int _pattern_x, int _pattern_y, int _pattern_z, int _frame);
-	uint32_t getSpriteID(int _layer, int _count, int _pattern_x, int _pattern_y, int /*_pattern_z*/, int _frame);
+	uint32_t getSpriteID(int _layer, int _count, int _pattern_x, int _pattern_y, int _pattern_z, int _frame);
 
 	virtual void DrawTo(wxDC* dc, SpriteSize sz, int start_x, int start_y, int width = -1, int height = -1);
 
