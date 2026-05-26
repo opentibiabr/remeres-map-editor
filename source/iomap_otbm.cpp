@@ -1499,7 +1499,7 @@ namespace {
 		const int outputPixelsPerSquare,
 		std::unordered_map<SatelliteSpriteCacheKey, SatelliteTinySprite, SatelliteSpriteCacheKeyHash> &tinyCache,
 		std::unordered_map<SatelliteSampledSpriteCacheKey, SatelliteSampledSprite, SatelliteSampledSpriteCacheKeyHash> &sampledCache,
-		const SatelliteSampledSprite* &sampledSprite
+		const SatelliteSampledSprite*&sampledSprite
 	) {
 		sampledSprite = nullptr;
 		if (outputPixelsPerSquare <= 0 || outputPixelsPerSquare > CyclopediaSatelliteBasePixelsPerSquare) {
