@@ -59,6 +59,7 @@
 - [x] Border Workspace now blocks saving `global` or `inline` sets whose metadata would make the targeted runtime refresh path unsupported after save
 - [x] Applying a border slot now validates the candidate layout immediately, so duplicate or unknown slot items are rejected before the user reaches Save
 - [x] Palette Workspace brush grids now reuse tile widgets instead of destroying/recreating them on every refresh, reducing GTK CSS/layout churn during palette and section switches
+- [x] Palette Workspace brush grids now also support an owner-drawn grid path that removes per-item `wxPanel`/`BrushButton`/`wxStaticText` widgets from the Workbench brush lists, cutting GTK CSS/update-event churn much more aggressively
 - [x] Runtime icon palettes now reuse a stable `BrushButton` pool across page switches instead of rebuilding the full icon grid every time
 - [x] Runtime palette pagination now avoids unnecessary `Fit`/AUI relayout churn and only relayouts icon pages when the visible button count actually changes
 
@@ -173,7 +174,7 @@
 - Palette saves now already repopulate the Workbench navigation tree right after refreshing runtime palettes, so tree/runtime drift is reduced before the deeper Stage 10 palette CRUD work lands
 - Palette UX should reflect runtime families (`Terrain Palette`, `Doodad Palette`, `Item Palette`) and their real categories, without introducing a parallel taxonomy for palette composition
 - Legacy XML remains for compatibility and first-time onboarding/import, but normal editing should continue DB-first in the Workbench after the initial import
-- `Stage 10B` is now in place: the `Palette Workspace` keeps the editor inside the `Materials Workbench` while reusing brush-grid widgets across refreshes, which cuts the worst palette/section switching churn identified in the profiling pass
+- `Stage 10B` is now in place: the `Palette Workspace` keeps the editor inside the `Materials Workbench` and now has both widget reuse plus an owner-drawn Workbench brush grid path, cutting the worst palette/section switching churn identified in the profiling pass more aggressively
 - Runtime palette perf now has a first targeted pass too: `BrushIconBox` keeps a stable icon-button pool and only rebinds visible brushes when the page changes, preserving the existing palette UX while cutting page-switch widget churn
 - Runtime palette pagination now also avoids unconditional `Fit`/AUI refresh work on every page change and only relayouts icon pages when the visible grid size really changes, which should help category/page switching feel lighter without changing behavior
 - Recommended next task goal: continue Stage 10C/10D with structural palette editing flows such as create/rename/delete/reorder palettes and sections plus richer brush membership editing inside each runtime palette family
