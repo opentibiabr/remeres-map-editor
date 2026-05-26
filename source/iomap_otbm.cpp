@@ -53,6 +53,7 @@
 #include <chrono>
 #include <cmath>
 #include <format>
+#include <future>
 #include <iomanip>
 #include <limits>
 #include <map>
@@ -60,6 +61,7 @@
 #include <span>
 #include <sstream>
 #include <string_view>
+#include <thread>
 
 typedef uint8_t attribute_t;
 typedef uint32_t flags_t;
@@ -88,6 +90,7 @@ namespace {
 	constexpr int CyclopediaProgressMinIntervalMs = 250;
 	constexpr int CyclopediaFloorCount = CyclopediaMaxFloor - CyclopediaMinFloor + 1;
 	constexpr std::array<int, 3> CyclopediaChunkSizes { 1024, 512, 256 };
+	constexpr unsigned int CyclopediaMaxParallelAssetEncoders = 4;
 	constexpr std::array<char, 4> CyclopediaProgressSpinner { '|', '/', '-', '\\' };
 
 	struct CyclopediaAssetLayerConfig {
@@ -814,14 +817,28 @@ namespace {
 		return true;
 	}
 
-	bool encodeCyclopediaAsset(const wxImage &image, std::vector<uint8_t> &assetBytes, std::string &hashHex) {
-		std::vector<uint8_t> bmpBytes;
-		if (!encodeBmpV4(image, bmpBytes)) {
-			return false;
-		}
+	struct CyclopediaEncodedAsset {
+		bool success = false;
+		std::vector<uint8_t> bytes;
+		std::string hashHex;
+	};
 
-		hashHex = toHex(sha256Hash(bmpBytes));
-		return encodeCipLzmaAsset(bmpBytes, assetBytes);
+	CyclopediaEncodedAsset encodeCyclopediaAssetBytes(const std::vector<uint8_t> &bmpBytes) {
+		CyclopediaEncodedAsset encodedAsset;
+		encodedAsset.hashHex = toHex(sha256Hash(bmpBytes));
+		encodedAsset.success = encodeCipLzmaAsset(bmpBytes, encodedAsset.bytes);
+		return encodedAsset;
+	}
+
+	unsigned int getCyclopediaParallelAssetEncoderCount() {
+		const unsigned int hardwareThreads = std::thread::hardware_concurrency();
+		if (hardwareThreads == 0) {
+			return 2;
+		}
+		if (hardwareThreads <= 2) {
+			return 1;
+		}
+		return std::min(CyclopediaMaxParallelAssetEncoders, hardwareThreads - 1);
 	}
 
 	std::string buildCyclopediaAssetFilename(const bool minimap, const double scale, const int assetX, const int assetY, const int floor, const std::string &hashHex) {
@@ -6575,6 +6592,16 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 		size_t layerIndex = 0;
 		CyclopediaChunkArea area;
 	};
+	struct CyclopediaPendingAsset {
+		CyclopediaAssetLayerConfig config;
+		CyclopediaChunkArea area;
+		std::future<CyclopediaEncodedAsset> encodedAsset;
+
+		CyclopediaPendingAsset(CyclopediaAssetLayerConfig assetConfig, CyclopediaChunkArea assetArea, std::future<CyclopediaEncodedAsset> assetFuture) :
+			config(assetConfig),
+			area(assetArea),
+			encodedAsset(std::move(assetFuture)) { }
+	};
 
 	std::vector<CyclopediaRenderJob> jobs;
 	jobs.reserve(4096);
@@ -6618,39 +6645,77 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 
 	bool hasAnyAsset = false;
 	CyclopediaSatelliteRenderCache satelliteRenderCache;
-	int processedAssets = 0;
+	int submittedAssets = 0;
 	const int totalAssets = std::max<int>(1, totalChunks * 2);
+	const unsigned int maxPendingAssets = getCyclopediaParallelAssetEncoderCount();
+	std::deque<CyclopediaPendingAsset> pendingAssets;
+
+	auto flushPendingCyclopediaAsset = [&](CyclopediaPendingAsset &pendingAsset) {
+		CyclopediaEncodedAsset encodedAsset;
+		try {
+			encodedAsset = pendingAsset.encodedAsset.get();
+		} catch (...) {
+			return false;
+		}
+		if (!encodedAsset.success) {
+			return true;
+		}
+
+		const std::string assetFilename = buildCyclopediaAssetFilename(pendingAsset.config.minimap, pendingAsset.config.scale, pendingAsset.area.startX, pendingAsset.area.startY, pendingAsset.area.floor, encodedAsset.hashHex);
+		auto* mapAsset = mapData.add_mapassets();
+		mapAsset->set_type(pendingAsset.config.minimap ? MapAssets_AssetsType_MINIMAP : MapAssets_AssetsType_SATELLITE);
+		mapAsset->set_filename(assetFilename);
+		mapAsset->set_widthsquare(static_cast<uint32_t>(pendingAsset.area.width));
+		mapAsset->set_heightsquare(static_cast<uint32_t>(pendingAsset.area.height));
+		mapAsset->set_areaid(0);
+		mapAsset->set_scale(pendingAsset.config.scale);
+		auto* topLeft = mapAsset->mutable_topleft();
+		topLeft->set_posx(static_cast<uint32_t>(std::max(pendingAsset.area.startX, 0)));
+		topLeft->set_posy(static_cast<uint32_t>(std::max(pendingAsset.area.startY, 0)));
+		topLeft->set_posz(static_cast<uint32_t>(std::max(pendingAsset.area.floor, 0)));
+
+		assets.emplace_back(assetFilename, std::move(encodedAsset.bytes));
+		hasAnyAsset = true;
+		return true;
+	};
+	auto flushOldestPendingCyclopediaAsset = [&]() {
+		if (pendingAssets.empty()) {
+			return true;
+		}
+		if (!flushPendingCyclopediaAsset(pendingAssets.front())) {
+			return false;
+		}
+		pendingAssets.pop_front();
+		return true;
+	};
 
 	auto appendCyclopediaAsset = [&](const CyclopediaAssetLayerConfig &config, const CyclopediaChunkArea &area, const wxImage &outputAssetChunk, const int32_t done, const char spinner) {
-		++processedAssets;
 		if (!outputAssetChunk.IsOk() || outputAssetChunk.GetWidth() <= 0 || outputAssetChunk.GetHeight() <= 0) {
 			return true;
 		}
 
-		std::vector<uint8_t> assetBytes;
-		std::string assetHash;
-		if (!reportProgress(done, std::format("Encoding assets... ({}/{}) [{}]", processedAssets, totalAssets, spinner))) {
-			return false;
-		}
-		if (!encodeCyclopediaAsset(outputAssetChunk, assetBytes, assetHash)) {
+		std::vector<uint8_t> bmpBytes;
+		if (!encodeBmpV4(outputAssetChunk, bmpBytes)) {
 			return true;
 		}
 
-		const std::string assetFilename = buildCyclopediaAssetFilename(config.minimap, config.scale, area.startX, area.startY, area.floor, assetHash);
-		auto* mapAsset = mapData.add_mapassets();
-		mapAsset->set_type(config.minimap ? MapAssets_AssetsType_MINIMAP : MapAssets_AssetsType_SATELLITE);
-		mapAsset->set_filename(assetFilename);
-		mapAsset->set_widthsquare(static_cast<uint32_t>(area.width));
-		mapAsset->set_heightsquare(static_cast<uint32_t>(area.height));
-		mapAsset->set_areaid(0);
-		mapAsset->set_scale(config.scale);
-		auto* topLeft = mapAsset->mutable_topleft();
-		topLeft->set_posx(static_cast<uint32_t>(std::max(area.startX, 0)));
-		topLeft->set_posy(static_cast<uint32_t>(std::max(area.startY, 0)));
-		topLeft->set_posz(static_cast<uint32_t>(std::max(area.floor, 0)));
+		++submittedAssets;
+		if (!reportProgress(done, std::format("Encoding assets... ({}/{}) [{}]", submittedAssets, totalAssets, spinner))) {
+			return false;
+		}
 
-		assets.emplace_back(assetFilename, std::move(assetBytes));
-		hasAnyAsset = true;
+		pendingAssets.emplace_back(
+			config,
+			area,
+			std::async(std::launch::async, [bmpBytes = std::move(bmpBytes)]() {
+				return encodeCyclopediaAssetBytes(bmpBytes);
+			})
+		);
+		while (pendingAssets.size() >= maxPendingAssets) {
+			if (!flushOldestPendingCyclopediaAsset()) {
+				return false;
+			}
+		}
 		return true;
 	};
 
@@ -6685,6 +6750,11 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 			}
 		}
 		if (!appendCyclopediaAsset(satelliteConfig, job.area, satelliteChunk, done, spinner)) {
+			return false;
+		}
+	}
+	while (!pendingAssets.empty()) {
+		if (!flushOldestPendingCyclopediaAsset()) {
 			return false;
 		}
 	}
