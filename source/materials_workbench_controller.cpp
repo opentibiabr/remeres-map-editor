@@ -451,6 +451,27 @@ bool MaterialsWorkbenchController::GetTilesetByIndex(int itemIndex, TilesetStora
 	return true;
 }
 
+bool MaterialsWorkbenchController::LocateTilesetNode(const wxString &name, int &outItemIndex) const {
+	for (size_t i = 0; i < catalog_.tilesets.size(); ++i) {
+		if (catalog_.tilesets[i].name == name) {
+			outItemIndex = static_cast<int>(i);
+			return true;
+		}
+	}
+
+	outItemIndex = -1;
+	return false;
+}
+
+bool MaterialsWorkbenchController::HasTilesetNamed(const wxString &name) const {
+	for (const TilesetStorageRecord &tileset : catalog_.tilesets) {
+		if (tileset.name.IsSameAs(name, false)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 bool MaterialsWorkbenchController::GetBrushDetails(const wxString &contextKey, int itemIndex, BrushStorageRecord &outBrush, wxString &error) const {
 	const BrushRecord* brush = FindBrushRecord(contextKey, itemIndex);
 	if (!brush) {
@@ -576,18 +597,32 @@ bool MaterialsWorkbenchController::LocateBorderSetNode(int64_t borderSetId, wxSt
 }
 
 bool MaterialsWorkbenchController::SaveTileset(const TilesetStorageRecord &tileset, wxString &error) {
-	if (!repository_.SaveTileset(tileset, error)) {
+	return SaveTileset(tileset, wxString(), error);
+}
+
+bool MaterialsWorkbenchController::SaveTileset(const TilesetStorageRecord &tileset, const wxString &previousName, wxString &error) {
+	if (!repository_.SaveTileset(tileset, previousName, error)) {
 		return false;
 	}
 
-	for (TilesetStorageRecord &storedTileset : catalog_.tilesets) {
-		if (storedTileset.name == tileset.name) {
-			storedTileset = tileset;
-			return true;
-		}
+	if (!ReloadCatalog()) {
+		error = lastError_;
+		return false;
 	}
 
-	catalog_.tilesets.push_back(tileset);
+	return true;
+}
+
+bool MaterialsWorkbenchController::DeleteTileset(const wxString &name, wxString &error) {
+	if (!repository_.DeleteTileset(name, error)) {
+		return false;
+	}
+
+	if (!ReloadCatalog()) {
+		error = lastError_;
+		return false;
+	}
+
 	return true;
 }
 

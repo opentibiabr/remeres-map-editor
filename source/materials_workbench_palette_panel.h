@@ -20,7 +20,7 @@ public:
 
 	void ClearWorkspace(const wxString &message);
 	bool LoadPalette(const TilesetStorageRecord &tileset);
-	void SetOnPaletteSaved(std::function<void()> callback);
+	void SetOnPaletteSaved(std::function<void(const wxString &)> callback);
 
 private:
 	void BuildLayout();
@@ -32,11 +32,21 @@ private:
 	void UpdateButtonState();
 	void SetStatusMessage(const wxString &message);
 	void NormalizePaletteOrdering();
-	bool CommitPalette(const wxString &successMessage);
+	bool CommitPalette(const wxString &successMessage, const wxString &previousPaletteName = wxString(), const wxString &selectionPaletteName = wxString());
 	wxString RecommendBrushGroupForCurrentSection() const;
 	const BrushRecord* FindAvailableBrushRecord() const;
+	bool PromptForPaletteName(const wxString &title, const wxString &caption, const wxString &initialValue, const wxString &currentName, wxString &outName);
+	bool PromptForSectionType(const wxString &title, const wxString &caption, const wxString &initialValue, const wxString &currentSectionType, wxString &outSectionType);
 
+	void OnCreatePalette(wxCommandEvent &event);
+	void OnRenamePalette(wxCommandEvent &event);
+	void OnDeletePalette(wxCommandEvent &event);
 	void OnSectionChanged(wxCommandEvent &event);
+	void OnAddSection(wxCommandEvent &event);
+	void OnRenameSection(wxCommandEvent &event);
+	void OnDeleteSection(wxCommandEvent &event);
+	void OnMoveSectionUp(wxCommandEvent &event);
+	void OnMoveSectionDown(wxCommandEvent &event);
 	void OnAvailableBrushGroupChanged(wxCommandEvent &event);
 	void OnAddBrush(wxCommandEvent &event);
 	void OnRemoveBrush(wxCommandEvent &event);
@@ -44,7 +54,7 @@ private:
 	void OnMoveBrushDown(wxCommandEvent &event);
 
 	MaterialsWorkbenchController &controller_;
-	std::function<void()> onPaletteSaved_;
+	std::function<void(const wxString &)> onPaletteSaved_;
 	TilesetStorageRecord palette_;
 	bool hasPalette_ = false;
 	int currentSectionIndex_ = 0;
@@ -64,6 +74,14 @@ private:
 	wxButton* removeBrushButton_ = nullptr;
 	wxButton* moveUpButton_ = nullptr;
 	wxButton* moveDownButton_ = nullptr;
+	wxButton* createPaletteButton_ = nullptr;
+	wxButton* renamePaletteButton_ = nullptr;
+	wxButton* deletePaletteButton_ = nullptr;
+	wxButton* addSectionButton_ = nullptr;
+	wxButton* renameSectionButton_ = nullptr;
+	wxButton* deleteSectionButton_ = nullptr;
+	wxButton* moveSectionUpButton_ = nullptr;
+	wxButton* moveSectionDownButton_ = nullptr;
 	wxStaticText* statusLabel_ = nullptr;
 };
 

@@ -124,6 +124,7 @@
 - [x] Stage 10A: Rebuild `Palettes` navigation around runtime families (`Terrain Palette`, `Doodad Palette`, `Item Palette`) with clear entry points into a real palette editor
 - [x] Stage 10B: Add a fast `Palette Editor` model/view for palette sections and entries, keeping editing inside the `Materials Workbench`
 - [ ] Stage 10C: Support structural editing of palettes and sections: create, rename, delete, move, and reorder
+- [ ] Stage 10C progress: palette create/rename/delete and section create/rename/delete/reorder now exist in the `Palette Workspace`; full palette reordering still depends on a future explicit palette ordering model in SQLite
 - [ ] Stage 10D: Support brush membership editing inside palettes: add, remove, move between sections/palettes, and reorder entries
 - [x] Stage 10E: After every palette save, repopulate the navigation tree and refresh runtime palette state so runtime and Workbench stay aligned
 - [ ] Stage 10F: Keep XML-first onboarding working: first import may come from legacy XML, then `materials.db` remains the primary editable source
@@ -179,6 +180,7 @@
 - Palette UX should reflect runtime families (`Terrain Palette`, `Doodad Palette`, `Item Palette`) and their real categories, without introducing a parallel taxonomy for palette composition
 - Legacy XML remains for compatibility and first-time onboarding/import, but normal editing should continue DB-first in the Workbench after the initial import
 - `Stage 10B` is now in place: the `Palette Workspace` keeps the editor inside the `Materials Workbench` and now has both widget reuse plus an owner-drawn Workbench brush grid path, cutting the worst palette/section switching churn identified in the profiling pass more aggressively
+- `Stage 10C` now has a first delivered structural pass inside the `Palette Workspace`: users can create, rename, and delete palettes plus create, rename, delete, and reorder sections without leaving the Workbench; selection restore after palette save now follows palette identity by name instead of only the old tree index
 - Item-family sections inside the Palette Workspace now recommend and expose a combined `Item Brushes` source in the Workbench and can still render catalog-backed previews when a runtime `Brush*` is missing, so the item-side authoring flow no longer falls back to showing only `wall` brushes by default
 - `Item Palette` categories inside the Workbench now also render real SQLite `item` entries again instead of filtering them out as non-brush content, matching the runtime behavior more closely and keeping the palette editor usable for raw-item sections
 - The owner-drawn Workbench brush grid now also uses a lighter 32x32 outline instead of the old heavy black icon frame, preserving the perf win while improving readability
@@ -187,5 +189,5 @@
 - Runtime palette selection now also avoids several repeated linear scans when restoring or selecting brushes across tilesets, and the common current-page load path uses `Layout()` instead of a broader `Fit()` relayout on every switch
 - Later runtime-palette perf experiments around selection-coalescing and lighter invalidation were tested with fresh `perf` captures but reverted after failing to show a stable net win; the only runtime-palette perf changes that should currently be assumed as active are the stable button-pool/pagination pass plus the cached brush-selection/relayout-trim pass
 - Keep future perf work scoped to palette-level/UI-level paths for now; do not move the next task into `SpriteAppearances`, `loadSpriteSheet`, `sprite atlas`, or `lzma_decode` yet
-- Recommended next task goal: continue Stage 10C/10D with structural palette editing flows such as create/rename/delete/reorder palettes and sections plus richer brush membership editing inside each runtime palette family; if runtime perf is revisited again, start from the current stable baseline and keep it strictly on palette/workbench UI paths above the sprite/decode layer
+- Recommended next task goal: continue `Stage 10D` with richer brush membership editing inside each runtime palette family, especially moving entries between sections/palettes and improving the add/remove flow now that the first structural `Stage 10C` pass is in place; if runtime perf is revisited again, start from the current stable baseline and keep it strictly on palette/workbench UI paths above the sprite/decode layer
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`

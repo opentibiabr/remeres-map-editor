@@ -15,6 +15,8 @@ public:
 	wxString GetInspectorText() const;
 	std::vector<MaterialsWorkbenchTreeNode> BuildNavigationTree() const;
 	bool GetTilesetByIndex(int itemIndex, TilesetStorageRecord &outTileset) const;
+	bool LocateTilesetNode(const wxString &name, int &outItemIndex) const;
+	bool HasTilesetNamed(const wxString &name) const;
 	bool GetBrushDetails(const wxString &contextKey, int itemIndex, BrushStorageRecord &outBrush, wxString &error) const;
 	bool SaveBrushDetails(BrushStorageRecord &brushStorage, wxString &error);
 	bool SaveWallBrushParts(BrushStorageRecord &brushStorage, wxString &error);
@@ -23,6 +25,8 @@ public:
 	bool SaveBorderSet(BorderSetStorageRecord &borderSet, wxString &error);
 	bool LocateBorderSetNode(int64_t borderSetId, wxString &outContextKey, int &outItemIndex) const;
 	bool SaveTileset(const TilesetStorageRecord &tileset, wxString &error);
+	bool SaveTileset(const TilesetStorageRecord &tileset, const wxString &previousName, wxString &error);
+	bool DeleteTileset(const wxString &name, wxString &error);
 	const std::vector<MaterialsWorkbenchBrushGroup> &GetBrushGroups() const;
 	const std::vector<BrushRecord> &GetWallBrushes() const;
 	wxString BuildSelectionOverview(MaterialsWorkbenchNodeKind kind, const wxString &contextKey, int itemIndex) const;

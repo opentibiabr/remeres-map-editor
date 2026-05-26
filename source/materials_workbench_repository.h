@@ -10,6 +10,8 @@ class MaterialsWorkbenchRepository {
 public:
 	bool LoadCatalog(MaterialsWorkbenchCatalogSnapshot &outCatalog, wxString &error) const;
 	bool SaveTileset(const TilesetStorageRecord &tileset, wxString &error) const;
+	bool SaveTileset(const TilesetStorageRecord &tileset, const wxString &previousName, wxString &error) const;
+	bool DeleteTileset(const wxString &name, wxString &error) const;
 	bool LoadBrushDetails(int64_t brushId, BrushStorageRecord &outBrush, wxString &error) const;
 	bool SaveBrushDetails(BrushStorageRecord &brushStorage, wxString &error) const;
 	bool SaveWallBrushParts(const BrushStorageRecord &brushStorage, wxString &error) const;

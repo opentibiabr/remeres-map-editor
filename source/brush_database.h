@@ -382,6 +382,7 @@ public:
 
 	bool replaceAllTilesets(const std::vector<TilesetStorageRecord> &tilesets);
 	bool saveTileset(const TilesetStorageRecord &tileset);
+	bool deleteTileset(const wxString &name);
 	bool getTilesetByName(const wxString &name, TilesetStorageRecord &outTileset);
 	bool getAllTilesets(std::vector<TilesetStorageRecord> &outTilesets);
 	bool generateAuditReport(MaterialsDatabaseAuditReport &outReport);
@@ -434,6 +435,7 @@ public:
 
 	bool replaceAllTilesets(const std::vector<TilesetStorageRecord> &tilesets);
 	bool saveTileset(const TilesetStorageRecord &tileset);
+	bool deleteTileset(const wxString &name);
 	bool getAllTilesets(std::vector<TilesetStorageRecord> &outTilesets);
 	bool generateAuditReport(MaterialsDatabaseAuditReport &outReport);
 	bool hasCompleteImportForCurrentSchema(bool &outReady);

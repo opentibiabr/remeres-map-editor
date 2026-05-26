@@ -252,8 +252,10 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 	workspaceBook_ = new wxSimplebook(contentSplitter, wxID_ANY);
 	wxPanel* overviewPanel = CreateOverviewTextPanel(workspaceBook_, controller_, overviewText_);
 	palettePanel_ = new MaterialsWorkbenchPalettePanel(workspaceBook_, controller_);
-	palettePanel_->SetOnPaletteSaved([this]() {
-		CallAfter(&MaterialsWorkbenchWindow::HandlePaletteSaved);
+	palettePanel_->SetOnPaletteSaved([this](const wxString &paletteName) {
+		CallAfter([this, paletteName]() {
+			HandlePaletteSaved(paletteName);
+		});
 	});
 	borderPanel_ = new MaterialsWorkbenchBorderPanel(workspaceBook_, controller_);
 	borderPanel_->SetOnBorderSetStateChanged([this]() {
@@ -321,21 +323,15 @@ void MaterialsWorkbenchWindow::RefreshInspectorForCurrentSelection() {
 	inspectorText_->SetValue(controller_.BuildSelectionInspector(itemData->kind, itemData->contextKey, itemData->itemIndex));
 }
 
-void MaterialsWorkbenchWindow::HandlePaletteSaved() {
-	int selectedTilesetIndex = -1;
-	if (navigationTree_) {
-		if (auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(navigationTree_->GetSelection()))) {
-			if (itemData->kind == MaterialsWorkbenchNodeKind::Tileset) {
-				selectedTilesetIndex = itemData->itemIndex;
-			}
-		}
-	}
-
+void MaterialsWorkbenchWindow::HandlePaletteSaved(const wxString &paletteName) {
 	RefreshRuntimeMaterialPalettes("palette save");
 	RefreshWorkbenchState();
 	PopulateNavigation();
-	if (selectedTilesetIndex >= 0) {
-		SelectNavigationNode(MaterialsWorkbenchNodeKind::Tileset, "tilesets", selectedTilesetIndex);
+	if (!paletteName.IsEmpty()) {
+		int tilesetIndex = -1;
+		if (controller_.LocateTilesetNode(paletteName, tilesetIndex)) {
+			SelectNavigationNode(MaterialsWorkbenchNodeKind::Tileset, "tilesets", tilesetIndex);
+		}
 	}
 	RefreshInspectorForCurrentSelection();
 }

@@ -902,6 +902,9 @@ bool BrushDatabase::replaceAllTilesets(const std::vector<TilesetStorageRecord> &
 bool BrushDatabase::saveTileset(const TilesetStorageRecord &tileset) {
 	return catalogRepository_.saveTileset(tileset);
 }
+bool BrushDatabase::deleteTileset(const wxString &name) {
+	return catalogRepository_.deleteTileset(name);
+}
 bool BrushDatabase::getAllTilesets(std::vector<TilesetStorageRecord> &outTilesets) {
 	return catalogRepository_.getAllTilesets(outTilesets);
 }
@@ -3478,8 +3481,40 @@ bool BrushDatabaseCatalogRepository::saveTileset(const TilesetStorageRecord &til
 	}
 	return true;
 }
+bool BrushDatabaseCatalogRepository::deleteTileset(const wxString &name) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+	if (!beginTransaction()) {
+		return false;
+	}
+
+	sqlite3_stmt* deleteTilesetStmt = nullptr;
+	if (!prepare("DELETE FROM tilesets WHERE name = ?;", &deleteTilesetStmt)) {
+		rollbackTransaction();
+		return false;
+	}
+
+	sqlite3_bind_text(deleteTilesetStmt, 1, name.utf8_str(), -1, SQLITE_TRANSIENT);
+	if (sqlite3_step(deleteTilesetStmt) != SQLITE_DONE) {
+		sqlite3_finalize(deleteTilesetStmt);
+		rollbackTransaction();
+		return setErrorFromDatabase("Failed to delete tileset");
+	}
+
+	const int deletedRows = sqlite3_changes(connection_);
+	sqlite3_finalize(deleteTilesetStmt);
+	if (deletedRows <= 0) {
+		rollbackTransaction();
+		return setError("Tileset '" + name + "' was not found in SQLite.");
+	}
+
+	return commitTransaction();
+}
+
 bool BrushDatabaseCatalogRepository::getTilesetByName(const wxString &name, TilesetStorageRecord &outTileset) {
 	outTileset = TilesetStorageRecord();
+
 
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
