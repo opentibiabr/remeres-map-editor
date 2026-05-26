@@ -7,7 +7,7 @@
 BrushDatabase g_brush_database;
 
 namespace {
-	constexpr int kBrushDatabaseSchemaVersion = 8;
+	constexpr int kBrushDatabaseSchemaVersion = 9;
 	constexpr const char* kBuiltinPaletteGroupTerrain = "terrain";
 	constexpr const char* kBuiltinPaletteGroupDoodad = "doodad";
 	constexpr const char* kBuiltinPaletteGroupItem = "item";
@@ -92,6 +92,19 @@ namespace {
 		return kBuiltinPaletteGroupOther;
 	}
 
+	wxString DerivePaletteRuntimeFamilyFromSectionType(const wxString &sectionType) {
+		if (sectionType.IsSameAs("terrain", false) || sectionType.IsSameAs("terrain_and_raw", false)) {
+			return "terrain";
+		}
+		if (sectionType.IsSameAs("doodad", false) || sectionType.IsSameAs("doodad_and_raw", false)) {
+			return "doodad";
+		}
+		if (sectionType.IsSameAs("item", false) || sectionType.IsSameAs("items", false) || sectionType.IsSameAs("items_and_raw", false)) {
+			return "item";
+		}
+		return "raw";
+	}
+
 	wxString DerivePaletteGroupNameFromTileset(const TilesetStorageRecord &tileset) {
 		if (!tileset.paletteGroupName.IsEmpty()) {
 			return tileset.paletteGroupName;
@@ -100,6 +113,16 @@ namespace {
 			return DerivePaletteGroupNameFromSectionType(tileset.sections.front().sectionType);
 		}
 		return kBuiltinPaletteGroupOther;
+	}
+
+	wxString DerivePaletteRuntimeFamilyFromTileset(const TilesetStorageRecord &tileset) {
+		if (!tileset.paletteGroupRuntimeFamily.IsEmpty()) {
+			return tileset.paletteGroupRuntimeFamily;
+		}
+		if (!tileset.sections.empty()) {
+			return DerivePaletteRuntimeFamilyFromSectionType(tileset.sections.front().sectionType);
+		}
+		return "raw";
 	}
 
 	int BindBrushRecordFields(sqlite3_stmt* stmt, const BrushRecord &brush, int parameterIndex) {
@@ -1566,7 +1589,7 @@ bool BrushDatabaseSchemaManager::initializeSchema() {
 		rollbackTransaction();
 		return setError(wxString::Format("SQLite schema version %d is newer than supported version %d.", version, kBrushDatabaseSchemaVersion));
 	}
-	if (!applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion1>(version, 1) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion2>(version, 2) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion3>(version, 3) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion4>(version, 4) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion5>(version, 5) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion6>(version, 6) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion7>(version, 7) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion8>(version, 8)) {
+	if (!applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion1>(version, 1) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion2>(version, 2) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion3>(version, 3) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion4>(version, 4) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion5>(version, 5) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion6>(version, 6) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion7>(version, 7) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion8>(version, 8) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion9>(version, 9)) {
 		return rollback();
 	}
 
@@ -1693,6 +1716,38 @@ bool BrushDatabaseSchemaManager::migrateToVersion8() {
 		"ELSE 'other' END "
 		"LIMIT 1"
 		");",
+	});
+}
+
+bool BrushDatabaseSchemaManager::migrateToVersion9() {
+	return executeStatements({
+		"ALTER TABLE palette_groups ADD COLUMN runtime_family TEXT NOT NULL DEFAULT 'raw';",
+		"UPDATE palette_groups SET runtime_family = CASE lower(name) "
+		"WHEN 'terrain' THEN 'terrain' "
+		"WHEN 'doodad' THEN 'doodad' "
+		"WHEN 'item' THEN 'item' "
+		"WHEN 'other' THEN 'raw' "
+		"ELSE 'raw' END;",
+		"UPDATE palette_groups "
+		"SET runtime_family = COALESCE(("
+		"SELECT CASE "
+		"WHEN lower(coalesce(ts_first.section_type, '')) IN ('terrain', 'terrain_and_raw') THEN 'terrain' "
+		"WHEN lower(coalesce(ts_first.section_type, '')) IN ('doodad', 'doodad_and_raw') THEN 'doodad' "
+		"WHEN lower(coalesce(ts_first.section_type, '')) IN ('item', 'items', 'items_and_raw') THEN 'item' "
+		"ELSE 'raw' END "
+		"FROM tilesets AS t "
+		"LEFT JOIN ("
+		"SELECT s.tileset_id, s.section_type "
+		"FROM tileset_sections AS s "
+		"WHERE s.id IN ("
+		"SELECT s2.id FROM tileset_sections AS s2 "
+		"WHERE s2.tileset_id = s.tileset_id "
+		"ORDER BY s2.sort_order ASC, s2.id ASC LIMIT 1"
+		")"
+		") AS ts_first ON ts_first.tileset_id = t.id "
+		"WHERE t.palette_group_id = palette_groups.id "
+		"LIMIT 1"
+		"), runtime_family);",
 	});
 }
 
@@ -3419,8 +3474,8 @@ bool BrushDatabaseCatalogRepository::replaceAllTilesets(const std::vector<Tilese
 		return false;
 	}
 	sqlite3_stmt* insertPaletteGroupStmt = nullptr;
-	if (!prepare("INSERT INTO palette_groups(name, sort_order, is_builtin) "
-				 "VALUES (?, COALESCE((SELECT MAX(sort_order) + 1 FROM palette_groups), 4), 0);",
+	if (!prepare("INSERT INTO palette_groups(name, runtime_family, sort_order, is_builtin) "
+				 "VALUES (?, ?, COALESCE((SELECT MAX(sort_order) + 1 FROM palette_groups), 4), 0);",
 				 &insertPaletteGroupStmt)) {
 		FinalizeStatements({ insertTilesetStmt, insertSectionStmt, insertEntryStmt, findBrushStmt, selectPaletteGroupStmt });
 		rollbackTransaction();
@@ -3439,6 +3494,7 @@ bool BrushDatabaseCatalogRepository::replaceAllTilesets(const std::vector<Tilese
 	const auto resolvePaletteGroupId = [&](const TilesetStorageRecord &tileset, int64_t &outGroupId) {
 		outGroupId = 0;
 		const wxString groupName = DerivePaletteGroupNameFromTileset(tileset);
+		const wxString runtimeFamily = DerivePaletteRuntimeFamilyFromTileset(tileset);
 		if (groupName.IsEmpty()) {
 			return true;
 		}
@@ -3458,6 +3514,7 @@ bool BrushDatabaseCatalogRepository::replaceAllTilesets(const std::vector<Tilese
 		sqlite3_reset(insertPaletteGroupStmt);
 		sqlite3_clear_bindings(insertPaletteGroupStmt);
 		sqlite3_bind_text(insertPaletteGroupStmt, 1, groupName.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_text(insertPaletteGroupStmt, 2, runtimeFamily.utf8_str(), -1, SQLITE_TRANSIENT);
 		if (sqlite3_step(insertPaletteGroupStmt) != SQLITE_DONE) {
 			return setDbError("Failed to create palette group");
 		}
@@ -3560,8 +3617,8 @@ bool BrushDatabaseCatalogRepository::saveTileset(const TilesetStorageRecord &til
 		return false;
 	}
 	sqlite3_stmt* insertPaletteGroupStmt = nullptr;
-	if (!prepare("INSERT INTO palette_groups(name, sort_order, is_builtin) "
-				 "VALUES (?, COALESCE((SELECT MAX(sort_order) + 1 FROM palette_groups), 4), 0);",
+	if (!prepare("INSERT INTO palette_groups(name, runtime_family, sort_order, is_builtin) "
+				 "VALUES (?, ?, COALESCE((SELECT MAX(sort_order) + 1 FROM palette_groups), 4), 0);",
 				 &insertPaletteGroupStmt)) {
 		FinalizeStatements({ insertTilesetStmt, insertSectionStmt, insertEntryStmt, findBrushStmt, selectPaletteGroupStmt });
 		rollbackTransaction();
@@ -3580,6 +3637,7 @@ bool BrushDatabaseCatalogRepository::saveTileset(const TilesetStorageRecord &til
 	const auto resolvePaletteGroupId = [&](int64_t &outGroupId) {
 		outGroupId = 0;
 		const wxString groupName = DerivePaletteGroupNameFromTileset(tileset);
+		const wxString runtimeFamily = DerivePaletteRuntimeFamilyFromTileset(tileset);
 		if (groupName.IsEmpty()) {
 			return true;
 		}
@@ -3599,6 +3657,7 @@ bool BrushDatabaseCatalogRepository::saveTileset(const TilesetStorageRecord &til
 		sqlite3_reset(insertPaletteGroupStmt);
 		sqlite3_clear_bindings(insertPaletteGroupStmt);
 		sqlite3_bind_text(insertPaletteGroupStmt, 1, groupName.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_text(insertPaletteGroupStmt, 2, runtimeFamily.utf8_str(), -1, SQLITE_TRANSIENT);
 		if (sqlite3_step(insertPaletteGroupStmt) != SQLITE_DONE) {
 			return setDbError("Failed to create palette group");
 		}
@@ -3681,7 +3740,7 @@ bool BrushDatabaseCatalogRepository::getAllPaletteGroups(std::vector<PaletteGrou
 	}
 
 	sqlite3_stmt* stmt = nullptr;
-	if (!prepare("SELECT id, name, sort_order, is_builtin FROM palette_groups ORDER BY sort_order ASC, name COLLATE NOCASE ASC, id ASC;", &stmt)) {
+	if (!prepare("SELECT id, name, runtime_family, sort_order, is_builtin FROM palette_groups ORDER BY sort_order ASC, name COLLATE NOCASE ASC, id ASC;", &stmt)) {
 		return false;
 	}
 
@@ -3698,8 +3757,9 @@ bool BrushDatabaseCatalogRepository::getAllPaletteGroups(std::vector<PaletteGrou
 		PaletteGroupRecord group;
 		group.id = sqlite3_column_int64(stmt, 0);
 		group.name = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
-		group.sortOrder = sqlite3_column_int(stmt, 2);
-		group.isBuiltin = sqlite3_column_int(stmt, 3) != 0;
+		group.runtimeFamily = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+		group.sortOrder = sqlite3_column_int(stmt, 3);
+		group.isBuiltin = sqlite3_column_int(stmt, 4) != 0;
 		outGroups.push_back(group);
 	}
 
@@ -3716,7 +3776,7 @@ bool BrushDatabaseCatalogRepository::getTilesetByName(const wxString &name, Tile
 	}
 
 	sqlite3_stmt* tilesetStmt = nullptr;
-	if (!prepare("SELECT t.id, t.name, t.source_file, t.palette_group_id, pg.name "
+	if (!prepare("SELECT t.id, t.name, t.source_file, t.palette_group_id, pg.name, pg.runtime_family, COALESCE(pg.sort_order, 0) "
 				 "FROM tilesets AS t "
 				 "LEFT JOIN palette_groups AS pg ON pg.id = t.palette_group_id "
 				 "WHERE t.name = ? LIMIT 1;",
@@ -3740,6 +3800,8 @@ bool BrushDatabaseCatalogRepository::getTilesetByName(const wxString &name, Tile
 	outTileset.sourceFile = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(tilesetStmt, 2)));
 	outTileset.paletteGroupId = ReadNullableInt64(tilesetStmt, 3);
 	outTileset.paletteGroupName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(tilesetStmt, 4)));
+	outTileset.paletteGroupRuntimeFamily = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(tilesetStmt, 5)));
+	outTileset.paletteGroupSortOrder = sqlite3_column_int(tilesetStmt, 6);
 	sqlite3_finalize(tilesetStmt);
 
 	sqlite3_stmt* sectionStmt = nullptr;

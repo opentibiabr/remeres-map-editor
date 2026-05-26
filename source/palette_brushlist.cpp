@@ -39,6 +39,35 @@ EVT_CHOICEBOOK_PAGE_CHANGING(wxID_ANY, BrushPalettePanel::OnSwitchingPage)
 EVT_CHOICEBOOK_PAGE_CHANGED(wxID_ANY, BrushPalettePanel::OnPageChanged)
 END_EVENT_TABLE()
 
+namespace {
+	std::string DefaultPaletteGroupNameForCategory(TilesetCategoryType category) {
+		switch (category) {
+			case TILESET_TERRAIN:
+				return "terrain";
+			case TILESET_DOODAD:
+				return "doodad";
+			case TILESET_ITEM:
+				return "item";
+			case TILESET_RAW:
+				return "other";
+			default:
+				return std::string();
+		}
+	}
+
+	wxString BuildRuntimePalettePageLabel(const Tileset* tileset, TilesetCategoryType category) {
+		const std::string defaultGroup = DefaultPaletteGroupNameForCategory(category);
+		const wxString groupName = tileset->paletteGroupName.empty() ? wxString::FromUTF8(defaultGroup.c_str()) : wxString::FromUTF8(tileset->paletteGroupName.c_str());
+		if (!groupName.IsEmpty() && !groupName.IsSameAs(defaultGroup, false)) {
+			return groupName + " / " + wxString::FromUTF8(tileset->name.c_str());
+		}
+		if (category == TILESET_RAW && groupName.IsSameAs("other", false)) {
+			return "other / " + wxString::FromUTF8(tileset->name.c_str());
+		}
+		return wxString::FromUTF8(tileset->name.c_str());
+	}
+}
+
 BrushPalettePanel::BrushPalettePanel(wxWindow* parent, const TilesetContainer &tilesets, TilesetCategoryType category, wxWindowID id) :
 	PalettePanel(parent, id),
 	paletteType(category) {
@@ -55,15 +84,47 @@ BrushPalettePanel::BrushPalettePanel(wxWindow* parent, const TilesetContainer &t
 
 	sizer->Add(pageInfoSizer);
 
+	struct RuntimePalettePageSeed {
+		Tileset* tileset = nullptr;
+		const TilesetCategory* tilesetCategory = nullptr;
+		wxString label;
+		int sortOrder = 0;
+		wxString groupName;
+	};
+
+	std::vector<RuntimePalettePageSeed> pageSeeds;
+	pageSeeds.reserve(tilesets.size());
 	for (auto it = tilesets.begin(); it != tilesets.end(); ++it) {
 		const auto tilesetCategory = it->second->getCategory(category);
 		if (tilesetCategory && !tilesetCategory->brushlist.empty()) {
-			const auto panel = newd BrushPanel(choicebook, tilesetCategory);
-			choicebook->AddPage(panel, wxstr(it->second->name));
-			const int pageIndex = static_cast<int>(choicebook->GetPageCount()) - 1;
-			for (Brush* brush : tilesetCategory->brushlist) {
-				pageIndexByBrush.try_emplace(brush, pageIndex);
-			}
+			RuntimePalettePageSeed seed;
+			seed.tileset = it->second;
+			seed.tilesetCategory = tilesetCategory;
+			seed.label = BuildRuntimePalettePageLabel(it->second, category);
+			seed.sortOrder = it->second->paletteGroupSortOrder;
+			seed.groupName = it->second->paletteGroupName.empty() ? wxString::FromUTF8(DefaultPaletteGroupNameForCategory(category).c_str()) : wxString::FromUTF8(it->second->paletteGroupName.c_str());
+			pageSeeds.push_back(seed);
+		}
+	}
+
+	std::sort(pageSeeds.begin(), pageSeeds.end(), [](const RuntimePalettePageSeed &lhs, const RuntimePalettePageSeed &rhs) {
+		if (lhs.sortOrder != rhs.sortOrder) {
+			return lhs.sortOrder < rhs.sortOrder;
+		}
+		const int groupCmp = lhs.groupName.CmpNoCase(rhs.groupName);
+		if (groupCmp != 0) {
+			return groupCmp < 0;
+		}
+		return lhs.tileset->name < rhs.tileset->name;
+	});
+
+	for (const RuntimePalettePageSeed &seed : pageSeeds) {
+		const auto panel = newd BrushPanel(choicebook, seed.tilesetCategory);
+		choicebook->AddPage(panel, seed.label);
+		tilesetNamesByPage.push_back(seed.tileset->name);
+		const int pageIndex = static_cast<int>(choicebook->GetPageCount()) - 1;
+		for (Brush* brush : seed.tilesetCategory->brushlist) {
+			pageIndexByBrush.try_emplace(brush, pageIndex);
 		}
 	}
 
@@ -348,7 +409,11 @@ void BrushPalettePanel::OnClickAddItemToTileset(wxCommandEvent &WXUNUSED(event))
 	if (!choicebook) {
 		return;
 	}
-	const auto &tilesetName = choicebook->GetPageText(choicebook->GetSelection()).ToStdString();
+	const int selection = choicebook->GetSelection();
+	if (selection == wxNOT_FOUND || selection < 0 || selection >= static_cast<int>(tilesetNamesByPage.size())) {
+		return;
+	}
+	const std::string &tilesetName = tilesetNamesByPage[selection];
 
 	const auto it = g_materials.tilesets.find(tilesetName);
 

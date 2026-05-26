@@ -223,6 +223,10 @@ void Tileset::loadCategory(pugi::xml_node node, wxArrayString &warnings) {
 }
 
 void Tileset::loadFromStorage(const TilesetStorageRecord &storage, wxArrayString &warnings) {
+	paletteGroupName = storage.paletteGroupName.ToStdString();
+	paletteGroupRuntimeFamily = storage.paletteGroupRuntimeFamily.ToStdString();
+	paletteGroupSortOrder = storage.paletteGroupSortOrder;
+
 	for (const TilesetSectionRecord &section : storage.sections) {
 		const std::string sectionType = as_lower_str(section.sectionType.ToStdString());
 		TilesetCategoryType primaryType = TILESET_UNKNOWN;

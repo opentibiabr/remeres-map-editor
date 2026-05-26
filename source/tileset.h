@@ -84,6 +84,9 @@ public:
 
 public:
 	std::string name;
+	std::string paletteGroupName;
+	std::string paletteGroupRuntimeFamily;
+	int paletteGroupSortOrder = 0;
 	int16_t previousId;
 	TilesetCategoryArray categories;
 

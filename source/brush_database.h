@@ -197,6 +197,7 @@ struct TilesetSectionRecord {
 struct PaletteGroupRecord {
 	int64_t id = 0;
 	wxString name;
+	wxString runtimeFamily;
 	int sortOrder = 0;
 	bool isBuiltin = false;
 };
@@ -206,6 +207,8 @@ struct TilesetStorageRecord {
 	wxString sourceFile;
 	int64_t paletteGroupId = 0;
 	wxString paletteGroupName;
+	wxString paletteGroupRuntimeFamily;
+	int paletteGroupSortOrder = 0;
 	std::vector<TilesetSectionRecord> sections;
 };
 
@@ -337,6 +340,7 @@ private:
 	bool migrateToVersion6();
 	bool migrateToVersion7();
 	bool migrateToVersion8();
+	bool migrateToVersion9();
 	bool addColumnIfMissing(const wxString &tableName, const wxString &columnName, const wxString &definition);
 	bool executeStatements(std::initializer_list<const char*> statements);
 	bool addVersion2BrushColumns();

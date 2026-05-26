@@ -290,6 +290,7 @@ protected:
 	BrushSizePanel* sizePanel = nullptr;
 	std::map<wxWindow*, Brush*> rememberedBrushes;
 	std::unordered_map<const Brush*, int> pageIndexByBrush;
+	std::vector<std::string> tilesetNamesByPage;
 
 	DECLARE_EVENT_TABLE();
 };
