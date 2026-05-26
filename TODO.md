@@ -60,6 +60,9 @@
 - [x] Applying a border slot now validates the candidate layout immediately, so duplicate or unknown slot items are rejected before the user reaches Save
 - [x] Palette Workspace brush grids now reuse tile widgets instead of destroying/recreating them on every refresh, reducing GTK CSS/layout churn during palette and section switches
 - [x] Palette Workspace brush grids now also support an owner-drawn grid path that removes per-item `wxPanel`/`BrushButton`/`wxStaticText` widgets from the Workbench brush lists, cutting GTK CSS/update-event churn much more aggressively
+- [x] Item-family sections in the Palette Workspace now default to a combined `Item Brushes` source and fall back to catalog `lookId` previews when a runtime `Brush*` is unavailable, keeping `wall`, `carpet`, and `table` brushes visible together inside the Workbench
+- [x] Palette Workspace section grids now render both `brush` and `item` tileset entries, so `Item Palette` categories in the Workbench no longer go blank while the runtime still shows raw-item content
+- [x] The owner-drawn Workbench preview tiles now use a lighter 32x32 outline instead of the old heavy black frame, keeping the faster grid while cleaning up the icon presentation
 - [x] Runtime icon palettes now reuse a stable `BrushButton` pool across page switches instead of rebuilding the full icon grid every time
 - [x] Runtime palette pagination now avoids unnecessary `Fit`/AUI relayout churn and only relayouts icon pages when the visible button count actually changes
 
@@ -175,7 +178,11 @@
 - Palette UX should reflect runtime families (`Terrain Palette`, `Doodad Palette`, `Item Palette`) and their real categories, without introducing a parallel taxonomy for palette composition
 - Legacy XML remains for compatibility and first-time onboarding/import, but normal editing should continue DB-first in the Workbench after the initial import
 - `Stage 10B` is now in place: the `Palette Workspace` keeps the editor inside the `Materials Workbench` and now has both widget reuse plus an owner-drawn Workbench brush grid path, cutting the worst palette/section switching churn identified in the profiling pass more aggressively
+- Item-family sections inside the Palette Workspace now recommend and expose a combined `Item Brushes` source in the Workbench and can still render catalog-backed previews when a runtime `Brush*` is missing, so the item-side authoring flow no longer falls back to showing only `wall` brushes by default
+- `Item Palette` categories inside the Workbench now also render real SQLite `item` entries again instead of filtering them out as non-brush content, matching the runtime behavior more closely and keeping the palette editor usable for raw-item sections
+- The owner-drawn Workbench brush grid now also uses a lighter 32x32 outline instead of the old heavy black icon frame, preserving the perf win while improving readability
 - Runtime palette perf now has a first targeted pass too: `BrushIconBox` keeps a stable icon-button pool and only rebinds visible brushes when the page changes, preserving the existing palette UX while cutting page-switch widget churn
 - Runtime palette pagination now also avoids unconditional `Fit`/AUI refresh work on every page change and only relayouts icon pages when the visible grid size really changes, which should help category/page switching feel lighter without changing behavior
-- Recommended next task goal: continue Stage 10C/10D with structural palette editing flows such as create/rename/delete/reorder palettes and sections plus richer brush membership editing inside each runtime palette family
+- Keep future perf work scoped to palette-level/UI-level paths for now; do not move the next task into `SpriteAppearances`, `loadSpriteSheet`, `sprite atlas`, or `lzma_decode` yet
+- Recommended next task goal: continue Stage 10C/10D with structural palette editing flows such as create/rename/delete/reorder palettes and sections plus richer brush membership editing inside each runtime palette family, while any additional perf pass stays focused on runtime/workbench palette switching paths above the sprite/decode layer
 - Avoid reintroducing full runtime reload on brush or palette save; keep using targeted sync paths because the global reload path previously crashed in `Brushes::clear()`

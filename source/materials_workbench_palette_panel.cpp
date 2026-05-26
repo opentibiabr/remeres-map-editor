@@ -16,12 +16,15 @@
 
 #include "brush.h"
 #include "gui.h"
+#include "items.h"
 #include "materials_workbench_controller.h"
 #include "palette_common.h"
+#include "raw_brush.h"
 
 struct BrushGridItem {
 	wxString label;
 	Brush* brush = nullptr;
+	int lookId = 0;
 	int index = -1;
 };
 
@@ -150,19 +153,20 @@ private:
 		dc.DrawRectangle(tileRect);
 
 		const wxRect iconRect(
-			tileRect.x + (tileRect.width - FromDIP(36)) / 2,
+			tileRect.x + (tileRect.width - FromDIP(32)) / 2,
 			tileRect.y + FromDIP(6),
-			FromDIP(36),
-			FromDIP(36)
+			FromDIP(32),
+			FromDIP(32)
 		);
 
-		dc.SetPen(*wxBLACK_PEN);
-		dc.SetBrush(*wxBLACK_BRUSH);
+		dc.SetPen(wxPen(wxSystemSettings::GetColour(wxSYS_COLOUR_BTNSHADOW)));
+		dc.SetBrush(*wxTRANSPARENT_BRUSH);
 		dc.DrawRectangle(iconRect);
 
-		if (item.brush) {
-			if (Sprite* sprite = g_gui.gfx.getSprite(item.brush->getLookID())) {
-				sprite->DrawTo(&dc, SPRITE_SIZE_32x32, iconRect.x + FromDIP(2), iconRect.y + FromDIP(2), FromDIP(32), FromDIP(32));
+		const int lookId = item.brush ? item.brush->getLookID() : item.lookId;
+		if (lookId > 0) {
+			if (Sprite* sprite = g_gui.gfx.getSprite(lookId)) {
+				sprite->DrawTo(&dc, SPRITE_SIZE_32x32, iconRect.x + FromDIP(1), iconRect.y + FromDIP(1), FromDIP(30), FromDIP(30));
 			}
 		}
 
@@ -224,6 +228,7 @@ private:
 };
 
 namespace {
+	const wxString kItemBrushFamilyGroupKey = "item-family";
 
 	wxString BuildSectionLabel(const TilesetSectionRecord &section) {
 		return wxString::Format("%s (%zu)", section.sectionType, section.entries.size());
@@ -244,6 +249,87 @@ namespace {
 			return entry.toItemId;
 		}
 		return entry.fromItemId;
+	}
+
+	bool IsItemBrushGroupKey(const wxString &groupKey) {
+		return groupKey == "carpet" || groupKey == "table" || groupKey == "wall";
+	}
+
+	int ResolveEntryPreviewItemId(const TilesetEntryRecord &entry) {
+		if (entry.itemId > 0) {
+			return entry.itemId;
+		}
+		if (entry.fromItemId > 0) {
+			return entry.fromItemId;
+		}
+		return entry.toItemId;
+	}
+
+	wxString BuildItemEntryLabel(const TilesetEntryRecord &entry) {
+		const int previewItemId = ResolveEntryPreviewItemId(entry);
+		if (previewItemId <= 0) {
+			return "Item";
+		}
+
+		const int fromItemId = entry.fromItemId > 0 ? entry.fromItemId : previewItemId;
+		const int toItemId = entry.toItemId > 0 ? entry.toItemId : fromItemId;
+		wxString itemName;
+		if (auto type = g_items.getRawItemType(static_cast<uint16_t>(previewItemId)); type && type->id != 0 && !type->name.empty()) {
+			itemName = wxString::FromUTF8(type->name.c_str());
+		}
+
+		if (toItemId > fromItemId) {
+			if (!itemName.IsEmpty()) {
+				return wxString::Format("%d-%d - %s", fromItemId, toItemId, itemName);
+			}
+			return wxString::Format("%d-%d", fromItemId, toItemId);
+		}
+
+		if (!itemName.IsEmpty()) {
+			return wxString::Format("%d - %s", previewItemId, itemName);
+		}
+		return wxString::Format("Item %d", previewItemId);
+	}
+
+	const BrushRecord* FindCatalogBrushRecord(const MaterialsWorkbenchController &controller, int64_t brushId, const wxString &brushName) {
+		for (const MaterialsWorkbenchBrushGroup &group : controller.GetBrushGroups()) {
+			for (const BrushRecord &record : group.brushes) {
+				if (brushId > 0 && record.id == brushId) {
+					return &record;
+				}
+				if (brushId <= 0 && !brushName.IsEmpty() && record.name.IsSameAs(brushName, false)) {
+					return &record;
+				}
+			}
+		}
+		for (const BrushRecord &record : controller.GetWallBrushes()) {
+			if (brushId > 0 && record.id == brushId) {
+				return &record;
+			}
+			if (brushId <= 0 && !brushName.IsEmpty() && record.name.IsSameAs(brushName, false)) {
+				return &record;
+			}
+		}
+		return nullptr;
+	}
+
+	wxString DescribePaletteEntry(const MaterialsWorkbenchController &controller, const TilesetEntryRecord &entry) {
+		if (entry.entryKind.IsSameAs("brush", false)) {
+			if (!entry.brushName.IsEmpty()) {
+				return entry.brushName;
+			}
+			if (const BrushRecord* catalogBrush = FindCatalogBrushRecord(controller, entry.brushId, entry.brushName)) {
+				return catalogBrush->name;
+			}
+			return "Brush";
+		}
+		if (entry.entryKind.IsSameAs("item", false)) {
+			return BuildItemEntryLabel(entry);
+		}
+		if (!entry.entryKind.IsEmpty()) {
+			return entry.entryKind;
+		}
+		return "Entry";
 	}
 } // namespace
 
@@ -407,32 +493,50 @@ void MaterialsWorkbenchPalettePanel::RefreshSectionEntries() {
 
 	const TilesetSectionRecord &section = palette_.sections[currentSectionIndex_];
 	std::vector<BrushGridItem> items;
-	int nonBrushEntries = 0;
-	int missingBrushes = 0;
+	int unsupportedEntries = 0;
+	int missingPreviews = 0;
 
 	for (size_t i = 0; i < section.entries.size(); ++i) {
 		const TilesetEntryRecord &entry = section.entries[i];
-		if (!entry.entryKind.IsSameAs("brush", false)) {
-			++nonBrushEntries;
+		if (entry.entryKind.IsSameAs("brush", false)) {
+			Brush* brush = g_brushes.getBrush(entry.brushName.ToStdString());
+			const BrushRecord* catalogBrush = FindCatalogBrushRecord(controller_, entry.brushId, entry.brushName);
+			const int lookId = brush ? brush->getLookID() : (catalogBrush ? catalogBrush->lookId : 0);
+			if (!brush && lookId <= 0) {
+				++missingPreviews;
+				continue;
+			}
+
+			items.push_back({ DescribePaletteEntry(controller_, entry), brush, lookId, static_cast<int>(i) });
 			continue;
 		}
 
-		Brush* brush = g_brushes.getBrush(entry.brushName.ToStdString());
-		if (!brush) {
-			++missingBrushes;
+		if (entry.entryKind.IsSameAs("item", false)) {
+			const int previewItemId = ResolveEntryPreviewItemId(entry);
+			if (previewItemId <= 0) {
+				++missingPreviews;
+				continue;
+			}
+
+			Brush* brush = nullptr;
+			if (auto type = g_items.getRawItemType(static_cast<uint16_t>(previewItemId)); type && type->id != 0) {
+				brush = type->raw_brush;
+			}
+
+			items.push_back({ DescribePaletteEntry(controller_, entry), brush, previewItemId, static_cast<int>(i) });
 			continue;
 		}
 
-		items.push_back({ entry.brushName, brush, static_cast<int>(i) });
+		++unsupportedEntries;
 	}
 
 	sectionSummaryLabel_->SetLabel(
 		wxString::Format(
-			"Section \"%s\" has %zu brush entries. Preserved non-brush entries: %d. Missing runtime brushes: %d.",
+			"Section \"%s\" shows %zu entries. Unsupported entry kinds: %d. Missing previews: %d.",
 			section.sectionType,
 			items.size(),
-			nonBrushEntries,
-			missingBrushes
+			unsupportedEntries,
+			missingPreviews
 		)
 	);
 
@@ -449,6 +553,18 @@ void MaterialsWorkbenchPalettePanel::RefreshSectionEntries() {
 void MaterialsWorkbenchPalettePanel::RefreshAvailableBrushGroups() {
 	availableBrushGroupChoice_->Clear();
 	availableBrushGroupKeys_.clear();
+
+	bool hasItemBrushFamily = !controller_.GetWallBrushes().empty();
+	for (const MaterialsWorkbenchBrushGroup &group : controller_.GetBrushGroups()) {
+		if (IsItemBrushGroupKey(group.brushType) && !group.brushes.empty()) {
+			hasItemBrushFamily = true;
+			break;
+		}
+	}
+	if (hasItemBrushFamily) {
+		availableBrushGroupChoice_->Append("Item Brushes");
+		availableBrushGroupKeys_.push_back(kItemBrushFamilyGroupKey);
+	}
 
 	for (const MaterialsWorkbenchBrushGroup &group : controller_.GetBrushGroups()) {
 		availableBrushGroupChoice_->Append(group.label);
@@ -484,7 +600,15 @@ void MaterialsWorkbenchPalettePanel::RefreshAvailableBrushes() {
 	const wxString groupKey = availableBrushGroupKeys_[availableBrushGroupChoice_->GetSelection()];
 	std::vector<BrushGridItem> items;
 
-	if (groupKey == "wall") {
+	if (groupKey == kItemBrushFamilyGroupKey) {
+		for (const MaterialsWorkbenchBrushGroup &group : controller_.GetBrushGroups()) {
+			if (IsItemBrushGroupKey(group.brushType)) {
+				currentAvailableBrushes_.insert(currentAvailableBrushes_.end(), group.brushes.begin(), group.brushes.end());
+			}
+		}
+		const std::vector<BrushRecord> &wallBrushes = controller_.GetWallBrushes();
+		currentAvailableBrushes_.insert(currentAvailableBrushes_.end(), wallBrushes.begin(), wallBrushes.end());
+	} else if (groupKey == "wall") {
 		currentAvailableBrushes_ = controller_.GetWallBrushes();
 	} else {
 		for (const MaterialsWorkbenchBrushGroup &group : controller_.GetBrushGroups()) {
@@ -498,10 +622,11 @@ void MaterialsWorkbenchPalettePanel::RefreshAvailableBrushes() {
 	for (size_t i = 0; i < currentAvailableBrushes_.size(); ++i) {
 		const BrushRecord &record = currentAvailableBrushes_[i];
 		Brush* brush = g_brushes.getBrush(record.name.ToStdString());
-		if (!brush) {
+		const int lookId = brush ? brush->getLookID() : record.lookId;
+		if (!brush && lookId <= 0) {
 			continue;
 		}
-		items.push_back({ record.name, brush, static_cast<int>(i) });
+		items.push_back({ record.name, brush, lookId, static_cast<int>(i) });
 	}
 
 	availableBrushGrid_->SetItems(items);
@@ -580,7 +705,7 @@ wxString MaterialsWorkbenchPalettePanel::RecommendBrushGroupForCurrentSection() 
 		return "doodad";
 	}
 	if (sectionType.Contains("item")) {
-		return "wall";
+		return kItemBrushFamilyGroupKey;
 	}
 	return "ground";
 }
@@ -648,7 +773,7 @@ void MaterialsWorkbenchPalettePanel::OnRemoveBrush(wxCommandEvent &event) {
 		return;
 	}
 
-	const wxString removedName = section.entries[selectedSectionEntryIndex_].brushName;
+	const wxString removedName = DescribePaletteEntry(controller_, section.entries[selectedSectionEntryIndex_]);
 	section.entries.erase(section.entries.begin() + selectedSectionEntryIndex_);
 	if (selectedSectionEntryIndex_ >= static_cast<int>(section.entries.size())) {
 		selectedSectionEntryIndex_ = static_cast<int>(section.entries.size()) - 1;
