@@ -194,9 +194,18 @@ struct TilesetSectionRecord {
 	std::vector<TilesetEntryRecord> entries;
 };
 
+struct PaletteGroupRecord {
+	int64_t id = 0;
+	wxString name;
+	int sortOrder = 0;
+	bool isBuiltin = false;
+};
+
 struct TilesetStorageRecord {
 	wxString name;
 	wxString sourceFile;
+	int64_t paletteGroupId = 0;
+	wxString paletteGroupName;
 	std::vector<TilesetSectionRecord> sections;
 };
 
@@ -327,6 +336,7 @@ private:
 	bool migrateToVersion5();
 	bool migrateToVersion6();
 	bool migrateToVersion7();
+	bool migrateToVersion8();
 	bool addColumnIfMissing(const wxString &tableName, const wxString &columnName, const wxString &definition);
 	bool executeStatements(std::initializer_list<const char*> statements);
 	bool addVersion2BrushColumns();
@@ -383,6 +393,7 @@ public:
 	bool replaceAllTilesets(const std::vector<TilesetStorageRecord> &tilesets);
 	bool saveTileset(const TilesetStorageRecord &tileset);
 	bool deleteTileset(const wxString &name);
+	bool getAllPaletteGroups(std::vector<PaletteGroupRecord> &outGroups);
 	bool getTilesetByName(const wxString &name, TilesetStorageRecord &outTileset);
 	bool getAllTilesets(std::vector<TilesetStorageRecord> &outTilesets);
 	bool generateAuditReport(MaterialsDatabaseAuditReport &outReport);
@@ -436,6 +447,7 @@ public:
 	bool replaceAllTilesets(const std::vector<TilesetStorageRecord> &tilesets);
 	bool saveTileset(const TilesetStorageRecord &tileset);
 	bool deleteTileset(const wxString &name);
+	bool getAllPaletteGroups(std::vector<PaletteGroupRecord> &outGroups);
 	bool getAllTilesets(std::vector<TilesetStorageRecord> &outTilesets);
 	bool generateAuditReport(MaterialsDatabaseAuditReport &outReport);
 	bool hasCompleteImportForCurrentSchema(bool &outReady);

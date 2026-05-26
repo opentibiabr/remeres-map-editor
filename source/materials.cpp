@@ -1186,6 +1186,19 @@ namespace {
 		return nodeName == "terrain" || nodeName == "terrain_and_raw" || nodeName == "doodad" || nodeName == "doodad_and_raw" || nodeName == "items" || nodeName == "items_and_raw";
 	}
 
+	wxString DerivePaletteGroupNameFromSectionType(const wxString &sectionType) {
+		if (sectionType.IsSameAs("terrain", false) || sectionType.IsSameAs("terrain_and_raw", false)) {
+			return "terrain";
+		}
+		if (sectionType.IsSameAs("doodad", false) || sectionType.IsSameAs("doodad_and_raw", false)) {
+			return "doodad";
+		}
+		if (sectionType.IsSameAs("item", false) || sectionType.IsSameAs("items", false) || sectionType.IsSameAs("items_and_raw", false)) {
+			return "item";
+		}
+		return "other";
+	}
+
 	void CollectTilesetSectionEntries(pugi::xml_node sectionNode, TilesetSectionRecord &section) {
 		int sortOrder = 0;
 		for (pugi::xml_node entryNode = sectionNode.first_child(); entryNode; entryNode = entryNode.next_sibling()) {
@@ -1215,10 +1228,14 @@ namespace {
 		}
 	}
 
-	bool ParseTilesetNode(const FileName &sourceFile, pugi::xml_node tilesetNode, TilesetStorageRecord &outTileset, wxArrayString &warnings) {
+	bool ParseTilesetNode(const FileName &sourceFile, pugi::xml_node tilesetNode, const wxString &inheritedPaletteGroup, TilesetStorageRecord &outTileset, wxArrayString &warnings) {
 		outTileset = TilesetStorageRecord();
 		outTileset.name = wxString(tilesetNode.attribute("name").as_string(), wxConvUTF8);
 		outTileset.sourceFile = MaterialSourcePath(sourceFile);
+		outTileset.paletteGroupName = wxString(tilesetNode.attribute("palette_group").as_string(), wxConvUTF8);
+		if (outTileset.paletteGroupName.IsEmpty()) {
+			outTileset.paletteGroupName = inheritedPaletteGroup;
+		}
 		if (outTileset.name.IsEmpty()) {
 			warnings.push_back("SQLite tileset import found tileset without name in " + sourceFile.GetFullName());
 			return false;
@@ -1238,10 +1255,18 @@ namespace {
 			outTileset.sections.push_back(section);
 		}
 
+		if (outTileset.paletteGroupName.IsEmpty()) {
+			if (!outTileset.sections.empty()) {
+				outTileset.paletteGroupName = DerivePaletteGroupNameFromSectionType(outTileset.sections.front().sectionType);
+			} else {
+				outTileset.paletteGroupName = "other";
+			}
+		}
+
 		return true;
 	}
 
-	bool ImportTilesetsRecursive(const FileName &filename, wxArrayString &warnings, std::set<wxString> &visited, std::vector<TilesetStorageRecord> &outTilesets) {
+	bool ImportTilesetsRecursive(const FileName &filename, const wxString &inheritedPaletteGroup, wxArrayString &warnings, std::set<wxString> &visited, std::vector<TilesetStorageRecord> &outTilesets) {
 		const wxString normalizedPath = filename.GetFullPath();
 		if (visited.find(normalizedPath) != visited.end()) {
 			return true;
@@ -1258,7 +1283,11 @@ namespace {
 			const std::string childName = as_lower_str(childNode.name());
 			if (childName == "include") {
 				const wxString includePath = wxString(childNode.attribute("file").as_string(), wxConvUTF8);
-				if (!includePath.empty() && !ImportTilesetsRecursive(ResolveMaterialInclude(filename, includePath), warnings, visited, outTilesets)) {
+				wxString includePaletteGroup = wxString(childNode.attribute("palette_group").as_string(), wxConvUTF8);
+				if (includePaletteGroup.IsEmpty()) {
+					includePaletteGroup = inheritedPaletteGroup;
+				}
+				if (!includePath.empty() && !ImportTilesetsRecursive(ResolveMaterialInclude(filename, includePath), includePaletteGroup, warnings, visited, outTilesets)) {
 					return false;
 				}
 				continue;
@@ -1269,7 +1298,7 @@ namespace {
 			}
 
 			TilesetStorageRecord tileset;
-			if (ParseTilesetNode(filename, childNode, tileset, warnings)) {
+			if (ParseTilesetNode(filename, childNode, inheritedPaletteGroup, tileset, warnings)) {
 				outTilesets.push_back(tileset);
 			}
 		}
@@ -1638,7 +1667,7 @@ bool Materials::migrateTilesetsToSQLite(wxString &error, wxArrayString &warnings
 	const FileName tilesetsRoot(GUI::GetDataDirectory() + "materials/tilesets.xml");
 	std::vector<TilesetStorageRecord> tilesetsToStore;
 	std::set<wxString> visited;
-	if (!ImportTilesetsRecursive(tilesetsRoot, warnings, visited, tilesetsToStore)) {
+	if (!ImportTilesetsRecursive(tilesetsRoot, wxString(), warnings, visited, tilesetsToStore)) {
 		error = "Failed to import tilesets into SQLite.";
 		return false;
 	}

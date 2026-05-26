@@ -35,8 +35,10 @@ private:
 	bool CommitPalette(const wxString &successMessage, const wxString &previousPaletteName = wxString(), const wxString &selectionPaletteName = wxString());
 	wxString RecommendBrushGroupForCurrentSection() const;
 	const BrushRecord* FindAvailableBrushRecord() const;
+	int FindSectionIndexByName(const wxString &sectionName) const;
 	bool PromptForPaletteName(const wxString &title, const wxString &caption, const wxString &initialValue, const wxString &currentName, wxString &outName);
-	bool PromptForSectionType(const wxString &title, const wxString &caption, const wxString &initialValue, const wxString &currentSectionType, wxString &outSectionType);
+	bool PromptForNewSectionType(const wxString &title, const wxString &caption, wxString &outSectionType);
+	bool PromptForSectionName(const wxString &title, const wxString &caption, const wxString &initialValue, const wxString &currentSectionType, wxString &outSectionType);
 
 	void OnCreatePalette(wxCommandEvent &event);
 	void OnRenamePalette(wxCommandEvent &event);
@@ -45,8 +47,6 @@ private:
 	void OnAddSection(wxCommandEvent &event);
 	void OnRenameSection(wxCommandEvent &event);
 	void OnDeleteSection(wxCommandEvent &event);
-	void OnMoveSectionUp(wxCommandEvent &event);
-	void OnMoveSectionDown(wxCommandEvent &event);
 	void OnAvailableBrushGroupChanged(wxCommandEvent &event);
 	void OnAddBrush(wxCommandEvent &event);
 	void OnRemoveBrush(wxCommandEvent &event);
@@ -65,7 +65,7 @@ private:
 
 	wxStaticText* titleLabel_ = nullptr;
 	wxStaticText* sourceLabel_ = nullptr;
-	wxChoice* sectionChoice_ = nullptr;
+	wxChoice* currentSectionChoice_ = nullptr;
 	wxStaticText* sectionSummaryLabel_ = nullptr;
 	MaterialsWorkbenchBrushGridPanel* sectionBrushGrid_ = nullptr;
 	wxChoice* availableBrushGroupChoice_ = nullptr;
@@ -80,8 +80,6 @@ private:
 	wxButton* addSectionButton_ = nullptr;
 	wxButton* renameSectionButton_ = nullptr;
 	wxButton* deleteSectionButton_ = nullptr;
-	wxButton* moveSectionUpButton_ = nullptr;
-	wxButton* moveSectionDownButton_ = nullptr;
 	wxStaticText* statusLabel_ = nullptr;
 };
 

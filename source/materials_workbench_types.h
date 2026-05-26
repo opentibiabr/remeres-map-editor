@@ -30,6 +30,7 @@ struct MaterialsWorkbenchBrushGroup {
 
 struct MaterialsWorkbenchCatalogSnapshot {
 	MaterialsDatabaseAuditReport auditReport;
+	std::vector<PaletteGroupRecord> paletteGroups;
 	std::vector<TilesetStorageRecord> tilesets;
 	std::vector<MaterialsWorkbenchBrushGroup> brushGroups;
 	std::vector<BrushRecord> wallBrushes;

@@ -89,6 +89,7 @@ namespace {
 	wxString FormatTilesetDetails(const TilesetStorageRecord &tileset) {
 		wxString text;
 		text << "Name: " << tileset.name << "\n";
+		text << "Group: " << (tileset.paletteGroupName.IsEmpty() ? wxString("other") : tileset.paletteGroupName) << "\n";
 		text << "Source: " << tileset.sourceFile << "\n";
 		text << "Sections: " << tileset.sections.size() << "\n\n";
 

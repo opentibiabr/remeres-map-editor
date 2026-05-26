@@ -28,6 +28,10 @@ bool MaterialsWorkbenchRepository::LoadCatalog(MaterialsWorkbenchCatalogSnapshot
 		error = g_brush_database.getLastError();
 		return false;
 	}
+	if (!g_brush_database.getAllPaletteGroups(outCatalog.paletteGroups)) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
 	if (!g_brush_database.getAllTilesets(outCatalog.tilesets)) {
 		error = g_brush_database.getLastError();
 		return false;

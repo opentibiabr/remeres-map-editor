@@ -29,6 +29,7 @@ namespace {
 	wxString FormatTilesetOverview(const TilesetStorageRecord &tileset) {
 		wxString text;
 		text << "Palette: " << tileset.name << "\n";
+		text << "Group: " << (tileset.paletteGroupName.IsEmpty() ? wxString("other") : tileset.paletteGroupName) << "\n";
 		text << "Source: " << tileset.sourceFile << "\n";
 		text << "Sections: " << tileset.sections.size() << "\n";
 		return text;
@@ -144,40 +145,43 @@ namespace {
 		return brushType;
 	}
 
-	wxString BuildPaletteFamilyKeyFromSectionType(const wxString &sectionType) {
+	wxString DerivePaletteGroupKeyFromSectionType(const wxString &sectionType) {
 		if (sectionType.IsSameAs("terrain", false) || sectionType.IsSameAs("terrain_and_raw", false)) {
 			return "terrain";
 		}
 		if (sectionType.IsSameAs("doodad", false) || sectionType.IsSameAs("doodad_and_raw", false)) {
 			return "doodad";
 		}
-		if (sectionType.IsSameAs("items", false) || sectionType.IsSameAs("items_and_raw", false)) {
+		if (sectionType.IsSameAs("item", false) || sectionType.IsSameAs("items", false) || sectionType.IsSameAs("items_and_raw", false)) {
 			return "item";
-		}
-		return "";
-	}
-
-	wxString BuildPaletteFamilyKey(const TilesetStorageRecord &tileset) {
-		for (const TilesetSectionRecord &section : tileset.sections) {
-			const wxString familyKey = BuildPaletteFamilyKeyFromSectionType(section.sectionType);
-			if (!familyKey.IsEmpty()) {
-				return familyKey;
-			}
 		}
 		return "other";
 	}
 
-	wxString BuildPaletteFamilyLabel(const wxString &familyKey) {
-		if (familyKey == "terrain") {
-			return "Terrain Palette";
+	wxString BuildPaletteGroupKey(const TilesetStorageRecord &tileset) {
+		if (!tileset.paletteGroupName.IsEmpty()) {
+			return tileset.paletteGroupName;
 		}
-		if (familyKey == "doodad") {
-			return "Doodad Palette";
+		if (!tileset.sections.empty()) {
+			return DerivePaletteGroupKeyFromSectionType(tileset.sections.front().sectionType);
 		}
-		if (familyKey == "item") {
-			return "Item Palette";
+		return "other";
+	}
+
+	wxString BuildPaletteGroupLabel(const wxString &groupName) {
+		if (groupName.IsSameAs("terrain", false)) {
+			return "Terrain";
 		}
-		return "Other Palettes";
+		if (groupName.IsSameAs("doodad", false)) {
+			return "Doodad";
+		}
+		if (groupName.IsSameAs("item", false)) {
+			return "Item";
+		}
+		if (groupName.IsSameAs("other", false)) {
+			return "Other";
+		}
+		return groupName;
 	}
 
 	wxString BuildBrushFamilyKeyFromBrushType(const wxString &brushType) {
@@ -257,31 +261,30 @@ std::vector<MaterialsWorkbenchTreeNode> MaterialsWorkbenchController::BuildNavig
 	palettesNode.label = FormatNavigationCountLabel("Palettes", catalog_.tilesets.size());
 	palettesNode.contextKey = "group:palettes";
 
-	std::map<wxString, std::vector<int>> paletteIndexesByFamily;
+	std::map<wxString, std::vector<int>> paletteIndexesByGroup;
 	for (size_t i = 0; i < catalog_.tilesets.size(); ++i) {
-		paletteIndexesByFamily[BuildPaletteFamilyKey(catalog_.tilesets[i])].push_back(static_cast<int>(i));
+		paletteIndexesByGroup[BuildPaletteGroupKey(catalog_.tilesets[i])].push_back(static_cast<int>(i));
 	}
 
-	const wxString paletteFamilyOrder[] = { "terrain", "doodad", "item", "other" };
-	for (const wxString &familyKey : paletteFamilyOrder) {
-		const auto familyIt = paletteIndexesByFamily.find(familyKey);
-		if (familyIt == paletteIndexesByFamily.end() || familyIt->second.empty()) {
+	for (const PaletteGroupRecord &group : catalog_.paletteGroups) {
+		const auto groupIt = paletteIndexesByGroup.find(group.name);
+		if (groupIt == paletteIndexesByGroup.end() || groupIt->second.empty()) {
 			continue;
 		}
 
-		MaterialsWorkbenchTreeNode familyNode;
-		familyNode.kind = MaterialsWorkbenchNodeKind::Group;
-		familyNode.label = FormatNavigationCountLabel(BuildPaletteFamilyLabel(familyKey), familyIt->second.size());
-		familyNode.contextKey = "palette_family:" + familyKey;
-		for (int tilesetIndex : familyIt->second) {
+		MaterialsWorkbenchTreeNode groupNode;
+		groupNode.kind = MaterialsWorkbenchNodeKind::Group;
+		groupNode.label = FormatNavigationCountLabel(BuildPaletteGroupLabel(group.name), groupIt->second.size());
+		groupNode.contextKey = "palette_group:" + group.name;
+		for (int tilesetIndex : groupIt->second) {
 			MaterialsWorkbenchTreeNode item;
 			item.kind = MaterialsWorkbenchNodeKind::Tileset;
 			item.label = catalog_.tilesets[tilesetIndex].name;
 			item.contextKey = "tilesets";
 			item.itemIndex = tilesetIndex;
-			familyNode.children.push_back(std::move(item));
+			groupNode.children.push_back(std::move(item));
 		}
-		palettesNode.children.push_back(std::move(familyNode));
+		palettesNode.children.push_back(std::move(groupNode));
 	}
 	catalogNode.children.push_back(std::move(palettesNode));
 
@@ -298,7 +301,7 @@ std::vector<MaterialsWorkbenchTreeNode> MaterialsWorkbenchController::BuildNavig
 	std::map<wxString, BrushNavigationPlacement> brushPlacementByKey;
 	std::map<wxString, std::vector<wxString>> paletteOrderByFamily;
 	for (const TilesetStorageRecord &tileset : catalog_.tilesets) {
-		const wxString familyKey = BuildPaletteFamilyKey(tileset);
+		const wxString familyKey = BuildPaletteGroupKey(tileset);
 		auto &familyPaletteOrder = paletteOrderByFamily[familyKey];
 		if (std::find(familyPaletteOrder.begin(), familyPaletteOrder.end(), tileset.name) == familyPaletteOrder.end()) {
 			familyPaletteOrder.push_back(tileset.name);
@@ -681,20 +684,20 @@ wxString MaterialsWorkbenchController::BuildSelectionOverview(MaterialsWorkbench
 
 	if (kind == MaterialsWorkbenchNodeKind::Group) {
 		if (contextKey == "group:palettes") {
-			return wxString::Format("Palettes workspace\n\nLoaded %zu palettes across the runtime palette families.", catalog_.tilesets.size());
+			return wxString::Format("Palettes workspace\n\nLoaded %zu palettes grouped directly from materials.db.", catalog_.tilesets.size());
 		}
-		if (contextKey.StartsWith("palette_family:")) {
-			const wxString familyKey = contextKey.AfterFirst(':');
-			size_t familyCount = 0;
+		if (contextKey.StartsWith("palette_group:")) {
+			const wxString groupName = contextKey.AfterFirst(':');
+			size_t groupCount = 0;
 			for (const TilesetStorageRecord &tileset : catalog_.tilesets) {
-				if (BuildPaletteFamilyKey(tileset) == familyKey) {
-					++familyCount;
+				if (BuildPaletteGroupKey(tileset).IsSameAs(groupName, false)) {
+					++groupCount;
 				}
 			}
 			return wxString::Format(
-				"%s\n\nLoaded %zu palettes for this runtime family.",
-				BuildPaletteFamilyLabel(familyKey),
-				familyCount
+				"%s\n\nLoaded %zu palettes in this DB-backed palette group.",
+				BuildPaletteGroupLabel(groupName),
+				groupCount
 			);
 		}
 		if (contextKey == "group:brushes") {

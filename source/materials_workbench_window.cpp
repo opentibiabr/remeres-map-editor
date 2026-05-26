@@ -174,20 +174,6 @@ namespace {
 		return panel;
 	}
 
-	wxPanel* CreateInspectorPanel(wxWindow* parent, const MaterialsWorkbenchController &controller, wxTextCtrl*& outInspector) {
-		wxPanel* panel = new wxPanel(parent, wxID_ANY);
-		wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
-
-		wxStaticText* title = new wxStaticText(panel, wxID_ANY, "Inspector");
-		outInspector = new wxTextCtrl(panel, wxID_ANY, controller.GetInspectorText(), wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY | wxBORDER_NONE);
-
-		sizer->Add(title, 0, wxEXPAND | wxALL, panel->FromDIP(10));
-		sizer->Add(new wxStaticLine(panel), 0, wxEXPAND | wxLEFT | wxRIGHT, panel->FromDIP(10));
-		sizer->Add(outInspector, 1, wxEXPAND | wxALL, panel->FromDIP(10));
-		panel->SetSizer(sizer);
-		return panel;
-	}
-
 	bool SelectMatchingNodeRecursive(
 		wxTreeCtrl* tree,
 		const wxTreeItemId &parent,
@@ -244,12 +230,8 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 	rootSplitter->SetSashGravity(0.16);
 	rootSplitter->SetMinimumPaneSize(FromDIP(220));
 
-	wxSplitterWindow* contentSplitter = new wxSplitterWindow(rootSplitter, wxID_ANY);
-	contentSplitter->SetSashGravity(0.78);
-	contentSplitter->SetMinimumPaneSize(FromDIP(260));
-
 	wxPanel* sidebarPanel = CreateSidebarPanel(rootSplitter, navigationTree_);
-	workspaceBook_ = new wxSimplebook(contentSplitter, wxID_ANY);
+	workspaceBook_ = new wxSimplebook(rootSplitter, wxID_ANY);
 	wxPanel* overviewPanel = CreateOverviewTextPanel(workspaceBook_, controller_, overviewText_);
 	palettePanel_ = new MaterialsWorkbenchPalettePanel(workspaceBook_, controller_);
 	palettePanel_->SetOnPaletteSaved([this](const wxString &paletteName) {
@@ -290,10 +272,7 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 	workspaceBook_->AddPage(brushPanel_, "Brush");
 	workspaceBook_->AddPage(wallPanel_, "Wall");
 	workspaceBook_->SetSelection(0);
-	wxPanel* inspectorPanel = CreateInspectorPanel(contentSplitter, controller_, inspectorText_);
-
-	contentSplitter->SplitVertically(workspaceBook_, inspectorPanel, FromDIP(1020));
-	rootSplitter->SplitVertically(sidebarPanel, contentSplitter, FromDIP(260));
+	rootSplitter->SplitVertically(sidebarPanel, workspaceBook_, FromDIP(260));
 
 	wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 	sizer->Add(rootSplitter, 1, wxEXPAND);
@@ -303,24 +282,10 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 void MaterialsWorkbenchWindow::RefreshWorkbenchState() {
 	controller_.ReloadCatalog();
 	overviewText_->SetValue(controller_.GetOverviewText());
-	inspectorText_->SetValue(controller_.GetInspectorText());
 }
 
 void MaterialsWorkbenchWindow::RefreshInspectorForCurrentSelection() {
-	auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(navigationTree_->GetSelection()));
-	if (!itemData) {
-		inspectorText_->SetValue(controller_.GetInspectorText());
-		return;
-	}
-
-	if (itemData->kind == MaterialsWorkbenchNodeKind::Brush &&
-		brushPanel_ &&
-		brushPanel_->IsCurrentBrushSelection(itemData->contextKey, itemData->itemIndex)) {
-		inspectorText_->SetValue(brushPanel_->GetCurrentBrushInspectorText());
-		return;
-	}
-
-	inspectorText_->SetValue(controller_.BuildSelectionInspector(itemData->kind, itemData->contextKey, itemData->itemIndex));
+	// The side inspector was removed from the Workbench layout.
 }
 
 void MaterialsWorkbenchWindow::HandlePaletteSaved(const wxString &paletteName) {
@@ -600,12 +565,10 @@ void MaterialsWorkbenchWindow::BindEvents() {
 		if (!itemData) {
 			workspaceBook_->SetSelection(0);
 			overviewText_->SetValue(controller_.GetOverviewText());
-			inspectorText_->SetValue(controller_.GetInspectorText());
 			return;
 		}
 
 		overviewText_->SetValue(controller_.BuildSelectionOverview(itemData->kind, itemData->contextKey, itemData->itemIndex));
-		inspectorText_->SetValue(controller_.BuildSelectionInspector(itemData->kind, itemData->contextKey, itemData->itemIndex));
 
 		if (itemData->kind == MaterialsWorkbenchNodeKind::Tileset) {
 			TilesetStorageRecord tileset;
