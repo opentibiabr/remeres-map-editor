@@ -129,6 +129,7 @@
 - [x] Stage 10E: After every palette save, repopulate the navigation tree and refresh runtime palette state so runtime and Workbench stay aligned
 - [ ] Stage 10F: Keep XML-first onboarding working: first import may come from legacy XML, then `materials.db` remains the primary editable source
 - [ ] Stage 10G: Move palette grouping to a DB-first global model shared by Workbench and runtime palette trees, including custom groups with a persisted runtime family
+- [ ] Stage 10G progress: the `Palette Workspace` now exposes initial CRUD for custom `palette_groups`, protects built-in groups from rename/delete, lets the user change a custom group's `runtime_family`, and lets the current palette move between DB-backed groups directly from the workspace
 
 ## Variations Status
 - [x] `variations` are now a delivered functional milestone for the Brush Workspace
@@ -185,6 +186,7 @@
 - The Workbench side inspector is gone, the toolbar is less cramped, and the abandoned `Current Section` move-target experiments are no longer the direction of record
 - `materials.db` schema work for DB-first palette grouping is now the active path: SQLite has `palette_groups`, tilesets persist `palette_group_id`, bootstrap import fills the four built-in groups (`terrain`, `doodad`, `item`, `other`) by fallback from legacy XML section types, and the Workbench navigation tree already reads palette grouping from the database instead of section order
 - The next runtime step is to persist each palette group's runtime family and expose group-aware labels/order in the runtime palette UI, so custom groups such as `test` can become visible there without overloading tileset sections
+- The first Workbench-side `palette_groups` CRUD pass is now in place too: users can create custom groups, choose their runtime family, rename/delete only non-built-ins, and move the selected palette between DB-backed groups directly in the `Palette Workspace`
 - Item-family sections inside the Palette Workspace now recommend and expose a combined `Item Brushes` source in the Workbench and can still render catalog-backed previews when a runtime `Brush*` is missing, so the item-side authoring flow no longer falls back to showing only `wall` brushes by default
 - `Item Palette` categories inside the Workbench now also render real SQLite `item` entries again instead of filtering them out as non-brush content, matching the runtime behavior more closely and keeping the palette editor usable for raw-item sections
 - The owner-drawn Workbench brush grid now also uses a lighter 32x32 outline instead of the old heavy black icon frame, preserving the perf win while improving readability

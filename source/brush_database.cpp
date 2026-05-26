@@ -125,6 +125,13 @@ namespace {
 		return "raw";
 	}
 
+	bool IsSupportedPaletteRuntimeFamily(const wxString &runtimeFamily) {
+		return runtimeFamily.IsSameAs("terrain", false) ||
+			   runtimeFamily.IsSameAs("doodad", false) ||
+			   runtimeFamily.IsSameAs("item", false) ||
+			   runtimeFamily.IsSameAs("raw", false);
+	}
+
 	int BindBrushRecordFields(sqlite3_stmt* stmt, const BrushRecord &brush, int parameterIndex) {
 		sqlite3_bind_text(stmt, parameterIndex++, brush.name.utf8_str(), -1, SQLITE_TRANSIENT);
 		sqlite3_bind_text(stmt, parameterIndex++, brush.type.utf8_str(), -1, SQLITE_TRANSIENT);
@@ -955,6 +962,14 @@ bool BrushDatabase::saveTileset(const TilesetStorageRecord &tileset) {
 
 bool BrushDatabase::deleteTileset(const wxString &name) {
 	return catalogRepository_.deleteTileset(name);
+}
+
+bool BrushDatabase::savePaletteGroup(const PaletteGroupRecord &group) {
+	return catalogRepository_.savePaletteGroup(group);
+}
+
+bool BrushDatabase::deletePaletteGroup(const wxString &name) {
+	return catalogRepository_.deletePaletteGroup(name);
 }
 
 bool BrushDatabase::getAllPaletteGroups(std::vector<PaletteGroupRecord> &outGroups) {
@@ -3729,6 +3744,209 @@ bool BrushDatabaseCatalogRepository::deleteTileset(const wxString &name) {
 		return setError("Tileset '" + name + "' was not found in SQLite.");
 	}
 
+	return commitTransaction();
+}
+
+bool BrushDatabaseCatalogRepository::savePaletteGroup(const PaletteGroupRecord &group) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+
+	wxString groupName = group.name;
+	groupName.Trim(true);
+	groupName.Trim(false);
+	if (groupName.IsEmpty()) {
+		return setError("Palette group name cannot be empty.");
+	}
+
+	const wxString runtimeFamily = group.runtimeFamily.IsEmpty() ? wxString("raw") : group.runtimeFamily;
+	if (!IsSupportedPaletteRuntimeFamily(runtimeFamily)) {
+		return setError("Palette group runtime family must be terrain, doodad, item, or raw.");
+	}
+
+	if (!beginTransaction()) {
+		return false;
+	}
+
+	sqlite3_stmt* findExistingStmt = nullptr;
+	if (!prepare("SELECT id, name, runtime_family, is_builtin FROM palette_groups WHERE id = ? LIMIT 1;", &findExistingStmt)) {
+		rollbackTransaction();
+		return false;
+	}
+
+	sqlite3_stmt* findByNameStmt = nullptr;
+	if (!prepare("SELECT id FROM palette_groups WHERE lower(name) = lower(?) LIMIT 1;", &findByNameStmt)) {
+		sqlite3_finalize(findExistingStmt);
+		rollbackTransaction();
+		return false;
+	}
+
+	sqlite3_stmt* insertStmt = nullptr;
+	if (!prepare("INSERT INTO palette_groups(name, runtime_family, sort_order, is_builtin) "
+				 "VALUES (?, ?, COALESCE((SELECT MAX(sort_order) + 1 FROM palette_groups), 4), 0);",
+				 &insertStmt)) {
+		FinalizeStatements({ findExistingStmt, findByNameStmt });
+		rollbackTransaction();
+		return false;
+	}
+
+	sqlite3_stmt* updateStmt = nullptr;
+	if (!prepare("UPDATE palette_groups SET name = ?, runtime_family = ? WHERE id = ?;", &updateStmt)) {
+		FinalizeStatements({ findExistingStmt, findByNameStmt, insertStmt });
+		rollbackTransaction();
+		return false;
+	}
+
+	const auto fail = [this, &findExistingStmt, &findByNameStmt, &insertStmt, &updateStmt](const wxString &message) {
+		FinalizeStatements({ findExistingStmt, findByNameStmt, insertStmt, updateStmt });
+		rollbackTransaction();
+		return setErrorFromDatabase(message);
+	};
+
+	int64_t existingId = 0;
+	bool existingIsBuiltin = false;
+	wxString existingName;
+	wxString existingRuntimeFamily;
+	if (group.id > 0) {
+		sqlite3_bind_int64(findExistingStmt, 1, group.id);
+		const int existingRc = sqlite3_step(findExistingStmt);
+		if (existingRc == SQLITE_DONE) {
+			FinalizeStatements({ findExistingStmt, findByNameStmt, insertStmt, updateStmt });
+			rollbackTransaction();
+			return setError("Palette group was not found in SQLite.");
+		}
+		if (existingRc != SQLITE_ROW) {
+			return fail("Failed to query existing palette group");
+		}
+
+		existingId = sqlite3_column_int64(findExistingStmt, 0);
+		existingName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(findExistingStmt, 1)));
+		existingRuntimeFamily = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(findExistingStmt, 2)));
+		existingIsBuiltin = sqlite3_column_int(findExistingStmt, 3) != 0;
+	}
+
+	sqlite3_bind_text(findByNameStmt, 1, groupName.utf8_str(), -1, SQLITE_TRANSIENT);
+	const int findByNameRc = sqlite3_step(findByNameStmt);
+	if (findByNameRc == SQLITE_ROW) {
+		const int64_t conflictingId = sqlite3_column_int64(findByNameStmt, 0);
+		if (conflictingId != group.id) {
+			FinalizeStatements({ findExistingStmt, findByNameStmt, insertStmt, updateStmt });
+			rollbackTransaction();
+			return setError("A palette group with this name already exists.");
+		}
+	} else if (findByNameRc != SQLITE_DONE) {
+		return fail("Failed to validate palette group name");
+	}
+
+	if (group.id <= 0) {
+		sqlite3_bind_text(insertStmt, 1, groupName.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_text(insertStmt, 2, runtimeFamily.utf8_str(), -1, SQLITE_TRANSIENT);
+		if (sqlite3_step(insertStmt) != SQLITE_DONE) {
+			return fail("Failed to insert palette group");
+		}
+	} else {
+		if (existingIsBuiltin && (!groupName.IsSameAs(existingName, false) || !runtimeFamily.IsSameAs(existingRuntimeFamily, false))) {
+			FinalizeStatements({ findExistingStmt, findByNameStmt, insertStmt, updateStmt });
+			rollbackTransaction();
+			return setError("Built-in palette groups cannot be renamed or moved to another runtime family.");
+		}
+
+		sqlite3_bind_text(updateStmt, 1, groupName.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_text(updateStmt, 2, runtimeFamily.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_int64(updateStmt, 3, existingId);
+		if (sqlite3_step(updateStmt) != SQLITE_DONE) {
+			return fail("Failed to update palette group");
+		}
+	}
+
+	FinalizeStatements({ findExistingStmt, findByNameStmt, insertStmt, updateStmt });
+	if (!commitTransaction()) {
+		rollbackTransaction();
+		return false;
+	}
+
+	return true;
+}
+
+bool BrushDatabaseCatalogRepository::deletePaletteGroup(const wxString &name) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+
+	wxString groupName = name;
+	groupName.Trim(true);
+	groupName.Trim(false);
+	if (groupName.IsEmpty()) {
+		return setError("Palette group name cannot be empty.");
+	}
+
+	if (!beginTransaction()) {
+		return false;
+	}
+
+	sqlite3_stmt* findGroupStmt = nullptr;
+	if (!prepare("SELECT id, is_builtin FROM palette_groups WHERE lower(name) = lower(?) LIMIT 1;", &findGroupStmt)) {
+		rollbackTransaction();
+		return false;
+	}
+
+	sqlite3_stmt* usageStmt = nullptr;
+	if (!prepare("SELECT COUNT(*) FROM tilesets WHERE palette_group_id = ?;", &usageStmt)) {
+		sqlite3_finalize(findGroupStmt);
+		rollbackTransaction();
+		return false;
+	}
+
+	sqlite3_stmt* deleteStmt = nullptr;
+	if (!prepare("DELETE FROM palette_groups WHERE id = ?;", &deleteStmt)) {
+		FinalizeStatements({ findGroupStmt, usageStmt });
+		rollbackTransaction();
+		return false;
+	}
+
+	sqlite3_bind_text(findGroupStmt, 1, groupName.utf8_str(), -1, SQLITE_TRANSIENT);
+	const int findRc = sqlite3_step(findGroupStmt);
+	if (findRc == SQLITE_DONE) {
+		FinalizeStatements({ findGroupStmt, usageStmt, deleteStmt });
+		rollbackTransaction();
+		return setError("Palette group was not found in SQLite.");
+	}
+	if (findRc != SQLITE_ROW) {
+		FinalizeStatements({ findGroupStmt, usageStmt, deleteStmt });
+		rollbackTransaction();
+		return setErrorFromDatabase("Failed to query palette group");
+	}
+
+	const int64_t groupId = sqlite3_column_int64(findGroupStmt, 0);
+	const bool isBuiltin = sqlite3_column_int(findGroupStmt, 1) != 0;
+	if (isBuiltin) {
+		FinalizeStatements({ findGroupStmt, usageStmt, deleteStmt });
+		rollbackTransaction();
+		return setError("Built-in palette groups cannot be deleted.");
+	}
+
+	sqlite3_bind_int64(usageStmt, 1, groupId);
+	const int usageRc = sqlite3_step(usageStmt);
+	if (usageRc != SQLITE_ROW) {
+		FinalizeStatements({ findGroupStmt, usageStmt, deleteStmt });
+		rollbackTransaction();
+		return setErrorFromDatabase("Failed to validate palette group usage");
+	}
+	const int paletteCount = sqlite3_column_int(usageStmt, 0);
+	if (paletteCount > 0) {
+		FinalizeStatements({ findGroupStmt, usageStmt, deleteStmt });
+		rollbackTransaction();
+		return setError("Move the palettes out of this group before deleting it.");
+	}
+
+	sqlite3_bind_int64(deleteStmt, 1, groupId);
+	if (sqlite3_step(deleteStmt) != SQLITE_DONE) {
+		FinalizeStatements({ findGroupStmt, usageStmt, deleteStmt });
+		rollbackTransaction();
+		return setErrorFromDatabase("Failed to delete palette group");
+	}
+
+	FinalizeStatements({ findGroupStmt, usageStmt, deleteStmt });
 	return commitTransaction();
 }
 

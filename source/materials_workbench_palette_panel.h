@@ -25,6 +25,7 @@ public:
 private:
 	void BuildLayout();
 	void RefreshWorkspace();
+	void RefreshPaletteGroupChoice();
 	void RefreshSectionChoice();
 	void RefreshSectionEntries();
 	void RefreshAvailableBrushGroups();
@@ -36,13 +37,21 @@ private:
 	wxString RecommendBrushGroupForCurrentSection() const;
 	const BrushRecord* FindAvailableBrushRecord() const;
 	int FindSectionIndexByName(const wxString &sectionName) const;
+	int FindPaletteGroupChoiceIndexByName(const wxString &groupName) const;
+	const PaletteGroupRecord* GetSelectedPaletteGroup() const;
 	bool PromptForPaletteName(const wxString &title, const wxString &caption, const wxString &initialValue, const wxString &currentName, wxString &outName);
+	bool PromptForPaletteGroupName(const wxString &title, const wxString &caption, const wxString &initialValue, const wxString &currentName, wxString &outName);
 	bool PromptForNewSectionType(const wxString &title, const wxString &caption, wxString &outSectionType);
 	bool PromptForSectionName(const wxString &title, const wxString &caption, const wxString &initialValue, const wxString &currentSectionType, wxString &outSectionType);
 
 	void OnCreatePalette(wxCommandEvent &event);
 	void OnRenamePalette(wxCommandEvent &event);
 	void OnDeletePalette(wxCommandEvent &event);
+	void OnPaletteGroupChanged(wxCommandEvent &event);
+	void OnCreatePaletteGroup(wxCommandEvent &event);
+	void OnRenamePaletteGroup(wxCommandEvent &event);
+	void OnDeletePaletteGroup(wxCommandEvent &event);
+	void OnPaletteGroupRuntimeFamilyChanged(wxCommandEvent &event);
 	void OnSectionChanged(wxCommandEvent &event);
 	void OnAddSection(wxCommandEvent &event);
 	void OnRenameSection(wxCommandEvent &event);
@@ -62,9 +71,12 @@ private:
 	int selectedAvailableBrushListIndex_ = -1;
 	std::vector<BrushRecord> currentAvailableBrushes_;
 	std::vector<wxString> availableBrushGroupKeys_;
+	std::vector<wxString> paletteGroupKeys_;
 
 	wxStaticText* titleLabel_ = nullptr;
 	wxStaticText* sourceLabel_ = nullptr;
+	wxChoice* paletteGroupChoice_ = nullptr;
+	wxChoice* paletteGroupRuntimeFamilyChoice_ = nullptr;
 	wxChoice* currentSectionChoice_ = nullptr;
 	wxStaticText* sectionSummaryLabel_ = nullptr;
 	MaterialsWorkbenchBrushGridPanel* sectionBrushGrid_ = nullptr;
@@ -77,6 +89,9 @@ private:
 	wxButton* createPaletteButton_ = nullptr;
 	wxButton* renamePaletteButton_ = nullptr;
 	wxButton* deletePaletteButton_ = nullptr;
+	wxButton* createPaletteGroupButton_ = nullptr;
+	wxButton* renamePaletteGroupButton_ = nullptr;
+	wxButton* deletePaletteGroupButton_ = nullptr;
 	wxButton* addSectionButton_ = nullptr;
 	wxButton* renameSectionButton_ = nullptr;
 	wxButton* deleteSectionButton_ = nullptr;

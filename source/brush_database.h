@@ -397,6 +397,8 @@ public:
 	bool replaceAllTilesets(const std::vector<TilesetStorageRecord> &tilesets);
 	bool saveTileset(const TilesetStorageRecord &tileset);
 	bool deleteTileset(const wxString &name);
+	bool savePaletteGroup(const PaletteGroupRecord &group);
+	bool deletePaletteGroup(const wxString &name);
 	bool getAllPaletteGroups(std::vector<PaletteGroupRecord> &outGroups);
 	bool getTilesetByName(const wxString &name, TilesetStorageRecord &outTileset);
 	bool getAllTilesets(std::vector<TilesetStorageRecord> &outTilesets);
@@ -451,6 +453,8 @@ public:
 	bool replaceAllTilesets(const std::vector<TilesetStorageRecord> &tilesets);
 	bool saveTileset(const TilesetStorageRecord &tileset);
 	bool deleteTileset(const wxString &name);
+	bool savePaletteGroup(const PaletteGroupRecord &group);
+	bool deletePaletteGroup(const wxString &name);
 	bool getAllPaletteGroups(std::vector<PaletteGroupRecord> &outGroups);
 	bool getAllTilesets(std::vector<TilesetStorageRecord> &outTilesets);
 	bool generateAuditReport(MaterialsDatabaseAuditReport &outReport);

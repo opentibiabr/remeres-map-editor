@@ -17,6 +17,7 @@ public:
 	bool GetTilesetByIndex(int itemIndex, TilesetStorageRecord &outTileset) const;
 	bool LocateTilesetNode(const wxString &name, int &outItemIndex) const;
 	bool HasTilesetNamed(const wxString &name) const;
+	bool HasPaletteGroupNamed(const wxString &name) const;
 	bool GetBrushDetails(const wxString &contextKey, int itemIndex, BrushStorageRecord &outBrush, wxString &error) const;
 	bool SaveBrushDetails(BrushStorageRecord &brushStorage, wxString &error);
 	bool SaveWallBrushParts(BrushStorageRecord &brushStorage, wxString &error);
@@ -27,6 +28,9 @@ public:
 	bool SaveTileset(const TilesetStorageRecord &tileset, wxString &error);
 	bool SaveTileset(const TilesetStorageRecord &tileset, const wxString &previousName, wxString &error);
 	bool DeleteTileset(const wxString &name, wxString &error);
+	bool SavePaletteGroup(const PaletteGroupRecord &group, wxString &error);
+	bool DeletePaletteGroup(const wxString &name, wxString &error);
+	const std::vector<PaletteGroupRecord> &GetPaletteGroups() const;
 	const std::vector<MaterialsWorkbenchBrushGroup> &GetBrushGroups() const;
 	const std::vector<BrushRecord> &GetWallBrushes() const;
 	wxString BuildSelectionOverview(MaterialsWorkbenchNodeKind kind, const wxString &contextKey, int itemIndex) const;

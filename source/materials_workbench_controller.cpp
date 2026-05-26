@@ -475,6 +475,15 @@ bool MaterialsWorkbenchController::HasTilesetNamed(const wxString &name) const {
 	return false;
 }
 
+bool MaterialsWorkbenchController::HasPaletteGroupNamed(const wxString &name) const {
+	for (const PaletteGroupRecord &group : catalog_.paletteGroups) {
+		if (group.name.IsSameAs(name, false)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 bool MaterialsWorkbenchController::GetBrushDetails(const wxString &contextKey, int itemIndex, BrushStorageRecord &outBrush, wxString &error) const {
 	const BrushRecord* brush = FindBrushRecord(contextKey, itemIndex);
 	if (!brush) {
@@ -627,6 +636,36 @@ bool MaterialsWorkbenchController::DeleteTileset(const wxString &name, wxString 
 	}
 
 	return true;
+}
+
+bool MaterialsWorkbenchController::SavePaletteGroup(const PaletteGroupRecord &group, wxString &error) {
+	if (!repository_.SavePaletteGroup(group, error)) {
+		return false;
+	}
+
+	if (!ReloadCatalog()) {
+		error = lastError_;
+		return false;
+	}
+
+	return true;
+}
+
+bool MaterialsWorkbenchController::DeletePaletteGroup(const wxString &name, wxString &error) {
+	if (!repository_.DeletePaletteGroup(name, error)) {
+		return false;
+	}
+
+	if (!ReloadCatalog()) {
+		error = lastError_;
+		return false;
+	}
+
+	return true;
+}
+
+const std::vector<PaletteGroupRecord> &MaterialsWorkbenchController::GetPaletteGroups() const {
+	return catalog_.paletteGroups;
 }
 
 const std::vector<MaterialsWorkbenchBrushGroup> &MaterialsWorkbenchController::GetBrushGroups() const {

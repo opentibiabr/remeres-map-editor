@@ -119,6 +119,28 @@ bool MaterialsWorkbenchRepository::DeleteTileset(const wxString &name, wxString 
 	return true;
 }
 
+bool MaterialsWorkbenchRepository::SavePaletteGroup(const PaletteGroupRecord &group, wxString &error) const {
+	error.clear();
+
+	if (!g_brush_database.savePaletteGroup(group)) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
+
+	return true;
+}
+
+bool MaterialsWorkbenchRepository::DeletePaletteGroup(const wxString &name, wxString &error) const {
+	error.clear();
+
+	if (!g_brush_database.deletePaletteGroup(name)) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
+
+	return true;
+}
+
 bool MaterialsWorkbenchRepository::LoadBrushDetails(int64_t brushId, BrushStorageRecord &outBrush, wxString &error) const {
 	outBrush = BrushStorageRecord();
 	error.clear();
