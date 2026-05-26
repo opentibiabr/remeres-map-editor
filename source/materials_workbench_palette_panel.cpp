@@ -373,10 +373,11 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	wxBoxSizer* toolbarSizer = new wxBoxSizer(wxVERTICAL);
 	wxBoxSizer* paletteRowSizer = new wxBoxSizer(wxHORIZONTAL);
 	wxBoxSizer* sectionRowSizer = new wxBoxSizer(wxHORIZONTAL);
+	wxBoxSizer* entryRowSizer = new wxBoxSizer(wxHORIZONTAL);
 	sectionChoice_ = new wxChoice(this, wxID_ANY);
 	availableBrushGroupChoice_ = new wxChoice(this, wxID_ANY);
-	sectionChoice_->SetMinSize(wxSize(FromDIP(210), -1));
-	availableBrushGroupChoice_->SetMinSize(wxSize(FromDIP(210), -1));
+	sectionChoice_->SetMinSize(wxSize(FromDIP(260), -1));
+	availableBrushGroupChoice_->SetMinSize(wxSize(FromDIP(260), -1));
 	createPaletteButton_ = new wxButton(this, wxID_ANY, "New Palette");
 	renamePaletteButton_ = new wxButton(this, wxID_ANY, "Rename Palette");
 	deletePaletteButton_ = new wxButton(this, wxID_ANY, "Delete Palette");
@@ -394,22 +395,25 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	paletteRowSizer->Add(renamePaletteButton_, 0, wxRIGHT, FromDIP(6));
 	paletteRowSizer->Add(deletePaletteButton_, 0);
 
-	sectionRowSizer->Add(new wxStaticText(this, wxID_ANY, "Section"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
+	sectionRowSizer->Add(new wxStaticText(this, wxID_ANY, "Section Type"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
 	sectionRowSizer->Add(sectionChoice_, 0, wxRIGHT, FromDIP(8));
 	sectionRowSizer->Add(addSectionButton_, 0, wxRIGHT, FromDIP(6));
 	sectionRowSizer->Add(renameSectionButton_, 0, wxRIGHT, FromDIP(6));
 	sectionRowSizer->Add(deleteSectionButton_, 0, wxRIGHT, FromDIP(6));
 	sectionRowSizer->Add(moveSectionUpButton_, 0, wxRIGHT, FromDIP(6));
-	sectionRowSizer->Add(moveSectionDownButton_, 0, wxRIGHT, FromDIP(12));
-	sectionRowSizer->Add(new wxStaticText(this, wxID_ANY, "Available"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
-	sectionRowSizer->Add(availableBrushGroupChoice_, 0, wxRIGHT, FromDIP(8));
-	sectionRowSizer->Add(addBrushButton_, 0, wxRIGHT, FromDIP(6));
-	sectionRowSizer->Add(removeBrushButton_, 0, wxRIGHT, FromDIP(6));
-	sectionRowSizer->Add(moveUpButton_, 0, wxRIGHT, FromDIP(6));
-	sectionRowSizer->Add(moveDownButton_, 0);
+	sectionRowSizer->Add(moveSectionDownButton_, 0);
 
 	toolbarSizer->Add(paletteRowSizer, 0, wxBOTTOM, FromDIP(8));
-	toolbarSizer->Add(sectionRowSizer, 0, wxEXPAND);
+	toolbarSizer->Add(sectionRowSizer, 0, wxBOTTOM, FromDIP(8));
+
+	entryRowSizer->Add(new wxStaticText(this, wxID_ANY, "Brush Source"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
+	entryRowSizer->Add(availableBrushGroupChoice_, 0, wxRIGHT, FromDIP(8));
+	entryRowSizer->Add(addBrushButton_, 0, wxRIGHT, FromDIP(6));
+	entryRowSizer->Add(removeBrushButton_, 0, wxRIGHT, FromDIP(6));
+	entryRowSizer->Add(moveUpButton_, 0, wxRIGHT, FromDIP(6));
+	entryRowSizer->Add(moveDownButton_, 0);
+
+	toolbarSizer->Add(entryRowSizer, 0, wxEXPAND);
 
 	wxSplitterWindow* contentSplitter = new wxSplitterWindow(this, wxID_ANY);
 	contentSplitter->SetSashGravity(0.54);
@@ -523,7 +527,11 @@ void MaterialsWorkbenchPalettePanel::RefreshSectionChoice() {
 
 void MaterialsWorkbenchPalettePanel::RefreshSectionEntries() {
 	if (!hasPalette_ || palette_.sections.empty() || currentSectionIndex_ >= static_cast<int>(palette_.sections.size())) {
-		sectionSummaryLabel_->SetLabel("This palette does not expose any editable sections yet.");
+		sectionSummaryLabel_->SetLabel(
+			"This palette does not expose any editable sections yet. Add a section such as "
+			"terrain, doodad, items, terrain_and_raw, doodad_and_raw, or items_and_raw. "
+			"The first recognized section type also decides the palette family shown in the tree."
+		);
 		sectionBrushGrid_->Clear();
 		selectedSectionEntryIndex_ = -1;
 		return;
