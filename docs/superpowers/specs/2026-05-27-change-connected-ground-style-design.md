@@ -140,7 +140,9 @@ conectada daquele andar.
 O servico tambem coleta o anel de oito vizinhos dos tiles convertidos. Esse
 anel nao tem seu ground substituido; ele e usado apenas para recalcular
 bordas, pois as bordas representam a relacao entre o caminho alterado e seus
-grounds vizinhos.
+grounds vizinhos. Para calcular corretamente as bordas desse anel no overlay,
+uma segunda faixa de vizinhos e copiada como contexto de leitura, mas nunca e
+gravada como alteracao.
 
 ## Catalogo De Estilos Urbanos
 
@@ -196,14 +198,15 @@ destino. Nao e aceitavel mostrar um padrao e gravar outro ao pressionar
 
 O servico simula e aplica a operacao em duas fases:
 
-1. Copiar os tiles do componente e do anel de fronteira para um mapa/overlay
-   temporario.
+1. Copiar os tiles do componente, do anel de fronteira e da segunda faixa
+   necessaria como contexto de leitura para um mapa/overlay temporario.
 2. Nos tiles do componente, remover somente o ground de origem e desenhar o
    ground do brush de destino, preservando os itens adicionais.
 3. Limpar e recalcular bordas automagic no componente e no anel de fronteira.
 4. Renderizar o overlay no preview.
-5. Em `Apply`, transferir exatamente os tiles resultantes para um
-   `BatchAction` do mapa real.
+5. Em `Apply`, transferir exatamente os tiles ja simulados do componente e do
+   primeiro anel para um `BatchAction` do mapa real, sem executar nova
+   randomizacao.
 
 Objetos sobre a rua nao sao tratados como conflitos nesta entrega, pois trocar
 o ground nao invalida ralos, postes ou decoracao solta. Itens que dependam de
