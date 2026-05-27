@@ -78,7 +78,7 @@ wxCoord ChangeBuildStyleListBox::OnMeasureItem(size_t WXUNUSED(index)) const {
 ChangeBuildStylePreview::ChangeBuildStylePreview(wxWindow* parent) :
 	wxScrolledWindow(parent, wxID_ANY, wxDefaultPosition, wxSize(370, 370), wxBORDER_SIMPLE | wxHSCROLL | wxVSCROLL) {
 	SetBackgroundColour(wxColour(34, 36, 40));
-	SetScrollRate(16, 16);
+	SetScrollRate(32, 32);
 	Bind(wxEVT_PAINT, &ChangeBuildStylePreview::OnPaint, this);
 }
 
@@ -101,7 +101,7 @@ void ChangeBuildStylePreview::setItems(const std::vector<ChangeBuildStylePreview
 		maxY = std::max(maxY, item.position.y);
 	}
 	Scroll(0, 0);
-	SetVirtualSize(wxSize((maxX - minX + 3) * 16, (maxY - minY + 3) * 16));
+	SetVirtualSize(wxSize((maxX - minX + 3) * 32, (maxY - minY + 3) * 32));
 	Refresh();
 }
 
@@ -123,7 +123,7 @@ void ChangeBuildStylePreview::OnPaint(wxPaintEvent &WXUNUSED(event)) {
 	for (const ChangeBuildStylePreviewItem &item : items) {
 		const ItemType &type = g_items.getItemType(item.itemId);
 		if (Sprite* sprite = g_gui.gfx.getSprite(type.clientID)) {
-			sprite->DrawTo(&dc, SPRITE_SIZE_16x16, (item.position.x - minX + 1) * 16, (item.position.y - minY + 1) * 16);
+			sprite->DrawTo(&dc, SPRITE_SIZE_32x32, (item.position.x - minX + 1) * 32, (item.position.y - minY + 1) * 32);
 		}
 	}
 }

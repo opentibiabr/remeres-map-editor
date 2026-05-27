@@ -50,6 +50,44 @@ wxString doorTypeName(::DoorType type) {
 	}
 }
 
+bool isWoodStyle(const WallBrush* target) {
+	return target && target->getName().find("wood") != std::string::npos;
+}
+
+uint16_t attachedGateReplacement(uint16_t itemId, const WallBrush* target) {
+	if (!isWoodStyle(target)) {
+		return 0;
+	}
+	switch (itemId) {
+		case 8560:
+			return 9031;
+		case 8567:
+			return 9037;
+		case 8568:
+			return 9038;
+		case 8561:
+			return 9030;
+		default:
+			return 0;
+	}
+}
+
+bool isGatePreviewItem(uint16_t itemId) {
+	switch (itemId) {
+		case 8560:
+		case 8567:
+		case 8568:
+		case 8561:
+		case 9031:
+		case 9037:
+		case 9038:
+		case 9030:
+			return true;
+		default:
+			return false;
+	}
+}
+
 std::set<Position> positionsWithNeighbours(const std::set<Position> &positions) {
 	std::set<Position> result = positions;
 	for (const Position &position : positions) {
@@ -61,6 +99,22 @@ std::set<Position> positionsWithNeighbours(const std::set<Position> &positions) 
 		}
 	}
 	return result;
+}
+
+bool exclusivelyAttachedToSelection(const Position &position, const std::set<Position> &wallPositions, const Map &map) {
+	bool touchesSelection = wallPositions.count(position) != 0;
+	if (ChangeBuildStyleService::getStructuralWall(map.getTile(position)) && wallPositions.count(position) == 0) {
+		return false;
+	}
+	for (const Position &direction : cardinalDirections) {
+		const Position adjacent = position + direction;
+		touchesSelection = touchesSelection || wallPositions.count(adjacent) != 0;
+		const Item* structuralWall = ChangeBuildStyleService::getStructuralWall(map.getTile(adjacent));
+		if (structuralWall && wallPositions.count(adjacent) == 0) {
+			return false;
+		}
+	}
+	return touchesSelection;
 }
 }
 
@@ -206,24 +260,22 @@ bool ChangeBuildStyleService::simulate(WallBrush* target, const std::set<int> &s
 		return false;
 	}
 
-	changed = selectedPositions(selectedFloors);
-	if (changed.empty()) {
+	const std::set<Position> wallPositions = selectedPositions(selectedFloors);
+	if (wallPositions.empty()) {
 		reason = "Select at least one detected floor.";
 		return false;
 	}
 
-	const uint16_t placeholderId = target->getAnyWallItemID();
-	if (placeholderId == 0) {
-		reason = "The selected style has no structural wall items.";
-		return false;
-	}
-
+	changed = wallPositions;
+	std::map<Position, ::BorderType> alignments;
 	std::vector<Opening> openings;
-	for (const Position &position : changed) {
+	for (const Position &position : wallPositions) {
 		Item* original = getStructuralWall(editor.getMap().getTile(position), sourceBrush);
 		if (!original) {
-			continue;
+			reason = "A selected structural wall no longer exists.";
+			return false;
 		}
+		alignments[position] = original->getWallAlignment();
 		if (original->isBrushDoor()) {
 			Opening opening = { position, sourceBrush->getDoorTypeFromID(original->getID()), original->isOpen(), 0 };
 			if (Door* door = original->getDoor()) {
@@ -237,7 +289,7 @@ bool ChangeBuildStyleService::simulate(WallBrush* target, const std::set<int> &s
 		}
 	}
 
-	const std::set<Position> copyPositions = positionsWithNeighbours(changed);
+	const std::set<Position> copyPositions = positionsWithNeighbours(wallPositions);
 	for (const Position &position : copyPositions) {
 		Tile* sourceTile = editor.getMap().getTile(position);
 		if (sourceTile) {
@@ -245,21 +297,19 @@ bool ChangeBuildStyleService::simulate(WallBrush* target, const std::set<int> &s
 		}
 	}
 
-	for (const Position &position : changed) {
+	for (const Position &position : wallPositions) {
 		Tile* tile = working.getTile(position);
 		Item* wall = getStructuralWall(tile, sourceBrush);
 		if (!wall) {
 			reason = "A selected structural wall could not be converted.";
 			return false;
 		}
-		transformItem(wall, placeholderId, tile);
-	}
-
-	for (const Position &position : changed) {
-		Tile* tile = working.getTile(position);
-		if (tile) {
-			tile->wallize(&working);
+		const uint16_t wallItemId = target->getWallItemID(alignments[position]);
+		if (wallItemId == 0) {
+			reason = wxString::Format("This style has no matching wall shape on floor %d.", position.z);
+			return false;
 		}
+		transformItem(wall, wallItemId, tile);
 	}
 
 	for (const Opening &opening : openings) {
@@ -269,7 +319,7 @@ bool ChangeBuildStyleService::simulate(WallBrush* target, const std::set<int> &s
 			reason = "An opening lost its supporting wall during conversion.";
 			return false;
 		}
-		const uint16_t doorItemId = target->getDoorItemID(wall->getWallAlignment(), opening.type, opening.open);
+		const uint16_t doorItemId = target->getDoorItemID(alignments[opening.position], opening.type, opening.open);
 		if (doorItemId == 0) {
 			reason = wxString::Format("This style has no matching %s on floor %d.", doorTypeName(opening.type).c_str(), opening.position.z);
 			return false;
@@ -277,6 +327,24 @@ bool ChangeBuildStyleService::simulate(WallBrush* target, const std::set<int> &s
 		Item* converted = transformItem(wall, doorItemId, tile);
 		if (opening.doorId != 0 && converted && converted->getDoor()) {
 			converted->getDoor()->setDoorID(opening.doorId);
+		}
+	}
+
+	for (const Position &position : copyPositions) {
+		if (!exclusivelyAttachedToSelection(position, wallPositions, editor.getMap())) {
+			continue;
+		}
+		Tile* tile = working.getTile(position);
+		if (!tile) {
+			continue;
+		}
+		for (size_t index = 0; index < tile->items.size(); ++index) {
+			Item* item = tile->items[index];
+			const uint16_t replacementId = attachedGateReplacement(item->getID(), target);
+			if (replacementId != 0) {
+				transformItem(item, replacementId, tile);
+				changed.insert(position);
+			}
 		}
 	}
 	return true;
@@ -302,9 +370,18 @@ bool ChangeBuildStyleService::buildPreview(WallBrush* target, const std::set<int
 		if (position.z != displayFloor) {
 			continue;
 		}
-		const Item* wall = getStructuralWall(working.getTile(position));
+		const Tile* tile = working.getTile(position);
+		const Item* wall = getStructuralWall(tile);
 		if (wall) {
 			items.push_back({ position, wall->getID(), true });
+		}
+		if (!tile) {
+			continue;
+		}
+		for (const Item* item : tile->items) {
+			if (isGatePreviewItem(item->getID())) {
+				items.push_back({ position, item->getID(), true });
+			}
 		}
 	}
 	return true;
