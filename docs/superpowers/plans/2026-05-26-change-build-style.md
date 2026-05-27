@@ -34,8 +34,8 @@
 
 - [x] Enumerate loaded non-decoration `WallBrush` destinations with text/category filtering.
 - [x] Reject incompatible destinations and present the missing opening reason.
-- [ ] Replace the isolated wall-sprite preview with a contextual `MapCanvas` view that overlays simulated converted tiles on the real surrounding map.
-- [ ] Provide `Ctrl + wheel` cursor-centered zoom and configured camera-button pan while retaining floor arrows, floor inclusion, and `Only current floor`.
+- [x] Replace the isolated wall-sprite preview with a contextual `MapCanvas` view that overlays simulated converted tiles on the real surrounding map.
+- [x] Provide initial component framing, `Ctrl + wheel` cursor-centered zoom and configured camera-button pan while retaining floor arrows, floor inclusion, and `Only current floor`.
 - [x] Apply the chosen target through the service and refresh the active map.
 
 ### Task 3: Context menu integration and validation

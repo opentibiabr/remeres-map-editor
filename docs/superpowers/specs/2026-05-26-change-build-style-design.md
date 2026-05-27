@@ -107,10 +107,11 @@ O painel contem:
 - checkbox `Only current floor`, que desmarca/desabilita a aplicacao nos
   demais pisos, sem impedir que sejam visualizados.
 
-O preview inicia centralizado na construcao. A camera pode ser arrastada pelo
-mesmo botao configurado para mover a camera no mapping; `Ctrl + wheel` aplica
-zoom ao redor do cursor. Pan e zoom permanecem ao trocar estilo ou andar, para
-permitir comparar opcoes no mesmo enquadramento.
+O preview inicia centralizado na construcao e aplica zoom inicial suficiente
+para enquadrar o componente selecionado com margem de contexto. A camera pode
+ser arrastada pelo mesmo botao configurado para mover a camera no mapping;
+`Ctrl + wheel` aplica zoom ao redor do cursor. Pan e zoom permanecem ao trocar
+estilo ou andar, para permitir comparar opcoes no mesmo enquadramento.
 
 ## Identificacao Do Componente No Piso Atual
 

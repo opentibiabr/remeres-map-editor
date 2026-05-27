@@ -11,7 +11,9 @@
 #define RME_CHANGE_BUILD_STYLE_WINDOW_H_
 
 #include "main.h"
+#include "basemap.h"
 #include "change_build_style.h"
+#include "map_display.h"
 
 class Editor;
 class WallBrush;
@@ -31,16 +33,47 @@ private:
 	std::vector<WallBrush*> brushes;
 };
 
-class ChangeBuildStylePreview : public wxScrolledWindow {
+class ChangeBuildStylePreview : public MapCanvas {
 public:
-	ChangeBuildStylePreview(wxWindow* parent);
+	ChangeBuildStylePreview(wxWindow* parent, Editor &editor, const Position &origin);
 
-	void setItems(const std::vector<ChangeBuildStylePreviewItem> &items);
+	BaseMap &getPreviewMap() noexcept {
+		return previewMap;
+	}
+	void centerOn(const Position &position);
+	void fitBuilding(const PositionVector &positions);
+	void showFloor(int floor);
 
 private:
-	void OnPaint(wxPaintEvent &event);
+	void OnMouseMove(wxMouseEvent &event);
+	void OnWheel(wxMouseEvent &event);
+	void OnMouseCenterClick(wxMouseEvent &event);
+	void OnMouseCenterRelease(wxMouseEvent &event);
+	void OnMouseRightClick(wxMouseEvent &event);
+	void OnMouseRightRelease(wxMouseEvent &event);
+	void OnIgnoredMouseButton(wxMouseEvent &event);
+	void OnIgnoredKey(wxKeyEvent &event);
+	void OnGainMouse(wxMouseEvent &event);
+	void OnLoseMouse(wxMouseEvent &event);
+	void startPan(const wxMouseEvent &event, bool rightButton);
+	void stopPan(const wxMouseEvent &event, bool rightButton);
 
-	std::vector<ChangeBuildStylePreviewItem> items;
+	void ScreenToMap(int screen_x, int screen_y, int* map_x, int* map_y) override;
+	void GetScreenCenter(int* map_x, int* map_y) override;
+	void GetViewBox(int* view_scroll_x, int* view_scroll_y, int* screensize_x, int* screensize_y) const override;
+	void UpdatePositionStatus(int x = -1, int y = -1) override;
+	void UpdateZoomStatus() override;
+	void ConfigureDrawingOptions(DrawingOptions &options) override;
+	void CenterViewOnPosition(const Position &position) override;
+	void OnFloorChanged() override;
+
+	BaseMap previewMap;
+	int viewX;
+	int viewY;
+	bool panning;
+	wxPoint panAnchor;
+
+	DECLARE_EVENT_TABLE()
 };
 
 class ChangeBuildStyleDialog : public wxDialog {

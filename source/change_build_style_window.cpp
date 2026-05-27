@@ -18,6 +18,8 @@
 #include "graphics.h"
 #include "gui.h"
 #include "items.h"
+#include "map_drawer.h"
+#include "settings.h"
 #include "wall_brush.h"
 
 namespace {
@@ -75,57 +77,193 @@ wxCoord ChangeBuildStyleListBox::OnMeasureItem(size_t WXUNUSED(index)) const {
 	return 38;
 }
 
-ChangeBuildStylePreview::ChangeBuildStylePreview(wxWindow* parent) :
-	wxScrolledWindow(parent, wxID_ANY, wxDefaultPosition, wxSize(370, 370), wxBORDER_SIMPLE | wxHSCROLL | wxVSCROLL) {
-	SetBackgroundColour(wxColour(34, 36, 40));
-	SetScrollRate(32, 32);
-	Bind(wxEVT_PAINT, &ChangeBuildStylePreview::OnPaint, this);
+BEGIN_EVENT_TABLE(ChangeBuildStylePreview, MapCanvas)
+EVT_KEY_DOWN(ChangeBuildStylePreview::OnIgnoredKey)
+EVT_KEY_UP(ChangeBuildStylePreview::OnIgnoredKey)
+EVT_MOTION(ChangeBuildStylePreview::OnMouseMove)
+EVT_LEFT_DOWN(ChangeBuildStylePreview::OnIgnoredMouseButton)
+EVT_LEFT_UP(ChangeBuildStylePreview::OnIgnoredMouseButton)
+EVT_LEFT_DCLICK(ChangeBuildStylePreview::OnIgnoredMouseButton)
+EVT_MIDDLE_DOWN(ChangeBuildStylePreview::OnMouseCenterClick)
+EVT_MIDDLE_UP(ChangeBuildStylePreview::OnMouseCenterRelease)
+EVT_RIGHT_DOWN(ChangeBuildStylePreview::OnMouseRightClick)
+EVT_RIGHT_UP(ChangeBuildStylePreview::OnMouseRightRelease)
+EVT_MOUSEWHEEL(ChangeBuildStylePreview::OnWheel)
+EVT_ENTER_WINDOW(ChangeBuildStylePreview::OnGainMouse)
+EVT_LEAVE_WINDOW(ChangeBuildStylePreview::OnLoseMouse)
+EVT_PAINT(MapCanvas::OnPaint)
+EVT_ERASE_BACKGROUND(MapCanvas::OnEraseBackground)
+END_EVENT_TABLE()
+
+ChangeBuildStylePreview::ChangeBuildStylePreview(wxWindow* parent, Editor &editor, const Position &origin) :
+	MapCanvas(parent, editor, nullptr),
+	viewX(0),
+	viewY(0),
+	panning(false),
+	panAnchor(wxDefaultPosition) {
+	SetMinSize(wxSize(430, 430));
+	SetPreviewMap(&previewMap);
+	centerOn(origin);
 }
 
-void ChangeBuildStylePreview::setItems(const std::vector<ChangeBuildStylePreviewItem> &newItems) {
-	items = newItems;
-	if (items.empty()) {
-		Scroll(0, 0);
-		SetVirtualSize(wxSize(360, 340));
-		Refresh();
+void ChangeBuildStylePreview::centerOn(const Position &position) {
+	CenterViewOnPosition(position);
+	ChangeFloor(position.z);
+}
+
+void ChangeBuildStylePreview::fitBuilding(const PositionVector &positions) {
+	if (positions.empty()) {
 		return;
 	}
-	int minX = items.front().position.x;
-	int minY = items.front().position.y;
+	int minX = positions.front().x;
+	int minY = positions.front().y;
 	int maxX = minX;
 	int maxY = minY;
-	for (const ChangeBuildStylePreviewItem &item : items) {
-		minX = std::min(minX, item.position.x);
-		minY = std::min(minY, item.position.y);
-		maxX = std::max(maxX, item.position.x);
-		maxY = std::max(maxY, item.position.y);
+	for (const Position &position : positions) {
+		minX = std::min(minX, position.x);
+		minY = std::min(minY, position.y);
+		maxX = std::max(maxX, position.x);
+		maxY = std::max(maxY, position.y);
 	}
-	Scroll(0, 0);
-	SetVirtualSize(wxSize((maxX - minX + 3) * 32, (maxY - minY + 3) * 32));
+	const int width = std::max(GetClientSize().GetWidth(), 430);
+	const int height = std::max(GetClientSize().GetHeight(), 430);
+	const double widthZoom = static_cast<double>((maxX - minX + 5) * rme::TileSize) / width;
+	const double heightZoom = static_cast<double>((maxY - minY + 5) * rme::TileSize) / height;
+	SetZoom(std::max(1.0, std::max(widthZoom, heightZoom)));
+}
+
+void ChangeBuildStylePreview::showFloor(int floor) {
+	ChangeFloor(floor);
+}
+
+void ChangeBuildStylePreview::ScreenToMap(int screen_x, int screen_y, int* map_x, int* map_y) {
+	*map_x = static_cast<int>(viewX + screen_x * GetZoom()) / rme::TileSize;
+	*map_y = static_cast<int>(viewY + screen_y * GetZoom()) / rme::TileSize;
+	if (GetFloor() <= rme::MapGroundLayer) {
+		*map_x += rme::MapGroundLayer - GetFloor();
+		*map_y += rme::MapGroundLayer - GetFloor();
+	}
+}
+
+void ChangeBuildStylePreview::GetScreenCenter(int* map_x, int* map_y) {
+	const wxSize size = GetClientSize();
+	const int width = size.GetWidth() > 0 ? size.GetWidth() : 430;
+	const int height = size.GetHeight() > 0 ? size.GetHeight() : 430;
+	ScreenToMap(width / 2, height / 2, map_x, map_y);
+}
+
+void ChangeBuildStylePreview::GetViewBox(int* view_scroll_x, int* view_scroll_y, int* screensize_x, int* screensize_y) const {
+	const wxSize size = GetClientSize();
+	*screensize_x = size.GetWidth();
+	*screensize_y = size.GetHeight();
+	*view_scroll_x = viewX;
+	*view_scroll_y = viewY;
+}
+
+void ChangeBuildStylePreview::UpdatePositionStatus(int WXUNUSED(x), int WXUNUSED(y)) {
+}
+
+void ChangeBuildStylePreview::UpdateZoomStatus() {
+}
+
+void ChangeBuildStylePreview::ConfigureDrawingOptions(DrawingOptions &options) {
+	options.SetIngame();
+}
+
+void ChangeBuildStylePreview::CenterViewOnPosition(const Position &position) {
+	wxSize size = GetClientSize();
+	const int width = size.GetWidth() > 0 ? size.GetWidth() : 430;
+	const int height = size.GetHeight() > 0 ? size.GetHeight() : 430;
+	const int floorOffset = position.z < 8 ? (rme::MapGroundLayer - position.z) * rme::TileSize : 0;
+	viewX = position.x * rme::TileSize - floorOffset - static_cast<int>(width * GetZoom() / 2.0);
+	viewY = position.y * rme::TileSize - floorOffset - static_cast<int>(height * GetZoom() / 2.0);
+}
+
+void ChangeBuildStylePreview::OnFloorChanged() {
+}
+
+void ChangeBuildStylePreview::OnMouseMove(wxMouseEvent &event) {
+	if (panning) {
+		const float speed = g_settings.getFloat(Config::SCROLL_SPEED);
+		viewX += static_cast<int>(speed * GetZoom() * (event.GetX() - panAnchor.x));
+		viewY += static_cast<int>(speed * GetZoom() * (event.GetY() - panAnchor.y));
+		panAnchor = event.GetPosition();
+		Refresh();
+	}
+}
+
+void ChangeBuildStylePreview::OnWheel(wxMouseEvent &event) {
+	if (!event.ControlDown()) {
+		return;
+	}
+
+	const double oldZoom = GetZoom();
+	const double nextZoom = oldZoom - event.GetWheelRotation() * g_settings.getFloat(Config::ZOOM_SPEED) / 640.0;
+	const double anchorX = viewX + event.GetX() * oldZoom;
+	const double anchorY = viewY + event.GetY() * oldZoom;
+	SetZoom(nextZoom);
+	viewX = static_cast<int>(anchorX - event.GetX() * GetZoom());
+	viewY = static_cast<int>(anchorY - event.GetY() * GetZoom());
 	Refresh();
 }
 
-void ChangeBuildStylePreview::OnPaint(wxPaintEvent &WXUNUSED(event)) {
-	wxPaintDC dc(this);
-	PrepareDC(dc);
-	dc.SetBackground(wxBrush(GetBackgroundColour()));
-	dc.Clear();
-	if (items.empty()) {
+void ChangeBuildStylePreview::startPan(const wxMouseEvent &event, bool rightButton) {
+	if (rightButton != g_settings.getBoolean(Config::SWITCH_MOUSEBUTTONS)) {
 		return;
 	}
-
-	int minX = items.front().position.x;
-	int minY = items.front().position.y;
-	for (const ChangeBuildStylePreviewItem &item : items) {
-		minX = std::min(minX, item.position.x);
-		minY = std::min(minY, item.position.y);
+	SetFocus();
+	panning = true;
+	panAnchor = event.GetPosition();
+	if (!HasCapture()) {
+		CaptureMouse();
 	}
-	for (const ChangeBuildStylePreviewItem &item : items) {
-		const ItemType &type = g_items.getItemType(item.itemId);
-		if (Sprite* sprite = g_gui.gfx.getSprite(type.clientID)) {
-			sprite->DrawTo(&dc, SPRITE_SIZE_32x32, (item.position.x - minX + 1) * 32, (item.position.y - minY + 1) * 32);
+}
+
+void ChangeBuildStylePreview::stopPan(const wxMouseEvent &WXUNUSED(event), bool rightButton) {
+	if (rightButton != g_settings.getBoolean(Config::SWITCH_MOUSEBUTTONS)) {
+		return;
+	}
+	panning = false;
+	if (HasCapture()) {
+		ReleaseMouse();
+	}
+}
+
+void ChangeBuildStylePreview::OnMouseCenterClick(wxMouseEvent &event) {
+	startPan(event, false);
+}
+
+void ChangeBuildStylePreview::OnMouseCenterRelease(wxMouseEvent &event) {
+	stopPan(event, false);
+}
+
+void ChangeBuildStylePreview::OnMouseRightClick(wxMouseEvent &event) {
+	startPan(event, true);
+}
+
+void ChangeBuildStylePreview::OnMouseRightRelease(wxMouseEvent &event) {
+	stopPan(event, true);
+}
+
+void ChangeBuildStylePreview::OnIgnoredMouseButton(wxMouseEvent &WXUNUSED(event)) {
+	SetFocus();
+}
+
+void ChangeBuildStylePreview::OnIgnoredKey(wxKeyEvent &WXUNUSED(event)) {
+}
+
+void ChangeBuildStylePreview::OnGainMouse(wxMouseEvent &WXUNUSED(event)) {
+	Refresh();
+}
+
+void ChangeBuildStylePreview::OnLoseMouse(wxMouseEvent &event) {
+	if (panning && !event.MiddleIsDown() && !event.RightIsDown()) {
+		panning = false;
+		if (HasCapture()) {
+			ReleaseMouse();
 		}
 	}
+	Refresh();
 }
 
 ChangeBuildStyleDialog::ChangeBuildStyleDialog(wxWindow* parent, Editor &editor, const Position &origin) :
@@ -153,6 +291,22 @@ ChangeBuildStyleDialog::ChangeBuildStyleDialog(wxWindow* parent, Editor &editor,
 			displayFloorIndex = static_cast<int>(index);
 			break;
 		}
+	}
+	Position previewCenter = origin;
+	if (!detectedFloors.empty() && !detectedFloors[displayFloorIndex].positions.empty()) {
+		const PositionVector &positions = detectedFloors[displayFloorIndex].positions;
+		int minX = positions.front().x;
+		int minY = positions.front().y;
+		int maxX = minX;
+		int maxY = minY;
+		for (const Position &position : positions) {
+			minX = std::min(minX, position.x);
+			minY = std::min(minY, position.y);
+			maxX = std::max(maxX, position.x);
+			maxY = std::max(maxY, position.y);
+		}
+		previewCenter.x = minX + (maxX - minX) / 2;
+		previewCenter.y = minY + (maxY - minY) / 2;
 	}
 
 	wxBoxSizer* root = newd wxBoxSizer(wxVERTICAL);
@@ -197,7 +351,10 @@ ChangeBuildStyleDialog::ChangeBuildStyleDialog(wxWindow* parent, Editor &editor,
 	down->SetToolTip("Show lower floor");
 	previewHeader->Add(down, 0, wxLEFT, 4);
 	right->Add(previewHeader, 0, wxBOTTOM | wxEXPAND, 8);
-	preview = newd ChangeBuildStylePreview(this);
+	preview = newd ChangeBuildStylePreview(this, editor, previewCenter);
+	if (!detectedFloors.empty()) {
+		preview->fitBuilding(detectedFloors[displayFloorIndex].positions);
+	}
 	right->Add(preview, 1, wxEXPAND);
 
 	content->Add(left, 1, wxALL | wxEXPAND, 12);
@@ -277,7 +434,8 @@ void ChangeBuildStyleDialog::refreshPreview() {
 	if (!target) {
 		status->SetLabel("No wall style matches the filter.");
 		applyButton->Enable(false);
-		preview->setItems({});
+		preview->getPreviewMap().clear();
+		preview->Refresh();
 		return;
 	}
 
@@ -285,23 +443,21 @@ void ChangeBuildStyleDialog::refreshPreview() {
 	if (!compatibility.compatible) {
 		status->SetLabel(compatibility.reason);
 		applyButton->Enable(false);
-		preview->setItems({});
+		preview->getPreviewMap().clear();
+		preview->Refresh();
 		return;
 	}
 
 	wxString reason;
-	std::vector<ChangeBuildStylePreviewItem> previewItems;
-	const auto &detectedFloors = service.getFloors();
-	const int displayFloor = detectedFloors.empty() ? service.getOrigin().z : detectedFloors[displayFloorIndex].z;
-	if (!service.buildPreview(target, selectedFloors(), displayFloor, previewItems, reason)) {
+	if (!service.buildPreview(target, selectedFloors(), preview->getPreviewMap(), reason)) {
 		status->SetLabel(reason);
 		applyButton->Enable(false);
-		preview->setItems({});
+		preview->Refresh();
 		return;
 	}
 	status->SetLabel(wxString::Format("Ready: %s", wxstr(target->getName()).c_str()));
 	applyButton->Enable(true);
-	preview->setItems(previewItems);
+	preview->Refresh();
 }
 
 void ChangeBuildStyleDialog::updateFloorControls() {
@@ -313,6 +469,7 @@ void ChangeBuildStyleDialog::updateFloorControls() {
 	displayFloorIndex = std::max(0, std::min(displayFloorIndex, static_cast<int>(detectedFloors.size()) - 1));
 	previewFloorLabel->SetLabel(wxString::Format("Preview - floor %d", detectedFloors[displayFloorIndex].z));
 	floorList->Enable(!onlyCurrentFloor->IsChecked());
+	preview->showFloor(detectedFloors[displayFloorIndex].z);
 }
 
 void ChangeBuildStyleDialog::OnFilterChanged(wxCommandEvent &WXUNUSED(event)) {

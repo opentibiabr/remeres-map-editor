@@ -25,12 +25,6 @@ struct ChangeBuildStyleFloor {
 	PositionVector positions;
 };
 
-struct ChangeBuildStylePreviewItem {
-	Position position;
-	uint16_t itemId;
-	bool affected;
-};
-
 struct ChangeBuildStyleCompatibility {
 	bool compatible;
 	wxString reason;
@@ -54,7 +48,7 @@ public:
 	}
 
 	ChangeBuildStyleCompatibility checkCompatibility(WallBrush* target, const std::set<int> &selectedFloors) const;
-	bool buildPreview(WallBrush* target, const std::set<int> &selectedFloors, int displayFloor, std::vector<ChangeBuildStylePreviewItem> &items, wxString &reason) const;
+	bool buildPreview(WallBrush* target, const std::set<int> &selectedFloors, BaseMap &previewTiles, wxString &reason) const;
 	bool apply(WallBrush* target, const std::set<int> &selectedFloors, wxString &reason);
 
 	static Item* getStructuralWall(Tile* tile, WallBrush* required = nullptr);

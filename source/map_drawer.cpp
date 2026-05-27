@@ -1426,6 +1426,9 @@ void MapDrawer::DrawTile(TileLocation* location) {
 	if (!tile) {
 		return;
 	}
+	if (Tile* previewTile = canvas->GetPreviewTile(location->getPosition())) {
+		tile = previewTile;
+	}
 
 	if (options.show_only_modified && !tile->isModified()) {
 		return;

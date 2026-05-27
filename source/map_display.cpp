@@ -51,6 +51,22 @@
 #include "spawn_npc_brush.h"
 #include "npc_brush.h"
 
+namespace {
+int* mapCanvasAttributes() {
+	static int attributes[] = {
+		WX_GL_RGBA,
+		WX_GL_DOUBLEBUFFER,
+		WX_GL_CORE_PROFILE,
+		WX_GL_MAJOR_VERSION,
+		3,
+		WX_GL_MINOR_VERSION,
+		3,
+		0,
+	};
+	return attributes;
+}
+}
+
 BEGIN_EVENT_TABLE(MapCanvas, wxGLCanvas)
 EVT_KEY_DOWN(MapCanvas::OnKeyDown)
 EVT_KEY_DOWN(MapCanvas::OnKeyUp)
@@ -109,8 +125,8 @@ END_EVENT_TABLE()
 
 bool MapCanvas::processed[] = { 0 };
 
-MapCanvas::MapCanvas(MapWindow* parent, Editor &editor, int* attriblist) :
-	wxGLCanvas(parent, wxID_ANY, attriblist, wxDefaultPosition, wxDefaultSize, wxWANTS_CHARS),
+MapCanvas::MapCanvas(wxWindow* parent, Editor &editor, int* attriblist) :
+	wxGLCanvas(parent, wxID_ANY, attriblist ? attriblist : mapCanvasAttributes(), wxDefaultPosition, wxDefaultSize, wxWANTS_CHARS),
 	editor(editor),
 	floor(rme::MapGroundLayer),
 	zoom(1.0),
@@ -142,7 +158,8 @@ MapCanvas::MapCanvas(MapWindow* parent, Editor &editor, int* attriblist) :
 	last_click_y(-1),
 
 	last_mmb_click_x(-1),
-	last_mmb_click_y(-1) {
+	last_mmb_click_y(-1),
+	preview_map(nullptr) {
 	popup_menu = newd MapPopupMenu(editor);
 	animation_timer = newd AnimationTimer(this);
 	drawer = new MapDrawer(this);
@@ -185,7 +202,7 @@ void MapCanvas::SetZoom(double value) {
 		GetScreenCenter(&center_x, &center_y);
 
 		zoom = value;
-		GetMapWindow()->SetScreenCenterPosition(Position(center_x, center_y, floor));
+		CenterViewOnPosition(Position(center_x, center_y, floor));
 
 		UpdatePositionStatus();
 		UpdateZoomStatus();
@@ -197,6 +214,27 @@ void MapCanvas::GetViewBox(int* view_scroll_x, int* view_scroll_y, int* screensi
 	MapWindow* window = GetMapWindow();
 	window->GetViewSize(screensize_x, screensize_y);
 	window->GetViewStart(view_scroll_x, view_scroll_y);
+}
+
+void MapCanvas::SetPreviewMap(BaseMap* map) {
+	preview_map = map;
+	Refresh();
+}
+
+Tile* MapCanvas::GetPreviewTile(const Position &position) const {
+	return preview_map ? preview_map->getTile(position) : nullptr;
+}
+
+void MapCanvas::ConfigureDrawingOptions(DrawingOptions &WXUNUSED(options)) {
+}
+
+void MapCanvas::CenterViewOnPosition(const Position &position) {
+	GetMapWindow()->SetScreenCenterPosition(position);
+}
+
+void MapCanvas::OnFloorChanged() {
+	g_gui.root->UpdateFloorMenu();
+	g_gui.UpdateMinimap(true);
 }
 
 void MapCanvas::OnPaint(wxPaintEvent &event) {
@@ -242,6 +280,7 @@ void MapCanvas::OnPaint(wxPaintEvent &event) {
 		}
 
 		options.dragging = boundbox_selection;
+		ConfigureDrawingOptions(options);
 
 		const bool animate_position_indicator = drawer->GetPositionIndicatorTime() != 0;
 		const bool animate_preview = options.show_preview && zoom <= 2.0f;
@@ -2641,8 +2680,7 @@ void MapCanvas::ChangeFloor(int new_floor) {
 	floor = new_floor;
 	if (old_floor != new_floor) {
 		UpdatePositionStatus();
-		g_gui.root->UpdateFloorMenu();
-		g_gui.UpdateMinimap(true);
+		OnFloorChanged();
 	}
 	Refresh();
 }

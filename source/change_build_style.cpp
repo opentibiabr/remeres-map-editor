@@ -72,22 +72,6 @@ uint16_t attachedGateReplacement(uint16_t itemId, const WallBrush* target) {
 	}
 }
 
-bool isGatePreviewItem(uint16_t itemId) {
-	switch (itemId) {
-		case 8560:
-		case 8567:
-		case 8568:
-		case 8561:
-		case 9031:
-		case 9037:
-		case 9038:
-		case 9030:
-			return true;
-		default:
-			return false;
-	}
-}
-
 std::set<Position> positionsWithNeighbours(const std::set<Position> &positions) {
 	std::set<Position> result = positions;
 	for (const Position &position : positions) {
@@ -358,33 +342,10 @@ ChangeBuildStyleCompatibility ChangeBuildStyleService::checkCompatibility(WallBr
 	return { compatible, reason };
 }
 
-bool ChangeBuildStyleService::buildPreview(WallBrush* target, const std::set<int> &selectedFloors, int displayFloor, std::vector<ChangeBuildStylePreviewItem> &items, wxString &reason) const {
-	BaseMap working;
+bool ChangeBuildStyleService::buildPreview(WallBrush* target, const std::set<int> &selectedFloors, BaseMap &previewTiles, wxString &reason) const {
 	std::set<Position> changed;
-	items.clear();
-	if (!simulate(target, selectedFloors, working, changed, reason)) {
-		return false;
-	}
-
-	for (const Position &position : changed) {
-		if (position.z != displayFloor) {
-			continue;
-		}
-		const Tile* tile = working.getTile(position);
-		const Item* wall = getStructuralWall(tile);
-		if (wall) {
-			items.push_back({ position, wall->getID(), true });
-		}
-		if (!tile) {
-			continue;
-		}
-		for (const Item* item : tile->items) {
-			if (isGatePreviewItem(item->getID())) {
-				items.push_back({ position, item->getID(), true });
-			}
-		}
-	}
-	return true;
+	previewTiles.clear();
+	return simulate(target, selectedFloors, previewTiles, changed, reason);
 }
 
 bool ChangeBuildStyleService::apply(WallBrush* target, const std::set<int> &selectedFloors, wxString &reason) {
