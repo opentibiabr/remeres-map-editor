@@ -228,7 +228,7 @@ Current exporter protections:
 - writes filenames whose embedded hash matches the generated content.
 - emits `1/64`, `1/32`, and `1/16` minimap/satellite layers.
 - stores backups in timestamped `bkps/export-*` snapshots instead of replacing an existing `.bkp` file.
-- provides a `File > Export > Revert Client Assets Backup` menu action that restores a selected snapshot and first moves overwritten current files into a `bkps/restore-*` safety snapshot.
+- provides a `File > Client Assets > Restore Client Assets Backup` menu action that restores a selected snapshot and first moves overwritten current files into a `bkps/restore-*` safety snapshot.
 - uses `GameSprite::getSpriteID(...)` for exported sprite image lookup; `GameSprite::getHardwareID(...)` is a GL texture/atlas id and must not be serialized or used as an asset sprite id.
 - preserves full-size sprite images for export sampling so multi-tile sprites can be sampled with draw offsets instead of being cropped to one tile.
 

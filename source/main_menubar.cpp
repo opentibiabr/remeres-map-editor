@@ -1511,7 +1511,7 @@ void MainMenuBar::OnExportCyclopediaMapData(wxCommandEvent &) {
 
 void MainMenuBar::OnRevertCyclopediaAssets(wxCommandEvent &) {
 	wxString selectedPath;
-	if (!selectAssetsOrCustomRestoreFolder(g_gui.root, "Revert Client Assets Backup", selectedPath)) {
+	if (!selectAssetsOrCustomRestoreFolder(g_gui.root, "Restore Client Assets Backup", selectedPath)) {
 		return;
 	}
 
@@ -1536,7 +1536,7 @@ void MainMenuBar::OnRevertCyclopediaAssets(wxCommandEvent &) {
 	wxSingleChoiceDialog snapshotDialog(
 		g_gui.root,
 		"Select which backup snapshot should be restored.",
-		"Revert Client Assets Backup",
+		"Restore Client Assets Backup",
 		choices
 	);
 	snapshotDialog.SetSelection(0);
