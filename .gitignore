@@ -65,3 +65,7 @@ cmake-build-debug/
 *.dat
 *.manifest
 canary-map-editor
+
+# Python
+__pycache__/
+*.py[cod]
