@@ -668,6 +668,10 @@ const std::vector<PaletteGroupRecord> &MaterialsWorkbenchController::GetPaletteG
 	return catalog_.paletteGroups;
 }
 
+const std::vector<TilesetStorageRecord> &MaterialsWorkbenchController::GetTilesets() const {
+	return catalog_.tilesets;
+}
+
 const std::vector<MaterialsWorkbenchBrushGroup> &MaterialsWorkbenchController::GetBrushGroups() const {
 	return catalog_.brushGroups;
 }

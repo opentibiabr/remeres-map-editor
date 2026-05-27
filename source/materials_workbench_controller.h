@@ -31,6 +31,7 @@ public:
 	bool SavePaletteGroup(const PaletteGroupRecord &group, wxString &error);
 	bool DeletePaletteGroup(const wxString &name, wxString &error);
 	const std::vector<PaletteGroupRecord> &GetPaletteGroups() const;
+	const std::vector<TilesetStorageRecord> &GetTilesets() const;
 	const std::vector<MaterialsWorkbenchBrushGroup> &GetBrushGroups() const;
 	const std::vector<BrushRecord> &GetWallBrushes() const;
 	wxString BuildSelectionOverview(MaterialsWorkbenchNodeKind kind, const wxString &contextKey, int itemIndex) const;

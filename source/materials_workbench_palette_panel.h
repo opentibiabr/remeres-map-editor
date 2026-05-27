@@ -15,6 +15,12 @@ class wxButton;
 class wxChoice;
 class wxStaticText;
 
+struct MaterialsWorkbenchAvailableBrushSource {
+	wxString familyKey;
+	wxString paletteLabel;
+	std::vector<BrushRecord> brushes;
+};
+
 class MaterialsWorkbenchPalettePanel : public wxPanel {
 public:
 	MaterialsWorkbenchPalettePanel(wxWindow* parent, MaterialsWorkbenchController &controller);
@@ -29,8 +35,13 @@ private:
 	void RefreshPaletteGroupChoice();
 	void RefreshSectionChoice();
 	void RefreshSectionEntries();
-	void RefreshAvailableBrushGroups();
+	void RebuildAvailableBrushSources();
+	void RefreshAvailableBrushFamilies();
+	void RefreshAvailableBrushPalettes();
 	void RefreshAvailableBrushes();
+	int GetSelectedVisibleEntryIndex() const;
+	bool ResolveVisibleEntryLocation(int visibleIndex, int &sectionIndex, int &entryIndex) const;
+	bool MoveSelectedBrushByOffset(int offset, const wxString &directionLabel);
 	void UpdateButtonState();
 	void SetStatusMessage(const wxString &message);
 	void NormalizePaletteOrdering();
@@ -56,7 +67,8 @@ private:
 	void OnAddSection(wxCommandEvent &event);
 	void OnRenameSection(wxCommandEvent &event);
 	void OnDeleteSection(wxCommandEvent &event);
-	void OnAvailableBrushGroupChanged(wxCommandEvent &event);
+	void OnAvailableBrushFamilyChanged(wxCommandEvent &event);
+	void OnAvailableBrushPaletteChanged(wxCommandEvent &event);
 	void OnAddBrush(wxCommandEvent &event);
 	void OnRemoveBrush(wxCommandEvent &event);
 	void OnMoveBrushUp(wxCommandEvent &event);
@@ -69,8 +81,10 @@ private:
 	int currentSectionIndex_ = 0;
 	int selectedSectionEntryIndex_ = -1;
 	int selectedAvailableBrushListIndex_ = -1;
+	std::vector<MaterialsWorkbenchAvailableBrushSource> availableBrushSources_;
 	std::vector<BrushRecord> currentAvailableBrushes_;
-	std::vector<wxString> availableBrushGroupKeys_;
+	std::vector<wxString> availableBrushFamilyKeys_;
+	std::vector<int> availableBrushPaletteSourceIndexes_;
 	std::vector<wxString> paletteGroupKeys_;
 	std::vector<std::pair<int, int>> visibleEntryLocations_;
 
@@ -80,7 +94,9 @@ private:
 	wxChoice* currentSectionChoice_ = nullptr;
 	wxStaticText* sectionSummaryLabel_ = nullptr;
 	MaterialsWorkbenchBrushGridPanel* sectionBrushGrid_ = nullptr;
-	wxChoice* availableBrushGroupChoice_ = nullptr;
+	wxChoice* availableBrushFamilyChoice_ = nullptr;
+	wxChoice* availableBrushPaletteChoice_ = nullptr;
+	wxStaticText* availableBrushSummaryLabel_ = nullptr;
 	MaterialsWorkbenchBrushGridPanel* availableBrushGrid_ = nullptr;
 	wxButton* addBrushButton_ = nullptr;
 	wxButton* removeBrushButton_ = nullptr;

@@ -40,6 +40,22 @@ EVT_CHOICEBOOK_PAGE_CHANGED(wxID_ANY, BrushPalettePanel::OnPageChanged)
 END_EVENT_TABLE()
 
 namespace {
+	wxString BuildRuntimePaletteGroupDisplayName(const wxString &groupName) {
+		if (groupName.IsSameAs("terrain", false)) {
+			return "Terrain";
+		}
+		if (groupName.IsSameAs("doodad", false)) {
+			return "Doodad";
+		}
+		if (groupName.IsSameAs("item", false)) {
+			return "Item";
+		}
+		if (groupName.IsSameAs("other", false)) {
+			return "Other";
+		}
+		return groupName;
+	}
+
 	TilesetCategoryType ResolveRuntimePaletteCategory(const Tileset* tileset, TilesetCategoryType requestedCategory) {
 		if (!tileset) {
 			return TILESET_UNKNOWN;
@@ -102,10 +118,10 @@ namespace {
 		const wxString defaultGroup = DefaultPaletteGroupNameForCategory(category);
 		const wxString groupName = ResolveRuntimePaletteGroupName(tileset, category);
 		if (!groupName.IsEmpty() && !groupName.IsSameAs(defaultGroup, false)) {
-			return groupName + " / " + wxString::FromUTF8(tileset->name.c_str());
+			return BuildRuntimePaletteGroupDisplayName(groupName) + " / " + wxString::FromUTF8(tileset->name.c_str());
 		}
 		if (category == TILESET_RAW && groupName.IsSameAs("other", false)) {
-			return "other / " + wxString::FromUTF8(tileset->name.c_str());
+			return "Other / " + wxString::FromUTF8(tileset->name.c_str());
 		}
 		return wxString::FromUTF8(tileset->name.c_str());
 	}
