@@ -2,6 +2,7 @@
 #define RME_MATERIALS_WORKBENCH_PALETTE_PANEL_H_
 
 #include <functional>
+#include <utility>
 
 #include <wx/panel.h>
 #include <wx/string.h>
@@ -71,6 +72,7 @@ private:
 	std::vector<BrushRecord> currentAvailableBrushes_;
 	std::vector<wxString> availableBrushGroupKeys_;
 	std::vector<wxString> paletteGroupKeys_;
+	std::vector<std::pair<int, int>> visibleEntryLocations_;
 
 	wxStaticText* titleLabel_ = nullptr;
 	wxStaticText* sourceLabel_ = nullptr;

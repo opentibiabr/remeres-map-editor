@@ -261,7 +261,7 @@ void PaletteWindow::ConfigureRuntimePalettePanel(BrushPalettePanel* panel) {
 			AddBrushSizePanel(panel, Config::USE_LARGE_RAW_SIZEBAR);
 			break;
 		case TILESET_UNKNOWN:
-			panel->SetListType(wxstr(g_settings.getString(Config::PALETTE_RAW_STYLE)));
+			panel->SetListType(BRUSHLIST_LARGE_ICONS);
 			AddBrushSizePanel(panel, Config::USE_LARGE_RAW_SIZEBAR);
 			break;
 		default:
@@ -416,6 +416,10 @@ void PaletteWindow::ReloadSettings(Map* map) {
 				break;
 			case TILESET_RAW:
 				panel->SetListType(wxstr(g_settings.getString(Config::PALETTE_RAW_STYLE)));
+				panel->SetToolbarIconSize(g_settings.getBoolean(Config::USE_LARGE_RAW_SIZEBAR));
+				break;
+			case TILESET_UNKNOWN:
+				panel->SetListType(BRUSHLIST_LARGE_ICONS);
 				panel->SetToolbarIconSize(g_settings.getBoolean(Config::USE_LARGE_RAW_SIZEBAR));
 				break;
 			default:
