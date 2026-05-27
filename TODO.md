@@ -128,10 +128,12 @@
 - [ ] Stage 10D: Support brush membership editing inside palettes: add, remove, move between sections/palettes, and reorder entries
 - [x] Stage 10E: After every palette save, repopulate the navigation tree and refresh runtime palette state so runtime and Workbench stay aligned
 - [ ] Stage 10F: Keep XML-first onboarding working: first import may come from legacy XML, then `materials.db` remains the primary editable source
+- [x] Stage 10F progress: first import now boots the 4 base palette groups from legacy XML into `materials.db`, after which the DB stays as the editable source of truth
 - [x] Stage 10G: Move palette grouping to a DB-first global model shared by Workbench and runtime palette trees, with built-in and custom groups coming directly from `palette_groups`
 - [x] Stage 10G progress: the `Palette Workspace` now exposes CRUD for custom `palette_groups`, protects built-in groups from rename/delete, and lets the current palette move between DB-backed groups directly from the workspace without a fake runtime-family selector
 - [x] Stage 10G runtime follow-up: the runtime palette top-level now comes from `palette_groups` themselves, so built-ins plus customs appear as first-class pages and mirror the Workbench grouping model directly
 - [x] Stage 10G UX follow-up: custom runtime groups now use the same grid-style palette presentation as the main visual groups, while hidden backend sections are assigned automatically when brushes are added
+- [x] Stage 10G runtime fix-up: moving a palette between built-in groups like `terrain`, `doodad`, `item`, and `other` now also reflects correctly in the runtime palette instead of staying tied to the palette's old internal content category
 
 ## Variations Status
 - [x] `variations` are now a delivered functional milestone for the Brush Workspace
