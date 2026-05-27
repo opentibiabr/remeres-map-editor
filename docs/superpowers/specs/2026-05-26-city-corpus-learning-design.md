@@ -21,14 +21,11 @@ conectadas.
 
 ## Corpus Inicial
 
-A primeira versao reconhece tres fontes:
-
-- Regiao de Thais ja informada no mapa `otservbr.otbm`:
-  `x=32226..32461`, `y=32134..32314`, com todos os andares ocupados.
-- Regioes urbanas selecionadas manualmente em
-  `D:/kl/canary/data-otservbr-global/world/otservbr.otbm`.
-- Regioes urbanas selecionadas manualmente em
-  `D:/kl/canary/data-canary/world/canary.otbm`.
+A primeira versao reconhece como fontes os maps
+`D:/kl/canary/data-otservbr-global/world/otservbr.otbm` e
+`D:/kl/canary/data-canary/world/canary.otbm`. A acao principal exporta
+automaticamente todos os `Town` carregados em cada mapa, usando
+`templePosition`, `townid` e houses como evidencias de delimitacao.
 
 O editor tambem podera exportar futuramente regioes dos arquivos OTBM menores
 de `world_changes`, mas eles nao entram automaticamente como cidades: muitos
@@ -37,7 +34,9 @@ sao patches de eventos, sem o contexto urbano completo necessario para treino.
 Mapas inteiros nao serao despejados como JSON de tiles. O mapa global de
 `otservbr.otbm` possui aproximadamente 185 MB e quase 18 milhoes de tiles; um
 dump integral seria custoso, dificil de auditar e ruim como dado de treino.
-Cada exemplo do corpus sera uma regiao explicitamente selecionada e nomeada.
+Cada exemplo do corpus sera um distrito inferido de uma town. A exportacao
+manual de uma selecao permanece util para curadoria ou para areas que nao
+possuam `Town`.
 
 ## Escopo Da Primeira Entrega
 
@@ -47,13 +46,63 @@ Esta entrega cria os fundamentos de aprendizado, nao a geracao final.
 - Atalho opcional somente depois de a acao estar funcional e validada.
 - Exportacao JSON normalizada da selecao, incluindo todos os andares que
   possuam tiles dentro da projecao selecionada.
-- Preset `Thais` para exportar a area conhecida sem selecionar manualmente.
+- Acao `Export All Town Learning Corpus...` para exportar todas as towns do
+  mapa aberto em um unico JSON escrito incrementalmente por distrito.
 - Agregador que carrega varios JSONs exportados e produz um
   `city-model.json` com estatisticas e catalogo de prototipos.
 - Relatorio textual/JSON de diagnostico que permita verificar o que foi
   aprendido antes de habilitar qualquer nova geracao.
 - Desativacao ou renomeacao explicita da geracao experimental atual enquanto
   ela ainda produzir cidades incoerentes.
+
+## Delimitacao Automatica De Cities E Districts
+
+Para cada `Town`, o exportador reune houses cujo `townid` corresponda ao id da
+town. Cada house contribui com o envelope dos seus house tiles e com sua
+entrada. Houses pertencem ao mesmo distrito quando a distancia de Chebyshev
+entre seus envelopes e de no maximo 24 tiles; a transitividade dessa relacao
+forma os clusters.
+
+O distrito cuja distancia ao `templePosition` for menor e rotulado `main`; os
+demais sao `satellite`. Cada envelope recebe margem de 16 tiles para capturar
+ruas e contexto imediatamente conectado sem preencher artificialmente os
+grandes vazios entre bairros distantes.
+
+Se uma town nao possuir houses, o exportador gera um distrito `main` centrado
+no templo, com raio de 96 tiles, `inferenceMethod` igual a
+`temple_fallback` e confianca `low`. Distritos baseados em houses usam
+`house_clusters_with_temple_anchor` e confianca `high` quando o cluster contem
+mais de uma house, ou `medium` quando contem uma unica house.
+
+O corpus completo usa formato `rme-city-corpus` versao 2:
+
+```json
+{
+  "format": "rme-city-corpus",
+  "version": 2,
+  "sourceMap": "otservbr.otbm",
+  "cities": [
+    {
+      "town": {},
+      "districts": [
+        {
+          "role": "main",
+          "inferenceMethod": "house_clusters_with_temple_anchor",
+          "confidence": "high",
+          "bounds": {},
+          "houses": [],
+          "tiles": [],
+          "summary": {}
+        }
+      ]
+    }
+  ]
+}
+```
+
+O arquivo e escrito incrementalmente, mantendo apenas um distrito em JSON na
+memoria enquanto percorre o mapa. Isso evita acumular os dados de todas as
+cidades de `otservbr.otbm` em memoria ao mesmo tempo.
 
 ## Nao Escopo Da Primeira Entrega
 
@@ -153,7 +202,10 @@ na interface ou em arquivo. A validacao visual devera renderizar futuramente:
 mas a classificacao de producao permanece no editor, pois ele conhece houses,
 brushes e itens modernos.
 
-## Formato JSON Da Amostra
+## Formato JSON Da Amostra Manual
+
+Este formato continua disponivel para amostras curadas por selecao. O corpus
+automatico por towns usa o formato `rme-city-corpus` v2 descrito acima.
 
 O arquivo exportado tera esta forma conceitual:
 
@@ -182,13 +234,13 @@ ordem.
 ## Fluxo Do Usuario
 
 1. O mapper abre `otservbr.otbm` ou `canary.otbm`.
-2. Seleciona a area que representa uma cidade ou usa o preset de Thais.
-3. Aciona `Export City Learning Sample...`, fornece nome e salva o JSON.
-4. Repete a exportacao para outras cidades ou para o segundo mapa.
-5. Aciona `Build City Learning Model...` e seleciona os JSONs do corpus.
-6. O editor gera `city-model.json` e mostra contagens, estruturas
+2. Aciona `Export All Town Learning Corpus...` e salva o JSON completo do
+   mapa; opcionalmente exporta uma selecao manual para curadoria.
+3. Repete a exportacao para o segundo mapa.
+4. Aciona `Build City Learning Model...` e seleciona os JSONs do corpus.
+5. O editor gera `city-model.json` e mostra contagens, estruturas
    classificadas e itens pendentes de curadoria.
-7. Somente depois de revisar o modelo habilitamos a nova fase de geracao.
+6. Somente depois de revisar o modelo habilitamos a nova fase de geracao.
 
 ## Geracao Futura
 
