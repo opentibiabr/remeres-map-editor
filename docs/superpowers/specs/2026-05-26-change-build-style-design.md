@@ -90,18 +90,27 @@ automaticamente na lista depois de validados.
 
 ### Painel De Preview
 
-O painel direito renderiza a area da construcao selecionada usando o renderer
-do editor sobre uma copia temporaria dos tiles afetados. Mudar a selecao de
-estilo modifica somente essa copia; o mapa real nao muda ate `Apply`.
+O painel direito renderiza o mapa real ao redor da construcao usando o mesmo
+`MapCanvas`/`MapDrawer` da tela de mapping. Os tiles convertidos sao fornecidos
+ao renderer como uma sobreposicao temporaria: nas posicoes afetadas ele desenha
+o tile simulado, e em todas as demais posicoes continua desenhando o mapa
+original. Mudar a selecao de estilo modifica somente essa sobreposicao; o mapa
+real nao muda ate `Apply`.
 
 O painel contem:
 
-- preview do piso atualmente inspecionado;
+- preview contextual do piso atualmente inspecionado, incluindo chao, objetos,
+  construcoes vizinhas e elementos conectados;
 - botoes de icone `up` e `down` para alternar entre pisos detectados;
 - indicacao compacta do piso (`z`) exibido;
 - lista de pisos detectados, cada um com checkbox de inclusao;
 - checkbox `Only current floor`, que desmarca/desabilita a aplicacao nos
   demais pisos, sem impedir que sejam visualizados.
+
+O preview inicia centralizado na construcao. A camera pode ser arrastada pelo
+mesmo botao configurado para mover a camera no mapping; `Ctrl + wheel` aplica
+zoom ao redor do cursor. Pan e zoom permanecem ao trocar estilo ou andar, para
+permitir comparar opcoes no mesmo enquadramento.
 
 ## Identificacao Do Componente No Piso Atual
 
@@ -179,8 +188,9 @@ Para cada piso confirmado:
 Todos os pisos selecionados pertencem ao mesmo batch; `undo` e `redo` atuam
 sobre o predio convertido inteiro.
 
-O preview reutiliza a mesma logica de conversao sobre tiles temporarios, para
-que a imagem exibida e a alteracao final sigam a mesma regra.
+O preview reutiliza a mesma logica de conversao sobre tiles temporarios e os
+insere apenas no pipeline de desenho do mapa, para que a imagem exibida e a
+alteracao final sigam a mesma regra sem duplicar composicao de sprites.
 
 ## Novos Estilos Arquitetonicos
 

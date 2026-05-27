@@ -4,7 +4,7 @@
 
 **Goal:** Implement connected, multi-floor `WallBrush` style conversion with a visual selection dialog and preview.
 
-**Architecture:** Add a focused `ChangeBuildStyleService` for component discovery, destination compatibility and batched application. Add a wxWidgets dialog that enumerates loaded structural wall brushes and renders a sprite preview from the service result. Wire the dialog through the existing map popup menu.
+**Architecture:** Add a focused `ChangeBuildStyleService` for component discovery, destination compatibility and batched application. Add a wxWidgets dialog that enumerates loaded structural wall brushes and renders a non-destructive contextual preview through the existing OpenGL map canvas, substituting only simulated tiles. Wire the dialog through the existing map popup menu.
 
 **Tech Stack:** C++17, wxWidgets, existing Canary Map Editor `WallBrush`, `Map`, `BatchAction`, and sprite rendering APIs.
 
@@ -34,7 +34,8 @@
 
 - [x] Enumerate loaded non-decoration `WallBrush` destinations with text/category filtering.
 - [x] Reject incompatible destinations and present the missing opening reason.
-- [x] Render selected-floor preview using target wall/opening sprites and provide floor arrows, floor inclusion, and `Only current floor`.
+- [ ] Replace the isolated wall-sprite preview with a contextual `MapCanvas` view that overlays simulated converted tiles on the real surrounding map.
+- [ ] Provide `Ctrl + wheel` cursor-centered zoom and configured camera-button pan while retaining floor arrows, floor inclusion, and `Only current floor`.
 - [x] Apply the chosen target through the service and refresh the active map.
 
 ### Task 3: Context menu integration and validation
