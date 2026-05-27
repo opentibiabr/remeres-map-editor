@@ -36,6 +36,8 @@ namespace MenuBar {
 		IMPORT_MINIMAP,
 		EXPORT_MINIMAP,
 		EXPORT_TILESETS,
+		EXPORT_CITY_SAMPLE,
+		EXPORT_ALL_TOWN_CORPUS,
 		RELOAD_DATA,
 		RECENT_FILES,
 		PREFERENCES,
@@ -219,6 +221,8 @@ public:
 	void OnImportBitmapToMap(wxCommandEvent &event);
 	void OnExportMinimap(wxCommandEvent &event);
 	void OnExportTilesets(wxCommandEvent &event);
+	void OnExportCitySample(wxCommandEvent &event);
+	void OnExportAllTownCorpus(wxCommandEvent &event);
 	void OnReloadDataFiles(wxCommandEvent &event);
 
 	// Edit Menu

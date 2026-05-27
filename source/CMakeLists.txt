@@ -189,6 +189,7 @@ target_sources(
           carpet_brush.cpp
           change_build_style.cpp
           change_build_style_window.cpp
+          city_corpus.cpp
           client_assets.cpp
           common.cpp
           common_windows.cpp

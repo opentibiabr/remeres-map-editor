@@ -23,6 +23,7 @@
 #include "about_window.h"
 #include "minimap_window.h"
 #include "bitmap_to_map_window.h"
+#include "city_corpus.h"
 #include "dat_debug_view.h"
 #include "result_window.h"
 #include "find_item_window.h"
@@ -68,6 +69,8 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 
 	MAKE_ACTION(EXPORT_MINIMAP, wxITEM_NORMAL, OnExportMinimap);
 	MAKE_ACTION(EXPORT_TILESETS, wxITEM_NORMAL, OnExportTilesets);
+	MAKE_ACTION(EXPORT_CITY_SAMPLE, wxITEM_NORMAL, OnExportCitySample);
+	MAKE_ACTION(EXPORT_ALL_TOWN_CORPUS, wxITEM_NORMAL, OnExportAllTownCorpus);
 
 	MAKE_ACTION(RELOAD_DATA, wxITEM_NORMAL, OnReloadDataFiles);
 	// MAKE_ACTION(RECENT_FILES, wxITEM_NORMAL, OnRecent);
@@ -352,6 +355,8 @@ void MainMenuBar::Update() {
 	EnableItem(IMPORT_MINIMAP, false);
 	EnableItem(EXPORT_MINIMAP, is_local);
 	EnableItem(EXPORT_TILESETS, loaded);
+	EnableItem(EXPORT_CITY_SAMPLE, is_local && has_selection);
+	EnableItem(EXPORT_ALL_TOWN_CORPUS, is_local);
 
 	EnableItem(FIND_ITEM, is_host);
 	EnableItem(REPLACE_ITEMS, is_local);
@@ -881,6 +886,18 @@ void MainMenuBar::OnExportTilesets(wxCommandEvent &WXUNUSED(event)) {
 		ExportTilesetsWindow dlg(frame, *g_gui.GetCurrentEditor());
 		dlg.ShowModal();
 		dlg.Destroy();
+	}
+}
+
+void MainMenuBar::OnExportCitySample(wxCommandEvent &WXUNUSED(event)) {
+	if (g_gui.IsEditorOpen()) {
+		CityCorpus::ExportSelection(*g_gui.GetCurrentEditor(), frame);
+	}
+}
+
+void MainMenuBar::OnExportAllTownCorpus(wxCommandEvent &WXUNUSED(event)) {
+	if (g_gui.IsEditorOpen()) {
+		CityCorpus::ExportAllTowns(*g_gui.GetCurrentEditor(), frame);
 	}
 }
 
