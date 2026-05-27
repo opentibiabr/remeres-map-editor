@@ -187,6 +187,8 @@ target_sources(
           browse_tile_window.cpp
           positionctrl.cpp
           carpet_brush.cpp
+          change_build_style.cpp
+          change_build_style_window.cpp
           client_assets.cpp
           common.cpp
           common_windows.cpp

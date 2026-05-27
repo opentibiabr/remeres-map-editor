@@ -706,6 +706,8 @@ wxString ActionQueue::createLabel(ActionIdentifier type) {
 			return "Change Properties";
 		case ACTION_LUA_SCRIPT:
 			return "Lua Script";
+		case ACTION_CHANGE_BUILD_STYLE:
+			return "Change Build Style";
 		default:
 			return wxEmptyString;
 	}

@@ -33,6 +33,7 @@
 #include "application.h"
 #include "live_server.h"
 #include "browse_tile_window.h"
+#include "change_build_style_window.h"
 
 #include "main_menubar.h"
 
@@ -91,6 +92,7 @@ EVT_MENU(MAP_POPUP_MENU_SELECT_GROUND_BRUSH, MapCanvas::OnSelectGroundBrush)
 EVT_MENU(MAP_POPUP_MENU_SELECT_DOODAD_BRUSH, MapCanvas::OnSelectDoodadBrush)
 EVT_MENU(MAP_POPUP_MENU_SELECT_DOOR_BRUSH, MapCanvas::OnSelectDoorBrush)
 EVT_MENU(MAP_POPUP_MENU_SELECT_WALL_BRUSH, MapCanvas::OnSelectWallBrush)
+EVT_MENU(MAP_POPUP_MENU_CHANGE_BUILD_STYLE, MapCanvas::OnChangeBuildStyle)
 EVT_MENU(MAP_POPUP_MENU_SELECT_CARPET_BRUSH, MapCanvas::OnSelectCarpetBrush)
 EVT_MENU(MAP_POPUP_MENU_SELECT_TABLE_BRUSH, MapCanvas::OnSelectTableBrush)
 EVT_MENU(MAP_POPUP_MENU_SELECT_MONSTER_BRUSH, MapCanvas::OnSelectMonsterBrush)
@@ -2427,11 +2429,26 @@ void MapCanvas::OnSelectWallBrush(wxCommandEvent &WXUNUSED(event)) {
 	if (!tile) {
 		return;
 	}
-	Item* wall = tile->getWall();
-	WallBrush* wb = wall->getWallBrush();
+	Item* wall = ChangeBuildStyleService::getStructuralWall(tile);
+	WallBrush* wb = wall ? wall->getWallBrush() : nullptr;
 
 	if (wb) {
 		g_gui.SelectBrush(wb, TILESET_TERRAIN);
+	}
+}
+
+void MapCanvas::OnChangeBuildStyle(wxCommandEvent &WXUNUSED(event)) {
+	if (editor.getSelection().size() != 1) {
+		return;
+	}
+	Tile* tile = editor.getSelection().getSelectedTile();
+	if (!tile || !ChangeBuildStyleService::getStructuralWall(tile)) {
+		return;
+	}
+
+	ChangeBuildStyleDialog dialog(this, editor, tile->getPosition());
+	if (dialog.isValid() && dialog.ShowModal() == wxID_OK) {
+		Refresh();
 	}
 }
 
@@ -2729,6 +2746,7 @@ void MapPopupMenu::Update() {
 			std::vector<Monster*> selectedMonsters = tile->getSelectedMonsters();
 
 			bool hasWall = false;
+			bool hasStructuralWall = false;
 			bool hasCarpet = false;
 			bool hasTable = false;
 			Item* topItem = nullptr;
@@ -2742,8 +2760,11 @@ void MapPopupMenu::Update() {
 			for (auto* item : tile->items) {
 				if (item->isWall()) {
 					Brush* wb = item->getWallBrush();
-					if (wb && wb->visibleInPalette()) {
-						hasWall = true;
+					if (wb && !wb->isWallDecoration()) {
+						hasStructuralWall = true;
+						if (wb->visibleInPalette()) {
+							hasWall = true;
+						}
 					}
 				}
 				if (item->isTable()) {
@@ -2826,6 +2847,9 @@ void MapPopupMenu::Update() {
 				if (hasWall) {
 					Append(MAP_POPUP_MENU_SELECT_WALL_BRUSH, "Select Wallbrush", "Uses the current item as a wallbrush");
 				}
+				if (hasStructuralWall) {
+					Append(MAP_POPUP_MENU_CHANGE_BUILD_STYLE, "Change build style...", "Replace connected structural walls with another automagic style");
+				}
 
 				if (hasCarpet) {
 					Append(MAP_POPUP_MENU_SELECT_CARPET_BRUSH, "Select Carpetbrush", "Uses the current item as a carpetbrush");
@@ -2874,6 +2898,9 @@ void MapPopupMenu::Update() {
 				Append(MAP_POPUP_MENU_SELECT_RAW_BRUSH, "Select RAW", "Uses the top item as a RAW brush");
 				if (hasWall) {
 					Append(MAP_POPUP_MENU_SELECT_WALL_BRUSH, "Select Wallbrush", "Uses the current item as a wallbrush");
+				}
+				if (hasStructuralWall) {
+					Append(MAP_POPUP_MENU_CHANGE_BUILD_STYLE, "Change build style...", "Replace connected structural walls with another automagic style");
 				}
 				if (tile->hasGround() && tile->getGroundBrush() && tile->getGroundBrush()->visibleInPalette()) {
 					Append(MAP_POPUP_MENU_SELECT_GROUND_BRUSH, "Select Groundbrush", "Uses the current tile as a groundbrush");
