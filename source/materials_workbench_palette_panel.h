@@ -39,9 +39,12 @@ private:
 	void RefreshAvailableBrushFamilies();
 	void RefreshAvailableBrushPalettes();
 	void RefreshAvailableBrushes();
+	void RefreshMoveDestinationFamilies();
+	void RefreshMoveDestinationPalettes();
+	void RefreshSelectionFeedback();
 	bool IsSelectedBrushEntry() const;
 	bool ResolveSelectedBrushEntry(int &sectionIndex, int &entryIndex, TilesetEntryRecord &entry) const;
-	bool PromptForMoveDestinationPalette(wxString &outPaletteName, wxString &outDisplayLabel);
+	bool ResolveMoveDestinationPalette(TilesetStorageRecord &outTileset, wxString &outDisplayLabel) const;
 	int FindSectionIndexByName(const TilesetStorageRecord &tileset, const wxString &sectionName) const;
 	void NormalizePaletteOrdering(TilesetStorageRecord &tileset) const;
 	int GetSelectedVisibleEntryIndex() const;
@@ -72,6 +75,8 @@ private:
 	void OnDeleteSection(wxCommandEvent &event);
 	void OnAvailableBrushFamilyChanged(wxCommandEvent &event);
 	void OnAvailableBrushPaletteChanged(wxCommandEvent &event);
+	void OnMoveDestinationFamilyChanged(wxCommandEvent &event);
+	void OnMoveDestinationPaletteChanged(wxCommandEvent &event);
 	void OnAddBrush(wxCommandEvent &event);
 	void OnMoveBrushToPalette(wxCommandEvent &event);
 	void OnRemoveBrush(wxCommandEvent &event);
@@ -89,6 +94,8 @@ private:
 	std::vector<BrushRecord> currentAvailableBrushes_;
 	std::vector<wxString> availableBrushFamilyKeys_;
 	std::vector<int> availableBrushPaletteSourceIndexes_;
+	std::vector<wxString> moveDestinationFamilyKeys_;
+	std::vector<int> moveDestinationPaletteIndexes_;
 	std::vector<wxString> paletteGroupKeys_;
 	std::vector<std::pair<int, int>> visibleEntryLocations_;
 
@@ -97,9 +104,12 @@ private:
 	wxChoice* paletteGroupChoice_ = nullptr;
 	wxChoice* currentSectionChoice_ = nullptr;
 	wxStaticText* sectionSummaryLabel_ = nullptr;
+	wxStaticText* selectionSummaryLabel_ = nullptr;
 	MaterialsWorkbenchBrushGridPanel* sectionBrushGrid_ = nullptr;
 	wxChoice* availableBrushFamilyChoice_ = nullptr;
 	wxChoice* availableBrushPaletteChoice_ = nullptr;
+	wxChoice* moveDestinationFamilyChoice_ = nullptr;
+	wxChoice* moveDestinationPaletteChoice_ = nullptr;
 	wxStaticText* availableBrushSummaryLabel_ = nullptr;
 	MaterialsWorkbenchBrushGridPanel* availableBrushGrid_ = nullptr;
 	wxButton* addBrushButton_ = nullptr;

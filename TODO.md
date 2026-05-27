@@ -127,7 +127,7 @@
 - [x] Stage 10C result: the `Palette Workspace` now centers the UX on `palette_groups`, palettes, and brush membership; runtime sections remain in the backend but are no longer exposed as a primary editing concept in the UI
 - [ ] Stage 10D: Close brush membership editing inside palettes as a professional `Group -> Palette -> Brushes` flow: add, remove, reorder, move comfortably, and polish product-language UX without bringing `section` back to the foreground
 - [x] Stage 10D progress: the brush library now follows `Family -> Palette` inside a dedicated `Source Library` panel, so source browsing stays grouped under `terrain`, `doodad`, `item`, and `other/raw` without flattening everything into one selector
-- [x] Stage 10D progress: the current palette now also supports an explicit `Move To...` flow with a clear destination picker instead of forcing manual add/remove steps
+- [x] Stage 10D progress: moving brushes between palettes is now an inline flow inside `Palette Brushes`, with persistent destination family/palette selectors and selection feedback instead of a modal destination picker
 - [x] Stage 10D progress: palette brush actions now live inside the left composition panel and source filters live inside the right library panel, replacing the old toolbar-like layout with a clearer professional split
 - [x] Stage 10D progress: `Palette Brushes` now shows only the active family-scoped composition for the current palette, while backend-only entries from other families stay hidden from the main UX
 - [x] Stage 10E: After every palette save, repopulate the navigation tree and refresh runtime palette state so runtime and Workbench stay aligned
