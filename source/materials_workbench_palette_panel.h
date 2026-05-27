@@ -39,16 +39,19 @@ private:
 	void RefreshAvailableBrushFamilies();
 	void RefreshAvailableBrushPalettes();
 	void RefreshAvailableBrushes();
+	bool IsSelectedBrushEntry() const;
+	bool ResolveSelectedBrushEntry(int &sectionIndex, int &entryIndex, TilesetEntryRecord &entry) const;
+	bool PromptForMoveDestinationPalette(wxString &outPaletteName, wxString &outDisplayLabel);
+	int FindSectionIndexByName(const TilesetStorageRecord &tileset, const wxString &sectionName) const;
+	void NormalizePaletteOrdering(TilesetStorageRecord &tileset) const;
 	int GetSelectedVisibleEntryIndex() const;
 	bool ResolveVisibleEntryLocation(int visibleIndex, int &sectionIndex, int &entryIndex) const;
 	bool MoveSelectedBrushByOffset(int offset, const wxString &directionLabel);
 	void UpdateButtonState();
 	void SetStatusMessage(const wxString &message);
-	void NormalizePaletteOrdering();
 	bool CommitPalette(const wxString &successMessage, const wxString &previousPaletteName = wxString(), const wxString &selectionPaletteName = wxString());
 	wxString RecommendBrushGroupForCurrentSection() const;
 	const BrushRecord* FindAvailableBrushRecord() const;
-	int FindSectionIndexByName(const wxString &sectionName) const;
 	int FindPaletteGroupChoiceIndexByName(const wxString &groupName) const;
 	const PaletteGroupRecord* GetSelectedPaletteGroup() const;
 	bool PromptForPaletteName(const wxString &title, const wxString &caption, const wxString &initialValue, const wxString &currentName, wxString &outName);
@@ -70,6 +73,7 @@ private:
 	void OnAvailableBrushFamilyChanged(wxCommandEvent &event);
 	void OnAvailableBrushPaletteChanged(wxCommandEvent &event);
 	void OnAddBrush(wxCommandEvent &event);
+	void OnMoveBrushToPalette(wxCommandEvent &event);
 	void OnRemoveBrush(wxCommandEvent &event);
 	void OnMoveBrushUp(wxCommandEvent &event);
 	void OnMoveBrushDown(wxCommandEvent &event);
@@ -99,6 +103,7 @@ private:
 	wxStaticText* availableBrushSummaryLabel_ = nullptr;
 	MaterialsWorkbenchBrushGridPanel* availableBrushGrid_ = nullptr;
 	wxButton* addBrushButton_ = nullptr;
+	wxButton* moveToPaletteButton_ = nullptr;
 	wxButton* removeBrushButton_ = nullptr;
 	wxButton* moveUpButton_ = nullptr;
 	wxButton* moveDownButton_ = nullptr;

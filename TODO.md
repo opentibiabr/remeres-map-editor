@@ -127,6 +127,7 @@
 - [x] Stage 10C result: the `Palette Workspace` now centers the UX on `palette_groups`, palettes, and brush membership; runtime sections remain in the backend but are no longer exposed as a primary editing concept in the UI
 - [ ] Stage 10D: Close brush membership editing inside palettes as a professional `Group -> Palette -> Brushes` flow: add, remove, reorder, move comfortably, and polish product-language UX without bringing `section` back to the foreground
 - [ ] Stage 10D progress: `Add From` now follows `Family Group -> Palette`, so the brush library can browse source palettes under `terrain`, `doodad`, `item`, and `other/raw` instead of flattening everything into a single source selector
+- [ ] Stage 10D progress: the current palette selection now also supports an explicit `Move To Palette` flow with a clear `Family Group > Palette` destination picker instead of forcing manual add/remove steps
 - [x] Stage 10E: After every palette save, repopulate the navigation tree and refresh runtime palette state so runtime and Workbench stay aligned
 - [ ] Stage 10F: Keep XML-first onboarding working: first import may come from legacy XML, then `materials.db` remains the primary editable source
 - [x] Stage 10F progress: first import now boots the 4 base palette groups from legacy XML into `materials.db`, after which the DB stays as the editable source of truth
