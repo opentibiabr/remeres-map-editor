@@ -204,7 +204,7 @@ std::vector<PaletteWindow::RuntimePaletteSpec> PaletteWindow::BuildRuntimePalett
 
 		const wxString groupName = ResolvePaletteGroupName(tileset);
 		const PaletteType paletteType = ResolvePaletteTypeFromGroupName(groupName);
-		if (!HasDisplayablePaletteContents(tileset, paletteType)) {
+		if (!HasDisplayablePaletteContents(tileset, TILESET_UNKNOWN)) {
 			continue;
 		}
 

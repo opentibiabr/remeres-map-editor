@@ -147,7 +147,8 @@ BrushPalettePanel::BrushPalettePanel(
 	std::vector<RuntimePalettePageSeed> pageSeeds;
 	pageSeeds.reserve(tilesets.size());
 	for (auto it = tilesets.begin(); it != tilesets.end(); ++it) {
-		const TilesetCategoryType resolvedCategory = ResolveRuntimePaletteCategory(it->second, category);
+		const TilesetCategoryType requestedCategory = paletteGroupFilter_.IsEmpty() ? category : TILESET_UNKNOWN;
+		const TilesetCategoryType resolvedCategory = ResolveRuntimePaletteCategory(it->second, requestedCategory);
 		if (resolvedCategory == TILESET_UNKNOWN) {
 			continue;
 		}
