@@ -1199,6 +1199,32 @@ namespace {
 		return "other";
 	}
 
+	void AppendNormalizedTilesetItemEntries(const TilesetEntryRecord &sourceEntry, TilesetSectionRecord &section, int &sortOrder) {
+		const int fromItemId = sourceEntry.itemId > 0 ? sourceEntry.itemId : sourceEntry.fromItemId;
+		int toItemId = sourceEntry.toItemId > 0 ? sourceEntry.toItemId : fromItemId;
+		if (fromItemId <= 0) {
+			return;
+		}
+
+		toItemId = std::max(fromItemId, toItemId);
+		int previousItemId = 0;
+		for (int itemId = fromItemId; itemId <= toItemId; ++itemId) {
+			TilesetEntryRecord normalizedEntry = sourceEntry;
+			normalizedEntry.itemId = itemId;
+			normalizedEntry.fromItemId = 0;
+			normalizedEntry.toItemId = 0;
+			normalizedEntry.sortOrder = sortOrder++;
+
+			if (previousItemId > 0) {
+				normalizedEntry.afterBrushName.clear();
+				normalizedEntry.afterItemId = previousItemId;
+			}
+
+			section.entries.push_back(std::move(normalizedEntry));
+			previousItemId = itemId;
+		}
+	}
+
 	void CollectTilesetSectionEntries(pugi::xml_node sectionNode, TilesetSectionRecord &section) {
 		int sortOrder = 0;
 		for (pugi::xml_node entryNode = sectionNode.first_child(); entryNode; entryNode = entryNode.next_sibling()) {
@@ -1218,12 +1244,13 @@ namespace {
 			if (entry.toItemId == 0) {
 				entry.toItemId = entry.fromItemId != 0 ? entry.fromItemId : entry.itemId;
 			}
-			entry.sortOrder = sortOrder++;
+			entry.sortOrder = sortOrder;
 
 			if (entry.entryKind == "brush" && !entry.brushName.IsEmpty()) {
+				entry.sortOrder = sortOrder++;
 				section.entries.push_back(entry);
 			} else if (entry.entryKind == "item" && (entry.itemId > 0 || entry.fromItemId > 0)) {
-				section.entries.push_back(entry);
+				AppendNormalizedTilesetItemEntries(entry, section, sortOrder);
 			}
 		}
 	}
