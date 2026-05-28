@@ -441,6 +441,16 @@ namespace {
 		return wxString::Format("Item %d", previewItemId);
 	}
 
+	bool IsMovablePaletteEntry(const TilesetEntryRecord &entry) {
+		if (entry.entryKind.IsSameAs("brush", false)) {
+			return entry.brushId > 0 || !entry.brushName.IsEmpty();
+		}
+		if (entry.entryKind.IsSameAs("item", false)) {
+			return ResolveEntryPreviewItemId(entry) > 0;
+		}
+		return false;
+	}
+
 	const BrushRecord* FindCatalogBrushRecord(const MaterialsWorkbenchController &controller, int64_t brushId, const wxString &brushName) {
 		for (const MaterialsWorkbenchBrushGroup &group : controller.GetBrushGroups()) {
 			for (const BrushRecord &record : group.brushes) {
@@ -628,12 +638,12 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	renamePaletteGroupButton_->SetToolTip("Rename the selected custom group.");
 	deletePaletteGroupButton_->SetToolTip("Delete the selected custom group.");
 	addBrushButton_->SetToolTip("Add the selected brush to this palette.");
-	moveToPaletteButton_->SetToolTip("Move the selected brush to the destination palette below.");
-	removeBrushButton_->SetToolTip("Remove the selected brush from this palette.");
-	moveUpButton_->SetToolTip("Move the selected brush earlier in the palette.");
-	moveDownButton_->SetToolTip("Move the selected brush later in the palette.");
-	moveDestinationFamilyChoice_->SetToolTip("Choose the destination family for moving the selected brush.");
-	moveDestinationPaletteChoice_->SetToolTip("Choose the destination palette for moving the selected brush.");
+	moveToPaletteButton_->SetToolTip("Move the selected palette entry to the destination palette below.");
+	removeBrushButton_->SetToolTip("Remove the selected palette entry from this palette.");
+	moveUpButton_->SetToolTip("Move the selected palette entry earlier in the palette.");
+	moveDownButton_->SetToolTip("Move the selected palette entry later in the palette.");
+	moveDestinationFamilyChoice_->SetToolTip("Choose the destination family for moving the selected palette entry.");
+	moveDestinationPaletteChoice_->SetToolTip("Choose the destination palette for moving the selected palette entry.");
 
 	createPaletteButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchPalettePanel::OnCreatePalette, this);
 	renamePaletteButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchPalettePanel::OnRenamePalette, this);
@@ -691,7 +701,7 @@ void MaterialsWorkbenchPalettePanel::ClearWorkspace(const wxString &message) {
 	moveDestinationFamilyChoice_->Clear();
 	moveDestinationPaletteChoice_->Clear();
 	sectionSummaryLabel_->SetLabel(message);
-	selectionSummaryLabel_->SetLabel("Select a brush in this palette to remove, reorder, or move it.");
+	selectionSummaryLabel_->SetLabel("Select a palette entry to remove, reorder, or move it.");
 	availableBrushSummaryLabel_->SetLabel("Select a palette to browse brushes to add.");
 	sectionBrushGrid_->SetEmptyMessage(message);
 	sectionBrushGrid_->Clear();
@@ -1131,13 +1141,13 @@ void MaterialsWorkbenchPalettePanel::RefreshMoveDestinationPalettes() {
 
 void MaterialsWorkbenchPalettePanel::RefreshSelectionFeedback() {
 	if (!hasPalette_) {
-		selectionSummaryLabel_->SetLabel("Select a brush in this palette to remove, reorder, or move it.");
+		selectionSummaryLabel_->SetLabel("Select a palette entry to remove, reorder, or move it.");
 		return;
 	}
 
 	const int selectedVisibleIndex = GetSelectedVisibleEntryIndex();
 	if (selectedVisibleIndex < 0) {
-		selectionSummaryLabel_->SetLabel("Select a brush in this palette to remove, reorder, or move it.");
+		selectionSummaryLabel_->SetLabel("Select a palette entry to remove, reorder, or move it.");
 		return;
 	}
 
@@ -1146,19 +1156,19 @@ void MaterialsWorkbenchPalettePanel::RefreshSelectionFeedback() {
 	if (!ResolveVisibleEntryLocation(selectedVisibleIndex, sectionIndex, entryIndex) ||
 		sectionIndex < 0 || sectionIndex >= static_cast<int>(palette_.sections.size()) ||
 		entryIndex < 0 || entryIndex >= static_cast<int>(palette_.sections[sectionIndex].entries.size())) {
-		selectionSummaryLabel_->SetLabel("Select a brush in this palette to remove, reorder, or move it.");
+		selectionSummaryLabel_->SetLabel("Select a palette entry to remove, reorder, or move it.");
 		return;
 	}
 
 	const TilesetEntryRecord &entry = palette_.sections[sectionIndex].entries[entryIndex];
 	const wxString entryLabel = DescribePaletteEntry(controller_, entry);
-	if (!entry.entryKind.IsSameAs("brush", false)) {
-		selectionSummaryLabel_->SetLabel("Selected item: " + entryLabel + ". Items can be removed or reordered here, but only brushes can move to another palette.");
+	if (!IsMovablePaletteEntry(entry)) {
+		selectionSummaryLabel_->SetLabel("Selected entry: " + entryLabel + ". This storage format cannot move to another palette yet.");
 		return;
 	}
 
 	if (moveDestinationPaletteChoice_->GetSelection() == wxNOT_FOUND || moveDestinationPaletteChoice_->GetSelection() >= static_cast<int>(moveDestinationPaletteIndexes_.size())) {
-		selectionSummaryLabel_->SetLabel("Selected brush: " + entryLabel + ". Create another palette to enable moving brushes between palettes.");
+		selectionSummaryLabel_->SetLabel("Selected entry: " + entryLabel + ". Create another palette to enable moving entries between palettes.");
 		return;
 	}
 
@@ -1167,7 +1177,7 @@ void MaterialsWorkbenchPalettePanel::RefreshSelectionFeedback() {
 	const wxString destinationFamily = moveDestinationFamilyChoice_->GetSelection() != wxNOT_FOUND && moveDestinationFamilyChoice_->GetSelection() < static_cast<int>(moveDestinationFamilyKeys_.size())
 		? BuildPaletteFamilyLabel(moveDestinationFamilyKeys_[moveDestinationFamilyChoice_->GetSelection()])
 		: BuildPaletteFamilyLabel(destinationTileset.paletteGroupName);
-	selectionSummaryLabel_->SetLabel("Selected brush: " + entryLabel + ". Move destination: " + destinationFamily + " / " + destinationTileset.name + ".");
+	selectionSummaryLabel_->SetLabel("Selected entry: " + entryLabel + ". Move destination: " + destinationFamily + " / " + destinationTileset.name + ".");
 }
 
 int MaterialsWorkbenchPalettePanel::GetSelectedVisibleEntryIndex() const {
@@ -1186,7 +1196,7 @@ bool MaterialsWorkbenchPalettePanel::ResolveVisibleEntryLocation(int visibleInde
 	return true;
 }
 
-bool MaterialsWorkbenchPalettePanel::MoveSelectedBrushByOffset(int offset, const wxString &directionLabel) {
+bool MaterialsWorkbenchPalettePanel::MoveSelectedEntryByOffset(int offset, const wxString &directionLabel) {
 	if (!hasPalette_ || offset == 0) {
 		return false;
 	}
@@ -1221,17 +1231,17 @@ bool MaterialsWorkbenchPalettePanel::MoveSelectedBrushByOffset(int offset, const
 
 	currentSectionIndex_ = targetSectionIndex;
 	selectedSectionEntryIndex_ = insertIndex;
-	return CommitPalette("Moved brush " + directionLabel + " in palette \"" + palette_.name + "\".");
+	return CommitPalette("Moved entry " + directionLabel + " in palette \"" + palette_.name + "\".");
 }
 
-bool MaterialsWorkbenchPalettePanel::IsSelectedBrushEntry() const {
+bool MaterialsWorkbenchPalettePanel::IsSelectedMovableEntry() const {
 	int sectionIndex = 0;
 	int entryIndex = 0;
 	TilesetEntryRecord entry;
-	return ResolveSelectedBrushEntry(sectionIndex, entryIndex, entry);
+	return ResolveSelectedMovableEntry(sectionIndex, entryIndex, entry);
 }
 
-bool MaterialsWorkbenchPalettePanel::ResolveSelectedBrushEntry(int &sectionIndex, int &entryIndex, TilesetEntryRecord &entry) const {
+bool MaterialsWorkbenchPalettePanel::ResolveSelectedMovableEntry(int &sectionIndex, int &entryIndex, TilesetEntryRecord &entry) const {
 	const int selectedVisibleIndex = GetSelectedVisibleEntryIndex();
 	if (!ResolveVisibleEntryLocation(selectedVisibleIndex, sectionIndex, entryIndex)) {
 		return false;
@@ -1243,7 +1253,7 @@ bool MaterialsWorkbenchPalettePanel::ResolveSelectedBrushEntry(int &sectionIndex
 	if (entryIndex < 0 || entryIndex >= static_cast<int>(section.entries.size())) {
 		return false;
 	}
-	if (!section.entries[entryIndex].entryKind.IsSameAs("brush", false)) {
+	if (!IsMovablePaletteEntry(section.entries[entryIndex])) {
 		return false;
 	}
 	entry = section.entries[entryIndex];
@@ -1291,7 +1301,7 @@ void MaterialsWorkbenchPalettePanel::UpdateButtonState() {
 
 	const int selectedVisibleIndex = GetSelectedVisibleEntryIndex();
 	addBrushButton_->Enable(hasPalette_ && availableBrushPaletteChoice_->GetSelection() != wxNOT_FOUND && selectedAvailableBrushListIndex_ >= 0);
-	moveToPaletteButton_->Enable(hasPalette_ && IsSelectedBrushEntry() && moveDestinationPaletteChoice_->GetSelection() != wxNOT_FOUND);
+	moveToPaletteButton_->Enable(hasPalette_ && IsSelectedMovableEntry() && moveDestinationPaletteChoice_->GetSelection() != wxNOT_FOUND);
 	removeBrushButton_->Enable(hasPalette_ && selectedVisibleIndex >= 0);
 	moveUpButton_->Enable(hasPalette_ && selectedVisibleIndex > 0);
 	moveDownButton_->Enable(hasPalette_ && selectedVisibleIndex >= 0 && selectedVisibleIndex < static_cast<int>(visibleEntryLocations_.size()) - 1);
@@ -1901,8 +1911,8 @@ void MaterialsWorkbenchPalettePanel::OnMoveBrushToPalette(wxCommandEvent &event)
 	int sourceSectionIndex = 0;
 	int sourceEntryIndex = 0;
 	TilesetEntryRecord movingEntry;
-	if (!ResolveSelectedBrushEntry(sourceSectionIndex, sourceEntryIndex, movingEntry)) {
-		SetStatusMessage("Select a brush in this palette first.");
+	if (!ResolveSelectedMovableEntry(sourceSectionIndex, sourceEntryIndex, movingEntry)) {
+		SetStatusMessage("Select a palette entry in this palette first.");
 		return;
 	}
 
@@ -1913,10 +1923,24 @@ void MaterialsWorkbenchPalettePanel::OnMoveBrushToPalette(wxCommandEvent &event)
 		return;
 	}
 
-	const wxString preferredSectionType = palette_.sections[sourceSectionIndex].sectionType;
+	const wxString sourceSectionType = palette_.sections[sourceSectionIndex].sectionType;
+	const wxString sourceFamily = DerivePaletteGroupFromSectionType(sourceSectionType);
+	const int destinationFamilySelection = moveDestinationFamilyChoice_->GetSelection();
+	const wxString destinationFamilyKey =
+		destinationFamilySelection != wxNOT_FOUND && destinationFamilySelection < static_cast<int>(moveDestinationFamilyKeys_.size())
+			? moveDestinationFamilyKeys_[destinationFamilySelection]
+			: ResolvePaletteBrushDisplayFamily(targetPalette);
+
+	wxString preferredSectionType = sourceSectionType;
+	if (!destinationFamilyKey.IsEmpty() &&
+		!destinationFamilyKey.IsSameAs("other", false) &&
+		!destinationFamilyKey.IsSameAs(sourceFamily, false)) {
+		preferredSectionType = PreferredSectionTypeForBrushFamilyKey(destinationFamilyKey);
+	}
+
 	int targetSectionIndex = FindSectionIndexByName(targetPalette, preferredSectionType);
 	if (targetSectionIndex == -1) {
-		const wxString preferredFamily = DerivePaletteGroupFromSectionType(preferredSectionType);
+		const wxString preferredFamily = !destinationFamilyKey.IsEmpty() ? destinationFamilyKey : DerivePaletteGroupFromSectionType(preferredSectionType);
 		for (size_t i = 0; i < targetPalette.sections.size(); ++i) {
 			if (DerivePaletteGroupFromSectionType(targetPalette.sections[i].sectionType).IsSameAs(preferredFamily, false)) {
 				targetSectionIndex = static_cast<int>(i);
@@ -1996,7 +2020,7 @@ void MaterialsWorkbenchPalettePanel::OnRemoveBrush(wxCommandEvent &event) {
 }
 
 void MaterialsWorkbenchPalettePanel::OnMoveBrushUp(wxCommandEvent &event) {
-	if (!MoveSelectedBrushByOffset(-1, "up")) {
+	if (!MoveSelectedEntryByOffset(-1, "up")) {
 		return;
 	}
 
@@ -2005,7 +2029,7 @@ void MaterialsWorkbenchPalettePanel::OnMoveBrushUp(wxCommandEvent &event) {
 }
 
 void MaterialsWorkbenchPalettePanel::OnMoveBrushDown(wxCommandEvent &event) {
-	if (!MoveSelectedBrushByOffset(1, "down")) {
+	if (!MoveSelectedEntryByOffset(1, "down")) {
 		return;
 	}
 

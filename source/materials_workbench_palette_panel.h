@@ -42,14 +42,14 @@ private:
 	void RefreshMoveDestinationFamilies();
 	void RefreshMoveDestinationPalettes();
 	void RefreshSelectionFeedback();
-	bool IsSelectedBrushEntry() const;
-	bool ResolveSelectedBrushEntry(int &sectionIndex, int &entryIndex, TilesetEntryRecord &entry) const;
+	bool IsSelectedMovableEntry() const;
+	bool ResolveSelectedMovableEntry(int &sectionIndex, int &entryIndex, TilesetEntryRecord &entry) const;
 	bool ResolveMoveDestinationPalette(TilesetStorageRecord &outTileset, wxString &outDisplayLabel) const;
 	int FindSectionIndexByName(const TilesetStorageRecord &tileset, const wxString &sectionName) const;
 	void NormalizePaletteOrdering(TilesetStorageRecord &tileset) const;
 	int GetSelectedVisibleEntryIndex() const;
 	bool ResolveVisibleEntryLocation(int visibleIndex, int &sectionIndex, int &entryIndex) const;
-	bool MoveSelectedBrushByOffset(int offset, const wxString &directionLabel);
+	bool MoveSelectedEntryByOffset(int offset, const wxString &directionLabel);
 	void UpdateButtonState();
 	void SetStatusMessage(const wxString &message);
 	bool CommitPalette(const wxString &successMessage, const wxString &previousPaletteName = wxString(), const wxString &selectionPaletteName = wxString());
