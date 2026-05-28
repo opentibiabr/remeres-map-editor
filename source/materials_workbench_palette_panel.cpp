@@ -337,8 +337,7 @@ private:
 		}
 
 		const wxRect logicalRect = GetTileRect(itemPosition);
-		wxPoint deviceOrigin;
-		CalcScrolledPosition(logicalRect.GetTopLeft(), &deviceOrigin.x, &deviceOrigin.y);
+		const wxPoint deviceOrigin = CalcScrolledPosition(logicalRect.GetTopLeft());
 		RefreshRect(wxRect(deviceOrigin, logicalRect.GetSize()), false);
 	}
 
