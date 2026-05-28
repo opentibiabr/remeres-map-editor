@@ -55,6 +55,10 @@ struct BorderSetItemRecord {
 	int sortOrder = 0;
 };
 
+struct BorderSetStorageRecord {
+	BorderSetRecord borderSet;
+	std::vector<BorderSetItemRecord> items;
+};
 struct GroundBorderCaseConditionRecord {
 	wxString conditionType;
 	int matchValue = 0;
@@ -190,9 +194,21 @@ struct TilesetSectionRecord {
 	std::vector<TilesetEntryRecord> entries;
 };
 
+struct PaletteGroupRecord {
+	int64_t id = 0;
+	wxString name;
+	wxString runtimeFamily;
+	int sortOrder = 0;
+	bool isBuiltin = false;
+};
+
 struct TilesetStorageRecord {
 	wxString name;
 	wxString sourceFile;
+	int64_t paletteGroupId = 0;
+	wxString paletteGroupName;
+	wxString paletteGroupRuntimeFamily;
+	int paletteGroupSortOrder = 0;
 	std::vector<TilesetSectionRecord> sections;
 };
 
@@ -322,6 +338,9 @@ private:
 	bool migrateToVersion4();
 	bool migrateToVersion5();
 	bool migrateToVersion6();
+	bool migrateToVersion7();
+	bool migrateToVersion8();
+	bool migrateToVersion9();
 	bool addColumnIfMissing(const wxString &tableName, const wxString &columnName, const wxString &definition);
 	bool executeStatements(std::initializer_list<const char*> statements);
 	bool addVersion2BrushColumns();
@@ -343,13 +362,17 @@ public:
 	bool findBrushByNameAndType(const wxString &name, const wxString &type, BrushRecord &outBrush);
 	bool getCompleteBrushById(int64_t brushId, BrushStorageRecord &outBrush);
 	bool updateBrush(const BrushRecord &brush);
+	bool updateBrushReferenceNames(int64_t brushId, const wxString &oldName, const wxString &newName);
 	bool deleteBrush(int64_t brushId);
 	bool deleteBrushesByType(const wxString &type);
 	bool replaceBrushItems(int64_t brushId, const std::vector<BrushItemRecord> &items);
 	bool getBrushItems(int64_t brushId, std::vector<BrushItemRecord> &outItems);
 	bool upsertBorderSet(const BorderSetRecord &borderSet, int64_t &borderSetId);
+	bool getBorderSetById(int64_t borderSetId, BorderSetRecord &outBorderSet);
 	bool findBorderSetByXmlBorderId(int xmlBorderId, BorderSetRecord &outBorderSet);
+	bool listBorderSetsByScope(const wxString &borderScope, std::vector<BorderSetRecord> &outBorderSets);
 	bool replaceBorderSetItems(int64_t borderSetId, const std::vector<BorderSetItemRecord> &items);
+	bool getBorderSetItems(int64_t borderSetId, std::vector<BorderSetItemRecord> &outItems);
 	bool deleteBorderSetsByScope(const wxString &borderScope);
 	bool deleteOwnedBorderSetsForBrush(int64_t brushId);
 	bool replaceGroundBrushBorders(int64_t brushId, const std::vector<GroundBrushBorderRecord> &borders);
@@ -372,6 +395,11 @@ public:
 	BrushDatabaseCatalogRepository(BrushDatabaseSession &session, BrushDatabaseSchemaManager &schemaManager);
 
 	bool replaceAllTilesets(const std::vector<TilesetStorageRecord> &tilesets);
+	bool saveTileset(const TilesetStorageRecord &tileset);
+	bool deleteTileset(const wxString &name);
+	bool savePaletteGroup(const PaletteGroupRecord &group);
+	bool deletePaletteGroup(const wxString &name);
+	bool getAllPaletteGroups(std::vector<PaletteGroupRecord> &outGroups);
 	bool getTilesetByName(const wxString &name, TilesetStorageRecord &outTileset);
 	bool getAllTilesets(std::vector<TilesetStorageRecord> &outTilesets);
 	bool generateAuditReport(MaterialsDatabaseAuditReport &outReport);
@@ -399,13 +427,19 @@ public:
 	bool testDatabaseConnection();
 
 	bool upsertBrush(const BrushRecord &brush, int64_t &brushId);
+	bool getBrushById(int64_t brushId, BrushRecord &outBrush);
+	bool updateBrush(const BrushRecord &brush);
 	bool listBrushesByType(const wxString &type, std::vector<BrushRecord> &outBrushes);
 	bool getCompleteBrushById(int64_t brushId, BrushStorageRecord &outBrush);
+	bool updateBrushReferenceNames(int64_t brushId, const wxString &oldName, const wxString &newName);
 	bool deleteBrushesByType(const wxString &type);
 	bool replaceBrushItems(int64_t brushId, const std::vector<BrushItemRecord> &items);
 	bool upsertBorderSet(const BorderSetRecord &borderSet, int64_t &borderSetId);
+	bool getBorderSetById(int64_t borderSetId, BorderSetRecord &outBorderSet);
 	bool findBorderSetByXmlBorderId(int xmlBorderId, BorderSetRecord &outBorderSet);
+	bool listBorderSetsByScope(const wxString &borderScope, std::vector<BorderSetRecord> &outBorderSets);
 	bool replaceBorderSetItems(int64_t borderSetId, const std::vector<BorderSetItemRecord> &items);
+	bool getBorderSetItems(int64_t borderSetId, std::vector<BorderSetItemRecord> &outItems);
 	bool deleteBorderSetsByScope(const wxString &borderScope);
 	bool deleteOwnedBorderSetsForBrush(int64_t brushId);
 	bool replaceGroundBrushBorders(int64_t brushId, const std::vector<GroundBrushBorderRecord> &borders);
@@ -417,6 +451,11 @@ public:
 	bool resolveGroundReferenceNames();
 
 	bool replaceAllTilesets(const std::vector<TilesetStorageRecord> &tilesets);
+	bool saveTileset(const TilesetStorageRecord &tileset);
+	bool deleteTileset(const wxString &name);
+	bool savePaletteGroup(const PaletteGroupRecord &group);
+	bool deletePaletteGroup(const wxString &name);
+	bool getAllPaletteGroups(std::vector<PaletteGroupRecord> &outGroups);
 	bool getAllTilesets(std::vector<TilesetStorageRecord> &outTilesets);
 	bool generateAuditReport(MaterialsDatabaseAuditReport &outReport);
 	bool hasCompleteImportForCurrentSchema(bool &outReady);

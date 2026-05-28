@@ -39,9 +39,106 @@ EVT_CHOICEBOOK_PAGE_CHANGING(wxID_ANY, BrushPalettePanel::OnSwitchingPage)
 EVT_CHOICEBOOK_PAGE_CHANGED(wxID_ANY, BrushPalettePanel::OnPageChanged)
 END_EVENT_TABLE()
 
-BrushPalettePanel::BrushPalettePanel(wxWindow* parent, const TilesetContainer &tilesets, TilesetCategoryType category, wxWindowID id) :
+namespace {
+	wxString BuildRuntimePaletteGroupDisplayName(const wxString &groupName) {
+		if (groupName.IsSameAs("terrain", false)) {
+			return "Terrain";
+		}
+		if (groupName.IsSameAs("doodad", false)) {
+			return "Doodad";
+		}
+		if (groupName.IsSameAs("item", false)) {
+			return "Item";
+		}
+		if (groupName.IsSameAs("other", false)) {
+			return "Other";
+		}
+		return groupName;
+	}
+
+	TilesetCategoryType ResolveRuntimePaletteCategory(const Tileset* tileset, TilesetCategoryType requestedCategory) {
+		if (!tileset) {
+			return TILESET_UNKNOWN;
+		}
+		if (requestedCategory != TILESET_UNKNOWN) {
+			return requestedCategory;
+		}
+
+		static const TilesetCategoryType kCandidateCategories[] = {
+			TILESET_TERRAIN,
+			TILESET_DOODAD,
+			TILESET_ITEM,
+			TILESET_RAW,
+		};
+		for (TilesetCategoryType category : kCandidateCategories) {
+			const TilesetCategory* tilesetCategory = tileset->getCategory(category);
+			if (tilesetCategory && !tilesetCategory->brushlist.empty()) {
+				return category;
+			}
+		}
+		return TILESET_UNKNOWN;
+	}
+
+	wxString DefaultPaletteGroupNameForCategory(TilesetCategoryType category) {
+		switch (category) {
+			case TILESET_TERRAIN:
+				return "terrain";
+			case TILESET_DOODAD:
+				return "doodad";
+			case TILESET_ITEM:
+				return "item";
+			case TILESET_RAW:
+				return "other";
+			default:
+				return wxString();
+		}
+	}
+
+	wxString ResolveRuntimePaletteGroupName(const Tileset* tileset, TilesetCategoryType category) {
+		if (!tileset) {
+			return DefaultPaletteGroupNameForCategory(category);
+		}
+		if (!tileset->paletteGroupName.empty()) {
+			return wxString::FromUTF8(tileset->paletteGroupName.c_str());
+		}
+
+		const TilesetCategoryType resolvedCategory = ResolveRuntimePaletteCategory(tileset, category);
+		if (resolvedCategory != TILESET_UNKNOWN) {
+			return DefaultPaletteGroupNameForCategory(resolvedCategory);
+		}
+
+		const wxString defaultGroup = DefaultPaletteGroupNameForCategory(category);
+		return defaultGroup.IsEmpty() ? wxString("other") : defaultGroup;
+	}
+
+	wxString BuildRuntimePalettePageLabel(const Tileset* tileset, TilesetCategoryType category, const wxString &paletteGroupFilter) {
+		if (!paletteGroupFilter.IsEmpty()) {
+			return wxString::FromUTF8(tileset->name.c_str());
+		}
+		const wxString defaultGroup = DefaultPaletteGroupNameForCategory(category);
+		const wxString groupName = ResolveRuntimePaletteGroupName(tileset, category);
+		if (!groupName.IsEmpty() && !groupName.IsSameAs(defaultGroup, false)) {
+			return BuildRuntimePaletteGroupDisplayName(groupName) + " / " + wxString::FromUTF8(tileset->name.c_str());
+		}
+		if (category == TILESET_RAW && groupName.IsSameAs("other", false)) {
+			return "Other / " + wxString::FromUTF8(tileset->name.c_str());
+		}
+		return wxString::FromUTF8(tileset->name.c_str());
+	}
+}
+
+BrushPalettePanel::BrushPalettePanel(
+	wxWindow* parent,
+	const TilesetContainer &tilesets,
+	TilesetCategoryType category,
+	const wxString &displayName,
+	const wxString &paletteGroupFilter,
+	wxWindowID id
+) :
 	PalettePanel(parent, id),
-	paletteType(category) {
+	paletteType(category),
+	displayName_(displayName),
+	paletteGroupFilter_(paletteGroupFilter) {
 
 	// Create the tileset panel
 	const auto tsSizer = newd wxStaticBoxSizer(wxVERTICAL, this, "Tileset");
@@ -55,11 +152,58 @@ BrushPalettePanel::BrushPalettePanel(wxWindow* parent, const TilesetContainer &t
 
 	sizer->Add(pageInfoSizer);
 
+	struct RuntimePalettePageSeed {
+		Tileset* tileset = nullptr;
+		const TilesetCategory* tilesetCategory = nullptr;
+		wxString label;
+		int sortOrder = 0;
+		wxString groupName;
+	};
+
+	std::vector<RuntimePalettePageSeed> pageSeeds;
+	pageSeeds.reserve(tilesets.size());
 	for (auto it = tilesets.begin(); it != tilesets.end(); ++it) {
-		const auto tilesetCategory = it->second->getCategory(category);
+		const TilesetCategoryType requestedCategory = paletteGroupFilter_.IsEmpty() ? category : TILESET_UNKNOWN;
+		const TilesetCategoryType resolvedCategory = ResolveRuntimePaletteCategory(it->second, requestedCategory);
+		if (resolvedCategory == TILESET_UNKNOWN) {
+			continue;
+		}
+
+		const wxString groupName = ResolveRuntimePaletteGroupName(it->second, resolvedCategory);
+		if (!paletteGroupFilter_.IsEmpty() && !groupName.IsSameAs(paletteGroupFilter_, false)) {
+			continue;
+		}
+
+		const auto tilesetCategory = it->second->getCategory(resolvedCategory);
 		if (tilesetCategory && !tilesetCategory->brushlist.empty()) {
-			const auto panel = newd BrushPanel(choicebook, tilesetCategory);
-			choicebook->AddPage(panel, wxstr(it->second->name));
+			RuntimePalettePageSeed seed;
+			seed.tileset = it->second;
+			seed.tilesetCategory = tilesetCategory;
+			seed.label = BuildRuntimePalettePageLabel(it->second, resolvedCategory, paletteGroupFilter_);
+			seed.sortOrder = it->second->paletteGroupSortOrder;
+			seed.groupName = groupName;
+			pageSeeds.push_back(seed);
+		}
+	}
+
+	std::sort(pageSeeds.begin(), pageSeeds.end(), [](const RuntimePalettePageSeed &lhs, const RuntimePalettePageSeed &rhs) {
+		if (lhs.sortOrder != rhs.sortOrder) {
+			return lhs.sortOrder < rhs.sortOrder;
+		}
+		const int groupCmp = lhs.groupName.CmpNoCase(rhs.groupName);
+		if (groupCmp != 0) {
+			return groupCmp < 0;
+		}
+		return lhs.tileset->name < rhs.tileset->name;
+	});
+
+	for (const RuntimePalettePageSeed &seed : pageSeeds) {
+		const auto panel = newd BrushPanel(choicebook, seed.tilesetCategory);
+		choicebook->AddPage(panel, seed.label);
+		tilesetNamesByPage.push_back(seed.tileset->name);
+		const int pageIndex = static_cast<int>(choicebook->GetPageCount()) - 1;
+		for (Brush* brush : seed.tilesetCategory->brushlist) {
+			pageIndexByBrush.try_emplace(brush, pageIndex);
 		}
 	}
 
@@ -153,13 +297,24 @@ PaletteType BrushPalettePanel::GetType() const {
 	return paletteType;
 }
 
+wxString BrushPalettePanel::GetName() const {
+	if (!displayName_.IsEmpty()) {
+		return displayName_;
+	}
+	return PalettePanel::GetName();
+}
+
 BrushListType BrushPalettePanel::GetListType() const {
-	if (!choicebook) {
+	if (!choicebook || choicebook->GetPageCount() == 0) {
 		return BRUSHLIST_LISTBOX;
 	}
 
 	const auto panel = dynamic_cast<BrushPanel*>(choicebook->GetPage(0));
 	return panel->GetListType();
+}
+
+bool BrushPalettePanel::HasPages() const {
+	return choicebook && choicebook->GetPageCount() > 0;
 }
 
 void BrushPalettePanel::SetListType(BrushListType newListType) {
@@ -246,6 +401,21 @@ bool BrushPalettePanel::SelectBrush(const Brush* whatBrush) {
 		}
 	}
 
+	const auto pageIndexIt = pageIndexByBrush.find(whatBrush);
+	if (pageIndexIt != pageIndexByBrush.end()) {
+		const int targetPageIndex = pageIndexIt->second;
+		if (targetPageIndex >= 0 && targetPageIndex < static_cast<int>(choicebook->GetPageCount()) && targetPageIndex != choicebook->GetSelection()) {
+			panel = dynamic_cast<BrushPanel*>(choicebook->GetPage(targetPageIndex));
+			if (panel && panel->SelectBrush(whatBrush)) {
+				choicebook->ChangeSelection(targetPageIndex);
+				for (const auto palettePanel : tool_bars) {
+					palettePanel->SelectBrush(nullptr);
+				}
+				return true;
+			}
+		}
+	}
+
 	for (auto pageIndex = 0; pageIndex < choicebook->GetPageCount(); ++pageIndex) {
 		if (pageIndex == choicebook->GetSelection()) {
 			continue;
@@ -329,7 +499,11 @@ void BrushPalettePanel::OnClickAddItemToTileset(wxCommandEvent &WXUNUSED(event))
 	if (!choicebook) {
 		return;
 	}
-	const auto &tilesetName = choicebook->GetPageText(choicebook->GetSelection()).ToStdString();
+	const int selection = choicebook->GetSelection();
+	if (selection == wxNOT_FOUND || selection < 0 || selection >= static_cast<int>(tilesetNamesByPage.size())) {
+		return;
+	}
+	const std::string &tilesetName = tilesetNamesByPage[selection];
 
 	const auto it = g_materials.tilesets.find(tilesetName);
 
@@ -349,8 +523,6 @@ void BrushPalettePanel::OnPageUpdate(BrushBoxInterface* brushbox, int page) {
 		const auto currentPage = brushbox->GetCurrentPage();
 		const auto totalPages = brushbox->GetTotalPages();
 		currentPageCtrl->SetValue(wxString::Format("%d", currentPage));
-		Fit();
-		g_gui.aui_manager->Update();
 		brushbox->SelectFirstBrush();
 		nextPageButton->Enable(totalPages > currentPage);
 		previousPageButton->Enable(currentPage > 1);
@@ -432,12 +604,26 @@ END_EVENT_TABLE()
 BrushPanel::BrushPanel(wxWindow* parent, const TilesetCategory* tileset) :
 	wxPanel(parent, wxID_ANY), tileset(tileset) {
 	SetSizerAndFit(sizer);
+	RebuildBrushIndex();
 }
 
 void BrushPanel::AssignTileset(const TilesetCategory* newTileset) {
 	if (newTileset != tileset) {
 		InvalidateContents();
 		tileset = newTileset;
+		RebuildBrushIndex();
+	}
+}
+
+void BrushPanel::RebuildBrushIndex() {
+	brushIndices.clear();
+	if (!tileset) {
+		return;
+	}
+
+	brushIndices.reserve(tileset->brushlist.size());
+	for (size_t index = 0; index < tileset->brushlist.size(); ++index) {
+		brushIndices.emplace(tileset->brushlist[index], index);
 	}
 }
 
@@ -486,7 +672,7 @@ void BrushPanel::LoadContents() {
 	}
 	ASSERT(brushbox != nullptr);
 	sizer->Add(brushbox->GetSelfWindow(), 1, wxEXPAND);
-	Fit();
+	Layout();
 	brushbox->SelectFirstBrush();
 }
 
@@ -517,11 +703,9 @@ bool BrushPanel::SelectBrush(const Brush* whatBrush) {
 		return brushbox->SelectBrush(whatBrush);
 	}
 
-	for (const auto brush : tileset->brushlist) {
-		if (brush == whatBrush) {
-			LoadContents();
-			return brushbox->SelectBrush(whatBrush);
-		}
+	if (brushIndices.contains(whatBrush)) {
+		LoadContents();
+		return brushbox->SelectBrush(whatBrush);
 	}
 	return false;
 }
@@ -568,11 +752,13 @@ BrushIconBox::BrushIconBox(wxWindow* parent, const TilesetCategory* tileset, Ren
 	height = iconSize == RENDER_SIZE_32x32 ? std::max(g_settings.getInteger(Config::PALETTE_ROW_COUNT) / 2 + 1, 1) : std::max(g_settings.getInteger(Config::PALETTE_ROW_COUNT) + 1, 1);
 
 	const auto totalItems = (width * height);
-	totalPages = (tileset->brushlist.size() / totalItems) + 1;
+	totalPages = std::max(1, static_cast<int>((tileset->brushlist.size() + totalItems - 1) / totalItems));
 
 	SetScrollbars(20, 20, 8, 0, 0, 0, false);
 
 	brushButtons.reserve(totalItems);
+	rowsizers.reserve(height);
+	BuildButtonPool();
 
 	LoadContentByPage();
 
@@ -580,6 +766,57 @@ BrushIconBox::BrushIconBox(wxWindow* parent, const TilesetCategory* tileset, Ren
 	brushPalettePanel->SetPageInfo(wxString::Format("/%d", totalPages));
 	brushPalettePanel->EnableNextPage(totalPages > currentPage);
 	brushPalettePanel->EnablePreviousPage(currentPage > 1);
+}
+
+void BrushIconBox::BuildButtonPool() {
+	if (stacksizer) {
+		return;
+	}
+
+	stacksizer = newd wxBoxSizer(wxVERTICAL);
+	SetSizer(stacksizer);
+
+	if (tileset->brushlist.empty()) {
+		return;
+	}
+
+	const size_t buttonPoolSize = std::min(tileset->brushlist.size(), static_cast<size_t>(width * height));
+	for (int row = 0; row < height; ++row) {
+		auto rowSizer = newd wxBoxSizer(wxHORIZONTAL);
+		rowsizers.emplace_back(rowSizer);
+		stacksizer->Add(rowSizer);
+
+		for (int column = 0; column < width; ++column) {
+			if (brushButtons.size() >= buttonPoolSize) {
+				break;
+			}
+			const auto brushButton = newd BrushButton(this, tileset->brushlist.front(), iconSize);
+			rowSizer->Add(brushButton);
+			brushButtons.emplace_back(brushButton);
+		}
+	}
+}
+
+void BrushIconBox::RefreshPageButtons(size_t startOffset, size_t endOffset) {
+	Deselect();
+
+	size_t buttonIndex = 0;
+	for (size_t brushIndex = startOffset; brushIndex < endOffset && buttonIndex < brushButtons.size(); ++brushIndex, ++buttonIndex) {
+		auto* brushButton = brushButtons[buttonIndex];
+		brushButton->SetBrush(tileset->brushlist[brushIndex]);
+		if (!brushButton->IsShown()) {
+			brushButton->Show();
+		}
+		brushButton->SetValue(false);
+	}
+
+	for (; buttonIndex < brushButtons.size(); ++buttonIndex) {
+		auto* brushButton = brushButtons[buttonIndex];
+		brushButton->SetValue(false);
+		if (brushButton->IsShown()) {
+			brushButton->Hide();
+		}
+	}
 }
 
 bool BrushIconBox::LoadContentByPage(int page /* = 1 */) {
@@ -593,39 +830,17 @@ bool BrushIconBox::LoadContentByPage(int page /* = 1 */) {
 	auto endOffset = (width * height) * page;
 	endOffset = page > 1 ? endOffset : startOffset + endOffset;
 	endOffset = endOffset > tileset->brushlist.size() ? tileset->brushlist.size() : endOffset;
+	const size_t newVisibleButtonCount = endOffset - startOffset;
+	const bool needsLayout = visibleButtonCount != newVisibleButtonCount;
 
-	if (stacksizer) {
-		stacksizer->ShowItems(false);
-		stacksizer->Clear();
-		rowsizers.clear();
-		brushButtons.clear();
+	Freeze();
+	RefreshPageButtons(startOffset, endOffset);
+	if (needsLayout) {
+		Layout();
+		FitInside();
+		visibleButtonCount = newVisibleButtonCount;
 	}
-
-	stacksizer = newd wxBoxSizer(wxVERTICAL);
-	SetSizer(stacksizer);
-
-	auto rowSizer = newd wxBoxSizer(wxHORIZONTAL);
-
-	for (auto i = startOffset; i < endOffset; ++i) {
-		const auto brushButton = newd BrushButton(this, tileset->brushlist[i], iconSize);
-		brushButtons.emplace_back(brushButton);
-		rowSizer->Add(brushButton);
-
-		if (brushButtons.size() % width == 0) {
-			stacksizer->Add(rowSizer);
-			rowsizers.emplace_back(rowSizer);
-			rowSizer = newd wxBoxSizer(wxHORIZONTAL);
-		}
-	}
-
-	if (rowsizers.size() <= 0 || rowSizer != rowsizers.back()) {
-		stacksizer->Add(rowSizer);
-		rowsizers.emplace_back(rowSizer);
-	}
-
-	if (!stacksizer->AreAnyItemsShown()) {
-		stacksizer->ShowItems(true);
-	}
+	Thaw();
 
 	return true;
 }
@@ -645,10 +860,9 @@ Brush* BrushIconBox::GetSelectedBrush() const {
 }
 
 bool BrushIconBox::SelectPaginatedBrush(const Brush* whatBrush, BrushPalettePanel* brushPalettePanel) {
-	const auto brushIt = std::ranges::find(tileset->brushlist.begin(), tileset->brushlist.end(), whatBrush);
-
-	if (brushIt != tileset->brushlist.end()) {
-		const auto index = static_cast<size_t>(std::distance(tileset->brushlist.begin(), brushIt));
+	const auto brushIndexIt = brushIndices.find(whatBrush);
+	if (brushIndexIt != brushIndices.end()) {
+		const size_t index = brushIndexIt->second;
 		const auto pageSize = static_cast<size_t>(width * height);
 		const auto page = static_cast<int>(index / pageSize) + 1;
 		if (currentPage != page) {
@@ -796,11 +1010,10 @@ bool BrushListBox::SelectPaginatedBrush(const Brush* whatBrush, BrushPalettePane
 }
 
 bool BrushListBox::SelectBrush(const Brush* whatBrush) {
-	for (auto index = 0; index < tileset->brushlist.size(); ++index) {
-		if (tileset->brushlist[index] == whatBrush) {
-			SetSelection(index);
-			return true;
-		}
+	const auto brushIndexIt = brushIndices.find(whatBrush);
+	if (brushIndexIt != brushIndices.end()) {
+		SetSelection(brushIndexIt->second);
+		return true;
 	}
 	return false;
 }

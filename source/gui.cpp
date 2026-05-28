@@ -17,6 +17,7 @@
 
 #include "main.h"
 
+#include "brush_database.h"
 #include "gui.h"
 
 #include "application.h"
@@ -358,12 +359,15 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 		}
 	}
 
-	g_gui.SetLoadDone(50, "Loading materials.xml ...");
-	spdlog::info("Loading materials");
+	g_gui.SetLoadDone(50, "Loading materials catalog...");
+	spdlog::info("Loading materials catalog");
 	g_materials.initializeBrushDatabase(warnings);
 	auto materialsPath = wxString(data_path.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + "materials/materials.xml");
 	bool startAsyncSqliteBootstrap = false;
+	bool shouldLoadFromSqlite = false;
+	bool sqliteImportIncomplete = false;
 	if (g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
+		shouldLoadFromSqlite = g_brush_database.isOpen();
 		bool skipSqliteImport = false;
 		wxString sqliteImportStatus;
 		if (!g_materials.shouldSkipSqliteBootstrapImports(skipSqliteImport, sqliteImportStatus)) {
@@ -373,10 +377,34 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 			spdlog::info("{}", sqliteImportStatus.ToStdString());
 		} else {
 			spdlog::info("{}", sqliteImportStatus.ToStdString());
+			sqliteImportIncomplete = true;
 			startAsyncSqliteBootstrap = true;
 		}
 	}
-	if (!g_materials.loadMaterials(materialsPath, error, warnings)) {
+
+	bool loadedMaterialsFromSqlite = false;
+	if (shouldLoadFromSqlite) {
+		spdlog::info("[GUI::LoadDataFiles] Attempting to load materials catalog from SQLite.");
+		loadedMaterialsFromSqlite = g_brushes.loadFromDatabase(warnings) && g_materials.loadTilesetsFromDatabase(warnings);
+		if (loadedMaterialsFromSqlite && sqliteImportIncomplete) {
+			spdlog::info("[GUI::LoadDataFiles] SQLite catalog loaded successfully; background XML bootstrap deferred.");
+		}
+		if (!loadedMaterialsFromSqlite) {
+			warnings.push_back("SQLite materials load failed at runtime; falling back to XML and scheduling a rebuild.");
+			spdlog::warn("[GUI::LoadDataFiles] Falling back to XML materials after SQLite load failure.");
+			g_materials.clear();
+			g_brushes.clear();
+			if (g_brush_database.isOpen()) {
+				startAsyncSqliteBootstrap = true;
+				spdlog::info("[GUI::LoadDataFiles] Scheduling background SQLite rebuild after runtime load failure.");
+			}
+		}
+	}
+	if (!loadedMaterialsFromSqlite) {
+		error.clear();
+		spdlog::info("[GUI::LoadDataFiles] Loading materials catalog from XML.");
+	}
+	if (!loadedMaterialsFromSqlite && !g_materials.loadMaterials(materialsPath, error, warnings)) {
 		warnings.push_back("Couldn't load materials.xml: " + error);
 		spdlog::warn("[GUI::LoadDataFiles] {}: {}", materialsPath.ToStdString(), error.ToStdString());
 	}
@@ -983,7 +1011,7 @@ PaletteWindow* GUI::CreatePalette() {
 
 	auto* palette = newd PaletteWindow(root, g_materials.tilesets);
 	aui_manager->AddPane(palette, wxAuiPaneInfo().Caption("Palette").TopDockable(false).BottomDockable(false));
-	palette->OnUpdate(GetCurrentMapTab()->GetMap());
+	palette->OnUpdate(IsEditorOpen() ? &GetCurrentMap() : nullptr);
 	aui_manager->Update();
 
 	// Make us the active palette
@@ -997,7 +1025,12 @@ PaletteWindow* GUI::CreatePalette() {
 }
 
 void GUI::ActivatePalette(PaletteWindow* p) {
-	palettes.erase(std::find(palettes.begin(), palettes.end(), p));
+	const auto it = std::find(palettes.begin(), palettes.end(), p);
+	if (it == palettes.end()) {
+		return;
+	}
+
+	palettes.erase(it);
 	palettes.push_front(p);
 }
 
@@ -1019,6 +1052,146 @@ void GUI::RebuildPalettes() {
 		piter->ReloadSettings(IsEditorOpen() ? &GetCurrentMap() : nullptr);
 	}
 	aui_manager->Update();
+}
+
+bool GUI::ReloadMaterialPalettesFromDatabase(wxString &error, wxArrayString &warnings) {
+	error.clear();
+	warnings.clear();
+
+	if (!g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
+		error = "SQLite materials backend is disabled.";
+		return false;
+	}
+	if (!g_brush_database.isOpen()) {
+		error = "SQLite materials database is not open.";
+		return false;
+	}
+
+	struct PaletteRestoreState {
+		PaletteType selectedPage = TILESET_UNKNOWN;
+		Brush* selectedBrush = nullptr;
+		bool shown = true;
+	};
+
+	std::vector<PaletteRestoreState> states;
+	states.reserve(palettes.size());
+	for (PaletteWindow* palette : palettes) {
+		PaletteRestoreState state;
+		state.selectedPage = palette->GetSelectedPage();
+		state.selectedBrush = palette->GetSelectedBrush();
+		state.shown = aui_manager->GetPane(palette).IsShown();
+		states.push_back(state);
+	}
+
+	if (!g_materials.loadTilesetsFromDatabase(warnings)) {
+		error = "Failed to reload runtime tilesets from SQLite.";
+		if (!g_brush_database.getLastError().IsEmpty()) {
+			error += " " + g_brush_database.getLastError();
+		}
+		return false;
+	}
+
+	g_materials.createOtherTileset();
+	g_materials.createNpcTileset();
+
+	if (states.empty()) {
+		return true;
+	}
+
+	DestroyPalettes();
+
+	std::vector<PaletteWindow*> rebuiltPalettes;
+	rebuiltPalettes.reserve(states.size());
+	for (auto it = states.rbegin(); it != states.rend(); ++it) {
+		PaletteWindow* palette = CreatePalette();
+		if (!palette) {
+			error = "Failed to recreate runtime palettes after reloading materials.";
+			return false;
+		}
+		rebuiltPalettes.push_back(palette);
+	}
+
+	std::reverse(rebuiltPalettes.begin(), rebuiltPalettes.end());
+
+	for (size_t i = 0; i < rebuiltPalettes.size(); ++i) {
+		PaletteWindow* palette = rebuiltPalettes[i];
+		const PaletteRestoreState &state = states[i];
+		palette->SelectPage(state.selectedPage);
+		if (state.selectedBrush) {
+			palette->OnSelectBrush(state.selectedBrush, state.selectedPage);
+		}
+		palette->OnUpdateBrushSize(brush_shape, brush_size);
+		aui_manager->GetPane(palette).Show(state.shown);
+	}
+
+	if (current_brush) {
+		SelectBrushInternal(current_brush);
+	} else {
+		SelectBrush();
+	}
+
+	aui_manager->Update();
+	root->GetAuiToolBar()->UpdateBrushButtons();
+	return true;
+}
+
+bool GUI::SyncBrushInPalettes(const wxString &oldName, const wxString &newName, uint16_t effectiveLookId) {
+	if (newName.IsEmpty()) {
+		return false;
+	}
+
+	Brush* runtimeBrush = nullptr;
+	if (!oldName.IsEmpty()) {
+		runtimeBrush = g_brushes.getBrush(oldName.ToStdString());
+	}
+	if (!runtimeBrush) {
+		runtimeBrush = g_brushes.getBrush(newName.ToStdString());
+	}
+	if (!runtimeBrush) {
+		return false;
+	}
+
+	if (!oldName.IsEmpty() && oldName != newName) {
+		g_brushes.renameBrush(runtimeBrush, oldName.ToStdString(), newName.ToStdString());
+	}
+	runtimeBrush->setLookID(effectiveLookId);
+
+	struct PaletteRestoreState {
+		PaletteWindow* palette = nullptr;
+		PaletteType selectedPage = TILESET_UNKNOWN;
+		Brush* selectedBrush = nullptr;
+	};
+
+	std::vector<PaletteRestoreState> states;
+	states.reserve(palettes.size());
+	for (PaletteWindow* palette : palettes) {
+		PaletteRestoreState state;
+		state.palette = palette;
+		state.selectedPage = palette->GetSelectedPage();
+		state.selectedBrush = palette->GetSelectedBrush();
+		states.push_back(state);
+	}
+
+	for (const PaletteRestoreState &state : states) {
+		if (!state.palette) {
+			continue;
+		}
+
+		state.palette->InvalidateContents();
+		state.palette->SelectPage(state.selectedPage);
+		if (state.selectedBrush) {
+			state.palette->OnSelectBrush(state.selectedBrush, state.selectedPage);
+		}
+		state.palette->OnUpdateBrushSize(brush_shape, brush_size);
+	}
+
+	if (current_brush) {
+		SelectBrushInternal(current_brush);
+	}
+
+	aui_manager->Update();
+	root->GetAuiToolBar()->UpdateBrushButtons();
+	return true;
 }
 
 void GUI::ShowPalette() {

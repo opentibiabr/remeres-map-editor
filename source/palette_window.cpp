@@ -36,6 +36,74 @@
 // ============================================================================
 // Palette window
 
+namespace {
+	wxString ResolvePaletteGroupName(const Tileset* tileset) {
+		if (!tileset->paletteGroupName.empty()) {
+			return wxString::FromUTF8(tileset->paletteGroupName.c_str());
+		}
+		if (const TilesetCategory* terrainCategory = tileset->getCategory(TILESET_TERRAIN); terrainCategory && !terrainCategory->brushlist.empty()) {
+			return "terrain";
+		}
+		if (const TilesetCategory* doodadCategory = tileset->getCategory(TILESET_DOODAD); doodadCategory && !doodadCategory->brushlist.empty()) {
+			return "doodad";
+		}
+		if (const TilesetCategory* itemCategory = tileset->getCategory(TILESET_ITEM); itemCategory && !itemCategory->brushlist.empty()) {
+			return "item";
+		}
+		return "other";
+	}
+
+	PaletteType ResolvePaletteTypeFromGroupName(const wxString &groupName) {
+		if (groupName.IsSameAs("terrain", false)) {
+			return TILESET_TERRAIN;
+		}
+		if (groupName.IsSameAs("doodad", false)) {
+			return TILESET_DOODAD;
+		}
+		if (groupName.IsSameAs("item", false)) {
+			return TILESET_ITEM;
+		}
+		if (groupName.IsSameAs("other", false)) {
+			return TILESET_RAW;
+		}
+		return TILESET_UNKNOWN;
+	}
+
+	bool HasDisplayablePaletteContents(const Tileset* tileset, PaletteType paletteType) {
+		if (!tileset) {
+			return false;
+		}
+		if (paletteType == TILESET_UNKNOWN) {
+			static const PaletteType kCandidates[] = { TILESET_TERRAIN, TILESET_DOODAD, TILESET_ITEM, TILESET_RAW };
+			for (PaletteType candidate : kCandidates) {
+				if (const TilesetCategory* category = tileset->getCategory(candidate); category && !category->brushlist.empty()) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		const TilesetCategory* category = tileset->getCategory(paletteType);
+		return category && !category->brushlist.empty();
+	}
+
+	wxString BuildRuntimePaletteDisplayName(const wxString &groupName) {
+		if (groupName.IsSameAs("terrain", false)) {
+			return "Terrain";
+		}
+		if (groupName.IsSameAs("doodad", false)) {
+			return "Doodad";
+		}
+		if (groupName.IsSameAs("item", false)) {
+			return "Item";
+		}
+		if (groupName.IsSameAs("other", false)) {
+			return "Other";
+		}
+		return groupName;
+	}
+}
+
 BEGIN_EVENT_TABLE(PaletteWindow, wxPanel)
 EVT_CHOICEBOOK_PAGE_CHANGING(PALETTE_CHOICEBOOK, PaletteWindow::OnSwitchingPage)
 EVT_CHOICEBOOK_PAGE_CHANGED(PALETTE_CHOICEBOOK, PaletteWindow::OnPageChanged)
@@ -48,14 +116,44 @@ PaletteWindow::PaletteWindow(wxWindow* parent, const TilesetContainer &tilesets)
 	wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(230, 250)) {
 	SetMinSize(wxSize(225, 250));
 
-	terrainPalette = static_cast<BrushPalettePanel*>(CreateTerrainPalette(choicebook, tilesets));
-	choicebook->AddPage(terrainPalette, terrainPalette->GetName());
+	for (const RuntimePaletteSpec &spec : BuildRuntimePaletteSpecs(tilesets)) {
+		BrushPalettePanel* panel = nullptr;
+		switch (spec.paletteType) {
+			case TILESET_TERRAIN:
+				panel = CreateTerrainPalette(choicebook, tilesets, spec.displayName, spec.groupName);
+				if (spec.groupName.IsSameAs("terrain", false)) {
+					terrainPalette = panel;
+				}
+				break;
+			case TILESET_DOODAD:
+				panel = CreateDoodadPalette(choicebook, tilesets, spec.displayName, spec.groupName);
+				if (spec.groupName.IsSameAs("doodad", false)) {
+					doodadPalette = panel;
+				}
+				break;
+			case TILESET_ITEM:
+				panel = CreateItemPalette(choicebook, tilesets, spec.displayName, spec.groupName);
+				if (spec.groupName.IsSameAs("item", false)) {
+					itemPalette = panel;
+				}
+				break;
+			case TILESET_RAW:
+				panel = CreateRAWPalette(choicebook, tilesets, spec.displayName, spec.groupName);
+				if (spec.groupName.IsSameAs("other", false)) {
+					rawPalette = panel;
+				}
+				break;
+			case TILESET_UNKNOWN:
+				panel = CreateGroupPalette(choicebook, tilesets, spec.displayName, spec.groupName);
+				break;
+			default:
+				break;
+		}
 
-	doodadPalette = static_cast<BrushPalettePanel*>(CreateDoodadPalette(choicebook, tilesets));
-	choicebook->AddPage(doodadPalette, doodadPalette->GetName());
-
-	itemPalette = static_cast<BrushPalettePanel*>(CreateItemPalette(choicebook, tilesets));
-	choicebook->AddPage(itemPalette, itemPalette->GetName());
+		if (panel) {
+			AddRuntimePalettePage(panel);
+		}
+	}
 
 	housePalette = static_cast<HousePalettePanel*>(CreateHousePalette(choicebook, tilesets));
 	choicebook->AddPage(housePalette, housePalette->GetName());
@@ -71,9 +169,6 @@ PaletteWindow::PaletteWindow(wxWindow* parent, const TilesetContainer &tilesets)
 
 	npcPalette = static_cast<NpcPalettePanel*>(CreateNpcPalette(choicebook, tilesets));
 	choicebook->AddPage(npcPalette, npcPalette->GetName());
-
-	rawPalette = static_cast<BrushPalettePanel*>(CreateRAWPalette(choicebook, tilesets));
-	choicebook->AddPage(rawPalette, rawPalette->GetName());
 
 	// Setup sizers
 	const auto sizer = newd wxBoxSizer(wxVERTICAL);
@@ -99,34 +194,115 @@ void PaletteWindow::AddBrushSizePanel(PalettePanel* panel, const Config::Key con
 	panel->AddToolPanel(sizePanel);
 }
 
-PalettePanel* PaletteWindow::CreateTerrainPalette(wxWindow* parent, const TilesetContainer &tilesets) {
-	const auto panel = newd BrushPalettePanel(parent, tilesets, TILESET_TERRAIN);
-	panel->SetListType(wxstr(g_settings.getString(Config::PALETTE_TERRAIN_STYLE)));
+std::vector<PaletteWindow::RuntimePaletteSpec> PaletteWindow::BuildRuntimePaletteSpecs(const TilesetContainer &tilesets) {
+	std::vector<RuntimePaletteSpec> specs;
+	for (auto it = tilesets.begin(); it != tilesets.end(); ++it) {
+		const Tileset* tileset = it->second;
+		if (!tileset) {
+			continue;
+		}
 
-	AddBrushToolPanel(panel, Config::USE_LARGE_TERRAIN_TOOLBAR);
+		const wxString groupName = ResolvePaletteGroupName(tileset);
+		const PaletteType paletteType = ResolvePaletteTypeFromGroupName(groupName);
+		if (!HasDisplayablePaletteContents(tileset, TILESET_UNKNOWN)) {
+			continue;
+		}
 
-	AddBrushSizePanel(panel, Config::USE_LARGE_TERRAIN_TOOLBAR);
+		auto existing = std::find_if(specs.begin(), specs.end(), [&](const RuntimePaletteSpec &spec) {
+			return spec.groupName.IsSameAs(groupName, false);
+		});
+		if (existing != specs.end()) {
+			if (tileset->paletteGroupSortOrder < existing->sortOrder) {
+				existing->sortOrder = tileset->paletteGroupSortOrder;
+			}
+			continue;
+		}
 
+		RuntimePaletteSpec spec;
+		spec.groupName = groupName;
+		spec.displayName = BuildRuntimePaletteDisplayName(groupName);
+		spec.paletteType = paletteType;
+		spec.sortOrder = tileset->paletteGroupSortOrder;
+		specs.push_back(std::move(spec));
+	}
+
+	std::sort(specs.begin(), specs.end(), [](const RuntimePaletteSpec &lhs, const RuntimePaletteSpec &rhs) {
+		if (lhs.sortOrder != rhs.sortOrder) {
+			return lhs.sortOrder < rhs.sortOrder;
+		}
+		return lhs.displayName.CmpNoCase(rhs.displayName) < 0;
+	});
+
+	return specs;
+}
+
+void PaletteWindow::ConfigureRuntimePalettePanel(BrushPalettePanel* panel) {
+	if (!panel) {
+		return;
+	}
+
+	switch (panel->GetType()) {
+		case TILESET_TERRAIN:
+			panel->SetListType(wxstr(g_settings.getString(Config::PALETTE_TERRAIN_STYLE)));
+			AddBrushToolPanel(panel, Config::USE_LARGE_TERRAIN_TOOLBAR);
+			AddBrushSizePanel(panel, Config::USE_LARGE_TERRAIN_TOOLBAR);
+			break;
+		case TILESET_DOODAD:
+			panel->SetListType(wxstr(g_settings.getString(Config::PALETTE_DOODAD_STYLE)));
+			panel->AddToolPanel(newd BrushThicknessPanel(panel));
+			AddBrushSizePanel(panel, Config::USE_LARGE_DOODAD_SIZEBAR);
+			break;
+		case TILESET_ITEM:
+			panel->SetListType(wxstr(g_settings.getString(Config::PALETTE_ITEM_STYLE)));
+			AddBrushSizePanel(panel, Config::USE_LARGE_ITEM_SIZEBAR);
+			break;
+		case TILESET_RAW:
+			panel->SetListType(wxstr(g_settings.getString(Config::PALETTE_RAW_STYLE)));
+			AddBrushSizePanel(panel, Config::USE_LARGE_RAW_SIZEBAR);
+			break;
+		case TILESET_UNKNOWN:
+			panel->SetListType(BRUSHLIST_LARGE_ICONS);
+			AddBrushSizePanel(panel, Config::USE_LARGE_RAW_SIZEBAR);
+			break;
+		default:
+			break;
+	}
+}
+
+void PaletteWindow::AddRuntimePalettePage(BrushPalettePanel* panel) {
+	if (!panel) {
+		return;
+	}
+	if (!panel->HasPages()) {
+		panel->Destroy();
+		return;
+	}
+
+	runtimeBrushPalettes_.push_back(panel);
+	choicebook->AddPage(panel, panel->GetName());
+}
+
+BrushPalettePanel* PaletteWindow::CreateTerrainPalette(wxWindow* parent, const TilesetContainer &tilesets, const wxString &displayName, const wxString &paletteGroupFilter) {
+	const auto panel = newd BrushPalettePanel(parent, tilesets, TILESET_TERRAIN, displayName, paletteGroupFilter);
+	ConfigureRuntimePalettePanel(panel);
 	return panel;
 }
 
-PalettePanel* PaletteWindow::CreateDoodadPalette(wxWindow* parent, const TilesetContainer &tilesets) {
-	const auto panel = newd BrushPalettePanel(parent, tilesets, TILESET_DOODAD);
-	panel->SetListType(wxstr(g_settings.getString(Config::PALETTE_DOODAD_STYLE)));
-
-	panel->AddToolPanel(newd BrushThicknessPanel(panel));
-
-	AddBrushSizePanel(panel, Config::USE_LARGE_DOODAD_SIZEBAR);
-
+BrushPalettePanel* PaletteWindow::CreateDoodadPalette(wxWindow* parent, const TilesetContainer &tilesets, const wxString &displayName, const wxString &paletteGroupFilter) {
+	const auto panel = newd BrushPalettePanel(parent, tilesets, TILESET_DOODAD, displayName, paletteGroupFilter);
+	ConfigureRuntimePalettePanel(panel);
 	return panel;
 }
 
-PalettePanel* PaletteWindow::CreateItemPalette(wxWindow* parent, const TilesetContainer &tilesets) {
-	const auto panel = newd BrushPalettePanel(parent, tilesets, TILESET_ITEM);
-	panel->SetListType(wxstr(g_settings.getString(Config::PALETTE_ITEM_STYLE)));
+BrushPalettePanel* PaletteWindow::CreateItemPalette(wxWindow* parent, const TilesetContainer &tilesets, const wxString &displayName, const wxString &paletteGroupFilter) {
+	const auto panel = newd BrushPalettePanel(parent, tilesets, TILESET_ITEM, displayName, paletteGroupFilter);
+	ConfigureRuntimePalettePanel(panel);
+	return panel;
+}
 
-	AddBrushSizePanel(panel, Config::USE_LARGE_ITEM_SIZEBAR);
-
+BrushPalettePanel* PaletteWindow::CreateGroupPalette(wxWindow* parent, const TilesetContainer &tilesets, const wxString &displayName, const wxString &paletteGroupFilter) {
+	const auto panel = newd BrushPalettePanel(parent, tilesets, TILESET_UNKNOWN, displayName, paletteGroupFilter);
+	ConfigureRuntimePalettePanel(panel);
 	return panel;
 }
 
@@ -158,12 +334,9 @@ PalettePanel* PaletteWindow::CreateNpcPalette(wxWindow* parent, const TilesetCon
 	return panel;
 }
 
-PalettePanel* PaletteWindow::CreateRAWPalette(wxWindow* parent, const TilesetContainer &tilesets) {
-	const auto panel = newd BrushPalettePanel(parent, tilesets, TILESET_RAW);
-	panel->SetListType(wxstr(g_settings.getString(Config::PALETTE_RAW_STYLE)));
-
-	AddBrushSizePanel(panel, Config::USE_LARGE_RAW_SIZEBAR);
-
+BrushPalettePanel* PaletteWindow::CreateRAWPalette(wxWindow* parent, const TilesetContainer &tilesets, const wxString &displayName, const wxString &paletteGroupFilter) {
+	const auto panel = newd BrushPalettePanel(parent, tilesets, TILESET_RAW, displayName, paletteGroupFilter);
+	ConfigureRuntimePalettePanel(panel);
 	return panel;
 }
 
@@ -183,14 +356,75 @@ bool PaletteWindow::CanSelectBrush(PalettePanel* palette, const Brush* whatBrush
 	return palette->SelectBrush(whatBrush);
 }
 
-void PaletteWindow::ReloadSettings(Map* map) {
-	if (terrainPalette) {
-		terrainPalette->SetListType(wxstr(g_settings.getString(Config::PALETTE_TERRAIN_STYLE)));
-		terrainPalette->SetToolbarIconSize(g_settings.getBoolean(Config::USE_LARGE_TERRAIN_TOOLBAR));
+bool PaletteWindow::TrySelectRuntimeBrush(const Brush* whatBrush, PaletteType preferredType, bool onlyPreferredType) {
+	for (BrushPalettePanel* panel : runtimeBrushPalettes_) {
+		if (!panel) {
+			continue;
+		}
+		if (preferredType != TILESET_UNKNOWN && panel->GetType() != preferredType) {
+			continue;
+		}
+		if (panel->SelectBrush(whatBrush)) {
+			const int pageIndex = choicebook->FindPage(panel);
+			if (pageIndex != wxNOT_FOUND) {
+				choicebook->SetSelection(pageIndex);
+			}
+			return true;
+		}
 	}
-	if (doodadPalette) {
-		doodadPalette->SetListType(wxstr(g_settings.getString(Config::PALETTE_DOODAD_STYLE)));
-		doodadPalette->SetToolbarIconSize(g_settings.getBoolean(Config::USE_LARGE_DOODAD_SIZEBAR));
+
+	if (onlyPreferredType) {
+		return false;
+	}
+
+	for (BrushPalettePanel* panel : runtimeBrushPalettes_) {
+		if (!panel) {
+			continue;
+		}
+		if (preferredType != TILESET_UNKNOWN && panel->GetType() == preferredType) {
+			continue;
+		}
+		if (panel->SelectBrush(whatBrush)) {
+			const int pageIndex = choicebook->FindPage(panel);
+			if (pageIndex != wxNOT_FOUND) {
+				choicebook->SetSelection(pageIndex);
+			}
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void PaletteWindow::ReloadSettings(Map* map) {
+	for (BrushPalettePanel* panel : runtimeBrushPalettes_) {
+		if (!panel) {
+			continue;
+		}
+		switch (panel->GetType()) {
+			case TILESET_TERRAIN:
+				panel->SetListType(wxstr(g_settings.getString(Config::PALETTE_TERRAIN_STYLE)));
+				panel->SetToolbarIconSize(g_settings.getBoolean(Config::USE_LARGE_TERRAIN_TOOLBAR));
+				break;
+			case TILESET_DOODAD:
+				panel->SetListType(wxstr(g_settings.getString(Config::PALETTE_DOODAD_STYLE)));
+				panel->SetToolbarIconSize(g_settings.getBoolean(Config::USE_LARGE_DOODAD_SIZEBAR));
+				break;
+			case TILESET_ITEM:
+				panel->SetListType(wxstr(g_settings.getString(Config::PALETTE_ITEM_STYLE)));
+				panel->SetToolbarIconSize(g_settings.getBoolean(Config::USE_LARGE_ITEM_SIZEBAR));
+				break;
+			case TILESET_RAW:
+				panel->SetListType(wxstr(g_settings.getString(Config::PALETTE_RAW_STYLE)));
+				panel->SetToolbarIconSize(g_settings.getBoolean(Config::USE_LARGE_RAW_SIZEBAR));
+				break;
+			case TILESET_UNKNOWN:
+				panel->SetListType(BRUSHLIST_LARGE_ICONS);
+				panel->SetToolbarIconSize(g_settings.getBoolean(Config::USE_LARGE_RAW_SIZEBAR));
+				break;
+			default:
+				break;
+		}
 	}
 	if (housePalette) {
 		housePalette->SetMap(map);
@@ -201,14 +435,6 @@ void PaletteWindow::ReloadSettings(Map* map) {
 	}
 	if (zonesPalette) {
 		zonesPalette->SetMap(map);
-	}
-	if (itemPalette) {
-		itemPalette->SetListType(wxstr(g_settings.getString(Config::PALETTE_ITEM_STYLE)));
-		itemPalette->SetToolbarIconSize(g_settings.getBoolean(Config::USE_LARGE_ITEM_SIZEBAR));
-	}
-	if (rawPalette) {
-		rawPalette->SetListType(wxstr(g_settings.getString(Config::PALETTE_RAW_STYLE)));
-		rawPalette->SetToolbarIconSize(g_settings.getBoolean(Config::USE_LARGE_RAW_SIZEBAR));
 	}
 	InvalidateContents();
 }
@@ -336,20 +562,19 @@ bool PaletteWindow::OnSelectBrush(const Brush* whatBrush, PaletteType primary) {
 
 	switch (primary) {
 		case TILESET_TERRAIN: {
-			// This is already searched first
+			if (TrySelectRuntimeBrush(whatBrush, TILESET_TERRAIN, true)) {
+				return true;
+			}
 			break;
 		}
 		case TILESET_DOODAD: {
-			// Ok, search doodad before terrain
-			if (CanSelectBrush(doodadPalette, whatBrush)) {
-				SelectPage(TILESET_DOODAD);
+			if (TrySelectRuntimeBrush(whatBrush, TILESET_DOODAD, true)) {
 				return true;
 			}
 			break;
 		}
 		case TILESET_ITEM: {
-			if (CanSelectBrush(itemPalette, whatBrush)) {
-				SelectPage(TILESET_ITEM);
+			if (TrySelectRuntimeBrush(whatBrush, TILESET_ITEM, true)) {
 				return true;
 			}
 			break;
@@ -369,8 +594,7 @@ bool PaletteWindow::OnSelectBrush(const Brush* whatBrush, PaletteType primary) {
 			break;
 		}
 		case TILESET_RAW: {
-			if (CanSelectBrush(rawPalette, whatBrush)) {
-				SelectPage(TILESET_RAW);
+			if (TrySelectRuntimeBrush(whatBrush, TILESET_RAW, true)) {
 				return true;
 			}
 			break;
@@ -379,21 +603,7 @@ bool PaletteWindow::OnSelectBrush(const Brush* whatBrush, PaletteType primary) {
 			break;
 	}
 
-	// Test if it's a terrain brush
-	if (CanSelectBrush(terrainPalette, whatBrush)) {
-		SelectPage(TILESET_TERRAIN);
-		return true;
-	}
-
-	// Test if it's a doodad brush
-	if (primary != TILESET_DOODAD && CanSelectBrush(doodadPalette, whatBrush)) {
-		SelectPage(TILESET_DOODAD);
-		return true;
-	}
-
-	// Test if it's an item brush
-	if (primary != TILESET_ITEM && CanSelectBrush(itemPalette, whatBrush)) {
-		SelectPage(TILESET_ITEM);
+	if (TrySelectRuntimeBrush(whatBrush, primary, false)) {
 		return true;
 	}
 
@@ -406,12 +616,6 @@ bool PaletteWindow::OnSelectBrush(const Brush* whatBrush, PaletteType primary) {
 	// Test if it's a npc brush
 	if (primary != TILESET_NPC && CanSelectBrush(npcPalette, whatBrush)) {
 		SelectPage(TILESET_NPC);
-		return true;
-	}
-
-	// Test if it's a raw brush
-	if (primary != TILESET_RAW && CanSelectBrush(rawPalette, whatBrush)) {
-		SelectPage(TILESET_RAW);
 		return true;
 	}
 

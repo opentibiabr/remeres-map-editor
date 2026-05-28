@@ -42,6 +42,7 @@ public:
 
 	Brush* brush;
 
+	void SetBrush(Brush* newBrush);
 	void OnKey(wxKeyEvent &event);
 
 	DECLARE_EVENT_TABLE()

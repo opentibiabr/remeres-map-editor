@@ -72,9 +72,13 @@ public:
 	Brush* getBrush(const std::string &name) const;
 
 	void addBrush(Brush* brush);
+	bool renameBrush(Brush* brush, const std::string &oldName, const std::string &newName);
+	bool reloadBrushFromDatabase(int64_t brushId, wxArrayString &warnings, wxString &error);
+	bool reloadBorderSetFromDatabase(int64_t borderSetId, wxArrayString &warnings, wxString &error);
 
 	bool unserializeBorder(pugi::xml_node node, wxArrayString &warnings);
 	bool unserializeBrush(pugi::xml_node node, wxArrayString &warnings);
+	bool loadFromDatabase(wxArrayString &warnings);
 
 	const BrushMap &getMap() const noexcept {
 		return brushes;
@@ -115,6 +119,8 @@ public:
 	virtual std::string getName() const = 0;
 	virtual void setName(const std::string &newName) {
 		ASSERT(_MSG("setName attempted on nameless brush!"));
+	}
+	virtual void setLookID(uint16_t newLookId) {
 	}
 
 	virtual int getLookID() const = 0;
@@ -297,6 +303,9 @@ public:
 	}
 	virtual void setName(const std::string &newName) {
 		name = newName;
+	}
+	virtual void setLookID(uint16_t newLookId) {
+		look_id = newLookId;
 	}
 
 	virtual int32_t getZ() const {

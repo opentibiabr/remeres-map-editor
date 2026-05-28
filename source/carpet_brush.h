@@ -39,6 +39,7 @@ public:
 	}
 
 	virtual bool load(pugi::xml_node node, wxArrayString &warnings);
+	void resetRuntimeState();
 
 	virtual bool canDraw(BaseMap* map, const Position &position) const;
 	virtual void draw(BaseMap* map, Tile* tile, void* parameter);
