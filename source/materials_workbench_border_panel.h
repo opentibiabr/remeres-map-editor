@@ -14,6 +14,7 @@ class ItemToggleButton;
 class MaterialsWorkbenchController;
 class wxButton;
 class wxChoice;
+class wxPanel;
 class wxSpinCtrl;
 class wxStaticText;
 class wxTextCtrl;
@@ -89,8 +90,6 @@ private:
 	std::map<int64_t, wxString> borderSetSelectedEdges_;
 	std::map<wxString, ItemToggleButton*> slotButtons_;
 	std::map<wxString, wxStaticText*> slotValueLabels_;
-	std::map<wxString, ItemButton*> previewButtons_;
-	std::map<wxString, wxPanel*> previewCellPanels_;
 
 	wxStaticText* titleLabel_ = nullptr;
 	wxStaticText* subtitleLabel_ = nullptr;
@@ -114,7 +113,7 @@ private:
 	ItemButton* selectedItemPreview_ = nullptr;
 	ItemButton* centerGroundSlotPreview_ = nullptr;
 	wxStaticText* centerGroundSlotValueLabel_ = nullptr;
-	ItemButton* centerGroundPreview_ = nullptr;
+	wxPanel* previewMatrixPanel_ = nullptr;
 	wxStaticText* previewSelectionLabel_ = nullptr;
 	wxStaticText* statusLabel_ = nullptr;
 };

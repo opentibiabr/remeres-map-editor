@@ -7,6 +7,7 @@
 
 #include <wx/button.h>
 #include <wx/choice.h>
+#include <wx/dcbuffer.h>
 #include <wx/msgdlg.h>
 #include <wx/scrolwin.h>
 #include <wx/settings.h>
@@ -19,8 +20,10 @@
 
 #include "common_windows.h"
 #include "find_item_window.h"
+#include "graphics.h"
 #include "items.h"
 #include "materials_workbench_controller.h"
+#include "gui.h"
 
 namespace {
 	bool IsKnownBorderPanelItemId(int itemId) {
@@ -56,7 +59,6 @@ namespace {
 	constexpr int kBorderGridCenterIndex = 2;
 	constexpr int kBorderGridGapDip = 4;
 	constexpr int kBorderGridCellSizeDip = 84;
-	constexpr int kBorderPreviewCellSizeDip = 46;
 
 	const BorderEdgeSpec* FindEdgeSpec(const wxString &edge) {
 		for (const BorderEdgeSpec &spec : kBorderEdgeSpecs) {
@@ -165,6 +167,139 @@ namespace {
 		spacer->SetBackgroundColour(parent->GetBackgroundColour());
 		return spacer;
 	}
+
+	wxPoint GetBorderPreviewDisplayCell(const BorderEdgeSpec &spec) {
+		int row = spec.row;
+		int col = spec.col;
+
+		// Pull the outer silhouette inward without inventing extra center fill.
+		if (row == 0 && col == 0) {
+			return wxPoint(1, 0);
+		}
+		if (row == 0 && col == 4) {
+			return wxPoint(3, 0);
+		}
+		if (row == 4 && col == 0) {
+			return wxPoint(1, 4);
+		}
+		if (row == 4 && col == 4) {
+			return wxPoint(3, 4);
+		}
+		return wxPoint(col, row);
+	}
+
+	std::vector<wxPoint> GetBorderPreviewDuplicateCells(const wxString &edge) {
+		if (edge == "cse") {
+			return {wxPoint(0, 1)}; // b1
+		}
+		if (edge == "csw") {
+			return {wxPoint(4, 1)}; // b5
+		}
+		if (edge == "cne") {
+			return {wxPoint(0, 3)}; // d1
+		}
+		if (edge == "cnw") {
+			return {wxPoint(4, 3)}; // d5
+		}
+		return {};
+	}
+
+	class BorderPreviewMatrixPanel : public wxPanel {
+	public:
+		explicit BorderPreviewMatrixPanel(wxWindow* parent) :
+			wxPanel(parent, wxID_ANY) {
+			SetBackgroundStyle(wxBG_STYLE_PAINT);
+			SetMinSize(wxSize(FromDIP(172), FromDIP(172)));
+			Bind(wxEVT_PAINT, &BorderPreviewMatrixPanel::OnPaint, this);
+		}
+
+		void SetPreviewState(const std::map<wxString, int> &slotItemIds, int centerItemId, const wxString &selectedEdge) {
+			slotItemIds_ = slotItemIds;
+			centerItemId_ = centerItemId;
+			selectedEdge_ = selectedEdge;
+			Refresh();
+		}
+
+	private:
+		void DrawSprite(wxDC &dc, int itemId, int x, int y, int size) const {
+			if (itemId <= 0) {
+				return;
+			}
+			if (Sprite* sprite = g_gui.gfx.getSprite(itemId)) {
+				sprite->DrawTo(&dc, SPRITE_SIZE_32x32, x, y, size, size);
+			}
+		}
+
+		void OnPaint(wxPaintEvent &) {
+			wxAutoBufferedPaintDC dc(this);
+			const wxSize clientSize = GetClientSize();
+			dc.SetBackground(wxBrush(wxColour(12, 12, 12)));
+			dc.Clear();
+
+			const int tileSize = std::max(1, std::min(clientSize.GetWidth(), clientSize.GetHeight()) / kBorderGridSize);
+			const int sceneSize = tileSize * kBorderGridSize;
+			const int originX = std::max(0, (clientSize.GetWidth() - sceneSize) / 2);
+			const int originY = std::max(0, (clientSize.GetHeight() - sceneSize) / 2);
+
+			if (centerItemId_ > 0) {
+				DrawSprite(
+					dc,
+					centerItemId_,
+					originX + kBorderGridCenterIndex * tileSize,
+					originY + kBorderGridCenterIndex * tileSize,
+					tileSize
+				);
+			}
+
+			for (const BorderEdgeSpec &spec : kBorderEdgeSpecs) {
+				const wxString edge = wxString::FromUTF8(spec.edge);
+				const auto it = slotItemIds_.find(edge);
+				if (it == slotItemIds_.end() || it->second <= 0) {
+					continue;
+				}
+				for (const wxPoint &duplicateCell : GetBorderPreviewDuplicateCells(edge)) {
+					DrawSprite(dc, it->second, originX + duplicateCell.x * tileSize, originY + duplicateCell.y * tileSize, tileSize);
+				}
+			}
+
+			for (const BorderEdgeSpec &spec : kBorderEdgeSpecs) {
+				const wxString edge = wxString::FromUTF8(spec.edge);
+				const auto it = slotItemIds_.find(edge);
+				if (it == slotItemIds_.end() || it->second <= 0) {
+					continue;
+				}
+				const wxPoint displayCell = GetBorderPreviewDisplayCell(spec);
+				DrawSprite(dc, it->second, originX + displayCell.x * tileSize, originY + displayCell.y * tileSize, tileSize);
+			}
+
+			if (!selectedEdge_.IsEmpty()) {
+				if (const BorderEdgeSpec* selectedSpec = FindEdgeSpec(selectedEdge_)) {
+					const wxPoint displayCell = GetBorderPreviewDisplayCell(*selectedSpec);
+					wxRect highlightRect(
+						originX + displayCell.x * tileSize,
+						originY + displayCell.y * tileSize,
+						tileSize,
+						tileSize
+					);
+					dc.SetPen(wxPen(wxColour(255, 215, 90), std::max(1, FromDIP(2))));
+					dc.SetBrush(wxBrush(wxColour(255, 215, 90, 48)));
+					dc.DrawRectangle(highlightRect);
+					for (const wxPoint &duplicateCell : GetBorderPreviewDuplicateCells(selectedEdge_)) {
+						dc.DrawRectangle(wxRect(
+							originX + duplicateCell.x * tileSize,
+							originY + duplicateCell.y * tileSize,
+							tileSize,
+							tileSize
+						));
+					}
+				}
+			}
+		}
+
+		std::map<wxString, int> slotItemIds_;
+		int centerItemId_ = 0;
+		wxString selectedEdge_;
+	};
 
 	class BorderSlotButton : public ItemToggleButton {
 	public:
@@ -439,59 +574,11 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	StyleBorderWorkspaceStrongValue(previewSelectionLabel_);
 	previewHint->Wrap(FromDIP(220));
 	previewSelectionLabel_->Wrap(FromDIP(220));
-	wxFlexGridSizer* previewGridSizer = new wxFlexGridSizer(kBorderGridSize, kBorderGridSize, FromDIP(kBorderGridGapDip), FromDIP(kBorderGridGapDip));
-
-	for (int row = 0; row < kBorderGridSize; ++row) {
-		for (int col = 0; col < kBorderGridSize; ++col) {
-			const BorderEdgeSpec* specForCell = FindEdgeSpecForCell(row, col);
-
-			if (IsBorderGridCenterCell(row, col)) {
-				wxPanel* centerPanel = new wxPanel(scrolled, wxID_ANY);
-				centerPanel->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_BTNFACE));
-				wxBoxSizer* centerSizer = new wxBoxSizer(wxVERTICAL);
-				centerGroundPreview_ = new ItemButton(centerPanel, RENDER_SIZE_32x32, 0);
-				centerGroundPreview_->Enable(false);
-				wxStaticText* centerHint = new wxStaticText(centerPanel, wxID_ANY, "ground");
-				StyleBorderWorkspaceCaption(centerHint);
-
-				centerSizer->AddStretchSpacer(1);
-				centerSizer->Add(centerGroundPreview_, 0, wxALIGN_CENTER | wxBOTTOM, FromDIP(2));
-				centerSizer->Add(centerHint, 0, wxALIGN_CENTER);
-				centerSizer->AddStretchSpacer(1);
-				centerPanel->SetSizer(centerSizer);
-				centerPanel->SetMinSize(wxSize(FromDIP(kBorderPreviewCellSizeDip), FromDIP(kBorderPreviewCellSizeDip)));
-				previewCellPanels_["center"] = centerPanel;
-				previewGridSizer->Add(centerPanel, 0, wxEXPAND);
-				continue;
-			}
-
-			if (!specForCell) {
-				previewGridSizer->Add(CreateSpacerCell(scrolled, kBorderPreviewCellSizeDip), 0, wxEXPAND);
-				continue;
-			}
-
-			wxString edge = wxString::FromUTF8(specForCell->edge);
-			wxPanel* cell = new wxPanel(scrolled, wxID_ANY);
-			cell->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
-			wxBoxSizer* cellSizer = new wxBoxSizer(wxVERTICAL);
-			ItemButton* previewButton = new ItemButton(cell, RENDER_SIZE_32x32, 0);
-			previewButton->Enable(false);
-
-			cellSizer->AddStretchSpacer(1);
-			cellSizer->Add(previewButton, 0, wxALIGN_CENTER);
-			cellSizer->AddStretchSpacer(1);
-			cell->SetSizer(cellSizer);
-			cell->SetMinSize(wxSize(FromDIP(kBorderPreviewCellSizeDip), FromDIP(kBorderPreviewCellSizeDip)));
-
-			previewButtons_[edge] = previewButton;
-			previewCellPanels_[edge] = cell;
-			previewGridSizer->Add(cell, 0, wxEXPAND);
-		}
-	}
+	previewMatrixPanel_ = new BorderPreviewMatrixPanel(scrolled);
 
 	previewBox->Add(previewHint, 0, wxLEFT | wxRIGHT | wxTOP, FromDIP(8));
 	previewBox->Add(previewSelectionLabel_, 0, wxLEFT | wxRIGHT | wxTOP, FromDIP(4));
-	previewBox->Add(previewGridSizer, 0, wxALL, FromDIP(8));
+	previewBox->Add(previewMatrixPanel_, 0, wxALL, FromDIP(8));
 
 	wxBoxSizer* leftColumn = new wxBoxSizer(wxVERTICAL);
 	leftColumn->Add(metadataBox, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
@@ -595,9 +682,6 @@ void MaterialsWorkbenchBorderPanel::ClearWorkspace(const wxString &message) {
 	if (centerGroundSlotValueLabel_) {
 		centerGroundSlotValueLabel_->SetLabel("not set");
 	}
-	if (centerGroundPreview_) {
-		centerGroundPreview_->SetSprite(0);
-	}
 	if (previewSelectionLabel_) {
 		previewSelectionLabel_->SetLabel("Selected preview slot: none");
 	}
@@ -612,8 +696,8 @@ void MaterialsWorkbenchBorderPanel::ClearWorkspace(const wxString &message) {
 	for (const auto &entry : slotValueLabels_) {
 		entry.second->SetLabel("item 0");
 	}
-	for (const auto &entry : previewButtons_) {
-		entry.second->SetSprite(0);
+	if (previewMatrixPanel_) {
+		static_cast<BorderPreviewMatrixPanel*>(previewMatrixPanel_)->SetPreviewState({}, 0, "");
 	}
 	RefreshPreviewSelectionState();
 
@@ -1041,25 +1125,13 @@ void MaterialsWorkbenchBorderPanel::RefreshSlotGrid() {
 void MaterialsWorkbenchBorderPanel::RefreshPreviewGrid() {
 	const int centerPreviewItemId = ResolveCenterPreviewItemId();
 	const wxString centerSourceLabel = ResolveCenterSourceLabel();
-	if (centerGroundPreview_) {
-		centerGroundPreview_->SetSprite(centerPreviewItemId);
-		centerGroundPreview_->SetToolTip(
+	if (previewMatrixPanel_) {
+		previewMatrixPanel_->SetToolTip(
 			centerPreviewItemId > 0
-				? wxString::Format("Center preview resolves to %s.", centerSourceLabel)
-				: wxString::Format("Center preview source: %s.", centerSourceLabel)
+				? wxString::Format("Preview composes the runtime scene from the 5x5 matrix using %s as base ground.", centerSourceLabel)
+				: wxString::Format("Preview composes the runtime scene from the 5x5 matrix. Center source: %s.", centerSourceLabel)
 		);
-	}
-
-	for (const auto &entry : previewButtons_) {
-		const wxString &edge = entry.first;
-		const wxString slotLabel = GetBorderEdgeDisplayLabel(edge);
-		const int itemId = slotItemIds_.count(edge) > 0 ? slotItemIds_[edge] : 0;
-		entry.second->SetSprite(itemId);
-		entry.second->SetToolTip(
-			itemId > 0
-				? wxString::Format("%s preview uses item %d.", slotLabel, itemId)
-				: wxString::Format("%s preview is empty.", slotLabel)
-		);
+		static_cast<BorderPreviewMatrixPanel*>(previewMatrixPanel_)->SetPreviewState(slotItemIds_, centerPreviewItemId, selectedEdge_);
 	}
 
 	if (previewSelectionLabel_) {
@@ -1079,15 +1151,8 @@ void MaterialsWorkbenchBorderPanel::RefreshPreviewGrid() {
 }
 
 void MaterialsWorkbenchBorderPanel::RefreshPreviewSelectionState() {
-	const wxColour defaultBackground = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW);
-	const wxColour centerBackground = wxSystemSettings::GetColour(wxSYS_COLOUR_BTNFACE);
-	const wxColour selectedBackground = wxSystemSettings::GetColour(wxSYS_COLOUR_INFOBK);
-
-	for (const auto &entry : previewCellPanels_) {
-		const bool isSelected = entry.first == selectedEdge_;
-		const wxColour baseBackground = entry.first == "center" ? centerBackground : defaultBackground;
-		entry.second->SetBackgroundColour(isSelected ? selectedBackground : baseBackground);
-		entry.second->Refresh();
+	if (previewMatrixPanel_) {
+		previewMatrixPanel_->Refresh();
 	}
 }
 
