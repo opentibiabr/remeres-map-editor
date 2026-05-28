@@ -3,6 +3,7 @@
 #include "materials_workbench_palette_panel.h"
 
 #include <algorithm>
+#include <unordered_map>
 #include <utility>
 
 #include <wx/button.h>
@@ -69,6 +70,7 @@ public:
 		const int previousSelectedIndex = selectedIndex_;
 
 		items_ = items;
+		RebuildItemPositions();
 		UpdateVirtualSize();
 
 		selectedIndex_ = -1;
@@ -98,8 +100,9 @@ public:
 		if (selectedIndex_ == index) {
 			return;
 		}
+		const int previousSelectedIndex = selectedIndex_;
 		selectedIndex_ = index;
-		Refresh();
+		RefreshSelectionTiles(previousSelectedIndex, selectedIndex_);
 		if (onSelectionChanged_) {
 			onSelectionChanged_(selectedIndex_);
 		}
@@ -148,12 +151,7 @@ private:
 	int HitTestItem(const wxPoint &position) const {
 		wxPoint logical = position;
 		CalcUnscrolledPosition(position.x, position.y, &logical.x, &logical.y);
-		for (size_t i = 0; i < items_.size(); ++i) {
-			if (GetTileRect(i).Contains(logical)) {
-				return static_cast<int>(i);
-			}
-		}
-		return wxNOT_FOUND;
+		return GetItemPositionFromLogicalPoint(logical);
 	}
 
 	wxString BuildDisplayLabel(wxDC &dc, const wxString &label, int width) const {
@@ -214,7 +212,10 @@ private:
 			return;
 		}
 
-		for (size_t i = 0; i < items_.size(); ++i) {
+		size_t firstVisibleItem = 0;
+		size_t lastVisibleItem = items_.size() - 1;
+		GetVisibleItemRange(firstVisibleItem, lastVisibleItem);
+		for (size_t i = firstVisibleItem; i <= lastVisibleItem; ++i) {
 			DrawTile(dc, i);
 		}
 	}
@@ -244,9 +245,7 @@ private:
 	}
 
 	bool HasItemIndex(int index) const {
-		return std::any_of(items_.begin(), items_.end(), [index](const BrushGridItem &item) {
-			return item.index == index;
-		});
+		return itemPositionsByIndex_.find(index) != itemPositionsByIndex_.end();
 	}
 
 	void RestoreViewStart(const wxPoint &viewStart) {
@@ -267,7 +266,94 @@ private:
 		Scroll(std::clamp(viewStart.x, 0, maxX), std::clamp(viewStart.y, 0, maxY));
 	}
 
+	void RebuildItemPositions() {
+		itemPositionsByIndex_.clear();
+		itemPositionsByIndex_.reserve(items_.size());
+		for (size_t i = 0; i < items_.size(); ++i) {
+			itemPositionsByIndex_[items_[i].index] = i;
+		}
+	}
+
+	int GetItemPositionFromLogicalPoint(const wxPoint &logical) const {
+		const int spacing = GetSpacing();
+		const int cellWidth = GetTileWidth() + spacing;
+		const int cellHeight = GetTileHeight() + spacing;
+		if (logical.x < spacing || logical.y < spacing) {
+			return wxNOT_FOUND;
+		}
+
+		const int column = (logical.x - spacing) / cellWidth;
+		const int row = (logical.y - spacing) / cellHeight;
+		if (column < 0 || row < 0) {
+			return wxNOT_FOUND;
+		}
+
+		const int columns = GetColumnCount();
+		const int itemPosition = row * columns + column;
+		if (itemPosition < 0 || itemPosition >= static_cast<int>(items_.size())) {
+			return wxNOT_FOUND;
+		}
+
+		return GetTileRect(static_cast<size_t>(itemPosition)).Contains(logical) ? itemPosition : wxNOT_FOUND;
+	}
+
+	bool FindItemPositionByIndex(int index, size_t &outItemPosition) const {
+		const auto it = itemPositionsByIndex_.find(index);
+		if (it == itemPositionsByIndex_.end()) {
+			return false;
+		}
+		outItemPosition = it->second;
+		return true;
+	}
+
+	wxRect GetVisibleLogicalRect() const {
+		wxPoint origin(0, 0);
+		CalcUnscrolledPosition(0, 0, &origin.x, &origin.y);
+		return wxRect(origin, GetClientSize());
+	}
+
+	void GetVisibleItemRange(size_t &outFirstItem, size_t &outLastItem) const {
+		outFirstItem = 0;
+		outLastItem = 0;
+		if (items_.empty()) {
+			return;
+		}
+
+		const wxRect visibleRect = GetVisibleLogicalRect();
+		const int spacing = GetSpacing();
+		const int cellWidth = GetTileWidth() + spacing;
+		const int cellHeight = GetTileHeight() + spacing;
+		const int columns = GetColumnCount();
+		const int totalRows = static_cast<int>((items_.size() + columns - 1) / columns);
+		const int firstRow = std::clamp((visibleRect.y - spacing) / std::max(1, cellHeight), 0, std::max(0, totalRows - 1));
+		const int lastRow = std::clamp((visibleRect.GetBottom() - spacing) / std::max(1, cellHeight), firstRow, std::max(0, totalRows - 1));
+		outFirstItem = static_cast<size_t>(std::clamp(firstRow * columns, 0, std::max(0, static_cast<int>(items_.size()) - 1)));
+		outLastItem = static_cast<size_t>(std::clamp(((lastRow + 1) * columns) - 1, 0, std::max(0, static_cast<int>(items_.size()) - 1)));
+	}
+
+	void RefreshTileAtPosition(size_t itemPosition) {
+		if (itemPosition >= items_.size()) {
+			return;
+		}
+
+		const wxRect logicalRect = GetTileRect(itemPosition);
+		wxPoint deviceOrigin;
+		CalcScrolledPosition(logicalRect.GetTopLeft(), &deviceOrigin.x, &deviceOrigin.y);
+		RefreshRect(wxRect(deviceOrigin, logicalRect.GetSize()), false);
+	}
+
+	void RefreshSelectionTiles(int previousSelectedIndex, int nextSelectedIndex) {
+		size_t itemPosition = 0;
+		if (FindItemPositionByIndex(previousSelectedIndex, itemPosition)) {
+			RefreshTileAtPosition(itemPosition);
+		}
+		if (FindItemPositionByIndex(nextSelectedIndex, itemPosition)) {
+			RefreshTileAtPosition(itemPosition);
+		}
+	}
+
 	std::vector<BrushGridItem> items_;
+	std::unordered_map<int, size_t> itemPositionsByIndex_;
 	int selectedIndex_ = -1;
 	wxString emptyMessage_;
 	std::function<void(int)> onSelectionChanged_;
