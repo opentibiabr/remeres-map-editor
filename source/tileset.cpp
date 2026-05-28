@@ -240,9 +240,9 @@ void Tileset::loadFromStorage(const TilesetStorageRecord &storage, wxArrayString
 		TilesetCategory* category = getCategory(primaryType);
 		TilesetCategory* subCategory = hasSecondaryType ? getCategory(secondaryType) : nullptr;
 		for (const TilesetEntryRecord &entry : section.entries) {
-			category->loadEntry(entry, warnings);
+			category->loadEntry(entry, warnings, true);
 			if (subCategory) {
-				subCategory->loadEntry(entry, warnings);
+				subCategory->loadEntry(entry, warnings, true);
 			}
 		}
 	}
@@ -348,9 +348,9 @@ void TilesetCategory::loadBrush(pugi::xml_node node, wxArrayString &warnings) {
 	}
 }
 
-void TilesetCategory::loadEntry(const TilesetEntryRecord &entry, wxArrayString &warnings) {
+void TilesetCategory::loadEntry(const TilesetEntryRecord &entry, wxArrayString &warnings, bool preserveStoredOrder) {
 	std::string afterBrushName = entry.afterBrushName.ToStdString();
-	if (entry.afterItemId > 0) {
+	if (!preserveStoredOrder && entry.afterItemId > 0) {
 		const ItemType &type = g_items.getItemType(entry.afterItemId);
 		if (type.id != 0) {
 			afterBrushName = type.raw_brush ? type.raw_brush->getName() : std::string();
@@ -366,7 +366,7 @@ void TilesetCategory::loadEntry(const TilesetEntryRecord &entry, wxArrayString &
 		Brush* brush = tileset.brushes.getBrush(entry.brushName.ToStdString());
 		if (brush) {
 			auto insertPosition = brushlist.end();
-			if (!afterBrushName.empty()) {
+			if (!preserveStoredOrder && !afterBrushName.empty()) {
 				for (auto itt = brushlist.begin(); itt != brushlist.end(); ++itt) {
 					if ((*itt)->getName() == afterBrushName) {
 						insertPosition = ++itt;
@@ -420,7 +420,7 @@ void TilesetCategory::loadEntry(const TilesetEntryRecord &entry, wxArrayString &
 	}
 
 	auto insertPosition = brushlist.end();
-	if (!afterBrushName.empty()) {
+	if (!preserveStoredOrder && !afterBrushName.empty()) {
 		for (auto itt = brushlist.begin(); itt != brushlist.end(); ++itt) {
 			if ((*itt)->getName() == afterBrushName) {
 				insertPosition = ++itt;

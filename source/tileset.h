@@ -49,7 +49,7 @@ public:
 	}
 
 	void loadBrush(pugi::xml_node node, wxArrayString &warnings);
-	void loadEntry(const TilesetEntryRecord &entry, wxArrayString &warnings);
+	void loadEntry(const TilesetEntryRecord &entry, wxArrayString &warnings, bool preserveStoredOrder = false);
 	void clear();
 
 	bool containsBrush(Brush* brush) const;
