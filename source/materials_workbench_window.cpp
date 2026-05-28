@@ -312,6 +312,13 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 			HandleBorderSetSaved(borderSetId);
 		});
 	});
+	borderPanel_->SetOnOpenLinkedBrush([this](int64_t brushId) {
+		wxString contextKey;
+		int itemIndex = -1;
+		if (controller_.LocateBrushNode(brushId, contextKey, itemIndex)) {
+			SelectNavigationNode(MaterialsWorkbenchNodeKind::Brush, contextKey, itemIndex);
+		}
+	});
 	brushPanel_ = new MaterialsWorkbenchBrushPanel(workspaceBook_, controller_);
 	brushPanel_->SetOnBrushStateChanged([this]() {
 		UpdateBrushNavigationBadge();

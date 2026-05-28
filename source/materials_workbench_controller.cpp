@@ -707,6 +707,10 @@ bool MaterialsWorkbenchController::GetBorderSetDetails(const wxString &contextKe
 	return repository_.LoadBorderSetDetails(borderSet->id, outBorderSet, error);
 }
 
+bool MaterialsWorkbenchController::GetBorderSetUsages(int64_t borderSetId, std::vector<BorderSetUsageRecord> &outUsages, wxString &error) const {
+	return repository_.LoadBorderSetUsages(borderSetId, outUsages, error);
+}
+
 bool MaterialsWorkbenchController::SaveBrushDetails(BrushStorageRecord &brushStorage, wxString &error) {
 	if (!repository_.SaveBrushDetails(brushStorage, error)) {
 		spdlog::warn(

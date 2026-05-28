@@ -335,6 +335,7 @@ namespace {
 					borderSet.borderType = "normal";
 				}
 				borderSet.borderGroup = childNode.attribute("group").as_int();
+				borderSet.groundEquivalent = childNode.attribute("ground_equivalent").as_int();
 				borderSet.sourceFile = MaterialSourcePath(filename);
 
 				int64_t borderSetId = 0;

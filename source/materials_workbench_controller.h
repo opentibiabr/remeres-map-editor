@@ -23,6 +23,7 @@ public:
 	bool SaveWallBrushParts(BrushStorageRecord &brushStorage, wxString &error);
 	bool LocateBrushNode(int64_t brushId, wxString &outContextKey, int &outItemIndex) const;
 	bool GetBorderSetDetails(const wxString &contextKey, int itemIndex, BorderSetStorageRecord &outBorderSet, wxString &error) const;
+	bool GetBorderSetUsages(int64_t borderSetId, std::vector<BorderSetUsageRecord> &outUsages, wxString &error) const;
 	bool SaveBorderSet(BorderSetStorageRecord &borderSet, wxString &error);
 	bool LocateBorderSetNode(int64_t borderSetId, wxString &outContextKey, int &outItemIndex) const;
 	bool SaveTileset(const TilesetStorageRecord &tileset, wxString &error);

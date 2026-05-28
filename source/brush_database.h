@@ -59,6 +59,18 @@ struct BorderSetStorageRecord {
 	BorderSetRecord borderSet;
 	std::vector<BorderSetItemRecord> items;
 };
+
+struct BorderSetUsageRecord {
+	int64_t brushId = 0;
+	wxString brushName;
+	wxString brushType;
+	int lookId = 0;
+	int serverLookId = 0;
+	int primaryItemId = 0;
+	wxString borderRole;
+	wxString align;
+	wxString targetMode;
+};
 struct GroundBorderCaseConditionRecord {
 	wxString conditionType;
 	int matchValue = 0;
@@ -371,6 +383,7 @@ public:
 	bool getBorderSetById(int64_t borderSetId, BorderSetRecord &outBorderSet);
 	bool findBorderSetByXmlBorderId(int xmlBorderId, BorderSetRecord &outBorderSet);
 	bool listBorderSetsByScope(const wxString &borderScope, std::vector<BorderSetRecord> &outBorderSets);
+	bool listBorderSetUsages(int64_t borderSetId, std::vector<BorderSetUsageRecord> &outUsages);
 	bool replaceBorderSetItems(int64_t borderSetId, const std::vector<BorderSetItemRecord> &items);
 	bool getBorderSetItems(int64_t borderSetId, std::vector<BorderSetItemRecord> &outItems);
 	bool deleteBorderSetsByScope(const wxString &borderScope);
@@ -438,6 +451,7 @@ public:
 	bool getBorderSetById(int64_t borderSetId, BorderSetRecord &outBorderSet);
 	bool findBorderSetByXmlBorderId(int xmlBorderId, BorderSetRecord &outBorderSet);
 	bool listBorderSetsByScope(const wxString &borderScope, std::vector<BorderSetRecord> &outBorderSets);
+	bool listBorderSetUsages(int64_t borderSetId, std::vector<BorderSetUsageRecord> &outUsages);
 	bool replaceBorderSetItems(int64_t borderSetId, const std::vector<BorderSetItemRecord> &items);
 	bool getBorderSetItems(int64_t borderSetId, std::vector<BorderSetItemRecord> &outItems);
 	bool deleteBorderSetsByScope(const wxString &borderScope);

@@ -26,6 +26,7 @@ public:
 	bool LoadBorderSet(const wxString &contextKey, int itemIndex);
 	void SetOnBorderSetSaved(std::function<void(int64_t)> callback);
 	void SetOnBorderSetStateChanged(std::function<void()> callback);
+	void SetOnOpenLinkedBrush(std::function<void(int64_t)> callback);
 	bool HasPendingChanges() const;
 	bool IsCurrentBorderSelection(const wxString &contextKey, int itemIndex) const;
 	wxString GetCurrentBorderSetDisplayName() const;
@@ -34,8 +35,16 @@ public:
 private:
 	void BuildLayout();
 	void PopulateFields();
+	void UpdateSummaryLabels();
 	void RefreshSlotGrid();
 	void RefreshPreviewGrid();
+	void RefreshPreviewSelectionState();
+	void PopulateUsageContextChoice();
+	void UpdateUsageContextControls();
+	const BorderSetUsageRecord* GetSelectedUsageContext() const;
+	int ResolveCenterPreviewItemId() const;
+	wxString ResolveCenterSourceLabel() const;
+	void HandleUsageContextChanged();
 	void SelectEdge(const wxString &edge);
 	void SaveCurrentBorderEditorState();
 	void RestoreCurrentBorderEditorState();
@@ -59,14 +68,19 @@ private:
 	void OnSelectedItemIdChanged(wxCommandEvent &event);
 	void OnSelectedItemIdSpin(wxSpinEvent &event);
 	void OnMetadataFieldChanged(wxCommandEvent &event);
+	void OnUsageContextChanged(wxCommandEvent &event);
+	void OnOpenLinkedBrush(wxCommandEvent &event);
 
 	MaterialsWorkbenchController &controller_;
 	std::function<void(int64_t)> onBorderSetSaved_;
 	std::function<void()> onBorderSetStateChanged_;
+	std::function<void(int64_t)> onOpenLinkedBrush_;
 	BorderSetStorageRecord borderSetStorage_;
 	BorderSetStorageRecord loadedBorderSetStorage_;
+	std::vector<BorderSetUsageRecord> borderSetUsages_;
 	wxString currentContextKey_;
 	int currentItemIndex_ = -1;
+	int selectedUsageIndex_ = wxNOT_FOUND;
 	bool hasBorderSet_ = false;
 	bool dirty_ = false;
 	bool internalUpdate_ = false;
@@ -76,10 +90,12 @@ private:
 	std::map<wxString, ItemToggleButton*> slotButtons_;
 	std::map<wxString, wxStaticText*> slotValueLabels_;
 	std::map<wxString, ItemButton*> previewButtons_;
+	std::map<wxString, wxPanel*> previewCellPanels_;
 
 	wxStaticText* titleLabel_ = nullptr;
 	wxStaticText* subtitleLabel_ = nullptr;
 	wxStaticText* summaryLabel_ = nullptr;
+	wxStaticText* identityLabel_ = nullptr;
 	wxButton* saveButton_ = nullptr;
 	wxButton* revertButton_ = nullptr;
 	wxTextCtrl* idCtrl_ = nullptr;
@@ -90,9 +106,16 @@ private:
 	wxSpinCtrl* groundEquivalentCtrl_ = nullptr;
 	wxTextCtrl* ownerBrushIdCtrl_ = nullptr;
 	wxTextCtrl* sourceCtrl_ = nullptr;
+	wxChoice* usageContextChoice_ = nullptr;
+	wxButton* openLinkedBrushButton_ = nullptr;
+	wxStaticText* usageContextHintLabel_ = nullptr;
 	wxStaticText* selectedEdgeLabel_ = nullptr;
 	wxSpinCtrl* selectedItemIdCtrl_ = nullptr;
 	ItemButton* selectedItemPreview_ = nullptr;
+	ItemButton* centerGroundSlotPreview_ = nullptr;
+	wxStaticText* centerGroundSlotValueLabel_ = nullptr;
+	ItemButton* centerGroundPreview_ = nullptr;
+	wxStaticText* previewSelectionLabel_ = nullptr;
 	wxStaticText* statusLabel_ = nullptr;
 };
 

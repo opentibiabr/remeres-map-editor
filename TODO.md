@@ -8,14 +8,14 @@
 - [x] Stage 10D core palette flow is in place: add, move, remove, reorder, custom groups, preserved selection/scroll, better tree UX, overview manuals, and contextual tooltips
 
 ## Next
-- [ ] Border Workspace visual pass: align `Preview Matrix` to the same geometry as `Slot Grid`
-- [ ] Border Workspace visual pass: show a real visual `Center Ground` using `groundEquivalent`
-- [ ] Border Workspace visual pass: upgrade the preview from loose icons to a stronger composed border preview
+- [x] Border Workspace visual pass: align `Preview Matrix` to the same geometry as `Slot Grid`
+- [x] Border Workspace visual pass: show a real visual `Center Ground` using `groundEquivalent`
+- [x] Border Workspace visual pass: upgrade the preview from loose icons to a stronger composed border preview
 
 ## Visual Polish
 - [ ] Add visual metadata previews for `lookId` and `serverLookId` in the Brush Workspace
 - [ ] Add richer visual previews inside `variations`, including per-item thumbnails and domain-specific preview feedback
-- [ ] Improve Border Workspace presentation with stronger contrast, clearer slot-to-preview correspondence, and more professional visual hierarchy
+- [x] Improve Border Workspace presentation with stronger contrast, clearer slot-to-preview correspondence, and more professional visual hierarchy
 - [ ] Improve Wall Workspace presentation with richer visual previews for wall parts, doors, and composed wall results
 - [ ] Reduce spacing and padding across workspaces where the layout still feels too loose
 - [ ] Continue small product-language and workflow refinements across Workbench texts and actions
@@ -47,7 +47,7 @@
 - [x] Brush Workspace: metadata, `variations`, dirty state, save/revert, runtime-owner hints, and validation for `lookId`, `serverLookId`, and variation item ids
 - [x] Palette Workspace: inline add/move/remove/reorder flow, support for `brush` and DB-backed `item` entries, custom destination groups, preserved selection/scroll, and better destination feedback
 - [x] Palette Workspace performance: visible-range painting, local selection invalidation, cached preview bitmaps, and lighter runtime palette reload ordering from DB
-- [x] Border Workspace: dirty state, save/revert, runtime-safe validation, canonical 5x5 slot geometry, selected-slot preservation, and targeted runtime refresh
+- [x] Border Workspace: dirty state, save/revert, runtime-safe validation, canonical 5x5 slot geometry, selected-slot preservation, targeted runtime refresh, an editor-first visual pass with side-by-side compact preview plus visual `Center Ground`, consistent `groundEquivalent` import, and runtime-truthful global border center preview via linked brush usage contexts
 - [x] Wall Workspace: dirty state, save/revert, guarded selection changes, selected part/item/door preservation, and door compatibility validation
 - [x] Navigation and UX: slimmer sidebar, click-on-label expand/collapse, contextual overview manuals, clearer `Palette Categories` terminology, and rich tooltips in tree and palette grids
 - [x] Runtime alignment: Workbench and runtime now share DB-first palette groups, including custom groups, with targeted sync paths instead of unsafe full reloads
