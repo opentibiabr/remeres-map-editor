@@ -337,6 +337,43 @@ namespace {
 		return wxString();
 	}
 
+	wxString NormalizePaletteRuntimeFamilyKey(const wxString &familyKey) {
+		if (familyKey.IsSameAs("raw", false) || familyKey.IsSameAs("other", false)) {
+			return "other";
+		}
+		if (familyKey.IsSameAs("terrain", false) || familyKey.IsSameAs("doodad", false) || familyKey.IsSameAs("item", false)) {
+			return familyKey.Lower();
+		}
+		return wxString();
+	}
+
+	wxString ResolvePaletteGroupKey(const TilesetStorageRecord &tileset) {
+		if (!tileset.paletteGroupName.IsEmpty()) {
+			return tileset.paletteGroupName;
+		}
+		if (!tileset.sections.empty()) {
+			return DerivePaletteGroupFromSectionType(tileset.sections.front().sectionType);
+		}
+		return "other";
+	}
+
+	wxString ResolvePaletteGroupRuntimeFamilyKey(const TilesetStorageRecord &tileset) {
+		const wxString configuredRuntimeFamily = NormalizePaletteRuntimeFamilyKey(tileset.paletteGroupRuntimeFamily);
+		if (!configuredRuntimeFamily.IsEmpty()) {
+			return configuredRuntimeFamily;
+		}
+		for (const TilesetSectionRecord &section : tileset.sections) {
+			if (IsSupportedRuntimeSectionType(section.sectionType)) {
+				return DerivePaletteGroupFromSectionType(section.sectionType);
+			}
+		}
+		if (!tileset.sections.empty()) {
+			return DerivePaletteGroupFromSectionType(tileset.sections.front().sectionType);
+		}
+		const wxString builtinFamily = ResolveBuiltinBrushFamilyKey(ResolvePaletteGroupKey(tileset));
+		return builtinFamily.IsEmpty() ? wxString("terrain") : builtinFamily;
+	}
+
 	wxString ResolvePaletteBrushDisplayFamily(const TilesetStorageRecord &tileset) {
 		for (const TilesetSectionRecord &section : tileset.sections) {
 			if (IsSupportedRuntimeSectionType(section.sectionType)) {
@@ -348,8 +385,7 @@ namespace {
 			return DerivePaletteGroupFromSectionType(tileset.sections.front().sectionType);
 		}
 
-		const wxString builtinFamily = ResolveBuiltinBrushFamilyKey(tileset.paletteGroupName);
-		return builtinFamily.IsEmpty() ? wxString("terrain") : builtinFamily;
+		return ResolvePaletteGroupRuntimeFamilyKey(tileset);
 	}
 
 	wxString BuildPaletteFamilyLabel(const wxString &familyKey) {
@@ -618,7 +654,7 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	paletteBrushActionsSizer->Add(moveUpButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(6));
 	paletteBrushActionsSizer->Add(moveDownButton_, 0, wxBOTTOM, FromDIP(6));
 	currentSectionSizer->Add(paletteBrushActionsSizer, 0, wxBOTTOM, FromDIP(6));
-	moveDestinationSizer->Add(new wxStaticText(currentSectionPanel, wxID_ANY, "Destination Family"), 0, wxALIGN_CENTER_VERTICAL);
+	moveDestinationSizer->Add(new wxStaticText(currentSectionPanel, wxID_ANY, "Destination Group"), 0, wxALIGN_CENTER_VERTICAL);
 	moveDestinationSizer->Add(moveDestinationFamilyChoice_, 1, wxEXPAND);
 	moveDestinationSizer->Add(new wxStaticText(currentSectionPanel, wxID_ANY, "Destination Palette"), 0, wxALIGN_CENTER_VERTICAL);
 	moveDestinationSizer->Add(moveDestinationPaletteChoice_, 1, wxEXPAND);
@@ -669,7 +705,7 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	removeBrushButton_->SetToolTip("Remove the selected palette entry from this palette.");
 	moveUpButton_->SetToolTip("Move the selected palette entry earlier in the palette.");
 	moveDownButton_->SetToolTip("Move the selected palette entry later in the palette.");
-	moveDestinationFamilyChoice_->SetToolTip("Choose the destination family for moving the selected palette entry.");
+	moveDestinationFamilyChoice_->SetToolTip("Choose the destination group for moving the selected palette entry.");
 	moveDestinationPaletteChoice_->SetToolTip("Choose the destination palette for moving the selected palette entry.");
 
 	createPaletteButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchPalettePanel::OnCreatePalette, this);
@@ -1094,7 +1130,7 @@ void MaterialsWorkbenchPalettePanel::RefreshAvailableBrushes() {
 }
 
 void MaterialsWorkbenchPalettePanel::RefreshMoveDestinationFamilies() {
-	const wxString previousFamily = moveDestinationFamilyChoice_->GetSelection() != wxNOT_FOUND && moveDestinationFamilyChoice_->GetSelection() < static_cast<int>(moveDestinationFamilyKeys_.size())
+	const wxString previousGroup = moveDestinationFamilyChoice_->GetSelection() != wxNOT_FOUND && moveDestinationFamilyChoice_->GetSelection() < static_cast<int>(moveDestinationFamilyKeys_.size())
 		? moveDestinationFamilyKeys_[moveDestinationFamilyChoice_->GetSelection()]
 		: wxString();
 
@@ -1106,26 +1142,46 @@ void MaterialsWorkbenchPalettePanel::RefreshMoveDestinationFamilies() {
 			continue;
 		}
 
-		const wxString familyKey = tileset.paletteGroupName.IsEmpty() ? (tileset.sections.empty() ? wxString("other") : DerivePaletteGroupFromSectionType(tileset.sections.front().sectionType)) : tileset.paletteGroupName;
-		if (std::find(moveDestinationFamilyKeys_.begin(), moveDestinationFamilyKeys_.end(), familyKey) != moveDestinationFamilyKeys_.end()) {
+		const wxString groupKey = ResolvePaletteGroupKey(tileset);
+		if (std::find(moveDestinationFamilyKeys_.begin(), moveDestinationFamilyKeys_.end(), groupKey) != moveDestinationFamilyKeys_.end()) {
 			continue;
 		}
 
-		moveDestinationFamilyChoice_->Append(BuildPaletteFamilyLabel(familyKey));
-		moveDestinationFamilyKeys_.push_back(familyKey);
+		moveDestinationFamilyChoice_->Append(BuildPaletteFamilyLabel(groupKey));
+		moveDestinationFamilyKeys_.push_back(groupKey);
 	}
 
 	if (moveDestinationFamilyKeys_.empty()) {
 		return;
 	}
 
-	const wxString preferredFamily = previousFamily.IsEmpty() ? RecommendBrushGroupForCurrentSection() : previousFamily;
-	int selection = 0;
+	const wxString preferredGroup = previousGroup.IsEmpty() ? ResolvePaletteGroupKey(palette_) : previousGroup;
+	int selection = wxNOT_FOUND;
 	for (size_t i = 0; i < moveDestinationFamilyKeys_.size(); ++i) {
-		if (moveDestinationFamilyKeys_[i].IsSameAs(preferredFamily, false)) {
+		if (moveDestinationFamilyKeys_[i].IsSameAs(preferredGroup, false)) {
 			selection = static_cast<int>(i);
 			break;
 		}
+	}
+	if (selection == wxNOT_FOUND) {
+		const wxString preferredRuntimeFamily = RecommendBrushGroupForCurrentSection();
+		for (size_t i = 0; i < moveDestinationFamilyKeys_.size(); ++i) {
+			for (const TilesetStorageRecord &tileset : controller_.GetTilesets()) {
+				if (!ResolvePaletteGroupKey(tileset).IsSameAs(moveDestinationFamilyKeys_[i], false)) {
+					continue;
+				}
+				if (ResolvePaletteGroupRuntimeFamilyKey(tileset).IsSameAs(preferredRuntimeFamily, false)) {
+					selection = static_cast<int>(i);
+					break;
+				}
+			}
+			if (selection != wxNOT_FOUND) {
+				break;
+			}
+		}
+	}
+	if (selection == wxNOT_FOUND) {
+		selection = 0;
 	}
 	moveDestinationFamilyChoice_->SetSelection(selection);
 }
@@ -1140,7 +1196,7 @@ void MaterialsWorkbenchPalettePanel::RefreshMoveDestinationPalettes() {
 		return;
 	}
 
-	const wxString &familyKey = moveDestinationFamilyKeys_[familySelection];
+	const wxString &groupKey = moveDestinationFamilyKeys_[familySelection];
 	const std::vector<TilesetStorageRecord> &tilesets = controller_.GetTilesets();
 	for (size_t i = 0; i < tilesets.size(); ++i) {
 		const TilesetStorageRecord &tileset = tilesets[i];
@@ -1148,8 +1204,8 @@ void MaterialsWorkbenchPalettePanel::RefreshMoveDestinationPalettes() {
 			continue;
 		}
 
-		const wxString tilesetFamily = tileset.paletteGroupName.IsEmpty() ? (tileset.sections.empty() ? wxString("other") : DerivePaletteGroupFromSectionType(tileset.sections.front().sectionType)) : tileset.paletteGroupName;
-		if (!tilesetFamily.IsSameAs(familyKey, false)) {
+		const wxString tilesetGroup = ResolvePaletteGroupKey(tileset);
+		if (!tilesetGroup.IsSameAs(groupKey, false)) {
 			continue;
 		}
 
@@ -1208,10 +1264,10 @@ void MaterialsWorkbenchPalettePanel::RefreshSelectionFeedback() {
 
 	const int destinationIndex = moveDestinationPaletteIndexes_[moveDestinationPaletteChoice_->GetSelection()];
 	const TilesetStorageRecord &destinationTileset = controller_.GetTilesets()[destinationIndex];
-	const wxString destinationFamily = moveDestinationFamilyChoice_->GetSelection() != wxNOT_FOUND && moveDestinationFamilyChoice_->GetSelection() < static_cast<int>(moveDestinationFamilyKeys_.size())
+	const wxString destinationGroup = moveDestinationFamilyChoice_->GetSelection() != wxNOT_FOUND && moveDestinationFamilyChoice_->GetSelection() < static_cast<int>(moveDestinationFamilyKeys_.size())
 		? BuildPaletteFamilyLabel(moveDestinationFamilyKeys_[moveDestinationFamilyChoice_->GetSelection()])
-		: BuildPaletteFamilyLabel(destinationTileset.paletteGroupName);
-	selectionSummaryLabel_->SetLabel("Selected entry: " + entryLabel + ". Move destination: " + destinationFamily + " / " + destinationTileset.name + ".");
+		: BuildPaletteFamilyLabel(ResolvePaletteGroupKey(destinationTileset));
+	selectionSummaryLabel_->SetLabel("Selected entry: " + entryLabel + ". Move destination: " + destinationGroup + " / " + destinationTileset.name + ".");
 }
 
 int MaterialsWorkbenchPalettePanel::GetSelectedVisibleEntryIndex() const {
@@ -1955,28 +2011,28 @@ void MaterialsWorkbenchPalettePanel::OnMoveBrushToPalette(wxCommandEvent &event)
 	wxString destinationDisplayLabel;
 	TilesetStorageRecord targetPalette;
 	if (!ResolveMoveDestinationPalette(targetPalette, destinationDisplayLabel)) {
-		SetStatusMessage("Choose a destination family and palette first.");
+		SetStatusMessage("Choose a destination group and palette first.");
 		return;
 	}
 
 	const wxString sourceSectionType = palette_.sections[sourceSectionIndex].sectionType;
 	const wxString sourceFamily = DerivePaletteGroupFromSectionType(sourceSectionType);
 	const int destinationFamilySelection = moveDestinationFamilyChoice_->GetSelection();
-	const wxString destinationFamilyKey =
+	const wxString destinationRuntimeFamily =
 		destinationFamilySelection != wxNOT_FOUND && destinationFamilySelection < static_cast<int>(moveDestinationFamilyKeys_.size())
-			? moveDestinationFamilyKeys_[destinationFamilySelection]
+			? ResolvePaletteGroupRuntimeFamilyKey(targetPalette)
 			: ResolvePaletteBrushDisplayFamily(targetPalette);
 
 	wxString preferredSectionType = sourceSectionType;
-	if (!destinationFamilyKey.IsEmpty() &&
-		!destinationFamilyKey.IsSameAs("other", false) &&
-		!destinationFamilyKey.IsSameAs(sourceFamily, false)) {
-		preferredSectionType = PreferredSectionTypeForBrushFamilyKey(destinationFamilyKey);
+	if (!destinationRuntimeFamily.IsEmpty() &&
+		!destinationRuntimeFamily.IsSameAs("other", false) &&
+		!destinationRuntimeFamily.IsSameAs(sourceFamily, false)) {
+		preferredSectionType = PreferredSectionTypeForBrushFamilyKey(destinationRuntimeFamily);
 	}
 
 	int targetSectionIndex = FindSectionIndexByName(targetPalette, preferredSectionType);
 	if (targetSectionIndex == -1) {
-		const wxString preferredFamily = !destinationFamilyKey.IsEmpty() ? destinationFamilyKey : DerivePaletteGroupFromSectionType(preferredSectionType);
+		const wxString preferredFamily = !destinationRuntimeFamily.IsEmpty() ? destinationRuntimeFamily : DerivePaletteGroupFromSectionType(preferredSectionType);
 		for (size_t i = 0; i < targetPalette.sections.size(); ++i) {
 			if (DerivePaletteGroupFromSectionType(targetPalette.sections[i].sectionType).IsSameAs(preferredFamily, false)) {
 				targetSectionIndex = static_cast<int>(i);
