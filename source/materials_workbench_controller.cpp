@@ -210,6 +210,209 @@ namespace {
 		return "Other";
 	}
 
+	std::map<wxString, size_t> CountPalettesByCategory(const MaterialsWorkbenchCatalogSnapshot &catalog) {
+		std::map<wxString, size_t> counts;
+		for (const TilesetStorageRecord &tileset : catalog.tilesets) {
+			++counts[BuildPaletteGroupKey(tileset)];
+		}
+		return counts;
+	}
+
+	size_t CountBrushesInFamily(const MaterialsWorkbenchCatalogSnapshot &catalog, const wxString &familyKey) {
+		size_t count = 0;
+		for (const MaterialsWorkbenchBrushGroup &group : catalog.brushGroups) {
+			for (const BrushRecord &brush : group.brushes) {
+				if (BuildBrushFamilyKeyFromBrushType(brush.type) == familyKey) {
+					++count;
+				}
+			}
+		}
+		return count;
+	}
+
+	wxString FormatCatalogOverviewCard(const MaterialsWorkbenchCatalogSnapshot &catalog) {
+		const auto paletteCounts = CountPalettesByCategory(catalog);
+		wxString text;
+		text << "Catalog\n\n";
+		text << "Author materials data from one SQLite-backed workspace.\n\n";
+		text << "Workspace model\n";
+		text << "  Palette Categories organize where palettes live.\n";
+		text << "  Palettes define composition: which entries belong together and in what order.\n";
+		text << "  Brushes define behavior, metadata, and runtime logic.\n";
+		text << "  Specialized Editors cover borders and walls that need dedicated tooling.\n\n";
+		text << "Recommended workflow\n";
+		text << "  1. Open Palette Categories when you want to change palette composition.\n";
+		text << "  2. Open Brushes when you want to change behavior, look IDs, or brush metadata.\n";
+		text << "  3. Open Specialized Editors for border slots, wall parts, and related structures.\n\n";
+		text << "Current catalog\n";
+		text << "  Categories: " << paletteCounts.size() << "\n";
+		text << "  Palettes: " << catalog.tilesets.size() << "\n";
+		text << "  Brushes: " << catalog.auditReport.brushCount << "\n";
+		text << "  Borders: " << (catalog.globalBorderSets.size() + catalog.inlineBorderSets.size()) << "\n";
+		text << "  Walls: " << catalog.wallBrushes.size() << "\n\n";
+		text << "Quality checks\n";
+		text << "  Unresolved ground targets: " << catalog.auditReport.unresolvedGroundTargets << "\n";
+		text << "  Unresolved brush links: " << catalog.auditReport.unresolvedBrushLinks << "\n";
+		text << "  Unresolved tileset entries: " << catalog.auditReport.unresolvedTilesetEntries << "\n";
+		return text;
+	}
+
+	wxString FormatPaletteCategoriesOverviewCard(const MaterialsWorkbenchCatalogSnapshot &catalog) {
+		const auto paletteCounts = CountPalettesByCategory(catalog);
+		wxString text;
+		text << "Palette Categories\n\n";
+		text << "Use this area to choose the palette category first, then the exact palette you want to edit.\n\n";
+		text << "How to work here\n";
+		text << "  1. Pick a category such as Terrain, Doodad, Item, or a custom category.\n";
+		text << "  2. Pick a palette inside that category.\n";
+		text << "  3. Edit entries, order, and move destinations inside the Palette Workspace.\n\n";
+		text << "Current categories\n";
+		for (const auto &[groupKey, count] : paletteCounts) {
+			text << "  " << BuildPaletteGroupLabel(groupKey) << ": " << count << " palettes\n";
+		}
+		if (paletteCounts.empty()) {
+			text << "  No palette categories available.\n";
+		}
+		text << "\nGood to know\n";
+		text << "  Categories are organizational and appear in both Workbench and runtime palette trees.\n";
+		text << "  Palette editing happens one palette at a time after you open it from this tree.\n";
+		return text;
+	}
+
+	wxString FormatPaletteCategoryOverviewCard(const MaterialsWorkbenchCatalogSnapshot &catalog, const wxString &groupName) {
+		size_t paletteCount = 0;
+		size_t entryCount = 0;
+		for (const TilesetStorageRecord &tileset : catalog.tilesets) {
+			if (!BuildPaletteGroupKey(tileset).IsSameAs(groupName, false)) {
+				continue;
+			}
+			++paletteCount;
+			for (const TilesetSectionRecord &section : tileset.sections) {
+				entryCount += section.entries.size();
+			}
+		}
+
+		wxString text;
+		text << BuildPaletteGroupLabel(groupName) << "\n\n";
+		text << "Open a palette from this category when you want to edit composition inside the same domain.\n\n";
+		text << "What belongs here\n";
+		text << "  Palettes in this category are grouped together for authoring and runtime browsing.\n";
+		text << "  Moves between palettes usually start from this organizational layer.\n\n";
+		text << "Contents\n";
+		text << "  Palettes: " << paletteCount << "\n";
+		text << "  Stored entries: " << entryCount << "\n\n";
+		text << "Recommended next step\n";
+		text << "  Open a palette below to edit entries, order, and destination settings.\n";
+		return text;
+	}
+
+	wxString FormatBrushesOverviewCard(const MaterialsWorkbenchCatalogSnapshot &catalog) {
+		wxString text;
+		text << "Brushes\n\n";
+		text << "Edit brush behavior, metadata, and runtime-facing properties from here.\n\n";
+		text << "When to use this area\n";
+		text << "  Open Brushes when composition is already correct but the brush itself needs changes.\n";
+		text << "  Typical edits here include look IDs, behavior flags, links, and brush-specific metadata.\n\n";
+		text << "Brush domains\n";
+		text << "  Terrain: " << CountBrushesInFamily(catalog, "terrain") << "\n";
+		text << "  Doodad: " << CountBrushesInFamily(catalog, "doodad") << "\n";
+		text << "  Item: " << CountBrushesInFamily(catalog, "item") << "\n";
+		text << "  Other: " << CountBrushesInFamily(catalog, "other") << "\n\n";
+		text << "Good to know\n";
+		text << "  This tree mirrors the same palette-oriented context used during authoring.\n";
+		text << "  If you need to add or move membership between palettes, use Palette Categories instead.\n";
+		return text;
+	}
+
+	wxString FormatBrushFamilyOverviewCard(const MaterialsWorkbenchCatalogSnapshot &catalog, const wxString &familyKey) {
+		wxString text;
+		text << BuildBrushFamilyLabel(familyKey) << "\n\n";
+		text << "This family narrows the brush list to one authoring domain.\n\n";
+		text << "Use this area to\n";
+		text << "  Open a palette bucket below for a smaller, more relevant brush list.\n";
+		text << "  Open a brush directly when you already know what you want to change.\n\n";
+		text << "Brush count\n";
+		text << "  " << CountBrushesInFamily(catalog, familyKey) << " brushes\n";
+		return text;
+	}
+
+	wxString FormatBrushPaletteOverviewCard(const MaterialsWorkbenchCatalogSnapshot &catalog, const wxString &familyKey, const wxString &paletteLabel) {
+		size_t brushCount = 0;
+		for (const MaterialsWorkbenchBrushGroup &group : catalog.brushGroups) {
+			for (const BrushRecord &brush : group.brushes) {
+				if (BuildBrushFamilyKeyFromBrushType(brush.type) != familyKey) {
+					continue;
+				}
+				++brushCount;
+			}
+		}
+
+		wxString text;
+		text << BuildBrushFamilyLabel(familyKey) << " -> " << paletteLabel << "\n\n";
+		text << "This bucket shows brushes related to the selected palette context.\n\n";
+		text << "Use this area to\n";
+		text << "  Open a brush from the list below.\n";
+		text << "  Compare nearby brushes before editing behavior or metadata.\n\n";
+		text << "Visible family total\n";
+		text << "  " << brushCount << " brushes in this family\n";
+		return text;
+	}
+
+	wxString FormatSpecializedEditorsOverviewCard(const MaterialsWorkbenchCatalogSnapshot &catalog) {
+		wxString text;
+		text << "Specialized Editors\n\n";
+		text << "Use these editors for structures that need dedicated tooling beyond normal palette composition.\n\n";
+		text << "When to come here\n";
+		text << "  Use Borders for slot-based border sets and edge mappings.\n";
+		text << "  Use Walls for wall brushes and wall-part composition.\n";
+		text << "  Stay in Palette Categories when the task is only membership or ordering inside a palette.\n\n";
+		text << "Available editors\n";
+		text << "  Borders: " << (catalog.globalBorderSets.size() + catalog.inlineBorderSets.size()) << "\n";
+		text << "  Walls: " << catalog.wallBrushes.size() << "\n\n";
+		text << "Good to know\n";
+		text << "  These editors affect runtime-facing structures with their own save and refresh rules.\n";
+		return text;
+	}
+
+	wxString FormatBordersOverviewCard(const MaterialsWorkbenchCatalogSnapshot &catalog) {
+		wxString text;
+		text << "Borders\n\n";
+		text << "Edit global and inline border sets, slot mappings, and border-specific relationships.\n\n";
+		text << "Available border sets\n";
+		text << "  Global: " << catalog.globalBorderSets.size() << "\n";
+		text << "  Inline: " << catalog.inlineBorderSets.size() << "\n\n";
+		text << "Recommended workflow\n";
+		text << "  1. Choose a scope.\n";
+		text << "  2. Open a border set.\n";
+		text << "  3. Edit slot items and review runtime-facing identifiers carefully.\n";
+		return text;
+	}
+
+	wxString FormatBorderScopeOverviewCard(const MaterialsWorkbenchCatalogSnapshot &catalog, const wxString &scope) {
+		const size_t count = scope == "global" ? catalog.globalBorderSets.size() : catalog.inlineBorderSets.size();
+		wxString text;
+		text << "Border Scope: " << scope << "\n\n";
+		text << "This scope filters the border sets shown below.\n\n";
+		text << "Use this area to\n";
+		text << "  Open a border set from this scope.\n";
+		text << "  Keep global and inline data separated while editing.\n\n";
+		text << "Count\n";
+		text << "  " << count << " border sets\n";
+		return text;
+	}
+
+	wxString FormatWallsOverviewCard(const MaterialsWorkbenchCatalogSnapshot &catalog) {
+		wxString text;
+		text << "Walls\n\n";
+		text << "Edit wall brushes and their wall-part composition from here.\n\n";
+		text << "Use this area to\n";
+		text << "  Open a wall brush from the list below.\n";
+		text << "  Adjust wall-specific metadata and related composition data.\n\n";
+		text << "Available wall brushes\n";
+		text << "  " << catalog.wallBrushes.size() << " wall brushes\n";
+		return text;
+	}
+
 } // namespace
 
 bool MaterialsWorkbenchController::ReloadCatalog() {
@@ -236,7 +439,7 @@ wxString MaterialsWorkbenchController::GetOverviewText() const {
 	if (!lastError_.IsEmpty()) {
 		return "Materials Workbench could not load the SQLite catalog.\n\nError: " + lastError_;
 	}
-	return FormatAuditSummary(catalog_.auditReport);
+	return FormatCatalogOverviewCard(catalog_);
 }
 
 wxString MaterialsWorkbenchController::GetInspectorText() const {
@@ -726,64 +929,43 @@ wxString MaterialsWorkbenchController::BuildSelectionOverview(MaterialsWorkbench
 	}
 
 	if (kind == MaterialsWorkbenchNodeKind::Group) {
+		if (contextKey == "group:catalog") {
+			return FormatCatalogOverviewCard(catalog_);
+		}
 		if (contextKey == "group:palettes") {
-			return wxString::Format("Palette Categories\n\nLoaded %zu palettes from materials.db.", catalog_.tilesets.size());
+			return FormatPaletteCategoriesOverviewCard(catalog_);
 		}
 		if (contextKey.StartsWith("palette_group:")) {
 			const wxString groupName = contextKey.AfterFirst(':');
-			size_t groupCount = 0;
-			for (const TilesetStorageRecord &tileset : catalog_.tilesets) {
-				if (BuildPaletteGroupKey(tileset).IsSameAs(groupName, false)) {
-					++groupCount;
-				}
-			}
-			return wxString::Format(
-				"%s\n\nLoaded %zu palettes in this palette category.",
-				BuildPaletteGroupLabel(groupName),
-				groupCount
-			);
+			return FormatPaletteCategoryOverviewCard(catalog_, groupName);
 		}
 		if (contextKey == "group:brushes") {
-			size_t brushCount = 0;
-			for (const MaterialsWorkbenchBrushGroup &group : catalog_.brushGroups) {
-				brushCount += group.brushes.size();
-			}
-			return wxString::Format("Brushes\n\nLoaded %zu editable brushes grouped by category and palette.", brushCount);
+			return FormatBrushesOverviewCard(catalog_);
+		}
+		if (contextKey == "group:specialized") {
+			return FormatSpecializedEditorsOverviewCard(catalog_);
 		}
 		if (contextKey == "group:borders") {
-			return wxString::Format("Borders workspace\n\nLoaded %zu global and %zu inline border sets.", catalog_.globalBorderSets.size(), catalog_.inlineBorderSets.size());
+			return FormatBordersOverviewCard(catalog_);
 		}
 		if (contextKey == "group:walls") {
-			return wxString::Format("Walls workspace\n\nLoaded %zu wall brushes.", catalog_.wallBrushes.size());
+			return FormatWallsOverviewCard(catalog_);
 		}
 		if (contextKey.StartsWith("brush_family:")) {
 			const wxString familyKey = contextKey.AfterFirst(':');
-			size_t familyCount = 0;
-			for (const MaterialsWorkbenchBrushGroup &group : catalog_.brushGroups) {
-				for (const BrushRecord &brush : group.brushes) {
-					if (BuildBrushFamilyKeyFromBrushType(brush.type) == familyKey) {
-						++familyCount;
-					}
-				}
-			}
-			return wxString::Format("%s\n\nLoaded %zu brushes in this authoring family.", BuildBrushFamilyLabel(familyKey), familyCount);
+			return FormatBrushFamilyOverviewCard(catalog_, familyKey);
 		}
 		if (contextKey.StartsWith("brush_palette:")) {
 			wxString remainder = contextKey.AfterFirst(':');
 			const wxString familyKey = remainder.BeforeFirst(':');
 			const wxString paletteLabel = remainder.AfterFirst(':');
-			return wxString::Format(
-				"%s -> %s\n\nBrushes in this palette-aligned authoring bucket.",
-				BuildBrushFamilyLabel(familyKey),
-				paletteLabel
-			);
+			return FormatBrushPaletteOverviewCard(catalog_, familyKey, paletteLabel);
 		}
 		if (contextKey.StartsWith("border_scope:")) {
 			const wxString scope = contextKey.AfterFirst(':');
-			const size_t count = scope == "global" ? catalog_.globalBorderSets.size() : catalog_.inlineBorderSets.size();
-			return wxString::Format("Border scope: %s\n\nLoaded %zu border sets.", scope, count);
+			return FormatBorderScopeOverviewCard(catalog_, scope);
 		}
-		return FormatAuditSummary(catalog_.auditReport);
+		return FormatCatalogOverviewCard(catalog_);
 	}
 
 	if (kind == MaterialsWorkbenchNodeKind::Tileset) {
@@ -818,7 +1000,7 @@ wxString MaterialsWorkbenchController::BuildSelectionOverview(MaterialsWorkbench
 		return FormatBorderSetOverview(storage);
 	}
 
-	return FormatAuditSummary(catalog_.auditReport);
+	return FormatCatalogOverviewCard(catalog_);
 }
 
 wxString MaterialsWorkbenchController::BuildSelectionInspector(MaterialsWorkbenchNodeKind kind, const wxString &contextKey, int itemIndex) const {

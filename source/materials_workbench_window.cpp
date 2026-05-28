@@ -272,7 +272,7 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 	workspaceBook_->AddPage(brushPanel_, "Brush");
 	workspaceBook_->AddPage(wallPanel_, "Wall");
 	workspaceBook_->SetSelection(0);
-	rootSplitter->SplitVertically(sidebarPanel, workspaceBook_, FromDIP(260));
+	rootSplitter->SplitVertically(sidebarPanel, workspaceBook_, FromDIP(230));
 
 	wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 	sizer->Add(rootSplitter, 1, wxEXPAND);
@@ -509,6 +509,50 @@ void MaterialsWorkbenchWindow::PopulateNavigation() {
 }
 
 void MaterialsWorkbenchWindow::BindEvents() {
+	navigationTree_->Bind(wxEVT_LEFT_DOWN, [this](wxMouseEvent &event) {
+		int flags = 0;
+		const wxTreeItemId item = navigationTree_->HitTest(event.GetPosition(), flags);
+		const bool clickedLabel = item.IsOk() && (flags & (wxTREE_HITTEST_ONITEMLABEL | wxTREE_HITTEST_ONITEMICON));
+		if (!clickedLabel || !navigationTree_->ItemHasChildren(item)) {
+			event.Skip();
+			return;
+		}
+
+		auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(item));
+		if (!itemData) {
+			event.Skip();
+			return;
+		}
+
+		const wxString targetKey = BuildNavigationNodeKey(itemData->kind, itemData->contextKey, itemData->itemIndex);
+		event.Skip();
+		CallAfter([this, targetKey]() {
+			if (!navigationTree_) {
+				return;
+			}
+
+			const wxTreeItemId root = navigationTree_->GetRootItem();
+			if (!root.IsOk()) {
+				return;
+			}
+
+			wxTreeItemId targetItem;
+			if (!FindNavigationNodeByKeyRecursive(navigationTree_, root, targetKey, targetItem)) {
+				return;
+			}
+
+			if (!targetItem.IsOk() || navigationTree_->GetSelection() != targetItem || !navigationTree_->ItemHasChildren(targetItem)) {
+				return;
+			}
+
+			if (navigationTree_->IsExpanded(targetItem)) {
+				navigationTree_->Collapse(targetItem);
+			} else {
+				navigationTree_->Expand(targetItem);
+			}
+		});
+	});
+
 	navigationTree_->Bind(wxEVT_TREE_SEL_CHANGING, [this](wxTreeEvent &event) {
 		const wxTreeItemId item = event.GetItem();
 		if (!item.IsOk()) {
