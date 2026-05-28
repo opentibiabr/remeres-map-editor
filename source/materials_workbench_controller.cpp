@@ -258,7 +258,7 @@ std::vector<MaterialsWorkbenchTreeNode> MaterialsWorkbenchController::BuildNavig
 
 	MaterialsWorkbenchTreeNode palettesNode;
 	palettesNode.kind = MaterialsWorkbenchNodeKind::Group;
-	palettesNode.label = FormatNavigationCountLabel("Palettes", catalog_.tilesets.size());
+	palettesNode.label = FormatNavigationCountLabel("Palette Categories", catalog_.tilesets.size());
 	palettesNode.contextKey = "group:palettes";
 
 	std::map<wxString, std::vector<int>> paletteIndexesByGroup;
@@ -727,7 +727,7 @@ wxString MaterialsWorkbenchController::BuildSelectionOverview(MaterialsWorkbench
 
 	if (kind == MaterialsWorkbenchNodeKind::Group) {
 		if (contextKey == "group:palettes") {
-			return wxString::Format("Palettes workspace\n\nLoaded %zu palettes grouped directly from materials.db.", catalog_.tilesets.size());
+			return wxString::Format("Palette Categories\n\nLoaded %zu palettes from materials.db.", catalog_.tilesets.size());
 		}
 		if (contextKey.StartsWith("palette_group:")) {
 			const wxString groupName = contextKey.AfterFirst(':');
@@ -738,7 +738,7 @@ wxString MaterialsWorkbenchController::BuildSelectionOverview(MaterialsWorkbench
 				}
 			}
 			return wxString::Format(
-				"%s\n\nLoaded %zu palettes in this DB-backed palette group.",
+				"%s\n\nLoaded %zu palettes in this palette category.",
 				BuildPaletteGroupLabel(groupName),
 				groupCount
 			);
@@ -748,7 +748,7 @@ wxString MaterialsWorkbenchController::BuildSelectionOverview(MaterialsWorkbench
 			for (const MaterialsWorkbenchBrushGroup &group : catalog_.brushGroups) {
 				brushCount += group.brushes.size();
 			}
-			return wxString::Format("Brushes workspace\n\nLoaded %zu editable brushes grouped by runtime family and palette.", brushCount);
+			return wxString::Format("Brushes\n\nLoaded %zu editable brushes grouped by category and palette.", brushCount);
 		}
 		if (contextKey == "group:borders") {
 			return wxString::Format("Borders workspace\n\nLoaded %zu global and %zu inline border sets.", catalog_.globalBorderSets.size(), catalog_.inlineBorderSets.size());
