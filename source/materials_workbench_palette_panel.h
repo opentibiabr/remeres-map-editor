@@ -98,6 +98,7 @@ private:
 	std::vector<int> moveDestinationPaletteIndexes_;
 	std::vector<wxString> paletteGroupKeys_;
 	std::vector<std::pair<int, int>> visibleEntryLocations_;
+	bool preserveSectionGridViewStart_ = false;
 
 	wxStaticText* titleLabel_ = nullptr;
 	wxStaticText* sourceLabel_ = nullptr;

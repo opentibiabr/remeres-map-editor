@@ -132,6 +132,7 @@
 - [x] Stage 10D progress: `Palette Brushes` now shows only the active family-scoped composition for the current palette, while backend-only entries from other families stay hidden from the main UX
 - [x] Stage 10D progress: the primary XML -> SQLite tileset import now expands ranged `item` entries into regular per-item rows before they ever reach `materials.db`, so palettes no longer start life with grouped item storage in the database
 - [x] Stage 10D progress: moving entries between palettes now accepts both `brush` and DB-backed `item` rows shown in `Palette Brushes`, and routes moved entries into the visible destination family/section instead of hiding them under the source section type
+- [x] Stage 10D progress: palette composition actions now preserve selection and grid viewport much more consistently during add/remove/reorder/move flows, avoiding jumps back to the first visible entry after save-driven refreshes
 - [x] Stage 10E: After every palette save, repopulate the navigation tree and refresh runtime palette state so runtime and Workbench stay aligned
 - [ ] Stage 10F: Keep XML-first onboarding working: first import may come from legacy XML, then `materials.db` remains the primary editable source
 - [x] Stage 10F progress: first import now boots the 4 base palette groups from legacy XML into `materials.db`, after which the DB stays as the editable source of truth

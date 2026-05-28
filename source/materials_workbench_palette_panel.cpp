@@ -64,20 +64,29 @@ public:
 		}
 	}
 
-	void SetItems(const std::vector<BrushGridItem> &items, int selectedIndex = -1) {
-		items_ = items;
-		selectedIndex_ = -1;
-		UpdateVirtualSize();
-		Refresh();
+	void SetItems(const std::vector<BrushGridItem> &items, int selectedIndex = -1, bool preserveViewStart = false) {
+		const wxPoint previousViewStart = preserveViewStart ? GetViewStart() : wxPoint(0, 0);
+		const int previousSelectedIndex = selectedIndex_;
 
+		items_ = items;
+		UpdateVirtualSize();
+
+		selectedIndex_ = -1;
 		if (!items_.empty()) {
 			if (HasItemIndex(selectedIndex)) {
-				SelectIndex(selectedIndex);
+				selectedIndex_ = selectedIndex;
 			} else {
-				SelectIndex(items_.front().index);
+				selectedIndex_ = items_.front().index;
 			}
-		} else if (onSelectionChanged_) {
-			onSelectionChanged_(-1);
+		}
+
+		if (preserveViewStart) {
+			RestoreViewStart(previousViewStart);
+		}
+
+		Refresh();
+		if (selectedIndex_ != previousSelectedIndex && onSelectionChanged_) {
+			onSelectionChanged_(selectedIndex_);
 		}
 	}
 
@@ -238,6 +247,24 @@ private:
 		return std::any_of(items_.begin(), items_.end(), [index](const BrushGridItem &item) {
 			return item.index == index;
 		});
+	}
+
+	void RestoreViewStart(const wxPoint &viewStart) {
+		int pixelsPerUnitX = 0;
+		int pixelsPerUnitY = 0;
+		GetScrollPixelsPerUnit(&pixelsPerUnitX, &pixelsPerUnitY);
+		if (pixelsPerUnitX <= 0) {
+			pixelsPerUnitX = 1;
+		}
+		if (pixelsPerUnitY <= 0) {
+			pixelsPerUnitY = 1;
+		}
+
+		const wxSize virtualSize = GetVirtualSize();
+		const wxSize clientSize = GetClientSize();
+		const int maxX = std::max(0, (virtualSize.GetWidth() - clientSize.GetWidth() + pixelsPerUnitX - 1) / pixelsPerUnitX);
+		const int maxY = std::max(0, (virtualSize.GetHeight() - clientSize.GetHeight() + pixelsPerUnitY - 1) / pixelsPerUnitY);
+		Scroll(std::clamp(viewStart.x, 0, maxX), std::clamp(viewStart.y, 0, maxY));
 	}
 
 	std::vector<BrushGridItem> items_;
@@ -681,6 +708,7 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 void MaterialsWorkbenchPalettePanel::ClearWorkspace(const wxString &message) {
 	hasPalette_ = false;
 	palette_ = TilesetStorageRecord();
+	preserveSectionGridViewStart_ = false;
 	availableBrushSources_.clear();
 	currentAvailableBrushes_.clear();
 	availableBrushFamilyKeys_.clear();
@@ -712,10 +740,15 @@ void MaterialsWorkbenchPalettePanel::ClearWorkspace(const wxString &message) {
 }
 
 bool MaterialsWorkbenchPalettePanel::LoadPalette(const TilesetStorageRecord &tileset) {
+	const bool isSamePalette = hasPalette_ && palette_.name.IsSameAs(tileset.name, false);
 	palette_ = tileset;
 	hasPalette_ = true;
-	currentSectionIndex_ = 0;
-	selectedSectionEntryIndex_ = -1;
+	preserveSectionGridViewStart_ = isSamePalette;
+	if (isSamePalette) {
+	} else {
+		currentSectionIndex_ = 0;
+		selectedSectionEntryIndex_ = -1;
+	}
 	selectedAvailableBrushListIndex_ = -1;
 	RefreshWorkspace();
 	return true;
@@ -858,7 +891,8 @@ void MaterialsWorkbenchPalettePanel::RefreshSectionEntries() {
 	if (desiredSelection < 0 && !items.empty()) {
 		desiredSelection = items.front().index;
 	}
-	sectionBrushGrid_->SetItems(items, desiredSelection);
+	sectionBrushGrid_->SetItems(items, desiredSelection, preserveSectionGridViewStart_);
+	preserveSectionGridViewStart_ = false;
 	if (items.empty()) {
 		currentSectionIndex_ = 0;
 		selectedSectionEntryIndex_ = -1;
@@ -1730,6 +1764,7 @@ void MaterialsWorkbenchPalettePanel::OnSectionChanged(wxCommandEvent &event) {
 	}
 	currentSectionIndex_ = selectedChoice;
 	selectedSectionEntryIndex_ = -1;
+	preserveSectionGridViewStart_ = false;
 	RefreshAvailableBrushFamilies();
 	RefreshAvailableBrushPalettes();
 	RefreshSectionEntries();
@@ -1898,6 +1933,7 @@ void MaterialsWorkbenchPalettePanel::OnAddBrush(wxCommandEvent &event) {
 		return;
 	}
 
+	preserveSectionGridViewStart_ = true;
 	RefreshSectionChoice();
 	RefreshSectionEntries();
 	UpdateButtonState();
@@ -1983,6 +2019,7 @@ void MaterialsWorkbenchPalettePanel::OnMoveBrushToPalette(wxCommandEvent &event)
 		if (onPaletteSaved_) {
 			onPaletteSaved_(palette_.name);
 		}
+		preserveSectionGridViewStart_ = true;
 		RefreshWorkspace();
 		return;
 	}
@@ -1991,6 +2028,7 @@ void MaterialsWorkbenchPalettePanel::OnMoveBrushToPalette(wxCommandEvent &event)
 	if (onPaletteSaved_) {
 		onPaletteSaved_(palette_.name);
 	}
+	preserveSectionGridViewStart_ = true;
 	RefreshWorkspace();
 }
 
@@ -2014,6 +2052,7 @@ void MaterialsWorkbenchPalettePanel::OnRemoveBrush(wxCommandEvent &event) {
 		return;
 	}
 
+	preserveSectionGridViewStart_ = true;
 	RefreshSectionChoice();
 	RefreshSectionEntries();
 	UpdateButtonState();
@@ -2024,6 +2063,7 @@ void MaterialsWorkbenchPalettePanel::OnMoveBrushUp(wxCommandEvent &event) {
 		return;
 	}
 
+	preserveSectionGridViewStart_ = true;
 	RefreshSectionEntries();
 	UpdateButtonState();
 }
@@ -2033,6 +2073,7 @@ void MaterialsWorkbenchPalettePanel::OnMoveBrushDown(wxCommandEvent &event) {
 		return;
 	}
 
+	preserveSectionGridViewStart_ = true;
 	RefreshSectionEntries();
 	UpdateButtonState();
 }
