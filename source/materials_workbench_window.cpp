@@ -228,7 +228,7 @@ MaterialsWorkbenchWindow::MaterialsWorkbenchWindow(wxWindow* parent) :
 void MaterialsWorkbenchWindow::BuildLayout() {
 	wxSplitterWindow* rootSplitter = new wxSplitterWindow(this, wxID_ANY);
 	rootSplitter->SetSashGravity(0.16);
-	rootSplitter->SetMinimumPaneSize(FromDIP(220));
+	rootSplitter->SetMinimumPaneSize(FromDIP(120));
 
 	wxPanel* sidebarPanel = CreateSidebarPanel(rootSplitter, navigationTree_);
 	workspaceBook_ = new wxSimplebook(rootSplitter, wxID_ANY);
@@ -272,7 +272,7 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 	workspaceBook_->AddPage(brushPanel_, "Brush");
 	workspaceBook_->AddPage(wallPanel_, "Wall");
 	workspaceBook_->SetSelection(0);
-	rootSplitter->SplitVertically(sidebarPanel, workspaceBook_, FromDIP(230));
+	rootSplitter->SplitVertically(sidebarPanel, workspaceBook_, FromDIP(120));
 
 	wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 	sizer->Add(rootSplitter, 1, wxEXPAND);

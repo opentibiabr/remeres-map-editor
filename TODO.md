@@ -139,6 +139,7 @@
 - [x] Stage 10D progress: SQLite-backed runtime palette reload now trusts the DB entry order directly during `loadFromStorage()`, avoiding extra `afterBrushName`/`RAWBrush::getName()` reordering work on every palette refresh
 - [x] Stage 10D progress: the palette tree and workspace terminology now align on `Palette Categories`, `Palette Category`, `Destination Category`, and entry-focused action text, making the authoring flow clearer and more concise
 - [x] Stage 10D progress: the Workbench tree now opens with a slimmer initial sidebar, group overviews use space more usefully, and category/editor nodes expand or collapse when their text is clicked
+- [x] Stage 10D progress: the Workbench sidebar opening width was tuned down again to `160dp`, with the splitter minimum matching that slimmer initial footprint while keeping manual resize available
 - [x] Stage 10D progress: overview panels now act as concise contextual manuals, explaining what each area is for, when to use it, and the recommended workflow instead of wasting space with raw counts alone
 - [x] Stage 10E: After every palette save, repopulate the navigation tree and refresh runtime palette state so runtime and Workbench stay aligned
 - [ ] Stage 10F: Keep XML-first onboarding working: first import may come from legacy XML, then `materials.db` remains the primary editable source
