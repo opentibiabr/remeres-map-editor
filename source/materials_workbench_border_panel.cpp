@@ -58,7 +58,8 @@ namespace {
 	constexpr int kBorderGridSize = 5;
 	constexpr int kBorderGridCenterIndex = 2;
 	constexpr int kBorderGridGapDip = 4;
-	constexpr int kBorderGridCellSizeDip = 84;
+	constexpr int kBorderGridCellWidthDip = 66;
+	constexpr int kBorderGridCellHeightDip = 58;
 
 	const BorderEdgeSpec* FindEdgeSpec(const wxString &edge) {
 		for (const BorderEdgeSpec &spec : kBorderEdgeSpecs) {
@@ -91,8 +92,12 @@ namespace {
 		return itemId > 0 ? wxString::Format("item %d", itemId) : emptyLabel;
 	}
 
-	wxString FormatCenterGroundText(int groundEquivalent) {
-		return groundEquivalent > 0 ? wxString::Format("item %d", groundEquivalent) : "painted base ground";
+	wxString FormatCompactItemIdText(int itemId, const wxString &emptyLabel = "empty") {
+		return itemId > 0 ? wxString::Format("%d", itemId) : emptyLabel;
+	}
+
+	wxString FormatCompactCenterGroundText(int itemId) {
+		return itemId > 0 ? wxString::Format("%d", itemId) : "painted";
 	}
 
 	int ResolveUsagePreviewItemId(const BorderSetUsageRecord &usage) {
@@ -161,9 +166,9 @@ namespace {
 		label->SetFont(font);
 	}
 
-	wxPanel* CreateSpacerCell(wxWindow* parent, int sizeDip) {
+	wxPanel* CreateSpacerCell(wxWindow* parent, int widthDip, int heightDip) {
 		wxPanel* spacer = new wxPanel(parent, wxID_ANY);
-		spacer->SetMinSize(wxSize(parent->FromDIP(sizeDip), parent->FromDIP(sizeDip)));
+		spacer->SetMinSize(wxSize(parent->FromDIP(widthDip), parent->FromDIP(heightDip)));
 		spacer->SetBackgroundColour(parent->GetBackgroundColour());
 		return spacer;
 	}
@@ -426,7 +431,8 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	StyleBorderWorkspaceCaption(identityLabel_);
 
 	wxStaticBoxSizer* metadataBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Border Set Metadata");
-	wxBoxSizer* metadataGrid = new wxBoxSizer(wxVERTICAL);
+	wxFlexGridSizer* metadataGrid = new wxFlexGridSizer(0, 2, FromDIP(6), FromDIP(8));
+	metadataGrid->AddGrowableCol(1, 1);
 
 	idCtrl_ = new wxTextCtrl(scrolled, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
 	xmlBorderIdCtrl_ = new wxSpinCtrl(scrolled, wxID_ANY);
@@ -443,11 +449,9 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	sourceCtrl_ = new wxTextCtrl(scrolled, wxID_ANY);
 	usageContextChoice_ = new wxChoice(scrolled, wxID_ANY);
 	openLinkedBrushButton_ = new wxButton(scrolled, wxID_ANY, "Open Linked Brush");
-	usageContextHintLabel_ = new wxStaticText(scrolled, wxID_ANY, "Global borders resolve the center from linked brushes. Pick a usage context to preview the actual center tile.");
-	StyleBorderWorkspaceCaption(usageContextHintLabel_);
 	StyleBorderWorkspaceActionButton(openLinkedBrushButton_, "Open the linked brush that provides the center ground for this global border usage.");
 
-	const wxSize metadataFieldSize(FromDIP(170), -1);
+	const wxSize metadataFieldSize(FromDIP(132), -1);
 	idCtrl_->SetMinSize(metadataFieldSize);
 	xmlBorderIdCtrl_->SetMinSize(metadataFieldSize);
 	scopeChoice_->SetMinSize(metadataFieldSize);
@@ -459,8 +463,10 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	usageContextChoice_->SetMinSize(metadataFieldSize);
 
 	const auto addMetadataField = [&](const wxString &label, wxWindow* control) {
-		metadataGrid->Add(new wxStaticText(scrolled, wxID_ANY, label), 0, wxBOTTOM, FromDIP(2));
-		metadataGrid->Add(control, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+		wxStaticText* fieldLabel = new wxStaticText(scrolled, wxID_ANY, label);
+		StyleBorderWorkspaceCaption(fieldLabel);
+		metadataGrid->Add(fieldLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
+		metadataGrid->Add(control, 1, wxEXPAND);
 	};
 
 	addMetadataField("SQLite ID", idCtrl_);
@@ -472,14 +478,18 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	addMetadataField("Owner Brush ID", ownerBrushIdCtrl_);
 	addMetadataField("Source", sourceCtrl_);
 	addMetadataField("Global Usage Context", usageContextChoice_);
-	metadataGrid->Add(usageContextHintLabel_, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
-	metadataGrid->Add(openLinkedBrushButton_, 0, wxBOTTOM, FromDIP(8));
+	metadataGrid->AddSpacer(0);
+	metadataGrid->Add(openLinkedBrushButton_, 0, wxALIGN_LEFT);
 	metadataBox->Add(metadataGrid, 1, wxEXPAND | wxALL, FromDIP(8));
 
 	wxBoxSizer* workspaceSizer = new wxBoxSizer(wxHORIZONTAL);
 
 	wxStaticBoxSizer* gridBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Slot Grid");
 	wxFlexGridSizer* slotGridSizer = new wxFlexGridSizer(kBorderGridSize, kBorderGridSize, FromDIP(kBorderGridGapDip), FromDIP(kBorderGridGapDip));
+	const int gridColumnWidthDip =
+		(kBorderGridSize * kBorderGridCellWidthDip) +
+		((kBorderGridSize - 1) * kBorderGridGapDip) +
+		32;
 
 	for (int row = 0; row < kBorderGridSize; ++row) {
 		for (int col = 0; col < kBorderGridSize; ++col) {
@@ -489,26 +499,25 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 				wxPanel* centerPanel = new wxPanel(scrolled, wxID_ANY);
 				centerPanel->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_BTNFACE));
 				wxBoxSizer* centerSizer = new wxBoxSizer(wxVERTICAL);
-				wxStaticText* centerLabel = CreateBorderSectionLabel(centerPanel, "Center Ground");
-				wxStaticText* centerHint = new wxStaticText(centerPanel, wxID_ANY, "Uses groundEquivalent");
 				centerGroundSlotPreview_ = new ItemButton(centerPanel, RENDER_SIZE_32x32, 0);
 				centerGroundSlotPreview_->Enable(false);
-				centerGroundSlotValueLabel_ = new wxStaticText(centerPanel, wxID_ANY, "item 0");
-				StyleBorderWorkspaceCaption(centerHint);
+				centerGroundSlotValueLabel_ = new wxStaticText(centerPanel, wxID_ANY, "not set");
 				StyleBorderWorkspaceStrongValue(centerGroundSlotValueLabel_);
+				centerPanel->SetToolTip("Center Ground");
+				centerGroundSlotPreview_->SetToolTip("Center Ground");
 
-				centerSizer->Add(centerLabel, 0, wxALIGN_CENTER | wxTOP | wxBOTTOM, FromDIP(2));
-				centerSizer->Add(centerGroundSlotPreview_, 0, wxALIGN_CENTER | wxBOTTOM, FromDIP(4));
-				centerSizer->Add(centerGroundSlotValueLabel_, 0, wxALIGN_CENTER | wxBOTTOM, FromDIP(1));
-				centerSizer->Add(centerHint, 0, wxALIGN_CENTER | wxBOTTOM, FromDIP(2));
+				centerSizer->AddStretchSpacer(1);
+				centerSizer->Add(centerGroundSlotPreview_, 0, wxALIGN_CENTER | wxBOTTOM, FromDIP(2));
+				centerSizer->Add(centerGroundSlotValueLabel_, 0, wxALIGN_CENTER | wxBOTTOM, FromDIP(2));
+				centerSizer->AddStretchSpacer(1);
 				centerPanel->SetSizer(centerSizer);
-				centerPanel->SetMinSize(wxSize(FromDIP(kBorderGridCellSizeDip), FromDIP(kBorderGridCellSizeDip)));
+				centerPanel->SetMinSize(wxSize(FromDIP(kBorderGridCellWidthDip), FromDIP(kBorderGridCellHeightDip)));
 				slotGridSizer->Add(centerPanel, 0, wxEXPAND);
 				continue;
 			}
 
 			if (!specForCell) {
-				slotGridSizer->Add(CreateSpacerCell(scrolled, kBorderGridCellSizeDip), 0, wxEXPAND);
+				slotGridSizer->Add(CreateSpacerCell(scrolled, kBorderGridCellWidthDip, kBorderGridCellHeightDip), 0, wxEXPAND);
 				continue;
 			}
 
@@ -516,21 +525,24 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 			cell->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_BTNFACE));
 			wxBoxSizer* cellSizer = new wxBoxSizer(wxVERTICAL);
 			wxString edge = wxString::FromUTF8(specForCell->edge);
-			wxStaticText* label = CreateBorderSectionLabel(cell, specForCell->label);
 			BorderSlotButton* button = new BorderSlotButton(cell);
-			wxStaticText* value = new wxStaticText(cell, wxID_ANY, "item 0");
+			wxStaticText* value = new wxStaticText(cell, wxID_ANY, "empty");
 			StyleBorderWorkspaceStrongValue(value);
+			cell->SetToolTip(specForCell->label);
+			button->SetToolTip(specForCell->label);
+			value->SetToolTip(specForCell->label);
 
 			button->Bind(wxEVT_LEFT_DOWN, [this, edge](wxMouseEvent &event) {
 				SelectEdge(edge);
 				event.Skip();
 			});
 
-			cellSizer->Add(label, 0, wxALIGN_CENTER | wxTOP | wxBOTTOM, FromDIP(2));
-			cellSizer->Add(button, 0, wxALIGN_CENTER | wxBOTTOM, FromDIP(4));
+			cellSizer->AddStretchSpacer(1);
+			cellSizer->Add(button, 0, wxALIGN_CENTER | wxBOTTOM, FromDIP(2));
 			cellSizer->Add(value, 0, wxALIGN_CENTER | wxBOTTOM, FromDIP(2));
+			cellSizer->AddStretchSpacer(1);
 			cell->SetSizer(cellSizer);
-			cell->SetMinSize(wxSize(FromDIP(kBorderGridCellSizeDip), FromDIP(kBorderGridCellSizeDip)));
+			cell->SetMinSize(wxSize(FromDIP(kBorderGridCellWidthDip), FromDIP(kBorderGridCellHeightDip)));
 
 			slotButtons_[edge] = button;
 			slotValueLabels_[edge] = value;
@@ -538,7 +550,11 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 		}
 	}
 
-	gridBox->Add(slotGridSizer, 0, wxALL, FromDIP(8));
+	wxBoxSizer* gridCenterRow = new wxBoxSizer(wxHORIZONTAL);
+	gridCenterRow->AddStretchSpacer(1);
+	gridCenterRow->Add(slotGridSizer, 0, wxALL, FromDIP(8));
+	gridCenterRow->AddStretchSpacer(1);
+	gridBox->Add(gridCenterRow, 0, wxEXPAND);
 
 	wxStaticBoxSizer* editorBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Selected Slot");
 	selectedEdgeLabel_ = new wxStaticText(scrolled, wxID_ANY, "Edge: none");
@@ -568,30 +584,30 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	editorBox->Add(selectionActions, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
 
 	wxStaticBoxSizer* previewBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Preview Matrix");
-	wxStaticText* previewHint = new wxStaticText(scrolled, wxID_ANY, "Compact composed silhouette. The selected slot stays highlighted in the same runtime position.");
-	StyleBorderWorkspaceCaption(previewHint);
-	previewSelectionLabel_ = new wxStaticText(scrolled, wxID_ANY, "Selected preview slot: none");
-	StyleBorderWorkspaceStrongValue(previewSelectionLabel_);
-	previewHint->Wrap(FromDIP(220));
-	previewSelectionLabel_->Wrap(FromDIP(220));
 	previewMatrixPanel_ = new BorderPreviewMatrixPanel(scrolled);
+	wxBoxSizer* previewCenterRow = new wxBoxSizer(wxHORIZONTAL);
+	previewCenterRow->AddStretchSpacer(1);
+	previewCenterRow->Add(previewMatrixPanel_, 0, wxALL, FromDIP(8));
+	previewCenterRow->AddStretchSpacer(1);
 
-	previewBox->Add(previewHint, 0, wxLEFT | wxRIGHT | wxTOP, FromDIP(8));
-	previewBox->Add(previewSelectionLabel_, 0, wxLEFT | wxRIGHT | wxTOP, FromDIP(4));
-	previewBox->Add(previewMatrixPanel_, 0, wxALL, FromDIP(8));
+	previewBox->Add(previewCenterRow, 1, wxEXPAND);
 
-	wxBoxSizer* leftColumn = new wxBoxSizer(wxVERTICAL);
-	leftColumn->Add(metadataBox, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
-	leftColumn->Add(editorBox, 0, wxEXPAND);
-	leftColumn->SetMinSize(wxSize(FromDIP(215), -1));
+	wxBoxSizer* metadataColumn = new wxBoxSizer(wxVERTICAL);
+	metadataColumn->Add(metadataBox, 0, wxEXPAND);
+	metadataColumn->SetMinSize(wxSize(FromDIP(250), -1));
 
-	wxBoxSizer* visualsRow = new wxBoxSizer(wxHORIZONTAL);
-	visualsRow->Add(gridBox, 1, wxRIGHT | wxEXPAND, FromDIP(8));
-	previewBox->SetMinSize(wxSize(FromDIP(250), -1));
-	visualsRow->Add(previewBox, 0, wxEXPAND);
+	wxBoxSizer* gridColumn = new wxBoxSizer(wxVERTICAL);
+	gridBox->SetMinSize(wxSize(FromDIP(gridColumnWidthDip), -1));
+	gridColumn->Add(gridBox, 0, wxEXPAND);
 
-	workspaceSizer->Add(leftColumn, 0, wxRIGHT | wxEXPAND, FromDIP(10));
-	workspaceSizer->Add(visualsRow, 1, wxEXPAND);
+	wxBoxSizer* previewColumn = new wxBoxSizer(wxVERTICAL);
+	previewBox->SetMinSize(wxSize(FromDIP(220), -1));
+	previewColumn->Add(previewBox, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+	previewColumn->Add(editorBox, 0, wxEXPAND);
+
+	workspaceSizer->Add(metadataColumn, 1, wxRIGHT | wxEXPAND, FromDIP(10));
+	workspaceSizer->Add(gridColumn, 0, wxRIGHT | wxEXPAND, FromDIP(10));
+	workspaceSizer->Add(previewColumn, 0, wxEXPAND);
 
 	contentSizer->Add(summaryLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, FromDIP(8));
 	contentSizer->Add(identityLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, FromDIP(2));
@@ -682,19 +698,13 @@ void MaterialsWorkbenchBorderPanel::ClearWorkspace(const wxString &message) {
 	if (centerGroundSlotValueLabel_) {
 		centerGroundSlotValueLabel_->SetLabel("not set");
 	}
-	if (previewSelectionLabel_) {
-		previewSelectionLabel_->SetLabel("Selected preview slot: none");
-	}
-	if (usageContextHintLabel_) {
-		usageContextHintLabel_->SetLabel("Global borders resolve the center from linked brushes. Pick a usage context to preview the actual center tile.");
-	}
 
 	for (const auto &entry : slotButtons_) {
 		entry.second->SetSprite(0);
 		entry.second->SetValue(false);
 	}
 	for (const auto &entry : slotValueLabels_) {
-		entry.second->SetLabel("item 0");
+		entry.second->SetLabel("empty");
 	}
 	if (previewMatrixPanel_) {
 		static_cast<BorderPreviewMatrixPanel*>(previewMatrixPanel_)->SetPreviewState({}, 0, "");
@@ -879,18 +889,17 @@ void MaterialsWorkbenchBorderPanel::UpdateUsageContextControls() {
 	if (openLinkedBrushButton_) {
 		openLinkedBrushButton_->Enable(isGlobal && usage && usage->brushId > 0);
 	}
-	if (usageContextHintLabel_) {
+	if (usageContextChoice_) {
 		if (!isGlobal) {
-			usageContextHintLabel_->SetLabel("Inline border sets own their center tile directly through groundEquivalent.");
+			usageContextChoice_->SetToolTip("Inline border sets own their center tile directly through groundEquivalent.");
 		} else if (usage) {
-			usageContextHintLabel_->SetLabel(wxString::Format(
+			usageContextChoice_->SetToolTip(wxString::Format(
 				"Previewing runtime context from brush \"%s\". Global border centers come from linked brushes, not from the shared border set.",
 				usage->brushName
 			));
 		} else {
-			usageContextHintLabel_->SetLabel("This global border set has no linked brush usage in materials.db yet.");
+			usageContextChoice_->SetToolTip("This global border set has no linked brush usage in materials.db yet.");
 		}
-		usageContextHintLabel_->Wrap(FromDIP(190));
 	}
 }
 
@@ -1102,7 +1111,8 @@ void MaterialsWorkbenchBorderPanel::RefreshSlotGrid() {
 		);
 	}
 	if (centerGroundSlotValueLabel_) {
-		centerGroundSlotValueLabel_->SetLabel(centerSourceLabel);
+		centerGroundSlotValueLabel_->SetLabel(FormatCompactCenterGroundText(centerPreviewItemId));
+		centerGroundSlotValueLabel_->SetToolTip(centerSourceLabel);
 	}
 
 	for (const auto &entry : slotButtons_) {
@@ -1111,7 +1121,7 @@ void MaterialsWorkbenchBorderPanel::RefreshSlotGrid() {
 		const int itemId = slotItemIds_.count(edge) > 0 ? slotItemIds_[edge] : 0;
 		entry.second->SetSprite(itemId);
 		entry.second->SetValue(edge == selectedEdge_);
-		slotValueLabels_[edge]->SetLabel(FormatOptionalBorderItemText(itemId, "empty"));
+		slotValueLabels_[edge]->SetLabel(FormatCompactItemIdText(itemId, "empty"));
 		entry.second->SetToolTip(
 			itemId > 0
 				? wxString::Format("%s slot uses item %d.", slotLabel, itemId)
@@ -1126,25 +1136,18 @@ void MaterialsWorkbenchBorderPanel::RefreshPreviewGrid() {
 	const int centerPreviewItemId = ResolveCenterPreviewItemId();
 	const wxString centerSourceLabel = ResolveCenterSourceLabel();
 	if (previewMatrixPanel_) {
-		previewMatrixPanel_->SetToolTip(
+		wxString previewTooltip =
 			centerPreviewItemId > 0
 				? wxString::Format("Preview composes the runtime scene from the 5x5 matrix using %s as base ground.", centerSourceLabel)
-				: wxString::Format("Preview composes the runtime scene from the 5x5 matrix. Center source: %s.", centerSourceLabel)
-		);
-		static_cast<BorderPreviewMatrixPanel*>(previewMatrixPanel_)->SetPreviewState(slotItemIds_, centerPreviewItemId, selectedEdge_);
-	}
-
-	if (previewSelectionLabel_) {
+				: wxString::Format("Preview composes the runtime scene from the 5x5 matrix. Center source: %s.", centerSourceLabel);
 		if (selectedEdge_.IsEmpty()) {
-			previewSelectionLabel_->SetLabel("Selected preview slot: none | Center source: " + centerSourceLabel);
+			previewTooltip += " No slot selected.";
 		} else {
 			const int selectedItemId = slotItemIds_.count(selectedEdge_) > 0 ? slotItemIds_[selectedEdge_] : 0;
-			previewSelectionLabel_->SetLabel(wxString::Format(
-				"Selected preview slot: %s | %s",
-				GetBorderEdgeDisplayLabel(selectedEdge_),
-				FormatOptionalBorderItemText(selectedItemId, "empty")
-			));
+			previewTooltip += wxString::Format(" Selected slot: %s (%s).", GetBorderEdgeDisplayLabel(selectedEdge_), FormatCompactItemIdText(selectedItemId, "empty"));
 		}
+		previewMatrixPanel_->SetToolTip(previewTooltip);
+		static_cast<BorderPreviewMatrixPanel*>(previewMatrixPanel_)->SetPreviewState(slotItemIds_, centerPreviewItemId, selectedEdge_);
 	}
 
 	RefreshPreviewSelectionState();

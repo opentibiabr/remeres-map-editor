@@ -107,14 +107,12 @@ private:
 	wxTextCtrl* sourceCtrl_ = nullptr;
 	wxChoice* usageContextChoice_ = nullptr;
 	wxButton* openLinkedBrushButton_ = nullptr;
-	wxStaticText* usageContextHintLabel_ = nullptr;
 	wxStaticText* selectedEdgeLabel_ = nullptr;
 	wxSpinCtrl* selectedItemIdCtrl_ = nullptr;
 	ItemButton* selectedItemPreview_ = nullptr;
 	ItemButton* centerGroundSlotPreview_ = nullptr;
 	wxStaticText* centerGroundSlotValueLabel_ = nullptr;
 	wxPanel* previewMatrixPanel_ = nullptr;
-	wxStaticText* previewSelectionLabel_ = nullptr;
 	wxStaticText* statusLabel_ = nullptr;
 };
 
