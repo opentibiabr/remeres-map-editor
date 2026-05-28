@@ -121,6 +121,10 @@ private:
 		return FromDIP(84);
 	}
 
+	int GetPreviewBitmapSize() const {
+		return FromDIP(30);
+	}
+
 	int GetColumnCount() const {
 		const int availableWidth = std::max(GetClientSize().GetWidth() - GetSpacing(), GetTileWidth());
 		return std::max(1, availableWidth / (GetTileWidth() + GetSpacing()));
@@ -183,8 +187,9 @@ private:
 
 		const int lookId = item.brush ? item.brush->getLookID() : item.lookId;
 		if (lookId > 0) {
-			if (Sprite* sprite = g_gui.gfx.getSprite(lookId)) {
-				sprite->DrawTo(&dc, SPRITE_SIZE_32x32, iconRect.x + FromDIP(1), iconRect.y + FromDIP(1), FromDIP(30), FromDIP(30));
+			const wxBitmap* cachedPreview = GetOrCreatePreviewBitmap(lookId);
+			if (cachedPreview && cachedPreview->IsOk()) {
+				dc.DrawBitmap(*cachedPreview, iconRect.x + FromDIP(1), iconRect.y + FromDIP(1), true);
 			}
 		}
 
@@ -229,6 +234,7 @@ private:
 	}
 
 	void OnSize(wxSizeEvent &event) {
+		InvalidatePreviewCacheIfNeeded();
 		UpdateVirtualSize();
 		Refresh();
 		event.Skip();
@@ -351,8 +357,46 @@ private:
 		}
 	}
 
+	void InvalidatePreviewCacheIfNeeded() {
+		const int previewBitmapSize = GetPreviewBitmapSize();
+		if (previewBitmapSize == cachedPreviewBitmapSize_) {
+			return;
+		}
+
+		previewBitmapCache_.clear();
+		cachedPreviewBitmapSize_ = previewBitmapSize;
+	}
+
+	const wxBitmap* GetOrCreatePreviewBitmap(int lookId) {
+		if (lookId <= 0) {
+			return nullptr;
+		}
+
+		InvalidatePreviewCacheIfNeeded();
+		const auto cachedIt = previewBitmapCache_.find(lookId);
+		if (cachedIt != previewBitmapCache_.end()) {
+			return cachedIt->second.IsOk() ? &cachedIt->second : nullptr;
+		}
+
+		wxBitmap previewBitmap;
+		if (Sprite* sprite = g_gui.gfx.getSprite(lookId)) {
+			const int previewBitmapSize = std::max(1, cachedPreviewBitmapSize_);
+			previewBitmap = wxBitmap(previewBitmapSize, previewBitmapSize, 32);
+			wxMemoryDC previewDc(previewBitmap);
+			previewDc.SetBackground(wxBrush(wxColour(0, 0, 0, 0)));
+			previewDc.Clear();
+			sprite->DrawTo(&previewDc, SPRITE_SIZE_32x32, 0, 0, previewBitmapSize, previewBitmapSize);
+			previewDc.SelectObject(wxNullBitmap);
+		}
+
+		auto inserted = previewBitmapCache_.emplace(lookId, previewBitmap);
+		return inserted.first->second.IsOk() ? &inserted.first->second : nullptr;
+	}
+
 	std::vector<BrushGridItem> items_;
 	std::unordered_map<int, size_t> itemPositionsByIndex_;
+	std::unordered_map<int, wxBitmap> previewBitmapCache_;
+	int cachedPreviewBitmapSize_ = 0;
 	int selectedIndex_ = -1;
 	wxString emptyMessage_;
 	std::function<void(int)> onSelectionChanged_;

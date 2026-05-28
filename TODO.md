@@ -135,6 +135,7 @@
 - [x] Stage 10D progress: palette composition actions now preserve selection and grid viewport much more consistently during add/remove/reorder/move flows, avoiding jumps back to the first visible entry after save-driven refreshes
 - [x] Stage 10D progress: the move destination selector now works with real `palette_groups`, including custom groups, while still using each group's `runtime_family` to place moved entries into the correct destination section
 - [x] Stage 10D progress: the `Palette Brushes` grid now paints only the visible tile range and invalidates selection changes locally, reducing repaint cost during navigation and composition actions
+- [x] Stage 10D progress: the brush grids now cache rendered sprite previews per `lookId` and invalidate that cache only when preview size changes, reducing repeated `DrawTo` and image resampling during paint
 - [x] Stage 10E: After every palette save, repopulate the navigation tree and refresh runtime palette state so runtime and Workbench stay aligned
 - [ ] Stage 10F: Keep XML-first onboarding working: first import may come from legacy XML, then `materials.db` remains the primary editable source
 - [x] Stage 10F progress: first import now boots the 4 base palette groups from legacy XML into `materials.db`, after which the DB stays as the editable source of truth
