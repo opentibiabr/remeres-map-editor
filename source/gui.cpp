@@ -1134,13 +1134,18 @@ void GUI::RefreshView() {
 }
 
 void GUI::CreateLoadBar(wxString message, bool canCancel /* = false */) {
+	CreateLoadBar(message, canCancel, true);
+}
+
+void GUI::CreateLoadBar(wxString message, bool canCancel, bool appModal) {
 	progressText = message;
 
 	progressFrom = 0;
 	progressTo = 100;
 	currentProgress = -1;
 
-	progressBar = newd wxGenericProgressDialog("Loading", progressText + " (0%)", 100, root, wxPD_APP_MODAL | wxPD_SMOOTH | (canCancel ? wxPD_CAN_ABORT : 0));
+	const long style = (appModal ? wxPD_APP_MODAL : 0) | wxPD_SMOOTH | (canCancel ? wxPD_CAN_ABORT : 0);
+	progressBar = newd wxGenericProgressDialog("Loading", progressText + " (0%)", 100, root, style);
 	progressBar->SetSize(280, -1);
 	progressBar->Show(true);
 
@@ -1177,10 +1182,11 @@ bool GUI::SetLoadDone(int32_t done, const wxString &newMessage) {
 	}
 
 	bool skip = false;
+	bool continueProcessing = true;
 	if (progressBar) {
-		progressBar->Update(
+		continueProcessing = progressBar->Update(
 			newProgress,
-			wxString::Format("%s (%d%%)", progressText, newProgress),
+			wxString::Format("%s (%d%%)", progressText.c_str(), newProgress),
 			&skip
 		);
 		currentProgress = newProgress;
@@ -1196,7 +1202,7 @@ bool GUI::SetLoadDone(int32_t done, const wxString &newMessage) {
 		}
 	}
 
-	return skip;
+	return continueProcessing && !skip;
 }
 
 void GUI::DestroyLoadBar() {

@@ -36,6 +36,17 @@
 - Prefer forward declarations in headers when possible. Do not move heavy includes into public headers unless the type definition is required there.
 - For hot-path or broad runtime changes, account for compile-time impact: do not scatter expensive includes across many translation units without updating the precompiled header strategy.
 
+## Cyclopedia Export Contract Gate
+
+- Before changing Cyclopedia static data, `staticmapdata`, `mapdata`, minimap/satellite asset generation, catalog backup/restore behavior, or the related protobuf schemas, read `docs/static-data.md`.
+- Preserve the CipSoft-compatible contract unless the user explicitly asks to change it:
+  - hash-named `staticdata`, `staticmapdata`, and `map` files must match their content and stay referenced by `catalog-content.json`.
+  - `staticmapdata` house previews must preserve compatible template `origin`, `dimensions`, linear `skip + 1` semantics, and item draw order.
+  - `mapdata` must preserve compatible template `SUBAREA` assets and emit aligned `MINIMAP` and `SATELLITE` assets for the documented scales, including the `1/16` layer.
+  - Surface View must use `SATELLITE` assets rendered from real sprite ids, including ground, border, and item sprites in draw order; minimap colors are fallback only.
+- Do not replace sprite ids with GL texture/atlas ids in export paths. `GameSprite::getSpriteID(...)` is the asset identity path; `GameSprite::getHardwareID(...)` is for rendering textures.
+- If a Cyclopedia export contract change is intentional, update `docs/static-data.md` in the same change and include a non-build validation rationale. Do not rely on visual assumptions alone.
+
 ## PR Communication Policy
 
 - Do not post any PR comments/reviews automatically.

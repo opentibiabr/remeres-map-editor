@@ -620,6 +620,7 @@ void Tile::finalizeLoadedState() {
 
 void Tile::update() {
 	statflags &= TILESTATE_MODIFIED;
+	minimapColor = INVALID_MINIMAP_COLOR;
 
 	if (spawnMonster && spawnMonster->isSelected()) {
 		statflags |= TILESTATE_SELECTED;

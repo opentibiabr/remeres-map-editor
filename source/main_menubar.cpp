@@ -27,18 +27,536 @@
 #include "result_window.h"
 #include "find_item_window.h"
 #include "settings.h"
+#include "iomap_otbm.h"
 #include "sqlite_materials_inspector.h"
 #include "lua/lua_script_manager.h"
 #include "lua/lua_scripts_window.h"
 #include "gui.h"
 
 #include <wx/chartype.h>
+#include <wx/choicdlg.h>
+#include <wx/dirdlg.h>
+#include <wx/msgdlg.h>
+#include <wx/textdlg.h>
+#include <wx/tokenzr.h>
+
+#include <algorithm>
+#include <chrono>
+#include <ctime>
+#include <filesystem>
+#include <format>
+#include <iomanip>
+#include <sstream>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 #include "items.h"
 #include "editor.h"
 #include "materials.h"
 #include "live_client.h"
 #include "live_server.h"
+
+namespace {
+	constexpr int CyclopediaExportStatusMinIntervalMs = 1000;
+
+	bool selectAssetsOrCustomFolder(
+		wxWindow* parent,
+		const wxString &title,
+		const wxString &message,
+		const wxString &directoryDialogTitle,
+		wxString &outputPath
+	) {
+		wxArrayString choices;
+		choices.Add("Current loaded client assets (recommended)");
+		choices.Add("Choose a specific folder");
+
+		wxSingleChoiceDialog choiceDialog(parent, message, title, choices);
+		choiceDialog.SetSelection(0);
+		if (choiceDialog.ShowModal() != wxID_OK) {
+			return false;
+		}
+
+		if (choiceDialog.GetSelection() == 0) {
+			const wxString clientPath = ClientAssets::getPath();
+			if (clientPath.empty() || !wxDirExists(clientPath)) {
+				g_gui.PopupDialog("Error", "Current client path is not configured. Load/select the client assets path first.", wxOK);
+				return false;
+			}
+
+			outputPath = clientPath;
+			return true;
+		}
+
+		wxDirDialog directoryDialog(parent, directoryDialogTitle, "", wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+		if (directoryDialog.ShowModal() != wxID_OK) {
+			return false;
+		}
+
+		outputPath = directoryDialog.GetPath();
+		return true;
+	}
+
+	bool selectAssetsOrCustomExportFolder(wxWindow* parent, const wxString &title, wxString &outputPath) {
+		return selectAssetsOrCustomFolder(parent, title, "Select where to export the files.", "Select output folder", outputPath);
+	}
+
+	bool selectAssetsOrCustomRestoreFolder(wxWindow* parent, const wxString &title, wxString &outputPath) {
+		return selectAssetsOrCustomFolder(parent, title, "Select which assets folder should be restored.", "Select assets folder to restore", outputPath);
+	}
+
+	FileName makeDirectoryFileName(const wxString &directoryPath) {
+		FileName directory;
+		directory.AssignDir(directoryPath);
+		return directory;
+	}
+
+	wxString resolveCyclopediaOutputDisplayPath(const wxString &directoryPath) {
+		FileName rootCatalog;
+		rootCatalog.AssignDir(directoryPath);
+		rootCatalog.SetFullName("catalog-content.json");
+		if (rootCatalog.FileExists()) {
+			return directoryPath;
+		}
+
+		FileName assetsCatalog;
+		assetsCatalog.AssignDir(directoryPath);
+		assetsCatalog.AppendDir("assets");
+		assetsCatalog.SetFullName("catalog-content.json");
+		if (assetsCatalog.FileExists()) {
+			return assetsCatalog.GetPath(wxPATH_GET_VOLUME);
+		}
+
+		return directoryPath;
+	}
+
+	wxString appendDisplaySubdirectory(const wxString &directoryPath, const wxString &subdirectory) {
+		FileName path;
+		path.AssignDir(directoryPath);
+		path.AppendDir(subdirectory);
+		return path.GetPath(wxPATH_GET_VOLUME);
+	}
+
+	struct AssetsBackupSnapshot {
+		std::filesystem::path rootPath;
+		wxString label;
+		size_t fileCount = 0;
+		bool legacy = false;
+	};
+
+	bool isSafeRelativeBackupPath(const std::filesystem::path &path) {
+		if (path.empty() || path.is_absolute()) {
+			return false;
+		}
+
+		for (const std::filesystem::path &part : path) {
+			if (part == std::filesystem::path(".") || part == std::filesystem::path("..")) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	bool isBackupFile(const std::filesystem::path &path) {
+		return path.has_extension() && path.extension() == ".bkp";
+	}
+
+	size_t countBackupFiles(const std::filesystem::path &rootPath, const bool legacy) {
+		if (rootPath.empty() || !std::filesystem::exists(rootPath)) {
+			return 0;
+		}
+
+		size_t count = 0;
+		if (legacy) {
+			for (const auto &entry : std::filesystem::directory_iterator(rootPath)) {
+				if (entry.is_regular_file() && isBackupFile(entry.path())) {
+					++count;
+				}
+			}
+			return count;
+		}
+
+		for (const auto &entry : std::filesystem::recursive_directory_iterator(rootPath)) {
+			if (entry.is_regular_file() && isBackupFile(entry.path())) {
+				++count;
+			}
+		}
+		return count;
+	}
+
+	bool getLocalBackupTime(const std::time_t value, std::tm &localTime) {
+#ifdef _WIN32
+		return localtime_s(&localTime, &value) == 0;
+#else
+		return localtime_r(&value, &localTime) != nullptr;
+#endif
+	}
+
+	std::string buildBackupSnapshotName(const std::string_view prefix) {
+		const std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+		std::tm localTime {};
+		if (!getLocalBackupTime(now, localTime)) {
+			return std::string(prefix) + "-unknown-time";
+		}
+
+		std::ostringstream name;
+		name << prefix << "-" << std::put_time(&localTime, "%Y-%m-%d_%H-%M-%S");
+		return name.str();
+	}
+
+	std::filesystem::path createBackupSnapshotPath(const std::filesystem::path &backupRootPath, const std::string_view prefix) {
+		std::error_code ec;
+		std::filesystem::create_directories(backupRootPath, ec);
+		if (ec) {
+			return std::filesystem::path();
+		}
+
+		const std::string baseName = buildBackupSnapshotName(prefix);
+		for (int attempt = 0; attempt < 1000; ++attempt) {
+			std::string snapshotName = baseName;
+			if (attempt > 0) {
+				snapshotName += std::format("-{:03}", attempt + 1);
+			}
+
+			std::filesystem::path snapshotPath = backupRootPath / snapshotName;
+			ec.clear();
+			if (std::filesystem::create_directory(snapshotPath, ec)) {
+				return snapshotPath;
+			}
+			if (ec) {
+				return std::filesystem::path();
+			}
+		}
+
+		return std::filesystem::path();
+	}
+
+	bool collectBackupSnapshots(const std::filesystem::path &basePath, std::vector<AssetsBackupSnapshot> &snapshots) {
+		snapshots.clear();
+		const std::filesystem::path backupRootPath = basePath / "bkps";
+		if (!std::filesystem::exists(backupRootPath) || !std::filesystem::is_directory(backupRootPath)) {
+			return false;
+		}
+
+		const size_t legacyFileCount = countBackupFiles(backupRootPath, true);
+		if (legacyFileCount > 0) {
+			AssetsBackupSnapshot legacySnapshot;
+			legacySnapshot.rootPath = backupRootPath;
+			legacySnapshot.fileCount = legacyFileCount;
+			legacySnapshot.legacy = true;
+			legacySnapshot.label = wxString::Format("legacy flat backup (%llu files)", static_cast<unsigned long long>(legacyFileCount));
+			snapshots.emplace_back(std::move(legacySnapshot));
+		}
+
+		for (const auto &entry : std::filesystem::directory_iterator(backupRootPath)) {
+			if (!entry.is_directory()) {
+				continue;
+			}
+
+			const size_t fileCount = countBackupFiles(entry.path(), false);
+			if (fileCount == 0) {
+				continue;
+			}
+
+			const wxString snapshotName = wxstr(entry.path().filename().string());
+			AssetsBackupSnapshot snapshot;
+			snapshot.rootPath = entry.path();
+			snapshot.fileCount = fileCount;
+			snapshot.label = wxString::Format("%s (%llu files)", snapshotName.c_str(), static_cast<unsigned long long>(fileCount));
+			snapshots.emplace_back(std::move(snapshot));
+		}
+
+		std::ranges::sort(snapshots, [](const AssetsBackupSnapshot &left, const AssetsBackupSnapshot &right) {
+			if (left.legacy != right.legacy) {
+				return !left.legacy;
+			}
+			std::error_code leftEc;
+			std::error_code rightEc;
+			const auto leftWriteTime = std::filesystem::last_write_time(left.rootPath, leftEc);
+			const auto rightWriteTime = std::filesystem::last_write_time(right.rootPath, rightEc);
+			if (!leftEc && !rightEc && leftWriteTime != rightWriteTime) {
+				return leftWriteTime > rightWriteTime;
+			}
+			return left.label.Cmp(right.label) > 0;
+		});
+		return !snapshots.empty();
+	}
+
+	bool collectBackupFilesForSnapshot(const AssetsBackupSnapshot &snapshot, std::vector<std::filesystem::path> &backupFiles) {
+		backupFiles.clear();
+		if (snapshot.rootPath.empty() || !std::filesystem::exists(snapshot.rootPath)) {
+			return false;
+		}
+
+		if (snapshot.legacy) {
+			for (const auto &entry : std::filesystem::directory_iterator(snapshot.rootPath)) {
+				if (entry.is_regular_file() && isBackupFile(entry.path())) {
+					backupFiles.emplace_back(entry.path());
+				}
+			}
+		} else {
+			for (const auto &entry : std::filesystem::recursive_directory_iterator(snapshot.rootPath)) {
+				if (entry.is_regular_file() && isBackupFile(entry.path())) {
+					backupFiles.emplace_back(entry.path());
+				}
+			}
+		}
+
+		std::ranges::sort(backupFiles, [](const std::filesystem::path &left, const std::filesystem::path &right) {
+			const bool leftCatalog = left.filename() == "catalog-content.json.bkp";
+			const bool rightCatalog = right.filename() == "catalog-content.json.bkp";
+			if (leftCatalog != rightCatalog) {
+				return !leftCatalog;
+			}
+			return left.generic_string() < right.generic_string();
+		});
+		return !backupFiles.empty();
+	}
+
+	bool getRestoreRelativePath(const AssetsBackupSnapshot &snapshot, const std::filesystem::path &backupFile, std::filesystem::path &relativePath) {
+		std::error_code ec;
+		relativePath = std::filesystem::relative(backupFile, snapshot.rootPath, ec);
+		if (ec || !isSafeRelativeBackupPath(relativePath) || !isBackupFile(relativePath)) {
+			return false;
+		}
+
+		const std::string filename = relativePath.filename().string();
+		constexpr std::string_view backupSuffix = ".bkp";
+		if (filename.size() <= backupSuffix.size() || !filename.ends_with(backupSuffix)) {
+			return false;
+		}
+
+		relativePath.replace_filename(filename.substr(0, filename.size() - backupSuffix.size()));
+		return isSafeRelativeBackupPath(relativePath);
+	}
+
+	std::filesystem::path makeRestoreBackupPath(const std::filesystem::path &snapshotPath, const std::filesystem::path &relativePath) {
+		std::filesystem::path backupPath = snapshotPath / relativePath;
+		backupPath += ".bkp";
+		return backupPath;
+	}
+
+	bool backupExistingTargetBeforeRestore(
+		const std::filesystem::path &basePath,
+		const std::filesystem::path &targetPath,
+		const std::filesystem::path &safetySnapshotPath,
+		wxString &errorMessage
+	) {
+		if (!std::filesystem::exists(targetPath)) {
+			return true;
+		}
+
+		std::error_code ec;
+		std::filesystem::path relativePath = std::filesystem::relative(targetPath, basePath, ec);
+		if (ec || !isSafeRelativeBackupPath(relativePath)) {
+			errorMessage = wxString::Format("Unsafe restore target path: %s", wxstr(targetPath.string()).c_str());
+			return false;
+		}
+
+		const std::filesystem::path backupPath = makeRestoreBackupPath(safetySnapshotPath, relativePath);
+		if (!backupPath.parent_path().empty()) {
+			std::filesystem::create_directories(backupPath.parent_path(), ec);
+			if (ec) {
+				errorMessage = wxString::Format("Failed to create restore safety backup folder: %s", wxstr(backupPath.parent_path().string()).c_str());
+				return false;
+			}
+		}
+
+		std::filesystem::rename(targetPath, backupPath, ec);
+		if (!ec) {
+			return true;
+		}
+
+		ec.clear();
+		std::filesystem::copy_file(targetPath, backupPath, std::filesystem::copy_options::none, ec);
+		if (ec) {
+			errorMessage = wxString::Format("Failed to backup current file before restore: %s", wxstr(targetPath.string()).c_str());
+			return false;
+		}
+
+		ec.clear();
+		std::filesystem::remove(targetPath, ec);
+		if (ec) {
+			errorMessage = wxString::Format("Failed to remove current file before restore: %s", wxstr(targetPath.string()).c_str());
+			return false;
+		}
+		return true;
+	}
+
+	bool restoreBackupSnapshot(
+		const std::filesystem::path &basePath,
+		const AssetsBackupSnapshot &snapshot,
+		size_t &restoredFileCount,
+		std::filesystem::path &safetySnapshotPath,
+		wxString &errorMessage
+	) {
+		restoredFileCount = 0;
+		std::vector<std::filesystem::path> backupFiles;
+		if (!collectBackupFilesForSnapshot(snapshot, backupFiles)) {
+			errorMessage = "Selected backup snapshot has no restorable files.";
+			return false;
+		}
+
+		safetySnapshotPath = createBackupSnapshotPath(basePath / "bkps", "restore");
+		if (safetySnapshotPath.empty()) {
+			errorMessage = "Failed to create restore safety backup snapshot.";
+			return false;
+		}
+
+		for (const std::filesystem::path &backupFile : backupFiles) {
+			std::filesystem::path relativePath;
+			if (!getRestoreRelativePath(snapshot, backupFile, relativePath)) {
+				errorMessage = wxString::Format("Unsafe backup file path: %s", wxstr(backupFile.string()).c_str());
+				return false;
+			}
+
+			const std::filesystem::path targetPath = basePath / relativePath;
+			if (!backupExistingTargetBeforeRestore(basePath, targetPath, safetySnapshotPath, errorMessage)) {
+				return false;
+			}
+
+			std::error_code ec;
+			if (!targetPath.parent_path().empty()) {
+				std::filesystem::create_directories(targetPath.parent_path(), ec);
+				if (ec) {
+					errorMessage = wxString::Format("Failed to create restore target folder: %s", wxstr(targetPath.parent_path().string()).c_str());
+					return false;
+				}
+			}
+
+			std::filesystem::copy_file(backupFile, targetPath, std::filesystem::copy_options::overwrite_existing, ec);
+			if (ec) {
+				errorMessage = wxString::Format("Failed to restore backup file: %s", wxstr(backupFile.string()).c_str());
+				return false;
+			}
+			++restoredFileCount;
+		}
+
+		return true;
+	}
+
+	bool selectStaticHouseExportFilter(wxWindow* parent, std::vector<std::string> &houseNamesFilter) {
+		houseNamesFilter.clear();
+
+		wxArrayString choices;
+		choices.Add("Export all houses");
+		choices.Add("Export only specific house names");
+
+		wxSingleChoiceDialog modeDialog(parent, "Select which houses should be exported.", "Export Static House Data", choices);
+		modeDialog.SetSelection(0);
+		if (modeDialog.ShowModal() != wxID_OK) {
+			return false;
+		}
+
+		if (modeDialog.GetSelection() == 0) {
+			return true;
+		}
+
+		wxTextEntryDialog namesDialog(
+			parent,
+			"Enter one or more house names separated by comma, semicolon, or line break.\n"
+			"Example:\n"
+			"Coastwood 3\n"
+			"Coastwood 4",
+			"Specific House Names"
+		);
+		if (namesDialog.ShowModal() != wxID_OK) {
+			return false;
+		}
+
+		const wxString rawNames = namesDialog.GetValue();
+		wxStringTokenizer tokenizer(rawNames, ",;\n\r", wxTOKEN_STRTOK);
+		while (tokenizer.HasMoreTokens()) {
+			wxString token = tokenizer.GetNextToken();
+			token.Trim(true);
+			token.Trim(false);
+			if (token.empty()) {
+				continue;
+			}
+			houseNamesFilter.emplace_back(nstr(token));
+		}
+
+		if (houseNamesFilter.empty()) {
+			g_gui.PopupDialog("Error", "No valid house names were provided.", wxOK);
+			return false;
+		}
+
+		return true;
+	}
+
+	wxString buildStaticHouseExportSummary(const IOMapOTBM::StaticHouseExportReport &report) {
+		const auto asU64 = [](size_t value) {
+			return static_cast<unsigned long long>(value);
+		};
+
+		wxString summary;
+		summary += report.success ? "Static house export completed.\n\n" : "Static house export failed.\n\n";
+
+		if (!report.outputBasePath.empty()) {
+			summary += "Output base: " + wxstr(report.outputBasePath) + "\n";
+			summary += "Backups: " + wxstr(report.outputBasePath + "/bkps") + "\n";
+		}
+		if (!report.staticDataFileName.empty()) {
+			summary += "staticdata file: " + wxstr(report.staticDataFileName) + "\n";
+		}
+		if (!report.staticMapDataFileName.empty()) {
+			summary += "staticmapdata file: " + wxstr(report.staticMapDataFileName) + "\n";
+		}
+		summary += "\n";
+
+		summary += "Export mode: ";
+		summary += report.filtered ? "specific houses\n" : "all houses\n";
+		if (report.filtered) {
+			summary += wxString::Format("Requested house names: %llu\n", asU64(report.selectedFilterCount));
+			summary += wxString::Format("Matched house names on map: %llu\n", asU64(report.matchedFilterCount));
+		}
+		summary += wxString::Format("Total houses on map: %llu\n\n", asU64(report.mapHousesTotal));
+
+		summary += "Counts:\n";
+		summary += wxString::Format(" - staticdata: generated=%llu, final=%llu\n", asU64(report.staticDataGeneratedHouses), asU64(report.staticDataFinalHouses));
+		summary += wxString::Format(
+			" - staticmapdata: attempted=%llu, generated=%llu, final=%llu\n\n",
+			asU64(report.staticMapAttemptedHouses),
+			asU64(report.staticMapGeneratedHouses),
+			asU64(report.staticMapFinalHouses)
+		);
+
+		if (!report.failedStaticMapHouses.empty()) {
+			summary += wxString::Format("Houses with staticmap build failure (%llu):\n", asU64(report.failedStaticMapHouses.size()));
+			const size_t maxFailedLines = 20;
+			size_t shown = 0;
+			for (const std::string &houseName : report.failedStaticMapHouses) {
+				if (shown >= maxFailedLines) {
+					break;
+				}
+				summary += " - " + wxstr(houseName) + "\n";
+				++shown;
+			}
+			if (report.failedStaticMapHouses.size() > shown) {
+				summary += wxString::Format(" - ... and %llu more\n", asU64(report.failedStaticMapHouses.size() - shown));
+			}
+			summary += "\n";
+		}
+
+		if (!report.errors.empty()) {
+			summary += wxString::Format("Errors/Warnings (%llu):\n", asU64(report.errors.size()));
+			const size_t maxErrorLines = 20;
+			size_t shown = 0;
+			for (const std::string &errorMessage : report.errors) {
+				if (shown >= maxErrorLines) {
+					break;
+				}
+				summary += " - " + wxstr(errorMessage) + "\n";
+				++shown;
+			}
+			if (report.errors.size() > shown) {
+				summary += wxString::Format(" - ... and %llu more\n", asU64(report.errors.size() - shown));
+			}
+		}
+
+		return summary;
+	}
+}
 
 BEGIN_EVENT_TABLE(MainMenuBar, wxEvtHandler)
 END_EVENT_TABLE()
@@ -67,6 +585,9 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(IMPORT_BITMAP_TO_MAP, wxITEM_NORMAL, OnImportBitmapToMap);
 
 	MAKE_ACTION(EXPORT_MINIMAP, wxITEM_NORMAL, OnExportMinimap);
+	MAKE_ACTION(EXPORT_STATIC_HOUSE_DATA, wxITEM_NORMAL, OnExportStaticHouseData);
+	MAKE_ACTION(EXPORT_CYCLOPEDIA_MAP, wxITEM_NORMAL, OnExportCyclopediaMapData);
+	MAKE_ACTION(REVERT_CYCLOPEDIA_ASSETS, wxITEM_NORMAL, OnRevertCyclopediaAssets);
 	MAKE_ACTION(EXPORT_TILESETS, wxITEM_NORMAL, OnExportTilesets);
 
 	MAKE_ACTION(RELOAD_DATA, wxITEM_NORMAL, OnReloadDataFiles);
@@ -351,6 +872,9 @@ void MainMenuBar::Update() {
 	EnableItem(IMPORT_MONSTERS, is_local);
 	EnableItem(IMPORT_MINIMAP, false);
 	EnableItem(EXPORT_MINIMAP, is_local);
+	EnableItem(EXPORT_STATIC_HOUSE_DATA, is_local);
+	EnableItem(EXPORT_CYCLOPEDIA_MAP, is_local);
+	EnableItem(REVERT_CYCLOPEDIA_ASSETS, true);
 	EnableItem(EXPORT_TILESETS, loaded);
 
 	EnableItem(FIND_ITEM, is_host);
@@ -874,6 +1398,189 @@ void MainMenuBar::OnExportMinimap(wxCommandEvent &WXUNUSED(event)) {
 
 	ExportMiniMapWindow dialog(frame, *g_gui.GetCurrentEditor());
 	dialog.ShowModal();
+}
+
+void MainMenuBar::OnExportStaticHouseData(wxCommandEvent &) {
+	if (!g_gui.IsEditorOpen()) {
+		return;
+	}
+
+	std::vector<std::string> houseNamesFilter;
+	if (!selectStaticHouseExportFilter(g_gui.root, houseNamesFilter)) {
+		return;
+	}
+
+	wxString outputPath;
+	if (!selectAssetsOrCustomExportFolder(g_gui.root, "Export Static House Data", outputPath)) {
+		return;
+	}
+
+	IOMapOTBM mapsaver(g_gui.GetCurrentMap().getVersion());
+	const bool exportOk = mapsaver.saveStaticData(g_gui.GetCurrentMap(), makeDirectoryFileName(outputPath), houseNamesFilter);
+	const IOMapOTBM::StaticHouseExportReport &report = mapsaver.getLastStaticHouseExportReport();
+	const wxString summary = buildStaticHouseExportSummary(report);
+	if (!exportOk) {
+		const wxString failureMessage = summary.empty() ? wxString("Failed to export static house data.") : summary;
+		g_gui.PopupDialog("Export failed", failureMessage, wxOK);
+		return;
+	}
+
+	if (!report.errors.empty() || !report.failedStaticMapHouses.empty()) {
+		g_gui.PopupDialog("Export completed with warnings", summary, wxOK);
+	} else {
+		g_gui.PopupDialog("Export completed", summary, wxOK);
+	}
+}
+
+void MainMenuBar::OnExportCyclopediaMapData(wxCommandEvent &) {
+	static bool cyclopediaExportRunning = false;
+
+	if (cyclopediaExportRunning) {
+		g_gui.PopupDialog("Export in progress", "Cyclopedia export is already running.", wxOK);
+		return;
+	}
+
+	if (!g_gui.IsEditorOpen()) {
+		return;
+	}
+
+	// CipSoft cyclopedia assets are expected around 2 px/tile for satellite (scale = 1/16).
+	const int satellitePixelsPerSquare = 2;
+
+	wxString outputPath;
+	if (!selectAssetsOrCustomExportFolder(g_gui.root, "Export Cyclopedia Map Data", outputPath)) {
+		return;
+	}
+
+	IOMapOTBM mapsaver(g_gui.GetCurrentMap().getVersion());
+	cyclopediaExportRunning = true;
+	struct CyclopediaExportGuard final {
+		bool &running;
+		explicit CyclopediaExportGuard(bool &value) :
+			running(value) { }
+		CyclopediaExportGuard(const CyclopediaExportGuard &) = delete;
+		CyclopediaExportGuard &operator=(const CyclopediaExportGuard &) = delete;
+		~CyclopediaExportGuard() {
+			running = false;
+		}
+	};
+	CyclopediaExportGuard exportGuard(cyclopediaExportRunning);
+
+	int lastCyclopediaExportStatusPercent = -1;
+	auto lastCyclopediaExportStatusUpdate = std::chrono::steady_clock::now();
+	auto updateCyclopediaExportStatus = [&](const int32_t done, const std::string &message, const bool force = false) {
+		const int clampedDone = std::max<int32_t>(0, std::min<int32_t>(100, done));
+		const auto now = std::chrono::steady_clock::now();
+		if (!force && clampedDone == lastCyclopediaExportStatusPercent && now - lastCyclopediaExportStatusUpdate < std::chrono::milliseconds(CyclopediaExportStatusMinIntervalMs)) {
+			return true;
+		}
+
+		lastCyclopediaExportStatusPercent = clampedDone;
+		lastCyclopediaExportStatusUpdate = now;
+		const wxString progressMessage = message.empty() ? wxString("Exporting cyclopedia minimap/satellite...") : wxstr(message);
+		g_gui.SetStatusText(wxString::Format("Cyclopedia export: %d%% - %s", clampedDone, progressMessage.c_str()));
+		return true;
+	};
+	updateCyclopediaExportStatus(0, "Preparing cyclopedia export...", true);
+
+	if (!mapsaver.saveCyclopediaMapData(
+			g_gui.GetCurrentMap(), makeDirectoryFileName(outputPath), [&](const int32_t done, const std::string &message) {
+				return updateCyclopediaExportStatus(done, message);
+			},
+			satellitePixelsPerSquare
+		)) {
+		g_gui.SetStatusText("Cyclopedia export failed.");
+		g_gui.PopupDialog("Error", "Failed to export cyclopedia minimap/satellite.", wxOK);
+		return;
+	}
+
+	updateCyclopediaExportStatus(100, "Cyclopedia export completed.", true);
+	const wxString outputBasePath = resolveCyclopediaOutputDisplayPath(outputPath);
+	const wxString backupPath = appendDisplaySubdirectory(outputBasePath, "bkps");
+	g_gui.SetStatusText(wxString::Format("Cyclopedia export completed: %s", outputBasePath.c_str()));
+	g_gui.PopupDialog(
+		"Export completed",
+		wxString::Format(
+			"Cyclopedia minimap/satellite exported successfully.\n\nOutput: %s\nBackups: %s (backup-only)",
+			outputBasePath.c_str(),
+			backupPath.c_str()
+		),
+		wxOK
+	);
+}
+
+void MainMenuBar::OnRevertCyclopediaAssets(wxCommandEvent &) {
+	wxString selectedPath;
+	if (!selectAssetsOrCustomRestoreFolder(g_gui.root, "Restore Client Assets Backup", selectedPath)) {
+		return;
+	}
+
+	const wxString outputBasePath = resolveCyclopediaOutputDisplayPath(selectedPath);
+	const std::filesystem::path basePath(nstr(outputBasePath));
+
+	std::vector<AssetsBackupSnapshot> snapshots;
+	if (!collectBackupSnapshots(basePath, snapshots)) {
+		g_gui.PopupDialog(
+			"No backups found",
+			wxString::Format("No restorable backups were found in:\n%s", appendDisplaySubdirectory(outputBasePath, "bkps").c_str()),
+			wxOK
+		);
+		return;
+	}
+
+	wxArrayString choices;
+	for (const AssetsBackupSnapshot &snapshot : snapshots) {
+		choices.Add(snapshot.label);
+	}
+
+	wxSingleChoiceDialog snapshotDialog(
+		g_gui.root,
+		"Select which backup snapshot should be restored.",
+		"Restore Client Assets Backup",
+		choices
+	);
+	snapshotDialog.SetSelection(0);
+	if (snapshotDialog.ShowModal() != wxID_OK) {
+		return;
+	}
+
+	const int selectedSnapshotIndex = snapshotDialog.GetSelection();
+	if (selectedSnapshotIndex < 0 || static_cast<size_t>(selectedSnapshotIndex) >= snapshots.size()) {
+		return;
+	}
+
+	const AssetsBackupSnapshot &snapshot = snapshots[static_cast<size_t>(selectedSnapshotIndex)];
+	const wxString confirmMessage = wxString::Format(
+		"Restore this backup snapshot?\n\nAssets folder:\n%s\n\nBackup:\n%s\n\nCurrent files that would be overwritten will be moved to a new restore backup snapshot first.",
+		outputBasePath.c_str(),
+		snapshot.label.c_str()
+	);
+	if (wxMessageBox(confirmMessage, "Confirm Restore", wxYES_NO | wxNO_DEFAULT | wxICON_WARNING, g_gui.root) != wxYES) {
+		return;
+	}
+
+	size_t restoredFileCount = 0;
+	std::filesystem::path safetySnapshotPath;
+	wxString errorMessage;
+	if (!restoreBackupSnapshot(basePath, snapshot, restoredFileCount, safetySnapshotPath, errorMessage)) {
+		g_gui.PopupDialog(
+			"Restore failed",
+			errorMessage.empty() ? wxString("Failed to restore selected backup snapshot.") : errorMessage,
+			wxOK
+		);
+		return;
+	}
+
+	g_gui.PopupDialog(
+		"Restore completed",
+		wxString::Format(
+			"Restored %llu files from backup.\n\nAssets folder: %s\nSafety backup: %s",
+			static_cast<unsigned long long>(restoredFileCount),
+			outputBasePath.c_str(),
+			wxstr(safetySnapshotPath.string()).c_str()
+		),
+		wxOK
+	);
 }
 
 void MainMenuBar::OnExportTilesets(wxCommandEvent &WXUNUSED(event)) {

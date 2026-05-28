@@ -26,6 +26,13 @@ if(MSVC AND BUILD_STATIC_LIBRARY)
                                     "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
+if(MSVC)
+  # sccache tries to package the target PDB emitted by generated protobuf
+  # sources and fails when parallel MSVC compiles race on that file. Keep the
+  # launcher enabled elsewhere and compile only this generated target directly.
+  set_target_properties(${PROJECT_NAME} PROPERTIES CXX_COMPILER_LAUNCHER "")
+endif()
+
 set(PROTOBUF_GENERATE_DEPENDENCIES)
 if(TARGET protobuf::protoc)
   list(APPEND PROTOBUF_GENERATE_DEPENDENCIES $<TARGET_FILE:protobuf::protoc>)
