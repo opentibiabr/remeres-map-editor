@@ -194,6 +194,69 @@ namespace {
 		}
 		return false;
 	}
+
+	wxString BuildNavigationItemTooltip(MaterialsWorkbenchController &controller, const MaterialsWorkbenchTreeItemData &itemData) {
+		if (itemData.kind == MaterialsWorkbenchNodeKind::Group) {
+			if (itemData.contextKey == "group:catalog") {
+				return "Catalog\nOpen the Workbench overview.\nClick the label to expand or collapse.";
+			}
+			if (itemData.contextKey == "group:palettes") {
+				return "Palette Categories\nBrowse categories, then open a palette to edit entries.\nClick the label to expand or collapse.";
+			}
+			if (itemData.contextKey.StartsWith("palette_group:")) {
+				return "Palette Category\nBrowse palettes in this category.\nClick the label to expand or collapse.";
+			}
+			if (itemData.contextKey == "group:brushes") {
+				return "Brushes\nOpen brush domains and palette buckets.\nClick the label to expand or collapse.";
+			}
+			if (itemData.contextKey.StartsWith("brush_family:")) {
+				return "Brush Family\nNarrow the brush list to one authoring domain.\nClick the label to expand or collapse.";
+			}
+			if (itemData.contextKey.StartsWith("brush_palette:")) {
+				return "Brush Bucket\nOpen brushes aligned with this palette context.\nClick the label to expand or collapse.";
+			}
+			if (itemData.contextKey == "group:specialized") {
+				return "Specialized Editors\nOpen borders and walls.\nClick the label to expand or collapse.";
+			}
+			if (itemData.contextKey == "group:borders") {
+				return "Borders\nOpen border scopes and border sets.\nClick the label to expand or collapse.";
+			}
+			if (itemData.contextKey.StartsWith("border_scope:")) {
+				return "Border Scope\nOpen border sets in this scope.\nClick the label to expand or collapse.";
+			}
+			if (itemData.contextKey == "group:walls") {
+				return "Walls\nOpen wall brushes.\nClick the label to expand or collapse.";
+			}
+			return itemData.baseLabel;
+		}
+
+		if (itemData.kind == MaterialsWorkbenchNodeKind::Tileset) {
+			TilesetStorageRecord tileset;
+			if (controller.GetTilesetByIndex(itemData.itemIndex, tileset)) {
+				wxString text;
+				text << "Palette\n";
+				text << "Name: " << tileset.name << "\n";
+				text << "Category: " << (tileset.paletteGroupName.IsEmpty() ? wxString("other") : tileset.paletteGroupName) << "\n";
+				text << "Storage: " << (tileset.sourceFile.IsEmpty() ? wxString("materials.db") : tileset.sourceFile) << "\n";
+				text << "Action: Open Palette Workspace.";
+				return text;
+			}
+			return "Palette\nOpen Palette Workspace.";
+		}
+
+		if (itemData.kind == MaterialsWorkbenchNodeKind::Brush) {
+			if (itemData.contextKey == "wall") {
+				return "Wall Brush\nOpen Wall Workspace to edit wall-specific composition and metadata.";
+			}
+			return "Brush\nOpen Brush Workspace to edit behavior, IDs, and metadata.";
+		}
+
+		if (itemData.kind == MaterialsWorkbenchNodeKind::BorderSet) {
+			return "Border Set\nOpen Border Workspace to edit slots, items, and runtime-facing identifiers.";
+		}
+
+		return itemData.baseLabel;
+	}
 } // namespace
 
 BEGIN_EVENT_TABLE(MaterialsWorkbenchWindow, wxFrame)
@@ -509,6 +572,37 @@ void MaterialsWorkbenchWindow::PopulateNavigation() {
 }
 
 void MaterialsWorkbenchWindow::BindEvents() {
+	navigationTree_->Bind(wxEVT_MOTION, [this](wxMouseEvent &event) {
+		int flags = 0;
+		const wxTreeItemId item = navigationTree_->HitTest(event.GetPosition(), flags);
+		if (!item.IsOk()) {
+			if (!hoveredNavigationTooltipKey_.IsEmpty()) {
+				hoveredNavigationTooltipKey_.clear();
+				navigationTree_->UnsetToolTip();
+			}
+			event.Skip();
+			return;
+		}
+
+		auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(item));
+		if (!itemData) {
+			if (!hoveredNavigationTooltipKey_.IsEmpty()) {
+				hoveredNavigationTooltipKey_.clear();
+				navigationTree_->UnsetToolTip();
+			}
+			event.Skip();
+			return;
+		}
+
+		const wxString tooltipKey = BuildNavigationNodeKey(itemData->kind, itemData->contextKey, itemData->itemIndex);
+		if (tooltipKey != hoveredNavigationTooltipKey_) {
+			hoveredNavigationTooltipKey_ = tooltipKey;
+			navigationTree_->SetToolTip(BuildNavigationItemTooltip(controller_, *itemData));
+		}
+
+		event.Skip();
+	});
+
 	navigationTree_->Bind(wxEVT_LEFT_DOWN, [this](wxMouseEvent &event) {
 		int flags = 0;
 		const wxTreeItemId item = navigationTree_->HitTest(event.GetPosition(), flags);

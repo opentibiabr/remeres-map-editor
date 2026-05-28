@@ -39,6 +39,7 @@ private:
 	wxTreeCtrl* navigationTree_ = nullptr;
 	wxSimplebook* workspaceBook_ = nullptr;
 	wxTextCtrl* overviewText_ = nullptr;
+	wxString hoveredNavigationTooltipKey_;
 	MaterialsWorkbenchPalettePanel* palettePanel_ = nullptr;
 	MaterialsWorkbenchBorderPanel* borderPanel_ = nullptr;
 	MaterialsWorkbenchBrushPanel* brushPanel_ = nullptr;

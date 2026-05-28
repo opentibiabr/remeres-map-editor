@@ -28,6 +28,7 @@
 
 struct BrushGridItem {
 	wxString label;
+	wxString tooltip;
 	Brush* brush = nullptr;
 	int lookId = 0;
 	int index = -1;
@@ -70,6 +71,8 @@ public:
 		const int previousSelectedIndex = selectedIndex_;
 
 		items_ = items;
+		hoveredTooltipItemPosition_ = wxNOT_FOUND;
+		UnsetToolTip();
 		RebuildItemPositions();
 		UpdateVirtualSize();
 
@@ -166,9 +169,10 @@ private:
 		const BrushGridItem &item = items_[itemPosition];
 		const wxRect tileRect = GetTileRect(itemPosition);
 		const bool isSelected = item.index == selectedIndex_;
-		const wxColour baseColour = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW);
+		const wxColour baseColour = wxSystemSettings::GetColour(wxSYS_COLOUR_LISTBOX);
 		const wxColour borderColour = isSelected ? wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT) : wxSystemSettings::GetColour(wxSYS_COLOUR_BTNSHADOW);
 		const wxColour fillColour = isSelected ? wxSystemSettings::GetColour(wxSYS_COLOUR_INFOBK) : baseColour;
+		const wxColour previewFillColour = wxSystemSettings::GetColour(wxSYS_COLOUR_BTNFACE);
 
 		dc.SetPen(wxPen(borderColour, isSelected ? 2 : 1));
 		dc.SetBrush(wxBrush(fillColour));
@@ -182,7 +186,7 @@ private:
 		);
 
 		dc.SetPen(wxPen(wxSystemSettings::GetColour(wxSYS_COLOUR_BTNSHADOW)));
-		dc.SetBrush(*wxTRANSPARENT_BRUSH);
+		dc.SetBrush(wxBrush(previewFillColour));
 		dc.DrawRectangle(iconRect);
 
 		const int lookId = item.brush ? item.brush->getLookID() : item.lookId;
@@ -200,7 +204,7 @@ private:
 			tileRect.height - iconRect.height - FromDIP(14)
 		);
 
-		dc.SetTextForeground(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT));
+		dc.SetTextForeground(isSelected ? wxSystemSettings::GetColour(wxSYS_COLOUR_INFOTEXT) : wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT));
 		dc.DrawLabel(BuildDisplayLabel(dc, item.label, labelRect.width), labelRect, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
 	}
 
@@ -243,9 +247,15 @@ private:
 	void OnMouseMove(wxMouseEvent &event) {
 		const int itemPosition = HitTestItem(event.GetPosition());
 		if (itemPosition != wxNOT_FOUND) {
-			SetToolTip(items_[itemPosition].label);
+			if (itemPosition != hoveredTooltipItemPosition_) {
+				hoveredTooltipItemPosition_ = itemPosition;
+				SetToolTip(items_[itemPosition].tooltip.IsEmpty() ? items_[itemPosition].label : items_[itemPosition].tooltip);
+			}
 		} else {
-			UnsetToolTip();
+			if (hoveredTooltipItemPosition_ != wxNOT_FOUND) {
+				hoveredTooltipItemPosition_ = wxNOT_FOUND;
+				UnsetToolTip();
+			}
 		}
 		event.Skip();
 	}
@@ -398,6 +408,7 @@ private:
 	std::unordered_map<int, wxBitmap> previewBitmapCache_;
 	int cachedPreviewBitmapSize_ = 0;
 	int selectedIndex_ = -1;
+	int hoveredTooltipItemPosition_ = wxNOT_FOUND;
 	wxString emptyMessage_;
 	std::function<void(int)> onSelectionChanged_;
 };
@@ -682,6 +693,86 @@ namespace {
 			return entry.entryKind;
 		}
 		return "Entry";
+	}
+
+	wxString FormatStorageValue(const wxString &sourceFile) {
+		return sourceFile.IsEmpty() ? "materials.db" : sourceFile;
+	}
+
+	wxString BuildPaletteEntryTooltip(
+		const MaterialsWorkbenchController &controller,
+		const TilesetStorageRecord &palette,
+		const TilesetSectionRecord &section,
+		const TilesetEntryRecord &entry
+	) {
+		wxString text;
+		text << "Palette Entry\n";
+		text << "Label: " << DescribePaletteEntry(controller, entry) << "\n";
+		text << "Kind: " << (entry.entryKind.IsEmpty() ? wxString("entry") : entry.entryKind) << "\n";
+		text << "Palette Category: " << BuildPaletteFamilyLabel(ResolvePaletteGroupKey(palette)) << "\n";
+		text << "Palette: " << palette.name << "\n";
+		text << "Section: " << section.sectionType << "\n";
+		text << "Sort Order: " << entry.sortOrder << "\n";
+		text << "Storage: " << FormatStorageValue(palette.sourceFile);
+
+		if (entry.entryKind.IsSameAs("brush", false)) {
+			if (const BrushRecord* brushRecord = FindCatalogBrushRecord(controller, entry.brushId, entry.brushName)) {
+				text << "\nBrush ID: " << brushRecord->id;
+				text << "\nBrush Type: " << brushRecord->type;
+				if (brushRecord->lookId > 0) {
+					text << "\nlookId: " << brushRecord->lookId;
+				}
+				if (brushRecord->serverLookId > 0) {
+					text << "\nserverLookId: " << brushRecord->serverLookId;
+				}
+			} else if (entry.brushId > 0) {
+				text << "\nBrush ID: " << entry.brushId;
+			}
+		} else if (entry.entryKind.IsSameAs("item", false)) {
+			const int previewItemId = ResolveEntryPreviewItemId(entry);
+			const int fromItemId = entry.fromItemId > 0 ? entry.fromItemId : previewItemId;
+			const int toItemId = entry.toItemId > 0 ? entry.toItemId : fromItemId;
+			if (previewItemId > 0) {
+				text << "\nPreview Item ID: " << previewItemId;
+			}
+			if (fromItemId > 0) {
+				if (toItemId > fromItemId) {
+					text << "\nRange: " << fromItemId << "-" << toItemId;
+				} else {
+					text << "\nItem ID: " << fromItemId;
+				}
+			}
+		}
+
+		if (!entry.afterBrushName.IsEmpty()) {
+			text << "\nAfter Brush: " << entry.afterBrushName;
+		} else if (entry.afterItemId > 0) {
+			text << "\nAfter Item ID: " << entry.afterItemId;
+		}
+
+		if (IsMovablePaletteEntry(entry)) {
+			text << "\nAction: This entry can move to another palette.";
+		}
+		return text;
+	}
+
+	wxString BuildSourceBrushTooltip(const MaterialsWorkbenchAvailableBrushSource &source, const BrushRecord &record) {
+		wxString text;
+		text << "Source Brush\n";
+		text << "Name: " << record.name << "\n";
+		text << "Brush ID: " << record.id << "\n";
+		text << "Type: " << record.type << "\n";
+		text << "Palette Category: " << BuildPaletteFamilyLabel(source.familyKey) << "\n";
+		text << "Source Palette: " << source.paletteLabel << "\n";
+		text << "Storage: " << FormatStorageValue(record.sourceFile);
+		if (record.lookId > 0) {
+			text << "\nlookId: " << record.lookId;
+		}
+		if (record.serverLookId > 0) {
+			text << "\nserverLookId: " << record.serverLookId;
+		}
+		text << "\nAction: Add this brush to the current palette.";
+		return text;
 	}
 } // namespace
 
@@ -1014,7 +1105,7 @@ void MaterialsWorkbenchPalettePanel::RefreshSectionEntries() {
 				}
 
 				visibleEntryLocations_.push_back({ static_cast<int>(sectionIndex), static_cast<int>(entryIndex) });
-				items.push_back({ displayLabel, brush, lookId, visibleIndex });
+				items.push_back({ displayLabel, BuildPaletteEntryTooltip(controller_, palette_, section, entry), brush, lookId, visibleIndex });
 				continue;
 			}
 
@@ -1031,7 +1122,7 @@ void MaterialsWorkbenchPalettePanel::RefreshSectionEntries() {
 				}
 
 				visibleEntryLocations_.push_back({ static_cast<int>(sectionIndex), static_cast<int>(entryIndex) });
-				items.push_back({ displayLabel, brush, previewItemId, visibleIndex });
+				items.push_back({ displayLabel, BuildPaletteEntryTooltip(controller_, palette_, section, entry), brush, previewItemId, visibleIndex });
 				continue;
 			}
 
@@ -1247,7 +1338,7 @@ void MaterialsWorkbenchPalettePanel::RefreshAvailableBrushes() {
 		if (!brush && lookId <= 0) {
 			continue;
 		}
-		items.push_back({ record.name, brush, lookId, static_cast<int>(i) });
+		items.push_back({ record.name, BuildSourceBrushTooltip(source, record), brush, lookId, static_cast<int>(i) });
 	}
 
 	availableBrushSummaryLabel_->SetLabel(wxString::Format("%zu brushes available in %s / %s.", items.size(), BuildPaletteFamilyLabel(source.familyKey), source.paletteLabel));
