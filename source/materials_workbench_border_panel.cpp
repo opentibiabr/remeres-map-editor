@@ -164,6 +164,46 @@ namespace {
 		);
 	}
 
+	wxString BuildUsageSearchHaystack(const BorderSetUsageRecord &usage) {
+		const int previewItemId = ResolveUsagePreviewItemId(usage);
+		wxString haystack;
+		haystack << usage.brushName << " ";
+		haystack << usage.brushType << " ";
+		haystack << wxString::Format("%lld ", static_cast<long long>(usage.brushId));
+		haystack << wxString::Format("brush %lld ", static_cast<long long>(usage.brushId));
+		haystack << (usage.align.IsEmpty() ? wxString("outer") : usage.align) << " ";
+		haystack << (usage.borderRole.IsEmpty() ? wxString("normal") : usage.borderRole) << " ";
+		haystack << (usage.targetMode.IsEmpty() ? wxString("all") : usage.targetMode) << " ";
+		haystack << usage.targetBrushName << " ";
+		if (usage.targetBrushId > 0) {
+			haystack << wxString::Format("%lld ", static_cast<long long>(usage.targetBrushId));
+			haystack << wxString::Format("target %lld ", static_cast<long long>(usage.targetBrushId));
+			haystack << wxString::Format("target brush %lld ", static_cast<long long>(usage.targetBrushId));
+		}
+		if (previewItemId > 0) {
+			haystack << wxString::Format("%d ", previewItemId);
+			haystack << wxString::Format("center %d ", previewItemId);
+			haystack << wxString::Format("item %d ", previewItemId);
+		} else {
+			haystack << "center painted ";
+			haystack << "painted ";
+		}
+		if (usage.primaryItemId > 0) {
+			haystack << wxString::Format("primary %d ", usage.primaryItemId);
+		}
+		if (usage.lookId > 0) {
+			haystack << wxString::Format("look %d ", usage.lookId);
+		}
+		if (usage.serverLookId > 0) {
+			haystack << wxString::Format("server %d ", usage.serverLookId);
+		}
+		if (usage.superBorder) {
+			haystack << "super ";
+			haystack << "super border ";
+		}
+		return haystack.Lower();
+	}
+
 	wxString BuildBrushPickerLabel(const wxString &brushName, int64_t brushId, const wxString &emptyLabel = "Not selected") {
 		if (!brushName.IsEmpty() && brushId > 0) {
 			return wxString::Format("%s (#%lld)", brushName, static_cast<long long>(brushId));
@@ -1160,7 +1200,7 @@ void MaterialsWorkbenchBorderPanel::PopulateUsageContextList() {
 	const wxString query = usageSearchCtrl_ ? usageSearchCtrl_->GetValue().Lower() : "";
 	for (size_t i = 0; i < borderSetUsages_.size(); ++i) {
 		const BorderSetUsageRecord &usage = borderSetUsages_[i];
-		const wxString haystack = (usage.brushName + " " + usage.align + " " + usage.borderRole + " " + usage.targetMode).Lower();
+		const wxString haystack = BuildUsageSearchHaystack(usage);
 		if (!query.IsEmpty() && !haystack.Contains(query)) {
 			continue;
 		}
