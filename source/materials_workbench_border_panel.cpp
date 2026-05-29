@@ -103,6 +103,40 @@ namespace {
 		return itemId > 0 ? wxString::Format("%d", itemId) : "painted";
 	}
 
+	wxString BuildBorderGroupDisplayLabel(int group) {
+		return group <= 0 ? wxString("None") : wxString::Format("Group %d", group);
+	}
+
+	int ParseBorderGroupChoiceValue(const wxString &selection) {
+		if (selection.IsEmpty() || selection.IsSameAs("None", false)) {
+			return 0;
+		}
+
+		long parsedValue = 0;
+		wxString numericPortion = selection.AfterLast(' ');
+		if (numericPortion.ToLong(&parsedValue) && parsedValue >= 0) {
+			return static_cast<int>(parsedValue);
+		}
+		return 0;
+	}
+
+	void RebuildBorderGroupChoices(wxChoice* choice, int selectedGroup) {
+		if (!choice) {
+			return;
+		}
+
+		choice->Clear();
+		choice->Append(BuildBorderGroupDisplayLabel(0));
+		choice->Append(BuildBorderGroupDisplayLabel(1));
+		if (selectedGroup > 1) {
+			choice->Append(BuildBorderGroupDisplayLabel(selectedGroup));
+		}
+		choice->SetStringSelection(BuildBorderGroupDisplayLabel(selectedGroup));
+		if (choice->GetSelection() == wxNOT_FOUND) {
+			choice->SetStringSelection(BuildBorderGroupDisplayLabel(0));
+		}
+	}
+
 	int ResolveUsagePreviewItemId(const BorderSetUsageRecord &usage) {
 		if (usage.primaryItemId > 0) {
 			return usage.primaryItemId;
@@ -615,8 +649,8 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	typeCtrl_ = new wxChoice(scrolled, wxID_ANY);
 	typeCtrl_->Append("normal");
 	typeCtrl_->Append("optional");
-	borderGroupCtrl_ = new wxSpinCtrl(scrolled, wxID_ANY);
-	borderGroupCtrl_->SetRange(0, 1000000);
+	borderGroupCtrl_ = new wxChoice(scrolled, wxID_ANY);
+	RebuildBorderGroupChoices(borderGroupCtrl_, 0);
 	sourceCtrl_ = new wxTextCtrl(scrolled, wxID_ANY);
 
 	const wxSize metadataFieldSize(FromDIP(132), -1);
@@ -645,11 +679,11 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	addMetadataField("Global Border ID", xmlBorderIdCtrl_);
 	addMetadataField("Scope", scopeChoice_);
 	addMetadataField("Border Style", typeCtrl_);
-	addMetadataField("Border Family", borderGroupCtrl_);
+	addMetadataField("Autoborder Group", borderGroupCtrl_);
 	typeCtrl_->SetToolTip("Choose whether this border behaves as normal or optional.");
-	borderGroupCtrl_->SetToolTip("Legacy compatibility family preserved from older border definitions.");
+	borderGroupCtrl_->SetToolTip("Used by autoborder matching rules. `None` disables group matching for this border.");
 	if (borderGroupLabel_) {
-		borderGroupLabel_->SetToolTip("Legacy compatibility family preserved from older border definitions.");
+		borderGroupLabel_->SetToolTip("Used by autoborder matching rules. `None` disables group matching for this border.");
 	}
 	metadataBox->Add(metadataGrid, 1, wxEXPAND | wxALL, FromDIP(8));
 	wxBoxSizer* borderCrudRow = new wxBoxSizer(wxHORIZONTAL);
@@ -897,8 +931,7 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	xmlBorderIdCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
 	scopeChoice_->Bind(wxEVT_CHOICE, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
 	typeCtrl_->Bind(wxEVT_CHOICE, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
-	borderGroupCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
-	borderGroupCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
+	borderGroupCtrl_->Bind(wxEVT_CHOICE, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
 	groundEquivalentCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
 	usageSearchCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBorderPanel::OnUsageSearchChanged, this);
 	usageListBox_->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBorderPanel::OnUsageContextChanged, this);
@@ -932,7 +965,7 @@ void MaterialsWorkbenchBorderPanel::ClearWorkspace(const wxString &message) {
 	xmlBorderIdCtrl_->SetValue(0);
 	scopeChoice_->SetSelection(wxNOT_FOUND);
 	typeCtrl_->SetSelection(wxNOT_FOUND);
-	borderGroupCtrl_->SetValue(0);
+	RebuildBorderGroupChoices(borderGroupCtrl_, 0);
 	groundEquivalentCtrl_->SetValue(0);
 	ownerBrushCtrl_->SetValue("");
 	sourceCtrl_->SetValue("");
@@ -1023,7 +1056,7 @@ void MaterialsWorkbenchBorderPanel::PopulateFields() {
 	if (typeCtrl_->GetSelection() == wxNOT_FOUND) {
 		typeCtrl_->SetStringSelection("normal");
 	}
-	borderGroupCtrl_->SetValue(borderSet.borderGroup);
+	RebuildBorderGroupChoices(borderGroupCtrl_, borderSet.borderGroup);
 	groundEquivalentCtrl_->SetValue(borderSet.groundEquivalent);
 	ownerBrushCtrl_->SetValue(BuildOwnerBrushDisplayLabel(borderSet.ownerBrushId));
 	sourceCtrl_->SetValue(borderSet.sourceFile);
@@ -1086,7 +1119,10 @@ BorderSetStorageRecord MaterialsWorkbenchBorderPanel::BuildComparableStorageFrom
 	storage.borderSet.xmlBorderId = xmlBorderIdCtrl_->GetValue();
 	storage.borderSet.borderScope = scopeChoice_->GetSelection() == wxNOT_FOUND ? "" : scopeChoice_->GetStringSelection();
 	storage.borderSet.borderType = typeCtrl_->GetSelection() == wxNOT_FOUND ? "" : typeCtrl_->GetStringSelection();
-	storage.borderSet.borderGroup = borderGroupCtrl_->GetValue();
+	storage.borderSet.borderGroup =
+		borderGroupCtrl_ && borderGroupCtrl_->GetSelection() != wxNOT_FOUND
+			? ParseBorderGroupChoiceValue(borderGroupCtrl_->GetStringSelection())
+			: 0;
 	storage.borderSet.groundEquivalent = groundEquivalentCtrl_->GetValue();
 	storage.borderSet.sourceFile = sourceCtrl_->GetValue().Trim(true).Trim(false);
 
@@ -1872,7 +1908,10 @@ void MaterialsWorkbenchBorderPanel::OnCreateBorder(wxCommandEvent &event) {
 	BorderSetStorageRecord newStorage;
 	newStorage.borderSet.borderScope = scopeDialog.GetStringSelection();
 	newStorage.borderSet.borderType = hasBorderSet_ && typeCtrl_->GetSelection() != wxNOT_FOUND ? typeCtrl_->GetStringSelection() : "normal";
-	newStorage.borderSet.borderGroup = hasBorderSet_ ? borderGroupCtrl_->GetValue() : 0;
+	newStorage.borderSet.borderGroup =
+		hasBorderSet_ && borderGroupCtrl_ && borderGroupCtrl_->GetSelection() != wxNOT_FOUND
+			? ParseBorderGroupChoiceValue(borderGroupCtrl_->GetStringSelection())
+			: 0;
 	newStorage.borderSet.sourceFile = "materials.db";
 	if (newStorage.borderSet.borderType.IsEmpty()) {
 		newStorage.borderSet.borderType = "normal";

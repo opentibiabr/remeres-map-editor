@@ -84,11 +84,11 @@ namespace {
 		wxString text;
 		text << "Internal ID: " << border.id << "\n";
 		text << "Scope: " << border.borderScope << "\n";
-	if (border.borderScope == "global") {
-		text << "Global Border ID: " << border.xmlBorderId << "\n";
-	}
+		if (border.borderScope == "global") {
+			text << "Global Border ID: " << border.xmlBorderId << "\n";
+		}
 		text << "Center Tile: " << border.groundEquivalent << "\n";
-		text << "Border Family: " << border.borderGroup << "\n";
+		text << "Autoborder Group: " << (border.borderGroup <= 0 ? wxString("None") : wxString::Format("Group %d", border.borderGroup)) << "\n";
 		return text;
 	}
 

@@ -123,7 +123,7 @@ private:
 	wxSpinCtrl* xmlBorderIdCtrl_ = nullptr;
 	wxChoice* scopeChoice_ = nullptr;
 	wxChoice* typeCtrl_ = nullptr;
-	wxSpinCtrl* borderGroupCtrl_ = nullptr;
+	wxChoice* borderGroupCtrl_ = nullptr;
 	wxSpinCtrl* groundEquivalentCtrl_ = nullptr;
 	wxTextCtrl* ownerBrushCtrl_ = nullptr;
 	wxTextCtrl* sourceCtrl_ = nullptr;
