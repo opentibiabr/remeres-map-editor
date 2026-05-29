@@ -82,19 +82,19 @@ namespace {
 	wxString FormatBorderSetOverview(const BorderSetStorageRecord &storage) {
 		const BorderSetRecord &border = storage.borderSet;
 		wxString text;
-		text << "Border set ID: " << border.id << "\n";
+		text << "Internal ID: " << border.id << "\n";
 		text << "Scope: " << border.borderScope << "\n";
-		text << "XML border ID: " << border.xmlBorderId << "\n";
-		text << "Ground equivalent: " << border.groundEquivalent << "\n";
-		text << "Group: " << border.borderGroup << "\n";
+		text << "Border ID: " << border.xmlBorderId << "\n";
+		text << "Center Tile: " << border.groundEquivalent << "\n";
+		text << "Border Family: " << border.borderGroup << "\n";
 		return text;
 	}
 
 	wxString FormatBorderSetInspector(const BorderSetStorageRecord &storage) {
 		const BorderSetRecord &border = storage.borderSet;
 		wxString text = FormatBorderSetOverview(storage);
-		text << "Type: " << border.borderType << "\n";
-		text << "Owner brush ID: " << border.ownerBrushId << "\n";
+		text << "Border Style: " << border.borderType << "\n";
+		text << "Owner Brush ID: " << border.ownerBrushId << "\n";
 		text << "Items: " << storage.items.size() << "\n";
 		for (const BorderSetItemRecord &item : storage.items) {
 			text << "  - edge=" << item.edge << " item=" << item.itemId << " sort=" << item.sortOrder << "\n";

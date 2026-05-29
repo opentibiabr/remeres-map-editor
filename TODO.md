@@ -15,7 +15,7 @@
 ## Visual Polish
 - [ ] Add visual metadata previews for `lookId` and `serverLookId` in the Brush Workspace
 - [ ] Add richer visual previews inside `variations`, including per-item thumbnails and domain-specific preview feedback
-- [x] Improve Border Workspace presentation with stronger contrast, clearer slot-to-preview correspondence, a compact metadata panel, a centered compact slot grid, and a denser preview-first layout
+- [x] Improve Border Workspace presentation with stronger contrast, clearer slot-to-preview correspondence, a compact authoring panel, inline/global-specific fields, a centered compact slot grid, and a richer `Used By` context panel for global borders
 - [ ] Improve Wall Workspace presentation with richer visual previews for wall parts, doors, and composed wall results
 - [ ] Reduce spacing and padding across workspaces where the layout still feels too loose
 - [ ] Continue small product-language and workflow refinements across Workbench texts and actions
