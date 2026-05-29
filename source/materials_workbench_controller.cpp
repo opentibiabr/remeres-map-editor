@@ -756,8 +756,25 @@ bool MaterialsWorkbenchController::SaveWallBrushParts(BrushStorageRecord &brushS
 	return true;
 }
 
+bool MaterialsWorkbenchController::SaveGroundBrushBorders(int64_t brushId, const std::vector<GroundBrushBorderRecord> &borders, wxString &error) {
+	return repository_.SaveGroundBrushBorders(brushId, borders, error);
+}
+
 bool MaterialsWorkbenchController::SaveBorderSet(BorderSetStorageRecord &borderSet, wxString &error) {
 	if (!repository_.SaveBorderSet(borderSet, error)) {
+		return false;
+	}
+
+	if (!ReloadCatalog()) {
+		error = lastError_;
+		return false;
+	}
+
+	return true;
+}
+
+bool MaterialsWorkbenchController::DeleteBorderSet(int64_t borderSetId, wxString &error) {
+	if (!repository_.DeleteBorderSet(borderSetId, error)) {
 		return false;
 	}
 
@@ -791,6 +808,17 @@ bool MaterialsWorkbenchController::LocateBrushNode(int64_t brushId, wxString &ou
 	outContextKey.clear();
 	outItemIndex = -1;
 	return false;
+}
+
+int MaterialsWorkbenchController::SuggestNextBorderId() const {
+	int maxBorderId = 0;
+	for (const BorderSetRecord &border : catalog_.globalBorderSets) {
+		maxBorderId = std::max(maxBorderId, border.xmlBorderId);
+	}
+	for (const BorderSetRecord &border : catalog_.inlineBorderSets) {
+		maxBorderId = std::max(maxBorderId, border.xmlBorderId);
+	}
+	return maxBorderId + 1;
 }
 
 bool MaterialsWorkbenchController::LocateBorderSetNode(int64_t borderSetId, wxString &outContextKey, int &outItemIndex) const {

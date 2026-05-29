@@ -312,6 +312,11 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 			HandleBorderSetSaved(borderSetId);
 		});
 	});
+	borderPanel_->SetOnBorderSetDeleted([this](const wxString &scope) {
+		CallAfter([this, scope]() {
+			HandleBorderSetDeleted(scope);
+		});
+	});
 	borderPanel_->SetOnOpenLinkedBrush([this](int64_t brushId) {
 		wxString contextKey;
 		int itemIndex = -1;
@@ -397,6 +402,16 @@ void MaterialsWorkbenchWindow::HandleBorderSetSaved(int64_t borderSetId) {
 	int itemIndex = -1;
 	if (controller_.LocateBorderSetNode(borderSetId, contextKey, itemIndex)) {
 		SelectNavigationNode(MaterialsWorkbenchNodeKind::BorderSet, contextKey, itemIndex);
+	}
+	RefreshInspectorForCurrentSelection();
+}
+
+void MaterialsWorkbenchWindow::HandleBorderSetDeleted(const wxString &scope) {
+	RefreshRuntimeMaterialPalettes("border set delete");
+	RefreshWorkbenchState();
+	PopulateNavigation();
+	if (!scope.IsEmpty()) {
+		SelectNavigationNode(MaterialsWorkbenchNodeKind::Group, "border_scope:" + scope, -1);
 	}
 	RefreshInspectorForCurrentSelection();
 }

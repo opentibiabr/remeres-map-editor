@@ -27,6 +27,7 @@ public:
 	void ClearWorkspace(const wxString &message);
 	bool LoadBorderSet(const wxString &contextKey, int itemIndex);
 	void SetOnBorderSetSaved(std::function<void(int64_t)> callback);
+	void SetOnBorderSetDeleted(std::function<void(const wxString &)> callback);
 	void SetOnBorderSetStateChanged(std::function<void()> callback);
 	void SetOnOpenLinkedBrush(std::function<void(int64_t)> callback);
 	bool HasPendingChanges() const;
@@ -50,6 +51,10 @@ private:
 	void HandleUsageContextChanged();
 	void RefreshScopeSpecificLayout();
 	void RefreshUsageDetails();
+	bool ReloadBorderSetById(int64_t borderSetId);
+	bool LoadBrushStorageById(int64_t brushId, BrushStorageRecord &outBrush, wxString &error) const;
+	int FindMatchingGroundBorderIndex(const BrushStorageRecord &brushStorage, const BorderSetUsageRecord &usage) const;
+	int SuggestNextBorderId() const;
 	void SelectEdge(const wxString &edge);
 	void SaveCurrentBorderEditorState();
 	void RestoreCurrentBorderEditorState();
@@ -76,9 +81,15 @@ private:
 	void OnUsageContextChanged(wxCommandEvent &event);
 	void OnUsageSearchChanged(wxCommandEvent &event);
 	void OnOpenLinkedBrush(wxCommandEvent &event);
+	void OnCreateBorder(wxCommandEvent &event);
+	void OnDeleteBorder(wxCommandEvent &event);
+	void OnAddUsageContext(wxCommandEvent &event);
+	void OnEditUsageContext(wxCommandEvent &event);
+	void OnRemoveUsageContext(wxCommandEvent &event);
 
 	MaterialsWorkbenchController &controller_;
 	std::function<void(int64_t)> onBorderSetSaved_;
+	std::function<void(const wxString &)> onBorderSetDeleted_;
 	std::function<void()> onBorderSetStateChanged_;
 	std::function<void(int64_t)> onOpenLinkedBrush_;
 	BorderSetStorageRecord borderSetStorage_;
@@ -103,6 +114,8 @@ private:
 	wxStaticText* identityLabel_ = nullptr;
 	wxButton* saveButton_ = nullptr;
 	wxButton* revertButton_ = nullptr;
+	wxButton* createBorderButton_ = nullptr;
+	wxButton* deleteBorderButton_ = nullptr;
 	wxTextCtrl* idCtrl_ = nullptr;
 	wxSpinCtrl* xmlBorderIdCtrl_ = nullptr;
 	wxChoice* scopeChoice_ = nullptr;
@@ -122,6 +135,9 @@ private:
 	wxStaticText* usageRoleLabel_ = nullptr;
 	wxStaticText* usageCenterLabel_ = nullptr;
 	wxButton* openLinkedBrushButton_ = nullptr;
+	wxButton* addUsageContextButton_ = nullptr;
+	wxButton* editUsageContextButton_ = nullptr;
+	wxButton* removeUsageContextButton_ = nullptr;
 	wxStaticText* selectedEdgeLabel_ = nullptr;
 	wxSpinCtrl* selectedItemIdCtrl_ = nullptr;
 	ItemButton* selectedItemPreview_ = nullptr;

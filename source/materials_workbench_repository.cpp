@@ -222,6 +222,21 @@ bool MaterialsWorkbenchRepository::SaveBrushDetails(BrushStorageRecord &brushSto
 	});
 }
 
+bool MaterialsWorkbenchRepository::SaveGroundBrushBorders(int64_t brushId, const std::vector<GroundBrushBorderRecord> &borders, wxString &error) const {
+	error.clear();
+
+	if (brushId <= 0) {
+		error = "Ground brush id is invalid.";
+		return false;
+	}
+	if (!g_brush_database.replaceGroundBrushBorders(brushId, borders)) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
+
+	return true;
+}
+
 bool MaterialsWorkbenchRepository::SaveWallBrushParts(const BrushStorageRecord &brushStorage, wxString &error) const {
 	error.clear();
 
@@ -266,6 +281,21 @@ bool MaterialsWorkbenchRepository::SaveBorderSet(BorderSetStorageRecord &borderS
 		item.borderSetId = borderSetId;
 	}
 	if (!g_brush_database.replaceBorderSetItems(borderSetId, borderSet.items)) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
+
+	return true;
+}
+
+bool MaterialsWorkbenchRepository::DeleteBorderSet(int64_t borderSetId, wxString &error) const {
+	error.clear();
+
+	if (borderSetId <= 0) {
+		error = "Border set id is invalid.";
+		return false;
+	}
+	if (!g_brush_database.deleteBorderSet(borderSetId)) {
 		error = g_brush_database.getLastError();
 		return false;
 	}

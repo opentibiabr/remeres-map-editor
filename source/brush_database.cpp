@@ -907,6 +907,10 @@ bool BrushDatabase::listBorderSetUsages(int64_t borderSetId, std::vector<BorderS
 	return brushRepository_.listBorderSetUsages(borderSetId, outUsages);
 }
 
+bool BrushDatabase::deleteBorderSet(int64_t borderSetId) {
+	return brushRepository_.deleteBorderSet(borderSetId);
+}
+
 bool BrushDatabase::replaceBorderSetItems(int64_t borderSetId, const std::vector<BorderSetItemRecord> &items) {
 	return brushRepository_.replaceBorderSetItems(borderSetId, items);
 }
@@ -2465,7 +2469,7 @@ bool BrushDatabaseBrushRepository::listBorderSetUsages(int64_t borderSetId, std:
 	if (!prepare(
 			"SELECT b.id, b.name, b.type, b.look_id, b.server_look_id, "
 			"COALESCE((SELECT bi.item_id FROM brush_items bi WHERE bi.brush_id = b.id ORDER BY bi.sort_order ASC, bi.id ASC LIMIT 1), 0), "
-			"gbb.border_role, gbb.align, gbb.target_mode "
+			"gbb.border_role, gbb.align, gbb.target_mode, gbb.target_brush_id, gbb.target_brush_name, gbb.super_border, gbb.sort_order "
 			"FROM ground_brush_borders gbb "
 			"JOIN brushes b ON b.id = gbb.brush_id "
 			"WHERE gbb.border_set_id = ? "
@@ -2496,10 +2500,55 @@ bool BrushDatabaseBrushRepository::listBorderSetUsages(int64_t borderSetId, std:
 		usage.borderRole = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6)));
 		usage.align = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7)));
 		usage.targetMode = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8)));
+		usage.targetBrushId = ReadNullableInt64(stmt, 9);
+		usage.targetBrushName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 10)));
+		usage.superBorder = sqlite3_column_int(stmt, 11) != 0;
+		usage.sortOrder = sqlite3_column_int(stmt, 12);
 		outUsages.push_back(std::move(usage));
 	}
 
 	sqlite3_finalize(stmt);
+	return true;
+}
+
+bool BrushDatabaseBrushRepository::deleteBorderSet(int64_t borderSetId) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+	if (!beginTransaction()) {
+		return false;
+	}
+
+	sqlite3_stmt* deleteItemsStmt = nullptr;
+	if (!prepare("DELETE FROM border_set_items WHERE border_set_id = ?;", &deleteItemsStmt)) {
+		rollbackTransaction();
+		return false;
+	}
+	sqlite3_bind_int64(deleteItemsStmt, 1, borderSetId);
+	int rc = sqlite3_step(deleteItemsStmt);
+	sqlite3_finalize(deleteItemsStmt);
+	if (rc != SQLITE_DONE) {
+		rollbackTransaction();
+		return setErrorFromDatabase("Failed to delete border set items");
+	}
+
+	sqlite3_stmt* deleteBorderStmt = nullptr;
+	if (!prepare("DELETE FROM border_sets WHERE id = ?;", &deleteBorderStmt)) {
+		rollbackTransaction();
+		return false;
+	}
+	sqlite3_bind_int64(deleteBorderStmt, 1, borderSetId);
+	rc = sqlite3_step(deleteBorderStmt);
+	sqlite3_finalize(deleteBorderStmt);
+	if (rc != SQLITE_DONE) {
+		rollbackTransaction();
+		return setErrorFromDatabase("Failed to delete border set");
+	}
+
+	if (!commitTransaction()) {
+		rollbackTransaction();
+		return false;
+	}
 	return true;
 }
 bool BrushDatabaseBrushRepository::replaceBorderSetItems(int64_t borderSetId, const std::vector<BorderSetItemRecord> &items) {

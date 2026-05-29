@@ -30,6 +30,7 @@ private:
 	void UpdateBrushNavigationBadge();
 	void HandlePaletteSaved(const wxString &paletteName);
 	void HandleBorderSetSaved(int64_t borderSetId);
+	void HandleBorderSetDeleted(const wxString &scope);
 	void HandleBrushSaved(int64_t brushId, const wxString &oldName, const wxString &newName);
 	void HandleWallBrushSaved(int64_t brushId);
 	bool SelectNavigationNode(MaterialsWorkbenchNodeKind kind, const wxString &contextKey, int itemIndex);

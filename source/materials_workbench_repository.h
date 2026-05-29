@@ -16,10 +16,12 @@ public:
 	bool DeletePaletteGroup(const wxString &name, wxString &error) const;
 	bool LoadBrushDetails(int64_t brushId, BrushStorageRecord &outBrush, wxString &error) const;
 	bool SaveBrushDetails(BrushStorageRecord &brushStorage, wxString &error) const;
+	bool SaveGroundBrushBorders(int64_t brushId, const std::vector<GroundBrushBorderRecord> &borders, wxString &error) const;
 	bool SaveWallBrushParts(const BrushStorageRecord &brushStorage, wxString &error) const;
 	bool LoadBorderSetDetails(int64_t borderSetId, BorderSetStorageRecord &outBorderSet, wxString &error) const;
 	bool LoadBorderSetUsages(int64_t borderSetId, std::vector<BorderSetUsageRecord> &outUsages, wxString &error) const;
 	bool SaveBorderSet(BorderSetStorageRecord &borderSet, wxString &error) const;
+	bool DeleteBorderSet(int64_t borderSetId, wxString &error) const;
 };
 
 #endif

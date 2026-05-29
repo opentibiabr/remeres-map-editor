@@ -20,11 +20,14 @@ public:
 	bool HasPaletteGroupNamed(const wxString &name) const;
 	bool GetBrushDetails(const wxString &contextKey, int itemIndex, BrushStorageRecord &outBrush, wxString &error) const;
 	bool SaveBrushDetails(BrushStorageRecord &brushStorage, wxString &error);
+	bool SaveGroundBrushBorders(int64_t brushId, const std::vector<GroundBrushBorderRecord> &borders, wxString &error);
 	bool SaveWallBrushParts(BrushStorageRecord &brushStorage, wxString &error);
 	bool LocateBrushNode(int64_t brushId, wxString &outContextKey, int &outItemIndex) const;
 	bool GetBorderSetDetails(const wxString &contextKey, int itemIndex, BorderSetStorageRecord &outBorderSet, wxString &error) const;
 	bool GetBorderSetUsages(int64_t borderSetId, std::vector<BorderSetUsageRecord> &outUsages, wxString &error) const;
 	bool SaveBorderSet(BorderSetStorageRecord &borderSet, wxString &error);
+	bool DeleteBorderSet(int64_t borderSetId, wxString &error);
+	int SuggestNextBorderId() const;
 	bool LocateBorderSetNode(int64_t borderSetId, wxString &outContextKey, int &outItemIndex) const;
 	bool SaveTileset(const TilesetStorageRecord &tileset, wxString &error);
 	bool SaveTileset(const TilesetStorageRecord &tileset, const wxString &previousName, wxString &error);
