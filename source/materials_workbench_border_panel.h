@@ -14,11 +14,12 @@ class ItemToggleButton;
 class MaterialsWorkbenchController;
 class wxButton;
 class wxChoice;
-class wxListBox;
+class wxGrid;
 class wxPanel;
 class wxSpinCtrl;
 class wxStaticText;
 class wxTextCtrl;
+class wxGridEvent;
 
 class MaterialsWorkbenchBorderPanel : public wxPanel {
 public:
@@ -78,7 +79,7 @@ private:
 	void OnSelectedItemIdChanged(wxCommandEvent &event);
 	void OnSelectedItemIdSpin(wxSpinEvent &event);
 	void OnMetadataFieldChanged(wxCommandEvent &event);
-	void OnUsageContextChanged(wxCommandEvent &event);
+	void OnUsageContextChanged(wxGridEvent &event);
 	void OnUsageSearchChanged(wxCommandEvent &event);
 	void OnOpenLinkedBrush(wxCommandEvent &event);
 	void OnCreateBorder(wxCommandEvent &event);
@@ -130,13 +131,11 @@ private:
 	wxPanel* inlineDetailsPanel_ = nullptr;
 	wxPanel* globalDetailsPanel_ = nullptr;
 	wxTextCtrl* usageSearchCtrl_ = nullptr;
+	wxStaticText* usageSearchHintLabel_ = nullptr;
 	wxStaticText* usageSummaryLabel_ = nullptr;
-	wxListBox* usageListBox_ = nullptr;
+	wxGrid* usageGrid_ = nullptr;
 	ItemButton* usagePreviewItem_ = nullptr;
-	wxStaticText* usageBrushLabel_ = nullptr;
-	wxStaticText* usageAlignLabel_ = nullptr;
-	wxStaticText* usageRoleLabel_ = nullptr;
-	wxStaticText* usageCenterLabel_ = nullptr;
+	wxStaticText* usageSelectionLabel_ = nullptr;
 	wxButton* openLinkedBrushButton_ = nullptr;
 	wxButton* addUsageContextButton_ = nullptr;
 	wxButton* editUsageContextButton_ = nullptr;

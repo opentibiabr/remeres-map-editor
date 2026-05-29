@@ -9,8 +9,9 @@
 #include <wx/choice.h>
 #include <wx/choicdlg.h>
 #include <wx/dcbuffer.h>
-#include <wx/msgdlg.h>
+#include <wx/grid.h>
 #include <wx/listbox.h>
+#include <wx/msgdlg.h>
 #include <wx/scrolwin.h>
 #include <wx/settings.h>
 #include <wx/sizer.h>
@@ -147,21 +148,69 @@ namespace {
 		return usage.lookId;
 	}
 
-	wxString BuildUsageContextLabel(const BorderSetUsageRecord &usage) {
-		const int previewItemId = ResolveUsagePreviewItemId(usage);
-		if (previewItemId > 0) {
-			return wxString::Format(
-				"%s  |  %s  |  center %d",
-				usage.brushName,
-				usage.align.IsEmpty() ? wxString("outer") : usage.align,
-				previewItemId
-			);
+	wxString BuildBrushPickerLabel(const wxString &brushName, int64_t brushId, const wxString &emptyLabel = "Not selected");
+
+	constexpr int kUsageGridColumnCount = 7;
+	constexpr int kUsageGridColumnBrush = 0;
+	constexpr int kUsageGridColumnBrushId = 1;
+	constexpr int kUsageGridColumnType = 2;
+	constexpr int kUsageGridColumnAlign = 3;
+	constexpr int kUsageGridColumnRole = 4;
+	constexpr int kUsageGridColumnTarget = 5;
+	constexpr int kUsageGridColumnCenter = 6;
+
+	wxString BuildUsageTypeLabel(const BorderSetUsageRecord &usage) {
+		return usage.brushType.IsEmpty() ? wxString("ground") : usage.brushType;
+	}
+
+	wxString BuildUsageAlignLabel(const BorderSetUsageRecord &usage) {
+		return usage.align.IsEmpty() ? wxString("outer") : usage.align;
+	}
+
+	wxString BuildUsageRoleLabel(const BorderSetUsageRecord &usage) {
+		return usage.borderRole.IsEmpty() ? wxString("normal") : usage.borderRole;
+	}
+
+	wxString BuildUsageTargetLabel(const BorderSetUsageRecord &usage) {
+		if (usage.targetMode.IsSameAs("brush", false)) {
+			return BuildBrushPickerLabel(usage.targetBrushName, usage.targetBrushId, "brush");
 		}
+		return usage.targetMode.IsEmpty() ? wxString("all") : usage.targetMode;
+	}
+
+	wxString BuildUsageCenterLabel(const BorderSetUsageRecord &usage) {
+		const int previewItemId = ResolveUsagePreviewItemId(usage);
+		return previewItemId > 0 ? wxString::Format("%d", previewItemId) : "painted";
+	}
+
+	wxString BuildUsageSelectionSummary(const BorderSetUsageRecord &usage) {
 		return wxString::Format(
-			"%s  |  %s  |  painted",
+			"%s (#%lld) | %s | %s | %s | target: %s | center: %s",
 			usage.brushName,
-			usage.align.IsEmpty() ? wxString("outer") : usage.align
+			static_cast<long long>(usage.brushId),
+			BuildUsageTypeLabel(usage),
+			BuildUsageAlignLabel(usage),
+			BuildUsageRoleLabel(usage),
+			BuildUsageTargetLabel(usage),
+			BuildUsageCenterLabel(usage)
 		);
+	}
+
+	void ApplyUsageGridRowStyle(wxGrid* grid, int row) {
+		if (!grid || row < 0) {
+			return;
+		}
+
+		const wxColour background =
+			row % 2 == 0
+				? wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW)
+				: wxSystemSettings::GetColour(wxSYS_COLOUR_BTNFACE);
+		const wxColour text = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT);
+		for (int col = 0; col < grid->GetNumberCols(); ++col) {
+			grid->SetReadOnly(row, col, true);
+			grid->SetCellBackgroundColour(row, col, background);
+			grid->SetCellTextColour(row, col, text);
+		}
 	}
 
 	wxString BuildUsageSearchHaystack(const BorderSetUsageRecord &usage) {
@@ -204,7 +253,7 @@ namespace {
 		return haystack.Lower();
 	}
 
-	wxString BuildBrushPickerLabel(const wxString &brushName, int64_t brushId, const wxString &emptyLabel = "Not selected") {
+	wxString BuildBrushPickerLabel(const wxString &brushName, int64_t brushId, const wxString &emptyLabel) {
 		if (!brushName.IsEmpty() && brushId > 0) {
 			return wxString::Format("%s (#%lld)", brushName, static_cast<long long>(brushId));
 		}
@@ -228,10 +277,155 @@ namespace {
 		bool superBorder = false;
 	};
 
+	class TerrainBrushPickerDialog final : public wxDialog {
+	public:
+		TerrainBrushPickerDialog(
+			wxWindow* parent,
+			const MaterialsWorkbenchController &controller,
+			const wxString &title,
+			int64_t selectedBrushId = 0
+		) :
+			wxDialog(parent, wxID_ANY, title, wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER) {
+			const auto &brushGroups = controller.GetBrushGroups();
+			for (const MaterialsWorkbenchBrushGroup &group : brushGroups) {
+				if (group.brushType != "ground") {
+					continue;
+				}
+				for (const BrushRecord &brush : group.brushes) {
+					terrainBrushes_.push_back(brush);
+				}
+			}
+
+			std::sort(
+				terrainBrushes_.begin(),
+				terrainBrushes_.end(),
+				[](const BrushRecord &left, const BrushRecord &right) {
+					const int compareNames = left.name.CmpNoCase(right.name);
+					if (compareNames != 0) {
+						return compareNames < 0;
+					}
+					return left.id < right.id;
+				}
+			);
+
+			wxBoxSizer* rootSizer = new wxBoxSizer(wxVERTICAL);
+			searchCtrl_ = new wxTextCtrl(this, wxID_ANY);
+			searchCtrl_->SetHint("Search terrain brush by name or id...");
+			listBox_ = new wxListBox(this, wxID_ANY);
+			listBox_->SetMinSize(wxSize(FromDIP(420), FromDIP(320)));
+
+			wxStdDialogButtonSizer* buttons = new wxStdDialogButtonSizer();
+			okButton_ = new wxButton(this, wxID_OK);
+			okButton_->Enable(false);
+			buttons->AddButton(okButton_);
+			buttons->AddButton(new wxButton(this, wxID_CANCEL));
+			buttons->Realize();
+
+			rootSizer->Add(searchCtrl_, 0, wxEXPAND | wxALL, FromDIP(12));
+			rootSizer->Add(listBox_, 1, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(12));
+			rootSizer->Add(buttons, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(12));
+			SetSizerAndFit(rootSizer);
+			SetMinSize(wxSize(FromDIP(460), FromDIP(420)));
+
+			searchCtrl_->Bind(wxEVT_TEXT, &TerrainBrushPickerDialog::OnSearchChanged, this);
+			listBox_->Bind(wxEVT_LISTBOX, &TerrainBrushPickerDialog::OnSelectionChanged, this);
+			listBox_->Bind(wxEVT_LISTBOX_DCLICK, &TerrainBrushPickerDialog::OnItemActivated, this);
+			okButton_->Bind(wxEVT_BUTTON, &TerrainBrushPickerDialog::OnConfirm, this);
+
+			RebuildList(selectedBrushId);
+		}
+
+		const BrushRecord* GetSelectedBrush() const {
+			if (selectedVisibleIndex_ == wxNOT_FOUND ||
+				selectedVisibleIndex_ < 0 ||
+				selectedVisibleIndex_ >= static_cast<int>(filteredIndexes_.size())) {
+				return nullptr;
+			}
+			const int sourceIndex = filteredIndexes_[selectedVisibleIndex_];
+			if (sourceIndex < 0 || sourceIndex >= static_cast<int>(terrainBrushes_.size())) {
+				return nullptr;
+			}
+			return &terrainBrushes_[sourceIndex];
+		}
+
+	private:
+		void RebuildList(int64_t preferredBrushId) {
+			filteredIndexes_.clear();
+			listBox_->Clear();
+
+			const wxString query = searchCtrl_->GetValue().Lower().Trim(true).Trim(false);
+			for (size_t i = 0; i < terrainBrushes_.size(); ++i) {
+				const BrushRecord &brush = terrainBrushes_[i];
+				wxString haystack;
+				haystack << brush.name << " ";
+				haystack << wxString::Format("%lld", static_cast<long long>(brush.id));
+				haystack = haystack.Lower();
+				if (!query.IsEmpty() && !haystack.Contains(query)) {
+					continue;
+				}
+
+				filteredIndexes_.push_back(static_cast<int>(i));
+				listBox_->Append(wxString::Format("%s (#%lld)", brush.name, static_cast<long long>(brush.id)));
+			}
+
+			selectedVisibleIndex_ = wxNOT_FOUND;
+			if (filteredIndexes_.empty()) {
+				okButton_->Enable(false);
+				return;
+			}
+
+			int preferredVisibleIndex = 0;
+			for (size_t i = 0; i < filteredIndexes_.size(); ++i) {
+				const BrushRecord &brush = terrainBrushes_[filteredIndexes_[i]];
+				if (brush.id == preferredBrushId) {
+					preferredVisibleIndex = static_cast<int>(i);
+					break;
+				}
+			}
+			listBox_->SetSelection(preferredVisibleIndex);
+			selectedVisibleIndex_ = preferredVisibleIndex;
+			okButton_->Enable(true);
+		}
+
+		void OnSearchChanged(wxCommandEvent &) {
+			const BrushRecord* current = GetSelectedBrush();
+			const int64_t preferredBrushId = current ? current->id : 0;
+			RebuildList(preferredBrushId);
+		}
+
+		void OnSelectionChanged(wxCommandEvent &) {
+			selectedVisibleIndex_ = listBox_->GetSelection();
+			okButton_->Enable(selectedVisibleIndex_ != wxNOT_FOUND);
+		}
+
+		void OnItemActivated(wxCommandEvent &) {
+			ConfirmSelection();
+		}
+
+		void OnConfirm(wxCommandEvent &) {
+			ConfirmSelection();
+		}
+
+		void ConfirmSelection() {
+			selectedVisibleIndex_ = listBox_->GetSelection();
+			if (GetSelectedBrush()) {
+				EndModal(wxID_OK);
+			}
+		}
+
+		std::vector<BrushRecord> terrainBrushes_;
+		std::vector<int> filteredIndexes_;
+		wxTextCtrl* searchCtrl_ = nullptr;
+		wxListBox* listBox_ = nullptr;
+		wxButton* okButton_ = nullptr;
+		int selectedVisibleIndex_ = wxNOT_FOUND;
+	};
+
 	class GlobalUsageDialog final : public wxDialog {
 	public:
-		GlobalUsageDialog(wxWindow* parent, const wxString &title, const GlobalUsageEditData &initialData) :
+		GlobalUsageDialog(wxWindow* parent, MaterialsWorkbenchController &controller, const wxString &title, const GlobalUsageEditData &initialData) :
 			wxDialog(parent, wxID_ANY, title, wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER),
+			controller_(controller),
 			data_(initialData) {
 			wxBoxSizer* rootSizer = new wxBoxSizer(wxVERTICAL);
 			wxFlexGridSizer* formSizer = new wxFlexGridSizer(0, 2, FromDIP(8), FromDIP(8));
@@ -318,30 +512,30 @@ namespace {
 
 	private:
 		void OnPickOwnerBrush(wxCommandEvent &) {
-			FindBrushDialog dialog(this, "Choose Context Brush");
+			TerrainBrushPickerDialog dialog(this, controller_, "Choose Terrain Brush", data_.ownerBrushId);
 			if (dialog.ShowModal() != wxID_OK) {
 				return;
 			}
-			const Brush* brush = dialog.getResult();
+			const BrushRecord* brush = dialog.GetSelectedBrush();
 			if (!brush) {
 				return;
 			}
-			data_.ownerBrushId = static_cast<int64_t>(brush->getID());
-			data_.ownerBrushName = wxString::FromUTF8(brush->getName());
+			data_.ownerBrushId = brush->id;
+			data_.ownerBrushName = brush->name;
 			ownerBrushCtrl_->SetValue(BuildBrushPickerLabel(data_.ownerBrushName, data_.ownerBrushId));
 		}
 
 		void OnPickTargetBrush(wxCommandEvent &) {
-			FindBrushDialog dialog(this, "Choose Target Brush");
+			TerrainBrushPickerDialog dialog(this, controller_, "Choose Target Terrain Brush", data_.targetBrushId);
 			if (dialog.ShowModal() != wxID_OK) {
 				return;
 			}
-			const Brush* brush = dialog.getResult();
+			const BrushRecord* brush = dialog.GetSelectedBrush();
 			if (!brush) {
 				return;
 			}
-			data_.targetBrushId = static_cast<int64_t>(brush->getID());
-			data_.targetBrushName = wxString::FromUTF8(brush->getName());
+			data_.targetBrushId = brush->id;
+			data_.targetBrushName = brush->name;
 			targetBrushCtrl_->SetValue(BuildBrushPickerLabel(data_.targetBrushName, data_.targetBrushId));
 		}
 
@@ -360,6 +554,7 @@ namespace {
 			}
 		}
 
+		MaterialsWorkbenchController &controller_;
 		GlobalUsageEditData data_;
 		wxTextCtrl* ownerBrushCtrl_ = nullptr;
 		wxChoice* roleChoice_ = nullptr;
@@ -760,18 +955,46 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	StyleBorderWorkspaceActionButton(openLinkedBrushButton_, "Open the selected brush that uses this global border.");
 	wxStaticBoxSizer* globalDetailsBox = new wxStaticBoxSizer(wxVERTICAL, globalDetailsPanel_, "Used By");
 	usageSearchCtrl_ = new wxTextCtrl(globalDetailsPanel_, wxID_ANY);
+	usageSearchCtrl_->SetHint("Search by brush, id, align, role, center, target...");
+	usageSearchHintLabel_ = new wxStaticText(globalDetailsPanel_, wxID_ANY, "Matches brush name, ids, align, role, center, target, and painted contexts.");
+	StyleBorderWorkspaceCaption(usageSearchHintLabel_);
 	usageSummaryLabel_ = new wxStaticText(globalDetailsPanel_, wxID_ANY, "No usage contexts loaded");
 	StyleBorderWorkspaceCaption(usageSummaryLabel_);
-	usageListBox_ = new wxListBox(globalDetailsPanel_, wxID_ANY);
-	usageListBox_->SetMinSize(wxSize(FromDIP(210), FromDIP(150)));
+	usageGrid_ = new wxGrid(globalDetailsPanel_, wxID_ANY);
+	usageGrid_->CreateGrid(0, kUsageGridColumnCount);
+	usageGrid_->EnableEditing(false);
+	usageGrid_->EnableDragGridSize(false);
+	usageGrid_->EnableDragRowSize(false);
+	usageGrid_->EnableDragColMove(false);
+	usageGrid_->EnableDragColSize(true);
+	usageGrid_->EnableGridLines(true);
+	usageGrid_->SetSelectionMode(wxGrid::wxGridSelectRows);
+	usageGrid_->SetMargins(0, 0);
+	usageGrid_->SetRowLabelSize(0);
+	usageGrid_->SetDefaultCellAlignment(wxALIGN_LEFT, wxALIGN_CENTER);
+	usageGrid_->SetDefaultCellOverflow(false);
+	usageGrid_->SetColLabelAlignment(wxALIGN_LEFT, wxALIGN_CENTER);
+	usageGrid_->SetGridLineColour(wxSystemSettings::GetColour(wxSYS_COLOUR_3DLIGHT));
+	usageGrid_->SetColLabelValue(kUsageGridColumnBrush, "Brush");
+	usageGrid_->SetColLabelValue(kUsageGridColumnBrushId, "ID");
+	usageGrid_->SetColLabelValue(kUsageGridColumnType, "Type");
+	usageGrid_->SetColLabelValue(kUsageGridColumnAlign, "Align");
+	usageGrid_->SetColLabelValue(kUsageGridColumnRole, "Role");
+	usageGrid_->SetColLabelValue(kUsageGridColumnTarget, "Target");
+	usageGrid_->SetColLabelValue(kUsageGridColumnCenter, "Center");
+	usageGrid_->SetColSize(kUsageGridColumnBrush, FromDIP(150));
+	usageGrid_->SetColSize(kUsageGridColumnBrushId, FromDIP(62));
+	usageGrid_->SetColSize(kUsageGridColumnType, FromDIP(72));
+	usageGrid_->SetColSize(kUsageGridColumnAlign, FromDIP(68));
+	usageGrid_->SetColSize(kUsageGridColumnRole, FromDIP(78));
+	usageGrid_->SetColSize(kUsageGridColumnTarget, FromDIP(120));
+	usageGrid_->SetColSize(kUsageGridColumnCenter, FromDIP(74));
+	usageGrid_->SetDefaultRowSize(FromDIP(26), true);
+	usageGrid_->SetMinSize(wxSize(FromDIP(240), FromDIP(178)));
 	usagePreviewItem_ = new ItemButton(globalDetailsPanel_, RENDER_SIZE_32x32, 0);
 	usagePreviewItem_->Enable(false);
-	usageBrushLabel_ = new wxStaticText(globalDetailsPanel_, wxID_ANY, "Brush: none");
-	usageAlignLabel_ = new wxStaticText(globalDetailsPanel_, wxID_ANY, "Align: -");
-	usageRoleLabel_ = new wxStaticText(globalDetailsPanel_, wxID_ANY, "Role: -");
-	usageCenterLabel_ = new wxStaticText(globalDetailsPanel_, wxID_ANY, "Center: painted");
-	StyleBorderWorkspaceStrongValue(usageBrushLabel_);
-	StyleBorderWorkspaceStrongValue(usageCenterLabel_);
+	usageSelectionLabel_ = new wxStaticText(globalDetailsPanel_, wxID_ANY, "Select a context row to drive the global center preview.");
+	usageSelectionLabel_->Wrap(FromDIP(280));
 	addUsageContextButton_ = new wxButton(globalDetailsPanel_, wxID_ANY, "Add Context");
 	editUsageContextButton_ = new wxButton(globalDetailsPanel_, wxID_ANY, "Edit Context");
 	removeUsageContextButton_ = new wxButton(globalDetailsPanel_, wxID_ANY, "Remove Context");
@@ -780,16 +1003,14 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	StyleBorderWorkspaceActionButton(removeUsageContextButton_, "Remove the selected usage context from its owner brush.");
 	globalDetailsBox->Add(CreateBorderSectionLabel(globalDetailsPanel_, "Search"), 0, wxLEFT | wxRIGHT | wxTOP, FromDIP(8));
 	globalDetailsBox->Add(usageSearchCtrl_, 0, wxEXPAND | wxALL, FromDIP(8));
+	globalDetailsBox->Add(usageSearchHintLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(8));
 	globalDetailsBox->Add(usageSummaryLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(8));
-	globalDetailsBox->Add(usageListBox_, 1, wxEXPAND | wxALL, FromDIP(8));
+	globalDetailsBox->Add(CreateBorderSectionLabel(globalDetailsPanel_, "Contexts"), 0, wxLEFT | wxRIGHT, FromDIP(8));
+	globalDetailsBox->Add(usageGrid_, 1, wxEXPAND | wxALL, FromDIP(8));
+	globalDetailsBox->Add(CreateBorderSectionLabel(globalDetailsPanel_, "Selection"), 0, wxLEFT | wxRIGHT, FromDIP(8));
 	wxBoxSizer* usageDetailsRow = new wxBoxSizer(wxHORIZONTAL);
 	usageDetailsRow->Add(usagePreviewItem_, 0, wxALIGN_TOP | wxRIGHT, FromDIP(8));
-	wxBoxSizer* usageDetailsText = new wxBoxSizer(wxVERTICAL);
-	usageDetailsText->Add(usageBrushLabel_, 0, wxBOTTOM, FromDIP(4));
-	usageDetailsText->Add(usageAlignLabel_, 0, wxBOTTOM, FromDIP(2));
-	usageDetailsText->Add(usageRoleLabel_, 0, wxBOTTOM, FromDIP(2));
-	usageDetailsText->Add(usageCenterLabel_, 0);
-	usageDetailsRow->Add(usageDetailsText, 1, wxEXPAND);
+	usageDetailsRow->Add(usageSelectionLabel_, 1, wxEXPAND);
 	globalDetailsBox->Add(usageDetailsRow, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
 	wxGridSizer* usageActionGrid = new wxGridSizer(2, FromDIP(6), FromDIP(6));
 	usageActionGrid->Add(addUsageContextButton_, 0, wxEXPAND);
@@ -974,7 +1195,7 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	borderGroupCtrl_->Bind(wxEVT_CHOICE, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
 	groundEquivalentCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
 	usageSearchCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBorderPanel::OnUsageSearchChanged, this);
-	usageListBox_->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBorderPanel::OnUsageContextChanged, this);
+	usageGrid_->Bind(wxEVT_GRID_SELECT_CELL, &MaterialsWorkbenchBorderPanel::OnUsageContextChanged, this);
 	openLinkedBrushButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnOpenLinkedBrush, this);
 	addUsageContextButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnAddUsageContext, this);
 	editUsageContextButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnEditUsageContext, this);
@@ -1012,8 +1233,8 @@ void MaterialsWorkbenchBorderPanel::ClearWorkspace(const wxString &message) {
 	if (usageSearchCtrl_) {
 		usageSearchCtrl_->SetValue("");
 	}
-	if (usageListBox_) {
-		usageListBox_->Clear();
+	if (usageGrid_ && usageGrid_->GetNumberRows() > 0) {
+		usageGrid_->DeleteRows(0, usageGrid_->GetNumberRows());
 	}
 	if (usageSummaryLabel_) {
 		usageSummaryLabel_->SetLabel("No usage contexts loaded");
@@ -1191,12 +1412,14 @@ BorderSetStorageRecord MaterialsWorkbenchBorderPanel::BuildComparableStorageFrom
 }
 
 void MaterialsWorkbenchBorderPanel::PopulateUsageContextList() {
-	if (!usageListBox_) {
+	if (!usageGrid_) {
 		return;
 	}
 
 	filteredUsageIndexes_.clear();
-	usageListBox_->Clear();
+	if (usageGrid_->GetNumberRows() > 0) {
+		usageGrid_->DeleteRows(0, usageGrid_->GetNumberRows());
+	}
 	const wxString query = usageSearchCtrl_ ? usageSearchCtrl_->GetValue().Lower() : "";
 	for (size_t i = 0; i < borderSetUsages_.size(); ++i) {
 		const BorderSetUsageRecord &usage = borderSetUsages_[i];
@@ -1205,21 +1428,44 @@ void MaterialsWorkbenchBorderPanel::PopulateUsageContextList() {
 			continue;
 		}
 		filteredUsageIndexes_.push_back(static_cast<int>(i));
-		usageListBox_->Append(BuildUsageContextLabel(usage));
+	}
+
+	if (!filteredUsageIndexes_.empty()) {
+		usageGrid_->AppendRows(static_cast<int>(filteredUsageIndexes_.size()));
+		for (size_t row = 0; row < filteredUsageIndexes_.size(); ++row) {
+			const BorderSetUsageRecord &usage = borderSetUsages_[filteredUsageIndexes_[row]];
+			usageGrid_->SetCellValue(static_cast<int>(row), kUsageGridColumnBrush, usage.brushName);
+			usageGrid_->SetCellValue(static_cast<int>(row), kUsageGridColumnBrushId, wxString::Format("%lld", static_cast<long long>(usage.brushId)));
+			usageGrid_->SetCellValue(static_cast<int>(row), kUsageGridColumnType, BuildUsageTypeLabel(usage));
+			usageGrid_->SetCellValue(static_cast<int>(row), kUsageGridColumnAlign, BuildUsageAlignLabel(usage));
+			usageGrid_->SetCellValue(static_cast<int>(row), kUsageGridColumnRole, BuildUsageRoleLabel(usage));
+			usageGrid_->SetCellValue(static_cast<int>(row), kUsageGridColumnTarget, BuildUsageTargetLabel(usage));
+			usageGrid_->SetCellValue(static_cast<int>(row), kUsageGridColumnCenter, BuildUsageCenterLabel(usage));
+			ApplyUsageGridRowStyle(usageGrid_, static_cast<int>(row));
+		}
 	}
 
 	if (usageSummaryLabel_) {
-		usageSummaryLabel_->SetLabel(wxString::Format(
-			"%zu context%s total | %zu visible",
-			borderSetUsages_.size(),
-			borderSetUsages_.size() == 1 ? "" : "s",
-			filteredUsageIndexes_.size()
-		));
+		if (query.IsEmpty()) {
+			usageSummaryLabel_->SetLabel(wxString::Format(
+				"%zu context%s available",
+				borderSetUsages_.size(),
+				borderSetUsages_.size() == 1 ? "" : "s"
+			));
+		} else {
+			usageSummaryLabel_->SetLabel(wxString::Format(
+				"%zu match%s for \"%s\" (%zu total)",
+				filteredUsageIndexes_.size(),
+				filteredUsageIndexes_.size() == 1 ? "" : "es",
+				query,
+				borderSetUsages_.size()
+			));
+		}
 	}
 
 	if (filteredUsageIndexes_.empty()) {
 		selectedUsageIndex_ = wxNOT_FOUND;
-		usageListBox_->SetSelection(wxNOT_FOUND);
+		usageGrid_->ClearSelection();
 		RefreshUsageDetails();
 		return;
 	}
@@ -1230,7 +1476,12 @@ void MaterialsWorkbenchBorderPanel::PopulateUsageContextList() {
 	}
 	for (size_t visibleIndex = 0; visibleIndex < filteredUsageIndexes_.size(); ++visibleIndex) {
 		if (filteredUsageIndexes_[visibleIndex] == selectedUsageIndex_) {
-			usageListBox_->SetSelection(static_cast<int>(visibleIndex));
+			internalUpdate_ = true;
+			usageGrid_->ClearSelection();
+			usageGrid_->SetGridCursor(static_cast<int>(visibleIndex), 0);
+			usageGrid_->SelectRow(static_cast<int>(visibleIndex), false);
+			usageGrid_->MakeCellVisible(static_cast<int>(visibleIndex), 0);
+			internalUpdate_ = false;
 			break;
 		}
 	}
@@ -1242,8 +1493,8 @@ void MaterialsWorkbenchBorderPanel::UpdateUsageContextControls() {
 		if (usageSearchCtrl_) {
 			usageSearchCtrl_->Enable(false);
 		}
-		if (usageListBox_) {
-			usageListBox_->Enable(false);
+		if (usageGrid_) {
+			usageGrid_->Enable(false);
 		}
 		if (openLinkedBrushButton_) {
 			openLinkedBrushButton_->Enable(false);
@@ -1265,8 +1516,8 @@ void MaterialsWorkbenchBorderPanel::UpdateUsageContextControls() {
 	if (usageSearchCtrl_) {
 		usageSearchCtrl_->Enable(isGlobal);
 	}
-	if (usageListBox_) {
-		usageListBox_->Enable(isGlobal && !filteredUsageIndexes_.empty());
+	if (usageGrid_) {
+		usageGrid_->Enable(isGlobal && !filteredUsageIndexes_.empty());
 	}
 	if (openLinkedBrushButton_) {
 		openLinkedBrushButton_->Enable(isGlobal && usage && usage->brushId > 0);
@@ -1280,8 +1531,8 @@ void MaterialsWorkbenchBorderPanel::UpdateUsageContextControls() {
 	if (removeUsageContextButton_) {
 		removeUsageContextButton_->Enable(isGlobal && usage != nullptr);
 	}
-	if (usageListBox_) {
-		usageListBox_->SetToolTip(
+	if (usageGrid_) {
+		usageGrid_->SetToolTip(
 			!isGlobal
 				? "Inline borders edit their Center Tile directly."
 				: usage
@@ -1438,34 +1689,19 @@ void MaterialsWorkbenchBorderPanel::RefreshUsageDetails() {
 	const int previewItemId = usage ? ResolveUsagePreviewItemId(*usage) : 0;
 	if (usagePreviewItem_) {
 		usagePreviewItem_->SetSprite(previewItemId);
-	}
-	if (usageBrushLabel_) {
-		usageBrushLabel_->SetLabel(
-			usage
-				? wxString::Format("Brush: %s (#%lld)", usage->brushName, static_cast<long long>(usage->brushId))
-				: "Brush: none"
-		);
-	}
-	if (usageAlignLabel_) {
-		usageAlignLabel_->SetLabel(
-			usage
-				? "Align: " + (usage->align.IsEmpty() ? wxString("outer") : usage->align)
-				: "Align: -"
-		);
-	}
-	if (usageRoleLabel_) {
-		usageRoleLabel_->SetLabel(
-			usage
-				? "Role: " + (usage->borderRole.IsEmpty() ? wxString("normal") : usage->borderRole)
-				: "Role: -"
-		);
-	}
-	if (usageCenterLabel_) {
-		usageCenterLabel_->SetLabel(
+		usagePreviewItem_->SetToolTip(
 			previewItemId > 0
-				? wxString::Format("Center: %d", previewItemId)
-				: "Center: painted"
+				? wxString::Format("Effective center preview item %d.", previewItemId)
+				: "This context resolves to a painted center."
 		);
+	}
+	if (usageSelectionLabel_) {
+		usageSelectionLabel_->SetLabel(
+			usage
+				? BuildUsageSelectionSummary(*usage)
+				: "Select a context row to drive the global center preview."
+		);
+		usageSelectionLabel_->Wrap(globalDetailsPanel_->FromDIP(280));
 	}
 }
 
@@ -1880,19 +2116,26 @@ void MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged(wxCommandEvent &event
 	event.Skip();
 }
 
-void MaterialsWorkbenchBorderPanel::OnUsageContextChanged(wxCommandEvent &event) {
+void MaterialsWorkbenchBorderPanel::OnUsageContextChanged(wxGridEvent &event) {
 	if (internalUpdate_ || !hasBorderSet_) {
 		event.Skip();
 		return;
 	}
 
-	const int visibleSelection = usageListBox_ ? usageListBox_->GetSelection() : wxNOT_FOUND;
+	const int visibleSelection = event.GetRow();
 	selectedUsageIndex_ =
 		(visibleSelection != wxNOT_FOUND &&
 		 visibleSelection >= 0 &&
 		 visibleSelection < static_cast<int>(filteredUsageIndexes_.size()))
 			? filteredUsageIndexes_[visibleSelection]
 			: wxNOT_FOUND;
+	if (usageGrid_ && visibleSelection != wxNOT_FOUND) {
+		internalUpdate_ = true;
+		usageGrid_->ClearSelection();
+		usageGrid_->SetGridCursor(visibleSelection, 0);
+		usageGrid_->SelectRow(visibleSelection, false);
+		internalUpdate_ = false;
+	}
 	HandleUsageContextChanged();
 	SetStatusMessage("Preview context updated. Global border center now reflects the selected linked brush.");
 	event.Skip();
@@ -2064,7 +2307,7 @@ void MaterialsWorkbenchBorderPanel::OnAddUsageContext(wxCommandEvent &event) {
 	dialogData.borderRole = "normal";
 	dialogData.align = "outer";
 	dialogData.targetMode = "all";
-	GlobalUsageDialog dialog(this, "Add Used By Context", dialogData);
+	GlobalUsageDialog dialog(this, controller_, "Add Used By Context", dialogData);
 	if (dialog.ShowModal() != wxID_OK || !dialog.Validate() || !dialog.TransferDataFromWindow()) {
 		return;
 	}
@@ -2137,7 +2380,7 @@ void MaterialsWorkbenchBorderPanel::OnEditUsageContext(wxCommandEvent &event) {
 	dialogData.targetBrushName = usage->targetBrushName;
 	dialogData.superBorder = usage->superBorder;
 
-	GlobalUsageDialog dialog(this, "Edit Used By Context", dialogData);
+	GlobalUsageDialog dialog(this, controller_, "Edit Used By Context", dialogData);
 	if (dialog.ShowModal() != wxID_OK || !dialog.Validate() || !dialog.TransferDataFromWindow()) {
 		return;
 	}
