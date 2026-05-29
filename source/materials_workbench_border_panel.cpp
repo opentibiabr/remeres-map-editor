@@ -612,7 +612,9 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	scopeChoice_ = new wxChoice(scrolled, wxID_ANY);
 	scopeChoice_->Append("global");
 	scopeChoice_->Append("inline");
-	typeCtrl_ = new wxTextCtrl(scrolled, wxID_ANY);
+	typeCtrl_ = new wxChoice(scrolled, wxID_ANY);
+	typeCtrl_->Append("normal");
+	typeCtrl_->Append("optional");
 	borderGroupCtrl_ = new wxSpinCtrl(scrolled, wxID_ANY);
 	borderGroupCtrl_->SetRange(0, 1000000);
 	sourceCtrl_ = new wxTextCtrl(scrolled, wxID_ANY);
@@ -630,13 +632,25 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 		StyleBorderWorkspaceCaption(fieldLabel);
 		metadataGrid->Add(fieldLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
 		metadataGrid->Add(control, 1, wxEXPAND);
+		if (control == xmlBorderIdCtrl_) {
+			xmlBorderIdLabel_ = fieldLabel;
+		} else if (control == typeCtrl_) {
+			typeLabel_ = fieldLabel;
+		} else if (control == borderGroupCtrl_) {
+			borderGroupLabel_ = fieldLabel;
+		}
 	};
 
 	addMetadataField("Internal ID", idCtrl_);
-	addMetadataField("Border ID", xmlBorderIdCtrl_);
+	addMetadataField("Global Border ID", xmlBorderIdCtrl_);
 	addMetadataField("Scope", scopeChoice_);
 	addMetadataField("Border Style", typeCtrl_);
 	addMetadataField("Border Family", borderGroupCtrl_);
+	typeCtrl_->SetToolTip("Choose whether this border behaves as normal or optional.");
+	borderGroupCtrl_->SetToolTip("Legacy compatibility family preserved from older border definitions.");
+	if (borderGroupLabel_) {
+		borderGroupLabel_->SetToolTip("Legacy compatibility family preserved from older border definitions.");
+	}
 	metadataBox->Add(metadataGrid, 1, wxEXPAND | wxALL, FromDIP(8));
 	wxBoxSizer* borderCrudRow = new wxBoxSizer(wxHORIZONTAL);
 	createBorderButton_ = new wxButton(scrolled, wxID_ANY, "New Border");
@@ -882,7 +896,7 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	xmlBorderIdCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
 	xmlBorderIdCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
 	scopeChoice_->Bind(wxEVT_CHOICE, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
-	typeCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
+	typeCtrl_->Bind(wxEVT_CHOICE, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
 	borderGroupCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
 	borderGroupCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
 	groundEquivalentCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
@@ -917,7 +931,7 @@ void MaterialsWorkbenchBorderPanel::ClearWorkspace(const wxString &message) {
 	idCtrl_->SetValue("");
 	xmlBorderIdCtrl_->SetValue(0);
 	scopeChoice_->SetSelection(wxNOT_FOUND);
-	typeCtrl_->SetValue("");
+	typeCtrl_->SetSelection(wxNOT_FOUND);
 	borderGroupCtrl_->SetValue(0);
 	groundEquivalentCtrl_->SetValue(0);
 	ownerBrushCtrl_->SetValue("");
@@ -1005,7 +1019,10 @@ void MaterialsWorkbenchBorderPanel::PopulateFields() {
 	idCtrl_->SetValue(wxString::Format("%lld", static_cast<long long>(borderSet.id)));
 	xmlBorderIdCtrl_->SetValue(borderSet.xmlBorderId);
 	scopeChoice_->SetStringSelection(borderSet.borderScope);
-	typeCtrl_->SetValue(borderSet.borderType);
+	typeCtrl_->SetStringSelection(borderSet.borderType.IsEmpty() ? "normal" : borderSet.borderType);
+	if (typeCtrl_->GetSelection() == wxNOT_FOUND) {
+		typeCtrl_->SetStringSelection("normal");
+	}
 	borderGroupCtrl_->SetValue(borderSet.borderGroup);
 	groundEquivalentCtrl_->SetValue(borderSet.groundEquivalent);
 	ownerBrushCtrl_->SetValue(BuildOwnerBrushDisplayLabel(borderSet.ownerBrushId));
@@ -1048,7 +1065,7 @@ void MaterialsWorkbenchBorderPanel::UpdateSummaryLabels() {
 	const wxString centerGroundText = ResolveCenterSourceLabel();
 	if (borderSet.borderScope == "global") {
 		identityLabel_->SetLabel(wxString::Format(
-			"Border ID %d | Internal ID %lld | Used By: %zu brushes | Center source: %s",
+			"Global Border ID %d | Internal ID %lld | Used By: %zu brushes | Center source: %s",
 			borderSet.xmlBorderId,
 			static_cast<long long>(borderSet.id),
 			borderSetUsages_.size(),
@@ -1068,7 +1085,7 @@ BorderSetStorageRecord MaterialsWorkbenchBorderPanel::BuildComparableStorageFrom
 	BorderSetStorageRecord storage = borderSetStorage_;
 	storage.borderSet.xmlBorderId = xmlBorderIdCtrl_->GetValue();
 	storage.borderSet.borderScope = scopeChoice_->GetSelection() == wxNOT_FOUND ? "" : scopeChoice_->GetStringSelection();
-	storage.borderSet.borderType = typeCtrl_->GetValue().Trim(true).Trim(false);
+	storage.borderSet.borderType = typeCtrl_->GetSelection() == wxNOT_FOUND ? "" : typeCtrl_->GetStringSelection();
 	storage.borderSet.borderGroup = borderGroupCtrl_->GetValue();
 	storage.borderSet.groundEquivalent = groundEquivalentCtrl_->GetValue();
 	storage.borderSet.sourceFile = sourceCtrl_->GetValue().Trim(true).Trim(false);
@@ -1321,6 +1338,13 @@ void MaterialsWorkbenchBorderPanel::HandleUsageContextChanged() {
 void MaterialsWorkbenchBorderPanel::RefreshScopeSpecificLayout() {
 	const bool isInline = hasBorderSet_ && scopeChoice_ && scopeChoice_->GetStringSelection() == "inline";
 	const bool isGlobal = hasBorderSet_ && scopeChoice_ && scopeChoice_->GetStringSelection() == "global";
+	if (xmlBorderIdLabel_) {
+		xmlBorderIdLabel_->SetLabel("Global Border ID");
+		xmlBorderIdLabel_->Show(isGlobal);
+	}
+	if (xmlBorderIdCtrl_) {
+		xmlBorderIdCtrl_->Show(isGlobal);
+	}
 	if (inlineDetailsPanel_) {
 		inlineDetailsPanel_->Show(isInline);
 	}
@@ -1328,6 +1352,9 @@ void MaterialsWorkbenchBorderPanel::RefreshScopeSpecificLayout() {
 		globalDetailsPanel_->Show(isGlobal);
 	}
 	Layout();
+	if (GetSizer()) {
+		GetSizer()->Layout();
+	}
 }
 
 void MaterialsWorkbenchBorderPanel::RefreshUsageDetails() {
@@ -1377,7 +1404,7 @@ bool MaterialsWorkbenchBorderPanel::ValidateBorderSetStorage(const BorderSetStor
 		return false;
 	}
 	if (scope == "global" && storage.borderSet.xmlBorderId <= 0) {
-		error = "Global border sets must use a Border ID greater than zero so runtime refresh can target the saved set.";
+		error = "Global border sets must use a Global Border ID greater than zero so runtime refresh can target the saved set.";
 		return false;
 	}
 	if (scope == "inline" && storage.borderSet.ownerBrushId <= 0) {
@@ -1844,7 +1871,7 @@ void MaterialsWorkbenchBorderPanel::OnCreateBorder(wxCommandEvent &event) {
 
 	BorderSetStorageRecord newStorage;
 	newStorage.borderSet.borderScope = scopeDialog.GetStringSelection();
-	newStorage.borderSet.borderType = hasBorderSet_ ? typeCtrl_->GetValue().Trim(true).Trim(false) : "normal";
+	newStorage.borderSet.borderType = hasBorderSet_ && typeCtrl_->GetSelection() != wxNOT_FOUND ? typeCtrl_->GetStringSelection() : "normal";
 	newStorage.borderSet.borderGroup = hasBorderSet_ ? borderGroupCtrl_->GetValue() : 0;
 	newStorage.borderSet.sourceFile = "materials.db";
 	if (newStorage.borderSet.borderType.IsEmpty()) {

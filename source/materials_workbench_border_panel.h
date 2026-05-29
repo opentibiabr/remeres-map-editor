@@ -116,10 +116,13 @@ private:
 	wxButton* revertButton_ = nullptr;
 	wxButton* createBorderButton_ = nullptr;
 	wxButton* deleteBorderButton_ = nullptr;
+	wxStaticText* xmlBorderIdLabel_ = nullptr;
+	wxStaticText* typeLabel_ = nullptr;
+	wxStaticText* borderGroupLabel_ = nullptr;
 	wxTextCtrl* idCtrl_ = nullptr;
 	wxSpinCtrl* xmlBorderIdCtrl_ = nullptr;
 	wxChoice* scopeChoice_ = nullptr;
-	wxTextCtrl* typeCtrl_ = nullptr;
+	wxChoice* typeCtrl_ = nullptr;
 	wxSpinCtrl* borderGroupCtrl_ = nullptr;
 	wxSpinCtrl* groundEquivalentCtrl_ = nullptr;
 	wxTextCtrl* ownerBrushCtrl_ = nullptr;
