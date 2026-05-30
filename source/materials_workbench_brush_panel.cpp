@@ -28,6 +28,7 @@
 #include "gui.h"
 #include "items.h"
 #include "materials_workbench_controller.h"
+#include "sprite_appearances.h"
 
 namespace {
 	bool IsValidBrushEditorType(const wxString &type) {
@@ -172,28 +173,106 @@ namespace {
 		return wxString::Format("%zu. item %d", index + 1, itemId);
 	}
 
+	struct DoodadPreviewSpriteMetrics {
+		int spriteId = 0;
+		int widthPx = 32;
+		int heightPx = 32;
+		wxPoint drawOffset;
+		int drawHeight = 0;
+
+		bool isValid() const {
+			return spriteId > 0;
+		}
+	};
+
 	int ResolveDoodadPreviewLookId(int itemId) {
 		if (!IsKnownItemId(itemId)) {
 			return 0;
 		}
-		return g_items.getItemType(static_cast<uint16_t>(itemId)).clientID;
+		const ItemType &itemType = g_items.getItemType(static_cast<uint16_t>(itemId));
+		if (itemType.sprite_id > 0) {
+			return static_cast<int>(itemType.sprite_id);
+		}
+		if (!itemType.m_sprites.empty() && itemType.m_sprites.front() > 0) {
+			return itemType.m_sprites.front();
+		}
+		return itemType.clientID;
 	}
 
-	void DrawDoodadPreviewItemSprite(wxDC &dc, int itemId, const wxRect &rect) {
-		if (itemId <= 0 || rect.GetWidth() <= 0 || rect.GetHeight() <= 0) {
+	DoodadPreviewSpriteMetrics ResolveDoodadPreviewSpriteMetrics(int itemId) {
+		DoodadPreviewSpriteMetrics metrics;
+		if (!IsKnownItemId(itemId)) {
+			return metrics;
+		}
+
+		ItemType &itemType = g_items.getItemType(static_cast<uint16_t>(itemId));
+		GameSprite* sprite = itemType.sprite;
+		if (!sprite && itemType.clientID > 0) {
+			sprite = dynamic_cast<GameSprite*>(g_gui.gfx.getSprite(itemType.clientID));
+		}
+		if (!sprite) {
+			return metrics;
+		}
+
+		metrics.spriteId = ResolveDoodadPreviewLookId(itemId);
+		if (const auto spriteData = g_spriteAppearances.getSprite(metrics.spriteId)) {
+			metrics.widthPx = std::max<int>(spriteData->size.width, 32);
+			metrics.heightPx = std::max<int>(spriteData->size.height, 32);
+		} else {
+			metrics.widthPx = std::max<int>(sprite->getWidth(), 32);
+			metrics.heightPx = std::max<int>(sprite->getHeight(), 32);
+		}
+		metrics.drawOffset = sprite->getDrawOffset();
+		metrics.drawHeight = sprite->getDrawHeight();
+		return metrics;
+	}
+
+	wxBitmap BuildDoodadPreviewBitmap(int spriteId) {
+		const auto spriteData = g_spriteAppearances.getSprite(spriteId);
+		if (!spriteData || spriteData->size.width <= 0 || spriteData->size.height <= 0) {
+			return wxBitmap();
+		}
+
+		wxImage image(spriteData->size.width, spriteData->size.height);
+		image.InitAlpha();
+		const auto *pixels = spriteData->pixels.data();
+		for (int y = 0; y < spriteData->size.height; ++y) {
+			for (int x = 0; x < spriteData->size.width; ++x) {
+				const int index = (y * spriteData->size.width + x) * 4;
+				image.SetRGB(x, y, pixels[index + 2], pixels[index + 1], pixels[index]);
+				image.SetAlpha(x, y, pixels[index + 3]);
+			}
+		}
+
+		return wxBitmap(image);
+	}
+
+	wxRect GetDoodadPreviewSpriteRect(int itemId, const wxPoint &tileAnchor) {
+		const DoodadPreviewSpriteMetrics metrics = ResolveDoodadPreviewSpriteMetrics(itemId);
+		if (!metrics.isValid()) {
+			return wxRect(tileAnchor.x, tileAnchor.y, 32, 32);
+		}
+
+		return wxRect(
+			tileAnchor.x - metrics.drawOffset.x,
+			tileAnchor.y - metrics.drawOffset.y - metrics.drawHeight,
+			metrics.widthPx,
+			metrics.heightPx
+		);
+	}
+
+	void DrawDoodadPreviewItemSprite(wxDC &dc, int itemId, const wxPoint &tileAnchor) {
+		const DoodadPreviewSpriteMetrics metrics = ResolveDoodadPreviewSpriteMetrics(itemId);
+		if (!metrics.isValid()) {
 			return;
 		}
 
-		const int lookId = ResolveDoodadPreviewLookId(itemId);
-		if (lookId <= 0) {
+		const wxRect spriteRect = GetDoodadPreviewSpriteRect(itemId, tileAnchor);
+		const wxBitmap bitmap = BuildDoodadPreviewBitmap(metrics.spriteId);
+		if (!bitmap.IsOk()) {
 			return;
 		}
-
-		if (Sprite* sprite = g_gui.gfx.getSprite(lookId)) {
-			wxRect spriteRect = rect;
-			spriteRect.Deflate(std::max(1, rect.GetWidth() / 16));
-			sprite->DrawTo(&dc, SPRITE_SIZE_32x32, spriteRect.x, spriteRect.y, spriteRect.GetWidth(), spriteRect.GetHeight());
-		}
+		dc.DrawBitmap(bitmap, spriteRect.x, spriteRect.y, true);
 	}
 
 	std::vector<int> CollectDoodadCompositeFloors(const DoodadCompositeRecord &composite) {
@@ -2292,13 +2371,18 @@ void MaterialsWorkbenchBrushPanel::OnDoodadPreviewPaint(wxPaintEvent &WXUNUSED(e
 
 	if (!showComposite) {
 		const int singleItemId = alternative.singleItems[doodadSingleItemIndex_].itemId;
-		wxRect cellRect(0, 0, cellSize, cellSize);
-		cellRect.x = contentRect.x + (contentRect.GetWidth() - cellRect.GetWidth()) / 2;
-		cellRect.y = contentRect.y + (contentRect.GetHeight() - cellRect.GetHeight()) / 2;
+		const wxRect baseCellRect(0, 0, cellSize, cellSize);
+		wxRect previewBounds = baseCellRect;
+		previewBounds.Union(GetDoodadPreviewSpriteRect(singleItemId, wxPoint(0, 0)));
+		wxRect cellRect = baseCellRect;
+		cellRect.Offset(
+			contentRect.x + (contentRect.GetWidth() - previewBounds.GetWidth()) / 2 - previewBounds.x,
+			contentRect.y + (contentRect.GetHeight() - previewBounds.GetHeight()) / 2 - previewBounds.y
+		);
 		dc.SetPen(wxPen(selectionColour, 2));
 		dc.SetBrush(wxBrush(cellColour));
 		dc.DrawRectangle(cellRect);
-		DrawDoodadPreviewItemSprite(dc, singleItemId, cellRect);
+		DrawDoodadPreviewItemSprite(dc, singleItemId, cellRect.GetTopLeft());
 		return;
 	}
 
@@ -2326,6 +2410,10 @@ void MaterialsWorkbenchBrushPanel::OnDoodadPreviewPaint(wxPaintEvent &WXUNUSED(e
 		int maxX = 0;
 		int minY = 0;
 		int maxY = 0;
+		int minPixelX = 0;
+		int maxPixelX = 0;
+		int minPixelY = 0;
+		int maxPixelY = 0;
 		std::vector<const DoodadCompositeTileRecord*> tiles;
 	};
 
@@ -2344,12 +2432,30 @@ void MaterialsWorkbenchBrushPanel::OnDoodadPreviewPaint(wxPaintEvent &WXUNUSED(e
 			if (!initialized) {
 				state.minX = state.maxX = tile.offsetX;
 				state.minY = state.maxY = tile.offsetY;
+				state.minPixelX = tile.offsetX * cellSize;
+				state.maxPixelX = tile.offsetX * cellSize + cellSize;
+				state.minPixelY = tile.offsetY * cellSize;
+				state.maxPixelY = tile.offsetY * cellSize + cellSize;
 				initialized = true;
 			} else {
 				state.minX = std::min(state.minX, tile.offsetX);
 				state.maxX = std::max(state.maxX, tile.offsetX);
 				state.minY = std::min(state.minY, tile.offsetY);
 				state.maxY = std::max(state.maxY, tile.offsetY);
+			}
+
+			const wxPoint tileAnchor(tile.offsetX * cellSize, tile.offsetY * cellSize);
+			const wxRect cellRect(tileAnchor.x, tileAnchor.y, cellSize, cellSize);
+			state.minPixelX = std::min(state.minPixelX, cellRect.GetLeft());
+			state.maxPixelX = std::max(state.maxPixelX, cellRect.GetRight() + 1);
+			state.minPixelY = std::min(state.minPixelY, cellRect.GetTop());
+			state.maxPixelY = std::max(state.maxPixelY, cellRect.GetBottom() + 1);
+			for (const auto &item : tile.items) {
+				const wxRect spriteRect = GetDoodadPreviewSpriteRect(item.itemId, tileAnchor);
+				state.minPixelX = std::min(state.minPixelX, spriteRect.GetLeft());
+				state.maxPixelX = std::max(state.maxPixelX, spriteRect.GetRight() + 1);
+				state.minPixelY = std::min(state.minPixelY, spriteRect.GetTop());
+				state.maxPixelY = std::max(state.maxPixelY, spriteRect.GetBottom() + 1);
 			}
 		}
 		if (!state.tiles.empty()) {
@@ -2365,8 +2471,8 @@ void MaterialsWorkbenchBrushPanel::OnDoodadPreviewPaint(wxPaintEvent &WXUNUSED(e
 	const int titleHeight = dc.GetCharHeight();
 	int totalHeight = 0;
 	for (size_t i = 0; i < floorStates.size(); ++i) {
-		const int rows = floorStates[i].maxY - floorStates[i].minY + 1;
-		totalHeight += titleHeight + titleGap + rows * cellSize;
+		const int boundsHeight = floorStates[i].maxPixelY - floorStates[i].minPixelY;
+		totalHeight += titleHeight + titleGap + boundsHeight;
 		if (i + 1 < floorStates.size()) {
 			totalHeight += floorGap;
 		}
@@ -2375,18 +2481,16 @@ void MaterialsWorkbenchBrushPanel::OnDoodadPreviewPaint(wxPaintEvent &WXUNUSED(e
 	int currentY = contentRect.y + std::max(0, (contentRect.GetHeight() - totalHeight) / 2);
 	dc.SetTextForeground(textColour);
 	for (const auto &floorState : floorStates) {
-		const int cols = floorState.maxX - floorState.minX + 1;
-		const int rows = floorState.maxY - floorState.minY + 1;
-		const int gridWidth = cols * cellSize;
-		const int gridHeight = rows * cellSize;
-		const int originX = contentRect.x + std::max(0, (contentRect.GetWidth() - gridWidth) / 2);
-		const int originY = currentY + titleHeight + titleGap;
+		const int boundsWidth = floorState.maxPixelX - floorState.minPixelX;
+		const int boundsHeight = floorState.maxPixelY - floorState.minPixelY;
+		const int originX = contentRect.x + std::max(0, (contentRect.GetWidth() - boundsWidth) / 2) - floorState.minPixelX;
+		const int originY = currentY + titleHeight + titleGap - floorState.minPixelY;
 
-		dc.DrawText(wxString::Format("Floor %d", floorState.floor), originX, currentY);
+		dc.DrawText(wxString::Format("Floor %d", floorState.floor), originX + floorState.minPixelX, currentY);
 		for (const DoodadCompositeTileRecord* tile : floorState.tiles) {
 			wxRect cellRect(
-				originX + (tile->offsetX - floorState.minX) * cellSize,
-				originY + (tile->offsetY - floorState.minY) * cellSize,
+				originX + tile->offsetX * cellSize,
+				originY + tile->offsetY * cellSize,
 				cellSize,
 				cellSize
 			);
@@ -2400,11 +2504,11 @@ void MaterialsWorkbenchBrushPanel::OnDoodadPreviewPaint(wxPaintEvent &WXUNUSED(e
 			dc.SetBrush(wxBrush(cellColour));
 			dc.DrawRectangle(cellRect);
 			for (const auto &item : tile->items) {
-				DrawDoodadPreviewItemSprite(dc, item.itemId, cellRect);
+				DrawDoodadPreviewItemSprite(dc, item.itemId, cellRect.GetTopLeft());
 			}
 		}
 
-		currentY = originY + gridHeight + floorGap;
+		currentY += titleHeight + titleGap + boundsHeight + floorGap;
 	}
 }
 
