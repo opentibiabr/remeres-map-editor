@@ -13,6 +13,7 @@ class wxCheckBox;
 class wxChoice;
 class wxListBox;
 class wxNotebook;
+class wxMouseEvent;
 class wxPanel;
 class wxScrolledWindow;
 class wxSimplebook;
@@ -145,7 +146,13 @@ private:
 	void OnDoodadTileItemValueChanged(wxCommandEvent &event);
 	void OnDoodadPreviewFloorChanged(wxCommandEvent &event);
 	void OnDoodadPreviewPaint(wxPaintEvent &event);
+	void OnDoodadPreviewLeftDown(wxMouseEvent &event);
+	void OnDoodadPreviewLeftDClick(wxMouseEvent &event);
+	void OnDoodadPreviewLeftUp(wxMouseEvent &event);
+	void OnDoodadPreviewMotion(wxMouseEvent &event);
+	void OnDoodadPreviewRightDown(wxMouseEvent &event);
 	void OnMetadataFieldChanged(wxCommandEvent &event);
+	void EndDoodadPreviewDrag();
 
 	MaterialsWorkbenchController &controller_;
 	std::function<void(int64_t, const wxString&, const wxString&)> onBrushSaved_;
@@ -227,6 +234,9 @@ private:
 	int doodadPreviewFloor_ = -1;
 	bool doodadPreviewPreferComposite_ = true;
 	std::vector<int> doodadPreviewAvailableFloors_;
+	bool doodadPreviewDraggingTile_ = false;
+	int doodadPreviewDragTileIndex_ = -1;
+	int doodadPreviewDragFloor_ = 0;
 	wxStaticText* statusLabel_ = nullptr;
 };
 

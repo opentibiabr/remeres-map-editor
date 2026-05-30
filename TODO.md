@@ -15,7 +15,7 @@
 ## Visual Polish
 - [ ] Add visual metadata previews for `lookId` and `serverLookId` in the Brush Workspace
 - [ ] Add richer visual previews inside `variations`, including per-item thumbnails and domain-specific preview feedback
-- [ ] Continue the `Doodad` editor rebuild from the new scene-preview base: move from read-first preview to direct grid authoring on top of the existing composite fields
+- [x] Continue the `Doodad` editor rebuild from the new scene-preview base: move from read-first preview to direct grid authoring on top of the existing composite fields
 - [x] Improve Border Workspace presentation with stronger contrast, clearer slot-to-preview correspondence, a compact authoring panel, inline/global-specific fields, scope-aware metadata naming (including `Global Border ID` / `Autoborder Group`), a centered compact slot grid, a richer searchable `Used By` context panel with a real `wxGrid` table for global borders, and first-pass CRUD for border sets / global contexts
 - [ ] Improve Wall Workspace presentation with richer visual previews for wall parts, doors, and composed wall results
 - [ ] Continue reducing spacing and padding across workspaces where the layout still feels too loose
@@ -47,6 +47,7 @@
 ## Delivered Highlights
 - [x] Brush Workspace: metadata, `variations`, dirty state, save/revert, runtime-owner hints, and validation for `lookId`, `serverLookId`, and variation item ids
 - [x] Brush Workspace `Doodad` stage 1: the existing alternative/single/composite/tile forms now drive a visual `Scene Preview` with real 32x32 cells, floor filtering, centered single-item preview, and selection-aware composite rendering without breaking legacy XML-compatible authoring
+- [x] Brush Workspace `Doodad` stage 2: the `Scene Editor` now supports direct grid authoring for composites, including double-click tile creation, drag-to-move positioning, right-click tile removal, and Ctrl+click item stamping using the current `Item ID`
 - [x] Palette Workspace: inline add/move/remove/reorder flow, support for `brush` and DB-backed `item` entries, custom destination groups, preserved selection/scroll, and better destination feedback
 - [x] Palette Workspace performance: visible-range painting, local selection invalidation, cached preview bitmaps, and lighter runtime palette reload ordering from DB
 - [x] Border Workspace: dirty state, save/revert, runtime-safe validation, canonical 5x5 slot geometry, selected-slot preservation, targeted runtime refresh, a runtime-style composed preview matrix with visual `Center Ground`, consistent `groundEquivalent` import, and runtime-truthful global border center preview via linked brush usage contexts

@@ -247,18 +247,50 @@ namespace {
 		return wxBitmap(image);
 	}
 
-	wxRect GetDoodadPreviewSpriteRect(int itemId, const wxPoint &tileAnchor) {
+	wxRect GetDoodadPreviewSpriteRect(int itemId, const wxPoint &drawPoint) {
 		const DoodadPreviewSpriteMetrics metrics = ResolveDoodadPreviewSpriteMetrics(itemId);
 		if (!metrics.isValid()) {
-			return wxRect(tileAnchor.x, tileAnchor.y, 32, 32);
+			return wxRect(drawPoint.x, drawPoint.y, 32, 32);
 		}
 
 		return wxRect(
-			tileAnchor.x - metrics.drawOffset.x,
-			tileAnchor.y - metrics.drawOffset.y - metrics.drawHeight,
+			drawPoint.x - metrics.drawOffset.x,
+			drawPoint.y - metrics.drawOffset.y,
 			metrics.widthPx,
 			metrics.heightPx
 		);
+	}
+
+	wxRect GetDoodadPreviewTileStackBounds(const std::vector<DoodadCompositeTileItemRecord> &items, const wxPoint &tileAnchor) {
+		wxRect bounds(tileAnchor.x, tileAnchor.y, 32, 32);
+		int drawX = tileAnchor.x;
+		int drawY = tileAnchor.y;
+		for (const auto &item : items) {
+			const DoodadPreviewSpriteMetrics metrics = ResolveDoodadPreviewSpriteMetrics(item.itemId);
+			bounds.Union(GetDoodadPreviewSpriteRect(item.itemId, wxPoint(drawX, drawY)));
+			if (metrics.isValid()) {
+				drawX -= metrics.drawHeight;
+				drawY -= metrics.drawHeight;
+			}
+		}
+		return bounds;
+	}
+
+	void DrawDoodadPreviewTileStack(wxDC &dc, const std::vector<DoodadCompositeTileItemRecord> &items, const wxPoint &tileAnchor) {
+		int drawX = tileAnchor.x;
+		int drawY = tileAnchor.y;
+		for (const auto &item : items) {
+			const DoodadPreviewSpriteMetrics metrics = ResolveDoodadPreviewSpriteMetrics(item.itemId);
+			if (metrics.isValid()) {
+				const wxRect spriteRect = GetDoodadPreviewSpriteRect(item.itemId, wxPoint(drawX, drawY));
+				const wxBitmap bitmap = BuildDoodadPreviewBitmap(metrics.spriteId);
+				if (bitmap.IsOk()) {
+					dc.DrawBitmap(bitmap, spriteRect.x, spriteRect.y, true);
+				}
+				drawX -= metrics.drawHeight;
+				drawY -= metrics.drawHeight;
+			}
+		}
 	}
 
 	void DrawDoodadPreviewItemSprite(wxDC &dc, int itemId, const wxPoint &tileAnchor) {
@@ -281,6 +313,212 @@ namespace {
 			uniqueFloors.insert(tile.offsetZ);
 		}
 		return std::vector<int>(uniqueFloors.begin(), uniqueFloors.end());
+	}
+
+	struct DoodadPreviewFloorLayout {
+		int floor = 0;
+		int minCellX = 0;
+		int maxCellX = 0;
+		int minCellY = 0;
+		int maxCellY = 0;
+		int originX = 0;
+		int originY = 0;
+		int titleY = 0;
+		std::vector<int> tileIndices;
+	};
+
+	struct DoodadPreviewHit {
+		bool valid = false;
+		int floor = 0;
+		int cellX = 0;
+		int cellY = 0;
+		int tileIndex = -1;
+		wxRect cellRect;
+	};
+
+	const DoodadCompositeRecord* GetSelectedDoodadComposite(
+		const BrushStorageRecord &storage,
+		int alternativeIndex,
+		int compositeIndex
+	) {
+		if (alternativeIndex < 0 || alternativeIndex >= static_cast<int>(storage.doodadAlternatives.size())) {
+			return nullptr;
+		}
+		const auto &alternative = storage.doodadAlternatives[alternativeIndex];
+		if (compositeIndex < 0 || compositeIndex >= static_cast<int>(alternative.composites.size())) {
+			return nullptr;
+		}
+		return &alternative.composites[compositeIndex];
+	}
+
+	DoodadCompositeRecord* GetSelectedDoodadComposite(
+		BrushStorageRecord &storage,
+		int alternativeIndex,
+		int compositeIndex
+	) {
+		if (alternativeIndex < 0 || alternativeIndex >= static_cast<int>(storage.doodadAlternatives.size())) {
+			return nullptr;
+		}
+		auto &alternative = storage.doodadAlternatives[alternativeIndex];
+		if (compositeIndex < 0 || compositeIndex >= static_cast<int>(alternative.composites.size())) {
+			return nullptr;
+		}
+		return &alternative.composites[compositeIndex];
+	}
+
+	std::vector<int> ResolveDoodadPreviewFloorsToDraw(const DoodadCompositeRecord &composite, int selectedFloor) {
+		if (selectedFloor != -1) {
+			return {selectedFloor};
+		}
+		return CollectDoodadCompositeFloors(composite);
+	}
+
+	std::vector<DoodadPreviewFloorLayout> BuildDoodadPreviewFloorLayouts(
+		wxDC &dc,
+		const wxRect &contentRect,
+		const DoodadCompositeRecord &composite,
+		const std::vector<int> &floorsToDraw,
+		int cellSize,
+		int floorGap,
+		int titleGap
+	) {
+		struct FloorMeasure {
+			int floor = 0;
+			int minCellX = 0;
+			int maxCellX = 0;
+			int minCellY = 0;
+			int maxCellY = 0;
+			int minPixelX = 0;
+			int maxPixelX = 0;
+			int minPixelY = 0;
+			int maxPixelY = 0;
+			std::vector<int> tileIndices;
+		};
+
+		std::vector<FloorMeasure> measures;
+		measures.reserve(floorsToDraw.size());
+		for (int floor : floorsToDraw) {
+			FloorMeasure measure;
+			measure.floor = floor;
+			bool initialized = false;
+			for (size_t tileIndex = 0; tileIndex < composite.tiles.size(); ++tileIndex) {
+				const auto &tile = composite.tiles[tileIndex];
+				if (tile.offsetZ != floor) {
+					continue;
+				}
+
+				measure.tileIndices.push_back(static_cast<int>(tileIndex));
+				if (!initialized) {
+					measure.minCellX = measure.maxCellX = tile.offsetX;
+					measure.minCellY = measure.maxCellY = tile.offsetY;
+					measure.minPixelX = tile.offsetX * cellSize;
+					measure.maxPixelX = tile.offsetX * cellSize + cellSize;
+					measure.minPixelY = tile.offsetY * cellSize;
+					measure.maxPixelY = tile.offsetY * cellSize + cellSize;
+					initialized = true;
+				} else {
+					measure.minCellX = std::min(measure.minCellX, tile.offsetX);
+					measure.maxCellX = std::max(measure.maxCellX, tile.offsetX);
+					measure.minCellY = std::min(measure.minCellY, tile.offsetY);
+					measure.maxCellY = std::max(measure.maxCellY, tile.offsetY);
+				}
+
+				const wxPoint tileAnchor(tile.offsetX * cellSize, tile.offsetY * cellSize);
+				const wxRect cellRect(tileAnchor.x, tileAnchor.y, cellSize, cellSize);
+				measure.minPixelX = std::min(measure.minPixelX, cellRect.GetLeft());
+				measure.maxPixelX = std::max(measure.maxPixelX, cellRect.GetRight() + 1);
+				measure.minPixelY = std::min(measure.minPixelY, cellRect.GetTop());
+				measure.maxPixelY = std::max(measure.maxPixelY, cellRect.GetBottom() + 1);
+				const wxRect stackRect = GetDoodadPreviewTileStackBounds(tile.items, tileAnchor);
+				measure.minPixelX = std::min(measure.minPixelX, stackRect.GetLeft());
+				measure.maxPixelX = std::max(measure.maxPixelX, stackRect.GetRight() + 1);
+				measure.minPixelY = std::min(measure.minPixelY, stackRect.GetTop());
+				measure.maxPixelY = std::max(measure.maxPixelY, stackRect.GetBottom() + 1);
+			}
+
+			if (!measure.tileIndices.empty()) {
+				measure.minCellX -= 1;
+				measure.maxCellX += 1;
+				measure.minCellY -= 1;
+				measure.maxCellY += 1;
+				measure.minPixelX = std::min(measure.minPixelX, measure.minCellX * cellSize);
+				measure.maxPixelX = std::max(measure.maxPixelX, (measure.maxCellX + 1) * cellSize);
+				measure.minPixelY = std::min(measure.minPixelY, measure.minCellY * cellSize);
+				measure.maxPixelY = std::max(measure.maxPixelY, (measure.maxCellY + 1) * cellSize);
+				measures.push_back(measure);
+			}
+		}
+
+		const int titleHeight = dc.GetCharHeight();
+		int totalHeight = 0;
+		for (size_t i = 0; i < measures.size(); ++i) {
+			totalHeight += titleHeight + titleGap + (measures[i].maxPixelY - measures[i].minPixelY);
+			if (i + 1 < measures.size()) {
+				totalHeight += floorGap;
+			}
+		}
+
+		int currentY = contentRect.y + std::max(0, (contentRect.GetHeight() - totalHeight) / 2);
+		std::vector<DoodadPreviewFloorLayout> layouts;
+		layouts.reserve(measures.size());
+		for (const auto &measure : measures) {
+			const int boundsWidth = measure.maxPixelX - measure.minPixelX;
+			const int boundsHeight = measure.maxPixelY - measure.minPixelY;
+
+			DoodadPreviewFloorLayout layout;
+			layout.floor = measure.floor;
+			layout.minCellX = measure.minCellX;
+			layout.maxCellX = measure.maxCellX;
+			layout.minCellY = measure.minCellY;
+			layout.maxCellY = measure.maxCellY;
+			layout.originX = contentRect.x + std::max(0, (contentRect.GetWidth() - boundsWidth) / 2) - measure.minPixelX;
+			layout.originY = currentY + titleHeight + titleGap - measure.minPixelY;
+			layout.titleY = currentY;
+			layout.tileIndices = measure.tileIndices;
+			layouts.push_back(layout);
+			currentY += titleHeight + titleGap + boundsHeight + floorGap;
+		}
+
+		return layouts;
+	}
+
+	bool HitTestDoodadPreview(
+		const DoodadCompositeRecord &composite,
+		const std::vector<DoodadPreviewFloorLayout> &layouts,
+		const wxPoint &point,
+		int cellSize,
+		DoodadPreviewHit &hit
+	) {
+		for (const auto &layout : layouts) {
+			for (int cellY = layout.minCellY; cellY <= layout.maxCellY; ++cellY) {
+				for (int cellX = layout.minCellX; cellX <= layout.maxCellX; ++cellX) {
+					const wxRect cellRect(
+						layout.originX + cellX * cellSize,
+						layout.originY + cellY * cellSize,
+						cellSize,
+						cellSize
+					);
+					if (!cellRect.Contains(point)) {
+						continue;
+					}
+
+					hit.valid = true;
+					hit.floor = layout.floor;
+					hit.cellX = cellX;
+					hit.cellY = cellY;
+					hit.cellRect = cellRect;
+					for (int tileIndex : layout.tileIndices) {
+						const auto &tile = composite.tiles[tileIndex];
+						if (tile.offsetX == cellX && tile.offsetY == cellY && tile.offsetZ == layout.floor) {
+							hit.tileIndex = tileIndex;
+							break;
+						}
+					}
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	wxString FormatBrushOverviewText(const BrushStorageRecord &storage) {
@@ -1035,8 +1273,8 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 	midSizer->Add(compositeForm, 0, wxEXPAND);
 
 	wxBoxSizer* rightSizer = new wxBoxSizer(wxVERTICAL);
-	rightSizer->Add(CreateSectionLabel(panel, "Scene Preview"), 0, wxBOTTOM, FromDIP(6));
-	doodadPreviewSummaryLabel_ = new wxStaticText(panel, wxID_ANY, "Select a single item or composite to preview the final doodad scene.");
+	rightSizer->Add(CreateSectionLabel(panel, "Scene Editor"), 0, wxBOTTOM, FromDIP(6));
+	doodadPreviewSummaryLabel_ = new wxStaticText(panel, wxID_ANY, "Select a composite to author a doodad scene directly on the grid.");
 	StyleBrushWorkspaceSubtitle(doodadPreviewSummaryLabel_);
 	doodadPreviewSummaryLabel_->Wrap(panel->FromDIP(320));
 	rightSizer->Add(doodadPreviewSummaryLabel_, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
@@ -1045,7 +1283,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 	doodadPreviewFloorChoice_ = new wxChoice(panel, wxID_ANY);
 	previewToolbar->Add(doodadPreviewFloorChoice_, 1, wxEXPAND);
 	rightSizer->Add(previewToolbar, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
-	doodadPreviewHintLabel_ = new wxStaticText(panel, wxID_ANY, "The preview uses the selected single item or the selected composite with real 32x32 cells.");
+	doodadPreviewHintLabel_ = new wxStaticText(panel, wxID_ANY, "Double-click an empty cell to add a tile, drag tiles to move them, right-click to remove, and Ctrl+click a tile to append the current Item ID.");
 	StyleBrushWorkspaceSubtitle(doodadPreviewHintLabel_);
 	doodadPreviewHintLabel_->Wrap(panel->FromDIP(320));
 	rightSizer->Add(doodadPreviewHintLabel_, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
@@ -1119,6 +1357,11 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 	doodadCompositeChanceCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnDoodadCompositeChanceChanged, this);
 	doodadPreviewFloorChoice_->Bind(wxEVT_CHOICE, &MaterialsWorkbenchBrushPanel::OnDoodadPreviewFloorChanged, this);
 	doodadPreviewPanel_->Bind(wxEVT_PAINT, &MaterialsWorkbenchBrushPanel::OnDoodadPreviewPaint, this);
+	doodadPreviewPanel_->Bind(wxEVT_LEFT_DOWN, &MaterialsWorkbenchBrushPanel::OnDoodadPreviewLeftDown, this);
+	doodadPreviewPanel_->Bind(wxEVT_LEFT_DCLICK, &MaterialsWorkbenchBrushPanel::OnDoodadPreviewLeftDClick, this);
+	doodadPreviewPanel_->Bind(wxEVT_LEFT_UP, &MaterialsWorkbenchBrushPanel::OnDoodadPreviewLeftUp, this);
+	doodadPreviewPanel_->Bind(wxEVT_MOTION, &MaterialsWorkbenchBrushPanel::OnDoodadPreviewMotion, this);
+	doodadPreviewPanel_->Bind(wxEVT_RIGHT_DOWN, &MaterialsWorkbenchBrushPanel::OnDoodadPreviewRightDown, this);
 	addTileButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnAddDoodadTile, this);
 	removeTileButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnRemoveDoodadTile, this);
 	doodadTilesList_->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBrushPanel::OnDoodadTileSelected, this);
@@ -2203,11 +2446,11 @@ void MaterialsWorkbenchBrushPanel::RefreshDoodadSelection() {
 	doodadTileOffsetXCtrl_->Enable(hasTile);
 	doodadTileOffsetYCtrl_->Enable(hasTile);
 	doodadTileOffsetZCtrl_->Enable(hasTile);
-	doodadTileItemIdCtrl_->Enable(hasTileItem);
+	doodadTileItemIdCtrl_->Enable(hasComposite);
 
 	internalUpdate_ = false;
 	UpdateItemOwnershipHint(doodadSingleItemOwnershipLabel_, doodadSingleItemIdCtrl_->GetValue(), hasSingleItem);
-	UpdateItemOwnershipHint(doodadTileItemOwnershipLabel_, doodadTileItemIdCtrl_->GetValue(), hasTileItem);
+	UpdateItemOwnershipHint(doodadTileItemOwnershipLabel_, doodadTileItemIdCtrl_->GetValue(), hasComposite);
 	RefreshDoodadPreview();
 }
 
@@ -2276,8 +2519,8 @@ void MaterialsWorkbenchBrushPanel::RefreshDoodadPreview() {
 
 	const bool showComposite = hasComposite && (doodadPreviewPreferComposite_ || !hasSingleItem);
 	if (!hasAlternative) {
-		doodadPreviewSummaryLabel_->SetLabel("Select an alternative to preview how the doodad will look in the final scene.");
-		doodadPreviewHintLabel_->SetLabel("This stage keeps the legacy forms and adds a visual 32x32 scene preview on top of them.");
+		doodadPreviewSummaryLabel_->SetLabel("Select an alternative to start authoring a doodad scene on the 32x32 grid.");
+		doodadPreviewHintLabel_->SetLabel("The scene editor keeps the existing composite fields, but the grid is now the main place to position tiles.");
 	} else if (showComposite) {
 		const auto &composite = brushStorage_.doodadAlternatives[doodadAlternativeIndex_].composites[doodadCompositeIndex_];
 		doodadPreviewSummaryLabel_->SetLabel(
@@ -2291,7 +2534,7 @@ void MaterialsWorkbenchBrushPanel::RefreshDoodadPreview() {
 				doodadPreviewAvailableFloors_.size() == 1 ? "" : "s"
 			)
 		);
-		doodadPreviewHintLabel_->SetLabel("The grid uses real tile offsets x/y/z. Switch floors to inspect one layer or keep All Floors for the assembled scene.");
+		doodadPreviewHintLabel_->SetLabel("Double-click empty cells to add tiles, drag selected tiles to reposition them, right-click to remove them, and Ctrl+click a tile to append the current Item ID.");
 	} else if (hasSingleItem) {
 		const auto &singleItem = brushStorage_.doodadAlternatives[doodadAlternativeIndex_].singleItems[doodadSingleItemIndex_];
 		doodadPreviewSummaryLabel_->SetLabel(
@@ -2302,12 +2545,12 @@ void MaterialsWorkbenchBrushPanel::RefreshDoodadPreview() {
 				singleItem.itemId
 			)
 		);
-		doodadPreviewHintLabel_->SetLabel("Single items render as a centered 32x32 cell so the final scene remains readable and consistent with composites.");
+		doodadPreviewHintLabel_->SetLabel("Single items still render centered here, but composites now use this area as a real authoring surface.");
 	} else {
 		doodadPreviewSummaryLabel_->SetLabel(
 			wxString::Format("Alternative %d is empty. Add a single item or a composite to build this doodad.", doodadAlternativeIndex_ + 1)
 		);
-		doodadPreviewHintLabel_->SetLabel("The visual scene preview becomes active as soon as this alternative has content.");
+		doodadPreviewHintLabel_->SetLabel("Add a composite, then use the grid to place tiles directly and assemble the doodad brush.");
 	}
 
 	doodadPreviewSummaryLabel_->Wrap(doodadPreviewSummaryLabel_->GetParent()->FromDIP(320));
@@ -2388,127 +2631,77 @@ void MaterialsWorkbenchBrushPanel::OnDoodadPreviewPaint(wxPaintEvent &WXUNUSED(e
 
 	const auto &composite = alternative.composites[doodadCompositeIndex_];
 	if (composite.tiles.empty()) {
-		drawEmptyState("The selected composite has no tiles yet.");
+		drawEmptyState("The selected composite has no tiles yet. Double-click the scene to add the first tile.");
 		return;
 	}
 
-	std::vector<int> floorsToDraw;
-	if (doodadPreviewFloor_ == -1) {
-		floorsToDraw = doodadPreviewAvailableFloors_;
-	} else {
-		floorsToDraw.push_back(doodadPreviewFloor_);
-	}
-
+	const std::vector<int> floorsToDraw = ResolveDoodadPreviewFloorsToDraw(composite, doodadPreviewFloor_);
 	if (floorsToDraw.empty()) {
 		drawEmptyState("No floors are available for the selected composite.");
 		return;
 	}
 
-	struct FloorRenderState {
-		int floor = 0;
-		int minX = 0;
-		int maxX = 0;
-		int minY = 0;
-		int maxY = 0;
-		int minPixelX = 0;
-		int maxPixelX = 0;
-		int minPixelY = 0;
-		int maxPixelY = 0;
-		std::vector<const DoodadCompositeTileRecord*> tiles;
-	};
-
-	std::vector<FloorRenderState> floorStates;
-	floorStates.reserve(floorsToDraw.size());
-	for (int floor : floorsToDraw) {
-		FloorRenderState state;
-		state.floor = floor;
-		bool initialized = false;
-		for (size_t tileIndex = 0; tileIndex < composite.tiles.size(); ++tileIndex) {
-			const auto &tile = composite.tiles[tileIndex];
-			if (tile.offsetZ != floor) {
-				continue;
-			}
-			state.tiles.push_back(&tile);
-			if (!initialized) {
-				state.minX = state.maxX = tile.offsetX;
-				state.minY = state.maxY = tile.offsetY;
-				state.minPixelX = tile.offsetX * cellSize;
-				state.maxPixelX = tile.offsetX * cellSize + cellSize;
-				state.minPixelY = tile.offsetY * cellSize;
-				state.maxPixelY = tile.offsetY * cellSize + cellSize;
-				initialized = true;
-			} else {
-				state.minX = std::min(state.minX, tile.offsetX);
-				state.maxX = std::max(state.maxX, tile.offsetX);
-				state.minY = std::min(state.minY, tile.offsetY);
-				state.maxY = std::max(state.maxY, tile.offsetY);
-			}
-
-			const wxPoint tileAnchor(tile.offsetX * cellSize, tile.offsetY * cellSize);
-			const wxRect cellRect(tileAnchor.x, tileAnchor.y, cellSize, cellSize);
-			state.minPixelX = std::min(state.minPixelX, cellRect.GetLeft());
-			state.maxPixelX = std::max(state.maxPixelX, cellRect.GetRight() + 1);
-			state.minPixelY = std::min(state.minPixelY, cellRect.GetTop());
-			state.maxPixelY = std::max(state.maxPixelY, cellRect.GetBottom() + 1);
-			for (const auto &item : tile.items) {
-				const wxRect spriteRect = GetDoodadPreviewSpriteRect(item.itemId, tileAnchor);
-				state.minPixelX = std::min(state.minPixelX, spriteRect.GetLeft());
-				state.maxPixelX = std::max(state.maxPixelX, spriteRect.GetRight() + 1);
-				state.minPixelY = std::min(state.minPixelY, spriteRect.GetTop());
-				state.maxPixelY = std::max(state.maxPixelY, spriteRect.GetBottom() + 1);
-			}
-		}
-		if (!state.tiles.empty()) {
-			floorStates.push_back(state);
-		}
-	}
-
-	if (floorStates.empty()) {
+	const std::vector<DoodadPreviewFloorLayout> layouts = BuildDoodadPreviewFloorLayouts(
+		dc,
+		contentRect,
+		composite,
+		floorsToDraw,
+		cellSize,
+		floorGap,
+		titleGap
+	);
+	if (layouts.empty()) {
 		drawEmptyState("The selected floor filter hides all tiles.");
 		return;
 	}
 
-	const int titleHeight = dc.GetCharHeight();
-	int totalHeight = 0;
-	for (size_t i = 0; i < floorStates.size(); ++i) {
-		const int boundsHeight = floorStates[i].maxPixelY - floorStates[i].minPixelY;
-		totalHeight += titleHeight + titleGap + boundsHeight;
-		if (i + 1 < floorStates.size()) {
-			totalHeight += floorGap;
-		}
-	}
-
-	int currentY = contentRect.y + std::max(0, (contentRect.GetHeight() - totalHeight) / 2);
+	const wxColour emptyCellColour(35, 38, 44);
+	const wxColour hoverCellColour(54, 60, 70);
 	dc.SetTextForeground(textColour);
-	for (const auto &floorState : floorStates) {
-		const int boundsWidth = floorState.maxPixelX - floorState.minPixelX;
-		const int boundsHeight = floorState.maxPixelY - floorState.minPixelY;
-		const int originX = contentRect.x + std::max(0, (contentRect.GetWidth() - boundsWidth) / 2) - floorState.minPixelX;
-		const int originY = currentY + titleHeight + titleGap - floorState.minPixelY;
+	for (const auto &layout : layouts) {
+		dc.DrawText(wxString::Format("Floor %d", layout.floor), layout.originX + layout.minCellX * cellSize, layout.titleY);
 
-		dc.DrawText(wxString::Format("Floor %d", floorState.floor), originX + floorState.minPixelX, currentY);
-		for (const DoodadCompositeTileRecord* tile : floorState.tiles) {
-			wxRect cellRect(
-				originX + tile->offsetX * cellSize,
-				originY + tile->offsetY * cellSize,
-				cellSize,
-				cellSize
-			);
+		for (int cellY = layout.minCellY; cellY <= layout.maxCellY; ++cellY) {
+			for (int cellX = layout.minCellX; cellX <= layout.maxCellX; ++cellX) {
+				const wxRect cellRect(
+					layout.originX + cellX * cellSize,
+					layout.originY + cellY * cellSize,
+					cellSize,
+					cellSize
+				);
 
-			const bool isSelectedTile =
-				doodadTileIndex_ >= 0 &&
-				doodadTileIndex_ < static_cast<int>(composite.tiles.size()) &&
-				&composite.tiles[doodadTileIndex_] == tile;
+				bool hasTileAtCell = false;
+				for (int tileIndex : layout.tileIndices) {
+					const auto &tile = composite.tiles[tileIndex];
+					if (tile.offsetX == cellX && tile.offsetY == cellY && tile.offsetZ == layout.floor) {
+						hasTileAtCell = true;
+						break;
+					}
+				}
 
-			dc.SetPen(wxPen(isSelectedTile ? selectionColour : cellBorderColour, isSelectedTile ? 2 : 1));
-			dc.SetBrush(wxBrush(cellColour));
-			dc.DrawRectangle(cellRect);
-			for (const auto &item : tile->items) {
-				DrawDoodadPreviewItemSprite(dc, item.itemId, cellRect.GetTopLeft());
+				const bool isSelectedTile =
+					doodadTileIndex_ >= 0 &&
+					doodadTileIndex_ < static_cast<int>(composite.tiles.size()) &&
+					composite.tiles[doodadTileIndex_].offsetX == cellX &&
+					composite.tiles[doodadTileIndex_].offsetY == cellY &&
+					composite.tiles[doodadTileIndex_].offsetZ == layout.floor;
+
+				dc.SetPen(wxPen(isSelectedTile ? selectionColour : cellBorderColour, isSelectedTile ? 2 : 1));
+				dc.SetBrush(wxBrush(hasTileAtCell ? cellColour : emptyCellColour));
+				dc.DrawRectangle(cellRect);
+				if (!hasTileAtCell) {
+					dc.SetPen(wxPen(hoverCellColour, 1, wxPENSTYLE_DOT));
+					dc.DrawLine(cellRect.GetLeft() + cellSize / 2, cellRect.GetTop() + 4, cellRect.GetLeft() + cellSize / 2, cellRect.GetBottom() - 3);
+					dc.DrawLine(cellRect.GetLeft() + 4, cellRect.GetTop() + cellSize / 2, cellRect.GetRight() - 3, cellRect.GetTop() + cellSize / 2);
+				}
 			}
 		}
 
-		currentY += titleHeight + titleGap + boundsHeight + floorGap;
+		for (int tileIndex : layout.tileIndices) {
+			const auto &tile = composite.tiles[tileIndex];
+			const wxPoint tileAnchor(layout.originX + tile.offsetX * cellSize, layout.originY + tile.offsetY * cellSize);
+			DrawDoodadPreviewTileStack(dc, tile.items, tileAnchor);
+		}
 	}
 }
 
@@ -3460,10 +3653,12 @@ void MaterialsWorkbenchBrushPanel::OnDoodadTileItemValueChanged(wxCommandEvent &
 	}
 	auto &tiles = composites[doodadCompositeIndex_].tiles;
 	if (doodadTileIndex_ < 0 || doodadTileIndex_ >= static_cast<int>(tiles.size())) {
+		UpdateItemOwnershipHint(doodadTileItemOwnershipLabel_, doodadTileItemIdCtrl_->GetValue(), true);
 		return;
 	}
 	auto &items = tiles[doodadTileIndex_].items;
 	if (doodadTileItemIndex_ < 0 || doodadTileItemIndex_ >= static_cast<int>(items.size())) {
+		UpdateItemOwnershipHint(doodadTileItemOwnershipLabel_, doodadTileItemIdCtrl_->GetValue(), true);
 		return;
 	}
 	items[doodadTileItemIndex_].itemId = doodadTileItemIdCtrl_->GetValue();
@@ -3484,6 +3679,7 @@ void MaterialsWorkbenchBrushPanel::OnDoodadTileItemValueChanged(wxCommandEvent &
 	if (doodadAlternativeIndex_ >= 0) {
 		doodadAlternativesList_->SetSelection(doodadAlternativeIndex_);
 	}
+	UpdateItemOwnershipHint(doodadTileItemOwnershipLabel_, doodadTileItemIdCtrl_->GetValue(), true);
 	RefreshDoodadPreview();
 	RefreshDirtyState();
 }
@@ -3498,5 +3694,248 @@ void MaterialsWorkbenchBrushPanel::OnDoodadPreviewFloorChanged(wxCommandEvent &e
 
 	if (doodadPreviewPanel_) {
 		doodadPreviewPanel_->Refresh();
+	}
+}
+
+void MaterialsWorkbenchBrushPanel::OnDoodadPreviewLeftDown(wxMouseEvent &event) {
+	if (!hasBrush_ || !UsesDoodadVariationEditor() || !doodadPreviewPanel_) {
+		event.Skip();
+		return;
+	}
+
+	DoodadCompositeRecord* composite = GetSelectedDoodadComposite(brushStorage_, doodadAlternativeIndex_, doodadCompositeIndex_);
+	if (!composite || composite->tiles.empty()) {
+		event.Skip();
+		return;
+	}
+
+	wxClientDC dc(doodadPreviewPanel_);
+	wxRect contentRect = doodadPreviewPanel_->GetClientRect();
+	contentRect.Deflate(doodadPreviewPanel_->FromDIP(12));
+	const int cellSize = doodadPreviewPanel_->FromDIP(32);
+	const std::vector<DoodadPreviewFloorLayout> layouts = BuildDoodadPreviewFloorLayouts(
+		dc,
+		contentRect,
+		*composite,
+		ResolveDoodadPreviewFloorsToDraw(*composite, doodadPreviewFloor_),
+		cellSize,
+		doodadPreviewPanel_->FromDIP(18),
+		doodadPreviewPanel_->FromDIP(4)
+	);
+
+	DoodadPreviewHit hit;
+	if (!HitTestDoodadPreview(*composite, layouts, event.GetPosition(), cellSize, hit) || hit.tileIndex < 0) {
+		event.Skip();
+		return;
+	}
+
+	doodadTileIndex_ = hit.tileIndex;
+	doodadPreviewPreferComposite_ = true;
+	if (!composite->tiles[hit.tileIndex].items.empty()) {
+		doodadTileItemIndex_ = ClampIndexForCount(doodadTileItemIndex_, composite->tiles[hit.tileIndex].items.size());
+	}
+
+	if (event.ControlDown()) {
+		const int itemId = doodadTileItemIdCtrl_ ? doodadTileItemIdCtrl_->GetValue() : 0;
+		if (itemId <= 0) {
+			SetStatusMessage("Set an Item ID before appending it to a tile from the scene editor.");
+			RefreshDoodadSelection();
+			return;
+		}
+
+		DoodadCompositeTileItemRecord item;
+		item.itemId = itemId;
+		composite->tiles[hit.tileIndex].items.push_back(item);
+		doodadTileItemIndex_ = static_cast<int>(composite->tiles[hit.tileIndex].items.size()) - 1;
+		RefreshDoodadSelection();
+		UpdateSummary();
+		RefreshDirtyState();
+		SetStatusMessage(wxString::Format("Added item %d to the selected doodad tile.", itemId));
+		return;
+	}
+
+	doodadPreviewDraggingTile_ = true;
+	doodadPreviewDragTileIndex_ = hit.tileIndex;
+	doodadPreviewDragFloor_ = hit.floor;
+	if (!doodadPreviewPanel_->HasCapture()) {
+		doodadPreviewPanel_->CaptureMouse();
+	}
+	RefreshDoodadSelection();
+}
+
+void MaterialsWorkbenchBrushPanel::OnDoodadPreviewLeftDClick(wxMouseEvent &event) {
+	if (!hasBrush_ || !UsesDoodadVariationEditor() || !doodadPreviewPanel_) {
+		event.Skip();
+		return;
+	}
+
+	DoodadCompositeRecord* composite = GetSelectedDoodadComposite(brushStorage_, doodadAlternativeIndex_, doodadCompositeIndex_);
+	if (!composite) {
+		SetStatusMessage("Select a composite before editing the scene.");
+		return;
+	}
+
+	const int cellSize = doodadPreviewPanel_->FromDIP(32);
+	const int floorGap = doodadPreviewPanel_->FromDIP(18);
+	const int titleGap = doodadPreviewPanel_->FromDIP(4);
+	wxClientDC dc(doodadPreviewPanel_);
+	wxRect contentRect = doodadPreviewPanel_->GetClientRect();
+	contentRect.Deflate(doodadPreviewPanel_->FromDIP(12));
+
+	int targetFloor = doodadPreviewFloor_;
+	if (targetFloor == -1 && doodadTileIndex_ >= 0 && doodadTileIndex_ < static_cast<int>(composite->tiles.size())) {
+		targetFloor = composite->tiles[doodadTileIndex_].offsetZ;
+	}
+	if (targetFloor == -1) {
+		targetFloor = 0;
+	}
+
+	DoodadPreviewHit hit;
+	if (!composite->tiles.empty()) {
+		const std::vector<DoodadPreviewFloorLayout> layouts = BuildDoodadPreviewFloorLayouts(
+			dc,
+			contentRect,
+			*composite,
+			ResolveDoodadPreviewFloorsToDraw(*composite, doodadPreviewFloor_),
+			cellSize,
+			floorGap,
+			titleGap
+		);
+		if (HitTestDoodadPreview(*composite, layouts, event.GetPosition(), cellSize, hit)) {
+			targetFloor = hit.floor;
+			if (hit.tileIndex >= 0) {
+				doodadTileIndex_ = hit.tileIndex;
+				doodadPreviewPreferComposite_ = true;
+				RefreshDoodadSelection();
+				return;
+			}
+		}
+	}
+
+	DoodadCompositeTileRecord tile;
+	tile.offsetX = hit.valid ? hit.cellX : 0;
+	tile.offsetY = hit.valid ? hit.cellY : 0;
+	tile.offsetZ = targetFloor;
+
+	const int stampItemId = doodadTileItemIdCtrl_ ? doodadTileItemIdCtrl_->GetValue() : 0;
+	if (stampItemId > 0) {
+		DoodadCompositeTileItemRecord item;
+		item.itemId = stampItemId;
+		tile.items.push_back(item);
+	}
+
+	composite->tiles.push_back(tile);
+	doodadTileIndex_ = static_cast<int>(composite->tiles.size()) - 1;
+	doodadTileItemIndex_ = tile.items.empty() ? -1 : 0;
+	doodadPreviewPreferComposite_ = true;
+	RefreshDoodadSelection();
+	UpdateSummary();
+	RefreshDirtyState();
+	SetStatusMessage(
+		tile.items.empty()
+			? "Added doodad tile from the scene editor."
+			: wxString::Format("Added doodad tile with item %d from the scene editor.", stampItemId)
+	);
+}
+
+void MaterialsWorkbenchBrushPanel::OnDoodadPreviewLeftUp(wxMouseEvent &event) {
+	EndDoodadPreviewDrag();
+	event.Skip();
+}
+
+void MaterialsWorkbenchBrushPanel::OnDoodadPreviewMotion(wxMouseEvent &event) {
+	if (!doodadPreviewDraggingTile_ || !event.LeftIsDown() || !doodadPreviewPanel_) {
+		event.Skip();
+		return;
+	}
+
+	DoodadCompositeRecord* composite = GetSelectedDoodadComposite(brushStorage_, doodadAlternativeIndex_, doodadCompositeIndex_);
+	if (!composite || doodadPreviewDragTileIndex_ < 0 || doodadPreviewDragTileIndex_ >= static_cast<int>(composite->tiles.size())) {
+		EndDoodadPreviewDrag();
+		return;
+	}
+
+	wxClientDC dc(doodadPreviewPanel_);
+	const int cellSize = doodadPreviewPanel_->FromDIP(32);
+	wxRect contentRect = doodadPreviewPanel_->GetClientRect();
+	contentRect.Deflate(doodadPreviewPanel_->FromDIP(12));
+	const std::vector<DoodadPreviewFloorLayout> layouts = BuildDoodadPreviewFloorLayouts(
+		dc,
+		contentRect,
+		*composite,
+		ResolveDoodadPreviewFloorsToDraw(*composite, doodadPreviewFloor_),
+		cellSize,
+		doodadPreviewPanel_->FromDIP(18),
+		doodadPreviewPanel_->FromDIP(4)
+	);
+
+	DoodadPreviewHit hit;
+	if (!HitTestDoodadPreview(*composite, layouts, event.GetPosition(), cellSize, hit) || hit.floor != doodadPreviewDragFloor_) {
+		return;
+	}
+
+	auto &tile = composite->tiles[doodadPreviewDragTileIndex_];
+	if (tile.offsetX == hit.cellX && tile.offsetY == hit.cellY) {
+		return;
+	}
+
+	tile.offsetX = hit.cellX;
+	tile.offsetY = hit.cellY;
+	doodadTileIndex_ = doodadPreviewDragTileIndex_;
+	doodadPreviewPreferComposite_ = true;
+	RefreshDoodadSelection();
+	RefreshDirtyState();
+}
+
+void MaterialsWorkbenchBrushPanel::OnDoodadPreviewRightDown(wxMouseEvent &event) {
+	if (!hasBrush_ || !UsesDoodadVariationEditor() || !doodadPreviewPanel_) {
+		event.Skip();
+		return;
+	}
+
+	DoodadCompositeRecord* composite = GetSelectedDoodadComposite(brushStorage_, doodadAlternativeIndex_, doodadCompositeIndex_);
+	if (!composite || composite->tiles.empty()) {
+		event.Skip();
+		return;
+	}
+
+	wxClientDC dc(doodadPreviewPanel_);
+	const int cellSize = doodadPreviewPanel_->FromDIP(32);
+	wxRect contentRect = doodadPreviewPanel_->GetClientRect();
+	contentRect.Deflate(doodadPreviewPanel_->FromDIP(12));
+	const std::vector<DoodadPreviewFloorLayout> layouts = BuildDoodadPreviewFloorLayouts(
+		dc,
+		contentRect,
+		*composite,
+		ResolveDoodadPreviewFloorsToDraw(*composite, doodadPreviewFloor_),
+		cellSize,
+		doodadPreviewPanel_->FromDIP(18),
+		doodadPreviewPanel_->FromDIP(4)
+	);
+
+	DoodadPreviewHit hit;
+	if (!HitTestDoodadPreview(*composite, layouts, event.GetPosition(), cellSize, hit) || hit.tileIndex < 0) {
+		event.Skip();
+		return;
+	}
+
+	composite->tiles.erase(composite->tiles.begin() + hit.tileIndex);
+	if (doodadTileIndex_ >= static_cast<int>(composite->tiles.size())) {
+		doodadTileIndex_ = static_cast<int>(composite->tiles.size()) - 1;
+	}
+	doodadTileItemIndex_ = -1;
+	doodadPreviewPreferComposite_ = true;
+	RefreshDoodadSelection();
+	UpdateSummary();
+	RefreshDirtyState();
+	SetStatusMessage("Removed doodad tile from the scene editor.");
+}
+
+void MaterialsWorkbenchBrushPanel::EndDoodadPreviewDrag() {
+	doodadPreviewDraggingTile_ = false;
+	doodadPreviewDragTileIndex_ = -1;
+	doodadPreviewDragFloor_ = 0;
+	if (doodadPreviewPanel_ && doodadPreviewPanel_->HasCapture()) {
+		doodadPreviewPanel_->ReleaseMouse();
 	}
 }
