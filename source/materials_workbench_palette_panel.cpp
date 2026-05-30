@@ -804,6 +804,7 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	titleLabel_ = new wxStaticText(this, wxID_ANY, "Select a palette");
 	sourceLabel_ = new wxStaticText(this, wxID_ANY, "");
 	statusLabel_ = new wxStaticText(this, wxID_ANY, "");
+	statusLabel_->SetMinSize(wxSize(-1, FromDIP(20)));
 
 	wxBoxSizer* headerSizer = new wxBoxSizer(wxVERTICAL);
 	headerSizer->Add(title, 0, wxBOTTOM, FromDIP(4));
@@ -911,7 +912,7 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	rootSizer->Add(new wxStaticLine(this), 0, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(10));
 	rootSizer->Add(toolbarSizer, 0, wxEXPAND | wxALL, FromDIP(10));
 	rootSizer->Add(contentSplitter, 1, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(10));
-	rootSizer->Add(statusLabel_, 0, wxEXPAND | wxALL, FromDIP(10));
+	rootSizer->Add(statusLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(2));
 	SetSizer(rootSizer);
 
 	createPaletteButton_->SetToolTip("Create a new palette.");

@@ -54,12 +54,12 @@ namespace {
 	}
 
 	void StyleBrushWorkspaceStatusLabel(wxStaticText* label) {
-		label->SetMinSize(wxSize(-1, label->GetParent()->FromDIP(36)));
+		label->SetMinSize(wxSize(-1, label->GetParent()->FromDIP(20)));
 		label->Wrap(label->GetParent()->FromDIP(760));
 	}
 
 	void StyleBrushWorkspaceActionButton(wxButton* button, const wxString &tooltip) {
-		button->SetMinSize(wxSize(button->GetParent()->FromDIP(120), -1));
+		button->SetMinSize(wxSize(button->GetParent()->FromDIP(108), button->GetParent()->FromDIP(20)));
 		button->SetToolTip(tooltip);
 	}
 
@@ -612,12 +612,14 @@ void MaterialsWorkbenchBrushPanel::BuildLayout() {
 
 	statusLabel_ = new wxStaticText(this, wxID_ANY, "");
 	StyleBrushWorkspaceStatusLabel(statusLabel_);
+	wxBoxSizer* footerSizer = new wxBoxSizer(wxHORIZONTAL);
+	footerSizer->Add(statusLabel_, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(8));
+	footerSizer->Add(actionSizer, 0, wxALIGN_CENTER_VERTICAL);
 
 	rootSizer->Add(headerSizer, 0, wxEXPAND | wxALL, FromDIP(8));
 	rootSizer->Add(new wxStaticLine(this), 0, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(8));
 	rootSizer->Add(workspaceTabs_, 1, wxEXPAND | wxALL, FromDIP(8));
-	rootSizer->Add(actionSizer, 0, wxALIGN_RIGHT | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
-	rootSizer->Add(statusLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
+	rootSizer->Add(footerSizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(2));
 	SetSizer(rootSizer);
 
 	saveButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnSave, this);

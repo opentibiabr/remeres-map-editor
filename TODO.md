@@ -18,7 +18,7 @@
 - [ ] Continue the `Doodad` editor rebuild from the new scene-preview base: move from read-first preview to direct grid authoring on top of the existing composite fields
 - [x] Improve Border Workspace presentation with stronger contrast, clearer slot-to-preview correspondence, a compact authoring panel, inline/global-specific fields, scope-aware metadata naming (including `Global Border ID` / `Autoborder Group`), a centered compact slot grid, a richer searchable `Used By` context panel with a real `wxGrid` table for global borders, and first-pass CRUD for border sets / global contexts
 - [ ] Improve Wall Workspace presentation with richer visual previews for wall parts, doors, and composed wall results
-- [ ] Reduce spacing and padding across workspaces where the layout still feels too loose
+- [ ] Continue reducing spacing and padding across workspaces where the layout still feels too loose
 - [ ] Continue small product-language and workflow refinements across Workbench texts and actions
 - [ ] Standardize technical labels such as `lookId`, `serverLookId`, `zOrder`, and `partType`
 
@@ -52,6 +52,7 @@
 - [x] Border Workspace: dirty state, save/revert, runtime-safe validation, canonical 5x5 slot geometry, selected-slot preservation, targeted runtime refresh, a runtime-style composed preview matrix with visual `Center Ground`, consistent `groundEquivalent` import, and runtime-truthful global border center preview via linked brush usage contexts
 - [x] Wall Workspace: dirty state, save/revert, guarded selection changes, selected part/item/door preservation, and door compatibility validation
 - [x] Navigation and UX: slimmer sidebar, click-on-label expand/collapse, contextual overview manuals, clearer `Palette Categories` terminology, and rich tooltips in tree and palette grids
+- [x] Workspace density pass: the bottom action/status strip is now noticeably slimmer across `Brush`, `Border`, `Wall`, and `Palette` workspaces, including a single-row footer for status plus save/revert in the main editors so feedback consumes much less vertical space
 - [x] Runtime alignment: Workbench and runtime now share DB-first palette groups, including custom groups, with targeted sync paths instead of unsafe full reloads
 
 ## Guardrails
