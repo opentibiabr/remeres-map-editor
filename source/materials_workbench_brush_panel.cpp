@@ -3,10 +3,13 @@
 #include "materials_workbench_brush_panel.h"
 
 #include <limits>
+#include <set>
 #include <utility>
 
 #include <wx/button.h>
 #include <wx/checkbox.h>
+#include <wx/choice.h>
+#include <wx/dcbuffer.h>
 #include <wx/listbox.h>
 #include <wx/msgdlg.h>
 #include <wx/notebook.h>
@@ -21,6 +24,8 @@
 #include <wx/textctrl.h>
 
 #include "brush.h"
+#include "graphics.h"
+#include "gui.h"
 #include "items.h"
 #include "materials_workbench_controller.h"
 
@@ -165,6 +170,38 @@ namespace {
 
 	wxString FormatDoodadTileItemLabel(int itemId, size_t index) {
 		return wxString::Format("%zu. item %d", index + 1, itemId);
+	}
+
+	int ResolveDoodadPreviewLookId(int itemId) {
+		if (!IsKnownItemId(itemId)) {
+			return 0;
+		}
+		return g_items.getItemType(static_cast<uint16_t>(itemId)).clientID;
+	}
+
+	void DrawDoodadPreviewItemSprite(wxDC &dc, int itemId, const wxRect &rect) {
+		if (itemId <= 0 || rect.GetWidth() <= 0 || rect.GetHeight() <= 0) {
+			return;
+		}
+
+		const int lookId = ResolveDoodadPreviewLookId(itemId);
+		if (lookId <= 0) {
+			return;
+		}
+
+		if (Sprite* sprite = g_gui.gfx.getSprite(lookId)) {
+			wxRect spriteRect = rect;
+			spriteRect.Deflate(std::max(1, rect.GetWidth() / 16));
+			sprite->DrawTo(&dc, SPRITE_SIZE_32x32, spriteRect.x, spriteRect.y, spriteRect.GetWidth(), spriteRect.GetHeight());
+		}
+	}
+
+	std::vector<int> CollectDoodadCompositeFloors(const DoodadCompositeRecord &composite) {
+		std::set<int> uniqueFloors;
+		for (const auto &tile : composite.tiles) {
+			uniqueFloors.insert(tile.offsetZ);
+		}
+		return std::vector<int>(uniqueFloors.begin(), uniqueFloors.end());
 	}
 
 	wxString FormatBrushOverviewText(const BrushStorageRecord &storage) {
@@ -917,6 +954,25 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 	midSizer->Add(compositeForm, 0, wxEXPAND);
 
 	wxBoxSizer* rightSizer = new wxBoxSizer(wxVERTICAL);
+	rightSizer->Add(CreateSectionLabel(panel, "Scene Preview"), 0, wxBOTTOM, FromDIP(6));
+	doodadPreviewSummaryLabel_ = new wxStaticText(panel, wxID_ANY, "Select a single item or composite to preview the final doodad scene.");
+	StyleBrushWorkspaceSubtitle(doodadPreviewSummaryLabel_);
+	doodadPreviewSummaryLabel_->Wrap(panel->FromDIP(320));
+	rightSizer->Add(doodadPreviewSummaryLabel_, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
+	wxBoxSizer* previewToolbar = new wxBoxSizer(wxHORIZONTAL);
+	previewToolbar->Add(new wxStaticText(panel, wxID_ANY, "Floors"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
+	doodadPreviewFloorChoice_ = new wxChoice(panel, wxID_ANY);
+	previewToolbar->Add(doodadPreviewFloorChoice_, 1, wxEXPAND);
+	rightSizer->Add(previewToolbar, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
+	doodadPreviewHintLabel_ = new wxStaticText(panel, wxID_ANY, "The preview uses the selected single item or the selected composite with real 32x32 cells.");
+	StyleBrushWorkspaceSubtitle(doodadPreviewHintLabel_);
+	doodadPreviewHintLabel_->Wrap(panel->FromDIP(320));
+	rightSizer->Add(doodadPreviewHintLabel_, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+	doodadPreviewPanel_ = new wxPanel(panel, wxID_ANY, wxDefaultPosition, wxSize(panel->FromDIP(320), panel->FromDIP(260)), wxBORDER_SIMPLE);
+	doodadPreviewPanel_->SetBackgroundStyle(wxBG_STYLE_PAINT);
+	doodadPreviewPanel_->SetMinSize(wxSize(panel->FromDIP(320), panel->FromDIP(260)));
+	rightSizer->Add(doodadPreviewPanel_, 0, wxEXPAND | wxBOTTOM, FromDIP(12));
+	rightSizer->Add(new wxStaticLine(panel), 0, wxEXPAND | wxBOTTOM, FromDIP(10));
 	rightSizer->Add(CreateSectionLabel(panel, "Composite Tiles"), 0, wxBOTTOM, FromDIP(6));
 	doodadTilesList_ = new wxListBox(panel, wxID_ANY);
 	rightSizer->Add(doodadTilesList_, 1, wxEXPAND | wxBOTTOM, FromDIP(6));
@@ -980,6 +1036,8 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 	doodadCompositesList_->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBrushPanel::OnDoodadCompositeSelected, this);
 	doodadCompositeChanceCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBrushPanel::OnDoodadCompositeChanceChanged, this);
 	doodadCompositeChanceCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnDoodadCompositeChanceChanged, this);
+	doodadPreviewFloorChoice_->Bind(wxEVT_CHOICE, &MaterialsWorkbenchBrushPanel::OnDoodadPreviewFloorChanged, this);
+	doodadPreviewPanel_->Bind(wxEVT_PAINT, &MaterialsWorkbenchBrushPanel::OnDoodadPreviewPaint, this);
 	addTileButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnAddDoodadTile, this);
 	removeTileButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnRemoveDoodadTile, this);
 	doodadTilesList_->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBrushPanel::OnDoodadTileSelected, this);
@@ -1463,6 +1521,8 @@ MaterialsWorkbenchBrushPanel::VariationEditorState MaterialsWorkbenchBrushPanel:
 	state.doodadCompositeIndex = doodadCompositeIndex_;
 	state.doodadTileIndex = doodadTileIndex_;
 	state.doodadTileItemIndex = doodadTileItemIndex_;
+	state.doodadPreviewFloor = doodadPreviewFloor_;
+	state.doodadPreviewPreferComposite = doodadPreviewPreferComposite_;
 	state.groundTopItem = CaptureListTopItem(groundItemsList_);
 	state.alignedNodesTopItem = CaptureListTopItem(alignedNodesList_);
 	state.alignedItemsTopItem = CaptureListTopItem(alignedItemsList_);
@@ -1532,6 +1592,8 @@ void MaterialsWorkbenchBrushPanel::RestoreVariationEditorState(const VariationEd
 		doodadTileIndex_ = -1;
 		doodadTileItemIndex_ = -1;
 	}
+	doodadPreviewFloor_ = state.doodadPreviewFloor;
+	doodadPreviewPreferComposite_ = state.doodadPreviewPreferComposite;
 
 	RefreshVariationEditor();
 
@@ -1601,6 +1663,9 @@ void MaterialsWorkbenchBrushPanel::ResetVariationSelection() {
 	doodadCompositeIndex_ = -1;
 	doodadTileIndex_ = -1;
 	doodadTileItemIndex_ = -1;
+	doodadPreviewFloor_ = -1;
+	doodadPreviewPreferComposite_ = true;
+	doodadPreviewAvailableFloors_.clear();
 }
 
 wxString MaterialsWorkbenchBrushPanel::GetEffectiveBrushType() const {
@@ -2062,6 +2127,283 @@ void MaterialsWorkbenchBrushPanel::RefreshDoodadSelection() {
 	internalUpdate_ = false;
 	UpdateItemOwnershipHint(doodadSingleItemOwnershipLabel_, doodadSingleItemIdCtrl_->GetValue(), hasSingleItem);
 	UpdateItemOwnershipHint(doodadTileItemOwnershipLabel_, doodadTileItemIdCtrl_->GetValue(), hasTileItem);
+	RefreshDoodadPreview();
+}
+
+void MaterialsWorkbenchBrushPanel::RefreshDoodadPreviewFloorChoice() {
+	if (!doodadPreviewFloorChoice_) {
+		return;
+	}
+
+	doodadPreviewAvailableFloors_.clear();
+	doodadPreviewFloorChoice_->Clear();
+
+	const bool hasAlternative = doodadAlternativeIndex_ >= 0 && doodadAlternativeIndex_ < static_cast<int>(brushStorage_.doodadAlternatives.size());
+	bool hasSingleItem = false;
+	bool hasComposite = false;
+	if (hasAlternative) {
+		const auto &alternative = brushStorage_.doodadAlternatives[doodadAlternativeIndex_];
+		hasSingleItem = doodadSingleItemIndex_ >= 0 && doodadSingleItemIndex_ < static_cast<int>(alternative.singleItems.size());
+		hasComposite = doodadCompositeIndex_ >= 0 && doodadCompositeIndex_ < static_cast<int>(alternative.composites.size());
+	}
+
+	const bool showComposite = hasComposite && (doodadPreviewPreferComposite_ || !hasSingleItem);
+	if (!showComposite) {
+		doodadPreviewFloorChoice_->Append("All Floors");
+		doodadPreviewFloorChoice_->SetSelection(0);
+		doodadPreviewFloorChoice_->Enable(false);
+		doodadPreviewFloor_ = -1;
+		return;
+	}
+
+	const auto &composite = brushStorage_.doodadAlternatives[doodadAlternativeIndex_].composites[doodadCompositeIndex_];
+	doodadPreviewAvailableFloors_ = CollectDoodadCompositeFloors(composite);
+	doodadPreviewFloorChoice_->Append("All Floors");
+	for (int floor : doodadPreviewAvailableFloors_) {
+		doodadPreviewFloorChoice_->Append(wxString::Format("Floor %d", floor));
+	}
+
+	int selection = 0;
+	if (doodadPreviewFloor_ != -1) {
+		const auto it = std::find(doodadPreviewAvailableFloors_.begin(), doodadPreviewAvailableFloors_.end(), doodadPreviewFloor_);
+		if (it != doodadPreviewAvailableFloors_.end()) {
+			selection = static_cast<int>(std::distance(doodadPreviewAvailableFloors_.begin(), it)) + 1;
+		} else {
+			doodadPreviewFloor_ = -1;
+		}
+	}
+
+	doodadPreviewFloorChoice_->SetSelection(selection);
+	doodadPreviewFloorChoice_->Enable(true);
+}
+
+void MaterialsWorkbenchBrushPanel::RefreshDoodadPreview() {
+	RefreshDoodadPreviewFloorChoice();
+
+	if (!doodadPreviewSummaryLabel_ || !doodadPreviewHintLabel_) {
+		return;
+	}
+
+	const bool hasAlternative = doodadAlternativeIndex_ >= 0 && doodadAlternativeIndex_ < static_cast<int>(brushStorage_.doodadAlternatives.size());
+	bool hasSingleItem = false;
+	bool hasComposite = false;
+	if (hasAlternative) {
+		const auto &alternative = brushStorage_.doodadAlternatives[doodadAlternativeIndex_];
+		hasSingleItem = doodadSingleItemIndex_ >= 0 && doodadSingleItemIndex_ < static_cast<int>(alternative.singleItems.size());
+		hasComposite = doodadCompositeIndex_ >= 0 && doodadCompositeIndex_ < static_cast<int>(alternative.composites.size());
+	}
+
+	const bool showComposite = hasComposite && (doodadPreviewPreferComposite_ || !hasSingleItem);
+	if (!hasAlternative) {
+		doodadPreviewSummaryLabel_->SetLabel("Select an alternative to preview how the doodad will look in the final scene.");
+		doodadPreviewHintLabel_->SetLabel("This stage keeps the legacy forms and adds a visual 32x32 scene preview on top of them.");
+	} else if (showComposite) {
+		const auto &composite = brushStorage_.doodadAlternatives[doodadAlternativeIndex_].composites[doodadCompositeIndex_];
+		doodadPreviewSummaryLabel_->SetLabel(
+			wxString::Format(
+				"Alternative %d | composite %d | %zu tile%s | %zu floor%s",
+				doodadAlternativeIndex_ + 1,
+				doodadCompositeIndex_ + 1,
+				composite.tiles.size(),
+				composite.tiles.size() == 1 ? "" : "s",
+				doodadPreviewAvailableFloors_.size(),
+				doodadPreviewAvailableFloors_.size() == 1 ? "" : "s"
+			)
+		);
+		doodadPreviewHintLabel_->SetLabel("The grid uses real tile offsets x/y/z. Switch floors to inspect one layer or keep All Floors for the assembled scene.");
+	} else if (hasSingleItem) {
+		const auto &singleItem = brushStorage_.doodadAlternatives[doodadAlternativeIndex_].singleItems[doodadSingleItemIndex_];
+		doodadPreviewSummaryLabel_->SetLabel(
+			wxString::Format(
+				"Alternative %d | single %d | item %d",
+				doodadAlternativeIndex_ + 1,
+				doodadSingleItemIndex_ + 1,
+				singleItem.itemId
+			)
+		);
+		doodadPreviewHintLabel_->SetLabel("Single items render as a centered 32x32 cell so the final scene remains readable and consistent with composites.");
+	} else {
+		doodadPreviewSummaryLabel_->SetLabel(
+			wxString::Format("Alternative %d is empty. Add a single item or a composite to build this doodad.", doodadAlternativeIndex_ + 1)
+		);
+		doodadPreviewHintLabel_->SetLabel("The visual scene preview becomes active as soon as this alternative has content.");
+	}
+
+	doodadPreviewSummaryLabel_->Wrap(doodadPreviewSummaryLabel_->GetParent()->FromDIP(320));
+	doodadPreviewHintLabel_->Wrap(doodadPreviewHintLabel_->GetParent()->FromDIP(320));
+	if (doodadPreviewPanel_) {
+		doodadPreviewPanel_->Refresh();
+	}
+}
+
+void MaterialsWorkbenchBrushPanel::OnDoodadPreviewPaint(wxPaintEvent &WXUNUSED(event)) {
+	if (!doodadPreviewPanel_) {
+		return;
+	}
+
+	wxAutoBufferedPaintDC dc(doodadPreviewPanel_);
+	const wxRect panelRect = doodadPreviewPanel_->GetClientRect();
+	dc.SetBackground(wxBrush(wxColour(22, 24, 28)));
+	dc.Clear();
+
+	if (panelRect.GetWidth() <= 0 || panelRect.GetHeight() <= 0) {
+		return;
+	}
+
+	const int margin = doodadPreviewPanel_->FromDIP(12);
+	const int cellSize = doodadPreviewPanel_->FromDIP(32);
+	const int floorGap = doodadPreviewPanel_->FromDIP(18);
+	const int titleGap = doodadPreviewPanel_->FromDIP(4);
+	wxRect contentRect(panelRect);
+	contentRect.Deflate(margin);
+	const wxColour cardColour(29, 31, 36);
+	const wxColour cellColour(43, 47, 54);
+	const wxColour cellBorderColour(76, 84, 96);
+	const wxColour selectionColour(100, 174, 255);
+	const wxColour textColour(219, 223, 230);
+
+	dc.SetPen(wxPen(cardColour));
+	dc.SetBrush(wxBrush(cardColour));
+	dc.DrawRoundedRectangle(contentRect, doodadPreviewPanel_->FromDIP(8));
+
+	const bool hasAlternative = doodadAlternativeIndex_ >= 0 && doodadAlternativeIndex_ < static_cast<int>(brushStorage_.doodadAlternatives.size());
+	if (!hasAlternative) {
+		dc.SetTextForeground(textColour);
+		dc.DrawLabel("No doodad alternative selected.", contentRect, wxALIGN_CENTER);
+		return;
+	}
+
+	const auto &alternative = brushStorage_.doodadAlternatives[doodadAlternativeIndex_];
+	const bool hasSingleItem = doodadSingleItemIndex_ >= 0 && doodadSingleItemIndex_ < static_cast<int>(alternative.singleItems.size());
+	const bool hasComposite = doodadCompositeIndex_ >= 0 && doodadCompositeIndex_ < static_cast<int>(alternative.composites.size());
+	const bool showComposite = hasComposite && (doodadPreviewPreferComposite_ || !hasSingleItem);
+
+	auto drawEmptyState = [&](const wxString &message) {
+		dc.SetTextForeground(textColour);
+		dc.DrawLabel(message, contentRect, wxALIGN_CENTER);
+	};
+
+	if (!showComposite && !hasSingleItem) {
+		drawEmptyState("This alternative has no scene content yet.");
+		return;
+	}
+
+	if (!showComposite) {
+		const int singleItemId = alternative.singleItems[doodadSingleItemIndex_].itemId;
+		wxRect cellRect(0, 0, cellSize, cellSize);
+		cellRect.x = contentRect.x + (contentRect.GetWidth() - cellRect.GetWidth()) / 2;
+		cellRect.y = contentRect.y + (contentRect.GetHeight() - cellRect.GetHeight()) / 2;
+		dc.SetPen(wxPen(selectionColour, 2));
+		dc.SetBrush(wxBrush(cellColour));
+		dc.DrawRectangle(cellRect);
+		DrawDoodadPreviewItemSprite(dc, singleItemId, cellRect);
+		return;
+	}
+
+	const auto &composite = alternative.composites[doodadCompositeIndex_];
+	if (composite.tiles.empty()) {
+		drawEmptyState("The selected composite has no tiles yet.");
+		return;
+	}
+
+	std::vector<int> floorsToDraw;
+	if (doodadPreviewFloor_ == -1) {
+		floorsToDraw = doodadPreviewAvailableFloors_;
+	} else {
+		floorsToDraw.push_back(doodadPreviewFloor_);
+	}
+
+	if (floorsToDraw.empty()) {
+		drawEmptyState("No floors are available for the selected composite.");
+		return;
+	}
+
+	struct FloorRenderState {
+		int floor = 0;
+		int minX = 0;
+		int maxX = 0;
+		int minY = 0;
+		int maxY = 0;
+		std::vector<const DoodadCompositeTileRecord*> tiles;
+	};
+
+	std::vector<FloorRenderState> floorStates;
+	floorStates.reserve(floorsToDraw.size());
+	for (int floor : floorsToDraw) {
+		FloorRenderState state;
+		state.floor = floor;
+		bool initialized = false;
+		for (size_t tileIndex = 0; tileIndex < composite.tiles.size(); ++tileIndex) {
+			const auto &tile = composite.tiles[tileIndex];
+			if (tile.offsetZ != floor) {
+				continue;
+			}
+			state.tiles.push_back(&tile);
+			if (!initialized) {
+				state.minX = state.maxX = tile.offsetX;
+				state.minY = state.maxY = tile.offsetY;
+				initialized = true;
+			} else {
+				state.minX = std::min(state.minX, tile.offsetX);
+				state.maxX = std::max(state.maxX, tile.offsetX);
+				state.minY = std::min(state.minY, tile.offsetY);
+				state.maxY = std::max(state.maxY, tile.offsetY);
+			}
+		}
+		if (!state.tiles.empty()) {
+			floorStates.push_back(state);
+		}
+	}
+
+	if (floorStates.empty()) {
+		drawEmptyState("The selected floor filter hides all tiles.");
+		return;
+	}
+
+	const int titleHeight = dc.GetCharHeight();
+	int totalHeight = 0;
+	for (size_t i = 0; i < floorStates.size(); ++i) {
+		const int rows = floorStates[i].maxY - floorStates[i].minY + 1;
+		totalHeight += titleHeight + titleGap + rows * cellSize;
+		if (i + 1 < floorStates.size()) {
+			totalHeight += floorGap;
+		}
+	}
+
+	int currentY = contentRect.y + std::max(0, (contentRect.GetHeight() - totalHeight) / 2);
+	dc.SetTextForeground(textColour);
+	for (const auto &floorState : floorStates) {
+		const int cols = floorState.maxX - floorState.minX + 1;
+		const int rows = floorState.maxY - floorState.minY + 1;
+		const int gridWidth = cols * cellSize;
+		const int gridHeight = rows * cellSize;
+		const int originX = contentRect.x + std::max(0, (contentRect.GetWidth() - gridWidth) / 2);
+		const int originY = currentY + titleHeight + titleGap;
+
+		dc.DrawText(wxString::Format("Floor %d", floorState.floor), originX, currentY);
+		for (const DoodadCompositeTileRecord* tile : floorState.tiles) {
+			wxRect cellRect(
+				originX + (tile->offsetX - floorState.minX) * cellSize,
+				originY + (tile->offsetY - floorState.minY) * cellSize,
+				cellSize,
+				cellSize
+			);
+
+			const bool isSelectedTile =
+				doodadTileIndex_ >= 0 &&
+				doodadTileIndex_ < static_cast<int>(composite.tiles.size()) &&
+				&composite.tiles[doodadTileIndex_] == tile;
+
+			dc.SetPen(wxPen(isSelectedTile ? selectionColour : cellBorderColour, isSelectedTile ? 2 : 1));
+			dc.SetBrush(wxBrush(cellColour));
+			dc.DrawRectangle(cellRect);
+			for (const auto &item : tile->items) {
+				DrawDoodadPreviewItemSprite(dc, item.itemId, cellRect);
+			}
+		}
+
+		currentY = originY + gridHeight + floorGap;
+	}
 }
 
 void MaterialsWorkbenchBrushPanel::NormalizeVariationSortOrders() {
@@ -2712,6 +3054,7 @@ void MaterialsWorkbenchBrushPanel::OnAddDoodadSingleItem(wxCommandEvent &WXUNUSE
 	auto &singleItems = brushStorage_.doodadAlternatives[doodadAlternativeIndex_].singleItems;
 	singleItems.push_back(item);
 	doodadSingleItemIndex_ = static_cast<int>(singleItems.size()) - 1;
+	doodadPreviewPreferComposite_ = false;
 	RefreshDoodadSelection();
 	UpdateSummary();
 	RefreshDirtyState();
@@ -2743,6 +3086,7 @@ void MaterialsWorkbenchBrushPanel::OnRemoveDoodadSingleItem(wxCommandEvent &WXUN
 
 void MaterialsWorkbenchBrushPanel::OnDoodadSingleItemSelected(wxCommandEvent &event) {
 	doodadSingleItemIndex_ = event.GetSelection();
+	doodadPreviewPreferComposite_ = false;
 	RefreshDoodadSelection();
 }
 
@@ -2759,6 +3103,7 @@ void MaterialsWorkbenchBrushPanel::OnDoodadSingleItemValueChanged(wxCommandEvent
 	}
 	singleItems[doodadSingleItemIndex_].itemId = doodadSingleItemIdCtrl_->GetValue();
 	singleItems[doodadSingleItemIndex_].chance = doodadSingleItemChanceCtrl_->GetValue();
+	doodadPreviewPreferComposite_ = false;
 	RefreshDoodadSingleItemList();
 	if (doodadSingleItemIndex_ >= 0) {
 		doodadSingleItemsList_->SetSelection(doodadSingleItemIndex_);
@@ -2768,6 +3113,7 @@ void MaterialsWorkbenchBrushPanel::OnDoodadSingleItemValueChanged(wxCommandEvent
 		doodadAlternativesList_->SetSelection(doodadAlternativeIndex_);
 	}
 	UpdateItemOwnershipHint(doodadSingleItemOwnershipLabel_, doodadSingleItemIdCtrl_->GetValue(), true);
+	RefreshDoodadPreview();
 	RefreshDirtyState();
 }
 
@@ -2784,6 +3130,7 @@ void MaterialsWorkbenchBrushPanel::OnAddDoodadComposite(wxCommandEvent &WXUNUSED
 	auto &composites = brushStorage_.doodadAlternatives[doodadAlternativeIndex_].composites;
 	composites.push_back(composite);
 	doodadCompositeIndex_ = static_cast<int>(composites.size()) - 1;
+	doodadPreviewPreferComposite_ = true;
 	RefreshDoodadSelection();
 	UpdateSummary();
 	RefreshDirtyState();
@@ -2815,6 +3162,7 @@ void MaterialsWorkbenchBrushPanel::OnRemoveDoodadComposite(wxCommandEvent &WXUNU
 
 void MaterialsWorkbenchBrushPanel::OnDoodadCompositeSelected(wxCommandEvent &event) {
 	doodadCompositeIndex_ = event.GetSelection();
+	doodadPreviewPreferComposite_ = true;
 	RefreshDoodadSelection();
 }
 
@@ -2830,6 +3178,7 @@ void MaterialsWorkbenchBrushPanel::OnDoodadCompositeChanceChanged(wxCommandEvent
 		return;
 	}
 	composites[doodadCompositeIndex_].chance = doodadCompositeChanceCtrl_->GetValue();
+	doodadPreviewPreferComposite_ = true;
 	RefreshDoodadCompositeList();
 	if (doodadCompositeIndex_ >= 0) {
 		doodadCompositesList_->SetSelection(doodadCompositeIndex_);
@@ -2839,6 +3188,7 @@ void MaterialsWorkbenchBrushPanel::OnDoodadCompositeChanceChanged(wxCommandEvent
 		doodadAlternativesList_->SetSelection(doodadAlternativeIndex_);
 	}
 	UpdateItemOwnershipHint(doodadTileItemOwnershipLabel_, doodadTileItemIdCtrl_->GetValue(), true);
+	RefreshDoodadPreview();
 	RefreshDirtyState();
 }
 
@@ -2857,6 +3207,7 @@ void MaterialsWorkbenchBrushPanel::OnAddDoodadTile(wxCommandEvent &WXUNUSED(even
 	}
 	composites[doodadCompositeIndex_].tiles.emplace_back();
 	doodadTileIndex_ = static_cast<int>(composites[doodadCompositeIndex_].tiles.size()) - 1;
+	doodadPreviewPreferComposite_ = true;
 	RefreshDoodadSelection();
 	UpdateSummary();
 	RefreshDirtyState();
@@ -2893,6 +3244,7 @@ void MaterialsWorkbenchBrushPanel::OnRemoveDoodadTile(wxCommandEvent &WXUNUSED(e
 
 void MaterialsWorkbenchBrushPanel::OnDoodadTileSelected(wxCommandEvent &event) {
 	doodadTileIndex_ = event.GetSelection();
+	doodadPreviewPreferComposite_ = true;
 	RefreshDoodadSelection();
 }
 
@@ -2914,10 +3266,12 @@ void MaterialsWorkbenchBrushPanel::OnDoodadTileOffsetChanged(wxCommandEvent &WXU
 	tiles[doodadTileIndex_].offsetX = doodadTileOffsetXCtrl_->GetValue();
 	tiles[doodadTileIndex_].offsetY = doodadTileOffsetYCtrl_->GetValue();
 	tiles[doodadTileIndex_].offsetZ = doodadTileOffsetZCtrl_->GetValue();
+	doodadPreviewPreferComposite_ = true;
 	RefreshDoodadTileList();
 	if (doodadTileIndex_ >= 0) {
 		doodadTilesList_->SetSelection(doodadTileIndex_);
 	}
+	RefreshDoodadPreview();
 	RefreshDirtyState();
 }
 
@@ -2941,6 +3295,7 @@ void MaterialsWorkbenchBrushPanel::OnAddDoodadTileItem(wxCommandEvent &WXUNUSED(
 	}
 	tiles[doodadTileIndex_].items.emplace_back();
 	doodadTileItemIndex_ = static_cast<int>(tiles[doodadTileIndex_].items.size()) - 1;
+	doodadPreviewPreferComposite_ = true;
 	RefreshDoodadSelection();
 	UpdateSummary();
 	RefreshDirtyState();
@@ -2982,6 +3337,7 @@ void MaterialsWorkbenchBrushPanel::OnRemoveDoodadTileItem(wxCommandEvent &WXUNUS
 
 void MaterialsWorkbenchBrushPanel::OnDoodadTileItemSelected(wxCommandEvent &event) {
 	doodadTileItemIndex_ = event.GetSelection();
+	doodadPreviewPreferComposite_ = true;
 	RefreshDoodadSelection();
 }
 
@@ -3005,6 +3361,7 @@ void MaterialsWorkbenchBrushPanel::OnDoodadTileItemValueChanged(wxCommandEvent &
 		return;
 	}
 	items[doodadTileItemIndex_].itemId = doodadTileItemIdCtrl_->GetValue();
+	doodadPreviewPreferComposite_ = true;
 	RefreshDoodadTileItemList();
 	if (doodadTileItemIndex_ >= 0) {
 		doodadTileItemsList_->SetSelection(doodadTileItemIndex_);
@@ -3021,5 +3378,19 @@ void MaterialsWorkbenchBrushPanel::OnDoodadTileItemValueChanged(wxCommandEvent &
 	if (doodadAlternativeIndex_ >= 0) {
 		doodadAlternativesList_->SetSelection(doodadAlternativeIndex_);
 	}
+	RefreshDoodadPreview();
 	RefreshDirtyState();
+}
+
+void MaterialsWorkbenchBrushPanel::OnDoodadPreviewFloorChanged(wxCommandEvent &event) {
+	const int selection = event.GetSelection();
+	if (selection <= 0 || doodadPreviewAvailableFloors_.empty()) {
+		doodadPreviewFloor_ = -1;
+	} else if (selection - 1 < static_cast<int>(doodadPreviewAvailableFloors_.size())) {
+		doodadPreviewFloor_ = doodadPreviewAvailableFloors_[selection - 1];
+	}
+
+	if (doodadPreviewPanel_) {
+		doodadPreviewPanel_->Refresh();
+	}
 }

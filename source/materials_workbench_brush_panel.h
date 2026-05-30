@@ -10,6 +10,7 @@
 class MaterialsWorkbenchController;
 class wxButton;
 class wxCheckBox;
+class wxChoice;
 class wxListBox;
 class wxNotebook;
 class wxPanel;
@@ -47,6 +48,8 @@ private:
 		int doodadCompositeIndex = -1;
 		int doodadTileIndex = -1;
 		int doodadTileItemIndex = -1;
+		int doodadPreviewFloor = -1;
+		bool doodadPreviewPreferComposite = true;
 		int groundTopItem = -1;
 		int alignedNodesTopItem = -1;
 		int alignedItemsTopItem = -1;
@@ -83,6 +86,8 @@ private:
 	void RefreshDoodadTileList();
 	void RefreshDoodadTileItemList();
 	void RefreshDoodadSelection();
+	void RefreshDoodadPreviewFloorChoice();
+	void RefreshDoodadPreview();
 	void NormalizeVariationSortOrders();
 	BrushStorageRecord BuildEditableStorageFromCurrentState() const;
 	void RefreshDirtyState();
@@ -138,6 +143,8 @@ private:
 	void OnRemoveDoodadTileItem(wxCommandEvent &event);
 	void OnDoodadTileItemSelected(wxCommandEvent &event);
 	void OnDoodadTileItemValueChanged(wxCommandEvent &event);
+	void OnDoodadPreviewFloorChanged(wxCommandEvent &event);
+	void OnDoodadPreviewPaint(wxPaintEvent &event);
 	void OnMetadataFieldChanged(wxCommandEvent &event);
 
 	MaterialsWorkbenchController &controller_;
@@ -201,6 +208,10 @@ private:
 	wxStaticText* doodadSingleItemOwnershipLabel_ = nullptr;
 	wxListBox* doodadCompositesList_ = nullptr;
 	wxSpinCtrl* doodadCompositeChanceCtrl_ = nullptr;
+	wxChoice* doodadPreviewFloorChoice_ = nullptr;
+	wxStaticText* doodadPreviewSummaryLabel_ = nullptr;
+	wxStaticText* doodadPreviewHintLabel_ = nullptr;
+	wxPanel* doodadPreviewPanel_ = nullptr;
 	wxListBox* doodadTilesList_ = nullptr;
 	wxSpinCtrl* doodadTileOffsetXCtrl_ = nullptr;
 	wxSpinCtrl* doodadTileOffsetYCtrl_ = nullptr;
@@ -213,6 +224,9 @@ private:
 	int doodadCompositeIndex_ = -1;
 	int doodadTileIndex_ = -1;
 	int doodadTileItemIndex_ = -1;
+	int doodadPreviewFloor_ = -1;
+	bool doodadPreviewPreferComposite_ = true;
+	std::vector<int> doodadPreviewAvailableFloors_;
 	wxStaticText* statusLabel_ = nullptr;
 };
 
