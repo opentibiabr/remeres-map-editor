@@ -437,6 +437,19 @@ namespace {
 			}
 
 			if (!measure.tileIndices.empty()) {
+				std::stable_sort(
+					measure.tileIndices.begin(),
+					measure.tileIndices.end(),
+					[&composite](int leftIndex, int rightIndex) {
+						const auto &left = composite.tiles[leftIndex];
+						const auto &right = composite.tiles[rightIndex];
+						if (left.offsetX != right.offsetX) {
+							return left.offsetX < right.offsetX;
+						}
+						return left.offsetY < right.offsetY;
+					}
+				);
+
 				measure.minCellX -= 1;
 				measure.maxCellX += 1;
 				measure.minCellY -= 1;
