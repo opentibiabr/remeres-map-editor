@@ -43,6 +43,48 @@ DoodadBrush::~DoodadBrush() {
 	}
 }
 
+void DoodadBrush::resetRuntimeState() {
+	for (AlternativeBlock* alternative : alternatives) {
+		if (!alternative) {
+			continue;
+		}
+
+		for (const SingleBlock &single : alternative->single_items) {
+			if (single.item) {
+				if (auto type = g_items.getRawItemType(single.item->getID()); type && type->doodad_brush == this) {
+					type->doodad_brush = nullptr;
+				}
+			}
+		}
+
+		for (const CompositeBlock &composite : alternative->composite_items) {
+			for (const auto &tileEntry : composite.items) {
+				for (Item* item : tileEntry.second) {
+					if (item) {
+						if (auto type = g_items.getRawItemType(item->getID()); type && type->doodad_brush == this) {
+							type->doodad_brush = nullptr;
+						}
+					}
+				}
+			}
+		}
+
+		delete alternative;
+	}
+	alternatives.clear();
+
+	look_id = 0;
+	thickness = 0;
+	thickness_ceiling = 0;
+	draggable = false;
+	on_blocking = false;
+	one_size = false;
+	do_new_borders = false;
+	on_duplicate = false;
+	clear_mapflags = 0;
+	clear_statflags = 0;
+}
+
 DoodadBrush::AlternativeBlock::AlternativeBlock() :
 	composite_chance(0),
 	single_chance(0) {
@@ -169,6 +211,8 @@ bool DoodadBrush::loadAlternative(pugi::xml_node node, wxArrayString &warnings, 
 }
 
 bool DoodadBrush::load(pugi::xml_node node, wxArrayString &warnings) {
+	resetRuntimeState();
+
 	pugi::xml_attribute attribute;
 	if ((attribute = node.attribute("lookid"))) {
 		look_id = attribute.as_uint();

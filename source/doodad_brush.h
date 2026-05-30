@@ -43,6 +43,7 @@ protected:
 public:
 	bool loadAlternative(pugi::xml_node node, wxArrayString &warnings, AlternativeBlock* which = nullptr);
 	virtual bool load(pugi::xml_node node, wxArrayString &warnings);
+	void resetRuntimeState();
 
 	virtual bool canDraw(BaseMap* map, const Position &position) const {
 		return true;

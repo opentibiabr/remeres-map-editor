@@ -684,6 +684,24 @@ bool Brushes::reloadBrushFromDatabase(int64_t brushId, wxArrayString &warnings, 
 	return true;
 }
 
+bool Brushes::reloadBrushFromStorage(const BrushStorageRecord &storage, wxArrayString &warnings, wxString &error) {
+	error.clear();
+
+	try {
+		pugi::xml_document brushDoc;
+		BuildBrushNode(brushDoc, storage);
+		if (!unserializeBrush(brushDoc.child("brush"), warnings)) {
+			error = "Failed to hydrate runtime brush from in-memory storage.";
+			return false;
+		}
+	} catch (const std::exception &ex) {
+		error = wxString::FromUTF8(ex.what());
+		return false;
+	}
+
+	return true;
+}
+
 bool Brushes::reloadBorderSetFromDatabase(int64_t borderSetId, wxArrayString &warnings, wxString &error) {
 	error.clear();
 

@@ -1423,10 +1423,12 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 void MaterialsWorkbenchBrushPanel::ClearWorkspace(const wxString &message) {
 	brushStorage_ = BrushStorageRecord();
 	loadedBrushStorage_ = BrushStorageRecord();
+	runtimeSyncedBrushStorage_ = BrushStorageRecord();
 	currentContextKey_.clear();
 	currentItemIndex_ = -1;
 	hasBrush_ = false;
 	dirty_ = false;
+	hasRuntimeSyncedBrushStorage_ = false;
 	ResetVariationSelection();
 
 	UpdateWorkspaceHeader();
@@ -1486,10 +1488,12 @@ bool MaterialsWorkbenchBrushPanel::LoadBrush(const wxString &contextKey, int ite
 
 	brushStorage_ = storage;
 	loadedBrushStorage_ = storage;
+	runtimeSyncedBrushStorage_ = storage;
 	currentContextKey_ = contextKey;
 	currentItemIndex_ = itemIndex;
 	hasBrush_ = true;
 	dirty_ = false;
+	hasRuntimeSyncedBrushStorage_ = true;
 	ResetVariationSelection();
 
 	PopulateFields();
@@ -1597,11 +1601,77 @@ void MaterialsWorkbenchBrushPanel::RefreshDirtyState() {
 		return;
 	}
 
-	dirty_ = !AreBrushStorageRecordsEqual(BuildEditableStorageFromCurrentState(), loadedBrushStorage_);
+	const BrushStorageRecord editableStorage = BuildEditableStorageFromCurrentState();
+	dirty_ = !AreBrushStorageRecordsEqual(editableStorage, loadedBrushStorage_);
 	UpdateWorkspaceHeader();
 	UpdateActionButtons();
 	UpdateModifiedHighlights();
+	RefreshLiveDoodadRuntime(editableStorage);
 	NotifyBrushStateChanged();
+}
+
+void MaterialsWorkbenchBrushPanel::RefreshLiveDoodadRuntime(const BrushStorageRecord &editableStorage) {
+	if (!hasBrush_ || !UsesDoodadVariationEditor()) {
+		return;
+	}
+	if (!hasRuntimeSyncedBrushStorage_) {
+		runtimeSyncedBrushStorage_ = loadedBrushStorage_;
+		hasRuntimeSyncedBrushStorage_ = true;
+	}
+	if (AreBrushStorageRecordsEqual(editableStorage, runtimeSyncedBrushStorage_)) {
+		return;
+	}
+
+	const BrushStorageRecord previousStorage = brushStorage_;
+	brushStorage_ = editableStorage;
+	wxString validationError;
+	const bool valid = ValidateBrushStorage(validationError);
+	brushStorage_ = previousStorage;
+	if (!valid) {
+		return;
+	}
+
+	const wxString previousRuntimeName = runtimeSyncedBrushStorage_.brush.name;
+	const wxString newRuntimeName = editableStorage.brush.name;
+	if (previousRuntimeName != newRuntimeName) {
+		if (Brush* runtimeBrush = g_brushes.getBrush(previousRuntimeName.ToStdString())) {
+			g_brushes.renameBrush(runtimeBrush, previousRuntimeName.ToStdString(), newRuntimeName.ToStdString());
+		}
+	}
+
+	wxArrayString warnings;
+	wxString runtimeError;
+	if (!g_brushes.reloadBrushFromStorage(editableStorage, warnings, runtimeError)) {
+		spdlog::warn(
+			"Materials Workbench live doodad runtime sync failed: id={} name='{}' error='{}'",
+			static_cast<long long>(editableStorage.brush.id),
+			editableStorage.brush.name.ToStdString(),
+			runtimeError.ToStdString()
+		);
+		return;
+	}
+	for (const wxString &warning : warnings) {
+		spdlog::warn(
+			"Materials Workbench live doodad runtime sync warning: id={} warning='{}'",
+			static_cast<long long>(editableStorage.brush.id),
+			warning.ToStdString()
+		);
+	}
+
+	const uint16_t effectiveLookId = static_cast<uint16_t>(
+		editableStorage.brush.serverLookId > 0 ? editableStorage.brush.serverLookId : editableStorage.brush.lookId
+	);
+	if (!g_gui.SyncBrushInPalettes(previousRuntimeName, newRuntimeName, effectiveLookId)) {
+		spdlog::debug(
+			"Materials Workbench live doodad palette sync skipped: old='{}' new='{}' lookId={}",
+			previousRuntimeName.ToStdString(),
+			newRuntimeName.ToStdString(),
+			effectiveLookId
+		);
+	}
+
+	runtimeSyncedBrushStorage_ = editableStorage;
+	hasRuntimeSyncedBrushStorage_ = true;
 }
 
 void MaterialsWorkbenchBrushPanel::NotifyBrushStateChanged() {
@@ -3025,6 +3095,8 @@ bool MaterialsWorkbenchBrushPanel::SaveCurrentBrush() {
 	}
 
 	loadedBrushStorage_ = brushStorage_;
+	runtimeSyncedBrushStorage_ = brushStorage_;
+	hasRuntimeSyncedBrushStorage_ = true;
 	PopulateFields();
 	if (previousVariationState.valid) {
 		RestoreVariationEditorState(previousVariationState);

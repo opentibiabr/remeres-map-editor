@@ -92,6 +92,7 @@ private:
 	void NormalizeVariationSortOrders();
 	BrushStorageRecord BuildEditableStorageFromCurrentState() const;
 	void RefreshDirtyState();
+	void RefreshLiveDoodadRuntime(const BrushStorageRecord &editableStorage);
 	void NotifyBrushStateChanged();
 	void UpdateWorkspaceHeader();
 	void UpdateActionButtons();
@@ -159,11 +160,13 @@ private:
 	std::function<void()> onBrushStateChanged_;
 	BrushStorageRecord brushStorage_;
 	BrushStorageRecord loadedBrushStorage_;
+	BrushStorageRecord runtimeSyncedBrushStorage_;
 	wxString currentContextKey_;
 	int currentItemIndex_ = -1;
 	bool hasBrush_ = false;
 	bool internalUpdate_ = false;
 	bool dirty_ = false;
+	bool hasRuntimeSyncedBrushStorage_ = false;
 
 	wxNotebook* workspaceTabs_ = nullptr;
 	wxScrolledWindow* metadataPage_ = nullptr;

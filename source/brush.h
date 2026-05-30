@@ -55,6 +55,7 @@ class WaypointBrush;
 class FlagBrush;
 class EraserBrush;
 class ZoneBrush;
+struct BrushStorageRecord;
 
 //=============================================================================
 // Brushes, holds all brushes
@@ -73,6 +74,7 @@ public:
 
 	void addBrush(Brush* brush);
 	bool renameBrush(Brush* brush, const std::string &oldName, const std::string &newName);
+	bool reloadBrushFromStorage(const BrushStorageRecord &storage, wxArrayString &warnings, wxString &error);
 	bool reloadBrushFromDatabase(int64_t brushId, wxArrayString &warnings, wxString &error);
 	bool reloadBorderSetFromDatabase(int64_t borderSetId, wxArrayString &warnings, wxString &error);
 
