@@ -1233,125 +1233,153 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildAlignedVariationsPage(wxSimplebook* 
 
 wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* book) {
 	wxPanel* panel = new wxPanel(book, wxID_ANY);
+	wxBoxSizer* pageSizer = new wxBoxSizer(wxVERTICAL);
+	wxScrolledWindow* scrolled = new wxScrolledWindow(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL);
+	scrolled->SetScrollRate(0, panel->FromDIP(16));
+	pageSizer->Add(scrolled, 1, wxEXPAND);
+	panel->SetSizer(pageSizer);
+
 	wxBoxSizer* rootSizer = new wxBoxSizer(wxHORIZONTAL);
 
 	wxBoxSizer* altSizer = new wxBoxSizer(wxVERTICAL);
-	altSizer->Add(CreateSectionLabel(panel, "Alternatives"), 0, wxBOTTOM, FromDIP(6));
-	doodadAlternativesList_ = new wxListBox(panel, wxID_ANY);
+	altSizer->Add(CreateSectionLabel(scrolled, "Alternatives"), 0, wxBOTTOM, FromDIP(6));
+	doodadAlternativesList_ = new wxListBox(scrolled, wxID_ANY);
+	doodadAlternativesList_->SetMinSize(wxSize(scrolled->FromDIP(180), scrolled->FromDIP(320)));
 	altSizer->Add(doodadAlternativesList_, 1, wxEXPAND | wxBOTTOM, FromDIP(6));
 	wxBoxSizer* altButtons = new wxBoxSizer(wxHORIZONTAL);
-	wxButton* addAltButton = new wxButton(panel, wxID_ANY, "Add Alternative");
-	wxButton* removeAltButton = new wxButton(panel, wxID_ANY, "Remove");
+	wxButton* addAltButton = new wxButton(scrolled, wxID_ANY, "Add Alternative");
+	wxButton* removeAltButton = new wxButton(scrolled, wxID_ANY, "Remove");
 	altButtons->Add(addAltButton, 1, wxRIGHT, FromDIP(4));
 	altButtons->Add(removeAltButton, 1);
 	altSizer->Add(altButtons, 0, wxEXPAND);
 
 	wxBoxSizer* midSizer = new wxBoxSizer(wxVERTICAL);
-	midSizer->Add(CreateSectionLabel(panel, "Single Items"), 0, wxBOTTOM, FromDIP(6));
-	doodadSingleItemsList_ = new wxListBox(panel, wxID_ANY);
+	midSizer->Add(CreateSectionLabel(scrolled, "Single Items"), 0, wxBOTTOM, FromDIP(6));
+	doodadSingleItemsList_ = new wxListBox(scrolled, wxID_ANY);
+	doodadSingleItemsList_->SetMinSize(wxSize(scrolled->FromDIP(220), scrolled->FromDIP(86)));
 	midSizer->Add(doodadSingleItemsList_, 1, wxEXPAND | wxBOTTOM, FromDIP(6));
 	wxBoxSizer* singleButtons = new wxBoxSizer(wxHORIZONTAL);
-	wxButton* addSingleButton = new wxButton(panel, wxID_ANY, "Add Single");
-	wxButton* removeSingleButton = new wxButton(panel, wxID_ANY, "Remove");
+	wxButton* addSingleButton = new wxButton(scrolled, wxID_ANY, "Add Single");
+	wxButton* removeSingleButton = new wxButton(scrolled, wxID_ANY, "Remove");
 	singleButtons->Add(addSingleButton, 1, wxRIGHT, FromDIP(4));
 	singleButtons->Add(removeSingleButton, 1);
 	midSizer->Add(singleButtons, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
 	wxFlexGridSizer* singleForm = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
 	singleForm->AddGrowableCol(1, 1);
-	doodadSingleItemIdCtrl_ = CreateItemIdSpinField(panel);
-	doodadSingleItemChanceCtrl_ = CreateSpinField(panel, 0, 1000000);
-	doodadSingleItemOwnershipLabel_ = new wxStaticText(panel, wxID_ANY, "Runtime owner: select an item entry.");
-	singleForm->Add(new wxStaticText(panel, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
+	doodadSingleItemIdCtrl_ = CreateItemIdSpinField(scrolled);
+	doodadSingleItemChanceCtrl_ = CreateSpinField(scrolled, 0, 1000000);
+	doodadSingleItemOwnershipLabel_ = new wxStaticText(scrolled, wxID_ANY, "Runtime owner: select an item entry.");
+	singleForm->Add(new wxStaticText(scrolled, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
 	singleForm->Add(doodadSingleItemIdCtrl_, 1, wxEXPAND);
 	singleForm->AddSpacer(0);
 	singleForm->Add(doodadSingleItemOwnershipLabel_, 1, wxEXPAND);
-	singleForm->Add(new wxStaticText(panel, wxID_ANY, "Chance"), 0, wxALIGN_CENTER_VERTICAL);
+	singleForm->Add(new wxStaticText(scrolled, wxID_ANY, "Chance"), 0, wxALIGN_CENTER_VERTICAL);
 	singleForm->Add(doodadSingleItemChanceCtrl_, 1, wxEXPAND);
 	midSizer->Add(singleForm, 0, wxEXPAND | wxBOTTOM, FromDIP(12));
-	midSizer->Add(new wxStaticLine(panel), 0, wxEXPAND | wxBOTTOM, FromDIP(10));
-	midSizer->Add(CreateSectionLabel(panel, "Composites"), 0, wxBOTTOM, FromDIP(6));
-	doodadCompositesList_ = new wxListBox(panel, wxID_ANY);
+	midSizer->Add(new wxStaticLine(scrolled), 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+	midSizer->Add(CreateSectionLabel(scrolled, "Composites"), 0, wxBOTTOM, FromDIP(6));
+	doodadCompositesList_ = new wxListBox(scrolled, wxID_ANY);
+	doodadCompositesList_->SetMinSize(wxSize(scrolled->FromDIP(220), scrolled->FromDIP(120)));
 	midSizer->Add(doodadCompositesList_, 1, wxEXPAND | wxBOTTOM, FromDIP(6));
 	wxBoxSizer* compositeButtons = new wxBoxSizer(wxHORIZONTAL);
-	wxButton* addCompositeButton = new wxButton(panel, wxID_ANY, "Add Composite");
-	wxButton* removeCompositeButton = new wxButton(panel, wxID_ANY, "Remove");
+	wxButton* addCompositeButton = new wxButton(scrolled, wxID_ANY, "Add Composite");
+	wxButton* removeCompositeButton = new wxButton(scrolled, wxID_ANY, "Remove");
 	compositeButtons->Add(addCompositeButton, 1, wxRIGHT, FromDIP(4));
 	compositeButtons->Add(removeCompositeButton, 1);
 	midSizer->Add(compositeButtons, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
 	wxFlexGridSizer* compositeForm = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
 	compositeForm->AddGrowableCol(1, 1);
-	doodadCompositeChanceCtrl_ = CreateSpinField(panel, 0, 1000000);
-	compositeForm->Add(new wxStaticText(panel, wxID_ANY, "Chance"), 0, wxALIGN_CENTER_VERTICAL);
+	doodadCompositeChanceCtrl_ = CreateSpinField(scrolled, 0, 1000000);
+	compositeForm->Add(new wxStaticText(scrolled, wxID_ANY, "Chance"), 0, wxALIGN_CENTER_VERTICAL);
 	compositeForm->Add(doodadCompositeChanceCtrl_, 1, wxEXPAND);
 	midSizer->Add(compositeForm, 0, wxEXPAND);
 
 	wxBoxSizer* rightSizer = new wxBoxSizer(wxVERTICAL);
-	rightSizer->Add(CreateSectionLabel(panel, "Scene Editor"), 0, wxBOTTOM, FromDIP(6));
-	doodadPreviewSummaryLabel_ = new wxStaticText(panel, wxID_ANY, "Select a composite to author a doodad scene directly on the grid.");
+	rightSizer->Add(CreateSectionLabel(scrolled, "Scene Editor"), 0, wxBOTTOM, FromDIP(6));
+	doodadPreviewSummaryLabel_ = new wxStaticText(scrolled, wxID_ANY, "Select a composite, click a tile in the scene, then author it directly from the editor.");
 	StyleBrushWorkspaceSubtitle(doodadPreviewSummaryLabel_);
-	doodadPreviewSummaryLabel_->Wrap(panel->FromDIP(320));
+	doodadPreviewSummaryLabel_->Wrap(scrolled->FromDIP(280));
 	rightSizer->Add(doodadPreviewSummaryLabel_, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
 	wxBoxSizer* previewToolbar = new wxBoxSizer(wxHORIZONTAL);
-	previewToolbar->Add(new wxStaticText(panel, wxID_ANY, "Floors"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
-	doodadPreviewFloorChoice_ = new wxChoice(panel, wxID_ANY);
+	previewToolbar->Add(new wxStaticText(scrolled, wxID_ANY, "Floors"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
+	doodadPreviewFloorChoice_ = new wxChoice(scrolled, wxID_ANY);
 	previewToolbar->Add(doodadPreviewFloorChoice_, 1, wxEXPAND);
 	rightSizer->Add(previewToolbar, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
-	doodadPreviewHintLabel_ = new wxStaticText(panel, wxID_ANY, "Double-click an empty cell to add a tile, drag tiles to move them, right-click to remove, and Ctrl+click a tile to append the current Item ID.");
+	doodadPreviewHintLabel_ = new wxStaticText(scrolled, wxID_ANY, "Double-click adds a tile. Drag moves it. Right-click removes it. Ctrl+click appends another item layer to the tile.");
 	StyleBrushWorkspaceSubtitle(doodadPreviewHintLabel_);
-	doodadPreviewHintLabel_->Wrap(panel->FromDIP(320));
+	doodadPreviewHintLabel_->Wrap(scrolled->FromDIP(280));
 	rightSizer->Add(doodadPreviewHintLabel_, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
-	doodadPreviewPanel_ = new wxPanel(panel, wxID_ANY, wxDefaultPosition, wxSize(panel->FromDIP(320), panel->FromDIP(260)), wxBORDER_SIMPLE);
+	doodadPreviewPanel_ = new wxPanel(scrolled, wxID_ANY, wxDefaultPosition, wxSize(scrolled->FromDIP(300), scrolled->FromDIP(230)), wxBORDER_SIMPLE);
 	doodadPreviewPanel_->SetBackgroundStyle(wxBG_STYLE_PAINT);
-	doodadPreviewPanel_->SetMinSize(wxSize(panel->FromDIP(320), panel->FromDIP(260)));
+	doodadPreviewPanel_->SetMinSize(wxSize(scrolled->FromDIP(300), scrolled->FromDIP(230)));
 	rightSizer->Add(doodadPreviewPanel_, 0, wxEXPAND | wxBOTTOM, FromDIP(12));
-	rightSizer->Add(new wxStaticLine(panel), 0, wxEXPAND | wxBOTTOM, FromDIP(10));
-	rightSizer->Add(CreateSectionLabel(panel, "Composite Tiles"), 0, wxBOTTOM, FromDIP(6));
-	doodadTilesList_ = new wxListBox(panel, wxID_ANY);
-	rightSizer->Add(doodadTilesList_, 1, wxEXPAND | wxBOTTOM, FromDIP(6));
+	wxStaticText* tileFlowHint = new wxStaticText(
+		scrolled,
+		wxID_ANY,
+		"Tile-by-tile flow: click a tile in the grid, then set the Item ID below. If the tile is empty, the first item is created automatically."
+	);
+	StyleBrushWorkspaceSubtitle(tileFlowHint);
+	tileFlowHint->Wrap(scrolled->FromDIP(280));
+	rightSizer->Add(tileFlowHint, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+
+	wxBoxSizer* detailRow = new wxBoxSizer(wxHORIZONTAL);
+
+	wxBoxSizer* tileColumnSizer = new wxBoxSizer(wxVERTICAL);
+	tileColumnSizer->Add(CreateSectionLabel(scrolled, "Selected Tiles"), 0, wxBOTTOM, FromDIP(6));
+	doodadTilesList_ = new wxListBox(scrolled, wxID_ANY);
+	doodadTilesList_->SetMinSize(wxSize(scrolled->FromDIP(180), scrolled->FromDIP(132)));
+	tileColumnSizer->Add(doodadTilesList_, 1, wxEXPAND | wxBOTTOM, FromDIP(6));
 	wxBoxSizer* tileButtons = new wxBoxSizer(wxHORIZONTAL);
-	wxButton* addTileButton = new wxButton(panel, wxID_ANY, "Add Tile");
-	wxButton* removeTileButton = new wxButton(panel, wxID_ANY, "Remove");
+	wxButton* addTileButton = new wxButton(scrolled, wxID_ANY, "Add Tile");
+	wxButton* removeTileButton = new wxButton(scrolled, wxID_ANY, "Remove");
 	tileButtons->Add(addTileButton, 1, wxRIGHT, FromDIP(4));
 	tileButtons->Add(removeTileButton, 1);
-	rightSizer->Add(tileButtons, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+	tileColumnSizer->Add(tileButtons, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
 	wxFlexGridSizer* offsetForm = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
 	offsetForm->AddGrowableCol(1, 1);
-	doodadTileOffsetXCtrl_ = CreateSpinField(panel, -1000, 1000);
-	doodadTileOffsetYCtrl_ = CreateSpinField(panel, -1000, 1000);
-	doodadTileOffsetZCtrl_ = CreateSpinField(panel, -1000, 1000);
-	offsetForm->Add(new wxStaticText(panel, wxID_ANY, "Offset X"), 0, wxALIGN_CENTER_VERTICAL);
+	doodadTileOffsetXCtrl_ = CreateSpinField(scrolled, -1000, 1000);
+	doodadTileOffsetYCtrl_ = CreateSpinField(scrolled, -1000, 1000);
+	doodadTileOffsetZCtrl_ = CreateSpinField(scrolled, -1000, 1000);
+	offsetForm->Add(new wxStaticText(scrolled, wxID_ANY, "Offset X"), 0, wxALIGN_CENTER_VERTICAL);
 	offsetForm->Add(doodadTileOffsetXCtrl_, 1, wxEXPAND);
-	offsetForm->Add(new wxStaticText(panel, wxID_ANY, "Offset Y"), 0, wxALIGN_CENTER_VERTICAL);
+	offsetForm->Add(new wxStaticText(scrolled, wxID_ANY, "Offset Y"), 0, wxALIGN_CENTER_VERTICAL);
 	offsetForm->Add(doodadTileOffsetYCtrl_, 1, wxEXPAND);
-	offsetForm->Add(new wxStaticText(panel, wxID_ANY, "Offset Z"), 0, wxALIGN_CENTER_VERTICAL);
+	offsetForm->Add(new wxStaticText(scrolled, wxID_ANY, "Offset Z"), 0, wxALIGN_CENTER_VERTICAL);
 	offsetForm->Add(doodadTileOffsetZCtrl_, 1, wxEXPAND);
-	rightSizer->Add(offsetForm, 0, wxEXPAND | wxBOTTOM, FromDIP(12));
-	rightSizer->Add(new wxStaticLine(panel), 0, wxEXPAND | wxBOTTOM, FromDIP(10));
-	rightSizer->Add(CreateSectionLabel(panel, "Tile Items"), 0, wxBOTTOM, FromDIP(6));
-	doodadTileItemsList_ = new wxListBox(panel, wxID_ANY);
-	rightSizer->Add(doodadTileItemsList_, 1, wxEXPAND | wxBOTTOM, FromDIP(6));
+	tileColumnSizer->Add(offsetForm, 0, wxEXPAND);
+
+	wxBoxSizer* itemColumnSizer = new wxBoxSizer(wxVERTICAL);
+	itemColumnSizer->Add(CreateSectionLabel(scrolled, "Tile Items"), 0, wxBOTTOM, FromDIP(6));
+	doodadTileItemsList_ = new wxListBox(scrolled, wxID_ANY);
+	doodadTileItemsList_->SetMinSize(wxSize(scrolled->FromDIP(180), scrolled->FromDIP(132)));
+	itemColumnSizer->Add(doodadTileItemsList_, 1, wxEXPAND | wxBOTTOM, FromDIP(6));
 	wxBoxSizer* tileItemButtons = new wxBoxSizer(wxHORIZONTAL);
-	wxButton* addTileItemButton = new wxButton(panel, wxID_ANY, "Add Item");
-	wxButton* removeTileItemButton = new wxButton(panel, wxID_ANY, "Remove");
+	wxButton* addTileItemButton = new wxButton(scrolled, wxID_ANY, "Add Item");
+	wxButton* removeTileItemButton = new wxButton(scrolled, wxID_ANY, "Remove");
 	tileItemButtons->Add(addTileItemButton, 1, wxRIGHT, FromDIP(4));
 	tileItemButtons->Add(removeTileItemButton, 1);
-	rightSizer->Add(tileItemButtons, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+	itemColumnSizer->Add(tileItemButtons, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
 	wxFlexGridSizer* tileItemForm = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
 	tileItemForm->AddGrowableCol(1, 1);
-	doodadTileItemIdCtrl_ = CreateItemIdSpinField(panel);
-	doodadTileItemOwnershipLabel_ = new wxStaticText(panel, wxID_ANY, "Runtime owner: select an item entry.");
-	tileItemForm->Add(new wxStaticText(panel, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
+	doodadTileItemIdCtrl_ = CreateItemIdSpinField(scrolled);
+	doodadTileItemOwnershipLabel_ = new wxStaticText(scrolled, wxID_ANY, "Runtime owner: select a tile in the grid or an item entry.");
+	tileItemForm->Add(new wxStaticText(scrolled, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
 	tileItemForm->Add(doodadTileItemIdCtrl_, 1, wxEXPAND);
 	tileItemForm->AddSpacer(0);
 	tileItemForm->Add(doodadTileItemOwnershipLabel_, 1, wxEXPAND);
-	rightSizer->Add(tileItemForm, 0, wxEXPAND);
+	itemColumnSizer->Add(tileItemForm, 0, wxEXPAND);
 
-	rootSizer->Add(altSizer, 0, wxEXPAND | wxRIGHT, FromDIP(10));
-	rootSizer->Add(new wxStaticLine(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_VERTICAL), 0, wxEXPAND | wxRIGHT, FromDIP(10));
+	detailRow->Add(tileColumnSizer, 1, wxEXPAND | wxRIGHT, FromDIP(10));
+	detailRow->Add(itemColumnSizer, 1, wxEXPAND);
+	rightSizer->Add(detailRow, 1, wxEXPAND);
+
+	rootSizer->Add(altSizer, 1, wxEXPAND | wxRIGHT, FromDIP(10));
+	rootSizer->Add(new wxStaticLine(scrolled, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_VERTICAL), 0, wxEXPAND | wxRIGHT, FromDIP(10));
 	rootSizer->Add(midSizer, 1, wxEXPAND | wxRIGHT, FromDIP(10));
-	rootSizer->Add(new wxStaticLine(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_VERTICAL), 0, wxEXPAND | wxRIGHT, FromDIP(10));
-	rootSizer->Add(rightSizer, 1, wxEXPAND);
-	panel->SetSizer(rootSizer);
+	rootSizer->Add(new wxStaticLine(scrolled, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_VERTICAL), 0, wxEXPAND | wxRIGHT, FromDIP(10));
+	rootSizer->Add(rightSizer, 2, wxEXPAND);
+	scrolled->SetSizer(rootSizer);
+	scrolled->FitInside();
 
 	addAltButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnAddDoodadAlternative, this);
 	removeAltButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnRemoveDoodadAlternative, this);
@@ -3666,14 +3694,27 @@ void MaterialsWorkbenchBrushPanel::OnDoodadTileItemValueChanged(wxCommandEvent &
 	}
 	auto &tiles = composites[doodadCompositeIndex_].tiles;
 	if (doodadTileIndex_ < 0 || doodadTileIndex_ >= static_cast<int>(tiles.size())) {
-		UpdateItemOwnershipHint(doodadTileItemOwnershipLabel_, doodadTileItemIdCtrl_->GetValue(), true);
+		UpdateItemOwnershipHint(doodadTileItemOwnershipLabel_, doodadTileItemIdCtrl_->GetValue(), false);
 		return;
 	}
+
 	auto &items = tiles[doodadTileIndex_].items;
+	bool createdFirstTileItem = false;
 	if (doodadTileItemIndex_ < 0 || doodadTileItemIndex_ >= static_cast<int>(items.size())) {
-		UpdateItemOwnershipHint(doodadTileItemOwnershipLabel_, doodadTileItemIdCtrl_->GetValue(), true);
-		return;
+		if (items.empty() && doodadTileItemIdCtrl_->GetValue() > 0) {
+			DoodadCompositeTileItemRecord item;
+			item.itemId = doodadTileItemIdCtrl_->GetValue();
+			items.push_back(item);
+			doodadTileItemIndex_ = 0;
+			createdFirstTileItem = true;
+		} else if (!items.empty()) {
+			doodadTileItemIndex_ = 0;
+		} else {
+			UpdateItemOwnershipHint(doodadTileItemOwnershipLabel_, doodadTileItemIdCtrl_->GetValue(), true);
+			return;
+		}
 	}
+
 	items[doodadTileItemIndex_].itemId = doodadTileItemIdCtrl_->GetValue();
 	doodadPreviewPreferComposite_ = true;
 	RefreshDoodadTileItemList();
@@ -3693,6 +3734,9 @@ void MaterialsWorkbenchBrushPanel::OnDoodadTileItemValueChanged(wxCommandEvent &
 		doodadAlternativesList_->SetSelection(doodadAlternativeIndex_);
 	}
 	UpdateItemOwnershipHint(doodadTileItemOwnershipLabel_, doodadTileItemIdCtrl_->GetValue(), true);
+	if (createdFirstTileItem) {
+		SetStatusMessage("Applied Item ID to the selected doodad tile.");
+	}
 	RefreshDoodadPreview();
 	RefreshDirtyState();
 }
