@@ -19,10 +19,17 @@
 #include "gui.h"
 #include "items.h"
 #include "map_drawer.h"
+#include "materials.h"
 #include "settings.h"
 #include "wall_brush.h"
 
 namespace {
+enum class ChangeBuildStyleBrushGroup {
+	BuildingWall,
+	Boundary,
+	Unsupported,
+};
+
 std::string lowercase(std::string text) {
 	std::transform(text.begin(), text.end(), text.begin(), [](unsigned char character) {
 		return static_cast<char>(std::tolower(character));
@@ -30,9 +37,79 @@ std::string lowercase(std::string text) {
 	return text;
 }
 
-bool railingOrFence(const std::string &name) {
-	const std::string lowered = lowercase(name);
-	return lowered.find("railing") != std::string::npos || lowered.find("fence") != std::string::npos || lowered.find("palisade") != std::string::npos || lowered.find("bars") != std::string::npos;
+bool boundaryStyleName(const std::string &loweredName) {
+	return loweredName.find("railing") != std::string::npos ||
+		loweredName.find("fence") != std::string::npos ||
+		loweredName.find("palisade") != std::string::npos ||
+		loweredName.find("cord") != std::string::npos ||
+		loweredName.find("tendril") != std::string::npos ||
+		loweredName.find("spike") != std::string::npos ||
+		loweredName.find("hedge") != std::string::npos ||
+		loweredName.find("bars") != std::string::npos ||
+		loweredName.find("rebar") != std::string::npos ||
+		loweredName.find("rope") != std::string::npos ||
+		loweredName == "low stone wall" ||
+		loweredName == "small basalt wall";
+}
+
+bool hasWallCore(WallBrush* brush) {
+	return brush &&
+		brush->getWallItemID(WALL_HORIZONTAL) != 0 &&
+		brush->getWallItemID(WALL_VERTICAL) != 0 &&
+		brush->getWallItemID(WALL_NORTHWEST_DIAGONAL) != 0 &&
+		brush->getWallItemID(WALL_POLE) != 0;
+}
+
+bool hasBoundaryCore(WallBrush* brush) {
+	return brush &&
+		brush->getWallItemID(WALL_HORIZONTAL) != 0 &&
+		brush->getWallItemID(WALL_VERTICAL) != 0;
+}
+
+bool excludedBuildStyleName(const std::string &loweredName) {
+	static const std::vector<std::string> blocked = {
+		"ant trail",
+		"blood pipe",
+		"buoy line",
+		"cracks",
+		"fishing net",
+		"floor ornament",
+		"lava pipe",
+		"lava stream",
+		"railway",
+		"small stream",
+		"store counter",
+		"venorean store counter",
+	};
+	return std::any_of(blocked.begin(), blocked.end(), [&loweredName](const std::string &fragment) {
+		return loweredName.find(fragment) != std::string::npos;
+	});
+}
+
+ChangeBuildStyleBrushGroup classifyBuildStyleBrush(WallBrush* brush) {
+	if (!brush || brush->isWallDecoration() || brush->getAnyWallItemID() == 0) {
+		return ChangeBuildStyleBrushGroup::Unsupported;
+	}
+
+	const std::string name = lowercase(brush->getName());
+	if (excludedBuildStyleName(name)) {
+		return ChangeBuildStyleBrushGroup::Unsupported;
+	}
+	if (g_materials.isInTileset(brush, "Walls") && hasWallCore(brush)) {
+		return ChangeBuildStyleBrushGroup::BuildingWall;
+	}
+	if (g_materials.isInTileset(brush, "Architecture") && boundaryStyleName(name) && hasBoundaryCore(brush)) {
+		return ChangeBuildStyleBrushGroup::Boundary;
+	}
+	return ChangeBuildStyleBrushGroup::Unsupported;
+}
+
+bool selectableBuildStyleTarget(WallBrush* brush, WallBrush* sourceBrush, ChangeBuildStyleBrushGroup sourceGroup) {
+	const ChangeBuildStyleBrushGroup styleGroup = classifyBuildStyleBrush(brush);
+	return brush &&
+		brush != sourceBrush &&
+		styleGroup == sourceGroup &&
+		styleGroup != ChangeBuildStyleBrushGroup::Unsupported;
 }
 }
 
@@ -40,10 +117,10 @@ ChangeBuildStyleListBox::ChangeBuildStyleListBox(wxWindow* parent) :
 	wxVListBox(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLB_SINGLE) {
 }
 
-void ChangeBuildStyleListBox::setBrushes(const std::vector<WallBrush*> &newBrushes) {
-	brushes = newBrushes;
-	SetItemCount(brushes.size());
-	if (!brushes.empty()) {
+void ChangeBuildStyleListBox::setStyles(const std::vector<ChangeBuildStyleStyleEntry> &newStyles) {
+	styles = newStyles;
+	SetItemCount(styles.size());
+	if (!styles.empty()) {
 		SetSelection(0);
 	}
 	Refresh();
@@ -51,17 +128,18 @@ void ChangeBuildStyleListBox::setBrushes(const std::vector<WallBrush*> &newBrush
 
 WallBrush* ChangeBuildStyleListBox::getSelectedBrush() const {
 	const int selection = GetSelection();
-	if (selection == wxNOT_FOUND || static_cast<size_t>(selection) >= brushes.size()) {
+	if (selection == wxNOT_FOUND || static_cast<size_t>(selection) >= styles.size()) {
 		return nullptr;
 	}
-	return brushes[selection];
+	return styles[selection].brush;
 }
 
 void ChangeBuildStyleListBox::OnDrawItem(wxDC &dc, const wxRect &rect, size_t index) const {
-	if (index >= brushes.size()) {
+	if (index >= styles.size()) {
 		return;
 	}
-	WallBrush* brush = brushes[index];
+	const ChangeBuildStyleStyleEntry &entry = styles[index];
+	WallBrush* brush = entry.brush;
 	if (IsSelected(index)) {
 		dc.SetTextForeground(HasFocus() ? wxColour(255, 255, 255) : wxColour(0, 0, 255));
 	} else {
@@ -70,11 +148,19 @@ void ChangeBuildStyleListBox::OnDrawItem(wxDC &dc, const wxRect &rect, size_t in
 	if (Sprite* sprite = g_gui.gfx.getSprite(brush->getLookID())) {
 		sprite->DrawTo(&dc, SPRITE_SIZE_32x32, rect.GetX() + 3, rect.GetY() + 3, rect.GetWidth(), rect.GetHeight());
 	}
-	dc.DrawText(wxstr(brush->getName()), rect.GetX() + 42, rect.GetY() + 12);
+	dc.DrawText(wxstr(brush->getName()), rect.GetX() + 42, rect.GetY() + 5);
+
+	wxFont noteFont = dc.GetFont();
+	noteFont.SetPointSize(std::max(7, noteFont.GetPointSize() - 1));
+	dc.SetFont(noteFont);
+	if (!IsSelected(index)) {
+		dc.SetTextForeground(entry.fullMatch ? wxColour(25, 120, 45) : wxColour(145, 95, 0));
+	}
+	dc.DrawText(entry.note, rect.GetX() + 42, rect.GetY() + 24);
 }
 
 wxCoord ChangeBuildStyleListBox::OnMeasureItem(size_t WXUNUSED(index)) const {
-	return 38;
+	return 46;
 }
 
 BEGIN_EVENT_TABLE(ChangeBuildStylePreview, MapCanvas)
@@ -270,14 +356,17 @@ ChangeBuildStyleDialog::ChangeBuildStyleDialog(wxWindow* parent, Editor &editor,
 	wxDialog(parent, wxID_ANY, "Change Build Style", wxDefaultPosition, wxSize(920, 600), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER),
 	service(editor, origin),
 	displayFloorIndex(0) {
-	std::set<WallBrush*> uniqueStyles;
+	const ChangeBuildStyleBrushGroup sourceGroup = classifyBuildStyleBrush(service.getSourceBrush());
+	std::set<std::string> uniqueStyleNames;
 	for (const auto &brushEntry : g_brushes.getMap()) {
 		Brush* brush = brushEntry.second;
 		if (!brush || !brush->isWall() || brush->isWallDecoration()) {
 			continue;
 		}
 		WallBrush* wall = brush->asWall();
-		if (wall && wall != service.getSourceBrush() && uniqueStyles.insert(wall).second) {
+		const std::string styleName = lowercase(wall->getName());
+		if (selectableBuildStyleTarget(wall, service.getSourceBrush(), sourceGroup) &&
+				uniqueStyleNames.insert(styleName).second) {
 			allStyles.push_back(wall);
 		}
 	}
@@ -292,23 +381,6 @@ ChangeBuildStyleDialog::ChangeBuildStyleDialog(wxWindow* parent, Editor &editor,
 			break;
 		}
 	}
-	Position previewCenter = origin;
-	if (!detectedFloors.empty() && !detectedFloors[displayFloorIndex].positions.empty()) {
-		const PositionVector &positions = detectedFloors[displayFloorIndex].positions;
-		int minX = positions.front().x;
-		int minY = positions.front().y;
-		int maxX = minX;
-		int maxY = minY;
-		for (const Position &position : positions) {
-			minX = std::min(minX, position.x);
-			minY = std::min(minY, position.y);
-			maxX = std::max(maxX, position.x);
-			maxY = std::max(maxY, position.y);
-		}
-		previewCenter.x = minX + (maxX - minX) / 2;
-		previewCenter.y = minY + (maxY - minY) / 2;
-	}
-
 	wxBoxSizer* root = newd wxBoxSizer(wxVERTICAL);
 	wxBoxSizer* content = newd wxBoxSizer(wxHORIZONTAL);
 	wxBoxSizer* left = newd wxBoxSizer(wxVERTICAL);
@@ -320,11 +392,15 @@ ChangeBuildStyleDialog::ChangeBuildStyleDialog(wxWindow* parent, Editor &editor,
 	filterRow->Add(search, 1, wxRIGHT | wxEXPAND, 6);
 	category = newd wxChoice(this, wxID_ANY);
 	category->Append("All styles");
-	category->Append("Walls");
+	category->Append("Building walls");
 	category->Append("Railings / fences");
 	category->SetSelection(0);
 	filterRow->Add(category, 0, wxEXPAND);
 	left->Add(filterRow, 0, wxBOTTOM | wxEXPAND, 8);
+
+	fullMatchOnly = newd wxCheckBox(this, wxID_ANY, "Show only full matches");
+	fullMatchOnly->SetToolTip("Only list styles that can replace every selected wall, door, window and archway without keeping old pieces.");
+	left->Add(fullMatchOnly, 0, wxBOTTOM | wxEXPAND, 8);
 
 	styleList = newd ChangeBuildStyleListBox(this);
 	styleList->SetMinSize(wxSize(360, 300));
@@ -339,7 +415,14 @@ ChangeBuildStyleDialog::ChangeBuildStyleDialog(wxWindow* parent, Editor &editor,
 	}
 	left->Add(floorList, 0, wxBOTTOM | wxEXPAND, 6);
 	onlyCurrentFloor = newd wxCheckBox(this, wxID_ANY, "Only current floor");
-	left->Add(onlyCurrentFloor, 0, wxEXPAND);
+	left->Add(onlyCurrentFloor, 0, wxBOTTOM | wxEXPAND, 8);
+
+	conflictLabel = newd wxStaticText(this, wxID_ANY, "Conflicts");
+	left->Add(conflictLabel, 0, wxBOTTOM, 4);
+	conflictList = newd wxListBox(this, wxID_ANY, wxDefaultPosition, wxSize(360, 90), 0, nullptr, wxLB_SINGLE | wxLB_ALWAYS_SB);
+	left->Add(conflictList, 0, wxBOTTOM | wxEXPAND, 8);
+	conflictLabel->Hide();
+	conflictList->Hide();
 
 	wxBoxSizer* previewHeader = newd wxBoxSizer(wxHORIZONTAL);
 	previewFloorLabel = newd wxStaticText(this, wxID_ANY, wxEmptyString);
@@ -351,9 +434,10 @@ ChangeBuildStyleDialog::ChangeBuildStyleDialog(wxWindow* parent, Editor &editor,
 	down->SetToolTip("Show lower floor");
 	previewHeader->Add(down, 0, wxLEFT, 4);
 	right->Add(previewHeader, 0, wxBOTTOM | wxEXPAND, 8);
-	preview = newd ChangeBuildStylePreview(this, editor, previewCenter);
+	preview = newd ChangeBuildStylePreview(this, editor, origin);
 	if (!detectedFloors.empty()) {
 		preview->fitBuilding(detectedFloors[displayFloorIndex].positions);
+		preview->centerOn(origin);
 	}
 	right->Add(preview, 1, wxEXPAND);
 
@@ -376,8 +460,10 @@ ChangeBuildStyleDialog::ChangeBuildStyleDialog(wxWindow* parent, Editor &editor,
 
 	search->Bind(wxEVT_TEXT, &ChangeBuildStyleDialog::OnFilterChanged, this);
 	category->Bind(wxEVT_CHOICE, &ChangeBuildStyleDialog::OnFilterChanged, this);
+	fullMatchOnly->Bind(wxEVT_CHECKBOX, &ChangeBuildStyleDialog::OnFilterChanged, this);
 	styleList->Bind(wxEVT_LISTBOX, &ChangeBuildStyleDialog::OnStyleSelected, this);
 	floorList->Bind(wxEVT_CHECKLISTBOX, &ChangeBuildStyleDialog::OnFloorsChanged, this);
+	conflictList->Bind(wxEVT_LISTBOX, &ChangeBuildStyleDialog::OnConflictSelected, this);
 	onlyCurrentFloor->Bind(wxEVT_CHECKBOX, &ChangeBuildStyleDialog::OnOnlyCurrentFloor, this);
 	up->Bind(wxEVT_BUTTON, &ChangeBuildStyleDialog::OnFloorUp, this);
 	down->Bind(wxEVT_BUTTON, &ChangeBuildStyleDialog::OnFloorDown, this);
@@ -391,22 +477,43 @@ ChangeBuildStyleDialog::ChangeBuildStyleDialog(wxWindow* parent, Editor &editor,
 void ChangeBuildStyleDialog::refreshStyles() {
 	const std::string filter = lowercase(std::string(search->GetValue().mb_str()));
 	const int selectedCategory = category->GetSelection();
-	std::vector<WallBrush*> filtered;
+	const std::set<int> floors = selectedFloors();
+	std::vector<ChangeBuildStyleStyleEntry> filtered;
 	for (WallBrush* style : allStyles) {
 		const std::string name = lowercase(style->getName());
 		if (!filter.empty() && name.find(filter) == std::string::npos) {
 			continue;
 		}
-		const bool isRailing = railingOrFence(name);
-		if (selectedCategory == 1 && isRailing) {
+		const ChangeBuildStyleBrushGroup styleGroup = classifyBuildStyleBrush(style);
+		if (selectedCategory == 1 && styleGroup != ChangeBuildStyleBrushGroup::BuildingWall) {
 			continue;
 		}
-		if (selectedCategory == 2 && !isRailing) {
+		if (selectedCategory == 2 && styleGroup != ChangeBuildStyleBrushGroup::Boundary) {
 			continue;
 		}
-		filtered.push_back(style);
+
+		const ChangeBuildStyleCompatibility compatibility = service.checkCompatibility(style, floors);
+		if (fullMatchOnly->IsChecked() && !compatibility.fullMatch()) {
+			continue;
+		}
+
+		wxString note;
+		if (compatibility.fullMatch()) {
+			note = "Full match";
+		} else if (compatibility.compatible) {
+			note = wxString::Format(
+				"Missing %zu opening%s",
+				compatibility.conflicts.size(),
+				compatibility.conflicts.size() == 1 ? "" : "s"
+			);
+		} else if (!compatibility.reason.empty()) {
+			note = compatibility.reason;
+		} else {
+			note = "Incomplete wall set";
+		}
+		filtered.push_back({ style, compatibility.fullMatch(), compatibility.conflicts.size(), note });
 	}
-	styleList->setBrushes(filtered);
+	styleList->setStyles(filtered);
 	refreshPreview();
 }
 
@@ -425,37 +532,41 @@ std::set<int> ChangeBuildStyleDialog::selectedFloors() const {
 }
 
 void ChangeBuildStyleDialog::refreshPreview() {
+	currentConflicts.clear();
 	if (!service.isValid()) {
 		status->SetLabel("Select a structural automagic wall before using this action.");
 		applyButton->Enable(false);
+		updateConflictControls();
 		return;
 	}
 	WallBrush* target = styleList->getSelectedBrush();
 	if (!target) {
-		status->SetLabel("No wall style matches the filter.");
+		status->SetLabel("No compatible wall style matches the source and filter.");
 		applyButton->Enable(false);
 		preview->getPreviewMap().clear();
-		preview->Refresh();
-		return;
-	}
-
-	const ChangeBuildStyleCompatibility compatibility = service.checkCompatibility(target, selectedFloors());
-	if (!compatibility.compatible) {
-		status->SetLabel(compatibility.reason);
-		applyButton->Enable(false);
-		preview->getPreviewMap().clear();
+		updateConflictControls();
 		preview->Refresh();
 		return;
 	}
 
 	wxString reason;
-	if (!service.buildPreview(target, selectedFloors(), preview->getPreviewMap(), reason)) {
+	if (!service.buildPreview(target, selectedFloors(), preview->getPreviewMap(), reason, &currentConflicts)) {
 		status->SetLabel(reason);
 		applyButton->Enable(false);
+		updateConflictControls();
 		preview->Refresh();
 		return;
 	}
-	status->SetLabel(wxString::Format("Ready: %s", wxstr(target->getName()).c_str()));
+	updateConflictControls();
+	if (currentConflicts.empty()) {
+		status->SetLabel(wxString::Format("Ready: %s", wxstr(target->getName()).c_str()));
+	} else {
+		status->SetLabel(wxString::Format(
+			"Ready with %zu conflict%s: preview keeps old openings. Apply will ask how to handle them.",
+			currentConflicts.size(),
+			currentConflicts.size() == 1 ? "" : "s"
+		));
+	}
 	applyButton->Enable(true);
 	preview->Refresh();
 }
@@ -472,6 +583,24 @@ void ChangeBuildStyleDialog::updateFloorControls() {
 	preview->showFloor(detectedFloors[displayFloorIndex].z);
 }
 
+void ChangeBuildStyleDialog::updateConflictControls() {
+	conflictList->Clear();
+	if (currentConflicts.empty()) {
+		conflictLabel->Hide();
+		conflictList->Hide();
+		Layout();
+		return;
+	}
+
+	conflictLabel->SetLabel(wxString::Format("Conflicts (%zu) - click to view", currentConflicts.size()));
+	for (const ChangeBuildStyleConflict &conflict : currentConflicts) {
+		conflictList->Append(conflict.message);
+	}
+	conflictLabel->Show();
+	conflictList->Show();
+	Layout();
+}
+
 void ChangeBuildStyleDialog::OnFilterChanged(wxCommandEvent &WXUNUSED(event)) {
 	refreshStyles();
 }
@@ -481,7 +610,26 @@ void ChangeBuildStyleDialog::OnStyleSelected(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void ChangeBuildStyleDialog::OnFloorsChanged(wxCommandEvent &WXUNUSED(event)) {
-	refreshPreview();
+	refreshStyles();
+}
+
+void ChangeBuildStyleDialog::OnConflictSelected(wxCommandEvent &WXUNUSED(event)) {
+	const int selection = conflictList->GetSelection();
+	if (selection == wxNOT_FOUND || static_cast<size_t>(selection) >= currentConflicts.size()) {
+		return;
+	}
+
+	const Position &position = currentConflicts[selection].position;
+	const auto &detectedFloors = service.getFloors();
+	for (size_t index = 0; index < detectedFloors.size(); ++index) {
+		if (detectedFloors[index].z == position.z) {
+			displayFloorIndex = static_cast<int>(index);
+			break;
+		}
+	}
+	updateFloorControls();
+	preview->centerOn(position);
+	preview->Refresh();
 }
 
 void ChangeBuildStyleDialog::OnOnlyCurrentFloor(wxCommandEvent &WXUNUSED(event)) {
@@ -495,7 +643,7 @@ void ChangeBuildStyleDialog::OnOnlyCurrentFloor(wxCommandEvent &WXUNUSED(event))
 		}
 	}
 	updateFloorControls();
-	refreshPreview();
+	refreshStyles();
 }
 
 void ChangeBuildStyleDialog::OnFloorUp(wxCommandEvent &WXUNUSED(event)) {
@@ -515,8 +663,31 @@ void ChangeBuildStyleDialog::OnFloorDown(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void ChangeBuildStyleDialog::OnApply(wxCommandEvent &WXUNUSED(event)) {
+	ChangeBuildStyleMissingOpeningAction missingOpeningAction = ChangeBuildStyleMissingOpeningAction::KeepExisting;
+	if (!currentConflicts.empty()) {
+		wxMessageDialog dialog(
+			this,
+			wxString::Format(
+				"This conversion has %zu opening conflict%s.\n\n"
+				"Choose how to handle windows, doors and other openings that do not exist in the target style.",
+				currentConflicts.size(),
+				currentConflicts.size() == 1 ? "" : "s"
+			),
+			"Unresolved openings",
+			wxYES_NO | wxCANCEL | wxICON_WARNING
+		);
+		dialog.SetYesNoLabels("Keep old openings", "Replace with new wall");
+		const int result = dialog.ShowModal();
+		if (result == wxID_CANCEL) {
+			return;
+		}
+		if (result == wxID_NO) {
+			missingOpeningAction = ChangeBuildStyleMissingOpeningAction::ReplaceWithWall;
+		}
+	}
+
 	wxString reason;
-	if (!service.apply(styleList->getSelectedBrush(), selectedFloors(), reason)) {
+	if (!service.apply(styleList->getSelectedBrush(), selectedFloors(), missingOpeningAction, reason)) {
 		status->SetLabel(reason);
 		applyButton->Enable(false);
 		return;

@@ -7,6 +7,20 @@ from dataclasses import dataclass
 from typing import Any, Callable, Iterable
 
 
+STREET_GROUND_TERMS = (
+    "road",
+    "street",
+    "pavement",
+    "cobble",
+    "sidewalk",
+    "path",
+)
+STREET_GROUND_NAMES = {
+    "sandstone",
+    "venore plaster",
+    "terracotta",
+    "drawbridge",
+}
 SEMANTIC_TAG_ORDER = (
     "house_tile",
     "wall",
@@ -43,6 +57,41 @@ def semantic_signature(tile: dict[str, Any]) -> str:
     """Create the compact spatial signature stored in RLE layouts."""
     tags = tile_semantic_tags(tile)
     return "|".join(tags) if tags else "occupied"
+
+
+def is_street_tile(tile: dict[str, Any]) -> bool:
+    """Infer external, traversable urban surfaces from tags and brush metadata."""
+    tags = set(tile_semantic_tags(tile))
+    if tile.get("houseId") or "house_tile" in tags:
+        return False
+    ground = tile.get("ground")
+    if not ground:
+        return False
+    if "road" in set(ground.get("tags", ())):
+        return True
+    identity = ground.get("brush") or ground.get("name")
+    names = {str(identity).strip().lower()} if identity else set()
+    if names & STREET_GROUND_NAMES:
+        return True
+    return any(term in text for text in names for term in STREET_GROUND_TERMS)
+
+
+def building_role(house: dict[str, Any], tag_counts: Counter[str] | dict[str, int]) -> str:
+    """Classify an anchor building using explicit objects and stable name clues."""
+    name = str(house.get("name", "")).lower()
+    if "depot" in name:
+        return "depot"
+    if any(term in name for term in ("temple", "sanctuary", "shrine")):
+        return "temple"
+    if "bank" in name:
+        return "bank"
+    if any(term in name for term in ("guildhall", "guild hall", "clanhall", "clan hall")):
+        return "guildhall"
+    if any(term in name for term in ("shop", "store", "market", "trade", "merchant")):
+        return "shop"
+    if any(term in name for term in ("library", "academy", "palace", "castle", "hall", "post office")):
+        return "public"
+    return "residence"
 
 
 def ranked_counter(counter: Counter[Any], limit: int | None = None) -> list[dict[str, Any]]:
@@ -100,6 +149,7 @@ class HouseAccumulator:
         self.positions_by_floor: dict[int, dict[int, list[int]]] = defaultdict(lambda: defaultdict(list))
         self.tag_counts: Counter[str] = Counter()
         self.item_ids_by_tag: dict[str, Counter[int]] = defaultdict(Counter)
+        self.door_positions: list[dict[str, int]] = []
         self.tile_count = 0
 
     def add_tile(self, tile: dict[str, Any]) -> None:
@@ -110,6 +160,8 @@ class HouseAccumulator:
         self.tile_count += 1
         tags = tile_semantic_tags(tile)
         self.tag_counts.update(tags)
+        if "door" in tags:
+            self.door_positions.append({"x": x, "y": y, "z": z})
         for item in _items_including_ground(tile):
             for tag in item.get("tags", ()):
                 if tag in SEMANTIC_TAGS:
@@ -129,12 +181,17 @@ class HouseAccumulator:
                 ]
                 rows.append([y - bounds["minY"], relative_runs])
             footprint.append({"z": z, "rows": rows})
+        entrances = list(self.door_positions)
+        if not entrances and self.house.get("exit"):
+            entrances.append(dict(self.house["exit"]))
         return {
             "source": self.source,
             "town": self.town,
             "districtIndex": self.district.get("index"),
             "districtRole": self.district.get("role"),
             "house": self.house,
+            "role": building_role(self.house, self.tag_counts),
+            "entrances": entrances,
             "bounds": bounds,
             "dimensions": {
                 "width": bounds["maxX"] - bounds["minX"] + 1,
@@ -172,6 +229,8 @@ class DistrictAccumulator:
         self.signature_counts: Counter[str] = Counter()
         self.tag_counts: Counter[str] = Counter()
         self.item_ids_by_tag: dict[str, Counter[int]] = defaultdict(Counter)
+        self.street_positions_by_floor: dict[int, set[tuple[int, int]]] = defaultdict(set)
+        self.street_styles_by_floor: dict[int, Counter[str]] = defaultdict(Counter)
         self._row_key: tuple[int, int] | None = None
         self._row_runs: list[list[Any]] = []
 
@@ -190,6 +249,11 @@ class DistrictAccumulator:
         self.signature_counts[signature] += 1
         tags = tile_semantic_tags(tile)
         self.tag_counts.update(tags)
+        if is_street_tile(tile):
+            self.street_positions_by_floor[position["z"]].add((position["x"], position["y"]))
+            ground = tile.get("ground", {})
+            style = ground.get("brush") or ground.get("name") or "tagged-road"
+            self.street_styles_by_floor[position["z"]][str(style)] += 1
         for item in _items_including_ground(tile):
             for tag in item.get("tags", ()):
                 if tag in SEMANTIC_TAGS:
@@ -235,6 +299,9 @@ class DistrictAccumulator:
             (bounds["maxY"] - bounds["minY"] + 1)
             if bounds else 0
         )
+        street_graph = _build_street_graph(self.street_positions_by_floor, self.street_styles_by_floor, templates)
+        role_counts = Counter(template["role"] for template in templates)
+        urban_quality = _urban_quality(self.district, street_graph, templates)
         profile = {
             "source": self.source,
             "town": self.town,
@@ -254,6 +321,9 @@ class DistrictAccumulator:
                 tag: ranked_counter(counter, limit=50)
                 for tag, counter in sorted(self.item_ids_by_tag.items())
             },
+            "buildingRoles": dict(sorted(role_counts.items())),
+            "streetGraph": street_graph,
+            "urbanQuality": urban_quality,
         }
         return profile, templates
 
@@ -263,3 +333,110 @@ def _items_including_ground(tile: dict[str, Any]) -> Iterable[dict[str, Any]]:
     if ground:
         yield ground
     yield from tile.get("items", ())
+
+
+def _build_street_graph(
+    positions_by_floor: dict[int, set[tuple[int, int]]],
+    street_styles_by_floor: dict[int, Counter[str]],
+    templates: list[dict[str, Any]],
+) -> dict[str, Any]:
+    if not positions_by_floor:
+        return {
+            "primaryFloor": None,
+            "roadTileCount": 0,
+            "componentCount": 0,
+            "mainComponentSize": 0,
+            "mainComponentRatio": 0.0,
+            "intersectionCount": 0,
+            "deadEndCount": 0,
+            "accessibleBuildingCount": 0,
+            "inaccessibleBuildingCount": len(templates),
+            "styleBrushes": [],
+        }
+
+    primary_floor = sorted(
+        positions_by_floor,
+        key=lambda z: (-len(positions_by_floor[z]), z),
+    )[0]
+    positions = positions_by_floor[primary_floor]
+    remaining = set(positions)
+    components: list[set[tuple[int, int]]] = []
+    while remaining:
+        pending = [remaining.pop()]
+        component: set[tuple[int, int]] = set()
+        while pending:
+            current = pending.pop()
+            component.add(current)
+            x, y = current
+            for neighbour in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+                if neighbour in remaining:
+                    remaining.remove(neighbour)
+                    pending.append(neighbour)
+        components.append(component)
+    components.sort(key=len, reverse=True)
+    main = components[0]
+    degrees = []
+    for x, y in main:
+        degrees.append(sum(
+            neighbour in main
+            for neighbour in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1))
+        ))
+
+    accessible = 0
+    for template in templates:
+        if any(
+            entrance.get("z") == primary_floor and
+            any(abs(entrance["x"] - x) + abs(entrance["y"] - y) <= 1 for x, y in main)
+            for entrance in template.get("entrances", ())
+        ):
+            accessible += 1
+    road_count = len(positions)
+    return {
+        "primaryFloor": primary_floor,
+        "roadTileCount": road_count,
+        "componentCount": len(components),
+        "mainComponentSize": len(main),
+        "mainComponentRatio": round(len(main) / road_count, 4),
+        "intersectionCount": sum(degree >= 3 for degree in degrees),
+        "deadEndCount": sum(degree <= 1 for degree in degrees),
+        "accessibleBuildingCount": accessible,
+        "inaccessibleBuildingCount": len(templates) - accessible,
+        "styleBrushes": ranked_counter(street_styles_by_floor[primary_floor], limit=12),
+    }
+
+
+def _urban_quality(
+    district: dict[str, Any],
+    street_graph: dict[str, Any],
+    templates: list[dict[str, Any]],
+) -> dict[str, Any]:
+    reasons: list[str] = []
+    warnings: list[str] = []
+    confidence = district.get("confidence")
+    inference_method = str(district.get("inferenceMethod", ""))
+    if confidence == "low" or "fallback" in inference_method:
+        reasons.append("low-confidence district inference")
+    bounds = district.get("bounds", {})
+    area = (
+        (bounds["maxX"] - bounds["minX"] + 1) *
+        (bounds["maxY"] - bounds["minY"] + 1)
+        if bounds else 0
+    )
+    minimum_main_component = 64 if area >= 4096 else 4
+    if street_graph["mainComponentSize"] < minimum_main_component:
+        if area >= 4096:
+            reasons.append("street core is too small for captured region")
+        else:
+            reasons.append("insufficient recognized street network")
+    if street_graph["roadTileCount"] and street_graph["mainComponentRatio"] < 0.6:
+        warnings.append("fragmented observed street network")
+    if templates and street_graph["accessibleBuildingCount"] == 0:
+        warnings.append("no anchor building frontage detected")
+    penalty = 25 * len(reasons) + 10 * len(warnings)
+    score = max(0, min(100, 100 - penalty))
+    return {
+        "eligibleForGeneration": not reasons,
+        "score": score,
+        "reasons": reasons,
+        "warnings": warnings,
+    }

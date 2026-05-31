@@ -33,8 +33,10 @@ class LearningModel:
         self.tag_counts: Counter[str] = Counter()
         self.signature_counts: Counter[str] = Counter()
         self.item_ids_by_tag: dict[str, Counter[int]] = defaultdict(Counter)
+        self.building_role_counts: Counter[str] = Counter()
         self.tile_count = 0
         self.building_template_count = 0
+        self.eligible_district_count = 0
 
     def add_source(self, source: dict[str, Any]) -> None:
         self.sources.append(source)
@@ -58,12 +60,15 @@ class LearningModel:
         for tag, ranked in profile["itemsByTag"].items():
             for item in ranked:
                 self.item_ids_by_tag[tag][int(item["value"])] += item["count"]
+        self.building_role_counts.update(profile.get("buildingRoles", {}))
+        if profile.get("urbanQuality", {}).get("eligibleForGeneration"):
+            self.eligible_district_count += 1
         self.building_template_count += len(templates)
 
     def as_json(self) -> dict[str, Any]:
         return {
             "format": "rme-city-learning-model",
-            "version": 1,
+            "version": 2,
             "sources": self.sources,
             "cities": self.cities,
             "districts": self.districts,
@@ -74,6 +79,7 @@ class LearningModel:
                     tag: ranked_counter(counter, limit=100)
                     for tag, counter in sorted(self.item_ids_by_tag.items())
                 },
+                "buildingRoleCounts": dict(sorted(self.building_role_counts.items())),
             },
             "summary": {
                 "sourceCount": len(self.sources),
@@ -81,6 +87,7 @@ class LearningModel:
                 "districtCount": len(self.districts),
                 "tileCount": self.tile_count,
                 "buildingTemplateCount": self.building_template_count,
+                "eligibleDistrictCount": self.eligible_district_count,
             },
         }
 

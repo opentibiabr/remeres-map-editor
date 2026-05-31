@@ -34,6 +34,7 @@
 #include "live_server.h"
 #include "browse_tile_window.h"
 #include "change_build_style_window.h"
+#include "change_connected_ground_style_window.h"
 
 #include "main_menubar.h"
 
@@ -109,6 +110,7 @@ EVT_MENU(MAP_POPUP_MENU_SELECT_DOODAD_BRUSH, MapCanvas::OnSelectDoodadBrush)
 EVT_MENU(MAP_POPUP_MENU_SELECT_DOOR_BRUSH, MapCanvas::OnSelectDoorBrush)
 EVT_MENU(MAP_POPUP_MENU_SELECT_WALL_BRUSH, MapCanvas::OnSelectWallBrush)
 EVT_MENU(MAP_POPUP_MENU_CHANGE_BUILD_STYLE, MapCanvas::OnChangeBuildStyle)
+EVT_MENU(MAP_POPUP_MENU_CHANGE_CONNECTED_GROUND_STYLE, MapCanvas::OnChangeConnectedGroundStyle)
 EVT_MENU(MAP_POPUP_MENU_SELECT_CARPET_BRUSH, MapCanvas::OnSelectCarpetBrush)
 EVT_MENU(MAP_POPUP_MENU_SELECT_TABLE_BRUSH, MapCanvas::OnSelectTableBrush)
 EVT_MENU(MAP_POPUP_MENU_SELECT_MONSTER_BRUSH, MapCanvas::OnSelectMonsterBrush)
@@ -2491,6 +2493,21 @@ void MapCanvas::OnChangeBuildStyle(wxCommandEvent &WXUNUSED(event)) {
 	}
 }
 
+void MapCanvas::OnChangeConnectedGroundStyle(wxCommandEvent &WXUNUSED(event)) {
+	if (editor.getSelection().size() != 1) {
+		return;
+	}
+	Tile* tile = editor.getSelection().getSelectedTile();
+	if (!tile || !UrbanGroundStyleCatalog::isUrbanGround(tile->getGroundBrush())) {
+		return;
+	}
+
+	ChangeConnectedGroundStyleDialog dialog(this, editor, tile->getPosition());
+	if (dialog.isValid() && dialog.ShowModal() == wxID_OK) {
+		Refresh();
+	}
+}
+
 void MapCanvas::OnSelectCarpetBrush(wxCommandEvent &WXUNUSED(event)) {
 	if (editor.getSelection().size() != 1) {
 		return;
@@ -2908,6 +2925,9 @@ void MapPopupMenu::Update() {
 				if (tile->hasGround() && tile->getGroundBrush() && tile->getGroundBrush()->visibleInPalette()) {
 					Append(MAP_POPUP_MENU_SELECT_GROUND_BRUSH, "Select Groundbrush", "Uses the current item as a groundbrush");
 				}
+				if (tile->hasGround() && UrbanGroundStyleCatalog::isUrbanGround(tile->getGroundBrush())) {
+					Append(MAP_POPUP_MENU_CHANGE_CONNECTED_GROUND_STYLE, "Change connected ground style...", "Replace the connected urban ground component on this floor");
+				}
 
 				if (tile->isHouseTile()) {
 					Append(MAP_POPUP_MENU_SELECT_HOUSE_BRUSH, "Select House", "Draw with the house on this tile.");
@@ -2942,6 +2962,9 @@ void MapPopupMenu::Update() {
 				}
 				if (tile->hasGround() && tile->getGroundBrush() && tile->getGroundBrush()->visibleInPalette()) {
 					Append(MAP_POPUP_MENU_SELECT_GROUND_BRUSH, "Select Groundbrush", "Uses the current tile as a groundbrush");
+				}
+				if (tile->hasGround() && UrbanGroundStyleCatalog::isUrbanGround(tile->getGroundBrush())) {
+					Append(MAP_POPUP_MENU_CHANGE_CONNECTED_GROUND_STYLE, "Change connected ground style...", "Replace the connected urban ground component on this floor");
 				}
 
 				if (tile->isHouseTile()) {

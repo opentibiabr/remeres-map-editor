@@ -63,8 +63,9 @@ Esta entrega implementa `Change connected ground style...`, paralela a
 - Grounds diferentes adjacentes nao entram automaticamente no componente.
 - Itens nao-ground, como ralos, luminarias, vegetacao, escadas e decoracoes,
   permanecem no tile.
-- Bordas automagic afetadas sao recalculadas no componente e na sua fronteira
-  imediata.
+- Bordas automagic sao recalculadas apenas nos tiles do componente alterado.
+  Tiles vizinhos permanecem intocados para preservar pontes, fontes,
+  interiores, paredes e transicoes desenhadas manualmente.
 
 O sistema de reconhecimento e conversao de caminhos urbanos compostos e uma
 entrega posterior. O primeiro comando deve gerar dados que a suportem, mas
@@ -137,12 +138,11 @@ conectada daquele andar.
 
 ### Fronteira
 
-O servico tambem coleta o anel de oito vizinhos dos tiles convertidos. Esse
-anel nao tem seu ground substituido; ele e usado apenas para recalcular
-bordas, pois as bordas representam a relacao entre o caminho alterado e seus
-grounds vizinhos. Para calcular corretamente as bordas desse anel no overlay,
-uma segunda faixa de vizinhos e copiada como contexto de leitura, mas nunca e
-gravada como alteracao.
+O servico coleta o anel de oito vizinhos dos tiles convertidos somente como
+contexto de leitura durante o calculo das bordas do componente. Esse anel
+nunca tem seu ground ou suas bordas recalculados e nunca e gravado na acao.
+Esta regra evita que brushes de destino com borda `outer` criem pecas
+bloqueantes sobre `drawbridge`, ao redor de fontes ou por dentro de casas.
 
 ## Catalogo De Estilos Urbanos
 
@@ -154,7 +154,8 @@ A primeira entrega introduz um catalogo curado de `GroundBrush` urbanos,
 alimentado pelos brushes encontrados em cidades e pela secao de pavements do
 tileset. O catalogo inicial inclui as familias verificadas:
 
-- `cobblestone`, `dark cobblestone` e `ugly cobblestone`;
+- `cobblestone`, `dark cobblestone`, `ugly cobblestone` e
+  `grassy cobblestone`;
 - `yellow pavement` e `dark pavement`;
 - `venore cobblestone` e `venore plaster`;
 - `terracotta`, quando usada como area urbana externa;
@@ -198,15 +199,14 @@ destino. Nao e aceitavel mostrar um padrao e gravar outro ao pressionar
 
 O servico simula e aplica a operacao em duas fases:
 
-1. Copiar os tiles do componente, do anel de fronteira e da segunda faixa
-   necessaria como contexto de leitura para um mapa/overlay temporario.
+1. Copiar os tiles do componente e o anel de fronteira necessario como
+   contexto de leitura para um mapa/overlay temporario.
 2. Nos tiles do componente, remover somente o ground de origem e desenhar o
    ground do brush de destino, preservando os itens adicionais.
-3. Limpar e recalcular bordas automagic no componente e no anel de fronteira.
+3. Limpar e recalcular bordas automagic somente nos tiles do componente.
 4. Renderizar o overlay no preview.
-5. Em `Apply`, transferir exatamente os tiles ja simulados do componente e do
-   primeiro anel para um `BatchAction` do mapa real, sem executar nova
-   randomizacao.
+5. Em `Apply`, transferir exatamente os tiles ja simulados do componente para
+   um `BatchAction` do mapa real, sem executar nova randomizacao.
 
 Objetos sobre a rua nao sao tratados como conflitos nesta entrega, pois trocar
 o ground nao invalida ralos, postes ou decoracao solta. Itens que dependam de
@@ -264,7 +264,8 @@ cidades com redes viarias coerentes. Ele nao bloqueia a primeira ferramenta.
 - nao atravessar de `venore cobblestone` para `venore plaster` ou
   `terracotta`;
 - preservar itens nao-ground presentes sobre os tiles alterados;
-- recalcular somente tiles do componente e de sua fronteira;
+- recalcular somente tiles do componente, mantendo intactas as bordas de
+  pontes, fontes, paredes e pisos interiores vizinhos;
 - gerar o mesmo resultado no preview e na aplicacao;
 - produzir uma unica acao undo/redo.
 

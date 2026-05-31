@@ -75,6 +75,7 @@ Use a static set of approved brush names, including:
 ```cpp
 const std::set<std::string> urbanGroundNames = {
 	"cobblestone", "dark cobblestone", "ugly cobblestone",
+	"grassy cobblestone",
 	"yellow pavement", "dark pavement", "venore cobblestone",
 	"venore plaster", "terracotta", "roshamuul pavement",
 	"oramond pavement", "oramond other pavement",
@@ -118,31 +119,33 @@ already part of the component.
 
 - [ ] **Step 4: Implement deterministic simulation and action application**
 
-Collect component positions plus their eight-neighbour ring as
-`changedPositions`. Collect one additional eight-neighbour expansion as
-`contextPositions`, and deep-copy all context positions into the working
-`BaseMap`; only `changedPositions` are later committed. For component tiles:
+Collect component positions as `changedPositions`. Collect their
+eight-neighbour ring as read-only `contextPositions`, and deep-copy existing
+context tiles into the working `BaseMap`; only component positions are later
+committed. For component tiles:
 
 ```cpp
 target->draw(&working, tile, nullptr);
 ```
 
 This replaces only `tile->ground`, retaining its items. Borderize every
-component/ring tile after all ground replacements:
+component tile after all ground replacements:
 
 ```cpp
-for (const Position &position : changed) {
+for (const Position &position : component) {
 	if (Tile* tile = working.getTile(position)) {
 		tile->borderize(&working);
 	}
 }
 ```
 
-Build preview using the completed working overlay. `applyPreview()` transfers
-the already rendered component/ring tile output from the current overlay to
-`ACTION_CHANGE_CONNECTED_GROUND_STYLE`, avoiding a preview/application
-mismatch from rerandomizing the destination brush. The second context ring is
-never added to the action.
+Do not borderize or commit neighbouring tiles: destination outer borders can
+otherwise be generated over bridges, fountains, house interiors and wall
+transitions. Build preview using the completed working overlay.
+`applyPreview()` transfers the already rendered component tile output from
+the current overlay to `ACTION_CHANGE_CONNECTED_GROUND_STYLE`, avoiding a
+preview/application mismatch from rerandomizing the destination brush. The
+read-only context ring is never added to the action.
 
 ### Task 2: Add Dialog And Preview Workflow
 

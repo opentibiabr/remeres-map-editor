@@ -1,7 +1,14 @@
--- @Title: City Lot Generator
--- @Description: Generates city lots using Voronoi diagram
+-- @Title: City Lot Generator (Disabled)
+-- @Description: Disabled legacy city lot generator
 -- @Author: VLL Systems
 -- @Version: 1.0.0
+-- @Disabled: true
+
+do
+	print("[City] Procedural city generation is disabled. Use the City Learning export tools only.")
+	return
+end
+
 if not app.hasMap() then
 	print("[City] No map open.")
 	return

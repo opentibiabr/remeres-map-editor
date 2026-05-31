@@ -53,6 +53,7 @@ class CityLearningExtractionTests(unittest.TestCase):
 
 			model = extract_corpora([input_path], output_path)
 
+			self.assertEqual(model["version"], 2)
 			self.assertEqual(model["summary"]["sourceCount"], 1)
 			self.assertEqual(model["summary"]["cityCount"], 1)
 			self.assertEqual(model["summary"]["districtCount"], 1)

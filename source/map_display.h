@@ -91,6 +91,7 @@ public:
 	void OnSelectDoorBrush(wxCommandEvent &event);
 	void OnSelectWallBrush(wxCommandEvent &event);
 	void OnChangeBuildStyle(wxCommandEvent &event);
+	void OnChangeConnectedGroundStyle(wxCommandEvent &event);
 	void OnSelectCarpetBrush(wxCommandEvent &event);
 	void OnSelectTableBrush(wxCommandEvent &event);
 	void OnSelectMonsterBrush(wxCommandEvent &event);

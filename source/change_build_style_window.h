@@ -18,11 +18,18 @@
 class Editor;
 class WallBrush;
 
+struct ChangeBuildStyleStyleEntry {
+	WallBrush* brush;
+	bool fullMatch;
+	size_t conflictCount;
+	wxString note;
+};
+
 class ChangeBuildStyleListBox : public wxVListBox {
 public:
 	ChangeBuildStyleListBox(wxWindow* parent);
 
-	void setBrushes(const std::vector<WallBrush*> &brushes);
+	void setStyles(const std::vector<ChangeBuildStyleStyleEntry> &styles);
 	WallBrush* getSelectedBrush() const;
 
 protected:
@@ -30,7 +37,7 @@ protected:
 	wxCoord OnMeasureItem(size_t index) const override;
 
 private:
-	std::vector<WallBrush*> brushes;
+	std::vector<ChangeBuildStyleStyleEntry> styles;
 };
 
 class ChangeBuildStylePreview : public MapCanvas {
@@ -88,11 +95,13 @@ private:
 	void refreshStyles();
 	void refreshPreview();
 	void updateFloorControls();
+	void updateConflictControls();
 	std::set<int> selectedFloors() const;
 
 	void OnFilterChanged(wxCommandEvent &event);
 	void OnStyleSelected(wxCommandEvent &event);
 	void OnFloorsChanged(wxCommandEvent &event);
+	void OnConflictSelected(wxCommandEvent &event);
 	void OnOnlyCurrentFloor(wxCommandEvent &event);
 	void OnFloorUp(wxCommandEvent &event);
 	void OnFloorDown(wxCommandEvent &event);
@@ -100,13 +109,17 @@ private:
 
 	ChangeBuildStyleService service;
 	std::vector<WallBrush*> allStyles;
+	std::vector<ChangeBuildStyleConflict> currentConflicts;
 	int displayFloorIndex;
 
 	wxTextCtrl* search;
 	wxChoice* category;
+	wxCheckBox* fullMatchOnly;
 	ChangeBuildStyleListBox* styleList;
 	wxCheckListBox* floorList;
 	wxCheckBox* onlyCurrentFloor;
+	wxStaticText* conflictLabel;
+	wxListBox* conflictList;
 	wxStaticText* previewFloorLabel;
 	ChangeBuildStylePreview* preview;
 	wxStaticText* status;

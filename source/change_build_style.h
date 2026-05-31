@@ -25,9 +25,24 @@ struct ChangeBuildStyleFloor {
 	PositionVector positions;
 };
 
+struct ChangeBuildStyleConflict {
+	Position position;
+	wxString message;
+};
+
 struct ChangeBuildStyleCompatibility {
 	bool compatible;
 	wxString reason;
+	std::vector<ChangeBuildStyleConflict> conflicts;
+
+	bool fullMatch() const noexcept {
+		return compatible && conflicts.empty();
+	}
+};
+
+enum class ChangeBuildStyleMissingOpeningAction {
+	KeepExisting,
+	ReplaceWithWall,
 };
 
 class ChangeBuildStyleService {
@@ -48,8 +63,8 @@ public:
 	}
 
 	ChangeBuildStyleCompatibility checkCompatibility(WallBrush* target, const std::set<int> &selectedFloors) const;
-	bool buildPreview(WallBrush* target, const std::set<int> &selectedFloors, BaseMap &previewTiles, wxString &reason) const;
-	bool apply(WallBrush* target, const std::set<int> &selectedFloors, wxString &reason);
+	bool buildPreview(WallBrush* target, const std::set<int> &selectedFloors, BaseMap &previewTiles, wxString &reason, std::vector<ChangeBuildStyleConflict>* conflicts = nullptr) const;
+	bool apply(WallBrush* target, const std::set<int> &selectedFloors, ChangeBuildStyleMissingOpeningAction missingOpeningAction, wxString &reason);
 
 	static Item* getStructuralWall(Tile* tile, WallBrush* required = nullptr);
 	static const Item* getStructuralWall(const Tile* tile, const WallBrush* required = nullptr);
@@ -60,12 +75,29 @@ private:
 		::DoorType type;
 		bool open;
 		uint8_t doorId;
+		uint16_t originalItemId;
+		::BorderType alignment;
+		bool loose;
 	};
 
 	PositionVector findComponent(const Position &seed) const;
 	void detectFloors();
 	std::set<Position> selectedPositions(const std::set<int> &selectedFloors) const;
-	bool simulate(WallBrush* target, const std::set<int> &selectedFloors, BaseMap &working, std::set<Position> &changed, wxString &reason) const;
+	WallBrush* findLooseArchwaySourceBrush(const Position &position, ::BorderType* alignment) const;
+	Item* getLooseArchway(Tile* tile) const;
+	const Item* getLooseArchway(const Tile* tile) const;
+	bool getLooseArchwayAlignment(const Position &position, ::BorderType &alignment) const;
+	bool isSourceBuildPiece(const Position &position) const;
+	::BorderType inferOpeningAlignment(const Position &position) const;
+	bool simulate(
+		WallBrush* target,
+		const std::set<int> &selectedFloors,
+		BaseMap &working,
+		std::set<Position> &changed,
+		wxString &reason,
+		std::vector<ChangeBuildStyleConflict>* conflicts,
+		ChangeBuildStyleMissingOpeningAction missingOpeningAction
+	) const;
 
 	Editor &editor;
 	Position origin;

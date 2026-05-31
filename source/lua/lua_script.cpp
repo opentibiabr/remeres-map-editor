@@ -305,6 +305,14 @@ bool LuaScript::processMetadataTag(const std::string &comment, bool &foundName, 
 		}
 		return true;
 	}
+	if (comment.starts_with("@Disabled:")) {
+		enabled = trimBoth(comment.substr(10)) != "true";
+		return true;
+	}
+	if (comment.starts_with("@Enabled:")) {
+		enabled = trimBoth(comment.substr(9)) == "true";
+		return true;
+	}
 	return false;
 }
 
