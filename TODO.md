@@ -27,6 +27,10 @@
 - [ ] Add safer creation and removal flows for core entities directly inside the Workbench
 - [ ] Add duplication flows for entities such as palettes, border sets, and wall part sets where it improves authoring speed
 - [ ] Add a lightweight reference view for understanding where a brush is used
+- [ ] Revisit `Doodad` polish with contextual scene actions, stronger active-tile/layer feedback, and richer visual affordances after the current editor flow settles
+- [ ] Add `Doodad` duplication and reordering helpers for `alternatives`, `composites`, tiles, and tile layers if later authoring passes show they would speed up editing
+- [ ] Add richer `Doodad` list visuals such as tiny sprite previews or layer thumbnails only if they improve scanability without bringing back layout bloat
+- [ ] Add optional `Doodad` keyboard shortcuts and higher-level context menus as a future polish pass, not as a requirement for the current editor milestone
 
 ## Nice To Have
 - [ ] Add a real composed preview for `wall brush`, beyond the current parts grid
