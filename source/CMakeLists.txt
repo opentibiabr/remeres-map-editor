@@ -189,6 +189,8 @@ target_sources(
           carpet_brush.cpp
           change_build_style.cpp
           change_build_style_window.cpp
+          change_city_style.cpp
+          change_city_style_window.cpp
           change_connected_ground_style.cpp
           change_connected_ground_style_window.cpp
           city_corpus.cpp

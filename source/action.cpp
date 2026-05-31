@@ -708,6 +708,8 @@ wxString ActionQueue::createLabel(ActionIdentifier type) {
 			return "Lua Script";
 		case ACTION_CHANGE_BUILD_STYLE:
 			return "Change Build Style";
+		case ACTION_CHANGE_CITY_STYLE:
+			return "Change City Style";
 		case ACTION_CHANGE_CONNECTED_GROUND_STYLE:
 			return "Change Connected Ground Style";
 		default:

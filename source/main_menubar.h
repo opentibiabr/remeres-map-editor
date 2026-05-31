@@ -80,6 +80,7 @@ namespace MenuBar {
 		JUMP_TO_ITEM_BRUSH,
 		CLEAR_INVALID_HOUSES,
 		CLEAR_MODIFIED_STATE,
+		CHANGE_CITY_STYLE,
 		CUT,
 		COPY,
 		PASTE,
@@ -249,6 +250,7 @@ public:
 	void OnMapRemoveEmptyNpcSpawns(wxCommandEvent &event);
 	void OnClearHouseTiles(wxCommandEvent &event);
 	void OnClearModifiedState(wxCommandEvent &event);
+	void OnChangeCityStyle(wxCommandEvent &event);
 	void OnToggleAutomagic(wxCommandEvent &event);
 	void OnSelectionTypeChange(wxCommandEvent &event);
 	void OnCut(wxCommandEvent &event);
