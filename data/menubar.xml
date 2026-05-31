@@ -21,6 +21,12 @@
             <item name="Export $City Learning Sample..." action="EXPORT_CITY_SAMPLE" help="Export the selected area as a semantic city learning JSON sample."/>
             <item name="Export $All Town Learning Corpus..." action="EXPORT_ALL_TOWN_CORPUS" help="Export all inferred town districts as a semantic city learning JSON corpus."/>
         </menu>
+        <menu name="$Client Assets">
+            <item name="Export $Static House Data..." action="EXPORT_STATIC_HOUSE_DATA" help="Export staticdata and staticmapdata protobuf assets."/>
+            <item name="Export $Cyclopedia Minimap/Satellite..." action="EXPORT_CYCLOPEDIA_MAP" help="Export cyclopedia mapdata, minimap, and satellite assets."/>
+            <separator/>
+            <item name="$Restore Client Assets Backup..." action="REVERT_CYCLOPEDIA_ASSETS" help="Restore a timestamped client assets backup snapshot."/>
+        </menu>
         <menu name="$Reload">
             <item name="$Reload" hotkey="F5" action="RELOAD_DATA" help="Reloads all data files."/>
         </menu>

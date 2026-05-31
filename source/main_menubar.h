@@ -35,6 +35,9 @@ namespace MenuBar {
 		IMPORT_NPCS,
 		IMPORT_MINIMAP,
 		EXPORT_MINIMAP,
+		EXPORT_STATIC_HOUSE_DATA,
+		EXPORT_CYCLOPEDIA_MAP,
+		REVERT_CYCLOPEDIA_ASSETS,
 		EXPORT_TILESETS,
 		EXPORT_CITY_SAMPLE,
 		EXPORT_ALL_TOWN_CORPUS,
@@ -220,6 +223,9 @@ public:
 	void OnImportMinimap(wxCommandEvent &event);
 	void OnImportBitmapToMap(wxCommandEvent &event);
 	void OnExportMinimap(wxCommandEvent &event);
+	void OnExportStaticHouseData(wxCommandEvent &event);
+	void OnExportCyclopediaMapData(wxCommandEvent &event);
+	void OnRevertCyclopediaAssets(wxCommandEvent &event);
 	void OnExportTilesets(wxCommandEvent &event);
 	void OnExportCitySample(wxCommandEvent &event);
 	void OnExportAllTownCorpus(wxCommandEvent &event);

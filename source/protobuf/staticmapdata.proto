@@ -1,0 +1,42 @@
+syntax = "proto2";
+
+package clienteditor.protobuf.staticmapdata;
+
+message StaticMapData {
+	repeated HouseEntry house = 1;
+}
+
+message HouseEntry {
+	optional uint32 house_id = 1;
+	optional HousePreviewData data = 2;
+}
+
+message Position {
+	optional uint32 pos_x = 1;
+	optional uint32 pos_y = 2;
+	optional uint32 pos_z = 3;
+}
+
+message HousePreviewData {
+	optional Position origin = 1;
+	optional Position dimensions = 2;
+	optional HousePreviewTiles preview = 3;
+}
+
+message HousePreviewTiles {
+	optional HousePreviewLayer layer = 2;
+}
+
+message HousePreviewLayer {
+	repeated HousePreviewTile tile = 3;
+}
+
+message HousePreviewTile {
+	repeated HousePreviewItem item = 1;
+	optional uint32 skip = 2;
+	optional bool is_house_tile = 3;
+}
+
+message HousePreviewItem {
+	optional uint32 value = 1;
+}

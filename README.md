@@ -7,6 +7,7 @@ You can find the project for hosting your own server at [Canary](https://github.
 Getting Started
 =========
 * [Wiki](https://github.com/opentibiabr/remeres-map-editor/wiki).
+* [Cyclopedia export documentation](docs/static-data.md).
 
 I want to contribute
 ====================
