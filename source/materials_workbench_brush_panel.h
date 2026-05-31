@@ -18,6 +18,7 @@ class wxMouseEvent;
 class wxPanel;
 class wxScrolledWindow;
 class wxSimplebook;
+class wxSizer;
 class wxSpinCtrl;
 class wxStaticText;
 class wxTextCtrl;
@@ -89,6 +90,7 @@ private:
 	void RefreshDoodadCompositeList();
 	void RefreshDoodadTileList();
 	void RefreshDoodadTileItemList();
+	void RefreshDoodadAlternativeSlider();
 	void RefreshDoodadSelection();
 	void RefreshDoodadPreviewFloorChoice();
 	void RefreshDoodadPreview();
@@ -131,7 +133,6 @@ private:
 	void OnAlignedItemValueChanged(wxCommandEvent &event);
 	void OnAddDoodadAlternative(wxCommandEvent &event);
 	void OnRemoveDoodadAlternative(wxCommandEvent &event);
-	void OnDoodadAlternativeSelected(wxCommandEvent &event);
 	void OnAddDoodadSingleItem(wxCommandEvent &event);
 	void OnRemoveDoodadSingleItem(wxCommandEvent &event);
 	void OnDoodadSingleItemSelected(wxCommandEvent &event);
@@ -155,8 +156,12 @@ private:
 	void OnDoodadPreviewLeftUp(wxMouseEvent &event);
 	void OnDoodadPreviewMotion(wxMouseEvent &event);
 	void OnDoodadPreviewRightDown(wxMouseEvent &event);
+	void OnDoodadAlternativeSliderPaint(wxPaintEvent &event);
+	void OnDoodadAlternativeSliderLeftDown(wxMouseEvent &event);
 	void OnMetadataFieldChanged(wxCommandEvent &event);
 	void EndDoodadPreviewDrag();
+	void SelectDoodadAlternative(int index);
+	void StepDoodadAlternative(int delta);
 
 	MaterialsWorkbenchController &controller_;
 	std::function<void(int64_t, const wxString&, const wxString&)> onBrushSaved_;
@@ -214,7 +219,12 @@ private:
 	wxStaticText* alignedItemOwnershipLabel_ = nullptr;
 	int alignedNodeIndex_ = -1;
 	int alignedItemIndex_ = -1;
-	wxListBox* doodadAlternativesList_ = nullptr;
+	wxPanel* doodadAlternativeSliderPanel_ = nullptr;
+	wxRect doodadAlternativePrevRect_;
+	wxRect doodadAlternativeNextRect_;
+	wxRect doodadAlternativeAddRect_;
+	wxRect doodadAlternativeRemoveRect_;
+	std::vector<wxRect> doodadAlternativeIndicatorRects_;
 	wxListBox* doodadSingleItemsList_ = nullptr;
 	wxSpinCtrl* doodadSingleItemIdCtrl_ = nullptr;
 	wxSpinCtrl* doodadSingleItemChanceCtrl_ = nullptr;

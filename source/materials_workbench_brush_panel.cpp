@@ -1378,17 +1378,6 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 	wxBoxSizer* rootSizer = new wxBoxSizer(wxHORIZONTAL);
 
 	wxBoxSizer* structureSizer = new wxBoxSizer(wxVERTICAL);
-	structureSizer->Add(CreateSectionLabel(scrolled, "Alternatives"), 0, wxBOTTOM, FromDIP(6));
-	doodadAlternativesList_ = new wxListBox(scrolled, wxID_ANY);
-	doodadAlternativesList_->SetMinSize(wxSize(scrolled->FromDIP(180), scrolled->FromDIP(160)));
-	structureSizer->Add(doodadAlternativesList_, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
-	wxBoxSizer* altButtons = new wxBoxSizer(wxHORIZONTAL);
-	wxButton* addAltButton = new wxButton(scrolled, wxID_ANY, "Add Alternative");
-	wxButton* removeAltButton = new wxButton(scrolled, wxID_ANY, "Remove");
-	altButtons->Add(addAltButton, 1, wxRIGHT, FromDIP(4));
-	altButtons->Add(removeAltButton, 1);
-	structureSizer->Add(altButtons, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
-	structureSizer->Add(new wxStaticLine(scrolled), 0, wxEXPAND | wxBOTTOM, FromDIP(10));
 	structureSizer->Add(CreateSectionLabel(scrolled, "Single Items"), 0, wxBOTTOM, FromDIP(6));
 	doodadSingleItemsList_ = new wxListBox(scrolled, wxID_ANY);
 	doodadSingleItemsList_->SetMinSize(wxSize(scrolled->FromDIP(180), scrolled->FromDIP(96)));
@@ -1431,7 +1420,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 
 	wxBoxSizer* rightSizer = new wxBoxSizer(wxVERTICAL);
 	rightSizer->Add(CreateSectionLabel(scrolled, "Scene Editor"), 0, wxBOTTOM, FromDIP(6));
-	doodadPreviewSummaryLabel_ = new wxStaticText(scrolled, wxID_ANY, "Select a composite and author it directly in the scene. The grid is the source of truth for tile placement.");
+	doodadPreviewSummaryLabel_ = new wxStaticText(scrolled, wxID_ANY, "Use the slider to move between alternatives, then author the current scene directly in the grid.");
 	StyleBrushWorkspaceSubtitle(doodadPreviewSummaryLabel_);
 	doodadPreviewSummaryLabel_->Wrap(scrolled->FromDIP(520));
 	rightSizer->Add(doodadPreviewSummaryLabel_, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
@@ -1440,10 +1429,15 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 	doodadPreviewFloorChoice_ = new wxChoice(scrolled, wxID_ANY);
 	previewToolbar->Add(doodadPreviewFloorChoice_, 1, wxEXPAND);
 	rightSizer->Add(previewToolbar, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
-	doodadPreviewHintLabel_ = new wxStaticText(scrolled, wxID_ANY, "Double-click adds a tile. Drag moves it. Right-click removes it. Ctrl+click appends a new layer to the selected tile.");
+	doodadPreviewHintLabel_ = new wxStaticText(scrolled, wxID_ANY, "Double-click adds a tile. Drag moves it. Right-click removes it. Ctrl+click appends a layer. The slider squares are clickable too.");
 	StyleBrushWorkspaceSubtitle(doodadPreviewHintLabel_);
 	doodadPreviewHintLabel_->Wrap(scrolled->FromDIP(520));
 	rightSizer->Add(doodadPreviewHintLabel_, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+	doodadAlternativeSliderPanel_ = new wxPanel(scrolled, wxID_ANY);
+	doodadAlternativeSliderPanel_->SetMinSize(wxSize(-1, scrolled->FromDIP(32)));
+	doodadAlternativeSliderPanel_->SetBackgroundStyle(wxBG_STYLE_PAINT);
+	doodadAlternativeSliderPanel_->SetToolTip("Navigate alternatives, click indicators to jump, or use + and - to manage them.");
+	rightSizer->Add(doodadAlternativeSliderPanel_, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
 	doodadPreviewPanel_ = new wxPanel(scrolled, wxID_ANY, wxDefaultPosition, wxSize(scrolled->FromDIP(520), scrolled->FromDIP(420)), wxBORDER_SIMPLE);
 	doodadPreviewPanel_->SetBackgroundStyle(wxBG_STYLE_PAINT);
 	doodadPreviewPanel_->SetMinSize(wxSize(scrolled->FromDIP(520), scrolled->FromDIP(420)));
@@ -1506,9 +1500,8 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 	scrolled->SetSizer(rootSizer);
 	scrolled->FitInside();
 
-	addAltButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnAddDoodadAlternative, this);
-	removeAltButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnRemoveDoodadAlternative, this);
-	doodadAlternativesList_->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBrushPanel::OnDoodadAlternativeSelected, this);
+	doodadAlternativeSliderPanel_->Bind(wxEVT_PAINT, &MaterialsWorkbenchBrushPanel::OnDoodadAlternativeSliderPaint, this);
+	doodadAlternativeSliderPanel_->Bind(wxEVT_LEFT_DOWN, &MaterialsWorkbenchBrushPanel::OnDoodadAlternativeSliderLeftDown, this);
 	addSingleButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnAddDoodadSingleItem, this);
 	removeSingleButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnRemoveDoodadSingleItem, this);
 	doodadSingleItemsList_->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBrushPanel::OnDoodadSingleItemSelected, this);
@@ -1832,7 +1825,7 @@ void MaterialsWorkbenchBrushPanel::UpdateModifiedHighlights() {
 		ApplyModifiedEditorStyle(alignedItemsList_, false);
 		ApplyModifiedEditorStyle(alignedItemIdCtrl_, false);
 		ApplyModifiedEditorStyle(alignedItemChanceCtrl_, false);
-		ApplyModifiedEditorStyle(doodadAlternativesList_, false);
+		ApplyModifiedEditorStyle(doodadAlternativeSliderPanel_, false);
 		ApplyModifiedEditorStyle(doodadSingleItemsList_, false);
 		ApplyModifiedEditorStyle(doodadSingleItemIdCtrl_, false);
 		ApplyModifiedEditorStyle(doodadSingleItemChanceCtrl_, false);
@@ -1892,7 +1885,7 @@ void MaterialsWorkbenchBrushPanel::CommitVariationEditorState() {
 	}
 
 	if (type == "doodad") {
-		const int alternativeSelection = doodadAlternativesList_ ? doodadAlternativesList_->GetSelection() : wxNOT_FOUND;
+		const int alternativeSelection = doodadAlternativeIndex_;
 		if (alternativeSelection == wxNOT_FOUND || static_cast<size_t>(alternativeSelection) >= brushStorage_.doodadAlternatives.size()) {
 			return;
 		}
@@ -1963,7 +1956,7 @@ void MaterialsWorkbenchBrushPanel::UpdateVariationModifiedHighlights(const Brush
 	ApplyModifiedEditorStyle(alignedItemIdCtrl_, alignedModified);
 	ApplyModifiedEditorStyle(alignedItemChanceCtrl_, alignedModified);
 
-	ApplyModifiedEditorStyle(doodadAlternativesList_, doodadModified);
+	ApplyModifiedEditorStyle(doodadAlternativeSliderPanel_, doodadModified);
 	ApplyModifiedEditorStyle(doodadSingleItemsList_, doodadModified);
 	ApplyModifiedEditorStyle(doodadSingleItemIdCtrl_, doodadModified);
 	ApplyModifiedEditorStyle(doodadSingleItemChanceCtrl_, doodadModified);
@@ -2086,7 +2079,7 @@ MaterialsWorkbenchBrushPanel::VariationEditorState MaterialsWorkbenchBrushPanel:
 	state.groundTopItem = CaptureListTopItem(groundItemsList_);
 	state.alignedNodesTopItem = CaptureListTopItem(alignedNodesList_);
 	state.alignedItemsTopItem = CaptureListTopItem(alignedItemsList_);
-	state.doodadAlternativesTopItem = CaptureListTopItem(doodadAlternativesList_);
+	state.doodadAlternativesTopItem = wxNOT_FOUND;
 	state.doodadSingleItemsTopItem = CaptureListTopItem(doodadSingleItemsList_);
 	state.doodadCompositesTopItem = CaptureListTopItem(doodadCompositesList_);
 	state.doodadTilesTopItem = CaptureListTopItem(doodadTilesList_);
@@ -2160,7 +2153,6 @@ void MaterialsWorkbenchBrushPanel::RestoreVariationEditorState(const VariationEd
 	RestoreListTopItem(groundItemsList_, state.groundTopItem);
 	RestoreListTopItem(alignedNodesList_, state.alignedNodesTopItem);
 	RestoreListTopItem(alignedItemsList_, state.alignedItemsTopItem);
-	RestoreListTopItem(doodadAlternativesList_, state.doodadAlternativesTopItem);
 	RestoreListTopItem(doodadSingleItemsList_, state.doodadSingleItemsTopItem);
 	RestoreListTopItem(doodadCompositesList_, state.doodadCompositesTopItem);
 	RestoreListTopItem(doodadTilesList_, state.doodadTilesTopItem);
@@ -2473,14 +2465,8 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedSelection() {
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshDoodadAlternativeList() {
-	if (!doodadAlternativesList_) {
+	if (!doodadAlternativeSliderPanel_) {
 		return;
-	}
-
-	const int topItem = CaptureListTopItem(doodadAlternativesList_);
-	doodadAlternativesList_->Clear();
-	for (size_t i = 0; i < brushStorage_.doodadAlternatives.size(); ++i) {
-		doodadAlternativesList_->Append(FormatDoodadAlternativeLabel(brushStorage_.doodadAlternatives[i], i));
 	}
 
 	if (brushStorage_.doodadAlternatives.empty()) {
@@ -2489,10 +2475,166 @@ void MaterialsWorkbenchBrushPanel::RefreshDoodadAlternativeList() {
 		doodadAlternativeIndex_ = 0;
 	}
 
-	if (doodadAlternativeIndex_ >= 0) {
-		doodadAlternativesList_->SetSelection(doodadAlternativeIndex_);
+	doodadAlternativeIndicatorRects_.clear();
+	RefreshDoodadAlternativeSlider();
+}
+
+void MaterialsWorkbenchBrushPanel::RefreshDoodadAlternativeSlider() {
+	if (!doodadAlternativeSliderPanel_) {
+		return;
 	}
-	RestoreListTopItem(doodadAlternativesList_, topItem);
+
+	doodadAlternativeSliderPanel_->Refresh();
+}
+
+void MaterialsWorkbenchBrushPanel::SelectDoodadAlternative(int index) {
+	if (!hasBrush_ || !UsesDoodadVariationEditor()) {
+		return;
+	}
+	if (index < 0 || index >= static_cast<int>(brushStorage_.doodadAlternatives.size())) {
+		return;
+	}
+	if (doodadAlternativeIndex_ == index) {
+		return;
+	}
+
+	doodadAlternativeIndex_ = index;
+	doodadSingleItemIndex_ = ClampIndexForCount(doodadSingleItemIndex_, brushStorage_.doodadAlternatives[static_cast<size_t>(index)].singleItems.size());
+	doodadCompositeIndex_ = ClampIndexForCount(doodadCompositeIndex_, brushStorage_.doodadAlternatives[static_cast<size_t>(index)].composites.size());
+	RefreshDoodadAlternativeList();
+	RefreshDoodadSelection();
+}
+
+void MaterialsWorkbenchBrushPanel::StepDoodadAlternative(int delta) {
+	if (!hasBrush_ || !UsesDoodadVariationEditor() || brushStorage_.doodadAlternatives.empty()) {
+		return;
+	}
+
+	const int baseIndex = doodadAlternativeIndex_ >= 0 ? doodadAlternativeIndex_ : 0;
+	SelectDoodadAlternative(std::clamp(baseIndex + delta, 0, static_cast<int>(brushStorage_.doodadAlternatives.size()) - 1));
+}
+
+void MaterialsWorkbenchBrushPanel::OnDoodadAlternativeSliderPaint(wxPaintEvent &WXUNUSED(event)) {
+	if (!doodadAlternativeSliderPanel_) {
+		return;
+	}
+
+	wxAutoBufferedPaintDC dc(doodadAlternativeSliderPanel_);
+	dc.SetBackground(wxBrush(doodadAlternativeSliderPanel_->GetBackgroundColour()));
+	dc.Clear();
+
+	const wxRect rect = doodadAlternativeSliderPanel_->GetClientRect();
+	const int padding = doodadAlternativeSliderPanel_->FromDIP(4);
+	const int controlWidth = doodadAlternativeSliderPanel_->FromDIP(28);
+	const int controlHeight = doodadAlternativeSliderPanel_->FromDIP(22);
+	const int gap = doodadAlternativeSliderPanel_->FromDIP(6);
+	const int indicatorSize = doodadAlternativeSliderPanel_->FromDIP(16);
+	const int indicatorGap = doodadAlternativeSliderPanel_->FromDIP(8);
+	const int rowY = rect.y + std::max(0, (rect.height - controlHeight) / 2);
+	doodadAlternativeIndicatorRects_.clear();
+
+	const wxColour borderColour = wxColour(74, 79, 92);
+	const wxColour textColour = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT);
+	const wxColour mutedColour = wxSystemSettings::GetColour(wxSYS_COLOUR_GRAYTEXT);
+	const wxColour filledColour = wxColour(124, 186, 255);
+	const wxColour emptyFillColour = wxColour(48, 52, 60);
+	const wxColour emptyBorderColour = wxColour(92, 97, 110);
+	const wxColour accentColour = wxColour(255, 196, 92);
+	const wxColour accentInnerColour = wxColour(255, 222, 140);
+	const wxColour panelColour = wxColour(34, 37, 44);
+
+	auto drawControl = [&](const wxRect &controlRect, const wxString &label, bool enabled) {
+		dc.SetPen(wxPen(enabled ? borderColour : wxColour(58, 60, 70)));
+		dc.SetBrush(wxBrush(panelColour));
+		dc.DrawRoundedRectangle(controlRect, doodadAlternativeSliderPanel_->FromDIP(4));
+		dc.SetTextForeground(enabled ? textColour : mutedColour);
+		dc.DrawLabel(label, controlRect, wxALIGN_CENTER);
+	};
+
+	const int alternativeCount = static_cast<int>(brushStorage_.doodadAlternatives.size());
+	const bool hasAlternative = doodadAlternativeIndex_ >= 0 && doodadAlternativeIndex_ < alternativeCount;
+	const int totalIndicatorsWidth = alternativeCount > 0 ? alternativeCount * indicatorSize + (alternativeCount - 1) * indicatorGap : 0;
+	const int rowContentWidth = controlWidth + gap + controlWidth + gap + totalIndicatorsWidth + gap + controlWidth + gap + controlWidth;
+	const int rowStartX = rect.x + std::max(0, (rect.width - rowContentWidth) / 2);
+	doodadAlternativeRemoveRect_ = wxRect(rowStartX, rowY, controlWidth, controlHeight);
+	doodadAlternativePrevRect_ = wxRect(doodadAlternativeRemoveRect_.GetRight() + gap, rowY, controlWidth, controlHeight);
+	const int indicatorStartX = doodadAlternativePrevRect_.GetRight() + gap;
+	doodadAlternativeNextRect_ = wxRect(indicatorStartX + totalIndicatorsWidth + gap, rowY, controlWidth, controlHeight);
+	doodadAlternativeAddRect_ = wxRect(doodadAlternativeNextRect_.GetRight() + gap, rowY, controlWidth, controlHeight);
+
+	drawControl(doodadAlternativePrevRect_, "<", hasAlternative && doodadAlternativeIndex_ > 0);
+	drawControl(doodadAlternativeNextRect_, ">", hasAlternative && doodadAlternativeIndex_ + 1 < alternativeCount);
+	drawControl(doodadAlternativeAddRect_, "+", hasBrush_ && UsesDoodadVariationEditor());
+	drawControl(doodadAlternativeRemoveRect_, "-", hasAlternative);
+
+	const int indicatorY = rowY + (controlHeight - indicatorSize) / 2;
+
+	for (int i = 0; i < alternativeCount; ++i) {
+		wxRect indicatorRect(indicatorStartX + i * (indicatorSize + indicatorGap), indicatorY, indicatorSize, indicatorSize);
+		doodadAlternativeIndicatorRects_.push_back(indicatorRect);
+		const DoodadAlternativeRecord &alternative = brushStorage_.doodadAlternatives[static_cast<size_t>(i)];
+		bool hasVisualContent = !alternative.singleItems.empty();
+		for (const DoodadCompositeRecord &composite : alternative.composites) {
+			if (!composite.tiles.empty()) {
+				hasVisualContent = true;
+				break;
+			}
+		}
+		const bool active = i == doodadAlternativeIndex_;
+		if (active) {
+			wxRect outerRect = indicatorRect;
+			outerRect.Inflate(doodadAlternativeSliderPanel_->FromDIP(2));
+			dc.SetPen(wxPen(accentColour, 2));
+			dc.SetBrush(*wxTRANSPARENT_BRUSH);
+			dc.DrawRoundedRectangle(outerRect, doodadAlternativeSliderPanel_->FromDIP(4));
+		}
+		dc.SetPen(wxPen(hasVisualContent ? borderColour : emptyBorderColour, 1));
+		dc.SetBrush(wxBrush(hasVisualContent ? filledColour : emptyFillColour));
+		dc.DrawRoundedRectangle(indicatorRect, doodadAlternativeSliderPanel_->FromDIP(3));
+		if (active) {
+			wxRect innerRect = indicatorRect;
+			innerRect.Deflate(doodadAlternativeSliderPanel_->FromDIP(3));
+			if (innerRect.width > 0 && innerRect.height > 0) {
+				dc.SetPen(*wxTRANSPARENT_PEN);
+				dc.SetBrush(wxBrush(accentInnerColour));
+				dc.DrawRoundedRectangle(innerRect, doodadAlternativeSliderPanel_->FromDIP(2));
+			}
+		}
+	}
+
+	if (alternativeCount == 0) {
+		dc.SetTextForeground(mutedColour);
+		dc.DrawText("No alternatives", rect.x + (rect.width - dc.GetTextExtent("No alternatives").GetWidth()) / 2, rowY + (controlHeight - dc.GetCharHeight()) / 2);
+	}
+}
+
+void MaterialsWorkbenchBrushPanel::OnDoodadAlternativeSliderLeftDown(wxMouseEvent &event) {
+	const wxPoint position = event.GetPosition();
+	if (doodadAlternativePrevRect_.Contains(position)) {
+		StepDoodadAlternative(-1);
+		return;
+	}
+	if (doodadAlternativeNextRect_.Contains(position)) {
+		StepDoodadAlternative(1);
+		return;
+	}
+	if (doodadAlternativeAddRect_.Contains(position)) {
+		wxCommandEvent dummy;
+		OnAddDoodadAlternative(dummy);
+		return;
+	}
+	if (doodadAlternativeRemoveRect_.Contains(position)) {
+		wxCommandEvent dummy;
+		OnRemoveDoodadAlternative(dummy);
+		return;
+	}
+	for (size_t i = 0; i < doodadAlternativeIndicatorRects_.size(); ++i) {
+		if (doodadAlternativeIndicatorRects_[i].Contains(position)) {
+			SelectDoodadAlternative(static_cast<int>(i));
+			return;
+		}
+	}
+	event.Skip();
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshDoodadSingleItemList() {
@@ -3586,11 +3728,6 @@ void MaterialsWorkbenchBrushPanel::OnRemoveDoodadAlternative(wxCommandEvent &WXU
 	SetStatusMessage("Removed doodad alternative.");
 }
 
-void MaterialsWorkbenchBrushPanel::OnDoodadAlternativeSelected(wxCommandEvent &event) {
-	doodadAlternativeIndex_ = event.GetSelection();
-	RefreshDoodadSelection();
-}
-
 void MaterialsWorkbenchBrushPanel::OnAddDoodadSingleItem(wxCommandEvent &WXUNUSED(event)) {
 	if (!hasBrush_ || !UsesDoodadVariationEditor()) {
 		return;
@@ -3659,9 +3796,6 @@ void MaterialsWorkbenchBrushPanel::OnDoodadSingleItemValueChanged(wxCommandEvent
 		doodadSingleItemsList_->SetSelection(doodadSingleItemIndex_);
 	}
 	RefreshDoodadAlternativeList();
-	if (doodadAlternativeIndex_ >= 0) {
-		doodadAlternativesList_->SetSelection(doodadAlternativeIndex_);
-	}
 	UpdateItemOwnershipHint(doodadSingleItemOwnershipLabel_, doodadSingleItemIdCtrl_->GetValue(), true);
 	RefreshDoodadPreview();
 	RefreshDirtyState();
@@ -3734,9 +3868,6 @@ void MaterialsWorkbenchBrushPanel::OnDoodadCompositeChanceChanged(wxCommandEvent
 		doodadCompositesList_->SetSelection(doodadCompositeIndex_);
 	}
 	RefreshDoodadAlternativeList();
-	if (doodadAlternativeIndex_ >= 0) {
-		doodadAlternativesList_->SetSelection(doodadAlternativeIndex_);
-	}
 	UpdateItemOwnershipHint(doodadTileItemOwnershipLabel_, doodadTileItemIdCtrl_->GetValue(), true);
 	RefreshDoodadPreview();
 	RefreshDirtyState();
@@ -3940,9 +4071,6 @@ void MaterialsWorkbenchBrushPanel::OnDoodadTileItemValueChanged(wxCommandEvent &
 		doodadCompositesList_->SetSelection(doodadCompositeIndex_);
 	}
 	RefreshDoodadAlternativeList();
-	if (doodadAlternativeIndex_ >= 0) {
-		doodadAlternativesList_->SetSelection(doodadAlternativeIndex_);
-	}
 	UpdateItemOwnershipHint(doodadTileItemOwnershipLabel_, doodadTileItemIdCtrl_->GetValue(), true);
 	if (createdFirstTileItem) {
 		SetStatusMessage("Applied Item ID to the selected doodad tile.");
