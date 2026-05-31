@@ -317,6 +317,7 @@ namespace {
 
 	struct DoodadPreviewFloorLayout {
 		int floor = 0;
+		bool showTitle = true;
 		int minCellX = 0;
 		int maxCellX = 0;
 		int minCellY = 0;
@@ -367,10 +368,78 @@ namespace {
 	}
 
 	std::vector<int> ResolveDoodadPreviewFloorsToDraw(const DoodadCompositeRecord &composite, int selectedFloor) {
-		if (selectedFloor != -1) {
+		if (selectedFloor != MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors) {
 			return {selectedFloor};
 		}
 		return CollectDoodadCompositeFloors(composite);
+	}
+
+	wxPoint GetDoodadPreviewProjectedCell(const DoodadCompositeTileRecord &tile, bool combinedAllFloors) {
+		if (!combinedAllFloors) {
+			return wxPoint(tile.offsetX, tile.offsetY);
+		}
+		// Local doodad floors use negative Z for upper levels; project them up/left in the combined scene.
+		return wxPoint(tile.offsetX + tile.offsetZ, tile.offsetY + tile.offsetZ);
+	}
+
+	DoodadPreviewFloorLayout BuildDoodadPreviewCombinedLayout(
+		const wxRect &contentRect,
+		const DoodadCompositeRecord &composite,
+		int cellSize
+	) {
+		DoodadPreviewFloorLayout layout;
+		layout.floor = MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors;
+		layout.showTitle = false;
+
+		bool initialized = false;
+
+		for (size_t tileIndex = 0; tileIndex < composite.tiles.size(); ++tileIndex) {
+			const auto &tile = composite.tiles[tileIndex];
+			const wxPoint projectedCell = GetDoodadPreviewProjectedCell(tile, true);
+			layout.tileIndices.push_back(static_cast<int>(tileIndex));
+			if (!initialized) {
+				layout.minCellX = layout.maxCellX = projectedCell.x;
+				layout.minCellY = layout.maxCellY = projectedCell.y;
+				initialized = true;
+			} else {
+				layout.minCellX = std::min(layout.minCellX, projectedCell.x);
+				layout.maxCellX = std::max(layout.maxCellX, projectedCell.x);
+				layout.minCellY = std::min(layout.minCellY, projectedCell.y);
+				layout.maxCellY = std::max(layout.maxCellY, projectedCell.y);
+			}
+		}
+
+		std::stable_sort(
+			layout.tileIndices.begin(),
+			layout.tileIndices.end(),
+			[&composite](int leftIndex, int rightIndex) {
+				const auto &left = composite.tiles[leftIndex];
+				const auto &right = composite.tiles[rightIndex];
+				if (left.offsetZ != right.offsetZ) {
+					return left.offsetZ > right.offsetZ;
+				}
+				if (left.offsetX != right.offsetX) {
+					return left.offsetX < right.offsetX;
+				}
+				return left.offsetY < right.offsetY;
+			}
+		);
+
+		layout.minCellX -= 1;
+		layout.maxCellX += 1;
+		layout.minCellY -= 1;
+		layout.maxCellY += 1;
+
+		const int logicalMinPixelX = layout.minCellX * cellSize;
+		const int logicalMaxPixelX = (layout.maxCellX + 1) * cellSize;
+		const int logicalMinPixelY = layout.minCellY * cellSize;
+		const int logicalMaxPixelY = (layout.maxCellY + 1) * cellSize;
+		const int logicalBoundsWidth = logicalMaxPixelX - logicalMinPixelX;
+		const int logicalBoundsHeight = logicalMaxPixelY - logicalMinPixelY;
+		layout.originX = contentRect.x + std::max(0, (contentRect.GetWidth() - logicalBoundsWidth) / 2) - logicalMinPixelX;
+		layout.originY = contentRect.y + std::max(0, (contentRect.GetHeight() - logicalBoundsHeight) / 2) - logicalMinPixelY;
+		layout.titleY = contentRect.y;
+		return layout;
 	}
 
 	std::vector<DoodadPreviewFloorLayout> BuildDoodadPreviewFloorLayouts(
@@ -397,6 +466,15 @@ namespace {
 
 		std::vector<FloorMeasure> measures;
 		measures.reserve(floorsToDraw.size());
+		int globalMinCellX = 0;
+		int globalMaxCellX = 0;
+		int globalMinCellY = 0;
+		int globalMaxCellY = 0;
+		int globalMinPixelX = 0;
+		int globalMaxPixelX = 0;
+		int globalMinPixelY = 0;
+		int globalMaxPixelY = 0;
+		bool hasGlobalBounds = false;
 		for (int floor : floorsToDraw) {
 			FloorMeasure measure;
 			measure.floor = floor;
@@ -459,13 +537,37 @@ namespace {
 				measure.minPixelY = std::min(measure.minPixelY, measure.minCellY * cellSize);
 				measure.maxPixelY = std::max(measure.maxPixelY, (measure.maxCellY + 1) * cellSize);
 				measures.push_back(measure);
+
+				if (!hasGlobalBounds) {
+					globalMinCellX = measure.minCellX;
+					globalMaxCellX = measure.maxCellX;
+					globalMinCellY = measure.minCellY;
+					globalMaxCellY = measure.maxCellY;
+					globalMinPixelX = measure.minPixelX;
+					globalMaxPixelX = measure.maxPixelX;
+					globalMinPixelY = measure.minPixelY;
+					globalMaxPixelY = measure.maxPixelY;
+					hasGlobalBounds = true;
+				} else {
+					globalMinCellX = std::min(globalMinCellX, measure.minCellX);
+					globalMaxCellX = std::max(globalMaxCellX, measure.maxCellX);
+					globalMinCellY = std::min(globalMinCellY, measure.minCellY);
+					globalMaxCellY = std::max(globalMaxCellY, measure.maxCellY);
+					globalMinPixelX = std::min(globalMinPixelX, measure.minPixelX);
+					globalMaxPixelX = std::max(globalMaxPixelX, measure.maxPixelX);
+					globalMinPixelY = std::min(globalMinPixelY, measure.minPixelY);
+					globalMaxPixelY = std::max(globalMaxPixelY, measure.maxPixelY);
+				}
 			}
 		}
 
 		const int titleHeight = dc.GetCharHeight();
+		const bool useSharedViewport = measures.size() > 1;
+		const int globalBoundsHeight = hasGlobalBounds ? (globalMaxPixelY - globalMinPixelY) : 0;
 		int totalHeight = 0;
 		for (size_t i = 0; i < measures.size(); ++i) {
-			totalHeight += titleHeight + titleGap + (measures[i].maxPixelY - measures[i].minPixelY);
+			const int boundsHeight = useSharedViewport ? globalBoundsHeight : (measures[i].maxPixelY - measures[i].minPixelY);
+			totalHeight += titleHeight + titleGap + boundsHeight;
 			if (i + 1 < measures.size()) {
 				totalHeight += floorGap;
 			}
@@ -474,18 +576,24 @@ namespace {
 		int currentY = contentRect.y + std::max(0, (contentRect.GetHeight() - totalHeight) / 2);
 		std::vector<DoodadPreviewFloorLayout> layouts;
 		layouts.reserve(measures.size());
+		const int globalBoundsWidth = hasGlobalBounds ? (globalMaxPixelX - globalMinPixelX) : 0;
+		const int sharedOriginX = contentRect.x + std::max(0, (contentRect.GetWidth() - globalBoundsWidth) / 2) - globalMinPixelX;
 		for (const auto &measure : measures) {
 			const int boundsWidth = measure.maxPixelX - measure.minPixelX;
-			const int boundsHeight = measure.maxPixelY - measure.minPixelY;
+			const int boundsHeight = useSharedViewport ? globalBoundsHeight : (measure.maxPixelY - measure.minPixelY);
 
 			DoodadPreviewFloorLayout layout;
 			layout.floor = measure.floor;
-			layout.minCellX = measure.minCellX;
-			layout.maxCellX = measure.maxCellX;
-			layout.minCellY = measure.minCellY;
-			layout.maxCellY = measure.maxCellY;
-			layout.originX = contentRect.x + std::max(0, (contentRect.GetWidth() - boundsWidth) / 2) - measure.minPixelX;
-			layout.originY = currentY + titleHeight + titleGap - measure.minPixelY;
+			layout.minCellX = useSharedViewport ? globalMinCellX : measure.minCellX;
+			layout.maxCellX = useSharedViewport ? globalMaxCellX : measure.maxCellX;
+			layout.minCellY = useSharedViewport ? globalMinCellY : measure.minCellY;
+			layout.maxCellY = useSharedViewport ? globalMaxCellY : measure.maxCellY;
+			layout.originX = useSharedViewport
+				? sharedOriginX
+				: contentRect.x + std::max(0, (contentRect.GetWidth() - boundsWidth) / 2) - measure.minPixelX;
+			layout.originY = useSharedViewport
+				? currentY + titleHeight + titleGap - globalMinPixelY
+				: currentY + titleHeight + titleGap - measure.minPixelY;
 			layout.titleY = currentY;
 			layout.tileIndices = measure.tileIndices;
 			layouts.push_back(layout);
@@ -493,6 +601,29 @@ namespace {
 		}
 
 		return layouts;
+	}
+
+	std::vector<DoodadPreviewFloorLayout> BuildDoodadPreviewLayouts(
+		wxDC &dc,
+		const wxRect &contentRect,
+		const DoodadCompositeRecord &composite,
+		int selectedFloor,
+		int cellSize,
+		int floorGap,
+		int titleGap
+	) {
+		if (selectedFloor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors) {
+			return {BuildDoodadPreviewCombinedLayout(contentRect, composite, cellSize)};
+		}
+		return BuildDoodadPreviewFloorLayouts(
+			dc,
+			contentRect,
+			composite,
+			ResolveDoodadPreviewFloorsToDraw(composite, selectedFloor),
+			cellSize,
+			floorGap,
+			titleGap
+		);
 	}
 
 	bool HitTestDoodadPreview(
@@ -520,10 +651,15 @@ namespace {
 					hit.cellX = cellX;
 					hit.cellY = cellY;
 					hit.cellRect = cellRect;
-					for (int tileIndex : layout.tileIndices) {
+					for (auto it = layout.tileIndices.rbegin(); it != layout.tileIndices.rend(); ++it) {
+						const int tileIndex = *it;
 						const auto &tile = composite.tiles[tileIndex];
-						if (tile.offsetX == cellX && tile.offsetY == cellY && tile.offsetZ == layout.floor) {
+						const bool combinedAllFloors = layout.floor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors;
+						const bool matchingFloor = combinedAllFloors || tile.offsetZ == layout.floor;
+						const wxPoint projectedCell = GetDoodadPreviewProjectedCell(tile, combinedAllFloors);
+						if (projectedCell.x == cellX && projectedCell.y == cellY && matchingFloor) {
 							hit.tileIndex = tileIndex;
+							hit.floor = tile.offsetZ;
 							break;
 						}
 					}
@@ -2087,7 +2223,7 @@ void MaterialsWorkbenchBrushPanel::ResetVariationSelection() {
 	doodadCompositeIndex_ = -1;
 	doodadTileIndex_ = -1;
 	doodadTileItemIndex_ = -1;
-	doodadPreviewFloor_ = -1;
+	doodadPreviewFloor_ = MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors;
 	doodadPreviewPreferComposite_ = true;
 	doodadPreviewAvailableFloors_.clear();
 }
@@ -2576,7 +2712,7 @@ void MaterialsWorkbenchBrushPanel::RefreshDoodadPreviewFloorChoice() {
 		doodadPreviewFloorChoice_->Append("All Floors");
 		doodadPreviewFloorChoice_->SetSelection(0);
 		doodadPreviewFloorChoice_->Enable(false);
-		doodadPreviewFloor_ = -1;
+		doodadPreviewFloor_ = MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors;
 		return;
 	}
 
@@ -2588,12 +2724,12 @@ void MaterialsWorkbenchBrushPanel::RefreshDoodadPreviewFloorChoice() {
 	}
 
 	int selection = 0;
-	if (doodadPreviewFloor_ != -1) {
+	if (doodadPreviewFloor_ != MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors) {
 		const auto it = std::find(doodadPreviewAvailableFloors_.begin(), doodadPreviewAvailableFloors_.end(), doodadPreviewFloor_);
 		if (it != doodadPreviewAvailableFloors_.end()) {
 			selection = static_cast<int>(std::distance(doodadPreviewAvailableFloors_.begin(), it)) + 1;
 		} else {
-			doodadPreviewFloor_ = -1;
+			doodadPreviewFloor_ = MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors;
 		}
 	}
 
@@ -2653,8 +2789,8 @@ void MaterialsWorkbenchBrushPanel::RefreshDoodadPreview() {
 		doodadPreviewHintLabel_->SetLabel("Add a composite, then use the grid to place tiles directly and assemble the doodad brush.");
 	}
 
-	doodadPreviewSummaryLabel_->Wrap(doodadPreviewSummaryLabel_->GetParent()->FromDIP(320));
-	doodadPreviewHintLabel_->Wrap(doodadPreviewHintLabel_->GetParent()->FromDIP(320));
+	doodadPreviewSummaryLabel_->Wrap(doodadPreviewSummaryLabel_->GetParent()->FromDIP(520));
+	doodadPreviewHintLabel_->Wrap(doodadPreviewHintLabel_->GetParent()->FromDIP(520));
 	if (doodadPreviewPanel_) {
 		doodadPreviewPanel_->Refresh();
 	}
@@ -2741,11 +2877,11 @@ void MaterialsWorkbenchBrushPanel::OnDoodadPreviewPaint(wxPaintEvent &WXUNUSED(e
 		return;
 	}
 
-	const std::vector<DoodadPreviewFloorLayout> layouts = BuildDoodadPreviewFloorLayouts(
+	const std::vector<DoodadPreviewFloorLayout> layouts = BuildDoodadPreviewLayouts(
 		dc,
 		contentRect,
 		composite,
-		floorsToDraw,
+		doodadPreviewFloor_,
 		cellSize,
 		floorGap,
 		titleGap
@@ -2759,7 +2895,9 @@ void MaterialsWorkbenchBrushPanel::OnDoodadPreviewPaint(wxPaintEvent &WXUNUSED(e
 	const wxColour hoverCellColour(54, 60, 70);
 	dc.SetTextForeground(textColour);
 	for (const auto &layout : layouts) {
-		dc.DrawText(wxString::Format("Floor %d", layout.floor), layout.originX + layout.minCellX * cellSize, layout.titleY);
+		if (layout.showTitle) {
+			dc.DrawText(wxString::Format("Floor %d", layout.floor), layout.originX + layout.minCellX * cellSize, layout.titleY);
+		}
 
 		for (int cellY = layout.minCellY; cellY <= layout.maxCellY; ++cellY) {
 			for (int cellX = layout.minCellX; cellX <= layout.maxCellX; ++cellX) {
@@ -2773,18 +2911,28 @@ void MaterialsWorkbenchBrushPanel::OnDoodadPreviewPaint(wxPaintEvent &WXUNUSED(e
 				bool hasTileAtCell = false;
 				for (int tileIndex : layout.tileIndices) {
 					const auto &tile = composite.tiles[tileIndex];
-					if (tile.offsetX == cellX && tile.offsetY == cellY && tile.offsetZ == layout.floor) {
+					const bool combinedAllFloors = layout.floor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors;
+					const bool matchingFloor = combinedAllFloors || tile.offsetZ == layout.floor;
+					const wxPoint projectedCell = GetDoodadPreviewProjectedCell(tile, combinedAllFloors);
+					if (projectedCell.x == cellX && projectedCell.y == cellY && matchingFloor) {
 						hasTileAtCell = true;
 						break;
 					}
 				}
 
+				const wxPoint selectedProjectedCell =
+					(doodadTileIndex_ >= 0 && doodadTileIndex_ < static_cast<int>(composite.tiles.size()))
+						? GetDoodadPreviewProjectedCell(
+							composite.tiles[doodadTileIndex_],
+							layout.floor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors
+						)
+						: wxPoint(std::numeric_limits<int>::min(), std::numeric_limits<int>::min());
 				const bool isSelectedTile =
 					doodadTileIndex_ >= 0 &&
 					doodadTileIndex_ < static_cast<int>(composite.tiles.size()) &&
-					composite.tiles[doodadTileIndex_].offsetX == cellX &&
-					composite.tiles[doodadTileIndex_].offsetY == cellY &&
-					composite.tiles[doodadTileIndex_].offsetZ == layout.floor;
+					selectedProjectedCell.x == cellX &&
+					selectedProjectedCell.y == cellY &&
+					(layout.floor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors || composite.tiles[doodadTileIndex_].offsetZ == layout.floor);
 
 				dc.SetPen(wxPen(isSelectedTile ? selectionColour : cellBorderColour, isSelectedTile ? 2 : 1));
 				dc.SetBrush(wxBrush(hasTileAtCell ? cellColour : emptyCellColour));
@@ -2799,7 +2947,8 @@ void MaterialsWorkbenchBrushPanel::OnDoodadPreviewPaint(wxPaintEvent &WXUNUSED(e
 
 		for (int tileIndex : layout.tileIndices) {
 			const auto &tile = composite.tiles[tileIndex];
-			const wxPoint tileAnchor(layout.originX + tile.offsetX * cellSize, layout.originY + tile.offsetY * cellSize);
+			const wxPoint projectedCell = GetDoodadPreviewProjectedCell(tile, layout.floor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors);
+			const wxPoint tileAnchor(layout.originX + projectedCell.x * cellSize, layout.originY + projectedCell.y * cellSize);
 			DrawDoodadPreviewTileStack(dc, tile.items, tileAnchor);
 		}
 	}
@@ -3805,7 +3954,7 @@ void MaterialsWorkbenchBrushPanel::OnDoodadTileItemValueChanged(wxCommandEvent &
 void MaterialsWorkbenchBrushPanel::OnDoodadPreviewFloorChanged(wxCommandEvent &event) {
 	const int selection = event.GetSelection();
 	if (selection <= 0 || doodadPreviewAvailableFloors_.empty()) {
-		doodadPreviewFloor_ = -1;
+		doodadPreviewFloor_ = MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors;
 	} else if (selection - 1 < static_cast<int>(doodadPreviewAvailableFloors_.size())) {
 		doodadPreviewFloor_ = doodadPreviewAvailableFloors_[selection - 1];
 	}
@@ -3831,11 +3980,11 @@ void MaterialsWorkbenchBrushPanel::OnDoodadPreviewLeftDown(wxMouseEvent &event) 
 	wxRect contentRect = doodadPreviewPanel_->GetClientRect();
 	contentRect.Deflate(doodadPreviewPanel_->FromDIP(12));
 	const int cellSize = doodadPreviewPanel_->FromDIP(32);
-	const std::vector<DoodadPreviewFloorLayout> layouts = BuildDoodadPreviewFloorLayouts(
+	const std::vector<DoodadPreviewFloorLayout> layouts = BuildDoodadPreviewLayouts(
 		dc,
 		contentRect,
 		*composite,
-		ResolveDoodadPreviewFloorsToDraw(*composite, doodadPreviewFloor_),
+		doodadPreviewFloor_,
 		cellSize,
 		doodadPreviewPanel_->FromDIP(18),
 		doodadPreviewPanel_->FromDIP(4)
@@ -3901,20 +4050,20 @@ void MaterialsWorkbenchBrushPanel::OnDoodadPreviewLeftDClick(wxMouseEvent &event
 	contentRect.Deflate(doodadPreviewPanel_->FromDIP(12));
 
 	int targetFloor = doodadPreviewFloor_;
-	if (targetFloor == -1 && doodadTileIndex_ >= 0 && doodadTileIndex_ < static_cast<int>(composite->tiles.size())) {
+	if (targetFloor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors && doodadTileIndex_ >= 0 && doodadTileIndex_ < static_cast<int>(composite->tiles.size())) {
 		targetFloor = composite->tiles[doodadTileIndex_].offsetZ;
 	}
-	if (targetFloor == -1) {
+	if (targetFloor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors) {
 		targetFloor = 0;
 	}
 
 	DoodadPreviewHit hit;
 	if (!composite->tiles.empty()) {
-		const std::vector<DoodadPreviewFloorLayout> layouts = BuildDoodadPreviewFloorLayouts(
+		const std::vector<DoodadPreviewFloorLayout> layouts = BuildDoodadPreviewLayouts(
 			dc,
 			contentRect,
 			*composite,
-			ResolveDoodadPreviewFloorsToDraw(*composite, doodadPreviewFloor_),
+			doodadPreviewFloor_,
 			cellSize,
 			floorGap,
 			titleGap
@@ -3977,11 +4126,11 @@ void MaterialsWorkbenchBrushPanel::OnDoodadPreviewMotion(wxMouseEvent &event) {
 	const int cellSize = doodadPreviewPanel_->FromDIP(32);
 	wxRect contentRect = doodadPreviewPanel_->GetClientRect();
 	contentRect.Deflate(doodadPreviewPanel_->FromDIP(12));
-	const std::vector<DoodadPreviewFloorLayout> layouts = BuildDoodadPreviewFloorLayouts(
+	const std::vector<DoodadPreviewFloorLayout> layouts = BuildDoodadPreviewLayouts(
 		dc,
 		contentRect,
 		*composite,
-		ResolveDoodadPreviewFloorsToDraw(*composite, doodadPreviewFloor_),
+		doodadPreviewFloor_,
 		cellSize,
 		doodadPreviewPanel_->FromDIP(18),
 		doodadPreviewPanel_->FromDIP(4)
@@ -4021,11 +4170,11 @@ void MaterialsWorkbenchBrushPanel::OnDoodadPreviewRightDown(wxMouseEvent &event)
 	const int cellSize = doodadPreviewPanel_->FromDIP(32);
 	wxRect contentRect = doodadPreviewPanel_->GetClientRect();
 	contentRect.Deflate(doodadPreviewPanel_->FromDIP(12));
-	const std::vector<DoodadPreviewFloorLayout> layouts = BuildDoodadPreviewFloorLayouts(
+	const std::vector<DoodadPreviewFloorLayout> layouts = BuildDoodadPreviewLayouts(
 		dc,
 		contentRect,
 		*composite,
-		ResolveDoodadPreviewFloorsToDraw(*composite, doodadPreviewFloor_),
+		doodadPreviewFloor_,
 		cellSize,
 		doodadPreviewPanel_->FromDIP(18),
 		doodadPreviewPanel_->FromDIP(4)

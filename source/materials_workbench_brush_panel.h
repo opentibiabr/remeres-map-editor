@@ -2,6 +2,7 @@
 #define RME_MATERIALS_WORKBENCH_BRUSH_PANEL_H_
 
 #include <functional>
+#include <limits>
 
 #include <wx/panel.h>
 
@@ -23,6 +24,8 @@ class wxTextCtrl;
 
 class MaterialsWorkbenchBrushPanel : public wxPanel {
 public:
+	static constexpr int kDoodadPreviewAllFloors = std::numeric_limits<int>::min();
+
 	MaterialsWorkbenchBrushPanel(wxWindow* parent, MaterialsWorkbenchController &controller);
 
 	void ClearWorkspace(const wxString &message);
@@ -49,7 +52,7 @@ private:
 		int doodadCompositeIndex = -1;
 		int doodadTileIndex = -1;
 		int doodadTileItemIndex = -1;
-		int doodadPreviewFloor = -1;
+		int doodadPreviewFloor = kDoodadPreviewAllFloors;
 		bool doodadPreviewPreferComposite = true;
 		int groundTopItem = -1;
 		int alignedNodesTopItem = -1;
@@ -234,7 +237,7 @@ private:
 	int doodadCompositeIndex_ = -1;
 	int doodadTileIndex_ = -1;
 	int doodadTileItemIndex_ = -1;
-	int doodadPreviewFloor_ = -1;
+	int doodadPreviewFloor_ = kDoodadPreviewAllFloors;
 	bool doodadPreviewPreferComposite_ = true;
 	std::vector<int> doodadPreviewAvailableFloors_;
 	bool doodadPreviewDraggingTile_ = false;
