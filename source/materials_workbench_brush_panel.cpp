@@ -10,6 +10,7 @@
 #include <wx/checkbox.h>
 #include <wx/choice.h>
 #include <wx/dcbuffer.h>
+#include <wx/dialog.h>
 #include <wx/listbox.h>
 #include <wx/msgdlg.h>
 #include <wx/notebook.h>
@@ -216,6 +217,83 @@ namespace {
 		dc.SetPen(*wxTRANSPARENT_PEN);
 		dc.SetBrush(wxBrush(colour));
 		dc.DrawPolygon(3, points);
+	}
+
+	bool ShowDoodadSingleItemDialog(wxWindow* parent, const wxString &title, int &itemId, int &chance) {
+		wxDialog dialog(parent, wxID_ANY, title, wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
+		wxBoxSizer* rootSizer = new wxBoxSizer(wxVERTICAL);
+		wxFlexGridSizer* formSizer = new wxFlexGridSizer(2, parent->FromDIP(8), parent->FromDIP(8));
+		formSizer->AddGrowableCol(1, 1);
+
+		wxSpinCtrl* itemIdCtrl = CreateItemIdSpinField(&dialog);
+		itemIdCtrl->SetValue(itemId);
+		wxSpinCtrl* chanceCtrl = CreateSpinField(&dialog, 0, 1000000);
+		chanceCtrl->SetValue(chance);
+
+		formSizer->Add(new wxStaticText(&dialog, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
+		formSizer->Add(itemIdCtrl, 1, wxEXPAND);
+		formSizer->Add(new wxStaticText(&dialog, wxID_ANY, "Chance"), 0, wxALIGN_CENTER_VERTICAL);
+		formSizer->Add(chanceCtrl, 1, wxEXPAND);
+		rootSizer->Add(formSizer, 1, wxEXPAND | wxALL, parent->FromDIP(12));
+		rootSizer->Add(dialog.CreateSeparatedButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, parent->FromDIP(12));
+
+		dialog.SetSizerAndFit(rootSizer);
+		dialog.SetMinSize(dialog.GetSize());
+		if (dialog.ShowModal() != wxID_OK) {
+			return false;
+		}
+
+		itemId = itemIdCtrl->GetValue();
+		chance = chanceCtrl->GetValue();
+		return true;
+	}
+
+	bool ShowDoodadChanceDialog(wxWindow* parent, const wxString &title, int &chance) {
+		wxDialog dialog(parent, wxID_ANY, title, wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
+		wxBoxSizer* rootSizer = new wxBoxSizer(wxVERTICAL);
+		wxFlexGridSizer* formSizer = new wxFlexGridSizer(2, parent->FromDIP(8), parent->FromDIP(8));
+		formSizer->AddGrowableCol(1, 1);
+
+		wxSpinCtrl* chanceCtrl = CreateSpinField(&dialog, 0, 1000000);
+		chanceCtrl->SetValue(chance);
+
+		formSizer->Add(new wxStaticText(&dialog, wxID_ANY, "Chance"), 0, wxALIGN_CENTER_VERTICAL);
+		formSizer->Add(chanceCtrl, 1, wxEXPAND);
+		rootSizer->Add(formSizer, 1, wxEXPAND | wxALL, parent->FromDIP(12));
+		rootSizer->Add(dialog.CreateSeparatedButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, parent->FromDIP(12));
+
+		dialog.SetSizerAndFit(rootSizer);
+		dialog.SetMinSize(dialog.GetSize());
+		if (dialog.ShowModal() != wxID_OK) {
+			return false;
+		}
+
+		chance = chanceCtrl->GetValue();
+		return true;
+	}
+
+	bool ShowDoodadTileItemDialog(wxWindow* parent, const wxString &title, int &itemId) {
+		wxDialog dialog(parent, wxID_ANY, title, wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
+		wxBoxSizer* rootSizer = new wxBoxSizer(wxVERTICAL);
+		wxFlexGridSizer* formSizer = new wxFlexGridSizer(2, parent->FromDIP(8), parent->FromDIP(8));
+		formSizer->AddGrowableCol(1, 1);
+
+		wxSpinCtrl* itemIdCtrl = CreateItemIdSpinField(&dialog);
+		itemIdCtrl->SetValue(itemId);
+
+		formSizer->Add(new wxStaticText(&dialog, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
+		formSizer->Add(itemIdCtrl, 1, wxEXPAND);
+		rootSizer->Add(formSizer, 1, wxEXPAND | wxALL, parent->FromDIP(12));
+		rootSizer->Add(dialog.CreateSeparatedButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, parent->FromDIP(12));
+
+		dialog.SetSizerAndFit(rootSizer);
+		dialog.SetMinSize(dialog.GetSize());
+		if (dialog.ShowModal() != wxID_OK) {
+			return false;
+		}
+
+		itemId = itemIdCtrl->GetValue();
+		return true;
 	}
 
 	struct DoodadPreviewSpriteMetrics {
@@ -1458,35 +1536,40 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 	singleButtons->Add(addSingleButton, 1, wxRIGHT, FromDIP(4));
 	singleButtons->Add(removeSingleButton, 1);
 	structureSizer->Add(singleButtons, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
-	wxFlexGridSizer* singleForm = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
-	singleForm->AddGrowableCol(1, 1);
 	doodadSingleItemIdCtrl_ = CreateItemIdSpinField(scrolled);
 	doodadSingleItemChanceCtrl_ = CreateSpinField(scrolled, 0, 1000000);
 	doodadSingleItemOwnershipLabel_ = new wxStaticText(scrolled, wxID_ANY, "Runtime owner: select an item entry.");
-	singleForm->Add(new wxStaticText(scrolled, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
-	singleForm->Add(doodadSingleItemIdCtrl_, 1, wxEXPAND);
-	singleForm->AddSpacer(0);
-	singleForm->Add(doodadSingleItemOwnershipLabel_, 1, wxEXPAND);
-	singleForm->Add(new wxStaticText(scrolled, wxID_ANY, "Chance"), 0, wxALIGN_CENTER_VERTICAL);
-	singleForm->Add(doodadSingleItemChanceCtrl_, 1, wxEXPAND);
-	structureSizer->Add(singleForm, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+	doodadSingleItemIdCtrl_->Hide();
+	doodadSingleItemChanceCtrl_->Hide();
+	doodadSingleItemOwnershipLabel_->Hide();
 	structureSizer->Add(new wxStaticLine(scrolled), 0, wxEXPAND | wxBOTTOM, FromDIP(10));
 	structureSizer->Add(CreateSectionLabel(scrolled, "Composites"), 0, wxBOTTOM, FromDIP(6));
 	doodadCompositesList_ = new wxListBox(scrolled, wxID_ANY);
-	doodadCompositesList_->SetMinSize(wxSize(scrolled->FromDIP(220), scrolled->FromDIP(180)));
-	structureSizer->Add(doodadCompositesList_, 1, wxEXPAND | wxBOTTOM, FromDIP(6));
+	doodadCompositesList_->SetMinSize(wxSize(scrolled->FromDIP(220), scrolled->FromDIP(132)));
+	structureSizer->Add(doodadCompositesList_, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
 	wxBoxSizer* compositeButtons = new wxBoxSizer(wxHORIZONTAL);
 	wxButton* addCompositeButton = new wxButton(scrolled, wxID_ANY, "Add Composite");
 	wxButton* removeCompositeButton = new wxButton(scrolled, wxID_ANY, "Remove");
 	compositeButtons->Add(addCompositeButton, 1, wxRIGHT, FromDIP(4));
 	compositeButtons->Add(removeCompositeButton, 1);
 	structureSizer->Add(compositeButtons, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
-	wxFlexGridSizer* compositeForm = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
-	compositeForm->AddGrowableCol(1, 1);
 	doodadCompositeChanceCtrl_ = CreateSpinField(scrolled, 0, 1000000);
-	compositeForm->Add(new wxStaticText(scrolled, wxID_ANY, "Chance"), 0, wxALIGN_CENTER_VERTICAL);
-	compositeForm->Add(doodadCompositeChanceCtrl_, 1, wxEXPAND);
-	structureSizer->Add(compositeForm, 0, wxEXPAND);
+	doodadCompositeChanceCtrl_->Hide();
+	structureSizer->Add(new wxStaticLine(scrolled), 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+	structureSizer->Add(CreateSectionLabel(scrolled, "Tile Layers"), 0, wxBOTTOM, FromDIP(6));
+	doodadTileItemsList_ = new wxListBox(scrolled, wxID_ANY);
+	doodadTileItemsList_->SetMinSize(wxSize(scrolled->FromDIP(220), scrolled->FromDIP(116)));
+	structureSizer->Add(doodadTileItemsList_, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
+	wxBoxSizer* tileItemButtons = new wxBoxSizer(wxHORIZONTAL);
+	wxButton* addTileItemButton = new wxButton(scrolled, wxID_ANY, "Add Item");
+	wxButton* removeTileItemButton = new wxButton(scrolled, wxID_ANY, "Remove");
+	tileItemButtons->Add(addTileItemButton, 1, wxRIGHT, FromDIP(4));
+	tileItemButtons->Add(removeTileItemButton, 1);
+	structureSizer->Add(tileItemButtons, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+	doodadTileItemIdCtrl_ = CreateItemIdSpinField(scrolled);
+	doodadTileItemOwnershipLabel_ = new wxStaticText(scrolled, wxID_ANY, "Runtime owner: select a tile in the grid or an item entry.");
+	doodadTileItemIdCtrl_->Hide();
+	doodadTileItemOwnershipLabel_->Hide();
 
 	wxBoxSizer* rightSizer = new wxBoxSizer(wxVERTICAL);
 	rightSizer->Add(CreateSectionLabel(scrolled, "Scene Editor"), 0, wxBOTTOM, FromDIP(6));
@@ -1515,8 +1598,6 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 	previewContentSizer->Add(doodadPreviewFloorSliderPanel_, 0, wxEXPAND);
 	rightSizer->Add(previewContentSizer, 1, wxEXPAND | wxBOTTOM, FromDIP(12));
 
-	wxBoxSizer* detailRow = new wxBoxSizer(wxHORIZONTAL);
-
 	doodadTilesList_ = new wxListBox(scrolled, wxID_ANY);
 	doodadTilesList_->SetMinSize(wxSize(scrolled->FromDIP(180), scrolled->FromDIP(84)));
 	doodadTilesList_->Hide();
@@ -1531,30 +1612,6 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 	doodadTileOffsetYCtrl_->Hide();
 	doodadTileOffsetZCtrl_->Hide();
 
-	wxBoxSizer* itemColumnSizer = new wxBoxSizer(wxVERTICAL);
-	itemColumnSizer->Add(CreateSectionLabel(scrolled, "Tile Layers"), 0, wxBOTTOM, FromDIP(6));
-	doodadTileItemsList_ = new wxListBox(scrolled, wxID_ANY);
-	doodadTileItemsList_->SetMinSize(wxSize(scrolled->FromDIP(220), scrolled->FromDIP(84)));
-	itemColumnSizer->Add(doodadTileItemsList_, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
-	wxBoxSizer* tileItemButtons = new wxBoxSizer(wxHORIZONTAL);
-	wxButton* addTileItemButton = new wxButton(scrolled, wxID_ANY, "Add Item");
-	wxButton* removeTileItemButton = new wxButton(scrolled, wxID_ANY, "Remove");
-	tileItemButtons->Add(addTileItemButton, 1, wxRIGHT, FromDIP(4));
-	tileItemButtons->Add(removeTileItemButton, 1);
-	itemColumnSizer->Add(tileItemButtons, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
-	wxFlexGridSizer* tileItemForm = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
-	tileItemForm->AddGrowableCol(1, 1);
-	doodadTileItemIdCtrl_ = CreateItemIdSpinField(scrolled);
-	doodadTileItemOwnershipLabel_ = new wxStaticText(scrolled, wxID_ANY, "Runtime owner: select a tile in the grid or an item entry.");
-	tileItemForm->Add(new wxStaticText(scrolled, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
-	tileItemForm->Add(doodadTileItemIdCtrl_, 1, wxEXPAND);
-	tileItemForm->AddSpacer(0);
-	tileItemForm->Add(doodadTileItemOwnershipLabel_, 1, wxEXPAND);
-	itemColumnSizer->Add(tileItemForm, 0, wxEXPAND);
-
-	detailRow->Add(itemColumnSizer, 1, wxEXPAND);
-	rightSizer->Add(detailRow, 0, wxEXPAND);
-
 	rootSizer->Add(structureSizer, 0, wxEXPAND | wxRIGHT, FromDIP(10));
 	rootSizer->Add(new wxStaticLine(scrolled, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_VERTICAL), 0, wxEXPAND | wxRIGHT, FromDIP(10));
 	rootSizer->Add(rightSizer, 1, wxEXPAND);
@@ -1568,6 +1625,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 	addSingleButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnAddDoodadSingleItem, this);
 	removeSingleButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnRemoveDoodadSingleItem, this);
 	doodadSingleItemsList_->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBrushPanel::OnDoodadSingleItemSelected, this);
+	doodadSingleItemsList_->Bind(wxEVT_RIGHT_DOWN, &MaterialsWorkbenchBrushPanel::OnDoodadSingleItemRightDown, this);
 	doodadSingleItemIdCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBrushPanel::OnDoodadSingleItemValueChanged, this);
 	doodadSingleItemChanceCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBrushPanel::OnDoodadSingleItemValueChanged, this);
 	doodadSingleItemIdCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnDoodadSingleItemValueChanged, this);
@@ -1575,6 +1633,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 	addCompositeButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnAddDoodadComposite, this);
 	removeCompositeButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnRemoveDoodadComposite, this);
 	doodadCompositesList_->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBrushPanel::OnDoodadCompositeSelected, this);
+	doodadCompositesList_->Bind(wxEVT_RIGHT_DOWN, &MaterialsWorkbenchBrushPanel::OnDoodadCompositeRightDown, this);
 	doodadCompositeChanceCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBrushPanel::OnDoodadCompositeChanceChanged, this);
 	doodadCompositeChanceCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnDoodadCompositeChanceChanged, this);
 	doodadPreviewPanel_->Bind(wxEVT_PAINT, &MaterialsWorkbenchBrushPanel::OnDoodadPreviewPaint, this);
@@ -1592,6 +1651,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 	addTileItemButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnAddDoodadTileItem, this);
 	removeTileItemButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnRemoveDoodadTileItem, this);
 	doodadTileItemsList_->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBrushPanel::OnDoodadTileItemSelected, this);
+	doodadTileItemsList_->Bind(wxEVT_RIGHT_DOWN, &MaterialsWorkbenchBrushPanel::OnDoodadTileItemRightDown, this);
 	doodadTileItemIdCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBrushPanel::OnDoodadTileItemValueChanged, this);
 	doodadTileItemIdCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnDoodadTileItemValueChanged, this);
 	return panel;
@@ -4035,8 +4095,16 @@ void MaterialsWorkbenchBrushPanel::OnAddDoodadSingleItem(wxCommandEvent &WXUNUSE
 		SetStatusMessage("Add or select an alternative before adding single items.");
 		return;
 	}
+
+	int itemId = doodadSingleItemIdCtrl_ ? doodadSingleItemIdCtrl_->GetValue() : 0;
+	int chance = 1;
+	if (!ShowDoodadSingleItemDialog(this, "Add Single Item", itemId, chance)) {
+		return;
+	}
+
 	DoodadSingleItemRecord item;
-	item.chance = 1;
+	item.itemId = itemId;
+	item.chance = chance;
 	auto &singleItems = brushStorage_.doodadAlternatives[doodadAlternativeIndex_].singleItems;
 	singleItems.push_back(item);
 	doodadSingleItemIndex_ = static_cast<int>(singleItems.size()) - 1;
@@ -4044,7 +4112,7 @@ void MaterialsWorkbenchBrushPanel::OnAddDoodadSingleItem(wxCommandEvent &WXUNUSE
 	RefreshDoodadSelection();
 	UpdateSummary();
 	RefreshDirtyState();
-	SetStatusMessage("Added doodad single item.");
+	SetStatusMessage(wxString::Format("Added doodad single item %d.", itemId));
 }
 
 void MaterialsWorkbenchBrushPanel::OnRemoveDoodadSingleItem(wxCommandEvent &WXUNUSED(event)) {
@@ -4074,6 +4142,45 @@ void MaterialsWorkbenchBrushPanel::OnDoodadSingleItemSelected(wxCommandEvent &ev
 	doodadSingleItemIndex_ = event.GetSelection();
 	doodadPreviewPreferComposite_ = false;
 	RefreshDoodadSelection();
+}
+
+void MaterialsWorkbenchBrushPanel::OnDoodadSingleItemRightDown(wxMouseEvent &event) {
+	if (!hasBrush_ || !UsesDoodadVariationEditor() || !doodadSingleItemsList_) {
+		event.Skip();
+		return;
+	}
+
+	const int index = doodadSingleItemsList_->HitTest(event.GetPosition());
+	if (index == wxNOT_FOUND || doodadAlternativeIndex_ < 0 || doodadAlternativeIndex_ >= static_cast<int>(brushStorage_.doodadAlternatives.size())) {
+		event.Skip();
+		return;
+	}
+
+	auto &singleItems = brushStorage_.doodadAlternatives[doodadAlternativeIndex_].singleItems;
+	if (index < 0 || index >= static_cast<int>(singleItems.size())) {
+		event.Skip();
+		return;
+	}
+
+	int itemId = singleItems[static_cast<size_t>(index)].itemId;
+	int chance = singleItems[static_cast<size_t>(index)].chance;
+	if (ShowDoodadSingleItemDialog(this, "Edit Single Item", itemId, chance)) {
+		singleItems[static_cast<size_t>(index)].itemId = itemId;
+		singleItems[static_cast<size_t>(index)].chance = chance;
+		RefreshDoodadSingleItemList();
+		RefreshDoodadAlternativeList();
+		if (doodadSingleItemIndex_ >= 0 && doodadSingleItemIndex_ < static_cast<int>(singleItems.size())) {
+			UpdateItemOwnershipHint(
+				doodadSingleItemOwnershipLabel_,
+				singleItems[static_cast<size_t>(doodadSingleItemIndex_)].itemId,
+				true
+			);
+		}
+		RefreshDoodadPreview();
+		UpdateSummary();
+		RefreshDirtyState();
+		SetStatusMessage(wxString::Format("Updated doodad single item %d.", itemId));
+	}
 }
 
 void MaterialsWorkbenchBrushPanel::OnDoodadSingleItemValueChanged(wxCommandEvent &WXUNUSED(event)) {
@@ -4108,8 +4215,14 @@ void MaterialsWorkbenchBrushPanel::OnAddDoodadComposite(wxCommandEvent &WXUNUSED
 		SetStatusMessage("Add or select an alternative before adding composites.");
 		return;
 	}
+
+	int chance = 1;
+	if (!ShowDoodadChanceDialog(this, "Add Composite", chance)) {
+		return;
+	}
+
 	DoodadCompositeRecord composite;
-	composite.chance = 1;
+	composite.chance = chance;
 	auto &composites = brushStorage_.doodadAlternatives[doodadAlternativeIndex_].composites;
 	composites.push_back(composite);
 	doodadCompositeIndex_ = static_cast<int>(composites.size()) - 1;
@@ -4118,7 +4231,7 @@ void MaterialsWorkbenchBrushPanel::OnAddDoodadComposite(wxCommandEvent &WXUNUSED
 	RefreshDoodadSelection();
 	UpdateSummary();
 	RefreshDirtyState();
-	SetStatusMessage("Added doodad composite.");
+	SetStatusMessage(wxString::Format("Added doodad composite with chance %d.", chance));
 }
 
 void MaterialsWorkbenchBrushPanel::OnRemoveDoodadComposite(wxCommandEvent &WXUNUSED(event)) {
@@ -4150,6 +4263,35 @@ void MaterialsWorkbenchBrushPanel::OnDoodadCompositeSelected(wxCommandEvent &eve
 	doodadPreviewAuthoringFloors_.clear();
 	doodadPreviewPreferComposite_ = true;
 	RefreshDoodadSelection();
+}
+
+void MaterialsWorkbenchBrushPanel::OnDoodadCompositeRightDown(wxMouseEvent &event) {
+	if (!hasBrush_ || !UsesDoodadVariationEditor() || !doodadCompositesList_) {
+		event.Skip();
+		return;
+	}
+
+	const int index = doodadCompositesList_->HitTest(event.GetPosition());
+	if (index == wxNOT_FOUND || doodadAlternativeIndex_ < 0 || doodadAlternativeIndex_ >= static_cast<int>(brushStorage_.doodadAlternatives.size())) {
+		event.Skip();
+		return;
+	}
+
+	auto &composites = brushStorage_.doodadAlternatives[doodadAlternativeIndex_].composites;
+	if (index < 0 || index >= static_cast<int>(composites.size())) {
+		event.Skip();
+		return;
+	}
+
+	int chance = composites[static_cast<size_t>(index)].chance;
+	if (ShowDoodadChanceDialog(this, "Edit Composite Chance", chance)) {
+		composites[static_cast<size_t>(index)].chance = chance;
+		RefreshDoodadCompositeList();
+		RefreshDoodadPreview();
+		UpdateSummary();
+		RefreshDirtyState();
+		SetStatusMessage(wxString::Format("Updated composite chance to %d.", chance));
+	}
 }
 
 void MaterialsWorkbenchBrushPanel::OnDoodadCompositeChanceChanged(wxCommandEvent &WXUNUSED(event)) {
@@ -4285,13 +4427,21 @@ void MaterialsWorkbenchBrushPanel::OnAddDoodadTileItem(wxCommandEvent &WXUNUSED(
 		SetStatusMessage("Select a tile before adding items.");
 		return;
 	}
-	tiles[doodadTileIndex_].items.emplace_back();
+
+	int itemId = doodadTileItemIdCtrl_ ? doodadTileItemIdCtrl_->GetValue() : 0;
+	if (!ShowDoodadTileItemDialog(this, "Add Tile Layer", itemId)) {
+		return;
+	}
+
+	DoodadCompositeTileItemRecord item;
+	item.itemId = itemId;
+	tiles[doodadTileIndex_].items.push_back(item);
 	doodadTileItemIndex_ = static_cast<int>(tiles[doodadTileIndex_].items.size()) - 1;
 	doodadPreviewPreferComposite_ = true;
 	RefreshDoodadSelection();
 	UpdateSummary();
 	RefreshDirtyState();
-	SetStatusMessage("Added doodad tile item.");
+	SetStatusMessage(wxString::Format("Added tile layer %d.", itemId));
 }
 
 void MaterialsWorkbenchBrushPanel::OnRemoveDoodadTileItem(wxCommandEvent &WXUNUSED(event)) {
@@ -4331,6 +4481,53 @@ void MaterialsWorkbenchBrushPanel::OnDoodadTileItemSelected(wxCommandEvent &even
 	doodadTileItemIndex_ = event.GetSelection();
 	doodadPreviewPreferComposite_ = true;
 	RefreshDoodadSelection();
+}
+
+void MaterialsWorkbenchBrushPanel::OnDoodadTileItemRightDown(wxMouseEvent &event) {
+	if (!hasBrush_ || !UsesDoodadVariationEditor() || !doodadTileItemsList_) {
+		event.Skip();
+		return;
+	}
+	if (doodadAlternativeIndex_ < 0 || doodadAlternativeIndex_ >= static_cast<int>(brushStorage_.doodadAlternatives.size())) {
+		event.Skip();
+		return;
+	}
+
+	auto &composites = brushStorage_.doodadAlternatives[doodadAlternativeIndex_].composites;
+	if (doodadCompositeIndex_ < 0 || doodadCompositeIndex_ >= static_cast<int>(composites.size())) {
+		event.Skip();
+		return;
+	}
+
+	auto &tiles = composites[doodadCompositeIndex_].tiles;
+	if (doodadTileIndex_ < 0 || doodadTileIndex_ >= static_cast<int>(tiles.size())) {
+		event.Skip();
+		return;
+	}
+
+	const int index = doodadTileItemsList_->HitTest(event.GetPosition());
+	auto &items = tiles[doodadTileIndex_].items;
+	if (index == wxNOT_FOUND || index < 0 || index >= static_cast<int>(items.size())) {
+		event.Skip();
+		return;
+	}
+
+	int itemId = items[static_cast<size_t>(index)].itemId;
+	if (ShowDoodadTileItemDialog(this, "Edit Tile Layer", itemId)) {
+		items[static_cast<size_t>(index)].itemId = itemId;
+		RefreshDoodadTileItemList();
+		if (doodadTileItemIndex_ >= 0 && doodadTileItemIndex_ < static_cast<int>(items.size())) {
+			UpdateItemOwnershipHint(
+				doodadTileItemOwnershipLabel_,
+				items[static_cast<size_t>(doodadTileItemIndex_)].itemId,
+				true
+			);
+		}
+		RefreshDoodadPreview();
+		UpdateSummary();
+		RefreshDirtyState();
+		SetStatusMessage(wxString::Format("Updated tile layer to %d.", itemId));
+	}
 }
 
 void MaterialsWorkbenchBrushPanel::OnDoodadTileItemValueChanged(wxCommandEvent &WXUNUSED(event)) {

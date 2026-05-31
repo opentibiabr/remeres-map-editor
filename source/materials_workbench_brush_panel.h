@@ -136,10 +136,12 @@ private:
 	void OnAddDoodadSingleItem(wxCommandEvent &event);
 	void OnRemoveDoodadSingleItem(wxCommandEvent &event);
 	void OnDoodadSingleItemSelected(wxCommandEvent &event);
+	void OnDoodadSingleItemRightDown(wxMouseEvent &event);
 	void OnDoodadSingleItemValueChanged(wxCommandEvent &event);
 	void OnAddDoodadComposite(wxCommandEvent &event);
 	void OnRemoveDoodadComposite(wxCommandEvent &event);
 	void OnDoodadCompositeSelected(wxCommandEvent &event);
+	void OnDoodadCompositeRightDown(wxMouseEvent &event);
 	void OnDoodadCompositeChanceChanged(wxCommandEvent &event);
 	void OnAddDoodadTile(wxCommandEvent &event);
 	void OnRemoveDoodadTile(wxCommandEvent &event);
@@ -148,6 +150,7 @@ private:
 	void OnAddDoodadTileItem(wxCommandEvent &event);
 	void OnRemoveDoodadTileItem(wxCommandEvent &event);
 	void OnDoodadTileItemSelected(wxCommandEvent &event);
+	void OnDoodadTileItemRightDown(wxMouseEvent &event);
 	void OnDoodadTileItemValueChanged(wxCommandEvent &event);
 	void OnDoodadPreviewPaint(wxPaintEvent &event);
 	void OnDoodadPreviewLeftDown(wxMouseEvent &event);
