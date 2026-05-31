@@ -50,6 +50,7 @@
 
 ## Delivered Highlights
 - [x] Brush Workspace: metadata, `variations`, dirty state, save/revert, runtime-owner hints, and validation for `lookId`, `serverLookId`, and variation item ids
+- [x] Brush Workspace `Ground` visual variation pass: weighted ground items now use visual cards with sprite previews, percent/badge feedback, contextual add/edit dialogs, and a seamless scrolled preview grid with hover tooltips, optional rarity highlighting, and click-to-select sync from preview back to the current variant
 - [x] Brush Workspace `Doodad` stage 1: the existing alternative/single/composite/tile forms now drive a visual `Scene Preview` with real 32x32 cells, floor filtering, centered single-item preview, and selection-aware composite rendering without breaking legacy XML-compatible authoring
 - [x] Brush Workspace `Doodad` stage 2: the `Scene Editor` now keeps tile selection in backend state and drives visual tile authoring directly, with left-click add/select behavior, right-click item/tile removal, hidden tile offset controls, and Ctrl+click item stamping using the current `Item ID`
 - [x] Brush Workspace `Doodad` stage 3: live runtime sync now mirrors valid in-memory composite edits into the active runtime brush and palette selection immediately, so edited doodads can be painted on the map before `Save`

@@ -2,6 +2,7 @@
 
 #include "materials_workbench_brush_panel.h"
 
+#include <cmath>
 #include <limits>
 #include <set>
 #include <utility>
@@ -296,6 +297,35 @@ namespace {
 		return true;
 	}
 
+	bool ShowWeightedBrushItemDialog(wxWindow* parent, const wxString &title, int &itemId, int &chance) {
+		wxDialog dialog(parent, wxID_ANY, title, wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
+		wxBoxSizer* rootSizer = new wxBoxSizer(wxVERTICAL);
+		wxFlexGridSizer* formSizer = new wxFlexGridSizer(2, parent->FromDIP(8), parent->FromDIP(8));
+		formSizer->AddGrowableCol(1, 1);
+
+		wxSpinCtrl* itemIdCtrl = CreateItemIdSpinField(&dialog);
+		itemIdCtrl->SetValue(itemId);
+		wxSpinCtrl* chanceCtrl = CreateSpinField(&dialog, 0, 1000000);
+		chanceCtrl->SetValue(chance);
+
+		formSizer->Add(new wxStaticText(&dialog, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
+		formSizer->Add(itemIdCtrl, 1, wxEXPAND);
+		formSizer->Add(new wxStaticText(&dialog, wxID_ANY, "Chance"), 0, wxALIGN_CENTER_VERTICAL);
+		formSizer->Add(chanceCtrl, 1, wxEXPAND);
+		rootSizer->Add(formSizer, 1, wxEXPAND | wxALL, parent->FromDIP(12));
+		rootSizer->Add(dialog.CreateSeparatedButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, parent->FromDIP(12));
+
+		dialog.SetSizerAndFit(rootSizer);
+		dialog.SetMinSize(dialog.GetSize());
+		if (dialog.ShowModal() != wxID_OK) {
+			return false;
+		}
+
+		itemId = itemIdCtrl->GetValue();
+		chance = chanceCtrl->GetValue();
+		return true;
+	}
+
 	struct DoodadPreviewSpriteMetrics {
 		int spriteId = 0;
 		int widthPx = 32;
@@ -428,6 +458,81 @@ namespace {
 			return;
 		}
 		dc.DrawBitmap(bitmap, spriteRect.x, spriteRect.y, true);
+	}
+
+	int SumWeightedBrushChances(const std::vector<BrushItemRecord> &items) {
+		int total = 0;
+		for (const BrushItemRecord &item : items) {
+			total += std::max(0, item.chance);
+		}
+		return total;
+	}
+
+	double ComputeWeightedBrushRatio(const std::vector<BrushItemRecord> &items, size_t index) {
+		if (index >= items.size()) {
+			return 0.0;
+		}
+		const int total = SumWeightedBrushChances(items);
+		if (total <= 0) {
+			return items.empty() ? 0.0 : 1.0 / static_cast<double>(items.size());
+		}
+		return static_cast<double>(std::max(0, items[index].chance)) / static_cast<double>(total);
+	}
+
+	wxString FormatWeightedBrushPercent(const std::vector<BrushItemRecord> &items, size_t index) {
+		return wxString::Format("%.1f%%", ComputeWeightedBrushRatio(items, index) * 100.0);
+	}
+
+	wxString GetWeightedBrushBadge(const std::vector<BrushItemRecord> &items, size_t index) {
+		const double ratio = ComputeWeightedBrushRatio(items, index);
+		if (ratio >= 0.60) {
+			return "dominant";
+		}
+		if (ratio >= 0.30) {
+			return "common";
+		}
+		if (ratio >= 0.12) {
+			return "steady";
+		}
+		if (ratio >= 0.05) {
+			return "rare";
+		}
+		return "ultra rare";
+	}
+
+	wxColour GetWeightedBrushBadgeColour(const std::vector<BrushItemRecord> &items, size_t index) {
+		const double ratio = ComputeWeightedBrushRatio(items, index);
+		if (ratio >= 0.60) {
+			return wxColour(80, 166, 255);
+		}
+		if (ratio >= 0.30) {
+			return wxColour(91, 194, 139);
+		}
+		if (ratio >= 0.12) {
+			return wxColour(232, 190, 96);
+		}
+		if (ratio >= 0.05) {
+			return wxColour(230, 140, 72);
+		}
+		return wxColour(194, 96, 126);
+	}
+
+	std::vector<wxRect> BuildWeightedBrushCardRects(wxWindow* window, const wxRect &clientRect, size_t count) {
+		std::vector<wxRect> rects;
+		if (!window || count == 0) {
+			return rects;
+		}
+		const int padding = window->FromDIP(8);
+		const int gap = window->FromDIP(8);
+		const int cardHeight = window->FromDIP(78);
+		const int cardWidth = std::max(window->FromDIP(220), clientRect.width - padding * 2);
+		rects.reserve(count);
+		int y = padding;
+		for (size_t i = 0; i < count; ++i) {
+			rects.emplace_back(padding, y, cardWidth, cardHeight);
+			y += cardHeight + gap;
+		}
+		return rects;
 	}
 
 	std::vector<int> CollectDoodadCompositeFloors(const DoodadCompositeRecord &composite) {
@@ -1400,36 +1505,61 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildGroundVariationsPage(wxSimplebook* b
 	wxBoxSizer* rootSizer = new wxBoxSizer(wxHORIZONTAL);
 
 	wxBoxSizer* listSizer = new wxBoxSizer(wxVERTICAL);
-	listSizer->Add(CreateSectionLabel(panel, "Ground Items"), 0, wxBOTTOM, FromDIP(6));
-	groundItemsList_ = new wxListBox(panel, wxID_ANY);
-	listSizer->Add(groundItemsList_, 1, wxEXPAND | wxBOTTOM, FromDIP(6));
+	listSizer->Add(CreateSectionLabel(panel, "Ground Variants"), 0, wxBOTTOM, FromDIP(6));
+	groundItemsScroll_ = new wxScrolledWindow(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL | wxBORDER_SIMPLE);
+	groundItemsScroll_->SetScrollRate(0, panel->FromDIP(16));
+	groundItemsCardsPanel_ = new wxPanel(groundItemsScroll_, wxID_ANY);
+	groundItemsCardsPanel_->SetBackgroundStyle(wxBG_STYLE_PAINT);
+	wxBoxSizer* cardsSizer = new wxBoxSizer(wxVERTICAL);
+	cardsSizer->Add(groundItemsCardsPanel_, 1, wxEXPAND);
+	groundItemsScroll_->SetSizer(cardsSizer);
+	groundItemsCardsPanel_->SetMinSize(wxSize(panel->FromDIP(300), panel->FromDIP(220)));
+	listSizer->Add(groundItemsScroll_, 1, wxEXPAND | wxBOTTOM, FromDIP(6));
 	wxBoxSizer* buttonsSizer = new wxBoxSizer(wxHORIZONTAL);
 	wxButton* addButton = new wxButton(panel, wxID_ANY, "Add Item");
 	wxButton* removeButton = new wxButton(panel, wxID_ANY, "Remove");
 	buttonsSizer->Add(addButton, 1, wxRIGHT, FromDIP(4));
 	buttonsSizer->Add(removeButton, 1);
 	listSizer->Add(buttonsSizer, 0, wxEXPAND);
-
-	wxBoxSizer* editorSizer = new wxBoxSizer(wxVERTICAL);
-	editorSizer->Add(CreateSectionLabel(panel, "Selected Item"), 0, wxBOTTOM, FromDIP(6));
-	editorSizer->Add(
-		new wxStaticText(panel, wxID_ANY, "Ground variations currently edit weighted item entries. Border rules stay in the dedicated border workflow."),
-		0,
-		wxEXPAND | wxBOTTOM,
-		FromDIP(10)
-	);
-	wxFlexGridSizer* form = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
-	form->AddGrowableCol(1, 1);
+	groundItemsList_ = new wxListBox(panel, wxID_ANY);
+	groundItemsList_->Hide();
+	listSizer->Add(groundItemsList_, 0, wxEXPAND);
 	groundItemIdCtrl_ = CreateItemIdSpinField(panel);
 	groundItemChanceCtrl_ = CreateSpinField(panel, 0, 1000000);
 	groundItemOwnershipLabel_ = new wxStaticText(panel, wxID_ANY, "Runtime owner: select an item entry.");
-	form->Add(new wxStaticText(panel, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
-	form->Add(groundItemIdCtrl_, 1, wxEXPAND);
-	form->AddSpacer(0);
-	form->Add(groundItemOwnershipLabel_, 1, wxEXPAND);
-	form->Add(new wxStaticText(panel, wxID_ANY, "Chance"), 0, wxALIGN_CENTER_VERTICAL);
-	form->Add(groundItemChanceCtrl_, 1, wxEXPAND);
-	editorSizer->Add(form, 0, wxEXPAND);
+	groundItemIdCtrl_->Hide();
+	groundItemChanceCtrl_->Hide();
+	groundItemOwnershipLabel_->Hide();
+	listSizer->Add(groundItemIdCtrl_, 0, wxEXPAND);
+	listSizer->Add(groundItemChanceCtrl_, 0, wxEXPAND);
+	listSizer->Add(groundItemOwnershipLabel_, 0, wxEXPAND);
+
+	wxBoxSizer* editorSizer = new wxBoxSizer(wxVERTICAL);
+	editorSizer->Add(CreateSectionLabel(panel, "Variation Preview"), 0, wxBOTTOM, FromDIP(6));
+	groundPreviewInfoLabel_ = new wxStaticText(
+		panel,
+		wxID_ANY,
+		"Ground variants now use visual cards with weighted badges. The preview shows the current variation set together in a compact visual grid."
+	);
+	StyleBrushWorkspaceSubtitle(groundPreviewInfoLabel_);
+	groundPreviewInfoLabel_->Wrap(panel->FromDIP(520));
+	editorSizer->Add(groundPreviewInfoLabel_, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+	groundPreviewScroll_ = new wxScrolledWindow(panel, wxID_ANY, wxDefaultPosition, wxSize(panel->FromDIP(420), panel->FromDIP(250)), wxVSCROLL | wxBORDER_SIMPLE);
+	groundPreviewScroll_->SetScrollRate(0, panel->FromDIP(16));
+	groundPreviewPanel_ = new wxPanel(groundPreviewScroll_, wxID_ANY);
+	groundPreviewPanel_->SetBackgroundStyle(wxBG_STYLE_PAINT);
+	groundPreviewPanel_->SetMinSize(wxSize(panel->FromDIP(420), panel->FromDIP(250)));
+	wxBoxSizer* previewCanvasSizer = new wxBoxSizer(wxVERTICAL);
+	previewCanvasSizer->Add(groundPreviewPanel_, 1, wxEXPAND);
+	groundPreviewScroll_->SetSizer(previewCanvasSizer);
+	editorSizer->Add(groundPreviewScroll_, 1, wxEXPAND | wxBOTTOM, FromDIP(8));
+	groundPreviewHighlightCtrl_ = new wxCheckBox(panel, wxID_ANY, "Highlight rarity");
+	groundPreviewDistributionLabel_ = new wxStaticText(panel, wxID_ANY, "Distribution: no weighted variants yet.");
+	StyleBrushWorkspaceSubtitle(groundPreviewDistributionLabel_);
+	wxBoxSizer* previewFooterSizer = new wxBoxSizer(wxHORIZONTAL);
+	previewFooterSizer->Add(groundPreviewHighlightCtrl_, 0, wxRIGHT | wxALIGN_CENTER_VERTICAL, FromDIP(10));
+	previewFooterSizer->Add(groundPreviewDistributionLabel_, 1, wxALIGN_CENTER_VERTICAL);
+	editorSizer->Add(previewFooterSizer, 0, wxEXPAND);
 
 	rootSizer->Add(listSizer, 0, wxEXPAND | wxRIGHT, FromDIP(10));
 	rootSizer->Add(new wxStaticLine(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_VERTICAL), 0, wxEXPAND | wxRIGHT, FromDIP(10));
@@ -1439,6 +1569,15 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildGroundVariationsPage(wxSimplebook* b
 	addButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnAddGroundItem, this);
 	removeButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnRemoveGroundItem, this);
 	groundItemsList_->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBrushPanel::OnGroundItemSelected, this);
+	groundItemsCardsPanel_->Bind(wxEVT_PAINT, &MaterialsWorkbenchBrushPanel::OnGroundCardsPaint, this);
+	groundItemsCardsPanel_->Bind(wxEVT_LEFT_DOWN, &MaterialsWorkbenchBrushPanel::OnGroundCardsLeftDown, this);
+	groundItemsCardsPanel_->Bind(wxEVT_RIGHT_DOWN, &MaterialsWorkbenchBrushPanel::OnGroundCardsRightDown, this);
+	groundPreviewPanel_->Bind(wxEVT_PAINT, &MaterialsWorkbenchBrushPanel::OnGroundPreviewPaint, this);
+	groundPreviewPanel_->Bind(wxEVT_LEFT_DOWN, &MaterialsWorkbenchBrushPanel::OnGroundPreviewLeftDown, this);
+	groundPreviewPanel_->Bind(wxEVT_MOTION, &MaterialsWorkbenchBrushPanel::OnGroundPreviewMotion, this);
+	groundPreviewPanel_->Bind(wxEVT_LEAVE_WINDOW, &MaterialsWorkbenchBrushPanel::OnGroundPreviewMouseLeave, this);
+	groundPreviewScroll_->Bind(wxEVT_SIZE, &MaterialsWorkbenchBrushPanel::OnGroundPreviewSize, this);
+	groundPreviewHighlightCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchBrushPanel::OnGroundPreviewHighlightToggled, this);
 	groundItemIdCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBrushPanel::OnGroundItemValueChanged, this);
 	groundItemChanceCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBrushPanel::OnGroundItemValueChanged, this);
 	groundItemIdCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnGroundItemValueChanged, this);
@@ -1937,6 +2076,8 @@ void MaterialsWorkbenchBrushPanel::UpdateModifiedHighlights() {
 		ApplyModifiedLabelStyle(variationsStatusLabel_, "Variation Data", false);
 		ApplyModifiedLabelStyle(alignedSectionLabel_, UsesAlignedVariationEditor() && GetEffectiveBrushType() == "table" ? "Table Nodes" : "Carpet Nodes", false);
 		ApplyModifiedEditorStyle(groundItemsList_, false);
+		ApplyModifiedEditorStyle(groundItemsCardsPanel_, false);
+		ApplyModifiedEditorStyle(groundPreviewPanel_, false);
 		ApplyModifiedEditorStyle(groundItemIdCtrl_, false);
 		ApplyModifiedEditorStyle(groundItemChanceCtrl_, false);
 		ApplyModifiedEditorStyle(alignedNodesList_, false);
@@ -2064,6 +2205,8 @@ void MaterialsWorkbenchBrushPanel::UpdateVariationModifiedHighlights(const Brush
 
 	ApplyModifiedLabelStyle(variationsStatusLabel_, "Variation Data", variationsModified);
 	ApplyModifiedEditorStyle(groundItemsList_, groundModified);
+	ApplyModifiedEditorStyle(groundItemsCardsPanel_, groundModified);
+	ApplyModifiedEditorStyle(groundPreviewPanel_, groundModified);
 	ApplyModifiedEditorStyle(groundItemIdCtrl_, groundModified);
 	ApplyModifiedEditorStyle(groundItemChanceCtrl_, groundModified);
 
@@ -2421,6 +2564,21 @@ void MaterialsWorkbenchBrushPanel::RefreshGroundItemList() {
 		groundItemsList_->SetSelection(groundItemIndex_);
 	}
 	RestoreListTopItem(groundItemsList_, topItem);
+
+	if (groundItemsCardsPanel_) {
+		const int padding = groundItemsCardsPanel_->FromDIP(8);
+		const int gap = groundItemsCardsPanel_->FromDIP(8);
+		const int cardHeight = groundItemsCardsPanel_->FromDIP(78);
+		const int minHeight = brushStorage_.items.empty()
+			? groundItemsCardsPanel_->FromDIP(160)
+			: padding * 2 + static_cast<int>(brushStorage_.items.size()) * cardHeight + std::max(0, static_cast<int>(brushStorage_.items.size()) - 1) * gap;
+		groundItemsCardsPanel_->SetMinSize(wxSize(groundItemsCardsPanel_->GetMinSize().x, minHeight));
+		groundItemsCardsPanel_->GetContainingSizer()->Layout();
+		if (groundItemsScroll_) {
+			groundItemsScroll_->FitInside();
+		}
+		groundItemsCardsPanel_->Refresh();
+	}
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshGroundSelection() {
@@ -2440,6 +2598,76 @@ void MaterialsWorkbenchBrushPanel::RefreshGroundSelection() {
 
 	internalUpdate_ = false;
 	UpdateItemOwnershipHint(groundItemOwnershipLabel_, groundItemIdCtrl_->GetValue(), hasItem);
+	RefreshGroundPreviewState();
+}
+
+void MaterialsWorkbenchBrushPanel::RefreshGroundPreviewState() {
+	const bool hasItems = !brushStorage_.items.empty();
+	if (groundPreviewInfoLabel_) {
+		if (hasItems && groundItemIndex_ >= 0 && groundItemIndex_ < static_cast<int>(brushStorage_.items.size())) {
+			const BrushItemRecord &item = brushStorage_.items[static_cast<size_t>(groundItemIndex_)];
+			groundPreviewInfoLabel_->SetLabel(
+				wxString::Format(
+					"Selected variant %d | item %d | chance %d | %s | badge %s",
+					groundItemIndex_ + 1,
+					item.itemId,
+					item.chance,
+					FormatWeightedBrushPercent(brushStorage_.items, static_cast<size_t>(groundItemIndex_)),
+					GetWeightedBrushBadge(brushStorage_.items, static_cast<size_t>(groundItemIndex_))
+				)
+			);
+		} else {
+			groundPreviewInfoLabel_->SetLabel("Ground variants now use visual cards with weighted badges. The preview grid shows all current variations together.");
+		}
+		groundPreviewInfoLabel_->Wrap(groundPreviewInfoLabel_->GetParent()->FromDIP(520));
+	}
+
+	if (groundPreviewHighlightCtrl_) {
+		groundPreviewHighlightCtrl_->Enable(hasItems);
+	}
+
+	if (groundPreviewDistributionLabel_) {
+		if (hasItems) {
+			groundPreviewDistributionLabel_->SetLabel(
+				wxString::Format(
+					"Distribution: %zu variants | total chance %d | hover for id and percentage",
+					brushStorage_.items.size(),
+					SumWeightedBrushChances(brushStorage_.items)
+				)
+			);
+		} else {
+			groundPreviewDistributionLabel_->SetLabel("Distribution: no weighted variants yet.");
+		}
+	}
+
+	RefreshGroundPreviewLayout();
+	if (groundPreviewPanel_) {
+		groundPreviewPanel_->Refresh();
+	}
+	if (groundItemsCardsPanel_) {
+		groundItemsCardsPanel_->Refresh();
+	}
+}
+
+void MaterialsWorkbenchBrushPanel::RefreshGroundPreviewLayout() {
+	if (!groundPreviewScroll_ || !groundPreviewPanel_) {
+		return;
+	}
+
+	const wxSize clientSize = groundPreviewScroll_->GetClientSize();
+	const int tileCell = groundPreviewPanel_->FromDIP(32);
+	const int columns = std::max(1, clientSize.x / std::max(1, tileCell));
+	const int rows = brushStorage_.items.empty()
+		? 1
+		: (static_cast<int>(brushStorage_.items.size()) + columns - 1) / columns;
+	const int contentWidth = std::max(clientSize.x, columns * tileCell);
+	const int contentHeight = std::max(clientSize.y, rows * tileCell);
+
+	groundPreviewPanel_->SetMinSize(wxSize(contentWidth, contentHeight));
+	if (groundPreviewScroll_->GetSizer()) {
+		groundPreviewScroll_->GetSizer()->Layout();
+	}
+	groundPreviewScroll_->FitInside();
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshAlignedNodeList() {
@@ -3803,15 +4031,22 @@ void MaterialsWorkbenchBrushPanel::OnAddGroundItem(wxCommandEvent &WXUNUSED(even
 		return;
 	}
 
+	int itemId = groundItemIdCtrl_ ? groundItemIdCtrl_->GetValue() : 0;
+	int chance = 1;
+	if (!ShowWeightedBrushItemDialog(this, "Add Ground Variant", itemId, chance)) {
+		return;
+	}
+
 	BrushItemRecord item;
-	item.chance = 1;
+	item.itemId = itemId;
+	item.chance = chance;
 	brushStorage_.items.push_back(item);
 	groundItemIndex_ = static_cast<int>(brushStorage_.items.size()) - 1;
 	RefreshGroundItemList();
 	RefreshGroundSelection();
 	UpdateSummary();
 	RefreshDirtyState();
-	SetStatusMessage("Added ground variation item.");
+	SetStatusMessage(wxString::Format("Added ground variant %d.", itemId));
 }
 
 void MaterialsWorkbenchBrushPanel::OnRemoveGroundItem(wxCommandEvent &WXUNUSED(event)) {
@@ -3839,6 +4074,271 @@ void MaterialsWorkbenchBrushPanel::OnGroundItemSelected(wxCommandEvent &event) {
 	RefreshGroundSelection();
 }
 
+void MaterialsWorkbenchBrushPanel::OnGroundCardsPaint(wxPaintEvent &WXUNUSED(event)) {
+	if (!groundItemsCardsPanel_) {
+		return;
+	}
+
+	wxAutoBufferedPaintDC dc(groundItemsCardsPanel_);
+	const wxRect clientRect = groundItemsCardsPanel_->GetClientRect();
+	const wxColour panelColour = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW);
+	const wxColour textColour = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT);
+	const wxColour mutedText(150, 156, 170);
+	dc.SetBackground(wxBrush(panelColour));
+	dc.Clear();
+
+	groundItemCardRects_ = BuildWeightedBrushCardRects(groundItemsCardsPanel_, clientRect, brushStorage_.items.size());
+	if (brushStorage_.items.empty()) {
+		dc.SetTextForeground(mutedText);
+		dc.DrawLabel("Add weighted variants to see visual cards and a compact preview grid.", clientRect, wxALIGN_CENTER);
+		return;
+	}
+
+	const int totalChance = std::max(1, SumWeightedBrushChances(brushStorage_.items));
+	for (size_t i = 0; i < brushStorage_.items.size() && i < groundItemCardRects_.size(); ++i) {
+		const BrushItemRecord &item = brushStorage_.items[i];
+		const wxRect &cardRect = groundItemCardRects_[i];
+		const bool selected = static_cast<int>(i) == groundItemIndex_;
+		const wxColour accent = GetWeightedBrushBadgeColour(brushStorage_.items, i);
+		const wxColour cardFill = selected ? wxColour(38, 46, 60) : wxColour(28, 31, 38);
+		const wxColour border = selected ? accent : wxColour(72, 76, 88);
+		dc.SetPen(wxPen(border, selected ? 2 : 1));
+		dc.SetBrush(wxBrush(cardFill));
+		dc.DrawRoundedRectangle(cardRect, groundItemsCardsPanel_->FromDIP(6));
+
+		wxRect spriteCell = cardRect;
+		spriteCell.Deflate(groundItemsCardsPanel_->FromDIP(10), groundItemsCardsPanel_->FromDIP(10));
+		spriteCell.SetWidth(groundItemsCardsPanel_->FromDIP(56));
+		dc.SetPen(wxPen(wxColour(84, 92, 110)));
+		dc.SetBrush(wxBrush(wxColour(22, 25, 32)));
+		dc.DrawRoundedRectangle(spriteCell, groundItemsCardsPanel_->FromDIP(4));
+		if (item.itemId > 0) {
+			const wxRect spriteBounds = GetDoodadPreviewSpriteRect(item.itemId, wxPoint(0, 0));
+			wxPoint drawPoint(
+				spriteCell.x + std::max(0, (spriteCell.width - spriteBounds.width) / 2) - spriteBounds.x,
+				spriteCell.y + std::max(0, (spriteCell.height - spriteBounds.height) / 2) - spriteBounds.y
+			);
+			DrawDoodadPreviewItemSprite(dc, item.itemId, drawPoint);
+		}
+
+		const int textX = spriteCell.GetRight() + 1 + groundItemsCardsPanel_->FromDIP(10);
+		const int titleY = cardRect.y + groundItemsCardsPanel_->FromDIP(10);
+		const int detailY = titleY + groundItemsCardsPanel_->FromDIP(22);
+		dc.SetTextForeground(textColour);
+		dc.DrawText(wxString::Format("%zu. item %d", i + 1, item.itemId), textX, titleY);
+		dc.SetTextForeground(mutedText);
+		dc.DrawText(
+			wxString::Format("chance %d | %s", item.chance, FormatWeightedBrushPercent(brushStorage_.items, i)),
+			textX,
+			detailY
+		);
+
+		wxString badge = GetWeightedBrushBadge(brushStorage_.items, i);
+		wxSize badgeSize = dc.GetTextExtent(badge);
+		wxRect badgeRect(
+			cardRect.GetRight() - groundItemsCardsPanel_->FromDIP(12) - badgeSize.x - groundItemsCardsPanel_->FromDIP(12),
+			cardRect.y + groundItemsCardsPanel_->FromDIP(10),
+			badgeSize.x + groundItemsCardsPanel_->FromDIP(12),
+			groundItemsCardsPanel_->FromDIP(22)
+		);
+		dc.SetPen(*wxTRANSPARENT_PEN);
+		dc.SetBrush(wxBrush(accent));
+		dc.DrawRoundedRectangle(badgeRect, groundItemsCardsPanel_->FromDIP(10));
+		dc.SetTextForeground(wxColour(24, 28, 34));
+		dc.DrawLabel(badge, badgeRect, wxALIGN_CENTER);
+
+		wxRect barRect(
+			textX,
+			cardRect.GetBottom() - groundItemsCardsPanel_->FromDIP(16),
+			cardRect.GetRight() - textX - groundItemsCardsPanel_->FromDIP(12),
+			groundItemsCardsPanel_->FromDIP(6)
+		);
+		dc.SetPen(*wxTRANSPARENT_PEN);
+		dc.SetBrush(wxBrush(wxColour(54, 58, 70)));
+		dc.DrawRoundedRectangle(barRect, groundItemsCardsPanel_->FromDIP(3));
+		wxRect fillRect = barRect;
+		fillRect.width = std::max(groundItemsCardsPanel_->FromDIP(6), static_cast<int>(std::lround(static_cast<double>(barRect.width) * item.chance / totalChance)));
+		fillRect.width = std::min(fillRect.width, barRect.width);
+		dc.SetBrush(wxBrush(accent));
+		dc.DrawRoundedRectangle(fillRect, groundItemsCardsPanel_->FromDIP(3));
+	}
+}
+
+void MaterialsWorkbenchBrushPanel::OnGroundCardsLeftDown(wxMouseEvent &event) {
+	if (!hasBrush_ || !UsesGroundVariationEditor() || !groundItemsCardsPanel_) {
+		event.Skip();
+		return;
+	}
+	groundItemCardRects_ = BuildWeightedBrushCardRects(groundItemsCardsPanel_, groundItemsCardsPanel_->GetClientRect(), brushStorage_.items.size());
+	for (size_t i = 0; i < groundItemCardRects_.size(); ++i) {
+		if (groundItemCardRects_[i].Contains(event.GetPosition())) {
+			groundItemIndex_ = static_cast<int>(i);
+			if (groundItemsList_) {
+				groundItemsList_->SetSelection(groundItemIndex_);
+			}
+			RefreshGroundSelection();
+			return;
+		}
+	}
+	event.Skip();
+}
+
+void MaterialsWorkbenchBrushPanel::OnGroundCardsRightDown(wxMouseEvent &event) {
+	if (!hasBrush_ || !UsesGroundVariationEditor() || !groundItemsCardsPanel_) {
+		event.Skip();
+		return;
+	}
+	groundItemCardRects_ = BuildWeightedBrushCardRects(groundItemsCardsPanel_, groundItemsCardsPanel_->GetClientRect(), brushStorage_.items.size());
+	for (size_t i = 0; i < groundItemCardRects_.size(); ++i) {
+		if (!groundItemCardRects_[i].Contains(event.GetPosition())) {
+			continue;
+		}
+
+		int itemId = brushStorage_.items[i].itemId;
+		int chance = brushStorage_.items[i].chance;
+		if (ShowWeightedBrushItemDialog(this, "Edit Ground Variant", itemId, chance)) {
+			brushStorage_.items[i].itemId = itemId;
+			brushStorage_.items[i].chance = chance;
+			RefreshGroundItemList();
+			RefreshGroundSelection();
+			UpdateSummary();
+			RefreshDirtyState();
+			SetStatusMessage(wxString::Format("Updated ground variant %d.", itemId));
+		}
+		return;
+	}
+	event.Skip();
+}
+
+void MaterialsWorkbenchBrushPanel::OnGroundPreviewPaint(wxPaintEvent &WXUNUSED(event)) {
+	if (!groundPreviewPanel_) {
+		return;
+	}
+
+	wxAutoBufferedPaintDC dc(groundPreviewPanel_);
+	const wxRect clientRect = groundPreviewPanel_->GetClientRect();
+	dc.SetBackground(wxBrush(wxColour(20, 24, 32)));
+	dc.Clear();
+	groundPreviewTileRects_.clear();
+
+	if (brushStorage_.items.empty()) {
+		dc.SetTextForeground(wxColour(150, 156, 170));
+		dc.DrawLabel("The seamless variation grid will appear here once weighted variants exist.", clientRect, wxALIGN_CENTER);
+		return;
+	}
+
+	const int tileCell = groundPreviewPanel_->FromDIP(32);
+	const int columns = std::max(1, clientRect.width / std::max(1, tileCell));
+	groundPreviewTileRects_.reserve(brushStorage_.items.size());
+
+	for (size_t i = 0; i < brushStorage_.items.size(); ++i) {
+		const int row = static_cast<int>(i) / columns;
+		const int column = static_cast<int>(i) % columns;
+		wxRect cellRect(
+			column * tileCell,
+			row * tileCell,
+			tileCell,
+			tileCell
+		);
+		groundPreviewTileRects_.push_back(cellRect);
+
+		const bool selected = static_cast<int>(i) == groundItemIndex_;
+		const wxColour accent = GetWeightedBrushBadgeColour(brushStorage_.items, i);
+		if (brushStorage_.items[i].itemId > 0) {
+			const wxRect spriteBounds = GetDoodadPreviewSpriteRect(brushStorage_.items[i].itemId, wxPoint(0, 0));
+			wxPoint drawPoint(
+				cellRect.x + std::max(0, (cellRect.width - spriteBounds.width) / 2) - spriteBounds.x,
+				cellRect.y + std::max(0, (cellRect.height - spriteBounds.height) / 2) - spriteBounds.y
+			);
+			DrawDoodadPreviewItemSprite(dc, brushStorage_.items[i].itemId, drawPoint);
+		}
+
+		if (groundPreviewHighlightEnabled_) {
+			const wxColour overlayColour(accent.Red(), accent.Green(), accent.Blue(), selected ? 88 : 56);
+			dc.SetPen(wxPen(accent, selected ? 2 : 1));
+			dc.SetBrush(wxBrush(overlayColour));
+			dc.DrawRectangle(cellRect);
+		} else if (selected) {
+			dc.SetPen(wxPen(accent, 2));
+			dc.SetBrush(*wxTRANSPARENT_BRUSH);
+			dc.DrawRectangle(cellRect);
+		}
+	}
+}
+
+void MaterialsWorkbenchBrushPanel::OnGroundPreviewLeftDown(wxMouseEvent &event) {
+	if (!hasBrush_ || !UsesGroundVariationEditor() || !groundPreviewPanel_) {
+		event.Skip();
+		return;
+	}
+
+	const wxPoint position = event.GetPosition();
+	for (size_t i = 0; i < groundPreviewTileRects_.size() && i < brushStorage_.items.size(); ++i) {
+		if (!groundPreviewTileRects_[i].Contains(position)) {
+			continue;
+		}
+
+		groundItemIndex_ = static_cast<int>(i);
+		if (groundItemsList_) {
+			groundItemsList_->SetSelection(groundItemIndex_);
+		}
+		RefreshGroundSelection();
+		return;
+	}
+
+	event.Skip();
+}
+
+void MaterialsWorkbenchBrushPanel::OnGroundPreviewMotion(wxMouseEvent &event) {
+	if (!groundPreviewPanel_) {
+		event.Skip();
+		return;
+	}
+
+	const wxPoint position = event.GetPosition();
+	for (size_t i = 0; i < groundPreviewTileRects_.size() && i < brushStorage_.items.size(); ++i) {
+		if (!groundPreviewTileRects_[i].Contains(position)) {
+			continue;
+		}
+
+		groundPreviewPanel_->SetToolTip(
+			wxString::Format(
+				"Item ID %d | %s | chance %d | badge %s",
+				brushStorage_.items[i].itemId,
+				FormatWeightedBrushPercent(brushStorage_.items, i),
+				brushStorage_.items[i].chance,
+				GetWeightedBrushBadge(brushStorage_.items, i)
+			)
+		);
+		return;
+	}
+
+	groundPreviewPanel_->UnsetToolTip();
+	event.Skip();
+}
+
+void MaterialsWorkbenchBrushPanel::OnGroundPreviewMouseLeave(wxMouseEvent &event) {
+	if (groundPreviewPanel_) {
+		groundPreviewPanel_->UnsetToolTip();
+	}
+	event.Skip();
+}
+
+void MaterialsWorkbenchBrushPanel::OnGroundPreviewSize(wxSizeEvent &event) {
+	RefreshGroundPreviewLayout();
+	if (groundPreviewPanel_) {
+		groundPreviewPanel_->Refresh();
+	}
+	event.Skip();
+}
+
+void MaterialsWorkbenchBrushPanel::OnGroundPreviewHighlightToggled(wxCommandEvent &WXUNUSED(event)) {
+	groundPreviewHighlightEnabled_ = groundPreviewHighlightCtrl_ && groundPreviewHighlightCtrl_->GetValue();
+	if (groundPreviewPanel_) {
+		groundPreviewPanel_->Refresh();
+	}
+}
+
 void MaterialsWorkbenchBrushPanel::OnGroundItemValueChanged(wxCommandEvent &WXUNUSED(event)) {
 	if (internalUpdate_ || !hasBrush_ || !UsesGroundVariationEditor()) {
 		return;
@@ -3854,6 +4354,7 @@ void MaterialsWorkbenchBrushPanel::OnGroundItemValueChanged(wxCommandEvent &WXUN
 		groundItemsList_->SetSelection(groundItemIndex_);
 	}
 	UpdateItemOwnershipHint(groundItemOwnershipLabel_, groundItemIdCtrl_->GetValue(), true);
+	RefreshGroundPreviewState();
 	UpdateSummary();
 	RefreshDirtyState();
 }
