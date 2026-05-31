@@ -149,19 +149,19 @@ private:
 	void OnRemoveDoodadTileItem(wxCommandEvent &event);
 	void OnDoodadTileItemSelected(wxCommandEvent &event);
 	void OnDoodadTileItemValueChanged(wxCommandEvent &event);
-	void OnDoodadPreviewFloorChanged(wxCommandEvent &event);
 	void OnDoodadPreviewPaint(wxPaintEvent &event);
 	void OnDoodadPreviewLeftDown(wxMouseEvent &event);
-	void OnDoodadPreviewLeftDClick(wxMouseEvent &event);
-	void OnDoodadPreviewLeftUp(wxMouseEvent &event);
-	void OnDoodadPreviewMotion(wxMouseEvent &event);
 	void OnDoodadPreviewRightDown(wxMouseEvent &event);
 	void OnDoodadAlternativeSliderPaint(wxPaintEvent &event);
 	void OnDoodadAlternativeSliderLeftDown(wxMouseEvent &event);
+	void OnDoodadFloorSliderPaint(wxPaintEvent &event);
+	void OnDoodadFloorSliderLeftDown(wxMouseEvent &event);
 	void OnMetadataFieldChanged(wxCommandEvent &event);
-	void EndDoodadPreviewDrag();
 	void SelectDoodadAlternative(int index);
 	void StepDoodadAlternative(int delta);
+	void StepDoodadPreviewFloor(int delta);
+	void AddDoodadPreviewFloor();
+	void RemoveDoodadPreviewFloor();
 
 	MaterialsWorkbenchController &controller_;
 	std::function<void(int64_t, const wxString&, const wxString&)> onBrushSaved_;
@@ -231,10 +231,15 @@ private:
 	wxStaticText* doodadSingleItemOwnershipLabel_ = nullptr;
 	wxListBox* doodadCompositesList_ = nullptr;
 	wxSpinCtrl* doodadCompositeChanceCtrl_ = nullptr;
-	wxChoice* doodadPreviewFloorChoice_ = nullptr;
 	wxStaticText* doodadPreviewSummaryLabel_ = nullptr;
 	wxStaticText* doodadPreviewHintLabel_ = nullptr;
 	wxPanel* doodadPreviewPanel_ = nullptr;
+	wxPanel* doodadPreviewFloorSliderPanel_ = nullptr;
+	wxRect doodadPreviewFloorAddRect_;
+	wxRect doodadPreviewFloorUpRect_;
+	wxRect doodadPreviewFloorDownRect_;
+	wxRect doodadPreviewFloorRemoveRect_;
+	std::vector<wxRect> doodadPreviewFloorIndicatorRects_;
 	wxListBox* doodadTilesList_ = nullptr;
 	wxSpinCtrl* doodadTileOffsetXCtrl_ = nullptr;
 	wxSpinCtrl* doodadTileOffsetYCtrl_ = nullptr;
@@ -250,9 +255,7 @@ private:
 	int doodadPreviewFloor_ = kDoodadPreviewAllFloors;
 	bool doodadPreviewPreferComposite_ = true;
 	std::vector<int> doodadPreviewAvailableFloors_;
-	bool doodadPreviewDraggingTile_ = false;
-	int doodadPreviewDragTileIndex_ = -1;
-	int doodadPreviewDragFloor_ = 0;
+	std::vector<int> doodadPreviewAuthoringFloors_;
 	wxStaticText* statusLabel_ = nullptr;
 };
 
