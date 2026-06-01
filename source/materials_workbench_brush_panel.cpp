@@ -3629,11 +3629,8 @@ void MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint(wxPaintEvent &W
 		return items.empty() ? 0 : items.front().itemId;
 	};
 
-	const auto isSelectedAlign = [&](const wxString &align) -> bool {
-		if (alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(brushStorage_.tableNodes.size())) {
-			return brushStorage_.tableNodes[alignedNodeIndex_].align.CmpNoCase(align) == 0;
-		}
-		return alignedPendingTableAlign_.CmpNoCase(align) == 0;
+	const auto hasPreviewNode = [&](const wxString &align) -> bool {
+		return FindAlignedNodeIndexByAlign(brushStorage_.tableNodes, align) >= 0;
 	};
 
 	const wxColour frameColour(74, 82, 96);
@@ -3646,6 +3643,27 @@ void MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint(wxPaintEvent &W
 	const wxRect horizontalRect(contentRect.x + boxWidth + boxGap, contentRect.y, std::max(0, contentRect.width - boxWidth - boxGap), contentRect.height);
 
 	const auto drawPreviewBox = [&](const wxRect &boxRect, const std::vector<wxString> &aligns, bool vertical) {
+		struct PreviewSegment {
+			wxString align;
+			int itemId = 0;
+			wxPoint tileAnchor;
+			wxRect spriteRect;
+			wxBitmap bitmap;
+			wxRect visibleBounds;
+
+			bool hasSprite() const {
+				return bitmap.IsOk() && visibleBounds.width > 0 && visibleBounds.height > 0;
+			}
+		};
+
+		struct PreviewMeasure {
+			wxRect spriteUnion;
+			wxRect visibleUnion;
+			wxRect anchorUnion;
+			bool hasSpriteUnion = false;
+			bool hasVisibleUnion = false;
+		};
+
 		dc.SetPen(wxPen(frameColour, 1));
 		dc.SetBrush(wxBrush(wxColour(24, 28, 36)));
 		dc.DrawRoundedRectangle(boxRect, alignedSeamlessPreviewPanel_->FromDIP(8));
@@ -3653,13 +3671,110 @@ void MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint(wxPaintEvent &W
 		wxRect innerRect = boxRect;
 		innerRect.Deflate(alignedSeamlessPreviewPanel_->FromDIP(10), alignedSeamlessPreviewPanel_->FromDIP(10));
 
-		const int cellGap = alignedSeamlessPreviewPanel_->FromDIP(8);
+		const int tileCell = alignedSeamlessPreviewPanel_->FromDIP(32);
 		const int indicatorSpace = alignedSeamlessPreviewPanel_->FromDIP(20);
 		const int capSize = alignedSeamlessPreviewPanel_->FromDIP(6);
 		const wxColour lineColour(88, 96, 110);
 		const wxColour capColour(74, 82, 96);
-		std::vector<wxRect> cellRects;
-		cellRects.reserve(aligns.size());
+		wxRect laneRect = innerRect;
+		if (vertical) {
+			laneRect.SetWidth(std::max(tileCell * 2, innerRect.width - indicatorSpace));
+		} else {
+			laneRect.SetHeight(std::max(tileCell * 2, innerRect.height - indicatorSpace));
+		}
+
+		std::vector<PreviewSegment> segments;
+		segments.reserve(aligns.size());
+		for (const wxString &align : aligns) {
+			if (!hasPreviewNode(align)) {
+				continue;
+			}
+			PreviewSegment segment;
+			segment.align = align;
+			segment.itemId = resolvePreviewItemId(align);
+			if (segment.itemId > 0) {
+				const DoodadPreviewSpriteMetrics metrics = ResolveDoodadPreviewSpriteMetrics(segment.itemId);
+				if (metrics.isValid()) {
+					segment.bitmap = BuildDoodadPreviewBitmap(metrics.spriteId);
+					if (segment.bitmap.IsOk()) {
+						segment.visibleBounds = GetBitmapVisibleBounds(segment.bitmap);
+					}
+				}
+			}
+			segments.push_back(segment);
+		}
+
+		if (segments.empty()) {
+			return;
+		}
+
+		for (size_t i = 0; i < segments.size(); ++i) {
+			segments[i].tileAnchor = vertical
+				? wxPoint(0, static_cast<int>(i) * tileCell)
+				: wxPoint(static_cast<int>(i) * tileCell, 0);
+			segments[i].spriteRect = GetDoodadPreviewSpriteRect(segments[i].itemId, segments[i].tileAnchor);
+		}
+
+		PreviewMeasure measure;
+		for (const PreviewSegment &segment : segments) {
+			const wxRect anchorRect(segment.tileAnchor.x, segment.tileAnchor.y, tileCell, tileCell);
+			if (measure.anchorUnion.IsEmpty()) {
+				measure.anchorUnion = anchorRect;
+			} else {
+				measure.anchorUnion.Union(anchorRect);
+			}
+
+			if (segment.hasSprite()) {
+				const wxRect visibleRect(
+					segment.spriteRect.x + segment.visibleBounds.x,
+					segment.spriteRect.y + segment.visibleBounds.y,
+					segment.visibleBounds.width,
+					segment.visibleBounds.height
+				);
+				if (!measure.hasSpriteUnion) {
+					measure.spriteUnion = segment.spriteRect;
+					measure.hasSpriteUnion = true;
+				} else {
+					measure.spriteUnion.Union(segment.spriteRect);
+				}
+				if (!measure.hasVisibleUnion) {
+					measure.visibleUnion = visibleRect;
+					measure.hasVisibleUnion = true;
+				} else {
+					measure.visibleUnion.Union(visibleRect);
+				}
+			}
+		}
+		if (!measure.hasSpriteUnion) {
+			measure.spriteUnion = measure.anchorUnion;
+		}
+		if (!measure.hasVisibleUnion) {
+			measure.visibleUnion = measure.anchorUnion;
+		}
+
+		int originOffsetX = (vertical ? innerRect.x : laneRect.x) +
+			std::max(0, ((vertical ? innerRect.width : laneRect.width) - measure.visibleUnion.width) / 2) -
+			measure.visibleUnion.x;
+		const int originOffsetY = laneRect.y + std::max(0, (laneRect.height - measure.visibleUnion.height) / 2) - measure.visibleUnion.y;
+		if (vertical) {
+			const int railX = measure.anchorUnion.GetRight() + originOffsetX + indicatorSpace / 2;
+			const int railMinX = railX - capSize / 2;
+			const int railMaxX = railX + capSize / 2;
+			if (railMaxX > innerRect.GetRight()) {
+				originOffsetX -= railMaxX - innerRect.GetRight();
+			}
+			if (railMinX < innerRect.x) {
+				originOffsetX += innerRect.x - railMinX;
+			}
+		}
+		const wxPoint originOffset(originOffsetX, originOffsetY);
+
+		for (const PreviewSegment &segment : segments) {
+			if (!segment.hasSprite()) {
+				continue;
+			}
+			dc.DrawBitmap(segment.bitmap, segment.spriteRect.x + originOffset.x, segment.spriteRect.y + originOffset.y, true);
+		}
 
 		auto drawCap = [&](const wxPoint &center) {
 			dc.SetPen(*wxTRANSPARENT_PEN);
@@ -3668,70 +3783,44 @@ void MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint(wxPaintEvent &W
 				wxRect(center.x - capSize / 2, center.y - capSize / 2, capSize, capSize),
 				alignedSeamlessPreviewPanel_->FromDIP(2)
 			);
+			dc.SetPen(wxPen(lineColour, 2));
 		};
 
-		for (size_t i = 0; i < aligns.size(); ++i) {
-			wxRect cellRect;
-			if (vertical) {
-				const int cellHeight = std::max(alignedSeamlessPreviewPanel_->FromDIP(30), (innerRect.height - cellGap * 2) / 3);
-				const int cellWidth = std::max(alignedSeamlessPreviewPanel_->FromDIP(70), innerRect.width - indicatorSpace - cellGap);
-				cellRect = wxRect(
-					innerRect.x,
-					innerRect.y + static_cast<int>(i) * (cellHeight + cellGap),
-					cellWidth,
-					cellHeight
-				);
-			} else {
-				const int cellWidth = std::max(alignedSeamlessPreviewPanel_->FromDIP(48), (innerRect.width - cellGap * 2) / 3);
-				const int cellHeight = std::max(alignedSeamlessPreviewPanel_->FromDIP(56), innerRect.height - indicatorSpace);
-				cellRect = wxRect(
-					innerRect.x + static_cast<int>(i) * (cellWidth + cellGap),
-					innerRect.y,
-					cellWidth,
-					cellHeight
-				);
-			}
-			cellRects.push_back(cellRect);
+		auto hasStartCap = [&]() {
+			wxString align = segments.front().align;
+			align.MakeLower();
+			return vertical ? (align == "north" || align == "vertical") : (align == "west" || align == "horizontal");
+		};
 
-			const int nodeIndex = FindAlignedNodeIndexByAlign(brushStorage_.tableNodes, aligns[i]);
-			const bool exists = nodeIndex >= 0;
-			const bool selected = isSelectedAlign(aligns[i]);
-			const wxColour cellAccent = selected ? wxColour(80, 166, 255) : (exists ? wxColour(91, 194, 139) : wxColour(176, 102, 0));
-			dc.SetPen(wxPen(cellAccent, selected ? 2 : 1));
-			dc.SetBrush(wxBrush(selected ? wxColour(38, 46, 60) : wxColour(30, 34, 42)));
-			dc.DrawRoundedRectangle(cellRect, alignedSeamlessPreviewPanel_->FromDIP(6));
-
-			wxRect spriteRect = cellRect;
-			spriteRect.Deflate(alignedSeamlessPreviewPanel_->FromDIP(8), alignedSeamlessPreviewPanel_->FromDIP(8));
-			const int itemId = resolvePreviewItemId(aligns[i]);
-			if (itemId > 0) {
-				DrawCenteredPreviewItemSprite(dc, spriteRect, itemId);
-			}
-		}
-
-		if (cellRects.size() != 3) {
-			return;
-		}
+		auto hasEndCap = [&]() {
+			wxString align = segments.back().align;
+			align.MakeLower();
+			return vertical ? (align == "south" || align == "vertical") : (align == "east" || align == "horizontal");
+		};
 
 		dc.SetPen(wxPen(lineColour, 2));
 		if (vertical) {
-			const int railX = cellRects.front().GetRight() + alignedSeamlessPreviewPanel_->FromDIP(8);
-			const wxPoint topCap(railX, cellRects.front().y + cellRects.front().height / 2 - alignedSeamlessPreviewPanel_->FromDIP(12));
-			const wxPoint bottomCap(railX, cellRects.back().y + cellRects.back().height / 2 + alignedSeamlessPreviewPanel_->FromDIP(12));
-			const wxPoint start(railX, topCap.y);
-			const wxPoint end(railX, bottomCap.y);
+			const int railX = measure.anchorUnion.GetRight() + originOffset.x + indicatorSpace / 2;
+			const wxPoint start(railX, segments.front().tileAnchor.y + originOffset.y + tileCell / 2);
+			const wxPoint end(railX, segments.back().tileAnchor.y + originOffset.y + tileCell / 2);
 			dc.DrawLine(start, end);
-			drawCap(topCap);
-			drawCap(bottomCap);
+			if (hasStartCap()) {
+				drawCap(start);
+			}
+			if (hasEndCap()) {
+				drawCap(end);
+			}
 		} else {
-			const int railY = cellRects.front().GetBottom() + alignedSeamlessPreviewPanel_->FromDIP(8);
-			const wxPoint leftCap(cellRects.front().x + cellRects.front().width / 2 - alignedSeamlessPreviewPanel_->FromDIP(12), railY);
-			const wxPoint rightCap(cellRects.back().x + cellRects.back().width / 2 + alignedSeamlessPreviewPanel_->FromDIP(12), railY);
-			const wxPoint start(leftCap.x, railY);
-			const wxPoint end(rightCap.x, railY);
+			const int railY = measure.anchorUnion.GetBottom() + originOffset.y + indicatorSpace / 2;
+			const wxPoint start(segments.front().tileAnchor.x + originOffset.x + tileCell / 2, railY);
+			const wxPoint end(segments.back().tileAnchor.x + originOffset.x + tileCell / 2, railY);
 			dc.DrawLine(start, end);
-			drawCap(leftCap);
-			drawCap(rightCap);
+			if (hasStartCap()) {
+				drawCap(start);
+			}
+			if (hasEndCap()) {
+				drawCap(end);
+			}
 		}
 	};
 
