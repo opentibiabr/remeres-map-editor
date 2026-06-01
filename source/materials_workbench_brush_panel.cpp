@@ -400,6 +400,43 @@ namespace {
 		return wxBitmap(image);
 	}
 
+	wxRect GetBitmapVisibleBounds(const wxBitmap &bitmap) {
+		if (!bitmap.IsOk()) {
+			return wxRect();
+		}
+
+		const wxImage image = bitmap.ConvertToImage();
+		if (!image.IsOk()) {
+			return wxRect(0, 0, bitmap.GetWidth(), bitmap.GetHeight());
+		}
+
+		const int width = image.GetWidth();
+		const int height = image.GetHeight();
+		int minX = width;
+		int minY = height;
+		int maxX = -1;
+		int maxY = -1;
+
+		for (int y = 0; y < height; ++y) {
+			for (int x = 0; x < width; ++x) {
+				const bool visible = image.HasAlpha() ? image.GetAlpha(x, y) > 0 : true;
+				if (!visible) {
+					continue;
+				}
+				minX = std::min(minX, x);
+				minY = std::min(minY, y);
+				maxX = std::max(maxX, x);
+				maxY = std::max(maxY, y);
+			}
+		}
+
+		if (maxX < minX || maxY < minY) {
+			return wxRect(0, 0, width, height);
+		}
+
+		return wxRect(minX, minY, maxX - minX + 1, maxY - minY + 1);
+	}
+
 	wxRect GetDoodadPreviewSpriteRect(int itemId, const wxPoint &drawPoint) {
 		const DoodadPreviewSpriteMetrics metrics = ResolveDoodadPreviewSpriteMetrics(itemId);
 		if (!metrics.isValid()) {
@@ -471,8 +508,11 @@ namespace {
 			return;
 		}
 
-		const int drawX = bounds.x + std::max(0, (bounds.width - bitmap.GetWidth()) / 2);
-		const int drawY = bounds.y + std::max(0, (bounds.height - bitmap.GetHeight()) / 2);
+		const wxRect visibleBounds = GetBitmapVisibleBounds(bitmap);
+		const int targetX = bounds.x + std::max(0, (bounds.width - visibleBounds.width) / 2);
+		const int targetY = bounds.y + std::max(0, (bounds.height - visibleBounds.height) / 2);
+		const int drawX = targetX - visibleBounds.x;
+		const int drawY = targetY - visibleBounds.y;
 		dc.DrawBitmap(bitmap, drawX, drawY, true);
 	}
 
@@ -730,48 +770,68 @@ namespace {
 	}
 
 	void DrawTableNeighbourStub(wxDC &dc, wxWindow* window, const wxRect &cellRect, const wxString &align) {
-		const wxPoint center(
-			cellRect.x + cellRect.width / 2,
-			cellRect.y + cellRect.height / 2
-		);
-		const int reach = window->FromDIP(16);
-		const int inset = window->FromDIP(6);
-		dc.SetPen(wxPen(wxColour(88, 96, 110), 2));
+		const int railGap = window->FromDIP(8);
+		const int railReach = window->FromDIP(12);
+		const int capSize = window->FromDIP(6);
+		const wxColour lineColour(88, 96, 110);
+		const wxColour capColour(74, 82, 96);
+		dc.SetPen(wxPen(lineColour, 2));
 
-		auto drawGuide = [&](int dx, int dy) {
-			const wxPoint end(
-				center.x + dx * reach,
-				center.y + dy * reach
-			);
-			dc.DrawLine(center, end);
-			const wxRect cap(
-				end.x - inset / 2,
-				end.y - inset / 2,
-				inset,
-				inset
+		auto drawCap = [&](const wxPoint &center) {
+			const wxRect capRect(
+				center.x - capSize / 2,
+				center.y - capSize / 2,
+				capSize,
+				capSize
 			);
 			dc.SetPen(*wxTRANSPARENT_PEN);
-			dc.SetBrush(wxBrush(wxColour(74, 82, 96)));
-			dc.DrawRoundedRectangle(cap, window->FromDIP(2));
-			dc.SetPen(wxPen(wxColour(88, 96, 110), 2));
+			dc.SetBrush(wxBrush(capColour));
+			dc.DrawRoundedRectangle(capRect, window->FromDIP(2));
+			dc.SetPen(wxPen(lineColour, 2));
+		};
+
+		auto drawVerticalRail = [&](bool topCap, bool bottomCap) {
+			const int railX = cellRect.GetRight() + railGap;
+			const int centerY = cellRect.y + cellRect.height / 2;
+			const wxPoint top(railX, centerY - railReach);
+			const wxPoint bottom(railX, centerY + railReach);
+			dc.DrawLine(top, bottom);
+			if (topCap) {
+				drawCap(top);
+			}
+			if (bottomCap) {
+				drawCap(bottom);
+			}
+		};
+
+		auto drawHorizontalRail = [&](bool leftCap, bool rightCap) {
+			const int railY = cellRect.GetBottom() + railGap;
+			const int centerX = cellRect.x + cellRect.width / 2;
+			const wxPoint left(centerX - railReach, railY);
+			const wxPoint right(centerX + railReach, railY);
+			dc.DrawLine(left, right);
+			if (leftCap) {
+				drawCap(left);
+			}
+			if (rightCap) {
+				drawCap(right);
+			}
 		};
 
 		wxString normalized = align;
 		normalized.MakeLower();
-		if (normalized == "horizontal") {
-			drawGuide(-1, 0);
-			drawGuide(1, 0);
-		} else if (normalized == "vertical") {
-			drawGuide(0, -1);
-			drawGuide(0, 1);
+		if (normalized == "vertical") {
+			drawVerticalRail(true, true);
 		} else if (normalized == "north") {
-			drawGuide(0, 1);
+			drawVerticalRail(true, false);
 		} else if (normalized == "south") {
-			drawGuide(0, -1);
+			drawVerticalRail(false, true);
+		} else if (normalized == "horizontal") {
+			drawHorizontalRail(true, true);
 		} else if (normalized == "west") {
-			drawGuide(1, 0);
+			drawHorizontalRail(true, false);
 		} else if (normalized == "east") {
-			drawGuide(-1, 0);
+			drawHorizontalRail(false, true);
 		}
 	}
 
@@ -787,7 +847,9 @@ namespace {
 			return;
 		}
 
-		DrawCenteredPreviewItemSprite(dc, cellRect, itemId);
+		wxRect spriteRect = cellRect;
+		spriteRect.Deflate(window->FromDIP(8), window->FromDIP(8));
+		DrawCenteredPreviewItemSprite(dc, spriteRect, itemId);
 	}
 
 	std::vector<int> CollectDoodadCompositeFloors(const DoodadCompositeRecord &composite) {
@@ -5001,11 +5063,15 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextPaint(wxPaintEvent &WXUNUSED(
 		);
 		alignedContextRects_.push_back(cellRect);
 		alignedContextRectAligns_.push_back(wxString::FromUTF8(slot.align));
-		alignedContextRectTooltips_.push_back(
-			type == "table"
-				? wxString::FromUTF8(slot.description)
-				: wxString::Format("Context %s", wxString::FromUTF8(slot.label))
-		);
+		if (type == "table") {
+			wxString label = wxString::FromUTF8(slot.label);
+			label.Replace("\n", " ");
+			alignedContextRectTooltips_.push_back(
+				wxString::Format("%s\n%s", label, wxString::FromUTF8(slot.description))
+			);
+		} else {
+			alignedContextRectTooltips_.push_back(wxString::Format("Context %s", wxString::FromUTF8(slot.label)));
+		}
 
 		int nodeIndex = -1;
 		if (type == "table") {
@@ -5022,10 +5088,12 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextPaint(wxPaintEvent &WXUNUSED(
 		dc.SetBrush(wxBrush(fill));
 		dc.DrawRoundedRectangle(cellRect, alignedContextPanel_->FromDIP(6));
 
-		wxRect titleRect = cellRect;
-		titleRect.Deflate(alignedContextPanel_->FromDIP(compactTableCards ? 6 : 8), alignedContextPanel_->FromDIP(compactTableCards ? 6 : 8));
-		dc.SetTextForeground(textColour);
-		dc.DrawText(wxString::FromUTF8(slot.label), titleRect.x, titleRect.y);
+		if (!compactTableCards) {
+			wxRect titleRect = cellRect;
+			titleRect.Deflate(alignedContextPanel_->FromDIP(8), alignedContextPanel_->FromDIP(8));
+			dc.SetTextForeground(textColour);
+			dc.DrawText(wxString::FromUTF8(slot.label), titleRect.x, titleRect.y);
+		}
 
 		if (exists) {
 			int itemId = 0;
@@ -5049,7 +5117,7 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextPaint(wxPaintEvent &WXUNUSED(
 			previewRect.SetTop(previewRect.y + (type == "table" ? alignedContextPanel_->FromDIP(14) : alignedContextPanel_->FromDIP(10)));
 			previewRect.SetHeight(std::max(alignedContextPanel_->FromDIP(32), previewRect.height - (type == "table" ? alignedContextPanel_->FromDIP(18) : alignedContextPanel_->FromDIP(24))));
 			if (type == "table") {
-				DrawAlignedTableContextScene(dc, alignedContextPanel_, previewRect, wxString::FromUTF8(slot.align), itemId);
+				DrawAlignedTableContextScene(dc, alignedContextPanel_, cellRect, wxString::FromUTF8(slot.align), itemId);
 			} else {
 				DrawAlignedCarpetContextScene(dc, alignedContextPanel_, previewRect, wxString::FromUTF8(slot.align), itemId, selected);
 			}
@@ -5062,7 +5130,7 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextPaint(wxPaintEvent &WXUNUSED(
 					wxALIGN_CENTER
 				);
 			}
-		} else {
+		} else if (!compactTableCards) {
 			dc.SetTextForeground(mutedText);
 			dc.DrawLabel(
 				"missing",
