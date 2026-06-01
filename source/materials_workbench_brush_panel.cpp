@@ -175,6 +175,8 @@ namespace {
 		return wxString::Format("%zu. item %d", index + 1, itemId);
 	}
 
+	constexpr int kDefaultNewTableNodeChance = 10;
+
 	enum class SliderArrowDirection {
 		Left,
 		Right,
@@ -693,6 +695,27 @@ namespace {
 		return type == "table" ? GetTableContextSlots() : GetCarpetContextSlots();
 	}
 
+	std::vector<wxString> GetTableAlignChoices() {
+		std::vector<wxString> aligns;
+		for (const auto &slot : GetTableContextSlots()) {
+			aligns.emplace_back(wxString::FromUTF8(slot.align));
+		}
+		return aligns;
+	}
+
+	bool IsKnownTableAlign(const wxString &align) {
+		wxString normalized = align;
+		normalized.MakeLower();
+		for (const auto &candidate : GetTableAlignChoices()) {
+			wxString current = candidate;
+			current.MakeLower();
+			if (current == normalized) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	template <typename TNodeRecord>
 	int FindAlignedNodeIndexByAlign(const std::vector<TNodeRecord> &nodes, const wxString &align) {
 		wxString target = align;
@@ -705,6 +728,34 @@ namespace {
 			}
 		}
 		return -1;
+	}
+
+	int FindTableNodeIndexByAlignExcluding(const std::vector<TableNodeRecord> &nodes, const wxString &align, int ignoredIndex) {
+		wxString target = align;
+		target.MakeLower();
+		for (size_t i = 0; i < nodes.size(); ++i) {
+			if (static_cast<int>(i) == ignoredIndex) {
+				continue;
+			}
+			wxString current = nodes[i].align;
+			current.MakeLower();
+			if (current == target) {
+				return static_cast<int>(i);
+			}
+		}
+		return -1;
+	}
+
+	wxString FindNextMissingTableAlign(const std::vector<TableNodeRecord> &nodes, const wxString &preferredAlign = "") {
+		if (!preferredAlign.IsEmpty() && FindAlignedNodeIndexByAlign(nodes, preferredAlign) == -1 && IsKnownTableAlign(preferredAlign)) {
+			return preferredAlign;
+		}
+		for (const wxString &candidate : GetTableAlignChoices()) {
+			if (FindAlignedNodeIndexByAlign(nodes, candidate) == -1) {
+				return candidate;
+			}
+		}
+		return "";
 	}
 
 	wxPoint ResolveCarpetPreviewAnchor(wxWindow* window, const wxRect &cellRect, const wxString &align, const wxRect &spriteBounds) {
@@ -1798,12 +1849,34 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildVariationsPage(wxNotebook* notebook)
 	variationsBook_ = new wxSimplebook(panel, wxID_ANY);
 	variationsBook_->AddPage(BuildUnsupportedVariationsPage(variationsBook_), "Unsupported");
 	variationsBook_->AddPage(BuildGroundVariationsPage(variationsBook_), "Ground");
-	variationsBook_->AddPage(BuildAlignedVariationsPage(variationsBook_), "Aligned");
+	variationsBook_->AddPage(BuildCarpetVariationsPage(variationsBook_), "Carpet");
+	variationsBook_->AddPage(BuildTableVariationsPage(variationsBook_), "Table");
 	variationsBook_->AddPage(BuildDoodadVariationsPage(variationsBook_), "Doodad");
 
 	rootSizer->Add(variationsBook_, 1, wxEXPAND);
 	panel->SetSizer(rootSizer);
+	SetActiveAlignedEditorWidgets(nullptr);
 	return panel;
+}
+
+void MaterialsWorkbenchBrushPanel::SetActiveAlignedEditorWidgets(AlignedEditorWidgets* widgets) {
+	alignedSectionLabel_ = widgets ? widgets->sectionLabel : nullptr;
+	alignedVisualInfoLabel_ = widgets ? widgets->visualInfoLabel : nullptr;
+	alignedContextPanel_ = widgets ? widgets->contextPanel : nullptr;
+	alignedAddNodeButton_ = widgets ? widgets->addNodeButton : nullptr;
+	alignedNodesList_ = widgets ? widgets->nodesList : nullptr;
+	alignedSeamlessPreviewInfoLabel_ = widgets ? widgets->seamlessPreviewInfoLabel : nullptr;
+	alignedSeamlessPreviewPanel_ = widgets ? widgets->seamlessPreviewPanel : nullptr;
+	alignedItemsSummaryLabel_ = widgets ? widgets->itemsSummaryLabel : nullptr;
+	alignedItemsScroll_ = widgets ? widgets->itemsScroll : nullptr;
+	alignedItemsCardsPanel_ = widgets ? widgets->itemsCardsPanel : nullptr;
+	alignedNodeAlignCtrl_ = widgets ? widgets->nodeAlignCtrl : nullptr;
+	alignedNodeAlignChoice_ = widgets ? widgets->nodeAlignChoice : nullptr;
+	alignedAdvancedInfoLabel_ = widgets ? widgets->advancedInfoLabel : nullptr;
+	alignedItemsList_ = widgets ? widgets->itemsList : nullptr;
+	alignedItemIdCtrl_ = widgets ? widgets->itemIdCtrl : nullptr;
+	alignedItemChanceCtrl_ = widgets ? widgets->itemChanceCtrl : nullptr;
+	alignedItemOwnershipLabel_ = widgets ? widgets->itemOwnershipLabel : nullptr;
 }
 
 wxPanel* MaterialsWorkbenchBrushPanel::BuildUnsupportedVariationsPage(wxSimplebook* book) {
@@ -1902,118 +1975,273 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildGroundVariationsPage(wxSimplebook* b
 	return panel;
 }
 
-wxPanel* MaterialsWorkbenchBrushPanel::BuildAlignedVariationsPage(wxSimplebook* book) {
+wxPanel* MaterialsWorkbenchBrushPanel::BuildCarpetVariationsPage(wxSimplebook* book) {
 	wxPanel* panel = new wxPanel(book, wxID_ANY);
 	wxBoxSizer* rootSizer = new wxBoxSizer(wxHORIZONTAL);
+	const int alignedEditorWidth = panel->FromDIP(560);
+	AlignedEditorWidgets &widgets = carpetAlignedWidgets_;
+	widgets.page = panel;
 
 	wxBoxSizer* nodesSizer = new wxBoxSizer(wxVERTICAL);
-	alignedSectionLabel_ = CreateSectionLabel(panel, "Carpet Context Map");
-	alignedVisualInfoLabel_ = new wxStaticText(
+	widgets.sectionLabel = CreateSectionLabel(panel, "Carpet Context Map");
+	widgets.visualInfoLabel = new wxStaticText(
 		panel,
 		wxID_ANY,
 		"Click a context to inspect it visually. Missing contexts stay visible in the map so carpet and tiny-border coverage gaps are easy to spot."
 	);
-	StyleBrushWorkspaceSubtitle(alignedVisualInfoLabel_);
-	alignedVisualInfoLabel_->Wrap(panel->FromDIP(250));
-	alignedContextPanel_ = new wxPanel(panel, wxID_ANY, wxDefaultPosition, wxSize(panel->FromDIP(250), panel->FromDIP(250)), wxBORDER_SIMPLE);
-	alignedContextPanel_->SetBackgroundStyle(wxBG_STYLE_PAINT);
-	alignedContextPanel_->SetMinSize(wxSize(panel->FromDIP(250), panel->FromDIP(250)));
-	alignedNodesList_ = new wxListBox(panel, wxID_ANY);
-	alignedNodesList_->Hide();
+	StyleBrushWorkspaceSubtitle(widgets.visualInfoLabel);
+	widgets.visualInfoLabel->Wrap(panel->FromDIP(250));
+	widgets.contextPanel = new wxPanel(panel, wxID_ANY, wxDefaultPosition, wxSize(panel->FromDIP(250), panel->FromDIP(250)), wxBORDER_SIMPLE);
+	widgets.contextPanel->SetBackgroundStyle(wxBG_STYLE_PAINT);
+	widgets.contextPanel->SetMinSize(wxSize(panel->FromDIP(250), panel->FromDIP(250)));
+	widgets.nodesList = new wxListBox(panel, wxID_ANY);
+	widgets.nodesList->Hide();
 	wxBoxSizer* nodeButtons = new wxBoxSizer(wxHORIZONTAL);
-	wxButton* addNodeButton = new wxButton(panel, wxID_ANY, "Add Node");
+	widgets.addNodeButton = new wxButton(panel, wxID_ANY, "Add Node");
 	wxButton* removeNodeButton = new wxButton(panel, wxID_ANY, "Remove");
-	nodeButtons->Add(addNodeButton, 1, wxRIGHT, FromDIP(4));
+	nodeButtons->Add(widgets.addNodeButton, 1, wxRIGHT, FromDIP(4));
 	nodeButtons->Add(removeNodeButton, 1);
-	nodesSizer->Add(alignedSectionLabel_, 0, wxBOTTOM, FromDIP(6));
-	nodesSizer->Add(alignedVisualInfoLabel_, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
-	nodesSizer->Add(alignedContextPanel_, 1, wxEXPAND | wxBOTTOM, FromDIP(8));
+	nodesSizer->Add(widgets.sectionLabel, 0, wxBOTTOM, FromDIP(6));
+	nodesSizer->Add(widgets.visualInfoLabel, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+	nodesSizer->Add(widgets.contextPanel, 1, wxEXPAND | wxBOTTOM, FromDIP(8));
 	nodesSizer->Add(nodeButtons, 0, wxEXPAND);
-	nodesSizer->Add(alignedNodesList_, 0, wxEXPAND);
+	nodesSizer->Add(widgets.nodesList, 0, wxEXPAND);
 
+	wxPanel* editorPanel = new wxPanel(panel, wxID_ANY);
+	wxBoxSizer* editorFrameSizer = new wxBoxSizer(wxHORIZONTAL);
 	wxBoxSizer* editorSizer = new wxBoxSizer(wxVERTICAL);
-	editorSizer->Add(CreateSectionLabel(panel, "Context Items"), 0, wxBOTTOM, FromDIP(6));
-	alignedItemsSummaryLabel_ = new wxStaticText(
-		panel,
+	editorSizer->Add(CreateSectionLabel(editorPanel, "Context Items"), 0, wxBOTTOM, FromDIP(6));
+	widgets.itemsSummaryLabel = new wxStaticText(
+		editorPanel,
 		wxID_ANY,
-		"Each context shows visual item cards with live weight feedback. Keep the precise fields below for direct numeric editing."
+		"Each carpet context shows visual item cards with live weight feedback. Keep direct numeric editing below."
 	);
-	StyleBrushWorkspaceSubtitle(alignedItemsSummaryLabel_);
-	alignedItemsSummaryLabel_->Wrap(panel->FromDIP(520));
-	editorSizer->Add(alignedItemsSummaryLabel_, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
-	alignedItemsScroll_ = new wxScrolledWindow(panel, wxID_ANY, wxDefaultPosition, wxSize(panel->FromDIP(420), panel->FromDIP(220)), wxVSCROLL | wxBORDER_SIMPLE);
-	alignedItemsScroll_->SetScrollRate(0, panel->FromDIP(16));
-	alignedItemsCardsPanel_ = new wxPanel(alignedItemsScroll_, wxID_ANY);
-	alignedItemsCardsPanel_->SetBackgroundStyle(wxBG_STYLE_PAINT);
+	StyleBrushWorkspaceSubtitle(widgets.itemsSummaryLabel);
+	widgets.itemsSummaryLabel->Wrap(alignedEditorWidth);
+	editorSizer->Add(widgets.itemsSummaryLabel, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+	widgets.itemsScroll = new wxScrolledWindow(editorPanel, wxID_ANY, wxDefaultPosition, wxSize(alignedEditorWidth, editorPanel->FromDIP(220)), wxVSCROLL | wxBORDER_SIMPLE);
+	widgets.itemsScroll->SetScrollRate(0, editorPanel->FromDIP(16));
+	widgets.itemsCardsPanel = new wxPanel(widgets.itemsScroll, wxID_ANY);
+	widgets.itemsCardsPanel->SetBackgroundStyle(wxBG_STYLE_PAINT);
 	wxBoxSizer* alignedCardsSizer = new wxBoxSizer(wxVERTICAL);
-	alignedCardsSizer->Add(alignedItemsCardsPanel_, 1, wxEXPAND);
-	alignedItemsScroll_->SetSizer(alignedCardsSizer);
-	alignedItemsCardsPanel_->SetMinSize(wxSize(panel->FromDIP(420), panel->FromDIP(180)));
-	editorSizer->Add(alignedItemsScroll_, 1, wxEXPAND | wxBOTTOM, FromDIP(8));
+	alignedCardsSizer->Add(widgets.itemsCardsPanel, 1, wxEXPAND);
+	widgets.itemsScroll->SetSizer(alignedCardsSizer);
+	widgets.itemsCardsPanel->SetMinSize(wxSize(alignedEditorWidth, editorPanel->FromDIP(180)));
+	editorSizer->Add(widgets.itemsScroll, 1, wxEXPAND | wxBOTTOM, FromDIP(8));
 
-	alignedItemsList_ = new wxListBox(panel, wxID_ANY);
-	alignedItemsList_->Hide();
+	widgets.itemsList = new wxListBox(editorPanel, wxID_ANY);
+	widgets.itemsList->Hide();
 
 	wxBoxSizer* itemButtons = new wxBoxSizer(wxHORIZONTAL);
-	wxButton* addItemButton = new wxButton(panel, wxID_ANY, "Add Item");
-	wxButton* removeItemButton = new wxButton(panel, wxID_ANY, "Remove");
+	wxButton* addItemButton = new wxButton(editorPanel, wxID_ANY, "Add Item");
+	wxButton* removeItemButton = new wxButton(editorPanel, wxID_ANY, "Remove");
 	itemButtons->Add(addItemButton, 1, wxRIGHT, FromDIP(4));
 	itemButtons->Add(removeItemButton, 1);
 	editorSizer->Add(itemButtons, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
 
-	editorSizer->Add(CreateSectionLabel(panel, "Advanced"), 0, wxBOTTOM, FromDIP(6));
-	wxStaticText* advancedInfoLabel = new wxStaticText(
-		panel,
+	editorSizer->Add(CreateSectionLabel(editorPanel, "Advanced"), 0, wxBOTTOM, FromDIP(6));
+	widgets.advancedInfoLabel = new wxStaticText(
+		editorPanel,
 		wxID_ANY,
-		"Keep direct control over align, item id, and chance while the visual editor handles context selection and quick scanning."
+		"Edit carpet contexts with direct align, item id, and chance controls."
 	);
-	StyleBrushWorkspaceSubtitle(advancedInfoLabel);
-	advancedInfoLabel->Wrap(panel->FromDIP(520));
-	editorSizer->Add(advancedInfoLabel, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+	StyleBrushWorkspaceSubtitle(widgets.advancedInfoLabel);
+	widgets.advancedInfoLabel->Wrap(alignedEditorWidth);
+	editorSizer->Add(widgets.advancedInfoLabel, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
 	wxFlexGridSizer* nodeForm = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
 	nodeForm->AddGrowableCol(1, 1);
-	alignedNodeAlignCtrl_ = CreateTextField(panel);
-	nodeForm->Add(new wxStaticText(panel, wxID_ANY, "Align"), 0, wxALIGN_CENTER_VERTICAL);
-	nodeForm->Add(alignedNodeAlignCtrl_, 1, wxEXPAND);
+	widgets.nodeAlignCtrl = CreateTextField(editorPanel);
+	widgets.nodeAlignChoice = new wxChoice(editorPanel, wxID_ANY);
+	widgets.nodeAlignChoice->Hide();
+	nodeForm->Add(new wxStaticText(editorPanel, wxID_ANY, "Align"), 0, wxALIGN_CENTER_VERTICAL);
+	nodeForm->Add(widgets.nodeAlignCtrl, 1, wxEXPAND);
+	nodeForm->AddSpacer(0);
+	nodeForm->Add(widgets.nodeAlignChoice, 1, wxEXPAND);
 	editorSizer->Add(nodeForm, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
-	editorSizer->Add(alignedItemsList_, 0, wxEXPAND);
+	editorSizer->Add(widgets.itemsList, 0, wxEXPAND);
 
 	wxFlexGridSizer* itemForm = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
 	itemForm->AddGrowableCol(1, 1);
-	alignedItemIdCtrl_ = CreateItemIdSpinField(panel);
-	alignedItemChanceCtrl_ = CreateSpinField(panel, 0, 1000000);
-	alignedItemOwnershipLabel_ = new wxStaticText(panel, wxID_ANY, "Runtime owner: select an item entry.");
-	itemForm->Add(new wxStaticText(panel, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
-	itemForm->Add(alignedItemIdCtrl_, 1, wxEXPAND);
+	widgets.itemIdCtrl = CreateItemIdSpinField(editorPanel);
+	widgets.itemChanceCtrl = CreateSpinField(editorPanel, 0, 1000000);
+	widgets.itemOwnershipLabel = new wxStaticText(editorPanel, wxID_ANY, "Runtime owner: select an item entry.");
+	itemForm->Add(new wxStaticText(editorPanel, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
+	itemForm->Add(widgets.itemIdCtrl, 1, wxEXPAND);
 	itemForm->AddSpacer(0);
-	itemForm->Add(alignedItemOwnershipLabel_, 1, wxEXPAND);
-	itemForm->Add(new wxStaticText(panel, wxID_ANY, "Chance"), 0, wxALIGN_CENTER_VERTICAL);
-	itemForm->Add(alignedItemChanceCtrl_, 1, wxEXPAND);
+	itemForm->Add(widgets.itemOwnershipLabel, 1, wxEXPAND);
+	itemForm->Add(new wxStaticText(editorPanel, wxID_ANY, "Chance"), 0, wxALIGN_CENTER_VERTICAL);
+	itemForm->Add(widgets.itemChanceCtrl, 1, wxEXPAND);
 	editorSizer->Add(itemForm, 0, wxEXPAND);
+	editorFrameSizer->AddStretchSpacer();
+	editorFrameSizer->Add(editorSizer, 0, wxEXPAND);
+	editorFrameSizer->AddStretchSpacer();
+	editorPanel->SetSizer(editorFrameSizer);
 
 	rootSizer->Add(nodesSizer, 0, wxEXPAND | wxRIGHT, FromDIP(10));
 	rootSizer->Add(new wxStaticLine(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_VERTICAL), 0, wxEXPAND | wxRIGHT, FromDIP(10));
-	rootSizer->Add(editorSizer, 1, wxEXPAND);
+	rootSizer->Add(editorPanel, 1, wxEXPAND);
 	panel->SetSizer(rootSizer);
 
-	addNodeButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnAddAlignedNode, this);
+	widgets.addNodeButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnAddAlignedNode, this);
 	removeNodeButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnRemoveAlignedNode, this);
-	alignedNodesList_->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBrushPanel::OnAlignedNodeSelected, this);
-	alignedNodeAlignCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnAlignedNodeAlignChanged, this);
-	alignedContextPanel_->Bind(wxEVT_PAINT, &MaterialsWorkbenchBrushPanel::OnAlignedContextPaint, this);
-	alignedContextPanel_->Bind(wxEVT_LEFT_DOWN, &MaterialsWorkbenchBrushPanel::OnAlignedContextLeftDown, this);
-	alignedContextPanel_->Bind(wxEVT_MOTION, &MaterialsWorkbenchBrushPanel::OnAlignedContextMotion, this);
-	alignedContextPanel_->Bind(wxEVT_LEAVE_WINDOW, &MaterialsWorkbenchBrushPanel::OnAlignedContextMouseLeave, this);
+	widgets.nodesList->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBrushPanel::OnAlignedNodeSelected, this);
+	widgets.nodeAlignCtrl->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnAlignedNodeAlignChanged, this);
+	widgets.nodeAlignChoice->Bind(wxEVT_CHOICE, &MaterialsWorkbenchBrushPanel::OnAlignedNodeAlignChanged, this);
+	widgets.contextPanel->Bind(wxEVT_PAINT, &MaterialsWorkbenchBrushPanel::OnAlignedContextPaint, this);
+	widgets.contextPanel->Bind(wxEVT_LEFT_DOWN, &MaterialsWorkbenchBrushPanel::OnAlignedContextLeftDown, this);
+	widgets.contextPanel->Bind(wxEVT_MOTION, &MaterialsWorkbenchBrushPanel::OnAlignedContextMotion, this);
+	widgets.contextPanel->Bind(wxEVT_LEAVE_WINDOW, &MaterialsWorkbenchBrushPanel::OnAlignedContextMouseLeave, this);
 	addItemButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnAddAlignedItem, this);
 	removeItemButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnRemoveAlignedItem, this);
-	alignedItemsList_->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBrushPanel::OnAlignedItemSelected, this);
-	alignedItemsCardsPanel_->Bind(wxEVT_PAINT, &MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsPaint, this);
-	alignedItemsCardsPanel_->Bind(wxEVT_LEFT_DOWN, &MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsLeftDown, this);
-	alignedItemsCardsPanel_->Bind(wxEVT_RIGHT_DOWN, &MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsRightDown, this);
-	alignedItemIdCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBrushPanel::OnAlignedItemValueChanged, this);
-	alignedItemChanceCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBrushPanel::OnAlignedItemValueChanged, this);
-	alignedItemIdCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnAlignedItemValueChanged, this);
-	alignedItemChanceCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnAlignedItemValueChanged, this);
+	widgets.itemsList->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBrushPanel::OnAlignedItemSelected, this);
+	widgets.itemsCardsPanel->Bind(wxEVT_PAINT, &MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsPaint, this);
+	widgets.itemsCardsPanel->Bind(wxEVT_LEFT_DOWN, &MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsLeftDown, this);
+	widgets.itemsCardsPanel->Bind(wxEVT_RIGHT_DOWN, &MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsRightDown, this);
+	widgets.itemIdCtrl->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBrushPanel::OnAlignedItemValueChanged, this);
+	widgets.itemChanceCtrl->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBrushPanel::OnAlignedItemValueChanged, this);
+	widgets.itemIdCtrl->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnAlignedItemValueChanged, this);
+	widgets.itemChanceCtrl->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnAlignedItemValueChanged, this);
+	return panel;
+}
+
+wxPanel* MaterialsWorkbenchBrushPanel::BuildTableVariationsPage(wxSimplebook* book) {
+	wxPanel* panel = new wxPanel(book, wxID_ANY);
+	wxBoxSizer* rootSizer = new wxBoxSizer(wxHORIZONTAL);
+	const int alignedEditorWidth = panel->FromDIP(560);
+	AlignedEditorWidgets &widgets = tableAlignedWidgets_;
+	widgets.page = panel;
+
+	wxBoxSizer* nodesSizer = new wxBoxSizer(wxVERTICAL);
+	widgets.sectionLabel = CreateSectionLabel(panel, "Table State Cards");
+	widgets.visualInfoLabel = new wxStaticText(
+		panel,
+		wxID_ANY,
+		"Click an existing or empty table state. Empty slots stay selectable so Add Node always knows where to create the next state."
+	);
+	StyleBrushWorkspaceSubtitle(widgets.visualInfoLabel);
+	widgets.visualInfoLabel->Wrap(panel->FromDIP(250));
+	widgets.contextPanel = new wxPanel(panel, wxID_ANY, wxDefaultPosition, wxSize(panel->FromDIP(250), panel->FromDIP(250)), wxBORDER_SIMPLE);
+	widgets.contextPanel->SetBackgroundStyle(wxBG_STYLE_PAINT);
+	widgets.contextPanel->SetMinSize(wxSize(panel->FromDIP(250), panel->FromDIP(250)));
+	widgets.nodesList = new wxListBox(panel, wxID_ANY);
+	widgets.nodesList->Hide();
+	wxBoxSizer* nodeButtons = new wxBoxSizer(wxHORIZONTAL);
+	widgets.addNodeButton = new wxButton(panel, wxID_ANY, "Add Node");
+	wxButton* removeNodeButton = new wxButton(panel, wxID_ANY, "Remove");
+	nodeButtons->Add(widgets.addNodeButton, 1, wxRIGHT, FromDIP(4));
+	nodeButtons->Add(removeNodeButton, 1);
+	nodesSizer->Add(widgets.sectionLabel, 0, wxBOTTOM, FromDIP(6));
+	nodesSizer->Add(widgets.visualInfoLabel, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+	nodesSizer->Add(widgets.contextPanel, 1, wxEXPAND | wxBOTTOM, FromDIP(8));
+	nodesSizer->Add(nodeButtons, 0, wxEXPAND);
+	nodesSizer->Add(widgets.nodesList, 0, wxEXPAND);
+
+	wxPanel* editorPanel = new wxPanel(panel, wxID_ANY);
+	wxBoxSizer* editorFrameSizer = new wxBoxSizer(wxHORIZONTAL);
+	wxBoxSizer* editorSizer = new wxBoxSizer(wxVERTICAL);
+	widgets.seamlessPreviewInfoLabel = new wxStaticText(editorPanel, wxID_ANY, "");
+	StyleBrushWorkspaceSubtitle(widgets.seamlessPreviewInfoLabel);
+	widgets.seamlessPreviewInfoLabel->Hide();
+	editorSizer->Add(widgets.seamlessPreviewInfoLabel, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+	widgets.seamlessPreviewPanel = new wxPanel(editorPanel, wxID_ANY, wxDefaultPosition, wxSize(alignedEditorWidth, editorPanel->FromDIP(156)), wxBORDER_SIMPLE);
+	widgets.seamlessPreviewPanel->SetBackgroundStyle(wxBG_STYLE_PAINT);
+	widgets.seamlessPreviewPanel->SetMinSize(wxSize(alignedEditorWidth, editorPanel->FromDIP(156)));
+	editorSizer->Add(widgets.seamlessPreviewPanel, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+	editorSizer->Add(CreateSectionLabel(editorPanel, "Context Items"), 0, wxBOTTOM, FromDIP(6));
+	widgets.itemsSummaryLabel = new wxStaticText(
+		editorPanel,
+		wxID_ANY,
+		"Select a semantic table card or an empty slot to inspect and complete the seamless set."
+	);
+	StyleBrushWorkspaceSubtitle(widgets.itemsSummaryLabel);
+	widgets.itemsSummaryLabel->Wrap(alignedEditorWidth);
+	editorSizer->Add(widgets.itemsSummaryLabel, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+	widgets.itemsScroll = new wxScrolledWindow(editorPanel, wxID_ANY, wxDefaultPosition, wxSize(alignedEditorWidth, editorPanel->FromDIP(220)), wxVSCROLL | wxBORDER_SIMPLE);
+	widgets.itemsScroll->SetScrollRate(0, editorPanel->FromDIP(16));
+	widgets.itemsCardsPanel = new wxPanel(widgets.itemsScroll, wxID_ANY);
+	widgets.itemsCardsPanel->SetBackgroundStyle(wxBG_STYLE_PAINT);
+	wxBoxSizer* alignedCardsSizer = new wxBoxSizer(wxVERTICAL);
+	alignedCardsSizer->Add(widgets.itemsCardsPanel, 1, wxEXPAND);
+	widgets.itemsScroll->SetSizer(alignedCardsSizer);
+	widgets.itemsCardsPanel->SetMinSize(wxSize(alignedEditorWidth, editorPanel->FromDIP(180)));
+	editorSizer->Add(widgets.itemsScroll, 1, wxEXPAND | wxBOTTOM, FromDIP(8));
+
+	widgets.itemsList = new wxListBox(editorPanel, wxID_ANY);
+	widgets.itemsList->Hide();
+
+	wxBoxSizer* itemButtons = new wxBoxSizer(wxHORIZONTAL);
+	wxButton* addItemButton = new wxButton(editorPanel, wxID_ANY, "Add Item");
+	wxButton* removeItemButton = new wxButton(editorPanel, wxID_ANY, "Remove");
+	itemButtons->Add(addItemButton, 1, wxRIGHT, FromDIP(4));
+	itemButtons->Add(removeItemButton, 1);
+	editorSizer->Add(itemButtons, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+
+	editorSizer->Add(CreateSectionLabel(editorPanel, "Advanced"), 0, wxBOTTOM, FromDIP(6));
+	widgets.advancedInfoLabel = new wxStaticText(
+		editorPanel,
+		wxID_ANY,
+		"Choose a table state to edit it, or select an empty slot to place the next node precisely."
+	);
+	StyleBrushWorkspaceSubtitle(widgets.advancedInfoLabel);
+	widgets.advancedInfoLabel->Wrap(alignedEditorWidth);
+	editorSizer->Add(widgets.advancedInfoLabel, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+	wxFlexGridSizer* nodeForm = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
+	nodeForm->AddGrowableCol(1, 1);
+	widgets.nodeAlignCtrl = CreateTextField(editorPanel);
+	widgets.nodeAlignCtrl->Hide();
+	widgets.nodeAlignChoice = new wxChoice(editorPanel, wxID_ANY);
+	for (const wxString &align : GetTableAlignChoices()) {
+		widgets.nodeAlignChoice->Append(align);
+	}
+	nodeForm->Add(new wxStaticText(editorPanel, wxID_ANY, "Align"), 0, wxALIGN_CENTER_VERTICAL);
+	nodeForm->Add(widgets.nodeAlignCtrl, 1, wxEXPAND);
+	nodeForm->AddSpacer(0);
+	nodeForm->Add(widgets.nodeAlignChoice, 1, wxEXPAND);
+	editorSizer->Add(nodeForm, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+	editorSizer->Add(widgets.itemsList, 0, wxEXPAND);
+
+	wxFlexGridSizer* itemForm = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
+	itemForm->AddGrowableCol(1, 1);
+	widgets.itemIdCtrl = CreateItemIdSpinField(editorPanel);
+	widgets.itemChanceCtrl = CreateSpinField(editorPanel, 0, 1000000);
+	widgets.itemOwnershipLabel = new wxStaticText(editorPanel, wxID_ANY, "Runtime owner: select an item entry.");
+	itemForm->Add(new wxStaticText(editorPanel, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
+	itemForm->Add(widgets.itemIdCtrl, 1, wxEXPAND);
+	itemForm->AddSpacer(0);
+	itemForm->Add(widgets.itemOwnershipLabel, 1, wxEXPAND);
+	itemForm->Add(new wxStaticText(editorPanel, wxID_ANY, "Chance"), 0, wxALIGN_CENTER_VERTICAL);
+	itemForm->Add(widgets.itemChanceCtrl, 1, wxEXPAND);
+	editorSizer->Add(itemForm, 0, wxEXPAND);
+	editorFrameSizer->AddStretchSpacer();
+	editorFrameSizer->Add(editorSizer, 0, wxEXPAND);
+	editorFrameSizer->AddStretchSpacer();
+	editorPanel->SetSizer(editorFrameSizer);
+
+	rootSizer->Add(nodesSizer, 0, wxEXPAND | wxRIGHT, FromDIP(10));
+	rootSizer->Add(new wxStaticLine(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_VERTICAL), 0, wxEXPAND | wxRIGHT, FromDIP(10));
+	rootSizer->Add(editorPanel, 1, wxEXPAND);
+	panel->SetSizer(rootSizer);
+
+	widgets.addNodeButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnAddAlignedNode, this);
+	removeNodeButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnRemoveAlignedNode, this);
+	widgets.nodesList->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBrushPanel::OnAlignedNodeSelected, this);
+	widgets.nodeAlignCtrl->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnAlignedNodeAlignChanged, this);
+	widgets.nodeAlignChoice->Bind(wxEVT_CHOICE, &MaterialsWorkbenchBrushPanel::OnAlignedNodeAlignChanged, this);
+	widgets.contextPanel->Bind(wxEVT_PAINT, &MaterialsWorkbenchBrushPanel::OnAlignedContextPaint, this);
+	widgets.contextPanel->Bind(wxEVT_LEFT_DOWN, &MaterialsWorkbenchBrushPanel::OnAlignedContextLeftDown, this);
+	widgets.contextPanel->Bind(wxEVT_MOTION, &MaterialsWorkbenchBrushPanel::OnAlignedContextMotion, this);
+	widgets.contextPanel->Bind(wxEVT_LEAVE_WINDOW, &MaterialsWorkbenchBrushPanel::OnAlignedContextMouseLeave, this);
+	widgets.seamlessPreviewPanel->Bind(wxEVT_PAINT, &MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint, this);
+	addItemButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnAddAlignedItem, this);
+	removeItemButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnRemoveAlignedItem, this);
+	widgets.itemsList->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBrushPanel::OnAlignedItemSelected, this);
+	widgets.itemsCardsPanel->Bind(wxEVT_PAINT, &MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsPaint, this);
+	widgets.itemsCardsPanel->Bind(wxEVT_LEFT_DOWN, &MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsLeftDown, this);
+	widgets.itemsCardsPanel->Bind(wxEVT_RIGHT_DOWN, &MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsRightDown, this);
+	widgets.itemIdCtrl->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBrushPanel::OnAlignedItemValueChanged, this);
+	widgets.itemChanceCtrl->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBrushPanel::OnAlignedItemValueChanged, this);
+	widgets.itemIdCtrl->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnAlignedItemValueChanged, this);
+	widgets.itemChanceCtrl->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnAlignedItemValueChanged, this);
 	return panel;
 }
 
@@ -2445,8 +2673,10 @@ void MaterialsWorkbenchBrushPanel::UpdateModifiedHighlights() {
 		ApplyModifiedEditorStyle(groundItemChanceCtrl_, false);
 		ApplyModifiedEditorStyle(alignedContextPanel_, false);
 		ApplyModifiedEditorStyle(alignedNodesList_, false);
+		ApplyModifiedEditorStyle(alignedSeamlessPreviewPanel_, false);
 		ApplyModifiedEditorStyle(alignedItemsCardsPanel_, false);
 		ApplyModifiedEditorStyle(alignedNodeAlignCtrl_, false);
+		ApplyModifiedEditorStyle(alignedNodeAlignChoice_, false);
 		ApplyModifiedEditorStyle(alignedItemsList_, false);
 		ApplyModifiedEditorStyle(alignedItemIdCtrl_, false);
 		ApplyModifiedEditorStyle(alignedItemChanceCtrl_, false);
@@ -2499,7 +2729,7 @@ void MaterialsWorkbenchBrushPanel::CommitVariationEditorState() {
 		const int nodeSelection = alignedNodesList_ ? alignedNodesList_->GetSelection() : wxNOT_FOUND;
 		if (nodeSelection != wxNOT_FOUND && static_cast<size_t>(nodeSelection) < brushStorage_.tableNodes.size()) {
 			auto &node = brushStorage_.tableNodes[static_cast<size_t>(nodeSelection)];
-			node.align = alignedNodeAlignCtrl_->GetValue();
+			node.align = alignedNodeAlignChoice_ ? alignedNodeAlignChoice_->GetStringSelection() : node.align;
 			const int itemSelection = alignedItemsList_ ? alignedItemsList_->GetSelection() : wxNOT_FOUND;
 			if (itemSelection != wxNOT_FOUND && static_cast<size_t>(itemSelection) < node.items.size()) {
 				node.items[static_cast<size_t>(itemSelection)].itemId = alignedItemIdCtrl_->GetValue();
@@ -2579,8 +2809,10 @@ void MaterialsWorkbenchBrushPanel::UpdateVariationModifiedHighlights(const Brush
 	ApplyModifiedLabelStyle(alignedSectionLabel_, GetEffectiveBrushType() == "table" ? "Table State Cards" : "Carpet Context Map", alignedModified);
 	ApplyModifiedEditorStyle(alignedContextPanel_, alignedModified);
 	ApplyModifiedEditorStyle(alignedNodesList_, alignedModified);
+	ApplyModifiedEditorStyle(alignedSeamlessPreviewPanel_, alignedModified);
 	ApplyModifiedEditorStyle(alignedItemsCardsPanel_, alignedModified);
 	ApplyModifiedEditorStyle(alignedNodeAlignCtrl_, alignedModified);
+	ApplyModifiedEditorStyle(alignedNodeAlignChoice_, alignedModified);
 	ApplyModifiedEditorStyle(alignedItemsList_, alignedModified);
 	ApplyModifiedEditorStyle(alignedItemIdCtrl_, alignedModified);
 	ApplyModifiedEditorStyle(alignedItemChanceCtrl_, alignedModified);
@@ -2839,6 +3071,7 @@ void MaterialsWorkbenchBrushPanel::ResetVariationSelection() {
 	groundItemIndex_ = -1;
 	alignedNodeIndex_ = -1;
 	alignedItemIndex_ = -1;
+	alignedPendingTableAlign_.clear();
 	doodadAlternativeIndex_ = -1;
 	doodadSingleItemIndex_ = -1;
 	doodadCompositeIndex_ = -1;
@@ -2877,12 +3110,14 @@ void MaterialsWorkbenchBrushPanel::RefreshVariationEditor() {
 	}
 
 	if (!hasBrush_) {
+		SetActiveAlignedEditorWidgets(nullptr);
 		variationsEmptyLabel_->SetLabel("Select a brush to inspect variation data.");
 		variationsBook_->SetSelection(0);
 		return;
 	}
 
 	if (UsesGroundVariationEditor()) {
+		SetActiveAlignedEditorWidgets(nullptr);
 		variationsBook_->SetSelection(1);
 		RefreshGroundItemList();
 		RefreshGroundSelection();
@@ -2890,20 +3125,26 @@ void MaterialsWorkbenchBrushPanel::RefreshVariationEditor() {
 	}
 
 	if (UsesAlignedVariationEditor()) {
-		alignedSectionLabel_->SetLabel(GetEffectiveBrushType() == "carpet" ? "Carpet Context Map" : "Table State Cards");
-		variationsBook_->SetSelection(2);
+		const wxString type = GetEffectiveBrushType();
+		SetActiveAlignedEditorWidgets(type == "table" ? &tableAlignedWidgets_ : &carpetAlignedWidgets_);
+		if (type == "table" && alignedPendingTableAlign_.IsEmpty()) {
+			alignedPendingTableAlign_ = FindNextMissingTableAlign(brushStorage_.tableNodes, "alone");
+		}
+		variationsBook_->SetSelection(type == "table" ? 3 : 2);
 		RefreshAlignedNodeList();
 		RefreshAlignedSelection();
 		return;
 	}
 
 	if (UsesDoodadVariationEditor()) {
-		variationsBook_->SetSelection(3);
+		SetActiveAlignedEditorWidgets(nullptr);
+		variationsBook_->SetSelection(4);
 		RefreshDoodadAlternativeList();
 		RefreshDoodadSelection();
 		return;
 	}
 
+	SetActiveAlignedEditorWidgets(nullptr);
 	variationsEmptyLabel_->SetLabel(
 		"Variations are not yet exposed for '" + GetEffectiveBrushType() + "' brushes in this first workbench pass."
 	);
@@ -3063,7 +3304,9 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedNodeList() {
 
 		if (nodes.empty()) {
 			alignedNodeIndex_ = -1;
-		} else if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(nodes.size())) {
+		} else if (alignedNodeIndex_ >= static_cast<int>(nodes.size())) {
+			alignedNodeIndex_ = static_cast<int>(nodes.size()) - 1;
+		} else if (alignedNodeIndex_ < 0 && alignedPendingTableAlign_.IsEmpty()) {
 			alignedNodeIndex_ = 0;
 		}
 	}
@@ -3085,35 +3328,33 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedItemList() {
 		const auto &nodes = brushStorage_.carpetNodes;
 		if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(nodes.size())) {
 			alignedItemIndex_ = -1;
-			return;
-		}
+		} else {
+			const auto &items = nodes[alignedNodeIndex_].items;
+			for (size_t i = 0; i < items.size(); ++i) {
+				alignedItemsList_->Append(FormatAlignedItemLabel(items[i].itemId, items[i].chance, i));
+			}
 
-		const auto &items = nodes[alignedNodeIndex_].items;
-		for (size_t i = 0; i < items.size(); ++i) {
-			alignedItemsList_->Append(FormatAlignedItemLabel(items[i].itemId, items[i].chance, i));
-		}
-
-		if (items.empty()) {
-			alignedItemIndex_ = -1;
-		} else if (alignedItemIndex_ < 0 || alignedItemIndex_ >= static_cast<int>(items.size())) {
-			alignedItemIndex_ = 0;
+			if (items.empty()) {
+				alignedItemIndex_ = -1;
+			} else if (alignedItemIndex_ < 0 || alignedItemIndex_ >= static_cast<int>(items.size())) {
+				alignedItemIndex_ = 0;
+			}
 		}
 	} else {
 		const auto &nodes = brushStorage_.tableNodes;
 		if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(nodes.size())) {
 			alignedItemIndex_ = -1;
-			return;
-		}
+		} else {
+			const auto &items = nodes[alignedNodeIndex_].items;
+			for (size_t i = 0; i < items.size(); ++i) {
+				alignedItemsList_->Append(FormatAlignedItemLabel(items[i].itemId, items[i].chance, i));
+			}
 
-		const auto &items = nodes[alignedNodeIndex_].items;
-		for (size_t i = 0; i < items.size(); ++i) {
-			alignedItemsList_->Append(FormatAlignedItemLabel(items[i].itemId, items[i].chance, i));
-		}
-
-		if (items.empty()) {
-			alignedItemIndex_ = -1;
-		} else if (alignedItemIndex_ < 0 || alignedItemIndex_ >= static_cast<int>(items.size())) {
-			alignedItemIndex_ = 0;
+			if (items.empty()) {
+				alignedItemIndex_ = -1;
+			} else if (alignedItemIndex_ < 0 || alignedItemIndex_ >= static_cast<int>(items.size())) {
+				alignedItemIndex_ = 0;
+			}
 		}
 	}
 
@@ -3143,10 +3384,15 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedItemList() {
 
 void MaterialsWorkbenchBrushPanel::RefreshAlignedSelection() {
 	internalUpdate_ = true;
+	const wxString type = GetEffectiveBrushType();
 	bool hasNode = false;
-	if (GetEffectiveBrushType() == "carpet") {
+	if (type == "carpet") {
 		const auto &nodes = brushStorage_.carpetNodes;
 		hasNode = alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(nodes.size());
+		alignedNodeAlignCtrl_->Show();
+		if (alignedNodeAlignChoice_) {
+			alignedNodeAlignChoice_->Hide();
+		}
 		alignedNodeAlignCtrl_->Enable(hasNode);
 		if (hasNode) {
 			alignedNodeAlignCtrl_->SetValue(nodes[alignedNodeIndex_].align);
@@ -3157,14 +3403,29 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedSelection() {
 	} else {
 		const auto &nodes = brushStorage_.tableNodes;
 		hasNode = alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(nodes.size());
-		alignedNodeAlignCtrl_->Enable(hasNode);
-		if (hasNode) {
-			alignedNodeAlignCtrl_->SetValue(nodes[alignedNodeIndex_].align);
+		if (alignedNodeAlignCtrl_) {
+			alignedNodeAlignCtrl_->Hide();
+		}
+		if (alignedNodeAlignChoice_) {
+			alignedNodeAlignChoice_->Show();
+		}
+		const wxString selectedAlign = hasNode
+			? nodes[alignedNodeIndex_].align
+			: (!alignedPendingTableAlign_.IsEmpty() ? alignedPendingTableAlign_ : FindNextMissingTableAlign(nodes, "alone"));
+		alignedPendingTableAlign_ = selectedAlign;
+		alignedNodeAlignChoice_->Enable(!selectedAlign.IsEmpty());
+		const int selectedChoice = alignedNodeAlignChoice_->FindString(selectedAlign);
+		if (selectedChoice != wxNOT_FOUND) {
+			alignedNodeAlignChoice_->SetSelection(selectedChoice);
 		} else {
-			alignedNodeAlignCtrl_->SetValue("");
+			alignedNodeAlignChoice_->SetSelection(wxNOT_FOUND);
+		}
+		if (hasNode) {
+		} else {
 			alignedItemIndex_ = -1;
 		}
 	}
+	Layout();
 
 	RefreshAlignedItemList();
 
@@ -3204,12 +3465,15 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
 
 	const wxString type = GetEffectiveBrushType();
 	const bool hasNode = alignedNodeIndex_ >= 0;
+	const bool hasPendingTableSlot = type == "table" && !alignedPendingTableAlign_.IsEmpty() && !hasNode;
 	if (alignedVisualInfoLabel_) {
 		if (type == "table") {
 			alignedVisualInfoLabel_->SetLabel(
 				hasNode
-					? "Click a table state card to inspect the selected piece on the right."
-					: "Create table states, then click a state card to inspect the piece in context."
+					? "Selected table state is locked visually on the left. Change weighted items or move the state with the guided align selector."
+					: (hasPendingTableSlot
+						? "Empty table slot selected. Add Node will fill this exact state without creating duplicates."
+						: "Click an existing or empty table state. Empty slots stay selectable so Add Node always knows where to create the next state.")
 			);
 		} else {
 			alignedVisualInfoLabel_->SetLabel(
@@ -3219,6 +3483,50 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
 			);
 		}
 		alignedVisualInfoLabel_->Wrap(FromDIP(250));
+	}
+
+	if (alignedAdvancedInfoLabel_) {
+		if (type == "table") {
+			if (hasNode && alignedNodeIndex_ < static_cast<int>(brushStorage_.tableNodes.size())) {
+				const auto &node = brushStorage_.tableNodes[alignedNodeIndex_];
+				alignedAdvancedInfoLabel_->SetLabel(
+					wxString::Format(
+						"Advanced: state %s selected. Align uses guided options, and weighted items stay editable below.",
+						node.align
+					)
+				);
+			} else if (hasPendingTableSlot) {
+				alignedAdvancedInfoLabel_->SetLabel(
+					wxString::Format(
+						"Advanced: empty state %s selected. Add Node creates one new state here with default chance %d.",
+						alignedPendingTableAlign_,
+						kDefaultNewTableNodeChance
+					)
+				);
+			} else {
+				alignedAdvancedInfoLabel_->SetLabel("Advanced: choose a table state to edit it, or select an empty slot to place the next node precisely.");
+			}
+		} else {
+			alignedAdvancedInfoLabel_->SetLabel(
+				"Use structured controls for fast edits: choose align from known slots, tune item id/chance, and keep empty slots selectable directly in the context cards."
+			);
+		}
+		alignedAdvancedInfoLabel_->Wrap(FromDIP(520));
+	}
+
+	if (alignedAddNodeButton_) {
+		if (type == "table") {
+			const wxString nextMissingAlign = FindNextMissingTableAlign(brushStorage_.tableNodes, alignedPendingTableAlign_);
+			alignedAddNodeButton_->Enable(!nextMissingAlign.IsEmpty());
+			alignedAddNodeButton_->SetToolTip(
+				nextMissingAlign.IsEmpty()
+					? "All table states are already configured."
+					: "Create a new node in the currently selected empty table state."
+			);
+		} else {
+			alignedAddNodeButton_->Enable(hasBrush_);
+			alignedAddNodeButton_->SetToolTip("Add a new aligned node.");
+		}
 	}
 
 	if (alignedItemsSummaryLabel_) {
@@ -3247,12 +3555,29 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
 						node.items.size() == 1 ? "" : "s"
 					)
 				);
+			} else if (hasPendingTableSlot) {
+				alignedItemsSummaryLabel_->SetLabel(
+					wxString::Format(
+						"Empty state %s selected | add one node here to start the seamless set",
+						alignedPendingTableAlign_
+					)
+				);
 			} else {
-				alignedItemsSummaryLabel_->SetLabel("Select a semantic table card to inspect its weighted items.");
+				alignedItemsSummaryLabel_->SetLabel("Select a semantic table card or an empty slot to inspect and complete the seamless set.");
 			}
 		}
 		alignedItemsSummaryLabel_->Wrap(FromDIP(520));
 	}
+
+	if (alignedSeamlessPreviewInfoLabel_) {
+		if (type == "table") {
+			alignedSeamlessPreviewInfoLabel_->Hide();
+		} else {
+			alignedSeamlessPreviewInfoLabel_->Hide();
+		}
+	}
+
+	RefreshAlignedSeamlessPreview();
 
 	if (alignedContextPanel_) {
 		alignedContextPanel_->Refresh();
@@ -3260,6 +3585,158 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
 	if (alignedItemsCardsPanel_) {
 		alignedItemsCardsPanel_->Refresh();
 	}
+}
+
+void MaterialsWorkbenchBrushPanel::RefreshAlignedSeamlessPreview() {
+	const bool showTablePreview = UsesAlignedVariationEditor() && GetEffectiveBrushType() == "table";
+	if (alignedSeamlessPreviewPanel_) {
+		alignedSeamlessPreviewPanel_->Show(showTablePreview);
+		if (showTablePreview) {
+			alignedSeamlessPreviewPanel_->Refresh();
+		}
+		if (wxWindow* parent = alignedSeamlessPreviewPanel_->GetParent()) {
+			parent->Layout();
+		}
+	}
+	Layout();
+}
+
+void MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint(wxPaintEvent &WXUNUSED(event)) {
+	if (!alignedSeamlessPreviewPanel_) {
+		return;
+	}
+
+	wxAutoBufferedPaintDC dc(alignedSeamlessPreviewPanel_);
+	const wxRect clientRect = alignedSeamlessPreviewPanel_->GetClientRect();
+	dc.SetBackground(wxBrush(wxColour(20, 24, 32)));
+	dc.Clear();
+
+	if (!hasBrush_ || GetEffectiveBrushType() != "table") {
+		return;
+	}
+
+	const auto resolvePreviewItemId = [&](const wxString &align) -> int {
+		const int nodeIndex = FindAlignedNodeIndexByAlign(brushStorage_.tableNodes, align);
+		if (nodeIndex < 0 || nodeIndex >= static_cast<int>(brushStorage_.tableNodes.size())) {
+			return 0;
+		}
+		const auto &items = brushStorage_.tableNodes[static_cast<size_t>(nodeIndex)].items;
+		for (const auto &item : items) {
+			if (item.itemId > 0) {
+				return item.itemId;
+			}
+		}
+		return items.empty() ? 0 : items.front().itemId;
+	};
+
+	const auto isSelectedAlign = [&](const wxString &align) -> bool {
+		if (alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(brushStorage_.tableNodes.size())) {
+			return brushStorage_.tableNodes[alignedNodeIndex_].align.CmpNoCase(align) == 0;
+		}
+		return alignedPendingTableAlign_.CmpNoCase(align) == 0;
+	};
+
+	const wxColour frameColour(74, 82, 96);
+	const int outerPadding = alignedSeamlessPreviewPanel_->FromDIP(12);
+	const int boxGap = alignedSeamlessPreviewPanel_->FromDIP(12);
+	wxRect contentRect = clientRect;
+	contentRect.Deflate(outerPadding, outerPadding);
+	const int boxWidth = std::max(alignedSeamlessPreviewPanel_->FromDIP(160), (contentRect.width - boxGap) / 2);
+	const wxRect verticalRect(contentRect.x, contentRect.y, boxWidth, contentRect.height);
+	const wxRect horizontalRect(contentRect.x + boxWidth + boxGap, contentRect.y, std::max(0, contentRect.width - boxWidth - boxGap), contentRect.height);
+
+	const auto drawPreviewBox = [&](const wxRect &boxRect, const std::vector<wxString> &aligns, bool vertical) {
+		dc.SetPen(wxPen(frameColour, 1));
+		dc.SetBrush(wxBrush(wxColour(24, 28, 36)));
+		dc.DrawRoundedRectangle(boxRect, alignedSeamlessPreviewPanel_->FromDIP(8));
+
+		wxRect innerRect = boxRect;
+		innerRect.Deflate(alignedSeamlessPreviewPanel_->FromDIP(10), alignedSeamlessPreviewPanel_->FromDIP(10));
+
+		const int cellGap = alignedSeamlessPreviewPanel_->FromDIP(8);
+		const int indicatorSpace = alignedSeamlessPreviewPanel_->FromDIP(20);
+		const int capSize = alignedSeamlessPreviewPanel_->FromDIP(6);
+		const wxColour lineColour(88, 96, 110);
+		const wxColour capColour(74, 82, 96);
+		std::vector<wxRect> cellRects;
+		cellRects.reserve(aligns.size());
+
+		auto drawCap = [&](const wxPoint &center) {
+			dc.SetPen(*wxTRANSPARENT_PEN);
+			dc.SetBrush(wxBrush(capColour));
+			dc.DrawRoundedRectangle(
+				wxRect(center.x - capSize / 2, center.y - capSize / 2, capSize, capSize),
+				alignedSeamlessPreviewPanel_->FromDIP(2)
+			);
+		};
+
+		for (size_t i = 0; i < aligns.size(); ++i) {
+			wxRect cellRect;
+			if (vertical) {
+				const int cellHeight = std::max(alignedSeamlessPreviewPanel_->FromDIP(30), (innerRect.height - cellGap * 2) / 3);
+				const int cellWidth = std::max(alignedSeamlessPreviewPanel_->FromDIP(70), innerRect.width - indicatorSpace - cellGap);
+				cellRect = wxRect(
+					innerRect.x,
+					innerRect.y + static_cast<int>(i) * (cellHeight + cellGap),
+					cellWidth,
+					cellHeight
+				);
+			} else {
+				const int cellWidth = std::max(alignedSeamlessPreviewPanel_->FromDIP(48), (innerRect.width - cellGap * 2) / 3);
+				const int cellHeight = std::max(alignedSeamlessPreviewPanel_->FromDIP(56), innerRect.height - indicatorSpace);
+				cellRect = wxRect(
+					innerRect.x + static_cast<int>(i) * (cellWidth + cellGap),
+					innerRect.y,
+					cellWidth,
+					cellHeight
+				);
+			}
+			cellRects.push_back(cellRect);
+
+			const int nodeIndex = FindAlignedNodeIndexByAlign(brushStorage_.tableNodes, aligns[i]);
+			const bool exists = nodeIndex >= 0;
+			const bool selected = isSelectedAlign(aligns[i]);
+			const wxColour cellAccent = selected ? wxColour(80, 166, 255) : (exists ? wxColour(91, 194, 139) : wxColour(176, 102, 0));
+			dc.SetPen(wxPen(cellAccent, selected ? 2 : 1));
+			dc.SetBrush(wxBrush(selected ? wxColour(38, 46, 60) : wxColour(30, 34, 42)));
+			dc.DrawRoundedRectangle(cellRect, alignedSeamlessPreviewPanel_->FromDIP(6));
+
+			wxRect spriteRect = cellRect;
+			spriteRect.Deflate(alignedSeamlessPreviewPanel_->FromDIP(8), alignedSeamlessPreviewPanel_->FromDIP(8));
+			const int itemId = resolvePreviewItemId(aligns[i]);
+			if (itemId > 0) {
+				DrawCenteredPreviewItemSprite(dc, spriteRect, itemId);
+			}
+		}
+
+		if (cellRects.size() != 3) {
+			return;
+		}
+
+		dc.SetPen(wxPen(lineColour, 2));
+		if (vertical) {
+			const int railX = cellRects.front().GetRight() + alignedSeamlessPreviewPanel_->FromDIP(8);
+			const wxPoint topCap(railX, cellRects.front().y + cellRects.front().height / 2 - alignedSeamlessPreviewPanel_->FromDIP(12));
+			const wxPoint bottomCap(railX, cellRects.back().y + cellRects.back().height / 2 + alignedSeamlessPreviewPanel_->FromDIP(12));
+			const wxPoint start(railX, topCap.y);
+			const wxPoint end(railX, bottomCap.y);
+			dc.DrawLine(start, end);
+			drawCap(topCap);
+			drawCap(bottomCap);
+		} else {
+			const int railY = cellRects.front().GetBottom() + alignedSeamlessPreviewPanel_->FromDIP(8);
+			const wxPoint leftCap(cellRects.front().x + cellRects.front().width / 2 - alignedSeamlessPreviewPanel_->FromDIP(12), railY);
+			const wxPoint rightCap(cellRects.back().x + cellRects.back().width / 2 + alignedSeamlessPreviewPanel_->FromDIP(12), railY);
+			const wxPoint start(leftCap.x, railY);
+			const wxPoint end(rightCap.x, railY);
+			dc.DrawLine(start, end);
+			drawCap(leftCap);
+			drawCap(rightCap);
+		}
+	};
+
+	drawPreviewBox(verticalRect, {"north", "vertical", "south"}, true);
+	drawPreviewBox(horizontalRect, {"west", "horizontal", "east"}, false);
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshDoodadAlternativeList() {
@@ -4820,16 +5297,25 @@ void MaterialsWorkbenchBrushPanel::OnAddAlignedNode(wxCommandEvent &WXUNUSED(eve
 		brushStorage_.carpetNodes.push_back(node);
 		alignedNodeIndex_ = static_cast<int>(brushStorage_.carpetNodes.size()) - 1;
 	} else {
+		wxString targetAlign = FindNextMissingTableAlign(brushStorage_.tableNodes, alignedPendingTableAlign_);
+		if (targetAlign.IsEmpty()) {
+			SetStatusMessage("All table states are already configured. Remove one before adding another.");
+			return;
+		}
 		TableNodeRecord node;
-		node.align = "center";
+		node.align = targetAlign;
+		TableNodeItemRecord item;
+		item.chance = kDefaultNewTableNodeChance;
+		node.items.push_back(item);
 		brushStorage_.tableNodes.push_back(node);
 		alignedNodeIndex_ = static_cast<int>(brushStorage_.tableNodes.size()) - 1;
+		alignedPendingTableAlign_ = node.align;
 	}
 	RefreshAlignedNodeList();
 	RefreshAlignedSelection();
 	UpdateSummary();
 	RefreshDirtyState();
-	SetStatusMessage("Added variation node.");
+	SetStatusMessage(GetEffectiveBrushType() == "table" ? "Added table state in the selected empty slot." : "Added variation node.");
 }
 
 void MaterialsWorkbenchBrushPanel::OnRemoveAlignedNode(wxCommandEvent &WXUNUSED(event)) {
@@ -4852,10 +5338,11 @@ void MaterialsWorkbenchBrushPanel::OnRemoveAlignedNode(wxCommandEvent &WXUNUSED(
 			SetStatusMessage("Select a node before removing it.");
 			return;
 		}
+		const wxString removedAlign = nodes[alignedNodeIndex_].align;
 		nodes.erase(nodes.begin() + alignedNodeIndex_);
-		if (alignedNodeIndex_ >= static_cast<int>(nodes.size())) {
-			alignedNodeIndex_ = static_cast<int>(nodes.size()) - 1;
-		}
+		alignedNodeIndex_ = -1;
+		alignedItemIndex_ = -1;
+		alignedPendingTableAlign_ = removedAlign;
 	}
 	RefreshAlignedNodeList();
 	RefreshAlignedSelection();
@@ -4866,6 +5353,10 @@ void MaterialsWorkbenchBrushPanel::OnRemoveAlignedNode(wxCommandEvent &WXUNUSED(
 
 void MaterialsWorkbenchBrushPanel::OnAlignedNodeSelected(wxCommandEvent &event) {
 	alignedNodeIndex_ = event.GetSelection();
+	if (GetEffectiveBrushType() == "table" && alignedNodeIndex_ >= 0 &&
+		alignedNodeIndex_ < static_cast<int>(brushStorage_.tableNodes.size())) {
+		alignedPendingTableAlign_ = brushStorage_.tableNodes[alignedNodeIndex_].align;
+	}
 	RefreshAlignedSelection();
 }
 
@@ -4881,10 +5372,35 @@ void MaterialsWorkbenchBrushPanel::OnAlignedNodeAlignChanged(wxCommandEvent &WXU
 		nodes[alignedNodeIndex_].align = TrimmedValue(alignedNodeAlignCtrl_);
 	} else {
 		auto &nodes = brushStorage_.tableNodes;
-		if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(nodes.size())) {
+		if (!alignedNodeAlignChoice_) {
 			return;
 		}
-		nodes[alignedNodeIndex_].align = TrimmedValue(alignedNodeAlignCtrl_);
+		const wxString selectedAlign = alignedNodeAlignChoice_->GetStringSelection();
+		if (selectedAlign.IsEmpty()) {
+			return;
+		}
+		if (alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(nodes.size())) {
+			if (FindTableNodeIndexByAlignExcluding(nodes, selectedAlign, alignedNodeIndex_) >= 0) {
+				internalUpdate_ = true;
+				const int previousChoice = alignedNodeAlignChoice_->FindString(nodes[alignedNodeIndex_].align);
+				alignedNodeAlignChoice_->SetSelection(previousChoice);
+				internalUpdate_ = false;
+				SetStatusMessage("That table state already exists. Pick an empty slot instead.");
+				return;
+			}
+			nodes[alignedNodeIndex_].align = selectedAlign;
+			alignedPendingTableAlign_ = selectedAlign;
+		} else {
+			const int existingNodeIndex = FindAlignedNodeIndexByAlign(nodes, selectedAlign);
+			if (existingNodeIndex >= 0) {
+				alignedNodeIndex_ = existingNodeIndex;
+				alignedPendingTableAlign_ = nodes[existingNodeIndex].align;
+			} else {
+				alignedPendingTableAlign_ = selectedAlign;
+			}
+			RefreshAlignedSelection();
+			return;
+		}
 	}
 	RefreshAlignedNodeList();
 	if (alignedNodeIndex_ >= 0) {
@@ -4914,7 +5430,7 @@ void MaterialsWorkbenchBrushPanel::OnAddAlignedItem(wxCommandEvent &WXUNUSED(eve
 			return;
 		}
 		TableNodeItemRecord item;
-		item.chance = 1;
+		item.chance = kDefaultNewTableNodeChance;
 		nodes[alignedNodeIndex_].items.push_back(item);
 		alignedItemIndex_ = static_cast<int>(nodes[alignedNodeIndex_].items.size()) - 1;
 	}
@@ -5081,7 +5597,9 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextPaint(wxPaintEvent &WXUNUSED(
 		}
 
 		const bool exists = nodeIndex >= 0;
-		const bool selected = exists && nodeIndex == alignedNodeIndex_;
+		const bool selected = exists
+			? nodeIndex == alignedNodeIndex_
+			: (type == "table" && alignedPendingTableAlign_.CmpNoCase(wxString::FromUTF8(slot.align)) == 0);
 		const wxColour accent = selected ? wxColour(80, 166, 255) : (exists ? wxColour(91, 194, 139) : wxColour(176, 102, 0));
 		const wxColour fill = selected ? wxColour(38, 46, 60) : (exists ? wxColour(28, 31, 38) : wxColour(34, 29, 26));
 		dc.SetPen(wxPen(accent, selected ? 2 : 1));
@@ -5130,6 +5648,19 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextPaint(wxPaintEvent &WXUNUSED(
 					wxALIGN_CENTER
 				);
 			}
+		} else if (compactTableCards) {
+			dc.SetTextForeground(textColour);
+			dc.DrawLabel(
+				wxString::FromUTF8(slot.label),
+				wxRect(cellRect.x, cellRect.y + alignedContextPanel_->FromDIP(6), cellRect.width, alignedContextPanel_->FromDIP(18)),
+				wxALIGN_CENTER
+			);
+			dc.SetTextForeground(mutedText);
+			dc.DrawLabel(
+				selected ? "selected empty" : "empty",
+				wxRect(cellRect.x, cellRect.y + (cellRect.height / 2) - alignedContextPanel_->FromDIP(8), cellRect.width, alignedContextPanel_->FromDIP(16)),
+				wxALIGN_CENTER
+			);
 		} else if (!compactTableCards) {
 			dc.SetTextForeground(mutedText);
 			dc.DrawLabel(
@@ -5160,11 +5691,22 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextLeftDown(wxMouseEvent &event)
 			nodeIndex = FindAlignedNodeIndexByAlign(brushStorage_.carpetNodes, alignedContextRectAligns_[i]);
 		}
 		if (nodeIndex < 0) {
+			if (GetEffectiveBrushType() == "table") {
+				alignedNodeIndex_ = -1;
+				alignedItemIndex_ = -1;
+				alignedPendingTableAlign_ = alignedContextRectAligns_[i];
+				RefreshAlignedSelection();
+				SetStatusMessage("Selected an empty table state. Add Node will create it here.");
+				return;
+			}
 			SetStatusMessage("No node exists for context '" + alignedContextRectAligns_[i] + "'. Add a node, then set its align to this context.");
 			return;
 		}
 
 		alignedNodeIndex_ = nodeIndex;
+		if (GetEffectiveBrushType() == "table") {
+			alignedPendingTableAlign_ = alignedContextRectAligns_[i];
+		}
 		if (alignedNodesList_) {
 			alignedNodesList_->SetSelection(alignedNodeIndex_);
 		}

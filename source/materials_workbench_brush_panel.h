@@ -65,13 +65,36 @@ private:
 		int doodadTileItemsTopItem = -1;
 	};
 
+	struct AlignedEditorWidgets {
+		wxPanel* page = nullptr;
+		wxStaticText* sectionLabel = nullptr;
+		wxStaticText* visualInfoLabel = nullptr;
+		wxPanel* contextPanel = nullptr;
+		wxButton* addNodeButton = nullptr;
+		wxListBox* nodesList = nullptr;
+		wxStaticText* seamlessPreviewInfoLabel = nullptr;
+		wxPanel* seamlessPreviewPanel = nullptr;
+		wxStaticText* itemsSummaryLabel = nullptr;
+		wxScrolledWindow* itemsScroll = nullptr;
+		wxPanel* itemsCardsPanel = nullptr;
+		wxTextCtrl* nodeAlignCtrl = nullptr;
+		wxChoice* nodeAlignChoice = nullptr;
+		wxStaticText* advancedInfoLabel = nullptr;
+		wxListBox* itemsList = nullptr;
+		wxSpinCtrl* itemIdCtrl = nullptr;
+		wxSpinCtrl* itemChanceCtrl = nullptr;
+		wxStaticText* itemOwnershipLabel = nullptr;
+	};
+
 	void BuildLayout();
 	wxPanel* BuildMetadataPage(wxNotebook* notebook);
 	wxPanel* BuildVariationsPage(wxNotebook* notebook);
 	wxPanel* BuildUnsupportedVariationsPage(wxSimplebook* book);
 	wxPanel* BuildGroundVariationsPage(wxSimplebook* book);
-	wxPanel* BuildAlignedVariationsPage(wxSimplebook* book);
+	wxPanel* BuildCarpetVariationsPage(wxSimplebook* book);
+	wxPanel* BuildTableVariationsPage(wxSimplebook* book);
 	wxPanel* BuildDoodadVariationsPage(wxSimplebook* book);
+	void SetActiveAlignedEditorWidgets(AlignedEditorWidgets* widgets);
 	void PopulateFields();
 	void PopulateMetadataFields();
 	void UpdateSummary();
@@ -88,6 +111,7 @@ private:
 	void RefreshAlignedItemList();
 	void RefreshAlignedSelection();
 	void RefreshAlignedVisualState();
+	void RefreshAlignedSeamlessPreview();
 	void RefreshDoodadAlternativeList();
 	void RefreshDoodadSingleItemList();
 	void RefreshDoodadCompositeList();
@@ -147,6 +171,7 @@ private:
 	void OnAlignedContextLeftDown(wxMouseEvent &event);
 	void OnAlignedContextMotion(wxMouseEvent &event);
 	void OnAlignedContextMouseLeave(wxMouseEvent &event);
+	void OnAlignedSeamlessPreviewPaint(wxPaintEvent &event);
 	void OnAlignedItemsCardsPaint(wxPaintEvent &event);
 	void OnAlignedItemsCardsLeftDown(wxMouseEvent &event);
 	void OnAlignedItemsCardsRightDown(wxMouseEvent &event);
@@ -242,14 +267,21 @@ private:
 	std::vector<wxRect> groundPreviewTileRects_;
 	bool groundPreviewHighlightEnabled_ = false;
 	int groundItemIndex_ = -1;
+	AlignedEditorWidgets carpetAlignedWidgets_;
+	AlignedEditorWidgets tableAlignedWidgets_;
 	wxStaticText* alignedSectionLabel_ = nullptr;
 	wxStaticText* alignedVisualInfoLabel_ = nullptr;
 	wxPanel* alignedContextPanel_ = nullptr;
+	wxButton* alignedAddNodeButton_ = nullptr;
 	wxListBox* alignedNodesList_ = nullptr;
+	wxStaticText* alignedSeamlessPreviewInfoLabel_ = nullptr;
+	wxPanel* alignedSeamlessPreviewPanel_ = nullptr;
 	wxStaticText* alignedItemsSummaryLabel_ = nullptr;
 	wxScrolledWindow* alignedItemsScroll_ = nullptr;
 	wxPanel* alignedItemsCardsPanel_ = nullptr;
 	wxTextCtrl* alignedNodeAlignCtrl_ = nullptr;
+	wxChoice* alignedNodeAlignChoice_ = nullptr;
+	wxStaticText* alignedAdvancedInfoLabel_ = nullptr;
 	wxListBox* alignedItemsList_ = nullptr;
 	wxSpinCtrl* alignedItemIdCtrl_ = nullptr;
 	wxSpinCtrl* alignedItemChanceCtrl_ = nullptr;
@@ -260,6 +292,7 @@ private:
 	std::vector<wxRect> alignedItemCardRects_;
 	int alignedNodeIndex_ = -1;
 	int alignedItemIndex_ = -1;
+	wxString alignedPendingTableAlign_;
 	wxPanel* doodadAlternativeSliderPanel_ = nullptr;
 	wxRect doodadAlternativePrevRect_;
 	wxRect doodadAlternativeNextRect_;
