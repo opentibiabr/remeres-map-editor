@@ -460,6 +460,22 @@ namespace {
 		dc.DrawBitmap(bitmap, spriteRect.x, spriteRect.y, true);
 	}
 
+	void DrawCenteredPreviewItemSprite(wxDC &dc, const wxRect &bounds, int itemId) {
+		const DoodadPreviewSpriteMetrics metrics = ResolveDoodadPreviewSpriteMetrics(itemId);
+		if (!metrics.isValid()) {
+			return;
+		}
+
+		const wxBitmap bitmap = BuildDoodadPreviewBitmap(metrics.spriteId);
+		if (!bitmap.IsOk()) {
+			return;
+		}
+
+		const int drawX = bounds.x + std::max(0, (bounds.width - bitmap.GetWidth()) / 2);
+		const int drawY = bounds.y + std::max(0, (bounds.height - bitmap.GetHeight()) / 2);
+		dc.DrawBitmap(bitmap, drawX, drawY, true);
+	}
+
 	int SumWeightedBrushChances(const std::vector<BrushItemRecord> &items) {
 		int total = 0;
 		for (const BrushItemRecord &item : items) {
@@ -533,6 +549,235 @@ namespace {
 			y += cardHeight + gap;
 		}
 		return rects;
+	}
+
+	template <typename TItemRecord>
+	int SumAlignedItemChances(const std::vector<TItemRecord> &items) {
+		int total = 0;
+		for (const auto &item : items) {
+			total += std::max(0, item.chance);
+		}
+		return total;
+	}
+
+	template <typename TItemRecord>
+	double ComputeAlignedItemRatio(const std::vector<TItemRecord> &items, size_t index) {
+		if (index >= items.size()) {
+			return 0.0;
+		}
+		const int total = SumAlignedItemChances(items);
+		if (total <= 0) {
+			return items.empty() ? 0.0 : 1.0 / static_cast<double>(items.size());
+		}
+		return static_cast<double>(std::max(0, items[index].chance)) / static_cast<double>(total);
+	}
+
+	template <typename TItemRecord>
+	wxString FormatAlignedItemPercent(const std::vector<TItemRecord> &items, size_t index) {
+		return wxString::Format("%.1f%%", ComputeAlignedItemRatio(items, index) * 100.0);
+	}
+
+	template <typename TItemRecord>
+	wxString GetAlignedItemBadge(const std::vector<TItemRecord> &items, size_t index) {
+		const double ratio = ComputeAlignedItemRatio(items, index);
+		if (ratio >= 0.60) {
+			return "dominant";
+		}
+		if (ratio >= 0.30) {
+			return "common";
+		}
+		if (ratio >= 0.12) {
+			return "steady";
+		}
+		if (ratio >= 0.05) {
+			return "rare";
+		}
+		return "ultra rare";
+	}
+
+	template <typename TItemRecord>
+	wxColour GetAlignedItemBadgeColour(const std::vector<TItemRecord> &items, size_t index) {
+		const double ratio = ComputeAlignedItemRatio(items, index);
+		if (ratio >= 0.60) {
+			return wxColour(80, 166, 255);
+		}
+		if (ratio >= 0.30) {
+			return wxColour(91, 194, 139);
+		}
+		if (ratio >= 0.12) {
+			return wxColour(232, 190, 96);
+		}
+		if (ratio >= 0.05) {
+			return wxColour(230, 140, 72);
+		}
+		return wxColour(194, 96, 126);
+	}
+
+	struct AlignedContextSlot {
+		const char* align = "";
+		const char* label = "";
+		int column = 0;
+		int row = 0;
+	};
+
+	const std::vector<AlignedContextSlot>& GetCarpetContextSlots() {
+		static const std::vector<AlignedContextSlot> kSlots = {
+			{"cse", "NW", 0, 0},
+			{"s", "N", 1, 0},
+			{"csw", "NE", 2, 0},
+			{"e", "W", 0, 1},
+			{"center", "C", 1, 1},
+			{"w", "E", 2, 1},
+			{"cne", "SW", 0, 2},
+			{"n", "S", 1, 2},
+			{"cnw", "SE", 2, 2},
+		};
+		return kSlots;
+	}
+
+	const std::vector<AlignedContextSlot>& GetTableContextSlots() {
+		static const std::vector<AlignedContextSlot> kSlots = {
+			{"north", "N end", 1, 0},
+			{"west", "W end", 0, 1},
+			{"alone", "solo", 1, 1},
+			{"east", "E end", 2, 1},
+			{"horizontal", "H run", 0, 2},
+			{"south", "S end", 1, 2},
+			{"vertical", "V run", 2, 2},
+		};
+		return kSlots;
+	}
+
+	const std::vector<AlignedContextSlot>& GetAlignedContextSlots(const wxString &type) {
+		return type == "table" ? GetTableContextSlots() : GetCarpetContextSlots();
+	}
+
+	template <typename TNodeRecord>
+	int FindAlignedNodeIndexByAlign(const std::vector<TNodeRecord> &nodes, const wxString &align) {
+		wxString target = align;
+		target.MakeLower();
+		for (size_t i = 0; i < nodes.size(); ++i) {
+			wxString current = nodes[i].align;
+			current.MakeLower();
+			if (current == target) {
+				return static_cast<int>(i);
+			}
+		}
+		return -1;
+	}
+
+	wxPoint ResolveCarpetPreviewAnchor(wxWindow* window, const wxRect &cellRect, const wxString &align, const wxRect &spriteBounds) {
+		(void)window;
+		(void)align;
+		const int centerX = cellRect.x + (cellRect.width - spriteBounds.width) / 2 - spriteBounds.x;
+		const int centerY = cellRect.y + (cellRect.height - spriteBounds.height) / 2 - spriteBounds.y;
+		return wxPoint(centerX, centerY);
+	}
+
+	void DrawAlignedCarpetContextScene(
+		wxDC &dc,
+		wxWindow* window,
+		const wxRect &cellRect,
+		const wxString &align,
+		int itemId,
+		bool selected
+	) {
+		const wxRect centerReference(
+			cellRect.x + (cellRect.width - window->FromDIP(20)) / 2,
+			cellRect.y + (cellRect.height - window->FromDIP(20)) / 2,
+			window->FromDIP(20),
+			window->FromDIP(20)
+		);
+		dc.SetPen(wxPen(selected ? wxColour(80, 166, 255) : wxColour(88, 96, 114), 1));
+		dc.SetBrush(wxBrush(wxColour(42, 48, 58)));
+		dc.DrawRoundedRectangle(centerReference, window->FromDIP(4));
+
+		wxString normalized = align;
+		normalized.MakeLower();
+		if (normalized != "center") {
+			dc.SetPen(wxPen(wxColour(74, 82, 96), 1, wxPENSTYLE_DOT));
+			const wxPoint start(
+				centerReference.x + centerReference.width / 2,
+				centerReference.y + centerReference.height / 2
+			);
+			wxPoint end = start;
+			if (normalized == "n") {
+				end.y = cellRect.y + window->FromDIP(10);
+			} else if (normalized == "s") {
+				end.y = cellRect.GetBottom() - window->FromDIP(10);
+			} else if (normalized == "w") {
+				end.x = cellRect.x + window->FromDIP(10);
+			} else if (normalized == "e") {
+				end.x = cellRect.GetRight() - window->FromDIP(10);
+			} else if (normalized == "cnw") {
+				end = wxPoint(cellRect.x + window->FromDIP(10), cellRect.y + window->FromDIP(10));
+			} else if (normalized == "cne") {
+				end = wxPoint(cellRect.GetRight() - window->FromDIP(10), cellRect.y + window->FromDIP(10));
+			} else if (normalized == "csw") {
+				end = wxPoint(cellRect.x + window->FromDIP(10), cellRect.GetBottom() - window->FromDIP(10));
+			} else if (normalized == "cse") {
+				end = wxPoint(cellRect.GetRight() - window->FromDIP(10), cellRect.GetBottom() - window->FromDIP(10));
+			}
+			dc.DrawLine(start, end);
+		}
+
+		if (itemId > 0) {
+			const wxRect spriteBounds = GetDoodadPreviewSpriteRect(itemId, wxPoint(0, 0));
+			const wxPoint drawPoint = ResolveCarpetPreviewAnchor(window, cellRect, align, spriteBounds);
+			DrawDoodadPreviewItemSprite(dc, itemId, drawPoint);
+		}
+	}
+
+	void DrawTableNeighbourStub(wxDC &dc, wxWindow* window, const wxRect &cellRect, const wxString &align) {
+		const int tileSize = window->FromDIP(18);
+		const int gap = window->FromDIP(4);
+		const wxRect centerStub(
+			cellRect.x + (cellRect.width - tileSize) / 2,
+			cellRect.y + (cellRect.height - tileSize) / 2,
+			tileSize,
+			tileSize
+		);
+		dc.SetPen(wxPen(wxColour(108, 115, 128), 1));
+		dc.SetBrush(wxBrush(wxColour(52, 58, 70)));
+
+		auto drawStub = [&](int dx, int dy) {
+			wxRect stub = centerStub;
+			stub.Offset(dx * (tileSize + gap), dy * (tileSize + gap));
+			dc.DrawRoundedRectangle(stub, window->FromDIP(3));
+		};
+
+		wxString normalized = align;
+		normalized.MakeLower();
+		if (normalized == "horizontal") {
+			drawStub(-1, 0);
+			drawStub(1, 0);
+		} else if (normalized == "vertical") {
+			drawStub(0, -1);
+			drawStub(0, 1);
+		} else if (normalized == "north") {
+			drawStub(0, 1);
+		} else if (normalized == "south") {
+			drawStub(0, -1);
+		} else if (normalized == "west") {
+			drawStub(1, 0);
+		} else if (normalized == "east") {
+			drawStub(-1, 0);
+		}
+	}
+
+	void DrawAlignedTableContextScene(
+		wxDC &dc,
+		wxWindow* window,
+		const wxRect &cellRect,
+		const wxString &align,
+		int itemId
+	) {
+		DrawTableNeighbourStub(dc, window, cellRect, align);
+		if (itemId <= 0) {
+			return;
+		}
+
+		DrawCenteredPreviewItemSprite(dc, cellRect, itemId);
 	}
 
 	std::vector<int> CollectDoodadCompositeFloors(const DoodadCompositeRecord &composite) {
@@ -1590,30 +1835,52 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildAlignedVariationsPage(wxSimplebook* 
 	wxBoxSizer* rootSizer = new wxBoxSizer(wxHORIZONTAL);
 
 	wxBoxSizer* nodesSizer = new wxBoxSizer(wxVERTICAL);
-	alignedSectionLabel_ = CreateSectionLabel(panel, "Aligned Nodes");
+	alignedSectionLabel_ = CreateSectionLabel(panel, "Carpet Context Map");
+	alignedVisualInfoLabel_ = new wxStaticText(
+		panel,
+		wxID_ANY,
+		"Click a context to inspect it visually. Missing contexts stay visible in the map so carpet and tiny-border coverage gaps are easy to spot."
+	);
+	StyleBrushWorkspaceSubtitle(alignedVisualInfoLabel_);
+	alignedVisualInfoLabel_->Wrap(panel->FromDIP(250));
+	alignedContextPanel_ = new wxPanel(panel, wxID_ANY, wxDefaultPosition, wxSize(panel->FromDIP(250), panel->FromDIP(250)), wxBORDER_SIMPLE);
+	alignedContextPanel_->SetBackgroundStyle(wxBG_STYLE_PAINT);
+	alignedContextPanel_->SetMinSize(wxSize(panel->FromDIP(250), panel->FromDIP(250)));
 	alignedNodesList_ = new wxListBox(panel, wxID_ANY);
+	alignedNodesList_->Hide();
 	wxBoxSizer* nodeButtons = new wxBoxSizer(wxHORIZONTAL);
 	wxButton* addNodeButton = new wxButton(panel, wxID_ANY, "Add Node");
 	wxButton* removeNodeButton = new wxButton(panel, wxID_ANY, "Remove");
 	nodeButtons->Add(addNodeButton, 1, wxRIGHT, FromDIP(4));
 	nodeButtons->Add(removeNodeButton, 1);
 	nodesSizer->Add(alignedSectionLabel_, 0, wxBOTTOM, FromDIP(6));
-	nodesSizer->Add(alignedNodesList_, 1, wxEXPAND | wxBOTTOM, FromDIP(6));
+	nodesSizer->Add(alignedVisualInfoLabel_, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+	nodesSizer->Add(alignedContextPanel_, 1, wxEXPAND | wxBOTTOM, FromDIP(8));
 	nodesSizer->Add(nodeButtons, 0, wxEXPAND);
+	nodesSizer->Add(alignedNodesList_, 0, wxEXPAND);
 
 	wxBoxSizer* editorSizer = new wxBoxSizer(wxVERTICAL);
-	editorSizer->Add(CreateSectionLabel(panel, "Node Properties"), 0, wxBOTTOM, FromDIP(6));
+	editorSizer->Add(CreateSectionLabel(panel, "Context Items"), 0, wxBOTTOM, FromDIP(6));
+	alignedItemsSummaryLabel_ = new wxStaticText(
+		panel,
+		wxID_ANY,
+		"Each context shows visual item cards with live weight feedback. Keep the precise fields below for direct numeric editing."
+	);
+	StyleBrushWorkspaceSubtitle(alignedItemsSummaryLabel_);
+	alignedItemsSummaryLabel_->Wrap(panel->FromDIP(520));
+	editorSizer->Add(alignedItemsSummaryLabel_, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+	alignedItemsScroll_ = new wxScrolledWindow(panel, wxID_ANY, wxDefaultPosition, wxSize(panel->FromDIP(420), panel->FromDIP(220)), wxVSCROLL | wxBORDER_SIMPLE);
+	alignedItemsScroll_->SetScrollRate(0, panel->FromDIP(16));
+	alignedItemsCardsPanel_ = new wxPanel(alignedItemsScroll_, wxID_ANY);
+	alignedItemsCardsPanel_->SetBackgroundStyle(wxBG_STYLE_PAINT);
+	wxBoxSizer* alignedCardsSizer = new wxBoxSizer(wxVERTICAL);
+	alignedCardsSizer->Add(alignedItemsCardsPanel_, 1, wxEXPAND);
+	alignedItemsScroll_->SetSizer(alignedCardsSizer);
+	alignedItemsCardsPanel_->SetMinSize(wxSize(panel->FromDIP(420), panel->FromDIP(180)));
+	editorSizer->Add(alignedItemsScroll_, 1, wxEXPAND | wxBOTTOM, FromDIP(8));
 
-	wxFlexGridSizer* nodeForm = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
-	nodeForm->AddGrowableCol(1, 1);
-	alignedNodeAlignCtrl_ = CreateTextField(panel);
-	nodeForm->Add(new wxStaticText(panel, wxID_ANY, "Align"), 0, wxALIGN_CENTER_VERTICAL);
-	nodeForm->Add(alignedNodeAlignCtrl_, 1, wxEXPAND);
-	editorSizer->Add(nodeForm, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
-
-	editorSizer->Add(CreateSectionLabel(panel, "Node Items"), 0, wxBOTTOM, FromDIP(6));
 	alignedItemsList_ = new wxListBox(panel, wxID_ANY);
-	editorSizer->Add(alignedItemsList_, 1, wxEXPAND | wxBOTTOM, FromDIP(6));
+	alignedItemsList_->Hide();
 
 	wxBoxSizer* itemButtons = new wxBoxSizer(wxHORIZONTAL);
 	wxButton* addItemButton = new wxButton(panel, wxID_ANY, "Add Item");
@@ -1621,6 +1888,23 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildAlignedVariationsPage(wxSimplebook* 
 	itemButtons->Add(addItemButton, 1, wxRIGHT, FromDIP(4));
 	itemButtons->Add(removeItemButton, 1);
 	editorSizer->Add(itemButtons, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+
+	editorSizer->Add(CreateSectionLabel(panel, "Advanced"), 0, wxBOTTOM, FromDIP(6));
+	wxStaticText* advancedInfoLabel = new wxStaticText(
+		panel,
+		wxID_ANY,
+		"Keep direct control over align, item id, and chance while the visual editor handles context selection and quick scanning."
+	);
+	StyleBrushWorkspaceSubtitle(advancedInfoLabel);
+	advancedInfoLabel->Wrap(panel->FromDIP(520));
+	editorSizer->Add(advancedInfoLabel, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+	wxFlexGridSizer* nodeForm = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
+	nodeForm->AddGrowableCol(1, 1);
+	alignedNodeAlignCtrl_ = CreateTextField(panel);
+	nodeForm->Add(new wxStaticText(panel, wxID_ANY, "Align"), 0, wxALIGN_CENTER_VERTICAL);
+	nodeForm->Add(alignedNodeAlignCtrl_, 1, wxEXPAND);
+	editorSizer->Add(nodeForm, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+	editorSizer->Add(alignedItemsList_, 0, wxEXPAND);
 
 	wxFlexGridSizer* itemForm = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
 	itemForm->AddGrowableCol(1, 1);
@@ -1644,9 +1928,14 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildAlignedVariationsPage(wxSimplebook* 
 	removeNodeButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnRemoveAlignedNode, this);
 	alignedNodesList_->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBrushPanel::OnAlignedNodeSelected, this);
 	alignedNodeAlignCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnAlignedNodeAlignChanged, this);
+	alignedContextPanel_->Bind(wxEVT_PAINT, &MaterialsWorkbenchBrushPanel::OnAlignedContextPaint, this);
+	alignedContextPanel_->Bind(wxEVT_LEFT_DOWN, &MaterialsWorkbenchBrushPanel::OnAlignedContextLeftDown, this);
 	addItemButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnAddAlignedItem, this);
 	removeItemButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnRemoveAlignedItem, this);
 	alignedItemsList_->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBrushPanel::OnAlignedItemSelected, this);
+	alignedItemsCardsPanel_->Bind(wxEVT_PAINT, &MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsPaint, this);
+	alignedItemsCardsPanel_->Bind(wxEVT_LEFT_DOWN, &MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsLeftDown, this);
+	alignedItemsCardsPanel_->Bind(wxEVT_RIGHT_DOWN, &MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsRightDown, this);
 	alignedItemIdCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBrushPanel::OnAlignedItemValueChanged, this);
 	alignedItemChanceCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBrushPanel::OnAlignedItemValueChanged, this);
 	alignedItemIdCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnAlignedItemValueChanged, this);
@@ -2074,13 +2363,15 @@ void MaterialsWorkbenchBrushPanel::UpdateModifiedHighlights() {
 		ApplyModifiedToggleStyle(oneSizeCtrl_, false);
 		ApplyModifiedToggleStyle(soloOptionalCtrl_, false);
 		ApplyModifiedLabelStyle(variationsStatusLabel_, "Variation Data", false);
-		ApplyModifiedLabelStyle(alignedSectionLabel_, UsesAlignedVariationEditor() && GetEffectiveBrushType() == "table" ? "Table Nodes" : "Carpet Nodes", false);
+		ApplyModifiedLabelStyle(alignedSectionLabel_, UsesAlignedVariationEditor() && GetEffectiveBrushType() == "table" ? "Table Context Map" : "Carpet Context Map", false);
 		ApplyModifiedEditorStyle(groundItemsList_, false);
 		ApplyModifiedEditorStyle(groundItemsCardsPanel_, false);
 		ApplyModifiedEditorStyle(groundPreviewPanel_, false);
 		ApplyModifiedEditorStyle(groundItemIdCtrl_, false);
 		ApplyModifiedEditorStyle(groundItemChanceCtrl_, false);
+		ApplyModifiedEditorStyle(alignedContextPanel_, false);
 		ApplyModifiedEditorStyle(alignedNodesList_, false);
+		ApplyModifiedEditorStyle(alignedItemsCardsPanel_, false);
 		ApplyModifiedEditorStyle(alignedNodeAlignCtrl_, false);
 		ApplyModifiedEditorStyle(alignedItemsList_, false);
 		ApplyModifiedEditorStyle(alignedItemIdCtrl_, false);
@@ -2211,8 +2502,10 @@ void MaterialsWorkbenchBrushPanel::UpdateVariationModifiedHighlights(const Brush
 	ApplyModifiedEditorStyle(groundItemChanceCtrl_, groundModified);
 
 	const bool alignedModified = GetEffectiveBrushType() == "table" ? tableModified : carpetModified;
-	ApplyModifiedLabelStyle(alignedSectionLabel_, GetEffectiveBrushType() == "table" ? "Table Nodes" : "Carpet Nodes", alignedModified);
+	ApplyModifiedLabelStyle(alignedSectionLabel_, GetEffectiveBrushType() == "table" ? "Table Context Map" : "Carpet Context Map", alignedModified);
+	ApplyModifiedEditorStyle(alignedContextPanel_, alignedModified);
 	ApplyModifiedEditorStyle(alignedNodesList_, alignedModified);
+	ApplyModifiedEditorStyle(alignedItemsCardsPanel_, alignedModified);
 	ApplyModifiedEditorStyle(alignedNodeAlignCtrl_, alignedModified);
 	ApplyModifiedEditorStyle(alignedItemsList_, alignedModified);
 	ApplyModifiedEditorStyle(alignedItemIdCtrl_, alignedModified);
@@ -2523,7 +2816,7 @@ void MaterialsWorkbenchBrushPanel::RefreshVariationEditor() {
 	}
 
 	if (UsesAlignedVariationEditor()) {
-		alignedSectionLabel_->SetLabel(GetEffectiveBrushType() == "carpet" ? "Carpet Nodes" : "Table Nodes");
+		alignedSectionLabel_->SetLabel(GetEffectiveBrushType() == "carpet" ? "Carpet Context Map" : "Table Context Map");
 		variationsBook_->SetSelection(2);
 		RefreshAlignedNodeList();
 		RefreshAlignedSelection();
@@ -2754,6 +3047,24 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedItemList() {
 		alignedItemsList_->SetSelection(alignedItemIndex_);
 	}
 	RestoreListTopItem(alignedItemsList_, topItem);
+
+	if (alignedItemsCardsPanel_) {
+		const size_t itemCount = alignedItemsList_->GetCount();
+		const int padding = alignedItemsCardsPanel_->FromDIP(8);
+		const int gap = alignedItemsCardsPanel_->FromDIP(8);
+		const int cardHeight = alignedItemsCardsPanel_->FromDIP(78);
+		const int minHeight = itemCount == 0
+			? alignedItemsCardsPanel_->FromDIP(160)
+			: padding * 2 + static_cast<int>(itemCount) * cardHeight + std::max(0, static_cast<int>(itemCount) - 1) * gap;
+		alignedItemsCardsPanel_->SetMinSize(wxSize(alignedItemsCardsPanel_->GetMinSize().x, minHeight));
+		if (alignedItemsCardsPanel_->GetContainingSizer()) {
+			alignedItemsCardsPanel_->GetContainingSizer()->Layout();
+		}
+		if (alignedItemsScroll_) {
+			alignedItemsScroll_->FitInside();
+		}
+		alignedItemsCardsPanel_->Refresh();
+	}
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshAlignedSelection() {
@@ -2809,6 +3120,72 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedSelection() {
 	alignedItemChanceCtrl_->Enable(hasItem);
 	internalUpdate_ = false;
 	UpdateItemOwnershipHint(alignedItemOwnershipLabel_, alignedItemIdCtrl_->GetValue(), hasItem);
+	RefreshAlignedVisualState();
+}
+
+void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
+	if (!UsesAlignedVariationEditor()) {
+		return;
+	}
+
+	const wxString type = GetEffectiveBrushType();
+	const bool hasNode = alignedNodeIndex_ >= 0;
+	if (alignedVisualInfoLabel_) {
+		if (type == "table") {
+			alignedVisualInfoLabel_->SetLabel(
+				hasNode
+					? "Semantic table states stay visible in the map. The selected state drives the visual item cards on the right."
+					: "Create table states, then click the semantic map to inspect each connection state visually."
+			);
+		} else {
+			alignedVisualInfoLabel_->SetLabel(
+				hasNode
+					? "Carpet and tiny-border contexts now use a visual 3x3 map. Missing slots remain visible so coverage gaps stand out immediately."
+					: "Create carpet contexts, then click the 3x3 map to inspect each direction visually."
+			);
+		}
+		alignedVisualInfoLabel_->Wrap(FromDIP(250));
+	}
+
+	if (alignedItemsSummaryLabel_) {
+		if (type == "carpet") {
+			if (alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(brushStorage_.carpetNodes.size())) {
+				const auto &node = brushStorage_.carpetNodes[alignedNodeIndex_];
+				alignedItemsSummaryLabel_->SetLabel(
+					wxString::Format(
+						"Context %s | %zu item%s | selected visually from the carpet/tiny map",
+						node.align,
+						node.items.size(),
+						node.items.size() == 1 ? "" : "s"
+					)
+				);
+			} else {
+				alignedItemsSummaryLabel_->SetLabel("Select a carpet context in the map to inspect its weighted items.");
+			}
+		} else {
+			if (alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(brushStorage_.tableNodes.size())) {
+				const auto &node = brushStorage_.tableNodes[alignedNodeIndex_];
+				alignedItemsSummaryLabel_->SetLabel(
+					wxString::Format(
+						"State %s | %zu item%s | selected visually from the table map",
+						node.align,
+						node.items.size(),
+						node.items.size() == 1 ? "" : "s"
+					)
+				);
+			} else {
+				alignedItemsSummaryLabel_->SetLabel("Select a table state in the map to inspect its weighted items.");
+			}
+		}
+		alignedItemsSummaryLabel_->Wrap(FromDIP(520));
+	}
+
+	if (alignedContextPanel_) {
+		alignedContextPanel_->Refresh();
+	}
+	if (alignedItemsCardsPanel_) {
+		alignedItemsCardsPanel_->Refresh();
+	}
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshDoodadAlternativeList() {
@@ -4552,6 +4929,411 @@ void MaterialsWorkbenchBrushPanel::OnAlignedItemValueChanged(wxCommandEvent &WXU
 	}
 	UpdateItemOwnershipHint(alignedItemOwnershipLabel_, alignedItemIdCtrl_->GetValue(), true);
 	RefreshDirtyState();
+}
+
+void MaterialsWorkbenchBrushPanel::OnAlignedContextPaint(wxPaintEvent &WXUNUSED(event)) {
+	if (!alignedContextPanel_) {
+		return;
+	}
+
+	wxAutoBufferedPaintDC dc(alignedContextPanel_);
+	const wxRect clientRect = alignedContextPanel_->GetClientRect();
+	dc.SetBackground(wxBrush(wxColour(20, 24, 32)));
+	dc.Clear();
+	alignedContextRects_.clear();
+	alignedContextRectAligns_.clear();
+
+	const wxString type = GetEffectiveBrushType();
+	const auto &slots = GetAlignedContextSlots(type);
+	if (slots.empty()) {
+		return;
+	}
+
+	int maxColumn = 0;
+	int maxRow = 0;
+	for (const auto &slot : slots) {
+		maxColumn = std::max(maxColumn, slot.column);
+		maxRow = std::max(maxRow, slot.row);
+	}
+
+	const int columns = maxColumn + 1;
+	const int rows = maxRow + 1;
+	const int padding = alignedContextPanel_->FromDIP(12);
+	const int gap = alignedContextPanel_->FromDIP(8);
+	const int cellWidth = std::max(alignedContextPanel_->FromDIP(56), (clientRect.width - padding * 2 - gap * (columns - 1)) / std::max(1, columns));
+	const int cellHeight = std::max(alignedContextPanel_->FromDIP(56), (clientRect.height - padding * 2 - gap * (rows - 1)) / std::max(1, rows));
+	const wxColour textColour = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT);
+	const wxColour mutedText(150, 156, 170);
+
+	for (const auto &slot : slots) {
+		wxRect cellRect(
+			padding + slot.column * (cellWidth + gap),
+			padding + slot.row * (cellHeight + gap),
+			cellWidth,
+			cellHeight
+		);
+		alignedContextRects_.push_back(cellRect);
+		alignedContextRectAligns_.push_back(wxString::FromUTF8(slot.align));
+
+		int nodeIndex = -1;
+		if (type == "table") {
+			nodeIndex = FindAlignedNodeIndexByAlign(brushStorage_.tableNodes, wxString::FromUTF8(slot.align));
+		} else {
+			nodeIndex = FindAlignedNodeIndexByAlign(brushStorage_.carpetNodes, wxString::FromUTF8(slot.align));
+		}
+
+		const bool exists = nodeIndex >= 0;
+		const bool selected = exists && nodeIndex == alignedNodeIndex_;
+		const wxColour accent = selected ? wxColour(80, 166, 255) : (exists ? wxColour(91, 194, 139) : wxColour(176, 102, 0));
+		const wxColour fill = selected ? wxColour(38, 46, 60) : (exists ? wxColour(28, 31, 38) : wxColour(34, 29, 26));
+		dc.SetPen(wxPen(accent, selected ? 2 : 1));
+		dc.SetBrush(wxBrush(fill));
+		dc.DrawRoundedRectangle(cellRect, alignedContextPanel_->FromDIP(6));
+
+		wxRect titleRect = cellRect;
+		titleRect.Deflate(alignedContextPanel_->FromDIP(8), alignedContextPanel_->FromDIP(8));
+		dc.SetTextForeground(textColour);
+		dc.DrawText(wxString::FromUTF8(slot.label), titleRect.x, titleRect.y);
+
+		if (exists) {
+			int itemId = 0;
+			size_t itemCount = 0;
+			if (type == "table") {
+				const auto &node = brushStorage_.tableNodes[static_cast<size_t>(nodeIndex)];
+				itemCount = node.items.size();
+				if (!node.items.empty()) {
+					itemId = node.items.front().itemId;
+				}
+			} else {
+				const auto &node = brushStorage_.carpetNodes[static_cast<size_t>(nodeIndex)];
+				itemCount = node.items.size();
+				if (!node.items.empty()) {
+					itemId = node.items.front().itemId;
+				}
+			}
+
+			wxRect previewRect = cellRect;
+			previewRect.Deflate(alignedContextPanel_->FromDIP(10), alignedContextPanel_->FromDIP(12));
+			previewRect.SetTop(previewRect.y + alignedContextPanel_->FromDIP(10));
+			previewRect.SetHeight(std::max(alignedContextPanel_->FromDIP(30), previewRect.height - alignedContextPanel_->FromDIP(24)));
+			if (type == "table") {
+				DrawAlignedTableContextScene(dc, alignedContextPanel_, previewRect, wxString::FromUTF8(slot.align), itemId);
+			} else {
+				DrawAlignedCarpetContextScene(dc, alignedContextPanel_, previewRect, wxString::FromUTF8(slot.align), itemId, selected);
+			}
+
+			dc.SetTextForeground(mutedText);
+			dc.DrawLabel(
+				wxString::Format("%zu item%s", itemCount, itemCount == 1 ? "" : "s"),
+				wxRect(cellRect.x, cellRect.GetBottom() - alignedContextPanel_->FromDIP(28), cellRect.width, alignedContextPanel_->FromDIP(18)),
+				wxALIGN_CENTER
+			);
+		} else {
+			dc.SetTextForeground(mutedText);
+			dc.DrawLabel(
+				"missing",
+				wxRect(cellRect.x, cellRect.y + (cellRect.height / 2) - alignedContextPanel_->FromDIP(8), cellRect.width, alignedContextPanel_->FromDIP(16)),
+				wxALIGN_CENTER
+			);
+		}
+	}
+}
+
+void MaterialsWorkbenchBrushPanel::OnAlignedContextLeftDown(wxMouseEvent &event) {
+	if (!hasBrush_ || !UsesAlignedVariationEditor() || !alignedContextPanel_) {
+		event.Skip();
+		return;
+	}
+
+	const wxPoint position = event.GetPosition();
+	for (size_t i = 0; i < alignedContextRects_.size() && i < alignedContextRectAligns_.size(); ++i) {
+		if (!alignedContextRects_[i].Contains(position)) {
+			continue;
+		}
+
+		int nodeIndex = -1;
+		if (GetEffectiveBrushType() == "table") {
+			nodeIndex = FindAlignedNodeIndexByAlign(brushStorage_.tableNodes, alignedContextRectAligns_[i]);
+		} else {
+			nodeIndex = FindAlignedNodeIndexByAlign(brushStorage_.carpetNodes, alignedContextRectAligns_[i]);
+		}
+		if (nodeIndex < 0) {
+			SetStatusMessage("No node exists for context '" + alignedContextRectAligns_[i] + "'. Add a node, then set its align to this context.");
+			return;
+		}
+
+		alignedNodeIndex_ = nodeIndex;
+		if (alignedNodesList_) {
+			alignedNodesList_->SetSelection(alignedNodeIndex_);
+		}
+		RefreshAlignedSelection();
+		return;
+	}
+
+	event.Skip();
+}
+
+void MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsPaint(wxPaintEvent &WXUNUSED(event)) {
+	if (!alignedItemsCardsPanel_) {
+		return;
+	}
+
+	wxAutoBufferedPaintDC dc(alignedItemsCardsPanel_);
+	const wxRect clientRect = alignedItemsCardsPanel_->GetClientRect();
+	const wxColour panelColour = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW);
+	const wxColour textColour = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT);
+	const wxColour mutedText(150, 156, 170);
+	dc.SetBackground(wxBrush(panelColour));
+	dc.Clear();
+	alignedItemCardRects_.clear();
+
+	if (!hasBrush_ || !UsesAlignedVariationEditor()) {
+		return;
+	}
+
+	const wxString type = GetEffectiveBrushType();
+	if (type == "carpet") {
+		if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.carpetNodes.size())) {
+			dc.SetTextForeground(mutedText);
+			dc.DrawLabel("Select a carpet context in the map to reveal visual item cards.", clientRect, wxALIGN_CENTER);
+			return;
+		}
+
+		const auto &items = brushStorage_.carpetNodes[alignedNodeIndex_].items;
+		alignedItemCardRects_ = BuildWeightedBrushCardRects(alignedItemsCardsPanel_, clientRect, items.size());
+		if (items.empty()) {
+			dc.SetTextForeground(mutedText);
+			dc.DrawLabel("Add items to the selected carpet context to populate these cards.", clientRect, wxALIGN_CENTER);
+			return;
+		}
+
+		const int totalChance = std::max(1, SumAlignedItemChances(items));
+		for (size_t i = 0; i < items.size() && i < alignedItemCardRects_.size(); ++i) {
+			const wxRect &cardRect = alignedItemCardRects_[i];
+			const bool selected = static_cast<int>(i) == alignedItemIndex_;
+			const wxColour accent = GetAlignedItemBadgeColour(items, i);
+			const wxColour cardFill = selected ? wxColour(38, 46, 60) : wxColour(28, 31, 38);
+			const wxColour border = selected ? accent : wxColour(72, 76, 88);
+			dc.SetPen(wxPen(border, selected ? 2 : 1));
+			dc.SetBrush(wxBrush(cardFill));
+			dc.DrawRoundedRectangle(cardRect, alignedItemsCardsPanel_->FromDIP(6));
+
+			wxRect spriteCell = cardRect;
+			spriteCell.Deflate(alignedItemsCardsPanel_->FromDIP(10), alignedItemsCardsPanel_->FromDIP(10));
+			spriteCell.SetWidth(alignedItemsCardsPanel_->FromDIP(56));
+			dc.SetPen(wxPen(wxColour(84, 92, 110)));
+			dc.SetBrush(wxBrush(wxColour(22, 25, 32)));
+			dc.DrawRoundedRectangle(spriteCell, alignedItemsCardsPanel_->FromDIP(4));
+			if (items[i].itemId > 0) {
+				const wxRect spriteBounds = GetDoodadPreviewSpriteRect(items[i].itemId, wxPoint(0, 0));
+				wxPoint drawPoint(
+					spriteCell.x + std::max(0, (spriteCell.width - spriteBounds.width) / 2) - spriteBounds.x,
+					spriteCell.y + std::max(0, (spriteCell.height - spriteBounds.height) / 2) - spriteBounds.y
+				);
+				DrawDoodadPreviewItemSprite(dc, items[i].itemId, drawPoint);
+			}
+
+			const int textX = spriteCell.GetRight() + 1 + alignedItemsCardsPanel_->FromDIP(10);
+			const int titleY = cardRect.y + alignedItemsCardsPanel_->FromDIP(10);
+			const int detailY = titleY + alignedItemsCardsPanel_->FromDIP(22);
+			dc.SetTextForeground(textColour);
+			dc.DrawText(wxString::Format("%zu. item %d", i + 1, items[i].itemId), textX, titleY);
+			dc.SetTextForeground(mutedText);
+			dc.DrawText(
+				wxString::Format("chance %d | %s", items[i].chance, FormatAlignedItemPercent(items, i)),
+				textX,
+				detailY
+			);
+
+			wxString badge = GetAlignedItemBadge(items, i);
+			wxSize badgeSize = dc.GetTextExtent(badge);
+			wxRect badgeRect(
+				cardRect.GetRight() - alignedItemsCardsPanel_->FromDIP(12) - badgeSize.x - alignedItemsCardsPanel_->FromDIP(12),
+				cardRect.y + alignedItemsCardsPanel_->FromDIP(10),
+				badgeSize.x + alignedItemsCardsPanel_->FromDIP(12),
+				alignedItemsCardsPanel_->FromDIP(22)
+			);
+			dc.SetPen(*wxTRANSPARENT_PEN);
+			dc.SetBrush(wxBrush(accent));
+			dc.DrawRoundedRectangle(badgeRect, alignedItemsCardsPanel_->FromDIP(10));
+			dc.SetTextForeground(wxColour(24, 28, 34));
+			dc.DrawLabel(badge, badgeRect, wxALIGN_CENTER);
+
+			wxRect barRect(
+				textX,
+				cardRect.GetBottom() - alignedItemsCardsPanel_->FromDIP(16),
+				cardRect.GetRight() - textX - alignedItemsCardsPanel_->FromDIP(12),
+				alignedItemsCardsPanel_->FromDIP(6)
+			);
+			dc.SetPen(*wxTRANSPARENT_PEN);
+			dc.SetBrush(wxBrush(wxColour(54, 58, 70)));
+			dc.DrawRoundedRectangle(barRect, alignedItemsCardsPanel_->FromDIP(3));
+			wxRect fillRect = barRect;
+			fillRect.width = std::max(alignedItemsCardsPanel_->FromDIP(6), static_cast<int>(std::lround(static_cast<double>(barRect.width) * items[i].chance / totalChance)));
+			fillRect.width = std::min(fillRect.width, barRect.width);
+			dc.SetBrush(wxBrush(accent));
+			dc.DrawRoundedRectangle(fillRect, alignedItemsCardsPanel_->FromDIP(3));
+		}
+		return;
+	}
+
+	if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.tableNodes.size())) {
+		dc.SetTextForeground(mutedText);
+		dc.DrawLabel("Select a table state in the map to reveal visual item cards.", clientRect, wxALIGN_CENTER);
+		return;
+	}
+
+	const auto &items = brushStorage_.tableNodes[alignedNodeIndex_].items;
+	alignedItemCardRects_ = BuildWeightedBrushCardRects(alignedItemsCardsPanel_, clientRect, items.size());
+	if (items.empty()) {
+		dc.SetTextForeground(mutedText);
+		dc.DrawLabel("Add items to the selected table state to populate these cards.", clientRect, wxALIGN_CENTER);
+		return;
+	}
+
+	const int totalChance = std::max(1, SumAlignedItemChances(items));
+	for (size_t i = 0; i < items.size() && i < alignedItemCardRects_.size(); ++i) {
+		const wxRect &cardRect = alignedItemCardRects_[i];
+		const bool selected = static_cast<int>(i) == alignedItemIndex_;
+		const wxColour accent = GetAlignedItemBadgeColour(items, i);
+		const wxColour cardFill = selected ? wxColour(38, 46, 60) : wxColour(28, 31, 38);
+		const wxColour border = selected ? accent : wxColour(72, 76, 88);
+		dc.SetPen(wxPen(border, selected ? 2 : 1));
+		dc.SetBrush(wxBrush(cardFill));
+		dc.DrawRoundedRectangle(cardRect, alignedItemsCardsPanel_->FromDIP(6));
+
+		wxRect spriteCell = cardRect;
+		spriteCell.Deflate(alignedItemsCardsPanel_->FromDIP(10), alignedItemsCardsPanel_->FromDIP(10));
+		spriteCell.SetWidth(alignedItemsCardsPanel_->FromDIP(56));
+		dc.SetPen(wxPen(wxColour(84, 92, 110)));
+		dc.SetBrush(wxBrush(wxColour(22, 25, 32)));
+		dc.DrawRoundedRectangle(spriteCell, alignedItemsCardsPanel_->FromDIP(4));
+		if (items[i].itemId > 0) {
+			const wxRect spriteBounds = GetDoodadPreviewSpriteRect(items[i].itemId, wxPoint(0, 0));
+			wxPoint drawPoint(
+				spriteCell.x + std::max(0, (spriteCell.width - spriteBounds.width) / 2) - spriteBounds.x,
+				spriteCell.y + std::max(0, (spriteCell.height - spriteBounds.height) / 2) - spriteBounds.y
+			);
+			DrawDoodadPreviewItemSprite(dc, items[i].itemId, drawPoint);
+		}
+
+		const int textX = spriteCell.GetRight() + 1 + alignedItemsCardsPanel_->FromDIP(10);
+		const int titleY = cardRect.y + alignedItemsCardsPanel_->FromDIP(10);
+		const int detailY = titleY + alignedItemsCardsPanel_->FromDIP(22);
+		dc.SetTextForeground(textColour);
+		dc.DrawText(wxString::Format("%zu. item %d", i + 1, items[i].itemId), textX, titleY);
+		dc.SetTextForeground(mutedText);
+		dc.DrawText(
+			wxString::Format("chance %d | %s", items[i].chance, FormatAlignedItemPercent(items, i)),
+			textX,
+			detailY
+		);
+
+		wxString badge = GetAlignedItemBadge(items, i);
+		wxSize badgeSize = dc.GetTextExtent(badge);
+		wxRect badgeRect(
+			cardRect.GetRight() - alignedItemsCardsPanel_->FromDIP(12) - badgeSize.x - alignedItemsCardsPanel_->FromDIP(12),
+			cardRect.y + alignedItemsCardsPanel_->FromDIP(10),
+			badgeSize.x + alignedItemsCardsPanel_->FromDIP(12),
+			alignedItemsCardsPanel_->FromDIP(22)
+		);
+		dc.SetPen(*wxTRANSPARENT_PEN);
+		dc.SetBrush(wxBrush(accent));
+		dc.DrawRoundedRectangle(badgeRect, alignedItemsCardsPanel_->FromDIP(10));
+		dc.SetTextForeground(wxColour(24, 28, 34));
+		dc.DrawLabel(badge, badgeRect, wxALIGN_CENTER);
+
+		wxRect barRect(
+			textX,
+			cardRect.GetBottom() - alignedItemsCardsPanel_->FromDIP(16),
+			cardRect.GetRight() - textX - alignedItemsCardsPanel_->FromDIP(12),
+			alignedItemsCardsPanel_->FromDIP(6)
+		);
+		dc.SetPen(*wxTRANSPARENT_PEN);
+		dc.SetBrush(wxBrush(wxColour(54, 58, 70)));
+		dc.DrawRoundedRectangle(barRect, alignedItemsCardsPanel_->FromDIP(3));
+		wxRect fillRect = barRect;
+		fillRect.width = std::max(alignedItemsCardsPanel_->FromDIP(6), static_cast<int>(std::lround(static_cast<double>(barRect.width) * items[i].chance / totalChance)));
+		fillRect.width = std::min(fillRect.width, barRect.width);
+		dc.SetBrush(wxBrush(accent));
+		dc.DrawRoundedRectangle(fillRect, alignedItemsCardsPanel_->FromDIP(3));
+	}
+}
+
+void MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsLeftDown(wxMouseEvent &event) {
+	if (!hasBrush_ || !UsesAlignedVariationEditor() || !alignedItemsCardsPanel_) {
+		event.Skip();
+		return;
+	}
+
+	const wxPoint position = event.GetPosition();
+	for (size_t i = 0; i < alignedItemCardRects_.size(); ++i) {
+		if (!alignedItemCardRects_[i].Contains(position)) {
+			continue;
+		}
+
+		alignedItemIndex_ = static_cast<int>(i);
+		if (alignedItemsList_) {
+			alignedItemsList_->SetSelection(alignedItemIndex_);
+		}
+		RefreshAlignedSelection();
+		return;
+	}
+
+	event.Skip();
+}
+
+void MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsRightDown(wxMouseEvent &event) {
+	if (!hasBrush_ || !UsesAlignedVariationEditor() || !alignedItemsCardsPanel_) {
+		event.Skip();
+		return;
+	}
+
+	const wxPoint position = event.GetPosition();
+	for (size_t i = 0; i < alignedItemCardRects_.size(); ++i) {
+		if (!alignedItemCardRects_[i].Contains(position)) {
+			continue;
+		}
+
+		int itemId = 0;
+		int chance = 1;
+		if (GetEffectiveBrushType() == "table") {
+			if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.tableNodes.size()) ||
+				i >= brushStorage_.tableNodes[alignedNodeIndex_].items.size()) {
+				return;
+			}
+			itemId = brushStorage_.tableNodes[alignedNodeIndex_].items[i].itemId;
+			chance = brushStorage_.tableNodes[alignedNodeIndex_].items[i].chance;
+		} else {
+			if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.carpetNodes.size()) ||
+				i >= brushStorage_.carpetNodes[alignedNodeIndex_].items.size()) {
+				return;
+			}
+			itemId = brushStorage_.carpetNodes[alignedNodeIndex_].items[i].itemId;
+			chance = brushStorage_.carpetNodes[alignedNodeIndex_].items[i].chance;
+		}
+
+		const wxString dialogTitle = GetEffectiveBrushType() == "table" ? "Edit Table Context Item" : "Edit Carpet Context Item";
+		if (ShowWeightedBrushItemDialog(this, dialogTitle, itemId, chance)) {
+			if (GetEffectiveBrushType() == "table") {
+				auto &item = brushStorage_.tableNodes[alignedNodeIndex_].items[i];
+				item.itemId = itemId;
+				item.chance = chance;
+			} else {
+				auto &item = brushStorage_.carpetNodes[alignedNodeIndex_].items[i];
+				item.itemId = itemId;
+				item.chance = chance;
+			}
+			alignedItemIndex_ = static_cast<int>(i);
+			RefreshAlignedSelection();
+			UpdateSummary();
+			RefreshDirtyState();
+			SetStatusMessage(wxString::Format("Updated context item %d.", itemId));
+		}
+		return;
+	}
+
+	event.Skip();
 }
 
 void MaterialsWorkbenchBrushPanel::OnAddDoodadAlternative(wxCommandEvent &WXUNUSED(event)) {
