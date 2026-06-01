@@ -748,15 +748,15 @@ namespace {
 
 	const std::vector<AlignedContextSlot>& GetCarpetContextSlots() {
 		static const std::vector<AlignedContextSlot> kSlots = {
-			{"cse", "NW", "Corner preview", 0, 0},
-			{"s", "N", "Top edge preview", 1, 0},
-			{"csw", "NE", "Corner preview", 2, 0},
-			{"e", "W", "Left edge preview", 0, 1},
-			{"center", "C", "Center tile", 1, 1},
-			{"w", "E", "Right edge preview", 2, 1},
-			{"cne", "SW", "Corner preview", 0, 2},
-			{"n", "S", "Bottom edge preview", 1, 2},
-			{"cnw", "SE", "Corner preview", 2, 2},
+			{"cse", "NW", "Top-left carpet slot.", 0, 0},
+			{"s", "N", "Top edge carpet slot.", 1, 0},
+			{"csw", "NE", "Top-right carpet slot.", 2, 0},
+			{"e", "W", "Left edge carpet slot.", 0, 1},
+			{"center", "C", "Center carpet slot.", 1, 1},
+			{"w", "E", "Right edge carpet slot.", 2, 1},
+			{"cne", "SW", "Bottom-left carpet slot.", 0, 2},
+			{"n", "S", "Bottom edge carpet slot.", 1, 2},
+			{"cnw", "SE", "Bottom-right carpet slot.", 2, 2},
 		};
 		return kSlots;
 	}
@@ -778,6 +778,16 @@ namespace {
 		return type == "table" ? GetTableContextSlots() : GetCarpetContextSlots();
 	}
 
+	std::vector<wxString> GetCarpetAlignChoices() {
+		static const char* kPreferredOrder[] = {"center", "s", "n", "e", "w", "cse", "csw", "cne", "cnw"};
+		std::vector<wxString> aligns;
+		aligns.reserve(std::size(kPreferredOrder));
+		for (const char* align : kPreferredOrder) {
+			aligns.emplace_back(wxString::FromUTF8(align));
+		}
+		return aligns;
+	}
+
 	std::vector<wxString> GetTableAlignChoices() {
 		std::vector<wxString> aligns;
 		for (const auto &slot : GetTableContextSlots()) {
@@ -790,6 +800,19 @@ namespace {
 		wxString normalized = align;
 		normalized.MakeLower();
 		for (const auto &candidate : GetTableAlignChoices()) {
+			wxString current = candidate;
+			current.MakeLower();
+			if (current == normalized) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	bool IsKnownCarpetAlign(const wxString &align) {
+		wxString normalized = align;
+		normalized.MakeLower();
+		for (const auto &candidate : GetCarpetAlignChoices()) {
 			wxString current = candidate;
 			current.MakeLower();
 			if (current == normalized) {
@@ -834,6 +857,18 @@ namespace {
 			return preferredAlign;
 		}
 		for (const wxString &candidate : GetTableAlignChoices()) {
+			if (FindAlignedNodeIndexByAlign(nodes, candidate) == -1) {
+				return candidate;
+			}
+		}
+		return "";
+	}
+
+	wxString FindNextMissingCarpetAlign(const std::vector<CarpetNodeRecord> &nodes, const wxString &preferredAlign = "") {
+		if (!preferredAlign.IsEmpty() && FindAlignedNodeIndexByAlign(nodes, preferredAlign) == -1 && IsKnownCarpetAlign(preferredAlign)) {
+			return preferredAlign;
+		}
+		for (const wxString &candidate : GetCarpetAlignChoices()) {
 			if (FindAlignedNodeIndexByAlign(nodes, candidate) == -1) {
 				return candidate;
 			}
@@ -2069,11 +2104,11 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildCarpetVariationsPage(wxSimplebook* b
 	widgets.page = panel;
 
 	wxBoxSizer* nodesSizer = new wxBoxSizer(wxVERTICAL);
-	widgets.sectionLabel = CreateSectionLabel(panel, "Carpet Context Map");
+	widgets.sectionLabel = CreateSectionLabel(panel, "Carpet Layout Map");
 	widgets.visualInfoLabel = new wxStaticText(
 		panel,
 		wxID_ANY,
-		"Click a context to inspect it visually. Missing contexts stay visible in the map so carpet and tiny-border coverage gaps are easy to spot."
+		"Click the layout map to inspect the center, edge, or corner context. Empty slots stay visible so missing carpet coverage is obvious."
 	);
 	StyleBrushWorkspaceSubtitle(widgets.visualInfoLabel);
 	widgets.visualInfoLabel->Wrap(panel->FromDIP(250));
@@ -2083,8 +2118,8 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildCarpetVariationsPage(wxSimplebook* b
 	widgets.nodesList = new wxListBox(panel, wxID_ANY);
 	widgets.nodesList->Hide();
 	wxBoxSizer* nodeButtons = new wxBoxSizer(wxHORIZONTAL);
-	widgets.addNodeButton = new wxButton(panel, wxID_ANY, "Add Node");
-	wxButton* removeNodeButton = new wxButton(panel, wxID_ANY, "Remove Node");
+	widgets.addNodeButton = new wxButton(panel, wxID_ANY, "Add Context");
+	wxButton* removeNodeButton = new wxButton(panel, wxID_ANY, "Remove Context");
 	nodeButtons->Add(widgets.addNodeButton, 1, wxRIGHT, FromDIP(4));
 	nodeButtons->Add(removeNodeButton, 1);
 	nodesSizer->Add(widgets.sectionLabel, 0, wxBOTTOM, FromDIP(6));
@@ -2096,11 +2131,11 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildCarpetVariationsPage(wxSimplebook* b
 	wxPanel* editorPanel = new wxPanel(panel, wxID_ANY);
 	wxBoxSizer* editorFrameSizer = new wxBoxSizer(wxHORIZONTAL);
 	wxBoxSizer* editorSizer = new wxBoxSizer(wxVERTICAL);
-	editorSizer->Add(CreateSectionLabel(editorPanel, "Context Items"), 0, wxBOTTOM, FromDIP(6));
+	editorSizer->Add(CreateSectionLabel(editorPanel, "Context Variants"), 0, wxBOTTOM, FromDIP(6));
 	widgets.itemsSummaryLabel = new wxStaticText(
 		editorPanel,
 		wxID_ANY,
-		"Each carpet context shows visual item cards with live weight feedback. Keep direct numeric editing below."
+		"Select a context in the layout map to inspect its weighted carpet variants and tune the selected card below."
 	);
 	StyleBrushWorkspaceSubtitle(widgets.itemsSummaryLabel);
 	widgets.itemsSummaryLabel->Wrap(alignedEditorWidth);
@@ -2119,17 +2154,17 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildCarpetVariationsPage(wxSimplebook* b
 	widgets.itemsList->Hide();
 
 	wxBoxSizer* itemButtons = new wxBoxSizer(wxHORIZONTAL);
-	wxButton* addItemButton = new wxButton(editorPanel, wxID_ANY, "Add Item");
-	wxButton* removeItemButton = new wxButton(editorPanel, wxID_ANY, "Remove");
+	wxButton* addItemButton = new wxButton(editorPanel, wxID_ANY, "Add Variant");
+	wxButton* removeItemButton = new wxButton(editorPanel, wxID_ANY, "Remove Variant");
 	itemButtons->Add(addItemButton, 1, wxRIGHT, FromDIP(4));
 	itemButtons->Add(removeItemButton, 1);
 	editorSizer->Add(itemButtons, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
 
-	editorSizer->Add(CreateSectionLabel(editorPanel, "Advanced"), 0, wxBOTTOM, FromDIP(6));
+	editorSizer->Add(CreateSectionLabel(editorPanel, "Context Details"), 0, wxBOTTOM, FromDIP(6));
 	widgets.advancedInfoLabel = new wxStaticText(
 		editorPanel,
 		wxID_ANY,
-		"Edit carpet contexts with direct align, item id, and chance controls."
+		"The layout map chooses the slot. Use the fields below to confirm the selected context and tune the active variant."
 	);
 	StyleBrushWorkspaceSubtitle(widgets.advancedInfoLabel);
 	widgets.advancedInfoLabel->Wrap(alignedEditorWidth);
@@ -2137,9 +2172,11 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildCarpetVariationsPage(wxSimplebook* b
 	wxFlexGridSizer* nodeForm = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
 	nodeForm->AddGrowableCol(1, 1);
 	widgets.nodeAlignCtrl = CreateTextField(editorPanel);
+	widgets.nodeAlignCtrl->SetEditable(false);
+	widgets.nodeAlignCtrl->SetToolTip("The layout map controls the selected carpet slot.");
 	widgets.nodeAlignChoice = new wxChoice(editorPanel, wxID_ANY);
 	widgets.nodeAlignChoice->Hide();
-	nodeForm->Add(new wxStaticText(editorPanel, wxID_ANY, "Align"), 0, wxALIGN_CENTER_VERTICAL);
+	nodeForm->Add(new wxStaticText(editorPanel, wxID_ANY, "Map Slot"), 0, wxALIGN_CENTER_VERTICAL);
 	nodeForm->Add(widgets.nodeAlignCtrl, 1, wxEXPAND);
 	nodeForm->AddSpacer(0);
 	nodeForm->Add(widgets.nodeAlignChoice, 1, wxEXPAND);
@@ -2755,7 +2792,7 @@ void MaterialsWorkbenchBrushPanel::UpdateModifiedHighlights() {
 		ApplyModifiedToggleStyle(oneSizeCtrl_, false);
 		ApplyModifiedToggleStyle(soloOptionalCtrl_, false);
 		ApplyModifiedLabelStyle(variationsStatusLabel_, "Variation Data", false);
-		ApplyModifiedLabelStyle(alignedSectionLabel_, UsesAlignedVariationEditor() && GetEffectiveBrushType() == "table" ? "Table States" : "Carpet Context Map", false);
+		ApplyModifiedLabelStyle(alignedSectionLabel_, UsesAlignedVariationEditor() && GetEffectiveBrushType() == "table" ? "Table States" : "Carpet Layout Map", false);
 		ApplyModifiedEditorStyle(groundItemsList_, false);
 		ApplyModifiedEditorStyle(groundItemsCardsPanel_, false);
 		ApplyModifiedEditorStyle(groundPreviewPanel_, false);
@@ -2805,7 +2842,7 @@ void MaterialsWorkbenchBrushPanel::CommitVariationEditorState() {
 		const int nodeSelection = alignedNodesList_ ? alignedNodesList_->GetSelection() : wxNOT_FOUND;
 		if (nodeSelection != wxNOT_FOUND && static_cast<size_t>(nodeSelection) < brushStorage_.carpetNodes.size()) {
 			auto &node = brushStorage_.carpetNodes[static_cast<size_t>(nodeSelection)];
-			node.align = alignedNodeAlignCtrl_->GetValue();
+			node.align = alignedPendingCarpetAlign_.IsEmpty() ? alignedNodeAlignCtrl_->GetValue() : alignedPendingCarpetAlign_;
 			const int itemSelection = alignedItemsList_ ? alignedItemsList_->GetSelection() : wxNOT_FOUND;
 			if (itemSelection != wxNOT_FOUND && static_cast<size_t>(itemSelection) < node.items.size()) {
 				node.items[static_cast<size_t>(itemSelection)].itemId = alignedItemIdCtrl_->GetValue();
@@ -2896,7 +2933,7 @@ void MaterialsWorkbenchBrushPanel::UpdateVariationModifiedHighlights(const Brush
 	ApplyModifiedEditorStyle(groundItemChanceCtrl_, groundModified);
 
 	const bool alignedModified = GetEffectiveBrushType() == "table" ? tableModified : carpetModified;
-	ApplyModifiedLabelStyle(alignedSectionLabel_, GetEffectiveBrushType() == "table" ? "Table States" : "Carpet Context Map", alignedModified);
+	ApplyModifiedLabelStyle(alignedSectionLabel_, GetEffectiveBrushType() == "table" ? "Table States" : "Carpet Layout Map", alignedModified);
 	ApplyModifiedEditorStyle(alignedContextPanel_, alignedModified);
 	ApplyModifiedEditorStyle(alignedNodesList_, alignedModified);
 	ApplyModifiedEditorStyle(alignedSeamlessPreviewPanel_, alignedModified);
@@ -3130,7 +3167,7 @@ void MaterialsWorkbenchBrushPanel::UpdateWorkspaceHeader() {
 	} else if (type == "table") {
 		subtitleLabel_->SetLabel("Ready to edit table states, seamless joins, and weighted state items for this SQLite-backed brush.");
 	} else if (type == "carpet") {
-		subtitleLabel_->SetLabel("Ready to edit carpet contexts and weighted state items for this SQLite-backed brush.");
+		subtitleLabel_->SetLabel("Ready to edit carpet layout contexts and weighted variants for this SQLite-backed brush.");
 	} else if (type == "doodad") {
 		subtitleLabel_->SetLabel("Ready to edit doodad metadata, alternatives, and composites for this SQLite-backed brush.");
 	} else if (type == "ground") {
@@ -3174,6 +3211,7 @@ void MaterialsWorkbenchBrushPanel::ResetVariationSelection() {
 	groundItemIndex_ = -1;
 	alignedNodeIndex_ = -1;
 	alignedItemIndex_ = -1;
+	alignedPendingCarpetAlign_.clear();
 	alignedPendingTableAlign_.clear();
 	doodadAlternativeIndex_ = -1;
 	doodadSingleItemIndex_ = -1;
@@ -3514,15 +3552,21 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedSelection() {
 	if (type == "carpet") {
 		const auto &nodes = brushStorage_.carpetNodes;
 		hasNode = alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(nodes.size());
+		const wxString selectedAlign = hasNode
+			? nodes[alignedNodeIndex_].align
+			: (!alignedPendingCarpetAlign_.IsEmpty() ? alignedPendingCarpetAlign_ : FindNextMissingCarpetAlign(nodes, "center"));
+		alignedPendingCarpetAlign_ = selectedAlign;
 		alignedNodeAlignCtrl_->Show();
 		if (alignedNodeAlignChoice_) {
 			alignedNodeAlignChoice_->Hide();
 		}
-		alignedNodeAlignCtrl_->Enable(hasNode);
-		if (hasNode) {
-			alignedNodeAlignCtrl_->SetValue(nodes[alignedNodeIndex_].align);
+		alignedNodeAlignCtrl_->Enable(!selectedAlign.IsEmpty());
+		if (!selectedAlign.IsEmpty()) {
+			alignedNodeAlignCtrl_->SetValue(selectedAlign);
 		} else {
 			alignedNodeAlignCtrl_->SetValue("");
+		}
+		if (!hasNode) {
 			alignedItemIndex_ = -1;
 		}
 	} else {
@@ -3590,6 +3634,7 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
 
 	const wxString type = GetEffectiveBrushType();
 	const bool hasNode = alignedNodeIndex_ >= 0;
+	const bool hasPendingCarpetSlot = type == "carpet" && !alignedPendingCarpetAlign_.IsEmpty() && !hasNode;
 	const bool hasPendingTableSlot = type == "table" && !alignedPendingTableAlign_.IsEmpty() && !hasNode;
 	if (alignedVisualInfoLabel_) {
 		if (type == "table") {
@@ -3603,8 +3648,10 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
 		} else {
 			alignedVisualInfoLabel_->SetLabel(
 				hasNode
-					? "Carpet and tiny-border contexts now use a visual 3x3 map. Missing slots remain visible so coverage gaps stand out immediately."
-					: "Create carpet contexts, then click the 3x3 map to inspect each direction visually."
+					? wxString::Format("Selected carpet context %s stays highlighted in the layout map while you edit its variants on the right.", alignedPendingCarpetAlign_)
+					: (hasPendingCarpetSlot
+						? wxString::Format("Empty carpet slot %s selected. Use Add Context to create coverage exactly there.", alignedPendingCarpetAlign_)
+						: "Click the carpet layout map to select a context. Empty slots stay visible so missing coverage stands out immediately.")
 			);
 		}
 		alignedVisualInfoLabel_->Wrap(FromDIP(250));
@@ -3632,9 +3679,23 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
 				alignedAdvancedInfoLabel_->SetLabel("Advanced: choose a table state to edit it, or select an empty slot to place the next node precisely.");
 			}
 		} else {
-			alignedAdvancedInfoLabel_->SetLabel(
-				"Use structured controls for fast edits: choose align from known slots, tune item id/chance, and keep empty slots selectable directly in the context cards."
-			);
+			if (hasNode) {
+				alignedAdvancedInfoLabel_->SetLabel(
+					wxString::Format(
+						"Context %s selected. The map owns slot selection; use the fields below to edit the active variant.",
+						alignedPendingCarpetAlign_
+					)
+				);
+			} else if (hasPendingCarpetSlot) {
+				alignedAdvancedInfoLabel_->SetLabel(
+					wxString::Format(
+						"Empty carpet slot %s selected. Add Context creates a new context here, then Add Variant fills it with weighted items.",
+						alignedPendingCarpetAlign_
+					)
+				);
+			} else {
+				alignedAdvancedInfoLabel_->SetLabel("Select a carpet slot in the layout map to inspect it, or choose an empty slot before creating a new context.");
+			}
 		}
 		alignedAdvancedInfoLabel_->Wrap(FromDIP(520));
 	}
@@ -3649,8 +3710,13 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
 					: "Create the missing state selected in Table States."
 			);
 		} else {
-			alignedAddNodeButton_->Enable(hasBrush_);
-			alignedAddNodeButton_->SetToolTip("Add a new aligned node.");
+			const wxString nextMissingAlign = FindNextMissingCarpetAlign(brushStorage_.carpetNodes, alignedPendingCarpetAlign_);
+			alignedAddNodeButton_->Enable(!nextMissingAlign.IsEmpty());
+			alignedAddNodeButton_->SetToolTip(
+				nextMissingAlign.IsEmpty()
+					? "All carpet contexts are already configured."
+					: wxString::Format("Create the selected carpet context in slot %s.", nextMissingAlign)
+			);
 		}
 	}
 
@@ -3662,7 +3728,7 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
 	}
 	if (alignedRemoveItemButton_) {
 		alignedRemoveItemButton_->Show(type != "table");
-		alignedRemoveItemButton_->SetLabel("Remove");
+		alignedRemoveItemButton_->SetLabel(type == "table" ? "Remove" : "Remove Variant");
 	}
 
 	if (alignedItemsSummaryLabel_) {
@@ -3671,14 +3737,21 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
 				const auto &node = brushStorage_.carpetNodes[alignedNodeIndex_];
 				alignedItemsSummaryLabel_->SetLabel(
 					wxString::Format(
-						"Context %s | %zu item%s | selected visually from the carpet/tiny map",
+						"Context %s | %zu variant%s | selected from the carpet layout map",
 						node.align,
 						node.items.size(),
 						node.items.size() == 1 ? "" : "s"
 					)
 				);
+			} else if (hasPendingCarpetSlot) {
+				alignedItemsSummaryLabel_->SetLabel(
+					wxString::Format(
+						"Empty context %s selected | use Add Context to create it in the layout map",
+						alignedPendingCarpetAlign_
+					)
+				);
 			} else {
-				alignedItemsSummaryLabel_->SetLabel("Select a carpet context in the map to inspect its weighted items.");
+				alignedItemsSummaryLabel_->SetLabel("Select a carpet context in the layout map to inspect its weighted variants.");
 			}
 		} else {
 			if (alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(brushStorage_.tableNodes.size())) {
@@ -4970,27 +5043,27 @@ bool MaterialsWorkbenchBrushPanel::ValidateBrushStorage(wxString &error) const {
 			for (size_t nodeIndex = 0; nodeIndex < brushStorage_.carpetNodes.size(); ++nodeIndex) {
 				const auto &node = brushStorage_.carpetNodes[nodeIndex];
 				if (node.align.IsEmpty()) {
-					error = wxString::Format("Node %zu requires an align value.", nodeIndex + 1);
+					error = wxString::Format("Carpet context %zu requires a map slot.", nodeIndex + 1);
 					return false;
 				}
 				if (node.items.empty()) {
-					error = wxString::Format("Node %zu must contain at least one item.", nodeIndex + 1);
+					error = wxString::Format("Carpet context %zu must contain at least one variant.", nodeIndex + 1);
 					return false;
 				}
 				for (size_t itemIndex = 0; itemIndex < node.items.size(); ++itemIndex) {
 					const auto &item = node.items[itemIndex];
 					if (item.itemId <= 0) {
-						error = wxString::Format("Node %zu item %zu must use a positive item id.", nodeIndex + 1, itemIndex + 1);
+						error = wxString::Format("Carpet context %zu variant %zu must use a positive item id.", nodeIndex + 1, itemIndex + 1);
 						return false;
 					}
 					if (!IsKnownItemId(item.itemId)) {
-						error = wxString::Format("Node %zu item %zu uses unknown item id %d.", nodeIndex + 1, itemIndex + 1, item.itemId);
+						error = wxString::Format("Carpet context %zu variant %zu uses unknown item id %d.", nodeIndex + 1, itemIndex + 1, item.itemId);
 						return false;
 					}
 					wxString ownerName;
 					if (isOwnedByDifferentRuntimeBrush(item.itemId, ownerName)) {
 						error = wxString::Format(
-							"Node %zu item %zu uses item id %d, which already belongs to brush \"%s\" in the runtime catalog.",
+							"Carpet context %zu variant %zu uses item id %d, which already belongs to brush \"%s\" in the runtime catalog.",
 							nodeIndex + 1,
 							itemIndex + 1,
 							item.itemId,
@@ -5569,10 +5642,16 @@ void MaterialsWorkbenchBrushPanel::OnAddAlignedNode(wxCommandEvent &WXUNUSED(eve
 		return;
 	}
 	if (GetEffectiveBrushType() == "carpet") {
+		wxString targetAlign = FindNextMissingCarpetAlign(brushStorage_.carpetNodes, alignedPendingCarpetAlign_);
+		if (targetAlign.IsEmpty()) {
+			SetStatusMessage("All carpet contexts are already configured. Remove one before adding another.");
+			return;
+		}
 		CarpetNodeRecord node;
-		node.align = "center";
+		node.align = targetAlign;
 		brushStorage_.carpetNodes.push_back(node);
 		alignedNodeIndex_ = static_cast<int>(brushStorage_.carpetNodes.size()) - 1;
+		alignedPendingCarpetAlign_ = node.align;
 	} else {
 		wxString targetAlign = FindNextMissingTableAlign(brushStorage_.tableNodes, alignedPendingTableAlign_);
 		if (targetAlign.IsEmpty()) {
@@ -5592,7 +5671,7 @@ void MaterialsWorkbenchBrushPanel::OnAddAlignedNode(wxCommandEvent &WXUNUSED(eve
 	RefreshAlignedSelection();
 	UpdateSummary();
 	RefreshDirtyState();
-	SetStatusMessage(GetEffectiveBrushType() == "table" ? "Added table state in the selected empty slot." : "Added variation node.");
+	SetStatusMessage(GetEffectiveBrushType() == "table" ? "Added table state in the selected empty slot." : "Added carpet context in the selected map slot.");
 }
 
 void MaterialsWorkbenchBrushPanel::OnRemoveAlignedNode(wxCommandEvent &WXUNUSED(event)) {
@@ -5602,13 +5681,14 @@ void MaterialsWorkbenchBrushPanel::OnRemoveAlignedNode(wxCommandEvent &WXUNUSED(
 	if (GetEffectiveBrushType() == "carpet") {
 		auto &nodes = brushStorage_.carpetNodes;
 		if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(nodes.size())) {
-			SetStatusMessage("Select a node before removing it.");
+			SetStatusMessage("Select a carpet context before removing it.");
 			return;
 		}
+		const wxString removedAlign = nodes[alignedNodeIndex_].align;
 		nodes.erase(nodes.begin() + alignedNodeIndex_);
-		if (alignedNodeIndex_ >= static_cast<int>(nodes.size())) {
-			alignedNodeIndex_ = static_cast<int>(nodes.size()) - 1;
-		}
+		alignedNodeIndex_ = -1;
+		alignedItemIndex_ = -1;
+		alignedPendingCarpetAlign_ = removedAlign;
 	} else {
 		auto &nodes = brushStorage_.tableNodes;
 		if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(nodes.size())) {
@@ -5625,12 +5705,15 @@ void MaterialsWorkbenchBrushPanel::OnRemoveAlignedNode(wxCommandEvent &WXUNUSED(
 	RefreshAlignedSelection();
 	UpdateSummary();
 	RefreshDirtyState();
-	SetStatusMessage("Removed variation node.");
+	SetStatusMessage(GetEffectiveBrushType() == "table" ? "Removed table state." : "Removed carpet context.");
 }
 
 void MaterialsWorkbenchBrushPanel::OnAlignedNodeSelected(wxCommandEvent &event) {
 	alignedNodeIndex_ = event.GetSelection();
-	if (GetEffectiveBrushType() == "table" && alignedNodeIndex_ >= 0 &&
+	if (GetEffectiveBrushType() == "carpet" && alignedNodeIndex_ >= 0 &&
+		alignedNodeIndex_ < static_cast<int>(brushStorage_.carpetNodes.size())) {
+		alignedPendingCarpetAlign_ = brushStorage_.carpetNodes[alignedNodeIndex_].align;
+	} else if (GetEffectiveBrushType() == "table" && alignedNodeIndex_ >= 0 &&
 		alignedNodeIndex_ < static_cast<int>(brushStorage_.tableNodes.size())) {
 		alignedPendingTableAlign_ = brushStorage_.tableNodes[alignedNodeIndex_].align;
 	}
@@ -5642,11 +5725,7 @@ void MaterialsWorkbenchBrushPanel::OnAlignedNodeAlignChanged(wxCommandEvent &WXU
 		return;
 	}
 	if (GetEffectiveBrushType() == "carpet") {
-		auto &nodes = brushStorage_.carpetNodes;
-		if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(nodes.size())) {
-			return;
-		}
-		nodes[alignedNodeIndex_].align = TrimmedValue(alignedNodeAlignCtrl_);
+		return;
 	} else {
 		auto &nodes = brushStorage_.tableNodes;
 		if (!alignedNodeAlignChoice_) {
@@ -5693,7 +5772,7 @@ void MaterialsWorkbenchBrushPanel::OnAddAlignedItem(wxCommandEvent &WXUNUSED(eve
 	if (GetEffectiveBrushType() == "carpet") {
 		auto &nodes = brushStorage_.carpetNodes;
 		if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(nodes.size())) {
-			SetStatusMessage("Add or select a node before adding items.");
+			SetStatusMessage("Select a carpet context before adding variants.");
 			return;
 		}
 		CarpetNodeItemRecord item;
@@ -5711,7 +5790,7 @@ void MaterialsWorkbenchBrushPanel::OnAddAlignedItem(wxCommandEvent &WXUNUSED(eve
 	RefreshAlignedSelection();
 	UpdateSummary();
 	RefreshDirtyState();
-	SetStatusMessage("Added node item.");
+	SetStatusMessage(GetEffectiveBrushType() == "table" ? "Added node item." : "Added carpet variant.");
 }
 
 void MaterialsWorkbenchBrushPanel::OnRemoveAlignedItem(wxCommandEvent &WXUNUSED(event)) {
@@ -5721,12 +5800,12 @@ void MaterialsWorkbenchBrushPanel::OnRemoveAlignedItem(wxCommandEvent &WXUNUSED(
 	if (GetEffectiveBrushType() == "carpet") {
 		auto &nodes = brushStorage_.carpetNodes;
 		if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(nodes.size())) {
-			SetStatusMessage("Select a node first.");
+			SetStatusMessage("Select a carpet context first.");
 			return;
 		}
 		auto &items = nodes[alignedNodeIndex_].items;
 		if (alignedItemIndex_ < 0 || alignedItemIndex_ >= static_cast<int>(items.size())) {
-			SetStatusMessage("Select an item before removing it.");
+			SetStatusMessage("Select a carpet variant before removing it.");
 			return;
 		}
 		items.erase(items.begin() + alignedItemIndex_);
@@ -5752,7 +5831,7 @@ void MaterialsWorkbenchBrushPanel::OnRemoveAlignedItem(wxCommandEvent &WXUNUSED(
 	RefreshAlignedSelection();
 	UpdateSummary();
 	RefreshDirtyState();
-	SetStatusMessage("Removed node item.");
+	SetStatusMessage(GetEffectiveBrushType() == "table" ? "Removed node item." : "Removed carpet variant.");
 }
 
 void MaterialsWorkbenchBrushPanel::OnAlignedItemSelected(wxCommandEvent &event) {
@@ -5876,7 +5955,9 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextPaint(wxPaintEvent &WXUNUSED(
 				wxString::Format("%s\n%s", label, wxString::FromUTF8(slot.description))
 			);
 		} else {
-			alignedContextRectTooltips_.push_back(wxString::Format("Context %s", wxString::FromUTF8(slot.label)));
+			alignedContextRectTooltips_.push_back(
+				wxString::Format("%s\n%s", wxString::FromUTF8(slot.label), wxString::FromUTF8(slot.description))
+			);
 		}
 
 		int nodeIndex = -1;
@@ -5889,7 +5970,8 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextPaint(wxPaintEvent &WXUNUSED(
 		const bool exists = nodeIndex >= 0;
 		const bool selected = exists
 			? nodeIndex == alignedNodeIndex_
-			: (type == "table" && alignedPendingTableAlign_.CmpNoCase(wxString::FromUTF8(slot.align)) == 0);
+			: ((type == "table" && alignedPendingTableAlign_.CmpNoCase(wxString::FromUTF8(slot.align)) == 0) ||
+			   (type == "carpet" && alignedPendingCarpetAlign_.CmpNoCase(wxString::FromUTF8(slot.align)) == 0));
 		const wxColour accent = selected ? wxColour(80, 166, 255) : (exists ? wxColour(91, 194, 139) : wxColour(176, 102, 0));
 		const wxColour fill = selected ? wxColour(38, 46, 60) : (exists ? wxColour(28, 31, 38) : wxColour(34, 29, 26));
 		dc.SetPen(wxPen(accent, selected ? 2 : 1));
@@ -6003,13 +6085,19 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextLeftDown(wxMouseEvent &event)
 				SetStatusMessage("Selected an empty table state. Add Node will create it here.");
 				return;
 			}
-			SetStatusMessage("No node exists for context '" + alignedContextRectAligns_[i] + "'. Add a node, then set its align to this context.");
+			alignedNodeIndex_ = -1;
+			alignedItemIndex_ = -1;
+			alignedPendingCarpetAlign_ = alignedContextRectAligns_[i];
+			RefreshAlignedSelection();
+			SetStatusMessage("Selected an empty carpet slot. Add Context will create it here.");
 			return;
 		}
 
 		alignedNodeIndex_ = nodeIndex;
 		if (GetEffectiveBrushType() == "table") {
 			alignedPendingTableAlign_ = alignedContextRectAligns_[i];
+		} else {
+			alignedPendingCarpetAlign_ = alignedContextRectAligns_[i];
 		}
 		if (alignedNodesList_) {
 			alignedNodesList_->SetSelection(alignedNodeIndex_);
@@ -6071,7 +6159,7 @@ void MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsPaint(wxPaintEvent &WXUNUS
 	if (type == "carpet") {
 		if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.carpetNodes.size())) {
 			dc.SetTextForeground(mutedText);
-			dc.DrawLabel("Select a carpet context in the map to reveal visual item cards.", clientRect, wxALIGN_CENTER);
+			dc.DrawLabel("Select a carpet context in the layout map to reveal visual variant cards.", clientRect, wxALIGN_CENTER);
 			return;
 		}
 
@@ -6079,7 +6167,7 @@ void MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsPaint(wxPaintEvent &WXUNUS
 		alignedItemCardRects_ = BuildWeightedBrushCardRects(alignedItemsCardsPanel_, clientRect, items.size());
 		if (items.empty()) {
 			dc.SetTextForeground(mutedText);
-			dc.DrawLabel("Add items to the selected carpet context to populate these cards.", clientRect, wxALIGN_CENTER);
+			dc.DrawLabel("Add variants to the selected carpet context to populate these cards.", clientRect, wxALIGN_CENTER);
 			return;
 		}
 
@@ -6336,7 +6424,7 @@ void MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsRightDown(wxMouseEvent &ev
 		itemId = brushStorage_.carpetNodes[alignedNodeIndex_].items[i].itemId;
 		chance = brushStorage_.carpetNodes[alignedNodeIndex_].items[i].chance;
 
-		const wxString dialogTitle = "Edit Carpet Context Item";
+		const wxString dialogTitle = "Edit Carpet Variant";
 		if (ShowWeightedBrushItemDialog(this, dialogTitle, itemId, chance)) {
 			auto &item = brushStorage_.carpetNodes[alignedNodeIndex_].items[i];
 			item.itemId = itemId;
@@ -6345,7 +6433,7 @@ void MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsRightDown(wxMouseEvent &ev
 			RefreshAlignedSelection();
 			UpdateSummary();
 			RefreshDirtyState();
-			SetStatusMessage(wxString::Format("Updated context item %d.", itemId));
+			SetStatusMessage(wxString::Format("Updated carpet variant item %d.", itemId));
 		}
 		return;
 	}

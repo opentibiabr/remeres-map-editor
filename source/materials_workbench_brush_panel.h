@@ -305,6 +305,7 @@ private:
 	std::vector<wxRect> alignedItemRemoveRects_;
 	int alignedNodeIndex_ = -1;
 	int alignedItemIndex_ = -1;
+	wxString alignedPendingCarpetAlign_;
 	wxString alignedPendingTableAlign_;
 	wxPanel* doodadAlternativeSliderPanel_ = nullptr;
 	wxRect doodadAlternativePrevRect_;
