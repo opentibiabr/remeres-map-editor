@@ -106,6 +106,7 @@ private:
 	void ResetVariationSelection();
 	void CommitVariationEditorState();
 	void RefreshVariationEditor();
+	wxString GetVariationTabTitle() const;
 	void RefreshGroundItemList();
 	void RefreshGroundSelection();
 	void RefreshGroundPreviewState();
@@ -300,6 +301,8 @@ private:
 	std::vector<wxString> alignedContextRectAligns_;
 	std::vector<wxString> alignedContextRectTooltips_;
 	std::vector<wxRect> alignedItemCardRects_;
+	std::vector<wxRect> alignedItemEditRects_;
+	std::vector<wxRect> alignedItemRemoveRects_;
 	int alignedNodeIndex_ = -1;
 	int alignedItemIndex_ = -1;
 	wxString alignedPendingTableAlign_;
