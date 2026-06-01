@@ -5775,8 +5775,14 @@ void MaterialsWorkbenchBrushPanel::OnAddAlignedItem(wxCommandEvent &WXUNUSED(eve
 			SetStatusMessage("Select a carpet context before adding variants.");
 			return;
 		}
+		int itemId = 0;
+		int chance = 1;
+		if (!ShowWeightedBrushItemDialogWithPreview(this, "Add Carpet Variant", itemId, chance)) {
+			return;
+		}
 		CarpetNodeItemRecord item;
-		item.chance = 1;
+		item.itemId = itemId;
+		item.chance = chance;
 		nodes[alignedNodeIndex_].items.push_back(item);
 		alignedItemIndex_ = static_cast<int>(nodes[alignedNodeIndex_].items.size()) - 1;
 	} else {
@@ -6027,6 +6033,20 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextPaint(wxPaintEvent &WXUNUSED(
 				dc.DrawRoundedRectangle(addRect, alignedContextPanel_->FromDIP(6));
 				dc.SetTextForeground(wxColour(20, 24, 32));
 				dc.DrawLabel("+", addRect, wxALIGN_CENTER);
+			} else {
+				wxString countBadge = wxString::Format("%zu v", itemCount);
+				wxSize badgeSize = dc.GetTextExtent(countBadge);
+				wxRect badgeRect(
+					cellRect.GetRight() - alignedContextPanel_->FromDIP(12) - badgeSize.x - alignedContextPanel_->FromDIP(10),
+					cellRect.y + alignedContextPanel_->FromDIP(10),
+					badgeSize.x + alignedContextPanel_->FromDIP(10),
+					alignedContextPanel_->FromDIP(18)
+				);
+				dc.SetPen(*wxTRANSPARENT_PEN);
+				dc.SetBrush(wxBrush(selected ? wxColour(80, 166, 255) : wxColour(91, 194, 139)));
+				dc.DrawRoundedRectangle(badgeRect, alignedContextPanel_->FromDIP(8));
+				dc.SetTextForeground(wxColour(20, 24, 32));
+				dc.DrawLabel(countBadge, badgeRect, wxALIGN_CENTER);
 			}
 
 			if (!compactTableCards) {
@@ -6040,12 +6060,29 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextPaint(wxPaintEvent &WXUNUSED(
 		} else if (compactTableCards) {
 			drawTableCardCopy(cellRect, wxString::FromUTF8(slot.label), "Empty");
 		} else if (!compactTableCards) {
+			wxRect emptyRect = cellRect;
+			emptyRect.Deflate(alignedContextPanel_->FromDIP(10), alignedContextPanel_->FromDIP(10));
+			dc.SetPen(wxPen(wxColour(112, 120, 136), 1, wxPENSTYLE_SHORT_DASH));
+			dc.SetBrush(*wxTRANSPARENT_BRUSH);
+			dc.DrawRoundedRectangle(emptyRect, alignedContextPanel_->FromDIP(5));
 			dc.SetTextForeground(mutedText);
 			dc.DrawLabel(
-				"missing",
-				wxRect(cellRect.x, cellRect.y + (cellRect.height / 2) - alignedContextPanel_->FromDIP(8), cellRect.width, alignedContextPanel_->FromDIP(16)),
+				selected ? "empty slot" : "missing",
+				wxRect(cellRect.x, cellRect.y + (cellRect.height / 2) - alignedContextPanel_->FromDIP(16), cellRect.width, alignedContextPanel_->FromDIP(16)),
 				wxALIGN_CENTER
 			);
+			wxRect addRect(
+				cellRect.GetRight() - alignedContextPanel_->FromDIP(28),
+				cellRect.GetBottom() - alignedContextPanel_->FromDIP(24),
+				alignedContextPanel_->FromDIP(20),
+				alignedContextPanel_->FromDIP(18)
+			);
+			alignedContextAddRects_.back() = addRect;
+			dc.SetPen(*wxTRANSPARENT_PEN);
+			dc.SetBrush(wxBrush(selected ? wxColour(80, 166, 255) : wxColour(176, 102, 0)));
+			dc.DrawRoundedRectangle(addRect, alignedContextPanel_->FromDIP(6));
+			dc.SetTextForeground(wxColour(20, 24, 32));
+			dc.DrawLabel("+", addRect, wxALIGN_CENTER);
 		}
 	}
 }
@@ -6074,6 +6111,18 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextLeftDown(wxMouseEvent &event)
 			alignedContextAddRects_[i].Contains(position) &&
 			nodeIndex >= 0) {
 			AddTableItemToNodeWithDialog(nodeIndex);
+			return;
+		}
+		if (GetEffectiveBrushType() == "carpet" &&
+			i < alignedContextAddRects_.size() &&
+			!alignedContextAddRects_[i].IsEmpty() &&
+			alignedContextAddRects_[i].Contains(position) &&
+			nodeIndex < 0) {
+			alignedNodeIndex_ = -1;
+			alignedItemIndex_ = -1;
+			alignedPendingCarpetAlign_ = alignedContextRectAligns_[i];
+			wxCommandEvent dummy;
+			OnAddAlignedNode(dummy);
 			return;
 		}
 		if (nodeIndex < 0) {
@@ -6167,13 +6216,15 @@ void MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsPaint(wxPaintEvent &WXUNUS
 		alignedItemCardRects_ = BuildWeightedBrushCardRects(alignedItemsCardsPanel_, clientRect, items.size());
 		if (items.empty()) {
 			dc.SetTextForeground(mutedText);
-			dc.DrawLabel("Add variants to the selected carpet context to populate these cards.", clientRect, wxALIGN_CENTER);
+			dc.DrawLabel("Add Variant opens a preview dialog so you can pick the first carpet item visually.", clientRect, wxALIGN_CENTER);
 			return;
 		}
 
 		const int totalChance = std::max(1, SumAlignedItemChances(items));
 		for (size_t i = 0; i < items.size() && i < alignedItemCardRects_.size(); ++i) {
 			const wxRect &cardRect = alignedItemCardRects_[i];
+			alignedItemEditRects_.push_back(wxRect());
+			alignedItemRemoveRects_.push_back(wxRect());
 			const bool selected = static_cast<int>(i) == alignedItemIndex_;
 			const wxColour accent = GetAlignedItemBadgeColour(items, i);
 			const wxColour cardFill = selected ? wxColour(38, 46, 60) : wxColour(28, 31, 38);
@@ -6217,6 +6268,30 @@ void MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsPaint(wxPaintEvent &WXUNUS
 			dc.DrawRoundedRectangle(badgeRect, alignedItemsCardsPanel_->FromDIP(10));
 			dc.SetTextForeground(wxColour(24, 28, 34));
 			dc.DrawLabel(badge, badgeRect, wxALIGN_CENTER);
+
+			wxRect removeRect(
+				badgeRect.GetRight() - alignedItemsCardsPanel_->FromDIP(22),
+				badgeRect.GetBottom() + alignedItemsCardsPanel_->FromDIP(6),
+				alignedItemsCardsPanel_->FromDIP(22),
+				alignedItemsCardsPanel_->FromDIP(18)
+			);
+			alignedItemRemoveRects_.back() = removeRect;
+			dc.SetBrush(wxBrush(wxColour(204, 74, 74)));
+			dc.DrawRoundedRectangle(removeRect, alignedItemsCardsPanel_->FromDIP(6));
+			dc.SetTextForeground(wxColour(20, 24, 32));
+			dc.DrawLabel("-", removeRect, wxALIGN_CENTER);
+
+			wxRect editRect(
+				removeRect.x - alignedItemsCardsPanel_->FromDIP(26),
+				removeRect.y,
+				alignedItemsCardsPanel_->FromDIP(22),
+				removeRect.height
+			);
+			alignedItemEditRects_.back() = editRect;
+			dc.SetBrush(wxBrush(wxColour(80, 166, 255)));
+			dc.DrawRoundedRectangle(editRect, alignedItemsCardsPanel_->FromDIP(6));
+			dc.SetTextForeground(wxColour(20, 24, 32));
+			dc.DrawLabel("E", editRect, wxALIGN_CENTER);
 
 			wxRect barRect(
 				textX,
@@ -6347,25 +6422,62 @@ void MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsLeftDown(wxMouseEvent &eve
 	}
 
 	const wxPoint position = event.GetPosition();
-	if (GetEffectiveBrushType() == "table") {
+	if (GetEffectiveBrushType() == "table" || GetEffectiveBrushType() == "carpet") {
+		const bool isTable = GetEffectiveBrushType() == "table";
 		for (size_t i = 0; i < alignedItemEditRects_.size(); ++i) {
 			if (!alignedItemEditRects_[i].IsEmpty() && alignedItemEditRects_[i].Contains(position)) {
-				if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.tableNodes.size()) ||
-					i >= brushStorage_.tableNodes[alignedNodeIndex_].items.size()) {
+				if (isTable) {
+					if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.tableNodes.size()) ||
+						i >= brushStorage_.tableNodes[alignedNodeIndex_].items.size()) {
+						return;
+					}
+					alignedItemIndex_ = static_cast<int>(i);
+					EditTableItemWithDialog(alignedNodeIndex_, static_cast<int>(i));
 					return;
 				}
-				alignedItemIndex_ = static_cast<int>(i);
-				EditTableItemWithDialog(alignedNodeIndex_, static_cast<int>(i));
+				if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.carpetNodes.size()) ||
+					i >= brushStorage_.carpetNodes[alignedNodeIndex_].items.size()) {
+					return;
+				}
+				int itemId = brushStorage_.carpetNodes[alignedNodeIndex_].items[i].itemId;
+				int chance = brushStorage_.carpetNodes[alignedNodeIndex_].items[i].chance;
+				if (ShowWeightedBrushItemDialogWithPreview(this, "Edit Carpet Variant", itemId, chance)) {
+					auto &item = brushStorage_.carpetNodes[alignedNodeIndex_].items[i];
+					item.itemId = itemId;
+					item.chance = chance;
+					alignedItemIndex_ = static_cast<int>(i);
+					RefreshAlignedSelection();
+					UpdateSummary();
+					RefreshDirtyState();
+					SetStatusMessage(wxString::Format("Updated carpet variant item %d.", itemId));
+				}
 				return;
 			}
 		}
 		for (size_t i = 0; i < alignedItemRemoveRects_.size(); ++i) {
 			if (!alignedItemRemoveRects_[i].IsEmpty() && alignedItemRemoveRects_[i].Contains(position)) {
-				if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.tableNodes.size()) ||
-					i >= brushStorage_.tableNodes[alignedNodeIndex_].items.size()) {
+				if (isTable) {
+					if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.tableNodes.size()) ||
+						i >= brushStorage_.tableNodes[alignedNodeIndex_].items.size()) {
+						return;
+					}
+					auto &items = brushStorage_.tableNodes[alignedNodeIndex_].items;
+					alignedItemIndex_ = static_cast<int>(i);
+					items.erase(items.begin() + static_cast<std::ptrdiff_t>(i));
+					if (alignedItemIndex_ >= static_cast<int>(items.size())) {
+						alignedItemIndex_ = static_cast<int>(items.size()) - 1;
+					}
+					RefreshAlignedSelection();
+					UpdateSummary();
+					RefreshDirtyState();
+					SetStatusMessage("Removed node item.");
 					return;
 				}
-				auto &items = brushStorage_.tableNodes[alignedNodeIndex_].items;
+				if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.carpetNodes.size()) ||
+					i >= brushStorage_.carpetNodes[alignedNodeIndex_].items.size()) {
+					return;
+				}
+				auto &items = brushStorage_.carpetNodes[alignedNodeIndex_].items;
 				alignedItemIndex_ = static_cast<int>(i);
 				items.erase(items.begin() + static_cast<std::ptrdiff_t>(i));
 				if (alignedItemIndex_ >= static_cast<int>(items.size())) {
@@ -6374,7 +6486,7 @@ void MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsLeftDown(wxMouseEvent &eve
 				RefreshAlignedSelection();
 				UpdateSummary();
 				RefreshDirtyState();
-				SetStatusMessage("Removed node item.");
+				SetStatusMessage("Removed carpet variant.");
 				return;
 			}
 		}
@@ -6425,7 +6537,7 @@ void MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsRightDown(wxMouseEvent &ev
 		chance = brushStorage_.carpetNodes[alignedNodeIndex_].items[i].chance;
 
 		const wxString dialogTitle = "Edit Carpet Variant";
-		if (ShowWeightedBrushItemDialog(this, dialogTitle, itemId, chance)) {
+		if (ShowWeightedBrushItemDialogWithPreview(this, dialogTitle, itemId, chance)) {
 			auto &item = brushStorage_.carpetNodes[alignedNodeIndex_].items[i];
 			item.itemId = itemId;
 			item.chance = chance;
