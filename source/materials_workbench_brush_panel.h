@@ -145,6 +145,8 @@ private:
 	void OnAlignedItemValueChanged(wxCommandEvent &event);
 	void OnAlignedContextPaint(wxPaintEvent &event);
 	void OnAlignedContextLeftDown(wxMouseEvent &event);
+	void OnAlignedContextMotion(wxMouseEvent &event);
+	void OnAlignedContextMouseLeave(wxMouseEvent &event);
 	void OnAlignedItemsCardsPaint(wxPaintEvent &event);
 	void OnAlignedItemsCardsLeftDown(wxMouseEvent &event);
 	void OnAlignedItemsCardsRightDown(wxMouseEvent &event);
@@ -254,6 +256,7 @@ private:
 	wxStaticText* alignedItemOwnershipLabel_ = nullptr;
 	std::vector<wxRect> alignedContextRects_;
 	std::vector<wxString> alignedContextRectAligns_;
+	std::vector<wxString> alignedContextRectTooltips_;
 	std::vector<wxRect> alignedItemCardRects_;
 	int alignedNodeIndex_ = -1;
 	int alignedItemIndex_ = -1;

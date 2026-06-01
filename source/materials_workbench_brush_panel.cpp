@@ -616,34 +616,35 @@ namespace {
 	struct AlignedContextSlot {
 		const char* align = "";
 		const char* label = "";
+		const char* description = "";
 		int column = 0;
 		int row = 0;
 	};
 
 	const std::vector<AlignedContextSlot>& GetCarpetContextSlots() {
 		static const std::vector<AlignedContextSlot> kSlots = {
-			{"cse", "NW", 0, 0},
-			{"s", "N", 1, 0},
-			{"csw", "NE", 2, 0},
-			{"e", "W", 0, 1},
-			{"center", "C", 1, 1},
-			{"w", "E", 2, 1},
-			{"cne", "SW", 0, 2},
-			{"n", "S", 1, 2},
-			{"cnw", "SE", 2, 2},
+			{"cse", "NW", "Corner preview", 0, 0},
+			{"s", "N", "Top edge preview", 1, 0},
+			{"csw", "NE", "Corner preview", 2, 0},
+			{"e", "W", "Left edge preview", 0, 1},
+			{"center", "C", "Center tile", 1, 1},
+			{"w", "E", "Right edge preview", 2, 1},
+			{"cne", "SW", "Corner preview", 0, 2},
+			{"n", "S", "Bottom edge preview", 1, 2},
+			{"cnw", "SE", "Corner preview", 2, 2},
 		};
 		return kSlots;
 	}
 
 	const std::vector<AlignedContextSlot>& GetTableContextSlots() {
 		static const std::vector<AlignedContextSlot> kSlots = {
-			{"north", "N end", 1, 0},
-			{"west", "W end", 0, 1},
-			{"alone", "solo", 1, 1},
-			{"east", "E end", 2, 1},
-			{"horizontal", "H run", 0, 2},
-			{"south", "S end", 1, 2},
-			{"vertical", "V run", 2, 2},
+			{"north", "Top\nEnd", "Closes a vertical run at the top.", 0, 0},
+			{"vertical", "Vertical\nRun", "Connects with neighbors above and below.", 0, 1},
+			{"south", "Bottom\nEnd", "Closes a vertical run at the bottom.", 0, 2},
+			{"west", "Left\nEnd", "Closes a horizontal run on the left.", 0, 3},
+			{"horizontal", "Horizontal\nRun", "Connects with neighbors left and right.", 1, 3},
+			{"east", "Right\nEnd", "Closes a horizontal run on the right.", 2, 3},
+			{"alone", "Paint\nSeed", "Used on the first click when painting before neighbors are formed.", 2, 0},
 		};
 		return kSlots;
 	}
@@ -729,39 +730,48 @@ namespace {
 	}
 
 	void DrawTableNeighbourStub(wxDC &dc, wxWindow* window, const wxRect &cellRect, const wxString &align) {
-		const int tileSize = window->FromDIP(18);
-		const int gap = window->FromDIP(4);
-		const wxRect centerStub(
-			cellRect.x + (cellRect.width - tileSize) / 2,
-			cellRect.y + (cellRect.height - tileSize) / 2,
-			tileSize,
-			tileSize
+		const wxPoint center(
+			cellRect.x + cellRect.width / 2,
+			cellRect.y + cellRect.height / 2
 		);
-		dc.SetPen(wxPen(wxColour(108, 115, 128), 1));
-		dc.SetBrush(wxBrush(wxColour(52, 58, 70)));
+		const int reach = window->FromDIP(16);
+		const int inset = window->FromDIP(6);
+		dc.SetPen(wxPen(wxColour(88, 96, 110), 2));
 
-		auto drawStub = [&](int dx, int dy) {
-			wxRect stub = centerStub;
-			stub.Offset(dx * (tileSize + gap), dy * (tileSize + gap));
-			dc.DrawRoundedRectangle(stub, window->FromDIP(3));
+		auto drawGuide = [&](int dx, int dy) {
+			const wxPoint end(
+				center.x + dx * reach,
+				center.y + dy * reach
+			);
+			dc.DrawLine(center, end);
+			const wxRect cap(
+				end.x - inset / 2,
+				end.y - inset / 2,
+				inset,
+				inset
+			);
+			dc.SetPen(*wxTRANSPARENT_PEN);
+			dc.SetBrush(wxBrush(wxColour(74, 82, 96)));
+			dc.DrawRoundedRectangle(cap, window->FromDIP(2));
+			dc.SetPen(wxPen(wxColour(88, 96, 110), 2));
 		};
 
 		wxString normalized = align;
 		normalized.MakeLower();
 		if (normalized == "horizontal") {
-			drawStub(-1, 0);
-			drawStub(1, 0);
+			drawGuide(-1, 0);
+			drawGuide(1, 0);
 		} else if (normalized == "vertical") {
-			drawStub(0, -1);
-			drawStub(0, 1);
+			drawGuide(0, -1);
+			drawGuide(0, 1);
 		} else if (normalized == "north") {
-			drawStub(0, 1);
+			drawGuide(0, 1);
 		} else if (normalized == "south") {
-			drawStub(0, -1);
+			drawGuide(0, -1);
 		} else if (normalized == "west") {
-			drawStub(1, 0);
+			drawGuide(1, 0);
 		} else if (normalized == "east") {
-			drawStub(-1, 0);
+			drawGuide(-1, 0);
 		}
 	}
 
@@ -1930,6 +1940,8 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildAlignedVariationsPage(wxSimplebook* 
 	alignedNodeAlignCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnAlignedNodeAlignChanged, this);
 	alignedContextPanel_->Bind(wxEVT_PAINT, &MaterialsWorkbenchBrushPanel::OnAlignedContextPaint, this);
 	alignedContextPanel_->Bind(wxEVT_LEFT_DOWN, &MaterialsWorkbenchBrushPanel::OnAlignedContextLeftDown, this);
+	alignedContextPanel_->Bind(wxEVT_MOTION, &MaterialsWorkbenchBrushPanel::OnAlignedContextMotion, this);
+	alignedContextPanel_->Bind(wxEVT_LEAVE_WINDOW, &MaterialsWorkbenchBrushPanel::OnAlignedContextMouseLeave, this);
 	addItemButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnAddAlignedItem, this);
 	removeItemButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnRemoveAlignedItem, this);
 	alignedItemsList_->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBrushPanel::OnAlignedItemSelected, this);
@@ -2363,7 +2375,7 @@ void MaterialsWorkbenchBrushPanel::UpdateModifiedHighlights() {
 		ApplyModifiedToggleStyle(oneSizeCtrl_, false);
 		ApplyModifiedToggleStyle(soloOptionalCtrl_, false);
 		ApplyModifiedLabelStyle(variationsStatusLabel_, "Variation Data", false);
-		ApplyModifiedLabelStyle(alignedSectionLabel_, UsesAlignedVariationEditor() && GetEffectiveBrushType() == "table" ? "Table Context Map" : "Carpet Context Map", false);
+		ApplyModifiedLabelStyle(alignedSectionLabel_, UsesAlignedVariationEditor() && GetEffectiveBrushType() == "table" ? "Table State Cards" : "Carpet Context Map", false);
 		ApplyModifiedEditorStyle(groundItemsList_, false);
 		ApplyModifiedEditorStyle(groundItemsCardsPanel_, false);
 		ApplyModifiedEditorStyle(groundPreviewPanel_, false);
@@ -2502,7 +2514,7 @@ void MaterialsWorkbenchBrushPanel::UpdateVariationModifiedHighlights(const Brush
 	ApplyModifiedEditorStyle(groundItemChanceCtrl_, groundModified);
 
 	const bool alignedModified = GetEffectiveBrushType() == "table" ? tableModified : carpetModified;
-	ApplyModifiedLabelStyle(alignedSectionLabel_, GetEffectiveBrushType() == "table" ? "Table Context Map" : "Carpet Context Map", alignedModified);
+	ApplyModifiedLabelStyle(alignedSectionLabel_, GetEffectiveBrushType() == "table" ? "Table State Cards" : "Carpet Context Map", alignedModified);
 	ApplyModifiedEditorStyle(alignedContextPanel_, alignedModified);
 	ApplyModifiedEditorStyle(alignedNodesList_, alignedModified);
 	ApplyModifiedEditorStyle(alignedItemsCardsPanel_, alignedModified);
@@ -2816,7 +2828,7 @@ void MaterialsWorkbenchBrushPanel::RefreshVariationEditor() {
 	}
 
 	if (UsesAlignedVariationEditor()) {
-		alignedSectionLabel_->SetLabel(GetEffectiveBrushType() == "carpet" ? "Carpet Context Map" : "Table Context Map");
+		alignedSectionLabel_->SetLabel(GetEffectiveBrushType() == "carpet" ? "Carpet Context Map" : "Table State Cards");
 		variationsBook_->SetSelection(2);
 		RefreshAlignedNodeList();
 		RefreshAlignedSelection();
@@ -3134,8 +3146,8 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
 		if (type == "table") {
 			alignedVisualInfoLabel_->SetLabel(
 				hasNode
-					? "Semantic table states stay visible in the map. The selected state drives the visual item cards on the right."
-					: "Create table states, then click the semantic map to inspect each connection state visually."
+					? "Click a table state card to inspect the selected piece on the right."
+					: "Create table states, then click a state card to inspect the piece in context."
 			);
 		} else {
 			alignedVisualInfoLabel_->SetLabel(
@@ -3167,14 +3179,14 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
 				const auto &node = brushStorage_.tableNodes[alignedNodeIndex_];
 				alignedItemsSummaryLabel_->SetLabel(
 					wxString::Format(
-						"State %s | %zu item%s | selected visually from the table map",
+						"State %s | %zu item%s | selected from the semantic table cards",
 						node.align,
 						node.items.size(),
 						node.items.size() == 1 ? "" : "s"
 					)
 				);
 			} else {
-				alignedItemsSummaryLabel_->SetLabel("Select a table state in the map to inspect its weighted items.");
+				alignedItemsSummaryLabel_->SetLabel("Select a semantic table card to inspect its weighted items.");
 			}
 		}
 		alignedItemsSummaryLabel_->Wrap(FromDIP(520));
@@ -4942,6 +4954,7 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextPaint(wxPaintEvent &WXUNUSED(
 	dc.Clear();
 	alignedContextRects_.clear();
 	alignedContextRectAligns_.clear();
+	alignedContextRectTooltips_.clear();
 
 	const wxString type = GetEffectiveBrushType();
 	const auto &slots = GetAlignedContextSlots(type);
@@ -4958,22 +4971,41 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextPaint(wxPaintEvent &WXUNUSED(
 
 	const int columns = maxColumn + 1;
 	const int rows = maxRow + 1;
-	const int padding = alignedContextPanel_->FromDIP(12);
-	const int gap = alignedContextPanel_->FromDIP(8);
-	const int cellWidth = std::max(alignedContextPanel_->FromDIP(56), (clientRect.width - padding * 2 - gap * (columns - 1)) / std::max(1, columns));
-	const int cellHeight = std::max(alignedContextPanel_->FromDIP(56), (clientRect.height - padding * 2 - gap * (rows - 1)) / std::max(1, rows));
+	const bool compactTableCards = type == "table";
+	const int padding = alignedContextPanel_->FromDIP(compactTableCards ? 8 : 12);
+	const int gap = alignedContextPanel_->FromDIP(compactTableCards ? 6 : 8);
+	int cellWidth = 0;
+	int cellHeight = 0;
+	int originX = padding;
+	int originY = padding;
+	if (compactTableCards) {
+		cellWidth = alignedContextPanel_->FromDIP(72);
+		cellHeight = alignedContextPanel_->FromDIP(64);
+		const int clusterWidth = columns * cellWidth + (columns - 1) * gap;
+		const int clusterHeight = rows * cellHeight + (rows - 1) * gap;
+		originX = clientRect.x + std::max(0, (clientRect.width - clusterWidth) / 2);
+		originY = clientRect.y + std::max(0, (clientRect.height - clusterHeight) / 2);
+	} else {
+		cellWidth = std::max(alignedContextPanel_->FromDIP(56), (clientRect.width - padding * 2 - gap * (columns - 1)) / std::max(1, columns));
+		cellHeight = std::max(alignedContextPanel_->FromDIP(56), (clientRect.height - padding * 2 - gap * (rows - 1)) / std::max(1, rows));
+	}
 	const wxColour textColour = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT);
 	const wxColour mutedText(150, 156, 170);
 
 	for (const auto &slot : slots) {
 		wxRect cellRect(
-			padding + slot.column * (cellWidth + gap),
-			padding + slot.row * (cellHeight + gap),
+			originX + slot.column * (cellWidth + gap),
+			originY + slot.row * (cellHeight + gap),
 			cellWidth,
 			cellHeight
 		);
 		alignedContextRects_.push_back(cellRect);
 		alignedContextRectAligns_.push_back(wxString::FromUTF8(slot.align));
+		alignedContextRectTooltips_.push_back(
+			type == "table"
+				? wxString::FromUTF8(slot.description)
+				: wxString::Format("Context %s", wxString::FromUTF8(slot.label))
+		);
 
 		int nodeIndex = -1;
 		if (type == "table") {
@@ -4991,7 +5023,7 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextPaint(wxPaintEvent &WXUNUSED(
 		dc.DrawRoundedRectangle(cellRect, alignedContextPanel_->FromDIP(6));
 
 		wxRect titleRect = cellRect;
-		titleRect.Deflate(alignedContextPanel_->FromDIP(8), alignedContextPanel_->FromDIP(8));
+		titleRect.Deflate(alignedContextPanel_->FromDIP(compactTableCards ? 6 : 8), alignedContextPanel_->FromDIP(compactTableCards ? 6 : 8));
 		dc.SetTextForeground(textColour);
 		dc.DrawText(wxString::FromUTF8(slot.label), titleRect.x, titleRect.y);
 
@@ -5013,21 +5045,23 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextPaint(wxPaintEvent &WXUNUSED(
 			}
 
 			wxRect previewRect = cellRect;
-			previewRect.Deflate(alignedContextPanel_->FromDIP(10), alignedContextPanel_->FromDIP(12));
-			previewRect.SetTop(previewRect.y + alignedContextPanel_->FromDIP(10));
-			previewRect.SetHeight(std::max(alignedContextPanel_->FromDIP(30), previewRect.height - alignedContextPanel_->FromDIP(24)));
+			previewRect.Deflate(alignedContextPanel_->FromDIP(compactTableCards ? 8 : 10), alignedContextPanel_->FromDIP(compactTableCards ? 8 : 12));
+			previewRect.SetTop(previewRect.y + (type == "table" ? alignedContextPanel_->FromDIP(14) : alignedContextPanel_->FromDIP(10)));
+			previewRect.SetHeight(std::max(alignedContextPanel_->FromDIP(32), previewRect.height - (type == "table" ? alignedContextPanel_->FromDIP(18) : alignedContextPanel_->FromDIP(24))));
 			if (type == "table") {
 				DrawAlignedTableContextScene(dc, alignedContextPanel_, previewRect, wxString::FromUTF8(slot.align), itemId);
 			} else {
 				DrawAlignedCarpetContextScene(dc, alignedContextPanel_, previewRect, wxString::FromUTF8(slot.align), itemId, selected);
 			}
 
-			dc.SetTextForeground(mutedText);
-			dc.DrawLabel(
-				wxString::Format("%zu item%s", itemCount, itemCount == 1 ? "" : "s"),
-				wxRect(cellRect.x, cellRect.GetBottom() - alignedContextPanel_->FromDIP(28), cellRect.width, alignedContextPanel_->FromDIP(18)),
-				wxALIGN_CENTER
-			);
+			if (!compactTableCards) {
+				dc.SetTextForeground(mutedText);
+				dc.DrawLabel(
+					wxString::Format("%zu item%s", itemCount, itemCount == 1 ? "" : "s"),
+					wxRect(cellRect.x, cellRect.GetBottom() - alignedContextPanel_->FromDIP(28), cellRect.width, alignedContextPanel_->FromDIP(16)),
+					wxALIGN_CENTER
+				);
+			}
 		} else {
 			dc.SetTextForeground(mutedText);
 			dc.DrawLabel(
@@ -5070,6 +5104,32 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextLeftDown(wxMouseEvent &event)
 		return;
 	}
 
+	event.Skip();
+}
+
+void MaterialsWorkbenchBrushPanel::OnAlignedContextMotion(wxMouseEvent &event) {
+	if (!alignedContextPanel_) {
+		event.Skip();
+		return;
+	}
+
+	const wxPoint position = event.GetPosition();
+	for (size_t i = 0; i < alignedContextRects_.size() && i < alignedContextRectTooltips_.size(); ++i) {
+		if (!alignedContextRects_[i].Contains(position)) {
+			continue;
+		}
+		alignedContextPanel_->SetToolTip(alignedContextRectTooltips_[i]);
+		return;
+	}
+
+	alignedContextPanel_->UnsetToolTip();
+	event.Skip();
+}
+
+void MaterialsWorkbenchBrushPanel::OnAlignedContextMouseLeave(wxMouseEvent &event) {
+	if (alignedContextPanel_) {
+		alignedContextPanel_->UnsetToolTip();
+	}
 	event.Skip();
 }
 

@@ -15,7 +15,7 @@
 ## Visual Polish
 - [ ] Add visual metadata previews for `lookId` and `serverLookId` in the Brush Workspace
 - [ ] Add richer visual previews inside `variations`, including per-item thumbnails and domain-specific preview feedback
-- [ ] Continue the `Aligned` visual editor pass with mini-scene previews and a stronger semantic layout for `table`
+- [x] Continue the `Aligned` visual editor pass with mini-scene previews and a stronger semantic layout for `table`
 - [x] Continue the `Doodad` editor rebuild from the new scene-preview base: move from read-first preview to direct grid authoring on top of the existing composite fields
 - [x] Improve Border Workspace presentation with stronger contrast, clearer slot-to-preview correspondence, a compact authoring panel, inline/global-specific fields, scope-aware metadata naming (including `Global Border ID` / `Autoborder Group`), a centered compact slot grid, a richer searchable `Used By` context panel with a real `wxGrid` table for global borders, and first-pass CRUD for border sets / global contexts
 - [ ] Improve Wall Workspace presentation with richer visual previews for wall parts, doors, and composed wall results
@@ -52,7 +52,7 @@
 ## Delivered Highlights
 - [x] Brush Workspace: metadata, `variations`, dirty state, save/revert, runtime-owner hints, and validation for `lookId`, `serverLookId`, and variation item ids
 - [x] Brush Workspace `Ground` visual variation pass: weighted ground items now use visual cards with sprite previews, percent/badge feedback, contextual add/edit dialogs, and a seamless scrolled preview grid with hover tooltips, optional rarity highlighting, and click-to-select sync from preview back to the current variant
-- [x] Brush Workspace `Aligned` stage 1: `carpet` and `tiny border` authoring now starts from a visual context map with connected context previews and missing-slot feedback, while `table` uses a dedicated semantic state map; both domains keep sprite-backed item cards, right-click quick edit on context items, and an `Advanced` block that preserves direct align/item/chance control while the UX shifts away from raw lists
+- [x] Brush Workspace `Aligned` stage 1: `carpet` and `tiny border` authoring now starts from a visual context map with connected context previews and missing-slot feedback, while `table` now uses semantic state cards with centered piece previews, cleaner guide geometry, compact labels/tooltips, and plainer product language; both domains keep sprite-backed item cards, right-click quick edit on context items, and an `Advanced` block that preserves direct align/item/chance control while the UX shifts away from raw lists
 - [x] Brush Workspace `Doodad` stage 1: the existing alternative/single/composite/tile forms now drive a visual `Scene Preview` with real 32x32 cells, floor filtering, centered single-item preview, and selection-aware composite rendering without breaking legacy XML-compatible authoring
 - [x] Brush Workspace `Doodad` stage 2: the `Scene Editor` now keeps tile selection in backend state and drives visual tile authoring directly, with left-click add/select behavior, right-click item/tile removal, hidden tile offset controls, and Ctrl+click item stamping using the current `Item ID`
 - [x] Brush Workspace `Doodad` stage 3: live runtime sync now mirrors valid in-memory composite edits into the active runtime brush and palette selection immediately, so edited doodads can be painted on the map before `Save`
