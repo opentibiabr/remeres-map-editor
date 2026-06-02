@@ -3915,6 +3915,12 @@ void MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint(wxPaintEvent &W
 	}
 
 	if (GetEffectiveBrushType() == "carpet") {
+		enum class CarpetSeamlessCollapseMode {
+			None,
+			MiddleColumn,
+			MiddleRow,
+		};
+
 		struct CarpetPreviewTile {
 			wxString align;
 			wxString label;
@@ -3959,6 +3965,32 @@ void MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint(wxPaintEvent &W
 			: (alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(brushStorage_.carpetNodes.size())
 				? brushStorage_.carpetNodes[alignedNodeIndex_].align
 				: wxString("center"));
+		const auto hasCarpetNode = [&](const wxString &align) {
+			return FindAlignedNodeIndexByAlign(brushStorage_.carpetNodes, align) >= 0;
+		};
+		const auto matchesMissingPair = [&](const std::vector<wxString> &missingAligns) {
+			for (const auto &slot : GetCarpetContextSlots()) {
+				const wxString align = wxString::FromUTF8(slot.align);
+				const bool shouldBeMissing = std::find_if(
+					missingAligns.begin(),
+					missingAligns.end(),
+					[&](const wxString &candidate) { return candidate.CmpNoCase(align) == 0; }
+				) != missingAligns.end();
+				if (shouldBeMissing) {
+					if (hasCarpetNode(align)) {
+						return false;
+					}
+				} else if (!hasCarpetNode(align)) {
+					return false;
+				}
+			}
+			return true;
+		};
+		const CarpetSeamlessCollapseMode collapseMode = matchesMissingPair({"n", "s"})
+			? CarpetSeamlessCollapseMode::MiddleColumn
+			: (matchesMissingPair({"e", "w"})
+				? CarpetSeamlessCollapseMode::MiddleRow
+				: CarpetSeamlessCollapseMode::None);
 		const auto resolvePreviewItemId = [&](const wxString &align) -> int {
 			const int nodeIndex = FindAlignedNodeIndexByAlign(brushStorage_.carpetNodes, align);
 			if (nodeIndex < 0 || nodeIndex >= static_cast<int>(brushStorage_.carpetNodes.size())) {
@@ -3982,6 +4014,10 @@ void MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint(wxPaintEvent &W
 		std::vector<CarpetPreviewTile> tiles;
 		tiles.reserve(GetCarpetContextSlots().size());
 		for (const auto &slot : GetCarpetContextSlots()) {
+			if ((collapseMode == CarpetSeamlessCollapseMode::MiddleColumn && slot.column == 1) ||
+				(collapseMode == CarpetSeamlessCollapseMode::MiddleRow && slot.row == 1)) {
+				continue;
+			}
 			const wxString align = wxString::FromUTF8(slot.align);
 			const int nodeIndex = FindAlignedNodeIndexByAlign(brushStorage_.carpetNodes, align);
 			CarpetPreviewTile tile;
@@ -3990,7 +4026,13 @@ void MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint(wxPaintEvent &W
 			tile.exists = nodeIndex >= 0;
 			tile.selected = selectedAlign.CmpNoCase(align) == 0;
 			tile.itemId = tile.exists ? resolvePreviewItemId(align) : 0;
-			tile.tileAnchor = wxPoint(slot.column * tileCell, slot.row * tileCell);
+			const int collapsedColumn = collapseMode == CarpetSeamlessCollapseMode::MiddleColumn && slot.column > 1
+				? slot.column - 1
+				: slot.column;
+			const int collapsedRow = collapseMode == CarpetSeamlessCollapseMode::MiddleRow && slot.row > 1
+				? slot.row - 1
+				: slot.row;
+			tile.tileAnchor = wxPoint(collapsedColumn * tileCell, collapsedRow * tileCell);
 			tile.spriteRect = GetDoodadPreviewSpriteRect(tile.itemId, tile.tileAnchor);
 			if (tile.itemId > 0) {
 				const DoodadPreviewSpriteMetrics metrics = ResolveDoodadPreviewSpriteMetrics(tile.itemId);
