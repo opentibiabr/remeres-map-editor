@@ -2134,7 +2134,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildCarpetVariationsPage(wxSimplebook* b
 	widgets.seamlessPreviewInfoLabel = new wxStaticText(editorPanel, wxID_ANY, "");
 	StyleBrushWorkspaceSubtitle(widgets.seamlessPreviewInfoLabel);
 	editorSizer->Add(widgets.seamlessPreviewInfoLabel, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
-	editorSizer->Add(CreateSectionLabel(editorPanel, "Carpet Preview"), 0, wxBOTTOM, FromDIP(6));
+	editorSizer->Add(CreateSectionLabel(editorPanel, "Seamless Preview"), 0, wxBOTTOM, FromDIP(6));
 	widgets.seamlessPreviewPanel = new wxPanel(editorPanel, wxID_ANY, wxDefaultPosition, wxSize(alignedEditorWidth, editorPanel->FromDIP(188)), wxBORDER_SIMPLE);
 	widgets.seamlessPreviewPanel->SetBackgroundStyle(wxBG_STYLE_PAINT);
 	widgets.seamlessPreviewPanel->SetMinSize(wxSize(alignedEditorWidth, editorPanel->FromDIP(188)));
@@ -3797,24 +3797,24 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
 				alignedSeamlessPreviewInfoLabel_->SetLabel(
 					hasSelectedVariant
 						? wxString::Format(
-							"Preview follows slot %s and the active variant item %d so the carpet reads as one layout instead of isolated cards.",
+							"Seamless preview follows slot %s and the active variant item %d inside one continuous carpet composition.",
 							node.align,
 							node.items[alignedItemIndex_].itemId
 						)
 						: wxString::Format(
-							"Preview shows the full carpet layout around slot %s using the first available variant in each configured context.",
+							"Seamless preview shows the full carpet composition around slot %s using the first available variant in each configured context.",
 							node.align
 						)
 				);
 			} else if (hasPendingCarpetSlot) {
 				alignedSeamlessPreviewInfoLabel_->SetLabel(
 					wxString::Format(
-						"Preview reserves slot %s in the composed carpet layout so you can see where the next context will land before creating it.",
+						"Seamless preview reserves slot %s in the carpet composition so you can see where the next context will land before creating it.",
 						alignedPendingCarpetAlign_
 					)
 				);
 			} else {
-				alignedSeamlessPreviewInfoLabel_->SetLabel("Preview shows the composed carpet layout using the contexts currently configured in the map.");
+				alignedSeamlessPreviewInfoLabel_->SetLabel("Seamless preview shows the carpet as one continuous composition using the contexts currently configured in the map.");
 			}
 			alignedSeamlessPreviewInfoLabel_->Wrap(FromDIP(520));
 			alignedSeamlessPreviewInfoLabel_->Show();
@@ -3915,22 +3915,45 @@ void MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint(wxPaintEvent &W
 	}
 
 	if (GetEffectiveBrushType() == "carpet") {
+		struct CarpetPreviewTile {
+			wxString align;
+			wxString label;
+			bool exists = false;
+			bool selected = false;
+			int itemId = 0;
+			wxPoint tileAnchor;
+			wxRect spriteRect;
+			wxBitmap bitmap;
+			wxRect visibleBounds;
+
+			bool hasSprite() const {
+				return bitmap.IsOk() && visibleBounds.width > 0 && visibleBounds.height > 0;
+			}
+		};
+
+		struct CarpetPreviewMeasure {
+			wxRect tileUnion;
+			wxRect spriteUnion;
+			wxRect visibleUnion;
+			bool hasTileUnion = false;
+			bool hasSpriteUnion = false;
+			bool hasVisibleUnion = false;
+		};
+
 		const wxColour frameColour(74, 82, 96);
-		const wxColour slotFill(24, 28, 36);
-		const wxColour missingFill(32, 30, 28);
+		const wxColour laneFill(24, 28, 36);
+		const wxColour existingTileFill(34, 40, 50);
+		const wxColour missingTileFill(34, 30, 26);
 		const wxColour mutedText(150, 156, 170);
 		const int padding = alignedSeamlessPreviewPanel_->FromDIP(12);
-		const int gap = alignedSeamlessPreviewPanel_->FromDIP(8);
+		const int tileCell = alignedSeamlessPreviewPanel_->FromDIP(32);
+		const int stroke = alignedSeamlessPreviewPanel_->FromDIP(1);
 		wxRect innerRect = clientRect;
 		innerRect.Deflate(padding, padding);
-		const int columns = 3;
-		const int rows = 3;
-		const int cellWidth = std::max(alignedSeamlessPreviewPanel_->FromDIP(48), (innerRect.width - gap * (columns - 1)) / columns);
-		const int cellHeight = std::max(alignedSeamlessPreviewPanel_->FromDIP(48), (innerRect.height - gap * (rows - 1)) / rows);
-		const int clusterWidth = columns * cellWidth + gap * (columns - 1);
-		const int clusterHeight = rows * cellHeight + gap * (rows - 1);
-		const int originX = innerRect.x + std::max(0, (innerRect.width - clusterWidth) / 2);
-		const int originY = innerRect.y + std::max(0, (innerRect.height - clusterHeight) / 2);
+		dc.SetPen(wxPen(frameColour, 1));
+		dc.SetBrush(wxBrush(laneFill));
+		dc.DrawRoundedRectangle(innerRect, alignedSeamlessPreviewPanel_->FromDIP(8));
+
 		const wxString selectedAlign = !alignedPendingCarpetAlign_.IsEmpty()
 			? alignedPendingCarpetAlign_
 			: (alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(brushStorage_.carpetNodes.size())
@@ -3956,58 +3979,120 @@ void MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint(wxPaintEvent &W
 			return node.items.empty() ? 0 : node.items.front().itemId;
 		};
 
+		std::vector<CarpetPreviewTile> tiles;
+		tiles.reserve(GetCarpetContextSlots().size());
 		for (const auto &slot : GetCarpetContextSlots()) {
-			wxRect cellRect(
-				originX + slot.column * (cellWidth + gap),
-				originY + slot.row * (cellHeight + gap),
-				cellWidth,
-				cellHeight
-			);
 			const wxString align = wxString::FromUTF8(slot.align);
 			const int nodeIndex = FindAlignedNodeIndexByAlign(brushStorage_.carpetNodes, align);
-			const bool exists = nodeIndex >= 0;
-			const bool selected = selectedAlign.CmpNoCase(align) == 0;
-			dc.SetPen(wxPen(selected ? wxColour(80, 166, 255) : (exists ? wxColour(91, 194, 139) : wxColour(176, 102, 0)), selected ? 2 : 1));
-			dc.SetBrush(wxBrush(exists ? slotFill : missingFill));
-			dc.DrawRoundedRectangle(cellRect, alignedSeamlessPreviewPanel_->FromDIP(6));
-
-			wxRect titleRect = cellRect;
-			titleRect.Deflate(alignedSeamlessPreviewPanel_->FromDIP(8), alignedSeamlessPreviewPanel_->FromDIP(8));
-			titleRect.SetHeight(alignedSeamlessPreviewPanel_->FromDIP(14));
-			dc.SetTextForeground(selected ? wxColour(235, 240, 248) : mutedText);
-			dc.DrawLabel(wxString::FromUTF8(slot.label), titleRect, wxALIGN_LEFT | wxALIGN_TOP);
-
-			if (exists) {
-				const int previewItemId = resolvePreviewItemId(align);
-				wxRect previewRect = cellRect;
-				previewRect.Deflate(alignedSeamlessPreviewPanel_->FromDIP(10), alignedSeamlessPreviewPanel_->FromDIP(10));
-				previewRect.SetTop(previewRect.y + alignedSeamlessPreviewPanel_->FromDIP(18));
-				previewRect.SetHeight(std::max(alignedSeamlessPreviewPanel_->FromDIP(28), previewRect.height - alignedSeamlessPreviewPanel_->FromDIP(28)));
-				DrawAlignedCarpetContextScene(dc, alignedSeamlessPreviewPanel_, previewRect, align, previewItemId, selected);
-
-				const auto &node = brushStorage_.carpetNodes[static_cast<size_t>(nodeIndex)];
-				wxString footer = wxString::Format("%zu v", node.items.size());
-				wxRect footerRect(
-					cellRect.GetRight() - alignedSeamlessPreviewPanel_->FromDIP(40),
-					cellRect.GetBottom() - alignedSeamlessPreviewPanel_->FromDIP(22),
-					alignedSeamlessPreviewPanel_->FromDIP(28),
-					alignedSeamlessPreviewPanel_->FromDIP(14)
-				);
-				dc.SetPen(*wxTRANSPARENT_PEN);
-				dc.SetBrush(wxBrush(selected ? wxColour(80, 166, 255) : wxColour(91, 194, 139)));
-				dc.DrawRoundedRectangle(footerRect, alignedSeamlessPreviewPanel_->FromDIP(6));
-				dc.SetTextForeground(wxColour(20, 24, 32));
-				dc.DrawLabel(footer, footerRect, wxALIGN_CENTER);
-			} else {
-				wxRect emptyRect = cellRect;
-				emptyRect.Deflate(alignedSeamlessPreviewPanel_->FromDIP(12), alignedSeamlessPreviewPanel_->FromDIP(12));
-				emptyRect.SetTop(emptyRect.y + alignedSeamlessPreviewPanel_->FromDIP(16));
-				dc.SetPen(wxPen(wxColour(112, 120, 136), 1, wxPENSTYLE_SHORT_DASH));
-				dc.SetBrush(*wxTRANSPARENT_BRUSH);
-				dc.DrawRoundedRectangle(emptyRect, alignedSeamlessPreviewPanel_->FromDIP(5));
-				dc.SetTextForeground(mutedText);
-				dc.DrawLabel(selected ? "next" : "empty", emptyRect, wxALIGN_CENTER);
+			CarpetPreviewTile tile;
+			tile.align = align;
+			tile.label = wxString::FromUTF8(slot.label);
+			tile.exists = nodeIndex >= 0;
+			tile.selected = selectedAlign.CmpNoCase(align) == 0;
+			tile.itemId = tile.exists ? resolvePreviewItemId(align) : 0;
+			tile.tileAnchor = wxPoint(slot.column * tileCell, slot.row * tileCell);
+			tile.spriteRect = GetDoodadPreviewSpriteRect(tile.itemId, tile.tileAnchor);
+			if (tile.itemId > 0) {
+				const DoodadPreviewSpriteMetrics metrics = ResolveDoodadPreviewSpriteMetrics(tile.itemId);
+				if (metrics.isValid()) {
+					tile.bitmap = BuildDoodadPreviewBitmap(metrics.spriteId);
+					if (tile.bitmap.IsOk()) {
+						tile.visibleBounds = GetBitmapVisibleBounds(tile.bitmap);
+					}
+				}
 			}
+			tiles.push_back(tile);
+		}
+
+		CarpetPreviewMeasure measure;
+		for (const CarpetPreviewTile &tile : tiles) {
+			const wxRect tileRect(tile.tileAnchor.x, tile.tileAnchor.y, tileCell, tileCell);
+			if (!measure.hasTileUnion) {
+				measure.tileUnion = tileRect;
+				measure.hasTileUnion = true;
+			} else {
+				measure.tileUnion.Union(tileRect);
+			}
+			if (tile.hasSprite()) {
+				const wxRect visibleRect(
+					tile.spriteRect.x + tile.visibleBounds.x,
+					tile.spriteRect.y + tile.visibleBounds.y,
+					tile.visibleBounds.width,
+					tile.visibleBounds.height
+				);
+				if (!measure.hasSpriteUnion) {
+					measure.spriteUnion = tile.spriteRect;
+					measure.hasSpriteUnion = true;
+				} else {
+					measure.spriteUnion.Union(tile.spriteRect);
+				}
+				if (!measure.hasVisibleUnion) {
+					measure.visibleUnion = visibleRect;
+					measure.hasVisibleUnion = true;
+				} else {
+					measure.visibleUnion.Union(visibleRect);
+				}
+			}
+		}
+		if (!measure.hasTileUnion) {
+			return;
+		}
+		if (!measure.hasSpriteUnion) {
+			measure.spriteUnion = measure.tileUnion;
+		}
+		if (!measure.hasVisibleUnion) {
+			measure.visibleUnion = measure.tileUnion;
+		}
+
+		const wxRect focusUnion = measure.hasVisibleUnion ? measure.visibleUnion : measure.tileUnion;
+		const wxPoint originOffset(
+			innerRect.x + std::max(0, (innerRect.width - focusUnion.width) / 2) - focusUnion.x,
+			innerRect.y + std::max(0, (innerRect.height - focusUnion.height) / 2) - focusUnion.y
+		);
+
+		for (const CarpetPreviewTile &tile : tiles) {
+			const wxRect tileRect(
+				tile.tileAnchor.x + originOffset.x,
+				tile.tileAnchor.y + originOffset.y,
+				tileCell,
+				tileCell
+			);
+			dc.SetPen(wxPen(tile.selected ? wxColour(80, 166, 255) : (tile.exists ? wxColour(68, 76, 90) : wxColour(94, 82, 70)), tile.selected ? 2 : stroke, tile.exists ? wxPENSTYLE_SOLID : wxPENSTYLE_SHORT_DASH));
+			dc.SetBrush(wxBrush(tile.exists ? existingTileFill : missingTileFill));
+			dc.DrawRectangle(tileRect);
+		}
+
+		for (const CarpetPreviewTile &tile : tiles) {
+			if (!tile.hasSprite()) {
+				continue;
+			}
+			dc.DrawBitmap(tile.bitmap, tile.spriteRect.x + originOffset.x, tile.spriteRect.y + originOffset.y, true);
+		}
+
+		for (const CarpetPreviewTile &tile : tiles) {
+			const wxRect tileRect(
+				tile.tileAnchor.x + originOffset.x,
+				tile.tileAnchor.y + originOffset.y,
+				tileCell,
+				tileCell
+			);
+			if (!tile.exists) {
+				dc.SetTextForeground(tile.selected ? wxColour(235, 240, 248) : mutedText);
+				dc.DrawLabel(tile.selected ? "next" : "+", tileRect, wxALIGN_CENTER);
+				continue;
+			}
+
+			wxRect badgeRect(
+				tileRect.x + alignedSeamlessPreviewPanel_->FromDIP(3),
+				tileRect.y + alignedSeamlessPreviewPanel_->FromDIP(3),
+				alignedSeamlessPreviewPanel_->FromDIP(18),
+				alignedSeamlessPreviewPanel_->FromDIP(10)
+			);
+			dc.SetPen(*wxTRANSPARENT_PEN);
+			dc.SetBrush(wxBrush(tile.selected ? wxColour(80, 166, 255) : wxColour(91, 194, 139)));
+			dc.DrawRoundedRectangle(badgeRect, alignedSeamlessPreviewPanel_->FromDIP(4));
+			dc.SetTextForeground(wxColour(20, 24, 32));
+			dc.DrawLabel(tile.label, badgeRect, wxALIGN_CENTER);
 		}
 		return;
 	}
