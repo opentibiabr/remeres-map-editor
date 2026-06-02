@@ -51,6 +51,7 @@
 - [x] Stage 10G: palette grouping is DB-first and shared by Workbench and runtime, including custom groups
 
 ## Delivered Highlights
+- [x] Startup SQLite bootstrap bugfix: when `materials.db` is newly recreated but still missing imported data for the current schema, opening an already populated map now skips the premature runtime SQLite load, falls back to XML without false warnings, and schedules the background rebuild normally
 - [x] Brush Workspace: metadata, `variations`, dirty state, save/revert, runtime-owner hints, and validation for `lookId`, `serverLookId`, and variation item ids
 - [x] Brush Workspace `Ground` visual variation pass: weighted ground items now use visual cards with sprite previews, percent/badge feedback, contextual add/edit dialogs, and a seamless scrolled preview grid with hover tooltips, optional rarity highlighting, and click-to-select sync from preview back to the current variant
 - [x] Brush Workspace `Aligned` stage 1: `carpet` and `tiny border` authoring now starts from a visual context map with connected context previews and missing-slot feedback, while `table` now uses semantic state cards with visually centered piece previews, external connectivity guides, compact labels/tooltips, and plainer product language; both domains keep sprite-backed item cards, right-click quick edit on context items, and an `Advanced` block that preserves direct align/item/chance control while the UX shifts away from raw lists

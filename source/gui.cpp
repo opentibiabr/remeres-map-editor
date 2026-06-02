@@ -367,18 +367,19 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 	bool shouldLoadFromSqlite = false;
 	bool sqliteImportIncomplete = false;
 	if (g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
-		shouldLoadFromSqlite = g_brush_database.isOpen();
 		bool skipSqliteImport = false;
 		wxString sqliteImportStatus;
 		if (!g_materials.shouldSkipSqliteBootstrapImports(skipSqliteImport, sqliteImportStatus)) {
 			warnings.push_back("SQLite import bootstrap check failed: " + sqliteImportStatus);
 			spdlog::warn("[GUI::LoadDataFiles] SQLite import bootstrap check failed: {}", sqliteImportStatus.ToStdString());
 		} else if (skipSqliteImport) {
+			shouldLoadFromSqlite = g_brush_database.isOpen();
 			spdlog::info("{}", sqliteImportStatus.ToStdString());
 		} else {
 			spdlog::info("{}", sqliteImportStatus.ToStdString());
 			sqliteImportIncomplete = true;
 			startAsyncSqliteBootstrap = true;
+			shouldLoadFromSqlite = false;
 		}
 	}
 
