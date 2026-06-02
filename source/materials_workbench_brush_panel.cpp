@@ -2131,6 +2131,14 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildCarpetVariationsPage(wxSimplebook* b
 	wxPanel* editorPanel = new wxPanel(panel, wxID_ANY);
 	wxBoxSizer* editorFrameSizer = new wxBoxSizer(wxHORIZONTAL);
 	wxBoxSizer* editorSizer = new wxBoxSizer(wxVERTICAL);
+	widgets.seamlessPreviewInfoLabel = new wxStaticText(editorPanel, wxID_ANY, "");
+	StyleBrushWorkspaceSubtitle(widgets.seamlessPreviewInfoLabel);
+	editorSizer->Add(widgets.seamlessPreviewInfoLabel, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+	editorSizer->Add(CreateSectionLabel(editorPanel, "Carpet Preview"), 0, wxBOTTOM, FromDIP(6));
+	widgets.seamlessPreviewPanel = new wxPanel(editorPanel, wxID_ANY, wxDefaultPosition, wxSize(alignedEditorWidth, editorPanel->FromDIP(188)), wxBORDER_SIMPLE);
+	widgets.seamlessPreviewPanel->SetBackgroundStyle(wxBG_STYLE_PAINT);
+	widgets.seamlessPreviewPanel->SetMinSize(wxSize(alignedEditorWidth, editorPanel->FromDIP(188)));
+	editorSizer->Add(widgets.seamlessPreviewPanel, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
 	editorSizer->Add(CreateSectionLabel(editorPanel, "Context Variants"), 0, wxBOTTOM, FromDIP(6));
 	widgets.itemsSummaryLabel = new wxStaticText(
 		editorPanel,
@@ -2214,6 +2222,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildCarpetVariationsPage(wxSimplebook* b
 	widgets.contextPanel->Bind(wxEVT_LEFT_DOWN, &MaterialsWorkbenchBrushPanel::OnAlignedContextLeftDown, this);
 	widgets.contextPanel->Bind(wxEVT_MOTION, &MaterialsWorkbenchBrushPanel::OnAlignedContextMotion, this);
 	widgets.contextPanel->Bind(wxEVT_LEAVE_WINDOW, &MaterialsWorkbenchBrushPanel::OnAlignedContextMouseLeave, this);
+	widgets.seamlessPreviewPanel->Bind(wxEVT_PAINT, &MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint, this);
 	addItemButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnAddAlignedItem, this);
 	removeItemButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnRemoveAlignedItem, this);
 	widgets.itemsList->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBrushPanel::OnAlignedItemSelected, this);
@@ -3781,6 +3790,34 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
 	if (alignedSeamlessPreviewInfoLabel_) {
 		if (type == "table") {
 			alignedSeamlessPreviewInfoLabel_->Hide();
+		} else if (type == "carpet") {
+			if (alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(brushStorage_.carpetNodes.size())) {
+				const auto &node = brushStorage_.carpetNodes[alignedNodeIndex_];
+				const bool hasSelectedVariant = alignedItemIndex_ >= 0 && alignedItemIndex_ < static_cast<int>(node.items.size());
+				alignedSeamlessPreviewInfoLabel_->SetLabel(
+					hasSelectedVariant
+						? wxString::Format(
+							"Preview follows slot %s and the active variant item %d so the carpet reads as one layout instead of isolated cards.",
+							node.align,
+							node.items[alignedItemIndex_].itemId
+						)
+						: wxString::Format(
+							"Preview shows the full carpet layout around slot %s using the first available variant in each configured context.",
+							node.align
+						)
+				);
+			} else if (hasPendingCarpetSlot) {
+				alignedSeamlessPreviewInfoLabel_->SetLabel(
+					wxString::Format(
+						"Preview reserves slot %s in the composed carpet layout so you can see where the next context will land before creating it.",
+						alignedPendingCarpetAlign_
+					)
+				);
+			} else {
+				alignedSeamlessPreviewInfoLabel_->SetLabel("Preview shows the composed carpet layout using the contexts currently configured in the map.");
+			}
+			alignedSeamlessPreviewInfoLabel_->Wrap(FromDIP(520));
+			alignedSeamlessPreviewInfoLabel_->Show();
 		} else {
 			alignedSeamlessPreviewInfoLabel_->Hide();
 		}
@@ -3849,10 +3886,11 @@ void MaterialsWorkbenchBrushPanel::EditTableItemWithDialog(int nodeIndex, int it
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshAlignedSeamlessPreview() {
-	const bool showTablePreview = UsesAlignedVariationEditor() && GetEffectiveBrushType() == "table";
+	const wxString type = GetEffectiveBrushType();
+	const bool showAlignedPreview = UsesAlignedVariationEditor() && (type == "table" || type == "carpet");
 	if (alignedSeamlessPreviewPanel_) {
-		alignedSeamlessPreviewPanel_->Show(showTablePreview);
-		if (showTablePreview) {
+		alignedSeamlessPreviewPanel_->Show(showAlignedPreview);
+		if (showAlignedPreview) {
 			alignedSeamlessPreviewPanel_->Refresh();
 		}
 		if (wxWindow* parent = alignedSeamlessPreviewPanel_->GetParent()) {
@@ -3872,7 +3910,105 @@ void MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint(wxPaintEvent &W
 	dc.SetBackground(wxBrush(wxColour(20, 24, 32)));
 	dc.Clear();
 
-	if (!hasBrush_ || GetEffectiveBrushType() != "table") {
+	if (!hasBrush_ || (GetEffectiveBrushType() != "table" && GetEffectiveBrushType() != "carpet")) {
+		return;
+	}
+
+	if (GetEffectiveBrushType() == "carpet") {
+		const wxColour frameColour(74, 82, 96);
+		const wxColour slotFill(24, 28, 36);
+		const wxColour missingFill(32, 30, 28);
+		const wxColour mutedText(150, 156, 170);
+		const int padding = alignedSeamlessPreviewPanel_->FromDIP(12);
+		const int gap = alignedSeamlessPreviewPanel_->FromDIP(8);
+		wxRect innerRect = clientRect;
+		innerRect.Deflate(padding, padding);
+		const int columns = 3;
+		const int rows = 3;
+		const int cellWidth = std::max(alignedSeamlessPreviewPanel_->FromDIP(48), (innerRect.width - gap * (columns - 1)) / columns);
+		const int cellHeight = std::max(alignedSeamlessPreviewPanel_->FromDIP(48), (innerRect.height - gap * (rows - 1)) / rows);
+		const int clusterWidth = columns * cellWidth + gap * (columns - 1);
+		const int clusterHeight = rows * cellHeight + gap * (rows - 1);
+		const int originX = innerRect.x + std::max(0, (innerRect.width - clusterWidth) / 2);
+		const int originY = innerRect.y + std::max(0, (innerRect.height - clusterHeight) / 2);
+		const wxString selectedAlign = !alignedPendingCarpetAlign_.IsEmpty()
+			? alignedPendingCarpetAlign_
+			: (alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(brushStorage_.carpetNodes.size())
+				? brushStorage_.carpetNodes[alignedNodeIndex_].align
+				: wxString("center"));
+		const auto resolvePreviewItemId = [&](const wxString &align) -> int {
+			const int nodeIndex = FindAlignedNodeIndexByAlign(brushStorage_.carpetNodes, align);
+			if (nodeIndex < 0 || nodeIndex >= static_cast<int>(brushStorage_.carpetNodes.size())) {
+				return 0;
+			}
+			const auto &node = brushStorage_.carpetNodes[static_cast<size_t>(nodeIndex)];
+			if (selectedAlign.CmpNoCase(align) == 0 &&
+				alignedItemIndex_ >= 0 &&
+				alignedItemIndex_ < static_cast<int>(node.items.size()) &&
+				node.items[alignedItemIndex_].itemId > 0) {
+				return node.items[alignedItemIndex_].itemId;
+			}
+			for (const auto &item : node.items) {
+				if (item.itemId > 0) {
+					return item.itemId;
+				}
+			}
+			return node.items.empty() ? 0 : node.items.front().itemId;
+		};
+
+		for (const auto &slot : GetCarpetContextSlots()) {
+			wxRect cellRect(
+				originX + slot.column * (cellWidth + gap),
+				originY + slot.row * (cellHeight + gap),
+				cellWidth,
+				cellHeight
+			);
+			const wxString align = wxString::FromUTF8(slot.align);
+			const int nodeIndex = FindAlignedNodeIndexByAlign(brushStorage_.carpetNodes, align);
+			const bool exists = nodeIndex >= 0;
+			const bool selected = selectedAlign.CmpNoCase(align) == 0;
+			dc.SetPen(wxPen(selected ? wxColour(80, 166, 255) : (exists ? wxColour(91, 194, 139) : wxColour(176, 102, 0)), selected ? 2 : 1));
+			dc.SetBrush(wxBrush(exists ? slotFill : missingFill));
+			dc.DrawRoundedRectangle(cellRect, alignedSeamlessPreviewPanel_->FromDIP(6));
+
+			wxRect titleRect = cellRect;
+			titleRect.Deflate(alignedSeamlessPreviewPanel_->FromDIP(8), alignedSeamlessPreviewPanel_->FromDIP(8));
+			titleRect.SetHeight(alignedSeamlessPreviewPanel_->FromDIP(14));
+			dc.SetTextForeground(selected ? wxColour(235, 240, 248) : mutedText);
+			dc.DrawLabel(wxString::FromUTF8(slot.label), titleRect, wxALIGN_LEFT | wxALIGN_TOP);
+
+			if (exists) {
+				const int previewItemId = resolvePreviewItemId(align);
+				wxRect previewRect = cellRect;
+				previewRect.Deflate(alignedSeamlessPreviewPanel_->FromDIP(10), alignedSeamlessPreviewPanel_->FromDIP(10));
+				previewRect.SetTop(previewRect.y + alignedSeamlessPreviewPanel_->FromDIP(18));
+				previewRect.SetHeight(std::max(alignedSeamlessPreviewPanel_->FromDIP(28), previewRect.height - alignedSeamlessPreviewPanel_->FromDIP(28)));
+				DrawAlignedCarpetContextScene(dc, alignedSeamlessPreviewPanel_, previewRect, align, previewItemId, selected);
+
+				const auto &node = brushStorage_.carpetNodes[static_cast<size_t>(nodeIndex)];
+				wxString footer = wxString::Format("%zu v", node.items.size());
+				wxRect footerRect(
+					cellRect.GetRight() - alignedSeamlessPreviewPanel_->FromDIP(40),
+					cellRect.GetBottom() - alignedSeamlessPreviewPanel_->FromDIP(22),
+					alignedSeamlessPreviewPanel_->FromDIP(28),
+					alignedSeamlessPreviewPanel_->FromDIP(14)
+				);
+				dc.SetPen(*wxTRANSPARENT_PEN);
+				dc.SetBrush(wxBrush(selected ? wxColour(80, 166, 255) : wxColour(91, 194, 139)));
+				dc.DrawRoundedRectangle(footerRect, alignedSeamlessPreviewPanel_->FromDIP(6));
+				dc.SetTextForeground(wxColour(20, 24, 32));
+				dc.DrawLabel(footer, footerRect, wxALIGN_CENTER);
+			} else {
+				wxRect emptyRect = cellRect;
+				emptyRect.Deflate(alignedSeamlessPreviewPanel_->FromDIP(12), alignedSeamlessPreviewPanel_->FromDIP(12));
+				emptyRect.SetTop(emptyRect.y + alignedSeamlessPreviewPanel_->FromDIP(16));
+				dc.SetPen(wxPen(wxColour(112, 120, 136), 1, wxPENSTYLE_SHORT_DASH));
+				dc.SetBrush(*wxTRANSPARENT_BRUSH);
+				dc.DrawRoundedRectangle(emptyRect, alignedSeamlessPreviewPanel_->FromDIP(5));
+				dc.SetTextForeground(mutedText);
+				dc.DrawLabel(selected ? "next" : "empty", emptyRect, wxALIGN_CENTER);
+			}
+		}
 		return;
 	}
 
