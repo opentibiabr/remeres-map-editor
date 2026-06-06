@@ -2882,25 +2882,25 @@ void MaterialsWorkbenchBrushPanel::CommitVariationEditorState() {
 		}
 
 		auto &alternative = brushStorage_.doodadAlternatives[static_cast<size_t>(alternativeSelection)];
-		const int singleSelection = doodadSingleItemsList_ ? doodadSingleItemsList_->GetSelection() : wxNOT_FOUND;
+		const int singleSelection = doodadSingleItemIndex_;
 		if (singleSelection != wxNOT_FOUND && static_cast<size_t>(singleSelection) < alternative.singleItems.size()) {
 			alternative.singleItems[static_cast<size_t>(singleSelection)].itemId = doodadSingleItemIdCtrl_->GetValue();
 			alternative.singleItems[static_cast<size_t>(singleSelection)].chance = doodadSingleItemChanceCtrl_->GetValue();
 		}
 
-		const int compositeSelection = doodadCompositesList_ ? doodadCompositesList_->GetSelection() : wxNOT_FOUND;
+		const int compositeSelection = doodadCompositeIndex_;
 		if (compositeSelection != wxNOT_FOUND && static_cast<size_t>(compositeSelection) < alternative.composites.size()) {
 			auto &composite = alternative.composites[static_cast<size_t>(compositeSelection)];
 			composite.chance = doodadCompositeChanceCtrl_->GetValue();
 
-			const int tileSelection = doodadTilesList_ ? doodadTilesList_->GetSelection() : wxNOT_FOUND;
+			const int tileSelection = doodadTileIndex_;
 			if (tileSelection != wxNOT_FOUND && static_cast<size_t>(tileSelection) < composite.tiles.size()) {
 				auto &tile = composite.tiles[static_cast<size_t>(tileSelection)];
 				tile.offsetX = doodadTileOffsetXCtrl_->GetValue();
 				tile.offsetY = doodadTileOffsetYCtrl_->GetValue();
 				tile.offsetZ = doodadTileOffsetZCtrl_->GetValue();
 
-				const int tileItemSelection = doodadTileItemsList_ ? doodadTileItemsList_->GetSelection() : wxNOT_FOUND;
+				const int tileItemSelection = doodadTileItemIndex_;
 				if (tileItemSelection != wxNOT_FOUND && static_cast<size_t>(tileItemSelection) < tile.items.size()) {
 					tile.items[static_cast<size_t>(tileItemSelection)].itemId = doodadTileItemIdCtrl_->GetValue();
 				}
@@ -6887,16 +6887,10 @@ void MaterialsWorkbenchBrushPanel::OnDoodadSingleItemRightDown(wxMouseEvent &eve
 	if (ShowDoodadSingleItemDialog(this, "Edit Single Item", itemId, chance)) {
 		singleItems[static_cast<size_t>(index)].itemId = itemId;
 		singleItems[static_cast<size_t>(index)].chance = chance;
-		RefreshDoodadSingleItemList();
+		doodadSingleItemIndex_ = index;
+		doodadPreviewPreferComposite_ = false;
+		RefreshDoodadSelection();
 		RefreshDoodadAlternativeList();
-		if (doodadSingleItemIndex_ >= 0 && doodadSingleItemIndex_ < static_cast<int>(singleItems.size())) {
-			UpdateItemOwnershipHint(
-				doodadSingleItemOwnershipLabel_,
-				singleItems[static_cast<size_t>(doodadSingleItemIndex_)].itemId,
-				true
-			);
-		}
-		RefreshDoodadPreview();
 		UpdateSummary();
 		RefreshDirtyState();
 		SetStatusMessage(wxString::Format("Updated doodad single item %d.", itemId));
@@ -7006,8 +7000,10 @@ void MaterialsWorkbenchBrushPanel::OnDoodadCompositeRightDown(wxMouseEvent &even
 	int chance = composites[static_cast<size_t>(index)].chance;
 	if (ShowDoodadChanceDialog(this, "Edit Composite Chance", chance)) {
 		composites[static_cast<size_t>(index)].chance = chance;
-		RefreshDoodadCompositeList();
-		RefreshDoodadPreview();
+		doodadCompositeIndex_ = index;
+		doodadPreviewAuthoringFloors_.clear();
+		doodadPreviewPreferComposite_ = true;
+		RefreshDoodadSelection();
 		UpdateSummary();
 		RefreshDirtyState();
 		SetStatusMessage(wxString::Format("Updated composite chance to %d.", chance));
@@ -7235,15 +7231,9 @@ void MaterialsWorkbenchBrushPanel::OnDoodadTileItemRightDown(wxMouseEvent &event
 	int itemId = items[static_cast<size_t>(index)].itemId;
 	if (ShowDoodadTileItemDialog(this, "Edit Tile Layer", itemId)) {
 		items[static_cast<size_t>(index)].itemId = itemId;
-		RefreshDoodadTileItemList();
-		if (doodadTileItemIndex_ >= 0 && doodadTileItemIndex_ < static_cast<int>(items.size())) {
-			UpdateItemOwnershipHint(
-				doodadTileItemOwnershipLabel_,
-				items[static_cast<size_t>(doodadTileItemIndex_)].itemId,
-				true
-			);
-		}
-		RefreshDoodadPreview();
+		doodadTileItemIndex_ = index;
+		doodadPreviewPreferComposite_ = true;
+		RefreshDoodadSelection();
 		UpdateSummary();
 		RefreshDirtyState();
 		SetStatusMessage(wxString::Format("Updated tile layer to %d.", itemId));
