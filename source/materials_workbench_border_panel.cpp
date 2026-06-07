@@ -2260,6 +2260,14 @@ void MaterialsWorkbenchBorderPanel::OnDeleteBorder(wxCommandEvent &event) {
 		} else {
 			warningText = "Delete this global border from materials.db?\n\nThis cannot be undone.";
 		}
+	} else if (border.borderScope == "inline") {
+		const wxString ownerLabel = BuildOwnerBrushDisplayLabel(border.ownerBrushId);
+		warningText = wxString::Format(
+			"Delete this inline border set from materials.db?\n\nOwner Brush: %s\nFilled Slots: %zu\nStyle: %s\n\nThis cannot be undone.",
+			ownerLabel,
+			borderSetStorage_.items.size(),
+			border.borderType.IsEmpty() ? wxString("normal") : border.borderType
+		);
 	} else {
 		warningText = "Delete this border set from materials.db?\n\nThis cannot be undone.";
 	}
