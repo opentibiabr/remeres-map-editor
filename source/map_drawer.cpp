@@ -522,7 +522,6 @@ void MapDrawer::DrawSecondaryMap(int map_z) {
 }
 
 void MapDrawer::DrawIngameBox() {
-	// Keep the client box anchored to the viewport center instead of tile-aligned map coordinates.
 	int viewport_width = static_cast<int>(screensize_x * zoom);
 	int viewport_height = static_cast<int>(screensize_y * zoom);
 	int box_width = rme::ClientMapWidth * rme::TileSize;
@@ -560,22 +559,22 @@ void MapDrawer::DrawIngameBox() {
 
 	float lineW = zoom > 1.0f ? zoom : 1.0f;
 
-	// hidden tiles
-	drawRect(box_start_x, box_start_y, box_end_x - box_start_x, box_end_y - box_start_y, *wxRED, lineW);
-
-	// visible tiles
-	box_start_x += rme::TileSize;
-	box_start_y += rme::TileSize;
-	box_end_x -= 2 * rme::TileSize;
-	box_end_y -= 2 * rme::TileSize;
 	drawRect(box_start_x, box_start_y, box_end_x - box_start_x, box_end_y - box_start_y, *wxGREEN, lineW);
 
-	// player position
-	box_start_x += ((rme::ClientMapWidth / 2) - 2) * rme::TileSize;
-	box_start_y += ((rme::ClientMapHeight / 2) - 2) * rme::TileSize;
-	box_end_x = box_start_x + rme::TileSize;
-	box_end_y = box_start_y + rme::TileSize;
-	drawRect(box_start_x, box_start_y, box_end_x - box_start_x, box_end_y - box_start_y, *wxGREEN, lineW);
+	int visible_tiles_w = rme::ClientMapWidth - 3;
+	int visible_tiles_h = rme::ClientMapHeight - 3;
+	int visible_w = visible_tiles_w * rme::TileSize;
+	int visible_h = visible_tiles_h * rme::TileSize;
+
+	int visible_start_x = (viewport_width - visible_w) / 2;
+	int visible_start_y = (viewport_height - visible_h) / 2;
+	int visible_end_x = visible_start_x + visible_w;
+	int visible_end_y = visible_start_y + visible_h;
+	drawRect(visible_start_x, visible_start_y, visible_end_x - visible_start_x, visible_end_y - visible_start_y, *wxRED, lineW);
+
+	int player_start_x = (viewport_width - rme::TileSize) / 2;
+	int player_start_y = (viewport_height - rme::TileSize) / 2;
+	drawRect(player_start_x, player_start_y, rme::TileSize, rme::TileSize, *wxWHITE, lineW);
 }
 
 void MapDrawer::DrawGrid() {
