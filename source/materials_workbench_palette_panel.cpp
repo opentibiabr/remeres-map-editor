@@ -1932,6 +1932,10 @@ void MaterialsWorkbenchPalettePanel::OnPaletteGroupChanged(wxCommandEvent &event
 		SetStatusMessage("Could not read the selected category.");
 		return;
 	}
+	if (group->name.IsSameAs(palette_.paletteGroupName, false)) {
+		UpdateButtonState();
+		return;
+	}
 
 	const wxString previousGroupName = palette_.paletteGroupName;
 	palette_.paletteGroupName = group->name;
@@ -2007,27 +2011,124 @@ void MaterialsWorkbenchPalettePanel::OnDeletePaletteGroup(wxCommandEvent &event)
 	if (!selectedGroup || selectedGroup->isBuiltin) {
 		return;
 	}
+	const wxString selectedGroupName = selectedGroup->name;
 
-	if (wxMessageBox(
-			"Delete category \"" + selectedGroup->name + "\"?\n\nMove any palettes that still use this category first.",
+	std::vector<wxString> affectedPaletteNames;
+	for (const TilesetStorageRecord &tileset : controller_.GetTilesets()) {
+		if (ResolvePaletteGroupKey(tileset).IsSameAs(selectedGroupName, false)) {
+			affectedPaletteNames.push_back(tileset.name);
+		}
+	}
+
+	wxString successMessage;
+	if (!affectedPaletteNames.empty()) {
+		wxArrayString destinationLabels;
+		std::vector<wxString> destinationKeys;
+		int recommendedSelection = wxNOT_FOUND;
+		for (const PaletteGroupRecord &group : controller_.GetPaletteGroups()) {
+			if (group.name.IsSameAs(selectedGroupName, false)) {
+				continue;
+			}
+			if (group.name.IsSameAs("other", false)) {
+				recommendedSelection = static_cast<int>(destinationKeys.size());
+			}
+			destinationLabels.Add(BuildPaletteGroupLabel(group));
+			destinationKeys.push_back(group.name);
+		}
+
+		if (destinationKeys.empty()) {
+			SetStatusMessage("Cannot delete this category because there is no destination category available for its palettes.");
+			return;
+		}
+
+		wxString affectedList;
+		const size_t previewCount = std::min<size_t>(affectedPaletteNames.size(), 5);
+		for (size_t i = 0; i < previewCount; ++i) {
+			affectedList << "- " << affectedPaletteNames[i] << "\n";
+		}
+		if (affectedPaletteNames.size() > previewCount) {
+			affectedList << wxString::Format("- ...and %zu more\n", affectedPaletteNames.size() - previewCount);
+		}
+
+		wxSingleChoiceDialog destinationDialog(
+			this,
+			wxString::Format(
+				"Category \"%s\" is still used by %zu palette(s).\n\nChoose where those palettes should move before the category is deleted.\n\nAffected palettes:\n%s",
+				selectedGroupName,
+				affectedPaletteNames.size(),
+				affectedList
+			),
 			"Delete Category",
-			wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
-			this
-		) != wxYES) {
-		return;
+			destinationLabels
+		);
+		if (recommendedSelection != wxNOT_FOUND) {
+			destinationDialog.SetSelection(recommendedSelection);
+		}
+		if (destinationDialog.ShowModal() != wxID_OK) {
+			return;
+		}
+
+		const int destinationSelection = destinationDialog.GetSelection();
+		if (destinationSelection == wxNOT_FOUND || destinationSelection >= static_cast<int>(destinationKeys.size())) {
+			SetStatusMessage("Choose a destination category before deleting this one.");
+			return;
+		}
+
+		const wxString destinationGroup = destinationKeys[static_cast<size_t>(destinationSelection)];
+		if (wxMessageBox(
+				wxString::Format(
+					"Delete category \"%s\" and move %zu palette(s) to \"%s\"?\n\nThis updates the affected palettes first and then removes the old category.",
+					selectedGroupName,
+					affectedPaletteNames.size(),
+					destinationGroup
+				),
+				"Delete Category",
+				wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
+				this
+			) != wxYES) {
+			return;
+		}
+
+		wxString error;
+		int movedPaletteCount = 0;
+		if (!controller_.DeletePaletteGroupAndReassignPalettes(selectedGroupName, destinationGroup, movedPaletteCount, error)) {
+			SetStatusMessage("Failed to delete category: " + error);
+			return;
+		}
+
+		if (palette_.paletteGroupName.IsSameAs(selectedGroupName, false)) {
+			palette_.paletteGroupName = destinationGroup;
+		}
+		successMessage = wxString::Format(
+			"Deleted category \"%s\" and moved %d palette(s) to \"%s\".",
+			selectedGroupName,
+			movedPaletteCount,
+			destinationGroup
+		);
+	} else {
+		if (wxMessageBox(
+				"Delete category \"" + selectedGroupName + "\"?",
+				"Delete Category",
+				wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
+				this
+			) != wxYES) {
+			return;
+		}
+
+		wxString error;
+		if (!controller_.DeletePaletteGroup(selectedGroupName, error)) {
+			SetStatusMessage("Failed to delete category: " + error);
+			return;
+		}
+
+		if (palette_.paletteGroupName.IsSameAs(selectedGroupName, false)) {
+			palette_.paletteGroupName = "other";
+		}
+		successMessage = "Deleted category \"" + selectedGroupName + "\".";
 	}
 
-	wxString error;
-	if (!controller_.DeletePaletteGroup(selectedGroup->name, error)) {
-		SetStatusMessage("Failed to delete category: " + error);
-		return;
-	}
-
-	if (palette_.paletteGroupName.IsSameAs(selectedGroup->name, false)) {
-		palette_.paletteGroupName = "other";
-	}
-	RefreshPaletteGroupChoice();
-	SetStatusMessage("Deleted category \"" + selectedGroup->name + "\".");
+	RefreshWorkspace();
+	SetStatusMessage(successMessage);
 	if (onPaletteSaved_) {
 		onPaletteSaved_(palette_.name);
 	}

@@ -34,6 +34,7 @@ public:
 	bool DeleteTileset(const wxString &name, wxString &error);
 	bool SavePaletteGroup(const PaletteGroupRecord &group, wxString &error);
 	bool DeletePaletteGroup(const wxString &name, wxString &error);
+	bool DeletePaletteGroupAndReassignPalettes(const wxString &name, const wxString &destinationName, int &outMovedPaletteCount, wxString &error);
 	const std::vector<PaletteGroupRecord> &GetPaletteGroups() const;
 	const std::vector<TilesetStorageRecord> &GetTilesets() const;
 	const std::vector<MaterialsWorkbenchBrushGroup> &GetBrushGroups() const;

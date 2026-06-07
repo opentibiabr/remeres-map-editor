@@ -14,6 +14,7 @@ public:
 	bool DeleteTileset(const wxString &name, wxString &error) const;
 	bool SavePaletteGroup(const PaletteGroupRecord &group, wxString &error) const;
 	bool DeletePaletteGroup(const wxString &name, wxString &error) const;
+	bool DeletePaletteGroupAndReassignTilesets(const wxString &name, const wxString &destinationName, int &outMovedTilesetCount, wxString &error) const;
 	bool LoadBrushDetails(int64_t brushId, BrushStorageRecord &outBrush, wxString &error) const;
 	bool SaveBrushDetails(BrushStorageRecord &brushStorage, wxString &error) const;
 	bool SaveGroundBrushBorders(int64_t brushId, const std::vector<GroundBrushBorderRecord> &borders, wxString &error) const;

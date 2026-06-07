@@ -901,6 +901,35 @@ bool MaterialsWorkbenchController::DeletePaletteGroup(const wxString &name, wxSt
 	return true;
 }
 
+bool MaterialsWorkbenchController::DeletePaletteGroupAndReassignPalettes(const wxString &name, const wxString &destinationName, int &outMovedPaletteCount, wxString &error) {
+	outMovedPaletteCount = 0;
+	error.clear();
+
+	if (name.IsSameAs(destinationName, false)) {
+		error = "Choose a different destination category before deleting this one.";
+		return false;
+	}
+
+	const auto destinationIt = std::find_if(catalog_.paletteGroups.begin(), catalog_.paletteGroups.end(), [&](const PaletteGroupRecord &group) {
+		return group.name.IsSameAs(destinationName, false);
+	});
+	if (destinationIt == catalog_.paletteGroups.end()) {
+		error = "The destination category no longer exists.";
+		return false;
+	}
+
+	if (!repository_.DeletePaletteGroupAndReassignTilesets(name, destinationName, outMovedPaletteCount, error)) {
+		return false;
+	}
+
+	if (!ReloadCatalog()) {
+		error = lastError_;
+		return false;
+	}
+
+	return true;
+}
+
 const std::vector<PaletteGroupRecord> &MaterialsWorkbenchController::GetPaletteGroups() const {
 	return catalog_.paletteGroups;
 }

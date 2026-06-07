@@ -141,6 +141,45 @@ bool MaterialsWorkbenchRepository::DeletePaletteGroup(const wxString &name, wxSt
 	return true;
 }
 
+bool MaterialsWorkbenchRepository::DeletePaletteGroupAndReassignTilesets(const wxString &name, const wxString &destinationName, int &outMovedTilesetCount, wxString &error) const {
+	outMovedTilesetCount = 0;
+	error.clear();
+
+	std::vector<TilesetStorageRecord> tilesets;
+	if (!g_brush_database.getAllTilesets(tilesets)) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
+
+	if (!g_brush_database.runInTransaction([&]() {
+			for (TilesetStorageRecord &tileset : tilesets) {
+				if (!tileset.paletteGroupName.IsSameAs(name, false)) {
+					continue;
+				}
+
+				tileset.paletteGroupName = destinationName;
+				if (!g_brush_database.saveTileset(tileset)) {
+					error = g_brush_database.getLastError();
+					return false;
+				}
+				++outMovedTilesetCount;
+			}
+
+			if (!g_brush_database.deletePaletteGroup(name)) {
+				error = g_brush_database.getLastError();
+				return false;
+			}
+			return true;
+		})) {
+		if (error.IsEmpty()) {
+			error = g_brush_database.getLastError();
+		}
+		return false;
+	}
+
+	return true;
+}
+
 bool MaterialsWorkbenchRepository::LoadBrushDetails(int64_t brushId, BrushStorageRecord &outBrush, wxString &error) const {
 	outBrush = BrushStorageRecord();
 	error.clear();
