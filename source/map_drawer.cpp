@@ -522,40 +522,40 @@ void MapDrawer::DrawSecondaryMap(int map_z) {
 }
 
 void MapDrawer::DrawIngameBox() {
-	int center_x = start_x + int(screensize_x * zoom / 64);
-	int center_y = start_y + int(screensize_y * zoom / 64);
+	// Keep the client box anchored to the viewport center instead of tile-aligned map coordinates.
+	int viewport_width = static_cast<int>(screensize_x * zoom);
+	int viewport_height = static_cast<int>(screensize_y * zoom);
+	int box_width = rme::ClientMapWidth * rme::TileSize;
+	int box_height = rme::ClientMapHeight * rme::TileSize;
 
-	int offset_y = 2;
-	int box_start_map_x = center_x;
-	int box_start_map_y = center_y + offset_y;
-	int box_end_map_x = center_x + rme::ClientMapWidth;
-	int box_end_map_y = center_y + rme::ClientMapHeight + offset_y;
+	int box_start_x = (viewport_width - box_width) / 2;
+	int box_start_y = (viewport_height - box_height) / 2;
+	int box_end_x = box_start_x + box_width;
+	int box_end_y = box_start_y + box_height;
 
-	int box_start_x = box_start_map_x * rme::TileSize - view_scroll_x;
-	int box_start_y = box_start_map_y * rme::TileSize - view_scroll_y;
-	int box_end_x = box_end_map_x * rme::TileSize - view_scroll_x;
-	int box_end_y = box_end_map_y * rme::TileSize - view_scroll_y;
+	int visible_box_start_x = box_start_x < 0 ? 0 : box_start_x;
+	int visible_box_end_x = box_end_x > viewport_width ? viewport_width : box_end_x;
 
 	static wxColor side_color(0, 0, 0, 200);
 
 	// left side
-	if (box_start_map_x >= start_x) {
-		drawFilledRect(0, 0, box_start_x, screensize_y * zoom, side_color);
+	if (box_start_x > 0) {
+		drawFilledRect(0, 0, box_start_x, viewport_height, side_color);
 	}
 
 	// right side
-	if (box_end_map_x < end_x) {
-		drawFilledRect(box_end_x, 0, screensize_x * zoom, screensize_y * zoom, side_color);
+	if (box_end_x < viewport_width) {
+		drawFilledRect(box_end_x, 0, viewport_width - box_end_x, viewport_height, side_color);
 	}
 
 	// top side
-	if (box_start_map_y >= start_y) {
-		drawFilledRect(box_start_x, 0, box_end_x - box_start_x, box_start_y, side_color);
+	if (box_start_y > 0 && visible_box_end_x > visible_box_start_x) {
+		drawFilledRect(visible_box_start_x, 0, visible_box_end_x - visible_box_start_x, box_start_y, side_color);
 	}
 
 	// bottom side
-	if (box_end_map_y < end_y) {
-		drawFilledRect(box_start_x, box_end_y, box_end_x - box_start_x, screensize_y * zoom, side_color);
+	if (box_end_y < viewport_height && visible_box_end_x > visible_box_start_x) {
+		drawFilledRect(visible_box_start_x, box_end_y, visible_box_end_x - visible_box_start_x, viewport_height - box_end_y, side_color);
 	}
 
 	float lineW = zoom > 1.0f ? zoom : 1.0f;
