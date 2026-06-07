@@ -527,53 +527,59 @@ void MapDrawer::DrawIngameBox() {
 	int box_width = rme::ClientMapWidth * rme::TileSize;
 	int box_height = rme::ClientMapHeight * rme::TileSize;
 
-	int box_start_x = (viewport_width - box_width) / 2;
-	int box_start_y = (viewport_height - box_height) / 2;
+	int center_scroll_x = view_scroll_x + (viewport_width / 2);
+	int center_scroll_y = view_scroll_y + (viewport_height / 2);
+	int player_map_x = center_scroll_x / rme::TileSize;
+	int player_map_y = center_scroll_y / rme::TileSize;
+
+	int player_start_x = (player_map_x * rme::TileSize) - view_scroll_x;
+	int player_start_y = (player_map_y * rme::TileSize) - view_scroll_y;
+
+	int player_offset_x = (rme::ClientMapWidth / 2) - 1;
+	int player_offset_y = (rme::ClientMapHeight / 2) - 1;
+
+	int box_start_x = player_start_x - (player_offset_x * rme::TileSize);
+	int box_start_y = player_start_y - (player_offset_y * rme::TileSize);
 	int box_end_x = box_start_x + box_width;
 	int box_end_y = box_start_y + box_height;
 
 	int visible_box_start_x = std::clamp(box_start_x, 0, viewport_width);
 	int visible_box_end_x = std::clamp(box_end_x, 0, viewport_width);
+	int visible_box_start_y = std::clamp(box_start_y, 0, viewport_height);
+	int visible_box_end_y = std::clamp(box_end_y, 0, viewport_height);
 
 	static wxColor side_color(0, 0, 0, 200);
 
 	// left side
-	if (box_start_x > 0) {
-		drawFilledRect(0, 0, box_start_x, viewport_height, side_color);
+	if (visible_box_start_x > 0) {
+		drawFilledRect(0, 0, visible_box_start_x, viewport_height, side_color);
 	}
 
 	// right side
-	if (box_end_x < viewport_width) {
-		drawFilledRect(box_end_x, 0, viewport_width - box_end_x, viewport_height, side_color);
+	if (visible_box_end_x < viewport_width) {
+		drawFilledRect(visible_box_end_x, 0, viewport_width - visible_box_end_x, viewport_height, side_color);
 	}
 
 	// top side
-	if (box_start_y > 0 && visible_box_end_x > visible_box_start_x) {
-		drawFilledRect(visible_box_start_x, 0, visible_box_end_x - visible_box_start_x, box_start_y, side_color);
+	if (visible_box_start_y > 0 && visible_box_end_x > visible_box_start_x) {
+		drawFilledRect(visible_box_start_x, 0, visible_box_end_x - visible_box_start_x, visible_box_start_y, side_color);
 	}
 
 	// bottom side
-	if (box_end_y < viewport_height && visible_box_end_x > visible_box_start_x) {
-		drawFilledRect(visible_box_start_x, box_end_y, visible_box_end_x - visible_box_start_x, viewport_height - box_end_y, side_color);
+	if (visible_box_end_y < viewport_height && visible_box_end_x > visible_box_start_x) {
+		drawFilledRect(visible_box_start_x, visible_box_end_y, visible_box_end_x - visible_box_start_x, viewport_height - visible_box_end_y, side_color);
 	}
 
 	float lineW = zoom > 1.0f ? zoom : 1.0f;
 
 	drawRect(box_start_x, box_start_y, box_end_x - box_start_x, box_end_y - box_start_y, *wxGREEN, lineW);
 
-	int visible_tiles_w = rme::ClientMapWidth - 3;
-	int visible_tiles_h = rme::ClientMapHeight - 3;
-	int visible_w = visible_tiles_w * rme::TileSize;
-	int visible_h = visible_tiles_h * rme::TileSize;
-
-	int visible_start_x = (viewport_width - visible_w) / 2;
-	int visible_start_y = (viewport_height - visible_h) / 2;
-	int visible_end_x = visible_start_x + visible_w;
-	int visible_end_y = visible_start_y + visible_h;
+	int visible_start_x = box_start_x + rme::TileSize;
+	int visible_start_y = box_start_y + rme::TileSize;
+	int visible_end_x = box_end_x - (2 * rme::TileSize);
+	int visible_end_y = box_end_y - (2 * rme::TileSize);
 	drawRect(visible_start_x, visible_start_y, visible_end_x - visible_start_x, visible_end_y - visible_start_y, *wxRED, lineW);
 
-	int player_start_x = (viewport_width - rme::TileSize) / 2;
-	int player_start_y = (viewport_height - rme::TileSize) / 2;
 	drawRect(player_start_x, player_start_y, rme::TileSize, rme::TileSize, *wxWHITE, lineW);
 }
 
