@@ -29,6 +29,7 @@
 - [ ] Add safer creation and removal flows for core entities directly inside the Workbench
 - [x] Safer removal (Palette Workspace): `Delete Palette` now shows category + section/entry counts and a small entry preview before confirming
 - [x] Safer removal (Border Workspace): `Delete Border` now shows a `Used By` preview + context count for global borders, and an owner + slots summary for inline borders, before confirming
+- [x] Safer removal (Brush Workspace / Doodad): removing an alternative/composite/tile now asks for confirmation and shows what will be removed (counts and key details) before applying the local change
 - [x] Palette Workspace category delete safety pass: deleting a custom category that still owns palettes now requires an explicit destination category, moves the affected palettes in one transaction, snapshots the selected category name before mutation, and only then removes the old category so no tileset falls back to an implicit uncategorized state or hits a use-after-reload crash while finalizing the UI
 - [ ] Add duplication flows for entities such as palettes, border sets, and wall part sets where it improves authoring speed
 - [ ] Add a lightweight reference view for understanding where a brush is used
@@ -82,6 +83,7 @@
 - [x] Brush Workspace `Doodad` contextual edit pass: left-column lists now use left-click for selection and right-click for editing, while canceling a dialog preserves the current preview mode instead of flipping between `single` and `composite`
 - [x] Brush Workspace `Doodad` floor preview pass: `All Floors` now aligns stacked floors to a shared XY origin, and per-floor filters no longer confuse the real `Floor -1` with the `All Floors` mode
 - [x] Brush Workspace `Doodad` alternative navigation pass: the old `Alternatives` list is replaced by a visual slider in the `Scene Editor` header, with previous/next arrows, clickable square indicators, and inline `+` / `-` controls for fast alternative authoring
+- [x] Brush Workspace `Doodad` alternative slider empty-state fix: when removing the last alternative, the slider now shows a clean `No alternatives` message without overlapping the controls
 - [x] Brush Workspace `Doodad` floor navigation pass: the old floor dropdown is replaced by a vertical visual floor slider beside the `Scene Editor`, with separate add/remove floor controls plus up/down navigation so floor authoring stays compact and spatial while new tiles inherit the active floor
 - [x] Palette Workspace: inline add/move/remove/reorder flow, support for `brush` and DB-backed `item` entries, custom destination groups, preserved selection/scroll, and better destination feedback
 - [x] Palette Workspace performance: visible-range painting, local selection invalidation, cached preview bitmaps, and lighter runtime palette reload ordering from DB

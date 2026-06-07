@@ -4499,7 +4499,26 @@ void MaterialsWorkbenchBrushPanel::OnDoodadAlternativeSliderPaint(wxPaintEvent &
 
 	const int alternativeCount = static_cast<int>(brushStorage_.doodadAlternatives.size());
 	const bool hasAlternative = doodadAlternativeIndex_ >= 0 && doodadAlternativeIndex_ < alternativeCount;
-	const int totalIndicatorsWidth = alternativeCount > 0 ? alternativeCount * indicatorSize + (alternativeCount - 1) * indicatorGap : 0;
+	if (alternativeCount == 0) {
+		doodadAlternativeIndicatorRects_.clear();
+		doodadAlternativeRemoveRect_ = wxRect();
+		doodadAlternativePrevRect_ = wxRect();
+		doodadAlternativeNextRect_ = wxRect();
+		const wxString label = "No alternatives";
+		dc.SetTextForeground(mutedColour);
+		const int labelWidth = dc.GetTextExtent(label).GetWidth();
+		const int labelHeight = dc.GetCharHeight();
+		const int groupWidth = labelWidth + gap + controlWidth;
+		const int groupStartX = rect.x + std::max(0, (rect.width - groupWidth) / 2);
+		const int textY = rowY + (controlHeight - labelHeight) / 2;
+		dc.DrawText(label, groupStartX, textY);
+
+		doodadAlternativeAddRect_ = wxRect(groupStartX + labelWidth + gap, rowY, controlWidth, controlHeight);
+		drawControl(doodadAlternativeAddRect_, "+", hasBrush_ && UsesDoodadVariationEditor());
+		return;
+	}
+
+	const int totalIndicatorsWidth = alternativeCount * indicatorSize + (alternativeCount - 1) * indicatorGap;
 	const int rowContentWidth = controlWidth + gap + controlWidth + gap + totalIndicatorsWidth + gap + controlWidth + gap + controlWidth;
 	const int rowStartX = rect.x + std::max(0, (rect.width - rowContentWidth) / 2);
 	doodadAlternativeRemoveRect_ = wxRect(rowStartX, rowY, controlWidth, controlHeight);
@@ -4548,10 +4567,6 @@ void MaterialsWorkbenchBrushPanel::OnDoodadAlternativeSliderPaint(wxPaintEvent &
 		}
 	}
 
-	if (alternativeCount == 0) {
-		dc.SetTextForeground(mutedColour);
-		dc.DrawText("No alternatives", rect.x + (rect.width - dc.GetTextExtent("No alternatives").GetWidth()) / 2, rowY + (controlHeight - dc.GetCharHeight()) / 2);
-	}
 }
 
 void MaterialsWorkbenchBrushPanel::OnDoodadAlternativeSliderLeftDown(wxMouseEvent &event) {
@@ -6795,6 +6810,30 @@ void MaterialsWorkbenchBrushPanel::OnRemoveDoodadAlternative(wxCommandEvent &WXU
 		SetStatusMessage("Select an alternative before removing it.");
 		return;
 	}
+	const DoodadAlternativeRecord &alternative = brushStorage_.doodadAlternatives[doodadAlternativeIndex_];
+	int tileCount = 0;
+	int tileLayerCount = 0;
+	for (const DoodadCompositeRecord &composite : alternative.composites) {
+		tileCount += static_cast<int>(composite.tiles.size());
+		for (const DoodadCompositeTileRecord &tile : composite.tiles) {
+			tileLayerCount += static_cast<int>(tile.items.size());
+		}
+	}
+	if (wxMessageBox(
+			wxString::Format(
+				"Remove doodad alternative %d?\n\nSingle items: %zu\nComposites: %zu\nTiles: %d\nTile layers: %d\n\nThis only affects the local editor state until you click Save Brush.\n\nThis cannot be undone.",
+				doodadAlternativeIndex_ + 1,
+				alternative.singleItems.size(),
+				alternative.composites.size(),
+				tileCount,
+				tileLayerCount
+			),
+			"Remove Alternative",
+			wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
+			this
+		) != wxYES) {
+		return;
+	}
 	brushStorage_.doodadAlternatives.erase(brushStorage_.doodadAlternatives.begin() + doodadAlternativeIndex_);
 	if (doodadAlternativeIndex_ >= static_cast<int>(brushStorage_.doodadAlternatives.size())) {
 		doodadAlternativeIndex_ = static_cast<int>(brushStorage_.doodadAlternatives.size()) - 1;
@@ -6961,6 +7000,25 @@ void MaterialsWorkbenchBrushPanel::OnRemoveDoodadComposite(wxCommandEvent &WXUNU
 		SetStatusMessage("Select a composite before removing it.");
 		return;
 	}
+	const DoodadCompositeRecord &composite = composites[doodadCompositeIndex_];
+	int tileLayerCount = 0;
+	for (const DoodadCompositeTileRecord &tile : composite.tiles) {
+		tileLayerCount += static_cast<int>(tile.items.size());
+	}
+	if (wxMessageBox(
+			wxString::Format(
+				"Remove doodad composite %d?\n\nChance: %d\nTiles: %zu\nTile layers: %d\n\nThis only affects the local editor state until you click Save Brush.\n\nThis cannot be undone.",
+				doodadCompositeIndex_ + 1,
+				composite.chance,
+				composite.tiles.size(),
+				tileLayerCount
+			),
+			"Remove Composite",
+			wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
+			this
+		) != wxYES) {
+		return;
+	}
 	composites.erase(composites.begin() + doodadCompositeIndex_);
 	if (doodadCompositeIndex_ >= static_cast<int>(composites.size())) {
 		doodadCompositeIndex_ = static_cast<int>(composites.size()) - 1;
@@ -7080,6 +7138,22 @@ void MaterialsWorkbenchBrushPanel::OnRemoveDoodadTile(wxCommandEvent &WXUNUSED(e
 	auto &tiles = composites[doodadCompositeIndex_].tiles;
 	if (doodadTileIndex_ < 0 || doodadTileIndex_ >= static_cast<int>(tiles.size())) {
 		SetStatusMessage("Select a tile before removing it.");
+		return;
+	}
+	const DoodadCompositeTileRecord &tile = tiles[doodadTileIndex_];
+	if (wxMessageBox(
+			wxString::Format(
+				"Remove doodad tile %d?\n\nOffset: (%d, %d, %d)\nTile layers: %zu\n\nThis only affects the local editor state until you click Save Brush.\n\nThis cannot be undone.",
+				doodadTileIndex_ + 1,
+				tile.offsetX,
+				tile.offsetY,
+				tile.offsetZ,
+				tile.items.size()
+			),
+			"Remove Tile",
+			wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
+			this
+		) != wxYES) {
 		return;
 	}
 	tiles.erase(tiles.begin() + doodadTileIndex_);
