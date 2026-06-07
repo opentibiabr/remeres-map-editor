@@ -823,13 +823,23 @@ void GLRenderer::flushCommands() {
 
 		while (i < verts.size()) {
 			size_t remaining = verts.size() - i;
-			size_t batchFree = STREAM_VBO_CAPACITY - batch.size();
-			// Number of vertices that still fit (rounded to a multiple of vertStep)
-			size_t canTake = (batchFree / vertStep) * vertStep;
+			size_t batchFreeVerts = STREAM_VBO_CAPACITY - batch.size();
+			size_t batchFreeIdx = STREAM_EBO_CAPACITY - indexBatch.size();
+			size_t canTakeStepsVerts = batchFreeVerts / vertStep;
+			size_t canTakeStepsIdx = batchFreeIdx / idxPerStep;
+			size_t canTake = std::min(canTakeStepsVerts, canTakeStepsIdx) * vertStep;
 
 			if (canTake == 0) {
 				flushBatch();
-				canTake = (STREAM_VBO_CAPACITY / vertStep) * vertStep;
+				batchFreeVerts = STREAM_VBO_CAPACITY - batch.size();
+				batchFreeIdx = STREAM_EBO_CAPACITY - indexBatch.size();
+				canTakeStepsVerts = batchFreeVerts / vertStep;
+				canTakeStepsIdx = batchFreeIdx / idxPerStep;
+				canTake = std::min(canTakeStepsVerts, canTakeStepsIdx) * vertStep;
+			}
+
+			if (canTake == 0) {
+				break;
 			}
 
 			size_t take = std::min(remaining, canTake);
