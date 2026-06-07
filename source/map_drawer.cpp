@@ -532,8 +532,8 @@ void MapDrawer::DrawIngameBox() {
 	int box_end_x = box_start_x + box_width;
 	int box_end_y = box_start_y + box_height;
 
-	int visible_box_start_x = box_start_x < 0 ? 0 : box_start_x;
-	int visible_box_end_x = box_end_x > viewport_width ? viewport_width : box_end_x;
+	int visible_box_start_x = std::clamp(box_start_x, 0, viewport_width);
+	int visible_box_end_x = std::clamp(box_end_x, 0, viewport_width);
 
 	static wxColor side_color(0, 0, 0, 200);
 
@@ -714,48 +714,34 @@ void MapDrawer::DrawSelectionBox() {
 	double max_x = std::max(0.0, viewport_width - 1.0);
 	double max_y = std::max(0.0, viewport_height - 1.0);
 
-	auto clamp_to_viewport = [](double v, double lo, double hi) {
-		return v < lo ? lo : (v > hi ? hi : v);
-	};
-
-	double x0 = clamp_to_viewport(last_click_rx, 0.0, max_x);
-	double y0 = clamp_to_viewport(last_click_ry, 0.0, max_y);
-	double x1 = clamp_to_viewport(cursor_rx, 0.0, max_x);
-	double y1 = clamp_to_viewport(cursor_ry, 0.0, max_y);
+	double x0 = std::clamp(static_cast<double>(last_click_rx), 0.0, max_x);
+	double y0 = std::clamp(static_cast<double>(last_click_ry), 0.0, max_y);
+	double x1 = std::clamp(cursor_rx, 0.0, max_x);
+	double y1 = std::clamp(cursor_ry, 0.0, max_y);
 
 	double left = std::min(x0, x1);
 	double right = std::max(x0, x1);
 	double top = std::min(y0, y1);
 	double bottom = std::max(y0, y1);
 
-	static std::array<std::array<double, 4>, 4> lines;
-
-	lines[0][0] = left;
-	lines[0][1] = top;
-	lines[0][2] = right;
-	lines[0][3] = top;
-
-	lines[1][0] = right;
-	lines[1][1] = top;
-	lines[1][2] = right;
-	lines[1][3] = bottom;
-
-	lines[2][0] = right;
-	lines[2][1] = bottom;
-	lines[2][2] = left;
-	lines[2][3] = bottom;
-
-	lines[3][0] = left;
-	lines[3][1] = bottom;
-	lines[3][2] = left;
-	lines[3][3] = top;
-	std::array<float, 16> verts;
-	for (int i = 0; i < 4; i++) {
-		verts[i * 4] = static_cast<float>(lines[i][0]);
-		verts[i * 4 + 1] = static_cast<float>(lines[i][1]);
-		verts[i * 4 + 2] = static_cast<float>(lines[i][2]);
-		verts[i * 4 + 3] = static_cast<float>(lines[i][3]);
-	}
+	std::array<float, 16> verts = {
+		static_cast<float>(left),
+		static_cast<float>(top),
+		static_cast<float>(right),
+		static_cast<float>(top),
+		static_cast<float>(right),
+		static_cast<float>(top),
+		static_cast<float>(right),
+		static_cast<float>(bottom),
+		static_cast<float>(right),
+		static_cast<float>(bottom),
+		static_cast<float>(left),
+		static_cast<float>(bottom),
+		static_cast<float>(left),
+		static_cast<float>(bottom),
+		static_cast<float>(left),
+		static_cast<float>(top),
+	};
 	float lineW = zoom > 1.0f ? zoom : 1.0f;
 	int dashFactor = std::max(1, static_cast<int>(2 * zoom));
 	renderer->drawStippledLines(verts.data(), 4, GLColor { 255, 255, 255, 255 }, lineW, dashFactor, 0xAAAA);
