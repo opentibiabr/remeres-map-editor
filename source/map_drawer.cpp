@@ -704,34 +704,51 @@ void MapDrawer::DrawSelectionBox() {
 		return;
 	}
 
-	// Draw bounding box
-
 	int last_click_rx = canvas->last_click_abs_x - view_scroll_x;
 	int last_click_ry = canvas->last_click_abs_y - view_scroll_y;
 	double cursor_rx = canvas->cursor_x * zoom;
 	double cursor_ry = canvas->cursor_y * zoom;
 
+	double viewport_width = screensize_x * zoom;
+	double viewport_height = screensize_y * zoom;
+	double max_x = std::max(0.0, viewport_width - 1.0);
+	double max_y = std::max(0.0, viewport_height - 1.0);
+
+	auto clamp_to_viewport = [](double v, double lo, double hi) {
+		return v < lo ? lo : (v > hi ? hi : v);
+	};
+
+	double x0 = clamp_to_viewport(last_click_rx, 0.0, max_x);
+	double y0 = clamp_to_viewport(last_click_ry, 0.0, max_y);
+	double x1 = clamp_to_viewport(cursor_rx, 0.0, max_x);
+	double y1 = clamp_to_viewport(cursor_ry, 0.0, max_y);
+
+	double left = std::min(x0, x1);
+	double right = std::max(x0, x1);
+	double top = std::min(y0, y1);
+	double bottom = std::max(y0, y1);
+
 	static std::array<std::array<double, 4>, 4> lines;
 
-	lines[0][0] = last_click_rx;
-	lines[0][1] = last_click_ry;
-	lines[0][2] = cursor_rx;
-	lines[0][3] = last_click_ry;
+	lines[0][0] = left;
+	lines[0][1] = top;
+	lines[0][2] = right;
+	lines[0][3] = top;
 
-	lines[1][0] = cursor_rx;
-	lines[1][1] = last_click_ry;
-	lines[1][2] = cursor_rx;
-	lines[1][3] = cursor_ry;
+	lines[1][0] = right;
+	lines[1][1] = top;
+	lines[1][2] = right;
+	lines[1][3] = bottom;
 
-	lines[2][0] = cursor_rx;
-	lines[2][1] = cursor_ry;
-	lines[2][2] = last_click_rx;
-	lines[2][3] = cursor_ry;
+	lines[2][0] = right;
+	lines[2][1] = bottom;
+	lines[2][2] = left;
+	lines[2][3] = bottom;
 
-	lines[3][0] = last_click_rx;
-	lines[3][1] = cursor_ry;
-	lines[3][2] = last_click_rx;
-	lines[3][3] = last_click_ry;
+	lines[3][0] = left;
+	lines[3][1] = bottom;
+	lines[3][2] = left;
+	lines[3][3] = top;
 	std::array<float, 16> verts;
 	for (int i = 0; i < 4; i++) {
 		verts[i * 4] = static_cast<float>(lines[i][0]);
@@ -739,7 +756,9 @@ void MapDrawer::DrawSelectionBox() {
 		verts[i * 4 + 2] = static_cast<float>(lines[i][2]);
 		verts[i * 4 + 3] = static_cast<float>(lines[i][3]);
 	}
-	renderer->drawStippledLines(verts.data(), 4, GLColor { 255, 255, 255, 255 }, 1.0f, 2, 0xAAAA);
+	float lineW = zoom > 1.0f ? zoom : 1.0f;
+	int dashFactor = std::max(1, static_cast<int>(2 * zoom));
+	renderer->drawStippledLines(verts.data(), 4, GLColor { 255, 255, 255, 255 }, lineW, dashFactor, 0xAAAA);
 }
 
 void MapDrawer::DrawLiveCursors() {
