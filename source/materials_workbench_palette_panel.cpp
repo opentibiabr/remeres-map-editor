@@ -1893,8 +1893,42 @@ void MaterialsWorkbenchPalettePanel::OnDeletePalette(wxCommandEvent &event) {
 	}
 
 	const wxString paletteName = palette_.name;
+	const wxString paletteGroupName = palette_.paletteGroupName.IsEmpty() ? wxString("other") : palette_.paletteGroupName;
+	int entryCount = 0;
+	for (const TilesetSectionRecord &section : palette_.sections) {
+		entryCount += static_cast<int>(section.entries.size());
+	}
+	wxString entryPreview;
+	int previewedEntries = 0;
+	const int previewLimit = 8;
+	for (const TilesetSectionRecord &section : palette_.sections) {
+		for (const TilesetEntryRecord &entry : section.entries) {
+			if (previewedEntries >= previewLimit) {
+				break;
+			}
+			entryPreview << "- " << DescribePaletteEntry(controller_, entry) << "\n";
+			++previewedEntries;
+		}
+		if (previewedEntries >= previewLimit) {
+			break;
+		}
+	}
+	if (entryCount > previewLimit) {
+		entryPreview << wxString::Format("- ...and %d more\n", entryCount - previewLimit);
+	}
+
+	wxString warningText = wxString::Format(
+		"Delete palette \"%s\"?\n\nCategory: %s\nSections: %zu\nEntries: %d\n\nThis will remove the palette from materials.db.\n\nThis cannot be undone.",
+		paletteName,
+		paletteGroupName,
+		palette_.sections.size(),
+		entryCount
+	);
+	if (!entryPreview.IsEmpty()) {
+		warningText << "\n\nEntry preview:\n" << entryPreview;
+	}
 	if (wxMessageBox(
-			"Delete palette \"" + paletteName + "\"?",
+			warningText,
 			"Delete Palette",
 			wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
 			this

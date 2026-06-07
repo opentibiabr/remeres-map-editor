@@ -2240,10 +2240,29 @@ void MaterialsWorkbenchBorderPanel::OnDeleteBorder(wxCommandEvent &event) {
 	}
 
 	const BorderSetRecord border = borderSetStorage_.borderSet;
-	const wxString warningText =
-		border.borderScope == "global" && !borderSetUsages_.empty()
-			? "Deleting this global border will also remove all its Used By contexts from linked brushes.\n\nThis cannot be undone."
-			: "This will remove the current border set from materials.db.\n\nThis cannot be undone.";
+	wxString warningText;
+	if (border.borderScope == "global") {
+		const size_t usageCount = borderSetUsages_.size();
+		if (usageCount > 0) {
+			wxString usagePreview;
+			const size_t previewCount = std::min<size_t>(usageCount, 6);
+			for (size_t i = 0; i < previewCount; ++i) {
+				usagePreview << "- " << BuildUsageSelectionSummary(borderSetUsages_[i]) << "\n";
+			}
+			if (usageCount > previewCount) {
+				usagePreview << wxString::Format("- ...and %zu more\n", usageCount - previewCount);
+			}
+			warningText = wxString::Format(
+				"Delete this global border?\n\nUsed By contexts: %zu\n\nPreview:\n%s\nThis will also remove those Used By contexts from linked brushes.\n\nThis cannot be undone.",
+				usageCount,
+				usagePreview
+			);
+		} else {
+			warningText = "Delete this global border from materials.db?\n\nThis cannot be undone.";
+		}
+	} else {
+		warningText = "Delete this border set from materials.db?\n\nThis cannot be undone.";
+	}
 	if (wxMessageBox(
 			warningText,
 			"Delete Border",

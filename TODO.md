@@ -27,6 +27,8 @@
 ## Future UX
 - [x] Add search and filtering in the navigation tree: the sidebar now exposes a catalog filter above the tree, keeps matching parent groups visible, auto-expands filtered branches, preserves and restores pre-filter navigation state when clearing the query, and shows an explicit empty-result row when nothing matches
 - [ ] Add safer creation and removal flows for core entities directly inside the Workbench
+- [x] Safer removal (Palette Workspace): `Delete Palette` now shows category + section/entry counts and a small entry preview before confirming
+- [x] Safer removal (Border Workspace): `Delete Border` for global borders now shows a `Used By` preview and context count before confirming
 - [x] Palette Workspace category delete safety pass: deleting a custom category that still owns palettes now requires an explicit destination category, moves the affected palettes in one transaction, snapshots the selected category name before mutation, and only then removes the old category so no tileset falls back to an implicit uncategorized state or hits a use-after-reload crash while finalizing the UI
 - [ ] Add duplication flows for entities such as palettes, border sets, and wall part sets where it improves authoring speed
 - [ ] Add a lightweight reference view for understanding where a brush is used
