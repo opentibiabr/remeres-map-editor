@@ -4,6 +4,7 @@
 
 #include <algorithm>
 
+#include <wx/srchctrl.h>
 #include <wx/simplebook.h>
 #include <wx/splitter.h>
 #include <wx/statline.h>
@@ -55,24 +56,16 @@ namespace {
 		wxString baseLabel;
 	};
 
-	struct NavigationTreeState {
-		bool hasSelection = false;
-		MaterialsWorkbenchNodeKind selectedKind = MaterialsWorkbenchNodeKind::Group;
-		wxString selectedContextKey;
-		int selectedItemIndex = -1;
-		wxString firstVisibleNodeKey;
-		std::vector<wxString> expandedNodeKeys;
-	};
-
 	wxString BuildNavigationNodeKey(MaterialsWorkbenchNodeKind kind, const wxString &contextKey, int itemIndex) {
 		return wxString::Format("%d|%s|%d", static_cast<int>(kind), contextKey, itemIndex);
 	}
 
-	NavigationTreeState CaptureNavigationTreeState(wxTreeCtrl* tree) {
-		NavigationTreeState state;
+	MaterialsWorkbenchWindow::NavigationTreeState CaptureNavigationTreeState(wxTreeCtrl* tree) {
+		MaterialsWorkbenchWindow::NavigationTreeState state;
 		if (!tree) {
 			return state;
 		}
+		state.valid = true;
 
 		const wxTreeItemId selection = tree->GetSelection();
 		if (selection.IsOk()) {
@@ -111,8 +104,63 @@ namespace {
 		return state;
 	}
 
-	bool NavigationStateContainsExpandedKey(const NavigationTreeState &state, const wxString &key) {
+	bool NavigationStateContainsExpandedKey(const MaterialsWorkbenchWindow::NavigationTreeState &state, const wxString &key) {
 		return std::find(state.expandedNodeKeys.begin(), state.expandedNodeKeys.end(), key) != state.expandedNodeKeys.end();
+	}
+
+	wxString NormalizeNavigationFilterQuery(const wxString &value) {
+		wxString normalized = value;
+		normalized.Trim(true);
+		normalized.Trim(false);
+		return normalized.Lower();
+	}
+
+	bool NavigationLabelMatchesFilter(const wxString &label, const wxString &normalizedQuery) {
+		if (normalizedQuery.IsEmpty()) {
+			return true;
+		}
+		return label.Lower().Find(normalizedQuery) != wxNOT_FOUND;
+	}
+
+	bool BuildFilteredNavigationNode(
+		const MaterialsWorkbenchTreeNode &source,
+		const wxString &normalizedQuery,
+		MaterialsWorkbenchTreeNode &outNode
+	) {
+		const bool selfMatches = NavigationLabelMatchesFilter(source.label, normalizedQuery);
+		if (selfMatches) {
+			outNode = source;
+			return true;
+		}
+
+		outNode = source;
+		outNode.children.clear();
+		for (const MaterialsWorkbenchTreeNode &child : source.children) {
+			MaterialsWorkbenchTreeNode filteredChild;
+			if (BuildFilteredNavigationNode(child, normalizedQuery, filteredChild)) {
+				outNode.children.push_back(std::move(filteredChild));
+			}
+		}
+		return !outNode.children.empty();
+	}
+
+	std::vector<MaterialsWorkbenchTreeNode> BuildFilteredNavigationTree(
+		const std::vector<MaterialsWorkbenchTreeNode> &nodes,
+		const wxString &normalizedQuery
+	) {
+		if (normalizedQuery.IsEmpty()) {
+			return nodes;
+		}
+
+		std::vector<MaterialsWorkbenchTreeNode> filteredNodes;
+		filteredNodes.reserve(nodes.size());
+		for (const MaterialsWorkbenchTreeNode &node : nodes) {
+			MaterialsWorkbenchTreeNode filteredNode;
+			if (BuildFilteredNavigationNode(node, normalizedQuery, filteredNode)) {
+				filteredNodes.push_back(std::move(filteredNode));
+			}
+		}
+		return filteredNodes;
 	}
 
 	bool FindNavigationNodeByKeyRecursive(
@@ -136,17 +184,22 @@ namespace {
 		return false;
 	}
 
-	wxPanel* CreateSidebarPanel(wxWindow* parent, wxTreeCtrl*& outTree) {
+	wxPanel* CreateSidebarPanel(wxWindow* parent, wxSearchCtrl*& outFilter, wxTreeCtrl*& outTree) {
 		wxPanel* panel = new wxPanel(parent, wxID_ANY);
 		wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 
 		wxStaticText* title = new wxStaticText(panel, wxID_ANY, "Catalog");
 		wxStaticText* subtitle = new wxStaticText(panel, wxID_ANY, "Palette categories organize palettes. Brushes define behavior.");
 		subtitle->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_GRAYTEXT));
+		outFilter = new wxSearchCtrl(panel, wxID_ANY);
+		outFilter->ShowSearchButton(false);
+		outFilter->ShowCancelButton(true);
+		outFilter->SetDescriptiveText("Filter catalog");
 		outTree = new wxTreeCtrl(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTR_DEFAULT_STYLE | wxTR_HIDE_ROOT | wxTR_SINGLE);
 
 		sizer->Add(title, 0, wxEXPAND | wxALL, panel->FromDIP(8));
 		sizer->Add(subtitle, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, panel->FromDIP(8));
+		sizer->Add(outFilter, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, panel->FromDIP(8));
 		sizer->Add(new wxStaticLine(panel), 0, wxEXPAND | wxLEFT | wxRIGHT, panel->FromDIP(8));
 		sizer->Add(outTree, 1, wxEXPAND | wxALL, panel->FromDIP(8));
 		panel->SetSizer(sizer);
@@ -293,7 +346,7 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 	rootSplitter->SetSashGravity(0.16);
 	rootSplitter->SetMinimumPaneSize(FromDIP(120));
 
-	wxPanel* sidebarPanel = CreateSidebarPanel(rootSplitter, navigationTree_);
+	wxPanel* sidebarPanel = CreateSidebarPanel(rootSplitter, navigationFilterCtrl_, navigationTree_);
 	workspaceBook_ = new wxSimplebook(rootSplitter, wxID_ANY);
 	wxPanel* overviewPanel = CreateOverviewTextPanel(workspaceBook_, controller_, overviewText_);
 	palettePanel_ = new MaterialsWorkbenchPalettePanel(workspaceBook_, controller_);
@@ -550,9 +603,25 @@ void MaterialsWorkbenchWindow::UpdateBrushNavigationBadge() {
 }
 
 void MaterialsWorkbenchWindow::PopulateNavigation() {
-	const NavigationTreeState previousState = CaptureNavigationTreeState(navigationTree_);
+	const wxString normalizedFilterQuery = NormalizeNavigationFilterQuery(navigationFilterQuery_);
+	const bool filterActive = !normalizedFilterQuery.IsEmpty();
+
+	NavigationTreeState previousState;
+	if (!filterActive && navigationFilterActive_ && navigationStateBeforeFilter_.valid) {
+		previousState = navigationStateBeforeFilter_;
+		navigationStateBeforeFilter_ = NavigationTreeState();
+	} else {
+		previousState = CaptureNavigationTreeState(navigationTree_);
+		if (!navigationFilterActive_ && filterActive) {
+			navigationStateBeforeFilter_ = previousState;
+		}
+	}
+	navigationFilterActive_ = filterActive;
+
 	navigationTree_->DeleteAllItems();
 	wxTreeItemId root = navigationTree_->AddRoot("Materials Workbench");
+	const std::vector<MaterialsWorkbenchTreeNode> filteredNodes =
+		BuildFilteredNavigationTree(controller_.BuildNavigationTree(), normalizedFilterQuery);
 	const auto appendNodes = [&](auto &&self, const wxTreeItemId &parentItem, const std::vector<MaterialsWorkbenchTreeNode> &nodes) -> void {
 		for (const MaterialsWorkbenchTreeNode &node : nodes) {
 			wxTreeItemId item = navigationTree_->AppendItem(
@@ -566,13 +635,18 @@ void MaterialsWorkbenchWindow::PopulateNavigation() {
 				self(self, item, node.children);
 			}
 
-			if (NavigationStateContainsExpandedKey(previousState, BuildNavigationNodeKey(node.kind, node.contextKey, node.itemIndex))) {
+			if (filterActive ||
+				NavigationStateContainsExpandedKey(previousState, BuildNavigationNodeKey(node.kind, node.contextKey, node.itemIndex))) {
 				navigationTree_->Expand(item);
 			}
 		}
 	};
 
-	appendNodes(appendNodes, root, controller_.BuildNavigationTree());
+	appendNodes(appendNodes, root, filteredNodes);
+
+	if (filterActive && filteredNodes.empty()) {
+		navigationTree_->AppendItem(root, wxString::Format("No matches for \"%s\".", navigationFilterQuery_));
+	}
 
 	if (!previousState.hasSelection ||
 		!SelectNavigationNode(previousState.selectedKind, previousState.selectedContextKey, previousState.selectedItemIndex)) {
@@ -594,6 +668,18 @@ void MaterialsWorkbenchWindow::PopulateNavigation() {
 }
 
 void MaterialsWorkbenchWindow::BindEvents() {
+	if (navigationFilterCtrl_) {
+		navigationFilterCtrl_->Bind(wxEVT_TEXT, [this](wxCommandEvent &event) {
+			navigationFilterQuery_ = event.GetString();
+			PopulateNavigation();
+		});
+		navigationFilterCtrl_->Bind(wxEVT_SEARCHCTRL_CANCEL_BTN, [this](wxCommandEvent &WXUNUSED(event)) {
+			navigationFilterQuery_.clear();
+			navigationFilterCtrl_->ChangeValue("");
+			PopulateNavigation();
+		});
+	}
+
 	navigationTree_->Bind(wxEVT_MOTION, [this](wxMouseEvent &event) {
 		int flags = 0;
 		const wxTreeItemId item = navigationTree_->HitTest(event.GetPosition(), flags);

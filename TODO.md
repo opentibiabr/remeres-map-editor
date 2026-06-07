@@ -25,7 +25,7 @@
 - [ ] Standardize technical labels such as `lookId`, `serverLookId`, `zOrder`, and `partType`
 
 ## Future UX
-- [ ] Add search and filtering in the navigation tree
+- [x] Add search and filtering in the navigation tree: the sidebar now exposes a catalog filter above the tree, keeps matching parent groups visible, auto-expands filtered branches, preserves and restores pre-filter navigation state when clearing the query, and shows an explicit empty-result row when nothing matches
 - [ ] Add safer creation and removal flows for core entities directly inside the Workbench
 - [ ] Add duplication flows for entities such as palettes, border sets, and wall part sets where it improves authoring speed
 - [ ] Add a lightweight reference view for understanding where a brush is used

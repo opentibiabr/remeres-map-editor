@@ -1,11 +1,14 @@
 #ifndef RME_MATERIALS_WORKBENCH_WINDOW_H_
 #define RME_MATERIALS_WORKBENCH_WINDOW_H_
 
+#include <vector>
+
 #include <wx/frame.h>
 
 #include "materials_workbench_controller.h"
 
 class wxPanel;
+class wxSearchCtrl;
 class wxSplitterWindow;
 class wxSimplebook;
 class wxTextCtrl;
@@ -20,6 +23,16 @@ public:
 	static void Open(wxWindow* parent);
 
 	explicit MaterialsWorkbenchWindow(wxWindow* parent);
+
+	struct NavigationTreeState {
+		bool valid = false;
+		bool hasSelection = false;
+		MaterialsWorkbenchNodeKind selectedKind = MaterialsWorkbenchNodeKind::Group;
+		wxString selectedContextKey;
+		int selectedItemIndex = -1;
+		wxString firstVisibleNodeKey;
+		std::vector<wxString> expandedNodeKeys;
+	};
 
 private:
 	void BuildLayout();
@@ -37,10 +50,14 @@ private:
 	void OnClose(wxCloseEvent &event);
 
 	MaterialsWorkbenchController controller_;
+	wxSearchCtrl* navigationFilterCtrl_ = nullptr;
 	wxTreeCtrl* navigationTree_ = nullptr;
 	wxSimplebook* workspaceBook_ = nullptr;
 	wxTextCtrl* overviewText_ = nullptr;
 	wxString hoveredNavigationTooltipKey_;
+	wxString navigationFilterQuery_;
+	bool navigationFilterActive_ = false;
+	NavigationTreeState navigationStateBeforeFilter_;
 	MaterialsWorkbenchPalettePanel* palettePanel_ = nullptr;
 	MaterialsWorkbenchBorderPanel* borderPanel_ = nullptr;
 	MaterialsWorkbenchBrushPanel* brushPanel_ = nullptr;
