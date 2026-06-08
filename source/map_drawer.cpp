@@ -524,8 +524,10 @@ void MapDrawer::DrawSecondaryMap(int map_z) {
 void MapDrawer::DrawIngameBox() {
 	int viewport_width = static_cast<int>(screensize_x * zoom);
 	int viewport_height = static_cast<int>(screensize_y * zoom);
-	int box_width = rme::ClientMapWidth * rme::TileSize;
-	int box_height = rme::ClientMapHeight * rme::TileSize;
+	int buffer_tiles_w = rme::ClientMapWidth + 1;
+	int buffer_tiles_h = rme::ClientMapHeight + 1;
+	int box_width = buffer_tiles_w * rme::TileSize;
+	int box_height = buffer_tiles_h * rme::TileSize;
 
 	int center_scroll_x = view_scroll_x + (viewport_width / 2);
 	int center_scroll_y = view_scroll_y + (viewport_height / 2);
@@ -535,8 +537,8 @@ void MapDrawer::DrawIngameBox() {
 	int player_start_x = (player_map_x * rme::TileSize) - view_scroll_x;
 	int player_start_y = (player_map_y * rme::TileSize) - view_scroll_y;
 
-	int player_offset_x = (rme::ClientMapWidth / 2) - 1;
-	int player_offset_y = (rme::ClientMapHeight / 2) - 1;
+	int player_offset_x = buffer_tiles_w / 2;
+	int player_offset_y = buffer_tiles_h / 2;
 
 	int box_start_x = player_start_x - (player_offset_x * rme::TileSize);
 	int box_start_y = player_start_y - (player_offset_y * rme::TileSize);
@@ -574,13 +576,21 @@ void MapDrawer::DrawIngameBox() {
 
 	drawRect(box_start_x, box_start_y, box_end_x - box_start_x, box_end_y - box_start_y, *wxGREEN, lineW);
 
-	int visible_start_x = box_start_x + rme::TileSize;
-	int visible_start_y = box_start_y + rme::TileSize;
-	int visible_end_x = box_end_x - (2 * rme::TileSize);
-	int visible_end_y = box_end_y - (2 * rme::TileSize);
+	int visible_tiles_w = rme::ClientMapWidth - 3;
+	int visible_tiles_h = rme::ClientMapHeight - 3;
+	int visible_w = visible_tiles_w * rme::TileSize;
+	int visible_h = visible_tiles_h * rme::TileSize;
+
+	int visible_offset_x = visible_tiles_w / 2;
+	int visible_offset_y = visible_tiles_h / 2;
+
+	int visible_start_x = player_start_x - (visible_offset_x * rme::TileSize);
+	int visible_start_y = player_start_y - (visible_offset_y * rme::TileSize);
+	int visible_end_x = visible_start_x + visible_w;
+	int visible_end_y = visible_start_y + visible_h;
 	drawRect(visible_start_x, visible_start_y, visible_end_x - visible_start_x, visible_end_y - visible_start_y, *wxRED, lineW);
 
-	drawRect(player_start_x, player_start_y, rme::TileSize, rme::TileSize, *wxWHITE, lineW);
+	drawRect(player_start_x, player_start_y, rme::TileSize, rme::TileSize, *wxRED, lineW);
 }
 
 void MapDrawer::DrawGrid() {
