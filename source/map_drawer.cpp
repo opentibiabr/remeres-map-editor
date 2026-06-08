@@ -522,60 +522,75 @@ void MapDrawer::DrawSecondaryMap(int map_z) {
 }
 
 void MapDrawer::DrawIngameBox() {
-	int center_x = start_x + int(screensize_x * zoom / 64);
-	int center_y = start_y + int(screensize_y * zoom / 64);
+	int viewport_width = static_cast<int>(screensize_x * zoom);
+	int viewport_height = static_cast<int>(screensize_y * zoom);
+	int buffer_tiles_w = rme::ClientMapWidth + 1;
+	int buffer_tiles_h = rme::ClientMapHeight + 1;
+	int box_width = buffer_tiles_w * rme::TileSize;
+	int box_height = buffer_tiles_h * rme::TileSize;
 
-	int offset_y = 2;
-	int box_start_map_x = center_x;
-	int box_start_map_y = center_y + offset_y;
-	int box_end_map_x = center_x + rme::ClientMapWidth;
-	int box_end_map_y = center_y + rme::ClientMapHeight + offset_y;
+	int center_scroll_x = view_scroll_x + (viewport_width / 2);
+	int center_scroll_y = view_scroll_y + (viewport_height / 2);
+	int player_map_x = center_scroll_x / rme::TileSize;
+	int player_map_y = center_scroll_y / rme::TileSize;
 
-	int box_start_x = box_start_map_x * rme::TileSize - view_scroll_x;
-	int box_start_y = box_start_map_y * rme::TileSize - view_scroll_y;
-	int box_end_x = box_end_map_x * rme::TileSize - view_scroll_x;
-	int box_end_y = box_end_map_y * rme::TileSize - view_scroll_y;
+	int player_start_x = (player_map_x * rme::TileSize) - view_scroll_x;
+	int player_start_y = (player_map_y * rme::TileSize) - view_scroll_y;
+
+	int player_offset_x = buffer_tiles_w / 2;
+	int player_offset_y = buffer_tiles_h / 2;
+
+	int box_start_x = player_start_x - (player_offset_x * rme::TileSize);
+	int box_start_y = player_start_y - (player_offset_y * rme::TileSize);
+	int box_end_x = box_start_x + box_width;
+	int box_end_y = box_start_y + box_height;
+
+	int visible_box_start_x = std::clamp(box_start_x, 0, viewport_width);
+	int visible_box_end_x = std::clamp(box_end_x, 0, viewport_width);
+	int visible_box_start_y = std::clamp(box_start_y, 0, viewport_height);
+	int visible_box_end_y = std::clamp(box_end_y, 0, viewport_height);
 
 	static wxColor side_color(0, 0, 0, 200);
 
 	// left side
-	if (box_start_map_x >= start_x) {
-		drawFilledRect(0, 0, box_start_x, screensize_y * zoom, side_color);
+	if (visible_box_start_x > 0) {
+		drawFilledRect(0, 0, visible_box_start_x, viewport_height, side_color);
 	}
 
 	// right side
-	if (box_end_map_x < end_x) {
-		drawFilledRect(box_end_x, 0, screensize_x * zoom, screensize_y * zoom, side_color);
+	if (visible_box_end_x < viewport_width) {
+		drawFilledRect(visible_box_end_x, 0, viewport_width - visible_box_end_x, viewport_height, side_color);
 	}
 
 	// top side
-	if (box_start_map_y >= start_y) {
-		drawFilledRect(box_start_x, 0, box_end_x - box_start_x, box_start_y, side_color);
+	if (visible_box_start_y > 0 && visible_box_end_x > visible_box_start_x) {
+		drawFilledRect(visible_box_start_x, 0, visible_box_end_x - visible_box_start_x, visible_box_start_y, side_color);
 	}
 
 	// bottom side
-	if (box_end_map_y < end_y) {
-		drawFilledRect(box_start_x, box_end_y, box_end_x - box_start_x, screensize_y * zoom, side_color);
+	if (visible_box_end_y < viewport_height && visible_box_end_x > visible_box_start_x) {
+		drawFilledRect(visible_box_start_x, visible_box_end_y, visible_box_end_x - visible_box_start_x, viewport_height - visible_box_end_y, side_color);
 	}
 
 	float lineW = zoom > 1.0f ? zoom : 1.0f;
 
-	// hidden tiles
-	drawRect(box_start_x, box_start_y, box_end_x - box_start_x, box_end_y - box_start_y, *wxRED, lineW);
-
-	// visible tiles
-	box_start_x += rme::TileSize;
-	box_start_y += rme::TileSize;
-	box_end_x -= 2 * rme::TileSize;
-	box_end_y -= 2 * rme::TileSize;
 	drawRect(box_start_x, box_start_y, box_end_x - box_start_x, box_end_y - box_start_y, *wxGREEN, lineW);
 
-	// player position
-	box_start_x += ((rme::ClientMapWidth / 2) - 2) * rme::TileSize;
-	box_start_y += ((rme::ClientMapHeight / 2) - 2) * rme::TileSize;
-	box_end_x = box_start_x + rme::TileSize;
-	box_end_y = box_start_y + rme::TileSize;
-	drawRect(box_start_x, box_start_y, box_end_x - box_start_x, box_end_y - box_start_y, *wxGREEN, lineW);
+	int visible_tiles_w = rme::ClientMapWidth - 3;
+	int visible_tiles_h = rme::ClientMapHeight - 3;
+	int visible_w = visible_tiles_w * rme::TileSize;
+	int visible_h = visible_tiles_h * rme::TileSize;
+
+	int visible_offset_x = visible_tiles_w / 2;
+	int visible_offset_y = visible_tiles_h / 2;
+
+	int visible_start_x = player_start_x - (visible_offset_x * rme::TileSize);
+	int visible_start_y = player_start_y - (visible_offset_y * rme::TileSize);
+	int visible_end_x = visible_start_x + visible_w;
+	int visible_end_y = visible_start_y + visible_h;
+	drawRect(visible_start_x, visible_start_y, visible_end_x - visible_start_x, visible_end_y - visible_start_y, *wxRED, lineW);
+
+	drawRect(player_start_x, player_start_y, rme::TileSize, rme::TileSize, *wxRED, lineW);
 }
 
 void MapDrawer::DrawGrid() {
@@ -705,42 +720,47 @@ void MapDrawer::DrawSelectionBox() {
 		return;
 	}
 
-	// Draw bounding box
-
 	int last_click_rx = canvas->last_click_abs_x - view_scroll_x;
 	int last_click_ry = canvas->last_click_abs_y - view_scroll_y;
 	double cursor_rx = canvas->cursor_x * zoom;
 	double cursor_ry = canvas->cursor_y * zoom;
 
-	static std::array<std::array<double, 4>, 4> lines;
+	double viewport_width = screensize_x * zoom;
+	double viewport_height = screensize_y * zoom;
+	double max_x = std::max(0.0, viewport_width - 1.0);
+	double max_y = std::max(0.0, viewport_height - 1.0);
 
-	lines[0][0] = last_click_rx;
-	lines[0][1] = last_click_ry;
-	lines[0][2] = cursor_rx;
-	lines[0][3] = last_click_ry;
+	double x0 = std::clamp(static_cast<double>(last_click_rx), 0.0, max_x);
+	double y0 = std::clamp(static_cast<double>(last_click_ry), 0.0, max_y);
+	double x1 = std::clamp(cursor_rx, 0.0, max_x);
+	double y1 = std::clamp(cursor_ry, 0.0, max_y);
 
-	lines[1][0] = cursor_rx;
-	lines[1][1] = last_click_ry;
-	lines[1][2] = cursor_rx;
-	lines[1][3] = cursor_ry;
+	double left = std::min(x0, x1);
+	double right = std::max(x0, x1);
+	double top = std::min(y0, y1);
+	double bottom = std::max(y0, y1);
 
-	lines[2][0] = cursor_rx;
-	lines[2][1] = cursor_ry;
-	lines[2][2] = last_click_rx;
-	lines[2][3] = cursor_ry;
-
-	lines[3][0] = last_click_rx;
-	lines[3][1] = cursor_ry;
-	lines[3][2] = last_click_rx;
-	lines[3][3] = last_click_ry;
-	std::array<float, 16> verts;
-	for (int i = 0; i < 4; i++) {
-		verts[i * 4] = static_cast<float>(lines[i][0]);
-		verts[i * 4 + 1] = static_cast<float>(lines[i][1]);
-		verts[i * 4 + 2] = static_cast<float>(lines[i][2]);
-		verts[i * 4 + 3] = static_cast<float>(lines[i][3]);
-	}
-	renderer->drawStippledLines(verts.data(), 4, GLColor { 255, 255, 255, 255 }, 1.0f, 2, 0xAAAA);
+	std::array<float, 16> verts = {
+		static_cast<float>(left),
+		static_cast<float>(top),
+		static_cast<float>(right),
+		static_cast<float>(top),
+		static_cast<float>(right),
+		static_cast<float>(top),
+		static_cast<float>(right),
+		static_cast<float>(bottom),
+		static_cast<float>(right),
+		static_cast<float>(bottom),
+		static_cast<float>(left),
+		static_cast<float>(bottom),
+		static_cast<float>(left),
+		static_cast<float>(bottom),
+		static_cast<float>(left),
+		static_cast<float>(top),
+	};
+	float lineW = zoom > 1.0f ? zoom : 1.0f;
+	int dashFactor = std::max(1, static_cast<int>(2 * zoom));
+	renderer->drawStippledLines(verts.data(), 4, GLColor { 255, 255, 255, 255 }, lineW, dashFactor, 0xAAAA);
 }
 
 void MapDrawer::DrawLiveCursors() {
