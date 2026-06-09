@@ -85,6 +85,7 @@ private:
 	void OnApplyDoor(wxCommandEvent &event);
 	void OnRemoveDoor(wxCommandEvent &event);
 	void OnAddPartType(wxCommandEvent &event);
+	void OnPreviewOptionsChanged(wxCommandEvent &event);
 	void OnSave(wxCommandEvent &event);
 	void OnRevert(wxCommandEvent &event);
 	void OnItemIdChanged(wxCommandEvent &event);
@@ -118,6 +119,9 @@ private:
 	wxButton* addPartButton_ = nullptr;
 	wxStaticText* partSummaryLabel_ = nullptr;
 	wxPanel* composedPreview_ = nullptr;
+	wxChoice* previewModeChoice_ = nullptr;
+	wxCheckBox* previewOverlayCtrl_ = nullptr;
+	wxChoice* previewDoorSideChoice_ = nullptr;
 	wxScrolledWindow* itemGridScroll_ = nullptr;
 	wxScrolledWindow* doorGridScroll_ = nullptr;
 	wxWrapSizer* itemGridSizer_ = nullptr;

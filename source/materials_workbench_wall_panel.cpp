@@ -213,6 +213,47 @@ namespace {
 		}
 	}
 
+	wxString WallPreviewAlignmentTag(uint32_t alignment) {
+		switch (alignment) {
+		case WALL_VERTICAL:
+			return "V";
+		case WALL_HORIZONTAL:
+			return "H";
+		case WALL_POLE:
+			return "P";
+		case WALL_SOUTH_END:
+			return "S-end";
+		case WALL_EAST_END:
+			return "E-end";
+		case WALL_NORTH_END:
+			return "N-end";
+		case WALL_WEST_END:
+			return "W-end";
+		case WALL_SOUTH_T:
+			return "S-T";
+		case WALL_EAST_T:
+			return "E-T";
+		case WALL_WEST_T:
+			return "W-T";
+		case WALL_NORTH_T:
+			return "N-T";
+		case WALL_NORTHWEST_DIAGONAL:
+			return "NW";
+		case WALL_NORTHEAST_DIAGONAL:
+			return "NE";
+		case WALL_SOUTHWEST_DIAGONAL:
+			return "SW";
+		case WALL_SOUTHEAST_DIAGONAL:
+			return "SE";
+		case WALL_INTERSECTION:
+			return "X";
+		case WALL_UNTOUCHABLE:
+			return "U";
+		default:
+			return "";
+		}
+	}
+
 	std::vector<wxString> PartTypeCandidatesForWallAlignment(uint32_t alignment, bool north, bool west, bool east, bool south) {
 		const wxString primary = PartTypeForWallAlignment(alignment);
 		if (primary.IsEmpty()) {
@@ -250,11 +291,14 @@ namespace {
 			Bind(wxEVT_PAINT, &WallWorkspaceComposedPreviewPanel::OnPaint, this);
 		}
 
-		void SetPreviewState(const BrushStorageRecord* storage, const wxString &selectedPartType, int selectedItemId, int selectedDoorItemId) {
+		void SetPreviewState(const BrushStorageRecord* storage, const wxString &selectedPartType, int selectedItemId, int selectedDoorItemId, bool strict, bool showOverlays, int doorSide) {
 			storage_ = storage;
 			selectedPartType_ = NormalizeWallPreviewPartType(selectedPartType);
 			selectedItemId_ = selectedItemId;
 			selectedDoorItemId_ = selectedDoorItemId;
+			strict_ = strict;
+			showOverlays_ = showOverlays;
+			doorSide_ = doorSide;
 			Refresh();
 		}
 
@@ -264,8 +308,11 @@ namespace {
 			wxPoint tileAnchor;
 			wxRect spriteRect;
 			wxRect tileRect;
-			wxString partType;
+			uint32_t alignment = 0;
+			wxString expectedPartType;
+			wxString resolvedPartType;
 			bool isDoor = false;
+			bool usedFallback = false;
 		};
 
 		const WallPartRecord* FindPartByType(const wxString &type) const {
@@ -321,13 +368,19 @@ namespace {
 				if (east) tiledata |= 1u << 2;
 				if (south) tiledata |= 1u << 3;
 				const uint32_t alignment = WallBrush::full_border_types[tiledata & 0x0F];
-				const std::vector<wxString> partCandidates = PartTypeCandidatesForWallAlignment(alignment, north, west, east, south);
+				const wxString expectedPartType = PartTypeForWallAlignment(alignment);
+				const std::vector<wxString> partCandidates = strict_
+					? (expectedPartType.IsEmpty() ? std::vector<wxString>() : std::vector<wxString>{ expectedPartType })
+					: PartTypeCandidatesForWallAlignment(alignment, north, west, east, south);
 				const WallPartRecord* part = nullptr;
-				wxString resolvedPartType;
+				wxString resolvedPartType = expectedPartType;
+				bool usedFallback = false;
 				for (const wxString &candidate : partCandidates) {
 					part = FindPartByType(candidate);
 					if (part) {
 						resolvedPartType = candidate;
+						usedFallback = !expectedPartType.IsEmpty() &&
+							NormalizeWallPreviewPartType(expectedPartType) != NormalizeWallPreviewPartType(candidate);
 						break;
 					}
 				}
@@ -347,8 +400,11 @@ namespace {
 				op.tileAnchor = tileAnchor;
 				op.tileRect = wxRect(tileAnchor.x, tileAnchor.y, 32, 32);
 				op.spriteRect = itemId > 0 ? GetWallPreviewSpriteRect(itemId, tileAnchor) : op.tileRect;
-				op.partType = resolvedPartType;
+				op.alignment = alignment;
+				op.expectedPartType = expectedPartType;
+				op.resolvedPartType = resolvedPartType;
 				op.isDoor = isDoor;
+				op.usedFallback = usedFallback;
 				ops.push_back(op);
 				outBounds.Union(op.tileRect);
 				if (itemId > 0) {
@@ -389,6 +445,10 @@ namespace {
 			const wxColour cellA(28, 28, 28);
 			const wxColour cellB(24, 24, 24);
 			const wxColour gridLine(0, 0, 0, 72);
+			const wxColour missingFill(90, 20, 20, 80);
+			const wxColour missingOutline(255, 120, 120, 150);
+			const wxColour overlayText(220, 224, 232);
+			const wxColour fallbackOutline(255, 215, 90, 220);
 
 			gc.SetPen(wxPen(gridLine, 1));
 			for (const auto &op : ops) {
@@ -399,9 +459,20 @@ namespace {
 
 			const wxString selectedPart = selectedPartType_;
 			for (const auto &op : ops) {
-				if (!selectedPart.IsEmpty() && NormalizeWallPreviewPartType(op.partType) == selectedPart) {
+				if (!selectedPart.IsEmpty() && NormalizeWallPreviewPartType(op.resolvedPartType) == selectedPart) {
 					gc.SetPen(wxPen(wxColour(255, 215, 90, 180), 2));
 					gc.SetBrush(*wxTRANSPARENT_BRUSH);
+					gc.DrawRectangle(op.tileRect.x, op.tileRect.y, op.tileRect.width, op.tileRect.height);
+				}
+			}
+
+			if (strict_) {
+				for (const auto &op : ops) {
+					if (op.isDoor || op.itemId > 0) {
+						continue;
+					}
+					gc.SetPen(wxPen(missingOutline, 2));
+					gc.SetBrush(wxBrush(missingFill));
 					gc.DrawRectangle(op.tileRect.x, op.tileRect.y, op.tileRect.width, op.tileRect.height);
 				}
 			}
@@ -424,6 +495,30 @@ namespace {
 					gc.SetPen(wxPen(wxColour(160, 255, 160, 220), 2));
 					gc.SetBrush(wxBrush(wxColour(160, 255, 160, 48)));
 					gc.DrawRectangle(op.tileRect.x, op.tileRect.y, op.tileRect.width, op.tileRect.height);
+				}
+			}
+
+			if (showOverlays_) {
+				wxFont overlayFont = GetFont();
+				overlayFont.SetPointSize(std::max(6, overlayFont.GetPointSize() - 2));
+				gc.SetFont(overlayFont, overlayText);
+				for (const auto &op : ops) {
+					const wxString tag = WallPreviewAlignmentTag(op.alignment);
+					if (!tag.IsEmpty()) {
+						gc.DrawText(tag, op.tileRect.x + 2, op.tileRect.y + 1);
+					}
+					wxString partLabel = op.resolvedPartType;
+					if (partLabel.IsEmpty()) {
+						partLabel = op.expectedPartType;
+					}
+					if (!partLabel.IsEmpty()) {
+						gc.DrawText(partLabel, op.tileRect.x + 2, op.tileRect.y + 14);
+					}
+					if (op.usedFallback && !strict_) {
+						gc.SetPen(wxPen(fallbackOutline, 2));
+						gc.SetBrush(*wxTRANSPARENT_BRUSH);
+						gc.DrawRectangle(op.tileRect.x + 1, op.tileRect.y + 1, op.tileRect.width - 2, op.tileRect.height - 2);
+					}
 				}
 			}
 
@@ -460,13 +555,30 @@ namespace {
 				}
 			}
 			wxPoint doorCell(roomSize / 2, 0);
-			const wxString selectedPart = selectedPartType_.Lower();
-			const bool wantsVertical = selectedPart.Contains("vertical") || selectedPart.Contains("east") || selectedPart.Contains("west");
-			const bool wantsHorizontal = selectedPart.Contains("horizontal") || selectedPart.Contains("north") || selectedPart.Contains("south");
-			if (wantsVertical && !wantsHorizontal) {
-				doorCell = wxPoint(roomSize - 1, roomSize / 2);
-			} else if (wantsHorizontal && !wantsVertical) {
+			switch (doorSide_) {
+			case 1:
 				doorCell = wxPoint(roomSize / 2, 0);
+				break;
+			case 2:
+				doorCell = wxPoint(roomSize - 1, roomSize / 2);
+				break;
+			case 3:
+				doorCell = wxPoint(roomSize / 2, roomSize - 1);
+				break;
+			case 4:
+				doorCell = wxPoint(0, roomSize / 2);
+				break;
+			default: {
+				const wxString selectedPart = selectedPartType_.Lower();
+				const bool wantsVertical = selectedPart.Contains("vertical") || selectedPart.Contains("east") || selectedPart.Contains("west");
+				const bool wantsHorizontal = selectedPart.Contains("horizontal") || selectedPart.Contains("north") || selectedPart.Contains("south");
+				if (wantsVertical && !wantsHorizontal) {
+					doorCell = wxPoint(roomSize - 1, roomSize / 2);
+				} else if (wantsHorizontal && !wantsVertical) {
+					doorCell = wxPoint(roomSize / 2, 0);
+				}
+				break;
+			}
 			}
 
 			const std::vector<DrawOp> roomOps = BuildScene(roomCells, nullptr, 0, boundsA);
@@ -480,6 +592,9 @@ namespace {
 		wxString selectedPartType_;
 		int selectedItemId_ = 0;
 		int selectedDoorItemId_ = 0;
+		bool strict_ = false;
+		bool showOverlays_ = false;
+		int doorSide_ = 0;
 		std::unordered_map<int, wxBitmap> bitmapCache_;
 	};
 
@@ -771,6 +886,29 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	composedPreview_ = new WallWorkspaceComposedPreviewPanel(scrolled);
 	previewBox->Add(composedPreview_, 0, wxEXPAND | wxALL, FromDIP(8));
 
+	previewModeChoice_ = new wxChoice(scrolled, wxID_ANY);
+	previewModeChoice_->Append("Fill (best effort)");
+	previewModeChoice_->Append("Strict (show missing)");
+	previewModeChoice_->SetSelection(0);
+	previewOverlayCtrl_ = new wxCheckBox(scrolled, wxID_ANY, "Show overlays");
+	previewOverlayCtrl_->SetValue(false);
+	previewDoorSideChoice_ = new wxChoice(scrolled, wxID_ANY);
+	const wxString doorSides[] = { "Auto", "North", "East", "South", "West" };
+	for (const wxString &side : doorSides) {
+		previewDoorSideChoice_->Append(side);
+	}
+	previewDoorSideChoice_->SetSelection(0);
+
+	wxFlexGridSizer* previewControls = new wxFlexGridSizer(2, FromDIP(6), FromDIP(10));
+	previewControls->AddGrowableCol(1, 1);
+	previewControls->Add(new wxStaticText(scrolled, wxID_ANY, "Preview Mode"), 0, wxALIGN_CENTER_VERTICAL);
+	previewControls->Add(previewModeChoice_, 1, wxEXPAND);
+	previewControls->Add(new wxStaticText(scrolled, wxID_ANY, "Door Side"), 0, wxALIGN_CENTER_VERTICAL);
+	previewControls->Add(previewDoorSideChoice_, 1, wxEXPAND);
+	previewControls->Add(new wxStaticText(scrolled, wxID_ANY, "Overlay"), 0, wxALIGN_CENTER_VERTICAL);
+	previewControls->Add(previewOverlayCtrl_, 0, wxALIGN_CENTER_VERTICAL);
+	previewBox->Add(previewControls, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
+
 	wxBoxSizer* gridsRow = new wxBoxSizer(wxHORIZONTAL);
 
 	wxStaticBoxSizer* itemBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Wall Items");
@@ -898,6 +1036,9 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 
 	partChoice_->Bind(wxEVT_CHOICE, &MaterialsWorkbenchWallPanel::OnPartChanged, this);
 	addPartButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnAddPartType, this);
+	previewModeChoice_->Bind(wxEVT_CHOICE, &MaterialsWorkbenchWallPanel::OnPreviewOptionsChanged, this);
+	previewDoorSideChoice_->Bind(wxEVT_CHOICE, &MaterialsWorkbenchWallPanel::OnPreviewOptionsChanged, this);
+	previewOverlayCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchWallPanel::OnPreviewOptionsChanged, this);
 	pickItemButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnPickItem, this);
 	applyItemButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnApplyItem, this);
 	removeItemButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnRemoveItem, this);
@@ -1214,8 +1355,11 @@ void MaterialsWorkbenchWallPanel::RefreshComposedPreview() {
 		return;
 	}
 	auto* composedPreview = static_cast<WallWorkspaceComposedPreviewPanel*>(composedPreview_);
+	const bool strict = previewModeChoice_ && previewModeChoice_->GetSelection() == 1;
+	const bool showOverlays = previewOverlayCtrl_ && previewOverlayCtrl_->GetValue();
+	const int doorSide = previewDoorSideChoice_ ? previewDoorSideChoice_->GetSelection() : 0;
 	if (!hasWallBrush_) {
-		composedPreview->SetPreviewState(nullptr, "", 0, 0);
+		composedPreview->SetPreviewState(nullptr, "", 0, 0, strict, showOverlays, doorSide);
 		return;
 	}
 
@@ -1229,7 +1373,7 @@ void MaterialsWorkbenchWallPanel::RefreshComposedPreview() {
 	if (part && selectedDoorIndex_ >= 0 && selectedDoorIndex_ < static_cast<int>(part->doors.size())) {
 		selectedDoorItemId = part->doors[selectedDoorIndex_].itemId;
 	}
-	composedPreview->SetPreviewState(&wallBrushStorage_, selectedPartType, selectedItemId, selectedDoorItemId);
+	composedPreview->SetPreviewState(&wallBrushStorage_, selectedPartType, selectedItemId, selectedDoorItemId, strict, showOverlays, doorSide);
 }
 
 void MaterialsWorkbenchWallPanel::NormalizeWallParts() {
@@ -1247,6 +1391,9 @@ void MaterialsWorkbenchWallPanel::SetStatusMessage(const wxString &message) {
 void MaterialsWorkbenchWallPanel::SetFieldsEnabled(bool enabled) {
 	partChoice_->Enable(enabled);
 	addPartButton_->Enable(enabled);
+	previewModeChoice_->Enable(enabled);
+	previewOverlayCtrl_->Enable(enabled);
+	previewDoorSideChoice_->Enable(enabled);
 	itemIdCtrl_->Enable(enabled);
 	itemChanceCtrl_->Enable(enabled);
 	doorItemIdCtrl_->Enable(enabled);
@@ -1908,6 +2055,11 @@ void MaterialsWorkbenchWallPanel::OnAddPartType(wxCommandEvent &event) {
 	RefreshSelectedPart();
 	RefreshDirtyState();
 	SetStatusMessage("Added new wall part locally. Save the wall brush to persist.");
+}
+
+void MaterialsWorkbenchWallPanel::OnPreviewOptionsChanged(wxCommandEvent &event) {
+	RefreshComposedPreview();
+	event.Skip();
 }
 
 void MaterialsWorkbenchWallPanel::OnSave(wxCommandEvent &event) {

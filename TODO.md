@@ -20,7 +20,8 @@
 - [x] Continue the `Doodad` editor rebuild from the new scene-preview base: move from read-first preview to direct grid authoring on top of the existing composite fields
 - [x] Improve Border Workspace presentation with stronger contrast, clearer slot-to-preview correspondence, a compact authoring panel, inline/global-specific fields, scope-aware metadata naming (including `Global Border ID` / `Autoborder Group`), a centered compact slot grid, a richer searchable `Used By` context panel with a real `wxGrid` table for global borders, and first-pass CRUD for border sets / global contexts
 - [x] Improve Wall Workspace presentation with richer visual previews for wall parts, doors, and composed wall results
-- [ ] Wall Workspace authoring: add fast `Add Part Type` affordance (e.g. add missing `pole` / `corner` / ends / diagonals) and keep previews faithful when a part is missing instead of silently substituting
+- [x] Wall Workspace authoring: add fast `Add Part Type` affordance (e.g. add missing `pole` / `corner` / ends / diagonals) and keep previews faithful when a part is missing instead of silently substituting
+- [x] Wall Workspace preview: add `Strict / Fill` mode toggle, overlay diagnostics, and explicit door-side controls
 - [ ] Continue reducing spacing and padding across workspaces where the layout still feels too loose
 - [ ] Continue small product-language and workflow refinements across Workbench texts and actions
 - [ ] Standardize technical labels such as `lookId`, `serverLookId`, `zOrder`, and `partType`
