@@ -27,6 +27,7 @@
 ## Future UX
 - [x] Add search and filtering in the navigation tree: the sidebar now exposes a catalog filter above the tree, keeps matching parent groups visible, auto-expands filtered branches, preserves and restores pre-filter navigation state when clearing the query, and shows an explicit empty-result row when nothing matches
 - [ ] Add safer creation and removal flows for core entities directly inside the Workbench
+- [ ] Modernize the Workbench inspector surfaces, including a `Warnings` tab with a master/detail experience (search, filters, rescan, copy, open target) inspired by the current Border Warnings Inspector prototype; scope should cover `Borders`, `Walls`, `Brushes`, and `Palettes`
 - [x] Safer removal (Palette Workspace): `Delete Palette` now shows category + section/entry counts and a small entry preview before confirming
 - [x] Safer removal (Border Workspace): `Delete Border` now shows a `Used By` preview + context count for global borders, and an owner + slots summary for inline borders, before confirming
 - [x] Safer removal (Brush Workspace / Doodad): removing an alternative/composite/tile now asks for confirmation and shows what will be removed (counts and key details) before applying the local change
