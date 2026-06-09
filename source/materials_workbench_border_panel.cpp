@@ -663,19 +663,23 @@ namespace {
 		}
 
 	private:
-		void DrawSprite(wxDC &dc, int itemId, int x, int y, int size) const {
+		void DrawSprite(wxDC &dc, int itemId, const wxRect &cellRect, int tileSize) const {
 			if (itemId <= 0) {
 				return;
 			}
 			if (Sprite* sprite = g_gui.gfx.getSprite(itemId)) {
-				sprite->DrawTo(&dc, SPRITE_SIZE_32x32, x, y, size, size);
+				const int margin = std::max(1, FromDIP(2));
+				const int spriteSize = std::max(1, tileSize - margin * 2);
+				const int drawX = cellRect.GetX() + (tileSize - spriteSize) / 2;
+				const int drawY = cellRect.GetY() + (tileSize - spriteSize) / 2;
+				sprite->DrawTo(&dc, SPRITE_SIZE_32x32, drawX, drawY, spriteSize, spriteSize);
 			}
 		}
 
 		void OnPaint(wxPaintEvent &) {
 			wxAutoBufferedPaintDC dc(this);
 			const wxSize clientSize = GetClientSize();
-			dc.SetBackground(wxBrush(wxColour(12, 12, 12)));
+			dc.SetBackground(wxBrush(wxColour(16, 16, 16)));
 			dc.Clear();
 
 			const int tileSize = std::max(1, std::min(clientSize.GetWidth(), clientSize.GetHeight()) / kBorderGridSize);
@@ -683,12 +687,24 @@ namespace {
 			const int originX = std::max(0, (clientSize.GetWidth() - sceneSize) / 2);
 			const int originY = std::max(0, (clientSize.GetHeight() - sceneSize) / 2);
 
+			const wxColour cellA(28, 28, 28);
+			const wxColour cellB(24, 24, 24);
+			const wxColour gridLine(0, 0, 0, 72);
+
+			dc.SetPen(wxPen(gridLine, 1));
+			for (int row = 0; row < kBorderGridSize; ++row) {
+				for (int col = 0; col < kBorderGridSize; ++col) {
+					const wxRect cellRect(originX + col * tileSize, originY + row * tileSize, tileSize, tileSize);
+					dc.SetBrush(wxBrush(((row + col) % 2 == 0) ? cellA : cellB));
+					dc.DrawRectangle(cellRect);
+				}
+			}
+
 			if (centerItemId_ > 0) {
 				DrawSprite(
 					dc,
 					centerItemId_,
-					originX + kBorderGridCenterIndex * tileSize,
-					originY + kBorderGridCenterIndex * tileSize,
+					wxRect(originX + kBorderGridCenterIndex * tileSize, originY + kBorderGridCenterIndex * tileSize, tileSize, tileSize),
 					tileSize
 				);
 			}
@@ -700,7 +716,12 @@ namespace {
 					continue;
 				}
 				for (const wxPoint &duplicateCell : GetBorderPreviewDuplicateCells(edge)) {
-					DrawSprite(dc, it->second, originX + duplicateCell.x * tileSize, originY + duplicateCell.y * tileSize, tileSize);
+					DrawSprite(
+						dc,
+						it->second,
+						wxRect(originX + duplicateCell.x * tileSize, originY + duplicateCell.y * tileSize, tileSize, tileSize),
+						tileSize
+					);
 				}
 			}
 
@@ -711,7 +732,12 @@ namespace {
 					continue;
 				}
 				const wxPoint displayCell = GetBorderPreviewDisplayCell(spec);
-				DrawSprite(dc, it->second, originX + displayCell.x * tileSize, originY + displayCell.y * tileSize, tileSize);
+				DrawSprite(
+					dc,
+					it->second,
+					wxRect(originX + displayCell.x * tileSize, originY + displayCell.y * tileSize, tileSize, tileSize),
+					tileSize
+				);
 			}
 
 			if (!selectedEdge_.IsEmpty()) {
