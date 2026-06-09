@@ -643,14 +643,57 @@ bool WallBrush::hasWall(Item* item) {
 }
 
 ::DoorType WallBrush::getDoorTypeFromID(uint16_t id) {
-	for (int index = 0; index < 16; ++index) {
-		for (std::vector<DoorType>::const_iterator iter = door_items[index].begin(); iter != door_items[index].end(); ++iter) {
-			if (iter->id == id) {
-				return iter->type;
+	WallBrush* test_wall = this;
+	do {
+		for (int index = 0; index < 17; ++index) {
+			for (std::vector<DoorType>::const_iterator iter = test_wall->door_items[index].begin(); iter != test_wall->door_items[index].end(); ++iter) {
+				if (iter->id == id) {
+					return iter->type;
+				}
 			}
 		}
-	}
+		test_wall = test_wall->redirect_to;
+	} while (test_wall && test_wall != this);
 	return WALL_UNDEFINED;
+}
+
+uint16_t WallBrush::getWallItemID(::BorderType alignment) const {
+	const WallBrush* test_wall = this;
+	do {
+		const WallNode &node = test_wall->wall_items[int(alignment)];
+		if (!node.items.empty()) {
+			return node.items.front().id;
+		}
+		test_wall = test_wall->redirect_to;
+	} while (test_wall && test_wall != this);
+	return 0;
+}
+
+uint16_t WallBrush::getAnyWallItemID() const {
+	const WallBrush* test_wall = this;
+	do {
+		for (int alignment = 0; alignment < 17; ++alignment) {
+			const WallNode &node = test_wall->wall_items[alignment];
+			if (!node.items.empty()) {
+				return node.items.front().id;
+			}
+		}
+		test_wall = test_wall->redirect_to;
+	} while (test_wall && test_wall != this);
+	return 0;
+}
+
+uint16_t WallBrush::getDoorItemID(::BorderType alignment, ::DoorType doorType, bool open) const {
+	const WallBrush* test_wall = this;
+	do {
+		for (const DoorType &door : test_wall->door_items[int(alignment)]) {
+			if (door.type == doorType && g_items.getItemType(door.id).isOpen == open) {
+				return door.id;
+			}
+		}
+		test_wall = test_wall->redirect_to;
+	} while (test_wall && test_wall != this);
+	return 0;
 }
 
 //=============================================================================

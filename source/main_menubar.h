@@ -39,6 +39,8 @@ namespace MenuBar {
 		EXPORT_CYCLOPEDIA_MAP,
 		REVERT_CYCLOPEDIA_ASSETS,
 		EXPORT_TILESETS,
+		EXPORT_CITY_SAMPLE,
+		EXPORT_ALL_TOWN_CORPUS,
 		RELOAD_DATA,
 		RECENT_FILES,
 		PREFERENCES,
@@ -78,6 +80,7 @@ namespace MenuBar {
 		JUMP_TO_ITEM_BRUSH,
 		CLEAR_INVALID_HOUSES,
 		CLEAR_MODIFIED_STATE,
+		CHANGE_CITY_STYLE,
 		CUT,
 		COPY,
 		PASTE,
@@ -225,6 +228,8 @@ public:
 	void OnExportCyclopediaMapData(wxCommandEvent &event);
 	void OnRevertCyclopediaAssets(wxCommandEvent &event);
 	void OnExportTilesets(wxCommandEvent &event);
+	void OnExportCitySample(wxCommandEvent &event);
+	void OnExportAllTownCorpus(wxCommandEvent &event);
 	void OnReloadDataFiles(wxCommandEvent &event);
 
 	// Edit Menu
@@ -245,6 +250,7 @@ public:
 	void OnMapRemoveEmptyNpcSpawns(wxCommandEvent &event);
 	void OnClearHouseTiles(wxCommandEvent &event);
 	void OnClearModifiedState(wxCommandEvent &event);
+	void OnChangeCityStyle(wxCommandEvent &event);
 	void OnToggleAutomagic(wxCommandEvent &event);
 	void OnSelectionTypeChange(wxCommandEvent &event);
 	void OnCut(wxCommandEvent &event);

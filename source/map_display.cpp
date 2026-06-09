@@ -33,6 +33,8 @@
 #include "application.h"
 #include "live_server.h"
 #include "browse_tile_window.h"
+#include "change_build_style_window.h"
+#include "change_connected_ground_style_window.h"
 
 #include "main_menubar.h"
 
@@ -49,6 +51,22 @@
 #include "table_brush.h"
 #include "spawn_npc_brush.h"
 #include "npc_brush.h"
+
+namespace {
+int* mapCanvasAttributes() {
+	static int attributes[] = {
+		WX_GL_RGBA,
+		WX_GL_DOUBLEBUFFER,
+		WX_GL_CORE_PROFILE,
+		WX_GL_MAJOR_VERSION,
+		3,
+		WX_GL_MINOR_VERSION,
+		3,
+		0,
+	};
+	return attributes;
+}
+}
 
 BEGIN_EVENT_TABLE(MapCanvas, wxGLCanvas)
 EVT_KEY_DOWN(MapCanvas::OnKeyDown)
@@ -91,6 +109,8 @@ EVT_MENU(MAP_POPUP_MENU_SELECT_GROUND_BRUSH, MapCanvas::OnSelectGroundBrush)
 EVT_MENU(MAP_POPUP_MENU_SELECT_DOODAD_BRUSH, MapCanvas::OnSelectDoodadBrush)
 EVT_MENU(MAP_POPUP_MENU_SELECT_DOOR_BRUSH, MapCanvas::OnSelectDoorBrush)
 EVT_MENU(MAP_POPUP_MENU_SELECT_WALL_BRUSH, MapCanvas::OnSelectWallBrush)
+EVT_MENU(MAP_POPUP_MENU_CHANGE_BUILD_STYLE, MapCanvas::OnChangeBuildStyle)
+EVT_MENU(MAP_POPUP_MENU_CHANGE_CONNECTED_GROUND_STYLE, MapCanvas::OnChangeConnectedGroundStyle)
 EVT_MENU(MAP_POPUP_MENU_SELECT_CARPET_BRUSH, MapCanvas::OnSelectCarpetBrush)
 EVT_MENU(MAP_POPUP_MENU_SELECT_TABLE_BRUSH, MapCanvas::OnSelectTableBrush)
 EVT_MENU(MAP_POPUP_MENU_SELECT_MONSTER_BRUSH, MapCanvas::OnSelectMonsterBrush)
@@ -107,8 +127,8 @@ END_EVENT_TABLE()
 
 bool MapCanvas::processed[] = { 0 };
 
-MapCanvas::MapCanvas(MapWindow* parent, Editor &editor, int* attriblist) :
-	wxGLCanvas(parent, wxID_ANY, attriblist, wxDefaultPosition, wxDefaultSize, wxWANTS_CHARS),
+MapCanvas::MapCanvas(wxWindow* parent, Editor &editor, int* attriblist) :
+	wxGLCanvas(parent, wxID_ANY, attriblist ? attriblist : mapCanvasAttributes(), wxDefaultPosition, wxDefaultSize, wxWANTS_CHARS),
 	editor(editor),
 	floor(rme::MapGroundLayer),
 	zoom(1.0),
@@ -140,7 +160,8 @@ MapCanvas::MapCanvas(MapWindow* parent, Editor &editor, int* attriblist) :
 	last_click_y(-1),
 
 	last_mmb_click_x(-1),
-	last_mmb_click_y(-1) {
+	last_mmb_click_y(-1),
+	preview_map(nullptr) {
 	popup_menu = newd MapPopupMenu(editor);
 	animation_timer = newd AnimationTimer(this);
 	drawer = new MapDrawer(this);
@@ -183,7 +204,7 @@ void MapCanvas::SetZoom(double value) {
 		GetScreenCenter(&center_x, &center_y);
 
 		zoom = value;
-		GetMapWindow()->SetScreenCenterPosition(Position(center_x, center_y, floor));
+		CenterViewOnPosition(Position(center_x, center_y, floor));
 
 		UpdatePositionStatus();
 		UpdateZoomStatus();
@@ -195,6 +216,27 @@ void MapCanvas::GetViewBox(int* view_scroll_x, int* view_scroll_y, int* screensi
 	MapWindow* window = GetMapWindow();
 	window->GetViewSize(screensize_x, screensize_y);
 	window->GetViewStart(view_scroll_x, view_scroll_y);
+}
+
+void MapCanvas::SetPreviewMap(BaseMap* map) {
+	preview_map = map;
+	Refresh();
+}
+
+Tile* MapCanvas::GetPreviewTile(const Position &position) const {
+	return preview_map ? preview_map->getTile(position) : nullptr;
+}
+
+void MapCanvas::ConfigureDrawingOptions(DrawingOptions &WXUNUSED(options)) {
+}
+
+void MapCanvas::CenterViewOnPosition(const Position &position) {
+	GetMapWindow()->SetScreenCenterPosition(position);
+}
+
+void MapCanvas::OnFloorChanged() {
+	g_gui.root->UpdateFloorMenu();
+	g_gui.UpdateMinimap(true);
 }
 
 void MapCanvas::OnPaint(wxPaintEvent &event) {
@@ -240,6 +282,7 @@ void MapCanvas::OnPaint(wxPaintEvent &event) {
 		}
 
 		options.dragging = boundbox_selection;
+		ConfigureDrawingOptions(options);
 
 		const bool animate_position_indicator = drawer->GetPositionIndicatorTime() != 0;
 		const bool animate_preview = options.show_preview && zoom <= 2.0f;
@@ -2427,11 +2470,41 @@ void MapCanvas::OnSelectWallBrush(wxCommandEvent &WXUNUSED(event)) {
 	if (!tile) {
 		return;
 	}
-	Item* wall = tile->getWall();
-	WallBrush* wb = wall->getWallBrush();
+	Item* wall = ChangeBuildStyleService::getStructuralWall(tile);
+	WallBrush* wb = wall ? wall->getWallBrush() : nullptr;
 
 	if (wb) {
 		g_gui.SelectBrush(wb, TILESET_TERRAIN);
+	}
+}
+
+void MapCanvas::OnChangeBuildStyle(wxCommandEvent &WXUNUSED(event)) {
+	if (editor.getSelection().size() != 1) {
+		return;
+	}
+	Tile* tile = editor.getSelection().getSelectedTile();
+	if (!tile || !ChangeBuildStyleService::getStructuralWall(tile)) {
+		return;
+	}
+
+	ChangeBuildStyleDialog dialog(this, editor, tile->getPosition());
+	if (dialog.isValid() && dialog.ShowModal() == wxID_OK) {
+		Refresh();
+	}
+}
+
+void MapCanvas::OnChangeConnectedGroundStyle(wxCommandEvent &WXUNUSED(event)) {
+	if (editor.getSelection().size() != 1) {
+		return;
+	}
+	Tile* tile = editor.getSelection().getSelectedTile();
+	if (!tile || !UrbanGroundStyleCatalog::isUrbanGround(tile->getGroundBrush())) {
+		return;
+	}
+
+	ChangeConnectedGroundStyleDialog dialog(this, editor, tile->getPosition());
+	if (dialog.isValid() && dialog.ShowModal() == wxID_OK) {
+		Refresh();
 	}
 }
 
@@ -2624,8 +2697,7 @@ void MapCanvas::ChangeFloor(int new_floor) {
 	floor = new_floor;
 	if (old_floor != new_floor) {
 		UpdatePositionStatus();
-		g_gui.root->UpdateFloorMenu();
-		g_gui.UpdateMinimap(true);
+		OnFloorChanged();
 	}
 	Refresh();
 }
@@ -2729,6 +2801,7 @@ void MapPopupMenu::Update() {
 			std::vector<Monster*> selectedMonsters = tile->getSelectedMonsters();
 
 			bool hasWall = false;
+			bool hasStructuralWall = false;
 			bool hasCarpet = false;
 			bool hasTable = false;
 			Item* topItem = nullptr;
@@ -2742,8 +2815,11 @@ void MapPopupMenu::Update() {
 			for (auto* item : tile->items) {
 				if (item->isWall()) {
 					Brush* wb = item->getWallBrush();
-					if (wb && wb->visibleInPalette()) {
-						hasWall = true;
+					if (wb && !wb->isWallDecoration()) {
+						hasStructuralWall = true;
+						if (wb->visibleInPalette()) {
+							hasWall = true;
+						}
 					}
 				}
 				if (item->isTable()) {
@@ -2826,6 +2902,9 @@ void MapPopupMenu::Update() {
 				if (hasWall) {
 					Append(MAP_POPUP_MENU_SELECT_WALL_BRUSH, "Select Wallbrush", "Uses the current item as a wallbrush");
 				}
+				if (hasStructuralWall) {
+					Append(MAP_POPUP_MENU_CHANGE_BUILD_STYLE, "Change build style...", "Replace connected structural walls with another automagic style");
+				}
 
 				if (hasCarpet) {
 					Append(MAP_POPUP_MENU_SELECT_CARPET_BRUSH, "Select Carpetbrush", "Uses the current item as a carpetbrush");
@@ -2845,6 +2924,9 @@ void MapPopupMenu::Update() {
 
 				if (tile->hasGround() && tile->getGroundBrush() && tile->getGroundBrush()->visibleInPalette()) {
 					Append(MAP_POPUP_MENU_SELECT_GROUND_BRUSH, "Select Groundbrush", "Uses the current item as a groundbrush");
+				}
+				if (tile->hasGround() && UrbanGroundStyleCatalog::isUrbanGround(tile->getGroundBrush())) {
+					Append(MAP_POPUP_MENU_CHANGE_CONNECTED_GROUND_STYLE, "Change connected ground style...", "Replace the connected urban ground component on this floor");
 				}
 
 				if (tile->isHouseTile()) {
@@ -2875,8 +2957,14 @@ void MapPopupMenu::Update() {
 				if (hasWall) {
 					Append(MAP_POPUP_MENU_SELECT_WALL_BRUSH, "Select Wallbrush", "Uses the current item as a wallbrush");
 				}
+				if (hasStructuralWall) {
+					Append(MAP_POPUP_MENU_CHANGE_BUILD_STYLE, "Change build style...", "Replace connected structural walls with another automagic style");
+				}
 				if (tile->hasGround() && tile->getGroundBrush() && tile->getGroundBrush()->visibleInPalette()) {
 					Append(MAP_POPUP_MENU_SELECT_GROUND_BRUSH, "Select Groundbrush", "Uses the current tile as a groundbrush");
+				}
+				if (tile->hasGround() && UrbanGroundStyleCatalog::isUrbanGround(tile->getGroundBrush())) {
+					Append(MAP_POPUP_MENU_CHANGE_CONNECTED_GROUND_STYLE, "Change connected ground style...", "Replace the connected urban ground component on this floor");
 				}
 
 				if (tile->isHouseTile()) {

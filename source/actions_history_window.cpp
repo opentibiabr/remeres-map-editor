@@ -106,6 +106,12 @@ const wxBitmap &HistoryListBox::getIconBitmap(ActionIdentifier identifier) const
 			return replace_bitmap;
 		case ACTION_CHANGE_PROPERTIES:
 			return change_bitmap;
+		case ACTION_CHANGE_BUILD_STYLE:
+			return change_bitmap;
+		case ACTION_CHANGE_CITY_STYLE:
+			return change_bitmap;
+		case ACTION_CHANGE_CONNECTED_GROUND_STYLE:
+			return change_bitmap;
 		default:
 			return wxNullBitmap;
 	}
