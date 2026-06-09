@@ -118,6 +118,9 @@ void DCButton::OnPaint(wxPaintEvent &event) {
 	} else if (size == RENDER_SIZE_32x32) {
 		size_x = 36;
 		size_y = 36;
+	} else if (size == RENDER_SIZE_64x64) {
+		size_x = 68;
+		size_y = 68;
 	}
 
 	pdc.SetBrush(*wxBLACK);
@@ -166,7 +169,11 @@ void DCButton::OnPaint(wxPaintEvent &event) {
 				overlay->DrawTo(&pdc, SPRITE_SIZE_32x32, 2, 2);
 			}
 		} else if (size == RENDER_SIZE_64x64) {
-			////
+			sprite->DrawTo(&pdc, SPRITE_SIZE_32x32, 2, 2, 64, 64);
+
+			if (overlay && type == DC_BTN_TOGGLE && GetValue()) {
+				overlay->DrawTo(&pdc, SPRITE_SIZE_32x32, 2, 2, 64, 64);
+			}
 		}
 	}
 }

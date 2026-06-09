@@ -64,6 +64,7 @@ private:
 	void NormalizeWallParts();
 	void SetStatusMessage(const wxString &message);
 	void SetFieldsEnabled(bool enabled);
+	void RefreshComposedPreview();
 	BrushStorageRecord BuildComparableStorageFromCurrentState() const;
 	WallEditorState CaptureEditorState() const;
 	void RestoreEditorState(const WallEditorState &state);
@@ -83,6 +84,7 @@ private:
 	void OnPickDoorItem(wxCommandEvent &event);
 	void OnApplyDoor(wxCommandEvent &event);
 	void OnRemoveDoor(wxCommandEvent &event);
+	void OnAddPartType(wxCommandEvent &event);
 	void OnSave(wxCommandEvent &event);
 	void OnRevert(wxCommandEvent &event);
 	void OnItemIdChanged(wxCommandEvent &event);
@@ -113,7 +115,9 @@ private:
 	wxTextCtrl* brushNameCtrl_ = nullptr;
 	wxTextCtrl* brushSourceCtrl_ = nullptr;
 	wxChoice* partChoice_ = nullptr;
+	wxButton* addPartButton_ = nullptr;
 	wxStaticText* partSummaryLabel_ = nullptr;
+	wxPanel* composedPreview_ = nullptr;
 	wxScrolledWindow* itemGridScroll_ = nullptr;
 	wxScrolledWindow* doorGridScroll_ = nullptr;
 	wxWrapSizer* itemGridSizer_ = nullptr;

@@ -4,11 +4,16 @@
 
 #include <algorithm>
 #include <limits>
+#include <memory>
+#include <unordered_map>
 #include <utility>
 
 #include <wx/button.h>
 #include <wx/checkbox.h>
 #include <wx/choice.h>
+#include <wx/dcbuffer.h>
+#include <wx/graphics.h>
+#include <wx/menu.h>
 #include <wx/msgdlg.h>
 #include <wx/scrolwin.h>
 #include <wx/settings.h>
@@ -24,6 +29,7 @@
 #include "find_item_window.h"
 #include "items.h"
 #include "materials_workbench_controller.h"
+#include "sprite_appearances.h"
 #include "wall_brush.h"
 
 namespace {
@@ -32,6 +38,8 @@ namespace {
 		Door,
 		Window,
 	};
+
+	bool IsKnownWallPanelItemId(int itemId);
 
 	struct WallPanelDoorTypeSpec {
 		bool valid = false;
@@ -45,8 +53,434 @@ namespace {
 	class WallWorkspaceToggleButton : public ItemToggleButton {
 	public:
 		WallWorkspaceToggleButton(wxWindow* parent, int itemId) :
-			ItemToggleButton(parent, RENDER_SIZE_32x32, itemId) {
+			ItemToggleButton(parent, RENDER_SIZE_64x64, itemId) {
 		}
+	};
+
+	struct WallPreviewSpriteMetrics {
+		int spriteId = 0;
+		int widthPx = 32;
+		int heightPx = 32;
+		wxPoint drawOffset;
+		int drawHeight = 0;
+
+		bool isValid() const {
+			return spriteId > 0;
+		}
+	};
+
+	int ResolveWallPreviewLookId(int itemId) {
+		if (!IsKnownWallPanelItemId(itemId)) {
+			return 0;
+		}
+		const ItemType &itemType = g_items.getItemType(static_cast<uint16_t>(itemId));
+		if (itemType.sprite_id > 0) {
+			return static_cast<int>(itemType.sprite_id);
+		}
+		if (!itemType.m_sprites.empty() && itemType.m_sprites.front() > 0) {
+			return itemType.m_sprites.front();
+		}
+		return itemType.clientID;
+	}
+
+	WallPreviewSpriteMetrics ResolveWallPreviewSpriteMetrics(int itemId) {
+		WallPreviewSpriteMetrics metrics;
+		if (!IsKnownWallPanelItemId(itemId)) {
+			return metrics;
+		}
+
+		ItemType &itemType = g_items.getItemType(static_cast<uint16_t>(itemId));
+		GameSprite* sprite = itemType.sprite;
+		if (!sprite && itemType.clientID > 0) {
+			sprite = dynamic_cast<GameSprite*>(g_gui.gfx.getSprite(itemType.clientID));
+		}
+		if (!sprite) {
+			return metrics;
+		}
+
+		metrics.spriteId = ResolveWallPreviewLookId(itemId);
+		if (const auto spriteData = g_spriteAppearances.getSprite(metrics.spriteId)) {
+			metrics.widthPx = std::max<int>(spriteData->size.width, 32);
+			metrics.heightPx = std::max<int>(spriteData->size.height, 32);
+		} else {
+			metrics.widthPx = std::max<int>(sprite->getWidth(), 32);
+			metrics.heightPx = std::max<int>(sprite->getHeight(), 32);
+		}
+		metrics.drawOffset = sprite->getDrawOffset();
+		metrics.drawHeight = sprite->getDrawHeight();
+		return metrics;
+	}
+
+	wxBitmap BuildWallPreviewBitmap(int spriteId) {
+		const auto spriteData = g_spriteAppearances.getSprite(spriteId);
+		if (!spriteData || spriteData->size.width <= 0 || spriteData->size.height <= 0) {
+			return wxBitmap();
+		}
+
+		wxImage image(spriteData->size.width, spriteData->size.height);
+		image.InitAlpha();
+		const auto *pixels = spriteData->pixels.data();
+		for (int y = 0; y < spriteData->size.height; ++y) {
+			for (int x = 0; x < spriteData->size.width; ++x) {
+				const int index = (y * spriteData->size.width + x) * 4;
+				image.SetRGB(x, y, pixels[index + 2], pixels[index + 1], pixels[index]);
+				image.SetAlpha(x, y, pixels[index + 3]);
+			}
+		}
+
+		return wxBitmap(image);
+	}
+
+	wxRect GetWallPreviewSpriteRect(int itemId, const wxPoint &tileAnchor) {
+		const WallPreviewSpriteMetrics metrics = ResolveWallPreviewSpriteMetrics(itemId);
+		if (!metrics.isValid()) {
+			return wxRect(tileAnchor.x, tileAnchor.y, 32, 32);
+		}
+
+		return wxRect(
+			tileAnchor.x - metrics.drawOffset.x,
+			tileAnchor.y - metrics.drawOffset.y,
+			metrics.widthPx,
+			metrics.heightPx
+		);
+	}
+
+	int ChooseWallPreviewItemId(const std::vector<WallPartItemRecord> &items) {
+		if (items.empty()) {
+			return 0;
+		}
+		int bestItemId = items.front().itemId;
+		int bestChance = items.front().chance;
+		for (const auto &item : items) {
+			if (item.chance > bestChance) {
+				bestChance = item.chance;
+				bestItemId = item.itemId;
+			}
+		}
+		return bestItemId;
+	}
+
+	wxString NormalizeWallPreviewPartType(const wxString &partType) {
+		wxString trimmed(partType);
+		trimmed.Trim(true).Trim(false);
+		const wxString marker = "/alternate/";
+		const wxString lower = trimmed.Lower();
+		const int alternateIndex = lower.Find(marker);
+		if (alternateIndex == wxNOT_FOUND) {
+			return trimmed.Lower();
+		}
+		return trimmed.SubString(0, alternateIndex - 1).Lower();
+	}
+
+	wxString PartTypeForWallAlignment(uint32_t alignment) {
+		switch (alignment) {
+		case WALL_VERTICAL:
+			return "vertical";
+		case WALL_HORIZONTAL:
+			return "horizontal";
+		case WALL_POLE:
+			return "pole";
+		case WALL_SOUTH_END:
+			return "south end";
+		case WALL_EAST_END:
+			return "east end";
+		case WALL_NORTH_END:
+			return "north end";
+		case WALL_WEST_END:
+			return "west end";
+		case WALL_SOUTH_T:
+			return "south t";
+		case WALL_EAST_T:
+			return "east t";
+		case WALL_WEST_T:
+			return "west t";
+		case WALL_NORTH_T:
+			return "north t";
+		case WALL_NORTHWEST_DIAGONAL:
+			return "northwest diagonal";
+		case WALL_NORTHEAST_DIAGONAL:
+			return "northeast diagonal";
+		case WALL_SOUTHWEST_DIAGONAL:
+			return "southwest diagonal";
+		case WALL_SOUTHEAST_DIAGONAL:
+			return "southeast diagonal";
+		case WALL_INTERSECTION:
+			return "intersection";
+		case WALL_UNTOUCHABLE:
+			return "untouchable";
+		default:
+			return "";
+		}
+	}
+
+	std::vector<wxString> PartTypeCandidatesForWallAlignment(uint32_t alignment, bool north, bool west, bool east, bool south) {
+		const wxString primary = PartTypeForWallAlignment(alignment);
+		if (primary.IsEmpty()) {
+			return {};
+		}
+		switch (alignment) {
+		case WALL_NORTHWEST_DIAGONAL:
+		case WALL_NORTHEAST_DIAGONAL:
+		case WALL_SOUTHWEST_DIAGONAL:
+		case WALL_SOUTHEAST_DIAGONAL:
+			if (east && south && !north && !west) {
+				return { primary, "pole" };
+			}
+			if (west && south && !north && !east) {
+				return { primary, "horizontal" };
+			}
+			if (east && north && !south && !west) {
+				return { primary, "vertical" };
+			}
+			if (west && north && !south && !east) {
+				return { primary, "corner" };
+			}
+			return { primary, "horizontal", "vertical" };
+		default:
+			return { primary };
+		}
+	}
+
+	class WallWorkspaceComposedPreviewPanel : public wxPanel {
+	public:
+		explicit WallWorkspaceComposedPreviewPanel(wxWindow* parent) :
+			wxPanel(parent, wxID_ANY) {
+			SetBackgroundStyle(wxBG_STYLE_PAINT);
+			SetMinSize(wxSize(FromDIP(520), FromDIP(220)));
+			Bind(wxEVT_PAINT, &WallWorkspaceComposedPreviewPanel::OnPaint, this);
+		}
+
+		void SetPreviewState(const BrushStorageRecord* storage, const wxString &selectedPartType, int selectedItemId, int selectedDoorItemId) {
+			storage_ = storage;
+			selectedPartType_ = NormalizeWallPreviewPartType(selectedPartType);
+			selectedItemId_ = selectedItemId;
+			selectedDoorItemId_ = selectedDoorItemId;
+			Refresh();
+		}
+
+	private:
+		struct DrawOp {
+			int itemId = 0;
+			wxPoint tileAnchor;
+			wxRect spriteRect;
+			wxRect tileRect;
+			wxString partType;
+			bool isDoor = false;
+		};
+
+		const WallPartRecord* FindPartByType(const wxString &type) const {
+			if (!storage_) {
+				return nullptr;
+			}
+			for (const WallPartRecord &part : storage_->wallParts) {
+				if (NormalizeWallPreviewPartType(part.partType) == type) {
+					return &part;
+				}
+			}
+			return nullptr;
+		}
+
+		wxBitmap GetCachedBitmap(int itemId) {
+			const WallPreviewSpriteMetrics metrics = ResolveWallPreviewSpriteMetrics(itemId);
+			if (!metrics.isValid()) {
+				return wxBitmap();
+			}
+			const auto it = bitmapCache_.find(metrics.spriteId);
+			if (it != bitmapCache_.end()) {
+				return it->second;
+			}
+			wxBitmap bitmap = BuildWallPreviewBitmap(metrics.spriteId);
+			bitmapCache_.emplace(metrics.spriteId, bitmap);
+			return bitmap;
+		}
+
+		std::vector<DrawOp> BuildScene(const std::vector<wxPoint> &wallCells, const wxPoint* doorCell, int doorItemId, wxRect &outBounds) {
+			std::vector<DrawOp> ops;
+			outBounds = wxRect();
+			if (!storage_) {
+				return ops;
+			}
+
+			const auto hasWallCell = [&wallCells](int x, int y) {
+				for (const wxPoint &cell : wallCells) {
+					if (cell.x == x && cell.y == y) {
+						return true;
+					}
+				}
+				return false;
+			};
+
+			for (const wxPoint &cell : wallCells) {
+				const bool north = hasWallCell(cell.x, cell.y - 1);
+				const bool west = hasWallCell(cell.x - 1, cell.y);
+				const bool east = hasWallCell(cell.x + 1, cell.y);
+				const bool south = hasWallCell(cell.x, cell.y + 1);
+				uint32_t tiledata = 0;
+				if (north) tiledata |= 1u << 0;
+				if (west) tiledata |= 1u << 1;
+				if (east) tiledata |= 1u << 2;
+				if (south) tiledata |= 1u << 3;
+				const uint32_t alignment = WallBrush::full_border_types[tiledata & 0x0F];
+				const std::vector<wxString> partCandidates = PartTypeCandidatesForWallAlignment(alignment, north, west, east, south);
+				const WallPartRecord* part = nullptr;
+				wxString resolvedPartType;
+				for (const wxString &candidate : partCandidates) {
+					part = FindPartByType(candidate);
+					if (part) {
+						resolvedPartType = candidate;
+						break;
+					}
+				}
+				int itemId = part ? ChooseWallPreviewItemId(part->items) : 0;
+				bool isDoor = false;
+				if (doorCell && doorItemId > 0 && cell.x == doorCell->x && cell.y == doorCell->y) {
+					itemId = doorItemId;
+					isDoor = true;
+					if (!selectedPartType_.IsEmpty()) {
+						resolvedPartType = selectedPartType_;
+					}
+				}
+
+				const wxPoint tileAnchor(cell.x * 32, cell.y * 32);
+				DrawOp op;
+				op.itemId = itemId;
+				op.tileAnchor = tileAnchor;
+				op.tileRect = wxRect(tileAnchor.x, tileAnchor.y, 32, 32);
+				op.spriteRect = itemId > 0 ? GetWallPreviewSpriteRect(itemId, tileAnchor) : op.tileRect;
+				op.partType = resolvedPartType;
+				op.isDoor = isDoor;
+				ops.push_back(op);
+				outBounds.Union(op.tileRect);
+				if (itemId > 0) {
+					outBounds.Union(op.spriteRect);
+				}
+			}
+
+			if (outBounds.IsEmpty()) {
+				outBounds = wxRect(0, 0, 32, 32);
+			}
+			return ops;
+		}
+
+		void DrawScene(wxGraphicsContext &gc, const wxRect &viewport, const wxString &title, const std::vector<DrawOp> &ops, const wxRect &bounds) {
+			gc.SetFont(GetFont(), wxColour(170, 176, 190));
+			wxDouble tw;
+			wxDouble th;
+			gc.GetTextExtent(title, &tw, &th, nullptr, nullptr);
+			gc.DrawText(title, viewport.x + FromDIP(10), viewport.y + FromDIP(8));
+
+			wxRect sceneViewport = viewport;
+			sceneViewport.y += FromDIP(26);
+			sceneViewport.height -= FromDIP(26);
+			sceneViewport.Deflate(FromDIP(10), FromDIP(10));
+
+			const double scaleX = bounds.width > 0 ? static_cast<double>(sceneViewport.width) / static_cast<double>(bounds.width) : 1.0;
+			const double scaleY = bounds.height > 0 ? static_cast<double>(sceneViewport.height) / static_cast<double>(bounds.height) : 1.0;
+			const double scale = std::max(0.05, std::min(scaleX, scaleY));
+
+			const double originX = sceneViewport.x + (sceneViewport.width - bounds.width * scale) / 2.0;
+			const double originY = sceneViewport.y + (sceneViewport.height - bounds.height * scale) / 2.0;
+
+			gc.PushState();
+			gc.Translate(originX, originY);
+			gc.Scale(scale, scale);
+			gc.Translate(-bounds.x, -bounds.y);
+
+			const wxColour cellA(28, 28, 28);
+			const wxColour cellB(24, 24, 24);
+			const wxColour gridLine(0, 0, 0, 72);
+
+			gc.SetPen(wxPen(gridLine, 1));
+			for (const auto &op : ops) {
+				const wxRect &cell = op.tileRect;
+				gc.SetBrush(wxBrush((((cell.x / 32) + (cell.y / 32)) % 2 == 0) ? cellA : cellB));
+				gc.DrawRectangle(cell.x, cell.y, cell.width, cell.height);
+			}
+
+			const wxString selectedPart = selectedPartType_;
+			for (const auto &op : ops) {
+				if (!selectedPart.IsEmpty() && NormalizeWallPreviewPartType(op.partType) == selectedPart) {
+					gc.SetPen(wxPen(wxColour(255, 215, 90, 180), 2));
+					gc.SetBrush(*wxTRANSPARENT_BRUSH);
+					gc.DrawRectangle(op.tileRect.x, op.tileRect.y, op.tileRect.width, op.tileRect.height);
+				}
+			}
+
+			for (const auto &op : ops) {
+				if (op.itemId <= 0) {
+					continue;
+				}
+				wxBitmap bitmap = GetCachedBitmap(op.itemId);
+				if (!bitmap.IsOk()) {
+					continue;
+				}
+				gc.DrawBitmap(bitmap, op.spriteRect.x, op.spriteRect.y, bitmap.GetWidth(), bitmap.GetHeight());
+				if (selectedItemId_ > 0 && op.itemId == selectedItemId_) {
+					gc.SetPen(wxPen(wxColour(120, 200, 255, 200), 2));
+					gc.SetBrush(*wxTRANSPARENT_BRUSH);
+					gc.DrawRectangle(op.tileRect.x, op.tileRect.y, op.tileRect.width, op.tileRect.height);
+				}
+				if (selectedDoorItemId_ > 0 && op.isDoor && op.itemId == selectedDoorItemId_) {
+					gc.SetPen(wxPen(wxColour(160, 255, 160, 220), 2));
+					gc.SetBrush(wxBrush(wxColour(160, 255, 160, 48)));
+					gc.DrawRectangle(op.tileRect.x, op.tileRect.y, op.tileRect.width, op.tileRect.height);
+				}
+			}
+
+			gc.PopState();
+		}
+
+		void OnPaint(wxPaintEvent &) {
+			wxAutoBufferedPaintDC dc(this);
+			dc.SetBackground(wxBrush(wxColour(16, 16, 16)));
+			dc.Clear();
+
+			std::unique_ptr<wxGraphicsContext> gc(wxGraphicsContext::Create(dc));
+			if (!gc) {
+				return;
+			}
+
+			const wxRect client = GetClientRect();
+			wxRect left = client;
+			wxRect right = client;
+			left.width = client.width / 2;
+			right.x = left.GetRight() + 1;
+			right.width = client.width - left.width - 1;
+
+			wxRect boundsA;
+			wxRect boundsB;
+			const int roomSize = 5;
+			std::vector<wxPoint> roomCells;
+			roomCells.reserve(roomSize * 4);
+			for (int y = 0; y < roomSize; ++y) {
+				for (int x = 0; x < roomSize; ++x) {
+					if (x == 0 || y == 0 || x == roomSize - 1 || y == roomSize - 1) {
+						roomCells.push_back(wxPoint(x, y));
+					}
+				}
+			}
+			wxPoint doorCell(roomSize / 2, 0);
+			const wxString selectedPart = selectedPartType_.Lower();
+			const bool wantsVertical = selectedPart.Contains("vertical") || selectedPart.Contains("east") || selectedPart.Contains("west");
+			const bool wantsHorizontal = selectedPart.Contains("horizontal") || selectedPart.Contains("north") || selectedPart.Contains("south");
+			if (wantsVertical && !wantsHorizontal) {
+				doorCell = wxPoint(roomSize - 1, roomSize / 2);
+			} else if (wantsHorizontal && !wantsVertical) {
+				doorCell = wxPoint(roomSize / 2, 0);
+			}
+
+			const std::vector<DrawOp> roomOps = BuildScene(roomCells, nullptr, 0, boundsA);
+			const std::vector<DrawOp> roomWithDoorOps = BuildScene(roomCells, selectedDoorItemId_ > 0 ? &doorCell : nullptr, selectedDoorItemId_, boundsB);
+
+			DrawScene(*gc, left, "Composed room", roomOps, boundsA);
+			DrawScene(*gc, right, selectedDoorItemId_ > 0 ? "Room with door" : "Room with door (select a door)", roomWithDoorOps, boundsB);
+		}
+
+		const BrushStorageRecord* storage_ = nullptr;
+		wxString selectedPartType_;
+		int selectedItemId_ = 0;
+		int selectedDoorItemId_ = 0;
+		std::unordered_map<int, wxBitmap> bitmapCache_;
 	};
 
 	wxString DescribeDoor(const WallPartDoorRecord &door) {
@@ -315,6 +749,7 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	brushNameCtrl_ = new wxTextCtrl(scrolled, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
 	brushSourceCtrl_ = new wxTextCtrl(scrolled, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
 	partChoice_ = new wxChoice(scrolled, wxID_ANY);
+	addPartButton_ = new wxButton(scrolled, wxID_ANY, "+");
 	partSummaryLabel_ = new wxStaticText(scrolled, wxID_ANY, "");
 
 	identityGrid->Add(new wxStaticText(scrolled, wxID_ANY, "SQLite ID"), 0, wxALIGN_CENTER_VERTICAL);
@@ -324,22 +759,29 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	identityGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Source"), 0, wxALIGN_CENTER_VERTICAL);
 	identityGrid->Add(brushSourceCtrl_, 1, wxEXPAND);
 	identityGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Part Type"), 0, wxALIGN_CENTER_VERTICAL);
-	identityGrid->Add(partChoice_, 1, wxEXPAND);
+	wxBoxSizer* partRowSizer = new wxBoxSizer(wxHORIZONTAL);
+	partRowSizer->Add(partChoice_, 1, wxEXPAND);
+	partRowSizer->Add(addPartButton_, 0, wxLEFT, FromDIP(6));
+	identityGrid->Add(partRowSizer, 1, wxEXPAND);
 
 	identityBox->Add(identityGrid, 0, wxEXPAND | wxALL, FromDIP(8));
 	identityBox->Add(partSummaryLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
 
+	wxStaticBoxSizer* previewBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Preview");
+	composedPreview_ = new WallWorkspaceComposedPreviewPanel(scrolled);
+	previewBox->Add(composedPreview_, 0, wxEXPAND | wxALL, FromDIP(8));
+
 	wxBoxSizer* gridsRow = new wxBoxSizer(wxHORIZONTAL);
 
 	wxStaticBoxSizer* itemBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Wall Items");
-	itemGridScroll_ = new wxScrolledWindow(scrolled, wxID_ANY, wxDefaultPosition, wxSize(-1, FromDIP(220)), wxVSCROLL);
+	itemGridScroll_ = new wxScrolledWindow(scrolled, wxID_ANY, wxDefaultPosition, wxSize(-1, FromDIP(300)), wxVSCROLL);
 	itemGridScroll_->SetScrollRate(FromDIP(10), FromDIP(10));
 	itemGridSizer_ = new wxWrapSizer(wxHORIZONTAL);
 	itemGridScroll_->SetSizer(itemGridSizer_);
 	itemBox->Add(itemGridScroll_, 1, wxEXPAND | wxALL, FromDIP(8));
 
 	wxStaticBoxSizer* doorBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Doors");
-	doorGridScroll_ = new wxScrolledWindow(scrolled, wxID_ANY, wxDefaultPosition, wxSize(-1, FromDIP(220)), wxVSCROLL);
+	doorGridScroll_ = new wxScrolledWindow(scrolled, wxID_ANY, wxDefaultPosition, wxSize(-1, FromDIP(300)), wxVSCROLL);
 	doorGridScroll_->SetScrollRate(FromDIP(10), FromDIP(10));
 	doorGridSizer_ = new wxWrapSizer(wxHORIZONTAL);
 	doorGridScroll_->SetSizer(doorGridSizer_);
@@ -423,6 +865,7 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 
 	contentSizer->Add(summaryLabel_, 0, wxEXPAND | wxALL, FromDIP(8));
 	contentSizer->Add(identityBox, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
+	contentSizer->Add(previewBox, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
 	contentSizer->Add(gridsRow, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
 	contentSizer->Add(editorRow, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
 
@@ -454,6 +897,7 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	SetSizer(rootSizer);
 
 	partChoice_->Bind(wxEVT_CHOICE, &MaterialsWorkbenchWallPanel::OnPartChanged, this);
+	addPartButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnAddPartType, this);
 	pickItemButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnPickItem, this);
 	applyItemButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnApplyItem, this);
 	removeItemButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnRemoveItem, this);
@@ -507,6 +951,7 @@ void MaterialsWorkbenchWallPanel::ClearWorkspace(const wxString &message) {
 	UpdateActionButtons();
 	NotifyWallBrushStateChanged();
 	SetStatusMessage(message);
+	RefreshComposedPreview();
 	Layout();
 }
 
@@ -610,6 +1055,7 @@ void MaterialsWorkbenchWallPanel::RefreshSelectedPart() {
 		doorButtons_.clear();
 		SyncSelectedItemEditor();
 		SyncSelectedDoorEditor();
+		RefreshComposedPreview();
 		Layout();
 		return;
 	}
@@ -632,6 +1078,7 @@ void MaterialsWorkbenchWallPanel::RefreshSelectedPart() {
 	RefreshDoorGrid();
 	SyncSelectedItemEditor();
 	SyncSelectedDoorEditor();
+	RefreshComposedPreview();
 	Layout();
 }
 
@@ -727,6 +1174,7 @@ void MaterialsWorkbenchWallPanel::SyncSelectedItemEditor() {
 		itemIdCtrl_->SetValue(0);
 		itemChanceCtrl_->SetValue(0);
 		itemPreviewButton_->SetSprite(0);
+		RefreshComposedPreview();
 		return;
 	}
 
@@ -735,6 +1183,7 @@ void MaterialsWorkbenchWallPanel::SyncSelectedItemEditor() {
 	itemIdCtrl_->SetValue(item.itemId);
 	itemChanceCtrl_->SetValue(item.chance);
 	itemPreviewButton_->SetSprite(item.itemId);
+	RefreshComposedPreview();
 }
 
 void MaterialsWorkbenchWallPanel::SyncSelectedDoorEditor() {
@@ -746,6 +1195,7 @@ void MaterialsWorkbenchWallPanel::SyncSelectedDoorEditor() {
 		doorOpenCtrl_->SetValue(false);
 		doorHateCtrl_->SetValue(false);
 		doorPreviewButton_->SetSprite(0);
+		RefreshComposedPreview();
 		return;
 	}
 
@@ -756,6 +1206,30 @@ void MaterialsWorkbenchWallPanel::SyncSelectedDoorEditor() {
 	doorOpenCtrl_->SetValue(door.isOpen);
 	doorHateCtrl_->SetValue(door.wallHateMe);
 	doorPreviewButton_->SetSprite(door.itemId);
+	RefreshComposedPreview();
+}
+
+void MaterialsWorkbenchWallPanel::RefreshComposedPreview() {
+	if (!composedPreview_) {
+		return;
+	}
+	auto* composedPreview = static_cast<WallWorkspaceComposedPreviewPanel*>(composedPreview_);
+	if (!hasWallBrush_) {
+		composedPreview->SetPreviewState(nullptr, "", 0, 0);
+		return;
+	}
+
+	const WallPartRecord* part = GetSelectedPart();
+	const wxString selectedPartType = part ? part->partType : "";
+	int selectedItemId = 0;
+	int selectedDoorItemId = 0;
+	if (part && selectedItemIndex_ >= 0 && selectedItemIndex_ < static_cast<int>(part->items.size())) {
+		selectedItemId = part->items[selectedItemIndex_].itemId;
+	}
+	if (part && selectedDoorIndex_ >= 0 && selectedDoorIndex_ < static_cast<int>(part->doors.size())) {
+		selectedDoorItemId = part->doors[selectedDoorIndex_].itemId;
+	}
+	composedPreview->SetPreviewState(&wallBrushStorage_, selectedPartType, selectedItemId, selectedDoorItemId);
 }
 
 void MaterialsWorkbenchWallPanel::NormalizeWallParts() {
@@ -772,6 +1246,7 @@ void MaterialsWorkbenchWallPanel::SetStatusMessage(const wxString &message) {
 
 void MaterialsWorkbenchWallPanel::SetFieldsEnabled(bool enabled) {
 	partChoice_->Enable(enabled);
+	addPartButton_->Enable(enabled);
 	itemIdCtrl_->Enable(enabled);
 	itemChanceCtrl_->Enable(enabled);
 	doorItemIdCtrl_->Enable(enabled);
@@ -1353,6 +1828,86 @@ void MaterialsWorkbenchWallPanel::OnRemoveDoor(wxCommandEvent &event) {
 	RefreshSelectedPart();
 	RefreshDirtyState();
 	SetStatusMessage("Door removed locally. Save the wall brush to persist.");
+}
+
+void MaterialsWorkbenchWallPanel::OnAddPartType(wxCommandEvent &event) {
+	if (!hasWallBrush_) {
+		return;
+	}
+
+	const auto partTypeExists = [this](const wxString &baseType) {
+		for (const WallPartRecord &part : wallBrushStorage_.wallParts) {
+			if (NormalizeWallPreviewPartType(part.partType) == baseType) {
+				return true;
+			}
+		}
+		return false;
+	};
+
+	wxMenu menu;
+	struct Candidate {
+		wxString label;
+		wxString baseType;
+	};
+	const Candidate candidates[] = {
+		{ "vertical", "vertical" },
+		{ "horizontal", "horizontal" },
+		{ "pole", "pole" },
+		{ "corner", "corner" },
+		{ "north end", "north end" },
+		{ "south end", "south end" },
+		{ "east end", "east end" },
+		{ "west end", "west end" },
+		{ "intersection", "intersection" },
+		{ "north T", "north t" },
+		{ "south T", "south t" },
+		{ "east T", "east t" },
+		{ "west T", "west t" },
+		{ "northwest diagonal", "northwest diagonal" },
+		{ "northeast diagonal", "northeast diagonal" },
+		{ "southwest diagonal", "southwest diagonal" },
+		{ "southeast diagonal", "southeast diagonal" },
+	};
+
+	int selectedId = wxID_NONE;
+	for (const Candidate &candidate : candidates) {
+		const bool enabled = !partTypeExists(candidate.baseType);
+		wxMenuItem* item = menu.Append(wxID_ANY, candidate.label);
+		item->Enable(enabled);
+		if (enabled && selectedId == wxID_NONE) {
+			selectedId = item->GetId();
+		}
+	}
+
+	selectedId = GetPopupMenuSelectionFromUser(menu);
+	if (selectedId == wxID_NONE) {
+		return;
+	}
+
+	wxString selectedLabel;
+	for (wxMenuItem* item : menu.GetMenuItems()) {
+		if (item->GetId() == selectedId) {
+			selectedLabel = item->GetItemLabelText();
+			break;
+		}
+	}
+	if (selectedLabel.IsEmpty()) {
+		return;
+	}
+
+	SaveCurrentPartEditorState();
+
+	WallPartRecord part;
+	part.partType = selectedLabel;
+	part.sortOrder = static_cast<int>(wallBrushStorage_.wallParts.size());
+	NormalizeWallPartRecord(part);
+	wallBrushStorage_.wallParts.push_back(part);
+	selectedPartIndex_ = static_cast<int>(wallBrushStorage_.wallParts.size()) - 1;
+
+	RefreshPartChoice();
+	RefreshSelectedPart();
+	RefreshDirtyState();
+	SetStatusMessage("Added new wall part locally. Save the wall brush to persist.");
 }
 
 void MaterialsWorkbenchWallPanel::OnSave(wxCommandEvent &event) {

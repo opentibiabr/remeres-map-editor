@@ -19,7 +19,8 @@
 - [x] Continue the `Aligned` visual editor pass with mini-scene previews and a stronger semantic layout for `table`
 - [x] Continue the `Doodad` editor rebuild from the new scene-preview base: move from read-first preview to direct grid authoring on top of the existing composite fields
 - [x] Improve Border Workspace presentation with stronger contrast, clearer slot-to-preview correspondence, a compact authoring panel, inline/global-specific fields, scope-aware metadata naming (including `Global Border ID` / `Autoborder Group`), a centered compact slot grid, a richer searchable `Used By` context panel with a real `wxGrid` table for global borders, and first-pass CRUD for border sets / global contexts
-- [ ] Improve Wall Workspace presentation with richer visual previews for wall parts, doors, and composed wall results
+- [x] Improve Wall Workspace presentation with richer visual previews for wall parts, doors, and composed wall results
+- [ ] Wall Workspace authoring: add fast `Add Part Type` affordance (e.g. add missing `pole` / `corner` / ends / diagonals) and keep previews faithful when a part is missing instead of silently substituting
 - [ ] Continue reducing spacing and padding across workspaces where the layout still feels too loose
 - [ ] Continue small product-language and workflow refinements across Workbench texts and actions
 - [ ] Standardize technical labels such as `lookId`, `serverLookId`, `zOrder`, and `partType`
@@ -40,7 +41,7 @@
 - [ ] Add optional `Doodad` keyboard shortcuts and higher-level context menus as a future polish pass, not as a requirement for the current editor milestone
 
 ## Nice To Have
-- [ ] Add a real composed preview for `wall brush`, beyond the current parts grid
+- [x] Add a real composed preview for `wall brush`, beyond the current parts grid
 - [ ] Add a mini-scene preview for `border` application, beyond the slot matrix
 - [ ] Add local per-session edit history for fast undo-style recovery inside the Workbench
 - [ ] Add manual runtime sync controls only if a future workflow really needs them
