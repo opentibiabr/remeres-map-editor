@@ -860,14 +860,6 @@
 		<borderitem edge="csw" item="4537"/>
 		<borderitem edge="cse" item="4538"/>
 	-->
-		<borderitem edge="n"   item="80"/>
-		<borderitem edge="e"   item="81"/>
-		<borderitem edge="s"   item="82"/>
-		<borderitem edge="w"   item="83"/>
-		<borderitem edge="cnw" item="84"/>
-		<borderitem edge="cne" item="85"/>
-		<borderitem edge="csw" item="86"/>
-		<borderitem edge="cse" item="87"/>
 	</border>
 	
 	<border id="51"> -- partial mountain gravel border --
