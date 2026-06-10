@@ -22,6 +22,7 @@
 - [x] Improve Wall Workspace presentation with richer visual previews for wall parts, doors, and composed wall results
 - [x] Wall Workspace authoring: add fast `Add Part Type` affordance (e.g. add missing `pole` / `corner` / ends / diagonals) and keep previews faithful when a part is missing instead of silently substituting
 - [x] Wall Workspace preview: add `Strict / Fill` mode toggle, overlay diagnostics, and explicit door-side controls
+- [x] Wall Workspace density pass: tighten preview controls and reduce unused vertical space in grids
 - [ ] Continue reducing spacing and padding across workspaces where the layout still feels too loose
 - [ ] Continue small product-language and workflow refinements across Workbench texts and actions
 - [ ] Standardize technical labels such as `lookId`, `serverLookId`, `zOrder`, and `partType`
