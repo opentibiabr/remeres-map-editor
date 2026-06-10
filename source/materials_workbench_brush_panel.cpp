@@ -12,7 +12,6 @@
 #include <wx/choice.h>
 #include <wx/dcbuffer.h>
 #include <wx/dialog.h>
-#include <wx/graphics.h>
 #include <wx/listbox.h>
 #include <wx/msgdlg.h>
 #include <wx/notebook.h>
@@ -25,6 +24,7 @@
 #include <wx/statline.h>
 #include <wx/stattext.h>
 #include <wx/textctrl.h>
+#include <wx/vlbox.h>
 
 #include "brush.h"
 #include "graphics.h"
@@ -49,6 +49,38 @@ namespace {
 			return false;
 		}
 		return g_items.isValidID(static_cast<uint16_t>(itemId));
+	}
+
+	int CaptureListTopItem(wxVListBox* listBox) {
+		if (!listBox || listBox->GetItemCount() == 0) {
+			return wxNOT_FOUND;
+		}
+		return static_cast<int>(listBox->GetVisibleRowsBegin());
+	}
+
+	void RestoreListTopItem(wxVListBox* listBox, int topItem) {
+		if (!listBox || listBox->GetItemCount() == 0 || topItem == wxNOT_FOUND) {
+			return;
+		}
+		const int clampedTopItem = std::min<int>(topItem, static_cast<int>(listBox->GetItemCount()) - 1);
+		if (clampedTopItem >= 0) {
+			listBox->ScrollToRow(static_cast<size_t>(clampedTopItem));
+		}
+	}
+
+	int HitTestListBox(wxVListBox* listBox, const wxPoint &position) {
+		if (!listBox || listBox->GetItemCount() == 0) {
+			return wxNOT_FOUND;
+		}
+		const size_t begin = listBox->GetVisibleRowsBegin();
+		const size_t end = listBox->GetVisibleRowsEnd();
+		for (size_t i = begin; i < end; ++i) {
+			const wxRect rect = listBox->GetItemRect(i);
+			if (rect.Contains(position)) {
+				return static_cast<int>(i);
+			}
+		}
+		return wxNOT_FOUND;
 	}
 
 	wxStaticText* CreateSectionLabel(wxWindow* parent, const wxString &label) {
@@ -602,6 +634,52 @@ namespace {
 		dc.DrawBitmap(bitmap, drawX, drawY, true);
 	}
 
+	void DrawScaledCenteredPreviewItemSprite(wxDC &dc, const wxRect &bounds, int itemId) {
+		const DoodadPreviewSpriteMetrics metrics = ResolveDoodadPreviewSpriteMetrics(itemId);
+		if (!metrics.isValid()) {
+			return;
+		}
+
+		const wxBitmap bitmap = BuildDoodadPreviewBitmap(metrics.spriteId);
+		if (!bitmap.IsOk()) {
+			return;
+		}
+
+		const wxRect visibleBounds = GetBitmapVisibleBounds(bitmap);
+		if (visibleBounds.width <= 0 || visibleBounds.height <= 0) {
+			return;
+		}
+
+		const double scaleX = static_cast<double>(bounds.width) / static_cast<double>(visibleBounds.width);
+		const double scaleY = static_cast<double>(bounds.height) / static_cast<double>(visibleBounds.height);
+		const double scale = std::min(1.0, std::min(scaleX, scaleY));
+
+		if (scale >= 1.0) {
+			DrawCenteredPreviewItemSprite(dc, bounds, itemId);
+			return;
+		}
+
+		const int scaledVisibleW = std::max<int>(1, static_cast<int>(std::round(static_cast<double>(visibleBounds.width) * scale)));
+		const int scaledVisibleH = std::max<int>(1, static_cast<int>(std::round(static_cast<double>(visibleBounds.height) * scale)));
+		const int targetX = bounds.x + std::max(0, (bounds.width - scaledVisibleW) / 2);
+		const int targetY = bounds.y + std::max(0, (bounds.height - scaledVisibleH) / 2);
+
+		wxImage image = bitmap.ConvertToImage();
+		if (!image.IsOk()) {
+			DrawCenteredPreviewItemSprite(dc, bounds, itemId);
+			return;
+		}
+
+		wxImage visible = image.GetSubImage(visibleBounds);
+		if (!visible.IsOk()) {
+			DrawCenteredPreviewItemSprite(dc, bounds, itemId);
+			return;
+		}
+
+		visible.Rescale(scaledVisibleW, scaledVisibleH, wxIMAGE_QUALITY_HIGH);
+		dc.DrawBitmap(wxBitmap(visible), targetX, targetY, true);
+	}
+
 	class BrushMetadataItemIdPreviewPanel final : public wxPanel {
 	public:
 		explicit BrushMetadataItemIdPreviewPanel(wxWindow* parent) : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_SIMPLE) {
@@ -639,47 +717,7 @@ namespace {
 				return;
 			}
 
-			const DoodadPreviewSpriteMetrics metrics = ResolveDoodadPreviewSpriteMetrics(itemId_);
-			if (!metrics.isValid()) {
-				return;
-			}
-
-			const wxBitmap bitmap = BuildDoodadPreviewBitmap(metrics.spriteId);
-			if (!bitmap.IsOk()) {
-				return;
-			}
-
-			const wxRect visibleBounds = GetBitmapVisibleBounds(bitmap);
-			if (visibleBounds.width <= 0 || visibleBounds.height <= 0) {
-				return;
-			}
-
-			const double scaleX = static_cast<double>(bounds.width) / static_cast<double>(visibleBounds.width);
-			const double scaleY = static_cast<double>(bounds.height) / static_cast<double>(visibleBounds.height);
-			const double scale = std::min(1.0, std::min(scaleX, scaleY));
-
-			const int scaledVisibleW = static_cast<int>(std::round(static_cast<double>(visibleBounds.width) * scale));
-			const int scaledVisibleH = static_cast<int>(std::round(static_cast<double>(visibleBounds.height) * scale));
-			const int targetX = bounds.x + std::max(0, (bounds.width - scaledVisibleW) / 2);
-			const int targetY = bounds.y + std::max(0, (bounds.height - scaledVisibleH) / 2);
-			const double drawX = static_cast<double>(targetX) - (static_cast<double>(visibleBounds.x) * scale);
-			const double drawY = static_cast<double>(targetY) - (static_cast<double>(visibleBounds.y) * scale);
-
-			wxGraphicsContext* gc = wxGraphicsContext::Create(dc);
-			if (!gc) {
-				DrawCenteredPreviewItemSprite(dc, bounds, itemId_);
-				return;
-			}
-
-			gc->SetInterpolationQuality(wxINTERPOLATION_BEST);
-			gc->DrawBitmap(
-				bitmap,
-				drawX,
-				drawY,
-				static_cast<double>(bitmap.GetWidth()) * scale,
-				static_cast<double>(bitmap.GetHeight()) * scale
-			);
-			delete gc;
+			DrawScaledCenteredPreviewItemSprite(dc, bounds, itemId_);
 		}
 
 		int itemId_ = 0;
@@ -1800,6 +1838,192 @@ namespace {
 	}
 } // namespace
 
+static bool IsKnownThumbItemId(int itemId) {
+	if (itemId <= 0 || itemId > std::numeric_limits<uint16_t>::max()) {
+		return false;
+	}
+	return g_items.isValidID(static_cast<uint16_t>(itemId));
+}
+
+static int ResolveThumbLookId(int itemId) {
+	if (!IsKnownThumbItemId(itemId)) {
+		return 0;
+	}
+	const ItemType &itemType = g_items.getItemType(static_cast<uint16_t>(itemId));
+	if (itemType.sprite_id > 0) {
+		return static_cast<int>(itemType.sprite_id);
+	}
+	if (!itemType.m_sprites.empty() && itemType.m_sprites.front() > 0) {
+		return itemType.m_sprites.front();
+	}
+	return itemType.clientID;
+}
+
+static wxBitmap BuildThumbBitmap(int spriteId) {
+	const auto spriteData = g_spriteAppearances.getSprite(spriteId);
+	if (!spriteData || spriteData->size.width <= 0 || spriteData->size.height <= 0) {
+		return wxBitmap();
+	}
+
+	wxImage image(spriteData->size.width, spriteData->size.height);
+	image.InitAlpha();
+	const auto *pixels = spriteData->pixels.data();
+	for (int y = 0; y < spriteData->size.height; ++y) {
+		for (int x = 0; x < spriteData->size.width; ++x) {
+			const int index = (y * spriteData->size.width + x) * 4;
+			image.SetRGB(x, y, pixels[index + 2], pixels[index + 1], pixels[index]);
+			image.SetAlpha(x, y, pixels[index + 3]);
+		}
+	}
+
+	return wxBitmap(image);
+}
+
+static wxRect GetThumbVisibleBounds(const wxBitmap &bitmap) {
+	if (!bitmap.IsOk()) {
+		return wxRect();
+	}
+
+	const wxImage image = bitmap.ConvertToImage();
+	if (!image.IsOk()) {
+		return wxRect(0, 0, bitmap.GetWidth(), bitmap.GetHeight());
+	}
+
+	const int width = image.GetWidth();
+	const int height = image.GetHeight();
+	int minX = width;
+	int minY = height;
+	int maxX = -1;
+	int maxY = -1;
+
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x) {
+			const bool visible = image.HasAlpha() ? image.GetAlpha(x, y) > 0 : true;
+			if (!visible) {
+				continue;
+			}
+			minX = std::min(minX, x);
+			minY = std::min(minY, y);
+			maxX = std::max(maxX, x);
+			maxY = std::max(maxY, y);
+		}
+	}
+
+	if (maxX < minX || maxY < minY) {
+		return wxRect(0, 0, bitmap.GetWidth(), bitmap.GetHeight());
+	}
+
+	return wxRect(minX, minY, maxX - minX + 1, maxY - minY + 1);
+}
+
+static void DrawScaledCenteredThumbSprite(wxDC &dc, const wxRect &bounds, int itemId) {
+	if (!IsKnownThumbItemId(itemId)) {
+		return;
+	}
+
+	const int spriteId = ResolveThumbLookId(itemId);
+	if (spriteId <= 0) {
+		return;
+	}
+
+	const wxBitmap bitmap = BuildThumbBitmap(spriteId);
+	if (!bitmap.IsOk()) {
+		return;
+	}
+
+	const wxRect visibleBounds = GetThumbVisibleBounds(bitmap);
+	if (visibleBounds.width <= 0 || visibleBounds.height <= 0) {
+		return;
+	}
+
+	const double scaleX = static_cast<double>(bounds.width) / static_cast<double>(visibleBounds.width);
+	const double scaleY = static_cast<double>(bounds.height) / static_cast<double>(visibleBounds.height);
+	const double scale = std::min(1.0, std::min(scaleX, scaleY));
+
+	const int scaledVisibleW = std::max<int>(1, static_cast<int>(std::round(static_cast<double>(visibleBounds.width) * scale)));
+	const int scaledVisibleH = std::max<int>(1, static_cast<int>(std::round(static_cast<double>(visibleBounds.height) * scale)));
+	const int targetX = bounds.x + std::max(0, (bounds.width - scaledVisibleW) / 2);
+	const int targetY = bounds.y + std::max(0, (bounds.height - scaledVisibleH) / 2);
+
+	wxImage image = bitmap.ConvertToImage();
+	if (!image.IsOk()) {
+		return;
+	}
+
+	wxImage visible = image.GetSubImage(visibleBounds);
+	if (!visible.IsOk()) {
+		return;
+	}
+
+	if (scaledVisibleW != visibleBounds.width || scaledVisibleH != visibleBounds.height) {
+		visible.Rescale(scaledVisibleW, scaledVisibleH, wxIMAGE_QUALITY_HIGH);
+	}
+	dc.DrawBitmap(wxBitmap(visible), targetX, targetY, true);
+}
+
+class DoodadThumbList final : public wxVListBox {
+public:
+	struct Entry {
+		int itemId = 0;
+		wxString label;
+	};
+
+	explicit DoodadThumbList(wxWindow* parent)
+		: wxVListBox(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_SIMPLE) {
+		SetBackgroundStyle(wxBG_STYLE_PAINT);
+		SetMargins(FromDIP(6), FromDIP(2));
+	}
+
+	void SetEntries(std::vector<Entry> entries) {
+		entries_ = std::move(entries);
+		SetItemCount(entries_.size());
+		Refresh();
+	}
+
+protected:
+	void OnDrawItem(wxDC &dc, const wxRect &rect, size_t n) const override {
+		if (n >= entries_.size()) {
+			return;
+		}
+
+		wxRect content = rect;
+		content.Deflate(FromDIP(6), FromDIP(3));
+
+		const int thumbSize = FromDIP(18);
+		wxRect thumbRect = content;
+		thumbRect.SetWidth(thumbSize);
+		thumbRect.SetHeight(thumbSize);
+		thumbRect.SetY(content.y + std::max(0, (content.height - thumbSize) / 2));
+
+		wxRect textRect = content;
+		textRect.x += thumbSize + FromDIP(8);
+		textRect.width = std::max(0, textRect.width - thumbSize - FromDIP(8));
+
+		const bool selected = IsSelected(n);
+		dc.SetTextForeground(selected ? wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHTTEXT) : wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT));
+
+		const Entry &entry = entries_[n];
+		if (entry.itemId > 0) {
+			if (!IsKnownThumbItemId(entry.itemId)) {
+				dc.SetPen(wxPen(wxColour(176, 102, 0), FromDIP(2)));
+				dc.SetBrush(*wxTRANSPARENT_BRUSH);
+				dc.DrawRectangle(thumbRect);
+			} else {
+				DrawScaledCenteredThumbSprite(dc, thumbRect, entry.itemId);
+			}
+		}
+
+		dc.DrawText(entry.label, textRect.GetTopLeft());
+	}
+
+	wxCoord OnMeasureItem(size_t WXUNUSED(n)) const override {
+		return FromDIP(24);
+	}
+
+private:
+	std::vector<Entry> entries_;
+};
+
 MaterialsWorkbenchBrushPanel::MaterialsWorkbenchBrushPanel(wxWindow* parent, MaterialsWorkbenchController &controller) :
 	wxPanel(parent, wxID_ANY),
 	controller_(controller) {
@@ -2486,7 +2710,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 
 	wxBoxSizer* structureSizer = new wxBoxSizer(wxVERTICAL);
 	structureSizer->Add(CreateSectionLabel(scrolled, "Single Items"), 0, wxBOTTOM, FromDIP(6));
-	doodadSingleItemsList_ = new wxListBox(scrolled, wxID_ANY);
+	doodadSingleItemsList_ = new DoodadThumbList(scrolled);
 	doodadSingleItemsList_->SetMinSize(wxSize(scrolled->FromDIP(180), scrolled->FromDIP(96)));
 	structureSizer->Add(doodadSingleItemsList_, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
 	wxBoxSizer* singleButtons = new wxBoxSizer(wxHORIZONTAL);
@@ -2516,7 +2740,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 	doodadCompositeChanceCtrl_->Hide();
 	structureSizer->Add(new wxStaticLine(scrolled), 0, wxEXPAND | wxBOTTOM, FromDIP(10));
 	structureSizer->Add(CreateSectionLabel(scrolled, "Tile Layers"), 0, wxBOTTOM, FromDIP(6));
-	doodadTileItemsList_ = new wxListBox(scrolled, wxID_ANY);
+	doodadTileItemsList_ = new DoodadThumbList(scrolled);
 	doodadTileItemsList_->SetMinSize(wxSize(scrolled->FromDIP(220), scrolled->FromDIP(116)));
 	structureSizer->Add(doodadTileItemsList_, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
 	wxBoxSizer* tileItemButtons = new wxBoxSizer(wxHORIZONTAL);
@@ -4839,16 +5063,22 @@ void MaterialsWorkbenchBrushPanel::OnDoodadFloorSliderLeftDown(wxMouseEvent &eve
 
 void MaterialsWorkbenchBrushPanel::RefreshDoodadSingleItemList() {
 	const int topItem = CaptureListTopItem(doodadSingleItemsList_);
-	doodadSingleItemsList_->Clear();
+	static_cast<DoodadThumbList*>(doodadSingleItemsList_)->SetEntries({});
 	if (doodadAlternativeIndex_ < 0 || doodadAlternativeIndex_ >= static_cast<int>(brushStorage_.doodadAlternatives.size())) {
 		doodadSingleItemIndex_ = -1;
 		return;
 	}
 
 	const auto &items = brushStorage_.doodadAlternatives[doodadAlternativeIndex_].singleItems;
+	std::vector<DoodadThumbList::Entry> entries;
+	entries.reserve(items.size());
 	for (size_t i = 0; i < items.size(); ++i) {
-		doodadSingleItemsList_->Append(FormatDoodadSingleItemLabel(items[i].itemId, items[i].chance, i));
+		DoodadThumbList::Entry entry;
+		entry.itemId = items[i].itemId;
+		entry.label = FormatDoodadSingleItemLabel(items[i].itemId, items[i].chance, i);
+		entries.push_back(std::move(entry));
 	}
+	static_cast<DoodadThumbList*>(doodadSingleItemsList_)->SetEntries(std::move(entries));
 
 	if (items.empty()) {
 		doodadSingleItemIndex_ = -1;
@@ -4919,7 +5149,7 @@ void MaterialsWorkbenchBrushPanel::RefreshDoodadTileList() {
 
 void MaterialsWorkbenchBrushPanel::RefreshDoodadTileItemList() {
 	const int topItem = CaptureListTopItem(doodadTileItemsList_);
-	doodadTileItemsList_->Clear();
+	static_cast<DoodadThumbList*>(doodadTileItemsList_)->SetEntries({});
 	if (doodadAlternativeIndex_ < 0 || doodadAlternativeIndex_ >= static_cast<int>(brushStorage_.doodadAlternatives.size())) {
 		doodadTileItemIndex_ = -1;
 		return;
@@ -4936,9 +5166,15 @@ void MaterialsWorkbenchBrushPanel::RefreshDoodadTileItemList() {
 	}
 
 	const auto &items = composite.tiles[doodadTileIndex_].items;
+	std::vector<DoodadThumbList::Entry> entries;
+	entries.reserve(items.size());
 	for (size_t i = 0; i < items.size(); ++i) {
-		doodadTileItemsList_->Append(FormatDoodadTileItemLabel(items[i].itemId, i));
+		DoodadThumbList::Entry entry;
+		entry.itemId = items[i].itemId;
+		entry.label = FormatDoodadTileItemLabel(items[i].itemId, i);
+		entries.push_back(std::move(entry));
 	}
+	static_cast<DoodadThumbList*>(doodadTileItemsList_)->SetEntries(std::move(entries));
 
 	if (items.empty()) {
 		doodadTileItemIndex_ = -1;
@@ -7016,7 +7252,7 @@ void MaterialsWorkbenchBrushPanel::OnDoodadSingleItemRightDown(wxMouseEvent &eve
 		return;
 	}
 
-	const int index = doodadSingleItemsList_->HitTest(event.GetPosition());
+	const int index = HitTestListBox(doodadSingleItemsList_, event.GetPosition());
 	if (index == wxNOT_FOUND || doodadAlternativeIndex_ < 0 || doodadAlternativeIndex_ >= static_cast<int>(brushStorage_.doodadAlternatives.size())) {
 		event.Skip();
 		return;
@@ -7402,7 +7638,7 @@ void MaterialsWorkbenchBrushPanel::OnDoodadTileItemRightDown(wxMouseEvent &event
 		return;
 	}
 
-	const int index = doodadTileItemsList_->HitTest(event.GetPosition());
+	const int index = HitTestListBox(doodadTileItemsList_, event.GetPosition());
 	auto &items = tiles[doodadTileIndex_].items;
 	if (index == wxNOT_FOUND || index < 0 || index >= static_cast<int>(items.size())) {
 		event.Skip();

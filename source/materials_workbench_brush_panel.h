@@ -22,6 +22,7 @@ class wxSizer;
 class wxSpinCtrl;
 class wxStaticText;
 class wxTextCtrl;
+class wxVListBox;
 
 class MaterialsWorkbenchBrushPanel : public wxPanel {
 public:
@@ -316,7 +317,7 @@ private:
 	wxRect doodadAlternativeAddRect_;
 	wxRect doodadAlternativeRemoveRect_;
 	std::vector<wxRect> doodadAlternativeIndicatorRects_;
-	wxListBox* doodadSingleItemsList_ = nullptr;
+	wxVListBox* doodadSingleItemsList_ = nullptr;
 	wxSpinCtrl* doodadSingleItemIdCtrl_ = nullptr;
 	wxSpinCtrl* doodadSingleItemChanceCtrl_ = nullptr;
 	wxStaticText* doodadSingleItemOwnershipLabel_ = nullptr;
@@ -335,7 +336,7 @@ private:
 	wxSpinCtrl* doodadTileOffsetXCtrl_ = nullptr;
 	wxSpinCtrl* doodadTileOffsetYCtrl_ = nullptr;
 	wxSpinCtrl* doodadTileOffsetZCtrl_ = nullptr;
-	wxListBox* doodadTileItemsList_ = nullptr;
+	wxVListBox* doodadTileItemsList_ = nullptr;
 	wxSpinCtrl* doodadTileItemIdCtrl_ = nullptr;
 	wxStaticText* doodadTileItemOwnershipLabel_ = nullptr;
 	int doodadAlternativeIndex_ = -1;
