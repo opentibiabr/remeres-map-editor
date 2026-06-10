@@ -13,7 +13,7 @@
 - [x] Border Workspace visual pass: upgrade the preview from loose icons to a stronger composed border preview
 
 ## Visual Polish
-- [ ] Add visual metadata previews for `lookId` and `serverLookId` in the Brush Workspace
+- [x] Add visual metadata previews for `lookId` and `serverLookId` in the Brush Workspace
 - [ ] Add richer visual previews inside `variations`, including per-item thumbnails and domain-specific preview feedback
 - [ ] Brush Workspace `Carpet` future polish: only revisit with higher-level authoring affordances or richer composed previews if real usage still shows the new map-first flow feels too list-like
 - [x] Continue the `Aligned` visual editor pass with mini-scene previews and a stronger semantic layout for `table`

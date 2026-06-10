@@ -12,6 +12,7 @@
 #include <wx/choice.h>
 #include <wx/dcbuffer.h>
 #include <wx/dialog.h>
+#include <wx/graphics.h>
 #include <wx/listbox.h>
 #include <wx/msgdlg.h>
 #include <wx/notebook.h>
@@ -600,6 +601,89 @@ namespace {
 		const int drawY = targetY - visibleBounds.y;
 		dc.DrawBitmap(bitmap, drawX, drawY, true);
 	}
+
+	class BrushMetadataItemIdPreviewPanel final : public wxPanel {
+	public:
+		explicit BrushMetadataItemIdPreviewPanel(wxWindow* parent) : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_SIMPLE) {
+			SetBackgroundStyle(wxBG_STYLE_PAINT);
+			SetMinSize(wxSize(FromDIP(48), FromDIP(48)));
+			Bind(wxEVT_PAINT, &BrushMetadataItemIdPreviewPanel::OnPaint, this);
+		}
+
+		void SetItemId(int itemId) {
+			if (itemId_ == itemId) {
+				return;
+			}
+			itemId_ = itemId;
+			Refresh();
+		}
+
+	private:
+		void OnPaint(wxPaintEvent &WXUNUSED(event)) {
+			wxAutoBufferedPaintDC dc(this);
+			dc.SetBackground(wxBrush(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW)));
+			dc.Clear();
+
+			const wxSize size = GetClientSize();
+			wxRect bounds(0, 0, size.x, size.y);
+			bounds.Deflate(FromDIP(2), FromDIP(2));
+
+			if (itemId_ <= 0) {
+				return;
+			}
+
+			if (!IsKnownItemId(itemId_)) {
+				dc.SetPen(wxPen(wxColour(176, 102, 0), FromDIP(2)));
+				dc.SetBrush(*wxTRANSPARENT_BRUSH);
+				dc.DrawRectangle(bounds);
+				return;
+			}
+
+			const DoodadPreviewSpriteMetrics metrics = ResolveDoodadPreviewSpriteMetrics(itemId_);
+			if (!metrics.isValid()) {
+				return;
+			}
+
+			const wxBitmap bitmap = BuildDoodadPreviewBitmap(metrics.spriteId);
+			if (!bitmap.IsOk()) {
+				return;
+			}
+
+			const wxRect visibleBounds = GetBitmapVisibleBounds(bitmap);
+			if (visibleBounds.width <= 0 || visibleBounds.height <= 0) {
+				return;
+			}
+
+			const double scaleX = static_cast<double>(bounds.width) / static_cast<double>(visibleBounds.width);
+			const double scaleY = static_cast<double>(bounds.height) / static_cast<double>(visibleBounds.height);
+			const double scale = std::min(1.0, std::min(scaleX, scaleY));
+
+			const int scaledVisibleW = static_cast<int>(std::round(static_cast<double>(visibleBounds.width) * scale));
+			const int scaledVisibleH = static_cast<int>(std::round(static_cast<double>(visibleBounds.height) * scale));
+			const int targetX = bounds.x + std::max(0, (bounds.width - scaledVisibleW) / 2);
+			const int targetY = bounds.y + std::max(0, (bounds.height - scaledVisibleH) / 2);
+			const double drawX = static_cast<double>(targetX) - (static_cast<double>(visibleBounds.x) * scale);
+			const double drawY = static_cast<double>(targetY) - (static_cast<double>(visibleBounds.y) * scale);
+
+			wxGraphicsContext* gc = wxGraphicsContext::Create(dc);
+			if (!gc) {
+				DrawCenteredPreviewItemSprite(dc, bounds, itemId_);
+				return;
+			}
+
+			gc->SetInterpolationQuality(wxINTERPOLATION_BEST);
+			gc->DrawBitmap(
+				bitmap,
+				drawX,
+				drawY,
+				static_cast<double>(bitmap.GetWidth()) * scale,
+				static_cast<double>(bitmap.GetHeight()) * scale
+			);
+			delete gc;
+		}
+
+		int itemId_ = 0;
+	};
 
 	int SumWeightedBrushChances(const std::vector<BrushItemRecord> &items) {
 		int total = 0;
@@ -1871,6 +1955,8 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildMetadataPage(wxNotebook* notebook) {
 
 	lookIdCtrl_ = CreateLookIdSpinField(scrolled);
 	serverLookIdCtrl_ = CreateLookIdSpinField(scrolled);
+	lookIdPreview_ = new BrushMetadataItemIdPreviewPanel(scrolled);
+	serverLookIdPreview_ = new BrushMetadataItemIdPreviewPanel(scrolled);
 	lookIdOwnershipLabel_ = new wxStaticText(scrolled, wxID_ANY, "Runtime owner: select a brush.");
 	serverLookIdOwnershipLabel_ = new wxStaticText(scrolled, wxID_ANY, "Runtime owner: select a brush.");
 	zOrderCtrl_ = CreateSpinField(scrolled, -1000000, 1000000);
@@ -1878,11 +1964,17 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildMetadataPage(wxNotebook* notebook) {
 	thicknessCeilingCtrl_ = CreateSpinField(scrolled, 0, 1000000);
 
 	numericGrid->Add(new wxStaticText(scrolled, wxID_ANY, "lookId"), 0, wxALIGN_CENTER_VERTICAL);
-	numericGrid->Add(lookIdCtrl_, 1, wxEXPAND);
+	wxBoxSizer* lookIdRow = new wxBoxSizer(wxHORIZONTAL);
+	lookIdRow->Add(lookIdPreview_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
+	lookIdRow->Add(lookIdCtrl_, 1, wxEXPAND);
+	numericGrid->Add(lookIdRow, 1, wxEXPAND);
 	numericGrid->AddSpacer(0);
 	numericGrid->Add(lookIdOwnershipLabel_, 1, wxEXPAND);
 	numericGrid->Add(new wxStaticText(scrolled, wxID_ANY, "serverLookId"), 0, wxALIGN_CENTER_VERTICAL);
-	numericGrid->Add(serverLookIdCtrl_, 1, wxEXPAND);
+	wxBoxSizer* serverLookIdRow = new wxBoxSizer(wxHORIZONTAL);
+	serverLookIdRow->Add(serverLookIdPreview_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
+	serverLookIdRow->Add(serverLookIdCtrl_, 1, wxEXPAND);
+	numericGrid->Add(serverLookIdRow, 1, wxEXPAND);
 	numericGrid->AddSpacer(0);
 	numericGrid->Add(serverLookIdOwnershipLabel_, 1, wxEXPAND);
 	numericGrid->Add(new wxStaticText(scrolled, wxID_ANY, "zOrder"), 0, wxALIGN_CENTER_VERTICAL);
@@ -2557,6 +2649,7 @@ void MaterialsWorkbenchBrushPanel::ClearWorkspace(const wxString &message) {
 	oneSizeCtrl_->SetValue(false);
 	soloOptionalCtrl_->SetValue(false);
 	internalUpdate_ = false;
+	RefreshLookIdPreviews();
 	RefreshLookIdOwnershipHints();
 
 	SetFieldsEnabled(false);
@@ -2648,6 +2741,7 @@ void MaterialsWorkbenchBrushPanel::PopulateMetadataFields() {
 	oneSizeCtrl_->SetValue(brush.oneSize);
 	soloOptionalCtrl_->SetValue(brush.soloOptional);
 	internalUpdate_ = false;
+	RefreshLookIdPreviews();
 	RefreshLookIdOwnershipHints();
 	UpdateWorkspaceHeader();
 }
@@ -3035,6 +3129,18 @@ void MaterialsWorkbenchBrushPanel::UpdateItemOwnershipHint(wxStaticText* label, 
 	label->SetLabel(wxString::Format("Runtime owner: already used by brush \"%s\".", ownerName));
 	label->SetForegroundColour(wxColour(176, 102, 0));
 	label->Refresh();
+}
+
+void MaterialsWorkbenchBrushPanel::RefreshLookIdPreviews() {
+	auto* lookPanel = static_cast<BrushMetadataItemIdPreviewPanel*>(lookIdPreview_);
+	if (lookPanel) {
+		lookPanel->SetItemId(lookIdCtrl_ ? lookIdCtrl_->GetValue() : 0);
+	}
+
+	auto* serverPanel = static_cast<BrushMetadataItemIdPreviewPanel*>(serverLookIdPreview_);
+	if (serverPanel) {
+		serverPanel->SetItemId(serverLookIdCtrl_ ? serverLookIdCtrl_->GetValue() : 0);
+	}
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshLookIdOwnershipHints() const {
@@ -5533,6 +5639,7 @@ void MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged(wxCommandEvent &event)
 	}
 
 	UpdateWorkspaceHeader();
+	RefreshLookIdPreviews();
 	RefreshLookIdOwnershipHints();
 	RefreshVariationEditor();
 	RefreshDirtyState();
