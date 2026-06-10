@@ -898,21 +898,22 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	StyleBorderWorkspaceCaption(identityLabel_);
 
 	wxStaticBoxSizer* metadataBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Border Authoring");
+	wxWindow* metadataParent = metadataBox->GetStaticBox();
 	wxFlexGridSizer* metadataGrid = new wxFlexGridSizer(0, 2, FromDIP(6), FromDIP(8));
 	metadataGrid->AddGrowableCol(1, 1);
 
-	idCtrl_ = new wxTextCtrl(scrolled, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
-	xmlBorderIdCtrl_ = new wxSpinCtrl(scrolled, wxID_ANY);
+	idCtrl_ = new wxTextCtrl(metadataParent, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
+	xmlBorderIdCtrl_ = new wxSpinCtrl(metadataParent, wxID_ANY);
 	xmlBorderIdCtrl_->SetRange(0, 1000000);
-	scopeChoice_ = new wxChoice(scrolled, wxID_ANY);
+	scopeChoice_ = new wxChoice(metadataParent, wxID_ANY);
 	scopeChoice_->Append("global");
 	scopeChoice_->Append("inline");
-	typeCtrl_ = new wxChoice(scrolled, wxID_ANY);
+	typeCtrl_ = new wxChoice(metadataParent, wxID_ANY);
 	typeCtrl_->Append("normal");
 	typeCtrl_->Append("optional");
-	borderGroupCtrl_ = new wxChoice(scrolled, wxID_ANY);
+	borderGroupCtrl_ = new wxChoice(metadataParent, wxID_ANY);
 	RebuildBorderGroupChoices(borderGroupCtrl_, 0);
-	sourceCtrl_ = new wxTextCtrl(scrolled, wxID_ANY);
+	sourceCtrl_ = new wxTextCtrl(metadataParent, wxID_ANY);
 
 	const wxSize metadataFieldSize(FromDIP(132), -1);
 	idCtrl_->SetMinSize(metadataFieldSize);
@@ -923,7 +924,7 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	sourceCtrl_->Hide();
 
 	const auto addMetadataField = [&](const wxString &label, wxWindow* control) {
-		wxStaticText* fieldLabel = new wxStaticText(scrolled, wxID_ANY, label);
+		wxStaticText* fieldLabel = new wxStaticText(metadataParent, wxID_ANY, label);
 		StyleBorderWorkspaceCaption(fieldLabel);
 		metadataGrid->Add(fieldLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
 		metadataGrid->Add(control, 1, wxEXPAND);
@@ -948,8 +949,8 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	}
 	metadataBox->Add(metadataGrid, 1, wxEXPAND | wxALL, FromDIP(8));
 	wxBoxSizer* borderCrudRow = new wxBoxSizer(wxHORIZONTAL);
-	createBorderButton_ = new wxButton(scrolled, wxID_ANY, "New Border");
-	deleteBorderButton_ = new wxButton(scrolled, wxID_ANY, "Delete Border");
+	createBorderButton_ = new wxButton(metadataParent, wxID_ANY, "New Border");
+	deleteBorderButton_ = new wxButton(metadataParent, wxID_ANY, "Delete Border");
 	StyleBorderWorkspaceActionButton(createBorderButton_, "Create a new border set in the current scope.");
 	StyleBorderWorkspaceActionButton(deleteBorderButton_, "Delete this border set from materials.db.");
 	borderCrudRow->Add(createBorderButton_, 1, wxRIGHT, FromDIP(6));
@@ -957,16 +958,17 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	metadataBox->Add(borderCrudRow, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
 
 	inlineDetailsPanel_ = new wxPanel(scrolled, wxID_ANY);
-	groundEquivalentCtrl_ = new wxSpinCtrl(inlineDetailsPanel_, wxID_ANY);
+	wxStaticBoxSizer* inlineDetailsBox = new wxStaticBoxSizer(wxVERTICAL, inlineDetailsPanel_, "Inline Authoring");
+	wxWindow* inlineDetailsParent = inlineDetailsBox->GetStaticBox();
+	groundEquivalentCtrl_ = new wxSpinCtrl(inlineDetailsParent, wxID_ANY);
 	groundEquivalentCtrl_->SetRange(0, std::max(100000, static_cast<int>(g_items.getMaxID())));
 	groundEquivalentCtrl_->SetMinSize(metadataFieldSize);
-	ownerBrushCtrl_ = new wxTextCtrl(inlineDetailsPanel_, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
+	ownerBrushCtrl_ = new wxTextCtrl(inlineDetailsParent, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
 	ownerBrushCtrl_->SetMinSize(wxSize(FromDIP(210), -1));
-	wxStaticBoxSizer* inlineDetailsBox = new wxStaticBoxSizer(wxVERTICAL, inlineDetailsPanel_, "Inline Authoring");
 	wxFlexGridSizer* inlineGrid = new wxFlexGridSizer(0, 2, FromDIP(6), FromDIP(8));
 	inlineGrid->AddGrowableCol(1, 1);
 	const auto addInlineField = [&](const wxString &label, wxWindow* control) {
-		wxStaticText* fieldLabel = new wxStaticText(inlineDetailsPanel_, wxID_ANY, label);
+		wxStaticText* fieldLabel = new wxStaticText(inlineDetailsParent, wxID_ANY, label);
 		StyleBorderWorkspaceCaption(fieldLabel);
 		inlineGrid->Add(fieldLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
 		inlineGrid->Add(control, 1, wxEXPAND);
@@ -977,16 +979,17 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	inlineDetailsPanel_->SetSizer(inlineDetailsBox);
 
 	globalDetailsPanel_ = new wxPanel(scrolled, wxID_ANY);
-	openLinkedBrushButton_ = new wxButton(globalDetailsPanel_, wxID_ANY, "Open Brush");
-	StyleBorderWorkspaceActionButton(openLinkedBrushButton_, "Open the selected brush that uses this global border.");
 	wxStaticBoxSizer* globalDetailsBox = new wxStaticBoxSizer(wxVERTICAL, globalDetailsPanel_, "Used By");
-	usageSearchCtrl_ = new wxTextCtrl(globalDetailsPanel_, wxID_ANY);
+	wxWindow* globalDetailsParent = globalDetailsBox->GetStaticBox();
+	openLinkedBrushButton_ = new wxButton(globalDetailsParent, wxID_ANY, "Open Brush");
+	StyleBorderWorkspaceActionButton(openLinkedBrushButton_, "Open the selected brush that uses this global border.");
+	usageSearchCtrl_ = new wxTextCtrl(globalDetailsParent, wxID_ANY);
 	usageSearchCtrl_->SetHint("Search by brush, id, align, role, center, target...");
-	usageSearchHintLabel_ = new wxStaticText(globalDetailsPanel_, wxID_ANY, "Matches brush name, ids, align, role, center, target, and painted contexts.");
+	usageSearchHintLabel_ = new wxStaticText(globalDetailsParent, wxID_ANY, "Matches brush name, ids, align, role, center, target, and painted contexts.");
 	StyleBorderWorkspaceCaption(usageSearchHintLabel_);
-	usageSummaryLabel_ = new wxStaticText(globalDetailsPanel_, wxID_ANY, "No usage contexts loaded");
+	usageSummaryLabel_ = new wxStaticText(globalDetailsParent, wxID_ANY, "No usage contexts loaded");
 	StyleBorderWorkspaceCaption(usageSummaryLabel_);
-	usageGrid_ = new wxGrid(globalDetailsPanel_, wxID_ANY);
+	usageGrid_ = new wxGrid(globalDetailsParent, wxID_ANY);
 	usageGrid_->CreateGrid(0, kUsageGridColumnCount);
 	usageGrid_->EnableEditing(false);
 	usageGrid_->EnableDragGridSize(false);
@@ -1017,23 +1020,23 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	usageGrid_->SetColSize(kUsageGridColumnCenter, FromDIP(74));
 	usageGrid_->SetDefaultRowSize(FromDIP(26), true);
 	usageGrid_->SetMinSize(wxSize(FromDIP(240), FromDIP(178)));
-	usagePreviewItem_ = new ItemButton(globalDetailsPanel_, RENDER_SIZE_32x32, 0);
+	usagePreviewItem_ = new ItemButton(globalDetailsParent, RENDER_SIZE_32x32, 0);
 	usagePreviewItem_->Enable(false);
-	usageSelectionLabel_ = new wxStaticText(globalDetailsPanel_, wxID_ANY, "Select a context row to drive the global center preview.");
+	usageSelectionLabel_ = new wxStaticText(globalDetailsParent, wxID_ANY, "Select a context row to drive the global center preview.");
 	usageSelectionLabel_->Wrap(FromDIP(280));
-	addUsageContextButton_ = new wxButton(globalDetailsPanel_, wxID_ANY, "Add Context");
-	editUsageContextButton_ = new wxButton(globalDetailsPanel_, wxID_ANY, "Edit Context");
-	removeUsageContextButton_ = new wxButton(globalDetailsPanel_, wxID_ANY, "Remove Context");
+	addUsageContextButton_ = new wxButton(globalDetailsParent, wxID_ANY, "Add Context");
+	editUsageContextButton_ = new wxButton(globalDetailsParent, wxID_ANY, "Edit Context");
+	removeUsageContextButton_ = new wxButton(globalDetailsParent, wxID_ANY, "Remove Context");
 	StyleBorderWorkspaceActionButton(addUsageContextButton_, "Add a new brush usage context for this global border.");
 	StyleBorderWorkspaceActionButton(editUsageContextButton_, "Edit the selected usage context.");
 	StyleBorderWorkspaceActionButton(removeUsageContextButton_, "Remove the selected usage context from its owner brush.");
-	globalDetailsBox->Add(CreateBorderSectionLabel(globalDetailsPanel_, "Search"), 0, wxLEFT | wxRIGHT | wxTOP, FromDIP(8));
+	globalDetailsBox->Add(CreateBorderSectionLabel(globalDetailsParent, "Search"), 0, wxLEFT | wxRIGHT | wxTOP, FromDIP(8));
 	globalDetailsBox->Add(usageSearchCtrl_, 0, wxEXPAND | wxALL, FromDIP(8));
 	globalDetailsBox->Add(usageSearchHintLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(8));
 	globalDetailsBox->Add(usageSummaryLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(8));
-	globalDetailsBox->Add(CreateBorderSectionLabel(globalDetailsPanel_, "Contexts"), 0, wxLEFT | wxRIGHT, FromDIP(8));
+	globalDetailsBox->Add(CreateBorderSectionLabel(globalDetailsParent, "Contexts"), 0, wxLEFT | wxRIGHT, FromDIP(8));
 	globalDetailsBox->Add(usageGrid_, 1, wxEXPAND | wxALL, FromDIP(8));
-	globalDetailsBox->Add(CreateBorderSectionLabel(globalDetailsPanel_, "Selection"), 0, wxLEFT | wxRIGHT, FromDIP(8));
+	globalDetailsBox->Add(CreateBorderSectionLabel(globalDetailsParent, "Selection"), 0, wxLEFT | wxRIGHT, FromDIP(8));
 	wxBoxSizer* usageDetailsRow = new wxBoxSizer(wxHORIZONTAL);
 	usageDetailsRow->Add(usagePreviewItem_, 0, wxALIGN_TOP | wxRIGHT, FromDIP(8));
 	usageDetailsRow->Add(usageSelectionLabel_, 1, wxEXPAND);
@@ -1049,6 +1052,7 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	wxBoxSizer* workspaceSizer = new wxBoxSizer(wxHORIZONTAL);
 
 	wxStaticBoxSizer* gridBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Slot Grid");
+	wxWindow* gridParent = gridBox->GetStaticBox();
 	wxFlexGridSizer* slotGridSizer = new wxFlexGridSizer(kBorderGridSize, kBorderGridSize, FromDIP(kBorderGridGapDip), FromDIP(kBorderGridGapDip));
 	const int gridColumnWidthDip =
 		(kBorderGridSize * kBorderGridCellWidthDip) +
@@ -1060,7 +1064,7 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 			const BorderEdgeSpec* specForCell = FindEdgeSpecForCell(row, col);
 
 			if (IsBorderGridCenterCell(row, col)) {
-				wxPanel* centerPanel = new wxPanel(scrolled, wxID_ANY);
+				wxPanel* centerPanel = new wxPanel(gridParent, wxID_ANY);
 				centerPanel->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_BTNFACE));
 				wxBoxSizer* centerSizer = new wxBoxSizer(wxVERTICAL);
 				centerGroundSlotPreview_ = new ItemButton(centerPanel, RENDER_SIZE_32x32, 0);
@@ -1081,11 +1085,11 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 			}
 
 			if (!specForCell) {
-				slotGridSizer->Add(CreateSpacerCell(scrolled, kBorderGridCellWidthDip, kBorderGridCellHeightDip), 0, wxEXPAND);
+				slotGridSizer->Add(CreateSpacerCell(gridParent, kBorderGridCellWidthDip, kBorderGridCellHeightDip), 0, wxEXPAND);
 				continue;
 			}
 
-			wxPanel* cell = new wxPanel(scrolled, wxID_ANY);
+			wxPanel* cell = new wxPanel(gridParent, wxID_ANY);
 			cell->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_BTNFACE));
 			wxBoxSizer* cellSizer = new wxBoxSizer(wxVERTICAL);
 			wxString edge = wxString::FromUTF8(specForCell->edge);
@@ -1121,10 +1125,11 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	gridBox->Add(gridCenterRow, 0, wxEXPAND);
 
 	wxStaticBoxSizer* editorBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Selected Slot");
-	selectedEdgeLabel_ = new wxStaticText(scrolled, wxID_ANY, "Edge: none");
-	selectedItemIdCtrl_ = new wxSpinCtrl(scrolled, wxID_ANY);
+	wxWindow* editorParent = editorBox->GetStaticBox();
+	selectedEdgeLabel_ = new wxStaticText(editorParent, wxID_ANY, "Edge: none");
+	selectedItemIdCtrl_ = new wxSpinCtrl(editorParent, wxID_ANY);
 	selectedItemIdCtrl_->SetRange(0, std::max(100000, static_cast<int>(g_items.getMaxID())));
-	selectedItemPreview_ = new ItemButton(scrolled, RENDER_SIZE_32x32, 0);
+	selectedItemPreview_ = new ItemButton(editorParent, RENDER_SIZE_32x32, 0);
 	selectedItemIdCtrl_->SetMinSize(wxSize(FromDIP(110), -1));
 
 	wxBoxSizer* selectionRow = new wxBoxSizer(wxHORIZONTAL);
@@ -1132,9 +1137,9 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	selectionRow->Add(selectedItemIdCtrl_, 1, wxALIGN_CENTER_VERTICAL);
 
 	wxGridSizer* selectionActions = new wxGridSizer(2, FromDIP(6), FromDIP(6));
-	wxButton* pickItemButton = new wxButton(scrolled, wxID_ANY, "Pick Item");
-	wxButton* applyButton = new wxButton(scrolled, wxID_ANY, "Apply To Slot");
-	wxButton* clearButton = new wxButton(scrolled, wxID_ANY, "Clear Slot");
+	wxButton* pickItemButton = new wxButton(editorParent, wxID_ANY, "Pick Item");
+	wxButton* applyButton = new wxButton(editorParent, wxID_ANY, "Apply To Slot");
+	wxButton* clearButton = new wxButton(editorParent, wxID_ANY, "Clear Slot");
 	StyleBorderWorkspaceActionButton(pickItemButton, "Choose an item id from the picker for the selected border slot.");
 	StyleBorderWorkspaceActionButton(applyButton, "Apply the selected item id to the active border slot.");
 	StyleBorderWorkspaceActionButton(clearButton, "Clear the selected slot back to item id 0 in the local editor.");
@@ -1148,7 +1153,8 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	editorBox->Add(selectionActions, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
 
 	wxStaticBoxSizer* previewBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Preview Matrix");
-	previewMatrixPanel_ = new BorderPreviewMatrixPanel(scrolled);
+	wxWindow* previewParent = previewBox->GetStaticBox();
+	previewMatrixPanel_ = new BorderPreviewMatrixPanel(previewParent);
 	wxBoxSizer* previewCenterRow = new wxBoxSizer(wxHORIZONTAL);
 	previewCenterRow->AddStretchSpacer(1);
 	previewCenterRow->Add(previewMatrixPanel_, 0, wxALL, FromDIP(8));

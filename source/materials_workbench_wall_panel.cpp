@@ -858,20 +858,21 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	summaryLabel_ = new wxStaticText(scrolled, wxID_ANY, "");
 
 	wxStaticBoxSizer* identityBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Wall Brush");
+	wxWindow* identityParent = identityBox->GetStaticBox();
 	wxFlexGridSizer* identityGrid = new wxFlexGridSizer(2, FromDIP(8), FromDIP(10));
 	identityGrid->AddGrowableCol(1, 1);
 
-	brushIdCtrl_ = new wxTextCtrl(scrolled, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
-	brushNameCtrl_ = new wxTextCtrl(scrolled, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
-	partChoice_ = new wxChoice(scrolled, wxID_ANY);
-	addPartButton_ = new wxButton(scrolled, wxID_ANY, "+");
-	partSummaryLabel_ = new wxStaticText(scrolled, wxID_ANY, "");
+	brushIdCtrl_ = new wxTextCtrl(identityParent, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
+	brushNameCtrl_ = new wxTextCtrl(identityParent, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
+	partChoice_ = new wxChoice(identityParent, wxID_ANY);
+	addPartButton_ = new wxButton(identityParent, wxID_ANY, "+");
+	partSummaryLabel_ = new wxStaticText(identityParent, wxID_ANY, "");
 
-	identityGrid->Add(new wxStaticText(scrolled, wxID_ANY, "SQLite ID"), 0, wxALIGN_CENTER_VERTICAL);
+	identityGrid->Add(new wxStaticText(identityParent, wxID_ANY, "SQLite ID"), 0, wxALIGN_CENTER_VERTICAL);
 	identityGrid->Add(brushIdCtrl_, 1, wxEXPAND);
-	identityGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Name"), 0, wxALIGN_CENTER_VERTICAL);
+	identityGrid->Add(new wxStaticText(identityParent, wxID_ANY, "Name"), 0, wxALIGN_CENTER_VERTICAL);
 	identityGrid->Add(brushNameCtrl_, 1, wxEXPAND);
-	identityGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Part Type"), 0, wxALIGN_CENTER_VERTICAL);
+	identityGrid->Add(new wxStaticText(identityParent, wxID_ANY, "Part Type"), 0, wxALIGN_CENTER_VERTICAL);
 	wxBoxSizer* partRowSizer = new wxBoxSizer(wxHORIZONTAL);
 	partRowSizer->Add(partChoice_, 1, wxEXPAND);
 	partRowSizer->Add(addPartButton_, 0, wxLEFT, FromDIP(6));
@@ -881,26 +882,27 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	identityBox->Add(partSummaryLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
 
 	wxStaticBoxSizer* previewBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Preview");
-	composedPreview_ = new WallWorkspaceComposedPreviewPanel(scrolled);
+	wxWindow* previewParent = previewBox->GetStaticBox();
+	composedPreview_ = new WallWorkspaceComposedPreviewPanel(previewParent);
 	previewBox->Add(composedPreview_, 0, wxEXPAND | wxALL, FromDIP(6));
 
-	previewFillRadio_ = new wxRadioButton(scrolled, wxID_ANY, "Fill", wxDefaultPosition, wxDefaultSize, wxRB_GROUP);
-	previewStrictRadio_ = new wxRadioButton(scrolled, wxID_ANY, "Strict");
+	previewFillRadio_ = new wxRadioButton(previewParent, wxID_ANY, "Fill", wxDefaultPosition, wxDefaultSize, wxRB_GROUP);
+	previewStrictRadio_ = new wxRadioButton(previewParent, wxID_ANY, "Strict");
 	previewFillRadio_->SetValue(true);
-	previewOverlayCtrl_ = new wxCheckBox(scrolled, wxID_ANY, "Show overlays");
+	previewOverlayCtrl_ = new wxCheckBox(previewParent, wxID_ANY, "Show overlays");
 	previewOverlayCtrl_->SetValue(false);
-	previewDoorAutoRadio_ = new wxRadioButton(scrolled, wxID_ANY, "Auto", wxDefaultPosition, wxDefaultSize, wxRB_GROUP);
-	previewDoorNorthRadio_ = new wxRadioButton(scrolled, wxID_ANY, "N");
-	previewDoorEastRadio_ = new wxRadioButton(scrolled, wxID_ANY, "E");
-	previewDoorSouthRadio_ = new wxRadioButton(scrolled, wxID_ANY, "S");
-	previewDoorWestRadio_ = new wxRadioButton(scrolled, wxID_ANY, "W");
+	previewDoorAutoRadio_ = new wxRadioButton(previewParent, wxID_ANY, "Auto", wxDefaultPosition, wxDefaultSize, wxRB_GROUP);
+	previewDoorNorthRadio_ = new wxRadioButton(previewParent, wxID_ANY, "N");
+	previewDoorEastRadio_ = new wxRadioButton(previewParent, wxID_ANY, "E");
+	previewDoorSouthRadio_ = new wxRadioButton(previewParent, wxID_ANY, "S");
+	previewDoorWestRadio_ = new wxRadioButton(previewParent, wxID_ANY, "W");
 	previewDoorAutoRadio_->SetValue(true);
 
 	wxBoxSizer* previewControls = new wxBoxSizer(wxHORIZONTAL);
-	previewControls->Add(new wxStaticText(scrolled, wxID_ANY, "Mode"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
+	previewControls->Add(new wxStaticText(previewParent, wxID_ANY, "Mode"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
 	previewControls->Add(previewFillRadio_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
 	previewControls->Add(previewStrictRadio_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(12));
-	previewControls->Add(new wxStaticText(scrolled, wxID_ANY, "Door"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
+	previewControls->Add(new wxStaticText(previewParent, wxID_ANY, "Door"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
 	previewControls->Add(previewDoorAutoRadio_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
 	previewControls->Add(previewDoorNorthRadio_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
 	previewControls->Add(previewDoorEastRadio_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
@@ -912,7 +914,8 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	wxBoxSizer* gridsRow = new wxBoxSizer(wxHORIZONTAL);
 
 	wxStaticBoxSizer* itemBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Wall Items");
-	itemGridScroll_ = new wxScrolledWindow(scrolled, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL);
+	wxWindow* itemBoxParent = itemBox->GetStaticBox();
+	itemGridScroll_ = new wxScrolledWindow(itemBoxParent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL);
 	itemGridScroll_->SetScrollRate(FromDIP(10), FromDIP(10));
 	itemGridScroll_->SetMinSize(wxSize(-1, FromDIP(200)));
 	itemGridSizer_ = new wxWrapSizer(wxHORIZONTAL);
@@ -920,7 +923,8 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	itemBox->Add(itemGridScroll_, 1, wxEXPAND | wxALL, FromDIP(6));
 
 	wxStaticBoxSizer* doorBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Doors");
-	doorGridScroll_ = new wxScrolledWindow(scrolled, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL);
+	wxWindow* doorBoxParent = doorBox->GetStaticBox();
+	doorGridScroll_ = new wxScrolledWindow(doorBoxParent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL);
 	doorGridScroll_->SetScrollRate(FromDIP(10), FromDIP(10));
 	doorGridScroll_->SetMinSize(wxSize(-1, FromDIP(200)));
 	doorGridSizer_ = new wxWrapSizer(wxHORIZONTAL);
@@ -933,26 +937,27 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	wxBoxSizer* editorRow = new wxBoxSizer(wxHORIZONTAL);
 
 	wxStaticBoxSizer* itemEditorBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Selected Item");
-	selectedItemLabel_ = new wxStaticText(scrolled, wxID_ANY, "No wall item selected");
-	itemPreviewButton_ = new ItemButton(scrolled, RENDER_SIZE_32x32, 0);
-	itemIdCtrl_ = new wxSpinCtrl(scrolled, wxID_ANY);
+	wxWindow* itemEditorParent = itemEditorBox->GetStaticBox();
+	selectedItemLabel_ = new wxStaticText(itemEditorParent, wxID_ANY, "No wall item selected");
+	itemPreviewButton_ = new ItemButton(itemEditorParent, RENDER_SIZE_32x32, 0);
+	itemIdCtrl_ = new wxSpinCtrl(itemEditorParent, wxID_ANY);
 	itemIdCtrl_->SetRange(0, GetWallPanelMaxEditableItemId());
-	itemChanceCtrl_ = new wxSpinCtrl(scrolled, wxID_ANY);
+	itemChanceCtrl_ = new wxSpinCtrl(itemEditorParent, wxID_ANY);
 	itemChanceCtrl_->SetRange(0, 100000);
 
 	wxFlexGridSizer* itemEditorGrid = new wxFlexGridSizer(2, FromDIP(8), FromDIP(10));
 	itemEditorGrid->AddGrowableCol(1, 1);
-	itemEditorGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Preview"), 0, wxALIGN_CENTER_VERTICAL);
+	itemEditorGrid->Add(new wxStaticText(itemEditorParent, wxID_ANY, "Preview"), 0, wxALIGN_CENTER_VERTICAL);
 	itemEditorGrid->Add(itemPreviewButton_, 0, wxALIGN_LEFT);
-	itemEditorGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
+	itemEditorGrid->Add(new wxStaticText(itemEditorParent, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
 	itemEditorGrid->Add(itemIdCtrl_, 1, wxEXPAND);
-	itemEditorGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Chance"), 0, wxALIGN_CENTER_VERTICAL);
+	itemEditorGrid->Add(new wxStaticText(itemEditorParent, wxID_ANY, "Chance"), 0, wxALIGN_CENTER_VERTICAL);
 	itemEditorGrid->Add(itemChanceCtrl_, 1, wxEXPAND);
 
 	wxBoxSizer* itemActionSizer = new wxBoxSizer(wxHORIZONTAL);
-	wxButton* pickItemButton = new wxButton(scrolled, wxID_ANY, "Pick Item");
-	wxButton* applyItemButton = new wxButton(scrolled, wxID_ANY, "Apply Item");
-	wxButton* removeItemButton = new wxButton(scrolled, wxID_ANY, "Remove Item");
+	wxButton* pickItemButton = new wxButton(itemEditorParent, wxID_ANY, "Pick Item");
+	wxButton* applyItemButton = new wxButton(itemEditorParent, wxID_ANY, "Apply Item");
+	wxButton* removeItemButton = new wxButton(itemEditorParent, wxID_ANY, "Remove Item");
 	itemActionSizer->Add(pickItemButton, 0, wxRIGHT, FromDIP(6));
 	itemActionSizer->Add(applyItemButton, 0, wxRIGHT, FromDIP(6));
 	itemActionSizer->Add(removeItemButton, 0);
@@ -962,36 +967,37 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	itemEditorBox->Add(itemActionSizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(6));
 
 	wxStaticBoxSizer* doorEditorBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Selected Door");
-	selectedDoorLabel_ = new wxStaticText(scrolled, wxID_ANY, "No door selected");
-	doorPreviewButton_ = new ItemButton(scrolled, RENDER_SIZE_32x32, 0);
-	doorItemIdCtrl_ = new wxSpinCtrl(scrolled, wxID_ANY);
+	wxWindow* doorEditorParent = doorEditorBox->GetStaticBox();
+	selectedDoorLabel_ = new wxStaticText(doorEditorParent, wxID_ANY, "No door selected");
+	doorPreviewButton_ = new ItemButton(doorEditorParent, RENDER_SIZE_32x32, 0);
+	doorItemIdCtrl_ = new wxSpinCtrl(doorEditorParent, wxID_ANY);
 	doorItemIdCtrl_->SetRange(0, GetWallPanelMaxEditableItemId());
-	doorTypeChoice_ = new wxChoice(scrolled, wxID_ANY);
+	doorTypeChoice_ = new wxChoice(doorEditorParent, wxID_ANY);
 	const wxString doorTypes[] = { "archway", "normal", "locked", "quest", "magic", "window", "hatch_window", "hatch window", "any door", "any window", "any" };
 	for (const wxString &doorType : doorTypes) {
 		doorTypeChoice_->Append(doorType);
 	}
-	doorOpenCtrl_ = new wxCheckBox(scrolled, wxID_ANY, "Open");
-	doorHateCtrl_ = new wxCheckBox(scrolled, wxID_ANY, "Wall Hate");
+	doorOpenCtrl_ = new wxCheckBox(doorEditorParent, wxID_ANY, "Open");
+	doorHateCtrl_ = new wxCheckBox(doorEditorParent, wxID_ANY, "Wall Hate");
 
 	wxFlexGridSizer* doorEditorGrid = new wxFlexGridSizer(2, FromDIP(8), FromDIP(10));
 	doorEditorGrid->AddGrowableCol(1, 1);
-	doorEditorGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Preview"), 0, wxALIGN_CENTER_VERTICAL);
+	doorEditorGrid->Add(new wxStaticText(doorEditorParent, wxID_ANY, "Preview"), 0, wxALIGN_CENTER_VERTICAL);
 	doorEditorGrid->Add(doorPreviewButton_, 0, wxALIGN_LEFT);
-	doorEditorGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
+	doorEditorGrid->Add(new wxStaticText(doorEditorParent, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
 	doorEditorGrid->Add(doorItemIdCtrl_, 1, wxEXPAND);
-	doorEditorGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Door Type"), 0, wxALIGN_CENTER_VERTICAL);
+	doorEditorGrid->Add(new wxStaticText(doorEditorParent, wxID_ANY, "Door Type"), 0, wxALIGN_CENTER_VERTICAL);
 	doorEditorGrid->Add(doorTypeChoice_, 1, wxEXPAND);
-	doorEditorGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Flags"), 0, wxALIGN_CENTER_VERTICAL);
+	doorEditorGrid->Add(new wxStaticText(doorEditorParent, wxID_ANY, "Flags"), 0, wxALIGN_CENTER_VERTICAL);
 	wxBoxSizer* doorFlagSizer = new wxBoxSizer(wxHORIZONTAL);
 	doorFlagSizer->Add(doorOpenCtrl_, 0, wxRIGHT, FromDIP(8));
 	doorFlagSizer->Add(doorHateCtrl_, 0);
 	doorEditorGrid->Add(doorFlagSizer, 1, wxEXPAND);
 
 	wxBoxSizer* doorActionSizer = new wxBoxSizer(wxHORIZONTAL);
-	wxButton* pickDoorItemButton = new wxButton(scrolled, wxID_ANY, "Pick Door Item");
-	wxButton* applyDoorButton = new wxButton(scrolled, wxID_ANY, "Apply Door");
-	wxButton* removeDoorButton = new wxButton(scrolled, wxID_ANY, "Remove Door");
+	wxButton* pickDoorItemButton = new wxButton(doorEditorParent, wxID_ANY, "Pick Door Item");
+	wxButton* applyDoorButton = new wxButton(doorEditorParent, wxID_ANY, "Apply Door");
+	wxButton* removeDoorButton = new wxButton(doorEditorParent, wxID_ANY, "Remove Door");
 	doorActionSizer->Add(pickDoorItemButton, 0, wxRIGHT, FromDIP(6));
 	doorActionSizer->Add(applyDoorButton, 0, wxRIGHT, FromDIP(6));
 	doorActionSizer->Add(removeDoorButton, 0);
