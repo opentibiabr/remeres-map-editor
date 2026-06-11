@@ -24,7 +24,7 @@
 - [x] Wall Workspace preview: add `Strict / Fill` mode toggle, overlay diagnostics, and explicit door-side controls
 - [x] Wall Workspace density pass: tighten preview controls and reduce unused vertical space in grids
 - [x] Workbench wxWidgets cleanup: fix `wxStaticBoxSizer` parenting warnings by creating static-box children under `GetStaticBox()`
-- [ ] Continue reducing spacing and padding across workspaces where the layout still feels too loose
+- [x] Continue reducing spacing and padding across workspaces where the layout still feels too loose
 - [ ] Continue small product-language and workflow refinements across Workbench texts and actions
 - [x] Standardize technical labels such as `lookId`, `serverLookId`, `zOrder`, and `partType`
 

@@ -832,16 +832,16 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	renameSectionButton_->Hide();
 	deleteSectionButton_->Hide();
 
-	paletteRowSizer->Add(createPaletteButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(6));
-	paletteRowSizer->Add(renamePaletteButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(6));
-	paletteRowSizer->Add(deletePaletteButton_, 0, wxBOTTOM, FromDIP(6));
+	paletteRowSizer->Add(createPaletteButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(4));
+	paletteRowSizer->Add(renamePaletteButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(4));
+	paletteRowSizer->Add(deletePaletteButton_, 0, wxBOTTOM, FromDIP(4));
 
-	toolbarSizer->Add(paletteRowSizer, 0, wxBOTTOM, FromDIP(8));
-	toolbarSizer->Add(makeSectionLabel(this, "Palette Category"), 0, wxBOTTOM, FromDIP(4));
-	groupRowSizer->Add(paletteGroupChoice_, 0, wxRIGHT | wxBOTTOM, FromDIP(12));
-	groupRowSizer->Add(createPaletteGroupButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(6));
-	groupRowSizer->Add(renamePaletteGroupButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(6));
-	groupRowSizer->Add(deletePaletteGroupButton_, 0, wxBOTTOM, FromDIP(6));
+	toolbarSizer->Add(paletteRowSizer, 0, wxBOTTOM, FromDIP(6));
+	toolbarSizer->Add(makeSectionLabel(this, "Palette Category"), 0, wxBOTTOM, FromDIP(3));
+	groupRowSizer->Add(paletteGroupChoice_, 0, wxRIGHT | wxBOTTOM, FromDIP(8));
+	groupRowSizer->Add(createPaletteGroupButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(4));
+	groupRowSizer->Add(renamePaletteGroupButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(4));
+	groupRowSizer->Add(deletePaletteGroupButton_, 0, wxBOTTOM, FromDIP(4));
 	toolbarSizer->Add(groupRowSizer, 0, wxEXPAND);
 
 	wxSplitterWindow* contentSplitter = new wxSplitterWindow(this, wxID_ANY);
@@ -851,7 +851,7 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	wxPanel* currentSectionPanel = new wxPanel(contentSplitter, wxID_ANY);
 	wxBoxSizer* currentSectionSizer = new wxBoxSizer(wxVERTICAL);
 	wxWrapSizer* paletteBrushActionsSizer = new wxWrapSizer(wxHORIZONTAL, 0);
-	wxFlexGridSizer* moveDestinationSizer = new wxFlexGridSizer(2, 2, FromDIP(6), FromDIP(8));
+	wxFlexGridSizer* moveDestinationSizer = new wxFlexGridSizer(2, 2, FromDIP(4), FromDIP(6));
 	moveDestinationSizer->AddGrowableCol(1, 1);
 	addBrushButton_ = new wxButton(currentSectionPanel, wxID_ANY, "Add Entry");
 	moveToPaletteButton_ = new wxButton(currentSectionPanel, wxID_ANY, "Move Entry");
@@ -865,28 +865,28 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	wxStaticText* paletteBrushesTitle = new wxStaticText(currentSectionPanel, wxID_ANY, "Palette Entries");
 	currentSectionSizer->Add(paletteBrushesTitle, 0, wxBOTTOM, FromDIP(4));
 	sectionSummaryLabel_ = new wxStaticText(currentSectionPanel, wxID_ANY, "");
-	currentSectionSizer->Add(sectionSummaryLabel_, 0, wxBOTTOM, FromDIP(6));
+	currentSectionSizer->Add(sectionSummaryLabel_, 0, wxBOTTOM, FromDIP(4));
 	selectionSummaryLabel_ = new wxStaticText(currentSectionPanel, wxID_ANY, "");
 	selectionSummaryLabel_->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_GRAYTEXT));
-	currentSectionSizer->Add(selectionSummaryLabel_, 0, wxBOTTOM, FromDIP(6));
-	paletteBrushActionsSizer->Add(addBrushButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(6));
-	paletteBrushActionsSizer->Add(moveToPaletteButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(6));
-	paletteBrushActionsSizer->Add(removeBrushButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(6));
-	paletteBrushActionsSizer->Add(moveUpButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(6));
-	paletteBrushActionsSizer->Add(moveDownButton_, 0, wxBOTTOM, FromDIP(6));
-	currentSectionSizer->Add(paletteBrushActionsSizer, 0, wxBOTTOM, FromDIP(6));
+	currentSectionSizer->Add(selectionSummaryLabel_, 0, wxBOTTOM, FromDIP(4));
+	paletteBrushActionsSizer->Add(addBrushButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(4));
+	paletteBrushActionsSizer->Add(moveToPaletteButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(4));
+	paletteBrushActionsSizer->Add(removeBrushButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(4));
+	paletteBrushActionsSizer->Add(moveUpButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(4));
+	paletteBrushActionsSizer->Add(moveDownButton_, 0, wxBOTTOM, FromDIP(4));
+	currentSectionSizer->Add(paletteBrushActionsSizer, 0, wxBOTTOM, FromDIP(4));
 	moveDestinationSizer->Add(new wxStaticText(currentSectionPanel, wxID_ANY, "Destination Category"), 0, wxALIGN_CENTER_VERTICAL);
 	moveDestinationSizer->Add(moveDestinationFamilyChoice_, 1, wxEXPAND);
 	moveDestinationSizer->Add(new wxStaticText(currentSectionPanel, wxID_ANY, "Destination Palette"), 0, wxALIGN_CENTER_VERTICAL);
 	moveDestinationSizer->Add(moveDestinationPaletteChoice_, 1, wxEXPAND);
-	currentSectionSizer->Add(moveDestinationSizer, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+	currentSectionSizer->Add(moveDestinationSizer, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
 	sectionBrushGrid_ = new MaterialsWorkbenchBrushGridPanel(currentSectionPanel);
 	currentSectionSizer->Add(sectionBrushGrid_, 1, wxEXPAND);
 	currentSectionPanel->SetSizer(currentSectionSizer);
 
 	wxPanel* availablePanel = new wxPanel(contentSplitter, wxID_ANY);
 	wxBoxSizer* availableSizer = new wxBoxSizer(wxVERTICAL);
-	wxFlexGridSizer* sourceGridSizer = new wxFlexGridSizer(2, 2, FromDIP(6), FromDIP(8));
+	wxFlexGridSizer* sourceGridSizer = new wxFlexGridSizer(2, 2, FromDIP(4), FromDIP(6));
 	availableBrushFamilyChoice_ = new wxChoice(availablePanel, wxID_ANY);
 	availableBrushPaletteChoice_ = new wxChoice(availablePanel, wxID_ANY);
 	availableBrushFamilyChoice_->SetMinSize(wxSize(FromDIP(140), -1));
@@ -894,25 +894,25 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	availableBrushFamilyChoice_->SetMaxSize(wxSize(FromDIP(280), -1));
 	availableBrushPaletteChoice_->SetMaxSize(wxSize(FromDIP(280), -1));
 	wxStaticText* sourceLibraryTitle = new wxStaticText(availablePanel, wxID_ANY, "Source Catalog");
-	availableSizer->Add(sourceLibraryTitle, 0, wxBOTTOM, FromDIP(6));
+	availableSizer->Add(sourceLibraryTitle, 0, wxBOTTOM, FromDIP(4));
 	sourceGridSizer->Add(new wxStaticText(availablePanel, wxID_ANY, "Palette Category"), 0, wxALIGN_CENTER_VERTICAL);
 	sourceGridSizer->Add(availableBrushFamilyChoice_, 0);
 	sourceGridSizer->Add(new wxStaticText(availablePanel, wxID_ANY, "Palette"), 0, wxALIGN_CENTER_VERTICAL);
 	sourceGridSizer->Add(availableBrushPaletteChoice_, 0);
-	availableSizer->Add(sourceGridSizer, 0, wxBOTTOM, FromDIP(8));
+	availableSizer->Add(sourceGridSizer, 0, wxBOTTOM, FromDIP(6));
 	availableBrushSummaryLabel_ = new wxStaticText(availablePanel, wxID_ANY, "");
-	availableSizer->Add(availableBrushSummaryLabel_, 0, wxBOTTOM, FromDIP(6));
+	availableSizer->Add(availableBrushSummaryLabel_, 0, wxBOTTOM, FromDIP(4));
 	availableBrushGrid_ = new MaterialsWorkbenchBrushGridPanel(availablePanel);
 	availableSizer->Add(availableBrushGrid_, 1, wxEXPAND);
 	availablePanel->SetSizer(availableSizer);
 
 	contentSplitter->SplitVertically(currentSectionPanel, availablePanel, FromDIP(680));
 
-	rootSizer->Add(headerSizer, 0, wxEXPAND | wxALL, FromDIP(10));
-	rootSizer->Add(new wxStaticLine(this), 0, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(10));
-	rootSizer->Add(toolbarSizer, 0, wxEXPAND | wxALL, FromDIP(10));
-	rootSizer->Add(contentSplitter, 1, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(10));
-	rootSizer->Add(statusLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(2));
+	rootSizer->Add(headerSizer, 0, wxEXPAND | wxALL, FromDIP(8));
+	rootSizer->Add(new wxStaticLine(this), 0, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(8));
+	rootSizer->Add(toolbarSizer, 0, wxEXPAND | wxALL, FromDIP(8));
+	rootSizer->Add(contentSplitter, 1, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(8));
+	rootSizer->Add(statusLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(4));
 	SetSizer(rootSizer);
 
 	createPaletteButton_->SetToolTip("Create a new palette.");
