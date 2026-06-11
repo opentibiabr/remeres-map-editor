@@ -26,7 +26,7 @@
 - [x] Workbench wxWidgets cleanup: fix `wxStaticBoxSizer` parenting warnings by creating static-box children under `GetStaticBox()`
 - [ ] Continue reducing spacing and padding across workspaces where the layout still feels too loose
 - [ ] Continue small product-language and workflow refinements across Workbench texts and actions
-- [ ] Standardize technical labels such as `lookId`, `serverLookId`, `zOrder`, and `partType`
+- [x] Standardize technical labels such as `lookId`, `serverLookId`, `zOrder`, and `partType`
 
 ## Future UX
 - [x] Add search and filtering in the navigation tree: the sidebar now exposes a catalog filter above the tree, keeps matching parent groups visible, auto-expands filtered branches, preserves and restores pre-filter navigation state when clearing the query, and shows an explicit empty-result row when nothing matches

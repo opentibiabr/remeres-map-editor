@@ -35,9 +35,9 @@ namespace {
 		text << "Type: " << brush.type << "\n";
 		text << "ID: " << brush.id << "\n";
 		text << "Source: " << brush.sourceFile << "\n\n";
-		text << "lookId: " << brush.lookId << "\n";
-		text << "serverLookId: " << brush.serverLookId << "\n";
-		text << "zOrder: " << brush.zOrder << "\n";
+		text << "Look ID: " << brush.lookId << "\n";
+		text << "Server look ID: " << brush.serverLookId << "\n";
+		text << "Z order: " << brush.zOrder << "\n";
 		text << "thickness: " << brush.thickness << "\n";
 		text << "thicknessCeiling: " << brush.thicknessCeiling << "\n\n";
 		text << "Flags:\n";

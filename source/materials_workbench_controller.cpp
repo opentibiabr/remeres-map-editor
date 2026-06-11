@@ -52,9 +52,9 @@ namespace {
 		text << "ID: " << brush.id << "\n";
 		text << "Storage: materials.db\n";
 		text << "Imported from: " << FormatInspectorImportedFromValue(brush.sourceFile) << "\n\n";
-		text << "lookId: " << brush.lookId << "\n";
-		text << "serverLookId: " << brush.serverLookId << "\n";
-		text << "zOrder: " << brush.zOrder << "\n";
+		text << "Look ID: " << brush.lookId << "\n";
+		text << "Server look ID: " << brush.serverLookId << "\n";
+		text << "Z order: " << brush.zOrder << "\n";
 		return text;
 	}
 

@@ -1540,9 +1540,9 @@ namespace {
 		text << "ID: " << brush.id << "\n";
 		text << "Storage: materials.db\n";
 		text << "Imported from: " << FormatImportedFromValue(brush.sourceFile) << "\n\n";
-		text << "lookId: " << brush.lookId << "\n";
-		text << "serverLookId: " << brush.serverLookId << "\n";
-		text << "zOrder: " << brush.zOrder << "\n";
+		text << "Look ID: " << brush.lookId << "\n";
+		text << "Server look ID: " << brush.serverLookId << "\n";
+		text << "Z order: " << brush.zOrder << "\n";
 		return text;
 	}
 
@@ -2148,7 +2148,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildMetadataPage(wxNotebook* notebook) {
 	wxBoxSizer* contentSizer = new wxBoxSizer(wxVERTICAL);
 	summaryLabel_ = new wxStaticText(scrolled, wxID_ANY, "");
 
-	contentSizer->Add(CreateSectionLabel(scrolled, "Identity"), 0, wxBOTTOM, FromDIP(6));
+	contentSizer->Add(CreateSectionLabel(scrolled, "Identity"), 0, wxBOTTOM, FromDIP(4));
 
 	wxFlexGridSizer* identityGrid = new wxFlexGridSizer(2, FromDIP(8), FromDIP(10));
 	identityGrid->AddGrowableCol(1, 1);
@@ -2170,10 +2170,10 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildMetadataPage(wxNotebook* notebook) {
 	identityGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Imported From"), 0, wxALIGN_CENTER_VERTICAL);
 	identityGrid->Add(sourceCtrl_, 1, wxEXPAND);
 
-	contentSizer->Add(identityGrid, 0, wxEXPAND | wxBOTTOM, FromDIP(12));
-	contentSizer->Add(new wxStaticLine(scrolled), 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+	contentSizer->Add(identityGrid, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+	contentSizer->Add(new wxStaticLine(scrolled), 0, wxEXPAND | wxBOTTOM, FromDIP(8));
 
-	contentSizer->Add(CreateSectionLabel(scrolled, "Rendering And Placement"), 0, wxBOTTOM, FromDIP(6));
+	contentSizer->Add(CreateSectionLabel(scrolled, "Rendering And Placement"), 0, wxBOTTOM, FromDIP(4));
 
 	wxFlexGridSizer* numericGrid = new wxFlexGridSizer(2, FromDIP(8), FromDIP(10));
 	numericGrid->AddGrowableCol(1, 1);
@@ -2188,31 +2188,48 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildMetadataPage(wxNotebook* notebook) {
 	thicknessCtrl_ = CreateSpinField(scrolled, 0, 1000000);
 	thicknessCeilingCtrl_ = CreateSpinField(scrolled, 0, 1000000);
 
-	numericGrid->Add(new wxStaticText(scrolled, wxID_ANY, "lookId"), 0, wxALIGN_CENTER_VERTICAL);
+	wxStaticText* lookIdLabel = new wxStaticText(scrolled, wxID_ANY, "Look ID");
+	numericGrid->Add(lookIdLabel, 0, wxALIGN_CENTER_VERTICAL);
 	wxBoxSizer* lookIdRow = new wxBoxSizer(wxHORIZONTAL);
 	lookIdRow->Add(lookIdPreview_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
 	lookIdRow->Add(lookIdCtrl_, 1, wxEXPAND);
 	numericGrid->Add(lookIdRow, 1, wxEXPAND);
 	numericGrid->AddSpacer(0);
 	numericGrid->Add(lookIdOwnershipLabel_, 1, wxEXPAND);
-	numericGrid->Add(new wxStaticText(scrolled, wxID_ANY, "serverLookId"), 0, wxALIGN_CENTER_VERTICAL);
+	wxStaticText* serverLookIdLabel = new wxStaticText(scrolled, wxID_ANY, "Server look ID");
+	numericGrid->Add(serverLookIdLabel, 0, wxALIGN_CENTER_VERTICAL);
 	wxBoxSizer* serverLookIdRow = new wxBoxSizer(wxHORIZONTAL);
 	serverLookIdRow->Add(serverLookIdPreview_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
 	serverLookIdRow->Add(serverLookIdCtrl_, 1, wxEXPAND);
 	numericGrid->Add(serverLookIdRow, 1, wxEXPAND);
 	numericGrid->AddSpacer(0);
 	numericGrid->Add(serverLookIdOwnershipLabel_, 1, wxEXPAND);
-	numericGrid->Add(new wxStaticText(scrolled, wxID_ANY, "zOrder"), 0, wxALIGN_CENTER_VERTICAL);
+	wxStaticText* zOrderLabel = new wxStaticText(scrolled, wxID_ANY, "Z order");
+	numericGrid->Add(zOrderLabel, 0, wxALIGN_CENTER_VERTICAL);
 	numericGrid->Add(zOrderCtrl_, 1, wxEXPAND);
 	numericGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Thickness"), 0, wxALIGN_CENTER_VERTICAL);
 	numericGrid->Add(thicknessCtrl_, 1, wxEXPAND);
 	numericGrid->Add(new wxStaticText(scrolled, wxID_ANY, "Thickness Ceiling"), 0, wxALIGN_CENTER_VERTICAL);
 	numericGrid->Add(thicknessCeilingCtrl_, 1, wxEXPAND);
 
-	contentSizer->Add(numericGrid, 0, wxEXPAND | wxBOTTOM, FromDIP(12));
-	contentSizer->Add(new wxStaticLine(scrolled), 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+	const wxString lookIdHelp = "Either Look ID or Server look ID can be set. Setting one clears the other. Server look ID takes precedence.";
+	if (lookIdLabel) {
+		lookIdLabel->SetToolTip(lookIdHelp);
+	}
+	if (serverLookIdLabel) {
+		serverLookIdLabel->SetToolTip(lookIdHelp);
+	}
+	if (lookIdCtrl_) {
+		lookIdCtrl_->SetToolTip(lookIdHelp);
+	}
+	if (serverLookIdCtrl_) {
+		serverLookIdCtrl_->SetToolTip(lookIdHelp);
+	}
 
-	contentSizer->Add(CreateSectionLabel(scrolled, "Flags"), 0, wxBOTTOM, FromDIP(6));
+	contentSizer->Add(numericGrid, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+	contentSizer->Add(new wxStaticLine(scrolled), 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+
+	contentSizer->Add(CreateSectionLabel(scrolled, "Flags"), 0, wxBOTTOM, FromDIP(4));
 
 	wxGridSizer* flagsGrid = new wxGridSizer(2, FromDIP(8), FromDIP(8));
 	draggableCtrl_ = new wxCheckBox(scrolled, wxID_ANY, "Draggable");
@@ -2232,11 +2249,11 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildMetadataPage(wxNotebook* notebook) {
 	flagsGrid->Add(soloOptionalCtrl_, 0, wxEXPAND);
 	flagsGrid->AddSpacer(0);
 
-	contentSizer->Add(flagsGrid, 0, wxEXPAND | wxBOTTOM, FromDIP(12));
-	contentSizer->Add(new wxStaticLine(scrolled), 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+	contentSizer->Add(flagsGrid, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+	contentSizer->Add(new wxStaticLine(scrolled), 0, wxEXPAND | wxBOTTOM, FromDIP(8));
 
-	contentSizer->Add(CreateSectionLabel(scrolled, "Stored Brush Data"), 0, wxBOTTOM, FromDIP(6));
-	contentSizer->Add(summaryLabel_, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
+	contentSizer->Add(CreateSectionLabel(scrolled, "Stored Brush Data"), 0, wxBOTTOM, FromDIP(4));
+	contentSizer->Add(summaryLabel_, 0, wxEXPAND | wxBOTTOM, FromDIP(4));
 
 	scrolled->SetSizer(contentSizer);
 

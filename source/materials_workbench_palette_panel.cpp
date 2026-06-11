@@ -720,10 +720,10 @@ namespace {
 				text << "\nBrush ID: " << brushRecord->id;
 				text << "\nBrush Type: " << brushRecord->type;
 				if (brushRecord->lookId > 0) {
-					text << "\nlookId: " << brushRecord->lookId;
+					text << "\nLook ID: " << brushRecord->lookId;
 				}
 				if (brushRecord->serverLookId > 0) {
-					text << "\nserverLookId: " << brushRecord->serverLookId;
+					text << "\nServer look ID: " << brushRecord->serverLookId;
 				}
 			} else if (entry.brushId > 0) {
 				text << "\nBrush ID: " << entry.brushId;
@@ -766,10 +766,10 @@ namespace {
 		text << "Source Palette: " << source.paletteLabel << "\n";
 		text << "Storage: " << FormatStorageValue(record.sourceFile);
 		if (record.lookId > 0) {
-			text << "\nlookId: " << record.lookId;
+			text << "\nLook ID: " << record.lookId;
 		}
 		if (record.serverLookId > 0) {
-			text << "\nserverLookId: " << record.serverLookId;
+			text << "\nServer look ID: " << record.serverLookId;
 		}
 		text << "\nAction: Add this brush to the current palette.";
 		return text;
