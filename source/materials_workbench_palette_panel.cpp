@@ -821,9 +821,9 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	createPaletteButton_ = new wxButton(this, wxID_ANY, "New Palette");
 	renamePaletteButton_ = new wxButton(this, wxID_ANY, "Rename Palette");
 	deletePaletteButton_ = new wxButton(this, wxID_ANY, "Delete Palette");
-	createPaletteGroupButton_ = new wxButton(this, wxID_ANY, "New Category");
-	renamePaletteGroupButton_ = new wxButton(this, wxID_ANY, "Rename Category");
-	deletePaletteGroupButton_ = new wxButton(this, wxID_ANY, "Delete Category");
+	createPaletteGroupButton_ = new wxButton(this, wxID_ANY, "New Palette Category");
+	renamePaletteGroupButton_ = new wxButton(this, wxID_ANY, "Rename Palette Category");
+	deletePaletteGroupButton_ = new wxButton(this, wxID_ANY, "Delete Palette Category");
 	addSectionButton_ = new wxButton(this, wxID_ANY, "New Section");
 	renameSectionButton_ = new wxButton(this, wxID_ANY, "Rename Section");
 	deleteSectionButton_ = new wxButton(this, wxID_ANY, "Delete Section");
@@ -875,7 +875,7 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	paletteBrushActionsSizer->Add(moveUpButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(4));
 	paletteBrushActionsSizer->Add(moveDownButton_, 0, wxBOTTOM, FromDIP(4));
 	currentSectionSizer->Add(paletteBrushActionsSizer, 0, wxBOTTOM, FromDIP(4));
-	moveDestinationSizer->Add(new wxStaticText(currentSectionPanel, wxID_ANY, "Destination Category"), 0, wxALIGN_CENTER_VERTICAL);
+	moveDestinationSizer->Add(new wxStaticText(currentSectionPanel, wxID_ANY, "Destination Palette Category"), 0, wxALIGN_CENTER_VERTICAL);
 	moveDestinationSizer->Add(moveDestinationFamilyChoice_, 1, wxEXPAND);
 	moveDestinationSizer->Add(new wxStaticText(currentSectionPanel, wxID_ANY, "Destination Palette"), 0, wxALIGN_CENTER_VERTICAL);
 	moveDestinationSizer->Add(moveDestinationPaletteChoice_, 1, wxEXPAND);
@@ -918,15 +918,15 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	createPaletteButton_->SetToolTip("Create a new palette.");
 	renamePaletteButton_->SetToolTip("Rename the current palette.");
 	deletePaletteButton_->SetToolTip("Delete the current palette.");
-	createPaletteGroupButton_->SetToolTip("Create a new category.");
-	renamePaletteGroupButton_->SetToolTip("Rename the selected custom category.");
-	deletePaletteGroupButton_->SetToolTip("Delete the selected custom category.");
-	addBrushButton_->SetToolTip("Add the selected brush to this palette.");
-	moveToPaletteButton_->SetToolTip("Move the selected entry to the destination palette below.");
+	createPaletteGroupButton_->SetToolTip("Create a new palette category.");
+	renamePaletteGroupButton_->SetToolTip("Rename the selected custom palette category.");
+	deletePaletteGroupButton_->SetToolTip("Delete the selected custom palette category.");
+	addBrushButton_->SetToolTip("Add the selected brush as a new entry in this palette.");
+	moveToPaletteButton_->SetToolTip("Move the selected entry to the destination palette.");
 	removeBrushButton_->SetToolTip("Remove the selected entry from this palette.");
 	moveUpButton_->SetToolTip("Move the selected entry earlier in the palette.");
 	moveDownButton_->SetToolTip("Move the selected entry later in the palette.");
-	moveDestinationFamilyChoice_->SetToolTip("Choose the destination category for moving the selected entry.");
+	moveDestinationFamilyChoice_->SetToolTip("Choose the destination palette category for moving the selected entry.");
 	moveDestinationPaletteChoice_->SetToolTip("Choose the destination palette for moving the selected entry.");
 
 	createPaletteButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchPalettePanel::OnCreatePalette, this);
@@ -1023,7 +1023,7 @@ void MaterialsWorkbenchPalettePanel::RefreshWorkspace() {
 	RefreshMoveDestinationPalettes();
 	RefreshSectionEntries();
 	RefreshAvailableBrushes();
-	SetStatusMessage("Palette ready for palette category and entry edits.");
+	SetStatusMessage("Ready. Edit palette category and entries.");
 	UpdateButtonState();
 	Layout();
 }
@@ -1963,7 +1963,7 @@ void MaterialsWorkbenchPalettePanel::OnPaletteGroupChanged(wxCommandEvent &event
 
 	const PaletteGroupRecord* group = GetSelectedPaletteGroup();
 	if (!group) {
-		SetStatusMessage("Could not read the selected category.");
+		SetStatusMessage("Could not read the selected palette category.");
 		return;
 	}
 	if (group->name.IsSameAs(palette_.paletteGroupName, false)) {
@@ -1973,7 +1973,7 @@ void MaterialsWorkbenchPalettePanel::OnPaletteGroupChanged(wxCommandEvent &event
 
 	const wxString previousGroupName = palette_.paletteGroupName;
 	palette_.paletteGroupName = group->name;
-	if (!CommitPalette("Moved palette \"" + palette_.name + "\" to category \"" + group->name + "\".")) {
+	if (!CommitPalette("Moved palette \"" + palette_.name + "\" to palette category \"" + group->name + "\".")) {
 		palette_.paletteGroupName = previousGroupName;
 		RefreshPaletteGroupChoice();
 		UpdateButtonState();
@@ -1985,7 +1985,7 @@ void MaterialsWorkbenchPalettePanel::OnPaletteGroupChanged(wxCommandEvent &event
 
 void MaterialsWorkbenchPalettePanel::OnCreatePaletteGroup(wxCommandEvent &event) {
 	wxString groupName;
-	if (!PromptForPaletteGroupName("New Category", "Enter the new category name:", "", "", groupName)) {
+	if (!PromptForPaletteGroupName("New Palette Category", "Enter the new palette category name:", "", "", groupName)) {
 		return;
 	}
 
@@ -1993,13 +1993,13 @@ void MaterialsWorkbenchPalettePanel::OnCreatePaletteGroup(wxCommandEvent &event)
 	group.name = groupName;
 	wxString error;
 	if (!controller_.SavePaletteGroup(group, error)) {
-		SetStatusMessage("Failed to create category: " + error);
+		SetStatusMessage("Failed to create palette category: " + error);
 		return;
 	}
 
 	palette_.paletteGroupName = group.name;
 	RefreshPaletteGroupChoice();
-	SetStatusMessage("Created category \"" + group.name + "\".");
+	SetStatusMessage("Created palette category \"" + group.name + "\".");
 	if (onPaletteSaved_) {
 		onPaletteSaved_(palette_.name);
 	}
@@ -2013,11 +2013,11 @@ void MaterialsWorkbenchPalettePanel::OnRenamePaletteGroup(wxCommandEvent &event)
 	}
 
 	wxString renamedGroupName;
-	if (!PromptForPaletteGroupName("Rename Category", "Enter the new category name:", selectedGroup->name, selectedGroup->name, renamedGroupName)) {
+	if (!PromptForPaletteGroupName("Rename Palette Category", "Enter the new palette category name:", selectedGroup->name, selectedGroup->name, renamedGroupName)) {
 		return;
 	}
 	if (renamedGroupName.IsSameAs(selectedGroup->name, false)) {
-		SetStatusMessage("Category name is unchanged.");
+		SetStatusMessage("Palette category name is unchanged.");
 		return;
 	}
 
@@ -2025,7 +2025,7 @@ void MaterialsWorkbenchPalettePanel::OnRenamePaletteGroup(wxCommandEvent &event)
 	updatedGroup.name = renamedGroupName;
 	wxString error;
 	if (!controller_.SavePaletteGroup(updatedGroup, error)) {
-		SetStatusMessage("Failed to rename category: " + error);
+		SetStatusMessage("Failed to rename palette category: " + error);
 		return;
 	}
 
@@ -2033,7 +2033,7 @@ void MaterialsWorkbenchPalettePanel::OnRenamePaletteGroup(wxCommandEvent &event)
 		palette_.paletteGroupName = renamedGroupName;
 	}
 	RefreshPaletteGroupChoice();
-	SetStatusMessage("Renamed category to \"" + renamedGroupName + "\".");
+	SetStatusMessage("Renamed palette category to \"" + renamedGroupName + "\".");
 	if (onPaletteSaved_) {
 		onPaletteSaved_(palette_.name);
 	}
@@ -2071,7 +2071,7 @@ void MaterialsWorkbenchPalettePanel::OnDeletePaletteGroup(wxCommandEvent &event)
 		}
 
 		if (destinationKeys.empty()) {
-			SetStatusMessage("Cannot delete this category because there is no destination category available for its palettes.");
+			SetStatusMessage("Cannot delete this palette category because there is no destination palette category available for its palettes.");
 			return;
 		}
 
@@ -2087,12 +2087,12 @@ void MaterialsWorkbenchPalettePanel::OnDeletePaletteGroup(wxCommandEvent &event)
 		wxSingleChoiceDialog destinationDialog(
 			this,
 			wxString::Format(
-				"Category \"%s\" is still used by %zu palette(s).\n\nChoose where those palettes should move before the category is deleted.\n\nAffected palettes:\n%s",
+				"Palette category \"%s\" is still used by %zu palette(s).\n\nChoose where those palettes should move before the palette category is deleted.\n\nAffected palettes:\n%s",
 				selectedGroupName,
 				affectedPaletteNames.size(),
 				affectedList
 			),
-			"Delete Category",
+			"Delete Palette Category",
 			destinationLabels
 		);
 		if (recommendedSelection != wxNOT_FOUND) {
@@ -2104,19 +2104,19 @@ void MaterialsWorkbenchPalettePanel::OnDeletePaletteGroup(wxCommandEvent &event)
 
 		const int destinationSelection = destinationDialog.GetSelection();
 		if (destinationSelection == wxNOT_FOUND || destinationSelection >= static_cast<int>(destinationKeys.size())) {
-			SetStatusMessage("Choose a destination category before deleting this one.");
+			SetStatusMessage("Choose a destination palette category before deleting this one.");
 			return;
 		}
 
 		const wxString destinationGroup = destinationKeys[static_cast<size_t>(destinationSelection)];
 		if (wxMessageBox(
 				wxString::Format(
-					"Delete category \"%s\" and move %zu palette(s) to \"%s\"?\n\nThis updates the affected palettes first and then removes the old category.",
+					"Delete palette category \"%s\" and move %zu palette(s) to \"%s\"?\n\nThis updates the affected palettes first and then removes the old palette category.",
 					selectedGroupName,
 					affectedPaletteNames.size(),
 					destinationGroup
 				),
-				"Delete Category",
+				"Delete Palette Category",
 				wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
 				this
 			) != wxYES) {
@@ -2126,7 +2126,7 @@ void MaterialsWorkbenchPalettePanel::OnDeletePaletteGroup(wxCommandEvent &event)
 		wxString error;
 		int movedPaletteCount = 0;
 		if (!controller_.DeletePaletteGroupAndReassignPalettes(selectedGroupName, destinationGroup, movedPaletteCount, error)) {
-			SetStatusMessage("Failed to delete category: " + error);
+			SetStatusMessage("Failed to delete palette category: " + error);
 			return;
 		}
 
@@ -2134,15 +2134,15 @@ void MaterialsWorkbenchPalettePanel::OnDeletePaletteGroup(wxCommandEvent &event)
 			palette_.paletteGroupName = destinationGroup;
 		}
 		successMessage = wxString::Format(
-			"Deleted category \"%s\" and moved %d palette(s) to \"%s\".",
+			"Deleted palette category \"%s\" and moved %d palette(s) to \"%s\".",
 			selectedGroupName,
 			movedPaletteCount,
 			destinationGroup
 		);
 	} else {
 		if (wxMessageBox(
-				"Delete category \"" + selectedGroupName + "\"?",
-				"Delete Category",
+				"Delete palette category \"" + selectedGroupName + "\"?",
+				"Delete Palette Category",
 				wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
 				this
 			) != wxYES) {
@@ -2151,14 +2151,14 @@ void MaterialsWorkbenchPalettePanel::OnDeletePaletteGroup(wxCommandEvent &event)
 
 		wxString error;
 		if (!controller_.DeletePaletteGroup(selectedGroupName, error)) {
-			SetStatusMessage("Failed to delete category: " + error);
+			SetStatusMessage("Failed to delete palette category: " + error);
 			return;
 		}
 
 		if (palette_.paletteGroupName.IsSameAs(selectedGroupName, false)) {
 			palette_.paletteGroupName = "other";
 		}
-		successMessage = "Deleted category \"" + selectedGroupName + "\".";
+		successMessage = "Deleted palette category \"" + selectedGroupName + "\".";
 	}
 
 	RefreshWorkspace();

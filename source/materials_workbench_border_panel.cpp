@@ -860,7 +860,7 @@ bool MaterialsWorkbenchBorderPanel::ResolvePendingChangesBeforeSwitch(wxWindow* 
 		"Yes: save and continue\n"
 		"No: discard local changes and continue\n"
 		"Cancel: stay on the current border set",
-		"Unsaved Border Changes",
+		"Unsaved Border Set Changes",
 		wxYES_NO | wxCANCEL | wxICON_WARNING
 	);
 	dialog.SetYesNoCancelLabels("Save", "Discard", "Cancel");
@@ -886,7 +886,7 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	title->SetFont(titleFont);
 
 	titleLabel_ = new wxStaticText(this, wxID_ANY, "No border set selected");
-	subtitleLabel_ = new wxStaticText(this, wxID_ANY, "Edit border slots visually, assign item ids and preview the resulting composition.");
+	subtitleLabel_ = new wxStaticText(this, wxID_ANY, "Edit border slots visually, assign item IDs and preview the resulting composition.");
 	StyleBorderWorkspaceSubtitle(subtitleLabel_);
 
 	wxScrolledWindow* scrolled = new wxScrolledWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL);
@@ -897,7 +897,7 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	identityLabel_ = new wxStaticText(scrolled, wxID_ANY, "");
 	StyleBorderWorkspaceCaption(identityLabel_);
 
-	wxStaticBoxSizer* metadataBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Border Authoring");
+	wxStaticBoxSizer* metadataBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Border Set");
 	wxWindow* metadataParent = metadataBox->GetStaticBox();
 	wxFlexGridSizer* metadataGrid = new wxFlexGridSizer(0, 2, FromDIP(4), FromDIP(6));
 	metadataGrid->AddGrowableCol(1, 1);
@@ -949,8 +949,8 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	}
 	metadataBox->Add(metadataGrid, 1, wxEXPAND | wxALL, FromDIP(6));
 	wxBoxSizer* borderCrudRow = new wxBoxSizer(wxHORIZONTAL);
-	createBorderButton_ = new wxButton(metadataParent, wxID_ANY, "New Border");
-	deleteBorderButton_ = new wxButton(metadataParent, wxID_ANY, "Delete Border");
+	createBorderButton_ = new wxButton(metadataParent, wxID_ANY, "New Border Set");
+	deleteBorderButton_ = new wxButton(metadataParent, wxID_ANY, "Delete Border Set");
 	StyleBorderWorkspaceActionButton(createBorderButton_, "Create a new border set in the current scope.");
 	StyleBorderWorkspaceActionButton(deleteBorderButton_, "Delete this border set from materials.db.");
 	borderCrudRow->Add(createBorderButton_, 1, wxRIGHT, FromDIP(4));
@@ -958,7 +958,7 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	metadataBox->Add(borderCrudRow, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(6));
 
 	inlineDetailsPanel_ = new wxPanel(scrolled, wxID_ANY);
-	wxStaticBoxSizer* inlineDetailsBox = new wxStaticBoxSizer(wxVERTICAL, inlineDetailsPanel_, "Inline Authoring");
+	wxStaticBoxSizer* inlineDetailsBox = new wxStaticBoxSizer(wxVERTICAL, inlineDetailsPanel_, "Inline Details");
 	wxWindow* inlineDetailsParent = inlineDetailsBox->GetStaticBox();
 	groundEquivalentCtrl_ = new wxSpinCtrl(inlineDetailsParent, wxID_ANY);
 	groundEquivalentCtrl_->SetRange(0, std::max(100000, static_cast<int>(g_items.getMaxID())));
@@ -984,8 +984,8 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	openLinkedBrushButton_ = new wxButton(globalDetailsParent, wxID_ANY, "Open Brush");
 	StyleBorderWorkspaceActionButton(openLinkedBrushButton_, "Open the selected brush that uses this global border.");
 	usageSearchCtrl_ = new wxTextCtrl(globalDetailsParent, wxID_ANY);
-	usageSearchCtrl_->SetHint("Search by brush, id, align, role, center, target...");
-	usageSearchHintLabel_ = new wxStaticText(globalDetailsParent, wxID_ANY, "Matches brush name, ids, align, role, center, target, and painted contexts.");
+	usageSearchCtrl_->SetHint("Search by brush, ID, align, role, center, target...");
+	usageSearchHintLabel_ = new wxStaticText(globalDetailsParent, wxID_ANY, "Matches brush name, IDs, align, role, center, target, and painted contexts.");
 	StyleBorderWorkspaceCaption(usageSearchHintLabel_);
 	usageSummaryLabel_ = new wxStaticText(globalDetailsParent, wxID_ANY, "No usage contexts loaded");
 	StyleBorderWorkspaceCaption(usageSummaryLabel_);
@@ -1194,7 +1194,7 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	headerSizer->Add(subtitleLabel_, 0);
 
 	wxBoxSizer* actionSizer = new wxBoxSizer(wxHORIZONTAL);
-	saveButton_ = new wxButton(this, wxID_SAVE, "Save Border");
+	saveButton_ = new wxButton(this, wxID_SAVE, "Save Border Set");
 	revertButton_ = new wxButton(this, wxID_ANY, "Revert");
 	StyleBorderWorkspaceActionButton(saveButton_, "Write the current border set metadata and slots to materials.db.");
 	StyleBorderWorkspaceActionButton(revertButton_, "Discard local border edits and reload the current border set from materials.db.");
@@ -1861,7 +1861,7 @@ void MaterialsWorkbenchBorderPanel::UpdateWorkspaceHeader() {
 	titleLabel_->SetLabel("Editing " + BuildBorderSetDisplayLabel(BuildComparableStorageFromCurrentState().borderSet) + modifiedSuffix);
 	const wxString scope = scopeChoice_->GetStringSelection();
 	if (dirty_) {
-		subtitleLabel_->SetLabel("Unsaved local border edits differ from materials.db. Save to persist them or Revert to discard them before switching sets.");
+		subtitleLabel_->SetLabel("Unsaved local border set edits differ from materials.db. Save to persist them or Revert to discard them before switching sets.");
 	} else if (scope == "global") {
 		subtitleLabel_->SetLabel("Global border sprites are shared. The selected Used By context drives the effective center preview.");
 	} else {
