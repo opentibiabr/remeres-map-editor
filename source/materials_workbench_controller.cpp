@@ -200,16 +200,7 @@ namespace {
 	}
 
 	wxString BuildBrushFamilyLabel(const wxString &familyKey) {
-		if (familyKey == "terrain") {
-			return "Terrain";
-		}
-		if (familyKey == "doodad") {
-			return "Doodad";
-		}
-		if (familyKey == "item") {
-			return "Item";
-		}
-		return "Other";
+		return BuildPaletteGroupLabel(familyKey);
 	}
 
 	std::map<wxString, size_t> CountPalettesByCategory(const MaterialsWorkbenchCatalogSnapshot &catalog) {
@@ -555,7 +546,58 @@ std::vector<MaterialsWorkbenchTreeNode> MaterialsWorkbenchController::BuildNavig
 		}
 	}
 
-	const wxString brushFamilyOrder[] = { "terrain", "doodad", "item", "other" };
+	std::vector<wxString> brushFamilyOrder;
+	brushFamilyOrder.reserve(8);
+
+	const auto pushFamilyIfNeeded = [&](const wxString &familyKey) {
+		if (brushCountByFamily[familyKey] == 0) {
+			return;
+		}
+		if (std::find(brushFamilyOrder.begin(), brushFamilyOrder.end(), familyKey) != brushFamilyOrder.end()) {
+			return;
+		}
+		brushFamilyOrder.push_back(familyKey);
+	};
+
+	pushFamilyIfNeeded("terrain");
+	pushFamilyIfNeeded("doodad");
+	pushFamilyIfNeeded("item");
+	pushFamilyIfNeeded("other");
+
+	std::vector<PaletteGroupRecord> sortedPaletteGroups = catalog_.paletteGroups;
+	std::sort(sortedPaletteGroups.begin(), sortedPaletteGroups.end(), [](const PaletteGroupRecord &left, const PaletteGroupRecord &right) {
+		if (left.sortOrder != right.sortOrder) {
+			return left.sortOrder < right.sortOrder;
+		}
+		return left.name.CmpNoCase(right.name) < 0;
+	});
+	for (const PaletteGroupRecord &group : sortedPaletteGroups) {
+		if (group.name.IsSameAs("terrain", false) ||
+			group.name.IsSameAs("doodad", false) ||
+			group.name.IsSameAs("item", false) ||
+			group.name.IsSameAs("other", false)) {
+			continue;
+		}
+		pushFamilyIfNeeded(group.name);
+	}
+
+	std::vector<wxString> remainingFamilyKeys;
+	for (const auto &entry : brushCountByFamily) {
+		if (entry.second == 0) {
+			continue;
+		}
+		if (std::find(brushFamilyOrder.begin(), brushFamilyOrder.end(), entry.first) != brushFamilyOrder.end()) {
+			continue;
+		}
+		remainingFamilyKeys.push_back(entry.first);
+	}
+	std::sort(remainingFamilyKeys.begin(), remainingFamilyKeys.end(), [](const wxString &left, const wxString &right) {
+		return left.CmpNoCase(right) < 0;
+	});
+	for (const wxString &familyKey : remainingFamilyKeys) {
+		pushFamilyIfNeeded(familyKey);
+	}
+
 	for (const wxString &familyKey : brushFamilyOrder) {
 		const size_t familyCount = brushCountByFamily[familyKey];
 		if (familyCount == 0) {
@@ -742,6 +784,17 @@ bool MaterialsWorkbenchController::SaveBrushDetails(BrushStorageRecord &brushSto
 		brushStorage.brush.type.ToStdString()
 	);
 
+	return true;
+}
+
+bool MaterialsWorkbenchController::DeleteBrush(int64_t brushId, wxString &error) {
+	if (!repository_.DeleteBrush(brushId, error)) {
+		return false;
+	}
+	if (!ReloadCatalog()) {
+		error = lastError_;
+		return false;
+	}
 	return true;
 }
 

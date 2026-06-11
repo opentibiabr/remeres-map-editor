@@ -379,6 +379,7 @@ public:
 	bool getCompleteBrushById(int64_t brushId, BrushStorageRecord &outBrush);
 	bool updateBrush(const BrushRecord &brush);
 	bool updateBrushReferenceNames(int64_t brushId, const wxString &oldName, const wxString &newName);
+	bool deleteBrushReferences(int64_t brushId, const wxString &brushName);
 	bool deleteBrush(int64_t brushId);
 	bool deleteBrushesByType(const wxString &type);
 	bool replaceBrushItems(int64_t brushId, const std::vector<BrushItemRecord> &items);
@@ -450,6 +451,8 @@ public:
 	bool listBrushesByType(const wxString &type, std::vector<BrushRecord> &outBrushes);
 	bool getCompleteBrushById(int64_t brushId, BrushStorageRecord &outBrush);
 	bool updateBrushReferenceNames(int64_t brushId, const wxString &oldName, const wxString &newName);
+	bool deleteBrushReferences(int64_t brushId, const wxString &brushName);
+	bool deleteBrush(int64_t brushId);
 	bool deleteBrushesByType(const wxString &type);
 	bool replaceBrushItems(int64_t brushId, const std::vector<BrushItemRecord> &items);
 	bool upsertBorderSet(const BorderSetRecord &borderSet, int64_t &borderSetId);

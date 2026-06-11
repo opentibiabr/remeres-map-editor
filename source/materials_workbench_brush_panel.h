@@ -33,6 +33,7 @@ public:
 	void ClearWorkspace(const wxString &message);
 	bool LoadBrush(const wxString &contextKey, int itemIndex);
 	void SetOnBrushSaved(std::function<void(int64_t, const wxString&, const wxString&)> callback);
+	void SetOnBrushDeleted(std::function<void(int64_t)> callback);
 	void SetOnBrushStateChanged(std::function<void()> callback);
 	bool HasPendingChanges() const;
 	bool IsCurrentBrushSelection(const wxString &contextKey, int itemIndex) const;
@@ -213,6 +214,8 @@ private:
 	void OnDoodadFloorSliderPaint(wxPaintEvent &event);
 	void OnDoodadFloorSliderLeftDown(wxMouseEvent &event);
 	void OnMetadataFieldChanged(wxCommandEvent &event);
+	void OnCreateBrush(wxCommandEvent &event);
+	void OnDeleteBrush(wxCommandEvent &event);
 	void SelectDoodadAlternative(int index);
 	void StepDoodadAlternative(int delta);
 	void StepDoodadPreviewFloor(int delta);
@@ -221,6 +224,7 @@ private:
 
 	MaterialsWorkbenchController &controller_;
 	std::function<void(int64_t, const wxString&, const wxString&)> onBrushSaved_;
+	std::function<void(int64_t)> onBrushDeleted_;
 	std::function<void()> onBrushStateChanged_;
 	BrushStorageRecord brushStorage_;
 	BrushStorageRecord loadedBrushStorage_;
@@ -231,6 +235,7 @@ private:
 	bool internalUpdate_ = false;
 	bool dirty_ = false;
 	bool hasRuntimeSyncedBrushStorage_ = false;
+	wxString lastConfirmedType_;
 
 	wxNotebook* workspaceTabs_ = nullptr;
 	wxScrolledWindow* metadataPage_ = nullptr;
@@ -238,10 +243,12 @@ private:
 	wxStaticText* subtitleLabel_ = nullptr;
 	wxStaticText* summaryLabel_ = nullptr;
 	wxStaticText* variationsStatusLabel_ = nullptr;
+	wxButton* createBrushButton_ = nullptr;
+	wxButton* deleteBrushButton_ = nullptr;
 	wxButton* saveButton_ = nullptr;
 	wxButton* revertButton_ = nullptr;
 	wxTextCtrl* nameCtrl_ = nullptr;
-	wxTextCtrl* typeCtrl_ = nullptr;
+	wxChoice* typeCtrl_ = nullptr;
 	wxTextCtrl* idCtrl_ = nullptr;
 	wxTextCtrl* storageCtrl_ = nullptr;
 	wxTextCtrl* sourceCtrl_ = nullptr;

@@ -880,6 +880,14 @@ bool BrushDatabase::updateBrushReferenceNames(int64_t brushId, const wxString &o
 	return brushRepository_.updateBrushReferenceNames(brushId, oldName, newName);
 }
 
+bool BrushDatabase::deleteBrushReferences(int64_t brushId, const wxString &brushName) {
+	return brushRepository_.deleteBrushReferences(brushId, brushName);
+}
+
+bool BrushDatabase::deleteBrush(int64_t brushId) {
+	return brushRepository_.deleteBrush(brushId);
+}
+
 bool BrushDatabase::deleteBrushesByType(const wxString &type) {
 	return brushRepository_.deleteBrushesByType(type);
 }
@@ -2099,6 +2107,76 @@ bool BrushDatabaseBrushRepository::updateBrushReferenceNames(int64_t brushId, co
 			"SET target_brush_name = ? "
 			"WHERE target_brush_id = ? OR target_brush_name = ?;",
 			"Failed to update brush link target names")) {
+		return false;
+	}
+
+	return resolveGroundReferenceNames();
+}
+
+bool BrushDatabaseBrushRepository::deleteBrushReferences(int64_t brushId, const wxString &brushName) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+	if (brushId <= 0) {
+		return setError("Brush id is invalid.");
+	}
+	if (brushName.IsEmpty()) {
+		return setError("Brush name is invalid.");
+	}
+
+	const auto executeDeleteByIdOrName = [&](const char* sql, const char* failureMessage) -> bool {
+		sqlite3_stmt* stmt = nullptr;
+		if (!prepare(sql, &stmt)) {
+			return false;
+		}
+
+		sqlite3_bind_int64(stmt, 1, brushId);
+		sqlite3_bind_text(stmt, 2, brushName.utf8_str(), -1, SQLITE_TRANSIENT);
+
+		const int rc = sqlite3_step(stmt);
+		sqlite3_finalize(stmt);
+		if (rc != SQLITE_DONE) {
+			return setErrorFromDatabase(failureMessage);
+		}
+		return true;
+	};
+
+	const auto executeDeleteTilesetEntries = [&](const char* sql, const char* failureMessage) -> bool {
+		sqlite3_stmt* stmt = nullptr;
+		if (!prepare(sql, &stmt)) {
+			return false;
+		}
+
+		sqlite3_bind_int64(stmt, 1, brushId);
+		sqlite3_bind_text(stmt, 2, brushName.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_text(stmt, 3, brushName.utf8_str(), -1, SQLITE_TRANSIENT);
+
+		const int rc = sqlite3_step(stmt);
+		sqlite3_finalize(stmt);
+		if (rc != SQLITE_DONE) {
+			return setErrorFromDatabase(failureMessage);
+		}
+		return true;
+	};
+
+	if (!executeDeleteTilesetEntries(
+			"DELETE FROM tileset_brush_entries "
+			"WHERE brush_id = ? OR brush_name = ? OR after_brush_name = ?;",
+			"Failed to delete tileset brush entries")) {
+		return false;
+	}
+
+	if (!executeDeleteByIdOrName(
+			"DELETE FROM ground_brush_borders "
+			"WHERE target_brush_id = ? OR target_brush_name = ?;",
+			"Failed to delete ground border target references")) {
+		return false;
+	}
+
+	if (!executeDeleteByIdOrName(
+			"DELETE FROM brush_links "
+			"WHERE target_brush_id = ? OR target_brush_name = ?;",
+			"Failed to delete brush link target references")) {
 		return false;
 	}
 

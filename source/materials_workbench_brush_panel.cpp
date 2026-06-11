@@ -170,6 +170,98 @@ namespace {
 		return value;
 	}
 
+	wxString TrimmedChoiceValue(const wxChoice* ctrl) {
+		if (!ctrl || ctrl->GetSelection() == wxNOT_FOUND) {
+			return wxString();
+		}
+		wxString value = ctrl->GetStringSelection();
+		value.Trim(true);
+		value.Trim(false);
+		return value;
+	}
+
+	void EnsureChoiceHasOption(wxChoice* choice, const wxString &value) {
+		if (!choice) {
+			return;
+		}
+		for (unsigned int i = 0; i < choice->GetCount(); ++i) {
+			if (choice->GetString(i).IsSameAs(value, false)) {
+				return;
+			}
+		}
+		choice->Append(value);
+	}
+
+	bool ShowNewBrushDialog(wxWindow* parent, wxString &outName, wxString &outType) {
+		outName.clear();
+		outType.clear();
+
+		wxDialog dialog(parent, wxID_ANY, "New Brush", wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
+		wxBoxSizer* rootSizer = new wxBoxSizer(wxVERTICAL);
+		wxFlexGridSizer* gridSizer = new wxFlexGridSizer(2, parent->FromDIP(6), parent->FromDIP(10));
+		gridSizer->AddGrowableCol(1, 1);
+
+		wxTextCtrl* nameCtrl = new wxTextCtrl(&dialog, wxID_ANY);
+		wxArrayString types;
+		types.Add("ground");
+		types.Add("doodad");
+		types.Add("carpet");
+		types.Add("table");
+		types.Add("wall");
+		wxChoice* typeCtrl = new wxChoice(&dialog, wxID_ANY, wxDefaultPosition, wxDefaultSize, types);
+		typeCtrl->SetSelection(0);
+
+		gridSizer->Add(new wxStaticText(&dialog, wxID_ANY, "Name"), 0, wxALIGN_CENTER_VERTICAL);
+		gridSizer->Add(nameCtrl, 1, wxEXPAND);
+		gridSizer->Add(new wxStaticText(&dialog, wxID_ANY, "Type"), 0, wxALIGN_CENTER_VERTICAL);
+		gridSizer->Add(typeCtrl, 1, wxEXPAND);
+
+		rootSizer->Add(gridSizer, 1, wxEXPAND | wxALL, parent->FromDIP(10));
+		rootSizer->Add(dialog.CreateButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, parent->FromDIP(10));
+		dialog.SetSizerAndFit(rootSizer);
+		dialog.SetMinSize(wxSize(parent->FromDIP(360), -1));
+
+		nameCtrl->SetFocus();
+		if (dialog.ShowModal() != wxID_OK) {
+			return false;
+		}
+
+		wxString name = nameCtrl->GetValue();
+		name.Trim(true);
+		name.Trim(false);
+		if (name.IsEmpty()) {
+			return false;
+		}
+		const wxString type = typeCtrl->GetStringSelection();
+		if (type.IsEmpty()) {
+			return false;
+		}
+
+		outName = name;
+		outType = type;
+		return true;
+	}
+
+	bool HasAnyBrushVariationPayload(const BrushStorageRecord &storage) {
+		return !storage.items.empty() ||
+			   !storage.borders.empty() ||
+			   !storage.links.empty() ||
+			   !storage.wallParts.empty() ||
+			   !storage.carpetNodes.empty() ||
+			   !storage.tableNodes.empty() ||
+			   !storage.doodadAlternatives.empty();
+	}
+
+	void ClearBrushVariationPayload(BrushStorageRecord &storage) {
+		storage.items.clear();
+		storage.borders.clear();
+		storage.links.clear();
+		storage.wallParts.clear();
+		storage.carpetNodes.clear();
+		storage.tableNodes.clear();
+		storage.doodadAlternatives.clear();
+	}
+
 	wxString FormatAlignedNodeLabel(const wxString &align, size_t itemCount, size_t index) {
 		return wxString::Format("%zu. %s (%zu item%s)", index + 1, align, itemCount, itemCount == 1 ? "" : "s");
 	}
@@ -2036,6 +2128,10 @@ void MaterialsWorkbenchBrushPanel::SetOnBrushSaved(std::function<void(int64_t, c
 	onBrushSaved_ = std::move(callback);
 }
 
+void MaterialsWorkbenchBrushPanel::SetOnBrushDeleted(std::function<void(int64_t)> callback) {
+	onBrushDeleted_ = std::move(callback);
+}
+
 void MaterialsWorkbenchBrushPanel::SetOnBrushStateChanged(std::function<void()> callback) {
 	onBrushStateChanged_ = std::move(callback);
 }
@@ -2117,10 +2213,16 @@ void MaterialsWorkbenchBrushPanel::BuildLayout() {
 	headerSizer->Add(subtitleLabel_, 0);
 
 	wxBoxSizer* actionSizer = new wxBoxSizer(wxHORIZONTAL);
+	createBrushButton_ = new wxButton(this, wxID_ANY, "New Brush");
+	deleteBrushButton_ = new wxButton(this, wxID_ANY, "Delete Brush");
 	saveButton_ = new wxButton(this, wxID_SAVE, "Save Brush");
 	revertButton_ = new wxButton(this, wxID_ANY, "Revert");
+	StyleBrushWorkspaceActionButton(createBrushButton_, "Create a new brush in materials.db and open it for editing.");
+	StyleBrushWorkspaceActionButton(deleteBrushButton_, "Delete the current brush from materials.db.");
 	StyleBrushWorkspaceActionButton(saveButton_, "Write the current brush metadata and variations to materials.db.");
 	StyleBrushWorkspaceActionButton(revertButton_, "Discard local brush edits and reload the current brush from materials.db.");
+	actionSizer->Add(createBrushButton_, 0, wxRIGHT, FromDIP(6));
+	actionSizer->Add(deleteBrushButton_, 0, wxRIGHT, FromDIP(6));
 	actionSizer->Add(saveButton_, 0, wxRIGHT, FromDIP(6));
 	actionSizer->Add(revertButton_, 0);
 
@@ -2138,6 +2240,8 @@ void MaterialsWorkbenchBrushPanel::BuildLayout() {
 
 	saveButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnSave, this);
 	revertButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnRevert, this);
+	createBrushButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnCreateBrush, this);
+	deleteBrushButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnDeleteBrush, this);
 }
 
 wxPanel* MaterialsWorkbenchBrushPanel::BuildMetadataPage(wxNotebook* notebook) {
@@ -2156,7 +2260,16 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildMetadataPage(wxNotebook* notebook) {
 	idCtrl_ = CreateTextField(scrolled, wxTE_READONLY);
 	storageCtrl_ = CreateTextField(scrolled, wxTE_READONLY);
 	nameCtrl_ = CreateTextField(scrolled);
-	typeCtrl_ = CreateTextField(scrolled);
+	{
+		wxArrayString types;
+		types.Add("ground");
+		types.Add("doodad");
+		types.Add("carpet");
+		types.Add("table");
+		types.Add("wall");
+		typeCtrl_ = new wxChoice(scrolled, wxID_ANY, wxDefaultPosition, wxDefaultSize, types);
+		typeCtrl_->SetSelection(0);
+	}
 	sourceCtrl_ = CreateTextField(scrolled);
 
 	identityGrid->Add(new wxStaticText(scrolled, wxID_ANY, "SQLite ID"), 0, wxALIGN_CENTER_VERTICAL);
@@ -2258,7 +2371,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildMetadataPage(wxNotebook* notebook) {
 	scrolled->SetSizer(contentSizer);
 
 	nameCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
-	typeCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
+	typeCtrl_->Bind(wxEVT_CHOICE, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
 	sourceCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
 	lookIdCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
 	lookIdCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
@@ -2876,7 +2989,7 @@ void MaterialsWorkbenchBrushPanel::ClearWorkspace(const wxString &message) {
 	idCtrl_->SetValue("");
 	storageCtrl_->SetValue("");
 	nameCtrl_->SetValue("");
-	typeCtrl_->SetValue("");
+	typeCtrl_->SetSelection(wxNOT_FOUND);
 	sourceCtrl_->SetValue("");
 	lookIdCtrl_->SetValue(0);
 	serverLookIdCtrl_->SetValue(0);
@@ -2968,7 +3081,18 @@ void MaterialsWorkbenchBrushPanel::PopulateMetadataFields() {
 	idCtrl_->SetValue(wxString::Format("%lld", static_cast<long long>(brush.id)));
 	storageCtrl_->SetValue("materials.db");
 	nameCtrl_->SetValue(brush.name);
-	typeCtrl_->SetValue(brush.type);
+	{
+		const wxString normalizedType = brush.type.Lower();
+		if (!normalizedType.IsEmpty()) {
+			EnsureChoiceHasOption(typeCtrl_, normalizedType);
+			if (!typeCtrl_->SetStringSelection(normalizedType)) {
+				typeCtrl_->SetSelection(0);
+			}
+		} else {
+			typeCtrl_->SetSelection(wxNOT_FOUND);
+		}
+	}
+	lastConfirmedType_ = typeCtrl_ && typeCtrl_->GetSelection() != wxNOT_FOUND ? typeCtrl_->GetStringSelection() : "";
 	sourceCtrl_->SetValue(FormatImportedFromValue(brush.sourceFile));
 	lookIdCtrl_->SetValue(brush.lookId);
 	serverLookIdCtrl_->SetValue(brush.serverLookId);
@@ -3012,7 +3136,10 @@ BrushStorageRecord MaterialsWorkbenchBrushPanel::BuildEditableStorageFromCurrent
 	BrushStorageRecord storage = brushStorage_;
 	BrushRecord &brush = storage.brush;
 	brush.name = TrimmedValue(nameCtrl_);
-	brush.type = TrimmedValue(typeCtrl_);
+	brush.type = TrimmedChoiceValue(typeCtrl_);
+	if (brush.type.IsEmpty()) {
+		brush.type = brushStorage_.brush.type;
+	}
 	brush.sourceFile = ParseImportedFromEditorValue(TrimmedValue(sourceCtrl_));
 	brush.lookId = lookIdCtrl_->GetValue();
 	brush.serverLookId = serverLookIdCtrl_->GetValue();
@@ -3538,6 +3665,9 @@ void MaterialsWorkbenchBrushPanel::UpdateWorkspaceHeader() {
 }
 
 void MaterialsWorkbenchBrushPanel::UpdateActionButtons() {
+	if (deleteBrushButton_) {
+		deleteBrushButton_->Enable(hasBrush_);
+	}
 	if (saveButton_) {
 		saveButton_->Enable(hasBrush_ && dirty_);
 	}
@@ -3606,7 +3736,7 @@ wxString MaterialsWorkbenchBrushPanel::GetVariationTabTitle() const {
 }
 
 wxString MaterialsWorkbenchBrushPanel::GetEffectiveBrushType() const {
-	wxString type = hasBrush_ ? TrimmedValue(typeCtrl_) : "";
+	wxString type = hasBrush_ ? TrimmedChoiceValue(typeCtrl_) : "";
 	if (type.IsEmpty()) {
 		type = brushStorage_.brush.type;
 	}
@@ -5889,6 +6019,79 @@ void MaterialsWorkbenchBrushPanel::OnRevert(wxCommandEvent &WXUNUSED(event)) {
 	);
 }
 
+void MaterialsWorkbenchBrushPanel::OnCreateBrush(wxCommandEvent &) {
+	if (!ResolvePendingChangesBeforeSwitch(this, "New Brush")) {
+		return;
+	}
+
+	wxString name;
+	wxString type;
+	if (!ShowNewBrushDialog(this, name, type)) {
+		SetStatusMessage("Brush creation canceled.");
+		return;
+	}
+
+	BrushStorageRecord createdStorage;
+	createdStorage.brush.name = name;
+	createdStorage.brush.type = type;
+
+	wxString error;
+	if (!controller_.SaveBrushDetails(createdStorage, error)) {
+		SetStatusMessage("Failed to create brush: " + error);
+		return;
+	}
+
+	if (onBrushSaved_) {
+		const int64_t brushId = createdStorage.brush.id;
+		CallAfter([this, brushId, name]() {
+			onBrushSaved_(brushId, name, name);
+		});
+	} else {
+		wxString contextKey;
+		int itemIndex = -1;
+		if (controller_.LocateBrushNode(createdStorage.brush.id, contextKey, itemIndex)) {
+			LoadBrush(contextKey, itemIndex);
+		}
+	}
+	SetStatusMessage("Created brush \"" + name + "\".");
+}
+
+void MaterialsWorkbenchBrushPanel::OnDeleteBrush(wxCommandEvent &) {
+	if (!hasBrush_) {
+		SetStatusMessage("Select a brush before deleting.");
+		return;
+	}
+	if (!ResolvePendingChangesBeforeSwitch(this, "Delete Brush")) {
+		return;
+	}
+
+	const int64_t brushId = brushStorage_.brush.id;
+	const wxString brushName = brushStorage_.brush.name;
+	if (wxMessageBox(
+			"Delete brush \"" + brushName + "\"?\n\n"
+			"This removes the brush from materials.db and also removes palette entries, borders, and links that reference it.",
+			"Delete Brush",
+			wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
+			this
+		) != wxYES) {
+		return;
+	}
+
+	wxString error;
+	if (!controller_.DeleteBrush(brushId, error)) {
+		SetStatusMessage("Failed to delete brush: " + error);
+		return;
+	}
+
+	ClearWorkspace("Select a brush in the navigation tree to edit its properties.");
+	if (onBrushDeleted_) {
+		CallAfter([this, brushId]() {
+			onBrushDeleted_(brushId);
+		});
+	}
+	SetStatusMessage("Deleted brush \"" + brushName + "\".");
+}
+
 void MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged(wxCommandEvent &event) {
 	if (internalUpdate_ || !hasBrush_) {
 		event.Skip();
@@ -5913,6 +6116,75 @@ void MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged(wxCommandEvent &event)
 		const int serverLookId = serverLookIdCtrl_->GetValue();
 		if (serverLookId > 0 && lookIdCtrl_->GetValue() > 0) {
 			setSpinSilently(lookIdCtrl_, 0);
+		}
+	}
+
+	if (source == typeCtrl_ && typeCtrl_) {
+		const wxString previousType = lastConfirmedType_.Lower();
+		const wxString selectedType = TrimmedChoiceValue(typeCtrl_).Lower();
+		if (!selectedType.IsEmpty() && !selectedType.IsSameAs(previousType, false)) {
+			const bool hasPayload = HasAnyBrushVariationPayload(brushStorage_);
+			if (selectedType == "wall") {
+				const wxString message = hasPayload
+					? "Changing the brush type does not migrate data.\n\n"
+					  "Continuing clears the current brush variation payload (ground variants, carpet/table nodes, doodad alternatives, wall parts, borders, and links).\n\n"
+					  "Wall brushes are edited in Wall Workspace.\n\n"
+					  "Save now and open Wall Workspace?"
+					: "Wall brushes are edited in Wall Workspace.\n\nSave now and open Wall Workspace?";
+				wxMessageDialog dialog(this, message, "Open Wall Workspace", wxOK | wxCANCEL | wxICON_WARNING);
+				dialog.SetOKCancelLabels("Save & Open", "Cancel");
+				if (dialog.ShowModal() != wxID_OK) {
+					wxEventBlocker blocker(typeCtrl_);
+					if (!previousType.IsEmpty()) {
+						EnsureChoiceHasOption(typeCtrl_, previousType);
+						typeCtrl_->SetStringSelection(previousType);
+					} else {
+						typeCtrl_->SetSelection(0);
+					}
+					SetStatusMessage("Brush type change canceled.");
+					return;
+				}
+
+				if (hasPayload) {
+					ClearBrushVariationPayload(brushStorage_);
+					ResetVariationSelection();
+				}
+				lastConfirmedType_ = selectedType;
+				SetStatusMessage("Brush type changed to wall. Saving and opening Wall Workspace...");
+				CallAfter([this]() {
+					SaveCurrentBrush();
+				});
+				return;
+			}
+
+			if (hasPayload) {
+				wxMessageDialog dialog(
+					this,
+					"Changing the brush type does not migrate data.\n\n"
+					"Continuing clears the current brush variation payload (ground variants, carpet/table nodes, doodad alternatives, wall parts, borders, and links).\n\n"
+					"Cancel to keep the current type.",
+					"Change Brush Type",
+					wxOK | wxCANCEL | wxICON_WARNING
+				);
+				dialog.SetOKCancelLabels("Change Type", "Cancel");
+				if (dialog.ShowModal() != wxID_OK) {
+					wxEventBlocker blocker(typeCtrl_);
+					if (!previousType.IsEmpty()) {
+						EnsureChoiceHasOption(typeCtrl_, previousType);
+						typeCtrl_->SetStringSelection(previousType);
+					} else {
+						typeCtrl_->SetSelection(0);
+					}
+					SetStatusMessage("Brush type change canceled.");
+					return;
+				}
+
+				ClearBrushVariationPayload(brushStorage_);
+				ResetVariationSelection();
+				SetStatusMessage("Brush type changed. Existing variation data was cleared.");
+			}
+
+			lastConfirmedType_ = selectedType;
 		}
 	}
 

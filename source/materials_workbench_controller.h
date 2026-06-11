@@ -20,6 +20,7 @@ public:
 	bool HasPaletteGroupNamed(const wxString &name) const;
 	bool GetBrushDetails(const wxString &contextKey, int itemIndex, BrushStorageRecord &outBrush, wxString &error) const;
 	bool SaveBrushDetails(BrushStorageRecord &brushStorage, wxString &error);
+	bool DeleteBrush(int64_t brushId, wxString &error);
 	bool SaveGroundBrushBorders(int64_t brushId, const std::vector<GroundBrushBorderRecord> &borders, wxString &error);
 	bool SaveWallBrushParts(BrushStorageRecord &brushStorage, wxString &error);
 	bool LocateBrushNode(int64_t brushId, wxString &outContextKey, int &outItemIndex) const;

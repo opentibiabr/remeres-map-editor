@@ -385,6 +385,11 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 	brushPanel_->SetOnBrushSaved([this](int64_t brushId, const wxString &oldName, const wxString &newName) {
 		HandleBrushSaved(brushId, oldName, newName);
 	});
+	brushPanel_->SetOnBrushDeleted([this](int64_t brushId) {
+		CallAfter([this, brushId]() {
+			HandleBrushDeleted(brushId);
+		});
+	});
 	wallPanel_ = new MaterialsWorkbenchWallPanel(workspaceBook_, controller_);
 	wallPanel_->SetOnWallBrushStateChanged([this]() {
 		UpdateBrushNavigationBadge();
@@ -522,6 +527,15 @@ void MaterialsWorkbenchWindow::HandleBrushSaved(int64_t brushId, const wxString 
 		SelectNavigationNode(MaterialsWorkbenchNodeKind::Brush, contextKey, itemIndex);
 	}
 	RefreshInspectorForCurrentSelection();
+}
+
+void MaterialsWorkbenchWindow::HandleBrushDeleted(int64_t brushId) {
+	RefreshRuntimeMaterialPalettes("brush delete");
+	RefreshWorkbenchState();
+	PopulateNavigation();
+	SelectNavigationNode(MaterialsWorkbenchNodeKind::Group, "group:brushes", -1);
+	RefreshInspectorForCurrentSelection();
+	spdlog::info("Materials Workbench deleted brush and refreshed navigation: id={}", static_cast<long long>(brushId));
 }
 
 void MaterialsWorkbenchWindow::HandleWallBrushSaved(int64_t brushId) {
