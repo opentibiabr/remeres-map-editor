@@ -28,7 +28,7 @@
 
 namespace {
 	void StylePaletteWorkspaceActionButton(wxButton* button, const wxString &tooltip) {
-		button->SetMinSize(wxSize(button->GetParent()->FromDIP(108), button->GetParent()->FromDIP(20)));
+		button->SetMinSize(wxSize(-1, button->GetParent()->FromDIP(20)));
 		button->SetToolTip(tooltip);
 	}
 } // namespace
@@ -810,7 +810,7 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 
 	titleLabel_ = new wxStaticText(this, wxID_ANY, "Select a palette");
 	sourceLabel_ = new wxStaticText(this, wxID_ANY, "");
-	statusLabel_ = new wxStaticText(this, wxID_ANY, "");
+	statusLabel_ = new wxStaticText(this, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxST_ELLIPSIZE_END);
 	statusLabel_->SetMinSize(wxSize(-1, FromDIP(20)));
 
 	wxBoxSizer* headerSizer = new wxBoxSizer(wxVERTICAL);
@@ -827,9 +827,9 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	createPaletteButton_ = new wxButton(this, wxID_ANY, "New Palette");
 	renamePaletteButton_ = new wxButton(this, wxID_ANY, "Rename Palette");
 	deletePaletteButton_ = new wxButton(this, wxID_ANY, "Delete Palette");
-	createPaletteGroupButton_ = new wxButton(this, wxID_ANY, "New Palette Category");
-	renamePaletteGroupButton_ = new wxButton(this, wxID_ANY, "Rename Palette Category");
-	deletePaletteGroupButton_ = new wxButton(this, wxID_ANY, "Delete Palette Category");
+	createPaletteGroupButton_ = new wxButton(this, wxID_ANY, "New Category");
+	renamePaletteGroupButton_ = new wxButton(this, wxID_ANY, "Rename Category");
+	deletePaletteGroupButton_ = new wxButton(this, wxID_ANY, "Delete Category");
 	addSectionButton_ = new wxButton(this, wxID_ANY, "New Section");
 	renameSectionButton_ = new wxButton(this, wxID_ANY, "Rename Section");
 	deleteSectionButton_ = new wxButton(this, wxID_ANY, "Delete Section");
@@ -839,9 +839,6 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	deleteSectionButton_->Hide();
 	toolbarSizer->Add(makeSectionLabel(this, "Palette Category"), 0, wxBOTTOM, FromDIP(3));
 	groupRowSizer->Add(paletteGroupChoice_, 0, wxRIGHT | wxBOTTOM, FromDIP(8));
-	groupRowSizer->Add(createPaletteGroupButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(4));
-	groupRowSizer->Add(renamePaletteGroupButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(4));
-	groupRowSizer->Add(deletePaletteGroupButton_, 0, wxBOTTOM, FromDIP(4));
 	toolbarSizer->Add(groupRowSizer, 0, wxEXPAND);
 
 	wxSplitterWindow* contentSplitter = new wxSplitterWindow(this, wxID_ANY);
@@ -909,11 +906,14 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	contentSplitter->SplitVertically(currentSectionPanel, availablePanel, FromDIP(680));
 
 	wxBoxSizer* actionSizer = new wxBoxSizer(wxHORIZONTAL);
-	actionSizer->Add(createPaletteButton_, 0, wxRIGHT, FromDIP(6));
-	actionSizer->Add(renamePaletteButton_, 0, wxRIGHT, FromDIP(6));
+	actionSizer->Add(createPaletteGroupButton_, 0, wxRIGHT, FromDIP(2));
+	actionSizer->Add(renamePaletteGroupButton_, 0, wxRIGHT, FromDIP(2));
+	actionSizer->Add(deletePaletteGroupButton_, 0, wxRIGHT, FromDIP(4));
+	actionSizer->Add(createPaletteButton_, 0, wxRIGHT, FromDIP(2));
+	actionSizer->Add(renamePaletteButton_, 0, wxRIGHT, FromDIP(2));
 	actionSizer->Add(deletePaletteButton_, 0);
 	wxBoxSizer* footerSizer = new wxBoxSizer(wxHORIZONTAL);
-	footerSizer->Add(statusLabel_, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(8));
+	footerSizer->Add(statusLabel_, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
 	footerSizer->Add(actionSizer, 0, wxALIGN_CENTER_VERTICAL);
 
 	rootSizer->Add(headerSizer, 0, wxEXPAND | wxALL, FromDIP(8));
@@ -923,12 +923,12 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	rootSizer->Add(footerSizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(4));
 	SetSizer(rootSizer);
 
+	StylePaletteWorkspaceActionButton(createPaletteGroupButton_, "Create a new palette category.");
+	StylePaletteWorkspaceActionButton(renamePaletteGroupButton_, "Rename the selected custom palette category.");
+	StylePaletteWorkspaceActionButton(deletePaletteGroupButton_, "Delete the selected custom palette category.");
 	StylePaletteWorkspaceActionButton(createPaletteButton_, "Create a new palette.");
 	StylePaletteWorkspaceActionButton(renamePaletteButton_, "Rename the current palette.");
 	StylePaletteWorkspaceActionButton(deletePaletteButton_, "Delete the current palette.");
-	createPaletteGroupButton_->SetToolTip("Create a new palette category.");
-	renamePaletteGroupButton_->SetToolTip("Rename the selected custom palette category.");
-	deletePaletteGroupButton_->SetToolTip("Delete the selected custom palette category.");
 	addBrushButton_->SetToolTip("Add the selected brush as a new entry in this palette.");
 	moveToPaletteButton_->SetToolTip("Move the selected entry to the destination palette.");
 	removeBrushButton_->SetToolTip("Remove the selected entry from this palette.");

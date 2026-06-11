@@ -102,7 +102,7 @@ namespace {
 	}
 
 	void StyleBrushWorkspaceActionButton(wxButton* button, const wxString &tooltip) {
-		button->SetMinSize(wxSize(button->GetParent()->FromDIP(108), button->GetParent()->FromDIP(20)));
+		button->SetMinSize(wxSize(-1, button->GetParent()->FromDIP(20)));
 		button->SetToolTip(tooltip);
 	}
 
@@ -2221,15 +2221,15 @@ void MaterialsWorkbenchBrushPanel::BuildLayout() {
 	StyleBrushWorkspaceActionButton(deleteBrushButton_, "Delete the current brush from materials.db.");
 	StyleBrushWorkspaceActionButton(saveButton_, "Write the current brush metadata and variations to materials.db.");
 	StyleBrushWorkspaceActionButton(revertButton_, "Discard local brush edits and reload the current brush from materials.db.");
-	actionSizer->Add(createBrushButton_, 0, wxRIGHT, FromDIP(6));
-	actionSizer->Add(deleteBrushButton_, 0, wxRIGHT, FromDIP(6));
-	actionSizer->Add(saveButton_, 0, wxRIGHT, FromDIP(6));
+	actionSizer->Add(createBrushButton_, 0, wxRIGHT, FromDIP(2));
+	actionSizer->Add(deleteBrushButton_, 0, wxRIGHT, FromDIP(2));
+	actionSizer->Add(saveButton_, 0, wxRIGHT, FromDIP(2));
 	actionSizer->Add(revertButton_, 0);
 
 	statusLabel_ = new wxStaticText(this, wxID_ANY, "");
 	StyleBrushWorkspaceStatusLabel(statusLabel_);
 	wxBoxSizer* footerSizer = new wxBoxSizer(wxHORIZONTAL);
-	footerSizer->Add(statusLabel_, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(8));
+	footerSizer->Add(statusLabel_, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
 	footerSizer->Add(actionSizer, 0, wxALIGN_CENTER_VERTICAL);
 
 	rootSizer->Add(headerSizer, 0, wxEXPAND | wxALL, FromDIP(8));

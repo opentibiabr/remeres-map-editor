@@ -589,7 +589,7 @@ namespace {
 	}
 
 	void StyleBorderWorkspaceActionButton(wxButton* button, const wxString &tooltip) {
-		button->SetMinSize(wxSize(button->GetParent()->FromDIP(108), button->GetParent()->FromDIP(20)));
+		button->SetMinSize(wxSize(-1, button->GetParent()->FromDIP(20)));
 		button->SetToolTip(tooltip);
 	}
 
@@ -1198,13 +1198,13 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	revertButton_ = new wxButton(this, wxID_ANY, "Revert");
 	StyleBorderWorkspaceActionButton(saveButton_, "Write the current border set metadata and slots to materials.db.");
 	StyleBorderWorkspaceActionButton(revertButton_, "Discard local border edits and reload the current border set from materials.db.");
-	actionSizer->Add(saveButton_, 0, wxRIGHT, FromDIP(6));
+	actionSizer->Add(saveButton_, 0, wxRIGHT, FromDIP(2));
 	actionSizer->Add(revertButton_, 0);
 
 	statusLabel_ = new wxStaticText(this, wxID_ANY, "");
 	StyleBorderWorkspaceStatusLabel(statusLabel_);
 	wxBoxSizer* footerSizer = new wxBoxSizer(wxHORIZONTAL);
-	footerSizer->Add(statusLabel_, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
+	footerSizer->Add(statusLabel_, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
 	footerSizer->Add(actionSizer, 0, wxALIGN_CENTER_VERTICAL);
 
 	rootSizer->Add(headerSizer, 0, wxEXPAND | wxALL, FromDIP(6));

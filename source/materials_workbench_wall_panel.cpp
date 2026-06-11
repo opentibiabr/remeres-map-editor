@@ -617,7 +617,7 @@ namespace {
 	}
 
 	void StyleWallWorkspaceActionButton(wxButton* button, const wxString &tooltip) {
-		button->SetMinSize(wxSize(button->GetParent()->FromDIP(108), button->GetParent()->FromDIP(20)));
+		button->SetMinSize(wxSize(-1, button->GetParent()->FromDIP(20)));
 		button->SetToolTip(tooltip);
 	}
 
@@ -1027,13 +1027,13 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	revertButton_ = new wxButton(this, wxID_ANY, "Revert");
 	StyleWallWorkspaceActionButton(saveButton_, "Write the current wall part and door edits to materials.db.");
 	StyleWallWorkspaceActionButton(revertButton_, "Discard local wall edits and reload the current wall brush from materials.db.");
-	actionSizer->Add(saveButton_, 0, wxRIGHT, FromDIP(6));
+	actionSizer->Add(saveButton_, 0, wxRIGHT, FromDIP(2));
 	actionSizer->Add(revertButton_, 0);
 
 	statusLabel_ = new wxStaticText(this, wxID_ANY, "");
 	StyleWallWorkspaceStatusLabel(statusLabel_);
 	wxBoxSizer* footerSizer = new wxBoxSizer(wxHORIZONTAL);
-	footerSizer->Add(statusLabel_, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(8));
+	footerSizer->Add(statusLabel_, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
 	footerSizer->Add(actionSizer, 0, wxALIGN_CENTER_VERTICAL);
 
 	rootSizer->Add(headerSizer, 0, wxEXPAND | wxALL, FromDIP(8));
