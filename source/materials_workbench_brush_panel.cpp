@@ -12,6 +12,7 @@
 #include <wx/choice.h>
 #include <wx/dcbuffer.h>
 #include <wx/dialog.h>
+#include <wx/event.h>
 #include <wx/listbox.h>
 #include <wx/msgdlg.h>
 #include <wx/notebook.h>
@@ -2998,6 +2999,9 @@ BrushStorageRecord MaterialsWorkbenchBrushPanel::BuildEditableStorageFromCurrent
 	brush.sourceFile = ParseImportedFromEditorValue(TrimmedValue(sourceCtrl_));
 	brush.lookId = lookIdCtrl_->GetValue();
 	brush.serverLookId = serverLookIdCtrl_->GetValue();
+	if (brush.serverLookId > 0) {
+		brush.lookId = 0;
+	}
 	brush.zOrder = zOrderCtrl_->GetValue();
 	brush.thickness = thicknessCtrl_->GetValue();
 	brush.thicknessCeiling = thicknessCeilingCtrl_->GetValue();
@@ -5872,6 +5876,27 @@ void MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged(wxCommandEvent &event)
 	if (internalUpdate_ || !hasBrush_) {
 		event.Skip();
 		return;
+	}
+
+	auto setSpinSilently = [](wxSpinCtrl* ctrl, int value) {
+		if (!ctrl) {
+			return;
+		}
+		wxEventBlocker blocker(ctrl);
+		ctrl->SetValue(value);
+	};
+
+	wxObject* source = event.GetEventObject();
+	if (source == lookIdCtrl_ && lookIdCtrl_ && serverLookIdCtrl_) {
+		const int lookId = lookIdCtrl_->GetValue();
+		if (lookId > 0 && serverLookIdCtrl_->GetValue() > 0) {
+			setSpinSilently(serverLookIdCtrl_, 0);
+		}
+	} else if (source == serverLookIdCtrl_ && lookIdCtrl_ && serverLookIdCtrl_) {
+		const int serverLookId = serverLookIdCtrl_->GetValue();
+		if (serverLookId > 0 && lookIdCtrl_->GetValue() > 0) {
+			setSpinSilently(lookIdCtrl_, 0);
+		}
 	}
 
 	UpdateWorkspaceHeader();
