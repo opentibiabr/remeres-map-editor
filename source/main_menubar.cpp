@@ -28,7 +28,6 @@
 #include "find_item_window.h"
 #include "settings.h"
 #include "materials_workbench_window.h"
-#include "sqlite_materials_inspector.h"
 #include "lua/lua_script_manager.h"
 #include "lua/lua_scripts_window.h"
 #include "gui.h"
@@ -173,7 +172,6 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 
 	MAKE_ACTION(WIN_MINIMAP, wxITEM_NORMAL, OnMinimapWindow);
 	MAKE_ACTION(WIN_ACTIONS_HISTORY, wxITEM_NORMAL, OnActionsHistoryWindow);
-	MAKE_ACTION(WIN_SQLITE_MATERIALS_INSPECTOR, wxITEM_NORMAL, OnSQLiteMaterialsInspector);
 	MAKE_ACTION(NEW_PALETTE, wxITEM_NORMAL, OnNewPalette);
 	MAKE_ACTION(TAKE_SCREENSHOT, wxITEM_NORMAL, OnTakeScreenshot);
 
@@ -414,7 +412,6 @@ void MainMenuBar::Update() {
 	CheckItem(SHOW_SPAWNS_NPC, g_settings.getBoolean(Config::SHOW_SPAWNS_NPC));
 
 	EnableItem(WIN_MINIMAP, loaded);
-	EnableItem(WIN_SQLITE_MATERIALS_INSPECTOR, loaded && g_settings.getBoolean(Config::USE_SQLITE_MATERIALS) && !g_gui.IsAsyncSqliteBootstrapRunning());
 	EnableItem(NEW_PALETTE, loaded);
 	EnableItem(SELECT_TERRAIN, loaded);
 	EnableItem(SELECT_DOODAD, loaded);
@@ -2213,10 +2210,6 @@ void MainMenuBar::OnActionsHistoryWindow(wxCommandEvent &WXUNUSED(event)) {
 
 void MainMenuBar::OnMaterialsWorkbench(wxCommandEvent &WXUNUSED(event)) {
 	MaterialsWorkbenchWindow::Open(frame);
-}
-void MainMenuBar::OnSQLiteMaterialsInspector(wxCommandEvent &WXUNUSED(event)) {
-	SQLiteMaterialsInspectorDialog dialog(frame);
-	dialog.ShowModal();
 }
 
 void MainMenuBar::OnNewPalette(wxCommandEvent &event) {

@@ -4,6 +4,7 @@
 
 #include <algorithm>
 
+#include <wx/button.h>
 #include <wx/srchctrl.h>
 #include <wx/simplebook.h>
 #include <wx/splitter.h>
@@ -16,6 +17,7 @@
 #include "gui.h"
 #include "materials_workbench_border_panel.h"
 #include "materials_workbench_brush_panel.h"
+#include "materials_workbench_inspector_dialog.h"
 #include "materials_workbench_palette_panel.h"
 #include "materials_workbench_wall_panel.h"
 
@@ -184,11 +186,17 @@ namespace {
 		return false;
 	}
 
-	wxPanel* CreateSidebarPanel(wxWindow* parent, wxSearchCtrl*& outFilter, wxTreeCtrl*& outTree) {
+	wxPanel* CreateSidebarPanel(wxWindow* parent, wxSearchCtrl*& outFilter, wxTreeCtrl*& outTree, wxButton*& outInspectorButton) {
 		wxPanel* panel = new wxPanel(parent, wxID_ANY);
 		wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 
+		wxBoxSizer* headerSizer = new wxBoxSizer(wxHORIZONTAL);
 		wxStaticText* title = new wxStaticText(panel, wxID_ANY, "Catalog");
+		outInspectorButton = new wxButton(panel, wxID_ANY, "Inspector");
+		headerSizer->Add(title, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, panel->FromDIP(8));
+		headerSizer->AddStretchSpacer(1);
+		headerSizer->Add(outInspectorButton, 0, wxALIGN_CENTER_VERTICAL);
+
 		wxStaticText* subtitle = new wxStaticText(panel, wxID_ANY, "Palette categories organize palettes. Brushes define behavior.");
 		subtitle->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_GRAYTEXT));
 		outFilter = new wxSearchCtrl(panel, wxID_ANY);
@@ -197,7 +205,7 @@ namespace {
 		outFilter->SetDescriptiveText("Filter catalog");
 		outTree = new wxTreeCtrl(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTR_DEFAULT_STYLE | wxTR_HIDE_ROOT | wxTR_SINGLE);
 
-		sizer->Add(title, 0, wxEXPAND | wxALL, panel->FromDIP(8));
+		sizer->Add(headerSizer, 0, wxEXPAND | wxALL, panel->FromDIP(8));
 		sizer->Add(subtitle, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, panel->FromDIP(8));
 		sizer->Add(outFilter, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, panel->FromDIP(8));
 		sizer->Add(new wxStaticLine(panel), 0, wxEXPAND | wxLEFT | wxRIGHT, panel->FromDIP(8));
@@ -333,6 +341,17 @@ void MaterialsWorkbenchWindow::Open(wxWindow* parent) {
 	g_materials_workbench_window->Raise();
 }
 
+void MaterialsWorkbenchWindow::OpenSqliteInspector(wxWindow* parent) {
+	MaterialsWorkbenchWindow::Open(parent);
+	if (!g_materials_workbench_window) {
+		return;
+	}
+	g_materials_workbench_window->OpenInspector();
+	if (g_materials_workbench_window->inspectorDialog_) {
+		g_materials_workbench_window->inspectorDialog_->SelectSqliteTab();
+	}
+}
+
 MaterialsWorkbenchWindow::MaterialsWorkbenchWindow(wxWindow* parent) :
 	wxFrame(parent, wxID_ANY, "Materials Workbench", wxDefaultPosition, wxSize(1400, 900), wxDEFAULT_FRAME_STYLE | wxRESIZE_BORDER | wxCLIP_CHILDREN) {
 	BuildLayout();
@@ -346,7 +365,7 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 	rootSplitter->SetSashGravity(0.16);
 	rootSplitter->SetMinimumPaneSize(FromDIP(120));
 
-	wxPanel* sidebarPanel = CreateSidebarPanel(rootSplitter, navigationFilterCtrl_, navigationTree_);
+	wxPanel* sidebarPanel = CreateSidebarPanel(rootSplitter, navigationFilterCtrl_, navigationTree_, inspectorButton_);
 	workspaceBook_ = new wxSimplebook(rootSplitter, wxID_ANY);
 	wxPanel* overviewPanel = CreateOverviewTextPanel(workspaceBook_, controller_, overviewText_);
 	palettePanel_ = new MaterialsWorkbenchPalettePanel(workspaceBook_, controller_);
@@ -365,9 +384,9 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 			HandleBorderSetSaved(borderSetId);
 		});
 	});
-	borderPanel_->SetOnBorderSetDeleted([this](const wxString &scope) {
-		CallAfter([this, scope]() {
-			HandleBorderSetDeleted(scope);
+	borderPanel_->SetOnBorderSetDeleted([this](int64_t borderSetId, const wxString &scope) {
+		CallAfter([this, borderSetId, scope]() {
+			HandleBorderSetDeleted(borderSetId, scope);
 		});
 	});
 	borderPanel_->SetOnOpenLinkedBrush([this](int64_t brushId) {
@@ -421,6 +440,59 @@ void MaterialsWorkbenchWindow::RefreshInspectorForCurrentSelection() {
 	// The side inspector was removed from the Workbench layout.
 }
 
+void MaterialsWorkbenchWindow::OpenInspector() {
+	if (inspectorDialog_ && inspectorDialog_->IsShown()) {
+		inspectorDialog_->Raise();
+		inspectorDialog_->SetFocus();
+		return;
+	}
+
+	inspectorDialog_ = new MaterialsWorkbenchInspectorDialog(this, [this](const wxString &entityKind, int64_t entityId, const wxString &entityName) {
+		return GoToEntity(entityKind, entityId, entityName);
+	});
+
+	inspectorDialog_->Bind(wxEVT_CLOSE_WINDOW, [this](wxCloseEvent&) {
+		if (!inspectorDialog_) {
+			return;
+		}
+		MaterialsWorkbenchInspectorDialog* dialog = inspectorDialog_;
+		inspectorDialog_ = nullptr;
+		dialog->Destroy();
+	});
+
+	inspectorDialog_->Show();
+	inspectorDialog_->Raise();
+}
+
+bool MaterialsWorkbenchWindow::GoToEntity(const wxString &entityKind, int64_t entityId, const wxString &entityName) {
+	wxString contextKey;
+	int itemIndex = -1;
+
+	if (entityKind == "brush" || entityKind == "wall_brush") {
+		if (entityId > 0 && controller_.LocateBrushNode(entityId, contextKey, itemIndex)) {
+			return SelectNavigationNode(MaterialsWorkbenchNodeKind::Brush, contextKey, itemIndex);
+		}
+		return false;
+	}
+
+	if (entityKind == "border_set") {
+		if (entityId > 0 && controller_.LocateBorderSetNode(entityId, contextKey, itemIndex)) {
+			return SelectNavigationNode(MaterialsWorkbenchNodeKind::BorderSet, contextKey, itemIndex);
+		}
+		return false;
+	}
+
+	if (entityKind == "palette") {
+		int tilesetIndex = -1;
+		if (!entityName.IsEmpty() && controller_.LocateTilesetNode(entityName, tilesetIndex)) {
+			return SelectNavigationNode(MaterialsWorkbenchNodeKind::Tileset, "tilesets", tilesetIndex);
+		}
+		return false;
+	}
+
+	return false;
+}
+
 void MaterialsWorkbenchWindow::HandlePaletteSaved(const wxString &paletteName) {
 	RefreshRuntimeMaterialPalettes("palette save");
 	RefreshWorkbenchState();
@@ -464,7 +536,7 @@ void MaterialsWorkbenchWindow::HandleBorderSetSaved(int64_t borderSetId) {
 	RefreshInspectorForCurrentSelection();
 }
 
-void MaterialsWorkbenchWindow::HandleBorderSetDeleted(const wxString &scope) {
+void MaterialsWorkbenchWindow::HandleBorderSetDeleted(int64_t borderSetId, const wxString &scope) {
 	RefreshRuntimeMaterialPalettes("border set delete");
 	RefreshWorkbenchState();
 	PopulateNavigation();
@@ -682,6 +754,12 @@ void MaterialsWorkbenchWindow::PopulateNavigation() {
 }
 
 void MaterialsWorkbenchWindow::BindEvents() {
+	if (inspectorButton_) {
+		inspectorButton_->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+			OpenInspector();
+		});
+	}
+
 	if (navigationFilterCtrl_) {
 		navigationFilterCtrl_->Bind(wxEVT_TEXT, [this](wxCommandEvent &event) {
 			navigationFilterQuery_ = event.GetString();
@@ -897,6 +975,12 @@ void MaterialsWorkbenchWindow::OnClose(wxCloseEvent &event) {
 			event.Veto();
 			return;
 		}
+	}
+
+	if (inspectorDialog_) {
+		MaterialsWorkbenchInspectorDialog* dialog = inspectorDialog_;
+		inspectorDialog_ = nullptr;
+		dialog->Destroy();
 	}
 
 	g_materials_workbench_window = nullptr;

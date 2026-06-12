@@ -7,7 +7,7 @@
 BrushDatabase g_brush_database;
 
 namespace {
-	constexpr int kBrushDatabaseSchemaVersion = 9;
+	constexpr int kBrushDatabaseSchemaVersion = 10;
 	constexpr const char* kBuiltinPaletteGroupTerrain = "terrain";
 	constexpr const char* kBuiltinPaletteGroupDoodad = "doodad";
 	constexpr const char* kBuiltinPaletteGroupItem = "item";
@@ -1615,7 +1615,7 @@ bool BrushDatabaseSchemaManager::initializeSchema() {
 		rollbackTransaction();
 		return setError(wxString::Format("SQLite schema version %d is newer than supported version %d.", version, kBrushDatabaseSchemaVersion));
 	}
-	if (!applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion1>(version, 1) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion2>(version, 2) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion3>(version, 3) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion4>(version, 4) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion5>(version, 5) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion6>(version, 6) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion7>(version, 7) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion8>(version, 8) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion9>(version, 9)) {
+	if (!applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion1>(version, 1) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion2>(version, 2) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion3>(version, 3) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion4>(version, 4) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion5>(version, 5) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion6>(version, 6) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion7>(version, 7) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion8>(version, 8) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion9>(version, 9) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion10>(version, 10)) {
 		return rollback();
 	}
 
@@ -1775,6 +1775,10 @@ bool BrushDatabaseSchemaManager::migrateToVersion9() {
 		"LIMIT 1"
 		"), runtime_family);",
 	});
+}
+
+bool BrushDatabaseSchemaManager::migrateToVersion10() {
+	return true;
 }
 
 bool BrushDatabaseSession::testDatabaseConnection() {

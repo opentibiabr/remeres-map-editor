@@ -818,7 +818,7 @@ void MaterialsWorkbenchBorderPanel::SetOnBorderSetSaved(std::function<void(int64
 	onBorderSetSaved_ = std::move(callback);
 }
 
-void MaterialsWorkbenchBorderPanel::SetOnBorderSetDeleted(std::function<void(const wxString &)> callback) {
+void MaterialsWorkbenchBorderPanel::SetOnBorderSetDeleted(std::function<void(int64_t, const wxString &)> callback) {
 	onBorderSetDeleted_ = std::move(callback);
 }
 
@@ -2354,7 +2354,7 @@ void MaterialsWorkbenchBorderPanel::OnDeleteBorder(wxCommandEvent &event) {
 	ClearWorkspace("Border deleted from materials.db.");
 	SetStatusMessage("Deleted border and refreshed the Workbench catalog.");
 	if (onBorderSetDeleted_) {
-		onBorderSetDeleted_(border.borderScope);
+		onBorderSetDeleted_(border.id, border.borderScope);
 	}
 }
 

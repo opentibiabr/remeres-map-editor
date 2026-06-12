@@ -28,7 +28,7 @@ public:
 	void ClearWorkspace(const wxString &message);
 	bool LoadBorderSet(const wxString &contextKey, int itemIndex);
 	void SetOnBorderSetSaved(std::function<void(int64_t)> callback);
-	void SetOnBorderSetDeleted(std::function<void(const wxString &)> callback);
+	void SetOnBorderSetDeleted(std::function<void(int64_t, const wxString &)> callback);
 	void SetOnBorderSetStateChanged(std::function<void()> callback);
 	void SetOnOpenLinkedBrush(std::function<void(int64_t)> callback);
 	bool HasPendingChanges() const;
@@ -90,7 +90,7 @@ private:
 
 	MaterialsWorkbenchController &controller_;
 	std::function<void(int64_t)> onBorderSetSaved_;
-	std::function<void(const wxString &)> onBorderSetDeleted_;
+	std::function<void(int64_t, const wxString &)> onBorderSetDeleted_;
 	std::function<void()> onBorderSetStateChanged_;
 	std::function<void(int64_t)> onOpenLinkedBrush_;
 	BorderSetStorageRecord borderSetStorage_;

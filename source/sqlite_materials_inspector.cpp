@@ -121,8 +121,8 @@ namespace {
 	}
 } // namespace
 
-SQLiteMaterialsInspectorDialog::SQLiteMaterialsInspectorDialog(wxWindow* parent) :
-	wxDialog(parent, wxID_ANY, "SQLite Materials Inspector", wxDefaultPosition, wxSize(1000, 700), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER) {
+SQLiteMaterialsInspectorPanel::SQLiteMaterialsInspectorPanel(wxWindow* parent) :
+	wxPanel(parent, wxID_ANY) {
 	wxBoxSizer* topSizer = new wxBoxSizer(wxVERTICAL);
 
 	wxBoxSizer* toolbarSizer = new wxBoxSizer(wxHORIZONTAL);
@@ -172,7 +172,6 @@ SQLiteMaterialsInspectorDialog::SQLiteMaterialsInspectorDialog(wxWindow* parent)
 	notebook_->AddPage(tilesetsPanel, "Tilesets");
 
 	topSizer->Add(notebook_, 1, wxEXPAND | wxALL, FromDIP(5));
-	topSizer->Add(CreateSeparatedButtonSizer(wxCLOSE), 0, wxEXPAND | wxALL, FromDIP(5));
 	SetSizer(topSizer);
 
 	reloadButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { ReloadData(); });
@@ -183,7 +182,7 @@ SQLiteMaterialsInspectorDialog::SQLiteMaterialsInspectorDialog(wxWindow* parent)
 	ReloadData();
 }
 
-void SQLiteMaterialsInspectorDialog::ReloadData() {
+void SQLiteMaterialsInspectorPanel::ReloadData() {
 	const auto resetInspectorState = [this](const wxString &summary, const wxString &brushDetails, const wxString &tilesetDetails) {
 		currentBrushes_.clear();
 		tilesets_.clear();
@@ -228,11 +227,11 @@ void SQLiteMaterialsInspectorDialog::ReloadData() {
 	RefreshTilesetList();
 }
 
-void SQLiteMaterialsInspectorDialog::RefreshSummary() {
+void SQLiteMaterialsInspectorPanel::RefreshSummary() {
 	summaryText_->SetValue(FormatAuditReport(inspectorDatabase_, auditReport_));
 }
 
-void SQLiteMaterialsInspectorDialog::RefreshBrushList() {
+void SQLiteMaterialsInspectorPanel::RefreshBrushList() {
 	currentBrushes_.clear();
 	brushList_->Clear();
 	brushDetailsText_->Clear();
@@ -253,7 +252,7 @@ void SQLiteMaterialsInspectorDialog::RefreshBrushList() {
 	}
 }
 
-void SQLiteMaterialsInspectorDialog::RefreshBrushDetails() {
+void SQLiteMaterialsInspectorPanel::RefreshBrushDetails() {
 	brushDetailsText_->Clear();
 
 	const int selection = brushList_->GetSelection();
@@ -270,7 +269,7 @@ void SQLiteMaterialsInspectorDialog::RefreshBrushDetails() {
 	brushDetailsText_->SetValue(FormatBrushDetails(storage));
 }
 
-void SQLiteMaterialsInspectorDialog::RefreshTilesetList() {
+void SQLiteMaterialsInspectorPanel::RefreshTilesetList() {
 	tilesetList_->Clear();
 	tilesetDetailsText_->Clear();
 
@@ -284,7 +283,7 @@ void SQLiteMaterialsInspectorDialog::RefreshTilesetList() {
 	}
 }
 
-void SQLiteMaterialsInspectorDialog::RefreshTilesetDetails() {
+void SQLiteMaterialsInspectorPanel::RefreshTilesetDetails() {
 	tilesetDetailsText_->Clear();
 
 	const int selection = tilesetList_->GetSelection();
@@ -293,4 +292,13 @@ void SQLiteMaterialsInspectorDialog::RefreshTilesetDetails() {
 	}
 
 	tilesetDetailsText_->SetValue(FormatTilesetDetails(tilesets_[selection]));
+}
+
+SQLiteMaterialsInspectorDialog::SQLiteMaterialsInspectorDialog(wxWindow* parent) :
+	wxDialog(parent, wxID_ANY, "SQLite Materials Inspector", wxDefaultPosition, wxSize(1000, 700), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER) {
+	wxBoxSizer* topSizer = new wxBoxSizer(wxVERTICAL);
+	panel_ = new SQLiteMaterialsInspectorPanel(this);
+	topSizer->Add(panel_, 1, wxEXPAND | wxALL, FromDIP(5));
+	topSizer->Add(CreateSeparatedButtonSizer(wxCLOSE), 0, wxEXPAND | wxALL, FromDIP(5));
+	SetSizer(topSizer);
 }

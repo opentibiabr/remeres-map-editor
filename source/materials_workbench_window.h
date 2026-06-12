@@ -8,6 +8,7 @@
 #include "materials_workbench_controller.h"
 
 class wxPanel;
+class wxButton;
 class wxSearchCtrl;
 class wxSplitterWindow;
 class wxSimplebook;
@@ -17,10 +18,12 @@ class MaterialsWorkbenchBorderPanel;
 class MaterialsWorkbenchBrushPanel;
 class MaterialsWorkbenchPalettePanel;
 class MaterialsWorkbenchWallPanel;
+class MaterialsWorkbenchInspectorDialog;
 
 class MaterialsWorkbenchWindow : public wxFrame {
 public:
 	static void Open(wxWindow* parent);
+	static void OpenSqliteInspector(wxWindow* parent);
 
 	explicit MaterialsWorkbenchWindow(wxWindow* parent);
 
@@ -41,9 +44,11 @@ private:
 	void BindEvents();
 	void RefreshInspectorForCurrentSelection();
 	void UpdateBrushNavigationBadge();
+	void OpenInspector();
+	bool GoToEntity(const wxString &entityKind, int64_t entityId, const wxString &entityName);
 	void HandlePaletteSaved(const wxString &paletteName);
 	void HandleBorderSetSaved(int64_t borderSetId);
-	void HandleBorderSetDeleted(const wxString &scope);
+	void HandleBorderSetDeleted(int64_t borderSetId, const wxString &scope);
 	void HandleBrushSaved(int64_t brushId, const wxString &oldName, const wxString &newName);
 	void HandleBrushDeleted(int64_t brushId);
 	void HandleWallBrushSaved(int64_t brushId);
@@ -55,6 +60,8 @@ private:
 	wxTreeCtrl* navigationTree_ = nullptr;
 	wxSimplebook* workspaceBook_ = nullptr;
 	wxTextCtrl* overviewText_ = nullptr;
+	wxButton* inspectorButton_ = nullptr;
+	MaterialsWorkbenchInspectorDialog* inspectorDialog_ = nullptr;
 	wxString hoveredNavigationTooltipKey_;
 	wxString navigationFilterQuery_;
 	bool navigationFilterActive_ = false;

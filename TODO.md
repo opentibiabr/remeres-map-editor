@@ -34,14 +34,17 @@
 - [ ] Add safer creation and removal flows for core entities directly inside the Workbench
   - [x] Brush Workspace: add `New Brush` and `Delete Brush` actions in the footer, including immediate navigation refresh on create/delete
   - [x] Brush Workspace: make `Type` a dropdown and warn before destructive type changes clear variation payload
-- [ ] Modernize the Workbench inspector surfaces, including a `Warnings` tab with a master/detail experience (search, filters, rescan, copy, open target) inspired by the current Border Warnings Inspector prototype; scope should cover `Borders`, `Walls`, `Brushes`, and `Palettes`
-- [ ] Add import/export tooling for `brushes`, `palettes`, and `palette categories`
+- [ ] Add a Workbench Inspector dialog (opened from a button inside the Materials Workbench) with tabbed surfaces
+  - [ ] `Health` / `Warnings`: master/detail (search, filters, rescan, go-to), covering `Borders`, `Walls`, `Brushes`, and `Palettes`
+  - [x] `SQLite`: fold the legacy SQLite Materials Inspector into this surface
+- [ ] Add `Used By` reference views (not in the Inspector) so users can jump to owners without hunting in the tree
+- [ ] Add import/export tooling for any Materials Workbench entity (at least `walls`, `borders`, `brushes`, `palettes`, and `palette categories`) so users can share items without swapping the full `.db`
 - [x] Safer removal (Palette Workspace): `Delete Palette` now shows category + section/entry counts and a small entry preview before confirming
 - [x] Safer removal (Border Workspace): `Delete Border` now shows a `Used By` preview + context count for global borders, and an owner + slots summary for inline borders, before confirming
 - [x] Safer removal (Brush Workspace / Doodad): removing an alternative/composite/tile now asks for confirmation and shows what will be removed (counts and key details) before applying the local change
 - [x] Palette Workspace category delete safety pass: deleting a custom category that still owns palettes now requires an explicit destination category, moves the affected palettes in one transaction, snapshots the selected category name before mutation, and only then removes the old category so no tileset falls back to an implicit uncategorized state or hits a use-after-reload crash while finalizing the UI
 - [ ] Add duplication flows for entities such as palettes, border sets, and wall part sets where it improves authoring speed
-- [ ] Add a lightweight reference view for understanding where a brush is used
+- [ ] Add richer entity navigation helpers (go-to targets, deep links, and cross-references) as the Inspector surfaces mature
 - [ ] Revisit `Doodad` polish with contextual scene actions, stronger active-tile/layer feedback, and richer visual affordances after the current editor flow settles
 - [ ] Add `Doodad` duplication and reordering helpers for `alternatives`, `composites`, tiles, and tile layers if later authoring passes show they would speed up editing
 - [ ] Add richer `Doodad` list visuals such as tiny sprite previews or layer thumbnails only if they improve scanability without bringing back layout bloat
@@ -50,7 +53,6 @@
 ## Nice To Have
 - [x] Add a real composed preview for `wall brush`, beyond the current parts grid
 - [ ] Add a mini-scene preview for `border` application, beyond the slot matrix
-- [ ] Add local per-session edit history for fast undo-style recovery inside the Workbench
 - [ ] Add manual runtime sync controls only if a future workflow really needs them
 - [ ] Revisit XML deprecation messaging once the visual Workbench flow feels complete and clearly superior
 
