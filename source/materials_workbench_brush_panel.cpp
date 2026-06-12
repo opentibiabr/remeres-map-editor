@@ -4607,6 +4607,32 @@ void MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint(wxPaintEvent &W
 			}
 			includedSpecs.push_back(spec);
 		}
+		if (hasDiagonals) {
+			const bool fullBase =
+				hasRenderable("cse") &&
+				hasRenderable("s") &&
+				hasRenderable("csw") &&
+				hasRenderable("e") &&
+				hasRenderable("center") &&
+				hasRenderable("w") &&
+				hasRenderable("cne") &&
+				hasRenderable("n") &&
+				hasRenderable("cnw");
+			if (fullBase) {
+				static const PreviewSpec kCarpetMainPreview[] = {
+					{"cse", 0, 0},
+					{"s", 1, 0},
+					{"csw", 2, 0},
+					{"e", 0, 1},
+					{"center", 1, 1},
+					{"w", 2, 1},
+					{"cne", 0, 2},
+					{"n", 1, 2},
+					{"cnw", 2, 2},
+				};
+				includedSpecs.assign(std::begin(kCarpetMainPreview), std::end(kCarpetMainPreview));
+			}
+		}
 		if (includedSpecs.empty() && hasRenderable("center")) {
 			includedSpecs.push_back({"center", hasDiagonals ? 2 : 1, hasDiagonals ? 2 : 1});
 		}
