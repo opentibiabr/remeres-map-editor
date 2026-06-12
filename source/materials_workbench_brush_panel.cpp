@@ -967,13 +967,13 @@ namespace {
 			{"cse", "NW", "Corner slot.", 0, 0},
 			{"s", "N", "Edge slot.", 2, 0},
 			{"csw", "NE", "Corner slot.", 4, 0},
-			{"dse", "D\nNE", "Diagonal corner slot.", 1, 1},
-			{"dsw", "D\nNW", "Diagonal corner slot.", 3, 1},
+			{"dse", "D\nNW", "Diagonal corner slot.", 1, 1},
+			{"dsw", "D\nNE", "Diagonal corner slot.", 3, 1},
 			{"e", "W", "Edge slot.", 0, 2},
 			{"center", "C", "Center slot.", 2, 2},
 			{"w", "E", "Edge slot.", 4, 2},
-			{"dne", "D\nSE", "Diagonal corner slot.", 1, 3},
-			{"dnw", "D\nSW", "Diagonal corner slot.", 3, 3},
+			{"dne", "D\nSW", "Diagonal corner slot.", 1, 3},
+			{"dnw", "D\nSE", "Diagonal corner slot.", 3, 3},
 			{"cne", "SW", "Corner slot.", 0, 4},
 			{"n", "S", "Edge slot.", 2, 4},
 			{"cnw", "SE", "Corner slot.", 4, 4},
@@ -1184,9 +1184,7 @@ namespace {
 		}
 
 		if (itemId > 0) {
-			const wxRect spriteBounds = GetDoodadPreviewSpriteRect(itemId, wxPoint(0, 0));
-			const wxPoint drawPoint = ResolveCarpetPreviewAnchor(window, cellRect, align, spriteBounds);
-			DrawDoodadPreviewItemSprite(dc, itemId, drawPoint);
+			DrawCenteredPreviewItemSprite(dc, cellRect, itemId);
 		}
 	}
 
