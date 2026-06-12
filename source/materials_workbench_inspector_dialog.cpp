@@ -3,6 +3,8 @@
 #include "materials_workbench_inspector_dialog.h"
 
 #include <algorithm>
+#include <limits>
+#include <set>
 
 #include <wx/button.h>
 #include <wx/choice.h>
@@ -16,6 +18,7 @@
 #include <wx/textctrl.h>
 
 #include "brush_database.h"
+#include "items.h"
 #include "sqlite_materials_inspector.h"
 
 namespace {
@@ -45,6 +48,55 @@ namespace {
 			return -1;
 		}
 		return list->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+	}
+
+	bool IsKnownWorkbenchInspectorItemId(int itemId) {
+		if (itemId <= 0 || itemId > std::numeric_limits<uint16_t>::max()) {
+			return false;
+		}
+		return g_items.isValidID(static_cast<uint16_t>(itemId));
+	}
+
+	wxString NormalizeAlign(wxString value) {
+		value.Trim(true);
+		value.Trim(false);
+		value.MakeLower();
+		return value;
+	}
+
+	const std::vector<wxString>& GetRequiredCarpetAligns() {
+		static const std::vector<wxString> aligns = {
+			"center", "n", "s", "e", "w", "cnw", "cne", "csw", "cse"
+		};
+		return aligns;
+	}
+
+	const std::vector<wxString>& GetRequiredTableAligns() {
+		static const std::vector<wxString> aligns = {
+			"north", "vertical", "south", "west", "horizontal", "east", "alone"
+		};
+		return aligns;
+	}
+
+	wxString JoinStrings(const std::vector<wxString> &values, const wxString &separator) {
+		wxString result;
+		for (size_t i = 0; i < values.size(); ++i) {
+			if (i > 0) {
+				result << separator;
+			}
+			result << values[i];
+		}
+		return result;
+	}
+
+	bool CanGoToEntity(const wxString &entityKind, int64_t entityId, const wxString &entityName) {
+		if (entityKind.IsEmpty()) {
+			return false;
+		}
+		if (entityKind == "palette") {
+			return !entityName.IsEmpty();
+		}
+		return entityId > 0;
 	}
 } // namespace
 
@@ -237,6 +289,250 @@ void MaterialsWorkbenchInspectorDialog::ReloadWarnings() {
 		return;
 	}
 
+	{
+		std::vector<BrushRecord> carpetBrushes;
+		if (!g_brush_database.listBrushesByType("carpet", carpetBrushes)) {
+			WarningRow row;
+			row.severity = "Error";
+			row.domain = "Brush";
+			row.entityKind = "database";
+			row.issue = "Failed to list carpet brushes";
+			row.count = 1;
+			row.status = "Active";
+			row.details = g_brush_database.getLastError();
+			warnings_.push_back(std::move(row));
+		} else {
+			for (const BrushRecord &brush : carpetBrushes) {
+				BrushStorageRecord storage;
+				if (!g_brush_database.getCompleteBrushById(brush.id, storage)) {
+					continue;
+				}
+
+				std::set<wxString> presentAligns;
+				std::vector<wxString> unknownAligns;
+				std::vector<wxString> emptyAligns;
+				std::set<int> invalidItems;
+
+				for (const CarpetNodeRecord &node : storage.carpetNodes) {
+					const wxString align = NormalizeAlign(node.align);
+					if (align.IsEmpty()) {
+						continue;
+					}
+					bool known = false;
+					for (const wxString &required : GetRequiredCarpetAligns()) {
+						if (required == align) {
+							known = true;
+							break;
+						}
+					}
+					if (!known) {
+						unknownAligns.push_back(node.align);
+					}
+					if (node.items.empty()) {
+						emptyAligns.push_back(node.align);
+						continue;
+					}
+					presentAligns.insert(align);
+					for (const CarpetNodeItemRecord &item : node.items) {
+						if (!IsKnownWorkbenchInspectorItemId(item.itemId)) {
+							invalidItems.insert(item.itemId);
+						}
+					}
+				}
+
+				std::vector<wxString> missingAligns;
+				for (const wxString &required : GetRequiredCarpetAligns()) {
+					if (presentAligns.find(required) == presentAligns.end()) {
+						missingAligns.push_back(required);
+					}
+				}
+
+				if (!emptyAligns.empty()) {
+					WarningRow row;
+					row.severity = "Error";
+					row.domain = "Brush";
+					row.entityKind = "brush";
+					row.entityId = brush.id;
+					row.entityName = brush.name;
+					row.issue = "Carpet has empty contexts";
+					row.count = static_cast<int>(emptyAligns.size());
+					row.status = "Active";
+					row.details = "Empty: " + JoinStrings(emptyAligns, ", ");
+					warnings_.push_back(std::move(row));
+				}
+
+				if (!unknownAligns.empty()) {
+					WarningRow row;
+					row.severity = "Warning";
+					row.domain = "Brush";
+					row.entityKind = "brush";
+					row.entityId = brush.id;
+					row.entityName = brush.name;
+					row.issue = "Carpet has unknown align slots";
+					row.count = static_cast<int>(unknownAligns.size());
+					row.status = "Active";
+					row.details = "Unknown: " + JoinStrings(unknownAligns, ", ");
+					warnings_.push_back(std::move(row));
+				}
+
+				if (!invalidItems.empty()) {
+					wxArrayString ids;
+					for (int id : invalidItems) {
+						ids.Add(wxString::Format("%d", id));
+					}
+
+					WarningRow row;
+					row.severity = "Error";
+					row.domain = "Brush";
+					row.entityKind = "brush";
+					row.entityId = brush.id;
+					row.entityName = brush.name;
+					row.issue = "Carpet has invalid item ids";
+					row.count = static_cast<int>(invalidItems.size());
+					row.status = "Active";
+					row.details = "Invalid item ids: " + wxJoin(ids, ',');
+					warnings_.push_back(std::move(row));
+				}
+
+				if (!missingAligns.empty()) {
+					WarningRow row;
+					row.severity = "Warning";
+					row.domain = "Brush";
+					row.entityKind = "brush";
+					row.entityId = brush.id;
+					row.entityName = brush.name;
+					row.issue = "Carpet missing contexts";
+					row.count = static_cast<int>(missingAligns.size());
+					row.status = "Active";
+					row.details = "Missing: " + JoinStrings(missingAligns, ", ");
+					warnings_.push_back(std::move(row));
+				}
+			}
+		}
+	}
+
+	{
+		std::vector<BrushRecord> tableBrushes;
+		if (!g_brush_database.listBrushesByType("table", tableBrushes)) {
+			WarningRow row;
+			row.severity = "Error";
+			row.domain = "Brush";
+			row.entityKind = "database";
+			row.issue = "Failed to list table brushes";
+			row.count = 1;
+			row.status = "Active";
+			row.details = g_brush_database.getLastError();
+			warnings_.push_back(std::move(row));
+		} else {
+			for (const BrushRecord &brush : tableBrushes) {
+				BrushStorageRecord storage;
+				if (!g_brush_database.getCompleteBrushById(brush.id, storage)) {
+					continue;
+				}
+
+				std::set<wxString> presentAligns;
+				std::vector<wxString> unknownAligns;
+				std::vector<wxString> emptyAligns;
+				std::set<int> invalidItems;
+
+				for (const TableNodeRecord &node : storage.tableNodes) {
+					const wxString align = NormalizeAlign(node.align);
+					if (align.IsEmpty()) {
+						continue;
+					}
+					bool known = false;
+					for (const wxString &required : GetRequiredTableAligns()) {
+						if (required == align) {
+							known = true;
+							break;
+						}
+					}
+					if (!known) {
+						unknownAligns.push_back(node.align);
+					}
+					if (node.items.empty()) {
+						emptyAligns.push_back(node.align);
+						continue;
+					}
+					presentAligns.insert(align);
+					for (const TableNodeItemRecord &item : node.items) {
+						if (!IsKnownWorkbenchInspectorItemId(item.itemId)) {
+							invalidItems.insert(item.itemId);
+						}
+					}
+				}
+
+				std::vector<wxString> missingAligns;
+				for (const wxString &required : GetRequiredTableAligns()) {
+					if (presentAligns.find(required) == presentAligns.end()) {
+						missingAligns.push_back(required);
+					}
+				}
+
+				if (!emptyAligns.empty()) {
+					WarningRow row;
+					row.severity = "Error";
+					row.domain = "Brush";
+					row.entityKind = "brush";
+					row.entityId = brush.id;
+					row.entityName = brush.name;
+					row.issue = "Table has empty states";
+					row.count = static_cast<int>(emptyAligns.size());
+					row.status = "Active";
+					row.details = "Empty: " + JoinStrings(emptyAligns, ", ");
+					warnings_.push_back(std::move(row));
+				}
+
+				if (!unknownAligns.empty()) {
+					WarningRow row;
+					row.severity = "Warning";
+					row.domain = "Brush";
+					row.entityKind = "brush";
+					row.entityId = brush.id;
+					row.entityName = brush.name;
+					row.issue = "Table has unknown state slots";
+					row.count = static_cast<int>(unknownAligns.size());
+					row.status = "Active";
+					row.details = "Unknown: " + JoinStrings(unknownAligns, ", ");
+					warnings_.push_back(std::move(row));
+				}
+
+				if (!invalidItems.empty()) {
+					wxArrayString ids;
+					for (int id : invalidItems) {
+						ids.Add(wxString::Format("%d", id));
+					}
+
+					WarningRow row;
+					row.severity = "Error";
+					row.domain = "Brush";
+					row.entityKind = "brush";
+					row.entityId = brush.id;
+					row.entityName = brush.name;
+					row.issue = "Table has invalid item ids";
+					row.count = static_cast<int>(invalidItems.size());
+					row.status = "Active";
+					row.details = "Invalid item ids: " + wxJoin(ids, ',');
+					warnings_.push_back(std::move(row));
+				}
+
+				if (!missingAligns.empty()) {
+					WarningRow row;
+					row.severity = "Warning";
+					row.domain = "Brush";
+					row.entityKind = "brush";
+					row.entityId = brush.id;
+					row.entityName = brush.name;
+					row.issue = "Table missing states";
+					row.count = static_cast<int>(missingAligns.size());
+					row.status = "Active";
+					row.details = "Missing: " + JoinStrings(missingAligns, ", ");
+					warnings_.push_back(std::move(row));
+				}
+			}
+		}
+	}
+
 	if (report.unresolvedGroundTargets > 0) {
 		WarningRow row;
 		row.severity = "Warning";
@@ -372,7 +668,10 @@ void MaterialsWorkbenchInspectorDialog::UpdateWarningDetails() {
 	}
 	warningDetails_->SetValue(text);
 
-	const bool canGoTo = goToHandler_ && row.entityId > 0 && !row.entityKind.IsEmpty();
+	bool canGoTo = false;
+	if (goToHandler_) {
+		canGoTo = CanGoToEntity(row.entityKind, row.entityId, row.entityName);
+	}
 	if (warningGoToButton_) {
 		warningGoToButton_->Enable(canGoTo);
 	}
@@ -387,7 +686,7 @@ void MaterialsWorkbenchInspectorDialog::GoToSelectedWarning() {
 		return;
 	}
 	const WarningRow &row = warnings_[filteredWarningIndices_[static_cast<size_t>(selected)]];
-	if (row.entityId <= 0 || row.entityKind.IsEmpty()) {
+	if (!CanGoToEntity(row.entityKind, row.entityId, row.entityName)) {
 		return;
 	}
 	goToHandler_(row.entityKind, row.entityId, row.entityName);

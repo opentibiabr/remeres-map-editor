@@ -36,6 +36,8 @@
   - [x] Brush Workspace: make `Type` a dropdown and warn before destructive type changes clear variation payload
 - [ ] Add a Workbench Inspector dialog (opened from a button inside the Materials Workbench) with tabbed surfaces
   - [ ] `Health` / `Warnings`: master/detail (search, filters, rescan, go-to), covering `Borders`, `Walls`, `Brushes`, and `Palettes`
+    - [x] First-pass domain warnings for `carpet` (missing/empty/unknown slots + invalid item ids)
+    - [x] First-pass domain warnings for `table` (missing/empty/unknown slots + invalid item ids)
   - [x] `SQLite`: fold the legacy SQLite Materials Inspector into this surface
 - [ ] Add `Used By` reference views (not in the Inspector) so users can jump to owners without hunting in the tree
 - [ ] Add import/export tooling for any Materials Workbench entity (at least `walls`, `borders`, `brushes`, `palettes`, and `palette categories`) so users can share items without swapping the full `.db`
