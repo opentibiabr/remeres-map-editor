@@ -35,6 +35,7 @@
   - [x] Brush Workspace: add `New Brush` and `Delete Brush` actions in the footer, including immediate navigation refresh on create/delete
   - [x] Brush Workspace: make `Type` a dropdown and warn before destructive type changes clear variation payload
 - [ ] Modernize the Workbench inspector surfaces, including a `Warnings` tab with a master/detail experience (search, filters, rescan, copy, open target) inspired by the current Border Warnings Inspector prototype; scope should cover `Borders`, `Walls`, `Brushes`, and `Palettes`
+- [ ] Add import/export tooling for `brushes`, `palettes`, and `palette categories`
 - [x] Safer removal (Palette Workspace): `Delete Palette` now shows category + section/entry counts and a small entry preview before confirming
 - [x] Safer removal (Border Workspace): `Delete Border` now shows a `Used By` preview + context count for global borders, and an owner + slots summary for inline borders, before confirming
 - [x] Safer removal (Brush Workspace / Doodad): removing an alternative/composite/tile now asks for confirmation and shows what will be removed (counts and key details) before applying the local change
