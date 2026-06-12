@@ -3,6 +3,7 @@
 #include "materials_workbench_brush_panel.h"
 
 #include <cmath>
+#include <map>
 #include <limits>
 #include <set>
 #include <utility>
@@ -963,15 +964,19 @@ namespace {
 
 	const std::vector<AlignedContextSlot>& GetCarpetContextSlots() {
 		static const std::vector<AlignedContextSlot> kSlots = {
-			{"cse", "NW", "Top-left carpet slot.", 0, 0},
-			{"s", "N", "Top edge carpet slot.", 1, 0},
-			{"csw", "NE", "Top-right carpet slot.", 2, 0},
-			{"e", "W", "Left edge carpet slot.", 0, 1},
-			{"center", "C", "Center carpet slot.", 1, 1},
-			{"w", "E", "Right edge carpet slot.", 2, 1},
-			{"cne", "SW", "Bottom-left carpet slot.", 0, 2},
-			{"n", "S", "Bottom edge carpet slot.", 1, 2},
-			{"cnw", "SE", "Bottom-right carpet slot.", 2, 2},
+			{"cse", "NW", "Corner slot.", 0, 0},
+			{"s", "N", "Edge slot.", 2, 0},
+			{"csw", "NE", "Corner slot.", 4, 0},
+			{"dse", "D\nNE", "Diagonal corner slot.", 1, 1},
+			{"dsw", "D\nNW", "Diagonal corner slot.", 3, 1},
+			{"e", "W", "Edge slot.", 0, 2},
+			{"center", "C", "Center slot.", 2, 2},
+			{"w", "E", "Edge slot.", 4, 2},
+			{"dne", "D\nSE", "Diagonal corner slot.", 1, 3},
+			{"dnw", "D\nSW", "Diagonal corner slot.", 3, 3},
+			{"cne", "SW", "Corner slot.", 0, 4},
+			{"n", "S", "Edge slot.", 2, 4},
+			{"cnw", "SE", "Corner slot.", 4, 4},
 		};
 		return kSlots;
 	}
@@ -1003,6 +1008,16 @@ namespace {
 		return aligns;
 	}
 
+	std::vector<wxString> GetKnownCarpetAligns() {
+		static const char* kKnownOrder[] = {"center", "s", "n", "e", "w", "cse", "csw", "cne", "cnw", "dnw", "dne", "dsw", "dse"};
+		std::vector<wxString> aligns;
+		aligns.reserve(std::size(kKnownOrder));
+		for (const char* align : kKnownOrder) {
+			aligns.emplace_back(wxString::FromUTF8(align));
+		}
+		return aligns;
+	}
+
 	std::vector<wxString> GetTableAlignChoices() {
 		std::vector<wxString> aligns;
 		for (const auto &slot : GetTableContextSlots()) {
@@ -1013,6 +1028,8 @@ namespace {
 
 	bool IsKnownTableAlign(const wxString &align) {
 		wxString normalized = align;
+		normalized.Trim(true);
+		normalized.Trim(false);
 		normalized.MakeLower();
 		for (const auto &candidate : GetTableAlignChoices()) {
 			wxString current = candidate;
@@ -1026,8 +1043,10 @@ namespace {
 
 	bool IsKnownCarpetAlign(const wxString &align) {
 		wxString normalized = align;
+		normalized.Trim(true);
+		normalized.Trim(false);
 		normalized.MakeLower();
-		for (const auto &candidate : GetCarpetAlignChoices()) {
+		for (const auto &candidate : GetKnownCarpetAligns()) {
 			wxString current = candidate;
 			current.MakeLower();
 			if (current == normalized) {
@@ -1040,9 +1059,13 @@ namespace {
 	template <typename TNodeRecord>
 	int FindAlignedNodeIndexByAlign(const std::vector<TNodeRecord> &nodes, const wxString &align) {
 		wxString target = align;
+		target.Trim(true);
+		target.Trim(false);
 		target.MakeLower();
 		for (size_t i = 0; i < nodes.size(); ++i) {
 			wxString current = nodes[i].align;
+			current.Trim(true);
+			current.Trim(false);
 			current.MakeLower();
 			if (current == target) {
 				return static_cast<int>(i);
@@ -1053,12 +1076,16 @@ namespace {
 
 	int FindTableNodeIndexByAlignExcluding(const std::vector<TableNodeRecord> &nodes, const wxString &align, int ignoredIndex) {
 		wxString target = align;
+		target.Trim(true);
+		target.Trim(false);
 		target.MakeLower();
 		for (size_t i = 0; i < nodes.size(); ++i) {
 			if (static_cast<int>(i) == ignoredIndex) {
 				continue;
 			}
 			wxString current = nodes[i].align;
+			current.Trim(true);
+			current.Trim(false);
 			current.MakeLower();
 			if (current == target) {
 				return static_cast<int>(i);
@@ -1118,6 +1145,8 @@ namespace {
 		dc.DrawRoundedRectangle(centerReference, window->FromDIP(4));
 
 		wxString normalized = align;
+		normalized.Trim(true);
+		normalized.Trim(false);
 		normalized.MakeLower();
 		if (normalized != "center") {
 			dc.SetPen(wxPen(wxColour(74, 82, 96), 1, wxPENSTYLE_DOT));
@@ -1141,6 +1170,14 @@ namespace {
 			} else if (normalized == "csw") {
 				end = wxPoint(cellRect.x + window->FromDIP(10), cellRect.GetBottom() - window->FromDIP(10));
 			} else if (normalized == "cse") {
+				end = wxPoint(cellRect.GetRight() - window->FromDIP(10), cellRect.GetBottom() - window->FromDIP(10));
+			} else if (normalized == "dnw") {
+				end = wxPoint(cellRect.x + window->FromDIP(10), cellRect.y + window->FromDIP(10));
+			} else if (normalized == "dne") {
+				end = wxPoint(cellRect.GetRight() - window->FromDIP(10), cellRect.y + window->FromDIP(10));
+			} else if (normalized == "dsw") {
+				end = wxPoint(cellRect.x + window->FromDIP(10), cellRect.GetBottom() - window->FromDIP(10));
+			} else if (normalized == "dse") {
 				end = wxPoint(cellRect.GetRight() - window->FromDIP(10), cellRect.GetBottom() - window->FromDIP(10));
 			}
 			dc.DrawLine(start, end);
@@ -2558,11 +2595,13 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildCarpetVariationsPage(wxSimplebook* b
 		"Click the layout map to inspect the center, edge, or corner context. Empty slots stay visible so missing carpet coverage is obvious."
 	);
 	StyleBrushWorkspaceSubtitle(widgets.visualInfoLabel);
-	widgets.visualInfoLabel->Wrap(panel->FromDIP(250));
-	widgets.contextPanel = new wxPanel(panel, wxID_ANY, wxDefaultPosition, wxSize(panel->FromDIP(250), panel->FromDIP(250)), wxBORDER_SIMPLE);
+	widgets.visualInfoLabel->Wrap(panel->FromDIP(360));
+	widgets.contextPanel = new wxPanel(panel, wxID_ANY, wxDefaultPosition, wxSize(panel->FromDIP(360), panel->FromDIP(360)), wxBORDER_SIMPLE);
 	widgets.contextPanel->SetBackgroundStyle(wxBG_STYLE_PAINT);
-	widgets.contextPanel->SetMinSize(wxSize(panel->FromDIP(250), panel->FromDIP(250)));
+	widgets.contextPanel->SetMinSize(wxSize(panel->FromDIP(360), panel->FromDIP(360)));
 	widgets.nodesList = new wxListBox(panel, wxID_ANY);
+	widgets.nodesList->SetMinSize(wxSize(-1, panel->FromDIP(120)));
+	widgets.nodesList->SetToolTip("Lists all contexts, including unmapped/duplicate slot keys.");
 	widgets.nodesList->Hide();
 	wxBoxSizer* nodeButtons = new wxBoxSizer(wxHORIZONTAL);
 	widgets.addNodeButton = new wxButton(panel, wxID_ANY, "Add Context");
@@ -2575,7 +2614,9 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildCarpetVariationsPage(wxSimplebook* b
 	nodesSizer->Add(nodeButtons, 0, wxEXPAND);
 	nodesSizer->Add(widgets.nodesList, 0, wxEXPAND);
 
-	wxPanel* editorPanel = new wxPanel(panel, wxID_ANY);
+	wxScrolledWindow* editorScroll = new wxScrolledWindow(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL);
+	editorScroll->SetScrollRate(0, panel->FromDIP(16));
+	wxPanel* editorPanel = new wxPanel(editorScroll, wxID_ANY);
 	wxBoxSizer* editorFrameSizer = new wxBoxSizer(wxHORIZONTAL);
 	wxBoxSizer* editorSizer = new wxBoxSizer(wxVERTICAL);
 	widgets.seamlessPreviewInfoLabel = new wxStaticText(editorPanel, wxID_ANY, "");
@@ -2654,10 +2695,13 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildCarpetVariationsPage(wxSimplebook* b
 	editorFrameSizer->Add(editorSizer, 0, wxEXPAND);
 	editorFrameSizer->AddStretchSpacer();
 	editorPanel->SetSizer(editorFrameSizer);
+	wxBoxSizer* editorScrollSizer = new wxBoxSizer(wxVERTICAL);
+	editorScrollSizer->Add(editorPanel, 1, wxEXPAND);
+	editorScroll->SetSizer(editorScrollSizer);
 
 	rootSizer->Add(nodesSizer, 0, wxEXPAND | wxRIGHT, FromDIP(10));
 	rootSizer->Add(new wxStaticLine(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_VERTICAL), 0, wxEXPAND | wxRIGHT, FromDIP(10));
-	rootSizer->Add(editorPanel, 1, wxEXPAND);
+	rootSizer->Add(editorScroll, 1, wxEXPAND);
 	panel->SetSizer(rootSizer);
 
 	widgets.addNodeButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnAddAlignedNode, this);
@@ -2703,6 +2747,8 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildTableVariationsPage(wxSimplebook* bo
 	widgets.contextPanel->SetBackgroundStyle(wxBG_STYLE_PAINT);
 	widgets.contextPanel->SetMinSize(wxSize(panel->FromDIP(250), panel->FromDIP(250)));
 	widgets.nodesList = new wxListBox(panel, wxID_ANY);
+	widgets.nodesList->SetMinSize(wxSize(-1, panel->FromDIP(120)));
+	widgets.nodesList->SetToolTip("Lists all contexts, including unmapped/duplicate slot keys.");
 	widgets.nodesList->Hide();
 	wxBoxSizer* nodeButtons = new wxBoxSizer(wxHORIZONTAL);
 	widgets.addNodeButton = new wxButton(panel, wxID_ANY, "Add Node");
@@ -3317,7 +3363,9 @@ void MaterialsWorkbenchBrushPanel::CommitVariationEditorState() {
 		const int nodeSelection = alignedNodesList_ ? alignedNodesList_->GetSelection() : wxNOT_FOUND;
 		if (nodeSelection != wxNOT_FOUND && static_cast<size_t>(nodeSelection) < brushStorage_.carpetNodes.size()) {
 			auto &node = brushStorage_.carpetNodes[static_cast<size_t>(nodeSelection)];
-			node.align = alignedPendingCarpetAlign_.IsEmpty() ? alignedNodeAlignCtrl_->GetValue() : alignedPendingCarpetAlign_;
+			if (!alignedPendingCarpetAlign_.IsEmpty()) {
+				node.align = alignedPendingCarpetAlign_;
+			}
 			const int itemSelection = alignedItemsList_ ? alignedItemsList_->GetSelection() : wxNOT_FOUND;
 			if (itemSelection != wxNOT_FOUND && static_cast<size_t>(itemSelection) < node.items.size()) {
 				node.items[static_cast<size_t>(itemSelection)].itemId = alignedItemIdCtrl_->GetValue();
@@ -3938,8 +3986,33 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedNodeList() {
 
 	const int topItem = CaptureListTopItem(alignedNodesList_);
 	alignedNodesList_->Clear();
+	bool showNodeList = false;
 	if (GetEffectiveBrushType() == "carpet") {
 		const auto &nodes = brushStorage_.carpetNodes;
+		{
+			std::map<wxString, int> alignCounts;
+			for (const auto &node : nodes) {
+				wxString normalized = node.align;
+				normalized.Trim(true);
+				normalized.Trim(false);
+				normalized.MakeLower();
+				alignCounts[normalized] += 1;
+			}
+			for (const auto &entry : alignCounts) {
+				if (entry.first.IsEmpty()) {
+					showNodeList = true;
+					break;
+				}
+				if (!IsKnownCarpetAlign(entry.first)) {
+					showNodeList = true;
+					break;
+				}
+				if (entry.second > 1) {
+					showNodeList = true;
+					break;
+				}
+			}
+		}
 		for (size_t i = 0; i < nodes.size(); ++i) {
 			alignedNodesList_->Append(FormatAlignedNodeLabel(nodes[i].align, nodes[i].items.size(), i));
 		}
@@ -3951,6 +4024,30 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedNodeList() {
 		}
 	} else {
 		const auto &nodes = brushStorage_.tableNodes;
+		{
+			std::map<wxString, int> alignCounts;
+			for (const auto &node : nodes) {
+				wxString normalized = node.align;
+				normalized.Trim(true);
+				normalized.Trim(false);
+				normalized.MakeLower();
+				alignCounts[normalized] += 1;
+			}
+			for (const auto &entry : alignCounts) {
+				if (entry.first.IsEmpty()) {
+					showNodeList = true;
+					break;
+				}
+				if (!IsKnownTableAlign(entry.first)) {
+					showNodeList = true;
+					break;
+				}
+				if (entry.second > 1) {
+					showNodeList = true;
+					break;
+				}
+			}
+		}
 		for (size_t i = 0; i < nodes.size(); ++i) {
 			alignedNodesList_->Append(FormatAlignedNodeLabel(nodes[i].align, nodes[i].items.size(), i));
 		}
@@ -3968,6 +4065,11 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedNodeList() {
 		alignedNodesList_->SetSelection(alignedNodeIndex_);
 	}
 	RestoreListTopItem(alignedNodesList_, topItem);
+
+	alignedNodesList_->Show(showNodeList);
+	if (wxWindow* parent = alignedNodesList_->GetParent()) {
+		parent->Layout();
+	}
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshAlignedItemList() {
@@ -4052,7 +4154,20 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedSelection() {
 		}
 		alignedNodeAlignCtrl_->Enable(!selectedAlign.IsEmpty());
 		if (!selectedAlign.IsEmpty()) {
-			alignedNodeAlignCtrl_->SetValue(selectedAlign);
+			wxString slotLabel;
+			for (const auto &slot : GetCarpetContextSlots()) {
+				const wxString slotAlign = wxString::FromUTF8(slot.align);
+				if (slotAlign.CmpNoCase(selectedAlign) == 0) {
+					slotLabel = wxString::FromUTF8(slot.label);
+					break;
+				}
+			}
+			alignedNodeAlignCtrl_->SetValue(slotLabel.IsEmpty() ? selectedAlign : slotLabel);
+			alignedNodeAlignCtrl_->SetToolTip(
+				slotLabel.IsEmpty()
+					? wxString::Format("Selected slot key: %s", selectedAlign)
+					: wxString::Format("Selected slot: %s (align key: %s)", slotLabel, selectedAlign)
+			);
 		} else {
 			alignedNodeAlignCtrl_->SetValue("");
 		}
@@ -4396,15 +4511,8 @@ void MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint(wxPaintEvent &W
 	}
 
 	if (GetEffectiveBrushType() == "carpet") {
-		enum class CarpetSeamlessCollapseMode {
-			None,
-			MiddleColumn,
-			MiddleRow,
-		};
-
 		struct CarpetPreviewTile {
 			wxString align;
-			wxString label;
 			bool exists = false;
 			bool selected = false;
 			int itemId = 0;
@@ -4416,15 +4524,6 @@ void MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint(wxPaintEvent &W
 			bool hasSprite() const {
 				return bitmap.IsOk() && visibleBounds.width > 0 && visibleBounds.height > 0;
 			}
-		};
-
-		struct CarpetPreviewMeasure {
-			wxRect tileUnion;
-			wxRect spriteUnion;
-			wxRect visibleUnion;
-			bool hasTileUnion = false;
-			bool hasSpriteUnion = false;
-			bool hasVisibleUnion = false;
 		};
 
 		const wxColour laneFill(24, 28, 36);
@@ -4441,32 +4540,6 @@ void MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint(wxPaintEvent &W
 			: (alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(brushStorage_.carpetNodes.size())
 				? brushStorage_.carpetNodes[alignedNodeIndex_].align
 				: wxString("center"));
-		const auto hasCarpetNode = [&](const wxString &align) {
-			return FindAlignedNodeIndexByAlign(brushStorage_.carpetNodes, align) >= 0;
-		};
-		const auto matchesMissingPair = [&](const std::vector<wxString> &missingAligns) {
-			for (const auto &slot : GetCarpetContextSlots()) {
-				const wxString align = wxString::FromUTF8(slot.align);
-				const bool shouldBeMissing = std::find_if(
-					missingAligns.begin(),
-					missingAligns.end(),
-					[&](const wxString &candidate) { return candidate.CmpNoCase(align) == 0; }
-				) != missingAligns.end();
-				if (shouldBeMissing) {
-					if (hasCarpetNode(align)) {
-						return false;
-					}
-				} else if (!hasCarpetNode(align)) {
-					return false;
-				}
-			}
-			return true;
-		};
-		const CarpetSeamlessCollapseMode collapseMode = matchesMissingPair({"n", "s"})
-			? CarpetSeamlessCollapseMode::MiddleColumn
-			: (matchesMissingPair({"e", "w"})
-				? CarpetSeamlessCollapseMode::MiddleRow
-				: CarpetSeamlessCollapseMode::None);
 		const auto resolvePreviewItemId = [&](const wxString &align) -> int {
 			const int nodeIndex = FindAlignedNodeIndexByAlign(brushStorage_.carpetNodes, align);
 			if (nodeIndex < 0 || nodeIndex >= static_cast<int>(brushStorage_.carpetNodes.size())) {
@@ -4487,82 +4560,166 @@ void MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint(wxPaintEvent &W
 			return node.items.empty() ? 0 : node.items.front().itemId;
 		};
 
-		std::vector<CarpetPreviewTile> tiles;
-		tiles.reserve(GetCarpetContextSlots().size());
-		for (const auto &slot : GetCarpetContextSlots()) {
-			if ((collapseMode == CarpetSeamlessCollapseMode::MiddleColumn && slot.column == 1) ||
-				(collapseMode == CarpetSeamlessCollapseMode::MiddleRow && slot.row == 1)) {
+		const auto hasRenderable = [&](const wxString &align) -> bool {
+			return resolvePreviewItemId(align) > 0;
+		};
+
+		const bool hasDiagonals = hasRenderable("dnw") || hasRenderable("dne") || hasRenderable("dsw") || hasRenderable("dse");
+		const bool missingPairNS = !hasRenderable("s") && !hasRenderable("n");
+		const bool missingPairEW = !hasRenderable("e") && !hasRenderable("w");
+
+		struct PreviewSpec {
+			const char* align;
+			int col;
+			int row;
+		};
+
+		std::vector<PreviewSpec> specs;
+		if (hasDiagonals) {
+			specs.reserve(GetCarpetContextSlots().size());
+			for (const auto &slot : GetCarpetContextSlots()) {
+				specs.push_back({slot.align, slot.column, slot.row});
+			}
+		} else {
+			static const PreviewSpec kCarpetMainPreview[] = {
+				{"cse", 0, 0},
+				{"s", 1, 0},
+				{"csw", 2, 0},
+				{"e", 0, 1},
+				{"center", 1, 1},
+				{"w", 2, 1},
+				{"cne", 0, 2},
+				{"n", 1, 2},
+				{"cnw", 2, 2},
+			};
+			specs.assign(std::begin(kCarpetMainPreview), std::end(kCarpetMainPreview));
+		}
+
+		std::vector<PreviewSpec> includedSpecs;
+		includedSpecs.reserve(specs.size());
+		for (const PreviewSpec &spec : specs) {
+			const wxString align = wxString::FromUTF8(spec.align);
+			if (!hasRenderable(align)) {
 				continue;
 			}
-			const wxString align = wxString::FromUTF8(slot.align);
-			const int nodeIndex = FindAlignedNodeIndexByAlign(brushStorage_.carpetNodes, align);
-			CarpetPreviewTile tile;
-			tile.align = align;
-			tile.label = wxString::FromUTF8(slot.label);
-			tile.exists = nodeIndex >= 0;
-			tile.selected = selectedAlign.CmpNoCase(align) == 0;
-			tile.itemId = tile.exists ? resolvePreviewItemId(align) : 0;
-			const int collapsedColumn = collapseMode == CarpetSeamlessCollapseMode::MiddleColumn && slot.column > 1
-				? slot.column - 1
-				: slot.column;
-			const int collapsedRow = collapseMode == CarpetSeamlessCollapseMode::MiddleRow && slot.row > 1
-				? slot.row - 1
-				: slot.row;
-			tile.tileAnchor = wxPoint(collapsedColumn * tileCell, collapsedRow * tileCell);
-			tile.spriteRect = GetDoodadPreviewSpriteRect(tile.itemId, tile.tileAnchor);
-			if (tile.itemId > 0) {
-				const DoodadPreviewSpriteMetrics metrics = ResolveDoodadPreviewSpriteMetrics(tile.itemId);
-				if (metrics.isValid()) {
-					tile.bitmap = BuildDoodadPreviewBitmap(metrics.spriteId);
-					if (tile.bitmap.IsOk()) {
-						tile.visibleBounds = GetBitmapVisibleBounds(tile.bitmap);
-					}
-				}
+			if ((missingPairNS || missingPairEW) && align == "center") {
+				continue;
 			}
-			tiles.push_back(tile);
+			includedSpecs.push_back(spec);
 		}
-
-		CarpetPreviewMeasure measure;
-		for (const CarpetPreviewTile &tile : tiles) {
-			const wxRect tileRect(tile.tileAnchor.x, tile.tileAnchor.y, tileCell, tileCell);
-			if (!measure.hasTileUnion) {
-				measure.tileUnion = tileRect;
-				measure.hasTileUnion = true;
-			} else {
-				measure.tileUnion.Union(tileRect);
-			}
-			if (tile.hasSprite()) {
-				const wxRect visibleRect(
-					tile.spriteRect.x + tile.visibleBounds.x,
-					tile.spriteRect.y + tile.visibleBounds.y,
-					tile.visibleBounds.width,
-					tile.visibleBounds.height
-				);
-				if (!measure.hasSpriteUnion) {
-					measure.spriteUnion = tile.spriteRect;
-					measure.hasSpriteUnion = true;
-				} else {
-					measure.spriteUnion.Union(tile.spriteRect);
-				}
-				if (!measure.hasVisibleUnion) {
-					measure.visibleUnion = visibleRect;
-					measure.hasVisibleUnion = true;
-				} else {
-					measure.visibleUnion.Union(visibleRect);
-				}
-			}
+		if (includedSpecs.empty() && hasRenderable("center")) {
+			includedSpecs.push_back({"center", hasDiagonals ? 2 : 1, hasDiagonals ? 2 : 1});
 		}
-		if (!measure.hasTileUnion) {
+		if (includedSpecs.empty()) {
 			return;
 		}
-		if (!measure.hasSpriteUnion) {
-			measure.spriteUnion = measure.tileUnion;
-		}
-		if (!measure.hasVisibleUnion) {
-			measure.visibleUnion = measure.tileUnion;
+
+		const bool diagAll4 = hasRenderable("dnw") && hasRenderable("dne") && hasRenderable("dsw") && hasRenderable("dse");
+		const bool hasEW = hasRenderable("e") && hasRenderable("w");
+		const bool hasNS = hasRenderable("s") && hasRenderable("n");
+		bool forceCompactSpecs = false;
+		if (diagAll4 && hasEW && missingPairNS) {
+			includedSpecs.clear();
+			includedSpecs.reserve(6);
+			includedSpecs.push_back({"dnw", 0, 0});
+			includedSpecs.push_back({"w", 1, 0});
+			includedSpecs.push_back({"dne", 2, 0});
+			includedSpecs.push_back({"dsw", 0, 1});
+			includedSpecs.push_back({"e", 1, 1});
+			includedSpecs.push_back({"dse", 2, 1});
+			forceCompactSpecs = true;
+		} else if (diagAll4 && hasNS && missingPairEW) {
+			includedSpecs.clear();
+			includedSpecs.reserve(6);
+			includedSpecs.push_back({"dnw", 0, 0});
+			includedSpecs.push_back({"s", 0, 1});
+			includedSpecs.push_back({"dsw", 0, 2});
+			includedSpecs.push_back({"dne", 1, 0});
+			includedSpecs.push_back({"n", 1, 1});
+			includedSpecs.push_back({"dse", 1, 2});
+			forceCompactSpecs = true;
 		}
 
-		const wxRect focusUnion = measure.hasVisibleUnion ? measure.visibleUnion : measure.tileUnion;
+		const bool compressGrid = !forceCompactSpecs && (missingPairNS || missingPairEW);
+		std::map<int, int> colMap;
+		std::map<int, int> rowMap;
+		int minCol = std::numeric_limits<int>::max();
+		int minRow = std::numeric_limits<int>::max();
+		if (compressGrid) {
+			std::vector<int> cols;
+			std::vector<int> rows;
+			cols.reserve(includedSpecs.size());
+			rows.reserve(includedSpecs.size());
+			for (const PreviewSpec &spec : includedSpecs) {
+				cols.push_back(spec.col);
+				rows.push_back(spec.row);
+			}
+			std::sort(cols.begin(), cols.end());
+			cols.erase(std::unique(cols.begin(), cols.end()), cols.end());
+			std::sort(rows.begin(), rows.end());
+			rows.erase(std::unique(rows.begin(), rows.end()), rows.end());
+			for (size_t i = 0; i < cols.size(); ++i) {
+				colMap[cols[i]] = static_cast<int>(i);
+			}
+			for (size_t i = 0; i < rows.size(); ++i) {
+				rowMap[rows[i]] = static_cast<int>(i);
+			}
+		} else {
+			for (const PreviewSpec &spec : includedSpecs) {
+				minCol = std::min(minCol, spec.col);
+				minRow = std::min(minRow, spec.row);
+			}
+		}
+
+		std::vector<CarpetPreviewTile> tiles;
+		tiles.reserve(includedSpecs.size());
+		for (const PreviewSpec &spec : includedSpecs) {
+			const wxString align = wxString::FromUTF8(spec.align);
+			const int itemId = resolvePreviewItemId(align);
+			if (itemId <= 0) {
+				continue;
+			}
+			CarpetPreviewTile tile;
+			tile.align = align;
+			tile.exists = true;
+			tile.selected = selectedAlign.CmpNoCase(tile.align) == 0;
+			tile.itemId = itemId;
+			if (compressGrid) {
+				tile.tileAnchor = wxPoint(colMap[spec.col] * tileCell, rowMap[spec.row] * tileCell);
+			} else {
+				tile.tileAnchor = wxPoint((spec.col - minCol) * tileCell, (spec.row - minRow) * tileCell);
+			}
+			tile.spriteRect = GetDoodadPreviewSpriteRect(tile.itemId, tile.tileAnchor);
+			const DoodadPreviewSpriteMetrics metrics = ResolveDoodadPreviewSpriteMetrics(tile.itemId);
+			if (!metrics.isValid()) {
+				continue;
+			}
+			tile.bitmap = BuildDoodadPreviewBitmap(metrics.spriteId);
+			if (!tile.bitmap.IsOk()) {
+				continue;
+			}
+			tile.visibleBounds = GetBitmapVisibleBounds(tile.bitmap);
+			tiles.push_back(tile);
+		}
+		if (tiles.empty()) {
+			return;
+		}
+
+		wxRect tileUnion;
+		bool hasTileUnion = false;
+		for (const CarpetPreviewTile &tile : tiles) {
+			const wxRect tileRect(tile.tileAnchor.x, tile.tileAnchor.y, tileCell, tileCell);
+			if (!hasTileUnion) {
+				tileUnion = tileRect;
+				hasTileUnion = true;
+			} else {
+				tileUnion.Union(tileRect);
+			}
+		}
+		if (!hasTileUnion) {
+			return;
+		}
+		const wxRect focusUnion = tileUnion;
 		const wxPoint originOffset(
 			innerRect.x + std::max(0, (innerRect.width - focusUnion.width) / 2) - focusUnion.x,
 			innerRect.y + std::max(0, (innerRect.height - focusUnion.height) / 2) - focusUnion.y
@@ -6818,6 +6975,10 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextPaint(wxPaintEvent &WXUNUSED(
 	} else {
 		cellWidth = std::max(alignedContextPanel_->FromDIP(56), (clientRect.width - padding * 2 - gap * (columns - 1)) / std::max(1, columns));
 		cellHeight = std::max(alignedContextPanel_->FromDIP(56), (clientRect.height - padding * 2 - gap * (rows - 1)) / std::max(1, rows));
+		const int clusterWidth = columns * cellWidth + (columns - 1) * gap;
+		const int clusterHeight = rows * cellHeight + (rows - 1) * gap;
+		originX = clientRect.x + std::max(0, (clientRect.width - clusterWidth) / 2);
+		originY = clientRect.y + std::max(0, (clientRect.height - clusterHeight) / 2);
 	}
 	const wxColour textColour = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT);
 	const wxColour mutedText(150, 156, 170);
@@ -6941,14 +7102,6 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextPaint(wxPaintEvent &WXUNUSED(
 				dc.DrawLabel(countBadge, badgeRect, wxALIGN_CENTER);
 			}
 
-			if (!compactTableCards) {
-				dc.SetTextForeground(mutedText);
-				dc.DrawLabel(
-					wxString::Format("%zu item%s", itemCount, itemCount == 1 ? "" : "s"),
-					wxRect(cellRect.x, cellRect.GetBottom() - alignedContextPanel_->FromDIP(28), cellRect.width, alignedContextPanel_->FromDIP(16)),
-					wxALIGN_CENTER
-				);
-			}
 		} else if (compactTableCards) {
 			drawTableCardCopy(cellRect, wxString::FromUTF8(slot.label), "Empty");
 		} else if (!compactTableCards) {

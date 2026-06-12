@@ -27,6 +27,7 @@
 - [x] Continue reducing spacing and padding across workspaces where the layout still feels too loose
 - [ ] Continue small product-language and workflow refinements across Workbench texts and actions
   - [x] Palette Workspace: move palette category actions into the footer action bar
+  - [x] Brush Workspace (Carpet): layout map supports diagonal slots (`dnw/dne/dsw/dse`) with corrected visual placement, `Map Slot`/Item ID stay visible via scrolling, and seamless preview becomes runtime-truthful for diagonals and sparse sets (diag+only E/W or diag+only N/S collapse without showing center, and missing opposite-edge pairs no longer leave a gap)
 - [x] Standardize technical labels such as `lookId`, `serverLookId`, `zOrder`, and `partType`
 
 ## Future UX

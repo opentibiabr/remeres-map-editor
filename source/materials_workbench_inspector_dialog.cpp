@@ -71,6 +71,13 @@ namespace {
 		return aligns;
 	}
 
+	const std::vector<wxString>& GetKnownWorkbenchInspectorCarpetAligns() {
+		static const std::vector<wxString> aligns = {
+			"center", "n", "s", "e", "w", "cnw", "cne", "csw", "cse", "dnw", "dne", "dsw", "dse"
+		};
+		return aligns;
+	}
+
 	const std::vector<wxString>& GetRequiredTableAligns() {
 		static const std::vector<wxString> aligns = {
 			"north", "vertical", "south", "west", "horizontal", "east", "alone"
@@ -328,8 +335,8 @@ void MaterialsWorkbenchInspectorDialog::ReloadWarnings() {
 						continue;
 					}
 					bool known = false;
-					for (const wxString &required : GetRequiredCarpetAligns()) {
-						if (required == align) {
+					for (const wxString &candidate : GetKnownWorkbenchInspectorCarpetAligns()) {
+						if (candidate == align) {
 							known = true;
 							break;
 						}
@@ -337,11 +344,20 @@ void MaterialsWorkbenchInspectorDialog::ReloadWarnings() {
 					if (!known) {
 						unknownAligns.push_back(node.align);
 					}
+					bool requiredAlign = false;
+					for (const wxString &required : GetRequiredCarpetAligns()) {
+						if (required == align) {
+							requiredAlign = true;
+							break;
+						}
+					}
 					if (node.items.empty()) {
 						emptyAligns.push_back(node.align);
 						continue;
 					}
-					presentAligns.insert(align);
+					if (requiredAlign) {
+						presentAligns.insert(align);
+					}
 					for (const CarpetNodeItemRecord &item : node.items) {
 						if (!IsKnownWorkbenchInspectorItemId(item.itemId)) {
 							invalidItems.insert(item.itemId);
