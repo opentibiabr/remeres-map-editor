@@ -35,9 +35,14 @@
   - [x] Brush Workspace: add `New Brush` and `Delete Brush` actions in the footer, including immediate navigation refresh on create/delete
   - [x] Brush Workspace: make `Type` a dropdown and warn before destructive type changes clear variation payload
 - [ ] Add a Workbench Inspector dialog (opened from a button inside the Materials Workbench) with tabbed surfaces
-  - [ ] `Health` / `Warnings`: master/detail (search, filters, rescan, go-to), covering `Borders`, `Walls`, `Brushes`, and `Palettes`
+  - [ ] `Health` / `Warnings`: master/detail (search, severity/domain/issue filters, rescan, go-to), covering `Borders`, `Walls`, `Brushes`, and `Palettes`
     - [x] First-pass domain warnings for `carpet` (missing/empty/unknown slots + invalid item ids)
     - [x] First-pass domain warnings for `table` (missing/empty/unknown slots + invalid item ids)
+    - [x] First-pass brush warnings for invalid `lookId` / `serverLookId`, invalid item ids, unresolved links, and missing ground border refs
+    - [x] First-pass `doodad` warnings for empty alternatives/composites/tiles and invalid item ids
+    - [x] First-pass `wall` warnings for empty parts, empty door type, and invalid item ids
+    - [x] First-pass `border set` warnings for empty sets, invalid item ids, invalid `groundEquivalent`, and unused global sets
+    - [x] First-pass `palette` warnings are per-entry (missing brush) and per-field (invalid itemId/from/to/after), not aggregated into a single count row
   - [x] `SQLite`: fold the legacy SQLite Materials Inspector into this surface
 - [ ] Add `Used By` reference views (not in the Inspector) so users can jump to owners without hunting in the tree
 - [ ] Add import/export tooling for any Materials Workbench entity (at least `walls`, `borders`, `brushes`, `palettes`, and `palette categories`) so users can share items without swapping the full `.db`

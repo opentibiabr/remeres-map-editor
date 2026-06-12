@@ -42,6 +42,7 @@ private:
 	void BuildHealthTab(wxNotebook* notebook);
 	void BuildSqliteTab(wxNotebook* notebook);
 	void ReloadWarnings();
+	void RebuildIssueFilterChoices();
 	void ApplyWarningFilter();
 	void UpdateWarningDetails();
 	void GoToSelectedWarning();
@@ -52,6 +53,7 @@ private:
 	wxSearchCtrl* warningSearchCtrl_ = nullptr;
 	wxChoice* warningSeverityChoice_ = nullptr;
 	wxChoice* warningDomainChoice_ = nullptr;
+	wxChoice* warningIssueChoice_ = nullptr;
 	wxButton* warningRescanButton_ = nullptr;
 	wxButton* warningGoToButton_ = nullptr;
 	wxListCtrl* warningList_ = nullptr;

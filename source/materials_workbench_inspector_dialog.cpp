@@ -170,9 +170,15 @@ void MaterialsWorkbenchInspectorDialog::BuildHealthTab(wxNotebook* notebook) {
 	warningDomainChoice_ = new wxChoice(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, domains);
 	warningDomainChoice_->SetSelection(0);
 
+	wxArrayString issues;
+	issues.Add("All issues");
+	warningIssueChoice_ = new wxChoice(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, issues);
+	warningIssueChoice_->SetSelection(0);
+
 	filterSizer->Add(warningSearchCtrl_, 1, wxEXPAND | wxRIGHT, FromDIP(8));
 	filterSizer->Add(warningSeverityChoice_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(8));
-	filterSizer->Add(warningDomainChoice_, 0, wxALIGN_CENTER_VERTICAL);
+	filterSizer->Add(warningDomainChoice_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(8));
+	filterSizer->Add(warningIssueChoice_, 0, wxALIGN_CENTER_VERTICAL);
 
 	wxSplitterWindow* splitter = new wxSplitterWindow(panel, wxID_ANY);
 	splitter->SetSashGravity(0.62);
@@ -225,6 +231,9 @@ void MaterialsWorkbenchInspectorDialog::BuildHealthTab(wxNotebook* notebook) {
 		ApplyWarningFilter();
 	});
 	warningDomainChoice_->Bind(wxEVT_CHOICE, [this](wxCommandEvent&) {
+		ApplyWarningFilter();
+	});
+	warningIssueChoice_->Bind(wxEVT_CHOICE, [this](wxCommandEvent&) {
 		ApplyWarningFilter();
 	});
 	warningList_->Bind(wxEVT_LIST_ITEM_SELECTED, [this](wxListEvent&) {
@@ -533,6 +542,694 @@ void MaterialsWorkbenchInspectorDialog::ReloadWarnings() {
 		}
 	}
 
+	std::set<int64_t> validBorderSetIds;
+	std::set<int64_t> globalBorderSetIds;
+	{
+		std::vector<BorderSetRecord> globalBorderSets;
+		if (g_brush_database.listBorderSetsByScope("global", globalBorderSets)) {
+			for (const BorderSetRecord &borderSet : globalBorderSets) {
+				validBorderSetIds.insert(borderSet.id);
+				globalBorderSetIds.insert(borderSet.id);
+			}
+		} else {
+			WarningRow row;
+			row.severity = "Error";
+			row.domain = "Border";
+			row.entityKind = "database";
+			row.issue = "Failed to list global border sets";
+			row.count = 1;
+			row.status = "Active";
+			row.details = g_brush_database.getLastError();
+			warnings_.push_back(std::move(row));
+		}
+
+		std::vector<BorderSetRecord> inlineBorderSets;
+		if (g_brush_database.listBorderSetsByScope("inline", inlineBorderSets)) {
+			for (const BorderSetRecord &borderSet : inlineBorderSets) {
+				validBorderSetIds.insert(borderSet.id);
+			}
+		} else {
+			WarningRow row;
+			row.severity = "Error";
+			row.domain = "Border";
+			row.entityKind = "database";
+			row.issue = "Failed to list inline border sets";
+			row.count = 1;
+			row.status = "Active";
+			row.details = g_brush_database.getLastError();
+			warnings_.push_back(std::move(row));
+		}
+	}
+
+	{
+		for (const BrushTypeCountRecord &typeCount : report.brushTypeCounts) {
+			std::vector<BrushRecord> brushes;
+			if (!g_brush_database.listBrushesByType(typeCount.type, brushes)) {
+				WarningRow row;
+				row.severity = "Error";
+				row.domain = "Brush";
+				row.entityKind = "database";
+				row.issue = "Failed to list brushes";
+				row.count = 1;
+				row.status = "Active";
+				row.details = wxString::Format("Type: %s\n%s", typeCount.type, g_brush_database.getLastError());
+				warnings_.push_back(std::move(row));
+				continue;
+			}
+
+			for (const BrushRecord &brush : brushes) {
+				BrushStorageRecord storage;
+				if (!g_brush_database.getCompleteBrushById(brush.id, storage)) {
+					continue;
+				}
+
+				if (storage.brush.lookId > 0 && !IsKnownWorkbenchInspectorItemId(storage.brush.lookId)) {
+					WarningRow row;
+					row.severity = "Error";
+					row.domain = "Brush";
+					row.entityKind = "brush";
+					row.entityId = brush.id;
+					row.entityName = brush.name;
+					row.issue = "Brush has invalid lookId";
+					row.count = 1;
+					row.status = "Active";
+					row.details = wxString::Format("lookId: %d", storage.brush.lookId);
+					warnings_.push_back(std::move(row));
+				}
+
+				if (storage.brush.serverLookId > 0 && !IsKnownWorkbenchInspectorItemId(storage.brush.serverLookId)) {
+					WarningRow row;
+					row.severity = "Error";
+					row.domain = "Brush";
+					row.entityKind = "brush";
+					row.entityId = brush.id;
+					row.entityName = brush.name;
+					row.issue = "Brush has invalid serverLookId";
+					row.count = 1;
+					row.status = "Active";
+					row.details = wxString::Format("serverLookId: %d", storage.brush.serverLookId);
+					warnings_.push_back(std::move(row));
+				}
+
+				if (storage.brush.lookId > 0 && storage.brush.serverLookId > 0) {
+					WarningRow row;
+					row.severity = "Warning";
+					row.domain = "Brush";
+					row.entityKind = "brush";
+					row.entityId = brush.id;
+					row.entityName = brush.name;
+					row.issue = "Brush sets both lookId and serverLookId";
+					row.count = 2;
+					row.status = "Active";
+					row.details = wxString::Format("lookId: %d\nserverLookId: %d", storage.brush.lookId, storage.brush.serverLookId);
+					warnings_.push_back(std::move(row));
+				}
+
+				{
+					std::set<int> invalidItemIds;
+					for (const BrushItemRecord &item : storage.items) {
+						if (!IsKnownWorkbenchInspectorItemId(item.itemId)) {
+							invalidItemIds.insert(item.itemId);
+						}
+					}
+					if (!invalidItemIds.empty()) {
+						wxArrayString ids;
+						for (int id : invalidItemIds) {
+							ids.Add(wxString::Format("%d", id));
+						}
+
+						WarningRow row;
+						row.severity = "Error";
+						row.domain = "Brush";
+						row.entityKind = "brush";
+						row.entityId = brush.id;
+						row.entityName = brush.name;
+						row.issue = "Brush has invalid item ids";
+						row.count = static_cast<int>(invalidItemIds.size());
+						row.status = "Active";
+						row.details = "Invalid item ids: " + wxJoin(ids, ',');
+						warnings_.push_back(std::move(row));
+					}
+				}
+
+				if (storage.brush.type == "ground") {
+					if (storage.items.empty() && storage.borders.empty()) {
+						WarningRow row;
+						row.severity = "Error";
+						row.domain = "Brush";
+						row.entityKind = "brush";
+						row.entityId = brush.id;
+						row.entityName = brush.name;
+						row.issue = "Ground brush has no items or borders";
+						row.count = 1;
+						row.status = "Active";
+						row.details = "A ground brush with no items and no borders will not render meaningful content.";
+						warnings_.push_back(std::move(row));
+					}
+
+					std::set<int64_t> missingBorderSetIds;
+					std::vector<wxString> unresolvedTargets;
+					for (const GroundBrushBorderRecord &border : storage.borders) {
+						if (border.borderSetId > 0 && validBorderSetIds.find(border.borderSetId) == validBorderSetIds.end()) {
+							missingBorderSetIds.insert(border.borderSetId);
+						}
+						if (border.targetMode == "brush" && !border.targetBrushName.IsEmpty() && border.targetBrushId <= 0) {
+							unresolvedTargets.push_back(border.targetBrushName);
+						}
+					}
+
+					if (!missingBorderSetIds.empty()) {
+						wxArrayString ids;
+						for (int64_t id : missingBorderSetIds) {
+							ids.Add(wxString::Format("%lld", static_cast<long long>(id)));
+						}
+
+						WarningRow row;
+						row.severity = "Error";
+						row.domain = "Brush";
+						row.entityKind = "brush";
+						row.entityId = brush.id;
+						row.entityName = brush.name;
+						row.issue = "Ground brush references missing border sets";
+						row.count = static_cast<int>(missingBorderSetIds.size());
+						row.status = "Active";
+						row.details = "Missing border set ids: " + wxJoin(ids, ',');
+						warnings_.push_back(std::move(row));
+					}
+
+					if (!unresolvedTargets.empty()) {
+						wxArrayString targets;
+						for (const wxString &name : unresolvedTargets) {
+							targets.Add(name);
+						}
+
+						WarningRow row;
+						row.severity = "Warning";
+						row.domain = "Brush";
+						row.entityKind = "brush";
+						row.entityId = brush.id;
+						row.entityName = brush.name;
+						row.issue = "Ground brush has unresolved border targets";
+						row.count = static_cast<int>(unresolvedTargets.size());
+						row.status = "Active";
+						row.details = "Targets: " + wxJoin(targets, ',');
+						warnings_.push_back(std::move(row));
+					}
+				}
+
+				{
+					std::vector<wxString> unresolvedLinks;
+					for (const BrushLinkRecord &link : storage.links) {
+						if (!link.targetBrushName.IsEmpty() && link.targetBrushName.CmpNoCase("all") != 0 && link.targetBrushId <= 0) {
+							unresolvedLinks.push_back(link.targetBrushName);
+						}
+					}
+					if (!unresolvedLinks.empty()) {
+						wxArrayString targets;
+						for (const wxString &name : unresolvedLinks) {
+							targets.Add(name);
+						}
+
+						WarningRow row;
+						row.severity = "Warning";
+						row.domain = "Brush";
+						row.entityKind = "brush";
+						row.entityId = brush.id;
+						row.entityName = brush.name;
+						row.issue = "Brush has unresolved links";
+						row.count = static_cast<int>(unresolvedLinks.size());
+						row.status = "Active";
+						row.details = "Targets: " + wxJoin(targets, ',');
+						warnings_.push_back(std::move(row));
+					}
+				}
+
+				if (storage.brush.type == "doodad") {
+					if (storage.doodadAlternatives.empty()) {
+						WarningRow row;
+						row.severity = "Error";
+						row.domain = "Brush";
+						row.entityKind = "brush";
+						row.entityId = brush.id;
+						row.entityName = brush.name;
+						row.issue = "Doodad has no alternatives";
+						row.count = 1;
+						row.status = "Active";
+						row.details = "Doodad brushes should define at least one alternative.";
+						warnings_.push_back(std::move(row));
+					} else {
+						std::vector<int> emptyAlternatives;
+						std::vector<int> emptyComposites;
+						std::vector<int> emptyTiles;
+						std::set<int> invalidItemIds;
+
+						for (size_t altIndex = 0; altIndex < storage.doodadAlternatives.size(); ++altIndex) {
+							const DoodadAlternativeRecord &alt = storage.doodadAlternatives[altIndex];
+							if (alt.singleItems.empty() && alt.composites.empty()) {
+								emptyAlternatives.push_back(static_cast<int>(altIndex));
+							}
+							for (const DoodadSingleItemRecord &single : alt.singleItems) {
+								if (!IsKnownWorkbenchInspectorItemId(single.itemId)) {
+									invalidItemIds.insert(single.itemId);
+								}
+							}
+							for (size_t compositeIndex = 0; compositeIndex < alt.composites.size(); ++compositeIndex) {
+								const DoodadCompositeRecord &composite = alt.composites[compositeIndex];
+								if (composite.tiles.empty()) {
+									emptyComposites.push_back(static_cast<int>(compositeIndex));
+									continue;
+								}
+								for (size_t tileIndex = 0; tileIndex < composite.tiles.size(); ++tileIndex) {
+									const DoodadCompositeTileRecord &tile = composite.tiles[tileIndex];
+									if (tile.items.empty()) {
+										emptyTiles.push_back(static_cast<int>(tileIndex));
+										continue;
+									}
+									for (const DoodadCompositeTileItemRecord &tileItem : tile.items) {
+										if (!IsKnownWorkbenchInspectorItemId(tileItem.itemId)) {
+											invalidItemIds.insert(tileItem.itemId);
+										}
+									}
+								}
+							}
+						}
+
+						if (!emptyAlternatives.empty()) {
+							wxArrayString indices;
+							for (int idx : emptyAlternatives) {
+								indices.Add(wxString::Format("%d", idx + 1));
+							}
+
+							WarningRow row;
+							row.severity = "Warning";
+							row.domain = "Brush";
+							row.entityKind = "brush";
+							row.entityId = brush.id;
+							row.entityName = brush.name;
+							row.issue = "Doodad has empty alternatives";
+							row.count = static_cast<int>(emptyAlternatives.size());
+							row.status = "Active";
+							row.details = "Alternatives: " + wxJoin(indices, ',');
+							warnings_.push_back(std::move(row));
+						}
+
+						if (!emptyComposites.empty()) {
+							wxArrayString indices;
+							for (int idx : emptyComposites) {
+								indices.Add(wxString::Format("%d", idx + 1));
+							}
+
+							WarningRow row;
+							row.severity = "Warning";
+							row.domain = "Brush";
+							row.entityKind = "brush";
+							row.entityId = brush.id;
+							row.entityName = brush.name;
+							row.issue = "Doodad has empty composites";
+							row.count = static_cast<int>(emptyComposites.size());
+							row.status = "Active";
+							row.details = "Composites: " + wxJoin(indices, ',');
+							warnings_.push_back(std::move(row));
+						}
+
+						if (!emptyTiles.empty()) {
+							WarningRow row;
+							row.severity = "Warning";
+							row.domain = "Brush";
+							row.entityKind = "brush";
+							row.entityId = brush.id;
+							row.entityName = brush.name;
+							row.issue = "Doodad has empty tiles";
+							row.count = static_cast<int>(emptyTiles.size());
+							row.status = "Active";
+							row.details = "Some doodad composite tiles contain no items.";
+							warnings_.push_back(std::move(row));
+						}
+
+						if (!invalidItemIds.empty()) {
+							wxArrayString ids;
+							for (int id : invalidItemIds) {
+								ids.Add(wxString::Format("%d", id));
+							}
+
+							WarningRow row;
+							row.severity = "Error";
+							row.domain = "Brush";
+							row.entityKind = "brush";
+							row.entityId = brush.id;
+							row.entityName = brush.name;
+							row.issue = "Doodad has invalid item ids";
+							row.count = static_cast<int>(invalidItemIds.size());
+							row.status = "Active";
+							row.details = "Invalid item ids: " + wxJoin(ids, ',');
+							warnings_.push_back(std::move(row));
+						}
+					}
+				}
+
+				if (storage.brush.type == "wall_brush" || storage.brush.type == "wall") {
+					if (storage.wallParts.empty()) {
+						WarningRow row;
+						row.severity = "Error";
+						row.domain = "Wall";
+						row.entityKind = "brush";
+						row.entityId = brush.id;
+						row.entityName = brush.name;
+						row.issue = "Wall has no parts";
+						row.count = 1;
+						row.status = "Active";
+						row.details = "Wall brushes should define at least one part type.";
+						warnings_.push_back(std::move(row));
+					} else {
+						std::vector<wxString> emptyParts;
+						std::set<int> invalidItemIds;
+						int emptyPartTypeCount = 0;
+						int invalidDoorTypeCount = 0;
+
+						for (const WallPartRecord &part : storage.wallParts) {
+							if (part.partType.IsEmpty()) {
+								++emptyPartTypeCount;
+							}
+							if (part.items.empty() && part.doors.empty()) {
+								emptyParts.push_back(part.partType.IsEmpty() ? "<empty>" : part.partType);
+							}
+							for (const WallPartItemRecord &item : part.items) {
+								if (!IsKnownWorkbenchInspectorItemId(item.itemId)) {
+									invalidItemIds.insert(item.itemId);
+								}
+							}
+							for (const WallPartDoorRecord &door : part.doors) {
+								if (door.doorType.IsEmpty()) {
+									++invalidDoorTypeCount;
+								}
+								if (!IsKnownWorkbenchInspectorItemId(door.itemId)) {
+									invalidItemIds.insert(door.itemId);
+								}
+							}
+						}
+
+						if (emptyPartTypeCount > 0) {
+							WarningRow row;
+							row.severity = "Warning";
+							row.domain = "Wall";
+							row.entityKind = "brush";
+							row.entityId = brush.id;
+							row.entityName = brush.name;
+							row.issue = "Wall has empty part types";
+							row.count = emptyPartTypeCount;
+							row.status = "Active";
+							row.details = "Some wall parts have an empty partType.";
+							warnings_.push_back(std::move(row));
+						}
+
+						if (!emptyParts.empty()) {
+							wxArrayString parts;
+							for (const wxString &part : emptyParts) {
+								parts.Add(part);
+							}
+
+							WarningRow row;
+							row.severity = "Error";
+							row.domain = "Wall";
+							row.entityKind = "brush";
+							row.entityId = brush.id;
+							row.entityName = brush.name;
+							row.issue = "Wall has empty parts";
+							row.count = static_cast<int>(emptyParts.size());
+							row.status = "Active";
+							row.details = "Empty parts: " + wxJoin(parts, ',');
+							warnings_.push_back(std::move(row));
+						}
+
+						if (invalidDoorTypeCount > 0) {
+							WarningRow row;
+							row.severity = "Warning";
+							row.domain = "Wall";
+							row.entityKind = "brush";
+							row.entityId = brush.id;
+							row.entityName = brush.name;
+							row.issue = "Wall has doors with empty type";
+							row.count = invalidDoorTypeCount;
+							row.status = "Active";
+							row.details = "Some wall doors have an empty doorType.";
+							warnings_.push_back(std::move(row));
+						}
+
+						if (!invalidItemIds.empty()) {
+							wxArrayString ids;
+							for (int id : invalidItemIds) {
+								ids.Add(wxString::Format("%d", id));
+							}
+
+							WarningRow row;
+							row.severity = "Error";
+							row.domain = "Wall";
+							row.entityKind = "brush";
+							row.entityId = brush.id;
+							row.entityName = brush.name;
+							row.issue = "Wall has invalid item ids";
+							row.count = static_cast<int>(invalidItemIds.size());
+							row.status = "Active";
+							row.details = "Invalid item ids: " + wxJoin(ids, ',');
+							warnings_.push_back(std::move(row));
+						}
+					}
+				}
+			}
+		}
+	}
+
+	{
+		std::vector<BorderSetRecord> borderSets;
+		std::vector<BorderSetRecord> globalBorderSets;
+		std::vector<BorderSetRecord> inlineBorderSets;
+		if (g_brush_database.listBorderSetsByScope("global", globalBorderSets)) {
+			borderSets.insert(borderSets.end(), globalBorderSets.begin(), globalBorderSets.end());
+		}
+		if (g_brush_database.listBorderSetsByScope("inline", inlineBorderSets)) {
+			borderSets.insert(borderSets.end(), inlineBorderSets.begin(), inlineBorderSets.end());
+		}
+
+		for (const BorderSetRecord &borderSet : borderSets) {
+			std::vector<BorderSetItemRecord> items;
+			if (!g_brush_database.getBorderSetItems(borderSet.id, items)) {
+				WarningRow row;
+				row.severity = "Error";
+				row.domain = "Border";
+				row.entityKind = "border_set";
+				row.entityId = borderSet.id;
+				row.entityName = wxString::Format("BorderSet %lld", static_cast<long long>(borderSet.id));
+				row.issue = "Failed to load border set items";
+				row.count = 1;
+				row.status = "Active";
+				row.details = g_brush_database.getLastError();
+				warnings_.push_back(std::move(row));
+				continue;
+			}
+
+			if (items.empty()) {
+				WarningRow row;
+				row.severity = "Error";
+				row.domain = "Border";
+				row.entityKind = "border_set";
+				row.entityId = borderSet.id;
+				row.entityName = wxString::Format("BorderSet %lld", static_cast<long long>(borderSet.id));
+				row.issue = "Border set has no items";
+				row.count = 1;
+				row.status = "Active";
+				row.details = "This border set defines no edge items.";
+				warnings_.push_back(std::move(row));
+			}
+
+			if (borderSet.groundEquivalent > 0 && !IsKnownWorkbenchInspectorItemId(borderSet.groundEquivalent)) {
+				WarningRow row;
+				row.severity = "Warning";
+				row.domain = "Border";
+				row.entityKind = "border_set";
+				row.entityId = borderSet.id;
+				row.entityName = wxString::Format("BorderSet %lld", static_cast<long long>(borderSet.id));
+				row.issue = "Border set has invalid groundEquivalent";
+				row.count = 1;
+				row.status = "Active";
+				row.details = wxString::Format("groundEquivalent: %d", borderSet.groundEquivalent);
+				warnings_.push_back(std::move(row));
+			}
+
+			std::set<int> invalidItemIds;
+			std::set<wxString> emptyEdges;
+			for (const BorderSetItemRecord &item : items) {
+				if (item.edge.IsEmpty()) {
+					emptyEdges.insert("<empty>");
+				}
+				if (!IsKnownWorkbenchInspectorItemId(item.itemId)) {
+					invalidItemIds.insert(item.itemId);
+				}
+			}
+
+			if (!emptyEdges.empty()) {
+				wxArrayString edges;
+				for (const wxString &edge : emptyEdges) {
+					edges.Add(edge);
+				}
+
+				WarningRow row;
+				row.severity = "Warning";
+				row.domain = "Border";
+				row.entityKind = "border_set";
+				row.entityId = borderSet.id;
+				row.entityName = wxString::Format("BorderSet %lld", static_cast<long long>(borderSet.id));
+				row.issue = "Border set has empty edges";
+				row.count = static_cast<int>(emptyEdges.size());
+				row.status = "Active";
+				row.details = "Edges: " + wxJoin(edges, ',');
+				warnings_.push_back(std::move(row));
+			}
+
+			if (!invalidItemIds.empty()) {
+				wxArrayString ids;
+				for (int id : invalidItemIds) {
+					ids.Add(wxString::Format("%d", id));
+				}
+
+				WarningRow row;
+				row.severity = "Error";
+				row.domain = "Border";
+				row.entityKind = "border_set";
+				row.entityId = borderSet.id;
+				row.entityName = wxString::Format("BorderSet %lld", static_cast<long long>(borderSet.id));
+				row.issue = "Border set has invalid item ids";
+				row.count = static_cast<int>(invalidItemIds.size());
+				row.status = "Active";
+				row.details = "Invalid item ids: " + wxJoin(ids, ',');
+				warnings_.push_back(std::move(row));
+			}
+
+			if (globalBorderSetIds.find(borderSet.id) != globalBorderSetIds.end()) {
+				std::vector<BorderSetUsageRecord> usages;
+				if (g_brush_database.listBorderSetUsages(borderSet.id, usages) && usages.empty()) {
+					WarningRow row;
+					row.severity = "Warning";
+					row.domain = "Border";
+					row.entityKind = "border_set";
+					row.entityId = borderSet.id;
+					row.entityName = wxString::Format("BorderSet %lld", static_cast<long long>(borderSet.id));
+					row.issue = "Global border set is unused";
+					row.count = 0;
+					row.status = "Active";
+					row.details = "This global border set is not referenced by any brush.";
+					warnings_.push_back(std::move(row));
+				}
+			}
+		}
+	}
+
+	{
+		std::vector<TilesetStorageRecord> tilesets;
+		if (!g_brush_database.getAllTilesets(tilesets)) {
+			WarningRow row;
+			row.severity = "Error";
+			row.domain = "Palette";
+			row.entityKind = "database";
+			row.issue = "Failed to load palettes";
+			row.count = 1;
+			row.status = "Active";
+			row.details = g_brush_database.getLastError();
+			warnings_.push_back(std::move(row));
+		} else {
+			for (const TilesetStorageRecord &tileset : tilesets) {
+				for (const TilesetSectionRecord &section : tileset.sections) {
+					for (const TilesetEntryRecord &entry : section.entries) {
+						if (entry.entryKind.CmpNoCase("brush") == 0) {
+							if (!entry.brushName.IsEmpty() && entry.brushId <= 0) {
+								WarningRow row;
+								row.severity = "Warning";
+								row.domain = "Palette";
+								row.entityKind = "palette";
+								row.entityId = 0;
+								row.entityName = tileset.name;
+								row.issue = "Palette entry references missing brush";
+								row.count = 1;
+								row.status = "Active";
+								row.details = wxString::Format("Section: %s\nBrush: %s\nSort order: %d",
+									section.sectionType.c_str(),
+									entry.brushName.c_str(),
+									entry.sortOrder);
+								warnings_.push_back(std::move(row));
+							}
+							continue;
+						}
+						if (entry.entryKind.CmpNoCase("item") == 0) {
+							if (entry.itemId > 0 && !IsKnownWorkbenchInspectorItemId(entry.itemId)) {
+								WarningRow row;
+								row.severity = "Error";
+								row.domain = "Palette";
+								row.entityKind = "palette";
+								row.entityId = 0;
+								row.entityName = tileset.name;
+								row.issue = "Palette item entry has invalid itemId";
+								row.count = 1;
+								row.status = "Active";
+								row.details = wxString::Format("Section: %s\nitemId: %d\nSort order: %d",
+									section.sectionType.c_str(),
+									entry.itemId,
+									entry.sortOrder);
+								warnings_.push_back(std::move(row));
+							}
+							if (entry.fromItemId > 0 && !IsKnownWorkbenchInspectorItemId(entry.fromItemId)) {
+								WarningRow row;
+								row.severity = "Error";
+								row.domain = "Palette";
+								row.entityKind = "palette";
+								row.entityId = 0;
+								row.entityName = tileset.name;
+								row.issue = "Palette item entry has invalid fromItemId";
+								row.count = 1;
+								row.status = "Active";
+								row.details = wxString::Format("Section: %s\nfromItemId: %d\nSort order: %d",
+									section.sectionType.c_str(),
+									entry.fromItemId,
+									entry.sortOrder);
+								warnings_.push_back(std::move(row));
+							}
+							if (entry.toItemId > 0 && !IsKnownWorkbenchInspectorItemId(entry.toItemId)) {
+								WarningRow row;
+								row.severity = "Error";
+								row.domain = "Palette";
+								row.entityKind = "palette";
+								row.entityId = 0;
+								row.entityName = tileset.name;
+								row.issue = "Palette item entry has invalid toItemId";
+								row.count = 1;
+								row.status = "Active";
+								row.details = wxString::Format("Section: %s\ntoItemId: %d\nSort order: %d",
+									section.sectionType.c_str(),
+									entry.toItemId,
+									entry.sortOrder);
+								warnings_.push_back(std::move(row));
+							}
+							if (entry.afterItemId > 0 && !IsKnownWorkbenchInspectorItemId(entry.afterItemId)) {
+								WarningRow row;
+								row.severity = "Error";
+								row.domain = "Palette";
+								row.entityKind = "palette";
+								row.entityId = 0;
+								row.entityName = tileset.name;
+								row.issue = "Palette item entry has invalid afterItemId";
+								row.count = 1;
+								row.status = "Active";
+								row.details = wxString::Format("Section: %s\nafterItemId: %d\nSort order: %d",
+									section.sectionType.c_str(),
+									entry.afterItemId,
+									entry.sortOrder);
+								warnings_.push_back(std::move(row));
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	if (report.unresolvedGroundTargets > 0) {
 		WarningRow row;
 		row.severity = "Warning";
@@ -557,18 +1254,6 @@ void MaterialsWorkbenchInspectorDialog::ReloadWarnings() {
 		warnings_.push_back(std::move(row));
 	}
 
-	if (report.unresolvedTilesetEntries > 0) {
-		WarningRow row;
-		row.severity = "Warning";
-		row.domain = "Palette";
-		row.entityKind = "palette";
-		row.issue = "Unresolved palette entries";
-		row.count = report.unresolvedTilesetEntries;
-		row.status = "Active";
-		row.details = "Some palette entries reference missing brushes/items.";
-		warnings_.push_back(std::move(row));
-	}
-
 	if (warnings_.empty()) {
 		WarningRow row;
 		row.severity = "Warning";
@@ -580,7 +1265,37 @@ void MaterialsWorkbenchInspectorDialog::ReloadWarnings() {
 		warnings_.push_back(std::move(row));
 	}
 
+	RebuildIssueFilterChoices();
 	ApplyWarningFilter();
+}
+
+void MaterialsWorkbenchInspectorDialog::RebuildIssueFilterChoices() {
+	if (!warningIssueChoice_) {
+		return;
+	}
+
+	const wxString previousSelection = warningIssueChoice_->GetStringSelection();
+
+	std::set<wxString> uniqueIssues;
+	for (const WarningRow &row : warnings_) {
+		if (!row.issue.IsEmpty() && row.issue != "No warnings") {
+			uniqueIssues.insert(row.issue);
+		}
+	}
+
+	warningIssueChoice_->Freeze();
+	warningIssueChoice_->Clear();
+	warningIssueChoice_->Append("All issues");
+	for (const wxString &issue : uniqueIssues) {
+		warningIssueChoice_->Append(issue);
+	}
+
+	int restoreIndex = wxNOT_FOUND;
+	if (!previousSelection.IsEmpty() && previousSelection != "All issues") {
+		restoreIndex = warningIssueChoice_->FindString(previousSelection);
+	}
+	warningIssueChoice_->SetSelection(restoreIndex != wxNOT_FOUND ? restoreIndex : 0);
+	warningIssueChoice_->Thaw();
 }
 
 void MaterialsWorkbenchInspectorDialog::ApplyWarningFilter() {
@@ -588,6 +1303,7 @@ void MaterialsWorkbenchInspectorDialog::ApplyWarningFilter() {
 	const wxString query = NormalizeQuery(warningSearchCtrl_ ? warningSearchCtrl_->GetValue() : "");
 	const wxString severityFilter = warningSeverityChoice_ ? warningSeverityChoice_->GetStringSelection() : "All severities";
 	const wxString domainFilter = warningDomainChoice_ ? warningDomainChoice_->GetStringSelection() : "All domains";
+	const wxString issueFilter = warningIssueChoice_ ? warningIssueChoice_->GetStringSelection() : "All issues";
 
 	for (size_t i = 0; i < warnings_.size(); ++i) {
 		const WarningRow &row = warnings_[i];
@@ -595,6 +1311,9 @@ void MaterialsWorkbenchInspectorDialog::ApplyWarningFilter() {
 			continue;
 		}
 		if (domainFilter != "All domains" && row.domain != domainFilter) {
+			continue;
+		}
+		if (issueFilter != "All issues" && row.issue != issueFilter) {
 			continue;
 		}
 		if (!query.IsEmpty()) {
