@@ -267,6 +267,17 @@ namespace {
 		return wxString::Format("%zu. %s (%zu item%s)", index + 1, align, itemCount, itemCount == 1 ? "" : "s");
 	}
 
+	wxString JoinWorkbenchBrushPanelStrings(const std::vector<wxString> &values, const wxString &separator) {
+		wxString out;
+		for (size_t i = 0; i < values.size(); ++i) {
+			if (i > 0) {
+				out += separator;
+			}
+			out += values[i];
+		}
+		return out;
+	}
+
 	wxString FormatAlignedItemLabel(int itemId, int chance, size_t index) {
 		return wxString::Format("%zu. item %d (chance %d)", index + 1, itemId, chance);
 	}
@@ -2466,6 +2477,8 @@ void MaterialsWorkbenchBrushPanel::SetActiveAlignedEditorWidgets(AlignedEditorWi
 	alignedAddNodeButton_ = widgets ? widgets->addNodeButton : nullptr;
 	alignedAddItemButton_ = widgets ? widgets->addItemButton : nullptr;
 	alignedRemoveItemButton_ = widgets ? widgets->removeItemButton : nullptr;
+	alignedNodesDetailsLabel_ = widgets ? widgets->nodesDetailsLabel : nullptr;
+	alignedNodesDetailsButton_ = widgets ? widgets->nodesDetailsButton : nullptr;
 	alignedNodesList_ = widgets ? widgets->nodesList : nullptr;
 	alignedSeamlessPreviewInfoLabel_ = widgets ? widgets->seamlessPreviewInfoLabel : nullptr;
 	alignedSeamlessPreviewPanel_ = widgets ? widgets->seamlessPreviewPanel : nullptr;
@@ -2480,6 +2493,7 @@ void MaterialsWorkbenchBrushPanel::SetActiveAlignedEditorWidgets(AlignedEditorWi
 	alignedItemIdCtrl_ = widgets ? widgets->itemIdCtrl : nullptr;
 	alignedItemChanceCtrl_ = widgets ? widgets->itemChanceCtrl : nullptr;
 	alignedItemOwnershipLabel_ = widgets ? widgets->itemOwnershipLabel : nullptr;
+	alignedNodesDetailsExpanded_ = false;
 }
 
 wxPanel* MaterialsWorkbenchBrushPanel::BuildUnsupportedVariationsPage(wxSimplebook* book) {
@@ -2597,6 +2611,13 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildCarpetVariationsPage(wxSimplebook* b
 	widgets.contextPanel = new wxPanel(panel, wxID_ANY, wxDefaultPosition, wxSize(panel->FromDIP(360), panel->FromDIP(360)), wxBORDER_SIMPLE);
 	widgets.contextPanel->SetBackgroundStyle(wxBG_STYLE_PAINT);
 	widgets.contextPanel->SetMinSize(wxSize(panel->FromDIP(360), panel->FromDIP(360)));
+	widgets.nodesDetailsLabel = new wxStaticText(panel, wxID_ANY, "");
+	StyleBrushWorkspaceSubtitle(widgets.nodesDetailsLabel);
+	widgets.nodesDetailsLabel->Wrap(panel->FromDIP(360));
+	widgets.nodesDetailsButton = new wxButton(panel, wxID_ANY, "Details");
+	StyleBrushWorkspaceActionButton(widgets.nodesDetailsButton, "");
+	widgets.nodesDetailsLabel->Hide();
+	widgets.nodesDetailsButton->Hide();
 	widgets.nodesList = new wxListBox(panel, wxID_ANY);
 	widgets.nodesList->SetMinSize(wxSize(-1, panel->FromDIP(120)));
 	widgets.nodesList->SetToolTip("Lists all contexts, including unmapped/duplicate slot keys.");
@@ -2604,12 +2625,15 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildCarpetVariationsPage(wxSimplebook* b
 	wxBoxSizer* nodeButtons = new wxBoxSizer(wxHORIZONTAL);
 	widgets.addNodeButton = new wxButton(panel, wxID_ANY, "Add Context");
 	wxButton* removeNodeButton = new wxButton(panel, wxID_ANY, "Remove Context");
+	StyleBrushWorkspaceActionButton(widgets.addNodeButton, "Create the selected carpet context in the layout map.");
+	StyleBrushWorkspaceActionButton(removeNodeButton, "Remove the selected carpet context.");
 	nodeButtons->Add(widgets.addNodeButton, 1, wxRIGHT, FromDIP(4));
-	nodeButtons->Add(removeNodeButton, 1);
+	nodeButtons->Add(removeNodeButton, 1, wxRIGHT, FromDIP(4));
+	nodeButtons->Add(widgets.nodesDetailsButton, 0);
 	nodesSizer->Add(widgets.sectionLabel, 0, wxBOTTOM, FromDIP(6));
 	nodesSizer->Add(widgets.visualInfoLabel, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
 	nodesSizer->Add(widgets.contextPanel, 1, wxEXPAND | wxBOTTOM, FromDIP(8));
-	nodesSizer->Add(nodeButtons, 0, wxEXPAND);
+	nodesSizer->Add(nodeButtons, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
 	nodesSizer->Add(widgets.nodesList, 0, wxEXPAND);
 
 	wxScrolledWindow* editorScroll = new wxScrolledWindow(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL);
@@ -2711,6 +2735,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildCarpetVariationsPage(wxSimplebook* b
 	widgets.addNodeButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnAddAlignedNode, this);
 	removeNodeButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnRemoveAlignedNode, this);
 	widgets.nodesList->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBrushPanel::OnAlignedNodeSelected, this);
+	widgets.nodesDetailsButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnAlignedNodesDetailsToggled, this);
 	widgets.nodeAlignCtrl->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnAlignedNodeAlignChanged, this);
 	widgets.nodeAlignChoice->Bind(wxEVT_CHOICE, &MaterialsWorkbenchBrushPanel::OnAlignedNodeAlignChanged, this);
 	widgets.contextPanel->Bind(wxEVT_PAINT, &MaterialsWorkbenchBrushPanel::OnAlignedContextPaint, this);
@@ -2750,6 +2775,13 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildTableVariationsPage(wxSimplebook* bo
 	widgets.contextPanel = new wxPanel(panel, wxID_ANY, wxDefaultPosition, wxSize(panel->FromDIP(250), panel->FromDIP(250)), wxBORDER_SIMPLE);
 	widgets.contextPanel->SetBackgroundStyle(wxBG_STYLE_PAINT);
 	widgets.contextPanel->SetMinSize(wxSize(panel->FromDIP(250), panel->FromDIP(250)));
+	widgets.nodesDetailsLabel = new wxStaticText(panel, wxID_ANY, "");
+	StyleBrushWorkspaceSubtitle(widgets.nodesDetailsLabel);
+	widgets.nodesDetailsLabel->Wrap(panel->FromDIP(250));
+	widgets.nodesDetailsButton = new wxButton(panel, wxID_ANY, "Details");
+	StyleBrushWorkspaceActionButton(widgets.nodesDetailsButton, "");
+	widgets.nodesDetailsLabel->Hide();
+	widgets.nodesDetailsButton->Hide();
 	widgets.nodesList = new wxListBox(panel, wxID_ANY);
 	widgets.nodesList->SetMinSize(wxSize(-1, panel->FromDIP(120)));
 	widgets.nodesList->SetToolTip("Lists all contexts, including unmapped/duplicate slot keys.");
@@ -2757,12 +2789,15 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildTableVariationsPage(wxSimplebook* bo
 	wxBoxSizer* nodeButtons = new wxBoxSizer(wxHORIZONTAL);
 	widgets.addNodeButton = new wxButton(panel, wxID_ANY, "Add Node");
 	wxButton* removeNodeButton = new wxButton(panel, wxID_ANY, "Remove");
+	StyleBrushWorkspaceActionButton(widgets.addNodeButton, "Create the missing table state selected in Table States.");
+	StyleBrushWorkspaceActionButton(removeNodeButton, "Remove the selected table state.");
 	nodeButtons->Add(widgets.addNodeButton, 1, wxRIGHT, FromDIP(4));
-	nodeButtons->Add(removeNodeButton, 1);
+	nodeButtons->Add(removeNodeButton, 1, wxRIGHT, FromDIP(4));
+	nodeButtons->Add(widgets.nodesDetailsButton, 0);
 	nodesSizer->Add(widgets.sectionLabel, 0, wxBOTTOM, FromDIP(6));
 	nodesSizer->Add(widgets.visualInfoLabel, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
 	nodesSizer->Add(widgets.contextPanel, 1, wxEXPAND | wxBOTTOM, FromDIP(8));
-	nodesSizer->Add(nodeButtons, 0, wxEXPAND);
+	nodesSizer->Add(nodeButtons, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
 	nodesSizer->Add(widgets.nodesList, 0, wxEXPAND);
 
 	wxPanel* editorPanel = new wxPanel(panel, wxID_ANY);
@@ -2859,6 +2894,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildTableVariationsPage(wxSimplebook* bo
 	widgets.addNodeButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnAddAlignedNode, this);
 	removeNodeButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnRemoveAlignedNode, this);
 	widgets.nodesList->Bind(wxEVT_LISTBOX, &MaterialsWorkbenchBrushPanel::OnAlignedNodeSelected, this);
+	widgets.nodesDetailsButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnAlignedNodesDetailsToggled, this);
 	widgets.nodeAlignCtrl->Bind(wxEVT_TEXT, &MaterialsWorkbenchBrushPanel::OnAlignedNodeAlignChanged, this);
 	widgets.nodeAlignChoice->Bind(wxEVT_CHOICE, &MaterialsWorkbenchBrushPanel::OnAlignedNodeAlignChanged, this);
 	widgets.contextPanel->Bind(wxEVT_PAINT, &MaterialsWorkbenchBrushPanel::OnAlignedContextPaint, this);
@@ -3990,7 +4026,24 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedNodeList() {
 
 	const int topItem = CaptureListTopItem(alignedNodesList_);
 	alignedNodesList_->Clear();
-	bool showNodeList = false;
+	bool showDetails = false;
+	wxString detailsTooltip;
+	const auto summarizeIssues = [&](const std::vector<wxString> &issues) -> wxString {
+		if (issues.empty()) {
+			return "";
+		}
+		const size_t maxShown = 2;
+		std::vector<wxString> head;
+		head.reserve(std::min(maxShown, issues.size()));
+		for (size_t i = 0; i < issues.size() && i < maxShown; ++i) {
+			head.push_back(issues[i]);
+		}
+		wxString summary = JoinWorkbenchBrushPanelStrings(head, "; ");
+		if (issues.size() > maxShown) {
+			summary += wxString::Format(" (+%zu)", issues.size() - maxShown);
+		}
+		return summary;
+	};
 	if (GetEffectiveBrushType() == "carpet") {
 		const auto &nodes = brushStorage_.carpetNodes;
 		{
@@ -4002,19 +4055,23 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedNodeList() {
 				normalized.MakeLower();
 				alignCounts[normalized] += 1;
 			}
+			std::vector<wxString> issues;
 			for (const auto &entry : alignCounts) {
 				if (entry.first.IsEmpty()) {
-					showNodeList = true;
-					break;
+					issues.push_back("empty slot key");
+					continue;
 				}
 				if (!IsKnownCarpetAlign(entry.first)) {
-					showNodeList = true;
-					break;
+					issues.push_back(wxString::Format("unknown slot '%s'", entry.first));
+					continue;
 				}
 				if (entry.second > 1) {
-					showNodeList = true;
-					break;
+					issues.push_back(wxString::Format("duplicate '%s' (%d)", entry.first, entry.second));
 				}
+			}
+			if (!issues.empty()) {
+				showDetails = true;
+				detailsTooltip = wxString::Format("Carpet slot issues: %s", summarizeIssues(issues));
 			}
 		}
 		for (size_t i = 0; i < nodes.size(); ++i) {
@@ -4037,19 +4094,23 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedNodeList() {
 				normalized.MakeLower();
 				alignCounts[normalized] += 1;
 			}
+			std::vector<wxString> issues;
 			for (const auto &entry : alignCounts) {
 				if (entry.first.IsEmpty()) {
-					showNodeList = true;
-					break;
+					issues.push_back("empty state key");
+					continue;
 				}
 				if (!IsKnownTableAlign(entry.first)) {
-					showNodeList = true;
-					break;
+					issues.push_back(wxString::Format("unknown state '%s'", entry.first));
+					continue;
 				}
 				if (entry.second > 1) {
-					showNodeList = true;
-					break;
+					issues.push_back(wxString::Format("duplicate '%s' (%d)", entry.first, entry.second));
 				}
+			}
+			if (!issues.empty()) {
+				showDetails = true;
+				detailsTooltip = wxString::Format("Table state issues: %s", summarizeIssues(issues));
 			}
 		}
 		for (size_t i = 0; i < nodes.size(); ++i) {
@@ -4070,7 +4131,15 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedNodeList() {
 	}
 	RestoreListTopItem(alignedNodesList_, topItem);
 
-	alignedNodesList_->Show(showNodeList);
+	if (!showDetails) {
+		alignedNodesDetailsExpanded_ = false;
+	}
+	if (alignedNodesDetailsButton_) {
+		alignedNodesDetailsButton_->SetLabel(alignedNodesDetailsExpanded_ ? "Hide" : "Details");
+		alignedNodesDetailsButton_->SetToolTip(detailsTooltip);
+		alignedNodesDetailsButton_->Show(showDetails);
+	}
+	alignedNodesList_->Show(showDetails && alignedNodesDetailsExpanded_);
 	if (wxWindow* parent = alignedNodesList_->GetParent()) {
 		parent->Layout();
 	}
@@ -7620,6 +7689,11 @@ void MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsRightDown(wxMouseEvent &ev
 	}
 
 	event.Skip();
+}
+
+void MaterialsWorkbenchBrushPanel::OnAlignedNodesDetailsToggled(wxCommandEvent &WXUNUSED(event)) {
+	alignedNodesDetailsExpanded_ = !alignedNodesDetailsExpanded_;
+	RefreshAlignedNodeList();
 }
 
 void MaterialsWorkbenchBrushPanel::OnAddDoodadAlternative(wxCommandEvent &WXUNUSED(event)) {

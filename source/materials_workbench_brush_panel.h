@@ -75,6 +75,8 @@ private:
 		wxButton* addNodeButton = nullptr;
 		wxButton* addItemButton = nullptr;
 		wxButton* removeItemButton = nullptr;
+		wxStaticText* nodesDetailsLabel = nullptr;
+		wxButton* nodesDetailsButton = nullptr;
 		wxListBox* nodesList = nullptr;
 		wxStaticText* seamlessPreviewInfoLabel = nullptr;
 		wxPanel* seamlessPreviewPanel = nullptr;
@@ -185,6 +187,7 @@ private:
 	void OnAlignedItemsCardsPaint(wxPaintEvent &event);
 	void OnAlignedItemsCardsLeftDown(wxMouseEvent &event);
 	void OnAlignedItemsCardsRightDown(wxMouseEvent &event);
+	void OnAlignedNodesDetailsToggled(wxCommandEvent &event);
 	void OnAddDoodadAlternative(wxCommandEvent &event);
 	void OnRemoveDoodadAlternative(wxCommandEvent &event);
 	void OnAddDoodadSingleItem(wxCommandEvent &event);
@@ -293,6 +296,8 @@ private:
 	wxButton* alignedAddNodeButton_ = nullptr;
 	wxButton* alignedAddItemButton_ = nullptr;
 	wxButton* alignedRemoveItemButton_ = nullptr;
+	wxStaticText* alignedNodesDetailsLabel_ = nullptr;
+	wxButton* alignedNodesDetailsButton_ = nullptr;
 	wxListBox* alignedNodesList_ = nullptr;
 	wxStaticText* alignedSeamlessPreviewInfoLabel_ = nullptr;
 	wxPanel* alignedSeamlessPreviewPanel_ = nullptr;
@@ -314,6 +319,7 @@ private:
 	std::vector<wxRect> alignedItemCardRects_;
 	std::vector<wxRect> alignedItemEditRects_;
 	std::vector<wxRect> alignedItemRemoveRects_;
+	bool alignedNodesDetailsExpanded_ = false;
 	int alignedNodeIndex_ = -1;
 	int alignedItemIndex_ = -1;
 	wxString alignedPendingCarpetAlign_;
