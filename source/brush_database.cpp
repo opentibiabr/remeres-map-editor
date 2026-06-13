@@ -943,6 +943,10 @@ bool BrushDatabase::replaceBrushLinks(int64_t brushId, const std::vector<BrushLi
 	return brushRepository_.replaceBrushLinks(brushId, links);
 }
 
+bool BrushDatabase::listBrushUsages(int64_t brushId, const wxString &brushName, std::vector<BrushUsageRecord> &outUsages) {
+	return brushRepository_.listBrushUsages(brushId, brushName, outUsages);
+}
+
 bool BrushDatabase::replaceWallParts(int64_t brushId, const std::vector<WallPartRecord> &parts) {
 	return brushRepository_.replaceWallParts(brushId, parts);
 }
@@ -3036,6 +3040,102 @@ bool BrushDatabaseBrushRepository::getBrushLinks(int64_t brushId, std::vector<Br
 	}
 
 	sqlite3_finalize(stmt);
+	return true;
+}
+
+bool BrushDatabaseBrushRepository::listBrushUsages(int64_t brushId, const wxString &brushName, std::vector<BrushUsageRecord> &outUsages) {
+	outUsages.clear();
+
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+
+	sqlite3_stmt* paletteStmt = nullptr;
+	if (!prepare(
+			"SELECT tileset_id, tileset_name, section_type, relation, ref_id, sort_order "
+			"FROM ("
+			"SELECT t.id AS tileset_id, t.name AS tileset_name, s.section_type AS section_type, 'palette entry' AS relation, "
+			"e.id AS ref_id, e.sort_order AS sort_order, s.sort_order AS section_sort "
+			"FROM tileset_brush_entries e "
+			"JOIN tileset_sections s ON s.id = e.tileset_section_id "
+			"JOIN tilesets t ON t.id = s.tileset_id "
+			"WHERE e.entry_kind = 'brush' AND (e.brush_id = ? OR (e.brush_id IS NULL AND e.brush_name = ?)) "
+			"UNION ALL "
+			"SELECT t.id AS tileset_id, t.name AS tileset_name, s.section_type AS section_type, 'palette order' AS relation, "
+			"e.id AS ref_id, e.sort_order AS sort_order, s.sort_order AS section_sort "
+			"FROM tileset_brush_entries e "
+			"JOIN tileset_sections s ON s.id = e.tileset_section_id "
+			"JOIN tilesets t ON t.id = s.tileset_id "
+			"WHERE e.after_brush_name <> '' AND e.after_brush_name = ?"
+			") "
+			"ORDER BY tileset_name COLLATE NOCASE ASC, section_sort ASC, sort_order ASC, ref_id ASC;",
+			&paletteStmt)) {
+		return false;
+	}
+
+	sqlite3_bind_int64(paletteStmt, 1, brushId);
+	sqlite3_bind_text(paletteStmt, 2, brushName.utf8_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_text(paletteStmt, 3, brushName.utf8_str(), -1, SQLITE_TRANSIENT);
+
+	for (;;) {
+		const int rc = sqlite3_step(paletteStmt);
+		if (rc == SQLITE_DONE) {
+			break;
+		}
+		if (rc != SQLITE_ROW) {
+			sqlite3_finalize(paletteStmt);
+			return setErrorFromDatabase("Failed to list brush palette usages");
+		}
+
+		BrushUsageRecord usage;
+		usage.sourceKind = "palette";
+		usage.sourceId = sqlite3_column_int64(paletteStmt, 0);
+		usage.sourceName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(paletteStmt, 1)));
+		usage.context = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(paletteStmt, 2)));
+		usage.relation = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(paletteStmt, 3)));
+		usage.refId = sqlite3_column_int64(paletteStmt, 4);
+		usage.sortOrder = sqlite3_column_int(paletteStmt, 5);
+		outUsages.push_back(std::move(usage));
+	}
+
+	sqlite3_finalize(paletteStmt);
+
+	sqlite3_stmt* linkStmt = nullptr;
+	if (!prepare(
+			"SELECT b.id, b.name, bl.relation_type, bl.sort_order, bl.id "
+			"FROM brush_links bl "
+			"JOIN brushes b ON b.id = bl.brush_id "
+			"WHERE bl.target_brush_id = ? OR (bl.target_brush_id IS NULL AND bl.target_brush_name = ?) "
+			"ORDER BY b.name COLLATE NOCASE ASC, bl.sort_order ASC, bl.id ASC;",
+			&linkStmt)) {
+		return false;
+	}
+
+	sqlite3_bind_int64(linkStmt, 1, brushId);
+	sqlite3_bind_text(linkStmt, 2, brushName.utf8_str(), -1, SQLITE_TRANSIENT);
+
+	for (;;) {
+		const int rc = sqlite3_step(linkStmt);
+		if (rc == SQLITE_DONE) {
+			break;
+		}
+		if (rc != SQLITE_ROW) {
+			sqlite3_finalize(linkStmt);
+			return setErrorFromDatabase("Failed to list brush link usages");
+		}
+
+		BrushUsageRecord usage;
+		usage.sourceKind = "brush";
+		usage.sourceId = sqlite3_column_int64(linkStmt, 0);
+		usage.sourceName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(linkStmt, 1)));
+		usage.relation = "brush link";
+		usage.context = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(linkStmt, 2)));
+		usage.sortOrder = sqlite3_column_int(linkStmt, 3);
+		usage.refId = sqlite3_column_int64(linkStmt, 4);
+		outUsages.push_back(std::move(usage));
+	}
+
+	sqlite3_finalize(linkStmt);
 	return true;
 }
 

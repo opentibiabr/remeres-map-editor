@@ -409,6 +409,19 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 			HandleBrushDeleted(brushId);
 		});
 	});
+	brushPanel_->SetOnOpenLinkedBrush([this](int64_t brushId) {
+		wxString contextKey;
+		int itemIndex = -1;
+		if (controller_.LocateBrushNode(brushId, contextKey, itemIndex)) {
+			SelectNavigationNode(MaterialsWorkbenchNodeKind::Brush, contextKey, itemIndex);
+		}
+	});
+	brushPanel_->SetOnOpenLinkedTileset([this](const wxString &paletteName) {
+		int itemIndex = -1;
+		if (controller_.LocateTilesetNode(paletteName, itemIndex)) {
+			SelectNavigationNode(MaterialsWorkbenchNodeKind::Tileset, "", itemIndex);
+		}
+	});
 	wallPanel_ = new MaterialsWorkbenchWallPanel(workspaceBook_, controller_);
 	wallPanel_->SetOnWallBrushStateChanged([this]() {
 		UpdateBrushNavigationBadge();

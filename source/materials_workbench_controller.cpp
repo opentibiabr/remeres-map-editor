@@ -865,6 +865,10 @@ bool MaterialsWorkbenchController::LocateBrushNode(int64_t brushId, wxString &ou
 	return false;
 }
 
+bool MaterialsWorkbenchController::GetBrushUsages(int64_t brushId, const wxString &brushName, std::vector<BrushUsageRecord> &outUsages, wxString &error) const {
+	return repository_.LoadBrushUsages(brushId, brushName, outUsages, error);
+}
+
 int MaterialsWorkbenchController::SuggestNextBorderId() const {
 	int maxBorderId = 0;
 	for (const BorderSetRecord &border : catalog_.globalBorderSets) {

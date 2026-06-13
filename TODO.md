@@ -29,6 +29,7 @@
   - [x] Palette Workspace: move palette category actions into the footer action bar
   - [x] Brush Workspace (Carpet): layout map supports diagonal slots (`dnw/dne/dsw/dse`) with corrected labels, centered slot sprites, cleaner slot chrome (badge placement, no redundant missing text, hidden Context Details), and seamless preview rules for diagonals + sparse sets (diag+only E/W or diag+only N/S collapse without showing center, and missing opposite-edge pairs no longer leave a gap)
   - [x] Brush Workspace (Aligned): show a compact `Details` toggle (tooltip explains why) when a brush contains legacy/duplicate aligned slots; keep it hidden otherwise
+  - [x] Brush Workspace (Table): hide outdated helper copy under `Table States` and keep `Add Node`/`Remove`/`Details` as a compact single action row
 - [x] Standardize technical labels such as `lookId`, `serverLookId`, `zOrder`, and `partType`
 
 ## Future UX
@@ -47,6 +48,7 @@
     - [x] First-pass `palette` warnings are per-entry (missing brush) and per-field (invalid itemId/from/to/after), not aggregated into a single count row
   - [x] `SQLite`: fold the legacy SQLite Materials Inspector into this surface
 - [ ] Add `Used By` reference views (not in the Inspector) so users can jump to owners without hunting in the tree
+  - [x] Brush Workspace: add a `Used By` dialog listing palette references and inbound brush links, with search + open
 - [ ] Add import/export tooling for any Materials Workbench entity (at least `walls`, `borders`, `brushes`, `palettes`, and `palette categories`) so users can share items without swapping the full `.db`
 - [x] Safer removal (Palette Workspace): `Delete Palette` now shows category + section/entry counts and a small entry preview before confirming
 - [x] Safer removal (Border Workspace): `Delete Border` now shows a `Used By` preview + context count for global borders, and an owner + slots summary for inline borders, before confirming

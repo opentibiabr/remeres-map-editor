@@ -116,6 +116,16 @@ struct BrushLinkRecord {
 	int sortOrder = 0;
 };
 
+struct BrushUsageRecord {
+	wxString sourceKind;
+	int64_t sourceId = 0;
+	wxString sourceName;
+	wxString relation;
+	wxString context;
+	int sortOrder = 0;
+	int64_t refId = 0;
+};
+
 struct WallPartItemRecord {
 	int itemId = 0;
 	int chance = 0;
@@ -399,6 +409,7 @@ public:
 	bool getGroundBrushBorders(int64_t brushId, std::vector<GroundBrushBorderRecord> &outBorders);
 	bool replaceBrushLinks(int64_t brushId, const std::vector<BrushLinkRecord> &links);
 	bool getBrushLinks(int64_t brushId, std::vector<BrushLinkRecord> &outLinks);
+	bool listBrushUsages(int64_t brushId, const wxString &brushName, std::vector<BrushUsageRecord> &outUsages);
 	bool replaceWallParts(int64_t brushId, const std::vector<WallPartRecord> &parts);
 	bool getWallParts(int64_t brushId, std::vector<WallPartRecord> &outParts);
 	bool replaceCarpetNodes(int64_t brushId, const std::vector<CarpetNodeRecord> &nodes);
@@ -473,6 +484,7 @@ public:
 	bool replaceTableNodes(int64_t brushId, const std::vector<TableNodeRecord> &nodes);
 	bool replaceDoodadAlternatives(int64_t brushId, const std::vector<DoodadAlternativeRecord> &alternatives);
 	bool resolveGroundReferenceNames();
+	bool listBrushUsages(int64_t brushId, const wxString &brushName, std::vector<BrushUsageRecord> &outUsages);
 
 	bool replaceAllTilesets(const std::vector<TilesetStorageRecord> &tilesets);
 	bool saveTileset(const TilesetStorageRecord &tileset);

@@ -192,6 +192,18 @@ bool MaterialsWorkbenchRepository::LoadBrushDetails(int64_t brushId, BrushStorag
 	return true;
 }
 
+bool MaterialsWorkbenchRepository::LoadBrushUsages(int64_t brushId, const wxString &brushName, std::vector<BrushUsageRecord> &outUsages, wxString &error) const {
+	outUsages.clear();
+	error.clear();
+
+	if (!g_brush_database.listBrushUsages(brushId, brushName, outUsages)) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
+
+	return true;
+}
+
 bool MaterialsWorkbenchRepository::LoadBorderSetUsages(int64_t borderSetId, std::vector<BorderSetUsageRecord> &outUsages, wxString &error) const {
 	outUsages.clear();
 	error.clear();
