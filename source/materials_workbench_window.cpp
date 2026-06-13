@@ -431,6 +431,13 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 			HandleWallBrushSaved(brushId);
 		});
 	});
+	wallPanel_->SetOnOpenLinkedBrush([this](int64_t brushId) {
+		wxString contextKey;
+		int itemIndex = -1;
+		if (controller_.LocateBrushNode(brushId, contextKey, itemIndex)) {
+			SelectNavigationNode(MaterialsWorkbenchNodeKind::Brush, contextKey, itemIndex);
+		}
+	});
 	workspaceBook_->AddPage(overviewPanel, "Overview");
 	workspaceBook_->AddPage(palettePanel_, "Palette");
 	workspaceBook_->AddPage(borderPanel_, "Border");

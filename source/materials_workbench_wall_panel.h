@@ -15,6 +15,7 @@ class MaterialsWorkbenchController;
 class wxButton;
 class wxCheckBox;
 class wxChoice;
+class wxListCtrl;
 class wxRadioButton;
 class wxScrolledWindow;
 class wxSpinCtrl;
@@ -30,6 +31,7 @@ public:
 	bool LoadWallBrush(const wxString &contextKey, int itemIndex);
 	void SetOnWallBrushSaved(std::function<void(int64_t)> callback);
 	void SetOnWallBrushStateChanged(std::function<void()> callback);
+	void SetOnOpenLinkedBrush(std::function<void(int64_t)> callback);
 	bool HasPendingChanges() const;
 	bool IsCurrentWallSelection(const wxString &contextKey, int itemIndex) const;
 	wxString GetCurrentWallDisplayName() const;
@@ -66,6 +68,8 @@ private:
 	void SetStatusMessage(const wxString &message);
 	void SetFieldsEnabled(bool enabled);
 	void RefreshComposedPreview();
+	void RefreshLinksSection();
+	void UpdateLinksActionButtons();
 	BrushStorageRecord BuildComparableStorageFromCurrentState() const;
 	WallEditorState CaptureEditorState() const;
 	void RestoreEditorState(const WallEditorState &state);
@@ -97,6 +101,7 @@ private:
 	MaterialsWorkbenchController &controller_;
 	std::function<void(int64_t)> onWallBrushSaved_;
 	std::function<void()> onWallBrushStateChanged_;
+	std::function<void(int64_t)> onOpenLinkedBrush_;
 	BrushStorageRecord wallBrushStorage_;
 	BrushStorageRecord loadedWallBrushStorage_;
 	wxString currentContextKey_;
@@ -106,6 +111,8 @@ private:
 	int selectedDoorIndex_ = -1;
 	bool hasWallBrush_ = false;
 	bool dirty_ = false;
+	bool linksRefreshInProgress_ = false;
+	bool suppressLinksEvents_ = false;
 	std::map<wxString, WallEditorState> partEditorStates_;
 
 	wxStaticText* titleLabel_ = nullptr;
@@ -143,6 +150,16 @@ private:
 	wxCheckBox* doorOpenCtrl_ = nullptr;
 	wxCheckBox* doorHateCtrl_ = nullptr;
 	ItemButton* doorPreviewButton_ = nullptr;
+	wxTextCtrl* linksSearchCtrl_ = nullptr;
+	wxStaticText* linksSummaryLabel_ = nullptr;
+	wxListCtrl* linksListCtrl_ = nullptr;
+	wxButton* addLinkButton_ = nullptr;
+	wxButton* removeLinkButton_ = nullptr;
+	wxButton* toggleRedirectButton_ = nullptr;
+	wxButton* moveLinkUpButton_ = nullptr;
+	wxButton* moveLinkDownButton_ = nullptr;
+	wxStaticText* inboundLinksSummaryLabel_ = nullptr;
+	wxListCtrl* inboundLinksListCtrl_ = nullptr;
 	wxStaticText* statusLabel_ = nullptr;
 };
 

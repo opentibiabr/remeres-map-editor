@@ -361,6 +361,10 @@ bool MaterialsWorkbenchRepository::SaveWallBrushParts(const BrushStorageRecord &
 		error = g_brush_database.getLastError();
 		return false;
 	}
+	if (!g_brush_database.replaceBrushLinks(brushStorage.brush.id, brushStorage.links)) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
 
 	return true;
 }
