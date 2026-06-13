@@ -2265,6 +2265,7 @@ void MaterialsWorkbenchBrushPanel::BuildLayout() {
 	workspaceTabs_ = new wxNotebook(this, wxID_ANY);
 	workspaceTabs_->AddPage(BuildMetadataPage(workspaceTabs_), "Metadata");
 	workspaceTabs_->AddPage(BuildVariationsPage(workspaceTabs_), "Editor");
+	workspaceTabs_->AddPage(BuildLinksPage(workspaceTabs_), "Links");
 
 	wxBoxSizer* headerSizer = new wxBoxSizer(wxVERTICAL);
 	headerSizer->Add(title, 0, wxBOTTOM, FromDIP(4));
@@ -2305,6 +2306,178 @@ void MaterialsWorkbenchBrushPanel::BuildLayout() {
 	createBrushButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnCreateBrush, this);
 	deleteBrushButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnDeleteBrush, this);
 	usedByButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnUsedBy, this);
+}
+
+namespace {
+	class BrushWorkspaceGroundBrushLinkPickerDialog final : public wxDialog {
+	public:
+		BrushWorkspaceGroundBrushLinkPickerDialog(
+			wxWindow* parent,
+			const MaterialsWorkbenchController &controller,
+			const wxString &title,
+			int64_t selectedBrushId,
+			const wxString &selectedBrushName
+		) :
+			wxDialog(parent, wxID_ANY, title, wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER) {
+			const auto &brushGroups = controller.GetBrushGroups();
+			for (const MaterialsWorkbenchBrushGroup &group : brushGroups) {
+				if (group.brushType != "ground") {
+					continue;
+				}
+				for (const BrushRecord &brush : group.brushes) {
+					terrainBrushes_.push_back(brush);
+				}
+			}
+
+			std::sort(
+				terrainBrushes_.begin(),
+				terrainBrushes_.end(),
+				[](const BrushRecord &left, const BrushRecord &right) {
+					const int compareNames = left.name.CmpNoCase(right.name);
+					if (compareNames != 0) {
+						return compareNames < 0;
+					}
+					return left.id < right.id;
+				}
+			);
+
+			wxBoxSizer* rootSizer = new wxBoxSizer(wxVERTICAL);
+			searchCtrl_ = new wxTextCtrl(this, wxID_ANY);
+			searchCtrl_->SetHint("Search ground brush by name or id...");
+			listBox_ = new wxListBox(this, wxID_ANY);
+			listBox_->SetMinSize(wxSize(FromDIP(420), FromDIP(320)));
+
+			wxStdDialogButtonSizer* buttons = new wxStdDialogButtonSizer();
+			okButton_ = new wxButton(this, wxID_OK);
+			okButton_->Enable(false);
+			buttons->AddButton(okButton_);
+			buttons->AddButton(new wxButton(this, wxID_CANCEL));
+			buttons->Realize();
+
+			rootSizer->Add(searchCtrl_, 0, wxEXPAND | wxALL, FromDIP(12));
+			rootSizer->Add(listBox_, 1, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(12));
+			rootSizer->Add(buttons, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(12));
+			SetSizerAndFit(rootSizer);
+			SetMinSize(wxSize(FromDIP(460), FromDIP(420)));
+
+			searchCtrl_->Bind(wxEVT_TEXT, &BrushWorkspaceGroundBrushLinkPickerDialog::OnSearchChanged, this);
+			listBox_->Bind(wxEVT_LISTBOX, &BrushWorkspaceGroundBrushLinkPickerDialog::OnSelectionChanged, this);
+			listBox_->Bind(wxEVT_LISTBOX_DCLICK, &BrushWorkspaceGroundBrushLinkPickerDialog::OnItemActivated, this);
+			okButton_->Bind(wxEVT_BUTTON, &BrushWorkspaceGroundBrushLinkPickerDialog::OnConfirm, this);
+
+			RebuildList(selectedBrushId, selectedBrushName);
+		}
+
+		bool IsAllSelected() const {
+			return selectedVisibleIndex_ == 0 && !filteredIndexes_.empty() && filteredIndexes_[0] == kAllSentinel;
+		}
+
+		const BrushRecord* GetSelectedBrush() const {
+			if (selectedVisibleIndex_ == wxNOT_FOUND ||
+				selectedVisibleIndex_ < 0 ||
+				selectedVisibleIndex_ >= static_cast<int>(filteredIndexes_.size())) {
+				return nullptr;
+			}
+			const int sourceIndex = filteredIndexes_[selectedVisibleIndex_];
+			if (sourceIndex == kAllSentinel) {
+				return nullptr;
+			}
+			if (sourceIndex < 0 || sourceIndex >= static_cast<int>(terrainBrushes_.size())) {
+				return nullptr;
+			}
+			return &terrainBrushes_[sourceIndex];
+		}
+
+	private:
+		static constexpr int kAllSentinel = -1;
+
+		void RebuildList(int64_t preferredBrushId, const wxString &preferredBrushName) {
+			filteredIndexes_.clear();
+			listBox_->Clear();
+
+			const wxString query = searchCtrl_->GetValue().Lower().Trim(true).Trim(false);
+
+			if (query.IsEmpty() || wxString("all").Contains(query)) {
+				filteredIndexes_.push_back(kAllSentinel);
+				listBox_->Append("all");
+			}
+
+			for (size_t i = 0; i < terrainBrushes_.size(); ++i) {
+				const BrushRecord &brush = terrainBrushes_[i];
+				wxString haystack;
+				haystack << brush.name << " ";
+				haystack << wxString::Format("%lld", static_cast<long long>(brush.id));
+				haystack = haystack.Lower();
+				if (!query.IsEmpty() && !haystack.Contains(query)) {
+					continue;
+				}
+
+				filteredIndexes_.push_back(static_cast<int>(i));
+				listBox_->Append(wxString::Format("%s (#%lld)", brush.name, static_cast<long long>(brush.id)));
+			}
+
+			selectedVisibleIndex_ = wxNOT_FOUND;
+			if (filteredIndexes_.empty()) {
+				okButton_->Enable(false);
+				return;
+			}
+
+			int preferredVisibleIndex = 0;
+			if (preferredBrushId <= 0 && preferredBrushName.Lower() == "all") {
+				preferredVisibleIndex = 0;
+			} else {
+				for (size_t i = 0; i < filteredIndexes_.size(); ++i) {
+					const int sourceIndex = filteredIndexes_[i];
+					if (sourceIndex == kAllSentinel) {
+						continue;
+					}
+					const BrushRecord &brush = terrainBrushes_[sourceIndex];
+					if (brush.id == preferredBrushId) {
+						preferredVisibleIndex = static_cast<int>(i);
+						break;
+					}
+				}
+			}
+
+			listBox_->SetSelection(preferredVisibleIndex);
+			selectedVisibleIndex_ = preferredVisibleIndex;
+			okButton_->Enable(true);
+		}
+
+		void OnSearchChanged(wxCommandEvent &) {
+			const BrushRecord* current = GetSelectedBrush();
+			const int64_t preferredBrushId = current ? current->id : 0;
+			const wxString preferredBrushName = current ? current->name : (IsAllSelected() ? wxString("all") : wxString());
+			RebuildList(preferredBrushId, preferredBrushName);
+		}
+
+		void OnSelectionChanged(wxCommandEvent &) {
+			selectedVisibleIndex_ = listBox_->GetSelection();
+			okButton_->Enable(selectedVisibleIndex_ != wxNOT_FOUND);
+		}
+
+		void OnItemActivated(wxCommandEvent &) {
+			ConfirmSelection();
+		}
+
+		void OnConfirm(wxCommandEvent &) {
+			ConfirmSelection();
+		}
+
+		void ConfirmSelection() {
+			selectedVisibleIndex_ = listBox_->GetSelection();
+			if (selectedVisibleIndex_ != wxNOT_FOUND) {
+				EndModal(wxID_OK);
+			}
+		}
+
+		std::vector<BrushRecord> terrainBrushes_;
+		std::vector<int> filteredIndexes_;
+		wxTextCtrl* searchCtrl_ = nullptr;
+		wxListBox* listBox_ = nullptr;
+		wxButton* okButton_ = nullptr;
+		int selectedVisibleIndex_ = wxNOT_FOUND;
+	};
 }
 
 wxPanel* MaterialsWorkbenchBrushPanel::BuildMetadataPage(wxNotebook* notebook) {
@@ -2484,6 +2657,269 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildVariationsPage(wxNotebook* notebook)
 	rootSizer->Add(variationsBook_, 1, wxEXPAND);
 	panel->SetSizer(rootSizer);
 	SetActiveAlignedEditorWidgets(nullptr);
+	return panel;
+}
+
+wxPanel* MaterialsWorkbenchBrushPanel::BuildLinksPage(wxNotebook* notebook) {
+	wxPanel* panel = new wxPanel(notebook, wxID_ANY);
+	linksPage_ = panel;
+	wxBoxSizer* rootSizer = new wxBoxSizer(wxVERTICAL);
+
+	wxStaticText* info = new wxStaticText(
+		panel,
+		wxID_ANY,
+		"Brush links define simple relationships between brushes (e.g. friend/enemy). They are stored in materials.db and used by the runtime border logic."
+	);
+	StyleBrushWorkspaceSubtitle(info);
+	info->Wrap(panel->FromDIP(760));
+	rootSizer->Add(info, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+
+	linksSearchCtrl_ = new wxTextCtrl(panel, wxID_ANY);
+	linksSearchCtrl_->SetHint("Search by relation or target...");
+	rootSizer->Add(linksSearchCtrl_, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+
+	linksSummaryLabel_ = new wxStaticText(panel, wxID_ANY, "");
+	StyleBrushWorkspaceCaption(linksSummaryLabel_);
+	rootSizer->Add(linksSummaryLabel_, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
+
+	linksListCtrl_ = new wxListCtrl(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_SIMPLE);
+	linksListCtrl_->InsertColumn(0, "Relation", wxLIST_FORMAT_LEFT, FromDIP(110));
+	linksListCtrl_->InsertColumn(1, "Target", wxLIST_FORMAT_LEFT, FromDIP(320));
+	linksListCtrl_->InsertColumn(2, "Order", wxLIST_FORMAT_RIGHT, FromDIP(60));
+	rootSizer->Add(linksListCtrl_, 1, wxEXPAND | wxBOTTOM, FromDIP(8));
+
+	wxBoxSizer* actions = new wxBoxSizer(wxHORIZONTAL);
+	addFriendLinkButton_ = new wxButton(panel, wxID_ANY, "Add Friend");
+	addEnemyLinkButton_ = new wxButton(panel, wxID_ANY, "Add Enemy");
+	removeLinkButton_ = new wxButton(panel, wxID_ANY, "Remove");
+	moveLinkUpButton_ = new wxButton(panel, wxID_ANY, "Up");
+	moveLinkDownButton_ = new wxButton(panel, wxID_ANY, "Down");
+	StyleBrushWorkspaceActionButton(addFriendLinkButton_, "Create a new friend link for the current brush.");
+	StyleBrushWorkspaceActionButton(addEnemyLinkButton_, "Create a new enemy link for the current brush.");
+	StyleBrushWorkspaceActionButton(removeLinkButton_, "Remove the selected link.");
+	StyleBrushWorkspaceActionButton(moveLinkUpButton_, "Move the selected link earlier in evaluation order.");
+	StyleBrushWorkspaceActionButton(moveLinkDownButton_, "Move the selected link later in evaluation order.");
+	actions->Add(addFriendLinkButton_, 0, wxRIGHT, FromDIP(6));
+	actions->Add(addEnemyLinkButton_, 0, wxRIGHT, FromDIP(10));
+	actions->Add(removeLinkButton_, 0, wxRIGHT, FromDIP(10));
+	actions->Add(moveLinkUpButton_, 0, wxRIGHT, FromDIP(6));
+	actions->Add(moveLinkDownButton_, 0);
+	actions->AddStretchSpacer(1);
+	rootSizer->Add(actions, 0, wxEXPAND);
+
+	rootSizer->Add(new wxStaticLine(panel), 0, wxEXPAND | wxTOP | wxBOTTOM, FromDIP(10));
+
+	wxStaticText* inboundCaption = new wxStaticText(panel, wxID_ANY, "Inbound (read-only)");
+	StyleBrushWorkspaceCaption(inboundCaption);
+	rootSizer->Add(inboundCaption, 0, wxEXPAND | wxBOTTOM, FromDIP(4));
+
+	linksInboundSummaryLabel_ = new wxStaticText(panel, wxID_ANY, "");
+	StyleBrushWorkspaceCaption(linksInboundSummaryLabel_);
+	rootSizer->Add(linksInboundSummaryLabel_, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
+
+	linksInboundListCtrl_ = new wxListCtrl(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_SIMPLE);
+	linksInboundListCtrl_->InsertColumn(0, "From", wxLIST_FORMAT_LEFT, FromDIP(320));
+	linksInboundListCtrl_->InsertColumn(1, "Relation", wxLIST_FORMAT_LEFT, FromDIP(110));
+	rootSizer->Add(linksInboundListCtrl_, 1, wxEXPAND);
+
+	auto normalizeSortOrders = [this]() {
+		for (size_t i = 0; i < brushStorage_.links.size(); ++i) {
+			brushStorage_.links[i].sortOrder = static_cast<int>(i);
+		}
+	};
+
+	auto updateButtonState = [this]() {
+		const bool enabled = hasBrush_;
+		const bool isGround = GetEffectiveBrushType().Lower() == "ground";
+		addFriendLinkButton_->Enable(enabled && isGround);
+		addEnemyLinkButton_->Enable(enabled && isGround);
+
+		long selectedRow = linksListCtrl_->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+		const bool hasSelection = enabled && selectedRow != wxNOT_FOUND && selectedRow >= 0;
+		int selectedIndex = -1;
+		if (hasSelection) {
+			selectedIndex = static_cast<int>(linksListCtrl_->GetItemData(selectedRow));
+		}
+
+		removeLinkButton_->Enable(hasSelection);
+		moveLinkUpButton_->Enable(hasSelection && selectedIndex > 0);
+		moveLinkDownButton_->Enable(hasSelection && selectedIndex >= 0 && selectedIndex + 1 < static_cast<int>(brushStorage_.links.size()));
+	};
+
+	auto editSelectedOutgoing = [this, normalizeSortOrders]() {
+		if (!hasBrush_) {
+			return;
+		}
+		long selectedRow = linksListCtrl_->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+		if (selectedRow == wxNOT_FOUND || selectedRow < 0) {
+			return;
+		}
+		const int linkIndex = static_cast<int>(linksListCtrl_->GetItemData(selectedRow));
+		if (linkIndex < 0 || linkIndex >= static_cast<int>(brushStorage_.links.size())) {
+			return;
+		}
+		BrushLinkRecord &link = brushStorage_.links[linkIndex];
+
+		BrushWorkspaceGroundBrushLinkPickerDialog dialog(
+			this,
+			controller_,
+			"Choose Target Ground Brush",
+			link.targetBrushId,
+			link.targetBrushName
+		);
+		if (dialog.ShowModal() != wxID_OK) {
+			return;
+		}
+		if (dialog.IsAllSelected()) {
+			link.targetBrushId = 0;
+			link.targetBrushName = "all";
+		} else if (const BrushRecord* brush = dialog.GetSelectedBrush()) {
+			link.targetBrushId = brush->id;
+			link.targetBrushName = brush->name;
+		} else {
+			return;
+		}
+
+		normalizeSortOrders();
+		UpdateSummary();
+		RefreshLinksPage();
+		RefreshDirtyState();
+	};
+
+	linksSearchCtrl_->Bind(wxEVT_TEXT, [this](wxCommandEvent &) { RefreshLinksPage(); });
+	linksListCtrl_->Bind(wxEVT_LIST_ITEM_SELECTED, [updateButtonState](wxListEvent &) { updateButtonState(); });
+	linksListCtrl_->Bind(wxEVT_LIST_ITEM_DESELECTED, [updateButtonState](wxListEvent &) { updateButtonState(); });
+	linksListCtrl_->Bind(wxEVT_LIST_ITEM_ACTIVATED, [editSelectedOutgoing](wxListEvent &) { editSelectedOutgoing(); });
+	addFriendLinkButton_->Bind(wxEVT_BUTTON, [this, normalizeSortOrders](wxCommandEvent &) {
+		if (!hasBrush_) {
+			return;
+		}
+		if (GetEffectiveBrushType().Lower() != "ground") {
+			wxMessageBox("Links are currently supported for ground brushes only.", "Links", wxOK | wxICON_INFORMATION, this);
+			return;
+		}
+		BrushWorkspaceGroundBrushLinkPickerDialog dialog(this, controller_, "Choose Target Ground Brush", 0, "");
+		if (dialog.ShowModal() != wxID_OK) {
+			return;
+		}
+
+		BrushLinkRecord link;
+		link.relationType = "friend";
+		if (dialog.IsAllSelected()) {
+			link.targetBrushId = 0;
+			link.targetBrushName = "all";
+		} else if (const BrushRecord* brush = dialog.GetSelectedBrush()) {
+			link.targetBrushId = brush->id;
+			link.targetBrushName = brush->name;
+		} else {
+			return;
+		}
+		brushStorage_.links.push_back(link);
+		normalizeSortOrders();
+		UpdateSummary();
+		RefreshLinksPage();
+		RefreshDirtyState();
+	});
+	addEnemyLinkButton_->Bind(wxEVT_BUTTON, [this, normalizeSortOrders](wxCommandEvent &) {
+		if (!hasBrush_) {
+			return;
+		}
+		if (GetEffectiveBrushType().Lower() != "ground") {
+			wxMessageBox("Links are currently supported for ground brushes only.", "Links", wxOK | wxICON_INFORMATION, this);
+			return;
+		}
+		BrushWorkspaceGroundBrushLinkPickerDialog dialog(this, controller_, "Choose Target Ground Brush", 0, "");
+		if (dialog.ShowModal() != wxID_OK) {
+			return;
+		}
+
+		BrushLinkRecord link;
+		link.relationType = "enemy";
+		if (dialog.IsAllSelected()) {
+			link.targetBrushId = 0;
+			link.targetBrushName = "all";
+		} else if (const BrushRecord* brush = dialog.GetSelectedBrush()) {
+			link.targetBrushId = brush->id;
+			link.targetBrushName = brush->name;
+		} else {
+			return;
+		}
+		brushStorage_.links.push_back(link);
+		normalizeSortOrders();
+		UpdateSummary();
+		RefreshLinksPage();
+		RefreshDirtyState();
+	});
+	removeLinkButton_->Bind(wxEVT_BUTTON, [this, normalizeSortOrders](wxCommandEvent &) {
+		if (!hasBrush_) {
+			return;
+		}
+		long selectedRow = linksListCtrl_->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+		if (selectedRow == wxNOT_FOUND || selectedRow < 0) {
+			return;
+		}
+		const int linkIndex = static_cast<int>(linksListCtrl_->GetItemData(selectedRow));
+		if (linkIndex < 0 || linkIndex >= static_cast<int>(brushStorage_.links.size())) {
+			return;
+		}
+		brushStorage_.links.erase(brushStorage_.links.begin() + linkIndex);
+		normalizeSortOrders();
+		UpdateSummary();
+		RefreshLinksPage();
+		RefreshDirtyState();
+	});
+	moveLinkUpButton_->Bind(wxEVT_BUTTON, [this, normalizeSortOrders](wxCommandEvent &) {
+		if (!hasBrush_) {
+			return;
+		}
+		long selectedRow = linksListCtrl_->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+		if (selectedRow == wxNOT_FOUND || selectedRow < 0) {
+			return;
+		}
+		const int linkIndex = static_cast<int>(linksListCtrl_->GetItemData(selectedRow));
+		const int nextIndex = linkIndex - 1;
+		if (linkIndex < 0 || nextIndex < 0 || nextIndex >= static_cast<int>(brushStorage_.links.size())) {
+			return;
+		}
+		std::swap(brushStorage_.links[linkIndex], brushStorage_.links[nextIndex]);
+		normalizeSortOrders();
+		UpdateSummary();
+		RefreshLinksPage();
+		RefreshDirtyState();
+	});
+	moveLinkDownButton_->Bind(wxEVT_BUTTON, [this, normalizeSortOrders](wxCommandEvent &) {
+		if (!hasBrush_) {
+			return;
+		}
+		long selectedRow = linksListCtrl_->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+		if (selectedRow == wxNOT_FOUND || selectedRow < 0) {
+			return;
+		}
+		const int linkIndex = static_cast<int>(linksListCtrl_->GetItemData(selectedRow));
+		const int nextIndex = linkIndex + 1;
+		if (linkIndex < 0 || nextIndex < 0 || nextIndex >= static_cast<int>(brushStorage_.links.size())) {
+			return;
+		}
+		std::swap(brushStorage_.links[linkIndex], brushStorage_.links[nextIndex]);
+		normalizeSortOrders();
+		UpdateSummary();
+		RefreshLinksPage();
+		RefreshDirtyState();
+	});
+	linksInboundListCtrl_->Bind(wxEVT_LIST_ITEM_ACTIVATED, [this](wxListEvent &) {
+		long selectedRow = linksInboundListCtrl_->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+		if (selectedRow == wxNOT_FOUND || selectedRow < 0) {
+			return;
+		}
+		const int64_t brushId = static_cast<int64_t>(linksInboundListCtrl_->GetItemData(selectedRow));
+		if (brushId > 0 && onOpenLinkedBrush_) {
+			onOpenLinkedBrush_(brushId);
+		}
+	});
+
+	panel->SetSizer(rootSizer);
+	RefreshLinksPage();
+	updateButtonState();
 	return panel;
 }
 
@@ -3175,6 +3611,7 @@ void MaterialsWorkbenchBrushPanel::PopulateFields() {
 	PopulateMetadataFields();
 	UpdateSummary();
 	RefreshVariationEditor();
+	RefreshLinksPage();
 }
 
 void MaterialsWorkbenchBrushPanel::PopulateMetadataFields() {
@@ -3228,6 +3665,117 @@ void MaterialsWorkbenchBrushPanel::UpdateSummary() {
 			brushStorage_.doodadAlternatives.size()
 		)
 	);
+}
+
+void MaterialsWorkbenchBrushPanel::RefreshLinksPage() {
+	if (!linksListCtrl_ || !linksSearchCtrl_ || !linksSummaryLabel_ || !linksInboundListCtrl_ || !linksInboundSummaryLabel_) {
+		return;
+	}
+	if (!hasBrush_) {
+		linksListCtrl_->DeleteAllItems();
+		linksSummaryLabel_->SetLabel("Select a brush to edit links.");
+		linksInboundListCtrl_->DeleteAllItems();
+		linksInboundSummaryLabel_->SetLabel("");
+		if (addFriendLinkButton_) {
+			addFriendLinkButton_->Enable(false);
+		}
+		if (addEnemyLinkButton_) {
+			addEnemyLinkButton_->Enable(false);
+		}
+		if (removeLinkButton_) {
+			removeLinkButton_->Enable(false);
+		}
+		if (moveLinkUpButton_) {
+			moveLinkUpButton_->Enable(false);
+		}
+		if (moveLinkDownButton_) {
+			moveLinkDownButton_->Enable(false);
+		}
+		if (linksPage_) {
+			linksPage_->Layout();
+		}
+		return;
+	}
+
+	linksListCtrl_->DeleteAllItems();
+	linksInboundListCtrl_->DeleteAllItems();
+
+	const wxString query = linksSearchCtrl_->GetValue().Lower().Trim(true).Trim(false);
+	int visibleCount = 0;
+	for (size_t i = 0; i < brushStorage_.links.size(); ++i) {
+		const BrushLinkRecord &link = brushStorage_.links[i];
+		wxString targetLabel;
+		if (!link.targetBrushName.IsEmpty() && link.targetBrushId > 0) {
+			targetLabel = wxString::Format("%s (#%lld)", link.targetBrushName, static_cast<long long>(link.targetBrushId));
+		} else if (!link.targetBrushName.IsEmpty()) {
+			targetLabel = link.targetBrushName;
+		} else if (link.targetBrushId > 0) {
+			targetLabel = wxString::Format("#%lld", static_cast<long long>(link.targetBrushId));
+		} else {
+			targetLabel = "(unset)";
+		}
+
+		wxString haystack = (link.relationType + " " + targetLabel).Lower();
+		if (!query.IsEmpty() && !haystack.Contains(query)) {
+			continue;
+		}
+
+		const long row = linksListCtrl_->InsertItem(linksListCtrl_->GetItemCount(), link.relationType);
+		linksListCtrl_->SetItem(row, 1, targetLabel);
+		linksListCtrl_->SetItem(row, 2, wxString::Format("%d", link.sortOrder));
+		linksListCtrl_->SetItemData(row, static_cast<long>(i));
+		++visibleCount;
+	}
+
+	linksSummaryLabel_->SetLabel(
+		wxString::Format(
+			"%d link%s",
+			visibleCount,
+			visibleCount == 1 ? "" : "s"
+		)
+	);
+
+	std::vector<BrushUsageRecord> usages;
+	wxString usageError;
+	int inboundVisibleCount = 0;
+	if (controller_.GetBrushUsages(brushStorage_.brush.id, brushStorage_.brush.name, usages, usageError)) {
+		for (const BrushUsageRecord &usage : usages) {
+			if (!usage.sourceKind.IsSameAs("brush", false)) {
+				continue;
+			}
+			if (!usage.relation.IsSameAs("brush link", false)) {
+				continue;
+			}
+			wxString haystack = (usage.sourceName + " " + usage.context).Lower();
+			if (!query.IsEmpty() && !haystack.Contains(query)) {
+				continue;
+			}
+			const long row = linksInboundListCtrl_->InsertItem(linksInboundListCtrl_->GetItemCount(), usage.sourceName);
+			linksInboundListCtrl_->SetItem(row, 1, usage.context);
+			linksInboundListCtrl_->SetItemData(row, static_cast<long>(usage.sourceId));
+			++inboundVisibleCount;
+		}
+		linksInboundSummaryLabel_->SetLabel(
+			wxString::Format(
+				"%d inbound link%s",
+				inboundVisibleCount,
+				inboundVisibleCount == 1 ? "" : "s"
+			)
+		);
+	} else {
+		linksInboundSummaryLabel_->SetLabel("Failed to load inbound links.");
+	}
+
+	const bool isGround = GetEffectiveBrushType().Lower() == "ground";
+	addFriendLinkButton_->Enable(isGround);
+	addEnemyLinkButton_->Enable(isGround);
+	removeLinkButton_->Enable(false);
+	moveLinkUpButton_->Enable(false);
+	moveLinkDownButton_->Enable(false);
+
+	if (linksPage_) {
+		linksPage_->Layout();
+	}
 }
 
 void MaterialsWorkbenchBrushPanel::SetStatusMessage(const wxString &message) {

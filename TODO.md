@@ -49,6 +49,11 @@
   - [x] `SQLite`: fold the legacy SQLite Materials Inspector into this surface
 - [ ] Add `Used By` reference views (not in the Inspector) so users can jump to owners without hunting in the tree
   - [x] Brush Workspace: add a `Used By` dialog listing palette references, inbound brush links, and border-target references, with search + open
+- [x] Brush Workspace: add a `Links` tab to edit and reorder `friend` / `enemy` brush links and persist them to `materials.db`
+- [x] Brush Workspace: show inbound brush links (read-only) alongside outgoing links, so targets are discoverable without opening `Used By`
+- [x] Brush Workspace: fix Links double-click crash (avoid lifetime issues in event handlers under unity build)
+- [ ] Brush Workspace: expand `Links` to support other legacy link types when needed (e.g. `redirect`) with safe validation and clear UX
+- [ ] Add richer cross-reference views so users can navigate relationships beyond brushes (e.g. wall/part ownership and more global border usage surfaces)
 - [ ] Add import/export tooling for any Materials Workbench entity (at least `walls`, `borders`, `brushes`, `palettes`, and `palette categories`) so users can share items without swapping the full `.db`
 - [x] Safer removal (Palette Workspace): `Delete Palette` now shows category + section/entry counts and a small entry preview before confirming
 - [x] Safer removal (Border Workspace): `Delete Border` now shows a `Used By` preview + context count for global borders, and an owner + slots summary for inline borders, before confirming
@@ -66,6 +71,11 @@
 - [ ] Add a mini-scene preview for `border` application, beyond the slot matrix
 - [ ] Add manual runtime sync controls only if a future workflow really needs them
 - [ ] Revisit XML deprecation messaging once the visual Workbench flow feels complete and clearly superior
+
+## Legacy Parity Gaps
+- [ ] Tilesets: support legacy `<raw>` sections in the DB-first import + editor flow (so raw-only tilesets are not silently ignored)
+- [ ] Ground borders: add an editor for legacy `<specific>` cases (conditions/actions) stored under ground border contexts
+- [ ] Brushes: expose explicit “clear” actions that map cleanly to legacy `clear_borders` / `clear_friends` intent (instead of only resulting empty state)
 
 ## Delivered Milestones
 - [x] Stage 8: `variations` support landed inside the Brush Workspace

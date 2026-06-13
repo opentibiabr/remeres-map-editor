@@ -268,6 +268,10 @@ bool MaterialsWorkbenchRepository::SaveBrushDetails(BrushStorageRecord &brushSto
 			error = g_brush_database.getLastError();
 			return false;
 		}
+		if (!g_brush_database.replaceBrushLinks(brush.id, brushStorage.links)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
 
 		return true;
 	});

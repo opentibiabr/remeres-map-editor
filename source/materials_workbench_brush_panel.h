@@ -13,6 +13,7 @@ class wxButton;
 class wxCheckBox;
 class wxChoice;
 class wxListBox;
+class wxListCtrl;
 class wxNotebook;
 class wxMouseEvent;
 class wxPanel;
@@ -98,6 +99,7 @@ private:
 	void BuildLayout();
 	wxPanel* BuildMetadataPage(wxNotebook* notebook);
 	wxPanel* BuildVariationsPage(wxNotebook* notebook);
+	wxPanel* BuildLinksPage(wxNotebook* notebook);
 	wxPanel* BuildUnsupportedVariationsPage(wxSimplebook* book);
 	wxPanel* BuildGroundVariationsPage(wxSimplebook* book);
 	wxPanel* BuildCarpetVariationsPage(wxSimplebook* book);
@@ -107,6 +109,7 @@ private:
 	void PopulateFields();
 	void PopulateMetadataFields();
 	void UpdateSummary();
+	void RefreshLinksPage();
 	void SetStatusMessage(const wxString &message);
 	void SetFieldsEnabled(bool enabled);
 	void ResetVariationSelection();
@@ -247,6 +250,7 @@ private:
 
 	wxNotebook* workspaceTabs_ = nullptr;
 	wxScrolledWindow* metadataPage_ = nullptr;
+	wxPanel* linksPage_ = nullptr;
 	wxStaticText* titleLabel_ = nullptr;
 	wxStaticText* subtitleLabel_ = nullptr;
 	wxStaticText* summaryLabel_ = nullptr;
@@ -277,6 +281,16 @@ private:
 	wxCheckBox* randomizeCtrl_ = nullptr;
 	wxCheckBox* oneSizeCtrl_ = nullptr;
 	wxCheckBox* soloOptionalCtrl_ = nullptr;
+	wxTextCtrl* linksSearchCtrl_ = nullptr;
+	wxStaticText* linksSummaryLabel_ = nullptr;
+	wxListCtrl* linksListCtrl_ = nullptr;
+	wxStaticText* linksInboundSummaryLabel_ = nullptr;
+	wxListCtrl* linksInboundListCtrl_ = nullptr;
+	wxButton* addFriendLinkButton_ = nullptr;
+	wxButton* addEnemyLinkButton_ = nullptr;
+	wxButton* removeLinkButton_ = nullptr;
+	wxButton* moveLinkUpButton_ = nullptr;
+	wxButton* moveLinkDownButton_ = nullptr;
 	wxSimplebook* variationsBook_ = nullptr;
 	wxStaticText* variationsEmptyLabel_ = nullptr;
 	wxListBox* groundItemsList_ = nullptr;
