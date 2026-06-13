@@ -791,6 +791,18 @@ namespace {
 			   left.sortOrder == right.sortOrder;
 	}
 
+	bool AreWallPanelBrushRecordsEqual(const BrushRecord &left, const BrushRecord &right) {
+		return left.lookId == right.lookId &&
+			   left.serverLookId == right.serverLookId &&
+			   left.draggable == right.draggable &&
+			   left.onBlocking == right.onBlocking &&
+			   left.onDuplicate == right.onDuplicate &&
+			   left.redoBorders == right.redoBorders &&
+			   left.oneSize == right.oneSize &&
+			   left.thickness == right.thickness &&
+			   left.thicknessCeiling == right.thicknessCeiling;
+	}
+
 	bool IsKnownWallPanelItemId(int itemId) {
 		if (itemId <= 0 || itemId > std::numeric_limits<uint16_t>::max()) {
 			return false;
@@ -1151,6 +1163,53 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	identityBox->Add(identityGrid, 0, wxEXPAND | wxALL, FromDIP(8));
 	identityBox->Add(partSummaryLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
 
+	wxStaticBoxSizer* metadataBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Metadata");
+	wxWindow* metadataParent = metadataBox->GetStaticBox();
+	wxFlexGridSizer* metadataGrid = new wxFlexGridSizer(2, FromDIP(8), FromDIP(10));
+	metadataGrid->AddGrowableCol(1, 1);
+
+	lookIdCtrl_ = new wxSpinCtrl(metadataParent, wxID_ANY);
+	lookIdCtrl_->SetRange(0, 1000000);
+	serverLookIdCtrl_ = new wxSpinCtrl(metadataParent, wxID_ANY);
+	serverLookIdCtrl_->SetRange(0, 1000000);
+	thicknessCtrl_ = new wxSpinCtrl(metadataParent, wxID_ANY);
+	thicknessCtrl_->SetRange(0, 1000000);
+	thicknessCeilingCtrl_ = new wxSpinCtrl(metadataParent, wxID_ANY);
+	thicknessCeilingCtrl_->SetRange(0, 1000000);
+
+	const wxString lookIdHelp = "Either Look ID or Server look ID can be set. Setting one clears the other. Server look ID takes precedence.";
+	lookIdCtrl_->SetToolTip(lookIdHelp);
+	serverLookIdCtrl_->SetToolTip(lookIdHelp);
+
+	metadataGrid->Add(new wxStaticText(metadataParent, wxID_ANY, "Look ID"), 0, wxALIGN_CENTER_VERTICAL);
+	metadataGrid->Add(lookIdCtrl_, 1, wxEXPAND);
+	metadataGrid->Add(new wxStaticText(metadataParent, wxID_ANY, "Server Look ID"), 0, wxALIGN_CENTER_VERTICAL);
+	metadataGrid->Add(serverLookIdCtrl_, 1, wxEXPAND);
+	metadataGrid->Add(new wxStaticText(metadataParent, wxID_ANY, "Thickness"), 0, wxALIGN_CENTER_VERTICAL);
+	metadataGrid->Add(thicknessCtrl_, 1, wxEXPAND);
+	metadataGrid->Add(new wxStaticText(metadataParent, wxID_ANY, "Thickness Ceiling"), 0, wxALIGN_CENTER_VERTICAL);
+	metadataGrid->Add(thicknessCeilingCtrl_, 1, wxEXPAND);
+
+	wxFlexGridSizer* flagsGrid = new wxFlexGridSizer(3, FromDIP(6), FromDIP(10));
+	flagsGrid->AddGrowableCol(0, 1);
+	flagsGrid->AddGrowableCol(1, 1);
+	flagsGrid->AddGrowableCol(2, 1);
+
+	draggableCtrl_ = new wxCheckBox(metadataParent, wxID_ANY, "Draggable");
+	onBlockingCtrl_ = new wxCheckBox(metadataParent, wxID_ANY, "On Blocking");
+	onDuplicateCtrl_ = new wxCheckBox(metadataParent, wxID_ANY, "On Duplicate");
+	redoBordersCtrl_ = new wxCheckBox(metadataParent, wxID_ANY, "Redo Borders");
+	oneSizeCtrl_ = new wxCheckBox(metadataParent, wxID_ANY, "One Size");
+
+	flagsGrid->Add(draggableCtrl_, 0, wxEXPAND);
+	flagsGrid->Add(onBlockingCtrl_, 0, wxEXPAND);
+	flagsGrid->Add(onDuplicateCtrl_, 0, wxEXPAND);
+	flagsGrid->Add(redoBordersCtrl_, 0, wxEXPAND);
+	flagsGrid->Add(oneSizeCtrl_, 0, wxEXPAND);
+
+	metadataBox->Add(metadataGrid, 0, wxEXPAND | wxALL, FromDIP(8));
+	metadataBox->Add(flagsGrid, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
+
 	wxStaticBoxSizer* previewBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Preview");
 	wxWindow* previewParent = previewBox->GetStaticBox();
 	composedPreview_ = new WallWorkspaceComposedPreviewPanel(previewParent);
@@ -1336,6 +1395,7 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 
 	contentSizer->Add(summaryLabel_, 0, wxEXPAND | wxALL, FromDIP(6));
 	contentSizer->Add(identityBox, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(6));
+	contentSizer->Add(metadataBox, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(6));
 	contentSizer->Add(previewBox, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(6));
 	contentSizer->Add(gridsRow, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(6));
 	contentSizer->Add(editorRow, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(6));
@@ -1351,7 +1411,7 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	wxBoxSizer* actionSizer = new wxBoxSizer(wxHORIZONTAL);
 	saveButton_ = new wxButton(this, wxID_SAVE, "Save Wall Brush");
 	revertButton_ = new wxButton(this, wxID_ANY, "Revert");
-	StyleWallWorkspaceActionButton(saveButton_, "Write the current wall part and door edits to materials.db.");
+	StyleWallWorkspaceActionButton(saveButton_, "Write wall metadata, links, parts, and door edits to materials.db.");
 	StyleWallWorkspaceActionButton(revertButton_, "Discard local wall edits and reload the current wall brush from materials.db.");
 	actionSizer->Add(saveButton_, 0, wxRIGHT, FromDIP(2));
 	actionSizer->Add(revertButton_, 0);
@@ -1390,6 +1450,20 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	itemIdCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchWallPanel::OnItemIdSpin, this);
 	doorItemIdCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchWallPanel::OnDoorItemIdChanged, this);
 	doorItemIdCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchWallPanel::OnDoorItemIdSpin, this);
+
+	lookIdCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchWallPanel::OnMetadataFieldChanged, this);
+	lookIdCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchWallPanel::OnMetadataFieldChanged, this);
+	serverLookIdCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchWallPanel::OnMetadataFieldChanged, this);
+	serverLookIdCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchWallPanel::OnMetadataFieldChanged, this);
+	thicknessCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchWallPanel::OnMetadataFieldChanged, this);
+	thicknessCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchWallPanel::OnMetadataFieldChanged, this);
+	thicknessCeilingCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchWallPanel::OnMetadataFieldChanged, this);
+	thicknessCeilingCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchWallPanel::OnMetadataFieldChanged, this);
+	draggableCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchWallPanel::OnMetadataFieldChanged, this);
+	onBlockingCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchWallPanel::OnMetadataFieldChanged, this);
+	onDuplicateCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchWallPanel::OnMetadataFieldChanged, this);
+	redoBordersCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchWallPanel::OnMetadataFieldChanged, this);
+	oneSizeCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchWallPanel::OnMetadataFieldChanged, this);
 
 	linksSearchCtrl_->Bind(wxEVT_TEXT, [this](wxCommandEvent &) {
 		CallAfter([this]() {
@@ -1609,6 +1683,33 @@ void MaterialsWorkbenchWallPanel::ClearWorkspace(const wxString &message) {
 	summaryLabel_->SetLabel(message);
 	brushIdCtrl_->SetValue("");
 	brushNameCtrl_->SetValue("");
+	if (lookIdCtrl_) {
+		lookIdCtrl_->SetValue(0);
+	}
+	if (serverLookIdCtrl_) {
+		serverLookIdCtrl_->SetValue(0);
+	}
+	if (thicknessCtrl_) {
+		thicknessCtrl_->SetValue(0);
+	}
+	if (thicknessCeilingCtrl_) {
+		thicknessCeilingCtrl_->SetValue(0);
+	}
+	if (draggableCtrl_) {
+		draggableCtrl_->SetValue(false);
+	}
+	if (onBlockingCtrl_) {
+		onBlockingCtrl_->SetValue(false);
+	}
+	if (onDuplicateCtrl_) {
+		onDuplicateCtrl_->SetValue(false);
+	}
+	if (redoBordersCtrl_) {
+		redoBordersCtrl_->SetValue(false);
+	}
+	if (oneSizeCtrl_) {
+		oneSizeCtrl_->SetValue(false);
+	}
 	partChoice_->Clear();
 	partSummaryLabel_->SetLabel("");
 	previewFillRadio_->SetValue(true);
@@ -1677,6 +1778,9 @@ bool MaterialsWorkbenchWallPanel::LoadWallBrush(const wxString &contextKey, int 
 	for (size_t i = 0; i < comparableStorage.wallParts.size(); ++i) {
 		comparableStorage.wallParts[i].sortOrder = static_cast<int>(i);
 	}
+	if (comparableStorage.brush.serverLookId > 0 && comparableStorage.brush.lookId > 0) {
+		comparableStorage.brush.lookId = 0;
+	}
 	const std::vector<WallFriendLinkRow> comparableLinks = CollectWallFriendLinkRows(comparableStorage.links);
 	ApplyWallFriendLinkRows(comparableStorage.links, comparableLinks);
 
@@ -1721,10 +1825,69 @@ void MaterialsWorkbenchWallPanel::PopulateFields() {
 	));
 	brushIdCtrl_->SetValue(wxString::Format("%lld", static_cast<long long>(brush.id)));
 	brushNameCtrl_->SetValue(brush.name);
+	SyncMetadataFieldsFromStorage();
 
 	RefreshPartChoice();
 	RefreshSelectedPart();
 	RefreshLinksSection();
+}
+
+void MaterialsWorkbenchWallPanel::SyncMetadataFieldsFromStorage() {
+	if (!lookIdCtrl_ || !serverLookIdCtrl_ || !thicknessCtrl_ || !thicknessCeilingCtrl_ ||
+		!draggableCtrl_ || !onBlockingCtrl_ || !onDuplicateCtrl_ || !redoBordersCtrl_ || !oneSizeCtrl_) {
+		return;
+	}
+
+	suppressMetadataEvents_ = true;
+	BrushRecord &brush = wallBrushStorage_.brush;
+	if (brush.serverLookId > 0 && brush.lookId > 0) {
+		brush.lookId = 0;
+	}
+	lookIdCtrl_->SetValue(brush.lookId);
+	serverLookIdCtrl_->SetValue(brush.serverLookId);
+	thicknessCtrl_->SetValue(brush.thickness);
+	thicknessCeilingCtrl_->SetValue(brush.thicknessCeiling);
+	draggableCtrl_->SetValue(brush.draggable);
+	onBlockingCtrl_->SetValue(brush.onBlocking);
+	onDuplicateCtrl_->SetValue(brush.onDuplicate);
+	redoBordersCtrl_->SetValue(brush.redoBorders);
+	oneSizeCtrl_->SetValue(brush.oneSize);
+	suppressMetadataEvents_ = false;
+}
+
+void MaterialsWorkbenchWallPanel::OnMetadataFieldChanged(wxCommandEvent &event) {
+	if (suppressMetadataEvents_ || !hasWallBrush_) {
+		return;
+	}
+	if (!lookIdCtrl_ || !serverLookIdCtrl_ || !thicknessCtrl_ || !thicknessCeilingCtrl_ ||
+		!draggableCtrl_ || !onBlockingCtrl_ || !onDuplicateCtrl_ || !redoBordersCtrl_ || !oneSizeCtrl_) {
+		return;
+	}
+
+	wxObject* source = event.GetEventObject();
+	const int lookId = lookIdCtrl_->GetValue();
+	const int serverLookId = serverLookIdCtrl_->GetValue();
+
+	suppressMetadataEvents_ = true;
+	if (source == lookIdCtrl_ && lookId > 0 && serverLookId > 0) {
+		serverLookIdCtrl_->SetValue(0);
+	} else if (source == serverLookIdCtrl_ && serverLookId > 0 && lookId > 0) {
+		lookIdCtrl_->SetValue(0);
+	}
+	suppressMetadataEvents_ = false;
+
+	BrushRecord &brush = wallBrushStorage_.brush;
+	brush.lookId = lookIdCtrl_->GetValue();
+	brush.serverLookId = serverLookIdCtrl_->GetValue();
+	brush.thickness = thicknessCtrl_->GetValue();
+	brush.thicknessCeiling = thicknessCeilingCtrl_->GetValue();
+	brush.draggable = draggableCtrl_->GetValue();
+	brush.onBlocking = onBlockingCtrl_->GetValue();
+	brush.onDuplicate = onDuplicateCtrl_->GetValue();
+	brush.redoBorders = redoBordersCtrl_->GetValue();
+	brush.oneSize = oneSizeCtrl_->GetValue();
+
+	RefreshDirtyState();
 }
 
 void MaterialsWorkbenchWallPanel::RefreshPartChoice() {
@@ -2126,6 +2289,33 @@ void MaterialsWorkbenchWallPanel::SetFieldsEnabled(bool enabled) {
 	doorHateCtrl_->Enable(enabled);
 	itemPreviewButton_->Enable(enabled);
 	doorPreviewButton_->Enable(enabled);
+	if (lookIdCtrl_) {
+		lookIdCtrl_->Enable(enabled);
+	}
+	if (serverLookIdCtrl_) {
+		serverLookIdCtrl_->Enable(enabled);
+	}
+	if (thicknessCtrl_) {
+		thicknessCtrl_->Enable(enabled);
+	}
+	if (thicknessCeilingCtrl_) {
+		thicknessCeilingCtrl_->Enable(enabled);
+	}
+	if (draggableCtrl_) {
+		draggableCtrl_->Enable(enabled);
+	}
+	if (onBlockingCtrl_) {
+		onBlockingCtrl_->Enable(enabled);
+	}
+	if (onDuplicateCtrl_) {
+		onDuplicateCtrl_->Enable(enabled);
+	}
+	if (redoBordersCtrl_) {
+		redoBordersCtrl_->Enable(enabled);
+	}
+	if (oneSizeCtrl_) {
+		oneSizeCtrl_->Enable(enabled);
+	}
 	if (linksSearchCtrl_) {
 		linksSearchCtrl_->Enable(enabled);
 	}
@@ -2142,6 +2332,9 @@ BrushStorageRecord MaterialsWorkbenchWallPanel::BuildComparableStorageFromCurren
 	for (size_t i = 0; i < storage.wallParts.size(); ++i) {
 		storage.wallParts[i].sortOrder = static_cast<int>(i);
 		NormalizeWallPartRecord(storage.wallParts[i]);
+	}
+	if (storage.brush.serverLookId > 0 && storage.brush.lookId > 0) {
+		storage.brush.lookId = 0;
 	}
 	const std::vector<WallFriendLinkRow> linkRows = CollectWallFriendLinkRows(storage.links);
 	ApplyWallFriendLinkRows(storage.links, linkRows);
@@ -2344,6 +2537,10 @@ void MaterialsWorkbenchWallPanel::RefreshDirtyState() {
 			comparable.links,
 			loadedWallBrushStorage_.links,
 			AreWallPanelLinkRecordsEqual
+		) &&
+		AreWallPanelBrushRecordsEqual(
+			comparable.brush,
+			loadedWallBrushStorage_.brush
 		)
 	);
 	UpdateWorkspaceHeader();
@@ -2526,7 +2723,7 @@ bool MaterialsWorkbenchWallPanel::SaveCurrentWallBrush() {
 			wallBrushStorage_.brush.name.ToStdString(),
 			error.ToStdString()
 		);
-		SetStatusMessage("Failed to save wall brush parts: " + error);
+		SetStatusMessage("Failed to save wall brush: " + error);
 		return false;
 	}
 
@@ -2536,7 +2733,7 @@ bool MaterialsWorkbenchWallPanel::SaveCurrentWallBrush() {
 		RestoreEditorState(previousEditorState);
 	}
 	RefreshDirtyState();
-	SetStatusMessage("Saved wall parts and doors to materials.db. Targeted runtime sync remained in place.");
+	SetStatusMessage("Saved wall metadata, links, parts, and doors to materials.db. Targeted runtime sync remained in place.");
 	spdlog::info(
 		"Materials Workbench saved wall brush parts: id={} name='{}' preserved_context={}",
 		static_cast<long long>(wallBrushStorage_.brush.id),

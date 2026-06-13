@@ -353,20 +353,40 @@ bool MaterialsWorkbenchRepository::SaveGroundBrushBorders(int64_t brushId, const
 bool MaterialsWorkbenchRepository::SaveWallBrushParts(const BrushStorageRecord &brushStorage, wxString &error) const {
 	error.clear();
 
-	if (brushStorage.brush.id <= 0) {
+	const int64_t brushId = brushStorage.brush.id;
+	if (brushId <= 0) {
 		error = "Wall brush id is invalid.";
 		return false;
 	}
-	if (!g_brush_database.replaceWallParts(brushStorage.brush.id, brushStorage.wallParts)) {
-		error = g_brush_database.getLastError();
-		return false;
-	}
-	if (!g_brush_database.replaceBrushLinks(brushStorage.brush.id, brushStorage.links)) {
-		error = g_brush_database.getLastError();
-		return false;
-	}
 
-	return true;
+	return g_brush_database.runInTransaction([&]() {
+		BrushRecord persistedBrush;
+		if (!g_brush_database.getBrushById(brushId, persistedBrush)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+
+		if (!g_brush_database.updateBrush(brushStorage.brush)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+		if (persistedBrush.name != brushStorage.brush.name) {
+			if (!g_brush_database.updateBrushReferenceNames(brushId, persistedBrush.name, brushStorage.brush.name)) {
+				error = g_brush_database.getLastError();
+				return false;
+			}
+		}
+
+		if (!g_brush_database.replaceWallParts(brushId, brushStorage.wallParts)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+		if (!g_brush_database.replaceBrushLinks(brushId, brushStorage.links)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+		return true;
+	});
 }
 
 bool MaterialsWorkbenchRepository::LoadBorderSetDetails(int64_t borderSetId, BorderSetStorageRecord &outBorderSet, wxString &error) const {

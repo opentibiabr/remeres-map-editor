@@ -78,7 +78,7 @@
 - [ ] Brushes: expose explicit “clear” actions that map cleanly to legacy `clear_borders` / `clear_friends` intent (instead of only resulting empty state)
 - [ ] Borders: expose `super` (super border) in global usage contexts and persist it (`ground_brush_borders.super_border`)
 - [x] Wall Workspace: add editing UI for wall `friend` + `redirect` links (and show inbound refs), matching legacy `<friend name="..." redirect="...">`
-- [ ] Wall Workspace: expose wall brush metadata flags that exist in legacy XML (`lookid`/`server_lookid`, `draggable`, `redo_borders`/`reborder`, `one_size`, `thickness`)
+- [x] Wall Workspace: expose wall brush metadata flags that exist in legacy XML (`lookid`/`server_lookid`, `draggable`, `on_blocking`, `on_duplicate`, `redo_borders`/`reborder`, `one_size`, `thickness`)
 - [ ] Doodad: support legacy `remove_optional_border` behavior in DB-first (storage + editor UX), keeping runtime behavior consistent with the XML loader
 - [x] Wall Workspace: fix crash when selecting a link row (defer refresh + guard against re-entrant list refresh)
 - [x] Wall Workspace: fix link list freeze by preventing selection-change refresh loops (suppress selection events during rebuild; selection only updates action buttons)

@@ -70,6 +70,8 @@ private:
 	void RefreshComposedPreview();
 	void RefreshLinksSection();
 	void UpdateLinksActionButtons();
+	void SyncMetadataFieldsFromStorage();
+	void OnMetadataFieldChanged(wxCommandEvent &event);
 	BrushStorageRecord BuildComparableStorageFromCurrentState() const;
 	WallEditorState CaptureEditorState() const;
 	void RestoreEditorState(const WallEditorState &state);
@@ -113,6 +115,7 @@ private:
 	bool dirty_ = false;
 	bool linksRefreshInProgress_ = false;
 	bool suppressLinksEvents_ = false;
+	bool suppressMetadataEvents_ = false;
 	std::map<wxString, WallEditorState> partEditorStates_;
 
 	wxStaticText* titleLabel_ = nullptr;
@@ -122,6 +125,15 @@ private:
 	wxButton* revertButton_ = nullptr;
 	wxTextCtrl* brushIdCtrl_ = nullptr;
 	wxTextCtrl* brushNameCtrl_ = nullptr;
+	wxSpinCtrl* lookIdCtrl_ = nullptr;
+	wxSpinCtrl* serverLookIdCtrl_ = nullptr;
+	wxSpinCtrl* thicknessCtrl_ = nullptr;
+	wxSpinCtrl* thicknessCeilingCtrl_ = nullptr;
+	wxCheckBox* draggableCtrl_ = nullptr;
+	wxCheckBox* onBlockingCtrl_ = nullptr;
+	wxCheckBox* onDuplicateCtrl_ = nullptr;
+	wxCheckBox* redoBordersCtrl_ = nullptr;
+	wxCheckBox* oneSizeCtrl_ = nullptr;
 	wxChoice* partChoice_ = nullptr;
 	wxButton* addPartButton_ = nullptr;
 	wxStaticText* partSummaryLabel_ = nullptr;
