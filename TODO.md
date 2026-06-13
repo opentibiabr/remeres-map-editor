@@ -27,7 +27,8 @@
 - [x] Continue reducing spacing and padding across workspaces where the layout still feels too loose
 - [ ] Continue small product-language and workflow refinements across Workbench texts and actions
   - [x] Palette Workspace: move palette category actions into the footer action bar
-  - [x] Brush Workspace (Carpet): layout map supports diagonal slots (`dnw/dne/dsw/dse`) with corrected visual placement, `Map Slot`/Item ID stay visible via scrolling, and seamless preview becomes runtime-truthful for diagonals and sparse sets (diag+only E/W or diag+only N/S collapse without showing center, and missing opposite-edge pairs no longer leave a gap)
+  - [x] Brush Workspace (Carpet): layout map supports diagonal slots (`dnw/dne/dsw/dse`) with corrected labels, centered slot sprites, cleaner slot chrome (badge placement, no redundant missing text, hidden Context Details), and seamless preview rules for diagonals + sparse sets (diag+only E/W or diag+only N/S collapse without showing center, and missing opposite-edge pairs no longer leave a gap)
+  - [x] Brush Workspace (Aligned): show a compact `Details` toggle (tooltip explains why) when a brush contains legacy/duplicate aligned slots; keep it hidden otherwise
 - [x] Standardize technical labels such as `lookId`, `serverLookId`, `zOrder`, and `partType`
 
 ## Future UX
@@ -35,8 +36,8 @@
 - [ ] Add safer creation and removal flows for core entities directly inside the Workbench
   - [x] Brush Workspace: add `New Brush` and `Delete Brush` actions in the footer, including immediate navigation refresh on create/delete
   - [x] Brush Workspace: make `Type` a dropdown and warn before destructive type changes clear variation payload
-- [ ] Add a Workbench Inspector dialog (opened from a button inside the Materials Workbench) with tabbed surfaces
-  - [ ] `Health` / `Warnings`: master/detail (search, severity/domain/issue filters, rescan, go-to), covering `Borders`, `Walls`, `Brushes`, and `Palettes`
+- [x] Add a Workbench Inspector dialog (opened from a button inside the Materials Workbench) with tabbed surfaces
+  - [x] `Health` / `Warnings`: master/detail (search, severity/domain/issue filters, rescan, go-to), covering `Borders`, `Walls`, `Brushes`, and `Palettes`
     - [x] First-pass domain warnings for `carpet` (missing/empty/unknown slots + invalid item ids)
     - [x] First-pass domain warnings for `table` (missing/empty/unknown slots + invalid item ids)
     - [x] First-pass brush warnings for invalid `lookId` / `serverLookId`, invalid item ids, unresolved links, and missing ground border refs
