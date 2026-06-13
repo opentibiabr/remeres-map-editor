@@ -2644,8 +2644,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildCarpetVariationsPage(wxSimplebook* b
 	widgets.itemsCardsPanel->SetMinSize(wxSize(alignedEditorWidth, editorPanel->FromDIP(180)));
 	editorSizer->Add(widgets.itemsScroll, 1, wxEXPAND | wxBOTTOM, FromDIP(8));
 
-	widgets.itemsList = new wxListBox(editorPanel, wxID_ANY);
-	widgets.itemsList->Hide();
+	widgets.itemsList = nullptr;
 
 	wxBoxSizer* itemButtons = new wxBoxSizer(wxHORIZONTAL);
 	wxButton* addItemButton = new wxButton(editorPanel, wxID_ANY, "Add Variant");
@@ -2654,41 +2653,48 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildCarpetVariationsPage(wxSimplebook* b
 	itemButtons->Add(removeItemButton, 1);
 	editorSizer->Add(itemButtons, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
 
-	editorSizer->Add(CreateSectionLabel(editorPanel, "Context Details"), 0, wxBOTTOM, FromDIP(6));
+	widgets.advancedPanel = new wxPanel(editorPanel, wxID_ANY);
+	wxBoxSizer* advancedSizer = new wxBoxSizer(wxVERTICAL);
+	advancedSizer->Add(CreateSectionLabel(widgets.advancedPanel, "Context Details"), 0, wxBOTTOM, FromDIP(6));
 	widgets.advancedInfoLabel = new wxStaticText(
-		editorPanel,
+		widgets.advancedPanel,
 		wxID_ANY,
 		"The layout map chooses the slot. Use the fields below to confirm the selected context and tune the active variant."
 	);
 	StyleBrushWorkspaceSubtitle(widgets.advancedInfoLabel);
 	widgets.advancedInfoLabel->Wrap(alignedEditorWidth);
-	editorSizer->Add(widgets.advancedInfoLabel, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+	advancedSizer->Add(widgets.advancedInfoLabel, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
 	wxFlexGridSizer* nodeForm = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
 	nodeForm->AddGrowableCol(1, 1);
-	widgets.nodeAlignCtrl = CreateTextField(editorPanel);
+	widgets.nodeAlignCtrl = CreateTextField(widgets.advancedPanel);
 	widgets.nodeAlignCtrl->SetEditable(false);
 	widgets.nodeAlignCtrl->SetToolTip("The layout map controls the selected carpet slot.");
-	widgets.nodeAlignChoice = new wxChoice(editorPanel, wxID_ANY);
+	widgets.nodeAlignChoice = new wxChoice(widgets.advancedPanel, wxID_ANY);
 	widgets.nodeAlignChoice->Hide();
-	nodeForm->Add(new wxStaticText(editorPanel, wxID_ANY, "Map Slot"), 0, wxALIGN_CENTER_VERTICAL);
+	nodeForm->Add(new wxStaticText(widgets.advancedPanel, wxID_ANY, "Map Slot"), 0, wxALIGN_CENTER_VERTICAL);
 	nodeForm->Add(widgets.nodeAlignCtrl, 1, wxEXPAND);
 	nodeForm->AddSpacer(0);
 	nodeForm->Add(widgets.nodeAlignChoice, 1, wxEXPAND);
-	editorSizer->Add(nodeForm, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
-	editorSizer->Add(widgets.itemsList, 0, wxEXPAND);
+	advancedSizer->Add(nodeForm, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+	widgets.itemsList = new wxListBox(widgets.advancedPanel, wxID_ANY);
+	widgets.itemsList->Hide();
+	advancedSizer->Add(widgets.itemsList, 0, wxEXPAND);
 
 	wxFlexGridSizer* itemForm = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
 	itemForm->AddGrowableCol(1, 1);
-	widgets.itemIdCtrl = CreateItemIdSpinField(editorPanel);
-	widgets.itemChanceCtrl = CreateSpinField(editorPanel, 0, 1000000);
-	widgets.itemOwnershipLabel = new wxStaticText(editorPanel, wxID_ANY, "Runtime owner: select an item entry.");
-	itemForm->Add(new wxStaticText(editorPanel, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
+	widgets.itemIdCtrl = CreateItemIdSpinField(widgets.advancedPanel);
+	widgets.itemChanceCtrl = CreateSpinField(widgets.advancedPanel, 0, 1000000);
+	widgets.itemOwnershipLabel = new wxStaticText(widgets.advancedPanel, wxID_ANY, "Runtime owner: select an item entry.");
+	itemForm->Add(new wxStaticText(widgets.advancedPanel, wxID_ANY, "Item ID"), 0, wxALIGN_CENTER_VERTICAL);
 	itemForm->Add(widgets.itemIdCtrl, 1, wxEXPAND);
 	itemForm->AddSpacer(0);
 	itemForm->Add(widgets.itemOwnershipLabel, 1, wxEXPAND);
-	itemForm->Add(new wxStaticText(editorPanel, wxID_ANY, "Chance"), 0, wxALIGN_CENTER_VERTICAL);
+	itemForm->Add(new wxStaticText(widgets.advancedPanel, wxID_ANY, "Chance"), 0, wxALIGN_CENTER_VERTICAL);
 	itemForm->Add(widgets.itemChanceCtrl, 1, wxEXPAND);
-	editorSizer->Add(itemForm, 0, wxEXPAND);
+	advancedSizer->Add(itemForm, 0, wxEXPAND);
+	widgets.advancedPanel->SetSizer(advancedSizer);
+	widgets.advancedPanel->Hide();
+	editorSizer->Add(widgets.advancedPanel, 0, wxEXPAND);
 	editorFrameSizer->AddStretchSpacer();
 	editorFrameSizer->Add(editorSizer, 0, wxEXPAND);
 	editorFrameSizer->AddStretchSpacer();
@@ -4324,7 +4330,7 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
 	}
 
 	if (alignedAdvancedPanel_) {
-		alignedAdvancedPanel_->Show(type != "table");
+		alignedAdvancedPanel_->Show(false);
 	}
 	if (alignedAddItemButton_) {
 		alignedAddItemButton_->Show(type != "table");
@@ -7114,8 +7120,8 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextPaint(wxPaintEvent &WXUNUSED(
 				wxString countBadge = wxString::Format("%zu v", itemCount);
 				wxSize badgeSize = dc.GetTextExtent(countBadge);
 				wxRect badgeRect(
-					cellRect.GetRight() - alignedContextPanel_->FromDIP(12) - badgeSize.x - alignedContextPanel_->FromDIP(10),
-					cellRect.y + alignedContextPanel_->FromDIP(10),
+					cellRect.GetRight() - alignedContextPanel_->FromDIP(6) - badgeSize.x - alignedContextPanel_->FromDIP(8),
+					cellRect.y + alignedContextPanel_->FromDIP(6),
 					badgeSize.x + alignedContextPanel_->FromDIP(10),
 					alignedContextPanel_->FromDIP(18)
 				);
@@ -7134,12 +7140,6 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextPaint(wxPaintEvent &WXUNUSED(
 			dc.SetPen(wxPen(wxColour(112, 120, 136), 1, wxPENSTYLE_SHORT_DASH));
 			dc.SetBrush(*wxTRANSPARENT_BRUSH);
 			dc.DrawRoundedRectangle(emptyRect, alignedContextPanel_->FromDIP(5));
-			dc.SetTextForeground(mutedText);
-			dc.DrawLabel(
-				selected ? "empty slot" : "missing",
-				wxRect(cellRect.x, cellRect.y + (cellRect.height / 2) - alignedContextPanel_->FromDIP(16), cellRect.width, alignedContextPanel_->FromDIP(16)),
-				wxALIGN_CENTER
-			);
 			wxRect addRect(
 				cellRect.GetRight() - alignedContextPanel_->FromDIP(28),
 				cellRect.GetBottom() - alignedContextPanel_->FromDIP(24),
