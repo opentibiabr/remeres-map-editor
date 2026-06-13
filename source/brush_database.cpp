@@ -3136,6 +3136,48 @@ bool BrushDatabaseBrushRepository::listBrushUsages(int64_t brushId, const wxStri
 	}
 
 	sqlite3_finalize(linkStmt);
+
+	sqlite3_stmt* borderTargetStmt = nullptr;
+	if (!prepare(
+			"SELECT b.id, b.name, gbb.border_role, gbb.align, gbb.target_mode, gbb.sort_order, gbb.id "
+			"FROM ground_brush_borders gbb "
+			"JOIN brushes b ON b.id = gbb.brush_id "
+			"WHERE gbb.target_brush_id = ? OR (gbb.target_brush_id IS NULL AND gbb.target_brush_name = ?) "
+			"ORDER BY b.name COLLATE NOCASE ASC, gbb.sort_order ASC, gbb.id ASC;",
+			&borderTargetStmt)) {
+		return false;
+	}
+
+	sqlite3_bind_int64(borderTargetStmt, 1, brushId);
+	sqlite3_bind_text(borderTargetStmt, 2, brushName.utf8_str(), -1, SQLITE_TRANSIENT);
+
+	for (;;) {
+		const int rc = sqlite3_step(borderTargetStmt);
+		if (rc == SQLITE_DONE) {
+			break;
+		}
+		if (rc != SQLITE_ROW) {
+			sqlite3_finalize(borderTargetStmt);
+			return setErrorFromDatabase("Failed to list brush border target usages");
+		}
+
+		BrushUsageRecord usage;
+		usage.sourceKind = "brush";
+		usage.sourceId = sqlite3_column_int64(borderTargetStmt, 0);
+		usage.sourceName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderTargetStmt, 1)));
+		usage.relation = "border target";
+		usage.context = wxString::Format(
+			"%s %s %s",
+			ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderTargetStmt, 2))),
+			ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderTargetStmt, 3))),
+			ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderTargetStmt, 4)))
+		).Trim(true).Trim(false);
+		usage.sortOrder = sqlite3_column_int(borderTargetStmt, 5);
+		usage.refId = sqlite3_column_int64(borderTargetStmt, 6);
+		outUsages.push_back(std::move(usage));
+	}
+
+	sqlite3_finalize(borderTargetStmt);
 	return true;
 }
 

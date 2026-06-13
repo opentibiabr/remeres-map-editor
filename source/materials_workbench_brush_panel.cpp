@@ -6390,7 +6390,7 @@ void MaterialsWorkbenchBrushPanel::OnUsedBy(wxCommandEvent &) {
 	StyleBrushWorkspaceCaption(summaryLabel);
 
 	wxListCtrl* list = new wxListCtrl(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_SIMPLE);
-	list->InsertColumn(0, "Owner", wxLIST_FORMAT_LEFT, FromDIP(90));
+	list->InsertColumn(0, "Kind", wxLIST_FORMAT_LEFT, FromDIP(90));
 	list->InsertColumn(1, "Name", wxLIST_FORMAT_LEFT, FromDIP(220));
 	list->InsertColumn(2, "Relation", wxLIST_FORMAT_LEFT, FromDIP(120));
 	list->InsertColumn(3, "Context", wxLIST_FORMAT_LEFT, FromDIP(140));
