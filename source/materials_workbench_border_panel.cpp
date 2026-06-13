@@ -168,7 +168,11 @@ namespace {
 	}
 
 	wxString BuildUsageRoleLabel(const BorderSetUsageRecord &usage) {
-		return usage.borderRole.IsEmpty() ? wxString("normal") : usage.borderRole;
+		wxString label = usage.borderRole.IsEmpty() ? wxString("normal") : usage.borderRole;
+		if (usage.superBorder) {
+			label << " (super)";
+		}
+		return label;
 	}
 
 	wxString BuildUsageTargetLabel(const BorderSetUsageRecord &usage) {
@@ -444,6 +448,7 @@ namespace {
 			targetModeChoice_->Append("all");
 			targetModeChoice_->Append("brush");
 			targetModeChoice_->Append("none");
+			superBorderCtrl_ = new wxCheckBox(this, wxID_ANY, "Enabled");
 			targetBrushCtrl_ = new wxTextCtrl(this, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
 			targetBrushButton_ = new wxButton(this, wxID_ANY, "Choose...");
 
@@ -462,6 +467,7 @@ namespace {
 			addFieldRow("Brush", ownerBrushCtrl_, pickOwnerButton);
 			addFieldRow("Role", roleChoice_);
 			addFieldRow("Align", alignChoice_);
+			addFieldRow("Super Border", superBorderCtrl_);
 			addFieldRow("Target", targetModeChoice_);
 			addFieldRow("Target Brush", targetBrushCtrl_, targetBrushButton_);
 
@@ -479,6 +485,7 @@ namespace {
 			roleChoice_->SetStringSelection(data_.borderRole.IsEmpty() ? "normal" : data_.borderRole);
 			alignChoice_->SetStringSelection(data_.align.IsEmpty() ? "outer" : data_.align);
 			targetModeChoice_->SetStringSelection(data_.targetMode.IsEmpty() ? "all" : data_.targetMode);
+			superBorderCtrl_->SetValue(data_.superBorder);
 			ownerBrushCtrl_->SetValue(BuildBrushPickerLabel(data_.ownerBrushName, data_.ownerBrushId));
 			targetBrushCtrl_->SetValue(BuildBrushPickerLabel(data_.targetBrushName, data_.targetBrushId));
 			UpdateTargetBrushState();
@@ -495,6 +502,7 @@ namespace {
 		bool TransferDataFromWindow() override {
 			data_.borderRole = roleChoice_->GetStringSelection();
 			data_.align = alignChoice_->GetStringSelection();
+			data_.superBorder = superBorderCtrl_ && superBorderCtrl_->GetValue();
 			data_.targetMode = targetModeChoice_->GetStringSelection();
 			if (data_.ownerBrushId <= 0) {
 				wxMessageBox("Choose the brush that uses this global border.", "Usage Context", wxOK | wxICON_WARNING, this);
@@ -559,6 +567,7 @@ namespace {
 		wxTextCtrl* ownerBrushCtrl_ = nullptr;
 		wxChoice* roleChoice_ = nullptr;
 		wxChoice* alignChoice_ = nullptr;
+		wxCheckBox* superBorderCtrl_ = nullptr;
 		wxChoice* targetModeChoice_ = nullptr;
 		wxTextCtrl* targetBrushCtrl_ = nullptr;
 		wxButton* targetBrushButton_ = nullptr;
@@ -2465,6 +2474,7 @@ void MaterialsWorkbenchBorderPanel::OnEditUsageContext(wxCommandEvent &event) {
 	updatedRecord.targetMode = result.targetMode;
 	updatedRecord.targetBrushId = result.targetMode == "brush" ? result.targetBrushId : 0;
 	updatedRecord.targetBrushName = result.targetMode == "brush" ? result.targetBrushName : "";
+	updatedRecord.superBorder = result.superBorder;
 
 	if (result.ownerBrushId == usage->brushId) {
 		sourceBrushStorage.borders[existingIndex] = updatedRecord;
@@ -2506,10 +2516,13 @@ void MaterialsWorkbenchBorderPanel::OnEditUsageContext(wxCommandEvent &event) {
 
 	for (size_t i = 0; i < borderSetUsages_.size(); ++i) {
 		if (borderSetUsages_[i].brushId == result.ownerBrushId &&
+			borderSetUsages_[i].sortOrder == updatedRecord.sortOrder &&
 			borderSetUsages_[i].borderRole == updatedRecord.borderRole &&
 			borderSetUsages_[i].align == updatedRecord.align &&
 			borderSetUsages_[i].targetMode == updatedRecord.targetMode &&
-			borderSetUsages_[i].targetBrushName == updatedRecord.targetBrushName) {
+			borderSetUsages_[i].targetBrushId == updatedRecord.targetBrushId &&
+			borderSetUsages_[i].targetBrushName == updatedRecord.targetBrushName &&
+			borderSetUsages_[i].superBorder == updatedRecord.superBorder) {
 			selectedUsageIndex_ = static_cast<int>(i);
 			break;
 		}
