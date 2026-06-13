@@ -2601,6 +2601,26 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildMetadataPage(wxNotebook* notebook) {
 	contentSizer->Add(flagsGrid, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
 	contentSizer->Add(new wxStaticLine(scrolled), 0, wxEXPAND | wxBOTTOM, FromDIP(8));
 
+	contentSizer->Add(CreateSectionLabel(scrolled, "Borders"), 0, wxBOTTOM, FromDIP(4));
+	wxStaticText* bordersInfo = new wxStaticText(
+		scrolled,
+		wxID_ANY,
+		"Border contexts are stored separately from brush metadata. Use the Border Workspace for authoring. This section provides a quick clear action for legacy parity."
+	);
+	StyleBrushWorkspaceSubtitle(bordersInfo);
+	bordersInfo->Wrap(scrolled->FromDIP(760));
+	contentSizer->Add(bordersInfo, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+	bordersQuickSummaryLabel_ = new wxStaticText(scrolled, wxID_ANY, "");
+	StyleBrushWorkspaceCaption(bordersQuickSummaryLabel_);
+	contentSizer->Add(bordersQuickSummaryLabel_, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
+	wxBoxSizer* bordersActions = new wxBoxSizer(wxHORIZONTAL);
+	clearBordersButton_ = new wxButton(scrolled, wxID_ANY, "Clear Borders");
+	StyleBrushWorkspaceActionButton(clearBordersButton_, "Remove all stored border contexts from materials.db immediately.");
+	bordersActions->Add(clearBordersButton_, 0);
+	bordersActions->AddStretchSpacer(1);
+	contentSizer->Add(bordersActions, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+	contentSizer->Add(new wxStaticLine(scrolled), 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+
 	contentSizer->Add(CreateSectionLabel(scrolled, "Stored Brush Data"), 0, wxBOTTOM, FromDIP(4));
 	contentSizer->Add(summaryLabel_, 0, wxEXPAND | wxBOTTOM, FromDIP(4));
 
@@ -2626,6 +2646,41 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildMetadataPage(wxNotebook* notebook) {
 	randomizeCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
 	oneSizeCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
 	soloOptionalCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
+	clearBordersButton_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
+		if (!hasBrush_) {
+			return;
+		}
+		if (GetEffectiveBrushType().Lower() != "ground") {
+			wxMessageBox("Border contexts are currently only supported for ground brushes.", "Borders", wxOK | wxICON_INFORMATION, this);
+			return;
+		}
+		if (wxMessageBox(
+				wxString::Format(
+					"Clear all border contexts for brush \"%s\"?\n\nThis writes to materials.db immediately.\n\nLocal unsaved brush edits are kept until you click Save Brush.",
+					brushStorage_.brush.name
+				),
+				"Clear Borders",
+				wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
+				this
+			) != wxYES) {
+			return;
+		}
+
+		wxString error;
+		if (!controller_.SaveGroundBrushBorders(brushStorage_.brush.id, {}, error)) {
+			SetStatusMessage("Failed to clear borders: " + error);
+			return;
+		}
+		if (!controller_.ReloadCatalog()) {
+			SetStatusMessage("Cleared borders, but failed to reload the catalog.");
+			return;
+		}
+		if (!LoadBrush(currentContextKey_, currentItemIndex_)) {
+			SetStatusMessage("Cleared borders, but failed to reload the brush workspace.");
+			return;
+		}
+		SetStatusMessage("Cleared border contexts from materials.db.");
+	});
 	return scrolled;
 }
 
@@ -2692,16 +2747,19 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildLinksPage(wxNotebook* notebook) {
 	addFriendLinkButton_ = new wxButton(panel, wxID_ANY, "Add Friend");
 	addEnemyLinkButton_ = new wxButton(panel, wxID_ANY, "Add Enemy");
 	removeLinkButton_ = new wxButton(panel, wxID_ANY, "Remove");
+	clearLinksButton_ = new wxButton(panel, wxID_ANY, "Clear");
 	moveLinkUpButton_ = new wxButton(panel, wxID_ANY, "Up");
 	moveLinkDownButton_ = new wxButton(panel, wxID_ANY, "Down");
 	StyleBrushWorkspaceActionButton(addFriendLinkButton_, "Create a new friend link for the current brush.");
 	StyleBrushWorkspaceActionButton(addEnemyLinkButton_, "Create a new enemy link for the current brush.");
 	StyleBrushWorkspaceActionButton(removeLinkButton_, "Remove the selected link.");
+	StyleBrushWorkspaceActionButton(clearLinksButton_, "Remove all friend/enemy links from the local editor state (persisted after Save Brush).");
 	StyleBrushWorkspaceActionButton(moveLinkUpButton_, "Move the selected link earlier in evaluation order.");
 	StyleBrushWorkspaceActionButton(moveLinkDownButton_, "Move the selected link later in evaluation order.");
 	actions->Add(addFriendLinkButton_, 0, wxRIGHT, FromDIP(6));
 	actions->Add(addEnemyLinkButton_, 0, wxRIGHT, FromDIP(10));
 	actions->Add(removeLinkButton_, 0, wxRIGHT, FromDIP(10));
+	actions->Add(clearLinksButton_, 0, wxRIGHT, FromDIP(10));
 	actions->Add(moveLinkUpButton_, 0, wxRIGHT, FromDIP(6));
 	actions->Add(moveLinkDownButton_, 0);
 	actions->AddStretchSpacer(1);
@@ -2742,6 +2800,16 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildLinksPage(wxNotebook* notebook) {
 		}
 
 		removeLinkButton_->Enable(hasSelection);
+		bool hasFriendOrEnemy = false;
+		if (enabled && isGround) {
+			for (const BrushLinkRecord &link : brushStorage_.links) {
+				if (link.relationType.IsSameAs("friend", false) || link.relationType.IsSameAs("enemy", false)) {
+					hasFriendOrEnemy = true;
+					break;
+				}
+			}
+		}
+		clearLinksButton_->Enable(enabled && isGround && hasFriendOrEnemy);
 		moveLinkUpButton_->Enable(hasSelection && selectedIndex > 0);
 		moveLinkDownButton_->Enable(hasSelection && selectedIndex >= 0 && selectedIndex + 1 < static_cast<int>(brushStorage_.links.size()));
 	};
@@ -2863,6 +2931,38 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildLinksPage(wxNotebook* notebook) {
 			return;
 		}
 		brushStorage_.links.erase(brushStorage_.links.begin() + linkIndex);
+		normalizeSortOrders();
+		UpdateSummary();
+		RefreshLinksPage();
+		RefreshDirtyState();
+	});
+	clearLinksButton_->Bind(wxEVT_BUTTON, [this, normalizeSortOrders](wxCommandEvent &) {
+		if (!hasBrush_) {
+			return;
+		}
+		if (GetEffectiveBrushType().Lower() != "ground") {
+			wxMessageBox("Links are currently supported for ground brushes only.", "Links", wxOK | wxICON_INFORMATION, this);
+			return;
+		}
+		if (wxMessageBox(
+				"Clear all friend/enemy links?\n\nThis only affects the local editor state until you click Save Brush.\n\nThis cannot be undone.",
+				"Clear Links",
+				wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
+				this
+			) != wxYES) {
+			return;
+		}
+
+		brushStorage_.links.erase(
+			std::remove_if(
+				brushStorage_.links.begin(),
+				brushStorage_.links.end(),
+				[](const BrushLinkRecord &link) {
+					return link.relationType.IsSameAs("friend", false) || link.relationType.IsSameAs("enemy", false);
+				}
+			),
+			brushStorage_.links.end()
+		);
 		normalizeSortOrders();
 		UpdateSummary();
 		RefreshLinksPage();
@@ -3545,6 +3645,9 @@ void MaterialsWorkbenchBrushPanel::ClearWorkspace(const wxString &message) {
 	internalUpdate_ = false;
 	RefreshLookIdPreviews();
 	RefreshLookIdOwnershipHints();
+	if (bordersQuickSummaryLabel_) {
+		bordersQuickSummaryLabel_->SetLabel("");
+	}
 
 	SetFieldsEnabled(false);
 	UpdateActionButtons();
@@ -3665,6 +3768,14 @@ void MaterialsWorkbenchBrushPanel::UpdateSummary() {
 			brushStorage_.doodadAlternatives.size()
 		)
 	);
+	if (bordersQuickSummaryLabel_) {
+		const wxString type = GetEffectiveBrushType();
+		if (type == "ground") {
+			bordersQuickSummaryLabel_->SetLabel(wxString::Format("%zu border context%s stored for this brush.", brushStorage_.borders.size(), brushStorage_.borders.size() == 1 ? "" : "s"));
+		} else {
+			bordersQuickSummaryLabel_->SetLabel("Border contexts apply to ground brushes.");
+		}
+	}
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshLinksPage() {
@@ -3684,6 +3795,9 @@ void MaterialsWorkbenchBrushPanel::RefreshLinksPage() {
 		}
 		if (removeLinkButton_) {
 			removeLinkButton_->Enable(false);
+		}
+		if (clearLinksButton_) {
+			clearLinksButton_->Enable(false);
 		}
 		if (moveLinkUpButton_) {
 			moveLinkUpButton_->Enable(false);
@@ -3770,6 +3884,18 @@ void MaterialsWorkbenchBrushPanel::RefreshLinksPage() {
 	addFriendLinkButton_->Enable(isGround);
 	addEnemyLinkButton_->Enable(isGround);
 	removeLinkButton_->Enable(false);
+	if (clearLinksButton_) {
+		bool hasFriendOrEnemy = false;
+		if (isGround) {
+			for (const BrushLinkRecord &link : brushStorage_.links) {
+				if (link.relationType.IsSameAs("friend", false) || link.relationType.IsSameAs("enemy", false)) {
+					hasFriendOrEnemy = true;
+					break;
+				}
+			}
+		}
+		clearLinksButton_->Enable(isGround && hasFriendOrEnemy);
+	}
 	moveLinkUpButton_->Enable(false);
 	moveLinkDownButton_->Enable(false);
 
@@ -4345,6 +4471,9 @@ void MaterialsWorkbenchBrushPanel::SetFieldsEnabled(bool enabled) {
 	randomizeCtrl_->Enable(enabled);
 	oneSizeCtrl_->Enable(enabled);
 	soloOptionalCtrl_->Enable(enabled);
+	if (clearBordersButton_) {
+		clearBordersButton_->Enable(enabled && GetEffectiveBrushType() == "ground");
+	}
 	if (workspaceTabs_) {
 		workspaceTabs_->Enable(enabled);
 	}

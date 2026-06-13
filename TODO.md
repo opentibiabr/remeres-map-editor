@@ -75,7 +75,7 @@
 ## Legacy Parity Gaps
 - [ ] Tilesets: support legacy `<raw>` sections in the DB-first import + editor flow (so raw-only tilesets are not silently ignored)
 - [ ] Ground borders: add an editor for legacy `<specific>` cases (conditions/actions) stored under ground border contexts
-- [ ] Brushes: expose explicit “clear” actions that map cleanly to legacy `clear_borders` / `clear_friends` intent (instead of only resulting empty state)
+- [x] Brushes: expose explicit “clear” actions that map cleanly to legacy `clear_borders` / `clear_friends` intent (instead of only resulting empty state)
 - [x] Borders: expose `super` (super border) in global usage contexts and persist it (`ground_brush_borders.super_border`)
 - [x] Wall Workspace: add editing UI for wall `friend` + `redirect` links (and show inbound refs), matching legacy `<friend name="..." redirect="...">`
 - [x] Wall Workspace: expose wall brush metadata flags that exist in legacy XML (`lookid`/`server_lookid`, `draggable`, `on_blocking`, `on_duplicate`, `redo_borders`/`reborder`, `one_size`, `thickness`)

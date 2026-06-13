@@ -281,6 +281,8 @@ private:
 	wxCheckBox* randomizeCtrl_ = nullptr;
 	wxCheckBox* oneSizeCtrl_ = nullptr;
 	wxCheckBox* soloOptionalCtrl_ = nullptr;
+	wxStaticText* bordersQuickSummaryLabel_ = nullptr;
+	wxButton* clearBordersButton_ = nullptr;
 	wxTextCtrl* linksSearchCtrl_ = nullptr;
 	wxStaticText* linksSummaryLabel_ = nullptr;
 	wxListCtrl* linksListCtrl_ = nullptr;
@@ -289,6 +291,7 @@ private:
 	wxButton* addFriendLinkButton_ = nullptr;
 	wxButton* addEnemyLinkButton_ = nullptr;
 	wxButton* removeLinkButton_ = nullptr;
+	wxButton* clearLinksButton_ = nullptr;
 	wxButton* moveLinkUpButton_ = nullptr;
 	wxButton* moveLinkDownButton_ = nullptr;
 	wxSimplebook* variationsBook_ = nullptr;
