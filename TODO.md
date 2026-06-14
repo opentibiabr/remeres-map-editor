@@ -27,6 +27,7 @@
 - [x] Continue reducing spacing and padding across workspaces where the layout still feels too loose
 - [ ] Continue small product-language and workflow refinements across Workbench texts and actions
   - [x] Palette Workspace: move palette category actions into the footer action bar
+  - [x] Palette Workspace: tighten entry action buttons, center the splitter on open, and show Source Catalog entries for all kinds (including Raw)
   - [x] Brush Workspace (Carpet): layout map supports diagonal slots (`dnw/dne/dsw/dse`) with corrected labels, centered slot sprites, cleaner slot chrome (badge placement, no redundant missing text, hidden Context Details), and seamless preview rules for diagonals + sparse sets (diag+only E/W or diag+only N/S collapse without showing center, and missing opposite-edge pairs no longer leave a gap)
   - [x] Brush Workspace (Aligned): show a compact `Details` toggle (tooltip explains why) when a brush contains legacy/duplicate aligned slots; keep it hidden otherwise
   - [x] Brush Workspace (Table): hide outdated helper copy under `Table States` and keep `Add Node`/`Remove`/`Details` as a compact single action row

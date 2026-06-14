@@ -13,12 +13,13 @@ class MaterialsWorkbenchBrushGridPanel;
 class MaterialsWorkbenchController;
 class wxButton;
 class wxChoice;
+class wxSplitterWindow;
 class wxStaticText;
 
 struct MaterialsWorkbenchAvailableBrushSource {
 	wxString familyKey;
 	wxString paletteLabel;
-	std::vector<BrushRecord> brushes;
+	int tilesetIndex = -1;
 };
 
 class MaterialsWorkbenchPalettePanel : public wxPanel {
@@ -42,6 +43,7 @@ private:
 	void RefreshMoveDestinationFamilies();
 	void RefreshMoveDestinationPalettes();
 	void RefreshSelectionFeedback();
+	void EnsureContentSplitterDefaultSash();
 	bool IsSelectedMovableEntry() const;
 	bool ResolveSelectedMovableEntry(int &sectionIndex, int &entryIndex, TilesetEntryRecord &entry) const;
 	bool ResolveMoveDestinationPalette(TilesetStorageRecord &outTileset, wxString &outDisplayLabel) const;
@@ -54,7 +56,8 @@ private:
 	void SetStatusMessage(const wxString &message);
 	bool CommitPalette(const wxString &successMessage, const wxString &previousPaletteName = wxString(), const wxString &selectionPaletteName = wxString());
 	wxString RecommendBrushGroupForCurrentSection() const;
-	const BrushRecord* FindAvailableBrushRecord() const;
+	const TilesetEntryRecord* FindAvailableEntryRecord() const;
+	const TilesetSectionRecord* FindAvailableEntrySection() const;
 	int FindPaletteGroupChoiceIndexByName(const wxString &groupName) const;
 	const PaletteGroupRecord* GetSelectedPaletteGroup() const;
 	bool PromptForPaletteName(const wxString &title, const wxString &caption, const wxString &initialValue, const wxString &currentName, wxString &outName);
@@ -91,7 +94,9 @@ private:
 	int selectedSectionEntryIndex_ = -1;
 	int selectedAvailableBrushListIndex_ = -1;
 	std::vector<MaterialsWorkbenchAvailableBrushSource> availableBrushSources_;
-	std::vector<BrushRecord> currentAvailableBrushes_;
+	std::vector<TilesetEntryRecord> currentAvailableEntries_;
+	std::vector<int> currentAvailableEntrySectionIndexes_;
+	int currentAvailableSourceTilesetIndex_ = -1;
 	std::vector<wxString> availableBrushFamilyKeys_;
 	std::vector<int> availableBrushPaletteSourceIndexes_;
 	std::vector<wxString> moveDestinationFamilyKeys_;
@@ -128,6 +133,8 @@ private:
 	wxButton* renameSectionButton_ = nullptr;
 	wxButton* deleteSectionButton_ = nullptr;
 	wxStaticText* statusLabel_ = nullptr;
+	wxSplitterWindow* contentSplitter_ = nullptr;
+	bool contentSplitterCentered_ = false;
 };
 
 #endif

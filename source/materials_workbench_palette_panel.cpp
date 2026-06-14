@@ -3,6 +3,7 @@
 #include "materials_workbench_palette_panel.h"
 
 #include <algorithm>
+#include <set>
 #include <unordered_map>
 #include <utility>
 
@@ -642,6 +643,33 @@ namespace {
 		return "terrain";
 	}
 
+	wxString NormalizeSectionTypeForPaletteInsertion(
+		const wxString &sourceSectionType,
+		const wxString &fallbackFamilyKey,
+		const wxString &destinationDisplayFamily,
+		const wxString &entryKind
+	) {
+		if (sourceSectionType.IsEmpty()) {
+			return PreferredSectionTypeForBrushFamilyKey(fallbackFamilyKey);
+		}
+		if (sourceSectionType.IsSameAs("raw", false) && entryKind.IsSameAs("item", false)) {
+			if (destinationDisplayFamily.IsSameAs("terrain", false)) {
+				return "terrain_and_raw";
+			}
+			if (destinationDisplayFamily.IsSameAs("doodad", false)) {
+				return "doodad_and_raw";
+			}
+			if (destinationDisplayFamily.IsSameAs("item", false)) {
+				return "items_and_raw";
+			}
+			return "raw";
+		}
+		if (sourceSectionType.IsSameAs("item", false)) {
+			return "items";
+		}
+		return sourceSectionType;
+	}
+
 	int FindVisibleEntryIndex(const std::vector<std::pair<int, int>> &locations, int sectionIndex, int entryIndex) {
 		for (size_t i = 0; i < locations.size(); ++i) {
 			if (locations[i].first == sectionIndex && locations[i].second == entryIndex) {
@@ -877,11 +905,11 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	groupRowSizer->Add(paletteGroupChoice_, 0, wxRIGHT | wxBOTTOM, FromDIP(8));
 	toolbarSizer->Add(groupRowSizer, 0, wxEXPAND);
 
-	wxSplitterWindow* contentSplitter = new wxSplitterWindow(this, wxID_ANY);
-	contentSplitter->SetSashGravity(0.54);
-	contentSplitter->SetMinimumPaneSize(FromDIP(240));
+	contentSplitter_ = new wxSplitterWindow(this, wxID_ANY);
+	contentSplitter_->SetSashGravity(0.5);
+	contentSplitter_->SetMinimumPaneSize(FromDIP(240));
 
-	wxPanel* currentSectionPanel = new wxPanel(contentSplitter, wxID_ANY);
+	wxPanel* currentSectionPanel = new wxPanel(contentSplitter_, wxID_ANY);
 	wxBoxSizer* currentSectionSizer = new wxBoxSizer(wxVERTICAL);
 	wxWrapSizer* paletteBrushActionsSizer = new wxWrapSizer(wxHORIZONTAL, 0);
 	wxFlexGridSizer* moveDestinationSizer = new wxFlexGridSizer(2, 2, FromDIP(4), FromDIP(6));
@@ -917,7 +945,7 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	currentSectionSizer->Add(sectionBrushGrid_, 1, wxEXPAND);
 	currentSectionPanel->SetSizer(currentSectionSizer);
 
-	wxPanel* availablePanel = new wxPanel(contentSplitter, wxID_ANY);
+	wxPanel* availablePanel = new wxPanel(contentSplitter_, wxID_ANY);
 	wxBoxSizer* availableSizer = new wxBoxSizer(wxVERTICAL);
 	wxFlexGridSizer* sourceGridSizer = new wxFlexGridSizer(2, 2, FromDIP(4), FromDIP(6));
 	availableBrushFamilyChoice_ = new wxChoice(availablePanel, wxID_ANY);
@@ -939,7 +967,8 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	availableSizer->Add(availableBrushGrid_, 1, wxEXPAND);
 	availablePanel->SetSizer(availableSizer);
 
-	contentSplitter->SplitVertically(currentSectionPanel, availablePanel, FromDIP(680));
+	contentSplitter_->SplitVertically(currentSectionPanel, availablePanel, FromDIP(680));
+	contentSplitter_->CallAfter([this]() { EnsureContentSplitterDefaultSash(); });
 
 	wxBoxSizer* actionSizer = new wxBoxSizer(wxHORIZONTAL);
 	actionSizer->Add(createPaletteGroupButton_, 0, wxRIGHT, FromDIP(2));
@@ -955,7 +984,7 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	rootSizer->Add(headerSizer, 0, wxEXPAND | wxALL, FromDIP(8));
 	rootSizer->Add(new wxStaticLine(this), 0, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(8));
 	rootSizer->Add(toolbarSizer, 0, wxEXPAND | wxALL, FromDIP(8));
-	rootSizer->Add(contentSplitter, 1, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(8));
+	rootSizer->Add(contentSplitter_, 1, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(8));
 	rootSizer->Add(footerSizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(4));
 	SetSizer(rootSizer);
 
@@ -965,11 +994,11 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	StylePaletteWorkspaceActionButton(createPaletteButton_, "Create a new palette.");
 	StylePaletteWorkspaceActionButton(renamePaletteButton_, "Rename the current palette.");
 	StylePaletteWorkspaceActionButton(deletePaletteButton_, "Delete the current palette.");
-	addBrushButton_->SetToolTip("Add the selected brush as a new entry in this palette.");
-	moveToPaletteButton_->SetToolTip("Move the selected entry to the destination palette.");
-	removeBrushButton_->SetToolTip("Remove the selected entry from this palette.");
-	moveUpButton_->SetToolTip("Move the selected entry earlier in the palette.");
-	moveDownButton_->SetToolTip("Move the selected entry later in the palette.");
+	StylePaletteWorkspaceActionButton(addBrushButton_, "Add the selected catalog entry as a new entry in this palette.");
+	StylePaletteWorkspaceActionButton(moveToPaletteButton_, "Move the selected entry to the destination palette.");
+	StylePaletteWorkspaceActionButton(removeBrushButton_, "Remove the selected entry from this palette.");
+	StylePaletteWorkspaceActionButton(moveUpButton_, "Move the selected entry earlier in the palette.");
+	StylePaletteWorkspaceActionButton(moveDownButton_, "Move the selected entry later in the palette.");
 	moveDestinationFamilyChoice_->SetToolTip("Choose the destination palette category for moving the selected entry.");
 	moveDestinationPaletteChoice_->SetToolTip("Choose the destination palette for moving the selected entry.");
 
@@ -1011,7 +1040,9 @@ void MaterialsWorkbenchPalettePanel::ClearWorkspace(const wxString &message) {
 	palette_ = TilesetStorageRecord();
 	preserveSectionGridViewStart_ = false;
 	availableBrushSources_.clear();
-	currentAvailableBrushes_.clear();
+	currentAvailableEntries_.clear();
+	currentAvailableEntrySectionIndexes_.clear();
+	currentAvailableSourceTilesetIndex_ = -1;
 	availableBrushFamilyKeys_.clear();
 	availableBrushPaletteSourceIndexes_.clear();
 	moveDestinationFamilyKeys_.clear();
@@ -1031,10 +1062,10 @@ void MaterialsWorkbenchPalettePanel::ClearWorkspace(const wxString &message) {
 	moveDestinationPaletteChoice_->Clear();
 	sectionSummaryLabel_->SetLabel(message);
 	selectionSummaryLabel_->SetLabel("Select an entry to remove, reorder, or move.");
-	availableBrushSummaryLabel_->SetLabel("Select a palette to browse brushes.");
+	availableBrushSummaryLabel_->SetLabel("Select a palette to browse entries.");
 	sectionBrushGrid_->SetEmptyMessage(message);
 	sectionBrushGrid_->Clear();
-	availableBrushGrid_->SetEmptyMessage("Select a palette to browse brushes.");
+	availableBrushGrid_->SetEmptyMessage("Select a palette to browse entries.");
 	availableBrushGrid_->Clear();
 	SetStatusMessage(message);
 	UpdateButtonState();
@@ -1070,6 +1101,45 @@ void MaterialsWorkbenchPalettePanel::RefreshWorkspace() {
 	SetStatusMessage("Ready. Edit palette category and entries.");
 	UpdateButtonState();
 	Layout();
+	if (contentSplitter_ && !contentSplitterCentered_) {
+		contentSplitter_->CallAfter([this]() { EnsureContentSplitterDefaultSash(); });
+	}
+}
+
+void MaterialsWorkbenchPalettePanel::EnsureContentSplitterDefaultSash() {
+	if (contentSplitterCentered_ || !contentSplitter_) {
+		return;
+	}
+	if (!addBrushButton_ || !moveToPaletteButton_ || !removeBrushButton_ || !moveUpButton_ || !moveDownButton_) {
+		return;
+	}
+
+	const int width = contentSplitter_->GetClientSize().GetWidth();
+	if (width <= 0) {
+		return;
+	}
+
+	const int buttonGap = FromDIP(4);
+	int desiredLeft = 0;
+	const int buttonCount = 5;
+	const wxSize buttonSizes[] = {
+		addBrushButton_->GetBestSize(),
+		moveToPaletteButton_->GetBestSize(),
+		removeBrushButton_->GetBestSize(),
+		moveUpButton_->GetBestSize(),
+		moveDownButton_->GetBestSize(),
+	};
+	for (const wxSize &size : buttonSizes) {
+		desiredLeft += size.x;
+	}
+	desiredLeft += buttonGap * (buttonCount - 1);
+	desiredLeft += FromDIP(24);
+
+	const int minimumPane = contentSplitter_->GetMinimumPaneSize();
+	const int maxLeft = std::max(minimumPane, width - minimumPane);
+	desiredLeft = std::clamp(desiredLeft, minimumPane, maxLeft);
+	contentSplitter_->SetSashPosition(desiredLeft);
+	contentSplitterCentered_ = true;
 }
 
 void MaterialsWorkbenchPalettePanel::RefreshPaletteGroupChoice() {
@@ -1203,77 +1273,23 @@ void MaterialsWorkbenchPalettePanel::RefreshSectionEntries() {
 void MaterialsWorkbenchPalettePanel::RebuildAvailableBrushSources() {
 	availableBrushSources_.clear();
 
-	struct BrushPalettePlacement {
-		wxString familyKey;
-		wxString paletteLabel;
-	};
-
-	std::map<wxString, BrushPalettePlacement> placementByBrushKey;
-	std::map<wxString, std::vector<wxString>> paletteOrderByFamily;
-	for (const TilesetStorageRecord &tileset : controller_.GetTilesets()) {
-		const wxString familyKey = tileset.paletteGroupName.IsEmpty() ? (tileset.sections.empty() ? wxString("other") : DerivePaletteGroupFromSectionType(tileset.sections.front().sectionType)) : tileset.paletteGroupName;
-		auto &paletteOrder = paletteOrderByFamily[familyKey];
-		if (std::find(paletteOrder.begin(), paletteOrder.end(), tileset.name) == paletteOrder.end()) {
-			paletteOrder.push_back(tileset.name);
-		}
-
-		for (const TilesetSectionRecord &section : tileset.sections) {
-			for (const TilesetEntryRecord &entry : section.entries) {
-				if (!entry.entryKind.IsSameAs("brush", false)) {
-					continue;
-				}
-				if (entry.brushId <= 0 && entry.brushName.IsEmpty()) {
-					continue;
-				}
-
-				const wxString brushKey = BuildPaletteWorkspaceBrushLookupKey(entry.brushId, entry.brushName);
-				if (!placementByBrushKey.count(brushKey)) {
-					placementByBrushKey[brushKey] = { familyKey, tileset.name };
-				}
-			}
-		}
-	}
-
-	std::map<wxString, std::map<wxString, std::vector<BrushRecord>>> brushesByFamilyAndPalette;
-	auto assignBrushToPalette = [&](const BrushRecord &brush, const wxString &brushType) {
-		const wxString brushKey = BuildPaletteWorkspaceBrushLookupKey(brush.id, brush.name);
-		const auto placementIt = placementByBrushKey.find(brushKey);
-		const wxString familyKey = placementIt != placementByBrushKey.end() ? placementIt->second.familyKey : BuildPaletteWorkspaceBrushFamilyKeyFromBrushType(brushType);
-		const wxString paletteLabel = placementIt != placementByBrushKey.end() ? placementIt->second.paletteLabel : wxString("Uncategorized");
-		brushesByFamilyAndPalette[familyKey][paletteLabel].push_back(brush);
-	};
-
-	for (const MaterialsWorkbenchBrushGroup &group : controller_.GetBrushGroups()) {
-		for (const BrushRecord &brush : group.brushes) {
-			assignBrushToPalette(brush, group.brushType);
-		}
-	}
-	for (const BrushRecord &brush : controller_.GetWallBrushes()) {
-		assignBrushToPalette(brush, "wall");
-	}
-
+	const std::vector<TilesetStorageRecord> &tilesets = controller_.GetTilesets();
 	const wxString familyOrder[] = { "terrain", "doodad", "item", "other" };
-	for (const wxString &familyKey : familyOrder) {
-		std::vector<wxString> paletteLabels = paletteOrderByFamily[familyKey];
-		auto familyIt = brushesByFamilyAndPalette.find(familyKey);
-		if (familyIt != brushesByFamilyAndPalette.end()) {
-			for (const auto &paletteEntry : familyIt->second) {
-				if (std::find(paletteLabels.begin(), paletteLabels.end(), paletteEntry.first) == paletteLabels.end()) {
-					paletteLabels.push_back(paletteEntry.first);
-				}
-			}
+	for (size_t i = 0; i < tilesets.size(); ++i) {
+		const TilesetStorageRecord &tileset = tilesets[i];
+		std::set<wxString> families;
+		for (const TilesetSectionRecord &section : tileset.sections) {
+			families.insert(DerivePaletteGroupFromSectionType(section.sectionType));
 		}
 
-		for (const wxString &paletteLabel : paletteLabels) {
+		for (const wxString &familyKey : familyOrder) {
+			if (families.find(familyKey) == families.end()) {
+				continue;
+			}
 			MaterialsWorkbenchAvailableBrushSource source;
 			source.familyKey = familyKey;
-			source.paletteLabel = paletteLabel;
-			if (familyIt != brushesByFamilyAndPalette.end()) {
-				auto paletteIt = familyIt->second.find(paletteLabel);
-				if (paletteIt != familyIt->second.end()) {
-					source.brushes = paletteIt->second;
-				}
-			}
+			source.paletteLabel = tileset.name;
+			source.tilesetIndex = static_cast<int>(i);
 			availableBrushSources_.push_back(std::move(source));
 		}
 	}
@@ -1354,44 +1370,96 @@ void MaterialsWorkbenchPalettePanel::RefreshAvailableBrushPalettes() {
 }
 
 void MaterialsWorkbenchPalettePanel::RefreshAvailableBrushes() {
-	currentAvailableBrushes_.clear();
+	currentAvailableEntries_.clear();
+	currentAvailableEntrySectionIndexes_.clear();
+	currentAvailableSourceTilesetIndex_ = -1;
 	selectedAvailableBrushListIndex_ = -1;
 
 	if (availableBrushPaletteChoice_->GetSelection() == wxNOT_FOUND) {
-		availableBrushSummaryLabel_->SetLabel("No brush source available.");
-		availableBrushGrid_->SetEmptyMessage("No brush source available.");
+		availableBrushSummaryLabel_->SetLabel("No source available.");
+		availableBrushGrid_->SetEmptyMessage("No source available.");
 		availableBrushGrid_->Clear();
 		return;
 	}
 
 	const int sourceChoiceIndex = availableBrushPaletteChoice_->GetSelection();
 	if (sourceChoiceIndex < 0 || sourceChoiceIndex >= static_cast<int>(availableBrushPaletteSourceIndexes_.size())) {
-		availableBrushSummaryLabel_->SetLabel("No brush source available.");
-		availableBrushGrid_->SetEmptyMessage("No brush source available.");
+		availableBrushSummaryLabel_->SetLabel("No source available.");
+		availableBrushGrid_->SetEmptyMessage("No source available.");
 		availableBrushGrid_->Clear();
 		return;
 	}
 
 	const MaterialsWorkbenchAvailableBrushSource &source = availableBrushSources_[availableBrushPaletteSourceIndexes_[sourceChoiceIndex]];
-	std::vector<BrushGridItem> items;
-	currentAvailableBrushes_ = source.brushes;
+	const std::vector<TilesetStorageRecord> &tilesets = controller_.GetTilesets();
+	if (source.tilesetIndex < 0 || source.tilesetIndex >= static_cast<int>(tilesets.size())) {
+		availableBrushSummaryLabel_->SetLabel("No source available.");
+		availableBrushGrid_->SetEmptyMessage("No source available.");
+		availableBrushGrid_->Clear();
+		return;
+	}
+	currentAvailableSourceTilesetIndex_ = source.tilesetIndex;
+	const TilesetStorageRecord &sourceTileset = tilesets[static_cast<size_t>(source.tilesetIndex)];
 
-	for (size_t i = 0; i < currentAvailableBrushes_.size(); ++i) {
-		const BrushRecord &record = currentAvailableBrushes_[i];
-		Brush* brush = g_brushes.getBrush(record.name.ToStdString());
-		const int lookId = brush ? brush->getLookID() : record.lookId;
-		if (!brush && lookId <= 0) {
+	std::vector<BrushGridItem> items;
+	int brushEntryCount = 0;
+	int itemEntryCount = 0;
+	int hiddenOtherFamilyEntries = 0;
+
+	for (size_t sectionIndex = 0; sectionIndex < sourceTileset.sections.size(); ++sectionIndex) {
+		const TilesetSectionRecord &section = sourceTileset.sections[sectionIndex];
+		if (!DerivePaletteGroupFromSectionType(section.sectionType).IsSameAs(source.familyKey, false)) {
+			hiddenOtherFamilyEntries += static_cast<int>(section.entries.size());
 			continue;
 		}
-		items.push_back({ record.name, BuildSourceBrushTooltip(source, record), wxString(), brush, lookId, static_cast<int>(i) });
+
+		for (const TilesetEntryRecord &entry : section.entries) {
+			const wxString label = DescribePaletteEntry(controller_, entry);
+			const wxString tooltip = BuildPaletteEntryTooltip(controller_, sourceTileset, section, entry);
+			const int visibleIndex = static_cast<int>(currentAvailableEntries_.size());
+
+			Brush* previewBrush = nullptr;
+			int previewLookId = 0;
+			if (entry.entryKind.IsSameAs("brush", false)) {
+				wxString resolvedName = entry.brushName;
+				if (resolvedName.IsEmpty()) {
+					if (const BrushRecord* catalogBrush = FindCatalogBrushRecord(controller_, entry.brushId, entry.brushName)) {
+						resolvedName = catalogBrush->name;
+						previewLookId = catalogBrush->lookId;
+					}
+				}
+				if (!resolvedName.IsEmpty()) {
+					previewBrush = g_brushes.getBrush(resolvedName.ToStdString());
+				}
+				if (previewBrush) {
+					previewLookId = previewBrush->getLookID();
+				}
+				++brushEntryCount;
+			} else if (entry.entryKind.IsSameAs("item", false)) {
+				const int previewItemId = ResolveEntryPreviewItemId(entry);
+				previewLookId = previewItemId;
+				if (auto type = previewItemId > 0 ? g_items.getRawItemType(static_cast<uint16_t>(previewItemId)) : nullptr; type && type->id != 0) {
+					previewBrush = type->raw_brush;
+				}
+				++itemEntryCount;
+			}
+
+			currentAvailableEntries_.push_back(entry);
+			currentAvailableEntrySectionIndexes_.push_back(static_cast<int>(sectionIndex));
+			items.push_back({ label, tooltip, section.sectionType.IsSameAs("raw", false) ? wxString("RAW") : wxString(), previewBrush, previewLookId, visibleIndex });
+		}
 	}
 
-	availableBrushSummaryLabel_->SetLabel(wxString::Format("%zu brushes available in %s / %s.", items.size(), BuildPaletteFamilyLabel(source.familyKey), source.paletteLabel));
-	availableBrushGrid_->SetEmptyMessage("No brushes available in this source palette.");
-	availableBrushGrid_->SetItems(items);
-	if (items.empty()) {
-		selectedAvailableBrushListIndex_ = -1;
+	wxString summary = wxString::Format("%zu entries available in %s / %s.", items.size(), BuildPaletteFamilyLabel(source.familyKey), source.paletteLabel);
+	if (brushEntryCount > 0 || itemEntryCount > 0) {
+		summary += wxString::Format(" %d brush / %d item.", brushEntryCount, itemEntryCount);
 	}
+	if (hiddenOtherFamilyEntries > 0) {
+		summary += wxString::Format(" %d entries from other families are hidden in this view.", hiddenOtherFamilyEntries);
+	}
+	availableBrushSummaryLabel_->SetLabel(summary);
+	availableBrushGrid_->SetEmptyMessage("No entries available in this source palette.");
+	availableBrushGrid_->SetItems(items);
 }
 
 void MaterialsWorkbenchPalettePanel::RefreshMoveDestinationFamilies() {
@@ -1743,11 +1811,30 @@ wxString MaterialsWorkbenchPalettePanel::RecommendBrushGroupForCurrentSection() 
 	return "terrain";
 }
 
-const BrushRecord* MaterialsWorkbenchPalettePanel::FindAvailableBrushRecord() const {
-	if (selectedAvailableBrushListIndex_ < 0 || selectedAvailableBrushListIndex_ >= static_cast<int>(currentAvailableBrushes_.size())) {
+const TilesetEntryRecord* MaterialsWorkbenchPalettePanel::FindAvailableEntryRecord() const {
+	if (selectedAvailableBrushListIndex_ < 0 || selectedAvailableBrushListIndex_ >= static_cast<int>(currentAvailableEntries_.size())) {
 		return nullptr;
 	}
-	return &currentAvailableBrushes_[selectedAvailableBrushListIndex_];
+	return &currentAvailableEntries_[selectedAvailableBrushListIndex_];
+}
+
+const TilesetSectionRecord* MaterialsWorkbenchPalettePanel::FindAvailableEntrySection() const {
+	if (currentAvailableSourceTilesetIndex_ < 0) {
+		return nullptr;
+	}
+	if (selectedAvailableBrushListIndex_ < 0 || selectedAvailableBrushListIndex_ >= static_cast<int>(currentAvailableEntrySectionIndexes_.size())) {
+		return nullptr;
+	}
+	const int sectionIndex = currentAvailableEntrySectionIndexes_[selectedAvailableBrushListIndex_];
+	const std::vector<TilesetStorageRecord> &tilesets = controller_.GetTilesets();
+	if (currentAvailableSourceTilesetIndex_ >= static_cast<int>(tilesets.size())) {
+		return nullptr;
+	}
+	const TilesetStorageRecord &tileset = tilesets[static_cast<size_t>(currentAvailableSourceTilesetIndex_)];
+	if (sectionIndex < 0 || sectionIndex >= static_cast<int>(tileset.sections.size())) {
+		return nullptr;
+	}
+	return &tileset.sections[static_cast<size_t>(sectionIndex)];
 }
 
 int MaterialsWorkbenchPalettePanel::FindSectionIndexByName(const TilesetStorageRecord &tileset, const wxString &sectionName) const {
@@ -2338,14 +2425,16 @@ void MaterialsWorkbenchPalettePanel::OnAddBrush(wxCommandEvent &event) {
 		return;
 	}
 
-	const BrushRecord* brushRecord = FindAvailableBrushRecord();
-	if (!brushRecord) {
-		SetStatusMessage("Select a brush from the library first.");
+	const TilesetEntryRecord* sourceEntry = FindAvailableEntryRecord();
+	const TilesetSectionRecord* sourceSection = FindAvailableEntrySection();
+	if (!sourceEntry || !sourceSection) {
+		SetStatusMessage("Select an entry from the catalog first.");
 		return;
 	}
 
 	const wxString familyKey = availableBrushFamilyKeys_[availableBrushFamilyChoice_->GetSelection()];
-	const wxString preferredSectionType = PreferredSectionTypeForBrushFamilyKey(familyKey);
+	const wxString destinationDisplayFamily = ResolvePaletteBrushDisplayFamily(palette_);
+	const wxString preferredSectionType = NormalizeSectionTypeForPaletteInsertion(sourceSection->sectionType, familyKey, destinationDisplayFamily, sourceEntry->entryKind);
 	int targetSectionIndex = -1;
 	for (size_t i = 0; i < palette_.sections.size(); ++i) {
 		if (palette_.sections[i].sectionType.IsSameAs(preferredSectionType, false)) {
@@ -2371,10 +2460,10 @@ void MaterialsWorkbenchPalettePanel::OnAddBrush(wxCommandEvent &event) {
 	}
 
 	TilesetSectionRecord &section = palette_.sections[targetSectionIndex];
-	TilesetEntryRecord entry;
-	entry.entryKind = "brush";
-	entry.brushId = brushRecord->id;
-	entry.brushName = brushRecord->name;
+	TilesetEntryRecord entry = *sourceEntry;
+	entry.sortOrder = 0;
+	entry.afterBrushName.clear();
+	entry.afterItemId = 0;
 
 	int insertIndex = static_cast<int>(section.entries.size());
 	if (currentSectionIndex_ == targetSectionIndex && selectedSectionEntryIndex_ >= 0) {
@@ -2385,7 +2474,7 @@ void MaterialsWorkbenchPalettePanel::OnAddBrush(wxCommandEvent &event) {
 	currentSectionIndex_ = targetSectionIndex;
 	selectedSectionEntryIndex_ = insertIndex;
 
-	if (!CommitPalette("Added \"" + brushRecord->name + "\" to palette \"" + palette_.name + "\".")) {
+	if (!CommitPalette("Added \"" + DescribePaletteEntry(controller_, entry) + "\" to palette \"" + palette_.name + "\".")) {
 		return;
 	}
 
