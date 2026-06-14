@@ -41,6 +41,7 @@ public:
 	const std::vector<TilesetStorageRecord> &GetTilesets() const;
 	const std::vector<MaterialsWorkbenchBrushGroup> &GetBrushGroups() const;
 	const std::vector<BrushRecord> &GetWallBrushes() const;
+	const std::vector<BorderSetRecord> &GetGlobalBorderSets() const;
 	wxString BuildSelectionOverview(MaterialsWorkbenchNodeKind kind, const wxString &contextKey, int itemIndex) const;
 	wxString BuildSelectionInspector(MaterialsWorkbenchNodeKind kind, const wxString &contextKey, int itemIndex) const;
 

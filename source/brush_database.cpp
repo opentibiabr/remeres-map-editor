@@ -874,6 +874,10 @@ bool BrushDatabase::listBrushesByType(const wxString &type, std::vector<BrushRec
 	return brushRepository_.listBrushesByType(type, outBrushes);
 }
 
+bool BrushDatabase::findBrushByNameAndType(const wxString &name, const wxString &type, BrushRecord &outBrush) {
+	return brushRepository_.findBrushByNameAndType(name, type, outBrush);
+}
+
 bool BrushDatabase::getCompleteBrushById(int64_t brushId, BrushStorageRecord &outBrush) {
 	return brushRepository_.getCompleteBrushById(brushId, outBrush);
 }

@@ -3,8 +3,11 @@
 #include "materials_workbench_window.h"
 
 #include <algorithm>
+#include <fstream>
 
 #include <wx/button.h>
+#include <wx/filedlg.h>
+#include <wx/msgdlg.h>
 #include <wx/srchctrl.h>
 #include <wx/simplebook.h>
 #include <wx/splitter.h>
@@ -17,6 +20,8 @@
 #include "gui.h"
 #include "materials_workbench_border_panel.h"
 #include "materials_workbench_brush_panel.h"
+#include "materials_workbench_exchange.h"
+#include "materials_workbench_exchange_dialog.h"
 #include "materials_workbench_inspector_dialog.h"
 #include "materials_workbench_palette_panel.h"
 #include "materials_workbench_wall_panel.h"
@@ -186,15 +191,19 @@ namespace {
 		return false;
 	}
 
-	wxPanel* CreateSidebarPanel(wxWindow* parent, wxSearchCtrl*& outFilter, wxTreeCtrl*& outTree, wxButton*& outInspectorButton) {
+	wxPanel* CreateSidebarPanel(wxWindow* parent, wxSearchCtrl*& outFilter, wxTreeCtrl*& outTree, wxButton*& outInspectorButton, wxButton*& outExportButton, wxButton*& outImportButton) {
 		wxPanel* panel = new wxPanel(parent, wxID_ANY);
 		wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 
 		wxBoxSizer* headerSizer = new wxBoxSizer(wxHORIZONTAL);
 		wxStaticText* title = new wxStaticText(panel, wxID_ANY, "Catalog");
 		outInspectorButton = new wxButton(panel, wxID_ANY, "Inspector");
+		outExportButton = new wxButton(panel, wxID_ANY, "Export...");
+		outImportButton = new wxButton(panel, wxID_ANY, "Import...");
 		headerSizer->Add(title, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, panel->FromDIP(8));
 		headerSizer->AddStretchSpacer(1);
+		headerSizer->Add(outExportButton, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, panel->FromDIP(2));
+		headerSizer->Add(outImportButton, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, panel->FromDIP(10));
 		headerSizer->Add(outInspectorButton, 0, wxALIGN_CENTER_VERTICAL);
 
 		wxStaticText* subtitle = new wxStaticText(panel, wxID_ANY, "Palette categories organize palettes. Brushes define behavior.");
@@ -365,7 +374,7 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 	rootSplitter->SetSashGravity(0.16);
 	rootSplitter->SetMinimumPaneSize(FromDIP(120));
 
-	wxPanel* sidebarPanel = CreateSidebarPanel(rootSplitter, navigationFilterCtrl_, navigationTree_, inspectorButton_);
+	wxPanel* sidebarPanel = CreateSidebarPanel(rootSplitter, navigationFilterCtrl_, navigationTree_, inspectorButton_, exportButton_, importButton_);
 	workspaceBook_ = new wxSimplebook(rootSplitter, wxID_ANY);
 	wxPanel* overviewPanel = CreateOverviewTextPanel(workspaceBook_, controller_, overviewText_);
 	palettePanel_ = new MaterialsWorkbenchPalettePanel(workspaceBook_, controller_);
@@ -482,6 +491,109 @@ void MaterialsWorkbenchWindow::OpenInspector() {
 
 	inspectorDialog_->Show();
 	inspectorDialog_->Raise();
+}
+
+void MaterialsWorkbenchWindow::OnExportMaterials(wxCommandEvent &) {
+	MaterialsWorkbenchExportDialog dialog(this, controller_);
+	if (dialog.ShowModal() != wxID_OK) {
+		return;
+	}
+
+	wxString error;
+	const nlohmann::json root = BuildMaterialsWorkbenchExportJson(controller_, dialog.GetSelection(), error);
+	if (!error.IsEmpty()) {
+		wxMessageBox(error, "Export Materials", wxOK | wxICON_ERROR, this);
+		return;
+	}
+
+	wxFileDialog fileDialog(
+		this,
+		"Export Materials",
+		"",
+		"materials.rme-materials.json",
+		"RME Materials JSON (*.rme-materials.json)|*.rme-materials.json|JSON (*.json)|*.json|All files (*.*)|*.*",
+		wxFD_SAVE | wxFD_OVERWRITE_PROMPT
+	);
+	if (fileDialog.ShowModal() != wxID_OK) {
+		return;
+	}
+
+	const wxString path = fileDialog.GetPath();
+	wxCharBuffer utf8 = path.ToUTF8();
+	std::ofstream out(utf8.data(), std::ios::binary | std::ios::trunc);
+	if (!out.is_open()) {
+		wxMessageBox("Failed to write the export file.", "Export Materials", wxOK | wxICON_ERROR, this);
+		return;
+	}
+
+	out << root.dump(2);
+	out.close();
+	wxMessageBox("Exported materials to JSON.", "Export Materials", wxOK | wxICON_INFORMATION, this);
+}
+
+void MaterialsWorkbenchWindow::OnImportMaterials(wxCommandEvent &) {
+	if ((borderPanel_ && borderPanel_->HasPendingChanges()) || (brushPanel_ && brushPanel_->HasPendingChanges()) || (wallPanel_ && wallPanel_->HasPendingChanges())) {
+		const int result = wxMessageBox(
+			"You have unsaved changes in an editor. Import can overwrite materials.db data.\n\nSave or revert your changes before importing.\n\nContinue anyway?",
+			"Import Materials",
+			wxYES_NO | wxICON_WARNING,
+			this
+		);
+		if (result != wxYES) {
+			return;
+		}
+	}
+
+	wxFileDialog fileDialog(
+		this,
+		"Import Materials",
+		"",
+		"",
+		"RME Materials JSON (*.rme-materials.json)|*.rme-materials.json|JSON (*.json)|*.json|All files (*.*)|*.*",
+		wxFD_OPEN | wxFD_FILE_MUST_EXIST
+	);
+	if (fileDialog.ShowModal() != wxID_OK) {
+		return;
+	}
+
+	const wxString path = fileDialog.GetPath();
+	wxCharBuffer utf8 = path.ToUTF8();
+	std::ifstream in(utf8.data(), std::ios::binary);
+	if (!in.is_open()) {
+		wxMessageBox("Failed to open the import file.", "Import Materials", wxOK | wxICON_ERROR, this);
+		return;
+	}
+
+	nlohmann::json root;
+	try {
+		in >> root;
+	} catch (const nlohmann::json::parse_error &) {
+		wxMessageBox("Invalid JSON file.", "Import Materials", wxOK | wxICON_ERROR, this);
+		return;
+	}
+
+	MaterialsWorkbenchImportDialog preview(this, root, controller_);
+	if (preview.ShowModal() != wxID_OK) {
+		return;
+	}
+
+	MaterialsWorkbenchImportReport report;
+	wxString error;
+	if (!ApplyMaterialsWorkbenchImportJson(controller_, preview.GetJson(), report, error)) {
+		wxMessageBox(error, "Import Materials", wxOK | wxICON_ERROR, this);
+		return;
+	}
+
+	RefreshRuntimeMaterialPalettes("materials import");
+	RefreshWorkbenchState();
+	PopulateNavigation();
+
+	wxMessageBox(
+		wxString::Format("Import complete.\n\nCreated: %d\nUpdated: %d", report.created, report.updated),
+		"Import Materials",
+		wxOK | wxICON_INFORMATION,
+		this
+	);
 }
 
 bool MaterialsWorkbenchWindow::GoToEntity(const wxString &entityKind, int64_t entityId, const wxString &entityName) {
@@ -778,6 +890,12 @@ void MaterialsWorkbenchWindow::BindEvents() {
 		inspectorButton_->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
 			OpenInspector();
 		});
+	}
+	if (exportButton_) {
+		exportButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWindow::OnExportMaterials, this);
+	}
+	if (importButton_) {
+		importButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWindow::OnImportMaterials, this);
 	}
 
 	if (navigationFilterCtrl_) {

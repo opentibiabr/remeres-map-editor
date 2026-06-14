@@ -31,6 +31,7 @@
 #include "find_item_window.h"
 #include "items.h"
 #include "materials_workbench_controller.h"
+#include "gui.h"
 #include "sprite_appearances.h"
 #include "wall_brush.h"
 

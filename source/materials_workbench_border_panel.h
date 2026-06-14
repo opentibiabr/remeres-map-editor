@@ -74,6 +74,8 @@ private:
 	void OnApplyToSlot(wxCommandEvent &event);
 	void OnClearSlot(wxCommandEvent &event);
 	void OnPickItem(wxCommandEvent &event);
+	void OnExportBorderSet(wxCommandEvent &event);
+	void OnImportBorderSet(wxCommandEvent &event);
 	void OnSave(wxCommandEvent &event);
 	void OnRevert(wxCommandEvent &event);
 	void OnSelectedItemIdChanged(wxCommandEvent &event);
@@ -116,6 +118,8 @@ private:
 	wxStaticText* identityLabel_ = nullptr;
 	wxButton* saveButton_ = nullptr;
 	wxButton* revertButton_ = nullptr;
+	wxButton* exportButton_ = nullptr;
+	wxButton* importButton_ = nullptr;
 	wxButton* createBorderButton_ = nullptr;
 	wxButton* deleteBorderButton_ = nullptr;
 	wxStaticText* xmlBorderIdLabel_ = nullptr;

@@ -15,7 +15,7 @@
 ## Visual Polish
 - [x] Add visual metadata previews for `lookId` and `serverLookId` in the Brush Workspace
 - [x] Add richer visual previews inside `variations`, including per-item thumbnails and domain-specific preview feedback
-- [ ] Border Workspace: make `Specific Cases` (ground border `<specific>`) editor more visual (tables + inline sprite icons + picker + selection previews)
+- [x] Border Workspace: make `Specific Cases` (ground border `<specific>`) editor more visual (tables + inline sprite icons + picker + selection previews)
 - [ ] Brush Workspace `Carpet` future polish: only revisit with higher-level authoring affordances or richer composed previews if real usage still shows the new map-first flow feels too list-like
 - [x] Continue the `Aligned` visual editor pass with mini-scene previews and a stronger semantic layout for `table`
 - [x] Continue the `Doodad` editor rebuild from the new scene-preview base: move from read-first preview to direct grid authoring on top of the existing composite fields
@@ -57,14 +57,15 @@
 - [ ] Brush Workspace: expand `Links` to support other legacy link types when needed (e.g. `redirect`) with safe validation and clear UX
 - [ ] Add richer cross-reference views so users can navigate relationships beyond brushes (e.g. wall/part ownership and more global border usage surfaces)
 - [ ] Add import/export tooling for any Materials Workbench entity (at least `walls`, `borders`, `brushes`, `palettes`, and `palette categories`) so users can share items without swapping the full `.db`
+  - [x] Workbench: add global Export/Import UI that produces a single `.rme-materials.json` file from a user-selected list of entities
+  - [x] Export/Import: support `border sets` (global), `brushes` (including inline border sets + ground borders + specific cases), `palettes`, and `palette groups` with update-on-conflict by stable keys
 - [x] Safer removal (Palette Workspace): `Delete Palette` now shows category + section/entry counts and a small entry preview before confirming
 - [x] Safer removal (Border Workspace): `Delete Border` now shows a `Used By` preview + context count for global borders, and an owner + slots summary for inline borders, before confirming
 - [x] Safer removal (Brush Workspace / Doodad): removing an alternative/composite/tile now asks for confirmation and shows what will be removed (counts and key details) before applying the local change
 - [x] Palette Workspace category delete safety pass: deleting a custom category that still owns palettes now requires an explicit destination category, moves the affected palettes in one transaction, snapshots the selected category name before mutation, and only then removes the old category so no tileset falls back to an implicit uncategorized state or hits a use-after-reload crash while finalizing the UI
-- [ ] Add duplication flows for entities such as palettes, border sets, and wall part sets where it improves authoring speed
 - [ ] Add richer entity navigation helpers (go-to targets, deep links, and cross-references) as the Inspector surfaces mature
 - [ ] Revisit `Doodad` polish with contextual scene actions, stronger active-tile/layer feedback, and richer visual affordances after the current editor flow settles
-- [ ] Add `Doodad` duplication and reordering helpers for `alternatives`, `composites`, tiles, and tile layers if later authoring passes show they would speed up editing
+- [ ] Add `Doodad` reordering helpers for `alternatives`, `composites`, tiles, and tile layers if later authoring passes show they would speed up editing
 - [ ] Add richer `Doodad` list visuals such as tiny sprite previews or layer thumbnails only if they improve scanability without bringing back layout bloat
 - [ ] Add optional `Doodad` keyboard shortcuts and higher-level context menus as a future polish pass, not as a requirement for the current editor milestone
 

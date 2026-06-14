@@ -463,6 +463,7 @@ public:
 	bool getBrushById(int64_t brushId, BrushRecord &outBrush);
 	bool updateBrush(const BrushRecord &brush);
 	bool listBrushesByType(const wxString &type, std::vector<BrushRecord> &outBrushes);
+	bool findBrushByNameAndType(const wxString &name, const wxString &type, BrushRecord &outBrush);
 	bool getCompleteBrushById(int64_t brushId, BrushStorageRecord &outBrush);
 	bool updateBrushReferenceNames(int64_t brushId, const wxString &oldName, const wxString &newName);
 	bool deleteBrushReferences(int64_t brushId, const wxString &brushName);

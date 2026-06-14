@@ -3,6 +3,9 @@
 #include "materials_workbench_border_panel.h"
 
 #include <array>
+#include <algorithm>
+#include <fstream>
+#include <iomanip>
 #include <unordered_map>
 #include <utility>
 
@@ -11,6 +14,7 @@
 #include <wx/choicdlg.h>
 #include <wx/dcbuffer.h>
 #include <wx/dcmemory.h>
+#include <wx/filedlg.h>
 #include <wx/grid.h>
 #include <wx/imaglist.h>
 #include <wx/listbox.h>
@@ -34,6 +38,8 @@
 #include "items.h"
 #include "materials_workbench_controller.h"
 #include "gui.h"
+
+#include <nlohmann/json.hpp>
 
 namespace {
 	void StyleBorderWorkspaceActionButton(wxButton* button, const wxString &tooltip);
@@ -117,6 +123,142 @@ namespace {
 		dc.SelectObject(wxNullBitmap);
 		return bitmap;
 	}
+
+	nlohmann::json ExportBorderSetToJson(const BorderSetStorageRecord &storage) {
+		nlohmann::json entity;
+		entity["kind"] = "border_set";
+		entity["borderSet"] = {
+			{ "xmlBorderId", storage.borderSet.xmlBorderId },
+			{ "borderScope", storage.borderSet.borderScope.ToStdString() },
+			{ "borderType", storage.borderSet.borderType.ToStdString() },
+			{ "borderGroup", storage.borderSet.borderGroup },
+			{ "groundEquivalent", storage.borderSet.groundEquivalent },
+		};
+
+		nlohmann::json items = nlohmann::json::array();
+		for (const BorderSetItemRecord &item : storage.items) {
+			items.push_back({
+				{ "edge", item.edge.ToStdString() },
+				{ "itemId", item.itemId },
+				{ "sortOrder", item.sortOrder },
+			});
+		}
+		entity["items"] = std::move(items);
+
+		nlohmann::json root;
+		root["format"] = "rme-materials";
+		root["formatVersion"] = 1;
+		root["entities"] = nlohmann::json::array({ std::move(entity) });
+		return root;
+	}
+
+	bool TryParseBorderSetExportJson(const nlohmann::json &root, BorderSetRecord &outBorderSet, std::vector<BorderSetItemRecord> &outItems, wxString &error) {
+		if (!root.is_object()) {
+			error = "Invalid JSON: expected an object.";
+			return false;
+		}
+		if (!root.contains("format") || !root["format"].is_string() || root["format"].get<std::string>() != "rme-materials") {
+			error = "Invalid JSON: unknown format.";
+			return false;
+		}
+		if (!root.contains("formatVersion") || !root["formatVersion"].is_number_integer() || root["formatVersion"].get<int>() != 1) {
+			error = "Invalid JSON: unsupported format version.";
+			return false;
+		}
+		if (!root.contains("entities") || !root["entities"].is_array() || root["entities"].empty()) {
+			error = "Invalid JSON: missing entities.";
+			return false;
+		}
+
+		const nlohmann::json *borderEntity = nullptr;
+		for (const nlohmann::json &entity : root["entities"]) {
+			if (!entity.is_object()) {
+				continue;
+			}
+			if (entity.contains("kind") && entity["kind"].is_string() && entity["kind"].get<std::string>() == "border_set") {
+				borderEntity = &entity;
+				break;
+			}
+		}
+		if (!borderEntity) {
+			error = "Invalid JSON: no border_set entity found.";
+			return false;
+		}
+
+		if (!borderEntity->contains("borderSet") || !(*borderEntity)["borderSet"].is_object()) {
+			error = "Invalid JSON: missing borderSet.";
+			return false;
+		}
+		const nlohmann::json &borderSet = (*borderEntity)["borderSet"];
+		if (!borderSet.contains("xmlBorderId") || !borderSet["xmlBorderId"].is_number_integer()) {
+			error = "Invalid JSON: missing xmlBorderId.";
+			return false;
+		}
+
+		outBorderSet = BorderSetRecord();
+		outBorderSet.xmlBorderId = borderSet["xmlBorderId"].get<int>();
+		if (outBorderSet.xmlBorderId <= 0) {
+			error = "Invalid JSON: xmlBorderId must be greater than zero.";
+			return false;
+		}
+		outBorderSet.borderScope = "global";
+		if (borderSet.contains("borderScope") && borderSet["borderScope"].is_string()) {
+			const std::string value = borderSet["borderScope"].get<std::string>();
+			outBorderSet.borderScope = wxString::FromUTF8(value.c_str());
+		}
+		if (!outBorderSet.borderScope.IsSameAs("global", false)) {
+			error = "Only global border sets are supported for import right now.";
+			return false;
+		}
+		if (borderSet.contains("borderType") && borderSet["borderType"].is_string()) {
+			const std::string value = borderSet["borderType"].get<std::string>();
+			outBorderSet.borderType = wxString::FromUTF8(value.c_str());
+		}
+		if (outBorderSet.borderType.IsEmpty()) {
+			outBorderSet.borderType = "normal";
+		}
+		if (borderSet.contains("borderGroup") && borderSet["borderGroup"].is_number_integer()) {
+			outBorderSet.borderGroup = borderSet["borderGroup"].get<int>();
+		}
+		if (borderSet.contains("groundEquivalent") && borderSet["groundEquivalent"].is_number_integer()) {
+			outBorderSet.groundEquivalent = borderSet["groundEquivalent"].get<int>();
+		}
+
+		if (!borderEntity->contains("items") || !(*borderEntity)["items"].is_array()) {
+			error = "Invalid JSON: missing items.";
+			return false;
+		}
+		outItems.clear();
+		for (const nlohmann::json &row : (*borderEntity)["items"]) {
+			if (!row.is_object()) {
+				continue;
+			}
+			if (!row.contains("edge") || !row["edge"].is_string()) {
+				error = "Invalid JSON: item missing edge.";
+				return false;
+			}
+			const std::string value = row["edge"].get<std::string>();
+			const wxString edge = wxString::FromUTF8(value.c_str());
+			if (!FindEdgeSpec(edge)) {
+				error = wxString::Format("Invalid JSON: unknown edge \"%s\".", edge);
+				return false;
+			}
+			if (!row.contains("itemId") || !row["itemId"].is_number_integer()) {
+				error = "Invalid JSON: item missing itemId.";
+				return false;
+			}
+			BorderSetItemRecord item;
+			item.edge = edge;
+			item.itemId = row["itemId"].get<int>();
+			item.sortOrder = static_cast<int>(outItems.size());
+			if (row.contains("sortOrder") && row["sortOrder"].is_number_integer()) {
+				item.sortOrder = row["sortOrder"].get<int>();
+			}
+			outItems.push_back(item);
+		}
+		return true;
+	}
+
 
 	class BorderEdgePreviewPanel final : public wxPanel {
 	public:
@@ -2341,10 +2483,16 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	headerSizer->Add(subtitleLabel_, 0);
 
 	wxBoxSizer* actionSizer = new wxBoxSizer(wxHORIZONTAL);
+	exportButton_ = new wxButton(this, wxID_ANY, "Export...");
+	importButton_ = new wxButton(this, wxID_ANY, "Import...");
 	saveButton_ = new wxButton(this, wxID_SAVE, "Save Border Set");
 	revertButton_ = new wxButton(this, wxID_ANY, "Revert");
+	StyleBorderWorkspaceActionButton(exportButton_, "Export this border set to a JSON file for sharing or backup.");
+	StyleBorderWorkspaceActionButton(importButton_, "Import a border set from a JSON file. This can create or update a border by Global Border ID.");
 	StyleBorderWorkspaceActionButton(saveButton_, "Write the current border set metadata and slots to materials.db.");
 	StyleBorderWorkspaceActionButton(revertButton_, "Discard local border edits and reload the current border set from materials.db.");
+	actionSizer->Add(exportButton_, 0, wxRIGHT, FromDIP(2));
+	actionSizer->Add(importButton_, 0, wxRIGHT, FromDIP(10));
 	actionSizer->Add(saveButton_, 0, wxRIGHT, FromDIP(2));
 	actionSizer->Add(revertButton_, 0);
 
@@ -2365,6 +2513,8 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	clearButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnClearSlot, this);
 	saveButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnSave, this);
 	revertButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnRevert, this);
+	exportButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnExportBorderSet, this);
+	importButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnImportBorderSet, this);
 	createBorderButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnCreateBorder, this);
 	deleteBorderButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnDeleteBorder, this);
 	selectedItemIdCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBorderPanel::OnSelectedItemIdChanged, this);
@@ -3030,6 +3180,12 @@ void MaterialsWorkbenchBorderPanel::UpdateActionButtons() {
 	if (revertButton_) {
 		revertButton_->Enable(hasBorderSet_ && dirty_);
 	}
+	if (exportButton_) {
+		exportButton_->Enable(hasBorderSet_);
+	}
+	if (importButton_) {
+		importButton_->Enable(true);
+	}
 	if (createBorderButton_) {
 		createBorderButton_->Enable(true);
 	}
@@ -3252,6 +3408,136 @@ void MaterialsWorkbenchBorderPanel::OnPickItem(wxCommandEvent &event) {
 
 	selectedItemIdCtrl_->SetValue(dialog.getResultID());
 	selectedItemPreview_->SetSprite(dialog.getResultID());
+}
+
+void MaterialsWorkbenchBorderPanel::OnExportBorderSet(wxCommandEvent &) {
+	if (!hasBorderSet_) {
+		SetStatusMessage("Load a border set before exporting.");
+		return;
+	}
+
+	const BorderSetStorageRecord storage = BuildComparableStorageFromCurrentState();
+	if (!storage.borderSet.borderScope.IsSameAs("global", false) || storage.borderSet.xmlBorderId <= 0) {
+		wxMessageBox("Export currently supports global border sets only.", "Export Border Set", wxOK | wxICON_WARNING, this);
+		return;
+	}
+
+	const wxString defaultName = wxString::Format("border-%d.rme-materials.json", storage.borderSet.xmlBorderId);
+	wxFileDialog dialog(
+		this,
+		"Export Border Set",
+		"",
+		defaultName,
+		"RME Materials JSON (*.rme-materials.json)|*.rme-materials.json|JSON (*.json)|*.json|All files (*.*)|*.*",
+		wxFD_SAVE | wxFD_OVERWRITE_PROMPT
+	);
+	if (dialog.ShowModal() != wxID_OK) {
+		return;
+	}
+
+	const wxString path = dialog.GetPath();
+	const nlohmann::json root = ExportBorderSetToJson(storage);
+
+	wxCharBuffer utf8 = path.ToUTF8();
+	std::ofstream out(utf8.data(), std::ios::binary | std::ios::trunc);
+	if (!out.is_open()) {
+		wxMessageBox("Failed to write the export file.", "Export Border Set", wxOK | wxICON_ERROR, this);
+		return;
+	}
+
+	out << root.dump(2);
+	out.close();
+
+	SetStatusMessage(wxString::Format("Exported Border %d to JSON.", storage.borderSet.xmlBorderId));
+}
+
+void MaterialsWorkbenchBorderPanel::OnImportBorderSet(wxCommandEvent &) {
+	wxFileDialog dialog(
+		this,
+		"Import Border Set",
+		"",
+		"",
+		"RME Materials JSON (*.rme-materials.json)|*.rme-materials.json|JSON (*.json)|*.json|All files (*.*)|*.*",
+		wxFD_OPEN | wxFD_FILE_MUST_EXIST
+	);
+	if (dialog.ShowModal() != wxID_OK) {
+		return;
+	}
+
+	const wxString path = dialog.GetPath();
+	wxCharBuffer utf8 = path.ToUTF8();
+	std::ifstream in(utf8.data(), std::ios::binary);
+	if (!in.is_open()) {
+		wxMessageBox("Failed to open the import file.", "Import Border Set", wxOK | wxICON_ERROR, this);
+		return;
+	}
+
+	nlohmann::json root;
+	try {
+		in >> root;
+	} catch (const nlohmann::json::parse_error &) {
+		wxMessageBox("Invalid JSON file.", "Import Border Set", wxOK | wxICON_ERROR, this);
+		return;
+	}
+
+	BorderSetRecord borderSet;
+	std::vector<BorderSetItemRecord> items;
+	wxString parseError;
+	if (!TryParseBorderSetExportJson(root, borderSet, items, parseError)) {
+		wxMessageBox(parseError, "Import Border Set", wxOK | wxICON_ERROR, this);
+		return;
+	}
+
+	BorderSetRecord existing;
+	const bool hasExisting = g_brush_database.findBorderSetByXmlBorderId(borderSet.xmlBorderId, existing) && existing.id > 0;
+	if (hasExisting) {
+		const int result = wxMessageBox(
+			wxString::Format("Border %d already exists. Import will overwrite its slot items.\n\nContinue?", borderSet.xmlBorderId),
+			"Import Border Set",
+			wxYES_NO | wxICON_WARNING,
+			this
+		);
+		if (result != wxYES) {
+			return;
+		}
+	}
+
+	if (hasBorderSet_ && dirty_) {
+		if (!ResolvePendingChangesBeforeSwitch(this, wxString::Format("Border %d", borderSet.xmlBorderId))) {
+			return;
+		}
+	}
+
+	int64_t borderSetId = 0;
+	if (!g_brush_database.upsertBorderSet(borderSet, borderSetId) || borderSetId <= 0) {
+		wxMessageBox(g_brush_database.getLastError(), "Import Border Set", wxOK | wxICON_ERROR, this);
+		return;
+	}
+
+	for (BorderSetItemRecord &item : items) {
+		item.borderSetId = borderSetId;
+	}
+	std::sort(items.begin(), items.end(), [](const BorderSetItemRecord &a, const BorderSetItemRecord &b) {
+		if (a.sortOrder != b.sortOrder) {
+			return a.sortOrder < b.sortOrder;
+		}
+		return a.edge < b.edge;
+	});
+	for (size_t i = 0; i < items.size(); ++i) {
+		items[i].sortOrder = static_cast<int>(i);
+	}
+
+	if (!g_brush_database.replaceBorderSetItems(borderSetId, items)) {
+		wxMessageBox(g_brush_database.getLastError(), "Import Border Set", wxOK | wxICON_ERROR, this);
+		return;
+	}
+
+	controller_.ReloadCatalog();
+	if (onBorderSetSaved_) {
+		onBorderSetSaved_(borderSetId);
+	}
+	ReloadBorderSetById(borderSetId);
+	SetStatusMessage(wxString::Format("Imported Border %d from JSON.", borderSet.xmlBorderId));
 }
 
 void MaterialsWorkbenchBorderPanel::OnSave(wxCommandEvent &event) {

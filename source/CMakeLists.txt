@@ -256,6 +256,8 @@ target_sources(
           materials_workbench_brush_panel.cpp
           materials_workbench_border_panel.cpp
           materials_workbench_controller.cpp
+          materials_workbench_exchange.cpp
+          materials_workbench_exchange_dialog.cpp
           materials_workbench_inspector_dialog.cpp
           materials_workbench_palette_panel.cpp
           materials_workbench_repository.cpp

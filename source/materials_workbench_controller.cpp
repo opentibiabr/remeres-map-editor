@@ -1003,6 +1003,10 @@ const std::vector<BrushRecord> &MaterialsWorkbenchController::GetWallBrushes() c
 	return catalog_.wallBrushes;
 }
 
+const std::vector<BorderSetRecord> &MaterialsWorkbenchController::GetGlobalBorderSets() const {
+	return catalog_.globalBorderSets;
+}
+
 const MaterialsWorkbenchBrushGroup* MaterialsWorkbenchController::FindBrushGroup(const wxString &contextKey) const {
 	for (const MaterialsWorkbenchBrushGroup &group : catalog_.brushGroups) {
 		if (group.brushType == contextKey) {

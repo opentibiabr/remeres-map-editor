@@ -9,6 +9,7 @@
 
 class wxPanel;
 class wxButton;
+class wxCommandEvent;
 class wxSearchCtrl;
 class wxSplitterWindow;
 class wxSimplebook;
@@ -45,6 +46,8 @@ private:
 	void RefreshInspectorForCurrentSelection();
 	void UpdateBrushNavigationBadge();
 	void OpenInspector();
+	void OnExportMaterials(wxCommandEvent &event);
+	void OnImportMaterials(wxCommandEvent &event);
 	bool GoToEntity(const wxString &entityKind, int64_t entityId, const wxString &entityName);
 	void HandlePaletteSaved(const wxString &paletteName);
 	void HandleBorderSetSaved(int64_t borderSetId);
@@ -61,6 +64,8 @@ private:
 	wxSimplebook* workspaceBook_ = nullptr;
 	wxTextCtrl* overviewText_ = nullptr;
 	wxButton* inspectorButton_ = nullptr;
+	wxButton* exportButton_ = nullptr;
+	wxButton* importButton_ = nullptr;
 	MaterialsWorkbenchInspectorDialog* inspectorDialog_ = nullptr;
 	wxString hoveredNavigationTooltipKey_;
 	wxString navigationFilterQuery_;
