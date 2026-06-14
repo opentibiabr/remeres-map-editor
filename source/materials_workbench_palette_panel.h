@@ -15,6 +15,7 @@ class wxButton;
 class wxChoice;
 class wxSplitterWindow;
 class wxStaticText;
+class wxTextCtrl;
 
 struct MaterialsWorkbenchAvailableBrushSource {
 	wxString familyKey;
@@ -104,6 +105,9 @@ private:
 	std::vector<wxString> paletteGroupKeys_;
 	std::vector<std::pair<int, int>> visibleEntryLocations_;
 	bool preserveSectionGridViewStart_ = false;
+	wxString sectionFilterQuery_;
+	wxString sourceFilterQuery_;
+	int sourceKindFilter_ = 0;
 
 	wxStaticText* titleLabel_ = nullptr;
 	wxStaticText* sourceLabel_ = nullptr;
@@ -111,12 +115,15 @@ private:
 	wxChoice* currentSectionChoice_ = nullptr;
 	wxStaticText* sectionSummaryLabel_ = nullptr;
 	wxStaticText* selectionSummaryLabel_ = nullptr;
+	wxTextCtrl* sectionFilterCtrl_ = nullptr;
 	MaterialsWorkbenchBrushGridPanel* sectionBrushGrid_ = nullptr;
 	wxChoice* availableBrushFamilyChoice_ = nullptr;
 	wxChoice* availableBrushPaletteChoice_ = nullptr;
 	wxChoice* moveDestinationFamilyChoice_ = nullptr;
 	wxChoice* moveDestinationPaletteChoice_ = nullptr;
 	wxStaticText* availableBrushSummaryLabel_ = nullptr;
+	wxChoice* sourceKindChoice_ = nullptr;
+	wxTextCtrl* sourceFilterCtrl_ = nullptr;
 	MaterialsWorkbenchBrushGridPanel* availableBrushGrid_ = nullptr;
 	wxButton* addBrushButton_ = nullptr;
 	wxButton* moveToPaletteButton_ = nullptr;

@@ -17,6 +17,7 @@
 #include <wx/sizer.h>
 #include <wx/statline.h>
 #include <wx/stattext.h>
+#include <wx/textctrl.h>
 #include <wx/textdlg.h>
 #include <wx/wrapsizer.h>
 
@@ -59,6 +60,7 @@ public:
 
 		Bind(wxEVT_PAINT, &MaterialsWorkbenchBrushGridPanel::OnPaint, this);
 		Bind(wxEVT_LEFT_DOWN, &MaterialsWorkbenchBrushGridPanel::OnLeftDown, this);
+		Bind(wxEVT_LEFT_DCLICK, &MaterialsWorkbenchBrushGridPanel::OnLeftDClick, this);
 		Bind(wxEVT_SIZE, &MaterialsWorkbenchBrushGridPanel::OnSize, this);
 		Bind(wxEVT_MOTION, &MaterialsWorkbenchBrushGridPanel::OnMouseMove, this);
 		UpdateVirtualSize();
@@ -66,6 +68,10 @@ public:
 
 	void SetSelectionChangedHandler(std::function<void(int)> handler) {
 		onSelectionChanged_ = std::move(handler);
+	}
+
+	void SetSelectionActivatedHandler(std::function<void(int)> handler) {
+		onSelectionActivated_ = std::move(handler);
 	}
 
 	void SetEmptyMessage(const wxString &message) {
@@ -280,6 +286,13 @@ private:
 		event.Skip();
 	}
 
+	void OnLeftDClick(wxMouseEvent &event) {
+		OnLeftDown(event);
+		if (onSelectionActivated_ && selectedIndex_ >= 0) {
+			onSelectionActivated_(selectedIndex_);
+		}
+	}
+
 	void OnSize(wxSizeEvent &event) {
 		InvalidatePreviewCacheIfNeeded();
 		UpdateVirtualSize();
@@ -454,6 +467,7 @@ private:
 	int hoveredTooltipItemPosition_ = wxNOT_FOUND;
 	wxString emptyMessage_;
 	std::function<void(int)> onSelectionChanged_;
+	std::function<void(int)> onSelectionActivated_;
 };
 
 namespace {
@@ -936,6 +950,9 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	paletteBrushActionsSizer->Add(moveUpButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(4));
 	paletteBrushActionsSizer->Add(moveDownButton_, 0, wxBOTTOM, FromDIP(4));
 	currentSectionSizer->Add(paletteBrushActionsSizer, 0, wxBOTTOM, FromDIP(4));
+	sectionFilterCtrl_ = new wxTextCtrl(currentSectionPanel, wxID_ANY);
+	sectionFilterCtrl_->SetHint("Filter entries");
+	currentSectionSizer->Add(sectionFilterCtrl_, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
 	moveDestinationSizer->Add(new wxStaticText(currentSectionPanel, wxID_ANY, "Destination Palette Category"), 0, wxALIGN_CENTER_VERTICAL);
 	moveDestinationSizer->Add(moveDestinationFamilyChoice_, 1, wxEXPAND);
 	moveDestinationSizer->Add(new wxStaticText(currentSectionPanel, wxID_ANY, "Destination Palette"), 0, wxALIGN_CENTER_VERTICAL);
@@ -963,6 +980,18 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	availableSizer->Add(sourceGridSizer, 0, wxBOTTOM, FromDIP(6));
 	availableBrushSummaryLabel_ = new wxStaticText(availablePanel, wxID_ANY, "");
 	availableSizer->Add(availableBrushSummaryLabel_, 0, wxBOTTOM, FromDIP(4));
+	wxFlexGridSizer* sourceFilterSizer = new wxFlexGridSizer(1, 2, 0, FromDIP(6));
+	sourceFilterSizer->AddGrowableCol(1, 1);
+	sourceKindChoice_ = new wxChoice(availablePanel, wxID_ANY);
+	sourceKindChoice_->Append("All");
+	sourceKindChoice_->Append("Brushes");
+	sourceKindChoice_->Append("Items");
+	sourceKindChoice_->SetSelection(0);
+	sourceFilterCtrl_ = new wxTextCtrl(availablePanel, wxID_ANY);
+	sourceFilterCtrl_->SetHint("Filter catalog");
+	sourceFilterSizer->Add(sourceKindChoice_, 0, wxALIGN_CENTER_VERTICAL);
+	sourceFilterSizer->Add(sourceFilterCtrl_, 1, wxEXPAND);
+	availableSizer->Add(sourceFilterSizer, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
 	availableBrushGrid_ = new MaterialsWorkbenchBrushGridPanel(availablePanel);
 	availableSizer->Add(availableBrushGrid_, 1, wxEXPAND);
 	availablePanel->SetSizer(availableSizer);
@@ -1033,6 +1062,30 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 		selectedAvailableBrushListIndex_ = index;
 		UpdateButtonState();
 	});
+	availableBrushGrid_->SetSelectionActivatedHandler([this](int index) {
+		selectedAvailableBrushListIndex_ = index;
+		UpdateButtonState();
+		if (addBrushButton_ && addBrushButton_->IsEnabled()) {
+			wxCommandEvent dummy;
+			OnAddBrush(dummy);
+		}
+	});
+	sectionFilterCtrl_->Bind(wxEVT_TEXT, [this](wxCommandEvent &event) {
+		sectionFilterQuery_ = TrimmedCopy(event.GetString());
+		preserveSectionGridViewStart_ = true;
+		RefreshSectionEntries();
+		UpdateButtonState();
+	});
+	sourceKindChoice_->Bind(wxEVT_CHOICE, [this](wxCommandEvent &) {
+		sourceKindFilter_ = sourceKindChoice_->GetSelection();
+		RefreshAvailableBrushes();
+		UpdateButtonState();
+	});
+	sourceFilterCtrl_->Bind(wxEVT_TEXT, [this](wxCommandEvent &event) {
+		sourceFilterQuery_ = TrimmedCopy(event.GetString());
+		RefreshAvailableBrushes();
+		UpdateButtonState();
+	});
 }
 
 void MaterialsWorkbenchPalettePanel::ClearWorkspace(const wxString &message) {
@@ -1043,6 +1096,9 @@ void MaterialsWorkbenchPalettePanel::ClearWorkspace(const wxString &message) {
 	currentAvailableEntries_.clear();
 	currentAvailableEntrySectionIndexes_.clear();
 	currentAvailableSourceTilesetIndex_ = -1;
+	sectionFilterQuery_.clear();
+	sourceFilterQuery_.clear();
+	sourceKindFilter_ = 0;
 	availableBrushFamilyKeys_.clear();
 	availableBrushPaletteSourceIndexes_.clear();
 	moveDestinationFamilyKeys_.clear();
@@ -1067,6 +1123,15 @@ void MaterialsWorkbenchPalettePanel::ClearWorkspace(const wxString &message) {
 	sectionBrushGrid_->Clear();
 	availableBrushGrid_->SetEmptyMessage("Select a palette to browse entries.");
 	availableBrushGrid_->Clear();
+	if (sectionFilterCtrl_) {
+		sectionFilterCtrl_->ChangeValue(wxString());
+	}
+	if (sourceKindChoice_) {
+		sourceKindChoice_->SetSelection(0);
+	}
+	if (sourceFilterCtrl_) {
+		sourceFilterCtrl_->ChangeValue(wxString());
+	}
 	SetStatusMessage(message);
 	UpdateButtonState();
 }
@@ -1197,6 +1262,8 @@ void MaterialsWorkbenchPalettePanel::RefreshSectionEntries() {
 	int unsupportedEntries = 0;
 	int missingPreviews = 0;
 	int hiddenOtherFamilyEntries = 0;
+	int filteredEntries = 0;
+	const wxString filterQueryLower = sectionFilterQuery_.Lower();
 	const wxString displayFamily = ResolvePaletteBrushDisplayFamily(palette_);
 	for (size_t sectionIndex = 0; sectionIndex < palette_.sections.size(); ++sectionIndex) {
 		const TilesetSectionRecord &section = palette_.sections[sectionIndex];
@@ -1208,6 +1275,10 @@ void MaterialsWorkbenchPalettePanel::RefreshSectionEntries() {
 			const TilesetEntryRecord &entry = section.entries[entryIndex];
 			const wxString baseLabel = DescribePaletteEntry(controller_, entry);
 			const wxString displayLabel = baseLabel;
+			if (!filterQueryLower.IsEmpty() && !displayLabel.Lower().Contains(filterQueryLower)) {
+				++filteredEntries;
+				continue;
+			}
 			const int visibleIndex = static_cast<int>(visibleEntryLocations_.size());
 
 			if (entry.entryKind.IsSameAs("brush", false)) {
@@ -1246,6 +1317,9 @@ void MaterialsWorkbenchPalettePanel::RefreshSectionEntries() {
 	}
 
 	wxString summary = wxString::Format("%zu entries in this palette.", items.size());
+	if (filteredEntries > 0) {
+		summary += wxString::Format(" %d entries are hidden by the filter.", filteredEntries);
+	}
 	if (hiddenOtherFamilyEntries > 0) {
 		summary += wxString::Format(" %d entries from other families are hidden in this view.", hiddenOtherFamilyEntries);
 	}
@@ -1405,6 +1479,8 @@ void MaterialsWorkbenchPalettePanel::RefreshAvailableBrushes() {
 	int brushEntryCount = 0;
 	int itemEntryCount = 0;
 	int hiddenOtherFamilyEntries = 0;
+	int filteredEntries = 0;
+	const wxString filterQueryLower = sourceFilterQuery_.Lower();
 
 	for (size_t sectionIndex = 0; sectionIndex < sourceTileset.sections.size(); ++sectionIndex) {
 		const TilesetSectionRecord &section = sourceTileset.sections[sectionIndex];
@@ -1414,7 +1490,19 @@ void MaterialsWorkbenchPalettePanel::RefreshAvailableBrushes() {
 		}
 
 		for (const TilesetEntryRecord &entry : section.entries) {
+			if (sourceKindFilter_ == 1 && !entry.entryKind.IsSameAs("brush", false)) {
+				++filteredEntries;
+				continue;
+			}
+			if (sourceKindFilter_ == 2 && !entry.entryKind.IsSameAs("item", false)) {
+				++filteredEntries;
+				continue;
+			}
 			const wxString label = DescribePaletteEntry(controller_, entry);
+			if (!filterQueryLower.IsEmpty() && !label.Lower().Contains(filterQueryLower)) {
+				++filteredEntries;
+				continue;
+			}
 			const wxString tooltip = BuildPaletteEntryTooltip(controller_, sourceTileset, section, entry);
 			const int visibleIndex = static_cast<int>(currentAvailableEntries_.size());
 
@@ -1453,6 +1541,9 @@ void MaterialsWorkbenchPalettePanel::RefreshAvailableBrushes() {
 	wxString summary = wxString::Format("%zu entries available in %s / %s.", items.size(), BuildPaletteFamilyLabel(source.familyKey), source.paletteLabel);
 	if (brushEntryCount > 0 || itemEntryCount > 0) {
 		summary += wxString::Format(" %d brush / %d item.", brushEntryCount, itemEntryCount);
+	}
+	if (filteredEntries > 0) {
+		summary += wxString::Format(" %d entries are hidden by filters.", filteredEntries);
 	}
 	if (hiddenOtherFamilyEntries > 0) {
 		summary += wxString::Format(" %d entries from other families are hidden in this view.", hiddenOtherFamilyEntries);
