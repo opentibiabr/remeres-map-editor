@@ -3,13 +3,16 @@
 #include "materials_workbench_border_panel.h"
 
 #include <array>
+#include <unordered_map>
 #include <utility>
 
 #include <wx/button.h>
 #include <wx/choice.h>
 #include <wx/choicdlg.h>
 #include <wx/dcbuffer.h>
+#include <wx/dcmemory.h>
 #include <wx/grid.h>
+#include <wx/imaglist.h>
 #include <wx/listbox.h>
 #include <wx/listctrl.h>
 #include <wx/msgdlg.h>
@@ -25,6 +28,7 @@
 #include <wx/wrapsizer.h>
 
 #include "common_windows.h"
+#include "brush_database.h"
 #include "find_item_window.h"
 #include "graphics.h"
 #include "items.h"
@@ -92,6 +96,79 @@ namespace {
 		return nullptr;
 	}
 
+	int ToItemPreviewSpriteId(int itemId) {
+		if (!IsKnownBorderPanelItemId(itemId)) {
+			return 0;
+		}
+		return g_items[static_cast<uint16_t>(itemId)].clientID;
+	}
+
+	wxBitmap RenderSpriteToBitmap(int spriteId) {
+		Sprite* sprite = g_gui.gfx.getSprite(spriteId);
+		if (!sprite) {
+			return wxBitmap();
+		}
+
+		wxBitmap bitmap(32, 32, 32);
+		wxMemoryDC dc(bitmap);
+		dc.SetBackground(wxBrush(wxSystemSettings::GetColour(wxSYS_COLOUR_3DFACE)));
+		dc.Clear();
+		sprite->DrawTo(&dc, SPRITE_SIZE_32x32, 0, 0, 32, 32);
+		dc.SelectObject(wxNullBitmap);
+		return bitmap;
+	}
+
+	class BorderEdgePreviewPanel final : public wxPanel {
+	public:
+		explicit BorderEdgePreviewPanel(wxWindow* parent) :
+			wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(FromDIP(56), FromDIP(56)), wxBORDER_THEME) {
+			SetBackgroundStyle(wxBG_STYLE_PAINT);
+			Bind(wxEVT_PAINT, &BorderEdgePreviewPanel::OnPaint, this);
+		}
+
+		void SetEdge(const wxString &edge) {
+			edge_ = edge;
+			Refresh();
+		}
+
+		void ClearEdge() {
+			edge_.clear();
+			Refresh();
+		}
+
+	private:
+		void OnPaint(wxPaintEvent &) {
+			wxAutoBufferedPaintDC dc(this);
+			dc.SetBackground(wxBrush(GetBackgroundColour()));
+			dc.Clear();
+
+			const wxSize size = GetClientSize();
+			const int gridSize = 5;
+			const int cell = std::max(FromDIP(6), std::min(size.GetWidth(), size.GetHeight()) / (gridSize + 1));
+			const int gridW = cell * gridSize;
+			const int gridH = cell * gridSize;
+			const int startX = (size.GetWidth() - gridW) / 2;
+			const int startY = (size.GetHeight() - gridH) / 2;
+
+			const BorderEdgeSpec* spec = FindEdgeSpec(edge_);
+			wxColour border = wxSystemSettings::GetColour(wxSYS_COLOUR_3DSHADOW);
+			wxColour fill = wxSystemSettings::GetColour(wxSYS_COLOUR_3DFACE);
+			wxColour highlight = wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT);
+
+			for (int row = 0; row < gridSize; ++row) {
+				for (int col = 0; col < gridSize; ++col) {
+					wxRect rect(startX + col * cell, startY + row * cell, cell, cell);
+					const bool isTarget = spec && row == spec->row && col == spec->col;
+					dc.SetPen(wxPen(border));
+					dc.SetBrush(wxBrush(isTarget ? highlight : fill));
+					dc.DrawRectangle(rect);
+				}
+			}
+		}
+
+		wxString edge_;
+	};
+
 	bool IsBorderGridCenterCell(int row, int col) {
 		return row == kBorderGridCenterIndex && col == kBorderGridCenterIndex;
 	}
@@ -99,6 +176,44 @@ namespace {
 	wxString GetBorderEdgeDisplayLabel(const wxString &edge) {
 		const BorderEdgeSpec* spec = FindEdgeSpec(edge);
 		return spec ? wxString::FromUTF8(spec->label) : edge;
+	}
+
+	wxString FormatSpecificCaseTypeLabel(const wxString &type) {
+		if (type.IsSameAs("match_border", false)) {
+			return "Match Border";
+		}
+		if (type.IsSameAs("match_group", false)) {
+			return "Match Group";
+		}
+		if (type.IsSameAs("match_item", false)) {
+			return "Match Item";
+		}
+		if (type.IsSameAs("replace_border", false)) {
+			return "Replace Border";
+		}
+		if (type.IsSameAs("replace_item", false)) {
+			return "Replace Item";
+		}
+		if (type.IsSameAs("delete_borders", false)) {
+			return "Delete Borders";
+		}
+		return type;
+	}
+
+	wxString FormatSpecificCaseValueLabel(const wxString &type, int value) {
+		if (value <= 0) {
+			return "-";
+		}
+		if (type.IsSameAs("match_border", false) || type.IsSameAs("replace_border", false)) {
+			return wxString::Format("Border #%d", value);
+		}
+		if (type.IsSameAs("match_group", false)) {
+			return wxString::Format("Group #%d", value);
+		}
+		if (type.IsSameAs("match_item", false) || type.IsSameAs("replace_item", false)) {
+			return wxString::Format("Item #%d", value);
+		}
+		return wxString::Format("%d", value);
 	}
 
 	wxString FormatOptionalBorderItemText(int itemId, const wxString &emptyLabel = "not set") {
@@ -602,13 +717,20 @@ namespace {
 			}
 			valueCtrl_ = new wxSpinCtrl(this, wxID_ANY);
 			valueCtrl_->SetRange(0, std::numeric_limits<int>::max());
+			itemPreview_ = new ItemButton(this, RENDER_SIZE_32x32, 0);
+			pickItemButton_ = new wxButton(this, wxID_ANY, "Pick");
+			StyleBorderWorkspaceActionButton(pickItemButton_, "Pick an item id.");
+			wxBoxSizer* valueRow = new wxBoxSizer(wxHORIZONTAL);
+			valueRow->Add(valueCtrl_, 1, wxRIGHT, FromDIP(6));
+			valueRow->Add(itemPreview_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
+			valueRow->Add(pickItemButton_, 0, wxALIGN_CENTER_VERTICAL);
 
 			formSizer->Add(new wxStaticText(this, wxID_ANY, "Type"), 0, wxALIGN_CENTER_VERTICAL);
 			formSizer->Add(typeChoice_, 1, wxEXPAND);
 			formSizer->Add(new wxStaticText(this, wxID_ANY, "Edge"), 0, wxALIGN_CENTER_VERTICAL);
 			formSizer->Add(edgeChoice_, 1, wxEXPAND);
 			formSizer->Add(new wxStaticText(this, wxID_ANY, "Value"), 0, wxALIGN_CENTER_VERTICAL);
-			formSizer->Add(valueCtrl_, 1, wxEXPAND);
+			formSizer->Add(valueRow, 1, wxEXPAND);
 
 			rootSizer->Add(formSizer, 1, wxEXPAND | wxALL, FromDIP(12));
 
@@ -632,6 +754,10 @@ namespace {
 			UpdateFieldVisibility();
 
 			typeChoice_->Bind(wxEVT_CHOICE, &GroundSpecificConditionDialog::OnTypeChanged, this);
+			valueCtrl_->Bind(wxEVT_TEXT, &GroundSpecificConditionDialog::OnValueChanged, this);
+			valueCtrl_->Bind(wxEVT_SPINCTRL, [this](wxSpinEvent &) { RefreshItemPreview(); });
+			itemPreview_->Bind(wxEVT_BUTTON, &GroundSpecificConditionDialog::OnPickItem, this);
+			pickItemButton_->Bind(wxEVT_BUTTON, &GroundSpecificConditionDialog::OnPickItem, this);
 		}
 
 		const GroundBorderCaseConditionRecord &GetValue() const { return value_; }
@@ -669,15 +795,40 @@ namespace {
 			const wxString type = typeChoice_->GetStringSelection();
 			const bool needsEdge = !type.IsSameAs("match_item", false);
 			edgeChoice_->Show(needsEdge);
+			itemPreview_->Show(!needsEdge);
+			pickItemButton_->Show(!needsEdge);
+			RefreshItemPreview();
 			okButton_->Enable(true);
 			Layout();
 			Fit();
+		}
+
+		void RefreshItemPreview() {
+			if (!itemPreview_->IsShown()) {
+				itemPreview_->SetSprite(0);
+				return;
+			}
+			itemPreview_->SetSprite(ToItemPreviewSpriteId(valueCtrl_->GetValue()));
+		}
+
+		void OnValueChanged(wxCommandEvent &) { RefreshItemPreview(); }
+
+		void OnPickItem(wxCommandEvent &) {
+			FindItemDialog dialog(this, "Select Item");
+			dialog.setSearchMode(FindItemDialog::ItemIDs);
+			if (dialog.ShowModal() != wxID_OK) {
+				return;
+			}
+			valueCtrl_->SetValue(dialog.getResultID());
+			RefreshItemPreview();
 		}
 
 		GroundBorderCaseConditionRecord value_;
 		wxChoice* typeChoice_ = nullptr;
 		wxChoice* edgeChoice_ = nullptr;
 		wxSpinCtrl* valueCtrl_ = nullptr;
+		ItemButton* itemPreview_ = nullptr;
+		wxButton* pickItemButton_ = nullptr;
 		wxButton* okButton_ = nullptr;
 	};
 
@@ -703,15 +854,29 @@ namespace {
 			targetCtrl_->SetRange(0, std::numeric_limits<int>::max());
 			withCtrl_ = new wxSpinCtrl(this, wxID_ANY);
 			withCtrl_->SetRange(0, std::numeric_limits<int>::max());
+			targetPreview_ = new ItemButton(this, RENDER_SIZE_32x32, 0);
+			withPreview_ = new ItemButton(this, RENDER_SIZE_32x32, 0);
+			pickTargetButton_ = new wxButton(this, wxID_ANY, "Pick");
+			pickWithButton_ = new wxButton(this, wxID_ANY, "Pick");
+			StyleBorderWorkspaceActionButton(pickTargetButton_, "Pick the target item id.");
+			StyleBorderWorkspaceActionButton(pickWithButton_, "Pick the replacement item id.");
+			wxBoxSizer* targetRow = new wxBoxSizer(wxHORIZONTAL);
+			targetRow->Add(targetCtrl_, 1, wxRIGHT, FromDIP(6));
+			targetRow->Add(targetPreview_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
+			targetRow->Add(pickTargetButton_, 0, wxALIGN_CENTER_VERTICAL);
+			wxBoxSizer* withRow = new wxBoxSizer(wxHORIZONTAL);
+			withRow->Add(withCtrl_, 1, wxRIGHT, FromDIP(6));
+			withRow->Add(withPreview_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
+			withRow->Add(pickWithButton_, 0, wxALIGN_CENTER_VERTICAL);
 
 			formSizer->Add(new wxStaticText(this, wxID_ANY, "Type"), 0, wxALIGN_CENTER_VERTICAL);
 			formSizer->Add(typeChoice_, 1, wxEXPAND);
 			formSizer->Add(new wxStaticText(this, wxID_ANY, "Edge"), 0, wxALIGN_CENTER_VERTICAL);
 			formSizer->Add(edgeChoice_, 1, wxEXPAND);
 			formSizer->Add(new wxStaticText(this, wxID_ANY, "Target"), 0, wxALIGN_CENTER_VERTICAL);
-			formSizer->Add(targetCtrl_, 1, wxEXPAND);
+			formSizer->Add(targetRow, 1, wxEXPAND);
 			formSizer->Add(new wxStaticText(this, wxID_ANY, "With"), 0, wxALIGN_CENTER_VERTICAL);
-			formSizer->Add(withCtrl_, 1, wxEXPAND);
+			formSizer->Add(withRow, 1, wxEXPAND);
 
 			rootSizer->Add(formSizer, 1, wxEXPAND | wxALL, FromDIP(12));
 
@@ -736,6 +901,14 @@ namespace {
 			UpdateFieldVisibility();
 
 			typeChoice_->Bind(wxEVT_CHOICE, &GroundSpecificActionDialog::OnTypeChanged, this);
+			targetCtrl_->Bind(wxEVT_TEXT, &GroundSpecificActionDialog::OnValuesChanged, this);
+			targetCtrl_->Bind(wxEVT_SPINCTRL, [this](wxSpinEvent &) { RefreshItemPreviews(); });
+			withCtrl_->Bind(wxEVT_TEXT, &GroundSpecificActionDialog::OnValuesChanged, this);
+			withCtrl_->Bind(wxEVT_SPINCTRL, [this](wxSpinEvent &) { RefreshItemPreviews(); });
+			targetPreview_->Bind(wxEVT_BUTTON, &GroundSpecificActionDialog::OnPickTarget, this);
+			withPreview_->Bind(wxEVT_BUTTON, &GroundSpecificActionDialog::OnPickWith, this);
+			pickTargetButton_->Bind(wxEVT_BUTTON, &GroundSpecificActionDialog::OnPickTarget, this);
+			pickWithButton_->Bind(wxEVT_BUTTON, &GroundSpecificActionDialog::OnPickWith, this);
 		}
 
 		const GroundBorderCaseActionRecord &GetValue() const { return value_; }
@@ -779,15 +952,53 @@ namespace {
 
 		void UpdateFieldVisibility() {
 			const wxString type = typeChoice_->GetStringSelection();
+			const bool isReplaceItem = type.IsSameAs("replace_item", false);
 			const bool needsEdge = type.IsSameAs("replace_border", false);
 			const bool needsTarget = !type.IsSameAs("delete_borders", false);
 			const bool needsWith = type.IsSameAs("replace_border", false) || type.IsSameAs("replace_item", false);
 			edgeChoice_->Show(needsEdge);
 			targetCtrl_->Show(needsTarget);
 			withCtrl_->Show(needsWith);
+			targetPreview_->Show(isReplaceItem);
+			withPreview_->Show(isReplaceItem);
+			pickTargetButton_->Show(isReplaceItem);
+			pickWithButton_->Show(isReplaceItem);
+			RefreshItemPreviews();
 			okButton_->Enable(true);
 			Layout();
 			Fit();
+		}
+
+		void RefreshItemPreviews() {
+			if (!targetPreview_->IsShown()) {
+				targetPreview_->SetSprite(0);
+				withPreview_->SetSprite(0);
+				return;
+			}
+			targetPreview_->SetSprite(ToItemPreviewSpriteId(targetCtrl_->GetValue()));
+			withPreview_->SetSprite(ToItemPreviewSpriteId(withCtrl_->GetValue()));
+		}
+
+		void OnValuesChanged(wxCommandEvent &) { RefreshItemPreviews(); }
+
+		void OnPickTarget(wxCommandEvent &) {
+			FindItemDialog dialog(this, "Select Target Item");
+			dialog.setSearchMode(FindItemDialog::ItemIDs);
+			if (dialog.ShowModal() != wxID_OK) {
+				return;
+			}
+			targetCtrl_->SetValue(dialog.getResultID());
+			RefreshItemPreviews();
+		}
+
+		void OnPickWith(wxCommandEvent &) {
+			FindItemDialog dialog(this, "Select Replacement Item");
+			dialog.setSearchMode(FindItemDialog::ItemIDs);
+			if (dialog.ShowModal() != wxID_OK) {
+				return;
+			}
+			withCtrl_->SetValue(dialog.getResultID());
+			RefreshItemPreviews();
 		}
 
 		GroundBorderCaseActionRecord value_;
@@ -795,6 +1006,10 @@ namespace {
 		wxChoice* edgeChoice_ = nullptr;
 		wxSpinCtrl* targetCtrl_ = nullptr;
 		wxSpinCtrl* withCtrl_ = nullptr;
+		ItemButton* targetPreview_ = nullptr;
+		ItemButton* withPreview_ = nullptr;
+		wxButton* pickTargetButton_ = nullptr;
+		wxButton* pickWithButton_ = nullptr;
 		wxButton* okButton_ = nullptr;
 	};
 
@@ -832,9 +1047,30 @@ namespace {
 			warningLabel_ = new wxStaticText(detailPanel, wxID_ANY, "");
 			StyleBorderWorkspaceCaption(warningLabel_);
 			conditionsList_ = new wxListCtrl(detailPanel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_THEME);
-			conditionsList_->InsertColumn(0, "Conditions");
+			conditionsList_->InsertColumn(0, "");
+			conditionsList_->InsertColumn(1, "Type");
+			conditionsList_->InsertColumn(2, "Edge");
+			conditionsList_->InsertColumn(3, "Value");
+			conditionsList_->SetColumnWidth(0, FromDIP(44));
+			conditionsList_->SetColumnWidth(1, FromDIP(160));
+			conditionsList_->SetColumnWidth(2, FromDIP(100));
+			conditionsList_->SetColumnWidth(3, FromDIP(160));
 			actionsList_ = new wxListCtrl(detailPanel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_THEME);
-			actionsList_->InsertColumn(0, "Actions");
+			actionsList_->InsertColumn(0, "");
+			actionsList_->InsertColumn(1, "Type");
+			actionsList_->InsertColumn(2, "Edge");
+			actionsList_->InsertColumn(3, "Target");
+			actionsList_->InsertColumn(4, "With");
+			actionsList_->SetColumnWidth(0, FromDIP(44));
+			actionsList_->SetColumnWidth(1, FromDIP(160));
+			actionsList_->SetColumnWidth(2, FromDIP(100));
+			actionsList_->SetColumnWidth(3, FromDIP(160));
+			actionsList_->SetColumnWidth(4, FromDIP(160));
+
+			conditionImages_ = new wxImageList(32, 32, true);
+			actionImages_ = new wxImageList(32, 32, true);
+			conditionsList_->AssignImageList(conditionImages_, wxIMAGE_LIST_SMALL);
+			actionsList_->AssignImageList(actionImages_, wxIMAGE_LIST_SMALL);
 
 			wxBoxSizer* condButtons = new wxBoxSizer(wxHORIZONTAL);
 			addCondButton_ = new wxButton(detailPanel, wxID_ANY, "Add");
@@ -876,6 +1112,22 @@ namespace {
 			detailSizer->Add(condButtons, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
 			detailSizer->Add(new wxStaticText(detailPanel, wxID_ANY, "Actions"), 0, wxBOTTOM, FromDIP(4));
 			detailSizer->Add(actionsList_, 1, wxEXPAND | wxBOTTOM, FromDIP(4));
+			wxBoxSizer* selectionRow = new wxBoxSizer(wxHORIZONTAL);
+			selectionEdgePreview_ = new BorderEdgePreviewPanel(detailPanel);
+			selectionPreviewPrimary_ = new ItemButton(detailPanel, RENDER_SIZE_32x32, 0);
+			selectionPreviewSecondary_ = new ItemButton(detailPanel, RENDER_SIZE_32x32, 0);
+			selectionPreviewArrow_ = new wxStaticText(detailPanel, wxID_ANY, "→");
+			selectionPreviewPrimary_->Enable(false);
+			selectionPreviewSecondary_->Enable(false);
+			StyleBorderWorkspaceCaption(selectionPreviewArrow_);
+			selectionPreviewLabel_ = new wxStaticText(detailPanel, wxID_ANY, "Select a condition or action to see details.");
+			StyleBorderWorkspaceCaption(selectionPreviewLabel_);
+			selectionRow->Add(selectionEdgePreview_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(10));
+			selectionRow->Add(selectionPreviewPrimary_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
+			selectionRow->Add(selectionPreviewArrow_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
+			selectionRow->Add(selectionPreviewSecondary_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
+			selectionRow->Add(selectionPreviewLabel_, 1, wxALIGN_CENTER_VERTICAL);
+			detailSizer->Add(selectionRow, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
 			detailSizer->Add(actButtons, 0, wxEXPAND);
 			detailPanel->SetSizer(detailSizer);
 
@@ -906,7 +1158,9 @@ namespace {
 			conditionsList_->Bind(wxEVT_LIST_ITEM_ACTIVATED, &GroundSpecificCasesDialog::OnConditionActivated, this);
 			conditionsList_->Bind(wxEVT_LIST_ITEM_SELECTED, [this](wxListEvent &event) {
 				selectedConditionIndex_ = event.GetIndex();
+				activeSelectionIsAction_ = false;
 				UpdateButtons();
+				RefreshSelectionPreview();
 			});
 
 			addActButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnAddAction, this);
@@ -917,7 +1171,9 @@ namespace {
 			actionsList_->Bind(wxEVT_LIST_ITEM_ACTIVATED, &GroundSpecificCasesDialog::OnActionActivated, this);
 			actionsList_->Bind(wxEVT_LIST_ITEM_SELECTED, [this](wxListEvent &event) {
 				selectedActionIndex_ = event.GetIndex();
+				activeSelectionIsAction_ = true;
 				UpdateButtons();
+				RefreshSelectionPreview();
 			});
 
 			RefreshCaseList();
@@ -927,6 +1183,76 @@ namespace {
 		const std::vector<GroundBorderCaseRecord> &GetCases() const { return cases_; }
 
 	private:
+		int ResolveBorderEdgeSpriteId(int xmlBorderId, const wxString &edge) {
+			if (xmlBorderId <= 0 || edge.IsEmpty()) {
+				return 0;
+			}
+			auto it = borderSetItemsByXmlId_.find(xmlBorderId);
+			if (it == borderSetItemsByXmlId_.end()) {
+				BorderSetRecord borderSet;
+				if (!g_brush_database.findBorderSetByXmlBorderId(xmlBorderId, borderSet) || borderSet.id <= 0) {
+					borderSetItemsByXmlId_.insert({ xmlBorderId, std::vector<BorderSetItemRecord>() });
+					return 0;
+				}
+				std::vector<BorderSetItemRecord> items;
+				if (!g_brush_database.getBorderSetItems(borderSet.id, items)) {
+					borderSetItemsByXmlId_.insert({ xmlBorderId, std::vector<BorderSetItemRecord>() });
+					return 0;
+				}
+				it = borderSetItemsByXmlId_.insert({ xmlBorderId, std::move(items) }).first;
+			}
+
+			const std::vector<BorderSetItemRecord> &items = it->second;
+			int bestItemId = 0;
+			int bestSortOrder = std::numeric_limits<int>::max();
+			for (const BorderSetItemRecord &item : items) {
+				if (!item.edge.IsSameAs(edge, false) || item.itemId <= 0) {
+					continue;
+				}
+				if (item.sortOrder < bestSortOrder) {
+					bestSortOrder = item.sortOrder;
+					bestItemId = item.itemId;
+				}
+			}
+			return ToItemPreviewSpriteId(bestItemId);
+		}
+
+		int EnsureConditionIcon(int spriteId) {
+			if (spriteId <= 0) {
+				return -1;
+			}
+			for (const IconCacheEntry &entry : conditionIconCache_) {
+				if (entry.spriteId == spriteId) {
+					return entry.imageIndex;
+				}
+			}
+			const wxBitmap bitmap = RenderSpriteToBitmap(spriteId);
+			if (!bitmap.IsOk()) {
+				return -1;
+			}
+			const int imageIndex = conditionImages_->Add(bitmap);
+			conditionIconCache_.push_back({ spriteId, imageIndex });
+			return imageIndex;
+		}
+
+		int EnsureActionIcon(int spriteId) {
+			if (spriteId <= 0) {
+				return -1;
+			}
+			for (const IconCacheEntry &entry : actionIconCache_) {
+				if (entry.spriteId == spriteId) {
+					return entry.imageIndex;
+				}
+			}
+			const wxBitmap bitmap = RenderSpriteToBitmap(spriteId);
+			if (!bitmap.IsOk()) {
+				return -1;
+			}
+			const int imageIndex = actionImages_->Add(bitmap);
+			actionIconCache_.push_back({ spriteId, imageIndex });
+			return imageIndex;
+		}
+
 		void RefreshCaseList() {
 			caseList_->Clear();
 			for (size_t i = 0; i < cases_.size(); ++i) {
@@ -953,23 +1279,58 @@ namespace {
 		void RefreshDetails() {
 			conditionsList_->DeleteAllItems();
 			actionsList_->DeleteAllItems();
+			conditionImages_->RemoveAll();
+			actionImages_->RemoveAll();
+			conditionIconCache_.clear();
+			actionIconCache_.clear();
+			borderSetItemsByXmlId_.clear();
 			selectedConditionIndex_ = -1;
 			selectedActionIndex_ = -1;
+			activeSelectionIsAction_ = false;
 			if (selectedCaseIndex_ < 0 || selectedCaseIndex_ >= static_cast<int>(cases_.size())) {
 				warningLabel_->SetLabel("Select a case to edit its conditions and actions.");
+				RefreshSelectionPreview();
 				UpdateButtons();
 				return;
 			}
 
 			const GroundBorderCaseRecord &caseRecord = cases_[static_cast<size_t>(selectedCaseIndex_)];
 			for (size_t i = 0; i < caseRecord.conditions.size(); ++i) {
-				conditionsList_->InsertItem(static_cast<long>(i), DescribeGroundCaseCondition(caseRecord.conditions[i]));
+				const GroundBorderCaseConditionRecord &condition = caseRecord.conditions[i];
+				int spriteId = 0;
+				if (condition.conditionType.IsSameAs("match_item", false)) {
+					spriteId = ToItemPreviewSpriteId(condition.matchValue);
+				} else if (condition.conditionType.IsSameAs("match_border", false)) {
+					spriteId = ResolveBorderEdgeSpriteId(condition.matchValue, condition.edge);
+				}
+				const long row = conditionsList_->InsertItem(static_cast<long>(i), "", EnsureConditionIcon(spriteId));
+				conditionsList_->SetItem(row, 1, FormatSpecificCaseTypeLabel(condition.conditionType));
+				conditionsList_->SetItem(row, 2, condition.edge.IsEmpty() ? "-" : GetBorderEdgeDisplayLabel(condition.edge));
+				conditionsList_->SetItem(row, 3, FormatSpecificCaseValueLabel(condition.conditionType, condition.matchValue));
 			}
 			for (size_t i = 0; i < caseRecord.actions.size(); ++i) {
-				actionsList_->InsertItem(static_cast<long>(i), DescribeGroundCaseAction(caseRecord.actions[i]));
+				const GroundBorderCaseActionRecord &action = caseRecord.actions[i];
+				int spriteId = 0;
+				if (action.actionType.IsSameAs("replace_item", false)) {
+					spriteId = ToItemPreviewSpriteId(action.replacementValue);
+				} else if (action.actionType.IsSameAs("replace_border", false)) {
+					spriteId = ResolveBorderEdgeSpriteId(action.replacementValue, action.edge);
+				}
+				const long row = actionsList_->InsertItem(static_cast<long>(i), "", EnsureActionIcon(spriteId));
+				actionsList_->SetItem(row, 1, FormatSpecificCaseTypeLabel(action.actionType));
+				actionsList_->SetItem(row, 2, action.edge.IsEmpty() ? "-" : GetBorderEdgeDisplayLabel(action.edge));
+				if (action.actionType.IsSameAs("delete_borders", false)) {
+					actionsList_->SetItem(row, 3, "");
+					actionsList_->SetItem(row, 4, "");
+				} else if (action.actionType.IsSameAs("replace_item", false)) {
+					actionsList_->SetItem(row, 3, FormatSpecificCaseValueLabel(action.actionType, action.targetValue));
+					actionsList_->SetItem(row, 4, FormatSpecificCaseValueLabel(action.actionType, action.replacementValue));
+				} else {
+					actionsList_->SetItem(row, 3, FormatSpecificCaseValueLabel(action.actionType, action.targetValue));
+					actionsList_->SetItem(row, 4, FormatSpecificCaseValueLabel(action.actionType, action.replacementValue));
+				}
 			}
-			conditionsList_->SetColumnWidth(0, wxLIST_AUTOSIZE_USEHEADER);
-			actionsList_->SetColumnWidth(0, wxLIST_AUTOSIZE_USEHEADER);
+			RefreshSelectionPreview();
 
 			wxString warning;
 			if (caseRecord.conditions.empty()) {
@@ -980,6 +1341,70 @@ namespace {
 			}
 			warningLabel_->SetLabel(warning);
 			UpdateButtons();
+		}
+
+		void RefreshSelectionPreview() {
+			auto SetPreviewItem = [](ItemButton *button, int itemId) {
+				button->SetSprite(ToItemPreviewSpriteId(itemId));
+			};
+
+			selectionEdgePreview_->ClearEdge();
+			SetPreviewItem(selectionPreviewPrimary_, 0);
+			SetPreviewItem(selectionPreviewSecondary_, 0);
+			selectionEdgePreview_->Hide();
+			selectionPreviewPrimary_->Hide();
+			selectionPreviewSecondary_->Hide();
+			selectionPreviewArrow_->Hide();
+			selectionPreviewLabel_->SetLabel("Select a condition or action to see details.");
+
+			if (selectedCaseIndex_ < 0 || selectedCaseIndex_ >= static_cast<int>(cases_.size())) {
+				Layout();
+				return;
+			}
+
+			const GroundBorderCaseRecord &caseRecord = cases_[static_cast<size_t>(selectedCaseIndex_)];
+			if (activeSelectionIsAction_) {
+				if (selectedActionIndex_ < 0 || selectedActionIndex_ >= static_cast<int>(caseRecord.actions.size())) {
+					Layout();
+					return;
+				}
+				const GroundBorderCaseActionRecord &action = caseRecord.actions[static_cast<size_t>(selectedActionIndex_)];
+				selectionPreviewLabel_->SetLabel(DescribeGroundCaseAction(action));
+				selectionEdgePreview_->SetEdge(action.edge);
+				selectionEdgePreview_->Show(!action.edge.IsEmpty());
+				if (action.actionType.IsSameAs("replace_item", false)) {
+					SetPreviewItem(selectionPreviewPrimary_, action.targetValue);
+					SetPreviewItem(selectionPreviewSecondary_, action.replacementValue);
+					selectionPreviewPrimary_->Show();
+					selectionPreviewSecondary_->Show();
+					selectionPreviewArrow_->Show();
+				} else if (action.actionType.IsSameAs("replace_border", false)) {
+					selectionPreviewPrimary_->SetSprite(ResolveBorderEdgeSpriteId(action.targetValue, action.edge));
+					selectionPreviewSecondary_->SetSprite(ResolveBorderEdgeSpriteId(action.replacementValue, action.edge));
+					selectionPreviewPrimary_->Show();
+					selectionPreviewSecondary_->Show();
+					selectionPreviewArrow_->Show();
+				}
+				Layout();
+				return;
+			}
+
+			if (selectedConditionIndex_ < 0 || selectedConditionIndex_ >= static_cast<int>(caseRecord.conditions.size())) {
+				Layout();
+				return;
+			}
+			const GroundBorderCaseConditionRecord &condition = caseRecord.conditions[static_cast<size_t>(selectedConditionIndex_)];
+			selectionPreviewLabel_->SetLabel(DescribeGroundCaseCondition(condition));
+			selectionEdgePreview_->SetEdge(condition.edge);
+			selectionEdgePreview_->Show(!condition.edge.IsEmpty());
+			if (condition.conditionType.IsSameAs("match_item", false)) {
+				SetPreviewItem(selectionPreviewPrimary_, condition.matchValue);
+				selectionPreviewPrimary_->Show();
+			} else if (condition.conditionType.IsSameAs("match_border", false)) {
+				selectionPreviewPrimary_->SetSprite(ResolveBorderEdgeSpriteId(condition.matchValue, condition.edge));
+				selectionPreviewPrimary_->Show();
+			}
+			Layout();
 		}
 
 		void UpdateButtons() {
@@ -1108,7 +1533,9 @@ namespace {
 
 		void OnConditionActivated(wxListEvent &) {
 			selectedConditionIndex_ = conditionsList_->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+			activeSelectionIsAction_ = false;
 			UpdateButtons();
+			RefreshSelectionPreview();
 			wxCommandEvent dummy;
 			OnEditCondition(dummy);
 		}
@@ -1182,7 +1609,9 @@ namespace {
 
 		void OnActionActivated(wxListEvent &) {
 			selectedActionIndex_ = actionsList_->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+			activeSelectionIsAction_ = true;
 			UpdateButtons();
+			RefreshSelectionPreview();
 			wxCommandEvent dummy;
 			OnEditAction(dummy);
 		}
@@ -1196,6 +1625,13 @@ namespace {
 		wxStaticText* warningLabel_ = nullptr;
 		wxListCtrl* conditionsList_ = nullptr;
 		wxListCtrl* actionsList_ = nullptr;
+		wxImageList* conditionImages_ = nullptr;
+		wxImageList* actionImages_ = nullptr;
+		BorderEdgePreviewPanel* selectionEdgePreview_ = nullptr;
+		ItemButton* selectionPreviewPrimary_ = nullptr;
+		ItemButton* selectionPreviewSecondary_ = nullptr;
+		wxStaticText* selectionPreviewArrow_ = nullptr;
+		wxStaticText* selectionPreviewLabel_ = nullptr;
 		wxButton* addCondButton_ = nullptr;
 		wxButton* editCondButton_ = nullptr;
 		wxButton* removeCondButton_ = nullptr;
@@ -1209,6 +1645,15 @@ namespace {
 		int selectedCaseIndex_ = -1;
 		int selectedConditionIndex_ = -1;
 		int selectedActionIndex_ = -1;
+		bool activeSelectionIsAction_ = false;
+
+		struct IconCacheEntry {
+			int spriteId;
+			int imageIndex;
+		};
+		std::vector<IconCacheEntry> conditionIconCache_;
+		std::vector<IconCacheEntry> actionIconCache_;
+		std::unordered_map<int, std::vector<BorderSetItemRecord>> borderSetItemsByXmlId_;
 	};
 
 	wxString BuildBorderSetDisplayLabel(const BorderSetRecord &borderSet) {
@@ -1242,28 +1687,37 @@ namespace {
 
 	wxString DescribeGroundCaseCondition(const GroundBorderCaseConditionRecord &condition) {
 		if (condition.conditionType.IsSameAs("match_group", false)) {
-			return wxString::Format("match_group group=%d edge=%s", condition.matchValue, condition.edge);
+			return wxString::Format("Match group %s on %s.", FormatSpecificCaseValueLabel("match_group", condition.matchValue), GetBorderEdgeDisplayLabel(condition.edge));
 		}
 		if (condition.conditionType.IsSameAs("match_border", false)) {
-			return wxString::Format("match_border id=%d edge=%s", condition.matchValue, condition.edge);
+			return wxString::Format("Match %s on %s.", FormatSpecificCaseValueLabel("match_border", condition.matchValue), GetBorderEdgeDisplayLabel(condition.edge));
 		}
 		if (condition.conditionType.IsSameAs("match_item", false)) {
-			return wxString::Format("match_item id=%d", condition.matchValue);
+			return wxString::Format("Match %s.", FormatSpecificCaseValueLabel("match_item", condition.matchValue));
 		}
-		return condition.conditionType;
+		return condition.conditionType.IsEmpty() ? "Condition" : condition.conditionType;
 	}
 
 	wxString DescribeGroundCaseAction(const GroundBorderCaseActionRecord &action) {
 		if (action.actionType.IsSameAs("replace_border", false)) {
-			return wxString::Format("replace_border id=%d edge=%s with=%d", action.targetValue, action.edge, action.replacementValue);
+			return wxString::Format(
+				"Replace %s on %s with %s.",
+				FormatSpecificCaseValueLabel("replace_border", action.targetValue),
+				GetBorderEdgeDisplayLabel(action.edge),
+				FormatSpecificCaseValueLabel("replace_border", action.replacementValue)
+			);
 		}
 		if (action.actionType.IsSameAs("replace_item", false)) {
-			return wxString::Format("replace_item id=%d with=%d", action.targetValue, action.replacementValue);
+			return wxString::Format(
+				"Replace %s with %s.",
+				FormatSpecificCaseValueLabel("replace_item", action.targetValue),
+				FormatSpecificCaseValueLabel("replace_item", action.replacementValue)
+			);
 		}
 		if (action.actionType.IsSameAs("delete_borders", false)) {
-			return "delete_borders";
+			return "Delete borders on the selected edge.";
 		}
-		return action.actionType;
+		return action.actionType.IsEmpty() ? "Action" : action.actionType;
 	}
 
 	void NormalizeGroundCaseSortOrders(GroundBorderCaseRecord &caseRecord) {
