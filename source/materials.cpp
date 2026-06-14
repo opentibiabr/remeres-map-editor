@@ -912,6 +912,7 @@ namespace {
 		outBrush.onBlocking = brushNode.attribute("on_blocking").as_bool();
 		outBrush.onDuplicate = brushNode.attribute("on_duplicate").as_bool();
 		outBrush.redoBorders = brushNode.attribute("redo_borders").as_bool() || brushNode.attribute("reborder").as_bool();
+		outBrush.removeOptionalBorder = brushNode.attribute("remove_optional_border").as_bool();
 		outBrush.oneSize = brushNode.attribute("one_size").as_bool();
 		outBrush.sourceFile = MaterialSourcePath(sourceFile);
 		ParseThicknessString(wxString(brushNode.attribute("thickness").as_string(), wxConvUTF8), outBrush.thickness, outBrush.thicknessCeiling);
@@ -1049,6 +1050,9 @@ namespace {
 		if (outBrush.name.IsEmpty()) {
 			warnings.push_back("SQLite doodad import found brush without name in " + sourceFile.GetFullName());
 			return false;
+		}
+		if (outBrush.removeOptionalBorder && !outBrush.redoBorders) {
+			warnings.push_back("SQLite doodad import warning: remove_optional_border requires redo_borders (reborder) to take effect in the runtime for brush \"" + outBrush.name + "\".");
 		}
 
 		outAlternatives.clear();

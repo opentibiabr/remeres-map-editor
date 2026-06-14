@@ -1697,6 +1697,7 @@ namespace {
 		text << "  onBlocking: " << (brush.onBlocking ? "yes" : "no") << "\n";
 		text << "  onDuplicate: " << (brush.onDuplicate ? "yes" : "no") << "\n";
 		text << "  redoBorders: " << (brush.redoBorders ? "yes" : "no") << "\n";
+		text << "  removeOptionalBorder: " << (brush.removeOptionalBorder ? "yes" : "no") << "\n";
 		text << "  randomize: " << (brush.randomize ? "yes" : "no") << "\n";
 		text << "  oneSize: " << (brush.oneSize ? "yes" : "no") << "\n";
 		text << "  soloOptional: " << (brush.soloOptional ? "yes" : "no") << "\n";
@@ -1748,6 +1749,9 @@ namespace {
 
 	void NormalizeBrushStorageForEditing(BrushStorageRecord &storage) {
 		storage.brush.type.MakeLower();
+		if (storage.brush.type != "doodad" || !storage.brush.redoBorders) {
+			storage.brush.removeOptionalBorder = false;
+		}
 		if (storage.brush.type == "ground") {
 			storage.carpetNodes.clear();
 			storage.tableNodes.clear();
@@ -1798,6 +1802,7 @@ namespace {
 			   left.onBlocking == right.onBlocking &&
 			   left.onDuplicate == right.onDuplicate &&
 			   left.redoBorders == right.redoBorders &&
+			   left.removeOptionalBorder == right.removeOptionalBorder &&
 			   left.randomize == right.randomize &&
 			   left.oneSize == right.oneSize &&
 			   left.soloOptional == right.soloOptional &&
@@ -2585,18 +2590,20 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildMetadataPage(wxNotebook* notebook) {
 	onBlockingCtrl_ = new wxCheckBox(scrolled, wxID_ANY, "On Blocking");
 	onDuplicateCtrl_ = new wxCheckBox(scrolled, wxID_ANY, "On Duplicate");
 	redoBordersCtrl_ = new wxCheckBox(scrolled, wxID_ANY, "Redo Borders");
+	removeOptionalBorderCtrl_ = new wxCheckBox(scrolled, wxID_ANY, "Remove Optional Border");
 	randomizeCtrl_ = new wxCheckBox(scrolled, wxID_ANY, "Randomize");
 	oneSizeCtrl_ = new wxCheckBox(scrolled, wxID_ANY, "One Size");
 	soloOptionalCtrl_ = new wxCheckBox(scrolled, wxID_ANY, "Solo Optional");
+	removeOptionalBorderCtrl_->SetToolTip("Doodad-only. Requires Redo Borders. Clears optional border state after placement.");
 
 	flagsGrid->Add(draggableCtrl_, 0, wxEXPAND);
 	flagsGrid->Add(onBlockingCtrl_, 0, wxEXPAND);
 	flagsGrid->Add(onDuplicateCtrl_, 0, wxEXPAND);
 	flagsGrid->Add(redoBordersCtrl_, 0, wxEXPAND);
+	flagsGrid->Add(removeOptionalBorderCtrl_, 0, wxEXPAND);
 	flagsGrid->Add(randomizeCtrl_, 0, wxEXPAND);
 	flagsGrid->Add(oneSizeCtrl_, 0, wxEXPAND);
 	flagsGrid->Add(soloOptionalCtrl_, 0, wxEXPAND);
-	flagsGrid->AddSpacer(0);
 
 	contentSizer->Add(flagsGrid, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
 	contentSizer->Add(new wxStaticLine(scrolled), 0, wxEXPAND | wxBOTTOM, FromDIP(8));
@@ -2643,6 +2650,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildMetadataPage(wxNotebook* notebook) {
 	onBlockingCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
 	onDuplicateCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
 	redoBordersCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
+	removeOptionalBorderCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
 	randomizeCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
 	oneSizeCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
 	soloOptionalCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged, this);
@@ -3639,6 +3647,7 @@ void MaterialsWorkbenchBrushPanel::ClearWorkspace(const wxString &message) {
 	onBlockingCtrl_->SetValue(false);
 	onDuplicateCtrl_->SetValue(false);
 	redoBordersCtrl_->SetValue(false);
+	removeOptionalBorderCtrl_->SetValue(false);
 	randomizeCtrl_->SetValue(false);
 	oneSizeCtrl_->SetValue(false);
 	soloOptionalCtrl_->SetValue(false);
@@ -3746,10 +3755,16 @@ void MaterialsWorkbenchBrushPanel::PopulateMetadataFields() {
 	onBlockingCtrl_->SetValue(brush.onBlocking);
 	onDuplicateCtrl_->SetValue(brush.onDuplicate);
 	redoBordersCtrl_->SetValue(brush.redoBorders);
+	removeOptionalBorderCtrl_->SetValue(brush.removeOptionalBorder);
 	randomizeCtrl_->SetValue(brush.randomize);
 	oneSizeCtrl_->SetValue(brush.oneSize);
 	soloOptionalCtrl_->SetValue(brush.soloOptional);
 	internalUpdate_ = false;
+	if (removeOptionalBorderCtrl_) {
+		const bool isDoodad = GetEffectiveBrushType() == "doodad";
+		removeOptionalBorderCtrl_->Show(isDoodad);
+		removeOptionalBorderCtrl_->Enable(isDoodad);
+	}
 	RefreshLookIdPreviews();
 	RefreshLookIdOwnershipHints();
 	UpdateWorkspaceHeader();
@@ -3930,6 +3945,9 @@ BrushStorageRecord MaterialsWorkbenchBrushPanel::BuildEditableStorageFromCurrent
 	brush.onBlocking = onBlockingCtrl_->GetValue();
 	brush.onDuplicate = onDuplicateCtrl_->GetValue();
 	brush.redoBorders = redoBordersCtrl_->GetValue();
+	brush.removeOptionalBorder = removeOptionalBorderCtrl_ && brush.redoBorders && GetEffectiveBrushType() == "doodad"
+		? removeOptionalBorderCtrl_->GetValue()
+		: false;
 	brush.randomize = randomizeCtrl_->GetValue();
 	brush.oneSize = oneSizeCtrl_->GetValue();
 	brush.soloOptional = soloOptionalCtrl_->GetValue();
@@ -4040,6 +4058,7 @@ void MaterialsWorkbenchBrushPanel::UpdateModifiedHighlights() {
 		ApplyModifiedToggleStyle(onBlockingCtrl_, false);
 		ApplyModifiedToggleStyle(onDuplicateCtrl_, false);
 		ApplyModifiedToggleStyle(redoBordersCtrl_, false);
+		ApplyModifiedToggleStyle(removeOptionalBorderCtrl_, false);
 		ApplyModifiedToggleStyle(randomizeCtrl_, false);
 		ApplyModifiedToggleStyle(oneSizeCtrl_, false);
 		ApplyModifiedToggleStyle(soloOptionalCtrl_, false);
@@ -4167,6 +4186,7 @@ void MaterialsWorkbenchBrushPanel::UpdateMetadataModifiedHighlights(const BrushR
 	ApplyModifiedToggleStyle(onBlockingCtrl_, editableBrush.onBlocking != loadedBrushStorage_.brush.onBlocking);
 	ApplyModifiedToggleStyle(onDuplicateCtrl_, editableBrush.onDuplicate != loadedBrushStorage_.brush.onDuplicate);
 	ApplyModifiedToggleStyle(redoBordersCtrl_, editableBrush.redoBorders != loadedBrushStorage_.brush.redoBorders);
+	ApplyModifiedToggleStyle(removeOptionalBorderCtrl_, editableBrush.removeOptionalBorder != loadedBrushStorage_.brush.removeOptionalBorder);
 	ApplyModifiedToggleStyle(randomizeCtrl_, editableBrush.randomize != loadedBrushStorage_.brush.randomize);
 	ApplyModifiedToggleStyle(oneSizeCtrl_, editableBrush.oneSize != loadedBrushStorage_.brush.oneSize);
 	ApplyModifiedToggleStyle(soloOptionalCtrl_, editableBrush.soloOptional != loadedBrushStorage_.brush.soloOptional);
@@ -4468,6 +4488,9 @@ void MaterialsWorkbenchBrushPanel::SetFieldsEnabled(bool enabled) {
 	onBlockingCtrl_->Enable(enabled);
 	onDuplicateCtrl_->Enable(enabled);
 	redoBordersCtrl_->Enable(enabled);
+	if (removeOptionalBorderCtrl_) {
+		removeOptionalBorderCtrl_->Enable(enabled && GetEffectiveBrushType() == "doodad");
+	}
 	randomizeCtrl_->Enable(enabled);
 	oneSizeCtrl_->Enable(enabled);
 	soloOptionalCtrl_->Enable(enabled);
@@ -6785,6 +6808,10 @@ bool MaterialsWorkbenchBrushPanel::ValidateBrushStorage(wxString &error) const {
 	}
 
 	if (type == "doodad") {
+		if (brush.removeOptionalBorder && !brush.redoBorders) {
+			error = "Remove Optional Border requires Redo Borders for doodad brushes.";
+			return false;
+		}
 		for (size_t altIndex = 0; altIndex < brushStorage_.doodadAlternatives.size(); ++altIndex) {
 			const DoodadAlternativeRecord &alternative = brushStorage_.doodadAlternatives[altIndex];
 			if (alternative.singleItems.empty() && alternative.composites.empty()) {
@@ -7164,6 +7191,13 @@ void MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged(wxCommandEvent &event)
 		wxEventBlocker blocker(ctrl);
 		ctrl->SetValue(value);
 	};
+	auto setCheckSilently = [](wxCheckBox* ctrl, bool value) {
+		if (!ctrl) {
+			return;
+		}
+		wxEventBlocker blocker(ctrl);
+		ctrl->SetValue(value);
+	};
 
 	wxObject* source = event.GetEventObject();
 	if (source == lookIdCtrl_ && lookIdCtrl_ && serverLookIdCtrl_) {
@@ -7175,6 +7209,23 @@ void MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged(wxCommandEvent &event)
 		const int serverLookId = serverLookIdCtrl_->GetValue();
 		if (serverLookId > 0 && lookIdCtrl_->GetValue() > 0) {
 			setSpinSilently(lookIdCtrl_, 0);
+		}
+	}
+	if (removeOptionalBorderCtrl_ && redoBordersCtrl_) {
+		const bool isDoodad = GetEffectiveBrushType() == "doodad";
+		removeOptionalBorderCtrl_->Show(isDoodad);
+		removeOptionalBorderCtrl_->Enable(isDoodad);
+		if (!isDoodad) {
+			setCheckSilently(removeOptionalBorderCtrl_, false);
+		} else {
+			if (source == removeOptionalBorderCtrl_ && removeOptionalBorderCtrl_->GetValue() && !redoBordersCtrl_->GetValue()) {
+				setCheckSilently(redoBordersCtrl_, true);
+			} else if (source == redoBordersCtrl_ && !redoBordersCtrl_->GetValue() && removeOptionalBorderCtrl_->GetValue()) {
+				setCheckSilently(removeOptionalBorderCtrl_, false);
+			}
+		}
+		if (metadataPage_) {
+			metadataPage_->Layout();
 		}
 	}
 

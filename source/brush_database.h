@@ -23,6 +23,7 @@ struct BrushRecord {
 	bool onBlocking = false;
 	bool onDuplicate = false;
 	bool redoBorders = false;
+	bool removeOptionalBorder = false;
 	bool randomize = false;
 	bool oneSize = false;
 	bool soloOptional = false;
@@ -368,6 +369,7 @@ private:
 	bool migrateToVersion8();
 	bool migrateToVersion9();
 	bool migrateToVersion10();
+	bool migrateToVersion11();
 	bool addColumnIfMissing(const wxString &tableName, const wxString &columnName, const wxString &definition);
 	bool executeStatements(std::initializer_list<const char*> statements);
 	bool addVersion2BrushColumns();

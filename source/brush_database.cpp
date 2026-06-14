@@ -7,14 +7,14 @@
 BrushDatabase g_brush_database;
 
 namespace {
-	constexpr int kBrushDatabaseSchemaVersion = 10;
+	constexpr int kBrushDatabaseSchemaVersion = 11;
 	constexpr const char* kBuiltinPaletteGroupTerrain = "terrain";
 	constexpr const char* kBuiltinPaletteGroupDoodad = "doodad";
 	constexpr const char* kBuiltinPaletteGroupItem = "item";
 	constexpr const char* kBuiltinPaletteGroupOther = "other";
 	constexpr const char* kBrushSelectColumns = "id, name, type, look_id, z_order, source_file, server_look_id, "
 												"draggable, on_blocking, on_duplicate, redo_borders, randomize, "
-												"one_size, solo_optional, thickness, thickness_ceiling";
+												"one_size, solo_optional, thickness, thickness_ceiling, remove_optional_border";
 	constexpr const char* kRecreateTilesetTablesSql = "DROP TABLE IF EXISTS tileset_brush_entries;"
 													  "DROP TABLE IF EXISTS tileset_sections;"
 													  "DROP TABLE IF EXISTS tilesets;"
@@ -141,6 +141,7 @@ namespace {
 		sqlite3_bind_int(stmt, parameterIndex++, brush.soloOptional ? 1 : 0);
 		sqlite3_bind_int(stmt, parameterIndex++, brush.thickness);
 		sqlite3_bind_int(stmt, parameterIndex++, brush.thicknessCeiling);
+		sqlite3_bind_int(stmt, parameterIndex++, brush.removeOptionalBorder ? 1 : 0);
 		return parameterIndex;
 	}
 
@@ -168,6 +169,7 @@ namespace {
 		outBrush.soloOptional = sqlite3_column_int(stmt, 13) != 0;
 		outBrush.thickness = sqlite3_column_int(stmt, 14);
 		outBrush.thicknessCeiling = sqlite3_column_int(stmt, 15);
+		outBrush.removeOptionalBorder = sqlite3_column_int(stmt, 16) != 0;
 	}
 
 	template <typename NodeRecord, typename ItemRecord, typename SetErrorFn>
@@ -1619,7 +1621,7 @@ bool BrushDatabaseSchemaManager::initializeSchema() {
 		rollbackTransaction();
 		return setError(wxString::Format("SQLite schema version %d is newer than supported version %d.", version, kBrushDatabaseSchemaVersion));
 	}
-	if (!applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion1>(version, 1) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion2>(version, 2) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion3>(version, 3) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion4>(version, 4) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion5>(version, 5) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion6>(version, 6) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion7>(version, 7) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion8>(version, 8) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion9>(version, 9) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion10>(version, 10)) {
+	if (!applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion1>(version, 1) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion2>(version, 2) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion3>(version, 3) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion4>(version, 4) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion5>(version, 5) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion6>(version, 6) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion7>(version, 7) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion8>(version, 8) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion9>(version, 9) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion10>(version, 10) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion11>(version, 11)) {
 		return rollback();
 	}
 
@@ -1785,6 +1787,10 @@ bool BrushDatabaseSchemaManager::migrateToVersion10() {
 	return true;
 }
 
+bool BrushDatabaseSchemaManager::migrateToVersion11() {
+	return addColumnIfMissing("brushes", "remove_optional_border", "remove_optional_border INTEGER NOT NULL DEFAULT 0 CHECK(remove_optional_border IN (0, 1))");
+}
+
 bool BrushDatabaseSession::testDatabaseConnection() {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
@@ -1868,8 +1874,8 @@ bool BrushDatabaseBrushRepository::insertBrush(const BrushRecord &brush, int64_t
 	if (!prepare("INSERT INTO brushes("
 				 "name, type, look_id, z_order, source_file, server_look_id, "
 				 "draggable, on_blocking, on_duplicate, redo_borders, randomize, "
-				 "one_size, solo_optional, thickness, thickness_ceiling, updated_at"
-				 ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);",
+				 "one_size, solo_optional, thickness, thickness_ceiling, remove_optional_border, updated_at"
+				 ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);",
 				 &stmt)) {
 		return false;
 	}
@@ -2023,7 +2029,7 @@ bool BrushDatabaseBrushRepository::updateBrush(const BrushRecord &brush) {
 	if (!prepare("UPDATE brushes "
 				 "SET name = ?, type = ?, look_id = ?, z_order = ?, source_file = ?, server_look_id = ?, "
 				 "draggable = ?, on_blocking = ?, on_duplicate = ?, redo_borders = ?, randomize = ?, "
-				 "one_size = ?, solo_optional = ?, thickness = ?, thickness_ceiling = ?, updated_at = CURRENT_TIMESTAMP "
+				 "one_size = ?, solo_optional = ?, thickness = ?, thickness_ceiling = ?, remove_optional_border = ?, updated_at = CURRENT_TIMESTAMP "
 				 "WHERE id = ?;",
 				 &stmt)) {
 		return false;

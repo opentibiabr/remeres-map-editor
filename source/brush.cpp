@@ -352,6 +352,9 @@ namespace {
 			if (brush.redoBorders) {
 				AppendBoolAttribute(brushNode, "redo_borders", true);
 			}
+			if (brush.removeOptionalBorder) {
+				AppendBoolAttribute(brushNode, "remove_optional_border", true);
+			}
 			if (brush.oneSize) {
 				AppendBoolAttribute(brushNode, "one_size", true);
 			}

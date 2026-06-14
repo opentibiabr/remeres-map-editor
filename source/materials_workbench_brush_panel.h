@@ -278,6 +278,7 @@ private:
 	wxCheckBox* onBlockingCtrl_ = nullptr;
 	wxCheckBox* onDuplicateCtrl_ = nullptr;
 	wxCheckBox* redoBordersCtrl_ = nullptr;
+	wxCheckBox* removeOptionalBorderCtrl_ = nullptr;
 	wxCheckBox* randomizeCtrl_ = nullptr;
 	wxCheckBox* oneSizeCtrl_ = nullptr;
 	wxCheckBox* soloOptionalCtrl_ = nullptr;
