@@ -73,7 +73,7 @@
 - [ ] Revisit XML deprecation messaging once the visual Workbench flow feels complete and clearly superior
 
 ## Legacy Parity Gaps
-- [ ] Tilesets: support legacy `<raw>` sections in the DB-first import + editor flow (so raw-only tilesets are not silently ignored)
+- [x] Tilesets: support legacy `<raw>` sections in the DB-first import + editor flow (so raw-only tilesets are not silently ignored)
 - [ ] Ground borders: add an editor for legacy `<specific>` cases (conditions/actions) stored under ground border contexts
 - [x] Brushes: expose explicit “clear” actions that map cleanly to legacy `clear_borders` / `clear_friends` intent (instead of only resulting empty state)
 - [x] Borders: expose `super` (super border) in global usage contexts and persist it (`ground_brush_borders.super_border`)

@@ -1188,7 +1188,7 @@ namespace {
 	}
 
 	bool IsSupportedTilesetSectionType(const std::string &nodeName) {
-		return nodeName == "terrain" || nodeName == "terrain_and_raw" || nodeName == "doodad" || nodeName == "doodad_and_raw" || nodeName == "items" || nodeName == "items_and_raw";
+		return nodeName == "terrain" || nodeName == "terrain_and_raw" || nodeName == "doodad" || nodeName == "doodad_and_raw" || nodeName == "items" || nodeName == "items_and_raw" || nodeName == "raw";
 	}
 
 	wxString DerivePaletteGroupNameFromSectionType(const wxString &sectionType) {
@@ -1703,7 +1703,38 @@ bool Materials::migrateTilesetsToSQLite(wxString &error, wxArrayString &warnings
 		error = "Failed to import tilesets into SQLite.";
 		return false;
 	}
-	if (!g_brush_database.replaceAllTilesets(tilesetsToStore)) {
+
+	const wxString tilesetsDirectory = GUI::GetDataDirectory() + "materials/tilesets";
+	if (wxDir::Exists(tilesetsDirectory)) {
+		wxArrayString tilesetFiles;
+		wxDir::GetAllFiles(tilesetsDirectory, &tilesetFiles, "*.xml", wxDIR_FILES | wxDIR_DIRS | wxDIR_HIDDEN);
+		for (const auto &tilesetPath : tilesetFiles) {
+			const FileName tilesetFile(tilesetPath);
+			const wxString normalizedTilesetPath = tilesetFile.GetFullPath();
+			if (visited.find(normalizedTilesetPath) == visited.end()) {
+				warnings.push_back("SQLite tileset import found tileset file not referenced by tilesets.xml: " + MaterialSourcePath(tilesetFile));
+			}
+			if (!ImportTilesetsRecursive(FileName(tilesetPath), wxString(), warnings, visited, tilesetsToStore)) {
+				error = "Failed to import tilesets into SQLite.";
+				return false;
+			}
+		}
+	}
+
+	std::set<wxString> seenTilesetNames;
+	std::vector<TilesetStorageRecord> uniqueTilesets;
+	uniqueTilesets.reserve(tilesetsToStore.size());
+	for (const auto &tileset : tilesetsToStore) {
+		wxString key = tileset.name;
+		key.MakeLower();
+		if (seenTilesetNames.insert(key).second) {
+			uniqueTilesets.push_back(tileset);
+			continue;
+		}
+		warnings.push_back("SQLite tileset import found duplicate tileset name \"" + tileset.name + "\" in " + tileset.sourceFile + ". Keeping the first instance.");
+	}
+
+	if (!g_brush_database.replaceAllTilesets(uniqueTilesets)) {
 		error = g_brush_database.getLastError();
 		return false;
 	}

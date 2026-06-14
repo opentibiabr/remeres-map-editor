@@ -43,6 +43,10 @@ namespace {
 			primaryType = TILESET_ITEM;
 			return true;
 		}
+		if (sectionType == "raw") {
+			primaryType = TILESET_RAW;
+			return true;
+		}
 		if (sectionType == "terrain_and_raw") {
 			primaryType = TILESET_TERRAIN;
 			hasSecondaryType = true;
