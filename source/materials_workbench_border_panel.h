@@ -86,6 +86,7 @@ private:
 	void OnDeleteBorder(wxCommandEvent &event);
 	void OnAddUsageContext(wxCommandEvent &event);
 	void OnEditUsageContext(wxCommandEvent &event);
+	void OnEditUsageCases(wxCommandEvent &event);
 	void OnRemoveUsageContext(wxCommandEvent &event);
 
 	MaterialsWorkbenchController &controller_;
@@ -139,6 +140,7 @@ private:
 	wxButton* openLinkedBrushButton_ = nullptr;
 	wxButton* addUsageContextButton_ = nullptr;
 	wxButton* editUsageContextButton_ = nullptr;
+	wxButton* editUsageCasesButton_ = nullptr;
 	wxButton* removeUsageContextButton_ = nullptr;
 	wxStaticText* selectedEdgeLabel_ = nullptr;
 	wxSpinCtrl* selectedItemIdCtrl_ = nullptr;

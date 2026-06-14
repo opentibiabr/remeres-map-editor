@@ -11,6 +11,7 @@
 #include <wx/dcbuffer.h>
 #include <wx/grid.h>
 #include <wx/listbox.h>
+#include <wx/listctrl.h>
 #include <wx/msgdlg.h>
 #include <wx/scrolwin.h>
 #include <wx/settings.h>
@@ -21,6 +22,7 @@
 #include <wx/stattext.h>
 #include <wx/textctrl.h>
 #include <wx/textdlg.h>
+#include <wx/wrapsizer.h>
 
 #include "common_windows.h"
 #include "find_item_window.h"
@@ -30,6 +32,13 @@
 #include "gui.h"
 
 namespace {
+	void StyleBorderWorkspaceActionButton(wxButton* button, const wxString &tooltip);
+	void StyleBorderWorkspaceCaption(wxStaticText* label);
+	wxString DescribeGroundCaseCondition(const GroundBorderCaseConditionRecord &condition);
+	wxString DescribeGroundCaseAction(const GroundBorderCaseActionRecord &action);
+	void NormalizeGroundCaseSortOrders(GroundBorderCaseRecord &caseRecord);
+	void NormalizeGroundBorderCases(std::vector<GroundBorderCaseRecord> &cases);
+
 	bool IsKnownBorderPanelItemId(int itemId) {
 		if (itemId <= 0 || itemId > std::numeric_limits<uint16_t>::max()) {
 			return false;
@@ -573,6 +582,635 @@ namespace {
 		wxButton* targetBrushButton_ = nullptr;
 	};
 
+	class GroundSpecificConditionDialog final : public wxDialog {
+	public:
+		GroundSpecificConditionDialog(wxWindow* parent, const GroundBorderCaseConditionRecord &initial) :
+			wxDialog(parent, wxID_ANY, "Edit Condition", wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER),
+			value_(initial) {
+			wxBoxSizer* rootSizer = new wxBoxSizer(wxVERTICAL);
+			wxFlexGridSizer* formSizer = new wxFlexGridSizer(0, 2, FromDIP(8), FromDIP(8));
+			formSizer->AddGrowableCol(1, 1);
+
+			typeChoice_ = new wxChoice(this, wxID_ANY);
+			typeChoice_->Append("match_border");
+			typeChoice_->Append("match_group");
+			typeChoice_->Append("match_item");
+			edgeChoice_ = new wxChoice(this, wxID_ANY);
+			const char* const edges[] = { "n", "s", "e", "w", "cnw", "cne", "csw", "cse", "dnw", "dne", "dsw", "dse" };
+			for (const char* edge : edges) {
+				edgeChoice_->Append(edge);
+			}
+			valueCtrl_ = new wxSpinCtrl(this, wxID_ANY);
+			valueCtrl_->SetRange(0, std::numeric_limits<int>::max());
+
+			formSizer->Add(new wxStaticText(this, wxID_ANY, "Type"), 0, wxALIGN_CENTER_VERTICAL);
+			formSizer->Add(typeChoice_, 1, wxEXPAND);
+			formSizer->Add(new wxStaticText(this, wxID_ANY, "Edge"), 0, wxALIGN_CENTER_VERTICAL);
+			formSizer->Add(edgeChoice_, 1, wxEXPAND);
+			formSizer->Add(new wxStaticText(this, wxID_ANY, "Value"), 0, wxALIGN_CENTER_VERTICAL);
+			formSizer->Add(valueCtrl_, 1, wxEXPAND);
+
+			rootSizer->Add(formSizer, 1, wxEXPAND | wxALL, FromDIP(12));
+
+			wxStdDialogButtonSizer* buttons = new wxStdDialogButtonSizer();
+			okButton_ = new wxButton(this, wxID_OK);
+			buttons->AddButton(okButton_);
+			buttons->AddButton(new wxButton(this, wxID_CANCEL));
+			buttons->Realize();
+			rootSizer->Add(buttons, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(12));
+
+			SetSizerAndFit(rootSizer);
+			SetMinSize(wxSize(FromDIP(380), GetMinSize().y));
+
+			typeChoice_->SetStringSelection(value_.conditionType.IsEmpty() ? "match_border" : value_.conditionType);
+			if (!value_.edge.IsEmpty()) {
+				edgeChoice_->SetStringSelection(value_.edge);
+			} else {
+				edgeChoice_->SetSelection(0);
+			}
+			valueCtrl_->SetValue(value_.matchValue);
+			UpdateFieldVisibility();
+
+			typeChoice_->Bind(wxEVT_CHOICE, &GroundSpecificConditionDialog::OnTypeChanged, this);
+		}
+
+		const GroundBorderCaseConditionRecord &GetValue() const { return value_; }
+
+		bool TransferDataFromWindow() override {
+			value_.conditionType = typeChoice_->GetStringSelection();
+			value_.edge = edgeChoice_->IsShown() ? edgeChoice_->GetStringSelection() : wxString();
+			value_.matchValue = valueCtrl_->GetValue();
+			value_.sortOrder = 0;
+
+			if (value_.conditionType.IsSameAs("match_item", false)) {
+				value_.edge.clear();
+				if (value_.matchValue <= 0) {
+					wxMessageBox("Item ID must be greater than zero.", "Condition", wxOK | wxICON_WARNING, this);
+					return false;
+				}
+				return true;
+			}
+
+			if (value_.edge.IsEmpty()) {
+				wxMessageBox("Choose an edge.", "Condition", wxOK | wxICON_WARNING, this);
+				return false;
+			}
+			if (value_.matchValue <= 0) {
+				wxMessageBox("Value must be greater than zero.", "Condition", wxOK | wxICON_WARNING, this);
+				return false;
+			}
+			return true;
+		}
+
+	private:
+		void OnTypeChanged(wxCommandEvent &) { UpdateFieldVisibility(); }
+
+		void UpdateFieldVisibility() {
+			const wxString type = typeChoice_->GetStringSelection();
+			const bool needsEdge = !type.IsSameAs("match_item", false);
+			edgeChoice_->Show(needsEdge);
+			okButton_->Enable(true);
+			Layout();
+			Fit();
+		}
+
+		GroundBorderCaseConditionRecord value_;
+		wxChoice* typeChoice_ = nullptr;
+		wxChoice* edgeChoice_ = nullptr;
+		wxSpinCtrl* valueCtrl_ = nullptr;
+		wxButton* okButton_ = nullptr;
+	};
+
+	class GroundSpecificActionDialog final : public wxDialog {
+	public:
+		GroundSpecificActionDialog(wxWindow* parent, const GroundBorderCaseActionRecord &initial) :
+			wxDialog(parent, wxID_ANY, "Edit Action", wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER),
+			value_(initial) {
+			wxBoxSizer* rootSizer = new wxBoxSizer(wxVERTICAL);
+			wxFlexGridSizer* formSizer = new wxFlexGridSizer(0, 2, FromDIP(8), FromDIP(8));
+			formSizer->AddGrowableCol(1, 1);
+
+			typeChoice_ = new wxChoice(this, wxID_ANY);
+			typeChoice_->Append("replace_border");
+			typeChoice_->Append("replace_item");
+			typeChoice_->Append("delete_borders");
+			edgeChoice_ = new wxChoice(this, wxID_ANY);
+			const char* const edges[] = { "n", "s", "e", "w", "cnw", "cne", "csw", "cse", "dnw", "dne", "dsw", "dse" };
+			for (const char* edge : edges) {
+				edgeChoice_->Append(edge);
+			}
+			targetCtrl_ = new wxSpinCtrl(this, wxID_ANY);
+			targetCtrl_->SetRange(0, std::numeric_limits<int>::max());
+			withCtrl_ = new wxSpinCtrl(this, wxID_ANY);
+			withCtrl_->SetRange(0, std::numeric_limits<int>::max());
+
+			formSizer->Add(new wxStaticText(this, wxID_ANY, "Type"), 0, wxALIGN_CENTER_VERTICAL);
+			formSizer->Add(typeChoice_, 1, wxEXPAND);
+			formSizer->Add(new wxStaticText(this, wxID_ANY, "Edge"), 0, wxALIGN_CENTER_VERTICAL);
+			formSizer->Add(edgeChoice_, 1, wxEXPAND);
+			formSizer->Add(new wxStaticText(this, wxID_ANY, "Target"), 0, wxALIGN_CENTER_VERTICAL);
+			formSizer->Add(targetCtrl_, 1, wxEXPAND);
+			formSizer->Add(new wxStaticText(this, wxID_ANY, "With"), 0, wxALIGN_CENTER_VERTICAL);
+			formSizer->Add(withCtrl_, 1, wxEXPAND);
+
+			rootSizer->Add(formSizer, 1, wxEXPAND | wxALL, FromDIP(12));
+
+			wxStdDialogButtonSizer* buttons = new wxStdDialogButtonSizer();
+			okButton_ = new wxButton(this, wxID_OK);
+			buttons->AddButton(okButton_);
+			buttons->AddButton(new wxButton(this, wxID_CANCEL));
+			buttons->Realize();
+			rootSizer->Add(buttons, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(12));
+
+			SetSizerAndFit(rootSizer);
+			SetMinSize(wxSize(FromDIP(420), GetMinSize().y));
+
+			typeChoice_->SetStringSelection(value_.actionType.IsEmpty() ? "replace_item" : value_.actionType);
+			if (!value_.edge.IsEmpty()) {
+				edgeChoice_->SetStringSelection(value_.edge);
+			} else {
+				edgeChoice_->SetSelection(0);
+			}
+			targetCtrl_->SetValue(value_.targetValue);
+			withCtrl_->SetValue(value_.replacementValue);
+			UpdateFieldVisibility();
+
+			typeChoice_->Bind(wxEVT_CHOICE, &GroundSpecificActionDialog::OnTypeChanged, this);
+		}
+
+		const GroundBorderCaseActionRecord &GetValue() const { return value_; }
+
+		bool TransferDataFromWindow() override {
+			value_.actionType = typeChoice_->GetStringSelection();
+			value_.edge = edgeChoice_->IsShown() ? edgeChoice_->GetStringSelection() : wxString();
+			value_.targetValue = targetCtrl_->IsShown() ? targetCtrl_->GetValue() : 0;
+			value_.replacementValue = withCtrl_->IsShown() ? withCtrl_->GetValue() : 0;
+			value_.sortOrder = 0;
+
+			if (value_.actionType.IsSameAs("delete_borders", false)) {
+				value_.edge.clear();
+				value_.targetValue = 0;
+				value_.replacementValue = 0;
+				return true;
+			}
+
+			if (value_.actionType.IsSameAs("replace_item", false)) {
+				value_.edge.clear();
+				if (value_.targetValue <= 0 || value_.replacementValue <= 0) {
+					wxMessageBox("Target and With must be greater than zero.", "Action", wxOK | wxICON_WARNING, this);
+					return false;
+				}
+				return true;
+			}
+
+			if (value_.edge.IsEmpty()) {
+				wxMessageBox("Choose an edge.", "Action", wxOK | wxICON_WARNING, this);
+				return false;
+			}
+			if (value_.targetValue <= 0 || value_.replacementValue <= 0) {
+				wxMessageBox("Target and With must be greater than zero.", "Action", wxOK | wxICON_WARNING, this);
+				return false;
+			}
+			return true;
+		}
+
+	private:
+		void OnTypeChanged(wxCommandEvent &) { UpdateFieldVisibility(); }
+
+		void UpdateFieldVisibility() {
+			const wxString type = typeChoice_->GetStringSelection();
+			const bool needsEdge = type.IsSameAs("replace_border", false);
+			const bool needsTarget = !type.IsSameAs("delete_borders", false);
+			const bool needsWith = type.IsSameAs("replace_border", false) || type.IsSameAs("replace_item", false);
+			edgeChoice_->Show(needsEdge);
+			targetCtrl_->Show(needsTarget);
+			withCtrl_->Show(needsWith);
+			okButton_->Enable(true);
+			Layout();
+			Fit();
+		}
+
+		GroundBorderCaseActionRecord value_;
+		wxChoice* typeChoice_ = nullptr;
+		wxChoice* edgeChoice_ = nullptr;
+		wxSpinCtrl* targetCtrl_ = nullptr;
+		wxSpinCtrl* withCtrl_ = nullptr;
+		wxButton* okButton_ = nullptr;
+	};
+
+	class GroundSpecificCasesDialog final : public wxDialog {
+	public:
+		GroundSpecificCasesDialog(wxWindow* parent, std::vector<GroundBorderCaseRecord> initialCases) :
+			wxDialog(parent, wxID_ANY, "Specific Cases", wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER),
+			cases_(std::move(initialCases)) {
+			wxBoxSizer* rootSizer = new wxBoxSizer(wxVERTICAL);
+			wxBoxSizer* contentSizer = new wxBoxSizer(wxHORIZONTAL);
+
+			wxPanel* casePanel = new wxPanel(this, wxID_ANY);
+			wxBoxSizer* caseSizer = new wxBoxSizer(wxVERTICAL);
+			caseList_ = new wxListBox(casePanel, wxID_ANY);
+			wxBoxSizer* caseButtons = new wxBoxSizer(wxHORIZONTAL);
+			addCaseButton_ = new wxButton(casePanel, wxID_ANY, "+");
+			removeCaseButton_ = new wxButton(casePanel, wxID_ANY, "-");
+			caseUpButton_ = new wxButton(casePanel, wxID_ANY, "Up");
+			caseDownButton_ = new wxButton(casePanel, wxID_ANY, "Down");
+			StyleBorderWorkspaceActionButton(addCaseButton_, "Add a new case.");
+			StyleBorderWorkspaceActionButton(removeCaseButton_, "Remove the selected case.");
+			StyleBorderWorkspaceActionButton(caseUpButton_, "Move the selected case earlier.");
+			StyleBorderWorkspaceActionButton(caseDownButton_, "Move the selected case later.");
+			caseButtons->Add(addCaseButton_, 0, wxRIGHT, FromDIP(4));
+			caseButtons->Add(removeCaseButton_, 0, wxRIGHT, FromDIP(4));
+			caseButtons->Add(caseUpButton_, 0, wxRIGHT, FromDIP(4));
+			caseButtons->Add(caseDownButton_, 0);
+			caseSizer->Add(new wxStaticText(casePanel, wxID_ANY, "Cases"), 0, wxBOTTOM, FromDIP(4));
+			caseSizer->Add(caseList_, 1, wxEXPAND | wxBOTTOM, FromDIP(6));
+			caseSizer->Add(caseButtons, 0, wxEXPAND);
+			casePanel->SetSizer(caseSizer);
+
+			wxPanel* detailPanel = new wxPanel(this, wxID_ANY);
+			wxBoxSizer* detailSizer = new wxBoxSizer(wxVERTICAL);
+			warningLabel_ = new wxStaticText(detailPanel, wxID_ANY, "");
+			StyleBorderWorkspaceCaption(warningLabel_);
+			conditionsList_ = new wxListCtrl(detailPanel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_THEME);
+			conditionsList_->InsertColumn(0, "Conditions");
+			actionsList_ = new wxListCtrl(detailPanel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_THEME);
+			actionsList_->InsertColumn(0, "Actions");
+
+			wxBoxSizer* condButtons = new wxBoxSizer(wxHORIZONTAL);
+			addCondButton_ = new wxButton(detailPanel, wxID_ANY, "Add");
+			editCondButton_ = new wxButton(detailPanel, wxID_ANY, "Edit");
+			removeCondButton_ = new wxButton(detailPanel, wxID_ANY, "Remove");
+			condUpButton_ = new wxButton(detailPanel, wxID_ANY, "Up");
+			condDownButton_ = new wxButton(detailPanel, wxID_ANY, "Down");
+			StyleBorderWorkspaceActionButton(addCondButton_, "Add a new condition.");
+			StyleBorderWorkspaceActionButton(editCondButton_, "Edit the selected condition.");
+			StyleBorderWorkspaceActionButton(removeCondButton_, "Remove the selected condition.");
+			StyleBorderWorkspaceActionButton(condUpButton_, "Move the selected condition earlier.");
+			StyleBorderWorkspaceActionButton(condDownButton_, "Move the selected condition later.");
+			condButtons->Add(addCondButton_, 0, wxRIGHT, FromDIP(4));
+			condButtons->Add(editCondButton_, 0, wxRIGHT, FromDIP(4));
+			condButtons->Add(removeCondButton_, 0, wxRIGHT, FromDIP(4));
+			condButtons->Add(condUpButton_, 0, wxRIGHT, FromDIP(4));
+			condButtons->Add(condDownButton_, 0);
+
+			wxBoxSizer* actButtons = new wxBoxSizer(wxHORIZONTAL);
+			addActButton_ = new wxButton(detailPanel, wxID_ANY, "Add");
+			editActButton_ = new wxButton(detailPanel, wxID_ANY, "Edit");
+			removeActButton_ = new wxButton(detailPanel, wxID_ANY, "Remove");
+			actUpButton_ = new wxButton(detailPanel, wxID_ANY, "Up");
+			actDownButton_ = new wxButton(detailPanel, wxID_ANY, "Down");
+			StyleBorderWorkspaceActionButton(addActButton_, "Add a new action.");
+			StyleBorderWorkspaceActionButton(editActButton_, "Edit the selected action.");
+			StyleBorderWorkspaceActionButton(removeActButton_, "Remove the selected action.");
+			StyleBorderWorkspaceActionButton(actUpButton_, "Move the selected action earlier.");
+			StyleBorderWorkspaceActionButton(actDownButton_, "Move the selected action later.");
+			actButtons->Add(addActButton_, 0, wxRIGHT, FromDIP(4));
+			actButtons->Add(editActButton_, 0, wxRIGHT, FromDIP(4));
+			actButtons->Add(removeActButton_, 0, wxRIGHT, FromDIP(4));
+			actButtons->Add(actUpButton_, 0, wxRIGHT, FromDIP(4));
+			actButtons->Add(actDownButton_, 0);
+
+			detailSizer->Add(warningLabel_, 0, wxBOTTOM, FromDIP(6));
+			detailSizer->Add(new wxStaticText(detailPanel, wxID_ANY, "Conditions"), 0, wxBOTTOM, FromDIP(4));
+			detailSizer->Add(conditionsList_, 1, wxEXPAND | wxBOTTOM, FromDIP(4));
+			detailSizer->Add(condButtons, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+			detailSizer->Add(new wxStaticText(detailPanel, wxID_ANY, "Actions"), 0, wxBOTTOM, FromDIP(4));
+			detailSizer->Add(actionsList_, 1, wxEXPAND | wxBOTTOM, FromDIP(4));
+			detailSizer->Add(actButtons, 0, wxEXPAND);
+			detailPanel->SetSizer(detailSizer);
+
+			contentSizer->Add(casePanel, 0, wxEXPAND | wxRIGHT, FromDIP(10));
+			contentSizer->Add(detailPanel, 1, wxEXPAND);
+			rootSizer->Add(contentSizer, 1, wxEXPAND | wxALL, FromDIP(12));
+
+			wxStdDialogButtonSizer* buttons = new wxStdDialogButtonSizer();
+			buttons->AddButton(new wxButton(this, wxID_OK));
+			buttons->AddButton(new wxButton(this, wxID_CANCEL));
+			buttons->Realize();
+			rootSizer->Add(buttons, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(12));
+
+			SetSizerAndFit(rootSizer);
+			SetMinSize(wxSize(FromDIP(760), FromDIP(520)));
+
+			addCaseButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnAddCase, this);
+			removeCaseButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnRemoveCase, this);
+			caseUpButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnMoveCaseUp, this);
+			caseDownButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnMoveCaseDown, this);
+			caseList_->Bind(wxEVT_LISTBOX, &GroundSpecificCasesDialog::OnCaseSelected, this);
+
+			addCondButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnAddCondition, this);
+			editCondButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnEditCondition, this);
+			removeCondButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnRemoveCondition, this);
+			condUpButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnMoveConditionUp, this);
+			condDownButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnMoveConditionDown, this);
+			conditionsList_->Bind(wxEVT_LIST_ITEM_ACTIVATED, &GroundSpecificCasesDialog::OnConditionActivated, this);
+			conditionsList_->Bind(wxEVT_LIST_ITEM_SELECTED, [this](wxListEvent &event) {
+				selectedConditionIndex_ = event.GetIndex();
+				UpdateButtons();
+			});
+
+			addActButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnAddAction, this);
+			editActButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnEditAction, this);
+			removeActButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnRemoveAction, this);
+			actUpButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnMoveActionUp, this);
+			actDownButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnMoveActionDown, this);
+			actionsList_->Bind(wxEVT_LIST_ITEM_ACTIVATED, &GroundSpecificCasesDialog::OnActionActivated, this);
+			actionsList_->Bind(wxEVT_LIST_ITEM_SELECTED, [this](wxListEvent &event) {
+				selectedActionIndex_ = event.GetIndex();
+				UpdateButtons();
+			});
+
+			RefreshCaseList();
+			SelectCase(0);
+		}
+
+		const std::vector<GroundBorderCaseRecord> &GetCases() const { return cases_; }
+
+	private:
+		void RefreshCaseList() {
+			caseList_->Clear();
+			for (size_t i = 0; i < cases_.size(); ++i) {
+				const GroundBorderCaseRecord &caseRecord = cases_[i];
+				caseList_->Append(wxString::Format("Case %zu  (%zu cond / %zu act)", i + 1, caseRecord.conditions.size(), caseRecord.actions.size()));
+			}
+			if (cases_.empty()) {
+				caseList_->Append("No cases");
+			}
+		}
+
+		void SelectCase(int index) {
+			if (cases_.empty()) {
+				selectedCaseIndex_ = -1;
+				caseList_->SetSelection(0);
+				RefreshDetails();
+				return;
+			}
+			selectedCaseIndex_ = std::clamp(index, 0, static_cast<int>(cases_.size()) - 1);
+			caseList_->SetSelection(selectedCaseIndex_);
+			RefreshDetails();
+		}
+
+		void RefreshDetails() {
+			conditionsList_->DeleteAllItems();
+			actionsList_->DeleteAllItems();
+			selectedConditionIndex_ = -1;
+			selectedActionIndex_ = -1;
+			if (selectedCaseIndex_ < 0 || selectedCaseIndex_ >= static_cast<int>(cases_.size())) {
+				warningLabel_->SetLabel("Select a case to edit its conditions and actions.");
+				UpdateButtons();
+				return;
+			}
+
+			const GroundBorderCaseRecord &caseRecord = cases_[static_cast<size_t>(selectedCaseIndex_)];
+			for (size_t i = 0; i < caseRecord.conditions.size(); ++i) {
+				conditionsList_->InsertItem(static_cast<long>(i), DescribeGroundCaseCondition(caseRecord.conditions[i]));
+			}
+			for (size_t i = 0; i < caseRecord.actions.size(); ++i) {
+				actionsList_->InsertItem(static_cast<long>(i), DescribeGroundCaseAction(caseRecord.actions[i]));
+			}
+			conditionsList_->SetColumnWidth(0, wxLIST_AUTOSIZE_USEHEADER);
+			actionsList_->SetColumnWidth(0, wxLIST_AUTOSIZE_USEHEADER);
+
+			wxString warning;
+			if (caseRecord.conditions.empty()) {
+				warning += "No conditions: this case always matches. ";
+			}
+			if (caseRecord.actions.empty()) {
+				warning += "No actions: this case does nothing. ";
+			}
+			warningLabel_->SetLabel(warning);
+			UpdateButtons();
+		}
+
+		void UpdateButtons() {
+			const bool hasCase = selectedCaseIndex_ >= 0 && selectedCaseIndex_ < static_cast<int>(cases_.size());
+			removeCaseButton_->Enable(hasCase);
+			caseUpButton_->Enable(hasCase && selectedCaseIndex_ > 0);
+			caseDownButton_->Enable(hasCase && selectedCaseIndex_ >= 0 && selectedCaseIndex_ < static_cast<int>(cases_.size()) - 1);
+
+			addCondButton_->Enable(hasCase);
+			editCondButton_->Enable(hasCase && selectedConditionIndex_ >= 0);
+			removeCondButton_->Enable(hasCase && selectedConditionIndex_ >= 0);
+			condUpButton_->Enable(hasCase && selectedConditionIndex_ > 0);
+			condDownButton_->Enable(hasCase && selectedConditionIndex_ >= 0 && hasCase && selectedConditionIndex_ < static_cast<int>(cases_[static_cast<size_t>(selectedCaseIndex_)].conditions.size()) - 1);
+
+			addActButton_->Enable(hasCase);
+			editActButton_->Enable(hasCase && selectedActionIndex_ >= 0);
+			removeActButton_->Enable(hasCase && selectedActionIndex_ >= 0);
+			actUpButton_->Enable(hasCase && selectedActionIndex_ > 0);
+			actDownButton_->Enable(hasCase && selectedActionIndex_ >= 0 && hasCase && selectedActionIndex_ < static_cast<int>(cases_[static_cast<size_t>(selectedCaseIndex_)].actions.size()) - 1);
+		}
+
+		void OnCaseSelected(wxCommandEvent &) { SelectCase(caseList_->GetSelection()); }
+
+		void OnAddCase(wxCommandEvent &) {
+			GroundBorderCaseRecord newCase;
+			cases_.push_back(newCase);
+			NormalizeGroundBorderCases(cases_);
+			RefreshCaseList();
+			SelectCase(static_cast<int>(cases_.size()) - 1);
+		}
+
+		void OnRemoveCase(wxCommandEvent &) {
+			if (selectedCaseIndex_ < 0 || selectedCaseIndex_ >= static_cast<int>(cases_.size())) {
+				return;
+			}
+			cases_.erase(cases_.begin() + selectedCaseIndex_);
+			NormalizeGroundBorderCases(cases_);
+			RefreshCaseList();
+			SelectCase(std::min(selectedCaseIndex_, static_cast<int>(cases_.size()) - 1));
+		}
+
+		void OnMoveCaseUp(wxCommandEvent &) { MoveCaseBy(-1); }
+		void OnMoveCaseDown(wxCommandEvent &) { MoveCaseBy(1); }
+
+		void MoveCaseBy(int delta) {
+			if (selectedCaseIndex_ < 0 || selectedCaseIndex_ >= static_cast<int>(cases_.size())) {
+				return;
+			}
+			const int next = selectedCaseIndex_ + delta;
+			if (next < 0 || next >= static_cast<int>(cases_.size())) {
+				return;
+			}
+			std::swap(cases_[static_cast<size_t>(selectedCaseIndex_)], cases_[static_cast<size_t>(next)]);
+			selectedCaseIndex_ = next;
+			NormalizeGroundBorderCases(cases_);
+			RefreshCaseList();
+			SelectCase(selectedCaseIndex_);
+		}
+
+		void OnAddCondition(wxCommandEvent &) {
+			if (selectedCaseIndex_ < 0) {
+				return;
+			}
+			GroundBorderCaseConditionRecord condition;
+			condition.conditionType = "match_item";
+			GroundSpecificConditionDialog dialog(this, condition);
+			if (dialog.ShowModal() != wxID_OK) {
+				return;
+			}
+			cases_[static_cast<size_t>(selectedCaseIndex_)].conditions.push_back(dialog.GetValue());
+			NormalizeGroundCaseSortOrders(cases_[static_cast<size_t>(selectedCaseIndex_)]);
+			RefreshCaseList();
+			RefreshDetails();
+		}
+
+		void OnEditCondition(wxCommandEvent &) {
+			if (selectedCaseIndex_ < 0 || selectedConditionIndex_ < 0) {
+				return;
+			}
+			auto &conditions = cases_[static_cast<size_t>(selectedCaseIndex_)].conditions;
+			if (selectedConditionIndex_ >= static_cast<int>(conditions.size())) {
+				return;
+			}
+			GroundSpecificConditionDialog dialog(this, conditions[static_cast<size_t>(selectedConditionIndex_)]);
+			if (dialog.ShowModal() != wxID_OK) {
+				return;
+			}
+			conditions[static_cast<size_t>(selectedConditionIndex_)] = dialog.GetValue();
+			NormalizeGroundCaseSortOrders(cases_[static_cast<size_t>(selectedCaseIndex_)]);
+			RefreshCaseList();
+			RefreshDetails();
+		}
+
+		void OnRemoveCondition(wxCommandEvent &) {
+			if (selectedCaseIndex_ < 0 || selectedConditionIndex_ < 0) {
+				return;
+			}
+			auto &conditions = cases_[static_cast<size_t>(selectedCaseIndex_)].conditions;
+			if (selectedConditionIndex_ >= static_cast<int>(conditions.size())) {
+				return;
+			}
+			conditions.erase(conditions.begin() + selectedConditionIndex_);
+			selectedConditionIndex_ = -1;
+			NormalizeGroundCaseSortOrders(cases_[static_cast<size_t>(selectedCaseIndex_)]);
+			RefreshCaseList();
+			RefreshDetails();
+		}
+
+		void OnMoveConditionUp(wxCommandEvent &) { MoveConditionBy(-1); }
+		void OnMoveConditionDown(wxCommandEvent &) { MoveConditionBy(1); }
+
+		void MoveConditionBy(int delta) {
+			if (selectedCaseIndex_ < 0 || selectedConditionIndex_ < 0) {
+				return;
+			}
+			auto &conditions = cases_[static_cast<size_t>(selectedCaseIndex_)].conditions;
+			const int next = selectedConditionIndex_ + delta;
+			if (next < 0 || next >= static_cast<int>(conditions.size())) {
+				return;
+			}
+			std::swap(conditions[static_cast<size_t>(selectedConditionIndex_)], conditions[static_cast<size_t>(next)]);
+			selectedConditionIndex_ = next;
+			NormalizeGroundCaseSortOrders(cases_[static_cast<size_t>(selectedCaseIndex_)]);
+			RefreshDetails();
+		}
+
+		void OnConditionActivated(wxListEvent &) {
+			selectedConditionIndex_ = conditionsList_->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+			UpdateButtons();
+			wxCommandEvent dummy;
+			OnEditCondition(dummy);
+		}
+
+		void OnAddAction(wxCommandEvent &) {
+			if (selectedCaseIndex_ < 0) {
+				return;
+			}
+			GroundBorderCaseActionRecord action;
+			action.actionType = "replace_item";
+			GroundSpecificActionDialog dialog(this, action);
+			if (dialog.ShowModal() != wxID_OK) {
+				return;
+			}
+			cases_[static_cast<size_t>(selectedCaseIndex_)].actions.push_back(dialog.GetValue());
+			NormalizeGroundCaseSortOrders(cases_[static_cast<size_t>(selectedCaseIndex_)]);
+			RefreshCaseList();
+			RefreshDetails();
+		}
+
+		void OnEditAction(wxCommandEvent &) {
+			if (selectedCaseIndex_ < 0 || selectedActionIndex_ < 0) {
+				return;
+			}
+			auto &actions = cases_[static_cast<size_t>(selectedCaseIndex_)].actions;
+			if (selectedActionIndex_ >= static_cast<int>(actions.size())) {
+				return;
+			}
+			GroundSpecificActionDialog dialog(this, actions[static_cast<size_t>(selectedActionIndex_)]);
+			if (dialog.ShowModal() != wxID_OK) {
+				return;
+			}
+			actions[static_cast<size_t>(selectedActionIndex_)] = dialog.GetValue();
+			NormalizeGroundCaseSortOrders(cases_[static_cast<size_t>(selectedCaseIndex_)]);
+			RefreshCaseList();
+			RefreshDetails();
+		}
+
+		void OnRemoveAction(wxCommandEvent &) {
+			if (selectedCaseIndex_ < 0 || selectedActionIndex_ < 0) {
+				return;
+			}
+			auto &actions = cases_[static_cast<size_t>(selectedCaseIndex_)].actions;
+			if (selectedActionIndex_ >= static_cast<int>(actions.size())) {
+				return;
+			}
+			actions.erase(actions.begin() + selectedActionIndex_);
+			selectedActionIndex_ = -1;
+			NormalizeGroundCaseSortOrders(cases_[static_cast<size_t>(selectedCaseIndex_)]);
+			RefreshCaseList();
+			RefreshDetails();
+		}
+
+		void OnMoveActionUp(wxCommandEvent &) { MoveActionBy(-1); }
+		void OnMoveActionDown(wxCommandEvent &) { MoveActionBy(1); }
+
+		void MoveActionBy(int delta) {
+			if (selectedCaseIndex_ < 0 || selectedActionIndex_ < 0) {
+				return;
+			}
+			auto &actions = cases_[static_cast<size_t>(selectedCaseIndex_)].actions;
+			const int next = selectedActionIndex_ + delta;
+			if (next < 0 || next >= static_cast<int>(actions.size())) {
+				return;
+			}
+			std::swap(actions[static_cast<size_t>(selectedActionIndex_)], actions[static_cast<size_t>(next)]);
+			selectedActionIndex_ = next;
+			NormalizeGroundCaseSortOrders(cases_[static_cast<size_t>(selectedCaseIndex_)]);
+			RefreshDetails();
+		}
+
+		void OnActionActivated(wxListEvent &) {
+			selectedActionIndex_ = actionsList_->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+			UpdateButtons();
+			wxCommandEvent dummy;
+			OnEditAction(dummy);
+		}
+
+		std::vector<GroundBorderCaseRecord> cases_;
+		wxListBox* caseList_ = nullptr;
+		wxButton* addCaseButton_ = nullptr;
+		wxButton* removeCaseButton_ = nullptr;
+		wxButton* caseUpButton_ = nullptr;
+		wxButton* caseDownButton_ = nullptr;
+		wxStaticText* warningLabel_ = nullptr;
+		wxListCtrl* conditionsList_ = nullptr;
+		wxListCtrl* actionsList_ = nullptr;
+		wxButton* addCondButton_ = nullptr;
+		wxButton* editCondButton_ = nullptr;
+		wxButton* removeCondButton_ = nullptr;
+		wxButton* condUpButton_ = nullptr;
+		wxButton* condDownButton_ = nullptr;
+		wxButton* addActButton_ = nullptr;
+		wxButton* editActButton_ = nullptr;
+		wxButton* removeActButton_ = nullptr;
+		wxButton* actUpButton_ = nullptr;
+		wxButton* actDownButton_ = nullptr;
+		int selectedCaseIndex_ = -1;
+		int selectedConditionIndex_ = -1;
+		int selectedActionIndex_ = -1;
+	};
+
 	wxString BuildBorderSetDisplayLabel(const BorderSetRecord &borderSet) {
 		if (borderSet.xmlBorderId > 0) {
 			return wxString::Format("Border %d", borderSet.xmlBorderId);
@@ -600,6 +1238,49 @@ namespace {
 	void StyleBorderWorkspaceActionButton(wxButton* button, const wxString &tooltip) {
 		button->SetMinSize(wxSize(-1, button->GetParent()->FromDIP(20)));
 		button->SetToolTip(tooltip);
+	}
+
+	wxString DescribeGroundCaseCondition(const GroundBorderCaseConditionRecord &condition) {
+		if (condition.conditionType.IsSameAs("match_group", false)) {
+			return wxString::Format("match_group group=%d edge=%s", condition.matchValue, condition.edge);
+		}
+		if (condition.conditionType.IsSameAs("match_border", false)) {
+			return wxString::Format("match_border id=%d edge=%s", condition.matchValue, condition.edge);
+		}
+		if (condition.conditionType.IsSameAs("match_item", false)) {
+			return wxString::Format("match_item id=%d", condition.matchValue);
+		}
+		return condition.conditionType;
+	}
+
+	wxString DescribeGroundCaseAction(const GroundBorderCaseActionRecord &action) {
+		if (action.actionType.IsSameAs("replace_border", false)) {
+			return wxString::Format("replace_border id=%d edge=%s with=%d", action.targetValue, action.edge, action.replacementValue);
+		}
+		if (action.actionType.IsSameAs("replace_item", false)) {
+			return wxString::Format("replace_item id=%d with=%d", action.targetValue, action.replacementValue);
+		}
+		if (action.actionType.IsSameAs("delete_borders", false)) {
+			return "delete_borders";
+		}
+		return action.actionType;
+	}
+
+	void NormalizeGroundCaseSortOrders(GroundBorderCaseRecord &caseRecord) {
+		caseRecord.sortOrder = 0;
+		for (size_t i = 0; i < caseRecord.conditions.size(); ++i) {
+			caseRecord.conditions[i].sortOrder = static_cast<int>(i);
+		}
+		for (size_t i = 0; i < caseRecord.actions.size(); ++i) {
+			caseRecord.actions[i].sortOrder = static_cast<int>(i);
+		}
+	}
+
+	void NormalizeGroundBorderCases(std::vector<GroundBorderCaseRecord> &cases) {
+		for (size_t i = 0; i < cases.size(); ++i) {
+			cases[i].sortOrder = static_cast<int>(i);
+			NormalizeGroundCaseSortOrders(cases[i]);
+		}
 	}
 
 	void StyleBorderWorkspaceCaption(wxStaticText* label) {
@@ -1036,9 +1717,11 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	addUsageContextButton_ = new wxButton(globalDetailsParent, wxID_ANY, "Add Context");
 	editUsageContextButton_ = new wxButton(globalDetailsParent, wxID_ANY, "Edit Context");
 	removeUsageContextButton_ = new wxButton(globalDetailsParent, wxID_ANY, "Remove Context");
+	editUsageCasesButton_ = new wxButton(globalDetailsParent, wxID_ANY, "Specific Cases");
 	StyleBorderWorkspaceActionButton(addUsageContextButton_, "Add a new brush usage context for this global border.");
 	StyleBorderWorkspaceActionButton(editUsageContextButton_, "Edit the selected usage context.");
 	StyleBorderWorkspaceActionButton(removeUsageContextButton_, "Remove the selected usage context from its owner brush.");
+	StyleBorderWorkspaceActionButton(editUsageCasesButton_, "Edit legacy <specific> cases for the selected context.");
 	globalDetailsBox->Add(CreateBorderSectionLabel(globalDetailsParent, "Search"), 0, wxLEFT | wxRIGHT | wxTOP, FromDIP(6));
 	globalDetailsBox->Add(usageSearchCtrl_, 0, wxEXPAND | wxALL, FromDIP(6));
 	globalDetailsBox->Add(usageSearchHintLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(6));
@@ -1050,11 +1733,12 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	usageDetailsRow->Add(usagePreviewItem_, 0, wxALIGN_TOP | wxRIGHT, FromDIP(6));
 	usageDetailsRow->Add(usageSelectionLabel_, 1, wxEXPAND);
 	globalDetailsBox->Add(usageDetailsRow, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(6));
-	wxGridSizer* usageActionGrid = new wxGridSizer(2, FromDIP(4), FromDIP(4));
-	usageActionGrid->Add(addUsageContextButton_, 0, wxEXPAND);
-	usageActionGrid->Add(editUsageContextButton_, 0, wxEXPAND);
-	usageActionGrid->Add(removeUsageContextButton_, 0, wxEXPAND);
-	usageActionGrid->Add(openLinkedBrushButton_, 0, wxEXPAND);
+	wxWrapSizer* usageActionGrid = new wxWrapSizer(wxHORIZONTAL, 0);
+	usageActionGrid->Add(addUsageContextButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(4));
+	usageActionGrid->Add(editUsageContextButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(4));
+	usageActionGrid->Add(editUsageCasesButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(4));
+	usageActionGrid->Add(removeUsageContextButton_, 0, wxRIGHT | wxBOTTOM, FromDIP(4));
+	usageActionGrid->Add(openLinkedBrushButton_, 0, wxBOTTOM, FromDIP(4));
 	globalDetailsBox->Add(usageActionGrid, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(6));
 	globalDetailsPanel_->SetSizer(globalDetailsBox);
 
@@ -1242,6 +1926,7 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	openLinkedBrushButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnOpenLinkedBrush, this);
 	addUsageContextButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnAddUsageContext, this);
 	editUsageContextButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnEditUsageContext, this);
+	editUsageCasesButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnEditUsageCases, this);
 	removeUsageContextButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnRemoveUsageContext, this);
 	groundEquivalentCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
 }
@@ -1548,6 +2233,9 @@ void MaterialsWorkbenchBorderPanel::UpdateUsageContextControls() {
 		if (editUsageContextButton_) {
 			editUsageContextButton_->Enable(false);
 		}
+		if (editUsageCasesButton_) {
+			editUsageCasesButton_->Enable(false);
+		}
 		if (removeUsageContextButton_) {
 			removeUsageContextButton_->Enable(false);
 		}
@@ -1570,6 +2258,9 @@ void MaterialsWorkbenchBorderPanel::UpdateUsageContextControls() {
 	}
 	if (editUsageContextButton_) {
 		editUsageContextButton_->Enable(isGlobal && usage != nullptr);
+	}
+	if (editUsageCasesButton_) {
+		editUsageCasesButton_->Enable(isGlobal && usage != nullptr);
 	}
 	if (removeUsageContextButton_) {
 		removeUsageContextButton_->Enable(isGlobal && usage != nullptr);
@@ -2530,6 +3221,75 @@ void MaterialsWorkbenchBorderPanel::OnEditUsageContext(wxCommandEvent &event) {
 	PopulateUsageContextList();
 	HandleUsageContextChanged();
 	SetStatusMessage("Updated the Used By context and refreshed the global preview.");
+	if (onBorderSetSaved_) {
+		onBorderSetSaved_(borderSetStorage_.borderSet.id);
+	}
+}
+
+void MaterialsWorkbenchBorderPanel::OnEditUsageCases(wxCommandEvent &event) {
+	if (!hasBorderSet_ || borderSetStorage_.borderSet.borderScope != "global") {
+		SetStatusMessage("Load a global border before editing specific cases.");
+		return;
+	}
+
+	const BorderSetUsageRecord* usage = GetSelectedUsageContext();
+	if (!usage) {
+		SetStatusMessage("Select a Used By context before editing its specific cases.");
+		return;
+	}
+
+	wxString error;
+	BrushStorageRecord brushStorage;
+	if (!LoadBrushStorageById(usage->brushId, brushStorage, error)) {
+		SetStatusMessage("Failed to load the selected brush: " + error);
+		return;
+	}
+	const int existingIndex = FindMatchingGroundBorderIndex(brushStorage, *usage);
+	if (existingIndex < 0) {
+		SetStatusMessage("Could not match the selected usage context in the owner brush.");
+		return;
+	}
+
+	GroundBrushBorderRecord &borderRecord = brushStorage.borders[existingIndex];
+	GroundSpecificCasesDialog dialog(this, borderRecord.cases);
+	if (dialog.ShowModal() != wxID_OK) {
+		return;
+	}
+
+	std::vector<GroundBorderCaseRecord> cases = dialog.GetCases();
+	NormalizeGroundBorderCases(cases);
+	borderRecord.cases = std::move(cases);
+
+	if (!controller_.SaveGroundBrushBorders(usage->brushId, brushStorage.borders, error)) {
+		SetStatusMessage("Failed to save the specific cases: " + error);
+		return;
+	}
+	if (!controller_.ReloadCatalog()) {
+		SetStatusMessage("Saved the specific cases, but failed to reload the catalog.");
+		return;
+	}
+	if (!ReloadBorderSetById(borderSetStorage_.borderSet.id)) {
+		SetStatusMessage("Saved the specific cases, but failed to reload this border.");
+		return;
+	}
+
+	for (size_t i = 0; i < borderSetUsages_.size(); ++i) {
+		if (borderSetUsages_[i].brushId == usage->brushId &&
+			borderSetUsages_[i].sortOrder == usage->sortOrder &&
+			borderSetUsages_[i].borderRole == usage->borderRole &&
+			borderSetUsages_[i].align == usage->align &&
+			borderSetUsages_[i].targetMode == usage->targetMode &&
+			borderSetUsages_[i].targetBrushId == usage->targetBrushId &&
+			borderSetUsages_[i].targetBrushName == usage->targetBrushName &&
+			borderSetUsages_[i].superBorder == usage->superBorder) {
+			selectedUsageIndex_ = static_cast<int>(i);
+			break;
+		}
+	}
+
+	PopulateUsageContextList();
+	HandleUsageContextChanged();
+	SetStatusMessage("Saved specific cases for the selected context.");
 	if (onBorderSetSaved_) {
 		onBorderSetSaved_(borderSetStorage_.borderSet.id);
 	}
