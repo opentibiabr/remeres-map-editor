@@ -2,10 +2,16 @@
 
 #include "materials_workbench_exchange_dialog.h"
 
+#include <algorithm>
+
 #include <wx/button.h>
 #include <wx/checkbox.h>
 #include <wx/checklst.h>
+#include <wx/choice.h>
 #include <wx/listctrl.h>
+#include <wx/notebook.h>
+#include <wx/panel.h>
+#include <wx/srchctrl.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
 
@@ -15,6 +21,35 @@
 namespace {
 	wxString BuildBrushRowLabel(const BrushRecord &brush) {
 		return wxString::Format("%s: %s", brush.type, brush.name);
+	}
+
+	wxString LowerCopy(wxString value) {
+		value.MakeLower();
+		return value;
+	}
+
+	bool VectorContains(const std::vector<int> &values, int value) {
+		return std::find(values.begin(), values.end(), value) != values.end();
+	}
+
+	bool VectorContains(const std::vector<int64_t> &values, int64_t value) {
+		return std::find(values.begin(), values.end(), value) != values.end();
+	}
+
+	bool VectorContains(const std::vector<wxString> &values, const wxString &value) {
+		return std::find_if(values.begin(), values.end(), [&](const wxString &row) { return row.IsSameAs(value, false); }) != values.end();
+	}
+
+	void RemoveValue(std::vector<int> &values, int value) {
+		values.erase(std::remove(values.begin(), values.end(), value), values.end());
+	}
+
+	void RemoveValue(std::vector<int64_t> &values, int64_t value) {
+		values.erase(std::remove(values.begin(), values.end(), value), values.end());
+	}
+
+	void RemoveValue(std::vector<wxString> &values, const wxString &value) {
+		values.erase(std::remove_if(values.begin(), values.end(), [&](const wxString &row) { return row.IsSameAs(value, false); }), values.end());
 	}
 
 	wxString JsonToWxStringLocal(const nlohmann::json &v) {
@@ -37,29 +72,84 @@ MaterialsWorkbenchExportDialog::MaterialsWorkbenchExportDialog(wxWindow* parent,
 	includeDepsCtrl_->SetValue(true);
 	selection_.includeDependencies = true;
 
-	wxBoxSizer* listSizer = new wxBoxSizer(wxHORIZONTAL);
-	borderList_ = new wxCheckListBox(this, wxID_ANY);
-	brushList_ = new wxCheckListBox(this, wxID_ANY);
-	paletteGroupList_ = new wxCheckListBox(this, wxID_ANY);
-	paletteList_ = new wxCheckListBox(this, wxID_ANY);
+	notebook_ = new wxNotebook(this, wxID_ANY);
 
-	wxBoxSizer* col1 = new wxBoxSizer(wxVERTICAL);
-	col1->Add(new wxStaticText(this, wxID_ANY, "Borders"), 0, wxBOTTOM, FromDIP(4));
-	col1->Add(borderList_, 1, wxEXPAND);
-	wxBoxSizer* col2 = new wxBoxSizer(wxVERTICAL);
-	col2->Add(new wxStaticText(this, wxID_ANY, "Brushes"), 0, wxBOTTOM, FromDIP(4));
-	col2->Add(brushList_, 1, wxEXPAND);
-	wxBoxSizer* col3 = new wxBoxSizer(wxVERTICAL);
-	col3->Add(new wxStaticText(this, wxID_ANY, "Palette Groups"), 0, wxBOTTOM, FromDIP(4));
-	col3->Add(paletteGroupList_, 1, wxEXPAND);
-	wxBoxSizer* col4 = new wxBoxSizer(wxVERTICAL);
-	col4->Add(new wxStaticText(this, wxID_ANY, "Palettes"), 0, wxBOTTOM, FromDIP(4));
-	col4->Add(paletteList_, 1, wxEXPAND);
+	wxPanel* borderPage = new wxPanel(notebook_, wxID_ANY);
+	borderFilterCtrl_ = new wxSearchCtrl(borderPage, wxID_ANY);
+	borderFilterCtrl_->ShowSearchButton(false);
+	borderFilterCtrl_->ShowCancelButton(true);
+	borderFilterCtrl_->SetDescriptiveText("Filter borders");
+	borderList_ = new wxCheckListBox(borderPage, wxID_ANY);
+	wxButton* borderSelectAll = new wxButton(borderPage, wxID_ANY, "Select shown");
+	wxButton* borderClearAll = new wxButton(borderPage, wxID_ANY, "Clear shown");
+	wxBoxSizer* borderSizer = new wxBoxSizer(wxVERTICAL);
+	borderSizer->Add(borderFilterCtrl_, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+	borderSizer->Add(borderList_, 1, wxEXPAND);
+	wxBoxSizer* borderActions = new wxBoxSizer(wxHORIZONTAL);
+	borderActions->Add(borderSelectAll, 0, wxRIGHT, FromDIP(6));
+	borderActions->Add(borderClearAll, 0);
+	borderSizer->Add(borderActions, 0, wxTOP, FromDIP(8));
+	borderPage->SetSizer(borderSizer);
 
-	listSizer->Add(col1, 1, wxEXPAND | wxRIGHT, FromDIP(8));
-	listSizer->Add(col2, 1, wxEXPAND | wxRIGHT, FromDIP(8));
-	listSizer->Add(col3, 1, wxEXPAND | wxRIGHT, FromDIP(8));
-	listSizer->Add(col4, 1, wxEXPAND);
+	wxPanel* brushPage = new wxPanel(notebook_, wxID_ANY);
+	brushFilterCtrl_ = new wxSearchCtrl(brushPage, wxID_ANY);
+	brushFilterCtrl_->ShowSearchButton(false);
+	brushFilterCtrl_->ShowCancelButton(true);
+	brushFilterCtrl_->SetDescriptiveText("Filter brushes");
+	brushTypeChoiceCtrl_ = new wxChoice(brushPage, wxID_ANY);
+	brushList_ = new wxCheckListBox(brushPage, wxID_ANY);
+	wxButton* brushSelectAll = new wxButton(brushPage, wxID_ANY, "Select shown");
+	wxButton* brushClearAll = new wxButton(brushPage, wxID_ANY, "Clear shown");
+	wxBoxSizer* brushSizer = new wxBoxSizer(wxVERTICAL);
+	wxBoxSizer* brushFilters = new wxBoxSizer(wxHORIZONTAL);
+	brushFilters->Add(brushTypeChoiceCtrl_, 0, wxRIGHT, FromDIP(8));
+	brushFilters->Add(brushFilterCtrl_, 1, wxEXPAND);
+	brushSizer->Add(brushFilters, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+	brushSizer->Add(brushList_, 1, wxEXPAND);
+	wxBoxSizer* brushActions = new wxBoxSizer(wxHORIZONTAL);
+	brushActions->Add(brushSelectAll, 0, wxRIGHT, FromDIP(6));
+	brushActions->Add(brushClearAll, 0);
+	brushSizer->Add(brushActions, 0, wxTOP, FromDIP(8));
+	brushPage->SetSizer(brushSizer);
+
+	wxPanel* groupPage = new wxPanel(notebook_, wxID_ANY);
+	paletteGroupFilterCtrl_ = new wxSearchCtrl(groupPage, wxID_ANY);
+	paletteGroupFilterCtrl_->ShowSearchButton(false);
+	paletteGroupFilterCtrl_->ShowCancelButton(true);
+	paletteGroupFilterCtrl_->SetDescriptiveText("Filter palette groups");
+	paletteGroupList_ = new wxCheckListBox(groupPage, wxID_ANY);
+	wxButton* groupSelectAll = new wxButton(groupPage, wxID_ANY, "Select shown");
+	wxButton* groupClearAll = new wxButton(groupPage, wxID_ANY, "Clear shown");
+	wxBoxSizer* groupSizer = new wxBoxSizer(wxVERTICAL);
+	groupSizer->Add(paletteGroupFilterCtrl_, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+	groupSizer->Add(paletteGroupList_, 1, wxEXPAND);
+	wxBoxSizer* groupActions = new wxBoxSizer(wxHORIZONTAL);
+	groupActions->Add(groupSelectAll, 0, wxRIGHT, FromDIP(6));
+	groupActions->Add(groupClearAll, 0);
+	groupSizer->Add(groupActions, 0, wxTOP, FromDIP(8));
+	groupPage->SetSizer(groupSizer);
+
+	wxPanel* palettePage = new wxPanel(notebook_, wxID_ANY);
+	paletteFilterCtrl_ = new wxSearchCtrl(palettePage, wxID_ANY);
+	paletteFilterCtrl_->ShowSearchButton(false);
+	paletteFilterCtrl_->ShowCancelButton(true);
+	paletteFilterCtrl_->SetDescriptiveText("Filter palettes");
+	paletteList_ = new wxCheckListBox(palettePage, wxID_ANY);
+	wxButton* paletteSelectAll = new wxButton(palettePage, wxID_ANY, "Select shown");
+	wxButton* paletteClearAll = new wxButton(palettePage, wxID_ANY, "Clear shown");
+	wxBoxSizer* paletteSizer = new wxBoxSizer(wxVERTICAL);
+	paletteSizer->Add(paletteFilterCtrl_, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+	paletteSizer->Add(paletteList_, 1, wxEXPAND);
+	wxBoxSizer* paletteActions = new wxBoxSizer(wxHORIZONTAL);
+	paletteActions->Add(paletteSelectAll, 0, wxRIGHT, FromDIP(6));
+	paletteActions->Add(paletteClearAll, 0);
+	paletteSizer->Add(paletteActions, 0, wxTOP, FromDIP(8));
+	palettePage->SetSizer(paletteSizer);
+
+	notebook_->AddPage(borderPage, "Borders");
+	notebook_->AddPage(brushPage, "Brushes");
+	notebook_->AddPage(groupPage, "Palette Groups");
+	notebook_->AddPage(palettePage, "Palettes");
 
 	summaryLabel_ = new wxStaticText(this, wxID_ANY, "");
 
@@ -70,94 +160,188 @@ MaterialsWorkbenchExportDialog::MaterialsWorkbenchExportDialog(wxWindow* parent,
 	buttons->Realize();
 
 	rootSizer->Add(includeDepsCtrl_, 0, wxEXPAND | wxALL, FromDIP(12));
-	rootSizer->Add(listSizer, 1, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(12));
+	rootSizer->Add(notebook_, 1, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(12));
 	rootSizer->Add(summaryLabel_, 0, wxEXPAND | wxALL, FromDIP(12));
 	rootSizer->Add(buttons, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(12));
 
 	SetSizerAndFit(rootSizer);
 	SetMinSize(wxSize(FromDIP(980), FromDIP(520)));
 
-	RebuildLists();
+	RebuildData();
+	RebuildBorderList();
+	RebuildBrushList();
+	RebuildPaletteGroupList();
+	RebuildPaletteList();
 	UpdateSummary();
 	UpdateOkState();
 
 	includeDepsCtrl_->Bind(wxEVT_CHECKBOX, &MaterialsWorkbenchExportDialog::OnToggleIncludeDependencies, this);
-	borderList_->Bind(wxEVT_CHECKLISTBOX, [this](wxCommandEvent &) { UpdateSummary(); UpdateOkState(); });
-	brushList_->Bind(wxEVT_CHECKLISTBOX, [this](wxCommandEvent &) { UpdateSummary(); UpdateOkState(); });
-	paletteGroupList_->Bind(wxEVT_CHECKLISTBOX, [this](wxCommandEvent &) { UpdateSummary(); UpdateOkState(); });
-	paletteList_->Bind(wxEVT_CHECKLISTBOX, [this](wxCommandEvent &) { UpdateSummary(); UpdateOkState(); });
 
-	Bind(wxEVT_BUTTON, [this](wxCommandEvent &event) {
-		selection_.globalBorderXmlIds.clear();
-		selection_.brushIds.clear();
-		selection_.paletteNames.clear();
-		selection_.paletteGroupNames.clear();
+	borderFilterCtrl_->Bind(wxEVT_TEXT, [this](wxCommandEvent &) { RebuildBorderList(); });
+	borderFilterCtrl_->Bind(wxEVT_SEARCHCTRL_CANCEL_BTN, [this](wxCommandEvent &) { borderFilterCtrl_->ChangeValue(""); RebuildBorderList(); });
+	borderList_->Bind(wxEVT_CHECKLISTBOX, [this](wxCommandEvent &event) { OnListToggled(borderList_, event.GetInt()); });
+	borderSelectAll->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { OnSelectAllShown(borderList_); });
+	borderClearAll->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { OnClearAllShown(borderList_); });
 
-		for (size_t i = 0; i < borderList_->GetCount(); ++i) {
-			if (!borderList_->IsChecked(i)) {
-				continue;
-			}
-			const int xmlBorderId = static_cast<int>(reinterpret_cast<intptr_t>(borderList_->GetClientData(i)));
-			if (xmlBorderId > 0) {
-				selection_.globalBorderXmlIds.push_back(xmlBorderId);
-			}
-		}
-		for (size_t i = 0; i < brushList_->GetCount(); ++i) {
-			if (!brushList_->IsChecked(i)) {
-				continue;
-			}
-			const int64_t brushId = static_cast<int64_t>(reinterpret_cast<intptr_t>(brushList_->GetClientData(i)));
-			if (brushId > 0) {
-				selection_.brushIds.push_back(brushId);
-			}
-		}
-		for (size_t i = 0; i < paletteGroupList_->GetCount(); ++i) {
-			if (paletteGroupList_->IsChecked(i)) {
-				selection_.paletteGroupNames.push_back(paletteGroupList_->GetString(i));
-			}
-		}
-		for (size_t i = 0; i < paletteList_->GetCount(); ++i) {
-			if (paletteList_->IsChecked(i)) {
-				selection_.paletteNames.push_back(paletteList_->GetString(i));
-			}
-		}
+	brushFilterCtrl_->Bind(wxEVT_TEXT, [this](wxCommandEvent &) { RebuildBrushList(); });
+	brushFilterCtrl_->Bind(wxEVT_SEARCHCTRL_CANCEL_BTN, [this](wxCommandEvent &) { brushFilterCtrl_->ChangeValue(""); RebuildBrushList(); });
+	brushTypeChoiceCtrl_->Bind(wxEVT_CHOICE, [this](wxCommandEvent &) { RebuildBrushList(); });
+	brushList_->Bind(wxEVT_CHECKLISTBOX, [this](wxCommandEvent &event) { OnListToggled(brushList_, event.GetInt()); });
+	brushSelectAll->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { OnSelectAllShown(brushList_); });
+	brushClearAll->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { OnClearAllShown(brushList_); });
 
-		event.Skip();
-	}, wxID_OK);
+	paletteGroupFilterCtrl_->Bind(wxEVT_TEXT, [this](wxCommandEvent &) { RebuildPaletteGroupList(); });
+	paletteGroupFilterCtrl_->Bind(wxEVT_SEARCHCTRL_CANCEL_BTN, [this](wxCommandEvent &) { paletteGroupFilterCtrl_->ChangeValue(""); RebuildPaletteGroupList(); });
+	paletteGroupList_->Bind(wxEVT_CHECKLISTBOX, [this](wxCommandEvent &event) { OnListToggled(paletteGroupList_, event.GetInt()); });
+	groupSelectAll->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { OnSelectAllShown(paletteGroupList_); });
+	groupClearAll->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { OnClearAllShown(paletteGroupList_); });
+
+	paletteFilterCtrl_->Bind(wxEVT_TEXT, [this](wxCommandEvent &) { RebuildPaletteList(); });
+	paletteFilterCtrl_->Bind(wxEVT_SEARCHCTRL_CANCEL_BTN, [this](wxCommandEvent &) { paletteFilterCtrl_->ChangeValue(""); RebuildPaletteList(); });
+	paletteList_->Bind(wxEVT_CHECKLISTBOX, [this](wxCommandEvent &event) { OnListToggled(paletteList_, event.GetInt()); });
+	paletteSelectAll->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { OnSelectAllShown(paletteList_); });
+	paletteClearAll->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { OnClearAllShown(paletteList_); });
 }
 
-void MaterialsWorkbenchExportDialog::RebuildLists() {
-	borderList_->Clear();
+void MaterialsWorkbenchExportDialog::RebuildData() {
+	allBorders_.clear();
 	for (const BorderSetRecord &border : controller_.GetGlobalBorderSets()) {
 		if (border.xmlBorderId <= 0) {
 			continue;
 		}
-		const wxString label = wxString::Format("Border %d (%s)", border.xmlBorderId, border.borderType.IsEmpty() ? "normal" : border.borderType);
-		const size_t idx = borderList_->Append(label);
-		borderList_->SetClientData(idx, reinterpret_cast<void*>(static_cast<intptr_t>(border.xmlBorderId)));
+		BorderRow row;
+		row.xmlBorderId = border.xmlBorderId;
+		row.label = wxString::Format("Border %d (%s)", border.xmlBorderId, border.borderType.IsEmpty() ? "normal" : border.borderType);
+		allBorders_.push_back(row);
 	}
+	std::sort(allBorders_.begin(), allBorders_.end(), [](const BorderRow &a, const BorderRow &b) { return a.xmlBorderId < b.xmlBorderId; });
 
-	brushList_->Clear();
+	allBrushes_.clear();
+	brushTypeChoices_.clear();
+	brushTypeChoices_.push_back("All");
 	for (const MaterialsWorkbenchBrushGroup &group : controller_.GetBrushGroups()) {
+		if (!group.brushType.IsEmpty() && !VectorContains(brushTypeChoices_, group.brushType)) {
+			brushTypeChoices_.push_back(group.brushType);
+		}
 		for (const BrushRecord &brush : group.brushes) {
-			const size_t idx = brushList_->Append(BuildBrushRowLabel(brush));
-			brushList_->SetClientData(idx, reinterpret_cast<void*>(static_cast<intptr_t>(brush.id)));
+			BrushRow row;
+			row.brushId = brush.id;
+			row.brushType = brush.type;
+			row.brushName = brush.name;
+			row.label = BuildBrushRowLabel(brush);
+			allBrushes_.push_back(row);
 		}
 	}
 	for (const BrushRecord &brush : controller_.GetWallBrushes()) {
-		const size_t idx = brushList_->Append(BuildBrushRowLabel(brush));
-		brushList_->SetClientData(idx, reinterpret_cast<void*>(static_cast<intptr_t>(brush.id)));
+		if (!VectorContains(brushTypeChoices_, brush.type)) {
+			brushTypeChoices_.push_back(brush.type);
+		}
+		BrushRow row;
+		row.brushId = brush.id;
+		row.brushType = brush.type;
+		row.brushName = brush.name;
+		row.label = BuildBrushRowLabel(brush);
+		allBrushes_.push_back(row);
 	}
+	std::sort(brushTypeChoices_.begin() + 1, brushTypeChoices_.end(), [](const wxString &a, const wxString &b) { return LowerCopy(a) < LowerCopy(b); });
+	std::sort(allBrushes_.begin(), allBrushes_.end(), [](const BrushRow &a, const BrushRow &b) {
+		const wxString aType = LowerCopy(a.brushType);
+		const wxString bType = LowerCopy(b.brushType);
+		if (aType != bType) {
+			return aType < bType;
+		}
+		return LowerCopy(a.brushName) < LowerCopy(b.brushName);
+	});
 
-	paletteGroupList_->Clear();
+	allPaletteGroups_.clear();
 	for (const PaletteGroupRecord &group : controller_.GetPaletteGroups()) {
-		paletteGroupList_->Append(group.name);
+		allPaletteGroups_.push_back(group.name);
 	}
+	std::sort(allPaletteGroups_.begin(), allPaletteGroups_.end(), [](const wxString &a, const wxString &b) { return LowerCopy(a) < LowerCopy(b); });
 
-	paletteList_->Clear();
+	allPalettes_.clear();
 	for (const TilesetStorageRecord &tileset : controller_.GetTilesets()) {
-		paletteList_->Append(tileset.name);
+		allPalettes_.push_back(tileset.name);
 	}
+	std::sort(allPalettes_.begin(), allPalettes_.end(), [](const wxString &a, const wxString &b) { return LowerCopy(a) < LowerCopy(b); });
+
+	brushTypeChoiceCtrl_->Clear();
+	for (const wxString &choice : brushTypeChoices_) {
+		brushTypeChoiceCtrl_->Append(choice);
+	}
+	brushTypeChoiceCtrl_->SetSelection(0);
+}
+
+void MaterialsWorkbenchExportDialog::RebuildBorderList() {
+	const wxString query = LowerCopy(borderFilterCtrl_->GetValue());
+	borderList_->Freeze();
+	borderList_->Clear();
+	for (const BorderRow &row : allBorders_) {
+		if (!query.IsEmpty() && !LowerCopy(row.label).Contains(query)) {
+			continue;
+		}
+		const size_t idx = borderList_->Append(row.label);
+		borderList_->SetClientData(idx, reinterpret_cast<void*>(static_cast<intptr_t>(row.xmlBorderId)));
+		borderList_->Check(idx, VectorContains(selection_.globalBorderXmlIds, row.xmlBorderId));
+	}
+	borderList_->Thaw();
+	UpdateSummary();
+	UpdateOkState();
+}
+
+void MaterialsWorkbenchExportDialog::RebuildBrushList() {
+	const wxString query = LowerCopy(brushFilterCtrl_->GetValue());
+	const wxString typeFilter = brushTypeChoiceCtrl_->GetSelection() <= 0 ? "" : brushTypeChoiceCtrl_->GetStringSelection();
+	const wxString typeFilterLower = LowerCopy(typeFilter);
+
+	brushList_->Freeze();
+	brushList_->Clear();
+	for (const BrushRow &row : allBrushes_) {
+		if (!typeFilterLower.IsEmpty() && !LowerCopy(row.brushType).IsSameAs(typeFilterLower, false)) {
+			continue;
+		}
+		if (!query.IsEmpty() && !LowerCopy(row.label).Contains(query)) {
+			continue;
+		}
+		const size_t idx = brushList_->Append(row.label);
+		brushList_->SetClientData(idx, reinterpret_cast<void*>(static_cast<intptr_t>(row.brushId)));
+		brushList_->Check(idx, VectorContains(selection_.brushIds, row.brushId));
+	}
+	brushList_->Thaw();
+	UpdateSummary();
+	UpdateOkState();
+}
+
+void MaterialsWorkbenchExportDialog::RebuildPaletteGroupList() {
+	const wxString query = LowerCopy(paletteGroupFilterCtrl_->GetValue());
+	paletteGroupList_->Freeze();
+	paletteGroupList_->Clear();
+	for (const wxString &name : allPaletteGroups_) {
+		if (!query.IsEmpty() && !LowerCopy(name).Contains(query)) {
+			continue;
+		}
+		const size_t idx = paletteGroupList_->Append(name);
+		paletteGroupList_->Check(idx, VectorContains(selection_.paletteGroupNames, name));
+	}
+	paletteGroupList_->Thaw();
+	UpdateSummary();
+	UpdateOkState();
+}
+
+void MaterialsWorkbenchExportDialog::RebuildPaletteList() {
+	const wxString query = LowerCopy(paletteFilterCtrl_->GetValue());
+	paletteList_->Freeze();
+	paletteList_->Clear();
+	for (const wxString &name : allPalettes_) {
+		if (!query.IsEmpty() && !LowerCopy(name).Contains(query)) {
+			continue;
+		}
+		const size_t idx = paletteList_->Append(name);
+		paletteList_->Check(idx, VectorContains(selection_.paletteNames, name));
+	}
+	paletteList_->Thaw();
+	UpdateSummary();
+	UpdateOkState();
 }
 
 void MaterialsWorkbenchExportDialog::OnToggleIncludeDependencies(wxCommandEvent &) {
@@ -166,20 +350,92 @@ void MaterialsWorkbenchExportDialog::OnToggleIncludeDependencies(wxCommandEvent 
 }
 
 void MaterialsWorkbenchExportDialog::UpdateSummary() {
-	const int borders = static_cast<int>(CountCheckedItems(borderList_));
-	const int brushes = static_cast<int>(CountCheckedItems(brushList_));
-	const int groups = static_cast<int>(CountCheckedItems(paletteGroupList_));
-	const int palettes = static_cast<int>(CountCheckedItems(paletteList_));
+	const int borders = static_cast<int>(selection_.globalBorderXmlIds.size());
+	const int brushes = static_cast<int>(selection_.brushIds.size());
+	const int groups = static_cast<int>(selection_.paletteGroupNames.size());
+	const int palettes = static_cast<int>(selection_.paletteNames.size());
 	summaryLabel_->SetLabel(wxString::Format("Selected: %d borders, %d brushes, %d palette groups, %d palettes.", borders, brushes, groups, palettes));
 }
 
 void MaterialsWorkbenchExportDialog::UpdateOkState() {
 	const bool hasAnything =
-		CountCheckedItems(borderList_) > 0 ||
-		CountCheckedItems(brushList_) > 0 ||
-		CountCheckedItems(paletteGroupList_) > 0 ||
-		CountCheckedItems(paletteList_) > 0;
+		!selection_.globalBorderXmlIds.empty() ||
+		!selection_.brushIds.empty() ||
+		!selection_.paletteGroupNames.empty() ||
+		!selection_.paletteNames.empty();
 	okButton_->Enable(hasAnything);
+}
+
+void MaterialsWorkbenchExportDialog::OnSelectAllShown(wxCheckListBox* list) {
+	for (size_t i = 0; i < list->GetCount(); ++i) {
+		if (!list->IsChecked(i)) {
+			list->Check(i, true);
+			OnListToggled(list, static_cast<int>(i));
+		}
+	}
+}
+
+void MaterialsWorkbenchExportDialog::OnClearAllShown(wxCheckListBox* list) {
+	for (size_t i = 0; i < list->GetCount(); ++i) {
+		if (list->IsChecked(i)) {
+			list->Check(i, false);
+			OnListToggled(list, static_cast<int>(i));
+		}
+	}
+}
+
+void MaterialsWorkbenchExportDialog::OnListToggled(wxCheckListBox* list, int index) {
+	if (!list || index < 0 || static_cast<size_t>(index) >= list->GetCount()) {
+		return;
+	}
+
+	const bool checked = list->IsChecked(static_cast<unsigned int>(index));
+	if (list == borderList_) {
+		const int xmlBorderId = static_cast<int>(reinterpret_cast<intptr_t>(borderList_->GetClientData(static_cast<unsigned int>(index))));
+		if (xmlBorderId <= 0) {
+			return;
+		}
+		if (checked) {
+			if (!VectorContains(selection_.globalBorderXmlIds, xmlBorderId)) {
+				selection_.globalBorderXmlIds.push_back(xmlBorderId);
+			}
+		} else {
+			RemoveValue(selection_.globalBorderXmlIds, xmlBorderId);
+		}
+	} else if (list == brushList_) {
+		const int64_t brushId = static_cast<int64_t>(reinterpret_cast<intptr_t>(brushList_->GetClientData(static_cast<unsigned int>(index))));
+		if (brushId <= 0) {
+			return;
+		}
+		if (checked) {
+			if (!VectorContains(selection_.brushIds, brushId)) {
+				selection_.brushIds.push_back(brushId);
+			}
+		} else {
+			RemoveValue(selection_.brushIds, brushId);
+		}
+	} else if (list == paletteGroupList_) {
+		const wxString name = paletteGroupList_->GetString(static_cast<unsigned int>(index));
+		if (checked) {
+			if (!VectorContains(selection_.paletteGroupNames, name)) {
+				selection_.paletteGroupNames.push_back(name);
+			}
+		} else {
+			RemoveValue(selection_.paletteGroupNames, name);
+		}
+	} else if (list == paletteList_) {
+		const wxString name = paletteList_->GetString(static_cast<unsigned int>(index));
+		if (checked) {
+			if (!VectorContains(selection_.paletteNames, name)) {
+				selection_.paletteNames.push_back(name);
+			}
+		} else {
+			RemoveValue(selection_.paletteNames, name);
+		}
+	}
+
+	UpdateSummary();
+	UpdateOkState();
 }
 
 MaterialsWorkbenchImportDialog::MaterialsWorkbenchImportDialog(wxWindow* parent, const nlohmann::json &root, MaterialsWorkbenchController &controller) :

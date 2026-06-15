@@ -59,6 +59,7 @@
 - [ ] Add import/export tooling for any Materials Workbench entity (at least `walls`, `borders`, `brushes`, `palettes`, and `palette categories`) so users can share items without swapping the full `.db`
   - [x] Workbench: add global Export/Import UI that produces a single `.rme-materials.json` file from a user-selected list of entities
   - [x] Export/Import: support `border sets` (global), `brushes` (including inline border sets + ground borders + specific cases), `palettes`, and `palette groups` with update-on-conflict by stable keys
+  - [x] Export UI: replace four giant columns with tabbed pickers + search and “select/clear shown” actions per tab
 - [x] Safer removal (Palette Workspace): `Delete Palette` now shows category + section/entry counts and a small entry preview before confirming
 - [x] Safer removal (Border Workspace): `Delete Border` now shows a `Used By` preview + context count for global borders, and an owner + slots summary for inline borders, before confirming
 - [x] Safer removal (Brush Workspace / Doodad): removing an alternative/composite/tile now asks for confirmation and shows what will be removed (counts and key details) before applying the local change

@@ -12,7 +12,10 @@ class MaterialsWorkbenchController;
 class wxButton;
 class wxCheckBox;
 class wxCheckListBox;
+class wxChoice;
 class wxListCtrl;
+class wxNotebook;
+class wxSearchCtrl;
 class wxStaticText;
 
 class MaterialsWorkbenchExportDialog final : public wxDialog {
@@ -22,19 +25,55 @@ public:
 	const MaterialsWorkbenchExportSelection &GetSelection() const { return selection_; }
 
 private:
-	void RebuildLists();
+	void RebuildData();
+	void RebuildBorderList();
+	void RebuildBrushList();
+	void RebuildPaletteGroupList();
+	void RebuildPaletteList();
 	void UpdateSummary();
 	void UpdateOkState();
 	void OnToggleIncludeDependencies(wxCommandEvent &event);
+	void OnSelectAllShown(wxCheckListBox* list);
+	void OnClearAllShown(wxCheckListBox* list);
+	void OnListToggled(wxCheckListBox* list, int index);
 
 	MaterialsWorkbenchController &controller_;
 	MaterialsWorkbenchExportSelection selection_;
 
+	struct BorderRow {
+		int xmlBorderId = 0;
+		wxString label;
+	};
+	struct BrushRow {
+		int64_t brushId = 0;
+		wxString brushType;
+		wxString brushName;
+		wxString label;
+	};
+
+	std::vector<BorderRow> allBorders_;
+	std::vector<BrushRow> allBrushes_;
+	std::vector<wxString> allPaletteGroups_;
+	std::vector<wxString> allPalettes_;
+
+	std::vector<wxString> brushTypeChoices_;
+
 	wxCheckBox* includeDepsCtrl_ = nullptr;
+	wxNotebook* notebook_ = nullptr;
+
+	wxSearchCtrl* borderFilterCtrl_ = nullptr;
 	wxCheckListBox* borderList_ = nullptr;
+
+	wxSearchCtrl* brushFilterCtrl_ = nullptr;
+	wxChoice* brushTypeChoiceCtrl_ = nullptr;
 	wxCheckListBox* brushList_ = nullptr;
+
+	wxSearchCtrl* paletteGroupFilterCtrl_ = nullptr;
 	wxCheckListBox* paletteGroupList_ = nullptr;
+
+	wxSearchCtrl* paletteFilterCtrl_ = nullptr;
 	wxCheckListBox* paletteList_ = nullptr;
+
 	wxStaticText* summaryLabel_ = nullptr;
 	wxButton* okButton_ = nullptr;
 };
