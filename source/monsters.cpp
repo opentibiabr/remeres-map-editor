@@ -337,11 +337,7 @@ bool MonsterDatabase::loadFromLuaDir(const wxString &directory, wxString &error,
 	wxArrayString luaFiles;
 	wxDir::GetAllFiles(directory, &luaFiles, "*.lua", wxDIR_FILES | wxDIR_DIRS | wxDIR_HIDDEN);
 
-	int fileCount = 0;
 	for (const auto &filePath : luaFiles) {
-		if (++fileCount % 50 == 0) {
-			wxSafeYield();
-		}
 		std::string content = LuaParser::readFileContent(filePath.ToStdString());
 		if (content.empty()) {
 			warnings.push_back("Could not open: " + filePath);
