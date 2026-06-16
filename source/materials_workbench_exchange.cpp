@@ -491,7 +491,7 @@ namespace {
 				}
 			}
 		}
-		if (!controller.SavePaletteGroup(group, error)) {
+		if (!controller.SavePaletteGroupWithoutReload(group, error)) {
 			return false;
 		}
 		if (hadExisting) {
@@ -575,7 +575,7 @@ namespace {
 		}
 
 		const bool hadExisting = controller.HasTilesetNamed(tileset.name);
-		if (!controller.SaveTileset(tileset, error)) {
+		if (!controller.SaveTilesetWithoutReload(tileset, error)) {
 			return false;
 		}
 		report.importedPaletteNames.push_back(tileset.name);
@@ -1390,44 +1390,52 @@ bool ApplyMaterialsWorkbenchImportJsonWithProgress(
 		return progress(currentEntity, totalEntities, stage);
 	};
 
-	for (const nlohmann::json &entity : paletteGroups) {
-		if (!ApplyPaletteGroupEntity(controller, entity, outReport, error)) {
-			return false;
-		}
-		if (!tick("Importing palette groups")) {
-			error = "Import canceled.";
-			return false;
-		}
-	}
+	if (!g_brush_database.runInTransaction([&]() {
+			for (const nlohmann::json &entity : paletteGroups) {
+				if (!ApplyPaletteGroupEntity(controller, entity, outReport, error)) {
+					return false;
+				}
+				if (!tick("Importing palette groups")) {
+					error = "Import canceled.";
+					return false;
+				}
+			}
 
-	for (const nlohmann::json &entity : borderSets) {
-		if (!ApplyBorderSetEntity(entity, outReport, error)) {
-			return false;
-		}
-		if (!tick("Importing borders")) {
-			error = "Import canceled.";
-			return false;
-		}
-	}
+			for (const nlohmann::json &entity : borderSets) {
+				if (!ApplyBorderSetEntity(entity, outReport, error)) {
+					return false;
+				}
+				if (!tick("Importing borders")) {
+					error = "Import canceled.";
+					return false;
+				}
+			}
 
-	for (const nlohmann::json &entity : brushes) {
-		if (!ApplyBrushEntity(entity, outReport, error)) {
-			return false;
-		}
-		if (!tick("Importing brushes")) {
-			error = "Import canceled.";
-			return false;
-		}
-	}
+			for (const nlohmann::json &entity : brushes) {
+				if (!ApplyBrushEntity(entity, outReport, error)) {
+					return false;
+				}
+				if (!tick("Importing brushes")) {
+					error = "Import canceled.";
+					return false;
+				}
+			}
 
-	for (const nlohmann::json &entity : palettes) {
-		if (!ApplyPaletteEntity(controller, entity, outReport, error)) {
-			return false;
+			for (const nlohmann::json &entity : palettes) {
+				if (!ApplyPaletteEntity(controller, entity, outReport, error)) {
+					return false;
+				}
+				if (!tick("Importing palettes")) {
+					error = "Import canceled.";
+					return false;
+				}
+			}
+			return true;
+		})) {
+		if (error.IsEmpty()) {
+			error = g_brush_database.getLastError();
 		}
-		if (!tick("Importing palettes")) {
-			error = "Import canceled.";
-			return false;
-		}
+		return false;
 	}
 
 	controller.ReloadCatalog();

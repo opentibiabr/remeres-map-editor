@@ -33,8 +33,10 @@ public:
 	bool LocateBorderSetNode(int64_t borderSetId, wxString &outContextKey, int &outItemIndex) const;
 	bool SaveTileset(const TilesetStorageRecord &tileset, wxString &error);
 	bool SaveTileset(const TilesetStorageRecord &tileset, const wxString &previousName, wxString &error);
+	bool SaveTilesetWithoutReload(const TilesetStorageRecord &tileset, wxString &error);
 	bool DeleteTileset(const wxString &name, wxString &error);
 	bool SavePaletteGroup(const PaletteGroupRecord &group, wxString &error);
+	bool SavePaletteGroupWithoutReload(const PaletteGroupRecord &group, wxString &error);
 	bool DeletePaletteGroup(const wxString &name, wxString &error);
 	bool DeletePaletteGroupAndReassignPalettes(const wxString &name, const wxString &destinationName, int &outMovedPaletteCount, wxString &error);
 	const std::vector<PaletteGroupRecord> &GetPaletteGroups() const;

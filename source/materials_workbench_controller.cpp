@@ -919,6 +919,10 @@ bool MaterialsWorkbenchController::SaveTileset(const TilesetStorageRecord &tiles
 	return true;
 }
 
+bool MaterialsWorkbenchController::SaveTilesetWithoutReload(const TilesetStorageRecord &tileset, wxString &error) {
+	return repository_.SaveTileset(tileset, error);
+}
+
 bool MaterialsWorkbenchController::DeleteTileset(const wxString &name, wxString &error) {
 	if (!repository_.DeleteTileset(name, error)) {
 		return false;
@@ -943,6 +947,10 @@ bool MaterialsWorkbenchController::SavePaletteGroup(const PaletteGroupRecord &gr
 	}
 
 	return true;
+}
+
+bool MaterialsWorkbenchController::SavePaletteGroupWithoutReload(const PaletteGroupRecord &group, wxString &error) {
+	return repository_.SavePaletteGroup(group, error);
 }
 
 bool MaterialsWorkbenchController::DeletePaletteGroup(const wxString &name, wxString &error) {
