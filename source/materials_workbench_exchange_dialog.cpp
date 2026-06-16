@@ -19,6 +19,7 @@
 #include <wx/srchctrl.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
+#include <wx/textctrl.h>
 
 #include "brush_database.h"
 #include "materials_workbench_controller.h"
@@ -65,6 +66,26 @@ namespace {
 	unsigned int CountCheckedItems(wxCheckListBox* list) {
 		wxArrayInt checked;
 		return list->GetCheckedItems(checked);
+	}
+
+	template <typename T>
+	std::vector<T> CollectAddedValues(const std::vector<T> &selected, const std::vector<T> &resolved, size_t maxCount) {
+		std::unordered_set<T> selectedSet;
+		selectedSet.reserve(selected.size());
+		for (const T &value : selected) {
+			selectedSet.insert(value);
+		}
+		std::vector<T> added;
+		added.reserve(std::min(maxCount, resolved.size()));
+		for (const T &value : resolved) {
+			if (!selectedSet.count(value)) {
+				added.push_back(value);
+				if (added.size() >= maxCount) {
+					break;
+				}
+			}
+		}
+		return added;
 	}
 } // namespace
 
@@ -157,6 +178,8 @@ MaterialsWorkbenchExportDialog::MaterialsWorkbenchExportDialog(wxWindow* parent,
 	notebook_->AddPage(palettePage, "Palettes");
 
 	summaryLabel_ = new wxStaticText(this, wxID_ANY, "");
+	depsPreview_ = new wxTextCtrl(this, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY | wxBORDER_THEME);
+	depsPreview_->SetMinSize(wxSize(-1, FromDIP(120)));
 
 	wxStdDialogButtonSizer* buttons = new wxStdDialogButtonSizer();
 	okButton_ = new wxButton(this, wxID_OK, "Export");
@@ -167,6 +190,7 @@ MaterialsWorkbenchExportDialog::MaterialsWorkbenchExportDialog(wxWindow* parent,
 	rootSizer->Add(includeDepsCtrl_, 0, wxEXPAND | wxALL, FromDIP(12));
 	rootSizer->Add(notebook_, 1, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(12));
 	rootSizer->Add(summaryLabel_, 0, wxEXPAND | wxALL, FromDIP(12));
+	rootSizer->Add(depsPreview_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(12));
 	rootSizer->Add(buttons, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(12));
 
 	SetSizerAndFit(rootSizer);
@@ -366,11 +390,15 @@ void MaterialsWorkbenchExportDialog::UpdateSummary() {
 	const int palettes = static_cast<int>(selectedPalettes.size());
 
 	wxString label = wxString::Format("Selected: %d borders, %d brushes, %d palette groups, %d palettes.", borders, brushes, groups, palettes);
+	wxString details;
 
 	if (selection_.includeDependencies) {
 		wxString error;
 		MaterialsWorkbenchResolvedExportSelection resolved;
-		if (ResolveMaterialsWorkbenchExportSelection(controller_, selection_, resolved, error) && error.IsEmpty()) {
+		if (!ResolveMaterialsWorkbenchExportSelection(controller_, selection_, resolved, error) || !error.IsEmpty()) {
+			details << "Dependency resolution failed.\n";
+			details << error;
+		} else {
 			const std::set<int> exportingBorders(resolved.globalBorderXmlIds.begin(), resolved.globalBorderXmlIds.end());
 			const std::set<int64_t> exportingBrushes(resolved.brushIds.begin(), resolved.brushIds.end());
 			const std::set<wxString> exportingGroups(resolved.paletteGroupNames.begin(), resolved.paletteGroupNames.end());
@@ -388,10 +416,63 @@ void MaterialsWorkbenchExportDialog::UpdateSummary() {
 				static_cast<int>(exportingGroups.size()), depGroups,
 				static_cast<int>(exportingPalettes.size()), depPalettes
 			);
+
+			details << "Exporting (including dependencies)\n";
+			details << wxString::Format("Borders: %d (+%d deps)\n", static_cast<int>(exportingBorders.size()), depBorders);
+			details << wxString::Format("Brushes: %d (+%d deps)\n", static_cast<int>(exportingBrushes.size()), depBrushes);
+			details << wxString::Format("Palette Groups: %d (+%d deps)\n", static_cast<int>(exportingGroups.size()), depGroups);
+			details << wxString::Format("Palettes: %d (+%d deps)\n", static_cast<int>(exportingPalettes.size()), depPalettes);
+
+			const size_t kMaxPreviewItems = 12;
+
+			if (depGroups > 0) {
+				details << "\nAdded palette groups\n";
+				for (const wxString &name : CollectAddedValues(selection_.paletteGroupNames, resolved.paletteGroupNames, kMaxPreviewItems)) {
+					details << "  + " << name << "\n";
+				}
+			}
+
+			if (depPalettes > 0) {
+				details << "\nAdded palettes\n";
+				for (const wxString &name : CollectAddedValues(selection_.paletteNames, resolved.paletteNames, kMaxPreviewItems)) {
+					details << "  + " << name << "\n";
+				}
+			}
+
+			if (depBrushes > 0) {
+				std::unordered_map<int64_t, wxString> brushLabelById;
+				brushLabelById.reserve(allBrushes_.size());
+				for (const BrushRow &row : allBrushes_) {
+					brushLabelById.insert({ row.brushId, row.label });
+				}
+				details << "\nAdded brushes\n";
+				for (int64_t brushId : CollectAddedValues(selection_.brushIds, resolved.brushIds, kMaxPreviewItems)) {
+					const auto it = brushLabelById.find(brushId);
+					details << "  + " << (it != brushLabelById.end() ? it->second : wxString::Format("Brush %lld", static_cast<long long>(brushId))) << "\n";
+				}
+			}
+
+			if (depBorders > 0) {
+				std::unordered_map<int, wxString> borderLabelById;
+				borderLabelById.reserve(allBorders_.size());
+				for (const BorderRow &row : allBorders_) {
+					borderLabelById.insert({ row.xmlBorderId, row.label });
+				}
+				details << "\nAdded borders\n";
+				for (int xmlBorderId : CollectAddedValues(selection_.globalBorderXmlIds, resolved.globalBorderXmlIds, kMaxPreviewItems)) {
+					const auto it = borderLabelById.find(xmlBorderId);
+					details << "  + " << (it != borderLabelById.end() ? it->second : wxString::Format("Border %d", xmlBorderId)) << "\n";
+				}
+			}
 		}
 	}
 
 	summaryLabel_->SetLabel(label);
+	depsPreview_->Show(selection_.includeDependencies);
+	if (selection_.includeDependencies) {
+		depsPreview_->ChangeValue(details);
+	}
+	Layout();
 }
 
 void MaterialsWorkbenchExportDialog::UpdateOkState() {

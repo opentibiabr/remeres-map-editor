@@ -18,6 +18,7 @@ class wxNotebook;
 class wxProgressDialog;
 class wxSearchCtrl;
 class wxStaticText;
+class wxTextCtrl;
 
 class MaterialsWorkbenchExportDialog final : public wxDialog {
 public:
@@ -76,6 +77,7 @@ private:
 	wxCheckListBox* paletteList_ = nullptr;
 
 	wxStaticText* summaryLabel_ = nullptr;
+	wxTextCtrl* depsPreview_ = nullptr;
 	wxButton* okButton_ = nullptr;
 };
 
