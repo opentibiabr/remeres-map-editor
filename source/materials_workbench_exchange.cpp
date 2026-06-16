@@ -3,8 +3,10 @@
 #include "materials_workbench_exchange.h"
 
 #include <algorithm>
+#include <deque>
 #include <set>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "brush_database.h"
 #include "materials_workbench_controller.h"
@@ -140,6 +142,7 @@ namespace {
 			{ "randomize", brush.randomize },
 			{ "oneSize", brush.oneSize },
 			{ "thickness", brush.thickness },
+			{ "thicknessCeiling", brush.thicknessCeiling },
 			{ "soloOptional", brush.soloOptional },
 			{ "removeOptionalBorder", brush.removeOptionalBorder },
 		};
@@ -449,6 +452,7 @@ namespace {
 			return false;
 		}
 
+		report.importedBorderSetIds.push_back(borderSetId);
 		if (hadExisting) {
 			++report.updated;
 		} else {
@@ -479,6 +483,14 @@ namespace {
 		group.isBuiltin = false;
 
 		const bool hadExisting = controller.HasPaletteGroupNamed(group.name);
+		if (hadExisting) {
+			for (const PaletteGroupRecord &existing : controller.GetPaletteGroups()) {
+				if (existing.name.IsSameAs(group.name, false) && existing.id > 0) {
+					group.id = existing.id;
+					break;
+				}
+			}
+		}
 		if (!controller.SavePaletteGroup(group, error)) {
 			return false;
 		}
@@ -566,6 +578,7 @@ namespace {
 		if (!controller.SaveTileset(tileset, error)) {
 			return false;
 		}
+		report.importedPaletteNames.push_back(tileset.name);
 		if (hadExisting) {
 			++report.updated;
 		} else {
@@ -618,6 +631,9 @@ namespace {
 		if (b.contains("thickness") && b["thickness"].is_number_integer()) {
 			brush.thickness = b["thickness"].get<int>();
 		}
+		if (b.contains("thicknessCeiling") && b["thicknessCeiling"].is_number_integer()) {
+			brush.thicknessCeiling = b["thicknessCeiling"].get<int>();
+		}
 		if (b.contains("soloOptional") && b["soloOptional"].is_boolean()) {
 			brush.soloOptional = b["soloOptional"].get<bool>();
 		}
@@ -633,6 +649,7 @@ namespace {
 			error = g_brush_database.getLastError();
 			return false;
 		}
+		report.importedBrushIds.push_back(brushId);
 
 		std::vector<BrushItemRecord> brushItems;
 		if (entity.contains("items") && entity["items"].is_array()) {
@@ -1122,12 +1139,14 @@ namespace {
 	}
 } // namespace
 
-nlohmann::json BuildMaterialsWorkbenchExportJson(
+bool ResolveMaterialsWorkbenchExportSelection(
 	MaterialsWorkbenchController &controller,
 	const MaterialsWorkbenchExportSelection &selection,
+	MaterialsWorkbenchResolvedExportSelection &outResolved,
 	wxString &error
 ) {
 	error.clear();
+	outResolved = MaterialsWorkbenchResolvedExportSelection();
 
 	std::set<int64_t> brushIds(selection.brushIds.begin(), selection.brushIds.end());
 	std::set<int> borderXmlIds(selection.globalBorderXmlIds.begin(), selection.globalBorderXmlIds.end());
@@ -1135,28 +1154,143 @@ nlohmann::json BuildMaterialsWorkbenchExportJson(
 	std::set<wxString> paletteGroupNames(selection.paletteGroupNames.begin(), selection.paletteGroupNames.end());
 
 	if (selection.includeDependencies) {
-		std::set<int> referencedBorders;
+		std::deque<int64_t> brushQueue;
+		std::unordered_set<int64_t> processedBrushes;
 		for (int64_t brushId : brushIds) {
-			BrushStorageRecord storage;
-			if (!g_brush_database.getCompleteBrushById(brushId, storage) || storage.brush.id <= 0) {
-				continue;
-			}
-			for (const GroundBrushBorderRecord &border : storage.borders) {
-				if (border.borderSetId <= 0) {
-					continue;
-				}
-				BorderSetRecord borderSet;
-				if (g_brush_database.getBorderSetById(border.borderSetId, borderSet) && borderSet.borderScope.IsSameAs("global", false) && borderSet.xmlBorderId > 0) {
-					referencedBorders.insert(borderSet.xmlBorderId);
-				}
+			if (brushId > 0) {
+				brushQueue.push_back(brushId);
 			}
 		}
-		borderXmlIds.insert(referencedBorders.begin(), referencedBorders.end());
+
+		auto EnqueueBrush = [&](int64_t brushId, bool &changed) {
+			if (brushId <= 0) {
+				return;
+			}
+			if (brushIds.insert(brushId).second) {
+				brushQueue.push_back(brushId);
+				changed = true;
+			}
+		};
+
+		bool changed = true;
+		while (changed) {
+			changed = false;
+
+			while (!brushQueue.empty()) {
+				const int64_t brushId = brushQueue.front();
+				brushQueue.pop_front();
+				if (processedBrushes.find(brushId) != processedBrushes.end()) {
+					continue;
+				}
+				processedBrushes.insert(brushId);
+
+				BrushStorageRecord storage;
+				if (!g_brush_database.getCompleteBrushById(brushId, storage) || storage.brush.id <= 0) {
+					continue;
+				}
+
+				for (const GroundBrushBorderRecord &border : storage.borders) {
+					if (border.borderSetId <= 0) {
+						continue;
+					}
+					BorderSetRecord borderSet;
+					if (g_brush_database.getBorderSetById(border.borderSetId, borderSet) && borderSet.borderScope.IsSameAs("global", false) && borderSet.xmlBorderId > 0) {
+						if (borderXmlIds.insert(borderSet.xmlBorderId).second) {
+							changed = true;
+						}
+					}
+					if (border.targetBrushId > 0) {
+						EnqueueBrush(border.targetBrushId, changed);
+					}
+				}
+
+				for (const BrushLinkRecord &link : storage.links) {
+					if (link.targetBrushId > 0) {
+						EnqueueBrush(link.targetBrushId, changed);
+					}
+				}
+			}
+
+			for (const TilesetStorageRecord &tileset : controller.GetTilesets()) {
+				const bool groupSelected = !tileset.paletteGroupName.IsEmpty() && paletteGroupNames.find(tileset.paletteGroupName) != paletteGroupNames.end();
+				if (groupSelected) {
+					if (paletteNames.insert(tileset.name).second) {
+						changed = true;
+					}
+				}
+
+				const bool paletteSelected = paletteNames.find(tileset.name) != paletteNames.end();
+				if (paletteSelected) {
+					if (!tileset.paletteGroupName.IsEmpty()) {
+						if (paletteGroupNames.insert(tileset.paletteGroupName).second) {
+							changed = true;
+						}
+					}
+					for (const TilesetSectionRecord &section : tileset.sections) {
+						for (const TilesetEntryRecord &entry : section.entries) {
+							if (!entry.entryKind.IsSameAs("brush", false)) {
+								continue;
+							}
+							if (entry.brushId > 0) {
+								EnqueueBrush(entry.brushId, changed);
+							}
+						}
+					}
+					continue;
+				}
+
+				bool referencesSelectedBrush = false;
+				for (const TilesetSectionRecord &section : tileset.sections) {
+					for (const TilesetEntryRecord &entry : section.entries) {
+						if (!entry.entryKind.IsSameAs("brush", false) || entry.brushId <= 0) {
+							continue;
+						}
+						if (brushIds.find(entry.brushId) != brushIds.end()) {
+							referencesSelectedBrush = true;
+							break;
+						}
+					}
+					if (referencesSelectedBrush) {
+						break;
+					}
+				}
+				if (referencesSelectedBrush) {
+					if (paletteNames.insert(tileset.name).second) {
+						changed = true;
+					}
+				}
+			}
+
+			if (!changed && !brushQueue.empty()) {
+				changed = true;
+			}
+		}
 	}
+
+	outResolved.brushIds.assign(brushIds.begin(), brushIds.end());
+	outResolved.globalBorderXmlIds.assign(borderXmlIds.begin(), borderXmlIds.end());
+	outResolved.paletteNames.assign(paletteNames.begin(), paletteNames.end());
+	outResolved.paletteGroupNames.assign(paletteGroupNames.begin(), paletteGroupNames.end());
+	return true;
+}
+
+nlohmann::json BuildMaterialsWorkbenchExportJson(
+	MaterialsWorkbenchController &controller,
+	const MaterialsWorkbenchExportSelection &selection,
+	wxString &error
+) {
+	error.clear();
+
+	MaterialsWorkbenchResolvedExportSelection resolved;
+	if (!ResolveMaterialsWorkbenchExportSelection(controller, selection, resolved, error)) {
+		return nlohmann::json();
+	}
+	const std::set<wxString> paletteGroupNames(resolved.paletteGroupNames.begin(), resolved.paletteGroupNames.end());
+	const std::set<wxString> paletteNames(resolved.paletteNames.begin(), resolved.paletteNames.end());
 
 	nlohmann::json entities = nlohmann::json::array();
 
-	for (int xmlBorderId : borderXmlIds) {
+	for (int xmlBorderId : resolved.globalBorderXmlIds) {
 		nlohmann::json entity = ExportBorderSetEntity(xmlBorderId, error);
 		if (!error.IsEmpty()) {
 			return nlohmann::json();
@@ -1164,7 +1298,7 @@ nlohmann::json BuildMaterialsWorkbenchExportJson(
 		entities.push_back(std::move(entity));
 	}
 
-	for (int64_t brushId : brushIds) {
+	for (int64_t brushId : resolved.brushIds) {
 		nlohmann::json entity = ExportBrushStorageEntity(brushId, error);
 		if (!error.IsEmpty()) {
 			return nlohmann::json();
@@ -1184,9 +1318,6 @@ nlohmann::json BuildMaterialsWorkbenchExportJson(
 			continue;
 		}
 		entities.push_back(ExportPaletteEntity(tileset));
-		if (selection.includeDependencies && !tileset.paletteGroupName.IsEmpty()) {
-			paletteGroupNames.insert(tileset.paletteGroupName);
-		}
 	}
 
 	nlohmann::json root;
@@ -1199,6 +1330,16 @@ nlohmann::json BuildMaterialsWorkbenchExportJson(
 bool ApplyMaterialsWorkbenchImportJson(
 	MaterialsWorkbenchController &controller,
 	const nlohmann::json &root,
+	MaterialsWorkbenchImportReport &outReport,
+	wxString &error
+) {
+	return ApplyMaterialsWorkbenchImportJsonWithProgress(controller, root, MaterialsWorkbenchImportProgressCallback(), outReport, error);
+}
+
+bool ApplyMaterialsWorkbenchImportJsonWithProgress(
+	MaterialsWorkbenchController &controller,
+	const nlohmann::json &root,
+	const MaterialsWorkbenchImportProgressCallback &progress,
 	MaterialsWorkbenchImportReport &outReport,
 	wxString &error
 ) {
@@ -1239,8 +1380,22 @@ bool ApplyMaterialsWorkbenchImportJson(
 		}
 	}
 
+	const int totalEntities = static_cast<int>(paletteGroups.size() + borderSets.size() + brushes.size() + palettes.size());
+	int currentEntity = 0;
+	const auto tick = [&](const wxString &stage) -> bool {
+		if (!progress) {
+			return true;
+		}
+		++currentEntity;
+		return progress(currentEntity, totalEntities, stage);
+	};
+
 	for (const nlohmann::json &entity : paletteGroups) {
 		if (!ApplyPaletteGroupEntity(controller, entity, outReport, error)) {
+			return false;
+		}
+		if (!tick("Importing palette groups")) {
+			error = "Import canceled.";
 			return false;
 		}
 	}
@@ -1249,16 +1404,28 @@ bool ApplyMaterialsWorkbenchImportJson(
 		if (!ApplyBorderSetEntity(entity, outReport, error)) {
 			return false;
 		}
+		if (!tick("Importing borders")) {
+			error = "Import canceled.";
+			return false;
+		}
 	}
 
 	for (const nlohmann::json &entity : brushes) {
 		if (!ApplyBrushEntity(entity, outReport, error)) {
 			return false;
 		}
+		if (!tick("Importing brushes")) {
+			error = "Import canceled.";
+			return false;
+		}
 	}
 
 	for (const nlohmann::json &entity : palettes) {
 		if (!ApplyPaletteEntity(controller, entity, outReport, error)) {
+			return false;
+		}
+		if (!tick("Importing palettes")) {
+			error = "Import canceled.";
 			return false;
 		}
 	}

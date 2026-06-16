@@ -3,6 +3,7 @@
 #include "materials_workbench_exchange_dialog.h"
 
 #include <algorithm>
+#include <set>
 
 #include <wx/button.h>
 #include <wx/checkbox.h>
@@ -11,6 +12,7 @@
 #include <wx/listctrl.h>
 #include <wx/notebook.h>
 #include <wx/panel.h>
+#include <wx/progdlg.h>
 #include <wx/srchctrl.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
@@ -350,11 +352,43 @@ void MaterialsWorkbenchExportDialog::OnToggleIncludeDependencies(wxCommandEvent 
 }
 
 void MaterialsWorkbenchExportDialog::UpdateSummary() {
-	const int borders = static_cast<int>(selection_.globalBorderXmlIds.size());
-	const int brushes = static_cast<int>(selection_.brushIds.size());
-	const int groups = static_cast<int>(selection_.paletteGroupNames.size());
-	const int palettes = static_cast<int>(selection_.paletteNames.size());
-	summaryLabel_->SetLabel(wxString::Format("Selected: %d borders, %d brushes, %d palette groups, %d palettes.", borders, brushes, groups, palettes));
+	const std::set<int> selectedBorders(selection_.globalBorderXmlIds.begin(), selection_.globalBorderXmlIds.end());
+	const std::set<int64_t> selectedBrushes(selection_.brushIds.begin(), selection_.brushIds.end());
+	const std::set<wxString> selectedGroups(selection_.paletteGroupNames.begin(), selection_.paletteGroupNames.end());
+	const std::set<wxString> selectedPalettes(selection_.paletteNames.begin(), selection_.paletteNames.end());
+
+	const int borders = static_cast<int>(selectedBorders.size());
+	const int brushes = static_cast<int>(selectedBrushes.size());
+	const int groups = static_cast<int>(selectedGroups.size());
+	const int palettes = static_cast<int>(selectedPalettes.size());
+
+	wxString label = wxString::Format("Selected: %d borders, %d brushes, %d palette groups, %d palettes.", borders, brushes, groups, palettes);
+
+	if (selection_.includeDependencies) {
+		wxString error;
+		MaterialsWorkbenchResolvedExportSelection resolved;
+		if (ResolveMaterialsWorkbenchExportSelection(controller_, selection_, resolved, error) && error.IsEmpty()) {
+			const std::set<int> exportingBorders(resolved.globalBorderXmlIds.begin(), resolved.globalBorderXmlIds.end());
+			const std::set<int64_t> exportingBrushes(resolved.brushIds.begin(), resolved.brushIds.end());
+			const std::set<wxString> exportingGroups(resolved.paletteGroupNames.begin(), resolved.paletteGroupNames.end());
+			const std::set<wxString> exportingPalettes(resolved.paletteNames.begin(), resolved.paletteNames.end());
+
+			const int depBorders = static_cast<int>(exportingBorders.size() - selectedBorders.size());
+			const int depBrushes = static_cast<int>(exportingBrushes.size() - selectedBrushes.size());
+			const int depGroups = static_cast<int>(exportingGroups.size() - selectedGroups.size());
+			const int depPalettes = static_cast<int>(exportingPalettes.size() - selectedPalettes.size());
+
+			label += wxString::Format(
+				" Exporting: %d borders (+%d), %d brushes (+%d), %d palette groups (+%d), %d palettes (+%d).",
+				static_cast<int>(exportingBorders.size()), depBorders,
+				static_cast<int>(exportingBrushes.size()), depBrushes,
+				static_cast<int>(exportingGroups.size()), depGroups,
+				static_cast<int>(exportingPalettes.size()), depPalettes
+			);
+		}
+	}
+
+	summaryLabel_->SetLabel(label);
 }
 
 void MaterialsWorkbenchExportDialog::UpdateOkState() {
@@ -467,20 +501,30 @@ MaterialsWorkbenchImportDialog::MaterialsWorkbenchImportDialog(wxWindow* parent,
 	SetSizerAndFit(rootSizer);
 	SetMinSize(wxSize(FromDIP(720), FromDIP(420)));
 
-	BuildPlan();
+	okButton_->Enable(false);
+	summaryLabel_->SetLabel("Building preview...");
+}
+
+void MaterialsWorkbenchImportDialog::BuildPlanWithProgress(wxProgressDialog* progress, int progressStart, int progressSpan) {
+	BuildPlan(progress, progressStart, progressSpan);
 	UpdateSummary();
 }
 
-void MaterialsWorkbenchImportDialog::BuildPlan() {
+void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int progressStart, int progressSpan) {
+	planList_->Freeze();
 	planList_->DeleteAllItems();
 	int creates = 0;
 	int updates = 0;
 
 	if (!root_.is_object() || !root_.contains("entities") || !root_["entities"].is_array()) {
 		okButton_->Enable(false);
+		summaryLabel_->SetLabel("Plan: 0 create, 0 update.");
+		planList_->Thaw();
 		return;
 	}
 
+	const int total = static_cast<int>(root_["entities"].size());
+	int processed = 0;
 	for (const nlohmann::json &entity : root_["entities"]) {
 		if (!entity.is_object() || !entity.contains("kind") || !entity["kind"].is_string()) {
 			continue;
@@ -527,10 +571,18 @@ void MaterialsWorkbenchImportDialog::BuildPlan() {
 		const long row = planList_->InsertItem(planList_->GetItemCount(), wxString::FromUTF8(kind.c_str()));
 		planList_->SetItem(row, 1, keyLabel);
 		planList_->SetItem(row, 2, action);
+
+		++processed;
+		if (progress && total > 0 && progressSpan > 0 && (processed % 200) == 0) {
+			const int value = progressStart + static_cast<int>((static_cast<double>(processed) / total) * progressSpan);
+			progress->Update(std::min(100, std::max(0, value)), "Building import preview...");
+			wxYieldIfNeeded();
+		}
 	}
 
 	okButton_->Enable(planList_->GetItemCount() > 0);
 	summaryLabel_->SetLabel(wxString::Format("Plan: %d create, %d update.", creates, updates));
+	planList_->Thaw();
 }
 
 void MaterialsWorkbenchImportDialog::UpdateSummary() {

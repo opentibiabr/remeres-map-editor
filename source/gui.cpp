@@ -1136,6 +1136,73 @@ bool GUI::ReloadMaterialPalettesFromDatabase(wxString &error, wxArrayString &war
 	return true;
 }
 
+bool GUI::ReloadMaterialPalettesAndBrushesFromDatabase(wxString &error, wxArrayString &warnings) {
+	error.clear();
+	warnings.clear();
+
+	if (!g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
+		error = "SQLite materials backend is disabled.";
+		return false;
+	}
+	if (!g_brush_database.isOpen()) {
+		error = "SQLite materials database is not open.";
+		return false;
+	}
+
+	wxArrayString brushWarnings;
+
+	static const wxString supportedTypes[] = { "ground", "wall", "doodad", "carpet", "table" };
+	for (const wxString &type : supportedTypes) {
+		std::vector<BrushRecord> brushList;
+		if (!g_brush_database.listBrushesByType(type, brushList)) {
+			error = "Failed to list SQLite brushes for runtime refresh.";
+			if (!g_brush_database.getLastError().IsEmpty()) {
+				error += " " + g_brush_database.getLastError();
+			}
+			return false;
+		}
+		for (const BrushRecord &row : brushList) {
+			wxString reloadError;
+			wxArrayString reloadWarnings;
+			if (!g_brushes.reloadBrushFromDatabase(row.id, reloadWarnings, reloadError)) {
+				brushWarnings.push_back(wxString::Format("Failed to reload runtime brush \"%s\": %s", row.name, reloadError));
+				continue;
+			}
+			for (const wxString &warning : reloadWarnings) {
+				brushWarnings.push_back(warning);
+			}
+		}
+	}
+
+	{
+		std::vector<BorderSetRecord> globalBorders;
+		if (g_brush_database.listBorderSetsByScope("global", globalBorders) && !globalBorders.empty()) {
+			wxString borderError;
+			wxArrayString borderWarnings;
+			if (!g_brushes.reloadBorderSetFromDatabase(globalBorders.front().id, borderWarnings, borderError)) {
+				brushWarnings.push_back("Failed to reload runtime global borders from SQLite: " + borderError);
+			} else {
+				for (const wxString &warning : borderWarnings) {
+					brushWarnings.push_back(warning);
+				}
+			}
+		}
+	}
+
+	wxString paletteError;
+	wxArrayString paletteWarnings;
+	if (!ReloadMaterialPalettesFromDatabase(paletteError, paletteWarnings)) {
+		error = paletteError;
+		warnings = brushWarnings;
+		warnings.insert(warnings.end(), paletteWarnings.begin(), paletteWarnings.end());
+		return false;
+	}
+
+	warnings = brushWarnings;
+	warnings.insert(warnings.end(), paletteWarnings.begin(), paletteWarnings.end());
+	return true;
+}
+
 bool GUI::SyncBrushInPalettes(const wxString &oldName, const wxString &newName, uint16_t effectiveLookId) {
 	if (newName.IsEmpty()) {
 		return false;

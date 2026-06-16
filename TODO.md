@@ -59,6 +59,13 @@
 - [ ] Add import/export tooling for any Materials Workbench entity (at least `walls`, `borders`, `brushes`, `palettes`, and `palette categories`) so users can share items without swapping the full `.db`
   - [x] Workbench: add global Export/Import UI that produces a single `.rme-materials.json` file from a user-selected list of entities
   - [x] Export/Import: support `border sets` (global), `brushes` (including inline border sets + ground borders + specific cases), `palettes`, and `palette groups` with update-on-conflict by stable keys
+  - [x] Export: dependency closure now includes linked/target brushes and palette references (and exports palette groups before palettes)
+  - [x] Import: palette groups now update-on-conflict by name instead of failing with “already exists”
+  - [x] Import UX: show progress bars for large JSON (read/parse/preview/apply) and refresh runtime brushes+palettes after import
+  - [x] Import runtime refresh: avoid crash by reloading brushes incrementally (no global clear while palettes are alive)
+  - [x] Import performance: refresh only affected brushes/borders, avoiding minutes-long “Finishing” freeze
+  - [x] Catalog header: remove redundant title/subtitle and match Import/Export/Inspector button height to toolbars
+  - [x] Export/Import: preserve wall/brush metadata `thicknessCeiling` in JSON
   - [x] Export UI: replace four giant columns with tabbed pickers + search and “select/clear shown” actions per tab
 - [x] Safer removal (Palette Workspace): `Delete Palette` now shows category + section/entry counts and a small entry preview before confirming
 - [x] Safer removal (Border Workspace): `Delete Border` now shows a `Used By` preview + context count for global borders, and an owner + slots summary for inline borders, before confirming

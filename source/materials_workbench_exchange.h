@@ -2,6 +2,7 @@
 #define RME_MATERIALS_WORKBENCH_EXCHANGE_H_
 
 #include <cstdint>
+#include <functional>
 #include <vector>
 
 #include <wx/string.h>
@@ -16,10 +17,20 @@ struct MaterialsWorkbenchExportSelection {
 	bool includeDependencies = true;
 };
 
+struct MaterialsWorkbenchResolvedExportSelection {
+	std::vector<int64_t> brushIds;
+	std::vector<int> globalBorderXmlIds;
+	std::vector<wxString> paletteNames;
+	std::vector<wxString> paletteGroupNames;
+};
+
 struct MaterialsWorkbenchImportReport {
 	int created = 0;
 	int updated = 0;
 	std::vector<wxString> notes;
+	std::vector<int64_t> importedBrushIds;
+	std::vector<int64_t> importedBorderSetIds;
+	std::vector<wxString> importedPaletteNames;
 };
 
 class MaterialsWorkbenchController;
@@ -30,9 +41,26 @@ nlohmann::json BuildMaterialsWorkbenchExportJson(
 	wxString &error
 );
 
+bool ResolveMaterialsWorkbenchExportSelection(
+	MaterialsWorkbenchController &controller,
+	const MaterialsWorkbenchExportSelection &selection,
+	MaterialsWorkbenchResolvedExportSelection &outResolved,
+	wxString &error
+);
+
+using MaterialsWorkbenchImportProgressCallback = std::function<bool(int current, int total, const wxString &stage)>;
+
 bool ApplyMaterialsWorkbenchImportJson(
 	MaterialsWorkbenchController &controller,
 	const nlohmann::json &root,
+	MaterialsWorkbenchImportReport &outReport,
+	wxString &error
+);
+
+bool ApplyMaterialsWorkbenchImportJsonWithProgress(
+	MaterialsWorkbenchController &controller,
+	const nlohmann::json &root,
+	const MaterialsWorkbenchImportProgressCallback &progress,
 	MaterialsWorkbenchImportReport &outReport,
 	wxString &error
 );

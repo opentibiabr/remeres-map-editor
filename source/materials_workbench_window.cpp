@@ -4,10 +4,13 @@
 
 #include <algorithm>
 #include <fstream>
+#include <set>
+#include <vector>
 
 #include <wx/button.h>
 #include <wx/filedlg.h>
 #include <wx/msgdlg.h>
+#include <wx/progdlg.h>
 #include <wx/srchctrl.h>
 #include <wx/simplebook.h>
 #include <wx/splitter.h>
@@ -29,10 +32,13 @@
 namespace {
 	MaterialsWorkbenchWindow* g_materials_workbench_window = nullptr;
 
-	void RefreshRuntimeMaterialPalettes(const char* reason) {
+	void RefreshRuntimeMaterialPalettes(const char* reason, bool reloadBrushes) {
 		wxString error;
 		wxArrayString warnings;
-		if (!g_gui.ReloadMaterialPalettesFromDatabase(error, warnings)) {
+		const bool ok = reloadBrushes
+			? g_gui.ReloadMaterialPalettesAndBrushesFromDatabase(error, warnings)
+			: g_gui.ReloadMaterialPalettesFromDatabase(error, warnings);
+		if (!ok) {
 			spdlog::warn(
 				"Materials Workbench runtime palette refresh failed after {}: {}",
 				reason,
@@ -196,18 +202,22 @@ namespace {
 		wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 
 		wxBoxSizer* headerSizer = new wxBoxSizer(wxHORIZONTAL);
-		wxStaticText* title = new wxStaticText(panel, wxID_ANY, "Catalog");
 		outInspectorButton = new wxButton(panel, wxID_ANY, "Inspector");
-		outExportButton = new wxButton(panel, wxID_ANY, "Export...");
-		outImportButton = new wxButton(panel, wxID_ANY, "Import...");
-		headerSizer->Add(title, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, panel->FromDIP(8));
+		outExportButton = new wxButton(panel, wxID_ANY, "Export");
+		outImportButton = new wxButton(panel, wxID_ANY, "Import");
+		const int compactHeight = panel->FromDIP(20);
+		outInspectorButton->SetWindowVariant(wxWINDOW_VARIANT_SMALL);
+		outExportButton->SetWindowVariant(wxWINDOW_VARIANT_SMALL);
+		outImportButton->SetWindowVariant(wxWINDOW_VARIANT_SMALL);
+		outInspectorButton->SetMinSize(wxSize(-1, compactHeight));
+		outExportButton->SetMinSize(wxSize(-1, compactHeight));
+		outImportButton->SetMinSize(wxSize(-1, compactHeight));
+
 		headerSizer->AddStretchSpacer(1);
 		headerSizer->Add(outExportButton, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, panel->FromDIP(2));
 		headerSizer->Add(outImportButton, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, panel->FromDIP(10));
 		headerSizer->Add(outInspectorButton, 0, wxALIGN_CENTER_VERTICAL);
 
-		wxStaticText* subtitle = new wxStaticText(panel, wxID_ANY, "Palette categories organize palettes. Brushes define behavior.");
-		subtitle->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_GRAYTEXT));
 		outFilter = new wxSearchCtrl(panel, wxID_ANY);
 		outFilter->ShowSearchButton(false);
 		outFilter->ShowCancelButton(true);
@@ -215,7 +225,6 @@ namespace {
 		outTree = new wxTreeCtrl(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTR_DEFAULT_STYLE | wxTR_HIDE_ROOT | wxTR_SINGLE);
 
 		sizer->Add(headerSizer, 0, wxEXPAND | wxALL, panel->FromDIP(8));
-		sizer->Add(subtitle, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, panel->FromDIP(8));
 		sizer->Add(outFilter, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, panel->FromDIP(8));
 		sizer->Add(new wxStaticLine(panel), 0, wxEXPAND | wxLEFT | wxRIGHT, panel->FromDIP(8));
 		sizer->Add(outTree, 1, wxEXPAND | wxALL, panel->FromDIP(8));
@@ -566,34 +575,194 @@ void MaterialsWorkbenchWindow::OnImportMaterials(wxCommandEvent &) {
 
 	nlohmann::json root;
 	try {
-		in >> root;
+		std::string contents;
+		{
+			wxProgressDialog prepProgress(
+				"Import Materials",
+				"Reading file...",
+				100,
+				this,
+				wxPD_APP_MODAL | wxPD_SMOOTH | wxPD_AUTO_HIDE
+			);
+
+			in.seekg(0, std::ios::end);
+			const std::streamoff fileSize = in.tellg();
+			in.seekg(0, std::ios::beg);
+
+			if (fileSize > 0) {
+				contents.reserve(static_cast<size_t>(fileSize));
+			}
+			static constexpr size_t kChunkSize = 1024 * 1024;
+			std::vector<char> buffer(kChunkSize);
+			std::streamoff bytesRead = 0;
+			while (in.good()) {
+				in.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+				const std::streamsize got = in.gcount();
+				if (got <= 0) {
+					break;
+				}
+				contents.append(buffer.data(), static_cast<size_t>(got));
+				bytesRead += got;
+
+				if (fileSize > 0) {
+					const int pct = static_cast<int>(std::min<std::streamoff>(60, (bytesRead * 60) / fileSize));
+					prepProgress.Update(pct, "Reading file...");
+				} else {
+					prepProgress.Pulse("Reading file...");
+				}
+				wxYieldIfNeeded();
+			}
+
+			prepProgress.Update(75, "Parsing JSON...");
+			wxYieldIfNeeded();
+			root = nlohmann::json::parse(contents);
+			prepProgress.Update(100, "Ready");
+			wxYieldIfNeeded();
+		}
+
+		MaterialsWorkbenchImportDialog preview(this, root, controller_);
+		{
+			wxProgressDialog planProgress(
+				"Import Materials",
+				"Building import preview...",
+				100,
+				this,
+				wxPD_APP_MODAL | wxPD_SMOOTH | wxPD_AUTO_HIDE
+			);
+			preview.BuildPlanWithProgress(&planProgress, 0, 100);
+			planProgress.Update(100, "Ready");
+			wxYieldIfNeeded();
+		}
+
+		if (preview.ShowModal() != wxID_OK) {
+			return;
+		}
+
+		MaterialsWorkbenchImportReport report;
+		wxString error;
+		{
+			wxProgressDialog applyProgress(
+				"Import Materials",
+				"Applying changes...",
+				100,
+				this,
+				wxPD_APP_MODAL | wxPD_SMOOTH | wxPD_AUTO_HIDE
+			);
+
+			applyProgress.Update(0, "Applying changes...");
+			wxYieldIfNeeded();
+
+			const auto onProgress = [&](int current, int total, const wxString &stage) -> bool {
+				wxString message = stage;
+				if (total > 0) {
+					message += wxString::Format(" (%d/%d)", current, total);
+					const int pct = 5 + static_cast<int>((static_cast<double>(current) / std::max(1, total)) * 80.0);
+					applyProgress.Update(std::min(85, pct), message);
+				} else {
+					applyProgress.Pulse(message);
+				}
+				wxYieldIfNeeded();
+				return true;
+			};
+
+			if (!ApplyMaterialsWorkbenchImportJsonWithProgress(controller_, preview.GetJson(), onProgress, report, error)) {
+				return;
+			}
+
+			applyProgress.Update(90, "Refreshing runtime...");
+			wxYieldIfNeeded();
+			{
+				std::set<int64_t> brushIds(report.importedBrushIds.begin(), report.importedBrushIds.end());
+				std::set<int64_t> borderSetIds(report.importedBorderSetIds.begin(), report.importedBorderSetIds.end());
+
+				int done = 0;
+				const int total = static_cast<int>(brushIds.size() + borderSetIds.size());
+
+				wxArrayString runtimeWarnings;
+				for (int64_t brushId : brushIds) {
+					wxArrayString warnings;
+					wxString reloadError;
+					if (!g_brushes.reloadBrushFromDatabase(brushId, warnings, reloadError)) {
+						runtimeWarnings.push_back(wxString::Format("Runtime brush reload failed for id=%lld: %s", static_cast<long long>(brushId), reloadError));
+					} else {
+						runtimeWarnings.insert(runtimeWarnings.end(), warnings.begin(), warnings.end());
+					}
+					++done;
+					if (total > 0) {
+						const int pct = 90 + static_cast<int>((static_cast<double>(done) / total) * 6.0);
+						applyProgress.Update(std::min(96, pct), "Refreshing runtime brushes...");
+					} else {
+						applyProgress.Pulse("Refreshing runtime brushes...");
+					}
+					wxYieldIfNeeded();
+				}
+
+				for (int64_t borderSetId : borderSetIds) {
+					wxArrayString warnings;
+					wxString reloadError;
+					if (!g_brushes.reloadBorderSetFromDatabase(borderSetId, warnings, reloadError)) {
+						runtimeWarnings.push_back(wxString::Format("Runtime border reload failed for id=%lld: %s", static_cast<long long>(borderSetId), reloadError));
+					} else {
+						runtimeWarnings.insert(runtimeWarnings.end(), warnings.begin(), warnings.end());
+					}
+					++done;
+					if (total > 0) {
+						const int pct = 96 + static_cast<int>((static_cast<double>(done) / total) * 2.0);
+						applyProgress.Update(std::min(98, pct), "Refreshing runtime borders...");
+					} else {
+						applyProgress.Pulse("Refreshing runtime borders...");
+					}
+					wxYieldIfNeeded();
+				}
+
+				applyProgress.Update(98, "Refreshing runtime palettes...");
+				wxYieldIfNeeded();
+				{
+					wxString palettesError;
+					wxArrayString palettesWarnings;
+					if (!g_gui.ReloadMaterialPalettesFromDatabase(palettesError, palettesWarnings)) {
+						spdlog::warn(
+							"Materials Workbench runtime palette refresh failed after materials import: {}",
+							palettesError.ToStdString()
+						);
+					}
+					runtimeWarnings.insert(runtimeWarnings.end(), palettesWarnings.begin(), palettesWarnings.end());
+				}
+
+				for (const wxString &warning : runtimeWarnings) {
+					spdlog::warn(
+						"Materials Workbench runtime refresh warning after materials import: {}",
+						warning.ToStdString()
+					);
+				}
+			}
+
+			applyProgress.Update(99, "Refreshing workbench...");
+			wxYieldIfNeeded();
+
+			RefreshWorkbenchState();
+			PopulateNavigation();
+
+			applyProgress.Update(100, "Done");
+			wxYieldIfNeeded();
+		}
+
+		if (!error.IsEmpty()) {
+			wxMessageBox(error, "Import Materials", wxOK | wxICON_ERROR, this);
+			return;
+		}
+
+		wxMessageBox(
+			wxString::Format("Import complete.\n\nCreated: %d\nUpdated: %d", report.created, report.updated),
+			"Import Materials",
+			wxOK | wxICON_INFORMATION,
+			this
+		);
+		return;
 	} catch (const nlohmann::json::parse_error &) {
 		wxMessageBox("Invalid JSON file.", "Import Materials", wxOK | wxICON_ERROR, this);
 		return;
 	}
-
-	MaterialsWorkbenchImportDialog preview(this, root, controller_);
-	if (preview.ShowModal() != wxID_OK) {
-		return;
-	}
-
-	MaterialsWorkbenchImportReport report;
-	wxString error;
-	if (!ApplyMaterialsWorkbenchImportJson(controller_, preview.GetJson(), report, error)) {
-		wxMessageBox(error, "Import Materials", wxOK | wxICON_ERROR, this);
-		return;
-	}
-
-	RefreshRuntimeMaterialPalettes("materials import");
-	RefreshWorkbenchState();
-	PopulateNavigation();
-
-	wxMessageBox(
-		wxString::Format("Import complete.\n\nCreated: %d\nUpdated: %d", report.created, report.updated),
-		"Import Materials",
-		wxOK | wxICON_INFORMATION,
-		this
-	);
 }
 
 bool MaterialsWorkbenchWindow::GoToEntity(const wxString &entityKind, int64_t entityId, const wxString &entityName) {
@@ -626,7 +795,7 @@ bool MaterialsWorkbenchWindow::GoToEntity(const wxString &entityKind, int64_t en
 }
 
 void MaterialsWorkbenchWindow::HandlePaletteSaved(const wxString &paletteName) {
-	RefreshRuntimeMaterialPalettes("palette save");
+	RefreshRuntimeMaterialPalettes("palette save", false);
 	RefreshWorkbenchState();
 	PopulateNavigation();
 	if (!paletteName.IsEmpty()) {
@@ -656,7 +825,7 @@ void MaterialsWorkbenchWindow::HandleBorderSetSaved(int64_t borderSetId) {
 		);
 	}
 
-	RefreshRuntimeMaterialPalettes("border set save");
+	RefreshRuntimeMaterialPalettes("border set save", false);
 	RefreshWorkbenchState();
 	PopulateNavigation();
 
@@ -669,7 +838,7 @@ void MaterialsWorkbenchWindow::HandleBorderSetSaved(int64_t borderSetId) {
 }
 
 void MaterialsWorkbenchWindow::HandleBorderSetDeleted(int64_t borderSetId, const wxString &scope) {
-	RefreshRuntimeMaterialPalettes("border set delete");
+	RefreshRuntimeMaterialPalettes("border set delete", false);
 	RefreshWorkbenchState();
 	PopulateNavigation();
 	if (!scope.IsEmpty()) {
@@ -734,7 +903,7 @@ void MaterialsWorkbenchWindow::HandleBrushSaved(int64_t brushId, const wxString 
 }
 
 void MaterialsWorkbenchWindow::HandleBrushDeleted(int64_t brushId) {
-	RefreshRuntimeMaterialPalettes("brush delete");
+	RefreshRuntimeMaterialPalettes("brush delete", false);
 	RefreshWorkbenchState();
 	PopulateNavigation();
 	SelectNavigationNode(MaterialsWorkbenchNodeKind::Group, "group:brushes", -1);

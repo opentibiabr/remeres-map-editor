@@ -15,6 +15,7 @@ class wxCheckListBox;
 class wxChoice;
 class wxListCtrl;
 class wxNotebook;
+class wxProgressDialog;
 class wxSearchCtrl;
 class wxStaticText;
 
@@ -83,9 +84,10 @@ public:
 	MaterialsWorkbenchImportDialog(wxWindow* parent, const nlohmann::json &root, MaterialsWorkbenchController &controller);
 
 	const nlohmann::json &GetJson() const { return root_; }
+	void BuildPlanWithProgress(wxProgressDialog* progress = nullptr, int progressStart = 0, int progressSpan = 0);
 
 private:
-	void BuildPlan();
+	void BuildPlan(wxProgressDialog* progress, int progressStart, int progressSpan);
 	void UpdateSummary();
 
 	nlohmann::json root_;

@@ -405,6 +405,7 @@ public:
 	// Rebuild forces palette to reload the entire contents
 	void RebuildPalettes();
 	bool ReloadMaterialPalettesFromDatabase(wxString &error, wxArrayString &warnings);
+	bool ReloadMaterialPalettesAndBrushesFromDatabase(wxString &error, wxArrayString &warnings);
 	bool SyncBrushInPalettes(const wxString &oldName, const wxString &newName, uint16_t effectiveLookId);
 	// Refresh only updates the content (such as house/waypoint list)
 	void RefreshPalettes(Map* m = nullptr, bool usedfault = true);
