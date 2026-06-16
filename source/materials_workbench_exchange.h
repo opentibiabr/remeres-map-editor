@@ -27,10 +27,20 @@ struct MaterialsWorkbenchResolvedExportSelection {
 struct MaterialsWorkbenchImportReport {
 	int created = 0;
 	int updated = 0;
+	int skipped = 0;
 	std::vector<wxString> notes;
 	std::vector<int64_t> importedBrushIds;
 	std::vector<int64_t> importedBorderSetIds;
 	std::vector<wxString> importedPaletteNames;
+};
+
+enum class MaterialsWorkbenchImportConflictStrategy {
+	UpdateExisting,
+	SkipExisting,
+};
+
+struct MaterialsWorkbenchImportOptions {
+	MaterialsWorkbenchImportConflictStrategy onConflict = MaterialsWorkbenchImportConflictStrategy::UpdateExisting;
 };
 
 class MaterialsWorkbenchController;
@@ -60,6 +70,23 @@ bool ApplyMaterialsWorkbenchImportJson(
 bool ApplyMaterialsWorkbenchImportJsonWithProgress(
 	MaterialsWorkbenchController &controller,
 	const nlohmann::json &root,
+	const MaterialsWorkbenchImportProgressCallback &progress,
+	MaterialsWorkbenchImportReport &outReport,
+	wxString &error
+);
+
+bool ApplyMaterialsWorkbenchImportJson(
+	MaterialsWorkbenchController &controller,
+	const nlohmann::json &root,
+	const MaterialsWorkbenchImportOptions &options,
+	MaterialsWorkbenchImportReport &outReport,
+	wxString &error
+);
+
+bool ApplyMaterialsWorkbenchImportJsonWithProgress(
+	MaterialsWorkbenchController &controller,
+	const nlohmann::json &root,
+	const MaterialsWorkbenchImportOptions &options,
 	const MaterialsWorkbenchImportProgressCallback &progress,
 	MaterialsWorkbenchImportReport &outReport,
 	wxString &error

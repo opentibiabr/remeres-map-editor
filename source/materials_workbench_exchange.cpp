@@ -1333,12 +1333,33 @@ bool ApplyMaterialsWorkbenchImportJson(
 	MaterialsWorkbenchImportReport &outReport,
 	wxString &error
 ) {
-	return ApplyMaterialsWorkbenchImportJsonWithProgress(controller, root, MaterialsWorkbenchImportProgressCallback(), outReport, error);
+	return ApplyMaterialsWorkbenchImportJson(controller, root, MaterialsWorkbenchImportOptions(), outReport, error);
 }
 
 bool ApplyMaterialsWorkbenchImportJsonWithProgress(
 	MaterialsWorkbenchController &controller,
 	const nlohmann::json &root,
+	const MaterialsWorkbenchImportProgressCallback &progress,
+	MaterialsWorkbenchImportReport &outReport,
+	wxString &error
+) {
+	return ApplyMaterialsWorkbenchImportJsonWithProgress(controller, root, MaterialsWorkbenchImportOptions(), progress, outReport, error);
+}
+
+bool ApplyMaterialsWorkbenchImportJson(
+	MaterialsWorkbenchController &controller,
+	const nlohmann::json &root,
+	const MaterialsWorkbenchImportOptions &options,
+	MaterialsWorkbenchImportReport &outReport,
+	wxString &error
+) {
+	return ApplyMaterialsWorkbenchImportJsonWithProgress(controller, root, options, MaterialsWorkbenchImportProgressCallback(), outReport, error);
+}
+
+bool ApplyMaterialsWorkbenchImportJsonWithProgress(
+	MaterialsWorkbenchController &controller,
+	const nlohmann::json &root,
+	const MaterialsWorkbenchImportOptions &options,
 	const MaterialsWorkbenchImportProgressCallback &progress,
 	MaterialsWorkbenchImportReport &outReport,
 	wxString &error
@@ -1392,6 +1413,19 @@ bool ApplyMaterialsWorkbenchImportJsonWithProgress(
 
 	if (!g_brush_database.runInTransaction([&]() {
 			for (const nlohmann::json &entity : paletteGroups) {
+				if (options.onConflict == MaterialsWorkbenchImportConflictStrategy::SkipExisting) {
+					if (entity.contains("group") && entity["group"].is_object() && entity["group"].contains("name") && entity["group"]["name"].is_string()) {
+						const wxString name = JsonToWxString(entity["group"]["name"]);
+						if (controller.HasPaletteGroupNamed(name)) {
+							++outReport.skipped;
+							if (!tick("Skipping palette groups")) {
+								error = "Import canceled.";
+								return false;
+							}
+							continue;
+						}
+					}
+				}
 				if (!ApplyPaletteGroupEntity(controller, entity, outReport, error)) {
 					return false;
 				}
@@ -1402,6 +1436,20 @@ bool ApplyMaterialsWorkbenchImportJsonWithProgress(
 			}
 
 			for (const nlohmann::json &entity : borderSets) {
+				if (options.onConflict == MaterialsWorkbenchImportConflictStrategy::SkipExisting) {
+					if (entity.contains("borderSet") && entity["borderSet"].is_object() && entity["borderSet"].contains("xmlBorderId") && entity["borderSet"]["xmlBorderId"].is_number_integer()) {
+						const int xmlBorderId = entity["borderSet"]["xmlBorderId"].get<int>();
+						BorderSetRecord existing;
+						if (g_brush_database.findBorderSetByXmlBorderId(xmlBorderId, existing) && existing.id > 0) {
+							++outReport.skipped;
+							if (!tick("Skipping borders")) {
+								error = "Import canceled.";
+								return false;
+							}
+							continue;
+						}
+					}
+				}
 				if (!ApplyBorderSetEntity(entity, outReport, error)) {
 					return false;
 				}
@@ -1412,6 +1460,21 @@ bool ApplyMaterialsWorkbenchImportJsonWithProgress(
 			}
 
 			for (const nlohmann::json &entity : brushes) {
+				if (options.onConflict == MaterialsWorkbenchImportConflictStrategy::SkipExisting) {
+					if (entity.contains("brush") && entity["brush"].is_object() && entity["brush"].contains("type") && entity["brush"].contains("name") && entity["brush"]["type"].is_string() && entity["brush"]["name"].is_string()) {
+						const wxString type = JsonToWxString(entity["brush"]["type"]);
+						const wxString name = JsonToWxString(entity["brush"]["name"]);
+						BrushRecord existing;
+						if (g_brush_database.findBrushByNameAndType(name, type, existing) && existing.id > 0) {
+							++outReport.skipped;
+							if (!tick("Skipping brushes")) {
+								error = "Import canceled.";
+								return false;
+							}
+							continue;
+						}
+					}
+				}
 				if (!ApplyBrushEntity(entity, outReport, error)) {
 					return false;
 				}
@@ -1422,6 +1485,19 @@ bool ApplyMaterialsWorkbenchImportJsonWithProgress(
 			}
 
 			for (const nlohmann::json &entity : palettes) {
+				if (options.onConflict == MaterialsWorkbenchImportConflictStrategy::SkipExisting) {
+					if (entity.contains("palette") && entity["palette"].is_object() && entity["palette"].contains("name") && entity["palette"]["name"].is_string()) {
+						const wxString name = JsonToWxString(entity["palette"]["name"]);
+						if (controller.HasTilesetNamed(name)) {
+							++outReport.skipped;
+							if (!tick("Skipping palettes")) {
+								error = "Import canceled.";
+								return false;
+							}
+							continue;
+						}
+					}
+				}
 				if (!ApplyPaletteEntity(controller, entity, outReport, error)) {
 					return false;
 				}

@@ -478,6 +478,15 @@ MaterialsWorkbenchImportDialog::MaterialsWorkbenchImportDialog(wxWindow* parent,
 	controller_(controller) {
 	wxBoxSizer* rootSizer = new wxBoxSizer(wxVERTICAL);
 
+	wxBoxSizer* optionsSizer = new wxBoxSizer(wxHORIZONTAL);
+	optionsSizer->Add(new wxStaticText(this, wxID_ANY, "On conflict:"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(8));
+	conflictChoice_ = new wxChoice(this, wxID_ANY);
+	conflictChoice_->Append("Update existing");
+	conflictChoice_->Append("Skip existing");
+	conflictChoice_->SetSelection(0);
+	optionsSizer->Add(conflictChoice_, 0, wxALIGN_CENTER_VERTICAL);
+	optionsSizer->AddStretchSpacer(1);
+
 	planList_ = new wxListCtrl(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxBORDER_THEME);
 	planList_->InsertColumn(0, "Kind");
 	planList_->InsertColumn(1, "Key");
@@ -494,6 +503,7 @@ MaterialsWorkbenchImportDialog::MaterialsWorkbenchImportDialog(wxWindow* parent,
 	buttons->AddButton(new wxButton(this, wxID_CANCEL));
 	buttons->Realize();
 
+	rootSizer->Add(optionsSizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, FromDIP(12));
 	rootSizer->Add(planList_, 1, wxEXPAND | wxALL, FromDIP(12));
 	rootSizer->Add(summaryLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(12));
 	rootSizer->Add(buttons, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(12));
@@ -503,6 +513,10 @@ MaterialsWorkbenchImportDialog::MaterialsWorkbenchImportDialog(wxWindow* parent,
 
 	okButton_->Enable(false);
 	summaryLabel_->SetLabel("Building preview...");
+
+	conflictChoice_->Bind(wxEVT_CHOICE, [this](wxCommandEvent &) {
+		BuildPlan(nullptr, 0, 0);
+	});
 }
 
 void MaterialsWorkbenchImportDialog::BuildPlanWithProgress(wxProgressDialog* progress, int progressStart, int progressSpan) {
@@ -515,10 +529,16 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 	planList_->DeleteAllItems();
 	int creates = 0;
 	int updates = 0;
+	int skips = 0;
+
+	options_.onConflict = MaterialsWorkbenchImportConflictStrategy::UpdateExisting;
+	if (conflictChoice_ && conflictChoice_->GetSelection() == 1) {
+		options_.onConflict = MaterialsWorkbenchImportConflictStrategy::SkipExisting;
+	}
 
 	if (!root_.is_object() || !root_.contains("entities") || !root_["entities"].is_array()) {
 		okButton_->Enable(false);
-		summaryLabel_->SetLabel("Plan: 0 create, 0 update.");
+		summaryLabel_->SetLabel("Plan: 0 create, 0 update, 0 skip.");
 		planList_->Thaw();
 		return;
 	}
@@ -562,11 +582,17 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 			}
 		}
 
-		const wxString action = exists ? "update" : "create";
-		if (exists) {
+		wxString action = exists ? "update" : "create";
+		if (exists && options_.onConflict == MaterialsWorkbenchImportConflictStrategy::SkipExisting) {
+			action = "skip";
+		}
+
+		if (action == "update") {
 			++updates;
-		} else {
+		} else if (action == "create") {
 			++creates;
+		} else {
+			++skips;
 		}
 		const long row = planList_->InsertItem(planList_->GetItemCount(), wxString::FromUTF8(kind.c_str()));
 		planList_->SetItem(row, 1, keyLabel);
@@ -581,7 +607,7 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 	}
 
 	okButton_->Enable(planList_->GetItemCount() > 0);
-	summaryLabel_->SetLabel(wxString::Format("Plan: %d create, %d update.", creates, updates));
+	summaryLabel_->SetLabel(wxString::Format("Plan: %d create, %d update, %d skip.", creates, updates, skips));
 	planList_->Thaw();
 }
 

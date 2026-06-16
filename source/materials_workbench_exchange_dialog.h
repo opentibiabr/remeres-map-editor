@@ -84,6 +84,7 @@ public:
 	MaterialsWorkbenchImportDialog(wxWindow* parent, const nlohmann::json &root, MaterialsWorkbenchController &controller);
 
 	const nlohmann::json &GetJson() const { return root_; }
+	MaterialsWorkbenchImportOptions GetOptions() const { return options_; }
 	void BuildPlanWithProgress(wxProgressDialog* progress = nullptr, int progressStart = 0, int progressSpan = 0);
 
 private:
@@ -92,8 +93,10 @@ private:
 
 	nlohmann::json root_;
 	MaterialsWorkbenchController &controller_;
+	MaterialsWorkbenchImportOptions options_;
 
 	wxListCtrl* planList_ = nullptr;
+	wxChoice* conflictChoice_ = nullptr;
 	wxStaticText* summaryLabel_ = nullptr;
 	wxButton* okButton_ = nullptr;
 };

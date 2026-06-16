@@ -665,7 +665,7 @@ void MaterialsWorkbenchWindow::OnImportMaterials(wxCommandEvent &) {
 				return true;
 			};
 
-			if (!ApplyMaterialsWorkbenchImportJsonWithProgress(controller_, preview.GetJson(), onProgress, report, error)) {
+			if (!ApplyMaterialsWorkbenchImportJsonWithProgress(controller_, preview.GetJson(), preview.GetOptions(), onProgress, report, error)) {
 				return;
 			}
 
@@ -753,7 +753,7 @@ void MaterialsWorkbenchWindow::OnImportMaterials(wxCommandEvent &) {
 		}
 
 		wxMessageBox(
-			wxString::Format("Import complete.\n\nCreated: %d\nUpdated: %d", report.created, report.updated),
+			wxString::Format("Import complete.\n\nCreated: %d\nUpdated: %d\nSkipped: %d", report.created, report.updated, report.skipped),
 			"Import Materials",
 			wxOK | wxICON_INFORMATION,
 			this
