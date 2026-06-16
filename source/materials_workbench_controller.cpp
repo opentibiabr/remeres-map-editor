@@ -464,15 +464,14 @@ std::vector<MaterialsWorkbenchTreeNode> MaterialsWorkbenchController::BuildNavig
 
 	for (const PaletteGroupRecord &group : catalog_.paletteGroups) {
 		const auto groupIt = paletteIndexesByGroup.find(group.name);
-		if (groupIt == paletteIndexesByGroup.end() || groupIt->second.empty()) {
-			continue;
-		}
+		const std::vector<int> empty;
+		const std::vector<int> &paletteIndexes = groupIt != paletteIndexesByGroup.end() ? groupIt->second : empty;
 
 		MaterialsWorkbenchTreeNode groupNode;
 		groupNode.kind = MaterialsWorkbenchNodeKind::Group;
-		groupNode.label = FormatNavigationCountLabel(BuildPaletteGroupLabel(group.name), groupIt->second.size());
+		groupNode.label = FormatNavigationCountLabel(BuildPaletteGroupLabel(group.name), paletteIndexes.size());
 		groupNode.contextKey = "palette_group:" + group.name;
-		for (int tilesetIndex : groupIt->second) {
+		for (int tilesetIndex : paletteIndexes) {
 			MaterialsWorkbenchTreeNode item;
 			item.kind = MaterialsWorkbenchNodeKind::Tileset;
 			item.label = catalog_.tilesets[tilesetIndex].name;

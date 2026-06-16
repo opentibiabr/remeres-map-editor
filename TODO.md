@@ -68,6 +68,7 @@
   - [x] Import atomicity/perf: single transaction + avoid controller reload per palette/palette group (bulk save, reload once)
   - [x] Import conflicts: add “on conflict” strategy (update/skip) to preview + apply without partial updates
   - [x] Import conflicts: support rename-with-suffix for palette categories and palettes (preview + apply)
+  - [x] Navigation: show empty palette categories in the catalog tree (count 0) so imported empty categories are visible
   - [x] Export/Import: preserve wall/brush metadata `thicknessCeiling` in JSON
   - [x] Export UI: replace four giant columns with tabbed pickers + search and “select/clear shown” actions per tab
 - [x] Safer removal (Palette Workspace): `Delete Palette` now shows category + section/entry counts and a small entry preview before confirming
