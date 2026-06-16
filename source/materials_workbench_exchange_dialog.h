@@ -91,13 +91,28 @@ public:
 
 private:
 	void BuildPlan(wxProgressDialog* progress, int progressStart, int progressSpan);
-	void UpdateSummary();
+	void RefreshPlanLists();
+	void FillPlanList(wxListCtrl* list, const wxString &kindFilter, const wxString &filterQuery);
 
 	nlohmann::json root_;
 	MaterialsWorkbenchController &controller_;
 	MaterialsWorkbenchImportOptions options_;
 
-	wxListCtrl* planList_ = nullptr;
+	struct PlanRow {
+		wxString kind;
+		wxString key;
+		wxString action;
+		wxString detail;
+	};
+	std::vector<PlanRow> allPlanRows_;
+
+	wxSearchCtrl* planFilterCtrl_ = nullptr;
+	wxNotebook* planNotebook_ = nullptr;
+	wxListCtrl* planAllList_ = nullptr;
+	wxListCtrl* planGroupsList_ = nullptr;
+	wxListCtrl* planPalettesList_ = nullptr;
+	wxListCtrl* planBrushesList_ = nullptr;
+	wxListCtrl* planBordersList_ = nullptr;
 	wxChoice* conflictChoice_ = nullptr;
 	wxStaticText* summaryLabel_ = nullptr;
 	wxButton* okButton_ = nullptr;

@@ -9,6 +9,7 @@
 #include <unordered_set>
 
 #include <wx/button.h>
+#include <wx/bookctrl.h>
 #include <wx/checkbox.h>
 #include <wx/checklst.h>
 #include <wx/choice.h>
@@ -572,13 +573,40 @@ MaterialsWorkbenchImportDialog::MaterialsWorkbenchImportDialog(wxWindow* parent,
 	optionsSizer->Add(conflictChoice_, 0, wxALIGN_CENTER_VERTICAL);
 	optionsSizer->AddStretchSpacer(1);
 
-	planList_ = new wxListCtrl(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxBORDER_THEME);
-	planList_->InsertColumn(0, "Kind");
-	planList_->InsertColumn(1, "Key");
-	planList_->InsertColumn(2, "Action");
-	planList_->SetColumnWidth(0, FromDIP(120));
-	planList_->SetColumnWidth(1, FromDIP(380));
-	planList_->SetColumnWidth(2, FromDIP(120));
+	planFilterCtrl_ = new wxSearchCtrl(this, wxID_ANY);
+	planFilterCtrl_->ShowSearchButton(false);
+	planFilterCtrl_->ShowCancelButton(true);
+	planFilterCtrl_->SetDescriptiveText("Filter plan");
+
+	auto makePlanList = [&](wxWindow* parent) -> wxListCtrl* {
+		wxListCtrl* list = new wxListCtrl(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxBORDER_THEME);
+		list->InsertColumn(0, "Kind");
+		list->InsertColumn(1, "Key");
+		list->InsertColumn(2, "Action");
+		list->InsertColumn(3, "Detail");
+		list->SetColumnWidth(0, FromDIP(120));
+		list->SetColumnWidth(1, FromDIP(320));
+		list->SetColumnWidth(2, FromDIP(120));
+		list->SetColumnWidth(3, FromDIP(220));
+		return list;
+	};
+
+	auto makePlanPage = [&](const wxString &title, wxListCtrl*& outList) {
+		wxPanel* page = new wxPanel(planNotebook_, wxID_ANY);
+		wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
+		outList = makePlanList(page);
+		sizer->Add(outList, 1, wxEXPAND | wxALL, FromDIP(8));
+		page->SetSizer(sizer);
+		planNotebook_->AddPage(page, title);
+	};
+
+	planNotebook_ = new wxNotebook(this, wxID_ANY);
+	makePlanPage("All", planAllList_);
+	makePlanPage("Palette Groups", planGroupsList_);
+	makePlanPage("Palettes", planPalettesList_);
+	makePlanPage("Brushes", planBrushesList_);
+	makePlanPage("Borders", planBordersList_);
+	planNotebook_->Bind(wxEVT_NOTEBOOK_PAGE_CHANGED, [this](wxBookCtrlEvent &) { RefreshPlanLists(); });
 
 	summaryLabel_ = new wxStaticText(this, wxID_ANY, "");
 
@@ -589,12 +617,13 @@ MaterialsWorkbenchImportDialog::MaterialsWorkbenchImportDialog(wxWindow* parent,
 	buttons->Realize();
 
 	rootSizer->Add(optionsSizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, FromDIP(12));
-	rootSizer->Add(planList_, 1, wxEXPAND | wxALL, FromDIP(12));
+	rootSizer->Add(planFilterCtrl_, 0, wxEXPAND | wxALL, FromDIP(12));
+	rootSizer->Add(planNotebook_, 1, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(12));
 	rootSizer->Add(summaryLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(12));
 	rootSizer->Add(buttons, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(12));
 
 	SetSizerAndFit(rootSizer);
-	SetMinSize(wxSize(FromDIP(720), FromDIP(420)));
+	SetMinSize(wxSize(FromDIP(860), FromDIP(520)));
 
 	okButton_->Enable(false);
 	summaryLabel_->SetLabel("Building preview...");
@@ -602,19 +631,21 @@ MaterialsWorkbenchImportDialog::MaterialsWorkbenchImportDialog(wxWindow* parent,
 	conflictChoice_->Bind(wxEVT_CHOICE, [this](wxCommandEvent &) {
 		BuildPlan(nullptr, 0, 0);
 	});
+
+	planFilterCtrl_->Bind(wxEVT_TEXT, [this](wxCommandEvent &) { RefreshPlanLists(); });
+	planFilterCtrl_->Bind(wxEVT_SEARCHCTRL_CANCEL_BTN, [this](wxCommandEvent &) { planFilterCtrl_->ChangeValue(""); RefreshPlanLists(); });
 }
 
 void MaterialsWorkbenchImportDialog::BuildPlanWithProgress(wxProgressDialog* progress, int progressStart, int progressSpan) {
 	BuildPlan(progress, progressStart, progressSpan);
-	UpdateSummary();
 }
 
 void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int progressStart, int progressSpan) {
-	planList_->Freeze();
-	planList_->DeleteAllItems();
+	allPlanRows_.clear();
 	int creates = 0;
 	int updates = 0;
 	int skips = 0;
+	int invalid = 0;
 
 	options_.onConflict = MaterialsWorkbenchImportConflictStrategy::UpdateExisting;
 	if (conflictChoice_) {
@@ -627,8 +658,8 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 
 	if (!root_.is_object() || !root_.contains("entities") || !root_["entities"].is_array()) {
 		okButton_->Enable(false);
-		summaryLabel_->SetLabel("Plan: 0 create, 0 update, 0 skip.");
-		planList_->Thaw();
+		summaryLabel_->SetLabel("Plan: 0 create, 0 update, 0 skip, 0 invalid.");
+		RefreshPlanLists();
 		return;
 	}
 
@@ -676,7 +707,9 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 		const std::string kind = entity["kind"].get<std::string>();
 		wxString keyLabel = "";
 		wxString actionDetail = "";
+		wxString detail = "";
 		bool exists = false;
+		bool isValid = true;
 
 		if (kind == "border_set") {
 			if (entity.contains("borderSet") && entity["borderSet"].is_object() && entity["borderSet"].contains("xmlBorderId") && entity["borderSet"]["xmlBorderId"].is_number_integer()) {
@@ -684,6 +717,9 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 				keyLabel = wxString::Format("Border %d", xmlBorderId);
 				BorderSetRecord existing;
 				exists = g_brush_database.findBorderSetByXmlBorderId(xmlBorderId, existing) && existing.id > 0;
+			} else {
+				isValid = false;
+				detail = "Invalid border_set: missing xmlBorderId.";
 			}
 		} else if (kind == "brush") {
 			if (entity.contains("brush") && entity["brush"].is_object() && entity["brush"].contains("type") && entity["brush"].contains("name") && entity["brush"]["type"].is_string() && entity["brush"]["name"].is_string()) {
@@ -692,6 +728,9 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 				keyLabel = wxString::Format("%s: %s", type, name);
 				BrushRecord existing;
 				exists = g_brush_database.findBrushByNameAndType(name, type, existing) && existing.id > 0;
+			} else {
+				isValid = false;
+				detail = "Invalid brush: missing type/name.";
 			}
 		} else if (kind == "palette_group") {
 			if (entity.contains("group") && entity["group"].is_object() && entity["group"].contains("name") && entity["group"]["name"].is_string()) {
@@ -709,6 +748,9 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 						actionDetail = " -> " + it->second;
 					}
 				}
+			} else {
+				isValid = false;
+				detail = "Invalid palette_group: missing name.";
 			}
 		} else if (kind == "palette") {
 			if (entity.contains("palette") && entity["palette"].is_object() && entity["palette"].contains("name") && entity["palette"]["name"].is_string()) {
@@ -726,18 +768,36 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 						actionDetail = " -> " + it->second;
 					}
 				}
+				if (options_.onConflict == MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix) {
+					if (entity["palette"].contains("paletteGroupName") && entity["palette"]["paletteGroupName"].is_string()) {
+						const wxString groupName = JsonToWxStringLocal(entity["palette"]["paletteGroupName"]);
+						const auto groupIt = renamedPaletteGroups.find(groupName);
+						if (groupIt != renamedPaletteGroups.end() && groupIt->second != groupName) {
+							if (!actionDetail.IsEmpty()) {
+								actionDetail << " |";
+							}
+							actionDetail << " group -> " << groupIt->second;
+						}
+					}
+				}
+			} else {
+				isValid = false;
+				detail = "Invalid palette: missing name.";
 			}
+		} else {
+			isValid = false;
+			detail = "Unknown entity kind.";
 		}
 
 		wxString action = exists ? "update" : "create";
-		if (exists) {
+		if (!isValid) {
+			action = "invalid";
+		} else if (exists) {
 			if (options_.onConflict == MaterialsWorkbenchImportConflictStrategy::SkipExisting) {
 				action = "skip";
 			} else if (options_.onConflict == MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix) {
 				if (kind == "palette_group" || kind == "palette") {
 					action = "rename";
-				} else {
-					action = "update";
 				}
 			}
 		}
@@ -746,12 +806,17 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 			++updates;
 		} else if (action == "create" || action == "rename") {
 			++creates;
-		} else {
+		} else if (action == "skip") {
 			++skips;
+		} else {
+			++invalid;
 		}
-		const long row = planList_->InsertItem(planList_->GetItemCount(), wxString::FromUTF8(kind.c_str()));
-		planList_->SetItem(row, 1, keyLabel);
-		planList_->SetItem(row, 2, action + actionDetail);
+		PlanRow row;
+		row.kind = wxString::FromUTF8(kind.c_str());
+		row.key = keyLabel;
+		row.action = action;
+		row.detail = detail.IsEmpty() ? actionDetail : detail;
+		allPlanRows_.push_back(std::move(row));
 
 		++processed;
 		if (progress && total > 0 && progressSpan > 0 && (processed % 200) == 0) {
@@ -761,10 +826,110 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 		}
 	}
 
-	okButton_->Enable(planList_->GetItemCount() > 0);
-	summaryLabel_->SetLabel(wxString::Format("Plan: %d create, %d update, %d skip.", creates, updates, skips));
-	planList_->Thaw();
+	RefreshPlanLists();
+	okButton_->Enable(!allPlanRows_.empty() && invalid == 0);
+	summaryLabel_->SetLabel(wxString::Format("Plan: %d create, %d update, %d skip, %d invalid.", creates, updates, skips, invalid));
 }
 
-void MaterialsWorkbenchImportDialog::UpdateSummary() {
+void MaterialsWorkbenchImportDialog::RefreshPlanLists() {
+	const wxString queryLower = LowerCopy(planFilterCtrl_ ? planFilterCtrl_->GetValue() : "");
+
+	auto countMatches = [&](const wxString &kindFilter) -> int {
+		int count = 0;
+		for (const PlanRow &row : allPlanRows_) {
+			if (!kindFilter.IsEmpty() && !row.kind.IsSameAs(kindFilter, false)) {
+				continue;
+			}
+			if (!queryLower.IsEmpty()) {
+				const wxString kindLower = LowerCopy(row.kind);
+				const wxString keyLower = LowerCopy(row.key);
+				const wxString actionLower = LowerCopy(row.action);
+				const wxString detailLower = LowerCopy(row.detail);
+				if (!kindLower.Contains(queryLower) && !keyLower.Contains(queryLower) && !actionLower.Contains(queryLower) && !detailLower.Contains(queryLower)) {
+					continue;
+				}
+			}
+			++count;
+		}
+		return count;
+	};
+
+	const int allCount = countMatches("");
+	const int groupsCount = countMatches("palette_group");
+	const int palettesCount = countMatches("palette");
+	const int brushesCount = countMatches("brush");
+	const int bordersCount = countMatches("border_set");
+
+	if (planNotebook_) {
+		if (planNotebook_->GetPageCount() >= 5) {
+			planNotebook_->SetPageText(0, wxString::Format("All (%d)", allCount));
+			planNotebook_->SetPageText(1, wxString::Format("Palette Groups (%d)", groupsCount));
+			planNotebook_->SetPageText(2, wxString::Format("Palettes (%d)", palettesCount));
+			planNotebook_->SetPageText(3, wxString::Format("Brushes (%d)", brushesCount));
+			planNotebook_->SetPageText(4, wxString::Format("Borders (%d)", bordersCount));
+		}
+	}
+
+	wxListCtrl* activeList = planAllList_;
+	wxString kindFilter = "";
+	if (planNotebook_) {
+		const int selection = planNotebook_->GetSelection();
+		if (selection == 1) {
+			activeList = planGroupsList_;
+			kindFilter = "palette_group";
+		} else if (selection == 2) {
+			activeList = planPalettesList_;
+			kindFilter = "palette";
+		} else if (selection == 3) {
+			activeList = planBrushesList_;
+			kindFilter = "brush";
+		} else if (selection == 4) {
+			activeList = planBordersList_;
+			kindFilter = "border_set";
+		}
+	}
+	FillPlanList(activeList, kindFilter, queryLower);
+}
+
+void MaterialsWorkbenchImportDialog::FillPlanList(wxListCtrl* list, const wxString &kindFilter, const wxString &filterQuery) {
+	if (!list) {
+		return;
+	}
+
+	list->Freeze();
+	list->DeleteAllItems();
+
+	const wxString queryLower = LowerCopy(filterQuery);
+
+	long rowIndex = 0;
+	for (const PlanRow &row : allPlanRows_) {
+		if (!kindFilter.IsEmpty() && !row.kind.IsSameAs(kindFilter, false)) {
+			continue;
+		}
+
+		if (!queryLower.IsEmpty()) {
+			const wxString kindLower = LowerCopy(row.kind);
+			const wxString keyLower = LowerCopy(row.key);
+			const wxString actionLower = LowerCopy(row.action);
+			const wxString detailLower = LowerCopy(row.detail);
+			if (!kindLower.Contains(queryLower) && !keyLower.Contains(queryLower) && !actionLower.Contains(queryLower) && !detailLower.Contains(queryLower)) {
+				continue;
+			}
+		}
+
+		const long itemIndex = list->InsertItem(rowIndex, row.kind);
+		list->SetItem(itemIndex, 1, row.key);
+		list->SetItem(itemIndex, 2, row.action);
+		list->SetItem(itemIndex, 3, row.detail);
+
+		if (row.action.IsSameAs("invalid", false)) {
+			list->SetItemTextColour(itemIndex, wxColour(170, 0, 0));
+		} else if (row.action.IsSameAs("skip", false)) {
+			list->SetItemTextColour(itemIndex, wxColour(90, 90, 90));
+		}
+
+		++rowIndex;
+	}
+
+	list->Thaw();
 }

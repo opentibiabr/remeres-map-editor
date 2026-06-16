@@ -72,6 +72,7 @@
   - [x] Export UX: show detailed dependency breakdown in the export preview (what gets added by deps)
   - [x] Export/Import: preserve wall/brush metadata `thicknessCeiling` in JSON
   - [x] Export UI: replace four giant columns with tabbed pickers + search and “select/clear shown” actions per tab
+  - [x] Import UX: preview plan uses tabbed lists + filter with Kind/Key/Action/Detail columns; invalid rows block Import
 - [x] Safer removal (Palette Workspace): `Delete Palette` now shows category + section/entry counts and a small entry preview before confirming
 - [x] Safer removal (Border Workspace): `Delete Border` now shows a `Used By` preview + context count for global borders, and an owner + slots summary for inline borders, before confirming
 - [x] Safer removal (Brush Workspace / Doodad): removing an alternative/composite/tile now asks for confirmation and shows what will be removed (counts and key details) before applying the local change
