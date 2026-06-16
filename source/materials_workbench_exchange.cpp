@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <deque>
+#include <functional>
 #include <set>
 #include <unordered_map>
 #include <unordered_set>
@@ -1411,6 +1412,78 @@ bool ApplyMaterialsWorkbenchImportJsonWithProgress(
 		return progress(currentEntity, totalEntities, stage);
 	};
 
+	std::unordered_map<wxString, wxString> renamedPaletteGroups;
+	std::unordered_map<wxString, wxString> renamedPalettes;
+	if (options.onConflict == MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix) {
+		std::unordered_set<wxString> reservedGroupNames;
+		std::unordered_set<wxString> reservedPaletteNames;
+
+		auto normalizeName = [](const wxString &name) -> wxString {
+			wxString value = name;
+			value.MakeLower();
+			return value;
+		};
+
+		auto reserveName = [&](std::unordered_set<wxString> &reserved, const wxString &name) {
+			reserved.insert(normalizeName(name));
+		};
+
+		auto isReserved = [&](const std::unordered_set<wxString> &reserved, const wxString &name) -> bool {
+			return reserved.find(normalizeName(name)) != reserved.end();
+		};
+
+		auto makeUniqueName = [&](const wxString &base, const std::function<bool(const wxString &)> &exists, std::unordered_set<wxString> &reserved) -> wxString {
+			if (!exists(base) && !isReserved(reserved, base)) {
+				reserveName(reserved, base);
+				return base;
+			}
+			for (int attempt = 1; attempt < 1000; ++attempt) {
+				wxString candidate = base;
+				if (attempt == 1) {
+					candidate += " (imported)";
+				} else {
+					candidate += wxString::Format(" (imported %d)", attempt);
+				}
+				if (!exists(candidate) && !isReserved(reserved, candidate)) {
+					reserveName(reserved, candidate);
+					return candidate;
+				}
+			}
+			reserveName(reserved, base);
+			return base;
+		};
+
+		for (const nlohmann::json &entity : paletteGroups) {
+			if (!entity.contains("group") || !entity["group"].is_object() || !entity["group"].contains("name") || !IsJsonString(entity["group"]["name"])) {
+				continue;
+			}
+			const wxString name = JsonToWxString(entity["group"]["name"]);
+			if (controller.HasPaletteGroupNamed(name)) {
+				const wxString newName = makeUniqueName(name, [&](const wxString &candidate) { return controller.HasPaletteGroupNamed(candidate); }, reservedGroupNames);
+				if (!newName.IsSameAs(name, false)) {
+					renamedPaletteGroups.insert({ name, newName });
+				}
+			} else {
+				reserveName(reservedGroupNames, name);
+			}
+		}
+
+		for (const nlohmann::json &entity : palettes) {
+			if (!entity.contains("palette") || !entity["palette"].is_object() || !entity["palette"].contains("name") || !IsJsonString(entity["palette"]["name"])) {
+				continue;
+			}
+			const wxString name = JsonToWxString(entity["palette"]["name"]);
+			if (controller.HasTilesetNamed(name)) {
+				const wxString newName = makeUniqueName(name, [&](const wxString &candidate) { return controller.HasTilesetNamed(candidate); }, reservedPaletteNames);
+				if (!newName.IsSameAs(name, false)) {
+					renamedPalettes.insert({ name, newName });
+				}
+			} else {
+				reserveName(reservedPaletteNames, name);
+			}
+		}
+	}
+
 	if (!g_brush_database.runInTransaction([&]() {
 			for (const nlohmann::json &entity : paletteGroups) {
 				if (options.onConflict == MaterialsWorkbenchImportConflictStrategy::SkipExisting) {
@@ -1426,6 +1499,25 @@ bool ApplyMaterialsWorkbenchImportJsonWithProgress(
 						}
 					}
 				}
+				if (options.onConflict == MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix) {
+					if (entity.contains("group") && entity["group"].is_object() && entity["group"].contains("name") && entity["group"]["name"].is_string()) {
+						const wxString name = JsonToWxString(entity["group"]["name"]);
+						const auto it = renamedPaletteGroups.find(name);
+						if (it != renamedPaletteGroups.end()) {
+							nlohmann::json patched = entity;
+							patched["group"]["name"] = it->second.ToStdString();
+							if (!ApplyPaletteGroupEntity(controller, patched, outReport, error)) {
+								return false;
+							}
+							if (!tick("Importing palette groups")) {
+								error = "Import canceled.";
+								return false;
+							}
+							continue;
+						}
+					}
+				}
+
 				if (!ApplyPaletteGroupEntity(controller, entity, outReport, error)) {
 					return false;
 				}
@@ -1498,6 +1590,40 @@ bool ApplyMaterialsWorkbenchImportJsonWithProgress(
 						}
 					}
 				}
+				if (options.onConflict == MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix) {
+					if (entity.contains("palette") && entity["palette"].is_object()) {
+						bool changed = false;
+						nlohmann::json patched = entity;
+						if (patched["palette"].contains("name") && patched["palette"]["name"].is_string()) {
+							const wxString name = JsonToWxString(patched["palette"]["name"]);
+							const auto it = renamedPalettes.find(name);
+							if (it != renamedPalettes.end()) {
+								patched["palette"]["name"] = it->second.ToStdString();
+								changed = true;
+							}
+						}
+						if (patched["palette"].contains("paletteGroupName") && patched["palette"]["paletteGroupName"].is_string()) {
+							const wxString groupName = JsonToWxString(patched["palette"]["paletteGroupName"]);
+							const auto groupIt = renamedPaletteGroups.find(groupName);
+							if (groupIt != renamedPaletteGroups.end()) {
+								patched["palette"]["paletteGroupName"] = groupIt->second.ToStdString();
+								changed = true;
+							}
+						}
+
+						if (changed) {
+							if (!ApplyPaletteEntity(controller, patched, outReport, error)) {
+								return false;
+							}
+							if (!tick("Importing palettes")) {
+								error = "Import canceled.";
+								return false;
+							}
+							continue;
+						}
+					}
+				}
+
 				if (!ApplyPaletteEntity(controller, entity, outReport, error)) {
 					return false;
 				}

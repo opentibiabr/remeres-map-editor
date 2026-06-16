@@ -37,6 +37,7 @@ struct MaterialsWorkbenchImportReport {
 enum class MaterialsWorkbenchImportConflictStrategy {
 	UpdateExisting,
 	SkipExisting,
+	RenameWithSuffix,
 };
 
 struct MaterialsWorkbenchImportOptions {

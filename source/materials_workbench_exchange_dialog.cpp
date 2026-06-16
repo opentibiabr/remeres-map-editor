@@ -3,7 +3,10 @@
 #include "materials_workbench_exchange_dialog.h"
 
 #include <algorithm>
+#include <functional>
 #include <set>
+#include <unordered_map>
+#include <unordered_set>
 
 #include <wx/button.h>
 #include <wx/checkbox.h>
@@ -483,6 +486,7 @@ MaterialsWorkbenchImportDialog::MaterialsWorkbenchImportDialog(wxWindow* parent,
 	conflictChoice_ = new wxChoice(this, wxID_ANY);
 	conflictChoice_->Append("Update existing");
 	conflictChoice_->Append("Skip existing");
+	conflictChoice_->Append("Rename with suffix");
 	conflictChoice_->SetSelection(0);
 	optionsSizer->Add(conflictChoice_, 0, wxALIGN_CENTER_VERTICAL);
 	optionsSizer->AddStretchSpacer(1);
@@ -532,8 +536,12 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 	int skips = 0;
 
 	options_.onConflict = MaterialsWorkbenchImportConflictStrategy::UpdateExisting;
-	if (conflictChoice_ && conflictChoice_->GetSelection() == 1) {
-		options_.onConflict = MaterialsWorkbenchImportConflictStrategy::SkipExisting;
+	if (conflictChoice_) {
+		if (conflictChoice_->GetSelection() == 1) {
+			options_.onConflict = MaterialsWorkbenchImportConflictStrategy::SkipExisting;
+		} else if (conflictChoice_->GetSelection() == 2) {
+			options_.onConflict = MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix;
+		}
 	}
 
 	if (!root_.is_object() || !root_.contains("entities") || !root_["entities"].is_array()) {
@@ -545,12 +553,48 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 
 	const int total = static_cast<int>(root_["entities"].size());
 	int processed = 0;
+	std::unordered_map<wxString, wxString> renamedPaletteGroups;
+	std::unordered_map<wxString, wxString> renamedPalettes;
+	std::unordered_set<wxString> reservedGroupNames;
+	std::unordered_set<wxString> reservedPaletteNames;
+
+	auto normalizeName = [](const wxString &name) -> wxString {
+		wxString value = name;
+		value.MakeLower();
+		return value;
+	};
+
+	auto makeUniqueName = [&](const wxString &base, const std::function<bool(const wxString &)> &exists, std::unordered_set<wxString> &reserved) -> wxString {
+		const wxString baseKey = normalizeName(base);
+		if (!exists(base) && reserved.find(baseKey) == reserved.end()) {
+			reserved.insert(baseKey);
+			return base;
+		}
+
+		for (int attempt = 1; attempt < 1000; ++attempt) {
+			wxString candidate = base;
+			if (attempt == 1) {
+				candidate += " (imported)";
+			} else {
+				candidate += wxString::Format(" (imported %d)", attempt);
+			}
+			const wxString candidateKey = normalizeName(candidate);
+			if (!exists(candidate) && reserved.find(candidateKey) == reserved.end()) {
+				reserved.insert(candidateKey);
+				return candidate;
+			}
+		}
+
+		reserved.insert(baseKey);
+		return base;
+	};
 	for (const nlohmann::json &entity : root_["entities"]) {
 		if (!entity.is_object() || !entity.contains("kind") || !entity["kind"].is_string()) {
 			continue;
 		}
 		const std::string kind = entity["kind"].get<std::string>();
 		wxString keyLabel = "";
+		wxString actionDetail = "";
 		bool exists = false;
 
 		if (kind == "border_set") {
@@ -573,30 +617,60 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 				const wxString name = JsonToWxStringLocal(entity["group"]["name"]);
 				keyLabel = name;
 				exists = controller_.HasPaletteGroupNamed(name);
+				if (exists && options_.onConflict == MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix) {
+					auto it = renamedPaletteGroups.find(name);
+					if (it == renamedPaletteGroups.end()) {
+						const wxString newName = makeUniqueName(name, [&](const wxString &candidate) { return controller_.HasPaletteGroupNamed(candidate); }, reservedGroupNames);
+						renamedPaletteGroups.insert({ name, newName });
+						it = renamedPaletteGroups.find(name);
+					}
+					if (it != renamedPaletteGroups.end() && it->second != name) {
+						actionDetail = " -> " + it->second;
+					}
+				}
 			}
 		} else if (kind == "palette") {
 			if (entity.contains("palette") && entity["palette"].is_object() && entity["palette"].contains("name") && entity["palette"]["name"].is_string()) {
 				const wxString name = JsonToWxStringLocal(entity["palette"]["name"]);
 				keyLabel = name;
 				exists = controller_.HasTilesetNamed(name);
+				if (exists && options_.onConflict == MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix) {
+					auto it = renamedPalettes.find(name);
+					if (it == renamedPalettes.end()) {
+						const wxString newName = makeUniqueName(name, [&](const wxString &candidate) { return controller_.HasTilesetNamed(candidate); }, reservedPaletteNames);
+						renamedPalettes.insert({ name, newName });
+						it = renamedPalettes.find(name);
+					}
+					if (it != renamedPalettes.end() && it->second != name) {
+						actionDetail = " -> " + it->second;
+					}
+				}
 			}
 		}
 
 		wxString action = exists ? "update" : "create";
-		if (exists && options_.onConflict == MaterialsWorkbenchImportConflictStrategy::SkipExisting) {
-			action = "skip";
+		if (exists) {
+			if (options_.onConflict == MaterialsWorkbenchImportConflictStrategy::SkipExisting) {
+				action = "skip";
+			} else if (options_.onConflict == MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix) {
+				if (kind == "palette_group" || kind == "palette") {
+					action = "rename";
+				} else {
+					action = "update";
+				}
+			}
 		}
 
 		if (action == "update") {
 			++updates;
-		} else if (action == "create") {
+		} else if (action == "create" || action == "rename") {
 			++creates;
 		} else {
 			++skips;
 		}
 		const long row = planList_->InsertItem(planList_->GetItemCount(), wxString::FromUTF8(kind.c_str()));
 		planList_->SetItem(row, 1, keyLabel);
-		planList_->SetItem(row, 2, action);
+		planList_->SetItem(row, 2, action + actionDetail);
 
 		++processed;
 		if (progress && total > 0 && progressSpan > 0 && (processed % 200) == 0) {
