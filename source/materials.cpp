@@ -1544,6 +1544,10 @@ bool Materials::bootstrapSqliteDatabase(wxString &error, wxArrayString &warnings
 		if (!migrateTilesetsToSQLite(error, warnings)) {
 			return false;
 		}
+		if (!g_brush_database.resolveGroundReferenceNames()) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
 		MaterialsDatabaseAuditReport report;
 		if (g_brush_database.generateAuditReport(report)) {
 			if (report.unresolvedGroundTargets > 0 || report.unresolvedBrushLinks > 0 || report.unresolvedTilesetEntries > 0) {

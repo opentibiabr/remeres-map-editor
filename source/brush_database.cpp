@@ -4734,13 +4734,23 @@ bool BrushDatabaseBrushRepository::resolveGroundReferenceNames() {
 		return false;
 	}
 
-	return execute("UPDATE brush_links "
+	if (!execute("UPDATE brush_links "
 				   "SET target_brush_id = ("
 				   "SELECT id FROM brushes b "
 				   "WHERE b.name = brush_links.target_brush_name "
 				   "LIMIT 1"
 				   ") "
-				   "WHERE target_brush_name <> '' AND target_brush_name <> 'all';");
+				   "WHERE target_brush_name <> '' AND target_brush_name <> 'all';")) {
+		return false;
+	}
+
+	return execute("UPDATE tileset_brush_entries "
+				   "SET brush_id = ("
+				   "SELECT id FROM brushes b "
+				   "WHERE b.name = tileset_brush_entries.brush_name "
+				   "LIMIT 1"
+				   ") "
+				   "WHERE brush_name <> '' AND brush_id IS NULL;");
 }
 
 bool BrushDatabaseSession::execute(const wxString &sql) {
