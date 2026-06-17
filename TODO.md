@@ -8,9 +8,10 @@
 - [x] Stage 10D core palette flow is in place: add, move, remove, reorder, custom groups, preserved selection/scroll, better tree UX, overview manuals, and contextual tooltips
 
 ## Finalization Stages (target: no XML dependency)
-- [ ] Stage A: runtime DB-first hard
-  - [ ] Ensure runtime never loads materials from XML when `materials.db` is present and healthy
-  - [ ] Make XML fallback explicit (only when DB is missing/corrupt/incompatible), with clear user-facing messaging
+- [x] Stage A: runtime DB-first hard
+  - [x] Ensure runtime never loads materials from XML when `materials.db` is present and healthy
+  - [x] Make XML fallback explicit (only when DB is missing/corrupt/incompatible), with clear user-facing messaging
+  - [x] Fix startup hang when both `materials.db` and legacy XML files are missing (always close load dialog on failure)
 - [ ] Stage B: bootstrap-once + migrations
   - [ ] First run: create/upgrade `materials.db` schema then import legacy XML once
   - [ ] Persist a “bootstrap completed” marker/version so XML is never re-imported silently

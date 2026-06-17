@@ -300,6 +300,12 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 	g_spriteAppearances.init();
 
 	g_gui.CreateLoadBar("Loading assets files");
+	struct LoadBarScope {
+		~LoadBarScope() {
+			g_gui.DestroyLoadBar();
+		}
+	};
+	LoadBarScope loadBarScope;
 	g_gui.SetLoadDone(0, "Loading assets file");
 	spdlog::info("Loading assets");
 
@@ -361,38 +367,55 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 
 	g_gui.SetLoadDone(50, "Loading materials catalog...");
 	spdlog::info("Loading materials catalog");
-	g_materials.initializeBrushDatabase(warnings);
+	const bool sqliteEnabled = g_settings.getBoolean(Config::USE_SQLITE_MATERIALS);
+	const wxString sqliteDatabasePath = GUI::GetDataDirectory() + "materials/materials.db";
+	FileName sqliteDatabaseFile(sqliteDatabasePath);
+	const bool sqliteDatabaseExistedBeforeInit = sqliteDatabaseFile.FileExists();
+	const bool sqliteInitOk = g_materials.initializeBrushDatabase(warnings);
 	auto materialsPath = wxString(data_path.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + "materials/materials.xml");
 	bool startAsyncSqliteBootstrap = false;
 	bool shouldLoadFromSqlite = false;
-	bool sqliteImportIncomplete = false;
-	if (g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
+	wxString sqliteFallbackReason;
+	if (sqliteEnabled && sqliteInitOk) {
 		bool skipSqliteImport = false;
 		wxString sqliteImportStatus;
 		if (!g_materials.shouldSkipSqliteBootstrapImports(skipSqliteImport, sqliteImportStatus)) {
-			warnings.push_back("SQLite import bootstrap check failed: " + sqliteImportStatus);
-			spdlog::warn("[GUI::LoadDataFiles] SQLite import bootstrap check failed: {}", sqliteImportStatus.ToStdString());
-		} else if (skipSqliteImport) {
-			shouldLoadFromSqlite = g_brush_database.isOpen();
+			sqliteFallbackReason = "SQLite import bootstrap check failed: " + sqliteImportStatus;
+			warnings.push_back(sqliteFallbackReason);
+			spdlog::warn("[GUI::LoadDataFiles] {}", sqliteFallbackReason.ToStdString());
+			if (g_brush_database.isOpen()) {
+				startAsyncSqliteBootstrap = true;
+			}
+		} else if (skipSqliteImport && g_brush_database.isOpen()) {
+			shouldLoadFromSqlite = true;
 			spdlog::info("{}", sqliteImportStatus.ToStdString());
 		} else {
+			if (!sqliteDatabaseExistedBeforeInit) {
+				sqliteImportStatus = wxString("SQLite materials database was missing; ") + sqliteImportStatus;
+			}
 			spdlog::info("{}", sqliteImportStatus.ToStdString());
-			sqliteImportIncomplete = true;
+			sqliteFallbackReason = sqliteImportStatus;
 			startAsyncSqliteBootstrap = true;
 			shouldLoadFromSqlite = false;
 		}
+	} else if (sqliteEnabled && !sqliteInitOk) {
+		sqliteFallbackReason = "SQLite brush database initialization failed: " + g_brush_database.getLastError();
 	}
 
 	bool loadedMaterialsFromSqlite = false;
 	if (shouldLoadFromSqlite) {
 		spdlog::info("[GUI::LoadDataFiles] Attempting to load materials catalog from SQLite.");
 		loadedMaterialsFromSqlite = g_brushes.loadFromDatabase(warnings) && g_materials.loadTilesetsFromDatabase(warnings);
-		if (loadedMaterialsFromSqlite && sqliteImportIncomplete) {
-			spdlog::info("[GUI::LoadDataFiles] SQLite catalog loaded successfully; background XML bootstrap deferred.");
-		}
 		if (!loadedMaterialsFromSqlite) {
-			warnings.push_back("SQLite materials load failed at runtime; falling back to XML and scheduling a rebuild.");
+			wxString runtimeError = g_brush_database.getLastError();
+			wxString message = "SQLite materials load failed at runtime; falling back to XML.";
+			if (!runtimeError.IsEmpty()) {
+				message += " Reason: ";
+				message += runtimeError;
+			}
+			warnings.push_back(message);
 			spdlog::warn("[GUI::LoadDataFiles] Falling back to XML materials after SQLite load failure.");
+			sqliteFallbackReason = message;
 			g_materials.clear();
 			g_brushes.clear();
 			if (g_brush_database.isOpen()) {
@@ -404,10 +427,31 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 	if (!loadedMaterialsFromSqlite) {
 		error.clear();
 		spdlog::info("[GUI::LoadDataFiles] Loading materials catalog from XML.");
+		if (sqliteEnabled) {
+			wxString reason = sqliteFallbackReason;
+			if (reason.IsEmpty()) {
+				reason = "SQLite materials were enabled but not used.";
+			}
+			wxString message = "Materials recovery mode: using legacy XML materials for this session.\n";
+			message += "Reason: ";
+			message += reason;
+			message += "\nAction: Loaded materials from XML and will continue running.\n";
+			message += "Recovery: Ensure materials/materials.db is writable and healthy; if this repeats, move/delete materials/materials.db to force a clean rebuild.";
+			warnings.push_back(message);
+			g_gui.SetStatusText("Materials: recovery mode (XML fallback). See Warnings for details.");
+		}
 	}
 	if (!loadedMaterialsFromSqlite && !g_materials.loadMaterials(materialsPath, error, warnings)) {
 		warnings.push_back("Couldn't load materials.xml: " + error);
 		spdlog::warn("[GUI::LoadDataFiles] {}: {}", materialsPath.ToStdString(), error.ToStdString());
+		const wxString xmlError = error;
+		const wxString sqliteDetail = sqliteFallbackReason.IsEmpty() ? wxString("unavailable") : sqliteFallbackReason;
+		error = "Failed to load materials catalog from both SQLite and XML.\n";
+		error += "SQLite: ";
+		error += sqliteDetail;
+		error += "\nXML: ";
+		error += xmlError;
+		return false;
 	}
 
 	g_gui.SetLoadDone(70, "Finishing...");
@@ -417,7 +461,6 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 	g_materials.createOtherTileset();
 	g_materials.createNpcTileset();
 
-	g_gui.DestroyLoadBar();
 	spdlog::info("Assets loaded");
 	if (startAsyncSqliteBootstrap) {
 		StartAsyncSqliteBootstrapImport();

@@ -1009,6 +1009,10 @@ bool BrushDatabase::hasCompleteImportForCurrentSchema(bool &outReady) {
 	return catalogRepository_.hasCompleteImportForCurrentSchema(outReady);
 }
 
+bool BrushDatabase::hasCompleteImportForCurrentSchema(bool &outReady, wxString &outReason) {
+	return catalogRepository_.hasCompleteImportForCurrentSchema(outReady, outReason);
+}
+
 int BrushDatabase::getExpectedSchemaVersion() const {
 	return catalogRepository_.getExpectedSchemaVersion();
 }
@@ -4525,22 +4529,36 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 }
 
 bool BrushDatabaseCatalogRepository::hasCompleteImportForCurrentSchema(bool &outReady) {
+	wxString ignoredReason;
+	return hasCompleteImportForCurrentSchema(outReady, ignoredReason);
+}
+
+bool BrushDatabaseCatalogRepository::hasCompleteImportForCurrentSchema(bool &outReady, wxString &outReason) {
 	outReady = false;
+	outReason.clear();
 
 	if (!isOpen()) {
-		return setError("SQLite database is not open.");
+		outReason = "SQLite database is not open.";
+		return setError(outReason);
 	}
 
 	int version = 0;
 	if (!schemaManager_.getCurrentSchemaVersion(version)) {
+		outReason = lastError();
 		return false;
 	}
 	if (version != kBrushDatabaseSchemaVersion) {
+		outReason = wxString::Format(
+			"Schema version mismatch (found %d, expected %d).",
+			version,
+			kBrushDatabaseSchemaVersion
+		);
 		return true;
 	}
 
 	MaterialsDatabaseAuditReport report;
 	if (!generateAuditReport(report)) {
+		outReason = lastError();
 		return false;
 	}
 
@@ -4564,6 +4582,39 @@ bool BrushDatabaseCatalogRepository::hasCompleteImportForCurrentSchema(bool &out
 	}
 
 	outReady = hasGround && hasWall && hasDoodad && hasCarpet && hasTable && report.borderSetCount > 0 && report.tilesetCount > 0;
+	if (!outReady) {
+		std::vector<wxString> missing;
+		if (!hasGround) {
+			missing.push_back("ground");
+		}
+		if (!hasWall) {
+			missing.push_back("wall");
+		}
+		if (!hasDoodad) {
+			missing.push_back("doodad");
+		}
+		if (!hasCarpet) {
+			missing.push_back("carpet");
+		}
+		if (!hasTable) {
+			missing.push_back("table");
+		}
+		if (report.borderSetCount <= 0) {
+			missing.push_back("border_sets");
+		}
+		if (report.tilesetCount <= 0) {
+			missing.push_back("tilesets");
+		}
+
+		wxString detail;
+		for (size_t i = 0; i < missing.size(); ++i) {
+			if (i > 0) {
+				detail += ", ";
+			}
+			detail += missing[i];
+		}
+		outReason = "Database is missing imported materials data (" + detail + ").";
+	}
 	return true;
 }
 

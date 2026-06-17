@@ -437,6 +437,7 @@ public:
 	bool getAllTilesets(std::vector<TilesetStorageRecord> &outTilesets);
 	bool generateAuditReport(MaterialsDatabaseAuditReport &outReport);
 	bool hasCompleteImportForCurrentSchema(bool &outReady);
+	bool hasCompleteImportForCurrentSchema(bool &outReady, wxString &outReason);
 	int getExpectedSchemaVersion() const;
 
 private:
@@ -498,6 +499,7 @@ public:
 	bool getAllTilesets(std::vector<TilesetStorageRecord> &outTilesets);
 	bool generateAuditReport(MaterialsDatabaseAuditReport &outReport);
 	bool hasCompleteImportForCurrentSchema(bool &outReady);
+	bool hasCompleteImportForCurrentSchema(bool &outReady, wxString &outReason);
 	int getExpectedSchemaVersion() const;
 	template <typename Operation>
 	bool runInTransaction(Operation &&operation) {
