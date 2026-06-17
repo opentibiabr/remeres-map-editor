@@ -4645,6 +4645,14 @@ bool BrushDatabaseCatalogRepository::hasCompleteImportForCurrentSchema(bool &out
 			detail += missing[i];
 		}
 		outReason = "Database is missing imported materials data (" + detail + ").";
+	} else if (report.unresolvedGroundTargets > 0 || report.unresolvedBrushLinks > 0 || report.unresolvedTilesetEntries > 0) {
+		outReady = false;
+		outReason = wxString::Format(
+			"Database contains unresolved references (ground targets=%d, brush links=%d, tileset entries=%d).",
+			report.unresolvedGroundTargets,
+			report.unresolvedBrushLinks,
+			report.unresolvedTilesetEntries
+		);
 	} else if (!isReadOnly()) {
 		markMaterialsImportComplete("audit_auto_mark");
 	}

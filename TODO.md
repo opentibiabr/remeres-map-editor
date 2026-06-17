@@ -19,6 +19,7 @@
 - [ ] Stage C: parity audit (no data gaps)
   - [ ] Audit every runtime/editor field for XML-only behavior or defaults; move remaining gaps into DB load/save
   - [ ] Add validations for any newly surfaced invariants
+  - [x] Tighten “DB ready” checks to block auto-mark when audit detects unresolved references
 - [ ] Stage D: recovery tooling
   - [ ] Add explicit “rebuild/reset DB from XML” tooling (manual action), with strong warnings
   - [ ] Add integrity checks and a safe recovery path when DB is corrupted or partially missing

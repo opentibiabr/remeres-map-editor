@@ -1544,6 +1544,19 @@ bool Materials::bootstrapSqliteDatabase(wxString &error, wxArrayString &warnings
 		if (!migrateTilesetsToSQLite(error, warnings)) {
 			return false;
 		}
+		MaterialsDatabaseAuditReport report;
+		if (g_brush_database.generateAuditReport(report)) {
+			if (report.unresolvedGroundTargets > 0 || report.unresolvedBrushLinks > 0 || report.unresolvedTilesetEntries > 0) {
+				warnings.push_back(wxString::Format(
+					"SQLite materials import completed with unresolved references (ground targets=%d, brush links=%d, tileset entries=%d).",
+					report.unresolvedGroundTargets,
+					report.unresolvedBrushLinks,
+					report.unresolvedTilesetEntries
+				));
+			}
+		} else {
+			warnings.push_back("SQLite materials import completed, but audit report generation failed: " + g_brush_database.getLastError());
+		}
 		if (!g_brush_database.markMaterialsImportComplete("xml_bootstrap")) {
 			error = g_brush_database.getLastError();
 			return false;
