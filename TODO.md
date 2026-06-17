@@ -21,6 +21,7 @@
   - [ ] Add validations for any newly surfaced invariants
   - [x] Tighten “DB ready” checks to block auto-mark when audit detects unresolved references
   - [x] Ensure SQLite bootstrap resolves tileset brush ids by name so unresolvedTilesetEntries stays at 0
+  - [x] Make XML→SQLite tileset import explicit when skipping unsupported sections/entries (no silent data loss)
 - [ ] Stage D: recovery tooling
   - [ ] Add explicit “rebuild/reset DB from XML” tooling (manual action), with strong warnings
   - [ ] Add integrity checks and a safe recovery path when DB is corrupted or partially missing

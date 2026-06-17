@@ -1230,11 +1230,21 @@ namespace {
 		}
 	}
 
-	void CollectTilesetSectionEntries(pugi::xml_node sectionNode, TilesetSectionRecord &section) {
+	void CollectTilesetSectionEntries(
+		const FileName &sourceFile,
+		const wxString &tilesetName,
+		pugi::xml_node sectionNode,
+		TilesetSectionRecord &section,
+		wxArrayString &warnings
+	) {
 		int sortOrder = 0;
 		for (pugi::xml_node entryNode = sectionNode.first_child(); entryNode; entryNode = entryNode.next_sibling()) {
 			const std::string entryNodeName = as_lower_str(entryNode.name());
 			if (entryNodeName != "brush" && entryNodeName != "item") {
+				warnings.push_back(
+					"SQLite tileset import skipped unsupported entry <" + wxString::FromUTF8(entryNodeName.c_str()) + "> "
+					"in tileset \"" + tilesetName + "\" (" + sourceFile.GetFullName() + ")."
+				);
 				continue;
 			}
 
@@ -1277,13 +1287,17 @@ namespace {
 		for (pugi::xml_node childNode = tilesetNode.first_child(); childNode; childNode = childNode.next_sibling()) {
 			const std::string sectionNodeName = as_lower_str(childNode.name());
 			if (!IsSupportedTilesetSectionType(sectionNodeName)) {
+				warnings.push_back(
+					"SQLite tileset import skipped unsupported section <" + wxString::FromUTF8(sectionNodeName.c_str()) + "> "
+					"in tileset \"" + outTileset.name + "\" (" + sourceFile.GetFullName() + ")."
+				);
 				continue;
 			}
 
 			TilesetSectionRecord section;
 			section.sectionType = wxString::FromUTF8(sectionNodeName.c_str());
 			section.sortOrder = sectionSortOrder++;
-			CollectTilesetSectionEntries(childNode, section);
+			CollectTilesetSectionEntries(sourceFile, outTileset.name, childNode, section, warnings);
 			outTileset.sections.push_back(section);
 		}
 
