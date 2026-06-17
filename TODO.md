@@ -7,6 +7,29 @@
 - [x] `Borders` and `Walls` already have dedicated workspaces with save/revert and targeted runtime sync
 - [x] Stage 10D core palette flow is in place: add, move, remove, reorder, custom groups, preserved selection/scroll, better tree UX, overview manuals, and contextual tooltips
 
+## Finalization Stages (target: no XML dependency)
+- [ ] Stage A: runtime DB-first hard
+  - [ ] Ensure runtime never loads materials from XML when `materials.db` is present and healthy
+  - [ ] Make XML fallback explicit (only when DB is missing/corrupt/incompatible), with clear user-facing messaging
+- [ ] Stage B: bootstrap-once + migrations
+  - [ ] First run: create/upgrade `materials.db` schema then import legacy XML once
+  - [ ] Persist a “bootstrap completed” marker/version so XML is never re-imported silently
+  - [ ] Schema migrations must not require re-reading XML
+- [ ] Stage C: parity audit (no data gaps)
+  - [ ] Audit every runtime/editor field for XML-only behavior or defaults; move remaining gaps into DB load/save
+  - [ ] Add validations for any newly surfaced invariants
+- [ ] Stage D: recovery tooling
+  - [ ] Add explicit “rebuild/reset DB from XML” tooling (manual action), with strong warnings
+  - [ ] Add integrity checks and a safe recovery path when DB is corrupted or partially missing
+- [ ] Stage E: relationship navigation (beyond brushes)
+  - [ ] Expand `Used By`/go-to surfaces across walls/parts/borders so users can jump to owners reliably
+  - [ ] Add deeper cross-reference helpers and stable deep links where needed
+- [ ] Stage F: links parity
+  - [ ] Expand `Links` to cover remaining legacy link types (e.g. `redirect`) with safe validation + clear UX
+- [ ] Stage G: polish + hardening
+  - [ ] Finish product-language/workflow refinements (empty states, confirmations, consistent labels)
+  - [ ] Final edge-case pass for import/export, validations, and crash/freeze hardening
+
 ## Next
 - [x] Border Workspace visual pass: align `Preview Matrix` to the same geometry as `Slot Grid`
 - [x] Border Workspace visual pass: show a real visual `Center Ground` using `groundEquivalent`
@@ -86,7 +109,6 @@
 
 ## Nice To Have
 - [x] Add a real composed preview for `wall brush`, beyond the current parts grid
-- [ ] Add a mini-scene preview for `border` application, beyond the slot matrix
 - [ ] Add manual runtime sync controls only if a future workflow really needs them
 - [ ] Revisit XML deprecation messaging once the visual Workbench flow feels complete and clearly superior
 
