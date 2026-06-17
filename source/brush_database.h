@@ -370,6 +370,7 @@ private:
 	bool migrateToVersion9();
 	bool migrateToVersion10();
 	bool migrateToVersion11();
+	bool migrateToVersion12();
 	bool addColumnIfMissing(const wxString &tableName, const wxString &columnName, const wxString &definition);
 	bool executeStatements(std::initializer_list<const char*> statements);
 	bool addVersion2BrushColumns();
@@ -438,6 +439,8 @@ public:
 	bool generateAuditReport(MaterialsDatabaseAuditReport &outReport);
 	bool hasCompleteImportForCurrentSchema(bool &outReady);
 	bool hasCompleteImportForCurrentSchema(bool &outReady, wxString &outReason);
+	bool isMaterialsImportComplete(bool &outComplete, wxString &outReason);
+	bool markMaterialsImportComplete(const wxString &source);
 	int getExpectedSchemaVersion() const;
 
 private:
@@ -500,6 +503,8 @@ public:
 	bool generateAuditReport(MaterialsDatabaseAuditReport &outReport);
 	bool hasCompleteImportForCurrentSchema(bool &outReady);
 	bool hasCompleteImportForCurrentSchema(bool &outReady, wxString &outReason);
+	bool isMaterialsImportComplete(bool &outComplete, wxString &outReason);
+	bool markMaterialsImportComplete(const wxString &source);
 	int getExpectedSchemaVersion() const;
 	template <typename Operation>
 	bool runInTransaction(Operation &&operation) {

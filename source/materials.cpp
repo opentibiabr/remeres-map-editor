@@ -1541,7 +1541,14 @@ bool Materials::bootstrapSqliteDatabase(wxString &error, wxArrayString &warnings
 		if (!migrateDecorativeBrushesToSQLite(error, warnings)) {
 			return false;
 		}
-		return migrateTilesetsToSQLite(error, warnings);
+		if (!migrateTilesetsToSQLite(error, warnings)) {
+			return false;
+		}
+		if (!g_brush_database.markMaterialsImportComplete("xml_bootstrap")) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+		return true;
 	});
 
 	if (!imported && error.IsEmpty()) {

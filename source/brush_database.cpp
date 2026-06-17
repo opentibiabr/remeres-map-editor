@@ -7,7 +7,7 @@
 BrushDatabase g_brush_database;
 
 namespace {
-	constexpr int kBrushDatabaseSchemaVersion = 11;
+	constexpr int kBrushDatabaseSchemaVersion = 12;
 	constexpr const char* kBuiltinPaletteGroupTerrain = "terrain";
 	constexpr const char* kBuiltinPaletteGroupDoodad = "doodad";
 	constexpr const char* kBuiltinPaletteGroupItem = "item";
@@ -1013,6 +1013,14 @@ bool BrushDatabase::hasCompleteImportForCurrentSchema(bool &outReady, wxString &
 	return catalogRepository_.hasCompleteImportForCurrentSchema(outReady, outReason);
 }
 
+bool BrushDatabase::isMaterialsImportComplete(bool &outComplete, wxString &outReason) {
+	return catalogRepository_.isMaterialsImportComplete(outComplete, outReason);
+}
+
+bool BrushDatabase::markMaterialsImportComplete(const wxString &source) {
+	return catalogRepository_.markMaterialsImportComplete(source);
+}
+
 int BrushDatabase::getExpectedSchemaVersion() const {
 	return catalogRepository_.getExpectedSchemaVersion();
 }
@@ -1629,7 +1637,7 @@ bool BrushDatabaseSchemaManager::initializeSchema() {
 		rollbackTransaction();
 		return setError(wxString::Format("SQLite schema version %d is newer than supported version %d.", version, kBrushDatabaseSchemaVersion));
 	}
-	if (!applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion1>(version, 1) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion2>(version, 2) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion3>(version, 3) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion4>(version, 4) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion5>(version, 5) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion6>(version, 6) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion7>(version, 7) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion8>(version, 8) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion9>(version, 9) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion10>(version, 10) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion11>(version, 11)) {
+	if (!applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion1>(version, 1) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion2>(version, 2) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion3>(version, 3) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion4>(version, 4) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion5>(version, 5) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion6>(version, 6) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion7>(version, 7) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion8>(version, 8) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion9>(version, 9) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion10>(version, 10) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion11>(version, 11) || !applySchemaMigrationStep<&BrushDatabaseSchemaManager::migrateToVersion12>(version, 12)) {
 		return rollback();
 	}
 
@@ -1797,6 +1805,18 @@ bool BrushDatabaseSchemaManager::migrateToVersion10() {
 
 bool BrushDatabaseSchemaManager::migrateToVersion11() {
 	return addColumnIfMissing("brushes", "remove_optional_border", "remove_optional_border INTEGER NOT NULL DEFAULT 0 CHECK(remove_optional_border IN (0, 1))");
+}
+
+bool BrushDatabaseSchemaManager::migrateToVersion12() {
+	return executeStatements({
+		"CREATE TABLE IF NOT EXISTS import_status ("
+		"id INTEGER PRIMARY KEY CHECK(id = 1),"
+		"completed INTEGER NOT NULL DEFAULT 0 CHECK(completed IN (0, 1)),"
+		"completed_at INTEGER,"
+		"source TEXT NOT NULL DEFAULT ''"
+		");",
+		"INSERT OR IGNORE INTO import_status(id, completed) VALUES (1, 0);",
+	});
 }
 
 bool BrushDatabaseSession::testDatabaseConnection() {
@@ -4556,6 +4576,17 @@ bool BrushDatabaseCatalogRepository::hasCompleteImportForCurrentSchema(bool &out
 		return true;
 	}
 
+	bool importComplete = false;
+	wxString importReason;
+	if (!isMaterialsImportComplete(importComplete, importReason)) {
+		outReason = importReason.IsEmpty() ? lastError() : importReason;
+		return false;
+	}
+	if (importComplete) {
+		outReady = true;
+		return true;
+	}
+
 	MaterialsDatabaseAuditReport report;
 	if (!generateAuditReport(report)) {
 		outReason = lastError();
@@ -4614,7 +4645,65 @@ bool BrushDatabaseCatalogRepository::hasCompleteImportForCurrentSchema(bool &out
 			detail += missing[i];
 		}
 		outReason = "Database is missing imported materials data (" + detail + ").";
+	} else if (!isReadOnly()) {
+		markMaterialsImportComplete("audit_auto_mark");
 	}
+	return true;
+}
+
+bool BrushDatabaseCatalogRepository::isMaterialsImportComplete(bool &outComplete, wxString &outReason) {
+	outComplete = false;
+	outReason.clear();
+
+	if (!isOpen()) {
+		outReason = "SQLite database is not open.";
+		return setError(outReason);
+	}
+
+	sqlite3_stmt* stmt = nullptr;
+	if (!prepare("SELECT completed FROM import_status WHERE id = 1;", &stmt)) {
+		outReason = lastError();
+		return false;
+	}
+
+	const int rc = sqlite3_step(stmt);
+	if (rc == SQLITE_ROW) {
+		outComplete = sqlite3_column_int(stmt, 0) != 0;
+		sqlite3_finalize(stmt);
+		return true;
+	}
+	if (rc == SQLITE_DONE) {
+		sqlite3_finalize(stmt);
+		outReason = "Import status row is missing.";
+		return true;
+	}
+
+	sqlite3_finalize(stmt);
+	outReason = "Failed to read materials import status.";
+	return setErrorFromDatabase(outReason);
+}
+
+bool BrushDatabaseCatalogRepository::markMaterialsImportComplete(const wxString &source) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+	if (isReadOnly()) {
+		return setError("SQLite materials import marker requires a read-write connection.");
+	}
+
+	sqlite3_stmt* stmt = nullptr;
+	if (!prepare("INSERT OR REPLACE INTO import_status(id, completed, completed_at, source) "
+				 "VALUES (1, 1, strftime('%s','now'), ?);", &stmt)) {
+		return false;
+	}
+
+	sqlite3_bind_text(stmt, 1, source.utf8_str(), -1, SQLITE_TRANSIENT);
+	const int rc = sqlite3_step(stmt);
+	sqlite3_finalize(stmt);
+	if (rc != SQLITE_DONE) {
+		return setErrorFromDatabase("Failed to write materials import status");
+	}
+
 	return true;
 }
 
