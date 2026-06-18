@@ -1017,6 +1017,10 @@ bool BrushDatabase::isMaterialsImportComplete(bool &outComplete, wxString &outRe
 	return catalogRepository_.isMaterialsImportComplete(outComplete, outReason);
 }
 
+bool BrushDatabase::getMaterialsImportStatus(MaterialsImportStatusRecord &outStatus, wxString &outReason) {
+	return catalogRepository_.getMaterialsImportStatus(outStatus, outReason);
+}
+
 bool BrushDatabase::markMaterialsImportComplete(const wxString &source) {
 	return catalogRepository_.markMaterialsImportComplete(source);
 }
@@ -4689,20 +4693,35 @@ bool BrushDatabaseCatalogRepository::isMaterialsImportComplete(bool &outComplete
 	outComplete = false;
 	outReason.clear();
 
+	MaterialsImportStatusRecord status;
+	if (!getMaterialsImportStatus(status, outReason)) {
+		return false;
+	}
+
+	outComplete = status.completed;
+	return true;
+}
+
+bool BrushDatabaseCatalogRepository::getMaterialsImportStatus(MaterialsImportStatusRecord &outStatus, wxString &outReason) {
+	outStatus = MaterialsImportStatusRecord();
+	outReason.clear();
+
 	if (!isOpen()) {
 		outReason = "SQLite database is not open.";
 		return setError(outReason);
 	}
 
 	sqlite3_stmt* stmt = nullptr;
-	if (!prepare("SELECT completed FROM import_status WHERE id = 1;", &stmt)) {
+	if (!prepare("SELECT completed, coalesce(completed_at, 0), source FROM import_status WHERE id = 1;", &stmt)) {
 		outReason = lastError();
 		return false;
 	}
 
 	const int rc = sqlite3_step(stmt);
 	if (rc == SQLITE_ROW) {
-		outComplete = sqlite3_column_int(stmt, 0) != 0;
+		outStatus.completed = sqlite3_column_int(stmt, 0) != 0;
+		outStatus.completedAt = sqlite3_column_int64(stmt, 1);
+		outStatus.source = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
 		sqlite3_finalize(stmt);
 		return true;
 	}

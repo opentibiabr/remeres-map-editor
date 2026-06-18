@@ -1526,7 +1526,17 @@ bool Materials::shouldSkipSqliteBootstrapImports(bool &outSkip, wxString &reason
 	}
 
 	if (outSkip) {
-		reason = wxString::Format("SQLite materials import skipped: materials.db already matches schema version %d and contains imported data.", g_brush_database.getExpectedSchemaVersion());
+		MaterialsImportStatusRecord status;
+		wxString statusReason;
+		if (g_brush_database.getMaterialsImportStatus(status, statusReason) && status.completed) {
+			reason = wxString::Format(
+				"SQLite materials import skipped: import marker complete (source=%s, completed_at=%lld).",
+				status.source,
+				static_cast<long long>(status.completedAt)
+			);
+		} else {
+			reason = wxString::Format("SQLite materials import skipped: materials.db already matches schema version %d and contains imported data.", g_brush_database.getExpectedSchemaVersion());
+		}
 	} else {
 		if (readinessReason.IsEmpty()) {
 			readinessReason = wxString::Format("Missing imported data for schema version %d.", g_brush_database.getExpectedSchemaVersion());

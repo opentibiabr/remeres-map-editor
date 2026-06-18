@@ -8,10 +8,19 @@ namespace {
 		return value ? "yes" : "no";
 	}
 
-	wxString FormatAuditReport(const BrushDatabase &database, const MaterialsDatabaseAuditReport &report) {
+	wxString FormatAuditReport(BrushDatabase &database, const MaterialsDatabaseAuditReport &report) {
 		wxString text;
 		text << "Database: " << database.getDatabasePath() << "\n";
 		text << "Schema version: " << database.getExpectedSchemaVersion() << "\n\n";
+		MaterialsImportStatusRecord status;
+		wxString statusReason;
+		if (database.getMaterialsImportStatus(status, statusReason)) {
+			text << "Import marker completed: " << BoolToText(status.completed) << "\n";
+			text << "Import marker completed_at: " << static_cast<long long>(status.completedAt) << "\n";
+			text << "Import marker source: " << status.source << "\n\n";
+		} else {
+			text << "Import marker error: " << statusReason << "\n\n";
+		}
 		text << "Brushes: " << report.brushCount << "\n";
 		text << "Border sets: " << report.borderSetCount << "\n";
 		text << "Tilesets: " << report.tilesetCount << "\n";

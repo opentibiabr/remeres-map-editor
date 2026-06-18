@@ -271,6 +271,12 @@ struct MaterialsDatabaseAuditReport {
 	std::vector<BrushTypeCountRecord> brushTypeCounts;
 };
 
+struct MaterialsImportStatusRecord {
+	bool completed = false;
+	int64_t completedAt = 0;
+	wxString source;
+};
+
 class BrushDatabaseSession {
 public:
 	BrushDatabaseSession();
@@ -444,6 +450,7 @@ public:
 	bool hasCompleteImportForCurrentSchema(bool &outReady);
 	bool hasCompleteImportForCurrentSchema(bool &outReady, wxString &outReason);
 	bool isMaterialsImportComplete(bool &outComplete, wxString &outReason);
+	bool getMaterialsImportStatus(MaterialsImportStatusRecord &outStatus, wxString &outReason);
 	bool markMaterialsImportComplete(const wxString &source);
 	int getExpectedSchemaVersion() const;
 
@@ -508,6 +515,7 @@ public:
 	bool hasCompleteImportForCurrentSchema(bool &outReady);
 	bool hasCompleteImportForCurrentSchema(bool &outReady, wxString &outReason);
 	bool isMaterialsImportComplete(bool &outComplete, wxString &outReason);
+	bool getMaterialsImportStatus(MaterialsImportStatusRecord &outStatus, wxString &outReason);
 	bool markMaterialsImportComplete(const wxString &source);
 	int getExpectedSchemaVersion() const;
 	template <typename Operation>
