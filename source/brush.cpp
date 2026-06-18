@@ -288,6 +288,24 @@ namespace {
 			if (brush.draggable) {
 				AppendBoolAttribute(brushNode, "draggable", true);
 			}
+			if (brush.onBlocking) {
+				AppendBoolAttribute(brushNode, "on_blocking", true);
+			}
+			if (brush.onDuplicate) {
+				AppendBoolAttribute(brushNode, "on_duplicate", true);
+			}
+			if (brush.redoBorders) {
+				AppendBoolAttribute(brushNode, "redo_borders", true);
+			}
+			if (brush.removeOptionalBorder) {
+				AppendBoolAttribute(brushNode, "remove_optional_border", true);
+			}
+			if (brush.oneSize) {
+				AppendBoolAttribute(brushNode, "one_size", true);
+			}
+			if (brush.thickness > 0 || brush.thicknessCeiling > 0) {
+				AppendStringAttribute(brushNode, "thickness", wxString::Format("%d/%d", brush.thickness, brush.thicknessCeiling));
+			}
 
 			std::map<wxString, pugi::xml_node> wallNodesByType;
 			std::set<wxString> redirectTargets;
