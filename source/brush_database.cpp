@@ -1025,6 +1025,10 @@ bool BrushDatabase::markMaterialsImportComplete(const wxString &source) {
 	return catalogRepository_.markMaterialsImportComplete(source);
 }
 
+bool BrushDatabase::getCurrentSchemaVersion(int &outVersion) {
+	return schemaManager_.getCurrentSchemaVersion(outVersion);
+}
+
 int BrushDatabase::getExpectedSchemaVersion() const {
 	return catalogRepository_.getExpectedSchemaVersion();
 }

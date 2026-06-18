@@ -11,7 +11,13 @@ namespace {
 	wxString FormatAuditReport(BrushDatabase &database, const MaterialsDatabaseAuditReport &report) {
 		wxString text;
 		text << "Database: " << database.getDatabasePath() << "\n";
-		text << "Schema version: " << database.getExpectedSchemaVersion() << "\n\n";
+		int currentSchemaVersion = 0;
+		if (database.getCurrentSchemaVersion(currentSchemaVersion)) {
+			text << "Schema version (db): " << currentSchemaVersion << "\n";
+		} else {
+			text << "Schema version (db): unknown\n";
+		}
+		text << "Schema version (expected): " << database.getExpectedSchemaVersion() << "\n\n";
 		MaterialsImportStatusRecord status;
 		wxString statusReason;
 		if (database.getMaterialsImportStatus(status, statusReason)) {

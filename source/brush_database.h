@@ -517,6 +517,7 @@ public:
 	bool isMaterialsImportComplete(bool &outComplete, wxString &outReason);
 	bool getMaterialsImportStatus(MaterialsImportStatusRecord &outStatus, wxString &outReason);
 	bool markMaterialsImportComplete(const wxString &source);
+	bool getCurrentSchemaVersion(int &outVersion);
 	int getExpectedSchemaVersion() const;
 	template <typename Operation>
 	bool runInTransaction(Operation &&operation) {

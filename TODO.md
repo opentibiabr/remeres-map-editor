@@ -24,6 +24,7 @@
   - [x] Make XML→SQLite tileset import explicit when skipping unsupported sections/entries (no silent data loss)
   - [x] Extend SQLite audit report to detect broken border-case references (match_border / replace_border ids+edges)
   - [x] Fix audit semantics: replace_border “with” is item id (don’t treat as border id); ignore edge checks for empty border sets
+  - [x] Fix SQLite inspector schema version label (show db vs expected)
 - [ ] Stage D: recovery tooling
   - [ ] Add explicit “rebuild/reset DB from XML” tooling (manual action), with strong warnings
   - [ ] Add integrity checks and a safe recovery path when DB is corrupted or partially missing
