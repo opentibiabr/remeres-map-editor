@@ -19,6 +19,7 @@
 - [ ] Stage C: parity audit (no data gaps)
   - [ ] Audit every runtime/editor field for XML-only behavior or defaults; move remaining gaps into DB load/save
   - [ ] Add validations for any newly surfaced invariants
+  - [x] Surface runtime-ready summary (schema/import marker/audit) in the SQLite inspector
   - [x] Tighten “DB ready” checks to block auto-mark when audit detects unresolved references
   - [x] Ensure SQLite bootstrap resolves tileset brush ids by name so unresolvedTilesetEntries stays at 0
   - [x] Make XML→SQLite tileset import explicit when skipping unsupported sections/entries (no silent data loss)

@@ -8,6 +8,80 @@ namespace {
 		return value ? "yes" : "no";
 	}
 
+	bool HasBrushType(const MaterialsDatabaseAuditReport &report, const wxString &type) {
+		for (const BrushTypeCountRecord &typeCount : report.brushTypeCounts) {
+			if (typeCount.type == type && typeCount.count > 0) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	wxString BuildRuntimeReadinessSummary(BrushDatabase &database, const MaterialsDatabaseAuditReport &report, const MaterialsImportStatusRecord *status) {
+		const int expectedSchemaVersion = database.getExpectedSchemaVersion();
+		int currentSchemaVersion = 0;
+		if (!database.getCurrentSchemaVersion(currentSchemaVersion)) {
+			return "Runtime-ready: unknown\nRuntime-ready reason: Failed to read database schema version.\n";
+		}
+		if (currentSchemaVersion != expectedSchemaVersion) {
+			return wxString::Format(
+				"Runtime-ready: no\nRuntime-ready reason: Schema mismatch (found %d, expected %d).\n",
+				currentSchemaVersion,
+				expectedSchemaVersion
+			);
+		}
+
+		const bool hasRequiredBrushTypes = HasBrushType(report, "ground")
+			&& HasBrushType(report, "wall")
+			&& HasBrushType(report, "doodad")
+			&& HasBrushType(report, "carpet")
+			&& HasBrushType(report, "table");
+		const bool hasCatalogBasics = report.borderSetCount > 0 && report.tilesetCount > 0;
+		const bool hasNoUnresolvedRefs = report.unresolvedGroundTargets == 0
+			&& report.unresolvedBrushLinks == 0
+			&& report.unresolvedTilesetEntries == 0
+			&& report.unresolvedCaseMatchBorderIds == 0
+			&& report.unresolvedCaseReplaceBorderTargetIds == 0;
+
+		const bool readyByAudit = hasRequiredBrushTypes && hasCatalogBasics && hasNoUnresolvedRefs;
+		const bool markerComplete = status && status->completed;
+		if (readyByAudit) {
+			if (markerComplete) {
+				return "Runtime-ready: yes\n\n";
+			}
+			if (database.isReadOnly()) {
+				return "Runtime-ready: yes\nRuntime-ready note: Import marker is incomplete, but database is read-only and audit checks are clean.\n\n";
+			}
+			return "Runtime-ready: yes\nRuntime-ready note: Import marker is incomplete, but audit checks are clean. The marker can be auto-written on a writable database.\n\n";
+		}
+
+		wxString reason;
+		if (!hasRequiredBrushTypes) {
+			reason = "Missing required brush types (expected ground, wall, doodad, carpet, table).";
+		} else if (!hasCatalogBasics) {
+			reason = "Missing border sets or tilesets.";
+		} else if (!hasNoUnresolvedRefs) {
+			reason = wxString::Format(
+				"Database contains unresolved references (ground targets=%d, brush links=%d, tileset entries=%d, match_border ids=%d, replace_border target ids=%d).",
+				report.unresolvedGroundTargets,
+				report.unresolvedBrushLinks,
+				report.unresolvedTilesetEntries,
+				report.unresolvedCaseMatchBorderIds,
+				report.unresolvedCaseReplaceBorderTargetIds
+			);
+		} else if (!markerComplete) {
+			reason = "Import marker is incomplete.";
+		}
+
+		wxString text;
+		text << "Runtime-ready: no\n";
+		if (!reason.IsEmpty()) {
+			text << "Runtime-ready reason: " << reason << "\n";
+		}
+		text << "\n";
+		return text;
+	}
+
 	wxString FormatAuditReport(BrushDatabase &database, const MaterialsDatabaseAuditReport &report) {
 		wxString text;
 		text << "Database: " << database.getDatabasePath() << "\n";
@@ -24,8 +98,10 @@ namespace {
 			text << "Import marker completed: " << BoolToText(status.completed) << "\n";
 			text << "Import marker completed_at: " << static_cast<long long>(status.completedAt) << "\n";
 			text << "Import marker source: " << status.source << "\n\n";
+			text << BuildRuntimeReadinessSummary(database, report, &status);
 		} else {
 			text << "Import marker error: " << statusReason << "\n\n";
+			text << BuildRuntimeReadinessSummary(database, report, nullptr);
 		}
 		text << "Brushes: " << report.brushCount << "\n";
 		text << "Border sets: " << report.borderSetCount << "\n";
