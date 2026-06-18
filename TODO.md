@@ -23,6 +23,7 @@
   - [x] Ensure SQLite bootstrap resolves tileset brush ids by name so unresolvedTilesetEntries stays at 0
   - [x] Make XML→SQLite tileset import explicit when skipping unsupported sections/entries (no silent data loss)
   - [x] Extend SQLite audit report to detect broken border-case references (match_border / replace_border ids+edges)
+  - [x] Fix audit semantics: replace_border “with” is item id (don’t treat as border id); ignore edge checks for empty border sets
 - [ ] Stage D: recovery tooling
   - [ ] Add explicit “rebuild/reset DB from XML” tooling (manual action), with strong warnings
   - [ ] Add integrity checks and a safe recovery path when DB is corrupted or partially missing

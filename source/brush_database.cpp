@@ -4509,16 +4509,15 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 				 "(SELECT COUNT(*) FROM ground_border_case_actions a "
 				 "WHERE a.action_type = 'replace_border' AND a.target_value > 0 "
 				 "AND NOT EXISTS (SELECT 1 FROM border_sets bs WHERE bs.xml_border_id = a.target_value)), "
-				 "(SELECT COUNT(*) FROM ground_border_case_actions a "
-				 "WHERE a.action_type = 'replace_border' AND a.replacement_value > 0 "
-				 "AND NOT EXISTS (SELECT 1 FROM border_sets bs WHERE bs.xml_border_id = a.replacement_value)), "
 				 "(SELECT COUNT(*) FROM ground_border_case_conditions c "
 				 "JOIN border_sets bs ON bs.xml_border_id = c.match_value "
 				 "WHERE c.condition_type = 'match_border' AND c.match_value > 0 AND c.edge <> '' "
+				 "AND EXISTS (SELECT 1 FROM border_set_items bi0 WHERE bi0.border_set_id = bs.id) "
 				 "AND NOT EXISTS (SELECT 1 FROM border_set_items bi WHERE bi.border_set_id = bs.id AND bi.edge = c.edge)), "
 				 "(SELECT COUNT(*) FROM ground_border_case_actions a "
 				 "JOIN border_sets bs ON bs.xml_border_id = a.target_value "
 				 "WHERE a.action_type = 'replace_border' AND a.target_value > 0 AND a.edge <> '' "
+				 "AND EXISTS (SELECT 1 FROM border_set_items bi0 WHERE bi0.border_set_id = bs.id) "
 				 "AND NOT EXISTS (SELECT 1 FROM border_set_items bi WHERE bi.border_set_id = bs.id AND bi.edge = a.edge));",
 				 &countStmt)) {
 		return false;
@@ -4540,9 +4539,8 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 	outReport.unresolvedTilesetEntries = sqlite3_column_int(countStmt, 7);
 	outReport.unresolvedCaseMatchBorderIds = sqlite3_column_int(countStmt, 8);
 	outReport.unresolvedCaseReplaceBorderTargetIds = sqlite3_column_int(countStmt, 9);
-	outReport.unresolvedCaseReplaceBorderReplacementIds = sqlite3_column_int(countStmt, 10);
-	outReport.unresolvedCaseMatchBorderEdges = sqlite3_column_int(countStmt, 11);
-	outReport.unresolvedCaseReplaceBorderEdges = sqlite3_column_int(countStmt, 12);
+	outReport.caseMatchBorderEdgesWithoutItem = sqlite3_column_int(countStmt, 10);
+	outReport.caseReplaceBorderEdgesWithoutItem = sqlite3_column_int(countStmt, 11);
 	sqlite3_finalize(countStmt);
 
 	sqlite3_stmt* groupedStmt = nullptr;
@@ -4671,21 +4669,15 @@ bool BrushDatabaseCatalogRepository::hasCompleteImportForCurrentSchema(bool &out
 			   || report.unresolvedBrushLinks > 0
 			   || report.unresolvedTilesetEntries > 0
 			   || report.unresolvedCaseMatchBorderIds > 0
-			   || report.unresolvedCaseReplaceBorderTargetIds > 0
-			   || report.unresolvedCaseReplaceBorderReplacementIds > 0
-			   || report.unresolvedCaseMatchBorderEdges > 0
-			   || report.unresolvedCaseReplaceBorderEdges > 0) {
+			   || report.unresolvedCaseReplaceBorderTargetIds > 0) {
 		outReady = false;
 		outReason = wxString::Format(
-			"Database contains unresolved references (ground targets=%d, brush links=%d, tileset entries=%d, match_border ids=%d, replace_border target ids=%d, replace_border replacement ids=%d, match_border edges=%d, replace_border edges=%d).",
+			"Database contains unresolved references (ground targets=%d, brush links=%d, tileset entries=%d, match_border ids=%d, replace_border target ids=%d).",
 			report.unresolvedGroundTargets,
 			report.unresolvedBrushLinks,
 			report.unresolvedTilesetEntries,
 			report.unresolvedCaseMatchBorderIds,
-			report.unresolvedCaseReplaceBorderTargetIds,
-			report.unresolvedCaseReplaceBorderReplacementIds,
-			report.unresolvedCaseMatchBorderEdges,
-			report.unresolvedCaseReplaceBorderEdges
+			report.unresolvedCaseReplaceBorderTargetIds
 		);
 	} else if (!isReadOnly()) {
 		markMaterialsImportComplete("audit_auto_mark");

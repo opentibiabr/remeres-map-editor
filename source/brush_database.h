@@ -266,9 +266,8 @@ struct MaterialsDatabaseAuditReport {
 	int unresolvedTilesetEntries = 0;
 	int unresolvedCaseMatchBorderIds = 0;
 	int unresolvedCaseReplaceBorderTargetIds = 0;
-	int unresolvedCaseReplaceBorderReplacementIds = 0;
-	int unresolvedCaseMatchBorderEdges = 0;
-	int unresolvedCaseReplaceBorderEdges = 0;
+	int caseMatchBorderEdgesWithoutItem = 0;
+	int caseReplaceBorderEdgesWithoutItem = 0;
 	std::vector<BrushTypeCountRecord> brushTypeCounts;
 };
 

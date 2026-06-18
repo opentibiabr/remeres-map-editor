@@ -1569,19 +1569,14 @@ bool Materials::bootstrapSqliteDatabase(wxString &error, wxArrayString &warnings
 				|| report.unresolvedTilesetEntries > 0
 				|| report.unresolvedCaseMatchBorderIds > 0
 				|| report.unresolvedCaseReplaceBorderTargetIds > 0
-				|| report.unresolvedCaseReplaceBorderReplacementIds > 0
-				|| report.unresolvedCaseMatchBorderEdges > 0
-				|| report.unresolvedCaseReplaceBorderEdges > 0) {
+				) {
 				warnings.push_back(wxString::Format(
-					"SQLite materials import completed with unresolved references (ground targets=%d, brush links=%d, tileset entries=%d, match_border ids=%d, replace_border target ids=%d, replace_border replacement ids=%d, match_border edges=%d, replace_border edges=%d).",
+					"SQLite materials import completed with unresolved references (ground targets=%d, brush links=%d, tileset entries=%d, match_border ids=%d, replace_border target ids=%d).",
 					report.unresolvedGroundTargets,
 					report.unresolvedBrushLinks,
 					report.unresolvedTilesetEntries,
 					report.unresolvedCaseMatchBorderIds,
-					report.unresolvedCaseReplaceBorderTargetIds,
-					report.unresolvedCaseReplaceBorderReplacementIds,
-					report.unresolvedCaseMatchBorderEdges,
-					report.unresolvedCaseReplaceBorderEdges
+					report.unresolvedCaseReplaceBorderTargetIds
 				));
 			}
 		} else {

@@ -22,9 +22,8 @@ namespace {
 		text << "Unresolved tileset entries: " << report.unresolvedTilesetEntries << "\n\n";
 		text << "Unresolved case match_border ids: " << report.unresolvedCaseMatchBorderIds << "\n";
 		text << "Unresolved case replace_border target ids: " << report.unresolvedCaseReplaceBorderTargetIds << "\n";
-		text << "Unresolved case replace_border replacement ids: " << report.unresolvedCaseReplaceBorderReplacementIds << "\n";
-		text << "Unresolved case match_border edges: " << report.unresolvedCaseMatchBorderEdges << "\n";
-		text << "Unresolved case replace_border edges: " << report.unresolvedCaseReplaceBorderEdges << "\n\n";
+		text << "Case match_border edges without borderitem: " << report.caseMatchBorderEdgesWithoutItem << "\n";
+		text << "Case replace_border edges without borderitem: " << report.caseReplaceBorderEdgesWithoutItem << "\n\n";
 		text << "Brush counts by type:\n";
 		for (const BrushTypeCountRecord &typeCount : report.brushTypeCounts) {
 			text << "  - " << typeCount.type << ": " << typeCount.count << "\n";

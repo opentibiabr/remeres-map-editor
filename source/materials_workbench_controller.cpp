@@ -249,9 +249,8 @@ namespace {
 		text << "  Unresolved tileset entries: " << catalog.auditReport.unresolvedTilesetEntries << "\n";
 		text << "  Unresolved border case match_border ids: " << catalog.auditReport.unresolvedCaseMatchBorderIds << "\n";
 		text << "  Unresolved border case replace_border target ids: " << catalog.auditReport.unresolvedCaseReplaceBorderTargetIds << "\n";
-		text << "  Unresolved border case replace_border replacement ids: " << catalog.auditReport.unresolvedCaseReplaceBorderReplacementIds << "\n";
-		text << "  Unresolved border case match_border edges: " << catalog.auditReport.unresolvedCaseMatchBorderEdges << "\n";
-		text << "  Unresolved border case replace_border edges: " << catalog.auditReport.unresolvedCaseReplaceBorderEdges << "\n";
+		text << "  Border case match_border edges without borderitem: " << catalog.auditReport.caseMatchBorderEdgesWithoutItem << "\n";
+		text << "  Border case replace_border edges without borderitem: " << catalog.auditReport.caseReplaceBorderEdgesWithoutItem << "\n";
 		return text;
 	}
 
