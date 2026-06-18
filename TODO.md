@@ -13,9 +13,9 @@
   - [x] Make XML fallback explicit (only when DB is missing/corrupt/incompatible), with clear user-facing messaging
   - [x] Fix startup hang when both `materials.db` and legacy XML files are missing (always close load dialog on failure)
 - [ ] Stage B: bootstrap-once + migrations
-  - [ ] First run: create/upgrade `materials.db` schema then import legacy XML once
+  - [x] First run: create/upgrade `materials.db` schema then import legacy XML once
   - [x] Persist a “bootstrap completed” marker/version so XML is never re-imported silently
-  - [ ] Schema migrations must not require re-reading XML
+  - [x] Schema migrations must not require re-reading XML
 - [ ] Stage C: parity audit (no data gaps)
   - [ ] Audit every runtime/editor field for XML-only behavior or defaults; move remaining gaps into DB load/save
   - [ ] Add validations for any newly surfaced invariants

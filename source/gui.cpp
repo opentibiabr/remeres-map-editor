@@ -383,7 +383,7 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 			sqliteFallbackReason = "SQLite import bootstrap check failed: " + sqliteImportStatus;
 			warnings.push_back(sqliteFallbackReason);
 			spdlog::warn("[GUI::LoadDataFiles] {}", sqliteFallbackReason.ToStdString());
-			if (g_brush_database.isOpen()) {
+			if (g_brush_database.isOpen() && !sqliteDatabaseExistedBeforeInit) {
 				startAsyncSqliteBootstrap = true;
 			}
 		} else if (skipSqliteImport && g_brush_database.isOpen()) {
@@ -395,7 +395,15 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 			}
 			spdlog::info("{}", sqliteImportStatus.ToStdString());
 			sqliteFallbackReason = sqliteImportStatus;
-			startAsyncSqliteBootstrap = true;
+			if (!sqliteDatabaseExistedBeforeInit) {
+				startAsyncSqliteBootstrap = true;
+			} else {
+				warnings.push_back(
+					"SQLite materials import required, but automatic rebuild is disabled because materials.db already exists.\n"
+					"Reason: " + sqliteImportStatus + "\n"
+					"Recovery: Move or delete materials/materials.db to force a clean rebuild from XML."
+				);
+			}
 			shouldLoadFromSqlite = false;
 		}
 	} else if (sqliteEnabled && !sqliteInitOk) {
@@ -418,10 +426,6 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 			sqliteFallbackReason = message;
 			g_materials.clear();
 			g_brushes.clear();
-			if (g_brush_database.isOpen()) {
-				startAsyncSqliteBootstrap = true;
-				spdlog::info("[GUI::LoadDataFiles] Scheduling background SQLite rebuild after runtime load failure.");
-			}
 		}
 	}
 	if (!loadedMaterialsFromSqlite) {
