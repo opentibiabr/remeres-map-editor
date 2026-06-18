@@ -1564,12 +1564,24 @@ bool Materials::bootstrapSqliteDatabase(wxString &error, wxArrayString &warnings
 		}
 		MaterialsDatabaseAuditReport report;
 		if (g_brush_database.generateAuditReport(report)) {
-			if (report.unresolvedGroundTargets > 0 || report.unresolvedBrushLinks > 0 || report.unresolvedTilesetEntries > 0) {
+			if (report.unresolvedGroundTargets > 0
+				|| report.unresolvedBrushLinks > 0
+				|| report.unresolvedTilesetEntries > 0
+				|| report.unresolvedCaseMatchBorderIds > 0
+				|| report.unresolvedCaseReplaceBorderTargetIds > 0
+				|| report.unresolvedCaseReplaceBorderReplacementIds > 0
+				|| report.unresolvedCaseMatchBorderEdges > 0
+				|| report.unresolvedCaseReplaceBorderEdges > 0) {
 				warnings.push_back(wxString::Format(
-					"SQLite materials import completed with unresolved references (ground targets=%d, brush links=%d, tileset entries=%d).",
+					"SQLite materials import completed with unresolved references (ground targets=%d, brush links=%d, tileset entries=%d, match_border ids=%d, replace_border target ids=%d, replace_border replacement ids=%d, match_border edges=%d, replace_border edges=%d).",
 					report.unresolvedGroundTargets,
 					report.unresolvedBrushLinks,
-					report.unresolvedTilesetEntries
+					report.unresolvedTilesetEntries,
+					report.unresolvedCaseMatchBorderIds,
+					report.unresolvedCaseReplaceBorderTargetIds,
+					report.unresolvedCaseReplaceBorderReplacementIds,
+					report.unresolvedCaseMatchBorderEdges,
+					report.unresolvedCaseReplaceBorderEdges
 				));
 			}
 		} else {

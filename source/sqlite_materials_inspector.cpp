@@ -20,6 +20,11 @@ namespace {
 		text << "Unresolved ground targets: " << report.unresolvedGroundTargets << "\n";
 		text << "Unresolved brush links: " << report.unresolvedBrushLinks << "\n";
 		text << "Unresolved tileset entries: " << report.unresolvedTilesetEntries << "\n\n";
+		text << "Unresolved case match_border ids: " << report.unresolvedCaseMatchBorderIds << "\n";
+		text << "Unresolved case replace_border target ids: " << report.unresolvedCaseReplaceBorderTargetIds << "\n";
+		text << "Unresolved case replace_border replacement ids: " << report.unresolvedCaseReplaceBorderReplacementIds << "\n";
+		text << "Unresolved case match_border edges: " << report.unresolvedCaseMatchBorderEdges << "\n";
+		text << "Unresolved case replace_border edges: " << report.unresolvedCaseReplaceBorderEdges << "\n\n";
 		text << "Brush counts by type:\n";
 		for (const BrushTypeCountRecord &typeCount : report.brushTypeCounts) {
 			text << "  - " << typeCount.type << ": " << typeCount.count << "\n";
