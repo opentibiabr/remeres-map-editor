@@ -4610,15 +4610,31 @@ bool BrushDatabaseCatalogRepository::hasCompleteImportForCurrentSchema(bool &out
 		outReason = importReason.IsEmpty() ? lastError() : importReason;
 		return false;
 	}
-	if (importComplete) {
-		outReady = true;
-		return true;
-	}
 
 	MaterialsDatabaseAuditReport report;
 	if (!generateAuditReport(report)) {
 		outReason = lastError();
 		return false;
+	}
+
+	if (importComplete) {
+		outReady = true;
+		if (report.unresolvedGroundTargets > 0
+			|| report.unresolvedBrushLinks > 0
+			|| report.unresolvedTilesetEntries > 0
+			|| report.unresolvedCaseMatchBorderIds > 0
+			|| report.unresolvedCaseReplaceBorderTargetIds > 0) {
+			outReady = false;
+			outReason = wxString::Format(
+				"Database contains unresolved references (ground targets=%d, brush links=%d, tileset entries=%d, match_border ids=%d, replace_border target ids=%d).",
+				report.unresolvedGroundTargets,
+				report.unresolvedBrushLinks,
+				report.unresolvedTilesetEntries,
+				report.unresolvedCaseMatchBorderIds,
+				report.unresolvedCaseReplaceBorderTargetIds
+			);
+		}
+		return true;
 	}
 
 	bool hasGround = false;
