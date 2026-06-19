@@ -25,6 +25,7 @@
   - [x] Use discovered data directory when running from build dirs (avoid writing to a different materials.db)
   - [x] Fix inline creation: FindBrushDialog returns 0/1 (not wxID_OK); treat 0 as cancel
   - [x] Import doodad remove_optional_border from legacy XML so DB can round-trip it
+  - [x] Add hard validations for border set invariants (global vs inline) in the SQLite repository layer
   - [x] Surface runtime-ready summary (schema/import marker/audit) in the SQLite inspector
   - [x] Tighten “DB ready” checks to block auto-mark when audit detects unresolved references
   - [x] Ensure SQLite bootstrap resolves tileset brush ids by name so unresolvedTilesetEntries stays at 0

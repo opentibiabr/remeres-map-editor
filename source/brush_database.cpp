@@ -2373,6 +2373,29 @@ bool BrushDatabaseBrushRepository::upsertBorderSet(const BorderSetRecord &border
 		return setError("SQLite database is not open.");
 	}
 
+	const wxString scope = borderSet.borderScope.Lower();
+	if (scope.IsEmpty()) {
+		return setError("Border scope is required.");
+	}
+	if (scope != "global" && scope != "inline") {
+		return setError(wxString::Format("Unsupported border scope \"%s\".", borderSet.borderScope));
+	}
+	if (scope == "global") {
+		if (borderSet.xmlBorderId <= 0) {
+			return setError("Global border sets require xml_border_id > 0.");
+		}
+		if (borderSet.ownerBrushId > 0) {
+			return setError("Global border sets must not use owner_brush_id.");
+		}
+	} else {
+		if (borderSet.ownerBrushId <= 0) {
+			return setError("Inline border sets require owner_brush_id > 0.");
+		}
+		if (borderSet.xmlBorderId > 0) {
+			return setError("Inline border sets must not use xml_border_id.");
+		}
+	}
+
 	if (borderSet.id > 0) {
 		if (borderSet.xmlBorderId > 0) {
 			BorderSetRecord existing;

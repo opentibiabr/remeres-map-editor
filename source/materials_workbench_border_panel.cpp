@@ -3103,8 +3103,16 @@ bool MaterialsWorkbenchBorderPanel::ValidateBorderSetStorage(const BorderSetStor
 		error = "Global border sets must use a Global Border ID greater than zero so runtime refresh can target the saved set.";
 		return false;
 	}
+	if (scope == "global" && storage.borderSet.ownerBrushId > 0) {
+		error = "Global border sets must not use an owner brush. Use Inline scope instead.";
+		return false;
+	}
 	if (scope == "inline" && storage.borderSet.ownerBrushId <= 0) {
 		error = "Inline border sets must stay linked to an owner brush before saving.";
+		return false;
+	}
+	if (scope == "inline" && storage.borderSet.xmlBorderId > 0) {
+		error = "Inline border sets must not use a Global Border ID.";
 		return false;
 	}
 
