@@ -224,7 +224,9 @@ SQLiteMaterialsInspectorPanel::SQLiteMaterialsInspectorPanel(wxWindow* parent) :
 
 	wxBoxSizer* toolbarSizer = new wxBoxSizer(wxHORIZONTAL);
 	wxButton* reloadButton = new wxButton(this, wxID_REFRESH, "Reload");
+	wxButton* resetDbButton = new wxButton(this, wxID_ANY, "Reset DB from XML...");
 	toolbarSizer->Add(reloadButton, 0, wxALL, FromDIP(5));
+	toolbarSizer->Add(resetDbButton, 0, wxALL, FromDIP(5));
 	topSizer->Add(toolbarSizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, FromDIP(5));
 
 	notebook_ = new wxNotebook(this, wxID_ANY);
@@ -286,6 +288,58 @@ SQLiteMaterialsInspectorPanel::SQLiteMaterialsInspectorPanel(wxWindow* parent) :
 	SetSizer(topSizer);
 
 	reloadButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { ReloadData(); });
+	resetDbButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
+		if (g_gui.IsAsyncSqliteBootstrapRunning()) {
+			g_gui.PopupDialog(this, "SQLite Reset Unavailable", "SQLite bootstrap import is currently running. Wait for it to finish, then try again.", wxOK | wxICON_INFORMATION);
+			return;
+		}
+		if (!g_brush_database.isOpen()) {
+			g_gui.PopupDialog(this, "SQLite Reset Unavailable", "SQLite brush database is not open.", wxOK | wxICON_ERROR);
+			return;
+		}
+		if (g_brush_database.isReadOnly()) {
+			g_gui.PopupDialog(this, "SQLite Reset Unavailable", "materials.db is read-only. Reset requires a writable database path.", wxOK | wxICON_ERROR);
+			return;
+		}
+
+		const wxString dbPath = g_brush_database.getDatabasePath();
+		const wxString warningText =
+			"Reset SQLite materials database from legacy XML?\n\n"
+			"This will move the current materials.db to a timestamped backup file and close the database for this session.\n"
+			"After restarting the app, the database will be rebuilt from XML automatically.\n\n"
+			"Warning: This discards all edits made in materials.db since the last bootstrap. Use Export/Import if you need to keep changes.\n\n"
+			"Database:\n" + dbPath;
+
+		if (wxMessageBox(warningText, "Reset materials.db", wxYES_NO | wxNO_DEFAULT | wxICON_WARNING, this) != wxYES) {
+			return;
+		}
+
+		const wxDateTime now = wxDateTime::Now();
+		const wxString suffix = now.Format("-%Y%m%d-%H%M%S");
+		const wxString backupPath = dbPath + ".bak" + suffix;
+
+		g_brush_database.close();
+		inspectorDatabase_.close();
+
+		auto moveFileIfExists = [](const wxString &from, const wxString &to) {
+			if (wxFileName(from).FileExists()) {
+				wxRenameFile(from, to, true);
+			}
+		};
+
+		moveFileIfExists(dbPath, backupPath);
+		moveFileIfExists(dbPath + "-wal", backupPath + "-wal");
+		moveFileIfExists(dbPath + "-shm", backupPath + "-shm");
+
+		const wxString doneText =
+			"materials.db was moved to:\n" + backupPath + "\n\n"
+			"Next steps:\n"
+			"- Restart the app\n"
+			"- The SQLite database will be rebuilt from legacy XML automatically\n\n"
+			"Note: Workbench editing from SQLite is disabled until restart.";
+		g_gui.PopupDialog(this, "SQLite Reset Scheduled", doneText, wxOK | wxICON_INFORMATION);
+		ReloadData();
+	});
 	brushTypeChoice_->Bind(wxEVT_CHOICE, [this](wxCommandEvent &) { RefreshBrushList(); });
 	brushList_->Bind(wxEVT_LISTBOX, [this](wxCommandEvent &) { RefreshBrushDetails(); });
 	tilesetList_->Bind(wxEVT_LISTBOX, [this](wxCommandEvent &) { RefreshTilesetDetails(); });

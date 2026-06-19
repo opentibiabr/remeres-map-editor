@@ -40,7 +40,7 @@
   - [x] Fix SQLite inspector schema version label (show db vs expected)
   - [x] Treat “import marker complete” as healthy only if audit shows 0 unresolved refs (avoid false-green DB)
 - [ ] Stage D: recovery tooling
-  - [ ] Add explicit “rebuild/reset DB from XML” tooling (manual action), with strong warnings
+  - [x] Add explicit “rebuild/reset DB from XML” tooling (manual action), with strong warnings
   - [ ] Add integrity checks and a safe recovery path when DB is corrupted or partially missing
 - [ ] Stage E: relationship navigation (beyond brushes)
   - [ ] Expand `Used By`/go-to surfaces across walls/parts/borders so users can jump to owners reliably
