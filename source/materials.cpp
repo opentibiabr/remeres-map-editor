@@ -1043,6 +1043,7 @@ namespace {
 		outBrush.onBlocking = brushNode.attribute("on_blocking").as_bool();
 		outBrush.onDuplicate = brushNode.attribute("on_duplicate").as_bool();
 		outBrush.redoBorders = brushNode.attribute("redo_borders").as_bool() || brushNode.attribute("reborder").as_bool();
+		outBrush.removeOptionalBorder = brushNode.attribute("remove_optional_border").as_bool();
 		outBrush.oneSize = brushNode.attribute("one_size").as_bool();
 		outBrush.sourceFile = MaterialSourcePath(sourceFile);
 		ParseThicknessString(wxString(brushNode.attribute("thickness").as_string(), wxConvUTF8), outBrush.thickness, outBrush.thicknessCeiling);
