@@ -377,7 +377,13 @@ namespace {
 	PendingBorderSetImport BuildInlineBorderSet(pugi::xml_node node, const wxString &borderType, const FileName &sourceFile) {
 		PendingBorderSetImport pending;
 		pending.borderSet.borderScope = "inline";
-		pending.borderSet.borderType = borderType;
+		const wxString declaredType = wxString(node.attribute("type").as_string(), wxConvUTF8).Lower();
+		if (!declaredType.IsEmpty() && (declaredType == "normal" || declaredType == "optional")) {
+			pending.borderSet.borderType = declaredType;
+		} else {
+			pending.borderSet.borderType = borderType;
+		}
+		pending.borderSet.borderGroup = node.attribute("group").as_int();
 		pending.borderSet.groundEquivalent = node.attribute("ground_equivalent").as_int();
 		pending.borderSet.sourceFile = MaterialSourcePath(sourceFile);
 		CollectBorderSetItems(node, pending.items);

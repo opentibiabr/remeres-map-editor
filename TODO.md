@@ -27,6 +27,7 @@
   - [x] Import doodad remove_optional_border from legacy XML so DB can round-trip it
   - [x] Add hard validations for border set invariants (global vs inline) in the SQLite repository layer
   - [x] Hide Border Workspace scope control (scope is set on create, immutable after)
+  - [x] Import inline border set type/group from legacy XML when present
   - [x] Surface runtime-ready summary (schema/import marker/audit) in the SQLite inspector
   - [x] Tighten “DB ready” checks to block auto-mark when audit detects unresolved references
   - [x] Ensure SQLite bootstrap resolves tileset brush ids by name so unresolvedTilesetEntries stays at 0
