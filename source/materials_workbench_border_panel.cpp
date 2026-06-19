@@ -49,6 +49,52 @@ namespace {
 	void NormalizeGroundCaseSortOrders(GroundBorderCaseRecord &caseRecord);
 	void NormalizeGroundBorderCases(std::vector<GroundBorderCaseRecord> &cases);
 
+	wxString GetDatabaseBrushType(const Brush* brush) {
+		if (!brush) {
+			return wxString();
+		}
+		if (brush->isGround()) {
+			return "ground";
+		}
+		if (brush->isWall()) {
+			return "wall";
+		}
+		if (brush->isDoodad()) {
+			return "doodad";
+		}
+		if (brush->isCarpet()) {
+			return "carpet";
+		}
+		if (brush->isTable()) {
+			return "table";
+		}
+		if (brush->isRaw()) {
+			return "raw";
+		}
+		return wxString();
+	}
+
+	bool TryResolveMaterialsBrushIdFromDatabase(const wxString &type, const wxString &name, int64_t &outBrushId, wxString &outError) {
+		outBrushId = 0;
+		outError.clear();
+		if (type.IsEmpty() || name.IsEmpty()) {
+			outError = "Brush type or name is empty.";
+			return false;
+		}
+		const wxString normalizedType = type.Lower() == "terrain" ? wxString("ground") : type.Lower();
+		BrushRecord brush;
+		if (!g_brush_database.findBrushByNameAndType(name, normalizedType, brush)) {
+			outError = g_brush_database.getLastError();
+			return false;
+		}
+		outBrushId = brush.id;
+		if (outBrushId <= 0) {
+			outError = "Resolved brush id is invalid.";
+			return false;
+		}
+		return true;
+	}
+
 	bool IsKnownBorderPanelItemId(int itemId) {
 		if (itemId <= 0 || itemId > std::numeric_limits<uint16_t>::max()) {
 			return false;
@@ -3648,6 +3694,7 @@ void MaterialsWorkbenchBorderPanel::OnOpenLinkedBrush(wxCommandEvent &event) {
 
 void MaterialsWorkbenchBorderPanel::OnCreateBorder(wxCommandEvent &event) {
 	if (hasBorderSet_ && !ResolvePendingChangesBeforeSwitch(this, "a new border")) {
+		SetStatusMessage("Border creation cancelled (pending changes were not resolved).");
 		return;
 	}
 
@@ -3659,6 +3706,7 @@ void MaterialsWorkbenchBorderPanel::OnCreateBorder(wxCommandEvent &event) {
 		scopeDialog.SetSelection(scopeChoice_->GetStringSelection() == "inline" ? 1 : 0);
 	}
 	if (scopeDialog.ShowModal() != wxID_OK) {
+		SetStatusMessage("Border creation cancelled.");
 		return;
 	}
 
@@ -3678,7 +3726,8 @@ void MaterialsWorkbenchBorderPanel::OnCreateBorder(wxCommandEvent &event) {
 		newStorage.borderSet.xmlBorderId = SuggestNextBorderId();
 	} else {
 		FindBrushDialog brushDialog(this, "Choose Owner Brush");
-		if (brushDialog.ShowModal() != wxID_OK) {
+		if (brushDialog.ShowModal() == 0) {
+			SetStatusMessage("Inline border creation cancelled.");
 			return;
 		}
 		const Brush* brush = brushDialog.getResult();
@@ -3686,20 +3735,50 @@ void MaterialsWorkbenchBorderPanel::OnCreateBorder(wxCommandEvent &event) {
 			SetStatusMessage("Inline border creation needs an owner brush.");
 			return;
 		}
-		newStorage.borderSet.ownerBrushId = static_cast<int64_t>(brush->getID());
+		const wxString brushType = GetDatabaseBrushType(brush);
+		if (brushType != "ground") {
+			wxMessageBox("Inline border creation needs a ground brush owner.", "New Border", wxOK | wxICON_INFORMATION, this);
+			SetStatusMessage("Inline border creation needs a ground brush owner.");
+			return;
+		}
+		const wxString brushName = wxString::FromUTF8(brush->getName());
+		int64_t ownerBrushId = 0;
+		wxString ownerError;
+		if (!TryResolveMaterialsBrushIdFromDatabase(brushType, brushName, ownerBrushId, ownerError)) {
+			const wxString message = "Inline border creation failed: could not resolve the selected brush in materials.db.\n"
+									 "Brush: " + brushName + "\n"
+									 "Error: " + ownerError;
+			wxMessageBox(message, "New Border", wxOK | wxICON_ERROR, this);
+			SetStatusMessage("Inline border creation failed: could not resolve brush.");
+			return;
+		}
+		newStorage.borderSet.ownerBrushId = ownerBrushId;
 	}
 
 	wxString error;
 	if (!controller_.SaveBorderSet(newStorage, error)) {
+		wxMessageBox("Failed to create border: " + error, "New Border", wxOK | wxICON_ERROR, this);
 		SetStatusMessage("Failed to create border: " + error);
 		return;
 	}
-	if (!ReloadBorderSetById(newStorage.borderSet.id)) {
-		SetStatusMessage("Created the border, but failed to reload it in the workspace.");
+	if (newStorage.borderSet.id <= 0) {
+		const wxString message = "Created the border, but it returned an invalid id.";
+		wxMessageBox(message, "New Border", wxOK | wxICON_ERROR, this);
+		SetStatusMessage(message);
 		return;
 	}
 
-	SetStatusMessage("Created a new border set in materials.db.");
+	if (!ReloadBorderSetById(newStorage.borderSet.id)) {
+		const wxString message = "Created the border, but failed to reload it in the workspace. The navigation tree will be refreshed so you can locate it manually.";
+		wxMessageBox(message, "New Border", wxOK | wxICON_WARNING, this);
+		SetStatusMessage(message);
+		if (onBorderSetSaved_) {
+			onBorderSetSaved_(newStorage.borderSet.id);
+		}
+		return;
+	}
+
+	SetStatusMessage(wxString::Format("Created border set #%lld in materials.db.", static_cast<long long>(newStorage.borderSet.id)));
 	if (onBorderSetSaved_) {
 		onBorderSetSaved_(newStorage.borderSet.id);
 	}

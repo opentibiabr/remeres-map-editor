@@ -20,6 +20,10 @@
   - [ ] Audit every runtime/editor field for XML-only behavior or defaults; move remaining gaps into DB load/save
   - [ ] Add validations for any newly surfaced invariants
   - [x] Preserve wall brush metadata flags when rebuilding runtime XML from SQLite
+  - [x] Prevent ground border inlining crashes by deriving ground_equivalent when needed
+  - [x] Fix inline border set creation to link owner brush by materials.db id
+  - [x] Use discovered data directory when running from build dirs (avoid writing to a different materials.db)
+  - [x] Fix inline creation: FindBrushDialog returns 0/1 (not wxID_OK); treat 0 as cancel
   - [x] Surface runtime-ready summary (schema/import marker/audit) in the SQLite inspector
   - [x] Tighten “DB ready” checks to block auto-mark when audit detects unresolved references
   - [x] Ensure SQLite bootstrap resolves tileset brush ids by name so unresolvedTilesetEntries stays at 0

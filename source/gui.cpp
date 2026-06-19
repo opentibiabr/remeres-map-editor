@@ -141,6 +141,11 @@ wxGLContext* GUI::GetGLContext(wxGLCanvas* win) {
 }
 
 wxString GUI::GetDataDirectory() {
+	const wxString discovered = g_gui.getFoundDataDirectory();
+	if (!discovered.IsEmpty() && wxFileName(discovered).DirExists()) {
+		return discovered;
+	}
+
 	std::string cfg_str = g_settings.getString(Config::DATA_DIRECTORY);
 	if (!cfg_str.empty()) {
 		FileName dir;

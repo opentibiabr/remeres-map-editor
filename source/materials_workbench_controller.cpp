@@ -656,8 +656,8 @@ std::vector<MaterialsWorkbenchTreeNode> MaterialsWorkbenchController::BuildNavig
 		const char* contextKey;
 		const std::vector<BorderSetRecord>* collection;
 	} borderScopes[] = {
-		{ "Global Border Sets", "global", &catalog_.globalBorderSets },
 		{ "Inline Border Sets", "inline", &catalog_.inlineBorderSets },
+		{ "Global Border Sets", "global", &catalog_.globalBorderSets },
 	};
 	for (const BorderScopeNode &scope : borderScopes) {
 		MaterialsWorkbenchTreeNode scopeNode;

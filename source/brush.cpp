@@ -158,7 +158,7 @@ namespace {
 		}
 	}
 
-	bool AppendGroundBorderNode(pugi::xml_node brushNode, const GroundBrushBorderRecord &borderRecord, wxString &error) {
+	bool AppendGroundBorderNode(pugi::xml_node brushNode, const GroundBrushBorderRecord &borderRecord, uint16_t fallbackGroundEquivalent, const wxString &brushName, wxString &error) {
 		BorderSetStorageRecord borderSetStorage;
 		if (!FetchBorderSetStorage(borderRecord.borderSetId, borderSetStorage, error)) {
 			return false;
@@ -184,7 +184,20 @@ namespace {
 		if (borderSet.xmlBorderId > 0 && borderSet.borderScope == "global") {
 			AppendIntAttribute(borderNode, "id", borderSet.xmlBorderId);
 		} else {
-			AppendIntAttribute(borderNode, "ground_equivalent", borderSet.groundEquivalent);
+			int groundEquivalent = borderSet.groundEquivalent;
+			if (groundEquivalent <= 0) {
+				groundEquivalent = fallbackGroundEquivalent;
+			}
+			if (groundEquivalent <= 0) {
+				error = wxString::Format(
+					"Failed to inline border set %lld for ground brush \"%s\": missing ground_equivalent (borderSet.groundEquivalent=%d).",
+					static_cast<long long>(borderSet.id),
+					brushName,
+					borderSet.groundEquivalent
+				);
+				return false;
+			}
+			AppendIntAttribute(borderNode, "ground_equivalent", groundEquivalent);
 			if (borderSet.borderGroup > 0) {
 				AppendIntAttribute(borderNode, "group", borderSet.borderGroup);
 			}
@@ -271,9 +284,13 @@ namespace {
 				AppendIntAttribute(itemNode, "id", item.itemId);
 				AppendIntAttribute(itemNode, "chance", item.chance);
 			}
+			uint16_t fallbackGroundEquivalent = 0;
+			if (!storage.items.empty()) {
+				fallbackGroundEquivalent = static_cast<uint16_t>(storage.items.front().itemId);
+			}
 			for (const GroundBrushBorderRecord &border : storage.borders) {
 				wxString error;
-				if (!AppendGroundBorderNode(brushNode, border, error)) {
+				if (!AppendGroundBorderNode(brushNode, border, fallbackGroundEquivalent, brush.name, error)) {
 					throw std::runtime_error(error.ToStdString());
 				}
 			}

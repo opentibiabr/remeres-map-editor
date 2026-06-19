@@ -2006,7 +2006,7 @@ bool BrushDatabaseBrushRepository::findBrushByNameAndType(const wxString &name, 
 	}
 
 	sqlite3_stmt* stmt = nullptr;
-	if (!prepare(("SELECT " + wxString::FromUTF8(kBrushSelectColumns) + " FROM brushes WHERE name = ? AND type = ? LIMIT 1;").utf8_str(), &stmt)) {
+	if (!prepare(("SELECT " + wxString::FromUTF8(kBrushSelectColumns) + " FROM brushes WHERE name = ? COLLATE NOCASE AND type = ? LIMIT 1;").utf8_str(), &stmt)) {
 		return false;
 	}
 
