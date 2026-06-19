@@ -2394,6 +2394,9 @@ bool BrushDatabaseBrushRepository::upsertBorderSet(const BorderSetRecord &border
 		if (borderSet.xmlBorderId > 0) {
 			return setError("Inline border sets must not use xml_border_id.");
 		}
+		if (borderSet.groundEquivalent <= 0) {
+			return setError("Inline border sets require ground_equivalent > 0.");
+		}
 	}
 
 	if (borderSet.id > 0) {

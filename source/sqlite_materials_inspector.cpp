@@ -140,6 +140,7 @@ namespace {
 		text << "  onBlocking: " << BoolToText(brush.onBlocking) << "\n";
 		text << "  onDuplicate: " << BoolToText(brush.onDuplicate) << "\n";
 		text << "  redoBorders: " << BoolToText(brush.redoBorders) << "\n";
+		text << "  removeOptionalBorder: " << BoolToText(brush.removeOptionalBorder) << "\n";
 		text << "  randomize: " << BoolToText(brush.randomize) << "\n";
 		text << "  oneSize: " << BoolToText(brush.oneSize) << "\n";
 		text << "  soloOptional: " << BoolToText(brush.soloOptional) << "\n\n";

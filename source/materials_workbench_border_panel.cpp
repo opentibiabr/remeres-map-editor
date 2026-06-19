@@ -3131,6 +3131,10 @@ bool MaterialsWorkbenchBorderPanel::ValidateBorderSetStorage(const BorderSetStor
 		error = "Inline border sets must not use a Global Border ID.";
 		return false;
 	}
+	if (scope == "inline" && storage.borderSet.groundEquivalent <= 0) {
+		error = "Inline border sets must use a Center Tile greater than zero.";
+		return false;
+	}
 
 	if (storage.borderSet.groundEquivalent < 0) {
 		error = "Ground equivalent cannot be negative.";
@@ -3144,6 +3148,10 @@ bool MaterialsWorkbenchBorderPanel::ValidateBorderSetStorage(const BorderSetStor
 
 	std::map<int, wxString> itemEdgeById;
 	for (const BorderSetItemRecord &item : storage.items) {
+		if (!FindEdgeSpec(item.edge)) {
+			error = wxString::Format("Border slot edge \"%s\" is not supported.", item.edge);
+			return false;
+		}
 		if (item.itemId <= 0) {
 			error = wxString::Format("Border slot \"%s\" must use a positive item id.", item.edge);
 			return false;
