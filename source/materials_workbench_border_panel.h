@@ -123,6 +123,7 @@ private:
 	wxButton* createBorderButton_ = nullptr;
 	wxButton* deleteBorderButton_ = nullptr;
 	wxStaticText* xmlBorderIdLabel_ = nullptr;
+	wxStaticText* scopeLabel_ = nullptr;
 	wxStaticText* typeLabel_ = nullptr;
 	wxStaticText* borderGroupLabel_ = nullptr;
 	wxTextCtrl* idCtrl_ = nullptr;

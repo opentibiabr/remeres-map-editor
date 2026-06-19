@@ -2262,6 +2262,8 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 		metadataGrid->Add(control, 1, wxEXPAND);
 		if (control == xmlBorderIdCtrl_) {
 			xmlBorderIdLabel_ = fieldLabel;
+		} else if (control == scopeChoice_) {
+			scopeLabel_ = fieldLabel;
 		} else if (control == typeCtrl_) {
 			typeLabel_ = fieldLabel;
 		} else if (control == borderGroupCtrl_) {
@@ -2278,6 +2280,13 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	borderGroupCtrl_->SetToolTip("Used by autoborder matching rules. `None` disables group matching for this border.");
 	if (borderGroupLabel_) {
 		borderGroupLabel_->SetToolTip("Used by autoborder matching rules. `None` disables group matching for this border.");
+	}
+	if (scopeChoice_) {
+		scopeChoice_->Hide();
+		scopeChoice_->Enable(false);
+	}
+	if (scopeLabel_) {
+		scopeLabel_->Hide();
 	}
 	metadataBox->Add(metadataGrid, 1, wxEXPAND | wxALL, FromDIP(6));
 	wxBoxSizer* borderCrudRow = new wxBoxSizer(wxHORIZONTAL);
@@ -3049,6 +3058,13 @@ void MaterialsWorkbenchBorderPanel::HandleUsageContextChanged() {
 void MaterialsWorkbenchBorderPanel::RefreshScopeSpecificLayout() {
 	const bool isInline = hasBorderSet_ && scopeChoice_ && scopeChoice_->GetStringSelection() == "inline";
 	const bool isGlobal = hasBorderSet_ && scopeChoice_ && scopeChoice_->GetStringSelection() == "global";
+	if (scopeLabel_) {
+		scopeLabel_->Hide();
+	}
+	if (scopeChoice_) {
+		scopeChoice_->Hide();
+		scopeChoice_->Enable(false);
+	}
 	if (xmlBorderIdLabel_) {
 		xmlBorderIdLabel_->SetLabel("Global Border ID");
 		xmlBorderIdLabel_->Show(isGlobal);
@@ -3375,7 +3391,7 @@ void MaterialsWorkbenchBorderPanel::SetStatusMessage(const wxString &message) {
 
 void MaterialsWorkbenchBorderPanel::SetFieldsEnabled(bool enabled) {
 	xmlBorderIdCtrl_->Enable(enabled);
-	scopeChoice_->Enable(enabled);
+	scopeChoice_->Enable(false);
 	typeCtrl_->Enable(enabled);
 	borderGroupCtrl_->Enable(enabled);
 	groundEquivalentCtrl_->Enable(enabled);
