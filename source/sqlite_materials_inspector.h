@@ -29,7 +29,9 @@ private:
 	wxTextCtrl* summaryText_ = nullptr;
 	wxChoice* brushTypeChoice_ = nullptr;
 	wxListBox* brushList_ = nullptr;
+	wxNotebook* brushDetailsNotebook_ = nullptr;
 	wxTextCtrl* brushDetailsText_ = nullptr;
+	wxTextCtrl* brushRuntimeXmlText_ = nullptr;
 	wxListBox* tilesetList_ = nullptr;
 	wxTextCtrl* tilesetDetailsText_ = nullptr;
 

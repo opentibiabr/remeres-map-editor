@@ -77,6 +77,7 @@ public:
 	bool reloadBrushFromStorage(const BrushStorageRecord &storage, wxArrayString &warnings, wxString &error);
 	bool reloadBrushFromDatabase(int64_t brushId, wxArrayString &warnings, wxString &error);
 	bool reloadBorderSetFromDatabase(int64_t borderSetId, wxArrayString &warnings, wxString &error);
+	bool buildBrushXmlFromStorage(const BrushStorageRecord &storage, wxString &outXml, wxString &error) const;
 
 	bool unserializeBorder(pugi::xml_node node, wxArrayString &warnings);
 	bool unserializeBrush(pugi::xml_node node, wxArrayString &warnings);

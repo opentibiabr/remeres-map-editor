@@ -48,6 +48,8 @@
 
 #include "gui.h"
 
+#include <sstream>
+
 Brushes g_brushes;
 
 namespace {
@@ -737,6 +739,22 @@ bool Brushes::reloadBrushFromStorage(const BrushStorageRecord &storage, wxArrayS
 		return false;
 	}
 
+	return true;
+}
+
+bool Brushes::buildBrushXmlFromStorage(const BrushStorageRecord &storage, wxString &outXml, wxString &error) const {
+	outXml.clear();
+	error.clear();
+	try {
+		pugi::xml_document brushDoc;
+		BuildBrushNode(brushDoc, storage);
+		std::ostringstream stream;
+		brushDoc.save(stream, "\t", pugi::format_default, pugi::encoding_utf8);
+		outXml = wxString::FromUTF8(stream.str());
+	} catch (const std::exception &ex) {
+		error = wxString::FromUTF8(ex.what());
+		return false;
+	}
 	return true;
 }
 

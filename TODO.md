@@ -30,6 +30,7 @@
   - [x] Import inline border set type/group from legacy XML when present
   - [x] Require inline border sets to have Center Tile > 0 (UI + SQLite layer)
   - [x] Validate border item edges against the supported edge set before saving
+  - [x] SQLite inspector: show runtime XML for a selected brush to support parity audits
   - [x] Surface runtime-ready summary (schema/import marker/audit) in the SQLite inspector
   - [x] Tighten “DB ready” checks to block auto-mark when audit detects unresolved references
   - [x] Ensure SQLite bootstrap resolves tileset brush ids by name so unresolvedTilesetEntries stays at 0

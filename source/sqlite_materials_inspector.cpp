@@ -1,6 +1,7 @@
 #include "main.h"
 
 #include "sqlite_materials_inspector.h"
+#include "brush.h"
 #include "gui.h"
 
 namespace {
@@ -249,8 +250,22 @@ SQLiteMaterialsInspectorPanel::SQLiteMaterialsInspectorPanel(wxWindow* parent) :
 
 	wxSplitterWindow* brushesSplitter = new wxSplitterWindow(brushesPanel, wxID_ANY);
 	brushList_ = new wxListBox(brushesSplitter, wxID_ANY);
-	brushDetailsText_ = new wxTextCtrl(brushesSplitter, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY);
-	brushesSplitter->SplitVertically(brushList_, brushDetailsText_, FromDIP(280));
+	brushDetailsNotebook_ = new wxNotebook(brushesSplitter, wxID_ANY);
+	wxPanel* brushDetailsPanel = new wxPanel(brushDetailsNotebook_);
+	wxBoxSizer* brushDetailsSizer = new wxBoxSizer(wxVERTICAL);
+	brushDetailsText_ = new wxTextCtrl(brushDetailsPanel, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY);
+	brushDetailsSizer->Add(brushDetailsText_, 1, wxEXPAND | wxALL, FromDIP(5));
+	brushDetailsPanel->SetSizer(brushDetailsSizer);
+	brushDetailsNotebook_->AddPage(brushDetailsPanel, "Details");
+
+	wxPanel* brushXmlPanel = new wxPanel(brushDetailsNotebook_);
+	wxBoxSizer* brushXmlSizer = new wxBoxSizer(wxVERTICAL);
+	brushRuntimeXmlText_ = new wxTextCtrl(brushXmlPanel, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY);
+	brushXmlSizer->Add(brushRuntimeXmlText_, 1, wxEXPAND | wxALL, FromDIP(5));
+	brushXmlPanel->SetSizer(brushXmlSizer);
+	brushDetailsNotebook_->AddPage(brushXmlPanel, "Runtime XML");
+
+	brushesSplitter->SplitVertically(brushList_, brushDetailsNotebook_, FromDIP(280));
 	brushesSplitter->SetMinimumPaneSize(FromDIP(180));
 	brushesSizer->Add(brushesSplitter, 1, wxEXPAND | wxALL, FromDIP(5));
 	brushesPanel->SetSizer(brushesSizer);
@@ -284,6 +299,9 @@ void SQLiteMaterialsInspectorPanel::ReloadData() {
 		tilesets_.clear();
 		brushList_->Clear();
 		brushDetailsText_->SetValue(brushDetails);
+		if (brushRuntimeXmlText_) {
+			brushRuntimeXmlText_->SetValue(brushDetails);
+		}
 		tilesetList_->Clear();
 		tilesetDetailsText_->SetValue(tilesetDetails);
 		summaryText_->SetValue(summary);
@@ -331,6 +349,9 @@ void SQLiteMaterialsInspectorPanel::RefreshBrushList() {
 	currentBrushes_.clear();
 	brushList_->Clear();
 	brushDetailsText_->Clear();
+	if (brushRuntimeXmlText_) {
+		brushRuntimeXmlText_->Clear();
+	}
 
 	const wxString selectedType = brushTypeChoice_->GetStringSelection();
 	if (!inspectorDatabase_.listBrushesByType(selectedType, currentBrushes_)) {
@@ -350,6 +371,9 @@ void SQLiteMaterialsInspectorPanel::RefreshBrushList() {
 
 void SQLiteMaterialsInspectorPanel::RefreshBrushDetails() {
 	brushDetailsText_->Clear();
+	if (brushRuntimeXmlText_) {
+		brushRuntimeXmlText_->Clear();
+	}
 
 	const int selection = brushList_->GetSelection();
 	if (selection == wxNOT_FOUND || selection >= static_cast<int>(currentBrushes_.size())) {
@@ -359,10 +383,22 @@ void SQLiteMaterialsInspectorPanel::RefreshBrushDetails() {
 	BrushStorageRecord storage;
 	if (!inspectorDatabase_.getCompleteBrushById(currentBrushes_[selection].id, storage)) {
 		brushDetailsText_->SetValue(inspectorDatabase_.getLastError());
+		if (brushRuntimeXmlText_) {
+			brushRuntimeXmlText_->SetValue(inspectorDatabase_.getLastError());
+		}
 		return;
 	}
 
 	brushDetailsText_->SetValue(FormatBrushDetails(storage));
+	if (brushRuntimeXmlText_) {
+		wxString xml;
+		wxString xmlError;
+		if (g_brushes.buildBrushXmlFromStorage(storage, xml, xmlError)) {
+			brushRuntimeXmlText_->SetValue(xml);
+		} else {
+			brushRuntimeXmlText_->SetValue(xmlError);
+		}
+	}
 }
 
 void SQLiteMaterialsInspectorPanel::RefreshTilesetList() {
