@@ -293,22 +293,27 @@ SQLiteMaterialsInspectorPanel::SQLiteMaterialsInspectorPanel(wxWindow* parent) :
 			g_gui.PopupDialog(this, "SQLite Reset Unavailable", "SQLite bootstrap import is currently running. Wait for it to finish, then try again.", wxOK | wxICON_INFORMATION);
 			return;
 		}
-		if (!g_brush_database.isOpen()) {
-			g_gui.PopupDialog(this, "SQLite Reset Unavailable", "SQLite brush database is not open.", wxOK | wxICON_ERROR);
+		wxString dbPath;
+		if (g_brush_database.isOpen()) {
+			dbPath = g_brush_database.getDatabasePath();
+		} else {
+			dbPath = GUI::GetDataDirectory() + "materials/materials.db";
+		}
+		if (!wxFileName(dbPath).FileExists()) {
+			g_gui.PopupDialog(this, "SQLite Reset Unavailable", "materials.db does not exist at the expected path.\n\nDatabase:\n" + dbPath, wxOK | wxICON_ERROR);
 			return;
 		}
-		if (g_brush_database.isReadOnly()) {
-			g_gui.PopupDialog(this, "SQLite Reset Unavailable", "materials.db is read-only. Reset requires a writable database path.", wxOK | wxICON_ERROR);
+		if (!wxFileName(dbPath).IsFileWritable()) {
+			g_gui.PopupDialog(this, "SQLite Reset Unavailable", "materials.db is read-only. Reset requires a writable database file.\n\nDatabase:\n" + dbPath, wxOK | wxICON_ERROR);
 			return;
 		}
-
-		const wxString dbPath = g_brush_database.getDatabasePath();
 		const wxString warningText =
 			"Reset SQLite materials database from legacy XML?\n\n"
 			"This will move the current materials.db to a timestamped backup file and close the database for this session.\n"
-			"After restarting the app, the database will be rebuilt from XML automatically.\n\n"
+			"This will move the current materials.db to a timestamped backup file and close the database for this session (when open).\n"
 			"Warning: This discards all edits made in materials.db since the last bootstrap. Use Export/Import if you need to keep changes.\n\n"
 			"Database:\n" + dbPath;
+
 
 		if (wxMessageBox(warningText, "Reset materials.db", wxYES_NO | wxNO_DEFAULT | wxICON_WARNING, this) != wxYES) {
 			return;
@@ -318,7 +323,9 @@ SQLiteMaterialsInspectorPanel::SQLiteMaterialsInspectorPanel(wxWindow* parent) :
 		const wxString suffix = now.Format("-%Y%m%d-%H%M%S");
 		const wxString backupPath = dbPath + ".bak" + suffix;
 
-		g_brush_database.close();
+		if (g_brush_database.isOpen()) {
+			g_brush_database.close();
+		}
 		inspectorDatabase_.close();
 
 		auto moveFileIfExists = [](const wxString &from, const wxString &to) {
