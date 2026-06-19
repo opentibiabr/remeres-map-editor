@@ -38,6 +38,7 @@
 #include "minimap_window.h"
 #include "palette_window.h"
 #include "map_display.h"
+#include "materials_workbench_window.h"
 #include "application.h"
 #include "welcome_dialog.h"
 #include "spawn_npc_brush.h"
@@ -448,6 +449,9 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 			message += "Recovery: Ensure materials/materials.db is writable and healthy; if this repeats, move/delete materials/materials.db to force a clean rebuild.";
 			warnings.push_back(message);
 			g_gui.SetStatusText("Materials: recovery mode (XML fallback). See Warnings for details.");
+			if (sqliteDatabaseExistedBeforeInit) {
+				g_gui.QueueMaterialsRecoveryDialog(reason, sqliteDatabasePath);
+			}
 		}
 	}
 	if (!loadedMaterialsFromSqlite && !g_materials.loadMaterials(materialsPath, error, warnings)) {
@@ -1692,6 +1696,97 @@ void GUI::SetStatusText(wxString text) {
 
 bool GUI::IsAsyncSqliteBootstrapRunning() const {
 	return sqlite_bootstrap_running_.load();
+}
+
+void GUI::QueueMaterialsRecoveryDialog(const wxString &reason, const wxString &dbPath) {
+	if (materials_recovery_dialog_pending_.exchange(true)) {
+		return;
+	}
+	materials_recovery_reason_ = reason;
+	materials_recovery_db_path_ = dbPath;
+
+	if (!wxTheApp) {
+		return;
+	}
+	wxTheApp->CallAfter([this]() { TryShowMaterialsRecoveryDialog(); });
+}
+
+void GUI::TryShowMaterialsRecoveryDialog() {
+	if (!materials_recovery_dialog_pending_.load()) {
+		return;
+	}
+	if (!g_gui.root) {
+		if (wxTheApp) {
+			wxTheApp->CallAfter([this]() { TryShowMaterialsRecoveryDialog(); });
+		}
+		return;
+	}
+	materials_recovery_dialog_pending_.store(false);
+
+	wxString dialogReason = materials_recovery_reason_;
+	if (dialogReason.IsEmpty()) {
+		dialogReason = "SQLite materials were enabled but not used.";
+	}
+	const wxString dbPath = materials_recovery_db_path_;
+
+	wxString dialogText =
+		"SQLite materials could not be used.\n"
+		"The editor is running in recovery mode using legacy XML materials for this session.\n\n"
+		"Reason:\n" + dialogReason + "\n\n"
+		"Database:\n" + dbPath + "\n\n"
+		"Options:\n"
+		"- Open Inspector: view SQLite diagnostics\n"
+		"- Reset DB from XML: rebuild a clean database (requires restart)\n"
+		"- Continue: keep using XML for this session";
+
+	wxMessageDialog dialog(g_gui.root, dialogText, "Materials recovery mode", wxYES_NO | wxCANCEL | wxICON_WARNING);
+	dialog.SetYesNoCancelLabels("Open Inspector", "Reset DB from XML...", "Continue (XML)");
+	const int result = dialog.ShowModal();
+	if (result == wxID_YES) {
+		MaterialsWorkbenchWindow::OpenSqliteInspector(g_gui.root);
+		return;
+	}
+	if (result != wxID_NO) {
+		return;
+	}
+
+	if (!wxFileName(dbPath).FileExists()) {
+		g_gui.PopupDialog(g_gui.root, "SQLite Reset Unavailable", "materials.db does not exist at the expected path.\n\nDatabase:\n" + dbPath, wxOK | wxICON_ERROR);
+		return;
+	}
+	if (!wxFileName(dbPath).IsFileWritable()) {
+		g_gui.PopupDialog(g_gui.root, "SQLite Reset Unavailable", "materials.db is read-only. Reset requires a writable database file.\n\nDatabase:\n" + dbPath, wxOK | wxICON_ERROR);
+		return;
+	}
+
+	const wxDateTime now = wxDateTime::Now();
+	const wxString suffix = now.Format("-%Y%m%d-%H%M%S");
+	const wxString backupPath = dbPath + ".bak" + suffix;
+
+	if (g_brush_database.isOpen()) {
+		g_brush_database.close();
+	}
+
+	auto moveFileIfExists = [](const wxString &from, const wxString &to) {
+		if (wxFileName(from).FileExists()) {
+			wxRenameFile(from, to, true);
+		}
+	};
+
+	moveFileIfExists(dbPath, backupPath);
+	moveFileIfExists(dbPath + "-wal", backupPath + "-wal");
+	moveFileIfExists(dbPath + "-shm", backupPath + "-shm");
+
+	g_gui.PopupDialog(
+		g_gui.root,
+		"SQLite Reset Scheduled",
+		"materials.db was moved to:\n" + backupPath + "\n\n"
+		"Next steps:\n"
+		"- Restart the app\n"
+		"- The SQLite database will be rebuilt from legacy XML automatically",
+		wxOK | wxICON_INFORMATION
+	);
+	g_gui.SetStatusText("Materials: SQLite reset scheduled; restart to rebuild from XML.");
 }
 
 void GUI::JoinAsyncSqliteBootstrapThread() {

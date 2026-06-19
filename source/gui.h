@@ -142,6 +142,7 @@ private:
 	void JoinAsyncSqliteBootstrapThread();
 	void RunAsyncSqliteBootstrapImport();
 	void HandleAsyncSqliteBootstrapResult(bool success, const wxString &sqliteImportError, const wxArrayString &sqliteWarnings);
+	void TryShowMaterialsRecoveryDialog();
 
 public:
 	template <typename T>
@@ -229,6 +230,7 @@ public:
 	void SetStatusText(wxString text);
 	bool IsAsyncSqliteBootstrapRunning() const;
 	void StartAsyncSqliteBootstrapImport();
+	void QueueMaterialsRecoveryDialog(const wxString &reason, const wxString &dbPath);
 
 	long PopupDialog(wxWindow* parent, wxString title, wxString text, long style, wxString configsavename = wxEmptyString, uint32_t configsavevalue = 0);
 	long PopupDialog(wxString title, wxString text, long style, wxString configsavename = wxEmptyString, uint32_t configsavevalue = 0);
@@ -517,6 +519,9 @@ protected:
 	int disabled_counter;
 	std::jthread sqlite_bootstrap_thread_;
 	std::atomic<bool> sqlite_bootstrap_running_ = false;
+	std::atomic<bool> materials_recovery_dialog_pending_ = false;
+	wxString materials_recovery_reason_;
+	wxString materials_recovery_db_path_;
 
 	friend class RenderingLock;
 	friend class IOMinimap;
