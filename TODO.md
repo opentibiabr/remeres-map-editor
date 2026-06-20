@@ -61,6 +61,7 @@
 - [ ] Stage G: polish + hardening
   - [ ] Finish product-language/workflow refinements (empty states, confirmations, consistent labels)
   - [ ] Final edge-case pass for import/export, validations, and crash/freeze hardening
+    - [x] Prevent navigation tree selection crashes during rebuilds (freeze/disable + guard event handlers)
 
 ## Next
 - [x] Border Workspace visual pass: align `Preview Matrix` to the same geometry as `Slot Grid`

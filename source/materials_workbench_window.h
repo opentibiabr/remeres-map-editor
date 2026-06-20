@@ -70,6 +70,7 @@ private:
 	wxString hoveredNavigationTooltipKey_;
 	wxString navigationFilterQuery_;
 	bool navigationFilterActive_ = false;
+	bool navigationPopulating_ = false;
 	NavigationTreeState navigationStateBeforeFilter_;
 	MaterialsWorkbenchPalettePanel* palettePanel_ = nullptr;
 	MaterialsWorkbenchBorderPanel* borderPanel_ = nullptr;

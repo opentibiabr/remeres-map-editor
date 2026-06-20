@@ -420,7 +420,9 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 		RefreshInspectorForCurrentSelection();
 	});
 	brushPanel_->SetOnBrushSaved([this](int64_t brushId, const wxString &oldName, const wxString &newName) {
-		HandleBrushSaved(brushId, oldName, newName);
+		CallAfter([this, brushId, oldName, newName]() {
+			HandleBrushSaved(brushId, oldName, newName);
+		});
 	});
 	brushPanel_->SetOnBrushDeleted([this](int64_t brushId) {
 		CallAfter([this, brushId]() {
@@ -996,6 +998,36 @@ void MaterialsWorkbenchWindow::UpdateBrushNavigationBadge() {
 }
 
 void MaterialsWorkbenchWindow::PopulateNavigation() {
+	if (!navigationTree_) {
+		return;
+	}
+	struct NavigationPopulateGuard {
+		MaterialsWorkbenchWindow* window = nullptr;
+		wxTreeCtrl* tree = nullptr;
+		bool wasEnabled = true;
+		explicit NavigationPopulateGuard(MaterialsWorkbenchWindow* window, wxTreeCtrl* tree)
+			: window(window), tree(tree) {
+			if (window) {
+				window->navigationPopulating_ = true;
+			}
+			if (tree) {
+				wasEnabled = tree->IsEnabled();
+				tree->Freeze();
+				tree->Enable(false);
+			}
+		}
+		~NavigationPopulateGuard() {
+			if (tree) {
+				tree->Enable(wasEnabled);
+				tree->Thaw();
+			}
+			if (window) {
+				window->navigationPopulating_ = false;
+			}
+		}
+	};
+	NavigationPopulateGuard populateGuard(this, navigationTree_);
+
 	const wxString normalizedFilterQuery = NormalizeNavigationFilterQuery(navigationFilterQuery_);
 	const bool filterActive = !normalizedFilterQuery.IsEmpty();
 
@@ -1086,6 +1118,10 @@ void MaterialsWorkbenchWindow::BindEvents() {
 	}
 
 	navigationTree_->Bind(wxEVT_MOTION, [this](wxMouseEvent &event) {
+		if (navigationPopulating_) {
+			event.Skip();
+			return;
+		}
 		int flags = 0;
 		const wxTreeItemId item = navigationTree_->HitTest(event.GetPosition(), flags);
 		if (!item.IsOk()) {
@@ -1117,6 +1153,10 @@ void MaterialsWorkbenchWindow::BindEvents() {
 	});
 
 	navigationTree_->Bind(wxEVT_LEFT_DOWN, [this](wxMouseEvent &event) {
+		if (navigationPopulating_) {
+			event.Skip();
+			return;
+		}
 		int flags = 0;
 		const wxTreeItemId item = navigationTree_->HitTest(event.GetPosition(), flags);
 		const bool clickedLabel = item.IsOk() && (flags & (wxTREE_HITTEST_ONITEMLABEL | wxTREE_HITTEST_ONITEMICON));
@@ -1161,6 +1201,9 @@ void MaterialsWorkbenchWindow::BindEvents() {
 	});
 
 	navigationTree_->Bind(wxEVT_TREE_SEL_CHANGING, [this](wxTreeEvent &event) {
+		if (navigationPopulating_) {
+			return;
+		}
 		const wxTreeItemId item = event.GetItem();
 		if (!item.IsOk()) {
 			return;
@@ -1202,6 +1245,9 @@ void MaterialsWorkbenchWindow::BindEvents() {
 	});
 
 	navigationTree_->Bind(wxEVT_TREE_SEL_CHANGED, [this](wxTreeEvent &event) {
+		if (navigationPopulating_) {
+			return;
+		}
 		const wxTreeItemId item = event.GetItem();
 		if (!item.IsOk()) {
 			return;
