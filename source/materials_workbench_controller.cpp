@@ -706,7 +706,7 @@ bool MaterialsWorkbenchController::GetTilesetByIndex(int itemIndex, TilesetStora
 
 bool MaterialsWorkbenchController::LocateTilesetNode(const wxString &name, int &outItemIndex) const {
 	for (size_t i = 0; i < catalog_.tilesets.size(); ++i) {
-		if (catalog_.tilesets[i].name == name) {
+		if (catalog_.tilesets[i].name.IsSameAs(name, false)) {
 			outItemIndex = static_cast<int>(i);
 			return true;
 		}
