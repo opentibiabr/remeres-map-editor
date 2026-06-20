@@ -7035,8 +7035,9 @@ void MaterialsWorkbenchBrushPanel::OnOpenSelectedOutgoingLinkTarget(wxCommandEve
 	const BrushLinkRecord &link = brushStorage_.links[linkIndex];
 	int64_t targetBrushId = link.targetBrushId;
 	if (targetBrushId <= 0 && !link.targetBrushName.IsEmpty() && !link.targetBrushName.IsSameAs("all", false)) {
+		const wxString brushType = GetEffectiveBrushType();
 		wxString resolveError;
-		if (!controller_.ResolveBrushIdByNameAndType(link.targetBrushName, "ground", targetBrushId, resolveError)) {
+		if (!controller_.ResolveBrushIdByNameAndType(link.targetBrushName, brushType, targetBrushId, resolveError)) {
 			SetStatusMessage("Failed to resolve link target: " + resolveError);
 			return;
 		}
