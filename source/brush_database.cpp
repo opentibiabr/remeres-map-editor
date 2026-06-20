@@ -3047,6 +3047,29 @@ bool BrushDatabaseBrushRepository::replaceBrushLinks(int64_t brushId, const std:
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
+	for (const BrushLinkRecord &link : links) {
+		wxString relation = link.relationType;
+		relation.MakeLower();
+		if (relation.IsEmpty()) {
+			return setError("Brush link relation type cannot be empty.");
+		}
+		if (relation != "friend" && relation != "enemy" && relation != "redirect") {
+			return setError("Unsupported brush link relation type: " + link.relationType);
+		}
+
+		wxString targetName = link.targetBrushName;
+		targetName.Trim(true);
+		targetName.Trim(false);
+		if (link.targetBrushId <= 0 && targetName.IsEmpty()) {
+			return setError("Brush link must define a target brush id or target brush name.");
+		}
+		if (relation == "redirect" && targetName.IsSameAs("all", false)) {
+			return setError("Redirect brush links must not target \"all\".");
+		}
+		if (link.sortOrder < 0) {
+			return setError("Brush link sort order cannot be negative.");
+		}
+	}
 	if (!beginTransaction()) {
 		return false;
 	}

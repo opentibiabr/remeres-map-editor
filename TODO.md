@@ -54,7 +54,7 @@
     - [x] Border Workspace: add “Open Owner Brush” for inline border sets
   - [ ] Add deeper cross-reference helpers and stable deep links where needed
 - [ ] Stage F: links parity
-  - [ ] Expand `Links` to cover remaining legacy link types (e.g. `redirect`) with safe validation + clear UX
+  - [x] Expand `Links` to cover remaining legacy link types (e.g. `redirect`) with safe validation + clear UX
 - [ ] Stage G: polish + hardening
   - [ ] Finish product-language/workflow refinements (empty states, confirmations, consistent labels)
   - [ ] Final edge-case pass for import/export, validations, and crash/freeze hardening
