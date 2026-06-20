@@ -340,12 +340,23 @@ SQLiteMaterialsInspectorPanel::SQLiteMaterialsInspectorPanel(wxWindow* parent) :
 
 		const wxString doneText =
 			"materials.db was moved to:\n" + backupPath + "\n\n"
+			"Technical note:\n"
+			"- This process cannot safely rebuild and reload the materials graph in-place.\n"
+			"- A restart is required so the next startup can bootstrap a fresh SQLite DB from XML.\n\n"
 			"Next steps:\n"
 			"- Restart the app\n"
 			"- The SQLite database will be rebuilt from legacy XML automatically\n\n"
 			"Note: Workbench editing from SQLite is disabled until restart.";
-		g_gui.PopupDialog(this, "SQLite Reset Scheduled", doneText, wxOK | wxICON_INFORMATION);
-		ReloadData();
+
+		wxMessageDialog dialog(this, doneText, "SQLite Reset Scheduled", wxOK | wxICON_INFORMATION);
+		dialog.SetOKLabel("Close now");
+		dialog.ShowModal();
+		if (g_gui.root) {
+			g_gui.root->Close(true);
+		} else if (wxTheApp) {
+			wxTheApp->ExitMainLoop();
+		}
+		return;
 	});
 	brushTypeChoice_->Bind(wxEVT_CHOICE, [this](wxCommandEvent &) { RefreshBrushList(); });
 	brushList_->Bind(wxEVT_LISTBOX, [this](wxCommandEvent &) { RefreshBrushDetails(); });

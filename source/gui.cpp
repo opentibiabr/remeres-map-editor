@@ -1777,15 +1777,20 @@ void GUI::TryShowMaterialsRecoveryDialog() {
 	moveFileIfExists(dbPath + "-wal", backupPath + "-wal");
 	moveFileIfExists(dbPath + "-shm", backupPath + "-shm");
 
-	g_gui.PopupDialog(
-		g_gui.root,
-		"SQLite Reset Scheduled",
+	const wxString doneText =
 		"materials.db was moved to:\n" + backupPath + "\n\n"
+		"Technical note:\n"
+		"- This process cannot safely rebuild and reload the materials graph in-place.\n"
+		"- A restart is required so the next startup can bootstrap a fresh SQLite DB from XML.\n\n"
 		"Next steps:\n"
 		"- Restart the app\n"
-		"- The SQLite database will be rebuilt from legacy XML automatically",
-		wxOK | wxICON_INFORMATION
-	);
+		"- The SQLite database will be rebuilt from legacy XML automatically";
+
+	wxMessageDialog doneDialog(g_gui.root, doneText, "SQLite Reset Scheduled", wxOK | wxICON_INFORMATION);
+	doneDialog.SetOKLabel("Close now");
+	doneDialog.ShowModal();
+	materials_exit_after_sqlite_reset_.store(true);
+	g_gui.root->Close(true);
 	g_gui.SetStatusText("Materials: SQLite reset scheduled; restart to rebuild from XML.");
 }
 
@@ -2380,6 +2385,13 @@ long GUI::PopupDialog(wxString title, wxString text, long style, wxString config
 void GUI::ListDialog(wxWindow* parent, wxString title, const wxArrayString &param_items) {
 	if (param_items.empty()) {
 		return;
+	}
+
+	if (title == "Warnings") {
+		TryShowMaterialsRecoveryDialog();
+		if (materials_exit_after_sqlite_reset_.load()) {
+			return;
+		}
 	}
 
 	wxArrayString list_items(param_items);

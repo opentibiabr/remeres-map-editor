@@ -520,6 +520,7 @@ protected:
 	std::jthread sqlite_bootstrap_thread_;
 	std::atomic<bool> sqlite_bootstrap_running_ = false;
 	std::atomic<bool> materials_recovery_dialog_pending_ = false;
+	std::atomic<bool> materials_exit_after_sqlite_reset_ = false;
 	wxString materials_recovery_reason_;
 	wxString materials_recovery_db_path_;
 
