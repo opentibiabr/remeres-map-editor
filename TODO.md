@@ -47,6 +47,7 @@
     - [x] Classify startup SQLite failures (notadb/corrupt/locked/read-only/schema mismatch) and show a recommended recovery path (+ SQLite rc/ext codes)
     - [x] After reset-from-XML, offer “Close now” to exit cleanly (restart is still manual)
     - [x] Ensure recovery actions appear before modal Warnings, and suppress Warnings when exiting after reset
+    - [x] Show startup Warnings after creating a new map (not only when opening an existing map)
 - [ ] Stage E: relationship navigation (beyond brushes)
   - [ ] Expand `Used By`/go-to surfaces across walls/parts/borders so users can jump to owners reliably
     - [x] Wall Workspace: add a `Used By` dialog (search + open brush/palette targets)
