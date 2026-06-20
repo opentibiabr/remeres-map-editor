@@ -291,6 +291,8 @@ public:
 	bool isReadOnly() const;
 	const wxString &getDatabasePath() const;
 	const wxString &getLastError() const;
+	int getLastSqliteErrorCode() const;
+	int getLastSqliteExtendedErrorCode() const;
 	sqlite3* connection() const;
 
 	bool testDatabaseConnection();
@@ -328,6 +330,8 @@ private:
 	sqlite3* connection_ = nullptr;
 	wxString databasePath_;
 	wxString lastError_;
+	int lastSqliteErrorCode_ = 0;
+	int lastSqliteExtendedErrorCode_ = 0;
 	bool readOnly_ = false;
 	int transactionDepth_ = 0;
 	int nextSavepointId_ = 0;
@@ -472,6 +476,8 @@ public:
 	bool isReadOnly() const;
 	const wxString &getDatabasePath() const;
 	const wxString &getLastError() const;
+	int getLastSqliteErrorCode() const;
+	int getLastSqliteExtendedErrorCode() const;
 	bool testDatabaseConnection();
 
 	bool upsertBrush(const BrushRecord &brush, int64_t &brushId);

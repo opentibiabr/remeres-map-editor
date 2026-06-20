@@ -17,6 +17,8 @@
 
 #include "main.h"
 
+#include <sqlite3.h>
+
 #include "brush_database.h"
 #include "gui.h"
 
@@ -65,6 +67,61 @@ namespace InternalGUI {
 		g_gui.unloadMapWindow();
 	}
 } // namespace (internal use only)
+
+namespace {
+	struct MaterialsSqliteFailureClassification {
+		wxString category;
+		wxString recommendation;
+	};
+
+	MaterialsSqliteFailureClassification ClassifyMaterialsSqliteFailure(const wxString &reason, int sqliteRc, int sqliteExtRc) {
+		MaterialsSqliteFailureClassification result;
+		const wxString lower = reason.Lower();
+
+		if (sqliteRc == SQLITE_NOTADB || lower.Contains("not a database")) {
+			result.category = "Invalid database file (not a SQLite database)";
+			result.recommendation = "Reset DB from XML to rebuild a clean database, or restore a valid materials.db from backup.";
+			return result;
+		}
+		if (sqliteRc == SQLITE_CORRUPT || lower.Contains("malformed") || lower.Contains("database disk image is malformed")) {
+			result.category = "Corrupted SQLite database";
+			result.recommendation = "Reset DB from XML to rebuild a clean database, or restore a known-good materials.db from backup.";
+			return result;
+		}
+		if (sqliteRc == SQLITE_READONLY || sqliteExtRc == SQLITE_READONLY) {
+			result.category = "Database is read-only";
+			result.recommendation = "Fix file permissions and ensure materials/materials.db is writable, then restart. If needed, Reset DB from XML.";
+			return result;
+		}
+		if (sqliteRc == SQLITE_BUSY || sqliteRc == SQLITE_LOCKED || lower.Contains("database is locked") || lower.Contains("busy")) {
+			result.category = "Database is locked or busy";
+			result.recommendation = "Close other instances/processes using materials.db, then restart. If the DB is unhealthy, Reset DB from XML.";
+			return result;
+		}
+		if (sqliteRc == SQLITE_CANTOPEN || lower.Contains("unable to open database file") || lower.Contains("failed to open sqlite database")) {
+			result.category = "Cannot open database file";
+			result.recommendation = "Ensure the directory exists and is writable. If the file is corrupted or wrong type, Reset DB from XML.";
+			return result;
+		}
+		if (lower.Contains("schema version mismatch") || lower.Contains("newer than supported")) {
+			result.category = "Schema version mismatch";
+			result.recommendation = "Use a compatible editor build for this DB, or Reset DB from XML to rebuild a DB for this build (may lose DB-only edits).";
+			return result;
+		}
+		if (lower.Contains("import required")
+			|| lower.Contains("missing imported materials data")
+			|| lower.Contains("import status row is missing")
+			|| lower.Contains("unresolved references")) {
+			result.category = "Database is not runtime-ready";
+			result.recommendation = "Reset DB from XML to rebuild a consistent materials.db (or delete/move the file to allow a clean bootstrap).";
+			return result;
+		}
+
+		result.category = "SQLite failure";
+		result.recommendation = "Open Inspector to view diagnostics; if this repeats, Reset DB from XML to rebuild a clean database.";
+		return result;
+	}
+} // namespace
 
 const wxEventType EVT_UPDATE_MENUS = wxNewEventType();
 const wxEventType EVT_UPDATE_ACTIONS = wxNewEventType();
@@ -413,7 +470,11 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 			shouldLoadFromSqlite = false;
 		}
 	} else if (sqliteEnabled && !sqliteInitOk) {
-		sqliteFallbackReason = "SQLite brush database initialization failed: " + g_brush_database.getLastError();
+		const wxString rawError = g_brush_database.getLastError();
+		const int sqliteRc = g_brush_database.getLastSqliteErrorCode();
+		const int sqliteExtRc = g_brush_database.getLastSqliteExtendedErrorCode();
+		const auto classification = ClassifyMaterialsSqliteFailure(rawError, sqliteRc, sqliteExtRc);
+		sqliteFallbackReason = "SQLite brush database initialization failed (" + classification.category + "): " + rawError;
 	}
 
 	bool loadedMaterialsFromSqlite = false;
@@ -421,8 +482,11 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 		spdlog::info("[GUI::LoadDataFiles] Attempting to load materials catalog from SQLite.");
 		loadedMaterialsFromSqlite = g_brushes.loadFromDatabase(warnings) && g_materials.loadTilesetsFromDatabase(warnings);
 		if (!loadedMaterialsFromSqlite) {
-			wxString runtimeError = g_brush_database.getLastError();
-			wxString message = "SQLite materials load failed at runtime; falling back to XML.";
+			const wxString runtimeError = g_brush_database.getLastError();
+			const int sqliteRc = g_brush_database.getLastSqliteErrorCode();
+			const int sqliteExtRc = g_brush_database.getLastSqliteExtendedErrorCode();
+			const auto classification = ClassifyMaterialsSqliteFailure(runtimeError, sqliteRc, sqliteExtRc);
+			wxString message = "SQLite materials load failed at runtime (" + classification.category + "); falling back to XML.";
 			if (!runtimeError.IsEmpty()) {
 				message += " Reason: ";
 				message += runtimeError;
@@ -442,15 +506,24 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 			if (reason.IsEmpty()) {
 				reason = "SQLite materials were enabled but not used.";
 			}
+			const int sqliteRc = g_brush_database.getLastSqliteErrorCode();
+			const int sqliteExtRc = g_brush_database.getLastSqliteExtendedErrorCode();
+			const auto classification = ClassifyMaterialsSqliteFailure(reason, sqliteRc, sqliteExtRc);
 			wxString message = "Materials recovery mode: using legacy XML materials for this session.\n";
-			message += "Reason: ";
+			message += "Problem: ";
+			message += classification.category;
+			message += "\nReason: ";
 			message += reason;
+			if (sqliteRc != 0 || sqliteExtRc != 0) {
+				message += wxString::Format("\nSQLite codes: rc=%d ext=%d", sqliteRc, sqliteExtRc);
+			}
 			message += "\nAction: Loaded materials from XML and will continue running.\n";
-			message += "Recovery: Ensure materials/materials.db is writable and healthy; if this repeats, move/delete materials/materials.db to force a clean rebuild.";
+			message += "Recovery: ";
+			message += classification.recommendation;
 			warnings.push_back(message);
 			g_gui.SetStatusText("Materials: recovery mode (XML fallback). See Warnings for details.");
 			if (sqliteDatabaseExistedBeforeInit) {
-				g_gui.QueueMaterialsRecoveryDialog(reason, sqliteDatabasePath);
+				g_gui.QueueMaterialsRecoveryDialog(classification.category, reason, classification.recommendation, sqliteRc, sqliteExtRc, sqliteDatabasePath);
 			}
 		}
 	}
@@ -1698,11 +1771,15 @@ bool GUI::IsAsyncSqliteBootstrapRunning() const {
 	return sqlite_bootstrap_running_.load();
 }
 
-void GUI::QueueMaterialsRecoveryDialog(const wxString &reason, const wxString &dbPath) {
+void GUI::QueueMaterialsRecoveryDialog(const wxString &category, const wxString &reason, const wxString &recommendation, int sqliteRc, int sqliteExtRc, const wxString &dbPath) {
 	if (materials_recovery_dialog_pending_.exchange(true)) {
 		return;
 	}
+	materials_recovery_sqlite_rc_ = sqliteRc;
+	materials_recovery_sqlite_ext_rc_ = sqliteExtRc;
+	materials_recovery_category_ = category;
 	materials_recovery_reason_ = reason;
+	materials_recovery_recommendation_ = recommendation;
 	materials_recovery_db_path_ = dbPath;
 
 	if (!wxTheApp) {
@@ -1723,16 +1800,29 @@ void GUI::TryShowMaterialsRecoveryDialog() {
 	}
 	materials_recovery_dialog_pending_.store(false);
 
+	wxString dialogCategory = materials_recovery_category_;
+	if (dialogCategory.IsEmpty()) {
+		dialogCategory = "SQLite failure";
+	}
 	wxString dialogReason = materials_recovery_reason_;
 	if (dialogReason.IsEmpty()) {
 		dialogReason = "SQLite materials were enabled but not used.";
 	}
+	wxString dialogRecommendation = materials_recovery_recommendation_;
+	if (dialogRecommendation.IsEmpty()) {
+		dialogRecommendation = "Open Inspector to view diagnostics; if this repeats, Reset DB from XML to rebuild a clean database.";
+	}
 	const wxString dbPath = materials_recovery_db_path_;
+	const int sqliteRc = materials_recovery_sqlite_rc_;
+	const int sqliteExtRc = materials_recovery_sqlite_ext_rc_;
 
 	wxString dialogText =
 		"SQLite materials could not be used.\n"
 		"The editor is running in recovery mode using legacy XML materials for this session.\n\n"
+		"Problem:\n" + dialogCategory + "\n\n"
 		"Reason:\n" + dialogReason + "\n\n"
+		"Recommendation:\n" + dialogRecommendation + "\n\n"
+		"SQLite codes:\n" + wxString::Format("rc=%d ext=%d", sqliteRc, sqliteExtRc) + "\n\n"
 		"Database:\n" + dbPath + "\n\n"
 		"Options:\n"
 		"- Open Inspector: view SQLite diagnostics\n"

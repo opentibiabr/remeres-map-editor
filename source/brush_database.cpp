@@ -855,6 +855,14 @@ const wxString &BrushDatabase::getLastError() const {
 	return session_.getLastError();
 }
 
+int BrushDatabase::getLastSqliteErrorCode() const {
+	return session_.getLastSqliteErrorCode();
+}
+
+int BrushDatabase::getLastSqliteExtendedErrorCode() const {
+	return session_.getLastSqliteExtendedErrorCode();
+}
+
 bool BrushDatabase::testDatabaseConnection() {
 	return session_.testDatabaseConnection();
 }
@@ -1067,13 +1075,19 @@ bool BrushDatabaseSession::openInternal(const wxString &databasePath, bool readO
 	const int flags = readOnly ? SQLITE_OPEN_READONLY : (SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE);
 	const int rc = sqlite3_open_v2(dbFile.GetFullPath().utf8_str(), &connection_, flags, nullptr);
 	if (rc != SQLITE_OK) {
+		lastSqliteErrorCode_ = rc;
+		lastSqliteExtendedErrorCode_ = connection_ ? sqlite3_extended_errcode(connection_) : rc;
 		const wxString dbError = ToWxString(sqlite3_errmsg(connection_));
+		lastError_ = "Failed to open SQLite database: " + dbError;
+		spdlog::error("[BrushDatabase] {}", lastError_.ToStdString());
 		close();
-		return setError("Failed to open SQLite database: " + dbError);
+		return false;
 	}
 
 	databasePath_ = dbFile.GetFullPath();
 	lastError_.clear();
+	lastSqliteErrorCode_ = SQLITE_OK;
+	lastSqliteExtendedErrorCode_ = SQLITE_OK;
 	readOnly_ = readOnly;
 
 	if (!execute("PRAGMA foreign_keys = ON;")) {
@@ -1124,6 +1138,14 @@ const wxString &BrushDatabaseSession::getDatabasePath() const {
 
 const wxString &BrushDatabaseSession::getLastError() const {
 	return lastError_;
+}
+
+int BrushDatabaseSession::getLastSqliteErrorCode() const {
+	return lastSqliteErrorCode_;
+}
+
+int BrushDatabaseSession::getLastSqliteExtendedErrorCode() const {
+	return lastSqliteExtendedErrorCode_;
 }
 
 sqlite3* BrushDatabaseSession::connection() const {
@@ -4949,11 +4971,20 @@ bool BrushDatabaseSession::rollbackTransaction() {
 
 bool BrushDatabaseSession::setError(const wxString &message) {
 	lastError_ = message;
+	lastSqliteErrorCode_ = 0;
+	lastSqliteExtendedErrorCode_ = 0;
 	spdlog::error("[BrushDatabase] {}", lastError_.ToStdString());
 	return false;
 }
 
 bool BrushDatabaseSession::setErrorFromDatabase(const wxString &prefix) {
+	if (connection_) {
+		lastSqliteErrorCode_ = sqlite3_errcode(connection_);
+		lastSqliteExtendedErrorCode_ = sqlite3_extended_errcode(connection_);
+	} else {
+		lastSqliteErrorCode_ = 0;
+		lastSqliteExtendedErrorCode_ = 0;
+	}
 	const wxString dbMessage = connection_ ? ToWxString(sqlite3_errmsg(connection_)) : wxString("No SQLite connection");
 	return setError(prefix + ": " + dbMessage);
 }

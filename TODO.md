@@ -44,6 +44,7 @@
   - [ ] Add integrity checks and a safe recovery path when DB is corrupted or partially missing
     - [x] Allow Reset-from-XML even when SQLite cannot open (corrupt materials.db recovery)
     - [x] Startup recovery dialog: offer Open Inspector / Reset from XML when SQLite falls back to XML with an existing DB
+    - [x] Classify startup SQLite failures (notadb/corrupt/locked/read-only/schema mismatch) and show a recommended recovery path (+ SQLite rc/ext codes)
     - [x] After reset-from-XML, offer “Close now” to exit cleanly (restart is still manual)
     - [x] Ensure recovery actions appear before modal Warnings, and suppress Warnings when exiting after reset
 - [ ] Stage E: relationship navigation (beyond brushes)
