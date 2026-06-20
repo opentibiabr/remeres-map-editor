@@ -1367,16 +1367,19 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	wxBoxSizer* linksActions = new wxBoxSizer(wxHORIZONTAL);
 	addLinkButton_ = new wxButton(linksParent, wxID_ANY, "Add Friend");
 	toggleRedirectButton_ = new wxButton(linksParent, wxID_ANY, "Toggle Redirect");
+	openLinkTargetButton_ = new wxButton(linksParent, wxID_ANY, "Open Target");
 	removeLinkButton_ = new wxButton(linksParent, wxID_ANY, "Remove");
 	moveLinkUpButton_ = new wxButton(linksParent, wxID_ANY, "Up");
 	moveLinkDownButton_ = new wxButton(linksParent, wxID_ANY, "Down");
 	StyleWallWorkspaceActionButton(addLinkButton_, "Add a friend link to another wall brush.");
 	StyleWallWorkspaceActionButton(toggleRedirectButton_, "Toggle whether this friend link also redirects wall selection to the target.");
+	StyleWallWorkspaceActionButton(openLinkTargetButton_, "Open the selected target wall brush in the Brush workspace.");
 	StyleWallWorkspaceActionButton(removeLinkButton_, "Remove the selected friend link.");
 	StyleWallWorkspaceActionButton(moveLinkUpButton_, "Move the selected link earlier in evaluation order.");
 	StyleWallWorkspaceActionButton(moveLinkDownButton_, "Move the selected link later in evaluation order.");
 	linksActions->Add(addLinkButton_, 0, wxRIGHT, FromDIP(6));
 	linksActions->Add(toggleRedirectButton_, 0, wxRIGHT, FromDIP(10));
+	linksActions->Add(openLinkTargetButton_, 0, wxRIGHT, FromDIP(10));
 	linksActions->Add(removeLinkButton_, 0, wxRIGHT, FromDIP(10));
 	linksActions->Add(moveLinkUpButton_, 0, wxRIGHT, FromDIP(6));
 	linksActions->Add(moveLinkDownButton_, 0);
@@ -1495,6 +1498,7 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 			UpdateLinksActionButtons();
 		});
 	});
+	openLinkTargetButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnOpenSelectedLinkTarget, this);
 
 	const auto applyLinkRows = [this](std::vector<WallFriendLinkRow> rows) {
 		for (size_t i = 0; i < rows.size(); ++i) {
@@ -2116,7 +2120,7 @@ void MaterialsWorkbenchWallPanel::RefreshComposedPreview() {
 
 void MaterialsWorkbenchWallPanel::RefreshLinksSection() {
 	if (!linksSearchCtrl_ || !linksListCtrl_ || !linksSummaryLabel_ ||
-		!addLinkButton_ || !toggleRedirectButton_ || !removeLinkButton_ || !moveLinkUpButton_ || !moveLinkDownButton_ ||
+		!addLinkButton_ || !toggleRedirectButton_ || !openLinkTargetButton_ || !removeLinkButton_ || !moveLinkUpButton_ || !moveLinkDownButton_ ||
 		!inboundLinksSummaryLabel_ || !inboundLinksListCtrl_) {
 		return;
 	}
@@ -2156,6 +2160,7 @@ void MaterialsWorkbenchWallPanel::RefreshLinksSection() {
 		inboundLinksSummaryLabel_->SetLabel("");
 		addLinkButton_->Enable(false);
 		toggleRedirectButton_->Enable(false);
+		openLinkTargetButton_->Enable(false);
 		removeLinkButton_->Enable(false);
 		moveLinkUpButton_->Enable(false);
 		moveLinkDownButton_->Enable(false);
@@ -2235,13 +2240,14 @@ void MaterialsWorkbenchWallPanel::RefreshLinksSection() {
 }
 
 void MaterialsWorkbenchWallPanel::UpdateLinksActionButtons() {
-	if (!addLinkButton_ || !toggleRedirectButton_ || !removeLinkButton_ || !moveLinkUpButton_ || !moveLinkDownButton_ || !linksListCtrl_ || !linksSearchCtrl_) {
+	if (!addLinkButton_ || !toggleRedirectButton_ || !openLinkTargetButton_ || !removeLinkButton_ || !moveLinkUpButton_ || !moveLinkDownButton_ || !linksListCtrl_ || !linksSearchCtrl_) {
 		return;
 	}
 
 	if (!hasWallBrush_) {
 		addLinkButton_->Enable(false);
 		toggleRedirectButton_->Enable(false);
+		openLinkTargetButton_->Enable(false);
 		removeLinkButton_->Enable(false);
 		moveLinkUpButton_->Enable(false);
 		moveLinkDownButton_->Enable(false);
@@ -2257,6 +2263,13 @@ void MaterialsWorkbenchWallPanel::UpdateLinksActionButtons() {
 
 	addLinkButton_->Enable(true);
 	toggleRedirectButton_->Enable(hasSelection);
+	openLinkTargetButton_->Enable(
+		hasSelection &&
+		onOpenLinkedBrush_ &&
+		selectedIndex >= 0 &&
+		selectedIndex < static_cast<int>(allRows.size()) &&
+		allRows[selectedIndex].targetBrushId > 0
+	);
 	removeLinkButton_->Enable(hasSelection);
 	if (!query.IsEmpty()) {
 		moveLinkUpButton_->Enable(false);
@@ -2330,6 +2343,9 @@ void MaterialsWorkbenchWallPanel::SetFieldsEnabled(bool enabled) {
 	}
 	if (linksListCtrl_) {
 		linksListCtrl_->Enable(enabled);
+	}
+	if (openLinkTargetButton_) {
+		openLinkTargetButton_->Enable(enabled);
 	}
 	if (inboundLinksListCtrl_) {
 		inboundLinksListCtrl_->Enable(enabled);
@@ -3175,4 +3191,33 @@ void MaterialsWorkbenchWallPanel::OnDoorItemIdChanged(wxCommandEvent &event) {
 void MaterialsWorkbenchWallPanel::OnDoorItemIdSpin(wxSpinEvent &event) {
 	doorPreviewButton_->SetSprite(doorItemIdCtrl_->GetValue());
 	event.Skip();
+}
+
+void MaterialsWorkbenchWallPanel::OnOpenSelectedLinkTarget(wxCommandEvent &) {
+	if (!hasWallBrush_) {
+		SetStatusMessage("Select a wall brush before opening a link target.");
+		return;
+	}
+	if (!onOpenLinkedBrush_) {
+		SetStatusMessage("Brush navigation is unavailable in this workspace.");
+		return;
+	}
+	if (!linksListCtrl_) {
+		return;
+	}
+	const long selectedRow = linksListCtrl_->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+	if (selectedRow == wxNOT_FOUND || selectedRow < 0) {
+		SetStatusMessage("Select a link target first.");
+		return;
+	}
+	const int selectedIndex = static_cast<int>(linksListCtrl_->GetItemData(selectedRow));
+	const std::vector<WallFriendLinkRow> rows = CollectWallFriendLinkRows(wallBrushStorage_.links);
+	if (selectedIndex < 0 || selectedIndex >= static_cast<int>(rows.size())) {
+		return;
+	}
+	if (rows[selectedIndex].targetBrushId <= 0) {
+		SetStatusMessage("This link target has no brush id to open.");
+		return;
+	}
+	onOpenLinkedBrush_(rows[selectedIndex].targetBrushId);
 }

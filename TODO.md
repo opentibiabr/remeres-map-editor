@@ -51,6 +51,7 @@
 - [ ] Stage E: relationship navigation (beyond brushes)
   - [ ] Expand `Used By`/go-to surfaces across walls/parts/borders so users can jump to owners reliably
     - [x] Wall Workspace: add a `Used By` dialog (search + open brush/palette targets)
+    - [x] Wall Workspace: add “Open Target” navigation for outgoing friend/redirect links
     - [x] Border Workspace: add “Open Owner Brush” for inline border sets
   - [ ] Add deeper cross-reference helpers and stable deep links where needed
 - [ ] Stage F: links parity

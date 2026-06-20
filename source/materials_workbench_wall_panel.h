@@ -101,6 +101,7 @@ private:
 	void OnItemIdSpin(wxSpinEvent &event);
 	void OnDoorItemIdChanged(wxCommandEvent &event);
 	void OnDoorItemIdSpin(wxSpinEvent &event);
+	void OnOpenSelectedLinkTarget(wxCommandEvent &event);
 
 	MaterialsWorkbenchController &controller_;
 	std::function<void(int64_t)> onWallBrushSaved_;
@@ -172,6 +173,7 @@ private:
 	wxButton* addLinkButton_ = nullptr;
 	wxButton* removeLinkButton_ = nullptr;
 	wxButton* toggleRedirectButton_ = nullptr;
+	wxButton* openLinkTargetButton_ = nullptr;
 	wxButton* moveLinkUpButton_ = nullptr;
 	wxButton* moveLinkDownButton_ = nullptr;
 	wxStaticText* inboundLinksSummaryLabel_ = nullptr;
