@@ -225,6 +225,7 @@ private:
 	void OnCreateBrush(wxCommandEvent &event);
 	void OnDeleteBrush(wxCommandEvent &event);
 	void OnUsedBy(wxCommandEvent &event);
+	void OnOpenSelectedOutgoingLinkTarget(wxCommandEvent &event);
 	void SelectDoodadAlternative(int index);
 	void StepDoodadAlternative(int delta);
 	void StepDoodadPreviewFloor(int delta);
@@ -291,6 +292,7 @@ private:
 	wxListCtrl* linksInboundListCtrl_ = nullptr;
 	wxButton* addFriendLinkButton_ = nullptr;
 	wxButton* addEnemyLinkButton_ = nullptr;
+	wxButton* openLinkTargetButton_ = nullptr;
 	wxButton* removeLinkButton_ = nullptr;
 	wxButton* clearLinksButton_ = nullptr;
 	wxButton* moveLinkUpButton_ = nullptr;

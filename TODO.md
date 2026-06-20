@@ -53,6 +53,7 @@
     - [x] Wall Workspace: add a `Used By` dialog (search + open brush/palette targets)
     - [x] Wall Workspace: add “Open Target” navigation for outgoing friend/redirect links
     - [x] Border Workspace: add “Open Owner Brush” for inline border sets
+    - [x] Brush Workspace: add “Open Target” navigation for friend/enemy link rows
   - [ ] Add deeper cross-reference helpers and stable deep links where needed
 - [ ] Stage F: links parity
   - [x] Expand `Links` to cover remaining legacy link types (e.g. `redirect`) with safe validation + clear UX

@@ -2754,18 +2754,21 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildLinksPage(wxNotebook* notebook) {
 	wxBoxSizer* actions = new wxBoxSizer(wxHORIZONTAL);
 	addFriendLinkButton_ = new wxButton(panel, wxID_ANY, "Add Friend");
 	addEnemyLinkButton_ = new wxButton(panel, wxID_ANY, "Add Enemy");
+	openLinkTargetButton_ = new wxButton(panel, wxID_ANY, "Open Target");
 	removeLinkButton_ = new wxButton(panel, wxID_ANY, "Remove");
 	clearLinksButton_ = new wxButton(panel, wxID_ANY, "Clear");
 	moveLinkUpButton_ = new wxButton(panel, wxID_ANY, "Up");
 	moveLinkDownButton_ = new wxButton(panel, wxID_ANY, "Down");
 	StyleBrushWorkspaceActionButton(addFriendLinkButton_, "Create a new friend link for the current brush.");
 	StyleBrushWorkspaceActionButton(addEnemyLinkButton_, "Create a new enemy link for the current brush.");
+	StyleBrushWorkspaceActionButton(openLinkTargetButton_, "Open the selected target brush in the Brush workspace.");
 	StyleBrushWorkspaceActionButton(removeLinkButton_, "Remove the selected link.");
 	StyleBrushWorkspaceActionButton(clearLinksButton_, "Remove all friend/enemy links from the local editor state (persisted after Save Brush).");
 	StyleBrushWorkspaceActionButton(moveLinkUpButton_, "Move the selected link earlier in evaluation order.");
 	StyleBrushWorkspaceActionButton(moveLinkDownButton_, "Move the selected link later in evaluation order.");
 	actions->Add(addFriendLinkButton_, 0, wxRIGHT, FromDIP(6));
 	actions->Add(addEnemyLinkButton_, 0, wxRIGHT, FromDIP(10));
+	actions->Add(openLinkTargetButton_, 0, wxRIGHT, FromDIP(10));
 	actions->Add(removeLinkButton_, 0, wxRIGHT, FromDIP(10));
 	actions->Add(clearLinksButton_, 0, wxRIGHT, FromDIP(10));
 	actions->Add(moveLinkUpButton_, 0, wxRIGHT, FromDIP(6));
@@ -2806,6 +2809,12 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildLinksPage(wxNotebook* notebook) {
 		if (hasSelection) {
 			selectedIndex = static_cast<int>(linksListCtrl_->GetItemData(selectedRow));
 		}
+
+		bool canOpenTarget = false;
+		if (hasSelection && onOpenLinkedBrush_ && selectedIndex >= 0 && selectedIndex < static_cast<int>(brushStorage_.links.size())) {
+			canOpenTarget = brushStorage_.links[selectedIndex].targetBrushId > 0;
+		}
+		openLinkTargetButton_->Enable(canOpenTarget);
 
 		removeLinkButton_->Enable(hasSelection);
 		bool hasFriendOrEnemy = false;
@@ -2866,6 +2875,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildLinksPage(wxNotebook* notebook) {
 	linksListCtrl_->Bind(wxEVT_LIST_ITEM_SELECTED, [updateButtonState](wxListEvent &) { updateButtonState(); });
 	linksListCtrl_->Bind(wxEVT_LIST_ITEM_DESELECTED, [updateButtonState](wxListEvent &) { updateButtonState(); });
 	linksListCtrl_->Bind(wxEVT_LIST_ITEM_ACTIVATED, [editSelectedOutgoing](wxListEvent &) { editSelectedOutgoing(); });
+	openLinkTargetButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBrushPanel::OnOpenSelectedOutgoingLinkTarget, this);
 	addFriendLinkButton_->Bind(wxEVT_BUTTON, [this, normalizeSortOrders](wxCommandEvent &) {
 		if (!hasBrush_) {
 			return;
@@ -3811,6 +3821,9 @@ void MaterialsWorkbenchBrushPanel::RefreshLinksPage() {
 		if (removeLinkButton_) {
 			removeLinkButton_->Enable(false);
 		}
+		if (openLinkTargetButton_) {
+			openLinkTargetButton_->Enable(false);
+		}
 		if (clearLinksButton_) {
 			clearLinksButton_->Enable(false);
 		}
@@ -3899,6 +3912,9 @@ void MaterialsWorkbenchBrushPanel::RefreshLinksPage() {
 	addFriendLinkButton_->Enable(isGround);
 	addEnemyLinkButton_->Enable(isGround);
 	removeLinkButton_->Enable(false);
+	if (openLinkTargetButton_) {
+		openLinkTargetButton_->Enable(false);
+	}
 	if (clearLinksButton_) {
 		bool hasFriendOrEnemy = false;
 		if (isGround) {
@@ -6990,6 +7006,35 @@ void MaterialsWorkbenchBrushPanel::OnRevert(wxCommandEvent &WXUNUSED(event)) {
 		static_cast<long long>(brushId),
 		brushName.ToStdString()
 	);
+}
+
+void MaterialsWorkbenchBrushPanel::OnOpenSelectedOutgoingLinkTarget(wxCommandEvent &) {
+	if (!hasBrush_) {
+		SetStatusMessage("Select a brush before opening a link target.");
+		return;
+	}
+	if (!onOpenLinkedBrush_) {
+		SetStatusMessage("Brush navigation is unavailable in this workspace.");
+		return;
+	}
+	if (!linksListCtrl_) {
+		return;
+	}
+	const long selectedRow = linksListCtrl_->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+	if (selectedRow == wxNOT_FOUND || selectedRow < 0) {
+		SetStatusMessage("Select a link first.");
+		return;
+	}
+	const int linkIndex = static_cast<int>(linksListCtrl_->GetItemData(selectedRow));
+	if (linkIndex < 0 || linkIndex >= static_cast<int>(brushStorage_.links.size())) {
+		return;
+	}
+	const BrushLinkRecord &link = brushStorage_.links[linkIndex];
+	if (link.targetBrushId <= 0) {
+		SetStatusMessage("This link target has no brush id to open.");
+		return;
+	}
+	onOpenLinkedBrush_(link.targetBrushId);
 }
 
 void MaterialsWorkbenchBrushPanel::OnCreateBrush(wxCommandEvent &) {
