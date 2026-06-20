@@ -32,6 +32,7 @@ public:
 	void SetOnWallBrushSaved(std::function<void(int64_t)> callback);
 	void SetOnWallBrushStateChanged(std::function<void()> callback);
 	void SetOnOpenLinkedBrush(std::function<void(int64_t)> callback);
+	void SetOnOpenLinkedTileset(std::function<void(const wxString &)> callback);
 	bool HasPendingChanges() const;
 	bool IsCurrentWallSelection(const wxString &contextKey, int itemIndex) const;
 	wxString GetCurrentWallDisplayName() const;
@@ -95,6 +96,7 @@ private:
 	void OnPreviewOptionsChanged(wxCommandEvent &event);
 	void OnSave(wxCommandEvent &event);
 	void OnRevert(wxCommandEvent &event);
+	void OnUsedBy(wxCommandEvent &event);
 	void OnItemIdChanged(wxCommandEvent &event);
 	void OnItemIdSpin(wxSpinEvent &event);
 	void OnDoorItemIdChanged(wxCommandEvent &event);
@@ -104,6 +106,7 @@ private:
 	std::function<void(int64_t)> onWallBrushSaved_;
 	std::function<void()> onWallBrushStateChanged_;
 	std::function<void(int64_t)> onOpenLinkedBrush_;
+	std::function<void(const wxString &)> onOpenLinkedTileset_;
 	BrushStorageRecord wallBrushStorage_;
 	BrushStorageRecord loadedWallBrushStorage_;
 	wxString currentContextKey_;
@@ -123,6 +126,7 @@ private:
 	wxStaticText* summaryLabel_ = nullptr;
 	wxButton* saveButton_ = nullptr;
 	wxButton* revertButton_ = nullptr;
+	wxButton* usedByButton_ = nullptr;
 	wxTextCtrl* brushIdCtrl_ = nullptr;
 	wxTextCtrl* brushNameCtrl_ = nullptr;
 	wxSpinCtrl* lookIdCtrl_ = nullptr;

@@ -49,6 +49,7 @@
     - [x] Ensure recovery actions appear before modal Warnings, and suppress Warnings when exiting after reset
 - [ ] Stage E: relationship navigation (beyond brushes)
   - [ ] Expand `Used By`/go-to surfaces across walls/parts/borders so users can jump to owners reliably
+    - [x] Wall Workspace: add a `Used By` dialog (search + open brush/palette targets)
   - [ ] Add deeper cross-reference helpers and stable deep links where needed
 - [ ] Stage F: links parity
   - [ ] Expand `Links` to cover remaining legacy link types (e.g. `redirect`) with safe validation + clear UX

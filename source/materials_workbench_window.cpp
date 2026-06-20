@@ -456,6 +456,12 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 			SelectNavigationNode(MaterialsWorkbenchNodeKind::Brush, contextKey, itemIndex);
 		}
 	});
+	wallPanel_->SetOnOpenLinkedTileset([this](const wxString &paletteName) {
+		int itemIndex = -1;
+		if (controller_.LocateTilesetNode(paletteName, itemIndex)) {
+			SelectNavigationNode(MaterialsWorkbenchNodeKind::Tileset, "", itemIndex);
+		}
+	});
 	workspaceBook_->AddPage(overviewPanel, "Overview");
 	workspaceBook_->AddPage(palettePanel_, "Palette");
 	workspaceBook_->AddPage(borderPanel_, "Border");

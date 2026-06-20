@@ -1066,6 +1066,10 @@ void MaterialsWorkbenchWallPanel::SetOnOpenLinkedBrush(std::function<void(int64_
 	onOpenLinkedBrush_ = std::move(callback);
 }
 
+void MaterialsWorkbenchWallPanel::SetOnOpenLinkedTileset(std::function<void(const wxString &)> callback) {
+	onOpenLinkedTileset_ = std::move(callback);
+}
+
 bool MaterialsWorkbenchWallPanel::HasPendingChanges() const {
 	return hasWallBrush_ && dirty_;
 }
@@ -1410,10 +1414,13 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	headerSizer->Add(subtitleLabel_, 0);
 
 	wxBoxSizer* actionSizer = new wxBoxSizer(wxHORIZONTAL);
+	usedByButton_ = new wxButton(this, wxID_ANY, "Used By");
 	saveButton_ = new wxButton(this, wxID_SAVE, "Save Wall Brush");
 	revertButton_ = new wxButton(this, wxID_ANY, "Revert");
+	StyleWallWorkspaceActionButton(usedByButton_, "Show where this wall brush is referenced, so you can jump to owners without hunting in the tree.");
 	StyleWallWorkspaceActionButton(saveButton_, "Write wall metadata, links, parts, and door edits to materials.db.");
 	StyleWallWorkspaceActionButton(revertButton_, "Discard local wall edits and reload the current wall brush from materials.db.");
+	actionSizer->Add(usedByButton_, 0, wxRIGHT, FromDIP(2));
 	actionSizer->Add(saveButton_, 0, wxRIGHT, FromDIP(2));
 	actionSizer->Add(revertButton_, 0);
 
@@ -1447,6 +1454,7 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	removeDoorButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnRemoveDoor, this);
 	saveButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnSave, this);
 	revertButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnRevert, this);
+	usedByButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnUsedBy, this);
 	itemIdCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchWallPanel::OnItemIdChanged, this);
 	itemIdCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchWallPanel::OnItemIdSpin, this);
 	doorItemIdCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchWallPanel::OnDoorItemIdChanged, this);
@@ -3034,6 +3042,119 @@ void MaterialsWorkbenchWallPanel::OnRevert(wxCommandEvent &event) {
 		static_cast<long long>(brushId),
 		brushName.ToStdString()
 	);
+}
+
+void MaterialsWorkbenchWallPanel::OnUsedBy(wxCommandEvent &) {
+	if (!hasWallBrush_) {
+		SetStatusMessage("Select a wall brush before opening Used By.");
+		return;
+	}
+
+	const int64_t brushId = wallBrushStorage_.brush.id;
+	const wxString brushName = wallBrushStorage_.brush.name;
+
+	std::vector<BrushUsageRecord> usages;
+	wxString error;
+	if (!controller_.GetBrushUsages(brushId, brushName, usages, error)) {
+		wxMessageBox("Failed to load wall brush references:\n\n" + error, "Used By", wxOK | wxICON_ERROR, this);
+		return;
+	}
+
+	wxDialog dialog(this, wxID_ANY, "Used By: " + brushName, wxDefaultPosition, wxSize(FromDIP(620), FromDIP(420)), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
+	wxBoxSizer* root = new wxBoxSizer(wxVERTICAL);
+
+	wxPanel* panel = new wxPanel(&dialog, wxID_ANY);
+	wxBoxSizer* content = new wxBoxSizer(wxVERTICAL);
+
+	wxTextCtrl* searchCtrl = new wxTextCtrl(panel, wxID_ANY);
+	searchCtrl->SetHint("Search by owner, relation, or context...");
+
+	wxStaticText* summaryLabel = new wxStaticText(panel, wxID_ANY, "");
+	StyleWallWorkspaceSubtitle(summaryLabel);
+
+	wxListCtrl* list = new wxListCtrl(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_SIMPLE);
+	list->InsertColumn(0, "Kind", wxLIST_FORMAT_LEFT, FromDIP(90));
+	list->InsertColumn(1, "Name", wxLIST_FORMAT_LEFT, FromDIP(220));
+	list->InsertColumn(2, "Relation", wxLIST_FORMAT_LEFT, FromDIP(120));
+	list->InsertColumn(3, "Context", wxLIST_FORMAT_LEFT, FromDIP(140));
+
+	wxBoxSizer* actions = new wxBoxSizer(wxHORIZONTAL);
+	wxButton* openButton = new wxButton(panel, wxID_ANY, "Open");
+	wxButton* closeButton = new wxButton(panel, wxID_CANCEL, "Close");
+	StyleWallWorkspaceActionButton(openButton, "Open the selected owner in the Workbench.");
+	StyleWallWorkspaceActionButton(closeButton, "Close this dialog.");
+	actions->Add(openButton, 0, wxRIGHT, FromDIP(6));
+	actions->AddStretchSpacer(1);
+	actions->Add(closeButton, 0);
+
+	std::vector<size_t> filtered;
+
+	auto normalize = [](const wxString &value) {
+		wxString lowered = value;
+		lowered.MakeLower();
+		return lowered;
+	};
+	auto refresh = [&]() {
+		filtered.clear();
+		list->DeleteAllItems();
+
+		const wxString query = normalize(searchCtrl->GetValue().Trim(true).Trim(false));
+		for (size_t i = 0; i < usages.size(); ++i) {
+			const BrushUsageRecord &usage = usages[i];
+			wxString haystack = usage.sourceKind + " " + usage.sourceName + " " + usage.relation + " " + usage.context;
+			if (!query.IsEmpty() && normalize(haystack).Find(query) == wxNOT_FOUND) {
+				continue;
+			}
+
+			const long row = list->InsertItem(list->GetItemCount(), usage.sourceKind);
+			list->SetItem(row, 1, usage.sourceName);
+			list->SetItem(row, 2, usage.relation);
+			list->SetItem(row, 3, usage.context);
+			filtered.push_back(i);
+		}
+
+		summaryLabel->SetLabel(
+			wxString::Format(
+				"%zu reference%s found",
+				filtered.size(),
+				filtered.size() == 1 ? "" : "s"
+			)
+		);
+		panel->Layout();
+	};
+
+	auto openSelection = [&]() {
+		const long selectedRow = list->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+		if (selectedRow == wxNOT_FOUND || selectedRow < 0 || static_cast<size_t>(selectedRow) >= filtered.size()) {
+			return;
+		}
+		const BrushUsageRecord &usage = usages[filtered[static_cast<size_t>(selectedRow)]];
+		if (usage.sourceKind.IsSameAs("palette", false)) {
+			if (onOpenLinkedTileset_) {
+				onOpenLinkedTileset_(usage.sourceName);
+			}
+		} else if (usage.sourceKind.IsSameAs("brush", false)) {
+			if (onOpenLinkedBrush_) {
+				onOpenLinkedBrush_(usage.sourceId);
+			}
+		}
+	};
+
+	searchCtrl->Bind(wxEVT_TEXT, [&](wxCommandEvent &) { refresh(); });
+	openButton->Bind(wxEVT_BUTTON, [&](wxCommandEvent &) { openSelection(); });
+	list->Bind(wxEVT_LIST_ITEM_ACTIVATED, [&](wxListEvent &) { openSelection(); });
+
+	content->Add(searchCtrl, 0, wxEXPAND | wxALL, FromDIP(8));
+	content->Add(summaryLabel, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
+	content->Add(list, 1, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
+	content->Add(actions, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
+	panel->SetSizer(content);
+
+	root->Add(panel, 1, wxEXPAND);
+	dialog.SetSizer(root);
+
+	refresh();
+	dialog.ShowModal();
 }
 
 void MaterialsWorkbenchWallPanel::OnItemIdChanged(wxCommandEvent &event) {
