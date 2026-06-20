@@ -2812,7 +2812,10 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildLinksPage(wxNotebook* notebook) {
 
 		bool canOpenTarget = false;
 		if (hasSelection && onOpenLinkedBrush_ && selectedIndex >= 0 && selectedIndex < static_cast<int>(brushStorage_.links.size())) {
-			canOpenTarget = brushStorage_.links[selectedIndex].targetBrushId > 0;
+			const BrushLinkRecord &link = brushStorage_.links[selectedIndex];
+			canOpenTarget =
+				link.targetBrushId > 0 ||
+				(!link.targetBrushName.IsEmpty() && !link.targetBrushName.IsSameAs("all", false));
 		}
 		openLinkTargetButton_->Enable(canOpenTarget);
 
@@ -7030,11 +7033,19 @@ void MaterialsWorkbenchBrushPanel::OnOpenSelectedOutgoingLinkTarget(wxCommandEve
 		return;
 	}
 	const BrushLinkRecord &link = brushStorage_.links[linkIndex];
-	if (link.targetBrushId <= 0) {
+	int64_t targetBrushId = link.targetBrushId;
+	if (targetBrushId <= 0 && !link.targetBrushName.IsEmpty() && !link.targetBrushName.IsSameAs("all", false)) {
+		wxString resolveError;
+		if (!controller_.ResolveBrushIdByNameAndType(link.targetBrushName, "ground", targetBrushId, resolveError)) {
+			SetStatusMessage("Failed to resolve link target: " + resolveError);
+			return;
+		}
+	}
+	if (targetBrushId <= 0) {
 		SetStatusMessage("This link target has no brush id to open.");
 		return;
 	}
-	onOpenLinkedBrush_(link.targetBrushId);
+	onOpenLinkedBrush_(targetBrushId);
 }
 
 void MaterialsWorkbenchBrushPanel::OnCreateBrush(wxCommandEvent &) {

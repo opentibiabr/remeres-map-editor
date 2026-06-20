@@ -2268,7 +2268,7 @@ void MaterialsWorkbenchWallPanel::UpdateLinksActionButtons() {
 		onOpenLinkedBrush_ &&
 		selectedIndex >= 0 &&
 		selectedIndex < static_cast<int>(allRows.size()) &&
-		allRows[selectedIndex].targetBrushId > 0
+		(allRows[selectedIndex].targetBrushId > 0 || !allRows[selectedIndex].targetBrushName.IsEmpty())
 	);
 	removeLinkButton_->Enable(hasSelection);
 	if (!query.IsEmpty()) {
@@ -3215,9 +3215,17 @@ void MaterialsWorkbenchWallPanel::OnOpenSelectedLinkTarget(wxCommandEvent &) {
 	if (selectedIndex < 0 || selectedIndex >= static_cast<int>(rows.size())) {
 		return;
 	}
-	if (rows[selectedIndex].targetBrushId <= 0) {
+	int64_t targetBrushId = rows[selectedIndex].targetBrushId;
+	if (targetBrushId <= 0 && !rows[selectedIndex].targetBrushName.IsEmpty()) {
+		wxString resolveError;
+		if (!controller_.ResolveBrushIdByNameAndType(rows[selectedIndex].targetBrushName, "wall", targetBrushId, resolveError)) {
+			SetStatusMessage("Failed to resolve link target: " + resolveError);
+			return;
+		}
+	}
+	if (targetBrushId <= 0) {
 		SetStatusMessage("This link target has no brush id to open.");
 		return;
 	}
-	onOpenLinkedBrush_(rows[selectedIndex].targetBrushId);
+	onOpenLinkedBrush_(targetBrushId);
 }

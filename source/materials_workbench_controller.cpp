@@ -868,6 +868,22 @@ bool MaterialsWorkbenchController::LocateBrushNode(int64_t brushId, wxString &ou
 	return false;
 }
 
+bool MaterialsWorkbenchController::ResolveBrushIdByNameAndType(const wxString &name, const wxString &type, int64_t &outBrushId, wxString &error) const {
+	outBrushId = 0;
+	error.clear();
+	BrushRecord brush;
+	if (!repository_.FindBrushByNameAndType(name, type, brush, error)) {
+		outBrushId = 0;
+		return false;
+	}
+	outBrushId = brush.id;
+	if (outBrushId <= 0) {
+		error = "Brush id could not be resolved.";
+		return false;
+	}
+	return true;
+}
+
 bool MaterialsWorkbenchController::GetBrushUsages(int64_t brushId, const wxString &brushName, std::vector<BrushUsageRecord> &outUsages, wxString &error) const {
 	return repository_.LoadBrushUsages(brushId, brushName, outUsages, error);
 }
