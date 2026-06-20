@@ -439,7 +439,7 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 	brushPanel_->SetOnOpenLinkedTileset([this](const wxString &paletteName) {
 		int itemIndex = -1;
 		if (controller_.LocateTilesetNode(paletteName, itemIndex)) {
-			SelectNavigationNode(MaterialsWorkbenchNodeKind::Tileset, "", itemIndex);
+			SelectNavigationNode(MaterialsWorkbenchNodeKind::Tileset, "tilesets", itemIndex);
 		}
 	});
 	wallPanel_ = new MaterialsWorkbenchWallPanel(workspaceBook_, controller_);
@@ -461,7 +461,7 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 	wallPanel_->SetOnOpenLinkedTileset([this](const wxString &paletteName) {
 		int itemIndex = -1;
 		if (controller_.LocateTilesetNode(paletteName, itemIndex)) {
-			SelectNavigationNode(MaterialsWorkbenchNodeKind::Tileset, "", itemIndex);
+			SelectNavigationNode(MaterialsWorkbenchNodeKind::Tileset, "tilesets", itemIndex);
 		}
 	});
 	workspaceBook_->AddPage(overviewPanel, "Overview");
