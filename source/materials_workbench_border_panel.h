@@ -84,6 +84,7 @@ private:
 	void OnUsageContextChanged(wxGridEvent &event);
 	void OnUsageSearchChanged(wxCommandEvent &event);
 	void OnOpenLinkedBrush(wxCommandEvent &event);
+	void OnOpenOwnerBrush(wxCommandEvent &event);
 	void OnCreateBorder(wxCommandEvent &event);
 	void OnDeleteBorder(wxCommandEvent &event);
 	void OnAddUsageContext(wxCommandEvent &event);
@@ -143,6 +144,7 @@ private:
 	ItemButton* usagePreviewItem_ = nullptr;
 	wxStaticText* usageSelectionLabel_ = nullptr;
 	wxButton* openLinkedBrushButton_ = nullptr;
+	wxButton* openOwnerBrushButton_ = nullptr;
 	wxButton* addUsageContextButton_ = nullptr;
 	wxButton* editUsageContextButton_ = nullptr;
 	wxButton* editUsageCasesButton_ = nullptr;

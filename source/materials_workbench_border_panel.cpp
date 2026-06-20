@@ -2317,6 +2317,9 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	addInlineField("Center Tile", groundEquivalentCtrl_);
 	addInlineField("Owner Brush", ownerBrushCtrl_);
 	inlineDetailsBox->Add(inlineGrid, 1, wxEXPAND | wxALL, FromDIP(6));
+	openOwnerBrushButton_ = new wxButton(inlineDetailsParent, wxID_ANY, "Open Owner Brush");
+	StyleBorderWorkspaceActionButton(openOwnerBrushButton_, "Open the owner brush for this inline border set.");
+	inlineDetailsBox->Add(openOwnerBrushButton_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(6));
 	inlineDetailsPanel_->SetSizer(inlineDetailsBox);
 
 	globalDetailsPanel_ = new wxPanel(scrolled, wxID_ANY);
@@ -2583,6 +2586,7 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	usageSearchCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBorderPanel::OnUsageSearchChanged, this);
 	usageGrid_->Bind(wxEVT_GRID_SELECT_CELL, &MaterialsWorkbenchBorderPanel::OnUsageContextChanged, this);
 	openLinkedBrushButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnOpenLinkedBrush, this);
+	openOwnerBrushButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnOpenOwnerBrush, this);
 	addUsageContextButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnAddUsageContext, this);
 	editUsageContextButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnEditUsageContext, this);
 	editUsageCasesButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnEditUsageCases, this);
@@ -2886,6 +2890,9 @@ void MaterialsWorkbenchBorderPanel::UpdateUsageContextControls() {
 		if (openLinkedBrushButton_) {
 			openLinkedBrushButton_->Enable(false);
 		}
+		if (openOwnerBrushButton_) {
+			openOwnerBrushButton_->Enable(false);
+		}
 		if (addUsageContextButton_) {
 			addUsageContextButton_->Enable(false);
 		}
@@ -2902,6 +2909,7 @@ void MaterialsWorkbenchBorderPanel::UpdateUsageContextControls() {
 	}
 
 	const bool isGlobal = scopeChoice_->GetStringSelection() == "global";
+	const bool isInline = scopeChoice_->GetStringSelection() == "inline";
 	const BorderSetUsageRecord* usage = GetSelectedUsageContext();
 	if (usageSearchCtrl_) {
 		usageSearchCtrl_->Enable(isGlobal);
@@ -2911,6 +2919,9 @@ void MaterialsWorkbenchBorderPanel::UpdateUsageContextControls() {
 	}
 	if (openLinkedBrushButton_) {
 		openLinkedBrushButton_->Enable(isGlobal && usage && usage->brushId > 0);
+	}
+	if (openOwnerBrushButton_) {
+		openOwnerBrushButton_->Enable(isInline && borderSetStorage_.borderSet.ownerBrushId > 0);
 	}
 	if (addUsageContextButton_) {
 		addUsageContextButton_->Enable(isGlobal);
@@ -3722,6 +3733,27 @@ void MaterialsWorkbenchBorderPanel::OnOpenLinkedBrush(wxCommandEvent &event) {
 	}
 
 	onOpenLinkedBrush_(usage->brushId);
+}
+
+void MaterialsWorkbenchBorderPanel::OnOpenOwnerBrush(wxCommandEvent &) {
+	if (!hasBorderSet_) {
+		SetStatusMessage("Load a border set before opening the owner brush.");
+		return;
+	}
+	if (scopeChoice_ && scopeChoice_->GetStringSelection() != "inline") {
+		SetStatusMessage("Only inline borders have an owner brush to open.");
+		return;
+	}
+	const int64_t ownerBrushId = borderSetStorage_.borderSet.ownerBrushId;
+	if (ownerBrushId <= 0) {
+		SetStatusMessage("This inline border set is missing an owner brush.");
+		return;
+	}
+	if (!onOpenLinkedBrush_) {
+		SetStatusMessage("Brush navigation is unavailable in this workspace.");
+		return;
+	}
+	onOpenLinkedBrush_(ownerBrushId);
 }
 
 void MaterialsWorkbenchBorderPanel::OnCreateBorder(wxCommandEvent &event) {
