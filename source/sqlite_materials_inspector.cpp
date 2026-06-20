@@ -243,6 +243,7 @@ SQLiteMaterialsInspectorPanel::SQLiteMaterialsInspectorPanel(wxWindow* parent) :
 	wxArrayString brushTypes;
 	brushTypes.Add("ground");
 	brushTypes.Add("wall");
+	brushTypes.Add("wall decoration");
 	brushTypes.Add("doodad");
 	brushTypes.Add("carpet");
 	brushTypes.Add("table");

@@ -26,6 +26,8 @@ source/lua/FastNoiseLite.h
 *.suo
 *.obj
 *.db
+*.db-wal
+*.db-shm
 *.opendb
 *.vs
 

@@ -903,7 +903,7 @@ void MaterialsWorkbenchInspectorDialog::ReloadWarnings() {
 					}
 				}
 
-				if (storage.brush.type == "wall_brush" || storage.brush.type == "wall") {
+				if (storage.brush.type == "wall_brush" || storage.brush.type == "wall" || storage.brush.type == "wall decoration") {
 					if (storage.wallParts.empty()) {
 						WarningRow row;
 						row.severity = "Error";

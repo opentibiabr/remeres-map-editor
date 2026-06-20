@@ -638,7 +638,7 @@ namespace {
 		if (brushType == "doodad") {
 			return "doodad";
 		}
-		if (brushType == "carpet" || brushType == "table" || brushType == "wall") {
+		if (brushType == "carpet" || brushType == "table" || brushType == "wall" || brushType == "wall decoration") {
 			return "item";
 		}
 		return "other";

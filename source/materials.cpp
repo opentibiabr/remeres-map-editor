@@ -727,7 +727,17 @@ namespace {
 			WallPartDoorRecord door;
 			door.itemId = itemId;
 			door.doorType = wxString(childNode.attribute("type").as_string(), wxConvUTF8);
-			door.isOpen = childNode.attribute("open").as_bool();
+			pugi::xml_attribute openAttribute = childNode.attribute("open");
+			if (openAttribute) {
+				door.isOpen = openAttribute.as_bool();
+			} else {
+				wxString doorTypeLower = door.doorType;
+				doorTypeLower.MakeLower();
+				door.isOpen = doorTypeLower == "window" ||
+					doorTypeLower == "any window" ||
+					doorTypeLower == "hatch window" ||
+					doorTypeLower == "hatch_window";
+			}
 			door.wallHateMe = childNode.attribute("hate").as_bool();
 			door.sortOrder = sortOrder++;
 			outDoors.push_back(door);
@@ -905,13 +915,14 @@ namespace {
 	}
 
 	bool ParseWallBrushNode(const FileName &sourceFile, pugi::xml_node brushNode, BrushRecord &outBrush, std::vector<WallPartRecord> &outParts, std::vector<BrushLinkRecord> &outLinks, wxArrayString &warnings) {
-		if (wxString(brushNode.attribute("type").as_string(), wxConvUTF8) != "wall") {
+		const wxString brushType = wxString(brushNode.attribute("type").as_string(), wxConvUTF8);
+		if (brushType != "wall" && brushType != "wall decoration") {
 			return false;
 		}
 
 		outBrush = BrushRecord();
 		outBrush.name = wxString(brushNode.attribute("name").as_string(), wxConvUTF8);
-		outBrush.type = "wall";
+		outBrush.type = brushType;
 		outBrush.lookId = brushNode.attribute("lookid").as_int();
 		outBrush.serverLookId = brushNode.attribute("server_lookid").as_int();
 		outBrush.draggable = brushNode.attribute("draggable").as_bool();
@@ -1704,6 +1715,10 @@ bool Materials::migrateWallsToSQLite(wxString &error, wxArrayString &warnings) {
 	// every wall brush reachable from the shared brushs.xml include tree.
 	const FileName brushsRoot(GUI::GetDataDirectory() + "materials/brushs.xml");
 	if (!g_brush_database.deleteBrushesByType("wall")) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
+	if (!g_brush_database.deleteBrushesByType("wall decoration")) {
 		error = g_brush_database.getLastError();
 		return false;
 	}

@@ -408,11 +408,13 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 		});
 	});
 	borderPanel_->SetOnOpenLinkedBrush([this](int64_t brushId) {
-		wxString contextKey;
-		int itemIndex = -1;
-		if (controller_.LocateBrushNode(brushId, contextKey, itemIndex)) {
-			SelectNavigationNode(MaterialsWorkbenchNodeKind::Brush, contextKey, itemIndex);
-		}
+		CallAfter([this, brushId]() {
+			wxString contextKey;
+			int itemIndex = -1;
+			if (controller_.LocateBrushNode(brushId, contextKey, itemIndex)) {
+				SelectNavigationNode(MaterialsWorkbenchNodeKind::Brush, contextKey, itemIndex);
+			}
+		});
 	});
 	brushPanel_ = new MaterialsWorkbenchBrushPanel(workspaceBook_, controller_);
 	brushPanel_->SetOnBrushStateChanged([this]() {
@@ -430,17 +432,22 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 		});
 	});
 	brushPanel_->SetOnOpenLinkedBrush([this](int64_t brushId) {
-		wxString contextKey;
-		int itemIndex = -1;
-		if (controller_.LocateBrushNode(brushId, contextKey, itemIndex)) {
-			SelectNavigationNode(MaterialsWorkbenchNodeKind::Brush, contextKey, itemIndex);
-		}
+		CallAfter([this, brushId]() {
+			wxString contextKey;
+			int itemIndex = -1;
+			if (controller_.LocateBrushNode(brushId, contextKey, itemIndex)) {
+				SelectNavigationNode(MaterialsWorkbenchNodeKind::Brush, contextKey, itemIndex);
+			}
+		});
 	});
 	brushPanel_->SetOnOpenLinkedTileset([this](const wxString &paletteName) {
-		int itemIndex = -1;
-		if (controller_.LocateTilesetNode(paletteName, itemIndex)) {
-			SelectNavigationNode(MaterialsWorkbenchNodeKind::Tileset, "tilesets", itemIndex);
-		}
+		const wxString paletteNameCopy = paletteName;
+		CallAfter([this, paletteNameCopy]() {
+			int itemIndex = -1;
+			if (controller_.LocateTilesetNode(paletteNameCopy, itemIndex)) {
+				SelectNavigationNode(MaterialsWorkbenchNodeKind::Tileset, "tilesets", itemIndex);
+			}
+		});
 	});
 	wallPanel_ = new MaterialsWorkbenchWallPanel(workspaceBook_, controller_);
 	wallPanel_->SetOnWallBrushStateChanged([this]() {
@@ -452,17 +459,22 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 		});
 	});
 	wallPanel_->SetOnOpenLinkedBrush([this](int64_t brushId) {
-		wxString contextKey;
-		int itemIndex = -1;
-		if (controller_.LocateBrushNode(brushId, contextKey, itemIndex)) {
-			SelectNavigationNode(MaterialsWorkbenchNodeKind::Brush, contextKey, itemIndex);
-		}
+		CallAfter([this, brushId]() {
+			wxString contextKey;
+			int itemIndex = -1;
+			if (controller_.LocateBrushNode(brushId, contextKey, itemIndex)) {
+				SelectNavigationNode(MaterialsWorkbenchNodeKind::Brush, contextKey, itemIndex);
+			}
+		});
 	});
 	wallPanel_->SetOnOpenLinkedTileset([this](const wxString &paletteName) {
-		int itemIndex = -1;
-		if (controller_.LocateTilesetNode(paletteName, itemIndex)) {
-			SelectNavigationNode(MaterialsWorkbenchNodeKind::Tileset, "tilesets", itemIndex);
-		}
+		const wxString paletteNameCopy = paletteName;
+		CallAfter([this, paletteNameCopy]() {
+			int itemIndex = -1;
+			if (controller_.LocateTilesetNode(paletteNameCopy, itemIndex)) {
+				SelectNavigationNode(MaterialsWorkbenchNodeKind::Tileset, "tilesets", itemIndex);
+			}
+		});
 	});
 	workspaceBook_->AddPage(overviewPanel, "Overview");
 	workspaceBook_->AddPage(palettePanel_, "Palette");

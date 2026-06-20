@@ -3218,7 +3218,13 @@ void MaterialsWorkbenchWallPanel::OnOpenSelectedLinkTarget(wxCommandEvent &) {
 	int64_t targetBrushId = rows[selectedIndex].targetBrushId;
 	if (targetBrushId <= 0 && !rows[selectedIndex].targetBrushName.IsEmpty()) {
 		wxString resolveError;
-		if (!controller_.ResolveBrushIdByNameAndType(rows[selectedIndex].targetBrushName, "wall", targetBrushId, resolveError)) {
+		wxString brushType = wallBrushStorage_.brush.type;
+		brushType.Trim(true);
+		brushType.Trim(false);
+		if (brushType.IsEmpty()) {
+			brushType = "wall";
+		}
+		if (!controller_.ResolveBrushIdByNameAndType(rows[selectedIndex].targetBrushName, brushType, targetBrushId, resolveError)) {
 			SetStatusMessage("Failed to resolve link target: " + resolveError);
 			return;
 		}

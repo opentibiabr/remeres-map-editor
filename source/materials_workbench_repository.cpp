@@ -2,6 +2,8 @@
 
 #include "materials_workbench_repository.h"
 
+#include <algorithm>
+
 namespace {
 	bool LoadBrushGroup(const wxString &label, const wxString &brushType, MaterialsWorkbenchBrushGroup &outGroup, wxString &error) {
 		outGroup = MaterialsWorkbenchBrushGroup();
@@ -58,6 +60,21 @@ bool MaterialsWorkbenchRepository::LoadCatalog(MaterialsWorkbenchCatalogSnapshot
 	if (!g_brush_database.listBrushesByType("wall", outCatalog.wallBrushes)) {
 		error = g_brush_database.getLastError();
 		return false;
+	}
+	std::vector<BrushRecord> wallDecorations;
+	if (!g_brush_database.listBrushesByType("wall decoration", wallDecorations)) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
+	if (!wallDecorations.empty()) {
+		outCatalog.wallBrushes.insert(outCatalog.wallBrushes.end(), wallDecorations.begin(), wallDecorations.end());
+		std::sort(outCatalog.wallBrushes.begin(), outCatalog.wallBrushes.end(), [](const BrushRecord &a, const BrushRecord &b) {
+			const int nameCompare = a.name.CmpNoCase(b.name);
+			if (nameCompare != 0) {
+				return nameCompare < 0;
+			}
+			return a.id < b.id;
+		});
 	}
 	if (!g_brush_database.listBorderSetsByScope("global", outCatalog.globalBorderSets)) {
 		error = g_brush_database.getLastError();

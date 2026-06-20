@@ -303,7 +303,7 @@ namespace {
 			return;
 		}
 
-		if (brush.type == "wall") {
+		if (brush.type == "wall" || brush.type == "wall decoration") {
 			if (brush.draggable) {
 				AppendBoolAttribute(brushNode, "draggable", true);
 			}
@@ -635,7 +635,7 @@ bool Brushes::loadFromDatabase(wxArrayString &warnings) {
 	}
 
 	std::vector<BrushStorageRecord> storages;
-	static const wxString supportedTypes[] = { "ground", "wall", "doodad", "carpet", "table" };
+	static const wxString supportedTypes[] = { "ground", "wall", "wall decoration", "doodad", "carpet", "table" };
 	for (const wxString &type : supportedTypes) {
 		if (!LoadBrushStoragesForType(type, storages, error)) {
 			if (!error.IsEmpty()) {

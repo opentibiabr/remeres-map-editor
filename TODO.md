@@ -12,13 +12,15 @@
   - [x] Ensure runtime never loads materials from XML when `materials.db` is present and healthy
   - [x] Make XML fallback explicit (only when DB is missing/corrupt/incompatible), with clear user-facing messaging
   - [x] Fix startup hang when both `materials.db` and legacy XML files are missing (always close load dialog on failure)
-- [ ] Stage B: bootstrap-once + migrations
+- [x] Stage B: bootstrap-once + migrations
   - [x] First run: create/upgrade `materials.db` schema then import legacy XML once
   - [x] Persist a “bootstrap completed” marker/version so XML is never re-imported silently
   - [x] Schema migrations must not require re-reading XML
 - [ ] Stage C: parity audit (no data gaps)
   - [ ] Audit every runtime/editor field for XML-only behavior or defaults; move remaining gaps into DB load/save
   - [ ] Add validations for any newly surfaced invariants
+  - [x] Preserve wall door default `open=true` semantics when migrating XML → SQLite (when `open` is omitted on window doors)
+  - [x] Support `wall decoration` brushes end-to-end (XML import, DB load, runtime XML rebuild, Workbench wall catalog)
   - [x] Preserve wall brush metadata flags when rebuilding runtime XML from SQLite
   - [x] Prevent ground border inlining crashes by deriving ground_equivalent when needed
   - [x] Fix inline border set creation to link owner brush by materials.db id
@@ -63,6 +65,7 @@
   - [ ] Finish product-language/workflow refinements (empty states, confirmations, consistent labels)
   - [ ] Final edge-case pass for import/export, validations, and crash/freeze hardening
     - [x] Prevent navigation tree selection crashes during rebuilds (freeze/disable + guard event handlers)
+    - [x] Defer workbench navigation jumps (CallAfter) to avoid re-entrancy during click handlers
 
 ## Next
 - [x] Border Workspace visual pass: align `Preview Matrix` to the same geometry as `Slot Grid`
