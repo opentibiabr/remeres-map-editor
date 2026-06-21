@@ -56,7 +56,7 @@ namespace {
 	class WallWorkspaceToggleButton : public ItemToggleButton {
 	public:
 		WallWorkspaceToggleButton(wxWindow* parent, int itemId) :
-			ItemToggleButton(parent, RENDER_SIZE_64x64, itemId) {
+			ItemToggleButton(parent, RENDER_SIZE_32x32, itemId) {
 		}
 	};
 
@@ -2070,6 +2070,8 @@ void MaterialsWorkbenchWallPanel::RefreshItemGrid() {
 		const WallPartItemRecord &item = part->items[i];
 		wxPanel* cell = new wxPanel(itemGridScroll_, wxID_ANY);
 		wxBoxSizer* cellSizer = new wxBoxSizer(wxVERTICAL);
+		const int cellWidth = FromDIP(84);
+		cell->SetMinSize(wxSize(cellWidth, -1));
 		auto* button = new WallWorkspaceToggleButton(cell, item.itemId);
 		button->SetValue(static_cast<int>(i) == selectedItemIndex_);
 		button->Bind(wxEVT_LEFT_DOWN, [this, index = static_cast<int>(i)](wxMouseEvent &event) {
@@ -2079,10 +2081,12 @@ void MaterialsWorkbenchWallPanel::RefreshItemGrid() {
 				SyncSelectedItemEditor();
 			});
 		});
-		cellSizer->Add(button, 0, wxALIGN_CENTER | wxBOTTOM, FromDIP(4));
-		cellSizer->Add(new wxStaticText(cell, wxID_ANY, wxString::Format(wxT("id %d \u2022 chance %d"), item.itemId, item.chance)), 0, wxALIGN_CENTER);
+		cellSizer->Add(button, 0, wxALIGN_CENTER | wxBOTTOM, FromDIP(2));
+		wxStaticText* label = new wxStaticText(cell, wxID_ANY, wxString::Format("id %d\nchance %d", item.itemId, item.chance), wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER_HORIZONTAL);
+		label->Wrap(cellWidth);
+		cellSizer->Add(label, 0, wxALIGN_CENTER);
 		cell->SetSizer(cellSizer);
-		itemGridSizer_->Add(cell, 0, wxALL, FromDIP(4));
+		itemGridSizer_->Add(cell, 0, wxALL, FromDIP(2));
 		itemButtons_.push_back(button);
 	}
 
@@ -2111,6 +2115,8 @@ void MaterialsWorkbenchWallPanel::RefreshDoorGrid() {
 		const WallPartDoorRecord &door = part->doors[i];
 		wxPanel* cell = new wxPanel(doorGridScroll_, wxID_ANY);
 		wxBoxSizer* cellSizer = new wxBoxSizer(wxVERTICAL);
+		const int cellWidth = FromDIP(96);
+		cell->SetMinSize(wxSize(cellWidth, -1));
 		auto* button = new WallWorkspaceToggleButton(cell, door.itemId);
 		button->SetValue(static_cast<int>(i) == selectedDoorIndex_);
 		button->Bind(wxEVT_LEFT_DOWN, [this, index = static_cast<int>(i)](wxMouseEvent &event) {
@@ -2120,11 +2126,19 @@ void MaterialsWorkbenchWallPanel::RefreshDoorGrid() {
 				SyncSelectedDoorEditor();
 			});
 		});
-		cellSizer->Add(button, 0, wxALIGN_CENTER | wxBOTTOM, FromDIP(4));
-		cellSizer->Add(new wxStaticText(cell, wxID_ANY, wxString::Format(wxT("id %d \u2022 %s"), door.itemId, door.doorType)), 0, wxALIGN_CENTER);
-		cellSizer->Add(new wxStaticText(cell, wxID_ANY, door.isOpen ? "open" : "closed"), 0, wxALIGN_CENTER);
+		cellSizer->Add(button, 0, wxALIGN_CENTER | wxBOTTOM, FromDIP(2));
+		wxStaticText* label = new wxStaticText(
+			cell,
+			wxID_ANY,
+			wxString::Format("id %d\n%s %s", door.itemId, door.doorType, door.isOpen ? "open" : "closed"),
+			wxDefaultPosition,
+			wxDefaultSize,
+			wxALIGN_CENTER_HORIZONTAL
+		);
+		label->Wrap(cellWidth);
+		cellSizer->Add(label, 0, wxALIGN_CENTER);
 		cell->SetSizer(cellSizer);
-		doorGridSizer_->Add(cell, 0, wxALL, FromDIP(4));
+		doorGridSizer_->Add(cell, 0, wxALL, FromDIP(2));
 		doorButtons_.push_back(button);
 	}
 
