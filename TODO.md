@@ -47,6 +47,7 @@
 - [ ] Stage D: recovery tooling
   - [x] Add explicit “rebuild/reset DB from XML” tooling (manual action), with strong warnings
   - [ ] Add integrity checks and a safe recovery path when DB is corrupted or partially missing
+    - [x] Run SQLite quick_check on startup (when materials.db already exists) to detect corruption early and guide recovery
     - [x] Allow Reset-from-XML even when SQLite cannot open (corrupt materials.db recovery)
     - [x] Startup recovery dialog: offer Open Inspector / Reset from XML when SQLite falls back to XML with an existing DB
     - [x] Classify startup SQLite failures (notadb/corrupt/locked/read-only/schema mismatch) and show a recommended recovery path (+ SQLite rc/ext codes)

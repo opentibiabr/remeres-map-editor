@@ -867,6 +867,10 @@ bool BrushDatabase::testDatabaseConnection() {
 	return session_.testDatabaseConnection();
 }
 
+bool BrushDatabase::quickCheck(int maxErrors) {
+	return session_.quickCheck(maxErrors);
+}
+
 bool BrushDatabase::upsertBrush(const BrushRecord &brush, int64_t &brushId) {
 	return brushRepository_.upsertBrush(brush, brushId);
 }
@@ -1866,6 +1870,48 @@ bool BrushDatabaseSession::testDatabaseConnection() {
 	}
 
 	return true;
+}
+
+bool BrushDatabaseSession::quickCheck(int maxErrors) {
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+	if (maxErrors <= 0) {
+		maxErrors = 1;
+	}
+
+	sqlite3_stmt* stmt = nullptr;
+	const wxString sql = wxString::Format("PRAGMA quick_check(%d);", maxErrors);
+	if (!prepare(sql.utf8_str(), &stmt)) {
+		return false;
+	}
+
+	wxString firstIssue;
+	for (;;) {
+		const int rc = sqlite3_step(stmt);
+		if (rc == SQLITE_DONE) {
+			break;
+		}
+		if (rc != SQLITE_ROW) {
+			sqlite3_finalize(stmt);
+			return setErrorFromDatabase("SQLite quick_check failed");
+		}
+
+		const wxString value = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)));
+		if (value == "ok") {
+			sqlite3_finalize(stmt);
+			return true;
+		}
+		if (firstIssue.IsEmpty()) {
+			firstIssue = value;
+		}
+	}
+
+	sqlite3_finalize(stmt);
+	if (firstIssue.IsEmpty()) {
+		return setError("SQLite quick_check returned no result.");
+	}
+	return setError("SQLite quick_check failed: " + firstIssue);
 }
 
 bool BrushDatabaseBrushRepository::testBasicCRUD() {

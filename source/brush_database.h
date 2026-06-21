@@ -306,6 +306,7 @@ public:
 	sqlite3* connection() const;
 
 	bool testDatabaseConnection();
+	bool quickCheck(int maxErrors = 1);
 	bool execute(const wxString &sql);
 	bool prepare(const char* sql, sqlite3_stmt** stmt);
 	bool beginTransaction();
@@ -489,6 +490,7 @@ public:
 	int getLastSqliteErrorCode() const;
 	int getLastSqliteExtendedErrorCode() const;
 	bool testDatabaseConnection();
+	bool quickCheck(int maxErrors = 1);
 
 	bool upsertBrush(const BrushRecord &brush, int64_t &brushId);
 	bool getBrushById(int64_t brushId, BrushRecord &outBrush);

@@ -88,6 +88,11 @@ namespace {
 			result.recommendation = "Reset DB from XML to rebuild a clean database, or restore a known-good materials.db from backup.";
 			return result;
 		}
+		if (lower.Contains("integrity check failed") || lower.Contains("quick_check failed") || lower.Contains("integrity_check failed")) {
+			result.category = "Corrupted SQLite database";
+			result.recommendation = "Reset DB from XML to rebuild a clean database, or restore a known-good materials.db from backup.";
+			return result;
+		}
 		if (sqliteRc == SQLITE_READONLY || sqliteExtRc == SQLITE_READONLY) {
 			result.category = "Database is read-only";
 			result.recommendation = "Fix file permissions and ensure materials/materials.db is writable, then restart. If needed, Reset DB from XML.";
@@ -440,6 +445,11 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 	bool shouldLoadFromSqlite = false;
 	wxString sqliteFallbackReason;
 	if (sqliteEnabled && sqliteInitOk) {
+		if (sqliteDatabaseExistedBeforeInit && g_brush_database.isOpen() && !g_brush_database.quickCheck()) {
+			sqliteFallbackReason = "SQLite integrity check failed: " + g_brush_database.getLastError();
+			warnings.push_back(sqliteFallbackReason);
+			spdlog::warn("[GUI::LoadDataFiles] {}", sqliteFallbackReason.ToStdString());
+		} else {
 		bool skipSqliteImport = false;
 		wxString sqliteImportStatus;
 		if (!g_materials.shouldSkipSqliteBootstrapImports(skipSqliteImport, sqliteImportStatus)) {
@@ -468,6 +478,7 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 				);
 			}
 			shouldLoadFromSqlite = false;
+		}
 		}
 	} else if (sqliteEnabled && !sqliteInitOk) {
 		const wxString rawError = g_brush_database.getLastError();
