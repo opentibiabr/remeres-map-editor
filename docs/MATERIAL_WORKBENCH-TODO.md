@@ -1,12 +1,14 @@
 # TODO - Materials Workbench
-
+ 
+Note: this file was moved from the repository root (`TODO.md`) into `docs/` to keep the project root clean.
+ 
 ## Current State
 - [x] `materials.db` is the editing source of truth
 - [x] `palette_groups` drive top-level organization in Workbench and runtime
 - [x] `Palettes` edit composition, while `Brushes` edit behavior and metadata
 - [x] `Borders` and `Walls` already have dedicated workspaces with save/revert and targeted runtime sync
 - [x] Stage 10D core palette flow is in place: add, move, remove, reorder, custom groups, preserved selection/scroll, better tree UX, overview manuals, and contextual tooltips
-
+ 
 ## Finalization Stages (target: no XML dependency)
 - [x] Stage A: runtime DB-first hard
   - [x] Ensure runtime never loads materials from XML when `materials.db` is present and healthy
@@ -81,19 +83,23 @@
     - [x] Import compatibility: treat `kind="wall"` as an alias of `kind="brush"` (including import preview/validation)
     - [x] Audit: include actionable samples for unresolved tileset entries (palette group + palette + section + brush)
     - [x] Inspector (Health): surface unresolved tileset entries with per-palette samples + go-to
-
+ 
 ## Next
 - [x] Border Workspace visual pass: align `Preview Matrix` to the same geometry as `Slot Grid`
 - [x] Border Workspace visual pass: show a real visual `Center Ground` using `groundEquivalent`
 - [x] Border Workspace visual pass: upgrade the preview from loose icons to a stronger composed border preview
-
+ 
 ## Visual Polish
 - [x] Add visual metadata previews for `lookId` and `serverLookId` in the Brush Workspace
 - [x] Add richer visual previews inside `variations`, including per-item thumbnails and domain-specific preview feedback
 - [x] Border Workspace: make `Specific Cases` (ground border `<specific>`) editor more visual (tables + inline sprite icons + picker + selection previews)
 - [x] Wall Workspace: move part type selector into Preview controls and add door auto-prefer side controls (N/S or E/W)
 - [x] Wall Workspace: extend Preview with an extra ends view (horizontal + vertical ends side-by-side)
-- [ ] Brush Workspace `Carpet` future polish: only revisit with higher-level authoring affordances or richer composed previews if real usage still shows the new map-first flow feels too list-like
+- [ ] Brush Workspace `Carpet` future polish (optional; revisit only if usage still feels too list-like)
+  - Examples: direct map-slot authoring (click-to-place, drag/drop) instead of list-driven flows
+  - Examples: higher-level helpers (mirror/rotate) to generate symmetric slot sets quickly
+  - Examples: stronger diagnostics/feedback for incomplete or misleading seamless sets
+  - Constraint: only do this if it improves authoring speed without bringing back layout bloat or perf regressions
 - [x] Continue the `Aligned` visual editor pass with mini-scene previews and a stronger semantic layout for `table`
 - [x] Continue the `Doodad` editor rebuild from the new scene-preview base: move from read-first preview to direct grid authoring on top of the existing composite fields
 - [x] Improve Border Workspace presentation with stronger contrast, clearer slot-to-preview correspondence, a compact authoring panel, inline/global-specific fields, scope-aware metadata naming (including `Global Border ID` / `Autoborder Group`), a centered compact slot grid, a richer searchable `Used By` context panel with a real `wxGrid` table for global borders, and first-pass CRUD for border sets / global contexts
@@ -103,14 +109,17 @@
 - [x] Wall Workspace density pass: tighten preview controls and reduce unused vertical space in grids
 - [x] Workbench wxWidgets cleanup: fix `wxStaticBoxSizer` parenting warnings by creating static-box children under `GetStaticBox()`
 - [x] Continue reducing spacing and padding across workspaces where the layout still feels too loose
-- [ ] Continue small product-language and workflow refinements across Workbench texts and actions
+- [x] Continue small product-language and workflow refinements across Workbench texts and actions
+  - Scope: consistent naming/verbs, actionable errors, and empty-state copy
+  - Avoid exposing internal terms (e.g. “storage”, “contextKey”, “entity”) in user-facing UI
+  - Prefer consistent patterns: `Open Target`, `Go to`, `Save/Revert`, `Pick/Apply/Remove`
   - [x] Palette Workspace: move palette category actions into the footer action bar
   - [x] Palette Workspace: tighten entry action buttons, show Source Catalog entries for all kinds (including Raw), and add catalog filters + double-click-to-add
   - [x] Brush Workspace (Carpet): layout map supports diagonal slots (`dnw/dne/dsw/dse`) with corrected labels, centered slot sprites, cleaner slot chrome (badge placement, no redundant missing text, hidden Context Details), and seamless preview rules for diagonals + sparse sets (diag+only E/W or diag+only N/S collapse without showing center, and missing opposite-edge pairs no longer leave a gap)
   - [x] Brush Workspace (Aligned): show a compact `Details` toggle (tooltip explains why) when a brush contains legacy/duplicate aligned slots; keep it hidden otherwise
   - [x] Brush Workspace (Table): hide outdated helper copy under `Table States` and keep `Add Node`/`Remove`/`Details` as a compact single action row
 - [x] Standardize technical labels such as `lookId`, `serverLookId`, `zOrder`, and `partType`
-
+ 
 ## Future UX
 - [x] Add search and filtering in the navigation tree: the sidebar now exposes a catalog filter above the tree, keeps matching parent groups visible, auto-expands filtered branches, preserves and restores pre-filter navigation state when clearing the query, and shows an explicit empty-result row when nothing matches
 - [ ] Add safer creation and removal flows for core entities directly inside the Workbench
@@ -160,12 +169,12 @@
 - [ ] Add `Doodad` reordering helpers for `alternatives`, `composites`, tiles, and tile layers if later authoring passes show they would speed up editing
 - [ ] Add richer `Doodad` list visuals such as tiny sprite previews or layer thumbnails only if they improve scanability without bringing back layout bloat
 - [ ] Add optional `Doodad` keyboard shortcuts and higher-level context menus as a future polish pass, not as a requirement for the current editor milestone
-
+ 
 ## Nice To Have
 - [x] Add a real composed preview for `wall brush`, beyond the current parts grid
 - [ ] Add manual runtime sync controls only if a future workflow really needs them
 - [ ] Revisit XML deprecation messaging once the visual Workbench flow feels complete and clearly superior
-
+ 
 ## Legacy Parity Gaps
 - [x] Tilesets: support legacy `<raw>` sections in the DB-first import + editor flow (so raw-only tilesets are not silently ignored)
 - [x] Ground borders: add an editor for legacy `<specific>` cases (conditions/actions) stored under ground border contexts
@@ -176,7 +185,7 @@
 - [x] Doodad: support legacy `remove_optional_border` behavior in DB-first (storage + editor UX), keeping runtime behavior consistent with the XML loader
 - [x] Wall Workspace: fix crash when selecting a link row (defer refresh + guard against re-entrant list refresh)
 - [x] Wall Workspace: fix link list freeze by preventing selection-change refresh loops (suppress selection events during rebuild; selection only updates action buttons)
-
+ 
 ## Delivered Milestones
 - [x] Stage 8: `variations` support landed inside the Brush Workspace
 - [x] Stage 9: dirty state, validations, save/revert flow, loss prevention, and origin metadata review are complete
@@ -185,7 +194,7 @@
 - [x] Stage 10E: palette saves refresh runtime palettes and navigation state together so Workbench and runtime stay aligned
 - [x] Stage 10F base: first import bootstraps the base palette groups from legacy XML into `materials.db`
 - [x] Stage 10G: palette grouping is DB-first and shared by Workbench and runtime, including custom groups
-
+ 
 ## Delivered Highlights
 - [x] Startup SQLite bootstrap bugfix: when `materials.db` is newly recreated but still missing imported data for the current schema, opening an already populated map now skips the premature runtime SQLite load, falls back to XML without false warnings, and schedules the background rebuild normally
 - [x] Brush Workspace: metadata, `variations`, dirty state, save/revert, runtime-owner hints, and validation for `lookId`, `serverLookId`, and variation item ids
@@ -224,7 +233,7 @@
 - [x] Navigation and UX: slimmer sidebar, click-on-label expand/collapse, contextual overview manuals, clearer `Palette Categories` terminology, and rich tooltips in tree and palette grids
 - [x] Workspace density pass: the bottom action/status strip is now noticeably slimmer across `Brush`, `Border`, `Wall`, and `Palette` workspaces, including a single-row footer for status plus save/revert in the main editors so feedback consumes much less vertical space
 - [x] Runtime alignment: Workbench and runtime now share DB-first palette groups, including custom groups, with targeted sync paths instead of unsafe full reloads
-
+ 
 ## Guardrails
 - [x] Keep `section` as backend/runtime compatibility storage, not as a first-class UX concept
 - [x] Keep palette saves on targeted sync paths; do not reintroduce unsafe full runtime reload on save
