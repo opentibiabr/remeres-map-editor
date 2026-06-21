@@ -3342,6 +3342,61 @@ bool BrushDatabaseBrushRepository::listBrushUsages(int64_t brushId, const wxStri
 
 	sqlite3_finalize(borderTargetStmt);
 
+	sqlite3_stmt* borderUsageStmt = nullptr;
+	if (!prepare(
+			"SELECT bs.id, COALESCE(bs.xml_border_id, 0), bs.border_scope, bs.border_type, bs.border_group, "
+			"gbb.border_role, gbb.align, gbb.target_mode, gbb.sort_order, gbb.id "
+			"FROM ground_brush_borders gbb "
+			"JOIN border_sets bs ON bs.id = gbb.border_set_id "
+			"WHERE gbb.brush_id = ? "
+			"ORDER BY bs.border_scope COLLATE NOCASE ASC, COALESCE(bs.xml_border_id, 0) ASC, bs.id ASC, gbb.sort_order ASC, gbb.id ASC;",
+			&borderUsageStmt)) {
+		return false;
+	}
+
+	sqlite3_bind_int64(borderUsageStmt, 1, brushId);
+
+	for (;;) {
+		const int rc = sqlite3_step(borderUsageStmt);
+		if (rc == SQLITE_DONE) {
+			break;
+		}
+		if (rc != SQLITE_ROW) {
+			sqlite3_finalize(borderUsageStmt);
+			return setErrorFromDatabase("Failed to list brush border set usages");
+		}
+
+		const int64_t borderSetId = sqlite3_column_int64(borderUsageStmt, 0);
+		const int xmlBorderId = sqlite3_column_int(borderUsageStmt, 1);
+		const wxString borderScope = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderUsageStmt, 2)));
+		const wxString borderType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderUsageStmt, 3)));
+		const int borderGroup = sqlite3_column_int(borderUsageStmt, 4);
+
+		BrushUsageRecord usage;
+		usage.sourceKind = "border_set";
+		usage.sourceId = borderSetId;
+		if (xmlBorderId > 0) {
+			usage.sourceName = wxString::Format("Global border %d", xmlBorderId);
+		} else {
+			usage.sourceName = wxString::Format("Border set %lld", static_cast<long long>(borderSetId));
+		}
+		usage.relation = "uses border";
+		usage.context = wxString::Format(
+			"scope=%s type=%s group=%d %s %s %s",
+			borderScope,
+			borderType,
+			borderGroup,
+			ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderUsageStmt, 5))),
+			ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderUsageStmt, 6))),
+			ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderUsageStmt, 7)))
+		).Trim(true).Trim(false);
+		usage.sortOrder = sqlite3_column_int(borderUsageStmt, 8);
+		usage.refId = sqlite3_column_int64(borderUsageStmt, 9);
+		outUsages.push_back(std::move(usage));
+	}
+
+	sqlite3_finalize(borderUsageStmt);
+
 	sqlite3_stmt* ownedBorderSetStmt = nullptr;
 	if (!prepare(
 			"SELECT bs.id, bs.border_scope, bs.border_type, bs.border_group, COALESCE(bs.xml_border_id, 0) "

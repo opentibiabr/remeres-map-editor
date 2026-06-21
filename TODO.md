@@ -68,6 +68,7 @@
     - [x] Go-to palette targets selects the correct tree node (tilesets context key)
   - [ ] Add deeper cross-reference helpers and stable deep links where needed
     - [x] Used By: allow opening owned inline border sets (brush/wall Used By)
+    - [x] Used By: show global border set usages from ground brush borders (and allow opening them)
 - [ ] Stage F: links parity
   - [x] Expand `Links` to cover remaining legacy link types (e.g. `redirect`) with safe validation + clear UX
 - [ ] Stage G: polish + hardening
