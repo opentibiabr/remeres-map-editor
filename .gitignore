@@ -17,6 +17,14 @@ data/user
 world
 source/lua/FastNoiseLite.h
 
+# SQLite runtime files
+*.db-shm
+*.db-wal
+*.db-journal
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite-journal
+
 # Visual Studio
 *.MAP
 *.user
