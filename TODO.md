@@ -22,6 +22,7 @@
   - [x] Preserve wall door default `open=true` semantics when migrating XML → SQLite (when `open` is omitted on window doors)
   - [x] Support `wall decoration` brushes end-to-end (XML import, DB load, runtime XML rebuild, Workbench wall catalog)
   - [x] Add hard validations for wall part items/doors (non-empty type, supported doorType, non-negative sortOrder)
+  - [x] Audit: detect unsupported brush types (so runtime-ready blocks when DB contains types the runtime cannot load)
   - [x] Preserve wall brush metadata flags when rebuilding runtime XML from SQLite
   - [x] Prevent ground border inlining crashes by deriving ground_equivalent when needed
   - [x] Fix inline border set creation to link owner brush by materials.db id

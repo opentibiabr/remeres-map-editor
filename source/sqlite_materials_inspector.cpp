@@ -38,13 +38,14 @@ namespace {
 			&& HasBrushType(report, "carpet")
 			&& HasBrushType(report, "table");
 		const bool hasCatalogBasics = report.borderSetCount > 0 && report.tilesetCount > 0;
+	const bool hasNoUnsupportedBrushTypes = report.unsupportedBrushTypeCount == 0;
 		const bool hasNoUnresolvedRefs = report.unresolvedGroundTargets == 0
 			&& report.unresolvedBrushLinks == 0
 			&& report.unresolvedTilesetEntries == 0
 			&& report.unresolvedCaseMatchBorderIds == 0
 			&& report.unresolvedCaseReplaceBorderTargetIds == 0;
 
-		const bool readyByAudit = hasRequiredBrushTypes && hasCatalogBasics && hasNoUnresolvedRefs;
+	const bool readyByAudit = hasRequiredBrushTypes && hasCatalogBasics && hasNoUnsupportedBrushTypes && hasNoUnresolvedRefs;
 		const bool markerComplete = status && status->completed;
 		if (readyByAudit) {
 			if (markerComplete) {
@@ -61,6 +62,8 @@ namespace {
 			reason = "Missing required brush types (expected ground, wall, doodad, carpet, table).";
 		} else if (!hasCatalogBasics) {
 			reason = "Missing border sets or tilesets.";
+	} else if (!hasNoUnsupportedBrushTypes) {
+		reason = wxString::Format("Database contains unsupported brush types (%d).", report.unsupportedBrushTypeCount);
 		} else if (!hasNoUnresolvedRefs) {
 			reason = wxString::Format(
 				"Database contains unresolved references (ground targets=%d, brush links=%d, tileset entries=%d, match_border ids=%d, replace_border target ids=%d).",
@@ -109,6 +112,7 @@ namespace {
 		text << "Tilesets: " << report.tilesetCount << "\n";
 		text << "Tileset sections: " << report.tilesetSectionCount << "\n";
 		text << "Tileset entries: " << report.tilesetEntryCount << "\n\n";
+	text << "Unsupported brush types: " << report.unsupportedBrushTypeCount << "\n\n";
 		text << "Unresolved ground targets: " << report.unresolvedGroundTargets << "\n";
 		text << "Unresolved brush links: " << report.unresolvedBrushLinks << "\n";
 		text << "Unresolved tileset entries: " << report.unresolvedTilesetEntries << "\n\n";

@@ -4632,6 +4632,7 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 				 "(SELECT COUNT(*) FROM tilesets), "
 				 "(SELECT COUNT(*) FROM tileset_sections), "
 				 "(SELECT COUNT(*) FROM tileset_brush_entries), "
+				 "(SELECT COUNT(*) FROM brushes WHERE type NOT IN ('ground', 'wall', 'wall decoration', 'doodad', 'carpet', 'table')), "
 				 "(SELECT COUNT(*) FROM ground_brush_borders WHERE target_mode = 'brush' AND target_brush_name <> '' AND target_brush_id IS NULL), "
 				 "(SELECT COUNT(*) FROM brush_links bl "
 				 "JOIN brushes src ON src.id = bl.brush_id "
@@ -4669,13 +4670,14 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 	outReport.tilesetCount = sqlite3_column_int(countStmt, 2);
 	outReport.tilesetSectionCount = sqlite3_column_int(countStmt, 3);
 	outReport.tilesetEntryCount = sqlite3_column_int(countStmt, 4);
-	outReport.unresolvedGroundTargets = sqlite3_column_int(countStmt, 5);
-	outReport.unresolvedBrushLinks = sqlite3_column_int(countStmt, 6);
-	outReport.unresolvedTilesetEntries = sqlite3_column_int(countStmt, 7);
-	outReport.unresolvedCaseMatchBorderIds = sqlite3_column_int(countStmt, 8);
-	outReport.unresolvedCaseReplaceBorderTargetIds = sqlite3_column_int(countStmt, 9);
-	outReport.caseMatchBorderEdgesWithoutItem = sqlite3_column_int(countStmt, 10);
-	outReport.caseReplaceBorderEdgesWithoutItem = sqlite3_column_int(countStmt, 11);
+	outReport.unsupportedBrushTypeCount = sqlite3_column_int(countStmt, 5);
+	outReport.unresolvedGroundTargets = sqlite3_column_int(countStmt, 6);
+	outReport.unresolvedBrushLinks = sqlite3_column_int(countStmt, 7);
+	outReport.unresolvedTilesetEntries = sqlite3_column_int(countStmt, 8);
+	outReport.unresolvedCaseMatchBorderIds = sqlite3_column_int(countStmt, 9);
+	outReport.unresolvedCaseReplaceBorderTargetIds = sqlite3_column_int(countStmt, 10);
+	outReport.caseMatchBorderEdgesWithoutItem = sqlite3_column_int(countStmt, 11);
+	outReport.caseReplaceBorderEdgesWithoutItem = sqlite3_column_int(countStmt, 12);
 	sqlite3_finalize(countStmt);
 
 	sqlite3_stmt* groupedStmt = nullptr;

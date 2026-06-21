@@ -261,6 +261,7 @@ struct MaterialsDatabaseAuditReport {
 	int tilesetCount = 0;
 	int tilesetSectionCount = 0;
 	int tilesetEntryCount = 0;
+	int unsupportedBrushTypeCount = 0;
 	int unresolvedGroundTargets = 0;
 	int unresolvedBrushLinks = 0;
 	int unresolvedTilesetEntries = 0;
