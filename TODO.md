@@ -16,9 +16,9 @@
   - [x] First run: create/upgrade `materials.db` schema then import legacy XML once
   - [x] Persist a “bootstrap completed” marker/version so XML is never re-imported silently
   - [x] Schema migrations must not require re-reading XML
-- [ ] Stage C: parity audit (no data gaps)
-  - [ ] Audit every runtime/editor field for XML-only behavior or defaults; move remaining gaps into DB load/save
-  - [ ] Add validations for any newly surfaced invariants
+- [x] Stage C: parity audit (no data gaps)
+  - [x] Audit every runtime/editor field for XML-only behavior or defaults; move remaining gaps into DB load/save
+  - [x] Add validations for any newly surfaced invariants
   - [x] Preserve wall door default `open=true` semantics when migrating XML → SQLite (when `open` is omitted on window doors)
   - [x] Support `wall decoration` brushes end-to-end (XML import, DB load, runtime XML rebuild, Workbench wall catalog)
   - [x] Add hard validations for wall part items/doors (non-empty type, supported doorType, non-negative sortOrder)
@@ -59,7 +59,7 @@
     - [x] Ensure recovery actions appear before modal Warnings, and suppress Warnings when exiting after reset
     - [x] Show startup Warnings after creating a new map (not only when opening an existing map)
 - [x] Stage E: relationship navigation (beyond brushes)
-  - [ ] Expand `Used By`/go-to surfaces across walls/parts/borders so users can jump to owners reliably
+  - [x] Expand `Used By`/go-to surfaces across walls/parts/borders so users can jump to owners reliably
     - [x] Wall Workspace: add a `Used By` dialog (search + open brush/palette targets)
     - [x] Wall Workspace: add “Open Target” navigation for outgoing friend/redirect links
     - [x] Border Workspace: add “Open Owner Brush” for inline border sets
@@ -71,11 +71,11 @@
     - [x] Used By: show global border set usages from ground brush borders (and allow opening them)
 - [x] Stage F: links parity
   - [x] Expand `Links` to cover remaining legacy link types (e.g. `redirect`) with safe validation + clear UX
-- [ ] Stage G: polish + hardening
-  - [ ] Finish product-language/workflow refinements (empty states, confirmations, consistent labels)
+- [x] Stage G: polish + hardening
+  - [x] Finish product-language/workflow refinements (empty states, confirmations, consistent labels)
     - [x] Used By dialogs: enable `Open` only for navigable selections (palette/brush/border_set)
     - [x] Inspector: normalize Border set entity naming (no "BorderSet" casing)
-  - [ ] Final edge-case pass for import/export, validations, and crash/freeze hardening
+  - [x] Final edge-case pass for import/export, validations, and crash/freeze hardening
     - [x] Prevent navigation tree selection crashes during rebuilds (freeze/disable + guard event handlers)
     - [x] Defer workbench navigation jumps (CallAfter) to avoid re-entrancy during click handlers
     - [x] Import compatibility: treat `kind="wall"` as an alias of `kind="brush"` (including import preview/validation)
