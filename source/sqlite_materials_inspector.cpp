@@ -457,6 +457,29 @@ void SQLiteMaterialsInspectorPanel::ReloadData() {
 		return;
 	}
 
+	const wxString previousBrushType = brushTypeChoice_ ? brushTypeChoice_->GetStringSelection() : wxString();
+	if (brushTypeChoice_) {
+		brushTypeChoice_->Freeze();
+		brushTypeChoice_->Clear();
+		brushTypeChoice_->Append("ground");
+		brushTypeChoice_->Append("wall");
+		brushTypeChoice_->Append("wall decoration");
+		brushTypeChoice_->Append("doodad");
+		brushTypeChoice_->Append("carpet");
+		brushTypeChoice_->Append("table");
+		for (const BrushTypeCountRecord &unsupported : auditReport_.unsupportedBrushTypeCounts) {
+			if (!unsupported.type.IsEmpty()) {
+				brushTypeChoice_->Append(unsupported.type);
+			}
+		}
+		int selection = brushTypeChoice_->FindString(previousBrushType, true);
+		if (selection == wxNOT_FOUND) {
+			selection = 0;
+		}
+		brushTypeChoice_->SetSelection(selection);
+		brushTypeChoice_->Thaw();
+	}
+
 	RefreshSummary();
 	RefreshBrushList();
 	RefreshTilesetList();

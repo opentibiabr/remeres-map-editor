@@ -26,6 +26,7 @@
   - [x] Inspector: show unsupported brush samples (id/name/type/source) to help users locate and fix the bad rows
   - [x] Runtime-ready: treat unsupported brush types as not-ready in `hasCompleteImportForCurrentSchema`
   - [x] Runtime-ready: include a few unsupported brush examples in the startup reason to make recovery actionable
+  - [x] SQLite inspector: list unsupported brush types in the brush type dropdown for debugging
   - [x] Preserve wall brush metadata flags when rebuilding runtime XML from SQLite
   - [x] Prevent ground border inlining crashes by deriving ground_equivalent when needed
   - [x] Fix inline border set creation to link owner brush by materials.db id
