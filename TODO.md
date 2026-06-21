@@ -24,6 +24,7 @@
   - [x] Add hard validations for wall part items/doors (non-empty type, supported doorType, non-negative sortOrder)
   - [x] Audit: detect unsupported brush types (so runtime-ready blocks when DB contains types the runtime cannot load)
   - [x] Inspector: show unsupported brush samples (id/name/type/source) to help users locate and fix the bad rows
+  - [x] Runtime-ready: treat unsupported brush types as not-ready in `hasCompleteImportForCurrentSchema`
   - [x] Preserve wall brush metadata flags when rebuilding runtime XML from SQLite
   - [x] Prevent ground border inlining crashes by deriving ground_equivalent when needed
   - [x] Fix inline border set creation to link owner brush by materials.db id
@@ -48,6 +49,7 @@
   - [x] Add explicit “rebuild/reset DB from XML” tooling (manual action), with strong warnings
   - [ ] Add integrity checks and a safe recovery path when DB is corrupted or partially missing
     - [x] Run SQLite quick_check on startup (when materials.db already exists) to detect corruption early and guide recovery
+    - [x] Ensure SQLite error codes are preserved for exec/prepare failures (no rc/ext=0 for malformed DB)
     - [x] Allow Reset-from-XML even when SQLite cannot open (corrupt materials.db recovery)
     - [x] Startup recovery dialog: offer Open Inspector / Reset from XML when SQLite falls back to XML with an existing DB
     - [x] Classify startup SQLite failures (notadb/corrupt/locked/read-only/schema mismatch) and show a recommended recovery path (+ SQLite rc/ext codes)

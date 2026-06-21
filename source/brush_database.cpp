@@ -4856,9 +4856,32 @@ bool BrushDatabaseCatalogRepository::hasCompleteImportForCurrentSchema(bool &out
 		return false;
 	}
 
+	wxString unsupportedBrushTypesDetail;
+	for (size_t i = 0; i < report.unsupportedBrushTypeCounts.size(); ++i) {
+		if (i > 0) {
+			unsupportedBrushTypesDetail += ", ";
+		}
+		unsupportedBrushTypesDetail += wxString::Format(
+			"%s (%d)",
+			report.unsupportedBrushTypeCounts[i].type,
+			report.unsupportedBrushTypeCounts[i].count
+		);
+	}
+
 	if (importComplete) {
 		outReady = true;
-		if (report.unresolvedGroundTargets > 0
+		if (report.unsupportedBrushTypeCount > 0) {
+			outReady = false;
+			if (unsupportedBrushTypesDetail.IsEmpty()) {
+				outReason = wxString::Format("Database contains unsupported brush types (%d).", report.unsupportedBrushTypeCount);
+			} else {
+				outReason = wxString::Format(
+					"Database contains unsupported brush types (%d): %s.",
+					report.unsupportedBrushTypeCount,
+					unsupportedBrushTypesDetail
+				);
+			}
+		} else if (report.unresolvedGroundTargets > 0
 			|| report.unresolvedBrushLinks > 0
 			|| report.unresolvedTilesetEntries > 0
 			|| report.unresolvedCaseMatchBorderIds > 0
@@ -4928,6 +4951,17 @@ bool BrushDatabaseCatalogRepository::hasCompleteImportForCurrentSchema(bool &out
 			detail += missing[i];
 		}
 		outReason = "Database is missing imported materials data (" + detail + ").";
+	} else if (report.unsupportedBrushTypeCount > 0) {
+		outReady = false;
+		if (unsupportedBrushTypesDetail.IsEmpty()) {
+			outReason = wxString::Format("Database contains unsupported brush types (%d).", report.unsupportedBrushTypeCount);
+		} else {
+			outReason = wxString::Format(
+				"Database contains unsupported brush types (%d): %s.",
+				report.unsupportedBrushTypeCount,
+				unsupportedBrushTypesDetail
+			);
+		}
 	} else if (report.unresolvedGroundTargets > 0
 			   || report.unresolvedBrushLinks > 0
 			   || report.unresolvedTilesetEntries > 0
@@ -5063,7 +5097,11 @@ bool BrushDatabaseSession::execute(const wxString &sql) {
 	if (rc != SQLITE_OK) {
 		const wxString detail = errorMessage ? wxString::FromUTF8(errorMessage) : wxString();
 		sqlite3_free(errorMessage);
-		return setError("SQLite exec failed: " + detail);
+		lastError_ = "SQLite exec failed: " + detail;
+		lastSqliteErrorCode_ = rc;
+		lastSqliteExtendedErrorCode_ = connection_ ? sqlite3_extended_errcode(connection_) : rc;
+		spdlog::error("[BrushDatabase] {}", lastError_.ToStdString());
+		return false;
 	}
 	return true;
 }
@@ -5177,5 +5215,7 @@ bool BrushDatabaseSession::setErrorFromDatabase(const wxString &prefix) {
 		lastSqliteExtendedErrorCode_ = 0;
 	}
 	const wxString dbMessage = connection_ ? ToWxString(sqlite3_errmsg(connection_)) : wxString("No SQLite connection");
-	return setError(prefix + ": " + dbMessage);
+	lastError_ = prefix + ": " + dbMessage;
+	spdlog::error("[BrushDatabase] {}", lastError_.ToStdString());
+	return false;
 }

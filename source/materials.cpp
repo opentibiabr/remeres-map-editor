@@ -1592,14 +1592,16 @@ bool Materials::bootstrapSqliteDatabase(wxString &error, wxArrayString &warnings
 		}
 		MaterialsDatabaseAuditReport report;
 		if (g_brush_database.generateAuditReport(report)) {
-			if (report.unresolvedGroundTargets > 0
+			if (report.unsupportedBrushTypeCount > 0
+				|| report.unresolvedGroundTargets > 0
 				|| report.unresolvedBrushLinks > 0
 				|| report.unresolvedTilesetEntries > 0
 				|| report.unresolvedCaseMatchBorderIds > 0
 				|| report.unresolvedCaseReplaceBorderTargetIds > 0
 				) {
 				warnings.push_back(wxString::Format(
-					"SQLite materials import completed with unresolved references (ground targets=%d, brush links=%d, tileset entries=%d, match_border ids=%d, replace_border target ids=%d).",
+					"SQLite materials import completed with issues (unsupported brush types=%d, ground targets=%d, brush links=%d, tileset entries=%d, match_border ids=%d, replace_border target ids=%d).",
+					report.unsupportedBrushTypeCount,
 					report.unresolvedGroundTargets,
 					report.unresolvedBrushLinks,
 					report.unresolvedTilesetEntries,
