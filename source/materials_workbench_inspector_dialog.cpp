@@ -1270,6 +1270,89 @@ void MaterialsWorkbenchInspectorDialog::ReloadWarnings() {
 		warnings_.push_back(std::move(row));
 	}
 
+	if (report.unresolvedTilesetEntries > 0 && !report.unresolvedTilesetEntrySamples.empty()) {
+		std::vector<wxString> paletteNames;
+		for (const UnresolvedTilesetEntrySampleRecord &sample : report.unresolvedTilesetEntrySamples) {
+			if (sample.tilesetName.IsEmpty()) {
+				continue;
+			}
+			bool exists = false;
+			for (const wxString &name : paletteNames) {
+				if (name.IsSameAs(sample.tilesetName, false)) {
+					exists = true;
+					break;
+				}
+			}
+			if (!exists) {
+				paletteNames.push_back(sample.tilesetName);
+			}
+		}
+
+		std::sort(paletteNames.begin(), paletteNames.end(), [](const wxString &a, const wxString &b) {
+			return a.CmpNoCase(b) < 0;
+		});
+
+		for (const wxString &paletteName : paletteNames) {
+			wxString group = "<unknown>";
+			int sampleCount = 0;
+			wxString sampleDetails;
+			for (const UnresolvedTilesetEntrySampleRecord &sample : report.unresolvedTilesetEntrySamples) {
+				if (!sample.tilesetName.IsSameAs(paletteName, false)) {
+					continue;
+				}
+				if (sampleCount == 0) {
+					group = sample.paletteGroupName;
+					group.Trim(true);
+					group.Trim(false);
+					if (group.IsEmpty()) {
+						group = "<unknown>";
+					}
+				}
+
+				++sampleCount;
+
+				wxString section = sample.sectionType;
+				section.Trim(true);
+				section.Trim(false);
+				if (section.IsEmpty()) {
+					section = "<unknown>";
+				}
+				wxString entryKind = sample.entryKind;
+				entryKind.Trim(true);
+				entryKind.Trim(false);
+				if (entryKind.IsEmpty()) {
+					entryKind = "<unknown>";
+				}
+				wxString brush = sample.brushName;
+				brush.Trim(true);
+				brush.Trim(false);
+				if (brush.IsEmpty()) {
+					brush = "<unknown>";
+				}
+
+				sampleDetails << wxString::Format("- section=\"%s\" kind=\"%s\" brush=\"%s\"\n", section, entryKind, brush);
+			}
+
+			WarningRow row;
+			row.severity = "Warning";
+			row.domain = "Palette";
+			row.entityKind = "palette";
+			row.entityId = 0;
+			row.entityName = paletteName;
+			row.issue = "Unresolved tileset entries";
+			row.count = sampleCount;
+			row.status = "Active";
+			row.details = wxString::Format(
+				"Some palette entries reference missing brushes.\n\nGroup: %s\nTotal unresolved tileset entries: %d\nSamples shown: %d\n\nSamples:\n%s",
+				group,
+				report.unresolvedTilesetEntries,
+				sampleCount,
+				sampleDetails
+			);
+			warnings_.push_back(std::move(row));
+		}
+	}
+
 	if (warnings_.empty()) {
 		WarningRow row;
 		row.severity = "Warning";

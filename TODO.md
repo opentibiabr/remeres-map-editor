@@ -80,6 +80,7 @@
     - [x] Defer workbench navigation jumps (CallAfter) to avoid re-entrancy during click handlers
     - [x] Import compatibility: treat `kind="wall"` as an alias of `kind="brush"` (including import preview/validation)
     - [x] Audit: include actionable samples for unresolved tileset entries (palette group + palette + section + brush)
+    - [x] Inspector (Health): surface unresolved tileset entries with per-palette samples + go-to
 
 ## Next
 - [x] Border Workspace visual pass: align `Preview Matrix` to the same geometry as `Slot Grid`
