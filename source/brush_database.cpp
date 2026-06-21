@@ -1911,7 +1911,11 @@ bool BrushDatabaseSession::quickCheck(int maxErrors) {
 	if (firstIssue.IsEmpty()) {
 		return setError("SQLite quick_check returned no result.");
 	}
-	return setError("SQLite quick_check failed: " + firstIssue);
+	lastError_ = "SQLite quick_check failed: " + firstIssue;
+	lastSqliteErrorCode_ = SQLITE_CORRUPT;
+	lastSqliteExtendedErrorCode_ = SQLITE_CORRUPT;
+	spdlog::error("[BrushDatabase] {}", lastError_.ToStdString());
+	return false;
 }
 
 bool BrushDatabaseBrushRepository::testBasicCRUD() {
