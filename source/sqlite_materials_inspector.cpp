@@ -9,6 +9,17 @@ namespace {
 		return value ? "yes" : "no";
 	}
 
+	wxString JoinTypeCounts(const std::vector<BrushTypeCountRecord> &typeCounts) {
+		wxString out;
+		for (size_t i = 0; i < typeCounts.size(); ++i) {
+			if (i > 0) {
+				out += ", ";
+			}
+			out += wxString::Format("%s (%d)", typeCounts[i].type, typeCounts[i].count);
+		}
+		return out;
+	}
+
 	bool HasBrushType(const MaterialsDatabaseAuditReport &report, const wxString &type) {
 		for (const BrushTypeCountRecord &typeCount : report.brushTypeCounts) {
 			if (typeCount.type == type && typeCount.count > 0) {
@@ -63,7 +74,12 @@ namespace {
 		} else if (!hasCatalogBasics) {
 			reason = "Missing border sets or tilesets.";
 	} else if (!hasNoUnsupportedBrushTypes) {
-		reason = wxString::Format("Database contains unsupported brush types (%d).", report.unsupportedBrushTypeCount);
+			wxString detail = JoinTypeCounts(report.unsupportedBrushTypeCounts);
+			if (!detail.IsEmpty()) {
+				reason = wxString::Format("Database contains unsupported brush types (%d): %s.", report.unsupportedBrushTypeCount, detail);
+			} else {
+				reason = wxString::Format("Database contains unsupported brush types (%d).", report.unsupportedBrushTypeCount);
+			}
 		} else if (!hasNoUnresolvedRefs) {
 			reason = wxString::Format(
 				"Database contains unresolved references (ground targets=%d, brush links=%d, tileset entries=%d, match_border ids=%d, replace_border target ids=%d).",
@@ -113,6 +129,34 @@ namespace {
 		text << "Tileset sections: " << report.tilesetSectionCount << "\n";
 		text << "Tileset entries: " << report.tilesetEntryCount << "\n\n";
 	text << "Unsupported brush types: " << report.unsupportedBrushTypeCount << "\n\n";
+		if (report.unsupportedBrushTypeCount > 0) {
+			if (!report.unsupportedBrushTypeCounts.empty()) {
+				text << "Unsupported brush types breakdown:\n";
+				for (const BrushTypeCountRecord &typeCount : report.unsupportedBrushTypeCounts) {
+					text << wxString::Format("  - %s: %d\n", typeCount.type, typeCount.count);
+				}
+				text << "\n";
+			}
+			if (!report.unsupportedBrushSamples.empty()) {
+				text << "Unsupported brush samples:\n";
+				for (const UnsupportedBrushSampleRecord &sample : report.unsupportedBrushSamples) {
+					wxString source = sample.sourceFile;
+					source.Trim(true);
+					source.Trim(false);
+					if (source.IsEmpty()) {
+						source = "<unknown>";
+					}
+					text << wxString::Format(
+						"  - id=%lld name=\"%s\" type=\"%s\" source=\"%s\"\n",
+						static_cast<long long>(sample.id),
+						sample.name,
+						sample.type,
+						source
+					);
+				}
+				text << "\n";
+			}
+		}
 		text << "Unresolved ground targets: " << report.unresolvedGroundTargets << "\n";
 		text << "Unresolved brush links: " << report.unresolvedBrushLinks << "\n";
 		text << "Unresolved tileset entries: " << report.unresolvedTilesetEntries << "\n\n";

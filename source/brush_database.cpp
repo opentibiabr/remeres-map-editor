@@ -4625,37 +4625,40 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 		return setError("SQLite database is not open.");
 	}
 
+	const wxString supportedBrushTypesSql = "('ground', 'wall', 'wall decoration', 'doodad', 'carpet', 'table')";
+
 	sqlite3_stmt* countStmt = nullptr;
-	if (!prepare("SELECT "
-				 "(SELECT COUNT(*) FROM brushes), "
-				 "(SELECT COUNT(*) FROM border_sets), "
-				 "(SELECT COUNT(*) FROM tilesets), "
-				 "(SELECT COUNT(*) FROM tileset_sections), "
-				 "(SELECT COUNT(*) FROM tileset_brush_entries), "
-				 "(SELECT COUNT(*) FROM brushes WHERE type NOT IN ('ground', 'wall', 'wall decoration', 'doodad', 'carpet', 'table')), "
-				 "(SELECT COUNT(*) FROM ground_brush_borders WHERE target_mode = 'brush' AND target_brush_name <> '' AND target_brush_id IS NULL), "
-				 "(SELECT COUNT(*) FROM brush_links bl "
-				 "JOIN brushes src ON src.id = bl.brush_id "
-				 "WHERE bl.target_brush_name <> '' AND bl.target_brush_name <> 'all' AND bl.target_brush_id IS NULL "
-				 "AND NOT EXISTS (SELECT 1 FROM brushes t WHERE t.name = bl.target_brush_name COLLATE NOCASE AND t.type = src.type)), "
-				 "(SELECT COUNT(*) FROM tileset_brush_entries WHERE brush_name <> '' AND brush_id IS NULL), "
-				 "(SELECT COUNT(*) FROM ground_border_case_conditions c "
-				 "WHERE c.condition_type = 'match_border' AND c.match_value > 0 "
-				 "AND NOT EXISTS (SELECT 1 FROM border_sets bs WHERE bs.xml_border_id = c.match_value)), "
-				 "(SELECT COUNT(*) FROM ground_border_case_actions a "
-				 "WHERE a.action_type = 'replace_border' AND a.target_value > 0 "
-				 "AND NOT EXISTS (SELECT 1 FROM border_sets bs WHERE bs.xml_border_id = a.target_value)), "
-				 "(SELECT COUNT(*) FROM ground_border_case_conditions c "
-				 "JOIN border_sets bs ON bs.xml_border_id = c.match_value "
-				 "WHERE c.condition_type = 'match_border' AND c.match_value > 0 AND c.edge <> '' "
-				 "AND EXISTS (SELECT 1 FROM border_set_items bi0 WHERE bi0.border_set_id = bs.id) "
-				 "AND NOT EXISTS (SELECT 1 FROM border_set_items bi WHERE bi.border_set_id = bs.id AND bi.edge = c.edge)), "
-				 "(SELECT COUNT(*) FROM ground_border_case_actions a "
-				 "JOIN border_sets bs ON bs.xml_border_id = a.target_value "
-				 "WHERE a.action_type = 'replace_border' AND a.target_value > 0 AND a.edge <> '' "
-				 "AND EXISTS (SELECT 1 FROM border_set_items bi0 WHERE bi0.border_set_id = bs.id) "
-				 "AND NOT EXISTS (SELECT 1 FROM border_set_items bi WHERE bi.border_set_id = bs.id AND bi.edge = a.edge));",
-				 &countStmt)) {
+	wxString countSql;
+	countSql << "SELECT "
+			 << "(SELECT COUNT(*) FROM brushes), "
+			 << "(SELECT COUNT(*) FROM border_sets), "
+			 << "(SELECT COUNT(*) FROM tilesets), "
+			 << "(SELECT COUNT(*) FROM tileset_sections), "
+			 << "(SELECT COUNT(*) FROM tileset_brush_entries), "
+			 << "(SELECT COUNT(*) FROM brushes WHERE type NOT IN " << supportedBrushTypesSql << "), "
+			 << "(SELECT COUNT(*) FROM ground_brush_borders WHERE target_mode = 'brush' AND target_brush_name <> '' AND target_brush_id IS NULL), "
+			 << "(SELECT COUNT(*) FROM brush_links bl "
+			 << "JOIN brushes src ON src.id = bl.brush_id "
+			 << "WHERE bl.target_brush_name <> '' AND bl.target_brush_name <> 'all' AND bl.target_brush_id IS NULL "
+			 << "AND NOT EXISTS (SELECT 1 FROM brushes t WHERE t.name = bl.target_brush_name COLLATE NOCASE AND t.type = src.type)), "
+			 << "(SELECT COUNT(*) FROM tileset_brush_entries WHERE brush_name <> '' AND brush_id IS NULL), "
+			 << "(SELECT COUNT(*) FROM ground_border_case_conditions c "
+			 << "WHERE c.condition_type = 'match_border' AND c.match_value > 0 "
+			 << "AND NOT EXISTS (SELECT 1 FROM border_sets bs WHERE bs.xml_border_id = c.match_value)), "
+			 << "(SELECT COUNT(*) FROM ground_border_case_actions a "
+			 << "WHERE a.action_type = 'replace_border' AND a.target_value > 0 "
+			 << "AND NOT EXISTS (SELECT 1 FROM border_sets bs WHERE bs.xml_border_id = a.target_value)), "
+			 << "(SELECT COUNT(*) FROM ground_border_case_conditions c "
+			 << "JOIN border_sets bs ON bs.xml_border_id = c.match_value "
+			 << "WHERE c.condition_type = 'match_border' AND c.match_value > 0 AND c.edge <> '' "
+			 << "AND EXISTS (SELECT 1 FROM border_set_items bi0 WHERE bi0.border_set_id = bs.id) "
+			 << "AND NOT EXISTS (SELECT 1 FROM border_set_items bi WHERE bi.border_set_id = bs.id AND bi.edge = c.edge)), "
+			 << "(SELECT COUNT(*) FROM ground_border_case_actions a "
+			 << "JOIN border_sets bs ON bs.xml_border_id = a.target_value "
+			 << "WHERE a.action_type = 'replace_border' AND a.target_value > 0 AND a.edge <> '' "
+			 << "AND EXISTS (SELECT 1 FROM border_set_items bi0 WHERE bi0.border_set_id = bs.id) "
+			 << "AND NOT EXISTS (SELECT 1 FROM border_set_items bi WHERE bi.border_set_id = bs.id AND bi.edge = a.edge));";
+	if (!prepare(countSql.utf8_str(), &countStmt)) {
 		return false;
 	}
 
@@ -4701,6 +4704,63 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 		outReport.brushTypeCounts.push_back(typeCount);
 	}
 
+
+	sqlite3_stmt* unsupportedTypesStmt = nullptr;
+	if (!prepare(("SELECT type, COUNT(*) "
+				 "FROM brushes "
+				 "WHERE type NOT IN " + supportedBrushTypesSql + " "
+				 "GROUP BY type "
+				 "ORDER BY COUNT(*) DESC, type COLLATE NOCASE ASC;").utf8_str(),
+				 &unsupportedTypesStmt)) {
+		return false;
+	}
+
+	for (;;) {
+		const int rc = sqlite3_step(unsupportedTypesStmt);
+		if (rc == SQLITE_DONE) {
+			break;
+		}
+		if (rc != SQLITE_ROW) {
+			sqlite3_finalize(unsupportedTypesStmt);
+			return setErrorFromDatabase("Failed to group unsupported brush types");
+		}
+
+		BrushTypeCountRecord typeCount;
+		typeCount.type = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(unsupportedTypesStmt, 0)));
+		typeCount.count = sqlite3_column_int(unsupportedTypesStmt, 1);
+		outReport.unsupportedBrushTypeCounts.push_back(typeCount);
+	}
+	sqlite3_finalize(unsupportedTypesStmt);
+
+	sqlite3_stmt* unsupportedSamplesStmt = nullptr;
+	if (!prepare(("SELECT id, name, type, source_file "
+				 "FROM brushes "
+				 "WHERE type NOT IN " + supportedBrushTypesSql + " "
+				 "ORDER BY type COLLATE NOCASE ASC, name COLLATE NOCASE ASC, id ASC "
+				 "LIMIT 20;").utf8_str(),
+				 &unsupportedSamplesStmt)) {
+		return false;
+	}
+
+	for (;;) {
+		const int rc = sqlite3_step(unsupportedSamplesStmt);
+		if (rc == SQLITE_DONE) {
+			break;
+		}
+		if (rc != SQLITE_ROW) {
+			sqlite3_finalize(unsupportedSamplesStmt);
+			return setErrorFromDatabase("Failed to list unsupported brush samples");
+		}
+
+		UnsupportedBrushSampleRecord sample;
+		sample.id = sqlite3_column_int64(unsupportedSamplesStmt, 0);
+		sample.name = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(unsupportedSamplesStmt, 1)));
+		sample.type = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(unsupportedSamplesStmt, 2)));
+		sample.sourceFile = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(unsupportedSamplesStmt, 3)));
+		outReport.unsupportedBrushSamples.push_back(sample);
+	}
+
+	sqlite3_finalize(unsupportedSamplesStmt);
 	sqlite3_finalize(groupedStmt);
 	return true;
 }

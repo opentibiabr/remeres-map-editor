@@ -255,6 +255,13 @@ struct BrushTypeCountRecord {
 	int count = 0;
 };
 
+struct UnsupportedBrushSampleRecord {
+	int64_t id = 0;
+	wxString name;
+	wxString type;
+	wxString sourceFile;
+};
+
 struct MaterialsDatabaseAuditReport {
 	int brushCount = 0;
 	int borderSetCount = 0;
@@ -270,6 +277,8 @@ struct MaterialsDatabaseAuditReport {
 	int caseMatchBorderEdgesWithoutItem = 0;
 	int caseReplaceBorderEdgesWithoutItem = 0;
 	std::vector<BrushTypeCountRecord> brushTypeCounts;
+	std::vector<BrushTypeCountRecord> unsupportedBrushTypeCounts;
+	std::vector<UnsupportedBrushSampleRecord> unsupportedBrushSamples;
 };
 
 struct MaterialsImportStatusRecord {
