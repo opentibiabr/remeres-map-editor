@@ -69,10 +69,12 @@
   - [x] Add deeper cross-reference helpers and stable deep links where needed
     - [x] Used By: allow opening owned inline border sets (brush/wall Used By)
     - [x] Used By: show global border set usages from ground brush borders (and allow opening them)
-- [ ] Stage F: links parity
+- [x] Stage F: links parity
   - [x] Expand `Links` to cover remaining legacy link types (e.g. `redirect`) with safe validation + clear UX
 - [ ] Stage G: polish + hardening
   - [ ] Finish product-language/workflow refinements (empty states, confirmations, consistent labels)
+    - [x] Used By dialogs: enable `Open` only for navigable selections (palette/brush/border_set)
+    - [x] Inspector: normalize Border set entity naming (no "BorderSet" casing)
   - [ ] Final edge-case pass for import/export, validations, and crash/freeze hardening
     - [x] Prevent navigation tree selection crashes during rebuilds (freeze/disable + guard event handlers)
     - [x] Defer workbench navigation jumps (CallAfter) to avoid re-entrancy during click handlers

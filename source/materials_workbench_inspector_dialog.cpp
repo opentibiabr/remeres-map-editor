@@ -1034,7 +1034,7 @@ void MaterialsWorkbenchInspectorDialog::ReloadWarnings() {
 				row.domain = "Border";
 				row.entityKind = "border_set";
 				row.entityId = borderSet.id;
-				row.entityName = wxString::Format("BorderSet %lld", static_cast<long long>(borderSet.id));
+				row.entityName = wxString::Format("Border set %lld", static_cast<long long>(borderSet.id));
 				row.issue = "Failed to load border set items";
 				row.count = 1;
 				row.status = "Active";
@@ -1049,7 +1049,7 @@ void MaterialsWorkbenchInspectorDialog::ReloadWarnings() {
 				row.domain = "Border";
 				row.entityKind = "border_set";
 				row.entityId = borderSet.id;
-				row.entityName = wxString::Format("BorderSet %lld", static_cast<long long>(borderSet.id));
+				row.entityName = wxString::Format("Border set %lld", static_cast<long long>(borderSet.id));
 				row.issue = "Border set has no items";
 				row.count = 1;
 				row.status = "Active";
@@ -1063,7 +1063,7 @@ void MaterialsWorkbenchInspectorDialog::ReloadWarnings() {
 				row.domain = "Border";
 				row.entityKind = "border_set";
 				row.entityId = borderSet.id;
-				row.entityName = wxString::Format("BorderSet %lld", static_cast<long long>(borderSet.id));
+				row.entityName = wxString::Format("Border set %lld", static_cast<long long>(borderSet.id));
 				row.issue = "Border set has invalid groundEquivalent";
 				row.count = 1;
 				row.status = "Active";
@@ -1093,7 +1093,7 @@ void MaterialsWorkbenchInspectorDialog::ReloadWarnings() {
 				row.domain = "Border";
 				row.entityKind = "border_set";
 				row.entityId = borderSet.id;
-				row.entityName = wxString::Format("BorderSet %lld", static_cast<long long>(borderSet.id));
+				row.entityName = wxString::Format("Border set %lld", static_cast<long long>(borderSet.id));
 				row.issue = "Border set has empty edges";
 				row.count = static_cast<int>(emptyEdges.size());
 				row.status = "Active";
@@ -1112,7 +1112,7 @@ void MaterialsWorkbenchInspectorDialog::ReloadWarnings() {
 				row.domain = "Border";
 				row.entityKind = "border_set";
 				row.entityId = borderSet.id;
-				row.entityName = wxString::Format("BorderSet %lld", static_cast<long long>(borderSet.id));
+				row.entityName = wxString::Format("Border set %lld", static_cast<long long>(borderSet.id));
 				row.issue = "Border set has invalid item ids";
 				row.count = static_cast<int>(invalidItemIds.size());
 				row.status = "Active";
@@ -1128,7 +1128,7 @@ void MaterialsWorkbenchInspectorDialog::ReloadWarnings() {
 					row.domain = "Border";
 					row.entityKind = "border_set";
 					row.entityId = borderSet.id;
-					row.entityName = wxString::Format("BorderSet %lld", static_cast<long long>(borderSet.id));
+					row.entityName = wxString::Format("Border set %lld", static_cast<long long>(borderSet.id));
 					row.issue = "Global border set is unused";
 					row.count = 0;
 					row.status = "Active";
