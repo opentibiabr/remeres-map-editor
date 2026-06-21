@@ -1054,7 +1054,11 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 			++invalid;
 		}
 		PlanRow row;
-		row.kind = wxString::FromUTF8(kind.c_str());
+		if (kind == "wall") {
+			row.kind = "brush";
+		} else {
+			row.kind = wxString::FromUTF8(kind.c_str());
+		}
 		row.key = keyLabel;
 		row.action = action;
 		wxString finalDetail = detail.IsEmpty() ? actionDetail : detail;
