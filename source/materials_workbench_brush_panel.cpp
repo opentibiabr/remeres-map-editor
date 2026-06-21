@@ -7167,11 +7167,28 @@ void MaterialsWorkbenchBrushPanel::OnUsedBy(wxCommandEvent &) {
 	wxButton* closeButton = new wxButton(panel, wxID_CANCEL, "Close");
 	StyleBrushWorkspaceActionButton(openButton, "Open the selected owner in the Workbench.");
 	StyleBrushWorkspaceActionButton(closeButton, "Close this dialog.");
+	openButton->Enable(false);
 	actions->Add(openButton, 0, wxRIGHT, FromDIP(6));
 	actions->AddStretchSpacer(1);
 	actions->Add(closeButton, 0);
 
 	std::vector<size_t> filtered;
+
+	auto updateOpenEnabled = [&]() {
+		bool canOpen = false;
+		const long selectedRow = list->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+		if (selectedRow != wxNOT_FOUND && selectedRow >= 0 && static_cast<size_t>(selectedRow) < filtered.size()) {
+			const BrushUsageRecord &usage = usages[filtered[static_cast<size_t>(selectedRow)]];
+			if (usage.sourceKind.IsSameAs("palette", false)) {
+				canOpen = onOpenLinkedTileset_ && !usage.sourceName.IsEmpty();
+			} else if (usage.sourceKind.IsSameAs("border_set", false)) {
+				canOpen = onOpenLinkedBorderSet_ && usage.sourceId > 0;
+			} else if (usage.sourceKind.IsSameAs("brush", false)) {
+				canOpen = onOpenLinkedBrush_ && usage.sourceId > 0;
+			}
+		}
+		openButton->Enable(canOpen);
+	};
 
 	auto normalize = [](const wxString &value) {
 		wxString lowered = value;
@@ -7205,6 +7222,7 @@ void MaterialsWorkbenchBrushPanel::OnUsedBy(wxCommandEvent &) {
 			)
 		);
 		panel->Layout();
+		updateOpenEnabled();
 	};
 
 	auto openSelection = [&]() {
@@ -7229,6 +7247,8 @@ void MaterialsWorkbenchBrushPanel::OnUsedBy(wxCommandEvent &) {
 	};
 
 	searchCtrl->Bind(wxEVT_TEXT, [&](wxCommandEvent &) { refresh(); });
+	list->Bind(wxEVT_LIST_ITEM_SELECTED, [&](wxListEvent &) { updateOpenEnabled(); });
+	list->Bind(wxEVT_LIST_ITEM_DESELECTED, [&](wxListEvent &) { updateOpenEnabled(); });
 	openButton->Bind(wxEVT_BUTTON, [&](wxCommandEvent &) { openSelection(); });
 	list->Bind(wxEVT_LIST_ITEM_ACTIVATED, [&](wxListEvent &) { openSelection(); });
 
