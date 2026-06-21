@@ -214,6 +214,7 @@ namespace {
 		types.Add("carpet");
 		types.Add("table");
 		types.Add("wall");
+		types.Add("wall decoration");
 		wxChoice* typeCtrl = new wxChoice(&dialog, wxID_ANY, wxDefaultPosition, wxDefaultSize, types);
 		typeCtrl->SetSelection(0);
 
@@ -2508,6 +2509,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildMetadataPage(wxNotebook* notebook) {
 		types.Add("carpet");
 		types.Add("table");
 		types.Add("wall");
+		types.Add("wall decoration");
 		typeCtrl_ = new wxChoice(scrolled, wxID_ANY, wxDefaultPosition, wxDefaultSize, types);
 		typeCtrl_->SetSelection(0);
 	}

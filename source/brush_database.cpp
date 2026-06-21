@@ -3298,6 +3298,59 @@ bool BrushDatabaseBrushRepository::replaceWallParts(int64_t brushId, const std::
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
+	for (const WallPartRecord &part : parts) {
+		wxString partType = part.partType;
+		partType.Trim(true);
+		partType.Trim(false);
+		if (partType.IsEmpty()) {
+			return setError("Wall part type cannot be empty.");
+		}
+		if (part.sortOrder < 0) {
+			return setError("Wall part sort order cannot be negative.");
+		}
+		for (const WallPartItemRecord &item : part.items) {
+			if (item.itemId <= 0) {
+				return setError("Wall part item id must be positive.");
+			}
+			if (item.chance < 0) {
+				return setError("Wall part item chance cannot be negative.");
+			}
+			if (item.sortOrder < 0) {
+				return setError("Wall part item sort order cannot be negative.");
+			}
+		}
+		for (const WallPartDoorRecord &door : part.doors) {
+			if (door.itemId <= 0) {
+				return setError("Wall part door item id must be positive.");
+			}
+			wxString doorType = door.doorType;
+			doorType.Trim(true);
+			doorType.Trim(false);
+			if (doorType.IsEmpty()) {
+				return setError("Wall part door type cannot be empty.");
+			}
+			wxString doorTypeLower = doorType;
+			doorTypeLower.MakeLower();
+			const bool supportedDoorType =
+				doorTypeLower == "normal" ||
+				doorTypeLower == "locked" ||
+				doorTypeLower == "quest" ||
+				doorTypeLower == "magic" ||
+				doorTypeLower == "archway" ||
+				doorTypeLower == "window" ||
+				doorTypeLower == "hatch window" ||
+				doorTypeLower == "hatch_window" ||
+				doorTypeLower == "any door" ||
+				doorTypeLower == "any window" ||
+				doorTypeLower == "any";
+			if (!supportedDoorType) {
+				return setError("Unsupported wall part door type: " + doorType);
+			}
+			if (door.sortOrder < 0) {
+				return setError("Wall part door sort order cannot be negative.");
+			}
+		}
+	}
 	if (!beginTransaction()) {
 		return false;
 	}
