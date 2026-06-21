@@ -313,7 +313,7 @@ namespace {
 		explicit WallWorkspaceComposedPreviewPanel(wxWindow* parent) :
 			wxPanel(parent, wxID_ANY) {
 			SetBackgroundStyle(wxBG_STYLE_PAINT);
-			SetMinSize(wxSize(FromDIP(520), FromDIP(220)));
+			SetMinSize(wxSize(FromDIP(780), FromDIP(220)));
 			Bind(wxEVT_PAINT, &WallWorkspaceComposedPreviewPanel::OnPaint, this);
 		}
 
@@ -563,13 +563,18 @@ namespace {
 
 			const wxRect client = GetClientRect();
 			wxRect left = client;
+			wxRect middle = client;
 			wxRect right = client;
-			left.width = client.width / 2;
-			right.x = left.GetRight() + 1;
-			right.width = client.width - left.width - 1;
+			left.width = client.width / 3;
+			middle.x = left.GetRight() + 1;
+			middle.width = client.width / 3;
+			right.x = middle.GetRight() + 1;
+			right.width = client.width - left.width - middle.width - 2;
 
 			wxRect boundsA;
 			wxRect boundsB;
+			wxRect boundsC;
+			wxRect boundsD;
 			const int roomSize = 5;
 			std::vector<wxPoint> roomCells;
 			roomCells.reserve(roomSize * 4);
@@ -611,7 +616,28 @@ namespace {
 			const std::vector<DrawOp> roomWithDoorOps = BuildScene(roomCells, selectedDoorItemId_ > 0 ? &doorCell : nullptr, selectedDoorItemId_, boundsB);
 
 			DrawScene(*gc, left, "Composed room", roomOps, boundsA);
-			DrawScene(*gc, right, selectedDoorItemId_ > 0 ? "Room with door" : "Room with door (select a door)", roomWithDoorOps, boundsB);
+			DrawScene(*gc, middle, selectedDoorItemId_ > 0 ? "Room with door" : "Room with door (select a door)", roomWithDoorOps, boundsB);
+
+			wxRect endsLeft = right;
+			wxRect endsRight = right;
+			endsLeft.width = right.width / 2;
+			endsRight.x = endsLeft.GetRight() + 1;
+			endsRight.width = right.width - endsLeft.width - 1;
+
+			std::vector<wxPoint> horizontalCells;
+			std::vector<wxPoint> verticalCells;
+			horizontalCells.reserve(roomSize);
+			verticalCells.reserve(roomSize);
+			const int mid = roomSize / 2;
+			for (int i = 0; i < roomSize; ++i) {
+				horizontalCells.push_back(wxPoint(i, mid));
+				verticalCells.push_back(wxPoint(mid, i));
+			}
+			const std::vector<DrawOp> horizontalOps = BuildScene(horizontalCells, nullptr, 0, boundsC);
+			const std::vector<DrawOp> verticalOps = BuildScene(verticalCells, nullptr, 0, boundsD);
+
+			DrawScene(*gc, endsLeft, "Horizontal ends", horizontalOps, boundsC);
+			DrawScene(*gc, endsRight, "Vertical ends", verticalOps, boundsD);
 		}
 
 		const BrushStorageRecord* storage_ = nullptr;

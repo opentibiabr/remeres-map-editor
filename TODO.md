@@ -92,6 +92,7 @@
 - [x] Add richer visual previews inside `variations`, including per-item thumbnails and domain-specific preview feedback
 - [x] Border Workspace: make `Specific Cases` (ground border `<specific>`) editor more visual (tables + inline sprite icons + picker + selection previews)
 - [x] Wall Workspace: move part type selector into Preview controls and add door auto-prefer side controls (N/S or E/W)
+- [x] Wall Workspace: extend Preview with an extra ends view (horizontal + vertical ends side-by-side)
 - [ ] Brush Workspace `Carpet` future polish: only revisit with higher-level authoring affordances or richer composed previews if real usage still shows the new map-first flow feels too list-like
 - [x] Continue the `Aligned` visual editor pass with mini-scene previews and a stronger semantic layout for `table`
 - [x] Continue the `Doodad` editor rebuild from the new scene-preview base: move from read-first preview to direct grid authoring on top of the existing composite fields
