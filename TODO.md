@@ -58,7 +58,7 @@
     - [x] After reset-from-XML, offer “Close now” to exit cleanly (restart is still manual)
     - [x] Ensure recovery actions appear before modal Warnings, and suppress Warnings when exiting after reset
     - [x] Show startup Warnings after creating a new map (not only when opening an existing map)
-- [ ] Stage E: relationship navigation (beyond brushes)
+- [x] Stage E: relationship navigation (beyond brushes)
   - [ ] Expand `Used By`/go-to surfaces across walls/parts/borders so users can jump to owners reliably
     - [x] Wall Workspace: add a `Used By` dialog (search + open brush/palette targets)
     - [x] Wall Workspace: add “Open Target” navigation for outgoing friend/redirect links
@@ -66,7 +66,7 @@
     - [x] Brush Workspace: add “Open Target” navigation for friend/enemy link rows
     - [x] “Open Target” supports links that have name-only targets (resolves id via SQLite)
     - [x] Go-to palette targets selects the correct tree node (tilesets context key)
-  - [ ] Add deeper cross-reference helpers and stable deep links where needed
+  - [x] Add deeper cross-reference helpers and stable deep links where needed
     - [x] Used By: allow opening owned inline border sets (brush/wall Used By)
     - [x] Used By: show global border set usages from ground brush borders (and allow opening them)
 - [ ] Stage F: links parity
