@@ -1397,7 +1397,7 @@ bool ApplyMaterialsWorkbenchImportJsonWithProgress(
 			paletteGroups.push_back(entity);
 		} else if (kind == "palette") {
 			palettes.push_back(entity);
-		} else if (kind == "brush") {
+		} else if (kind == "brush" || kind == "wall") {
 			brushes.push_back(entity);
 		}
 	}

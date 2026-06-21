@@ -773,7 +773,7 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 					}
 				}
 			}
-		} else if (kind == "brush") {
+		} else if (kind == "brush" || kind == "wall") {
 			if (entity.contains("brush") && entity["brush"].is_object() && entity["brush"].contains("type") && entity["brush"].contains("name") && entity["brush"]["type"].is_string() && entity["brush"]["name"].is_string()) {
 				const wxString type = JsonToWxStringLocal(entity["brush"]["type"]);
 				const wxString name = JsonToWxStringLocal(entity["brush"]["name"]);
@@ -844,7 +844,7 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 				isValid = false;
 				detail = "Invalid border_set: missing xmlBorderId.";
 			}
-		} else if (kind == "brush") {
+		} else if (kind == "brush" || kind == "wall") {
 			if (entity.contains("brush") && entity["brush"].is_object() && entity["brush"].contains("type") && entity["brush"].contains("name") && entity["brush"]["type"].is_string() && entity["brush"]["name"].is_string()) {
 				const wxString type = JsonToWxStringLocal(entity["brush"]["type"]);
 				const wxString name = JsonToWxStringLocal(entity["brush"]["name"]);
