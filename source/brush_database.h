@@ -262,6 +262,21 @@ struct UnsupportedBrushSampleRecord {
 	wxString sourceFile;
 };
 
+struct UnresolvedTilesetEntrySampleRecord {
+	wxString paletteGroupName;
+	wxString tilesetName;
+	wxString tilesetSourceFile;
+	wxString sectionType;
+	wxString entryKind;
+	wxString brushName;
+	int itemId = 0;
+	int fromItemId = 0;
+	int toItemId = 0;
+	wxString afterBrushName;
+	int afterItemId = 0;
+	int sortOrder = 0;
+};
+
 struct MaterialsDatabaseAuditReport {
 	int brushCount = 0;
 	int borderSetCount = 0;
@@ -279,6 +294,7 @@ struct MaterialsDatabaseAuditReport {
 	std::vector<BrushTypeCountRecord> brushTypeCounts;
 	std::vector<BrushTypeCountRecord> unsupportedBrushTypeCounts;
 	std::vector<UnsupportedBrushSampleRecord> unsupportedBrushSamples;
+	std::vector<UnresolvedTilesetEntrySampleRecord> unresolvedTilesetEntrySamples;
 };
 
 struct MaterialsImportStatusRecord {

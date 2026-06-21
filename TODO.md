@@ -79,6 +79,7 @@
     - [x] Prevent navigation tree selection crashes during rebuilds (freeze/disable + guard event handlers)
     - [x] Defer workbench navigation jumps (CallAfter) to avoid re-entrancy during click handlers
     - [x] Import compatibility: treat `kind="wall"` as an alias of `kind="brush"` (including import preview/validation)
+    - [x] Audit: include actionable samples for unresolved tileset entries (palette group + palette + section + brush)
 
 ## Next
 - [x] Border Workspace visual pass: align `Preview Matrix` to the same geometry as `Slot Grid`

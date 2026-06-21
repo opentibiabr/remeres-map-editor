@@ -4913,6 +4913,64 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 	}
 
 	sqlite3_finalize(unsupportedSamplesStmt);
+
+	sqlite3_stmt* unresolvedTilesetSamplesStmt = nullptr;
+	if (!prepare("SELECT "
+				 "COALESCE(pg.name, ''), "
+				 "t.name, "
+				 "t.source_file, "
+				 "s.section_type, "
+				 "COALESCE(e.entry_kind, ''), "
+				 "e.brush_name, "
+				 "COALESCE(e.item_id, 0), "
+				 "COALESCE(e.from_item_id, 0), "
+				 "COALESCE(e.to_item_id, 0), "
+				 "COALESCE(e.after_brush_name, ''), "
+				 "COALESCE(e.after_item_id, 0), "
+				 "e.sort_order "
+				 "FROM tileset_brush_entries e "
+				 "JOIN tileset_sections s ON s.id = e.tileset_section_id "
+				 "JOIN tilesets t ON t.id = s.tileset_id "
+				 "LEFT JOIN palette_groups pg ON pg.id = t.palette_group_id "
+				 "WHERE e.brush_name <> '' AND e.brush_id IS NULL "
+				 "ORDER BY "
+				 "COALESCE(pg.sort_order, 999999) ASC, "
+				 "pg.name COLLATE NOCASE ASC, "
+				 "t.name COLLATE NOCASE ASC, "
+				 "s.sort_order ASC, "
+				 "e.sort_order ASC "
+				 "LIMIT 20;",
+				 &unresolvedTilesetSamplesStmt)) {
+		return false;
+	}
+
+	for (;;) {
+		const int rc = sqlite3_step(unresolvedTilesetSamplesStmt);
+		if (rc == SQLITE_DONE) {
+			break;
+		}
+		if (rc != SQLITE_ROW) {
+			sqlite3_finalize(unresolvedTilesetSamplesStmt);
+			return setErrorFromDatabase("Failed to list unresolved tileset entries");
+		}
+
+		UnresolvedTilesetEntrySampleRecord sample;
+		sample.paletteGroupName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(unresolvedTilesetSamplesStmt, 0)));
+		sample.tilesetName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(unresolvedTilesetSamplesStmt, 1)));
+		sample.tilesetSourceFile = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(unresolvedTilesetSamplesStmt, 2)));
+		sample.sectionType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(unresolvedTilesetSamplesStmt, 3)));
+		sample.entryKind = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(unresolvedTilesetSamplesStmt, 4)));
+		sample.brushName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(unresolvedTilesetSamplesStmt, 5)));
+		sample.itemId = sqlite3_column_int(unresolvedTilesetSamplesStmt, 6);
+		sample.fromItemId = sqlite3_column_int(unresolvedTilesetSamplesStmt, 7);
+		sample.toItemId = sqlite3_column_int(unresolvedTilesetSamplesStmt, 8);
+		sample.afterBrushName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(unresolvedTilesetSamplesStmt, 9)));
+		sample.afterItemId = sqlite3_column_int(unresolvedTilesetSamplesStmt, 10);
+		sample.sortOrder = sqlite3_column_int(unresolvedTilesetSamplesStmt, 11);
+		outReport.unresolvedTilesetEntrySamples.push_back(sample);
+	}
+
+	sqlite3_finalize(unresolvedTilesetSamplesStmt);
 	sqlite3_finalize(groupedStmt);
 	return true;
 }
@@ -4993,6 +5051,48 @@ bool BrushDatabaseCatalogRepository::hasCompleteImportForCurrentSchema(bool &out
 		}
 	}
 
+	wxString unresolvedTilesetSamplesDetail;
+	if (report.unresolvedTilesetEntries > 0 && !report.unresolvedTilesetEntrySamples.empty()) {
+		const size_t sampleCount = std::min<size_t>(report.unresolvedTilesetEntrySamples.size(), 3);
+		for (size_t i = 0; i < sampleCount; ++i) {
+			const UnresolvedTilesetEntrySampleRecord &sample = report.unresolvedTilesetEntrySamples[i];
+			if (i > 0) {
+				unresolvedTilesetSamplesDetail += "; ";
+			}
+			wxString group = sample.paletteGroupName;
+			group.Trim(true);
+			group.Trim(false);
+			if (group.IsEmpty()) {
+				group = "<unknown>";
+			}
+			wxString tileset = sample.tilesetName;
+			tileset.Trim(true);
+			tileset.Trim(false);
+			if (tileset.IsEmpty()) {
+				tileset = "<unknown>";
+			}
+			wxString section = sample.sectionType;
+			section.Trim(true);
+			section.Trim(false);
+			if (section.IsEmpty()) {
+				section = "<unknown>";
+			}
+			wxString brush = sample.brushName;
+			brush.Trim(true);
+			brush.Trim(false);
+			if (brush.IsEmpty()) {
+				brush = "<unknown>";
+			}
+			unresolvedTilesetSamplesDetail += wxString::Format(
+				"group=\"%s\" palette=\"%s\" section=\"%s\" brush=\"%s\"",
+				group,
+				tileset,
+				section,
+				brush
+			);
+		}
+	}
+
 	if (importComplete) {
 		outReady = true;
 		if (report.unsupportedBrushTypeCount > 0) {
@@ -5023,6 +5123,9 @@ bool BrushDatabaseCatalogRepository::hasCompleteImportForCurrentSchema(bool &out
 				report.unresolvedCaseMatchBorderIds,
 				report.unresolvedCaseReplaceBorderTargetIds
 			);
+			if (!unresolvedTilesetSamplesDetail.IsEmpty()) {
+				outReason += " Examples: " + unresolvedTilesetSamplesDetail + ".";
+			}
 		}
 		return true;
 	}
@@ -5107,6 +5210,9 @@ bool BrushDatabaseCatalogRepository::hasCompleteImportForCurrentSchema(bool &out
 			report.unresolvedCaseMatchBorderIds,
 			report.unresolvedCaseReplaceBorderTargetIds
 		);
+		if (!unresolvedTilesetSamplesDetail.IsEmpty()) {
+			outReason += " Examples: " + unresolvedTilesetSamplesDetail + ".";
+		}
 	} else if (!isReadOnly()) {
 		markMaterialsImportComplete("audit_auto_mark");
 	}

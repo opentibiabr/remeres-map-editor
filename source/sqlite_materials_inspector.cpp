@@ -89,6 +89,44 @@ namespace {
 				report.unresolvedCaseMatchBorderIds,
 				report.unresolvedCaseReplaceBorderTargetIds
 			);
+			if (report.unresolvedTilesetEntries > 0 && !report.unresolvedTilesetEntrySamples.empty()) {
+				wxString detail;
+				const size_t sampleCount = std::min<size_t>(report.unresolvedTilesetEntrySamples.size(), 3);
+				for (size_t i = 0; i < sampleCount; ++i) {
+					const UnresolvedTilesetEntrySampleRecord &sample = report.unresolvedTilesetEntrySamples[i];
+					if (i > 0) {
+						detail += "; ";
+					}
+					wxString group = sample.paletteGroupName;
+					group.Trim(true);
+					group.Trim(false);
+					if (group.IsEmpty()) {
+						group = "<unknown>";
+					}
+					wxString tileset = sample.tilesetName;
+					tileset.Trim(true);
+					tileset.Trim(false);
+					if (tileset.IsEmpty()) {
+						tileset = "<unknown>";
+					}
+					wxString section = sample.sectionType;
+					section.Trim(true);
+					section.Trim(false);
+					if (section.IsEmpty()) {
+						section = "<unknown>";
+					}
+					wxString brush = sample.brushName;
+					brush.Trim(true);
+					brush.Trim(false);
+					if (brush.IsEmpty()) {
+						brush = "<unknown>";
+					}
+					detail += wxString::Format("group=\"%s\" palette=\"%s\" section=\"%s\" brush=\"%s\"", group, tileset, section, brush);
+				}
+				if (!detail.IsEmpty()) {
+					reason += " Examples: " + detail + ".";
+				}
+			}
 		} else if (!markerComplete) {
 			reason = "Import marker is incomplete.";
 		}
@@ -160,6 +198,57 @@ namespace {
 		text << "Unresolved ground targets: " << report.unresolvedGroundTargets << "\n";
 		text << "Unresolved brush links: " << report.unresolvedBrushLinks << "\n";
 		text << "Unresolved tileset entries: " << report.unresolvedTilesetEntries << "\n\n";
+		if (report.unresolvedTilesetEntries > 0 && !report.unresolvedTilesetEntrySamples.empty()) {
+			text << "Unresolved tileset entry samples:\n";
+			for (const UnresolvedTilesetEntrySampleRecord &sample : report.unresolvedTilesetEntrySamples) {
+				wxString group = sample.paletteGroupName;
+				group.Trim(true);
+				group.Trim(false);
+				if (group.IsEmpty()) {
+					group = "<unknown>";
+				}
+				wxString tileset = sample.tilesetName;
+				tileset.Trim(true);
+				tileset.Trim(false);
+				if (tileset.IsEmpty()) {
+					tileset = "<unknown>";
+				}
+				wxString source = sample.tilesetSourceFile;
+				source.Trim(true);
+				source.Trim(false);
+				if (source.IsEmpty()) {
+					source = "<unknown>";
+				}
+				wxString section = sample.sectionType;
+				section.Trim(true);
+				section.Trim(false);
+				if (section.IsEmpty()) {
+					section = "<unknown>";
+				}
+				wxString brush = sample.brushName;
+				brush.Trim(true);
+				brush.Trim(false);
+				if (brush.IsEmpty()) {
+					brush = "<unknown>";
+				}
+				wxString entryKind = sample.entryKind;
+				entryKind.Trim(true);
+				entryKind.Trim(false);
+				if (entryKind.IsEmpty()) {
+					entryKind = "<unknown>";
+				}
+				text << wxString::Format(
+					"  - group=\"%s\" palette=\"%s\" section=\"%s\" kind=\"%s\" brush=\"%s\" source=\"%s\"\n",
+					group,
+					tileset,
+					section,
+					entryKind,
+					brush,
+					source
+				);
+			}
+			text << "\n";
+		}
 		text << "Unresolved case match_border ids: " << report.unresolvedCaseMatchBorderIds << "\n";
 		text << "Unresolved case replace_border target ids: " << report.unresolvedCaseReplaceBorderTargetIds << "\n";
 		text << "Case match_border edges without borderitem: " << report.caseMatchBorderEdgesWithoutItem << "\n";
