@@ -70,6 +70,7 @@ private:
 	void SetStatusMessage(const wxString &message);
 	void SetFieldsEnabled(bool enabled);
 	void RefreshComposedPreview();
+	void RefreshDoorSideControls();
 	void RefreshLinksSection();
 	void UpdateLinksActionButtons();
 	void SyncMetadataFieldsFromStorage();
@@ -141,7 +142,9 @@ private:
 	wxCheckBox* onDuplicateCtrl_ = nullptr;
 	wxCheckBox* redoBordersCtrl_ = nullptr;
 	wxCheckBox* oneSizeCtrl_ = nullptr;
-	wxChoice* partChoice_ = nullptr;
+	wxPanel* partSelectorPanel_ = nullptr;
+	wxWrapSizer* partTypeSizer_ = nullptr;
+	std::vector<wxRadioButton*> partTypeButtons_;
 	wxButton* addPartButton_ = nullptr;
 	wxStaticText* partSummaryLabel_ = nullptr;
 	wxPanel* composedPreview_ = nullptr;

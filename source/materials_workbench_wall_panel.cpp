@@ -175,6 +175,29 @@ namespace {
 		return trimmed.SubString(0, alternateIndex - 1).Lower();
 	}
 
+	wxString WallPartTypeTag(const wxString &partType) {
+		const wxString normalized = NormalizeWallPreviewPartType(partType);
+		if (normalized == "vertical") return "V";
+		if (normalized == "horizontal") return "H";
+		if (normalized == "pole") return "P";
+		if (normalized == "corner") return "C";
+		if (normalized == "south end") return "S-end";
+		if (normalized == "east end") return "E-end";
+		if (normalized == "north end") return "N-end";
+		if (normalized == "west end") return "W-end";
+		if (normalized == "south t") return "S-T";
+		if (normalized == "east t") return "E-T";
+		if (normalized == "west t") return "W-T";
+		if (normalized == "north t") return "N-T";
+		if (normalized == "northwest diagonal") return "SE";
+		if (normalized == "northeast diagonal") return "SW";
+		if (normalized == "southwest diagonal") return "NE";
+		if (normalized == "southeast diagonal") return "NW";
+		if (normalized == "intersection") return "X";
+		if (normalized == "untouchable") return "U";
+		return partType;
+	}
+
 	wxString PartTypeForWallAlignment(uint32_t alignment) {
 		switch (alignment) {
 		case WALL_VERTICAL:
@@ -1155,22 +1178,13 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 
 	brushIdCtrl_ = new wxTextCtrl(identityParent, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
 	brushNameCtrl_ = new wxTextCtrl(identityParent, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
-	partChoice_ = new wxChoice(identityParent, wxID_ANY);
-	addPartButton_ = new wxButton(identityParent, wxID_ANY, "+");
-	partSummaryLabel_ = new wxStaticText(identityParent, wxID_ANY, "");
 
 	identityGrid->Add(new wxStaticText(identityParent, wxID_ANY, "SQLite ID"), 0, wxALIGN_CENTER_VERTICAL);
 	identityGrid->Add(brushIdCtrl_, 1, wxEXPAND);
 	identityGrid->Add(new wxStaticText(identityParent, wxID_ANY, "Name"), 0, wxALIGN_CENTER_VERTICAL);
 	identityGrid->Add(brushNameCtrl_, 1, wxEXPAND);
-	identityGrid->Add(new wxStaticText(identityParent, wxID_ANY, "Part Type"), 0, wxALIGN_CENTER_VERTICAL);
-	wxBoxSizer* partRowSizer = new wxBoxSizer(wxHORIZONTAL);
-	partRowSizer->Add(partChoice_, 1, wxEXPAND);
-	partRowSizer->Add(addPartButton_, 0, wxLEFT, FromDIP(6));
-	identityGrid->Add(partRowSizer, 1, wxEXPAND);
 
 	identityBox->Add(identityGrid, 0, wxEXPAND | wxALL, FromDIP(8));
-	identityBox->Add(partSummaryLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
 
 	wxStaticBoxSizer* metadataBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Metadata");
 	wxWindow* metadataParent = metadataBox->GetStaticBox();
@@ -1224,6 +1238,13 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	composedPreview_ = new WallWorkspaceComposedPreviewPanel(previewParent);
 	previewBox->Add(composedPreview_, 0, wxEXPAND | wxALL, FromDIP(6));
 
+	partSelectorPanel_ = new wxPanel(previewParent, wxID_ANY);
+	partTypeSizer_ = new wxWrapSizer(wxHORIZONTAL);
+	partSelectorPanel_->SetSizer(partTypeSizer_);
+	addPartButton_ = new wxButton(previewParent, wxID_ANY, "+");
+	addPartButton_->SetToolTip("Add a missing wall part type.");
+	partSummaryLabel_ = new wxStaticText(previewParent, wxID_ANY, "");
+
 	previewFillRadio_ = new wxRadioButton(previewParent, wxID_ANY, "Fill", wxDefaultPosition, wxDefaultSize, wxRB_GROUP);
 	previewStrictRadio_ = new wxRadioButton(previewParent, wxID_ANY, "Strict");
 	previewFillRadio_->SetValue(true);
@@ -1235,19 +1256,28 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	previewDoorSouthRadio_ = new wxRadioButton(previewParent, wxID_ANY, "S");
 	previewDoorWestRadio_ = new wxRadioButton(previewParent, wxID_ANY, "W");
 	previewDoorAutoRadio_->SetValue(true);
+	previewDoorNorthRadio_->SetToolTip("Prefer north side (auto).");
+	previewDoorEastRadio_->SetToolTip("Prefer east side (auto).");
+	previewDoorSouthRadio_->SetToolTip("Prefer south side (auto).");
+	previewDoorWestRadio_->SetToolTip("Prefer west side (auto).");
 
-	wxBoxSizer* previewControls = new wxBoxSizer(wxHORIZONTAL);
+	wxWrapSizer* previewControls = new wxWrapSizer(wxHORIZONTAL);
 	previewControls->Add(new wxStaticText(previewParent, wxID_ANY, "Mode"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
 	previewControls->Add(previewFillRadio_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
 	previewControls->Add(previewStrictRadio_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(12));
-	previewControls->Add(new wxStaticText(previewParent, wxID_ANY, "Door"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
+	previewControls->Add(new wxStaticText(previewParent, wxID_ANY, "Part"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
+	previewControls->Add(partSelectorPanel_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
+	previewControls->Add(addPartButton_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(12));
+	previewControls->Add(new wxStaticText(previewParent, wxID_ANY, "Door (auto)"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
 	previewControls->Add(previewDoorAutoRadio_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
+	previewControls->Add(new wxStaticText(previewParent, wxID_ANY, "Prefer"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
 	previewControls->Add(previewDoorNorthRadio_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
 	previewControls->Add(previewDoorEastRadio_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
 	previewControls->Add(previewDoorSouthRadio_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
 	previewControls->Add(previewDoorWestRadio_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(12));
 	previewControls->Add(previewOverlayCtrl_, 0, wxALIGN_CENTER_VERTICAL);
 	previewBox->Add(previewControls, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(6));
+	previewBox->Add(partSummaryLabel_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(6));
 
 	wxBoxSizer* gridsRow = new wxBoxSizer(wxHORIZONTAL);
 
@@ -1443,7 +1473,6 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	rootSizer->Add(footerSizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(2));
 	SetSizer(rootSizer);
 
-	partChoice_->Bind(wxEVT_CHOICE, &MaterialsWorkbenchWallPanel::OnPartChanged, this);
 	addPartButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnAddPartType, this);
 	previewFillRadio_->Bind(wxEVT_RADIOBUTTON, &MaterialsWorkbenchWallPanel::OnPreviewOptionsChanged, this);
 	previewStrictRadio_->Bind(wxEVT_RADIOBUTTON, &MaterialsWorkbenchWallPanel::OnPreviewOptionsChanged, this);
@@ -1727,11 +1756,18 @@ void MaterialsWorkbenchWallPanel::ClearWorkspace(const wxString &message) {
 	if (oneSizeCtrl_) {
 		oneSizeCtrl_->SetValue(false);
 	}
-	partChoice_->Clear();
+	if (partTypeSizer_) {
+		partTypeSizer_->Clear(true);
+	}
+	partTypeButtons_.clear();
+	if (partSelectorPanel_) {
+		partSelectorPanel_->Layout();
+	}
 	partSummaryLabel_->SetLabel("");
 	previewFillRadio_->SetValue(true);
 	previewDoorAutoRadio_->SetValue(true);
 	previewOverlayCtrl_->SetValue(false);
+	RefreshDoorSideControls();
 	selectedItemLabel_->SetLabel("No wall item selected");
 	itemIdCtrl_->SetValue(0);
 	itemChanceCtrl_->SetValue(0);
@@ -1908,21 +1944,45 @@ void MaterialsWorkbenchWallPanel::OnMetadataFieldChanged(wxCommandEvent &event) 
 }
 
 void MaterialsWorkbenchWallPanel::RefreshPartChoice() {
-	partChoice_->Clear();
-	for (const WallPartRecord &part : wallBrushStorage_.wallParts) {
-		partChoice_->Append(part.partType);
+	if (!partTypeSizer_ || !partSelectorPanel_) {
+		return;
+	}
+
+	partTypeSizer_->Clear(true);
+	partTypeButtons_.clear();
+
+	for (size_t i = 0; i < wallBrushStorage_.wallParts.size(); ++i) {
+		const WallPartRecord &part = wallBrushStorage_.wallParts[i];
+		const wxString label = WallPartTypeTag(part.partType);
+		wxRadioButton* button = new wxRadioButton(
+			partSelectorPanel_,
+			wxID_ANY,
+			label,
+			wxDefaultPosition,
+			wxDefaultSize,
+			i == 0 ? wxRB_GROUP : 0
+		);
+		button->SetToolTip(part.partType + " (" + label + ")");
+		button->Bind(wxEVT_RADIOBUTTON, &MaterialsWorkbenchWallPanel::OnPartChanged, this);
+		partTypeSizer_->Add(button, 0, wxRIGHT | wxBOTTOM, FromDIP(4));
+		partTypeButtons_.push_back(button);
 	}
 
 	if (wallBrushStorage_.wallParts.empty()) {
 		selectedPartIndex_ = -1;
-		partChoice_->SetSelection(wxNOT_FOUND);
+		partSelectorPanel_->Layout();
+		RefreshDoorSideControls();
 		return;
 	}
 
 	if (selectedPartIndex_ < 0 || selectedPartIndex_ >= static_cast<int>(wallBrushStorage_.wallParts.size())) {
 		selectedPartIndex_ = 0;
 	}
-	partChoice_->SetSelection(selectedPartIndex_);
+	if (selectedPartIndex_ >= 0 && selectedPartIndex_ < static_cast<int>(partTypeButtons_.size())) {
+		partTypeButtons_[selectedPartIndex_]->SetValue(true);
+	}
+	partSelectorPanel_->Layout();
+	RefreshDoorSideControls();
 }
 
 void MaterialsWorkbenchWallPanel::RefreshSelectedPart() {
@@ -1935,6 +1995,7 @@ void MaterialsWorkbenchWallPanel::RefreshSelectedPart() {
 		doorButtons_.clear();
 		SyncSelectedItemEditor();
 		SyncSelectedDoorEditor();
+		RefreshDoorSideControls();
 		RefreshComposedPreview();
 		Layout();
 		return;
@@ -1958,6 +2019,7 @@ void MaterialsWorkbenchWallPanel::RefreshSelectedPart() {
 	RefreshDoorGrid();
 	SyncSelectedItemEditor();
 	SyncSelectedDoorEditor();
+	RefreshDoorSideControls();
 	RefreshComposedPreview();
 	Layout();
 }
@@ -2297,7 +2359,14 @@ void MaterialsWorkbenchWallPanel::SetStatusMessage(const wxString &message) {
 }
 
 void MaterialsWorkbenchWallPanel::SetFieldsEnabled(bool enabled) {
-	partChoice_->Enable(enabled);
+	if (partSelectorPanel_) {
+		partSelectorPanel_->Enable(enabled);
+	}
+	for (wxRadioButton* button : partTypeButtons_) {
+		if (button) {
+			button->Enable(enabled);
+		}
+	}
 	addPartButton_->Enable(enabled);
 	previewFillRadio_->Enable(enabled);
 	previewStrictRadio_->Enable(enabled);
@@ -2354,6 +2423,47 @@ void MaterialsWorkbenchWallPanel::SetFieldsEnabled(bool enabled) {
 	if (inboundLinksListCtrl_) {
 		inboundLinksListCtrl_->Enable(enabled);
 	}
+}
+
+void MaterialsWorkbenchWallPanel::RefreshDoorSideControls() {
+	if (!previewDoorAutoRadio_ || !previewDoorNorthRadio_ || !previewDoorEastRadio_ || !previewDoorSouthRadio_ || !previewDoorWestRadio_) {
+		return;
+	}
+
+	const WallPartRecord* part = GetSelectedPart();
+	const wxString selectedPart = part ? NormalizeWallPreviewPartType(part->partType) : wxString();
+	const bool wantsVertical = selectedPart.Contains("vertical") || selectedPart.Contains("east") || selectedPart.Contains("west");
+	const bool wantsHorizontal = selectedPart.Contains("horizontal") || selectedPart.Contains("north") || selectedPart.Contains("south");
+	const bool verticalOnly = wantsVertical && !wantsHorizontal;
+	const bool horizontalOnly = wantsHorizontal && !wantsVertical;
+
+	const bool showNorthSouth = horizontalOnly;
+	const bool showEastWest = verticalOnly;
+	previewDoorNorthRadio_->Show(showNorthSouth);
+	previewDoorSouthRadio_->Show(showNorthSouth);
+	previewDoorEastRadio_->Show(showEastWest);
+	previewDoorWestRadio_->Show(showEastWest);
+
+	const bool selectingNorthSouth = (previewDoorNorthRadio_->GetValue() || previewDoorSouthRadio_->GetValue());
+	const bool selectingEastWest = (previewDoorEastRadio_->GetValue() || previewDoorWestRadio_->GetValue());
+	if (showNorthSouth) {
+		if (selectingEastWest) {
+			previewDoorAutoRadio_->SetValue(true);
+		}
+	} else if (showEastWest) {
+		if (selectingNorthSouth) {
+			previewDoorAutoRadio_->SetValue(true);
+		}
+	} else {
+		if (selectingNorthSouth || selectingEastWest) {
+			previewDoorAutoRadio_->SetValue(true);
+		}
+	}
+
+	if (wxWindow* parent = previewDoorAutoRadio_->GetParent()) {
+		parent->Layout();
+	}
+	Layout();
 }
 
 BrushStorageRecord MaterialsWorkbenchWallPanel::BuildComparableStorageFromCurrentState() const {
@@ -2777,7 +2887,16 @@ bool MaterialsWorkbenchWallPanel::SaveCurrentWallBrush() {
 
 void MaterialsWorkbenchWallPanel::OnPartChanged(wxCommandEvent &event) {
 	SaveCurrentPartEditorState();
-	selectedPartIndex_ = partChoice_->GetSelection();
+	int newIndex = -1;
+	for (size_t i = 0; i < partTypeButtons_.size(); ++i) {
+		wxRadioButton* button = partTypeButtons_[i];
+		if (button && button->GetValue()) {
+			newIndex = static_cast<int>(i);
+			break;
+		}
+	}
+	selectedPartIndex_ = newIndex;
+	RefreshDoorSideControls();
 	RestoreCurrentPartEditorState();
 	event.Skip();
 }
