@@ -47,9 +47,9 @@
   - [x] Fix audit semantics: replace_border “with” is item id (don’t treat as border id); ignore edge checks for empty border sets
   - [x] Fix SQLite inspector schema version label (show db vs expected)
   - [x] Treat “import marker complete” as healthy only if audit shows 0 unresolved refs (avoid false-green DB)
-- [ ] Stage D: recovery tooling
+- [x] Stage D: recovery tooling
   - [x] Add explicit “rebuild/reset DB from XML” tooling (manual action), with strong warnings
-  - [ ] Add integrity checks and a safe recovery path when DB is corrupted or partially missing
+  - [x] Add integrity checks and a safe recovery path when DB is corrupted or partially missing
     - [x] Run SQLite quick_check on startup (when materials.db already exists) to detect corruption early and guide recovery
     - [x] Ensure SQLite error codes are preserved for exec/prepare failures (no rc/ext=0 for malformed DB)
     - [x] Allow Reset-from-XML even when SQLite cannot open (corrupt materials.db recovery)
