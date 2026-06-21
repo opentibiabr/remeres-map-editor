@@ -32,6 +32,7 @@ public:
 	void SetOnWallBrushSaved(std::function<void(int64_t)> callback);
 	void SetOnWallBrushStateChanged(std::function<void()> callback);
 	void SetOnOpenLinkedBrush(std::function<void(int64_t)> callback);
+	void SetOnOpenLinkedBorderSet(std::function<void(int64_t)> callback);
 	void SetOnOpenLinkedTileset(std::function<void(const wxString &)> callback);
 	bool HasPendingChanges() const;
 	bool IsCurrentWallSelection(const wxString &contextKey, int itemIndex) const;
@@ -107,6 +108,7 @@ private:
 	std::function<void(int64_t)> onWallBrushSaved_;
 	std::function<void()> onWallBrushStateChanged_;
 	std::function<void(int64_t)> onOpenLinkedBrush_;
+	std::function<void(int64_t)> onOpenLinkedBorderSet_;
 	std::function<void(const wxString &)> onOpenLinkedTileset_;
 	BrushStorageRecord wallBrushStorage_;
 	BrushStorageRecord loadedWallBrushStorage_;

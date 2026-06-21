@@ -3341,6 +3341,53 @@ bool BrushDatabaseBrushRepository::listBrushUsages(int64_t brushId, const wxStri
 	}
 
 	sqlite3_finalize(borderTargetStmt);
+
+	sqlite3_stmt* ownedBorderSetStmt = nullptr;
+	if (!prepare(
+			"SELECT bs.id, bs.border_scope, bs.border_type, bs.border_group, COALESCE(bs.xml_border_id, 0) "
+			"FROM border_sets bs "
+			"WHERE bs.owner_brush_id = ? "
+			"ORDER BY bs.border_scope COLLATE NOCASE ASC, bs.border_type COLLATE NOCASE ASC, bs.id ASC;",
+			&ownedBorderSetStmt)) {
+		return false;
+	}
+
+	sqlite3_bind_int64(ownedBorderSetStmt, 1, brushId);
+
+	for (;;) {
+		const int rc = sqlite3_step(ownedBorderSetStmt);
+		if (rc == SQLITE_DONE) {
+			break;
+		}
+		if (rc != SQLITE_ROW) {
+			sqlite3_finalize(ownedBorderSetStmt);
+			return setErrorFromDatabase("Failed to list brush owned border set usages");
+		}
+
+		const int64_t borderSetId = sqlite3_column_int64(ownedBorderSetStmt, 0);
+		const wxString borderScope = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(ownedBorderSetStmt, 1)));
+		const wxString borderType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(ownedBorderSetStmt, 2)));
+		const int borderGroup = sqlite3_column_int(ownedBorderSetStmt, 3);
+		const int xmlBorderId = sqlite3_column_int(ownedBorderSetStmt, 4);
+
+		BrushUsageRecord usage;
+		usage.sourceKind = "border_set";
+		usage.sourceId = borderSetId;
+		usage.sourceName = wxString::Format("Border set %lld", static_cast<long long>(borderSetId));
+		usage.relation = "owner";
+		usage.context = wxString::Format(
+			"scope=%s type=%s group=%d xml_id=%d",
+			borderScope,
+			borderType,
+			borderGroup,
+			xmlBorderId
+		);
+		usage.sortOrder = 0;
+		usage.refId = borderSetId;
+		outUsages.push_back(std::move(usage));
+	}
+
+	sqlite3_finalize(ownedBorderSetStmt);
 	return true;
 }
 

@@ -440,6 +440,15 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 			}
 		});
 	});
+	brushPanel_->SetOnOpenLinkedBorderSet([this](int64_t borderSetId) {
+		CallAfter([this, borderSetId]() {
+			wxString contextKey;
+			int itemIndex = -1;
+			if (controller_.LocateBorderSetNode(borderSetId, contextKey, itemIndex)) {
+				SelectNavigationNode(MaterialsWorkbenchNodeKind::BorderSet, contextKey, itemIndex);
+			}
+		});
+	});
 	brushPanel_->SetOnOpenLinkedTileset([this](const wxString &paletteName) {
 		const wxString paletteNameCopy = paletteName;
 		CallAfter([this, paletteNameCopy]() {
@@ -464,6 +473,15 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 			int itemIndex = -1;
 			if (controller_.LocateBrushNode(brushId, contextKey, itemIndex)) {
 				SelectNavigationNode(MaterialsWorkbenchNodeKind::Brush, contextKey, itemIndex);
+			}
+		});
+	});
+	wallPanel_->SetOnOpenLinkedBorderSet([this](int64_t borderSetId) {
+		CallAfter([this, borderSetId]() {
+			wxString contextKey;
+			int itemIndex = -1;
+			if (controller_.LocateBorderSetNode(borderSetId, contextKey, itemIndex)) {
+				SelectNavigationNode(MaterialsWorkbenchNodeKind::BorderSet, contextKey, itemIndex);
 			}
 		});
 	});

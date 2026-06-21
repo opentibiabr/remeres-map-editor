@@ -1066,6 +1066,10 @@ void MaterialsWorkbenchWallPanel::SetOnOpenLinkedBrush(std::function<void(int64_
 	onOpenLinkedBrush_ = std::move(callback);
 }
 
+void MaterialsWorkbenchWallPanel::SetOnOpenLinkedBorderSet(std::function<void(int64_t)> callback) {
+	onOpenLinkedBorderSet_ = std::move(callback);
+}
+
 void MaterialsWorkbenchWallPanel::SetOnOpenLinkedTileset(std::function<void(const wxString &)> callback) {
 	onOpenLinkedTileset_ = std::move(callback);
 }
@@ -3148,6 +3152,10 @@ void MaterialsWorkbenchWallPanel::OnUsedBy(wxCommandEvent &) {
 		if (usage.sourceKind.IsSameAs("palette", false)) {
 			if (onOpenLinkedTileset_) {
 				onOpenLinkedTileset_(usage.sourceName);
+			}
+		} else if (usage.sourceKind.IsSameAs("border_set", false)) {
+			if (onOpenLinkedBorderSet_) {
+				onOpenLinkedBorderSet_(usage.sourceId);
 			}
 		} else if (usage.sourceKind.IsSameAs("brush", false)) {
 			if (onOpenLinkedBrush_) {
