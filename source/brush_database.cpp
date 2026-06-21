@@ -4867,6 +4867,29 @@ bool BrushDatabaseCatalogRepository::hasCompleteImportForCurrentSchema(bool &out
 			report.unsupportedBrushTypeCounts[i].count
 		);
 	}
+	wxString unsupportedBrushSamplesDetail;
+	if (!report.unsupportedBrushSamples.empty()) {
+		const size_t sampleCount = std::min<size_t>(report.unsupportedBrushSamples.size(), 3);
+		for (size_t i = 0; i < sampleCount; ++i) {
+			const UnsupportedBrushSampleRecord &sample = report.unsupportedBrushSamples[i];
+			if (i > 0) {
+				unsupportedBrushSamplesDetail += "; ";
+			}
+			wxString source = sample.sourceFile;
+			source.Trim(true);
+			source.Trim(false);
+			if (source.IsEmpty()) {
+				source = "<unknown>";
+			}
+			unsupportedBrushSamplesDetail += wxString::Format(
+				"id=%lld name=\"%s\" type=\"%s\" source=\"%s\"",
+				static_cast<long long>(sample.id),
+				sample.name,
+				sample.type,
+				source
+			);
+		}
+	}
 
 	if (importComplete) {
 		outReady = true;
@@ -4880,6 +4903,9 @@ bool BrushDatabaseCatalogRepository::hasCompleteImportForCurrentSchema(bool &out
 					report.unsupportedBrushTypeCount,
 					unsupportedBrushTypesDetail
 				);
+			}
+			if (!unsupportedBrushSamplesDetail.IsEmpty()) {
+				outReason += " Examples: " + unsupportedBrushSamplesDetail + ".";
 			}
 		} else if (report.unresolvedGroundTargets > 0
 			|| report.unresolvedBrushLinks > 0
@@ -4961,6 +4987,9 @@ bool BrushDatabaseCatalogRepository::hasCompleteImportForCurrentSchema(bool &out
 				report.unsupportedBrushTypeCount,
 				unsupportedBrushTypesDetail
 			);
+		}
+		if (!unsupportedBrushSamplesDetail.IsEmpty()) {
+			outReason += " Examples: " + unsupportedBrushSamplesDetail + ".";
 		}
 	} else if (report.unresolvedGroundTargets > 0
 			   || report.unresolvedBrushLinks > 0
