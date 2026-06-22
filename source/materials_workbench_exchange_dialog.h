@@ -24,7 +24,9 @@ class MaterialsWorkbenchExportDialog final : public wxDialog {
 public:
 	MaterialsWorkbenchExportDialog(wxWindow* parent, MaterialsWorkbenchController &controller);
 
-	const MaterialsWorkbenchExportSelection &GetSelection() const { return selection_; }
+	const MaterialsWorkbenchExportSelection &GetSelection() const {
+		return selection_;
+	}
 
 private:
 	void RebuildData();
@@ -85,8 +87,12 @@ class MaterialsWorkbenchImportDialog final : public wxDialog {
 public:
 	MaterialsWorkbenchImportDialog(wxWindow* parent, const nlohmann::json &root, MaterialsWorkbenchController &controller);
 
-	const nlohmann::json &GetJson() const { return root_; }
-	MaterialsWorkbenchImportOptions GetOptions() const { return options_; }
+	const nlohmann::json &GetJson() const {
+		return root_;
+	}
+	MaterialsWorkbenchImportOptions GetOptions() const {
+		return options_;
+	}
 	void BuildPlanWithProgress(wxProgressDialog* progress = nullptr, int progressStart = 0, int progressSpan = 0);
 
 private:

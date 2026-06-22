@@ -733,10 +733,7 @@ namespace {
 			} else {
 				wxString doorTypeLower = door.doorType;
 				doorTypeLower.MakeLower();
-				door.isOpen = doorTypeLower == "window" ||
-					doorTypeLower == "any window" ||
-					doorTypeLower == "hatch window" ||
-					doorTypeLower == "hatch_window";
+				door.isOpen = doorTypeLower == "window" || doorTypeLower == "any window" || doorTypeLower == "hatch window" || doorTypeLower == "hatch_window";
 			}
 			door.wallHateMe = childNode.attribute("hate").as_bool();
 			door.sortOrder = sortOrder++;
@@ -1261,7 +1258,8 @@ namespace {
 			if (entryNodeName != "brush" && entryNodeName != "item") {
 				warnings.push_back(
 					"SQLite tileset import skipped unsupported entry <" + wxString::FromUTF8(entryNodeName.c_str()) + "> "
-					"in tileset \"" + tilesetName + "\" (" + sourceFile.GetFullName() + ")."
+																													  "in tileset \""
+					+ tilesetName + "\" (" + sourceFile.GetFullName() + ")."
 				);
 				continue;
 			}
@@ -1307,7 +1305,8 @@ namespace {
 			if (!IsSupportedTilesetSectionType(sectionNodeName)) {
 				warnings.push_back(
 					"SQLite tileset import skipped unsupported section <" + wxString::FromUTF8(sectionNodeName.c_str()) + "> "
-					"in tileset \"" + outTileset.name + "\" (" + sourceFile.GetFullName() + ")."
+																														  "in tileset \""
+					+ outTileset.name + "\" (" + sourceFile.GetFullName() + ")."
 				);
 				continue;
 			}
@@ -1600,17 +1599,8 @@ bool Materials::bootstrapSqliteDatabase(wxString &error, wxArrayString &warnings
 				|| report.unresolvedBrushLinks > 0
 				|| report.unresolvedTilesetEntries > 0
 				|| report.unresolvedCaseMatchBorderIds > 0
-				|| report.unresolvedCaseReplaceBorderTargetIds > 0
-				) {
-				warnings.push_back(wxString::Format(
-					"SQLite materials import completed with issues (unsupported brush types=%d, ground targets=%d, brush links=%d, tileset entries=%d, match_border ids=%d, replace_border target ids=%d).",
-					report.unsupportedBrushTypeCount,
-					report.unresolvedGroundTargets,
-					report.unresolvedBrushLinks,
-					report.unresolvedTilesetEntries,
-					report.unresolvedCaseMatchBorderIds,
-					report.unresolvedCaseReplaceBorderTargetIds
-				));
+				|| report.unresolvedCaseReplaceBorderTargetIds > 0) {
+				warnings.push_back(wxString::Format("SQLite materials import completed with issues (unsupported brush types=%d, ground targets=%d, brush links=%d, tileset entries=%d, match_border ids=%d, replace_border target ids=%d).", report.unsupportedBrushTypeCount, report.unresolvedGroundTargets, report.unresolvedBrushLinks, report.unresolvedTilesetEntries, report.unresolvedCaseMatchBorderIds, report.unresolvedCaseReplaceBorderTargetIds));
 			}
 		} else {
 			warnings.push_back("SQLite materials import completed, but audit report generation failed: " + g_brush_database.getLastError());

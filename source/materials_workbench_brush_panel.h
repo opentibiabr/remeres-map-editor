@@ -33,12 +33,12 @@ public:
 
 	void ClearWorkspace(const wxString &message);
 	bool LoadBrush(const wxString &contextKey, int itemIndex);
-	void SetOnBrushSaved(std::function<void(int64_t, const wxString&, const wxString&)> callback);
+	void SetOnBrushSaved(std::function<void(int64_t, const wxString &, const wxString &)> callback);
 	void SetOnBrushDeleted(std::function<void(int64_t)> callback);
 	void SetOnBrushStateChanged(std::function<void()> callback);
 	void SetOnOpenLinkedBrush(std::function<void(int64_t)> callback);
 	void SetOnOpenLinkedBorderSet(std::function<void(int64_t)> callback);
-	void SetOnOpenLinkedTileset(std::function<void(const wxString&)> callback);
+	void SetOnOpenLinkedTileset(std::function<void(const wxString &)> callback);
 	bool HasPendingChanges() const;
 	bool IsCurrentBrushSelection(const wxString &contextKey, int itemIndex) const;
 	wxString GetCurrentBrushDisplayName() const;
@@ -234,12 +234,12 @@ private:
 	void RemoveDoodadPreviewFloor();
 
 	MaterialsWorkbenchController &controller_;
-	std::function<void(int64_t, const wxString&, const wxString&)> onBrushSaved_;
+	std::function<void(int64_t, const wxString &, const wxString &)> onBrushSaved_;
 	std::function<void(int64_t)> onBrushDeleted_;
 	std::function<void()> onBrushStateChanged_;
 	std::function<void(int64_t)> onOpenLinkedBrush_;
 	std::function<void(int64_t)> onOpenLinkedBorderSet_;
-	std::function<void(const wxString&)> onOpenLinkedTileset_;
+	std::function<void(const wxString &)> onOpenLinkedTileset_;
 	BrushStorageRecord brushStorage_;
 	BrushStorageRecord loadedBrushStorage_;
 	BrushStorageRecord runtimeSyncedBrushStorage_;

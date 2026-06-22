@@ -948,7 +948,6 @@ bool BrushDatabase::replaceBorderSetItems(int64_t borderSetId, const std::vector
 	return brushRepository_.replaceBorderSetItems(borderSetId, items);
 }
 
-
 bool BrushDatabase::getBorderSetItems(int64_t borderSetId, std::vector<BorderSetItemRecord> &outItems) {
 	return brushRepository_.getBorderSetItems(borderSetId, outItems);
 }
@@ -3043,7 +3042,8 @@ bool BrushDatabaseBrushRepository::updateBrushReferenceNames(int64_t brushId, co
 			"UPDATE tileset_brush_entries "
 			"SET brush_name = ? "
 			"WHERE brush_id = ? OR brush_name = ?;",
-			"Failed to update tileset brush names")) {
+			"Failed to update tileset brush names"
+		)) {
 		rollbackTransaction();
 		return false;
 	}
@@ -3052,7 +3052,8 @@ bool BrushDatabaseBrushRepository::updateBrushReferenceNames(int64_t brushId, co
 			"UPDATE tileset_brush_entries "
 			"SET after_brush_name = ? "
 			"WHERE after_brush_name = ?;",
-			"Failed to update tileset after-brush names")) {
+			"Failed to update tileset after-brush names"
+		)) {
 		rollbackTransaction();
 		return false;
 	}
@@ -3061,7 +3062,8 @@ bool BrushDatabaseBrushRepository::updateBrushReferenceNames(int64_t brushId, co
 			"UPDATE ground_brush_borders "
 			"SET target_brush_name = ? "
 			"WHERE target_brush_id = ? OR target_brush_name = ?;",
-			"Failed to update ground border target brush names")) {
+			"Failed to update ground border target brush names"
+		)) {
 		rollbackTransaction();
 		return false;
 	}
@@ -3070,7 +3072,8 @@ bool BrushDatabaseBrushRepository::updateBrushReferenceNames(int64_t brushId, co
 			"UPDATE brush_links "
 			"SET target_brush_name = ? "
 			"WHERE target_brush_id = ? OR target_brush_name = ?;",
-			"Failed to update brush link target names")) {
+			"Failed to update brush link target names"
+		)) {
 		rollbackTransaction();
 		return false;
 	}
@@ -3142,7 +3145,8 @@ bool BrushDatabaseBrushRepository::deleteBrushReferences(int64_t brushId, const 
 	if (!executeDeleteTilesetEntries(
 			"DELETE FROM tileset_brush_entries "
 			"WHERE brush_id = ? OR brush_name = ? OR after_brush_name = ?;",
-			"Failed to delete tileset brush entries")) {
+			"Failed to delete tileset brush entries"
+		)) {
 		rollbackTransaction();
 		return false;
 	}
@@ -3150,7 +3154,8 @@ bool BrushDatabaseBrushRepository::deleteBrushReferences(int64_t brushId, const 
 	if (!executeDeleteByIdOrName(
 			"DELETE FROM ground_brush_borders "
 			"WHERE target_brush_id = ? OR target_brush_name = ?;",
-			"Failed to delete ground border target references")) {
+			"Failed to delete ground border target references"
+		)) {
 		rollbackTransaction();
 		return false;
 	}
@@ -3158,7 +3163,8 @@ bool BrushDatabaseBrushRepository::deleteBrushReferences(int64_t brushId, const 
 	if (!executeDeleteByIdOrName(
 			"DELETE FROM brush_links "
 			"WHERE target_brush_id = ? OR target_brush_name = ?;",
-			"Failed to delete brush link target references")) {
+			"Failed to delete brush link target references"
+		)) {
 		rollbackTransaction();
 		return false;
 	}
@@ -3344,11 +3350,7 @@ bool BrushDatabaseBrushRepository::upsertBorderSet(const BorderSetRecord &border
 		if (borderSet.xmlBorderId > 0) {
 			BorderSetRecord existing;
 			if (findBorderSetByXmlBorderId(borderSet.xmlBorderId, existing) && existing.id != borderSet.id) {
-				return setError(wxString::Format(
-					"XML border id %d already belongs to border set #%lld.",
-					borderSet.xmlBorderId,
-					static_cast<long long>(existing.id)
-				));
+				return setError(wxString::Format("XML border id %d already belongs to border set #%lld.", borderSet.xmlBorderId, static_cast<long long>(existing.id)));
 			}
 		}
 
@@ -3575,7 +3577,8 @@ bool BrushDatabaseBrushRepository::listBorderSetUsages(int64_t borderSetId, std:
 			"JOIN brushes b ON b.id = gbb.brush_id "
 			"WHERE gbb.border_set_id = ? "
 			"ORDER BY b.name COLLATE NOCASE ASC, gbb.sort_order ASC, gbb.id ASC;",
-			&stmt)) {
+			&stmt
+		)) {
 		return false;
 	}
 
@@ -4128,7 +4131,8 @@ bool BrushDatabaseBrushRepository::listBrushUsages(int64_t brushId, const wxStri
 			"WHERE e.after_brush_name <> '' AND e.after_brush_name = ?"
 			") "
 			"ORDER BY tileset_name COLLATE NOCASE ASC, section_sort ASC, sort_order ASC, ref_id ASC;",
-			&paletteStmt)) {
+			&paletteStmt
+		)) {
 		return false;
 	}
 
@@ -4166,7 +4170,8 @@ bool BrushDatabaseBrushRepository::listBrushUsages(int64_t brushId, const wxStri
 			"JOIN brushes b ON b.id = bl.brush_id "
 			"WHERE bl.target_brush_id = ? OR (bl.target_brush_id IS NULL AND bl.target_brush_name = ?) "
 			"ORDER BY b.name COLLATE NOCASE ASC, bl.sort_order ASC, bl.id ASC;",
-			&linkStmt)) {
+			&linkStmt
+		)) {
 		return false;
 	}
 
@@ -4203,7 +4208,8 @@ bool BrushDatabaseBrushRepository::listBrushUsages(int64_t brushId, const wxStri
 			"JOIN brushes b ON b.id = gbb.brush_id "
 			"WHERE gbb.target_brush_id = ? OR (gbb.target_brush_id IS NULL AND gbb.target_brush_name = ?) "
 			"ORDER BY b.name COLLATE NOCASE ASC, gbb.sort_order ASC, gbb.id ASC;",
-			&borderTargetStmt)) {
+			&borderTargetStmt
+		)) {
 		return false;
 	}
 
@@ -4226,11 +4232,13 @@ bool BrushDatabaseBrushRepository::listBrushUsages(int64_t brushId, const wxStri
 		usage.sourceName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderTargetStmt, 1)));
 		usage.relation = "border target";
 		usage.context = wxString::Format(
-			"%s %s %s",
-			ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderTargetStmt, 2))),
-			ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderTargetStmt, 3))),
-			ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderTargetStmt, 4)))
-		).Trim(true).Trim(false);
+							"%s %s %s",
+							ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderTargetStmt, 2))),
+							ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderTargetStmt, 3))),
+							ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderTargetStmt, 4)))
+		)
+							.Trim(true)
+							.Trim(false);
 		usage.sortOrder = sqlite3_column_int(borderTargetStmt, 5);
 		usage.refId = sqlite3_column_int64(borderTargetStmt, 6);
 		outUsages.push_back(std::move(usage));
@@ -4246,7 +4254,8 @@ bool BrushDatabaseBrushRepository::listBrushUsages(int64_t brushId, const wxStri
 			"JOIN border_sets bs ON bs.id = gbb.border_set_id "
 			"WHERE gbb.brush_id = ? "
 			"ORDER BY bs.border_scope COLLATE NOCASE ASC, COALESCE(bs.xml_border_id, 0) ASC, bs.id ASC, gbb.sort_order ASC, gbb.id ASC;",
-			&borderUsageStmt)) {
+			&borderUsageStmt
+		)) {
 		return false;
 	}
 
@@ -4278,14 +4287,16 @@ bool BrushDatabaseBrushRepository::listBrushUsages(int64_t brushId, const wxStri
 		}
 		usage.relation = "uses border";
 		usage.context = wxString::Format(
-			"scope=%s type=%s group=%d %s %s %s",
-			borderScope,
-			borderType,
-			borderGroup,
-			ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderUsageStmt, 5))),
-			ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderUsageStmt, 6))),
-			ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderUsageStmt, 7)))
-		).Trim(true).Trim(false);
+							"scope=%s type=%s group=%d %s %s %s",
+							borderScope,
+							borderType,
+							borderGroup,
+							ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderUsageStmt, 5))),
+							ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderUsageStmt, 6))),
+							ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderUsageStmt, 7)))
+		)
+							.Trim(true)
+							.Trim(false);
 		usage.sortOrder = sqlite3_column_int(borderUsageStmt, 8);
 		usage.refId = sqlite3_column_int64(borderUsageStmt, 9);
 		outUsages.push_back(std::move(usage));
@@ -4299,7 +4310,8 @@ bool BrushDatabaseBrushRepository::listBrushUsages(int64_t brushId, const wxStri
 			"FROM border_sets bs "
 			"WHERE bs.owner_brush_id = ? "
 			"ORDER BY bs.border_scope COLLATE NOCASE ASC, bs.border_type COLLATE NOCASE ASC, bs.id ASC;",
-			&ownedBorderSetStmt)) {
+			&ownedBorderSetStmt
+		)) {
 		return false;
 	}
 
@@ -4357,25 +4369,7 @@ bool BrushDatabaseBrushRepository::replaceWallParts(int64_t brushId, const std::
 
 		wxString baseLower = base;
 		baseLower.MakeLower();
-		const bool supported =
-			baseLower == "vertical" ||
-			baseLower == "horizontal" ||
-			baseLower == "corner" ||
-			baseLower == "pole" ||
-			baseLower == "south end" ||
-			baseLower == "east end" ||
-			baseLower == "north end" ||
-			baseLower == "west end" ||
-			baseLower == "south t" ||
-			baseLower == "east t" ||
-			baseLower == "west t" ||
-			baseLower == "north t" ||
-			baseLower == "northwest diagonal" ||
-			baseLower == "northeast diagonal" ||
-			baseLower == "southwest diagonal" ||
-			baseLower == "southeast diagonal" ||
-			baseLower == "intersection" ||
-			baseLower == "untouchable";
+		const bool supported = baseLower == "vertical" || baseLower == "horizontal" || baseLower == "corner" || baseLower == "pole" || baseLower == "south end" || baseLower == "east end" || baseLower == "north end" || baseLower == "west end" || baseLower == "south t" || baseLower == "east t" || baseLower == "west t" || baseLower == "north t" || baseLower == "northwest diagonal" || baseLower == "northeast diagonal" || baseLower == "southwest diagonal" || baseLower == "southeast diagonal" || baseLower == "intersection" || baseLower == "untouchable";
 		if (!supported) {
 			return false;
 		}
@@ -4462,18 +4456,7 @@ bool BrushDatabaseBrushRepository::replaceWallParts(int64_t brushId, const std::
 			}
 			wxString doorTypeLower = doorType;
 			doorTypeLower.MakeLower();
-			const bool supportedDoorType =
-				doorTypeLower == "normal" ||
-				doorTypeLower == "locked" ||
-				doorTypeLower == "quest" ||
-				doorTypeLower == "magic" ||
-				doorTypeLower == "archway" ||
-				doorTypeLower == "window" ||
-				doorTypeLower == "hatch window" ||
-				doorTypeLower == "hatch_window" ||
-				doorTypeLower == "any door" ||
-				doorTypeLower == "any window" ||
-				doorTypeLower == "any";
+			const bool supportedDoorType = doorTypeLower == "normal" || doorTypeLower == "locked" || doorTypeLower == "quest" || doorTypeLower == "magic" || doorTypeLower == "archway" || doorTypeLower == "window" || doorTypeLower == "hatch window" || doorTypeLower == "hatch_window" || doorTypeLower == "any door" || doorTypeLower == "any window" || doorTypeLower == "any";
 			if (!supportedDoorType) {
 				return setError("Unsupported wall part door type: " + doorType);
 			}
@@ -5609,7 +5592,6 @@ bool BrushDatabaseCatalogRepository::getAllPaletteGroups(std::vector<PaletteGrou
 bool BrushDatabaseCatalogRepository::getTilesetByName(const wxString &name, TilesetStorageRecord &outTileset) {
 	outTileset = TilesetStorageRecord();
 
-
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
@@ -5840,13 +5822,14 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 		outReport.brushTypeCounts.push_back(typeCount);
 	}
 
-
 	sqlite3_stmt* unsupportedTypesStmt = nullptr;
 	if (!prepare(("SELECT type, COUNT(*) "
-				 "FROM brushes "
-				 "WHERE type NOT IN " + supportedBrushTypesSql + " "
-				 "GROUP BY type "
-				 "ORDER BY COUNT(*) DESC, type COLLATE NOCASE ASC;").utf8_str(),
+				  "FROM brushes "
+				  "WHERE type NOT IN "
+				  + supportedBrushTypesSql + " "
+											 "GROUP BY type "
+											 "ORDER BY COUNT(*) DESC, type COLLATE NOCASE ASC;")
+					 .utf8_str(),
 				 &unsupportedTypesStmt)) {
 		return false;
 	}
@@ -5870,10 +5853,12 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 
 	sqlite3_stmt* unsupportedSamplesStmt = nullptr;
 	if (!prepare(("SELECT id, name, type, source_file "
-				 "FROM brushes "
-				 "WHERE type NOT IN " + supportedBrushTypesSql + " "
-				 "ORDER BY type COLLATE NOCASE ASC, name COLLATE NOCASE ASC, id ASC "
-				 "LIMIT 20;").utf8_str(),
+				  "FROM brushes "
+				  "WHERE type NOT IN "
+				  + supportedBrushTypesSql + " "
+											 "ORDER BY type COLLATE NOCASE ASC, name COLLATE NOCASE ASC, id ASC "
+											 "LIMIT 20;")
+					 .utf8_str(),
 				 &unsupportedSamplesStmt)) {
 		return false;
 	}
@@ -6093,11 +6078,7 @@ bool BrushDatabaseCatalogRepository::hasCompleteImportForCurrentSchema(bool &out
 			if (!unsupportedBrushSamplesDetail.IsEmpty()) {
 				outReason += " Examples: " + unsupportedBrushSamplesDetail + ".";
 			}
-		} else if (report.unresolvedGroundTargets > 0
-			|| report.unresolvedBrushLinks > 0
-			|| report.unresolvedTilesetEntries > 0
-			|| report.unresolvedCaseMatchBorderIds > 0
-			|| report.unresolvedCaseReplaceBorderTargetIds > 0) {
+		} else if (report.unresolvedGroundTargets > 0 || report.unresolvedBrushLinks > 0 || report.unresolvedTilesetEntries > 0 || report.unresolvedCaseMatchBorderIds > 0 || report.unresolvedCaseReplaceBorderTargetIds > 0) {
 			outReady = false;
 			outReason = wxString::Format(
 				"Database contains unresolved references (ground targets=%d, brush links=%d, tileset entries=%d, match_border ids=%d, replace_border target ids=%d).",
@@ -6180,11 +6161,7 @@ bool BrushDatabaseCatalogRepository::hasCompleteImportForCurrentSchema(bool &out
 		if (!unsupportedBrushSamplesDetail.IsEmpty()) {
 			outReason += " Examples: " + unsupportedBrushSamplesDetail + ".";
 		}
-	} else if (report.unresolvedGroundTargets > 0
-			   || report.unresolvedBrushLinks > 0
-			   || report.unresolvedTilesetEntries > 0
-			   || report.unresolvedCaseMatchBorderIds > 0
-			   || report.unresolvedCaseReplaceBorderTargetIds > 0) {
+	} else if (report.unresolvedGroundTargets > 0 || report.unresolvedBrushLinks > 0 || report.unresolvedTilesetEntries > 0 || report.unresolvedCaseMatchBorderIds > 0 || report.unresolvedCaseReplaceBorderTargetIds > 0) {
 		outReady = false;
 		outReason = wxString::Format(
 			"Database contains unresolved references (ground targets=%d, brush links=%d, tileset entries=%d, match_border ids=%d, replace_border target ids=%d).",
@@ -6265,7 +6242,8 @@ bool BrushDatabaseCatalogRepository::markMaterialsImportComplete(const wxString 
 
 	sqlite3_stmt* stmt = nullptr;
 	if (!prepare("INSERT OR REPLACE INTO import_status(id, completed, completed_at, source) "
-				 "VALUES (1, 1, strftime('%s','now'), ?);", &stmt)) {
+				 "VALUES (1, 1, strftime('%s','now'), ?);",
+				 &stmt)) {
 		return false;
 	}
 

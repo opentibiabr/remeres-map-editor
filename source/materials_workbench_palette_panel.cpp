@@ -1667,9 +1667,7 @@ void MaterialsWorkbenchPalettePanel::RefreshSelectionFeedback() {
 
 	int sectionIndex = 0;
 	int entryIndex = 0;
-	if (!ResolveVisibleEntryLocation(selectedVisibleIndex, sectionIndex, entryIndex) ||
-		sectionIndex < 0 || sectionIndex >= static_cast<int>(palette_.sections.size()) ||
-		entryIndex < 0 || entryIndex >= static_cast<int>(palette_.sections[sectionIndex].entries.size())) {
+	if (!ResolveVisibleEntryLocation(selectedVisibleIndex, sectionIndex, entryIndex) || sectionIndex < 0 || sectionIndex >= static_cast<int>(palette_.sections.size()) || entryIndex < 0 || entryIndex >= static_cast<int>(palette_.sections[sectionIndex].entries.size())) {
 		selectionSummaryLabel_->SetLabel("Select an entry to remove, reorder, or move.");
 		return;
 	}
@@ -1725,8 +1723,7 @@ bool MaterialsWorkbenchPalettePanel::MoveSelectedEntryByOffset(int offset, const
 	int sourceEntryIndex = 0;
 	int targetSectionIndex = 0;
 	int targetEntryIndex = 0;
-	if (!ResolveVisibleEntryLocation(selectedVisibleIndex, sourceSectionIndex, sourceEntryIndex) ||
-		!ResolveVisibleEntryLocation(targetVisibleIndex, targetSectionIndex, targetEntryIndex)) {
+	if (!ResolveVisibleEntryLocation(selectedVisibleIndex, sourceSectionIndex, sourceEntryIndex) || !ResolveVisibleEntryLocation(targetVisibleIndex, targetSectionIndex, targetEntryIndex)) {
 		return false;
 	}
 
@@ -1780,8 +1777,7 @@ bool MaterialsWorkbenchPalettePanel::ResolveMoveDestinationPalette(TilesetStorag
 
 	const int familySelection = moveDestinationFamilyChoice_->GetSelection();
 	const int paletteSelection = moveDestinationPaletteChoice_->GetSelection();
-	if (familySelection == wxNOT_FOUND || familySelection >= static_cast<int>(moveDestinationFamilyKeys_.size()) ||
-		paletteSelection == wxNOT_FOUND || paletteSelection >= static_cast<int>(moveDestinationPaletteIndexes_.size())) {
+	if (familySelection == wxNOT_FOUND || familySelection >= static_cast<int>(moveDestinationFamilyKeys_.size()) || paletteSelection == wxNOT_FOUND || paletteSelection >= static_cast<int>(moveDestinationPaletteIndexes_.size())) {
 		return false;
 	}
 
@@ -2147,14 +2143,16 @@ void MaterialsWorkbenchPalettePanel::OnDeletePalette(wxCommandEvent &event) {
 		entryCount
 	);
 	if (!entryPreview.IsEmpty()) {
-		warningText << "\n\nEntry preview:\n" << entryPreview;
+		warningText << "\n\nEntry preview:\n"
+					<< entryPreview;
 	}
 	if (wxMessageBox(
 			warningText,
 			"Delete Palette",
 			wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
 			this
-		) != wxYES) {
+		)
+		!= wxYES) {
 		return;
 	}
 
@@ -2341,7 +2339,8 @@ void MaterialsWorkbenchPalettePanel::OnDeletePaletteGroup(wxCommandEvent &event)
 				"Delete Palette Category",
 				wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
 				this
-			) != wxYES) {
+			)
+			!= wxYES) {
 			return;
 		}
 
@@ -2367,7 +2366,8 @@ void MaterialsWorkbenchPalettePanel::OnDeletePaletteGroup(wxCommandEvent &event)
 				"Delete Palette Category",
 				wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
 				this
-			) != wxYES) {
+			)
+			!= wxYES) {
 			return;
 		}
 
@@ -2471,7 +2471,8 @@ void MaterialsWorkbenchPalettePanel::OnDeleteSection(wxCommandEvent &event) {
 			"Delete Section",
 			wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
 			this
-		) != wxYES) {
+		)
+		!= wxYES) {
 		return;
 	}
 
@@ -2598,15 +2599,12 @@ void MaterialsWorkbenchPalettePanel::OnMoveBrushToPalette(wxCommandEvent &event)
 	const wxString sourceSectionType = palette_.sections[sourceSectionIndex].sectionType;
 	const wxString sourceFamily = DerivePaletteGroupFromSectionType(sourceSectionType);
 	const int destinationFamilySelection = moveDestinationFamilyChoice_->GetSelection();
-	const wxString destinationRuntimeFamily =
-		destinationFamilySelection != wxNOT_FOUND && destinationFamilySelection < static_cast<int>(moveDestinationFamilyKeys_.size())
-			? ResolvePaletteGroupRuntimeFamilyKey(targetPalette)
-			: ResolvePaletteBrushDisplayFamily(targetPalette);
+	const wxString destinationRuntimeFamily = destinationFamilySelection != wxNOT_FOUND && destinationFamilySelection < static_cast<int>(moveDestinationFamilyKeys_.size())
+		? ResolvePaletteGroupRuntimeFamilyKey(targetPalette)
+		: ResolvePaletteBrushDisplayFamily(targetPalette);
 
 	wxString preferredSectionType = sourceSectionType;
-	if (!destinationRuntimeFamily.IsEmpty() &&
-		!destinationRuntimeFamily.IsSameAs("other", false) &&
-		!destinationRuntimeFamily.IsSameAs(sourceFamily, false)) {
+	if (!destinationRuntimeFamily.IsEmpty() && !destinationRuntimeFamily.IsSameAs("other", false) && !destinationRuntimeFamily.IsSameAs(sourceFamily, false)) {
 		preferredSectionType = PreferredSectionTypeForBrushFamilyKey(destinationRuntimeFamily);
 	}
 

@@ -452,35 +452,36 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 			warnings.push_back(sqliteFallbackReason);
 			spdlog::warn("[GUI::LoadDataFiles] {}", sqliteFallbackReason.ToStdString());
 		} else {
-		bool skipSqliteImport = false;
-		wxString sqliteImportStatus;
-		if (!g_materials.shouldSkipSqliteBootstrapImports(skipSqliteImport, sqliteImportStatus)) {
-			sqliteFallbackReason = "SQLite import bootstrap check failed: " + sqliteImportStatus;
-			warnings.push_back(sqliteFallbackReason);
-			spdlog::warn("[GUI::LoadDataFiles] {}", sqliteFallbackReason.ToStdString());
-			if (g_brush_database.isOpen() && !sqliteDatabaseExistedBeforeInit) {
-				startAsyncSqliteBootstrap = true;
-			}
-		} else if (skipSqliteImport && g_brush_database.isOpen()) {
-			shouldLoadFromSqlite = true;
-			spdlog::info("{}", sqliteImportStatus.ToStdString());
-		} else {
-			if (!sqliteDatabaseExistedBeforeInit) {
-				sqliteImportStatus = wxString("SQLite materials database was missing; ") + sqliteImportStatus;
-			}
-			spdlog::info("{}", sqliteImportStatus.ToStdString());
-			sqliteFallbackReason = sqliteImportStatus;
-			if (!sqliteDatabaseExistedBeforeInit) {
-				startAsyncSqliteBootstrap = true;
+			bool skipSqliteImport = false;
+			wxString sqliteImportStatus;
+			if (!g_materials.shouldSkipSqliteBootstrapImports(skipSqliteImport, sqliteImportStatus)) {
+				sqliteFallbackReason = "SQLite import bootstrap check failed: " + sqliteImportStatus;
+				warnings.push_back(sqliteFallbackReason);
+				spdlog::warn("[GUI::LoadDataFiles] {}", sqliteFallbackReason.ToStdString());
+				if (g_brush_database.isOpen() && !sqliteDatabaseExistedBeforeInit) {
+					startAsyncSqliteBootstrap = true;
+				}
+			} else if (skipSqliteImport && g_brush_database.isOpen()) {
+				shouldLoadFromSqlite = true;
+				spdlog::info("{}", sqliteImportStatus.ToStdString());
 			} else {
-				warnings.push_back(
-					"SQLite materials import required, but automatic rebuild is disabled because materials.db already exists.\n"
-					"Reason: " + sqliteImportStatus + "\n"
-					"Recovery: Move or delete materials/materials.db to force a clean rebuild from XML."
-				);
+				if (!sqliteDatabaseExistedBeforeInit) {
+					sqliteImportStatus = wxString("SQLite materials database was missing; ") + sqliteImportStatus;
+				}
+				spdlog::info("{}", sqliteImportStatus.ToStdString());
+				sqliteFallbackReason = sqliteImportStatus;
+				if (!sqliteDatabaseExistedBeforeInit) {
+					startAsyncSqliteBootstrap = true;
+				} else {
+					warnings.push_back(
+						"SQLite materials import required, but automatic rebuild is disabled because materials.db already exists.\n"
+						"Reason: "
+						+ sqliteImportStatus + "\n"
+											   "Recovery: Move or delete materials/materials.db to force a clean rebuild from XML."
+					);
+				}
+				shouldLoadFromSqlite = false;
 			}
-			shouldLoadFromSqlite = false;
-		}
 		}
 	} else if (sqliteEnabled && !sqliteInitOk) {
 		const wxString rawError = g_brush_database.getLastError();
@@ -1843,18 +1844,17 @@ void GUI::TryShowMaterialsRecoveryDialog() {
 	const int sqliteRc = materials_recovery_sqlite_rc_;
 	const int sqliteExtRc = materials_recovery_sqlite_ext_rc_;
 
-	wxString dialogText =
-		"SQLite materials could not be used.\n"
-		"The editor is running in recovery mode using legacy XML materials for this session.\n\n"
-		"Problem:\n" + dialogCategory + "\n\n"
-		"Reason:\n" + dialogReason + "\n\n"
-		"Recommendation:\n" + dialogRecommendation + "\n\n"
-		"SQLite codes:\n" + wxString::Format("rc=%d ext=%d", sqliteRc, sqliteExtRc) + "\n\n"
-		"Database:\n" + dbPath + "\n\n"
-		"Options:\n"
-		"- Open Inspector: view SQLite diagnostics\n"
-		"- Reset DB from XML: rebuild a clean database (requires restart)\n"
-		"- Continue: keep using XML for this session";
+	wxString dialogText = "SQLite materials could not be used.\n";
+	dialogText += "The editor is running in recovery mode using legacy XML materials for this session.\n\n";
+	dialogText += "Problem:\n" + dialogCategory + "\n\n";
+	dialogText += "Reason:\n" + dialogReason + "\n\n";
+	dialogText += "Recommendation:\n" + dialogRecommendation + "\n\n";
+	dialogText += "SQLite codes:\n" + wxString::Format("rc=%d ext=%d", sqliteRc, sqliteExtRc) + "\n\n";
+	dialogText += "Database:\n" + dbPath + "\n\n";
+	dialogText += "Options:\n";
+	dialogText += "- Open Inspector: view SQLite diagnostics\n";
+	dialogText += "- Reset DB from XML: rebuild a clean database (requires restart)\n";
+	dialogText += "- Continue: keep using XML for this session";
 
 	wxMessageDialog dialog(g_gui.root, dialogText, "Materials recovery mode", wxYES_NO | wxCANCEL | wxICON_WARNING);
 	dialog.SetYesNoCancelLabels("Open Inspector", "Reset DB from XML...", "Continue (XML)");
@@ -1898,14 +1898,13 @@ void GUI::TryShowMaterialsRecoveryDialog() {
 		return;
 	}
 
-	const wxString doneText =
-		"materials.db was moved to:\n" + backupPath + "\n\n"
-		"Technical note:\n"
-		"- This process cannot safely rebuild and reload the materials graph in-place.\n"
-		"- A restart is required so the next startup can bootstrap a fresh SQLite DB from XML.\n\n"
-		"Next steps:\n"
-		"- Restart the app\n"
-		"- The SQLite database will be rebuilt from legacy XML automatically";
+	wxString doneText = "materials.db was moved to:\n" + backupPath + "\n\n";
+	doneText += "Technical note:\n";
+	doneText += "- This process cannot safely rebuild and reload the materials graph in-place.\n";
+	doneText += "- A restart is required so the next startup can bootstrap a fresh SQLite DB from XML.\n\n";
+	doneText += "Next steps:\n";
+	doneText += "- Restart the app\n";
+	doneText += "- The SQLite database will be rebuilt from legacy XML automatically";
 
 	wxMessageDialog doneDialog(g_gui.root, doneText, "SQLite Reset Scheduled", wxOK | wxICON_INFORMATION);
 	doneDialog.SetOKLabel("Close now");

@@ -161,7 +161,7 @@ void GroundBrush::resetRuntimeState() {
 	border_items.clear();
 	total_chance = 0;
 
-	const auto resetAutoBorder = [&](const AutoBorder *autoBorder) {
+	const auto resetAutoBorder = [&](const AutoBorder* autoBorder) {
 		if (!autoBorder) {
 			return;
 		}

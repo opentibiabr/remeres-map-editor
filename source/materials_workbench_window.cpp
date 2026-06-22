@@ -197,7 +197,7 @@ namespace {
 		return false;
 	}
 
-	wxPanel* CreateSidebarPanel(wxWindow* parent, wxSearchCtrl*& outFilter, wxTreeCtrl*& outTree, wxButton*& outInspectorButton, wxButton*& outExportButton, wxButton*& outImportButton) {
+	wxPanel* CreateSidebarPanel(wxWindow* parent, wxSearchCtrl*&outFilter, wxTreeCtrl*&outTree, wxButton*&outInspectorButton, wxButton*&outExportButton, wxButton*&outImportButton) {
 		wxPanel* panel = new wxPanel(parent, wxID_ANY);
 		wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 
@@ -232,7 +232,7 @@ namespace {
 		return panel;
 	}
 
-	wxPanel* CreateOverviewTextPanel(wxWindow* parent, const MaterialsWorkbenchController &controller, wxTextCtrl*& outOverview) {
+	wxPanel* CreateOverviewTextPanel(wxWindow* parent, const MaterialsWorkbenchController &controller, wxTextCtrl*&outOverview) {
 		wxPanel* panel = new wxPanel(parent, wxID_ANY);
 		wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 
@@ -339,7 +339,7 @@ namespace {
 } // namespace
 
 BEGIN_EVENT_TABLE(MaterialsWorkbenchWindow, wxFrame)
-	EVT_CLOSE(MaterialsWorkbenchWindow::OnClose)
+EVT_CLOSE(MaterialsWorkbenchWindow::OnClose)
 END_EVENT_TABLE()
 
 void MaterialsWorkbenchWindow::Open(wxWindow* parent) {
@@ -527,7 +527,7 @@ void MaterialsWorkbenchWindow::OpenInspector() {
 		return GoToEntity(entityKind, entityId, entityName);
 	});
 
-	inspectorDialog_->Bind(wxEVT_CLOSE_WINDOW, [this](wxCloseEvent&) {
+	inspectorDialog_->Bind(wxEVT_CLOSE_WINDOW, [this](wxCloseEvent &) {
 		if (!inspectorDialog_) {
 			return;
 		}
@@ -1006,20 +1006,11 @@ void MaterialsWorkbenchWindow::UpdateBrushNavigationBadge() {
 		for (wxTreeItemId child = navigationTree_->GetFirstChild(parentItem, cookie); child.IsOk(); child = navigationTree_->GetNextChild(parentItem, cookie)) {
 			auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(child));
 			if (itemData) {
-				const bool isModifiedBrush = hasDirtyBrush &&
-					itemData->kind == MaterialsWorkbenchNodeKind::Brush &&
-					brushPanel_->IsCurrentBrushSelection(itemData->contextKey, itemData->itemIndex);
-				const bool isModifiedWall = hasDirtyWall &&
-					itemData->kind == MaterialsWorkbenchNodeKind::Brush &&
-					wallPanel_->IsCurrentWallSelection(itemData->contextKey, itemData->itemIndex);
-				const bool isModifiedBorder = hasDirtyBorder &&
-					itemData->kind == MaterialsWorkbenchNodeKind::BorderSet &&
-					borderPanel_->IsCurrentBorderSelection(itemData->contextKey, itemData->itemIndex);
+				const bool isModifiedBrush = hasDirtyBrush && itemData->kind == MaterialsWorkbenchNodeKind::Brush && brushPanel_->IsCurrentBrushSelection(itemData->contextKey, itemData->itemIndex);
+				const bool isModifiedWall = hasDirtyWall && itemData->kind == MaterialsWorkbenchNodeKind::Brush && wallPanel_->IsCurrentWallSelection(itemData->contextKey, itemData->itemIndex);
+				const bool isModifiedBorder = hasDirtyBorder && itemData->kind == MaterialsWorkbenchNodeKind::BorderSet && borderPanel_->IsCurrentBorderSelection(itemData->contextKey, itemData->itemIndex);
 				const bool isModified = isModifiedBrush || isModifiedBorder || isModifiedWall;
-				const wxString displayLabel =
-					isModifiedBrush && !dirtyBrushName.IsEmpty() ? dirtyBrushName :
-					(isModifiedBorder && !dirtyBorderName.IsEmpty() ? dirtyBorderName :
-					(isModifiedWall && !dirtyWallName.IsEmpty() ? dirtyWallName : itemData->baseLabel));
+				const wxString displayLabel = isModifiedBrush && !dirtyBrushName.IsEmpty() ? dirtyBrushName : (isModifiedBorder && !dirtyBorderName.IsEmpty() ? dirtyBorderName : (isModifiedWall && !dirtyWallName.IsEmpty() ? dirtyWallName : itemData->baseLabel));
 				navigationTree_->SetItemText(child, isModified ? displayLabel + " [modified]" : itemData->baseLabel);
 				navigationTree_->SetItemTextColour(child, isModified ? modifiedTextColour : defaultTextColour);
 			}
@@ -1039,8 +1030,8 @@ void MaterialsWorkbenchWindow::PopulateNavigation() {
 		MaterialsWorkbenchWindow* window = nullptr;
 		wxTreeCtrl* tree = nullptr;
 		bool wasEnabled = true;
-		explicit NavigationPopulateGuard(MaterialsWorkbenchWindow* window, wxTreeCtrl* tree)
-			: window(window), tree(tree) {
+		explicit NavigationPopulateGuard(MaterialsWorkbenchWindow* window, wxTreeCtrl* tree) :
+			window(window), tree(tree) {
 			if (window) {
 				window->navigationPopulating_ = true;
 			}
@@ -1079,8 +1070,7 @@ void MaterialsWorkbenchWindow::PopulateNavigation() {
 
 	navigationTree_->DeleteAllItems();
 	wxTreeItemId root = navigationTree_->AddRoot("Materials Workbench");
-	const std::vector<MaterialsWorkbenchTreeNode> filteredNodes =
-		BuildFilteredNavigationTree(controller_.BuildNavigationTree(), normalizedFilterQuery);
+	const std::vector<MaterialsWorkbenchTreeNode> filteredNodes = BuildFilteredNavigationTree(controller_.BuildNavigationTree(), normalizedFilterQuery);
 	const auto appendNodes = [&](auto &&self, const wxTreeItemId &parentItem, const std::vector<MaterialsWorkbenchTreeNode> &nodes) -> void {
 		for (const MaterialsWorkbenchTreeNode &node : nodes) {
 			wxTreeItemId item = navigationTree_->AppendItem(
@@ -1094,8 +1084,7 @@ void MaterialsWorkbenchWindow::PopulateNavigation() {
 				self(self, item, node.children);
 			}
 
-			if (filterActive ||
-				NavigationStateContainsExpandedKey(previousState, BuildNavigationNodeKey(node.kind, node.contextKey, node.itemIndex))) {
+			if (filterActive || NavigationStateContainsExpandedKey(previousState, BuildNavigationNodeKey(node.kind, node.contextKey, node.itemIndex))) {
 				navigationTree_->Expand(item);
 			}
 		}
@@ -1107,8 +1096,7 @@ void MaterialsWorkbenchWindow::PopulateNavigation() {
 		navigationTree_->AppendItem(root, wxString::Format("No matches for \"%s\".", navigationFilterQuery_));
 	}
 
-	if (!previousState.hasSelection ||
-		!SelectNavigationNode(previousState.selectedKind, previousState.selectedContextKey, previousState.selectedItemIndex)) {
+	if (!previousState.hasSelection || !SelectNavigationNode(previousState.selectedKind, previousState.selectedContextKey, previousState.selectedItemIndex)) {
 		wxTreeItemIdValue cookie;
 		wxTreeItemId firstChild = navigationTree_->GetFirstChild(root, cookie);
 		if (firstChild.IsOk()) {
@@ -1128,7 +1116,7 @@ void MaterialsWorkbenchWindow::PopulateNavigation() {
 
 void MaterialsWorkbenchWindow::BindEvents() {
 	if (inspectorButton_) {
-		inspectorButton_->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+		inspectorButton_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
 			OpenInspector();
 		});
 	}
@@ -1244,18 +1232,9 @@ void MaterialsWorkbenchWindow::BindEvents() {
 		}
 
 		auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(item));
-		const bool isSameBrushSelection =
-			itemData &&
-			itemData->kind == MaterialsWorkbenchNodeKind::Brush &&
-			brushPanel_->IsCurrentBrushSelection(itemData->contextKey, itemData->itemIndex);
-		const bool isSameBorderSelection =
-			itemData &&
-			itemData->kind == MaterialsWorkbenchNodeKind::BorderSet &&
-			borderPanel_->IsCurrentBorderSelection(itemData->contextKey, itemData->itemIndex);
-		const bool isSameWallSelection =
-			itemData &&
-			itemData->kind == MaterialsWorkbenchNodeKind::Brush &&
-			wallPanel_->IsCurrentWallSelection(itemData->contextKey, itemData->itemIndex);
+		const bool isSameBrushSelection = itemData && itemData->kind == MaterialsWorkbenchNodeKind::Brush && brushPanel_->IsCurrentBrushSelection(itemData->contextKey, itemData->itemIndex);
+		const bool isSameBorderSelection = itemData && itemData->kind == MaterialsWorkbenchNodeKind::BorderSet && borderPanel_->IsCurrentBorderSelection(itemData->contextKey, itemData->itemIndex);
+		const bool isSameWallSelection = itemData && itemData->kind == MaterialsWorkbenchNodeKind::Brush && wallPanel_->IsCurrentWallSelection(itemData->contextKey, itemData->itemIndex);
 
 		if (brushPanel_->HasPendingChanges() && !isSameBrushSelection) {
 			if (!brushPanel_->ResolvePendingChangesBeforeSwitch(this, navigationTree_->GetItemText(item))) {
@@ -1353,18 +1332,15 @@ bool MaterialsWorkbenchWindow::SelectNavigationNode(MaterialsWorkbenchNodeKind k
 
 void MaterialsWorkbenchWindow::OnClose(wxCloseEvent &event) {
 	if (event.CanVeto()) {
-		if (brushPanel_ && brushPanel_->HasPendingChanges() &&
-			!brushPanel_->ResolvePendingChangesBeforeSwitch(this, "closing the Materials Workbench window")) {
+		if (brushPanel_ && brushPanel_->HasPendingChanges() && !brushPanel_->ResolvePendingChangesBeforeSwitch(this, "closing the Materials Workbench window")) {
 			event.Veto();
 			return;
 		}
-		if (borderPanel_ && borderPanel_->HasPendingChanges() &&
-			!borderPanel_->ResolvePendingChangesBeforeSwitch(this, "closing the Materials Workbench window")) {
+		if (borderPanel_ && borderPanel_->HasPendingChanges() && !borderPanel_->ResolvePendingChangesBeforeSwitch(this, "closing the Materials Workbench window")) {
 			event.Veto();
 			return;
 		}
-		if (wallPanel_ && wallPanel_->HasPendingChanges() &&
-			!wallPanel_->ResolvePendingChangesBeforeSwitch(this, "closing the Materials Workbench window")) {
+		if (wallPanel_ && wallPanel_->HasPendingChanges() && !wallPanel_->ResolvePendingChangesBeforeSwitch(this, "closing the Materials Workbench window")) {
 			event.Veto();
 			return;
 		}

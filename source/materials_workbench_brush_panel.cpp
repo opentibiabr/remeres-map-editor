@@ -250,13 +250,7 @@ namespace {
 	}
 
 	bool HasAnyBrushVariationPayload(const BrushStorageRecord &storage) {
-		return !storage.items.empty() ||
-			   !storage.borders.empty() ||
-			   !storage.links.empty() ||
-			   !storage.wallParts.empty() ||
-			   !storage.carpetNodes.empty() ||
-			   !storage.tableNodes.empty() ||
-			   !storage.doodadAlternatives.empty();
+		return !storage.items.empty() || !storage.borders.empty() || !storage.links.empty() || !storage.wallParts.empty() || !storage.carpetNodes.empty() || !storage.tableNodes.empty() || !storage.doodadAlternatives.empty();
 	}
 
 	void ClearBrushVariationPayload(BrushStorageRecord &storage) {
@@ -345,26 +339,26 @@ namespace {
 		const int cy = innerRect.y + innerRect.height / 2;
 		wxPoint points[3];
 		switch (direction) {
-		case SliderArrowDirection::Left:
-			points[0] = wxPoint(innerRect.x, cy);
-			points[1] = wxPoint(innerRect.GetRight() + 1, innerRect.y);
-			points[2] = wxPoint(innerRect.GetRight() + 1, innerRect.GetBottom() + 1);
-			break;
-		case SliderArrowDirection::Right:
-			points[0] = wxPoint(innerRect.GetRight() + 1, cy);
-			points[1] = wxPoint(innerRect.x, innerRect.y);
-			points[2] = wxPoint(innerRect.x, innerRect.GetBottom() + 1);
-			break;
-		case SliderArrowDirection::Up:
-			points[0] = wxPoint(cx, innerRect.y);
-			points[1] = wxPoint(innerRect.x, innerRect.GetBottom() + 1);
-			points[2] = wxPoint(innerRect.GetRight() + 1, innerRect.GetBottom() + 1);
-			break;
-		case SliderArrowDirection::Down:
-			points[0] = wxPoint(cx, innerRect.GetBottom() + 1);
-			points[1] = wxPoint(innerRect.x, innerRect.y);
-			points[2] = wxPoint(innerRect.GetRight() + 1, innerRect.y);
-			break;
+			case SliderArrowDirection::Left:
+				points[0] = wxPoint(innerRect.x, cy);
+				points[1] = wxPoint(innerRect.GetRight() + 1, innerRect.y);
+				points[2] = wxPoint(innerRect.GetRight() + 1, innerRect.GetBottom() + 1);
+				break;
+			case SliderArrowDirection::Right:
+				points[0] = wxPoint(innerRect.GetRight() + 1, cy);
+				points[1] = wxPoint(innerRect.x, innerRect.y);
+				points[2] = wxPoint(innerRect.x, innerRect.GetBottom() + 1);
+				break;
+			case SliderArrowDirection::Up:
+				points[0] = wxPoint(cx, innerRect.y);
+				points[1] = wxPoint(innerRect.x, innerRect.GetBottom() + 1);
+				points[2] = wxPoint(innerRect.GetRight() + 1, innerRect.GetBottom() + 1);
+				break;
+			case SliderArrowDirection::Down:
+				points[0] = wxPoint(cx, innerRect.GetBottom() + 1);
+				points[1] = wxPoint(innerRect.x, innerRect.y);
+				points[2] = wxPoint(innerRect.GetRight() + 1, innerRect.y);
+				break;
 		}
 
 		dc.SetPen(*wxTRANSPARENT_PEN);
@@ -617,7 +611,7 @@ namespace {
 
 		wxImage image(spriteData->size.width, spriteData->size.height);
 		image.InitAlpha();
-		const auto *pixels = spriteData->pixels.data();
+		const auto* pixels = spriteData->pixels.data();
 		for (int y = 0; y < spriteData->size.height; ++y) {
 			for (int x = 0; x < spriteData->size.width; ++x) {
 				const int index = (y * spriteData->size.width + x) * 4;
@@ -793,7 +787,8 @@ namespace {
 
 	class BrushMetadataItemIdPreviewPanel final : public wxPanel {
 	public:
-		explicit BrushMetadataItemIdPreviewPanel(wxWindow* parent) : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_SIMPLE) {
+		explicit BrushMetadataItemIdPreviewPanel(wxWindow* parent) :
+			wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_SIMPLE) {
 			SetBackgroundStyle(wxBG_STYLE_PAINT);
 			SetMinSize(wxSize(FromDIP(48), FromDIP(48)));
 			Bind(wxEVT_PAINT, &BrushMetadataItemIdPreviewPanel::OnPaint, this);
@@ -979,44 +974,44 @@ namespace {
 		int row = 0;
 	};
 
-	const std::vector<AlignedContextSlot>& GetCarpetContextSlots() {
+	const std::vector<AlignedContextSlot> &GetCarpetContextSlots() {
 		static const std::vector<AlignedContextSlot> kSlots = {
-			{"cse", "NW", "Corner slot.", 0, 0},
-			{"s", "N", "Edge slot.", 2, 0},
-			{"csw", "NE", "Corner slot.", 4, 0},
-			{"dse", "D\nNW", "Diagonal corner slot.", 1, 1},
-			{"dsw", "D\nNE", "Diagonal corner slot.", 3, 1},
-			{"e", "W", "Edge slot.", 0, 2},
-			{"center", "C", "Center slot.", 2, 2},
-			{"w", "E", "Edge slot.", 4, 2},
-			{"dne", "D\nSW", "Diagonal corner slot.", 1, 3},
-			{"dnw", "D\nSE", "Diagonal corner slot.", 3, 3},
-			{"cne", "SW", "Corner slot.", 0, 4},
-			{"n", "S", "Edge slot.", 2, 4},
-			{"cnw", "SE", "Corner slot.", 4, 4},
+			{ "cse", "NW", "Corner slot.", 0, 0 },
+			{ "s", "N", "Edge slot.", 2, 0 },
+			{ "csw", "NE", "Corner slot.", 4, 0 },
+			{ "dse", "D\nNW", "Diagonal corner slot.", 1, 1 },
+			{ "dsw", "D\nNE", "Diagonal corner slot.", 3, 1 },
+			{ "e", "W", "Edge slot.", 0, 2 },
+			{ "center", "C", "Center slot.", 2, 2 },
+			{ "w", "E", "Edge slot.", 4, 2 },
+			{ "dne", "D\nSW", "Diagonal corner slot.", 1, 3 },
+			{ "dnw", "D\nSE", "Diagonal corner slot.", 3, 3 },
+			{ "cne", "SW", "Corner slot.", 0, 4 },
+			{ "n", "S", "Edge slot.", 2, 4 },
+			{ "cnw", "SE", "Corner slot.", 4, 4 },
 		};
 		return kSlots;
 	}
 
-	const std::vector<AlignedContextSlot>& GetTableContextSlots() {
+	const std::vector<AlignedContextSlot> &GetTableContextSlots() {
 		static const std::vector<AlignedContextSlot> kSlots = {
-			{"north", "Top\nEnd", "Closes a vertical run at the top.", 0, 0},
-			{"vertical", "Vertical\nRun", "Connects with neighbors above and below.", 0, 1},
-			{"south", "Bottom\nEnd", "Closes a vertical run at the bottom.", 0, 2},
-			{"west", "Left\nEnd", "Closes a horizontal run on the left.", 0, 3},
-			{"horizontal", "Horizontal\nRun", "Connects with neighbors left and right.", 1, 3},
-			{"east", "Right\nEnd", "Closes a horizontal run on the right.", 2, 3},
-			{"alone", "Paint\nSeed", "Used on the first click when painting before neighbors are formed.", 2, 0},
+			{ "north", "Top\nEnd", "Closes a vertical run at the top.", 0, 0 },
+			{ "vertical", "Vertical\nRun", "Connects with neighbors above and below.", 0, 1 },
+			{ "south", "Bottom\nEnd", "Closes a vertical run at the bottom.", 0, 2 },
+			{ "west", "Left\nEnd", "Closes a horizontal run on the left.", 0, 3 },
+			{ "horizontal", "Horizontal\nRun", "Connects with neighbors left and right.", 1, 3 },
+			{ "east", "Right\nEnd", "Closes a horizontal run on the right.", 2, 3 },
+			{ "alone", "Paint\nSeed", "Used on the first click when painting before neighbors are formed.", 2, 0 },
 		};
 		return kSlots;
 	}
 
-	const std::vector<AlignedContextSlot>& GetAlignedContextSlots(const wxString &type) {
+	const std::vector<AlignedContextSlot> &GetAlignedContextSlots(const wxString &type) {
 		return type == "table" ? GetTableContextSlots() : GetCarpetContextSlots();
 	}
 
 	std::vector<wxString> GetCarpetAlignChoices() {
-		static const char* kPreferredOrder[] = {"center", "s", "n", "e", "w", "cse", "csw", "cne", "cnw"};
+		static const char* kPreferredOrder[] = { "center", "s", "n", "e", "w", "cse", "csw", "cne", "cnw" };
 		std::vector<wxString> aligns;
 		aligns.reserve(std::size(kPreferredOrder));
 		for (const char* align : kPreferredOrder) {
@@ -1026,7 +1021,7 @@ namespace {
 	}
 
 	std::vector<wxString> GetKnownCarpetAligns() {
-		static const char* kKnownOrder[] = {"center", "s", "n", "e", "w", "cse", "csw", "cne", "cnw", "dnw", "dne", "dsw", "dse"};
+		static const char* kKnownOrder[] = { "center", "s", "n", "e", "w", "cse", "csw", "cne", "cnw", "dnw", "dne", "dsw", "dse" };
 		std::vector<wxString> aligns;
 		aligns.reserve(std::size(kKnownOrder));
 		for (const char* align : kKnownOrder) {
@@ -1350,7 +1345,7 @@ namespace {
 
 	std::vector<int> ResolveDoodadPreviewFloorsToDraw(const DoodadCompositeRecord &composite, int selectedFloor) {
 		if (selectedFloor != MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors) {
-			return {selectedFloor};
+			return { selectedFloor };
 		}
 		return CollectDoodadCompositeFloors(composite);
 	}
@@ -1616,10 +1611,10 @@ namespace {
 	) {
 		if (composite.tiles.empty()) {
 			const int emptyFloor = selectedFloor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors ? selectedFloor : selectedFloor;
-			return {BuildDoodadPreviewEmptyLayout(contentRect, emptyFloor, cellSize)};
+			return { BuildDoodadPreviewEmptyLayout(contentRect, emptyFloor, cellSize) };
 		}
 		if (selectedFloor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors) {
-			return {BuildDoodadPreviewCombinedLayout(contentRect, composite, cellSize)};
+			return { BuildDoodadPreviewCombinedLayout(contentRect, composite, cellSize) };
 		}
 		return BuildDoodadPreviewFloorLayouts(
 			dc,
@@ -1792,158 +1787,83 @@ namespace {
 	}
 
 	bool AreBrushRecordsEqual(const BrushRecord &left, const BrushRecord &right) {
-		return left.id == right.id &&
-			   left.name == right.name &&
-			   left.type == right.type &&
-			   left.lookId == right.lookId &&
-			   left.zOrder == right.zOrder &&
-			   left.sourceFile == right.sourceFile &&
-			   left.serverLookId == right.serverLookId &&
-			   left.draggable == right.draggable &&
-			   left.onBlocking == right.onBlocking &&
-			   left.onDuplicate == right.onDuplicate &&
-			   left.redoBorders == right.redoBorders &&
-			   left.removeOptionalBorder == right.removeOptionalBorder &&
-			   left.randomize == right.randomize &&
-			   left.oneSize == right.oneSize &&
-			   left.soloOptional == right.soloOptional &&
-			   left.thickness == right.thickness &&
-			   left.thicknessCeiling == right.thicknessCeiling;
+		return left.id == right.id && left.name == right.name && left.type == right.type && left.lookId == right.lookId && left.zOrder == right.zOrder && left.sourceFile == right.sourceFile && left.serverLookId == right.serverLookId && left.draggable == right.draggable && left.onBlocking == right.onBlocking && left.onDuplicate == right.onDuplicate && left.redoBorders == right.redoBorders && left.removeOptionalBorder == right.removeOptionalBorder && left.randomize == right.randomize && left.oneSize == right.oneSize && left.soloOptional == right.soloOptional && left.thickness == right.thickness && left.thicknessCeiling == right.thicknessCeiling;
 	}
 
 	bool AreBrushItemRecordsEqual(const BrushItemRecord &left, const BrushItemRecord &right) {
-		return left.brushId == right.brushId &&
-			   left.itemId == right.itemId &&
-			   left.chance == right.chance &&
-			   left.sortOrder == right.sortOrder;
+		return left.brushId == right.brushId && left.itemId == right.itemId && left.chance == right.chance && left.sortOrder == right.sortOrder;
 	}
 
 	bool AreGroundBorderCaseConditionRecordsEqual(const GroundBorderCaseConditionRecord &left, const GroundBorderCaseConditionRecord &right) {
-		return left.conditionType == right.conditionType &&
-			   left.matchValue == right.matchValue &&
-			   left.edge == right.edge &&
-			   left.sortOrder == right.sortOrder;
+		return left.conditionType == right.conditionType && left.matchValue == right.matchValue && left.edge == right.edge && left.sortOrder == right.sortOrder;
 	}
 
 	bool AreGroundBorderCaseActionRecordsEqual(const GroundBorderCaseActionRecord &left, const GroundBorderCaseActionRecord &right) {
-		return left.actionType == right.actionType &&
-			   left.targetValue == right.targetValue &&
-			   left.edge == right.edge &&
-			   left.replacementValue == right.replacementValue &&
-			   left.sortOrder == right.sortOrder;
+		return left.actionType == right.actionType && left.targetValue == right.targetValue && left.edge == right.edge && left.replacementValue == right.replacementValue && left.sortOrder == right.sortOrder;
 	}
 
 	bool AreGroundBorderCaseRecordsEqual(const GroundBorderCaseRecord &left, const GroundBorderCaseRecord &right) {
-		return left.sortOrder == right.sortOrder &&
-			   VectorsEqual(left.conditions, right.conditions, AreGroundBorderCaseConditionRecordsEqual) &&
-			   VectorsEqual(left.actions, right.actions, AreGroundBorderCaseActionRecordsEqual);
+		return left.sortOrder == right.sortOrder && VectorsEqual(left.conditions, right.conditions, AreGroundBorderCaseConditionRecordsEqual) && VectorsEqual(left.actions, right.actions, AreGroundBorderCaseActionRecordsEqual);
 	}
 
 	bool AreGroundBrushBorderRecordsEqual(const GroundBrushBorderRecord &left, const GroundBrushBorderRecord &right) {
-		return left.borderSetId == right.borderSetId &&
-			   left.borderRole == right.borderRole &&
-			   left.align == right.align &&
-			   left.targetMode == right.targetMode &&
-			   left.targetBrushId == right.targetBrushId &&
-			   left.targetBrushName == right.targetBrushName &&
-			   left.superBorder == right.superBorder &&
-			   left.sortOrder == right.sortOrder &&
-			   VectorsEqual(left.cases, right.cases, AreGroundBorderCaseRecordsEqual);
+		return left.borderSetId == right.borderSetId && left.borderRole == right.borderRole && left.align == right.align && left.targetMode == right.targetMode && left.targetBrushId == right.targetBrushId && left.targetBrushName == right.targetBrushName && left.superBorder == right.superBorder && left.sortOrder == right.sortOrder && VectorsEqual(left.cases, right.cases, AreGroundBorderCaseRecordsEqual);
 	}
 
 	bool AreBrushLinkRecordsEqual(const BrushLinkRecord &left, const BrushLinkRecord &right) {
-		return left.brushId == right.brushId &&
-			   left.targetBrushId == right.targetBrushId &&
-			   left.targetBrushName == right.targetBrushName &&
-			   left.relationType == right.relationType &&
-			   left.sortOrder == right.sortOrder;
+		return left.brushId == right.brushId && left.targetBrushId == right.targetBrushId && left.targetBrushName == right.targetBrushName && left.relationType == right.relationType && left.sortOrder == right.sortOrder;
 	}
 
 	bool AreWallPartItemRecordsEqual(const WallPartItemRecord &left, const WallPartItemRecord &right) {
-		return left.itemId == right.itemId &&
-			   left.chance == right.chance &&
-			   left.sortOrder == right.sortOrder;
+		return left.itemId == right.itemId && left.chance == right.chance && left.sortOrder == right.sortOrder;
 	}
 
 	bool AreWallPartDoorRecordsEqual(const WallPartDoorRecord &left, const WallPartDoorRecord &right) {
-		return left.itemId == right.itemId &&
-			   left.doorType == right.doorType &&
-			   left.isOpen == right.isOpen &&
-			   left.wallHateMe == right.wallHateMe &&
-			   left.sortOrder == right.sortOrder;
+		return left.itemId == right.itemId && left.doorType == right.doorType && left.isOpen == right.isOpen && left.wallHateMe == right.wallHateMe && left.sortOrder == right.sortOrder;
 	}
 
 	bool AreWallPartRecordsEqual(const WallPartRecord &left, const WallPartRecord &right) {
-		return left.partType == right.partType &&
-			   left.sortOrder == right.sortOrder &&
-			   VectorsEqual(left.items, right.items, AreWallPartItemRecordsEqual) &&
-			   VectorsEqual(left.doors, right.doors, AreWallPartDoorRecordsEqual);
+		return left.partType == right.partType && left.sortOrder == right.sortOrder && VectorsEqual(left.items, right.items, AreWallPartItemRecordsEqual) && VectorsEqual(left.doors, right.doors, AreWallPartDoorRecordsEqual);
 	}
 
 	bool AreCarpetNodeItemRecordsEqual(const CarpetNodeItemRecord &left, const CarpetNodeItemRecord &right) {
-		return left.itemId == right.itemId &&
-			   left.chance == right.chance &&
-			   left.sortOrder == right.sortOrder;
+		return left.itemId == right.itemId && left.chance == right.chance && left.sortOrder == right.sortOrder;
 	}
 
 	bool AreCarpetNodeRecordsEqual(const CarpetNodeRecord &left, const CarpetNodeRecord &right) {
-		return left.align == right.align &&
-			   left.sortOrder == right.sortOrder &&
-			   VectorsEqual(left.items, right.items, AreCarpetNodeItemRecordsEqual);
+		return left.align == right.align && left.sortOrder == right.sortOrder && VectorsEqual(left.items, right.items, AreCarpetNodeItemRecordsEqual);
 	}
 
 	bool AreTableNodeItemRecordsEqual(const TableNodeItemRecord &left, const TableNodeItemRecord &right) {
-		return left.itemId == right.itemId &&
-			   left.chance == right.chance &&
-			   left.sortOrder == right.sortOrder;
+		return left.itemId == right.itemId && left.chance == right.chance && left.sortOrder == right.sortOrder;
 	}
 
 	bool AreTableNodeRecordsEqual(const TableNodeRecord &left, const TableNodeRecord &right) {
-		return left.align == right.align &&
-			   left.sortOrder == right.sortOrder &&
-			   VectorsEqual(left.items, right.items, AreTableNodeItemRecordsEqual);
+		return left.align == right.align && left.sortOrder == right.sortOrder && VectorsEqual(left.items, right.items, AreTableNodeItemRecordsEqual);
 	}
 
 	bool AreDoodadSingleItemRecordsEqual(const DoodadSingleItemRecord &left, const DoodadSingleItemRecord &right) {
-		return left.itemId == right.itemId &&
-			   left.chance == right.chance &&
-			   left.sortOrder == right.sortOrder;
+		return left.itemId == right.itemId && left.chance == right.chance && left.sortOrder == right.sortOrder;
 	}
 
 	bool AreDoodadCompositeTileItemRecordsEqual(const DoodadCompositeTileItemRecord &left, const DoodadCompositeTileItemRecord &right) {
-		return left.itemId == right.itemId &&
-			   left.sortOrder == right.sortOrder;
+		return left.itemId == right.itemId && left.sortOrder == right.sortOrder;
 	}
 
 	bool AreDoodadCompositeTileRecordsEqual(const DoodadCompositeTileRecord &left, const DoodadCompositeTileRecord &right) {
-		return left.offsetX == right.offsetX &&
-			   left.offsetY == right.offsetY &&
-			   left.offsetZ == right.offsetZ &&
-			   left.sortOrder == right.sortOrder &&
-			   VectorsEqual(left.items, right.items, AreDoodadCompositeTileItemRecordsEqual);
+		return left.offsetX == right.offsetX && left.offsetY == right.offsetY && left.offsetZ == right.offsetZ && left.sortOrder == right.sortOrder && VectorsEqual(left.items, right.items, AreDoodadCompositeTileItemRecordsEqual);
 	}
 
 	bool AreDoodadCompositeRecordsEqual(const DoodadCompositeRecord &left, const DoodadCompositeRecord &right) {
-		return left.chance == right.chance &&
-			   left.sortOrder == right.sortOrder &&
-			   VectorsEqual(left.tiles, right.tiles, AreDoodadCompositeTileRecordsEqual);
+		return left.chance == right.chance && left.sortOrder == right.sortOrder && VectorsEqual(left.tiles, right.tiles, AreDoodadCompositeTileRecordsEqual);
 	}
 
 	bool AreDoodadAlternativeRecordsEqual(const DoodadAlternativeRecord &left, const DoodadAlternativeRecord &right) {
-		return left.sortOrder == right.sortOrder &&
-			   VectorsEqual(left.singleItems, right.singleItems, AreDoodadSingleItemRecordsEqual) &&
-			   VectorsEqual(left.composites, right.composites, AreDoodadCompositeRecordsEqual);
+		return left.sortOrder == right.sortOrder && VectorsEqual(left.singleItems, right.singleItems, AreDoodadSingleItemRecordsEqual) && VectorsEqual(left.composites, right.composites, AreDoodadCompositeRecordsEqual);
 	}
 
 	bool AreBrushStorageRecordsEqual(const BrushStorageRecord &left, const BrushStorageRecord &right) {
-		return AreBrushRecordsEqual(left.brush, right.brush) &&
-			   VectorsEqual(left.items, right.items, AreBrushItemRecordsEqual) &&
-			   VectorsEqual(left.borders, right.borders, AreGroundBrushBorderRecordsEqual) &&
-			   VectorsEqual(left.links, right.links, AreBrushLinkRecordsEqual) &&
-			   VectorsEqual(left.wallParts, right.wallParts, AreWallPartRecordsEqual) &&
-			   VectorsEqual(left.carpetNodes, right.carpetNodes, AreCarpetNodeRecordsEqual) &&
-			   VectorsEqual(left.tableNodes, right.tableNodes, AreTableNodeRecordsEqual) &&
-			   VectorsEqual(left.doodadAlternatives, right.doodadAlternatives, AreDoodadAlternativeRecordsEqual);
+		return AreBrushRecordsEqual(left.brush, right.brush) && VectorsEqual(left.items, right.items, AreBrushItemRecordsEqual) && VectorsEqual(left.borders, right.borders, AreGroundBrushBorderRecordsEqual) && VectorsEqual(left.links, right.links, AreBrushLinkRecordsEqual) && VectorsEqual(left.wallParts, right.wallParts, AreWallPartRecordsEqual) && VectorsEqual(left.carpetNodes, right.carpetNodes, AreCarpetNodeRecordsEqual) && VectorsEqual(left.tableNodes, right.tableNodes, AreTableNodeRecordsEqual) && VectorsEqual(left.doodadAlternatives, right.doodadAlternatives, AreDoodadAlternativeRecordsEqual);
 	}
 
 	wxColour GetModifiedFieldColour() {
@@ -2017,7 +1937,7 @@ static wxBitmap BuildThumbBitmap(int spriteId) {
 
 	wxImage image(spriteData->size.width, spriteData->size.height);
 	image.InitAlpha();
-	const auto *pixels = spriteData->pixels.data();
+	const auto* pixels = spriteData->pixels.data();
 	for (int y = 0; y < spriteData->size.height; ++y) {
 		for (int x = 0; x < spriteData->size.width; ++x) {
 			const int index = (y * spriteData->size.width + x) * 4;
@@ -2118,8 +2038,8 @@ public:
 		wxString label;
 	};
 
-	explicit DoodadThumbList(wxWindow* parent)
-		: wxVListBox(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_SIMPLE) {
+	explicit DoodadThumbList(wxWindow* parent) :
+		wxVListBox(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_SIMPLE) {
 		SetBackgroundStyle(wxBG_STYLE_PAINT);
 		SetMargins(FromDIP(6), FromDIP(2));
 	}
@@ -2181,7 +2101,7 @@ MaterialsWorkbenchBrushPanel::MaterialsWorkbenchBrushPanel(wxWindow* parent, Mat
 	ClearWorkspace("Select a brush in the navigation tree to edit its properties.");
 }
 
-void MaterialsWorkbenchBrushPanel::SetOnBrushSaved(std::function<void(int64_t, const wxString&, const wxString&)> callback) {
+void MaterialsWorkbenchBrushPanel::SetOnBrushSaved(std::function<void(int64_t, const wxString &, const wxString &)> callback) {
 	onBrushSaved_ = std::move(callback);
 }
 
@@ -2201,7 +2121,7 @@ void MaterialsWorkbenchBrushPanel::SetOnOpenLinkedBorderSet(std::function<void(i
 	onOpenLinkedBorderSet_ = std::move(callback);
 }
 
-void MaterialsWorkbenchBrushPanel::SetOnOpenLinkedTileset(std::function<void(const wxString&)> callback) {
+void MaterialsWorkbenchBrushPanel::SetOnOpenLinkedTileset(std::function<void(const wxString &)> callback) {
 	onOpenLinkedTileset_ = std::move(callback);
 }
 
@@ -2239,23 +2159,24 @@ bool MaterialsWorkbenchBrushPanel::ResolvePendingChangesBeforeSwitch(wxWindow* p
 	wxMessageDialog dialog(
 		parent,
 		"Brush \"" + brushStorage_.brush.name + "\" has unsaved changes.\n\n"
-		"You are switching to " + destination + ".\n\n"
-		"Yes: save and continue\n"
-		"No: discard local changes and continue\n"
-		"Cancel: stay on the current brush",
+												"You are switching to "
+			+ destination + ".\n\n"
+							"Yes: save and continue\n"
+							"No: discard local changes and continue\n"
+							"Cancel: stay on the current brush",
 		"Unsaved Brush Changes",
 		wxYES_NO | wxCANCEL | wxICON_WARNING
 	);
 	dialog.SetYesNoCancelLabels("Save", "Discard", "Cancel");
 
 	switch (dialog.ShowModal()) {
-	case wxID_YES:
-		return SaveCurrentBrush();
-	case wxID_NO:
-		return LoadBrush(currentContextKey_, currentItemIndex_);
-	default:
-		SetStatusMessage("Selection change canceled. Pending brush edits were kept.");
-		return false;
+		case wxID_YES:
+			return SaveCurrentBrush();
+		case wxID_NO:
+			return LoadBrush(currentContextKey_, currentItemIndex_);
+		default:
+			SetStatusMessage("Selection change canceled. Pending brush edits were kept.");
+			return false;
 	}
 }
 
@@ -2383,9 +2304,7 @@ namespace {
 		}
 
 		const BrushRecord* GetSelectedBrush() const {
-			if (selectedVisibleIndex_ == wxNOT_FOUND ||
-				selectedVisibleIndex_ < 0 ||
-				selectedVisibleIndex_ >= static_cast<int>(filteredIndexes_.size())) {
+			if (selectedVisibleIndex_ == wxNOT_FOUND || selectedVisibleIndex_ < 0 || selectedVisibleIndex_ >= static_cast<int>(filteredIndexes_.size())) {
 				return nullptr;
 			}
 			const int sourceIndex = filteredIndexes_[selectedVisibleIndex_];
@@ -2676,7 +2595,8 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildMetadataPage(wxNotebook* notebook) {
 				"Clear Borders",
 				wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
 				this
-			) != wxYES) {
+			)
+			!= wxYES) {
 			return;
 		}
 
@@ -2819,9 +2739,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildLinksPage(wxNotebook* notebook) {
 		bool canOpenTarget = false;
 		if (hasSelection && onOpenLinkedBrush_ && selectedIndex >= 0 && selectedIndex < static_cast<int>(brushStorage_.links.size())) {
 			const BrushLinkRecord &link = brushStorage_.links[selectedIndex];
-			canOpenTarget =
-				link.targetBrushId > 0 ||
-				(!link.targetBrushName.IsEmpty() && !link.targetBrushName.IsSameAs("all", false));
+			canOpenTarget = link.targetBrushId > 0 || (!link.targetBrushName.IsEmpty() && !link.targetBrushName.IsSameAs("all", false));
 		}
 		openLinkTargetButton_->Enable(canOpenTarget);
 
@@ -2976,7 +2894,8 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildLinksPage(wxNotebook* notebook) {
 				"Clear Links",
 				wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
 				this
-			) != wxYES) {
+			)
+			!= wxYES) {
 			return;
 		}
 
@@ -5066,8 +4985,8 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
 				hasNode
 					? wxString::Format("Selected carpet context %s stays highlighted in the layout map while you edit its variants on the right.", alignedPendingCarpetAlign_)
 					: (hasPendingCarpetSlot
-						? wxString::Format("Empty carpet slot %s selected. Use Add Context to create coverage exactly there.", alignedPendingCarpetAlign_)
-						: "Click the carpet layout map to select a context. Empty slots stay visible so missing coverage stands out immediately.")
+						   ? wxString::Format("Empty carpet slot %s selected. Use Add Context to create coverage exactly there.", alignedPendingCarpetAlign_)
+						   : "Click the carpet layout map to select a context. Empty slots stay visible so missing coverage stands out immediately.")
 			);
 		}
 		alignedVisualInfoLabel_->Wrap(FromDIP(250));
@@ -5256,7 +5175,7 @@ void MaterialsWorkbenchBrushPanel::AddTableItemToNodeWithDialog(int nodeIndex) {
 	}
 
 	auto &items = brushStorage_.tableNodes[nodeIndex].items;
-	items.push_back({itemId, chance});
+	items.push_back({ itemId, chance });
 	alignedNodeIndex_ = nodeIndex;
 	alignedItemIndex_ = static_cast<int>(items.size()) - 1;
 	alignedPendingTableAlign_ = brushStorage_.tableNodes[nodeIndex].align;
@@ -5349,18 +5268,15 @@ void MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint(wxPaintEvent &W
 		const wxString selectedAlign = !alignedPendingCarpetAlign_.IsEmpty()
 			? alignedPendingCarpetAlign_
 			: (alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(brushStorage_.carpetNodes.size())
-				? brushStorage_.carpetNodes[alignedNodeIndex_].align
-				: wxString("center"));
+				   ? brushStorage_.carpetNodes[alignedNodeIndex_].align
+				   : wxString("center"));
 		const auto resolvePreviewItemId = [&](const wxString &align) -> int {
 			const int nodeIndex = FindAlignedNodeIndexByAlign(brushStorage_.carpetNodes, align);
 			if (nodeIndex < 0 || nodeIndex >= static_cast<int>(brushStorage_.carpetNodes.size())) {
 				return 0;
 			}
 			const auto &node = brushStorage_.carpetNodes[static_cast<size_t>(nodeIndex)];
-			if (selectedAlign.CmpNoCase(align) == 0 &&
-				alignedItemIndex_ >= 0 &&
-				alignedItemIndex_ < static_cast<int>(node.items.size()) &&
-				node.items[alignedItemIndex_].itemId > 0) {
+			if (selectedAlign.CmpNoCase(align) == 0 && alignedItemIndex_ >= 0 && alignedItemIndex_ < static_cast<int>(node.items.size()) && node.items[alignedItemIndex_].itemId > 0) {
 				return node.items[alignedItemIndex_].itemId;
 			}
 			for (const auto &item : node.items) {
@@ -5389,19 +5305,19 @@ void MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint(wxPaintEvent &W
 		if (hasDiagonals) {
 			specs.reserve(GetCarpetContextSlots().size());
 			for (const auto &slot : GetCarpetContextSlots()) {
-				specs.push_back({slot.align, slot.column, slot.row});
+				specs.push_back({ slot.align, slot.column, slot.row });
 			}
 		} else {
 			static const PreviewSpec kCarpetMainPreview[] = {
-				{"cse", 0, 0},
-				{"s", 1, 0},
-				{"csw", 2, 0},
-				{"e", 0, 1},
-				{"center", 1, 1},
-				{"w", 2, 1},
-				{"cne", 0, 2},
-				{"n", 1, 2},
-				{"cnw", 2, 2},
+				{ "cse", 0, 0 },
+				{ "s", 1, 0 },
+				{ "csw", 2, 0 },
+				{ "e", 0, 1 },
+				{ "center", 1, 1 },
+				{ "w", 2, 1 },
+				{ "cne", 0, 2 },
+				{ "n", 1, 2 },
+				{ "cnw", 2, 2 },
 			};
 			specs.assign(std::begin(kCarpetMainPreview), std::end(kCarpetMainPreview));
 		}
@@ -5419,33 +5335,24 @@ void MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint(wxPaintEvent &W
 			includedSpecs.push_back(spec);
 		}
 		if (hasDiagonals) {
-			const bool fullBase =
-				hasRenderable("cse") &&
-				hasRenderable("s") &&
-				hasRenderable("csw") &&
-				hasRenderable("e") &&
-				hasRenderable("center") &&
-				hasRenderable("w") &&
-				hasRenderable("cne") &&
-				hasRenderable("n") &&
-				hasRenderable("cnw");
+			const bool fullBase = hasRenderable("cse") && hasRenderable("s") && hasRenderable("csw") && hasRenderable("e") && hasRenderable("center") && hasRenderable("w") && hasRenderable("cne") && hasRenderable("n") && hasRenderable("cnw");
 			if (fullBase) {
 				static const PreviewSpec kCarpetMainPreview[] = {
-					{"cse", 0, 0},
-					{"s", 1, 0},
-					{"csw", 2, 0},
-					{"e", 0, 1},
-					{"center", 1, 1},
-					{"w", 2, 1},
-					{"cne", 0, 2},
-					{"n", 1, 2},
-					{"cnw", 2, 2},
+					{ "cse", 0, 0 },
+					{ "s", 1, 0 },
+					{ "csw", 2, 0 },
+					{ "e", 0, 1 },
+					{ "center", 1, 1 },
+					{ "w", 2, 1 },
+					{ "cne", 0, 2 },
+					{ "n", 1, 2 },
+					{ "cnw", 2, 2 },
 				};
 				includedSpecs.assign(std::begin(kCarpetMainPreview), std::end(kCarpetMainPreview));
 			}
 		}
 		if (includedSpecs.empty() && hasRenderable("center")) {
-			includedSpecs.push_back({"center", hasDiagonals ? 2 : 1, hasDiagonals ? 2 : 1});
+			includedSpecs.push_back({ "center", hasDiagonals ? 2 : 1, hasDiagonals ? 2 : 1 });
 		}
 		if (includedSpecs.empty()) {
 			return;
@@ -5458,22 +5365,22 @@ void MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint(wxPaintEvent &W
 		if (diagAll4 && hasEW && missingPairNS) {
 			includedSpecs.clear();
 			includedSpecs.reserve(6);
-			includedSpecs.push_back({"dnw", 0, 0});
-			includedSpecs.push_back({"w", 1, 0});
-			includedSpecs.push_back({"dne", 2, 0});
-			includedSpecs.push_back({"dsw", 0, 1});
-			includedSpecs.push_back({"e", 1, 1});
-			includedSpecs.push_back({"dse", 2, 1});
+			includedSpecs.push_back({ "dnw", 0, 0 });
+			includedSpecs.push_back({ "w", 1, 0 });
+			includedSpecs.push_back({ "dne", 2, 0 });
+			includedSpecs.push_back({ "dsw", 0, 1 });
+			includedSpecs.push_back({ "e", 1, 1 });
+			includedSpecs.push_back({ "dse", 2, 1 });
 			forceCompactSpecs = true;
 		} else if (diagAll4 && hasNS && missingPairEW) {
 			includedSpecs.clear();
 			includedSpecs.reserve(6);
-			includedSpecs.push_back({"dnw", 0, 0});
-			includedSpecs.push_back({"s", 0, 1});
-			includedSpecs.push_back({"dsw", 0, 2});
-			includedSpecs.push_back({"dne", 1, 0});
-			includedSpecs.push_back({"n", 1, 1});
-			includedSpecs.push_back({"dse", 1, 2});
+			includedSpecs.push_back({ "dnw", 0, 0 });
+			includedSpecs.push_back({ "s", 0, 1 });
+			includedSpecs.push_back({ "dsw", 0, 2 });
+			includedSpecs.push_back({ "dne", 1, 0 });
+			includedSpecs.push_back({ "n", 1, 1 });
+			includedSpecs.push_back({ "dse", 1, 2 });
 			forceCompactSpecs = true;
 		}
 
@@ -5708,9 +5615,7 @@ void MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint(wxPaintEvent &W
 			measure.visibleUnion = measure.anchorUnion;
 		}
 
-		int originOffsetX = (vertical ? innerRect.x : laneRect.x) +
-			std::max(0, ((vertical ? innerRect.width : laneRect.width) - measure.visibleUnion.width) / 2) -
-			measure.visibleUnion.x;
+		int originOffsetX = (vertical ? innerRect.x : laneRect.x) + std::max(0, ((vertical ? innerRect.width : laneRect.width) - measure.visibleUnion.width) / 2) - measure.visibleUnion.x;
 		const int originOffsetY = laneRect.y + std::max(0, (laneRect.height - measure.visibleUnion.height) / 2) - measure.visibleUnion.y;
 		if (vertical) {
 			const int railX = measure.anchorUnion.GetRight() + originOffsetX + indicatorSpace / 2;
@@ -5780,8 +5685,8 @@ void MaterialsWorkbenchBrushPanel::OnAlignedSeamlessPreviewPaint(wxPaintEvent &W
 		}
 	};
 
-	drawPreviewBox(verticalRect, {"north", "vertical", "south"}, true);
-	drawPreviewBox(horizontalRect, {"west", "horizontal", "east"}, false);
+	drawPreviewBox(verticalRect, { "north", "vertical", "south" }, true);
+	drawPreviewBox(horizontalRect, { "west", "horizontal", "east" }, false);
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshDoodadAlternativeList() {
@@ -6041,7 +5946,6 @@ void MaterialsWorkbenchBrushPanel::OnDoodadAlternativeSliderPaint(wxPaintEvent &
 			}
 		}
 	}
-
 }
 
 void MaterialsWorkbenchBrushPanel::OnDoodadAlternativeSliderLeftDown(wxMouseEvent &event) {
@@ -6647,19 +6551,13 @@ void MaterialsWorkbenchBrushPanel::OnDoodadPreviewPaint(wxPaintEvent &WXUNUSED(e
 					}
 				}
 
-				const wxPoint selectedProjectedCell =
-					(doodadTileIndex_ >= 0 && doodadTileIndex_ < static_cast<int>(composite.tiles.size()))
-						? GetDoodadPreviewProjectedCell(
-							composite.tiles[doodadTileIndex_],
-							layout.floor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors
-						)
-						: wxPoint(std::numeric_limits<int>::min(), std::numeric_limits<int>::min());
-				const bool isSelectedTile =
-					doodadTileIndex_ >= 0 &&
-					doodadTileIndex_ < static_cast<int>(composite.tiles.size()) &&
-					selectedProjectedCell.x == cellX &&
-					selectedProjectedCell.y == cellY &&
-					(layout.floor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors || composite.tiles[doodadTileIndex_].offsetZ == layout.floor);
+				const wxPoint selectedProjectedCell = (doodadTileIndex_ >= 0 && doodadTileIndex_ < static_cast<int>(composite.tiles.size()))
+					? GetDoodadPreviewProjectedCell(
+						composite.tiles[doodadTileIndex_],
+						layout.floor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors
+					)
+					: wxPoint(std::numeric_limits<int>::min(), std::numeric_limits<int>::min());
+				const bool isSelectedTile = doodadTileIndex_ >= 0 && doodadTileIndex_ < static_cast<int>(composite.tiles.size()) && selectedProjectedCell.x == cellX && selectedProjectedCell.y == cellY && (layout.floor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors || composite.tiles[doodadTileIndex_].offsetZ == layout.floor);
 
 				dc.SetPen(wxPen(isSelectedTile ? selectionColour : cellBorderColour, isSelectedTile ? 2 : 1));
 				dc.SetBrush(wxBrush(hasTileAtCell ? cellColour : emptyCellColour));
@@ -7105,11 +7003,12 @@ void MaterialsWorkbenchBrushPanel::OnDeleteBrush(wxCommandEvent &) {
 	const wxString brushName = brushStorage_.brush.name;
 	if (wxMessageBox(
 			"Delete brush \"" + brushName + "\"?\n\n"
-			"This removes the brush from materials.db and also removes palette entries, borders, and links that reference it.",
+											"This removes the brush from materials.db and also removes palette entries, borders, and links that reference it.",
 			"Delete Brush",
 			wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
 			this
-		) != wxYES) {
+		)
+		!= wxYES) {
 		return;
 	}
 
@@ -7799,11 +7698,9 @@ void MaterialsWorkbenchBrushPanel::OnRemoveAlignedNode(wxCommandEvent &WXUNUSED(
 
 void MaterialsWorkbenchBrushPanel::OnAlignedNodeSelected(wxCommandEvent &event) {
 	alignedNodeIndex_ = event.GetSelection();
-	if (GetEffectiveBrushType() == "carpet" && alignedNodeIndex_ >= 0 &&
-		alignedNodeIndex_ < static_cast<int>(brushStorage_.carpetNodes.size())) {
+	if (GetEffectiveBrushType() == "carpet" && alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(brushStorage_.carpetNodes.size())) {
 		alignedPendingCarpetAlign_ = brushStorage_.carpetNodes[alignedNodeIndex_].align;
-	} else if (GetEffectiveBrushType() == "table" && alignedNodeIndex_ >= 0 &&
-		alignedNodeIndex_ < static_cast<int>(brushStorage_.tableNodes.size())) {
+	} else if (GetEffectiveBrushType() == "table" && alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(brushStorage_.tableNodes.size())) {
 		alignedPendingTableAlign_ = brushStorage_.tableNodes[alignedNodeIndex_].align;
 	}
 	RefreshAlignedSelection();
@@ -8069,8 +7966,7 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextPaint(wxPaintEvent &WXUNUSED(
 		const bool exists = nodeIndex >= 0;
 		const bool selected = exists
 			? nodeIndex == alignedNodeIndex_
-			: ((type == "table" && alignedPendingTableAlign_.CmpNoCase(wxString::FromUTF8(slot.align)) == 0) ||
-			   (type == "carpet" && alignedPendingCarpetAlign_.CmpNoCase(wxString::FromUTF8(slot.align)) == 0));
+			: ((type == "table" && alignedPendingTableAlign_.CmpNoCase(wxString::FromUTF8(slot.align)) == 0) || (type == "carpet" && alignedPendingCarpetAlign_.CmpNoCase(wxString::FromUTF8(slot.align)) == 0));
 		const wxColour accent = selected ? wxColour(80, 166, 255) : (exists ? wxColour(91, 194, 139) : wxColour(176, 102, 0));
 		const wxColour fill = selected ? wxColour(38, 46, 60) : (exists ? wxColour(28, 31, 38) : wxColour(34, 29, 26));
 		dc.SetPen(wxPen(accent, selected ? 2 : 1));
@@ -8184,19 +8080,11 @@ void MaterialsWorkbenchBrushPanel::OnAlignedContextLeftDown(wxMouseEvent &event)
 		} else {
 			nodeIndex = FindAlignedNodeIndexByAlign(brushStorage_.carpetNodes, alignedContextRectAligns_[i]);
 		}
-		if (GetEffectiveBrushType() == "table" &&
-			i < alignedContextAddRects_.size() &&
-			!alignedContextAddRects_[i].IsEmpty() &&
-			alignedContextAddRects_[i].Contains(position) &&
-			nodeIndex >= 0) {
+		if (GetEffectiveBrushType() == "table" && i < alignedContextAddRects_.size() && !alignedContextAddRects_[i].IsEmpty() && alignedContextAddRects_[i].Contains(position) && nodeIndex >= 0) {
 			AddTableItemToNodeWithDialog(nodeIndex);
 			return;
 		}
-		if (GetEffectiveBrushType() == "carpet" &&
-			i < alignedContextAddRects_.size() &&
-			!alignedContextAddRects_[i].IsEmpty() &&
-			alignedContextAddRects_[i].Contains(position) &&
-			nodeIndex < 0) {
+		if (GetEffectiveBrushType() == "carpet" && i < alignedContextAddRects_.size() && !alignedContextAddRects_[i].IsEmpty() && alignedContextAddRects_[i].Contains(position) && nodeIndex < 0) {
 			alignedNodeIndex_ = -1;
 			alignedItemIndex_ = -1;
 			alignedPendingCarpetAlign_ = alignedContextRectAligns_[i];
@@ -8506,16 +8394,14 @@ void MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsLeftDown(wxMouseEvent &eve
 		for (size_t i = 0; i < alignedItemEditRects_.size(); ++i) {
 			if (!alignedItemEditRects_[i].IsEmpty() && alignedItemEditRects_[i].Contains(position)) {
 				if (isTable) {
-					if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.tableNodes.size()) ||
-						i >= brushStorage_.tableNodes[alignedNodeIndex_].items.size()) {
+					if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.tableNodes.size()) || i >= brushStorage_.tableNodes[alignedNodeIndex_].items.size()) {
 						return;
 					}
 					alignedItemIndex_ = static_cast<int>(i);
 					EditTableItemWithDialog(alignedNodeIndex_, static_cast<int>(i));
 					return;
 				}
-				if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.carpetNodes.size()) ||
-					i >= brushStorage_.carpetNodes[alignedNodeIndex_].items.size()) {
+				if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.carpetNodes.size()) || i >= brushStorage_.carpetNodes[alignedNodeIndex_].items.size()) {
 					return;
 				}
 				int itemId = brushStorage_.carpetNodes[alignedNodeIndex_].items[i].itemId;
@@ -8536,8 +8422,7 @@ void MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsLeftDown(wxMouseEvent &eve
 		for (size_t i = 0; i < alignedItemRemoveRects_.size(); ++i) {
 			if (!alignedItemRemoveRects_[i].IsEmpty() && alignedItemRemoveRects_[i].Contains(position)) {
 				if (isTable) {
-					if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.tableNodes.size()) ||
-						i >= brushStorage_.tableNodes[alignedNodeIndex_].items.size()) {
+					if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.tableNodes.size()) || i >= brushStorage_.tableNodes[alignedNodeIndex_].items.size()) {
 						return;
 					}
 					auto &items = brushStorage_.tableNodes[alignedNodeIndex_].items;
@@ -8552,8 +8437,7 @@ void MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsLeftDown(wxMouseEvent &eve
 					SetStatusMessage("Removed node item.");
 					return;
 				}
-				if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.carpetNodes.size()) ||
-					i >= brushStorage_.carpetNodes[alignedNodeIndex_].items.size()) {
+				if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.carpetNodes.size()) || i >= brushStorage_.carpetNodes[alignedNodeIndex_].items.size()) {
 					return;
 				}
 				auto &items = brushStorage_.carpetNodes[alignedNodeIndex_].items;
@@ -8601,15 +8485,13 @@ void MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsRightDown(wxMouseEvent &ev
 		int itemId = 0;
 		int chance = 1;
 		if (GetEffectiveBrushType() == "table") {
-			if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.tableNodes.size()) ||
-				i >= brushStorage_.tableNodes[alignedNodeIndex_].items.size()) {
+			if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.tableNodes.size()) || i >= brushStorage_.tableNodes[alignedNodeIndex_].items.size()) {
 				return;
 			}
 			EditTableItemWithDialog(alignedNodeIndex_, static_cast<int>(i));
 			return;
 		}
-		if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.carpetNodes.size()) ||
-			i >= brushStorage_.carpetNodes[alignedNodeIndex_].items.size()) {
+		if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.carpetNodes.size()) || i >= brushStorage_.carpetNodes[alignedNodeIndex_].items.size()) {
 			return;
 		}
 		itemId = brushStorage_.carpetNodes[alignedNodeIndex_].items[i].itemId;
@@ -8680,7 +8562,8 @@ void MaterialsWorkbenchBrushPanel::OnRemoveDoodadAlternative(wxCommandEvent &WXU
 			"Remove Alternative",
 			wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
 			this
-		) != wxYES) {
+		)
+		!= wxYES) {
 		return;
 	}
 	brushStorage_.doodadAlternatives.erase(brushStorage_.doodadAlternatives.begin() + doodadAlternativeIndex_);
@@ -8865,7 +8748,8 @@ void MaterialsWorkbenchBrushPanel::OnRemoveDoodadComposite(wxCommandEvent &WXUNU
 			"Remove Composite",
 			wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
 			this
-		) != wxYES) {
+		)
+		!= wxYES) {
 		return;
 	}
 	composites.erase(composites.begin() + doodadCompositeIndex_);
@@ -9002,7 +8886,8 @@ void MaterialsWorkbenchBrushPanel::OnRemoveDoodadTile(wxCommandEvent &WXUNUSED(e
 			"Remove Tile",
 			wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
 			this
-		) != wxYES) {
+		)
+		!= wxYES) {
 		return;
 	}
 	tiles.erase(tiles.begin() + doodadTileIndex_);

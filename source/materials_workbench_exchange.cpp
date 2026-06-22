@@ -355,7 +355,9 @@ namespace {
 		return entity;
 	}
 
-	bool IsJsonString(const nlohmann::json &v) { return v.is_string(); }
+	bool IsJsonString(const nlohmann::json &v) {
+		return v.is_string();
+	}
 
 	wxString JsonToWxString(const nlohmann::json &v) {
 		const std::string value = v.get<std::string>();
@@ -1459,7 +1461,9 @@ bool ApplyMaterialsWorkbenchImportJsonWithProgress(
 			}
 			const wxString name = JsonToWxString(entity["group"]["name"]);
 			if (controller.HasPaletteGroupNamed(name)) {
-				const wxString newName = makeUniqueName(name, [&](const wxString &candidate) { return controller.HasPaletteGroupNamed(candidate); }, reservedGroupNames);
+				const wxString newName = makeUniqueName(
+					name, [&](const wxString &candidate) { return controller.HasPaletteGroupNamed(candidate); }, reservedGroupNames
+				);
 				if (!newName.IsSameAs(name, false)) {
 					renamedPaletteGroups.insert({ name, newName });
 				}
@@ -1474,7 +1478,9 @@ bool ApplyMaterialsWorkbenchImportJsonWithProgress(
 			}
 			const wxString name = JsonToWxString(entity["palette"]["name"]);
 			if (controller.HasTilesetNamed(name)) {
-				const wxString newName = makeUniqueName(name, [&](const wxString &candidate) { return controller.HasTilesetNamed(candidate); }, reservedPaletteNames);
+				const wxString newName = makeUniqueName(
+					name, [&](const wxString &candidate) { return controller.HasTilesetNamed(candidate); }, reservedPaletteNames
+				);
 				if (!newName.IsSameAs(name, false)) {
 					renamedPalettes.insert({ name, newName });
 				}

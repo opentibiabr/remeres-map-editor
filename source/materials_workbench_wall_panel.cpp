@@ -122,7 +122,7 @@ namespace {
 
 		wxImage image(spriteData->size.width, spriteData->size.height);
 		image.InitAlpha();
-		const auto *pixels = spriteData->pixels.data();
+		const auto* pixels = spriteData->pixels.data();
 		for (int y = 0; y < spriteData->size.height; ++y) {
 			for (int x = 0; x < spriteData->size.width; ++x) {
 				const int index = (y * spriteData->size.width + x) * 4;
@@ -177,106 +177,142 @@ namespace {
 
 	wxString WallPartTypeTag(const wxString &partType) {
 		const wxString normalized = NormalizeWallPreviewPartType(partType);
-		if (normalized == "vertical") return "V";
-		if (normalized == "horizontal") return "H";
-		if (normalized == "pole") return "P";
-		if (normalized == "corner") return "C";
-		if (normalized == "south end") return "S-end";
-		if (normalized == "east end") return "E-end";
-		if (normalized == "north end") return "N-end";
-		if (normalized == "west end") return "W-end";
-		if (normalized == "south t") return "S-T";
-		if (normalized == "east t") return "E-T";
-		if (normalized == "west t") return "W-T";
-		if (normalized == "north t") return "N-T";
-		if (normalized == "northwest diagonal") return "SE";
-		if (normalized == "northeast diagonal") return "SW";
-		if (normalized == "southwest diagonal") return "NE";
-		if (normalized == "southeast diagonal") return "NW";
-		if (normalized == "intersection") return "X";
-		if (normalized == "untouchable") return "U";
+		if (normalized == "vertical") {
+			return "V";
+		}
+		if (normalized == "horizontal") {
+			return "H";
+		}
+		if (normalized == "pole") {
+			return "P";
+		}
+		if (normalized == "corner") {
+			return "C";
+		}
+		if (normalized == "south end") {
+			return "S-end";
+		}
+		if (normalized == "east end") {
+			return "E-end";
+		}
+		if (normalized == "north end") {
+			return "N-end";
+		}
+		if (normalized == "west end") {
+			return "W-end";
+		}
+		if (normalized == "south t") {
+			return "S-T";
+		}
+		if (normalized == "east t") {
+			return "E-T";
+		}
+		if (normalized == "west t") {
+			return "W-T";
+		}
+		if (normalized == "north t") {
+			return "N-T";
+		}
+		if (normalized == "northwest diagonal") {
+			return "SE";
+		}
+		if (normalized == "northeast diagonal") {
+			return "SW";
+		}
+		if (normalized == "southwest diagonal") {
+			return "NE";
+		}
+		if (normalized == "southeast diagonal") {
+			return "NW";
+		}
+		if (normalized == "intersection") {
+			return "X";
+		}
+		if (normalized == "untouchable") {
+			return "U";
+		}
 		return partType;
 	}
 
 	wxString PartTypeForWallAlignment(uint32_t alignment) {
 		switch (alignment) {
-		case WALL_VERTICAL:
-			return "vertical";
-		case WALL_HORIZONTAL:
-			return "horizontal";
-		case WALL_POLE:
-			return "pole";
-		case WALL_SOUTH_END:
-			return "south end";
-		case WALL_EAST_END:
-			return "east end";
-		case WALL_NORTH_END:
-			return "north end";
-		case WALL_WEST_END:
-			return "west end";
-		case WALL_SOUTH_T:
-			return "south t";
-		case WALL_EAST_T:
-			return "east t";
-		case WALL_WEST_T:
-			return "west t";
-		case WALL_NORTH_T:
-			return "north t";
-		case WALL_NORTHWEST_DIAGONAL:
-			return "northwest diagonal";
-		case WALL_NORTHEAST_DIAGONAL:
-			return "northeast diagonal";
-		case WALL_SOUTHWEST_DIAGONAL:
-			return "southwest diagonal";
-		case WALL_SOUTHEAST_DIAGONAL:
-			return "southeast diagonal";
-		case WALL_INTERSECTION:
-			return "intersection";
-		case WALL_UNTOUCHABLE:
-			return "untouchable";
-		default:
-			return "";
+			case WALL_VERTICAL:
+				return "vertical";
+			case WALL_HORIZONTAL:
+				return "horizontal";
+			case WALL_POLE:
+				return "pole";
+			case WALL_SOUTH_END:
+				return "south end";
+			case WALL_EAST_END:
+				return "east end";
+			case WALL_NORTH_END:
+				return "north end";
+			case WALL_WEST_END:
+				return "west end";
+			case WALL_SOUTH_T:
+				return "south t";
+			case WALL_EAST_T:
+				return "east t";
+			case WALL_WEST_T:
+				return "west t";
+			case WALL_NORTH_T:
+				return "north t";
+			case WALL_NORTHWEST_DIAGONAL:
+				return "northwest diagonal";
+			case WALL_NORTHEAST_DIAGONAL:
+				return "northeast diagonal";
+			case WALL_SOUTHWEST_DIAGONAL:
+				return "southwest diagonal";
+			case WALL_SOUTHEAST_DIAGONAL:
+				return "southeast diagonal";
+			case WALL_INTERSECTION:
+				return "intersection";
+			case WALL_UNTOUCHABLE:
+				return "untouchable";
+			default:
+				return "";
 		}
 	}
 
 	wxString WallPreviewAlignmentTag(uint32_t alignment) {
 		switch (alignment) {
-		case WALL_VERTICAL:
-			return "V";
-		case WALL_HORIZONTAL:
-			return "H";
-		case WALL_POLE:
-			return "P";
-		case WALL_SOUTH_END:
-			return "S-end";
-		case WALL_EAST_END:
-			return "E-end";
-		case WALL_NORTH_END:
-			return "N-end";
-		case WALL_WEST_END:
-			return "W-end";
-		case WALL_SOUTH_T:
-			return "S-T";
-		case WALL_EAST_T:
-			return "E-T";
-		case WALL_WEST_T:
-			return "W-T";
-		case WALL_NORTH_T:
-			return "N-T";
-		case WALL_NORTHWEST_DIAGONAL:
-			return "NW";
-		case WALL_NORTHEAST_DIAGONAL:
-			return "NE";
-		case WALL_SOUTHWEST_DIAGONAL:
-			return "SW";
-		case WALL_SOUTHEAST_DIAGONAL:
-			return "SE";
-		case WALL_INTERSECTION:
-			return "X";
-		case WALL_UNTOUCHABLE:
-			return "U";
-		default:
-			return "";
+			case WALL_VERTICAL:
+				return "V";
+			case WALL_HORIZONTAL:
+				return "H";
+			case WALL_POLE:
+				return "P";
+			case WALL_SOUTH_END:
+				return "S-end";
+			case WALL_EAST_END:
+				return "E-end";
+			case WALL_NORTH_END:
+				return "N-end";
+			case WALL_WEST_END:
+				return "W-end";
+			case WALL_SOUTH_T:
+				return "S-T";
+			case WALL_EAST_T:
+				return "E-T";
+			case WALL_WEST_T:
+				return "W-T";
+			case WALL_NORTH_T:
+				return "N-T";
+			case WALL_NORTHWEST_DIAGONAL:
+				return "NW";
+			case WALL_NORTHEAST_DIAGONAL:
+				return "NE";
+			case WALL_SOUTHWEST_DIAGONAL:
+				return "SW";
+			case WALL_SOUTHEAST_DIAGONAL:
+				return "SE";
+			case WALL_INTERSECTION:
+				return "X";
+			case WALL_UNTOUCHABLE:
+				return "U";
+			default:
+				return "";
 		}
 	}
 
@@ -286,25 +322,25 @@ namespace {
 			return {};
 		}
 		switch (alignment) {
-		case WALL_NORTHWEST_DIAGONAL:
-		case WALL_NORTHEAST_DIAGONAL:
-		case WALL_SOUTHWEST_DIAGONAL:
-		case WALL_SOUTHEAST_DIAGONAL:
-			if (east && south && !north && !west) {
-				return { primary, "pole" };
-			}
-			if (west && south && !north && !east) {
-				return { primary, "horizontal" };
-			}
-			if (east && north && !south && !west) {
-				return { primary, "vertical" };
-			}
-			if (west && north && !south && !east) {
-				return { primary, "corner" };
-			}
-			return { primary, "horizontal", "vertical" };
-		default:
-			return { primary };
+			case WALL_NORTHWEST_DIAGONAL:
+			case WALL_NORTHEAST_DIAGONAL:
+			case WALL_SOUTHWEST_DIAGONAL:
+			case WALL_SOUTHEAST_DIAGONAL:
+				if (east && south && !north && !west) {
+					return { primary, "pole" };
+				}
+				if (west && south && !north && !east) {
+					return { primary, "horizontal" };
+				}
+				if (east && north && !south && !west) {
+					return { primary, "vertical" };
+				}
+				if (west && north && !south && !east) {
+					return { primary, "corner" };
+				}
+				return { primary, "horizontal", "vertical" };
+			default:
+				return { primary };
 		}
 	}
 
@@ -389,14 +425,22 @@ namespace {
 				const bool east = hasWallCell(cell.x + 1, cell.y);
 				const bool south = hasWallCell(cell.x, cell.y + 1);
 				uint32_t tiledata = 0;
-				if (north) tiledata |= 1u << 0;
-				if (west) tiledata |= 1u << 1;
-				if (east) tiledata |= 1u << 2;
-				if (south) tiledata |= 1u << 3;
+				if (north) {
+					tiledata |= 1u << 0;
+				}
+				if (west) {
+					tiledata |= 1u << 1;
+				}
+				if (east) {
+					tiledata |= 1u << 2;
+				}
+				if (south) {
+					tiledata |= 1u << 3;
+				}
 				const uint32_t alignment = WallBrush::full_border_types[tiledata & 0x0F];
 				const wxString expectedPartType = PartTypeForWallAlignment(alignment);
 				const std::vector<wxString> partCandidates = strict_
-					? (expectedPartType.IsEmpty() ? std::vector<wxString>() : std::vector<wxString>{ expectedPartType })
+					? (expectedPartType.IsEmpty() ? std::vector<wxString>() : std::vector<wxString> { expectedPartType })
 					: PartTypeCandidatesForWallAlignment(alignment, north, west, east, south);
 				const WallPartRecord* part = nullptr;
 				wxString resolvedPartType = expectedPartType;
@@ -405,8 +449,7 @@ namespace {
 					part = FindPartByType(candidate);
 					if (part) {
 						resolvedPartType = candidate;
-						usedFallback = !expectedPartType.IsEmpty() &&
-							NormalizeWallPreviewPartType(expectedPartType) != NormalizeWallPreviewPartType(candidate);
+						usedFallback = !expectedPartType.IsEmpty() && NormalizeWallPreviewPartType(expectedPartType) != NormalizeWallPreviewPartType(candidate);
 						break;
 					}
 				}
@@ -587,29 +630,29 @@ namespace {
 			}
 			wxPoint doorCell(roomSize / 2, 0);
 			switch (doorSide_) {
-			case 1:
-				doorCell = wxPoint(roomSize / 2, 0);
-				break;
-			case 2:
-				doorCell = wxPoint(roomSize - 1, roomSize / 2);
-				break;
-			case 3:
-				doorCell = wxPoint(roomSize / 2, roomSize - 1);
-				break;
-			case 4:
-				doorCell = wxPoint(0, roomSize / 2);
-				break;
-			default: {
-				const wxString selectedPart = selectedPartType_.Lower();
-				const bool wantsVertical = selectedPart.Contains("vertical") || selectedPart.Contains("east") || selectedPart.Contains("west");
-				const bool wantsHorizontal = selectedPart.Contains("horizontal") || selectedPart.Contains("north") || selectedPart.Contains("south");
-				if (wantsVertical && !wantsHorizontal) {
-					doorCell = wxPoint(roomSize - 1, roomSize / 2);
-				} else if (wantsHorizontal && !wantsVertical) {
+				case 1:
 					doorCell = wxPoint(roomSize / 2, 0);
+					break;
+				case 2:
+					doorCell = wxPoint(roomSize - 1, roomSize / 2);
+					break;
+				case 3:
+					doorCell = wxPoint(roomSize / 2, roomSize - 1);
+					break;
+				case 4:
+					doorCell = wxPoint(0, roomSize / 2);
+					break;
+				default: {
+					const wxString selectedPart = selectedPartType_.Lower();
+					const bool wantsVertical = selectedPart.Contains("vertical") || selectedPart.Contains("east") || selectedPart.Contains("west");
+					const bool wantsHorizontal = selectedPart.Contains("horizontal") || selectedPart.Contains("north") || selectedPart.Contains("south");
+					if (wantsVertical && !wantsHorizontal) {
+						doorCell = wxPoint(roomSize - 1, roomSize / 2);
+					} else if (wantsHorizontal && !wantsVertical) {
+						doorCell = wxPoint(roomSize / 2, 0);
+					}
+					break;
 				}
-				break;
-			}
 			}
 
 			const std::vector<DrawOp> roomOps = BuildScene(roomCells, nullptr, 0, boundsA);
@@ -651,11 +694,7 @@ namespace {
 	};
 
 	wxString DescribeDoor(const WallPartDoorRecord &door) {
-		return wxString::Format("%s | id %d | %s%s",
-			door.doorType,
-			door.itemId,
-			door.isOpen ? "open" : "closed",
-			door.wallHateMe ? " | hate" : "");
+		return wxString::Format("%s | id %d | %s%s", door.doorType, door.itemId, door.isOpen ? "open" : "closed", door.wallHateMe ? " | hate" : "");
 	}
 
 	void StyleWallWorkspaceSubtitle(wxStaticText* label) {
@@ -814,43 +853,23 @@ namespace {
 	}
 
 	bool AreWallPanelPartItemRecordsEqual(const WallPartItemRecord &left, const WallPartItemRecord &right) {
-		return left.itemId == right.itemId &&
-			   left.chance == right.chance &&
-			   left.sortOrder == right.sortOrder;
+		return left.itemId == right.itemId && left.chance == right.chance && left.sortOrder == right.sortOrder;
 	}
 
 	bool AreWallPanelPartDoorRecordsEqual(const WallPartDoorRecord &left, const WallPartDoorRecord &right) {
-		return left.itemId == right.itemId &&
-			   left.doorType == right.doorType &&
-			   left.isOpen == right.isOpen &&
-			   left.wallHateMe == right.wallHateMe &&
-			   left.sortOrder == right.sortOrder;
+		return left.itemId == right.itemId && left.doorType == right.doorType && left.isOpen == right.isOpen && left.wallHateMe == right.wallHateMe && left.sortOrder == right.sortOrder;
 	}
 
 	bool AreWallPanelPartRecordsEqual(const WallPartRecord &left, const WallPartRecord &right) {
-		return left.partType == right.partType &&
-			   left.sortOrder == right.sortOrder &&
-			   WallPanelVectorsEqual(left.items, right.items, AreWallPanelPartItemRecordsEqual) &&
-			   WallPanelVectorsEqual(left.doors, right.doors, AreWallPanelPartDoorRecordsEqual);
+		return left.partType == right.partType && left.sortOrder == right.sortOrder && WallPanelVectorsEqual(left.items, right.items, AreWallPanelPartItemRecordsEqual) && WallPanelVectorsEqual(left.doors, right.doors, AreWallPanelPartDoorRecordsEqual);
 	}
 
 	bool AreWallPanelLinkRecordsEqual(const BrushLinkRecord &left, const BrushLinkRecord &right) {
-		return left.targetBrushId == right.targetBrushId &&
-			   left.targetBrushName == right.targetBrushName &&
-			   left.relationType == right.relationType &&
-			   left.sortOrder == right.sortOrder;
+		return left.targetBrushId == right.targetBrushId && left.targetBrushName == right.targetBrushName && left.relationType == right.relationType && left.sortOrder == right.sortOrder;
 	}
 
 	bool AreWallPanelBrushRecordsEqual(const BrushRecord &left, const BrushRecord &right) {
-		return left.lookId == right.lookId &&
-			   left.serverLookId == right.serverLookId &&
-			   left.draggable == right.draggable &&
-			   left.onBlocking == right.onBlocking &&
-			   left.onDuplicate == right.onDuplicate &&
-			   left.redoBorders == right.redoBorders &&
-			   left.oneSize == right.oneSize &&
-			   left.thickness == right.thickness &&
-			   left.thicknessCeiling == right.thicknessCeiling;
+		return left.lookId == right.lookId && left.serverLookId == right.serverLookId && left.draggable == right.draggable && left.onBlocking == right.onBlocking && left.onDuplicate == right.onDuplicate && left.redoBorders == right.redoBorders && left.oneSize == right.oneSize && left.thickness == right.thickness && left.thicknessCeiling == right.thicknessCeiling;
 	}
 
 	bool IsKnownWallPanelItemId(int itemId) {
@@ -866,38 +885,38 @@ namespace {
 
 	WallPanelDoorFamily GetWallPanelDoorFamily(::DoorType doorType) {
 		switch (doorType) {
-		case WALL_ARCHWAY:
-		case WALL_DOOR_NORMAL:
-		case WALL_DOOR_LOCKED:
-		case WALL_DOOR_QUEST:
-		case WALL_DOOR_MAGIC:
-			return WallPanelDoorFamily::Door;
-		case WALL_WINDOW:
-		case WALL_HATCH_WINDOW:
-			return WallPanelDoorFamily::Window;
-		default:
-			return WallPanelDoorFamily::Unknown;
+			case WALL_ARCHWAY:
+			case WALL_DOOR_NORMAL:
+			case WALL_DOOR_LOCKED:
+			case WALL_DOOR_QUEST:
+			case WALL_DOOR_MAGIC:
+				return WallPanelDoorFamily::Door;
+			case WALL_WINDOW:
+			case WALL_HATCH_WINDOW:
+				return WallPanelDoorFamily::Window;
+			default:
+				return WallPanelDoorFamily::Unknown;
 		}
 	}
 
 	wxString DescribeWallPanelDoorType(::DoorType doorType) {
 		switch (doorType) {
-		case WALL_ARCHWAY:
-			return "archway";
-		case WALL_DOOR_NORMAL:
-			return "normal";
-		case WALL_DOOR_LOCKED:
-			return "locked";
-		case WALL_DOOR_QUEST:
-			return "quest";
-		case WALL_DOOR_MAGIC:
-			return "magic";
-		case WALL_WINDOW:
-			return "window";
-		case WALL_HATCH_WINDOW:
-			return "hatch_window";
-		default:
-			return "unknown";
+			case WALL_ARCHWAY:
+				return "archway";
+			case WALL_DOOR_NORMAL:
+				return "normal";
+			case WALL_DOOR_LOCKED:
+				return "locked";
+			case WALL_DOOR_QUEST:
+				return "quest";
+			case WALL_DOOR_MAGIC:
+				return "magic";
+			case WALL_WINDOW:
+				return "window";
+			case WALL_HATCH_WINDOW:
+				return "hatch_window";
+			default:
+				return "unknown";
 		}
 	}
 
@@ -1009,9 +1028,7 @@ namespace {
 		}
 
 		const BrushRecord* GetSelectedBrush() const {
-			if (selectedVisibleIndex_ == wxNOT_FOUND ||
-				selectedVisibleIndex_ < 0 ||
-				selectedVisibleIndex_ >= static_cast<int>(filteredIndexes_.size())) {
+			if (selectedVisibleIndex_ == wxNOT_FOUND || selectedVisibleIndex_ < 0 || selectedVisibleIndex_ >= static_cast<int>(filteredIndexes_.size())) {
 				return nullptr;
 			}
 			const int sourceIndex = filteredIndexes_[selectedVisibleIndex_];
@@ -1144,23 +1161,24 @@ bool MaterialsWorkbenchWallPanel::ResolvePendingChangesBeforeSwitch(wxWindow* pa
 	wxMessageDialog dialog(
 		parent,
 		"Wall brush \"" + wallBrushStorage_.brush.name + "\" has unsaved changes.\n\n"
-		"You are switching to " + destination + ".\n\n"
-		"Yes: save and continue\n"
-		"No: discard local changes and continue\n"
-		"Cancel: stay on the current wall brush",
+														 "You are switching to "
+			+ destination + ".\n\n"
+							"Yes: save and continue\n"
+							"No: discard local changes and continue\n"
+							"Cancel: stay on the current wall brush",
 		"Unsaved Wall Changes",
 		wxYES_NO | wxCANCEL | wxICON_WARNING
 	);
 	dialog.SetYesNoCancelLabels("Save", "Discard", "Cancel");
 
 	switch (dialog.ShowModal()) {
-	case wxID_YES:
-		return SaveCurrentWallBrush();
-	case wxID_NO:
-		return LoadWallBrush(currentContextKey_, currentItemIndex_);
-	default:
-		SetStatusMessage("Selection change canceled. Pending wall edits were kept.");
-		return false;
+		case wxID_YES:
+			return SaveCurrentWallBrush();
+		case wxID_NO:
+			return LoadWallBrush(currentContextKey_, currentItemIndex_);
+		default:
+			SetStatusMessage("Selection change canceled. Pending wall edits were kept.");
+			return false;
 	}
 }
 
@@ -1564,12 +1582,7 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 			rows[i].sortOrder = static_cast<int>(i);
 		}
 		ApplyWallFriendLinkRows(wallBrushStorage_.links, rows);
-		summaryLabel_->SetLabel(wxString::Format(
-			"Wall parts: %zu | Links: %zu | Source: %s",
-			wallBrushStorage_.wallParts.size(),
-			wallBrushStorage_.links.size(),
-			wallBrushStorage_.brush.sourceFile
-		));
+		summaryLabel_->SetLabel(wxString::Format("Wall parts: %zu | Links: %zu | Source: %s", wallBrushStorage_.wallParts.size(), wallBrushStorage_.links.size(), wallBrushStorage_.brush.sourceFile));
 		RefreshLinksSection();
 		RefreshDirtyState();
 	};
@@ -1896,12 +1909,7 @@ bool MaterialsWorkbenchWallPanel::LoadWallBrush(const wxString &contextKey, int 
 void MaterialsWorkbenchWallPanel::PopulateFields() {
 	const BrushRecord &brush = wallBrushStorage_.brush;
 	UpdateWorkspaceHeader();
-	summaryLabel_->SetLabel(wxString::Format(
-		"Wall parts: %zu | Links: %zu | Source: %s",
-		wallBrushStorage_.wallParts.size(),
-		wallBrushStorage_.links.size(),
-		brush.sourceFile
-	));
+	summaryLabel_->SetLabel(wxString::Format("Wall parts: %zu | Links: %zu | Source: %s", wallBrushStorage_.wallParts.size(), wallBrushStorage_.links.size(), brush.sourceFile));
 	brushIdCtrl_->SetValue(wxString::Format("%lld", static_cast<long long>(brush.id)));
 	brushNameCtrl_->SetValue(brush.name);
 	SyncMetadataFieldsFromStorage();
@@ -1912,8 +1920,7 @@ void MaterialsWorkbenchWallPanel::PopulateFields() {
 }
 
 void MaterialsWorkbenchWallPanel::SyncMetadataFieldsFromStorage() {
-	if (!lookIdCtrl_ || !serverLookIdCtrl_ || !thicknessCtrl_ || !thicknessCeilingCtrl_ ||
-		!draggableCtrl_ || !onBlockingCtrl_ || !onDuplicateCtrl_ || !redoBordersCtrl_ || !oneSizeCtrl_) {
+	if (!lookIdCtrl_ || !serverLookIdCtrl_ || !thicknessCtrl_ || !thicknessCeilingCtrl_ || !draggableCtrl_ || !onBlockingCtrl_ || !onDuplicateCtrl_ || !redoBordersCtrl_ || !oneSizeCtrl_) {
 		return;
 	}
 
@@ -1938,8 +1945,7 @@ void MaterialsWorkbenchWallPanel::OnMetadataFieldChanged(wxCommandEvent &event) 
 	if (suppressMetadataEvents_ || !hasWallBrush_) {
 		return;
 	}
-	if (!lookIdCtrl_ || !serverLookIdCtrl_ || !thicknessCtrl_ || !thicknessCeilingCtrl_ ||
-		!draggableCtrl_ || !onBlockingCtrl_ || !onDuplicateCtrl_ || !redoBordersCtrl_ || !oneSizeCtrl_) {
+	if (!lookIdCtrl_ || !serverLookIdCtrl_ || !thicknessCtrl_ || !thicknessCeilingCtrl_ || !draggableCtrl_ || !onBlockingCtrl_ || !onDuplicateCtrl_ || !redoBordersCtrl_ || !oneSizeCtrl_) {
 		return;
 	}
 
@@ -2027,12 +2033,7 @@ void MaterialsWorkbenchWallPanel::RefreshSelectedPart() {
 		return;
 	}
 
-	partSummaryLabel_->SetLabel(wxString::Format(
-		"Part `%s` | Items: %zu | Doors: %zu",
-		part->partType,
-		part->items.size(),
-		part->doors.size()
-	));
+	partSummaryLabel_->SetLabel(wxString::Format("Part `%s` | Items: %zu | Doors: %zu", part->partType, part->items.size(), part->doors.size()));
 
 	if (selectedItemIndex_ >= static_cast<int>(part->items.size())) {
 		selectedItemIndex_ = -1;
@@ -2225,9 +2226,7 @@ void MaterialsWorkbenchWallPanel::RefreshComposedPreview() {
 }
 
 void MaterialsWorkbenchWallPanel::RefreshLinksSection() {
-	if (!linksSearchCtrl_ || !linksListCtrl_ || !linksSummaryLabel_ ||
-		!addLinkButton_ || !toggleRedirectButton_ || !openLinkTargetButton_ || !removeLinkButton_ || !moveLinkUpButton_ || !moveLinkDownButton_ ||
-		!inboundLinksSummaryLabel_ || !inboundLinksListCtrl_) {
+	if (!linksSearchCtrl_ || !linksListCtrl_ || !linksSummaryLabel_ || !addLinkButton_ || !toggleRedirectButton_ || !openLinkTargetButton_ || !removeLinkButton_ || !moveLinkUpButton_ || !moveLinkDownButton_ || !inboundLinksSummaryLabel_ || !inboundLinksListCtrl_) {
 		return;
 	}
 	if (linksRefreshInProgress_) {
@@ -2243,7 +2242,7 @@ void MaterialsWorkbenchWallPanel::RefreshLinksSection() {
 			suppress = previousSuppress;
 		}
 	};
-	LinksRefreshGuard resetGuard{ linksRefreshInProgress_, suppressLinksEvents_, suppressLinksEvents_ };
+	LinksRefreshGuard resetGuard { linksRefreshInProgress_, suppressLinksEvents_, suppressLinksEvents_ };
 	suppressLinksEvents_ = true;
 
 	const wxString query = linksSearchCtrl_->GetValue().Lower().Trim(true).Trim(false);
@@ -2370,11 +2369,7 @@ void MaterialsWorkbenchWallPanel::UpdateLinksActionButtons() {
 	addLinkButton_->Enable(true);
 	toggleRedirectButton_->Enable(hasSelection);
 	openLinkTargetButton_->Enable(
-		hasSelection &&
-		onOpenLinkedBrush_ &&
-		selectedIndex >= 0 &&
-		selectedIndex < static_cast<int>(allRows.size()) &&
-		(allRows[selectedIndex].targetBrushId > 0 || !allRows[selectedIndex].targetBrushName.IsEmpty())
+		hasSelection && onOpenLinkedBrush_ && selectedIndex >= 0 && selectedIndex < static_cast<int>(allRows.size()) && (allRows[selectedIndex].targetBrushId > 0 || !allRows[selectedIndex].targetBrushName.IsEmpty())
 	);
 	removeLinkButton_->Enable(hasSelection);
 	if (!query.IsEmpty()) {
@@ -2591,11 +2586,7 @@ void MaterialsWorkbenchWallPanel::RestoreEditorState(const WallEditorState &stat
 
 	for (size_t i = 0; i < part->doors.size(); ++i) {
 		const WallPartDoorRecord &door = part->doors[i];
-		if (door.sortOrder == state.doorSortOrder &&
-			door.itemId == state.doorItemId &&
-			door.doorType == state.doorType &&
-			door.isOpen == state.doorIsOpen &&
-			door.wallHateMe == state.doorWallHateMe) {
+		if (door.sortOrder == state.doorSortOrder && door.itemId == state.doorItemId && door.doorType == state.doorType && door.isOpen == state.doorIsOpen && door.wallHateMe == state.doorWallHateMe) {
 			selectedDoorIndex_ = static_cast<int>(i);
 			break;
 		}
@@ -2668,11 +2659,7 @@ void MaterialsWorkbenchWallPanel::RestoreCurrentPartEditorState() {
 
 	for (size_t i = 0; i < part->doors.size(); ++i) {
 		const WallPartDoorRecord &door = part->doors[i];
-		if (door.sortOrder == state.doorSortOrder &&
-			door.itemId == state.doorItemId &&
-			door.doorType == state.doorType &&
-			door.isOpen == state.doorIsOpen &&
-			door.wallHateMe == state.doorWallHateMe) {
+		if (door.sortOrder == state.doorSortOrder && door.itemId == state.doorItemId && door.doorType == state.doorType && door.isOpen == state.doorIsOpen && door.wallHateMe == state.doorWallHateMe) {
 			selectedDoorIndex_ = static_cast<int>(i);
 			break;
 		}
@@ -2711,13 +2698,13 @@ void MaterialsWorkbenchWallPanel::RefreshDirtyState() {
 			comparable.wallParts,
 			loadedWallBrushStorage_.wallParts,
 			AreWallPanelPartRecordsEqual
-		) &&
-		WallPanelVectorsEqual(
+		)
+		&& WallPanelVectorsEqual(
 			comparable.links,
 			loadedWallBrushStorage_.links,
 			AreWallPanelLinkRecordsEqual
-		) &&
-		AreWallPanelBrushRecordsEqual(
+		)
+		&& AreWallPanelBrushRecordsEqual(
 			comparable.brush,
 			loadedWallBrushStorage_.brush
 		)
@@ -2796,11 +2783,7 @@ bool MaterialsWorkbenchWallPanel::ValidateWallBrushStorage(wxString &error) cons
 			}
 
 			const ItemType &itemType = g_items.getItemType(static_cast<uint16_t>(door.itemId));
-			const bool hasRuntimeDoorRegistration =
-				itemType.isWall &&
-				itemType.isBrushDoor &&
-				itemType.brush &&
-				itemType.brush->isWall();
+			const bool hasRuntimeDoorRegistration = itemType.isWall && itemType.isBrushDoor && itemType.brush && itemType.brush->isWall();
 			if (hasRuntimeDoorRegistration) {
 				if (itemType.isOpen != door.isOpen) {
 					error = wxString::Format(
@@ -2847,10 +2830,7 @@ bool MaterialsWorkbenchWallPanel::ValidateWallBrushStorage(wxString &error) cons
 					);
 					return false;
 				}
-				if (!doorTypeSpec.allowAny &&
-					doorTypeSpec.family != WallPanelDoorFamily::Unknown &&
-					runtimeDoorFamily != WallPanelDoorFamily::Unknown &&
-					runtimeDoorFamily != doorTypeSpec.family) {
+				if (!doorTypeSpec.allowAny && doorTypeSpec.family != WallPanelDoorFamily::Unknown && runtimeDoorFamily != WallPanelDoorFamily::Unknown && runtimeDoorFamily != doorTypeSpec.family) {
 					error = wxString::Format(
 						"Wall part %zu door %zu uses item id %d for \"%s\", but the item belongs to \"%s\".",
 						partIndex + 1,

@@ -37,7 +37,8 @@ namespace {
 
 	class wxInt64ClientData : public wxClientData {
 	public:
-		explicit wxInt64ClientData(int64_t value) : value(value) {
+		explicit wxInt64ClientData(int64_t value) :
+			value(value) {
 		}
 		int64_t value;
 	};
@@ -484,11 +485,7 @@ void MaterialsWorkbenchExportDialog::UpdateSummary() {
 }
 
 void MaterialsWorkbenchExportDialog::UpdateOkState() {
-	const bool hasAnything =
-		!selection_.globalBorderXmlIds.empty() ||
-		!selection_.brushIds.empty() ||
-		!selection_.paletteGroupNames.empty() ||
-		!selection_.paletteNames.empty();
+	const bool hasAnything = !selection_.globalBorderXmlIds.empty() || !selection_.brushIds.empty() || !selection_.paletteGroupNames.empty() || !selection_.paletteNames.empty();
 	okButton_->Enable(hasAnything);
 }
 
@@ -599,7 +596,7 @@ MaterialsWorkbenchImportDialog::MaterialsWorkbenchImportDialog(wxWindow* parent,
 		return list;
 	};
 
-	auto makePlanPage = [&](const wxString &title, wxListCtrl*& outList) {
+	auto makePlanPage = [&](const wxString &title, wxListCtrl*&outList) {
 		wxPanel* page = new wxPanel(planNotebook_, wxID_ANY);
 		wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 		outList = makePlanList(page);
@@ -798,7 +795,6 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 		}
 	}
 
-
 	auto makeUniqueName = [&](const wxString &base, const std::function<bool(const wxString &)> &exists, std::unordered_set<wxString> &reserved) -> wxString {
 		const wxString baseKey = normalizeName(base);
 		if (!exists(base) && reserved.find(baseKey) == reserved.end()) {
@@ -942,7 +938,9 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 				if (exists && options_.onConflict == MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix) {
 					auto it = renamedPaletteGroups.find(name);
 					if (it == renamedPaletteGroups.end()) {
-						const wxString newName = makeUniqueName(name, [&](const wxString &candidate) { return controller_.HasPaletteGroupNamed(candidate); }, reservedGroupNames);
+						const wxString newName = makeUniqueName(
+							name, [&](const wxString &candidate) { return controller_.HasPaletteGroupNamed(candidate); }, reservedGroupNames
+						);
 						renamedPaletteGroups.insert({ name, newName });
 						it = renamedPaletteGroups.find(name);
 					}
@@ -967,7 +965,9 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 				if (exists && options_.onConflict == MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix) {
 					auto it = renamedPalettes.find(name);
 					if (it == renamedPalettes.end()) {
-						const wxString newName = makeUniqueName(name, [&](const wxString &candidate) { return controller_.HasTilesetNamed(candidate); }, reservedPaletteNames);
+						const wxString newName = makeUniqueName(
+							name, [&](const wxString &candidate) { return controller_.HasTilesetNamed(candidate); }, reservedPaletteNames
+						);
 						renamedPalettes.insert({ name, newName });
 						it = renamedPalettes.find(name);
 					}
@@ -998,16 +998,16 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 					}
 					if (!groupName.IsEmpty()) {
 						const wxString groupKey = normalizeName(groupName);
-							bool renamedGroupExists = false;
-							for (const auto &entry : renamedPaletteGroups) {
-								if (normalizeName(entry.second) == groupKey) {
-									renamedGroupExists = true;
-									break;
-								}
+						bool renamedGroupExists = false;
+						for (const auto &entry : renamedPaletteGroups) {
+							if (normalizeName(entry.second) == groupKey) {
+								renamedGroupExists = true;
+								break;
 							}
-							const bool groupExists = controller_.HasPaletteGroupNamed(groupName)
-								|| importedGroupNames.find(groupKey) != importedGroupNames.end()
-								|| renamedGroupExists;
+						}
+						const bool groupExists = controller_.HasPaletteGroupNamed(groupName)
+							|| importedGroupNames.find(groupKey) != importedGroupNames.end()
+							|| renamedGroupExists;
 						if (!groupExists) {
 							isValid = false;
 							detail = wxString::Format("Missing palette group '%s'.", groupName);

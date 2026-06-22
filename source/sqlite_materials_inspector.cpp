@@ -29,7 +29,7 @@ namespace {
 		return false;
 	}
 
-	wxString BuildRuntimeReadinessSummary(BrushDatabase &database, const MaterialsDatabaseAuditReport &report, const MaterialsImportStatusRecord *status) {
+	wxString BuildRuntimeReadinessSummary(BrushDatabase &database, const MaterialsDatabaseAuditReport &report, const MaterialsImportStatusRecord* status) {
 		const int expectedSchemaVersion = database.getExpectedSchemaVersion();
 		int currentSchemaVersion = 0;
 		if (!database.getCurrentSchemaVersion(currentSchemaVersion)) {
@@ -49,14 +49,14 @@ namespace {
 			&& HasBrushType(report, "carpet")
 			&& HasBrushType(report, "table");
 		const bool hasCatalogBasics = report.borderSetCount > 0 && report.tilesetCount > 0;
-	const bool hasNoUnsupportedBrushTypes = report.unsupportedBrushTypeCount == 0;
+		const bool hasNoUnsupportedBrushTypes = report.unsupportedBrushTypeCount == 0;
 		const bool hasNoUnresolvedRefs = report.unresolvedGroundTargets == 0
 			&& report.unresolvedBrushLinks == 0
 			&& report.unresolvedTilesetEntries == 0
 			&& report.unresolvedCaseMatchBorderIds == 0
 			&& report.unresolvedCaseReplaceBorderTargetIds == 0;
 
-	const bool readyByAudit = hasRequiredBrushTypes && hasCatalogBasics && hasNoUnsupportedBrushTypes && hasNoUnresolvedRefs;
+		const bool readyByAudit = hasRequiredBrushTypes && hasCatalogBasics && hasNoUnsupportedBrushTypes && hasNoUnresolvedRefs;
 		const bool markerComplete = status && status->completed;
 		if (readyByAudit) {
 			if (markerComplete) {
@@ -73,7 +73,7 @@ namespace {
 			reason = "Missing required brush types (expected ground, wall, doodad, carpet, table).";
 		} else if (!hasCatalogBasics) {
 			reason = "Missing border sets or tilesets.";
-	} else if (!hasNoUnsupportedBrushTypes) {
+		} else if (!hasNoUnsupportedBrushTypes) {
 			wxString detail = JoinTypeCounts(report.unsupportedBrushTypeCounts);
 			if (!detail.IsEmpty()) {
 				reason = wxString::Format("Database contains unsupported brush types (%d): %s.", report.unsupportedBrushTypeCount, detail);
@@ -166,7 +166,7 @@ namespace {
 		text << "Tilesets: " << report.tilesetCount << "\n";
 		text << "Tileset sections: " << report.tilesetSectionCount << "\n";
 		text << "Tileset entries: " << report.tilesetEntryCount << "\n\n";
-	text << "Unsupported brush types: " << report.unsupportedBrushTypeCount << "\n\n";
+		text << "Unsupported brush types: " << report.unsupportedBrushTypeCount << "\n\n";
 		if (report.unsupportedBrushTypeCount > 0) {
 			if (!report.unsupportedBrushTypeCounts.empty()) {
 				text << "Unsupported brush types breakdown:\n";
@@ -445,12 +445,11 @@ SQLiteMaterialsInspectorPanel::SQLiteMaterialsInspectorPanel(wxWindow* parent) :
 			g_gui.PopupDialog(this, "SQLite Reset Unavailable", "materials.db is read-only. Reset requires a writable database file.\n\nDatabase:\n" + dbPath, wxOK | wxICON_ERROR);
 			return;
 		}
-		const wxString warningText =
-			"Reset SQLite materials database from legacy XML?\n\n"
-			"This will move the current materials.db to a timestamped backup file and close the database for this session (when open).\n"
-			"Warning: This discards all edits made in materials.db since the last bootstrap. Use Export/Import if you need to keep changes.\n\n"
-			"Database:\n" + dbPath;
-
+		wxString warningText = "Reset SQLite materials database from legacy XML?\n\n";
+		warningText += "This will move the current materials.db to a timestamped backup file and close the database for this session (when open).\n";
+		warningText += "Warning: This discards all edits made in materials.db since the last bootstrap. Use Export/Import if you need to keep changes.\n\n";
+		warningText += "Database:\n";
+		warningText += dbPath;
 
 		if (wxMessageBox(warningText, "Reset materials.db", wxYES_NO | wxNO_DEFAULT | wxICON_WARNING, this) != wxYES) {
 			return;
@@ -479,15 +478,14 @@ SQLiteMaterialsInspectorPanel::SQLiteMaterialsInspectorPanel(wxWindow* parent) :
 			return;
 		}
 
-		const wxString doneText =
-			"materials.db was moved to:\n" + backupPath + "\n\n"
-			"Technical note:\n"
-			"- This process cannot safely rebuild and reload the materials graph in-place.\n"
-			"- A restart is required so the next startup can bootstrap a fresh SQLite DB from XML.\n\n"
-			"Next steps:\n"
-			"- Restart the app\n"
-			"- The SQLite database will be rebuilt from legacy XML automatically\n\n"
-			"Note: Workbench editing from SQLite is disabled until restart.";
+		wxString doneText = "materials.db was moved to:\n" + backupPath + "\n\n";
+		doneText += "Technical note:\n";
+		doneText += "- This process cannot safely rebuild and reload the materials graph in-place.\n";
+		doneText += "- A restart is required so the next startup can bootstrap a fresh SQLite DB from XML.\n\n";
+		doneText += "Next steps:\n";
+		doneText += "- Restart the app\n";
+		doneText += "- The SQLite database will be rebuilt from legacy XML automatically\n\n";
+		doneText += "Note: Workbench editing from SQLite is disabled until restart.";
 
 		wxMessageDialog dialog(this, doneText, "SQLite Reset Scheduled", wxOK | wxICON_INFORMATION);
 		dialog.SetOKLabel("Close now");

@@ -64,21 +64,21 @@ namespace {
 		return value;
 	}
 
-	const std::vector<wxString>& GetRequiredCarpetAligns() {
+	const std::vector<wxString> &GetRequiredCarpetAligns() {
 		static const std::vector<wxString> aligns = {
 			"center", "n", "s", "e", "w", "cnw", "cne", "csw", "cse"
 		};
 		return aligns;
 	}
 
-	const std::vector<wxString>& GetKnownWorkbenchInspectorCarpetAligns() {
+	const std::vector<wxString> &GetKnownWorkbenchInspectorCarpetAligns() {
 		static const std::vector<wxString> aligns = {
 			"center", "n", "s", "e", "w", "cnw", "cne", "csw", "cse", "dnw", "dne", "dsw", "dse"
 		};
 		return aligns;
 	}
 
-	const std::vector<wxString>& GetRequiredTableAligns() {
+	const std::vector<wxString> &GetRequiredTableAligns() {
 		static const std::vector<wxString> aligns = {
 			"north", "vertical", "south", "west", "horizontal", "east", "alone"
 		};
@@ -221,32 +221,32 @@ void MaterialsWorkbenchInspectorDialog::BuildHealthTab(wxNotebook* notebook) {
 	sizer->Add(filterSizer, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
 	sizer->Add(splitter, 1, wxEXPAND);
 
-	warningRescanButton_->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+	warningRescanButton_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
 		ReloadWarnings();
 	});
-	warningGoToButton_->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+	warningGoToButton_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
 		GoToSelectedWarning();
 	});
-	warningSearchCtrl_->Bind(wxEVT_TEXT, [this](wxCommandEvent&) {
+	warningSearchCtrl_->Bind(wxEVT_TEXT, [this](wxCommandEvent &) {
 		ApplyWarningFilter();
 	});
-	warningSearchCtrl_->Bind(wxEVT_SEARCHCTRL_CANCEL_BTN, [this](wxCommandEvent&) {
+	warningSearchCtrl_->Bind(wxEVT_SEARCHCTRL_CANCEL_BTN, [this](wxCommandEvent &) {
 		warningSearchCtrl_->ChangeValue("");
 		ApplyWarningFilter();
 	});
-	warningSeverityChoice_->Bind(wxEVT_CHOICE, [this](wxCommandEvent&) {
+	warningSeverityChoice_->Bind(wxEVT_CHOICE, [this](wxCommandEvent &) {
 		ApplyWarningFilter();
 	});
-	warningDomainChoice_->Bind(wxEVT_CHOICE, [this](wxCommandEvent&) {
+	warningDomainChoice_->Bind(wxEVT_CHOICE, [this](wxCommandEvent &) {
 		ApplyWarningFilter();
 	});
-	warningIssueChoice_->Bind(wxEVT_CHOICE, [this](wxCommandEvent&) {
+	warningIssueChoice_->Bind(wxEVT_CHOICE, [this](wxCommandEvent &) {
 		ApplyWarningFilter();
 	});
-	warningList_->Bind(wxEVT_LIST_ITEM_SELECTED, [this](wxListEvent&) {
+	warningList_->Bind(wxEVT_LIST_ITEM_SELECTED, [this](wxListEvent &) {
 		UpdateWarningDetails();
 	});
-	warningList_->Bind(wxEVT_LIST_ITEM_ACTIVATED, [this](wxListEvent&) {
+	warningList_->Bind(wxEVT_LIST_ITEM_ACTIVATED, [this](wxListEvent &) {
 		GoToSelectedWarning();
 	});
 
@@ -1166,10 +1166,7 @@ void MaterialsWorkbenchInspectorDialog::ReloadWarnings() {
 								row.issue = "Palette entry references missing brush";
 								row.count = 1;
 								row.status = "Active";
-								row.details = wxString::Format("Section: %s\nBrush: %s\nSort order: %d",
-									section.sectionType.c_str(),
-									entry.brushName.c_str(),
-									entry.sortOrder);
+								row.details = wxString::Format("Section: %s\nBrush: %s\nSort order: %d", section.sectionType.c_str(), entry.brushName.c_str(), entry.sortOrder);
 								warnings_.push_back(std::move(row));
 							}
 							continue;
@@ -1185,10 +1182,7 @@ void MaterialsWorkbenchInspectorDialog::ReloadWarnings() {
 								row.issue = "Palette item entry has invalid itemId";
 								row.count = 1;
 								row.status = "Active";
-								row.details = wxString::Format("Section: %s\nitemId: %d\nSort order: %d",
-									section.sectionType.c_str(),
-									entry.itemId,
-									entry.sortOrder);
+								row.details = wxString::Format("Section: %s\nitemId: %d\nSort order: %d", section.sectionType.c_str(), entry.itemId, entry.sortOrder);
 								warnings_.push_back(std::move(row));
 							}
 							if (entry.fromItemId > 0 && !IsKnownWorkbenchInspectorItemId(entry.fromItemId)) {
@@ -1201,10 +1195,7 @@ void MaterialsWorkbenchInspectorDialog::ReloadWarnings() {
 								row.issue = "Palette item entry has invalid fromItemId";
 								row.count = 1;
 								row.status = "Active";
-								row.details = wxString::Format("Section: %s\nfromItemId: %d\nSort order: %d",
-									section.sectionType.c_str(),
-									entry.fromItemId,
-									entry.sortOrder);
+								row.details = wxString::Format("Section: %s\nfromItemId: %d\nSort order: %d", section.sectionType.c_str(), entry.fromItemId, entry.sortOrder);
 								warnings_.push_back(std::move(row));
 							}
 							if (entry.toItemId > 0 && !IsKnownWorkbenchInspectorItemId(entry.toItemId)) {
@@ -1217,10 +1208,7 @@ void MaterialsWorkbenchInspectorDialog::ReloadWarnings() {
 								row.issue = "Palette item entry has invalid toItemId";
 								row.count = 1;
 								row.status = "Active";
-								row.details = wxString::Format("Section: %s\ntoItemId: %d\nSort order: %d",
-									section.sectionType.c_str(),
-									entry.toItemId,
-									entry.sortOrder);
+								row.details = wxString::Format("Section: %s\ntoItemId: %d\nSort order: %d", section.sectionType.c_str(), entry.toItemId, entry.sortOrder);
 								warnings_.push_back(std::move(row));
 							}
 							if (entry.afterItemId > 0 && !IsKnownWorkbenchInspectorItemId(entry.afterItemId)) {
@@ -1233,10 +1221,7 @@ void MaterialsWorkbenchInspectorDialog::ReloadWarnings() {
 								row.issue = "Palette item entry has invalid afterItemId";
 								row.count = 1;
 								row.status = "Active";
-								row.details = wxString::Format("Section: %s\nafterItemId: %d\nSort order: %d",
-									section.sectionType.c_str(),
-									entry.afterItemId,
-									entry.sortOrder);
+								row.details = wxString::Format("Section: %s\nafterItemId: %d\nSort order: %d", section.sectionType.c_str(), entry.afterItemId, entry.sortOrder);
 								warnings_.push_back(std::move(row));
 							}
 						}
@@ -1482,7 +1467,8 @@ void MaterialsWorkbenchInspectorDialog::UpdateWarningDetails() {
 		text << "\n";
 	}
 	if (!row.details.IsEmpty()) {
-		text << "\n" << row.details;
+		text << "\n"
+			 << row.details;
 	}
 	warningDetails_->SetValue(text);
 

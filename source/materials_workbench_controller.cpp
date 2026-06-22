@@ -575,10 +575,7 @@ std::vector<MaterialsWorkbenchTreeNode> MaterialsWorkbenchController::BuildNavig
 		return left.name.CmpNoCase(right.name) < 0;
 	});
 	for (const PaletteGroupRecord &group : sortedPaletteGroups) {
-		if (group.name.IsSameAs("terrain", false) ||
-			group.name.IsSameAs("doodad", false) ||
-			group.name.IsSameAs("item", false) ||
-			group.name.IsSameAs("other", false)) {
+		if (group.name.IsSameAs("terrain", false) || group.name.IsSameAs("doodad", false) || group.name.IsSameAs("item", false) || group.name.IsSameAs("other", false)) {
 			continue;
 		}
 		pushFamilyIfNeeded(group.name);

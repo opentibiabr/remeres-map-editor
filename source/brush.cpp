@@ -705,11 +705,7 @@ bool Brushes::loadFromDatabase(wxArrayString &warnings) {
 	}
 
 	if (hydratedCount != storages.size()) {
-		warnings.push_back(wxString::Format(
-			"SQLite brush load hydrated %zu of %zu brushes; keeping shell brushes for the remaining entries.",
-			hydratedCount,
-			storages.size()
-		));
+		warnings.push_back(wxString::Format("SQLite brush load hydrated %zu of %zu brushes; keeping shell brushes for the remaining entries.", hydratedCount, storages.size()));
 	}
 
 	spdlog::info(
