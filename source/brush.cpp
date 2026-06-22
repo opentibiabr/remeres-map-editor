@@ -49,6 +49,7 @@
 #include "gui.h"
 
 #include <sstream>
+#include <unordered_map>
 
 Brushes g_brushes;
 
@@ -80,25 +81,32 @@ namespace {
 	}
 
 	bool LoadBrushStoragesForType(const wxString &type, std::vector<BrushStorageRecord> &outStorages, wxString &error) {
-		std::vector<BrushRecord> records;
-		if (!g_brush_database.listBrushesByType(type, records)) {
+		std::vector<BrushStorageRecord> storages;
+		if (!g_brush_database.listCompleteBrushesByType(type, storages)) {
 			error = g_brush_database.getLastError();
 			return false;
 		}
 
-		for (const BrushRecord &record : records) {
-			BrushStorageRecord storage;
-			if (!g_brush_database.getCompleteBrushById(record.id, storage)) {
-				error = g_brush_database.getLastError();
-				return false;
-			}
+		outStorages.reserve(outStorages.size() + storages.size());
+		for (auto &storage : storages) {
 			outStorages.push_back(std::move(storage));
 		}
-
 		return true;
 	}
 
-	bool FetchBorderSetStorage(int64_t borderSetId, BorderSetStorageRecord &outStorage, wxString &error) {
+	struct BorderSetStorageCache {
+		std::unordered_map<int64_t, BorderSetStorageRecord> entries;
+	};
+
+	bool FetchBorderSetStorage(int64_t borderSetId, BorderSetStorageRecord &outStorage, wxString &error, BorderSetStorageCache* cache) {
+		if (cache) {
+			auto it = cache->entries.find(borderSetId);
+			if (it != cache->entries.end()) {
+				outStorage = it->second;
+				return true;
+			}
+		}
+
 		outStorage = BorderSetStorageRecord();
 		if (!g_brush_database.getBorderSetById(borderSetId, outStorage.borderSet)) {
 			error = g_brush_database.getLastError();
@@ -108,7 +116,15 @@ namespace {
 			error = g_brush_database.getLastError();
 			return false;
 		}
+
+		if (cache) {
+			cache->entries.emplace(borderSetId, outStorage);
+		}
 		return true;
+	}
+
+	bool FetchBorderSetStorage(int64_t borderSetId, BorderSetStorageRecord &outStorage, wxString &error) {
+		return FetchBorderSetStorage(borderSetId, outStorage, error, nullptr);
 	}
 
 	void AppendBorderSetItems(pugi::xml_node node, const std::vector<BorderSetItemRecord> &items) {
@@ -160,9 +176,9 @@ namespace {
 		}
 	}
 
-	bool AppendGroundBorderNode(pugi::xml_node brushNode, const GroundBrushBorderRecord &borderRecord, uint16_t fallbackGroundEquivalent, const wxString &brushName, wxString &error) {
+	bool AppendGroundBorderNode(pugi::xml_node brushNode, const GroundBrushBorderRecord &borderRecord, uint16_t fallbackGroundEquivalent, const wxString &brushName, BorderSetStorageCache* borderSetCache, wxString &error) {
 		BorderSetStorageRecord borderSetStorage;
-		if (!FetchBorderSetStorage(borderRecord.borderSetId, borderSetStorage, error)) {
+		if (!FetchBorderSetStorage(borderRecord.borderSetId, borderSetStorage, error, borderSetCache)) {
 			return false;
 		}
 
@@ -264,7 +280,7 @@ namespace {
 		}
 	}
 
-	void BuildBrushNode(pugi::xml_document &doc, const BrushStorageRecord &storage) {
+	void BuildBrushNode(pugi::xml_document &doc, const BrushStorageRecord &storage, BorderSetStorageCache* borderSetCache) {
 		const BrushRecord &brush = storage.brush;
 		pugi::xml_node brushNode = doc.append_child("brush");
 		AppendStringAttribute(brushNode, "name", brush.name);
@@ -292,7 +308,7 @@ namespace {
 			}
 			for (const GroundBrushBorderRecord &border : storage.borders) {
 				wxString error;
-				if (!AppendGroundBorderNode(brushNode, border, fallbackGroundEquivalent, brush.name, error)) {
+				if (!AppendGroundBorderNode(brushNode, border, fallbackGroundEquivalent, brush.name, borderSetCache, error)) {
 					throw std::runtime_error(error.ToStdString());
 				}
 			}
@@ -540,6 +556,7 @@ bool Brushes::unserializeBrush(pugi::xml_node node, wxArrayString &warnings) {
 	}
 
 	Brush* brush = getBrush(brushName);
+	const bool createdNew = !brush;
 	if (!brush) {
 		if (!(attribute = node.attribute("type"))) {
 			warnings.push_back("Couldn't read brush type");
@@ -569,10 +586,13 @@ bool Brushes::unserializeBrush(pugi::xml_node node, wxArrayString &warnings) {
 	}
 
 	if (!node.first_child()) {
-		addBrush(brush);
+		if (createdNew) {
+			addBrush(brush);
+		}
 		return true;
 	}
 
+	const std::string originalName = brush->getName();
 	wxArrayString subWarnings;
 	brush->load(node, subWarnings);
 
@@ -581,23 +601,23 @@ bool Brushes::unserializeBrush(pugi::xml_node node, wxArrayString &warnings) {
 		warnings.insert(warnings.end(), subWarnings.begin(), subWarnings.end());
 	}
 
-	if (brush->getName() == "all" || brush->getName() == "none") {
-		warnings.push_back(wxString("Using reserved brushname '") << wxstr(brush->getName()) << "'.");
-		delete brush;
-		return false;
+	if (brush->getName() != originalName) {
+		warnings.push_back(wxString("Brush \"") << wxstr(originalName) << "\" attempted to change its name to \"" << wxstr(brush->getName()) << "\" while loading. Keeping the original name.");
+		brush->setName(originalName);
 	}
 
 	Brush* otherBrush = getBrush(brush->getName());
-	if (otherBrush) {
-		if (otherBrush != brush) {
-			warnings.push_back(wxString("Duplicate brush name ") << wxstr(brush->getName()) << ". Undefined behaviour may ensue.");
-		} else {
-			// Don't insert
-			return true;
+	if (otherBrush && otherBrush != brush) {
+		warnings.push_back(wxString("Duplicate brush name ") << wxstr(brush->getName()) << ". Skipping load to avoid undefined behaviour.");
+		if (createdNew) {
+			delete brush;
 		}
+		return false;
 	}
 
-	addBrush(brush);
+	if (!otherBrush) {
+		addBrush(brush);
+	}
 	return true;
 }
 
@@ -659,10 +679,11 @@ bool Brushes::loadFromDatabase(wxArrayString &warnings) {
 	}
 
 	size_t hydratedCount = 0;
+	BorderSetStorageCache borderSetCache;
 	for (const BrushStorageRecord &storage : storages) {
 		try {
 			pugi::xml_document brushDoc;
-			BuildBrushNode(brushDoc, storage);
+			BuildBrushNode(brushDoc, storage, &borderSetCache);
 			if (!unserializeBrush(brushDoc.child("brush"), warnings)) {
 				warnings.push_back("Failed to hydrate SQLite brush \"" + storage.brush.name + "\".");
 				continue;
@@ -711,7 +732,7 @@ bool Brushes::reloadBrushFromDatabase(int64_t brushId, wxArrayString &warnings, 
 
 	try {
 		pugi::xml_document brushDoc;
-		BuildBrushNode(brushDoc, storage);
+		BuildBrushNode(brushDoc, storage, nullptr);
 		if (!unserializeBrush(brushDoc.child("brush"), warnings)) {
 			error = "Failed to hydrate runtime brush from SQLite storage.";
 			return false;
@@ -729,7 +750,7 @@ bool Brushes::reloadBrushFromStorage(const BrushStorageRecord &storage, wxArrayS
 
 	try {
 		pugi::xml_document brushDoc;
-		BuildBrushNode(brushDoc, storage);
+		BuildBrushNode(brushDoc, storage, nullptr);
 		if (!unserializeBrush(brushDoc.child("brush"), warnings)) {
 			error = "Failed to hydrate runtime brush from in-memory storage.";
 			return false;
@@ -747,7 +768,7 @@ bool Brushes::buildBrushXmlFromStorage(const BrushStorageRecord &storage, wxStri
 	error.clear();
 	try {
 		pugi::xml_document brushDoc;
-		BuildBrushNode(brushDoc, storage);
+		BuildBrushNode(brushDoc, storage, nullptr);
 		std::ostringstream stream;
 		brushDoc.save(stream, "\t", pugi::format_default, pugi::encoding_utf8);
 		outXml = wxString::FromUTF8(stream.str());
@@ -807,6 +828,12 @@ bool Brushes::reloadBorderSetFromDatabase(int64_t borderSetId, wxArrayString &wa
 
 void Brushes::addBrush(Brush* brush) {
 	if (brush) {
+		const auto range = brushes.equal_range(brush->getName());
+		for (auto it = range.first; it != range.second; ++it) {
+			if (it->second == brush) {
+				return;
+			}
+		}
 		brushes.insert(std::make_pair(brush->getName(), brush));
 	}
 }
@@ -816,18 +843,16 @@ bool Brushes::renameBrush(Brush* brush, const std::string &oldName, const std::s
 		return false;
 	}
 
-	const auto range = brushes.equal_range(oldName);
-	for (auto it = range.first; it != range.second; ++it) {
+	for (auto it = brushes.begin(); it != brushes.end();) {
 		if (it->second == brush) {
-			brushes.erase(it);
-			brush->setName(newName);
-			brushes.insert(std::make_pair(brush->getName(), brush));
-			return true;
+			it = brushes.erase(it);
+			continue;
 		}
+		++it;
 	}
 
 	brush->setName(newName);
-	brushes.insert(std::make_pair(brush->getName(), brush));
+	addBrush(brush);
 	return true;
 }
 

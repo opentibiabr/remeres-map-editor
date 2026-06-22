@@ -1,6 +1,9 @@
 #include "main.h"
 
 #include <sqlite3.h>
+#include <algorithm>
+#include <tuple>
+#include <unordered_map>
 
 #include "brush_database.h"
 
@@ -892,6 +895,10 @@ bool BrushDatabase::findBrushByNameAndType(const wxString &name, const wxString 
 
 bool BrushDatabase::getCompleteBrushById(int64_t brushId, BrushStorageRecord &outBrush) {
 	return brushRepository_.getCompleteBrushById(brushId, outBrush);
+}
+
+bool BrushDatabase::listCompleteBrushesByType(const wxString &type, std::vector<BrushStorageRecord> &outBrushes) {
+	return brushRepository_.listCompleteBrushesByType(type, outBrushes);
 }
 
 bool BrushDatabase::updateBrushReferenceNames(int64_t brushId, const wxString &oldName, const wxString &newName) {
@@ -2126,6 +2133,820 @@ bool BrushDatabaseBrushRepository::getCompleteBrushById(int64_t brushId, BrushSt
 		return false;
 	}
 	return getDoodadAlternatives(brushId, outBrush.doodadAlternatives);
+}
+
+bool BrushDatabaseBrushRepository::listCompleteBrushesByType(const wxString &type, std::vector<BrushStorageRecord> &outBrushes) {
+	outBrushes.clear();
+
+	if (!isOpen()) {
+		return setError("SQLite database is not open.");
+	}
+
+	std::vector<BrushRecord> brushes;
+	if (!listBrushesByType(type, brushes)) {
+		return false;
+	}
+
+	outBrushes.reserve(brushes.size());
+	std::unordered_map<int64_t, size_t> indexByBrushId;
+	std::vector<int64_t> brushIds;
+	brushIds.reserve(brushes.size());
+	for (const BrushRecord &brush : brushes) {
+		BrushStorageRecord storage;
+		storage.brush = brush;
+		indexByBrushId.emplace(brush.id, outBrushes.size());
+		outBrushes.push_back(std::move(storage));
+		brushIds.push_back(brush.id);
+	}
+
+	if (brushIds.empty()) {
+		return true;
+	}
+
+	const size_t maxIdsPerChunk = 900;
+
+	const auto buildInClause = [](size_t count) -> wxString {
+		wxString clause = "(";
+		for (size_t i = 0; i < count; ++i) {
+			if (i > 0) {
+				clause << ", ";
+			}
+			clause << "?";
+		}
+		clause << ")";
+		return clause;
+	};
+
+	const auto bindIdChunk = [](sqlite3_stmt* stmt, const std::vector<int64_t> &ids, size_t start, size_t count) {
+		for (size_t i = 0; i < count; ++i) {
+			sqlite3_bind_int64(stmt, static_cast<int>(i + 1), ids[start + i]);
+		}
+	};
+
+	if (type == "ground") {
+		for (size_t start = 0; start < brushIds.size(); start += maxIdsPerChunk) {
+			const size_t count = std::min(maxIdsPerChunk, brushIds.size() - start);
+			sqlite3_stmt* stmt = nullptr;
+			wxString sql;
+			sql << "SELECT brush_id, item_id, chance, sort_order "
+				<< "FROM brush_items WHERE brush_id IN " << buildInClause(count)
+				<< " ORDER BY brush_id ASC, sort_order ASC, id ASC;";
+			if (!prepare(sql.utf8_str(), &stmt)) {
+				return false;
+			}
+			bindIdChunk(stmt, brushIds, start, count);
+
+			for (;;) {
+				const int rc = sqlite3_step(stmt);
+				if (rc == SQLITE_DONE) {
+					break;
+				}
+				if (rc != SQLITE_ROW) {
+					sqlite3_finalize(stmt);
+					return setErrorFromDatabase("Failed to read brush items");
+				}
+
+				const int64_t brushId = sqlite3_column_int64(stmt, 0);
+				auto it = indexByBrushId.find(brushId);
+				if (it == indexByBrushId.end()) {
+					continue;
+				}
+
+				BrushItemRecord item;
+				item.brushId = brushId;
+				item.itemId = sqlite3_column_int(stmt, 1);
+				item.chance = sqlite3_column_int(stmt, 2);
+				item.sortOrder = sqlite3_column_int(stmt, 3);
+				outBrushes[it->second].items.push_back(item);
+			}
+			sqlite3_finalize(stmt);
+		}
+	}
+
+	if (type == "ground" || type == "wall" || type == "wall decoration" || type == "doodad") {
+		for (size_t start = 0; start < brushIds.size(); start += maxIdsPerChunk) {
+			const size_t count = std::min(maxIdsPerChunk, brushIds.size() - start);
+			sqlite3_stmt* stmt = nullptr;
+			wxString sql;
+			sql << "SELECT brush_id, target_brush_id, target_brush_name, relation_type, sort_order "
+				<< "FROM brush_links WHERE brush_id IN " << buildInClause(count)
+				<< " ORDER BY brush_id ASC, sort_order ASC, id ASC;";
+			if (!prepare(sql.utf8_str(), &stmt)) {
+				return false;
+			}
+			bindIdChunk(stmt, brushIds, start, count);
+
+			for (;;) {
+				const int rc = sqlite3_step(stmt);
+				if (rc == SQLITE_DONE) {
+					break;
+				}
+				if (rc != SQLITE_ROW) {
+					sqlite3_finalize(stmt);
+					return setErrorFromDatabase("Failed to read brush links");
+				}
+
+				const int64_t brushId = sqlite3_column_int64(stmt, 0);
+				auto it = indexByBrushId.find(brushId);
+				if (it == indexByBrushId.end()) {
+					continue;
+				}
+
+				BrushLinkRecord link;
+				link.brushId = brushId;
+				link.targetBrushId = ReadNullableInt64(stmt, 1);
+				link.targetBrushName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+				link.relationType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
+				link.sortOrder = sqlite3_column_int(stmt, 4);
+				outBrushes[it->second].links.push_back(link);
+			}
+			sqlite3_finalize(stmt);
+		}
+	}
+
+	if (type == "wall" || type == "wall decoration") {
+		std::unordered_map<int64_t, std::pair<size_t, size_t>> partIndexById;
+		std::vector<int64_t> partIds;
+
+		for (size_t start = 0; start < brushIds.size(); start += maxIdsPerChunk) {
+			const size_t count = std::min(maxIdsPerChunk, brushIds.size() - start);
+			sqlite3_stmt* stmt = nullptr;
+			wxString sql;
+			sql << "SELECT id, brush_id, part_type, sort_order "
+				<< "FROM wall_parts WHERE brush_id IN " << buildInClause(count)
+				<< " ORDER BY brush_id ASC, sort_order ASC, id ASC;";
+			if (!prepare(sql.utf8_str(), &stmt)) {
+				return false;
+			}
+			bindIdChunk(stmt, brushIds, start, count);
+
+			for (;;) {
+				const int rc = sqlite3_step(stmt);
+				if (rc == SQLITE_DONE) {
+					break;
+				}
+				if (rc != SQLITE_ROW) {
+					sqlite3_finalize(stmt);
+					return setErrorFromDatabase("Failed to read wall parts");
+				}
+
+				const int64_t wallPartId = sqlite3_column_int64(stmt, 0);
+				const int64_t brushId = sqlite3_column_int64(stmt, 1);
+				auto it = indexByBrushId.find(brushId);
+				if (it == indexByBrushId.end()) {
+					continue;
+				}
+
+				WallPartRecord part;
+				part.partType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+				part.sortOrder = sqlite3_column_int(stmt, 3);
+				auto &parts = outBrushes[it->second].wallParts;
+				parts.push_back(std::move(part));
+				partIndexById.emplace(wallPartId, std::make_pair(it->second, parts.size() - 1));
+				partIds.push_back(wallPartId);
+			}
+			sqlite3_finalize(stmt);
+		}
+
+		for (size_t start = 0; start < partIds.size(); start += maxIdsPerChunk) {
+			const size_t count = std::min(maxIdsPerChunk, partIds.size() - start);
+			sqlite3_stmt* stmt = nullptr;
+			wxString sql;
+			sql << "SELECT wall_part_id, item_id, chance, sort_order "
+				<< "FROM wall_part_items WHERE wall_part_id IN " << buildInClause(count)
+				<< " ORDER BY wall_part_id ASC, sort_order ASC, id ASC;";
+			if (!prepare(sql.utf8_str(), &stmt)) {
+				return false;
+			}
+			bindIdChunk(stmt, partIds, start, count);
+
+			for (;;) {
+				const int rc = sqlite3_step(stmt);
+				if (rc == SQLITE_DONE) {
+					break;
+				}
+				if (rc != SQLITE_ROW) {
+					sqlite3_finalize(stmt);
+					return setErrorFromDatabase("Failed to read wall part items");
+				}
+
+				const int64_t partId = sqlite3_column_int64(stmt, 0);
+				auto it = partIndexById.find(partId);
+				if (it == partIndexById.end()) {
+					continue;
+				}
+
+				WallPartItemRecord item;
+				item.itemId = sqlite3_column_int(stmt, 1);
+				item.chance = sqlite3_column_int(stmt, 2);
+				item.sortOrder = sqlite3_column_int(stmt, 3);
+				outBrushes[it->second.first].wallParts[it->second.second].items.push_back(item);
+			}
+			sqlite3_finalize(stmt);
+		}
+
+		for (size_t start = 0; start < partIds.size(); start += maxIdsPerChunk) {
+			const size_t count = std::min(maxIdsPerChunk, partIds.size() - start);
+			sqlite3_stmt* stmt = nullptr;
+			wxString sql;
+			sql << "SELECT wall_part_id, item_id, door_type, is_open, wall_hate_me, sort_order "
+				<< "FROM wall_part_doors WHERE wall_part_id IN " << buildInClause(count)
+				<< " ORDER BY wall_part_id ASC, sort_order ASC, id ASC;";
+			if (!prepare(sql.utf8_str(), &stmt)) {
+				return false;
+			}
+			bindIdChunk(stmt, partIds, start, count);
+
+			for (;;) {
+				const int rc = sqlite3_step(stmt);
+				if (rc == SQLITE_DONE) {
+					break;
+				}
+				if (rc != SQLITE_ROW) {
+					sqlite3_finalize(stmt);
+					return setErrorFromDatabase("Failed to read wall part doors");
+				}
+
+				const int64_t partId = sqlite3_column_int64(stmt, 0);
+				auto it = partIndexById.find(partId);
+				if (it == partIndexById.end()) {
+					continue;
+				}
+
+				WallPartDoorRecord door;
+				door.itemId = sqlite3_column_int(stmt, 1);
+				door.doorType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+				door.isOpen = sqlite3_column_int(stmt, 3) != 0;
+				door.wallHateMe = sqlite3_column_int(stmt, 4) != 0;
+				door.sortOrder = sqlite3_column_int(stmt, 5);
+				outBrushes[it->second.first].wallParts[it->second.second].doors.push_back(door);
+			}
+			sqlite3_finalize(stmt);
+		}
+	}
+
+	if (type == "carpet") {
+		std::unordered_map<int64_t, std::pair<size_t, size_t>> nodeIndexById;
+		std::vector<int64_t> nodeIds;
+
+		for (size_t start = 0; start < brushIds.size(); start += maxIdsPerChunk) {
+			const size_t count = std::min(maxIdsPerChunk, brushIds.size() - start);
+			sqlite3_stmt* stmt = nullptr;
+			wxString sql;
+			sql << "SELECT id, brush_id, align, sort_order "
+				<< "FROM carpet_nodes WHERE brush_id IN " << buildInClause(count)
+				<< " ORDER BY brush_id ASC, sort_order ASC, id ASC;";
+			if (!prepare(sql.utf8_str(), &stmt)) {
+				return false;
+			}
+			bindIdChunk(stmt, brushIds, start, count);
+
+			for (;;) {
+				const int rc = sqlite3_step(stmt);
+				if (rc == SQLITE_DONE) {
+					break;
+				}
+				if (rc != SQLITE_ROW) {
+					sqlite3_finalize(stmt);
+					return setErrorFromDatabase("Failed to read carpet nodes");
+				}
+
+				const int64_t nodeId = sqlite3_column_int64(stmt, 0);
+				const int64_t brushId = sqlite3_column_int64(stmt, 1);
+				auto it = indexByBrushId.find(brushId);
+				if (it == indexByBrushId.end()) {
+					continue;
+				}
+
+				CarpetNodeRecord node;
+				node.align = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+				node.sortOrder = sqlite3_column_int(stmt, 3);
+				auto &nodes = outBrushes[it->second].carpetNodes;
+				nodes.push_back(std::move(node));
+				nodeIndexById.emplace(nodeId, std::make_pair(it->second, nodes.size() - 1));
+				nodeIds.push_back(nodeId);
+			}
+			sqlite3_finalize(stmt);
+		}
+
+		for (size_t start = 0; start < nodeIds.size(); start += maxIdsPerChunk) {
+			const size_t count = std::min(maxIdsPerChunk, nodeIds.size() - start);
+			sqlite3_stmt* stmt = nullptr;
+			wxString sql;
+			sql << "SELECT carpet_node_id, item_id, chance, sort_order "
+				<< "FROM carpet_node_items WHERE carpet_node_id IN " << buildInClause(count)
+				<< " ORDER BY carpet_node_id ASC, sort_order ASC, id ASC;";
+			if (!prepare(sql.utf8_str(), &stmt)) {
+				return false;
+			}
+			bindIdChunk(stmt, nodeIds, start, count);
+
+			for (;;) {
+				const int rc = sqlite3_step(stmt);
+				if (rc == SQLITE_DONE) {
+					break;
+				}
+				if (rc != SQLITE_ROW) {
+					sqlite3_finalize(stmt);
+					return setErrorFromDatabase("Failed to read carpet node items");
+				}
+
+				const int64_t nodeId = sqlite3_column_int64(stmt, 0);
+				auto it = nodeIndexById.find(nodeId);
+				if (it == nodeIndexById.end()) {
+					continue;
+				}
+
+				CarpetNodeItemRecord item;
+				item.itemId = sqlite3_column_int(stmt, 1);
+				item.chance = sqlite3_column_int(stmt, 2);
+				item.sortOrder = sqlite3_column_int(stmt, 3);
+				outBrushes[it->second.first].carpetNodes[it->second.second].items.push_back(item);
+			}
+			sqlite3_finalize(stmt);
+		}
+	}
+
+	if (type == "table") {
+		std::unordered_map<int64_t, std::pair<size_t, size_t>> nodeIndexById;
+		std::vector<int64_t> nodeIds;
+
+		for (size_t start = 0; start < brushIds.size(); start += maxIdsPerChunk) {
+			const size_t count = std::min(maxIdsPerChunk, brushIds.size() - start);
+			sqlite3_stmt* stmt = nullptr;
+			wxString sql;
+			sql << "SELECT id, brush_id, align, sort_order "
+				<< "FROM table_nodes WHERE brush_id IN " << buildInClause(count)
+				<< " ORDER BY brush_id ASC, sort_order ASC, id ASC;";
+			if (!prepare(sql.utf8_str(), &stmt)) {
+				return false;
+			}
+			bindIdChunk(stmt, brushIds, start, count);
+
+			for (;;) {
+				const int rc = sqlite3_step(stmt);
+				if (rc == SQLITE_DONE) {
+					break;
+				}
+				if (rc != SQLITE_ROW) {
+					sqlite3_finalize(stmt);
+					return setErrorFromDatabase("Failed to read table nodes");
+				}
+
+				const int64_t nodeId = sqlite3_column_int64(stmt, 0);
+				const int64_t brushId = sqlite3_column_int64(stmt, 1);
+				auto it = indexByBrushId.find(brushId);
+				if (it == indexByBrushId.end()) {
+					continue;
+				}
+
+				TableNodeRecord node;
+				node.align = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+				node.sortOrder = sqlite3_column_int(stmt, 3);
+				auto &nodes = outBrushes[it->second].tableNodes;
+				nodes.push_back(std::move(node));
+				nodeIndexById.emplace(nodeId, std::make_pair(it->second, nodes.size() - 1));
+				nodeIds.push_back(nodeId);
+			}
+			sqlite3_finalize(stmt);
+		}
+
+		for (size_t start = 0; start < nodeIds.size(); start += maxIdsPerChunk) {
+			const size_t count = std::min(maxIdsPerChunk, nodeIds.size() - start);
+			sqlite3_stmt* stmt = nullptr;
+			wxString sql;
+			sql << "SELECT table_node_id, item_id, chance, sort_order "
+				<< "FROM table_node_items WHERE table_node_id IN " << buildInClause(count)
+				<< " ORDER BY table_node_id ASC, sort_order ASC, id ASC;";
+			if (!prepare(sql.utf8_str(), &stmt)) {
+				return false;
+			}
+			bindIdChunk(stmt, nodeIds, start, count);
+
+			for (;;) {
+				const int rc = sqlite3_step(stmt);
+				if (rc == SQLITE_DONE) {
+					break;
+				}
+				if (rc != SQLITE_ROW) {
+					sqlite3_finalize(stmt);
+					return setErrorFromDatabase("Failed to read table node items");
+				}
+
+				const int64_t nodeId = sqlite3_column_int64(stmt, 0);
+				auto it = nodeIndexById.find(nodeId);
+				if (it == nodeIndexById.end()) {
+					continue;
+				}
+
+				TableNodeItemRecord item;
+				item.itemId = sqlite3_column_int(stmt, 1);
+				item.chance = sqlite3_column_int(stmt, 2);
+				item.sortOrder = sqlite3_column_int(stmt, 3);
+				outBrushes[it->second.first].tableNodes[it->second.second].items.push_back(item);
+			}
+			sqlite3_finalize(stmt);
+		}
+	}
+
+	if (type == "doodad") {
+		std::unordered_map<int64_t, std::pair<size_t, size_t>> altIndexById;
+		std::vector<int64_t> altIds;
+
+		for (size_t start = 0; start < brushIds.size(); start += maxIdsPerChunk) {
+			const size_t count = std::min(maxIdsPerChunk, brushIds.size() - start);
+			sqlite3_stmt* stmt = nullptr;
+			wxString sql;
+			sql << "SELECT id, brush_id, sort_order "
+				<< "FROM doodad_alternatives WHERE brush_id IN " << buildInClause(count)
+				<< " ORDER BY brush_id ASC, sort_order ASC, id ASC;";
+			if (!prepare(sql.utf8_str(), &stmt)) {
+				return false;
+			}
+			bindIdChunk(stmt, brushIds, start, count);
+
+			for (;;) {
+				const int rc = sqlite3_step(stmt);
+				if (rc == SQLITE_DONE) {
+					break;
+				}
+				if (rc != SQLITE_ROW) {
+					sqlite3_finalize(stmt);
+					return setErrorFromDatabase("Failed to read doodad alternatives");
+				}
+
+				const int64_t altId = sqlite3_column_int64(stmt, 0);
+				const int64_t brushId = sqlite3_column_int64(stmt, 1);
+				auto it = indexByBrushId.find(brushId);
+				if (it == indexByBrushId.end()) {
+					continue;
+				}
+
+				DoodadAlternativeRecord alt;
+				alt.sortOrder = sqlite3_column_int(stmt, 2);
+				auto &alts = outBrushes[it->second].doodadAlternatives;
+				alts.push_back(std::move(alt));
+				altIndexById.emplace(altId, std::make_pair(it->second, alts.size() - 1));
+				altIds.push_back(altId);
+			}
+			sqlite3_finalize(stmt);
+		}
+
+		for (size_t start = 0; start < altIds.size(); start += maxIdsPerChunk) {
+			const size_t count = std::min(maxIdsPerChunk, altIds.size() - start);
+			sqlite3_stmt* stmt = nullptr;
+			wxString sql;
+			sql << "SELECT doodad_alternative_id, item_id, chance, sort_order "
+				<< "FROM doodad_single_items WHERE doodad_alternative_id IN " << buildInClause(count)
+				<< " ORDER BY doodad_alternative_id ASC, sort_order ASC, id ASC;";
+			if (!prepare(sql.utf8_str(), &stmt)) {
+				return false;
+			}
+			bindIdChunk(stmt, altIds, start, count);
+
+			for (;;) {
+				const int rc = sqlite3_step(stmt);
+				if (rc == SQLITE_DONE) {
+					break;
+				}
+				if (rc != SQLITE_ROW) {
+					sqlite3_finalize(stmt);
+					return setErrorFromDatabase("Failed to read doodad single items");
+				}
+
+				const int64_t altId = sqlite3_column_int64(stmt, 0);
+				auto it = altIndexById.find(altId);
+				if (it == altIndexById.end()) {
+					continue;
+				}
+
+				DoodadSingleItemRecord item;
+				item.itemId = sqlite3_column_int(stmt, 1);
+				item.chance = sqlite3_column_int(stmt, 2);
+				item.sortOrder = sqlite3_column_int(stmt, 3);
+				outBrushes[it->second.first].doodadAlternatives[it->second.second].singleItems.push_back(item);
+			}
+			sqlite3_finalize(stmt);
+		}
+
+		std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t>> compositeIndexById;
+		std::vector<int64_t> compositeIds;
+
+		for (size_t start = 0; start < altIds.size(); start += maxIdsPerChunk) {
+			const size_t count = std::min(maxIdsPerChunk, altIds.size() - start);
+			sqlite3_stmt* stmt = nullptr;
+			wxString sql;
+			sql << "SELECT id, doodad_alternative_id, chance, sort_order "
+				<< "FROM doodad_composites WHERE doodad_alternative_id IN " << buildInClause(count)
+				<< " ORDER BY doodad_alternative_id ASC, sort_order ASC, id ASC;";
+			if (!prepare(sql.utf8_str(), &stmt)) {
+				return false;
+			}
+			bindIdChunk(stmt, altIds, start, count);
+
+			for (;;) {
+				const int rc = sqlite3_step(stmt);
+				if (rc == SQLITE_DONE) {
+					break;
+				}
+				if (rc != SQLITE_ROW) {
+					sqlite3_finalize(stmt);
+					return setErrorFromDatabase("Failed to read doodad composites");
+				}
+
+				const int64_t compositeId = sqlite3_column_int64(stmt, 0);
+				const int64_t altId = sqlite3_column_int64(stmt, 1);
+				auto it = altIndexById.find(altId);
+				if (it == altIndexById.end()) {
+					continue;
+				}
+
+				DoodadCompositeRecord composite;
+				composite.chance = sqlite3_column_int(stmt, 2);
+				composite.sortOrder = sqlite3_column_int(stmt, 3);
+				auto &composites = outBrushes[it->second.first].doodadAlternatives[it->second.second].composites;
+				composites.push_back(std::move(composite));
+				compositeIndexById.emplace(compositeId, std::make_tuple(it->second.first, it->second.second, composites.size() - 1));
+				compositeIds.push_back(compositeId);
+			}
+			sqlite3_finalize(stmt);
+		}
+
+		std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t, size_t>> tileIndexById;
+		std::vector<int64_t> tileIds;
+
+		for (size_t start = 0; start < compositeIds.size(); start += maxIdsPerChunk) {
+			const size_t count = std::min(maxIdsPerChunk, compositeIds.size() - start);
+			sqlite3_stmt* stmt = nullptr;
+			wxString sql;
+			sql << "SELECT id, doodad_composite_id, offset_x, offset_y, offset_z, sort_order "
+				<< "FROM doodad_composite_tiles WHERE doodad_composite_id IN " << buildInClause(count)
+				<< " ORDER BY doodad_composite_id ASC, sort_order ASC, id ASC;";
+			if (!prepare(sql.utf8_str(), &stmt)) {
+				return false;
+			}
+			bindIdChunk(stmt, compositeIds, start, count);
+
+			for (;;) {
+				const int rc = sqlite3_step(stmt);
+				if (rc == SQLITE_DONE) {
+					break;
+				}
+				if (rc != SQLITE_ROW) {
+					sqlite3_finalize(stmt);
+					return setErrorFromDatabase("Failed to read doodad composite tiles");
+				}
+
+				const int64_t tileId = sqlite3_column_int64(stmt, 0);
+				const int64_t compositeId = sqlite3_column_int64(stmt, 1);
+				auto it = compositeIndexById.find(compositeId);
+				if (it == compositeIndexById.end()) {
+					continue;
+				}
+
+				DoodadCompositeTileRecord tile;
+				tile.offsetX = sqlite3_column_int(stmt, 2);
+				tile.offsetY = sqlite3_column_int(stmt, 3);
+				tile.offsetZ = sqlite3_column_int(stmt, 4);
+				tile.sortOrder = sqlite3_column_int(stmt, 5);
+
+				const size_t brushIndex = std::get<0>(it->second);
+				const size_t altIndex = std::get<1>(it->second);
+				const size_t compositeIndex = std::get<2>(it->second);
+				auto &tiles = outBrushes[brushIndex].doodadAlternatives[altIndex].composites[compositeIndex].tiles;
+				tiles.push_back(std::move(tile));
+				tileIndexById.emplace(tileId, std::make_tuple(brushIndex, altIndex, compositeIndex, tiles.size() - 1));
+				tileIds.push_back(tileId);
+			}
+			sqlite3_finalize(stmt);
+		}
+
+		for (size_t start = 0; start < tileIds.size(); start += maxIdsPerChunk) {
+			const size_t count = std::min(maxIdsPerChunk, tileIds.size() - start);
+			sqlite3_stmt* stmt = nullptr;
+			wxString sql;
+			sql << "SELECT doodad_composite_tile_id, item_id, sort_order "
+				<< "FROM doodad_composite_tile_items WHERE doodad_composite_tile_id IN " << buildInClause(count)
+				<< " ORDER BY doodad_composite_tile_id ASC, sort_order ASC, id ASC;";
+			if (!prepare(sql.utf8_str(), &stmt)) {
+				return false;
+			}
+			bindIdChunk(stmt, tileIds, start, count);
+
+			for (;;) {
+				const int rc = sqlite3_step(stmt);
+				if (rc == SQLITE_DONE) {
+					break;
+				}
+				if (rc != SQLITE_ROW) {
+					sqlite3_finalize(stmt);
+					return setErrorFromDatabase("Failed to read doodad composite tile items");
+				}
+
+				const int64_t tileId = sqlite3_column_int64(stmt, 0);
+				auto it = tileIndexById.find(tileId);
+				if (it == tileIndexById.end()) {
+					continue;
+				}
+
+				DoodadCompositeTileItemRecord item;
+				item.itemId = sqlite3_column_int(stmt, 1);
+				item.sortOrder = sqlite3_column_int(stmt, 2);
+
+				const size_t brushIndex = std::get<0>(it->second);
+				const size_t altIndex = std::get<1>(it->second);
+				const size_t compositeIndex = std::get<2>(it->second);
+				const size_t tileIndex = std::get<3>(it->second);
+				outBrushes[brushIndex]
+					.doodadAlternatives[altIndex]
+					.composites[compositeIndex]
+					.tiles[tileIndex]
+					.items.push_back(item);
+			}
+			sqlite3_finalize(stmt);
+		}
+	}
+
+	if (type == "ground") {
+		std::unordered_map<int64_t, std::pair<size_t, size_t>> borderIndexById;
+		std::vector<int64_t> borderIds;
+
+		for (size_t start = 0; start < brushIds.size(); start += maxIdsPerChunk) {
+			const size_t count = std::min(maxIdsPerChunk, brushIds.size() - start);
+			sqlite3_stmt* stmt = nullptr;
+			wxString sql;
+			sql << "SELECT id, brush_id, border_set_id, border_role, align, target_mode, target_brush_id, target_brush_name, super_border, sort_order "
+				<< "FROM ground_brush_borders WHERE brush_id IN " << buildInClause(count)
+				<< " ORDER BY brush_id ASC, sort_order ASC, id ASC;";
+			if (!prepare(sql.utf8_str(), &stmt)) {
+				return false;
+			}
+			bindIdChunk(stmt, brushIds, start, count);
+
+			for (;;) {
+				const int rc = sqlite3_step(stmt);
+				if (rc == SQLITE_DONE) {
+					break;
+				}
+				if (rc != SQLITE_ROW) {
+					sqlite3_finalize(stmt);
+					return setErrorFromDatabase("Failed to read ground brush borders");
+				}
+
+				const int64_t borderId = sqlite3_column_int64(stmt, 0);
+				const int64_t brushId = sqlite3_column_int64(stmt, 1);
+				auto it = indexByBrushId.find(brushId);
+				if (it == indexByBrushId.end()) {
+					continue;
+				}
+
+				GroundBrushBorderRecord border;
+				border.borderSetId = sqlite3_column_int64(stmt, 2);
+				border.borderRole = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
+				border.align = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)));
+				border.targetMode = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5)));
+				border.targetBrushId = ReadNullableInt64(stmt, 6);
+				border.targetBrushName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7)));
+				border.superBorder = sqlite3_column_int(stmt, 8) != 0;
+				border.sortOrder = sqlite3_column_int(stmt, 9);
+
+				auto &borders = outBrushes[it->second].borders;
+				borders.push_back(std::move(border));
+				borderIndexById.emplace(borderId, std::make_pair(it->second, borders.size() - 1));
+				borderIds.push_back(borderId);
+			}
+			sqlite3_finalize(stmt);
+		}
+
+		std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t>> caseIndexById;
+		std::vector<int64_t> caseIds;
+
+		for (size_t start = 0; start < borderIds.size(); start += maxIdsPerChunk) {
+			const size_t count = std::min(maxIdsPerChunk, borderIds.size() - start);
+			sqlite3_stmt* stmt = nullptr;
+			wxString sql;
+			sql << "SELECT id, ground_brush_border_id, sort_order "
+				<< "FROM ground_border_cases WHERE ground_brush_border_id IN " << buildInClause(count)
+				<< " ORDER BY ground_brush_border_id ASC, sort_order ASC, id ASC;";
+			if (!prepare(sql.utf8_str(), &stmt)) {
+				return false;
+			}
+			bindIdChunk(stmt, borderIds, start, count);
+
+			for (;;) {
+				const int rc = sqlite3_step(stmt);
+				if (rc == SQLITE_DONE) {
+					break;
+				}
+				if (rc != SQLITE_ROW) {
+					sqlite3_finalize(stmt);
+					return setErrorFromDatabase("Failed to read ground border cases");
+				}
+
+				const int64_t caseId = sqlite3_column_int64(stmt, 0);
+				const int64_t borderId = sqlite3_column_int64(stmt, 1);
+				auto it = borderIndexById.find(borderId);
+				if (it == borderIndexById.end()) {
+					continue;
+				}
+
+				GroundBorderCaseRecord caseRecord;
+				caseRecord.sortOrder = sqlite3_column_int(stmt, 2);
+				auto &cases = outBrushes[it->second.first].borders[it->second.second].cases;
+				cases.push_back(std::move(caseRecord));
+				caseIndexById.emplace(caseId, std::make_tuple(it->second.first, it->second.second, cases.size() - 1));
+				caseIds.push_back(caseId);
+			}
+			sqlite3_finalize(stmt);
+		}
+
+		for (size_t start = 0; start < caseIds.size(); start += maxIdsPerChunk) {
+			const size_t count = std::min(maxIdsPerChunk, caseIds.size() - start);
+			sqlite3_stmt* stmt = nullptr;
+			wxString sql;
+			sql << "SELECT ground_border_case_id, condition_type, match_value, edge, sort_order "
+				<< "FROM ground_border_case_conditions WHERE ground_border_case_id IN " << buildInClause(count)
+				<< " ORDER BY ground_border_case_id ASC, sort_order ASC, id ASC;";
+			if (!prepare(sql.utf8_str(), &stmt)) {
+				return false;
+			}
+			bindIdChunk(stmt, caseIds, start, count);
+
+			for (;;) {
+				const int rc = sqlite3_step(stmt);
+				if (rc == SQLITE_DONE) {
+					break;
+				}
+				if (rc != SQLITE_ROW) {
+					sqlite3_finalize(stmt);
+					return setErrorFromDatabase("Failed to read ground border case conditions");
+				}
+
+				const int64_t caseId = sqlite3_column_int64(stmt, 0);
+				auto it = caseIndexById.find(caseId);
+				if (it == caseIndexById.end()) {
+					continue;
+				}
+
+				GroundBorderCaseConditionRecord condition;
+				condition.conditionType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+				condition.matchValue = sqlite3_column_int(stmt, 2);
+				condition.edge = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
+				condition.sortOrder = sqlite3_column_int(stmt, 4);
+
+				const size_t brushIndex = std::get<0>(it->second);
+				const size_t borderIndex = std::get<1>(it->second);
+				const size_t caseIndex = std::get<2>(it->second);
+				outBrushes[brushIndex].borders[borderIndex].cases[caseIndex].conditions.push_back(condition);
+			}
+			sqlite3_finalize(stmt);
+		}
+
+		for (size_t start = 0; start < caseIds.size(); start += maxIdsPerChunk) {
+			const size_t count = std::min(maxIdsPerChunk, caseIds.size() - start);
+			sqlite3_stmt* stmt = nullptr;
+			wxString sql;
+			sql << "SELECT ground_border_case_id, action_type, target_value, edge, replacement_value, sort_order "
+				<< "FROM ground_border_case_actions WHERE ground_border_case_id IN " << buildInClause(count)
+				<< " ORDER BY ground_border_case_id ASC, sort_order ASC, id ASC;";
+			if (!prepare(sql.utf8_str(), &stmt)) {
+				return false;
+			}
+			bindIdChunk(stmt, caseIds, start, count);
+
+			for (;;) {
+				const int rc = sqlite3_step(stmt);
+				if (rc == SQLITE_DONE) {
+					break;
+				}
+				if (rc != SQLITE_ROW) {
+					sqlite3_finalize(stmt);
+					return setErrorFromDatabase("Failed to read ground border case actions");
+				}
+
+				const int64_t caseId = sqlite3_column_int64(stmt, 0);
+				auto it = caseIndexById.find(caseId);
+				if (it == caseIndexById.end()) {
+					continue;
+				}
+
+				GroundBorderCaseActionRecord action;
+				action.actionType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+				action.targetValue = sqlite3_column_int(stmt, 2);
+				action.edge = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
+				action.replacementValue = sqlite3_column_int(stmt, 4);
+				action.sortOrder = sqlite3_column_int(stmt, 5);
+
+				const size_t brushIndex = std::get<0>(it->second);
+				const size_t borderIndex = std::get<1>(it->second);
+				const size_t caseIndex = std::get<2>(it->second);
+				outBrushes[brushIndex].borders[borderIndex].cases[caseIndex].actions.push_back(action);
+			}
+			sqlite3_finalize(stmt);
+		}
+	}
+
+	return true;
 }
 
 bool BrushDatabaseBrushRepository::updateBrush(const BrushRecord &brush) {

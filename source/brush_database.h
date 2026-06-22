@@ -432,6 +432,7 @@ public:
 	bool listBrushesByType(const wxString &type, std::vector<BrushRecord> &outBrushes);
 	bool findBrushByNameAndType(const wxString &name, const wxString &type, BrushRecord &outBrush);
 	bool getCompleteBrushById(int64_t brushId, BrushStorageRecord &outBrush);
+	bool listCompleteBrushesByType(const wxString &type, std::vector<BrushStorageRecord> &outBrushes);
 	bool updateBrush(const BrushRecord &brush);
 	bool updateBrushReferenceNames(int64_t brushId, const wxString &oldName, const wxString &newName);
 	bool deleteBrushReferences(int64_t brushId, const wxString &brushName);
@@ -514,6 +515,7 @@ public:
 	bool listBrushesByType(const wxString &type, std::vector<BrushRecord> &outBrushes);
 	bool findBrushByNameAndType(const wxString &name, const wxString &type, BrushRecord &outBrush);
 	bool getCompleteBrushById(int64_t brushId, BrushStorageRecord &outBrush);
+	bool listCompleteBrushesByType(const wxString &type, std::vector<BrushStorageRecord> &outBrushes);
 	bool updateBrushReferenceNames(int64_t brushId, const wxString &oldName, const wxString &newName);
 	bool deleteBrushReferences(int64_t brushId, const wxString &brushName);
 	bool deleteBrush(int64_t brushId);

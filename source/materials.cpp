@@ -1510,7 +1510,10 @@ bool Materials::initializeBrushDatabase(wxArrayString &warnings) {
 		return true;
 	}
 
-	const wxString databasePath = GUI::GetDataDirectory() + "materials/materials.db";
+	wxFileName databaseFile(GUI::GetDataDirectory(), wxEmptyString);
+	databaseFile.AppendDir("materials");
+	databaseFile.SetFullName("materials.db");
+	const wxString databasePath = databaseFile.GetFullPath();
 	if (!g_brush_database.initialize(databasePath)) {
 		warnings.push_back("SQLite brush database initialization failed: " + g_brush_database.getLastError());
 		return false;
