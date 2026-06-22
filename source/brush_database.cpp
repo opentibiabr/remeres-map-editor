@@ -2982,8 +2982,26 @@ bool BrushDatabaseBrushRepository::updateBrushReferenceNames(int64_t brushId, co
 	if (brushId <= 0) {
 		return setError("Brush id is invalid.");
 	}
-	if (oldName == newName) {
+
+	wxString trimmedOldName = oldName;
+	trimmedOldName.Trim(true);
+	trimmedOldName.Trim(false);
+	if (trimmedOldName.IsEmpty()) {
+		return setError("Old brush name is invalid.");
+	}
+	wxString trimmedNewName = newName;
+	trimmedNewName.Trim(true);
+	trimmedNewName.Trim(false);
+	if (trimmedNewName.IsEmpty()) {
+		return setError("New brush name is invalid.");
+	}
+
+	if (trimmedOldName == trimmedNewName) {
 		return true;
+	}
+
+	if (!beginTransaction()) {
+		return false;
 	}
 
 	const auto executeRenameByIdOrName = [&](const char* sql, const char* failureMessage) -> bool {
@@ -2992,9 +3010,9 @@ bool BrushDatabaseBrushRepository::updateBrushReferenceNames(int64_t brushId, co
 			return false;
 		}
 
-		sqlite3_bind_text(stmt, 1, newName.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_text(stmt, 1, trimmedNewName.utf8_str(), -1, SQLITE_TRANSIENT);
 		sqlite3_bind_int64(stmt, 2, brushId);
-		sqlite3_bind_text(stmt, 3, oldName.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_text(stmt, 3, trimmedOldName.utf8_str(), -1, SQLITE_TRANSIENT);
 
 		const int rc = sqlite3_step(stmt);
 		sqlite3_finalize(stmt);
@@ -3010,8 +3028,8 @@ bool BrushDatabaseBrushRepository::updateBrushReferenceNames(int64_t brushId, co
 			return false;
 		}
 
-		sqlite3_bind_text(stmt, 1, newName.utf8_str(), -1, SQLITE_TRANSIENT);
-		sqlite3_bind_text(stmt, 2, oldName.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_text(stmt, 1, trimmedNewName.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_text(stmt, 2, trimmedOldName.utf8_str(), -1, SQLITE_TRANSIENT);
 
 		const int rc = sqlite3_step(stmt);
 		sqlite3_finalize(stmt);
@@ -3026,6 +3044,7 @@ bool BrushDatabaseBrushRepository::updateBrushReferenceNames(int64_t brushId, co
 			"SET brush_name = ? "
 			"WHERE brush_id = ? OR brush_name = ?;",
 			"Failed to update tileset brush names")) {
+		rollbackTransaction();
 		return false;
 	}
 
@@ -3034,6 +3053,7 @@ bool BrushDatabaseBrushRepository::updateBrushReferenceNames(int64_t brushId, co
 			"SET after_brush_name = ? "
 			"WHERE after_brush_name = ?;",
 			"Failed to update tileset after-brush names")) {
+		rollbackTransaction();
 		return false;
 	}
 
@@ -3042,6 +3062,7 @@ bool BrushDatabaseBrushRepository::updateBrushReferenceNames(int64_t brushId, co
 			"SET target_brush_name = ? "
 			"WHERE target_brush_id = ? OR target_brush_name = ?;",
 			"Failed to update ground border target brush names")) {
+		rollbackTransaction();
 		return false;
 	}
 
@@ -3050,10 +3071,19 @@ bool BrushDatabaseBrushRepository::updateBrushReferenceNames(int64_t brushId, co
 			"SET target_brush_name = ? "
 			"WHERE target_brush_id = ? OR target_brush_name = ?;",
 			"Failed to update brush link target names")) {
+		rollbackTransaction();
 		return false;
 	}
 
-	return resolveGroundReferenceNames();
+	if (!resolveGroundReferenceNames()) {
+		rollbackTransaction();
+		return false;
+	}
+	if (!commitTransaction()) {
+		rollbackTransaction();
+		return false;
+	}
+	return true;
 }
 
 bool BrushDatabaseBrushRepository::deleteBrushReferences(int64_t brushId, const wxString &brushName) {
@@ -3063,8 +3093,15 @@ bool BrushDatabaseBrushRepository::deleteBrushReferences(int64_t brushId, const 
 	if (brushId <= 0) {
 		return setError("Brush id is invalid.");
 	}
-	if (brushName.IsEmpty()) {
+	wxString trimmedBrushName = brushName;
+	trimmedBrushName.Trim(true);
+	trimmedBrushName.Trim(false);
+	if (trimmedBrushName.IsEmpty()) {
 		return setError("Brush name is invalid.");
+	}
+
+	if (!beginTransaction()) {
+		return false;
 	}
 
 	const auto executeDeleteByIdOrName = [&](const char* sql, const char* failureMessage) -> bool {
@@ -3074,7 +3111,7 @@ bool BrushDatabaseBrushRepository::deleteBrushReferences(int64_t brushId, const 
 		}
 
 		sqlite3_bind_int64(stmt, 1, brushId);
-		sqlite3_bind_text(stmt, 2, brushName.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_text(stmt, 2, trimmedBrushName.utf8_str(), -1, SQLITE_TRANSIENT);
 
 		const int rc = sqlite3_step(stmt);
 		sqlite3_finalize(stmt);
@@ -3091,8 +3128,8 @@ bool BrushDatabaseBrushRepository::deleteBrushReferences(int64_t brushId, const 
 		}
 
 		sqlite3_bind_int64(stmt, 1, brushId);
-		sqlite3_bind_text(stmt, 2, brushName.utf8_str(), -1, SQLITE_TRANSIENT);
-		sqlite3_bind_text(stmt, 3, brushName.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_text(stmt, 2, trimmedBrushName.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_text(stmt, 3, trimmedBrushName.utf8_str(), -1, SQLITE_TRANSIENT);
 
 		const int rc = sqlite3_step(stmt);
 		sqlite3_finalize(stmt);
@@ -3106,6 +3143,7 @@ bool BrushDatabaseBrushRepository::deleteBrushReferences(int64_t brushId, const 
 			"DELETE FROM tileset_brush_entries "
 			"WHERE brush_id = ? OR brush_name = ? OR after_brush_name = ?;",
 			"Failed to delete tileset brush entries")) {
+		rollbackTransaction();
 		return false;
 	}
 
@@ -3113,6 +3151,7 @@ bool BrushDatabaseBrushRepository::deleteBrushReferences(int64_t brushId, const 
 			"DELETE FROM ground_brush_borders "
 			"WHERE target_brush_id = ? OR target_brush_name = ?;",
 			"Failed to delete ground border target references")) {
+		rollbackTransaction();
 		return false;
 	}
 
@@ -3120,10 +3159,19 @@ bool BrushDatabaseBrushRepository::deleteBrushReferences(int64_t brushId, const 
 			"DELETE FROM brush_links "
 			"WHERE target_brush_id = ? OR target_brush_name = ?;",
 			"Failed to delete brush link target references")) {
+		rollbackTransaction();
 		return false;
 	}
 
-	return resolveGroundReferenceNames();
+	if (!resolveGroundReferenceNames()) {
+		rollbackTransaction();
+		return false;
+	}
+	if (!commitTransaction()) {
+		rollbackTransaction();
+		return false;
+	}
+	return true;
 }
 
 bool BrushDatabaseBrushRepository::deleteBrush(int64_t brushId) {
@@ -3330,6 +3378,9 @@ bool BrushDatabaseBrushRepository::upsertBorderSet(const BorderSetRecord &border
 		if (rc != SQLITE_DONE) {
 			return setErrorFromDatabase("Failed to update border set");
 		}
+		if (sqlite3_changes(connection_) <= 0) {
+			return setError(wxString::Format("Border set %lld was not found.", static_cast<long long>(borderSet.id)));
+		}
 
 		borderSetId = borderSet.id;
 		return true;
@@ -3359,6 +3410,9 @@ bool BrushDatabaseBrushRepository::upsertBorderSet(const BorderSetRecord &border
 			sqlite3_finalize(updateStmt);
 			if (rc != SQLITE_DONE) {
 				return setErrorFromDatabase("Failed to update border set");
+			}
+			if (sqlite3_changes(connection_) <= 0) {
+				return setError(wxString::Format("Border set %lld was not found.", static_cast<long long>(existing.id)));
 			}
 
 			borderSetId = existing.id;
@@ -3601,7 +3655,6 @@ bool BrushDatabaseBrushRepository::deleteBorderSet(int64_t borderSetId) {
 bool BrushDatabaseBrushRepository::replaceBorderSetItems(int64_t borderSetId, const std::vector<BorderSetItemRecord> &items) {
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
-		return setError("SQLite database is not open.");
 	}
 	if (!beginTransaction()) {
 		return false;
@@ -3626,7 +3679,33 @@ bool BrushDatabaseBrushRepository::replaceBorderSetItems(int64_t borderSetId, co
 		return false;
 	}
 
+	std::vector<BorderSetItemRecord> normalizedItems;
+	normalizedItems.reserve(items.size());
 	for (const BorderSetItemRecord &item : items) {
+		wxString edge = item.edge;
+		edge.Trim(true);
+		edge.Trim(false);
+		if (edge.IsEmpty()) {
+			sqlite3_finalize(insertStmt);
+			rollbackTransaction();
+			return setError("Border set item edge cannot be empty.");
+		}
+		if (item.itemId <= 0) {
+			sqlite3_finalize(insertStmt);
+			rollbackTransaction();
+			return setError("Border set item id must be positive.");
+		}
+		if (item.sortOrder < 0) {
+			sqlite3_finalize(insertStmt);
+			rollbackTransaction();
+			return setError("Border set item sort order cannot be negative.");
+		}
+		BorderSetItemRecord normalized = item;
+		normalized.edge = edge;
+		normalizedItems.push_back(std::move(normalized));
+	}
+
+	for (const BorderSetItemRecord &item : normalizedItems) {
 		sqlite3_reset(insertStmt);
 		sqlite3_clear_bindings(insertStmt);
 		sqlite3_bind_int64(insertStmt, 1, borderSetId);
@@ -3918,7 +3997,11 @@ bool BrushDatabaseBrushRepository::replaceBrushLinks(int64_t brushId, const std:
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
+
+	std::vector<BrushLinkRecord> normalizedLinks;
+	normalizedLinks.reserve(links.size());
 	for (const BrushLinkRecord &link : links) {
+		BrushLinkRecord normalized = link;
 		wxString relation = link.relationType;
 		relation.MakeLower();
 		if (relation.IsEmpty()) {
@@ -3940,6 +4023,10 @@ bool BrushDatabaseBrushRepository::replaceBrushLinks(int64_t brushId, const std:
 		if (link.sortOrder < 0) {
 			return setError("Brush link sort order cannot be negative.");
 		}
+
+		normalized.relationType = relation;
+		normalized.targetBrushName = targetName;
+		normalizedLinks.push_back(std::move(normalized));
 	}
 	if (!beginTransaction()) {
 		return false;
@@ -3964,7 +4051,7 @@ bool BrushDatabaseBrushRepository::replaceBrushLinks(int64_t brushId, const std:
 		return false;
 	}
 
-	for (const BrushLinkRecord &link : links) {
+	for (const BrushLinkRecord &link : normalizedLinks) {
 		sqlite3_reset(insertStmt);
 		sqlite3_clear_bindings(insertStmt);
 		sqlite3_bind_int64(insertStmt, 1, brushId);
@@ -4278,6 +4365,40 @@ bool BrushDatabaseBrushRepository::replaceWallParts(int64_t brushId, const std::
 		if (partType.IsEmpty()) {
 			return setError("Wall part type cannot be empty.");
 		}
+		wxString partTypeLower = partType;
+		partTypeLower.MakeLower();
+		wxString canonicalPartType = partType;
+		const bool supportedPartType =
+			partTypeLower == "vertical" ||
+			partTypeLower == "horizontal" ||
+			partTypeLower == "corner" ||
+			partTypeLower == "pole" ||
+			partTypeLower == "south end" ||
+			partTypeLower == "east end" ||
+			partTypeLower == "north end" ||
+			partTypeLower == "west end" ||
+			partTypeLower == "south t" ||
+			partTypeLower == "east t" ||
+			partTypeLower == "west t" ||
+			partTypeLower == "north t" ||
+			partTypeLower == "northwest diagonal" ||
+			partTypeLower == "northeast diagonal" ||
+			partTypeLower == "southwest diagonal" ||
+			partTypeLower == "southeast diagonal" ||
+			partTypeLower == "intersection" ||
+			partTypeLower == "untouchable";
+		if (!supportedPartType) {
+			return setError("Unsupported wall part type: " + partType);
+		}
+		if (partTypeLower == "south t") {
+			canonicalPartType = "south T";
+		} else if (partTypeLower == "east t") {
+			canonicalPartType = "east T";
+		} else if (partTypeLower == "west t") {
+			canonicalPartType = "west T";
+		} else if (partTypeLower == "north t") {
+			canonicalPartType = "north T";
+		}
 		if (part.sortOrder < 0) {
 			return setError("Wall part sort order cannot be negative.");
 		}
@@ -4381,10 +4502,26 @@ bool BrushDatabaseBrushRepository::replaceWallParts(int64_t brushId, const std::
 	};
 
 	for (const WallPartRecord &part : parts) {
+		wxString partType = part.partType;
+		partType.Trim(true);
+		partType.Trim(false);
+		wxString partTypeLower = partType;
+		partTypeLower.MakeLower();
+		wxString canonicalPartType = partType;
+		if (partTypeLower == "south t") {
+			canonicalPartType = "south T";
+		} else if (partTypeLower == "east t") {
+			canonicalPartType = "east T";
+		} else if (partTypeLower == "west t") {
+			canonicalPartType = "west T";
+		} else if (partTypeLower == "north t") {
+			canonicalPartType = "north T";
+		}
+
 		sqlite3_reset(insertPartStmt);
 		sqlite3_clear_bindings(insertPartStmt);
 		sqlite3_bind_int64(insertPartStmt, 1, brushId);
-		sqlite3_bind_text(insertPartStmt, 2, part.partType.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_text(insertPartStmt, 2, canonicalPartType.utf8_str(), -1, SQLITE_TRANSIENT);
 		sqlite3_bind_int(insertPartStmt, 3, part.sortOrder);
 		if (sqlite3_step(insertPartStmt) != SQLITE_DONE) {
 			return failWithDatabaseError("Failed to insert wall part");
@@ -6035,7 +6172,12 @@ bool BrushDatabaseCatalogRepository::hasCompleteImportForCurrentSchema(bool &out
 			outReason += " Examples: " + unresolvedTilesetSamplesDetail + ".";
 		}
 	} else if (!isReadOnly()) {
-		markMaterialsImportComplete("audit_auto_mark");
+		if (!markMaterialsImportComplete("audit_auto_mark")) {
+			spdlog::error("[BrushDatabase] Failed to write materials import marker: {}", lastError().ToStdString());
+			outReady = false;
+			outReason = lastError();
+			return false;
+		}
 	}
 	return true;
 }
@@ -6122,29 +6264,30 @@ bool BrushDatabaseBrushRepository::resolveGroundReferenceNames() {
 
 	if (!execute("UPDATE ground_brush_borders "
 				 "SET target_brush_id = ("
-				 "SELECT id FROM brushes b "
-				 "WHERE b.name = ground_brush_borders.target_brush_name AND b.type = 'ground' "
-				 "LIMIT 1"
+				 "SELECT CASE WHEN COUNT(*) = 1 THEN MIN(id) ELSE NULL END "
+				 "FROM brushes b "
+				 "WHERE b.name = ground_brush_borders.target_brush_name COLLATE NOCASE "
+				 "AND b.type = 'ground'"
 				 ") "
 				 "WHERE target_brush_name <> '' AND target_mode = 'brush';")) {
 		return false;
 	}
 
 	if (!execute("UPDATE brush_links "
-				   "SET target_brush_id = ("
-				   "SELECT id FROM brushes b "
-				   "WHERE b.name = brush_links.target_brush_name "
-				   "LIMIT 1"
-				   ") "
-				   "WHERE target_brush_name <> '' AND target_brush_name <> 'all';")) {
+				 "SET target_brush_id = ("
+				 "SELECT CASE WHEN COUNT(*) = 1 THEN MIN(id) ELSE NULL END "
+				 "FROM brushes b "
+				 "WHERE b.name = brush_links.target_brush_name COLLATE NOCASE"
+				 ") "
+				 "WHERE target_brush_name <> '' AND target_brush_name <> 'all';")) {
 		return false;
 	}
 
 	return execute("UPDATE tileset_brush_entries "
 				   "SET brush_id = ("
-				   "SELECT id FROM brushes b "
-				   "WHERE b.name = tileset_brush_entries.brush_name "
-				   "LIMIT 1"
+				   "SELECT CASE WHEN COUNT(*) = 1 THEN MIN(id) ELSE NULL END "
+				   "FROM brushes b "
+				   "WHERE b.name = tileset_brush_entries.brush_name COLLATE NOCASE"
 				   ") "
 				   "WHERE brush_name <> '' AND brush_id IS NULL;");
 }

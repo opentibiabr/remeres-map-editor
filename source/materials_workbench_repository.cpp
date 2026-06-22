@@ -247,7 +247,7 @@ bool MaterialsWorkbenchRepository::SaveBrushDetails(BrushStorageRecord &brushSto
 	error.clear();
 
 	BrushRecord &brush = brushStorage.brush;
-	return g_brush_database.runInTransaction([&]() {
+	const bool saved = g_brush_database.runInTransaction([&]() {
 		BrushRecord persistedBrush;
 		bool hadPersistedBrush = false;
 		if (brush.id > 0) {
@@ -302,6 +302,10 @@ bool MaterialsWorkbenchRepository::SaveBrushDetails(BrushStorageRecord &brushSto
 
 		return true;
 	});
+	if (!saved && error.IsEmpty()) {
+		error = g_brush_database.getLastError();
+	}
+	return saved;
 }
 
 bool MaterialsWorkbenchRepository::DeleteBrush(int64_t brushId, wxString &error) const {
@@ -435,21 +439,26 @@ bool MaterialsWorkbenchRepository::LoadBorderSetDetails(int64_t borderSetId, Bor
 bool MaterialsWorkbenchRepository::SaveBorderSet(BorderSetStorageRecord &borderSet, wxString &error) const {
 	error.clear();
 
-	int64_t borderSetId = borderSet.borderSet.id;
-	if (!g_brush_database.upsertBorderSet(borderSet.borderSet, borderSetId)) {
+	const bool saved = g_brush_database.runInTransaction([&]() {
+		int64_t borderSetId = borderSet.borderSet.id;
+		if (!g_brush_database.upsertBorderSet(borderSet.borderSet, borderSetId)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+		borderSet.borderSet.id = borderSetId;
+		for (BorderSetItemRecord &item : borderSet.items) {
+			item.borderSetId = borderSetId;
+		}
+		if (!g_brush_database.replaceBorderSetItems(borderSetId, borderSet.items)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+		return true;
+	});
+	if (!saved && error.IsEmpty()) {
 		error = g_brush_database.getLastError();
-		return false;
 	}
-	borderSet.borderSet.id = borderSetId;
-	for (BorderSetItemRecord &item : borderSet.items) {
-		item.borderSetId = borderSetId;
-	}
-	if (!g_brush_database.replaceBorderSetItems(borderSetId, borderSet.items)) {
-		error = g_brush_database.getLastError();
-		return false;
-	}
-
-	return true;
+	return saved;
 }
 
 bool MaterialsWorkbenchRepository::DeleteBorderSet(int64_t borderSetId, wxString &error) const {

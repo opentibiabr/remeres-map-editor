@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <utility>
+#include <vector>
 
 #include <wx/panel.h>
 #include <wx/string.h>

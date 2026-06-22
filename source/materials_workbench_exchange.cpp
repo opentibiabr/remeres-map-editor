@@ -1640,6 +1640,5 @@ bool ApplyMaterialsWorkbenchImportJsonWithProgress(
 		return false;
 	}
 
-	controller.ReloadCatalog();
-	return true;
+	return controller.ReloadCatalog();
 }

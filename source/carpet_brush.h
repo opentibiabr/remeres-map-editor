@@ -57,6 +57,9 @@ public:
 	virtual int getLookID() const {
 		return look_id;
 	}
+	virtual void setLookID(uint16_t newLookId) override {
+		look_id = newLookId;
+	}
 
 	virtual std::string getName() const {
 		return name;

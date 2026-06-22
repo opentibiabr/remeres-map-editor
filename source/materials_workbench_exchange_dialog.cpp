@@ -35,6 +35,13 @@ namespace {
 		return value;
 	}
 
+	class wxInt64ClientData : public wxClientData {
+	public:
+		explicit wxInt64ClientData(int64_t value) : value(value) {
+		}
+		int64_t value;
+	};
+
 	bool VectorContains(const std::vector<int> &values, int value) {
 		return std::find(values.begin(), values.end(), value) != values.end();
 	}
@@ -334,7 +341,7 @@ void MaterialsWorkbenchExportDialog::RebuildBrushList() {
 			continue;
 		}
 		const size_t idx = brushList_->Append(row.label);
-		brushList_->SetClientData(idx, reinterpret_cast<void*>(static_cast<intptr_t>(row.brushId)));
+		brushList_->SetClientObject(idx, new wxInt64ClientData(row.brushId));
 		brushList_->Check(idx, VectorContains(selection_.brushIds, row.brushId));
 	}
 	brushList_->Thaw();
@@ -522,7 +529,8 @@ void MaterialsWorkbenchExportDialog::OnListToggled(wxCheckListBox* list, int ind
 			RemoveValue(selection_.globalBorderXmlIds, xmlBorderId);
 		}
 	} else if (list == brushList_) {
-		const int64_t brushId = static_cast<int64_t>(reinterpret_cast<intptr_t>(brushList_->GetClientData(static_cast<unsigned int>(index))));
+		const wxInt64ClientData* data = static_cast<const wxInt64ClientData*>(brushList_->GetClientObject(static_cast<unsigned int>(index)));
+		const int64_t brushId = data ? data->value : 0;
 		if (brushId <= 0) {
 			return;
 		}
@@ -990,7 +998,16 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 					}
 					if (!groupName.IsEmpty()) {
 						const wxString groupKey = normalizeName(groupName);
-						const bool groupExists = controller_.HasPaletteGroupNamed(groupName) || importedGroupNames.find(groupKey) != importedGroupNames.end();
+							bool renamedGroupExists = false;
+							for (const auto &entry : renamedPaletteGroups) {
+								if (normalizeName(entry.second) == groupKey) {
+									renamedGroupExists = true;
+									break;
+								}
+							}
+							const bool groupExists = controller_.HasPaletteGroupNamed(groupName)
+								|| importedGroupNames.find(groupKey) != importedGroupNames.end()
+								|| renamedGroupExists;
 						if (!groupExists) {
 							isValid = false;
 							detail = wxString::Format("Missing palette group '%s'.", groupName);

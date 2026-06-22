@@ -121,27 +121,15 @@ PaletteWindow::PaletteWindow(wxWindow* parent, const TilesetContainer &tilesets)
 		switch (spec.paletteType) {
 			case TILESET_TERRAIN:
 				panel = CreateTerrainPalette(choicebook, tilesets, spec.displayName, spec.groupName);
-				if (spec.groupName.IsSameAs("terrain", false)) {
-					terrainPalette = panel;
-				}
 				break;
 			case TILESET_DOODAD:
 				panel = CreateDoodadPalette(choicebook, tilesets, spec.displayName, spec.groupName);
-				if (spec.groupName.IsSameAs("doodad", false)) {
-					doodadPalette = panel;
-				}
 				break;
 			case TILESET_ITEM:
 				panel = CreateItemPalette(choicebook, tilesets, spec.displayName, spec.groupName);
-				if (spec.groupName.IsSameAs("item", false)) {
-					itemPalette = panel;
-				}
 				break;
 			case TILESET_RAW:
 				panel = CreateRAWPalette(choicebook, tilesets, spec.displayName, spec.groupName);
-				if (spec.groupName.IsSameAs("other", false)) {
-					rawPalette = panel;
-				}
 				break;
 			case TILESET_UNKNOWN:
 				panel = CreateGroupPalette(choicebook, tilesets, spec.displayName, spec.groupName);
@@ -150,8 +138,16 @@ PaletteWindow::PaletteWindow(wxWindow* parent, const TilesetContainer &tilesets)
 				break;
 		}
 
-		if (panel) {
-			AddRuntimePalettePage(panel);
+		if (panel && AddRuntimePalettePage(panel)) {
+			if (spec.groupName.IsSameAs("terrain", false)) {
+				terrainPalette = panel;
+			} else if (spec.groupName.IsSameAs("doodad", false)) {
+				doodadPalette = panel;
+			} else if (spec.groupName.IsSameAs("item", false)) {
+				itemPalette = panel;
+			} else if (spec.groupName.IsSameAs("other", false)) {
+				rawPalette = panel;
+			}
 		}
 	}
 
@@ -269,17 +265,18 @@ void PaletteWindow::ConfigureRuntimePalettePanel(BrushPalettePanel* panel) {
 	}
 }
 
-void PaletteWindow::AddRuntimePalettePage(BrushPalettePanel* panel) {
+bool PaletteWindow::AddRuntimePalettePage(BrushPalettePanel* panel) {
 	if (!panel) {
-		return;
+		return false;
 	}
 	if (!panel->HasPages()) {
 		panel->Destroy();
-		return;
+		return false;
 	}
 
 	runtimeBrushPalettes_.push_back(panel);
 	choicebook->AddPage(panel, panel->GetName());
+	return true;
 }
 
 BrushPalettePanel* PaletteWindow::CreateTerrainPalette(wxWindow* parent, const TilesetContainer &tilesets, const wxString &displayName, const wxString &paletteGroupFilter) {

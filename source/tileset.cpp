@@ -66,12 +66,10 @@ namespace {
 			return true;
 		}
 		if (sectionType == "monsters") {
-			primaryType = TILESET_MONSTER;
-			return true;
+			return false;
 		}
 		if (sectionType == "npcs") {
-			primaryType = TILESET_NPC;
-			return true;
+			return false;
 		}
 		return false;
 	}

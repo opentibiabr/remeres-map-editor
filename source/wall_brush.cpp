@@ -34,6 +34,7 @@ WallBrush::~WallBrush() {
 }
 
 void WallBrush::resetRuntimeState() {
+	look_id = 0;
 	for (uint32_t alignment = 0; alignment < 17; ++alignment) {
 		for (const WallType &wallType : wall_items[alignment].items) {
 			if (auto type = g_items.getRawItemType(wallType.id); type && type->brush == this) {

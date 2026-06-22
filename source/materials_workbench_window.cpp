@@ -704,6 +704,10 @@ void MaterialsWorkbenchWindow::OnImportMaterials(wxCommandEvent &) {
 			};
 
 			if (!ApplyMaterialsWorkbenchImportJsonWithProgress(controller_, preview.GetJson(), preview.GetOptions(), onProgress, report, error)) {
+				if (error.IsEmpty()) {
+					error = "Import failed.";
+				}
+				g_gui.PopupDialog(this, "Import failed", error, wxOK | wxICON_ERROR);
 				return;
 			}
 

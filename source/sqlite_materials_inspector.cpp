@@ -447,7 +447,6 @@ SQLiteMaterialsInspectorPanel::SQLiteMaterialsInspectorPanel(wxWindow* parent) :
 		}
 		const wxString warningText =
 			"Reset SQLite materials database from legacy XML?\n\n"
-			"This will move the current materials.db to a timestamped backup file and close the database for this session.\n"
 			"This will move the current materials.db to a timestamped backup file and close the database for this session (when open).\n"
 			"Warning: This discards all edits made in materials.db since the last bootstrap. Use Export/Import if you need to keep changes.\n\n"
 			"Database:\n" + dbPath;
@@ -466,15 +465,19 @@ SQLiteMaterialsInspectorPanel::SQLiteMaterialsInspectorPanel(wxWindow* parent) :
 		}
 		inspectorDatabase_.close();
 
-		auto moveFileIfExists = [](const wxString &from, const wxString &to) {
+		auto moveFileIfExists = [](const wxString &from, const wxString &to) -> bool {
 			if (wxFileName(from).FileExists()) {
-				wxRenameFile(from, to, true);
+				return wxRenameFile(from, to, true);
 			}
+			return true;
 		};
 
-		moveFileIfExists(dbPath, backupPath);
-		moveFileIfExists(dbPath + "-wal", backupPath + "-wal");
-		moveFileIfExists(dbPath + "-shm", backupPath + "-shm");
+		if (!moveFileIfExists(dbPath, backupPath)
+			|| !moveFileIfExists(dbPath + "-wal", backupPath + "-wal")
+			|| !moveFileIfExists(dbPath + "-shm", backupPath + "-shm")) {
+			g_gui.PopupDialog(this, "SQLite Reset Failed", "Failed to move one or more SQLite files to the backup path.\n\nBackup:\n" + backupPath, wxOK | wxICON_ERROR);
+			return;
+		}
 
 		const wxString doneText =
 			"materials.db was moved to:\n" + backupPath + "\n\n"

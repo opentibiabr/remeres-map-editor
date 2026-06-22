@@ -37,6 +37,7 @@ TableBrush::~TableBrush() {
 }
 
 void TableBrush::resetRuntimeState() {
+	look_id = 0;
 	for (TableNode &node : table_items) {
 		for (const TableType &item : node.items) {
 			if (auto type = g_items.getRawItemType(item.item_id); type && type->brush == this) {

@@ -87,7 +87,7 @@ protected:
 	static BrushPalettePanel* CreateRAWPalette(wxWindow* parent, const TilesetContainer &tilesets, const wxString &displayName = "Other", const wxString &paletteGroupFilter = "other");
 	static std::vector<RuntimePaletteSpec> BuildRuntimePaletteSpecs(const TilesetContainer &tilesets);
 	static void ConfigureRuntimePalettePanel(BrushPalettePanel* panel);
-	void AddRuntimePalettePage(BrushPalettePanel* panel);
+	bool AddRuntimePalettePage(BrushPalettePanel* panel);
 	bool TrySelectRuntimeBrush(const Brush* whatBrush, PaletteType preferredType, bool onlyPreferredType);
 
 	static bool CanSelectHouseBrush(PalettePanel* palette, const Brush* whatBrush);

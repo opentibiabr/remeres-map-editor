@@ -50,6 +50,7 @@
 
 #include <sstream>
 #include <unordered_map>
+#include <unordered_set>
 
 Brushes g_brushes;
 
@@ -667,6 +668,9 @@ bool Brushes::loadFromDatabase(wxArrayString &warnings) {
 
 	size_t shellCount = 0;
 	for (const BrushStorageRecord &storage : storages) {
+		if (getBrush(storage.brush.name.ToStdString())) {
+			continue;
+		}
 		pugi::xml_document shellDoc;
 		pugi::xml_node shellNode = shellDoc.append_child("brush");
 		AppendStringAttribute(shellNode, "name", storage.brush.name);
@@ -805,6 +809,44 @@ bool Brushes::reloadBorderSetFromDatabase(int64_t borderSetId, wxArrayString &wa
 	std::vector<int64_t> groundBrushIds;
 	if (!LoadGroundBrushIdsFromDatabase(groundBrushIds, error)) {
 		return false;
+	}
+
+	std::vector<BorderSetRecord> globalBorderSets;
+	if (!g_brush_database.listBorderSetsByScope("global", globalBorderSets)) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
+
+	std::unordered_set<int> globalBorderIds;
+	for (const BorderSetRecord &set : globalBorderSets) {
+		if (set.xmlBorderId <= 0) {
+			continue;
+		}
+		if (!globalBorderIds.insert(set.xmlBorderId).second) {
+			error = wxString::Format("Duplicate global border id %d found in SQLite.", set.xmlBorderId);
+			return false;
+		}
+		std::vector<BorderSetItemRecord> items;
+		if (!g_brush_database.getBorderSetItems(set.id, items)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+	}
+
+	BorderSetStorageCache borderSetCache;
+	for (int64_t groundBrushId : groundBrushIds) {
+		BrushStorageRecord storage;
+		if (!g_brush_database.getCompleteBrushById(groundBrushId, storage)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+		try {
+			pugi::xml_document doc;
+			BuildBrushNode(doc, storage, &borderSetCache);
+		} catch (const std::exception &ex) {
+			error = wxString::FromUTF8(ex.what());
+			return false;
+		}
 	}
 
 	ResetGroundBrushRuntimeState(*this);

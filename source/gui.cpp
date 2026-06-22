@@ -206,7 +206,9 @@ wxGLContext* GUI::GetGLContext(wxGLCanvas* win) {
 wxString GUI::GetDataDirectory() {
 	const wxString discovered = g_gui.getFoundDataDirectory();
 	if (!discovered.IsEmpty() && wxFileName(discovered).DirExists()) {
-		return discovered;
+		FileName dir;
+		dir.Assign(discovered);
+		return dir.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR);
 	}
 
 	std::string cfg_str = g_settings.getString(Config::DATA_DIRECTORY);
@@ -1291,7 +1293,7 @@ bool GUI::ReloadMaterialPalettesAndBrushesFromDatabase(wxString &error, wxArrayS
 
 	wxArrayString brushWarnings;
 
-	static const wxString supportedTypes[] = { "ground", "wall", "doodad", "carpet", "table" };
+	static const wxString supportedTypes[] = { "ground", "wall", "wall decoration", "doodad", "carpet", "table" };
 	for (const wxString &type : supportedTypes) {
 		std::vector<BrushRecord> brushList;
 		if (!g_brush_database.listBrushesByType(type, brushList)) {
@@ -1316,7 +1318,15 @@ bool GUI::ReloadMaterialPalettesAndBrushesFromDatabase(wxString &error, wxArrayS
 
 	{
 		std::vector<BorderSetRecord> globalBorders;
-		if (g_brush_database.listBorderSetsByScope("global", globalBorders) && !globalBorders.empty()) {
+		if (!g_brush_database.listBorderSetsByScope("global", globalBorders)) {
+			error = "Failed to list SQLite global borders for runtime refresh.";
+			if (!g_brush_database.getLastError().IsEmpty()) {
+				error += " " + g_brush_database.getLastError();
+			}
+			warnings = brushWarnings;
+			return false;
+		}
+		if (!globalBorders.empty()) {
 			wxString borderError;
 			wxArrayString borderWarnings;
 			if (!g_brushes.reloadBorderSetFromDatabase(globalBorders.front().id, borderWarnings, borderError)) {
@@ -1876,13 +1886,17 @@ void GUI::TryShowMaterialsRecoveryDialog() {
 
 	auto moveFileIfExists = [](const wxString &from, const wxString &to) {
 		if (wxFileName(from).FileExists()) {
-			wxRenameFile(from, to, true);
+			return wxRenameFile(from, to, true);
 		}
+		return true;
 	};
 
-	moveFileIfExists(dbPath, backupPath);
-	moveFileIfExists(dbPath + "-wal", backupPath + "-wal");
-	moveFileIfExists(dbPath + "-shm", backupPath + "-shm");
+	if (!moveFileIfExists(dbPath, backupPath)
+		|| !moveFileIfExists(dbPath + "-wal", backupPath + "-wal")
+		|| !moveFileIfExists(dbPath + "-shm", backupPath + "-shm")) {
+		g_gui.PopupDialog(g_gui.root, "SQLite Reset Failed", "Failed to move one or more SQLite files to the backup path.\n\nBackup:\n" + backupPath, wxOK | wxICON_ERROR);
+		return;
+	}
 
 	const wxString doneText =
 		"materials.db was moved to:\n" + backupPath + "\n\n"

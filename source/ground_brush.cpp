@@ -189,6 +189,9 @@ void GroundBrush::resetRuntimeState() {
 	}
 	borders.clear();
 
+	friends.clear();
+	hate_friends = false;
+
 	has_zilch_outer_border = false;
 	has_zilch_inner_border = false;
 	has_outer_border = false;
