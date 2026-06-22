@@ -1692,10 +1692,20 @@ bool Materials::migrateGroundsToSQLite(wxString &error, wxArrayString &warnings)
 	std::set<wxString> visited;
 	if (!ImportGlobalBordersRecursive(bordersFile, warnings, visited)) {
 		error = "Failed to import border sets into SQLite.";
+		if (!warnings.IsEmpty()) {
+			error += "\n\n" + warnings.Last();
+		} else if (!g_brush_database.getLastError().IsEmpty()) {
+			error += "\n\n" + g_brush_database.getLastError();
+		}
 		return false;
 	}
 	if (!ImportGroundBrushesFile(brushsRoot, warnings)) {
 		error = "Failed to import ground brushes into SQLite.";
+		if (!warnings.IsEmpty()) {
+			error += "\n\n" + warnings.Last();
+		} else if (!g_brush_database.getLastError().IsEmpty()) {
+			error += "\n\n" + g_brush_database.getLastError();
+		}
 		return false;
 	}
 	if (!g_brush_database.resolveGroundReferenceNames()) {
@@ -1729,6 +1739,11 @@ bool Materials::migrateWallsToSQLite(wxString &error, wxArrayString &warnings) {
 	}
 	if (!ImportWallBrushesFile(brushsRoot, warnings)) {
 		error = "Failed to import wall brushes into SQLite.";
+		if (!warnings.empty()) {
+			error += "\n\n" + warnings.Last();
+		} else if (!g_brush_database.getLastError().IsEmpty()) {
+			error += "\n\n" + g_brush_database.getLastError();
+		}
 		return false;
 	}
 	if (!g_brush_database.resolveGroundReferenceNames()) {
@@ -1766,6 +1781,11 @@ bool Materials::migrateDecorativeBrushesToSQLite(wxString &error, wxArrayString 
 	std::set<wxString> visited;
 	if (!ImportDecorativeBrushesRecursive(brushsRoot, warnings, visited)) {
 		error = "Failed to import doodad/carpet/table brushes into SQLite.";
+		if (!warnings.IsEmpty()) {
+			error += "\n\n" + warnings.Last();
+		} else if (!g_brush_database.getLastError().IsEmpty()) {
+			error += "\n\n" + g_brush_database.getLastError();
+		}
 		return false;
 	}
 
@@ -1787,6 +1807,11 @@ bool Materials::migrateTilesetsToSQLite(wxString &error, wxArrayString &warnings
 	std::set<wxString> visited;
 	if (!ImportTilesetsRecursive(tilesetsRoot, wxString(), warnings, visited, tilesetsToStore)) {
 		error = "Failed to import tilesets into SQLite.";
+		if (!warnings.IsEmpty()) {
+			error += "\n\n" + warnings.Last();
+		} else if (!g_brush_database.getLastError().IsEmpty()) {
+			error += "\n\n" + g_brush_database.getLastError();
+		}
 		return false;
 	}
 
@@ -1802,6 +1827,11 @@ bool Materials::migrateTilesetsToSQLite(wxString &error, wxArrayString &warnings
 			}
 			if (!ImportTilesetsRecursive(FileName(tilesetPath), wxString(), warnings, visited, tilesetsToStore)) {
 				error = "Failed to import tilesets into SQLite.";
+				if (!warnings.IsEmpty()) {
+					error += "\n\n" + warnings.Last();
+				} else if (!g_brush_database.getLastError().IsEmpty()) {
+					error += "\n\n" + g_brush_database.getLastError();
+				}
 				return false;
 			}
 		}

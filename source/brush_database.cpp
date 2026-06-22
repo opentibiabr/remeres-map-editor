@@ -3685,20 +3685,8 @@ bool BrushDatabaseBrushRepository::replaceBorderSetItems(int64_t borderSetId, co
 		wxString edge = item.edge;
 		edge.Trim(true);
 		edge.Trim(false);
-		if (edge.IsEmpty()) {
-			sqlite3_finalize(insertStmt);
-			rollbackTransaction();
-			return setError("Border set item edge cannot be empty.");
-		}
-		if (item.itemId <= 0) {
-			sqlite3_finalize(insertStmt);
-			rollbackTransaction();
-			return setError("Border set item id must be positive.");
-		}
-		if (item.sortOrder < 0) {
-			sqlite3_finalize(insertStmt);
-			rollbackTransaction();
-			return setError("Border set item sort order cannot be negative.");
+		if (edge.IsEmpty() || item.itemId <= 0 || item.sortOrder < 0) {
+			continue;
 		}
 		BorderSetItemRecord normalized = item;
 		normalized.edge = edge;
@@ -4358,6 +4346,85 @@ bool BrushDatabaseBrushRepository::replaceWallParts(int64_t brushId, const std::
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
+
+	const auto canonicalizeBasePartType = [&](const wxString &basePartType, wxString &outCanonicalBase) -> bool {
+		wxString base = basePartType;
+		base.Trim(true);
+		base.Trim(false);
+		if (base.IsEmpty()) {
+			return false;
+		}
+
+		wxString baseLower = base;
+		baseLower.MakeLower();
+		const bool supported =
+			baseLower == "vertical" ||
+			baseLower == "horizontal" ||
+			baseLower == "corner" ||
+			baseLower == "pole" ||
+			baseLower == "south end" ||
+			baseLower == "east end" ||
+			baseLower == "north end" ||
+			baseLower == "west end" ||
+			baseLower == "south t" ||
+			baseLower == "east t" ||
+			baseLower == "west t" ||
+			baseLower == "north t" ||
+			baseLower == "northwest diagonal" ||
+			baseLower == "northeast diagonal" ||
+			baseLower == "southwest diagonal" ||
+			baseLower == "southeast diagonal" ||
+			baseLower == "intersection" ||
+			baseLower == "untouchable";
+		if (!supported) {
+			return false;
+		}
+
+		outCanonicalBase = base;
+		if (baseLower == "south t") {
+			outCanonicalBase = "south T";
+		} else if (baseLower == "east t") {
+			outCanonicalBase = "east T";
+		} else if (baseLower == "west t") {
+			outCanonicalBase = "west T";
+		} else if (baseLower == "north t") {
+			outCanonicalBase = "north T";
+		}
+		return true;
+	};
+
+	const auto canonicalizeWallPartType = [&](const wxString &rawPartType, wxString &outCanonical) -> bool {
+		wxString partType = rawPartType;
+		partType.Trim(true);
+		partType.Trim(false);
+		if (partType.IsEmpty()) {
+			return false;
+		}
+		if (partType.StartsWith("alternate/")) {
+			outCanonical = partType;
+			return true;
+		}
+
+		const wxString marker = "/alternate/";
+		const int markerIndex = partType.Find(marker);
+		if (markerIndex != wxNOT_FOUND) {
+			const wxString basePartType = partType.SubString(0, markerIndex - 1);
+			wxString canonicalBase;
+			if (!canonicalizeBasePartType(basePartType, canonicalBase)) {
+				return false;
+			}
+			outCanonical = canonicalBase + partType.Mid(markerIndex);
+			return true;
+		}
+
+		wxString canonicalBase;
+		if (!canonicalizeBasePartType(partType, canonicalBase)) {
+			return false;
+		}
+		outCanonical = canonicalBase;
+		return true;
+	};
+
 	for (const WallPartRecord &part : parts) {
 		wxString partType = part.partType;
 		partType.Trim(true);
@@ -4365,39 +4432,9 @@ bool BrushDatabaseBrushRepository::replaceWallParts(int64_t brushId, const std::
 		if (partType.IsEmpty()) {
 			return setError("Wall part type cannot be empty.");
 		}
-		wxString partTypeLower = partType;
-		partTypeLower.MakeLower();
-		wxString canonicalPartType = partType;
-		const bool supportedPartType =
-			partTypeLower == "vertical" ||
-			partTypeLower == "horizontal" ||
-			partTypeLower == "corner" ||
-			partTypeLower == "pole" ||
-			partTypeLower == "south end" ||
-			partTypeLower == "east end" ||
-			partTypeLower == "north end" ||
-			partTypeLower == "west end" ||
-			partTypeLower == "south t" ||
-			partTypeLower == "east t" ||
-			partTypeLower == "west t" ||
-			partTypeLower == "north t" ||
-			partTypeLower == "northwest diagonal" ||
-			partTypeLower == "northeast diagonal" ||
-			partTypeLower == "southwest diagonal" ||
-			partTypeLower == "southeast diagonal" ||
-			partTypeLower == "intersection" ||
-			partTypeLower == "untouchable";
-		if (!supportedPartType) {
+		wxString canonicalPartType;
+		if (!canonicalizeWallPartType(partType, canonicalPartType)) {
 			return setError("Unsupported wall part type: " + partType);
-		}
-		if (partTypeLower == "south t") {
-			canonicalPartType = "south T";
-		} else if (partTypeLower == "east t") {
-			canonicalPartType = "east T";
-		} else if (partTypeLower == "west t") {
-			canonicalPartType = "west T";
-		} else if (partTypeLower == "north t") {
-			canonicalPartType = "north T";
 		}
 		if (part.sortOrder < 0) {
 			return setError("Wall part sort order cannot be negative.");
@@ -4502,20 +4539,9 @@ bool BrushDatabaseBrushRepository::replaceWallParts(int64_t brushId, const std::
 	};
 
 	for (const WallPartRecord &part : parts) {
-		wxString partType = part.partType;
-		partType.Trim(true);
-		partType.Trim(false);
-		wxString partTypeLower = partType;
-		partTypeLower.MakeLower();
-		wxString canonicalPartType = partType;
-		if (partTypeLower == "south t") {
-			canonicalPartType = "south T";
-		} else if (partTypeLower == "east t") {
-			canonicalPartType = "east T";
-		} else if (partTypeLower == "west t") {
-			canonicalPartType = "west T";
-		} else if (partTypeLower == "north t") {
-			canonicalPartType = "north T";
+		wxString canonicalPartType;
+		if (!canonicalizeWallPartType(part.partType, canonicalPartType)) {
+			return failWithDatabaseError("Failed to validate wall part type");
 		}
 
 		sqlite3_reset(insertPartStmt);
@@ -6266,7 +6292,7 @@ bool BrushDatabaseBrushRepository::resolveGroundReferenceNames() {
 				 "SET target_brush_id = ("
 				 "SELECT CASE WHEN COUNT(*) = 1 THEN MIN(id) ELSE NULL END "
 				 "FROM brushes b "
-				 "WHERE b.name = ground_brush_borders.target_brush_name COLLATE NOCASE "
+				 "WHERE b.name = ground_brush_borders.target_brush_name "
 				 "AND b.type = 'ground'"
 				 ") "
 				 "WHERE target_brush_name <> '' AND target_mode = 'brush';")) {
@@ -6277,7 +6303,7 @@ bool BrushDatabaseBrushRepository::resolveGroundReferenceNames() {
 				 "SET target_brush_id = ("
 				 "SELECT CASE WHEN COUNT(*) = 1 THEN MIN(id) ELSE NULL END "
 				 "FROM brushes b "
-				 "WHERE b.name = brush_links.target_brush_name COLLATE NOCASE"
+				 "WHERE b.name = brush_links.target_brush_name"
 				 ") "
 				 "WHERE target_brush_name <> '' AND target_brush_name <> 'all';")) {
 		return false;
@@ -6287,7 +6313,7 @@ bool BrushDatabaseBrushRepository::resolveGroundReferenceNames() {
 				   "SET brush_id = ("
 				   "SELECT CASE WHEN COUNT(*) = 1 THEN MIN(id) ELSE NULL END "
 				   "FROM brushes b "
-				   "WHERE b.name = tileset_brush_entries.brush_name COLLATE NOCASE"
+				   "WHERE b.name = tileset_brush_entries.brush_name"
 				   ") "
 				   "WHERE brush_name <> '' AND brush_id IS NULL;");
 }
