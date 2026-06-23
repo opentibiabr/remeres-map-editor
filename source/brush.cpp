@@ -281,146 +281,175 @@ namespace {
 		}
 	}
 
+	void AppendBrushLookIdAttributes(pugi::xml_node brushNode, const BrushRecord &brush) {
+		if (brush.serverLookId > 0) {
+			AppendIntAttribute(brushNode, "server_lookid", brush.serverLookId);
+			return;
+		}
+		if (brush.lookId > 0) {
+			AppendIntAttribute(brushNode, "lookid", brush.lookId);
+		}
+	}
+
+	void BuildGroundBrushNode(pugi::xml_node brushNode, const BrushStorageRecord &storage, BorderSetStorageCache* borderSetCache) {
+		const BrushRecord &brush = storage.brush;
+		AppendIntAttribute(brushNode, "z-order", brush.zOrder);
+		AppendBoolAttribute(brushNode, "randomize", brush.randomize);
+		if (brush.soloOptional) {
+			AppendBoolAttribute(brushNode, "solo_optional", true);
+		}
+
+		for (const BrushItemRecord &item : storage.items) {
+			pugi::xml_node itemNode = brushNode.append_child("item");
+			AppendIntAttribute(itemNode, "id", item.itemId);
+			AppendIntAttribute(itemNode, "chance", item.chance);
+		}
+
+		uint16_t fallbackGroundEquivalent = 0;
+		if (!storage.items.empty()) {
+			fallbackGroundEquivalent = static_cast<uint16_t>(storage.items.front().itemId);
+		}
+		for (const GroundBrushBorderRecord &border : storage.borders) {
+			wxString error;
+			if (!AppendGroundBorderNode(brushNode, border, fallbackGroundEquivalent, brush.name, borderSetCache, error)) {
+				throw std::runtime_error(error.ToStdString());
+			}
+		}
+		for (const BrushLinkRecord &link : storage.links) {
+			pugi::xml_node linkNode = brushNode.append_child(link.relationType.ToStdString().c_str());
+			AppendStringAttribute(linkNode, "name", link.targetBrushName);
+		}
+	}
+
+	void AppendWallBrushCommonAttributes(pugi::xml_node brushNode, const BrushRecord &brush) {
+		if (brush.draggable) {
+			AppendBoolAttribute(brushNode, "draggable", true);
+		}
+		if (brush.onBlocking) {
+			AppendBoolAttribute(brushNode, "on_blocking", true);
+		}
+		if (brush.onDuplicate) {
+			AppendBoolAttribute(brushNode, "on_duplicate", true);
+		}
+		if (brush.redoBorders) {
+			AppendBoolAttribute(brushNode, "redo_borders", true);
+		}
+		if (brush.removeOptionalBorder) {
+			AppendBoolAttribute(brushNode, "remove_optional_border", true);
+		}
+		if (brush.oneSize) {
+			AppendBoolAttribute(brushNode, "one_size", true);
+		}
+		if (brush.thickness > 0 || brush.thicknessCeiling > 0) {
+			AppendStringAttribute(brushNode, "thickness", wxString::Format("%d/%d", brush.thickness, brush.thicknessCeiling));
+		}
+	}
+
+	void BuildWallBrushNode(pugi::xml_node brushNode, const BrushStorageRecord &storage) {
+		AppendWallBrushCommonAttributes(brushNode, storage.brush);
+
+		std::map<wxString, pugi::xml_node> wallNodesByType;
+		std::set<wxString> redirectTargets;
+		for (const BrushLinkRecord &link : storage.links) {
+			if (link.relationType == "redirect") {
+				redirectTargets.insert(link.targetBrushName);
+			}
+		}
+
+		for (const WallPartRecord &part : storage.wallParts) {
+			if (part.partType.StartsWith("alternate/")) {
+				pugi::xml_node alternateNode = brushNode.append_child("alternate");
+				AppendWallItemsAndDoors(alternateNode, part);
+				continue;
+			}
+
+			const wxString alternateMarker = "/alternate/";
+			const int alternateIndex = part.partType.Find(alternateMarker);
+			if (alternateIndex != wxNOT_FOUND) {
+				const wxString basePartType = part.partType.SubString(0, alternateIndex - 1);
+				pugi::xml_node wallNode = wallNodesByType[basePartType];
+				if (!wallNode) {
+					wallNode = brushNode.append_child("wall");
+					AppendStringAttribute(wallNode, "type", basePartType);
+					wallNodesByType[basePartType] = wallNode;
+				}
+				pugi::xml_node alternateNode = wallNode.append_child("alternate");
+				AppendWallItemsAndDoors(alternateNode, part);
+				continue;
+			}
+
+			pugi::xml_node wallNode = brushNode.append_child("wall");
+			AppendStringAttribute(wallNode, "type", part.partType);
+			AppendWallItemsAndDoors(wallNode, part);
+			wallNodesByType[part.partType] = wallNode;
+		}
+
+		std::set<wxString> emittedFriends;
+		for (const BrushLinkRecord &link : storage.links) {
+			if (link.relationType != "friend" && link.relationType != "redirect") {
+				continue;
+			}
+			if (!emittedFriends.insert(link.targetBrushName).second) {
+				continue;
+			}
+			pugi::xml_node friendNode = brushNode.append_child("friend");
+			AppendStringAttribute(friendNode, "name", link.targetBrushName);
+			if (redirectTargets.find(link.targetBrushName) != redirectTargets.end()) {
+				AppendBoolAttribute(friendNode, "redirect", true);
+			}
+		}
+	}
+
+	void AppendDoodadBrushCommonAttributes(pugi::xml_node brushNode, const BrushRecord &brush) {
+		if (brush.onBlocking) {
+			AppendBoolAttribute(brushNode, "on_blocking", true);
+		}
+		if (brush.onDuplicate) {
+			AppendBoolAttribute(brushNode, "on_duplicate", true);
+		}
+		if (brush.redoBorders) {
+			AppendBoolAttribute(brushNode, "redo_borders", true);
+		}
+		if (brush.removeOptionalBorder) {
+			AppendBoolAttribute(brushNode, "remove_optional_border", true);
+		}
+		if (brush.oneSize) {
+			AppendBoolAttribute(brushNode, "one_size", true);
+		}
+		if (brush.draggable) {
+			AppendBoolAttribute(brushNode, "draggable", true);
+		}
+		if (brush.thickness > 0 || brush.thicknessCeiling > 0) {
+			AppendStringAttribute(brushNode, "thickness", wxString::Format("%d/%d", brush.thickness, brush.thicknessCeiling));
+		}
+	}
+
+	void BuildDoodadBrushNode(pugi::xml_node brushNode, const BrushStorageRecord &storage) {
+		AppendDoodadBrushCommonAttributes(brushNode, storage.brush);
+		for (const DoodadAlternativeRecord &alternative : storage.doodadAlternatives) {
+			AppendDoodadAlternative(brushNode, alternative);
+		}
+	}
+
 	void BuildBrushNode(pugi::xml_document &doc, const BrushStorageRecord &storage, BorderSetStorageCache* borderSetCache) {
 		const BrushRecord &brush = storage.brush;
 		pugi::xml_node brushNode = doc.append_child("brush");
 		AppendStringAttribute(brushNode, "name", brush.name);
 		AppendStringAttribute(brushNode, "type", brush.type);
-		if (brush.serverLookId > 0) {
-			AppendIntAttribute(brushNode, "server_lookid", brush.serverLookId);
-		} else if (brush.lookId > 0) {
-			AppendIntAttribute(brushNode, "lookid", brush.lookId);
-		}
+		AppendBrushLookIdAttributes(brushNode, brush);
 
 		if (brush.type == "ground") {
-			AppendIntAttribute(brushNode, "z-order", brush.zOrder);
-			AppendBoolAttribute(brushNode, "randomize", brush.randomize);
-			if (brush.soloOptional) {
-				AppendBoolAttribute(brushNode, "solo_optional", true);
-			}
-			for (const BrushItemRecord &item : storage.items) {
-				pugi::xml_node itemNode = brushNode.append_child("item");
-				AppendIntAttribute(itemNode, "id", item.itemId);
-				AppendIntAttribute(itemNode, "chance", item.chance);
-			}
-			uint16_t fallbackGroundEquivalent = 0;
-			if (!storage.items.empty()) {
-				fallbackGroundEquivalent = static_cast<uint16_t>(storage.items.front().itemId);
-			}
-			for (const GroundBrushBorderRecord &border : storage.borders) {
-				wxString error;
-				if (!AppendGroundBorderNode(brushNode, border, fallbackGroundEquivalent, brush.name, borderSetCache, error)) {
-					throw std::runtime_error(error.ToStdString());
-				}
-			}
-			for (const BrushLinkRecord &link : storage.links) {
-				pugi::xml_node linkNode = brushNode.append_child(link.relationType.ToStdString().c_str());
-				AppendStringAttribute(linkNode, "name", link.targetBrushName);
-			}
+			BuildGroundBrushNode(brushNode, storage, borderSetCache);
 			return;
 		}
 
 		if (brush.type == "wall" || brush.type == "wall decoration") {
-			if (brush.draggable) {
-				AppendBoolAttribute(brushNode, "draggable", true);
-			}
-			if (brush.onBlocking) {
-				AppendBoolAttribute(brushNode, "on_blocking", true);
-			}
-			if (brush.onDuplicate) {
-				AppendBoolAttribute(brushNode, "on_duplicate", true);
-			}
-			if (brush.redoBorders) {
-				AppendBoolAttribute(brushNode, "redo_borders", true);
-			}
-			if (brush.removeOptionalBorder) {
-				AppendBoolAttribute(brushNode, "remove_optional_border", true);
-			}
-			if (brush.oneSize) {
-				AppendBoolAttribute(brushNode, "one_size", true);
-			}
-			if (brush.thickness > 0 || brush.thicknessCeiling > 0) {
-				AppendStringAttribute(brushNode, "thickness", wxString::Format("%d/%d", brush.thickness, brush.thicknessCeiling));
-			}
-
-			std::map<wxString, pugi::xml_node> wallNodesByType;
-			std::set<wxString> redirectTargets;
-			for (const BrushLinkRecord &link : storage.links) {
-				if (link.relationType == "redirect") {
-					redirectTargets.insert(link.targetBrushName);
-				}
-			}
-
-			for (const WallPartRecord &part : storage.wallParts) {
-				if (part.partType.StartsWith("alternate/")) {
-					pugi::xml_node alternateNode = brushNode.append_child("alternate");
-					AppendWallItemsAndDoors(alternateNode, part);
-					continue;
-				}
-
-				const wxString alternateMarker = "/alternate/";
-				const int alternateIndex = part.partType.Find(alternateMarker);
-				if (alternateIndex != wxNOT_FOUND) {
-					const wxString basePartType = part.partType.SubString(0, alternateIndex - 1);
-					pugi::xml_node wallNode = wallNodesByType[basePartType];
-					if (!wallNode) {
-						wallNode = brushNode.append_child("wall");
-						AppendStringAttribute(wallNode, "type", basePartType);
-						wallNodesByType[basePartType] = wallNode;
-					}
-					pugi::xml_node alternateNode = wallNode.append_child("alternate");
-					AppendWallItemsAndDoors(alternateNode, part);
-					continue;
-				}
-
-				pugi::xml_node wallNode = brushNode.append_child("wall");
-				AppendStringAttribute(wallNode, "type", part.partType);
-				AppendWallItemsAndDoors(wallNode, part);
-				wallNodesByType[part.partType] = wallNode;
-			}
-
-			std::set<wxString> emittedFriends;
-			for (const BrushLinkRecord &link : storage.links) {
-				if (link.relationType != "friend" && link.relationType != "redirect") {
-					continue;
-				}
-				if (!emittedFriends.insert(link.targetBrushName).second) {
-					continue;
-				}
-				pugi::xml_node friendNode = brushNode.append_child("friend");
-				AppendStringAttribute(friendNode, "name", link.targetBrushName);
-				if (redirectTargets.find(link.targetBrushName) != redirectTargets.end()) {
-					AppendBoolAttribute(friendNode, "redirect", true);
-				}
-			}
+			BuildWallBrushNode(brushNode, storage);
 			return;
 		}
 
 		if (brush.type == "doodad") {
-			if (brush.onBlocking) {
-				AppendBoolAttribute(brushNode, "on_blocking", true);
-			}
-			if (brush.onDuplicate) {
-				AppendBoolAttribute(brushNode, "on_duplicate", true);
-			}
-			if (brush.redoBorders) {
-				AppendBoolAttribute(brushNode, "redo_borders", true);
-			}
-			if (brush.removeOptionalBorder) {
-				AppendBoolAttribute(brushNode, "remove_optional_border", true);
-			}
-			if (brush.oneSize) {
-				AppendBoolAttribute(brushNode, "one_size", true);
-			}
-			if (brush.draggable) {
-				AppendBoolAttribute(brushNode, "draggable", true);
-			}
-			if (brush.thickness > 0 || brush.thicknessCeiling > 0) {
-				AppendStringAttribute(brushNode, "thickness", wxString::Format("%d/%d", brush.thickness, brush.thicknessCeiling));
-			}
-			for (const DoodadAlternativeRecord &alternative : storage.doodadAlternatives) {
-				AppendDoodadAlternative(brushNode, alternative);
-			}
+			BuildDoodadBrushNode(brushNode, storage);
 			return;
 		}
 
