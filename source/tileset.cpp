@@ -65,12 +65,6 @@ namespace {
 			secondaryType = TILESET_RAW;
 			return true;
 		}
-		if (sectionType == "monsters") {
-			return false;
-		}
-		if (sectionType == "npcs") {
-			return false;
-		}
 		return false;
 	}
 }

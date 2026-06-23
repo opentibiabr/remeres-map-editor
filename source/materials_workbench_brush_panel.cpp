@@ -1610,7 +1610,7 @@ namespace {
 		int titleGap
 	) {
 		if (composite.tiles.empty()) {
-			const int emptyFloor = selectedFloor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors ? selectedFloor : selectedFloor;
+			const int emptyFloor = selectedFloor;
 			return { BuildDoodadPreviewEmptyLayout(contentRect, emptyFloor, cellSize) };
 		}
 		if (selectedFloor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors) {

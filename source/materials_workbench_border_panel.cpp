@@ -1617,13 +1617,13 @@ namespace {
 			editCondButton_->Enable(hasCase && selectedConditionIndex_ >= 0);
 			removeCondButton_->Enable(hasCase && selectedConditionIndex_ >= 0);
 			condUpButton_->Enable(hasCase && selectedConditionIndex_ > 0);
-			condDownButton_->Enable(hasCase && selectedConditionIndex_ >= 0 && hasCase && selectedConditionIndex_ < static_cast<int>(cases_[static_cast<size_t>(selectedCaseIndex_)].conditions.size()) - 1);
+			condDownButton_->Enable(hasCase && selectedConditionIndex_ >= 0 && selectedConditionIndex_ < static_cast<int>(cases_[static_cast<size_t>(selectedCaseIndex_)].conditions.size()) - 1);
 
 			addActButton_->Enable(hasCase);
 			editActButton_->Enable(hasCase && selectedActionIndex_ >= 0);
 			removeActButton_->Enable(hasCase && selectedActionIndex_ >= 0);
 			actUpButton_->Enable(hasCase && selectedActionIndex_ > 0);
-			actDownButton_->Enable(hasCase && selectedActionIndex_ >= 0 && hasCase && selectedActionIndex_ < static_cast<int>(cases_[static_cast<size_t>(selectedCaseIndex_)].actions.size()) - 1);
+			actDownButton_->Enable(hasCase && selectedActionIndex_ >= 0 && selectedActionIndex_ < static_cast<int>(cases_[static_cast<size_t>(selectedCaseIndex_)].actions.size()) - 1);
 		}
 
 		void OnCaseSelected(wxCommandEvent &) {
