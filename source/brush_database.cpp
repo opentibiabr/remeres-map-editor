@@ -74,12 +74,71 @@ namespace {
 
 	struct SqliteStatementGuard {
 		sqlite3_stmt* stmt = nullptr;
+
+		SqliteStatementGuard() = default;
+		explicit SqliteStatementGuard(sqlite3_stmt* inStmt) : stmt(inStmt) {}
+
+		SqliteStatementGuard(const SqliteStatementGuard&) = delete;
+		SqliteStatementGuard& operator=(const SqliteStatementGuard&) = delete;
+
+		SqliteStatementGuard(SqliteStatementGuard&& other) noexcept : stmt(other.stmt) {
+			other.stmt = nullptr;
+		}
+		SqliteStatementGuard& operator=(SqliteStatementGuard&& other) noexcept {
+			if (this != &other) {
+				reset();
+				stmt = other.stmt;
+				other.stmt = nullptr;
+			}
+			return *this;
+		}
+
 		~SqliteStatementGuard() {
+			reset();
+		}
+
+		void reset(sqlite3_stmt* inStmt = nullptr) {
 			if (stmt) {
 				sqlite3_finalize(stmt);
 			}
+			stmt = inStmt;
+		}
+
+		sqlite3_stmt* release() {
+			sqlite3_stmt* released = stmt;
+			stmt = nullptr;
+			return released;
 		}
 	};
+
+	bool CanonicalizeWallBasePartType(const wxString &basePartType, wxString &outCanonicalBase) {
+		wxString base = basePartType;
+		base.Trim(true);
+		base.Trim(false);
+		if (base.IsEmpty()) {
+			return false;
+		}
+
+		wxString baseLower = base;
+		baseLower.MakeLower();
+		const bool supported = baseLower == "vertical" || baseLower == "horizontal" || baseLower == "corner" || baseLower == "pole" || baseLower == "south end" || baseLower == "east end" || baseLower == "north end" || baseLower == "west end" || baseLower == "south t" || baseLower == "east t" || baseLower == "west t" || baseLower == "north t" || baseLower == "northwest diagonal" || baseLower == "northeast diagonal" || baseLower == "southwest diagonal" || baseLower == "southeast diagonal" || baseLower == "intersection" || baseLower == "untouchable";
+		if (!supported) {
+			return false;
+		}
+
+		outCanonicalBase = base;
+		if (baseLower == "south t") {
+			outCanonicalBase = "south T";
+		} else if (baseLower == "east t") {
+			outCanonicalBase = "east T";
+		} else if (baseLower == "west t") {
+			outCanonicalBase = "west T";
+		} else if (baseLower == "north t") {
+			outCanonicalBase = "north T";
+		}
+
+		return true;
+	}
 
 	wxString BuildInClause(size_t count) {
 		wxString clause = "(";
@@ -2911,7 +2970,7 @@ bool BrushDatabaseBrushRepository::loadDoodadAlternativesBulk(
 			const size_t altIndex = it->second.second;
 			auto &composites = outBrushes[brushIndex].doodadAlternatives[altIndex].composites;
 			composites.push_back(std::move(composite));
-			compositeIndexById.try_emplace(compositeId, std::make_tuple(brushIndex, altIndex, composites.size() - 1));
+			compositeIndexById.try_emplace(compositeId, brushIndex, altIndex, composites.size() - 1);
 			compositeIds.push_back(compositeId);
 		}
 
@@ -2958,7 +3017,7 @@ bool BrushDatabaseBrushRepository::loadDoodadAlternativesBulk(
 			const size_t compositeIndex = std::get<2>(it->second);
 			auto &tiles = outBrushes[brushIndex].doodadAlternatives[altIndex].composites[compositeIndex].tiles;
 			tiles.push_back(std::move(tile));
-			tileIndexById.try_emplace(tileId, std::make_tuple(brushIndex, altIndex, compositeIndex, tiles.size() - 1));
+			tileIndexById.try_emplace(tileId, brushIndex, altIndex, compositeIndex, tiles.size() - 1);
 			tileIds.push_back(tileId);
 		}
 
@@ -3093,7 +3152,7 @@ bool BrushDatabaseBrushRepository::loadGroundBrushBordersBulk(
 			caseRecord.sortOrder = sqlite3_column_int(stmt, 2);
 			auto &cases = outBrushes[it->second.first].borders[it->second.second].cases;
 			cases.push_back(std::move(caseRecord));
-			caseIndexById.try_emplace(caseId, std::make_tuple(it->second.first, it->second.second, cases.size() - 1));
+			caseIndexById.try_emplace(caseId, it->second.first, it->second.second, cases.size() - 1);
 			caseIds.push_back(caseId);
 		}
 
@@ -4597,34 +4656,6 @@ bool BrushDatabaseBrushRepository::replaceWallParts(int64_t brushId, const std::
 		return setError("SQLite database is not open.");
 	}
 
-	const auto canonicalizeBasePartType = [&](const wxString &basePartType, wxString &outCanonicalBase) -> bool {
-		wxString base = basePartType;
-		base.Trim(true);
-		base.Trim(false);
-		if (base.IsEmpty()) {
-			return false;
-		}
-
-		wxString baseLower = base;
-		baseLower.MakeLower();
-		const bool supported = baseLower == "vertical" || baseLower == "horizontal" || baseLower == "corner" || baseLower == "pole" || baseLower == "south end" || baseLower == "east end" || baseLower == "north end" || baseLower == "west end" || baseLower == "south t" || baseLower == "east t" || baseLower == "west t" || baseLower == "north t" || baseLower == "northwest diagonal" || baseLower == "northeast diagonal" || baseLower == "southwest diagonal" || baseLower == "southeast diagonal" || baseLower == "intersection" || baseLower == "untouchable";
-		if (!supported) {
-			return false;
-		}
-
-		outCanonicalBase = base;
-		if (baseLower == "south t") {
-			outCanonicalBase = "south T";
-		} else if (baseLower == "east t") {
-			outCanonicalBase = "east T";
-		} else if (baseLower == "west t") {
-			outCanonicalBase = "west T";
-		} else if (baseLower == "north t") {
-			outCanonicalBase = "north T";
-		}
-		return true;
-	};
-
 	const auto canonicalizeWallPartType = [&](const wxString &rawPartType, wxString &outCanonical) -> bool {
 		wxString partType = rawPartType;
 		partType.Trim(true);
@@ -4642,7 +4673,7 @@ bool BrushDatabaseBrushRepository::replaceWallParts(int64_t brushId, const std::
 		if (markerIndex != wxNOT_FOUND) {
 			const wxString basePartType = partType.SubString(0, markerIndex - 1);
 			wxString canonicalBase;
-			if (!canonicalizeBasePartType(basePartType, canonicalBase)) {
+			if (!CanonicalizeWallBasePartType(basePartType, canonicalBase)) {
 				return false;
 			}
 			outCanonical = canonicalBase + partType.Mid(markerIndex);
@@ -4650,7 +4681,7 @@ bool BrushDatabaseBrushRepository::replaceWallParts(int64_t brushId, const std::
 		}
 
 		wxString canonicalBase;
-		if (!canonicalizeBasePartType(partType, canonicalBase)) {
+		if (!CanonicalizeWallBasePartType(partType, canonicalBase)) {
 			return false;
 		}
 		outCanonical = canonicalBase;
