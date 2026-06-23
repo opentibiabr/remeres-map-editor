@@ -48,6 +48,7 @@
 
 #include "gui.h"
 
+#include <memory>
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
@@ -540,13 +541,13 @@ Brushes::~Brushes() {
 }
 
 void Brushes::clear() {
-	for (auto &[name, brush] : brushes) {
-		delete brush;
+	for (const auto &[name, brush] : brushes) {
+		std::unique_ptr<Brush>(brush);
 	}
 	brushes.clear();
 
-	for (auto &[id, border] : borders) {
-		delete border;
+	for (const auto &[id, border] : borders) {
+		std::unique_ptr<AutoBorder>(border);
 	}
 	borders.clear();
 }
@@ -646,7 +647,7 @@ bool Brushes::unserializeBrush(pugi::xml_node node, wxArrayString &warnings) {
 	if (otherBrush && otherBrush != brush) {
 		warnings.push_back(wxString("Duplicate brush name ") << wxstr(brush->getName()) << ". Skipping load to avoid undefined behaviour.");
 		if (createdNew) {
-			delete brush;
+			std::unique_ptr<Brush>(brush);
 		}
 		return false;
 	}
@@ -888,8 +889,8 @@ bool Brushes::reloadBorderSetFromDatabase(int64_t borderSetId, wxArrayString &wa
 	}
 
 	ResetGroundBrushRuntimeState(*this);
-	for (auto &[id, border] : borders) {
-		delete border;
+	for (const auto &[id, border] : borders) {
+		std::unique_ptr<AutoBorder>(border);
 	}
 	borders.clear();
 
@@ -908,9 +909,9 @@ bool Brushes::reloadBorderSetFromDatabase(int64_t borderSetId, wxArrayString &wa
 
 void Brushes::addBrush(Brush* brush) {
 	if (brush) {
-		const auto range = brushes.equal_range(brush->getName());
-		for (auto it = range.first; it != range.second; ++it) {
-			if (it->second == brush) {
+		const auto [it, end] = brushes.equal_range(brush->getName());
+		for (auto current = it; current != end; ++current) {
+			if (current->second == brush) {
 				return;
 			}
 		}
@@ -918,7 +919,7 @@ void Brushes::addBrush(Brush* brush) {
 	}
 }
 
-bool Brushes::renameBrush(Brush* brush, const std::string &oldName, const std::string &newName) {
+bool Brushes::renameBrush(Brush* brush, std::string_view oldName, std::string_view newName) {
 	if (!brush || oldName == newName) {
 		return false;
 	}
@@ -931,7 +932,7 @@ bool Brushes::renameBrush(Brush* brush, const std::string &oldName, const std::s
 		++it;
 	}
 
-	brush->setName(newName);
+	brush->setName(std::string(newName));
 	addBrush(brush);
 	return true;
 }

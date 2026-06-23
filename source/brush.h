@@ -19,6 +19,8 @@
 #define RME_BRUSH_H_
 #include "main.h"
 
+#include <string_view>
+
 #include "position.h"
 
 #include "brush_enums.h"
@@ -73,7 +75,7 @@ public:
 	Brush* getBrush(const std::string &name) const;
 
 	void addBrush(Brush* brush);
-	bool renameBrush(Brush* brush, const std::string &oldName, const std::string &newName);
+	bool renameBrush(Brush* brush, std::string_view oldName, std::string_view newName);
 	bool reloadBrushFromStorage(const BrushStorageRecord &storage, wxArrayString &warnings, wxString &error);
 	bool reloadBrushFromDatabase(int64_t brushId, wxArrayString &warnings, wxString &error);
 	bool reloadBorderSetFromDatabase(int64_t borderSetId, wxArrayString &warnings, wxString &error);
