@@ -464,6 +464,49 @@ public:
 	bool replaceDoodadAlternatives(int64_t brushId, const std::vector<DoodadAlternativeRecord> &alternatives);
 	bool getDoodadAlternatives(int64_t brushId, std::vector<DoodadAlternativeRecord> &outAlternatives);
 	bool resolveGroundReferenceNames();
+
+private:
+	bool populateBrushStorageIndex(
+		const wxString &type,
+		std::vector<BrushStorageRecord> &outBrushes,
+		std::unordered_map<int64_t, size_t> &outIndexByBrushId,
+		std::vector<int64_t> &outBrushIds
+	);
+	bool loadBrushItemsBulk(
+		const std::vector<int64_t> &brushIds,
+		const std::unordered_map<int64_t, size_t> &indexByBrushId,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
+	bool loadBrushLinksBulk(
+		const std::vector<int64_t> &brushIds,
+		const std::unordered_map<int64_t, size_t> &indexByBrushId,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
+	bool loadWallPartsBulk(
+		const std::vector<int64_t> &brushIds,
+		const std::unordered_map<int64_t, size_t> &indexByBrushId,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
+	bool loadCarpetNodesBulk(
+		const std::vector<int64_t> &brushIds,
+		const std::unordered_map<int64_t, size_t> &indexByBrushId,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
+	bool loadTableNodesBulk(
+		const std::vector<int64_t> &brushIds,
+		const std::unordered_map<int64_t, size_t> &indexByBrushId,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
+	bool loadDoodadAlternativesBulk(
+		const std::vector<int64_t> &brushIds,
+		const std::unordered_map<int64_t, size_t> &indexByBrushId,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
+	bool loadGroundBrushBordersBulk(
+		const std::vector<int64_t> &brushIds,
+		const std::unordered_map<int64_t, size_t> &indexByBrushId,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
 };
 
 class BrushDatabaseCatalogRepository : public BrushDatabaseComponent {
