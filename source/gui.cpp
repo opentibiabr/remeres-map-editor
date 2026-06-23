@@ -356,14 +356,282 @@ void GUI::CycleTab(bool forward) {
 	tabbook->CycleTab(forward);
 }
 
+namespace {
+	bool GetExecutablePath(FileName &outExecDirectory, wxString &outError) {
+		try {
+			outExecDirectory = dynamic_cast<wxStandardPaths &>(wxStandardPaths::Get()).GetExecutablePath();
+			return true;
+		} catch (std::bad_cast &) {
+			outError = "Couldn't establish working directory...";
+			return false;
+		}
+	}
+
+	bool LoadClientAssetsFiles(wxString &error, wxArrayString &warnings) {
+		g_gui.SetLoadDone(20, "Loading client assets...");
+		spdlog::info("Loading appearances");
+		if (!ClientAssets::loadAppearanceProtobuf(error, warnings)) {
+			InternalGUI::logErrorAndSetMessage("Couldn't load catalog-content.json", error);
+			return false;
+		}
+		return true;
+	}
+
+	void LoadItemsXmlFile(const FileName &execDirectory, wxString &error, wxArrayString &warnings) {
+		g_gui.SetLoadDone(30, "Loading items.xml ...");
+		spdlog::info("Loading items");
+		FileName itemsPath(execDirectory);
+		itemsPath.AppendDir("data");
+		itemsPath.AppendDir("items");
+		itemsPath.SetFullName("items.xml");
+
+		if (!g_items.loadFromGameXml(itemsPath, error, warnings)) {
+			warnings.push_back("Couldn't load items.xml: " + error);
+			spdlog::warn("[GUI::LoadDataFiles] {}: {}", itemsPath.GetFullPath().ToStdString(), error.ToStdString());
+		}
+	}
+
+	template <typename Loader>
+	void LoadLuaDirFromSettings(
+		Config::Key configKey,
+		int progress,
+		const wxString &progressText,
+		const wxString &errorWarningPrefix,
+		const wxString &notConfiguredWarning,
+		wxArrayString &warnings,
+		Loader loader
+	) {
+		const std::string luaDir = g_settings.getString(configKey);
+		if (luaDir.empty()) {
+			warnings.push_back(notConfiguredWarning);
+			spdlog::warn("[GUI::LoadDataFiles] {}", notConfiguredWarning.ToStdString());
+			return;
+		}
+
+		g_gui.SetLoadDone(progress, progressText);
+		wxString luaErr;
+		wxArrayString luaWarn;
+		if (!loader(wxString(luaDir), luaErr, luaWarn)) {
+			warnings.push_back(errorWarningPrefix + luaErr);
+		}
+		for (const auto &w : luaWarn) {
+			warnings.push_back(w);
+		}
+	}
+
+	struct MaterialsLoadPlan {
+		bool sqliteEnabled = false;
+		bool sqliteInitOk = false;
+		bool sqliteDatabaseExistedBeforeInit = false;
+		bool startAsyncSqliteBootstrap = false;
+		bool shouldLoadFromSqlite = false;
+		wxString sqliteDatabasePath;
+		wxString sqliteFallbackReason;
+		wxString materialsXmlPath;
+	};
+
+	void MaybeWarnSqliteImportRequired(
+		const wxString &sqliteImportStatus,
+		const wxString &sqliteDatabasePath,
+		wxArrayString &warnings
+	) {
+		warnings.push_back(
+			"SQLite materials import required, but automatic rebuild is disabled because materials.db already exists.\n"
+			"Reason: "
+			+ sqliteImportStatus + "\n"
+							   "Recovery: Move or delete materials/materials.db to force a clean rebuild from XML."
+		);
+		spdlog::warn(
+			"[GUI::LoadDataFiles] SQLite materials import required but cannot rebuild automatically (db exists): {} ({})",
+			sqliteImportStatus.ToStdString(),
+			sqliteDatabasePath.ToStdString()
+		);
+	}
+
+	void PlanSqliteMaterialsLoad(MaterialsLoadPlan &plan, wxArrayString &warnings) {
+		if (!plan.sqliteEnabled) {
+			return;
+		}
+		if (!plan.sqliteInitOk) {
+			const wxString rawError = g_brush_database.getLastError();
+			const int sqliteRc = g_brush_database.getLastSqliteErrorCode();
+			const int sqliteExtRc = g_brush_database.getLastSqliteExtendedErrorCode();
+			const auto classification = ClassifyMaterialsSqliteFailure(rawError, sqliteRc, sqliteExtRc);
+			plan.sqliteFallbackReason = "SQLite brush database initialization failed (" + classification.category + "): " + rawError;
+			warnings.push_back(plan.sqliteFallbackReason);
+			return;
+		}
+
+		if (plan.sqliteDatabaseExistedBeforeInit && g_brush_database.isOpen() && !g_brush_database.quickCheck()) {
+			plan.sqliteFallbackReason = "SQLite integrity check failed: " + g_brush_database.getLastError();
+			warnings.push_back(plan.sqliteFallbackReason);
+			spdlog::warn("[GUI::LoadDataFiles] {}", plan.sqliteFallbackReason.ToStdString());
+			return;
+		}
+
+		bool skipSqliteImport = false;
+		wxString sqliteImportStatus;
+		if (!g_materials.shouldSkipSqliteBootstrapImports(skipSqliteImport, sqliteImportStatus)) {
+			plan.sqliteFallbackReason = "SQLite import bootstrap check failed: " + sqliteImportStatus;
+			warnings.push_back(plan.sqliteFallbackReason);
+			spdlog::warn("[GUI::LoadDataFiles] {}", plan.sqliteFallbackReason.ToStdString());
+			if (g_brush_database.isOpen() && !plan.sqliteDatabaseExistedBeforeInit) {
+				plan.startAsyncSqliteBootstrap = true;
+			}
+			return;
+		}
+
+		if (skipSqliteImport && g_brush_database.isOpen()) {
+			plan.shouldLoadFromSqlite = true;
+			spdlog::info("{}", sqliteImportStatus.ToStdString());
+			return;
+		}
+
+		if (!plan.sqliteDatabaseExistedBeforeInit) {
+			sqliteImportStatus = wxString("SQLite materials database was missing; ") + sqliteImportStatus;
+		}
+		spdlog::info("{}", sqliteImportStatus.ToStdString());
+		plan.sqliteFallbackReason = sqliteImportStatus;
+		if (!plan.sqliteDatabaseExistedBeforeInit) {
+			plan.startAsyncSqliteBootstrap = true;
+		} else {
+			MaybeWarnSqliteImportRequired(sqliteImportStatus, plan.sqliteDatabasePath, warnings);
+		}
+	}
+
+	bool TryLoadMaterialsFromSqlite(const MaterialsLoadPlan &plan, wxArrayString &warnings, wxString &outFallbackReason) {
+		if (!plan.shouldLoadFromSqlite) {
+			return false;
+		}
+
+		spdlog::info("[GUI::LoadDataFiles] Attempting to load materials catalog from SQLite.");
+		const bool loaded = g_brushes.loadFromDatabase(warnings) && g_materials.loadTilesetsFromDatabase(warnings);
+		if (loaded) {
+			return true;
+		}
+
+		const wxString runtimeError = g_brush_database.getLastError();
+		const int sqliteRc = g_brush_database.getLastSqliteErrorCode();
+		const int sqliteExtRc = g_brush_database.getLastSqliteExtendedErrorCode();
+		const auto classification = ClassifyMaterialsSqliteFailure(runtimeError, sqliteRc, sqliteExtRc);
+		wxString message = "SQLite materials load failed at runtime (" + classification.category + "); falling back to XML.";
+		if (!runtimeError.IsEmpty()) {
+			message += " Reason: ";
+			message += runtimeError;
+		}
+		warnings.push_back(message);
+		spdlog::warn("[GUI::LoadDataFiles] Falling back to XML materials after SQLite load failure.");
+		outFallbackReason = message;
+		g_materials.clear();
+		g_brushes.clear();
+		return false;
+	}
+
+	void PrepareMaterialsXmlFallbackWarnings(
+		const MaterialsLoadPlan &plan,
+		const wxString &fallbackReason,
+		wxArrayString &warnings
+	) {
+		if (!plan.sqliteEnabled) {
+			return;
+		}
+
+		wxString reason = fallbackReason;
+		if (reason.IsEmpty()) {
+			reason = "SQLite materials were enabled but not used.";
+		}
+		const int sqliteRc = g_brush_database.getLastSqliteErrorCode();
+		const int sqliteExtRc = g_brush_database.getLastSqliteExtendedErrorCode();
+		const auto classification = ClassifyMaterialsSqliteFailure(reason, sqliteRc, sqliteExtRc);
+		wxString message = "Materials recovery mode: using legacy XML materials for this session.\n";
+		message += "Problem: ";
+		message += classification.category;
+		message += "\nReason: ";
+		message += reason;
+		if (sqliteRc != 0 || sqliteExtRc != 0) {
+			message += wxString::Format("\nSQLite codes: rc=%d ext=%d", sqliteRc, sqliteExtRc);
+		}
+		message += "\nAction: Loaded materials from XML and will continue running.\n";
+		message += "Recovery: ";
+		message += classification.recommendation;
+		warnings.push_back(message);
+		g_gui.SetStatusText("Materials: recovery mode (XML fallback). See Warnings for details.");
+		if (plan.sqliteDatabaseExistedBeforeInit) {
+			g_gui.QueueMaterialsRecoveryDialog(
+				classification.category,
+				reason,
+				classification.recommendation,
+				sqliteRc,
+				sqliteExtRc,
+				plan.sqliteDatabasePath
+			);
+		}
+	}
+
+	bool LoadMaterialsFromXml(
+		const MaterialsLoadPlan &plan,
+		const wxString &fallbackReason,
+		wxString &error,
+		wxArrayString &warnings
+	) {
+		error.clear();
+		spdlog::info("[GUI::LoadDataFiles] Loading materials catalog from XML.");
+		PrepareMaterialsXmlFallbackWarnings(plan, fallbackReason, warnings);
+
+		if (g_materials.loadMaterials(plan.materialsXmlPath, error, warnings)) {
+			return true;
+		}
+
+		warnings.push_back("Couldn't load materials.xml: " + error);
+		spdlog::warn("[GUI::LoadDataFiles] {}: {}", plan.materialsXmlPath.ToStdString(), error.ToStdString());
+		const wxString xmlError = error;
+		const wxString sqliteDetail = fallbackReason.IsEmpty() ? wxString("unavailable") : fallbackReason;
+		error = "Failed to load materials catalog from both SQLite and XML.\n";
+		error += "SQLite: ";
+		error += sqliteDetail;
+		error += "\nXML: ";
+		error += xmlError;
+		return false;
+	}
+
+	bool LoadMaterialsCatalog(const FileName &dataPath, bool &outStartAsyncSqliteBootstrap, wxString &error, wxArrayString &warnings) {
+		g_gui.SetLoadDone(50, "Loading materials catalog...");
+		spdlog::info("Loading materials catalog");
+
+		MaterialsLoadPlan plan;
+		plan.sqliteEnabled = g_settings.getBoolean(Config::USE_SQLITE_MATERIALS);
+		plan.sqliteDatabasePath = GUI::GetDataDirectory() + "materials/materials.db";
+		plan.materialsXmlPath = wxString(dataPath.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + "materials/materials.xml");
+
+		const FileName sqliteDatabaseFile(plan.sqliteDatabasePath);
+		plan.sqliteDatabaseExistedBeforeInit = sqliteDatabaseFile.FileExists();
+		plan.sqliteInitOk = g_materials.initializeBrushDatabase(warnings);
+		PlanSqliteMaterialsLoad(plan, warnings);
+
+		wxString fallbackReason = plan.sqliteFallbackReason;
+		const bool loadedFromSqlite = TryLoadMaterialsFromSqlite(plan, warnings, fallbackReason);
+		if (loadedFromSqlite) {
+			outStartAsyncSqliteBootstrap = plan.startAsyncSqliteBootstrap;
+			return true;
+		}
+
+		if (!LoadMaterialsFromXml(plan, fallbackReason, error, warnings)) {
+			return false;
+		}
+
+		outStartAsyncSqliteBootstrap = plan.startAsyncSqliteBootstrap;
+		if (plan.startAsyncSqliteBootstrap) {
+			spdlog::info("[GUI::LoadDataFiles] Starting async SQLite bootstrap import.");
+		}
+		return true;
+	}
+}
+
 bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 	FileName data_path = GetDataDirectory();
 
 	FileName exec_directory;
-	try {
-		exec_directory = dynamic_cast<wxStandardPaths &>(wxStandardPaths::Get()).GetExecutablePath();
-	} catch (std::bad_cast &) {
-		error = "Couldn't establish working directory...";
+	if (!GetExecutablePath(exec_directory, error)) {
 		return false;
 	}
 
@@ -379,178 +647,38 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 	g_gui.SetLoadDone(0, "Loading assets file");
 	spdlog::info("Loading assets");
 
-	g_gui.SetLoadDone(20, "Loading client assets...");
-	spdlog::info("Loading appearances");
-	if (!ClientAssets::loadAppearanceProtobuf(error, warnings)) {
-
-		InternalGUI::logErrorAndSetMessage("Couldn't load catalog-content.json", error);
+	if (!LoadClientAssetsFiles(error, warnings)) {
 		return false;
 	}
 
-	g_gui.SetLoadDone(30, "Loading items.xml ...");
-	spdlog::info("Loading items");
-	FileName itemsPath(exec_directory);
-	itemsPath.AppendDir("data");
-	itemsPath.AppendDir("items");
-	itemsPath.SetFullName("items.xml");
+	LoadItemsXmlFile(exec_directory, error, warnings);
 
-	if (!g_items.loadFromGameXml(itemsPath, error, warnings)) {
-		warnings.push_back("Couldn't load items.xml: " + error);
-		spdlog::warn("[GUI::LoadDataFiles] {}: {}", itemsPath.GetFullPath().ToStdString(), error.ToStdString());
-	}
-
-	{
-		std::string monstersLuaDir = g_settings.getString(Config::MONSTERS_LUA_DIRECTORY);
-		if (monstersLuaDir.empty()) {
-			warnings.push_back("Monsters Lua Directory is not configured. Set it in Edit > Preferences.");
-			spdlog::warn("[GUI::LoadDataFiles] Monsters Lua Directory is not configured.");
-		} else {
-			g_gui.SetLoadDone(47, "Loading Canary monster Lua files...");
-			wxString luaErr;
-			wxArrayString luaWarn;
-			if (!g_monsters.loadFromLuaDir(wxString(monstersLuaDir), luaErr, luaWarn)) {
-				warnings.push_back("Error loading Canary monster Lua files: " + luaErr);
-			}
-			for (const auto &w : luaWarn) {
-				warnings.push_back(w);
-			}
+	LoadLuaDirFromSettings(
+		Config::MONSTERS_LUA_DIRECTORY,
+		47,
+		"Loading Canary monster Lua files...",
+		"Error loading Canary monster Lua files: ",
+		"Monsters Lua Directory is not configured. Set it in Edit > Preferences.",
+		warnings,
+		[](const wxString &dir, wxString &luaErr, wxArrayString &luaWarn) {
+			return g_monsters.loadFromLuaDir(dir, luaErr, luaWarn);
 		}
-	}
+	);
 
-	{
-		std::string npcsLuaDir = g_settings.getString(Config::NPCS_LUA_DIRECTORY);
-		if (npcsLuaDir.empty()) {
-			warnings.push_back("NPCs Lua Directory is not configured. Set it in Edit > Preferences.");
-			spdlog::warn("[GUI::LoadDataFiles] NPCs Lua Directory is not configured.");
-		} else {
-			g_gui.SetLoadDone(48, "Loading Canary NPC Lua files...");
-			wxString luaErr;
-			wxArrayString luaWarn;
-			if (!g_npcs.loadFromLuaDir(wxString(npcsLuaDir), luaErr, luaWarn)) {
-				warnings.push_back("Error loading Canary NPC Lua files: " + luaErr);
-			}
-			for (const auto &w : luaWarn) {
-				warnings.push_back(w);
-			}
+	LoadLuaDirFromSettings(
+		Config::NPCS_LUA_DIRECTORY,
+		48,
+		"Loading Canary NPC Lua files...",
+		"Error loading Canary NPC Lua files: ",
+		"NPCs Lua Directory is not configured. Set it in Edit > Preferences.",
+		warnings,
+		[](const wxString &dir, wxString &luaErr, wxArrayString &luaWarn) {
+			return g_npcs.loadFromLuaDir(dir, luaErr, luaWarn);
 		}
-	}
+	);
 
-	g_gui.SetLoadDone(50, "Loading materials catalog...");
-	spdlog::info("Loading materials catalog");
-	const bool sqliteEnabled = g_settings.getBoolean(Config::USE_SQLITE_MATERIALS);
-	const wxString sqliteDatabasePath = GUI::GetDataDirectory() + "materials/materials.db";
-	FileName sqliteDatabaseFile(sqliteDatabasePath);
-	const bool sqliteDatabaseExistedBeforeInit = sqliteDatabaseFile.FileExists();
-	const bool sqliteInitOk = g_materials.initializeBrushDatabase(warnings);
-	auto materialsPath = wxString(data_path.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + "materials/materials.xml");
 	bool startAsyncSqliteBootstrap = false;
-	bool shouldLoadFromSqlite = false;
-	wxString sqliteFallbackReason;
-	if (sqliteEnabled && sqliteInitOk) {
-		if (sqliteDatabaseExistedBeforeInit && g_brush_database.isOpen() && !g_brush_database.quickCheck()) {
-			sqliteFallbackReason = "SQLite integrity check failed: " + g_brush_database.getLastError();
-			warnings.push_back(sqliteFallbackReason);
-			spdlog::warn("[GUI::LoadDataFiles] {}", sqliteFallbackReason.ToStdString());
-		} else {
-			bool skipSqliteImport = false;
-			wxString sqliteImportStatus;
-			if (!g_materials.shouldSkipSqliteBootstrapImports(skipSqliteImport, sqliteImportStatus)) {
-				sqliteFallbackReason = "SQLite import bootstrap check failed: " + sqliteImportStatus;
-				warnings.push_back(sqliteFallbackReason);
-				spdlog::warn("[GUI::LoadDataFiles] {}", sqliteFallbackReason.ToStdString());
-				if (g_brush_database.isOpen() && !sqliteDatabaseExistedBeforeInit) {
-					startAsyncSqliteBootstrap = true;
-				}
-			} else if (skipSqliteImport && g_brush_database.isOpen()) {
-				shouldLoadFromSqlite = true;
-				spdlog::info("{}", sqliteImportStatus.ToStdString());
-			} else {
-				if (!sqliteDatabaseExistedBeforeInit) {
-					sqliteImportStatus = wxString("SQLite materials database was missing; ") + sqliteImportStatus;
-				}
-				spdlog::info("{}", sqliteImportStatus.ToStdString());
-				sqliteFallbackReason = sqliteImportStatus;
-				if (!sqliteDatabaseExistedBeforeInit) {
-					startAsyncSqliteBootstrap = true;
-				} else {
-					warnings.push_back(
-						"SQLite materials import required, but automatic rebuild is disabled because materials.db already exists.\n"
-						"Reason: "
-						+ sqliteImportStatus + "\n"
-											   "Recovery: Move or delete materials/materials.db to force a clean rebuild from XML."
-					);
-				}
-				shouldLoadFromSqlite = false;
-			}
-		}
-	} else if (sqliteEnabled && !sqliteInitOk) {
-		const wxString rawError = g_brush_database.getLastError();
-		const int sqliteRc = g_brush_database.getLastSqliteErrorCode();
-		const int sqliteExtRc = g_brush_database.getLastSqliteExtendedErrorCode();
-		const auto classification = ClassifyMaterialsSqliteFailure(rawError, sqliteRc, sqliteExtRc);
-		sqliteFallbackReason = "SQLite brush database initialization failed (" + classification.category + "): " + rawError;
-	}
-
-	bool loadedMaterialsFromSqlite = false;
-	if (shouldLoadFromSqlite) {
-		spdlog::info("[GUI::LoadDataFiles] Attempting to load materials catalog from SQLite.");
-		loadedMaterialsFromSqlite = g_brushes.loadFromDatabase(warnings) && g_materials.loadTilesetsFromDatabase(warnings);
-		if (!loadedMaterialsFromSqlite) {
-			const wxString runtimeError = g_brush_database.getLastError();
-			const int sqliteRc = g_brush_database.getLastSqliteErrorCode();
-			const int sqliteExtRc = g_brush_database.getLastSqliteExtendedErrorCode();
-			const auto classification = ClassifyMaterialsSqliteFailure(runtimeError, sqliteRc, sqliteExtRc);
-			wxString message = "SQLite materials load failed at runtime (" + classification.category + "); falling back to XML.";
-			if (!runtimeError.IsEmpty()) {
-				message += " Reason: ";
-				message += runtimeError;
-			}
-			warnings.push_back(message);
-			spdlog::warn("[GUI::LoadDataFiles] Falling back to XML materials after SQLite load failure.");
-			sqliteFallbackReason = message;
-			g_materials.clear();
-			g_brushes.clear();
-		}
-	}
-	if (!loadedMaterialsFromSqlite) {
-		error.clear();
-		spdlog::info("[GUI::LoadDataFiles] Loading materials catalog from XML.");
-		if (sqliteEnabled) {
-			wxString reason = sqliteFallbackReason;
-			if (reason.IsEmpty()) {
-				reason = "SQLite materials were enabled but not used.";
-			}
-			const int sqliteRc = g_brush_database.getLastSqliteErrorCode();
-			const int sqliteExtRc = g_brush_database.getLastSqliteExtendedErrorCode();
-			const auto classification = ClassifyMaterialsSqliteFailure(reason, sqliteRc, sqliteExtRc);
-			wxString message = "Materials recovery mode: using legacy XML materials for this session.\n";
-			message += "Problem: ";
-			message += classification.category;
-			message += "\nReason: ";
-			message += reason;
-			if (sqliteRc != 0 || sqliteExtRc != 0) {
-				message += wxString::Format("\nSQLite codes: rc=%d ext=%d", sqliteRc, sqliteExtRc);
-			}
-			message += "\nAction: Loaded materials from XML and will continue running.\n";
-			message += "Recovery: ";
-			message += classification.recommendation;
-			warnings.push_back(message);
-			g_gui.SetStatusText("Materials: recovery mode (XML fallback). See Warnings for details.");
-			if (sqliteDatabaseExistedBeforeInit) {
-				g_gui.QueueMaterialsRecoveryDialog(classification.category, reason, classification.recommendation, sqliteRc, sqliteExtRc, sqliteDatabasePath);
-			}
-		}
-	}
-	if (!loadedMaterialsFromSqlite && !g_materials.loadMaterials(materialsPath, error, warnings)) {
-		warnings.push_back("Couldn't load materials.xml: " + error);
-		spdlog::warn("[GUI::LoadDataFiles] {}: {}", materialsPath.ToStdString(), error.ToStdString());
-		const wxString xmlError = error;
-		const wxString sqliteDetail = sqliteFallbackReason.IsEmpty() ? wxString("unavailable") : sqliteFallbackReason;
-		error = "Failed to load materials catalog from both SQLite and XML.\n";
-		error += "SQLite: ";
-		error += sqliteDetail;
-		error += "\nXML: ";
-		error += xmlError;
+	if (!LoadMaterialsCatalog(data_path, startAsyncSqliteBootstrap, error, warnings)) {
 		return false;
 	}
 

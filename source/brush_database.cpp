@@ -187,7 +187,7 @@ namespace {
 
 	bool ReportHasUnresolvedReferences(const MaterialsDatabaseAuditReport &report) {
 		return report.unresolvedGroundTargets > 0 || report.unresolvedBrushLinks > 0 || report.unresolvedTilesetEntries > 0
-			   || report.unresolvedCaseMatchBorderIds > 0 || report.unresolvedCaseReplaceBorderTargetIds > 0;
+			|| report.unresolvedCaseMatchBorderIds > 0 || report.unresolvedCaseReplaceBorderTargetIds > 0;
 	}
 
 	wxString FormatUnresolvedReferencesSummary(const MaterialsDatabaseAuditReport &report) {
@@ -273,16 +273,16 @@ namespace {
 										   : wxString::Format("Border set %lld", static_cast<long long>(borderSetId));
 		usage.relation = "uses border";
 		usage.context = wxString::Format(
-			"scope=%s type=%s group=%d %s %s %s",
-			borderScope,
-			borderType,
-			borderGroup,
-			ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5))),
-			ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6))),
-			ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7)))
+				"scope=%s type=%s group=%d %s %s %s",
+				borderScope,
+				borderType,
+				borderGroup,
+				ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5))),
+				ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6))),
+				ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7)))
 		)
-						   .Trim(true)
-						   .Trim(false);
+							   .Trim(true)
+							   .Trim(false);
 		usage.sortOrder = sqlite3_column_int(stmt, 8);
 		usage.refId = sqlite3_column_int64(stmt, 9);
 	}
@@ -4827,13 +4827,13 @@ bool BrushDatabaseBrushRepository::listBrushUsages(int64_t brushId, const wxStri
 				usage.sourceName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
 				usage.relation = "border target";
 				usage.context = wxString::Format(
-					"%s %s %s",
-					ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2))),
-					ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3))),
-					ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)))
+						"%s %s %s",
+						ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2))),
+						ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3))),
+						ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)))
 				)
-								   .Trim(true)
-								   .Trim(false);
+									   .Trim(true)
+									   .Trim(false);
 				usage.sortOrder = sqlite3_column_int(stmt, 5);
 				usage.refId = sqlite3_column_int64(stmt, 6);
 			})) {
@@ -6381,8 +6381,8 @@ bool BrushDatabaseCatalogRepository::hasCompleteImportForCurrentSchema(bool &out
 	const wxString unsupportedBrushTypesDetail = BuildUnsupportedBrushTypesDetail(report.unsupportedBrushTypeCounts);
 	const wxString unsupportedBrushSamplesDetail = BuildUnsupportedBrushSamplesDetail(report.unsupportedBrushSamples);
 	const wxString unresolvedTilesetSamplesDetail = report.unresolvedTilesetEntries > 0
-													? BuildUnresolvedTilesetSamplesDetail(report.unresolvedTilesetEntrySamples)
-													: wxString();
+		? BuildUnresolvedTilesetSamplesDetail(report.unresolvedTilesetEntrySamples)
+		: wxString();
 
 	const auto appendExamplesIfAny = [&outReason](const wxString &examplesDetail) {
 		if (!examplesDetail.IsEmpty()) {
