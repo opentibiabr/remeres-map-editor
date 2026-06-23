@@ -1384,10 +1384,10 @@ void MaterialsWorkbenchInspectorDialog::RebuildIssueFilterChoices() {
 
 void MaterialsWorkbenchInspectorDialog::ApplyWarningFilter() {
 	filteredWarningIndices_.clear();
-	const wxString query = NormalizeQuery(warningSearchCtrl_ ? warningSearchCtrl_->GetValue() : "");
-	const wxString severityFilter = warningSeverityChoice_ ? warningSeverityChoice_->GetStringSelection() : "All severities";
-	const wxString domainFilter = warningDomainChoice_ ? warningDomainChoice_->GetStringSelection() : "All domains";
-	const wxString issueFilter = warningIssueChoice_ ? warningIssueChoice_->GetStringSelection() : "All issues";
+	const wxString query = NormalizeQuery(warningSearchCtrl_ ? warningSearchCtrl_->GetValue() : wxString());
+	const wxString severityFilter = warningSeverityChoice_ ? warningSeverityChoice_->GetStringSelection() : wxString::FromUTF8("All severities");
+	const wxString domainFilter = warningDomainChoice_ ? warningDomainChoice_->GetStringSelection() : wxString::FromUTF8("All domains");
+	const wxString issueFilter = warningIssueChoice_ ? warningIssueChoice_->GetStringSelection() : wxString::FromUTF8("All issues");
 
 	for (size_t i = 0; i < warnings_.size(); ++i) {
 		const WarningRow &row = warnings_[i];
