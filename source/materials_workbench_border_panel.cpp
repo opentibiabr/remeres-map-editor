@@ -412,7 +412,7 @@ namespace {
 	}
 
 	wxString FormatCompactCenterGroundText(int itemId) {
-		return itemId > 0 ? wxString::Format("%d", itemId) : "painted";
+		return itemId > 0 ? wxString::Format("%d", itemId) : wxString::FromUTF8("painted");
 	}
 
 	wxString BuildBorderGroupDisplayLabel(int group) {
@@ -495,7 +495,7 @@ namespace {
 
 	wxString BuildUsageCenterLabel(const BorderSetUsageRecord &usage) {
 		const int previewItemId = ResolveUsagePreviewItemId(usage);
-		return previewItemId > 0 ? wxString::Format("%d", previewItemId) : "painted";
+		return previewItemId > 0 ? wxString::Format("%d", previewItemId) : wxString::FromUTF8("painted");
 	}
 
 	wxString BuildUsageSelectionSummary(const BorderSetUsageRecord &usage) {
@@ -790,9 +790,9 @@ namespace {
 			SetSizerAndFit(rootSizer);
 			SetMinSize(wxSize(FromDIP(420), GetMinSize().y));
 
-			roleChoice_->SetStringSelection(data_.borderRole.IsEmpty() ? "normal" : data_.borderRole);
-			alignChoice_->SetStringSelection(data_.align.IsEmpty() ? "outer" : data_.align);
-			targetModeChoice_->SetStringSelection(data_.targetMode.IsEmpty() ? "all" : data_.targetMode);
+			roleChoice_->SetStringSelection(data_.borderRole.IsEmpty() ? wxString::FromUTF8("normal") : data_.borderRole);
+			alignChoice_->SetStringSelection(data_.align.IsEmpty() ? wxString::FromUTF8("outer") : data_.align);
+			targetModeChoice_->SetStringSelection(data_.targetMode.IsEmpty() ? wxString::FromUTF8("all") : data_.targetMode);
 			superBorderCtrl_->SetValue(data_.superBorder);
 			ownerBrushCtrl_->SetValue(BuildBrushPickerLabel(data_.ownerBrushName, data_.ownerBrushId));
 			targetBrushCtrl_->SetValue(BuildBrushPickerLabel(data_.targetBrushName, data_.targetBrushId));
@@ -928,7 +928,7 @@ namespace {
 			SetSizerAndFit(rootSizer);
 			SetMinSize(wxSize(FromDIP(380), GetMinSize().y));
 
-			typeChoice_->SetStringSelection(value_.conditionType.IsEmpty() ? "match_border" : value_.conditionType);
+			typeChoice_->SetStringSelection(value_.conditionType.IsEmpty() ? wxString::FromUTF8("match_border") : value_.conditionType);
 			if (!value_.edge.IsEmpty()) {
 				edgeChoice_->SetStringSelection(value_.edge);
 			} else {
@@ -1080,7 +1080,7 @@ namespace {
 			SetSizerAndFit(rootSizer);
 			SetMinSize(wxSize(FromDIP(420), GetMinSize().y));
 
-			typeChoice_->SetStringSelection(value_.actionType.IsEmpty() ? "replace_item" : value_.actionType);
+			typeChoice_->SetStringSelection(value_.actionType.IsEmpty() ? wxString::FromUTF8("replace_item") : value_.actionType);
 			if (!value_.edge.IsEmpty()) {
 				edgeChoice_->SetStringSelection(value_.edge);
 			} else {
@@ -1503,7 +1503,8 @@ namespace {
 				}
 				const long row = conditionsList_->InsertItem(static_cast<long>(i), "", EnsureConditionIcon(spriteId));
 				conditionsList_->SetItem(row, 1, FormatSpecificCaseTypeLabel(condition.conditionType));
-				conditionsList_->SetItem(row, 2, condition.edge.IsEmpty() ? "-" : GetBorderEdgeDisplayLabel(condition.edge));
+				const wxString edgeLabel = condition.edge.IsEmpty() ? wxString::FromUTF8("-") : GetBorderEdgeDisplayLabel(condition.edge);
+				conditionsList_->SetItem(row, 2, edgeLabel);
 				conditionsList_->SetItem(row, 3, FormatSpecificCaseValueLabel(condition.conditionType, condition.matchValue));
 			}
 			for (size_t i = 0; i < caseRecord.actions.size(); ++i) {
@@ -1516,10 +1517,11 @@ namespace {
 				}
 				const long row = actionsList_->InsertItem(static_cast<long>(i), "", EnsureActionIcon(spriteId));
 				actionsList_->SetItem(row, 1, FormatSpecificCaseTypeLabel(action.actionType));
-				actionsList_->SetItem(row, 2, action.edge.IsEmpty() ? "-" : GetBorderEdgeDisplayLabel(action.edge));
+				const wxString edgeLabel = action.edge.IsEmpty() ? wxString::FromUTF8("-") : GetBorderEdgeDisplayLabel(action.edge);
+				actionsList_->SetItem(row, 2, edgeLabel);
 				if (action.actionType.IsSameAs("delete_borders", false)) {
-					actionsList_->SetItem(row, 3, "");
-					actionsList_->SetItem(row, 4, "");
+					actionsList_->SetItem(row, 3, wxString());
+					actionsList_->SetItem(row, 4, wxString());
 				} else if (action.actionType.IsSameAs("replace_item", false)) {
 					actionsList_->SetItem(row, 3, FormatSpecificCaseValueLabel(action.actionType, action.targetValue));
 					actionsList_->SetItem(row, 4, FormatSpecificCaseValueLabel(action.actionType, action.replacementValue));
@@ -1907,7 +1909,7 @@ namespace {
 		if (condition.conditionType.IsSameAs("match_item", false)) {
 			return wxString::Format("Match %s.", FormatSpecificCaseValueLabel("match_item", condition.matchValue));
 		}
-		return condition.conditionType.IsEmpty() ? "Condition" : condition.conditionType;
+		return condition.conditionType.IsEmpty() ? wxString::FromUTF8("Condition") : condition.conditionType;
 	}
 
 	wxString DescribeGroundCaseAction(const GroundBorderCaseActionRecord &action) {
@@ -1929,7 +1931,7 @@ namespace {
 		if (action.actionType.IsSameAs("delete_borders", false)) {
 			return "Delete borders on the selected edge.";
 		}
-		return action.actionType.IsEmpty() ? "Action" : action.actionType;
+		return action.actionType.IsEmpty() ? wxString::FromUTF8("Action") : action.actionType;
 	}
 
 	void NormalizeGroundCaseSortOrders(GroundBorderCaseRecord &caseRecord) {
@@ -2198,7 +2200,9 @@ bool MaterialsWorkbenchBorderPanel::ResolvePendingChangesBeforeSwitch(wxWindow* 
 	}
 
 	const wxString currentLabel = BuildBorderSetDisplayLabel(borderSetStorage_.borderSet);
-	const wxString destination = targetLabel.IsEmpty() ? "the selected entry" : "\"" + targetLabel + "\"";
+	const wxString destination = targetLabel.IsEmpty()
+		? wxString::FromUTF8("the selected entry")
+		: wxString::Format("\"%s\"", targetLabel);
 	wxMessageDialog dialog(
 		parent,
 		"Border set \"" + currentLabel + "\" has unsaved changes.\n\n"
@@ -2716,7 +2720,7 @@ void MaterialsWorkbenchBorderPanel::PopulateFields() {
 	idCtrl_->SetValue(wxString::Format("%lld", static_cast<long long>(borderSet.id)));
 	xmlBorderIdCtrl_->SetValue(borderSet.xmlBorderId);
 	scopeChoice_->SetStringSelection(borderSet.borderScope);
-	typeCtrl_->SetStringSelection(borderSet.borderType.IsEmpty() ? "normal" : borderSet.borderType);
+	typeCtrl_->SetStringSelection(borderSet.borderType.IsEmpty() ? wxString::FromUTF8("normal") : borderSet.borderType);
 	if (typeCtrl_->GetSelection() == wxNOT_FOUND) {
 		typeCtrl_->SetStringSelection("normal");
 	}
@@ -2764,8 +2768,8 @@ void MaterialsWorkbenchBorderPanel::UpdateSummaryLabels() {
 BorderSetStorageRecord MaterialsWorkbenchBorderPanel::BuildComparableStorageFromCurrentState() const {
 	BorderSetStorageRecord storage = borderSetStorage_;
 	storage.borderSet.xmlBorderId = xmlBorderIdCtrl_->GetValue();
-	storage.borderSet.borderScope = scopeChoice_->GetSelection() == wxNOT_FOUND ? "" : scopeChoice_->GetStringSelection();
-	storage.borderSet.borderType = typeCtrl_->GetSelection() == wxNOT_FOUND ? "" : typeCtrl_->GetStringSelection();
+	storage.borderSet.borderScope = scopeChoice_->GetSelection() == wxNOT_FOUND ? wxString() : scopeChoice_->GetStringSelection();
+	storage.borderSet.borderType = typeCtrl_->GetSelection() == wxNOT_FOUND ? wxString() : typeCtrl_->GetStringSelection();
 	storage.borderSet.borderGroup = borderGroupCtrl_ && borderGroupCtrl_->GetSelection() != wxNOT_FOUND
 		? ParseBorderGroupChoiceValue(borderGroupCtrl_->GetStringSelection())
 		: 0;
@@ -2805,7 +2809,7 @@ void MaterialsWorkbenchBorderPanel::PopulateUsageContextList() {
 	if (usageGrid_->GetNumberRows() > 0) {
 		usageGrid_->DeleteRows(0, usageGrid_->GetNumberRows());
 	}
-	const wxString query = usageSearchCtrl_ ? usageSearchCtrl_->GetValue().Lower() : "";
+	const wxString query = usageSearchCtrl_ ? usageSearchCtrl_->GetValue().Lower() : wxString();
 	for (size_t i = 0; i < borderSetUsages_.size(); ++i) {
 		const BorderSetUsageRecord &usage = borderSetUsages_[i];
 		const wxString haystack = BuildUsageSearchHaystack(usage);
@@ -2919,13 +2923,15 @@ void MaterialsWorkbenchBorderPanel::UpdateUsageContextControls() {
 		removeUsageContextButton_->Enable(isGlobal && usage != nullptr);
 	}
 	if (usageGrid_) {
-		usageGrid_->SetToolTip(
-			!isGlobal
-				? "Inline borders edit their Center Tile directly."
-				: usage
-				? wxString::Format("Selected context from brush \"%s\" drives the center preview.", usage->brushName)
-				: "This global border has no visible usage context for the current search."
-		);
+		wxString tooltip;
+		if (!isGlobal) {
+			tooltip = wxString::FromUTF8("Inline borders edit their Center Tile directly.");
+		} else if (usage) {
+			tooltip = wxString::Format("Selected context from brush \"%s\" drives the center preview.", usage->brushName);
+		} else {
+			tooltip = wxString::FromUTF8("This global border has no visible usage context for the current search.");
+		}
+		usageGrid_->SetToolTip(tooltip);
 	}
 	RefreshUsageDetails();
 }
@@ -3086,15 +3092,11 @@ void MaterialsWorkbenchBorderPanel::RefreshUsageDetails() {
 		usagePreviewItem_->SetToolTip(
 			previewItemId > 0
 				? wxString::Format("Effective center preview item %d.", previewItemId)
-				: "This context resolves to a painted center."
+				: wxString::FromUTF8("This context resolves to a painted center.")
 		);
 	}
 	if (usageSelectionLabel_) {
-		usageSelectionLabel_->SetLabel(
-			usage
-				? BuildUsageSelectionSummary(*usage)
-				: "Select a context row to drive the global center preview."
-		);
+		usageSelectionLabel_->SetLabel(usage ? BuildUsageSelectionSummary(*usage) : wxString::FromUTF8("Select a context row to drive the global center preview."));
 		usageSelectionLabel_->Wrap(globalDetailsPanel_->FromDIP(280));
 	}
 }
@@ -3755,7 +3757,7 @@ void MaterialsWorkbenchBorderPanel::OnCreateBorder(wxCommandEvent &event) {
 
 	BorderSetStorageRecord newStorage;
 	newStorage.borderSet.borderScope = scopeDialog.GetStringSelection();
-	newStorage.borderSet.borderType = hasBorderSet_ && typeCtrl_->GetSelection() != wxNOT_FOUND ? typeCtrl_->GetStringSelection() : "normal";
+	newStorage.borderSet.borderType = hasBorderSet_ && typeCtrl_->GetSelection() != wxNOT_FOUND ? typeCtrl_->GetStringSelection() : wxString::FromUTF8("normal");
 	newStorage.borderSet.borderGroup = hasBorderSet_ && borderGroupCtrl_ && borderGroupCtrl_->GetSelection() != wxNOT_FOUND
 		? ParseBorderGroupChoiceValue(borderGroupCtrl_->GetStringSelection())
 		: 0;
@@ -3951,7 +3953,7 @@ void MaterialsWorkbenchBorderPanel::OnAddUsageContext(wxCommandEvent &event) {
 	borderRecord.align = result.align;
 	borderRecord.targetMode = result.targetMode;
 	borderRecord.targetBrushId = result.targetMode == "brush" ? result.targetBrushId : 0;
-	borderRecord.targetBrushName = result.targetMode == "brush" ? result.targetBrushName : "";
+	borderRecord.targetBrushName = result.targetMode == "brush" ? result.targetBrushName : wxString();
 	borderRecord.superBorder = result.superBorder;
 	borderRecord.sortOrder = static_cast<int>(brushStorage.borders.size());
 	brushStorage.borders.push_back(borderRecord);
@@ -3998,9 +4000,9 @@ void MaterialsWorkbenchBorderPanel::OnEditUsageContext(wxCommandEvent &event) {
 	GlobalUsageEditData dialogData;
 	dialogData.ownerBrushId = usage->brushId;
 	dialogData.ownerBrushName = usage->brushName;
-	dialogData.borderRole = usage->borderRole.IsEmpty() ? "normal" : usage->borderRole;
-	dialogData.align = usage->align.IsEmpty() ? "outer" : usage->align;
-	dialogData.targetMode = usage->targetMode.IsEmpty() ? "all" : usage->targetMode;
+	dialogData.borderRole = usage->borderRole.IsEmpty() ? wxString::FromUTF8("normal") : usage->borderRole;
+	dialogData.align = usage->align.IsEmpty() ? wxString::FromUTF8("outer") : usage->align;
+	dialogData.targetMode = usage->targetMode.IsEmpty() ? wxString::FromUTF8("all") : usage->targetMode;
 	dialogData.targetBrushId = usage->targetBrushId;
 	dialogData.targetBrushName = usage->targetBrushName;
 	dialogData.superBorder = usage->superBorder;
@@ -4028,7 +4030,7 @@ void MaterialsWorkbenchBorderPanel::OnEditUsageContext(wxCommandEvent &event) {
 	updatedRecord.align = result.align;
 	updatedRecord.targetMode = result.targetMode;
 	updatedRecord.targetBrushId = result.targetMode == "brush" ? result.targetBrushId : 0;
-	updatedRecord.targetBrushName = result.targetMode == "brush" ? result.targetBrushName : "";
+	updatedRecord.targetBrushName = result.targetMode == "brush" ? result.targetBrushName : wxString();
 	updatedRecord.superBorder = result.superBorder;
 
 	if (result.ownerBrushId == usage->brushId) {

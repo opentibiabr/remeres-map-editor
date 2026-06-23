@@ -135,11 +135,11 @@ namespace {
 	}
 
 	wxString FormatImportedFromValue(const wxString &sourceFile) {
-		return sourceFile.IsEmpty() ? "Not imported from legacy XML" : sourceFile;
+		return sourceFile.IsEmpty() ? wxString::FromUTF8("Not imported from legacy XML") : sourceFile;
 	}
 
 	wxString ParseImportedFromEditorValue(const wxString &sourceFile) {
-		return sourceFile == "Not imported from legacy XML" ? "" : sourceFile;
+		return sourceFile == wxString::FromUTF8("Not imported from legacy XML") ? wxString() : sourceFile;
 	}
 
 	int CaptureListTopItem(wxListBox* listBox) {
@@ -2138,7 +2138,7 @@ wxString MaterialsWorkbenchBrushPanel::GetCurrentBrushDisplayName() const {
 		return "";
 	}
 
-	const wxString displayName = nameCtrl_ ? TrimmedValue(nameCtrl_) : "";
+	const wxString displayName = nameCtrl_ ? TrimmedValue(nameCtrl_) : wxString();
 	return displayName.IsEmpty() ? brushStorage_.brush.name : displayName;
 }
 
@@ -2155,7 +2155,7 @@ bool MaterialsWorkbenchBrushPanel::ResolvePendingChangesBeforeSwitch(wxWindow* p
 		return true;
 	}
 
-	const wxString destination = targetLabel.IsEmpty() ? "the selected entry" : "\"" + targetLabel + "\"";
+	const wxString destination = targetLabel.IsEmpty() ? wxString::FromUTF8("the selected entry") : wxString::Format("\"%s\"", targetLabel);
 	wxMessageDialog dialog(
 		parent,
 		"Brush \"" + brushStorage_.brush.name + "\" has unsaved changes.\n\n"
@@ -3682,7 +3682,7 @@ void MaterialsWorkbenchBrushPanel::PopulateMetadataFields() {
 			typeCtrl_->SetSelection(wxNOT_FOUND);
 		}
 	}
-	lastConfirmedType_ = typeCtrl_ && typeCtrl_->GetSelection() != wxNOT_FOUND ? typeCtrl_->GetStringSelection() : "";
+	lastConfirmedType_ = typeCtrl_ && typeCtrl_->GetSelection() != wxNOT_FOUND ? typeCtrl_->GetStringSelection() : wxString();
 	sourceCtrl_->SetValue(FormatImportedFromValue(brush.sourceFile));
 	lookIdCtrl_->SetValue(brush.lookId);
 	serverLookIdCtrl_->SetValue(brush.serverLookId);
@@ -4196,7 +4196,7 @@ bool MaterialsWorkbenchBrushPanel::IsCurrentBrushOwnerName(const wxString &owner
 		return false;
 	}
 
-	const wxString editedName = hasBrush_ ? TrimmedValue(nameCtrl_) : "";
+	const wxString editedName = hasBrush_ ? TrimmedValue(nameCtrl_) : wxString();
 	return ownerName == editedName || ownerName == brushStorage_.brush.name || ownerName == loadedBrushStorage_.brush.name;
 }
 
@@ -4389,7 +4389,7 @@ void MaterialsWorkbenchBrushPanel::UpdateWorkspaceHeader() {
 	}
 
 	const wxString modifiedSuffix = dirty_ ? " [modified]" : "";
-	const wxString displayName = hasBrush_ ? TrimmedValue(nameCtrl_) : "";
+	const wxString displayName = hasBrush_ ? TrimmedValue(nameCtrl_) : wxString();
 	const wxString type = GetEffectiveBrushType();
 	titleLabel_->SetLabel("Editing brush: " + (displayName.IsEmpty() ? brushStorage_.brush.name : displayName) + modifiedSuffix);
 	if (dirty_) {
@@ -4485,7 +4485,7 @@ wxString MaterialsWorkbenchBrushPanel::GetVariationTabTitle() const {
 }
 
 wxString MaterialsWorkbenchBrushPanel::GetEffectiveBrushType() const {
-	wxString type = hasBrush_ ? TrimmedChoiceValue(typeCtrl_) : "";
+	wxString type = hasBrush_ ? TrimmedChoiceValue(typeCtrl_) : wxString();
 	if (type.IsEmpty()) {
 		type = brushStorage_.brush.type;
 	}
@@ -4986,7 +4986,7 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
 					? wxString::Format("Selected carpet context %s stays highlighted in the layout map while you edit its variants on the right.", alignedPendingCarpetAlign_)
 					: (hasPendingCarpetSlot
 						   ? wxString::Format("Empty carpet slot %s selected. Use Add Context to create coverage exactly there.", alignedPendingCarpetAlign_)
-						   : "Click the carpet layout map to select a context. Empty slots stay visible so missing coverage stands out immediately.")
+						   : wxString::FromUTF8("Click the carpet layout map to select a context. Empty slots stay visible so missing coverage stands out immediately."))
 			);
 		}
 		alignedVisualInfoLabel_->Wrap(FromDIP(250));
@@ -5049,7 +5049,7 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
 			alignedAddNodeButton_->Enable(!nextMissingAlign.IsEmpty());
 			alignedAddNodeButton_->SetToolTip(
 				nextMissingAlign.IsEmpty()
-					? "All carpet contexts are already configured."
+					? wxString::FromUTF8("All carpet contexts are already configured.")
 					: wxString::Format("Create the selected carpet context in slot %s.", nextMissingAlign)
 			);
 		}
@@ -6055,7 +6055,7 @@ void MaterialsWorkbenchBrushPanel::OnDoodadFloorSliderPaint(wxPaintEvent &WXUNUS
 		dc.SetBrush(wxBrush(active ? filledColour : emptyFillColour));
 		dc.DrawRoundedRectangle(indicatorRect, doodadPreviewFloorSliderPanel_->FromDIP(3));
 		dc.SetTextForeground(active ? wxColour(24, 28, 34) : (enabled ? textColour : mutedColour));
-		dc.DrawLabel(allFloors ? "A" : wxString::Format("%d", entries[i]), indicatorRect, wxALIGN_CENTER);
+		dc.DrawLabel(allFloors ? wxString::FromUTF8("A") : wxString::Format("%d", entries[i]), indicatorRect, wxALIGN_CENTER);
 		if (active) {
 			wxRect innerRect = indicatorRect;
 			innerRect.Deflate(doodadPreviewFloorSliderPanel_->FromDIP(3));
@@ -6064,7 +6064,7 @@ void MaterialsWorkbenchBrushPanel::OnDoodadFloorSliderPaint(wxPaintEvent &WXUNUS
 				dc.SetBrush(wxBrush(accentInnerColour));
 				dc.DrawRoundedRectangle(innerRect, doodadPreviewFloorSliderPanel_->FromDIP(2));
 				dc.SetTextForeground(wxColour(24, 28, 34));
-				dc.DrawLabel(allFloors ? "A" : wxString::Format("%d", entries[i]), innerRect, wxALIGN_CENTER);
+				dc.DrawLabel(allFloors ? wxString::FromUTF8("A") : wxString::Format("%d", entries[i]), innerRect, wxALIGN_CENTER);
 			}
 		}
 		indicatorY += indicatorSize + gap;

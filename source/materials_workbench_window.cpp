@@ -993,11 +993,11 @@ void MaterialsWorkbenchWindow::UpdateBrushNavigationBadge() {
 	}
 
 	const bool hasDirtyBrush = brushPanel_ && brushPanel_->HasPendingChanges();
-	const wxString dirtyBrushName = hasDirtyBrush ? brushPanel_->GetCurrentBrushDisplayName() : "";
+	const wxString dirtyBrushName = hasDirtyBrush ? brushPanel_->GetCurrentBrushDisplayName() : wxString();
 	const bool hasDirtyBorder = borderPanel_ && borderPanel_->HasPendingChanges();
-	const wxString dirtyBorderName = hasDirtyBorder ? borderPanel_->GetCurrentBorderSetDisplayName() : "";
+	const wxString dirtyBorderName = hasDirtyBorder ? borderPanel_->GetCurrentBorderSetDisplayName() : wxString();
 	const bool hasDirtyWall = wallPanel_ && wallPanel_->HasPendingChanges();
-	const wxString dirtyWallName = hasDirtyWall ? wallPanel_->GetCurrentWallDisplayName() : "";
+	const wxString dirtyWallName = hasDirtyWall ? wallPanel_->GetCurrentWallDisplayName() : wxString();
 	const wxColour defaultTextColour = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT);
 	const wxColour modifiedTextColour(176, 102, 0);
 

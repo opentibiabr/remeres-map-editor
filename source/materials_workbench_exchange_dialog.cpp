@@ -249,7 +249,7 @@ void MaterialsWorkbenchExportDialog::RebuildData() {
 		}
 		BorderRow row;
 		row.xmlBorderId = border.xmlBorderId;
-		row.label = wxString::Format("Border %d (%s)", border.xmlBorderId, border.borderType.IsEmpty() ? "normal" : border.borderType);
+		row.label = wxString::Format("Border %d (%s)", border.xmlBorderId, border.borderType.IsEmpty() ? wxString::FromUTF8("normal") : border.borderType);
 		allBorders_.push_back(row);
 	}
 	std::sort(allBorders_.begin(), allBorders_.end(), [](const BorderRow &a, const BorderRow &b) { return a.xmlBorderId < b.xmlBorderId; });
@@ -329,7 +329,7 @@ void MaterialsWorkbenchExportDialog::RebuildBorderList() {
 
 void MaterialsWorkbenchExportDialog::RebuildBrushList() {
 	const wxString query = LowerCopy(brushFilterCtrl_->GetValue());
-	const wxString typeFilter = brushTypeChoiceCtrl_->GetSelection() <= 0 ? "" : brushTypeChoiceCtrl_->GetStringSelection();
+	const wxString typeFilter = brushTypeChoiceCtrl_->GetSelection() <= 0 ? wxString() : brushTypeChoiceCtrl_->GetStringSelection();
 	const wxString typeFilterLower = LowerCopy(typeFilter);
 
 	brushList_->Freeze();
@@ -1109,7 +1109,7 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 }
 
 void MaterialsWorkbenchImportDialog::RefreshPlanLists() {
-	const wxString queryLower = LowerCopy(planFilterCtrl_ ? planFilterCtrl_->GetValue() : "");
+	const wxString queryLower = LowerCopy(planFilterCtrl_ ? planFilterCtrl_->GetValue() : wxString());
 
 	auto countMatches = [&](const wxString &kindFilter) -> int {
 		int count = 0;

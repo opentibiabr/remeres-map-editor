@@ -1149,7 +1149,7 @@ bool MaterialsWorkbenchWallPanel::IsCurrentWallSelection(const wxString &context
 }
 
 wxString MaterialsWorkbenchWallPanel::GetCurrentWallDisplayName() const {
-	return hasWallBrush_ ? wallBrushStorage_.brush.name : "";
+	return hasWallBrush_ ? wallBrushStorage_.brush.name : wxString();
 }
 
 bool MaterialsWorkbenchWallPanel::ResolvePendingChangesBeforeSwitch(wxWindow* parent, const wxString &targetLabel) {
@@ -1157,7 +1157,9 @@ bool MaterialsWorkbenchWallPanel::ResolvePendingChangesBeforeSwitch(wxWindow* pa
 		return true;
 	}
 
-	const wxString destination = targetLabel.IsEmpty() ? "the selected entry" : "\"" + targetLabel + "\"";
+	const wxString destination = targetLabel.IsEmpty()
+		? wxString::FromUTF8("the selected entry")
+		: wxString::Format("\"%s\"", targetLabel);
 	wxMessageDialog dialog(
 		parent,
 		"Wall brush \"" + wallBrushStorage_.brush.name + "\" has unsaved changes.\n\n"
@@ -2213,7 +2215,7 @@ void MaterialsWorkbenchWallPanel::RefreshComposedPreview() {
 	}
 
 	const WallPartRecord* part = GetSelectedPart();
-	const wxString selectedPartType = part ? part->partType : "";
+	const wxString selectedPartType = part ? part->partType : wxString();
 	int selectedItemId = 0;
 	int selectedDoorItemId = 0;
 	if (part && selectedItemIndex_ >= 0 && selectedItemIndex_ < static_cast<int>(part->items.size())) {
@@ -2280,13 +2282,14 @@ void MaterialsWorkbenchWallPanel::RefreshLinksSection() {
 	for (size_t i = 0; i < allRows.size(); ++i) {
 		const WallFriendLinkRow &rowData = allRows[i];
 		const wxString targetLabel = FormatWallFriendLinkTargetLabel(rowData);
-		wxString haystack = (targetLabel + " " + (rowData.redirect ? "redirect" : "")).Lower();
+		const wxString redirectLabel = rowData.redirect ? wxString::FromUTF8("redirect") : wxString();
+		wxString haystack = (targetLabel + " " + redirectLabel).Lower();
 		if (!query.IsEmpty() && !haystack.Contains(query)) {
 			continue;
 		}
 
 		const long row = linksListCtrl_->InsertItem(linksListCtrl_->GetItemCount(), targetLabel);
-		linksListCtrl_->SetItem(row, 1, rowData.redirect ? "yes" : "");
+		linksListCtrl_->SetItem(row, 1, rowData.redirect ? wxString::FromUTF8("yes") : wxString());
 		linksListCtrl_->SetItem(row, 2, wxString::Format("%d", rowData.sortOrder));
 		linksListCtrl_->SetItemData(row, static_cast<long>(i));
 		if (!selectedTarget.IsEmpty() && targetLabel == selectedTarget) {
@@ -2727,7 +2730,9 @@ void MaterialsWorkbenchWallPanel::UpdateWorkspaceHeader() {
 		return;
 	}
 
-	titleLabel_->SetLabel("Editing wall brush: " + wallBrushStorage_.brush.name + (dirty_ ? " [modified]" : ""));
+	titleLabel_->SetLabel(
+		"Editing wall brush: " + wallBrushStorage_.brush.name + (dirty_ ? wxString::FromUTF8(" [modified]") : wxString())
+	);
 	subtitleLabel_->SetLabel(
 		dirty_
 			? "Unsaved local wall edits differ from materials.db. Save to persist them or Revert to discard them before switching entries."

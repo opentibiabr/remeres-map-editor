@@ -927,7 +927,7 @@ void MaterialsWorkbenchInspectorDialog::ReloadWarnings() {
 								++emptyPartTypeCount;
 							}
 							if (part.items.empty() && part.doors.empty()) {
-								emptyParts.push_back(part.partType.IsEmpty() ? "<empty>" : part.partType);
+								emptyParts.push_back(part.partType.IsEmpty() ? wxString::FromUTF8("<empty>") : part.partType);
 							}
 							for (const WallPartItemRecord &item : part.items) {
 								if (!IsKnownWorkbenchInspectorItemId(item.itemId)) {

@@ -781,7 +781,7 @@ namespace {
 	}
 
 	wxString FormatStorageValue(const wxString &sourceFile) {
-		return sourceFile.IsEmpty() ? "materials.db" : sourceFile;
+		return sourceFile.IsEmpty() ? wxString::FromUTF8("materials.db") : sourceFile;
 	}
 
 	wxString BuildPaletteEntryTooltip(

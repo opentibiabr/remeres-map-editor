@@ -8,7 +8,7 @@
 
 namespace {
 	wxString FormatInspectorImportedFromValue(const wxString &sourceFile) {
-		return sourceFile.IsEmpty() ? "Not imported from legacy XML" : sourceFile;
+		return sourceFile.IsEmpty() ? wxString::FromUTF8("Not imported from legacy XML") : sourceFile;
 	}
 
 	wxString FormatAuditSummary(const MaterialsDatabaseAuditReport &audit) {
@@ -532,7 +532,7 @@ std::vector<MaterialsWorkbenchTreeNode> MaterialsWorkbenchController::BuildNavig
 			const wxString brushKey = BuildBrushLookupKey(brush.id, brush.name);
 			const auto placementIt = brushPlacementByKey.find(brushKey);
 			const wxString familyKey = placementIt != brushPlacementByKey.end() ? placementIt->second.familyKey : BuildBrushFamilyKeyFromBrushType(group.brushType);
-			const wxString paletteLabel = placementIt != brushPlacementByKey.end() ? placementIt->second.paletteLabel : "Uncategorized";
+			const wxString paletteLabel = placementIt != brushPlacementByKey.end() ? placementIt->second.paletteLabel : wxString::FromUTF8("Uncategorized");
 
 			auto &familyPaletteLabels = brushPaletteLabelsByFamily[familyKey];
 			if (std::find(familyPaletteLabels.begin(), familyPaletteLabels.end(), paletteLabel) == familyPaletteLabels.end()) {
