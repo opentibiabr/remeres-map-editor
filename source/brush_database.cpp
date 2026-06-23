@@ -260,6 +260,84 @@ namespace {
 		return joined;
 	}
 
+	void FillBrushBorderSetUsageFromStmt(sqlite3_stmt* stmt, BrushUsageRecord &usage) {
+		const int64_t borderSetId = sqlite3_column_int64(stmt, 0);
+		const int xmlBorderId = sqlite3_column_int(stmt, 1);
+		const wxString borderScope = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+		const wxString borderType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
+		const int borderGroup = sqlite3_column_int(stmt, 4);
+
+		usage.sourceKind = "border_set";
+		usage.sourceId = borderSetId;
+		usage.sourceName = xmlBorderId > 0 ? wxString::Format("Global border %d", xmlBorderId)
+										   : wxString::Format("Border set %lld", static_cast<long long>(borderSetId));
+		usage.relation = "uses border";
+		usage.context = wxString::Format(
+			"scope=%s type=%s group=%d %s %s %s",
+			borderScope,
+			borderType,
+			borderGroup,
+			ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5))),
+			ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6))),
+			ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7)))
+		)
+						   .Trim(true)
+						   .Trim(false);
+		usage.sortOrder = sqlite3_column_int(stmt, 8);
+		usage.refId = sqlite3_column_int64(stmt, 9);
+	}
+
+	struct PaletteGroupExistingRecord {
+		int64_t id = 0;
+		wxString name;
+		wxString runtimeFamily;
+		bool isBuiltin = false;
+	};
+
+	enum class PaletteGroupQueryResult {
+		Found,
+		NotFound,
+		DbError
+	};
+
+	PaletteGroupQueryResult QueryExistingPaletteGroup(sqlite3_stmt* findExistingStmt, int64_t groupId, PaletteGroupExistingRecord &outExisting) {
+		sqlite3_reset(findExistingStmt);
+		sqlite3_clear_bindings(findExistingStmt);
+		sqlite3_bind_int64(findExistingStmt, 1, groupId);
+
+		const int existingRc = sqlite3_step(findExistingStmt);
+		if (existingRc == SQLITE_DONE) {
+			return PaletteGroupQueryResult::NotFound;
+		}
+		if (existingRc != SQLITE_ROW) {
+			return PaletteGroupQueryResult::DbError;
+		}
+
+		outExisting.id = sqlite3_column_int64(findExistingStmt, 0);
+		outExisting.name = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(findExistingStmt, 1)));
+		outExisting.runtimeFamily = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(findExistingStmt, 2)));
+		outExisting.isBuiltin = sqlite3_column_int(findExistingStmt, 3) != 0;
+		return PaletteGroupQueryResult::Found;
+	}
+
+	PaletteGroupQueryResult QueryPaletteGroupIdByName(sqlite3_stmt* findByNameStmt, const wxString &groupName, int64_t &outId) {
+		outId = 0;
+		sqlite3_reset(findByNameStmt);
+		sqlite3_clear_bindings(findByNameStmt);
+		sqlite3_bind_text(findByNameStmt, 1, groupName.utf8_str(), -1, SQLITE_TRANSIENT);
+
+		const int rc = sqlite3_step(findByNameStmt);
+		if (rc == SQLITE_DONE) {
+			return PaletteGroupQueryResult::NotFound;
+		}
+		if (rc != SQLITE_ROW) {
+			return PaletteGroupQueryResult::DbError;
+		}
+
+		outId = sqlite3_column_int64(findByNameStmt, 0);
+		return PaletteGroupQueryResult::Found;
+	}
+
 	bool ValidateWallPartItemRecordsForReplace(const std::vector<WallPartItemRecord> &items, wxString &outError) {
 		for (const WallPartItemRecord &item : items) {
 			if (item.itemId <= 0) {
@@ -4780,30 +4858,7 @@ bool BrushDatabaseBrushRepository::listBrushUsages(int64_t brushId, const wxStri
 		sqlite3_bind_int64(borderUsageStmt, 1, brushId);
 
 		if (!collect(borderUsageStmt, "Failed to list brush border set usages", [](sqlite3_stmt* stmt, BrushUsageRecord &usage) {
-				const int64_t borderSetId = sqlite3_column_int64(stmt, 0);
-				const int xmlBorderId = sqlite3_column_int(stmt, 1);
-				const wxString borderScope = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
-				const wxString borderType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
-				const int borderGroup = sqlite3_column_int(stmt, 4);
-
-				usage.sourceKind = "border_set";
-				usage.sourceId = borderSetId;
-				usage.sourceName = xmlBorderId > 0 ? wxString::Format("Global border %d", xmlBorderId)
-												   : wxString::Format("Border set %lld", static_cast<long long>(borderSetId));
-				usage.relation = "uses border";
-				usage.context = wxString::Format(
-					"scope=%s type=%s group=%d %s %s %s",
-					borderScope,
-					borderType,
-					borderGroup,
-					ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5))),
-					ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6))),
-					ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7)))
-				)
-								   .Trim(true)
-								   .Trim(false);
-				usage.sortOrder = sqlite3_column_int(stmt, 8);
-				usage.refId = sqlite3_column_int64(stmt, 9);
+				FillBrushBorderSetUsageFromStmt(stmt, usage);
 			})) {
 			return false;
 		}
@@ -5774,34 +5829,23 @@ bool BrushDatabaseCatalogRepository::savePaletteGroup(const PaletteGroupRecord &
 	}
 	SqliteStatementGuard updateGuard(updateStmt);
 
-	int64_t existingId = 0;
-	bool existingIsBuiltin = false;
-	wxString existingName;
-	wxString existingRuntimeFamily;
+	PaletteGroupExistingRecord existing;
 	if (group.id > 0) {
-		sqlite3_bind_int64(findExistingStmt, 1, group.id);
-		const int existingRc = sqlite3_step(findExistingStmt);
-		if (existingRc != SQLITE_ROW) {
-			if (existingRc == SQLITE_DONE) {
-				return rollbackError("Palette group was not found in SQLite.");
-			}
+		const PaletteGroupQueryResult existingResult = QueryExistingPaletteGroup(findExistingStmt, group.id, existing);
+		if (existingResult == PaletteGroupQueryResult::NotFound) {
+			return rollbackError("Palette group was not found in SQLite.");
+		}
+		if (existingResult != PaletteGroupQueryResult::Found) {
 			return rollbackDbError("Failed to query existing palette group");
 		}
-
-		existingId = sqlite3_column_int64(findExistingStmt, 0);
-		existingName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(findExistingStmt, 1)));
-		existingRuntimeFamily = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(findExistingStmt, 2)));
-		existingIsBuiltin = sqlite3_column_int(findExistingStmt, 3) != 0;
 	}
 
-	sqlite3_bind_text(findByNameStmt, 1, groupName.utf8_str(), -1, SQLITE_TRANSIENT);
-	const int findByNameRc = sqlite3_step(findByNameStmt);
-	if (findByNameRc == SQLITE_ROW) {
-		const int64_t conflictingId = sqlite3_column_int64(findByNameStmt, 0);
-		if (conflictingId != group.id) {
-			return rollbackError("A palette group with this name already exists.");
-		}
-	} else if (findByNameRc != SQLITE_DONE) {
+	int64_t conflictingId = 0;
+	const PaletteGroupQueryResult nameResult = QueryPaletteGroupIdByName(findByNameStmt, groupName, conflictingId);
+	if (nameResult == PaletteGroupQueryResult::Found && conflictingId != group.id) {
+		return rollbackError("A palette group with this name already exists.");
+	}
+	if (nameResult == PaletteGroupQueryResult::DbError) {
 		return rollbackDbError("Failed to validate palette group name");
 	}
 
@@ -5812,13 +5856,13 @@ bool BrushDatabaseCatalogRepository::savePaletteGroup(const PaletteGroupRecord &
 			return rollbackDbError("Failed to insert palette group");
 		}
 	} else {
-		if (existingIsBuiltin && !groupName.IsSameAs(existingName, false)) {
+		if (existing.isBuiltin && !groupName.IsSameAs(existing.name, false)) {
 			return rollbackError("Built-in palette groups cannot be renamed.");
 		}
 
 		sqlite3_bind_text(updateStmt, 1, groupName.utf8_str(), -1, SQLITE_TRANSIENT);
 		sqlite3_bind_text(updateStmt, 2, runtimeFamily.utf8_str(), -1, SQLITE_TRANSIENT);
-		sqlite3_bind_int64(updateStmt, 3, existingId);
+		sqlite3_bind_int64(updateStmt, 3, existing.id);
 		if (sqlite3_step(updateStmt) != SQLITE_DONE) {
 			return rollbackDbError("Failed to update palette group");
 		}

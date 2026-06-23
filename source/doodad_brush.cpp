@@ -23,6 +23,23 @@
 //=============================================================================
 // Doodad brush
 
+namespace {
+	void ClearDoodadBrushFromItem(Item* item, const DoodadBrush* brush) {
+		if (!item) {
+			return;
+		}
+		if (auto type = g_items.getRawItemType(item->getID()); type && type->doodad_brush == brush) {
+			type->doodad_brush = nullptr;
+		}
+	}
+
+	void ClearDoodadBrushFromItems(const ItemVector &items, const DoodadBrush* brush) {
+		for (Item* item : items) {
+			ClearDoodadBrushFromItem(item, brush);
+		}
+	}
+}
+
 DoodadBrush::DoodadBrush() :
 	look_id(0),
 	thickness(0),
@@ -38,38 +55,28 @@ DoodadBrush::DoodadBrush() :
 }
 
 DoodadBrush::~DoodadBrush() {
-	for (std::vector<AlternativeBlock*>::iterator alt_iter = alternatives.begin(); alt_iter != alternatives.end(); ++alt_iter) {
-		delete *alt_iter;
+	for (AlternativeBlock* alternative : alternatives) {
+		std::unique_ptr<AlternativeBlock> owned(alternative);
 	}
 }
 
 void DoodadBrush::resetRuntimeState() {
 	for (AlternativeBlock* alternative : alternatives) {
-		if (!alternative) {
+		std::unique_ptr<AlternativeBlock> owned(alternative);
+		if (!owned) {
 			continue;
 		}
 
-		for (const SingleBlock &single : alternative->single_items) {
-			if (single.item) {
-				if (auto type = g_items.getRawItemType(single.item->getID()); type && type->doodad_brush == this) {
-					type->doodad_brush = nullptr;
-				}
-			}
+		for (const SingleBlock &single : owned->single_items) {
+			ClearDoodadBrushFromItem(single.item, this);
 		}
 
-		for (const CompositeBlock &composite : alternative->composite_items) {
-			for (const auto &tileEntry : composite.items) {
-				for (Item* item : tileEntry.second) {
-					if (item) {
-						if (auto type = g_items.getRawItemType(item->getID()); type && type->doodad_brush == this) {
-							type->doodad_brush = nullptr;
-						}
-					}
-				}
+		for (const CompositeBlock &composite : owned->composite_items) {
+			for (const auto &[tilePos, tileItems] : composite.items) {
+				(void)tilePos;
+				ClearDoodadBrushFromItems(tileItems, this);
 			}
 		}
-
-		delete alternative;
 	}
 	alternatives.clear();
 
