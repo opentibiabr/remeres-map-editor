@@ -55,6 +55,12 @@
 Brushes g_brushes;
 
 namespace {
+	class BrushXmlBuildError final : public std::runtime_error {
+	public:
+		explicit BrushXmlBuildError(const wxString &message) :
+			std::runtime_error(message.ToStdString()) { }
+	};
+
 	void AppendStringAttribute(pugi::xml_node node, const char* name, const wxString &value) {
 		if (!value.IsEmpty()) {
 			node.append_attribute(name).set_value(value.utf8_str());
@@ -312,7 +318,7 @@ namespace {
 		for (const GroundBrushBorderRecord &border : storage.borders) {
 			wxString error;
 			if (!AppendGroundBorderNode(brushNode, border, fallbackGroundEquivalent, brush.name, borderSetCache, error)) {
-				throw std::runtime_error(error.ToStdString());
+				throw BrushXmlBuildError(error);
 			}
 		}
 		for (const BrushLinkRecord &link : storage.links) {
@@ -517,8 +523,8 @@ namespace {
 	}
 
 	void ResetGroundBrushRuntimeState(Brushes &brushes) {
-		for (const auto &entry : brushes.getMap()) {
-			if (Brush* brush = entry.second; brush && brush->isGround()) {
+		for (const auto &[name, brush] : brushes.getMap()) {
+			if (brush && brush->isGround()) {
 				brush->asGround()->resetRuntimeState();
 			}
 		}
@@ -534,13 +540,13 @@ Brushes::~Brushes() {
 }
 
 void Brushes::clear() {
-	for (auto brushEntry : brushes) {
-		delete brushEntry.second;
+	for (auto &[name, brush] : brushes) {
+		delete brush;
 	}
 	brushes.clear();
 
-	for (auto borderEntry : borders) {
-		delete borderEntry.second;
+	for (auto &[id, border] : borders) {
+		delete border;
 	}
 	borders.clear();
 }
@@ -685,7 +691,14 @@ bool Brushes::loadFromDatabase(wxArrayString &warnings) {
 	}
 
 	std::vector<BrushStorageRecord> storages;
-	static const wxString supportedTypes[] = { "ground", "wall", "wall decoration", "doodad", "carpet", "table" };
+	static const std::vector<wxString> supportedTypes = {
+		"ground",
+		"wall",
+		"wall decoration",
+		"doodad",
+		"carpet",
+		"table"
+	};
 	for (const wxString &type : supportedTypes) {
 		if (!LoadBrushStoragesForType(type, storages, error)) {
 			if (!error.IsEmpty()) {
@@ -722,7 +735,7 @@ bool Brushes::loadFromDatabase(wxArrayString &warnings) {
 				continue;
 			}
 			++hydratedCount;
-		} catch (const std::exception &ex) {
+		} catch (const BrushXmlBuildError &ex) {
 			warnings.push_back("Failed to build SQLite brush \"" + storage.brush.name + "\": " + wxString::FromUTF8(ex.what()));
 			continue;
 		}
@@ -766,7 +779,7 @@ bool Brushes::reloadBrushFromDatabase(int64_t brushId, wxArrayString &warnings, 
 			error = "Failed to hydrate runtime brush from SQLite storage.";
 			return false;
 		}
-	} catch (const std::exception &ex) {
+	} catch (const BrushXmlBuildError &ex) {
 		error = wxString::FromUTF8(ex.what());
 		return false;
 	}
@@ -784,7 +797,7 @@ bool Brushes::reloadBrushFromStorage(const BrushStorageRecord &storage, wxArrayS
 			error = "Failed to hydrate runtime brush from in-memory storage.";
 			return false;
 		}
-	} catch (const std::exception &ex) {
+	} catch (const BrushXmlBuildError &ex) {
 		error = wxString::FromUTF8(ex.what());
 		return false;
 	}
@@ -801,7 +814,7 @@ bool Brushes::buildBrushXmlFromStorage(const BrushStorageRecord &storage, wxStri
 		std::ostringstream stream;
 		brushDoc.save(stream, "\t", pugi::format_default, pugi::encoding_utf8);
 		outXml = wxString::FromUTF8(stream.str());
-	} catch (const std::exception &ex) {
+	} catch (const BrushXmlBuildError &ex) {
 		error = wxString::FromUTF8(ex.what());
 		return false;
 	}
@@ -868,15 +881,15 @@ bool Brushes::reloadBorderSetFromDatabase(int64_t borderSetId, wxArrayString &wa
 		try {
 			pugi::xml_document doc;
 			BuildBrushNode(doc, storage, &borderSetCache);
-		} catch (const std::exception &ex) {
+		} catch (const BrushXmlBuildError &ex) {
 			error = wxString::FromUTF8(ex.what());
 			return false;
 		}
 	}
 
 	ResetGroundBrushRuntimeState(*this);
-	for (auto &entry : borders) {
-		delete entry.second;
+	for (auto &[id, border] : borders) {
+		delete border;
 	}
 	borders.clear();
 
