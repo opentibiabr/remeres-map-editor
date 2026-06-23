@@ -487,6 +487,23 @@ private:
 		const std::unordered_map<int64_t, size_t> &indexByBrushId,
 		std::vector<BrushStorageRecord> &outBrushes
 	);
+	bool loadWallPartsHeaderBulk(
+		const std::vector<int64_t> &brushIds,
+		const std::unordered_map<int64_t, size_t> &indexByBrushId,
+		std::vector<BrushStorageRecord> &outBrushes,
+		std::unordered_map<int64_t, std::pair<size_t, size_t>> &outPartIndexById,
+		std::vector<int64_t> &outPartIds
+	);
+	bool loadWallPartItemsBulk(
+		const std::vector<int64_t> &partIds,
+		const std::unordered_map<int64_t, std::pair<size_t, size_t>> &partIndexById,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
+	bool loadWallPartDoorsBulk(
+		const std::vector<int64_t> &partIds,
+		const std::unordered_map<int64_t, std::pair<size_t, size_t>> &partIndexById,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
 	bool loadCarpetNodesBulk(
 		const std::vector<int64_t> &brushIds,
 		const std::unordered_map<int64_t, size_t> &indexByBrushId,
@@ -502,11 +519,73 @@ private:
 		const std::unordered_map<int64_t, size_t> &indexByBrushId,
 		std::vector<BrushStorageRecord> &outBrushes
 	);
+	bool loadDoodadAlternativeHeadersBulk(
+		const std::vector<int64_t> &brushIds,
+		const std::unordered_map<int64_t, size_t> &indexByBrushId,
+		std::vector<BrushStorageRecord> &outBrushes,
+		std::unordered_map<int64_t, std::pair<size_t, size_t>> &outAltIndexById,
+		std::vector<int64_t> &outAltIds
+	);
+	bool loadDoodadSingleItemsBulk(
+		const std::vector<int64_t> &altIds,
+		const std::unordered_map<int64_t, std::pair<size_t, size_t>> &altIndexById,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
+	bool loadDoodadCompositesBulk(
+		const std::vector<int64_t> &altIds,
+		const std::unordered_map<int64_t, std::pair<size_t, size_t>> &altIndexById,
+		std::vector<BrushStorageRecord> &outBrushes,
+		std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t>> &outCompositeIndexById,
+		std::vector<int64_t> &outCompositeIds
+	);
+	bool loadDoodadCompositeTilesBulk(
+		const std::vector<int64_t> &compositeIds,
+		const std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t>> &compositeIndexById,
+		std::vector<BrushStorageRecord> &outBrushes,
+		std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t, size_t>> &outTileIndexById,
+		std::vector<int64_t> &outTileIds
+	);
+	bool loadDoodadCompositeTileItemsBulk(
+		const std::vector<int64_t> &tileIds,
+		const std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t, size_t>> &tileIndexById,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
 	bool loadGroundBrushBordersBulk(
 		const std::vector<int64_t> &brushIds,
 		const std::unordered_map<int64_t, size_t> &indexByBrushId,
 		std::vector<BrushStorageRecord> &outBrushes
 	);
+	bool loadGroundBrushBorderHeadersBulk(
+		const std::vector<int64_t> &brushIds,
+		const std::unordered_map<int64_t, size_t> &indexByBrushId,
+		std::vector<BrushStorageRecord> &outBrushes,
+		std::unordered_map<int64_t, std::pair<size_t, size_t>> &outBorderIndexById,
+		std::vector<int64_t> &outBorderIds
+	);
+	bool loadGroundBorderCasesBulk(
+		const std::vector<int64_t> &borderIds,
+		const std::unordered_map<int64_t, std::pair<size_t, size_t>> &borderIndexById,
+		std::vector<BrushStorageRecord> &outBrushes,
+		std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t>> &outCaseIndexById,
+		std::vector<int64_t> &outCaseIds
+	);
+	bool loadGroundBorderCaseConditionsBulk(
+		const std::vector<int64_t> &caseIds,
+		const std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t>> &caseIndexById,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
+	bool loadGroundBorderCaseActionsBulk(
+		const std::vector<int64_t> &caseIds,
+		const std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t>> &caseIndexById,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
+
+	bool validateBorderSetForUpsert(const BorderSetRecord &borderSet, wxString &outScopeLower);
+	bool updateBorderSetRowById(int64_t idToUpdate, const BorderSetRecord &borderSet);
+	bool insertBorderSetRow(const BorderSetRecord &borderSet, int64_t &outInsertedId);
+
+	bool validateWallPartsForReplace(const std::vector<WallPartRecord> &parts);
+	bool replaceWallPartsInTransaction(int64_t brushId, const std::vector<WallPartRecord> &parts);
 };
 
 class BrushDatabaseCatalogRepository : public BrushDatabaseComponent {
@@ -531,6 +610,15 @@ public:
 
 private:
 	BrushDatabaseSchemaManager &schemaManager_;
+	bool resolvePaletteGroupId(
+		const wxString &groupName,
+		const wxString &runtimeFamily,
+		sqlite3_stmt* selectPaletteGroupStmt,
+		sqlite3_stmt* insertPaletteGroupStmt,
+		int64_t &outGroupId
+	);
+	bool replaceAllTilesetsInTransaction(const std::vector<TilesetStorageRecord> &tilesets);
+	bool saveTilesetInTransaction(const TilesetStorageRecord &tileset);
 };
 
 class BrushDatabase {

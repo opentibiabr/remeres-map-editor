@@ -76,15 +76,17 @@ namespace {
 		sqlite3_stmt* stmt = nullptr;
 
 		SqliteStatementGuard() = default;
-		explicit SqliteStatementGuard(sqlite3_stmt* inStmt) : stmt(inStmt) {}
+		explicit SqliteStatementGuard(sqlite3_stmt* inStmt) :
+			stmt(inStmt) { }
 
-		SqliteStatementGuard(const SqliteStatementGuard&) = delete;
-		SqliteStatementGuard& operator=(const SqliteStatementGuard&) = delete;
+		SqliteStatementGuard(const SqliteStatementGuard &) = delete;
+		SqliteStatementGuard &operator=(const SqliteStatementGuard &) = delete;
 
-		SqliteStatementGuard(SqliteStatementGuard&& other) noexcept : stmt(other.stmt) {
+		SqliteStatementGuard(SqliteStatementGuard &&other) noexcept :
+			stmt(other.stmt) {
 			other.stmt = nullptr;
 		}
-		SqliteStatementGuard& operator=(SqliteStatementGuard&& other) noexcept {
+		SqliteStatementGuard &operator=(SqliteStatementGuard &&other) noexcept {
 			if (this != &other) {
 				reset();
 				stmt = other.stmt;
@@ -138,6 +140,44 @@ namespace {
 		}
 
 		return true;
+	}
+
+	bool CanonicalizeWallPartType(const wxString &rawPartType, wxString &outCanonical) {
+		wxString partType = rawPartType;
+		partType.Trim(true);
+		partType.Trim(false);
+		if (partType.IsEmpty()) {
+			return false;
+		}
+		if (partType.StartsWith("alternate/")) {
+			outCanonical = partType;
+			return true;
+		}
+
+		const wxString marker = "/alternate/";
+		const int markerIndex = partType.Find(marker);
+		if (markerIndex != wxNOT_FOUND) {
+			const wxString basePartType = partType.SubString(0, markerIndex - 1);
+			wxString canonicalBase;
+			if (!CanonicalizeWallBasePartType(basePartType, canonicalBase)) {
+				return false;
+			}
+			outCanonical = canonicalBase + partType.Mid(markerIndex);
+			return true;
+		}
+
+		wxString canonicalBase;
+		if (!CanonicalizeWallBasePartType(partType, canonicalBase)) {
+			return false;
+		}
+		outCanonical = canonicalBase;
+		return true;
+	}
+
+	bool IsSupportedWallDoorType(const wxString &doorType) {
+		wxString doorTypeLower = doorType;
+		doorTypeLower.MakeLower();
+		return doorTypeLower == "normal" || doorTypeLower == "locked" || doorTypeLower == "quest" || doorTypeLower == "magic" || doorTypeLower == "archway" || doorTypeLower == "window" || doorTypeLower == "hatch window" || doorTypeLower == "hatch_window" || doorTypeLower == "any door" || doorTypeLower == "any window" || doorTypeLower == "any";
 	}
 
 	wxString BuildInClause(size_t count) {
@@ -2263,187 +2303,6 @@ bool BrushDatabaseBrushRepository::listCompleteBrushesByType(const wxString &typ
 		return false;
 	}
 
-#if 0
-	if (type == "ground") {
-		std::unordered_map<int64_t, std::pair<size_t, size_t>> borderIndexById;
-		std::vector<int64_t> borderIds;
-
-		for (size_t start = 0; start < brushIds.size(); start += maxIdsPerChunk) {
-			const size_t count = std::min(maxIdsPerChunk, brushIds.size() - start);
-			sqlite3_stmt* stmt = nullptr;
-			wxString sql;
-			sql << "SELECT id, brush_id, border_set_id, border_role, align, target_mode, target_brush_id, target_brush_name, super_border, sort_order "
-				<< "FROM ground_brush_borders WHERE brush_id IN " << buildInClause(count)
-				<< " ORDER BY brush_id ASC, sort_order ASC, id ASC;";
-			if (!prepare(sql.utf8_str(), &stmt)) {
-				return false;
-			}
-			bindIdChunk(stmt, brushIds, start, count);
-
-			for (;;) {
-				const int rc = sqlite3_step(stmt);
-				if (rc == SQLITE_DONE) {
-					break;
-				}
-				if (rc != SQLITE_ROW) {
-					sqlite3_finalize(stmt);
-					return setErrorFromDatabase("Failed to read ground brush borders");
-				}
-
-				const int64_t borderId = sqlite3_column_int64(stmt, 0);
-				const int64_t brushId = sqlite3_column_int64(stmt, 1);
-				auto it = indexByBrushId.find(brushId);
-				if (it == indexByBrushId.end()) {
-					continue;
-				}
-
-				GroundBrushBorderRecord border;
-				border.borderSetId = sqlite3_column_int64(stmt, 2);
-				border.borderRole = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
-				border.align = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)));
-				border.targetMode = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5)));
-				border.targetBrushId = ReadNullableInt64(stmt, 6);
-				border.targetBrushName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7)));
-				border.superBorder = sqlite3_column_int(stmt, 8) != 0;
-				border.sortOrder = sqlite3_column_int(stmt, 9);
-
-				auto &borders = outBrushes[it->second].borders;
-				borders.push_back(std::move(border));
-				borderIndexById.emplace(borderId, std::make_pair(it->second, borders.size() - 1));
-				borderIds.push_back(borderId);
-			}
-			sqlite3_finalize(stmt);
-		}
-
-		std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t>> caseIndexById;
-		std::vector<int64_t> caseIds;
-
-		for (size_t start = 0; start < borderIds.size(); start += maxIdsPerChunk) {
-			const size_t count = std::min(maxIdsPerChunk, borderIds.size() - start);
-			sqlite3_stmt* stmt = nullptr;
-			wxString sql;
-			sql << "SELECT id, ground_brush_border_id, sort_order "
-				<< "FROM ground_border_cases WHERE ground_brush_border_id IN " << buildInClause(count)
-				<< " ORDER BY ground_brush_border_id ASC, sort_order ASC, id ASC;";
-			if (!prepare(sql.utf8_str(), &stmt)) {
-				return false;
-			}
-			bindIdChunk(stmt, borderIds, start, count);
-
-			for (;;) {
-				const int rc = sqlite3_step(stmt);
-				if (rc == SQLITE_DONE) {
-					break;
-				}
-				if (rc != SQLITE_ROW) {
-					sqlite3_finalize(stmt);
-					return setErrorFromDatabase("Failed to read ground border cases");
-				}
-
-				const int64_t caseId = sqlite3_column_int64(stmt, 0);
-				const int64_t borderId = sqlite3_column_int64(stmt, 1);
-				auto it = borderIndexById.find(borderId);
-				if (it == borderIndexById.end()) {
-					continue;
-				}
-
-				GroundBorderCaseRecord caseRecord;
-				caseRecord.sortOrder = sqlite3_column_int(stmt, 2);
-				auto &cases = outBrushes[it->second.first].borders[it->second.second].cases;
-				cases.push_back(std::move(caseRecord));
-				caseIndexById.emplace(caseId, std::make_tuple(it->second.first, it->second.second, cases.size() - 1));
-				caseIds.push_back(caseId);
-			}
-			sqlite3_finalize(stmt);
-		}
-
-		for (size_t start = 0; start < caseIds.size(); start += maxIdsPerChunk) {
-			const size_t count = std::min(maxIdsPerChunk, caseIds.size() - start);
-			sqlite3_stmt* stmt = nullptr;
-			wxString sql;
-			sql << "SELECT ground_border_case_id, condition_type, match_value, edge, sort_order "
-				<< "FROM ground_border_case_conditions WHERE ground_border_case_id IN " << buildInClause(count)
-				<< " ORDER BY ground_border_case_id ASC, sort_order ASC, id ASC;";
-			if (!prepare(sql.utf8_str(), &stmt)) {
-				return false;
-			}
-			bindIdChunk(stmt, caseIds, start, count);
-
-			for (;;) {
-				const int rc = sqlite3_step(stmt);
-				if (rc == SQLITE_DONE) {
-					break;
-				}
-				if (rc != SQLITE_ROW) {
-					sqlite3_finalize(stmt);
-					return setErrorFromDatabase("Failed to read ground border case conditions");
-				}
-
-				const int64_t caseId = sqlite3_column_int64(stmt, 0);
-				auto it = caseIndexById.find(caseId);
-				if (it == caseIndexById.end()) {
-					continue;
-				}
-
-				GroundBorderCaseConditionRecord condition;
-				condition.conditionType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
-				condition.matchValue = sqlite3_column_int(stmt, 2);
-				condition.edge = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
-				condition.sortOrder = sqlite3_column_int(stmt, 4);
-
-				const size_t brushIndex = std::get<0>(it->second);
-				const size_t borderIndex = std::get<1>(it->second);
-				const size_t caseIndex = std::get<2>(it->second);
-				outBrushes[brushIndex].borders[borderIndex].cases[caseIndex].conditions.push_back(condition);
-			}
-			sqlite3_finalize(stmt);
-		}
-
-		for (size_t start = 0; start < caseIds.size(); start += maxIdsPerChunk) {
-			const size_t count = std::min(maxIdsPerChunk, caseIds.size() - start);
-			sqlite3_stmt* stmt = nullptr;
-			wxString sql;
-			sql << "SELECT ground_border_case_id, action_type, target_value, edge, replacement_value, sort_order "
-				<< "FROM ground_border_case_actions WHERE ground_border_case_id IN " << buildInClause(count)
-				<< " ORDER BY ground_border_case_id ASC, sort_order ASC, id ASC;";
-			if (!prepare(sql.utf8_str(), &stmt)) {
-				return false;
-			}
-			bindIdChunk(stmt, caseIds, start, count);
-
-			for (;;) {
-				const int rc = sqlite3_step(stmt);
-				if (rc == SQLITE_DONE) {
-					break;
-				}
-				if (rc != SQLITE_ROW) {
-					sqlite3_finalize(stmt);
-					return setErrorFromDatabase("Failed to read ground border case actions");
-				}
-
-				const int64_t caseId = sqlite3_column_int64(stmt, 0);
-				auto it = caseIndexById.find(caseId);
-				if (it == caseIndexById.end()) {
-					continue;
-				}
-
-				GroundBorderCaseActionRecord action;
-				action.actionType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
-				action.targetValue = sqlite3_column_int(stmt, 2);
-				action.edge = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
-				action.replacementValue = sqlite3_column_int(stmt, 4);
-				action.sortOrder = sqlite3_column_int(stmt, 5);
-
-				const size_t brushIndex = std::get<0>(it->second);
-				const size_t borderIndex = std::get<1>(it->second);
-				const size_t caseIndex = std::get<2>(it->second);
-				outBrushes[brushIndex].borders[borderIndex].cases[caseIndex].actions.push_back(action);
-			}
-			sqlite3_finalize(stmt);
-		}
-	}
-#endif
-
 	if (type == "ground" && !loadGroundBrushBordersBulk(brushIds, indexByBrushId, outBrushes)) {
 		return false;
 	}
@@ -2573,6 +2432,27 @@ bool BrushDatabaseBrushRepository::loadWallPartsBulk(
 ) {
 	std::unordered_map<int64_t, std::pair<size_t, size_t>> partIndexById;
 	std::vector<int64_t> partIds;
+	if (!loadWallPartsHeaderBulk(brushIds, indexByBrushId, outBrushes, partIndexById, partIds)) {
+		return false;
+	}
+	if (partIds.empty()) {
+		return true;
+	}
+	if (!loadWallPartItemsBulk(partIds, partIndexById, outBrushes)) {
+		return false;
+	}
+	return loadWallPartDoorsBulk(partIds, partIndexById, outBrushes);
+}
+
+bool BrushDatabaseBrushRepository::loadWallPartsHeaderBulk(
+	const std::vector<int64_t> &brushIds,
+	const std::unordered_map<int64_t, size_t> &indexByBrushId,
+	std::vector<BrushStorageRecord> &outBrushes,
+	std::unordered_map<int64_t, std::pair<size_t, size_t>> &outPartIndexById,
+	std::vector<int64_t> &outPartIds
+) {
+	outPartIndexById.clear();
+	outPartIds.clear();
 
 	for (size_t start = 0; start < brushIds.size(); start += kMaxIdsPerChunk) {
 		const size_t count = std::min(kMaxIdsPerChunk, brushIds.size() - start);
@@ -2585,8 +2465,7 @@ bool BrushDatabaseBrushRepository::loadWallPartsBulk(
 			return false;
 		}
 
-		SqliteStatementGuard stmtGuard;
-		stmtGuard.stmt = stmt;
+		SqliteStatementGuard stmtGuard(stmt);
 		BindIdChunk(stmt, brushIds, start, count);
 
 		int rc = SQLITE_ROW;
@@ -2603,8 +2482,8 @@ bool BrushDatabaseBrushRepository::loadWallPartsBulk(
 			part.sortOrder = sqlite3_column_int(stmt, 3);
 			auto &parts = outBrushes[it->second].wallParts;
 			parts.push_back(std::move(part));
-			partIndexById.try_emplace(wallPartId, std::make_pair(it->second, parts.size() - 1));
-			partIds.push_back(wallPartId);
+			outPartIndexById.try_emplace(wallPartId, std::make_pair(it->second, parts.size() - 1));
+			outPartIds.push_back(wallPartId);
 		}
 
 		if (rc != SQLITE_DONE) {
@@ -2612,6 +2491,14 @@ bool BrushDatabaseBrushRepository::loadWallPartsBulk(
 		}
 	}
 
+	return true;
+}
+
+bool BrushDatabaseBrushRepository::loadWallPartItemsBulk(
+	const std::vector<int64_t> &partIds,
+	const std::unordered_map<int64_t, std::pair<size_t, size_t>> &partIndexById,
+	std::vector<BrushStorageRecord> &outBrushes
+) {
 	for (size_t start = 0; start < partIds.size(); start += kMaxIdsPerChunk) {
 		const size_t count = std::min(kMaxIdsPerChunk, partIds.size() - start);
 		sqlite3_stmt* stmt = nullptr;
@@ -2623,8 +2510,7 @@ bool BrushDatabaseBrushRepository::loadWallPartsBulk(
 			return false;
 		}
 
-		SqliteStatementGuard stmtGuard;
-		stmtGuard.stmt = stmt;
+		SqliteStatementGuard stmtGuard(stmt);
 		BindIdChunk(stmt, partIds, start, count);
 
 		int rc = SQLITE_ROW;
@@ -2647,6 +2533,14 @@ bool BrushDatabaseBrushRepository::loadWallPartsBulk(
 		}
 	}
 
+	return true;
+}
+
+bool BrushDatabaseBrushRepository::loadWallPartDoorsBulk(
+	const std::vector<int64_t> &partIds,
+	const std::unordered_map<int64_t, std::pair<size_t, size_t>> &partIndexById,
+	std::vector<BrushStorageRecord> &outBrushes
+) {
 	for (size_t start = 0; start < partIds.size(); start += kMaxIdsPerChunk) {
 		const size_t count = std::min(kMaxIdsPerChunk, partIds.size() - start);
 		sqlite3_stmt* stmt = nullptr;
@@ -2658,8 +2552,7 @@ bool BrushDatabaseBrushRepository::loadWallPartsBulk(
 			return false;
 		}
 
-		SqliteStatementGuard stmtGuard;
-		stmtGuard.stmt = stmt;
+		SqliteStatementGuard stmtGuard(stmt);
 		BindIdChunk(stmt, partIds, start, count);
 
 		int rc = SQLITE_ROW;
@@ -2862,6 +2755,45 @@ bool BrushDatabaseBrushRepository::loadDoodadAlternativesBulk(
 ) {
 	std::unordered_map<int64_t, std::pair<size_t, size_t>> altIndexById;
 	std::vector<int64_t> altIds;
+	if (!loadDoodadAlternativeHeadersBulk(brushIds, indexByBrushId, outBrushes, altIndexById, altIds)) {
+		return false;
+	}
+	if (altIds.empty()) {
+		return true;
+	}
+	if (!loadDoodadSingleItemsBulk(altIds, altIndexById, outBrushes)) {
+		return false;
+	}
+
+	std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t>> compositeIndexById;
+	std::vector<int64_t> compositeIds;
+	if (!loadDoodadCompositesBulk(altIds, altIndexById, outBrushes, compositeIndexById, compositeIds)) {
+		return false;
+	}
+	if (compositeIds.empty()) {
+		return true;
+	}
+
+	std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t, size_t>> tileIndexById;
+	std::vector<int64_t> tileIds;
+	if (!loadDoodadCompositeTilesBulk(compositeIds, compositeIndexById, outBrushes, tileIndexById, tileIds)) {
+		return false;
+	}
+	if (tileIds.empty()) {
+		return true;
+	}
+	return loadDoodadCompositeTileItemsBulk(tileIds, tileIndexById, outBrushes);
+}
+
+bool BrushDatabaseBrushRepository::loadDoodadAlternativeHeadersBulk(
+	const std::vector<int64_t> &brushIds,
+	const std::unordered_map<int64_t, size_t> &indexByBrushId,
+	std::vector<BrushStorageRecord> &outBrushes,
+	std::unordered_map<int64_t, std::pair<size_t, size_t>> &outAltIndexById,
+	std::vector<int64_t> &outAltIds
+) {
+	outAltIndexById.clear();
+	outAltIds.clear();
 
 	for (size_t start = 0; start < brushIds.size(); start += kMaxIdsPerChunk) {
 		const size_t count = std::min(kMaxIdsPerChunk, brushIds.size() - start);
@@ -2874,8 +2806,7 @@ bool BrushDatabaseBrushRepository::loadDoodadAlternativesBulk(
 			return false;
 		}
 
-		SqliteStatementGuard stmtGuard;
-		stmtGuard.stmt = stmt;
+		SqliteStatementGuard stmtGuard(stmt);
 		BindIdChunk(stmt, brushIds, start, count);
 
 		int rc = SQLITE_ROW;
@@ -2891,8 +2822,8 @@ bool BrushDatabaseBrushRepository::loadDoodadAlternativesBulk(
 			alt.sortOrder = sqlite3_column_int(stmt, 2);
 			auto &alts = outBrushes[it->second].doodadAlternatives;
 			alts.push_back(std::move(alt));
-			altIndexById.try_emplace(altId, std::make_pair(it->second, alts.size() - 1));
-			altIds.push_back(altId);
+			outAltIndexById.try_emplace(altId, std::make_pair(it->second, alts.size() - 1));
+			outAltIds.push_back(altId);
 		}
 
 		if (rc != SQLITE_DONE) {
@@ -2900,6 +2831,14 @@ bool BrushDatabaseBrushRepository::loadDoodadAlternativesBulk(
 		}
 	}
 
+	return true;
+}
+
+bool BrushDatabaseBrushRepository::loadDoodadSingleItemsBulk(
+	const std::vector<int64_t> &altIds,
+	const std::unordered_map<int64_t, std::pair<size_t, size_t>> &altIndexById,
+	std::vector<BrushStorageRecord> &outBrushes
+) {
 	for (size_t start = 0; start < altIds.size(); start += kMaxIdsPerChunk) {
 		const size_t count = std::min(kMaxIdsPerChunk, altIds.size() - start);
 		sqlite3_stmt* stmt = nullptr;
@@ -2911,8 +2850,7 @@ bool BrushDatabaseBrushRepository::loadDoodadAlternativesBulk(
 			return false;
 		}
 
-		SqliteStatementGuard stmtGuard;
-		stmtGuard.stmt = stmt;
+		SqliteStatementGuard stmtGuard(stmt);
 		BindIdChunk(stmt, altIds, start, count);
 
 		int rc = SQLITE_ROW;
@@ -2935,8 +2873,18 @@ bool BrushDatabaseBrushRepository::loadDoodadAlternativesBulk(
 		}
 	}
 
-	std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t>> compositeIndexById;
-	std::vector<int64_t> compositeIds;
+	return true;
+}
+
+bool BrushDatabaseBrushRepository::loadDoodadCompositesBulk(
+	const std::vector<int64_t> &altIds,
+	const std::unordered_map<int64_t, std::pair<size_t, size_t>> &altIndexById,
+	std::vector<BrushStorageRecord> &outBrushes,
+	std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t>> &outCompositeIndexById,
+	std::vector<int64_t> &outCompositeIds
+) {
+	outCompositeIndexById.clear();
+	outCompositeIds.clear();
 
 	for (size_t start = 0; start < altIds.size(); start += kMaxIdsPerChunk) {
 		const size_t count = std::min(kMaxIdsPerChunk, altIds.size() - start);
@@ -2949,8 +2897,7 @@ bool BrushDatabaseBrushRepository::loadDoodadAlternativesBulk(
 			return false;
 		}
 
-		SqliteStatementGuard stmtGuard;
-		stmtGuard.stmt = stmt;
+		SqliteStatementGuard stmtGuard(stmt);
 		BindIdChunk(stmt, altIds, start, count);
 
 		int rc = SQLITE_ROW;
@@ -2970,8 +2917,8 @@ bool BrushDatabaseBrushRepository::loadDoodadAlternativesBulk(
 			const size_t altIndex = it->second.second;
 			auto &composites = outBrushes[brushIndex].doodadAlternatives[altIndex].composites;
 			composites.push_back(std::move(composite));
-			compositeIndexById.try_emplace(compositeId, brushIndex, altIndex, composites.size() - 1);
-			compositeIds.push_back(compositeId);
+			outCompositeIndexById.try_emplace(compositeId, brushIndex, altIndex, composites.size() - 1);
+			outCompositeIds.push_back(compositeId);
 		}
 
 		if (rc != SQLITE_DONE) {
@@ -2979,8 +2926,18 @@ bool BrushDatabaseBrushRepository::loadDoodadAlternativesBulk(
 		}
 	}
 
-	std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t, size_t>> tileIndexById;
-	std::vector<int64_t> tileIds;
+	return true;
+}
+
+bool BrushDatabaseBrushRepository::loadDoodadCompositeTilesBulk(
+	const std::vector<int64_t> &compositeIds,
+	const std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t>> &compositeIndexById,
+	std::vector<BrushStorageRecord> &outBrushes,
+	std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t, size_t>> &outTileIndexById,
+	std::vector<int64_t> &outTileIds
+) {
+	outTileIndexById.clear();
+	outTileIds.clear();
 
 	for (size_t start = 0; start < compositeIds.size(); start += kMaxIdsPerChunk) {
 		const size_t count = std::min(kMaxIdsPerChunk, compositeIds.size() - start);
@@ -2993,8 +2950,7 @@ bool BrushDatabaseBrushRepository::loadDoodadAlternativesBulk(
 			return false;
 		}
 
-		SqliteStatementGuard stmtGuard;
-		stmtGuard.stmt = stmt;
+		SqliteStatementGuard stmtGuard(stmt);
 		BindIdChunk(stmt, compositeIds, start, count);
 
 		int rc = SQLITE_ROW;
@@ -3017,8 +2973,8 @@ bool BrushDatabaseBrushRepository::loadDoodadAlternativesBulk(
 			const size_t compositeIndex = std::get<2>(it->second);
 			auto &tiles = outBrushes[brushIndex].doodadAlternatives[altIndex].composites[compositeIndex].tiles;
 			tiles.push_back(std::move(tile));
-			tileIndexById.try_emplace(tileId, brushIndex, altIndex, compositeIndex, tiles.size() - 1);
-			tileIds.push_back(tileId);
+			outTileIndexById.try_emplace(tileId, brushIndex, altIndex, compositeIndex, tiles.size() - 1);
+			outTileIds.push_back(tileId);
 		}
 
 		if (rc != SQLITE_DONE) {
@@ -3026,6 +2982,14 @@ bool BrushDatabaseBrushRepository::loadDoodadAlternativesBulk(
 		}
 	}
 
+	return true;
+}
+
+bool BrushDatabaseBrushRepository::loadDoodadCompositeTileItemsBulk(
+	const std::vector<int64_t> &tileIds,
+	const std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t, size_t>> &tileIndexById,
+	std::vector<BrushStorageRecord> &outBrushes
+) {
 	for (size_t start = 0; start < tileIds.size(); start += kMaxIdsPerChunk) {
 		const size_t count = std::min(kMaxIdsPerChunk, tileIds.size() - start);
 		sqlite3_stmt* stmt = nullptr;
@@ -3037,8 +3001,7 @@ bool BrushDatabaseBrushRepository::loadDoodadAlternativesBulk(
 			return false;
 		}
 
-		SqliteStatementGuard stmtGuard;
-		stmtGuard.stmt = stmt;
+		SqliteStatementGuard stmtGuard(stmt);
 		BindIdChunk(stmt, tileIds, start, count);
 
 		int rc = SQLITE_ROW;
@@ -3075,6 +3038,36 @@ bool BrushDatabaseBrushRepository::loadGroundBrushBordersBulk(
 ) {
 	std::unordered_map<int64_t, std::pair<size_t, size_t>> borderIndexById;
 	std::vector<int64_t> borderIds;
+	if (!loadGroundBrushBorderHeadersBulk(brushIds, indexByBrushId, outBrushes, borderIndexById, borderIds)) {
+		return false;
+	}
+	if (borderIds.empty()) {
+		return true;
+	}
+
+	std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t>> caseIndexById;
+	std::vector<int64_t> caseIds;
+	if (!loadGroundBorderCasesBulk(borderIds, borderIndexById, outBrushes, caseIndexById, caseIds)) {
+		return false;
+	}
+	if (caseIds.empty()) {
+		return true;
+	}
+	if (!loadGroundBorderCaseConditionsBulk(caseIds, caseIndexById, outBrushes)) {
+		return false;
+	}
+	return loadGroundBorderCaseActionsBulk(caseIds, caseIndexById, outBrushes);
+}
+
+bool BrushDatabaseBrushRepository::loadGroundBrushBorderHeadersBulk(
+	const std::vector<int64_t> &brushIds,
+	const std::unordered_map<int64_t, size_t> &indexByBrushId,
+	std::vector<BrushStorageRecord> &outBrushes,
+	std::unordered_map<int64_t, std::pair<size_t, size_t>> &outBorderIndexById,
+	std::vector<int64_t> &outBorderIds
+) {
+	outBorderIndexById.clear();
+	outBorderIds.clear();
 
 	for (size_t start = 0; start < brushIds.size(); start += kMaxIdsPerChunk) {
 		const size_t count = std::min(kMaxIdsPerChunk, brushIds.size() - start);
@@ -3087,8 +3080,7 @@ bool BrushDatabaseBrushRepository::loadGroundBrushBordersBulk(
 			return false;
 		}
 
-		SqliteStatementGuard stmtGuard;
-		stmtGuard.stmt = stmt;
+		SqliteStatementGuard stmtGuard(stmt);
 		BindIdChunk(stmt, brushIds, start, count);
 
 		int rc = SQLITE_ROW;
@@ -3112,8 +3104,8 @@ bool BrushDatabaseBrushRepository::loadGroundBrushBordersBulk(
 
 			auto &borders = outBrushes[it->second].borders;
 			borders.push_back(std::move(border));
-			borderIndexById.try_emplace(borderId, std::make_pair(it->second, borders.size() - 1));
-			borderIds.push_back(borderId);
+			outBorderIndexById.try_emplace(borderId, std::make_pair(it->second, borders.size() - 1));
+			outBorderIds.push_back(borderId);
 		}
 
 		if (rc != SQLITE_DONE) {
@@ -3121,8 +3113,18 @@ bool BrushDatabaseBrushRepository::loadGroundBrushBordersBulk(
 		}
 	}
 
-	std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t>> caseIndexById;
-	std::vector<int64_t> caseIds;
+	return true;
+}
+
+bool BrushDatabaseBrushRepository::loadGroundBorderCasesBulk(
+	const std::vector<int64_t> &borderIds,
+	const std::unordered_map<int64_t, std::pair<size_t, size_t>> &borderIndexById,
+	std::vector<BrushStorageRecord> &outBrushes,
+	std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t>> &outCaseIndexById,
+	std::vector<int64_t> &outCaseIds
+) {
+	outCaseIndexById.clear();
+	outCaseIds.clear();
 
 	for (size_t start = 0; start < borderIds.size(); start += kMaxIdsPerChunk) {
 		const size_t count = std::min(kMaxIdsPerChunk, borderIds.size() - start);
@@ -3135,8 +3137,7 @@ bool BrushDatabaseBrushRepository::loadGroundBrushBordersBulk(
 			return false;
 		}
 
-		SqliteStatementGuard stmtGuard;
-		stmtGuard.stmt = stmt;
+		SqliteStatementGuard stmtGuard(stmt);
 		BindIdChunk(stmt, borderIds, start, count);
 
 		int rc = SQLITE_ROW;
@@ -3152,8 +3153,8 @@ bool BrushDatabaseBrushRepository::loadGroundBrushBordersBulk(
 			caseRecord.sortOrder = sqlite3_column_int(stmt, 2);
 			auto &cases = outBrushes[it->second.first].borders[it->second.second].cases;
 			cases.push_back(std::move(caseRecord));
-			caseIndexById.try_emplace(caseId, it->second.first, it->second.second, cases.size() - 1);
-			caseIds.push_back(caseId);
+			outCaseIndexById.try_emplace(caseId, it->second.first, it->second.second, cases.size() - 1);
+			outCaseIds.push_back(caseId);
 		}
 
 		if (rc != SQLITE_DONE) {
@@ -3161,6 +3162,14 @@ bool BrushDatabaseBrushRepository::loadGroundBrushBordersBulk(
 		}
 	}
 
+	return true;
+}
+
+bool BrushDatabaseBrushRepository::loadGroundBorderCaseConditionsBulk(
+	const std::vector<int64_t> &caseIds,
+	const std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t>> &caseIndexById,
+	std::vector<BrushStorageRecord> &outBrushes
+) {
 	for (size_t start = 0; start < caseIds.size(); start += kMaxIdsPerChunk) {
 		const size_t count = std::min(kMaxIdsPerChunk, caseIds.size() - start);
 		sqlite3_stmt* stmt = nullptr;
@@ -3172,8 +3181,7 @@ bool BrushDatabaseBrushRepository::loadGroundBrushBordersBulk(
 			return false;
 		}
 
-		SqliteStatementGuard stmtGuard;
-		stmtGuard.stmt = stmt;
+		SqliteStatementGuard stmtGuard(stmt);
 		BindIdChunk(stmt, caseIds, start, count);
 
 		int rc = SQLITE_ROW;
@@ -3201,6 +3209,14 @@ bool BrushDatabaseBrushRepository::loadGroundBrushBordersBulk(
 		}
 	}
 
+	return true;
+}
+
+bool BrushDatabaseBrushRepository::loadGroundBorderCaseActionsBulk(
+	const std::vector<int64_t> &caseIds,
+	const std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t>> &caseIndexById,
+	std::vector<BrushStorageRecord> &outBrushes
+) {
 	for (size_t start = 0; start < caseIds.size(); start += kMaxIdsPerChunk) {
 		const size_t count = std::min(kMaxIdsPerChunk, caseIds.size() - start);
 		sqlite3_stmt* stmt = nullptr;
@@ -3212,8 +3228,7 @@ bool BrushDatabaseBrushRepository::loadGroundBrushBordersBulk(
 			return false;
 		}
 
-		SqliteStatementGuard stmtGuard;
-		stmtGuard.stmt = stmt;
+		SqliteStatementGuard stmtGuard(stmt);
 		BindIdChunk(stmt, caseIds, start, count);
 
 		int rc = SQLITE_ROW;
@@ -3616,71 +3631,26 @@ bool BrushDatabaseBrushRepository::upsertBorderSet(const BorderSetRecord &border
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
-
-	const wxString scope = borderSet.borderScope.Lower();
-	if (scope.IsEmpty()) {
-		return setError("Border scope is required.");
-	}
-	if (scope != "global" && scope != "inline") {
-		return setError(wxString::Format("Unsupported border scope \"%s\".", borderSet.borderScope));
-	}
-	if (scope == "global") {
-		if (borderSet.xmlBorderId <= 0) {
-			return setError("Global border sets require xml_border_id > 0.");
-		}
-		if (borderSet.ownerBrushId > 0) {
-			return setError("Global border sets must not use owner_brush_id.");
-		}
-	} else {
-		if (borderSet.ownerBrushId <= 0) {
-			return setError("Inline border sets require owner_brush_id > 0.");
-		}
-		if (borderSet.xmlBorderId > 0) {
-			return setError("Inline border sets must not use xml_border_id.");
-		}
-		if (borderSet.groundEquivalent <= 0) {
-			return setError("Inline border sets require ground_equivalent > 0.");
-		}
+	wxString scopeLower;
+	if (!validateBorderSetForUpsert(borderSet, scopeLower)) {
+		return false;
 	}
 
 	if (borderSet.id > 0) {
 		if (borderSet.xmlBorderId > 0) {
 			BorderSetRecord existing;
 			if (findBorderSetByXmlBorderId(borderSet.xmlBorderId, existing) && existing.id != borderSet.id) {
-				return setError(wxString::Format("XML border id %d already belongs to border set #%lld.", borderSet.xmlBorderId, static_cast<long long>(existing.id)));
+				return setError(wxString::Format(
+					"XML border id %d already belongs to border set #%lld.",
+					borderSet.xmlBorderId,
+					static_cast<long long>(existing.id)
+				));
 			}
 		}
 
-		sqlite3_stmt* updateStmt = nullptr;
-		if (!prepare("UPDATE border_sets SET xml_border_id = ?, owner_brush_id = ?, border_scope = ?, border_type = ?, "
-					 "border_group = ?, ground_equivalent = ?, source_file = ?, updated_at = CURRENT_TIMESTAMP "
-					 "WHERE id = ?;",
-					 &updateStmt)) {
+		if (!updateBorderSetRowById(borderSet.id, borderSet)) {
 			return false;
 		}
-
-		if (borderSet.xmlBorderId > 0) {
-			sqlite3_bind_int(updateStmt, 1, borderSet.xmlBorderId);
-		} else {
-			sqlite3_bind_null(updateStmt, 1);
-		}
-		BindNullableInt64(updateStmt, 2, borderSet.ownerBrushId);
-		sqlite3_bind_text(updateStmt, 3, borderSet.borderScope.utf8_str(), -1, SQLITE_TRANSIENT);
-		sqlite3_bind_text(updateStmt, 4, borderSet.borderType.utf8_str(), -1, SQLITE_TRANSIENT);
-		sqlite3_bind_int(updateStmt, 5, borderSet.borderGroup);
-		sqlite3_bind_int(updateStmt, 6, borderSet.groundEquivalent);
-		sqlite3_bind_text(updateStmt, 7, borderSet.sourceFile.utf8_str(), -1, SQLITE_TRANSIENT);
-		sqlite3_bind_int64(updateStmt, 8, borderSet.id);
-
-		const int rc = sqlite3_step(updateStmt);
-		sqlite3_finalize(updateStmt);
-		if (rc != SQLITE_DONE) {
-			return setErrorFromDatabase("Failed to update border set");
-		}
-		if (sqlite3_changes(connection_) <= 0) {
-			return setError(wxString::Format("Border set %lld was not found.", static_cast<long long>(borderSet.id)));
-		}
-
 		borderSetId = borderSet.id;
 		return true;
 	}
@@ -3688,37 +3658,82 @@ bool BrushDatabaseBrushRepository::upsertBorderSet(const BorderSetRecord &border
 	if (borderSet.xmlBorderId > 0) {
 		BorderSetRecord existing;
 		if (findBorderSetByXmlBorderId(borderSet.xmlBorderId, existing)) {
-			sqlite3_stmt* updateStmt = nullptr;
-			if (!prepare("UPDATE border_sets SET xml_border_id = ?, owner_brush_id = ?, border_scope = ?, border_type = ?, "
-						 "border_group = ?, ground_equivalent = ?, source_file = ?, updated_at = CURRENT_TIMESTAMP "
-						 "WHERE id = ?;",
-						 &updateStmt)) {
+			if (!updateBorderSetRowById(existing.id, borderSet)) {
 				return false;
 			}
-
-			sqlite3_bind_int(updateStmt, 1, borderSet.xmlBorderId);
-			BindNullableInt64(updateStmt, 2, borderSet.ownerBrushId);
-			sqlite3_bind_text(updateStmt, 3, borderSet.borderScope.utf8_str(), -1, SQLITE_TRANSIENT);
-			sqlite3_bind_text(updateStmt, 4, borderSet.borderType.utf8_str(), -1, SQLITE_TRANSIENT);
-			sqlite3_bind_int(updateStmt, 5, borderSet.borderGroup);
-			sqlite3_bind_int(updateStmt, 6, borderSet.groundEquivalent);
-			sqlite3_bind_text(updateStmt, 7, borderSet.sourceFile.utf8_str(), -1, SQLITE_TRANSIENT);
-			sqlite3_bind_int64(updateStmt, 8, existing.id);
-
-			const int rc = sqlite3_step(updateStmt);
-			sqlite3_finalize(updateStmt);
-			if (rc != SQLITE_DONE) {
-				return setErrorFromDatabase("Failed to update border set");
-			}
-			if (sqlite3_changes(connection_) <= 0) {
-				return setError(wxString::Format("Border set %lld was not found.", static_cast<long long>(existing.id)));
-			}
-
 			borderSetId = existing.id;
 			return true;
 		}
 	}
 
+	return insertBorderSetRow(borderSet, borderSetId);
+}
+
+bool BrushDatabaseBrushRepository::validateBorderSetForUpsert(const BorderSetRecord &borderSet, wxString &outScopeLower) {
+	outScopeLower = borderSet.borderScope.Lower();
+	if (outScopeLower.IsEmpty()) {
+		return setError("Border scope is required.");
+	}
+	if (outScopeLower != "global" && outScopeLower != "inline") {
+		return setError(wxString::Format("Unsupported border scope \"%s\".", borderSet.borderScope));
+	}
+
+	if (outScopeLower == "global") {
+		if (borderSet.xmlBorderId <= 0) {
+			return setError("Global border sets require xml_border_id > 0.");
+		}
+		if (borderSet.ownerBrushId > 0) {
+			return setError("Global border sets must not use owner_brush_id.");
+		}
+		return true;
+	}
+
+	if (borderSet.ownerBrushId <= 0) {
+		return setError("Inline border sets require owner_brush_id > 0.");
+	}
+	if (borderSet.xmlBorderId > 0) {
+		return setError("Inline border sets must not use xml_border_id.");
+	}
+	if (borderSet.groundEquivalent <= 0) {
+		return setError("Inline border sets require ground_equivalent > 0.");
+	}
+	return true;
+}
+
+bool BrushDatabaseBrushRepository::updateBorderSetRowById(int64_t idToUpdate, const BorderSetRecord &borderSet) {
+	sqlite3_stmt* updateStmt = nullptr;
+	if (!prepare("UPDATE border_sets SET xml_border_id = ?, owner_brush_id = ?, border_scope = ?, border_type = ?, "
+				 "border_group = ?, ground_equivalent = ?, source_file = ?, updated_at = CURRENT_TIMESTAMP "
+				 "WHERE id = ?;",
+				 &updateStmt)) {
+		return false;
+	}
+
+	SqliteStatementGuard stmtGuard(updateStmt);
+	if (borderSet.xmlBorderId > 0) {
+		sqlite3_bind_int(updateStmt, 1, borderSet.xmlBorderId);
+	} else {
+		sqlite3_bind_null(updateStmt, 1);
+	}
+	BindNullableInt64(updateStmt, 2, borderSet.ownerBrushId);
+	sqlite3_bind_text(updateStmt, 3, borderSet.borderScope.utf8_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_text(updateStmt, 4, borderSet.borderType.utf8_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_int(updateStmt, 5, borderSet.borderGroup);
+	sqlite3_bind_int(updateStmt, 6, borderSet.groundEquivalent);
+	sqlite3_bind_text(updateStmt, 7, borderSet.sourceFile.utf8_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_int64(updateStmt, 8, idToUpdate);
+
+	const int rc = sqlite3_step(updateStmt);
+	if (rc != SQLITE_DONE) {
+		return setErrorFromDatabase("Failed to update border set");
+	}
+	if (sqlite3_changes(connection_) <= 0) {
+		return setError(wxString::Format("Border set %lld was not found.", static_cast<long long>(idToUpdate)));
+	}
+	return true;
+}
+
+bool BrushDatabaseBrushRepository::insertBorderSetRow(const BorderSetRecord &borderSet, int64_t &outInsertedId) {
 	sqlite3_stmt* stmt = nullptr;
 	if (!prepare("INSERT INTO border_sets(xml_border_id, owner_brush_id, border_scope, border_type, border_group, ground_equivalent, source_file, updated_at) "
 				 "VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);",
@@ -3726,6 +3741,7 @@ bool BrushDatabaseBrushRepository::upsertBorderSet(const BorderSetRecord &border
 		return false;
 	}
 
+	SqliteStatementGuard stmtGuard(stmt);
 	if (borderSet.xmlBorderId > 0) {
 		sqlite3_bind_int(stmt, 1, borderSet.xmlBorderId);
 	} else {
@@ -3739,12 +3755,11 @@ bool BrushDatabaseBrushRepository::upsertBorderSet(const BorderSetRecord &border
 	sqlite3_bind_text(stmt, 7, borderSet.sourceFile.utf8_str(), -1, SQLITE_TRANSIENT);
 
 	const int rc = sqlite3_step(stmt);
-	sqlite3_finalize(stmt);
 	if (rc != SQLITE_DONE) {
 		return setErrorFromDatabase("Failed to insert border set");
 	}
 
-	borderSetId = sqlite3_last_insert_rowid(connection_);
+	outInsertedId = sqlite3_last_insert_rowid(connection_);
 	return true;
 }
 
@@ -4655,39 +4670,24 @@ bool BrushDatabaseBrushRepository::replaceWallParts(int64_t brushId, const std::
 	if (!isOpen()) {
 		return setError("SQLite database is not open.");
 	}
+	if (!validateWallPartsForReplace(parts)) {
+		return false;
+	}
+	if (!beginTransaction()) {
+		return false;
+	}
+	if (!replaceWallPartsInTransaction(brushId, parts)) {
+		rollbackTransaction();
+		return false;
+	}
+	if (!commitTransaction()) {
+		rollbackTransaction();
+		return false;
+	}
+	return true;
+}
 
-	const auto canonicalizeWallPartType = [&](const wxString &rawPartType, wxString &outCanonical) -> bool {
-		wxString partType = rawPartType;
-		partType.Trim(true);
-		partType.Trim(false);
-		if (partType.IsEmpty()) {
-			return false;
-		}
-		if (partType.StartsWith("alternate/")) {
-			outCanonical = partType;
-			return true;
-		}
-
-		const wxString marker = "/alternate/";
-		const int markerIndex = partType.Find(marker);
-		if (markerIndex != wxNOT_FOUND) {
-			const wxString basePartType = partType.SubString(0, markerIndex - 1);
-			wxString canonicalBase;
-			if (!CanonicalizeWallBasePartType(basePartType, canonicalBase)) {
-				return false;
-			}
-			outCanonical = canonicalBase + partType.Mid(markerIndex);
-			return true;
-		}
-
-		wxString canonicalBase;
-		if (!CanonicalizeWallBasePartType(partType, canonicalBase)) {
-			return false;
-		}
-		outCanonical = canonicalBase;
-		return true;
-	};
-
+bool BrushDatabaseBrushRepository::validateWallPartsForReplace(const std::vector<WallPartRecord> &parts) {
 	for (const WallPartRecord &part : parts) {
 		wxString partType = part.partType;
 		partType.Trim(true);
@@ -4696,7 +4696,7 @@ bool BrushDatabaseBrushRepository::replaceWallParts(int64_t brushId, const std::
 			return setError("Wall part type cannot be empty.");
 		}
 		wxString canonicalPartType;
-		if (!canonicalizeWallPartType(partType, canonicalPartType)) {
+		if (!CanonicalizeWallPartType(partType, canonicalPartType)) {
 			return setError("Unsupported wall part type: " + partType);
 		}
 		if (part.sortOrder < 0) {
@@ -4723,10 +4723,7 @@ bool BrushDatabaseBrushRepository::replaceWallParts(int64_t brushId, const std::
 			if (doorType.IsEmpty()) {
 				return setError("Wall part door type cannot be empty.");
 			}
-			wxString doorTypeLower = doorType;
-			doorTypeLower.MakeLower();
-			const bool supportedDoorType = doorTypeLower == "normal" || doorTypeLower == "locked" || doorTypeLower == "quest" || doorTypeLower == "magic" || doorTypeLower == "archway" || doorTypeLower == "window" || doorTypeLower == "hatch window" || doorTypeLower == "hatch_window" || doorTypeLower == "any door" || doorTypeLower == "any window" || doorTypeLower == "any";
-			if (!supportedDoorType) {
+			if (!IsSupportedWallDoorType(doorType)) {
 				return setError("Unsupported wall part door type: " + doorType);
 			}
 			if (door.sortOrder < 0) {
@@ -4734,57 +4731,39 @@ bool BrushDatabaseBrushRepository::replaceWallParts(int64_t brushId, const std::
 			}
 		}
 	}
-	if (!beginTransaction()) {
-		return false;
-	}
+	return true;
+}
 
+bool BrushDatabaseBrushRepository::replaceWallPartsInTransaction(int64_t brushId, const std::vector<WallPartRecord> &parts) {
 	sqlite3_stmt* deleteStmt = nullptr;
 	if (!prepare("DELETE FROM wall_parts WHERE brush_id = ?;", &deleteStmt)) {
-		rollbackTransaction();
 		return false;
 	}
+	SqliteStatementGuard deleteGuard(deleteStmt);
 	sqlite3_bind_int64(deleteStmt, 1, brushId);
-	int rc = sqlite3_step(deleteStmt);
-	sqlite3_finalize(deleteStmt);
-	if (rc != SQLITE_DONE) {
-		rollbackTransaction();
+	if (sqlite3_step(deleteStmt) != SQLITE_DONE) {
 		return setErrorFromDatabase("Failed to clear wall parts");
 	}
 
 	sqlite3_stmt* insertPartStmt = nullptr;
 	if (!prepare("INSERT INTO wall_parts(brush_id, part_type, sort_order) VALUES (?, ?, ?);", &insertPartStmt)) {
-		rollbackTransaction();
 		return false;
 	}
+	SqliteStatementGuard insertPartGuard(insertPartStmt);
 
 	sqlite3_stmt* insertItemStmt = nullptr;
 	if (!prepare("INSERT INTO wall_part_items(wall_part_id, item_id, chance, sort_order) VALUES (?, ?, ?, ?);", &insertItemStmt)) {
-		sqlite3_finalize(insertPartStmt);
-		rollbackTransaction();
 		return false;
 	}
+	SqliteStatementGuard insertItemGuard(insertItemStmt);
 
 	sqlite3_stmt* insertDoorStmt = nullptr;
 	if (!prepare("INSERT INTO wall_part_doors(wall_part_id, item_id, door_type, is_open, wall_hate_me, sort_order) "
 				 "VALUES (?, ?, ?, ?, ?, ?);",
 				 &insertDoorStmt)) {
-		sqlite3_finalize(insertPartStmt);
-		sqlite3_finalize(insertItemStmt);
-		rollbackTransaction();
 		return false;
 	}
-
-	const auto failWithDatabaseError = [this, &insertPartStmt, &insertItemStmt, &insertDoorStmt](const wxString &message) {
-		FinalizeStatements({ insertPartStmt, insertItemStmt, insertDoorStmt });
-		rollbackTransaction();
-		return setErrorFromDatabase(message);
-	};
-
-	const auto fail = [this, &insertPartStmt, &insertItemStmt, &insertDoorStmt]() {
-		FinalizeStatements({ insertPartStmt, insertItemStmt, insertDoorStmt });
-		rollbackTransaction();
-		return false;
-	};
+	SqliteStatementGuard insertDoorGuard(insertDoorStmt);
 
 	const auto setDbError = [this](const wxString &message) {
 		return setErrorFromDatabase(message);
@@ -4792,8 +4771,8 @@ bool BrushDatabaseBrushRepository::replaceWallParts(int64_t brushId, const std::
 
 	for (const WallPartRecord &part : parts) {
 		wxString canonicalPartType;
-		if (!canonicalizeWallPartType(part.partType, canonicalPartType)) {
-			return failWithDatabaseError("Failed to validate wall part type");
+		if (!CanonicalizeWallPartType(part.partType, canonicalPartType)) {
+			return setErrorFromDatabase("Failed to validate wall part type");
 		}
 
 		sqlite3_reset(insertPartStmt);
@@ -4802,23 +4781,18 @@ bool BrushDatabaseBrushRepository::replaceWallParts(int64_t brushId, const std::
 		sqlite3_bind_text(insertPartStmt, 2, canonicalPartType.utf8_str(), -1, SQLITE_TRANSIENT);
 		sqlite3_bind_int(insertPartStmt, 3, part.sortOrder);
 		if (sqlite3_step(insertPartStmt) != SQLITE_DONE) {
-			return failWithDatabaseError("Failed to insert wall part");
+			return setErrorFromDatabase("Failed to insert wall part");
 		}
 
 		const int64_t wallPartId = sqlite3_last_insert_rowid(connection_);
 		if (!WriteWallPartItems(wallPartId, part.items, insertItemStmt, setDbError)) {
-			return fail();
+			return false;
 		}
 		if (!WriteWallPartDoors(wallPartId, part.doors, insertDoorStmt, setDbError)) {
-			return fail();
+			return false;
 		}
 	}
 
-	FinalizeStatements({ insertPartStmt, insertItemStmt, insertDoorStmt });
-	if (!commitTransaction()) {
-		rollbackTransaction();
-		return false;
-	}
 	return true;
 }
 
@@ -5323,130 +5297,10 @@ bool BrushDatabaseCatalogRepository::replaceAllTilesets(const std::vector<Tilese
 	if (!beginTransaction()) {
 		return false;
 	}
-
-	if (!execute("DELETE FROM tilesets;")) {
+	if (!replaceAllTilesetsInTransaction(tilesets)) {
 		rollbackTransaction();
 		return false;
 	}
-
-	sqlite3_stmt* insertTilesetStmt = nullptr;
-	if (!prepare("INSERT INTO tilesets(name, palette_group_id, source_file) VALUES (?, ?, ?);", &insertTilesetStmt)) {
-		rollbackTransaction();
-		return false;
-	}
-	sqlite3_stmt* insertSectionStmt = nullptr;
-	if (!prepare("INSERT INTO tileset_sections(tileset_id, section_type, sort_order) VALUES (?, ?, ?);", &insertSectionStmt)) {
-		sqlite3_finalize(insertTilesetStmt);
-		rollbackTransaction();
-		return false;
-	}
-	sqlite3_stmt* insertEntryStmt = nullptr;
-	if (!prepare("INSERT INTO tileset_brush_entries(tileset_section_id, entry_kind, brush_id, brush_name, item_id, from_item_id, to_item_id, after_brush_name, after_item_id, sort_order) "
-				 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
-				 &insertEntryStmt)) {
-		sqlite3_finalize(insertTilesetStmt);
-		sqlite3_finalize(insertSectionStmt);
-		rollbackTransaction();
-		return false;
-	}
-	sqlite3_stmt* findBrushStmt = nullptr;
-	if (!prepare("SELECT id FROM brushes WHERE name = ? LIMIT 2;", &findBrushStmt)) {
-		sqlite3_finalize(insertTilesetStmt);
-		sqlite3_finalize(insertSectionStmt);
-		sqlite3_finalize(insertEntryStmt);
-		rollbackTransaction();
-		return false;
-	}
-
-	sqlite3_stmt* selectPaletteGroupStmt = nullptr;
-	if (!prepare("SELECT id FROM palette_groups WHERE name = ? LIMIT 1;", &selectPaletteGroupStmt)) {
-		FinalizeStatements({ insertTilesetStmt, insertSectionStmt, insertEntryStmt, findBrushStmt });
-		rollbackTransaction();
-		return false;
-	}
-	sqlite3_stmt* insertPaletteGroupStmt = nullptr;
-	if (!prepare("INSERT INTO palette_groups(name, runtime_family, sort_order, is_builtin) "
-				 "VALUES (?, ?, COALESCE((SELECT MAX(sort_order) + 1 FROM palette_groups), 4), 0);",
-				 &insertPaletteGroupStmt)) {
-		FinalizeStatements({ insertTilesetStmt, insertSectionStmt, insertEntryStmt, findBrushStmt, selectPaletteGroupStmt });
-		rollbackTransaction();
-		return false;
-	}
-
-	const auto fail = [this, &insertTilesetStmt, &insertSectionStmt, &insertEntryStmt, &findBrushStmt, &selectPaletteGroupStmt, &insertPaletteGroupStmt](const wxString &message) {
-		FinalizeStatements({ insertTilesetStmt, insertSectionStmt, insertEntryStmt, findBrushStmt, selectPaletteGroupStmt, insertPaletteGroupStmt });
-		rollbackTransaction();
-		return setErrorFromDatabase(message);
-	};
-
-	const auto setDbError = [this](const wxString &message) {
-		return setErrorFromDatabase(message);
-	};
-	const auto resolvePaletteGroupId = [&](const TilesetStorageRecord &tileset, int64_t &outGroupId) {
-		outGroupId = 0;
-		const wxString groupName = DerivePaletteGroupNameFromTileset(tileset);
-		const wxString runtimeFamily = DerivePaletteRuntimeFamilyFromTileset(tileset);
-		if (groupName.IsEmpty()) {
-			return true;
-		}
-
-		sqlite3_reset(selectPaletteGroupStmt);
-		sqlite3_clear_bindings(selectPaletteGroupStmt);
-		sqlite3_bind_text(selectPaletteGroupStmt, 1, groupName.utf8_str(), -1, SQLITE_TRANSIENT);
-		const int selectRc = sqlite3_step(selectPaletteGroupStmt);
-		if (selectRc == SQLITE_ROW) {
-			outGroupId = sqlite3_column_int64(selectPaletteGroupStmt, 0);
-			return true;
-		}
-		if (selectRc != SQLITE_DONE) {
-			return setDbError("Failed to resolve palette group");
-		}
-
-		sqlite3_reset(insertPaletteGroupStmt);
-		sqlite3_clear_bindings(insertPaletteGroupStmt);
-		sqlite3_bind_text(insertPaletteGroupStmt, 1, groupName.utf8_str(), -1, SQLITE_TRANSIENT);
-		sqlite3_bind_text(insertPaletteGroupStmt, 2, runtimeFamily.utf8_str(), -1, SQLITE_TRANSIENT);
-		if (sqlite3_step(insertPaletteGroupStmt) != SQLITE_DONE) {
-			return setDbError("Failed to create palette group");
-		}
-
-		outGroupId = sqlite3_last_insert_rowid(connection_);
-		return true;
-	};
-
-	for (const TilesetStorageRecord &tileset : tilesets) {
-		int64_t paletteGroupId = 0;
-		if (!resolvePaletteGroupId(tileset, paletteGroupId)) {
-			return fail(lastError_);
-		}
-
-		sqlite3_reset(insertTilesetStmt);
-		sqlite3_clear_bindings(insertTilesetStmt);
-		sqlite3_bind_text(insertTilesetStmt, 1, tileset.name.utf8_str(), -1, SQLITE_TRANSIENT);
-		BindNullableInt64(insertTilesetStmt, 2, paletteGroupId);
-		sqlite3_bind_text(insertTilesetStmt, 3, tileset.sourceFile.utf8_str(), -1, SQLITE_TRANSIENT);
-		if (sqlite3_step(insertTilesetStmt) != SQLITE_DONE) {
-			return fail("Failed to insert tileset");
-		}
-		const int64_t tilesetId = sqlite3_last_insert_rowid(connection_);
-
-		for (const TilesetSectionRecord &section : tileset.sections) {
-			sqlite3_reset(insertSectionStmt);
-			sqlite3_clear_bindings(insertSectionStmt);
-			sqlite3_bind_int64(insertSectionStmt, 1, tilesetId);
-			sqlite3_bind_text(insertSectionStmt, 2, section.sectionType.utf8_str(), -1, SQLITE_TRANSIENT);
-			sqlite3_bind_int(insertSectionStmt, 3, section.sortOrder);
-			if (sqlite3_step(insertSectionStmt) != SQLITE_DONE) {
-				return fail("Failed to insert tileset section");
-			}
-			const int64_t sectionId = sqlite3_last_insert_rowid(connection_);
-			if (!WriteTilesetEntries(sectionId, section.entries, insertEntryStmt, findBrushStmt, setDbError)) {
-				return fail(lastError_);
-			}
-		}
-	}
-
-	FinalizeStatements({ insertTilesetStmt, insertSectionStmt, insertEntryStmt, findBrushStmt, selectPaletteGroupStmt, insertPaletteGroupStmt });
 	if (!commitTransaction()) {
 		rollbackTransaction();
 		return false;
@@ -5461,112 +5315,207 @@ bool BrushDatabaseCatalogRepository::saveTileset(const TilesetStorageRecord &til
 	if (!beginTransaction()) {
 		return false;
 	}
-
-	sqlite3_stmt* deleteTilesetStmt = nullptr;
-	if (!prepare("DELETE FROM tilesets WHERE name = ?;", &deleteTilesetStmt)) {
+	if (!saveTilesetInTransaction(tileset)) {
 		rollbackTransaction();
 		return false;
 	}
-	sqlite3_bind_text(deleteTilesetStmt, 1, tileset.name.utf8_str(), -1, SQLITE_TRANSIENT);
-	if (sqlite3_step(deleteTilesetStmt) != SQLITE_DONE) {
-		sqlite3_finalize(deleteTilesetStmt);
+	if (!commitTransaction()) {
 		rollbackTransaction();
-		return setErrorFromDatabase("Failed to delete existing tileset");
+		return false;
 	}
-	sqlite3_finalize(deleteTilesetStmt);
+	return true;
+}
+
+bool BrushDatabaseCatalogRepository::resolvePaletteGroupId(
+	const wxString &groupName,
+	const wxString &runtimeFamily,
+	sqlite3_stmt* selectPaletteGroupStmt,
+	sqlite3_stmt* insertPaletteGroupStmt,
+	int64_t &outGroupId
+) {
+	outGroupId = 0;
+	if (groupName.IsEmpty()) {
+		return true;
+	}
+
+	sqlite3_reset(selectPaletteGroupStmt);
+	sqlite3_clear_bindings(selectPaletteGroupStmt);
+	sqlite3_bind_text(selectPaletteGroupStmt, 1, groupName.utf8_str(), -1, SQLITE_TRANSIENT);
+	const int selectRc = sqlite3_step(selectPaletteGroupStmt);
+	if (selectRc == SQLITE_ROW) {
+		outGroupId = sqlite3_column_int64(selectPaletteGroupStmt, 0);
+		return true;
+	}
+	if (selectRc != SQLITE_DONE) {
+		return setErrorFromDatabase("Failed to resolve palette group");
+	}
+
+	sqlite3_reset(insertPaletteGroupStmt);
+	sqlite3_clear_bindings(insertPaletteGroupStmt);
+	sqlite3_bind_text(insertPaletteGroupStmt, 1, groupName.utf8_str(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_text(insertPaletteGroupStmt, 2, runtimeFamily.utf8_str(), -1, SQLITE_TRANSIENT);
+	if (sqlite3_step(insertPaletteGroupStmt) != SQLITE_DONE) {
+		return setErrorFromDatabase("Failed to create palette group");
+	}
+
+	outGroupId = sqlite3_last_insert_rowid(connection_);
+	return true;
+}
+
+bool BrushDatabaseCatalogRepository::replaceAllTilesetsInTransaction(const std::vector<TilesetStorageRecord> &tilesets) {
+	if (!execute("DELETE FROM tilesets;")) {
+		return false;
+	}
 
 	sqlite3_stmt* insertTilesetStmt = nullptr;
 	if (!prepare("INSERT INTO tilesets(name, palette_group_id, source_file) VALUES (?, ?, ?);", &insertTilesetStmt)) {
-		rollbackTransaction();
 		return false;
 	}
+	SqliteStatementGuard insertTilesetGuard(insertTilesetStmt);
+
 	sqlite3_stmt* insertSectionStmt = nullptr;
 	if (!prepare("INSERT INTO tileset_sections(tileset_id, section_type, sort_order) VALUES (?, ?, ?);", &insertSectionStmt)) {
-		sqlite3_finalize(insertTilesetStmt);
-		rollbackTransaction();
 		return false;
 	}
+	SqliteStatementGuard insertSectionGuard(insertSectionStmt);
+
 	sqlite3_stmt* insertEntryStmt = nullptr;
 	if (!prepare("INSERT INTO tileset_brush_entries(tileset_section_id, entry_kind, brush_id, brush_name, item_id, from_item_id, to_item_id, after_brush_name, after_item_id, sort_order) "
 				 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
 				 &insertEntryStmt)) {
-		sqlite3_finalize(insertTilesetStmt);
-		sqlite3_finalize(insertSectionStmt);
-		rollbackTransaction();
 		return false;
 	}
+	SqliteStatementGuard insertEntryGuard(insertEntryStmt);
+
 	sqlite3_stmt* findBrushStmt = nullptr;
 	if (!prepare("SELECT id FROM brushes WHERE name = ? LIMIT 2;", &findBrushStmt)) {
-		FinalizeStatements({ insertTilesetStmt, insertSectionStmt, insertEntryStmt });
-		rollbackTransaction();
 		return false;
 	}
+	SqliteStatementGuard findBrushGuard(findBrushStmt);
+
 	sqlite3_stmt* selectPaletteGroupStmt = nullptr;
 	if (!prepare("SELECT id FROM palette_groups WHERE name = ? LIMIT 1;", &selectPaletteGroupStmt)) {
-		FinalizeStatements({ insertTilesetStmt, insertSectionStmt, insertEntryStmt, findBrushStmt });
-		rollbackTransaction();
 		return false;
 	}
+	SqliteStatementGuard selectPaletteGroupGuard(selectPaletteGroupStmt);
+
 	sqlite3_stmt* insertPaletteGroupStmt = nullptr;
 	if (!prepare("INSERT INTO palette_groups(name, runtime_family, sort_order, is_builtin) "
 				 "VALUES (?, ?, COALESCE((SELECT MAX(sort_order) + 1 FROM palette_groups), 4), 0);",
 				 &insertPaletteGroupStmt)) {
-		FinalizeStatements({ insertTilesetStmt, insertSectionStmt, insertEntryStmt, findBrushStmt, selectPaletteGroupStmt });
-		rollbackTransaction();
 		return false;
 	}
-
-	const auto fail = [this, &insertTilesetStmt, &insertSectionStmt, &insertEntryStmt, &findBrushStmt, &selectPaletteGroupStmt, &insertPaletteGroupStmt](const wxString &message) {
-		FinalizeStatements({ insertTilesetStmt, insertSectionStmt, insertEntryStmt, findBrushStmt, selectPaletteGroupStmt, insertPaletteGroupStmt });
-		rollbackTransaction();
-		return setErrorFromDatabase(message);
-	};
+	SqliteStatementGuard insertPaletteGroupGuard(insertPaletteGroupStmt);
 
 	const auto setDbError = [this](const wxString &message) {
 		return setErrorFromDatabase(message);
 	};
-	const auto resolvePaletteGroupId = [&](int64_t &outGroupId) {
-		outGroupId = 0;
+
+	for (const TilesetStorageRecord &tileset : tilesets) {
 		const wxString groupName = DerivePaletteGroupNameFromTileset(tileset);
 		const wxString runtimeFamily = DerivePaletteRuntimeFamilyFromTileset(tileset);
-		if (groupName.IsEmpty()) {
-			return true;
+		int64_t paletteGroupId = 0;
+		if (!resolvePaletteGroupId(groupName, runtimeFamily, selectPaletteGroupStmt, insertPaletteGroupStmt, paletteGroupId)) {
+			return false;
 		}
 
-		sqlite3_reset(selectPaletteGroupStmt);
-		sqlite3_clear_bindings(selectPaletteGroupStmt);
-		sqlite3_bind_text(selectPaletteGroupStmt, 1, groupName.utf8_str(), -1, SQLITE_TRANSIENT);
-		const int selectRc = sqlite3_step(selectPaletteGroupStmt);
-		if (selectRc == SQLITE_ROW) {
-			outGroupId = sqlite3_column_int64(selectPaletteGroupStmt, 0);
-			return true;
+		sqlite3_reset(insertTilesetStmt);
+		sqlite3_clear_bindings(insertTilesetStmt);
+		sqlite3_bind_text(insertTilesetStmt, 1, tileset.name.utf8_str(), -1, SQLITE_TRANSIENT);
+		BindNullableInt64(insertTilesetStmt, 2, paletteGroupId);
+		sqlite3_bind_text(insertTilesetStmt, 3, tileset.sourceFile.utf8_str(), -1, SQLITE_TRANSIENT);
+		if (sqlite3_step(insertTilesetStmt) != SQLITE_DONE) {
+			return setErrorFromDatabase("Failed to insert tileset");
 		}
-		if (selectRc != SQLITE_DONE) {
-			return setDbError("Failed to resolve palette group");
-		}
+		const int64_t tilesetId = sqlite3_last_insert_rowid(connection_);
 
-		sqlite3_reset(insertPaletteGroupStmt);
-		sqlite3_clear_bindings(insertPaletteGroupStmt);
-		sqlite3_bind_text(insertPaletteGroupStmt, 1, groupName.utf8_str(), -1, SQLITE_TRANSIENT);
-		sqlite3_bind_text(insertPaletteGroupStmt, 2, runtimeFamily.utf8_str(), -1, SQLITE_TRANSIENT);
-		if (sqlite3_step(insertPaletteGroupStmt) != SQLITE_DONE) {
-			return setDbError("Failed to create palette group");
-		}
+		for (const TilesetSectionRecord &section : tileset.sections) {
+			sqlite3_reset(insertSectionStmt);
+			sqlite3_clear_bindings(insertSectionStmt);
+			sqlite3_bind_int64(insertSectionStmt, 1, tilesetId);
+			sqlite3_bind_text(insertSectionStmt, 2, section.sectionType.utf8_str(), -1, SQLITE_TRANSIENT);
+			sqlite3_bind_int(insertSectionStmt, 3, section.sortOrder);
+			if (sqlite3_step(insertSectionStmt) != SQLITE_DONE) {
+				return setErrorFromDatabase("Failed to insert tileset section");
+			}
 
-		outGroupId = sqlite3_last_insert_rowid(connection_);
-		return true;
+			const int64_t sectionId = sqlite3_last_insert_rowid(connection_);
+			if (!WriteTilesetEntries(sectionId, section.entries, insertEntryStmt, findBrushStmt, setDbError)) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+bool BrushDatabaseCatalogRepository::saveTilesetInTransaction(const TilesetStorageRecord &tileset) {
+	sqlite3_stmt* deleteTilesetStmt = nullptr;
+	if (!prepare("DELETE FROM tilesets WHERE name = ?;", &deleteTilesetStmt)) {
+		return false;
+	}
+	SqliteStatementGuard deleteTilesetGuard(deleteTilesetStmt);
+	sqlite3_bind_text(deleteTilesetStmt, 1, tileset.name.utf8_str(), -1, SQLITE_TRANSIENT);
+	if (sqlite3_step(deleteTilesetStmt) != SQLITE_DONE) {
+		return setErrorFromDatabase("Failed to delete existing tileset");
+	}
+
+	sqlite3_stmt* insertTilesetStmt = nullptr;
+	if (!prepare("INSERT INTO tilesets(name, palette_group_id, source_file) VALUES (?, ?, ?);", &insertTilesetStmt)) {
+		return false;
+	}
+	SqliteStatementGuard insertTilesetGuard(insertTilesetStmt);
+
+	sqlite3_stmt* insertSectionStmt = nullptr;
+	if (!prepare("INSERT INTO tileset_sections(tileset_id, section_type, sort_order) VALUES (?, ?, ?);", &insertSectionStmt)) {
+		return false;
+	}
+	SqliteStatementGuard insertSectionGuard(insertSectionStmt);
+
+	sqlite3_stmt* insertEntryStmt = nullptr;
+	if (!prepare("INSERT INTO tileset_brush_entries(tileset_section_id, entry_kind, brush_id, brush_name, item_id, from_item_id, to_item_id, after_brush_name, after_item_id, sort_order) "
+				 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+				 &insertEntryStmt)) {
+		return false;
+	}
+	SqliteStatementGuard insertEntryGuard(insertEntryStmt);
+
+	sqlite3_stmt* findBrushStmt = nullptr;
+	if (!prepare("SELECT id FROM brushes WHERE name = ? LIMIT 2;", &findBrushStmt)) {
+		return false;
+	}
+	SqliteStatementGuard findBrushGuard(findBrushStmt);
+
+	sqlite3_stmt* selectPaletteGroupStmt = nullptr;
+	if (!prepare("SELECT id FROM palette_groups WHERE name = ? LIMIT 1;", &selectPaletteGroupStmt)) {
+		return false;
+	}
+	SqliteStatementGuard selectPaletteGroupGuard(selectPaletteGroupStmt);
+
+	sqlite3_stmt* insertPaletteGroupStmt = nullptr;
+	if (!prepare("INSERT INTO palette_groups(name, runtime_family, sort_order, is_builtin) "
+				 "VALUES (?, ?, COALESCE((SELECT MAX(sort_order) + 1 FROM palette_groups), 4), 0);",
+				 &insertPaletteGroupStmt)) {
+		return false;
+	}
+	SqliteStatementGuard insertPaletteGroupGuard(insertPaletteGroupStmt);
+
+	const auto setDbError = [this](const wxString &message) {
+		return setErrorFromDatabase(message);
 	};
 
+	const wxString groupName = DerivePaletteGroupNameFromTileset(tileset);
+	const wxString runtimeFamily = DerivePaletteRuntimeFamilyFromTileset(tileset);
 	int64_t paletteGroupId = 0;
-	if (!resolvePaletteGroupId(paletteGroupId)) {
-		return fail(lastError_);
+	if (!resolvePaletteGroupId(groupName, runtimeFamily, selectPaletteGroupStmt, insertPaletteGroupStmt, paletteGroupId)) {
+		return false;
 	}
 
 	sqlite3_bind_text(insertTilesetStmt, 1, tileset.name.utf8_str(), -1, SQLITE_TRANSIENT);
 	BindNullableInt64(insertTilesetStmt, 2, paletteGroupId);
 	sqlite3_bind_text(insertTilesetStmt, 3, tileset.sourceFile.utf8_str(), -1, SQLITE_TRANSIENT);
 	if (sqlite3_step(insertTilesetStmt) != SQLITE_DONE) {
-		return fail("Failed to insert tileset");
+		return setErrorFromDatabase("Failed to insert tileset");
 	}
 	const int64_t tilesetId = sqlite3_last_insert_rowid(connection_);
 
@@ -5577,19 +5526,15 @@ bool BrushDatabaseCatalogRepository::saveTileset(const TilesetStorageRecord &til
 		sqlite3_bind_text(insertSectionStmt, 2, section.sectionType.utf8_str(), -1, SQLITE_TRANSIENT);
 		sqlite3_bind_int(insertSectionStmt, 3, section.sortOrder);
 		if (sqlite3_step(insertSectionStmt) != SQLITE_DONE) {
-			return fail("Failed to insert tileset section");
+			return setErrorFromDatabase("Failed to insert tileset section");
 		}
+
 		const int64_t sectionId = sqlite3_last_insert_rowid(connection_);
 		if (!WriteTilesetEntries(sectionId, section.entries, insertEntryStmt, findBrushStmt, setDbError)) {
-			return fail(lastError_);
+			return false;
 		}
 	}
 
-	FinalizeStatements({ insertTilesetStmt, insertSectionStmt, insertEntryStmt, findBrushStmt, selectPaletteGroupStmt, insertPaletteGroupStmt });
-	if (!commitTransaction()) {
-		rollbackTransaction();
-		return false;
-	}
 	return true;
 }
 bool BrushDatabaseCatalogRepository::deleteTileset(const wxString &name) {
