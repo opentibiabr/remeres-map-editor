@@ -113,6 +113,221 @@ namespace {
 		}
 	};
 
+	bool CanonicalizeWallPartType(const wxString &rawPartType, wxString &outCanonical);
+	bool IsSupportedWallDoorType(const wxString &doorType);
+
+	wxString TrimmedCopy(wxString value) {
+		value.Trim(true);
+		value.Trim(false);
+		return value;
+	}
+
+	wxString TrimmedOrUnknown(wxString value) {
+		value.Trim(true);
+		value.Trim(false);
+		return value.IsEmpty() ? "<unknown>" : value;
+	}
+
+	wxString BuildUnsupportedBrushTypesDetail(const std::vector<BrushTypeCountRecord> &typeCounts) {
+		wxString detail;
+		for (size_t i = 0; i < typeCounts.size(); ++i) {
+			if (i > 0) {
+				detail += ", ";
+			}
+			detail += wxString::Format("%s (%d)", typeCounts[i].type, typeCounts[i].count);
+		}
+		return detail;
+	}
+
+	wxString BuildUnsupportedBrushSamplesDetail(const std::vector<UnsupportedBrushSampleRecord> &samples) {
+		wxString detail;
+		if (samples.empty()) {
+			return detail;
+		}
+
+		const size_t sampleCount = std::min<size_t>(samples.size(), 3);
+		for (size_t i = 0; i < sampleCount; ++i) {
+			if (i > 0) {
+				detail += "; ";
+			}
+			const UnsupportedBrushSampleRecord &sample = samples[i];
+			detail += wxString::Format(
+				"id=%lld name=\"%s\" type=\"%s\" source=\"%s\"",
+				static_cast<long long>(sample.id),
+				sample.name,
+				sample.type,
+				TrimmedOrUnknown(sample.sourceFile)
+			);
+		}
+		return detail;
+	}
+
+	wxString BuildUnresolvedTilesetSamplesDetail(const std::vector<UnresolvedTilesetEntrySampleRecord> &samples) {
+		wxString detail;
+		if (samples.empty()) {
+			return detail;
+		}
+
+		const size_t sampleCount = std::min<size_t>(samples.size(), 3);
+		for (size_t i = 0; i < sampleCount; ++i) {
+			if (i > 0) {
+				detail += "; ";
+			}
+			const UnresolvedTilesetEntrySampleRecord &sample = samples[i];
+			detail += wxString::Format(
+				"group=\"%s\" palette=\"%s\" section=\"%s\" brush=\"%s\"",
+				TrimmedOrUnknown(sample.paletteGroupName),
+				TrimmedOrUnknown(sample.tilesetName),
+				TrimmedOrUnknown(sample.sectionType),
+				TrimmedOrUnknown(sample.brushName)
+			);
+		}
+		return detail;
+	}
+
+	bool ReportHasUnresolvedReferences(const MaterialsDatabaseAuditReport &report) {
+		return report.unresolvedGroundTargets > 0 || report.unresolvedBrushLinks > 0 || report.unresolvedTilesetEntries > 0
+			   || report.unresolvedCaseMatchBorderIds > 0 || report.unresolvedCaseReplaceBorderTargetIds > 0;
+	}
+
+	wxString FormatUnresolvedReferencesSummary(const MaterialsDatabaseAuditReport &report) {
+		return wxString::Format(
+			"Database contains unresolved references (ground targets=%d, brush links=%d, tileset entries=%d, match_border ids=%d, replace_border target ids=%d).",
+			report.unresolvedGroundTargets,
+			report.unresolvedBrushLinks,
+			report.unresolvedTilesetEntries,
+			report.unresolvedCaseMatchBorderIds,
+			report.unresolvedCaseReplaceBorderTargetIds
+		);
+	}
+
+	void CollectMissingImportedData(const MaterialsDatabaseAuditReport &report, std::vector<wxString> &outMissing) {
+		outMissing.clear();
+
+		bool hasGround = false;
+		bool hasWall = false;
+		bool hasDoodad = false;
+		bool hasCarpet = false;
+		bool hasTable = false;
+		for (const BrushTypeCountRecord &typeCount : report.brushTypeCounts) {
+			if (typeCount.count <= 0) {
+				continue;
+			}
+			if (typeCount.type == "ground") {
+				hasGround = true;
+			} else if (typeCount.type == "wall") {
+				hasWall = true;
+			} else if (typeCount.type == "doodad") {
+				hasDoodad = true;
+			} else if (typeCount.type == "carpet") {
+				hasCarpet = true;
+			} else if (typeCount.type == "table") {
+				hasTable = true;
+			}
+		}
+
+		if (!hasGround) {
+			outMissing.push_back("ground");
+		}
+		if (!hasWall) {
+			outMissing.push_back("wall");
+		}
+		if (!hasDoodad) {
+			outMissing.push_back("doodad");
+		}
+		if (!hasCarpet) {
+			outMissing.push_back("carpet");
+		}
+		if (!hasTable) {
+			outMissing.push_back("table");
+		}
+		if (report.borderSetCount <= 0) {
+			outMissing.push_back("border_sets");
+		}
+		if (report.tilesetCount <= 0) {
+			outMissing.push_back("tilesets");
+		}
+	}
+
+	wxString JoinCommaSeparated(const std::vector<wxString> &parts) {
+		wxString joined;
+		for (size_t i = 0; i < parts.size(); ++i) {
+			if (i > 0) {
+				joined += ", ";
+			}
+			joined += parts[i];
+		}
+		return joined;
+	}
+
+	bool ValidateWallPartItemRecordsForReplace(const std::vector<WallPartItemRecord> &items, wxString &outError) {
+		for (const WallPartItemRecord &item : items) {
+			if (item.itemId <= 0) {
+				outError = "Wall part item id must be positive.";
+				return false;
+			}
+			if (item.chance < 0) {
+				outError = "Wall part item chance cannot be negative.";
+				return false;
+			}
+			if (item.sortOrder < 0) {
+				outError = "Wall part item sort order cannot be negative.";
+				return false;
+			}
+		}
+		return true;
+	}
+
+	bool ValidateWallPartDoorRecordsForReplace(const std::vector<WallPartDoorRecord> &doors, wxString &outError) {
+		for (const WallPartDoorRecord &door : doors) {
+			if (door.itemId <= 0) {
+				outError = "Wall part door item id must be positive.";
+				return false;
+			}
+			const wxString doorType = TrimmedCopy(door.doorType);
+			if (doorType.IsEmpty()) {
+				outError = "Wall part door type cannot be empty.";
+				return false;
+			}
+			if (!IsSupportedWallDoorType(doorType)) {
+				outError = "Unsupported wall part door type: " + doorType;
+				return false;
+			}
+			if (door.sortOrder < 0) {
+				outError = "Wall part door sort order cannot be negative.";
+				return false;
+			}
+		}
+		return true;
+	}
+
+	bool ValidateWallPartRecordForReplace(const WallPartRecord &part, wxString &outError) {
+		const wxString partType = TrimmedCopy(part.partType);
+		if (partType.IsEmpty()) {
+			outError = "Wall part type cannot be empty.";
+			return false;
+		}
+
+		wxString canonicalPartType;
+		if (!CanonicalizeWallPartType(partType, canonicalPartType)) {
+			outError = "Unsupported wall part type: " + partType;
+			return false;
+		}
+
+		if (part.sortOrder < 0) {
+			outError = "Wall part sort order cannot be negative.";
+			return false;
+		}
+		if (!ValidateWallPartItemRecordsForReplace(part.items, outError)) {
+			return false;
+		}
+		if (!ValidateWallPartDoorRecordsForReplace(part.doors, outError)) {
+			return false;
+		}
+
+		return true;
+	}
+
 	bool CanonicalizeWallBasePartType(const wxString &basePartType, wxString &outCanonicalBase) {
 		wxString base = basePartType;
 		base.Trim(true);
@@ -4424,245 +4639,215 @@ bool BrushDatabaseBrushRepository::listBrushUsages(int64_t brushId, const wxStri
 		return setError("SQLite database is not open.");
 	}
 
-	sqlite3_stmt* paletteStmt = nullptr;
-	if (!prepare(
-			"SELECT tileset_id, tileset_name, section_type, relation, ref_id, sort_order "
-			"FROM ("
-			"SELECT t.id AS tileset_id, t.name AS tileset_name, s.section_type AS section_type, 'palette entry' AS relation, "
-			"e.id AS ref_id, e.sort_order AS sort_order, s.sort_order AS section_sort "
-			"FROM tileset_brush_entries e "
-			"JOIN tileset_sections s ON s.id = e.tileset_section_id "
-			"JOIN tilesets t ON t.id = s.tileset_id "
-			"WHERE e.entry_kind = 'brush' AND (e.brush_id = ? OR (e.brush_id IS NULL AND e.brush_name = ?)) "
-			"UNION ALL "
-			"SELECT t.id AS tileset_id, t.name AS tileset_name, s.section_type AS section_type, 'palette order' AS relation, "
-			"e.id AS ref_id, e.sort_order AS sort_order, s.sort_order AS section_sort "
-			"FROM tileset_brush_entries e "
-			"JOIN tileset_sections s ON s.id = e.tileset_section_id "
-			"JOIN tilesets t ON t.id = s.tileset_id "
-			"WHERE e.after_brush_name <> '' AND e.after_brush_name = ?"
-			") "
-			"ORDER BY tileset_name COLLATE NOCASE ASC, section_sort ASC, sort_order ASC, ref_id ASC;",
-			&paletteStmt
-		)) {
-		return false;
+	const auto collect = [this, &outUsages](sqlite3_stmt* stmt, const wxString &errorMessage, const auto &makeUsage) {
+		for (;;) {
+			const int stepRc = sqlite3_step(stmt);
+			if (stepRc == SQLITE_DONE) {
+				break;
+			}
+			if (stepRc != SQLITE_ROW) {
+				return setErrorFromDatabase(errorMessage);
+			}
+
+			BrushUsageRecord usage;
+			makeUsage(stmt, usage);
+			outUsages.push_back(std::move(usage));
+		}
+		return true;
+	};
+
+	{
+		sqlite3_stmt* paletteStmt = nullptr;
+		if (!prepare(
+				"SELECT tileset_id, tileset_name, section_type, relation, ref_id, sort_order "
+				"FROM ("
+				"SELECT t.id AS tileset_id, t.name AS tileset_name, s.section_type AS section_type, 'palette entry' AS relation, "
+				"e.id AS ref_id, e.sort_order AS sort_order, s.sort_order AS section_sort "
+				"FROM tileset_brush_entries e "
+				"JOIN tileset_sections s ON s.id = e.tileset_section_id "
+				"JOIN tilesets t ON t.id = s.tileset_id "
+				"WHERE e.entry_kind = 'brush' AND (e.brush_id = ? OR (e.brush_id IS NULL AND e.brush_name = ?)) "
+				"UNION ALL "
+				"SELECT t.id AS tileset_id, t.name AS tileset_name, s.section_type AS section_type, 'palette order' AS relation, "
+				"e.id AS ref_id, e.sort_order AS sort_order, s.sort_order AS section_sort "
+				"FROM tileset_brush_entries e "
+				"JOIN tileset_sections s ON s.id = e.tileset_section_id "
+				"JOIN tilesets t ON t.id = s.tileset_id "
+				"WHERE e.after_brush_name <> '' AND e.after_brush_name = ?"
+				") "
+				"ORDER BY tileset_name COLLATE NOCASE ASC, section_sort ASC, sort_order ASC, ref_id ASC;",
+				&paletteStmt
+			)) {
+			return false;
+		}
+		SqliteStatementGuard paletteGuard(paletteStmt);
+		sqlite3_bind_int64(paletteStmt, 1, brushId);
+		sqlite3_bind_text(paletteStmt, 2, brushName.utf8_str(), -1, SQLITE_TRANSIENT);
+		sqlite3_bind_text(paletteStmt, 3, brushName.utf8_str(), -1, SQLITE_TRANSIENT);
+
+		if (!collect(paletteStmt, "Failed to list brush palette usages", [](sqlite3_stmt* stmt, BrushUsageRecord &usage) {
+				usage.sourceKind = "palette";
+				usage.sourceId = sqlite3_column_int64(stmt, 0);
+				usage.sourceName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+				usage.context = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+				usage.relation = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
+				usage.refId = sqlite3_column_int64(stmt, 4);
+				usage.sortOrder = sqlite3_column_int(stmt, 5);
+			})) {
+			return false;
+		}
 	}
 
-	sqlite3_bind_int64(paletteStmt, 1, brushId);
-	sqlite3_bind_text(paletteStmt, 2, brushName.utf8_str(), -1, SQLITE_TRANSIENT);
-	sqlite3_bind_text(paletteStmt, 3, brushName.utf8_str(), -1, SQLITE_TRANSIENT);
-
-	for (;;) {
-		const int rc = sqlite3_step(paletteStmt);
-		if (rc == SQLITE_DONE) {
-			break;
+	{
+		sqlite3_stmt* linkStmt = nullptr;
+		if (!prepare(
+				"SELECT b.id, b.name, bl.relation_type, bl.sort_order, bl.id "
+				"FROM brush_links bl "
+				"JOIN brushes b ON b.id = bl.brush_id "
+				"WHERE bl.target_brush_id = ? OR (bl.target_brush_id IS NULL AND bl.target_brush_name = ?) "
+				"ORDER BY b.name COLLATE NOCASE ASC, bl.sort_order ASC, bl.id ASC;",
+				&linkStmt
+			)) {
+			return false;
 		}
-		if (rc != SQLITE_ROW) {
-			sqlite3_finalize(paletteStmt);
-			return setErrorFromDatabase("Failed to list brush palette usages");
-		}
+		SqliteStatementGuard linkGuard(linkStmt);
+		sqlite3_bind_int64(linkStmt, 1, brushId);
+		sqlite3_bind_text(linkStmt, 2, brushName.utf8_str(), -1, SQLITE_TRANSIENT);
 
-		BrushUsageRecord usage;
-		usage.sourceKind = "palette";
-		usage.sourceId = sqlite3_column_int64(paletteStmt, 0);
-		usage.sourceName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(paletteStmt, 1)));
-		usage.context = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(paletteStmt, 2)));
-		usage.relation = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(paletteStmt, 3)));
-		usage.refId = sqlite3_column_int64(paletteStmt, 4);
-		usage.sortOrder = sqlite3_column_int(paletteStmt, 5);
-		outUsages.push_back(std::move(usage));
+		if (!collect(linkStmt, "Failed to list brush link usages", [](sqlite3_stmt* stmt, BrushUsageRecord &usage) {
+				usage.sourceKind = "brush";
+				usage.sourceId = sqlite3_column_int64(stmt, 0);
+				usage.sourceName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+				usage.relation = "brush link";
+				usage.context = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+				usage.sortOrder = sqlite3_column_int(stmt, 3);
+				usage.refId = sqlite3_column_int64(stmt, 4);
+			})) {
+			return false;
+		}
 	}
 
-	sqlite3_finalize(paletteStmt);
+	{
+		sqlite3_stmt* borderTargetStmt = nullptr;
+		if (!prepare(
+				"SELECT b.id, b.name, gbb.border_role, gbb.align, gbb.target_mode, gbb.sort_order, gbb.id "
+				"FROM ground_brush_borders gbb "
+				"JOIN brushes b ON b.id = gbb.brush_id "
+				"WHERE gbb.target_brush_id = ? OR (gbb.target_brush_id IS NULL AND gbb.target_brush_name = ?) "
+				"ORDER BY b.name COLLATE NOCASE ASC, gbb.sort_order ASC, gbb.id ASC;",
+				&borderTargetStmt
+			)) {
+			return false;
+		}
+		SqliteStatementGuard borderTargetGuard(borderTargetStmt);
+		sqlite3_bind_int64(borderTargetStmt, 1, brushId);
+		sqlite3_bind_text(borderTargetStmt, 2, brushName.utf8_str(), -1, SQLITE_TRANSIENT);
 
-	sqlite3_stmt* linkStmt = nullptr;
-	if (!prepare(
-			"SELECT b.id, b.name, bl.relation_type, bl.sort_order, bl.id "
-			"FROM brush_links bl "
-			"JOIN brushes b ON b.id = bl.brush_id "
-			"WHERE bl.target_brush_id = ? OR (bl.target_brush_id IS NULL AND bl.target_brush_name = ?) "
-			"ORDER BY b.name COLLATE NOCASE ASC, bl.sort_order ASC, bl.id ASC;",
-			&linkStmt
-		)) {
-		return false;
+		if (!collect(borderTargetStmt, "Failed to list brush border target usages", [](sqlite3_stmt* stmt, BrushUsageRecord &usage) {
+				usage.sourceKind = "brush";
+				usage.sourceId = sqlite3_column_int64(stmt, 0);
+				usage.sourceName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+				usage.relation = "border target";
+				usage.context = wxString::Format(
+					"%s %s %s",
+					ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2))),
+					ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3))),
+					ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)))
+				)
+								   .Trim(true)
+								   .Trim(false);
+				usage.sortOrder = sqlite3_column_int(stmt, 5);
+				usage.refId = sqlite3_column_int64(stmt, 6);
+			})) {
+			return false;
+		}
 	}
 
-	sqlite3_bind_int64(linkStmt, 1, brushId);
-	sqlite3_bind_text(linkStmt, 2, brushName.utf8_str(), -1, SQLITE_TRANSIENT);
-
-	for (;;) {
-		const int rc = sqlite3_step(linkStmt);
-		if (rc == SQLITE_DONE) {
-			break;
+	{
+		sqlite3_stmt* borderUsageStmt = nullptr;
+		if (!prepare(
+				"SELECT bs.id, COALESCE(bs.xml_border_id, 0), bs.border_scope, bs.border_type, bs.border_group, "
+				"gbb.border_role, gbb.align, gbb.target_mode, gbb.sort_order, gbb.id "
+				"FROM ground_brush_borders gbb "
+				"JOIN border_sets bs ON bs.id = gbb.border_set_id "
+				"WHERE gbb.brush_id = ? "
+				"ORDER BY bs.border_scope COLLATE NOCASE ASC, COALESCE(bs.xml_border_id, 0) ASC, bs.id ASC, gbb.sort_order ASC, gbb.id ASC;",
+				&borderUsageStmt
+			)) {
+			return false;
 		}
-		if (rc != SQLITE_ROW) {
-			sqlite3_finalize(linkStmt);
-			return setErrorFromDatabase("Failed to list brush link usages");
-		}
+		SqliteStatementGuard borderUsageGuard(borderUsageStmt);
+		sqlite3_bind_int64(borderUsageStmt, 1, brushId);
 
-		BrushUsageRecord usage;
-		usage.sourceKind = "brush";
-		usage.sourceId = sqlite3_column_int64(linkStmt, 0);
-		usage.sourceName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(linkStmt, 1)));
-		usage.relation = "brush link";
-		usage.context = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(linkStmt, 2)));
-		usage.sortOrder = sqlite3_column_int(linkStmt, 3);
-		usage.refId = sqlite3_column_int64(linkStmt, 4);
-		outUsages.push_back(std::move(usage));
+		if (!collect(borderUsageStmt, "Failed to list brush border set usages", [](sqlite3_stmt* stmt, BrushUsageRecord &usage) {
+				const int64_t borderSetId = sqlite3_column_int64(stmt, 0);
+				const int xmlBorderId = sqlite3_column_int(stmt, 1);
+				const wxString borderScope = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+				const wxString borderType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
+				const int borderGroup = sqlite3_column_int(stmt, 4);
+
+				usage.sourceKind = "border_set";
+				usage.sourceId = borderSetId;
+				usage.sourceName = xmlBorderId > 0 ? wxString::Format("Global border %d", xmlBorderId)
+												   : wxString::Format("Border set %lld", static_cast<long long>(borderSetId));
+				usage.relation = "uses border";
+				usage.context = wxString::Format(
+					"scope=%s type=%s group=%d %s %s %s",
+					borderScope,
+					borderType,
+					borderGroup,
+					ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5))),
+					ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6))),
+					ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7)))
+				)
+								   .Trim(true)
+								   .Trim(false);
+				usage.sortOrder = sqlite3_column_int(stmt, 8);
+				usage.refId = sqlite3_column_int64(stmt, 9);
+			})) {
+			return false;
+		}
 	}
 
-	sqlite3_finalize(linkStmt);
+	{
+		sqlite3_stmt* ownedBorderSetStmt = nullptr;
+		if (!prepare(
+				"SELECT bs.id, bs.border_scope, bs.border_type, bs.border_group, COALESCE(bs.xml_border_id, 0) "
+				"FROM border_sets bs "
+				"WHERE bs.owner_brush_id = ? "
+				"ORDER BY bs.border_scope COLLATE NOCASE ASC, bs.border_type COLLATE NOCASE ASC, bs.id ASC;",
+				&ownedBorderSetStmt
+			)) {
+			return false;
+		}
+		SqliteStatementGuard ownedBorderSetGuard(ownedBorderSetStmt);
+		sqlite3_bind_int64(ownedBorderSetStmt, 1, brushId);
 
-	sqlite3_stmt* borderTargetStmt = nullptr;
-	if (!prepare(
-			"SELECT b.id, b.name, gbb.border_role, gbb.align, gbb.target_mode, gbb.sort_order, gbb.id "
-			"FROM ground_brush_borders gbb "
-			"JOIN brushes b ON b.id = gbb.brush_id "
-			"WHERE gbb.target_brush_id = ? OR (gbb.target_brush_id IS NULL AND gbb.target_brush_name = ?) "
-			"ORDER BY b.name COLLATE NOCASE ASC, gbb.sort_order ASC, gbb.id ASC;",
-			&borderTargetStmt
-		)) {
-		return false;
+		if (!collect(ownedBorderSetStmt, "Failed to list brush owned border set usages", [](sqlite3_stmt* stmt, BrushUsageRecord &usage) {
+				const int64_t borderSetId = sqlite3_column_int64(stmt, 0);
+				const wxString borderScope = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+				const wxString borderType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+				const int borderGroup = sqlite3_column_int(stmt, 3);
+				const int xmlBorderId = sqlite3_column_int(stmt, 4);
+
+				usage.sourceKind = "border_set";
+				usage.sourceId = borderSetId;
+				usage.sourceName = wxString::Format("Border set %lld", static_cast<long long>(borderSetId));
+				usage.relation = "owner";
+				usage.context = wxString::Format(
+					"scope=%s type=%s group=%d xml_id=%d",
+					borderScope,
+					borderType,
+					borderGroup,
+					xmlBorderId
+				);
+				usage.sortOrder = 0;
+				usage.refId = borderSetId;
+			})) {
+			return false;
+		}
 	}
 
-	sqlite3_bind_int64(borderTargetStmt, 1, brushId);
-	sqlite3_bind_text(borderTargetStmt, 2, brushName.utf8_str(), -1, SQLITE_TRANSIENT);
-
-	for (;;) {
-		const int rc = sqlite3_step(borderTargetStmt);
-		if (rc == SQLITE_DONE) {
-			break;
-		}
-		if (rc != SQLITE_ROW) {
-			sqlite3_finalize(borderTargetStmt);
-			return setErrorFromDatabase("Failed to list brush border target usages");
-		}
-
-		BrushUsageRecord usage;
-		usage.sourceKind = "brush";
-		usage.sourceId = sqlite3_column_int64(borderTargetStmt, 0);
-		usage.sourceName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderTargetStmt, 1)));
-		usage.relation = "border target";
-		usage.context = wxString::Format(
-							"%s %s %s",
-							ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderTargetStmt, 2))),
-							ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderTargetStmt, 3))),
-							ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderTargetStmt, 4)))
-		)
-							.Trim(true)
-							.Trim(false);
-		usage.sortOrder = sqlite3_column_int(borderTargetStmt, 5);
-		usage.refId = sqlite3_column_int64(borderTargetStmt, 6);
-		outUsages.push_back(std::move(usage));
-	}
-
-	sqlite3_finalize(borderTargetStmt);
-
-	sqlite3_stmt* borderUsageStmt = nullptr;
-	if (!prepare(
-			"SELECT bs.id, COALESCE(bs.xml_border_id, 0), bs.border_scope, bs.border_type, bs.border_group, "
-			"gbb.border_role, gbb.align, gbb.target_mode, gbb.sort_order, gbb.id "
-			"FROM ground_brush_borders gbb "
-			"JOIN border_sets bs ON bs.id = gbb.border_set_id "
-			"WHERE gbb.brush_id = ? "
-			"ORDER BY bs.border_scope COLLATE NOCASE ASC, COALESCE(bs.xml_border_id, 0) ASC, bs.id ASC, gbb.sort_order ASC, gbb.id ASC;",
-			&borderUsageStmt
-		)) {
-		return false;
-	}
-
-	sqlite3_bind_int64(borderUsageStmt, 1, brushId);
-
-	for (;;) {
-		const int rc = sqlite3_step(borderUsageStmt);
-		if (rc == SQLITE_DONE) {
-			break;
-		}
-		if (rc != SQLITE_ROW) {
-			sqlite3_finalize(borderUsageStmt);
-			return setErrorFromDatabase("Failed to list brush border set usages");
-		}
-
-		const int64_t borderSetId = sqlite3_column_int64(borderUsageStmt, 0);
-		const int xmlBorderId = sqlite3_column_int(borderUsageStmt, 1);
-		const wxString borderScope = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderUsageStmt, 2)));
-		const wxString borderType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderUsageStmt, 3)));
-		const int borderGroup = sqlite3_column_int(borderUsageStmt, 4);
-
-		BrushUsageRecord usage;
-		usage.sourceKind = "border_set";
-		usage.sourceId = borderSetId;
-		if (xmlBorderId > 0) {
-			usage.sourceName = wxString::Format("Global border %d", xmlBorderId);
-		} else {
-			usage.sourceName = wxString::Format("Border set %lld", static_cast<long long>(borderSetId));
-		}
-		usage.relation = "uses border";
-		usage.context = wxString::Format(
-							"scope=%s type=%s group=%d %s %s %s",
-							borderScope,
-							borderType,
-							borderGroup,
-							ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderUsageStmt, 5))),
-							ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderUsageStmt, 6))),
-							ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(borderUsageStmt, 7)))
-		)
-							.Trim(true)
-							.Trim(false);
-		usage.sortOrder = sqlite3_column_int(borderUsageStmt, 8);
-		usage.refId = sqlite3_column_int64(borderUsageStmt, 9);
-		outUsages.push_back(std::move(usage));
-	}
-
-	sqlite3_finalize(borderUsageStmt);
-
-	sqlite3_stmt* ownedBorderSetStmt = nullptr;
-	if (!prepare(
-			"SELECT bs.id, bs.border_scope, bs.border_type, bs.border_group, COALESCE(bs.xml_border_id, 0) "
-			"FROM border_sets bs "
-			"WHERE bs.owner_brush_id = ? "
-			"ORDER BY bs.border_scope COLLATE NOCASE ASC, bs.border_type COLLATE NOCASE ASC, bs.id ASC;",
-			&ownedBorderSetStmt
-		)) {
-		return false;
-	}
-
-	sqlite3_bind_int64(ownedBorderSetStmt, 1, brushId);
-
-	for (;;) {
-		const int rc = sqlite3_step(ownedBorderSetStmt);
-		if (rc == SQLITE_DONE) {
-			break;
-		}
-		if (rc != SQLITE_ROW) {
-			sqlite3_finalize(ownedBorderSetStmt);
-			return setErrorFromDatabase("Failed to list brush owned border set usages");
-		}
-
-		const int64_t borderSetId = sqlite3_column_int64(ownedBorderSetStmt, 0);
-		const wxString borderScope = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(ownedBorderSetStmt, 1)));
-		const wxString borderType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(ownedBorderSetStmt, 2)));
-		const int borderGroup = sqlite3_column_int(ownedBorderSetStmt, 3);
-		const int xmlBorderId = sqlite3_column_int(ownedBorderSetStmt, 4);
-
-		BrushUsageRecord usage;
-		usage.sourceKind = "border_set";
-		usage.sourceId = borderSetId;
-		usage.sourceName = wxString::Format("Border set %lld", static_cast<long long>(borderSetId));
-		usage.relation = "owner";
-		usage.context = wxString::Format(
-			"scope=%s type=%s group=%d xml_id=%d",
-			borderScope,
-			borderType,
-			borderGroup,
-			xmlBorderId
-		);
-		usage.sortOrder = 0;
-		usage.refId = borderSetId;
-		outUsages.push_back(std::move(usage));
-	}
-
-	sqlite3_finalize(ownedBorderSetStmt);
 	return true;
 }
 
@@ -4689,46 +4874,9 @@ bool BrushDatabaseBrushRepository::replaceWallParts(int64_t brushId, const std::
 
 bool BrushDatabaseBrushRepository::validateWallPartsForReplace(const std::vector<WallPartRecord> &parts) {
 	for (const WallPartRecord &part : parts) {
-		wxString partType = part.partType;
-		partType.Trim(true);
-		partType.Trim(false);
-		if (partType.IsEmpty()) {
-			return setError("Wall part type cannot be empty.");
-		}
-		wxString canonicalPartType;
-		if (!CanonicalizeWallPartType(partType, canonicalPartType)) {
-			return setError("Unsupported wall part type: " + partType);
-		}
-		if (part.sortOrder < 0) {
-			return setError("Wall part sort order cannot be negative.");
-		}
-		for (const WallPartItemRecord &item : part.items) {
-			if (item.itemId <= 0) {
-				return setError("Wall part item id must be positive.");
-			}
-			if (item.chance < 0) {
-				return setError("Wall part item chance cannot be negative.");
-			}
-			if (item.sortOrder < 0) {
-				return setError("Wall part item sort order cannot be negative.");
-			}
-		}
-		for (const WallPartDoorRecord &door : part.doors) {
-			if (door.itemId <= 0) {
-				return setError("Wall part door item id must be positive.");
-			}
-			wxString doorType = door.doorType;
-			doorType.Trim(true);
-			doorType.Trim(false);
-			if (doorType.IsEmpty()) {
-				return setError("Wall part door type cannot be empty.");
-			}
-			if (!IsSupportedWallDoorType(doorType)) {
-				return setError("Unsupported wall part door type: " + doorType);
-			}
-			if (door.sortOrder < 0) {
-				return setError("Wall part door sort order cannot be negative.");
-			}
+		wxString error;
+		if (!ValidateWallPartRecordForReplace(part, error)) {
+			return setError(error);
 		}
 	}
 	return true;
@@ -5586,40 +5734,45 @@ bool BrushDatabaseCatalogRepository::savePaletteGroup(const PaletteGroupRecord &
 		return false;
 	}
 
+	const auto rollbackError = [this](const wxString &message) {
+		rollbackTransaction();
+		return setError(message);
+	};
+
+	const auto rollbackDbError = [this](const wxString &message) {
+		rollbackTransaction();
+		return setErrorFromDatabase(message);
+	};
+
 	sqlite3_stmt* findExistingStmt = nullptr;
 	if (!prepare("SELECT id, name, runtime_family, is_builtin FROM palette_groups WHERE id = ? LIMIT 1;", &findExistingStmt)) {
 		rollbackTransaction();
 		return false;
 	}
+	SqliteStatementGuard findExistingGuard(findExistingStmt);
 
 	sqlite3_stmt* findByNameStmt = nullptr;
 	if (!prepare("SELECT id FROM palette_groups WHERE lower(name) = lower(?) LIMIT 1;", &findByNameStmt)) {
-		sqlite3_finalize(findExistingStmt);
 		rollbackTransaction();
 		return false;
 	}
+	SqliteStatementGuard findByNameGuard(findByNameStmt);
 
 	sqlite3_stmt* insertStmt = nullptr;
 	if (!prepare("INSERT INTO palette_groups(name, runtime_family, sort_order, is_builtin) "
 				 "VALUES (?, ?, COALESCE((SELECT MAX(sort_order) + 1 FROM palette_groups), 4), 0);",
 				 &insertStmt)) {
-		FinalizeStatements({ findExistingStmt, findByNameStmt });
 		rollbackTransaction();
 		return false;
 	}
+	SqliteStatementGuard insertGuard(insertStmt);
 
 	sqlite3_stmt* updateStmt = nullptr;
 	if (!prepare("UPDATE palette_groups SET name = ?, runtime_family = ? WHERE id = ?;", &updateStmt)) {
-		FinalizeStatements({ findExistingStmt, findByNameStmt, insertStmt });
 		rollbackTransaction();
 		return false;
 	}
-
-	const auto fail = [this, &findExistingStmt, &findByNameStmt, &insertStmt, &updateStmt](const wxString &message) {
-		FinalizeStatements({ findExistingStmt, findByNameStmt, insertStmt, updateStmt });
-		rollbackTransaction();
-		return setErrorFromDatabase(message);
-	};
+	SqliteStatementGuard updateGuard(updateStmt);
 
 	int64_t existingId = 0;
 	bool existingIsBuiltin = false;
@@ -5628,13 +5781,11 @@ bool BrushDatabaseCatalogRepository::savePaletteGroup(const PaletteGroupRecord &
 	if (group.id > 0) {
 		sqlite3_bind_int64(findExistingStmt, 1, group.id);
 		const int existingRc = sqlite3_step(findExistingStmt);
-		if (existingRc == SQLITE_DONE) {
-			FinalizeStatements({ findExistingStmt, findByNameStmt, insertStmt, updateStmt });
-			rollbackTransaction();
-			return setError("Palette group was not found in SQLite.");
-		}
 		if (existingRc != SQLITE_ROW) {
-			return fail("Failed to query existing palette group");
+			if (existingRc == SQLITE_DONE) {
+				return rollbackError("Palette group was not found in SQLite.");
+			}
+			return rollbackDbError("Failed to query existing palette group");
 		}
 
 		existingId = sqlite3_column_int64(findExistingStmt, 0);
@@ -5648,36 +5799,31 @@ bool BrushDatabaseCatalogRepository::savePaletteGroup(const PaletteGroupRecord &
 	if (findByNameRc == SQLITE_ROW) {
 		const int64_t conflictingId = sqlite3_column_int64(findByNameStmt, 0);
 		if (conflictingId != group.id) {
-			FinalizeStatements({ findExistingStmt, findByNameStmt, insertStmt, updateStmt });
-			rollbackTransaction();
-			return setError("A palette group with this name already exists.");
+			return rollbackError("A palette group with this name already exists.");
 		}
 	} else if (findByNameRc != SQLITE_DONE) {
-		return fail("Failed to validate palette group name");
+		return rollbackDbError("Failed to validate palette group name");
 	}
 
 	if (group.id <= 0) {
 		sqlite3_bind_text(insertStmt, 1, groupName.utf8_str(), -1, SQLITE_TRANSIENT);
 		sqlite3_bind_text(insertStmt, 2, runtimeFamily.utf8_str(), -1, SQLITE_TRANSIENT);
 		if (sqlite3_step(insertStmt) != SQLITE_DONE) {
-			return fail("Failed to insert palette group");
+			return rollbackDbError("Failed to insert palette group");
 		}
 	} else {
 		if (existingIsBuiltin && !groupName.IsSameAs(existingName, false)) {
-			FinalizeStatements({ findExistingStmt, findByNameStmt, insertStmt, updateStmt });
-			rollbackTransaction();
-			return setError("Built-in palette groups cannot be renamed.");
+			return rollbackError("Built-in palette groups cannot be renamed.");
 		}
 
 		sqlite3_bind_text(updateStmt, 1, groupName.utf8_str(), -1, SQLITE_TRANSIENT);
 		sqlite3_bind_text(updateStmt, 2, runtimeFamily.utf8_str(), -1, SQLITE_TRANSIENT);
 		sqlite3_bind_int64(updateStmt, 3, existingId);
 		if (sqlite3_step(updateStmt) != SQLITE_DONE) {
-			return fail("Failed to update palette group");
+			return rollbackDbError("Failed to update palette group");
 		}
 	}
 
-	FinalizeStatements({ findExistingStmt, findByNameStmt, insertStmt, updateStmt });
 	if (!commitTransaction()) {
 		rollbackTransaction();
 		return false;
@@ -5993,10 +6139,10 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 	if (!prepare(countSql.utf8_str(), &countStmt)) {
 		return false;
 	}
+	SqliteStatementGuard countGuard(countStmt);
 
-	const int rc = sqlite3_step(countStmt);
-	if (rc != SQLITE_ROW) {
-		sqlite3_finalize(countStmt);
+	const int countRc = sqlite3_step(countStmt);
+	if (countRc != SQLITE_ROW) {
 		return setErrorFromDatabase("Failed to build SQLite audit report");
 	}
 
@@ -6013,27 +6159,33 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 	outReport.unresolvedCaseReplaceBorderTargetIds = sqlite3_column_int(countStmt, 10);
 	outReport.caseMatchBorderEdgesWithoutItem = sqlite3_column_int(countStmt, 11);
 	outReport.caseReplaceBorderEdgesWithoutItem = sqlite3_column_int(countStmt, 12);
-	sqlite3_finalize(countStmt);
 
 	sqlite3_stmt* groupedStmt = nullptr;
 	if (!prepare("SELECT type, COUNT(*) FROM brushes GROUP BY type ORDER BY type ASC;", &groupedStmt)) {
 		return false;
 	}
+	SqliteStatementGuard groupedGuard(groupedStmt);
 
-	for (;;) {
-		const int groupedRc = sqlite3_step(groupedStmt);
-		if (groupedRc == SQLITE_DONE) {
-			break;
-		}
-		if (groupedRc != SQLITE_ROW) {
-			sqlite3_finalize(groupedStmt);
-			return setErrorFromDatabase("Failed to group brushes by type");
-		}
+	const auto collectTypeCounts = [this](sqlite3_stmt* stmt, std::vector<BrushTypeCountRecord> &outCounts, const wxString &errorMessage) {
+		for (;;) {
+			const int stepRc = sqlite3_step(stmt);
+			if (stepRc == SQLITE_DONE) {
+				break;
+			}
+			if (stepRc != SQLITE_ROW) {
+				return setErrorFromDatabase(errorMessage);
+			}
 
-		BrushTypeCountRecord typeCount;
-		typeCount.type = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(groupedStmt, 0)));
-		typeCount.count = sqlite3_column_int(groupedStmt, 1);
-		outReport.brushTypeCounts.push_back(typeCount);
+			BrushTypeCountRecord typeCount;
+			typeCount.type = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)));
+			typeCount.count = sqlite3_column_int(stmt, 1);
+			outCounts.push_back(typeCount);
+		}
+		return true;
+	};
+
+	if (!collectTypeCounts(groupedStmt, outReport.brushTypeCounts, "Failed to group brushes by type")) {
+		return false;
 	}
 
 	sqlite3_stmt* unsupportedTypesStmt = nullptr;
@@ -6047,23 +6199,10 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 				 &unsupportedTypesStmt)) {
 		return false;
 	}
-
-	for (;;) {
-		const int rc = sqlite3_step(unsupportedTypesStmt);
-		if (rc == SQLITE_DONE) {
-			break;
-		}
-		if (rc != SQLITE_ROW) {
-			sqlite3_finalize(unsupportedTypesStmt);
-			return setErrorFromDatabase("Failed to group unsupported brush types");
-		}
-
-		BrushTypeCountRecord typeCount;
-		typeCount.type = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(unsupportedTypesStmt, 0)));
-		typeCount.count = sqlite3_column_int(unsupportedTypesStmt, 1);
-		outReport.unsupportedBrushTypeCounts.push_back(typeCount);
+	SqliteStatementGuard unsupportedTypesGuard(unsupportedTypesStmt);
+	if (!collectTypeCounts(unsupportedTypesStmt, outReport.unsupportedBrushTypeCounts, "Failed to group unsupported brush types")) {
+		return false;
 	}
-	sqlite3_finalize(unsupportedTypesStmt);
 
 	sqlite3_stmt* unsupportedSamplesStmt = nullptr;
 	if (!prepare(("SELECT id, name, type, source_file "
@@ -6076,14 +6215,14 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 				 &unsupportedSamplesStmt)) {
 		return false;
 	}
+	SqliteStatementGuard unsupportedSamplesGuard(unsupportedSamplesStmt);
 
 	for (;;) {
-		const int rc = sqlite3_step(unsupportedSamplesStmt);
-		if (rc == SQLITE_DONE) {
+		const int samplesRc = sqlite3_step(unsupportedSamplesStmt);
+		if (samplesRc == SQLITE_DONE) {
 			break;
 		}
-		if (rc != SQLITE_ROW) {
-			sqlite3_finalize(unsupportedSamplesStmt);
+		if (samplesRc != SQLITE_ROW) {
 			return setErrorFromDatabase("Failed to list unsupported brush samples");
 		}
 
@@ -6094,8 +6233,6 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 		sample.sourceFile = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(unsupportedSamplesStmt, 3)));
 		outReport.unsupportedBrushSamples.push_back(sample);
 	}
-
-	sqlite3_finalize(unsupportedSamplesStmt);
 
 	sqlite3_stmt* unresolvedTilesetSamplesStmt = nullptr;
 	if (!prepare("SELECT "
@@ -6126,14 +6263,14 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 				 &unresolvedTilesetSamplesStmt)) {
 		return false;
 	}
+	SqliteStatementGuard unresolvedTilesetSamplesGuard(unresolvedTilesetSamplesStmt);
 
 	for (;;) {
-		const int rc = sqlite3_step(unresolvedTilesetSamplesStmt);
-		if (rc == SQLITE_DONE) {
+		const int tilesetSamplesRc = sqlite3_step(unresolvedTilesetSamplesStmt);
+		if (tilesetSamplesRc == SQLITE_DONE) {
 			break;
 		}
-		if (rc != SQLITE_ROW) {
-			sqlite3_finalize(unresolvedTilesetSamplesStmt);
+		if (tilesetSamplesRc != SQLITE_ROW) {
 			return setErrorFromDatabase("Failed to list unresolved tileset entries");
 		}
 
@@ -6153,8 +6290,6 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 		outReport.unresolvedTilesetEntrySamples.push_back(sample);
 	}
 
-	sqlite3_finalize(unresolvedTilesetSamplesStmt);
-	sqlite3_finalize(groupedStmt);
 	return true;
 }
 
@@ -6199,170 +6334,19 @@ bool BrushDatabaseCatalogRepository::hasCompleteImportForCurrentSchema(bool &out
 		return false;
 	}
 
-	wxString unsupportedBrushTypesDetail;
-	for (size_t i = 0; i < report.unsupportedBrushTypeCounts.size(); ++i) {
-		if (i > 0) {
-			unsupportedBrushTypesDetail += ", ";
-		}
-		unsupportedBrushTypesDetail += wxString::Format(
-			"%s (%d)",
-			report.unsupportedBrushTypeCounts[i].type,
-			report.unsupportedBrushTypeCounts[i].count
-		);
-	}
-	wxString unsupportedBrushSamplesDetail;
-	if (!report.unsupportedBrushSamples.empty()) {
-		const size_t sampleCount = std::min<size_t>(report.unsupportedBrushSamples.size(), 3);
-		for (size_t i = 0; i < sampleCount; ++i) {
-			const UnsupportedBrushSampleRecord &sample = report.unsupportedBrushSamples[i];
-			if (i > 0) {
-				unsupportedBrushSamplesDetail += "; ";
-			}
-			wxString source = sample.sourceFile;
-			source.Trim(true);
-			source.Trim(false);
-			if (source.IsEmpty()) {
-				source = "<unknown>";
-			}
-			unsupportedBrushSamplesDetail += wxString::Format(
-				"id=%lld name=\"%s\" type=\"%s\" source=\"%s\"",
-				static_cast<long long>(sample.id),
-				sample.name,
-				sample.type,
-				source
-			);
-		}
-	}
+	const wxString unsupportedBrushTypesDetail = BuildUnsupportedBrushTypesDetail(report.unsupportedBrushTypeCounts);
+	const wxString unsupportedBrushSamplesDetail = BuildUnsupportedBrushSamplesDetail(report.unsupportedBrushSamples);
+	const wxString unresolvedTilesetSamplesDetail = report.unresolvedTilesetEntries > 0
+													? BuildUnresolvedTilesetSamplesDetail(report.unresolvedTilesetEntrySamples)
+													: wxString();
 
-	wxString unresolvedTilesetSamplesDetail;
-	if (report.unresolvedTilesetEntries > 0 && !report.unresolvedTilesetEntrySamples.empty()) {
-		const size_t sampleCount = std::min<size_t>(report.unresolvedTilesetEntrySamples.size(), 3);
-		for (size_t i = 0; i < sampleCount; ++i) {
-			const UnresolvedTilesetEntrySampleRecord &sample = report.unresolvedTilesetEntrySamples[i];
-			if (i > 0) {
-				unresolvedTilesetSamplesDetail += "; ";
-			}
-			wxString group = sample.paletteGroupName;
-			group.Trim(true);
-			group.Trim(false);
-			if (group.IsEmpty()) {
-				group = "<unknown>";
-			}
-			wxString tileset = sample.tilesetName;
-			tileset.Trim(true);
-			tileset.Trim(false);
-			if (tileset.IsEmpty()) {
-				tileset = "<unknown>";
-			}
-			wxString section = sample.sectionType;
-			section.Trim(true);
-			section.Trim(false);
-			if (section.IsEmpty()) {
-				section = "<unknown>";
-			}
-			wxString brush = sample.brushName;
-			brush.Trim(true);
-			brush.Trim(false);
-			if (brush.IsEmpty()) {
-				brush = "<unknown>";
-			}
-			unresolvedTilesetSamplesDetail += wxString::Format(
-				"group=\"%s\" palette=\"%s\" section=\"%s\" brush=\"%s\"",
-				group,
-				tileset,
-				section,
-				brush
-			);
+	const auto appendExamplesIfAny = [&outReason](const wxString &examplesDetail) {
+		if (!examplesDetail.IsEmpty()) {
+			outReason += " Examples: " + examplesDetail + ".";
 		}
-	}
+	};
 
-	if (importComplete) {
-		outReady = true;
-		if (report.unsupportedBrushTypeCount > 0) {
-			outReady = false;
-			if (unsupportedBrushTypesDetail.IsEmpty()) {
-				outReason = wxString::Format("Database contains unsupported brush types (%d).", report.unsupportedBrushTypeCount);
-			} else {
-				outReason = wxString::Format(
-					"Database contains unsupported brush types (%d): %s.",
-					report.unsupportedBrushTypeCount,
-					unsupportedBrushTypesDetail
-				);
-			}
-			if (!unsupportedBrushSamplesDetail.IsEmpty()) {
-				outReason += " Examples: " + unsupportedBrushSamplesDetail + ".";
-			}
-		} else if (report.unresolvedGroundTargets > 0 || report.unresolvedBrushLinks > 0 || report.unresolvedTilesetEntries > 0 || report.unresolvedCaseMatchBorderIds > 0 || report.unresolvedCaseReplaceBorderTargetIds > 0) {
-			outReady = false;
-			outReason = wxString::Format(
-				"Database contains unresolved references (ground targets=%d, brush links=%d, tileset entries=%d, match_border ids=%d, replace_border target ids=%d).",
-				report.unresolvedGroundTargets,
-				report.unresolvedBrushLinks,
-				report.unresolvedTilesetEntries,
-				report.unresolvedCaseMatchBorderIds,
-				report.unresolvedCaseReplaceBorderTargetIds
-			);
-			if (!unresolvedTilesetSamplesDetail.IsEmpty()) {
-				outReason += " Examples: " + unresolvedTilesetSamplesDetail + ".";
-			}
-		}
-		return true;
-	}
-
-	bool hasGround = false;
-	bool hasWall = false;
-	bool hasDoodad = false;
-	bool hasCarpet = false;
-	bool hasTable = false;
-	for (const BrushTypeCountRecord &typeCount : report.brushTypeCounts) {
-		if (typeCount.type == "ground" && typeCount.count > 0) {
-			hasGround = true;
-		} else if (typeCount.type == "wall" && typeCount.count > 0) {
-			hasWall = true;
-		} else if (typeCount.type == "doodad" && typeCount.count > 0) {
-			hasDoodad = true;
-		} else if (typeCount.type == "carpet" && typeCount.count > 0) {
-			hasCarpet = true;
-		} else if (typeCount.type == "table" && typeCount.count > 0) {
-			hasTable = true;
-		}
-	}
-
-	outReady = hasGround && hasWall && hasDoodad && hasCarpet && hasTable && report.borderSetCount > 0 && report.tilesetCount > 0;
-	if (!outReady) {
-		std::vector<wxString> missing;
-		if (!hasGround) {
-			missing.push_back("ground");
-		}
-		if (!hasWall) {
-			missing.push_back("wall");
-		}
-		if (!hasDoodad) {
-			missing.push_back("doodad");
-		}
-		if (!hasCarpet) {
-			missing.push_back("carpet");
-		}
-		if (!hasTable) {
-			missing.push_back("table");
-		}
-		if (report.borderSetCount <= 0) {
-			missing.push_back("border_sets");
-		}
-		if (report.tilesetCount <= 0) {
-			missing.push_back("tilesets");
-		}
-
-		wxString detail;
-		for (size_t i = 0; i < missing.size(); ++i) {
-			if (i > 0) {
-				detail += ", ";
-			}
-			detail += missing[i];
-		}
-		outReason = "Database is missing imported materials data (" + detail + ").";
-	} else if (report.unsupportedBrushTypeCount > 0) {
-		outReady = false;
+	const auto setUnsupportedBrushTypesReason = [&]() {
 		if (unsupportedBrushTypesDetail.IsEmpty()) {
 			outReason = wxString::Format("Database contains unsupported brush types (%d).", report.unsupportedBrushTypeCount);
 		} else {
@@ -6372,23 +6356,45 @@ bool BrushDatabaseCatalogRepository::hasCompleteImportForCurrentSchema(bool &out
 				unsupportedBrushTypesDetail
 			);
 		}
-		if (!unsupportedBrushSamplesDetail.IsEmpty()) {
-			outReason += " Examples: " + unsupportedBrushSamplesDetail + ".";
+		appendExamplesIfAny(unsupportedBrushSamplesDetail);
+	};
+
+	const auto setUnresolvedReferencesReason = [&]() {
+		outReason = FormatUnresolvedReferencesSummary(report);
+		appendExamplesIfAny(unresolvedTilesetSamplesDetail);
+	};
+
+	if (importComplete) {
+		outReady = report.unsupportedBrushTypeCount <= 0 && !ReportHasUnresolvedReferences(report);
+		if (report.unsupportedBrushTypeCount > 0) {
+			setUnsupportedBrushTypesReason();
+		} else if (ReportHasUnresolvedReferences(report)) {
+			setUnresolvedReferencesReason();
 		}
-	} else if (report.unresolvedGroundTargets > 0 || report.unresolvedBrushLinks > 0 || report.unresolvedTilesetEntries > 0 || report.unresolvedCaseMatchBorderIds > 0 || report.unresolvedCaseReplaceBorderTargetIds > 0) {
+		return true;
+	}
+
+	std::vector<wxString> missing;
+	CollectMissingImportedData(report, missing);
+	outReady = missing.empty();
+	if (!outReady) {
+		outReason = "Database is missing imported materials data (" + JoinCommaSeparated(missing) + ").";
+		return true;
+	}
+
+	if (report.unsupportedBrushTypeCount > 0) {
 		outReady = false;
-		outReason = wxString::Format(
-			"Database contains unresolved references (ground targets=%d, brush links=%d, tileset entries=%d, match_border ids=%d, replace_border target ids=%d).",
-			report.unresolvedGroundTargets,
-			report.unresolvedBrushLinks,
-			report.unresolvedTilesetEntries,
-			report.unresolvedCaseMatchBorderIds,
-			report.unresolvedCaseReplaceBorderTargetIds
-		);
-		if (!unresolvedTilesetSamplesDetail.IsEmpty()) {
-			outReason += " Examples: " + unresolvedTilesetSamplesDetail + ".";
-		}
-	} else if (!isReadOnly()) {
+		setUnsupportedBrushTypesReason();
+		return true;
+	}
+
+	if (ReportHasUnresolvedReferences(report)) {
+		outReady = false;
+		setUnresolvedReferencesReason();
+		return true;
+	}
+
+	if (!isReadOnly()) {
 		if (!markMaterialsImportComplete("audit_auto_mark")) {
 			spdlog::error("[BrushDatabase] Failed to write materials import marker: {}", lastError().ToStdString());
 			outReady = false;
