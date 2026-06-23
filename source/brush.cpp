@@ -541,13 +541,13 @@ Brushes::~Brushes() {
 }
 
 void Brushes::clear() {
-	for (const auto &[name, brush] : brushes) {
-		std::unique_ptr<Brush>(brush);
+	for (const auto &[name, rawBrush] : brushes) {
+		std::unique_ptr<Brush> ownedBrush(rawBrush);
 	}
 	brushes.clear();
 
-	for (const auto &[id, border] : borders) {
-		std::unique_ptr<AutoBorder>(border);
+	for (const auto &[id, rawBorder] : borders) {
+		std::unique_ptr<AutoBorder> ownedBorder(rawBorder);
 	}
 	borders.clear();
 }
@@ -647,7 +647,7 @@ bool Brushes::unserializeBrush(pugi::xml_node node, wxArrayString &warnings) {
 	if (otherBrush && otherBrush != brush) {
 		warnings.push_back(wxString("Duplicate brush name ") << wxstr(brush->getName()) << ". Skipping load to avoid undefined behaviour.");
 		if (createdNew) {
-			std::unique_ptr<Brush>(brush);
+			std::unique_ptr<Brush> ownedBrush(brush);
 		}
 		return false;
 	}
@@ -889,8 +889,8 @@ bool Brushes::reloadBorderSetFromDatabase(int64_t borderSetId, wxArrayString &wa
 	}
 
 	ResetGroundBrushRuntimeState(*this);
-	for (const auto &[id, border] : borders) {
-		std::unique_ptr<AutoBorder>(border);
+	for (const auto &[id, rawBorder] : borders) {
+		std::unique_ptr<AutoBorder> ownedBorder(rawBorder);
 	}
 	borders.clear();
 
