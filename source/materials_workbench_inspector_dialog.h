@@ -21,11 +21,6 @@ class MaterialsWorkbenchInspectorDialog : public wxDialog {
 public:
 	using GoToHandler = std::function<bool(const wxString &entityKind, int64_t entityId, const wxString &entityName)>;
 
-	MaterialsWorkbenchInspectorDialog(wxWindow* parent, GoToHandler goToHandler);
-
-	void SelectSqliteTab();
-
-private:
 	struct WarningRow {
 		wxString severity;
 		wxString domain;
@@ -38,6 +33,11 @@ private:
 		wxString details;
 	};
 
+	MaterialsWorkbenchInspectorDialog(wxWindow* parent, GoToHandler goToHandler);
+
+	void SelectSqliteTab();
+
+private:
 	void BuildLayout();
 	void BuildHealthTab(wxNotebook* notebook);
 	void BuildSqliteTab(wxNotebook* notebook);
