@@ -716,7 +716,7 @@ public:
 		return catalogRepository_;
 	}
 
-protected:
+private:
 	BrushDatabaseSession session_;
 	BrushDatabaseSchemaManager schemaManager_ { session_ };
 	BrushDatabaseBrushCrudRepository brushCrudRepository_ { session_ };
@@ -865,7 +865,7 @@ public:
 
 	template <typename Operation>
 	bool runInTransaction(Operation &&operation) {
-		return session_.runInTransaction(std::forward<Operation>(operation));
+		return session().runInTransaction(std::forward<Operation>(operation));
 	}
 };
 

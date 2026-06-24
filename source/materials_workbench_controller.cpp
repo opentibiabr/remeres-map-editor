@@ -412,35 +412,70 @@ namespace {
 
 } // namespace
 
-bool MaterialsWorkbenchController::ReloadCatalog() {
-	lastError_.clear();
-	if (!repository_.LoadCatalog(catalog_, lastError_)) {
-		spdlog::warn("Materials Workbench failed to reload catalog from materials.db: {}", lastError_.ToStdString());
-		return false;
-	}
-
-	spdlog::info(
-		"Materials Workbench reloaded catalog from materials.db: brushes={} palettes={} walls={}",
-		catalog_.auditReport.brushCount,
-		catalog_.tilesets.size(),
-		catalog_.wallBrushes.size()
-	);
-	return true;
+MaterialsWorkbenchControllerCoreApi::MaterialsWorkbenchControllerCoreApi(MaterialsWorkbenchControllerState &state) :
+	state_(state) {
 }
 
-wxString MaterialsWorkbenchController::GetWindowTitle() const {
+MaterialsWorkbenchControllerNavigationApi::MaterialsWorkbenchControllerNavigationApi(MaterialsWorkbenchControllerState &state) :
+	state_(state) {
+}
+
+MaterialsWorkbenchControllerTilesetsApi::MaterialsWorkbenchControllerTilesetsApi(MaterialsWorkbenchControllerState &state) :
+	state_(state) {
+}
+
+MaterialsWorkbenchControllerBrushesApi::MaterialsWorkbenchControllerBrushesApi(MaterialsWorkbenchControllerState &state) :
+	state_(state) {
+}
+
+MaterialsWorkbenchControllerBordersApi::MaterialsWorkbenchControllerBordersApi(MaterialsWorkbenchControllerState &state) :
+	state_(state) {
+}
+
+MaterialsWorkbenchController::MaterialsWorkbenchController() :
+	MaterialsWorkbenchControllerState(),
+	MaterialsWorkbenchControllerCoreApi(static_cast<MaterialsWorkbenchControllerState&>(*this)),
+	MaterialsWorkbenchControllerNavigationApi(static_cast<MaterialsWorkbenchControllerState&>(*this)),
+	MaterialsWorkbenchControllerTilesetsApi(static_cast<MaterialsWorkbenchControllerState&>(*this)),
+	MaterialsWorkbenchControllerBrushesApi(static_cast<MaterialsWorkbenchControllerState&>(*this)),
+	MaterialsWorkbenchControllerBordersApi(static_cast<MaterialsWorkbenchControllerState&>(*this)) {
+}
+
+namespace {
+	bool ReloadCatalogSnapshot(MaterialsWorkbenchControllerState &state) {
+		state.lastError().clear();
+		if (!state.repository().LoadCatalog(state.catalog(), state.lastError())) {
+			spdlog::warn("Materials Workbench failed to reload catalog from materials.db: {}", state.lastError().ToStdString());
+			return false;
+		}
+
+		spdlog::info(
+			"Materials Workbench reloaded catalog from materials.db: brushes={} palettes={} walls={}",
+			state.catalog().auditReport.brushCount,
+			state.catalog().tilesets.size(),
+			state.catalog().wallBrushes.size()
+		);
+		return true;
+	}
+} // namespace
+
+bool MaterialsWorkbenchControllerCoreApi::ReloadCatalog() {
+	return ReloadCatalogSnapshot(state_);
+}
+
+wxString MaterialsWorkbenchControllerCoreApi::GetWindowTitle() const {
 	return "Materials Workbench";
 }
 
-wxString MaterialsWorkbenchController::GetOverviewText() const {
-	if (!lastError_.IsEmpty()) {
-		return "Materials Workbench could not load the SQLite catalog.\n\nError: " + lastError_;
+wxString MaterialsWorkbenchControllerCoreApi::GetOverviewText() const {
+	if (!state_.lastError().IsEmpty()) {
+		return "Materials Workbench could not load the SQLite catalog.\n\nError: " + state_.lastError();
 	}
-	return FormatCatalogOverviewCard(catalog_);
+	return FormatCatalogOverviewCard(state_.catalog());
 }
 
-wxString MaterialsWorkbenchController::GetInspectorText() const {
-	if (!lastError_.IsEmpty()) {
+wxString MaterialsWorkbenchControllerCoreApi::GetInspectorText() const {
+	if (!state_.lastError().IsEmpty()) {
 		return "Inspector unavailable while the catalog failed to load.";
 	}
 
@@ -448,262 +483,369 @@ wxString MaterialsWorkbenchController::GetInspectorText() const {
 		   "Select a palette, brush, border set or wall entry in the navigation tree to inspect its SQLite-backed metadata.";
 }
 
-std::vector<MaterialsWorkbenchTreeNode> MaterialsWorkbenchController::BuildNavigationTree() const {
-	std::vector<MaterialsWorkbenchTreeNode> nodes;
-
-	MaterialsWorkbenchTreeNode catalogNode;
-	catalogNode.kind = MaterialsWorkbenchNodeKind::Group;
-	catalogNode.label = "Catalog";
-	catalogNode.contextKey = "group:catalog";
-
-	MaterialsWorkbenchTreeNode palettesNode;
-	palettesNode.kind = MaterialsWorkbenchNodeKind::Group;
-	palettesNode.label = FormatNavigationCountLabel("Palette Categories", catalog_.tilesets.size());
-	palettesNode.contextKey = "group:palettes";
-
-	std::map<wxString, std::vector<int>> paletteIndexesByGroup;
-	for (size_t i = 0; i < catalog_.tilesets.size(); ++i) {
-		paletteIndexesByGroup[BuildPaletteGroupKey(catalog_.tilesets[i])].push_back(static_cast<int>(i));
+namespace {
+	MaterialsWorkbenchTreeNode MakeGroupNode(const wxString &label, const wxString &contextKey) {
+		MaterialsWorkbenchTreeNode node;
+		node.kind = MaterialsWorkbenchNodeKind::Group;
+		node.label = label;
+		node.contextKey = contextKey;
+		return node;
 	}
 
-	for (const PaletteGroupRecord &group : catalog_.paletteGroups) {
-		const auto groupIt = paletteIndexesByGroup.find(group.name);
-		const std::vector<int> empty;
-		const std::vector<int> &paletteIndexes = groupIt != paletteIndexesByGroup.end() ? groupIt->second : empty;
+	MaterialsWorkbenchTreeNode MakeItemNode(MaterialsWorkbenchNodeKind kind, const wxString &label, const wxString &contextKey, int itemIndex) {
+		MaterialsWorkbenchTreeNode node;
+		node.kind = kind;
+		node.label = label;
+		node.contextKey = contextKey;
+		node.itemIndex = itemIndex;
+		return node;
+	}
 
-		MaterialsWorkbenchTreeNode groupNode;
-		groupNode.kind = MaterialsWorkbenchNodeKind::Group;
-		groupNode.label = FormatNavigationCountLabel(BuildPaletteGroupLabel(group.name), paletteIndexes.size());
-		groupNode.contextKey = "palette_group:" + group.name;
-		for (int tilesetIndex : paletteIndexes) {
-			MaterialsWorkbenchTreeNode item;
-			item.kind = MaterialsWorkbenchNodeKind::Tileset;
-			item.label = catalog_.tilesets[tilesetIndex].name;
-			item.contextKey = "tilesets";
-			item.itemIndex = tilesetIndex;
-			groupNode.children.push_back(std::move(item));
+	MaterialsWorkbenchTreeNode BuildPalettesNavigationNode(const MaterialsWorkbenchCatalogSnapshot &catalog) {
+		MaterialsWorkbenchTreeNode palettesNode = MakeGroupNode(
+			FormatNavigationCountLabel("Palette Categories", catalog.tilesets.size()),
+			"group:palettes"
+		);
+
+		std::map<wxString, std::vector<int>> paletteIndexesByGroup;
+		for (size_t i = 0; i < catalog.tilesets.size(); ++i) {
+			paletteIndexesByGroup[BuildPaletteGroupKey(catalog.tilesets[i])].push_back(static_cast<int>(i));
 		}
-		palettesNode.children.push_back(std::move(groupNode));
-	}
-	catalogNode.children.push_back(std::move(palettesNode));
 
-	MaterialsWorkbenchTreeNode brushesNode;
-	brushesNode.kind = MaterialsWorkbenchNodeKind::Group;
-	brushesNode.label = FormatNavigationCountLabel("Brushes", catalog_.auditReport.brushCount);
-	brushesNode.contextKey = "group:brushes";
+		for (const PaletteGroupRecord &group : catalog.paletteGroups) {
+			const auto groupIt = paletteIndexesByGroup.find(group.name);
+			const std::vector<int> empty;
+			const std::vector<int> &paletteIndexes = groupIt != paletteIndexesByGroup.end() ? groupIt->second : empty;
+
+			MaterialsWorkbenchTreeNode groupNode = MakeGroupNode(
+				FormatNavigationCountLabel(BuildPaletteGroupLabel(group.name), paletteIndexes.size()),
+				"palette_group:" + group.name
+			);
+			for (int tilesetIndex : paletteIndexes) {
+				groupNode.children.push_back(MakeItemNode(
+					MaterialsWorkbenchNodeKind::Tileset,
+					catalog.tilesets[tilesetIndex].name,
+					"tilesets",
+					tilesetIndex
+				));
+			}
+			palettesNode.children.push_back(std::move(groupNode));
+		}
+		return palettesNode;
+	}
 
 	struct BrushNavigationPlacement {
 		wxString familyKey;
 		wxString paletteLabel;
 	};
 
-	std::map<wxString, BrushNavigationPlacement> brushPlacementByKey;
-	std::map<wxString, std::vector<wxString>> paletteOrderByFamily;
-	for (const TilesetStorageRecord &tileset : catalog_.tilesets) {
-		const wxString familyKey = BuildPaletteGroupKey(tileset);
-		auto &familyPaletteOrder = paletteOrderByFamily[familyKey];
-		if (std::find(familyPaletteOrder.begin(), familyPaletteOrder.end(), tileset.name) == familyPaletteOrder.end()) {
-			familyPaletteOrder.push_back(tileset.name);
+	std::map<wxString, BrushNavigationPlacement> BuildBrushPlacementByKey(
+		const MaterialsWorkbenchCatalogSnapshot &catalog,
+		std::map<wxString, std::vector<wxString>> &outPaletteOrderByFamily
+	) {
+		std::map<wxString, BrushNavigationPlacement> brushPlacementByKey;
+		for (const TilesetStorageRecord &tileset : catalog.tilesets) {
+			const wxString familyKey = BuildPaletteGroupKey(tileset);
+			auto &familyPaletteOrder = outPaletteOrderByFamily[familyKey];
+			if (std::find(familyPaletteOrder.begin(), familyPaletteOrder.end(), tileset.name) == familyPaletteOrder.end()) {
+				familyPaletteOrder.push_back(tileset.name);
+			}
+
+			for (const TilesetSectionRecord &section : tileset.sections) {
+				for (const TilesetEntryRecord &entry : section.entries) {
+					if (!entry.entryKind.IsSameAs("brush", false) || (entry.brushId <= 0 && entry.brushName.IsEmpty())) {
+						continue;
+					}
+
+					const wxString brushKey = BuildBrushLookupKey(entry.brushId, entry.brushName);
+					if (!brushPlacementByKey.count(brushKey)) {
+						brushPlacementByKey[brushKey] = { familyKey, tileset.name };
+					}
+				}
+			}
 		}
+		return brushPlacementByKey;
+	}
 
-		for (const TilesetSectionRecord &section : tileset.sections) {
-			for (const TilesetEntryRecord &entry : section.entries) {
-				if (!entry.entryKind.IsSameAs("brush", false)) {
-					continue;
-				}
-				if (entry.brushId <= 0 && entry.brushName.IsEmpty()) {
-					continue;
+	void CollectBrushNavigationBuckets(
+		const MaterialsWorkbenchCatalogSnapshot &catalog,
+		const std::map<wxString, BrushNavigationPlacement> &brushPlacementByKey,
+		std::map<wxString, std::vector<wxString>> &outBrushPaletteLabelsByFamily,
+		std::map<wxString, std::map<wxString, std::vector<MaterialsWorkbenchTreeNode>>> &outBrushNodesByFamilyAndPalette,
+		std::map<wxString, size_t> &outBrushCountByFamily
+	) {
+		for (const MaterialsWorkbenchBrushGroup &group : catalog.brushGroups) {
+			for (size_t i = 0; i < group.brushes.size(); ++i) {
+				const BrushRecord &brush = group.brushes[i];
+				const wxString brushKey = BuildBrushLookupKey(brush.id, brush.name);
+				const auto placementIt = brushPlacementByKey.find(brushKey);
+				const wxString familyKey = placementIt != brushPlacementByKey.end()
+					? placementIt->second.familyKey
+					: BuildBrushFamilyKeyFromBrushType(group.brushType);
+				const wxString paletteLabel = placementIt != brushPlacementByKey.end()
+					? placementIt->second.paletteLabel
+					: wxString::FromUTF8("Uncategorized");
+
+				auto &familyPaletteLabels = outBrushPaletteLabelsByFamily[familyKey];
+				if (std::find(familyPaletteLabels.begin(), familyPaletteLabels.end(), paletteLabel) == familyPaletteLabels.end()) {
+					familyPaletteLabels.push_back(paletteLabel);
 				}
 
-				const wxString brushKey = BuildBrushLookupKey(entry.brushId, entry.brushName);
-				if (!brushPlacementByKey.count(brushKey)) {
-					brushPlacementByKey[brushKey] = { familyKey, tileset.name };
-				}
+				outBrushNodesByFamilyAndPalette[familyKey][paletteLabel].push_back(MakeItemNode(
+					MaterialsWorkbenchNodeKind::Brush,
+					brush.name,
+					group.brushType,
+					static_cast<int>(i)
+				));
+				++outBrushCountByFamily[familyKey];
 			}
 		}
 	}
 
-	std::map<wxString, std::vector<wxString>> brushPaletteLabelsByFamily;
-	std::map<wxString, std::map<wxString, std::vector<MaterialsWorkbenchTreeNode>>> brushNodesByFamilyAndPalette;
-	std::map<wxString, size_t> brushCountByFamily;
-	for (const MaterialsWorkbenchBrushGroup &group : catalog_.brushGroups) {
-		for (size_t i = 0; i < group.brushes.size(); ++i) {
-			const BrushRecord &brush = group.brushes[i];
-			const wxString brushKey = BuildBrushLookupKey(brush.id, brush.name);
-			const auto placementIt = brushPlacementByKey.find(brushKey);
-			const wxString familyKey = placementIt != brushPlacementByKey.end() ? placementIt->second.familyKey : BuildBrushFamilyKeyFromBrushType(group.brushType);
-			const wxString paletteLabel = placementIt != brushPlacementByKey.end() ? placementIt->second.paletteLabel : wxString::FromUTF8("Uncategorized");
-
-			auto &familyPaletteLabels = brushPaletteLabelsByFamily[familyKey];
-			if (std::find(familyPaletteLabels.begin(), familyPaletteLabels.end(), paletteLabel) == familyPaletteLabels.end()) {
-				familyPaletteLabels.push_back(paletteLabel);
-			}
-
-			MaterialsWorkbenchTreeNode item;
-			item.kind = MaterialsWorkbenchNodeKind::Brush;
-			item.label = brush.name;
-			item.contextKey = group.brushType;
-			item.itemIndex = static_cast<int>(i);
-			brushNodesByFamilyAndPalette[familyKey][paletteLabel].push_back(std::move(item));
-			++brushCountByFamily[familyKey];
-		}
-	}
-
-	std::vector<wxString> brushFamilyOrder;
-	brushFamilyOrder.reserve(8);
-
-	const auto pushFamilyIfNeeded = [&](const wxString &familyKey) {
-		if (brushCountByFamily[familyKey] == 0) {
+	void PushFamilyIfNeeded(const std::map<wxString, size_t> &brushCountByFamily, const wxString &familyKey, std::vector<wxString> &inOutOrder) {
+		const auto it = brushCountByFamily.find(familyKey);
+		if (it == brushCountByFamily.end() || it->second == 0) {
 			return;
 		}
-		if (std::find(brushFamilyOrder.begin(), brushFamilyOrder.end(), familyKey) != brushFamilyOrder.end()) {
+		if (std::find(inOutOrder.begin(), inOutOrder.end(), familyKey) != inOutOrder.end()) {
 			return;
 		}
-		brushFamilyOrder.push_back(familyKey);
-	};
-
-	pushFamilyIfNeeded("terrain");
-	pushFamilyIfNeeded("doodad");
-	pushFamilyIfNeeded("item");
-	pushFamilyIfNeeded("other");
-
-	std::vector<PaletteGroupRecord> sortedPaletteGroups = catalog_.paletteGroups;
-	std::sort(sortedPaletteGroups.begin(), sortedPaletteGroups.end(), [](const PaletteGroupRecord &left, const PaletteGroupRecord &right) {
-		if (left.sortOrder != right.sortOrder) {
-			return left.sortOrder < right.sortOrder;
-		}
-		return left.name.CmpNoCase(right.name) < 0;
-	});
-	for (const PaletteGroupRecord &group : sortedPaletteGroups) {
-		if (group.name.IsSameAs("terrain", false) || group.name.IsSameAs("doodad", false) || group.name.IsSameAs("item", false) || group.name.IsSameAs("other", false)) {
-			continue;
-		}
-		pushFamilyIfNeeded(group.name);
+		inOutOrder.push_back(familyKey);
 	}
 
-	std::vector<wxString> remainingFamilyKeys;
-	for (const auto &entry : brushCountByFamily) {
-		if (entry.second == 0) {
-			continue;
-		}
-		if (std::find(brushFamilyOrder.begin(), brushFamilyOrder.end(), entry.first) != brushFamilyOrder.end()) {
-			continue;
-		}
-		remainingFamilyKeys.push_back(entry.first);
-	}
-	std::sort(remainingFamilyKeys.begin(), remainingFamilyKeys.end(), [](const wxString &left, const wxString &right) {
-		return left.CmpNoCase(right) < 0;
-	});
-	for (const wxString &familyKey : remainingFamilyKeys) {
-		pushFamilyIfNeeded(familyKey);
-	}
+	std::vector<wxString> BuildBrushFamilyOrder(const MaterialsWorkbenchCatalogSnapshot &catalog, const std::map<wxString, size_t> &brushCountByFamily) {
+		std::vector<wxString> order;
+		order.reserve(8);
 
-	for (const wxString &familyKey : brushFamilyOrder) {
-		const size_t familyCount = brushCountByFamily[familyKey];
-		if (familyCount == 0) {
-			continue;
-		}
+		PushFamilyIfNeeded(brushCountByFamily, "terrain", order);
+		PushFamilyIfNeeded(brushCountByFamily, "doodad", order);
+		PushFamilyIfNeeded(brushCountByFamily, "item", order);
+		PushFamilyIfNeeded(brushCountByFamily, "other", order);
 
-		MaterialsWorkbenchTreeNode familyNode;
-		familyNode.kind = MaterialsWorkbenchNodeKind::Group;
-		familyNode.label = FormatNavigationCountLabel(BuildBrushFamilyLabel(familyKey), familyCount);
-		familyNode.contextKey = "brush_family:" + familyKey;
-
-		std::vector<wxString> paletteLabels = paletteOrderByFamily[familyKey];
-		for (const wxString &paletteLabel : brushPaletteLabelsByFamily[familyKey]) {
-			if (std::find(paletteLabels.begin(), paletteLabels.end(), paletteLabel) == paletteLabels.end()) {
-				paletteLabels.push_back(paletteLabel);
+		std::vector<PaletteGroupRecord> sortedPaletteGroups = catalog.paletteGroups;
+		std::sort(sortedPaletteGroups.begin(), sortedPaletteGroups.end(), [](const PaletteGroupRecord &left, const PaletteGroupRecord &right) {
+			if (left.sortOrder != right.sortOrder) {
+				return left.sortOrder < right.sortOrder;
 			}
-		}
-
-		for (const wxString &paletteLabel : paletteLabels) {
-			auto familyIt = brushNodesByFamilyAndPalette.find(familyKey);
-			if (familyIt == brushNodesByFamilyAndPalette.end()) {
+			return left.name.CmpNoCase(right.name) < 0;
+		});
+		for (const PaletteGroupRecord &group : sortedPaletteGroups) {
+			if (group.name.IsSameAs("terrain", false) || group.name.IsSameAs("doodad", false) || group.name.IsSameAs("item", false) || group.name.IsSameAs("other", false)) {
 				continue;
 			}
-			auto paletteIt = familyIt->second.find(paletteLabel);
-			if (paletteIt == familyIt->second.end() || paletteIt->second.empty()) {
+			PushFamilyIfNeeded(brushCountByFamily, group.name, order);
+		}
+
+		std::vector<wxString> remaining;
+		for (const auto &entry : brushCountByFamily) {
+			if (entry.second == 0) {
+				continue;
+			}
+			if (std::find(order.begin(), order.end(), entry.first) != order.end()) {
+				continue;
+			}
+			remaining.push_back(entry.first);
+		}
+		std::sort(remaining.begin(), remaining.end(), [](const wxString &left, const wxString &right) {
+			return left.CmpNoCase(right) < 0;
+		});
+		for (const wxString &familyKey : remaining) {
+			PushFamilyIfNeeded(brushCountByFamily, familyKey, order);
+		}
+		return order;
+	}
+
+	std::vector<wxString> BuildPaletteLabelOrder(
+		const wxString &familyKey,
+		const std::map<wxString, std::vector<wxString>> &paletteOrderByFamily,
+		const std::map<wxString, std::vector<wxString>> &brushPaletteLabelsByFamily
+	) {
+		std::vector<wxString> paletteLabels = paletteOrderByFamily.count(familyKey) > 0 ? paletteOrderByFamily.at(familyKey) : std::vector<wxString>();
+		const auto it = brushPaletteLabelsByFamily.find(familyKey);
+		if (it != brushPaletteLabelsByFamily.end()) {
+			for (const wxString &paletteLabel : it->second) {
+				if (std::find(paletteLabels.begin(), paletteLabels.end(), paletteLabel) == paletteLabels.end()) {
+					paletteLabels.push_back(paletteLabel);
+				}
+			}
+		}
+		return paletteLabels;
+	}
+
+	MaterialsWorkbenchTreeNode BuildBrushesNavigationNode(const MaterialsWorkbenchCatalogSnapshot &catalog) {
+		MaterialsWorkbenchTreeNode brushesNode = MakeGroupNode(
+			FormatNavigationCountLabel("Brushes", catalog.auditReport.brushCount),
+			"group:brushes"
+		);
+
+		std::map<wxString, std::vector<wxString>> paletteOrderByFamily;
+		const auto brushPlacementByKey = BuildBrushPlacementByKey(catalog, paletteOrderByFamily);
+
+		std::map<wxString, std::vector<wxString>> brushPaletteLabelsByFamily;
+		std::map<wxString, std::map<wxString, std::vector<MaterialsWorkbenchTreeNode>>> brushNodesByFamilyAndPalette;
+		std::map<wxString, size_t> brushCountByFamily;
+		CollectBrushNavigationBuckets(catalog, brushPlacementByKey, brushPaletteLabelsByFamily, brushNodesByFamilyAndPalette, brushCountByFamily);
+
+		const std::vector<wxString> familyOrder = BuildBrushFamilyOrder(catalog, brushCountByFamily);
+		for (const wxString &familyKey : familyOrder) {
+			const auto familyCountIt = brushCountByFamily.find(familyKey);
+			const size_t familyCount = familyCountIt != brushCountByFamily.end() ? familyCountIt->second : 0;
+			if (familyCount == 0) {
 				continue;
 			}
 
-			MaterialsWorkbenchTreeNode paletteNode;
-			paletteNode.kind = MaterialsWorkbenchNodeKind::Group;
-			paletteNode.label = FormatNavigationCountLabel(paletteLabel, paletteIt->second.size());
-			paletteNode.contextKey = "brush_palette:" + familyKey + ":" + paletteLabel;
-			paletteNode.children = paletteIt->second;
-			familyNode.children.push_back(std::move(paletteNode));
+			MaterialsWorkbenchTreeNode familyNode = MakeGroupNode(
+				FormatNavigationCountLabel(BuildBrushFamilyLabel(familyKey), familyCount),
+				"brush_family:" + familyKey
+			);
+
+			const auto paletteLabels = BuildPaletteLabelOrder(familyKey, paletteOrderByFamily, brushPaletteLabelsByFamily);
+			for (const wxString &paletteLabel : paletteLabels) {
+				const auto familyIt = brushNodesByFamilyAndPalette.find(familyKey);
+				if (familyIt == brushNodesByFamilyAndPalette.end()) {
+					continue;
+				}
+				const auto paletteIt = familyIt->second.find(paletteLabel);
+				if (paletteIt == familyIt->second.end() || paletteIt->second.empty()) {
+					continue;
+				}
+
+				MaterialsWorkbenchTreeNode paletteNode = MakeGroupNode(
+					FormatNavigationCountLabel(paletteLabel, paletteIt->second.size()),
+					"brush_palette:" + familyKey + ":" + paletteLabel
+				);
+				paletteNode.children = paletteIt->second;
+				familyNode.children.push_back(std::move(paletteNode));
+			}
+
+			brushesNode.children.push_back(std::move(familyNode));
 		}
 
-		brushesNode.children.push_back(std::move(familyNode));
+		return brushesNode;
 	}
-	catalogNode.children.push_back(std::move(brushesNode));
+
+	MaterialsWorkbenchTreeNode BuildBordersNavigationNode(const MaterialsWorkbenchCatalogSnapshot &catalog) {
+		MaterialsWorkbenchTreeNode bordersNode = MakeGroupNode(
+			FormatNavigationCountLabel("Borders", catalog.globalBorderSets.size() + catalog.inlineBorderSets.size()),
+			"group:borders"
+		);
+
+		const struct BorderScopeNode {
+			const char* label;
+			const char* contextKey;
+			const std::vector<BorderSetRecord>* collection;
+		} borderScopes[] = {
+			{ "Inline Border Sets", "inline", &catalog.inlineBorderSets },
+			{ "Global Border Sets", "global", &catalog.globalBorderSets },
+		};
+
+		for (const BorderScopeNode &scope : borderScopes) {
+			MaterialsWorkbenchTreeNode scopeNode = MakeGroupNode(
+				FormatNavigationCountLabel(scope.label, scope.collection->size()),
+				"border_scope:" + wxString::FromUTF8(scope.contextKey)
+			);
+			for (size_t i = 0; i < scope.collection->size(); ++i) {
+				const BorderSetRecord &record = (*scope.collection)[i];
+				scopeNode.children.push_back(MakeItemNode(
+					MaterialsWorkbenchNodeKind::BorderSet,
+					BuildBorderSetNavigationLabel(record),
+					wxString::FromUTF8(scope.contextKey),
+					static_cast<int>(i)
+				));
+			}
+			bordersNode.children.push_back(std::move(scopeNode));
+		}
+
+		return bordersNode;
+	}
+
+	MaterialsWorkbenchTreeNode BuildWallsNavigationNode(const MaterialsWorkbenchCatalogSnapshot &catalog) {
+		MaterialsWorkbenchTreeNode wallsNode = MakeGroupNode(
+			FormatNavigationCountLabel("Walls", catalog.wallBrushes.size()),
+			"group:walls"
+		);
+		for (size_t i = 0; i < catalog.wallBrushes.size(); ++i) {
+			wallsNode.children.push_back(MakeItemNode(
+				MaterialsWorkbenchNodeKind::Brush,
+				catalog.wallBrushes[i].name,
+				"wall",
+				static_cast<int>(i)
+			));
+		}
+		return wallsNode;
+	}
+} // namespace
+
+std::vector<MaterialsWorkbenchTreeNode> MaterialsWorkbenchControllerNavigationApi::BuildNavigationTree() const {
+	std::vector<MaterialsWorkbenchTreeNode> nodes;
+
+	const MaterialsWorkbenchCatalogSnapshot &catalog = state_.catalog();
+	MaterialsWorkbenchTreeNode catalogNode = MakeGroupNode("Catalog", "group:catalog");
+	catalogNode.children.push_back(BuildPalettesNavigationNode(catalog));
+	catalogNode.children.push_back(BuildBrushesNavigationNode(catalog));
 	nodes.push_back(std::move(catalogNode));
 
-	MaterialsWorkbenchTreeNode editorsNode;
-	editorsNode.kind = MaterialsWorkbenchNodeKind::Group;
-	editorsNode.label = "Specialized Editors";
-	editorsNode.contextKey = "group:specialized";
-
-	MaterialsWorkbenchTreeNode bordersNode;
-	bordersNode.kind = MaterialsWorkbenchNodeKind::Group;
-	bordersNode.label = FormatNavigationCountLabel("Borders", catalog_.globalBorderSets.size() + catalog_.inlineBorderSets.size());
-	bordersNode.contextKey = "group:borders";
-	const struct BorderScopeNode {
-		const char* label;
-		const char* contextKey;
-		const std::vector<BorderSetRecord>* collection;
-	} borderScopes[] = {
-		{ "Inline Border Sets", "inline", &catalog_.inlineBorderSets },
-		{ "Global Border Sets", "global", &catalog_.globalBorderSets },
-	};
-	for (const BorderScopeNode &scope : borderScopes) {
-		MaterialsWorkbenchTreeNode scopeNode;
-		scopeNode.kind = MaterialsWorkbenchNodeKind::Group;
-		scopeNode.label = FormatNavigationCountLabel(scope.label, scope.collection->size());
-		scopeNode.contextKey = "border_scope:" + wxString::FromUTF8(scope.contextKey);
-		for (size_t i = 0; i < scope.collection->size(); ++i) {
-			const BorderSetRecord &record = (*scope.collection)[i];
-			MaterialsWorkbenchTreeNode item;
-			item.kind = MaterialsWorkbenchNodeKind::BorderSet;
-			item.label = BuildBorderSetNavigationLabel(record);
-			item.contextKey = wxString::FromUTF8(scope.contextKey);
-			item.itemIndex = static_cast<int>(i);
-			scopeNode.children.push_back(std::move(item));
-		}
-		bordersNode.children.push_back(std::move(scopeNode));
-	}
-	editorsNode.children.push_back(std::move(bordersNode));
-
-	MaterialsWorkbenchTreeNode wallsNode;
-	wallsNode.kind = MaterialsWorkbenchNodeKind::Group;
-	wallsNode.label = FormatNavigationCountLabel("Walls", catalog_.wallBrushes.size());
-	wallsNode.contextKey = "group:walls";
-	for (size_t i = 0; i < catalog_.wallBrushes.size(); ++i) {
-		MaterialsWorkbenchTreeNode item;
-		item.kind = MaterialsWorkbenchNodeKind::Brush;
-		item.label = catalog_.wallBrushes[i].name;
-		item.contextKey = "wall";
-		item.itemIndex = static_cast<int>(i);
-		wallsNode.children.push_back(std::move(item));
-	}
-	editorsNode.children.push_back(std::move(wallsNode));
+	MaterialsWorkbenchTreeNode editorsNode = MakeGroupNode("Specialized Editors", "group:specialized");
+	editorsNode.children.push_back(BuildBordersNavigationNode(catalog));
+	editorsNode.children.push_back(BuildWallsNavigationNode(catalog));
 	nodes.push_back(std::move(editorsNode));
 
 	return nodes;
 }
 
-bool MaterialsWorkbenchController::GetTilesetByIndex(int itemIndex, TilesetStorageRecord &outTileset) const {
+namespace {
+	const MaterialsWorkbenchBrushGroup* FindBrushGroupInCatalog(const MaterialsWorkbenchCatalogSnapshot &catalog, const wxString &contextKey) {
+		for (const MaterialsWorkbenchBrushGroup &group : catalog.brushGroups) {
+			if (group.brushType.IsSameAs(contextKey, false)) {
+				return &group;
+			}
+		}
+		return nullptr;
+	}
+
+	const BrushRecord* FindBrushRecordInCatalog(const MaterialsWorkbenchCatalogSnapshot &catalog, const wxString &contextKey, int itemIndex) {
+		if (contextKey.IsSameAs("wall", false)) {
+			if (itemIndex < 0 || itemIndex >= static_cast<int>(catalog.wallBrushes.size())) {
+				return nullptr;
+			}
+			return &catalog.wallBrushes[itemIndex];
+		}
+		const MaterialsWorkbenchBrushGroup* group = FindBrushGroupInCatalog(catalog, contextKey);
+		if (!group) {
+			return nullptr;
+		}
+		if (itemIndex < 0 || itemIndex >= static_cast<int>(group->brushes.size())) {
+			return nullptr;
+		}
+		return &group->brushes[itemIndex];
+	}
+
+	const BorderSetRecord* FindBorderSetRecordInCatalog(const MaterialsWorkbenchCatalogSnapshot &catalog, const wxString &contextKey, int itemIndex) {
+		const bool isGlobal = contextKey.IsSameAs("global", false);
+		const bool isInline = contextKey.IsSameAs("inline", false);
+		const auto &collection = isInline ? catalog.inlineBorderSets : catalog.globalBorderSets;
+		if (!isInline && !isGlobal) {
+			return nullptr;
+		}
+		if (itemIndex < 0 || itemIndex >= static_cast<int>(collection.size())) {
+			return nullptr;
+		}
+		return &collection[itemIndex];
+	}
+} // namespace
+
+bool MaterialsWorkbenchControllerTilesetsApi::GetTilesetByIndex(int itemIndex, TilesetStorageRecord &outTileset) const {
 	outTileset = TilesetStorageRecord();
-	if (itemIndex < 0 || itemIndex >= static_cast<int>(catalog_.tilesets.size())) {
+	if (itemIndex < 0 || itemIndex >= static_cast<int>(state_.catalog().tilesets.size())) {
 		return false;
 	}
-	outTileset = catalog_.tilesets[itemIndex];
+	outTileset = state_.catalog().tilesets[itemIndex];
 	return true;
 }
 
-bool MaterialsWorkbenchController::LocateTilesetNode(const wxString &name, int &outItemIndex) const {
-	for (size_t i = 0; i < catalog_.tilesets.size(); ++i) {
-		if (catalog_.tilesets[i].name.IsSameAs(name, false)) {
+bool MaterialsWorkbenchControllerTilesetsApi::LocateTilesetNode(const wxString &name, int &outItemIndex) const {
+	for (size_t i = 0; i < state_.catalog().tilesets.size(); ++i) {
+		if (state_.catalog().tilesets[i].name.IsSameAs(name, false)) {
 			outItemIndex = static_cast<int>(i);
 			return true;
 		}
@@ -713,8 +855,8 @@ bool MaterialsWorkbenchController::LocateTilesetNode(const wxString &name, int &
 	return false;
 }
 
-bool MaterialsWorkbenchController::HasTilesetNamed(const wxString &name) const {
-	for (const TilesetStorageRecord &tileset : catalog_.tilesets) {
+bool MaterialsWorkbenchControllerTilesetsApi::HasTilesetNamed(const wxString &name) const {
+	for (const TilesetStorageRecord &tileset : state_.catalog().tilesets) {
 		if (tileset.name.IsSameAs(name, false)) {
 			return true;
 		}
@@ -722,8 +864,8 @@ bool MaterialsWorkbenchController::HasTilesetNamed(const wxString &name) const {
 	return false;
 }
 
-bool MaterialsWorkbenchController::HasPaletteGroupNamed(const wxString &name) const {
-	for (const PaletteGroupRecord &group : catalog_.paletteGroups) {
+bool MaterialsWorkbenchControllerTilesetsApi::HasPaletteGroupNamed(const wxString &name) const {
+	for (const PaletteGroupRecord &group : state_.catalog().paletteGroups) {
 		if (group.name.IsSameAs(name, false)) {
 			return true;
 		}
@@ -731,32 +873,32 @@ bool MaterialsWorkbenchController::HasPaletteGroupNamed(const wxString &name) co
 	return false;
 }
 
-bool MaterialsWorkbenchController::GetBrushDetails(const wxString &contextKey, int itemIndex, BrushStorageRecord &outBrush, wxString &error) const {
-	const BrushRecord* brush = FindBrushRecord(contextKey, itemIndex);
+bool MaterialsWorkbenchControllerBrushesApi::GetBrushDetails(const wxString &contextKey, int itemIndex, BrushStorageRecord &outBrush, wxString &error) const {
+	const BrushRecord* brush = FindBrushRecordInCatalog(state_.catalog(), contextKey, itemIndex);
 	if (!brush) {
 		error = "Brush details are unavailable.";
 		outBrush = BrushStorageRecord();
 		return false;
 	}
-	return repository_.LoadBrushDetails(brush->id, outBrush, error);
+	return state_.repository().LoadBrushDetails(brush->id, outBrush, error);
 }
 
-bool MaterialsWorkbenchController::GetBorderSetDetails(const wxString &contextKey, int itemIndex, BorderSetStorageRecord &outBorderSet, wxString &error) const {
-	const BorderSetRecord* borderSet = FindBorderSetRecord(contextKey, itemIndex);
+bool MaterialsWorkbenchControllerBordersApi::GetBorderSetDetails(const wxString &contextKey, int itemIndex, BorderSetStorageRecord &outBorderSet, wxString &error) const {
+	const BorderSetRecord* borderSet = FindBorderSetRecordInCatalog(state_.catalog(), contextKey, itemIndex);
 	if (!borderSet) {
 		error = "Border set details are unavailable.";
 		outBorderSet = BorderSetStorageRecord();
 		return false;
 	}
-	return repository_.LoadBorderSetDetails(borderSet->id, outBorderSet, error);
+	return state_.repository().LoadBorderSetDetails(borderSet->id, outBorderSet, error);
 }
 
-bool MaterialsWorkbenchController::GetBorderSetUsages(int64_t borderSetId, std::vector<BorderSetUsageRecord> &outUsages, wxString &error) const {
-	return repository_.LoadBorderSetUsages(borderSetId, outUsages, error);
+bool MaterialsWorkbenchControllerBordersApi::GetBorderSetUsages(int64_t borderSetId, std::vector<BorderSetUsageRecord> &outUsages, wxString &error) const {
+	return state_.repository().LoadBorderSetUsages(borderSetId, outUsages, error);
 }
 
-bool MaterialsWorkbenchController::SaveBrushDetails(BrushStorageRecord &brushStorage, wxString &error) {
-	if (!repository_.SaveBrushDetails(brushStorage, error)) {
+bool MaterialsWorkbenchControllerBrushesApi::SaveBrushDetails(BrushStorageRecord &brushStorage, wxString &error) {
+	if (!state_.repository().SaveBrushDetails(brushStorage, error)) {
 		spdlog::warn(
 			"Materials Workbench failed to save brush details: id={} name='{}' error='{}'",
 			static_cast<long long>(brushStorage.brush.id),
@@ -766,8 +908,8 @@ bool MaterialsWorkbenchController::SaveBrushDetails(BrushStorageRecord &brushSto
 		return false;
 	}
 
-	if (!ReloadCatalog()) {
-		error = lastError_;
+	if (!ReloadCatalogSnapshot(state_)) {
+		error = state_.lastError();
 		spdlog::warn(
 			"Materials Workbench saved brush but failed to reload catalog: id={} name='{}' error='{}'",
 			static_cast<long long>(brushStorage.brush.id),
@@ -787,70 +929,70 @@ bool MaterialsWorkbenchController::SaveBrushDetails(BrushStorageRecord &brushSto
 	return true;
 }
 
-bool MaterialsWorkbenchController::DeleteBrush(int64_t brushId, wxString &error) {
-	if (!repository_.DeleteBrush(brushId, error)) {
+bool MaterialsWorkbenchControllerBrushesApi::DeleteBrush(int64_t brushId, wxString &error) {
+	if (!state_.repository().DeleteBrush(brushId, error)) {
 		return false;
 	}
-	if (!ReloadCatalog()) {
-		error = lastError_;
+	if (!ReloadCatalogSnapshot(state_)) {
+		error = state_.lastError();
 		return false;
 	}
 	return true;
 }
 
-bool MaterialsWorkbenchController::SaveWallBrushParts(BrushStorageRecord &brushStorage, wxString &error) {
-	if (!repository_.SaveWallBrushParts(brushStorage, error)) {
+bool MaterialsWorkbenchControllerBrushesApi::SaveWallBrushParts(BrushStorageRecord &brushStorage, wxString &error) {
+	if (!state_.repository().SaveWallBrushParts(brushStorage, error)) {
 		return false;
 	}
 
-	if (!ReloadCatalog()) {
-		error = lastError_;
-		return false;
-	}
-
-	return true;
-}
-
-bool MaterialsWorkbenchController::SaveGroundBrushBorders(int64_t brushId, const std::vector<GroundBrushBorderRecord> &borders, wxString &error) {
-	return repository_.SaveGroundBrushBorders(brushId, borders, error);
-}
-
-bool MaterialsWorkbenchController::SaveBorderSet(BorderSetStorageRecord &borderSet, wxString &error) {
-	if (!repository_.SaveBorderSet(borderSet, error)) {
-		return false;
-	}
-
-	if (!ReloadCatalog()) {
-		error = lastError_;
+	if (!ReloadCatalogSnapshot(state_)) {
+		error = state_.lastError();
 		return false;
 	}
 
 	return true;
 }
 
-bool MaterialsWorkbenchController::DeleteBorderSet(int64_t borderSetId, wxString &error) {
-	if (!repository_.DeleteBorderSet(borderSetId, error)) {
+bool MaterialsWorkbenchControllerBrushesApi::SaveGroundBrushBorders(int64_t brushId, const std::vector<GroundBrushBorderRecord> &borders, wxString &error) {
+	return state_.repository().SaveGroundBrushBorders(brushId, borders, error);
+}
+
+bool MaterialsWorkbenchControllerBordersApi::SaveBorderSet(BorderSetStorageRecord &borderSet, wxString &error) {
+	if (!state_.repository().SaveBorderSet(borderSet, error)) {
 		return false;
 	}
 
-	if (!ReloadCatalog()) {
-		error = lastError_;
+	if (!ReloadCatalogSnapshot(state_)) {
+		error = state_.lastError();
 		return false;
 	}
 
 	return true;
 }
 
-bool MaterialsWorkbenchController::LocateBrushNode(int64_t brushId, wxString &outContextKey, int &outItemIndex) const {
-	for (size_t i = 0; i < catalog_.wallBrushes.size(); ++i) {
-		if (catalog_.wallBrushes[i].id == brushId) {
+bool MaterialsWorkbenchControllerBordersApi::DeleteBorderSet(int64_t borderSetId, wxString &error) {
+	if (!state_.repository().DeleteBorderSet(borderSetId, error)) {
+		return false;
+	}
+
+	if (!ReloadCatalogSnapshot(state_)) {
+		error = state_.lastError();
+		return false;
+	}
+
+	return true;
+}
+
+bool MaterialsWorkbenchControllerBrushesApi::LocateBrushNode(int64_t brushId, wxString &outContextKey, int &outItemIndex) const {
+	for (size_t i = 0; i < state_.catalog().wallBrushes.size(); ++i) {
+		if (state_.catalog().wallBrushes[i].id == brushId) {
 			outContextKey = "wall";
 			outItemIndex = static_cast<int>(i);
 			return true;
 		}
 	}
 
-	for (const MaterialsWorkbenchBrushGroup &group : catalog_.brushGroups) {
+	for (const MaterialsWorkbenchBrushGroup &group : state_.catalog().brushGroups) {
 		for (size_t i = 0; i < group.brushes.size(); ++i) {
 			if (group.brushes[i].id == brushId) {
 				outContextKey = group.brushType;
@@ -865,11 +1007,11 @@ bool MaterialsWorkbenchController::LocateBrushNode(int64_t brushId, wxString &ou
 	return false;
 }
 
-bool MaterialsWorkbenchController::ResolveBrushIdByNameAndType(const wxString &name, const wxString &type, int64_t &outBrushId, wxString &error) const {
+bool MaterialsWorkbenchControllerBrushesApi::ResolveBrushIdByNameAndType(const wxString &name, const wxString &type, int64_t &outBrushId, wxString &error) const {
 	outBrushId = 0;
 	error.clear();
 	BrushRecord brush;
-	if (!repository_.FindBrushByNameAndType(name, type, brush, error)) {
+	if (!state_.repository().FindBrushByNameAndType(name, type, brush, error)) {
 		outBrushId = 0;
 		return false;
 	}
@@ -881,32 +1023,32 @@ bool MaterialsWorkbenchController::ResolveBrushIdByNameAndType(const wxString &n
 	return true;
 }
 
-bool MaterialsWorkbenchController::GetBrushUsages(int64_t brushId, const wxString &brushName, std::vector<BrushUsageRecord> &outUsages, wxString &error) const {
-	return repository_.LoadBrushUsages(brushId, brushName, outUsages, error);
+bool MaterialsWorkbenchControllerBrushesApi::GetBrushUsages(int64_t brushId, const wxString &brushName, std::vector<BrushUsageRecord> &outUsages, wxString &error) const {
+	return state_.repository().LoadBrushUsages(brushId, brushName, outUsages, error);
 }
 
-int MaterialsWorkbenchController::SuggestNextBorderId() const {
+int MaterialsWorkbenchControllerBordersApi::SuggestNextBorderId() const {
 	int maxBorderId = 0;
-	for (const BorderSetRecord &border : catalog_.globalBorderSets) {
+	for (const BorderSetRecord &border : state_.catalog().globalBorderSets) {
 		maxBorderId = std::max(maxBorderId, border.xmlBorderId);
 	}
-	for (const BorderSetRecord &border : catalog_.inlineBorderSets) {
+	for (const BorderSetRecord &border : state_.catalog().inlineBorderSets) {
 		maxBorderId = std::max(maxBorderId, border.xmlBorderId);
 	}
 	return maxBorderId + 1;
 }
 
-bool MaterialsWorkbenchController::LocateBorderSetNode(int64_t borderSetId, wxString &outContextKey, int &outItemIndex) const {
-	for (size_t i = 0; i < catalog_.globalBorderSets.size(); ++i) {
-		if (catalog_.globalBorderSets[i].id == borderSetId) {
+bool MaterialsWorkbenchControllerBordersApi::LocateBorderSetNode(int64_t borderSetId, wxString &outContextKey, int &outItemIndex) const {
+	for (size_t i = 0; i < state_.catalog().globalBorderSets.size(); ++i) {
+		if (state_.catalog().globalBorderSets[i].id == borderSetId) {
 			outContextKey = "global";
 			outItemIndex = static_cast<int>(i);
 			return true;
 		}
 	}
 
-	for (size_t i = 0; i < catalog_.inlineBorderSets.size(); ++i) {
-		if (catalog_.inlineBorderSets[i].id == borderSetId) {
+	for (size_t i = 0; i < state_.catalog().inlineBorderSets.size(); ++i) {
+		if (state_.catalog().inlineBorderSets[i].id == borderSetId) {
 			outContextKey = "inline";
 			outItemIndex = static_cast<int>(i);
 			return true;
@@ -918,71 +1060,71 @@ bool MaterialsWorkbenchController::LocateBorderSetNode(int64_t borderSetId, wxSt
 	return false;
 }
 
-bool MaterialsWorkbenchController::SaveTileset(const TilesetStorageRecord &tileset, wxString &error) {
+bool MaterialsWorkbenchControllerTilesetsApi::SaveTileset(const TilesetStorageRecord &tileset, wxString &error) {
 	return SaveTileset(tileset, wxString(), error);
 }
 
-bool MaterialsWorkbenchController::SaveTileset(const TilesetStorageRecord &tileset, const wxString &previousName, wxString &error) {
-	if (!repository_.SaveTileset(tileset, previousName, error)) {
+bool MaterialsWorkbenchControllerTilesetsApi::SaveTileset(const TilesetStorageRecord &tileset, const wxString &previousName, wxString &error) {
+	if (!state_.repository().SaveTileset(tileset, previousName, error)) {
 		return false;
 	}
 
-	if (!ReloadCatalog()) {
-		error = lastError_;
-		return false;
-	}
-
-	return true;
-}
-
-bool MaterialsWorkbenchController::SaveTilesetWithoutReload(const TilesetStorageRecord &tileset, wxString &error) {
-	return repository_.SaveTileset(tileset, error);
-}
-
-bool MaterialsWorkbenchController::DeleteTileset(const wxString &name, wxString &error) {
-	if (!repository_.DeleteTileset(name, error)) {
-		return false;
-	}
-
-	if (!ReloadCatalog()) {
-		error = lastError_;
+	if (!ReloadCatalogSnapshot(state_)) {
+		error = state_.lastError();
 		return false;
 	}
 
 	return true;
 }
 
-bool MaterialsWorkbenchController::SavePaletteGroup(const PaletteGroupRecord &group, wxString &error) {
-	if (!repository_.SavePaletteGroup(group, error)) {
+bool MaterialsWorkbenchControllerTilesetsApi::SaveTilesetWithoutReload(const TilesetStorageRecord &tileset, wxString &error) {
+	return state_.repository().SaveTileset(tileset, error);
+}
+
+bool MaterialsWorkbenchControllerTilesetsApi::DeleteTileset(const wxString &name, wxString &error) {
+	if (!state_.repository().DeleteTileset(name, error)) {
 		return false;
 	}
 
-	if (!ReloadCatalog()) {
-		error = lastError_;
+	if (!ReloadCatalogSnapshot(state_)) {
+		error = state_.lastError();
 		return false;
 	}
 
 	return true;
 }
 
-bool MaterialsWorkbenchController::SavePaletteGroupWithoutReload(const PaletteGroupRecord &group, wxString &error) {
-	return repository_.SavePaletteGroup(group, error);
-}
-
-bool MaterialsWorkbenchController::DeletePaletteGroup(const wxString &name, wxString &error) {
-	if (!repository_.DeletePaletteGroup(name, error)) {
+bool MaterialsWorkbenchControllerTilesetsApi::SavePaletteGroup(const PaletteGroupRecord &group, wxString &error) {
+	if (!state_.repository().SavePaletteGroup(group, error)) {
 		return false;
 	}
 
-	if (!ReloadCatalog()) {
-		error = lastError_;
+	if (!ReloadCatalogSnapshot(state_)) {
+		error = state_.lastError();
 		return false;
 	}
 
 	return true;
 }
 
-bool MaterialsWorkbenchController::DeletePaletteGroupAndReassignPalettes(const wxString &name, const wxString &destinationName, int &outMovedPaletteCount, wxString &error) {
+bool MaterialsWorkbenchControllerTilesetsApi::SavePaletteGroupWithoutReload(const PaletteGroupRecord &group, wxString &error) {
+	return state_.repository().SavePaletteGroup(group, error);
+}
+
+bool MaterialsWorkbenchControllerTilesetsApi::DeletePaletteGroup(const wxString &name, wxString &error) {
+	if (!state_.repository().DeletePaletteGroup(name, error)) {
+		return false;
+	}
+
+	if (!ReloadCatalogSnapshot(state_)) {
+		error = state_.lastError();
+		return false;
+	}
+
+	return true;
+}
+
+bool MaterialsWorkbenchControllerTilesetsApi::DeletePaletteGroupAndReassignPalettes(const wxString &name, const wxString &destinationName, int &outMovedPaletteCount, wxString &error) {
 	outMovedPaletteCount = 0;
 	error.clear();
 
@@ -991,203 +1133,184 @@ bool MaterialsWorkbenchController::DeletePaletteGroupAndReassignPalettes(const w
 		return false;
 	}
 
-	const auto destinationIt = std::find_if(catalog_.paletteGroups.begin(), catalog_.paletteGroups.end(), [&](const PaletteGroupRecord &group) {
+	const auto destinationIt = std::find_if(state_.catalog().paletteGroups.begin(), state_.catalog().paletteGroups.end(), [&](const PaletteGroupRecord &group) {
 		return group.name.IsSameAs(destinationName, false);
 	});
-	if (destinationIt == catalog_.paletteGroups.end()) {
+	if (destinationIt == state_.catalog().paletteGroups.end()) {
 		error = "The destination category no longer exists.";
 		return false;
 	}
 
-	if (!repository_.DeletePaletteGroupAndReassignTilesets(name, destinationName, outMovedPaletteCount, error)) {
+	if (!state_.repository().DeletePaletteGroupAndReassignTilesets(name, destinationName, outMovedPaletteCount, error)) {
 		return false;
 	}
 
-	if (!ReloadCatalog()) {
-		error = lastError_;
+	if (!ReloadCatalogSnapshot(state_)) {
+		error = state_.lastError();
 		return false;
 	}
 
 	return true;
 }
 
-const std::vector<PaletteGroupRecord> &MaterialsWorkbenchController::GetPaletteGroups() const {
-	return catalog_.paletteGroups;
+const std::vector<PaletteGroupRecord> &MaterialsWorkbenchControllerTilesetsApi::GetPaletteGroups() const {
+	return state_.catalog().paletteGroups;
 }
 
-const std::vector<TilesetStorageRecord> &MaterialsWorkbenchController::GetTilesets() const {
-	return catalog_.tilesets;
+const std::vector<TilesetStorageRecord> &MaterialsWorkbenchControllerTilesetsApi::GetTilesets() const {
+	return state_.catalog().tilesets;
 }
 
-const std::vector<MaterialsWorkbenchBrushGroup> &MaterialsWorkbenchController::GetBrushGroups() const {
-	return catalog_.brushGroups;
+const std::vector<MaterialsWorkbenchBrushGroup> &MaterialsWorkbenchControllerBrushesApi::GetBrushGroups() const {
+	return state_.catalog().brushGroups;
 }
 
-const std::vector<BrushRecord> &MaterialsWorkbenchController::GetWallBrushes() const {
-	return catalog_.wallBrushes;
+const std::vector<BrushRecord> &MaterialsWorkbenchControllerBrushesApi::GetWallBrushes() const {
+	return state_.catalog().wallBrushes;
 }
 
-const std::vector<BorderSetRecord> &MaterialsWorkbenchController::GetGlobalBorderSets() const {
-	return catalog_.globalBorderSets;
+const std::vector<BorderSetRecord> &MaterialsWorkbenchControllerBordersApi::GetGlobalBorderSets() const {
+	return state_.catalog().globalBorderSets;
 }
 
-const MaterialsWorkbenchBrushGroup* MaterialsWorkbenchController::FindBrushGroup(const wxString &contextKey) const {
-	for (const MaterialsWorkbenchBrushGroup &group : catalog_.brushGroups) {
-		if (group.brushType == contextKey) {
-			return &group;
-		}
-	}
-	return nullptr;
-}
-
-const BrushRecord* MaterialsWorkbenchController::FindBrushRecord(const wxString &contextKey, int itemIndex) const {
-	if (contextKey == "wall") {
-		if (itemIndex >= 0 && itemIndex < static_cast<int>(catalog_.wallBrushes.size())) {
-			return &catalog_.wallBrushes[itemIndex];
-		}
-		return nullptr;
+namespace {
+	wxString BuildFailedCatalogOverviewText(const wxString &error) {
+		return "Materials Workbench could not load the SQLite catalog.\n\nError: " + error;
 	}
 
-	const MaterialsWorkbenchBrushGroup* group = FindBrushGroup(contextKey);
-	if (!group) {
-		return nullptr;
-	}
-	if (itemIndex < 0 || itemIndex >= static_cast<int>(group->brushes.size())) {
-		return nullptr;
-	}
-	return &group->brushes[itemIndex];
-}
-
-const BorderSetRecord* MaterialsWorkbenchController::FindBorderSetRecord(const wxString &contextKey, int itemIndex) const {
-	const std::vector<BorderSetRecord>* collection = nullptr;
-	if (contextKey == "global") {
-		collection = &catalog_.globalBorderSets;
-	} else if (contextKey == "inline") {
-		collection = &catalog_.inlineBorderSets;
-	}
-	if (!collection || itemIndex < 0 || itemIndex >= static_cast<int>(collection->size())) {
-		return nullptr;
-	}
-	return &(*collection)[itemIndex];
-}
-
-wxString MaterialsWorkbenchController::BuildSelectionOverview(MaterialsWorkbenchNodeKind kind, const wxString &contextKey, int itemIndex) const {
-	if (!lastError_.IsEmpty()) {
-		return GetOverviewText();
+	wxString BuildDefaultInspectorText() {
+		return "Catalog loaded from materials.db.\n\n"
+			   "Select a palette, brush, border set or wall entry in the navigation tree to inspect its SQLite-backed metadata.";
 	}
 
-	if (kind == MaterialsWorkbenchNodeKind::Group) {
+	wxString BuildGroupSelectionOverview(const MaterialsWorkbenchCatalogSnapshot &catalog, const wxString &contextKey) {
 		if (contextKey == "group:catalog") {
-			return FormatCatalogOverviewCard(catalog_);
+			return FormatCatalogOverviewCard(catalog);
 		}
 		if (contextKey == "group:palettes") {
-			return FormatPaletteCategoriesOverviewCard(catalog_);
-		}
-		if (contextKey.StartsWith("palette_group:")) {
-			const wxString groupName = contextKey.AfterFirst(':');
-			return FormatPaletteCategoryOverviewCard(catalog_, groupName);
+			return FormatPaletteCategoriesOverviewCard(catalog);
 		}
 		if (contextKey == "group:brushes") {
-			return FormatBrushesOverviewCard(catalog_);
+			return FormatBrushesOverviewCard(catalog);
 		}
 		if (contextKey == "group:specialized") {
-			return FormatSpecializedEditorsOverviewCard(catalog_);
+			return FormatSpecializedEditorsOverviewCard(catalog);
 		}
 		if (contextKey == "group:borders") {
-			return FormatBordersOverviewCard(catalog_);
+			return FormatBordersOverviewCard(catalog);
 		}
 		if (contextKey == "group:walls") {
-			return FormatWallsOverviewCard(catalog_);
+			return FormatWallsOverviewCard(catalog);
+		}
+		if (contextKey.StartsWith("palette_group:")) {
+			return FormatPaletteCategoryOverviewCard(catalog, contextKey.AfterFirst(':'));
 		}
 		if (contextKey.StartsWith("brush_family:")) {
-			const wxString familyKey = contextKey.AfterFirst(':');
-			return FormatBrushFamilyOverviewCard(catalog_, familyKey);
+			return FormatBrushFamilyOverviewCard(catalog, contextKey.AfterFirst(':'));
 		}
 		if (contextKey.StartsWith("brush_palette:")) {
 			wxString remainder = contextKey.AfterFirst(':');
 			const wxString familyKey = remainder.BeforeFirst(':');
 			const wxString paletteLabel = remainder.AfterFirst(':');
-			return FormatBrushPaletteOverviewCard(catalog_, familyKey, paletteLabel);
+			return FormatBrushPaletteOverviewCard(catalog, familyKey, paletteLabel);
 		}
 		if (contextKey.StartsWith("border_scope:")) {
-			const wxString scope = contextKey.AfterFirst(':');
-			return FormatBorderScopeOverviewCard(catalog_, scope);
+			return FormatBorderScopeOverviewCard(catalog, contextKey.AfterFirst(':'));
 		}
-		return FormatCatalogOverviewCard(catalog_);
+		return FormatCatalogOverviewCard(catalog);
 	}
 
-	if (kind == MaterialsWorkbenchNodeKind::Tileset) {
-		if (itemIndex >= 0 && itemIndex < static_cast<int>(catalog_.tilesets.size())) {
-			return FormatTilesetOverview(catalog_.tilesets[itemIndex]);
-		}
-	}
-
-	if (kind == MaterialsWorkbenchNodeKind::Brush) {
-		const BrushRecord* brush = FindBrushRecord(contextKey, itemIndex);
+	wxString BuildBrushSelectionOverview(const MaterialsWorkbenchControllerState &state, const wxString &contextKey, int itemIndex) {
+		const BrushRecord* brush = FindBrushRecordInCatalog(state.catalog(), contextKey, itemIndex);
 		if (!brush) {
 			return "Brush details are unavailable.";
 		}
 		BrushStorageRecord storage;
 		wxString error;
-		if (!repository_.LoadBrushDetails(brush->id, storage, error)) {
+		if (!state.repository().LoadBrushDetails(brush->id, storage, error)) {
 			return "Failed to load brush details: " + error;
 		}
 		return FormatBrushOverview(storage);
 	}
 
-	if (kind == MaterialsWorkbenchNodeKind::BorderSet) {
-		const BorderSetRecord* border = FindBorderSetRecord(contextKey, itemIndex);
+	wxString BuildBorderSetSelectionOverview(const MaterialsWorkbenchControllerState &state, const wxString &contextKey, int itemIndex) {
+		const BorderSetRecord* border = FindBorderSetRecordInCatalog(state.catalog(), contextKey, itemIndex);
 		if (!border) {
 			return "Border set details are unavailable.";
 		}
 		BorderSetStorageRecord storage;
 		wxString error;
-		if (!repository_.LoadBorderSetDetails(border->id, storage, error)) {
+		if (!state.repository().LoadBorderSetDetails(border->id, storage, error)) {
 			return "Failed to load border set details: " + error;
 		}
 		return FormatBorderSetOverview(storage);
 	}
 
-	return FormatCatalogOverviewCard(catalog_);
-}
-
-wxString MaterialsWorkbenchController::BuildSelectionInspector(MaterialsWorkbenchNodeKind kind, const wxString &contextKey, int itemIndex) const {
-	if (!lastError_.IsEmpty()) {
-		return GetInspectorText();
-	}
-
-	if (kind == MaterialsWorkbenchNodeKind::Tileset) {
-		if (itemIndex >= 0 && itemIndex < static_cast<int>(catalog_.tilesets.size())) {
-			return FormatTilesetInspector(catalog_.tilesets[itemIndex]);
-		}
-		return "Palette details are unavailable.";
-	}
-
-	if (kind == MaterialsWorkbenchNodeKind::Brush) {
-		const BrushRecord* brush = FindBrushRecord(contextKey, itemIndex);
+	wxString BuildBrushSelectionInspector(const MaterialsWorkbenchControllerState &state, const wxString &contextKey, int itemIndex) {
+		const BrushRecord* brush = FindBrushRecordInCatalog(state.catalog(), contextKey, itemIndex);
 		if (!brush) {
 			return "Brush details are unavailable.";
 		}
 		BrushStorageRecord storage;
 		wxString error;
-		if (!repository_.LoadBrushDetails(brush->id, storage, error)) {
+		if (!state.repository().LoadBrushDetails(brush->id, storage, error)) {
 			return "Failed to load brush details: " + error;
 		}
 		return FormatBrushInspector(storage);
 	}
 
-	if (kind == MaterialsWorkbenchNodeKind::BorderSet) {
-		const BorderSetRecord* border = FindBorderSetRecord(contextKey, itemIndex);
+	wxString BuildBorderSetSelectionInspector(const MaterialsWorkbenchControllerState &state, const wxString &contextKey, int itemIndex) {
+		const BorderSetRecord* border = FindBorderSetRecordInCatalog(state.catalog(), contextKey, itemIndex);
 		if (!border) {
 			return "Border set details are unavailable.";
 		}
 		BorderSetStorageRecord storage;
 		wxString error;
-		if (!repository_.LoadBorderSetDetails(border->id, storage, error)) {
+		if (!state.repository().LoadBorderSetDetails(border->id, storage, error)) {
 			return "Failed to load border set details: " + error;
 		}
 		return FormatBorderSetInspector(storage);
 	}
+} // namespace
 
-	return GetInspectorText();
+wxString MaterialsWorkbenchControllerNavigationApi::BuildSelectionOverview(MaterialsWorkbenchNodeKind kind, const wxString &contextKey, int itemIndex) const {
+	if (!state_.lastError().IsEmpty()) {
+		return BuildFailedCatalogOverviewText(state_.lastError());
+	}
+
+	const MaterialsWorkbenchCatalogSnapshot &catalog = state_.catalog();
+	switch (kind) {
+		case MaterialsWorkbenchNodeKind::Group:
+			return BuildGroupSelectionOverview(catalog, contextKey);
+		case MaterialsWorkbenchNodeKind::Tileset:
+			return itemIndex >= 0 && itemIndex < static_cast<int>(catalog.tilesets.size())
+				? FormatTilesetOverview(catalog.tilesets[itemIndex])
+				: FormatCatalogOverviewCard(catalog);
+		case MaterialsWorkbenchNodeKind::Brush:
+			return BuildBrushSelectionOverview(state_, contextKey, itemIndex);
+		case MaterialsWorkbenchNodeKind::BorderSet:
+			return BuildBorderSetSelectionOverview(state_, contextKey, itemIndex);
+		default:
+			return FormatCatalogOverviewCard(catalog);
+	}
+}
+
+wxString MaterialsWorkbenchControllerNavigationApi::BuildSelectionInspector(MaterialsWorkbenchNodeKind kind, const wxString &contextKey, int itemIndex) const {
+	if (!state_.lastError().IsEmpty()) {
+		return "Inspector unavailable while the catalog failed to load.";
+	}
+
+	const MaterialsWorkbenchCatalogSnapshot &catalog = state_.catalog();
+	switch (kind) {
+		case MaterialsWorkbenchNodeKind::Tileset:
+			return itemIndex >= 0 && itemIndex < static_cast<int>(catalog.tilesets.size())
+				? FormatTilesetInspector(catalog.tilesets[itemIndex])
+				: wxString::FromUTF8("Palette details are unavailable.");
+		case MaterialsWorkbenchNodeKind::Brush:
+			return BuildBrushSelectionInspector(state_, contextKey, itemIndex);
+		case MaterialsWorkbenchNodeKind::BorderSet:
+			return BuildBorderSetSelectionInspector(state_, contextKey, itemIndex);
+		default:
+			return BuildDefaultInspectorText();
+	}
 }

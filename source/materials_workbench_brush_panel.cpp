@@ -222,43 +222,45 @@ namespace {
 		return false;
 	}
 
-	void ResetLinksPageForNoBrush(
-		wxListCtrl* outgoingList,
-		wxStaticText* outgoingSummary,
-		wxListCtrl* inboundList,
-		wxStaticText* inboundSummary,
-		wxButton* addFriend,
-		wxButton* addEnemy,
-		wxButton* removeLink,
-		wxButton* openTarget,
-		wxButton* clearLinks,
-		wxButton* moveUp,
-		wxButton* moveDown,
-		wxWindow* page
-	) {
-		if (outgoingList) {
-			outgoingList->DeleteAllItems();
+	struct LinksPageWidgets {
+		wxListCtrl* outgoingList = nullptr;
+		wxStaticText* outgoingSummary = nullptr;
+		wxListCtrl* inboundList = nullptr;
+		wxStaticText* inboundSummary = nullptr;
+		wxButton* addFriend = nullptr;
+		wxButton* addEnemy = nullptr;
+		wxButton* removeLink = nullptr;
+		wxButton* openTarget = nullptr;
+		wxButton* clearLinks = nullptr;
+		wxButton* moveUp = nullptr;
+		wxButton* moveDown = nullptr;
+		wxWindow* page = nullptr;
+	};
+
+	void ResetLinksPageForNoBrush(const LinksPageWidgets &w) {
+		if (w.outgoingList) {
+			w.outgoingList->DeleteAllItems();
 		}
-		if (outgoingSummary) {
-			outgoingSummary->SetLabel("Select a brush to edit links.");
+		if (w.outgoingSummary) {
+			w.outgoingSummary->SetLabel("Select a brush to edit links.");
 		}
-		if (inboundList) {
-			inboundList->DeleteAllItems();
+		if (w.inboundList) {
+			w.inboundList->DeleteAllItems();
 		}
-		if (inboundSummary) {
-			inboundSummary->SetLabel("");
+		if (w.inboundSummary) {
+			w.inboundSummary->SetLabel("");
 		}
 
-		SetButtonEnabled(addFriend, false);
-		SetButtonEnabled(addEnemy, false);
-		SetButtonEnabled(removeLink, false);
-		SetButtonEnabled(openTarget, false);
-		SetButtonEnabled(clearLinks, false);
-		SetButtonEnabled(moveUp, false);
-		SetButtonEnabled(moveDown, false);
+		SetButtonEnabled(w.addFriend, false);
+		SetButtonEnabled(w.addEnemy, false);
+		SetButtonEnabled(w.removeLink, false);
+		SetButtonEnabled(w.openTarget, false);
+		SetButtonEnabled(w.clearLinks, false);
+		SetButtonEnabled(w.moveUp, false);
+		SetButtonEnabled(w.moveDown, false);
 
-		if (page) {
-			page->Layout();
+		if (w.page) {
+			w.page->Layout();
 		}
 	}
 
@@ -3975,20 +3977,20 @@ void MaterialsWorkbenchBrushPanel::RefreshLinksPage() {
 		return;
 	}
 	if (!hasBrush_) {
-		ResetLinksPageForNoBrush(
-			linksListCtrl_,
-			linksSummaryLabel_,
-			linksInboundListCtrl_,
-			linksInboundSummaryLabel_,
-			addFriendLinkButton_,
-			addEnemyLinkButton_,
-			removeLinkButton_,
-			openLinkTargetButton_,
-			clearLinksButton_,
-			moveLinkUpButton_,
-			moveLinkDownButton_,
-			linksPage_
-		);
+		LinksPageWidgets widgets;
+		widgets.outgoingList = linksListCtrl_;
+		widgets.outgoingSummary = linksSummaryLabel_;
+		widgets.inboundList = linksInboundListCtrl_;
+		widgets.inboundSummary = linksInboundSummaryLabel_;
+		widgets.addFriend = addFriendLinkButton_;
+		widgets.addEnemy = addEnemyLinkButton_;
+		widgets.removeLink = removeLinkButton_;
+		widgets.openTarget = openLinkTargetButton_;
+		widgets.clearLinks = clearLinksButton_;
+		widgets.moveUp = moveLinkUpButton_;
+		widgets.moveDown = moveLinkDownButton_;
+		widgets.page = linksPage_;
+		ResetLinksPageForNoBrush(widgets);
 		return;
 	}
 
@@ -5006,7 +5008,8 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedNodeList() {
 		alignedNodesDetailsButton_->Show(showDetails);
 	}
 	alignedNodesList_->Show(showDetails && alignedNodesDetailsExpanded_);
-	if (wxWindow* parent = alignedNodesList_->GetParent()) {
+	wxWindow* parent = alignedNodesList_->GetParent();
+	if (parent) {
 		parent->Layout();
 	}
 }
@@ -5133,8 +5136,7 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedSelection() {
 		} else {
 			alignedNodeAlignChoice_->SetSelection(wxNOT_FOUND);
 		}
-		if (hasNode) {
-		} else {
+		if (!hasNode) {
 			alignedItemIndex_ = -1;
 		}
 	}
@@ -5424,7 +5426,8 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedSeamlessPreview() {
 		if (showAlignedPreview) {
 			alignedSeamlessPreviewPanel_->Refresh();
 		}
-		if (wxWindow* parent = alignedSeamlessPreviewPanel_->GetParent()) {
+		wxWindow* parent = alignedSeamlessPreviewPanel_->GetParent();
+		if (parent) {
 			parent->Layout();
 		}
 	}
@@ -6004,20 +6007,10 @@ void MaterialsWorkbenchBrushPanel::RemoveDoodadPreviewFloor() {
 
 	const int floorToRemove = doodadPreviewFloor_;
 	auto &tiles = composite->tiles;
-	tiles.erase(
-		std::remove_if(
-			tiles.begin(),
-			tiles.end(),
-			[floorToRemove](const DoodadCompositeTileRecord &tile) {
-				return tile.offsetZ == floorToRemove;
-			}
-		),
-		tiles.end()
-	);
-	doodadPreviewAuthoringFloors_.erase(
-		std::remove(doodadPreviewAuthoringFloors_.begin(), doodadPreviewAuthoringFloors_.end(), floorToRemove),
-		doodadPreviewAuthoringFloors_.end()
-	);
+	std::erase_if(tiles, [floorToRemove](const DoodadCompositeTileRecord &tile) {
+		return tile.offsetZ == floorToRemove;
+	});
+	std::erase(doodadPreviewAuthoringFloors_, floorToRemove);
 	if (doodadTileIndex_ >= static_cast<int>(tiles.size())) {
 		doodadTileIndex_ = static_cast<int>(tiles.size()) - 1;
 	}
@@ -8739,82 +8732,109 @@ void MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsLeftDown(wxMouseEvent &eve
 	}
 
 	const wxPoint position = event.GetPosition();
-	if (GetEffectiveBrushType() == "table" || GetEffectiveBrushType() == "carpet") {
-		const bool isTable = GetEffectiveBrushType() == "table";
+	const wxString type = GetEffectiveBrushType();
+	const bool isTable = type == "table";
+	const bool isCarpet = type == "carpet";
+
+	const auto hasValidAlignedItemIndex = [&](size_t i) -> bool {
+		if (alignedNodeIndex_ < 0) {
+			return false;
+		}
+		if (isTable) {
+			return alignedNodeIndex_ < static_cast<int>(brushStorage_.tableNodes.size())
+				&& i < brushStorage_.tableNodes[alignedNodeIndex_].items.size();
+		}
+		if (isCarpet) {
+			return alignedNodeIndex_ < static_cast<int>(brushStorage_.carpetNodes.size())
+				&& i < brushStorage_.carpetNodes[alignedNodeIndex_].items.size();
+		}
+		return false;
+	};
+
+	const auto refreshAfterAlignedItemEdit = [&]() {
+		RefreshAlignedSelection();
+		UpdateSummary();
+		RefreshDirtyState();
+	};
+
+	const auto tryHandleEditClick = [&]() -> bool {
+		if (!isTable && !isCarpet) {
+			return false;
+		}
 		for (size_t i = 0; i < alignedItemEditRects_.size(); ++i) {
-			if (!alignedItemEditRects_[i].IsEmpty() && alignedItemEditRects_[i].Contains(position)) {
-				if (isTable) {
-					if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.tableNodes.size()) || i >= brushStorage_.tableNodes[alignedNodeIndex_].items.size()) {
-						return;
-					}
-					alignedItemIndex_ = static_cast<int>(i);
-					EditTableItemWithDialog(alignedNodeIndex_, static_cast<int>(i));
-					return;
-				}
-				if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.carpetNodes.size()) || i >= brushStorage_.carpetNodes[alignedNodeIndex_].items.size()) {
-					return;
-				}
-				int itemId = brushStorage_.carpetNodes[alignedNodeIndex_].items[i].itemId;
-				int chance = brushStorage_.carpetNodes[alignedNodeIndex_].items[i].chance;
-				if (ShowWeightedBrushItemDialogWithPreview(this, "Edit Carpet Variant", itemId, chance)) {
-					auto &item = brushStorage_.carpetNodes[alignedNodeIndex_].items[i];
-					item.itemId = itemId;
-					item.chance = chance;
-					alignedItemIndex_ = static_cast<int>(i);
-					RefreshAlignedSelection();
-					UpdateSummary();
-					RefreshDirtyState();
-					SetStatusMessage(wxString::Format("Updated carpet variant item %d.", itemId));
-				}
-				return;
+			if (alignedItemEditRects_[i].IsEmpty() || !alignedItemEditRects_[i].Contains(position)) {
+				continue;
 			}
+			if (!hasValidAlignedItemIndex(i)) {
+				return true;
+			}
+			alignedItemIndex_ = static_cast<int>(i);
+			if (isTable) {
+				EditTableItemWithDialog(alignedNodeIndex_, static_cast<int>(i));
+				return true;
+			}
+			int itemId = brushStorage_.carpetNodes[alignedNodeIndex_].items[i].itemId;
+			int chance = brushStorage_.carpetNodes[alignedNodeIndex_].items[i].chance;
+			if (ShowWeightedBrushItemDialogWithPreview(this, "Edit Carpet Variant", itemId, chance)) {
+				auto &item = brushStorage_.carpetNodes[alignedNodeIndex_].items[i];
+				item.itemId = itemId;
+				item.chance = chance;
+				refreshAfterAlignedItemEdit();
+				SetStatusMessage(wxString::Format("Updated carpet variant item %d.", itemId));
+			}
+			return true;
+		}
+		return false;
+	};
+
+	const auto eraseAlignedItemAt = [&](auto &items, size_t i) {
+		items.erase(items.begin() + static_cast<std::ptrdiff_t>(i));
+		if (alignedItemIndex_ >= static_cast<int>(items.size())) {
+			alignedItemIndex_ = static_cast<int>(items.size()) - 1;
+		}
+	};
+
+	const auto tryHandleRemoveClick = [&]() -> bool {
+		if (!isTable && !isCarpet) {
+			return false;
 		}
 		for (size_t i = 0; i < alignedItemRemoveRects_.size(); ++i) {
-			if (!alignedItemRemoveRects_[i].IsEmpty() && alignedItemRemoveRects_[i].Contains(position)) {
-				if (isTable) {
-					if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.tableNodes.size()) || i >= brushStorage_.tableNodes[alignedNodeIndex_].items.size()) {
-						return;
-					}
-					auto &items = brushStorage_.tableNodes[alignedNodeIndex_].items;
-					alignedItemIndex_ = static_cast<int>(i);
-					items.erase(items.begin() + static_cast<std::ptrdiff_t>(i));
-					if (alignedItemIndex_ >= static_cast<int>(items.size())) {
-						alignedItemIndex_ = static_cast<int>(items.size()) - 1;
-					}
-					RefreshAlignedSelection();
-					UpdateSummary();
-					RefreshDirtyState();
-					SetStatusMessage("Removed node item.");
-					return;
-				}
-				if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(brushStorage_.carpetNodes.size()) || i >= brushStorage_.carpetNodes[alignedNodeIndex_].items.size()) {
-					return;
-				}
-				auto &items = brushStorage_.carpetNodes[alignedNodeIndex_].items;
-				alignedItemIndex_ = static_cast<int>(i);
-				items.erase(items.begin() + static_cast<std::ptrdiff_t>(i));
-				if (alignedItemIndex_ >= static_cast<int>(items.size())) {
-					alignedItemIndex_ = static_cast<int>(items.size()) - 1;
-				}
-				RefreshAlignedSelection();
-				UpdateSummary();
-				RefreshDirtyState();
-				SetStatusMessage("Removed carpet variant.");
-				return;
+			if (alignedItemRemoveRects_[i].IsEmpty() || !alignedItemRemoveRects_[i].Contains(position)) {
+				continue;
 			}
+			if (!hasValidAlignedItemIndex(i)) {
+				return true;
+			}
+			alignedItemIndex_ = static_cast<int>(i);
+			if (isTable) {
+				auto &items = brushStorage_.tableNodes[alignedNodeIndex_].items;
+				eraseAlignedItemAt(items, i);
+				refreshAfterAlignedItemEdit();
+				SetStatusMessage("Removed node item.");
+				return true;
+			}
+			auto &items = brushStorage_.carpetNodes[alignedNodeIndex_].items;
+			eraseAlignedItemAt(items, i);
+			refreshAfterAlignedItemEdit();
+			SetStatusMessage("Removed carpet variant.");
+			return true;
 		}
-	}
-	for (size_t i = 0; i < alignedItemCardRects_.size(); ++i) {
-		if (!alignedItemCardRects_[i].Contains(position)) {
-			continue;
-		}
+		return false;
+	};
 
-		alignedItemIndex_ = static_cast<int>(i);
-		if (alignedItemsList_) {
-			alignedItemsList_->SetSelection(alignedItemIndex_);
-		}
-		RefreshAlignedSelection();
+	if (tryHandleEditClick() || tryHandleRemoveClick()) {
 		return;
+	}
+
+	for (size_t i = 0; i < alignedItemCardRects_.size(); ++i) {
+		if (alignedItemCardRects_[i].Contains(position)) {
+			alignedItemIndex_ = static_cast<int>(i);
+			if (alignedItemsList_) {
+				alignedItemsList_->SetSelection(alignedItemIndex_);
+			}
+			RefreshAlignedSelection();
+			return;
+		}
 	}
 
 	event.Skip();
