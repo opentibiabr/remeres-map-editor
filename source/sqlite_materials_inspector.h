@@ -19,6 +19,8 @@ public:
 	void ReloadData();
 
 private:
+	void OnResetDatabaseFromXml();
+
 	void RefreshSummary();
 	void RefreshBrushList();
 	void RefreshBrushDetails();

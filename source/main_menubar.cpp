@@ -34,6 +34,8 @@
 #include "lua/lua_scripts_window.h"
 #include "gui.h"
 
+#include <functional>
+
 #include <wx/chartype.h>
 #include <wx/choicdlg.h>
 #include <wx/dirdlg.h>
@@ -567,9 +569,9 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	using namespace MenuBar;
 	checking_programmaticly = false;
 
-#define MAKE_ACTION(id, kind, handler) actions[#id] = new MenuBar::Action(#id, id, kind, [](MainMenuBar &self, wxCommandEvent &event) { self.handler(event); })
-#define MAKE_SET_ACTION(id, kind, setting_, handler)                                                                              \
-	actions[#id] = new MenuBar::Action(#id, id, kind, [](MainMenuBar &self, wxCommandEvent &event) { self.handler(event); }); \
+#define MAKE_ACTION(id, kind, handler) actions[#id] = new MenuBar::Action(#id, id, kind, std::mem_fn(&MainMenuBar::handler))
+#define MAKE_SET_ACTION(id, kind, setting_, handler)                                                     \
+	actions[#id] = new MenuBar::Action(#id, id, kind, std::mem_fn(&MainMenuBar::handler));            \
 	actions[#id]->setting = setting_
 
 	MAKE_ACTION(NEW, wxITEM_NORMAL, OnNew);

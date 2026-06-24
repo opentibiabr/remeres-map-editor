@@ -65,6 +65,7 @@ private:
 	void SetFieldsEnabled(bool enabled);
 	BorderSetStorageRecord BuildComparableStorageFromCurrentState() const;
 	bool ValidateBorderSetStorage(const BorderSetStorageRecord &storage, wxString &error) const;
+	bool RemoveGlobalBorderContextsBeforeDelete(int64_t borderSetId, wxString &error);
 	void RefreshDirtyState();
 	void NotifyBorderSetStateChanged();
 	void UpdateWorkspaceHeader();

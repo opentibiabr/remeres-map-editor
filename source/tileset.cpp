@@ -26,8 +26,10 @@
 #include "items.h"
 #include "raw_brush.h"
 
+#include <string_view>
+
 namespace {
-	bool ResolveTilesetCategoryTypes(const std::string &sectionType, TilesetCategoryType &primaryType, bool &hasSecondaryType, TilesetCategoryType &secondaryType) {
+	bool ResolveTilesetCategoryTypes(std::string_view sectionType, TilesetCategoryType &primaryType, bool &hasSecondaryType, TilesetCategoryType &secondaryType) {
 		hasSecondaryType = false;
 		secondaryType = TILESET_UNKNOWN;
 
@@ -66,6 +68,110 @@ namespace {
 			return true;
 		}
 		return false;
+	}
+
+	std::string ResolveAfterBrushName(const TilesetEntryRecord &entry, bool preserveStoredOrder) {
+		std::string afterBrushName = entry.afterBrushName.ToStdString();
+		if (preserveStoredOrder || entry.afterItemId <= 0) {
+			return afterBrushName;
+		}
+
+		const ItemType &type = g_items.getItemType(entry.afterItemId);
+		if (type.id == 0) {
+			return afterBrushName;
+		}
+
+		return type.raw_brush ? type.raw_brush->getName() : std::string();
+	}
+
+	std::vector<Brush*>::iterator FindInsertPosition(std::vector<Brush*> &brushlist, const std::string &afterBrushName) {
+		if (afterBrushName.empty()) {
+			return brushlist.end();
+		}
+
+		for (auto it = brushlist.begin(); it != brushlist.end(); ++it) {
+			if ((*it)->getName() == afterBrushName) {
+				return ++it;
+			}
+		}
+		return brushlist.end();
+	}
+
+	bool LoadBrushEntry(
+		Brushes &brushes,
+		TilesetCategory &category,
+		const TilesetEntryRecord &entry,
+		wxArrayString &warnings,
+		bool preserveStoredOrder,
+		const std::string &afterBrushName
+	) {
+		if (entry.brushName.IsEmpty()) {
+			return true;
+		}
+
+		Brush* brush = brushes.getBrush(entry.brushName.ToStdString());
+		if (!brush) {
+			warnings.push_back("Brush \"" + entry.brushName + "\" doesn't exist.");
+			return true;
+		}
+
+		auto insertPosition = category.brushlist.end();
+		if (!preserveStoredOrder) {
+			insertPosition = FindInsertPosition(category.brushlist, afterBrushName);
+		}
+
+		brush->flagAsVisible();
+		category.brushlist.insert(insertPosition, brush);
+		return true;
+	}
+
+	bool LoadItemEntry(
+		Brushes &brushes,
+		TilesetCategory &category,
+		const TilesetEntryRecord &entry,
+		wxArrayString &warnings,
+		bool preserveStoredOrder,
+		const std::string &afterBrushName
+	) {
+		const auto fromId = static_cast<uint16_t>(entry.fromItemId > 0 ? entry.fromItemId : entry.itemId);
+		auto toId = static_cast<uint16_t>(entry.toItemId > 0 ? entry.toItemId : fromId);
+		if (fromId == 0) {
+			warnings.push_back("Couldn't read raw ids from SQLite tileset entry.");
+			return true;
+		}
+		toId = std::max<uint16_t>(fromId, toId);
+
+		std::vector<Brush*> tempBrushVector;
+		for (uint16_t id = fromId; id <= toId; ++id) {
+			const auto &type = g_items.getRawItemType(id);
+			if (!type || type->id == 0) {
+				continue;
+			}
+
+			RAWBrush* brush;
+			if (type->raw_brush) {
+				brush = type->raw_brush;
+			} else {
+				brush = type->raw_brush = newd RAWBrush(type->id);
+				type->has_raw = true;
+				brushes.addBrush(brush);
+			}
+
+			if (type->doodad_brush == nullptr && !category.isTrivial()) {
+				type->doodad_brush = brush;
+			}
+
+			brush->flagAsVisible();
+			tempBrushVector.push_back(brush);
+			category.tileset.previousId = id;
+		}
+
+		auto insertPosition = category.brushlist.end();
+		if (!preserveStoredOrder) {
+			insertPosition = FindInsertPosition(category.brushlist, afterBrushName);
+		}
+		category.brushlist.insert(insertPosition, tempBrushVector.begin(), tempBrushVector.end());
+		return true;
 	}
 }
 
@@ -345,84 +451,14 @@ void TilesetCategory::loadBrush(pugi::xml_node node, wxArrayString &warnings) {
 }
 
 void TilesetCategory::loadEntry(const TilesetEntryRecord &entry, wxArrayString &warnings, bool preserveStoredOrder) {
-	std::string afterBrushName = entry.afterBrushName.ToStdString();
-	if (!preserveStoredOrder && entry.afterItemId > 0) {
-		const ItemType &type = g_items.getItemType(entry.afterItemId);
-		if (type.id != 0) {
-			afterBrushName = type.raw_brush ? type.raw_brush->getName() : std::string();
-		}
-	}
-
+	const std::string afterBrushName = ResolveAfterBrushName(entry, preserveStoredOrder);
 	const std::string entryKind = as_lower_str(entry.entryKind.ToStdString());
 	if (entryKind == "brush") {
-		if (entry.brushName.IsEmpty()) {
-			return;
-		}
-
-		Brush* brush = tileset.brushes.getBrush(entry.brushName.ToStdString());
-		if (brush) {
-			auto insertPosition = brushlist.end();
-			if (!preserveStoredOrder && !afterBrushName.empty()) {
-				for (auto itt = brushlist.begin(); itt != brushlist.end(); ++itt) {
-					if ((*itt)->getName() == afterBrushName) {
-						insertPosition = ++itt;
-						break;
-					}
-				}
-			}
-			brush->flagAsVisible();
-			brushlist.insert(insertPosition, brush);
-		} else {
-			warnings.push_back("Brush \"" + entry.brushName + "\" doesn't exist.");
-		}
+		LoadBrushEntry(tileset.brushes, *this, entry, warnings, preserveStoredOrder, afterBrushName);
 		return;
 	}
-
-	if (entryKind != "item") {
+	if (entryKind == "item") {
+		LoadItemEntry(tileset.brushes, *this, entry, warnings, preserveStoredOrder, afterBrushName);
 		return;
 	}
-
-	uint16_t fromId = static_cast<uint16_t>(entry.fromItemId > 0 ? entry.fromItemId : entry.itemId);
-	uint16_t toId = static_cast<uint16_t>(entry.toItemId > 0 ? entry.toItemId : fromId);
-	if (fromId == 0) {
-		warnings.push_back("Couldn't read raw ids from SQLite tileset entry.");
-		return;
-	}
-	toId = std::max<uint16_t>(fromId, toId);
-
-	std::vector<Brush*> tempBrushVector;
-	for (uint16_t id = fromId; id <= toId; ++id) {
-		const auto &type = g_items.getRawItemType(id);
-		if (!type || type->id == 0) {
-			continue;
-		}
-
-		RAWBrush* brush;
-		if (type->raw_brush) {
-			brush = type->raw_brush;
-		} else {
-			brush = type->raw_brush = newd RAWBrush(type->id);
-			type->has_raw = true;
-			tileset.brushes.addBrush(brush);
-		}
-
-		if (type->doodad_brush == nullptr && !isTrivial()) {
-			type->doodad_brush = brush;
-		}
-
-		brush->flagAsVisible();
-		tempBrushVector.push_back(brush);
-		tileset.previousId = id;
-	}
-
-	auto insertPosition = brushlist.end();
-	if (!preserveStoredOrder && !afterBrushName.empty()) {
-		for (auto itt = brushlist.begin(); itt != brushlist.end(); ++itt) {
-			if ((*itt)->getName() == afterBrushName) {
-				insertPosition = ++itt;
-				break;
-			}
-		}
-	}
-	brushlist.insert(insertPosition, tempBrushVector.begin(), tempBrushVector.end());
 }

@@ -50,7 +50,7 @@ public:
 	virtual int getLookID() const {
 		return look_id;
 	}
-	virtual void setLookID(uint16_t newLookId) override {
+	void setLookID(uint16_t newLookId) override {
 		look_id = newLookId;
 	}
 

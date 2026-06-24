@@ -206,7 +206,15 @@ void BrushSizePanel::InvalidateContents() {
 		DestroyChildren();
 		SetSizer(nullptr);
 
-		brushshapeSquareButton = brushshapeCircleButton = brushsize0Button = brushsize1Button = brushsize2Button = brushsize4Button = brushsize6Button = brushsize8Button = brushsize11Button = nullptr;
+		brushshapeSquareButton = nullptr;
+		brushshapeCircleButton = nullptr;
+		brushsize0Button = nullptr;
+		brushsize1Button = nullptr;
+		brushsize2Button = nullptr;
+		brushsize4Button = nullptr;
+		brushsize6Button = nullptr;
+		brushsize8Button = nullptr;
+		brushsize11Button = nullptr;
 
 		loaded = false;
 	}
@@ -431,7 +439,18 @@ void BrushToolPanel::InvalidateContents() {
 		DestroyChildren();
 		SetSizer(nullptr);
 
-		optionalBorderButton = eraserButton = normalDoorButton = lockedDoorButton = magicDoorButton = questDoorButton = hatchDoorButton = windowDoorButton = pzBrushButton = nopvpBrushButton = nologBrushButton = pvpzoneBrushButton = nullptr;
+		optionalBorderButton = nullptr;
+		eraserButton = nullptr;
+		normalDoorButton = nullptr;
+		lockedDoorButton = nullptr;
+		magicDoorButton = nullptr;
+		questDoorButton = nullptr;
+		hatchDoorButton = nullptr;
+		windowDoorButton = nullptr;
+		pzBrushButton = nullptr;
+		nopvpBrushButton = nullptr;
+		nologBrushButton = nullptr;
+		pvpzoneBrushButton = nullptr;
 
 		loaded = false;
 	}

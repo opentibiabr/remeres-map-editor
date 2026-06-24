@@ -9,6 +9,15 @@ namespace {
 		return value ? "yes" : "no";
 	}
 
+	wxString TrimOrUnknown(wxString value) {
+		value.Trim(true);
+		value.Trim(false);
+		if (value.IsEmpty()) {
+			return "<unknown>";
+		}
+		return value;
+	}
+
 	wxString JoinTypeCounts(const std::vector<BrushTypeCountRecord> &typeCounts) {
 		wxString out;
 		for (size_t i = 0; i < typeCounts.size(); ++i) {
@@ -184,9 +193,9 @@ namespace {
 		return text;
 	}
 
-	wxString FormatAuditReport(BrushDatabase &database, const MaterialsDatabaseAuditReport &report) {
-		wxString text;
+	void AppendDatabaseAndSchemaInfo(wxString &text, BrushDatabase &database) {
 		text << "Database: " << database.getDatabasePath() << "\n";
+
 		int currentSchemaVersion = 0;
 		if (database.getCurrentSchemaVersion(currentSchemaVersion)) {
 			text << "Schema version (db): " << currentSchemaVersion << "\n";
@@ -194,6 +203,9 @@ namespace {
 			text << "Schema version (db): unknown\n";
 		}
 		text << "Schema version (expected): " << database.getExpectedSchemaVersion() << "\n\n";
+	}
+
+	void AppendImportMarkerAndReadiness(wxString &text, BrushDatabase &database, const MaterialsDatabaseAuditReport &report) {
 		MaterialsImportStatusRecord status;
 		wxString statusReason;
 		if (database.getMaterialsImportStatus(status, statusReason)) {
@@ -201,106 +213,109 @@ namespace {
 			text << "Import marker completed_at: " << static_cast<long long>(status.completedAt) << "\n";
 			text << "Import marker source: " << status.source << "\n\n";
 			text << BuildRuntimeReadinessSummary(database, report, &status);
-		} else {
-			text << "Import marker error: " << statusReason << "\n\n";
-			text << BuildRuntimeReadinessSummary(database, report, nullptr);
+			return;
 		}
+
+		text << "Import marker error: " << statusReason << "\n\n";
+		text << BuildRuntimeReadinessSummary(database, report, nullptr);
+	}
+
+	void AppendCatalogCounts(wxString &text, const MaterialsDatabaseAuditReport &report) {
 		text << "Brushes: " << report.brushCount << "\n";
 		text << "Border sets: " << report.borderSetCount << "\n";
 		text << "Tilesets: " << report.tilesetCount << "\n";
 		text << "Tileset sections: " << report.tilesetSectionCount << "\n";
 		text << "Tileset entries: " << report.tilesetEntryCount << "\n\n";
+	}
+
+	void AppendUnsupportedBrushDetails(wxString &text, const MaterialsDatabaseAuditReport &report) {
 		text << "Unsupported brush types: " << report.unsupportedBrushTypeCount << "\n\n";
-		if (report.unsupportedBrushTypeCount > 0) {
-			if (!report.unsupportedBrushTypeCounts.empty()) {
-				text << "Unsupported brush types breakdown:\n";
-				for (const BrushTypeCountRecord &typeCount : report.unsupportedBrushTypeCounts) {
-					text << wxString::Format("  - %s: %d\n", typeCount.type, typeCount.count);
-				}
-				text << "\n";
-			}
-			if (!report.unsupportedBrushSamples.empty()) {
-				text << "Unsupported brush samples:\n";
-				for (const UnsupportedBrushSampleRecord &sample : report.unsupportedBrushSamples) {
-					wxString source = sample.sourceFile;
-					source.Trim(true);
-					source.Trim(false);
-					if (source.IsEmpty()) {
-						source = "<unknown>";
-					}
-					text << wxString::Format(
-						"  - id=%lld name=\"%s\" type=\"%s\" source=\"%s\"\n",
-						static_cast<long long>(sample.id),
-						sample.name,
-						sample.type,
-						source
-					);
-				}
-				text << "\n";
-			}
+		if (report.unsupportedBrushTypeCount <= 0) {
+			return;
 		}
-		text << "Unresolved ground targets: " << report.unresolvedGroundTargets << "\n";
-		text << "Unresolved brush links: " << report.unresolvedBrushLinks << "\n";
-		text << "Unresolved tileset entries: " << report.unresolvedTilesetEntries << "\n\n";
-		if (report.unresolvedTilesetEntries > 0 && !report.unresolvedTilesetEntrySamples.empty()) {
-			text << "Unresolved tileset entry samples:\n";
-			for (const UnresolvedTilesetEntrySampleRecord &sample : report.unresolvedTilesetEntrySamples) {
-				wxString group = sample.paletteGroupName;
-				group.Trim(true);
-				group.Trim(false);
-				if (group.IsEmpty()) {
-					group = "<unknown>";
-				}
-				wxString tileset = sample.tilesetName;
-				tileset.Trim(true);
-				tileset.Trim(false);
-				if (tileset.IsEmpty()) {
-					tileset = "<unknown>";
-				}
-				wxString source = sample.tilesetSourceFile;
-				source.Trim(true);
-				source.Trim(false);
-				if (source.IsEmpty()) {
-					source = "<unknown>";
-				}
-				wxString section = sample.sectionType;
-				section.Trim(true);
-				section.Trim(false);
-				if (section.IsEmpty()) {
-					section = "<unknown>";
-				}
-				wxString brush = sample.brushName;
-				brush.Trim(true);
-				brush.Trim(false);
-				if (brush.IsEmpty()) {
-					brush = "<unknown>";
-				}
-				wxString entryKind = sample.entryKind;
-				entryKind.Trim(true);
-				entryKind.Trim(false);
-				if (entryKind.IsEmpty()) {
-					entryKind = "<unknown>";
-				}
+
+		if (!report.unsupportedBrushTypeCounts.empty()) {
+			text << "Unsupported brush types breakdown:\n";
+			for (const BrushTypeCountRecord &typeCount : report.unsupportedBrushTypeCounts) {
+				text << wxString::Format("  - %s: %d\n", typeCount.type, typeCount.count);
+			}
+			text << "\n";
+		}
+
+		if (!report.unsupportedBrushSamples.empty()) {
+			text << "Unsupported brush samples:\n";
+			for (const UnsupportedBrushSampleRecord &sample : report.unsupportedBrushSamples) {
+				const wxString source = TrimOrUnknown(sample.sourceFile);
 				text << wxString::Format(
-					"  - group=\"%s\" palette=\"%s\" section=\"%s\" kind=\"%s\" brush=\"%s\" source=\"%s\"\n",
-					group,
-					tileset,
-					section,
-					entryKind,
-					brush,
+					"  - id=%lld name=\"%s\" type=\"%s\" source=\"%s\"\n",
+					static_cast<long long>(sample.id),
+					sample.name,
+					sample.type,
 					source
 				);
 			}
 			text << "\n";
 		}
+	}
+
+	void AppendUnresolvedReferenceCounts(wxString &text, const MaterialsDatabaseAuditReport &report) {
+		text << "Unresolved ground targets: " << report.unresolvedGroundTargets << "\n";
+		text << "Unresolved brush links: " << report.unresolvedBrushLinks << "\n";
+		text << "Unresolved tileset entries: " << report.unresolvedTilesetEntries << "\n\n";
+	}
+
+	void AppendUnresolvedTilesetEntrySamples(wxString &text, const MaterialsDatabaseAuditReport &report) {
+		if (report.unresolvedTilesetEntries <= 0 || report.unresolvedTilesetEntrySamples.empty()) {
+			return;
+		}
+
+		text << "Unresolved tileset entry samples:\n";
+		for (const UnresolvedTilesetEntrySampleRecord &sample : report.unresolvedTilesetEntrySamples) {
+			const wxString group = TrimOrUnknown(sample.paletteGroupName);
+			const wxString tileset = TrimOrUnknown(sample.tilesetName);
+			const wxString source = TrimOrUnknown(sample.tilesetSourceFile);
+			const wxString section = TrimOrUnknown(sample.sectionType);
+			const wxString brush = TrimOrUnknown(sample.brushName);
+			const wxString entryKind = TrimOrUnknown(sample.entryKind);
+			text << wxString::Format(
+				"  - group=\"%s\" palette=\"%s\" section=\"%s\" kind=\"%s\" brush=\"%s\" source=\"%s\"\n",
+				group,
+				tileset,
+				section,
+				entryKind,
+				brush,
+				source
+			);
+		}
+		text << "\n";
+	}
+
+	void AppendBorderReferenceCounts(wxString &text, const MaterialsDatabaseAuditReport &report) {
 		text << "Unresolved case match_border ids: " << report.unresolvedCaseMatchBorderIds << "\n";
 		text << "Unresolved case replace_border target ids: " << report.unresolvedCaseReplaceBorderTargetIds << "\n";
 		text << "Case match_border edges without borderitem: " << report.caseMatchBorderEdgesWithoutItem << "\n";
 		text << "Case replace_border edges without borderitem: " << report.caseReplaceBorderEdgesWithoutItem << "\n\n";
+	}
+
+	void AppendBrushTypeCounts(wxString &text, const MaterialsDatabaseAuditReport &report) {
 		text << "Brush counts by type:\n";
 		for (const BrushTypeCountRecord &typeCount : report.brushTypeCounts) {
 			text << "  - " << typeCount.type << ": " << typeCount.count << "\n";
 		}
+	}
+
+	wxString FormatAuditReport(BrushDatabase &database, const MaterialsDatabaseAuditReport &report) {
+		wxString text;
+
+		AppendDatabaseAndSchemaInfo(text, database);
+		AppendImportMarkerAndReadiness(text, database, report);
+		AppendCatalogCounts(text, report);
+		AppendUnsupportedBrushDetails(text, report);
+		AppendUnresolvedReferenceCounts(text, report);
+		AppendUnresolvedTilesetEntrySamples(text, report);
+		AppendBorderReferenceCounts(text, report);
+		AppendBrushTypeCounts(text, report);
+
 		return text;
 	}
 
@@ -470,82 +485,86 @@ SQLiteMaterialsInspectorPanel::SQLiteMaterialsInspectorPanel(wxWindow* parent) :
 	SetSizer(topSizer);
 
 	reloadButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { ReloadData(); });
-	resetDbButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
-		if (g_gui.IsAsyncSqliteBootstrapRunning()) {
-			g_gui.PopupDialog(this, "SQLite Reset Unavailable", "SQLite bootstrap import is currently running. Wait for it to finish, then try again.", wxOK | wxICON_INFORMATION);
-			return;
-		}
-		wxString dbPath;
-		if (g_brush_database.isOpen()) {
-			dbPath = g_brush_database.getDatabasePath();
-		} else {
-			dbPath = GUI::GetDataDirectory() + "materials/materials.db";
-		}
-		if (!wxFileName(dbPath).FileExists()) {
-			g_gui.PopupDialog(this, "SQLite Reset Unavailable", "materials.db does not exist at the expected path.\n\nDatabase:\n" + dbPath, wxOK | wxICON_ERROR);
-			return;
-		}
-		if (!wxFileName(dbPath).IsFileWritable()) {
-			g_gui.PopupDialog(this, "SQLite Reset Unavailable", "materials.db is read-only. Reset requires a writable database file.\n\nDatabase:\n" + dbPath, wxOK | wxICON_ERROR);
-			return;
-		}
-		wxString warningText = "Reset SQLite materials database from legacy XML?\n\n";
-		warningText += "This will move the current materials.db to a timestamped backup file and close the database for this session (when open).\n";
-		warningText += "Warning: This discards all edits made in materials.db since the last bootstrap. Use Export/Import if you need to keep changes.\n\n";
-		warningText += "Database:\n";
-		warningText += dbPath;
-
-		if (wxMessageBox(warningText, "Reset materials.db", wxYES_NO | wxNO_DEFAULT | wxICON_WARNING, this) != wxYES) {
-			return;
-		}
-
-		const wxDateTime now = wxDateTime::Now();
-		const wxString suffix = now.Format("-%Y%m%d-%H%M%S");
-		const wxString backupPath = dbPath + ".bak" + suffix;
-
-		if (g_brush_database.isOpen()) {
-			g_brush_database.close();
-		}
-		inspectorDatabase_.close();
-
-		auto moveFileIfExists = [](const wxString &from, const wxString &to) -> bool {
-			if (wxFileName(from).FileExists()) {
-				return wxRenameFile(from, to, true);
-			}
-			return true;
-		};
-
-		if (!moveFileIfExists(dbPath, backupPath)
-			|| !moveFileIfExists(dbPath + "-wal", backupPath + "-wal")
-			|| !moveFileIfExists(dbPath + "-shm", backupPath + "-shm")) {
-			g_gui.PopupDialog(this, "SQLite Reset Failed", "Failed to move one or more SQLite files to the backup path.\n\nBackup:\n" + backupPath, wxOK | wxICON_ERROR);
-			return;
-		}
-
-		wxString doneText = "materials.db was moved to:\n" + backupPath + "\n\n";
-		doneText += "Technical note:\n";
-		doneText += "- This process cannot safely rebuild and reload the materials graph in-place.\n";
-		doneText += "- A restart is required so the next startup can bootstrap a fresh SQLite DB from XML.\n\n";
-		doneText += "Next steps:\n";
-		doneText += "- Restart the app\n";
-		doneText += "- The SQLite database will be rebuilt from legacy XML automatically\n\n";
-		doneText += "Note: Workbench editing from SQLite is disabled until restart.";
-
-		wxMessageDialog dialog(this, doneText, "SQLite Reset Scheduled", wxOK | wxICON_INFORMATION);
-		dialog.SetOKLabel("Close now");
-		dialog.ShowModal();
-		if (g_gui.root) {
-			g_gui.root->Close(true);
-		} else if (wxTheApp) {
-			wxTheApp->ExitMainLoop();
-		}
-		return;
-	});
+	resetDbButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { OnResetDatabaseFromXml(); });
 	brushTypeChoice_->Bind(wxEVT_CHOICE, [this](wxCommandEvent &) { RefreshBrushList(); });
 	brushList_->Bind(wxEVT_LISTBOX, [this](wxCommandEvent &) { RefreshBrushDetails(); });
 	tilesetList_->Bind(wxEVT_LISTBOX, [this](wxCommandEvent &) { RefreshTilesetDetails(); });
 
 	ReloadData();
+}
+
+void SQLiteMaterialsInspectorPanel::OnResetDatabaseFromXml() {
+	if (g_gui.IsAsyncSqliteBootstrapRunning()) {
+		g_gui.PopupDialog(this, "SQLite Reset Unavailable", "SQLite bootstrap import is currently running. Wait for it to finish, then try again.", wxOK | wxICON_INFORMATION);
+		return;
+	}
+
+	wxString dbPath;
+	if (g_brush_database.isOpen()) {
+		dbPath = g_brush_database.getDatabasePath();
+	} else {
+		dbPath = GUI::GetDataDirectory() + "materials/materials.db";
+	}
+
+	if (!wxFileName(dbPath).FileExists()) {
+		g_gui.PopupDialog(this, "SQLite Reset Unavailable", "materials.db does not exist at the expected path.\n\nDatabase:\n" + dbPath, wxOK | wxICON_ERROR);
+		return;
+	}
+	if (!wxFileName(dbPath).IsFileWritable()) {
+		g_gui.PopupDialog(this, "SQLite Reset Unavailable", "materials.db is read-only. Reset requires a writable database file.\n\nDatabase:\n" + dbPath, wxOK | wxICON_ERROR);
+		return;
+	}
+
+	wxString warningText = "Reset SQLite materials database from legacy XML?\n\n";
+	warningText += "This will move the current materials.db to a timestamped backup file and close the database for this session (when open).\n";
+	warningText += "Warning: This discards all edits made in materials.db since the last bootstrap. Use Export/Import if you need to keep changes.\n\n";
+	warningText += "Database:\n";
+	warningText += dbPath;
+
+	if (wxMessageBox(warningText, "Reset materials.db", wxYES_NO | wxNO_DEFAULT | wxICON_WARNING, this) != wxYES) {
+		return;
+	}
+
+	const wxDateTime now = wxDateTime::Now();
+	const wxString suffix = now.Format("-%Y%m%d-%H%M%S");
+	const wxString backupPath = dbPath + ".bak" + suffix;
+
+	if (g_brush_database.isOpen()) {
+		g_brush_database.close();
+	}
+	inspectorDatabase_.close();
+
+	auto moveFileIfExists = [](const wxString &from, const wxString &to) -> bool {
+		if (wxFileName(from).FileExists()) {
+			return wxRenameFile(from, to, true);
+		}
+		return true;
+	};
+
+	if (!moveFileIfExists(dbPath, backupPath)
+		|| !moveFileIfExists(dbPath + "-wal", backupPath + "-wal")
+		|| !moveFileIfExists(dbPath + "-shm", backupPath + "-shm")) {
+		g_gui.PopupDialog(this, "SQLite Reset Failed", "Failed to move one or more SQLite files to the backup path.\n\nBackup:\n" + backupPath, wxOK | wxICON_ERROR);
+		return;
+	}
+
+	wxString doneText = "materials.db was moved to:\n" + backupPath + "\n\n";
+	doneText += "Technical note:\n";
+	doneText += "- This process cannot safely rebuild and reload the materials graph in-place.\n";
+	doneText += "- A restart is required so the next startup can bootstrap a fresh SQLite DB from XML.\n\n";
+	doneText += "Next steps:\n";
+	doneText += "- Restart the app\n";
+	doneText += "- The SQLite database will be rebuilt from legacy XML automatically\n\n";
+	doneText += "Note: Workbench editing from SQLite is disabled until restart.";
+
+	wxMessageDialog dialog(this, doneText, "SQLite Reset Scheduled", wxOK | wxICON_INFORMATION);
+	dialog.SetOKLabel("Close now");
+	dialog.ShowModal();
+	if (g_gui.root) {
+		g_gui.root->Close(true);
+	} else if (wxTheApp) {
+		wxTheApp->ExitMainLoop();
+	}
 }
 
 void SQLiteMaterialsInspectorPanel::ReloadData() {

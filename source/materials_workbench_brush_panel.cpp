@@ -1700,6 +1700,38 @@ namespace {
 		);
 	}
 
+	bool TryResolveHitTileForDoodadPreviewCell(
+		const DoodadCompositeRecord &composite,
+		const DoodadPreviewFloorLayout &layout,
+		int cellX,
+		int cellY,
+		int &outTileIndex,
+		int &outTileFloor
+	) {
+		outTileIndex = -1;
+		outTileFloor = layout.floor;
+
+		const bool combinedAllFloors = layout.floor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors;
+		for (auto it = layout.tileIndices.rbegin(); it != layout.tileIndices.rend(); ++it) {
+			const int tileIndex = *it;
+			const auto &tile = composite.tiles[tileIndex];
+			const bool matchingFloor = combinedAllFloors || tile.offsetZ == layout.floor;
+			if (!matchingFloor) {
+				continue;
+			}
+
+			const wxPoint projectedCell = GetDoodadPreviewProjectedCell(tile, combinedAllFloors);
+			if (projectedCell.x != cellX || projectedCell.y != cellY) {
+				continue;
+			}
+
+			outTileIndex = tileIndex;
+			outTileFloor = tile.offsetZ;
+			return true;
+		}
+		return false;
+	}
+
 	bool HitTestDoodadPreview(
 		const DoodadCompositeRecord &composite,
 		const std::vector<DoodadPreviewFloorLayout> &layouts,
@@ -1725,17 +1757,12 @@ namespace {
 					hit.cellX = cellX;
 					hit.cellY = cellY;
 					hit.cellRect = cellRect;
-					for (auto it = layout.tileIndices.rbegin(); it != layout.tileIndices.rend(); ++it) {
-						const int tileIndex = *it;
-						const auto &tile = composite.tiles[tileIndex];
-						const bool combinedAllFloors = layout.floor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors;
-						const bool matchingFloor = combinedAllFloors || tile.offsetZ == layout.floor;
-						const wxPoint projectedCell = GetDoodadPreviewProjectedCell(tile, combinedAllFloors);
-						if (projectedCell.x == cellX && projectedCell.y == cellY && matchingFloor) {
-							hit.tileIndex = tileIndex;
-							hit.floor = tile.offsetZ;
-							break;
-						}
+
+					int tileIndex = -1;
+					int tileFloor = layout.floor;
+					if (TryResolveHitTileForDoodadPreviewCell(composite, layout, cellX, cellY, tileIndex, tileFloor)) {
+						hit.tileIndex = tileIndex;
+						hit.floor = tileFloor;
 					}
 					return true;
 				}
@@ -1780,37 +1807,34 @@ namespace {
 		return text;
 	}
 
-	void NormalizeVariationSortOrdersForStorage(BrushStorageRecord &storage) {
-		for (size_t i = 0; i < storage.items.size(); ++i) {
-			storage.items[i].sortOrder = static_cast<int>(i);
+	template <typename T>
+	void NormalizeSortOrders(std::vector<T> &items) {
+		for (size_t i = 0; i < items.size(); ++i) {
+			items[i].sortOrder = static_cast<int>(i);
 		}
+	}
+
+	void NormalizeVariationSortOrdersForStorage(BrushStorageRecord &storage) {
+		NormalizeSortOrders(storage.items);
 		for (size_t i = 0; i < storage.carpetNodes.size(); ++i) {
 			storage.carpetNodes[i].sortOrder = static_cast<int>(i);
-			for (size_t j = 0; j < storage.carpetNodes[i].items.size(); ++j) {
-				storage.carpetNodes[i].items[j].sortOrder = static_cast<int>(j);
-			}
+			NormalizeSortOrders(storage.carpetNodes[i].items);
 		}
 		for (size_t i = 0; i < storage.tableNodes.size(); ++i) {
 			storage.tableNodes[i].sortOrder = static_cast<int>(i);
-			for (size_t j = 0; j < storage.tableNodes[i].items.size(); ++j) {
-				storage.tableNodes[i].items[j].sortOrder = static_cast<int>(j);
-			}
+			NormalizeSortOrders(storage.tableNodes[i].items);
 		}
 		for (size_t i = 0; i < storage.doodadAlternatives.size(); ++i) {
 			DoodadAlternativeRecord &alternative = storage.doodadAlternatives[i];
 			alternative.sortOrder = static_cast<int>(i);
-			for (size_t j = 0; j < alternative.singleItems.size(); ++j) {
-				alternative.singleItems[j].sortOrder = static_cast<int>(j);
-			}
+			NormalizeSortOrders(alternative.singleItems);
 			for (size_t j = 0; j < alternative.composites.size(); ++j) {
 				DoodadCompositeRecord &composite = alternative.composites[j];
 				composite.sortOrder = static_cast<int>(j);
 				for (size_t k = 0; k < composite.tiles.size(); ++k) {
 					DoodadCompositeTileRecord &tile = composite.tiles[k];
 					tile.sortOrder = static_cast<int>(k);
-					for (size_t l = 0; l < tile.items.size(); ++l) {
-						tile.items[l].sortOrder = static_cast<int>(l);
-					}
+					NormalizeSortOrders(tile.items);
 				}
 			}
 		}
@@ -2123,7 +2147,7 @@ public:
 		Refresh();
 	}
 
-protected:
+private:
 	void OnDrawItem(wxDC &dc, const wxRect &rect, size_t n) const override {
 		if (n >= entries_.size()) {
 			return;
@@ -2159,11 +2183,10 @@ protected:
 		dc.DrawText(entry.label, textRect.GetTopLeft());
 	}
 
-	wxCoord OnMeasureItem(size_t WXUNUSED(n)) const override {
+	wxCoord OnMeasureItem([[maybe_unused]] size_t n) const override {
 		return FromDIP(24);
 	}
 
-private:
 	std::vector<Entry> entries_;
 };
 
@@ -2449,7 +2472,12 @@ namespace {
 		void OnSearchChanged(wxCommandEvent &) {
 			const BrushRecord* current = GetSelectedBrush();
 			const int64_t preferredBrushId = current ? current->id : 0;
-			const wxString preferredBrushName = current ? current->name : (IsAllSelected() ? wxString("all") : wxString());
+			wxString preferredBrushName;
+			if (current) {
+				preferredBrushName = current->name;
+			} else if (IsAllSelected()) {
+				preferredBrushName = "all";
+			}
 			RebuildList(preferredBrushId, preferredBrushName);
 		}
 

@@ -22,6 +22,9 @@
 #include "brush.h"
 #include "map_display.h"
 
+#include <array>
+#include <ranges>
+
 #include "palette_window.h"
 #include "palette_brushlist.h"
 #include "palette_house.h"
@@ -74,13 +77,13 @@ namespace {
 			return false;
 		}
 		if (paletteType == TILESET_UNKNOWN) {
-			static const PaletteType kCandidates[] = { TILESET_TERRAIN, TILESET_DOODAD, TILESET_ITEM, TILESET_RAW };
-			for (PaletteType candidate : kCandidates) {
-				if (const TilesetCategory* category = tileset->getCategory(candidate); category && !category->brushlist.empty()) {
-					return true;
+			static constexpr std::array<PaletteType, 4> kCandidates = { TILESET_TERRAIN, TILESET_DOODAD, TILESET_ITEM, TILESET_RAW };
+			return std::ranges::any_of(kCandidates, [tileset](PaletteType candidate) {
+				if (const TilesetCategory* category = tileset->getCategory(candidate)) {
+					return !category->brushlist.empty();
 				}
-			}
-			return false;
+				return false;
+			});
 		}
 
 		const TilesetCategory* category = tileset->getCategory(paletteType);
