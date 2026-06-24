@@ -567,10 +567,10 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	using namespace MenuBar;
 	checking_programmaticly = false;
 
-#define MAKE_ACTION(id, kind, handler) actions[#id] = new MenuBar::Action(#id, id, kind, wxCommandEventFunction(&MainMenuBar::handler))
-#define MAKE_SET_ACTION(id, kind, setting_, handler)                                                  \
-	actions[#id] = new MenuBar::Action(#id, id, kind, wxCommandEventFunction(&MainMenuBar::handler)); \
-	actions[#id].setting = setting_
+#define MAKE_ACTION(id, kind, handler) actions[#id] = new MenuBar::Action(#id, id, kind, [](MainMenuBar &self, wxCommandEvent &event) { self.handler(event); })
+#define MAKE_SET_ACTION(id, kind, setting_, handler)                                                                              \
+	actions[#id] = new MenuBar::Action(#id, id, kind, [](MainMenuBar &self, wxCommandEvent &event) { self.handler(event); }); \
+	actions[#id]->setting = setting_
 
 	MAKE_ACTION(NEW, wxITEM_NORMAL, OnNew);
 	MAKE_ACTION(OPEN, wxITEM_NORMAL, OnOpen);
@@ -760,7 +760,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	// Tie all events to this handler!
 
 	for (std::map<std::string, MenuBar::Action*>::iterator ai = actions.begin(); ai != actions.end(); ++ai) {
-		frame->Connect(MAIN_FRAME_MENU + ai->second->id, wxEVT_COMMAND_MENU_SELECTED, (wxObjectEventFunction)(wxEventFunction)(ai->second->handler), nullptr, this);
+		frame->Bind(wxEVT_COMMAND_MENU_SELECTED, &MainMenuBar::OnMenuAction, this, MAIN_FRAME_MENU + ai->second->id);
 	}
 	for (size_t i = 0; i < 10; ++i) {
 		frame->Connect(recentFiles.GetBaseId() + i, wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainMenuBar::OnOpenRecent), nullptr, this);
@@ -773,6 +773,18 @@ MainMenuBar::~MainMenuBar() {
 	for (std::map<std::string, MenuBar::Action*>::iterator ai = actions.begin(); ai != actions.end(); ++ai) {
 		delete ai->second;
 	}
+}
+
+void MainMenuBar::OnMenuAction(wxCommandEvent &event) {
+	const int targetId = event.GetId() - MAIN_FRAME_MENU;
+	for (const auto &entry : actions) {
+		MenuBar::Action* action = entry.second;
+		if (action && action->id == targetId) {
+			action->handler(*this, event);
+			return;
+		}
+	}
+	event.Skip();
 }
 
 namespace OnMapRemoveItems {

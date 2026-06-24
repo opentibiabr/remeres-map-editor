@@ -18,6 +18,8 @@
 #ifndef RME_MAIN_BAR_H_
 #define RME_MAIN_BAR_H_
 
+#include <functional>
+
 #include <wx/docview.h>
 
 namespace MenuBar {
@@ -325,6 +327,8 @@ public:
 	void OnSearchForWallsUponWallsOnSelection(wxCommandEvent &event);
 
 protected:
+	void OnMenuAction(wxCommandEvent &event);
+
 	// Load and returns a menu item, also sets accelerator
 	wxObject* LoadItem(pugi::xml_node node, wxMenu* parent, wxArrayString &warnings, wxString &error);
 	// Checks the items in the menus according to the settings (in config)
@@ -356,14 +360,14 @@ namespace MenuBar {
 	struct Action {
 		Action() :
 			id(0), kind(wxITEM_NORMAL) { }
-		Action(std::string s, int id, wxItemKind kind, wxCommandEventFunction handler) :
-			id(id), setting(0), name(s), kind(kind), handler(handler) { }
+		Action(std::string s, int id, wxItemKind kind, std::function<void(MainMenuBar &, wxCommandEvent &)> handler) :
+			id(id), setting(0), name(s), kind(kind), handler(std::move(handler)) { }
 
 		int id;
 		int setting;
 		std::string name;
 		wxItemKind kind;
-		wxCommandEventFunction handler;
+		std::function<void(MainMenuBar &, wxCommandEvent &)> handler;
 	};
 }
 

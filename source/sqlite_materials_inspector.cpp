@@ -29,59 +29,97 @@ namespace {
 		return false;
 	}
 
-	wxString BuildRuntimeReadinessSummary(BrushDatabase &database, const MaterialsDatabaseAuditReport &report, const MaterialsImportStatusRecord* status) {
-		const int expectedSchemaVersion = database.getExpectedSchemaVersion();
-		int currentSchemaVersion = 0;
-		if (!database.getCurrentSchemaVersion(currentSchemaVersion)) {
-			return "Runtime-ready: unknown\nRuntime-ready reason: Failed to read database schema version.\n";
+	bool TryGetCurrentSchemaVersion(BrushDatabase &database, int &outCurrentSchemaVersion, wxString &outSummary) {
+		outCurrentSchemaVersion = 0;
+		if (!database.getCurrentSchemaVersion(outCurrentSchemaVersion)) {
+			outSummary = "Runtime-ready: unknown\nRuntime-ready reason: Failed to read database schema version.\n";
+			return false;
 		}
-		if (currentSchemaVersion != expectedSchemaVersion) {
-			return wxString::Format(
-				"Runtime-ready: no\nRuntime-ready reason: Schema mismatch (found %d, expected %d).\n",
-				currentSchemaVersion,
-				expectedSchemaVersion
-			);
-		}
+		return true;
+	}
 
-		const bool hasRequiredBrushTypes = HasBrushType(report, "ground")
+	wxString FormatSchemaMismatchSummary(int currentSchemaVersion, int expectedSchemaVersion) {
+		return wxString::Format(
+			"Runtime-ready: no\nRuntime-ready reason: Schema mismatch (found %d, expected %d).\n",
+			currentSchemaVersion,
+			expectedSchemaVersion
+		);
+	}
+
+	bool HasRequiredBrushTypesForRuntime(const MaterialsDatabaseAuditReport &report) {
+		return HasBrushType(report, "ground")
 			&& HasBrushType(report, "wall")
 			&& HasBrushType(report, "doodad")
 			&& HasBrushType(report, "carpet")
 			&& HasBrushType(report, "table");
-		const bool hasCatalogBasics = report.borderSetCount > 0 && report.tilesetCount > 0;
-		const bool hasNoUnsupportedBrushTypes = report.unsupportedBrushTypeCount == 0;
-		const bool hasNoUnresolvedRefs = report.unresolvedGroundTargets == 0
+	}
+
+	bool HasNoUnresolvedReferencesForRuntime(const MaterialsDatabaseAuditReport &report) {
+		return report.unresolvedGroundTargets == 0
 			&& report.unresolvedBrushLinks == 0
 			&& report.unresolvedTilesetEntries == 0
 			&& report.unresolvedCaseMatchBorderIds == 0
 			&& report.unresolvedCaseReplaceBorderTargetIds == 0;
+	}
 
-		const bool readyByAudit = hasRequiredBrushTypes && hasCatalogBasics && hasNoUnsupportedBrushTypes && hasNoUnresolvedRefs;
-		const bool markerComplete = status && status->completed;
-		if (readyByAudit) {
-			if (markerComplete) {
-				return "Runtime-ready: yes\n\n";
-			}
-			if (database.isReadOnly()) {
-				return "Runtime-ready: yes\nRuntime-ready note: Import marker is incomplete, but database is read-only and audit checks are clean.\n\n";
-			}
-			return "Runtime-ready: yes\nRuntime-ready note: Import marker is incomplete, but audit checks are clean. The marker can be auto-written on a writable database.\n\n";
+	wxString BuildUnresolvedTilesetEntryExamples(const MaterialsDatabaseAuditReport &report, size_t maxSamples) {
+		if (report.unresolvedTilesetEntries <= 0 || report.unresolvedTilesetEntrySamples.empty()) {
+			return wxString();
 		}
 
-		wxString reason;
-		if (!hasRequiredBrushTypes) {
-			reason = "Missing required brush types (expected ground, wall, doodad, carpet, table).";
-		} else if (!hasCatalogBasics) {
-			reason = "Missing border sets or tilesets.";
-		} else if (!hasNoUnsupportedBrushTypes) {
-			wxString detail = JoinTypeCounts(report.unsupportedBrushTypeCounts);
-			if (!detail.IsEmpty()) {
-				reason = wxString::Format("Database contains unsupported brush types (%d): %s.", report.unsupportedBrushTypeCount, detail);
-			} else {
-				reason = wxString::Format("Database contains unsupported brush types (%d).", report.unsupportedBrushTypeCount);
+		wxString detail;
+		const size_t sampleCount = std::min(maxSamples, report.unresolvedTilesetEntrySamples.size());
+		for (size_t i = 0; i < sampleCount; ++i) {
+			const UnresolvedTilesetEntrySampleRecord &sample = report.unresolvedTilesetEntrySamples[i];
+			if (i > 0) {
+				detail += "; ";
 			}
-		} else if (!hasNoUnresolvedRefs) {
-			reason = wxString::Format(
+			wxString group = sample.paletteGroupName;
+			group.Trim(true);
+			group.Trim(false);
+			if (group.IsEmpty()) {
+				group = "<unknown>";
+			}
+			wxString tileset = sample.tilesetName;
+			tileset.Trim(true);
+			tileset.Trim(false);
+			if (tileset.IsEmpty()) {
+				tileset = "<unknown>";
+			}
+			wxString section = sample.sectionType;
+			section.Trim(true);
+			section.Trim(false);
+			if (section.IsEmpty()) {
+				section = "<unknown>";
+			}
+			wxString brush = sample.brushName;
+			brush.Trim(true);
+			brush.Trim(false);
+			if (brush.IsEmpty()) {
+				brush = "<unknown>";
+			}
+			detail += wxString::Format("group=\"%s\" palette=\"%s\" section=\"%s\" brush=\"%s\"", group, tileset, section, brush);
+		}
+		return detail;
+	}
+
+	wxString BuildRuntimeNotReadyReason(BrushDatabase &database, const MaterialsDatabaseAuditReport &report, const MaterialsImportStatusRecord* status) {
+		const bool hasRequiredBrushTypes = HasRequiredBrushTypesForRuntime(report);
+		if (!hasRequiredBrushTypes) {
+			return "Missing required brush types (expected ground, wall, doodad, carpet, table).";
+		}
+		if (!(report.borderSetCount > 0 && report.tilesetCount > 0)) {
+			return "Missing border sets or tilesets.";
+		}
+		if (report.unsupportedBrushTypeCount != 0) {
+			const wxString detail = JoinTypeCounts(report.unsupportedBrushTypeCounts);
+			if (!detail.IsEmpty()) {
+				return wxString::Format("Database contains unsupported brush types (%d): %s.", report.unsupportedBrushTypeCount, detail);
+			}
+			return wxString::Format("Database contains unsupported brush types (%d).", report.unsupportedBrushTypeCount);
+		}
+		if (!HasNoUnresolvedReferencesForRuntime(report)) {
+			wxString reason = wxString::Format(
 				"Database contains unresolved references (ground targets=%d, brush links=%d, tileset entries=%d, match_border ids=%d, replace_border target ids=%d).",
 				report.unresolvedGroundTargets,
 				report.unresolvedBrushLinks,
@@ -89,47 +127,53 @@ namespace {
 				report.unresolvedCaseMatchBorderIds,
 				report.unresolvedCaseReplaceBorderTargetIds
 			);
-			if (report.unresolvedTilesetEntries > 0 && !report.unresolvedTilesetEntrySamples.empty()) {
-				wxString detail;
-				const size_t sampleCount = std::min<size_t>(report.unresolvedTilesetEntrySamples.size(), 3);
-				for (size_t i = 0; i < sampleCount; ++i) {
-					const UnresolvedTilesetEntrySampleRecord &sample = report.unresolvedTilesetEntrySamples[i];
-					if (i > 0) {
-						detail += "; ";
-					}
-					wxString group = sample.paletteGroupName;
-					group.Trim(true);
-					group.Trim(false);
-					if (group.IsEmpty()) {
-						group = "<unknown>";
-					}
-					wxString tileset = sample.tilesetName;
-					tileset.Trim(true);
-					tileset.Trim(false);
-					if (tileset.IsEmpty()) {
-						tileset = "<unknown>";
-					}
-					wxString section = sample.sectionType;
-					section.Trim(true);
-					section.Trim(false);
-					if (section.IsEmpty()) {
-						section = "<unknown>";
-					}
-					wxString brush = sample.brushName;
-					brush.Trim(true);
-					brush.Trim(false);
-					if (brush.IsEmpty()) {
-						brush = "<unknown>";
-					}
-					detail += wxString::Format("group=\"%s\" palette=\"%s\" section=\"%s\" brush=\"%s\"", group, tileset, section, brush);
-				}
-				if (!detail.IsEmpty()) {
-					reason += " Examples: " + detail + ".";
-				}
+			const wxString examples = BuildUnresolvedTilesetEntryExamples(report, 3);
+			if (!examples.IsEmpty()) {
+				reason += " Examples: " + examples + ".";
 			}
-		} else if (!markerComplete) {
-			reason = "Import marker is incomplete.";
+			return reason;
 		}
+
+		const bool markerComplete = status && status->completed;
+		if (!markerComplete) {
+			return "Import marker is incomplete.";
+		}
+		return wxString();
+	}
+
+	wxString BuildRuntimeReadySummary(BrushDatabase &database, const MaterialsImportStatusRecord* status, bool markerComplete) {
+		if (markerComplete) {
+			return "Runtime-ready: yes\n\n";
+		}
+		if (database.isReadOnly()) {
+			return "Runtime-ready: yes\nRuntime-ready note: Import marker is incomplete, but database is read-only and audit checks are clean.\n\n";
+		}
+		return "Runtime-ready: yes\nRuntime-ready note: Import marker is incomplete, but audit checks are clean. The marker can be auto-written on a writable database.\n\n";
+	}
+
+	wxString BuildRuntimeReadinessSummary(BrushDatabase &database, const MaterialsDatabaseAuditReport &report, const MaterialsImportStatusRecord* status) {
+		const int expectedSchemaVersion = database.getExpectedSchemaVersion();
+		int currentSchemaVersion = 0;
+		wxString schemaReadFailure;
+		if (!TryGetCurrentSchemaVersion(database, currentSchemaVersion, schemaReadFailure)) {
+			return schemaReadFailure;
+		}
+		if (currentSchemaVersion != expectedSchemaVersion) {
+			return FormatSchemaMismatchSummary(currentSchemaVersion, expectedSchemaVersion);
+		}
+
+		const bool hasRequiredBrushTypes = HasRequiredBrushTypesForRuntime(report);
+		const bool hasCatalogBasics = report.borderSetCount > 0 && report.tilesetCount > 0;
+		const bool hasNoUnsupportedBrushTypes = report.unsupportedBrushTypeCount == 0;
+		const bool hasNoUnresolvedRefs = HasNoUnresolvedReferencesForRuntime(report);
+
+		const bool readyByAudit = hasRequiredBrushTypes && hasCatalogBasics && hasNoUnsupportedBrushTypes && hasNoUnresolvedRefs;
+		const bool markerComplete = status && status->completed;
+		if (readyByAudit) {
+			return BuildRuntimeReadySummary(database, status, markerComplete);
+		}
+
+		const wxString reason = BuildRuntimeNotReadyReason(database, report, status);
 
 		wxString text;
 		text << "Runtime-ready: no\n";

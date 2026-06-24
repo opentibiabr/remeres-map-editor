@@ -1202,7 +1202,7 @@ namespace {
 		);
 	}
 
-	bool IsSupportedTilesetSectionType(const std::string &nodeName) {
+	bool IsSupportedTilesetSectionType(std::string_view nodeName) {
 		return nodeName == "terrain" || nodeName == "terrain_and_raw" || nodeName == "doodad" || nodeName == "doodad_and_raw" || nodeName == "items" || nodeName == "items_and_raw" || nodeName == "raw";
 	}
 
@@ -1566,6 +1566,56 @@ bool Materials::shouldSkipSqliteBootstrapImports(bool &outSkip, wxString &reason
 	return true;
 }
 
+namespace {
+	bool BootstrapSqliteDatabaseInTransaction(Materials &materials, wxString &error, wxArrayString &warnings) {
+		if (!materials.migrateGroundsToSQLite(error, warnings)) {
+			return false;
+		}
+		if (!materials.migrateWallsToSQLite(error, warnings)) {
+			return false;
+		}
+		if (!materials.migrateDecorativeBrushesToSQLite(error, warnings)) {
+			return false;
+		}
+		if (!materials.migrateTilesetsToSQLite(error, warnings)) {
+			return false;
+		}
+		if (!g_brush_database.resolveGroundReferenceNames()) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+
+		MaterialsDatabaseAuditReport report;
+		if (g_brush_database.generateAuditReport(report)) {
+			const bool hasIssues = report.unsupportedBrushTypeCount > 0
+				|| report.unresolvedGroundTargets > 0
+				|| report.unresolvedBrushLinks > 0
+				|| report.unresolvedTilesetEntries > 0
+				|| report.unresolvedCaseMatchBorderIds > 0
+				|| report.unresolvedCaseReplaceBorderTargetIds > 0;
+			if (hasIssues) {
+				warnings.push_back(wxString::Format(
+					"SQLite materials import completed with issues (unsupported brush types=%d, ground targets=%d, brush links=%d, tileset entries=%d, match_border ids=%d, replace_border target ids=%d).",
+					report.unsupportedBrushTypeCount,
+					report.unresolvedGroundTargets,
+					report.unresolvedBrushLinks,
+					report.unresolvedTilesetEntries,
+					report.unresolvedCaseMatchBorderIds,
+					report.unresolvedCaseReplaceBorderTargetIds
+				));
+			}
+		} else {
+			warnings.push_back("SQLite materials import completed, but audit report generation failed: " + g_brush_database.getLastError());
+		}
+
+		if (!g_brush_database.markMaterialsImportComplete("xml_bootstrap")) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+		return true;
+	}
+}
+
 bool Materials::bootstrapSqliteDatabase(wxString &error, wxArrayString &warnings) {
 	if (!g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
 		return true;
@@ -1575,42 +1625,7 @@ bool Materials::bootstrapSqliteDatabase(wxString &error, wxArrayString &warnings
 		return false;
 	}
 
-	const bool imported = g_brush_database.runInTransaction([&]() {
-		if (!migrateGroundsToSQLite(error, warnings)) {
-			return false;
-		}
-		if (!migrateWallsToSQLite(error, warnings)) {
-			return false;
-		}
-		if (!migrateDecorativeBrushesToSQLite(error, warnings)) {
-			return false;
-		}
-		if (!migrateTilesetsToSQLite(error, warnings)) {
-			return false;
-		}
-		if (!g_brush_database.resolveGroundReferenceNames()) {
-			error = g_brush_database.getLastError();
-			return false;
-		}
-		MaterialsDatabaseAuditReport report;
-		if (g_brush_database.generateAuditReport(report)) {
-			if (report.unsupportedBrushTypeCount > 0
-				|| report.unresolvedGroundTargets > 0
-				|| report.unresolvedBrushLinks > 0
-				|| report.unresolvedTilesetEntries > 0
-				|| report.unresolvedCaseMatchBorderIds > 0
-				|| report.unresolvedCaseReplaceBorderTargetIds > 0) {
-				warnings.push_back(wxString::Format("SQLite materials import completed with issues (unsupported brush types=%d, ground targets=%d, brush links=%d, tileset entries=%d, match_border ids=%d, replace_border target ids=%d).", report.unsupportedBrushTypeCount, report.unresolvedGroundTargets, report.unresolvedBrushLinks, report.unresolvedTilesetEntries, report.unresolvedCaseMatchBorderIds, report.unresolvedCaseReplaceBorderTargetIds));
-			}
-		} else {
-			warnings.push_back("SQLite materials import completed, but audit report generation failed: " + g_brush_database.getLastError());
-		}
-		if (!g_brush_database.markMaterialsImportComplete("xml_bootstrap")) {
-			error = g_brush_database.getLastError();
-			return false;
-		}
-		return true;
-	});
+	const bool imported = g_brush_database.runInTransaction([&]() { return BootstrapSqliteDatabaseInTransaction(*this, error, warnings); });
 
 	if (!imported && error.IsEmpty()) {
 		error = g_brush_database.getLastError();

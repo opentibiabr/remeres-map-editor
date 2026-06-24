@@ -21,6 +21,8 @@
 #include "items.h"
 #include "basemap.h"
 
+#include <memory>
+
 uint32_t GroundBrush::border_types[256];
 
 int AutoBorder::edgeNameToID(const std::string &edgename) {
@@ -128,16 +130,20 @@ GroundBrush::GroundBrush() :
 
 GroundBrush::~GroundBrush() {
 	for (BorderBlock* borderBlock : borders) {
-		if (borderBlock->autoborder) {
-			for (SpecificCaseBlock* specificCaseBlock : borderBlock->specific_cases) {
-				delete specificCaseBlock;
-			}
-
-			if (borderBlock->autoborder->ground) {
-				delete borderBlock->autoborder;
-			}
+		if (!borderBlock) {
+			continue;
 		}
-		delete borderBlock;
+
+		for (SpecificCaseBlock* specificCaseBlock : borderBlock->specific_cases) {
+			std::unique_ptr<SpecificCaseBlock> ownedSpecificCase(specificCaseBlock);
+		}
+		borderBlock->specific_cases.clear();
+
+		if (borderBlock->autoborder && borderBlock->autoborder->ground) {
+			std::unique_ptr<AutoBorder> ownedAutoBorder(borderBlock->autoborder);
+		}
+
+		std::unique_ptr<BorderBlock> ownedBorderBlock(borderBlock);
 	}
 	borders.clear();
 }
@@ -176,16 +182,21 @@ void GroundBrush::resetRuntimeState() {
 	optional_border = nullptr;
 
 	for (BorderBlock* borderBlock : borders) {
-		if (borderBlock) {
-			resetAutoBorder(borderBlock->autoborder);
-			for (SpecificCaseBlock* specificCaseBlock : borderBlock->specific_cases) {
-				delete specificCaseBlock;
-			}
-			if (borderBlock->autoborder && borderBlock->autoborder->ground) {
-				delete borderBlock->autoborder;
-			}
-			delete borderBlock;
+		if (!borderBlock) {
+			continue;
 		}
+		resetAutoBorder(borderBlock->autoborder);
+
+		for (SpecificCaseBlock* specificCaseBlock : borderBlock->specific_cases) {
+			std::unique_ptr<SpecificCaseBlock> ownedSpecificCase(specificCaseBlock);
+		}
+		borderBlock->specific_cases.clear();
+
+		if (borderBlock->autoborder && borderBlock->autoborder->ground) {
+			std::unique_ptr<AutoBorder> ownedAutoBorder(borderBlock->autoborder);
+		}
+
+		std::unique_ptr<BorderBlock> ownedBorderBlock(borderBlock);
 	}
 	borders.clear();
 

@@ -17,6 +17,7 @@
 
 #include "main.h"
 
+#include <array>
 #include <sqlite3.h>
 
 #include "brush_database.h"
@@ -1422,7 +1423,7 @@ bool GUI::ReloadMaterialPalettesAndBrushesFromDatabase(wxString &error, wxArrayS
 
 	wxArrayString brushWarnings;
 
-	static const wxString supportedTypes[] = { "ground", "wall", "wall decoration", "doodad", "carpet", "table" };
+	static const std::array<wxString, 6> supportedTypes = { "ground", "wall", "wall decoration", "doodad", "carpet", "table" };
 	for (const wxString &type : supportedTypes) {
 		std::vector<BrushRecord> brushList;
 		if (!g_brush_database.listBrushesByType(type, brushList)) {

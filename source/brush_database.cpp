@@ -321,6 +321,7 @@ namespace {
 	}
 
 	PaletteGroupQueryResult QueryPaletteGroupIdByName(sqlite3_stmt* findByNameStmt, const wxString &groupName, int64_t &outId) {
+		using enum PaletteGroupQueryResult;
 		outId = 0;
 		sqlite3_reset(findByNameStmt);
 		sqlite3_clear_bindings(findByNameStmt);
@@ -328,14 +329,14 @@ namespace {
 
 		const int rc = sqlite3_step(findByNameStmt);
 		if (rc == SQLITE_DONE) {
-			return PaletteGroupQueryResult::NotFound;
+			return NotFound;
 		}
 		if (rc != SQLITE_ROW) {
-			return PaletteGroupQueryResult::DbError;
+			return DbError;
 		}
 
 		outId = sqlite3_column_int64(findByNameStmt, 0);
-		return PaletteGroupQueryResult::Found;
+		return Found;
 	}
 
 	bool ValidateWallPartItemRecordsForReplace(const std::vector<WallPartItemRecord> &items, wxString &outError) {
@@ -6228,6 +6229,62 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 		return true;
 	};
 
+	const auto collectUnsupportedBrushSamples = [this](
+		sqlite3_stmt* stmt,
+		std::vector<UnsupportedBrushSampleRecord> &outSamples,
+		const wxString &errorMessage
+	) {
+		for (;;) {
+			const int stepRc = sqlite3_step(stmt);
+			if (stepRc == SQLITE_DONE) {
+				break;
+			}
+			if (stepRc != SQLITE_ROW) {
+				return setErrorFromDatabase(errorMessage);
+			}
+
+			UnsupportedBrushSampleRecord sample;
+			sample.id = sqlite3_column_int64(stmt, 0);
+			sample.name = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+			sample.type = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+			sample.sourceFile = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
+			outSamples.push_back(sample);
+		}
+		return true;
+	};
+
+	const auto collectUnresolvedTilesetEntrySamples = [this](
+		sqlite3_stmt* stmt,
+		std::vector<UnresolvedTilesetEntrySampleRecord> &outSamples,
+		const wxString &errorMessage
+	) {
+		for (;;) {
+			const int stepRc = sqlite3_step(stmt);
+			if (stepRc == SQLITE_DONE) {
+				break;
+			}
+			if (stepRc != SQLITE_ROW) {
+				return setErrorFromDatabase(errorMessage);
+			}
+
+			UnresolvedTilesetEntrySampleRecord sample;
+			sample.paletteGroupName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)));
+			sample.tilesetName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+			sample.tilesetSourceFile = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+			sample.sectionType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
+			sample.entryKind = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)));
+			sample.brushName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5)));
+			sample.itemId = sqlite3_column_int(stmt, 6);
+			sample.fromItemId = sqlite3_column_int(stmt, 7);
+			sample.toItemId = sqlite3_column_int(stmt, 8);
+			sample.afterBrushName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 9)));
+			sample.afterItemId = sqlite3_column_int(stmt, 10);
+			sample.sortOrder = sqlite3_column_int(stmt, 11);
+			outSamples.push_back(sample);
+		}
+		return true;
+	};
+
 	if (!collectTypeCounts(groupedStmt, outReport.brushTypeCounts, "Failed to group brushes by type")) {
 		return false;
 	}
@@ -6260,22 +6317,12 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 		return false;
 	}
 	SqliteStatementGuard unsupportedSamplesGuard(unsupportedSamplesStmt);
-
-	for (;;) {
-		const int samplesRc = sqlite3_step(unsupportedSamplesStmt);
-		if (samplesRc == SQLITE_DONE) {
-			break;
-		}
-		if (samplesRc != SQLITE_ROW) {
-			return setErrorFromDatabase("Failed to list unsupported brush samples");
-		}
-
-		UnsupportedBrushSampleRecord sample;
-		sample.id = sqlite3_column_int64(unsupportedSamplesStmt, 0);
-		sample.name = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(unsupportedSamplesStmt, 1)));
-		sample.type = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(unsupportedSamplesStmt, 2)));
-		sample.sourceFile = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(unsupportedSamplesStmt, 3)));
-		outReport.unsupportedBrushSamples.push_back(sample);
+	if (!collectUnsupportedBrushSamples(
+			unsupportedSamplesStmt,
+			outReport.unsupportedBrushSamples,
+			"Failed to list unsupported brush samples"
+		)) {
+		return false;
 	}
 
 	sqlite3_stmt* unresolvedTilesetSamplesStmt = nullptr;
@@ -6308,30 +6355,12 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 		return false;
 	}
 	SqliteStatementGuard unresolvedTilesetSamplesGuard(unresolvedTilesetSamplesStmt);
-
-	for (;;) {
-		const int tilesetSamplesRc = sqlite3_step(unresolvedTilesetSamplesStmt);
-		if (tilesetSamplesRc == SQLITE_DONE) {
-			break;
-		}
-		if (tilesetSamplesRc != SQLITE_ROW) {
-			return setErrorFromDatabase("Failed to list unresolved tileset entries");
-		}
-
-		UnresolvedTilesetEntrySampleRecord sample;
-		sample.paletteGroupName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(unresolvedTilesetSamplesStmt, 0)));
-		sample.tilesetName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(unresolvedTilesetSamplesStmt, 1)));
-		sample.tilesetSourceFile = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(unresolvedTilesetSamplesStmt, 2)));
-		sample.sectionType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(unresolvedTilesetSamplesStmt, 3)));
-		sample.entryKind = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(unresolvedTilesetSamplesStmt, 4)));
-		sample.brushName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(unresolvedTilesetSamplesStmt, 5)));
-		sample.itemId = sqlite3_column_int(unresolvedTilesetSamplesStmt, 6);
-		sample.fromItemId = sqlite3_column_int(unresolvedTilesetSamplesStmt, 7);
-		sample.toItemId = sqlite3_column_int(unresolvedTilesetSamplesStmt, 8);
-		sample.afterBrushName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(unresolvedTilesetSamplesStmt, 9)));
-		sample.afterItemId = sqlite3_column_int(unresolvedTilesetSamplesStmt, 10);
-		sample.sortOrder = sqlite3_column_int(unresolvedTilesetSamplesStmt, 11);
-		outReport.unresolvedTilesetEntrySamples.push_back(sample);
+	if (!collectUnresolvedTilesetEntrySamples(
+			unresolvedTilesetSamplesStmt,
+			outReport.unresolvedTilesetEntrySamples,
+			"Failed to list unresolved tileset entries"
+		)) {
+		return false;
 	}
 
 	return true;

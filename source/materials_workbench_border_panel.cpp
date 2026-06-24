@@ -198,7 +198,8 @@ namespace {
 		return root;
 	}
 
-	bool TryParseBorderSetExportJson(const nlohmann::json &root, BorderSetRecord &outBorderSet, std::vector<BorderSetItemRecord> &outItems, wxString &error) {
+	bool ValidateMaterialsExportRoot(const nlohmann::json &root, const nlohmann::json* &outEntities, wxString &error) {
+		outEntities = nullptr;
 		if (!root.is_object()) {
 			error = "Invalid JSON: expected an object.";
 			return false;
@@ -215,27 +216,26 @@ namespace {
 			error = "Invalid JSON: missing entities.";
 			return false;
 		}
+		outEntities = &root["entities"];
+		return true;
+	}
 
-		const nlohmann::json* borderEntity = nullptr;
-		for (const nlohmann::json &entity : root["entities"]) {
+	const nlohmann::json* FindMaterialsExportEntity(const nlohmann::json &entities, std::string_view kind) {
+		for (const nlohmann::json &entity : entities) {
 			if (!entity.is_object()) {
 				continue;
 			}
-			if (entity.contains("kind") && entity["kind"].is_string() && entity["kind"].get<std::string>() == "border_set") {
-				borderEntity = &entity;
-				break;
+			if (!entity.contains("kind") || !entity["kind"].is_string()) {
+				continue;
+			}
+			if (entity["kind"].get<std::string>() == kind) {
+				return &entity;
 			}
 		}
-		if (!borderEntity) {
-			error = "Invalid JSON: no border_set entity found.";
-			return false;
-		}
+		return nullptr;
+	}
 
-		if (!borderEntity->contains("borderSet") || !(*borderEntity)["borderSet"].is_object()) {
-			error = "Invalid JSON: missing borderSet.";
-			return false;
-		}
-		const nlohmann::json &borderSet = (*borderEntity)["borderSet"];
+	bool ParseBorderSetExportBorderSet(const nlohmann::json &borderSet, BorderSetRecord &outBorderSet, wxString &error) {
 		if (!borderSet.contains("xmlBorderId") || !borderSet["xmlBorderId"].is_number_integer()) {
 			error = "Invalid JSON: missing xmlBorderId.";
 			return false;
@@ -247,6 +247,7 @@ namespace {
 			error = "Invalid JSON: xmlBorderId must be greater than zero.";
 			return false;
 		}
+
 		outBorderSet.borderScope = "global";
 		if (borderSet.contains("borderScope") && borderSet["borderScope"].is_string()) {
 			const std::string value = borderSet["borderScope"].get<std::string>();
@@ -256,6 +257,7 @@ namespace {
 			error = "Only global border sets are supported for import right now.";
 			return false;
 		}
+
 		if (borderSet.contains("borderType") && borderSet["borderType"].is_string()) {
 			const std::string value = borderSet["borderType"].get<std::string>();
 			outBorderSet.borderType = wxString::FromUTF8(value.c_str());
@@ -269,13 +271,12 @@ namespace {
 		if (borderSet.contains("groundEquivalent") && borderSet["groundEquivalent"].is_number_integer()) {
 			outBorderSet.groundEquivalent = borderSet["groundEquivalent"].get<int>();
 		}
+		return true;
+	}
 
-		if (!borderEntity->contains("items") || !(*borderEntity)["items"].is_array()) {
-			error = "Invalid JSON: missing items.";
-			return false;
-		}
+	bool ParseBorderSetExportItems(const nlohmann::json &items, std::vector<BorderSetItemRecord> &outItems, wxString &error) {
 		outItems.clear();
-		for (const nlohmann::json &row : (*borderEntity)["items"]) {
+		for (const nlohmann::json &row : items) {
 			if (!row.is_object()) {
 				continue;
 			}
@@ -293,6 +294,7 @@ namespace {
 				error = "Invalid JSON: item missing itemId.";
 				return false;
 			}
+
 			BorderSetItemRecord item;
 			item.edge = edge;
 			item.itemId = row["itemId"].get<int>();
@@ -303,6 +305,33 @@ namespace {
 			outItems.push_back(item);
 		}
 		return true;
+	}
+
+	bool TryParseBorderSetExportJson(const nlohmann::json &root, BorderSetRecord &outBorderSet, std::vector<BorderSetItemRecord> &outItems, wxString &error) {
+		const nlohmann::json* entities = nullptr;
+		if (!ValidateMaterialsExportRoot(root, entities, error)) {
+			return false;
+		}
+
+		const nlohmann::json* borderEntity = FindMaterialsExportEntity(*entities, "border_set");
+		if (!borderEntity) {
+			error = "Invalid JSON: no border_set entity found.";
+			return false;
+		}
+
+		if (!borderEntity->contains("borderSet") || !(*borderEntity)["borderSet"].is_object()) {
+			error = "Invalid JSON: missing borderSet.";
+			return false;
+		}
+		if (!ParseBorderSetExportBorderSet((*borderEntity)["borderSet"], outBorderSet, error)) {
+			return false;
+		}
+
+		if (!borderEntity->contains("items") || !(*borderEntity)["items"].is_array()) {
+			error = "Invalid JSON: missing items.";
+			return false;
+		}
+		return ParseBorderSetExportItems((*borderEntity)["items"], outItems, error);
 	}
 
 	class BorderEdgePreviewPanel final : public wxPanel {
