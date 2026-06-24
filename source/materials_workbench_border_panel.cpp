@@ -2212,38 +2212,259 @@ namespace {
 	}
 } // namespace
 
+struct MaterialsWorkbenchBorderPanel::Impl {
+	explicit Impl(MaterialsWorkbenchBorderPanel &self, MaterialsWorkbenchController &controller) :
+		self_(self),
+		controller_(controller) {
+	}
+
+	int FromDIP(int value) const {
+		return self_.FromDIP(value);
+	}
+
+	wxSize FromDIP(const wxSize &value) const {
+		return self_.FromDIP(value);
+	}
+
+	void Layout() {
+		self_.Layout();
+	}
+
+	wxSizer* GetSizer() {
+		return self_.GetSizer();
+	}
+
+	void SetSizer(wxSizer* sizer) {
+		self_.SetSizer(sizer);
+	}
+
+	void SetOnBorderSetSaved(std::function<void(int64_t)> callback);
+	void SetOnBorderSetDeleted(std::function<void(int64_t, const wxString &)> callback);
+	void SetOnBorderSetStateChanged(std::function<void()> callback);
+	void SetOnOpenLinkedBrush(std::function<void(int64_t)> callback);
+	bool HasPendingChanges() const;
+	bool IsCurrentBorderSelection(const wxString &contextKey, int itemIndex) const;
+	wxString GetCurrentBorderSetDisplayName() const;
+	bool ResolvePendingChangesBeforeSwitch(wxWindow* parent, const wxString &targetLabel);
+
+	void BuildLayout();
+	void ClearWorkspace(const wxString &message);
+	bool LoadBorderSet(const wxString &contextKey, int itemIndex);
+	void PopulateFields();
+	void UpdateSummaryLabels();
+	BorderSetStorageRecord BuildComparableStorageFromCurrentState() const;
+	void PopulateUsageContextList();
+	void UpdateUsageContextControls();
+	const BorderSetUsageRecord* GetSelectedUsageContext() const;
+	bool ReloadBorderSetById(int64_t borderSetId);
+	bool LoadBrushStorageById(int64_t brushId, BrushStorageRecord &outBrush, wxString &error) const;
+	int FindMatchingGroundBorderIndex(const BrushStorageRecord &brushStorage, const BorderSetUsageRecord &usage) const;
+	int SuggestNextBorderId() const;
+	int ResolveCenterPreviewItemId() const;
+	wxString ResolveCenterSourceLabel() const;
+	wxString BuildOwnerBrushDisplayLabel(int64_t ownerBrushId) const;
+	void HandleUsageContextChanged();
+	void RefreshScopeSpecificLayout();
+	void RefreshUsageDetails();
+	bool ValidateBorderSetStorage(const BorderSetStorageRecord &storage, wxString &error) const;
+	void SaveCurrentBorderEditorState();
+	void RestoreCurrentBorderEditorState();
+	void RefreshDirtyState();
+	void NotifyBorderSetStateChanged();
+	void UpdateWorkspaceHeader();
+	void UpdateActionButtons();
+	void RefreshSlotGrid();
+	void RefreshPreviewGrid();
+	void RefreshPreviewSelectionState();
+	void SelectEdge(const wxString &edge);
+	void UpdateSelectedEdgeEditor();
+	void SyncSelectedSlotFromEditor(bool updateStatus);
+	void SetStatusMessage(const wxString &message);
+	void SetFieldsEnabled(bool enabled);
+	bool SaveCurrentBorderSet();
+	void OnApplyToSlot(wxCommandEvent &event);
+	void OnClearSlot(wxCommandEvent &event);
+	void OnPickItem(wxCommandEvent &event);
+	void OnExportBorderSet(wxCommandEvent &event);
+	void OnImportBorderSet(wxCommandEvent &event);
+	void OnSave(wxCommandEvent &event);
+	void OnRevert(wxCommandEvent &event);
+	void OnSelectedItemIdChanged(wxCommandEvent &event);
+	void OnSelectedItemIdSpin(wxSpinEvent &event);
+	void OnMetadataFieldChanged(wxCommandEvent &event);
+	void OnUsageContextChanged(wxGridEvent &event);
+	void OnUsageSearchChanged(wxCommandEvent &event);
+	void OnOpenLinkedBrush(wxCommandEvent &event);
+	void OnOpenOwnerBrush(wxCommandEvent &event);
+	void OnCreateBorder(wxCommandEvent &event);
+	bool RemoveGlobalBorderContextsBeforeDelete(int64_t borderSetId, wxString &error);
+	void OnDeleteBorder(wxCommandEvent &event);
+	void OnAddUsageContext(wxCommandEvent &event);
+	void OnEditUsageContext(wxCommandEvent &event);
+	void OnEditUsageCases(wxCommandEvent &event);
+	void OnRemoveUsageContext(wxCommandEvent &event);
+	bool PersistEditedUsageContext(
+		const BorderSetUsageRecord &usage,
+		const GlobalUsageEditData &result,
+		int existingIndex,
+		BrushStorageRecord &sourceBrushStorage,
+		GroundBrushBorderRecord &updatedRecord,
+		wxString &error
+	);
+	void SelectUsageIndexAfterEdit(int64_t ownerBrushId, const GroundBrushBorderRecord &record);
+
+	MaterialsWorkbenchBorderPanel &self_;
+	MaterialsWorkbenchController &controller_;
+	std::function<void(int64_t)> onBorderSetSaved_;
+	std::function<void(int64_t, const wxString &)> onBorderSetDeleted_;
+	std::function<void()> onBorderSetStateChanged_;
+	std::function<void(int64_t)> onOpenLinkedBrush_;
+
+	bool hasBorderSet_ = false;
+	bool dirty_ = false;
+	bool internalUpdate_ = false;
+	wxString currentContextKey_;
+	int currentItemIndex_ = -1;
+	int selectedUsageIndex_ = wxNOT_FOUND;
+	wxString selectedEdge_;
+
+	BorderSetStorageRecord borderSetStorage_;
+	BorderSetStorageRecord loadedBorderSetStorage_;
+	std::vector<BorderSetUsageRecord> borderSetUsages_;
+	std::vector<int> filteredUsageIndexes_;
+	std::map<wxString, int> slotItemIds_;
+	std::map<wxString, ItemToggleButton*> slotButtons_;
+	std::map<wxString, wxStaticText*> slotValueLabels_;
+	std::unordered_map<int64_t, wxString> borderSetSelectedEdges_;
+
+	wxStaticText* titleLabel_ = nullptr;
+	wxStaticText* subtitleLabel_ = nullptr;
+	wxStaticText* summaryLabel_ = nullptr;
+	wxStaticText* identityLabel_ = nullptr;
+
+	wxTextCtrl* idCtrl_ = nullptr;
+	wxStaticText* xmlBorderIdLabel_ = nullptr;
+	wxSpinCtrl* xmlBorderIdCtrl_ = nullptr;
+	wxStaticText* scopeLabel_ = nullptr;
+	wxChoice* scopeChoice_ = nullptr;
+	wxStaticText* typeLabel_ = nullptr;
+	wxChoice* typeCtrl_ = nullptr;
+	wxStaticText* borderGroupLabel_ = nullptr;
+	wxChoice* borderGroupCtrl_ = nullptr;
+	wxTextCtrl* sourceCtrl_ = nullptr;
+
+	wxButton* createBorderButton_ = nullptr;
+	wxButton* deleteBorderButton_ = nullptr;
+
+	wxPanel* inlineDetailsPanel_ = nullptr;
+	wxSpinCtrl* groundEquivalentCtrl_ = nullptr;
+	wxTextCtrl* ownerBrushCtrl_ = nullptr;
+	wxButton* openOwnerBrushButton_ = nullptr;
+
+	wxPanel* globalDetailsPanel_ = nullptr;
+	wxButton* openLinkedBrushButton_ = nullptr;
+	wxTextCtrl* usageSearchCtrl_ = nullptr;
+	wxStaticText* usageSearchHintLabel_ = nullptr;
+	wxStaticText* usageSummaryLabel_ = nullptr;
+	wxGrid* usageGrid_ = nullptr;
+	ItemButton* usagePreviewItem_ = nullptr;
+	wxStaticText* usageSelectionLabel_ = nullptr;
+	wxButton* addUsageContextButton_ = nullptr;
+	wxButton* editUsageContextButton_ = nullptr;
+	wxButton* editUsageCasesButton_ = nullptr;
+	wxButton* removeUsageContextButton_ = nullptr;
+
+	ItemButton* centerGroundSlotPreview_ = nullptr;
+	wxStaticText* centerGroundSlotValueLabel_ = nullptr;
+
+	wxStaticText* selectedEdgeLabel_ = nullptr;
+	wxSpinCtrl* selectedItemIdCtrl_ = nullptr;
+	ItemButton* selectedItemPreview_ = nullptr;
+
+	wxPanel* previewMatrixPanel_ = nullptr;
+
+	wxButton* exportButton_ = nullptr;
+	wxButton* importButton_ = nullptr;
+	wxButton* saveButton_ = nullptr;
+	wxButton* revertButton_ = nullptr;
+
+	wxStaticText* statusLabel_ = nullptr;
+};
+
 MaterialsWorkbenchBorderPanel::MaterialsWorkbenchBorderPanel(wxWindow* parent, MaterialsWorkbenchController &controller) :
 	wxPanel(parent, wxID_ANY),
-	controller_(controller) {
-	BuildLayout();
-	ClearWorkspace("Select a border set in the navigation tree to edit its layout.");
+	impl_(std::make_unique<Impl>(*this, controller)) {
+	impl_->BuildLayout();
+	impl_->ClearWorkspace("Select a border set in the navigation tree to edit its layout.");
+}
+
+MaterialsWorkbenchBorderPanel::~MaterialsWorkbenchBorderPanel() = default;
+
+void MaterialsWorkbenchBorderPanel::ClearWorkspace(const wxString &message) {
+	impl_->ClearWorkspace(message);
+}
+
+bool MaterialsWorkbenchBorderPanel::LoadBorderSet(const wxString &contextKey, int itemIndex) {
+	return impl_->LoadBorderSet(contextKey, itemIndex);
 }
 
 void MaterialsWorkbenchBorderPanel::SetOnBorderSetSaved(std::function<void(int64_t)> callback) {
-	onBorderSetSaved_ = std::move(callback);
+	impl_->SetOnBorderSetSaved(std::move(callback));
 }
 
 void MaterialsWorkbenchBorderPanel::SetOnBorderSetDeleted(std::function<void(int64_t, const wxString &)> callback) {
-	onBorderSetDeleted_ = std::move(callback);
+	impl_->SetOnBorderSetDeleted(std::move(callback));
 }
 
 void MaterialsWorkbenchBorderPanel::SetOnBorderSetStateChanged(std::function<void()> callback) {
-	onBorderSetStateChanged_ = std::move(callback);
+	impl_->SetOnBorderSetStateChanged(std::move(callback));
 }
 
 void MaterialsWorkbenchBorderPanel::SetOnOpenLinkedBrush(std::function<void(int64_t)> callback) {
-	onOpenLinkedBrush_ = std::move(callback);
+	impl_->SetOnOpenLinkedBrush(std::move(callback));
 }
 
 bool MaterialsWorkbenchBorderPanel::HasPendingChanges() const {
-	return hasBorderSet_ && dirty_;
+	return impl_->HasPendingChanges();
 }
 
 bool MaterialsWorkbenchBorderPanel::IsCurrentBorderSelection(const wxString &contextKey, int itemIndex) const {
-	return hasBorderSet_ && currentContextKey_ == contextKey && currentItemIndex_ == itemIndex;
+	return impl_->IsCurrentBorderSelection(contextKey, itemIndex);
 }
 
 wxString MaterialsWorkbenchBorderPanel::GetCurrentBorderSetDisplayName() const {
+	return impl_->GetCurrentBorderSetDisplayName();
+}
+
+bool MaterialsWorkbenchBorderPanel::ResolvePendingChangesBeforeSwitch(wxWindow* parent, const wxString &targetLabel) {
+	return impl_->ResolvePendingChangesBeforeSwitch(parent, targetLabel);
+}
+
+void MaterialsWorkbenchBorderPanel::Impl::SetOnBorderSetSaved(std::function<void(int64_t)> callback) {
+	onBorderSetSaved_ = std::move(callback);
+}
+
+void MaterialsWorkbenchBorderPanel::Impl::SetOnBorderSetDeleted(std::function<void(int64_t, const wxString &)> callback) {
+	onBorderSetDeleted_ = std::move(callback);
+}
+
+void MaterialsWorkbenchBorderPanel::Impl::SetOnBorderSetStateChanged(std::function<void()> callback) {
+	onBorderSetStateChanged_ = std::move(callback);
+}
+
+void MaterialsWorkbenchBorderPanel::Impl::SetOnOpenLinkedBrush(std::function<void(int64_t)> callback) {
+	onOpenLinkedBrush_ = std::move(callback);
+}
+
+bool MaterialsWorkbenchBorderPanel::Impl::HasPendingChanges() const {
+	return hasBorderSet_ && dirty_;
+}
+
+bool MaterialsWorkbenchBorderPanel::Impl::IsCurrentBorderSelection(const wxString &contextKey, int itemIndex) const {
+	return hasBorderSet_ && currentContextKey_ == contextKey && currentItemIndex_ == itemIndex;
+}
+
+wxString MaterialsWorkbenchBorderPanel::Impl::GetCurrentBorderSetDisplayName() const {
 	if (!hasBorderSet_) {
 		return "";
 	}
@@ -2251,7 +2472,7 @@ wxString MaterialsWorkbenchBorderPanel::GetCurrentBorderSetDisplayName() const {
 	return BuildBorderSetDisplayLabel(BuildComparableStorageFromCurrentState().borderSet);
 }
 
-bool MaterialsWorkbenchBorderPanel::ResolvePendingChangesBeforeSwitch(wxWindow* parent, const wxString &targetLabel) {
+bool MaterialsWorkbenchBorderPanel::Impl::ResolvePendingChangesBeforeSwitch(wxWindow* parent, const wxString &targetLabel) {
 	if (!HasPendingChanges()) {
 		return true;
 	}
@@ -2284,20 +2505,20 @@ bool MaterialsWorkbenchBorderPanel::ResolvePendingChangesBeforeSwitch(wxWindow* 
 	}
 }
 
-void MaterialsWorkbenchBorderPanel::BuildLayout() {
+void MaterialsWorkbenchBorderPanel::Impl::BuildLayout() {
 	wxBoxSizer* rootSizer = new wxBoxSizer(wxVERTICAL);
 
-	wxStaticText* title = new wxStaticText(this, wxID_ANY, "Border Workspace");
+	wxStaticText* title = new wxStaticText(&self_, wxID_ANY, "Border Workspace");
 	wxFont titleFont = title->GetFont();
 	titleFont.SetPointSize(titleFont.GetPointSize() + 4);
 	titleFont.SetWeight(wxFONTWEIGHT_BOLD);
 	title->SetFont(titleFont);
 
-	titleLabel_ = new wxStaticText(this, wxID_ANY, "No border set selected");
-	subtitleLabel_ = new wxStaticText(this, wxID_ANY, "Edit border slots visually, assign item IDs and preview the resulting composition.");
+	titleLabel_ = new wxStaticText(&self_, wxID_ANY, "No border set selected");
+	subtitleLabel_ = new wxStaticText(&self_, wxID_ANY, "Edit border slots visually, assign item IDs and preview the resulting composition.");
 	StyleBorderWorkspaceSubtitle(subtitleLabel_);
 
-	wxScrolledWindow* scrolled = new wxScrolledWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL);
+	wxScrolledWindow* scrolled = new wxScrolledWindow(&self_, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL);
 	scrolled->SetScrollRate(FromDIP(10), FromDIP(10));
 
 	wxBoxSizer* contentSizer = new wxBoxSizer(wxVERTICAL);
@@ -2440,7 +2661,7 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	usageGrid_->SetColSize(kUsageGridColumnCenter, FromDIP(74));
 	usageGrid_->SetDefaultRowSize(FromDIP(26), true);
 	usageGrid_->SetMinSize(wxSize(FromDIP(240), FromDIP(178)));
-	usagePreviewItem_ = newd ItemButton(globalDetailsParent, RENDER_SIZE_32x32, 0);
+	usagePreviewItem_ = std::make_unique<ItemButton>(globalDetailsParent, RENDER_SIZE_32x32, 0).release();
 	usagePreviewItem_->Enable(false);
 	usageSelectionLabel_ = new wxStaticText(globalDetailsParent, wxID_ANY, "Select a context row to drive the global center preview.");
 	usageSelectionLabel_->Wrap(FromDIP(280));
@@ -2487,7 +2708,7 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 				wxPanel* centerPanel = new wxPanel(gridParent, wxID_ANY);
 				centerPanel->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_BTNFACE));
 				wxBoxSizer* centerSizer = new wxBoxSizer(wxVERTICAL);
-				centerGroundSlotPreview_ = newd ItemButton(centerPanel, RENDER_SIZE_32x32, 0);
+				centerGroundSlotPreview_ = std::make_unique<ItemButton>(centerPanel, RENDER_SIZE_32x32, 0).release();
 				centerGroundSlotPreview_->Enable(false);
 				centerGroundSlotValueLabel_ = new wxStaticText(centerPanel, wxID_ANY, "not set");
 				StyleBorderWorkspaceStrongValue(centerGroundSlotValueLabel_);
@@ -2513,8 +2734,8 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 			cell->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_BTNFACE));
 			wxBoxSizer* cellSizer = new wxBoxSizer(wxVERTICAL);
 			wxString edge = wxString::FromUTF8(specForCell->edge);
-			auto* button = newd BorderSlotButton(cell);
-			auto* value = newd wxStaticText(cell, wxID_ANY, "empty");
+			auto* button = std::make_unique<BorderSlotButton>(cell).release();
+			auto* value = std::make_unique<wxStaticText>(cell, wxID_ANY, "empty").release();
 			StyleBorderWorkspaceStrongValue(value);
 			cell->SetToolTip(specForCell->label);
 			button->SetToolTip(specForCell->label);
@@ -2549,7 +2770,7 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	selectedEdgeLabel_ = new wxStaticText(editorParent, wxID_ANY, "Edge: none");
 	selectedItemIdCtrl_ = new wxSpinCtrl(editorParent, wxID_ANY);
 	selectedItemIdCtrl_->SetRange(0, std::max(100000, static_cast<int>(g_items.getMaxID())));
-	selectedItemPreview_ = newd ItemButton(editorParent, RENDER_SIZE_32x32, 0);
+	selectedItemPreview_ = std::make_unique<ItemButton>(editorParent, RENDER_SIZE_32x32, 0).release();
 	selectedItemIdCtrl_->SetMinSize(wxSize(FromDIP(110), -1));
 
 	wxBoxSizer* selectionRow = new wxBoxSizer(wxHORIZONTAL);
@@ -2574,7 +2795,7 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 
 	wxStaticBoxSizer* previewBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Preview Matrix");
 	wxWindow* previewParent = previewBox->GetStaticBox();
-	previewMatrixPanel_ = newd BorderPreviewMatrixPanel(previewParent);
+	previewMatrixPanel_ = std::make_unique<BorderPreviewMatrixPanel>(previewParent).release();
 	wxBoxSizer* previewCenterRow = new wxBoxSizer(wxHORIZONTAL);
 	previewCenterRow->AddStretchSpacer(1);
 	previewCenterRow->Add(previewMatrixPanel_, 0, wxALL, FromDIP(6));
@@ -2614,10 +2835,10 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	headerSizer->Add(subtitleLabel_, 0);
 
 	wxBoxSizer* actionSizer = new wxBoxSizer(wxHORIZONTAL);
-	exportButton_ = new wxButton(this, wxID_ANY, "Export...");
-	importButton_ = new wxButton(this, wxID_ANY, "Import...");
-	saveButton_ = new wxButton(this, wxID_SAVE, "Save Border Set");
-	revertButton_ = new wxButton(this, wxID_ANY, "Revert");
+	exportButton_ = new wxButton(&self_, wxID_ANY, "Export...");
+	importButton_ = new wxButton(&self_, wxID_ANY, "Import...");
+	saveButton_ = new wxButton(&self_, wxID_SAVE, "Save Border Set");
+	revertButton_ = new wxButton(&self_, wxID_ANY, "Revert");
 	StyleBorderWorkspaceActionButton(exportButton_, "Export this border set to a JSON file for sharing or backup.");
 	StyleBorderWorkspaceActionButton(importButton_, "Import a border set from a JSON file. This can create or update a border by Global Border ID.");
 	StyleBorderWorkspaceActionButton(saveButton_, "Write the current border set metadata and slots to materials.db.");
@@ -2627,47 +2848,47 @@ void MaterialsWorkbenchBorderPanel::BuildLayout() {
 	actionSizer->Add(saveButton_, 0, wxRIGHT, FromDIP(2));
 	actionSizer->Add(revertButton_, 0);
 
-	statusLabel_ = new wxStaticText(this, wxID_ANY, "");
+	statusLabel_ = new wxStaticText(&self_, wxID_ANY, "");
 	StyleBorderWorkspaceStatusLabel(statusLabel_);
 	wxBoxSizer* footerSizer = new wxBoxSizer(wxHORIZONTAL);
 	footerSizer->Add(statusLabel_, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
 	footerSizer->Add(actionSizer, 0, wxALIGN_CENTER_VERTICAL);
 
 	rootSizer->Add(headerSizer, 0, wxEXPAND | wxALL, FromDIP(6));
-	rootSizer->Add(new wxStaticLine(this), 0, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(6));
+	rootSizer->Add(new wxStaticLine(&self_), 0, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(6));
 	rootSizer->Add(scrolled, 1, wxEXPAND | wxALL, FromDIP(6));
 	rootSizer->Add(footerSizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(4));
 	SetSizer(rootSizer);
 
-	pickItemButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnPickItem, this);
-	applyButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnApplyToSlot, this);
-	clearButton->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnClearSlot, this);
-	saveButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnSave, this);
-	revertButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnRevert, this);
-	exportButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnExportBorderSet, this);
-	importButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnImportBorderSet, this);
-	createBorderButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnCreateBorder, this);
-	deleteBorderButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnDeleteBorder, this);
-	selectedItemIdCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBorderPanel::OnSelectedItemIdChanged, this);
-	selectedItemIdCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBorderPanel::OnSelectedItemIdSpin, this);
-	xmlBorderIdCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
-	xmlBorderIdCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
-	scopeChoice_->Bind(wxEVT_CHOICE, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
-	typeCtrl_->Bind(wxEVT_CHOICE, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
-	borderGroupCtrl_->Bind(wxEVT_CHOICE, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
-	groundEquivalentCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
-	usageSearchCtrl_->Bind(wxEVT_TEXT, &MaterialsWorkbenchBorderPanel::OnUsageSearchChanged, this);
-	usageGrid_->Bind(wxEVT_GRID_SELECT_CELL, &MaterialsWorkbenchBorderPanel::OnUsageContextChanged, this);
-	openLinkedBrushButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnOpenLinkedBrush, this);
-	openOwnerBrushButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnOpenOwnerBrush, this);
-	addUsageContextButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnAddUsageContext, this);
-	editUsageContextButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnEditUsageContext, this);
-	editUsageCasesButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnEditUsageCases, this);
-	removeUsageContextButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchBorderPanel::OnRemoveUsageContext, this);
-	groundEquivalentCtrl_->Bind(wxEVT_SPINCTRL, &MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged, this);
+	pickItemButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent &event) { OnPickItem(event); });
+	applyButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent &event) { OnApplyToSlot(event); });
+	clearButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent &event) { OnClearSlot(event); });
+	saveButton_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &event) { OnSave(event); });
+	revertButton_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &event) { OnRevert(event); });
+	exportButton_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &event) { OnExportBorderSet(event); });
+	importButton_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &event) { OnImportBorderSet(event); });
+	createBorderButton_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &event) { OnCreateBorder(event); });
+	deleteBorderButton_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &event) { OnDeleteBorder(event); });
+	selectedItemIdCtrl_->Bind(wxEVT_TEXT, [this](wxCommandEvent &event) { OnSelectedItemIdChanged(event); });
+	selectedItemIdCtrl_->Bind(wxEVT_SPINCTRL, [this](wxSpinEvent &event) { OnSelectedItemIdSpin(event); });
+	xmlBorderIdCtrl_->Bind(wxEVT_TEXT, [this](wxCommandEvent &event) { OnMetadataFieldChanged(event); });
+	xmlBorderIdCtrl_->Bind(wxEVT_SPINCTRL, [this](wxSpinEvent &event) { OnMetadataFieldChanged(event); });
+	scopeChoice_->Bind(wxEVT_CHOICE, [this](wxCommandEvent &event) { OnMetadataFieldChanged(event); });
+	typeCtrl_->Bind(wxEVT_CHOICE, [this](wxCommandEvent &event) { OnMetadataFieldChanged(event); });
+	borderGroupCtrl_->Bind(wxEVT_CHOICE, [this](wxCommandEvent &event) { OnMetadataFieldChanged(event); });
+	groundEquivalentCtrl_->Bind(wxEVT_TEXT, [this](wxCommandEvent &event) { OnMetadataFieldChanged(event); });
+	usageSearchCtrl_->Bind(wxEVT_TEXT, [this](wxCommandEvent &event) { OnUsageSearchChanged(event); });
+	usageGrid_->Bind(wxEVT_GRID_SELECT_CELL, [this](wxGridEvent &event) { OnUsageContextChanged(event); });
+	openLinkedBrushButton_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &event) { OnOpenLinkedBrush(event); });
+	openOwnerBrushButton_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &event) { OnOpenOwnerBrush(event); });
+	addUsageContextButton_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &event) { OnAddUsageContext(event); });
+	editUsageContextButton_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &event) { OnEditUsageContext(event); });
+	editUsageCasesButton_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &event) { OnEditUsageCases(event); });
+	removeUsageContextButton_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &event) { OnRemoveUsageContext(event); });
+	groundEquivalentCtrl_->Bind(wxEVT_SPINCTRL, [this](wxSpinEvent &event) { OnMetadataFieldChanged(event); });
 }
 
-void MaterialsWorkbenchBorderPanel::ClearWorkspace(const wxString &message) {
+void MaterialsWorkbenchBorderPanel::Impl::ClearWorkspace(const wxString &message) {
 	borderSetStorage_ = BorderSetStorageRecord();
 	loadedBorderSetStorage_ = BorderSetStorageRecord();
 	borderSetUsages_.clear();
@@ -2736,7 +2957,7 @@ void MaterialsWorkbenchBorderPanel::ClearWorkspace(const wxString &message) {
 	Layout();
 }
 
-bool MaterialsWorkbenchBorderPanel::LoadBorderSet(const wxString &contextKey, int itemIndex) {
+bool MaterialsWorkbenchBorderPanel::Impl::LoadBorderSet(const wxString &contextKey, int itemIndex) {
 	SaveCurrentBorderEditorState();
 
 	wxString error;
@@ -2770,7 +2991,7 @@ bool MaterialsWorkbenchBorderPanel::LoadBorderSet(const wxString &contextKey, in
 	return true;
 }
 
-void MaterialsWorkbenchBorderPanel::PopulateFields() {
+void MaterialsWorkbenchBorderPanel::Impl::PopulateFields() {
 	const BorderSetRecord &borderSet = borderSetStorage_.borderSet;
 
 	internalUpdate_ = true;
@@ -2804,7 +3025,7 @@ void MaterialsWorkbenchBorderPanel::PopulateFields() {
 	RestoreCurrentBorderEditorState();
 }
 
-void MaterialsWorkbenchBorderPanel::UpdateSummaryLabels() {
+void MaterialsWorkbenchBorderPanel::Impl::UpdateSummaryLabels() {
 	if (!hasBorderSet_) {
 		return;
 	}
@@ -2822,7 +3043,7 @@ void MaterialsWorkbenchBorderPanel::UpdateSummaryLabels() {
 	}
 }
 
-BorderSetStorageRecord MaterialsWorkbenchBorderPanel::BuildComparableStorageFromCurrentState() const {
+BorderSetStorageRecord MaterialsWorkbenchBorderPanel::Impl::BuildComparableStorageFromCurrentState() const {
 	BorderSetStorageRecord storage = borderSetStorage_;
 	storage.borderSet.xmlBorderId = xmlBorderIdCtrl_->GetValue();
 	storage.borderSet.borderScope = scopeChoice_->GetSelection() == wxNOT_FOUND ? wxString() : scopeChoice_->GetStringSelection();
@@ -2857,7 +3078,7 @@ BorderSetStorageRecord MaterialsWorkbenchBorderPanel::BuildComparableStorageFrom
 	return storage;
 }
 
-void MaterialsWorkbenchBorderPanel::PopulateUsageContextList() {
+void MaterialsWorkbenchBorderPanel::Impl::PopulateUsageContextList() {
 	if (!usageGrid_) {
 		return;
 	}
@@ -2923,7 +3144,7 @@ void MaterialsWorkbenchBorderPanel::PopulateUsageContextList() {
 	RefreshUsageDetails();
 }
 
-void MaterialsWorkbenchBorderPanel::UpdateUsageContextControls() {
+void MaterialsWorkbenchBorderPanel::Impl::UpdateUsageContextControls() {
 	const auto setEnabled = [](wxWindow* window, bool enabled) {
 		if (window) {
 			window->Enable(enabled);
@@ -2970,14 +3191,14 @@ void MaterialsWorkbenchBorderPanel::UpdateUsageContextControls() {
 	RefreshUsageDetails();
 }
 
-const BorderSetUsageRecord* MaterialsWorkbenchBorderPanel::GetSelectedUsageContext() const {
+const BorderSetUsageRecord* MaterialsWorkbenchBorderPanel::Impl::GetSelectedUsageContext() const {
 	if (selectedUsageIndex_ == wxNOT_FOUND || selectedUsageIndex_ < 0 || selectedUsageIndex_ >= static_cast<int>(borderSetUsages_.size())) {
 		return nullptr;
 	}
 	return &borderSetUsages_[selectedUsageIndex_];
 }
 
-bool MaterialsWorkbenchBorderPanel::ReloadBorderSetById(int64_t borderSetId) {
+bool MaterialsWorkbenchBorderPanel::Impl::ReloadBorderSetById(int64_t borderSetId) {
 	wxString contextKey;
 	int itemIndex = -1;
 	if (!controller_.LocateBorderSetNode(borderSetId, contextKey, itemIndex)) {
@@ -2987,7 +3208,7 @@ bool MaterialsWorkbenchBorderPanel::ReloadBorderSetById(int64_t borderSetId) {
 	return LoadBorderSet(contextKey, itemIndex);
 }
 
-bool MaterialsWorkbenchBorderPanel::LoadBrushStorageById(int64_t brushId, BrushStorageRecord &outBrush, wxString &error) const {
+bool MaterialsWorkbenchBorderPanel::Impl::LoadBrushStorageById(int64_t brushId, BrushStorageRecord &outBrush, wxString &error) const {
 	wxString contextKey;
 	int itemIndex = -1;
 	if (!controller_.LocateBrushNode(brushId, contextKey, itemIndex)) {
@@ -2997,7 +3218,7 @@ bool MaterialsWorkbenchBorderPanel::LoadBrushStorageById(int64_t brushId, BrushS
 	return controller_.GetBrushDetails(contextKey, itemIndex, outBrush, error);
 }
 
-int MaterialsWorkbenchBorderPanel::FindMatchingGroundBorderIndex(const BrushStorageRecord &brushStorage, const BorderSetUsageRecord &usage) const {
+int MaterialsWorkbenchBorderPanel::Impl::FindMatchingGroundBorderIndex(const BrushStorageRecord &brushStorage, const BorderSetUsageRecord &usage) const {
 	for (size_t i = 0; i < brushStorage.borders.size(); ++i) {
 		const GroundBrushBorderRecord &border = brushStorage.borders[i];
 		if (border.borderSetId != borderSetStorage_.borderSet.id) {
@@ -3017,11 +3238,11 @@ int MaterialsWorkbenchBorderPanel::FindMatchingGroundBorderIndex(const BrushStor
 	return -1;
 }
 
-int MaterialsWorkbenchBorderPanel::SuggestNextBorderId() const {
+int MaterialsWorkbenchBorderPanel::Impl::SuggestNextBorderId() const {
 	return controller_.SuggestNextBorderId();
 }
 
-int MaterialsWorkbenchBorderPanel::ResolveCenterPreviewItemId() const {
+int MaterialsWorkbenchBorderPanel::Impl::ResolveCenterPreviewItemId() const {
 	if (!hasBorderSet_) {
 		return 0;
 	}
@@ -3041,7 +3262,7 @@ int MaterialsWorkbenchBorderPanel::ResolveCenterPreviewItemId() const {
 	return 0;
 }
 
-wxString MaterialsWorkbenchBorderPanel::ResolveCenterSourceLabel() const {
+wxString MaterialsWorkbenchBorderPanel::Impl::ResolveCenterSourceLabel() const {
 	if (!hasBorderSet_) {
 		return "not set";
 	}
@@ -3065,7 +3286,7 @@ wxString MaterialsWorkbenchBorderPanel::ResolveCenterSourceLabel() const {
 	return "painted base ground";
 }
 
-wxString MaterialsWorkbenchBorderPanel::BuildOwnerBrushDisplayLabel(int64_t ownerBrushId) const {
+wxString MaterialsWorkbenchBorderPanel::Impl::BuildOwnerBrushDisplayLabel(int64_t ownerBrushId) const {
 	if (ownerBrushId <= 0) {
 		return "Not linked";
 	}
@@ -3083,13 +3304,13 @@ wxString MaterialsWorkbenchBorderPanel::BuildOwnerBrushDisplayLabel(int64_t owne
 	return wxString::Format("#%lld", static_cast<long long>(ownerBrushId));
 }
 
-void MaterialsWorkbenchBorderPanel::HandleUsageContextChanged() {
+void MaterialsWorkbenchBorderPanel::Impl::HandleUsageContextChanged() {
 	UpdateUsageContextControls();
 	RefreshSlotGrid();
 	RefreshPreviewGrid();
 }
 
-void MaterialsWorkbenchBorderPanel::RefreshScopeSpecificLayout() {
+void MaterialsWorkbenchBorderPanel::Impl::RefreshScopeSpecificLayout() {
 	const bool isInline = hasBorderSet_ && scopeChoice_ && scopeChoice_->GetStringSelection() == "inline";
 	const bool isGlobal = hasBorderSet_ && scopeChoice_ && scopeChoice_->GetStringSelection() == "global";
 	if (scopeLabel_) {
@@ -3118,7 +3339,7 @@ void MaterialsWorkbenchBorderPanel::RefreshScopeSpecificLayout() {
 	}
 }
 
-void MaterialsWorkbenchBorderPanel::RefreshUsageDetails() {
+void MaterialsWorkbenchBorderPanel::Impl::RefreshUsageDetails() {
 	const BorderSetUsageRecord* usage = GetSelectedUsageContext();
 	const int previewItemId = usage ? ResolveUsagePreviewItemId(*usage) : 0;
 	if (usagePreviewItem_) {
@@ -3214,7 +3435,7 @@ namespace {
 	}
 } // namespace
 
-bool MaterialsWorkbenchBorderPanel::ValidateBorderSetStorage(const BorderSetStorageRecord &storage, wxString &error) const {
+bool MaterialsWorkbenchBorderPanel::Impl::ValidateBorderSetStorage(const BorderSetStorageRecord &storage, wxString &error) const {
 	if (!ValidateBorderSetScope(storage.borderSet, error)) {
 		return false;
 	}
@@ -3228,7 +3449,7 @@ bool MaterialsWorkbenchBorderPanel::ValidateBorderSetStorage(const BorderSetStor
 	return true;
 }
 
-void MaterialsWorkbenchBorderPanel::SaveCurrentBorderEditorState() {
+void MaterialsWorkbenchBorderPanel::Impl::SaveCurrentBorderEditorState() {
 	if (!hasBorderSet_ || borderSetStorage_.borderSet.id <= 0) {
 		return;
 	}
@@ -3241,7 +3462,7 @@ void MaterialsWorkbenchBorderPanel::SaveCurrentBorderEditorState() {
 	borderSetSelectedEdges_[borderSetStorage_.borderSet.id] = selectedEdge_;
 }
 
-void MaterialsWorkbenchBorderPanel::RestoreCurrentBorderEditorState() {
+void MaterialsWorkbenchBorderPanel::Impl::RestoreCurrentBorderEditorState() {
 	wxString edgeToSelect;
 	if (borderSetStorage_.borderSet.id > 0) {
 		auto it = borderSetSelectedEdges_.find(borderSetStorage_.borderSet.id);
@@ -3260,7 +3481,7 @@ void MaterialsWorkbenchBorderPanel::RestoreCurrentBorderEditorState() {
 	SelectEdge(edgeToSelect);
 }
 
-void MaterialsWorkbenchBorderPanel::RefreshDirtyState() {
+void MaterialsWorkbenchBorderPanel::Impl::RefreshDirtyState() {
 	if (!hasBorderSet_) {
 		dirty_ = false;
 		UpdateWorkspaceHeader();
@@ -3275,13 +3496,13 @@ void MaterialsWorkbenchBorderPanel::RefreshDirtyState() {
 	NotifyBorderSetStateChanged();
 }
 
-void MaterialsWorkbenchBorderPanel::NotifyBorderSetStateChanged() {
+void MaterialsWorkbenchBorderPanel::Impl::NotifyBorderSetStateChanged() {
 	if (onBorderSetStateChanged_) {
 		onBorderSetStateChanged_();
 	}
 }
 
-void MaterialsWorkbenchBorderPanel::UpdateWorkspaceHeader() {
+void MaterialsWorkbenchBorderPanel::Impl::UpdateWorkspaceHeader() {
 	if (!hasBorderSet_) {
 		titleLabel_->SetLabel("No border set selected");
 		subtitleLabel_->SetLabel("Select a border set in the navigation tree to edit authoring data, slot ownership, and sprite layout.");
@@ -3300,7 +3521,7 @@ void MaterialsWorkbenchBorderPanel::UpdateWorkspaceHeader() {
 	}
 }
 
-void MaterialsWorkbenchBorderPanel::UpdateActionButtons() {
+void MaterialsWorkbenchBorderPanel::Impl::UpdateActionButtons() {
 	if (saveButton_) {
 		saveButton_->Enable(hasBorderSet_ && dirty_);
 	}
@@ -3321,7 +3542,7 @@ void MaterialsWorkbenchBorderPanel::UpdateActionButtons() {
 	}
 }
 
-void MaterialsWorkbenchBorderPanel::RefreshSlotGrid() {
+void MaterialsWorkbenchBorderPanel::Impl::RefreshSlotGrid() {
 	const int centerPreviewItemId = ResolveCenterPreviewItemId();
 	const wxString centerSourceLabel = ResolveCenterSourceLabel();
 	if (centerGroundSlotPreview_) {
@@ -3354,7 +3575,7 @@ void MaterialsWorkbenchBorderPanel::RefreshSlotGrid() {
 	UpdateSummaryLabels();
 }
 
-void MaterialsWorkbenchBorderPanel::RefreshPreviewGrid() {
+void MaterialsWorkbenchBorderPanel::Impl::RefreshPreviewGrid() {
 	const int centerPreviewItemId = ResolveCenterPreviewItemId();
 	const wxString centerSourceLabel = ResolveCenterSourceLabel();
 	if (previewMatrixPanel_) {
@@ -3374,13 +3595,13 @@ void MaterialsWorkbenchBorderPanel::RefreshPreviewGrid() {
 	RefreshPreviewSelectionState();
 }
 
-void MaterialsWorkbenchBorderPanel::RefreshPreviewSelectionState() {
+void MaterialsWorkbenchBorderPanel::Impl::RefreshPreviewSelectionState() {
 	if (previewMatrixPanel_) {
 		previewMatrixPanel_->Refresh();
 	}
 }
 
-void MaterialsWorkbenchBorderPanel::SelectEdge(const wxString &edge) {
+void MaterialsWorkbenchBorderPanel::Impl::SelectEdge(const wxString &edge) {
 	if (!slotButtons_.count(edge)) {
 		return;
 	}
@@ -3392,7 +3613,7 @@ void MaterialsWorkbenchBorderPanel::SelectEdge(const wxString &edge) {
 	UpdateSelectedEdgeEditor();
 }
 
-void MaterialsWorkbenchBorderPanel::UpdateSelectedEdgeEditor() {
+void MaterialsWorkbenchBorderPanel::Impl::UpdateSelectedEdgeEditor() {
 	const BorderEdgeSpec* spec = FindEdgeSpec(selectedEdge_);
 	const int itemId = slotItemIds_.count(selectedEdge_) > 0 ? slotItemIds_[selectedEdge_] : 0;
 	if (spec) {
@@ -3406,7 +3627,7 @@ void MaterialsWorkbenchBorderPanel::UpdateSelectedEdgeEditor() {
 	internalUpdate_ = false;
 }
 
-void MaterialsWorkbenchBorderPanel::SyncSelectedSlotFromEditor(bool updateStatus) {
+void MaterialsWorkbenchBorderPanel::Impl::SyncSelectedSlotFromEditor(bool updateStatus) {
 	if (!hasBorderSet_ || selectedEdge_.IsEmpty()) {
 		return;
 	}
@@ -3440,12 +3661,12 @@ void MaterialsWorkbenchBorderPanel::SyncSelectedSlotFromEditor(bool updateStatus
 	}
 }
 
-void MaterialsWorkbenchBorderPanel::SetStatusMessage(const wxString &message) {
+void MaterialsWorkbenchBorderPanel::Impl::SetStatusMessage(const wxString &message) {
 	statusLabel_->SetLabel(message);
 	statusLabel_->Wrap(FromDIP(760));
 }
 
-void MaterialsWorkbenchBorderPanel::SetFieldsEnabled(bool enabled) {
+void MaterialsWorkbenchBorderPanel::Impl::SetFieldsEnabled(bool enabled) {
 	xmlBorderIdCtrl_->Enable(enabled);
 	scopeChoice_->Enable(false);
 	typeCtrl_->Enable(enabled);
@@ -3463,7 +3684,7 @@ void MaterialsWorkbenchBorderPanel::SetFieldsEnabled(bool enabled) {
 	RefreshScopeSpecificLayout();
 }
 
-bool MaterialsWorkbenchBorderPanel::SaveCurrentBorderSet() {
+bool MaterialsWorkbenchBorderPanel::Impl::SaveCurrentBorderSet() {
 	if (!hasBorderSet_) {
 		SetStatusMessage("Select a border set before saving.");
 		return false;
@@ -3496,7 +3717,7 @@ bool MaterialsWorkbenchBorderPanel::SaveCurrentBorderSet() {
 	return true;
 }
 
-void MaterialsWorkbenchBorderPanel::OnApplyToSlot(wxCommandEvent &event) {
+void MaterialsWorkbenchBorderPanel::Impl::OnApplyToSlot(wxCommandEvent &event) {
 	if (!hasBorderSet_ || selectedEdge_.IsEmpty()) {
 		SetStatusMessage("Select a border slot before applying an item.");
 		return;
@@ -3505,7 +3726,7 @@ void MaterialsWorkbenchBorderPanel::OnApplyToSlot(wxCommandEvent &event) {
 	SyncSelectedSlotFromEditor(true);
 }
 
-void MaterialsWorkbenchBorderPanel::OnClearSlot(wxCommandEvent &event) {
+void MaterialsWorkbenchBorderPanel::Impl::OnClearSlot(wxCommandEvent &event) {
 	if (!hasBorderSet_ || selectedEdge_.IsEmpty()) {
 		SetStatusMessage("Select a border slot before clearing it.");
 		return;
@@ -3520,13 +3741,13 @@ void MaterialsWorkbenchBorderPanel::OnClearSlot(wxCommandEvent &event) {
 	SetStatusMessage("Slot cleared locally. Save the border set to persist.");
 }
 
-void MaterialsWorkbenchBorderPanel::OnPickItem(wxCommandEvent &event) {
+void MaterialsWorkbenchBorderPanel::Impl::OnPickItem(wxCommandEvent &event) {
 	if (!hasBorderSet_) {
 		SetStatusMessage("Load a border set before choosing an item.");
 		return;
 	}
 
-	FindItemDialog dialog(this, "Select Border Item");
+	FindItemDialog dialog(&self_, "Select Border Item");
 	dialog.setSearchMode(FindItemDialog::ItemIDs);
 	if (dialog.ShowModal() != wxID_OK) {
 		return;
@@ -3536,7 +3757,7 @@ void MaterialsWorkbenchBorderPanel::OnPickItem(wxCommandEvent &event) {
 	selectedItemPreview_->SetSprite(dialog.getResultID());
 }
 
-void MaterialsWorkbenchBorderPanel::OnExportBorderSet(wxCommandEvent &) {
+void MaterialsWorkbenchBorderPanel::Impl::OnExportBorderSet(wxCommandEvent &) {
 	if (!hasBorderSet_) {
 		SetStatusMessage("Load a border set before exporting.");
 		return;
@@ -3544,13 +3765,13 @@ void MaterialsWorkbenchBorderPanel::OnExportBorderSet(wxCommandEvent &) {
 
 	const BorderSetStorageRecord storage = BuildComparableStorageFromCurrentState();
 	if (!storage.borderSet.borderScope.IsSameAs("global", false) || storage.borderSet.xmlBorderId <= 0) {
-		wxMessageBox("Export currently supports global border sets only.", "Export Border Set", wxOK | wxICON_WARNING, this);
+		wxMessageBox("Export currently supports global border sets only.", "Export Border Set", wxOK | wxICON_WARNING, &self_);
 		return;
 	}
 
 	const wxString defaultName = wxString::Format("border-%d.rme-materials.json", storage.borderSet.xmlBorderId);
 	wxFileDialog dialog(
-		this,
+		&self_,
 		"Export Border Set",
 		"",
 		defaultName,
@@ -3567,7 +3788,7 @@ void MaterialsWorkbenchBorderPanel::OnExportBorderSet(wxCommandEvent &) {
 	wxCharBuffer utf8 = path.ToUTF8();
 	std::ofstream out(utf8.data(), std::ios::binary | std::ios::trunc);
 	if (!out.is_open()) {
-		wxMessageBox("Failed to write the export file.", "Export Border Set", wxOK | wxICON_ERROR, this);
+		wxMessageBox("Failed to write the export file.", "Export Border Set", wxOK | wxICON_ERROR, &self_);
 		return;
 	}
 
@@ -3577,9 +3798,9 @@ void MaterialsWorkbenchBorderPanel::OnExportBorderSet(wxCommandEvent &) {
 	SetStatusMessage(wxString::Format("Exported Border %d to JSON.", storage.borderSet.xmlBorderId));
 }
 
-void MaterialsWorkbenchBorderPanel::OnImportBorderSet(wxCommandEvent &) {
+void MaterialsWorkbenchBorderPanel::Impl::OnImportBorderSet(wxCommandEvent &) {
 	wxFileDialog dialog(
-		this,
+		&self_,
 		"Import Border Set",
 		"",
 		"",
@@ -3594,7 +3815,7 @@ void MaterialsWorkbenchBorderPanel::OnImportBorderSet(wxCommandEvent &) {
 	wxCharBuffer utf8 = path.ToUTF8();
 	std::ifstream in(utf8.data(), std::ios::binary);
 	if (!in.is_open()) {
-		wxMessageBox("Failed to open the import file.", "Import Border Set", wxOK | wxICON_ERROR, this);
+		wxMessageBox("Failed to open the import file.", "Import Border Set", wxOK | wxICON_ERROR, &self_);
 		return;
 	}
 
@@ -3602,7 +3823,7 @@ void MaterialsWorkbenchBorderPanel::OnImportBorderSet(wxCommandEvent &) {
 	try {
 		in >> root;
 	} catch (const nlohmann::json::parse_error &) {
-		wxMessageBox("Invalid JSON file.", "Import Border Set", wxOK | wxICON_ERROR, this);
+		wxMessageBox("Invalid JSON file.", "Import Border Set", wxOK | wxICON_ERROR, &self_);
 		return;
 	}
 
@@ -3610,7 +3831,7 @@ void MaterialsWorkbenchBorderPanel::OnImportBorderSet(wxCommandEvent &) {
 	std::vector<BorderSetItemRecord> items;
 	wxString parseError;
 	if (!TryParseBorderSetExportJson(root, borderSet, items, parseError)) {
-		wxMessageBox(parseError, "Import Border Set", wxOK | wxICON_ERROR, this);
+		wxMessageBox(parseError, "Import Border Set", wxOK | wxICON_ERROR, &self_);
 		return;
 	}
 
@@ -3621,7 +3842,7 @@ void MaterialsWorkbenchBorderPanel::OnImportBorderSet(wxCommandEvent &) {
 			wxString::Format("Border %d already exists. Import will overwrite its slot items.\n\nContinue?", borderSet.xmlBorderId),
 			"Import Border Set",
 			wxYES_NO | wxICON_WARNING,
-			this
+			&self_
 		);
 		if (result != wxYES) {
 			return;
@@ -3629,14 +3850,14 @@ void MaterialsWorkbenchBorderPanel::OnImportBorderSet(wxCommandEvent &) {
 	}
 
 	if (hasBorderSet_ && dirty_) {
-		if (!ResolvePendingChangesBeforeSwitch(this, wxString::Format("Border %d", borderSet.xmlBorderId))) {
+		if (!ResolvePendingChangesBeforeSwitch(&self_, wxString::Format("Border %d", borderSet.xmlBorderId))) {
 			return;
 		}
 	}
 
 	int64_t borderSetId = 0;
 	if (!g_brush_database.upsertBorderSet(borderSet, borderSetId) || borderSetId <= 0) {
-		wxMessageBox(g_brush_database.getLastError(), "Import Border Set", wxOK | wxICON_ERROR, this);
+		wxMessageBox(g_brush_database.getLastError(), "Import Border Set", wxOK | wxICON_ERROR, &self_);
 		return;
 	}
 
@@ -3654,7 +3875,7 @@ void MaterialsWorkbenchBorderPanel::OnImportBorderSet(wxCommandEvent &) {
 	}
 
 	if (!g_brush_database.replaceBorderSetItems(borderSetId, items)) {
-		wxMessageBox(g_brush_database.getLastError(), "Import Border Set", wxOK | wxICON_ERROR, this);
+		wxMessageBox(g_brush_database.getLastError(), "Import Border Set", wxOK | wxICON_ERROR, &self_);
 		return;
 	}
 
@@ -3666,11 +3887,11 @@ void MaterialsWorkbenchBorderPanel::OnImportBorderSet(wxCommandEvent &) {
 	SetStatusMessage(wxString::Format("Imported Border %d from JSON.", borderSet.xmlBorderId));
 }
 
-void MaterialsWorkbenchBorderPanel::OnSave(wxCommandEvent &event) {
+void MaterialsWorkbenchBorderPanel::Impl::OnSave(wxCommandEvent &event) {
 	SaveCurrentBorderSet();
 }
 
-void MaterialsWorkbenchBorderPanel::OnRevert(wxCommandEvent &event) {
+void MaterialsWorkbenchBorderPanel::Impl::OnRevert(wxCommandEvent &event) {
 	if (!hasBorderSet_) {
 		ClearWorkspace("Select a border set in the navigation tree to edit its layout.");
 		return;
@@ -3683,7 +3904,7 @@ void MaterialsWorkbenchBorderPanel::OnRevert(wxCommandEvent &event) {
 	SetStatusMessage("Reverted local border edits and reloaded the border set from materials.db.");
 }
 
-void MaterialsWorkbenchBorderPanel::OnSelectedItemIdChanged(wxCommandEvent &event) {
+void MaterialsWorkbenchBorderPanel::Impl::OnSelectedItemIdChanged(wxCommandEvent &event) {
 	if (internalUpdate_) {
 		event.Skip();
 		return;
@@ -3692,7 +3913,7 @@ void MaterialsWorkbenchBorderPanel::OnSelectedItemIdChanged(wxCommandEvent &even
 	event.Skip();
 }
 
-void MaterialsWorkbenchBorderPanel::OnSelectedItemIdSpin(wxSpinEvent &event) {
+void MaterialsWorkbenchBorderPanel::Impl::OnSelectedItemIdSpin(wxSpinEvent &event) {
 	if (internalUpdate_) {
 		event.Skip();
 		return;
@@ -3701,7 +3922,7 @@ void MaterialsWorkbenchBorderPanel::OnSelectedItemIdSpin(wxSpinEvent &event) {
 	event.Skip();
 }
 
-void MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged(wxCommandEvent &event) {
+void MaterialsWorkbenchBorderPanel::Impl::OnMetadataFieldChanged(wxCommandEvent &event) {
 	if (internalUpdate_ || !hasBorderSet_) {
 		event.Skip();
 		return;
@@ -3716,7 +3937,7 @@ void MaterialsWorkbenchBorderPanel::OnMetadataFieldChanged(wxCommandEvent &event
 	event.Skip();
 }
 
-void MaterialsWorkbenchBorderPanel::OnUsageContextChanged(wxGridEvent &event) {
+void MaterialsWorkbenchBorderPanel::Impl::OnUsageContextChanged(wxGridEvent &event) {
 	if (internalUpdate_ || !hasBorderSet_) {
 		event.Skip();
 		return;
@@ -3738,7 +3959,7 @@ void MaterialsWorkbenchBorderPanel::OnUsageContextChanged(wxGridEvent &event) {
 	event.Skip();
 }
 
-void MaterialsWorkbenchBorderPanel::OnUsageSearchChanged(wxCommandEvent &event) {
+void MaterialsWorkbenchBorderPanel::Impl::OnUsageSearchChanged(wxCommandEvent &event) {
 	if (internalUpdate_) {
 		event.Skip();
 		return;
@@ -3750,7 +3971,7 @@ void MaterialsWorkbenchBorderPanel::OnUsageSearchChanged(wxCommandEvent &event) 
 	event.Skip();
 }
 
-void MaterialsWorkbenchBorderPanel::OnOpenLinkedBrush(wxCommandEvent &event) {
+void MaterialsWorkbenchBorderPanel::Impl::OnOpenLinkedBrush(wxCommandEvent &event) {
 	if (!hasBorderSet_) {
 		SetStatusMessage("Load a border set before opening a linked brush.");
 		return;
@@ -3769,7 +3990,7 @@ void MaterialsWorkbenchBorderPanel::OnOpenLinkedBrush(wxCommandEvent &event) {
 	onOpenLinkedBrush_(usage->brushId);
 }
 
-void MaterialsWorkbenchBorderPanel::OnOpenOwnerBrush(wxCommandEvent &) {
+void MaterialsWorkbenchBorderPanel::Impl::OnOpenOwnerBrush(wxCommandEvent &) {
 	if (!hasBorderSet_) {
 		SetStatusMessage("Load a border set before opening the owner brush.");
 		return;
@@ -3790,8 +4011,8 @@ void MaterialsWorkbenchBorderPanel::OnOpenOwnerBrush(wxCommandEvent &) {
 	onOpenLinkedBrush_(ownerBrushId);
 }
 
-void MaterialsWorkbenchBorderPanel::OnCreateBorder(wxCommandEvent &event) {
-	if (hasBorderSet_ && !ResolvePendingChangesBeforeSwitch(this, "a new border")) {
+void MaterialsWorkbenchBorderPanel::Impl::OnCreateBorder(wxCommandEvent &event) {
+	if (hasBorderSet_ && !ResolvePendingChangesBeforeSwitch(&self_, "a new border")) {
 		SetStatusMessage("Border creation cancelled (pending changes were not resolved).");
 		return;
 	}
@@ -3799,7 +4020,7 @@ void MaterialsWorkbenchBorderPanel::OnCreateBorder(wxCommandEvent &event) {
 	wxArrayString scopeChoices;
 	scopeChoices.Add("global");
 	scopeChoices.Add("inline");
-	wxSingleChoiceDialog scopeDialog(this, "Choose the scope for the new border.", "New Border", scopeChoices);
+	wxSingleChoiceDialog scopeDialog(&self_, "Choose the scope for the new border.", "New Border", scopeChoices);
 	if (hasBorderSet_) {
 		scopeDialog.SetSelection(scopeChoice_->GetStringSelection() == "inline" ? 1 : 0);
 	}
@@ -3822,7 +4043,7 @@ void MaterialsWorkbenchBorderPanel::OnCreateBorder(wxCommandEvent &event) {
 	if (newStorage.borderSet.borderScope == "global") {
 		newStorage.borderSet.xmlBorderId = SuggestNextBorderId();
 	} else {
-		FindBrushDialog brushDialog(this, "Choose Owner Brush");
+		FindBrushDialog brushDialog(&self_, "Choose Owner Brush");
 		if (brushDialog.ShowModal() == 0) {
 			SetStatusMessage("Inline border creation cancelled.");
 			return;
@@ -3834,7 +4055,7 @@ void MaterialsWorkbenchBorderPanel::OnCreateBorder(wxCommandEvent &event) {
 		}
 		const wxString brushType = GetDatabaseBrushType(brush);
 		if (brushType != "ground") {
-			wxMessageBox("Inline border creation needs a ground brush owner.", "New Border", wxOK | wxICON_INFORMATION, this);
+			wxMessageBox("Inline border creation needs a ground brush owner.", "New Border", wxOK | wxICON_INFORMATION, &self_);
 			SetStatusMessage("Inline border creation needs a ground brush owner.");
 			return;
 		}
@@ -3847,7 +4068,7 @@ void MaterialsWorkbenchBorderPanel::OnCreateBorder(wxCommandEvent &event) {
 				+ brushName + "\n"
 							  "Error: "
 				+ ownerError;
-			wxMessageBox(message, "New Border", wxOK | wxICON_ERROR, this);
+			wxMessageBox(message, "New Border", wxOK | wxICON_ERROR, &self_);
 			SetStatusMessage("Inline border creation failed: could not resolve brush.");
 			return;
 		}
@@ -3856,20 +4077,20 @@ void MaterialsWorkbenchBorderPanel::OnCreateBorder(wxCommandEvent &event) {
 
 	wxString error;
 	if (!controller_.SaveBorderSet(newStorage, error)) {
-		wxMessageBox("Failed to create border: " + error, "New Border", wxOK | wxICON_ERROR, this);
+		wxMessageBox("Failed to create border: " + error, "New Border", wxOK | wxICON_ERROR, &self_);
 		SetStatusMessage("Failed to create border: " + error);
 		return;
 	}
 	if (newStorage.borderSet.id <= 0) {
 		const wxString message = "Created the border, but it returned an invalid id.";
-		wxMessageBox(message, "New Border", wxOK | wxICON_ERROR, this);
+		wxMessageBox(message, "New Border", wxOK | wxICON_ERROR, &self_);
 		SetStatusMessage(message);
 		return;
 	}
 
 	if (!ReloadBorderSetById(newStorage.borderSet.id)) {
 		const wxString message = "Created the border, but failed to reload it in the workspace. The navigation tree will be refreshed so you can locate it manually.";
-		wxMessageBox(message, "New Border", wxOK | wxICON_WARNING, this);
+		wxMessageBox(message, "New Border", wxOK | wxICON_WARNING, &self_);
 		SetStatusMessage(message);
 		if (onBorderSetSaved_) {
 			onBorderSetSaved_(newStorage.borderSet.id);
@@ -3905,7 +4126,7 @@ namespace {
 	}
 } // namespace
 
-bool MaterialsWorkbenchBorderPanel::RemoveGlobalBorderContextsBeforeDelete(int64_t borderSetId, wxString &error) {
+bool MaterialsWorkbenchBorderPanel::Impl::RemoveGlobalBorderContextsBeforeDelete(int64_t borderSetId, wxString &error) {
 	std::unordered_set<int64_t> processedBrushIds;
 	for (const BorderSetUsageRecord &usage : borderSetUsages_) {
 		if (usage.brushId <= 0) {
@@ -3933,7 +4154,7 @@ bool MaterialsWorkbenchBorderPanel::RemoveGlobalBorderContextsBeforeDelete(int64
 	return true;
 }
 
-void MaterialsWorkbenchBorderPanel::OnDeleteBorder(wxCommandEvent &event) {
+void MaterialsWorkbenchBorderPanel::Impl::OnDeleteBorder(wxCommandEvent &event) {
 	if (!hasBorderSet_) {
 		SetStatusMessage("Load a border set before deleting it.");
 		return;
@@ -3962,7 +4183,7 @@ void MaterialsWorkbenchBorderPanel::OnDeleteBorder(wxCommandEvent &event) {
 			warningText,
 			"Delete Border",
 			wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
-			this
+			&self_
 		)
 		!= wxYES) {
 		return;
@@ -3986,7 +4207,7 @@ void MaterialsWorkbenchBorderPanel::OnDeleteBorder(wxCommandEvent &event) {
 	}
 }
 
-void MaterialsWorkbenchBorderPanel::OnAddUsageContext(wxCommandEvent &event) {
+void MaterialsWorkbenchBorderPanel::Impl::OnAddUsageContext(wxCommandEvent &event) {
 	if (!hasBorderSet_ || borderSetStorage_.borderSet.borderScope != "global") {
 		SetStatusMessage("Load a global border before adding a context.");
 		return;
@@ -3996,7 +4217,7 @@ void MaterialsWorkbenchBorderPanel::OnAddUsageContext(wxCommandEvent &event) {
 	dialogData.borderRole = "normal";
 	dialogData.align = "outer";
 	dialogData.targetMode = "all";
-	GlobalUsageDialog dialog(this, controller_, "Add Used By Context", dialogData);
+	GlobalUsageDialog dialog(&self_, controller_, "Add Used By Context", dialogData);
 	if (dialog.ShowModal() != wxID_OK || !dialog.Validate() || !dialog.TransferDataFromWindow()) {
 		return;
 	}
@@ -4047,12 +4268,120 @@ void MaterialsWorkbenchBorderPanel::OnAddUsageContext(wxCommandEvent &event) {
 	}
 }
 
-void MaterialsWorkbenchBorderPanel::OnEditUsageContext(wxCommandEvent &event) {
-	if (!hasBorderSet_) {
-		SetStatusMessage("Load a global border before editing a context.");
-		return;
+namespace {
+	void NormalizeGroundBorderSortOrders(std::vector<GroundBrushBorderRecord> &borders) {
+		int sortOrder = 0;
+		for (GroundBrushBorderRecord &record : borders) {
+			record.sortOrder = sortOrder;
+			++sortOrder;
+		}
 	}
-	if (borderSetStorage_.borderSet.borderScope != "global") {
+
+	GlobalUsageEditData BuildGlobalUsageDialogData(const BorderSetUsageRecord &usage) {
+		GlobalUsageEditData dialogData;
+		dialogData.ownerBrushId = usage.brushId;
+		dialogData.ownerBrushName = usage.brushName;
+
+		dialogData.borderRole = usage.borderRole;
+		if (dialogData.borderRole.IsEmpty()) {
+			dialogData.borderRole = "normal";
+		}
+
+		dialogData.align = usage.align;
+		if (dialogData.align.IsEmpty()) {
+			dialogData.align = "outer";
+		}
+
+		dialogData.targetMode = usage.targetMode;
+		if (dialogData.targetMode.IsEmpty()) {
+			dialogData.targetMode = "all";
+		}
+
+		dialogData.targetBrushId = usage.targetBrushId;
+		dialogData.targetBrushName = usage.targetBrushName;
+		dialogData.superBorder = usage.superBorder;
+		return dialogData;
+	}
+
+	GroundBrushBorderRecord BuildUpdatedGroundBorderRecord(const GroundBrushBorderRecord &base, const GlobalUsageEditData &result) {
+		GroundBrushBorderRecord updatedRecord = base;
+		updatedRecord.borderRole = result.borderRole;
+		updatedRecord.align = result.align;
+		updatedRecord.targetMode = result.targetMode;
+		if (result.targetMode == "brush") {
+			updatedRecord.targetBrushId = result.targetBrushId;
+			updatedRecord.targetBrushName = result.targetBrushName;
+		} else {
+			updatedRecord.targetBrushId = 0;
+			updatedRecord.targetBrushName.clear();
+		}
+		updatedRecord.superBorder = result.superBorder;
+		return updatedRecord;
+	}
+
+	bool IsMatchingUsageAfterEdit(const BorderSetUsageRecord &candidate, int64_t ownerBrushId, const GroundBrushBorderRecord &record) {
+		return candidate.brushId == ownerBrushId
+			&& candidate.sortOrder == record.sortOrder
+			&& candidate.borderRole == record.borderRole
+			&& candidate.align == record.align
+			&& candidate.targetMode == record.targetMode
+			&& candidate.targetBrushId == record.targetBrushId
+			&& candidate.targetBrushName == record.targetBrushName
+			&& candidate.superBorder == record.superBorder;
+	}
+} // namespace
+
+bool MaterialsWorkbenchBorderPanel::Impl::PersistEditedUsageContext(
+	const BorderSetUsageRecord &usage,
+	const GlobalUsageEditData &result,
+	int existingIndex,
+	BrushStorageRecord &sourceBrushStorage,
+	GroundBrushBorderRecord &updatedRecord,
+	wxString &error
+) {
+	if (result.ownerBrushId == usage.brushId) {
+		sourceBrushStorage.borders[existingIndex] = updatedRecord;
+		if (!controller_.SaveGroundBrushBorders(usage.brushId, sourceBrushStorage.borders, error)) {
+			SetStatusMessage("Failed to save the edited usage context: " + error);
+			return false;
+		}
+		return true;
+	}
+
+	sourceBrushStorage.borders.erase(sourceBrushStorage.borders.begin() + existingIndex);
+	NormalizeGroundBorderSortOrders(sourceBrushStorage.borders);
+	if (!controller_.SaveGroundBrushBorders(usage.brushId, sourceBrushStorage.borders, error)) {
+		SetStatusMessage("Failed to update the previous owner brush: " + error);
+		return false;
+	}
+
+	BrushStorageRecord targetBrushStorage;
+	if (!LoadBrushStorageById(result.ownerBrushId, targetBrushStorage, error)) {
+		SetStatusMessage("Failed to load the new owner brush: " + error);
+		return false;
+	}
+
+	updatedRecord.sortOrder = static_cast<int>(targetBrushStorage.borders.size());
+	targetBrushStorage.borders.push_back(updatedRecord);
+	if (!controller_.SaveGroundBrushBorders(result.ownerBrushId, targetBrushStorage.borders, error)) {
+		SetStatusMessage("Failed to save the context on the new owner brush: " + error);
+		return false;
+	}
+
+	return true;
+}
+
+void MaterialsWorkbenchBorderPanel::Impl::SelectUsageIndexAfterEdit(int64_t ownerBrushId, const GroundBrushBorderRecord &record) {
+	for (size_t i = 0; i < borderSetUsages_.size(); ++i) {
+		if (IsMatchingUsageAfterEdit(borderSetUsages_[i], ownerBrushId, record)) {
+			selectedUsageIndex_ = static_cast<int>(i);
+			return;
+		}
+	}
+}
+
+void MaterialsWorkbenchBorderPanel::Impl::OnEditUsageContext(wxCommandEvent &event) {
+	if (!hasBorderSet_ || borderSetStorage_.borderSet.borderScope != "global") {
 		SetStatusMessage("Load a global border before editing a context.");
 		return;
 	}
@@ -4063,87 +4392,30 @@ void MaterialsWorkbenchBorderPanel::OnEditUsageContext(wxCommandEvent &event) {
 		return;
 	}
 
-	GlobalUsageEditData dialogData;
-	dialogData.ownerBrushId = usage->brushId;
-	dialogData.ownerBrushName = usage->brushName;
-	dialogData.borderRole = usage->borderRole;
-	if (dialogData.borderRole.IsEmpty()) {
-		dialogData.borderRole = "normal";
-	}
-	dialogData.align = usage->align;
-	if (dialogData.align.IsEmpty()) {
-		dialogData.align = "outer";
-	}
-	dialogData.targetMode = usage->targetMode;
-	if (dialogData.targetMode.IsEmpty()) {
-		dialogData.targetMode = "all";
-	}
-	dialogData.targetBrushId = usage->targetBrushId;
-	dialogData.targetBrushName = usage->targetBrushName;
-	dialogData.superBorder = usage->superBorder;
-
-	GlobalUsageDialog dialog(this, controller_, "Edit Used By Context", dialogData);
+	const GlobalUsageEditData dialogData = BuildGlobalUsageDialogData(*usage);
+	GlobalUsageDialog dialog(&self_, controller_, "Edit Used By Context", dialogData);
 	if (dialog.ShowModal() != wxID_OK || !dialog.Validate() || !dialog.TransferDataFromWindow()) {
 		return;
 	}
 
 	const GlobalUsageEditData &result = dialog.GetData();
+
 	wxString error;
 	BrushStorageRecord sourceBrushStorage;
 	if (!LoadBrushStorageById(usage->brushId, sourceBrushStorage, error)) {
 		SetStatusMessage("Failed to load the current owner brush: " + error);
 		return;
 	}
+
 	const int existingIndex = FindMatchingGroundBorderIndex(sourceBrushStorage, *usage);
 	if (existingIndex < 0) {
 		SetStatusMessage("Could not match the selected usage context in the owner brush.");
 		return;
 	}
 
-	GroundBrushBorderRecord updatedRecord = sourceBrushStorage.borders[existingIndex];
-	updatedRecord.borderRole = result.borderRole;
-	updatedRecord.align = result.align;
-	updatedRecord.targetMode = result.targetMode;
-	if (result.targetMode == "brush") {
-		updatedRecord.targetBrushId = result.targetBrushId;
-		updatedRecord.targetBrushName = result.targetBrushName;
-	} else {
-		updatedRecord.targetBrushId = 0;
-		updatedRecord.targetBrushName.clear();
-	}
-	updatedRecord.superBorder = result.superBorder;
-
-	const auto normalizeBorderSortOrders = [](std::vector<GroundBrushBorderRecord> &borders) {
-		for (size_t i = 0; i < borders.size(); ++i) {
-			borders[i].sortOrder = static_cast<int>(i);
-		}
-	};
-
-	if (result.ownerBrushId == usage->brushId) {
-		sourceBrushStorage.borders[existingIndex] = updatedRecord;
-		if (!controller_.SaveGroundBrushBorders(usage->brushId, sourceBrushStorage.borders, error)) {
-			SetStatusMessage("Failed to save the edited usage context: " + error);
-			return;
-		}
-	} else {
-		sourceBrushStorage.borders.erase(sourceBrushStorage.borders.begin() + existingIndex);
-		normalizeBorderSortOrders(sourceBrushStorage.borders);
-		if (!controller_.SaveGroundBrushBorders(usage->brushId, sourceBrushStorage.borders, error)) {
-			SetStatusMessage("Failed to update the previous owner brush: " + error);
-			return;
-		}
-
-		BrushStorageRecord targetBrushStorage;
-		if (!LoadBrushStorageById(result.ownerBrushId, targetBrushStorage, error)) {
-			SetStatusMessage("Failed to load the new owner brush: " + error);
-			return;
-		}
-		updatedRecord.sortOrder = static_cast<int>(targetBrushStorage.borders.size());
-		targetBrushStorage.borders.push_back(updatedRecord);
-		if (!controller_.SaveGroundBrushBorders(result.ownerBrushId, targetBrushStorage.borders, error)) {
-			SetStatusMessage("Failed to save the context on the new owner brush: " + error);
-			return;
-		}
+	GroundBrushBorderRecord updatedRecord = BuildUpdatedGroundBorderRecord(sourceBrushStorage.borders[existingIndex], result);
+	if (!PersistEditedUsageContext(*usage, result, existingIndex, sourceBrushStorage, updatedRecord, error)) {
+		return;
 	}
 
 	if (!controller_.ReloadCatalog()) {
@@ -4155,23 +4427,7 @@ void MaterialsWorkbenchBorderPanel::OnEditUsageContext(wxCommandEvent &event) {
 		return;
 	}
 
-	const auto isMatchingUsage = [](const BorderSetUsageRecord &candidate, int64_t ownerBrushId, const GroundBrushBorderRecord &record) {
-		return candidate.brushId == ownerBrushId
-			&& candidate.sortOrder == record.sortOrder
-			&& candidate.borderRole == record.borderRole
-			&& candidate.align == record.align
-			&& candidate.targetMode == record.targetMode
-			&& candidate.targetBrushId == record.targetBrushId
-			&& candidate.targetBrushName == record.targetBrushName
-			&& candidate.superBorder == record.superBorder;
-	};
-
-	for (size_t i = 0; i < borderSetUsages_.size(); ++i) {
-		if (isMatchingUsage(borderSetUsages_[i], result.ownerBrushId, updatedRecord)) {
-			selectedUsageIndex_ = static_cast<int>(i);
-			break;
-		}
-	}
+	SelectUsageIndexAfterEdit(result.ownerBrushId, updatedRecord);
 	PopulateUsageContextList();
 	HandleUsageContextChanged();
 	SetStatusMessage("Updated the Used By context and refreshed the global preview.");
@@ -4180,7 +4436,7 @@ void MaterialsWorkbenchBorderPanel::OnEditUsageContext(wxCommandEvent &event) {
 	}
 }
 
-void MaterialsWorkbenchBorderPanel::OnEditUsageCases(wxCommandEvent &event) {
+void MaterialsWorkbenchBorderPanel::Impl::OnEditUsageCases(wxCommandEvent &event) {
 	if (!hasBorderSet_ || borderSetStorage_.borderSet.borderScope != "global") {
 		SetStatusMessage("Load a global border before editing specific cases.");
 		return;
@@ -4205,7 +4461,7 @@ void MaterialsWorkbenchBorderPanel::OnEditUsageCases(wxCommandEvent &event) {
 	}
 
 	GroundBrushBorderRecord &borderRecord = brushStorage.borders[existingIndex];
-	GroundSpecificCasesDialog dialog(this, borderRecord.cases);
+	GroundSpecificCasesDialog dialog(&self_, borderRecord.cases);
 	if (dialog.ShowModal() != wxID_OK) {
 		return;
 	}
@@ -4242,7 +4498,7 @@ void MaterialsWorkbenchBorderPanel::OnEditUsageCases(wxCommandEvent &event) {
 	}
 }
 
-void MaterialsWorkbenchBorderPanel::OnRemoveUsageContext(wxCommandEvent &event) {
+void MaterialsWorkbenchBorderPanel::Impl::OnRemoveUsageContext(wxCommandEvent &event) {
 	if (!hasBorderSet_ || borderSetStorage_.borderSet.borderScope != "global") {
 		SetStatusMessage("Load a global border before removing a context.");
 		return;
@@ -4257,7 +4513,7 @@ void MaterialsWorkbenchBorderPanel::OnRemoveUsageContext(wxCommandEvent &event) 
 			wxString::Format("Remove the context from brush \"%s\"?", usage->brushName),
 			"Remove Context",
 			wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
-			this
+			&self_
 		)
 		!= wxYES) {
 		return;

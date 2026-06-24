@@ -6,6 +6,7 @@
 #include <cmath>
 #include <map>
 #include <limits>
+#include <memory>
 #include <set>
 #include <utility>
 
@@ -141,6 +142,124 @@ namespace {
 
 	wxString ParseImportedFromEditorValue(const wxString &sourceFile) {
 		return sourceFile == wxString::FromUTF8("Not imported from legacy XML") ? wxString() : sourceFile;
+	}
+
+	void SetButtonEnabled(wxButton* button, bool enabled) {
+		if (button) {
+			button->Enable(enabled);
+		}
+	}
+
+	wxString BuildBrushLinkTargetLabel(const BrushLinkRecord &link) {
+		if (!link.targetBrushName.IsEmpty() && link.targetBrushId > 0) {
+			return wxString::Format("%s (#%lld)", link.targetBrushName, static_cast<long long>(link.targetBrushId));
+		}
+		if (!link.targetBrushName.IsEmpty()) {
+			return link.targetBrushName;
+		}
+		if (link.targetBrushId > 0) {
+			return wxString::Format("#%lld", static_cast<long long>(link.targetBrushId));
+		}
+		return "(unset)";
+	}
+
+	int PopulateOutgoingLinks(wxListCtrl* list, const std::vector<BrushLinkRecord> &links, const wxString &queryLower) {
+		if (!list) {
+			return 0;
+		}
+
+		int visibleCount = 0;
+		for (size_t i = 0; i < links.size(); ++i) {
+			const BrushLinkRecord &link = links[i];
+			const wxString targetLabel = BuildBrushLinkTargetLabel(link);
+			const wxString haystack = (link.relationType + " " + targetLabel).Lower();
+			if (!queryLower.IsEmpty() && !haystack.Contains(queryLower)) {
+				continue;
+			}
+
+			const long row = list->InsertItem(list->GetItemCount(), link.relationType);
+			list->SetItem(row, 1, targetLabel);
+			list->SetItem(row, 2, wxString::Format("%d", link.sortOrder));
+			list->SetItemData(row, static_cast<long>(i));
+			++visibleCount;
+		}
+		return visibleCount;
+	}
+
+	bool IsInboundLinkUsage(const BrushUsageRecord &usage) {
+		return usage.sourceKind.IsSameAs("brush", false) && usage.relation.IsSameAs("brush link", false);
+	}
+
+	int PopulateInboundLinks(wxListCtrl* list, const std::vector<BrushUsageRecord> &usages, const wxString &queryLower) {
+		if (!list) {
+			return 0;
+		}
+
+		int visibleCount = 0;
+		for (const BrushUsageRecord &usage : usages) {
+			if (!IsInboundLinkUsage(usage)) {
+				continue;
+			}
+			const wxString haystack = (usage.sourceName + " " + usage.context).Lower();
+			if (!queryLower.IsEmpty() && !haystack.Contains(queryLower)) {
+				continue;
+			}
+
+			const long row = list->InsertItem(list->GetItemCount(), usage.sourceName);
+			list->SetItem(row, 1, usage.context);
+			list->SetItemData(row, static_cast<long>(usage.sourceId));
+			++visibleCount;
+		}
+		return visibleCount;
+	}
+
+	bool HasFriendOrEnemyLinks(const std::vector<BrushLinkRecord> &links) {
+		for (const BrushLinkRecord &link : links) {
+			if (link.relationType.IsSameAs("friend", false) || link.relationType.IsSameAs("enemy", false)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	void ResetLinksPageForNoBrush(
+		wxListCtrl* outgoingList,
+		wxStaticText* outgoingSummary,
+		wxListCtrl* inboundList,
+		wxStaticText* inboundSummary,
+		wxButton* addFriend,
+		wxButton* addEnemy,
+		wxButton* removeLink,
+		wxButton* openTarget,
+		wxButton* clearLinks,
+		wxButton* moveUp,
+		wxButton* moveDown,
+		wxWindow* page
+	) {
+		if (outgoingList) {
+			outgoingList->DeleteAllItems();
+		}
+		if (outgoingSummary) {
+			outgoingSummary->SetLabel("Select a brush to edit links.");
+		}
+		if (inboundList) {
+			inboundList->DeleteAllItems();
+		}
+		if (inboundSummary) {
+			inboundSummary->SetLabel("");
+		}
+
+		SetButtonEnabled(addFriend, false);
+		SetButtonEnabled(addEnemy, false);
+		SetButtonEnabled(removeLink, false);
+		SetButtonEnabled(openTarget, false);
+		SetButtonEnabled(clearLinks, false);
+		SetButtonEnabled(moveUp, false);
+		SetButtonEnabled(moveDown, false);
+
+		if (page) {
+			page->Layout();
+		}
 	}
 
 	int CaptureListTopItem(wxListBox* listBox) {
@@ -2842,7 +2961,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildLinksPage(wxNotebook* notebook) {
 		if (selectedRow == wxNOT_FOUND || selectedRow < 0) {
 			return;
 		}
-		const int64_t brushId = static_cast<int64_t>(linksInboundListCtrl_->GetItemData(selectedRow));
+		const auto brushId = static_cast<int64_t>(linksInboundListCtrl_->GetItemData(selectedRow));
 		if (brushId > 0 && onOpenLinkedBrush_) {
 			onOpenLinkedBrush_(brushId);
 		}
@@ -2913,7 +3032,7 @@ bool MaterialsWorkbenchBrushPanel::TryGetSelectedOutgoingLinkIndex(int &outIndex
 		return false;
 	}
 
-	const int index = static_cast<int>(linksListCtrl_->GetItemData(selectedRow));
+	const auto index = static_cast<int>(linksListCtrl_->GetItemData(selectedRow));
 	if (index < 0 || index >= static_cast<int>(brushStorage_.links.size())) {
 		return false;
 	}
@@ -3546,7 +3665,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 
 	wxBoxSizer* structureSizer = new wxBoxSizer(wxVERTICAL);
 	structureSizer->Add(CreateSectionLabel(scrolled, "Single Items"), 0, wxBOTTOM, FromDIP(6));
-	doodadSingleItemsList_ = new DoodadThumbList(scrolled);
+	doodadSingleItemsList_ = std::make_unique<DoodadThumbList>(scrolled).release();
 	doodadSingleItemsList_->SetMinSize(wxSize(scrolled->FromDIP(180), scrolled->FromDIP(96)));
 	structureSizer->Add(doodadSingleItemsList_, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
 	wxBoxSizer* singleButtons = new wxBoxSizer(wxHORIZONTAL);
@@ -3576,7 +3695,7 @@ wxPanel* MaterialsWorkbenchBrushPanel::BuildDoodadVariationsPage(wxSimplebook* b
 	doodadCompositeChanceCtrl_->Hide();
 	structureSizer->Add(new wxStaticLine(scrolled), 0, wxEXPAND | wxBOTTOM, FromDIP(10));
 	structureSizer->Add(CreateSectionLabel(scrolled, "Tile Layers"), 0, wxBOTTOM, FromDIP(6));
-	doodadTileItemsList_ = new DoodadThumbList(scrolled);
+	doodadTileItemsList_ = std::make_unique<DoodadThumbList>(scrolled).release();
 	doodadTileItemsList_->SetMinSize(wxSize(scrolled->FromDIP(220), scrolled->FromDIP(116)));
 	structureSizer->Add(doodadTileItemsList_, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
 	wxBoxSizer* tileItemButtons = new wxBoxSizer(wxHORIZONTAL);
@@ -3856,34 +3975,20 @@ void MaterialsWorkbenchBrushPanel::RefreshLinksPage() {
 		return;
 	}
 	if (!hasBrush_) {
-		linksListCtrl_->DeleteAllItems();
-		linksSummaryLabel_->SetLabel("Select a brush to edit links.");
-		linksInboundListCtrl_->DeleteAllItems();
-		linksInboundSummaryLabel_->SetLabel("");
-		if (addFriendLinkButton_) {
-			addFriendLinkButton_->Enable(false);
-		}
-		if (addEnemyLinkButton_) {
-			addEnemyLinkButton_->Enable(false);
-		}
-		if (removeLinkButton_) {
-			removeLinkButton_->Enable(false);
-		}
-		if (openLinkTargetButton_) {
-			openLinkTargetButton_->Enable(false);
-		}
-		if (clearLinksButton_) {
-			clearLinksButton_->Enable(false);
-		}
-		if (moveLinkUpButton_) {
-			moveLinkUpButton_->Enable(false);
-		}
-		if (moveLinkDownButton_) {
-			moveLinkDownButton_->Enable(false);
-		}
-		if (linksPage_) {
-			linksPage_->Layout();
-		}
+		ResetLinksPageForNoBrush(
+			linksListCtrl_,
+			linksSummaryLabel_,
+			linksInboundListCtrl_,
+			linksInboundSummaryLabel_,
+			addFriendLinkButton_,
+			addEnemyLinkButton_,
+			removeLinkButton_,
+			openLinkTargetButton_,
+			clearLinksButton_,
+			moveLinkUpButton_,
+			moveLinkDownButton_,
+			linksPage_
+		);
 		return;
 	}
 
@@ -3891,31 +3996,7 @@ void MaterialsWorkbenchBrushPanel::RefreshLinksPage() {
 	linksInboundListCtrl_->DeleteAllItems();
 
 	const wxString query = linksSearchCtrl_->GetValue().Lower().Trim(true).Trim(false);
-	int visibleCount = 0;
-	for (size_t i = 0; i < brushStorage_.links.size(); ++i) {
-		const BrushLinkRecord &link = brushStorage_.links[i];
-		wxString targetLabel;
-		if (!link.targetBrushName.IsEmpty() && link.targetBrushId > 0) {
-			targetLabel = wxString::Format("%s (#%lld)", link.targetBrushName, static_cast<long long>(link.targetBrushId));
-		} else if (!link.targetBrushName.IsEmpty()) {
-			targetLabel = link.targetBrushName;
-		} else if (link.targetBrushId > 0) {
-			targetLabel = wxString::Format("#%lld", static_cast<long long>(link.targetBrushId));
-		} else {
-			targetLabel = "(unset)";
-		}
-
-		wxString haystack = (link.relationType + " " + targetLabel).Lower();
-		if (!query.IsEmpty() && !haystack.Contains(query)) {
-			continue;
-		}
-
-		const long row = linksListCtrl_->InsertItem(linksListCtrl_->GetItemCount(), link.relationType);
-		linksListCtrl_->SetItem(row, 1, targetLabel);
-		linksListCtrl_->SetItem(row, 2, wxString::Format("%d", link.sortOrder));
-		linksListCtrl_->SetItemData(row, static_cast<long>(i));
-		++visibleCount;
-	}
+	const int visibleCount = PopulateOutgoingLinks(linksListCtrl_, brushStorage_.links, query);
 
 	linksSummaryLabel_->SetLabel(
 		wxString::Format(
@@ -3929,22 +4010,7 @@ void MaterialsWorkbenchBrushPanel::RefreshLinksPage() {
 	wxString usageError;
 	int inboundVisibleCount = 0;
 	if (controller_.GetBrushUsages(brushStorage_.brush.id, brushStorage_.brush.name, usages, usageError)) {
-		for (const BrushUsageRecord &usage : usages) {
-			if (!usage.sourceKind.IsSameAs("brush", false)) {
-				continue;
-			}
-			if (!usage.relation.IsSameAs("brush link", false)) {
-				continue;
-			}
-			wxString haystack = (usage.sourceName + " " + usage.context).Lower();
-			if (!query.IsEmpty() && !haystack.Contains(query)) {
-				continue;
-			}
-			const long row = linksInboundListCtrl_->InsertItem(linksInboundListCtrl_->GetItemCount(), usage.sourceName);
-			linksInboundListCtrl_->SetItem(row, 1, usage.context);
-			linksInboundListCtrl_->SetItemData(row, static_cast<long>(usage.sourceId));
-			++inboundVisibleCount;
-		}
+		inboundVisibleCount = PopulateInboundLinks(linksInboundListCtrl_, usages, query);
 		linksInboundSummaryLabel_->SetLabel(
 			wxString::Format(
 				"%d inbound link%s",
@@ -3957,26 +4023,17 @@ void MaterialsWorkbenchBrushPanel::RefreshLinksPage() {
 	}
 
 	const bool isGround = GetEffectiveBrushType().Lower() == "ground";
-	addFriendLinkButton_->Enable(isGround);
-	addEnemyLinkButton_->Enable(isGround);
-	removeLinkButton_->Enable(false);
+	SetButtonEnabled(addFriendLinkButton_, isGround);
+	SetButtonEnabled(addEnemyLinkButton_, isGround);
+	SetButtonEnabled(removeLinkButton_, false);
 	if (openLinkTargetButton_) {
 		openLinkTargetButton_->Enable(false);
 	}
 	if (clearLinksButton_) {
-		bool hasFriendOrEnemy = false;
-		if (isGround) {
-			for (const BrushLinkRecord &link : brushStorage_.links) {
-				if (link.relationType.IsSameAs("friend", false) || link.relationType.IsSameAs("enemy", false)) {
-					hasFriendOrEnemy = true;
-					break;
-				}
-			}
-		}
-		clearLinksButton_->Enable(isGround && hasFriendOrEnemy);
+		clearLinksButton_->Enable(isGround && HasFriendOrEnemyLinks(brushStorage_.links));
 	}
-	moveLinkUpButton_->Enable(false);
-	moveLinkDownButton_->Enable(false);
+	SetButtonEnabled(moveLinkUpButton_, false);
+	SetButtonEnabled(moveLinkDownButton_, false);
 
 	if (linksPage_) {
 		linksPage_->Layout();
@@ -4086,7 +4143,7 @@ void MaterialsWorkbenchBrushPanel::RefreshLiveDoodadRuntime(const BrushStorageRe
 		);
 	}
 
-	const uint16_t effectiveLookId = static_cast<uint16_t>(
+	const auto effectiveLookId = static_cast<uint16_t>(
 		editableStorage.brush.serverLookId > 0 ? editableStorage.brush.serverLookId : editableStorage.brush.lookId
 	);
 	if (!g_gui.SyncBrushInPalettes(previousRuntimeName, newRuntimeName, effectiveLookId)) {
@@ -4165,76 +4222,104 @@ void MaterialsWorkbenchBrushPanel::UpdateModifiedHighlights() {
 void MaterialsWorkbenchBrushPanel::CommitVariationEditorState() {
 	const wxString type = GetEffectiveBrushType();
 	if (type == "ground") {
-		const int selection = groundItemsList_ ? groundItemsList_->GetSelection() : wxNOT_FOUND;
-		if (selection != wxNOT_FOUND && static_cast<size_t>(selection) < brushStorage_.items.size()) {
-			brushStorage_.items[static_cast<size_t>(selection)].itemId = groundItemIdCtrl_->GetValue();
-			brushStorage_.items[static_cast<size_t>(selection)].chance = groundItemChanceCtrl_->GetValue();
-		}
+		CommitGroundVariationEditorState();
 		return;
 	}
-
 	if (type == "carpet") {
-		const int nodeSelection = alignedNodesList_ ? alignedNodesList_->GetSelection() : wxNOT_FOUND;
-		if (nodeSelection != wxNOT_FOUND && static_cast<size_t>(nodeSelection) < brushStorage_.carpetNodes.size()) {
-			auto &node = brushStorage_.carpetNodes[static_cast<size_t>(nodeSelection)];
-			if (!alignedPendingCarpetAlign_.IsEmpty()) {
-				node.align = alignedPendingCarpetAlign_;
-			}
-			const int itemSelection = alignedItemsList_ ? alignedItemsList_->GetSelection() : wxNOT_FOUND;
-			if (itemSelection != wxNOT_FOUND && static_cast<size_t>(itemSelection) < node.items.size()) {
-				node.items[static_cast<size_t>(itemSelection)].itemId = alignedItemIdCtrl_->GetValue();
-				node.items[static_cast<size_t>(itemSelection)].chance = alignedItemChanceCtrl_->GetValue();
-			}
-		}
+		CommitCarpetVariationEditorState();
 		return;
 	}
-
 	if (type == "table") {
-		const int nodeSelection = alignedNodesList_ ? alignedNodesList_->GetSelection() : wxNOT_FOUND;
-		if (nodeSelection != wxNOT_FOUND && static_cast<size_t>(nodeSelection) < brushStorage_.tableNodes.size()) {
-			auto &node = brushStorage_.tableNodes[static_cast<size_t>(nodeSelection)];
-			node.align = alignedNodeAlignChoice_ ? alignedNodeAlignChoice_->GetStringSelection() : node.align;
-			const int itemSelection = alignedItemsList_ ? alignedItemsList_->GetSelection() : wxNOT_FOUND;
-			if (itemSelection != wxNOT_FOUND && static_cast<size_t>(itemSelection) < node.items.size()) {
-				node.items[static_cast<size_t>(itemSelection)].itemId = alignedItemIdCtrl_->GetValue();
-				node.items[static_cast<size_t>(itemSelection)].chance = alignedItemChanceCtrl_->GetValue();
-			}
-		}
+		CommitTableVariationEditorState();
+		return;
+	}
+	if (type == "doodad") {
+		CommitDoodadVariationEditorState();
+		return;
+	}
+}
+
+void MaterialsWorkbenchBrushPanel::CommitGroundVariationEditorState() {
+	const int selection = groundItemsList_ ? groundItemsList_->GetSelection() : wxNOT_FOUND;
+	if (selection == wxNOT_FOUND || static_cast<size_t>(selection) >= brushStorage_.items.size()) {
+		return;
+	}
+	BrushItemRecord &item = brushStorage_.items[static_cast<size_t>(selection)];
+	item.itemId = groundItemIdCtrl_->GetValue();
+	item.chance = groundItemChanceCtrl_->GetValue();
+}
+
+void MaterialsWorkbenchBrushPanel::CommitCarpetVariationEditorState() {
+	const int nodeSelection = alignedNodesList_ ? alignedNodesList_->GetSelection() : wxNOT_FOUND;
+	if (nodeSelection == wxNOT_FOUND || static_cast<size_t>(nodeSelection) >= brushStorage_.carpetNodes.size()) {
+		return;
+	}
+	CarpetNodeRecord &node = brushStorage_.carpetNodes[static_cast<size_t>(nodeSelection)];
+	if (!alignedPendingCarpetAlign_.IsEmpty()) {
+		node.align = alignedPendingCarpetAlign_;
+	}
+	const int itemSelection = alignedItemsList_ ? alignedItemsList_->GetSelection() : wxNOT_FOUND;
+	if (itemSelection == wxNOT_FOUND || static_cast<size_t>(itemSelection) >= node.items.size()) {
+		return;
+	}
+	CarpetNodeItemRecord &item = node.items[static_cast<size_t>(itemSelection)];
+	item.itemId = alignedItemIdCtrl_->GetValue();
+	item.chance = alignedItemChanceCtrl_->GetValue();
+}
+
+void MaterialsWorkbenchBrushPanel::CommitTableVariationEditorState() {
+	const int nodeSelection = alignedNodesList_ ? alignedNodesList_->GetSelection() : wxNOT_FOUND;
+	if (nodeSelection == wxNOT_FOUND || static_cast<size_t>(nodeSelection) >= brushStorage_.tableNodes.size()) {
+		return;
+	}
+	TableNodeRecord &node = brushStorage_.tableNodes[static_cast<size_t>(nodeSelection)];
+	if (alignedNodeAlignChoice_) {
+		node.align = alignedNodeAlignChoice_->GetStringSelection();
+	}
+	const int itemSelection = alignedItemsList_ ? alignedItemsList_->GetSelection() : wxNOT_FOUND;
+	if (itemSelection == wxNOT_FOUND || static_cast<size_t>(itemSelection) >= node.items.size()) {
+		return;
+	}
+	TableNodeItemRecord &item = node.items[static_cast<size_t>(itemSelection)];
+	item.itemId = alignedItemIdCtrl_->GetValue();
+	item.chance = alignedItemChanceCtrl_->GetValue();
+}
+
+void MaterialsWorkbenchBrushPanel::CommitDoodadVariationEditorState() {
+	const int alternativeSelection = doodadAlternativeIndex_;
+	if (alternativeSelection == wxNOT_FOUND || static_cast<size_t>(alternativeSelection) >= brushStorage_.doodadAlternatives.size()) {
 		return;
 	}
 
-	if (type == "doodad") {
-		const int alternativeSelection = doodadAlternativeIndex_;
-		if (alternativeSelection == wxNOT_FOUND || static_cast<size_t>(alternativeSelection) >= brushStorage_.doodadAlternatives.size()) {
-			return;
-		}
-
-		auto &alternative = brushStorage_.doodadAlternatives[static_cast<size_t>(alternativeSelection)];
-		const int singleSelection = doodadSingleItemIndex_;
-		if (singleSelection != wxNOT_FOUND && static_cast<size_t>(singleSelection) < alternative.singleItems.size()) {
-			alternative.singleItems[static_cast<size_t>(singleSelection)].itemId = doodadSingleItemIdCtrl_->GetValue();
-			alternative.singleItems[static_cast<size_t>(singleSelection)].chance = doodadSingleItemChanceCtrl_->GetValue();
-		}
-
-		const int compositeSelection = doodadCompositeIndex_;
-		if (compositeSelection != wxNOT_FOUND && static_cast<size_t>(compositeSelection) < alternative.composites.size()) {
-			auto &composite = alternative.composites[static_cast<size_t>(compositeSelection)];
-			composite.chance = doodadCompositeChanceCtrl_->GetValue();
-
-			const int tileSelection = doodadTileIndex_;
-			if (tileSelection != wxNOT_FOUND && static_cast<size_t>(tileSelection) < composite.tiles.size()) {
-				auto &tile = composite.tiles[static_cast<size_t>(tileSelection)];
-				tile.offsetX = doodadTileOffsetXCtrl_->GetValue();
-				tile.offsetY = doodadTileOffsetYCtrl_->GetValue();
-				tile.offsetZ = doodadTileOffsetZCtrl_->GetValue();
-
-				const int tileItemSelection = doodadTileItemIndex_;
-				if (tileItemSelection != wxNOT_FOUND && static_cast<size_t>(tileItemSelection) < tile.items.size()) {
-					tile.items[static_cast<size_t>(tileItemSelection)].itemId = doodadTileItemIdCtrl_->GetValue();
-				}
-			}
-		}
+	DoodadAlternativeRecord &alternative = brushStorage_.doodadAlternatives[static_cast<size_t>(alternativeSelection)];
+	const int singleSelection = doodadSingleItemIndex_;
+	if (singleSelection != wxNOT_FOUND && static_cast<size_t>(singleSelection) < alternative.singleItems.size()) {
+		DoodadSingleItemRecord &item = alternative.singleItems[static_cast<size_t>(singleSelection)];
+		item.itemId = doodadSingleItemIdCtrl_->GetValue();
+		item.chance = doodadSingleItemChanceCtrl_->GetValue();
 	}
+
+	const int compositeSelection = doodadCompositeIndex_;
+	if (compositeSelection == wxNOT_FOUND || static_cast<size_t>(compositeSelection) >= alternative.composites.size()) {
+		return;
+	}
+	DoodadCompositeRecord &composite = alternative.composites[static_cast<size_t>(compositeSelection)];
+	composite.chance = doodadCompositeChanceCtrl_->GetValue();
+
+	const int tileSelection = doodadTileIndex_;
+	if (tileSelection == wxNOT_FOUND || static_cast<size_t>(tileSelection) >= composite.tiles.size()) {
+		return;
+	}
+	DoodadCompositeTileRecord &tile = composite.tiles[static_cast<size_t>(tileSelection)];
+	tile.offsetX = doodadTileOffsetXCtrl_->GetValue();
+	tile.offsetY = doodadTileOffsetYCtrl_->GetValue();
+	tile.offsetZ = doodadTileOffsetZCtrl_->GetValue();
+
+	const int tileItemSelection = doodadTileItemIndex_;
+	if (tileItemSelection == wxNOT_FOUND || static_cast<size_t>(tileItemSelection) >= tile.items.size()) {
+		return;
+	}
+	tile.items[static_cast<size_t>(tileItemSelection)].itemId = doodadTileItemIdCtrl_->GetValue();
 }
 
 void MaterialsWorkbenchBrushPanel::UpdateMetadataModifiedHighlights(const BrushRecord &editableBrush) {
@@ -7197,7 +7282,7 @@ void MaterialsWorkbenchBrushPanel::OnOpenSelectedOutgoingLinkTarget(wxCommandEve
 		SetStatusMessage("Select a link first.");
 		return;
 	}
-	const int linkIndex = static_cast<int>(linksListCtrl_->GetItemData(selectedRow));
+	const auto linkIndex = static_cast<int>(linksListCtrl_->GetItemData(selectedRow));
 	if (linkIndex < 0 || linkIndex >= static_cast<int>(brushStorage_.links.size())) {
 		return;
 	}

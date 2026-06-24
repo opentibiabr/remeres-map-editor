@@ -124,6 +124,10 @@ private:
 	void SetFieldsEnabled(bool enabled);
 	void ResetVariationSelection();
 	void CommitVariationEditorState();
+	void CommitGroundVariationEditorState();
+	void CommitCarpetVariationEditorState();
+	void CommitTableVariationEditorState();
+	void CommitDoodadVariationEditorState();
 	void RefreshVariationEditor();
 	wxString GetVariationTabTitle() const;
 	void RefreshGroundItemList();
