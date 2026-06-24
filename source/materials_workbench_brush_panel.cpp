@@ -6583,55 +6583,74 @@ void MaterialsWorkbenchBrushPanel::NormalizeVariationSortOrders() {
 	NormalizeVariationSortOrdersForStorage(brushStorage_);
 }
 
-bool MaterialsWorkbenchBrushPanel::ValidateBrushStorage(wxString &error) const {
-	const BrushRecord &brush = brushStorage_.brush;
-	const auto isOwnedByDifferentRuntimeBrush = [&](int itemId, wxString &ownerName) -> bool {
-		if (!TryGetRuntimeBrushOwnerName(itemId, ownerName)) {
+namespace {
+	template <typename OwnerLookup>
+	bool IsOwnedByDifferentRuntimeBrush(
+		OwnerLookup &&ownerLookup,
+		int itemId,
+		const wxString &currentBrushName,
+		const wxString &loadedBrushName,
+		wxString &outOwnerName
+	) {
+		if (!ownerLookup(itemId, outOwnerName)) {
+			return false;
+		}
+		return outOwnerName != currentBrushName && outOwnerName != loadedBrushName;
+	}
+
+	bool ValidateBrushNameAndType(const BrushRecord &brush, wxString &outTypeLower, wxString &error) {
+		if (brush.name.IsEmpty()) {
+			error = "Brush name cannot be empty.";
+			return false;
+		}
+		if (brush.type.IsEmpty()) {
+			error = "Brush type cannot be empty.";
 			return false;
 		}
 
-		return ownerName != brush.name && ownerName != loadedBrushStorage_.brush.name;
-	};
-
-	if (brush.name.IsEmpty()) {
-		error = "Brush name cannot be empty.";
-		return false;
-	}
-	if (brush.type.IsEmpty()) {
-		error = "Brush type cannot be empty.";
-		return false;
+		outTypeLower = brush.type.Lower();
+		if (!IsValidBrushEditorType(outTypeLower)) {
+			error = "Brush type must be one of: ground, carpet, table or doodad.";
+			return false;
+		}
+		return true;
 	}
 
-	const wxString type = brush.type.Lower();
-	if (!IsValidBrushEditorType(type)) {
-		error = "Brush type must be one of: ground, carpet, table or doodad.";
-		return false;
+	bool ValidateBrushLookIds(const BrushRecord &brush, wxString &error) {
+		if (brush.lookId < 0) {
+			error = "lookId cannot be negative.";
+			return false;
+		}
+		if (brush.lookId > 0 && !IsKnownItemId(brush.lookId)) {
+			error = wxString::Format("lookId uses unknown item id %d.", brush.lookId);
+			return false;
+		}
+		if (brush.serverLookId < 0) {
+			error = "serverLookId cannot be negative.";
+			return false;
+		}
+		if (brush.serverLookId > 0 && !IsKnownItemId(brush.serverLookId)) {
+			error = wxString::Format("serverLookId uses unknown item id %d.", brush.serverLookId);
+			return false;
+		}
+		return true;
 	}
 
-	if (brush.lookId < 0) {
-		error = "lookId cannot be negative.";
-		return false;
-	}
-	if (brush.lookId > 0 && !IsKnownItemId(brush.lookId)) {
-		error = wxString::Format("lookId uses unknown item id %d.", brush.lookId);
-		return false;
-	}
-	if (brush.serverLookId < 0) {
-		error = "serverLookId cannot be negative.";
-		return false;
-	}
-	if (brush.serverLookId > 0 && !IsKnownItemId(brush.serverLookId)) {
-		error = wxString::Format("serverLookId uses unknown item id %d.", brush.serverLookId);
-		return false;
-	}
-
-	if (type == "ground") {
-		if (brushStorage_.items.empty()) {
+	template <typename OwnerLookup>
+	bool ValidateGroundBrushItems(
+		OwnerLookup &&ownerLookup,
+		const BrushStorageRecord &storage,
+		const BrushRecord &brush,
+		const BrushRecord &loadedBrush,
+		wxString &error
+	) {
+		if (storage.items.empty()) {
 			error = "Ground brush must contain at least one weighted item.";
 			return false;
 		}
-		for (size_t itemIndex = 0; itemIndex < brushStorage_.items.size(); ++itemIndex) {
-			const BrushItemRecord &item = brushStorage_.items[itemIndex];
+
+		for (size_t itemIndex = 0; itemIndex < storage.items.size(); ++itemIndex) {
+			const BrushItemRecord &item = storage.items[itemIndex];
 			if (item.itemId <= 0) {
 				error = wxString::Format("Ground item %zu must use a positive item id.", itemIndex + 1);
 				return false;
@@ -6640,13 +6659,19 @@ bool MaterialsWorkbenchBrushPanel::ValidateBrushStorage(wxString &error) const {
 				error = wxString::Format("Ground item %zu uses unknown item id %d.", itemIndex + 1, item.itemId);
 				return false;
 			}
+
 			const ItemType &itemType = g_items.getItemType(static_cast<uint16_t>(item.itemId));
 			if (!itemType.isGroundTile()) {
-				error = wxString::Format("Ground item %zu uses item id %d, which is not a ground item.", itemIndex + 1, item.itemId);
+				error = wxString::Format(
+					"Ground item %zu uses item id %d, which is not a ground item.",
+					itemIndex + 1,
+					item.itemId
+				);
 				return false;
 			}
+
 			wxString ownerName;
-			if (isOwnedByDifferentRuntimeBrush(item.itemId, ownerName)) {
+			if (IsOwnedByDifferentRuntimeBrush(ownerLookup, item.itemId, brush.name, loadedBrush.name, ownerName)) {
 				error = wxString::Format(
 					"Ground item %zu uses item id %d, which already belongs to brush \"%s\" in the runtime catalog.",
 					itemIndex + 1,
@@ -6656,106 +6681,52 @@ bool MaterialsWorkbenchBrushPanel::ValidateBrushStorage(wxString &error) const {
 				return false;
 			}
 		}
+
+		return true;
 	}
 
-	if (type == "carpet" || type == "table") {
-		if (type == "carpet") {
-			for (size_t nodeIndex = 0; nodeIndex < brushStorage_.carpetNodes.size(); ++nodeIndex) {
-				const auto &node = brushStorage_.carpetNodes[nodeIndex];
-				if (node.align.IsEmpty()) {
-					error = wxString::Format("Carpet context %zu requires a map slot.", nodeIndex + 1);
-					return false;
-				}
-				if (node.items.empty()) {
-					error = wxString::Format("Carpet context %zu must contain at least one variant.", nodeIndex + 1);
-					return false;
-				}
-				for (size_t itemIndex = 0; itemIndex < node.items.size(); ++itemIndex) {
-					const auto &item = node.items[itemIndex];
-					if (item.itemId <= 0) {
-						error = wxString::Format("Carpet context %zu variant %zu must use a positive item id.", nodeIndex + 1, itemIndex + 1);
-						return false;
-					}
-					if (!IsKnownItemId(item.itemId)) {
-						error = wxString::Format("Carpet context %zu variant %zu uses unknown item id %d.", nodeIndex + 1, itemIndex + 1, item.itemId);
-						return false;
-					}
-					wxString ownerName;
-					if (isOwnedByDifferentRuntimeBrush(item.itemId, ownerName)) {
-						error = wxString::Format(
-							"Carpet context %zu variant %zu uses item id %d, which already belongs to brush \"%s\" in the runtime catalog.",
-							nodeIndex + 1,
-							itemIndex + 1,
-							item.itemId,
-							ownerName
-						);
-						return false;
-					}
-				}
-			}
-		} else {
-			for (size_t nodeIndex = 0; nodeIndex < brushStorage_.tableNodes.size(); ++nodeIndex) {
-				const auto &node = brushStorage_.tableNodes[nodeIndex];
-				if (node.align.IsEmpty()) {
-					error = wxString::Format("Node %zu requires an align value.", nodeIndex + 1);
-					return false;
-				}
-				if (node.items.empty()) {
-					error = wxString::Format("Node %zu must contain at least one item.", nodeIndex + 1);
-					return false;
-				}
-				for (size_t itemIndex = 0; itemIndex < node.items.size(); ++itemIndex) {
-					const auto &item = node.items[itemIndex];
-					if (item.itemId <= 0) {
-						error = wxString::Format("Node %zu item %zu must use a positive item id.", nodeIndex + 1, itemIndex + 1);
-						return false;
-					}
-					if (!IsKnownItemId(item.itemId)) {
-						error = wxString::Format("Node %zu item %zu uses unknown item id %d.", nodeIndex + 1, itemIndex + 1, item.itemId);
-						return false;
-					}
-					wxString ownerName;
-					if (isOwnedByDifferentRuntimeBrush(item.itemId, ownerName)) {
-						error = wxString::Format(
-							"Node %zu item %zu uses item id %d, which already belongs to brush \"%s\" in the runtime catalog.",
-							nodeIndex + 1,
-							itemIndex + 1,
-							item.itemId,
-							ownerName
-						);
-						return false;
-					}
-				}
-			}
-		}
-	}
-
-	if (type == "doodad") {
-		if (brush.removeOptionalBorder && !brush.redoBorders) {
-			error = "Remove Optional Border requires Redo Borders for doodad brushes.";
-			return false;
-		}
-		for (size_t altIndex = 0; altIndex < brushStorage_.doodadAlternatives.size(); ++altIndex) {
-			const DoodadAlternativeRecord &alternative = brushStorage_.doodadAlternatives[altIndex];
-			if (alternative.singleItems.empty() && alternative.composites.empty()) {
-				error = wxString::Format("Alternative %zu must contain at least one single item or composite.", altIndex + 1);
+	template <typename OwnerLookup>
+	bool ValidateCarpetNodes(
+		OwnerLookup &&ownerLookup,
+		const BrushStorageRecord &storage,
+		const BrushRecord &brush,
+		const BrushRecord &loadedBrush,
+		wxString &error
+	) {
+		for (size_t nodeIndex = 0; nodeIndex < storage.carpetNodes.size(); ++nodeIndex) {
+			const auto &node = storage.carpetNodes[nodeIndex];
+			if (node.align.IsEmpty()) {
+				error = wxString::Format("Carpet context %zu requires a map slot.", nodeIndex + 1);
 				return false;
 			}
-			for (size_t itemIndex = 0; itemIndex < alternative.singleItems.size(); ++itemIndex) {
-				const DoodadSingleItemRecord &item = alternative.singleItems[itemIndex];
+			if (node.items.empty()) {
+				error = wxString::Format("Carpet context %zu must contain at least one variant.", nodeIndex + 1);
+				return false;
+			}
+			for (size_t itemIndex = 0; itemIndex < node.items.size(); ++itemIndex) {
+				const auto &item = node.items[itemIndex];
 				if (item.itemId <= 0) {
-					error = wxString::Format("Alternative %zu single item %zu must use a positive item id.", altIndex + 1, itemIndex + 1);
+					error = wxString::Format(
+						"Carpet context %zu variant %zu must use a positive item id.",
+						nodeIndex + 1,
+						itemIndex + 1
+					);
 					return false;
 				}
 				if (!IsKnownItemId(item.itemId)) {
-					error = wxString::Format("Alternative %zu single item %zu uses unknown item id %d.", altIndex + 1, itemIndex + 1, item.itemId);
+					error = wxString::Format(
+						"Carpet context %zu variant %zu uses unknown item id %d.",
+						nodeIndex + 1,
+						itemIndex + 1,
+						item.itemId
+					);
 					return false;
 				}
 				wxString ownerName;
-				if (isOwnedByDifferentRuntimeBrush(item.itemId, ownerName)) {
+				if (IsOwnedByDifferentRuntimeBrush(ownerLookup, item.itemId, brush.name, loadedBrush.name, ownerName)) {
 					error = wxString::Format(
-						"Alternative %zu single item %zu uses item id %d, which already belongs to brush \"%s\" in the runtime catalog.",
-						altIndex + 1,
+						"Carpet context %zu variant %zu uses item id %d, which already belongs to brush \"%s\" in the runtime catalog.",
+						nodeIndex + 1,
 						itemIndex + 1,
 						item.itemId,
 						ownerName
@@ -6763,62 +6734,236 @@ bool MaterialsWorkbenchBrushPanel::ValidateBrushStorage(wxString &error) const {
 					return false;
 				}
 			}
-			for (size_t compositeIndex = 0; compositeIndex < alternative.composites.size(); ++compositeIndex) {
-				const DoodadCompositeRecord &composite = alternative.composites[compositeIndex];
-				if (composite.tiles.empty()) {
-					error = wxString::Format("Alternative %zu composite %zu must contain at least one tile.", altIndex + 1, compositeIndex + 1);
+		}
+		return true;
+	}
+
+	template <typename OwnerLookup>
+	bool ValidateTableNodes(
+		OwnerLookup &&ownerLookup,
+		const BrushStorageRecord &storage,
+		const BrushRecord &brush,
+		const BrushRecord &loadedBrush,
+		wxString &error
+	) {
+		for (size_t nodeIndex = 0; nodeIndex < storage.tableNodes.size(); ++nodeIndex) {
+			const auto &node = storage.tableNodes[nodeIndex];
+			if (node.align.IsEmpty()) {
+				error = wxString::Format("Node %zu requires an align value.", nodeIndex + 1);
+				return false;
+			}
+			if (node.items.empty()) {
+				error = wxString::Format("Node %zu must contain at least one item.", nodeIndex + 1);
+				return false;
+			}
+			for (size_t itemIndex = 0; itemIndex < node.items.size(); ++itemIndex) {
+				const auto &item = node.items[itemIndex];
+				if (item.itemId <= 0) {
+					error = wxString::Format("Node %zu item %zu must use a positive item id.", nodeIndex + 1, itemIndex + 1);
 					return false;
 				}
-				for (size_t tileIndex = 0; tileIndex < composite.tiles.size(); ++tileIndex) {
-					const DoodadCompositeTileRecord &tile = composite.tiles[tileIndex];
-					if (tile.items.empty()) {
-						error = wxString::Format(
-							"Alternative %zu composite %zu tile %zu must contain at least one item.",
-							altIndex + 1,
-							compositeIndex + 1,
-							tileIndex + 1
-						);
-						return false;
-					}
-					for (size_t tileItemIndex = 0; tileItemIndex < tile.items.size(); ++tileItemIndex) {
-						if (tile.items[tileItemIndex].itemId <= 0) {
-							error = wxString::Format(
-								"Alternative %zu composite %zu tile %zu item %zu must use a positive item id.",
-								altIndex + 1,
-								compositeIndex + 1,
-								tileIndex + 1,
-								tileItemIndex + 1
-							);
-							return false;
-						}
-						if (!IsKnownItemId(tile.items[tileItemIndex].itemId)) {
-							error = wxString::Format(
-								"Alternative %zu composite %zu tile %zu item %zu uses unknown item id %d.",
-								altIndex + 1,
-								compositeIndex + 1,
-								tileIndex + 1,
-								tileItemIndex + 1,
-								tile.items[tileItemIndex].itemId
-							);
-							return false;
-						}
-						wxString ownerName;
-						if (isOwnedByDifferentRuntimeBrush(tile.items[tileItemIndex].itemId, ownerName)) {
-							error = wxString::Format(
-								"Alternative %zu composite %zu tile %zu item %zu uses item id %d, which already belongs to brush \"%s\" in the runtime catalog.",
-								altIndex + 1,
-								compositeIndex + 1,
-								tileIndex + 1,
-								tileItemIndex + 1,
-								tile.items[tileItemIndex].itemId,
-								ownerName
-							);
-							return false;
-						}
-					}
+				if (!IsKnownItemId(item.itemId)) {
+					error = wxString::Format(
+						"Node %zu item %zu uses unknown item id %d.",
+						nodeIndex + 1,
+						itemIndex + 1,
+						item.itemId
+					);
+					return false;
+				}
+				wxString ownerName;
+				if (IsOwnedByDifferentRuntimeBrush(ownerLookup, item.itemId, brush.name, loadedBrush.name, ownerName)) {
+					error = wxString::Format(
+						"Node %zu item %zu uses item id %d, which already belongs to brush \"%s\" in the runtime catalog.",
+						nodeIndex + 1,
+						itemIndex + 1,
+						item.itemId,
+						ownerName
+					);
+					return false;
 				}
 			}
 		}
+		return true;
+	}
+
+	template <typename OwnerLookup>
+	bool ValidateDoodadAlternativeSingleItems(
+		OwnerLookup &&ownerLookup,
+		const DoodadAlternativeRecord &alternative,
+		size_t altIndex,
+		const BrushRecord &brush,
+		const BrushRecord &loadedBrush,
+		wxString &error
+	) {
+		for (size_t itemIndex = 0; itemIndex < alternative.singleItems.size(); ++itemIndex) {
+			const DoodadSingleItemRecord &item = alternative.singleItems[itemIndex];
+			if (item.itemId <= 0) {
+				error = wxString::Format(
+					"Alternative %zu single item %zu must use a positive item id.",
+					altIndex + 1,
+					itemIndex + 1
+				);
+				return false;
+			}
+			if (!IsKnownItemId(item.itemId)) {
+				error = wxString::Format(
+					"Alternative %zu single item %zu uses unknown item id %d.",
+					altIndex + 1,
+					itemIndex + 1,
+					item.itemId
+				);
+				return false;
+			}
+			wxString ownerName;
+			if (IsOwnedByDifferentRuntimeBrush(ownerLookup, item.itemId, brush.name, loadedBrush.name, ownerName)) {
+				error = wxString::Format(
+					"Alternative %zu single item %zu uses item id %d, which already belongs to brush \"%s\" in the runtime catalog.",
+					altIndex + 1,
+					itemIndex + 1,
+					item.itemId,
+					ownerName
+				);
+				return false;
+			}
+		}
+		return true;
+	}
+
+	template <typename OwnerLookup>
+	bool ValidateDoodadCompositeTiles(
+		OwnerLookup &&ownerLookup,
+		const DoodadCompositeRecord &composite,
+		size_t altIndex,
+		size_t compositeIndex,
+		const BrushRecord &brush,
+		const BrushRecord &loadedBrush,
+		wxString &error
+	) {
+		if (composite.tiles.empty()) {
+			error = wxString::Format(
+				"Alternative %zu composite %zu must contain at least one tile.",
+				altIndex + 1,
+				compositeIndex + 1
+			);
+			return false;
+		}
+
+		for (size_t tileIndex = 0; tileIndex < composite.tiles.size(); ++tileIndex) {
+			const DoodadCompositeTileRecord &tile = composite.tiles[tileIndex];
+			if (tile.items.empty()) {
+				error = wxString::Format(
+					"Alternative %zu composite %zu tile %zu must contain at least one item.",
+					altIndex + 1,
+					compositeIndex + 1,
+					tileIndex + 1
+				);
+				return false;
+			}
+			for (size_t tileItemIndex = 0; tileItemIndex < tile.items.size(); ++tileItemIndex) {
+				const auto itemId = tile.items[tileItemIndex].itemId;
+				if (itemId <= 0) {
+					error = wxString::Format(
+						"Alternative %zu composite %zu tile %zu item %zu must use a positive item id.",
+						altIndex + 1,
+						compositeIndex + 1,
+						tileIndex + 1,
+						tileItemIndex + 1
+					);
+					return false;
+				}
+				if (!IsKnownItemId(itemId)) {
+					error = wxString::Format(
+						"Alternative %zu composite %zu tile %zu item %zu uses unknown item id %d.",
+						altIndex + 1,
+						compositeIndex + 1,
+						tileIndex + 1,
+						tileItemIndex + 1,
+						itemId
+					);
+					return false;
+				}
+				wxString ownerName;
+				if (IsOwnedByDifferentRuntimeBrush(ownerLookup, itemId, brush.name, loadedBrush.name, ownerName)) {
+					error = wxString::Format(
+						"Alternative %zu composite %zu tile %zu item %zu uses item id %d, which already belongs to brush \"%s\" in the runtime catalog.",
+						altIndex + 1,
+						compositeIndex + 1,
+						tileIndex + 1,
+						tileItemIndex + 1,
+						itemId,
+						ownerName
+					);
+					return false;
+				}
+			}
+		}
+
+		return true;
+	}
+
+	template <typename OwnerLookup>
+	bool ValidateDoodadAlternatives(
+		OwnerLookup &&ownerLookup,
+		const BrushStorageRecord &storage,
+		const BrushRecord &brush,
+		const BrushRecord &loadedBrush,
+		wxString &error
+	) {
+		if (brush.removeOptionalBorder && !brush.redoBorders) {
+			error = "Remove Optional Border requires Redo Borders for doodad brushes.";
+			return false;
+		}
+
+		for (size_t altIndex = 0; altIndex < storage.doodadAlternatives.size(); ++altIndex) {
+			const DoodadAlternativeRecord &alternative = storage.doodadAlternatives[altIndex];
+			if (alternative.singleItems.empty() && alternative.composites.empty()) {
+				error = wxString::Format(
+					"Alternative %zu must contain at least one single item or composite.",
+					altIndex + 1
+				);
+				return false;
+			}
+			if (!ValidateDoodadAlternativeSingleItems(ownerLookup, alternative, altIndex, brush, loadedBrush, error)) {
+				return false;
+			}
+			for (size_t compositeIndex = 0; compositeIndex < alternative.composites.size(); ++compositeIndex) {
+				const DoodadCompositeRecord &composite = alternative.composites[compositeIndex];
+				if (!ValidateDoodadCompositeTiles(ownerLookup, composite, altIndex, compositeIndex, brush, loadedBrush, error)) {
+					return false;
+				}
+			}
+		}
+
+		return true;
+	}
+}
+
+bool MaterialsWorkbenchBrushPanel::ValidateBrushStorage(wxString &error) const {
+	const BrushRecord &brush = brushStorage_.brush;
+	wxString type;
+	if (!ValidateBrushNameAndType(brush, type, error)) {
+		return false;
+	}
+	if (!ValidateBrushLookIds(brush, error)) {
+		return false;
+	}
+
+	const BrushRecord &loadedBrush = loadedBrushStorage_.brush;
+	const auto ownerLookup = [this](int itemId, wxString &outOwnerName) {
+		return TryGetRuntimeBrushOwnerName(itemId, outOwnerName);
+	};
+	if (type == "ground") {
+		return ValidateGroundBrushItems(ownerLookup, brushStorage_, brush, loadedBrush, error);
+	}
+	if (type == "carpet") {
+		return ValidateCarpetNodes(ownerLookup, brushStorage_, brush, loadedBrush, error);
+	}
+	if (type == "table") {
+		return ValidateTableNodes(ownerLookup, brushStorage_, brush, loadedBrush, error);
+	}
+	if (type == "doodad") {
+		return ValidateDoodadAlternatives(ownerLookup, brushStorage_, brush, loadedBrush, error);
 	}
 
 	error.clear();
