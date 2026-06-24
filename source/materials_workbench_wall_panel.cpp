@@ -2,6 +2,7 @@
 
 #include "materials_workbench_wall_panel.h"
 
+#include <array>
 #include <algorithm>
 #include <limits>
 #include <memory>
@@ -487,65 +488,89 @@ namespace {
 			return ops;
 		}
 
-		void DrawScene(wxGraphicsContext &gc, const wxRect &viewport, const wxString &title, const std::vector<DrawOp> &ops, const wxRect &bounds) {
-			gc.SetFont(GetFont(), wxColour(170, 176, 190));
-			wxDouble tw;
-			wxDouble th;
-			gc.GetTextExtent(title, &tw, &th, nullptr, nullptr);
-			gc.DrawText(title, viewport.x + FromDIP(6), viewport.y + FromDIP(6));
+		struct SceneColors {
+			wxColour cellA;
+			wxColour cellB;
+			wxColour gridLine;
+			wxColour missingFill;
+			wxColour missingOutline;
+			wxColour overlayText;
+			wxColour fallbackOutline;
+			wxColour selectedPartOutline;
+			wxColour selectedItemOutline;
+			wxColour selectedDoorOutline;
+			wxColour selectedDoorFill;
+		};
 
+		SceneColors GetSceneColors() const {
+			SceneColors colors;
+			colors.cellA = wxColour(28, 28, 28);
+			colors.cellB = wxColour(24, 24, 24);
+			colors.gridLine = wxColour(0, 0, 0, 72);
+			colors.missingFill = wxColour(90, 20, 20, 80);
+			colors.missingOutline = wxColour(255, 120, 120, 150);
+			colors.overlayText = wxColour(220, 224, 232);
+			colors.fallbackOutline = wxColour(255, 215, 90, 220);
+			colors.selectedPartOutline = wxColour(255, 215, 90, 180);
+			colors.selectedItemOutline = wxColour(120, 200, 255, 200);
+			colors.selectedDoorOutline = wxColour(160, 255, 160, 220);
+			colors.selectedDoorFill = wxColour(160, 255, 160, 48);
+			return colors;
+		}
+
+		wxRect BuildSceneViewport(const wxRect &viewport) const {
 			wxRect sceneViewport = viewport;
 			sceneViewport.y += FromDIP(20);
 			sceneViewport.height -= FromDIP(20);
 			sceneViewport.Deflate(FromDIP(6), FromDIP(6));
+			return sceneViewport;
+		}
 
+		double ComputeSceneScale(const wxRect &sceneViewport, const wxRect &bounds) const {
 			const double scaleX = bounds.width > 0 ? static_cast<double>(sceneViewport.width) / static_cast<double>(bounds.width) : 1.0;
 			const double scaleY = bounds.height > 0 ? static_cast<double>(sceneViewport.height) / static_cast<double>(bounds.height) : 1.0;
-			const double scale = std::max(0.05, std::min(scaleX, scaleY));
+			return std::max(0.05, std::min(scaleX, scaleY));
+		}
 
-			const double originX = sceneViewport.x + (sceneViewport.width - bounds.width * scale) / 2.0;
-			const double originY = sceneViewport.y + (sceneViewport.height - bounds.height * scale) / 2.0;
-
-			gc.PushState();
-			gc.Translate(originX, originY);
-			gc.Scale(scale, scale);
-			gc.Translate(-bounds.x, -bounds.y);
-
-			const wxColour cellA(28, 28, 28);
-			const wxColour cellB(24, 24, 24);
-			const wxColour gridLine(0, 0, 0, 72);
-			const wxColour missingFill(90, 20, 20, 80);
-			const wxColour missingOutline(255, 120, 120, 150);
-			const wxColour overlayText(220, 224, 232);
-			const wxColour fallbackOutline(255, 215, 90, 220);
-
-			gc.SetPen(wxPen(gridLine, 1));
+		void DrawSceneGrid(wxGraphicsContext &gc, const std::vector<DrawOp> &ops, const SceneColors &colors) const {
+			gc.SetPen(wxPen(colors.gridLine, 1));
 			for (const auto &op : ops) {
 				const wxRect &cell = op.tileRect;
-				gc.SetBrush(wxBrush((((cell.x / 32) + (cell.y / 32)) % 2 == 0) ? cellA : cellB));
+				const bool isEven = (((cell.x / 32) + (cell.y / 32)) % 2) == 0;
+				gc.SetBrush(wxBrush(isEven ? colors.cellA : colors.cellB));
 				gc.DrawRectangle(cell.x, cell.y, cell.width, cell.height);
 			}
+		}
 
-			const wxString selectedPart = selectedPartType_;
+		void DrawSelectedPartOutline(wxGraphicsContext &gc, const std::vector<DrawOp> &ops, const SceneColors &colors) const {
+			if (selectedPartType_.IsEmpty()) {
+				return;
+			}
 			for (const auto &op : ops) {
-				if (!selectedPart.IsEmpty() && NormalizeWallPreviewPartType(op.resolvedPartType) == selectedPart) {
-					gc.SetPen(wxPen(wxColour(255, 215, 90, 180), 2));
-					gc.SetBrush(*wxTRANSPARENT_BRUSH);
-					gc.DrawRectangle(op.tileRect.x, op.tileRect.y, op.tileRect.width, op.tileRect.height);
+				if (NormalizeWallPreviewPartType(op.resolvedPartType) != selectedPartType_) {
+					continue;
 				}
+				gc.SetPen(wxPen(colors.selectedPartOutline, 2));
+				gc.SetBrush(*wxTRANSPARENT_BRUSH);
+				gc.DrawRectangle(op.tileRect.x, op.tileRect.y, op.tileRect.width, op.tileRect.height);
 			}
+		}
 
-			if (strict_) {
-				for (const auto &op : ops) {
-					if (op.isDoor || op.itemId > 0) {
-						continue;
-					}
-					gc.SetPen(wxPen(missingOutline, 2));
-					gc.SetBrush(wxBrush(missingFill));
-					gc.DrawRectangle(op.tileRect.x, op.tileRect.y, op.tileRect.width, op.tileRect.height);
+		void DrawStrictMissingFill(wxGraphicsContext &gc, const std::vector<DrawOp> &ops, const SceneColors &colors) const {
+			if (!strict_) {
+				return;
+			}
+			for (const auto &op : ops) {
+				if (op.isDoor || op.itemId > 0) {
+					continue;
 				}
+				gc.SetPen(wxPen(colors.missingOutline, 2));
+				gc.SetBrush(wxBrush(colors.missingFill));
+				gc.DrawRectangle(op.tileRect.x, op.tileRect.y, op.tileRect.width, op.tileRect.height);
 			}
+		}
 
+		void DrawSceneItems(wxGraphicsContext &gc, const std::vector<DrawOp> &ops, const SceneColors &colors) {
 			for (const auto &op : ops) {
 				if (op.itemId <= 0) {
 					continue;
@@ -556,40 +581,65 @@ namespace {
 				}
 				gc.DrawBitmap(bitmap, op.spriteRect.x, op.spriteRect.y, bitmap.GetWidth(), bitmap.GetHeight());
 				if (selectedItemId_ > 0 && op.itemId == selectedItemId_) {
-					gc.SetPen(wxPen(wxColour(120, 200, 255, 200), 2));
+					gc.SetPen(wxPen(colors.selectedItemOutline, 2));
 					gc.SetBrush(*wxTRANSPARENT_BRUSH);
 					gc.DrawRectangle(op.tileRect.x, op.tileRect.y, op.tileRect.width, op.tileRect.height);
 				}
 				if (selectedDoorItemId_ > 0 && op.isDoor && op.itemId == selectedDoorItemId_) {
-					gc.SetPen(wxPen(wxColour(160, 255, 160, 220), 2));
-					gc.SetBrush(wxBrush(wxColour(160, 255, 160, 48)));
+					gc.SetPen(wxPen(colors.selectedDoorOutline, 2));
+					gc.SetBrush(wxBrush(colors.selectedDoorFill));
 					gc.DrawRectangle(op.tileRect.x, op.tileRect.y, op.tileRect.width, op.tileRect.height);
 				}
 			}
+		}
 
-			if (showOverlays_) {
-				wxFont overlayFont = GetFont();
-				overlayFont.SetPointSize(std::max(6, overlayFont.GetPointSize() - 2));
-				gc.SetFont(overlayFont, overlayText);
-				for (const auto &op : ops) {
-					const wxString tag = WallPreviewAlignmentTag(op.alignment);
-					if (!tag.IsEmpty()) {
-						gc.DrawText(tag, op.tileRect.x + 2, op.tileRect.y + 1);
-					}
-					wxString partLabel = op.resolvedPartType;
-					if (partLabel.IsEmpty()) {
-						partLabel = op.expectedPartType;
-					}
-					if (!partLabel.IsEmpty()) {
-						gc.DrawText(partLabel, op.tileRect.x + 2, op.tileRect.y + 14);
-					}
-					if (op.usedFallback && !strict_) {
-						gc.SetPen(wxPen(fallbackOutline, 2));
-						gc.SetBrush(*wxTRANSPARENT_BRUSH);
-						gc.DrawRectangle(op.tileRect.x + 1, op.tileRect.y + 1, op.tileRect.width - 2, op.tileRect.height - 2);
-					}
+		void DrawSceneOverlays(wxGraphicsContext &gc, const std::vector<DrawOp> &ops, const SceneColors &colors) const {
+			if (!showOverlays_) {
+				return;
+			}
+			wxFont overlayFont = GetFont();
+			overlayFont.SetPointSize(std::max(6, overlayFont.GetPointSize() - 2));
+			gc.SetFont(overlayFont, colors.overlayText);
+			for (const auto &op : ops) {
+				const wxString tag = WallPreviewAlignmentTag(op.alignment);
+				if (!tag.IsEmpty()) {
+					gc.DrawText(tag, op.tileRect.x + 2, op.tileRect.y + 1);
+				}
+				wxString partLabel = op.resolvedPartType;
+				if (partLabel.IsEmpty()) {
+					partLabel = op.expectedPartType;
+				}
+				if (!partLabel.IsEmpty()) {
+					gc.DrawText(partLabel, op.tileRect.x + 2, op.tileRect.y + 14);
+				}
+				if (op.usedFallback && !strict_) {
+					gc.SetPen(wxPen(colors.fallbackOutline, 2));
+					gc.SetBrush(*wxTRANSPARENT_BRUSH);
+					gc.DrawRectangle(op.tileRect.x + 1, op.tileRect.y + 1, op.tileRect.width - 2, op.tileRect.height - 2);
 				}
 			}
+		}
+
+		void DrawScene(wxGraphicsContext &gc, const wxRect &viewport, const wxString &title, const std::vector<DrawOp> &ops, const wxRect &bounds) {
+			gc.SetFont(GetFont(), wxColour(170, 176, 190));
+			gc.DrawText(title, viewport.x + FromDIP(6), viewport.y + FromDIP(6));
+
+			const wxRect sceneViewport = BuildSceneViewport(viewport);
+			const double scale = ComputeSceneScale(sceneViewport, bounds);
+			const double originX = sceneViewport.x + (sceneViewport.width - bounds.width * scale) / 2.0;
+			const double originY = sceneViewport.y + (sceneViewport.height - bounds.height * scale) / 2.0;
+			const SceneColors colors = GetSceneColors();
+
+			gc.PushState();
+			gc.Translate(originX, originY);
+			gc.Scale(scale, scale);
+			gc.Translate(-bounds.x, -bounds.y);
+
+			DrawSceneGrid(gc, ops, colors);
+			DrawSelectedPartOutline(gc, ops, colors);
+			DrawStrictMissingFill(gc, ops, colors);
+			DrawSceneItems(gc, ops, colors);
+			DrawSceneOverlays(gc, ops, colors);
 
 			gc.PopState();
 		}
@@ -736,35 +786,49 @@ namespace {
 		return key;
 	}
 
+	bool IsWallFriendRelationType(const wxString &relationType) {
+		return relationType.IsSameAs("friend", false) || relationType.IsSameAs("redirect", false);
+	}
+
+	bool HasWallFriendLinkTarget(const BrushLinkRecord &link) {
+		return link.targetBrushId > 0 || !link.targetBrushName.IsEmpty();
+	}
+
+	WallFriendLinkRow MakeWallFriendLinkRow(const BrushLinkRecord &link) {
+		WallFriendLinkRow row;
+		row.targetBrushId = link.targetBrushId;
+		row.targetBrushName = link.targetBrushName;
+		row.redirect = link.relationType.IsSameAs("redirect", false);
+		row.sortOrder = link.sortOrder;
+		return row;
+	}
+
+	void MergeWallFriendLinkRow(WallFriendLinkRow &row, const BrushLinkRecord &link) {
+		row.sortOrder = std::min(row.sortOrder, link.sortOrder);
+		row.redirect = row.redirect || link.relationType.IsSameAs("redirect", false);
+		if (row.targetBrushId <= 0 && link.targetBrushId > 0) {
+			row.targetBrushId = link.targetBrushId;
+		}
+		if (row.targetBrushName.IsEmpty() && !link.targetBrushName.IsEmpty()) {
+			row.targetBrushName = link.targetBrushName;
+		}
+	}
+
 	std::vector<WallFriendLinkRow> CollectWallFriendLinkRows(const std::vector<BrushLinkRecord> &links) {
 		std::map<wxString, WallFriendLinkRow> rows;
 		for (const BrushLinkRecord &link : links) {
-			if (!link.relationType.IsSameAs("friend", false) && !link.relationType.IsSameAs("redirect", false)) {
+			if (!IsWallFriendRelationType(link.relationType)) {
 				continue;
 			}
-			if (link.targetBrushId <= 0 && link.targetBrushName.IsEmpty()) {
+			if (!HasWallFriendLinkTarget(link)) {
 				continue;
 			}
 			const wxString key = WallFriendLinkKey(link.targetBrushId, link.targetBrushName);
 			auto it = rows.find(key);
 			if (it == rows.end()) {
-				WallFriendLinkRow row;
-				row.targetBrushId = link.targetBrushId;
-				row.targetBrushName = link.targetBrushName;
-				row.redirect = link.relationType.IsSameAs("redirect", false);
-				row.sortOrder = link.sortOrder;
-				rows.emplace(key, row);
+				rows.emplace(key, MakeWallFriendLinkRow(link));
 			} else {
-				it->second.sortOrder = std::min(it->second.sortOrder, link.sortOrder);
-				if (link.relationType.IsSameAs("redirect", false)) {
-					it->second.redirect = true;
-				}
-				if (it->second.targetBrushId <= 0 && link.targetBrushId > 0) {
-					it->second.targetBrushId = link.targetBrushId;
-				}
-				if (it->second.targetBrushName.IsEmpty() && !link.targetBrushName.IsEmpty()) {
-					it->second.targetBrushName = link.targetBrushName;
-				}
+				MergeWallFriendLinkRow(it->second, link);
 			}
 		}
 
@@ -884,18 +948,19 @@ namespace {
 	}
 
 	WallPanelDoorFamily GetWallPanelDoorFamily(::DoorType doorType) {
+		using enum WallPanelDoorFamily;
 		switch (doorType) {
 			case WALL_ARCHWAY:
 			case WALL_DOOR_NORMAL:
 			case WALL_DOOR_LOCKED:
 			case WALL_DOOR_QUEST:
 			case WALL_DOOR_MAGIC:
-				return WallPanelDoorFamily::Door;
+				return Door;
 			case WALL_WINDOW:
 			case WALL_HATCH_WINDOW:
-				return WallPanelDoorFamily::Window;
+				return Window;
 			default:
-				return WallPanelDoorFamily::Unknown;
+				return Unknown;
 		}
 	}
 
@@ -921,6 +986,7 @@ namespace {
 	}
 
 	WallPanelDoorTypeSpec ParseWallPanelDoorTypeSpec(const wxString &doorType) {
+		using enum WallPanelDoorFamily;
 		WallPanelDoorTypeSpec spec;
 		const wxString normalized = doorType.Lower();
 		spec.normalizedLabel = normalized;
@@ -929,44 +995,44 @@ namespace {
 			spec.valid = true;
 			spec.expectsExact = true;
 			spec.exactType = WALL_ARCHWAY;
-			spec.family = WallPanelDoorFamily::Door;
+			spec.family = Door;
 		} else if (normalized == "normal") {
 			spec.valid = true;
 			spec.expectsExact = true;
 			spec.exactType = WALL_DOOR_NORMAL;
-			spec.family = WallPanelDoorFamily::Door;
+			spec.family = Door;
 		} else if (normalized == "locked") {
 			spec.valid = true;
 			spec.expectsExact = true;
 			spec.exactType = WALL_DOOR_LOCKED;
-			spec.family = WallPanelDoorFamily::Door;
+			spec.family = Door;
 		} else if (normalized == "quest") {
 			spec.valid = true;
 			spec.expectsExact = true;
 			spec.exactType = WALL_DOOR_QUEST;
-			spec.family = WallPanelDoorFamily::Door;
+			spec.family = Door;
 		} else if (normalized == "magic") {
 			spec.valid = true;
 			spec.expectsExact = true;
 			spec.exactType = WALL_DOOR_MAGIC;
-			spec.family = WallPanelDoorFamily::Door;
+			spec.family = Door;
 		} else if (normalized == "window") {
 			spec.valid = true;
 			spec.expectsExact = true;
 			spec.exactType = WALL_WINDOW;
-			spec.family = WallPanelDoorFamily::Window;
+			spec.family = Window;
 		} else if (normalized == "hatch_window" || normalized == "hatch window") {
 			spec.valid = true;
 			spec.expectsExact = true;
 			spec.exactType = WALL_HATCH_WINDOW;
-			spec.family = WallPanelDoorFamily::Window;
+			spec.family = Window;
 			spec.normalizedLabel = "hatch_window";
 		} else if (normalized == "any door") {
 			spec.valid = true;
-			spec.family = WallPanelDoorFamily::Door;
+			spec.family = Door;
 		} else if (normalized == "any window") {
 			spec.valid = true;
-			spec.family = WallPanelDoorFamily::Window;
+			spec.family = Window;
 		} else if (normalized == "any") {
 			spec.valid = true;
 			spec.allowAny = true;
@@ -1281,7 +1347,7 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 
 	wxStaticBoxSizer* previewBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Preview");
 	wxWindow* previewParent = previewBox->GetStaticBox();
-	composedPreview_ = new WallWorkspaceComposedPreviewPanel(previewParent);
+	composedPreview_ = std::make_unique<WallWorkspaceComposedPreviewPanel>(previewParent).release();
 	previewBox->Add(composedPreview_, 0, wxEXPAND | wxALL, FromDIP(6));
 
 	partSelectorPanel_ = new wxPanel(previewParent, wxID_ANY);
@@ -1353,7 +1419,7 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	wxStaticBoxSizer* itemEditorBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Selected Item");
 	wxWindow* itemEditorParent = itemEditorBox->GetStaticBox();
 	selectedItemLabel_ = new wxStaticText(itemEditorParent, wxID_ANY, "No wall item selected");
-	itemPreviewButton_ = new ItemButton(itemEditorParent, RENDER_SIZE_32x32, 0);
+	itemPreviewButton_ = std::make_unique<ItemButton>(itemEditorParent, RENDER_SIZE_32x32, 0).release();
 	itemIdCtrl_ = new wxSpinCtrl(itemEditorParent, wxID_ANY);
 	itemIdCtrl_->SetRange(0, GetWallPanelMaxEditableItemId());
 	itemChanceCtrl_ = new wxSpinCtrl(itemEditorParent, wxID_ANY);
@@ -1383,13 +1449,25 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 	wxStaticBoxSizer* doorEditorBox = new wxStaticBoxSizer(wxVERTICAL, scrolled, "Selected Door");
 	wxWindow* doorEditorParent = doorEditorBox->GetStaticBox();
 	selectedDoorLabel_ = new wxStaticText(doorEditorParent, wxID_ANY, "No door selected");
-	doorPreviewButton_ = new ItemButton(doorEditorParent, RENDER_SIZE_32x32, 0);
+	doorPreviewButton_ = std::make_unique<ItemButton>(doorEditorParent, RENDER_SIZE_32x32, 0).release();
 	doorItemIdCtrl_ = new wxSpinCtrl(doorEditorParent, wxID_ANY);
 	doorItemIdCtrl_->SetRange(0, GetWallPanelMaxEditableItemId());
 	doorTypeChoice_ = new wxChoice(doorEditorParent, wxID_ANY);
-	const wxString doorTypes[] = { "archway", "normal", "locked", "quest", "magic", "window", "hatch_window", "hatch window", "any door", "any window", "any" };
-	for (const wxString &doorType : doorTypes) {
-		doorTypeChoice_->Append(doorType);
+	static const std::array<const char*, 11> doorTypes = {
+		"archway",
+		"normal",
+		"locked",
+		"quest",
+		"magic",
+		"window",
+		"hatch_window",
+		"hatch window",
+		"any door",
+		"any window",
+		"any",
+	};
+	for (const char* doorType : doorTypes) {
+		doorTypeChoice_->Append(wxString::FromUTF8(doorType));
 	}
 	doorOpenCtrl_ = new wxCheckBox(doorEditorParent, wxID_ANY, "Open");
 	doorHateCtrl_ = new wxCheckBox(doorEditorParent, wxID_ANY, "Wall Hate");
@@ -1578,8 +1656,202 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 		});
 	});
 	openLinkTargetButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnOpenSelectedLinkTarget, this);
+	addLinkButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnAddFriendLink, this);
+	removeLinkButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnRemoveFriendLink, this);
+	toggleRedirectButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnToggleRedirectFriendLink, this);
+	moveLinkUpButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnMoveFriendLinkUp, this);
+	moveLinkDownButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWallPanel::OnMoveFriendLinkDown, this);
+	linksListCtrl_->Bind(wxEVT_LIST_ITEM_ACTIVATED, &MaterialsWorkbenchWallPanel::OnEditFriendLink, this);
+	inboundLinksListCtrl_->Bind(wxEVT_LIST_ITEM_ACTIVATED, &MaterialsWorkbenchWallPanel::OnOpenInboundLink, this);
+}
 
-	const auto applyLinkRows = [this](std::vector<WallFriendLinkRow> rows) {
+int MaterialsWorkbenchWallPanel::GetSelectedOutgoingLinkIndex() const {
+	if (!linksListCtrl_) {
+		return -1;
+	}
+	const long selectedRow = linksListCtrl_->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+	if (selectedRow == wxNOT_FOUND || selectedRow < 0) {
+		return -1;
+	}
+	return static_cast<int>(linksListCtrl_->GetItemData(selectedRow));
+}
+
+void MaterialsWorkbenchWallPanel::OnAddFriendLink(wxCommandEvent &) {
+	if (!hasWallBrush_) {
+		return;
+	}
+
+	auto rows = CollectWallFriendLinkRows(wallBrushStorage_.links);
+	WallWorkspaceWallBrushPickerDialog dialog(this, controller_, "Add Friend Wall Link", 0);
+	if (dialog.ShowModal() != wxID_OK) {
+		return;
+	}
+
+	const BrushRecord* selected = dialog.GetSelectedBrush();
+	if (!selected) {
+		return;
+	}
+	if (selected->id == wallBrushStorage_.brush.id) {
+		SetStatusMessage("Cannot link a wall brush to itself.");
+		return;
+	}
+
+	const wxString selectedKey = WallFriendLinkKey(selected->id, selected->name);
+	for (const WallFriendLinkRow &row : rows) {
+		if (WallFriendLinkKey(row.targetBrushId, row.targetBrushName) == selectedKey) {
+			SetStatusMessage("That wall brush is already linked.");
+			return;
+		}
+	}
+
+	WallFriendLinkRow row;
+	row.targetBrushId = selected->id;
+	row.targetBrushName = selected->name;
+	row.redirect = false;
+	row.sortOrder = static_cast<int>(rows.size());
+	rows.push_back(std::move(row));
+	for (size_t i = 0; i < rows.size(); ++i) {
+		rows[i].sortOrder = static_cast<int>(i);
+	}
+	ApplyWallFriendLinkRows(wallBrushStorage_.links, rows);
+	summaryLabel_->SetLabel(wxString::Format("Wall parts: %zu | Links: %zu | Source: %s", wallBrushStorage_.wallParts.size(), wallBrushStorage_.links.size(), wallBrushStorage_.brush.sourceFile));
+	RefreshLinksSection();
+	RefreshDirtyState();
+	SetStatusMessage("Added friend link.");
+}
+
+void MaterialsWorkbenchWallPanel::OnRemoveFriendLink(wxCommandEvent &) {
+	if (!hasWallBrush_) {
+		return;
+	}
+
+	auto rows = CollectWallFriendLinkRows(wallBrushStorage_.links);
+	const int selectedIndex = GetSelectedOutgoingLinkIndex();
+	if (selectedIndex < 0 || selectedIndex >= static_cast<int>(rows.size())) {
+		return;
+	}
+
+	rows.erase(rows.begin() + selectedIndex);
+	for (size_t i = 0; i < rows.size(); ++i) {
+		rows[i].sortOrder = static_cast<int>(i);
+	}
+	ApplyWallFriendLinkRows(wallBrushStorage_.links, rows);
+	summaryLabel_->SetLabel(wxString::Format("Wall parts: %zu | Links: %zu | Source: %s", wallBrushStorage_.wallParts.size(), wallBrushStorage_.links.size(), wallBrushStorage_.brush.sourceFile));
+	RefreshLinksSection();
+	RefreshDirtyState();
+	SetStatusMessage("Removed friend link.");
+}
+
+void MaterialsWorkbenchWallPanel::OnToggleRedirectFriendLink(wxCommandEvent &) {
+	if (!hasWallBrush_) {
+		return;
+	}
+
+	auto rows = CollectWallFriendLinkRows(wallBrushStorage_.links);
+	const int selectedIndex = GetSelectedOutgoingLinkIndex();
+	if (selectedIndex < 0 || selectedIndex >= static_cast<int>(rows.size())) {
+		return;
+	}
+
+	rows[selectedIndex].redirect = !rows[selectedIndex].redirect;
+	const bool redirectEnabled = rows[selectedIndex].redirect;
+	for (size_t i = 0; i < rows.size(); ++i) {
+		rows[i].sortOrder = static_cast<int>(i);
+	}
+	ApplyWallFriendLinkRows(wallBrushStorage_.links, rows);
+	summaryLabel_->SetLabel(wxString::Format("Wall parts: %zu | Links: %zu | Source: %s", wallBrushStorage_.wallParts.size(), wallBrushStorage_.links.size(), wallBrushStorage_.brush.sourceFile));
+	RefreshLinksSection();
+	RefreshDirtyState();
+	SetStatusMessage(redirectEnabled ? "Enabled redirect." : "Disabled redirect.");
+}
+
+void MaterialsWorkbenchWallPanel::OnMoveFriendLinkUp(wxCommandEvent &) {
+	if (!hasWallBrush_) {
+		return;
+	}
+	if (!linksSearchCtrl_ || !linksSearchCtrl_->GetValue().IsEmpty()) {
+		return;
+	}
+
+	auto rows = CollectWallFriendLinkRows(wallBrushStorage_.links);
+	const int selectedIndex = GetSelectedOutgoingLinkIndex();
+	if (selectedIndex <= 0 || selectedIndex >= static_cast<int>(rows.size())) {
+		return;
+	}
+
+	std::swap(rows[selectedIndex - 1], rows[selectedIndex]);
+	for (size_t i = 0; i < rows.size(); ++i) {
+		rows[i].sortOrder = static_cast<int>(i);
+	}
+	ApplyWallFriendLinkRows(wallBrushStorage_.links, rows);
+	summaryLabel_->SetLabel(wxString::Format("Wall parts: %zu | Links: %zu | Source: %s", wallBrushStorage_.wallParts.size(), wallBrushStorage_.links.size(), wallBrushStorage_.brush.sourceFile));
+	RefreshLinksSection();
+	RefreshDirtyState();
+}
+
+void MaterialsWorkbenchWallPanel::OnMoveFriendLinkDown(wxCommandEvent &) {
+	if (!hasWallBrush_) {
+		return;
+	}
+	if (!linksSearchCtrl_ || !linksSearchCtrl_->GetValue().IsEmpty()) {
+		return;
+	}
+
+	auto rows = CollectWallFriendLinkRows(wallBrushStorage_.links);
+	const int selectedIndex = GetSelectedOutgoingLinkIndex();
+	if (selectedIndex < 0 || selectedIndex + 1 >= static_cast<int>(rows.size())) {
+		return;
+	}
+
+	std::swap(rows[selectedIndex], rows[selectedIndex + 1]);
+	for (size_t i = 0; i < rows.size(); ++i) {
+		rows[i].sortOrder = static_cast<int>(i);
+	}
+	ApplyWallFriendLinkRows(wallBrushStorage_.links, rows);
+	summaryLabel_->SetLabel(wxString::Format("Wall parts: %zu | Links: %zu | Source: %s", wallBrushStorage_.wallParts.size(), wallBrushStorage_.links.size(), wallBrushStorage_.brush.sourceFile));
+	RefreshLinksSection();
+	RefreshDirtyState();
+}
+
+void MaterialsWorkbenchWallPanel::OnEditFriendLink(wxListEvent &) {
+	if (!hasWallBrush_) {
+		return;
+	}
+
+	auto rows = CollectWallFriendLinkRows(wallBrushStorage_.links);
+	const int selectedIndex = GetSelectedOutgoingLinkIndex();
+	if (selectedIndex < 0 || selectedIndex >= static_cast<int>(rows.size())) {
+		return;
+	}
+
+	WallWorkspaceWallBrushPickerDialog dialog(this, controller_, "Edit Friend Wall Link", rows[selectedIndex].targetBrushId);
+	if (dialog.ShowModal() != wxID_OK) {
+		return;
+	}
+
+	const BrushRecord* selected = dialog.GetSelectedBrush();
+	if (!selected) {
+		return;
+	}
+	if (selected->id == wallBrushStorage_.brush.id) {
+		SetStatusMessage("Cannot link a wall brush to itself.");
+		return;
+	}
+
+	const wxString selectedKey = WallFriendLinkKey(selected->id, selected->name);
+	int existingIndex = -1;
+	for (size_t i = 0; i < rows.size(); ++i) {
+		if (static_cast<int>(i) == selectedIndex) {
+			continue;
+		}
+		if (WallFriendLinkKey(rows[i].targetBrushId, rows[i].targetBrushName) == selectedKey) {
+			existingIndex = static_cast<int>(i);
+			break;
+		}
+	}
+	if (existingIndex != -1) {
+		rows[existingIndex].redirect = rows[existingIndex].redirect || rows[selectedIndex].redirect;
+		rows.erase(rows.begin() + selectedIndex);
 		for (size_t i = 0; i < rows.size(); ++i) {
 			rows[i].sortOrder = static_cast<int>(i);
 		}
@@ -1587,171 +1859,31 @@ void MaterialsWorkbenchWallPanel::BuildLayout() {
 		summaryLabel_->SetLabel(wxString::Format("Wall parts: %zu | Links: %zu | Source: %s", wallBrushStorage_.wallParts.size(), wallBrushStorage_.links.size(), wallBrushStorage_.brush.sourceFile));
 		RefreshLinksSection();
 		RefreshDirtyState();
-	};
+		SetStatusMessage("Merged duplicate link targets.");
+		return;
+	}
 
-	const auto getSelectedOutgoingIndex = [this]() -> int {
-		const long selectedRow = linksListCtrl_->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-		if (selectedRow == wxNOT_FOUND || selectedRow < 0) {
-			return -1;
-		}
-		return static_cast<int>(linksListCtrl_->GetItemData(selectedRow));
-	};
+	rows[selectedIndex].targetBrushId = selected->id;
+	rows[selectedIndex].targetBrushName = selected->name;
+	for (size_t i = 0; i < rows.size(); ++i) {
+		rows[i].sortOrder = static_cast<int>(i);
+	}
+	ApplyWallFriendLinkRows(wallBrushStorage_.links, rows);
+	summaryLabel_->SetLabel(wxString::Format("Wall parts: %zu | Links: %zu | Source: %s", wallBrushStorage_.wallParts.size(), wallBrushStorage_.links.size(), wallBrushStorage_.brush.sourceFile));
+	RefreshLinksSection();
+	RefreshDirtyState();
+	SetStatusMessage("Updated friend link.");
+}
 
-	addLinkButton_->Bind(wxEVT_BUTTON, [this, applyLinkRows](wxCommandEvent &) {
-		if (!hasWallBrush_) {
-			return;
-		}
-		auto rows = CollectWallFriendLinkRows(wallBrushStorage_.links);
-		WallWorkspaceWallBrushPickerDialog dialog(this, controller_, "Add Friend Wall Link", 0);
-		if (dialog.ShowModal() != wxID_OK) {
-			return;
-		}
-		const BrushRecord* selected = dialog.GetSelectedBrush();
-		if (!selected) {
-			return;
-		}
-		if (selected->id == wallBrushStorage_.brush.id) {
-			SetStatusMessage("Cannot link a wall brush to itself.");
-			return;
-		}
-
-		const wxString selectedKey = WallFriendLinkKey(selected->id, selected->name);
-		for (const WallFriendLinkRow &row : rows) {
-			if (WallFriendLinkKey(row.targetBrushId, row.targetBrushName) == selectedKey) {
-				SetStatusMessage("That wall brush is already linked.");
-				return;
-			}
-		}
-
-		WallFriendLinkRow row;
-		row.targetBrushId = selected->id;
-		row.targetBrushName = selected->name;
-		row.redirect = false;
-		row.sortOrder = static_cast<int>(rows.size());
-		rows.push_back(std::move(row));
-		applyLinkRows(std::move(rows));
-		SetStatusMessage("Added friend link.");
-	});
-
-	removeLinkButton_->Bind(wxEVT_BUTTON, [this, applyLinkRows, getSelectedOutgoingIndex](wxCommandEvent &) {
-		if (!hasWallBrush_) {
-			return;
-		}
-		auto rows = CollectWallFriendLinkRows(wallBrushStorage_.links);
-		const int selectedIndex = getSelectedOutgoingIndex();
-		if (selectedIndex < 0 || selectedIndex >= static_cast<int>(rows.size())) {
-			return;
-		}
-		rows.erase(rows.begin() + selectedIndex);
-		applyLinkRows(std::move(rows));
-		SetStatusMessage("Removed friend link.");
-	});
-
-	toggleRedirectButton_->Bind(wxEVT_BUTTON, [this, applyLinkRows, getSelectedOutgoingIndex](wxCommandEvent &) {
-		if (!hasWallBrush_) {
-			return;
-		}
-		auto rows = CollectWallFriendLinkRows(wallBrushStorage_.links);
-		const int selectedIndex = getSelectedOutgoingIndex();
-		if (selectedIndex < 0 || selectedIndex >= static_cast<int>(rows.size())) {
-			return;
-		}
-		rows[selectedIndex].redirect = !rows[selectedIndex].redirect;
-		const bool redirectEnabled = rows[selectedIndex].redirect;
-		applyLinkRows(std::move(rows));
-		SetStatusMessage(redirectEnabled ? "Enabled redirect." : "Disabled redirect.");
-	});
-
-	moveLinkUpButton_->Bind(wxEVT_BUTTON, [this, applyLinkRows, getSelectedOutgoingIndex](wxCommandEvent &) {
-		if (!hasWallBrush_) {
-			return;
-		}
-		if (!linksSearchCtrl_->GetValue().IsEmpty()) {
-			return;
-		}
-		auto rows = CollectWallFriendLinkRows(wallBrushStorage_.links);
-		const int selectedIndex = getSelectedOutgoingIndex();
-		if (selectedIndex <= 0 || selectedIndex >= static_cast<int>(rows.size())) {
-			return;
-		}
-		std::swap(rows[selectedIndex - 1], rows[selectedIndex]);
-		applyLinkRows(std::move(rows));
-	});
-
-	moveLinkDownButton_->Bind(wxEVT_BUTTON, [this, applyLinkRows, getSelectedOutgoingIndex](wxCommandEvent &) {
-		if (!hasWallBrush_) {
-			return;
-		}
-		if (!linksSearchCtrl_->GetValue().IsEmpty()) {
-			return;
-		}
-		auto rows = CollectWallFriendLinkRows(wallBrushStorage_.links);
-		const int selectedIndex = getSelectedOutgoingIndex();
-		if (selectedIndex < 0 || selectedIndex + 1 >= static_cast<int>(rows.size())) {
-			return;
-		}
-		std::swap(rows[selectedIndex], rows[selectedIndex + 1]);
-		applyLinkRows(std::move(rows));
-	});
-
-	linksListCtrl_->Bind(wxEVT_LIST_ITEM_ACTIVATED, [this, applyLinkRows, getSelectedOutgoingIndex](wxListEvent &) {
-		if (!hasWallBrush_) {
-			return;
-		}
-		auto rows = CollectWallFriendLinkRows(wallBrushStorage_.links);
-		const int selectedIndex = getSelectedOutgoingIndex();
-		if (selectedIndex < 0 || selectedIndex >= static_cast<int>(rows.size())) {
-			return;
-		}
-
-		WallWorkspaceWallBrushPickerDialog dialog(this, controller_, "Edit Friend Wall Link", rows[selectedIndex].targetBrushId);
-		if (dialog.ShowModal() != wxID_OK) {
-			return;
-		}
-		const BrushRecord* selected = dialog.GetSelectedBrush();
-		if (!selected) {
-			return;
-		}
-		if (selected->id == wallBrushStorage_.brush.id) {
-			SetStatusMessage("Cannot link a wall brush to itself.");
-			return;
-		}
-
-		const wxString selectedKey = WallFriendLinkKey(selected->id, selected->name);
-		int existingIndex = -1;
-		for (size_t i = 0; i < rows.size(); ++i) {
-			if (static_cast<int>(i) == selectedIndex) {
-				continue;
-			}
-			if (WallFriendLinkKey(rows[i].targetBrushId, rows[i].targetBrushName) == selectedKey) {
-				existingIndex = static_cast<int>(i);
-				break;
-			}
-		}
-		if (existingIndex != -1) {
-			rows[existingIndex].redirect = rows[existingIndex].redirect || rows[selectedIndex].redirect;
-			rows.erase(rows.begin() + selectedIndex);
-			applyLinkRows(std::move(rows));
-			SetStatusMessage("Merged duplicate link targets.");
-			return;
-		}
-
-		rows[selectedIndex].targetBrushId = selected->id;
-		rows[selectedIndex].targetBrushName = selected->name;
-		applyLinkRows(std::move(rows));
-		SetStatusMessage("Updated friend link.");
-	});
-
-	inboundLinksListCtrl_->Bind(wxEVT_LIST_ITEM_ACTIVATED, [this](wxListEvent &event) {
-		if (!hasWallBrush_ || !onOpenLinkedBrush_) {
-			return;
-		}
-		const long sourceId = static_cast<long>(event.GetData());
-		if (sourceId <= 0) {
-			return;
-		}
-		onOpenLinkedBrush_(static_cast<int64_t>(sourceId));
-	});
+void MaterialsWorkbenchWallPanel::OnOpenInboundLink(wxListEvent &event) {
+	if (!hasWallBrush_ || !onOpenLinkedBrush_) {
+		return;
+	}
+	const auto sourceId = static_cast<long>(event.GetData());
+	if (sourceId <= 0) {
+		return;
+	}
+	onOpenLinkedBrush_(static_cast<int64_t>(sourceId));
 }
 
 void MaterialsWorkbenchWallPanel::ClearWorkspace(const wxString &message) {
@@ -2075,7 +2207,7 @@ void MaterialsWorkbenchWallPanel::RefreshItemGrid() {
 		wxBoxSizer* cellSizer = new wxBoxSizer(wxVERTICAL);
 		const int cellWidth = FromDIP(84);
 		cell->SetMinSize(wxSize(cellWidth, -1));
-		auto* button = new WallWorkspaceToggleButton(cell, item.itemId);
+		auto* button = std::make_unique<WallWorkspaceToggleButton>(cell, item.itemId).release();
 		button->SetValue(static_cast<int>(i) == selectedItemIndex_);
 		button->Bind(wxEVT_LEFT_DOWN, [this, index = static_cast<int>(i)](wxMouseEvent &event) {
 			selectedItemIndex_ = index;
@@ -2120,7 +2252,7 @@ void MaterialsWorkbenchWallPanel::RefreshDoorGrid() {
 		wxBoxSizer* cellSizer = new wxBoxSizer(wxVERTICAL);
 		const int cellWidth = FromDIP(96);
 		cell->SetMinSize(wxSize(cellWidth, -1));
-		auto* button = new WallWorkspaceToggleButton(cell, door.itemId);
+		auto* button = std::make_unique<WallWorkspaceToggleButton>(cell, door.itemId).release();
 		button->SetValue(static_cast<int>(i) == selectedDoorIndex_);
 		button->Bind(wxEVT_LEFT_DOWN, [this, index = static_cast<int>(i)](wxMouseEvent &event) {
 			selectedDoorIndex_ = index;
@@ -2227,8 +2359,109 @@ void MaterialsWorkbenchWallPanel::RefreshComposedPreview() {
 	composedPreview->SetPreviewState(&wallBrushStorage_, selectedPartType, selectedItemId, selectedDoorItemId, strict, showOverlays, doorSide);
 }
 
+bool MaterialsWorkbenchWallPanel::HasLinksWidgets() const {
+	return linksSearchCtrl_ && linksListCtrl_ && linksSummaryLabel_ && addLinkButton_ && toggleRedirectButton_
+		&& openLinkTargetButton_ && removeLinkButton_ && moveLinkUpButton_ && moveLinkDownButton_
+		&& inboundLinksSummaryLabel_ && inboundLinksListCtrl_;
+}
+
+wxString MaterialsWorkbenchWallPanel::GetLinksSearchQuery() const {
+	return linksSearchCtrl_->GetValue().Lower().Trim(true).Trim(false);
+}
+
+wxString MaterialsWorkbenchWallPanel::GetSelectedOutgoingTargetLabel() const {
+	const long selectedRow = linksListCtrl_->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+	if (selectedRow == wxNOT_FOUND || selectedRow < 0) {
+		return wxString();
+	}
+	return linksListCtrl_->GetItemText(selectedRow, 0);
+}
+
+void MaterialsWorkbenchWallPanel::FreezeLinksLists() {
+	linksListCtrl_->Freeze();
+	inboundLinksListCtrl_->Freeze();
+}
+
+void MaterialsWorkbenchWallPanel::ThawLinksLists() {
+	linksListCtrl_->Thaw();
+	inboundLinksListCtrl_->Thaw();
+}
+
+void MaterialsWorkbenchWallPanel::ClearLinksLists() {
+	linksListCtrl_->DeleteAllItems();
+	inboundLinksListCtrl_->DeleteAllItems();
+}
+
+void MaterialsWorkbenchWallPanel::ApplyLinksNoSelectionState() {
+	linksSummaryLabel_->SetLabel("Select a wall brush to edit links.");
+	inboundLinksSummaryLabel_->SetLabel("");
+	addLinkButton_->Enable(false);
+	toggleRedirectButton_->Enable(false);
+	openLinkTargetButton_->Enable(false);
+	removeLinkButton_->Enable(false);
+	moveLinkUpButton_->Enable(false);
+	moveLinkDownButton_->Enable(false);
+}
+
+int MaterialsWorkbenchWallPanel::PopulateOutgoingLinksList(const wxString &query, const wxString &selectedTarget) {
+	const std::vector<WallFriendLinkRow> allRows = CollectWallFriendLinkRows(wallBrushStorage_.links);
+	int visible = 0;
+	long reselectRow = wxNOT_FOUND;
+	for (size_t i = 0; i < allRows.size(); ++i) {
+		const WallFriendLinkRow &rowData = allRows[i];
+		const wxString targetLabel = FormatWallFriendLinkTargetLabel(rowData);
+		const wxString redirectLabel = rowData.redirect ? wxString::FromUTF8("redirect") : wxString();
+		wxString haystack = (targetLabel + " " + redirectLabel).Lower();
+		if (!query.IsEmpty() && !haystack.Contains(query)) {
+			continue;
+		}
+
+		const long row = linksListCtrl_->InsertItem(linksListCtrl_->GetItemCount(), targetLabel);
+		linksListCtrl_->SetItem(row, 1, rowData.redirect ? wxString::FromUTF8("yes") : wxString());
+		linksListCtrl_->SetItem(row, 2, wxString::Format("%d", rowData.sortOrder));
+		linksListCtrl_->SetItemData(row, static_cast<long>(i));
+		if (!selectedTarget.IsEmpty() && targetLabel == selectedTarget) {
+			reselectRow = row;
+		}
+		++visible;
+	}
+
+	if (reselectRow != wxNOT_FOUND) {
+		linksListCtrl_->SetItemState(reselectRow, wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
+	}
+	return visible;
+}
+
+int MaterialsWorkbenchWallPanel::PopulateInboundLinksList(const wxString &query, bool &outOk) {
+	int visible = 0;
+	std::vector<BrushUsageRecord> usages;
+	wxString usageError;
+	outOk = controller_.GetBrushUsages(wallBrushStorage_.brush.id, wallBrushStorage_.brush.name, usages, usageError);
+	if (!outOk) {
+		return visible;
+	}
+
+	for (const BrushUsageRecord &usage : usages) {
+		if (!usage.sourceKind.IsSameAs("brush", false)) {
+			continue;
+		}
+		if (!usage.relation.IsSameAs("brush link", false)) {
+			continue;
+		}
+		wxString haystack = (usage.sourceName + " " + usage.context).Lower();
+		if (!query.IsEmpty() && !haystack.Contains(query)) {
+			continue;
+		}
+		const long row = inboundLinksListCtrl_->InsertItem(inboundLinksListCtrl_->GetItemCount(), usage.sourceName);
+		inboundLinksListCtrl_->SetItem(row, 1, usage.context);
+		inboundLinksListCtrl_->SetItemData(row, static_cast<long>(usage.sourceId));
+		++visible;
+	}
+	return visible;
+}
+
 void MaterialsWorkbenchWallPanel::RefreshLinksSection() {
-	if (!linksSearchCtrl_ || !linksListCtrl_ || !linksSummaryLabel_ || !addLinkButton_ || !toggleRedirectButton_ || !openLinkTargetButton_ || !removeLinkButton_ || !moveLinkUpButton_ || !moveLinkDownButton_ || !inboundLinksSummaryLabel_ || !inboundLinksListCtrl_) {
+	if (!HasLinksWidgets()) {
 		return;
 	}
 	if (linksRefreshInProgress_) {
@@ -2247,104 +2480,32 @@ void MaterialsWorkbenchWallPanel::RefreshLinksSection() {
 	LinksRefreshGuard resetGuard { linksRefreshInProgress_, suppressLinksEvents_, suppressLinksEvents_ };
 	suppressLinksEvents_ = true;
 
-	const wxString query = linksSearchCtrl_->GetValue().Lower().Trim(true).Trim(false);
+	const wxString query = GetLinksSearchQuery();
+	const wxString selectedTarget = GetSelectedOutgoingTargetLabel();
 
-	wxString selectedTarget;
-	{
-		const long selectedRow = linksListCtrl_->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-		if (selectedRow != wxNOT_FOUND && selectedRow >= 0) {
-			selectedTarget = linksListCtrl_->GetItemText(selectedRow, 0);
-		}
-	}
-
-	linksListCtrl_->Freeze();
-	inboundLinksListCtrl_->Freeze();
-	linksListCtrl_->DeleteAllItems();
-	inboundLinksListCtrl_->DeleteAllItems();
+	FreezeLinksLists();
+	ClearLinksLists();
 
 	if (!hasWallBrush_) {
-		linksSummaryLabel_->SetLabel("Select a wall brush to edit links.");
-		inboundLinksSummaryLabel_->SetLabel("");
-		addLinkButton_->Enable(false);
-		toggleRedirectButton_->Enable(false);
-		openLinkTargetButton_->Enable(false);
-		removeLinkButton_->Enable(false);
-		moveLinkUpButton_->Enable(false);
-		moveLinkDownButton_->Enable(false);
-		linksListCtrl_->Thaw();
-		inboundLinksListCtrl_->Thaw();
+		ApplyLinksNoSelectionState();
+		ThawLinksLists();
 		return;
 	}
 
-	const std::vector<WallFriendLinkRow> allRows = CollectWallFriendLinkRows(wallBrushStorage_.links);
-	int visibleOutgoing = 0;
-	long reselectRow = wxNOT_FOUND;
-	for (size_t i = 0; i < allRows.size(); ++i) {
-		const WallFriendLinkRow &rowData = allRows[i];
-		const wxString targetLabel = FormatWallFriendLinkTargetLabel(rowData);
-		const wxString redirectLabel = rowData.redirect ? wxString::FromUTF8("redirect") : wxString();
-		wxString haystack = (targetLabel + " " + redirectLabel).Lower();
-		if (!query.IsEmpty() && !haystack.Contains(query)) {
-			continue;
-		}
-
-		const long row = linksListCtrl_->InsertItem(linksListCtrl_->GetItemCount(), targetLabel);
-		linksListCtrl_->SetItem(row, 1, rowData.redirect ? wxString::FromUTF8("yes") : wxString());
-		linksListCtrl_->SetItem(row, 2, wxString::Format("%d", rowData.sortOrder));
-		linksListCtrl_->SetItemData(row, static_cast<long>(i));
-		if (!selectedTarget.IsEmpty() && targetLabel == selectedTarget) {
-			reselectRow = row;
-		}
-		++visibleOutgoing;
-	}
-
-	if (reselectRow != wxNOT_FOUND) {
-		linksListCtrl_->SetItemState(reselectRow, wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
-	}
-
-	int inboundVisible = 0;
-	std::vector<BrushUsageRecord> usages;
-	wxString usageError;
-	if (controller_.GetBrushUsages(wallBrushStorage_.brush.id, wallBrushStorage_.brush.name, usages, usageError)) {
-		for (const BrushUsageRecord &usage : usages) {
-			if (!usage.sourceKind.IsSameAs("brush", false)) {
-				continue;
-			}
-			if (!usage.relation.IsSameAs("brush link", false)) {
-				continue;
-			}
-			wxString haystack = (usage.sourceName + " " + usage.context).Lower();
-			if (!query.IsEmpty() && !haystack.Contains(query)) {
-				continue;
-			}
-			const long row = inboundLinksListCtrl_->InsertItem(inboundLinksListCtrl_->GetItemCount(), usage.sourceName);
-			inboundLinksListCtrl_->SetItem(row, 1, usage.context);
-			inboundLinksListCtrl_->SetItemData(row, static_cast<long>(usage.sourceId));
-			++inboundVisible;
-		}
-		inboundLinksSummaryLabel_->SetLabel(
-			wxString::Format(
-				"Inbound: %d link%s",
-				inboundVisible,
-				inboundVisible == 1 ? "" : "s"
-			)
-		);
+	const int visibleOutgoing = PopulateOutgoingLinksList(query, selectedTarget);
+	bool inboundOk = false;
+	const int inboundVisible = PopulateInboundLinksList(query, inboundOk);
+	if (inboundOk) {
+		inboundLinksSummaryLabel_->SetLabel(wxString::Format("Inbound: %d link%s", inboundVisible, inboundVisible == 1 ? "" : "s"));
 	} else {
 		inboundLinksSummaryLabel_->SetLabel("Inbound: failed to load.");
 	}
 
-	linksSummaryLabel_->SetLabel(
-		wxString::Format(
-			"Outgoing: %d link%s",
-			visibleOutgoing,
-			visibleOutgoing == 1 ? "" : "s"
-		)
-	);
+	linksSummaryLabel_->SetLabel(wxString::Format("Outgoing: %d link%s", visibleOutgoing, visibleOutgoing == 1 ? "" : "s"));
 
 	UpdateLinksActionButtons();
 
-	linksListCtrl_->Thaw();
-	inboundLinksListCtrl_->Thaw();
+	ThawLinksLists();
 }
 
 void MaterialsWorkbenchWallPanel::UpdateLinksActionButtons() {

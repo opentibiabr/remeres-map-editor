@@ -95,6 +95,13 @@ public:
 	}
 	void BuildPlanWithProgress(wxProgressDialog* progress = nullptr, int progressStart = 0, int progressSpan = 0);
 
+	struct PlanRow {
+		wxString kind;
+		wxString key;
+		wxString action;
+		wxString detail;
+	};
+
 private:
 	void BuildPlan(wxProgressDialog* progress, int progressStart, int progressSpan);
 	void RefreshPlanLists();
@@ -104,12 +111,6 @@ private:
 	MaterialsWorkbenchController &controller_;
 	MaterialsWorkbenchImportOptions options_;
 
-	struct PlanRow {
-		wxString kind;
-		wxString key;
-		wxString action;
-		wxString detail;
-	};
 	std::vector<PlanRow> allPlanRows_;
 
 	wxSearchCtrl* planFilterCtrl_ = nullptr;

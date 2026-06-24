@@ -16,6 +16,7 @@ class wxButton;
 class wxCheckBox;
 class wxChoice;
 class wxListCtrl;
+class wxListEvent;
 class wxRadioButton;
 class wxScrolledWindow;
 class wxSpinCtrl;
@@ -104,6 +105,24 @@ private:
 	void OnDoorItemIdChanged(wxCommandEvent &event);
 	void OnDoorItemIdSpin(wxSpinEvent &event);
 	void OnOpenSelectedLinkTarget(wxCommandEvent &event);
+	void OnAddFriendLink(wxCommandEvent &event);
+	void OnRemoveFriendLink(wxCommandEvent &event);
+	void OnToggleRedirectFriendLink(wxCommandEvent &event);
+	void OnMoveFriendLinkUp(wxCommandEvent &event);
+	void OnMoveFriendLinkDown(wxCommandEvent &event);
+	void OnEditFriendLink(wxListEvent &event);
+	void OnOpenInboundLink(wxListEvent &event);
+
+	int GetSelectedOutgoingLinkIndex() const;
+	bool HasLinksWidgets() const;
+	wxString GetLinksSearchQuery() const;
+	wxString GetSelectedOutgoingTargetLabel() const;
+	void FreezeLinksLists();
+	void ThawLinksLists();
+	void ClearLinksLists();
+	void ApplyLinksNoSelectionState();
+	int PopulateOutgoingLinksList(const wxString &query, const wxString &selectedTarget);
+	int PopulateInboundLinksList(const wxString &query, bool &outOk);
 
 	MaterialsWorkbenchController &controller_;
 	std::function<void(int64_t)> onWallBrushSaved_;

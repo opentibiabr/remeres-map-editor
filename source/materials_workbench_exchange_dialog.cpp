@@ -79,6 +79,34 @@ namespace {
 		return list->GetCheckedItems(checked);
 	}
 
+	bool ValidateCheckListToggle(wxCheckListBox* list, int index) {
+		if (!list) {
+			return false;
+		}
+		if (index < 0) {
+			return false;
+		}
+		return static_cast<size_t>(index) < list->GetCount();
+	}
+
+	const wxInt64ClientData* GetInt64ClientData(wxCheckListBox* list, int index) {
+		if (!ValidateCheckListToggle(list, index)) {
+			return nullptr;
+		}
+		return static_cast<const wxInt64ClientData*>(list->GetClientObject(static_cast<unsigned int>(index)));
+	}
+
+	template <typename T>
+	void ToggleSelectionValue(std::vector<T> &values, const T &value, bool checked) {
+		if (checked) {
+			if (!VectorContains(values, value)) {
+				values.push_back(value);
+			}
+			return;
+		}
+		RemoveValue(values, value);
+	}
+
 	template <typename T>
 	std::vector<T> CollectAddedValues(const std::vector<T> &selected, const std::vector<T> &resolved, size_t maxCount) {
 		std::unordered_set<T> selectedSet;
@@ -97,6 +125,605 @@ namespace {
 			}
 		}
 		return added;
+	}
+
+	MaterialsWorkbenchImportConflictStrategy ResolveImportConflictStrategy(wxChoice* choice) {
+		if (!choice) {
+			return MaterialsWorkbenchImportConflictStrategy::UpdateExisting;
+		}
+		const int selection = choice->GetSelection();
+		if (selection == 1) {
+			return MaterialsWorkbenchImportConflictStrategy::SkipExisting;
+		}
+		if (selection == 2) {
+			return MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix;
+		}
+		return MaterialsWorkbenchImportConflictStrategy::UpdateExisting;
+	}
+
+	bool TryGetImportEntitiesArray(const nlohmann::json &root, const nlohmann::json* &outEntities) {
+		outEntities = nullptr;
+		if (!root.is_object() || !root.contains("entities") || !root["entities"].is_array()) {
+			return false;
+		}
+		outEntities = &root["entities"];
+		return true;
+	}
+
+	wxString NormalizeImportName(wxString value) {
+		value.MakeLower();
+		return value;
+	}
+
+	wxString NormalizeImportBrushKey(const wxString &type, const wxString &name) {
+		return NormalizeImportName(type) + ":" + NormalizeImportName(name);
+	}
+
+	struct ImportDuplicateIndex {
+		std::unordered_set<int> importedBorderXmlIds;
+		std::unordered_set<wxString> importedGroupNames;
+		std::unordered_set<wxString> importedPaletteNames;
+		std::unordered_set<wxString> importedBrushNames;
+		std::unordered_set<wxString> importedBrushKeys;
+
+		std::unordered_set<wxString> duplicateGroupNames;
+		std::unordered_set<wxString> duplicatePaletteNames;
+		std::unordered_set<wxString> duplicateBrushKeys;
+		std::unordered_set<int> duplicateBorderXmlIds;
+	};
+
+	ImportDuplicateIndex ScanImportDuplicates(const nlohmann::json &entities) {
+		ImportDuplicateIndex out;
+		if (!entities.is_array()) {
+			return out;
+		}
+
+		for (const nlohmann::json &entity : entities) {
+			if (!entity.is_object() || !entity.contains("kind") || !entity["kind"].is_string()) {
+				continue;
+			}
+			const std::string kind = entity["kind"].get<std::string>();
+			if (kind == "border_set") {
+				if (entity.contains("borderSet") && entity["borderSet"].is_object()
+					&& entity["borderSet"].contains("xmlBorderId") && entity["borderSet"]["xmlBorderId"].is_number_integer()) {
+					const int xmlBorderId = entity["borderSet"]["xmlBorderId"].get<int>();
+					if (xmlBorderId > 0 && !out.importedBorderXmlIds.insert(xmlBorderId).second) {
+						out.duplicateBorderXmlIds.insert(xmlBorderId);
+					}
+				}
+				continue;
+			}
+
+			if (kind == "palette_group") {
+				if (entity.contains("group") && entity["group"].is_object()
+					&& entity["group"].contains("name") && entity["group"]["name"].is_string()) {
+					const wxString name = JsonToWxStringLocal(entity["group"]["name"]);
+					if (!name.IsEmpty()) {
+						const wxString key = NormalizeImportName(name);
+						if (!out.importedGroupNames.insert(key).second) {
+							out.duplicateGroupNames.insert(key);
+						}
+					}
+				}
+				continue;
+			}
+
+			if (kind == "palette") {
+				if (entity.contains("palette") && entity["palette"].is_object()
+					&& entity["palette"].contains("name") && entity["palette"]["name"].is_string()) {
+					const wxString name = JsonToWxStringLocal(entity["palette"]["name"]);
+					if (!name.IsEmpty()) {
+						const wxString key = NormalizeImportName(name);
+						if (!out.importedPaletteNames.insert(key).second) {
+							out.duplicatePaletteNames.insert(key);
+						}
+					}
+				}
+				continue;
+			}
+
+			if (kind == "brush" || kind == "wall") {
+				if (entity.contains("brush") && entity["brush"].is_object()
+					&& entity["brush"].contains("type") && entity["brush"].contains("name")
+					&& entity["brush"]["type"].is_string() && entity["brush"]["name"].is_string()) {
+					const wxString type = JsonToWxStringLocal(entity["brush"]["type"]);
+					const wxString name = JsonToWxStringLocal(entity["brush"]["name"]);
+					if (!name.IsEmpty()) {
+						out.importedBrushNames.insert(NormalizeImportName(name));
+					}
+					if (!type.IsEmpty() && !name.IsEmpty()) {
+						const wxString key = NormalizeImportBrushKey(type, name);
+						if (!out.importedBrushKeys.insert(key).second) {
+							out.duplicateBrushKeys.insert(key);
+						}
+					}
+				}
+			}
+		}
+
+		return out;
+	}
+
+	struct ImportExistingIndex {
+		std::unordered_set<int> existingBorderXmlIds;
+		std::unordered_set<wxString> existingBrushNames;
+		std::unordered_set<wxString> existingBrushKeys;
+	};
+
+	ImportExistingIndex CollectExistingImportIndex(MaterialsWorkbenchController &controller) {
+		ImportExistingIndex out;
+		for (const BorderSetRecord &border : controller.GetGlobalBorderSets()) {
+			if (border.xmlBorderId > 0) {
+				out.existingBorderXmlIds.insert(border.xmlBorderId);
+			}
+		}
+		for (const MaterialsWorkbenchBrushGroup &group : controller.GetBrushGroups()) {
+			for (const BrushRecord &brush : group.brushes) {
+				out.existingBrushNames.insert(NormalizeImportName(brush.name));
+				out.existingBrushKeys.insert(NormalizeImportBrushKey(brush.type, brush.name));
+			}
+		}
+		for (const BrushRecord &brush : controller.GetWallBrushes()) {
+			out.existingBrushNames.insert(NormalizeImportName(brush.name));
+			out.existingBrushKeys.insert(NormalizeImportBrushKey(brush.type, brush.name));
+		}
+		return out;
+	}
+
+	bool ParseBrushKeyForPlan(const nlohmann::json &key, wxString &outType, wxString &outName) {
+		if (!key.is_object()) {
+			return false;
+		}
+		if (!key.contains("type") || !key["type"].is_string()) {
+			return false;
+		}
+		if (!key.contains("name") || !key["name"].is_string()) {
+			return false;
+		}
+		outType = JsonToWxStringLocal(key["type"]);
+		outName = JsonToWxStringLocal(key["name"]);
+		return !outType.IsEmpty() && !outName.IsEmpty();
+	}
+
+	bool ExistsBrushNameForPlan(const ImportDuplicateIndex &dups, const ImportExistingIndex &existing, const wxString &name) {
+		if (name.IsEmpty()) {
+			return false;
+		}
+		const wxString key = NormalizeImportName(name);
+		return dups.importedBrushNames.find(key) != dups.importedBrushNames.end()
+			|| existing.existingBrushNames.find(key) != existing.existingBrushNames.end();
+	}
+
+	bool ExistsBrushKeyForPlan(const ImportDuplicateIndex &dups, const ImportExistingIndex &existing, const wxString &type, const wxString &name) {
+		if (type.IsEmpty() || name.IsEmpty()) {
+			return false;
+		}
+		const wxString key = NormalizeImportBrushKey(type, name);
+		return dups.importedBrushKeys.find(key) != dups.importedBrushKeys.end()
+			|| existing.existingBrushKeys.find(key) != existing.existingBrushKeys.end();
+	}
+
+	wxString MakeUniqueNameForPlan(
+		const wxString &base,
+		const std::function<bool(const wxString &)> &exists,
+		std::unordered_set<wxString> &reserved
+	) {
+		const wxString baseKey = NormalizeImportName(base);
+		if (!exists(base) && reserved.find(baseKey) == reserved.end()) {
+			reserved.insert(baseKey);
+		}
+		for (int attempt = 1; attempt < 1000; ++attempt) {
+			wxString candidate = base;
+			if (attempt == 1) {
+				candidate += " (imported)";
+			} else {
+				candidate += wxString::Format(" (imported %d)", attempt);
+			}
+			const wxString candidateKey = NormalizeImportName(candidate);
+			if (!exists(candidate) && reserved.find(candidateKey) == reserved.end()) {
+				reserved.insert(candidateKey);
+				return candidate;
+			}
+		}
+
+		reserved.insert(baseKey);
+		return base;
+	}
+
+	struct ImportRenamePlanner {
+		MaterialsWorkbenchController &controller;
+		MaterialsWorkbenchImportConflictStrategy onConflict;
+		std::unordered_map<wxString, wxString> renamedPaletteGroups;
+		std::unordered_map<wxString, wxString> renamedPalettes;
+		std::unordered_set<wxString> reservedGroupNames;
+		std::unordered_set<wxString> reservedPaletteNames;
+
+		explicit ImportRenamePlanner(MaterialsWorkbenchController &controller, MaterialsWorkbenchImportConflictStrategy onConflict) :
+			controller(controller),
+			onConflict(onConflict) {
+		}
+
+		wxString EnsureGroupRename(const wxString &name) {
+			if (onConflict != MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix) {
+				return name;
+			}
+			auto it = renamedPaletteGroups.find(name);
+			if (it != renamedPaletteGroups.end()) {
+				return it->second;
+			}
+			const wxString newName = MakeUniqueNameForPlan(
+				name,
+				[&](const wxString &candidate) { return controller.HasPaletteGroupNamed(candidate); },
+				reservedGroupNames
+			);
+			renamedPaletteGroups.insert({ name, newName });
+			return newName;
+		}
+
+		wxString EnsurePaletteRename(const wxString &name) {
+			if (onConflict != MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix) {
+				return name;
+			}
+			auto it = renamedPalettes.find(name);
+			if (it != renamedPalettes.end()) {
+				return it->second;
+			}
+			const wxString newName = MakeUniqueNameForPlan(
+				name,
+				[&](const wxString &candidate) { return controller.HasTilesetNamed(candidate); },
+				reservedPaletteNames
+			);
+			renamedPalettes.insert({ name, newName });
+			return newName;
+		}
+	};
+
+	struct PlanBuildResult {
+		MaterialsWorkbenchImportDialog::PlanRow row;
+		wxString action;
+		bool isValid = true;
+		bool countedWarning = false;
+	};
+
+	void AppendPlanWarnings(wxString &inOutDetail, const std::vector<wxString> &warnings, bool &outCounted) {
+		if (warnings.empty()) {
+			outCounted = false;
+			return;
+		}
+		if (!inOutDetail.IsEmpty()) {
+			inOutDetail << " | ";
+		}
+		inOutDetail << "Warning: ";
+		for (size_t i = 0; i < warnings.size(); ++i) {
+			if (i != 0) {
+				inOutDetail << "; ";
+			}
+			inOutDetail << warnings[i];
+		}
+		outCounted = true;
+	}
+
+	wxString ResolvePlanAction(
+		bool exists,
+		bool isValid,
+		const std::string &kind,
+		MaterialsWorkbenchImportConflictStrategy strategy
+	) {
+		if (!isValid) {
+			return "invalid";
+		}
+		if (!exists) {
+			return "create";
+		}
+		if (strategy == MaterialsWorkbenchImportConflictStrategy::SkipExisting) {
+			return "skip";
+		}
+		if (strategy == MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix && (kind == "palette_group" || kind == "palette")) {
+			return "rename";
+		}
+		return "update";
+	}
+
+	void CollectBrushLinkTargetWarnings(
+		const nlohmann::json &entity,
+		const std::function<bool(const wxString&, const wxString&)> &existsBrushKey,
+		const std::function<bool(const wxString&)> &existsBrushName,
+		std::vector<wxString> &outWarnings
+	) {
+		if (!entity.contains("links") || !entity["links"].is_array()) {
+			return;
+		}
+
+		for (const nlohmann::json &row : entity["links"]) {
+			if (!row.is_object()) {
+				continue;
+			}
+			if (row.contains("target") && row["target"].is_object()) {
+				wxString targetType;
+				wxString targetName;
+				if (ParseBrushKeyForPlan(row["target"], targetType, targetName) && !existsBrushKey(targetType, targetName)) {
+					outWarnings.push_back(wxString::Format("unresolved link target %s: %s", targetType, targetName));
+				}
+				continue;
+			}
+			if (row.contains("targetName") && row["targetName"].is_string()) {
+				const wxString targetName = JsonToWxStringLocal(row["targetName"]);
+				if (!existsBrushName(targetName)) {
+					outWarnings.push_back(wxString::Format("unresolved link target %s", targetName));
+				}
+			}
+		}
+	}
+
+	bool ValidateBrushGroundBorders(
+		const nlohmann::json &entity,
+		const ImportDuplicateIndex &dups,
+		const ImportExistingIndex &existing,
+		const std::function<bool(const wxString&, const wxString&)> &existsBrushKey,
+		const std::function<bool(const wxString&)> &existsBrushName,
+		std::vector<wxString> &outWarnings,
+		wxString &outInvalidDetail
+	) {
+		outInvalidDetail.clear();
+		if (!entity.contains("groundBorders") || !entity["groundBorders"].is_array()) {
+			return true;
+		}
+
+		for (const nlohmann::json &row : entity["groundBorders"]) {
+			if (!row.is_object()) {
+				continue;
+			}
+			if (row.contains("borderRef") && row["borderRef"].is_object()) {
+				const nlohmann::json &ref = row["borderRef"];
+				if (ref.contains("scope") && ref["scope"].is_string()) {
+					const wxString scope = JsonToWxStringLocal(ref["scope"]);
+					if (scope.IsSameAs("global", false) && ref.contains("xmlBorderId") && ref["xmlBorderId"].is_number_integer()) {
+						const int xmlBorderId = ref["xmlBorderId"].get<int>();
+						const bool inFile = dups.importedBorderXmlIds.find(xmlBorderId) != dups.importedBorderXmlIds.end();
+						const bool inDb = existing.existingBorderXmlIds.find(xmlBorderId) != existing.existingBorderXmlIds.end();
+						if (xmlBorderId > 0 && !inFile && !inDb) {
+							outInvalidDetail = wxString::Format("Missing global border_set Border %d (not in file and not in DB).", xmlBorderId);
+							return false;
+						}
+					}
+				}
+			}
+
+			if (row.contains("targetBrush") && row["targetBrush"].is_object()) {
+				wxString targetType;
+				wxString targetName;
+				if (ParseBrushKeyForPlan(row["targetBrush"], targetType, targetName) && !existsBrushKey(targetType, targetName)) {
+					outWarnings.push_back(wxString::Format("unresolved border target %s: %s", targetType, targetName));
+				}
+				continue;
+			}
+			if (row.contains("targetBrushName") && row["targetBrushName"].is_string()) {
+				const wxString targetName = JsonToWxStringLocal(row["targetBrushName"]);
+				if (!existsBrushName(targetName)) {
+					outWarnings.push_back(wxString::Format("unresolved border target %s", targetName));
+				}
+			}
+		}
+
+		return true;
+	}
+
+	void CollectPaletteEntryWarnings(
+		const nlohmann::json &sections,
+		const std::function<bool(const wxString&)> &existsBrushName,
+		std::vector<wxString> &outWarnings
+	) {
+		if (!sections.is_array()) {
+			return;
+		}
+
+		for (const nlohmann::json &section : sections) {
+			if (!section.is_object() || !section.contains("entries") || !section["entries"].is_array()) {
+				continue;
+			}
+			for (const nlohmann::json &e : section["entries"]) {
+				if (!e.is_object()) {
+					continue;
+				}
+				if (e.contains("brushName") && e["brushName"].is_string()) {
+					const wxString brushName = JsonToWxStringLocal(e["brushName"]);
+					if (!brushName.IsEmpty() && !existsBrushName(brushName)) {
+						outWarnings.push_back(wxString::Format("unresolved palette brush '%s'", brushName));
+					}
+				}
+				if (e.contains("afterBrushName") && e["afterBrushName"].is_string()) {
+					const wxString brushName = JsonToWxStringLocal(e["afterBrushName"]);
+					if (!brushName.IsEmpty() && !existsBrushName(brushName)) {
+						outWarnings.push_back(wxString::Format("unresolved palette afterBrush '%s'", brushName));
+					}
+				}
+			}
+		}
+	}
+
+	PlanBuildResult BuildPlanRowForEntity(
+		MaterialsWorkbenchController &controller,
+		const MaterialsWorkbenchImportOptions &options,
+		ImportRenamePlanner &renames,
+		const ImportDuplicateIndex &dups,
+		const ImportExistingIndex &existing,
+		const nlohmann::json &entity
+	) {
+		PlanBuildResult out;
+		out.row = MaterialsWorkbenchImportDialog::PlanRow();
+		out.action.clear();
+		out.isValid = true;
+		out.countedWarning = false;
+
+		if (!entity.is_object() || !entity.contains("kind") || !entity["kind"].is_string()) {
+			out.isValid = false;
+			out.action = "invalid";
+			out.row.kind = wxString();
+			out.row.key = wxString();
+			out.row.action = out.action;
+			out.row.detail = "Unknown entity kind.";
+			return out;
+		}
+
+		const std::string kind = entity["kind"].get<std::string>();
+		wxString keyLabel;
+		wxString actionDetail;
+		wxString detail;
+		std::vector<wxString> warnings;
+		bool exists = false;
+
+		const auto existsBrushName = [&](const wxString &name) {
+			return ExistsBrushNameForPlan(dups, existing, name);
+		};
+		const auto existsBrushKey = [&](const wxString &type, const wxString &name) {
+			return ExistsBrushKeyForPlan(dups, existing, type, name);
+		};
+
+		if (kind == "border_set") {
+			if (entity.contains("borderSet") && entity["borderSet"].is_object()
+				&& entity["borderSet"].contains("xmlBorderId") && entity["borderSet"]["xmlBorderId"].is_number_integer()) {
+				const int xmlBorderId = entity["borderSet"]["xmlBorderId"].get<int>();
+				keyLabel = wxString::Format("Border %d", xmlBorderId);
+				if (xmlBorderId <= 0) {
+					out.isValid = false;
+					detail = "Invalid border_set: xmlBorderId must be greater than zero.";
+				} else if (dups.duplicateBorderXmlIds.find(xmlBorderId) != dups.duplicateBorderXmlIds.end()) {
+					out.isValid = false;
+					detail = "Duplicate border_set xmlBorderId in import file.";
+				} else {
+					BorderSetRecord existingBorder;
+					exists = g_brush_database.findBorderSetByXmlBorderId(xmlBorderId, existingBorder) && existingBorder.id > 0;
+				}
+			} else {
+				out.isValid = false;
+				detail = "Invalid border_set: missing xmlBorderId.";
+			}
+		} else if (kind == "brush" || kind == "wall") {
+			if (entity.contains("brush") && entity["brush"].is_object()
+				&& entity["brush"].contains("type") && entity["brush"].contains("name")
+				&& entity["brush"]["type"].is_string() && entity["brush"]["name"].is_string()) {
+				const wxString type = JsonToWxStringLocal(entity["brush"]["type"]);
+				const wxString name = JsonToWxStringLocal(entity["brush"]["name"]);
+				keyLabel = wxString::Format("%s: %s", type, name);
+				BrushRecord existingBrush;
+				exists = g_brush_database.findBrushByNameAndType(name, type, existingBrush) && existingBrush.id > 0;
+
+				const wxString brushKeyLower = NormalizeImportBrushKey(type, name);
+				if (dups.duplicateBrushKeys.find(brushKeyLower) != dups.duplicateBrushKeys.end()) {
+					out.isValid = false;
+					detail = "Duplicate brush key in import file.";
+				} else {
+					CollectBrushLinkTargetWarnings(entity, existsBrushKey, existsBrushName, warnings);
+					wxString invalidGroundDetail;
+					if (!ValidateBrushGroundBorders(entity, dups, existing, existsBrushKey, existsBrushName, warnings, invalidGroundDetail)) {
+						out.isValid = false;
+						detail = invalidGroundDetail;
+					}
+				}
+			} else {
+				out.isValid = false;
+				detail = "Invalid brush: missing type/name.";
+			}
+		} else if (kind == "palette_group") {
+			if (entity.contains("group") && entity["group"].is_object()
+				&& entity["group"].contains("name") && entity["group"]["name"].is_string()) {
+				const wxString name = JsonToWxStringLocal(entity["group"]["name"]);
+				keyLabel = name;
+				exists = controller.HasPaletteGroupNamed(name);
+				const wxString nameKey = NormalizeImportName(name);
+				if (dups.duplicateGroupNames.find(nameKey) != dups.duplicateGroupNames.end()) {
+					out.isValid = false;
+					detail = "Duplicate palette group name in import file.";
+				}
+				if (exists && options.onConflict == MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix) {
+					const wxString newName = renames.EnsureGroupRename(name);
+					if (!newName.IsSameAs(name, false)) {
+						actionDetail = " -> " + newName;
+					}
+				}
+			} else {
+				out.isValid = false;
+				detail = "Invalid palette_group: missing name.";
+			}
+		} else if (kind == "palette") {
+			if (entity.contains("palette") && entity["palette"].is_object()
+				&& entity["palette"].contains("name") && entity["palette"]["name"].is_string()) {
+				const wxString name = JsonToWxStringLocal(entity["palette"]["name"]);
+				keyLabel = name;
+				exists = controller.HasTilesetNamed(name);
+				const wxString nameKey = NormalizeImportName(name);
+				if (dups.duplicatePaletteNames.find(nameKey) != dups.duplicatePaletteNames.end()) {
+					out.isValid = false;
+					detail = "Duplicate palette name in import file.";
+				}
+				if (exists && options.onConflict == MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix) {
+					const wxString newName = renames.EnsurePaletteRename(name);
+					if (!newName.IsSameAs(name, false)) {
+						actionDetail = " -> " + newName;
+					}
+				}
+
+				if (options.onConflict == MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix
+					&& entity["palette"].contains("paletteGroupName") && entity["palette"]["paletteGroupName"].is_string()) {
+					const wxString groupName = JsonToWxStringLocal(entity["palette"]["paletteGroupName"]);
+					const auto groupIt = renames.renamedPaletteGroups.find(groupName);
+					if (groupIt != renames.renamedPaletteGroups.end() && !groupIt->second.IsSameAs(groupName, false)) {
+						if (!actionDetail.IsEmpty()) {
+							actionDetail << " |";
+						}
+						actionDetail << " group -> " << groupIt->second;
+					}
+				}
+
+				if (entity["palette"].contains("paletteGroupName") && entity["palette"]["paletteGroupName"].is_string()) {
+					wxString groupName = JsonToWxStringLocal(entity["palette"]["paletteGroupName"]);
+					if (options.onConflict == MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix) {
+						const auto groupIt = renames.renamedPaletteGroups.find(groupName);
+						if (groupIt != renames.renamedPaletteGroups.end()) {
+							groupName = groupIt->second;
+						}
+					}
+					if (!groupName.IsEmpty()) {
+						const wxString groupKey = NormalizeImportName(groupName);
+						bool renamedGroupExists = false;
+						for (const auto &entry : renames.renamedPaletteGroups) {
+							if (NormalizeImportName(entry.second) == groupKey) {
+								renamedGroupExists = true;
+								break;
+							}
+						}
+						const bool groupExists = controller.HasPaletteGroupNamed(groupName)
+							|| dups.importedGroupNames.find(groupKey) != dups.importedGroupNames.end()
+							|| renamedGroupExists;
+						if (!groupExists) {
+							out.isValid = false;
+							detail = wxString::Format("Missing palette group '%s'.", groupName);
+						}
+					}
+				}
+
+				if (out.isValid && entity.contains("sections") && entity["sections"].is_array()) {
+					CollectPaletteEntryWarnings(entity["sections"], existsBrushName, warnings);
+				}
+			} else {
+				out.isValid = false;
+				detail = "Invalid palette: missing name.";
+			}
+		} else {
+			out.isValid = false;
+			detail = "Unknown entity kind.";
+		}
+
+		out.action = ResolvePlanAction(exists, out.isValid, kind, options.onConflict);
+		out.row.kind = kind == "wall" ? wxString("brush") : wxString::FromUTF8(kind.c_str());
+		out.row.key = keyLabel;
+		out.row.action = out.action;
+		out.row.detail = detail.IsEmpty() ? actionDetail : detail;
+
+		if (out.isValid) {
+			AppendPlanWarnings(out.row.detail, warnings, out.countedWarning);
+		}
+		return out;
 	}
 } // namespace
 
@@ -526,62 +1153,32 @@ void MaterialsWorkbenchExportDialog::OnClearAllShown(wxCheckListBox* list) {
 }
 
 void MaterialsWorkbenchExportDialog::OnListToggled(wxCheckListBox* list, int index) {
-	if (!list || index < 0 || static_cast<size_t>(index) >= list->GetCount()) {
+	if (!ValidateCheckListToggle(list, index)) {
 		return;
 	}
 
 	const bool checked = list->IsChecked(static_cast<unsigned int>(index));
 
-	auto toggleInt = [&](std::vector<int> &values, int value) {
-		if (checked) {
-			if (!VectorContains(values, value)) {
-				values.push_back(value);
-			}
-		} else {
-			RemoveValue(values, value);
-		}
-	};
-
-	auto toggleInt64 = [&](std::vector<int64_t> &values, int64_t value) {
-		if (checked) {
-			if (!VectorContains(values, value)) {
-				values.push_back(value);
-			}
-		} else {
-			RemoveValue(values, value);
-		}
-	};
-
-	auto toggleName = [&](std::vector<wxString> &values, const wxString &value) {
-		if (checked) {
-			if (!VectorContains(values, value)) {
-				values.push_back(value);
-			}
-		} else {
-			RemoveValue(values, value);
-		}
-	};
-
 	if (list == borderList_) {
-		const wxInt64ClientData* data = static_cast<const wxInt64ClientData*>(borderList_->GetClientObject(static_cast<unsigned int>(index)));
+		const wxInt64ClientData* data = GetInt64ClientData(borderList_, index);
 		const int xmlBorderId = data ? static_cast<int>(data->value) : 0;
 		if (xmlBorderId <= 0) {
 			return;
 		}
-		toggleInt(selection_.globalBorderXmlIds, xmlBorderId);
+		ToggleSelectionValue(selection_.globalBorderXmlIds, xmlBorderId, checked);
 	} else if (list == brushList_) {
-		const wxInt64ClientData* data = static_cast<const wxInt64ClientData*>(brushList_->GetClientObject(static_cast<unsigned int>(index)));
+		const wxInt64ClientData* data = GetInt64ClientData(brushList_, index);
 		const int64_t brushId = data ? data->value : 0;
 		if (brushId <= 0) {
 			return;
 		}
-		toggleInt64(selection_.brushIds, brushId);
+		ToggleSelectionValue(selection_.brushIds, brushId, checked);
 	} else if (list == paletteGroupList_) {
 		const wxString name = paletteGroupList_->GetString(static_cast<unsigned int>(index));
-		toggleName(selection_.paletteGroupNames, name);
+		ToggleSelectionValue(selection_.paletteGroupNames, name, checked);
 	} else if (list == paletteList_) {
 		const wxString name = paletteList_->GetString(static_cast<unsigned int>(index));
-		toggleName(selection_.paletteNames, name);
+		ToggleSelectionValue(selection_.paletteNames, name, checked);
 	}
 
 	UpdateSummary();
@@ -679,447 +1276,40 @@ void MaterialsWorkbenchImportDialog::BuildPlan(wxProgressDialog* progress, int p
 	int invalid = 0;
 	int warningRows = 0;
 
-	options_.onConflict = MaterialsWorkbenchImportConflictStrategy::UpdateExisting;
-	if (conflictChoice_) {
-		if (conflictChoice_->GetSelection() == 1) {
-			options_.onConflict = MaterialsWorkbenchImportConflictStrategy::SkipExisting;
-		} else if (conflictChoice_->GetSelection() == 2) {
-			options_.onConflict = MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix;
-		}
-	}
+	options_.onConflict = ResolveImportConflictStrategy(conflictChoice_);
 
-	if (!root_.is_object() || !root_.contains("entities") || !root_["entities"].is_array()) {
+	const nlohmann::json* entities = nullptr;
+	if (!TryGetImportEntitiesArray(root_, entities)) {
 		okButton_->Enable(false);
 		summaryLabel_->SetLabel("Plan: 0 create, 0 update, 0 skip, 0 invalid, 0 warnings.");
 		RefreshPlanLists();
 		return;
 	}
 
-	auto normalizeName = [](const wxString &name) -> wxString {
-		wxString value = name;
-		value.MakeLower();
-		return value;
-	};
+	const ImportDuplicateIndex duplicates = ScanImportDuplicates(*entities);
+	const ImportExistingIndex existingIndex = CollectExistingImportIndex(controller_);
 
-	std::unordered_set<int> importedBorderXmlIds;
-	std::unordered_set<wxString> importedGroupNames;
-	std::unordered_set<wxString> importedPaletteNames;
-	std::unordered_set<wxString> importedBrushNames;
-	std::unordered_set<wxString> importedBrushKeys;
+	ImportRenamePlanner renames(controller_, options_.onConflict);
 
-	std::unordered_set<wxString> duplicateGroupNames;
-	std::unordered_set<wxString> duplicatePaletteNames;
-	std::unordered_set<wxString> duplicateBrushKeys;
-	std::unordered_set<int> duplicateBorderXmlIds;
-
-	std::unordered_set<int> existingBorderXmlIds;
-	for (const BorderSetRecord &border : controller_.GetGlobalBorderSets()) {
-		if (border.xmlBorderId > 0) {
-			existingBorderXmlIds.insert(border.xmlBorderId);
-		}
-	}
-
-	std::unordered_set<wxString> existingBrushNames;
-	std::unordered_set<wxString> existingBrushKeys;
-	for (const MaterialsWorkbenchBrushGroup &group : controller_.GetBrushGroups()) {
-		for (const BrushRecord &brush : group.brushes) {
-			existingBrushNames.insert(normalizeName(brush.name));
-			existingBrushKeys.insert(normalizeName(brush.type) + ":" + normalizeName(brush.name));
-		}
-	}
-	for (const BrushRecord &brush : controller_.GetWallBrushes()) {
-		existingBrushNames.insert(normalizeName(brush.name));
-		existingBrushKeys.insert(normalizeName(brush.type) + ":" + normalizeName(brush.name));
-	}
-
-	const int total = static_cast<int>(root_["entities"].size());
+	const int total = static_cast<int>(entities->size());
 	int processed = 0;
-	std::unordered_map<wxString, wxString> renamedPaletteGroups;
-	std::unordered_map<wxString, wxString> renamedPalettes;
-	std::unordered_set<wxString> reservedGroupNames;
-	std::unordered_set<wxString> reservedPaletteNames;
+	for (const nlohmann::json &entity : *entities) {
+		PlanBuildResult result = BuildPlanRowForEntity(controller_, options_, renames, duplicates, existingIndex, entity);
 
-	auto parseBrushKey = [&](const nlohmann::json &key, wxString &outType, wxString &outName) -> bool {
-		if (!key.is_object()) {
-			return false;
-		}
-		if (!key.contains("type") || !key["type"].is_string()) {
-			return false;
-		}
-		if (!key.contains("name") || !key["name"].is_string()) {
-			return false;
-		}
-		outType = JsonToWxStringLocal(key["type"]);
-		outName = JsonToWxStringLocal(key["name"]);
-		return !outType.IsEmpty() && !outName.IsEmpty();
-	};
-
-	auto existsBrushName = [&](const wxString &name) -> bool {
-		if (name.IsEmpty()) {
-			return false;
-		}
-		const wxString key = normalizeName(name);
-		return importedBrushNames.find(key) != importedBrushNames.end() || existingBrushNames.find(key) != existingBrushNames.end();
-	};
-
-	auto existsBrushKey = [&](const wxString &type, const wxString &name) -> bool {
-		if (type.IsEmpty() || name.IsEmpty()) {
-			return false;
-		}
-		const wxString key = normalizeName(type) + ":" + normalizeName(name);
-		return importedBrushKeys.find(key) != importedBrushKeys.end() || existingBrushKeys.find(key) != existingBrushKeys.end();
-	};
-
-	for (const nlohmann::json &entity : root_["entities"]) {
-		if (!entity.is_object() || !entity.contains("kind") || !entity["kind"].is_string()) {
-			continue;
-		}
-		const std::string kind = entity["kind"].get<std::string>();
-		if (kind == "border_set") {
-			if (entity.contains("borderSet") && entity["borderSet"].is_object() && entity["borderSet"].contains("xmlBorderId") && entity["borderSet"]["xmlBorderId"].is_number_integer()) {
-				const int xmlBorderId = entity["borderSet"]["xmlBorderId"].get<int>();
-				if (xmlBorderId > 0) {
-					if (!importedBorderXmlIds.insert(xmlBorderId).second) {
-						duplicateBorderXmlIds.insert(xmlBorderId);
-					}
-				}
-			}
-		} else if (kind == "palette_group") {
-			if (entity.contains("group") && entity["group"].is_object() && entity["group"].contains("name") && entity["group"]["name"].is_string()) {
-				const wxString name = JsonToWxStringLocal(entity["group"]["name"]);
-				if (!name.IsEmpty()) {
-					const wxString key = normalizeName(name);
-					if (!importedGroupNames.insert(key).second) {
-						duplicateGroupNames.insert(key);
-					}
-				}
-			}
-		} else if (kind == "palette") {
-			if (entity.contains("palette") && entity["palette"].is_object() && entity["palette"].contains("name") && entity["palette"]["name"].is_string()) {
-				const wxString name = JsonToWxStringLocal(entity["palette"]["name"]);
-				if (!name.IsEmpty()) {
-					const wxString key = normalizeName(name);
-					if (!importedPaletteNames.insert(key).second) {
-						duplicatePaletteNames.insert(key);
-					}
-				}
-			}
-		} else if (kind == "brush" || kind == "wall") {
-			if (entity.contains("brush") && entity["brush"].is_object() && entity["brush"].contains("type") && entity["brush"].contains("name") && entity["brush"]["type"].is_string() && entity["brush"]["name"].is_string()) {
-				const wxString type = JsonToWxStringLocal(entity["brush"]["type"]);
-				const wxString name = JsonToWxStringLocal(entity["brush"]["name"]);
-				if (!name.IsEmpty()) {
-					importedBrushNames.insert(normalizeName(name));
-				}
-				if (!type.IsEmpty() && !name.IsEmpty()) {
-					const wxString key = normalizeName(type) + ":" + normalizeName(name);
-					if (!importedBrushKeys.insert(key).second) {
-						duplicateBrushKeys.insert(key);
-					}
-				}
-			}
-		}
-	}
-
-	auto makeUniqueName = [&](const wxString &base, const std::function<bool(const wxString &)> &exists, std::unordered_set<wxString> &reserved) -> wxString {
-		const wxString baseKey = normalizeName(base);
-		if (!exists(base) && reserved.find(baseKey) == reserved.end()) {
-			reserved.insert(baseKey);
-		}
-
-		for (int attempt = 1; attempt < 1000; ++attempt) {
-			wxString candidate = base;
-			if (attempt == 1) {
-				candidate += " (imported)";
-			} else {
-				candidate += wxString::Format(" (imported %d)", attempt);
-			}
-			const wxString candidateKey = normalizeName(candidate);
-			if (!exists(candidate) && reserved.find(candidateKey) == reserved.end()) {
-				reserved.insert(candidateKey);
-				return candidate;
-			}
-		}
-
-		reserved.insert(baseKey);
-		return base;
-	};
-	for (const nlohmann::json &entity : root_["entities"]) {
-		if (!entity.is_object() || !entity.contains("kind") || !entity["kind"].is_string()) {
-			continue;
-		}
-		const std::string kind = entity["kind"].get<std::string>();
-		wxString keyLabel = "";
-		wxString actionDetail = "";
-		wxString detail = "";
-		std::vector<wxString> warnings;
-		bool exists = false;
-		bool isValid = true;
-
-		if (kind == "border_set") {
-			if (entity.contains("borderSet") && entity["borderSet"].is_object() && entity["borderSet"].contains("xmlBorderId") && entity["borderSet"]["xmlBorderId"].is_number_integer()) {
-				const int xmlBorderId = entity["borderSet"]["xmlBorderId"].get<int>();
-				keyLabel = wxString::Format("Border %d", xmlBorderId);
-				if (xmlBorderId <= 0) {
-					isValid = false;
-					detail = "Invalid border_set: xmlBorderId must be greater than zero.";
-				} else if (duplicateBorderXmlIds.find(xmlBorderId) != duplicateBorderXmlIds.end()) {
-					isValid = false;
-					detail = "Duplicate border_set xmlBorderId in import file.";
-				} else {
-					BorderSetRecord existing;
-					exists = g_brush_database.findBorderSetByXmlBorderId(xmlBorderId, existing) && existing.id > 0;
-				}
-			} else {
-				isValid = false;
-				detail = "Invalid border_set: missing xmlBorderId.";
-			}
-		} else if (kind == "brush" || kind == "wall") {
-			if (entity.contains("brush") && entity["brush"].is_object() && entity["brush"].contains("type") && entity["brush"].contains("name") && entity["brush"]["type"].is_string() && entity["brush"]["name"].is_string()) {
-				const wxString type = JsonToWxStringLocal(entity["brush"]["type"]);
-				const wxString name = JsonToWxStringLocal(entity["brush"]["name"]);
-				keyLabel = wxString::Format("%s: %s", type, name);
-				BrushRecord existing;
-				exists = g_brush_database.findBrushByNameAndType(name, type, existing) && existing.id > 0;
-
-				const wxString brushKeyLower = normalizeName(type) + ":" + normalizeName(name);
-				if (duplicateBrushKeys.find(brushKeyLower) != duplicateBrushKeys.end()) {
-					isValid = false;
-					detail = "Duplicate brush key in import file.";
-				} else {
-					if (entity.contains("links") && entity["links"].is_array()) {
-						for (const nlohmann::json &row : entity["links"]) {
-							if (!row.is_object()) {
-								continue;
-							}
-							if (row.contains("target") && row["target"].is_object()) {
-								wxString targetType;
-								wxString targetName;
-								if (parseBrushKey(row["target"], targetType, targetName)) {
-									if (!existsBrushKey(targetType, targetName)) {
-										warnings.push_back(wxString::Format("unresolved link target %s: %s", targetType, targetName));
-									}
-								}
-							} else if (row.contains("targetName") && row["targetName"].is_string()) {
-								const wxString targetName = JsonToWxStringLocal(row["targetName"]);
-								if (!existsBrushName(targetName)) {
-									warnings.push_back(wxString::Format("unresolved link target %s", targetName));
-								}
-							}
-						}
-					}
-
-					if (entity.contains("groundBorders") && entity["groundBorders"].is_array()) {
-						for (const nlohmann::json &row : entity["groundBorders"]) {
-							if (!row.is_object()) {
-								continue;
-							}
-
-							if (row.contains("borderRef") && row["borderRef"].is_object()) {
-								const nlohmann::json &ref = row["borderRef"];
-								if (ref.contains("scope") && ref["scope"].is_string()) {
-									const wxString scope = JsonToWxStringLocal(ref["scope"]);
-									if (scope.IsSameAs("global", false) && ref.contains("xmlBorderId") && ref["xmlBorderId"].is_number_integer()) {
-										const int xmlBorderId = ref["xmlBorderId"].get<int>();
-										if (xmlBorderId > 0 && importedBorderXmlIds.find(xmlBorderId) == importedBorderXmlIds.end() && existingBorderXmlIds.find(xmlBorderId) == existingBorderXmlIds.end()) {
-											isValid = false;
-											detail = wxString::Format("Missing global border_set Border %d (not in file and not in DB).", xmlBorderId);
-											break;
-										}
-									}
-								}
-							}
-
-							if (row.contains("targetBrush") && row["targetBrush"].is_object()) {
-								wxString targetType;
-								wxString targetName;
-								if (parseBrushKey(row["targetBrush"], targetType, targetName)) {
-									if (!existsBrushKey(targetType, targetName)) {
-										warnings.push_back(wxString::Format("unresolved border target %s: %s", targetType, targetName));
-									}
-								}
-							} else if (row.contains("targetBrushName") && row["targetBrushName"].is_string()) {
-								const wxString targetName = JsonToWxStringLocal(row["targetBrushName"]);
-								if (!existsBrushName(targetName)) {
-									warnings.push_back(wxString::Format("unresolved border target %s", targetName));
-								}
-							}
-						}
-					}
-				}
-			} else {
-				isValid = false;
-				detail = "Invalid brush: missing type/name.";
-			}
-		} else if (kind == "palette_group") {
-			if (entity.contains("group") && entity["group"].is_object() && entity["group"].contains("name") && entity["group"]["name"].is_string()) {
-				const wxString name = JsonToWxStringLocal(entity["group"]["name"]);
-				keyLabel = name;
-				exists = controller_.HasPaletteGroupNamed(name);
-				const wxString nameKey = normalizeName(name);
-				if (duplicateGroupNames.find(nameKey) != duplicateGroupNames.end()) {
-					isValid = false;
-					detail = "Duplicate palette group name in import file.";
-				}
-				if (exists && options_.onConflict == MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix) {
-					auto it = renamedPaletteGroups.find(name);
-					if (it == renamedPaletteGroups.end()) {
-						const wxString newName = makeUniqueName(
-							name, [&](const wxString &candidate) { return controller_.HasPaletteGroupNamed(candidate); }, reservedGroupNames
-						);
-						renamedPaletteGroups.insert({ name, newName });
-						it = renamedPaletteGroups.find(name);
-					}
-					if (it != renamedPaletteGroups.end() && it->second != name) {
-						actionDetail = " -> " + it->second;
-					}
-				}
-			} else {
-				isValid = false;
-				detail = "Invalid palette_group: missing name.";
-			}
-		} else if (kind == "palette") {
-			if (entity.contains("palette") && entity["palette"].is_object() && entity["palette"].contains("name") && entity["palette"]["name"].is_string()) {
-				const wxString name = JsonToWxStringLocal(entity["palette"]["name"]);
-				keyLabel = name;
-				exists = controller_.HasTilesetNamed(name);
-				const wxString nameKey = normalizeName(name);
-				if (duplicatePaletteNames.find(nameKey) != duplicatePaletteNames.end()) {
-					isValid = false;
-					detail = "Duplicate palette name in import file.";
-				}
-				if (exists && options_.onConflict == MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix) {
-					auto it = renamedPalettes.find(name);
-					if (it == renamedPalettes.end()) {
-						const wxString newName = makeUniqueName(
-							name, [&](const wxString &candidate) { return controller_.HasTilesetNamed(candidate); }, reservedPaletteNames
-						);
-						renamedPalettes.insert({ name, newName });
-						it = renamedPalettes.find(name);
-					}
-					if (it != renamedPalettes.end() && it->second != name) {
-						actionDetail = " -> " + it->second;
-					}
-				}
-				if (options_.onConflict == MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix) {
-					if (entity["palette"].contains("paletteGroupName") && entity["palette"]["paletteGroupName"].is_string()) {
-						const wxString groupName = JsonToWxStringLocal(entity["palette"]["paletteGroupName"]);
-						const auto groupIt = renamedPaletteGroups.find(groupName);
-						if (groupIt != renamedPaletteGroups.end() && groupIt->second != groupName) {
-							if (!actionDetail.IsEmpty()) {
-								actionDetail << " |";
-							}
-							actionDetail << " group -> " << groupIt->second;
-						}
-					}
-				}
-
-				if (entity["palette"].contains("paletteGroupName") && entity["palette"]["paletteGroupName"].is_string()) {
-					wxString groupName = JsonToWxStringLocal(entity["palette"]["paletteGroupName"]);
-					if (options_.onConflict == MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix) {
-						const auto groupIt = renamedPaletteGroups.find(groupName);
-						if (groupIt != renamedPaletteGroups.end()) {
-							groupName = groupIt->second;
-						}
-					}
-					if (!groupName.IsEmpty()) {
-						const wxString groupKey = normalizeName(groupName);
-						bool renamedGroupExists = false;
-						for (const auto &entry : renamedPaletteGroups) {
-							if (normalizeName(entry.second) == groupKey) {
-								renamedGroupExists = true;
-								break;
-							}
-						}
-						const bool groupExists = controller_.HasPaletteGroupNamed(groupName)
-							|| importedGroupNames.find(groupKey) != importedGroupNames.end()
-							|| renamedGroupExists;
-						if (!groupExists) {
-							isValid = false;
-							detail = wxString::Format("Missing palette group '%s'.", groupName);
-						}
-					}
-				}
-
-				if (isValid && entity.contains("sections") && entity["sections"].is_array()) {
-					for (const nlohmann::json &section : entity["sections"]) {
-						if (!section.is_object() || !section.contains("entries") || !section["entries"].is_array()) {
-							continue;
-						}
-						for (const nlohmann::json &e : section["entries"]) {
-							if (!e.is_object()) {
-								continue;
-							}
-							if (e.contains("brushName") && e["brushName"].is_string()) {
-								const wxString brushName = JsonToWxStringLocal(e["brushName"]);
-								if (!brushName.IsEmpty() && !existsBrushName(brushName)) {
-									warnings.push_back(wxString::Format("unresolved palette brush '%s'", brushName));
-								}
-							}
-							if (e.contains("afterBrushName") && e["afterBrushName"].is_string()) {
-								const wxString brushName = JsonToWxStringLocal(e["afterBrushName"]);
-								if (!brushName.IsEmpty() && !existsBrushName(brushName)) {
-									warnings.push_back(wxString::Format("unresolved palette afterBrush '%s'", brushName));
-								}
-							}
-						}
-					}
-				}
-			} else {
-				isValid = false;
-				detail = "Invalid palette: missing name.";
-			}
-		} else {
-			isValid = false;
-			detail = "Unknown entity kind.";
-		}
-
-		wxString action = exists ? "update" : "create";
-		if (!isValid) {
-			action = "invalid";
-		} else if (exists) {
-			if (options_.onConflict == MaterialsWorkbenchImportConflictStrategy::SkipExisting) {
-				action = "skip";
-			} else if (options_.onConflict == MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix) {
-				if (kind == "palette_group" || kind == "palette") {
-					action = "rename";
-				}
-			}
-		}
-
-		if (action == "update") {
+		if (result.action == "update") {
 			++updates;
-		} else if (action == "create" || action == "rename") {
+		} else if (result.action == "create" || result.action == "rename") {
 			++creates;
-		} else if (action == "skip") {
+		} else if (result.action == "skip") {
 			++skips;
 		} else {
 			++invalid;
 		}
-		PlanRow row;
-		if (kind == "wall") {
-			row.kind = "brush";
-		} else {
-			row.kind = wxString::FromUTF8(kind.c_str());
-		}
-		row.key = keyLabel;
-		row.action = action;
-		wxString finalDetail = detail.IsEmpty() ? actionDetail : detail;
-		if (isValid && !warnings.empty()) {
-			if (!finalDetail.IsEmpty()) {
-				finalDetail << " | ";
-			}
-			finalDetail << "Warning: ";
-			for (size_t i = 0; i < warnings.size(); ++i) {
-				if (i != 0) {
-					finalDetail << "; ";
-				}
-				finalDetail << warnings[i];
-			}
+		if (result.countedWarning) {
 			++warningRows;
 		}
-		row.detail = finalDetail;
-		allPlanRows_.push_back(std::move(row));
+
+		allPlanRows_.push_back(std::move(result.row));
 
 		++processed;
 		if (progress && total > 0 && progressSpan > 0 && (processed % 200) == 0) {
