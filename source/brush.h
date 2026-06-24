@@ -315,7 +315,7 @@ public:
 		look_id = newLookId;
 	}
 
-	int32_t getZ() const {
+	virtual int32_t getZ() const {
 		return 0;
 	}
 	int getLookID() const override {

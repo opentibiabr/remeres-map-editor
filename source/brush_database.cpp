@@ -70,6 +70,23 @@ namespace {
 		}
 	}
 
+	template <typename OnError, typename OnRow>
+	bool CollectStatementRows(sqlite3_stmt* stmt, const wxString &errorMessage, OnError onError, OnRow onRow) {
+		for (;;) {
+			const int stepRc = sqlite3_step(stmt);
+			if (stepRc == SQLITE_DONE) {
+				break;
+			}
+			if (stepRc != SQLITE_ROW) {
+				return onError(errorMessage);
+			}
+			if (!onRow(stmt)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	constexpr size_t kMaxIdsPerChunk = 900;
 
 	struct SqliteStatementGuard {
@@ -6149,6 +6166,7 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 	}
 
 	const wxString supportedBrushTypesSql = "('ground', 'wall', 'wall decoration', 'doodad', 'carpet', 'table')";
+	const auto onDbError = [this](const wxString &errorMessage) { return setErrorFromDatabase(errorMessage); };
 
 	sqlite3_stmt* countStmt = nullptr;
 	wxString countSql;
@@ -6211,81 +6229,18 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 	}
 	SqliteStatementGuard groupedGuard(groupedStmt);
 
-	const auto collectTypeCounts = [this](sqlite3_stmt* stmt, std::vector<BrushTypeCountRecord> &outCounts, const wxString &errorMessage) {
-		for (;;) {
-			const int stepRc = sqlite3_step(stmt);
-			if (stepRc == SQLITE_DONE) {
-				break;
+	if (!CollectStatementRows(
+			groupedStmt,
+			"Failed to group brushes by type",
+			onDbError,
+			[&](sqlite3_stmt* stmt) {
+				BrushTypeCountRecord typeCount;
+				typeCount.type = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)));
+				typeCount.count = sqlite3_column_int(stmt, 1);
+				outReport.brushTypeCounts.push_back(typeCount);
+				return true;
 			}
-			if (stepRc != SQLITE_ROW) {
-				return setErrorFromDatabase(errorMessage);
-			}
-
-			BrushTypeCountRecord typeCount;
-			typeCount.type = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)));
-			typeCount.count = sqlite3_column_int(stmt, 1);
-			outCounts.push_back(typeCount);
-		}
-		return true;
-	};
-
-	const auto collectUnsupportedBrushSamples = [this](
-		sqlite3_stmt* stmt,
-		std::vector<UnsupportedBrushSampleRecord> &outSamples,
-		const wxString &errorMessage
-	) {
-		for (;;) {
-			const int stepRc = sqlite3_step(stmt);
-			if (stepRc == SQLITE_DONE) {
-				break;
-			}
-			if (stepRc != SQLITE_ROW) {
-				return setErrorFromDatabase(errorMessage);
-			}
-
-			UnsupportedBrushSampleRecord sample;
-			sample.id = sqlite3_column_int64(stmt, 0);
-			sample.name = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
-			sample.type = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
-			sample.sourceFile = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
-			outSamples.push_back(sample);
-		}
-		return true;
-	};
-
-	const auto collectUnresolvedTilesetEntrySamples = [this](
-		sqlite3_stmt* stmt,
-		std::vector<UnresolvedTilesetEntrySampleRecord> &outSamples,
-		const wxString &errorMessage
-	) {
-		for (;;) {
-			const int stepRc = sqlite3_step(stmt);
-			if (stepRc == SQLITE_DONE) {
-				break;
-			}
-			if (stepRc != SQLITE_ROW) {
-				return setErrorFromDatabase(errorMessage);
-			}
-
-			UnresolvedTilesetEntrySampleRecord sample;
-			sample.paletteGroupName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)));
-			sample.tilesetName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
-			sample.tilesetSourceFile = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
-			sample.sectionType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
-			sample.entryKind = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)));
-			sample.brushName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5)));
-			sample.itemId = sqlite3_column_int(stmt, 6);
-			sample.fromItemId = sqlite3_column_int(stmt, 7);
-			sample.toItemId = sqlite3_column_int(stmt, 8);
-			sample.afterBrushName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 9)));
-			sample.afterItemId = sqlite3_column_int(stmt, 10);
-			sample.sortOrder = sqlite3_column_int(stmt, 11);
-			outSamples.push_back(sample);
-		}
-		return true;
-	};
-
-	if (!collectTypeCounts(groupedStmt, outReport.brushTypeCounts, "Failed to group brushes by type")) {
+		)) {
 		return false;
 	}
 
@@ -6301,7 +6256,18 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 		return false;
 	}
 	SqliteStatementGuard unsupportedTypesGuard(unsupportedTypesStmt);
-	if (!collectTypeCounts(unsupportedTypesStmt, outReport.unsupportedBrushTypeCounts, "Failed to group unsupported brush types")) {
+	if (!CollectStatementRows(
+			unsupportedTypesStmt,
+			"Failed to group unsupported brush types",
+			onDbError,
+			[&](sqlite3_stmt* stmt) {
+				BrushTypeCountRecord typeCount;
+				typeCount.type = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)));
+				typeCount.count = sqlite3_column_int(stmt, 1);
+				outReport.unsupportedBrushTypeCounts.push_back(typeCount);
+				return true;
+			}
+		)) {
 		return false;
 	}
 
@@ -6317,10 +6283,19 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 		return false;
 	}
 	SqliteStatementGuard unsupportedSamplesGuard(unsupportedSamplesStmt);
-	if (!collectUnsupportedBrushSamples(
+	if (!CollectStatementRows(
 			unsupportedSamplesStmt,
-			outReport.unsupportedBrushSamples,
-			"Failed to list unsupported brush samples"
+			"Failed to list unsupported brush samples",
+			onDbError,
+			[&](sqlite3_stmt* stmt) {
+				UnsupportedBrushSampleRecord sample;
+				sample.id = sqlite3_column_int64(stmt, 0);
+				sample.name = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+				sample.type = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+				sample.sourceFile = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
+				outReport.unsupportedBrushSamples.push_back(sample);
+				return true;
+			}
 		)) {
 		return false;
 	}
@@ -6355,10 +6330,27 @@ bool BrushDatabaseCatalogRepository::generateAuditReport(MaterialsDatabaseAuditR
 		return false;
 	}
 	SqliteStatementGuard unresolvedTilesetSamplesGuard(unresolvedTilesetSamplesStmt);
-	if (!collectUnresolvedTilesetEntrySamples(
+	if (!CollectStatementRows(
 			unresolvedTilesetSamplesStmt,
-			outReport.unresolvedTilesetEntrySamples,
-			"Failed to list unresolved tileset entries"
+			"Failed to list unresolved tileset entries",
+			onDbError,
+			[&](sqlite3_stmt* stmt) {
+				UnresolvedTilesetEntrySampleRecord sample;
+				sample.paletteGroupName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)));
+				sample.tilesetName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+				sample.tilesetSourceFile = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+				sample.sectionType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
+				sample.entryKind = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)));
+				sample.brushName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5)));
+				sample.itemId = sqlite3_column_int(stmt, 6);
+				sample.fromItemId = sqlite3_column_int(stmt, 7);
+				sample.toItemId = sqlite3_column_int(stmt, 8);
+				sample.afterBrushName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 9)));
+				sample.afterItemId = sqlite3_column_int(stmt, 10);
+				sample.sortOrder = sqlite3_column_int(stmt, 11);
+				outReport.unresolvedTilesetEntrySamples.push_back(sample);
+				return true;
+			}
 		)) {
 		return false;
 	}

@@ -760,7 +760,11 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	// Tie all events to this handler!
 
 	for (std::map<std::string, MenuBar::Action*>::iterator ai = actions.begin(); ai != actions.end(); ++ai) {
-		frame->Bind(wxEVT_COMMAND_MENU_SELECTED, &MainMenuBar::OnMenuAction, this, MAIN_FRAME_MENU + ai->second->id);
+		frame->Bind(
+			wxEVT_COMMAND_MENU_SELECTED,
+			[this](wxCommandEvent &event) { OnMenuAction(event); },
+			MAIN_FRAME_MENU + ai->second->id
+		);
 	}
 	for (size_t i = 0; i < 10; ++i) {
 		frame->Connect(recentFiles.GetBaseId() + i, wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainMenuBar::OnOpenRecent), nullptr, this);
@@ -777,8 +781,7 @@ MainMenuBar::~MainMenuBar() {
 
 void MainMenuBar::OnMenuAction(wxCommandEvent &event) {
 	const int targetId = event.GetId() - MAIN_FRAME_MENU;
-	for (const auto &entry : actions) {
-		MenuBar::Action* action = entry.second;
+	for (const auto &[name, action] : actions) {
 		if (action && action->id == targetId) {
 			action->handler(*this, event);
 			return;

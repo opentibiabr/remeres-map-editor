@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <fstream>
 #include <iomanip>
+#include <memory>
 #include <unordered_map>
 #include <utility>
 
@@ -924,7 +925,7 @@ namespace {
 			typeChoice_->Append("match_group");
 			typeChoice_->Append("match_item");
 			edgeChoice_ = new wxChoice(this, wxID_ANY);
-			const char* const edges[] = { "n", "s", "e", "w", "cnw", "cne", "csw", "cse", "dnw", "dne", "dsw", "dse" };
+			const std::array<const char*, 12> edges = { "n", "s", "e", "w", "cnw", "cne", "csw", "cse", "dnw", "dne", "dsw", "dse" };
 			for (const char* edge : edges) {
 				edgeChoice_->Append(edge);
 			}
@@ -1065,7 +1066,7 @@ namespace {
 			typeChoice_->Append("replace_item");
 			typeChoice_->Append("delete_borders");
 			edgeChoice_ = new wxChoice(this, wxID_ANY);
-			const char* const edges[] = { "n", "s", "e", "w", "cnw", "cne", "csw", "cse", "dnw", "dne", "dsw", "dse" };
+			const std::array<const char*, 12> edges = { "n", "s", "e", "w", "cnw", "cne", "csw", "cse", "dnw", "dne", "dsw", "dse" };
 			for (const char* edge : edges) {
 				edgeChoice_->Append(edge);
 			}
@@ -1248,110 +1249,116 @@ namespace {
 
 			wxPanel* casePanel = new wxPanel(this, wxID_ANY);
 			wxBoxSizer* caseSizer = new wxBoxSizer(wxVERTICAL);
-			caseList_ = new wxListBox(casePanel, wxID_ANY);
+			ui_.caseList = new wxListBox(casePanel, wxID_ANY);
 			wxBoxSizer* caseButtons = new wxBoxSizer(wxHORIZONTAL);
-			addCaseButton_ = new wxButton(casePanel, wxID_ANY, "+");
-			removeCaseButton_ = new wxButton(casePanel, wxID_ANY, "-");
-			caseUpButton_ = new wxButton(casePanel, wxID_ANY, "Up");
-			caseDownButton_ = new wxButton(casePanel, wxID_ANY, "Down");
-			StyleBorderWorkspaceActionButton(addCaseButton_, "Add a new case.");
-			StyleBorderWorkspaceActionButton(removeCaseButton_, "Remove the selected case.");
-			StyleBorderWorkspaceActionButton(caseUpButton_, "Move the selected case earlier.");
-			StyleBorderWorkspaceActionButton(caseDownButton_, "Move the selected case later.");
-			caseButtons->Add(addCaseButton_, 0, wxRIGHT, FromDIP(4));
-			caseButtons->Add(removeCaseButton_, 0, wxRIGHT, FromDIP(4));
-			caseButtons->Add(caseUpButton_, 0, wxRIGHT, FromDIP(4));
-			caseButtons->Add(caseDownButton_, 0);
+			ui_.addCaseButton = new wxButton(casePanel, wxID_ANY, "+");
+			ui_.removeCaseButton = new wxButton(casePanel, wxID_ANY, "-");
+			ui_.caseUpButton = new wxButton(casePanel, wxID_ANY, "Up");
+			ui_.caseDownButton = new wxButton(casePanel, wxID_ANY, "Down");
+			StyleBorderWorkspaceActionButton(ui_.addCaseButton, "Add a new case.");
+			StyleBorderWorkspaceActionButton(ui_.removeCaseButton, "Remove the selected case.");
+			StyleBorderWorkspaceActionButton(ui_.caseUpButton, "Move the selected case earlier.");
+			StyleBorderWorkspaceActionButton(ui_.caseDownButton, "Move the selected case later.");
+			caseButtons->Add(ui_.addCaseButton, 0, wxRIGHT, FromDIP(4));
+			caseButtons->Add(ui_.removeCaseButton, 0, wxRIGHT, FromDIP(4));
+			caseButtons->Add(ui_.caseUpButton, 0, wxRIGHT, FromDIP(4));
+			caseButtons->Add(ui_.caseDownButton, 0);
 			caseSizer->Add(new wxStaticText(casePanel, wxID_ANY, "Cases"), 0, wxBOTTOM, FromDIP(4));
-			caseSizer->Add(caseList_, 1, wxEXPAND | wxBOTTOM, FromDIP(6));
+			caseSizer->Add(ui_.caseList, 1, wxEXPAND | wxBOTTOM, FromDIP(6));
 			caseSizer->Add(caseButtons, 0, wxEXPAND);
 			casePanel->SetSizer(caseSizer);
 
 			wxPanel* detailPanel = new wxPanel(this, wxID_ANY);
 			wxBoxSizer* detailSizer = new wxBoxSizer(wxVERTICAL);
-			warningLabel_ = new wxStaticText(detailPanel, wxID_ANY, "");
-			StyleBorderWorkspaceCaption(warningLabel_);
-			conditionsList_ = new wxListCtrl(detailPanel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_THEME);
-			conditionsList_->InsertColumn(0, "");
-			conditionsList_->InsertColumn(1, "Type");
-			conditionsList_->InsertColumn(2, "Edge");
-			conditionsList_->InsertColumn(3, "Value");
-			conditionsList_->SetColumnWidth(0, FromDIP(44));
-			conditionsList_->SetColumnWidth(1, FromDIP(160));
-			conditionsList_->SetColumnWidth(2, FromDIP(100));
-			conditionsList_->SetColumnWidth(3, FromDIP(160));
-			actionsList_ = new wxListCtrl(detailPanel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_THEME);
-			actionsList_->InsertColumn(0, "");
-			actionsList_->InsertColumn(1, "Type");
-			actionsList_->InsertColumn(2, "Edge");
-			actionsList_->InsertColumn(3, "Target");
-			actionsList_->InsertColumn(4, "With");
-			actionsList_->SetColumnWidth(0, FromDIP(44));
-			actionsList_->SetColumnWidth(1, FromDIP(160));
-			actionsList_->SetColumnWidth(2, FromDIP(100));
-			actionsList_->SetColumnWidth(3, FromDIP(160));
-			actionsList_->SetColumnWidth(4, FromDIP(160));
+			ui_.warningLabel = new wxStaticText(detailPanel, wxID_ANY, "");
+			StyleBorderWorkspaceCaption(ui_.warningLabel);
+			ui_.conditionsList = new wxListCtrl(detailPanel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_THEME);
+			ui_.conditionsList->InsertColumn(0, "");
+			ui_.conditionsList->InsertColumn(1, "Type");
+			ui_.conditionsList->InsertColumn(2, "Edge");
+			ui_.conditionsList->InsertColumn(3, "Value");
+			ui_.conditionsList->SetColumnWidth(0, FromDIP(44));
+			ui_.conditionsList->SetColumnWidth(1, FromDIP(160));
+			ui_.conditionsList->SetColumnWidth(2, FromDIP(100));
+			ui_.conditionsList->SetColumnWidth(3, FromDIP(160));
+			ui_.actionsList = new wxListCtrl(detailPanel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_THEME);
+			ui_.actionsList->InsertColumn(0, "");
+			ui_.actionsList->InsertColumn(1, "Type");
+			ui_.actionsList->InsertColumn(2, "Edge");
+			ui_.actionsList->InsertColumn(3, "Target");
+			ui_.actionsList->InsertColumn(4, "With");
+			ui_.actionsList->SetColumnWidth(0, FromDIP(44));
+			ui_.actionsList->SetColumnWidth(1, FromDIP(160));
+			ui_.actionsList->SetColumnWidth(2, FromDIP(100));
+			ui_.actionsList->SetColumnWidth(3, FromDIP(160));
+			ui_.actionsList->SetColumnWidth(4, FromDIP(160));
 
-			conditionImages_ = new wxImageList(32, 32, true);
-			actionImages_ = new wxImageList(32, 32, true);
-			conditionsList_->AssignImageList(conditionImages_, wxIMAGE_LIST_SMALL);
-			actionsList_->AssignImageList(actionImages_, wxIMAGE_LIST_SMALL);
+			ui_.conditionImages = new wxImageList(32, 32, true);
+			ui_.actionImages = new wxImageList(32, 32, true);
+			ui_.conditionsList->AssignImageList(ui_.conditionImages, wxIMAGE_LIST_SMALL);
+			ui_.actionsList->AssignImageList(ui_.actionImages, wxIMAGE_LIST_SMALL);
 
 			wxBoxSizer* condButtons = new wxBoxSizer(wxHORIZONTAL);
-			addCondButton_ = new wxButton(detailPanel, wxID_ANY, "Add");
-			editCondButton_ = new wxButton(detailPanel, wxID_ANY, "Edit");
-			removeCondButton_ = new wxButton(detailPanel, wxID_ANY, "Remove");
-			condUpButton_ = new wxButton(detailPanel, wxID_ANY, "Up");
-			condDownButton_ = new wxButton(detailPanel, wxID_ANY, "Down");
-			StyleBorderWorkspaceActionButton(addCondButton_, "Add a new condition.");
-			StyleBorderWorkspaceActionButton(editCondButton_, "Edit the selected condition.");
-			StyleBorderWorkspaceActionButton(removeCondButton_, "Remove the selected condition.");
-			StyleBorderWorkspaceActionButton(condUpButton_, "Move the selected condition earlier.");
-			StyleBorderWorkspaceActionButton(condDownButton_, "Move the selected condition later.");
-			condButtons->Add(addCondButton_, 0, wxRIGHT, FromDIP(4));
-			condButtons->Add(editCondButton_, 0, wxRIGHT, FromDIP(4));
-			condButtons->Add(removeCondButton_, 0, wxRIGHT, FromDIP(4));
-			condButtons->Add(condUpButton_, 0, wxRIGHT, FromDIP(4));
-			condButtons->Add(condDownButton_, 0);
+			ui_.addCondButton = new wxButton(detailPanel, wxID_ANY, "Add");
+			ui_.editCondButton = new wxButton(detailPanel, wxID_ANY, "Edit");
+			ui_.removeCondButton = new wxButton(detailPanel, wxID_ANY, "Remove");
+			ui_.condUpButton = new wxButton(detailPanel, wxID_ANY, "Up");
+			ui_.condDownButton = new wxButton(detailPanel, wxID_ANY, "Down");
+			StyleBorderWorkspaceActionButton(ui_.addCondButton, "Add a new condition.");
+			StyleBorderWorkspaceActionButton(ui_.editCondButton, "Edit the selected condition.");
+			StyleBorderWorkspaceActionButton(ui_.removeCondButton, "Remove the selected condition.");
+			StyleBorderWorkspaceActionButton(ui_.condUpButton, "Move the selected condition earlier.");
+			StyleBorderWorkspaceActionButton(ui_.condDownButton, "Move the selected condition later.");
+			condButtons->Add(ui_.addCondButton, 0, wxRIGHT, FromDIP(4));
+			condButtons->Add(ui_.editCondButton, 0, wxRIGHT, FromDIP(4));
+			condButtons->Add(ui_.removeCondButton, 0, wxRIGHT, FromDIP(4));
+			condButtons->Add(ui_.condUpButton, 0, wxRIGHT, FromDIP(4));
+			condButtons->Add(ui_.condDownButton, 0);
 
 			wxBoxSizer* actButtons = new wxBoxSizer(wxHORIZONTAL);
-			addActButton_ = new wxButton(detailPanel, wxID_ANY, "Add");
-			editActButton_ = new wxButton(detailPanel, wxID_ANY, "Edit");
-			removeActButton_ = new wxButton(detailPanel, wxID_ANY, "Remove");
-			actUpButton_ = new wxButton(detailPanel, wxID_ANY, "Up");
-			actDownButton_ = new wxButton(detailPanel, wxID_ANY, "Down");
-			StyleBorderWorkspaceActionButton(addActButton_, "Add a new action.");
-			StyleBorderWorkspaceActionButton(editActButton_, "Edit the selected action.");
-			StyleBorderWorkspaceActionButton(removeActButton_, "Remove the selected action.");
-			StyleBorderWorkspaceActionButton(actUpButton_, "Move the selected action earlier.");
-			StyleBorderWorkspaceActionButton(actDownButton_, "Move the selected action later.");
-			actButtons->Add(addActButton_, 0, wxRIGHT, FromDIP(4));
-			actButtons->Add(editActButton_, 0, wxRIGHT, FromDIP(4));
-			actButtons->Add(removeActButton_, 0, wxRIGHT, FromDIP(4));
-			actButtons->Add(actUpButton_, 0, wxRIGHT, FromDIP(4));
-			actButtons->Add(actDownButton_, 0);
+			ui_.addActButton = new wxButton(detailPanel, wxID_ANY, "Add");
+			ui_.editActButton = new wxButton(detailPanel, wxID_ANY, "Edit");
+			ui_.removeActButton = new wxButton(detailPanel, wxID_ANY, "Remove");
+			ui_.actUpButton = new wxButton(detailPanel, wxID_ANY, "Up");
+			ui_.actDownButton = new wxButton(detailPanel, wxID_ANY, "Down");
+			StyleBorderWorkspaceActionButton(ui_.addActButton, "Add a new action.");
+			StyleBorderWorkspaceActionButton(ui_.editActButton, "Edit the selected action.");
+			StyleBorderWorkspaceActionButton(ui_.removeActButton, "Remove the selected action.");
+			StyleBorderWorkspaceActionButton(ui_.actUpButton, "Move the selected action earlier.");
+			StyleBorderWorkspaceActionButton(ui_.actDownButton, "Move the selected action later.");
+			actButtons->Add(ui_.addActButton, 0, wxRIGHT, FromDIP(4));
+			actButtons->Add(ui_.editActButton, 0, wxRIGHT, FromDIP(4));
+			actButtons->Add(ui_.removeActButton, 0, wxRIGHT, FromDIP(4));
+			actButtons->Add(ui_.actUpButton, 0, wxRIGHT, FromDIP(4));
+			actButtons->Add(ui_.actDownButton, 0);
 
-			detailSizer->Add(warningLabel_, 0, wxBOTTOM, FromDIP(6));
+			detailSizer->Add(ui_.warningLabel, 0, wxBOTTOM, FromDIP(6));
 			detailSizer->Add(new wxStaticText(detailPanel, wxID_ANY, "Conditions"), 0, wxBOTTOM, FromDIP(4));
-			detailSizer->Add(conditionsList_, 1, wxEXPAND | wxBOTTOM, FromDIP(4));
+			detailSizer->Add(ui_.conditionsList, 1, wxEXPAND | wxBOTTOM, FromDIP(4));
 			detailSizer->Add(condButtons, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
 			detailSizer->Add(new wxStaticText(detailPanel, wxID_ANY, "Actions"), 0, wxBOTTOM, FromDIP(4));
-			detailSizer->Add(actionsList_, 1, wxEXPAND | wxBOTTOM, FromDIP(4));
+			detailSizer->Add(ui_.actionsList, 1, wxEXPAND | wxBOTTOM, FromDIP(4));
 			wxBoxSizer* selectionRow = new wxBoxSizer(wxHORIZONTAL);
-			selectionEdgePreview_ = new BorderEdgePreviewPanel(detailPanel);
-			selectionPreviewPrimary_ = new ItemButton(detailPanel, RENDER_SIZE_32x32, 0);
-			selectionPreviewSecondary_ = new ItemButton(detailPanel, RENDER_SIZE_32x32, 0);
-			selectionPreviewArrow_ = new wxStaticText(detailPanel, wxID_ANY, "→");
-			selectionPreviewPrimary_->Enable(false);
-			selectionPreviewSecondary_->Enable(false);
-			StyleBorderWorkspaceCaption(selectionPreviewArrow_);
-			selectionPreviewLabel_ = new wxStaticText(detailPanel, wxID_ANY, "Select a condition or action to see details.");
-			StyleBorderWorkspaceCaption(selectionPreviewLabel_);
-			selectionRow->Add(selectionEdgePreview_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(10));
-			selectionRow->Add(selectionPreviewPrimary_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
-			selectionRow->Add(selectionPreviewArrow_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
-			selectionRow->Add(selectionPreviewSecondary_, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
-			selectionRow->Add(selectionPreviewLabel_, 1, wxALIGN_CENTER_VERTICAL);
+			auto ownedEdgePreview = std::make_unique<BorderEdgePreviewPanel>(detailPanel);
+			ui_.selectionEdgePreview = ownedEdgePreview.get();
+			ownedEdgePreview.release();
+			auto ownedPreviewPrimary = std::make_unique<ItemButton>(detailPanel, RENDER_SIZE_32x32, 0);
+			ui_.selectionPreviewPrimary = ownedPreviewPrimary.get();
+			ownedPreviewPrimary.release();
+			auto ownedPreviewSecondary = std::make_unique<ItemButton>(detailPanel, RENDER_SIZE_32x32, 0);
+			ui_.selectionPreviewSecondary = ownedPreviewSecondary.get();
+			ownedPreviewSecondary.release();
+			ui_.selectionPreviewArrow = new wxStaticText(detailPanel, wxID_ANY, "→");
+			ui_.selectionPreviewPrimary->Enable(false);
+			ui_.selectionPreviewSecondary->Enable(false);
+			StyleBorderWorkspaceCaption(ui_.selectionPreviewArrow);
+			ui_.selectionPreviewLabel = new wxStaticText(detailPanel, wxID_ANY, "Select a condition or action to see details.");
+			StyleBorderWorkspaceCaption(ui_.selectionPreviewLabel);
+			selectionRow->Add(ui_.selectionEdgePreview, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(10));
+			selectionRow->Add(ui_.selectionPreviewPrimary, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
+			selectionRow->Add(ui_.selectionPreviewArrow, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
+			selectionRow->Add(ui_.selectionPreviewSecondary, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
+			selectionRow->Add(ui_.selectionPreviewLabel, 1, wxALIGN_CENTER_VERTICAL);
 			detailSizer->Add(selectionRow, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
 			detailSizer->Add(actButtons, 0, wxEXPAND);
 			detailPanel->SetSizer(detailSizer);
@@ -1369,32 +1376,32 @@ namespace {
 			SetSizerAndFit(rootSizer);
 			SetMinSize(wxSize(FromDIP(760), FromDIP(520)));
 
-			addCaseButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnAddCase, this);
-			removeCaseButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnRemoveCase, this);
-			caseUpButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnMoveCaseUp, this);
-			caseDownButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnMoveCaseDown, this);
-			caseList_->Bind(wxEVT_LISTBOX, &GroundSpecificCasesDialog::OnCaseSelected, this);
+			ui_.addCaseButton->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnAddCase, this);
+			ui_.removeCaseButton->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnRemoveCase, this);
+			ui_.caseUpButton->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnMoveCaseUp, this);
+			ui_.caseDownButton->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnMoveCaseDown, this);
+			ui_.caseList->Bind(wxEVT_LISTBOX, &GroundSpecificCasesDialog::OnCaseSelected, this);
 
-			addCondButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnAddCondition, this);
-			editCondButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnEditCondition, this);
-			removeCondButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnRemoveCondition, this);
-			condUpButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnMoveConditionUp, this);
-			condDownButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnMoveConditionDown, this);
-			conditionsList_->Bind(wxEVT_LIST_ITEM_ACTIVATED, &GroundSpecificCasesDialog::OnConditionActivated, this);
-			conditionsList_->Bind(wxEVT_LIST_ITEM_SELECTED, [this](wxListEvent &event) {
+			ui_.addCondButton->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnAddCondition, this);
+			ui_.editCondButton->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnEditCondition, this);
+			ui_.removeCondButton->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnRemoveCondition, this);
+			ui_.condUpButton->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnMoveConditionUp, this);
+			ui_.condDownButton->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnMoveConditionDown, this);
+			ui_.conditionsList->Bind(wxEVT_LIST_ITEM_ACTIVATED, &GroundSpecificCasesDialog::OnConditionActivated, this);
+			ui_.conditionsList->Bind(wxEVT_LIST_ITEM_SELECTED, [this](wxListEvent &event) {
 				selectedConditionIndex_ = event.GetIndex();
 				activeSelectionIsAction_ = false;
 				UpdateButtons();
 				RefreshSelectionPreview();
 			});
 
-			addActButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnAddAction, this);
-			editActButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnEditAction, this);
-			removeActButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnRemoveAction, this);
-			actUpButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnMoveActionUp, this);
-			actDownButton_->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnMoveActionDown, this);
-			actionsList_->Bind(wxEVT_LIST_ITEM_ACTIVATED, &GroundSpecificCasesDialog::OnActionActivated, this);
-			actionsList_->Bind(wxEVT_LIST_ITEM_SELECTED, [this](wxListEvent &event) {
+			ui_.addActButton->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnAddAction, this);
+			ui_.editActButton->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnEditAction, this);
+			ui_.removeActButton->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnRemoveAction, this);
+			ui_.actUpButton->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnMoveActionUp, this);
+			ui_.actDownButton->Bind(wxEVT_BUTTON, &GroundSpecificCasesDialog::OnMoveActionDown, this);
+			ui_.actionsList->Bind(wxEVT_LIST_ITEM_ACTIVATED, &GroundSpecificCasesDialog::OnActionActivated, this);
+			ui_.actionsList->Bind(wxEVT_LIST_ITEM_SELECTED, [this](wxListEvent &event) {
 				selectedActionIndex_ = event.GetIndex();
 				activeSelectionIsAction_ = true;
 				UpdateButtons();
@@ -1418,15 +1425,15 @@ namespace {
 			if (it == borderSetItemsByXmlId_.end()) {
 				BorderSetRecord borderSet;
 				if (!g_brush_database.findBorderSetByXmlBorderId(xmlBorderId, borderSet) || borderSet.id <= 0) {
-					borderSetItemsByXmlId_.insert({ xmlBorderId, std::vector<BorderSetItemRecord>() });
+					borderSetItemsByXmlId_.try_emplace(xmlBorderId);
 					return 0;
 				}
 				std::vector<BorderSetItemRecord> items;
 				if (!g_brush_database.getBorderSetItems(borderSet.id, items)) {
-					borderSetItemsByXmlId_.insert({ xmlBorderId, std::vector<BorderSetItemRecord>() });
+					borderSetItemsByXmlId_.try_emplace(xmlBorderId);
 					return 0;
 				}
-				it = borderSetItemsByXmlId_.insert({ xmlBorderId, std::move(items) }).first;
+				it = borderSetItemsByXmlId_.try_emplace(xmlBorderId, std::move(items)).first;
 			}
 
 			const std::vector<BorderSetItemRecord> &items = it->second;
@@ -1457,7 +1464,7 @@ namespace {
 			if (!bitmap.IsOk()) {
 				return -1;
 			}
-			const int imageIndex = conditionImages_->Add(bitmap);
+			const int imageIndex = ui_.conditionImages->Add(bitmap);
 			conditionIconCache_.push_back({ spriteId, imageIndex });
 			return imageIndex;
 		}
@@ -1475,39 +1482,39 @@ namespace {
 			if (!bitmap.IsOk()) {
 				return -1;
 			}
-			const int imageIndex = actionImages_->Add(bitmap);
+			const int imageIndex = ui_.actionImages->Add(bitmap);
 			actionIconCache_.push_back({ spriteId, imageIndex });
 			return imageIndex;
 		}
 
 		void RefreshCaseList() {
-			caseList_->Clear();
+			ui_.caseList->Clear();
 			for (size_t i = 0; i < cases_.size(); ++i) {
 				const GroundBorderCaseRecord &caseRecord = cases_[i];
-				caseList_->Append(wxString::Format("Case %zu  (%zu cond / %zu act)", i + 1, caseRecord.conditions.size(), caseRecord.actions.size()));
+				ui_.caseList->Append(wxString::Format("Case %zu  (%zu cond / %zu act)", i + 1, caseRecord.conditions.size(), caseRecord.actions.size()));
 			}
 			if (cases_.empty()) {
-				caseList_->Append("No cases");
+				ui_.caseList->Append("No cases");
 			}
 		}
 
 		void SelectCase(int index) {
 			if (cases_.empty()) {
 				selectedCaseIndex_ = -1;
-				caseList_->SetSelection(0);
+				ui_.caseList->SetSelection(0);
 				RefreshDetails();
 				return;
 			}
 			selectedCaseIndex_ = std::clamp(index, 0, static_cast<int>(cases_.size()) - 1);
-			caseList_->SetSelection(selectedCaseIndex_);
+			ui_.caseList->SetSelection(selectedCaseIndex_);
 			RefreshDetails();
 		}
 
 		void RefreshDetails() {
-			conditionsList_->DeleteAllItems();
-			actionsList_->DeleteAllItems();
-			conditionImages_->RemoveAll();
-			actionImages_->RemoveAll();
+			ui_.conditionsList->DeleteAllItems();
+			ui_.actionsList->DeleteAllItems();
+			ui_.conditionImages->RemoveAll();
+			ui_.actionImages->RemoveAll();
 			conditionIconCache_.clear();
 			actionIconCache_.clear();
 			borderSetItemsByXmlId_.clear();
@@ -1515,7 +1522,7 @@ namespace {
 			selectedActionIndex_ = -1;
 			activeSelectionIsAction_ = false;
 			if (selectedCaseIndex_ < 0 || selectedCaseIndex_ >= static_cast<int>(cases_.size())) {
-				warningLabel_->SetLabel("Select a case to edit its conditions and actions.");
+				ui_.warningLabel->SetLabel("Select a case to edit its conditions and actions.");
 				RefreshSelectionPreview();
 				UpdateButtons();
 				return;
@@ -1530,11 +1537,11 @@ namespace {
 				} else if (condition.conditionType.IsSameAs("match_border", false)) {
 					spriteId = ResolveBorderEdgeSpriteId(condition.matchValue, condition.edge);
 				}
-				const long row = conditionsList_->InsertItem(static_cast<long>(i), "", EnsureConditionIcon(spriteId));
-				conditionsList_->SetItem(row, 1, FormatSpecificCaseTypeLabel(condition.conditionType));
+				const long row = ui_.conditionsList->InsertItem(static_cast<long>(i), "", EnsureConditionIcon(spriteId));
+				ui_.conditionsList->SetItem(row, 1, FormatSpecificCaseTypeLabel(condition.conditionType));
 				const wxString edgeLabel = condition.edge.IsEmpty() ? wxString::FromUTF8("-") : GetBorderEdgeDisplayLabel(condition.edge);
-				conditionsList_->SetItem(row, 2, edgeLabel);
-				conditionsList_->SetItem(row, 3, FormatSpecificCaseValueLabel(condition.conditionType, condition.matchValue));
+				ui_.conditionsList->SetItem(row, 2, edgeLabel);
+				ui_.conditionsList->SetItem(row, 3, FormatSpecificCaseValueLabel(condition.conditionType, condition.matchValue));
 			}
 			for (size_t i = 0; i < caseRecord.actions.size(); ++i) {
 				const GroundBorderCaseActionRecord &action = caseRecord.actions[i];
@@ -1544,19 +1551,19 @@ namespace {
 				} else if (action.actionType.IsSameAs("replace_border", false)) {
 					spriteId = ResolveBorderEdgeSpriteId(action.replacementValue, action.edge);
 				}
-				const long row = actionsList_->InsertItem(static_cast<long>(i), "", EnsureActionIcon(spriteId));
-				actionsList_->SetItem(row, 1, FormatSpecificCaseTypeLabel(action.actionType));
+				const long row = ui_.actionsList->InsertItem(static_cast<long>(i), "", EnsureActionIcon(spriteId));
+				ui_.actionsList->SetItem(row, 1, FormatSpecificCaseTypeLabel(action.actionType));
 				const wxString edgeLabel = action.edge.IsEmpty() ? wxString::FromUTF8("-") : GetBorderEdgeDisplayLabel(action.edge);
-				actionsList_->SetItem(row, 2, edgeLabel);
+				ui_.actionsList->SetItem(row, 2, edgeLabel);
 				if (action.actionType.IsSameAs("delete_borders", false)) {
-					actionsList_->SetItem(row, 3, wxString());
-					actionsList_->SetItem(row, 4, wxString());
+					ui_.actionsList->SetItem(row, 3, wxString());
+					ui_.actionsList->SetItem(row, 4, wxString());
 				} else if (action.actionType.IsSameAs("replace_item", false)) {
-					actionsList_->SetItem(row, 3, FormatSpecificCaseValueLabel(action.actionType, action.targetValue));
-					actionsList_->SetItem(row, 4, FormatSpecificCaseValueLabel(action.actionType, action.replacementValue));
+					ui_.actionsList->SetItem(row, 3, FormatSpecificCaseValueLabel(action.actionType, action.targetValue));
+					ui_.actionsList->SetItem(row, 4, FormatSpecificCaseValueLabel(action.actionType, action.replacementValue));
 				} else {
-					actionsList_->SetItem(row, 3, FormatSpecificCaseValueLabel(action.actionType, action.targetValue));
-					actionsList_->SetItem(row, 4, FormatSpecificCaseValueLabel(action.actionType, action.replacementValue));
+					ui_.actionsList->SetItem(row, 3, FormatSpecificCaseValueLabel(action.actionType, action.targetValue));
+					ui_.actionsList->SetItem(row, 4, FormatSpecificCaseValueLabel(action.actionType, action.replacementValue));
 				}
 			}
 			RefreshSelectionPreview();
@@ -1568,7 +1575,7 @@ namespace {
 			if (caseRecord.actions.empty()) {
 				warning += "No actions: this case does nothing. ";
 			}
-			warningLabel_->SetLabel(warning);
+			ui_.warningLabel->SetLabel(warning);
 			UpdateButtons();
 		}
 
@@ -1577,14 +1584,14 @@ namespace {
 				button->SetSprite(ToItemPreviewSpriteId(itemId));
 			};
 
-			selectionEdgePreview_->ClearEdge();
-			SetPreviewItem(selectionPreviewPrimary_, 0);
-			SetPreviewItem(selectionPreviewSecondary_, 0);
-			selectionEdgePreview_->Hide();
-			selectionPreviewPrimary_->Hide();
-			selectionPreviewSecondary_->Hide();
-			selectionPreviewArrow_->Hide();
-			selectionPreviewLabel_->SetLabel("Select a condition or action to see details.");
+			ui_.selectionEdgePreview->ClearEdge();
+			SetPreviewItem(ui_.selectionPreviewPrimary, 0);
+			SetPreviewItem(ui_.selectionPreviewSecondary, 0);
+			ui_.selectionEdgePreview->Hide();
+			ui_.selectionPreviewPrimary->Hide();
+			ui_.selectionPreviewSecondary->Hide();
+			ui_.selectionPreviewArrow->Hide();
+			ui_.selectionPreviewLabel->SetLabel("Select a condition or action to see details.");
 
 			if (selectedCaseIndex_ < 0 || selectedCaseIndex_ >= static_cast<int>(cases_.size())) {
 				Layout();
@@ -1598,21 +1605,21 @@ namespace {
 					return;
 				}
 				const GroundBorderCaseActionRecord &action = caseRecord.actions[static_cast<size_t>(selectedActionIndex_)];
-				selectionPreviewLabel_->SetLabel(DescribeGroundCaseAction(action));
-				selectionEdgePreview_->SetEdge(action.edge);
-				selectionEdgePreview_->Show(!action.edge.IsEmpty());
+				ui_.selectionPreviewLabel->SetLabel(DescribeGroundCaseAction(action));
+				ui_.selectionEdgePreview->SetEdge(action.edge);
+				ui_.selectionEdgePreview->Show(!action.edge.IsEmpty());
 				if (action.actionType.IsSameAs("replace_item", false)) {
-					SetPreviewItem(selectionPreviewPrimary_, action.targetValue);
-					SetPreviewItem(selectionPreviewSecondary_, action.replacementValue);
-					selectionPreviewPrimary_->Show();
-					selectionPreviewSecondary_->Show();
-					selectionPreviewArrow_->Show();
+					SetPreviewItem(ui_.selectionPreviewPrimary, action.targetValue);
+					SetPreviewItem(ui_.selectionPreviewSecondary, action.replacementValue);
+					ui_.selectionPreviewPrimary->Show();
+					ui_.selectionPreviewSecondary->Show();
+					ui_.selectionPreviewArrow->Show();
 				} else if (action.actionType.IsSameAs("replace_border", false)) {
-					selectionPreviewPrimary_->SetSprite(ResolveBorderEdgeSpriteId(action.targetValue, action.edge));
-					selectionPreviewSecondary_->SetSprite(ResolveBorderEdgeSpriteId(action.replacementValue, action.edge));
-					selectionPreviewPrimary_->Show();
-					selectionPreviewSecondary_->Show();
-					selectionPreviewArrow_->Show();
+					ui_.selectionPreviewPrimary->SetSprite(ResolveBorderEdgeSpriteId(action.targetValue, action.edge));
+					ui_.selectionPreviewSecondary->SetSprite(ResolveBorderEdgeSpriteId(action.replacementValue, action.edge));
+					ui_.selectionPreviewPrimary->Show();
+					ui_.selectionPreviewSecondary->Show();
+					ui_.selectionPreviewArrow->Show();
 				}
 				Layout();
 				return;
@@ -1623,40 +1630,40 @@ namespace {
 				return;
 			}
 			const GroundBorderCaseConditionRecord &condition = caseRecord.conditions[static_cast<size_t>(selectedConditionIndex_)];
-			selectionPreviewLabel_->SetLabel(DescribeGroundCaseCondition(condition));
-			selectionEdgePreview_->SetEdge(condition.edge);
-			selectionEdgePreview_->Show(!condition.edge.IsEmpty());
+			ui_.selectionPreviewLabel->SetLabel(DescribeGroundCaseCondition(condition));
+			ui_.selectionEdgePreview->SetEdge(condition.edge);
+			ui_.selectionEdgePreview->Show(!condition.edge.IsEmpty());
 			if (condition.conditionType.IsSameAs("match_item", false)) {
-				SetPreviewItem(selectionPreviewPrimary_, condition.matchValue);
-				selectionPreviewPrimary_->Show();
+				SetPreviewItem(ui_.selectionPreviewPrimary, condition.matchValue);
+				ui_.selectionPreviewPrimary->Show();
 			} else if (condition.conditionType.IsSameAs("match_border", false)) {
-				selectionPreviewPrimary_->SetSprite(ResolveBorderEdgeSpriteId(condition.matchValue, condition.edge));
-				selectionPreviewPrimary_->Show();
+				ui_.selectionPreviewPrimary->SetSprite(ResolveBorderEdgeSpriteId(condition.matchValue, condition.edge));
+				ui_.selectionPreviewPrimary->Show();
 			}
 			Layout();
 		}
 
 		void UpdateButtons() {
 			const bool hasCase = selectedCaseIndex_ >= 0 && selectedCaseIndex_ < static_cast<int>(cases_.size());
-			removeCaseButton_->Enable(hasCase);
-			caseUpButton_->Enable(hasCase && selectedCaseIndex_ > 0);
-			caseDownButton_->Enable(hasCase && selectedCaseIndex_ >= 0 && selectedCaseIndex_ < static_cast<int>(cases_.size()) - 1);
+			ui_.removeCaseButton->Enable(hasCase);
+			ui_.caseUpButton->Enable(hasCase && selectedCaseIndex_ > 0);
+			ui_.caseDownButton->Enable(hasCase && selectedCaseIndex_ >= 0 && selectedCaseIndex_ < static_cast<int>(cases_.size()) - 1);
 
-			addCondButton_->Enable(hasCase);
-			editCondButton_->Enable(hasCase && selectedConditionIndex_ >= 0);
-			removeCondButton_->Enable(hasCase && selectedConditionIndex_ >= 0);
-			condUpButton_->Enable(hasCase && selectedConditionIndex_ > 0);
-			condDownButton_->Enable(hasCase && selectedConditionIndex_ >= 0 && selectedConditionIndex_ < static_cast<int>(cases_[static_cast<size_t>(selectedCaseIndex_)].conditions.size()) - 1);
+			ui_.addCondButton->Enable(hasCase);
+			ui_.editCondButton->Enable(hasCase && selectedConditionIndex_ >= 0);
+			ui_.removeCondButton->Enable(hasCase && selectedConditionIndex_ >= 0);
+			ui_.condUpButton->Enable(hasCase && selectedConditionIndex_ > 0);
+			ui_.condDownButton->Enable(hasCase && selectedConditionIndex_ >= 0 && selectedConditionIndex_ < static_cast<int>(cases_[static_cast<size_t>(selectedCaseIndex_)].conditions.size()) - 1);
 
-			addActButton_->Enable(hasCase);
-			editActButton_->Enable(hasCase && selectedActionIndex_ >= 0);
-			removeActButton_->Enable(hasCase && selectedActionIndex_ >= 0);
-			actUpButton_->Enable(hasCase && selectedActionIndex_ > 0);
-			actDownButton_->Enable(hasCase && selectedActionIndex_ >= 0 && selectedActionIndex_ < static_cast<int>(cases_[static_cast<size_t>(selectedCaseIndex_)].actions.size()) - 1);
+			ui_.addActButton->Enable(hasCase);
+			ui_.editActButton->Enable(hasCase && selectedActionIndex_ >= 0);
+			ui_.removeActButton->Enable(hasCase && selectedActionIndex_ >= 0);
+			ui_.actUpButton->Enable(hasCase && selectedActionIndex_ > 0);
+			ui_.actDownButton->Enable(hasCase && selectedActionIndex_ >= 0 && selectedActionIndex_ < static_cast<int>(cases_[static_cast<size_t>(selectedCaseIndex_)].actions.size()) - 1);
 		}
 
 		void OnCaseSelected(wxCommandEvent &) {
-			SelectCase(caseList_->GetSelection());
+			SelectCase(ui_.caseList->GetSelection());
 		}
 
 		void OnAddCase(wxCommandEvent &) {
@@ -1771,7 +1778,7 @@ namespace {
 		}
 
 		void OnConditionActivated(wxListEvent &) {
-			selectedConditionIndex_ = conditionsList_->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+			selectedConditionIndex_ = ui_.conditionsList->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 			activeSelectionIsAction_ = false;
 			UpdateButtons();
 			RefreshSelectionPreview();
@@ -1851,7 +1858,7 @@ namespace {
 		}
 
 		void OnActionActivated(wxListEvent &) {
-			selectedActionIndex_ = actionsList_->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+			selectedActionIndex_ = ui_.actionsList->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 			activeSelectionIsAction_ = true;
 			UpdateButtons();
 			RefreshSelectionPreview();
@@ -1859,32 +1866,36 @@ namespace {
 			OnEditAction(dummy);
 		}
 
+		struct Widgets {
+			wxListBox* caseList = nullptr;
+			wxButton* addCaseButton = nullptr;
+			wxButton* removeCaseButton = nullptr;
+			wxButton* caseUpButton = nullptr;
+			wxButton* caseDownButton = nullptr;
+			wxStaticText* warningLabel = nullptr;
+			wxListCtrl* conditionsList = nullptr;
+			wxListCtrl* actionsList = nullptr;
+			wxImageList* conditionImages = nullptr;
+			wxImageList* actionImages = nullptr;
+			BorderEdgePreviewPanel* selectionEdgePreview = nullptr;
+			ItemButton* selectionPreviewPrimary = nullptr;
+			ItemButton* selectionPreviewSecondary = nullptr;
+			wxStaticText* selectionPreviewArrow = nullptr;
+			wxStaticText* selectionPreviewLabel = nullptr;
+			wxButton* addCondButton = nullptr;
+			wxButton* editCondButton = nullptr;
+			wxButton* removeCondButton = nullptr;
+			wxButton* condUpButton = nullptr;
+			wxButton* condDownButton = nullptr;
+			wxButton* addActButton = nullptr;
+			wxButton* editActButton = nullptr;
+			wxButton* removeActButton = nullptr;
+			wxButton* actUpButton = nullptr;
+			wxButton* actDownButton = nullptr;
+		};
+
 		std::vector<GroundBorderCaseRecord> cases_;
-		wxListBox* caseList_ = nullptr;
-		wxButton* addCaseButton_ = nullptr;
-		wxButton* removeCaseButton_ = nullptr;
-		wxButton* caseUpButton_ = nullptr;
-		wxButton* caseDownButton_ = nullptr;
-		wxStaticText* warningLabel_ = nullptr;
-		wxListCtrl* conditionsList_ = nullptr;
-		wxListCtrl* actionsList_ = nullptr;
-		wxImageList* conditionImages_ = nullptr;
-		wxImageList* actionImages_ = nullptr;
-		BorderEdgePreviewPanel* selectionEdgePreview_ = nullptr;
-		ItemButton* selectionPreviewPrimary_ = nullptr;
-		ItemButton* selectionPreviewSecondary_ = nullptr;
-		wxStaticText* selectionPreviewArrow_ = nullptr;
-		wxStaticText* selectionPreviewLabel_ = nullptr;
-		wxButton* addCondButton_ = nullptr;
-		wxButton* editCondButton_ = nullptr;
-		wxButton* removeCondButton_ = nullptr;
-		wxButton* condUpButton_ = nullptr;
-		wxButton* condDownButton_ = nullptr;
-		wxButton* addActButton_ = nullptr;
-		wxButton* editActButton_ = nullptr;
-		wxButton* removeActButton_ = nullptr;
-		wxButton* actUpButton_ = nullptr;
-		wxButton* actDownButton_ = nullptr;
+		Widgets ui_;
 		int selectedCaseIndex_ = -1;
 		int selectedConditionIndex_ = -1;
 		int selectedActionIndex_ = -1;

@@ -47,7 +47,7 @@ public:
 	static void doBorders(BaseMap* map, Tile* tile);
 	static const BorderBlock* getBrushTo(GroundBrush* first, GroundBrush* second);
 
-	virtual int32_t getZ() const {
+	int32_t getZ() const override {
 		return z_order;
 	}
 	bool useSoloOptionalBorder() const {
