@@ -403,6 +403,40 @@ void MaterialsWorkbenchExportDialog::UpdateSummary() {
 	wxString label = wxString::Format("Selected: %d borders, %d brushes, %d palette groups, %d palettes.", borders, brushes, groups, palettes);
 	wxString details;
 
+	auto appendAddedBrushDetails = [&](int depBrushes, const MaterialsWorkbenchResolvedExportSelection &resolved, size_t maxItems) {
+		if (depBrushes <= 0) {
+			return;
+		}
+		std::unordered_map<int64_t, wxString> brushLabelById;
+		brushLabelById.reserve(allBrushes_.size());
+		for (const BrushRow &row : allBrushes_) {
+			brushLabelById.insert({ row.brushId, row.label });
+		}
+
+		details << "\nAdded brushes\n";
+		for (int64_t brushId : CollectAddedValues(selection_.brushIds, resolved.brushIds, maxItems)) {
+			const auto it = brushLabelById.find(brushId);
+			details << "  + " << (it != brushLabelById.end() ? it->second : wxString::Format("Brush %lld", static_cast<long long>(brushId))) << "\n";
+		}
+	};
+
+	auto appendAddedBorderDetails = [&](int depBorders, const MaterialsWorkbenchResolvedExportSelection &resolved, size_t maxItems) {
+		if (depBorders <= 0) {
+			return;
+		}
+		std::unordered_map<int, wxString> borderLabelById;
+		borderLabelById.reserve(allBorders_.size());
+		for (const BorderRow &row : allBorders_) {
+			borderLabelById.insert({ row.xmlBorderId, row.label });
+		}
+
+		details << "\nAdded borders\n";
+		for (int xmlBorderId : CollectAddedValues(selection_.globalBorderXmlIds, resolved.globalBorderXmlIds, maxItems)) {
+			const auto it = borderLabelById.find(xmlBorderId);
+			details << "  + " << (it != borderLabelById.end() ? it->second : wxString::Format("Border %d", xmlBorderId)) << "\n";
+		}
+	};
+
 	if (selection_.includeDependencies) {
 		wxString error;
 		MaterialsWorkbenchResolvedExportSelection resolved;
@@ -415,10 +449,10 @@ void MaterialsWorkbenchExportDialog::UpdateSummary() {
 			const std::set<wxString> exportingGroups(resolved.paletteGroupNames.begin(), resolved.paletteGroupNames.end());
 			const std::set<wxString> exportingPalettes(resolved.paletteNames.begin(), resolved.paletteNames.end());
 
-			const int depBorders = static_cast<int>(exportingBorders.size() - selectedBorders.size());
-			const int depBrushes = static_cast<int>(exportingBrushes.size() - selectedBrushes.size());
-			const int depGroups = static_cast<int>(exportingGroups.size() - selectedGroups.size());
-			const int depPalettes = static_cast<int>(exportingPalettes.size() - selectedPalettes.size());
+			const auto depBorders = static_cast<int>(exportingBorders.size() - selectedBorders.size());
+			const auto depBrushes = static_cast<int>(exportingBrushes.size() - selectedBrushes.size());
+			const auto depGroups = static_cast<int>(exportingGroups.size() - selectedGroups.size());
+			const auto depPalettes = static_cast<int>(exportingPalettes.size() - selectedPalettes.size());
 
 			label += wxString::Format(
 				" Exporting: %d borders (+%d), %d brushes (+%d), %d palette groups (+%d), %d palettes (+%d).",
@@ -451,29 +485,11 @@ void MaterialsWorkbenchExportDialog::UpdateSummary() {
 			}
 
 			if (depBrushes > 0) {
-				std::unordered_map<int64_t, wxString> brushLabelById;
-				brushLabelById.reserve(allBrushes_.size());
-				for (const BrushRow &row : allBrushes_) {
-					brushLabelById.insert({ row.brushId, row.label });
-				}
-				details << "\nAdded brushes\n";
-				for (int64_t brushId : CollectAddedValues(selection_.brushIds, resolved.brushIds, kMaxPreviewItems)) {
-					const auto it = brushLabelById.find(brushId);
-					details << "  + " << (it != brushLabelById.end() ? it->second : wxString::Format("Brush %lld", static_cast<long long>(brushId))) << "\n";
-				}
+				appendAddedBrushDetails(depBrushes, resolved, kMaxPreviewItems);
 			}
 
 			if (depBorders > 0) {
-				std::unordered_map<int, wxString> borderLabelById;
-				borderLabelById.reserve(allBorders_.size());
-				for (const BorderRow &row : allBorders_) {
-					borderLabelById.insert({ row.xmlBorderId, row.label });
-				}
-				details << "\nAdded borders\n";
-				for (int xmlBorderId : CollectAddedValues(selection_.globalBorderXmlIds, resolved.globalBorderXmlIds, kMaxPreviewItems)) {
-					const auto it = borderLabelById.find(xmlBorderId);
-					details << "  + " << (it != borderLabelById.end() ? it->second : wxString::Format("Border %d", xmlBorderId)) << "\n";
-				}
+				appendAddedBorderDetails(depBorders, resolved, kMaxPreviewItems);
 			}
 		}
 	}
@@ -515,50 +531,57 @@ void MaterialsWorkbenchExportDialog::OnListToggled(wxCheckListBox* list, int ind
 	}
 
 	const bool checked = list->IsChecked(static_cast<unsigned int>(index));
+
+	auto toggleInt = [&](std::vector<int> &values, int value) {
+		if (checked) {
+			if (!VectorContains(values, value)) {
+				values.push_back(value);
+			}
+		} else {
+			RemoveValue(values, value);
+		}
+	};
+
+	auto toggleInt64 = [&](std::vector<int64_t> &values, int64_t value) {
+		if (checked) {
+			if (!VectorContains(values, value)) {
+				values.push_back(value);
+			}
+		} else {
+			RemoveValue(values, value);
+		}
+	};
+
+	auto toggleName = [&](std::vector<wxString> &values, const wxString &value) {
+		if (checked) {
+			if (!VectorContains(values, value)) {
+				values.push_back(value);
+			}
+		} else {
+			RemoveValue(values, value);
+		}
+	};
+
 	if (list == borderList_) {
 		const wxInt64ClientData* data = static_cast<const wxInt64ClientData*>(borderList_->GetClientObject(static_cast<unsigned int>(index)));
 		const int xmlBorderId = data ? static_cast<int>(data->value) : 0;
 		if (xmlBorderId <= 0) {
 			return;
 		}
-		if (checked) {
-			if (!VectorContains(selection_.globalBorderXmlIds, xmlBorderId)) {
-				selection_.globalBorderXmlIds.push_back(xmlBorderId);
-			}
-		} else {
-			RemoveValue(selection_.globalBorderXmlIds, xmlBorderId);
-		}
+		toggleInt(selection_.globalBorderXmlIds, xmlBorderId);
 	} else if (list == brushList_) {
 		const wxInt64ClientData* data = static_cast<const wxInt64ClientData*>(brushList_->GetClientObject(static_cast<unsigned int>(index)));
 		const int64_t brushId = data ? data->value : 0;
 		if (brushId <= 0) {
 			return;
 		}
-		if (checked) {
-			if (!VectorContains(selection_.brushIds, brushId)) {
-				selection_.brushIds.push_back(brushId);
-			}
-		} else {
-			RemoveValue(selection_.brushIds, brushId);
-		}
+		toggleInt64(selection_.brushIds, brushId);
 	} else if (list == paletteGroupList_) {
 		const wxString name = paletteGroupList_->GetString(static_cast<unsigned int>(index));
-		if (checked) {
-			if (!VectorContains(selection_.paletteGroupNames, name)) {
-				selection_.paletteGroupNames.push_back(name);
-			}
-		} else {
-			RemoveValue(selection_.paletteGroupNames, name);
-		}
+		toggleName(selection_.paletteGroupNames, name);
 	} else if (list == paletteList_) {
 		const wxString name = paletteList_->GetString(static_cast<unsigned int>(index));
-		if (checked) {
-			if (!VectorContains(selection_.paletteNames, name)) {
-				selection_.paletteNames.push_back(name);
-			}
-		} else {
-			RemoveValue(selection_.paletteNames, name);
-		}
+		toggleName(selection_.paletteNames, name);
 	}
 
 	UpdateSummary();

@@ -111,6 +111,15 @@ private:
 	void PopulateMetadataFields();
 	void UpdateSummary();
 	void RefreshLinksPage();
+	void ClearCurrentBrushBorders();
+	void NormalizeLinkSortOrders();
+	bool TryGetSelectedOutgoingLinkIndex(int &outIndex) const;
+	void UpdateLinksButtonState();
+	void EditSelectedOutgoingLink();
+	void AddOutgoingLink(const wxString &relationType);
+	void RemoveSelectedOutgoingLink();
+	void ClearFriendEnemyLinks();
+	void MoveSelectedOutgoingLink(int delta);
 	void SetStatusMessage(const wxString &message);
 	void SetFieldsEnabled(bool enabled);
 	void ResetVariationSelection();

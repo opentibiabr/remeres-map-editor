@@ -2933,7 +2933,7 @@ void MainMenuBar::OnActionsHistoryWindow(wxCommandEvent &WXUNUSED(event)) {
 	g_gui.ShowActionsWindow();
 }
 
-void MainMenuBar::OnMaterialsWorkbench(wxCommandEvent &WXUNUSED(event)) {
+void MainMenuBar::OnMaterialsWorkbench([[maybe_unused]] wxCommandEvent &event) {
 	if (g_gui.IsAsyncSqliteBootstrapRunning()) {
 		g_gui.PopupDialog(frame, "SQLite bootstrap running", "The Materials Workbench is unavailable while the SQLite bootstrap is running.", wxOK | wxICON_INFORMATION);
 		return;

@@ -119,18 +119,17 @@ namespace {
 		};
 	}
 
-	nlohmann::json ExportBrushStorageEntity(int64_t brushId, wxString &error) {
-		BrushStorageRecord storage;
-		if (!g_brush_database.getCompleteBrushById(brushId, storage) || storage.brush.id <= 0) {
+	bool TryLoadCompleteBrushStorage(int64_t brushId, BrushStorageRecord &outStorage, wxString &error) {
+		if (!g_brush_database.getCompleteBrushById(brushId, outStorage) || outStorage.brush.id <= 0) {
 			error = wxString::Format("Brush #%lld not found in materials.db.", static_cast<long long>(brushId));
-			return nlohmann::json();
+			return false;
 		}
+		error.clear();
+		return true;
+	}
 
-		const BrushRecord &brush = storage.brush;
-		nlohmann::json entity;
-		entity["kind"] = "brush";
-		entity["key"] = ExportBrushKey(brush);
-		entity["brush"] = {
+	nlohmann::json ExportBrushRecordJson(const BrushRecord &brush) {
+		return {
 			{ "type", brush.type.ToStdString() },
 			{ "name", brush.name.ToStdString() },
 			{ "lookId", brush.lookId },
@@ -147,19 +146,23 @@ namespace {
 			{ "soloOptional", brush.soloOptional },
 			{ "removeOptionalBorder", brush.removeOptionalBorder },
 		};
+	}
 
-		nlohmann::json items = nlohmann::json::array();
-		for (const BrushItemRecord &item : storage.items) {
-			items.push_back({
+	nlohmann::json ExportBrushItemsJson(const std::vector<BrushItemRecord> &items) {
+		nlohmann::json out = nlohmann::json::array();
+		for (const BrushItemRecord &item : items) {
+			out.push_back({
 				{ "itemId", item.itemId },
 				{ "chance", item.chance },
 				{ "sortOrder", item.sortOrder },
 			});
 		}
-		entity["items"] = std::move(items);
+		return out;
+	}
 
-		nlohmann::json links = nlohmann::json::array();
-		for (const BrushLinkRecord &link : storage.links) {
+	nlohmann::json ExportBrushLinksJson(const std::vector<BrushLinkRecord> &links) {
+		nlohmann::json out = nlohmann::json::array();
+		for (const BrushLinkRecord &link : links) {
 			nlohmann::json row;
 			row["relationType"] = link.relationType.ToStdString();
 			row["sortOrder"] = link.sortOrder;
@@ -172,16 +175,23 @@ namespace {
 					row["target"] = ExportBrushKey(target);
 				}
 			}
-			links.push_back(std::move(row));
+			out.push_back(std::move(row));
 		}
-		entity["links"] = std::move(links);
+		return out;
+	}
 
-		nlohmann::json inlineBorderSets = nlohmann::json::array();
-		std::unordered_map<int64_t, int> inlineBorderIndexById;
-		for (const GroundBrushBorderRecord &border : storage.borders) {
+	struct InlineBorderSetsExport {
+		nlohmann::json sets = nlohmann::json::array();
+		std::unordered_map<int64_t, int> indexById;
+	};
+
+	InlineBorderSetsExport ExportInlineBorderSets(const std::vector<GroundBrushBorderRecord> &borders) {
+		InlineBorderSetsExport out;
+		for (const GroundBrushBorderRecord &border : borders) {
 			if (border.borderSetId <= 0) {
 				continue;
 			}
+
 			BorderSetRecord borderSet;
 			if (!g_brush_database.getBorderSetById(border.borderSetId, borderSet) || borderSet.id <= 0) {
 				continue;
@@ -189,15 +199,18 @@ namespace {
 			if (!borderSet.borderScope.IsSameAs("inline", false)) {
 				continue;
 			}
-			if (inlineBorderIndexById.find(borderSet.id) != inlineBorderIndexById.end()) {
+			if (out.indexById.contains(borderSet.id)) {
 				continue;
 			}
+
 			std::vector<BorderSetItemRecord> borderItems;
 			if (!g_brush_database.getBorderSetItems(borderSet.id, borderItems)) {
 				continue;
 			}
-			const int inlineIndex = static_cast<int>(inlineBorderSets.size());
-			inlineBorderIndexById.insert({ borderSet.id, inlineIndex });
+
+			const auto inlineIndex = static_cast<int>(out.sets.size());
+			out.indexById.insert({ borderSet.id, inlineIndex });
+
 			nlohmann::json exportedItems = nlohmann::json::array();
 			for (const BorderSetItemRecord &item : borderItems) {
 				exportedItems.push_back({
@@ -206,7 +219,8 @@ namespace {
 					{ "sortOrder", item.sortOrder },
 				});
 			}
-			inlineBorderSets.push_back({
+
+			out.sets.push_back({
 				{ "inlineIndex", inlineIndex },
 				{ "borderType", borderSet.borderType.ToStdString() },
 				{ "borderGroup", borderSet.borderGroup },
@@ -214,10 +228,38 @@ namespace {
 				{ "items", std::move(exportedItems) },
 			});
 		}
-		entity["inlineBorderSets"] = std::move(inlineBorderSets);
+		return out;
+	}
 
-		nlohmann::json borders = nlohmann::json::array();
-		for (const GroundBrushBorderRecord &border : storage.borders) {
+	bool TryBuildGroundBorderRef(int64_t borderSetId, const std::unordered_map<int64_t, int> &inlineBorderIndexById, nlohmann::json &outRef) {
+		if (borderSetId <= 0) {
+			return false;
+		}
+
+		BorderSetRecord borderSet;
+		if (!g_brush_database.getBorderSetById(borderSetId, borderSet) || borderSet.id <= 0) {
+			return false;
+		}
+
+		if (borderSet.borderScope.IsSameAs("global", false) && borderSet.xmlBorderId > 0) {
+			outRef = { { "scope", "global" }, { "xmlBorderId", borderSet.xmlBorderId } };
+			return true;
+		}
+
+		if (borderSet.borderScope.IsSameAs("inline", false)) {
+			const auto it = inlineBorderIndexById.find(borderSet.id);
+			if (it != inlineBorderIndexById.end()) {
+				outRef = { { "scope", "inline" }, { "inlineIndex", it->second } };
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	nlohmann::json ExportGroundBordersJson(const std::vector<GroundBrushBorderRecord> &borders, const std::unordered_map<int64_t, int> &inlineBorderIndexById) {
+		nlohmann::json out = nlohmann::json::array();
+		for (const GroundBrushBorderRecord &border : borders) {
 			nlohmann::json row;
 			row["borderRole"] = border.borderRole.ToStdString();
 			row["align"] = border.align.ToStdString();
@@ -226,18 +268,9 @@ namespace {
 			row["superBorder"] = border.superBorder;
 			row["sortOrder"] = border.sortOrder;
 
-			if (border.borderSetId > 0) {
-				BorderSetRecord borderSet;
-				if (g_brush_database.getBorderSetById(border.borderSetId, borderSet) && borderSet.id > 0) {
-					if (borderSet.borderScope.IsSameAs("global", false) && borderSet.xmlBorderId > 0) {
-						row["borderRef"] = { { "scope", "global" }, { "xmlBorderId", borderSet.xmlBorderId } };
-					} else if (borderSet.borderScope.IsSameAs("inline", false)) {
-						const auto it = inlineBorderIndexById.find(borderSet.id);
-						if (it != inlineBorderIndexById.end()) {
-							row["borderRef"] = { { "scope", "inline" }, { "inlineIndex", it->second } };
-						}
-					}
-				}
+			nlohmann::json borderRef;
+			if (TryBuildGroundBorderRef(border.borderSetId, inlineBorderIndexById, borderRef)) {
+				row["borderRef"] = std::move(borderRef);
 			}
 
 			if (border.targetBrushId > 0) {
@@ -275,12 +308,14 @@ namespace {
 				});
 			}
 			row["cases"] = std::move(cases);
-			borders.push_back(std::move(row));
+			out.push_back(std::move(row));
 		}
-		entity["groundBorders"] = std::move(borders);
+		return out;
+	}
 
-		nlohmann::json wallParts = nlohmann::json::array();
-		for (const WallPartRecord &part : storage.wallParts) {
+	nlohmann::json ExportWallPartsJson(const std::vector<WallPartRecord> &parts) {
+		nlohmann::json out = nlohmann::json::array();
+		for (const WallPartRecord &part : parts) {
 			nlohmann::json partItems = nlohmann::json::array();
 			for (const WallPartItemRecord &item : part.items) {
 				partItems.push_back({ { "itemId", item.itemId }, { "chance", item.chance }, { "sortOrder", item.sortOrder } });
@@ -295,63 +330,112 @@ namespace {
 					{ "sortOrder", door.sortOrder },
 				});
 			}
-			wallParts.push_back({
+			out.push_back({
 				{ "partType", part.partType.ToStdString() },
 				{ "sortOrder", part.sortOrder },
 				{ "items", std::move(partItems) },
 				{ "doors", std::move(doors) },
 			});
 		}
-		entity["wallParts"] = std::move(wallParts);
+		return out;
+	}
 
-		nlohmann::json carpet = nlohmann::json::array();
-		for (const CarpetNodeRecord &node : storage.carpetNodes) {
+	nlohmann::json ExportCarpetNodesJson(const std::vector<CarpetNodeRecord> &nodes) {
+		nlohmann::json out = nlohmann::json::array();
+		for (const CarpetNodeRecord &node : nodes) {
 			nlohmann::json nodeItems = nlohmann::json::array();
 			for (const CarpetNodeItemRecord &item : node.items) {
 				nodeItems.push_back({ { "itemId", item.itemId }, { "chance", item.chance }, { "sortOrder", item.sortOrder } });
 			}
-			carpet.push_back({ { "align", node.align.ToStdString() }, { "sortOrder", node.sortOrder }, { "items", std::move(nodeItems) } });
+			out.push_back({ { "align", node.align.ToStdString() }, { "sortOrder", node.sortOrder }, { "items", std::move(nodeItems) } });
 		}
-		entity["carpetNodes"] = std::move(carpet);
+		return out;
+	}
 
-		nlohmann::json table = nlohmann::json::array();
-		for (const TableNodeRecord &node : storage.tableNodes) {
+	nlohmann::json ExportTableNodesJson(const std::vector<TableNodeRecord> &nodes) {
+		nlohmann::json out = nlohmann::json::array();
+		for (const TableNodeRecord &node : nodes) {
 			nlohmann::json nodeItems = nlohmann::json::array();
 			for (const TableNodeItemRecord &item : node.items) {
 				nodeItems.push_back({ { "itemId", item.itemId }, { "chance", item.chance }, { "sortOrder", item.sortOrder } });
 			}
-			table.push_back({ { "align", node.align.ToStdString() }, { "sortOrder", node.sortOrder }, { "items", std::move(nodeItems) } });
+			out.push_back({ { "align", node.align.ToStdString() }, { "sortOrder", node.sortOrder }, { "items", std::move(nodeItems) } });
 		}
-		entity["tableNodes"] = std::move(table);
+		return out;
+	}
 
-		nlohmann::json doodad = nlohmann::json::array();
-		for (const DoodadAlternativeRecord &alt : storage.doodadAlternatives) {
+	nlohmann::json ExportDoodadTileItemsJson(const std::vector<DoodadCompositeTileItemRecord> &items) {
+		nlohmann::json out = nlohmann::json::array();
+		for (const DoodadCompositeTileItemRecord &item : items) {
+			out.push_back({ { "itemId", item.itemId }, { "sortOrder", item.sortOrder } });
+		}
+		return out;
+	}
+
+	nlohmann::json ExportDoodadTilesJson(const std::vector<DoodadCompositeTileRecord> &tiles) {
+		nlohmann::json out = nlohmann::json::array();
+		for (const DoodadCompositeTileRecord &tile : tiles) {
+			out.push_back({
+				{ "offsetX", tile.offsetX },
+				{ "offsetY", tile.offsetY },
+				{ "offsetZ", tile.offsetZ },
+				{ "sortOrder", tile.sortOrder },
+				{ "items", ExportDoodadTileItemsJson(tile.items) },
+			});
+		}
+		return out;
+	}
+
+	nlohmann::json ExportDoodadCompositesJson(const std::vector<DoodadCompositeRecord> &composites) {
+		nlohmann::json out = nlohmann::json::array();
+		for (const DoodadCompositeRecord &comp : composites) {
+			out.push_back({
+				{ "chance", comp.chance },
+				{ "sortOrder", comp.sortOrder },
+				{ "tiles", ExportDoodadTilesJson(comp.tiles) },
+			});
+		}
+		return out;
+	}
+
+	nlohmann::json ExportDoodadAlternativesJson(const std::vector<DoodadAlternativeRecord> &alternatives) {
+		nlohmann::json out = nlohmann::json::array();
+		for (const DoodadAlternativeRecord &alt : alternatives) {
 			nlohmann::json single = nlohmann::json::array();
 			for (const DoodadSingleItemRecord &item : alt.singleItems) {
 				single.push_back({ { "itemId", item.itemId }, { "chance", item.chance }, { "sortOrder", item.sortOrder } });
 			}
-			nlohmann::json composites = nlohmann::json::array();
-			for (const DoodadCompositeRecord &comp : alt.composites) {
-				nlohmann::json tiles = nlohmann::json::array();
-				for (const DoodadCompositeTileRecord &tile : comp.tiles) {
-					nlohmann::json tileItems = nlohmann::json::array();
-					for (const DoodadCompositeTileItemRecord &item : tile.items) {
-						tileItems.push_back({ { "itemId", item.itemId }, { "sortOrder", item.sortOrder } });
-					}
-					tiles.push_back({
-						{ "offsetX", tile.offsetX },
-						{ "offsetY", tile.offsetY },
-						{ "offsetZ", tile.offsetZ },
-						{ "sortOrder", tile.sortOrder },
-						{ "items", std::move(tileItems) },
-					});
-				}
-				composites.push_back({ { "chance", comp.chance }, { "sortOrder", comp.sortOrder }, { "tiles", std::move(tiles) } });
-			}
-			doodad.push_back({ { "sortOrder", alt.sortOrder }, { "singleItems", std::move(single) }, { "composites", std::move(composites) } });
+			out.push_back({
+				{ "sortOrder", alt.sortOrder },
+				{ "singleItems", std::move(single) },
+				{ "composites", ExportDoodadCompositesJson(alt.composites) },
+			});
 		}
-		entity["doodadAlternatives"] = std::move(doodad);
+		return out;
+	}
 
+	nlohmann::json ExportBrushStorageEntity(int64_t brushId, wxString &error) {
+		BrushStorageRecord storage;
+		if (!TryLoadCompleteBrushStorage(brushId, storage, error)) {
+			return nlohmann::json();
+		}
+
+		const BrushRecord &brush = storage.brush;
+		nlohmann::json entity;
+		entity["kind"] = "brush";
+		entity["key"] = ExportBrushKey(brush);
+		entity["brush"] = ExportBrushRecordJson(brush);
+		entity["items"] = ExportBrushItemsJson(storage.items);
+		entity["links"] = ExportBrushLinksJson(storage.links);
+
+		InlineBorderSetsExport inlineBorders = ExportInlineBorderSets(storage.borders);
+		entity["inlineBorderSets"] = std::move(inlineBorders.sets);
+		entity["groundBorders"] = ExportGroundBordersJson(storage.borders, inlineBorders.indexById);
+
+		entity["wallParts"] = ExportWallPartsJson(storage.wallParts);
+		entity["carpetNodes"] = ExportCarpetNodesJson(storage.carpetNodes);
+		entity["tableNodes"] = ExportTableNodesJson(storage.tableNodes);
+		entity["doodadAlternatives"] = ExportDoodadAlternativesJson(storage.doodadAlternatives);
 		return entity;
 	}
 
@@ -379,32 +463,81 @@ namespace {
 		return !outType.IsEmpty() && !outName.IsEmpty();
 	}
 
+	bool TryParseGlobalBorderSetRecord(const nlohmann::json &set, BorderSetRecord &outRecord, wxString &error) {
+		if (!set.contains("xmlBorderId") || !set["xmlBorderId"].is_number_integer()) {
+			error = "Invalid border_set entity: missing xmlBorderId.";
+			return false;
+		}
+
+		outRecord = BorderSetRecord();
+		outRecord.borderScope = "global";
+		outRecord.xmlBorderId = set["xmlBorderId"].get<int>();
+		if (outRecord.xmlBorderId <= 0) {
+			error = "Invalid border_set entity: xmlBorderId must be greater than zero.";
+			return false;
+		}
+		if (set.contains("borderType") && IsJsonString(set["borderType"])) {
+			outRecord.borderType = JsonToWxString(set["borderType"]);
+		}
+		if (set.contains("borderGroup") && set["borderGroup"].is_number_integer()) {
+			outRecord.borderGroup = set["borderGroup"].get<int>();
+		}
+		if (set.contains("groundEquivalent") && set["groundEquivalent"].is_number_integer()) {
+			outRecord.groundEquivalent = set["groundEquivalent"].get<int>();
+		}
+		error.clear();
+		return true;
+	}
+
+	std::vector<BorderSetItemRecord> ParseBorderSetItemsFromArray(const nlohmann::json &itemsJson, int64_t borderSetId) {
+		std::vector<BorderSetItemRecord> items;
+		if (!itemsJson.is_array()) {
+			return items;
+		}
+
+		for (const nlohmann::json &row : itemsJson) {
+			if (!row.is_object()) {
+				continue;
+			}
+			if (!row.contains("edge") || !IsJsonString(row["edge"])) {
+				continue;
+			}
+			if (!row.contains("itemId") || !row["itemId"].is_number_integer()) {
+				continue;
+			}
+
+			BorderSetItemRecord item;
+			item.borderSetId = borderSetId;
+			item.edge = JsonToWxString(row["edge"]);
+			item.itemId = row["itemId"].get<int>();
+			item.sortOrder = static_cast<int>(items.size());
+			if (row.contains("sortOrder") && row["sortOrder"].is_number_integer()) {
+				item.sortOrder = row["sortOrder"].get<int>();
+			}
+			items.push_back(item);
+		}
+		return items;
+	}
+
+	std::vector<BorderSetItemRecord> ParseBorderSetItemsFromEntity(const nlohmann::json &entity, int64_t borderSetId) {
+		if (!entity.contains("items")) {
+			return {};
+		}
+		return ParseBorderSetItemsFromArray(entity["items"], borderSetId);
+	}
+
+	template <typename T, typename Less>
+	void SortAndReindexBySortOrder(std::vector<T> &values, Less less);
+
 	bool ApplyBorderSetEntity(const nlohmann::json &entity, MaterialsWorkbenchImportReport &report, wxString &error) {
 		if (!entity.contains("borderSet") || !entity["borderSet"].is_object()) {
 			error = "Invalid border_set entity.";
 			return false;
 		}
 		const nlohmann::json &set = entity["borderSet"];
-		if (!set.contains("xmlBorderId") || !set["xmlBorderId"].is_number_integer()) {
-			error = "Invalid border_set entity: missing xmlBorderId.";
-			return false;
-		}
-
 		BorderSetRecord record;
-		record.borderScope = "global";
-		record.xmlBorderId = set["xmlBorderId"].get<int>();
-		if (record.xmlBorderId <= 0) {
-			error = "Invalid border_set entity: xmlBorderId must be greater than zero.";
+		if (!TryParseGlobalBorderSetRecord(set, record, error)) {
 			return false;
-		}
-		if (set.contains("borderType") && IsJsonString(set["borderType"])) {
-			record.borderType = JsonToWxString(set["borderType"]);
-		}
-		if (set.contains("borderGroup") && set["borderGroup"].is_number_integer()) {
-			record.borderGroup = set["borderGroup"].get<int>();
-		}
-		if (set.contains("groundEquivalent") && set["groundEquivalent"].is_number_integer()) {
-			record.groundEquivalent = set["groundEquivalent"].get<int>();
 		}
 
 		BorderSetRecord existing;
@@ -416,39 +549,13 @@ namespace {
 			return false;
 		}
 
-		std::vector<BorderSetItemRecord> items;
-		if (entity.contains("items") && entity["items"].is_array()) {
-			for (const nlohmann::json &row : entity["items"]) {
-				if (!row.is_object()) {
-					continue;
-				}
-				if (!row.contains("edge") || !IsJsonString(row["edge"])) {
-					continue;
-				}
-				if (!row.contains("itemId") || !row["itemId"].is_number_integer()) {
-					continue;
-				}
-				BorderSetItemRecord item;
-				item.borderSetId = borderSetId;
-				item.edge = JsonToWxString(row["edge"]);
-				item.itemId = row["itemId"].get<int>();
-				item.sortOrder = static_cast<int>(items.size());
-				if (row.contains("sortOrder") && row["sortOrder"].is_number_integer()) {
-					item.sortOrder = row["sortOrder"].get<int>();
-				}
-				items.push_back(item);
-			}
-		}
-
-		std::sort(items.begin(), items.end(), [](const BorderSetItemRecord &a, const BorderSetItemRecord &b) {
+		std::vector<BorderSetItemRecord> items = ParseBorderSetItemsFromEntity(entity, borderSetId);
+		SortAndReindexBySortOrder(items, [](const BorderSetItemRecord &a, const BorderSetItemRecord &b) {
 			if (a.sortOrder != b.sortOrder) {
 				return a.sortOrder < b.sortOrder;
 			}
 			return a.edge < b.edge;
 		});
-		for (size_t i = 0; i < items.size(); ++i) {
-			items[i].sortOrder = static_cast<int>(i);
-		}
 
 		if (!g_brush_database.replaceBorderSetItems(borderSetId, items)) {
 			error = g_brush_database.getLastError();
@@ -628,9 +735,11 @@ namespace {
 
 	template <typename T, typename Less>
 	void SortAndReindexBySortOrder(std::vector<T> &values, Less less) {
-		std::sort(values.begin(), values.end(), less);
-		for (size_t i = 0; i < values.size(); ++i) {
-			values[i].sortOrder = static_cast<int>(i);
+		std::ranges::sort(values, less);
+		int i = 0;
+		for (T &value : values) {
+			value.sortOrder = i;
+			++i;
 		}
 	}
 
@@ -649,46 +758,41 @@ namespace {
 		return true;
 	}
 
+	void AssignOptionalInt(const nlohmann::json &obj, const char* key, int &outValue) {
+		const auto it = obj.find(key);
+		if (it != obj.end() && it->is_number_integer()) {
+			outValue = it->get<int>();
+		}
+	}
+
+	void AssignOptionalBool(const nlohmann::json &obj, const char* key, bool &outValue) {
+		const auto it = obj.find(key);
+		if (it != obj.end() && it->is_boolean()) {
+			outValue = it->get<bool>();
+		}
+	}
+
+	void AssignOptionalWxString(const nlohmann::json &obj, const char* key, wxString &outValue) {
+		const auto it = obj.find(key);
+		if (it != obj.end() && IsJsonString(*it)) {
+			outValue = JsonToWxString(*it);
+		}
+	}
+
 	void ApplyOptionalBrushFields(const nlohmann::json &b, BrushRecord &brush) {
-		if (b.contains("lookId") && b["lookId"].is_number_integer()) {
-			brush.lookId = b["lookId"].get<int>();
-		}
-		if (b.contains("serverLookId") && b["serverLookId"].is_number_integer()) {
-			brush.serverLookId = b["serverLookId"].get<int>();
-		}
-		if (b.contains("zOrder") && b["zOrder"].is_number_integer()) {
-			brush.zOrder = b["zOrder"].get<int>();
-		}
-		if (b.contains("draggable") && b["draggable"].is_boolean()) {
-			brush.draggable = b["draggable"].get<bool>();
-		}
-		if (b.contains("onBlocking") && b["onBlocking"].is_boolean()) {
-			brush.onBlocking = b["onBlocking"].get<bool>();
-		}
-		if (b.contains("onDuplicate") && b["onDuplicate"].is_boolean()) {
-			brush.onDuplicate = b["onDuplicate"].get<bool>();
-		}
-		if (b.contains("redoBorders") && b["redoBorders"].is_boolean()) {
-			brush.redoBorders = b["redoBorders"].get<bool>();
-		}
-		if (b.contains("randomize") && b["randomize"].is_boolean()) {
-			brush.randomize = b["randomize"].get<bool>();
-		}
-		if (b.contains("oneSize") && b["oneSize"].is_boolean()) {
-			brush.oneSize = b["oneSize"].get<bool>();
-		}
-		if (b.contains("thickness") && b["thickness"].is_number_integer()) {
-			brush.thickness = b["thickness"].get<int>();
-		}
-		if (b.contains("thicknessCeiling") && b["thicknessCeiling"].is_number_integer()) {
-			brush.thicknessCeiling = b["thicknessCeiling"].get<int>();
-		}
-		if (b.contains("soloOptional") && b["soloOptional"].is_boolean()) {
-			brush.soloOptional = b["soloOptional"].get<bool>();
-		}
-		if (b.contains("removeOptionalBorder") && b["removeOptionalBorder"].is_boolean()) {
-			brush.removeOptionalBorder = b["removeOptionalBorder"].get<bool>();
-		}
+		AssignOptionalInt(b, "lookId", brush.lookId);
+		AssignOptionalInt(b, "serverLookId", brush.serverLookId);
+		AssignOptionalInt(b, "zOrder", brush.zOrder);
+		AssignOptionalBool(b, "draggable", brush.draggable);
+		AssignOptionalBool(b, "onBlocking", brush.onBlocking);
+		AssignOptionalBool(b, "onDuplicate", brush.onDuplicate);
+		AssignOptionalBool(b, "redoBorders", brush.redoBorders);
+		AssignOptionalBool(b, "randomize", brush.randomize);
+		AssignOptionalBool(b, "oneSize", brush.oneSize);
+		AssignOptionalInt(b, "thickness", brush.thickness);
+		AssignOptionalInt(b, "thicknessCeiling", brush.thicknessCeiling);
+		AssignOptionalBool(b, "soloOptional", brush.soloOptional);
+		AssignOptionalBool(b, "removeOptionalBorder", brush.removeOptionalBorder);
 	}
 
 	bool UpsertBrushFromJson(const nlohmann::json &brushJson, int64_t &outBrushId, bool &outHadExisting, wxString &error) {
@@ -788,6 +892,49 @@ namespace {
 		return true;
 	}
 
+	bool TryImportInlineBorderSet(
+		const nlohmann::json &set,
+		int64_t brushId,
+		std::unordered_map<int, int64_t> &outInlineBorderIdByIndex,
+		wxString &error
+	) {
+		if (!set.is_object() || !set.contains("inlineIndex") || !set["inlineIndex"].is_number_integer()) {
+			return true;
+		}
+
+		const int inlineIndex = set["inlineIndex"].get<int>();
+		BorderSetRecord borderSet;
+		borderSet.borderScope = "inline";
+		borderSet.ownerBrushId = brushId;
+		AssignOptionalWxString(set, "borderType", borderSet.borderType);
+		AssignOptionalInt(set, "borderGroup", borderSet.borderGroup);
+		AssignOptionalInt(set, "groundEquivalent", borderSet.groundEquivalent);
+
+		int64_t borderSetId = 0;
+		if (!g_brush_database.upsertBorderSet(borderSet, borderSetId) || borderSetId <= 0) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+
+		std::vector<BorderSetItemRecord> items;
+		if (set.contains("items")) {
+			items = ParseBorderSetItemsFromArray(set["items"], borderSetId);
+		}
+		SortAndReindexBySortOrder(items, [](const BorderSetItemRecord &a, const BorderSetItemRecord &b) {
+			if (a.sortOrder != b.sortOrder) {
+				return a.sortOrder < b.sortOrder;
+			}
+			return a.edge < b.edge;
+		});
+		if (!g_brush_database.replaceBorderSetItems(borderSetId, items)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+
+		outInlineBorderIdByIndex.try_emplace(inlineIndex, borderSetId);
+		return true;
+	}
+
 	bool ImportInlineBorderSets(
 		const nlohmann::json &entity,
 		int64_t brushId,
@@ -799,58 +946,9 @@ namespace {
 			return true;
 		}
 		for (const nlohmann::json &set : entity["inlineBorderSets"]) {
-			if (!set.is_object() || !set.contains("inlineIndex") || !set["inlineIndex"].is_number_integer()) {
-				continue;
-			}
-			const int inlineIndex = set["inlineIndex"].get<int>();
-			BorderSetRecord borderSet;
-			borderSet.borderScope = "inline";
-			borderSet.ownerBrushId = brushId;
-			if (set.contains("borderType") && IsJsonString(set["borderType"])) {
-				borderSet.borderType = JsonToWxString(set["borderType"]);
-			}
-			if (set.contains("borderGroup") && set["borderGroup"].is_number_integer()) {
-				borderSet.borderGroup = set["borderGroup"].get<int>();
-			}
-			if (set.contains("groundEquivalent") && set["groundEquivalent"].is_number_integer()) {
-				borderSet.groundEquivalent = set["groundEquivalent"].get<int>();
-			}
-			int64_t borderSetId = 0;
-			if (!g_brush_database.upsertBorderSet(borderSet, borderSetId) || borderSetId <= 0) {
-				error = g_brush_database.getLastError();
+			if (!TryImportInlineBorderSet(set, brushId, outInlineBorderIdByIndex, error)) {
 				return false;
 			}
-			std::vector<BorderSetItemRecord> items;
-			if (set.contains("items") && set["items"].is_array()) {
-				for (const nlohmann::json &row : set["items"]) {
-					if (!row.is_object() || !row.contains("edge") || !IsJsonString(row["edge"]) || !row.contains("itemId") || !row["itemId"].is_number_integer()) {
-						continue;
-					}
-					BorderSetItemRecord item;
-					item.borderSetId = borderSetId;
-					item.edge = JsonToWxString(row["edge"]);
-					item.itemId = row["itemId"].get<int>();
-					item.sortOrder = static_cast<int>(items.size());
-					if (row.contains("sortOrder") && row["sortOrder"].is_number_integer()) {
-						item.sortOrder = row["sortOrder"].get<int>();
-					}
-					items.push_back(item);
-				}
-			}
-			std::sort(items.begin(), items.end(), [](const BorderSetItemRecord &a, const BorderSetItemRecord &b) {
-				if (a.sortOrder != b.sortOrder) {
-					return a.sortOrder < b.sortOrder;
-				}
-				return a.edge < b.edge;
-			});
-			for (size_t i = 0; i < items.size(); ++i) {
-				items[i].sortOrder = static_cast<int>(i);
-			}
-			if (!g_brush_database.replaceBorderSetItems(borderSetId, items)) {
-				error = g_brush_database.getLastError();
-				return false;
-			}
-			outInlineBorderIdByIndex.try_emplace(inlineIndex, borderSetId);
 		}
 		return true;
 	}
@@ -937,6 +1035,68 @@ namespace {
 		return caseRecord;
 	}
 
+	void ResolveGroundBorderTargetBrushFromRow(const nlohmann::json &row, GroundBrushBorderRecord &border) {
+		if (!row.contains("targetBrush") || !row["targetBrush"].is_object()) {
+			return;
+		}
+
+		wxString targetType;
+		wxString targetName;
+		if (!ParseBrushKey(row["targetBrush"], targetType, targetName)) {
+			return;
+		}
+
+		BrushRecord target;
+		if (g_brush_database.findBrushByNameAndType(targetName, targetType, target) && target.id > 0) {
+			border.targetBrushId = target.id;
+			border.targetBrushName = target.name;
+		} else {
+			border.targetBrushId = 0;
+			border.targetBrushName = targetName;
+		}
+	}
+
+	void ParseGroundBorderCasesFromRow(const nlohmann::json &row, GroundBrushBorderRecord &border) {
+		if (!row.contains("cases") || !row["cases"].is_array()) {
+			return;
+		}
+		for (const nlohmann::json &c : row["cases"]) {
+			if (!c.is_object()) {
+				continue;
+			}
+			border.cases.push_back(ParseGroundBorderCase(c));
+		}
+	}
+
+	bool TryParseGroundBorderFromRow(
+		const nlohmann::json &row,
+		const std::unordered_map<int, int64_t> &inlineBorderIdByIndex,
+		int defaultSortOrder,
+		GroundBrushBorderRecord &outBorder
+	) {
+		if (!row.is_object()) {
+			return false;
+		}
+
+		outBorder = GroundBrushBorderRecord();
+		AssignOptionalWxString(row, "borderRole", outBorder.borderRole);
+		AssignOptionalWxString(row, "align", outBorder.align);
+		AssignOptionalWxString(row, "targetMode", outBorder.targetMode);
+		AssignOptionalWxString(row, "targetBrushName", outBorder.targetBrushName);
+		AssignOptionalBool(row, "superBorder", outBorder.superBorder);
+
+		outBorder.sortOrder = defaultSortOrder;
+		AssignOptionalInt(row, "sortOrder", outBorder.sortOrder);
+
+		if (row.contains("borderRef") && row["borderRef"].is_object()) {
+			outBorder.borderSetId = ResolveBorderSetIdFromRef(row["borderRef"], inlineBorderIdByIndex);
+		}
+
+		ResolveGroundBorderTargetBrushFromRow(row, outBorder);
+		ParseGroundBorderCasesFromRow(row, outBorder);
+		return true;
+	}
+
 	std::vector<GroundBrushBorderRecord> ParseGroundBorders(
 		const nlohmann::json &entity,
 		const std::unordered_map<int, int64_t> &inlineBorderIdByIndex
@@ -946,58 +1106,11 @@ namespace {
 			return borders;
 		}
 		for (const nlohmann::json &row : entity["groundBorders"]) {
-			if (!row.is_object()) {
+			GroundBrushBorderRecord border;
+			if (!TryParseGroundBorderFromRow(row, inlineBorderIdByIndex, static_cast<int>(borders.size()), border)) {
 				continue;
 			}
-			GroundBrushBorderRecord border;
-			if (row.contains("borderRole") && IsJsonString(row["borderRole"])) {
-				border.borderRole = JsonToWxString(row["borderRole"]);
-			}
-			if (row.contains("align") && IsJsonString(row["align"])) {
-				border.align = JsonToWxString(row["align"]);
-			}
-			if (row.contains("targetMode") && IsJsonString(row["targetMode"])) {
-				border.targetMode = JsonToWxString(row["targetMode"]);
-			}
-			if (row.contains("targetBrushName") && IsJsonString(row["targetBrushName"])) {
-				border.targetBrushName = JsonToWxString(row["targetBrushName"]);
-			}
-			if (row.contains("superBorder") && row["superBorder"].is_boolean()) {
-				border.superBorder = row["superBorder"].get<bool>();
-			}
-			border.sortOrder = static_cast<int>(borders.size());
-			if (row.contains("sortOrder") && row["sortOrder"].is_number_integer()) {
-				border.sortOrder = row["sortOrder"].get<int>();
-			}
-
-			if (row.contains("borderRef") && row["borderRef"].is_object()) {
-				border.borderSetId = ResolveBorderSetIdFromRef(row["borderRef"], inlineBorderIdByIndex);
-			}
-
-			if (row.contains("targetBrush") && row["targetBrush"].is_object()) {
-				wxString targetType;
-				wxString targetName;
-				if (ParseBrushKey(row["targetBrush"], targetType, targetName)) {
-					BrushRecord target;
-					if (g_brush_database.findBrushByNameAndType(targetName, targetType, target) && target.id > 0) {
-						border.targetBrushId = target.id;
-						border.targetBrushName = target.name;
-					} else {
-						border.targetBrushId = 0;
-						border.targetBrushName = targetName;
-					}
-				}
-			}
-
-			if (row.contains("cases") && row["cases"].is_array()) {
-				for (const nlohmann::json &c : row["cases"]) {
-					if (!c.is_object()) {
-						continue;
-					}
-					border.cases.push_back(ParseGroundBorderCase(c));
-				}
-			}
-			borders.push_back(border);
+			borders.push_back(std::move(border));
 		}
 		SortAndReindexBySortOrder(borders, [](const GroundBrushBorderRecord &a, const GroundBrushBorderRecord &b) { return a.sortOrder < b.sortOrder; });
 		return borders;
@@ -1017,62 +1130,73 @@ namespace {
 		return true;
 	}
 
+	bool TryParseWallPartItemFromJson(const nlohmann::json &it, int defaultSortOrder, WallPartItemRecord &outItem) {
+		if (!it.is_object() || !it.contains("itemId") || !it["itemId"].is_number_integer()) {
+			return false;
+		}
+		outItem = WallPartItemRecord();
+		outItem.itemId = it["itemId"].get<int>();
+		outItem.sortOrder = defaultSortOrder;
+		AssignOptionalInt(it, "chance", outItem.chance);
+		AssignOptionalInt(it, "sortOrder", outItem.sortOrder);
+		return true;
+	}
+
+	bool TryParseWallPartDoorFromJson(const nlohmann::json &it, int defaultSortOrder, WallPartDoorRecord &outDoor) {
+		if (!it.is_object() || !it.contains("itemId") || !it["itemId"].is_number_integer()) {
+			return false;
+		}
+		outDoor = WallPartDoorRecord();
+		outDoor.itemId = it["itemId"].get<int>();
+		outDoor.sortOrder = defaultSortOrder;
+		AssignOptionalWxString(it, "doorType", outDoor.doorType);
+		AssignOptionalBool(it, "isOpen", outDoor.isOpen);
+		AssignOptionalBool(it, "wallHateMe", outDoor.wallHateMe);
+		AssignOptionalInt(it, "sortOrder", outDoor.sortOrder);
+		return true;
+	}
+
+	bool TryParseWallPartFromJson(const nlohmann::json &p, int defaultSortOrder, WallPartRecord &outPart) {
+		if (!p.is_object() || !p.contains("partType") || !IsJsonString(p["partType"])) {
+			return false;
+		}
+		outPart = WallPartRecord();
+		outPart.partType = JsonToWxString(p["partType"]);
+		outPart.sortOrder = defaultSortOrder;
+		AssignOptionalInt(p, "sortOrder", outPart.sortOrder);
+
+		if (p.contains("items") && p["items"].is_array()) {
+			for (const nlohmann::json &it : p["items"]) {
+				WallPartItemRecord item;
+				if (!TryParseWallPartItemFromJson(it, static_cast<int>(outPart.items.size()), item)) {
+					continue;
+				}
+				outPart.items.push_back(item);
+			}
+		}
+		if (p.contains("doors") && p["doors"].is_array()) {
+			for (const nlohmann::json &it : p["doors"]) {
+				WallPartDoorRecord door;
+				if (!TryParseWallPartDoorFromJson(it, static_cast<int>(outPart.doors.size()), door)) {
+					continue;
+				}
+				outPart.doors.push_back(door);
+			}
+		}
+		return true;
+	}
+
 	std::vector<WallPartRecord> ParseWallParts(const nlohmann::json &entity) {
 		std::vector<WallPartRecord> wallParts;
 		if (!entity.contains("wallParts") || !entity["wallParts"].is_array()) {
 			return wallParts;
 		}
 		for (const nlohmann::json &p : entity["wallParts"]) {
-			if (!p.is_object() || !p.contains("partType") || !IsJsonString(p["partType"])) {
+			WallPartRecord part;
+			if (!TryParseWallPartFromJson(p, static_cast<int>(wallParts.size()), part)) {
 				continue;
 			}
-			WallPartRecord part;
-			part.partType = JsonToWxString(p["partType"]);
-			part.sortOrder = static_cast<int>(wallParts.size());
-			if (p.contains("sortOrder") && p["sortOrder"].is_number_integer()) {
-				part.sortOrder = p["sortOrder"].get<int>();
-			}
-			if (p.contains("items") && p["items"].is_array()) {
-				for (const nlohmann::json &it : p["items"]) {
-					if (!it.is_object() || !it.contains("itemId") || !it["itemId"].is_number_integer()) {
-						continue;
-					}
-					WallPartItemRecord item;
-					item.itemId = it["itemId"].get<int>();
-					if (it.contains("chance") && it["chance"].is_number_integer()) {
-						item.chance = it["chance"].get<int>();
-					}
-					item.sortOrder = static_cast<int>(part.items.size());
-					if (it.contains("sortOrder") && it["sortOrder"].is_number_integer()) {
-						item.sortOrder = it["sortOrder"].get<int>();
-					}
-					part.items.push_back(item);
-				}
-			}
-			if (p.contains("doors") && p["doors"].is_array()) {
-				for (const nlohmann::json &it : p["doors"]) {
-					if (!it.is_object() || !it.contains("itemId") || !it["itemId"].is_number_integer()) {
-						continue;
-					}
-					WallPartDoorRecord door;
-					door.itemId = it["itemId"].get<int>();
-					if (it.contains("doorType") && IsJsonString(it["doorType"])) {
-						door.doorType = JsonToWxString(it["doorType"]);
-					}
-					if (it.contains("isOpen") && it["isOpen"].is_boolean()) {
-						door.isOpen = it["isOpen"].get<bool>();
-					}
-					if (it.contains("wallHateMe") && it["wallHateMe"].is_boolean()) {
-						door.wallHateMe = it["wallHateMe"].get<bool>();
-					}
-					door.sortOrder = static_cast<int>(part.doors.size());
-					if (it.contains("sortOrder") && it["sortOrder"].is_number_integer()) {
-						door.sortOrder = it["sortOrder"].get<int>();
-					}
-					part.doors.push_back(door);
-				}
-			}
-			wallParts.push_back(part);
+			wallParts.push_back(std::move(part));
 		}
 		return wallParts;
 	}
@@ -1086,39 +1210,49 @@ namespace {
 		return true;
 	}
 
+	bool TryParseCarpetNodeItemFromJson(const nlohmann::json &it, int defaultSortOrder, CarpetNodeItemRecord &outItem) {
+		if (!it.is_object() || !it.contains("itemId") || !it["itemId"].is_number_integer()) {
+			return false;
+		}
+		outItem = CarpetNodeItemRecord();
+		outItem.itemId = it["itemId"].get<int>();
+		outItem.sortOrder = defaultSortOrder;
+		AssignOptionalInt(it, "chance", outItem.chance);
+		AssignOptionalInt(it, "sortOrder", outItem.sortOrder);
+		return true;
+	}
+
+	bool TryParseCarpetNodeFromJson(const nlohmann::json &n, int defaultSortOrder, CarpetNodeRecord &outNode) {
+		if (!n.is_object() || !n.contains("align") || !IsJsonString(n["align"])) {
+			return false;
+		}
+		outNode = CarpetNodeRecord();
+		outNode.align = JsonToWxString(n["align"]);
+		outNode.sortOrder = defaultSortOrder;
+		AssignOptionalInt(n, "sortOrder", outNode.sortOrder);
+		if (n.contains("items") && n["items"].is_array()) {
+			for (const nlohmann::json &it : n["items"]) {
+				CarpetNodeItemRecord item;
+				if (!TryParseCarpetNodeItemFromJson(it, static_cast<int>(outNode.items.size()), item)) {
+					continue;
+				}
+				outNode.items.push_back(item);
+			}
+		}
+		return true;
+	}
+
 	std::vector<CarpetNodeRecord> ParseCarpetNodes(const nlohmann::json &entity) {
 		std::vector<CarpetNodeRecord> carpet;
 		if (!entity.contains("carpetNodes") || !entity["carpetNodes"].is_array()) {
 			return carpet;
 		}
 		for (const nlohmann::json &n : entity["carpetNodes"]) {
-			if (!n.is_object() || !n.contains("align") || !IsJsonString(n["align"])) {
+			CarpetNodeRecord node;
+			if (!TryParseCarpetNodeFromJson(n, static_cast<int>(carpet.size()), node)) {
 				continue;
 			}
-			CarpetNodeRecord node;
-			node.align = JsonToWxString(n["align"]);
-			node.sortOrder = static_cast<int>(carpet.size());
-			if (n.contains("sortOrder") && n["sortOrder"].is_number_integer()) {
-				node.sortOrder = n["sortOrder"].get<int>();
-			}
-			if (n.contains("items") && n["items"].is_array()) {
-				for (const nlohmann::json &it : n["items"]) {
-					if (!it.is_object() || !it.contains("itemId") || !it["itemId"].is_number_integer()) {
-						continue;
-					}
-					CarpetNodeItemRecord item;
-					item.itemId = it["itemId"].get<int>();
-					if (it.contains("chance") && it["chance"].is_number_integer()) {
-						item.chance = it["chance"].get<int>();
-					}
-					item.sortOrder = static_cast<int>(node.items.size());
-					if (it.contains("sortOrder") && it["sortOrder"].is_number_integer()) {
-						item.sortOrder = it["sortOrder"].get<int>();
-					}
-					node.items.push_back(item);
-				}
-			}
-			carpet.push_back(node);
+			carpet.push_back(std::move(node));
 		}
 		return carpet;
 	}
@@ -1132,39 +1266,49 @@ namespace {
 		return true;
 	}
 
+	bool TryParseTableNodeItemFromJson(const nlohmann::json &it, int defaultSortOrder, TableNodeItemRecord &outItem) {
+		if (!it.is_object() || !it.contains("itemId") || !it["itemId"].is_number_integer()) {
+			return false;
+		}
+		outItem = TableNodeItemRecord();
+		outItem.itemId = it["itemId"].get<int>();
+		outItem.sortOrder = defaultSortOrder;
+		AssignOptionalInt(it, "chance", outItem.chance);
+		AssignOptionalInt(it, "sortOrder", outItem.sortOrder);
+		return true;
+	}
+
+	bool TryParseTableNodeFromJson(const nlohmann::json &n, int defaultSortOrder, TableNodeRecord &outNode) {
+		if (!n.is_object() || !n.contains("align") || !IsJsonString(n["align"])) {
+			return false;
+		}
+		outNode = TableNodeRecord();
+		outNode.align = JsonToWxString(n["align"]);
+		outNode.sortOrder = defaultSortOrder;
+		AssignOptionalInt(n, "sortOrder", outNode.sortOrder);
+		if (n.contains("items") && n["items"].is_array()) {
+			for (const nlohmann::json &it : n["items"]) {
+				TableNodeItemRecord item;
+				if (!TryParseTableNodeItemFromJson(it, static_cast<int>(outNode.items.size()), item)) {
+					continue;
+				}
+				outNode.items.push_back(item);
+			}
+		}
+		return true;
+	}
+
 	std::vector<TableNodeRecord> ParseTableNodes(const nlohmann::json &entity) {
 		std::vector<TableNodeRecord> table;
 		if (!entity.contains("tableNodes") || !entity["tableNodes"].is_array()) {
 			return table;
 		}
 		for (const nlohmann::json &n : entity["tableNodes"]) {
-			if (!n.is_object() || !n.contains("align") || !IsJsonString(n["align"])) {
+			TableNodeRecord node;
+			if (!TryParseTableNodeFromJson(n, static_cast<int>(table.size()), node)) {
 				continue;
 			}
-			TableNodeRecord node;
-			node.align = JsonToWxString(n["align"]);
-			node.sortOrder = static_cast<int>(table.size());
-			if (n.contains("sortOrder") && n["sortOrder"].is_number_integer()) {
-				node.sortOrder = n["sortOrder"].get<int>();
-			}
-			if (n.contains("items") && n["items"].is_array()) {
-				for (const nlohmann::json &it : n["items"]) {
-					if (!it.is_object() || !it.contains("itemId") || !it["itemId"].is_number_integer()) {
-						continue;
-					}
-					TableNodeItemRecord item;
-					item.itemId = it["itemId"].get<int>();
-					if (it.contains("chance") && it["chance"].is_number_integer()) {
-						item.chance = it["chance"].get<int>();
-					}
-					item.sortOrder = static_cast<int>(node.items.size());
-					if (it.contains("sortOrder") && it["sortOrder"].is_number_integer()) {
-						item.sortOrder = it["sortOrder"].get<int>();
-					}
-					node.items.push_back(item);
-				}
-			}
-			table.push_back(node);
+			table.push_back(std::move(node));
 		}
 		return table;
 	}
