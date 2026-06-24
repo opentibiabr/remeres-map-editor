@@ -3,6 +3,7 @@
 #include "materials_workbench_window.h"
 
 #include <algorithm>
+#include <functional>
 #include <fstream>
 #include <set>
 #include <vector>
@@ -30,7 +31,10 @@
 #include "materials_workbench_wall_panel.h"
 
 namespace {
-	MaterialsWorkbenchWindow* g_materials_workbench_window = nullptr;
+	MaterialsWorkbenchWindow*& GetMaterialsWorkbenchWindowInstance() {
+		static MaterialsWorkbenchWindow* window = nullptr;
+		return window;
+	}
 
 	void RefreshRuntimeMaterialPalettes(const char* reason, bool reloadBrushes) {
 		wxString error;
@@ -97,7 +101,8 @@ namespace {
 			}
 		}
 
-		const auto captureExpanded = [&](auto &&self, const wxTreeItemId &parent) -> void {
+		std::function<void(const wxTreeItemId&)> captureExpanded;
+		captureExpanded = [&](const wxTreeItemId &parent) {
 			wxTreeItemIdValue cookie;
 			for (wxTreeItemId child = tree->GetFirstChild(parent, cookie); child.IsOk(); child = tree->GetNextChild(parent, cookie)) {
 				if (tree->IsExpanded(child)) {
@@ -105,20 +110,20 @@ namespace {
 						state.expandedNodeKeys.push_back(BuildNavigationNodeKey(itemData->kind, itemData->contextKey, itemData->itemIndex));
 					}
 				}
-				self(self, child);
+				captureExpanded(child);
 			}
 		};
 
 		const wxTreeItemId root = tree->GetRootItem();
 		if (root.IsOk()) {
-			captureExpanded(captureExpanded, root);
+			captureExpanded(root);
 		}
 
 		return state;
 	}
 
 	bool NavigationStateContainsExpandedKey(const MaterialsWorkbenchWindow::NavigationTreeState &state, const wxString &key) {
-		return std::find(state.expandedNodeKeys.begin(), state.expandedNodeKeys.end(), key) != state.expandedNodeKeys.end();
+		return std::ranges::find(state.expandedNodeKeys, key) != state.expandedNodeKeys.end();
 	}
 
 	wxString NormalizeNavigationFilterQuery(const wxString &value) {
@@ -343,30 +348,32 @@ EVT_CLOSE(MaterialsWorkbenchWindow::OnClose)
 END_EVENT_TABLE()
 
 void MaterialsWorkbenchWindow::Open(wxWindow* parent) {
-	if (g_materials_workbench_window) {
-		if (g_materials_workbench_window->IsIconized()) {
-			g_materials_workbench_window->Iconize(false);
+	auto*& window = GetMaterialsWorkbenchWindowInstance();
+	if (window) {
+		if (window->IsIconized()) {
+			window->Iconize(false);
 		}
-		g_materials_workbench_window->Show();
-		g_materials_workbench_window->Raise();
-		g_materials_workbench_window->Maximize(true);
+		window->Show();
+		window->Raise();
+		window->Maximize(true);
 		return;
 	}
 
-	g_materials_workbench_window = newd MaterialsWorkbenchWindow(parent);
-	g_materials_workbench_window->Show();
-	g_materials_workbench_window->Maximize(true);
-	g_materials_workbench_window->Raise();
+	window = newd MaterialsWorkbenchWindow(parent);
+	window->Show();
+	window->Maximize(true);
+	window->Raise();
 }
 
 void MaterialsWorkbenchWindow::OpenSqliteInspector(wxWindow* parent) {
 	MaterialsWorkbenchWindow::Open(parent);
-	if (!g_materials_workbench_window) {
+	auto*& window = GetMaterialsWorkbenchWindowInstance();
+	if (!window) {
 		return;
 	}
-	g_materials_workbench_window->OpenInspector();
-	if (g_materials_workbench_window->inspectorDialog_) {
-		g_materials_workbench_window->inspectorDialog_->SelectSqliteTab();
+	window->OpenInspector();
+	if (window->inspectorDialog_) {
+		window->inspectorDialog_->SelectSqliteTab();
 	}
 }
 
@@ -690,7 +697,7 @@ void MaterialsWorkbenchWindow::OnImportMaterials(wxCommandEvent &) {
 			applyProgress.Update(0, "Applying changes...");
 			wxYieldIfNeeded();
 
-			const auto onProgress = [&](int current, int total, const wxString &stage) -> bool {
+			const auto onProgress = [&](int current, int total, const wxString &stage) {
 				wxString message = stage;
 				if (total > 0) {
 					message += wxString::Format(" (%d/%d)", current, total);
@@ -1001,7 +1008,8 @@ void MaterialsWorkbenchWindow::UpdateBrushNavigationBadge() {
 	const wxColour defaultTextColour = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT);
 	const wxColour modifiedTextColour(176, 102, 0);
 
-	const auto applyBadge = [&](auto &&self, const wxTreeItemId &parentItem) -> void {
+	std::function<void(const wxTreeItemId&)> applyBadge;
+	applyBadge = [&](const wxTreeItemId &parentItem) {
 		wxTreeItemIdValue cookie;
 		for (wxTreeItemId child = navigationTree_->GetFirstChild(parentItem, cookie); child.IsOk(); child = navigationTree_->GetNextChild(parentItem, cookie)) {
 			auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(child));
@@ -1015,11 +1023,11 @@ void MaterialsWorkbenchWindow::UpdateBrushNavigationBadge() {
 				navigationTree_->SetItemTextColour(child, isModified ? modifiedTextColour : defaultTextColour);
 			}
 
-			self(self, child);
+			applyBadge(child);
 		}
 	};
 
-	applyBadge(applyBadge, root);
+	applyBadge(root);
 }
 
 void MaterialsWorkbenchWindow::PopulateNavigation() {
@@ -1071,7 +1079,8 @@ void MaterialsWorkbenchWindow::PopulateNavigation() {
 	navigationTree_->DeleteAllItems();
 	wxTreeItemId root = navigationTree_->AddRoot("Materials Workbench");
 	const std::vector<MaterialsWorkbenchTreeNode> filteredNodes = BuildFilteredNavigationTree(controller_.BuildNavigationTree(), normalizedFilterQuery);
-	const auto appendNodes = [&](auto &&self, const wxTreeItemId &parentItem, const std::vector<MaterialsWorkbenchTreeNode> &nodes) -> void {
+	std::function<void(const wxTreeItemId&, const std::vector<MaterialsWorkbenchTreeNode>&)> appendNodes;
+	appendNodes = [&](const wxTreeItemId &parentItem, const std::vector<MaterialsWorkbenchTreeNode> &nodes) {
 		for (const MaterialsWorkbenchTreeNode &node : nodes) {
 			wxTreeItemId item = navigationTree_->AppendItem(
 				parentItem,
@@ -1081,7 +1090,7 @@ void MaterialsWorkbenchWindow::PopulateNavigation() {
 				newd MaterialsWorkbenchTreeItemData(node.kind, node.contextKey, node.itemIndex, node.label)
 			);
 			if (!node.children.empty()) {
-				self(self, item, node.children);
+				appendNodes(item, node.children);
 			}
 
 			if (filterActive || NavigationStateContainsExpandedKey(previousState, BuildNavigationNodeKey(node.kind, node.contextKey, node.itemIndex))) {
@@ -1090,7 +1099,7 @@ void MaterialsWorkbenchWindow::PopulateNavigation() {
 		}
 	};
 
-	appendNodes(appendNodes, root, filteredNodes);
+	appendNodes(root, filteredNodes);
 
 	if (filterActive && filteredNodes.empty()) {
 		navigationTree_->AppendItem(root, wxString::Format("No matches for \"%s\".", navigationFilterQuery_));
@@ -1352,7 +1361,7 @@ void MaterialsWorkbenchWindow::OnClose(wxCloseEvent &event) {
 		dialog->Destroy();
 	}
 
-	g_materials_workbench_window = nullptr;
+	GetMaterialsWorkbenchWindowInstance() = nullptr;
 	Destroy();
 	event.Skip(false);
 }

@@ -181,6 +181,10 @@ namespace {
 	}
 
 	struct InlineBorderSetsExport {
+		InlineBorderSetsExport() = default;
+		InlineBorderSetsExport(InlineBorderSetsExport&&) noexcept = default;
+		InlineBorderSetsExport& operator=(InlineBorderSetsExport&&) noexcept = default;
+
 		nlohmann::json sets = nlohmann::json::array();
 		std::unordered_map<int64_t, int> indexById;
 	};
@@ -779,6 +783,30 @@ namespace {
 		}
 	}
 
+	void ResolveBrushLinkTargetFromRow(const nlohmann::json &row, BrushLinkRecord &link) {
+		if (const auto it = row.find("target"); it != row.end() && it->is_object()) {
+			wxString targetType;
+			wxString targetName;
+			if (!ParseBrushKey(*it, targetType, targetName)) {
+				return;
+			}
+
+			BrushRecord target;
+			if (g_brush_database.findBrushByNameAndType(targetName, targetType, target) && target.id > 0) {
+				link.targetBrushId = target.id;
+				link.targetBrushName = target.name;
+			} else {
+				link.targetBrushId = 0;
+				link.targetBrushName = targetName;
+			}
+			return;
+		}
+
+		if (const auto it = row.find("targetName"); it != row.end() && IsJsonString(*it)) {
+			link.targetBrushName = JsonToWxString(*it);
+		}
+	}
+
 	void ApplyOptionalBrushFields(const nlohmann::json &b, BrushRecord &brush) {
 		AssignOptionalInt(b, "lookId", brush.lookId);
 		AssignOptionalInt(b, "serverLookId", brush.serverLookId);
@@ -861,22 +889,7 @@ namespace {
 			if (row.contains("sortOrder") && row["sortOrder"].is_number_integer()) {
 				link.sortOrder = row["sortOrder"].get<int>();
 			}
-			if (row.contains("target") && row["target"].is_object()) {
-				wxString targetType;
-				wxString targetName;
-				if (ParseBrushKey(row["target"], targetType, targetName)) {
-					BrushRecord target;
-					if (g_brush_database.findBrushByNameAndType(targetName, targetType, target) && target.id > 0) {
-						link.targetBrushId = target.id;
-						link.targetBrushName = target.name;
-					} else {
-						link.targetBrushId = 0;
-						link.targetBrushName = targetName;
-					}
-				}
-			} else if (row.contains("targetName") && IsJsonString(row["targetName"])) {
-				link.targetBrushName = JsonToWxString(row["targetName"]);
-			}
+			ResolveBrushLinkTargetFromRow(row, link);
 			links.push_back(link);
 		}
 		SortAndReindexBySortOrder(links, [](const BrushLinkRecord &a, const BrushLinkRecord &b) { return a.sortOrder < b.sortOrder; });
@@ -1322,90 +1335,130 @@ namespace {
 		return true;
 	}
 
+	bool TryParseDoodadSingleItemFromJson(const nlohmann::json &it, int defaultSortOrder, DoodadSingleItemRecord &outItem) {
+		if (!it.is_object() || !it.contains("itemId") || !it["itemId"].is_number_integer()) {
+			return false;
+		}
+		outItem = DoodadSingleItemRecord();
+		outItem.itemId = it["itemId"].get<int>();
+		outItem.sortOrder = defaultSortOrder;
+		AssignOptionalInt(it, "chance", outItem.chance);
+		AssignOptionalInt(it, "sortOrder", outItem.sortOrder);
+		return true;
+	}
+
+	bool TryParseDoodadCompositeTileItemFromJson(const nlohmann::json &it, int defaultSortOrder, DoodadCompositeTileItemRecord &outItem) {
+		if (!it.is_object() || !it.contains("itemId") || !it["itemId"].is_number_integer()) {
+			return false;
+		}
+		outItem = DoodadCompositeTileItemRecord();
+		outItem.itemId = it["itemId"].get<int>();
+		outItem.sortOrder = defaultSortOrder;
+		AssignOptionalInt(it, "sortOrder", outItem.sortOrder);
+		return true;
+	}
+
+	void ParseDoodadCompositeTileItemsFromJson(const nlohmann::json &tileJson, DoodadCompositeTileRecord &ioTile) {
+		if (!tileJson.contains("items") || !tileJson["items"].is_array()) {
+			return;
+		}
+		for (const nlohmann::json &it : tileJson["items"]) {
+			DoodadCompositeTileItemRecord item;
+			if (!TryParseDoodadCompositeTileItemFromJson(it, static_cast<int>(ioTile.items.size()), item)) {
+				continue;
+			}
+			ioTile.items.push_back(item);
+		}
+	}
+
+	bool TryParseDoodadCompositeTileFromJson(const nlohmann::json &t, int defaultSortOrder, DoodadCompositeTileRecord &outTile) {
+		if (!t.is_object()) {
+			return false;
+		}
+		outTile = DoodadCompositeTileRecord();
+		AssignOptionalInt(t, "offsetX", outTile.offsetX);
+		AssignOptionalInt(t, "offsetY", outTile.offsetY);
+		AssignOptionalInt(t, "offsetZ", outTile.offsetZ);
+		outTile.sortOrder = defaultSortOrder;
+		AssignOptionalInt(t, "sortOrder", outTile.sortOrder);
+		ParseDoodadCompositeTileItemsFromJson(t, outTile);
+		return true;
+	}
+
+	void ParseDoodadCompositeTilesFromJson(const nlohmann::json &compJson, DoodadCompositeRecord &ioComposite) {
+		if (!compJson.contains("tiles") || !compJson["tiles"].is_array()) {
+			return;
+		}
+		for (const nlohmann::json &t : compJson["tiles"]) {
+			DoodadCompositeTileRecord tile;
+			if (!TryParseDoodadCompositeTileFromJson(t, static_cast<int>(ioComposite.tiles.size()), tile)) {
+				continue;
+			}
+			ioComposite.tiles.push_back(std::move(tile));
+		}
+	}
+
+	bool TryParseDoodadCompositeFromJson(const nlohmann::json &c, int defaultSortOrder, DoodadCompositeRecord &outComposite) {
+		if (!c.is_object()) {
+			return false;
+		}
+		outComposite = DoodadCompositeRecord();
+		outComposite.sortOrder = defaultSortOrder;
+		AssignOptionalInt(c, "chance", outComposite.chance);
+		AssignOptionalInt(c, "sortOrder", outComposite.sortOrder);
+		ParseDoodadCompositeTilesFromJson(c, outComposite);
+		return true;
+	}
+
+	void ParseDoodadCompositesFromJson(const nlohmann::json &altJson, DoodadAlternativeRecord &ioAlt) {
+		if (!altJson.contains("composites") || !altJson["composites"].is_array()) {
+			return;
+		}
+		for (const nlohmann::json &c : altJson["composites"]) {
+			DoodadCompositeRecord comp;
+			if (!TryParseDoodadCompositeFromJson(c, static_cast<int>(ioAlt.composites.size()), comp)) {
+				continue;
+			}
+			ioAlt.composites.push_back(std::move(comp));
+		}
+	}
+
+	void ParseDoodadSingleItemsFromJson(const nlohmann::json &altJson, DoodadAlternativeRecord &ioAlt) {
+		if (!altJson.contains("singleItems") || !altJson["singleItems"].is_array()) {
+			return;
+		}
+		for (const nlohmann::json &it : altJson["singleItems"]) {
+			DoodadSingleItemRecord item;
+			if (!TryParseDoodadSingleItemFromJson(it, static_cast<int>(ioAlt.singleItems.size()), item)) {
+				continue;
+			}
+			ioAlt.singleItems.push_back(item);
+		}
+	}
+
+	bool TryParseDoodadAlternativeFromJson(const nlohmann::json &a, int defaultSortOrder, DoodadAlternativeRecord &outAlt) {
+		if (!a.is_object()) {
+			return false;
+		}
+		outAlt = DoodadAlternativeRecord();
+		outAlt.sortOrder = defaultSortOrder;
+		AssignOptionalInt(a, "sortOrder", outAlt.sortOrder);
+		ParseDoodadSingleItemsFromJson(a, outAlt);
+		ParseDoodadCompositesFromJson(a, outAlt);
+		return true;
+	}
+
 	std::vector<DoodadAlternativeRecord> ParseDoodadAlternatives(const nlohmann::json &entity) {
 		std::vector<DoodadAlternativeRecord> doodad;
 		if (!entity.contains("doodadAlternatives") || !entity["doodadAlternatives"].is_array()) {
 			return doodad;
 		}
 		for (const nlohmann::json &a : entity["doodadAlternatives"]) {
-			if (!a.is_object()) {
+			DoodadAlternativeRecord alt;
+			if (!TryParseDoodadAlternativeFromJson(a, static_cast<int>(doodad.size()), alt)) {
 				continue;
 			}
-			DoodadAlternativeRecord alt;
-			alt.sortOrder = static_cast<int>(doodad.size());
-			if (a.contains("sortOrder") && a["sortOrder"].is_number_integer()) {
-				alt.sortOrder = a["sortOrder"].get<int>();
-			}
-			if (a.contains("singleItems") && a["singleItems"].is_array()) {
-				for (const nlohmann::json &it : a["singleItems"]) {
-					if (!it.is_object() || !it.contains("itemId") || !it["itemId"].is_number_integer()) {
-						continue;
-					}
-					DoodadSingleItemRecord item;
-					item.itemId = it["itemId"].get<int>();
-					if (it.contains("chance") && it["chance"].is_number_integer()) {
-						item.chance = it["chance"].get<int>();
-					}
-					item.sortOrder = static_cast<int>(alt.singleItems.size());
-					if (it.contains("sortOrder") && it["sortOrder"].is_number_integer()) {
-						item.sortOrder = it["sortOrder"].get<int>();
-					}
-					alt.singleItems.push_back(item);
-				}
-			}
-			if (a.contains("composites") && a["composites"].is_array()) {
-				for (const nlohmann::json &c : a["composites"]) {
-					if (!c.is_object()) {
-						continue;
-					}
-					DoodadCompositeRecord comp;
-					comp.sortOrder = static_cast<int>(alt.composites.size());
-					if (c.contains("chance") && c["chance"].is_number_integer()) {
-						comp.chance = c["chance"].get<int>();
-					}
-					if (c.contains("sortOrder") && c["sortOrder"].is_number_integer()) {
-						comp.sortOrder = c["sortOrder"].get<int>();
-					}
-					if (c.contains("tiles") && c["tiles"].is_array()) {
-						for (const nlohmann::json &t : c["tiles"]) {
-							if (!t.is_object()) {
-								continue;
-							}
-							DoodadCompositeTileRecord tile;
-							if (t.contains("offsetX") && t["offsetX"].is_number_integer()) {
-								tile.offsetX = t["offsetX"].get<int>();
-							}
-							if (t.contains("offsetY") && t["offsetY"].is_number_integer()) {
-								tile.offsetY = t["offsetY"].get<int>();
-							}
-							if (t.contains("offsetZ") && t["offsetZ"].is_number_integer()) {
-								tile.offsetZ = t["offsetZ"].get<int>();
-							}
-							tile.sortOrder = static_cast<int>(comp.tiles.size());
-							if (t.contains("sortOrder") && t["sortOrder"].is_number_integer()) {
-								tile.sortOrder = t["sortOrder"].get<int>();
-							}
-							if (t.contains("items") && t["items"].is_array()) {
-								for (const nlohmann::json &it : t["items"]) {
-									if (!it.is_object() || !it.contains("itemId") || !it["itemId"].is_number_integer()) {
-										continue;
-									}
-									DoodadCompositeTileItemRecord item;
-									item.itemId = it["itemId"].get<int>();
-									item.sortOrder = static_cast<int>(tile.items.size());
-									if (it.contains("sortOrder") && it["sortOrder"].is_number_integer()) {
-										item.sortOrder = it["sortOrder"].get<int>();
-									}
-									tile.items.push_back(item);
-								}
-							}
-							comp.tiles.push_back(tile);
-						}
-					}
-					alt.composites.push_back(comp);
-				}
-			}
-			doodad.push_back(alt);
+			doodad.push_back(std::move(alt));
 		}
 		return doodad;
 	}

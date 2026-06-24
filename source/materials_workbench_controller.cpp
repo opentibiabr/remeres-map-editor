@@ -2,6 +2,8 @@
 
 #include "materials_workbench_controller.h"
 
+#include <algorithm>
+#include <array>
 #include <map>
 
 #include <wx/arrstr.h>
@@ -539,6 +541,29 @@ namespace {
 		wxString paletteLabel;
 	};
 
+	bool IsBrushTilesetEntry(const TilesetEntryRecord &entry) {
+		if (!entry.entryKind.IsSameAs("brush", false)) {
+			return false;
+		}
+		return entry.brushId > 0 || !entry.brushName.IsEmpty();
+	}
+
+	void CollectTilesetBrushPlacementByKey(
+		const TilesetStorageRecord &tileset,
+		const wxString &familyKey,
+		std::map<wxString, BrushNavigationPlacement> &inOutBrushPlacementByKey
+	) {
+		for (const TilesetSectionRecord &section : tileset.sections) {
+			for (const TilesetEntryRecord &entry : section.entries) {
+				if (!IsBrushTilesetEntry(entry)) {
+					continue;
+				}
+				const wxString brushKey = BuildBrushLookupKey(entry.brushId, entry.brushName);
+				inOutBrushPlacementByKey.try_emplace(brushKey, BrushNavigationPlacement{ familyKey, tileset.name });
+			}
+		}
+	}
+
 	std::map<wxString, BrushNavigationPlacement> BuildBrushPlacementByKey(
 		const MaterialsWorkbenchCatalogSnapshot &catalog,
 		std::map<wxString, std::vector<wxString>> &outPaletteOrderByFamily
@@ -547,22 +572,10 @@ namespace {
 		for (const TilesetStorageRecord &tileset : catalog.tilesets) {
 			const wxString familyKey = BuildPaletteGroupKey(tileset);
 			auto &familyPaletteOrder = outPaletteOrderByFamily[familyKey];
-			if (std::find(familyPaletteOrder.begin(), familyPaletteOrder.end(), tileset.name) == familyPaletteOrder.end()) {
+			if (std::ranges::find(familyPaletteOrder, tileset.name) == familyPaletteOrder.end()) {
 				familyPaletteOrder.push_back(tileset.name);
 			}
-
-			for (const TilesetSectionRecord &section : tileset.sections) {
-				for (const TilesetEntryRecord &entry : section.entries) {
-					if (!entry.entryKind.IsSameAs("brush", false) || (entry.brushId <= 0 && entry.brushName.IsEmpty())) {
-						continue;
-					}
-
-					const wxString brushKey = BuildBrushLookupKey(entry.brushId, entry.brushName);
-					if (!brushPlacementByKey.count(brushKey)) {
-						brushPlacementByKey[brushKey] = { familyKey, tileset.name };
-					}
-				}
-			}
+			CollectTilesetBrushPlacementByKey(tileset, familyKey, brushPlacementByKey);
 		}
 		return brushPlacementByKey;
 	}
@@ -587,7 +600,7 @@ namespace {
 					: wxString::FromUTF8("Uncategorized");
 
 				auto &familyPaletteLabels = outBrushPaletteLabelsByFamily[familyKey];
-				if (std::find(familyPaletteLabels.begin(), familyPaletteLabels.end(), paletteLabel) == familyPaletteLabels.end()) {
+				if (std::ranges::find(familyPaletteLabels, paletteLabel) == familyPaletteLabels.end()) {
 					familyPaletteLabels.push_back(paletteLabel);
 				}
 
@@ -607,7 +620,7 @@ namespace {
 		if (it == brushCountByFamily.end() || it->second == 0) {
 			return;
 		}
-		if (std::find(inOutOrder.begin(), inOutOrder.end(), familyKey) != inOutOrder.end()) {
+		if (std::ranges::find(inOutOrder, familyKey) != inOutOrder.end()) {
 			return;
 		}
 		inOutOrder.push_back(familyKey);
@@ -623,7 +636,7 @@ namespace {
 		PushFamilyIfNeeded(brushCountByFamily, "other", order);
 
 		std::vector<PaletteGroupRecord> sortedPaletteGroups = catalog.paletteGroups;
-		std::sort(sortedPaletteGroups.begin(), sortedPaletteGroups.end(), [](const PaletteGroupRecord &left, const PaletteGroupRecord &right) {
+		std::ranges::sort(sortedPaletteGroups, [](const PaletteGroupRecord &left, const PaletteGroupRecord &right) {
 			if (left.sortOrder != right.sortOrder) {
 				return left.sortOrder < right.sortOrder;
 			}
@@ -641,12 +654,12 @@ namespace {
 			if (entry.second == 0) {
 				continue;
 			}
-			if (std::find(order.begin(), order.end(), entry.first) != order.end()) {
+			if (std::ranges::find(order, entry.first) != order.end()) {
 				continue;
 			}
 			remaining.push_back(entry.first);
 		}
-		std::sort(remaining.begin(), remaining.end(), [](const wxString &left, const wxString &right) {
+		std::ranges::sort(remaining, [](const wxString &left, const wxString &right) {
 			return left.CmpNoCase(right) < 0;
 		});
 		for (const wxString &familyKey : remaining) {
@@ -664,7 +677,7 @@ namespace {
 		const auto it = brushPaletteLabelsByFamily.find(familyKey);
 		if (it != brushPaletteLabelsByFamily.end()) {
 			for (const wxString &paletteLabel : it->second) {
-				if (std::find(paletteLabels.begin(), paletteLabels.end(), paletteLabel) == paletteLabels.end()) {
+				if (std::ranges::find(paletteLabels, paletteLabel) == paletteLabels.end()) {
 					paletteLabels.push_back(paletteLabel);
 				}
 			}
@@ -730,13 +743,15 @@ namespace {
 			"group:borders"
 		);
 
-		const struct BorderScopeNode {
+		struct BorderScopeNode {
 			const char* label;
 			const char* contextKey;
 			const std::vector<BorderSetRecord>* collection;
-		} borderScopes[] = {
-			{ "Inline Border Sets", "inline", &catalog.inlineBorderSets },
-			{ "Global Border Sets", "global", &catalog.globalBorderSets },
+		};
+
+		const std::array<BorderScopeNode, 2> borderScopes = {
+			BorderScopeNode{ "Inline Border Sets", "inline", &catalog.inlineBorderSets },
+			BorderScopeNode{ "Global Border Sets", "global", &catalog.globalBorderSets },
 		};
 
 		for (const BorderScopeNode &scope : borderScopes) {
@@ -1133,10 +1148,11 @@ bool MaterialsWorkbenchControllerTilesetsApi::DeletePaletteGroupAndReassignPalet
 		return false;
 	}
 
-	const auto destinationIt = std::find_if(state_.catalog().paletteGroups.begin(), state_.catalog().paletteGroups.end(), [&](const PaletteGroupRecord &group) {
+	const auto &paletteGroups = state_.catalog().paletteGroups;
+	const auto destinationIt = std::ranges::find_if(paletteGroups, [&](const PaletteGroupRecord &group) {
 		return group.name.IsSameAs(destinationName, false);
 	});
-	if (destinationIt == state_.catalog().paletteGroups.end()) {
+	if (destinationIt == paletteGroups.end()) {
 		error = "The destination category no longer exists.";
 		return false;
 	}
@@ -1279,16 +1295,17 @@ wxString MaterialsWorkbenchControllerNavigationApi::BuildSelectionOverview(Mater
 	}
 
 	const MaterialsWorkbenchCatalogSnapshot &catalog = state_.catalog();
+	using enum MaterialsWorkbenchNodeKind;
 	switch (kind) {
-		case MaterialsWorkbenchNodeKind::Group:
+		case Group:
 			return BuildGroupSelectionOverview(catalog, contextKey);
-		case MaterialsWorkbenchNodeKind::Tileset:
+		case Tileset:
 			return itemIndex >= 0 && itemIndex < static_cast<int>(catalog.tilesets.size())
 				? FormatTilesetOverview(catalog.tilesets[itemIndex])
 				: FormatCatalogOverviewCard(catalog);
-		case MaterialsWorkbenchNodeKind::Brush:
+		case Brush:
 			return BuildBrushSelectionOverview(state_, contextKey, itemIndex);
-		case MaterialsWorkbenchNodeKind::BorderSet:
+		case BorderSet:
 			return BuildBorderSetSelectionOverview(state_, contextKey, itemIndex);
 		default:
 			return FormatCatalogOverviewCard(catalog);
@@ -1301,14 +1318,15 @@ wxString MaterialsWorkbenchControllerNavigationApi::BuildSelectionInspector(Mate
 	}
 
 	const MaterialsWorkbenchCatalogSnapshot &catalog = state_.catalog();
+	using enum MaterialsWorkbenchNodeKind;
 	switch (kind) {
-		case MaterialsWorkbenchNodeKind::Tileset:
+		case Tileset:
 			return itemIndex >= 0 && itemIndex < static_cast<int>(catalog.tilesets.size())
 				? FormatTilesetInspector(catalog.tilesets[itemIndex])
 				: wxString::FromUTF8("Palette details are unavailable.");
-		case MaterialsWorkbenchNodeKind::Brush:
+		case Brush:
 			return BuildBrushSelectionInspector(state_, contextKey, itemIndex);
-		case MaterialsWorkbenchNodeKind::BorderSet:
+		case BorderSet:
 			return BuildBorderSetSelectionInspector(state_, contextKey, itemIndex);
 		default:
 			return BuildDefaultInspectorText();

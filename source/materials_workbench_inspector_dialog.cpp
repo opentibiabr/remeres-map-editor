@@ -110,6 +110,10 @@ namespace {
 	using WarningRow = MaterialsWorkbenchInspectorDialog::WarningRow;
 
 	struct BorderSetIdCache {
+		BorderSetIdCache() = default;
+		BorderSetIdCache(BorderSetIdCache&&) noexcept = default;
+		BorderSetIdCache& operator=(BorderSetIdCache&&) noexcept = default;
+
 		std::set<int64_t> validBorderSetIds;
 		std::set<int64_t> globalBorderSetIds;
 	};
@@ -530,7 +534,7 @@ namespace {
 		std::set<int64_t> missingBorderSetIds;
 		std::vector<wxString> unresolvedTargets;
 		for (const GroundBrushBorderRecord &border : storage.borders) {
-			if (border.borderSetId > 0 && borderSets.validBorderSetIds.find(border.borderSetId) == borderSets.validBorderSetIds.end()) {
+			if (border.borderSetId > 0 && !borderSets.validBorderSetIds.contains(border.borderSetId)) {
 				missingBorderSetIds.insert(border.borderSetId);
 			}
 			if (border.targetMode == "brush" && !border.targetBrushName.IsEmpty() && border.targetBrushId <= 0) {
@@ -602,6 +606,122 @@ namespace {
 		);
 	}
 
+	struct DoodadWarningAudit {
+		std::vector<int> emptyAlternatives;
+		std::vector<int> emptyComposites;
+		std::vector<int> emptyTiles;
+		std::set<int> invalidItemIds;
+	};
+
+	void CollectDoodadInvalidItemId(int itemId, std::set<int> &outInvalidItemIds) {
+		if (!IsKnownWorkbenchInspectorItemId(itemId)) {
+			outInvalidItemIds.insert(itemId);
+		}
+	}
+
+	void CollectDoodadSingleItemWarnings(const DoodadAlternativeRecord &alt, DoodadWarningAudit &ioAudit) {
+		for (const DoodadSingleItemRecord &single : alt.singleItems) {
+			CollectDoodadInvalidItemId(single.itemId, ioAudit.invalidItemIds);
+		}
+	}
+
+	void CollectDoodadCompositeWarnings(const DoodadCompositeRecord &composite, DoodadWarningAudit &ioAudit, int compositeIndex) {
+		if (composite.tiles.empty()) {
+			ioAudit.emptyComposites.push_back(compositeIndex);
+			return;
+		}
+		for (size_t tileIndex = 0; tileIndex < composite.tiles.size(); ++tileIndex) {
+			const DoodadCompositeTileRecord &tile = composite.tiles[tileIndex];
+			if (tile.items.empty()) {
+				ioAudit.emptyTiles.push_back(static_cast<int>(tileIndex));
+				continue;
+			}
+			for (const DoodadCompositeTileItemRecord &tileItem : tile.items) {
+				CollectDoodadInvalidItemId(tileItem.itemId, ioAudit.invalidItemIds);
+			}
+		}
+	}
+
+	void CollectDoodadAlternativeWarnings(const DoodadAlternativeRecord &alt, DoodadWarningAudit &ioAudit, int altIndex) {
+		if (alt.singleItems.empty() && alt.composites.empty()) {
+			ioAudit.emptyAlternatives.push_back(altIndex);
+		}
+		CollectDoodadSingleItemWarnings(alt, ioAudit);
+		for (size_t compositeIndex = 0; compositeIndex < alt.composites.size(); ++compositeIndex) {
+			CollectDoodadCompositeWarnings(alt.composites[compositeIndex], ioAudit, static_cast<int>(compositeIndex));
+		}
+	}
+
+	void EmitDoodadWarnings(WarningCollector &out, const BrushRecord &brush, const DoodadWarningAudit &audit) {
+		if (!audit.emptyAlternatives.empty()) {
+			wxArrayString indices;
+			for (int idx : audit.emptyAlternatives) {
+				indices.Add(wxString::Format("%d", idx + 1));
+			}
+			out.Add(
+				"Warning",
+				"Brush",
+				"brush",
+				"Doodad has empty alternatives",
+				static_cast<int>(audit.emptyAlternatives.size()),
+				"Active",
+				"Alternatives: " + wxJoin(indices, ','),
+				brush.id,
+				brush.name
+			);
+		}
+
+		if (!audit.emptyComposites.empty()) {
+			wxArrayString indices;
+			for (int idx : audit.emptyComposites) {
+				indices.Add(wxString::Format("%d", idx + 1));
+			}
+			out.Add(
+				"Warning",
+				"Brush",
+				"brush",
+				"Doodad has empty composites",
+				static_cast<int>(audit.emptyComposites.size()),
+				"Active",
+				"Composites: " + wxJoin(indices, ','),
+				brush.id,
+				brush.name
+			);
+		}
+
+		if (!audit.emptyTiles.empty()) {
+			out.Add(
+				"Warning",
+				"Brush",
+				"brush",
+				"Doodad has empty tiles",
+				static_cast<int>(audit.emptyTiles.size()),
+				"Active",
+				"Some doodad composite tiles contain no items.",
+				brush.id,
+				brush.name
+			);
+		}
+
+		if (!audit.invalidItemIds.empty()) {
+			wxArrayString ids;
+			for (int id : audit.invalidItemIds) {
+				ids.Add(wxString::Format("%d", id));
+			}
+			out.Add(
+				"Error",
+				"Brush",
+				"brush",
+				"Doodad has invalid item ids",
+				static_cast<int>(audit.invalidItemIds.size()),
+				"Active",
+				"Invalid item ids: " + wxJoin(ids, ','),
+				brush.id,
+				brush.name
+			);
+		}
+	}
+
 	void CollectDoodadWarnings(WarningCollector &out, const BrushRecord &brush, const BrushStorageRecord &storage) {
 		if (storage.doodadAlternatives.empty()) {
 			out.Add(
@@ -618,109 +738,11 @@ namespace {
 			return;
 		}
 
-		std::vector<int> emptyAlternatives;
-		std::vector<int> emptyComposites;
-		std::vector<int> emptyTiles;
-		std::set<int> invalidItemIds;
-
+		DoodadWarningAudit audit;
 		for (size_t altIndex = 0; altIndex < storage.doodadAlternatives.size(); ++altIndex) {
-			const DoodadAlternativeRecord &alt = storage.doodadAlternatives[altIndex];
-			if (alt.singleItems.empty() && alt.composites.empty()) {
-				emptyAlternatives.push_back(static_cast<int>(altIndex));
-			}
-			for (const DoodadSingleItemRecord &single : alt.singleItems) {
-				if (!IsKnownWorkbenchInspectorItemId(single.itemId)) {
-					invalidItemIds.insert(single.itemId);
-				}
-			}
-			for (size_t compositeIndex = 0; compositeIndex < alt.composites.size(); ++compositeIndex) {
-				const DoodadCompositeRecord &composite = alt.composites[compositeIndex];
-				if (composite.tiles.empty()) {
-					emptyComposites.push_back(static_cast<int>(compositeIndex));
-					continue;
-				}
-				for (size_t tileIndex = 0; tileIndex < composite.tiles.size(); ++tileIndex) {
-					const DoodadCompositeTileRecord &tile = composite.tiles[tileIndex];
-					if (tile.items.empty()) {
-						emptyTiles.push_back(static_cast<int>(tileIndex));
-						continue;
-					}
-					for (const DoodadCompositeTileItemRecord &tileItem : tile.items) {
-						if (!IsKnownWorkbenchInspectorItemId(tileItem.itemId)) {
-							invalidItemIds.insert(tileItem.itemId);
-						}
-					}
-				}
-			}
+			CollectDoodadAlternativeWarnings(storage.doodadAlternatives[altIndex], audit, static_cast<int>(altIndex));
 		}
-
-		if (!emptyAlternatives.empty()) {
-			wxArrayString indices;
-			for (int idx : emptyAlternatives) {
-				indices.Add(wxString::Format("%d", idx + 1));
-			}
-			out.Add(
-				"Warning",
-				"Brush",
-				"brush",
-				"Doodad has empty alternatives",
-				static_cast<int>(emptyAlternatives.size()),
-				"Active",
-				"Alternatives: " + wxJoin(indices, ','),
-				brush.id,
-				brush.name
-			);
-		}
-
-		if (!emptyComposites.empty()) {
-			wxArrayString indices;
-			for (int idx : emptyComposites) {
-				indices.Add(wxString::Format("%d", idx + 1));
-			}
-			out.Add(
-				"Warning",
-				"Brush",
-				"brush",
-				"Doodad has empty composites",
-				static_cast<int>(emptyComposites.size()),
-				"Active",
-				"Composites: " + wxJoin(indices, ','),
-				brush.id,
-				brush.name
-			);
-		}
-
-		if (!emptyTiles.empty()) {
-			out.Add(
-				"Warning",
-				"Brush",
-				"brush",
-				"Doodad has empty tiles",
-				static_cast<int>(emptyTiles.size()),
-				"Active",
-				"Some doodad composite tiles contain no items.",
-				brush.id,
-				brush.name
-			);
-		}
-
-		if (!invalidItemIds.empty()) {
-			wxArrayString ids;
-			for (int id : invalidItemIds) {
-				ids.Add(wxString::Format("%d", id));
-			}
-			out.Add(
-				"Error",
-				"Brush",
-				"brush",
-				"Doodad has invalid item ids",
-				static_cast<int>(invalidItemIds.size()),
-				"Active",
-				"Invalid item ids: " + wxJoin(ids, ','),
-				brush.id,
-				brush.name
-			);
-		}
+		EmitDoodadWarnings(out, brush, audit);
 	}
 
 	void CollectWallWarnings(WarningCollector &out, const BrushRecord &brush, const BrushStorageRecord &storage) {
@@ -975,7 +997,7 @@ namespace {
 				);
 			}
 
-			if (borderSets.globalBorderSetIds.find(borderSet.id) != borderSets.globalBorderSetIds.end()) {
+			if (borderSets.globalBorderSetIds.contains(borderSet.id)) {
 				std::vector<BorderSetUsageRecord> usages;
 				if (g_brush_database.listBorderSetUsages(borderSet.id, usages) && usages.empty()) {
 					out.Add(

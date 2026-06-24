@@ -4887,16 +4887,15 @@ void MaterialsWorkbenchBrushPanel::RefreshGroundPreviewLayout() {
 	groundPreviewScroll_->FitInside();
 }
 
-void MaterialsWorkbenchBrushPanel::RefreshAlignedNodeList() {
-	if (!alignedNodesList_) {
-		return;
+namespace {
+	wxString NormalizeAlignedNodeKey(wxString value) {
+		value.Trim(true);
+		value.Trim(false);
+		value.MakeLower();
+		return value;
 	}
 
-	const int topItem = CaptureListTopItem(alignedNodesList_);
-	alignedNodesList_->Clear();
-	bool showDetails = false;
-	wxString detailsTooltip;
-	const auto summarizeIssues = [&](const std::vector<wxString> &issues) -> wxString {
+	wxString SummarizeAlignedNodeIssues(const std::vector<wxString> &issues) {
 		if (issues.empty()) {
 			return "";
 		}
@@ -4911,40 +4910,81 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedNodeList() {
 			summary += wxString::Format(" (+%zu)", issues.size() - maxShown);
 		}
 		return summary;
-	};
-	if (GetEffectiveBrushType() == "carpet") {
-		const auto &nodes = brushStorage_.carpetNodes;
-		{
-			std::map<wxString, int> alignCounts;
-			for (const auto &node : nodes) {
-				wxString normalized = node.align;
-				normalized.Trim(true);
-				normalized.Trim(false);
-				normalized.MakeLower();
-				alignCounts[normalized] += 1;
+	}
+
+	template <typename Node, typename IsKnownAlign>
+	wxString BuildAlignedNodeIssuesTooltip(
+		const std::vector<Node> &nodes,
+		const char* emptyKeyLabel,
+		const char* tooltipPrefix,
+		IsKnownAlign isKnownAlign
+	) {
+		std::map<wxString, int> alignCounts;
+		for (const auto &node : nodes) {
+			alignCounts[NormalizeAlignedNodeKey(node.align)] += 1;
+		}
+
+		std::vector<wxString> issues;
+		for (const auto &entry : alignCounts) {
+			if (entry.first.IsEmpty()) {
+				issues.push_back(wxString::FromUTF8(emptyKeyLabel));
+				continue;
 			}
-			std::vector<wxString> issues;
-			for (const auto &entry : alignCounts) {
-				if (entry.first.IsEmpty()) {
-					issues.push_back("empty slot key");
-					continue;
-				}
-				if (!IsKnownCarpetAlign(entry.first)) {
-					issues.push_back(wxString::Format("unknown slot '%s'", entry.first));
-					continue;
-				}
-				if (entry.second > 1) {
-					issues.push_back(wxString::Format("duplicate '%s' (%d)", entry.first, entry.second));
-				}
+			if (!isKnownAlign(entry.first)) {
+				issues.push_back(wxString::Format("unknown '%s'", entry.first));
+				continue;
 			}
-			if (!issues.empty()) {
-				showDetails = true;
-				detailsTooltip = wxString::Format("Carpet slot issues: %s", summarizeIssues(issues));
+			if (entry.second > 1) {
+				issues.push_back(wxString::Format("duplicate '%s' (%d)", entry.first, entry.second));
 			}
 		}
+
+		if (issues.empty()) {
+			return "";
+		}
+
+		return wxString::Format("%s%s", wxString::FromUTF8(tooltipPrefix), SummarizeAlignedNodeIssues(issues));
+	}
+
+	template <typename Node>
+	void AppendAlignedNodeLabels(wxListBox* list, const std::vector<Node> &nodes) {
 		for (size_t i = 0; i < nodes.size(); ++i) {
-			alignedNodesList_->Append(FormatAlignedNodeLabel(nodes[i].align, nodes[i].items.size(), i));
+			list->Append(FormatAlignedNodeLabel(nodes[i].align, nodes[i].items.size(), i));
 		}
+	}
+
+	template <typename Item>
+	void AppendAlignedItemLabels(wxListBox* list, const std::vector<Item> &items) {
+		for (size_t i = 0; i < items.size(); ++i) {
+			list->Append(FormatAlignedItemLabel(items[i].itemId, items[i].chance, i));
+		}
+	}
+
+	template <typename Item>
+	void ClampAlignedItemIndexForCount(int &index, const std::vector<Item> &items) {
+		if (items.empty()) {
+			index = -1;
+			return;
+		}
+		if (index < 0 || index >= static_cast<int>(items.size())) {
+			index = 0;
+		}
+	}
+} // namespace
+
+void MaterialsWorkbenchBrushPanel::RefreshAlignedNodeList() {
+	if (!alignedNodesList_) {
+		return;
+	}
+
+	const int topItem = CaptureListTopItem(alignedNodesList_);
+	alignedNodesList_->Clear();
+	wxString detailsTooltip;
+	const bool isCarpet = GetEffectiveBrushType() == "carpet";
+	if (isCarpet) {
+		const auto &nodes = brushStorage_.carpetNodes;
+		detailsTooltip = BuildAlignedNodeIssuesTooltip(nodes, "empty slot key", "Carpet slot issues: ", IsKnownCarpetAlign);
+		AppendAlignedNodeLabels(alignedNodesList_, nodes);
 
 		if (nodes.empty()) {
 			alignedNodeIndex_ = -1;
@@ -4953,37 +4993,8 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedNodeList() {
 		}
 	} else {
 		const auto &nodes = brushStorage_.tableNodes;
-		{
-			std::map<wxString, int> alignCounts;
-			for (const auto &node : nodes) {
-				wxString normalized = node.align;
-				normalized.Trim(true);
-				normalized.Trim(false);
-				normalized.MakeLower();
-				alignCounts[normalized] += 1;
-			}
-			std::vector<wxString> issues;
-			for (const auto &entry : alignCounts) {
-				if (entry.first.IsEmpty()) {
-					issues.push_back("empty state key");
-					continue;
-				}
-				if (!IsKnownTableAlign(entry.first)) {
-					issues.push_back(wxString::Format("unknown state '%s'", entry.first));
-					continue;
-				}
-				if (entry.second > 1) {
-					issues.push_back(wxString::Format("duplicate '%s' (%d)", entry.first, entry.second));
-				}
-			}
-			if (!issues.empty()) {
-				showDetails = true;
-				detailsTooltip = wxString::Format("Table state issues: %s", summarizeIssues(issues));
-			}
-		}
-		for (size_t i = 0; i < nodes.size(); ++i) {
-			alignedNodesList_->Append(FormatAlignedNodeLabel(nodes[i].align, nodes[i].items.size(), i));
-		}
+		detailsTooltip = BuildAlignedNodeIssuesTooltip(nodes, "empty state key", "Table state issues: ", IsKnownTableAlign);
+		AppendAlignedNodeLabels(alignedNodesList_, nodes);
 
 		if (nodes.empty()) {
 			alignedNodeIndex_ = -1;
@@ -4994,12 +5005,13 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedNodeList() {
 		}
 	}
 
+	const bool showDetails = !detailsTooltip.IsEmpty();
 	if (alignedNodeIndex_ >= 0) {
 		alignedNodesList_->SetSelection(alignedNodeIndex_);
 	}
 	RestoreListTopItem(alignedNodesList_, topItem);
 
-	if (!showDetails) {
+	if (!showDetails && alignedNodesDetailsExpanded_) {
 		alignedNodesDetailsExpanded_ = false;
 	}
 	if (alignedNodesDetailsButton_) {
@@ -5021,21 +5033,15 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedItemList() {
 
 	const int topItem = CaptureListTopItem(alignedItemsList_);
 	alignedItemsList_->Clear();
-	if (GetEffectiveBrushType() == "carpet") {
+	const bool isCarpet = GetEffectiveBrushType() == "carpet";
+	if (isCarpet) {
 		const auto &nodes = brushStorage_.carpetNodes;
 		if (alignedNodeIndex_ < 0 || alignedNodeIndex_ >= static_cast<int>(nodes.size())) {
 			alignedItemIndex_ = -1;
 		} else {
 			const auto &items = nodes[alignedNodeIndex_].items;
-			for (size_t i = 0; i < items.size(); ++i) {
-				alignedItemsList_->Append(FormatAlignedItemLabel(items[i].itemId, items[i].chance, i));
-			}
-
-			if (items.empty()) {
-				alignedItemIndex_ = -1;
-			} else if (alignedItemIndex_ < 0 || alignedItemIndex_ >= static_cast<int>(items.size())) {
-				alignedItemIndex_ = 0;
-			}
+			AppendAlignedItemLabels(alignedItemsList_, items);
+			ClampAlignedItemIndexForCount(alignedItemIndex_, items);
 		}
 	} else {
 		const auto &nodes = brushStorage_.tableNodes;
@@ -5043,15 +5049,8 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedItemList() {
 			alignedItemIndex_ = -1;
 		} else {
 			const auto &items = nodes[alignedNodeIndex_].items;
-			for (size_t i = 0; i < items.size(); ++i) {
-				alignedItemsList_->Append(FormatAlignedItemLabel(items[i].itemId, items[i].chance, i));
-			}
-
-			if (items.empty()) {
-				alignedItemIndex_ = -1;
-			} else if (alignedItemIndex_ < 0 || alignedItemIndex_ >= static_cast<int>(items.size())) {
-				alignedItemIndex_ = 0;
-			}
+			AppendAlignedItemLabels(alignedItemsList_, items);
+			ClampAlignedItemIndexForCount(alignedItemIndex_, items);
 		}
 	}
 
@@ -5082,20 +5081,37 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedItemList() {
 void MaterialsWorkbenchBrushPanel::RefreshAlignedSelection() {
 	internalUpdate_ = true;
 	const wxString type = GetEffectiveBrushType();
-	bool hasNode = false;
-	if (type == "carpet") {
-		const auto &nodes = brushStorage_.carpetNodes;
-		hasNode = alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(nodes.size());
-		const wxString selectedAlign = hasNode
-			? nodes[alignedNodeIndex_].align
-			: (!alignedPendingCarpetAlign_.IsEmpty() ? alignedPendingCarpetAlign_ : FindNextMissingCarpetAlign(nodes, "center"));
-		alignedPendingCarpetAlign_ = selectedAlign;
+	const bool isCarpet = type == "carpet";
+	const bool hasNode = isCarpet ? RefreshAlignedSelectionCarpet() : RefreshAlignedSelectionTable();
+	Layout();
+
+	RefreshAlignedItemList();
+	RefreshAlignedItemEditorFields(hasNode, isCarpet);
+	internalUpdate_ = false;
+	UpdateItemOwnershipHint(alignedItemOwnershipLabel_, alignedItemIdCtrl_->GetValue(), alignedItemIdCtrl_->IsEnabled());
+	RefreshAlignedVisualState();
+}
+
+bool MaterialsWorkbenchBrushPanel::RefreshAlignedSelectionCarpet() {
+	const auto &nodes = brushStorage_.carpetNodes;
+	const bool hasNode = alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(nodes.size());
+	const wxString selectedAlign = hasNode
+		? nodes[alignedNodeIndex_].align
+		: (!alignedPendingCarpetAlign_.IsEmpty() ? alignedPendingCarpetAlign_ : FindNextMissingCarpetAlign(nodes, "center"));
+	alignedPendingCarpetAlign_ = selectedAlign;
+
+	if (alignedNodeAlignCtrl_) {
 		alignedNodeAlignCtrl_->Show();
-		if (alignedNodeAlignChoice_) {
-			alignedNodeAlignChoice_->Hide();
-		}
 		alignedNodeAlignCtrl_->Enable(!selectedAlign.IsEmpty());
-		if (!selectedAlign.IsEmpty()) {
+	}
+	if (alignedNodeAlignChoice_) {
+		alignedNodeAlignChoice_->Hide();
+	}
+
+	if (alignedNodeAlignCtrl_) {
+		if (selectedAlign.IsEmpty()) {
+			alignedNodeAlignCtrl_->SetValue("");
+		} else {
 			wxString slotLabel;
 			for (const auto &slot : GetCarpetContextSlots()) {
 				const wxString slotAlign = wxString::FromUTF8(slot.align);
@@ -5110,67 +5126,66 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedSelection() {
 					? wxString::Format("Selected slot key: %s", selectedAlign)
 					: wxString::Format("Selected slot: %s (align key: %s)", slotLabel, selectedAlign)
 			);
-		} else {
-			alignedNodeAlignCtrl_->SetValue("");
-		}
-		if (!hasNode) {
-			alignedItemIndex_ = -1;
-		}
-	} else {
-		const auto &nodes = brushStorage_.tableNodes;
-		hasNode = alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(nodes.size());
-		if (alignedNodeAlignCtrl_) {
-			alignedNodeAlignCtrl_->Hide();
-		}
-		if (alignedNodeAlignChoice_) {
-			alignedNodeAlignChoice_->Show();
-		}
-		const wxString selectedAlign = hasNode
-			? nodes[alignedNodeIndex_].align
-			: (!alignedPendingTableAlign_.IsEmpty() ? alignedPendingTableAlign_ : FindNextMissingTableAlign(nodes, "alone"));
-		alignedPendingTableAlign_ = selectedAlign;
-		alignedNodeAlignChoice_->Enable(!selectedAlign.IsEmpty());
-		const int selectedChoice = alignedNodeAlignChoice_->FindString(selectedAlign);
-		if (selectedChoice != wxNOT_FOUND) {
-			alignedNodeAlignChoice_->SetSelection(selectedChoice);
-		} else {
-			alignedNodeAlignChoice_->SetSelection(wxNOT_FOUND);
-		}
-		if (!hasNode) {
-			alignedItemIndex_ = -1;
 		}
 	}
-	Layout();
 
-	RefreshAlignedItemList();
+	if (!hasNode) {
+		alignedItemIndex_ = -1;
+	}
+	return hasNode;
+}
 
+bool MaterialsWorkbenchBrushPanel::RefreshAlignedSelectionTable() {
+	const auto &nodes = brushStorage_.tableNodes;
+	const bool hasNode = alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(nodes.size());
+	const wxString selectedAlign = hasNode
+		? nodes[alignedNodeIndex_].align
+		: (!alignedPendingTableAlign_.IsEmpty() ? alignedPendingTableAlign_ : FindNextMissingTableAlign(nodes, "alone"));
+	alignedPendingTableAlign_ = selectedAlign;
+
+	if (alignedNodeAlignCtrl_) {
+		alignedNodeAlignCtrl_->Hide();
+	}
+	if (alignedNodeAlignChoice_) {
+		alignedNodeAlignChoice_->Show();
+		alignedNodeAlignChoice_->Enable(!selectedAlign.IsEmpty());
+		const int selectedChoice = alignedNodeAlignChoice_->FindString(selectedAlign);
+		alignedNodeAlignChoice_->SetSelection(selectedChoice != wxNOT_FOUND ? selectedChoice : wxNOT_FOUND);
+	}
+
+	if (!hasNode) {
+		alignedItemIndex_ = -1;
+	}
+	return hasNode;
+}
+
+void MaterialsWorkbenchBrushPanel::RefreshAlignedItemEditorFields(bool hasNode, bool isCarpet) {
 	bool hasItem = false;
+	int itemId = 0;
+	int chance = 0;
+
 	if (hasNode) {
-		if (GetEffectiveBrushType() == "carpet") {
+		if (isCarpet) {
 			const auto &items = brushStorage_.carpetNodes[alignedNodeIndex_].items;
 			hasItem = alignedItemIndex_ >= 0 && alignedItemIndex_ < static_cast<int>(items.size());
 			if (hasItem) {
-				alignedItemIdCtrl_->SetValue(items[alignedItemIndex_].itemId);
-				alignedItemChanceCtrl_->SetValue(items[alignedItemIndex_].chance);
+				itemId = items[alignedItemIndex_].itemId;
+				chance = items[alignedItemIndex_].chance;
 			}
 		} else {
 			const auto &items = brushStorage_.tableNodes[alignedNodeIndex_].items;
 			hasItem = alignedItemIndex_ >= 0 && alignedItemIndex_ < static_cast<int>(items.size());
 			if (hasItem) {
-				alignedItemIdCtrl_->SetValue(items[alignedItemIndex_].itemId);
-				alignedItemChanceCtrl_->SetValue(items[alignedItemIndex_].chance);
+				itemId = items[alignedItemIndex_].itemId;
+				chance = items[alignedItemIndex_].chance;
 			}
 		}
 	}
-	if (!hasItem) {
-		alignedItemIdCtrl_->SetValue(0);
-		alignedItemChanceCtrl_->SetValue(0);
-	}
+
+	alignedItemIdCtrl_->SetValue(hasItem ? itemId : 0);
+	alignedItemChanceCtrl_->SetValue(hasItem ? chance : 0);
 	alignedItemIdCtrl_->Enable(hasItem);
 	alignedItemChanceCtrl_->Enable(hasItem);
-	internalUpdate_ = false;
-	UpdateItemOwnershipHint(alignedItemOwnershipLabel_, alignedItemIdCtrl_->GetValue(), hasItem);
-	RefreshAlignedVisualState();
 }
 
 void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
@@ -5182,85 +5197,9 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
 	const bool hasNode = alignedNodeIndex_ >= 0;
 	const bool hasPendingCarpetSlot = type == "carpet" && !alignedPendingCarpetAlign_.IsEmpty() && !hasNode;
 	const bool hasPendingTableSlot = type == "table" && !alignedPendingTableAlign_.IsEmpty() && !hasNode;
-	if (alignedVisualInfoLabel_) {
-		if (type == "table") {
-			alignedVisualInfoLabel_->SetLabel("");
-			alignedVisualInfoLabel_->Hide();
-		} else {
-			alignedVisualInfoLabel_->Show();
-			alignedVisualInfoLabel_->SetLabel(
-				hasNode
-					? wxString::Format("Selected carpet context %s stays highlighted in the layout map while you edit its variants on the right.", alignedPendingCarpetAlign_)
-					: (hasPendingCarpetSlot
-						   ? wxString::Format("Empty carpet slot %s selected. Use Add Context to create coverage exactly there.", alignedPendingCarpetAlign_)
-						   : wxString::FromUTF8("Click the carpet layout map to select a context. Empty slots stay visible so missing coverage stands out immediately."))
-			);
-		}
-		alignedVisualInfoLabel_->Wrap(FromDIP(250));
-	}
-
-	if (alignedAdvancedInfoLabel_) {
-		if (type == "table") {
-			if (hasNode && alignedNodeIndex_ < static_cast<int>(brushStorage_.tableNodes.size())) {
-				const auto &node = brushStorage_.tableNodes[alignedNodeIndex_];
-				alignedAdvancedInfoLabel_->SetLabel(
-					wxString::Format(
-						"Advanced: state %s selected. Align uses guided options, and weighted items stay editable below.",
-						node.align
-					)
-				);
-			} else if (hasPendingTableSlot) {
-				alignedAdvancedInfoLabel_->SetLabel(
-					wxString::Format(
-						"Advanced: empty state %s selected. Add Node creates one new state here with default chance %d.",
-						alignedPendingTableAlign_,
-						kDefaultNewTableNodeChance
-					)
-				);
-			} else {
-				alignedAdvancedInfoLabel_->SetLabel("Advanced: choose a table state to edit it, or select an empty slot to place the next node precisely.");
-			}
-		} else {
-			if (hasNode) {
-				alignedAdvancedInfoLabel_->SetLabel(
-					wxString::Format(
-						"Context %s selected. The map owns slot selection; use the fields below to edit the active variant.",
-						alignedPendingCarpetAlign_
-					)
-				);
-			} else if (hasPendingCarpetSlot) {
-				alignedAdvancedInfoLabel_->SetLabel(
-					wxString::Format(
-						"Empty carpet slot %s selected. Add Context creates a new context here, then Add Variant fills it with weighted items.",
-						alignedPendingCarpetAlign_
-					)
-				);
-			} else {
-				alignedAdvancedInfoLabel_->SetLabel("Select a carpet slot in the layout map to inspect it, or choose an empty slot before creating a new context.");
-			}
-		}
-		alignedAdvancedInfoLabel_->Wrap(FromDIP(520));
-	}
-
-	if (alignedAddNodeButton_) {
-		if (type == "table") {
-			const wxString nextMissingAlign = FindNextMissingTableAlign(brushStorage_.tableNodes, alignedPendingTableAlign_);
-			alignedAddNodeButton_->Enable(!nextMissingAlign.IsEmpty());
-			alignedAddNodeButton_->SetToolTip(
-				nextMissingAlign.IsEmpty()
-					? "All table states are already configured."
-					: "Create the missing state selected in Table States."
-			);
-		} else {
-			const wxString nextMissingAlign = FindNextMissingCarpetAlign(brushStorage_.carpetNodes, alignedPendingCarpetAlign_);
-			alignedAddNodeButton_->Enable(!nextMissingAlign.IsEmpty());
-			alignedAddNodeButton_->SetToolTip(
-				nextMissingAlign.IsEmpty()
-					? wxString::FromUTF8("All carpet contexts are already configured.")
-					: wxString::Format("Create the selected carpet context in slot %s.", nextMissingAlign)
-			);
-		}
-	}
+	UpdateAlignedVisualInfoLabel(type, hasNode, hasPendingCarpetSlot, hasPendingTableSlot);
+	UpdateAlignedAdvancedInfoLabel(type, hasNode, hasPendingCarpetSlot, hasPendingTableSlot);
+	UpdateAlignedAddNodeButtonState(type);
 
 	if (alignedAdvancedPanel_) {
 		alignedAdvancedPanel_->Show(false);
@@ -5273,88 +5212,8 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
 		alignedRemoveItemButton_->SetLabel(type == "table" ? "Remove" : "Remove Variant");
 	}
 
-	if (alignedItemsSummaryLabel_) {
-		if (type == "carpet") {
-			if (alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(brushStorage_.carpetNodes.size())) {
-				const auto &node = brushStorage_.carpetNodes[alignedNodeIndex_];
-				alignedItemsSummaryLabel_->SetLabel(
-					wxString::Format(
-						"Context %s | %zu variant%s | selected from the carpet layout map",
-						node.align,
-						node.items.size(),
-						node.items.size() == 1 ? "" : "s"
-					)
-				);
-			} else if (hasPendingCarpetSlot) {
-				alignedItemsSummaryLabel_->SetLabel(
-					wxString::Format(
-						"Empty context %s selected | use Add Context to create it in the layout map",
-						alignedPendingCarpetAlign_
-					)
-				);
-			} else {
-				alignedItemsSummaryLabel_->SetLabel("Select a carpet context in the layout map to inspect its weighted variants.");
-			}
-		} else {
-			if (alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(brushStorage_.tableNodes.size())) {
-				const auto &node = brushStorage_.tableNodes[alignedNodeIndex_];
-				alignedItemsSummaryLabel_->SetLabel(
-					wxString::Format(
-						"State %s | %zu item%s | manage this state",
-						node.align,
-						node.items.size(),
-						node.items.size() == 1 ? "" : "s"
-					)
-				);
-			} else if (hasPendingTableSlot) {
-				alignedItemsSummaryLabel_->SetLabel(
-					wxString::Format(
-						"Empty state %s selected | use Add Node to create it",
-						alignedPendingTableAlign_
-					)
-				);
-			} else {
-				alignedItemsSummaryLabel_->SetLabel("Select a state to inspect and manage its weighted items.");
-			}
-		}
-		alignedItemsSummaryLabel_->Wrap(FromDIP(520));
-	}
-
-	if (alignedSeamlessPreviewInfoLabel_) {
-		if (type == "table") {
-			alignedSeamlessPreviewInfoLabel_->Hide();
-		} else if (type == "carpet") {
-			if (alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(brushStorage_.carpetNodes.size())) {
-				const auto &node = brushStorage_.carpetNodes[alignedNodeIndex_];
-				const bool hasSelectedVariant = alignedItemIndex_ >= 0 && alignedItemIndex_ < static_cast<int>(node.items.size());
-				alignedSeamlessPreviewInfoLabel_->SetLabel(
-					hasSelectedVariant
-						? wxString::Format(
-							"Seamless preview follows slot %s and the active variant item %d inside one continuous carpet composition.",
-							node.align,
-							node.items[alignedItemIndex_].itemId
-						)
-						: wxString::Format(
-							"Seamless preview shows the full carpet composition around slot %s using the first available variant in each configured context.",
-							node.align
-						)
-				);
-			} else if (hasPendingCarpetSlot) {
-				alignedSeamlessPreviewInfoLabel_->SetLabel(
-					wxString::Format(
-						"Seamless preview reserves slot %s in the carpet composition so you can see where the next context will land before creating it.",
-						alignedPendingCarpetAlign_
-					)
-				);
-			} else {
-				alignedSeamlessPreviewInfoLabel_->SetLabel("Seamless preview shows the carpet as one continuous composition using the contexts currently configured in the map.");
-			}
-			alignedSeamlessPreviewInfoLabel_->Wrap(FromDIP(520));
-			alignedSeamlessPreviewInfoLabel_->Show();
-		} else {
-			alignedSeamlessPreviewInfoLabel_->Hide();
-		}
-	}
+	UpdateAlignedItemsSummaryLabel(type, hasPendingCarpetSlot, hasPendingTableSlot);
+	UpdateAlignedSeamlessPreviewInfoLabel(type, hasPendingCarpetSlot);
 
 	RefreshAlignedSeamlessPreview();
 
@@ -5364,6 +5223,190 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
 	if (alignedItemsCardsPanel_) {
 		alignedItemsCardsPanel_->Refresh();
 	}
+}
+
+void MaterialsWorkbenchBrushPanel::UpdateAlignedVisualInfoLabel(
+	const wxString &type,
+	bool hasNode,
+	bool hasPendingCarpetSlot,
+	bool WXUNUSED(hasPendingTableSlot)
+) {
+	if (!alignedVisualInfoLabel_) {
+		return;
+	}
+
+	if (type == "table") {
+		alignedVisualInfoLabel_->SetLabel("");
+		alignedVisualInfoLabel_->Hide();
+		return;
+	}
+
+	alignedVisualInfoLabel_->Show();
+	alignedVisualInfoLabel_->SetLabel(
+		hasNode
+			? wxString::Format("Selected carpet context %s stays highlighted in the layout map while you edit its variants on the right.", alignedPendingCarpetAlign_)
+			: (hasPendingCarpetSlot
+				   ? wxString::Format("Empty carpet slot %s selected. Use Add Context to create coverage exactly there.", alignedPendingCarpetAlign_)
+				   : wxString::FromUTF8("Click the carpet layout map to select a context. Empty slots stay visible so missing coverage stands out immediately."))
+	);
+	alignedVisualInfoLabel_->Wrap(FromDIP(250));
+}
+
+void MaterialsWorkbenchBrushPanel::UpdateAlignedAdvancedInfoLabel(
+	const wxString &type,
+	bool hasNode,
+	bool hasPendingCarpetSlot,
+	bool hasPendingTableSlot
+) {
+	if (!alignedAdvancedInfoLabel_) {
+		return;
+	}
+
+	if (type == "table") {
+		if (hasNode && alignedNodeIndex_ < static_cast<int>(brushStorage_.tableNodes.size())) {
+			const auto &node = brushStorage_.tableNodes[alignedNodeIndex_];
+			alignedAdvancedInfoLabel_->SetLabel(wxString::Format(
+				"Advanced: state %s selected. Align uses guided options, and weighted items stay editable below.",
+				node.align
+			));
+		} else if (hasPendingTableSlot) {
+			alignedAdvancedInfoLabel_->SetLabel(wxString::Format(
+				"Advanced: empty state %s selected. Add Node creates one new state here with default chance %d.",
+				alignedPendingTableAlign_,
+				kDefaultNewTableNodeChance
+			));
+		} else {
+			alignedAdvancedInfoLabel_->SetLabel("Advanced: choose a table state to edit it, or select an empty slot to place the next node precisely.");
+		}
+		alignedAdvancedInfoLabel_->Wrap(FromDIP(520));
+		return;
+	}
+
+	if (hasNode) {
+		alignedAdvancedInfoLabel_->SetLabel(wxString::Format(
+			"Context %s selected. The map owns slot selection; use the fields below to edit the active variant.",
+			alignedPendingCarpetAlign_
+		));
+	} else if (hasPendingCarpetSlot) {
+		alignedAdvancedInfoLabel_->SetLabel(wxString::Format(
+			"Empty carpet slot %s selected. Add Context creates a new context here, then Add Variant fills it with weighted items.",
+			alignedPendingCarpetAlign_
+		));
+	} else {
+		alignedAdvancedInfoLabel_->SetLabel("Select a carpet slot in the layout map to inspect it, or choose an empty slot before creating a new context.");
+	}
+	alignedAdvancedInfoLabel_->Wrap(FromDIP(520));
+}
+
+void MaterialsWorkbenchBrushPanel::UpdateAlignedAddNodeButtonState(const wxString &type) {
+	if (!alignedAddNodeButton_) {
+		return;
+	}
+
+	if (type == "table") {
+		const wxString nextMissingAlign = FindNextMissingTableAlign(brushStorage_.tableNodes, alignedPendingTableAlign_);
+		alignedAddNodeButton_->Enable(!nextMissingAlign.IsEmpty());
+		alignedAddNodeButton_->SetToolTip(
+			nextMissingAlign.IsEmpty()
+				? "All table states are already configured."
+				: "Create the missing state selected in Table States."
+		);
+		return;
+	}
+
+	const wxString nextMissingAlign = FindNextMissingCarpetAlign(brushStorage_.carpetNodes, alignedPendingCarpetAlign_);
+	alignedAddNodeButton_->Enable(!nextMissingAlign.IsEmpty());
+	alignedAddNodeButton_->SetToolTip(
+		nextMissingAlign.IsEmpty()
+			? wxString::FromUTF8("All carpet contexts are already configured.")
+			: wxString::Format("Create the selected carpet context in slot %s.", nextMissingAlign)
+	);
+}
+
+void MaterialsWorkbenchBrushPanel::UpdateAlignedItemsSummaryLabel(
+	const wxString &type,
+	bool hasPendingCarpetSlot,
+	bool hasPendingTableSlot
+) {
+	if (!alignedItemsSummaryLabel_) {
+		return;
+	}
+
+	if (type == "carpet") {
+		if (alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(brushStorage_.carpetNodes.size())) {
+			const auto &node = brushStorage_.carpetNodes[alignedNodeIndex_];
+			alignedItemsSummaryLabel_->SetLabel(wxString::Format(
+				"Context %s | %zu variant%s | selected from the carpet layout map",
+				node.align,
+				node.items.size(),
+				node.items.size() == 1 ? "" : "s"
+			));
+		} else if (hasPendingCarpetSlot) {
+			alignedItemsSummaryLabel_->SetLabel(wxString::Format(
+				"Empty context %s selected | use Add Context to create it in the layout map",
+				alignedPendingCarpetAlign_
+			));
+		} else {
+			alignedItemsSummaryLabel_->SetLabel("Select a carpet context in the layout map to inspect its weighted variants.");
+		}
+		alignedItemsSummaryLabel_->Wrap(FromDIP(520));
+		return;
+	}
+
+	if (alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(brushStorage_.tableNodes.size())) {
+		const auto &node = brushStorage_.tableNodes[alignedNodeIndex_];
+		alignedItemsSummaryLabel_->SetLabel(wxString::Format(
+			"State %s | %zu item%s | manage this state",
+			node.align,
+			node.items.size(),
+			node.items.size() == 1 ? "" : "s"
+		));
+	} else if (hasPendingTableSlot) {
+		alignedItemsSummaryLabel_->SetLabel(wxString::Format(
+			"Empty state %s selected | use Add Node to create it",
+			alignedPendingTableAlign_
+		));
+	} else {
+		alignedItemsSummaryLabel_->SetLabel("Select a state to inspect and manage its weighted items.");
+	}
+	alignedItemsSummaryLabel_->Wrap(FromDIP(520));
+}
+
+void MaterialsWorkbenchBrushPanel::UpdateAlignedSeamlessPreviewInfoLabel(const wxString &type, bool hasPendingCarpetSlot) {
+	if (!alignedSeamlessPreviewInfoLabel_) {
+		return;
+	}
+
+	if (type == "carpet") {
+		if (alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(brushStorage_.carpetNodes.size())) {
+			const auto &node = brushStorage_.carpetNodes[alignedNodeIndex_];
+			const bool hasSelectedVariant = alignedItemIndex_ >= 0 && alignedItemIndex_ < static_cast<int>(node.items.size());
+			alignedSeamlessPreviewInfoLabel_->SetLabel(
+				hasSelectedVariant
+					? wxString::Format(
+						"Seamless preview follows slot %s and the active variant item %d inside one continuous carpet composition.",
+						node.align,
+						node.items[alignedItemIndex_].itemId
+					)
+					: wxString::Format(
+						"Seamless preview shows the full carpet composition around slot %s using the first available variant in each configured context.",
+						node.align
+					)
+			);
+		} else if (hasPendingCarpetSlot) {
+			alignedSeamlessPreviewInfoLabel_->SetLabel(wxString::Format(
+				"Seamless preview reserves slot %s in the carpet composition so you can see where the next context will land before creating it.",
+				alignedPendingCarpetAlign_
+			));
+		} else {
+			alignedSeamlessPreviewInfoLabel_->SetLabel("Seamless preview shows the carpet as one continuous composition using the contexts currently configured in the map.");
+		}
+		alignedSeamlessPreviewInfoLabel_->Wrap(FromDIP(520));
+		alignedSeamlessPreviewInfoLabel_->Show();
+		return;
+	}
+
+	alignedSeamlessPreviewInfoLabel_->Hide();
 }
 
 bool MaterialsWorkbenchBrushPanel::ShowTableItemDialog(const wxString &title, int &itemId, int &chance) {
@@ -5961,8 +6004,7 @@ void MaterialsWorkbenchBrushPanel::StepDoodadPreviewFloor(int delta) {
 	}
 
 	int currentIndex = 0;
-	const auto it = std::find(entries.begin(), entries.end(), doodadPreviewFloor_);
-	if (it != entries.end()) {
+	if (const auto it = std::find(entries.begin(), entries.end(), doodadPreviewFloor_); it != entries.end()) {
 		currentIndex = static_cast<int>(std::distance(entries.begin(), it));
 	}
 	const int nextIndex = std::clamp(currentIndex + delta, 0, static_cast<int>(entries.size()) - 1);
@@ -7513,118 +7555,11 @@ void MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged(wxCommandEvent &event)
 		return;
 	}
 
-	auto setSpinSilently = [](wxSpinCtrl* ctrl, int value) {
-		if (!ctrl) {
-			return;
-		}
-		wxEventBlocker blocker(ctrl);
-		ctrl->SetValue(value);
-	};
-	auto setCheckSilently = [](wxCheckBox* ctrl, bool value) {
-		if (!ctrl) {
-			return;
-		}
-		wxEventBlocker blocker(ctrl);
-		ctrl->SetValue(value);
-	};
-
 	wxObject* source = event.GetEventObject();
-	if (source == lookIdCtrl_ && lookIdCtrl_ && serverLookIdCtrl_) {
-		const int lookId = lookIdCtrl_->GetValue();
-		if (lookId > 0 && serverLookIdCtrl_->GetValue() > 0) {
-			setSpinSilently(serverLookIdCtrl_, 0);
-		}
-	} else if (source == serverLookIdCtrl_ && lookIdCtrl_ && serverLookIdCtrl_) {
-		const int serverLookId = serverLookIdCtrl_->GetValue();
-		if (serverLookId > 0 && lookIdCtrl_->GetValue() > 0) {
-			setSpinSilently(lookIdCtrl_, 0);
-		}
-	}
-	if (removeOptionalBorderCtrl_ && redoBordersCtrl_) {
-		const bool isDoodad = GetEffectiveBrushType() == "doodad";
-		removeOptionalBorderCtrl_->Show(isDoodad);
-		removeOptionalBorderCtrl_->Enable(isDoodad);
-		if (!isDoodad) {
-			setCheckSilently(removeOptionalBorderCtrl_, false);
-		} else {
-			if (source == removeOptionalBorderCtrl_ && removeOptionalBorderCtrl_->GetValue() && !redoBordersCtrl_->GetValue()) {
-				setCheckSilently(redoBordersCtrl_, true);
-			} else if (source == redoBordersCtrl_ && !redoBordersCtrl_->GetValue() && removeOptionalBorderCtrl_->GetValue()) {
-				setCheckSilently(removeOptionalBorderCtrl_, false);
-			}
-		}
-		if (metadataPage_) {
-			metadataPage_->Layout();
-		}
-	}
-
-	if (source == typeCtrl_ && typeCtrl_) {
-		const wxString previousType = lastConfirmedType_.Lower();
-		const wxString selectedType = TrimmedChoiceValue(typeCtrl_).Lower();
-		if (!selectedType.IsEmpty() && !selectedType.IsSameAs(previousType, false)) {
-			const bool hasPayload = HasAnyBrushVariationPayload(brushStorage_);
-			if (selectedType == "wall") {
-				const wxString message = hasPayload
-					? "Changing the brush type does not migrate data.\n\n"
-					  "Continuing clears the current brush variation payload (ground variants, carpet/table nodes, doodad alternatives, wall parts, borders, and links).\n\n"
-					  "Wall brushes are edited in Wall Workspace.\n\n"
-					  "Save now and open Wall Workspace?"
-					: "Wall brushes are edited in Wall Workspace.\n\nSave now and open Wall Workspace?";
-				wxMessageDialog dialog(this, message, "Open Wall Workspace", wxOK | wxCANCEL | wxICON_WARNING);
-				dialog.SetOKCancelLabels("Save & Open", "Cancel");
-				if (dialog.ShowModal() != wxID_OK) {
-					wxEventBlocker blocker(typeCtrl_);
-					if (!previousType.IsEmpty()) {
-						EnsureChoiceHasOption(typeCtrl_, previousType);
-						typeCtrl_->SetStringSelection(previousType);
-					} else {
-						typeCtrl_->SetSelection(0);
-					}
-					SetStatusMessage("Brush type change canceled.");
-					return;
-				}
-
-				if (hasPayload) {
-					ClearBrushVariationPayload(brushStorage_);
-					ResetVariationSelection();
-				}
-				lastConfirmedType_ = selectedType;
-				SetStatusMessage("Brush type changed to wall. Saving and opening Wall Workspace...");
-				CallAfter([this]() {
-					SaveCurrentBrush();
-				});
-				return;
-			}
-
-			if (hasPayload) {
-				wxMessageDialog dialog(
-					this,
-					"Changing the brush type does not migrate data.\n\n"
-					"Continuing clears the current brush variation payload (ground variants, carpet/table nodes, doodad alternatives, wall parts, borders, and links).\n\n"
-					"Cancel to keep the current type.",
-					"Change Brush Type",
-					wxOK | wxCANCEL | wxICON_WARNING
-				);
-				dialog.SetOKCancelLabels("Change Type", "Cancel");
-				if (dialog.ShowModal() != wxID_OK) {
-					wxEventBlocker blocker(typeCtrl_);
-					if (!previousType.IsEmpty()) {
-						EnsureChoiceHasOption(typeCtrl_, previousType);
-						typeCtrl_->SetStringSelection(previousType);
-					} else {
-						typeCtrl_->SetSelection(0);
-					}
-					SetStatusMessage("Brush type change canceled.");
-					return;
-				}
-
-				ClearBrushVariationPayload(brushStorage_);
-				ResetVariationSelection();
-				SetStatusMessage("Brush type changed. Existing variation data was cleared.");
-			}
-
-			lastConfirmedType_ = selectedType;
-		}
+	EnforceLookIdMutualExclusion(source);
+	UpdateRemoveOptionalBorderState(source);
+	if (HandleBrushTypeChange(source)) {
+		return;
 	}
 
 	UpdateWorkspaceHeader();
@@ -7633,6 +7568,136 @@ void MaterialsWorkbenchBrushPanel::OnMetadataFieldChanged(wxCommandEvent &event)
 	RefreshVariationEditor();
 	RefreshDirtyState();
 	event.Skip();
+}
+
+void MaterialsWorkbenchBrushPanel::EnforceLookIdMutualExclusion(wxObject* source) {
+	if (!lookIdCtrl_ || !serverLookIdCtrl_) {
+		return;
+	}
+
+	const auto setSpinSilently = [](wxSpinCtrl* ctrl, int value) {
+		if (!ctrl) {
+			return;
+		}
+		wxEventBlocker blocker(ctrl);
+		ctrl->SetValue(value);
+	};
+
+	if (source == lookIdCtrl_) {
+		const int lookId = lookIdCtrl_->GetValue();
+		if (lookId > 0 && serverLookIdCtrl_->GetValue() > 0) {
+			setSpinSilently(serverLookIdCtrl_, 0);
+		}
+		return;
+	}
+
+	if (source == serverLookIdCtrl_) {
+		const int serverLookId = serverLookIdCtrl_->GetValue();
+		if (serverLookId > 0 && lookIdCtrl_->GetValue() > 0) {
+			setSpinSilently(lookIdCtrl_, 0);
+		}
+	}
+}
+
+void MaterialsWorkbenchBrushPanel::UpdateRemoveOptionalBorderState(wxObject* source) {
+	if (!removeOptionalBorderCtrl_ || !redoBordersCtrl_) {
+		return;
+	}
+
+	const auto setCheckSilently = [](wxCheckBox* ctrl, bool value) {
+		if (!ctrl) {
+			return;
+		}
+		wxEventBlocker blocker(ctrl);
+		ctrl->SetValue(value);
+	};
+
+	const bool isDoodad = GetEffectiveBrushType() == "doodad";
+	removeOptionalBorderCtrl_->Show(isDoodad);
+	removeOptionalBorderCtrl_->Enable(isDoodad);
+	if (!isDoodad) {
+		setCheckSilently(removeOptionalBorderCtrl_, false);
+	} else if (source == removeOptionalBorderCtrl_ && removeOptionalBorderCtrl_->GetValue() && !redoBordersCtrl_->GetValue()) {
+		setCheckSilently(redoBordersCtrl_, true);
+	} else if (source == redoBordersCtrl_ && !redoBordersCtrl_->GetValue() && removeOptionalBorderCtrl_->GetValue()) {
+		setCheckSilently(removeOptionalBorderCtrl_, false);
+	}
+
+	if (metadataPage_) {
+		metadataPage_->Layout();
+	}
+}
+
+bool MaterialsWorkbenchBrushPanel::HandleBrushTypeChange(wxObject* source) {
+	if (source != typeCtrl_ || !typeCtrl_) {
+		return false;
+	}
+
+	const wxString previousType = lastConfirmedType_.Lower();
+	const wxString selectedType = TrimmedChoiceValue(typeCtrl_).Lower();
+	if (selectedType.IsEmpty() || selectedType.IsSameAs(previousType, false)) {
+		return false;
+	}
+
+	const auto revertChoice = [&](const wxString &typeToRestore) {
+		wxEventBlocker blocker(typeCtrl_);
+		if (!typeToRestore.IsEmpty()) {
+			EnsureChoiceHasOption(typeCtrl_, typeToRestore);
+			typeCtrl_->SetStringSelection(typeToRestore);
+		} else {
+			typeCtrl_->SetSelection(0);
+		}
+	};
+
+	const bool hasPayload = HasAnyBrushVariationPayload(brushStorage_);
+	if (selectedType == "wall") {
+		const wxString message = hasPayload
+			? "Changing the brush type does not migrate data.\n\n"
+			  "Continuing clears the current brush variation payload (ground variants, carpet/table nodes, doodad alternatives, wall parts, borders, and links).\n\n"
+			  "Wall brushes are edited in Wall Workspace.\n\n"
+			  "Save now and open Wall Workspace?"
+			: "Wall brushes are edited in Wall Workspace.\n\nSave now and open Wall Workspace?";
+		wxMessageDialog dialog(this, message, "Open Wall Workspace", wxOK | wxCANCEL | wxICON_WARNING);
+		dialog.SetOKCancelLabels("Save & Open", "Cancel");
+		if (dialog.ShowModal() != wxID_OK) {
+			revertChoice(previousType);
+			SetStatusMessage("Brush type change canceled.");
+			return true;
+		}
+
+		if (hasPayload) {
+			ClearBrushVariationPayload(brushStorage_);
+			ResetVariationSelection();
+		}
+		lastConfirmedType_ = selectedType;
+		SetStatusMessage("Brush type changed to wall. Saving and opening Wall Workspace...");
+		CallAfter([this]() { SaveCurrentBrush(); });
+		return true;
+	}
+
+	if (hasPayload) {
+		wxMessageDialog dialog(
+			this,
+			"Changing the brush type does not migrate data.\n\n"
+			"Continuing clears the current brush variation payload (ground variants, carpet/table nodes, doodad alternatives, wall parts, borders, and links).\n\n"
+			"Cancel to keep the current type.",
+			"Change Brush Type",
+			wxOK | wxCANCEL | wxICON_WARNING
+		);
+		dialog.SetOKCancelLabels("Change Type", "Cancel");
+		if (dialog.ShowModal() != wxID_OK) {
+			revertChoice(previousType);
+			SetStatusMessage("Brush type change canceled.");
+			return true;
+		}
+
+		ClearBrushVariationPayload(brushStorage_);
+		ResetVariationSelection();
+		SetStatusMessage("Brush type changed. Existing variation data was cleared.");
+	}
+
+	lastConfirmedType_ = selectedType;
+	return false;
 }
 
 void MaterialsWorkbenchBrushPanel::OnAddGroundItem(wxCommandEvent &WXUNUSED(event)) {
@@ -8736,108 +8801,125 @@ void MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsLeftDown(wxMouseEvent &eve
 	const bool isTable = type == "table";
 	const bool isCarpet = type == "carpet";
 
-	const auto hasValidAlignedItemIndex = [&](size_t i) -> bool {
-		if (alignedNodeIndex_ < 0) {
-			return false;
-		}
-		if (isTable) {
-			return alignedNodeIndex_ < static_cast<int>(brushStorage_.tableNodes.size())
-				&& i < brushStorage_.tableNodes[alignedNodeIndex_].items.size();
-		}
-		if (isCarpet) {
-			return alignedNodeIndex_ < static_cast<int>(brushStorage_.carpetNodes.size())
-				&& i < brushStorage_.carpetNodes[alignedNodeIndex_].items.size();
-		}
+	if (TryHandleAlignedItemsCardsEditClick(position, isTable, isCarpet)) {
+		return;
+	}
+	if (TryHandleAlignedItemsCardsRemoveClick(position, isTable, isCarpet)) {
+		return;
+	}
+	if (TryHandleAlignedItemsCardsSelectClick(position)) {
+		return;
+	}
+
+	event.Skip();
+}
+
+bool MaterialsWorkbenchBrushPanel::HasValidAlignedItemIndexForCards(size_t index, bool isTable, bool isCarpet) const {
+	if (alignedNodeIndex_ < 0) {
 		return false;
-	};
+	}
+	if (isTable) {
+		return alignedNodeIndex_ < static_cast<int>(brushStorage_.tableNodes.size())
+			&& index < brushStorage_.tableNodes[alignedNodeIndex_].items.size();
+	}
+	if (isCarpet) {
+		return alignedNodeIndex_ < static_cast<int>(brushStorage_.carpetNodes.size())
+			&& index < brushStorage_.carpetNodes[alignedNodeIndex_].items.size();
+	}
+	return false;
+}
 
-	const auto refreshAfterAlignedItemEdit = [&]() {
-		RefreshAlignedSelection();
-		UpdateSummary();
-		RefreshDirtyState();
-	};
+void MaterialsWorkbenchBrushPanel::RefreshAfterAlignedItemEdit() {
+	RefreshAlignedSelection();
+	UpdateSummary();
+	RefreshDirtyState();
+}
 
-	const auto tryHandleEditClick = [&]() -> bool {
-		if (!isTable && !isCarpet) {
-			return false;
+bool MaterialsWorkbenchBrushPanel::TryHandleAlignedItemsCardsEditClick(const wxPoint &position, bool isTable, bool isCarpet) {
+	if (!isTable && !isCarpet) {
+		return false;
+	}
+
+	for (size_t i = 0; i < alignedItemEditRects_.size(); ++i) {
+		if (alignedItemEditRects_[i].IsEmpty() || !alignedItemEditRects_[i].Contains(position)) {
+			continue;
 		}
-		for (size_t i = 0; i < alignedItemEditRects_.size(); ++i) {
-			if (alignedItemEditRects_[i].IsEmpty() || !alignedItemEditRects_[i].Contains(position)) {
-				continue;
-			}
-			if (!hasValidAlignedItemIndex(i)) {
-				return true;
-			}
-			alignedItemIndex_ = static_cast<int>(i);
-			if (isTable) {
-				EditTableItemWithDialog(alignedNodeIndex_, static_cast<int>(i));
-				return true;
-			}
-			int itemId = brushStorage_.carpetNodes[alignedNodeIndex_].items[i].itemId;
-			int chance = brushStorage_.carpetNodes[alignedNodeIndex_].items[i].chance;
-			if (ShowWeightedBrushItemDialogWithPreview(this, "Edit Carpet Variant", itemId, chance)) {
-				auto &item = brushStorage_.carpetNodes[alignedNodeIndex_].items[i];
-				item.itemId = itemId;
-				item.chance = chance;
-				refreshAfterAlignedItemEdit();
-				SetStatusMessage(wxString::Format("Updated carpet variant item %d.", itemId));
-			}
+		if (!HasValidAlignedItemIndexForCards(i, isTable, isCarpet)) {
 			return true;
 		}
-		return false;
-	};
+		alignedItemIndex_ = static_cast<int>(i);
+		if (isTable) {
+			EditTableItemWithDialog(alignedNodeIndex_, static_cast<int>(i));
+			return true;
+		}
 
-	const auto eraseAlignedItemAt = [&](auto &items, size_t i) {
-		items.erase(items.begin() + static_cast<std::ptrdiff_t>(i));
+		int itemId = brushStorage_.carpetNodes[alignedNodeIndex_].items[i].itemId;
+		int chance = brushStorage_.carpetNodes[alignedNodeIndex_].items[i].chance;
+		if (ShowWeightedBrushItemDialogWithPreview(this, "Edit Carpet Variant", itemId, chance)) {
+			auto &item = brushStorage_.carpetNodes[alignedNodeIndex_].items[i];
+			item.itemId = itemId;
+			item.chance = chance;
+			RefreshAfterAlignedItemEdit();
+			SetStatusMessage(wxString::Format("Updated carpet variant item %d.", itemId));
+		}
+		return true;
+	}
+
+	return false;
+}
+
+bool MaterialsWorkbenchBrushPanel::TryHandleAlignedItemsCardsRemoveClick(const wxPoint &position, bool isTable, bool isCarpet) {
+	if (!isTable && !isCarpet) {
+		return false;
+	}
+
+	const auto eraseItemAt = [&](auto &items, size_t index) {
+		items.erase(items.begin() + static_cast<std::ptrdiff_t>(index));
 		if (alignedItemIndex_ >= static_cast<int>(items.size())) {
 			alignedItemIndex_ = static_cast<int>(items.size()) - 1;
 		}
 	};
 
-	const auto tryHandleRemoveClick = [&]() -> bool {
-		if (!isTable && !isCarpet) {
-			return false;
+	for (size_t i = 0; i < alignedItemRemoveRects_.size(); ++i) {
+		if (alignedItemRemoveRects_[i].IsEmpty() || !alignedItemRemoveRects_[i].Contains(position)) {
+			continue;
 		}
-		for (size_t i = 0; i < alignedItemRemoveRects_.size(); ++i) {
-			if (alignedItemRemoveRects_[i].IsEmpty() || !alignedItemRemoveRects_[i].Contains(position)) {
-				continue;
-			}
-			if (!hasValidAlignedItemIndex(i)) {
-				return true;
-			}
-			alignedItemIndex_ = static_cast<int>(i);
-			if (isTable) {
-				auto &items = brushStorage_.tableNodes[alignedNodeIndex_].items;
-				eraseAlignedItemAt(items, i);
-				refreshAfterAlignedItemEdit();
-				SetStatusMessage("Removed node item.");
-				return true;
-			}
-			auto &items = brushStorage_.carpetNodes[alignedNodeIndex_].items;
-			eraseAlignedItemAt(items, i);
-			refreshAfterAlignedItemEdit();
-			SetStatusMessage("Removed carpet variant.");
+		if (!HasValidAlignedItemIndexForCards(i, isTable, isCarpet)) {
 			return true;
 		}
-		return false;
-	};
 
-	if (tryHandleEditClick() || tryHandleRemoveClick()) {
-		return;
-	}
-
-	for (size_t i = 0; i < alignedItemCardRects_.size(); ++i) {
-		if (alignedItemCardRects_[i].Contains(position)) {
-			alignedItemIndex_ = static_cast<int>(i);
-			if (alignedItemsList_) {
-				alignedItemsList_->SetSelection(alignedItemIndex_);
-			}
-			RefreshAlignedSelection();
-			return;
+		alignedItemIndex_ = static_cast<int>(i);
+		if (isTable) {
+			auto &items = brushStorage_.tableNodes[alignedNodeIndex_].items;
+			eraseItemAt(items, i);
+			RefreshAfterAlignedItemEdit();
+			SetStatusMessage("Removed node item.");
+			return true;
 		}
+
+		auto &items = brushStorage_.carpetNodes[alignedNodeIndex_].items;
+		eraseItemAt(items, i);
+		RefreshAfterAlignedItemEdit();
+		SetStatusMessage("Removed carpet variant.");
+		return true;
 	}
 
-	event.Skip();
+	return false;
+}
+
+bool MaterialsWorkbenchBrushPanel::TryHandleAlignedItemsCardsSelectClick(const wxPoint &position) {
+	for (size_t i = 0; i < alignedItemCardRects_.size(); ++i) {
+		if (!alignedItemCardRects_[i].Contains(position)) {
+			continue;
+		}
+		alignedItemIndex_ = static_cast<int>(i);
+		if (alignedItemsList_) {
+			alignedItemsList_->SetSelection(alignedItemIndex_);
+		}
+		RefreshAlignedSelection();
+		return true;
+	}
+	return false;
 }
 
 void MaterialsWorkbenchBrushPanel::OnAlignedItemsCardsRightDown(wxMouseEvent &event) {

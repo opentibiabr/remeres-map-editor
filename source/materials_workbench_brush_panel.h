@@ -16,6 +16,7 @@ class wxListBox;
 class wxListCtrl;
 class wxNotebook;
 class wxMouseEvent;
+class wxObject;
 class wxPanel;
 class wxScrolledWindow;
 class wxSimplebook;
@@ -137,7 +138,15 @@ private:
 	void RefreshAlignedNodeList();
 	void RefreshAlignedItemList();
 	void RefreshAlignedSelection();
+	bool RefreshAlignedSelectionCarpet();
+	bool RefreshAlignedSelectionTable();
+	void RefreshAlignedItemEditorFields(bool hasNode, bool isCarpet);
 	void RefreshAlignedVisualState();
+	void UpdateAlignedVisualInfoLabel(const wxString &type, bool hasNode, bool hasPendingCarpetSlot, bool hasPendingTableSlot);
+	void UpdateAlignedAdvancedInfoLabel(const wxString &type, bool hasNode, bool hasPendingCarpetSlot, bool hasPendingTableSlot);
+	void UpdateAlignedAddNodeButtonState(const wxString &type);
+	void UpdateAlignedItemsSummaryLabel(const wxString &type, bool hasPendingCarpetSlot, bool hasPendingTableSlot);
+	void UpdateAlignedSeamlessPreviewInfoLabel(const wxString &type, bool hasPendingCarpetSlot);
 	void RefreshAlignedSeamlessPreview();
 	bool ShowTableItemDialog(const wxString &title, int &itemId, int &chance);
 	void AddTableItemToNodeWithDialog(int nodeIndex);
@@ -236,6 +245,9 @@ private:
 	void OnDoodadFloorSliderPaint(wxPaintEvent &event);
 	void OnDoodadFloorSliderLeftDown(wxMouseEvent &event);
 	void OnMetadataFieldChanged(wxCommandEvent &event);
+	void EnforceLookIdMutualExclusion(wxObject* source);
+	void UpdateRemoveOptionalBorderState(wxObject* source);
+	bool HandleBrushTypeChange(wxObject* source);
 	void OnCreateBrush(wxCommandEvent &event);
 	void OnDeleteBrush(wxCommandEvent &event);
 	void OnUsedBy(wxCommandEvent &event);
@@ -245,6 +257,11 @@ private:
 	void StepDoodadPreviewFloor(int delta);
 	void AddDoodadPreviewFloor();
 	void RemoveDoodadPreviewFloor();
+	bool TryHandleAlignedItemsCardsEditClick(const wxPoint &position, bool isTable, bool isCarpet);
+	bool TryHandleAlignedItemsCardsRemoveClick(const wxPoint &position, bool isTable, bool isCarpet);
+	bool TryHandleAlignedItemsCardsSelectClick(const wxPoint &position);
+	bool HasValidAlignedItemIndexForCards(size_t index, bool isTable, bool isCarpet) const;
+	void RefreshAfterAlignedItemEdit();
 
 	MaterialsWorkbenchController &controller_;
 	std::function<void(int64_t, const wxString &, const wxString &)> onBrushSaved_;

@@ -26,6 +26,8 @@
 #include "items.h"
 #include "raw_brush.h"
 
+#include <algorithm>
+#include <iterator>
 #include <string_view>
 
 namespace {
@@ -84,17 +86,14 @@ namespace {
 		return type.raw_brush ? type.raw_brush->getName() : std::string();
 	}
 
-	std::vector<Brush*>::iterator FindInsertPosition(std::vector<Brush*> &brushlist, const std::string &afterBrushName) {
+	std::vector<Brush*>::iterator FindInsertPosition(std::vector<Brush*> &brushlist, std::string_view afterBrushName) {
 		if (afterBrushName.empty()) {
 			return brushlist.end();
 		}
-
-		for (auto it = brushlist.begin(); it != brushlist.end(); ++it) {
-			if ((*it)->getName() == afterBrushName) {
-				return ++it;
-			}
-		}
-		return brushlist.end();
+		const auto it = std::find_if(brushlist.begin(), brushlist.end(), [&](Brush* brush) {
+			return brush != nullptr && brush->getName() == afterBrushName;
+		});
+		return it == brushlist.end() ? it : std::next(it);
 	}
 
 	bool LoadBrushEntry(
@@ -103,7 +102,7 @@ namespace {
 		const TilesetEntryRecord &entry,
 		wxArrayString &warnings,
 		bool preserveStoredOrder,
-		const std::string &afterBrushName
+		std::string_view afterBrushName
 	) {
 		if (entry.brushName.IsEmpty()) {
 			return true;
@@ -131,7 +130,7 @@ namespace {
 		const TilesetEntryRecord &entry,
 		wxArrayString &warnings,
 		bool preserveStoredOrder,
-		const std::string &afterBrushName
+		std::string_view afterBrushName
 	) {
 		const auto fromId = static_cast<uint16_t>(entry.fromItemId > 0 ? entry.fromItemId : entry.itemId);
 		auto toId = static_cast<uint16_t>(entry.toItemId > 0 ? entry.toItemId : fromId);

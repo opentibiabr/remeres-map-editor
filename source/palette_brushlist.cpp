@@ -26,6 +26,8 @@
 #include "monsters.h"
 #include "npcs.h"
 
+#include <array>
+
 // ============================================================================
 // Brush Palette Panel
 // A common class for terrain/doodad/item/raw palette
@@ -64,7 +66,7 @@ namespace {
 			return requestedCategory;
 		}
 
-		static const TilesetCategoryType kCandidateCategories[] = {
+		static constexpr std::array<TilesetCategoryType, 4> kCandidateCategories = {
 			TILESET_TERRAIN,
 			TILESET_DOODAD,
 			TILESET_ITEM,
@@ -77,6 +79,33 @@ namespace {
 			}
 		}
 		return TILESET_UNKNOWN;
+	}
+
+	void ClearToolBarBrushSelection(const std::vector<PalettePanel*> &toolBars) {
+		for (auto* palettePanel : toolBars) {
+			if (palettePanel) {
+				palettePanel->SelectBrush(nullptr);
+			}
+		}
+	}
+
+	bool TrySelectBrushInToolBars(const std::vector<PalettePanel*> &toolBars, const Brush* whatBrush) {
+		for (auto* palettePanel : toolBars) {
+			if (palettePanel && palettePanel->SelectBrush(whatBrush)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	BrushPanel* GetBrushPanelPage(wxChoicebook* choicebook, int pageIndex) {
+		if (!choicebook) {
+			return nullptr;
+		}
+		if (pageIndex < 0 || pageIndex >= static_cast<int>(choicebook->GetPageCount())) {
+			return nullptr;
+		}
+		return dynamic_cast<BrushPanel*>(choicebook->GetPage(pageIndex));
 	}
 
 	wxString DefaultPaletteGroupNameForCategory(TilesetCategoryType category) {
@@ -382,51 +411,42 @@ bool BrushPalettePanel::SelectBrush(const Brush* whatBrush) {
 		return false;
 	}
 
-	auto panel = dynamic_cast<BrushPanel*>(choicebook->GetCurrentPage());
-	if (!panel) {
+	auto* currentPanel = dynamic_cast<BrushPanel*>(choicebook->GetCurrentPage());
+	if (!currentPanel) {
 		return false;
 	}
 
-	if (panel->SelectBrush(whatBrush)) {
-		for (const auto palettePanel : tool_bars) {
-			palettePanel->SelectBrush(nullptr);
-		}
+	if (currentPanel->SelectBrush(whatBrush)) {
+		ClearToolBarBrushSelection(tool_bars);
 		return true;
 	}
 
-	for (const auto palettePanel : tool_bars) {
-		if (palettePanel->SelectBrush(whatBrush)) {
-			panel->SelectBrush(nullptr);
-			return true;
-		}
+	if (TrySelectBrushInToolBars(tool_bars, whatBrush)) {
+		currentPanel->SelectBrush(nullptr);
+		return true;
 	}
 
 	const auto pageIndexIt = pageIndexByBrush.find(whatBrush);
 	if (pageIndexIt != pageIndexByBrush.end()) {
 		const int targetPageIndex = pageIndexIt->second;
 		if (targetPageIndex >= 0 && targetPageIndex < static_cast<int>(choicebook->GetPageCount()) && targetPageIndex != choicebook->GetSelection()) {
-			panel = dynamic_cast<BrushPanel*>(choicebook->GetPage(targetPageIndex));
-			if (panel && panel->SelectBrush(whatBrush)) {
+			if (auto* targetPanel = GetBrushPanelPage(choicebook, targetPageIndex); targetPanel && targetPanel->SelectBrush(whatBrush)) {
 				choicebook->ChangeSelection(targetPageIndex);
-				for (const auto palettePanel : tool_bars) {
-					palettePanel->SelectBrush(nullptr);
-				}
+				ClearToolBarBrushSelection(tool_bars);
 				return true;
 			}
 		}
 	}
 
-	for (auto pageIndex = 0; pageIndex < choicebook->GetPageCount(); ++pageIndex) {
-		if (pageIndex == choicebook->GetSelection()) {
+	const int currentSelection = choicebook->GetSelection();
+	for (int pageIndex = 0; pageIndex < static_cast<int>(choicebook->GetPageCount()); ++pageIndex) {
+		if (pageIndex == currentSelection) {
 			continue;
 		}
 
-		panel = dynamic_cast<BrushPanel*>(choicebook->GetPage(pageIndex));
-		if (panel && panel->SelectBrush(whatBrush)) {
+		if (auto* panel = GetBrushPanelPage(choicebook, pageIndex); panel && panel->SelectBrush(whatBrush)) {
 			choicebook->ChangeSelection(pageIndex);
-			for (const auto palettePanel : tool_bars) {
-				palettePanel->SelectBrush(nullptr);
-			}
+			ClearToolBarBrushSelection(tool_bars);
 			return true;
 		}
 	}
