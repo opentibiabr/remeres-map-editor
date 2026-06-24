@@ -2,6 +2,7 @@
 
 #include "materials_workbench_brush_panel.h"
 
+#include <array>
 #include <cmath>
 #include <map>
 #include <limits>
@@ -337,24 +338,25 @@ namespace {
 
 		const int cx = innerRect.x + innerRect.width / 2;
 		const int cy = innerRect.y + innerRect.height / 2;
-		wxPoint points[3];
+		std::array<wxPoint, 3> points;
+		using enum SliderArrowDirection;
 		switch (direction) {
-			case SliderArrowDirection::Left:
+			case Left:
 				points[0] = wxPoint(innerRect.x, cy);
 				points[1] = wxPoint(innerRect.GetRight() + 1, innerRect.y);
 				points[2] = wxPoint(innerRect.GetRight() + 1, innerRect.GetBottom() + 1);
 				break;
-			case SliderArrowDirection::Right:
+			case Right:
 				points[0] = wxPoint(innerRect.GetRight() + 1, cy);
 				points[1] = wxPoint(innerRect.x, innerRect.y);
 				points[2] = wxPoint(innerRect.x, innerRect.GetBottom() + 1);
 				break;
-			case SliderArrowDirection::Up:
+			case Up:
 				points[0] = wxPoint(cx, innerRect.y);
 				points[1] = wxPoint(innerRect.x, innerRect.GetBottom() + 1);
 				points[2] = wxPoint(innerRect.GetRight() + 1, innerRect.GetBottom() + 1);
 				break;
-			case SliderArrowDirection::Down:
+			case Down:
 				points[0] = wxPoint(cx, innerRect.GetBottom() + 1);
 				points[1] = wxPoint(innerRect.x, innerRect.y);
 				points[2] = wxPoint(innerRect.GetRight() + 1, innerRect.y);
@@ -363,7 +365,7 @@ namespace {
 
 		dc.SetPen(*wxTRANSPARENT_PEN);
 		dc.SetBrush(wxBrush(colour));
-		dc.DrawPolygon(3, points);
+		dc.DrawPolygon(static_cast<int>(points.size()), points.data());
 	}
 
 	bool ShowDoodadSingleItemDialog(wxWindow* parent, const wxString &title, int &itemId, int &chance) {
@@ -791,7 +793,10 @@ namespace {
 			wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_SIMPLE) {
 			SetBackgroundStyle(wxBG_STYLE_PAINT);
 			SetMinSize(wxSize(FromDIP(48), FromDIP(48)));
-			Bind(wxEVT_PAINT, &BrushMetadataItemIdPreviewPanel::OnPaint, this);
+			Bind(wxEVT_PAINT, [this](wxPaintEvent &) {
+				wxAutoBufferedPaintDC dc(this);
+				Paint(dc);
+			});
 		}
 
 		void SetItemId(int itemId) {
@@ -803,11 +808,9 @@ namespace {
 		}
 
 	private:
-		void OnPaint(wxPaintEvent &WXUNUSED(event)) {
-			wxAutoBufferedPaintDC dc(this);
+		void Paint(wxDC &dc) const {
 			dc.SetBackground(wxBrush(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW)));
 			dc.Clear();
-
 			const wxSize size = GetClientSize();
 			wxRect bounds(0, 0, size.x, size.y);
 			bounds.Deflate(FromDIP(2), FromDIP(2));
@@ -1011,9 +1014,9 @@ namespace {
 	}
 
 	std::vector<wxString> GetCarpetAlignChoices() {
-		static const char* kPreferredOrder[] = { "center", "s", "n", "e", "w", "cse", "csw", "cne", "cnw" };
+		static const std::array<const char*, 9> kPreferredOrder = { "center", "s", "n", "e", "w", "cse", "csw", "cne", "cnw" };
 		std::vector<wxString> aligns;
-		aligns.reserve(std::size(kPreferredOrder));
+		aligns.reserve(kPreferredOrder.size());
 		for (const char* align : kPreferredOrder) {
 			aligns.emplace_back(wxString::FromUTF8(align));
 		}
@@ -1021,9 +1024,9 @@ namespace {
 	}
 
 	std::vector<wxString> GetKnownCarpetAligns() {
-		static const char* kKnownOrder[] = { "center", "s", "n", "e", "w", "cse", "csw", "cne", "cnw", "dnw", "dne", "dsw", "dse" };
+		static const std::array<const char*, 13> kKnownOrder = { "center", "s", "n", "e", "w", "cse", "csw", "cne", "cnw", "dnw", "dne", "dsw", "dse" };
 		std::vector<wxString> aligns;
-		aligns.reserve(std::size(kKnownOrder));
+		aligns.reserve(kKnownOrder.size());
 		for (const char* align : kKnownOrder) {
 			aligns.emplace_back(wxString::FromUTF8(align));
 		}
@@ -1395,8 +1398,10 @@ namespace {
 			const wxPoint projectedCell = GetDoodadPreviewProjectedCell(tile, true);
 			layout.tileIndices.push_back(static_cast<int>(tileIndex));
 			if (!initialized) {
-				layout.minCellX = layout.maxCellX = projectedCell.x;
-				layout.minCellY = layout.maxCellY = projectedCell.y;
+				layout.minCellX = projectedCell.x;
+				layout.maxCellX = projectedCell.x;
+				layout.minCellY = projectedCell.y;
+				layout.maxCellY = projectedCell.y;
 				initialized = true;
 			} else {
 				layout.minCellX = std::min(layout.minCellX, projectedCell.x);
@@ -1439,6 +1444,209 @@ namespace {
 		return layout;
 	}
 
+	struct DoodadPreviewFloorMeasure {
+		int floor = 0;
+		int minCellX = 0;
+		int maxCellX = 0;
+		int minCellY = 0;
+		int maxCellY = 0;
+		int minPixelX = 0;
+		int maxPixelX = 0;
+		int minPixelY = 0;
+		int maxPixelY = 0;
+		std::vector<int> tileIndices;
+	};
+
+	struct DoodadPreviewGlobalBounds {
+		int minCellX = 0;
+		int maxCellX = 0;
+		int minCellY = 0;
+		int maxCellY = 0;
+		int minPixelX = 0;
+		int maxPixelX = 0;
+		int minPixelY = 0;
+		int maxPixelY = 0;
+		bool valid = false;
+	};
+
+	void UpdateDoodadPreviewGlobalBounds(DoodadPreviewGlobalBounds &bounds, const DoodadPreviewFloorMeasure &measure) {
+		if (!bounds.valid) {
+			bounds.minCellX = measure.minCellX;
+			bounds.maxCellX = measure.maxCellX;
+			bounds.minCellY = measure.minCellY;
+			bounds.maxCellY = measure.maxCellY;
+			bounds.minPixelX = measure.minPixelX;
+			bounds.maxPixelX = measure.maxPixelX;
+			bounds.minPixelY = measure.minPixelY;
+			bounds.maxPixelY = measure.maxPixelY;
+			bounds.valid = true;
+			return;
+		}
+
+		bounds.minCellX = std::min(bounds.minCellX, measure.minCellX);
+		bounds.maxCellX = std::max(bounds.maxCellX, measure.maxCellX);
+		bounds.minCellY = std::min(bounds.minCellY, measure.minCellY);
+		bounds.maxCellY = std::max(bounds.maxCellY, measure.maxCellY);
+		bounds.minPixelX = std::min(bounds.minPixelX, measure.minPixelX);
+		bounds.maxPixelX = std::max(bounds.maxPixelX, measure.maxPixelX);
+		bounds.minPixelY = std::min(bounds.minPixelY, measure.minPixelY);
+		bounds.maxPixelY = std::max(bounds.maxPixelY, measure.maxPixelY);
+	}
+
+	bool TryMeasureDoodadPreviewFloor(
+		const DoodadCompositeRecord &composite,
+		int floor,
+		int cellSize,
+		DoodadPreviewFloorMeasure &outMeasure
+	) {
+		outMeasure = DoodadPreviewFloorMeasure();
+		outMeasure.floor = floor;
+
+		bool initialized = false;
+		for (size_t tileIndex = 0; tileIndex < composite.tiles.size(); ++tileIndex) {
+			const auto &tile = composite.tiles[tileIndex];
+			if (tile.offsetZ != floor) {
+				continue;
+			}
+
+			outMeasure.tileIndices.push_back(static_cast<int>(tileIndex));
+
+			const wxPoint tileAnchor(tile.offsetX * cellSize, tile.offsetY * cellSize);
+			const wxRect cellRect(tileAnchor.x, tileAnchor.y, cellSize, cellSize);
+			const wxRect stackRect = GetDoodadPreviewTileStackBounds(tile.items, tileAnchor);
+			if (!initialized) {
+				outMeasure.minCellX = tile.offsetX;
+				outMeasure.maxCellX = tile.offsetX;
+				outMeasure.minCellY = tile.offsetY;
+				outMeasure.maxCellY = tile.offsetY;
+				outMeasure.minPixelX = std::min(cellRect.GetLeft(), stackRect.GetLeft());
+				outMeasure.maxPixelX = std::max(cellRect.GetRight() + 1, stackRect.GetRight() + 1);
+				outMeasure.minPixelY = std::min(cellRect.GetTop(), stackRect.GetTop());
+				outMeasure.maxPixelY = std::max(cellRect.GetBottom() + 1, stackRect.GetBottom() + 1);
+				initialized = true;
+				continue;
+			}
+
+			outMeasure.minCellX = std::min(outMeasure.minCellX, tile.offsetX);
+			outMeasure.maxCellX = std::max(outMeasure.maxCellX, tile.offsetX);
+			outMeasure.minCellY = std::min(outMeasure.minCellY, tile.offsetY);
+			outMeasure.maxCellY = std::max(outMeasure.maxCellY, tile.offsetY);
+			outMeasure.minPixelX = std::min(outMeasure.minPixelX, cellRect.GetLeft());
+			outMeasure.maxPixelX = std::max(outMeasure.maxPixelX, cellRect.GetRight() + 1);
+			outMeasure.minPixelY = std::min(outMeasure.minPixelY, cellRect.GetTop());
+			outMeasure.maxPixelY = std::max(outMeasure.maxPixelY, cellRect.GetBottom() + 1);
+			outMeasure.minPixelX = std::min(outMeasure.minPixelX, stackRect.GetLeft());
+			outMeasure.maxPixelX = std::max(outMeasure.maxPixelX, stackRect.GetRight() + 1);
+			outMeasure.minPixelY = std::min(outMeasure.minPixelY, stackRect.GetTop());
+			outMeasure.maxPixelY = std::max(outMeasure.maxPixelY, stackRect.GetBottom() + 1);
+		}
+
+		return !outMeasure.tileIndices.empty();
+	}
+
+	void FinalizeDoodadPreviewFloorMeasure(
+		const DoodadCompositeRecord &composite,
+		int cellSize,
+		DoodadPreviewFloorMeasure &measure
+	) {
+		std::stable_sort(
+			measure.tileIndices.begin(),
+			measure.tileIndices.end(),
+			[&composite](int leftIndex, int rightIndex) {
+				const auto &left = composite.tiles[leftIndex];
+				const auto &right = composite.tiles[rightIndex];
+				if (left.offsetX != right.offsetX) {
+					return left.offsetX < right.offsetX;
+				}
+				return left.offsetY < right.offsetY;
+			}
+		);
+
+		measure.minCellX -= 1;
+		measure.maxCellX += 1;
+		measure.minCellY -= 1;
+		measure.maxCellY += 1;
+		measure.minPixelX = std::min(measure.minPixelX, measure.minCellX * cellSize);
+		measure.maxPixelX = std::max(measure.maxPixelX, (measure.maxCellX + 1) * cellSize);
+		measure.minPixelY = std::min(measure.minPixelY, measure.minCellY * cellSize);
+		measure.maxPixelY = std::max(measure.maxPixelY, (measure.maxCellY + 1) * cellSize);
+	}
+
+	int ComputeDoodadPreviewFloorLayoutsTotalHeight(
+		const std::vector<DoodadPreviewFloorMeasure> &measures,
+		bool useSharedViewport,
+		int globalBoundsHeight,
+		int titleHeight,
+		int floorGap,
+		int titleGap
+	) {
+		int totalHeight = 0;
+		for (size_t i = 0; i < measures.size(); ++i) {
+			const auto &measure = measures[i];
+			const int boundsHeight = useSharedViewport ? globalBoundsHeight : (measure.maxPixelY - measure.minPixelY);
+			totalHeight += titleHeight + titleGap + boundsHeight;
+			if (i + 1 < measures.size()) {
+				totalHeight += floorGap;
+			}
+		}
+		return totalHeight;
+	}
+
+	std::vector<DoodadPreviewFloorLayout> BuildDoodadPreviewFloorLayoutsFromMeasures(
+		const wxDC &dc,
+		const wxRect &contentRect,
+		const std::vector<DoodadPreviewFloorMeasure> &measures,
+		const DoodadPreviewGlobalBounds &bounds,
+		int floorGap,
+		int titleGap
+	) {
+		if (measures.empty() || !bounds.valid) {
+			return {};
+		}
+
+		const int titleHeight = dc.GetCharHeight();
+		const bool useSharedViewport = measures.size() > 1;
+		const int globalBoundsWidth = bounds.maxPixelX - bounds.minPixelX;
+		const int globalBoundsHeight = bounds.maxPixelY - bounds.minPixelY;
+		const int totalHeight = ComputeDoodadPreviewFloorLayoutsTotalHeight(
+			measures,
+			useSharedViewport,
+			globalBoundsHeight,
+			titleHeight,
+			floorGap,
+			titleGap
+		);
+
+		int currentY = contentRect.y + std::max(0, (contentRect.GetHeight() - totalHeight) / 2);
+		std::vector<DoodadPreviewFloorLayout> layouts;
+		layouts.reserve(measures.size());
+
+		const int sharedOriginX = contentRect.x + std::max(0, (contentRect.GetWidth() - globalBoundsWidth) / 2) - bounds.minPixelX;
+		for (const auto &measure : measures) {
+			const int boundsWidth = measure.maxPixelX - measure.minPixelX;
+			const int boundsHeight = useSharedViewport ? globalBoundsHeight : (measure.maxPixelY - measure.minPixelY);
+
+			DoodadPreviewFloorLayout layout;
+			layout.floor = measure.floor;
+			layout.minCellX = useSharedViewport ? bounds.minCellX : measure.minCellX;
+			layout.maxCellX = useSharedViewport ? bounds.maxCellX : measure.maxCellX;
+			layout.minCellY = useSharedViewport ? bounds.minCellY : measure.minCellY;
+			layout.maxCellY = useSharedViewport ? bounds.maxCellY : measure.maxCellY;
+			layout.originX = useSharedViewport
+				? sharedOriginX
+				: contentRect.x + std::max(0, (contentRect.GetWidth() - boundsWidth) / 2) - measure.minPixelX;
+			layout.originY = useSharedViewport
+				? currentY + titleHeight + titleGap - bounds.minPixelY
+				: currentY + titleHeight + titleGap - measure.minPixelY;
+			layout.titleY = currentY;
+			layout.tileIndices = measure.tileIndices;
+			layouts.push_back(layout);
+			currentY += titleHeight + titleGap + boundsHeight + floorGap;
+		}
+
+		return layouts;
+	}
+
 	std::vector<DoodadPreviewFloorLayout> BuildDoodadPreviewFloorLayouts(
 		wxDC &dc,
 		const wxRect &contentRect,
@@ -1448,156 +1656,21 @@ namespace {
 		int floorGap,
 		int titleGap
 	) {
-		struct FloorMeasure {
-			int floor = 0;
-			int minCellX = 0;
-			int maxCellX = 0;
-			int minCellY = 0;
-			int maxCellY = 0;
-			int minPixelX = 0;
-			int maxPixelX = 0;
-			int minPixelY = 0;
-			int maxPixelY = 0;
-			std::vector<int> tileIndices;
-		};
-
-		std::vector<FloorMeasure> measures;
+		std::vector<DoodadPreviewFloorMeasure> measures;
 		measures.reserve(floorsToDraw.size());
-		int globalMinCellX = 0;
-		int globalMaxCellX = 0;
-		int globalMinCellY = 0;
-		int globalMaxCellY = 0;
-		int globalMinPixelX = 0;
-		int globalMaxPixelX = 0;
-		int globalMinPixelY = 0;
-		int globalMaxPixelY = 0;
-		bool hasGlobalBounds = false;
+		DoodadPreviewGlobalBounds bounds;
 		for (int floor : floorsToDraw) {
-			FloorMeasure measure;
-			measure.floor = floor;
-			bool initialized = false;
-			for (size_t tileIndex = 0; tileIndex < composite.tiles.size(); ++tileIndex) {
-				const auto &tile = composite.tiles[tileIndex];
-				if (tile.offsetZ != floor) {
-					continue;
-				}
-
-				measure.tileIndices.push_back(static_cast<int>(tileIndex));
-				if (!initialized) {
-					measure.minCellX = measure.maxCellX = tile.offsetX;
-					measure.minCellY = measure.maxCellY = tile.offsetY;
-					measure.minPixelX = tile.offsetX * cellSize;
-					measure.maxPixelX = tile.offsetX * cellSize + cellSize;
-					measure.minPixelY = tile.offsetY * cellSize;
-					measure.maxPixelY = tile.offsetY * cellSize + cellSize;
-					initialized = true;
-				} else {
-					measure.minCellX = std::min(measure.minCellX, tile.offsetX);
-					measure.maxCellX = std::max(measure.maxCellX, tile.offsetX);
-					measure.minCellY = std::min(measure.minCellY, tile.offsetY);
-					measure.maxCellY = std::max(measure.maxCellY, tile.offsetY);
-				}
-
-				const wxPoint tileAnchor(tile.offsetX * cellSize, tile.offsetY * cellSize);
-				const wxRect cellRect(tileAnchor.x, tileAnchor.y, cellSize, cellSize);
-				measure.minPixelX = std::min(measure.minPixelX, cellRect.GetLeft());
-				measure.maxPixelX = std::max(measure.maxPixelX, cellRect.GetRight() + 1);
-				measure.minPixelY = std::min(measure.minPixelY, cellRect.GetTop());
-				measure.maxPixelY = std::max(measure.maxPixelY, cellRect.GetBottom() + 1);
-				const wxRect stackRect = GetDoodadPreviewTileStackBounds(tile.items, tileAnchor);
-				measure.minPixelX = std::min(measure.minPixelX, stackRect.GetLeft());
-				measure.maxPixelX = std::max(measure.maxPixelX, stackRect.GetRight() + 1);
-				measure.minPixelY = std::min(measure.minPixelY, stackRect.GetTop());
-				measure.maxPixelY = std::max(measure.maxPixelY, stackRect.GetBottom() + 1);
+			DoodadPreviewFloorMeasure measure;
+			if (!TryMeasureDoodadPreviewFloor(composite, floor, cellSize, measure)) {
+				continue;
 			}
 
-			if (!measure.tileIndices.empty()) {
-				std::stable_sort(
-					measure.tileIndices.begin(),
-					measure.tileIndices.end(),
-					[&composite](int leftIndex, int rightIndex) {
-						const auto &left = composite.tiles[leftIndex];
-						const auto &right = composite.tiles[rightIndex];
-						if (left.offsetX != right.offsetX) {
-							return left.offsetX < right.offsetX;
-						}
-						return left.offsetY < right.offsetY;
-					}
-				);
-
-				measure.minCellX -= 1;
-				measure.maxCellX += 1;
-				measure.minCellY -= 1;
-				measure.maxCellY += 1;
-				measure.minPixelX = std::min(measure.minPixelX, measure.minCellX * cellSize);
-				measure.maxPixelX = std::max(measure.maxPixelX, (measure.maxCellX + 1) * cellSize);
-				measure.minPixelY = std::min(measure.minPixelY, measure.minCellY * cellSize);
-				measure.maxPixelY = std::max(measure.maxPixelY, (measure.maxCellY + 1) * cellSize);
-				measures.push_back(measure);
-
-				if (!hasGlobalBounds) {
-					globalMinCellX = measure.minCellX;
-					globalMaxCellX = measure.maxCellX;
-					globalMinCellY = measure.minCellY;
-					globalMaxCellY = measure.maxCellY;
-					globalMinPixelX = measure.minPixelX;
-					globalMaxPixelX = measure.maxPixelX;
-					globalMinPixelY = measure.minPixelY;
-					globalMaxPixelY = measure.maxPixelY;
-					hasGlobalBounds = true;
-				} else {
-					globalMinCellX = std::min(globalMinCellX, measure.minCellX);
-					globalMaxCellX = std::max(globalMaxCellX, measure.maxCellX);
-					globalMinCellY = std::min(globalMinCellY, measure.minCellY);
-					globalMaxCellY = std::max(globalMaxCellY, measure.maxCellY);
-					globalMinPixelX = std::min(globalMinPixelX, measure.minPixelX);
-					globalMaxPixelX = std::max(globalMaxPixelX, measure.maxPixelX);
-					globalMinPixelY = std::min(globalMinPixelY, measure.minPixelY);
-					globalMaxPixelY = std::max(globalMaxPixelY, measure.maxPixelY);
-				}
-			}
+			FinalizeDoodadPreviewFloorMeasure(composite, cellSize, measure);
+			measures.push_back(measure);
+			UpdateDoodadPreviewGlobalBounds(bounds, measure);
 		}
 
-		const int titleHeight = dc.GetCharHeight();
-		const bool useSharedViewport = measures.size() > 1;
-		const int globalBoundsHeight = hasGlobalBounds ? (globalMaxPixelY - globalMinPixelY) : 0;
-		int totalHeight = 0;
-		for (size_t i = 0; i < measures.size(); ++i) {
-			const int boundsHeight = useSharedViewport ? globalBoundsHeight : (measures[i].maxPixelY - measures[i].minPixelY);
-			totalHeight += titleHeight + titleGap + boundsHeight;
-			if (i + 1 < measures.size()) {
-				totalHeight += floorGap;
-			}
-		}
-
-		int currentY = contentRect.y + std::max(0, (contentRect.GetHeight() - totalHeight) / 2);
-		std::vector<DoodadPreviewFloorLayout> layouts;
-		layouts.reserve(measures.size());
-		const int globalBoundsWidth = hasGlobalBounds ? (globalMaxPixelX - globalMinPixelX) : 0;
-		const int sharedOriginX = contentRect.x + std::max(0, (contentRect.GetWidth() - globalBoundsWidth) / 2) - globalMinPixelX;
-		for (const auto &measure : measures) {
-			const int boundsWidth = measure.maxPixelX - measure.minPixelX;
-			const int boundsHeight = useSharedViewport ? globalBoundsHeight : (measure.maxPixelY - measure.minPixelY);
-
-			DoodadPreviewFloorLayout layout;
-			layout.floor = measure.floor;
-			layout.minCellX = useSharedViewport ? globalMinCellX : measure.minCellX;
-			layout.maxCellX = useSharedViewport ? globalMaxCellX : measure.maxCellX;
-			layout.minCellY = useSharedViewport ? globalMinCellY : measure.minCellY;
-			layout.maxCellY = useSharedViewport ? globalMaxCellY : measure.maxCellY;
-			layout.originX = useSharedViewport
-				? sharedOriginX
-				: contentRect.x + std::max(0, (contentRect.GetWidth() - boundsWidth) / 2) - measure.minPixelX;
-			layout.originY = useSharedViewport
-				? currentY + titleHeight + titleGap - globalMinPixelY
-				: currentY + titleHeight + titleGap - measure.minPixelY;
-			layout.titleY = currentY;
-			layout.tileIndices = measure.tileIndices;
-			layouts.push_back(layout);
-			currentY += titleHeight + titleGap + boundsHeight + floorGap;
-		}
-
-		return layouts;
+		return BuildDoodadPreviewFloorLayoutsFromMeasures(dc, contentRect, measures, bounds, floorGap, titleGap);
 	}
 
 	std::vector<DoodadPreviewFloorLayout> BuildDoodadPreviewLayouts(

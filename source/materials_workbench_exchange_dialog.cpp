@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <ranges>
 #include <set>
 #include <unordered_map>
 #include <unordered_set>
@@ -52,19 +53,20 @@ namespace {
 	}
 
 	bool VectorContains(const std::vector<wxString> &values, const wxString &value) {
-		return std::find_if(values.begin(), values.end(), [&](const wxString &row) { return row.IsSameAs(value, false); }) != values.end();
+		return std::ranges::find_if(values, [&](const wxString &row) { return row.IsSameAs(value, false); }) != values.end();
 	}
 
 	void RemoveValue(std::vector<int> &values, int value) {
-		values.erase(std::remove(values.begin(), values.end(), value), values.end());
+		std::erase(values, value);
 	}
 
 	void RemoveValue(std::vector<int64_t> &values, int64_t value) {
-		values.erase(std::remove(values.begin(), values.end(), value), values.end());
+		std::erase(values, value);
 	}
 
 	void RemoveValue(std::vector<wxString> &values, const wxString &value) {
-		values.erase(std::remove_if(values.begin(), values.end(), [&](const wxString &row) { return row.IsSameAs(value, false); }), values.end());
+		const auto removed = std::ranges::remove_if(values, [&](const wxString &row) { return row.IsSameAs(value, false); });
+		values.erase(removed.begin(), removed.end());
 	}
 
 	wxString JsonToWxStringLocal(const nlohmann::json &v) {
@@ -295,13 +297,13 @@ void MaterialsWorkbenchExportDialog::RebuildData() {
 	for (const PaletteGroupRecord &group : controller_.GetPaletteGroups()) {
 		allPaletteGroups_.push_back(group.name);
 	}
-	std::sort(allPaletteGroups_.begin(), allPaletteGroups_.end(), [](const wxString &a, const wxString &b) { return LowerCopy(a) < LowerCopy(b); });
+	std::ranges::sort(allPaletteGroups_, [](const wxString &a, const wxString &b) { return LowerCopy(a) < LowerCopy(b); });
 
 	allPalettes_.clear();
 	for (const TilesetStorageRecord &tileset : controller_.GetTilesets()) {
 		allPalettes_.push_back(tileset.name);
 	}
-	std::sort(allPalettes_.begin(), allPalettes_.end(), [](const wxString &a, const wxString &b) { return LowerCopy(a) < LowerCopy(b); });
+	std::ranges::sort(allPalettes_, [](const wxString &a, const wxString &b) { return LowerCopy(a) < LowerCopy(b); });
 
 	brushTypeChoiceCtrl_->Clear();
 	for (const wxString &choice : brushTypeChoices_) {
@@ -319,7 +321,7 @@ void MaterialsWorkbenchExportDialog::RebuildBorderList() {
 			continue;
 		}
 		const size_t idx = borderList_->Append(row.label);
-		borderList_->SetClientData(idx, reinterpret_cast<void*>(static_cast<intptr_t>(row.xmlBorderId)));
+		borderList_->SetClientObject(idx, new wxInt64ClientData(row.xmlBorderId));
 		borderList_->Check(idx, VectorContains(selection_.globalBorderXmlIds, row.xmlBorderId));
 	}
 	borderList_->Thaw();
@@ -393,10 +395,10 @@ void MaterialsWorkbenchExportDialog::UpdateSummary() {
 	const std::set<wxString> selectedGroups(selection_.paletteGroupNames.begin(), selection_.paletteGroupNames.end());
 	const std::set<wxString> selectedPalettes(selection_.paletteNames.begin(), selection_.paletteNames.end());
 
-	const int borders = static_cast<int>(selectedBorders.size());
-	const int brushes = static_cast<int>(selectedBrushes.size());
-	const int groups = static_cast<int>(selectedGroups.size());
-	const int palettes = static_cast<int>(selectedPalettes.size());
+	const auto borders = static_cast<int>(selectedBorders.size());
+	const auto brushes = static_cast<int>(selectedBrushes.size());
+	const auto groups = static_cast<int>(selectedGroups.size());
+	const auto palettes = static_cast<int>(selectedPalettes.size());
 
 	wxString label = wxString::Format("Selected: %d borders, %d brushes, %d palette groups, %d palettes.", borders, brushes, groups, palettes);
 	wxString details;
@@ -514,7 +516,8 @@ void MaterialsWorkbenchExportDialog::OnListToggled(wxCheckListBox* list, int ind
 
 	const bool checked = list->IsChecked(static_cast<unsigned int>(index));
 	if (list == borderList_) {
-		const int xmlBorderId = static_cast<int>(reinterpret_cast<intptr_t>(borderList_->GetClientData(static_cast<unsigned int>(index))));
+		const wxInt64ClientData* data = static_cast<const wxInt64ClientData*>(borderList_->GetClientObject(static_cast<unsigned int>(index)));
+		const int xmlBorderId = data ? static_cast<int>(data->value) : 0;
 		if (xmlBorderId <= 0) {
 			return;
 		}
