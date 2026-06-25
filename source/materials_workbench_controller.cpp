@@ -436,11 +436,11 @@ MaterialsWorkbenchControllerBordersApi::MaterialsWorkbenchControllerBordersApi(M
 
 MaterialsWorkbenchController::MaterialsWorkbenchController() :
 	MaterialsWorkbenchControllerState(),
-	MaterialsWorkbenchControllerCoreApi(static_cast<MaterialsWorkbenchControllerState&>(*this)),
-	MaterialsWorkbenchControllerNavigationApi(static_cast<MaterialsWorkbenchControllerState&>(*this)),
-	MaterialsWorkbenchControllerTilesetsApi(static_cast<MaterialsWorkbenchControllerState&>(*this)),
-	MaterialsWorkbenchControllerBrushesApi(static_cast<MaterialsWorkbenchControllerState&>(*this)),
-	MaterialsWorkbenchControllerBordersApi(static_cast<MaterialsWorkbenchControllerState&>(*this)) {
+	MaterialsWorkbenchControllerCoreApi(static_cast<MaterialsWorkbenchControllerState &>(*this)),
+	MaterialsWorkbenchControllerNavigationApi(static_cast<MaterialsWorkbenchControllerState &>(*this)),
+	MaterialsWorkbenchControllerTilesetsApi(static_cast<MaterialsWorkbenchControllerState &>(*this)),
+	MaterialsWorkbenchControllerBrushesApi(static_cast<MaterialsWorkbenchControllerState &>(*this)),
+	MaterialsWorkbenchControllerBordersApi(static_cast<MaterialsWorkbenchControllerState &>(*this)) {
 }
 
 namespace {
@@ -559,7 +559,7 @@ namespace {
 					continue;
 				}
 				const wxString brushKey = BuildBrushLookupKey(entry.brushId, entry.brushName);
-				inOutBrushPlacementByKey.try_emplace(brushKey, BrushNavigationPlacement{ familyKey, tileset.name });
+				inOutBrushPlacementByKey.try_emplace(brushKey, BrushNavigationPlacement { familyKey, tileset.name });
 			}
 		}
 	}
@@ -750,8 +750,8 @@ namespace {
 		};
 
 		const std::array<BorderScopeNode, 2> borderScopes = {
-			BorderScopeNode{ "Inline Border Sets", "inline", &catalog.inlineBorderSets },
-			BorderScopeNode{ "Global Border Sets", "global", &catalog.globalBorderSets },
+			BorderScopeNode { "Inline Border Sets", "inline", &catalog.inlineBorderSets },
+			BorderScopeNode { "Global Border Sets", "global", &catalog.globalBorderSets },
 		};
 
 		for (const BorderScopeNode &scope : borderScopes) {

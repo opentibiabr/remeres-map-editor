@@ -142,7 +142,7 @@ namespace {
 		return UpdateExisting;
 	}
 
-	bool TryGetImportEntitiesArray(const nlohmann::json &root, const nlohmann::json* &outEntities) {
+	bool TryGetImportEntitiesArray(const nlohmann::json &root, const nlohmann::json*&outEntities) {
 		outEntities = nullptr;
 		if (!root.is_object() || !root.contains("entities") || !root["entities"].is_array()) {
 			return false;
@@ -461,8 +461,8 @@ namespace {
 
 	void CollectBrushLinkTargetWarnings(
 		const nlohmann::json &entity,
-		const std::function<bool(const wxString&, const wxString&)> &existsBrushKey,
-		const std::function<bool(const wxString&)> &existsBrushName,
+		const std::function<bool(const wxString &, const wxString &)> &existsBrushKey,
+		const std::function<bool(const wxString &)> &existsBrushName,
 		std::vector<wxString> &outWarnings
 	) {
 		if (!entity.contains("links") || !entity["links"].is_array()) {
@@ -525,8 +525,8 @@ namespace {
 
 	void CollectGroundBorderTargetWarnings(
 		const nlohmann::json &row,
-		const std::function<bool(const wxString&, const wxString&)> &existsBrushKey,
-		const std::function<bool(const wxString&)> &existsBrushName,
+		const std::function<bool(const wxString &, const wxString &)> &existsBrushKey,
+		const std::function<bool(const wxString &)> &existsBrushName,
 		std::vector<wxString> &outWarnings
 	) {
 		if (row.contains("targetBrush") && row["targetBrush"].is_object()) {
@@ -549,8 +549,8 @@ namespace {
 		const nlohmann::json &entity,
 		const ImportDuplicateIndex &dups,
 		const ImportExistingIndex &existing,
-		const std::function<bool(const wxString&, const wxString&)> &existsBrushKey,
-		const std::function<bool(const wxString&)> &existsBrushName,
+		const std::function<bool(const wxString &, const wxString &)> &existsBrushKey,
+		const std::function<bool(const wxString &)> &existsBrushName,
 		std::vector<wxString> &outWarnings,
 		wxString &outInvalidDetail
 	) {
@@ -575,7 +575,7 @@ namespace {
 	void CollectPaletteEntryWarningFromValue(
 		const wxString &label,
 		const nlohmann::json &value,
-		const std::function<bool(const wxString&)> &existsBrushName,
+		const std::function<bool(const wxString &)> &existsBrushName,
 		std::vector<wxString> &outWarnings
 	) {
 		if (!value.is_string()) {
@@ -592,7 +592,7 @@ namespace {
 
 	void CollectPaletteEntryWarnings(
 		const nlohmann::json &sections,
-		const std::function<bool(const wxString&)> &existsBrushName,
+		const std::function<bool(const wxString &)> &existsBrushName,
 		std::vector<wxString> &outWarnings
 	) {
 		if (!sections.is_array()) {
@@ -710,8 +710,8 @@ namespace {
 		const ImportDuplicateIndex &dups,
 		const ImportExistingIndex &existing,
 		const nlohmann::json &entity,
-		const std::function<bool(const wxString&, const wxString&)> &existsBrushKey,
-		const std::function<bool(const wxString&)> &existsBrushName
+		const std::function<bool(const wxString &, const wxString &)> &existsBrushKey,
+		const std::function<bool(const wxString &)> &existsBrushName
 	) {
 		PlanEntityInfo info;
 		info.kind = "brush";
@@ -851,7 +851,7 @@ namespace {
 		const ImportDuplicateIndex &dups,
 		const ImportExistingIndex &existing,
 		const nlohmann::json &entity,
-		const std::function<bool(const wxString&)> &existsBrushName
+		const std::function<bool(const wxString &)> &existsBrushName
 	) {
 		PlanEntityInfo info;
 		info.kind = "palette";

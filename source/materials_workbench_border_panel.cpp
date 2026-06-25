@@ -200,7 +200,7 @@ namespace {
 		return root;
 	}
 
-	bool ValidateMaterialsExportRoot(const nlohmann::json &root, const nlohmann::json* &outEntities, wxString &error) {
+	bool ValidateMaterialsExportRoot(const nlohmann::json &root, const nlohmann::json*&outEntities, wxString &error) {
 		outEntities = nullptr;
 		if (!root.is_object()) {
 			error = "Invalid JSON: expected an object.";

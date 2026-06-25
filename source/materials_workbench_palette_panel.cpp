@@ -963,14 +963,12 @@ namespace {
 			out,
 			sectionIndex,
 			entryIndex,
-			{
-				displayLabel,
-				BuildPaletteEntryTooltip(controller, palette, section, entry),
-				ResolvePaletteEntryBadge(section),
-				brush,
-				lookId,
-				visibleIndex
-			}
+			{ displayLabel,
+			  BuildPaletteEntryTooltip(controller, palette, section, entry),
+			  ResolvePaletteEntryBadge(section),
+			  brush,
+			  lookId,
+			  visibleIndex }
 		);
 		return true;
 	}
@@ -1006,14 +1004,12 @@ namespace {
 			out,
 			sectionIndex,
 			entryIndex,
-			{
-				displayLabel,
-				BuildPaletteEntryTooltip(controller, palette, section, entry),
-				ResolvePaletteEntryBadge(section),
-				brush,
-				previewItemId,
-				visibleIndex
-			}
+			{ displayLabel,
+			  BuildPaletteEntryTooltip(controller, palette, section, entry),
+			  ResolvePaletteEntryBadge(section),
+			  brush,
+			  previewItemId,
+			  visibleIndex }
 		);
 		return true;
 	}
@@ -1068,7 +1064,7 @@ namespace {
 	void ResolveAvailableEntryPreview(
 		const MaterialsWorkbenchController &controller,
 		const TilesetEntryRecord &entry,
-		Brush* &outPreviewBrush,
+		Brush*&outPreviewBrush,
 		int &outPreviewLookId,
 		int &inOutBrushCount,
 		int &inOutItemCount
@@ -1143,14 +1139,7 @@ namespace {
 
 				out.entries.push_back(entry);
 				out.entrySectionIndexes.push_back(static_cast<int>(sectionIndex));
-				out.items.push_back({
-					label,
-					tooltip,
-					ResolvePaletteEntryBadge(section),
-					previewBrush,
-					previewLookId,
-					visibleIndex
-				});
+				out.items.push_back({ label, tooltip, ResolvePaletteEntryBadge(section), previewBrush, previewLookId, visibleIndex });
 			}
 		}
 		return out;
@@ -1236,25 +1225,27 @@ namespace {
 		size_t affectedCount
 	) {
 		return wxMessageBox(
-			wxString::Format(
-				"Delete palette category \"%s\" and move %zu palette(s) to \"%s\"?\n\nThis updates the affected palettes first and then removes the old palette category.",
-				selectedGroupName,
-				affectedCount,
-				destinationGroup
-			),
-			"Delete Palette Category",
-			wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
-			parent
-		) == wxYES;
+				   wxString::Format(
+					   "Delete palette category \"%s\" and move %zu palette(s) to \"%s\"?\n\nThis updates the affected palettes first and then removes the old palette category.",
+					   selectedGroupName,
+					   affectedCount,
+					   destinationGroup
+				   ),
+				   "Delete Palette Category",
+				   wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
+				   parent
+			   )
+			== wxYES;
 	}
 
 	bool ConfirmPaletteGroupDelete(wxWindow* parent, const wxString &selectedGroupName) {
 		return wxMessageBox(
-			"Delete palette category \"" + selectedGroupName + "\"?",
-			"Delete Palette Category",
-			wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
-			parent
-		) == wxYES;
+				   "Delete palette category \"" + selectedGroupName + "\"?",
+				   "Delete Palette Category",
+				   wxYES_NO | wxNO_DEFAULT | wxICON_WARNING,
+				   parent
+			   )
+			== wxYES;
 	}
 
 	PaletteVisibleEntryCollection CollectVisiblePaletteEntries(

@@ -123,11 +123,11 @@ private:
 };
 
 class MaterialsWorkbenchController : public MaterialsWorkbenchControllerState,
-									public MaterialsWorkbenchControllerCoreApi,
-									public MaterialsWorkbenchControllerNavigationApi,
-									public MaterialsWorkbenchControllerTilesetsApi,
-									public MaterialsWorkbenchControllerBrushesApi,
-									public MaterialsWorkbenchControllerBordersApi {
+									 public MaterialsWorkbenchControllerCoreApi,
+									 public MaterialsWorkbenchControllerNavigationApi,
+									 public MaterialsWorkbenchControllerTilesetsApi,
+									 public MaterialsWorkbenchControllerBrushesApi,
+									 public MaterialsWorkbenchControllerBordersApi {
 public:
 	MaterialsWorkbenchController();
 };

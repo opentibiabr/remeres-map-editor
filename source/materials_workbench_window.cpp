@@ -33,7 +33,7 @@
 #include "materials_workbench_wall_panel.h"
 
 namespace {
-	MaterialsWorkbenchWindow*& GetMaterialsWorkbenchWindowInstance() {
+	MaterialsWorkbenchWindow*&GetMaterialsWorkbenchWindowInstance() {
 		static MaterialsWorkbenchWindow* window = nullptr;
 		return window;
 	}
@@ -103,7 +103,7 @@ namespace {
 			}
 		}
 
-		std::function<void(const wxTreeItemId&)> captureExpanded;
+		std::function<void(const wxTreeItemId &)> captureExpanded;
 		captureExpanded = [&](const wxTreeItemId &parent) {
 			wxTreeItemIdValue cookie;
 			for (wxTreeItemId child = tree->GetFirstChild(parent, cookie); child.IsOk(); child = tree->GetNextChild(parent, cookie)) {
@@ -126,6 +126,102 @@ namespace {
 
 	bool NavigationStateContainsExpandedKey(const MaterialsWorkbenchWindow::NavigationTreeState &state, const wxString &key) {
 		return std::ranges::find(state.expandedNodeKeys, key) != state.expandedNodeKeys.end();
+	}
+
+	bool IsSameBrushSelection(const MaterialsWorkbenchTreeItemData* itemData, MaterialsWorkbenchBrushPanel* brushPanel) {
+		return itemData && brushPanel
+			&& itemData->kind == MaterialsWorkbenchNodeKind::Brush
+			&& brushPanel->IsCurrentBrushSelection(itemData->contextKey, itemData->itemIndex);
+	}
+
+	bool IsSameBorderSelection(const MaterialsWorkbenchTreeItemData* itemData, MaterialsWorkbenchBorderPanel* borderPanel) {
+		return itemData && borderPanel
+			&& itemData->kind == MaterialsWorkbenchNodeKind::BorderSet
+			&& borderPanel->IsCurrentBorderSelection(itemData->contextKey, itemData->itemIndex);
+	}
+
+	bool IsSameWallSelection(const MaterialsWorkbenchTreeItemData* itemData, MaterialsWorkbenchWallPanel* wallPanel) {
+		return itemData && wallPanel
+			&& itemData->kind == MaterialsWorkbenchNodeKind::Brush
+			&& wallPanel->IsCurrentWallSelection(itemData->contextKey, itemData->itemIndex);
+	}
+
+	void ShowOverviewFallback(wxSimplebook* workspaceBook, wxTextCtrl* overviewText, MaterialsWorkbenchController &controller) {
+		if (workspaceBook) {
+			workspaceBook->SetSelection(0);
+		}
+		if (overviewText) {
+			overviewText->SetValue(controller.GetOverviewText());
+		}
+	}
+
+	bool ApplyNavigationSelectionFromItemData(
+		const MaterialsWorkbenchTreeItemData &itemData,
+		MaterialsWorkbenchController &controller,
+		wxSimplebook* workspaceBook,
+		wxTextCtrl* overviewText,
+		MaterialsWorkbenchPalettePanel* palettePanel,
+		MaterialsWorkbenchBorderPanel* borderPanel,
+		MaterialsWorkbenchBrushPanel* brushPanel,
+		MaterialsWorkbenchWallPanel* wallPanel
+	) {
+		if (overviewText) {
+			overviewText->SetValue(controller.BuildSelectionOverview(itemData.kind, itemData.contextKey, itemData.itemIndex));
+		}
+
+		if (itemData.kind == MaterialsWorkbenchNodeKind::Tileset) {
+			TilesetStorageRecord tileset;
+			if (controller.GetTilesetByIndex(itemData.itemIndex, tileset) && palettePanel && palettePanel->LoadPalette(tileset)) {
+				if (workspaceBook) {
+					workspaceBook->SetSelection(1);
+				}
+				return true;
+			}
+			if (palettePanel) {
+				palettePanel->ClearWorkspace("Failed to load the selected palette workspace.");
+			}
+			return false;
+		}
+
+		if (itemData.kind == MaterialsWorkbenchNodeKind::Brush) {
+			if (itemData.contextKey == "wall") {
+				if (wallPanel && wallPanel->LoadWallBrush(itemData.contextKey, itemData.itemIndex)) {
+					if (workspaceBook) {
+						workspaceBook->SetSelection(4);
+					}
+					return true;
+				}
+				if (wallPanel) {
+					wallPanel->ClearWorkspace("Failed to load the selected wall workspace.");
+				}
+			}
+			if (brushPanel && brushPanel->LoadBrush(itemData.contextKey, itemData.itemIndex)) {
+				if (workspaceBook) {
+					workspaceBook->SetSelection(3);
+				}
+				return true;
+			}
+			if (brushPanel) {
+				brushPanel->ClearWorkspace("Failed to load the selected brush workspace.");
+			}
+			return false;
+		}
+
+		if (itemData.kind == MaterialsWorkbenchNodeKind::BorderSet) {
+			if (borderPanel && borderPanel->LoadBorderSet(itemData.contextKey, itemData.itemIndex)) {
+				if (workspaceBook) {
+					workspaceBook->SetSelection(2);
+				}
+				return true;
+			}
+			if (borderPanel) {
+				borderPanel->ClearWorkspace("Failed to load the selected border workspace.");
+			}
+			return false;
+		}
+
+		ShowOverviewFallback(workspaceBook, overviewText, controller);
+		return false;
 	}
 
 	wxString NormalizeNavigationFilterQuery(const wxString &value) {
@@ -369,7 +465,7 @@ namespace {
 			return;
 		}
 
-		std::function<void(const wxTreeItemId&)> apply;
+		std::function<void(const wxTreeItemId &)> apply;
 		apply = [&](const wxTreeItemId &parentItem) {
 			wxTreeItemIdValue cookie;
 			for (wxTreeItemId child = tree->GetFirstChild(parentItem, cookie); child.IsOk(); child = tree->GetNextChild(parentItem, cookie)) {
@@ -586,7 +682,7 @@ EVT_CLOSE(MaterialsWorkbenchWindow::OnClose)
 END_EVENT_TABLE()
 
 void MaterialsWorkbenchWindow::Open(wxWindow* parent) {
-	auto*& window = GetMaterialsWorkbenchWindowInstance();
+	auto*&window = GetMaterialsWorkbenchWindowInstance();
 	if (window) {
 		if (window->IsIconized()) {
 			window->Iconize(false);
@@ -605,7 +701,7 @@ void MaterialsWorkbenchWindow::Open(wxWindow* parent) {
 
 void MaterialsWorkbenchWindow::OpenSqliteInspector(wxWindow* parent) {
 	MaterialsWorkbenchWindow::Open(parent);
-	auto*& window = GetMaterialsWorkbenchWindowInstance();
+	auto*&window = GetMaterialsWorkbenchWindowInstance();
 	if (!window) {
 		return;
 	}
@@ -1177,7 +1273,7 @@ void MaterialsWorkbenchWindow::PopulateNavigation() {
 	navigationTree_->DeleteAllItems();
 	wxTreeItemId root = navigationTree_->AddRoot("Materials Workbench");
 	const std::vector<MaterialsWorkbenchTreeNode> filteredNodes = BuildFilteredNavigationTree(controller_.BuildNavigationTree(), normalizedFilterQuery);
-	std::function<void(const wxTreeItemId&, const std::vector<MaterialsWorkbenchTreeNode>&)> appendNodes;
+	std::function<void(const wxTreeItemId &, const std::vector<MaterialsWorkbenchTreeNode> &)> appendNodes;
 	appendNodes = [&](const wxTreeItemId &parentItem, const std::vector<MaterialsWorkbenchTreeNode> &nodes) {
 		for (const MaterialsWorkbenchTreeNode &node : nodes) {
 			wxTreeItemId item = navigationTree_->AppendItem(
@@ -1299,146 +1395,135 @@ void MaterialsWorkbenchWindow::BindNavigationClickEvents() {
 	if (!navigationTree_) {
 		return;
 	}
-	navigationTree_->Bind(wxEVT_LEFT_DOWN, [this](wxMouseEvent &event) {
-		if (navigationPopulating_) {
-			event.Skip();
-			return;
-		}
-		int flags = 0;
-		const wxTreeItemId item = navigationTree_->HitTest(event.GetPosition(), flags);
-		const bool clickedLabel = item.IsOk() && (flags & (wxTREE_HITTEST_ONITEMLABEL | wxTREE_HITTEST_ONITEMICON));
-		if (!clickedLabel || !navigationTree_->ItemHasChildren(item)) {
-			event.Skip();
-			return;
-		}
-
-		auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(item));
-		if (!itemData) {
-			event.Skip();
-			return;
-		}
-
-		const wxString targetKey = BuildNavigationNodeKey(itemData->kind, itemData->contextKey, itemData->itemIndex);
-		event.Skip();
-		CallAfter([this, targetKey]() {
-			if (!navigationTree_) {
-				return;
-			}
-			const wxTreeItemId root = navigationTree_->GetRootItem();
-			if (!root.IsOk()) {
-				return;
-			}
-			wxTreeItemId targetItem;
-			if (!FindNavigationNodeByKeyRecursive(navigationTree_, root, targetKey, targetItem)) {
-				return;
-			}
-			if (!targetItem.IsOk() || navigationTree_->GetSelection() != targetItem || !navigationTree_->ItemHasChildren(targetItem)) {
-				return;
-			}
-			if (navigationTree_->IsExpanded(targetItem)) {
-				navigationTree_->Collapse(targetItem);
-			} else {
-				navigationTree_->Expand(targetItem);
-			}
-		});
-	});
+	navigationTree_->Bind(wxEVT_LEFT_DOWN, &MaterialsWorkbenchWindow::OnNavigationTreeLeftDown, this);
 }
 
 void MaterialsWorkbenchWindow::BindNavigationSelectionEvents() {
 	if (!navigationTree_) {
 		return;
 	}
+	navigationTree_->Bind(wxEVT_TREE_SEL_CHANGING, &MaterialsWorkbenchWindow::OnNavigationTreeSelChanging, this);
+	navigationTree_->Bind(wxEVT_TREE_SEL_CHANGED, &MaterialsWorkbenchWindow::OnNavigationTreeSelChanged, this);
+}
 
-	navigationTree_->Bind(wxEVT_TREE_SEL_CHANGING, [this](wxTreeEvent &event) {
-		if (navigationPopulating_) {
-			return;
-		}
-		const wxTreeItemId item = event.GetItem();
-		if (!item.IsOk()) {
-			return;
-		}
+void MaterialsWorkbenchWindow::OnNavigationTreeLeftDown(wxMouseEvent &event) {
+	if (navigationPopulating_ || !navigationTree_) {
+		event.Skip();
+		return;
+	}
+	int flags = 0;
+	const wxTreeItemId item = navigationTree_->HitTest(event.GetPosition(), flags);
+	const bool clickedLabel = item.IsOk() && (flags & (wxTREE_HITTEST_ONITEMLABEL | wxTREE_HITTEST_ONITEMICON));
+	if (!clickedLabel || !navigationTree_->ItemHasChildren(item)) {
+		event.Skip();
+		return;
+	}
 
-		auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(item));
-		const bool isSameBrushSelection = itemData && itemData->kind == MaterialsWorkbenchNodeKind::Brush && brushPanel_->IsCurrentBrushSelection(itemData->contextKey, itemData->itemIndex);
-		const bool isSameBorderSelection = itemData && itemData->kind == MaterialsWorkbenchNodeKind::BorderSet && borderPanel_->IsCurrentBorderSelection(itemData->contextKey, itemData->itemIndex);
-		const bool isSameWallSelection = itemData && itemData->kind == MaterialsWorkbenchNodeKind::Brush && wallPanel_->IsCurrentWallSelection(itemData->contextKey, itemData->itemIndex);
+	auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(item));
+	if (!itemData) {
+		event.Skip();
+		return;
+	}
 
-		if (brushPanel_->HasPendingChanges() && !isSameBrushSelection) {
-			if (!brushPanel_->ResolvePendingChangesBeforeSwitch(this, navigationTree_->GetItemText(item))) {
-				event.Veto();
-			}
+	const wxString targetKey = BuildNavigationNodeKey(itemData->kind, itemData->contextKey, itemData->itemIndex);
+	event.Skip();
+	CallAfter([this, targetKey]() {
+		if (!navigationTree_) {
 			return;
 		}
-		if (borderPanel_->HasPendingChanges() && !isSameBorderSelection) {
-			if (!borderPanel_->ResolvePendingChangesBeforeSwitch(this, navigationTree_->GetItemText(item))) {
-				event.Veto();
-			}
+		const wxTreeItemId root = navigationTree_->GetRootItem();
+		if (!root.IsOk()) {
 			return;
 		}
-		if (wallPanel_->HasPendingChanges() && !isSameWallSelection) {
-			if (!wallPanel_->ResolvePendingChangesBeforeSwitch(this, navigationTree_->GetItemText(item))) {
-				event.Veto();
-			}
+		wxTreeItemId targetItem;
+		if (!FindNavigationNodeByKeyRecursive(navigationTree_, root, targetKey, targetItem)) {
+			return;
+		}
+		if (!targetItem.IsOk() || navigationTree_->GetSelection() != targetItem || !navigationTree_->ItemHasChildren(targetItem)) {
+			return;
+		}
+		if (navigationTree_->IsExpanded(targetItem)) {
+			navigationTree_->Collapse(targetItem);
+		} else {
+			navigationTree_->Expand(targetItem);
 		}
 	});
+}
 
-	navigationTree_->Bind(wxEVT_TREE_SEL_CHANGED, [this](wxTreeEvent &event) {
-		if (navigationPopulating_) {
-			return;
+void MaterialsWorkbenchWindow::OnNavigationTreeSelChanging(wxTreeEvent &event) {
+	if (navigationPopulating_ || !navigationTree_) {
+		return;
+	}
+	const wxTreeItemId item = event.GetItem();
+	if (!item.IsOk()) {
+		return;
+	}
+
+	auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(item));
+	if (!itemData) {
+		return;
+	}
+
+	const bool isSameBrushSelection = IsSameBrushSelection(itemData, brushPanel_);
+	const bool isSameBorderSelection = IsSameBorderSelection(itemData, borderPanel_);
+	const bool isSameWallSelection = IsSameWallSelection(itemData, wallPanel_);
+	const wxString targetLabel = navigationTree_->GetItemText(item);
+
+	if (brushPanel_ && brushPanel_->HasPendingChanges() && !isSameBrushSelection) {
+		if (!brushPanel_->ResolvePendingChangesBeforeSwitch(this, targetLabel)) {
+			event.Veto();
 		}
-		const wxTreeItemId item = event.GetItem();
-		if (!item.IsOk()) {
-			return;
+		return;
+	}
+	if (borderPanel_ && borderPanel_->HasPendingChanges() && !isSameBorderSelection) {
+		if (!borderPanel_->ResolvePendingChangesBeforeSwitch(this, targetLabel)) {
+			event.Veto();
 		}
-
-		const wxString selection = navigationTree_->GetItemText(item);
-		if (selection.IsEmpty()) {
-			return;
+		return;
+	}
+	if (wallPanel_ && wallPanel_->HasPendingChanges() && !isSameWallSelection) {
+		if (!wallPanel_->ResolvePendingChangesBeforeSwitch(this, targetLabel)) {
+			event.Veto();
 		}
+	}
+}
 
-		auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(item));
-		if (!itemData) {
-			workspaceBook_->SetSelection(0);
-			overviewText_->SetValue(controller_.GetOverviewText());
-			return;
-		}
+void MaterialsWorkbenchWindow::OnNavigationTreeSelChanged(wxTreeEvent &event) {
+	if (navigationPopulating_ || !navigationTree_) {
+		return;
+	}
+	const wxTreeItemId item = event.GetItem();
+	if (!item.IsOk()) {
+		return;
+	}
 
-		overviewText_->SetValue(controller_.BuildSelectionOverview(itemData->kind, itemData->contextKey, itemData->itemIndex));
+	const wxString selection = navigationTree_->GetItemText(item);
+	if (selection.IsEmpty()) {
+		return;
+	}
 
-		if (itemData->kind == MaterialsWorkbenchNodeKind::Tileset) {
-			TilesetStorageRecord tileset;
-			if (controller_.GetTilesetByIndex(itemData->itemIndex, tileset) && palettePanel_->LoadPalette(tileset)) {
-				workspaceBook_->SetSelection(1);
-				return;
-			}
-			palettePanel_->ClearWorkspace("Failed to load the selected palette workspace.");
-		}
+	auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(item));
+	if (!itemData) {
+		ShowOverviewFallback(workspaceBook_, overviewText_, controller_);
+		return;
+	}
 
-		if (itemData->kind == MaterialsWorkbenchNodeKind::Brush) {
-			if (itemData->contextKey == "wall") {
-				if (wallPanel_->LoadWallBrush(itemData->contextKey, itemData->itemIndex)) {
-					workspaceBook_->SetSelection(4);
-					return;
-				}
-				wallPanel_->ClearWorkspace("Failed to load the selected wall workspace.");
-			}
-			if (brushPanel_->LoadBrush(itemData->contextKey, itemData->itemIndex)) {
-				workspaceBook_->SetSelection(3);
-				return;
-			}
-			brushPanel_->ClearWorkspace("Failed to load the selected brush workspace.");
-		}
+	if (ApplyNavigationSelectionFromItemData(
+			*itemData,
+			controller_,
+			workspaceBook_,
+			overviewText_,
+			palettePanel_,
+			borderPanel_,
+			brushPanel_,
+			wallPanel_
+		)) {
+		return;
+	}
 
-		if (itemData->kind == MaterialsWorkbenchNodeKind::BorderSet) {
-			if (borderPanel_->LoadBorderSet(itemData->contextKey, itemData->itemIndex)) {
-				workspaceBook_->SetSelection(2);
-				return;
-			}
-			borderPanel_->ClearWorkspace("Failed to load the selected border workspace.");
-		}
-
+	if (workspaceBook_) {
 		workspaceBook_->SetSelection(0);
-	});
+	}
 }
 
 bool MaterialsWorkbenchWindow::SelectNavigationNode(MaterialsWorkbenchNodeKind kind, const wxString &contextKey, int itemIndex) {

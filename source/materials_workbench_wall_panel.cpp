@@ -761,6 +761,145 @@ namespace {
 		button->SetToolTip(tooltip);
 	}
 
+	struct UsedByOpenHandlers {
+		std::function<void(int64_t)> openBrush;
+		std::function<void(int64_t)> openBorderSet;
+		std::function<void(const wxString &)> openTileset;
+	};
+
+	wxString NormalizeUsedBySearchQuery(wxString value) {
+		value.Trim(true);
+		value.Trim(false);
+		value.MakeLower();
+		return value;
+	}
+
+	bool UsedByUsageMatchesQuery(const BrushUsageRecord &usage, const wxString &queryLower) {
+		if (queryLower.IsEmpty()) {
+			return true;
+		}
+		const wxString haystack = (usage.sourceKind + " " + usage.sourceName + " " + usage.relation + " " + usage.context).Lower();
+		return haystack.Contains(queryLower);
+	}
+
+	const BrushUsageRecord* GetSelectedUsedByUsage(
+		wxListCtrl* list,
+		const std::vector<BrushUsageRecord> &usages,
+		const std::vector<size_t> &filtered
+	) {
+		if (!list) {
+			return nullptr;
+		}
+		const long selectedRow = list->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+		if (selectedRow == wxNOT_FOUND || selectedRow < 0) {
+			return nullptr;
+		}
+		const size_t visibleIndex = static_cast<size_t>(selectedRow);
+		if (visibleIndex >= filtered.size()) {
+			return nullptr;
+		}
+		const size_t usageIndex = filtered[visibleIndex];
+		return usageIndex < usages.size() ? &usages[usageIndex] : nullptr;
+	}
+
+	bool CanOpenUsedByUsage(const BrushUsageRecord &usage, const UsedByOpenHandlers &handlers) {
+		if (usage.sourceKind.IsSameAs("palette", false)) {
+			return static_cast<bool>(handlers.openTileset) && !usage.sourceName.IsEmpty();
+		}
+		if (usage.sourceKind.IsSameAs("border_set", false)) {
+			return static_cast<bool>(handlers.openBorderSet) && usage.sourceId > 0;
+		}
+		if (usage.sourceKind.IsSameAs("brush", false)) {
+			return static_cast<bool>(handlers.openBrush) && usage.sourceId > 0;
+		}
+		return false;
+	}
+
+	void OpenUsedByUsage(const BrushUsageRecord &usage, const UsedByOpenHandlers &handlers) {
+		if (usage.sourceKind.IsSameAs("palette", false)) {
+			if (handlers.openTileset) {
+				handlers.openTileset(usage.sourceName);
+			}
+			return;
+		}
+		if (usage.sourceKind.IsSameAs("border_set", false)) {
+			if (handlers.openBorderSet) {
+				handlers.openBorderSet(usage.sourceId);
+			}
+			return;
+		}
+		if (usage.sourceKind.IsSameAs("brush", false)) {
+			if (handlers.openBrush) {
+				handlers.openBrush(usage.sourceId);
+			}
+		}
+	}
+
+	size_t RefreshUsedByList(
+		wxListCtrl* list,
+		const std::vector<BrushUsageRecord> &usages,
+		const wxString &queryLower,
+		std::vector<size_t> &outFiltered
+	) {
+		outFiltered.clear();
+		if (!list) {
+			return 0;
+		}
+		list->DeleteAllItems();
+
+		for (size_t i = 0; i < usages.size(); ++i) {
+			const BrushUsageRecord &usage = usages[i];
+			if (!UsedByUsageMatchesQuery(usage, queryLower)) {
+				continue;
+			}
+
+			const long row = list->InsertItem(list->GetItemCount(), usage.sourceKind);
+			list->SetItem(row, 1, usage.sourceName);
+			list->SetItem(row, 2, usage.relation);
+			list->SetItem(row, 3, usage.context);
+			outFiltered.push_back(i);
+		}
+
+		return outFiltered.size();
+	}
+
+	void UpdateUsedBySummary(wxStaticText* summaryLabel, size_t matchCount) {
+		if (!summaryLabel) {
+			return;
+		}
+		summaryLabel->SetLabel(wxString::Format("%zu reference%s found", matchCount, matchCount == 1 ? "" : "s"));
+	}
+
+	void UpdateUsedByOpenEnabled(
+		wxListCtrl* list,
+		wxButton* openButton,
+		const std::vector<BrushUsageRecord> &usages,
+		const std::vector<size_t> &filtered,
+		const UsedByOpenHandlers &handlers
+	) {
+		if (!openButton) {
+			return;
+		}
+		const BrushUsageRecord* usage = GetSelectedUsedByUsage(list, usages, filtered);
+		openButton->Enable(usage != nullptr && CanOpenUsedByUsage(*usage, handlers));
+	}
+
+	void OpenSelectedUsedByUsage(
+		wxListCtrl* list,
+		const std::vector<BrushUsageRecord> &usages,
+		const std::vector<size_t> &filtered,
+		const UsedByOpenHandlers &handlers
+	) {
+		const BrushUsageRecord* usage = GetSelectedUsedByUsage(list, usages, filtered);
+		if (!usage) {
+			return;
+		}
+		if (!CanOpenUsedByUsage(*usage, handlers)) {
+			return;
+		}
+		OpenUsedByUsage(*usage, handlers);
+	}
+
 	void NormalizeWallPartRecord(WallPartRecord &part) {
 		for (size_t i = 0; i < part.items.size(); ++i) {
 			part.items[i].sortOrder = static_cast<int>(i);
@@ -2479,10 +2618,10 @@ void MaterialsWorkbenchWallPanel::RefreshLinksSection() {
 			previousSuppress(suppressRef) {
 		}
 
-		LinksRefreshGuard(const LinksRefreshGuard&) = delete;
-		LinksRefreshGuard& operator=(const LinksRefreshGuard&) = delete;
-		LinksRefreshGuard(LinksRefreshGuard&&) = delete;
-		LinksRefreshGuard& operator=(LinksRefreshGuard&&) = delete;
+		LinksRefreshGuard(const LinksRefreshGuard &) = delete;
+		LinksRefreshGuard &operator=(const LinksRefreshGuard &) = delete;
+		LinksRefreshGuard(LinksRefreshGuard &&) = delete;
+		LinksRefreshGuard &operator=(LinksRefreshGuard &&) = delete;
 
 		~LinksRefreshGuard() {
 			flag = false;
@@ -3424,45 +3563,6 @@ void MaterialsWorkbenchWallPanel::OnUsedBy(wxCommandEvent &) {
 		return;
 	}
 
-	const auto normalizeUsedByQuery = [](const wxString &value) {
-		wxString lowered = value;
-		lowered.MakeLower();
-		return lowered.Trim(true).Trim(false);
-	};
-
-	const auto canOpenUsage = [&](const BrushUsageRecord &usage) {
-		if (usage.sourceKind.IsSameAs("palette", false)) {
-			return onOpenLinkedTileset_ && !usage.sourceName.IsEmpty();
-		}
-		if (usage.sourceKind.IsSameAs("border_set", false)) {
-			return onOpenLinkedBorderSet_ && usage.sourceId > 0;
-		}
-		if (usage.sourceKind.IsSameAs("brush", false)) {
-			return onOpenLinkedBrush_ && usage.sourceId > 0;
-		}
-		return false;
-	};
-
-	const auto openUsage = [&](const BrushUsageRecord &usage) {
-		if (usage.sourceKind.IsSameAs("palette", false)) {
-			if (onOpenLinkedTileset_) {
-				onOpenLinkedTileset_(usage.sourceName);
-			}
-			return;
-		}
-		if (usage.sourceKind.IsSameAs("border_set", false)) {
-			if (onOpenLinkedBorderSet_) {
-				onOpenLinkedBorderSet_(usage.sourceId);
-			}
-			return;
-		}
-		if (usage.sourceKind.IsSameAs("brush", false)) {
-			if (onOpenLinkedBrush_) {
-				onOpenLinkedBrush_(usage.sourceId);
-			}
-		}
-	};
-
 	wxDialog dialog(this, wxID_ANY, "Used By: " + brushName, wxDefaultPosition, wxSize(FromDIP(620), FromDIP(420)), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
 	wxBoxSizer* root = new wxBoxSizer(wxVERTICAL);
 
@@ -3492,54 +3592,22 @@ void MaterialsWorkbenchWallPanel::OnUsedBy(wxCommandEvent &) {
 	actions->Add(closeButton, 0);
 
 	std::vector<size_t> filtered;
+	const UsedByOpenHandlers handlers = { onOpenLinkedBrush_, onOpenLinkedBorderSet_, onOpenLinkedTileset_ };
 
 	auto updateOpenEnabled = [&]() {
-		bool canOpen = false;
-		const long selectedRow = list->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-		if (selectedRow != wxNOT_FOUND && selectedRow >= 0 && static_cast<size_t>(selectedRow) < filtered.size()) {
-			const BrushUsageRecord &usage = usages[filtered[static_cast<size_t>(selectedRow)]];
-			canOpen = canOpenUsage(usage);
-		}
-		openButton->Enable(canOpen);
+		UpdateUsedByOpenEnabled(list, openButton, usages, filtered, handlers);
 	};
 
 	auto refresh = [&]() {
-		filtered.clear();
-		list->DeleteAllItems();
-
-		const wxString query = normalizeUsedByQuery(searchCtrl->GetValue());
-		for (size_t i = 0; i < usages.size(); ++i) {
-			const BrushUsageRecord &usage = usages[i];
-			wxString haystack = usage.sourceKind + " " + usage.sourceName + " " + usage.relation + " " + usage.context;
-			if (!query.IsEmpty() && normalizeUsedByQuery(haystack).Find(query) == wxNOT_FOUND) {
-				continue;
-			}
-
-			const long row = list->InsertItem(list->GetItemCount(), usage.sourceKind);
-			list->SetItem(row, 1, usage.sourceName);
-			list->SetItem(row, 2, usage.relation);
-			list->SetItem(row, 3, usage.context);
-			filtered.push_back(i);
-		}
-
-		summaryLabel->SetLabel(
-			wxString::Format(
-				"%zu reference%s found",
-				filtered.size(),
-				filtered.size() == 1 ? "" : "s"
-			)
-		);
+		const wxString queryLower = NormalizeUsedBySearchQuery(searchCtrl->GetValue());
+		const auto matches = RefreshUsedByList(list, usages, queryLower, filtered);
+		UpdateUsedBySummary(summaryLabel, matches);
 		panel->Layout();
-		updateOpenEnabled();
+		UpdateUsedByOpenEnabled(list, openButton, usages, filtered, handlers);
 	};
 
 	auto openSelection = [&]() {
-		const long selectedRow = list->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-		if (selectedRow == wxNOT_FOUND || selectedRow < 0 || static_cast<size_t>(selectedRow) >= filtered.size()) {
-			return;
-		}
-		const BrushUsageRecord &usage = usages[filtered[static_cast<size_t>(selectedRow)]];
-		openUsage(usage);
+		OpenSelectedUsedByUsage(list, usages, filtered, handlers);
 	};
 
 	searchCtrl->Bind(wxEVT_TEXT, [&](wxCommandEvent &) { refresh(); });

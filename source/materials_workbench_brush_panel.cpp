@@ -150,6 +150,12 @@ namespace {
 		}
 	}
 
+	void SetSpinValue(wxSpinCtrl* ctrl, int value) {
+		if (ctrl) {
+			ctrl->SetValue(value);
+		}
+	}
+
 	struct UsedByOpenHandlers {
 		std::function<void(int64_t)> openBrush;
 		std::function<void(int64_t)> openBorderSet;
@@ -5426,62 +5432,34 @@ void MaterialsWorkbenchBrushPanel::RefreshDoodadCompositeFields(
 	outHasTileItem = false;
 
 	if (!outHasComposite) {
-		if (doodadCompositeChanceCtrl_) {
-			doodadCompositeChanceCtrl_->SetValue(0);
-		}
-		if (doodadTileOffsetXCtrl_) {
-			doodadTileOffsetXCtrl_->SetValue(0);
-		}
-		if (doodadTileOffsetYCtrl_) {
-			doodadTileOffsetYCtrl_->SetValue(0);
-		}
-		if (doodadTileOffsetZCtrl_) {
-			doodadTileOffsetZCtrl_->SetValue(0);
-		}
-		if (doodadTileItemIdCtrl_) {
-			doodadTileItemIdCtrl_->SetValue(0);
-		}
+		SetSpinValue(doodadCompositeChanceCtrl_, 0);
+		SetSpinValue(doodadTileOffsetXCtrl_, 0);
+		SetSpinValue(doodadTileOffsetYCtrl_, 0);
+		SetSpinValue(doodadTileOffsetZCtrl_, 0);
+		SetSpinValue(doodadTileItemIdCtrl_, 0);
 		return;
 	}
 
 	const auto &composite = alternative.composites[doodadCompositeIndex_];
-	if (doodadCompositeChanceCtrl_) {
-		doodadCompositeChanceCtrl_->SetValue(composite.chance);
-	}
+	SetSpinValue(doodadCompositeChanceCtrl_, composite.chance);
 
 	outHasTile = doodadTileIndex_ >= 0 && doodadTileIndex_ < static_cast<int>(composite.tiles.size());
 	if (!outHasTile) {
-		if (doodadTileOffsetXCtrl_) {
-			doodadTileOffsetXCtrl_->SetValue(0);
-		}
-		if (doodadTileOffsetYCtrl_) {
-			doodadTileOffsetYCtrl_->SetValue(0);
-		}
-		if (doodadTileOffsetZCtrl_) {
-			doodadTileOffsetZCtrl_->SetValue(0);
-		}
-		if (doodadTileItemIdCtrl_) {
-			doodadTileItemIdCtrl_->SetValue(0);
-		}
+		SetSpinValue(doodadTileOffsetXCtrl_, 0);
+		SetSpinValue(doodadTileOffsetYCtrl_, 0);
+		SetSpinValue(doodadTileOffsetZCtrl_, 0);
+		SetSpinValue(doodadTileItemIdCtrl_, 0);
 		return;
 	}
 
 	const auto &tile = composite.tiles[doodadTileIndex_];
-	if (doodadTileOffsetXCtrl_) {
-		doodadTileOffsetXCtrl_->SetValue(tile.offsetX);
-	}
-	if (doodadTileOffsetYCtrl_) {
-		doodadTileOffsetYCtrl_->SetValue(tile.offsetY);
-	}
-	if (doodadTileOffsetZCtrl_) {
-		doodadTileOffsetZCtrl_->SetValue(tile.offsetZ);
-	}
+	SetSpinValue(doodadTileOffsetXCtrl_, tile.offsetX);
+	SetSpinValue(doodadTileOffsetYCtrl_, tile.offsetY);
+	SetSpinValue(doodadTileOffsetZCtrl_, tile.offsetZ);
 
 	outHasTileItem = doodadTileItemIndex_ >= 0 && doodadTileItemIndex_ < static_cast<int>(tile.items.size());
-	if (doodadTileItemIdCtrl_) {
-		const int tileItemId = outHasTileItem ? tile.items[doodadTileItemIndex_].itemId : 0;
-		doodadTileItemIdCtrl_->SetValue(tileItemId);
-	}
+	const int tileItemId = outHasTileItem ? tile.items[doodadTileItemIndex_].itemId : 0;
+	SetSpinValue(doodadTileItemIdCtrl_, tileItemId);
 }
 
 void MaterialsWorkbenchBrushPanel::UpdateAlignedAdvancedInfoLabel(
@@ -5497,16 +5475,9 @@ void MaterialsWorkbenchBrushPanel::UpdateAlignedAdvancedInfoLabel(
 	if (type == "table") {
 		if (hasNode && alignedNodeIndex_ < static_cast<int>(brushStorage_.tableNodes.size())) {
 			const auto &node = brushStorage_.tableNodes[alignedNodeIndex_];
-			alignedAdvancedInfoLabel_->SetLabel(wxString::Format(
-				"Advanced: state %s selected. Align uses guided options, and weighted items stay editable below.",
-				node.align
-			));
+			alignedAdvancedInfoLabel_->SetLabel(wxString::Format("Advanced: state %s selected. Align uses guided options, and weighted items stay editable below.", node.align));
 		} else if (hasPendingTableSlot) {
-			alignedAdvancedInfoLabel_->SetLabel(wxString::Format(
-				"Advanced: empty state %s selected. Add Node creates one new state here with default chance %d.",
-				alignedPendingTableAlign_,
-				kDefaultNewTableNodeChance
-			));
+			alignedAdvancedInfoLabel_->SetLabel(wxString::Format("Advanced: empty state %s selected. Add Node creates one new state here with default chance %d.", alignedPendingTableAlign_, kDefaultNewTableNodeChance));
 		} else {
 			alignedAdvancedInfoLabel_->SetLabel("Advanced: choose a table state to edit it, or select an empty slot to place the next node precisely.");
 		}
@@ -5515,15 +5486,9 @@ void MaterialsWorkbenchBrushPanel::UpdateAlignedAdvancedInfoLabel(
 	}
 
 	if (hasNode) {
-		alignedAdvancedInfoLabel_->SetLabel(wxString::Format(
-			"Context %s selected. The map owns slot selection; use the fields below to edit the active variant.",
-			alignedPendingCarpetAlign_
-		));
+		alignedAdvancedInfoLabel_->SetLabel(wxString::Format("Context %s selected. The map owns slot selection; use the fields below to edit the active variant.", alignedPendingCarpetAlign_));
 	} else if (hasPendingCarpetSlot) {
-		alignedAdvancedInfoLabel_->SetLabel(wxString::Format(
-			"Empty carpet slot %s selected. Add Context creates a new context here, then Add Variant fills it with weighted items.",
-			alignedPendingCarpetAlign_
-		));
+		alignedAdvancedInfoLabel_->SetLabel(wxString::Format("Empty carpet slot %s selected. Add Context creates a new context here, then Add Variant fills it with weighted items.", alignedPendingCarpetAlign_));
 	} else {
 		alignedAdvancedInfoLabel_->SetLabel("Select a carpet slot in the layout map to inspect it, or choose an empty slot before creating a new context.");
 	}
@@ -5567,17 +5532,9 @@ void MaterialsWorkbenchBrushPanel::UpdateAlignedItemsSummaryLabel(
 	if (type == "carpet") {
 		if (alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(brushStorage_.carpetNodes.size())) {
 			const auto &node = brushStorage_.carpetNodes[alignedNodeIndex_];
-			alignedItemsSummaryLabel_->SetLabel(wxString::Format(
-				"Context %s | %zu variant%s | selected from the carpet layout map",
-				node.align,
-				node.items.size(),
-				node.items.size() == 1 ? "" : "s"
-			));
+			alignedItemsSummaryLabel_->SetLabel(wxString::Format("Context %s | %zu variant%s | selected from the carpet layout map", node.align, node.items.size(), node.items.size() == 1 ? "" : "s"));
 		} else if (hasPendingCarpetSlot) {
-			alignedItemsSummaryLabel_->SetLabel(wxString::Format(
-				"Empty context %s selected | use Add Context to create it in the layout map",
-				alignedPendingCarpetAlign_
-			));
+			alignedItemsSummaryLabel_->SetLabel(wxString::Format("Empty context %s selected | use Add Context to create it in the layout map", alignedPendingCarpetAlign_));
 		} else {
 			alignedItemsSummaryLabel_->SetLabel("Select a carpet context in the layout map to inspect its weighted variants.");
 		}
@@ -5587,17 +5544,9 @@ void MaterialsWorkbenchBrushPanel::UpdateAlignedItemsSummaryLabel(
 
 	if (alignedNodeIndex_ >= 0 && alignedNodeIndex_ < static_cast<int>(brushStorage_.tableNodes.size())) {
 		const auto &node = brushStorage_.tableNodes[alignedNodeIndex_];
-		alignedItemsSummaryLabel_->SetLabel(wxString::Format(
-			"State %s | %zu item%s | manage this state",
-			node.align,
-			node.items.size(),
-			node.items.size() == 1 ? "" : "s"
-		));
+		alignedItemsSummaryLabel_->SetLabel(wxString::Format("State %s | %zu item%s | manage this state", node.align, node.items.size(), node.items.size() == 1 ? "" : "s"));
 	} else if (hasPendingTableSlot) {
-		alignedItemsSummaryLabel_->SetLabel(wxString::Format(
-			"Empty state %s selected | use Add Node to create it",
-			alignedPendingTableAlign_
-		));
+		alignedItemsSummaryLabel_->SetLabel(wxString::Format("Empty state %s selected | use Add Node to create it", alignedPendingTableAlign_));
 	} else {
 		alignedItemsSummaryLabel_->SetLabel("Select a state to inspect and manage its weighted items.");
 	}
@@ -5616,20 +5565,17 @@ void MaterialsWorkbenchBrushPanel::UpdateAlignedSeamlessPreviewInfoLabel(const w
 			alignedSeamlessPreviewInfoLabel_->SetLabel(
 				hasSelectedVariant
 					? wxString::Format(
-						"Seamless preview follows slot %s and the active variant item %d inside one continuous carpet composition.",
-						node.align,
-						node.items[alignedItemIndex_].itemId
-					)
+						  "Seamless preview follows slot %s and the active variant item %d inside one continuous carpet composition.",
+						  node.align,
+						  node.items[alignedItemIndex_].itemId
+					  )
 					: wxString::Format(
-						"Seamless preview shows the full carpet composition around slot %s using the first available variant in each configured context.",
-						node.align
-					)
+						  "Seamless preview shows the full carpet composition around slot %s using the first available variant in each configured context.",
+						  node.align
+					  )
 			);
 		} else if (hasPendingCarpetSlot) {
-			alignedSeamlessPreviewInfoLabel_->SetLabel(wxString::Format(
-				"Seamless preview reserves slot %s in the carpet composition so you can see where the next context will land before creating it.",
-				alignedPendingCarpetAlign_
-			));
+			alignedSeamlessPreviewInfoLabel_->SetLabel(wxString::Format("Seamless preview reserves slot %s in the carpet composition so you can see where the next context will land before creating it.", alignedPendingCarpetAlign_));
 		} else {
 			alignedSeamlessPreviewInfoLabel_->SetLabel("Seamless preview shows the carpet as one continuous composition using the contexts currently configured in the map.");
 		}
@@ -7001,9 +6947,9 @@ void MaterialsWorkbenchBrushPanel::OnDoodadPreviewPaint(wxPaintEvent &WXUNUSED(e
 
 				const wxPoint selectedProjectedCell = (doodadTileIndex_ >= 0 && doodadTileIndex_ < static_cast<int>(composite.tiles.size()))
 					? GetDoodadPreviewProjectedCell(
-						composite.tiles[doodadTileIndex_],
-						layout.floor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors
-					)
+						  composite.tiles[doodadTileIndex_],
+						  layout.floor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors
+					  )
 					: wxPoint(std::numeric_limits<int>::min(), std::numeric_limits<int>::min());
 				const bool isSelectedTile = doodadTileIndex_ >= 0 && doodadTileIndex_ < static_cast<int>(composite.tiles.size()) && selectedProjectedCell.x == cellX && selectedProjectedCell.y == cellY && (layout.floor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors || composite.tiles[doodadTileIndex_].offsetZ == layout.floor);
 

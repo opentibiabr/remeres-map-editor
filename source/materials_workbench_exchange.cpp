@@ -182,8 +182,8 @@ namespace {
 
 	struct InlineBorderSetsExport {
 		InlineBorderSetsExport() = default;
-		InlineBorderSetsExport(InlineBorderSetsExport&&) noexcept = default;
-		InlineBorderSetsExport& operator=(InlineBorderSetsExport&&) noexcept = default;
+		InlineBorderSetsExport(InlineBorderSetsExport &&) noexcept = default;
+		InlineBorderSetsExport &operator=(InlineBorderSetsExport &&) noexcept = default;
 
 		nlohmann::json sets = nlohmann::json::array();
 		std::unordered_map<int64_t, int> indexById;
@@ -616,7 +616,7 @@ namespace {
 		return true;
 	}
 
-	bool ValidatePaletteEntitySchema(const nlohmann::json &entity, const nlohmann::json* &outPalette, const nlohmann::json* &outSections, wxString &error) {
+	bool ValidatePaletteEntitySchema(const nlohmann::json &entity, const nlohmann::json*&outPalette, const nlohmann::json*&outSections, wxString &error) {
 		outPalette = nullptr;
 		outSections = nullptr;
 		if (!entity.contains("palette") || !entity["palette"].is_object()) {
@@ -747,7 +747,7 @@ namespace {
 		}
 	}
 
-	bool ValidateBrushEntitySchema(const nlohmann::json &entity, const nlohmann::json* &outBrush, wxString &error) {
+	bool ValidateBrushEntitySchema(const nlohmann::json &entity, const nlohmann::json*&outBrush, wxString &error) {
 		outBrush = nullptr;
 		if (!entity.contains("brush") || !entity["brush"].is_object()) {
 			error = "Invalid brush entity.";
@@ -1783,7 +1783,7 @@ namespace {
 		std::vector<nlohmann::json> brushes;
 	};
 
-	bool ValidateMaterialsImportRoot(const nlohmann::json &root, const nlohmann::json* &outEntities, wxString &error) {
+	bool ValidateMaterialsImportRoot(const nlohmann::json &root, const nlohmann::json*&outEntities, wxString &error) {
 		outEntities = nullptr;
 		if (!root.is_object() || !root.contains("format") || !root["format"].is_string() || root["format"].get<std::string>() != "rme-materials") {
 			error = "Invalid JSON: unknown format.";

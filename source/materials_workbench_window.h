@@ -10,11 +10,13 @@
 class wxPanel;
 class wxButton;
 class wxCommandEvent;
+class wxMouseEvent;
 class wxSearchCtrl;
 class wxSplitterWindow;
 class wxSimplebook;
 class wxTextCtrl;
 class wxTreeCtrl;
+class wxTreeEvent;
 class MaterialsWorkbenchBorderPanel;
 class MaterialsWorkbenchBrushPanel;
 class MaterialsWorkbenchPalettePanel;
@@ -48,6 +50,9 @@ private:
 	void BindNavigationHoverEvents();
 	void BindNavigationClickEvents();
 	void BindNavigationSelectionEvents();
+	void OnNavigationTreeLeftDown(wxMouseEvent &event);
+	void OnNavigationTreeSelChanging(wxTreeEvent &event);
+	void OnNavigationTreeSelChanged(wxTreeEvent &event);
 	void RefreshInspectorForCurrentSelection();
 	void UpdateBrushNavigationBadge();
 	void OpenInspector();

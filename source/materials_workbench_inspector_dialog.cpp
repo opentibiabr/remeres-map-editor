@@ -112,8 +112,8 @@ namespace {
 
 	struct BorderSetIdCache {
 		BorderSetIdCache() = default;
-		BorderSetIdCache(BorderSetIdCache&&) noexcept = default;
-		BorderSetIdCache& operator=(BorderSetIdCache&&) noexcept = default;
+		BorderSetIdCache(BorderSetIdCache &&) noexcept = default;
+		BorderSetIdCache &operator=(BorderSetIdCache &&) noexcept = default;
 
 		std::set<int64_t> validBorderSetIds;
 		std::set<int64_t> globalBorderSetIds;
@@ -746,6 +746,39 @@ namespace {
 		EmitDoodadWarnings(out, brush, audit);
 	}
 
+	struct WallWarningAudit {
+		int emptyPartTypeCount = 0;
+		int invalidDoorTypeCount = 0;
+		std::vector<wxString> emptyParts;
+		std::set<int> invalidItemIds;
+	};
+
+	WallWarningAudit AuditWallPartsForWarnings(const BrushStorageRecord &storage) {
+		WallWarningAudit audit;
+		for (const WallPartRecord &part : storage.wallParts) {
+			if (part.partType.IsEmpty()) {
+				++audit.emptyPartTypeCount;
+			}
+			if (part.items.empty() && part.doors.empty()) {
+				audit.emptyParts.push_back(part.partType.IsEmpty() ? wxString::FromUTF8("<empty>") : part.partType);
+			}
+			for (const WallPartItemRecord &item : part.items) {
+				if (!IsKnownWorkbenchInspectorItemId(item.itemId)) {
+					audit.invalidItemIds.insert(item.itemId);
+				}
+			}
+			for (const WallPartDoorRecord &door : part.doors) {
+				if (door.doorType.IsEmpty()) {
+					++audit.invalidDoorTypeCount;
+				}
+				if (!IsKnownWorkbenchInspectorItemId(door.itemId)) {
+					audit.invalidItemIds.insert(door.itemId);
+				}
+			}
+		}
+		return audit;
+	}
+
 	void CollectWallWarnings(WarningCollector &out, const BrushRecord &brush, const BrushStorageRecord &storage) {
 		if (storage.wallParts.empty()) {
 			out.Add(
@@ -761,41 +794,7 @@ namespace {
 			);
 			return;
 		}
-
-		struct WallWarningAudit {
-			int emptyPartTypeCount = 0;
-			int invalidDoorTypeCount = 0;
-			std::vector<wxString> emptyParts;
-			std::set<int> invalidItemIds;
-		};
-
-		const auto auditWallParts = [&]() {
-			WallWarningAudit audit;
-			for (const WallPartRecord &part : storage.wallParts) {
-				if (part.partType.IsEmpty()) {
-					++audit.emptyPartTypeCount;
-				}
-				if (part.items.empty() && part.doors.empty()) {
-					audit.emptyParts.push_back(part.partType.IsEmpty() ? wxString::FromUTF8("<empty>") : part.partType);
-				}
-				for (const WallPartItemRecord &item : part.items) {
-					if (!IsKnownWorkbenchInspectorItemId(item.itemId)) {
-						audit.invalidItemIds.insert(item.itemId);
-					}
-				}
-				for (const WallPartDoorRecord &door : part.doors) {
-					if (door.doorType.IsEmpty()) {
-						++audit.invalidDoorTypeCount;
-					}
-					if (!IsKnownWorkbenchInspectorItemId(door.itemId)) {
-						audit.invalidItemIds.insert(door.itemId);
-					}
-				}
-			}
-			return audit;
-		};
-
-		const WallWarningAudit audit = auditWallParts();
+		const WallWarningAudit audit = AuditWallPartsForWarnings(storage);
 
 		if (audit.emptyPartTypeCount > 0) {
 			out.Add(
@@ -903,116 +902,130 @@ namespace {
 		}
 	}
 
+	bool LoadBorderSetsByScopeForWarnings(const char* scope, std::vector<BorderSetRecord> &outSets) {
+		outSets.clear();
+		return g_brush_database.listBorderSetsByScope(scope, outSets);
+	}
+
+	wxString FormatBorderSetLabel(int64_t borderSetId) {
+		return wxString::Format("Border set %lld", static_cast<long long>(borderSetId));
+	}
+
+	void AppendBorderSetItemWarnings(
+		WarningCollector &out,
+		const BorderSetRecord &borderSet,
+		const std::vector<BorderSetItemRecord> &items
+	) {
+		const wxString borderSetLabel = FormatBorderSetLabel(borderSet.id);
+
+		if (items.empty()) {
+			out.Add(
+				"Error",
+				"Border",
+				"border_set",
+				"Border set has no items",
+				1,
+				"Active",
+				"This border set defines no edge items.",
+				borderSet.id,
+				borderSetLabel
+			);
+		}
+
+		if (borderSet.groundEquivalent > 0 && !IsKnownWorkbenchInspectorItemId(borderSet.groundEquivalent)) {
+			out.Add(
+				"Warning",
+				"Border",
+				"border_set",
+				"Border set has invalid groundEquivalent",
+				1,
+				"Active",
+				wxString::Format("groundEquivalent: %d", borderSet.groundEquivalent),
+				borderSet.id,
+				borderSetLabel
+			);
+		}
+
+		std::set<int> invalidItemIds;
+		std::set<wxString> emptyEdges;
+		for (const BorderSetItemRecord &item : items) {
+			if (item.edge.IsEmpty()) {
+				emptyEdges.insert("<empty>");
+			}
+			if (!IsKnownWorkbenchInspectorItemId(item.itemId)) {
+				invalidItemIds.insert(item.itemId);
+			}
+		}
+
+		if (!emptyEdges.empty()) {
+			wxArrayString edges;
+			for (const wxString &edge : emptyEdges) {
+				edges.Add(edge);
+			}
+			out.Add(
+				"Warning",
+				"Border",
+				"border_set",
+				"Border set has empty edges",
+				static_cast<int>(emptyEdges.size()),
+				"Active",
+				"Edges: " + wxJoin(edges, ','),
+				borderSet.id,
+				borderSetLabel
+			);
+		}
+
+		if (!invalidItemIds.empty()) {
+			wxArrayString ids;
+			for (int id : invalidItemIds) {
+				ids.Add(wxString::Format("%d", id));
+			}
+			out.Add(
+				"Error",
+				"Border",
+				"border_set",
+				"Border set has invalid item ids",
+				static_cast<int>(invalidItemIds.size()),
+				"Active",
+				"Invalid item ids: " + wxJoin(ids, ','),
+				borderSet.id,
+				borderSetLabel
+			);
+		}
+	}
+
+	void MaybeAddUnusedGlobalBorderWarning(
+		WarningCollector &out,
+		const BorderSetIdCache &borderSets,
+		const BorderSetRecord &borderSet
+	) {
+		if (!borderSets.globalBorderSetIds.contains(borderSet.id)) {
+			return;
+		}
+		std::vector<BorderSetUsageRecord> usages;
+		if (g_brush_database.listBorderSetUsages(borderSet.id, usages) && usages.empty()) {
+			out.Add(
+				"Warning",
+				"Border",
+				"border_set",
+				"Global border set is unused",
+				0,
+				"Active",
+				"This global border set is not referenced by any brush.",
+				borderSet.id,
+				FormatBorderSetLabel(borderSet.id)
+			);
+		}
+	}
+
 	void CollectBorderSetWarnings(WarningCollector &out, const BorderSetIdCache &borderSets) {
-		const auto loadBorderSetsByScope = [](const char* scope, std::vector<BorderSetRecord> &outSets) {
-			outSets.clear();
-			return g_brush_database.listBorderSetsByScope(scope, outSets);
-		};
-
-		const auto appendBorderSetItemWarnings = [&](const BorderSetRecord &borderSet, const std::vector<BorderSetItemRecord> &items) {
-			if (items.empty()) {
-				out.Add(
-					"Error",
-					"Border",
-					"border_set",
-					"Border set has no items",
-					1,
-					"Active",
-					"This border set defines no edge items.",
-					borderSet.id,
-					wxString::Format("Border set %lld", static_cast<long long>(borderSet.id))
-				);
-			}
-
-			if (borderSet.groundEquivalent > 0 && !IsKnownWorkbenchInspectorItemId(borderSet.groundEquivalent)) {
-				out.Add(
-					"Warning",
-					"Border",
-					"border_set",
-					"Border set has invalid groundEquivalent",
-					1,
-					"Active",
-					wxString::Format("groundEquivalent: %d", borderSet.groundEquivalent),
-					borderSet.id,
-					wxString::Format("Border set %lld", static_cast<long long>(borderSet.id))
-				);
-			}
-
-			std::set<int> invalidItemIds;
-			std::set<wxString> emptyEdges;
-			for (const BorderSetItemRecord &item : items) {
-				if (item.edge.IsEmpty()) {
-					emptyEdges.insert("<empty>");
-				}
-				if (!IsKnownWorkbenchInspectorItemId(item.itemId)) {
-					invalidItemIds.insert(item.itemId);
-				}
-			}
-
-			if (!emptyEdges.empty()) {
-				wxArrayString edges;
-				for (const wxString &edge : emptyEdges) {
-					edges.Add(edge);
-				}
-				out.Add(
-					"Warning",
-					"Border",
-					"border_set",
-					"Border set has empty edges",
-					static_cast<int>(emptyEdges.size()),
-					"Active",
-					"Edges: " + wxJoin(edges, ','),
-					borderSet.id,
-					wxString::Format("Border set %lld", static_cast<long long>(borderSet.id))
-				);
-			}
-
-			if (!invalidItemIds.empty()) {
-				wxArrayString ids;
-				for (int id : invalidItemIds) {
-					ids.Add(wxString::Format("%d", id));
-				}
-				out.Add(
-					"Error",
-					"Border",
-					"border_set",
-					"Border set has invalid item ids",
-					static_cast<int>(invalidItemIds.size()),
-					"Active",
-					"Invalid item ids: " + wxJoin(ids, ','),
-					borderSet.id,
-					wxString::Format("Border set %lld", static_cast<long long>(borderSet.id))
-				);
-			}
-		};
-
-		const auto maybeAddUnusedGlobalBorderWarning = [&](const BorderSetRecord &borderSet) {
-			if (!borderSets.globalBorderSetIds.contains(borderSet.id)) {
-				return;
-			}
-			std::vector<BorderSetUsageRecord> usages;
-			if (g_brush_database.listBorderSetUsages(borderSet.id, usages) && usages.empty()) {
-				out.Add(
-					"Warning",
-					"Border",
-					"border_set",
-					"Global border set is unused",
-					0,
-					"Active",
-					"This global border set is not referenced by any brush.",
-					borderSet.id,
-					wxString::Format("Border set %lld", static_cast<long long>(borderSet.id))
-				);
-			}
-		};
-
 		std::vector<BorderSetRecord> borderSetsToCheck;
 		std::vector<BorderSetRecord> globalBorderSets;
 		std::vector<BorderSetRecord> inlineBorderSets;
-		if (loadBorderSetsByScope("global", globalBorderSets)) {
+		if (LoadBorderSetsByScopeForWarnings("global", globalBorderSets)) {
 			borderSetsToCheck.insert(borderSetsToCheck.end(), globalBorderSets.begin(), globalBorderSets.end());
 		}
-		if (loadBorderSetsByScope("inline", inlineBorderSets)) {
+		if (LoadBorderSetsByScopeForWarnings("inline", inlineBorderSets)) {
 			borderSetsToCheck.insert(borderSetsToCheck.end(), inlineBorderSets.begin(), inlineBorderSets.end());
 		}
 
@@ -1028,40 +1041,71 @@ namespace {
 					"Active",
 					g_brush_database.getLastError(),
 					borderSet.id,
-					wxString::Format("Border set %lld", static_cast<long long>(borderSet.id))
+					FormatBorderSetLabel(borderSet.id)
 				);
 				continue;
 			}
 
-			appendBorderSetItemWarnings(borderSet, items);
-			maybeAddUnusedGlobalBorderWarning(borderSet);
+			AppendBorderSetItemWarnings(out, borderSet, items);
+			MaybeAddUnusedGlobalBorderWarning(out, borderSets, borderSet);
+		}
+	}
+
+	void MaybeAddInvalidPaletteItemFieldWarning(
+		WarningCollector &out,
+		const TilesetStorageRecord &tileset,
+		const TilesetSectionRecord &section,
+		const TilesetEntryRecord &entry,
+		const char* fieldName,
+		int value
+	) {
+		if (value <= 0 || IsKnownWorkbenchInspectorItemId(value)) {
+			return;
+		}
+		out.Add(
+			"Error",
+			"Palette",
+			"palette",
+			wxString::Format("Palette item entry has invalid %s", fieldName),
+			1,
+			"Active",
+			wxString::Format("Section: %s\n%s: %d\nSort order: %d", section.sectionType.c_str(), fieldName, value, entry.sortOrder),
+			0,
+			tileset.name
+		);
+	}
+
+	void CollectPaletteEntryWarnings(
+		WarningCollector &out,
+		const TilesetStorageRecord &tileset,
+		const TilesetSectionRecord &section,
+		const TilesetEntryRecord &entry
+	) {
+		if (entry.entryKind.CmpNoCase("brush") == 0) {
+			if (!entry.brushName.IsEmpty() && entry.brushId <= 0) {
+				out.Add(
+					"Warning",
+					"Palette",
+					"palette",
+					"Palette entry references missing brush",
+					1,
+					"Active",
+					wxString::Format("Section: %s\nBrush: %s\nSort order: %d", section.sectionType.c_str(), entry.brushName.c_str(), entry.sortOrder),
+					0,
+					tileset.name
+				);
+			}
+			return;
+		}
+		if (entry.entryKind.CmpNoCase("item") == 0) {
+			MaybeAddInvalidPaletteItemFieldWarning(out, tileset, section, entry, "itemId", entry.itemId);
+			MaybeAddInvalidPaletteItemFieldWarning(out, tileset, section, entry, "fromItemId", entry.fromItemId);
+			MaybeAddInvalidPaletteItemFieldWarning(out, tileset, section, entry, "toItemId", entry.toItemId);
+			MaybeAddInvalidPaletteItemFieldWarning(out, tileset, section, entry, "afterItemId", entry.afterItemId);
 		}
 	}
 
 	void CollectPaletteWarnings(WarningCollector &out) {
-		const auto maybeAddInvalidPaletteItemField = [&](
-			const TilesetStorageRecord &tileset,
-			const TilesetSectionRecord &section,
-			const TilesetEntryRecord &entry,
-			const char* fieldName,
-			int value
-		) {
-			if (value <= 0 || IsKnownWorkbenchInspectorItemId(value)) {
-				return;
-			}
-			out.Add(
-				"Error",
-				"Palette",
-				"palette",
-				wxString::Format("Palette item entry has invalid %s", fieldName),
-				1,
-				"Active",
-				wxString::Format("Section: %s\n%s: %d\nSort order: %d", section.sectionType.c_str(), fieldName, value, entry.sortOrder),
-				0,
-				tileset.name
-			);
-		};
-
 		std::vector<TilesetStorageRecord> tilesets;
 		if (!g_brush_database.getAllTilesets(tilesets)) {
 			out.Add(
@@ -1079,28 +1123,7 @@ namespace {
 		for (const TilesetStorageRecord &tileset : tilesets) {
 			for (const TilesetSectionRecord &section : tileset.sections) {
 				for (const TilesetEntryRecord &entry : section.entries) {
-					if (entry.entryKind.CmpNoCase("brush") == 0) {
-						if (!entry.brushName.IsEmpty() && entry.brushId <= 0) {
-							out.Add(
-								"Warning",
-								"Palette",
-								"palette",
-								"Palette entry references missing brush",
-								1,
-								"Active",
-								wxString::Format("Section: %s\nBrush: %s\nSort order: %d", section.sectionType.c_str(), entry.brushName.c_str(), entry.sortOrder),
-								0,
-								tileset.name
-							);
-						}
-						continue;
-					}
-					if (entry.entryKind.CmpNoCase("item") == 0) {
-						maybeAddInvalidPaletteItemField(tileset, section, entry, "itemId", entry.itemId);
-						maybeAddInvalidPaletteItemField(tileset, section, entry, "fromItemId", entry.fromItemId);
-						maybeAddInvalidPaletteItemField(tileset, section, entry, "toItemId", entry.toItemId);
-						maybeAddInvalidPaletteItemField(tileset, section, entry, "afterItemId", entry.afterItemId);
-					}
+					CollectPaletteEntryWarnings(out, tileset, section, entry);
 				}
 			}
 		}
@@ -1374,7 +1397,7 @@ void MaterialsWorkbenchInspectorDialog::BuildSqliteTab(wxNotebook* notebook) {
 
 void MaterialsWorkbenchInspectorDialog::ReloadWarnings() {
 	warnings_.clear();
-	WarningCollector collector{ warnings_ };
+	WarningCollector collector { warnings_ };
 	if (!EnsureBrushDatabaseOpen(collector)) {
 		ApplyWarningFilter();
 		return;
