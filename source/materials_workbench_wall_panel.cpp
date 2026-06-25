@@ -2472,12 +2472,24 @@ void MaterialsWorkbenchWallPanel::RefreshLinksSection() {
 		bool &flag;
 		bool &suppress;
 		bool previousSuppress = false;
+
+		LinksRefreshGuard(bool &flagRef, bool &suppressRef) :
+			flag(flagRef),
+			suppress(suppressRef),
+			previousSuppress(suppressRef) {
+		}
+
+		LinksRefreshGuard(const LinksRefreshGuard&) = delete;
+		LinksRefreshGuard& operator=(const LinksRefreshGuard&) = delete;
+		LinksRefreshGuard(LinksRefreshGuard&&) = delete;
+		LinksRefreshGuard& operator=(LinksRefreshGuard&&) = delete;
+
 		~LinksRefreshGuard() {
 			flag = false;
 			suppress = previousSuppress;
 		}
 	};
-	LinksRefreshGuard resetGuard { linksRefreshInProgress_, suppressLinksEvents_, suppressLinksEvents_ };
+	LinksRefreshGuard resetGuard(linksRefreshInProgress_, suppressLinksEvents_);
 	suppressLinksEvents_ = true;
 
 	const wxString query = GetLinksSearchQuery();
@@ -2659,7 +2671,8 @@ void MaterialsWorkbenchWallPanel::RefreshDoorSideControls() {
 		}
 	}
 
-	if (wxWindow* parent = previewDoorAutoRadio_->GetParent()) {
+	wxWindow* parent = previewDoorAutoRadio_->GetParent();
+	if (parent) {
 		parent->Layout();
 	}
 	Layout();
@@ -2710,18 +2723,75 @@ MaterialsWorkbenchWallPanel::WallEditorState MaterialsWorkbenchWallPanel::Captur
 	return state;
 }
 
+namespace {
+	int FindWallPartIndexByType(const std::vector<WallPartRecord> &parts, const wxString &partType) {
+		if (partType.IsEmpty()) {
+			return 0;
+		}
+		for (size_t i = 0; i < parts.size(); ++i) {
+			if (parts[i].partType == partType) {
+				return static_cast<int>(i);
+			}
+		}
+		return 0;
+	}
+
+	int FindWallItemIndexForEditorState(
+		const std::vector<WallPartItemRecord> &items,
+		int sortOrder,
+		int itemId
+	) {
+		for (size_t i = 0; i < items.size(); ++i) {
+			const WallPartItemRecord &item = items[i];
+			if (item.sortOrder == sortOrder && item.itemId == itemId) {
+				return static_cast<int>(i);
+			}
+		}
+		if (itemId <= 0) {
+			return -1;
+		}
+		for (size_t i = 0; i < items.size(); ++i) {
+			if (items[i].itemId == itemId) {
+				return static_cast<int>(i);
+			}
+		}
+		return -1;
+	}
+
+	int FindWallDoorIndexForEditorState(
+		const std::vector<WallPartDoorRecord> &doors,
+		int sortOrder,
+		int itemId,
+		const wxString &doorType,
+		bool isOpen,
+		bool wallHateMe
+	) {
+		for (size_t i = 0; i < doors.size(); ++i) {
+			const WallPartDoorRecord &door = doors[i];
+			if (door.sortOrder == sortOrder && door.itemId == itemId && door.doorType == doorType
+				&& door.isOpen == isOpen && door.wallHateMe == wallHateMe) {
+				return static_cast<int>(i);
+			}
+		}
+		if (itemId <= 0) {
+			return -1;
+		}
+		for (size_t i = 0; i < doors.size(); ++i) {
+			const WallPartDoorRecord &door = doors[i];
+			if (door.itemId == itemId && door.doorType == doorType) {
+				return static_cast<int>(i);
+			}
+		}
+		return -1;
+	}
+} // namespace
+
 void MaterialsWorkbenchWallPanel::RestoreEditorState(const WallEditorState &state) {
 	if (!state.valid || !hasWallBrush_) {
 		return;
 	}
 
-	selectedPartIndex_ = 0;
-	for (size_t i = 0; i < wallBrushStorage_.wallParts.size(); ++i) {
-		if (wallBrushStorage_.wallParts[i].partType == state.partType) {
-			selectedPartIndex_ = static_cast<int>(i);
-			break;
-		}
-	}
+	selectedPartIndex_ = FindWallPartIndexByType(wallBrushStorage_.wallParts, state.partType);
 
 	const WallPartRecord* part = GetSelectedPart();
 	selectedItemIndex_ = -1;
@@ -2732,38 +2802,8 @@ void MaterialsWorkbenchWallPanel::RestoreEditorState(const WallEditorState &stat
 		return;
 	}
 
-	for (size_t i = 0; i < part->items.size(); ++i) {
-		const WallPartItemRecord &item = part->items[i];
-		if (item.sortOrder == state.itemSortOrder && item.itemId == state.itemId) {
-			selectedItemIndex_ = static_cast<int>(i);
-			break;
-		}
-	}
-	if (selectedItemIndex_ == -1 && state.itemId > 0) {
-		for (size_t i = 0; i < part->items.size(); ++i) {
-			if (part->items[i].itemId == state.itemId) {
-				selectedItemIndex_ = static_cast<int>(i);
-				break;
-			}
-		}
-	}
-
-	for (size_t i = 0; i < part->doors.size(); ++i) {
-		const WallPartDoorRecord &door = part->doors[i];
-		if (door.sortOrder == state.doorSortOrder && door.itemId == state.doorItemId && door.doorType == state.doorType && door.isOpen == state.doorIsOpen && door.wallHateMe == state.doorWallHateMe) {
-			selectedDoorIndex_ = static_cast<int>(i);
-			break;
-		}
-	}
-	if (selectedDoorIndex_ == -1 && state.doorItemId > 0) {
-		for (size_t i = 0; i < part->doors.size(); ++i) {
-			const WallPartDoorRecord &door = part->doors[i];
-			if (door.itemId == state.doorItemId && door.doorType == state.doorType) {
-				selectedDoorIndex_ = static_cast<int>(i);
-				break;
-			}
-		}
-	}
+	selectedItemIndex_ = FindWallItemIndexForEditorState(part->items, state.itemSortOrder, state.itemId);
+	selectedDoorIndex_ = FindWallDoorIndexForEditorState(part->doors, state.doorSortOrder, state.doorItemId, state.doorType, state.doorIsOpen, state.doorWallHateMe);
 
 	RefreshPartChoice();
 	RefreshSelectedPart();
@@ -2805,38 +2845,8 @@ void MaterialsWorkbenchWallPanel::RestoreCurrentPartEditorState() {
 	}
 
 	const WallEditorState &state = it->second;
-	for (size_t i = 0; i < part->items.size(); ++i) {
-		const WallPartItemRecord &item = part->items[i];
-		if (item.sortOrder == state.itemSortOrder && item.itemId == state.itemId) {
-			selectedItemIndex_ = static_cast<int>(i);
-			break;
-		}
-	}
-	if (selectedItemIndex_ == -1 && state.itemId > 0) {
-		for (size_t i = 0; i < part->items.size(); ++i) {
-			if (part->items[i].itemId == state.itemId) {
-				selectedItemIndex_ = static_cast<int>(i);
-				break;
-			}
-		}
-	}
-
-	for (size_t i = 0; i < part->doors.size(); ++i) {
-		const WallPartDoorRecord &door = part->doors[i];
-		if (door.sortOrder == state.doorSortOrder && door.itemId == state.doorItemId && door.doorType == state.doorType && door.isOpen == state.doorIsOpen && door.wallHateMe == state.doorWallHateMe) {
-			selectedDoorIndex_ = static_cast<int>(i);
-			break;
-		}
-	}
-	if (selectedDoorIndex_ == -1 && state.doorItemId > 0) {
-		for (size_t i = 0; i < part->doors.size(); ++i) {
-			const WallPartDoorRecord &door = part->doors[i];
-			if (door.itemId == state.doorItemId && door.doorType == state.doorType) {
-				selectedDoorIndex_ = static_cast<int>(i);
-				break;
-			}
-		}
-	}
+	selectedItemIndex_ = FindWallItemIndexForEditorState(part->items, state.itemSortOrder, state.itemId);
+	selectedDoorIndex_ = FindWallDoorIndexForEditorState(part->doors, state.doorSortOrder, state.doorItemId, state.doorType, state.doorIsOpen, state.doorWallHateMe);
 
 	RefreshSelectedPart();
 	if (itemGridScroll_ && state.itemGridViewX >= 0 && state.itemGridViewY >= 0) {
@@ -2911,102 +2921,119 @@ void MaterialsWorkbenchWallPanel::UpdateActionButtons() {
 }
 
 bool MaterialsWorkbenchWallPanel::ValidateWallBrushStorage(wxString &error) const {
+	const auto validateItem = [&](size_t partIndex, size_t itemIndex, const WallPartItemRecord &item) -> bool {
+		if (item.itemId <= 0) {
+			error = wxString::Format("Wall part %zu item %zu must use an item id greater than zero.", partIndex + 1, itemIndex + 1);
+			return false;
+		}
+		if (!IsKnownWallPanelItemId(item.itemId)) {
+			error = wxString::Format("Wall part %zu item %zu uses unknown item id %d.", partIndex + 1, itemIndex + 1, item.itemId);
+			return false;
+		}
+		return true;
+	};
+
+	const auto validateDoor = [&](size_t partIndex, size_t doorIndex, const WallPartDoorRecord &door) -> bool {
+		if (door.itemId <= 0) {
+			error = wxString::Format("Wall part %zu door %zu must use an item id greater than zero.", partIndex + 1, doorIndex + 1);
+			return false;
+		}
+		if (!IsKnownWallPanelItemId(door.itemId)) {
+			error = wxString::Format("Wall part %zu door %zu uses unknown item id %d.", partIndex + 1, doorIndex + 1, door.itemId);
+			return false;
+		}
+
+		const WallPanelDoorTypeSpec doorTypeSpec = ParseWallPanelDoorTypeSpec(door.doorType);
+		if (!doorTypeSpec.valid) {
+			error = wxString::Format(
+				"Wall part %zu door %zu uses unsupported door type \"%s\".",
+				partIndex + 1,
+				doorIndex + 1,
+				door.doorType
+			);
+			return false;
+		}
+
+		const ItemType &itemType = g_items.getItemType(static_cast<uint16_t>(door.itemId));
+		const bool hasRuntimeDoorRegistration = itemType.isWall && itemType.isBrushDoor && itemType.brush && itemType.brush->isWall();
+		if (!hasRuntimeDoorRegistration) {
+			return true;
+		}
+
+		if (itemType.isOpen != door.isOpen) {
+			error = wxString::Format(
+				"Wall part %zu door %zu uses item id %d with open=%s, but the selected record is %s.",
+				partIndex + 1,
+				doorIndex + 1,
+				door.itemId,
+				itemType.isOpen ? "true" : "false",
+				door.isOpen ? "open" : "closed"
+			);
+			return false;
+		}
+		if (itemType.wall_hate_me != door.wallHateMe) {
+			error = wxString::Format(
+				"Wall part %zu door %zu uses item id %d with hate=%s, but the selected record is %s.",
+				partIndex + 1,
+				doorIndex + 1,
+				door.itemId,
+				itemType.wall_hate_me ? "true" : "false",
+				door.wallHateMe ? "hate" : "not hate"
+			);
+			return false;
+		}
+
+		const ::DoorType runtimeDoorType = itemType.brush->asWall()->getDoorTypeFromID(static_cast<uint16_t>(door.itemId));
+		if (runtimeDoorType == WALL_UNDEFINED) {
+			error = wxString::Format(
+				"Wall part %zu door %zu item id %d is not mapped to a wall door type in the runtime catalog.",
+				partIndex + 1,
+				doorIndex + 1,
+				door.itemId
+			);
+			return false;
+		}
+		const WallPanelDoorFamily runtimeDoorFamily = GetWallPanelDoorFamily(runtimeDoorType);
+		if (doorTypeSpec.expectsExact && runtimeDoorType != doorTypeSpec.exactType) {
+			error = wxString::Format(
+				"Wall part %zu door %zu uses item id %d for \"%s\", but the runtime door type is \"%s\".",
+				partIndex + 1,
+				doorIndex + 1,
+				door.itemId,
+				doorTypeSpec.normalizedLabel,
+				DescribeWallPanelDoorType(runtimeDoorType)
+			);
+			return false;
+		}
+		if (!doorTypeSpec.allowAny && doorTypeSpec.family != WallPanelDoorFamily::Unknown && runtimeDoorFamily != WallPanelDoorFamily::Unknown
+			&& runtimeDoorFamily != doorTypeSpec.family) {
+			error = wxString::Format(
+				"Wall part %zu door %zu uses item id %d for \"%s\", but the item belongs to \"%s\".",
+				partIndex + 1,
+				doorIndex + 1,
+				door.itemId,
+				doorTypeSpec.normalizedLabel,
+				DescribeWallPanelDoorType(runtimeDoorType)
+			);
+			return false;
+		}
+		return true;
+	};
+
 	for (size_t partIndex = 0; partIndex < wallBrushStorage_.wallParts.size(); ++partIndex) {
 		const WallPartRecord &part = wallBrushStorage_.wallParts[partIndex];
 
 		for (size_t itemIndex = 0; itemIndex < part.items.size(); ++itemIndex) {
 			const WallPartItemRecord &item = part.items[itemIndex];
-			if (item.itemId <= 0) {
-				error = wxString::Format("Wall part %zu item %zu must use an item id greater than zero.", partIndex + 1, itemIndex + 1);
-				return false;
-			}
-			if (!IsKnownWallPanelItemId(item.itemId)) {
-				error = wxString::Format("Wall part %zu item %zu uses unknown item id %d.", partIndex + 1, itemIndex + 1, item.itemId);
+			if (!validateItem(partIndex, itemIndex, item)) {
 				return false;
 			}
 		}
 
 		for (size_t doorIndex = 0; doorIndex < part.doors.size(); ++doorIndex) {
 			const WallPartDoorRecord &door = part.doors[doorIndex];
-			if (door.itemId <= 0) {
-				error = wxString::Format("Wall part %zu door %zu must use an item id greater than zero.", partIndex + 1, doorIndex + 1);
+			if (!validateDoor(partIndex, doorIndex, door)) {
 				return false;
-			}
-			if (!IsKnownWallPanelItemId(door.itemId)) {
-				error = wxString::Format("Wall part %zu door %zu uses unknown item id %d.", partIndex + 1, doorIndex + 1, door.itemId);
-				return false;
-			}
-
-			const WallPanelDoorTypeSpec doorTypeSpec = ParseWallPanelDoorTypeSpec(door.doorType);
-			if (!doorTypeSpec.valid) {
-				error = wxString::Format(
-					"Wall part %zu door %zu uses unsupported door type \"%s\".",
-					partIndex + 1,
-					doorIndex + 1,
-					door.doorType
-				);
-				return false;
-			}
-
-			const ItemType &itemType = g_items.getItemType(static_cast<uint16_t>(door.itemId));
-			const bool hasRuntimeDoorRegistration = itemType.isWall && itemType.isBrushDoor && itemType.brush && itemType.brush->isWall();
-			if (hasRuntimeDoorRegistration) {
-				if (itemType.isOpen != door.isOpen) {
-					error = wxString::Format(
-						"Wall part %zu door %zu uses item id %d with open=%s, but the selected record is %s.",
-						partIndex + 1,
-						doorIndex + 1,
-						door.itemId,
-						itemType.isOpen ? "true" : "false",
-						door.isOpen ? "open" : "closed"
-					);
-					return false;
-				}
-				if (itemType.wall_hate_me != door.wallHateMe) {
-					error = wxString::Format(
-						"Wall part %zu door %zu uses item id %d with hate=%s, but the selected record is %s.",
-						partIndex + 1,
-						doorIndex + 1,
-						door.itemId,
-						itemType.wall_hate_me ? "true" : "false",
-						door.wallHateMe ? "hate" : "not hate"
-					);
-					return false;
-				}
-
-				const ::DoorType runtimeDoorType = itemType.brush->asWall()->getDoorTypeFromID(static_cast<uint16_t>(door.itemId));
-				if (runtimeDoorType == WALL_UNDEFINED) {
-					error = wxString::Format(
-						"Wall part %zu door %zu item id %d is not mapped to a wall door type in the runtime catalog.",
-						partIndex + 1,
-						doorIndex + 1,
-						door.itemId
-					);
-					return false;
-				}
-				const WallPanelDoorFamily runtimeDoorFamily = GetWallPanelDoorFamily(runtimeDoorType);
-				if (doorTypeSpec.expectsExact && runtimeDoorType != doorTypeSpec.exactType) {
-					error = wxString::Format(
-						"Wall part %zu door %zu uses item id %d for \"%s\", but the runtime door type is \"%s\".",
-						partIndex + 1,
-						doorIndex + 1,
-						door.itemId,
-						doorTypeSpec.normalizedLabel,
-						DescribeWallPanelDoorType(runtimeDoorType)
-					);
-					return false;
-				}
-				if (!doorTypeSpec.allowAny && doorTypeSpec.family != WallPanelDoorFamily::Unknown && runtimeDoorFamily != WallPanelDoorFamily::Unknown && runtimeDoorFamily != doorTypeSpec.family) {
-					error = wxString::Format(
-						"Wall part %zu door %zu uses item id %d for \"%s\", but the item belongs to \"%s\".",
-						partIndex + 1,
-						doorIndex + 1,
-						door.itemId,
-						doorTypeSpec.normalizedLabel,
-						DescribeWallPanelDoorType(runtimeDoorType)
-					);
-					return false;
-				}
 			}
 		}
 	}
@@ -3270,7 +3297,7 @@ void MaterialsWorkbenchWallPanel::OnAddPartType(wxCommandEvent &event) {
 		wxString label;
 		wxString baseType;
 	};
-	const Candidate candidates[] = {
+	static const std::array<Candidate, 17> candidates = { {
 		{ "vertical", "vertical" },
 		{ "horizontal", "horizontal" },
 		{ "pole", "pole" },
@@ -3288,7 +3315,7 @@ void MaterialsWorkbenchWallPanel::OnAddPartType(wxCommandEvent &event) {
 		{ "northeast diagonal", "northeast diagonal" },
 		{ "southwest diagonal", "southwest diagonal" },
 		{ "southeast diagonal", "southeast diagonal" },
-	};
+	} };
 
 	int selectedId = wxID_NONE;
 	for (const Candidate &candidate : candidates) {
@@ -3385,6 +3412,45 @@ void MaterialsWorkbenchWallPanel::OnUsedBy(wxCommandEvent &) {
 		return;
 	}
 
+	const auto normalizeUsedByQuery = [](const wxString &value) {
+		wxString lowered = value;
+		lowered.MakeLower();
+		return lowered.Trim(true).Trim(false);
+	};
+
+	const auto canOpenUsage = [&](const BrushUsageRecord &usage) {
+		if (usage.sourceKind.IsSameAs("palette", false)) {
+			return onOpenLinkedTileset_ && !usage.sourceName.IsEmpty();
+		}
+		if (usage.sourceKind.IsSameAs("border_set", false)) {
+			return onOpenLinkedBorderSet_ && usage.sourceId > 0;
+		}
+		if (usage.sourceKind.IsSameAs("brush", false)) {
+			return onOpenLinkedBrush_ && usage.sourceId > 0;
+		}
+		return false;
+	};
+
+	const auto openUsage = [&](const BrushUsageRecord &usage) {
+		if (usage.sourceKind.IsSameAs("palette", false)) {
+			if (onOpenLinkedTileset_) {
+				onOpenLinkedTileset_(usage.sourceName);
+			}
+			return;
+		}
+		if (usage.sourceKind.IsSameAs("border_set", false)) {
+			if (onOpenLinkedBorderSet_) {
+				onOpenLinkedBorderSet_(usage.sourceId);
+			}
+			return;
+		}
+		if (usage.sourceKind.IsSameAs("brush", false)) {
+			if (onOpenLinkedBrush_) {
+				onOpenLinkedBrush_(usage.sourceId);
+			}
+		}
+	};
+
 	wxDialog dialog(this, wxID_ANY, "Used By: " + brushName, wxDefaultPosition, wxSize(FromDIP(620), FromDIP(420)), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
 	wxBoxSizer* root = new wxBoxSizer(wxVERTICAL);
 
@@ -3420,31 +3486,20 @@ void MaterialsWorkbenchWallPanel::OnUsedBy(wxCommandEvent &) {
 		const long selectedRow = list->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 		if (selectedRow != wxNOT_FOUND && selectedRow >= 0 && static_cast<size_t>(selectedRow) < filtered.size()) {
 			const BrushUsageRecord &usage = usages[filtered[static_cast<size_t>(selectedRow)]];
-			if (usage.sourceKind.IsSameAs("palette", false)) {
-				canOpen = onOpenLinkedTileset_ && !usage.sourceName.IsEmpty();
-			} else if (usage.sourceKind.IsSameAs("border_set", false)) {
-				canOpen = onOpenLinkedBorderSet_ && usage.sourceId > 0;
-			} else if (usage.sourceKind.IsSameAs("brush", false)) {
-				canOpen = onOpenLinkedBrush_ && usage.sourceId > 0;
-			}
+			canOpen = canOpenUsage(usage);
 		}
 		openButton->Enable(canOpen);
 	};
 
-	auto normalize = [](const wxString &value) {
-		wxString lowered = value;
-		lowered.MakeLower();
-		return lowered;
-	};
 	auto refresh = [&]() {
 		filtered.clear();
 		list->DeleteAllItems();
 
-		const wxString query = normalize(searchCtrl->GetValue().Trim(true).Trim(false));
+		const wxString query = normalizeUsedByQuery(searchCtrl->GetValue());
 		for (size_t i = 0; i < usages.size(); ++i) {
 			const BrushUsageRecord &usage = usages[i];
 			wxString haystack = usage.sourceKind + " " + usage.sourceName + " " + usage.relation + " " + usage.context;
-			if (!query.IsEmpty() && normalize(haystack).Find(query) == wxNOT_FOUND) {
+			if (!query.IsEmpty() && normalizeUsedByQuery(haystack).Find(query) == wxNOT_FOUND) {
 				continue;
 			}
 
@@ -3472,19 +3527,7 @@ void MaterialsWorkbenchWallPanel::OnUsedBy(wxCommandEvent &) {
 			return;
 		}
 		const BrushUsageRecord &usage = usages[filtered[static_cast<size_t>(selectedRow)]];
-		if (usage.sourceKind.IsSameAs("palette", false)) {
-			if (onOpenLinkedTileset_) {
-				onOpenLinkedTileset_(usage.sourceName);
-			}
-		} else if (usage.sourceKind.IsSameAs("border_set", false)) {
-			if (onOpenLinkedBorderSet_) {
-				onOpenLinkedBorderSet_(usage.sourceId);
-			}
-		} else if (usage.sourceKind.IsSameAs("brush", false)) {
-			if (onOpenLinkedBrush_) {
-				onOpenLinkedBrush_(usage.sourceId);
-			}
-		}
+		openUsage(usage);
 	};
 
 	searchCtrl->Bind(wxEVT_TEXT, [&](wxCommandEvent &) { refresh(); });

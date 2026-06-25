@@ -2,9 +2,11 @@
 
 #include "materials_workbench_window.h"
 
+#include <array>
 #include <algorithm>
 #include <functional>
 #include <fstream>
+#include <memory>
 #include <set>
 #include <vector>
 
@@ -279,53 +281,73 @@ namespace {
 		return false;
 	}
 
+	wxString BuildGroupNavigationTooltip(const wxString &contextKey) {
+		struct ExactTooltipEntry {
+			const char* contextKey;
+			const char* tooltip;
+		};
+		static const std::array<ExactTooltipEntry, 6> exactTooltips = { {
+			{ "group:catalog", "Catalog\nOpen the Workbench overview.\nClick the label to expand or collapse." },
+			{ "group:palettes", "Palette Categories\nBrowse categories, then open a palette to edit entries.\nClick the label to expand or collapse." },
+			{ "group:brushes", "Brushes\nOpen brush domains and palette buckets.\nClick the label to expand or collapse." },
+			{ "group:specialized", "Specialized Editors\nOpen borders and walls.\nClick the label to expand or collapse." },
+			{ "group:borders", "Borders\nOpen border scopes and border sets.\nClick the label to expand or collapse." },
+			{ "group:walls", "Walls\nOpen wall brushes.\nClick the label to expand or collapse." },
+		} };
+
+		for (const ExactTooltipEntry &entry : exactTooltips) {
+			if (contextKey == entry.contextKey) {
+				return entry.tooltip;
+			}
+		}
+
+		struct PrefixTooltipEntry {
+			const char* prefix;
+			const char* tooltip;
+		};
+		static const std::array<PrefixTooltipEntry, 3> prefixTooltips = { {
+			{ "palette_group:", "Palette Category\nBrowse palettes in this category.\nClick the label to expand or collapse." },
+			{ "brush_family:", "Brush Family\nNarrow the brush list to one authoring domain.\nClick the label to expand or collapse." },
+			{ "brush_palette:", "Brush Bucket\nOpen brushes aligned with this palette context.\nClick the label to expand or collapse." },
+		} };
+
+		for (const PrefixTooltipEntry &entry : prefixTooltips) {
+			if (contextKey.StartsWith(entry.prefix)) {
+				return entry.tooltip;
+			}
+		}
+
+		if (contextKey.StartsWith("border_scope:")) {
+			return "Border Scope\nOpen border sets in this scope.\nClick the label to expand or collapse.";
+		}
+
+		return wxString();
+	}
+
+	wxString BuildTilesetNavigationTooltip(MaterialsWorkbenchController &controller, int itemIndex) {
+		TilesetStorageRecord tileset;
+		if (!controller.GetTilesetByIndex(itemIndex, tileset)) {
+			return "Palette\nOpen Palette Workspace.";
+		}
+		wxString text;
+		text << "Palette\n";
+		text << "Name: " << tileset.name << "\n";
+		text << "Category: " << (tileset.paletteGroupName.IsEmpty() ? wxString("other") : tileset.paletteGroupName) << "\n";
+		text << "Storage: " << (tileset.sourceFile.IsEmpty() ? wxString("materials.db") : tileset.sourceFile) << "\n";
+		text << "Action: Open Palette Workspace.";
+		return text;
+	}
+
 	wxString BuildNavigationItemTooltip(MaterialsWorkbenchController &controller, const MaterialsWorkbenchTreeItemData &itemData) {
 		if (itemData.kind == MaterialsWorkbenchNodeKind::Group) {
-			if (itemData.contextKey == "group:catalog") {
-				return "Catalog\nOpen the Workbench overview.\nClick the label to expand or collapse.";
-			}
-			if (itemData.contextKey == "group:palettes") {
-				return "Palette Categories\nBrowse categories, then open a palette to edit entries.\nClick the label to expand or collapse.";
-			}
-			if (itemData.contextKey.StartsWith("palette_group:")) {
-				return "Palette Category\nBrowse palettes in this category.\nClick the label to expand or collapse.";
-			}
-			if (itemData.contextKey == "group:brushes") {
-				return "Brushes\nOpen brush domains and palette buckets.\nClick the label to expand or collapse.";
-			}
-			if (itemData.contextKey.StartsWith("brush_family:")) {
-				return "Brush Family\nNarrow the brush list to one authoring domain.\nClick the label to expand or collapse.";
-			}
-			if (itemData.contextKey.StartsWith("brush_palette:")) {
-				return "Brush Bucket\nOpen brushes aligned with this palette context.\nClick the label to expand or collapse.";
-			}
-			if (itemData.contextKey == "group:specialized") {
-				return "Specialized Editors\nOpen borders and walls.\nClick the label to expand or collapse.";
-			}
-			if (itemData.contextKey == "group:borders") {
-				return "Borders\nOpen border scopes and border sets.\nClick the label to expand or collapse.";
-			}
-			if (itemData.contextKey.StartsWith("border_scope:")) {
-				return "Border Scope\nOpen border sets in this scope.\nClick the label to expand or collapse.";
-			}
-			if (itemData.contextKey == "group:walls") {
-				return "Walls\nOpen wall brushes.\nClick the label to expand or collapse.";
+			if (const wxString tooltip = BuildGroupNavigationTooltip(itemData.contextKey); !tooltip.IsEmpty()) {
+				return tooltip;
 			}
 			return itemData.baseLabel;
 		}
 
 		if (itemData.kind == MaterialsWorkbenchNodeKind::Tileset) {
-			TilesetStorageRecord tileset;
-			if (controller.GetTilesetByIndex(itemData.itemIndex, tileset)) {
-				wxString text;
-				text << "Palette\n";
-				text << "Name: " << tileset.name << "\n";
-				text << "Category: " << (tileset.paletteGroupName.IsEmpty() ? wxString("other") : tileset.paletteGroupName) << "\n";
-				text << "Storage: " << (tileset.sourceFile.IsEmpty() ? wxString("materials.db") : tileset.sourceFile) << "\n";
-				text << "Action: Open Palette Workspace.";
-				return text;
-			}
-			return "Palette\nOpen Palette Workspace.";
+			return BuildTilesetNavigationTooltip(controller, itemData.itemIndex);
 		}
 
 		if (itemData.kind == MaterialsWorkbenchNodeKind::Brush) {
@@ -393,13 +415,13 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 	wxPanel* sidebarPanel = CreateSidebarPanel(rootSplitter, navigationFilterCtrl_, navigationTree_, inspectorButton_, exportButton_, importButton_);
 	workspaceBook_ = new wxSimplebook(rootSplitter, wxID_ANY);
 	wxPanel* overviewPanel = CreateOverviewTextPanel(workspaceBook_, controller_, overviewText_);
-	palettePanel_ = new MaterialsWorkbenchPalettePanel(workspaceBook_, controller_);
+	palettePanel_ = std::make_unique<MaterialsWorkbenchPalettePanel>(workspaceBook_, controller_).release();
 	palettePanel_->SetOnPaletteSaved([this](const wxString &paletteName) {
 		CallAfter([this, paletteName]() {
 			HandlePaletteSaved(paletteName);
 		});
 	});
-	borderPanel_ = new MaterialsWorkbenchBorderPanel(workspaceBook_, controller_);
+	borderPanel_ = std::make_unique<MaterialsWorkbenchBorderPanel>(workspaceBook_, controller_).release();
 	borderPanel_->SetOnBorderSetStateChanged([this]() {
 		UpdateBrushNavigationBadge();
 		RefreshInspectorForCurrentSelection();

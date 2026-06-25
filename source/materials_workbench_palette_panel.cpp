@@ -2,7 +2,9 @@
 
 #include "materials_workbench_palette_panel.h"
 
+#include <array>
 #include <algorithm>
+#include <memory>
 #include <set>
 #include <unordered_map>
 #include <utility>
@@ -317,7 +319,7 @@ private:
 	}
 
 	bool HasItemIndex(int index) const {
-		return itemPositionsByIndex_.find(index) != itemPositionsByIndex_.end();
+		return itemPositionsByIndex_.contains(index);
 	}
 
 	void RestoreViewStart(const wxPoint &viewStart) {
@@ -396,7 +398,7 @@ private:
 		const int cellWidth = GetTileWidth() + spacing;
 		const int cellHeight = GetTileHeight() + spacing;
 		const int columns = GetColumnCount();
-		const int totalRows = static_cast<int>((items_.size() + columns - 1) / columns);
+		const auto totalRows = static_cast<int>((items_.size() + columns - 1) / columns);
 		const int firstRow = std::clamp((visibleRect.y - spacing) / std::max(1, cellHeight), 0, std::max(0, totalRows - 1));
 		const int lastRow = std::clamp((visibleRect.GetBottom() - spacing) / std::max(1, cellHeight), firstRow, std::max(0, totalRows - 1));
 		outFirstItem = static_cast<size_t>(std::clamp(firstRow * columns, 0, std::max(0, static_cast<int>(items_.size()) - 1)));
@@ -471,7 +473,7 @@ private:
 };
 
 namespace {
-	const char* const kRuntimeSectionTypes[] = {
+	static const std::array<const char*, 7> kRuntimeSectionTypes = {
 		"terrain",
 		"terrain_and_raw",
 		"doodad",
@@ -784,14 +786,17 @@ namespace {
 		return sourceFile.IsEmpty() ? wxString::FromUTF8("materials.db") : sourceFile;
 	}
 
-	wxString BuildPaletteEntryTooltip(
+	void AppendPaletteEntryTooltipHeader(wxString &text) {
+		text << "Palette Entry\n";
+	}
+
+	void AppendPaletteEntryTooltipBase(
+		wxString &text,
 		const MaterialsWorkbenchController &controller,
 		const TilesetStorageRecord &palette,
 		const TilesetSectionRecord &section,
 		const TilesetEntryRecord &entry
 	) {
-		wxString text;
-		text << "Palette Entry\n";
 		text << "Label: " << DescribePaletteEntry(controller, entry) << "\n";
 		text << "Kind: " << (entry.entryKind.IsEmpty() ? wxString("entry") : entry.entryKind) << "\n";
 		text << "Palette Category: " << BuildPaletteFamilyLabel(ResolvePaletteGroupKey(palette)) << "\n";
@@ -799,45 +804,81 @@ namespace {
 		text << "Section: " << section.sectionType << "\n";
 		text << "Sort Order: " << entry.sortOrder << "\n";
 		text << "Storage: " << FormatStorageValue(palette.sourceFile);
+	}
 
-		if (entry.entryKind.IsSameAs("brush", false)) {
-			if (const BrushRecord* brushRecord = FindCatalogBrushRecord(controller, entry.brushId, entry.brushName)) {
-				text << "\nBrush ID: " << brushRecord->id;
-				text << "\nBrush Type: " << brushRecord->type;
-				if (brushRecord->lookId > 0) {
-					text << "\nLook ID: " << brushRecord->lookId;
-				}
-				if (brushRecord->serverLookId > 0) {
-					text << "\nServer look ID: " << brushRecord->serverLookId;
-				}
-			} else if (entry.brushId > 0) {
-				text << "\nBrush ID: " << entry.brushId;
-			}
-		} else if (entry.entryKind.IsSameAs("item", false)) {
-			const int previewItemId = ResolveEntryPreviewItemId(entry);
-			const int fromItemId = entry.fromItemId > 0 ? entry.fromItemId : previewItemId;
-			const int toItemId = entry.toItemId > 0 ? entry.toItemId : fromItemId;
-			if (previewItemId > 0) {
-				text << "\nPreview Item ID: " << previewItemId;
-			}
-			if (fromItemId > 0) {
-				if (toItemId > fromItemId) {
-					text << "\nRange: " << fromItemId << "-" << toItemId;
-				} else {
-					text << "\nItem ID: " << fromItemId;
-				}
-			}
+	void AppendPaletteEntryTooltipBrushDetails(
+		wxString &text,
+		const MaterialsWorkbenchController &controller,
+		const TilesetEntryRecord &entry
+	) {
+		if (!entry.entryKind.IsSameAs("brush", false)) {
+			return;
 		}
+		if (const BrushRecord* brushRecord = FindCatalogBrushRecord(controller, entry.brushId, entry.brushName)) {
+			text << "\nBrush ID: " << brushRecord->id;
+			text << "\nBrush Type: " << brushRecord->type;
+			if (brushRecord->lookId > 0) {
+				text << "\nLook ID: " << brushRecord->lookId;
+			}
+			if (brushRecord->serverLookId > 0) {
+				text << "\nServer look ID: " << brushRecord->serverLookId;
+			}
+			return;
+		}
+		if (entry.brushId > 0) {
+			text << "\nBrush ID: " << entry.brushId;
+		}
+	}
 
+	void AppendPaletteEntryTooltipItemDetails(wxString &text, const TilesetEntryRecord &entry) {
+		if (!entry.entryKind.IsSameAs("item", false)) {
+			return;
+		}
+		const int previewItemId = ResolveEntryPreviewItemId(entry);
+		const int fromItemId = entry.fromItemId > 0 ? entry.fromItemId : previewItemId;
+		const int toItemId = entry.toItemId > 0 ? entry.toItemId : fromItemId;
+		if (previewItemId > 0) {
+			text << "\nPreview Item ID: " << previewItemId;
+		}
+		if (fromItemId <= 0) {
+			return;
+		}
+		if (toItemId > fromItemId) {
+			text << "\nRange: " << fromItemId << "-" << toItemId;
+			return;
+		}
+		text << "\nItem ID: " << fromItemId;
+	}
+
+	void AppendPaletteEntryTooltipAfterDetails(wxString &text, const TilesetEntryRecord &entry) {
 		if (!entry.afterBrushName.IsEmpty()) {
 			text << "\nAfter Brush: " << entry.afterBrushName;
-		} else if (entry.afterItemId > 0) {
+			return;
+		}
+		if (entry.afterItemId > 0) {
 			text << "\nAfter Item ID: " << entry.afterItemId;
 		}
+	}
 
+	void AppendPaletteEntryTooltipAction(wxString &text, const TilesetEntryRecord &entry) {
 		if (IsMovablePaletteEntry(entry)) {
 			text << "\nAction: This entry can move to another palette.";
 		}
+	}
+
+	wxString BuildPaletteEntryTooltip(
+		const MaterialsWorkbenchController &controller,
+		const TilesetStorageRecord &palette,
+		const TilesetSectionRecord &section,
+		const TilesetEntryRecord &entry
+	) {
+		wxString text;
+		AppendPaletteEntryTooltipHeader(text);
+		AppendPaletteEntryTooltipBase(text, controller, palette, section, entry);
+		AppendPaletteEntryTooltipBrushDetails(text, controller, entry);
+		AppendPaletteEntryTooltipItemDetails(text, entry);
+		AppendPaletteEntryTooltipAfterDetails(text, entry);
+		AppendPaletteEntryTooltipAction(text, entry);
 		return text;
 	}
 
@@ -858,6 +899,88 @@ namespace {
 		}
 		text << "\nAction: Add this brush to the current palette.";
 		return text;
+	}
+
+	struct PaletteVisibleEntryCollection {
+		std::vector<BrushGridItem> items;
+		std::vector<std::pair<int, int>> locations;
+		int unsupportedEntries = 0;
+		int missingPreviews = 0;
+		int hiddenOtherFamilyEntries = 0;
+		int filteredEntries = 0;
+	};
+
+	PaletteVisibleEntryCollection CollectVisiblePaletteEntries(
+		const MaterialsWorkbenchController &controller,
+		const TilesetStorageRecord &palette,
+		const wxString &displayFamily,
+		const wxString &filterQueryLower
+	) {
+		PaletteVisibleEntryCollection out;
+		for (size_t sectionIndex = 0; sectionIndex < palette.sections.size(); ++sectionIndex) {
+			const TilesetSectionRecord &section = palette.sections[sectionIndex];
+			if (!DerivePaletteGroupFromSectionType(section.sectionType).IsSameAs(displayFamily, false)) {
+				out.hiddenOtherFamilyEntries += static_cast<int>(section.entries.size());
+				continue;
+			}
+			for (size_t entryIndex = 0; entryIndex < section.entries.size(); ++entryIndex) {
+				const TilesetEntryRecord &entry = section.entries[entryIndex];
+				const wxString displayLabel = DescribePaletteEntry(controller, entry);
+				if (!filterQueryLower.IsEmpty() && !displayLabel.Lower().Contains(filterQueryLower)) {
+					++out.filteredEntries;
+					continue;
+				}
+				const int visibleIndex = static_cast<int>(out.locations.size());
+
+				if (entry.entryKind.IsSameAs("brush", false)) {
+					Brush* brush = g_brushes.getBrush(entry.brushName.ToStdString());
+					const BrushRecord* catalogBrush = FindCatalogBrushRecord(controller, entry.brushId, entry.brushName);
+					const int lookId = brush ? brush->getLookID() : (catalogBrush ? catalogBrush->lookId : 0);
+					if (!brush && lookId <= 0) {
+						++out.missingPreviews;
+						continue;
+					}
+
+					out.locations.push_back({ static_cast<int>(sectionIndex), static_cast<int>(entryIndex) });
+					out.items.push_back({
+						displayLabel,
+						BuildPaletteEntryTooltip(controller, palette, section, entry),
+						section.sectionType.IsSameAs("raw", false) ? wxString("RAW") : wxString(),
+						brush,
+						lookId,
+						visibleIndex
+					});
+					continue;
+				}
+
+				if (entry.entryKind.IsSameAs("item", false)) {
+					const int previewItemId = ResolveEntryPreviewItemId(entry);
+					if (previewItemId <= 0) {
+						++out.missingPreviews;
+						continue;
+					}
+
+					Brush* brush = nullptr;
+					if (auto type = g_items.getRawItemType(static_cast<uint16_t>(previewItemId)); type && type->id != 0) {
+						brush = type->raw_brush;
+					}
+
+					out.locations.push_back({ static_cast<int>(sectionIndex), static_cast<int>(entryIndex) });
+					out.items.push_back({
+						displayLabel,
+						BuildPaletteEntryTooltip(controller, palette, section, entry),
+						section.sectionType.IsSameAs("raw", false) ? wxString("RAW") : wxString(),
+						brush,
+						previewItemId,
+						visibleIndex
+					});
+					continue;
+				}
+
+				++out.unsupportedEntries;
+			}
+		}
+		return out;
 	}
 } // namespace
 
@@ -958,7 +1081,7 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	moveDestinationSizer->Add(new wxStaticText(currentSectionPanel, wxID_ANY, "Destination Palette"), 0, wxALIGN_CENTER_VERTICAL);
 	moveDestinationSizer->Add(moveDestinationPaletteChoice_, 1, wxEXPAND);
 	currentSectionSizer->Add(moveDestinationSizer, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
-	sectionBrushGrid_ = new MaterialsWorkbenchBrushGridPanel(currentSectionPanel);
+	sectionBrushGrid_ = std::make_unique<MaterialsWorkbenchBrushGridPanel>(currentSectionPanel).release();
 	currentSectionSizer->Add(sectionBrushGrid_, 1, wxEXPAND);
 	currentSectionPanel->SetSizer(currentSectionSizer);
 
@@ -992,7 +1115,7 @@ void MaterialsWorkbenchPalettePanel::BuildLayout() {
 	sourceFilterSizer->Add(sourceKindChoice_, 0, wxALIGN_CENTER_VERTICAL);
 	sourceFilterSizer->Add(sourceFilterCtrl_, 1, wxEXPAND);
 	availableSizer->Add(sourceFilterSizer, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
-	availableBrushGrid_ = new MaterialsWorkbenchBrushGridPanel(availablePanel);
+	availableBrushGrid_ = std::make_unique<MaterialsWorkbenchBrushGridPanel>(availablePanel).release();
 	availableSizer->Add(availableBrushGrid_, 1, wxEXPAND);
 	availablePanel->SetSizer(availableSizer);
 
@@ -1141,8 +1264,7 @@ bool MaterialsWorkbenchPalettePanel::LoadPalette(const TilesetStorageRecord &til
 	palette_ = tileset;
 	hasPalette_ = true;
 	preserveSectionGridViewStart_ = isSamePalette;
-	if (isSamePalette) {
-	} else {
+	if (!isSamePalette) {
 		currentSectionIndex_ = 0;
 		selectedSectionEntryIndex_ = -1;
 	}
@@ -1187,7 +1309,7 @@ void MaterialsWorkbenchPalettePanel::EnsureContentSplitterDefaultSash() {
 	const int buttonGap = FromDIP(4);
 	int desiredLeft = 0;
 	const int buttonCount = 5;
-	const wxSize buttonSizes[] = {
+	const std::array<wxSize, buttonCount> buttonSizes = {
 		addBrushButton_->GetBestSize(),
 		moveToPaletteButton_->GetBestSize(),
 		removeBrushButton_->GetBestSize(),
@@ -1258,76 +1380,24 @@ void MaterialsWorkbenchPalettePanel::RefreshSectionEntries() {
 		return;
 	}
 
-	std::vector<BrushGridItem> items;
-	int unsupportedEntries = 0;
-	int missingPreviews = 0;
-	int hiddenOtherFamilyEntries = 0;
-	int filteredEntries = 0;
 	const wxString filterQueryLower = sectionFilterQuery_.Lower();
 	const wxString displayFamily = ResolvePaletteBrushDisplayFamily(palette_);
-	for (size_t sectionIndex = 0; sectionIndex < palette_.sections.size(); ++sectionIndex) {
-		const TilesetSectionRecord &section = palette_.sections[sectionIndex];
-		if (!DerivePaletteGroupFromSectionType(section.sectionType).IsSameAs(displayFamily, false)) {
-			hiddenOtherFamilyEntries += static_cast<int>(section.entries.size());
-			continue;
-		}
-		for (size_t entryIndex = 0; entryIndex < section.entries.size(); ++entryIndex) {
-			const TilesetEntryRecord &entry = section.entries[entryIndex];
-			const wxString baseLabel = DescribePaletteEntry(controller_, entry);
-			const wxString displayLabel = baseLabel;
-			if (!filterQueryLower.IsEmpty() && !displayLabel.Lower().Contains(filterQueryLower)) {
-				++filteredEntries;
-				continue;
-			}
-			const int visibleIndex = static_cast<int>(visibleEntryLocations_.size());
-
-			if (entry.entryKind.IsSameAs("brush", false)) {
-				Brush* brush = g_brushes.getBrush(entry.brushName.ToStdString());
-				const BrushRecord* catalogBrush = FindCatalogBrushRecord(controller_, entry.brushId, entry.brushName);
-				const int lookId = brush ? brush->getLookID() : (catalogBrush ? catalogBrush->lookId : 0);
-				if (!brush && lookId <= 0) {
-					++missingPreviews;
-					continue;
-				}
-
-				visibleEntryLocations_.push_back({ static_cast<int>(sectionIndex), static_cast<int>(entryIndex) });
-				items.push_back({ displayLabel, BuildPaletteEntryTooltip(controller_, palette_, section, entry), section.sectionType.IsSameAs("raw", false) ? wxString("RAW") : wxString(), brush, lookId, visibleIndex });
-				continue;
-			}
-
-			if (entry.entryKind.IsSameAs("item", false)) {
-				const int previewItemId = ResolveEntryPreviewItemId(entry);
-				if (previewItemId <= 0) {
-					++missingPreviews;
-					continue;
-				}
-
-				Brush* brush = nullptr;
-				if (auto type = g_items.getRawItemType(static_cast<uint16_t>(previewItemId)); type && type->id != 0) {
-					brush = type->raw_brush;
-				}
-
-				visibleEntryLocations_.push_back({ static_cast<int>(sectionIndex), static_cast<int>(entryIndex) });
-				items.push_back({ displayLabel, BuildPaletteEntryTooltip(controller_, palette_, section, entry), section.sectionType.IsSameAs("raw", false) ? wxString("RAW") : wxString(), brush, previewItemId, visibleIndex });
-				continue;
-			}
-
-			++unsupportedEntries;
-		}
-	}
+	const PaletteVisibleEntryCollection collected = CollectVisiblePaletteEntries(controller_, palette_, displayFamily, filterQueryLower);
+	visibleEntryLocations_ = collected.locations;
+	std::vector<BrushGridItem> items = collected.items;
 
 	wxString summary = wxString::Format("%zu entries in this palette.", items.size());
-	if (filteredEntries > 0) {
-		summary += wxString::Format(" %d entries are hidden by the filter.", filteredEntries);
+	if (collected.filteredEntries > 0) {
+		summary += wxString::Format(" %d entries are hidden by the filter.", collected.filteredEntries);
 	}
-	if (hiddenOtherFamilyEntries > 0) {
-		summary += wxString::Format(" %d entries from other families are hidden in this view.", hiddenOtherFamilyEntries);
+	if (collected.hiddenOtherFamilyEntries > 0) {
+		summary += wxString::Format(" %d entries from other families are hidden in this view.", collected.hiddenOtherFamilyEntries);
 	}
-	if (missingPreviews > 0) {
-		summary += wxString::Format(" %d entries are hidden until they have preview data.", missingPreviews);
+	if (collected.missingPreviews > 0) {
+		summary += wxString::Format(" %d entries are hidden until they have preview data.", collected.missingPreviews);
 	}
-	if (unsupportedEntries > 0) {
-		summary += wxString::Format(" %d entries use a storage format that is not shown here yet.", unsupportedEntries);
+	if (collected.unsupportedEntries > 0) {
+		summary += wxString::Format(" %d entries use a storage format that is not shown here yet.", collected.unsupportedEntries);
 	}
 	sectionSummaryLabel_->SetLabel(summary);
 	sectionBrushGrid_->SetEmptyMessage("This palette has entries, but none can be previewed yet.");

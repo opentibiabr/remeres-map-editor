@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <limits>
 #include <memory>
+#include <ranges>
 #include <set>
 
 #include <wx/button.h>
@@ -761,40 +762,48 @@ namespace {
 			return;
 		}
 
-		std::vector<wxString> emptyParts;
-		std::set<int> invalidItemIds;
-		int emptyPartTypeCount = 0;
-		int invalidDoorTypeCount = 0;
+		struct WallWarningAudit {
+			int emptyPartTypeCount = 0;
+			int invalidDoorTypeCount = 0;
+			std::vector<wxString> emptyParts;
+			std::set<int> invalidItemIds;
+		};
 
-		for (const WallPartRecord &part : storage.wallParts) {
-			if (part.partType.IsEmpty()) {
-				++emptyPartTypeCount;
-			}
-			if (part.items.empty() && part.doors.empty()) {
-				emptyParts.push_back(part.partType.IsEmpty() ? wxString::FromUTF8("<empty>") : part.partType);
-			}
-			for (const WallPartItemRecord &item : part.items) {
-				if (!IsKnownWorkbenchInspectorItemId(item.itemId)) {
-					invalidItemIds.insert(item.itemId);
+		const auto auditWallParts = [&]() {
+			WallWarningAudit audit;
+			for (const WallPartRecord &part : storage.wallParts) {
+				if (part.partType.IsEmpty()) {
+					++audit.emptyPartTypeCount;
+				}
+				if (part.items.empty() && part.doors.empty()) {
+					audit.emptyParts.push_back(part.partType.IsEmpty() ? wxString::FromUTF8("<empty>") : part.partType);
+				}
+				for (const WallPartItemRecord &item : part.items) {
+					if (!IsKnownWorkbenchInspectorItemId(item.itemId)) {
+						audit.invalidItemIds.insert(item.itemId);
+					}
+				}
+				for (const WallPartDoorRecord &door : part.doors) {
+					if (door.doorType.IsEmpty()) {
+						++audit.invalidDoorTypeCount;
+					}
+					if (!IsKnownWorkbenchInspectorItemId(door.itemId)) {
+						audit.invalidItemIds.insert(door.itemId);
+					}
 				}
 			}
-			for (const WallPartDoorRecord &door : part.doors) {
-				if (door.doorType.IsEmpty()) {
-					++invalidDoorTypeCount;
-				}
-				if (!IsKnownWorkbenchInspectorItemId(door.itemId)) {
-					invalidItemIds.insert(door.itemId);
-				}
-			}
-		}
+			return audit;
+		};
 
-		if (emptyPartTypeCount > 0) {
+		const WallWarningAudit audit = auditWallParts();
+
+		if (audit.emptyPartTypeCount > 0) {
 			out.Add(
 				"Warning",
 				"Wall",
 				"brush",
 				"Wall has empty part types",
-				emptyPartTypeCount,
+				audit.emptyPartTypeCount,
 				"Active",
 				"Some wall parts have an empty partType.",
 				brush.id,
@@ -802,9 +811,9 @@ namespace {
 			);
 		}
 
-		if (!emptyParts.empty()) {
+		if (!audit.emptyParts.empty()) {
 			wxArrayString parts;
-			for (const wxString &part : emptyParts) {
+			for (const wxString &part : audit.emptyParts) {
 				parts.Add(part);
 			}
 			out.Add(
@@ -812,7 +821,7 @@ namespace {
 				"Wall",
 				"brush",
 				"Wall has empty parts",
-				static_cast<int>(emptyParts.size()),
+				static_cast<int>(audit.emptyParts.size()),
 				"Active",
 				"Empty parts: " + wxJoin(parts, ','),
 				brush.id,
@@ -820,13 +829,13 @@ namespace {
 			);
 		}
 
-		if (invalidDoorTypeCount > 0) {
+		if (audit.invalidDoorTypeCount > 0) {
 			out.Add(
 				"Warning",
 				"Wall",
 				"brush",
 				"Wall has doors with empty type",
-				invalidDoorTypeCount,
+				audit.invalidDoorTypeCount,
 				"Active",
 				"Some wall doors have an empty doorType.",
 				brush.id,
@@ -834,9 +843,9 @@ namespace {
 			);
 		}
 
-		if (!invalidItemIds.empty()) {
+		if (!audit.invalidItemIds.empty()) {
 			wxArrayString ids;
-			for (int id : invalidItemIds) {
+			for (int id : audit.invalidItemIds) {
 				ids.Add(wxString::Format("%d", id));
 			}
 			out.Add(
@@ -844,7 +853,7 @@ namespace {
 				"Wall",
 				"brush",
 				"Wall has invalid item ids",
-				static_cast<int>(invalidItemIds.size()),
+				static_cast<int>(audit.invalidItemIds.size()),
 				"Active",
 				"Invalid item ids: " + wxJoin(ids, ','),
 				brush.id,
@@ -895,33 +904,12 @@ namespace {
 	}
 
 	void CollectBorderSetWarnings(WarningCollector &out, const BorderSetIdCache &borderSets) {
-		std::vector<BorderSetRecord> borderSetsToCheck;
-		std::vector<BorderSetRecord> globalBorderSets;
-		std::vector<BorderSetRecord> inlineBorderSets;
-		if (g_brush_database.listBorderSetsByScope("global", globalBorderSets)) {
-			borderSetsToCheck.insert(borderSetsToCheck.end(), globalBorderSets.begin(), globalBorderSets.end());
-		}
-		if (g_brush_database.listBorderSetsByScope("inline", inlineBorderSets)) {
-			borderSetsToCheck.insert(borderSetsToCheck.end(), inlineBorderSets.begin(), inlineBorderSets.end());
-		}
+		const auto loadBorderSetsByScope = [](const char* scope, std::vector<BorderSetRecord> &outSets) {
+			outSets.clear();
+			return g_brush_database.listBorderSetsByScope(scope, outSets);
+		};
 
-		for (const BorderSetRecord &borderSet : borderSetsToCheck) {
-			std::vector<BorderSetItemRecord> items;
-			if (!g_brush_database.getBorderSetItems(borderSet.id, items)) {
-				out.Add(
-					"Error",
-					"Border",
-					"border_set",
-					"Failed to load border set items",
-					1,
-					"Active",
-					g_brush_database.getLastError(),
-					borderSet.id,
-					wxString::Format("Border set %lld", static_cast<long long>(borderSet.id))
-				);
-				continue;
-			}
-
+		const auto appendBorderSetItemWarnings = [&](const BorderSetRecord &borderSet, const std::vector<BorderSetItemRecord> &items) {
 			if (items.empty()) {
 				out.Add(
 					"Error",
@@ -996,27 +984,84 @@ namespace {
 					wxString::Format("Border set %lld", static_cast<long long>(borderSet.id))
 				);
 			}
+		};
 
-			if (borderSets.globalBorderSetIds.contains(borderSet.id)) {
-				std::vector<BorderSetUsageRecord> usages;
-				if (g_brush_database.listBorderSetUsages(borderSet.id, usages) && usages.empty()) {
-					out.Add(
-						"Warning",
-						"Border",
-						"border_set",
-						"Global border set is unused",
-						0,
-						"Active",
-						"This global border set is not referenced by any brush.",
-						borderSet.id,
-						wxString::Format("Border set %lld", static_cast<long long>(borderSet.id))
-					);
-				}
+		const auto maybeAddUnusedGlobalBorderWarning = [&](const BorderSetRecord &borderSet) {
+			if (!borderSets.globalBorderSetIds.contains(borderSet.id)) {
+				return;
 			}
+			std::vector<BorderSetUsageRecord> usages;
+			if (g_brush_database.listBorderSetUsages(borderSet.id, usages) && usages.empty()) {
+				out.Add(
+					"Warning",
+					"Border",
+					"border_set",
+					"Global border set is unused",
+					0,
+					"Active",
+					"This global border set is not referenced by any brush.",
+					borderSet.id,
+					wxString::Format("Border set %lld", static_cast<long long>(borderSet.id))
+				);
+			}
+		};
+
+		std::vector<BorderSetRecord> borderSetsToCheck;
+		std::vector<BorderSetRecord> globalBorderSets;
+		std::vector<BorderSetRecord> inlineBorderSets;
+		if (loadBorderSetsByScope("global", globalBorderSets)) {
+			borderSetsToCheck.insert(borderSetsToCheck.end(), globalBorderSets.begin(), globalBorderSets.end());
+		}
+		if (loadBorderSetsByScope("inline", inlineBorderSets)) {
+			borderSetsToCheck.insert(borderSetsToCheck.end(), inlineBorderSets.begin(), inlineBorderSets.end());
+		}
+
+		for (const BorderSetRecord &borderSet : borderSetsToCheck) {
+			std::vector<BorderSetItemRecord> items;
+			if (!g_brush_database.getBorderSetItems(borderSet.id, items)) {
+				out.Add(
+					"Error",
+					"Border",
+					"border_set",
+					"Failed to load border set items",
+					1,
+					"Active",
+					g_brush_database.getLastError(),
+					borderSet.id,
+					wxString::Format("Border set %lld", static_cast<long long>(borderSet.id))
+				);
+				continue;
+			}
+
+			appendBorderSetItemWarnings(borderSet, items);
+			maybeAddUnusedGlobalBorderWarning(borderSet);
 		}
 	}
 
 	void CollectPaletteWarnings(WarningCollector &out) {
+		const auto maybeAddInvalidPaletteItemField = [&](
+			const TilesetStorageRecord &tileset,
+			const TilesetSectionRecord &section,
+			const TilesetEntryRecord &entry,
+			const char* fieldName,
+			int value
+		) {
+			if (value <= 0 || IsKnownWorkbenchInspectorItemId(value)) {
+				return;
+			}
+			out.Add(
+				"Error",
+				"Palette",
+				"palette",
+				wxString::Format("Palette item entry has invalid %s", fieldName),
+				1,
+				"Active",
+				wxString::Format("Section: %s\n%s: %d\nSort order: %d", section.sectionType.c_str(), fieldName, value, entry.sortOrder),
+				0,
+				tileset.name
+			);
+		};
+
 		std::vector<TilesetStorageRecord> tilesets;
 		if (!g_brush_database.getAllTilesets(tilesets)) {
 			out.Add(
@@ -1051,58 +1096,10 @@ namespace {
 						continue;
 					}
 					if (entry.entryKind.CmpNoCase("item") == 0) {
-						if (entry.itemId > 0 && !IsKnownWorkbenchInspectorItemId(entry.itemId)) {
-							out.Add(
-								"Error",
-								"Palette",
-								"palette",
-								"Palette item entry has invalid itemId",
-								1,
-								"Active",
-								wxString::Format("Section: %s\nitemId: %d\nSort order: %d", section.sectionType.c_str(), entry.itemId, entry.sortOrder),
-								0,
-								tileset.name
-							);
-						}
-						if (entry.fromItemId > 0 && !IsKnownWorkbenchInspectorItemId(entry.fromItemId)) {
-							out.Add(
-								"Error",
-								"Palette",
-								"palette",
-								"Palette item entry has invalid fromItemId",
-								1,
-								"Active",
-								wxString::Format("Section: %s\nfromItemId: %d\nSort order: %d", section.sectionType.c_str(), entry.fromItemId, entry.sortOrder),
-								0,
-								tileset.name
-							);
-						}
-						if (entry.toItemId > 0 && !IsKnownWorkbenchInspectorItemId(entry.toItemId)) {
-							out.Add(
-								"Error",
-								"Palette",
-								"palette",
-								"Palette item entry has invalid toItemId",
-								1,
-								"Active",
-								wxString::Format("Section: %s\ntoItemId: %d\nSort order: %d", section.sectionType.c_str(), entry.toItemId, entry.sortOrder),
-								0,
-								tileset.name
-							);
-						}
-						if (entry.afterItemId > 0 && !IsKnownWorkbenchInspectorItemId(entry.afterItemId)) {
-							out.Add(
-								"Error",
-								"Palette",
-								"palette",
-								"Palette item entry has invalid afterItemId",
-								1,
-								"Active",
-								wxString::Format("Section: %s\nafterItemId: %d\nSort order: %d", section.sectionType.c_str(), entry.afterItemId, entry.sortOrder),
-								0,
-								tileset.name
-							);
-						}
+						maybeAddInvalidPaletteItemField(tileset, section, entry, "itemId", entry.itemId);
+						maybeAddInvalidPaletteItemField(tileset, section, entry, "fromItemId", entry.fromItemId);
+						maybeAddInvalidPaletteItemField(tileset, section, entry, "toItemId", entry.toItemId);
+						maybeAddInvalidPaletteItemField(tileset, section, entry, "afterItemId", entry.afterItemId);
 					}
 				}
 			}
@@ -1151,7 +1148,7 @@ namespace {
 				paletteNames.push_back(sample.tilesetName);
 			}
 		}
-		std::sort(paletteNames.begin(), paletteNames.end(), [](const wxString &a, const wxString &b) {
+		std::ranges::sort(paletteNames, [](const wxString &a, const wxString &b) {
 			return a.CmpNoCase(b) < 0;
 		});
 		return paletteNames;

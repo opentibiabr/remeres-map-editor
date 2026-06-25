@@ -1562,6 +1562,23 @@ namespace {
 		return paletteGroupNames.insert(name).second;
 	}
 
+	bool TryInsertGlobalBorderXmlId(int64_t borderSetId, std::set<int> &borderXmlIds) {
+		if (borderSetId <= 0) {
+			return false;
+		}
+		BorderSetRecord borderSet;
+		if (!g_brush_database.getBorderSetById(borderSetId, borderSet)) {
+			return false;
+		}
+		if (!borderSet.borderScope.IsSameAs("global", false)) {
+			return false;
+		}
+		if (borderSet.xmlBorderId <= 0) {
+			return false;
+		}
+		return borderXmlIds.insert(borderSet.xmlBorderId).second;
+	}
+
 	bool ProcessBrushDependencyQueue(
 		std::set<int64_t> &brushIds,
 		std::set<int> &borderXmlIds,
@@ -1582,13 +1599,7 @@ namespace {
 			}
 
 			for (const GroundBrushBorderRecord &border : storage.borders) {
-				if (border.borderSetId > 0) {
-					BorderSetRecord borderSet;
-					if (g_brush_database.getBorderSetById(border.borderSetId, borderSet)
-						&& borderSet.borderScope.IsSameAs("global", false) && borderSet.xmlBorderId > 0) {
-						changed = borderXmlIds.insert(borderSet.xmlBorderId).second || changed;
-					}
-				}
+				changed = TryInsertGlobalBorderXmlId(border.borderSetId, borderXmlIds) || changed;
 				changed = EnqueueBrush(brushIds, brushQueue, border.targetBrushId) || changed;
 			}
 
@@ -2113,21 +2124,17 @@ namespace {
 				continue;
 			}
 
+			const nlohmann::json* entityToApply = &entity;
+			nlohmann::json patched;
 			if (options.onConflict == MaterialsWorkbenchImportConflictStrategy::RenameWithSuffix) {
-				bool changed = false;
-				nlohmann::json patched = PatchPaletteEntityIfNeeded(entity, renamedPaletteGroups, renamedPalettes, changed);
-				if (changed) {
-					if (!ApplyPaletteEntity(controller, patched, outReport, error)) {
-						return false;
-					}
-					if (!TickOrCancel(ticker, "Importing palettes", error)) {
-						return false;
-					}
-					continue;
+				bool wasPatched = false;
+				patched = PatchPaletteEntityIfNeeded(entity, renamedPaletteGroups, renamedPalettes, wasPatched);
+				if (wasPatched) {
+					entityToApply = &patched;
 				}
 			}
 
-			if (!ApplyPaletteEntity(controller, entity, outReport, error)) {
+			if (!ApplyPaletteEntity(controller, *entityToApply, outReport, error)) {
 				return false;
 			}
 			if (!TickOrCancel(ticker, "Importing palettes", error)) {
