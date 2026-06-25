@@ -142,7 +142,7 @@ namespace {
 	wxString TrimmedOrUnknown(wxString value) {
 		value.Trim(true);
 		value.Trim(false);
-		return value.IsEmpty() ? "<unknown>" : value;
+		return value.IsEmpty() ? wxString::FromUTF8("<unknown>") : value;
 	}
 
 	wxString BuildUnsupportedBrushTypesDetail(const std::vector<BrushTypeCountRecord> &typeCounts) {
