@@ -5565,14 +5565,14 @@ void MaterialsWorkbenchBrushPanel::UpdateAlignedSeamlessPreviewInfoLabel(const w
 			alignedSeamlessPreviewInfoLabel_->SetLabel(
 				hasSelectedVariant
 					? wxString::Format(
-						  "Seamless preview follows slot %s and the active variant item %d inside one continuous carpet composition.",
-						  node.align,
-						  node.items[alignedItemIndex_].itemId
-					  )
+						"Seamless preview follows slot %s and the active variant item %d inside one continuous carpet composition.",
+						node.align,
+						node.items[alignedItemIndex_].itemId
+					)
 					: wxString::Format(
-						  "Seamless preview shows the full carpet composition around slot %s using the first available variant in each configured context.",
-						  node.align
-					  )
+						"Seamless preview shows the full carpet composition around slot %s using the first available variant in each configured context.",
+						node.align
+					)
 			);
 		} else if (hasPendingCarpetSlot) {
 			alignedSeamlessPreviewInfoLabel_->SetLabel(wxString::Format("Seamless preview reserves slot %s in the carpet composition so you can see where the next context will land before creating it.", alignedPendingCarpetAlign_));
@@ -6947,9 +6947,9 @@ void MaterialsWorkbenchBrushPanel::OnDoodadPreviewPaint(wxPaintEvent &WXUNUSED(e
 
 				const wxPoint selectedProjectedCell = (doodadTileIndex_ >= 0 && doodadTileIndex_ < static_cast<int>(composite.tiles.size()))
 					? GetDoodadPreviewProjectedCell(
-						  composite.tiles[doodadTileIndex_],
-						  layout.floor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors
-					  )
+						composite.tiles[doodadTileIndex_],
+						layout.floor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors
+					)
 					: wxPoint(std::numeric_limits<int>::min(), std::numeric_limits<int>::min());
 				const bool isSelectedTile = doodadTileIndex_ >= 0 && doodadTileIndex_ < static_cast<int>(composite.tiles.size()) && selectedProjectedCell.x == cellX && selectedProjectedCell.y == cellY && (layout.floor == MaterialsWorkbenchBrushPanel::kDoodadPreviewAllFloors || composite.tiles[doodadTileIndex_].offsetZ == layout.floor);
 

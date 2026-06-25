@@ -570,8 +570,8 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	checking_programmaticly = false;
 
 #define MAKE_ACTION(id, kind, handler) actions[#id] = new MenuBar::Action(#id, id, kind, std::mem_fn(&MainMenuBar::handler))
-#define MAKE_SET_ACTION(id, kind, setting_, handler)                                                     \
-	actions[#id] = new MenuBar::Action(#id, id, kind, std::mem_fn(&MainMenuBar::handler));            \
+#define MAKE_SET_ACTION(id, kind, setting_, handler)                                       \
+	actions[#id] = new MenuBar::Action(#id, id, kind, std::mem_fn(&MainMenuBar::handler)); \
 	actions[#id]->setting = setting_
 
 	MAKE_ACTION(NEW, wxITEM_NORMAL, OnNew);

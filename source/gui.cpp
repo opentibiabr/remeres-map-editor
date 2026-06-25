@@ -436,11 +436,13 @@ namespace {
 		const wxString &sqliteDatabasePath,
 		wxArrayString &warnings
 	) {
+		wxString message = "SQLite materials import required, but automatic rebuild is disabled because materials.db already exists.\n";
+		message += "Reason: ";
+		message += sqliteImportStatus;
+		message += "\n";
+		message += "Recovery: Move or delete materials/materials.db to force a clean rebuild from XML.";
 		warnings.push_back(
-			"SQLite materials import required, but automatic rebuild is disabled because materials.db already exists.\n"
-			"Reason: "
-			+ sqliteImportStatus + "\n"
-							   "Recovery: Move or delete materials/materials.db to force a clean rebuild from XML."
+			message
 		);
 		spdlog::warn(
 			"[GUI::LoadDataFiles] SQLite materials import required but cannot rebuild automatically (db exists): {} ({})",

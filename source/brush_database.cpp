@@ -289,17 +289,18 @@ namespace {
 		usage.sourceName = xmlBorderId > 0 ? wxString::Format("Global border %d", xmlBorderId)
 										   : wxString::Format("Border set %lld", static_cast<long long>(borderSetId));
 		usage.relation = "uses border";
-		usage.context = wxString::Format(
-				"scope=%s type=%s group=%d %s %s %s",
-				borderScope,
-				borderType,
-				borderGroup,
-				ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5))),
-				ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6))),
-				ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7)))
-		)
-							   .Trim(true)
-							   .Trim(false);
+		wxString context = wxString::Format(
+			"scope=%s type=%s group=%d %s %s %s",
+			borderScope,
+			borderType,
+			borderGroup,
+			ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5))),
+			ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6))),
+			ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7)))
+		);
+		context.Trim(true);
+		context.Trim(false);
+		usage.context = context;
 		usage.sortOrder = sqlite3_column_int(stmt, 8);
 		usage.refId = sqlite3_column_int64(stmt, 9);
 	}
@@ -4898,14 +4899,15 @@ bool BrushDatabaseBrushLinkRepository::listBrushUsages(int64_t brushId, const wx
 				usage.sourceId = sqlite3_column_int64(stmt, 0);
 				usage.sourceName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
 				usage.relation = "border target";
-				usage.context = wxString::Format(
-						"%s %s %s",
-						ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2))),
-						ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3))),
-						ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)))
-				)
-									   .Trim(true)
-									   .Trim(false);
+				wxString context = wxString::Format(
+					"%s %s %s",
+					ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2))),
+					ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3))),
+					ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)))
+				);
+				context.Trim(true);
+				context.Trim(false);
+				usage.context = context;
 				usage.sortOrder = sqlite3_column_int(stmt, 5);
 				usage.refId = sqlite3_column_int64(stmt, 6);
 			})) {
