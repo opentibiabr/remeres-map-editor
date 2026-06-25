@@ -3137,7 +3137,7 @@ void MaterialsWorkbenchBorderPanel::Impl::PopulateUsageContextList() {
 		return;
 	}
 
-	if (state_.selectedUsageIndex == wxNOT_FOUND || std::find(state_.filteredUsageIndexes.begin(), state_.filteredUsageIndexes.end(), state_.selectedUsageIndex) == state_.filteredUsageIndexes.end()) {
+	if (state_.selectedUsageIndex == wxNOT_FOUND || std::ranges::find(state_.filteredUsageIndexes, state_.selectedUsageIndex) == state_.filteredUsageIndexes.end()) {
 		state_.selectedUsageIndex = state_.filteredUsageIndexes.front();
 	}
 	for (size_t visibleIndex = 0; visibleIndex < state_.filteredUsageIndexes.size(); ++visibleIndex) {

@@ -142,7 +142,7 @@ private:
 	bool RefreshAlignedSelectionTable();
 	void RefreshAlignedItemEditorFields(bool hasNode, bool isCarpet);
 	void RefreshAlignedVisualState();
-	void UpdateAlignedVisualInfoLabel(const wxString &type, bool hasNode, bool hasPendingCarpetSlot, bool hasPendingTableSlot);
+	void UpdateAlignedVisualInfoLabel(const wxString &type, bool hasNode, bool hasPendingCarpetSlot);
 	void UpdateAlignedAdvancedInfoLabel(const wxString &type, bool hasNode, bool hasPendingCarpetSlot, bool hasPendingTableSlot);
 	void UpdateAlignedAddNodeButtonState(const wxString &type);
 	void UpdateAlignedItemsSummaryLabel(const wxString &type, bool hasPendingCarpetSlot, bool hasPendingTableSlot);
@@ -158,6 +158,8 @@ private:
 	void RefreshDoodadTileItemList();
 	void RefreshDoodadAlternativeSlider();
 	void RefreshDoodadSelection();
+	bool RefreshDoodadSingleItemFields(const DoodadAlternativeRecord &alternative);
+	void RefreshDoodadCompositeFields(const DoodadAlternativeRecord &alternative, bool &outHasComposite, bool &outHasTile, bool &outHasTileItem);
 	void RefreshDoodadPreviewFloorChoice();
 	void RefreshDoodadPreview();
 	void NormalizeVariationSortOrders();

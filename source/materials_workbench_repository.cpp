@@ -3,6 +3,7 @@
 #include "materials_workbench_repository.h"
 
 #include <algorithm>
+#include <array>
 
 namespace {
 	bool LoadBrushGroup(const wxString &label, const wxString &brushType, MaterialsWorkbenchBrushGroup &outGroup, wxString &error) {
@@ -10,6 +11,83 @@ namespace {
 		outGroup.label = label;
 		outGroup.brushType = brushType;
 		if (!g_brush_database.listBrushesByType(brushType, outGroup.brushes)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+		return true;
+	}
+
+	struct BrushGroupSpec {
+		const char* label;
+		const char* brushType;
+	};
+
+	bool LoadPersistedBrushIfNeeded(int64_t brushId, BrushRecord &outBrush, bool &outHadBrush, wxString &error) {
+		outHadBrush = false;
+		outBrush = BrushRecord();
+		if (brushId <= 0) {
+			return true;
+		}
+		if (!g_brush_database.getBrushById(brushId, outBrush)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+		outHadBrush = true;
+		return true;
+	}
+
+	bool SaveOrInsertBrushRecord(BrushRecord &brush, wxString &error) {
+		if (brush.id > 0) {
+			if (!g_brush_database.updateBrush(brush)) {
+				error = g_brush_database.getLastError();
+				return false;
+			}
+			return true;
+		}
+
+		int64_t insertedBrushId = 0;
+		if (!g_brush_database.upsertBrush(brush, insertedBrushId)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+		brush.id = insertedBrushId;
+		return true;
+	}
+
+	bool UpdateBrushReferenceNamesIfNeeded(
+		const BrushRecord &persistedBrush,
+		const BrushRecord &brush,
+		bool hadPersistedBrush,
+		wxString &error
+	) {
+		if (!hadPersistedBrush || persistedBrush.name == brush.name) {
+			return true;
+		}
+		if (!g_brush_database.updateBrushReferenceNames(brush.id, persistedBrush.name, brush.name)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+		return true;
+	}
+
+	bool ReplaceBrushDetails(int64_t brushId, const BrushStorageRecord &storage, wxString &error) {
+		if (!g_brush_database.replaceCarpetNodes(brushId, storage.carpetNodes)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+		if (!g_brush_database.replaceBrushItems(brushId, storage.items)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+		if (!g_brush_database.replaceTableNodes(brushId, storage.tableNodes)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+		if (!g_brush_database.replaceDoodadAlternatives(brushId, storage.doodadAlternatives)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+		if (!g_brush_database.replaceBrushLinks(brushId, storage.links)) {
 			error = g_brush_database.getLastError();
 			return false;
 		}
@@ -39,15 +117,12 @@ bool MaterialsWorkbenchRepository::LoadCatalog(MaterialsWorkbenchCatalogSnapshot
 		return false;
 	}
 
-	static const struct BrushGroupSpec {
-		const char* label;
-		const char* brushType;
-	} kBrushGroupSpecs[] = {
+	static const std::array<BrushGroupSpec, 4> kBrushGroupSpecs = { {
 		{ "Ground Brushes", "ground" },
 		{ "Doodad Brushes", "doodad" },
 		{ "Carpet Brushes", "carpet" },
 		{ "Table Brushes", "table" },
-	};
+	} };
 
 	for (const BrushGroupSpec &spec : kBrushGroupSpecs) {
 		MaterialsWorkbenchBrushGroup group;
@@ -250,57 +325,16 @@ bool MaterialsWorkbenchRepository::SaveBrushDetails(BrushStorageRecord &brushSto
 	const bool saved = g_brush_database.runInTransaction([&]() {
 		BrushRecord persistedBrush;
 		bool hadPersistedBrush = false;
-		if (brush.id > 0) {
-			if (!g_brush_database.getBrushById(brush.id, persistedBrush)) {
-				error = g_brush_database.getLastError();
-				return false;
-			}
-			hadPersistedBrush = true;
-		}
-
-		if (brush.id > 0) {
-			if (!g_brush_database.updateBrush(brush)) {
-				error = g_brush_database.getLastError();
-				return false;
-			}
-		} else {
-			int64_t insertedBrushId = 0;
-			if (!g_brush_database.upsertBrush(brush, insertedBrushId)) {
-				error = g_brush_database.getLastError();
-				return false;
-			}
-			brush.id = insertedBrushId;
-		}
-
-		if (hadPersistedBrush && persistedBrush.name != brush.name) {
-			if (!g_brush_database.updateBrushReferenceNames(brush.id, persistedBrush.name, brush.name)) {
-				error = g_brush_database.getLastError();
-				return false;
-			}
-		}
-
-		if (!g_brush_database.replaceCarpetNodes(brush.id, brushStorage.carpetNodes)) {
-			error = g_brush_database.getLastError();
+		if (!LoadPersistedBrushIfNeeded(brush.id, persistedBrush, hadPersistedBrush, error)) {
 			return false;
 		}
-		if (!g_brush_database.replaceBrushItems(brush.id, brushStorage.items)) {
-			error = g_brush_database.getLastError();
+		if (!SaveOrInsertBrushRecord(brush, error)) {
 			return false;
 		}
-		if (!g_brush_database.replaceTableNodes(brush.id, brushStorage.tableNodes)) {
-			error = g_brush_database.getLastError();
+		if (!UpdateBrushReferenceNamesIfNeeded(persistedBrush, brush, hadPersistedBrush, error)) {
 			return false;
 		}
-		if (!g_brush_database.replaceDoodadAlternatives(brush.id, brushStorage.doodadAlternatives)) {
-			error = g_brush_database.getLastError();
-			return false;
-		}
-		if (!g_brush_database.replaceBrushLinks(brush.id, brushStorage.links)) {
-			error = g_brush_database.getLastError();
-			return false;
-		}
-
-		return true;
+		return ReplaceBrushDetails(brush.id, brushStorage, error);
 	});
 	if (!saved && error.IsEmpty()) {
 		error = g_brush_database.getLastError();

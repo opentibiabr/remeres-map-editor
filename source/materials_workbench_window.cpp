@@ -338,6 +338,222 @@ namespace {
 		return text;
 	}
 
+	struct WorkbenchBadgeContext {
+		MaterialsWorkbenchBrushPanel* brushPanel = nullptr;
+		MaterialsWorkbenchBorderPanel* borderPanel = nullptr;
+		MaterialsWorkbenchWallPanel* wallPanel = nullptr;
+		bool hasDirtyBrush = false;
+		wxString dirtyBrushName;
+		bool hasDirtyBorder = false;
+		wxString dirtyBorderName;
+		bool hasDirtyWall = false;
+		wxString dirtyWallName;
+		wxColour defaultTextColour;
+		wxColour modifiedTextColour;
+	};
+
+	wxString ResolveModifiedDisplayLabel(const WorkbenchBadgeContext &ctx, const MaterialsWorkbenchTreeItemData &itemData) {
+		wxString displayLabel = itemData.baseLabel;
+		if (ctx.hasDirtyBrush && !ctx.dirtyBrushName.IsEmpty()) {
+			displayLabel = ctx.dirtyBrushName;
+		} else if (ctx.hasDirtyBorder && !ctx.dirtyBorderName.IsEmpty()) {
+			displayLabel = ctx.dirtyBorderName;
+		} else if (ctx.hasDirtyWall && !ctx.dirtyWallName.IsEmpty()) {
+			displayLabel = ctx.dirtyWallName;
+		}
+		return displayLabel;
+	}
+
+	void ApplyWorkbenchBadgeToTree(wxTreeCtrl* tree, const wxTreeItemId &root, const WorkbenchBadgeContext &ctx) {
+		if (!tree || !root.IsOk()) {
+			return;
+		}
+
+		std::function<void(const wxTreeItemId&)> apply;
+		apply = [&](const wxTreeItemId &parentItem) {
+			wxTreeItemIdValue cookie;
+			for (wxTreeItemId child = tree->GetFirstChild(parentItem, cookie); child.IsOk(); child = tree->GetNextChild(parentItem, cookie)) {
+				auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(tree->GetItemData(child));
+				if (itemData) {
+					const bool isModifiedBrush = ctx.hasDirtyBrush && itemData->kind == MaterialsWorkbenchNodeKind::Brush && ctx.brushPanel
+						&& ctx.brushPanel->IsCurrentBrushSelection(itemData->contextKey, itemData->itemIndex);
+					const bool isModifiedWall = ctx.hasDirtyWall && itemData->kind == MaterialsWorkbenchNodeKind::Brush && ctx.wallPanel
+						&& ctx.wallPanel->IsCurrentWallSelection(itemData->contextKey, itemData->itemIndex);
+					const bool isModifiedBorder = ctx.hasDirtyBorder && itemData->kind == MaterialsWorkbenchNodeKind::BorderSet && ctx.borderPanel
+						&& ctx.borderPanel->IsCurrentBorderSelection(itemData->contextKey, itemData->itemIndex);
+
+					const bool isModified = isModifiedBrush || isModifiedBorder || isModifiedWall;
+					const WorkbenchBadgeContext perItemContext {
+						ctx.brushPanel,
+						ctx.borderPanel,
+						ctx.wallPanel,
+						isModifiedBrush,
+						ctx.dirtyBrushName,
+						isModifiedBorder,
+						ctx.dirtyBorderName,
+						isModifiedWall,
+						ctx.dirtyWallName,
+						ctx.defaultTextColour,
+						ctx.modifiedTextColour,
+					};
+					const wxString displayLabel = ResolveModifiedDisplayLabel(perItemContext, *itemData);
+					tree->SetItemText(child, isModified ? displayLabel + " [modified]" : itemData->baseLabel);
+					tree->SetItemTextColour(child, isModified ? ctx.modifiedTextColour : ctx.defaultTextColour);
+				}
+				apply(child);
+			}
+		};
+		apply(root);
+	}
+
+	bool HasPendingChangesForImport(
+		MaterialsWorkbenchBorderPanel* borderPanel,
+		MaterialsWorkbenchBrushPanel* brushPanel,
+		MaterialsWorkbenchWallPanel* wallPanel
+	) {
+		return (borderPanel && borderPanel->HasPendingChanges())
+			|| (brushPanel && brushPanel->HasPendingChanges())
+			|| (wallPanel && wallPanel->HasPendingChanges());
+	}
+
+	bool ConfirmImportWithPendingChanges(wxWindow* parent) {
+		const int result = wxMessageBox(
+			"You have unsaved changes in an editor. Import can overwrite materials.db data.\n\nSave or revert your changes before importing.\n\nContinue anyway?",
+			"Import Materials",
+			wxYES_NO | wxICON_WARNING,
+			parent
+		);
+		return result == wxYES;
+	}
+
+	bool ReadJsonFileWithProgress(wxWindow* parent, const wxString &path, nlohmann::json &outRoot, wxString &error) {
+		error.clear();
+		wxCharBuffer utf8 = path.ToUTF8();
+		std::ifstream in(utf8.data(), std::ios::binary);
+		if (!in.is_open()) {
+			error = "Failed to open the import file.";
+			return false;
+		}
+
+		std::string contents;
+		wxProgressDialog prepProgress(
+			"Import Materials",
+			"Reading file...",
+			100,
+			parent,
+			wxPD_APP_MODAL | wxPD_SMOOTH | wxPD_AUTO_HIDE
+		);
+
+		in.seekg(0, std::ios::end);
+		const std::streamoff fileSize = in.tellg();
+		in.seekg(0, std::ios::beg);
+		if (fileSize > 0) {
+			contents.reserve(static_cast<size_t>(fileSize));
+		}
+
+		static constexpr size_t kChunkSize = 1024 * 1024;
+		std::vector<char> buffer(kChunkSize);
+		std::streamoff bytesRead = 0;
+		while (in.good()) {
+			in.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+			const std::streamsize got = in.gcount();
+			if (got <= 0) {
+				break;
+			}
+			contents.append(buffer.data(), static_cast<size_t>(got));
+			bytesRead += got;
+
+			if (fileSize > 0) {
+				const int pct = static_cast<int>(std::min<std::streamoff>(60, (bytesRead * 60) / fileSize));
+				prepProgress.Update(pct, "Reading file...");
+			} else {
+				prepProgress.Pulse("Reading file...");
+			}
+			wxYieldIfNeeded();
+		}
+
+		prepProgress.Update(75, "Parsing JSON...");
+		wxYieldIfNeeded();
+		try {
+			outRoot = nlohmann::json::parse(contents);
+		} catch (const nlohmann::json::parse_error &) {
+			error = "Invalid JSON file.";
+			return false;
+		}
+		prepProgress.Update(100, "Ready");
+		wxYieldIfNeeded();
+		return true;
+	}
+
+	void RefreshRuntimeAfterImportWithProgress(
+		wxProgressDialog &progress,
+		const MaterialsWorkbenchImportReport &report
+	) {
+		std::set<int64_t> brushIds(report.importedBrushIds.begin(), report.importedBrushIds.end());
+		std::set<int64_t> borderSetIds(report.importedBorderSetIds.begin(), report.importedBorderSetIds.end());
+
+		int done = 0;
+		const int total = static_cast<int>(brushIds.size() + borderSetIds.size());
+		wxArrayString runtimeWarnings;
+
+		for (int64_t brushId : brushIds) {
+			wxArrayString warnings;
+			wxString reloadError;
+			if (!g_brushes.reloadBrushFromDatabase(brushId, warnings, reloadError)) {
+				runtimeWarnings.push_back(wxString::Format("Runtime brush reload failed for id=%lld: %s", static_cast<long long>(brushId), reloadError));
+			} else {
+				runtimeWarnings.insert(runtimeWarnings.end(), warnings.begin(), warnings.end());
+			}
+			++done;
+			if (total > 0) {
+				const int pct = 90 + static_cast<int>((static_cast<double>(done) / total) * 6.0);
+				progress.Update(std::min(96, pct), "Refreshing runtime brushes...");
+			} else {
+				progress.Pulse("Refreshing runtime brushes...");
+			}
+			wxYieldIfNeeded();
+		}
+
+		for (int64_t borderSetId : borderSetIds) {
+			wxArrayString warnings;
+			wxString reloadError;
+			if (!g_brushes.reloadBorderSetFromDatabase(borderSetId, warnings, reloadError)) {
+				runtimeWarnings.push_back(wxString::Format("Runtime border reload failed for id=%lld: %s", static_cast<long long>(borderSetId), reloadError));
+			} else {
+				runtimeWarnings.insert(runtimeWarnings.end(), warnings.begin(), warnings.end());
+			}
+			++done;
+			if (total > 0) {
+				const int pct = 96 + static_cast<int>((static_cast<double>(done) / total) * 2.0);
+				progress.Update(std::min(98, pct), "Refreshing runtime borders...");
+			} else {
+				progress.Pulse("Refreshing runtime borders...");
+			}
+			wxYieldIfNeeded();
+		}
+
+		progress.Update(98, "Refreshing runtime palettes...");
+		wxYieldIfNeeded();
+		{
+			wxString palettesError;
+			wxArrayString palettesWarnings;
+			if (!g_gui.ReloadMaterialPalettesFromDatabase(palettesError, palettesWarnings)) {
+				spdlog::warn(
+					"Materials Workbench runtime palette refresh failed after materials import: {}",
+					palettesError.ToStdString()
+				);
+			}
+			runtimeWarnings.insert(runtimeWarnings.end(), palettesWarnings.begin(), palettesWarnings.end());
+		}
+
+		for (const wxString &warning : runtimeWarnings) {
+			spdlog::warn(
+				"Materials Workbench runtime refresh warning after materials import: {}",
+				warning.ToStdString()
+			);
+		}
+	}
+
 	wxString BuildNavigationItemTooltip(MaterialsWorkbenchController &controller, const MaterialsWorkbenchTreeItemData &itemData) {
 		if (itemData.kind == MaterialsWorkbenchNodeKind::Group) {
 			if (const wxString tooltip = BuildGroupNavigationTooltip(itemData.contextKey); !tooltip.IsEmpty()) {
@@ -445,7 +661,7 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 			}
 		});
 	});
-	brushPanel_ = new MaterialsWorkbenchBrushPanel(workspaceBook_, controller_);
+	brushPanel_ = std::make_unique<MaterialsWorkbenchBrushPanel>(workspaceBook_, controller_).release();
 	brushPanel_->SetOnBrushStateChanged([this]() {
 		UpdateBrushNavigationBadge();
 		RefreshInspectorForCurrentSelection();
@@ -487,7 +703,7 @@ void MaterialsWorkbenchWindow::BuildLayout() {
 			}
 		});
 	});
-	wallPanel_ = new MaterialsWorkbenchWallPanel(workspaceBook_, controller_);
+	wallPanel_ = std::make_unique<MaterialsWorkbenchWallPanel>(workspaceBook_, controller_).release();
 	wallPanel_->SetOnWallBrushStateChanged([this]() {
 		UpdateBrushNavigationBadge();
 	});
@@ -608,18 +824,9 @@ void MaterialsWorkbenchWindow::OnExportMaterials(wxCommandEvent &) {
 }
 
 void MaterialsWorkbenchWindow::OnImportMaterials(wxCommandEvent &) {
-	if ((borderPanel_ && borderPanel_->HasPendingChanges()) || (brushPanel_ && brushPanel_->HasPendingChanges()) || (wallPanel_ && wallPanel_->HasPendingChanges())) {
-		const int result = wxMessageBox(
-			"You have unsaved changes in an editor. Import can overwrite materials.db data.\n\nSave or revert your changes before importing.\n\nContinue anyway?",
-			"Import Materials",
-			wxYES_NO | wxICON_WARNING,
-			this
-		);
-		if (result != wxYES) {
-			return;
-		}
+	if (HasPendingChangesForImport(borderPanel_, brushPanel_, wallPanel_) && !ConfirmImportWithPendingChanges(this)) {
+		return;
 	}
-
 	wxFileDialog fileDialog(
 		this,
 		"Import Materials",
@@ -633,207 +840,89 @@ void MaterialsWorkbenchWindow::OnImportMaterials(wxCommandEvent &) {
 	}
 
 	const wxString path = fileDialog.GetPath();
-	wxCharBuffer utf8 = path.ToUTF8();
-	std::ifstream in(utf8.data(), std::ios::binary);
-	if (!in.is_open()) {
-		wxMessageBox("Failed to open the import file.", "Import Materials", wxOK | wxICON_ERROR, this);
-		return;
-	}
-
 	nlohmann::json root;
-	try {
-		std::string contents;
-		{
-			wxProgressDialog prepProgress(
-				"Import Materials",
-				"Reading file...",
-				100,
-				this,
-				wxPD_APP_MODAL | wxPD_SMOOTH | wxPD_AUTO_HIDE
-			);
-
-			in.seekg(0, std::ios::end);
-			const std::streamoff fileSize = in.tellg();
-			in.seekg(0, std::ios::beg);
-
-			if (fileSize > 0) {
-				contents.reserve(static_cast<size_t>(fileSize));
-			}
-			static constexpr size_t kChunkSize = 1024 * 1024;
-			std::vector<char> buffer(kChunkSize);
-			std::streamoff bytesRead = 0;
-			while (in.good()) {
-				in.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
-				const std::streamsize got = in.gcount();
-				if (got <= 0) {
-					break;
-				}
-				contents.append(buffer.data(), static_cast<size_t>(got));
-				bytesRead += got;
-
-				if (fileSize > 0) {
-					const int pct = static_cast<int>(std::min<std::streamoff>(60, (bytesRead * 60) / fileSize));
-					prepProgress.Update(pct, "Reading file...");
-				} else {
-					prepProgress.Pulse("Reading file...");
-				}
-				wxYieldIfNeeded();
-			}
-
-			prepProgress.Update(75, "Parsing JSON...");
-			wxYieldIfNeeded();
-			root = nlohmann::json::parse(contents);
-			prepProgress.Update(100, "Ready");
-			wxYieldIfNeeded();
-		}
-
-		MaterialsWorkbenchImportDialog preview(this, root, controller_);
-		{
-			wxProgressDialog planProgress(
-				"Import Materials",
-				"Building import preview...",
-				100,
-				this,
-				wxPD_APP_MODAL | wxPD_SMOOTH | wxPD_AUTO_HIDE
-			);
-			preview.BuildPlanWithProgress(&planProgress, 0, 100);
-			planProgress.Update(100, "Ready");
-			wxYieldIfNeeded();
-		}
-
-		if (preview.ShowModal() != wxID_OK) {
-			return;
-		}
-
-		MaterialsWorkbenchImportReport report;
-		wxString error;
-		{
-			wxProgressDialog applyProgress(
-				"Import Materials",
-				"Applying changes...",
-				100,
-				this,
-				wxPD_APP_MODAL | wxPD_SMOOTH | wxPD_AUTO_HIDE
-			);
-
-			applyProgress.Update(0, "Applying changes...");
-			wxYieldIfNeeded();
-
-			const auto onProgress = [&](int current, int total, const wxString &stage) {
-				wxString message = stage;
-				if (total > 0) {
-					message += wxString::Format(" (%d/%d)", current, total);
-					const int pct = 5 + static_cast<int>((static_cast<double>(current) / std::max(1, total)) * 80.0);
-					applyProgress.Update(std::min(85, pct), message);
-				} else {
-					applyProgress.Pulse(message);
-				}
-				wxYieldIfNeeded();
-				return true;
-			};
-
-			if (!ApplyMaterialsWorkbenchImportJsonWithProgress(controller_, preview.GetJson(), preview.GetOptions(), onProgress, report, error)) {
-				if (error.IsEmpty()) {
-					error = "Import failed.";
-				}
-				g_gui.PopupDialog(this, "Import failed", error, wxOK | wxICON_ERROR);
-				return;
-			}
-
-			applyProgress.Update(90, "Refreshing runtime...");
-			wxYieldIfNeeded();
-			{
-				std::set<int64_t> brushIds(report.importedBrushIds.begin(), report.importedBrushIds.end());
-				std::set<int64_t> borderSetIds(report.importedBorderSetIds.begin(), report.importedBorderSetIds.end());
-
-				int done = 0;
-				const int total = static_cast<int>(brushIds.size() + borderSetIds.size());
-
-				wxArrayString runtimeWarnings;
-				for (int64_t brushId : brushIds) {
-					wxArrayString warnings;
-					wxString reloadError;
-					if (!g_brushes.reloadBrushFromDatabase(brushId, warnings, reloadError)) {
-						runtimeWarnings.push_back(wxString::Format("Runtime brush reload failed for id=%lld: %s", static_cast<long long>(brushId), reloadError));
-					} else {
-						runtimeWarnings.insert(runtimeWarnings.end(), warnings.begin(), warnings.end());
-					}
-					++done;
-					if (total > 0) {
-						const int pct = 90 + static_cast<int>((static_cast<double>(done) / total) * 6.0);
-						applyProgress.Update(std::min(96, pct), "Refreshing runtime brushes...");
-					} else {
-						applyProgress.Pulse("Refreshing runtime brushes...");
-					}
-					wxYieldIfNeeded();
-				}
-
-				for (int64_t borderSetId : borderSetIds) {
-					wxArrayString warnings;
-					wxString reloadError;
-					if (!g_brushes.reloadBorderSetFromDatabase(borderSetId, warnings, reloadError)) {
-						runtimeWarnings.push_back(wxString::Format("Runtime border reload failed for id=%lld: %s", static_cast<long long>(borderSetId), reloadError));
-					} else {
-						runtimeWarnings.insert(runtimeWarnings.end(), warnings.begin(), warnings.end());
-					}
-					++done;
-					if (total > 0) {
-						const int pct = 96 + static_cast<int>((static_cast<double>(done) / total) * 2.0);
-						applyProgress.Update(std::min(98, pct), "Refreshing runtime borders...");
-					} else {
-						applyProgress.Pulse("Refreshing runtime borders...");
-					}
-					wxYieldIfNeeded();
-				}
-
-				applyProgress.Update(98, "Refreshing runtime palettes...");
-				wxYieldIfNeeded();
-				{
-					wxString palettesError;
-					wxArrayString palettesWarnings;
-					if (!g_gui.ReloadMaterialPalettesFromDatabase(palettesError, palettesWarnings)) {
-						spdlog::warn(
-							"Materials Workbench runtime palette refresh failed after materials import: {}",
-							palettesError.ToStdString()
-						);
-					}
-					runtimeWarnings.insert(runtimeWarnings.end(), palettesWarnings.begin(), palettesWarnings.end());
-				}
-
-				for (const wxString &warning : runtimeWarnings) {
-					spdlog::warn(
-						"Materials Workbench runtime refresh warning after materials import: {}",
-						warning.ToStdString()
-					);
-				}
-			}
-
-			applyProgress.Update(99, "Refreshing workbench...");
-			wxYieldIfNeeded();
-
-			RefreshWorkbenchState();
-			PopulateNavigation();
-
-			applyProgress.Update(100, "Done");
-			wxYieldIfNeeded();
-		}
-
-		if (!error.IsEmpty()) {
-			wxMessageBox(error, "Import Materials", wxOK | wxICON_ERROR, this);
-			return;
-		}
-
-		wxMessageBox(
-			wxString::Format("Import complete.\n\nCreated: %d\nUpdated: %d\nSkipped: %d", report.created, report.updated, report.skipped),
-			"Import Materials",
-			wxOK | wxICON_INFORMATION,
-			this
-		);
-		return;
-	} catch (const nlohmann::json::parse_error &) {
-		wxMessageBox("Invalid JSON file.", "Import Materials", wxOK | wxICON_ERROR, this);
+	wxString readError;
+	if (!ReadJsonFileWithProgress(this, path, root, readError)) {
+		wxMessageBox(readError, "Import Materials", wxOK | wxICON_ERROR, this);
 		return;
 	}
+
+	MaterialsWorkbenchImportDialog preview(this, root, controller_);
+	{
+		wxProgressDialog planProgress(
+			"Import Materials",
+			"Building import preview...",
+			100,
+			this,
+			wxPD_APP_MODAL | wxPD_SMOOTH | wxPD_AUTO_HIDE
+		);
+		preview.BuildPlanWithProgress(&planProgress, 0, 100);
+		planProgress.Update(100, "Ready");
+		wxYieldIfNeeded();
+	}
+
+	if (preview.ShowModal() != wxID_OK) {
+		return;
+	}
+
+	MaterialsWorkbenchImportReport report;
+	wxString error;
+	{
+		wxProgressDialog applyProgress(
+			"Import Materials",
+			"Applying changes...",
+			100,
+			this,
+			wxPD_APP_MODAL | wxPD_SMOOTH | wxPD_AUTO_HIDE
+		);
+
+		applyProgress.Update(0, "Applying changes...");
+		wxYieldIfNeeded();
+
+		const auto onProgress = [&](int current, int total, const wxString &stage) {
+			wxString message = stage;
+			if (total > 0) {
+				message += wxString::Format(" (%d/%d)", current, total);
+				const int pct = 5 + static_cast<int>((static_cast<double>(current) / std::max(1, total)) * 80.0);
+				applyProgress.Update(std::min(85, pct), message);
+			} else {
+				applyProgress.Pulse(message);
+			}
+			wxYieldIfNeeded();
+			return true;
+		};
+
+		if (!ApplyMaterialsWorkbenchImportJsonWithProgress(controller_, preview.GetJson(), preview.GetOptions(), onProgress, report, error)) {
+			if (error.IsEmpty()) {
+				error = "Import failed.";
+			}
+			g_gui.PopupDialog(this, "Import failed", error, wxOK | wxICON_ERROR);
+			return;
+		}
+
+		applyProgress.Update(90, "Refreshing runtime...");
+		wxYieldIfNeeded();
+		RefreshRuntimeAfterImportWithProgress(applyProgress, report);
+
+		applyProgress.Update(99, "Refreshing workbench...");
+		wxYieldIfNeeded();
+		RefreshWorkbenchState();
+		PopulateNavigation();
+		applyProgress.Update(100, "Done");
+		wxYieldIfNeeded();
+	}
+
+	if (!error.IsEmpty()) {
+		wxMessageBox(error, "Import Materials", wxOK | wxICON_ERROR, this);
+		return;
+	}
+
+	wxMessageBox(
+		wxString::Format("Import complete.\n\nCreated: %d\nUpdated: %d\nSkipped: %d", report.created, report.updated, report.skipped),
+		"Import Materials",
+		wxOK | wxICON_INFORMATION,
+		this
+	);
 }
 
 bool MaterialsWorkbenchWindow::GoToEntity(const wxString &entityKind, int64_t entityId, const wxString &entityName) {
@@ -1022,34 +1111,21 @@ void MaterialsWorkbenchWindow::UpdateBrushNavigationBadge() {
 	}
 
 	const bool hasDirtyBrush = brushPanel_ && brushPanel_->HasPendingChanges();
-	const wxString dirtyBrushName = hasDirtyBrush ? brushPanel_->GetCurrentBrushDisplayName() : wxString();
 	const bool hasDirtyBorder = borderPanel_ && borderPanel_->HasPendingChanges();
-	const wxString dirtyBorderName = hasDirtyBorder ? borderPanel_->GetCurrentBorderSetDisplayName() : wxString();
 	const bool hasDirtyWall = wallPanel_ && wallPanel_->HasPendingChanges();
-	const wxString dirtyWallName = hasDirtyWall ? wallPanel_->GetCurrentWallDisplayName() : wxString();
-	const wxColour defaultTextColour = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT);
-	const wxColour modifiedTextColour(176, 102, 0);
-
-	std::function<void(const wxTreeItemId&)> applyBadge;
-	applyBadge = [&](const wxTreeItemId &parentItem) {
-		wxTreeItemIdValue cookie;
-		for (wxTreeItemId child = navigationTree_->GetFirstChild(parentItem, cookie); child.IsOk(); child = navigationTree_->GetNextChild(parentItem, cookie)) {
-			auto* itemData = dynamic_cast<MaterialsWorkbenchTreeItemData*>(navigationTree_->GetItemData(child));
-			if (itemData) {
-				const bool isModifiedBrush = hasDirtyBrush && itemData->kind == MaterialsWorkbenchNodeKind::Brush && brushPanel_->IsCurrentBrushSelection(itemData->contextKey, itemData->itemIndex);
-				const bool isModifiedWall = hasDirtyWall && itemData->kind == MaterialsWorkbenchNodeKind::Brush && wallPanel_->IsCurrentWallSelection(itemData->contextKey, itemData->itemIndex);
-				const bool isModifiedBorder = hasDirtyBorder && itemData->kind == MaterialsWorkbenchNodeKind::BorderSet && borderPanel_->IsCurrentBorderSelection(itemData->contextKey, itemData->itemIndex);
-				const bool isModified = isModifiedBrush || isModifiedBorder || isModifiedWall;
-				const wxString displayLabel = isModifiedBrush && !dirtyBrushName.IsEmpty() ? dirtyBrushName : (isModifiedBorder && !dirtyBorderName.IsEmpty() ? dirtyBorderName : (isModifiedWall && !dirtyWallName.IsEmpty() ? dirtyWallName : itemData->baseLabel));
-				navigationTree_->SetItemText(child, isModified ? displayLabel + " [modified]" : itemData->baseLabel);
-				navigationTree_->SetItemTextColour(child, isModified ? modifiedTextColour : defaultTextColour);
-			}
-
-			applyBadge(child);
-		}
-	};
-
-	applyBadge(root);
+	WorkbenchBadgeContext ctx;
+	ctx.brushPanel = brushPanel_;
+	ctx.borderPanel = borderPanel_;
+	ctx.wallPanel = wallPanel_;
+	ctx.hasDirtyBrush = hasDirtyBrush;
+	ctx.dirtyBrushName = hasDirtyBrush ? brushPanel_->GetCurrentBrushDisplayName() : wxString();
+	ctx.hasDirtyBorder = hasDirtyBorder;
+	ctx.dirtyBorderName = hasDirtyBorder ? borderPanel_->GetCurrentBorderSetDisplayName() : wxString();
+	ctx.hasDirtyWall = hasDirtyWall;
+	ctx.dirtyWallName = hasDirtyWall ? wallPanel_->GetCurrentWallDisplayName() : wxString();
+	ctx.defaultTextColour = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT);
+	ctx.modifiedTextColour = wxColour(176, 102, 0);
+	ApplyWorkbenchBadgeToTree(navigationTree_, root, ctx);
 }
 
 void MaterialsWorkbenchWindow::PopulateNavigation() {
@@ -1146,10 +1222,16 @@ void MaterialsWorkbenchWindow::PopulateNavigation() {
 }
 
 void MaterialsWorkbenchWindow::BindEvents() {
+	BindSidebarEvents();
+	BindNavigationFilterEvents();
+	BindNavigationHoverEvents();
+	BindNavigationClickEvents();
+	BindNavigationSelectionEvents();
+}
+
+void MaterialsWorkbenchWindow::BindSidebarEvents() {
 	if (inspectorButton_) {
-		inspectorButton_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
-			OpenInspector();
-		});
+		inspectorButton_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { OpenInspector(); });
 	}
 	if (exportButton_) {
 		exportButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWindow::OnExportMaterials, this);
@@ -1157,19 +1239,27 @@ void MaterialsWorkbenchWindow::BindEvents() {
 	if (importButton_) {
 		importButton_->Bind(wxEVT_BUTTON, &MaterialsWorkbenchWindow::OnImportMaterials, this);
 	}
+}
 
-	if (navigationFilterCtrl_) {
-		navigationFilterCtrl_->Bind(wxEVT_TEXT, [this](wxCommandEvent &event) {
-			navigationFilterQuery_ = event.GetString();
-			PopulateNavigation();
-		});
-		navigationFilterCtrl_->Bind(wxEVT_SEARCHCTRL_CANCEL_BTN, [this](wxCommandEvent &WXUNUSED(event)) {
-			navigationFilterQuery_.clear();
-			navigationFilterCtrl_->ChangeValue("");
-			PopulateNavigation();
-		});
+void MaterialsWorkbenchWindow::BindNavigationFilterEvents() {
+	if (!navigationFilterCtrl_) {
+		return;
 	}
+	navigationFilterCtrl_->Bind(wxEVT_TEXT, [this](wxCommandEvent &event) {
+		navigationFilterQuery_ = event.GetString();
+		PopulateNavigation();
+	});
+	navigationFilterCtrl_->Bind(wxEVT_SEARCHCTRL_CANCEL_BTN, [this](wxCommandEvent &) {
+		navigationFilterQuery_.clear();
+		navigationFilterCtrl_->ChangeValue("");
+		PopulateNavigation();
+	});
+}
 
+void MaterialsWorkbenchWindow::BindNavigationHoverEvents() {
+	if (!navigationTree_) {
+		return;
+	}
 	navigationTree_->Bind(wxEVT_MOTION, [this](wxMouseEvent &event) {
 		if (navigationPopulating_) {
 			event.Skip();
@@ -1201,10 +1291,14 @@ void MaterialsWorkbenchWindow::BindEvents() {
 			hoveredNavigationTooltipKey_ = tooltipKey;
 			navigationTree_->SetToolTip(BuildNavigationItemTooltip(controller_, *itemData));
 		}
-
 		event.Skip();
 	});
+}
 
+void MaterialsWorkbenchWindow::BindNavigationClickEvents() {
+	if (!navigationTree_) {
+		return;
+	}
 	navigationTree_->Bind(wxEVT_LEFT_DOWN, [this](wxMouseEvent &event) {
 		if (navigationPopulating_) {
 			event.Skip();
@@ -1230,21 +1324,17 @@ void MaterialsWorkbenchWindow::BindEvents() {
 			if (!navigationTree_) {
 				return;
 			}
-
 			const wxTreeItemId root = navigationTree_->GetRootItem();
 			if (!root.IsOk()) {
 				return;
 			}
-
 			wxTreeItemId targetItem;
 			if (!FindNavigationNodeByKeyRecursive(navigationTree_, root, targetKey, targetItem)) {
 				return;
 			}
-
 			if (!targetItem.IsOk() || navigationTree_->GetSelection() != targetItem || !navigationTree_->ItemHasChildren(targetItem)) {
 				return;
 			}
-
 			if (navigationTree_->IsExpanded(targetItem)) {
 				navigationTree_->Collapse(targetItem);
 			} else {
@@ -1252,6 +1342,12 @@ void MaterialsWorkbenchWindow::BindEvents() {
 			}
 		});
 	});
+}
+
+void MaterialsWorkbenchWindow::BindNavigationSelectionEvents() {
+	if (!navigationTree_) {
+		return;
+	}
 
 	navigationTree_->Bind(wxEVT_TREE_SEL_CHANGING, [this](wxTreeEvent &event) {
 		if (navigationPopulating_) {
@@ -1273,14 +1369,12 @@ void MaterialsWorkbenchWindow::BindEvents() {
 			}
 			return;
 		}
-
 		if (borderPanel_->HasPendingChanges() && !isSameBorderSelection) {
 			if (!borderPanel_->ResolvePendingChangesBeforeSwitch(this, navigationTree_->GetItemText(item))) {
 				event.Veto();
 			}
 			return;
 		}
-
 		if (wallPanel_->HasPendingChanges() && !isSameWallSelection) {
 			if (!wallPanel_->ResolvePendingChangesBeforeSwitch(this, navigationTree_->GetItemText(item))) {
 				event.Veto();
@@ -1328,7 +1422,6 @@ void MaterialsWorkbenchWindow::BindEvents() {
 				}
 				wallPanel_->ClearWorkspace("Failed to load the selected wall workspace.");
 			}
-
 			if (brushPanel_->LoadBrush(itemData->contextKey, itemData->itemIndex)) {
 				workspaceBook_->SetSelection(3);
 				return;

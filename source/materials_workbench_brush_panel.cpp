@@ -150,6 +150,145 @@ namespace {
 		}
 	}
 
+	struct UsedByOpenHandlers {
+		std::function<void(int64_t)> openBrush;
+		std::function<void(int64_t)> openBorderSet;
+		std::function<void(const wxString &)> openTileset;
+	};
+
+	wxString NormalizeUsedBySearchQuery(wxString value) {
+		value.Trim(true);
+		value.Trim(false);
+		value.MakeLower();
+		return value;
+	}
+
+	bool UsedByUsageMatchesQuery(const BrushUsageRecord &usage, const wxString &queryLower) {
+		if (queryLower.IsEmpty()) {
+			return true;
+		}
+		const wxString haystack = (usage.sourceKind + " " + usage.sourceName + " " + usage.relation + " " + usage.context).Lower();
+		return haystack.Contains(queryLower);
+	}
+
+	const BrushUsageRecord* GetSelectedUsedByUsage(
+		wxListCtrl* list,
+		const std::vector<BrushUsageRecord> &usages,
+		const std::vector<size_t> &filtered
+	) {
+		if (!list) {
+			return nullptr;
+		}
+		const long selectedRow = list->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+		if (selectedRow == wxNOT_FOUND || selectedRow < 0) {
+			return nullptr;
+		}
+		const size_t visibleIndex = static_cast<size_t>(selectedRow);
+		if (visibleIndex >= filtered.size()) {
+			return nullptr;
+		}
+		const size_t usageIndex = filtered[visibleIndex];
+		return usageIndex < usages.size() ? &usages[usageIndex] : nullptr;
+	}
+
+	bool CanOpenUsedByUsage(const BrushUsageRecord &usage, const UsedByOpenHandlers &handlers) {
+		if (usage.sourceKind.IsSameAs("palette", false)) {
+			return static_cast<bool>(handlers.openTileset) && !usage.sourceName.IsEmpty();
+		}
+		if (usage.sourceKind.IsSameAs("border_set", false)) {
+			return static_cast<bool>(handlers.openBorderSet) && usage.sourceId > 0;
+		}
+		if (usage.sourceKind.IsSameAs("brush", false)) {
+			return static_cast<bool>(handlers.openBrush) && usage.sourceId > 0;
+		}
+		return false;
+	}
+
+	void OpenUsedByUsage(const BrushUsageRecord &usage, const UsedByOpenHandlers &handlers) {
+		if (usage.sourceKind.IsSameAs("palette", false)) {
+			if (handlers.openTileset) {
+				handlers.openTileset(usage.sourceName);
+			}
+			return;
+		}
+		if (usage.sourceKind.IsSameAs("border_set", false)) {
+			if (handlers.openBorderSet) {
+				handlers.openBorderSet(usage.sourceId);
+			}
+			return;
+		}
+		if (usage.sourceKind.IsSameAs("brush", false)) {
+			if (handlers.openBrush) {
+				handlers.openBrush(usage.sourceId);
+			}
+		}
+	}
+
+	size_t RefreshUsedByList(
+		wxListCtrl* list,
+		const std::vector<BrushUsageRecord> &usages,
+		const wxString &queryLower,
+		std::vector<size_t> &outFiltered
+	) {
+		outFiltered.clear();
+		if (!list) {
+			return 0;
+		}
+		list->DeleteAllItems();
+
+		for (size_t i = 0; i < usages.size(); ++i) {
+			const BrushUsageRecord &usage = usages[i];
+			if (!UsedByUsageMatchesQuery(usage, queryLower)) {
+				continue;
+			}
+
+			const long row = list->InsertItem(list->GetItemCount(), usage.sourceKind);
+			list->SetItem(row, 1, usage.sourceName);
+			list->SetItem(row, 2, usage.relation);
+			list->SetItem(row, 3, usage.context);
+			outFiltered.push_back(i);
+		}
+
+		return outFiltered.size();
+	}
+
+	void UpdateUsedBySummary(wxStaticText* summaryLabel, size_t matchCount) {
+		if (!summaryLabel) {
+			return;
+		}
+		summaryLabel->SetLabel(wxString::Format("%zu reference%s found", matchCount, matchCount == 1 ? "" : "s"));
+	}
+
+	void UpdateUsedByOpenEnabled(
+		wxListCtrl* list,
+		wxButton* openButton,
+		const std::vector<BrushUsageRecord> &usages,
+		const std::vector<size_t> &filtered,
+		const UsedByOpenHandlers &handlers
+	) {
+		if (!openButton) {
+			return;
+		}
+		const BrushUsageRecord* usage = GetSelectedUsedByUsage(list, usages, filtered);
+		openButton->Enable(usage != nullptr && CanOpenUsedByUsage(*usage, handlers));
+	}
+
+	void OpenSelectedUsedByUsage(
+		wxListCtrl* list,
+		const std::vector<BrushUsageRecord> &usages,
+		const std::vector<size_t> &filtered,
+		const UsedByOpenHandlers &handlers
+	) {
+		const BrushUsageRecord* usage = GetSelectedUsedByUsage(list, usages, filtered);
+		if (!usage) {
+			return;
+		}
+		if (!CanOpenUsedByUsage(*usage, handlers)) {
+			return;
+		}
+		OpenUsedByUsage(*usage, handlers);
+	}
+
 	wxString BuildBrushLinkTargetLabel(const BrushLinkRecord &link) {
 		if (!link.targetBrushName.IsEmpty() && link.targetBrushId > 0) {
 			return wxString::Format("%s (#%lld)", link.targetBrushName, static_cast<long long>(link.targetBrushId));
@@ -1115,6 +1254,17 @@ namespace {
 			{ "cnw", "SE", "Corner slot.", 4, 4 },
 		};
 		return kSlots;
+	}
+
+	wxString LookupCarpetSlotLabel(const wxString &selectedAlign) {
+		if (selectedAlign.IsEmpty()) {
+			return wxString();
+		}
+		const auto &slots = GetCarpetContextSlots();
+		const auto it = std::ranges::find_if(slots, [&](const AlignedContextSlot &slot) {
+			return wxString::FromUTF8(slot.align).CmpNoCase(selectedAlign) == 0;
+		});
+		return it != slots.end() ? wxString::FromUTF8(it->label) : wxString();
 	}
 
 	const std::vector<AlignedContextSlot> &GetTableContextSlots() {
@@ -5112,20 +5262,12 @@ bool MaterialsWorkbenchBrushPanel::RefreshAlignedSelectionCarpet() {
 		if (selectedAlign.IsEmpty()) {
 			alignedNodeAlignCtrl_->SetValue("");
 		} else {
-			wxString slotLabel;
-			for (const auto &slot : GetCarpetContextSlots()) {
-				const wxString slotAlign = wxString::FromUTF8(slot.align);
-				if (slotAlign.CmpNoCase(selectedAlign) == 0) {
-					slotLabel = wxString::FromUTF8(slot.label);
-					break;
-				}
-			}
+			const wxString slotLabel = LookupCarpetSlotLabel(selectedAlign);
 			alignedNodeAlignCtrl_->SetValue(slotLabel.IsEmpty() ? selectedAlign : slotLabel);
-			alignedNodeAlignCtrl_->SetToolTip(
-				slotLabel.IsEmpty()
-					? wxString::Format("Selected slot key: %s", selectedAlign)
-					: wxString::Format("Selected slot: %s (align key: %s)", slotLabel, selectedAlign)
-			);
+			const wxString tooltip = slotLabel.IsEmpty()
+				? wxString::Format("Selected slot key: %s", selectedAlign)
+				: wxString::Format("Selected slot: %s (align key: %s)", slotLabel, selectedAlign);
+			alignedNodeAlignCtrl_->SetToolTip(tooltip);
 		}
 	}
 
@@ -5197,7 +5339,7 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
 	const bool hasNode = alignedNodeIndex_ >= 0;
 	const bool hasPendingCarpetSlot = type == "carpet" && !alignedPendingCarpetAlign_.IsEmpty() && !hasNode;
 	const bool hasPendingTableSlot = type == "table" && !alignedPendingTableAlign_.IsEmpty() && !hasNode;
-	UpdateAlignedVisualInfoLabel(type, hasNode, hasPendingCarpetSlot, hasPendingTableSlot);
+	UpdateAlignedVisualInfoLabel(type, hasNode, hasPendingCarpetSlot);
 	UpdateAlignedAdvancedInfoLabel(type, hasNode, hasPendingCarpetSlot, hasPendingTableSlot);
 	UpdateAlignedAddNodeButtonState(type);
 
@@ -5228,8 +5370,7 @@ void MaterialsWorkbenchBrushPanel::RefreshAlignedVisualState() {
 void MaterialsWorkbenchBrushPanel::UpdateAlignedVisualInfoLabel(
 	const wxString &type,
 	bool hasNode,
-	bool hasPendingCarpetSlot,
-	bool WXUNUSED(hasPendingTableSlot)
+	bool hasPendingCarpetSlot
 ) {
 	if (!alignedVisualInfoLabel_) {
 		return;
@@ -5250,6 +5391,97 @@ void MaterialsWorkbenchBrushPanel::UpdateAlignedVisualInfoLabel(
 				   : wxString::FromUTF8("Click the carpet layout map to select a context. Empty slots stay visible so missing coverage stands out immediately."))
 	);
 	alignedVisualInfoLabel_->Wrap(FromDIP(250));
+}
+
+bool MaterialsWorkbenchBrushPanel::RefreshDoodadSingleItemFields(const DoodadAlternativeRecord &alternative) {
+	const bool hasSingleItem = doodadSingleItemIndex_ >= 0 && doodadSingleItemIndex_ < static_cast<int>(alternative.singleItems.size());
+	if (!hasSingleItem) {
+		if (doodadSingleItemIdCtrl_) {
+			doodadSingleItemIdCtrl_->SetValue(0);
+		}
+		if (doodadSingleItemChanceCtrl_) {
+			doodadSingleItemChanceCtrl_->SetValue(0);
+		}
+		return false;
+	}
+
+	const auto &singleItem = alternative.singleItems[doodadSingleItemIndex_];
+	if (doodadSingleItemIdCtrl_) {
+		doodadSingleItemIdCtrl_->SetValue(singleItem.itemId);
+	}
+	if (doodadSingleItemChanceCtrl_) {
+		doodadSingleItemChanceCtrl_->SetValue(singleItem.chance);
+	}
+	return true;
+}
+
+void MaterialsWorkbenchBrushPanel::RefreshDoodadCompositeFields(
+	const DoodadAlternativeRecord &alternative,
+	bool &outHasComposite,
+	bool &outHasTile,
+	bool &outHasTileItem
+) {
+	outHasComposite = doodadCompositeIndex_ >= 0 && doodadCompositeIndex_ < static_cast<int>(alternative.composites.size());
+	outHasTile = false;
+	outHasTileItem = false;
+
+	if (!outHasComposite) {
+		if (doodadCompositeChanceCtrl_) {
+			doodadCompositeChanceCtrl_->SetValue(0);
+		}
+		if (doodadTileOffsetXCtrl_) {
+			doodadTileOffsetXCtrl_->SetValue(0);
+		}
+		if (doodadTileOffsetYCtrl_) {
+			doodadTileOffsetYCtrl_->SetValue(0);
+		}
+		if (doodadTileOffsetZCtrl_) {
+			doodadTileOffsetZCtrl_->SetValue(0);
+		}
+		if (doodadTileItemIdCtrl_) {
+			doodadTileItemIdCtrl_->SetValue(0);
+		}
+		return;
+	}
+
+	const auto &composite = alternative.composites[doodadCompositeIndex_];
+	if (doodadCompositeChanceCtrl_) {
+		doodadCompositeChanceCtrl_->SetValue(composite.chance);
+	}
+
+	outHasTile = doodadTileIndex_ >= 0 && doodadTileIndex_ < static_cast<int>(composite.tiles.size());
+	if (!outHasTile) {
+		if (doodadTileOffsetXCtrl_) {
+			doodadTileOffsetXCtrl_->SetValue(0);
+		}
+		if (doodadTileOffsetYCtrl_) {
+			doodadTileOffsetYCtrl_->SetValue(0);
+		}
+		if (doodadTileOffsetZCtrl_) {
+			doodadTileOffsetZCtrl_->SetValue(0);
+		}
+		if (doodadTileItemIdCtrl_) {
+			doodadTileItemIdCtrl_->SetValue(0);
+		}
+		return;
+	}
+
+	const auto &tile = composite.tiles[doodadTileIndex_];
+	if (doodadTileOffsetXCtrl_) {
+		doodadTileOffsetXCtrl_->SetValue(tile.offsetX);
+	}
+	if (doodadTileOffsetYCtrl_) {
+		doodadTileOffsetYCtrl_->SetValue(tile.offsetY);
+	}
+	if (doodadTileOffsetZCtrl_) {
+		doodadTileOffsetZCtrl_->SetValue(tile.offsetZ);
+	}
+
+	outHasTileItem = doodadTileItemIndex_ >= 0 && doodadTileItemIndex_ < static_cast<int>(tile.items.size());
+	if (doodadTileItemIdCtrl_) {
+		const int tileItemId = outHasTileItem ? tile.items[doodadTileItemIndex_].itemId : 0;
+		doodadTileItemIdCtrl_->SetValue(tileItemId);
+	}
 }
 
 void MaterialsWorkbenchBrushPanel::UpdateAlignedAdvancedInfoLabel(
@@ -6491,56 +6723,32 @@ void MaterialsWorkbenchBrushPanel::RefreshDoodadSelection() {
 	bool hasTile = false;
 	bool hasTileItem = false;
 
-	if (hasAlternative) {
-		const auto &alternative = brushStorage_.doodadAlternatives[doodadAlternativeIndex_];
-		hasSingleItem = doodadSingleItemIndex_ >= 0 && doodadSingleItemIndex_ < static_cast<int>(alternative.singleItems.size());
-		hasComposite = doodadCompositeIndex_ >= 0 && doodadCompositeIndex_ < static_cast<int>(alternative.composites.size());
-
-		if (hasSingleItem) {
-			const auto &singleItem = alternative.singleItems[doodadSingleItemIndex_];
-			doodadSingleItemIdCtrl_->SetValue(singleItem.itemId);
-			doodadSingleItemChanceCtrl_->SetValue(singleItem.chance);
-		} else {
+	if (!hasAlternative) {
+		if (doodadSingleItemIdCtrl_) {
 			doodadSingleItemIdCtrl_->SetValue(0);
+		}
+		if (doodadSingleItemChanceCtrl_) {
 			doodadSingleItemChanceCtrl_->SetValue(0);
 		}
-
-		if (hasComposite) {
-			const auto &composite = alternative.composites[doodadCompositeIndex_];
-			doodadCompositeChanceCtrl_->SetValue(composite.chance);
-			hasTile = doodadTileIndex_ >= 0 && doodadTileIndex_ < static_cast<int>(composite.tiles.size());
-			if (hasTile) {
-				const auto &tile = composite.tiles[doodadTileIndex_];
-				doodadTileOffsetXCtrl_->SetValue(tile.offsetX);
-				doodadTileOffsetYCtrl_->SetValue(tile.offsetY);
-				doodadTileOffsetZCtrl_->SetValue(tile.offsetZ);
-				hasTileItem = doodadTileItemIndex_ >= 0 && doodadTileItemIndex_ < static_cast<int>(tile.items.size());
-				if (hasTileItem) {
-					doodadTileItemIdCtrl_->SetValue(tile.items[doodadTileItemIndex_].itemId);
-				} else {
-					doodadTileItemIdCtrl_->SetValue(0);
-				}
-			} else {
-				doodadTileOffsetXCtrl_->SetValue(0);
-				doodadTileOffsetYCtrl_->SetValue(0);
-				doodadTileOffsetZCtrl_->SetValue(0);
-				doodadTileItemIdCtrl_->SetValue(0);
-			}
-		} else {
+		if (doodadCompositeChanceCtrl_) {
 			doodadCompositeChanceCtrl_->SetValue(0);
+		}
+		if (doodadTileOffsetXCtrl_) {
 			doodadTileOffsetXCtrl_->SetValue(0);
+		}
+		if (doodadTileOffsetYCtrl_) {
 			doodadTileOffsetYCtrl_->SetValue(0);
+		}
+		if (doodadTileOffsetZCtrl_) {
 			doodadTileOffsetZCtrl_->SetValue(0);
+		}
+		if (doodadTileItemIdCtrl_) {
 			doodadTileItemIdCtrl_->SetValue(0);
 		}
 	} else {
-		doodadSingleItemIdCtrl_->SetValue(0);
-		doodadSingleItemChanceCtrl_->SetValue(0);
-		doodadCompositeChanceCtrl_->SetValue(0);
-		doodadTileOffsetXCtrl_->SetValue(0);
-		doodadTileOffsetYCtrl_->SetValue(0);
-		doodadTileOffsetZCtrl_->SetValue(0);
-		doodadTileItemIdCtrl_->SetValue(0);
+		const auto &alternative = brushStorage_.doodadAlternatives[doodadAlternativeIndex_];
+		hasSingleItem = RefreshDoodadSingleItemFields(alternative);
+		RefreshDoodadCompositeFields(alternative, hasComposite, hasTile, hasTileItem);
 	}
 
 	doodadSingleItemIdCtrl_->Enable(hasSingleItem);
@@ -7457,77 +7665,22 @@ void MaterialsWorkbenchBrushPanel::OnUsedBy(wxCommandEvent &) {
 	actions->Add(closeButton, 0);
 
 	std::vector<size_t> filtered;
+	const UsedByOpenHandlers handlers = { onOpenLinkedBrush_, onOpenLinkedBorderSet_, onOpenLinkedTileset_ };
 
 	auto updateOpenEnabled = [&]() {
-		bool canOpen = false;
-		const long selectedRow = list->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-		if (selectedRow != wxNOT_FOUND && selectedRow >= 0 && static_cast<size_t>(selectedRow) < filtered.size()) {
-			const BrushUsageRecord &usage = usages[filtered[static_cast<size_t>(selectedRow)]];
-			if (usage.sourceKind.IsSameAs("palette", false)) {
-				canOpen = onOpenLinkedTileset_ && !usage.sourceName.IsEmpty();
-			} else if (usage.sourceKind.IsSameAs("border_set", false)) {
-				canOpen = onOpenLinkedBorderSet_ && usage.sourceId > 0;
-			} else if (usage.sourceKind.IsSameAs("brush", false)) {
-				canOpen = onOpenLinkedBrush_ && usage.sourceId > 0;
-			}
-		}
-		openButton->Enable(canOpen);
+		UpdateUsedByOpenEnabled(list, openButton, usages, filtered, handlers);
 	};
 
-	auto normalize = [](const wxString &value) {
-		wxString lowered = value;
-		lowered.MakeLower();
-		return lowered;
-	};
 	auto refresh = [&]() {
-		filtered.clear();
-		list->DeleteAllItems();
-
-		const wxString query = normalize(searchCtrl->GetValue().Trim(true).Trim(false));
-		for (size_t i = 0; i < usages.size(); ++i) {
-			const BrushUsageRecord &usage = usages[i];
-			wxString haystack = usage.sourceKind + " " + usage.sourceName + " " + usage.relation + " " + usage.context;
-			if (!query.IsEmpty() && normalize(haystack).Find(query) == wxNOT_FOUND) {
-				continue;
-			}
-
-			const long row = list->InsertItem(list->GetItemCount(), usage.sourceKind);
-			list->SetItem(row, 1, usage.sourceName);
-			list->SetItem(row, 2, usage.relation);
-			list->SetItem(row, 3, usage.context);
-			filtered.push_back(i);
-		}
-
-		summaryLabel->SetLabel(
-			wxString::Format(
-				"%zu reference%s found",
-				filtered.size(),
-				filtered.size() == 1 ? "" : "s"
-			)
-		);
+		const wxString queryLower = NormalizeUsedBySearchQuery(searchCtrl->GetValue());
+		const auto matches = RefreshUsedByList(list, usages, queryLower, filtered);
+		UpdateUsedBySummary(summaryLabel, matches);
 		panel->Layout();
-		updateOpenEnabled();
+		UpdateUsedByOpenEnabled(list, openButton, usages, filtered, handlers);
 	};
 
 	auto openSelection = [&]() {
-		const long selectedRow = list->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-		if (selectedRow == wxNOT_FOUND || selectedRow < 0 || static_cast<size_t>(selectedRow) >= filtered.size()) {
-			return;
-		}
-		const BrushUsageRecord &usage = usages[filtered[static_cast<size_t>(selectedRow)]];
-		if (usage.sourceKind.IsSameAs("palette", false)) {
-			if (onOpenLinkedTileset_) {
-				onOpenLinkedTileset_(usage.sourceName);
-			}
-		} else if (usage.sourceKind.IsSameAs("border_set", false)) {
-			if (onOpenLinkedBorderSet_) {
-				onOpenLinkedBorderSet_(usage.sourceId);
-			}
-		} else if (usage.sourceKind.IsSameAs("brush", false)) {
-			if (onOpenLinkedBrush_) {
-				onOpenLinkedBrush_(usage.sourceId);
-			}
-		}
+		OpenSelectedUsedByUsage(list, usages, filtered, handlers);
 	};
 
 	searchCtrl->Bind(wxEVT_TEXT, [&](wxCommandEvent &) { refresh(); });

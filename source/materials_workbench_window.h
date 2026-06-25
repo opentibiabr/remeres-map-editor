@@ -43,6 +43,11 @@ private:
 	void PopulateNavigation();
 	void RefreshWorkbenchState();
 	void BindEvents();
+	void BindSidebarEvents();
+	void BindNavigationFilterEvents();
+	void BindNavigationHoverEvents();
+	void BindNavigationClickEvents();
+	void BindNavigationSelectionEvents();
 	void RefreshInspectorForCurrentSelection();
 	void UpdateBrushNavigationBadge();
 	void OpenInspector();

@@ -2784,6 +2784,117 @@ namespace {
 		}
 		return -1;
 	}
+
+	bool ValidateWallPanelItemRecord(
+		size_t partIndex,
+		size_t itemIndex,
+		const WallPartItemRecord &item,
+		wxString &error
+	) {
+		if (item.itemId <= 0) {
+			error = wxString::Format("Wall part %zu item %zu must use an item id greater than zero.", partIndex + 1, itemIndex + 1);
+			return false;
+		}
+		if (!IsKnownWallPanelItemId(item.itemId)) {
+			error = wxString::Format("Wall part %zu item %zu uses unknown item id %d.", partIndex + 1, itemIndex + 1, item.itemId);
+			return false;
+		}
+		return true;
+	}
+
+	bool ValidateWallPanelDoorRecord(
+		size_t partIndex,
+		size_t doorIndex,
+		const WallPartDoorRecord &door,
+		wxString &error
+	) {
+		if (door.itemId <= 0) {
+			error = wxString::Format("Wall part %zu door %zu must use an item id greater than zero.", partIndex + 1, doorIndex + 1);
+			return false;
+		}
+		if (!IsKnownWallPanelItemId(door.itemId)) {
+			error = wxString::Format("Wall part %zu door %zu uses unknown item id %d.", partIndex + 1, doorIndex + 1, door.itemId);
+			return false;
+		}
+
+		const WallPanelDoorTypeSpec doorTypeSpec = ParseWallPanelDoorTypeSpec(door.doorType);
+		if (!doorTypeSpec.valid) {
+			error = wxString::Format(
+				"Wall part %zu door %zu uses unsupported door type \"%s\".",
+				partIndex + 1,
+				doorIndex + 1,
+				door.doorType
+			);
+			return false;
+		}
+
+		const ItemType &itemType = g_items.getItemType(static_cast<uint16_t>(door.itemId));
+		const bool hasRuntimeDoorRegistration = itemType.isWall && itemType.isBrushDoor && itemType.brush && itemType.brush->isWall();
+		if (!hasRuntimeDoorRegistration) {
+			return true;
+		}
+
+		if (itemType.isOpen != door.isOpen) {
+			error = wxString::Format(
+				"Wall part %zu door %zu uses item id %d with open=%s, but the selected record is %s.",
+				partIndex + 1,
+				doorIndex + 1,
+				door.itemId,
+				itemType.isOpen ? "true" : "false",
+				door.isOpen ? "open" : "closed"
+			);
+			return false;
+		}
+		if (itemType.wall_hate_me != door.wallHateMe) {
+			error = wxString::Format(
+				"Wall part %zu door %zu uses item id %d with hate=%s, but the selected record is %s.",
+				partIndex + 1,
+				doorIndex + 1,
+				door.itemId,
+				itemType.wall_hate_me ? "true" : "false",
+				door.wallHateMe ? "hate" : "not hate"
+			);
+			return false;
+		}
+
+		const ::DoorType runtimeDoorType = itemType.brush->asWall()->getDoorTypeFromID(static_cast<uint16_t>(door.itemId));
+		if (runtimeDoorType == WALL_UNDEFINED) {
+			error = wxString::Format(
+				"Wall part %zu door %zu item id %d is not mapped to a wall door type in the runtime catalog.",
+				partIndex + 1,
+				doorIndex + 1,
+				door.itemId
+			);
+			return false;
+		}
+
+		const WallPanelDoorFamily runtimeDoorFamily = GetWallPanelDoorFamily(runtimeDoorType);
+		if (doorTypeSpec.expectsExact && runtimeDoorType != doorTypeSpec.exactType) {
+			error = wxString::Format(
+				"Wall part %zu door %zu uses item id %d for \"%s\", but the runtime door type is \"%s\".",
+				partIndex + 1,
+				doorIndex + 1,
+				door.itemId,
+				doorTypeSpec.normalizedLabel,
+				DescribeWallPanelDoorType(runtimeDoorType)
+			);
+			return false;
+		}
+		if (!doorTypeSpec.allowAny && doorTypeSpec.family != WallPanelDoorFamily::Unknown && runtimeDoorFamily != WallPanelDoorFamily::Unknown
+			&& runtimeDoorFamily != doorTypeSpec.family) {
+			error = wxString::Format(
+				"Wall part %zu door %zu uses item id %d for \"%s\", but the item belongs to \"%s\".",
+				partIndex + 1,
+				doorIndex + 1,
+				door.itemId,
+				doorTypeSpec.normalizedLabel,
+				DescribeWallPanelDoorType(runtimeDoorType)
+			);
+			return false;
+		}
+
+		return true;
+	}
 } // namespace
 
 void MaterialsWorkbenchWallPanel::RestoreEditorState(const WallEditorState &state) {
@@ -2921,118 +3032,19 @@ void MaterialsWorkbenchWallPanel::UpdateActionButtons() {
 }
 
 bool MaterialsWorkbenchWallPanel::ValidateWallBrushStorage(wxString &error) const {
-	const auto validateItem = [&](size_t partIndex, size_t itemIndex, const WallPartItemRecord &item) -> bool {
-		if (item.itemId <= 0) {
-			error = wxString::Format("Wall part %zu item %zu must use an item id greater than zero.", partIndex + 1, itemIndex + 1);
-			return false;
-		}
-		if (!IsKnownWallPanelItemId(item.itemId)) {
-			error = wxString::Format("Wall part %zu item %zu uses unknown item id %d.", partIndex + 1, itemIndex + 1, item.itemId);
-			return false;
-		}
-		return true;
-	};
-
-	const auto validateDoor = [&](size_t partIndex, size_t doorIndex, const WallPartDoorRecord &door) -> bool {
-		if (door.itemId <= 0) {
-			error = wxString::Format("Wall part %zu door %zu must use an item id greater than zero.", partIndex + 1, doorIndex + 1);
-			return false;
-		}
-		if (!IsKnownWallPanelItemId(door.itemId)) {
-			error = wxString::Format("Wall part %zu door %zu uses unknown item id %d.", partIndex + 1, doorIndex + 1, door.itemId);
-			return false;
-		}
-
-		const WallPanelDoorTypeSpec doorTypeSpec = ParseWallPanelDoorTypeSpec(door.doorType);
-		if (!doorTypeSpec.valid) {
-			error = wxString::Format(
-				"Wall part %zu door %zu uses unsupported door type \"%s\".",
-				partIndex + 1,
-				doorIndex + 1,
-				door.doorType
-			);
-			return false;
-		}
-
-		const ItemType &itemType = g_items.getItemType(static_cast<uint16_t>(door.itemId));
-		const bool hasRuntimeDoorRegistration = itemType.isWall && itemType.isBrushDoor && itemType.brush && itemType.brush->isWall();
-		if (!hasRuntimeDoorRegistration) {
-			return true;
-		}
-
-		if (itemType.isOpen != door.isOpen) {
-			error = wxString::Format(
-				"Wall part %zu door %zu uses item id %d with open=%s, but the selected record is %s.",
-				partIndex + 1,
-				doorIndex + 1,
-				door.itemId,
-				itemType.isOpen ? "true" : "false",
-				door.isOpen ? "open" : "closed"
-			);
-			return false;
-		}
-		if (itemType.wall_hate_me != door.wallHateMe) {
-			error = wxString::Format(
-				"Wall part %zu door %zu uses item id %d with hate=%s, but the selected record is %s.",
-				partIndex + 1,
-				doorIndex + 1,
-				door.itemId,
-				itemType.wall_hate_me ? "true" : "false",
-				door.wallHateMe ? "hate" : "not hate"
-			);
-			return false;
-		}
-
-		const ::DoorType runtimeDoorType = itemType.brush->asWall()->getDoorTypeFromID(static_cast<uint16_t>(door.itemId));
-		if (runtimeDoorType == WALL_UNDEFINED) {
-			error = wxString::Format(
-				"Wall part %zu door %zu item id %d is not mapped to a wall door type in the runtime catalog.",
-				partIndex + 1,
-				doorIndex + 1,
-				door.itemId
-			);
-			return false;
-		}
-		const WallPanelDoorFamily runtimeDoorFamily = GetWallPanelDoorFamily(runtimeDoorType);
-		if (doorTypeSpec.expectsExact && runtimeDoorType != doorTypeSpec.exactType) {
-			error = wxString::Format(
-				"Wall part %zu door %zu uses item id %d for \"%s\", but the runtime door type is \"%s\".",
-				partIndex + 1,
-				doorIndex + 1,
-				door.itemId,
-				doorTypeSpec.normalizedLabel,
-				DescribeWallPanelDoorType(runtimeDoorType)
-			);
-			return false;
-		}
-		if (!doorTypeSpec.allowAny && doorTypeSpec.family != WallPanelDoorFamily::Unknown && runtimeDoorFamily != WallPanelDoorFamily::Unknown
-			&& runtimeDoorFamily != doorTypeSpec.family) {
-			error = wxString::Format(
-				"Wall part %zu door %zu uses item id %d for \"%s\", but the item belongs to \"%s\".",
-				partIndex + 1,
-				doorIndex + 1,
-				door.itemId,
-				doorTypeSpec.normalizedLabel,
-				DescribeWallPanelDoorType(runtimeDoorType)
-			);
-			return false;
-		}
-		return true;
-	};
-
 	for (size_t partIndex = 0; partIndex < wallBrushStorage_.wallParts.size(); ++partIndex) {
 		const WallPartRecord &part = wallBrushStorage_.wallParts[partIndex];
 
 		for (size_t itemIndex = 0; itemIndex < part.items.size(); ++itemIndex) {
 			const WallPartItemRecord &item = part.items[itemIndex];
-			if (!validateItem(partIndex, itemIndex, item)) {
+			if (!ValidateWallPanelItemRecord(partIndex, itemIndex, item, error)) {
 				return false;
 			}
 		}
 
 		for (size_t doorIndex = 0; doorIndex < part.doors.size(); ++doorIndex) {
 			const WallPartDoorRecord &door = part.doors[doorIndex];
-			if (!validateDoor(partIndex, doorIndex, door)) {
+			if (!ValidateWallPanelDoorRecord(partIndex, doorIndex, door, error)) {
 				return false;
 			}
 		}

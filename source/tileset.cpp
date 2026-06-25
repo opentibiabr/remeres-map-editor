@@ -90,7 +90,7 @@ namespace {
 		if (afterBrushName.empty()) {
 			return brushlist.end();
 		}
-		const auto it = std::find_if(brushlist.begin(), brushlist.end(), [&](Brush* brush) {
+		const auto it = std::find_if(brushlist.begin(), brushlist.end(), [&](const Brush* brush) {
 			return brush != nullptr && brush->getName() == afterBrushName;
 		});
 		return it == brushlist.end() ? it : std::next(it);

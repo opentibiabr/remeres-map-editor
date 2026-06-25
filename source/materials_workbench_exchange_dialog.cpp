@@ -490,6 +490,61 @@ namespace {
 		}
 	}
 
+	bool ValidateGroundBorderRef(
+		const nlohmann::json &row,
+		const ImportDuplicateIndex &dups,
+		const ImportExistingIndex &existing,
+		wxString &outInvalidDetail
+	) {
+		if (!row.contains("borderRef") || !row["borderRef"].is_object()) {
+			return true;
+		}
+		const nlohmann::json &ref = row["borderRef"];
+		if (!ref.contains("scope") || !ref["scope"].is_string()) {
+			return true;
+		}
+		const wxString scope = JsonToWxStringLocal(ref["scope"]);
+		if (!scope.IsSameAs("global", false)) {
+			return true;
+		}
+		if (!ref.contains("xmlBorderId") || !ref["xmlBorderId"].is_number_integer()) {
+			return true;
+		}
+		const int xmlBorderId = ref["xmlBorderId"].get<int>();
+		if (xmlBorderId <= 0) {
+			return true;
+		}
+		const bool inFile = dups.importedBorderXmlIds.contains(xmlBorderId);
+		const bool inDb = existing.existingBorderXmlIds.contains(xmlBorderId);
+		if (inFile || inDb) {
+			return true;
+		}
+		outInvalidDetail = wxString::Format("Missing global border_set Border %d (not in file and not in DB).", xmlBorderId);
+		return false;
+	}
+
+	void CollectGroundBorderTargetWarnings(
+		const nlohmann::json &row,
+		const std::function<bool(const wxString&, const wxString&)> &existsBrushKey,
+		const std::function<bool(const wxString&)> &existsBrushName,
+		std::vector<wxString> &outWarnings
+	) {
+		if (row.contains("targetBrush") && row["targetBrush"].is_object()) {
+			wxString targetType;
+			wxString targetName;
+			if (ParseBrushKeyForPlan(row["targetBrush"], targetType, targetName) && !existsBrushKey(targetType, targetName)) {
+				outWarnings.push_back(wxString::Format("unresolved border target %s: %s", targetType, targetName));
+			}
+			return;
+		}
+		if (row.contains("targetBrushName") && row["targetBrushName"].is_string()) {
+			const wxString targetName = JsonToWxStringLocal(row["targetBrushName"]);
+			if (!existsBrushName(targetName)) {
+				outWarnings.push_back(wxString::Format("unresolved border target %s", targetName));
+			}
+		}
+	}
+
 	bool ValidateBrushGroundBorders(
 		const nlohmann::json &entity,
 		const ImportDuplicateIndex &dups,
@@ -504,59 +559,14 @@ namespace {
 			return true;
 		}
 
-		const auto validateBorderRef = [&](const nlohmann::json &row) -> bool {
-			if (!row.contains("borderRef") || !row["borderRef"].is_object()) {
-				return true;
-			}
-			const nlohmann::json &ref = row["borderRef"];
-			if (!ref.contains("scope") || !ref["scope"].is_string()) {
-				return true;
-			}
-			const wxString scope = JsonToWxStringLocal(ref["scope"]);
-			if (!scope.IsSameAs("global", false)) {
-				return true;
-			}
-			if (!ref.contains("xmlBorderId") || !ref["xmlBorderId"].is_number_integer()) {
-				return true;
-			}
-			const int xmlBorderId = ref["xmlBorderId"].get<int>();
-			if (xmlBorderId <= 0) {
-				return true;
-			}
-			const bool inFile = dups.importedBorderXmlIds.contains(xmlBorderId);
-			const bool inDb = existing.existingBorderXmlIds.contains(xmlBorderId);
-			if (inFile || inDb) {
-				return true;
-			}
-			outInvalidDetail = wxString::Format("Missing global border_set Border %d (not in file and not in DB).", xmlBorderId);
-			return false;
-		};
-
-		const auto collectBorderTargetWarnings = [&](const nlohmann::json &row) {
-			if (row.contains("targetBrush") && row["targetBrush"].is_object()) {
-				wxString targetType;
-				wxString targetName;
-				if (ParseBrushKeyForPlan(row["targetBrush"], targetType, targetName) && !existsBrushKey(targetType, targetName)) {
-					outWarnings.push_back(wxString::Format("unresolved border target %s: %s", targetType, targetName));
-				}
-				return;
-			}
-			if (row.contains("targetBrushName") && row["targetBrushName"].is_string()) {
-				const wxString targetName = JsonToWxStringLocal(row["targetBrushName"]);
-				if (!existsBrushName(targetName)) {
-					outWarnings.push_back(wxString::Format("unresolved border target %s", targetName));
-				}
-			}
-		};
-
 		for (const nlohmann::json &row : entity["groundBorders"]) {
 			if (!row.is_object()) {
 				continue;
 			}
-			if (!validateBorderRef(row)) {
+			if (!ValidateGroundBorderRef(row, dups, existing, outInvalidDetail)) {
 				return false;
 			}
-			collectBorderTargetWarnings(row);
+			CollectGroundBorderTargetWarnings(row, existsBrushKey, existsBrushName, outWarnings);
 		}
 
 		return true;
@@ -1413,8 +1423,8 @@ MaterialsWorkbenchImportDialog::MaterialsWorkbenchImportDialog(wxWindow* parent,
 	planFilterCtrl_->ShowCancelButton(true);
 	planFilterCtrl_->SetDescriptiveText("Filter plan");
 
-	auto makePlanList = [&](wxWindow* parent) -> wxListCtrl* {
-		wxListCtrl* list = new wxListCtrl(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxBORDER_THEME);
+	auto makePlanList = [&](wxWindow* listParent) -> wxListCtrl* {
+		wxListCtrl* list = new wxListCtrl(listParent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxBORDER_THEME);
 		list->InsertColumn(0, "Kind");
 		list->InsertColumn(1, "Key");
 		list->InsertColumn(2, "Action");
