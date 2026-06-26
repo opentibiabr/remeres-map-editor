@@ -124,7 +124,7 @@ namespace {
 		}
 
 		result.category = "SQLite failure";
-		result.recommendation = "Open Inspector to view diagnostics; if this repeats, Reset DB from XML to rebuild a clean database.";
+		result.recommendation = "Reset DB from XML to rebuild a clean database (requires restart).";
 		return result;
 	}
 } // namespace
@@ -554,7 +554,13 @@ namespace {
 		if (sqliteRc != 0 || sqliteExtRc != 0) {
 			message += wxString::Format("\nSQLite codes: rc=%d ext=%d", sqliteRc, sqliteExtRc);
 		}
-		message += "\nAction: Loaded materials from XML and will continue running.\n";
+		message += "\nWhat you can do right now:\n";
+		message += "- Open Materials Workbench and keep working normally.\n";
+		message += "- The workbench edits materials.db (source of truth).\n";
+		message += "- The map editor is using XML materials right now because the SQLite database is not runtime-ready.\n";
+		message += "- If your changes do not show up immediately, restart the app after fixing/resetting the DB.\n";
+		message += "\nIf this looks wrong:\n";
+		message += "- Please open an issue at github.com/opentibiabr/remeres-map-editor\n";
 		message += "Recovery: ";
 		message += classification.recommendation;
 		warnings.push_back(message);
@@ -1969,32 +1975,36 @@ void GUI::TryShowMaterialsRecoveryDialog() {
 	}
 	wxString dialogRecommendation = materials_recovery_recommendation_;
 	if (dialogRecommendation.IsEmpty()) {
-		dialogRecommendation = "Open Inspector to view diagnostics; if this repeats, Reset DB from XML to rebuild a clean database.";
+		dialogRecommendation = "Reset DB from XML to rebuild a clean database (requires restart).";
 	}
 	const wxString dbPath = materials_recovery_db_path_;
 	const int sqliteRc = materials_recovery_sqlite_rc_;
 	const int sqliteExtRc = materials_recovery_sqlite_ext_rc_;
 
 	wxString dialogText = "SQLite materials could not be used.\n";
-	dialogText += "The editor is running in recovery mode using legacy XML materials for this session.\n\n";
+	dialogText += "Recovery mode is active.\n\n";
+	dialogText += "What this means:\n";
+	dialogText += "- The map editor is using legacy XML materials right now because materials.db is not runtime-ready.\n\n";
+	dialogText += "Important:\n";
+	dialogText += "- This dialog does not fix the SQLite database.\n";
+	dialogText += "- You can use Materials Workbench normally.\n";
+	dialogText += "- Materials Workbench edits materials.db (source of truth).\n";
+	dialogText += "- If your changes do not show up immediately, restart the app after fixing/resetting the DB.\n\n";
+	dialogText += "If this keeps happening:\n";
+	dialogText += "- Please open an issue at github.com/opentibiabr/remeres-map-editor\n\n";
 	dialogText += "Problem:\n" + dialogCategory + "\n\n";
 	dialogText += "Reason:\n" + dialogReason + "\n\n";
 	dialogText += "Recommendation:\n" + dialogRecommendation + "\n\n";
 	dialogText += "SQLite codes:\n" + wxString::Format("rc=%d ext=%d", sqliteRc, sqliteExtRc) + "\n\n";
 	dialogText += "Database:\n" + dbPath + "\n\n";
-	dialogText += "Options:\n";
-	dialogText += "- Open Inspector: view SQLite diagnostics\n";
-	dialogText += "- Reset DB from XML: rebuild a clean database (requires restart)\n";
-	dialogText += "- Continue: keep using XML for this session";
+	dialogText += "Action:\n";
+	dialogText += "- Reset DB from XML: move the current materials.db to a backup and rebuild a clean database on next startup\n";
+	dialogText += "- Close: keep working in recovery mode for now";
 
-	wxMessageDialog dialog(g_gui.root, dialogText, "Materials recovery mode", wxYES_NO | wxCANCEL | wxICON_WARNING);
-	dialog.SetYesNoCancelLabels("Open Inspector", "Reset DB from XML...", "Continue (XML)");
+	wxMessageDialog dialog(g_gui.root, dialogText, "Materials recovery mode", wxOK | wxICON_WARNING);
+	dialog.SetOKLabel("Reset DB from XML...");
 	const int result = dialog.ShowModal();
-	if (result == wxID_YES) {
-		MaterialsWorkbenchWindow::OpenSqliteInspector(g_gui.root);
-		return;
-	}
-	if (result != wxID_NO) {
+	if (result != wxID_OK) {
 		return;
 	}
 
@@ -2030,12 +2040,12 @@ void GUI::TryShowMaterialsRecoveryDialog() {
 	}
 
 	wxString doneText = "materials.db was moved to:\n" + backupPath + "\n\n";
-	doneText += "Technical note:\n";
-	doneText += "- This process cannot safely rebuild and reload the materials graph in-place.\n";
-	doneText += "- A restart is required so the next startup can bootstrap a fresh SQLite DB from XML.\n\n";
-	doneText += "Next steps:\n";
-	doneText += "- Restart the app\n";
-	doneText += "- The SQLite database will be rebuilt from legacy XML automatically";
+	doneText += "Why you must close now:\n";
+	doneText += "- The editor cannot rebuild and reload the materials database while it is running.\n";
+	doneText += "- Closing the app releases any SQLite file locks.\n\n";
+	doneText += "What happens next:\n";
+	doneText += "- Start the app again\n";
+	doneText += "- On startup, it will rebuild a clean SQLite materials.db from legacy XML automatically";
 
 	wxMessageDialog doneDialog(g_gui.root, doneText, "SQLite Reset Scheduled", wxOK | wxICON_INFORMATION);
 	doneDialog.SetOKLabel("Close now");
