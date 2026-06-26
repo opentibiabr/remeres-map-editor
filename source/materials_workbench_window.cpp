@@ -963,6 +963,7 @@ void MaterialsWorkbenchWindow::OnImportMaterials(wxCommandEvent &) {
 
 	MaterialsWorkbenchImportReport report;
 	wxString error;
+	bool refreshWorkbenchAfterImport = false;
 	{
 		wxProgressDialog applyProgress(
 			"Import Materials",
@@ -1002,8 +1003,7 @@ void MaterialsWorkbenchWindow::OnImportMaterials(wxCommandEvent &) {
 
 		applyProgress.Update(99, "Refreshing workbench...");
 		wxYieldIfNeeded();
-		RefreshWorkbenchState();
-		PopulateNavigation();
+		refreshWorkbenchAfterImport = true;
 		applyProgress.Update(100, "Done");
 		wxYieldIfNeeded();
 	}
@@ -1011,6 +1011,11 @@ void MaterialsWorkbenchWindow::OnImportMaterials(wxCommandEvent &) {
 	if (!error.IsEmpty()) {
 		wxMessageBox(error, "Import Materials", wxOK | wxICON_ERROR, this);
 		return;
+	}
+
+	if (refreshWorkbenchAfterImport) {
+		RefreshWorkbenchState();
+		PopulateNavigation();
 	}
 
 	wxMessageBox(
