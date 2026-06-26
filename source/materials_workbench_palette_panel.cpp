@@ -558,6 +558,80 @@ namespace {
 		return "other";
 	}
 
+	wxString BuildPaletteWorkspaceBrushFamilyKeyFromBrushType(const wxString &brushType);
+
+	bool IsPaletteWorkspaceBrushTilesetEntry(const TilesetEntryRecord &entry) {
+		if (!entry.entryKind.IsSameAs("brush", false)) {
+			return false;
+		}
+		return entry.brushId > 0 || !entry.brushName.IsEmpty();
+	}
+
+	std::set<wxString> BuildPlacedBrushKeySet(const std::vector<TilesetStorageRecord> &tilesets) {
+		std::set<wxString> placed;
+		for (const TilesetStorageRecord &tileset : tilesets) {
+			for (const TilesetSectionRecord &section : tileset.sections) {
+				for (const TilesetEntryRecord &entry : section.entries) {
+					if (!IsPaletteWorkspaceBrushTilesetEntry(entry)) {
+						continue;
+					}
+					placed.insert(BuildPaletteWorkspaceBrushLookupKey(entry.brushId, entry.brushName));
+				}
+			}
+		}
+		return placed;
+	}
+
+	wxString ResolveSyntheticSourceSectionTypeForFamily(const wxString &familyKey) {
+		if (familyKey.IsSameAs("terrain", false)) {
+			return "terrain";
+		}
+		if (familyKey.IsSameAs("doodad", false)) {
+			return "doodad";
+		}
+		if (familyKey.IsSameAs("item", false)) {
+			return "items";
+		}
+		return "raw";
+	}
+
+	TilesetStorageRecord BuildSyntheticUncategorizedSourceTileset(
+		const MaterialsWorkbenchController &controller,
+		const wxString &familyKey
+	) {
+		TilesetStorageRecord out;
+		out.name = "Uncategorized";
+		out.paletteGroupName = familyKey;
+
+		const std::set<wxString> placedKeys = BuildPlacedBrushKeySet(controller.GetTilesets());
+
+		TilesetSectionRecord section;
+		section.sectionType = ResolveSyntheticSourceSectionTypeForFamily(familyKey);
+		section.sortOrder = 0;
+
+		for (const MaterialsWorkbenchBrushGroup &group : controller.GetBrushGroups()) {
+			for (const BrushRecord &brush : group.brushes) {
+				if (!BuildPaletteWorkspaceBrushFamilyKeyFromBrushType(brush.type).IsSameAs(familyKey, false)) {
+					continue;
+				}
+
+				const wxString brushKey = BuildPaletteWorkspaceBrushLookupKey(brush.id, brush.name);
+				if (placedKeys.contains(brushKey)) {
+					continue;
+				}
+
+				TilesetEntryRecord entry;
+				entry.entryKind = "brush";
+				entry.brushId = brush.id;
+				entry.brushName = brush.name;
+				section.entries.push_back(std::move(entry));
+			}
+		}
+
+		out.sections.push_back(std::move(section));
+		return out;
+	}
+
 	wxString ResolvePaletteGroupRuntimeFamilyKey(const TilesetStorageRecord &tileset) {
 		const wxString configuredRuntimeFamily = NormalizePaletteRuntimeFamilyKey(tileset.paletteGroupRuntimeFamily);
 		if (!configuredRuntimeFamily.IsEmpty()) {
@@ -1731,6 +1805,34 @@ void MaterialsWorkbenchPalettePanel::RebuildAvailableBrushSources() {
 			availableBrushSources_.push_back(std::move(source));
 		}
 	}
+
+	const std::set<wxString> placedKeys = BuildPlacedBrushKeySet(tilesets);
+	for (const wxString &familyKey : familyOrder) {
+		bool hasUnplaced = false;
+		for (const MaterialsWorkbenchBrushGroup &group : controller_.GetBrushGroups()) {
+			for (const BrushRecord &brush : group.brushes) {
+				if (!BuildPaletteWorkspaceBrushFamilyKeyFromBrushType(brush.type).IsSameAs(familyKey, false)) {
+					continue;
+				}
+				const wxString brushKey = BuildPaletteWorkspaceBrushLookupKey(brush.id, brush.name);
+				if (!placedKeys.contains(brushKey)) {
+					hasUnplaced = true;
+					break;
+				}
+			}
+			if (hasUnplaced) {
+				break;
+			}
+		}
+
+		if (hasUnplaced) {
+			MaterialsWorkbenchAvailableBrushSource source;
+			source.familyKey = familyKey;
+			source.paletteLabel = "Uncategorized";
+			source.tilesetIndex = -1;
+			availableBrushSources_.push_back(std::move(source));
+		}
+	}
 }
 
 void MaterialsWorkbenchPalettePanel::RefreshAvailableBrushFamilies() {
@@ -1811,6 +1913,8 @@ void MaterialsWorkbenchPalettePanel::RefreshAvailableBrushes() {
 	currentAvailableEntries_.clear();
 	currentAvailableEntrySectionIndexes_.clear();
 	currentAvailableSourceTilesetIndex_ = -1;
+	currentAvailableSourceIsSynthetic_ = false;
+	currentAvailableSourceSyntheticTileset_ = TilesetStorageRecord();
 	selectedAvailableBrushListIndex_ = -1;
 
 	const auto applyNoSource = [&]() {
@@ -1827,15 +1931,25 @@ void MaterialsWorkbenchPalettePanel::RefreshAvailableBrushes() {
 
 	const MaterialsWorkbenchAvailableBrushSource &source = availableBrushSources_[availableBrushPaletteSourceIndexes_[sourceChoiceIndex]];
 	const std::vector<TilesetStorageRecord> &tilesets = controller_.GetTilesets();
-	if (source.tilesetIndex < 0 || source.tilesetIndex >= static_cast<int>(tilesets.size())) {
+	const wxString filterQueryLower = sourceFilterQuery_.Lower();
+	const TilesetStorageRecord* sourceTileset = nullptr;
+	if (source.tilesetIndex >= 0) {
+		if (source.tilesetIndex >= static_cast<int>(tilesets.size())) {
+			applyNoSource();
+			return;
+		}
+		currentAvailableSourceTilesetIndex_ = source.tilesetIndex;
+		sourceTileset = &tilesets[static_cast<size_t>(source.tilesetIndex)];
+	} else if (source.paletteLabel.IsSameAs("Uncategorized", false)) {
+		currentAvailableSourceIsSynthetic_ = true;
+		currentAvailableSourceSyntheticTileset_ = BuildSyntheticUncategorizedSourceTileset(controller_, source.familyKey);
+		sourceTileset = &currentAvailableSourceSyntheticTileset_;
+	} else {
 		applyNoSource();
 		return;
 	}
 
-	currentAvailableSourceTilesetIndex_ = source.tilesetIndex;
-	const TilesetStorageRecord &sourceTileset = tilesets[static_cast<size_t>(source.tilesetIndex)];
-	const wxString filterQueryLower = sourceFilterQuery_.Lower();
-	const AvailableBrushCollection collected = CollectAvailableBrushesForSource(controller_, sourceTileset, source, sourceKindFilter_, filterQueryLower);
+	const AvailableBrushCollection collected = CollectAvailableBrushesForSource(controller_, *sourceTileset, source, sourceKindFilter_, filterQueryLower);
 
 	currentAvailableEntries_ = collected.entries;
 	currentAvailableEntrySectionIndexes_ = collected.entrySectionIndexes;
@@ -2214,13 +2328,22 @@ const TilesetEntryRecord* MaterialsWorkbenchPalettePanel::FindAvailableEntryReco
 }
 
 const TilesetSectionRecord* MaterialsWorkbenchPalettePanel::FindAvailableEntrySection() const {
-	if (currentAvailableSourceTilesetIndex_ < 0) {
-		return nullptr;
-	}
 	if (selectedAvailableBrushListIndex_ < 0 || selectedAvailableBrushListIndex_ >= static_cast<int>(currentAvailableEntrySectionIndexes_.size())) {
 		return nullptr;
 	}
 	const int sectionIndex = currentAvailableEntrySectionIndexes_[selectedAvailableBrushListIndex_];
+
+	if (currentAvailableSourceIsSynthetic_) {
+		if (sectionIndex < 0 || sectionIndex >= static_cast<int>(currentAvailableSourceSyntheticTileset_.sections.size())) {
+			return nullptr;
+		}
+		return &currentAvailableSourceSyntheticTileset_.sections[static_cast<size_t>(sectionIndex)];
+	}
+
+	if (currentAvailableSourceTilesetIndex_ < 0) {
+		return nullptr;
+	}
+
 	const std::vector<TilesetStorageRecord> &tilesets = controller_.GetTilesets();
 	if (currentAvailableSourceTilesetIndex_ >= static_cast<int>(tilesets.size())) {
 		return nullptr;

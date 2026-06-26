@@ -99,6 +99,8 @@ private:
 	std::vector<TilesetEntryRecord> currentAvailableEntries_;
 	std::vector<int> currentAvailableEntrySectionIndexes_;
 	int currentAvailableSourceTilesetIndex_ = -1;
+	bool currentAvailableSourceIsSynthetic_ = false;
+	TilesetStorageRecord currentAvailableSourceSyntheticTileset_;
 	std::vector<wxString> availableBrushFamilyKeys_;
 	std::vector<int> availableBrushPaletteSourceIndexes_;
 	std::vector<wxString> moveDestinationFamilyKeys_;
