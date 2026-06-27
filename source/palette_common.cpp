@@ -103,7 +103,7 @@ wxString PalettePanel::GetName() const {
 		case TILESET_HOUSE:
 			return "House Palette";
 		case TILESET_RAW:
-			return "RAW Palette";
+			return "Other Palette";
 		case TILESET_WAYPOINT:
 			return "Waypoint Palette";
 		case TILESET_ZONES:
