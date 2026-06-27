@@ -24,6 +24,55 @@
 #include "sqlite_materials_inspector.h"
 
 namespace {
+	class WarningListCtrl final : public wxListCtrl {
+	public:
+		WarningListCtrl(wxWindow* parent, wxWindowID id, long style) :
+			wxListCtrl(parent, id, wxDefaultPosition, wxDefaultSize, style) { }
+
+		void SetDataSource(
+			const std::vector<MaterialsWorkbenchInspectorDialog::WarningRow>* warnings,
+			const std::vector<size_t>* filteredWarningIndices
+		) {
+			warnings_ = warnings;
+			filteredWarningIndices_ = filteredWarningIndices;
+		}
+
+	private:
+		wxString OnGetItemText(long item, long column) const override {
+			if (!warnings_ || !filteredWarningIndices_) {
+				return wxString();
+			}
+			if (item < 0 || static_cast<size_t>(item) >= filteredWarningIndices_->size()) {
+				return wxString();
+			}
+			const size_t warningIndex = (*filteredWarningIndices_)[static_cast<size_t>(item)];
+			if (warningIndex >= warnings_->size()) {
+				return wxString();
+			}
+
+			const auto &row = (*warnings_)[warningIndex];
+			switch (column) {
+				case 0:
+					return row.severity;
+				case 1:
+					return row.domain;
+				case 2:
+					return row.entityName.IsEmpty() ? row.entityKind : (row.entityKind + ": " + row.entityName);
+				case 3:
+					return row.issue;
+				case 4:
+					return wxString::Format("%d", row.count);
+				case 5:
+					return row.status;
+				default:
+					return wxString();
+			}
+		}
+
+		const std::vector<MaterialsWorkbenchInspectorDialog::WarningRow>* warnings_ = nullptr;
+		const std::vector<size_t>* filteredWarningIndices_ = nullptr;
+	};
+
 	constexpr int kWarningListSeverityColumn = 0;
 	constexpr int kWarningListDomainColumn = 1;
 	constexpr int kWarningListEntityColumn = 2;
@@ -867,8 +916,8 @@ namespace {
 
 	void CollectBrushWarnings(WarningCollector &out, const MaterialsDatabaseAuditReport &report, const BorderSetIdCache &borderSets) {
 		for (const BrushTypeCountRecord &typeCount : report.brushTypeCounts) {
-			std::vector<BrushRecord> brushes;
-			if (!g_brush_database.listBrushesByType(typeCount.type, brushes)) {
+			std::vector<BrushStorageRecord> storages;
+			if (!g_brush_database.listCompleteBrushesByType(typeCount.type, storages)) {
 				out.Add(
 					"Error",
 					"Brush",
@@ -881,11 +930,8 @@ namespace {
 				continue;
 			}
 
-			for (const BrushRecord &brush : brushes) {
-				BrushStorageRecord storage;
-				if (!g_brush_database.getCompleteBrushById(brush.id, storage)) {
-					continue;
-				}
+			for (const BrushStorageRecord &storage : storages) {
+				const BrushRecord &brush = storage.brush;
 				CollectBrushLookWarnings(out, brush, storage);
 				CollectBrushItemIdWarnings(out, brush, storage);
 				if (storage.brush.type == "ground") {
@@ -1313,7 +1359,7 @@ void MaterialsWorkbenchInspectorDialog::BuildHealthTab(wxNotebook* notebook) {
 
 	wxPanel* listPanel = new wxPanel(splitter, wxID_ANY);
 	wxBoxSizer* listSizer = new wxBoxSizer(wxVERTICAL);
-	warningList_ = new wxListCtrl(listPanel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL);
+	warningList_ = new WarningListCtrl(listPanel, wxID_ANY, wxLC_REPORT | wxLC_SINGLE_SEL | wxLC_VIRTUAL);
 	warningList_->AppendColumn("Severity", wxLIST_FORMAT_LEFT, FromDIP(90));
 	warningList_->AppendColumn("Domain", wxLIST_FORMAT_LEFT, FromDIP(90));
 	warningList_->AppendColumn("Entity", wxLIST_FORMAT_LEFT, FromDIP(220));
@@ -1495,18 +1541,11 @@ void MaterialsWorkbenchInspectorDialog::ApplyWarningFilter() {
 		return;
 	}
 
+	auto* warningList = static_cast<WarningListCtrl*>(warningList_);
+	warningList->SetDataSource(&warnings_, &filteredWarningIndices_);
 	warningList_->Freeze();
-	warningList_->DeleteAllItems();
-	for (size_t viewIndex = 0; viewIndex < filteredWarningIndices_.size(); ++viewIndex) {
-		const WarningRow &row = warnings_[filteredWarningIndices_[viewIndex]];
-		const wxString entityLabel = row.entityName.IsEmpty() ? row.entityKind : (row.entityKind + ": " + row.entityName);
-		const long listIndex = warningList_->InsertItem(static_cast<long>(viewIndex), row.severity);
-		warningList_->SetItem(listIndex, kWarningListDomainColumn, row.domain);
-		warningList_->SetItem(listIndex, kWarningListEntityColumn, entityLabel);
-		warningList_->SetItem(listIndex, kWarningListIssueColumn, row.issue);
-		warningList_->SetItem(listIndex, kWarningListCountColumn, wxString::Format("%d", row.count));
-		warningList_->SetItem(listIndex, kWarningListStatusColumn, row.status);
-	}
+	warningList_->SetItemCount(static_cast<long>(filteredWarningIndices_.size()));
+	warningList_->Refresh();
 	warningList_->Thaw();
 
 	if (warningList_->GetItemCount() > 0) {
