@@ -6180,37 +6180,156 @@ bool BrushDatabaseCatalogRepository::getAllTilesets(std::vector<TilesetStorageRe
 		return setError("SQLite database is not open.");
 	}
 
-	sqlite3_stmt* stmt = nullptr;
-	if (!prepare("SELECT t.name "
-				 "FROM tilesets AS t "
-				 "LEFT JOIN palette_groups AS pg ON pg.id = t.palette_group_id "
-				 "ORDER BY COALESCE(pg.sort_order, 999999) ASC, "
-				 "pg.name COLLATE NOCASE ASC, "
-				 "t.name COLLATE NOCASE ASC, "
-				 "t.id ASC;",
-				 &stmt)) {
-		return false;
-	}
+	std::vector<int64_t> tilesetIds;
+	tilesetIds.reserve(64);
 
-	for (;;) {
-		const int rc = sqlite3_step(stmt);
-		if (rc == SQLITE_DONE) {
-			break;
-		}
-		if (rc != SQLITE_ROW) {
-			sqlite3_finalize(stmt);
-			return setErrorFromDatabase("Failed to list tilesets");
-		}
+	std::unordered_map<int64_t, size_t> tilesetIndexById;
+	tilesetIndexById.reserve(64);
 
-		TilesetStorageRecord tileset;
-		if (!getTilesetByName(ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0))), tileset)) {
-			sqlite3_finalize(stmt);
+	SqliteStatementGuard tilesetStmtGuard;
+	{
+		sqlite3_stmt* tilesetStmt = nullptr;
+		if (!prepare(
+				"SELECT t.id, t.name, t.source_file, t.palette_group_id, pg.name, pg.runtime_family, COALESCE(pg.sort_order, 0) "
+				"FROM tilesets AS t "
+				"LEFT JOIN palette_groups AS pg ON pg.id = t.palette_group_id "
+				"ORDER BY COALESCE(pg.sort_order, 999999) ASC, "
+				"pg.name COLLATE NOCASE ASC, "
+				"t.name COLLATE NOCASE ASC, "
+				"t.id ASC;",
+				&tilesetStmt)) {
 			return false;
 		}
-		outTilesets.push_back(tileset);
+		tilesetStmtGuard.reset(tilesetStmt);
+
+		for (;;) {
+			const int tilesetRc = sqlite3_step(tilesetStmt);
+			if (tilesetRc == SQLITE_DONE) {
+				break;
+			}
+			if (tilesetRc != SQLITE_ROW) {
+				return setErrorFromDatabase("Failed to list tilesets");
+			}
+
+			TilesetStorageRecord tileset;
+			const int64_t tilesetId = sqlite3_column_int64(tilesetStmt, 0);
+			tileset.name = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(tilesetStmt, 1)));
+			tileset.sourceFile = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(tilesetStmt, 2)));
+			tileset.paletteGroupId = ReadNullableInt64(tilesetStmt, 3);
+			tileset.paletteGroupName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(tilesetStmt, 4)));
+			tileset.paletteGroupRuntimeFamily = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(tilesetStmt, 5)));
+			tileset.paletteGroupSortOrder = sqlite3_column_int(tilesetStmt, 6);
+
+			const size_t tilesetIndex = outTilesets.size();
+			outTilesets.emplace_back(std::move(tileset));
+			tilesetIds.push_back(tilesetId);
+			tilesetIndexById.emplace(tilesetId, tilesetIndex);
+		}
 	}
 
-	sqlite3_finalize(stmt);
+	if (tilesetIds.empty()) {
+		return true;
+	}
+
+	std::vector<int64_t> sectionIds;
+	sectionIds.reserve(256);
+
+	std::unordered_map<int64_t, std::pair<size_t, size_t>> sectionIndexById;
+	sectionIndexById.reserve(256);
+
+	for (size_t start = 0; start < tilesetIds.size(); start += kMaxIdsPerChunk) {
+		const size_t count = std::min(kMaxIdsPerChunk, tilesetIds.size() - start);
+		wxString sql;
+		sql << "SELECT id, tileset_id, section_type, sort_order "
+			<< "FROM tileset_sections WHERE tileset_id IN " << BuildInClause(count)
+			<< " ORDER BY tileset_id ASC, sort_order ASC, id ASC;";
+
+		sqlite3_stmt* sectionStmt = nullptr;
+		if (!prepare(sql.utf8_str(), &sectionStmt)) {
+			return false;
+		}
+		SqliteStatementGuard sectionGuard(sectionStmt);
+		BindIdChunk(sectionStmt, tilesetIds, start, count);
+
+		for (;;) {
+			const int sectionRc = sqlite3_step(sectionStmt);
+			if (sectionRc == SQLITE_DONE) {
+				break;
+			}
+			if (sectionRc != SQLITE_ROW) {
+				return setErrorFromDatabase("Failed to list tileset sections");
+			}
+
+			const int64_t sectionId = sqlite3_column_int64(sectionStmt, 0);
+			const int64_t tilesetId = sqlite3_column_int64(sectionStmt, 1);
+			const auto tilesetIt = tilesetIndexById.find(tilesetId);
+			if (tilesetIt == tilesetIndexById.end()) {
+				return setError("Failed to map SQLite tileset sections to loaded tilesets.");
+			}
+
+			TilesetSectionRecord section;
+			section.sectionType = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(sectionStmt, 2)));
+			section.sortOrder = sqlite3_column_int(sectionStmt, 3);
+
+			const size_t tilesetIndex = tilesetIt->second;
+			auto &tilesetSections = outTilesets[tilesetIndex].sections;
+			const size_t sectionIndex = tilesetSections.size();
+			tilesetSections.emplace_back(std::move(section));
+			sectionIds.push_back(sectionId);
+			sectionIndexById.emplace(sectionId, std::make_pair(tilesetIndex, sectionIndex));
+		}
+	}
+
+	if (sectionIds.empty()) {
+		return true;
+	}
+
+	for (size_t start = 0; start < sectionIds.size(); start += kMaxIdsPerChunk) {
+		const size_t count = std::min(kMaxIdsPerChunk, sectionIds.size() - start);
+		wxString sql;
+		sql << "SELECT tileset_section_id, entry_kind, brush_id, brush_name, item_id, from_item_id, to_item_id, after_brush_name, after_item_id, sort_order "
+			<< "FROM tileset_brush_entries WHERE tileset_section_id IN " << BuildInClause(count)
+			<< " ORDER BY tileset_section_id ASC, sort_order ASC, id ASC;";
+
+		sqlite3_stmt* entryStmt = nullptr;
+		if (!prepare(sql.utf8_str(), &entryStmt)) {
+			return false;
+		}
+		SqliteStatementGuard entryGuard(entryStmt);
+		BindIdChunk(entryStmt, sectionIds, start, count);
+
+		for (;;) {
+			const int entryRc = sqlite3_step(entryStmt);
+			if (entryRc == SQLITE_DONE) {
+				break;
+			}
+			if (entryRc != SQLITE_ROW) {
+				return setErrorFromDatabase("Failed to list tileset entries");
+			}
+
+			const int64_t sectionId = sqlite3_column_int64(entryStmt, 0);
+			const auto sectionIt = sectionIndexById.find(sectionId);
+			if (sectionIt == sectionIndexById.end()) {
+				return setError("Failed to map SQLite tileset entries to loaded tileset sections.");
+			}
+
+			TilesetEntryRecord entry;
+			entry.entryKind = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(entryStmt, 1)));
+			entry.brushId = ReadNullableInt64(entryStmt, 2);
+			entry.brushName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(entryStmt, 3)));
+			entry.itemId = sqlite3_column_int(entryStmt, 4);
+			entry.fromItemId = sqlite3_column_int(entryStmt, 5);
+			entry.toItemId = sqlite3_column_int(entryStmt, 6);
+			entry.afterBrushName = ToWxString(reinterpret_cast<const char*>(sqlite3_column_text(entryStmt, 7)));
+			entry.afterItemId = sqlite3_column_int(entryStmt, 8);
+			entry.sortOrder = sqlite3_column_int(entryStmt, 9);
+
+			const auto [tilesetIndex, sectionIndex] = sectionIt->second;
+			auto &entries = outTilesets[tilesetIndex].sections[sectionIndex].entries;
+			entries.emplace_back(std::move(entry));
+		}
+	}
+
 	return true;
 }
 

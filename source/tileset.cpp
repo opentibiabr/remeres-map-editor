@@ -114,12 +114,18 @@ namespace {
 			return true;
 		}
 
-		auto insertPosition = category.brushlist.end();
-		if (!preserveStoredOrder) {
-			insertPosition = FindInsertPosition(category.brushlist, afterBrushName);
+		brush->flagAsVisible();
+		if (preserveStoredOrder || afterBrushName.empty()) {
+			category.brushlist.push_back(brush);
+			return true;
 		}
 
-		brush->flagAsVisible();
+		auto insertPosition = FindInsertPosition(category.brushlist, afterBrushName);
+		if (insertPosition == category.brushlist.end()) {
+			category.brushlist.push_back(brush);
+			return true;
+		}
+
 		category.brushlist.insert(insertPosition, brush);
 		return true;
 	}
@@ -140,7 +146,37 @@ namespace {
 		}
 		toId = std::max<uint16_t>(fromId, toId);
 
+		const size_t rangeSize = static_cast<size_t>(toId - fromId) + 1;
+		if (preserveStoredOrder) {
+			category.brushlist.reserve(category.brushlist.size() + rangeSize);
+			for (uint16_t id = fromId; id <= toId; ++id) {
+				const auto &type = g_items.getRawItemType(id);
+				if (!type || type->id == 0) {
+					continue;
+				}
+
+				RAWBrush* brush;
+				if (type->raw_brush) {
+					brush = type->raw_brush;
+				} else {
+					brush = type->raw_brush = newd RAWBrush(type->id);
+					type->has_raw = true;
+					brushes.addBrush(brush);
+				}
+
+				if (type->doodad_brush == nullptr && !category.isTrivial()) {
+					type->doodad_brush = brush;
+				}
+
+				brush->flagAsVisible();
+				category.brushlist.push_back(brush);
+				category.tileset.previousId = id;
+			}
+			return true;
+		}
+
 		std::vector<Brush*> tempBrushVector;
+		tempBrushVector.reserve(rangeSize);
 		for (uint16_t id = fromId; id <= toId; ++id) {
 			const auto &type = g_items.getRawItemType(id);
 			if (!type || type->id == 0) {
@@ -450,13 +486,14 @@ void TilesetCategory::loadBrush(pugi::xml_node node, wxArrayString &warnings) {
 }
 
 void TilesetCategory::loadEntry(const TilesetEntryRecord &entry, wxArrayString &warnings, bool preserveStoredOrder) {
-	const std::string afterBrushName = ResolveAfterBrushName(entry, preserveStoredOrder);
-	const std::string entryKind = as_lower_str(entry.entryKind.ToStdString());
-	if (entryKind == "brush") {
+	if (entry.entryKind.IsSameAs("brush", false)) {
+		const std::string afterBrushName = preserveStoredOrder ? std::string() : ResolveAfterBrushName(entry, preserveStoredOrder);
 		LoadBrushEntry(tileset.brushes, *this, entry, warnings, preserveStoredOrder, afterBrushName);
 		return;
 	}
-	if (entryKind == "item") {
+
+	if (entry.entryKind.IsSameAs("item", false)) {
+		const std::string afterBrushName = preserveStoredOrder ? std::string() : ResolveAfterBrushName(entry, preserveStoredOrder);
 		LoadItemEntry(tileset.brushes, *this, entry, warnings, preserveStoredOrder, afterBrushName);
 		return;
 	}
