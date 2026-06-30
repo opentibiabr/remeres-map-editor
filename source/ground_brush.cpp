@@ -21,6 +21,8 @@
 #include "items.h"
 #include "basemap.h"
 
+#include <memory>
+
 uint32_t GroundBrush::border_types[256];
 
 int AutoBorder::edgeNameToID(const std::string &edgename) {
@@ -128,21 +130,90 @@ GroundBrush::GroundBrush() :
 
 GroundBrush::~GroundBrush() {
 	for (BorderBlock* borderBlock : borders) {
-		if (borderBlock->autoborder) {
-			for (SpecificCaseBlock* specificCaseBlock : borderBlock->specific_cases) {
-				delete specificCaseBlock;
-			}
-
-			if (borderBlock->autoborder->ground) {
-				delete borderBlock->autoborder;
-			}
+		if (!borderBlock) {
+			continue;
 		}
-		delete borderBlock;
+
+		for (SpecificCaseBlock* specificCaseBlock : borderBlock->specific_cases) {
+			std::unique_ptr<SpecificCaseBlock> ownedSpecificCase(specificCaseBlock);
+		}
+		borderBlock->specific_cases.clear();
+
+		if (borderBlock->autoborder && borderBlock->autoborder->ground) {
+			std::unique_ptr<AutoBorder> ownedAutoBorder(borderBlock->autoborder);
+		}
+
+		std::unique_ptr<BorderBlock> ownedBorderBlock(borderBlock);
 	}
 	borders.clear();
 }
 
+void GroundBrush::resetRuntimeState() {
+	const auto resetOwnedItemType = [this](uint16_t itemId) {
+		if (auto type = g_items.getRawItemType(itemId); type && type->brush == this) {
+			type->brush = nullptr;
+			type->alwaysOnBottom = false;
+			type->isBorder = false;
+			type->isOptionalBorder = false;
+			type->border_group = 0;
+			type->border_alignment = BORDER_NONE;
+			type->ground_equivalent = 0;
+		}
+	};
+
+	for (const ItemChanceBlock &item : border_items) {
+		resetOwnedItemType(item.id);
+	}
+	border_items.clear();
+	total_chance = 0;
+
+	const auto resetAutoBorder = [&](const AutoBorder* autoBorder) {
+		if (!autoBorder) {
+			return;
+		}
+		for (uint32_t tileId : autoBorder->tiles) {
+			if (tileId != 0) {
+				resetOwnedItemType(static_cast<uint16_t>(tileId));
+			}
+		}
+	};
+
+	resetAutoBorder(optional_border);
+	optional_border = nullptr;
+
+	for (BorderBlock* borderBlock : borders) {
+		if (!borderBlock) {
+			continue;
+		}
+		resetAutoBorder(borderBlock->autoborder);
+
+		for (SpecificCaseBlock* specificCaseBlock : borderBlock->specific_cases) {
+			std::unique_ptr<SpecificCaseBlock> ownedSpecificCase(specificCaseBlock);
+		}
+		borderBlock->specific_cases.clear();
+
+		if (borderBlock->autoborder && borderBlock->autoborder->ground) {
+			std::unique_ptr<AutoBorder> ownedAutoBorder(borderBlock->autoborder);
+		}
+
+		std::unique_ptr<BorderBlock> ownedBorderBlock(borderBlock);
+	}
+	borders.clear();
+
+	friends.clear();
+	hate_friends = false;
+
+	has_zilch_outer_border = false;
+	has_zilch_inner_border = false;
+	has_outer_border = false;
+	has_inner_border = false;
+	use_only_optional = false;
+	randomize = true;
+}
+
 bool GroundBrush::load(pugi::xml_node node, wxArrayString &warnings) {
+	resetRuntimeState();
+
 	pugi::xml_attribute attribute;
 	if ((attribute = node.attribute("lookid"))) {
 		look_id = attribute.as_uint();

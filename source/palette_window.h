@@ -65,24 +65,37 @@ public:
 	void OnClose(wxCloseEvent &);
 
 protected:
+	struct RuntimePaletteSpec {
+		wxString groupName;
+		wxString displayName;
+		PaletteType paletteType = TILESET_UNKNOWN;
+		int sortOrder = 0;
+	};
+
 	static void AddBrushToolPanel(PalettePanel* panel, const Config::Key config);
 	static void AddBrushSizePanel(PalettePanel* panel, const Config::Key config);
 
-	static PalettePanel* CreateTerrainPalette(wxWindow* parent, const TilesetContainer &tilesets);
-	static PalettePanel* CreateDoodadPalette(wxWindow* parent, const TilesetContainer &tilesets);
-	static PalettePanel* CreateItemPalette(wxWindow* parent, const TilesetContainer &tilesets);
+	static BrushPalettePanel* CreateTerrainPalette(wxWindow* parent, const TilesetContainer &tilesets, const wxString &displayName = "Terrain", const wxString &paletteGroupFilter = "terrain");
+	static BrushPalettePanel* CreateDoodadPalette(wxWindow* parent, const TilesetContainer &tilesets, const wxString &displayName = "Doodad", const wxString &paletteGroupFilter = "doodad");
+	static BrushPalettePanel* CreateItemPalette(wxWindow* parent, const TilesetContainer &tilesets, const wxString &displayName = "Item", const wxString &paletteGroupFilter = "item");
+	static BrushPalettePanel* CreateGroupPalette(wxWindow* parent, const TilesetContainer &tilesets, const wxString &displayName, const wxString &paletteGroupFilter);
 	static PalettePanel* CreateMonsterPalette(wxWindow* parent, const TilesetContainer &tilesets);
 	static PalettePanel* CreateNpcPalette(wxWindow* parent, const TilesetContainer &tilesets);
 	static PalettePanel* CreateHousePalette(wxWindow* parent, const TilesetContainer &tilesets);
 	static PalettePanel* CreateWaypointPalette(wxWindow* parent, const TilesetContainer &tilesets);
 	static PalettePanel* CreateZonesPalette(wxWindow* parent, const TilesetContainer &tilesets);
-	static PalettePanel* CreateRAWPalette(wxWindow* parent, const TilesetContainer &tilesets);
+	static BrushPalettePanel* CreateRAWPalette(wxWindow* parent, const TilesetContainer &tilesets, const wxString &displayName = "Other", const wxString &paletteGroupFilter = "other");
+	static std::vector<RuntimePaletteSpec> BuildRuntimePaletteSpecs(const TilesetContainer &tilesets);
+	static void ConfigureRuntimePalettePanel(BrushPalettePanel* panel);
+	bool AddRuntimePalettePage(BrushPalettePanel* panel);
+	bool TrySelectRuntimeBrush(const Brush* whatBrush, PaletteType preferredType, bool onlyPreferredType);
 
 	static bool CanSelectHouseBrush(PalettePanel* palette, const Brush* whatBrush);
 	static bool CanSelectBrush(PalettePanel* palette, const Brush* whatBrush);
 
 	wxChoicebook* choicebook = newd wxChoicebook(this, PALETTE_CHOICEBOOK, wxDefaultPosition, wxSize(230, 250));
 
+	std::vector<BrushPalettePanel*> runtimeBrushPalettes_;
 	BrushPalettePanel* terrainPalette = nullptr;
 	BrushPalettePanel* doodadPalette = nullptr;
 	BrushPalettePanel* itemPalette = nullptr;

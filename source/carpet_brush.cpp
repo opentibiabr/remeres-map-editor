@@ -36,7 +36,22 @@ CarpetBrush::~CarpetBrush() {
 	////
 }
 
+void CarpetBrush::resetRuntimeState() {
+	for (CarpetNode &node : carpet_items) {
+		for (const CarpetType &item : node.items) {
+			if (auto type = g_items.getRawItemType(item.id); type && type->brush == this) {
+				type->brush = nullptr;
+				type->isCarpet = false;
+			}
+		}
+		node.items.clear();
+		node.total_chance = 0;
+	}
+}
+
 bool CarpetBrush::load(pugi::xml_node node, wxArrayString &warnings) {
+	resetRuntimeState();
+
 	pugi::xml_attribute attribute;
 	if ((attribute = node.attribute("lookid"))) {
 		look_id = attribute.as_uint();

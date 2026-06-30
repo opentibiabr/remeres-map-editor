@@ -17,6 +17,10 @@
 
 #include "main.h"
 
+#include <array>
+#include <sqlite3.h>
+
+#include "brush_database.h"
 #include "gui.h"
 
 #include "application.h"
@@ -37,6 +41,7 @@
 #include "minimap_window.h"
 #include "palette_window.h"
 #include "map_display.h"
+#include "materials_workbench_window.h"
 #include "application.h"
 #include "welcome_dialog.h"
 #include "spawn_npc_brush.h"
@@ -63,6 +68,66 @@ namespace InternalGUI {
 		g_gui.unloadMapWindow();
 	}
 } // namespace (internal use only)
+
+namespace {
+	struct MaterialsSqliteFailureClassification {
+		wxString category;
+		wxString recommendation;
+	};
+
+	MaterialsSqliteFailureClassification ClassifyMaterialsSqliteFailure(const wxString &reason, int sqliteRc, int sqliteExtRc) {
+		MaterialsSqliteFailureClassification result;
+		const wxString lower = reason.Lower();
+
+		if (sqliteRc == SQLITE_NOTADB || lower.Contains("not a database")) {
+			result.category = "Invalid database file (not a SQLite database)";
+			result.recommendation = "Reset DB from XML to rebuild a clean database, or restore a valid materials.db from backup.";
+			return result;
+		}
+		if (sqliteRc == SQLITE_CORRUPT || lower.Contains("malformed") || lower.Contains("database disk image is malformed")) {
+			result.category = "Corrupted SQLite database";
+			result.recommendation = "Reset DB from XML to rebuild a clean database, or restore a known-good materials.db from backup.";
+			return result;
+		}
+		if (lower.Contains("integrity check failed") || lower.Contains("quick_check failed") || lower.Contains("integrity_check failed")) {
+			result.category = "Corrupted SQLite database";
+			result.recommendation = "Reset DB from XML to rebuild a clean database, or restore a known-good materials.db from backup.";
+			return result;
+		}
+		if (sqliteRc == SQLITE_READONLY || sqliteExtRc == SQLITE_READONLY) {
+			result.category = "Database is read-only";
+			result.recommendation = "Fix file permissions and ensure materials/materials.db is writable, then restart. If needed, Reset DB from XML.";
+			return result;
+		}
+		if (sqliteRc == SQLITE_BUSY || sqliteRc == SQLITE_LOCKED || lower.Contains("database is locked") || lower.Contains("busy")) {
+			result.category = "Database is locked or busy";
+			result.recommendation = "Close other instances/processes using materials.db, then restart. If the DB is unhealthy, Reset DB from XML.";
+			return result;
+		}
+		if (sqliteRc == SQLITE_CANTOPEN || lower.Contains("unable to open database file") || lower.Contains("failed to open sqlite database")) {
+			result.category = "Cannot open database file";
+			result.recommendation = "Ensure the directory exists and is writable. If the file is corrupted or wrong type, Reset DB from XML.";
+			return result;
+		}
+		if (lower.Contains("schema version mismatch") || lower.Contains("newer than supported")) {
+			result.category = "Schema version mismatch";
+			result.recommendation = "Use a compatible editor build for this DB, or Reset DB from XML to rebuild a DB for this build (may lose DB-only edits).";
+			return result;
+		}
+		if (lower.Contains("import required")
+			|| lower.Contains("missing imported materials data")
+			|| lower.Contains("import status row is missing")
+			|| lower.Contains("unresolved references")) {
+			result.category = "Database is not runtime-ready";
+			result.recommendation = "Reset DB from XML to rebuild a consistent materials.db (or delete/move the file to allow a clean bootstrap).";
+			return result;
+		}
+
+		result.category = "SQLite failure";
+		result.recommendation = "Reset DB from XML to rebuild a clean database (requires restart).";
+		return result;
+	}
+} // namespace
 
 const wxEventType EVT_UPDATE_MENUS = wxNewEventType();
 const wxEventType EVT_UPDATE_ACTIONS = wxNewEventType();
@@ -140,6 +205,13 @@ wxGLContext* GUI::GetGLContext(wxGLCanvas* win) {
 }
 
 wxString GUI::GetDataDirectory() {
+	const wxString discovered = g_gui.getFoundDataDirectory();
+	if (!discovered.IsEmpty() && wxFileName(discovered).DirExists()) {
+		FileName dir;
+		dir.Assign(discovered);
+		return dir.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR);
+	}
+
 	std::string cfg_str = g_settings.getString(Config::DATA_DIRECTORY);
 	if (!cfg_str.empty()) {
 		FileName dir;
@@ -285,100 +357,338 @@ void GUI::CycleTab(bool forward) {
 	tabbook->CycleTab(forward);
 }
 
+namespace {
+	bool GetExecutablePath(FileName &outExecDirectory, wxString &outError) {
+		try {
+			outExecDirectory = dynamic_cast<wxStandardPaths &>(wxStandardPaths::Get()).GetExecutablePath();
+			return true;
+		} catch (std::bad_cast &) {
+			outError = "Couldn't establish working directory...";
+			return false;
+		}
+	}
+
+	bool LoadClientAssetsFiles(wxString &error, wxArrayString &warnings) {
+		g_gui.SetLoadDone(20, "Loading client assets...");
+		spdlog::info("Loading appearances");
+		if (!ClientAssets::loadAppearanceProtobuf(error, warnings)) {
+			InternalGUI::logErrorAndSetMessage("Couldn't load catalog-content.json", error);
+			return false;
+		}
+		return true;
+	}
+
+	void LoadItemsXmlFile(const FileName &execDirectory, wxString &error, wxArrayString &warnings) {
+		g_gui.SetLoadDone(30, "Loading items.xml ...");
+		spdlog::info("Loading items");
+		FileName itemsPath(execDirectory);
+		itemsPath.AppendDir("data");
+		itemsPath.AppendDir("items");
+		itemsPath.SetFullName("items.xml");
+
+		if (!g_items.loadFromGameXml(itemsPath, error, warnings)) {
+			warnings.push_back("Couldn't load items.xml: " + error);
+			spdlog::warn("[GUI::LoadDataFiles] {}: {}", itemsPath.GetFullPath().ToStdString(), error.ToStdString());
+		}
+	}
+
+	template <typename Loader>
+	void LoadLuaDirFromSettings(
+		Config::Key configKey,
+		int progress,
+		const wxString &progressText,
+		const wxString &errorWarningPrefix,
+		const wxString &notConfiguredWarning,
+		wxArrayString &warnings,
+		Loader loader
+	) {
+		const std::string luaDir = g_settings.getString(configKey);
+		if (luaDir.empty()) {
+			warnings.push_back(notConfiguredWarning);
+			spdlog::warn("[GUI::LoadDataFiles] {}", notConfiguredWarning.ToStdString());
+			return;
+		}
+
+		g_gui.SetLoadDone(progress, progressText);
+		wxString luaErr;
+		wxArrayString luaWarn;
+		if (!loader(wxString(luaDir), luaErr, luaWarn)) {
+			warnings.push_back(errorWarningPrefix + luaErr);
+		}
+		for (const auto &w : luaWarn) {
+			warnings.push_back(w);
+		}
+	}
+
+	struct MaterialsLoadPlan {
+		bool sqliteEnabled = false;
+		bool sqliteInitOk = false;
+		bool sqliteDatabaseExistedBeforeInit = false;
+		bool startAsyncSqliteBootstrap = false;
+		bool shouldLoadFromSqlite = false;
+		wxString sqliteDatabasePath;
+		wxString sqliteFallbackReason;
+		wxString materialsXmlPath;
+	};
+
+	void MaybeWarnSqliteImportRequired(
+		const wxString &sqliteImportStatus,
+		const wxString &sqliteDatabasePath,
+		wxArrayString &warnings
+	) {
+		wxString message = "SQLite materials import required, but automatic rebuild is disabled because materials.db already exists.\n";
+		message += "Reason: ";
+		message += sqliteImportStatus;
+		message += "\n";
+		message += "Recovery: Move or delete materials/materials.db to force a clean rebuild from XML.";
+		warnings.push_back(
+			message
+		);
+		spdlog::warn(
+			"[GUI::LoadDataFiles] SQLite materials import required but cannot rebuild automatically (db exists): {} ({})",
+			sqliteImportStatus.ToStdString(),
+			sqliteDatabasePath.ToStdString()
+		);
+	}
+
+	void PlanSqliteMaterialsLoad(MaterialsLoadPlan &plan, wxArrayString &warnings) {
+		if (!plan.sqliteEnabled) {
+			return;
+		}
+		if (!plan.sqliteInitOk) {
+			const wxString rawError = g_brush_database.getLastError();
+			const int sqliteRc = g_brush_database.getLastSqliteErrorCode();
+			const int sqliteExtRc = g_brush_database.getLastSqliteExtendedErrorCode();
+			const auto classification = ClassifyMaterialsSqliteFailure(rawError, sqliteRc, sqliteExtRc);
+			plan.sqliteFallbackReason = "SQLite brush database initialization failed (" + classification.category + "): " + rawError;
+			warnings.push_back(plan.sqliteFallbackReason);
+			return;
+		}
+
+		if (plan.sqliteDatabaseExistedBeforeInit && g_brush_database.isOpen() && !g_brush_database.quickCheck()) {
+			plan.sqliteFallbackReason = "SQLite integrity check failed: " + g_brush_database.getLastError();
+			warnings.push_back(plan.sqliteFallbackReason);
+			spdlog::warn("[GUI::LoadDataFiles] {}", plan.sqliteFallbackReason.ToStdString());
+			return;
+		}
+
+		bool skipSqliteImport = false;
+		wxString sqliteImportStatus;
+		if (!g_materials.shouldSkipSqliteBootstrapImports(skipSqliteImport, sqliteImportStatus)) {
+			plan.sqliteFallbackReason = "SQLite import bootstrap check failed: " + sqliteImportStatus;
+			warnings.push_back(plan.sqliteFallbackReason);
+			spdlog::warn("[GUI::LoadDataFiles] {}", plan.sqliteFallbackReason.ToStdString());
+			if (g_brush_database.isOpen() && !plan.sqliteDatabaseExistedBeforeInit) {
+				plan.startAsyncSqliteBootstrap = true;
+			}
+			return;
+		}
+
+		if (skipSqliteImport && g_brush_database.isOpen()) {
+			plan.shouldLoadFromSqlite = true;
+			spdlog::info("{}", sqliteImportStatus.ToStdString());
+			return;
+		}
+
+		if (!plan.sqliteDatabaseExistedBeforeInit) {
+			sqliteImportStatus = wxString("SQLite materials database was missing; ") + sqliteImportStatus;
+		}
+		spdlog::info("{}", sqliteImportStatus.ToStdString());
+		plan.sqliteFallbackReason = sqliteImportStatus;
+		if (!plan.sqliteDatabaseExistedBeforeInit) {
+			plan.startAsyncSqliteBootstrap = true;
+		} else {
+			MaybeWarnSqliteImportRequired(sqliteImportStatus, plan.sqliteDatabasePath, warnings);
+		}
+	}
+
+	bool TryLoadMaterialsFromSqlite(const MaterialsLoadPlan &plan, wxArrayString &warnings, wxString &outFallbackReason) {
+		if (!plan.shouldLoadFromSqlite) {
+			return false;
+		}
+
+		spdlog::info("[GUI::LoadDataFiles] Attempting to load materials catalog from SQLite.");
+		const bool loaded = g_brushes.loadFromDatabase(warnings) && g_materials.loadTilesetsFromDatabase(warnings);
+		if (loaded) {
+			return true;
+		}
+
+		const wxString runtimeError = g_brush_database.getLastError();
+		const int sqliteRc = g_brush_database.getLastSqliteErrorCode();
+		const int sqliteExtRc = g_brush_database.getLastSqliteExtendedErrorCode();
+		const auto classification = ClassifyMaterialsSqliteFailure(runtimeError, sqliteRc, sqliteExtRc);
+		wxString message = "SQLite materials load failed at runtime (" + classification.category + "); falling back to XML.";
+		if (!runtimeError.IsEmpty()) {
+			message += " Reason: ";
+			message += runtimeError;
+		}
+		warnings.push_back(message);
+		spdlog::warn("[GUI::LoadDataFiles] Falling back to XML materials after SQLite load failure.");
+		outFallbackReason = message;
+		g_materials.clear();
+		g_brushes.clear();
+		return false;
+	}
+
+	void PrepareMaterialsXmlFallbackWarnings(
+		const MaterialsLoadPlan &plan,
+		const wxString &fallbackReason,
+		wxArrayString &warnings
+	) {
+		if (!plan.sqliteEnabled) {
+			return;
+		}
+
+		wxString reason = fallbackReason;
+		if (reason.IsEmpty()) {
+			reason = "SQLite materials were enabled but not used.";
+		}
+		const int sqliteRc = g_brush_database.getLastSqliteErrorCode();
+		const int sqliteExtRc = g_brush_database.getLastSqliteExtendedErrorCode();
+		const auto classification = ClassifyMaterialsSqliteFailure(reason, sqliteRc, sqliteExtRc);
+		wxString message = "Materials recovery mode: using legacy XML materials for this session.\n";
+		message += "Problem: ";
+		message += classification.category;
+		message += "\nReason: ";
+		message += reason;
+		if (sqliteRc != 0 || sqliteExtRc != 0) {
+			message += wxString::Format("\nSQLite codes: rc=%d ext=%d", sqliteRc, sqliteExtRc);
+		}
+		message += "\nWhat you can do right now:\n";
+		message += "- Open Materials Workbench and keep working normally.\n";
+		message += "- The workbench edits materials.db (source of truth).\n";
+		message += "- The map editor is using XML materials right now because the SQLite database is not runtime-ready.\n";
+		message += "- If your changes do not show up immediately, restart the app after fixing/resetting the DB.\n";
+		message += "\nIf this looks wrong:\n";
+		message += "- Please open an issue at github.com/opentibiabr/remeres-map-editor\n";
+		message += "Recovery: ";
+		message += classification.recommendation;
+		warnings.push_back(message);
+		g_gui.SetStatusText("Materials: recovery mode (XML fallback). See Warnings for details.");
+		if (plan.sqliteDatabaseExistedBeforeInit) {
+			g_gui.QueueMaterialsRecoveryDialog(
+				classification.category,
+				reason,
+				classification.recommendation,
+				sqliteRc,
+				sqliteExtRc,
+				plan.sqliteDatabasePath
+			);
+		}
+	}
+
+	bool LoadMaterialsFromXml(
+		const MaterialsLoadPlan &plan,
+		const wxString &fallbackReason,
+		wxString &error,
+		wxArrayString &warnings
+	) {
+		error.clear();
+		spdlog::info("[GUI::LoadDataFiles] Loading materials catalog from XML.");
+		PrepareMaterialsXmlFallbackWarnings(plan, fallbackReason, warnings);
+
+		if (g_materials.loadMaterials(plan.materialsXmlPath, error, warnings)) {
+			return true;
+		}
+
+		warnings.push_back("Couldn't load materials.xml: " + error);
+		spdlog::warn("[GUI::LoadDataFiles] {}: {}", plan.materialsXmlPath.ToStdString(), error.ToStdString());
+		const wxString xmlError = error;
+		const wxString sqliteDetail = fallbackReason.IsEmpty() ? wxString("unavailable") : fallbackReason;
+		error = "Failed to load materials catalog from both SQLite and XML.\n";
+		error += "SQLite: ";
+		error += sqliteDetail;
+		error += "\nXML: ";
+		error += xmlError;
+		return false;
+	}
+
+	bool LoadMaterialsCatalog(const FileName &dataPath, bool &outStartAsyncSqliteBootstrap, wxString &error, wxArrayString &warnings) {
+		g_gui.SetLoadDone(50, "Loading materials catalog...");
+		spdlog::info("Loading materials catalog");
+
+		MaterialsLoadPlan plan;
+		plan.sqliteEnabled = g_settings.getBoolean(Config::USE_SQLITE_MATERIALS);
+		plan.sqliteDatabasePath = GUI::GetDataDirectory() + "materials/materials.db";
+		plan.materialsXmlPath = wxString(dataPath.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + "materials/materials.xml");
+
+		const FileName sqliteDatabaseFile(plan.sqliteDatabasePath);
+		plan.sqliteDatabaseExistedBeforeInit = sqliteDatabaseFile.FileExists();
+		plan.sqliteInitOk = g_materials.initializeBrushDatabase(warnings);
+		PlanSqliteMaterialsLoad(plan, warnings);
+
+		wxString fallbackReason = plan.sqliteFallbackReason;
+		const bool loadedFromSqlite = TryLoadMaterialsFromSqlite(plan, warnings, fallbackReason);
+		if (loadedFromSqlite) {
+			outStartAsyncSqliteBootstrap = plan.startAsyncSqliteBootstrap;
+			return true;
+		}
+
+		if (!LoadMaterialsFromXml(plan, fallbackReason, error, warnings)) {
+			return false;
+		}
+
+		outStartAsyncSqliteBootstrap = plan.startAsyncSqliteBootstrap;
+		if (plan.startAsyncSqliteBootstrap) {
+			spdlog::info("[GUI::LoadDataFiles] Starting async SQLite bootstrap import.");
+		}
+		return true;
+	}
+}
+
 bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 	FileName data_path = GetDataDirectory();
 
 	FileName exec_directory;
-	try {
-		exec_directory = dynamic_cast<wxStandardPaths &>(wxStandardPaths::Get()).GetExecutablePath();
-	} catch (std::bad_cast &) {
-		error = "Couldn't establish working directory...";
+	if (!GetExecutablePath(exec_directory, error)) {
 		return false;
 	}
 
 	g_spriteAppearances.init();
 
 	g_gui.CreateLoadBar("Loading assets files");
+	struct LoadBarScope {
+		~LoadBarScope() {
+			g_gui.DestroyLoadBar();
+		}
+	};
+	LoadBarScope loadBarScope;
 	g_gui.SetLoadDone(0, "Loading assets file");
 	spdlog::info("Loading assets");
 
-	g_gui.SetLoadDone(20, "Loading client assets...");
-	spdlog::info("Loading appearances");
-	if (!ClientAssets::loadAppearanceProtobuf(error, warnings)) {
-
-		InternalGUI::logErrorAndSetMessage("Couldn't load catalog-content.json", error);
+	if (!LoadClientAssetsFiles(error, warnings)) {
 		return false;
 	}
 
-	g_gui.SetLoadDone(30, "Loading items.xml ...");
-	spdlog::info("Loading items");
-	FileName itemsPath(exec_directory);
-	itemsPath.AppendDir("data");
-	itemsPath.AppendDir("items");
-	itemsPath.SetFullName("items.xml");
+	LoadItemsXmlFile(exec_directory, error, warnings);
 
-	if (!g_items.loadFromGameXml(itemsPath, error, warnings)) {
-		warnings.push_back("Couldn't load items.xml: " + error);
-		spdlog::warn("[GUI::LoadDataFiles] {}: {}", itemsPath.GetFullPath().ToStdString(), error.ToStdString());
-	}
-
-	{
-		std::string monstersLuaDir = g_settings.getString(Config::MONSTERS_LUA_DIRECTORY);
-		if (monstersLuaDir.empty()) {
-			warnings.push_back("Monsters Lua Directory is not configured. Set it in Edit > Preferences.");
-			spdlog::warn("[GUI::LoadDataFiles] Monsters Lua Directory is not configured.");
-		} else {
-			g_gui.SetLoadDone(47, "Loading Canary monster Lua files...");
-			wxString luaErr;
-			wxArrayString luaWarn;
-			if (!g_monsters.loadFromLuaDir(wxString(monstersLuaDir), luaErr, luaWarn)) {
-				warnings.push_back("Error loading Canary monster Lua files: " + luaErr);
-			}
-			for (const auto &w : luaWarn) {
-				warnings.push_back(w);
-			}
+	LoadLuaDirFromSettings(
+		Config::MONSTERS_LUA_DIRECTORY,
+		47,
+		"Loading Canary monster Lua files...",
+		"Error loading Canary monster Lua files: ",
+		"Monsters Lua Directory is not configured. Set it in Edit > Preferences.",
+		warnings,
+		[](const wxString &dir, wxString &luaErr, wxArrayString &luaWarn) {
+			return g_monsters.loadFromLuaDir(dir, luaErr, luaWarn);
 		}
-	}
+	);
 
-	{
-		std::string npcsLuaDir = g_settings.getString(Config::NPCS_LUA_DIRECTORY);
-		if (npcsLuaDir.empty()) {
-			warnings.push_back("NPCs Lua Directory is not configured. Set it in Edit > Preferences.");
-			spdlog::warn("[GUI::LoadDataFiles] NPCs Lua Directory is not configured.");
-		} else {
-			g_gui.SetLoadDone(48, "Loading Canary NPC Lua files...");
-			wxString luaErr;
-			wxArrayString luaWarn;
-			if (!g_npcs.loadFromLuaDir(wxString(npcsLuaDir), luaErr, luaWarn)) {
-				warnings.push_back("Error loading Canary NPC Lua files: " + luaErr);
-			}
-			for (const auto &w : luaWarn) {
-				warnings.push_back(w);
-			}
+	LoadLuaDirFromSettings(
+		Config::NPCS_LUA_DIRECTORY,
+		48,
+		"Loading Canary NPC Lua files...",
+		"Error loading Canary NPC Lua files: ",
+		"NPCs Lua Directory is not configured. Set it in Edit > Preferences.",
+		warnings,
+		[](const wxString &dir, wxString &luaErr, wxArrayString &luaWarn) {
+			return g_npcs.loadFromLuaDir(dir, luaErr, luaWarn);
 		}
-	}
+	);
 
-	g_gui.SetLoadDone(50, "Loading materials.xml ...");
-	spdlog::info("Loading materials");
-	g_materials.initializeBrushDatabase(warnings);
-	auto materialsPath = wxString(data_path.GetPath(wxPATH_GET_VOLUME | wxPATH_GET_SEPARATOR) + "materials/materials.xml");
 	bool startAsyncSqliteBootstrap = false;
-	if (g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
-		bool skipSqliteImport = false;
-		wxString sqliteImportStatus;
-		if (!g_materials.shouldSkipSqliteBootstrapImports(skipSqliteImport, sqliteImportStatus)) {
-			warnings.push_back("SQLite import bootstrap check failed: " + sqliteImportStatus);
-			spdlog::warn("[GUI::LoadDataFiles] SQLite import bootstrap check failed: {}", sqliteImportStatus.ToStdString());
-		} else if (skipSqliteImport) {
-			spdlog::info("{}", sqliteImportStatus.ToStdString());
-		} else {
-			spdlog::info("{}", sqliteImportStatus.ToStdString());
-			startAsyncSqliteBootstrap = true;
-		}
-	}
-	if (!g_materials.loadMaterials(materialsPath, error, warnings)) {
-		warnings.push_back("Couldn't load materials.xml: " + error);
-		spdlog::warn("[GUI::LoadDataFiles] {}: {}", materialsPath.ToStdString(), error.ToStdString());
+	if (!LoadMaterialsCatalog(data_path, startAsyncSqliteBootstrap, error, warnings)) {
+		return false;
 	}
 
 	g_gui.SetLoadDone(70, "Finishing...");
@@ -388,7 +698,6 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 	g_materials.createOtherTileset();
 	g_materials.createNpcTileset();
 
-	g_gui.DestroyLoadBar();
 	spdlog::info("Assets loaded");
 	if (startAsyncSqliteBootstrap) {
 		StartAsyncSqliteBootstrapImport();
@@ -983,7 +1292,7 @@ PaletteWindow* GUI::CreatePalette() {
 
 	auto* palette = newd PaletteWindow(root, g_materials.tilesets);
 	aui_manager->AddPane(palette, wxAuiPaneInfo().Caption("Palette").TopDockable(false).BottomDockable(false));
-	palette->OnUpdate(GetCurrentMapTab()->GetMap());
+	palette->OnUpdate(IsEditorOpen() ? &GetCurrentMap() : nullptr);
 	aui_manager->Update();
 
 	// Make us the active palette
@@ -997,7 +1306,12 @@ PaletteWindow* GUI::CreatePalette() {
 }
 
 void GUI::ActivatePalette(PaletteWindow* p) {
-	palettes.erase(std::find(palettes.begin(), palettes.end(), p));
+	const auto it = std::find(palettes.begin(), palettes.end(), p);
+	if (it == palettes.end()) {
+		return;
+	}
+
+	palettes.erase(it);
 	palettes.push_front(p);
 }
 
@@ -1019,6 +1333,221 @@ void GUI::RebuildPalettes() {
 		piter->ReloadSettings(IsEditorOpen() ? &GetCurrentMap() : nullptr);
 	}
 	aui_manager->Update();
+}
+
+bool GUI::ReloadMaterialPalettesFromDatabase(wxString &error, wxArrayString &warnings) {
+	error.clear();
+	warnings.clear();
+
+	if (!g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
+		error = "SQLite materials backend is disabled.";
+		return false;
+	}
+	if (!g_brush_database.isOpen()) {
+		error = "SQLite materials database is not open.";
+		return false;
+	}
+
+	struct PaletteRestoreState {
+		PaletteType selectedPage = TILESET_UNKNOWN;
+		Brush* selectedBrush = nullptr;
+		bool shown = true;
+	};
+
+	std::vector<PaletteRestoreState> states;
+	states.reserve(palettes.size());
+	for (PaletteWindow* palette : palettes) {
+		PaletteRestoreState state;
+		state.selectedPage = palette->GetSelectedPage();
+		state.selectedBrush = palette->GetSelectedBrush();
+		state.shown = aui_manager->GetPane(palette).IsShown();
+		states.push_back(state);
+	}
+
+	if (!g_materials.loadTilesetsFromDatabase(warnings)) {
+		error = "Failed to reload runtime tilesets from SQLite.";
+		if (!g_brush_database.getLastError().IsEmpty()) {
+			error += " " + g_brush_database.getLastError();
+		}
+		return false;
+	}
+
+	g_materials.createOtherTileset();
+	g_materials.createNpcTileset();
+
+	if (states.empty()) {
+		return true;
+	}
+
+	DestroyPalettes();
+
+	std::vector<PaletteWindow*> rebuiltPalettes;
+	rebuiltPalettes.reserve(states.size());
+	for (auto it = states.rbegin(); it != states.rend(); ++it) {
+		PaletteWindow* palette = CreatePalette();
+		if (!palette) {
+			error = "Failed to recreate runtime palettes after reloading materials.";
+			return false;
+		}
+		rebuiltPalettes.push_back(palette);
+	}
+
+	std::reverse(rebuiltPalettes.begin(), rebuiltPalettes.end());
+
+	for (size_t i = 0; i < rebuiltPalettes.size(); ++i) {
+		PaletteWindow* palette = rebuiltPalettes[i];
+		const PaletteRestoreState &state = states[i];
+		palette->SelectPage(state.selectedPage);
+		if (state.selectedBrush) {
+			palette->OnSelectBrush(state.selectedBrush, state.selectedPage);
+		}
+		palette->OnUpdateBrushSize(brush_shape, brush_size);
+		aui_manager->GetPane(palette).Show(state.shown);
+	}
+
+	if (current_brush) {
+		SelectBrushInternal(current_brush);
+	} else {
+		SelectBrush();
+	}
+
+	aui_manager->Update();
+	root->GetAuiToolBar()->UpdateBrushButtons();
+	return true;
+}
+
+bool GUI::ReloadMaterialPalettesAndBrushesFromDatabase(wxString &error, wxArrayString &warnings) {
+	error.clear();
+	warnings.clear();
+
+	if (!g_settings.getBoolean(Config::USE_SQLITE_MATERIALS)) {
+		error = "SQLite materials backend is disabled.";
+		return false;
+	}
+	if (!g_brush_database.isOpen()) {
+		error = "SQLite materials database is not open.";
+		return false;
+	}
+
+	wxArrayString brushWarnings;
+
+	static const std::array<wxString, 6> supportedTypes = { "ground", "wall", "wall decoration", "doodad", "carpet", "table" };
+	for (const wxString &type : supportedTypes) {
+		std::vector<BrushRecord> brushList;
+		if (!g_brush_database.listBrushesByType(type, brushList)) {
+			error = "Failed to list SQLite brushes for runtime refresh.";
+			if (!g_brush_database.getLastError().IsEmpty()) {
+				error += " " + g_brush_database.getLastError();
+			}
+			return false;
+		}
+		for (const BrushRecord &row : brushList) {
+			wxString reloadError;
+			wxArrayString reloadWarnings;
+			if (!g_brushes.reloadBrushFromDatabase(row.id, reloadWarnings, reloadError)) {
+				brushWarnings.push_back(wxString::Format("Failed to reload runtime brush \"%s\": %s", row.name, reloadError));
+				continue;
+			}
+			for (const wxString &warning : reloadWarnings) {
+				brushWarnings.push_back(warning);
+			}
+		}
+	}
+
+	{
+		std::vector<BorderSetRecord> globalBorders;
+		if (!g_brush_database.listBorderSetsByScope("global", globalBorders)) {
+			error = "Failed to list SQLite global borders for runtime refresh.";
+			if (!g_brush_database.getLastError().IsEmpty()) {
+				error += " " + g_brush_database.getLastError();
+			}
+			warnings = brushWarnings;
+			return false;
+		}
+		if (!globalBorders.empty()) {
+			wxString borderError;
+			wxArrayString borderWarnings;
+			if (!g_brushes.reloadBorderSetFromDatabase(globalBorders.front().id, borderWarnings, borderError)) {
+				brushWarnings.push_back("Failed to reload runtime global borders from SQLite: " + borderError);
+			} else {
+				for (const wxString &warning : borderWarnings) {
+					brushWarnings.push_back(warning);
+				}
+			}
+		}
+	}
+
+	wxString paletteError;
+	wxArrayString paletteWarnings;
+	if (!ReloadMaterialPalettesFromDatabase(paletteError, paletteWarnings)) {
+		error = paletteError;
+		warnings = brushWarnings;
+		warnings.insert(warnings.end(), paletteWarnings.begin(), paletteWarnings.end());
+		return false;
+	}
+
+	warnings = brushWarnings;
+	warnings.insert(warnings.end(), paletteWarnings.begin(), paletteWarnings.end());
+	return true;
+}
+
+bool GUI::SyncBrushInPalettes(const wxString &oldName, const wxString &newName, uint16_t effectiveLookId) {
+	if (newName.IsEmpty()) {
+		return false;
+	}
+
+	Brush* runtimeBrush = nullptr;
+	if (!oldName.IsEmpty()) {
+		runtimeBrush = g_brushes.getBrush(oldName.ToStdString());
+	}
+	if (!runtimeBrush) {
+		runtimeBrush = g_brushes.getBrush(newName.ToStdString());
+	}
+	if (!runtimeBrush) {
+		return false;
+	}
+
+	if (!oldName.IsEmpty() && oldName != newName) {
+		g_brushes.renameBrush(runtimeBrush, oldName.ToStdString(), newName.ToStdString());
+	}
+	runtimeBrush->setLookID(effectiveLookId);
+
+	struct PaletteRestoreState {
+		PaletteWindow* palette = nullptr;
+		PaletteType selectedPage = TILESET_UNKNOWN;
+		Brush* selectedBrush = nullptr;
+	};
+
+	std::vector<PaletteRestoreState> states;
+	states.reserve(palettes.size());
+	for (PaletteWindow* palette : palettes) {
+		PaletteRestoreState state;
+		state.palette = palette;
+		state.selectedPage = palette->GetSelectedPage();
+		state.selectedBrush = palette->GetSelectedBrush();
+		states.push_back(state);
+	}
+
+	for (const PaletteRestoreState &state : states) {
+		if (!state.palette) {
+			continue;
+		}
+
+		state.palette->InvalidateContents();
+		state.palette->SelectPage(state.selectedPage);
+		if (state.selectedBrush) {
+			state.palette->OnSelectBrush(state.selectedBrush, state.selectedPage);
+		}
+		state.palette->OnUpdateBrushSize(brush_shape, brush_size);
+	}
+
+	if (current_brush) {
+		SelectBrushInternal(current_brush);
+	}
+
+	aui_manager->Update();
+	root->GetAuiToolBar()->UpdateBrushButtons();
+	return true;
 }
 
 void GUI::ShowPalette() {
@@ -1405,6 +1934,125 @@ void GUI::SetStatusText(wxString text) {
 
 bool GUI::IsAsyncSqliteBootstrapRunning() const {
 	return sqlite_bootstrap_running_.load();
+}
+
+void GUI::QueueMaterialsRecoveryDialog(const wxString &category, const wxString &reason, const wxString &recommendation, int sqliteRc, int sqliteExtRc, const wxString &dbPath) {
+	if (materials_recovery_dialog_pending_.exchange(true)) {
+		return;
+	}
+	materials_recovery_sqlite_rc_ = sqliteRc;
+	materials_recovery_sqlite_ext_rc_ = sqliteExtRc;
+	materials_recovery_category_ = category;
+	materials_recovery_reason_ = reason;
+	materials_recovery_recommendation_ = recommendation;
+	materials_recovery_db_path_ = dbPath;
+
+	if (!wxTheApp) {
+		return;
+	}
+	wxTheApp->CallAfter([this]() { TryShowMaterialsRecoveryDialog(); });
+}
+
+void GUI::TryShowMaterialsRecoveryDialog() {
+	if (!materials_recovery_dialog_pending_.load()) {
+		return;
+	}
+	if (!g_gui.root) {
+		if (wxTheApp) {
+			wxTheApp->CallAfter([this]() { TryShowMaterialsRecoveryDialog(); });
+		}
+		return;
+	}
+	materials_recovery_dialog_pending_.store(false);
+
+	wxString dialogCategory = materials_recovery_category_;
+	if (dialogCategory.IsEmpty()) {
+		dialogCategory = "SQLite failure";
+	}
+	wxString dialogReason = materials_recovery_reason_;
+	if (dialogReason.IsEmpty()) {
+		dialogReason = "SQLite materials were enabled but not used.";
+	}
+	wxString dialogRecommendation = materials_recovery_recommendation_;
+	if (dialogRecommendation.IsEmpty()) {
+		dialogRecommendation = "Reset DB from XML to rebuild a clean database (requires restart).";
+	}
+	const wxString dbPath = materials_recovery_db_path_;
+	const int sqliteRc = materials_recovery_sqlite_rc_;
+	const int sqliteExtRc = materials_recovery_sqlite_ext_rc_;
+
+	wxString dialogText = "SQLite materials could not be used.\n";
+	dialogText += "Recovery mode is active.\n\n";
+	dialogText += "What this means:\n";
+	dialogText += "- The map editor is using legacy XML materials right now because materials.db is not runtime-ready.\n\n";
+	dialogText += "Important:\n";
+	dialogText += "- This dialog does not fix the SQLite database.\n";
+	dialogText += "- You can use Materials Workbench normally.\n";
+	dialogText += "- Materials Workbench edits materials.db (source of truth).\n";
+	dialogText += "- If your changes do not show up immediately, restart the app after fixing/resetting the DB.\n\n";
+	dialogText += "If this keeps happening:\n";
+	dialogText += "- Please open an issue at github.com/opentibiabr/remeres-map-editor\n\n";
+	dialogText += "Problem:\n" + dialogCategory + "\n\n";
+	dialogText += "Reason:\n" + dialogReason + "\n\n";
+	dialogText += "Recommendation:\n" + dialogRecommendation + "\n\n";
+	dialogText += "SQLite codes:\n" + wxString::Format("rc=%d ext=%d", sqliteRc, sqliteExtRc) + "\n\n";
+	dialogText += "Database:\n" + dbPath + "\n\n";
+	dialogText += "Action:\n";
+	dialogText += "- Reset DB from XML: move the current materials.db to a backup and rebuild a clean database on next startup\n";
+	dialogText += "- Close: keep working in recovery mode for now";
+
+	wxMessageDialog dialog(g_gui.root, dialogText, "Materials recovery mode", wxOK | wxICON_WARNING);
+	dialog.SetOKLabel("Reset DB from XML...");
+	const int result = dialog.ShowModal();
+	if (result != wxID_OK) {
+		return;
+	}
+
+	if (!wxFileName(dbPath).FileExists()) {
+		g_gui.PopupDialog(g_gui.root, "SQLite Reset Unavailable", "materials.db does not exist at the expected path.\n\nDatabase:\n" + dbPath, wxOK | wxICON_ERROR);
+		return;
+	}
+	if (!wxFileName(dbPath).IsFileWritable()) {
+		g_gui.PopupDialog(g_gui.root, "SQLite Reset Unavailable", "materials.db is read-only. Reset requires a writable database file.\n\nDatabase:\n" + dbPath, wxOK | wxICON_ERROR);
+		return;
+	}
+
+	const wxDateTime now = wxDateTime::Now();
+	const wxString suffix = now.Format("-%Y%m%d-%H%M%S");
+	const wxString backupPath = dbPath + ".bak" + suffix;
+
+	if (g_brush_database.isOpen()) {
+		g_brush_database.close();
+	}
+
+	auto moveFileIfExists = [](const wxString &from, const wxString &to) {
+		if (wxFileName(from).FileExists()) {
+			return wxRenameFile(from, to, true);
+		}
+		return true;
+	};
+
+	if (!moveFileIfExists(dbPath, backupPath)
+		|| !moveFileIfExists(dbPath + "-wal", backupPath + "-wal")
+		|| !moveFileIfExists(dbPath + "-shm", backupPath + "-shm")) {
+		g_gui.PopupDialog(g_gui.root, "SQLite Reset Failed", "Failed to move one or more SQLite files to the backup path.\n\nBackup:\n" + backupPath, wxOK | wxICON_ERROR);
+		return;
+	}
+
+	wxString doneText = "materials.db was moved to:\n" + backupPath + "\n\n";
+	doneText += "Why you must close now:\n";
+	doneText += "- The editor cannot rebuild and reload the materials database while it is running.\n";
+	doneText += "- Closing the app releases any SQLite file locks.\n\n";
+	doneText += "What happens next:\n";
+	doneText += "- Start the app again\n";
+	doneText += "- On startup, it will rebuild a clean SQLite materials.db from legacy XML automatically";
+
+	wxMessageDialog doneDialog(g_gui.root, doneText, "SQLite Reset Scheduled", wxOK | wxICON_INFORMATION);
+	doneDialog.SetOKLabel("Close now");
+	doneDialog.ShowModal();
+	materials_exit_after_sqlite_reset_.store(true);
+	g_gui.root->Close(true);
+	g_gui.SetStatusText("Materials: SQLite reset scheduled; restart to rebuild from XML.");
 }
 
 void GUI::JoinAsyncSqliteBootstrapThread() {
@@ -1998,6 +2646,13 @@ long GUI::PopupDialog(wxString title, wxString text, long style, wxString config
 void GUI::ListDialog(wxWindow* parent, wxString title, const wxArrayString &param_items) {
 	if (param_items.empty()) {
 		return;
+	}
+
+	if (title == "Warnings") {
+		TryShowMaterialsRecoveryDialog();
+		if (materials_exit_after_sqlite_reset_.load()) {
+			return;
+		}
 	}
 
 	wxArrayString list_items(param_items);

@@ -60,8 +60,8 @@ Editor::Editor(CopyBuffer &copybuffer) :
 	wxArrayString warnings;
 	if (!g_gui.loadMapWindow(error, warnings)) {
 		g_gui.PopupDialog("Error", error, wxOK);
-		g_gui.ListDialog("Warnings", warnings);
 	}
+	g_gui.ListDialog("Warnings", warnings);
 
 	MapVersion version;
 	map.convert(version);

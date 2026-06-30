@@ -142,6 +142,7 @@ private:
 	void JoinAsyncSqliteBootstrapThread();
 	void RunAsyncSqliteBootstrapImport();
 	void HandleAsyncSqliteBootstrapResult(bool success, const wxString &sqliteImportError, const wxArrayString &sqliteWarnings);
+	void TryShowMaterialsRecoveryDialog();
 
 public:
 	template <typename T>
@@ -230,6 +231,7 @@ public:
 	void SetStatusText(wxString text);
 	bool IsAsyncSqliteBootstrapRunning() const;
 	void StartAsyncSqliteBootstrapImport();
+	void QueueMaterialsRecoveryDialog(const wxString &category, const wxString &reason, const wxString &recommendation, int sqliteRc, int sqliteExtRc, const wxString &dbPath);
 
 	long PopupDialog(wxWindow* parent, wxString title, wxString text, long style, wxString configsavename = wxEmptyString, uint32_t configsavevalue = 0);
 	long PopupDialog(wxString title, wxString text, long style, wxString configsavename = wxEmptyString, uint32_t configsavevalue = 0);
@@ -405,6 +407,9 @@ public:
 	void ActivatePalette(PaletteWindow* p);
 	// Rebuild forces palette to reload the entire contents
 	void RebuildPalettes();
+	bool ReloadMaterialPalettesFromDatabase(wxString &error, wxArrayString &warnings);
+	bool ReloadMaterialPalettesAndBrushesFromDatabase(wxString &error, wxArrayString &warnings);
+	bool SyncBrushInPalettes(const wxString &oldName, const wxString &newName, uint16_t effectiveLookId);
 	// Refresh only updates the content (such as house/waypoint list)
 	void RefreshPalettes(Map* m = nullptr, bool usedfault = true);
 	// Won't refresh the palette in the parameter
@@ -515,6 +520,14 @@ protected:
 	int disabled_counter;
 	std::jthread sqlite_bootstrap_thread_;
 	std::atomic<bool> sqlite_bootstrap_running_ = false;
+	std::atomic<bool> materials_recovery_dialog_pending_ = false;
+	std::atomic<bool> materials_exit_after_sqlite_reset_ = false;
+	int materials_recovery_sqlite_rc_ = 0;
+	int materials_recovery_sqlite_ext_rc_ = 0;
+	wxString materials_recovery_category_;
+	wxString materials_recovery_reason_;
+	wxString materials_recovery_recommendation_;
+	wxString materials_recovery_db_path_;
 
 	friend class RenderingLock;
 	friend class IOMinimap;

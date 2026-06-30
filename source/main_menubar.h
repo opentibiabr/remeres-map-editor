@@ -18,6 +18,8 @@
 #ifndef RME_MAIN_BAR_H_
 #define RME_MAIN_BAR_H_
 
+#include <functional>
+
 #include <wx/docview.h>
 
 namespace MenuBar {
@@ -78,6 +80,7 @@ namespace MenuBar {
 		JUMP_TO_ITEM_BRUSH,
 		CLEAR_INVALID_HOUSES,
 		CLEAR_MODIFIED_STATE,
+		TOOLS_MATERIALS_WORKBENCH,
 		CUT,
 		COPY,
 		PASTE,
@@ -131,7 +134,6 @@ namespace MenuBar {
 		SHOW_AVOIDABLES,
 		WIN_MINIMAP,
 		WIN_ACTIONS_HISTORY,
-		WIN_SQLITE_MATERIALS_INSPECTOR,
 		NEW_PALETTE,
 		TAKE_SCREENSHOT,
 		LIVE_START,
@@ -245,6 +247,7 @@ public:
 	void OnMapRemoveEmptyNpcSpawns(wxCommandEvent &event);
 	void OnClearHouseTiles(wxCommandEvent &event);
 	void OnClearModifiedState(wxCommandEvent &event);
+	void OnMaterialsWorkbench(wxCommandEvent &event);
 	void OnToggleAutomagic(wxCommandEvent &event);
 	void OnSelectionTypeChange(wxCommandEvent &event);
 	void OnCut(wxCommandEvent &event);
@@ -297,7 +300,6 @@ public:
 	// Window Menu
 	void OnMinimapWindow(wxCommandEvent &event);
 	void OnActionsHistoryWindow(wxCommandEvent &event);
-	void OnSQLiteMaterialsInspector(wxCommandEvent &event);
 	void OnNewPalette(wxCommandEvent &event);
 	void OnTakeScreenshot(wxCommandEvent &event);
 	void OnSelectTerrainPalette(wxCommandEvent &event);
@@ -325,6 +327,8 @@ public:
 	void OnSearchForWallsUponWallsOnSelection(wxCommandEvent &event);
 
 protected:
+	void OnMenuAction(wxCommandEvent &event);
+
 	// Load and returns a menu item, also sets accelerator
 	wxObject* LoadItem(pugi::xml_node node, wxMenu* parent, wxArrayString &warnings, wxString &error);
 	// Checks the items in the menus according to the settings (in config)
@@ -356,14 +360,14 @@ namespace MenuBar {
 	struct Action {
 		Action() :
 			id(0), kind(wxITEM_NORMAL) { }
-		Action(std::string s, int id, wxItemKind kind, wxCommandEventFunction handler) :
-			id(id), setting(0), name(s), kind(kind), handler(handler) { }
+		Action(std::string s, int id, wxItemKind kind, std::function<void(MainMenuBar &, wxCommandEvent &)> handler) :
+			id(id), setting(0), name(s), kind(kind), handler(std::move(handler)) { }
 
 		int id;
 		int setting;
 		std::string name;
 		wxItemKind kind;
-		wxCommandEventFunction handler;
+		std::function<void(MainMenuBar &, wxCommandEvent &)> handler;
 	};
 }
 

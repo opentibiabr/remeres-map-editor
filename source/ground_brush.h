@@ -40,13 +40,14 @@ public:
 	}
 
 	virtual bool load(pugi::xml_node node, wxArrayString &warnings);
+	void resetRuntimeState();
 
 	virtual void draw(BaseMap* map, Tile* tile, void* parameter);
 	virtual void undraw(BaseMap* map, Tile* tile);
 	static void doBorders(BaseMap* map, Tile* tile);
 	static const BorderBlock* getBrushTo(GroundBrush* first, GroundBrush* second);
 
-	virtual int32_t getZ() const {
+	int32_t getZ() const override {
 		return z_order;
 	}
 	bool useSoloOptionalBorder() const {

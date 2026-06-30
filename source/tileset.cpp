@@ -18,12 +18,197 @@
 #include "main.h"
 
 #include "tileset.h"
+#include "brush_database.h"
 #include "monsters.h"
 #include "monster_brush.h"
 #include "npcs.h"
 #include "npc_brush.h"
 #include "items.h"
 #include "raw_brush.h"
+
+#include <algorithm>
+#include <iterator>
+#include <string_view>
+
+namespace {
+	bool ResolveTilesetCategoryTypes(std::string_view sectionType, TilesetCategoryType &primaryType, bool &hasSecondaryType, TilesetCategoryType &secondaryType) {
+		hasSecondaryType = false;
+		secondaryType = TILESET_UNKNOWN;
+
+		if (sectionType == "terrain") {
+			primaryType = TILESET_TERRAIN;
+			return true;
+		}
+		if (sectionType == "doodad") {
+			primaryType = TILESET_DOODAD;
+			return true;
+		}
+		if (sectionType == "items") {
+			primaryType = TILESET_ITEM;
+			return true;
+		}
+		if (sectionType == "raw") {
+			primaryType = TILESET_RAW;
+			return true;
+		}
+		if (sectionType == "terrain_and_raw") {
+			primaryType = TILESET_TERRAIN;
+			hasSecondaryType = true;
+			secondaryType = TILESET_RAW;
+			return true;
+		}
+		if (sectionType == "doodad_and_raw") {
+			primaryType = TILESET_DOODAD;
+			hasSecondaryType = true;
+			secondaryType = TILESET_RAW;
+			return true;
+		}
+		if (sectionType == "items_and_raw") {
+			primaryType = TILESET_ITEM;
+			hasSecondaryType = true;
+			secondaryType = TILESET_RAW;
+			return true;
+		}
+		return false;
+	}
+
+	std::string ResolveAfterBrushName(const TilesetEntryRecord &entry, bool preserveStoredOrder) {
+		std::string afterBrushName = entry.afterBrushName.ToStdString();
+		if (preserveStoredOrder || entry.afterItemId <= 0) {
+			return afterBrushName;
+		}
+
+		const ItemType &type = g_items.getItemType(entry.afterItemId);
+		if (type.id == 0) {
+			return afterBrushName;
+		}
+
+		return type.raw_brush ? type.raw_brush->getName() : std::string();
+	}
+
+	std::vector<Brush*>::iterator FindInsertPosition(std::vector<Brush*> &brushlist, std::string_view afterBrushName) {
+		if (afterBrushName.empty()) {
+			return brushlist.end();
+		}
+		const auto it = std::find_if(brushlist.begin(), brushlist.end(), [&](const Brush* brush) {
+			return brush != nullptr && brush->getName() == afterBrushName;
+		});
+		return it == brushlist.end() ? it : std::next(it);
+	}
+
+	bool LoadBrushEntry(
+		Brushes &brushes,
+		TilesetCategory &category,
+		const TilesetEntryRecord &entry,
+		wxArrayString &warnings,
+		bool preserveStoredOrder,
+		std::string_view afterBrushName
+	) {
+		if (entry.brushName.IsEmpty()) {
+			return true;
+		}
+
+		Brush* brush = brushes.getBrush(entry.brushName.ToStdString());
+		if (!brush) {
+			warnings.push_back("Brush \"" + entry.brushName + "\" doesn't exist.");
+			return true;
+		}
+
+		brush->flagAsVisible();
+		if (preserveStoredOrder || afterBrushName.empty()) {
+			category.brushlist.push_back(brush);
+			return true;
+		}
+
+		auto insertPosition = FindInsertPosition(category.brushlist, afterBrushName);
+		if (insertPosition == category.brushlist.end()) {
+			category.brushlist.push_back(brush);
+			return true;
+		}
+
+		category.brushlist.insert(insertPosition, brush);
+		return true;
+	}
+
+	bool LoadItemEntry(
+		Brushes &brushes,
+		TilesetCategory &category,
+		const TilesetEntryRecord &entry,
+		wxArrayString &warnings,
+		bool preserveStoredOrder,
+		std::string_view afterBrushName
+	) {
+		const auto fromId = static_cast<uint16_t>(entry.fromItemId > 0 ? entry.fromItemId : entry.itemId);
+		auto toId = static_cast<uint16_t>(entry.toItemId > 0 ? entry.toItemId : fromId);
+		if (fromId == 0) {
+			warnings.push_back("Couldn't read raw ids from SQLite tileset entry.");
+			return true;
+		}
+		toId = std::max<uint16_t>(fromId, toId);
+
+		const size_t rangeSize = static_cast<size_t>(toId - fromId) + 1;
+		if (preserveStoredOrder) {
+			category.brushlist.reserve(category.brushlist.size() + rangeSize);
+			for (uint16_t id = fromId; id <= toId; ++id) {
+				const auto &type = g_items.getRawItemType(id);
+				if (!type || type->id == 0) {
+					continue;
+				}
+
+				RAWBrush* brush;
+				if (type->raw_brush) {
+					brush = type->raw_brush;
+				} else {
+					brush = type->raw_brush = newd RAWBrush(type->id);
+					type->has_raw = true;
+					brushes.addBrush(brush);
+				}
+
+				if (type->doodad_brush == nullptr && !category.isTrivial()) {
+					type->doodad_brush = brush;
+				}
+
+				brush->flagAsVisible();
+				category.brushlist.push_back(brush);
+				category.tileset.previousId = id;
+			}
+			return true;
+		}
+
+		std::vector<Brush*> tempBrushVector;
+		tempBrushVector.reserve(rangeSize);
+		for (uint16_t id = fromId; id <= toId; ++id) {
+			const auto &type = g_items.getRawItemType(id);
+			if (!type || type->id == 0) {
+				continue;
+			}
+
+			RAWBrush* brush;
+			if (type->raw_brush) {
+				brush = type->raw_brush;
+			} else {
+				brush = type->raw_brush = newd RAWBrush(type->id);
+				type->has_raw = true;
+				brushes.addBrush(brush);
+			}
+
+			if (type->doodad_brush == nullptr && !category.isTrivial()) {
+				type->doodad_brush = brush;
+			}
+
+			brush->flagAsVisible();
+			tempBrushVector.push_back(brush);
+			category.tileset.previousId = id;
+		}
+
+		auto insertPosition = category.brushlist.end();
+		if (!preserveStoredOrder) {
+			insertPosition = FindInsertPosition(category.brushlist, afterBrushName);
+		}
+		category.brushlist.insert(insertPosition, tempBrushVector.begin(), tempBrushVector.end());
+		return true;
+	}
+}
 
 Tileset::Tileset(Brushes &brushes, const std::string &name) :
 	name(name),
@@ -89,24 +274,17 @@ void Tileset::loadCategory(pugi::xml_node node, wxArrayString &warnings) {
 	TilesetCategory* category = nullptr;
 	TilesetCategory* subCategory = nullptr;
 
-	const std::string &nodeName = as_lower_str(node.name());
-	if (nodeName == "terrain") {
-		category = getCategory(TILESET_TERRAIN);
-	} else if (nodeName == "doodad") {
-		category = getCategory(TILESET_DOODAD);
-	} else if (nodeName == "items") {
-		category = getCategory(TILESET_ITEM);
+	const std::string nodeName = as_lower_str(node.name());
+	TilesetCategoryType primaryType = TILESET_UNKNOWN;
+	TilesetCategoryType secondaryType = TILESET_UNKNOWN;
+	bool hasSecondaryType = false;
+	if (ResolveTilesetCategoryTypes(nodeName, primaryType, hasSecondaryType, secondaryType)) {
+		category = getCategory(primaryType);
+		if (hasSecondaryType) {
+			subCategory = getCategory(secondaryType);
+		}
 	} else if (nodeName == "raw") {
 		category = getCategory(TILESET_RAW);
-	} else if (nodeName == "terrain_and_raw") {
-		category = getCategory(TILESET_TERRAIN);
-		subCategory = getCategory(TILESET_RAW);
-	} else if (nodeName == "doodad_and_raw") {
-		category = getCategory(TILESET_DOODAD);
-		subCategory = getCategory(TILESET_RAW);
-	} else if (nodeName == "items_and_raw") {
-		category = getCategory(TILESET_ITEM);
-		subCategory = getCategory(TILESET_RAW);
 	} else if (nodeName == "monsters") {
 		category = getCategory(TILESET_MONSTER);
 		for (pugi::xml_node brushNode = node.first_child(); brushNode; brushNode = brushNode.next_sibling()) {
@@ -177,6 +355,32 @@ void Tileset::loadCategory(pugi::xml_node node, wxArrayString &warnings) {
 		category->loadBrush(brushNode, warnings);
 		if (subCategory) {
 			subCategory->loadBrush(brushNode, warnings);
+		}
+	}
+}
+
+void Tileset::loadFromStorage(const TilesetStorageRecord &storage, wxArrayString &warnings) {
+	paletteGroupName = storage.paletteGroupName.ToStdString();
+	paletteGroupRuntimeFamily = storage.paletteGroupRuntimeFamily.ToStdString();
+	paletteGroupSortOrder = storage.paletteGroupSortOrder;
+
+	for (const TilesetSectionRecord &section : storage.sections) {
+		const std::string sectionType = as_lower_str(section.sectionType.ToStdString());
+		TilesetCategoryType primaryType = TILESET_UNKNOWN;
+		TilesetCategoryType secondaryType = TILESET_UNKNOWN;
+		bool hasSecondaryType = false;
+		if (!ResolveTilesetCategoryTypes(sectionType, primaryType, hasSecondaryType, secondaryType)) {
+			warnings.push_back("Unsupported SQLite tileset section \"" + section.sectionType + "\" in tileset \"" + wxString::FromUTF8(name.c_str()) + "\".");
+			continue;
+		}
+
+		TilesetCategory* category = getCategory(primaryType);
+		TilesetCategory* subCategory = hasSecondaryType ? getCategory(secondaryType) : nullptr;
+		for (const TilesetEntryRecord &entry : section.entries) {
+			category->loadEntry(entry, warnings, true);
+			if (subCategory) {
+				subCategory->loadEntry(entry, warnings, true);
+			}
 		}
 	}
 }
@@ -278,5 +482,19 @@ void TilesetCategory::loadBrush(pugi::xml_node node, wxArrayString &warnings) {
 			}
 		}
 		brushlist.insert(insertPosition, tempBrushVector.begin(), tempBrushVector.end());
+	}
+}
+
+void TilesetCategory::loadEntry(const TilesetEntryRecord &entry, wxArrayString &warnings, bool preserveStoredOrder) {
+	if (entry.entryKind.IsSameAs("brush", false)) {
+		const std::string afterBrushName = preserveStoredOrder ? std::string() : ResolveAfterBrushName(entry, preserveStoredOrder);
+		LoadBrushEntry(tileset.brushes, *this, entry, warnings, preserveStoredOrder, afterBrushName);
+		return;
+	}
+
+	if (entry.entryKind.IsSameAs("item", false)) {
+		const std::string afterBrushName = preserveStoredOrder ? std::string() : ResolveAfterBrushName(entry, preserveStoredOrder);
+		LoadItemEntry(tileset.brushes, *this, entry, warnings, preserveStoredOrder, afterBrushName);
+		return;
 	}
 }

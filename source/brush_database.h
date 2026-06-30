@@ -3,6 +3,9 @@
 
 #include <cstdint>
 #include <initializer_list>
+#include <tuple>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -23,6 +26,7 @@ struct BrushRecord {
 	bool onBlocking = false;
 	bool onDuplicate = false;
 	bool redoBorders = false;
+	bool removeOptionalBorder = false;
 	bool randomize = false;
 	bool oneSize = false;
 	bool soloOptional = false;
@@ -55,6 +59,26 @@ struct BorderSetItemRecord {
 	int sortOrder = 0;
 };
 
+struct BorderSetStorageRecord {
+	BorderSetRecord borderSet;
+	std::vector<BorderSetItemRecord> items;
+};
+
+struct BorderSetUsageRecord {
+	int64_t brushId = 0;
+	wxString brushName;
+	wxString brushType;
+	int lookId = 0;
+	int serverLookId = 0;
+	int primaryItemId = 0;
+	wxString borderRole;
+	wxString align;
+	wxString targetMode;
+	int64_t targetBrushId = 0;
+	wxString targetBrushName;
+	bool superBorder = false;
+	int sortOrder = 0;
+};
 struct GroundBorderCaseConditionRecord {
 	wxString conditionType;
 	int matchValue = 0;
@@ -94,6 +118,16 @@ struct BrushLinkRecord {
 	wxString targetBrushName;
 	wxString relationType;
 	int sortOrder = 0;
+};
+
+struct BrushUsageRecord {
+	wxString sourceKind;
+	int64_t sourceId = 0;
+	wxString sourceName;
+	wxString relation;
+	wxString context;
+	int sortOrder = 0;
+	int64_t refId = 0;
 };
 
 struct WallPartItemRecord {
@@ -190,9 +224,21 @@ struct TilesetSectionRecord {
 	std::vector<TilesetEntryRecord> entries;
 };
 
+struct PaletteGroupRecord {
+	int64_t id = 0;
+	wxString name;
+	wxString runtimeFamily;
+	int sortOrder = 0;
+	bool isBuiltin = false;
+};
+
 struct TilesetStorageRecord {
 	wxString name;
 	wxString sourceFile;
+	int64_t paletteGroupId = 0;
+	wxString paletteGroupName;
+	wxString paletteGroupRuntimeFamily;
+	int paletteGroupSortOrder = 0;
 	std::vector<TilesetSectionRecord> sections;
 };
 
@@ -212,16 +258,52 @@ struct BrushTypeCountRecord {
 	int count = 0;
 };
 
+struct UnsupportedBrushSampleRecord {
+	int64_t id = 0;
+	wxString name;
+	wxString type;
+	wxString sourceFile;
+};
+
+struct UnresolvedTilesetEntrySampleRecord {
+	wxString paletteGroupName;
+	wxString tilesetName;
+	wxString tilesetSourceFile;
+	wxString sectionType;
+	wxString entryKind;
+	wxString brushName;
+	int itemId = 0;
+	int fromItemId = 0;
+	int toItemId = 0;
+	wxString afterBrushName;
+	int afterItemId = 0;
+	int sortOrder = 0;
+};
+
 struct MaterialsDatabaseAuditReport {
 	int brushCount = 0;
 	int borderSetCount = 0;
 	int tilesetCount = 0;
 	int tilesetSectionCount = 0;
 	int tilesetEntryCount = 0;
+	int unsupportedBrushTypeCount = 0;
 	int unresolvedGroundTargets = 0;
 	int unresolvedBrushLinks = 0;
 	int unresolvedTilesetEntries = 0;
+	int unresolvedCaseMatchBorderIds = 0;
+	int unresolvedCaseReplaceBorderTargetIds = 0;
+	int caseMatchBorderEdgesWithoutItem = 0;
+	int caseReplaceBorderEdgesWithoutItem = 0;
 	std::vector<BrushTypeCountRecord> brushTypeCounts;
+	std::vector<BrushTypeCountRecord> unsupportedBrushTypeCounts;
+	std::vector<UnsupportedBrushSampleRecord> unsupportedBrushSamples;
+	std::vector<UnresolvedTilesetEntrySampleRecord> unresolvedTilesetEntrySamples;
+};
+
+struct MaterialsImportStatusRecord {
+	bool completed = false;
+	int64_t completedAt = 0;
+	wxString source;
 };
 
 class BrushDatabaseSession {
@@ -238,9 +320,12 @@ public:
 	bool isReadOnly() const;
 	const wxString &getDatabasePath() const;
 	const wxString &getLastError() const;
+	int getLastSqliteErrorCode() const;
+	int getLastSqliteExtendedErrorCode() const;
 	sqlite3* connection() const;
 
 	bool testDatabaseConnection();
+	bool quickCheck(int maxErrors = 1);
 	bool execute(const wxString &sql);
 	bool prepare(const char* sql, sqlite3_stmt** stmt);
 	bool beginTransaction();
@@ -275,6 +360,8 @@ private:
 	sqlite3* connection_ = nullptr;
 	wxString databasePath_;
 	wxString lastError_;
+	int lastSqliteErrorCode_ = 0;
+	int lastSqliteExtendedErrorCode_ = 0;
 	bool readOnly_ = false;
 	int transactionDepth_ = 0;
 	int nextSavepointId_ = 0;
@@ -322,6 +409,12 @@ private:
 	bool migrateToVersion4();
 	bool migrateToVersion5();
 	bool migrateToVersion6();
+	bool migrateToVersion7();
+	bool migrateToVersion8();
+	bool migrateToVersion9();
+	bool migrateToVersion10();
+	bool migrateToVersion11();
+	bool migrateToVersion12();
 	bool addColumnIfMissing(const wxString &tableName, const wxString &columnName, const wxString &definition);
 	bool executeStatements(std::initializer_list<const char*> statements);
 	bool addVersion2BrushColumns();
@@ -331,9 +424,9 @@ private:
 	bool columnExists(const wxString &tableName, const wxString &columnName, bool &exists);
 };
 
-class BrushDatabaseBrushRepository : public BrushDatabaseComponent {
+class BrushDatabaseBrushCrudRepository : public BrushDatabaseComponent {
 public:
-	explicit BrushDatabaseBrushRepository(BrushDatabaseSession &session);
+	explicit BrushDatabaseBrushCrudRepository(BrushDatabaseSession &session);
 
 	bool testBasicCRUD();
 	bool insertBrush(const BrushRecord &brush, int64_t &insertedId);
@@ -341,29 +434,205 @@ public:
 	bool getBrushById(int64_t brushId, BrushRecord &outBrush);
 	bool listBrushesByType(const wxString &type, std::vector<BrushRecord> &outBrushes);
 	bool findBrushByNameAndType(const wxString &name, const wxString &type, BrushRecord &outBrush);
-	bool getCompleteBrushById(int64_t brushId, BrushStorageRecord &outBrush);
 	bool updateBrush(const BrushRecord &brush);
+	bool updateBrushReferenceNames(int64_t brushId, const wxString &oldName, const wxString &newName);
+	bool deleteBrushReferences(int64_t brushId, const wxString &brushName);
 	bool deleteBrush(int64_t brushId);
 	bool deleteBrushesByType(const wxString &type);
+};
+
+class BrushDatabaseBrushItemRepository : public BrushDatabaseComponent {
+public:
+	explicit BrushDatabaseBrushItemRepository(BrushDatabaseSession &session);
+
 	bool replaceBrushItems(int64_t brushId, const std::vector<BrushItemRecord> &items);
-	bool getBrushItems(int64_t brushId, std::vector<BrushItemRecord> &outItems);
+};
+
+class BrushDatabaseBorderSetRepository : public BrushDatabaseComponent {
+public:
+	explicit BrushDatabaseBorderSetRepository(BrushDatabaseSession &session);
+
 	bool upsertBorderSet(const BorderSetRecord &borderSet, int64_t &borderSetId);
+	bool getBorderSetById(int64_t borderSetId, BorderSetRecord &outBorderSet);
 	bool findBorderSetByXmlBorderId(int xmlBorderId, BorderSetRecord &outBorderSet);
+	bool listBorderSetsByScope(const wxString &borderScope, std::vector<BorderSetRecord> &outBorderSets);
+	bool listBorderSetUsages(int64_t borderSetId, std::vector<BorderSetUsageRecord> &outUsages);
+	bool deleteBorderSet(int64_t borderSetId);
 	bool replaceBorderSetItems(int64_t borderSetId, const std::vector<BorderSetItemRecord> &items);
+	bool getBorderSetItems(int64_t borderSetId, std::vector<BorderSetItemRecord> &outItems);
 	bool deleteBorderSetsByScope(const wxString &borderScope);
 	bool deleteOwnedBorderSetsForBrush(int64_t brushId);
+
+private:
+	bool validateBorderSetForUpsert(const BorderSetRecord &borderSet, wxString &outScopeLower);
+	bool updateBorderSetRowById(int64_t idToUpdate, const BorderSetRecord &borderSet);
+	bool insertBorderSetRow(const BorderSetRecord &borderSet, int64_t &outInsertedId);
+};
+
+class BrushDatabaseGroundBordersRepository : public BrushDatabaseComponent {
+public:
+	explicit BrushDatabaseGroundBordersRepository(BrushDatabaseSession &session);
+
 	bool replaceGroundBrushBorders(int64_t brushId, const std::vector<GroundBrushBorderRecord> &borders);
-	bool getGroundBrushBorders(int64_t brushId, std::vector<GroundBrushBorderRecord> &outBorders);
+};
+
+class BrushDatabaseBrushLinkRepository : public BrushDatabaseComponent {
+public:
+	explicit BrushDatabaseBrushLinkRepository(BrushDatabaseSession &session);
+
 	bool replaceBrushLinks(int64_t brushId, const std::vector<BrushLinkRecord> &links);
-	bool getBrushLinks(int64_t brushId, std::vector<BrushLinkRecord> &outLinks);
+	bool listBrushUsages(int64_t brushId, const wxString &brushName, std::vector<BrushUsageRecord> &outUsages);
+};
+
+class BrushDatabaseBrushDetailRepository : public BrushDatabaseComponent {
+public:
+	explicit BrushDatabaseBrushDetailRepository(BrushDatabaseSession &session);
+
 	bool replaceWallParts(int64_t brushId, const std::vector<WallPartRecord> &parts);
-	bool getWallParts(int64_t brushId, std::vector<WallPartRecord> &outParts);
 	bool replaceCarpetNodes(int64_t brushId, const std::vector<CarpetNodeRecord> &nodes);
-	bool getCarpetNodes(int64_t brushId, std::vector<CarpetNodeRecord> &outNodes);
 	bool replaceTableNodes(int64_t brushId, const std::vector<TableNodeRecord> &nodes);
-	bool getTableNodes(int64_t brushId, std::vector<TableNodeRecord> &outNodes);
 	bool replaceDoodadAlternatives(int64_t brushId, const std::vector<DoodadAlternativeRecord> &alternatives);
+
+private:
+	bool validateWallPartsForReplace(const std::vector<WallPartRecord> &parts);
+	bool replaceWallPartsInTransaction(int64_t brushId, const std::vector<WallPartRecord> &parts);
+};
+
+class BrushDatabaseBrushStorageRepository : public BrushDatabaseComponent {
+public:
+	explicit BrushDatabaseBrushStorageRepository(BrushDatabaseSession &session);
+
+	bool getCompleteBrushById(int64_t brushId, BrushStorageRecord &outBrush);
+	bool listCompleteBrushesByType(const wxString &type, std::vector<BrushStorageRecord> &outBrushes);
+
+private:
+	bool getBrushItems(int64_t brushId, std::vector<BrushItemRecord> &outItems);
+	bool getGroundBrushBorders(int64_t brushId, std::vector<GroundBrushBorderRecord> &outBorders);
+	bool getBrushLinks(int64_t brushId, std::vector<BrushLinkRecord> &outLinks);
+	bool getWallParts(int64_t brushId, std::vector<WallPartRecord> &outParts);
+	bool getCarpetNodes(int64_t brushId, std::vector<CarpetNodeRecord> &outNodes);
+	bool getTableNodes(int64_t brushId, std::vector<TableNodeRecord> &outNodes);
 	bool getDoodadAlternatives(int64_t brushId, std::vector<DoodadAlternativeRecord> &outAlternatives);
+
+	bool populateBrushStorageIndex(
+		const wxString &type,
+		std::vector<BrushStorageRecord> &outBrushes,
+		std::unordered_map<int64_t, size_t> &outIndexByBrushId,
+		std::vector<int64_t> &outBrushIds
+	);
+	bool loadBrushItemsBulk(
+		const std::vector<int64_t> &brushIds,
+		const std::unordered_map<int64_t, size_t> &indexByBrushId,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
+	bool loadBrushLinksBulk(
+		const std::vector<int64_t> &brushIds,
+		const std::unordered_map<int64_t, size_t> &indexByBrushId,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
+	bool loadWallPartsBulk(
+		const std::vector<int64_t> &brushIds,
+		const std::unordered_map<int64_t, size_t> &indexByBrushId,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
+	bool loadWallPartsHeaderBulk(
+		const std::vector<int64_t> &brushIds,
+		const std::unordered_map<int64_t, size_t> &indexByBrushId,
+		std::vector<BrushStorageRecord> &outBrushes,
+		std::unordered_map<int64_t, std::pair<size_t, size_t>> &outPartIndexById,
+		std::vector<int64_t> &outPartIds
+	);
+	bool loadWallPartItemsBulk(
+		const std::vector<int64_t> &partIds,
+		const std::unordered_map<int64_t, std::pair<size_t, size_t>> &partIndexById,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
+	bool loadWallPartDoorsBulk(
+		const std::vector<int64_t> &partIds,
+		const std::unordered_map<int64_t, std::pair<size_t, size_t>> &partIndexById,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
+	bool loadCarpetNodesBulk(
+		const std::vector<int64_t> &brushIds,
+		const std::unordered_map<int64_t, size_t> &indexByBrushId,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
+	bool loadTableNodesBulk(
+		const std::vector<int64_t> &brushIds,
+		const std::unordered_map<int64_t, size_t> &indexByBrushId,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
+	bool loadDoodadAlternativesBulk(
+		const std::vector<int64_t> &brushIds,
+		const std::unordered_map<int64_t, size_t> &indexByBrushId,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
+	bool loadDoodadAlternativeHeadersBulk(
+		const std::vector<int64_t> &brushIds,
+		const std::unordered_map<int64_t, size_t> &indexByBrushId,
+		std::vector<BrushStorageRecord> &outBrushes,
+		std::unordered_map<int64_t, std::pair<size_t, size_t>> &outAltIndexById,
+		std::vector<int64_t> &outAltIds
+	);
+	bool loadDoodadSingleItemsBulk(
+		const std::vector<int64_t> &altIds,
+		const std::unordered_map<int64_t, std::pair<size_t, size_t>> &altIndexById,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
+	bool loadDoodadCompositesBulk(
+		const std::vector<int64_t> &altIds,
+		const std::unordered_map<int64_t, std::pair<size_t, size_t>> &altIndexById,
+		std::vector<BrushStorageRecord> &outBrushes,
+		std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t>> &outCompositeIndexById,
+		std::vector<int64_t> &outCompositeIds
+	);
+	bool loadDoodadCompositeTilesBulk(
+		const std::vector<int64_t> &compositeIds,
+		const std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t>> &compositeIndexById,
+		std::vector<BrushStorageRecord> &outBrushes,
+		std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t, size_t>> &outTileIndexById,
+		std::vector<int64_t> &outTileIds
+	);
+	bool loadDoodadCompositeTileItemsBulk(
+		const std::vector<int64_t> &tileIds,
+		const std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t, size_t>> &tileIndexById,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
+	bool loadGroundBrushBordersBulk(
+		const std::vector<int64_t> &brushIds,
+		const std::unordered_map<int64_t, size_t> &indexByBrushId,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
+	bool loadGroundBrushBorderHeadersBulk(
+		const std::vector<int64_t> &brushIds,
+		const std::unordered_map<int64_t, size_t> &indexByBrushId,
+		std::vector<BrushStorageRecord> &outBrushes,
+		std::unordered_map<int64_t, std::pair<size_t, size_t>> &outBorderIndexById,
+		std::vector<int64_t> &outBorderIds
+	);
+	bool loadGroundBorderCasesBulk(
+		const std::vector<int64_t> &borderIds,
+		const std::unordered_map<int64_t, std::pair<size_t, size_t>> &borderIndexById,
+		std::vector<BrushStorageRecord> &outBrushes,
+		std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t>> &outCaseIndexById,
+		std::vector<int64_t> &outCaseIds
+	);
+	bool loadGroundBorderCaseConditionsBulk(
+		const std::vector<int64_t> &caseIds,
+		const std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t>> &caseIndexById,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
+	bool loadGroundBorderCaseActionsBulk(
+		const std::vector<int64_t> &caseIds,
+		const std::unordered_map<int64_t, std::tuple<size_t, size_t, size_t>> &caseIndexById,
+		std::vector<BrushStorageRecord> &outBrushes
+	);
+};
+
+class BrushDatabaseReferencesRepository : public BrushDatabaseComponent {
+public:
+	explicit BrushDatabaseReferencesRepository(BrushDatabaseSession &session);
+
 	bool resolveGroundReferenceNames();
 };
 
@@ -372,20 +641,98 @@ public:
 	BrushDatabaseCatalogRepository(BrushDatabaseSession &session, BrushDatabaseSchemaManager &schemaManager);
 
 	bool replaceAllTilesets(const std::vector<TilesetStorageRecord> &tilesets);
+	bool saveTileset(const TilesetStorageRecord &tileset);
+	bool deleteTileset(const wxString &name);
+	bool savePaletteGroup(const PaletteGroupRecord &group);
+	bool deletePaletteGroup(const wxString &name);
+	bool getAllPaletteGroups(std::vector<PaletteGroupRecord> &outGroups);
 	bool getTilesetByName(const wxString &name, TilesetStorageRecord &outTileset);
 	bool getAllTilesets(std::vector<TilesetStorageRecord> &outTilesets);
 	bool generateAuditReport(MaterialsDatabaseAuditReport &outReport);
 	bool hasCompleteImportForCurrentSchema(bool &outReady);
+	bool hasCompleteImportForCurrentSchema(bool &outReady, wxString &outReason);
+	bool isMaterialsImportComplete(bool &outComplete, wxString &outReason);
+	bool getMaterialsImportStatus(MaterialsImportStatusRecord &outStatus, wxString &outReason);
+	bool markMaterialsImportComplete(const wxString &source);
 	int getExpectedSchemaVersion() const;
 
 private:
 	BrushDatabaseSchemaManager &schemaManager_;
+	bool resolvePaletteGroupId(
+		const wxString &groupName,
+		const wxString &runtimeFamily,
+		sqlite3_stmt* selectPaletteGroupStmt,
+		sqlite3_stmt* insertPaletteGroupStmt,
+		int64_t &outGroupId
+	);
+	bool replaceAllTilesetsInTransaction(const std::vector<TilesetStorageRecord> &tilesets);
+	bool saveTilesetInTransaction(const TilesetStorageRecord &tileset);
 };
 
-class BrushDatabase {
+class BrushDatabaseState {
 public:
-	BrushDatabase() = default;
-	~BrushDatabase();
+	BrushDatabaseState() = default;
+	BrushDatabaseState(const BrushDatabaseState &) = delete;
+	BrushDatabaseState &operator=(const BrushDatabaseState &) = delete;
+	~BrushDatabaseState() = default;
+
+	BrushDatabaseSession &session() {
+		return session_;
+	}
+	const BrushDatabaseSession &session() const {
+		return session_;
+	}
+	BrushDatabaseSchemaManager &schemaManager() {
+		return schemaManager_;
+	}
+	const BrushDatabaseSchemaManager &schemaManager() const {
+		return schemaManager_;
+	}
+	BrushDatabaseBrushCrudRepository &brushCrudRepository() {
+		return brushCrudRepository_;
+	}
+	BrushDatabaseBrushItemRepository &brushItemRepository() {
+		return brushItemRepository_;
+	}
+	BrushDatabaseBorderSetRepository &borderSetRepository() {
+		return borderSetRepository_;
+	}
+	BrushDatabaseGroundBordersRepository &groundBordersRepository() {
+		return groundBordersRepository_;
+	}
+	BrushDatabaseBrushLinkRepository &brushLinkRepository() {
+		return brushLinkRepository_;
+	}
+	BrushDatabaseBrushDetailRepository &brushDetailRepository() {
+		return brushDetailRepository_;
+	}
+	BrushDatabaseBrushStorageRepository &brushStorageRepository() {
+		return brushStorageRepository_;
+	}
+	BrushDatabaseReferencesRepository &referencesRepository() {
+		return referencesRepository_;
+	}
+	BrushDatabaseCatalogRepository &catalogRepository() {
+		return catalogRepository_;
+	}
+
+private:
+	BrushDatabaseSession session_;
+	BrushDatabaseSchemaManager schemaManager_ { session_ };
+	BrushDatabaseBrushCrudRepository brushCrudRepository_ { session_ };
+	BrushDatabaseBrushItemRepository brushItemRepository_ { session_ };
+	BrushDatabaseBorderSetRepository borderSetRepository_ { session_ };
+	BrushDatabaseGroundBordersRepository groundBordersRepository_ { session_ };
+	BrushDatabaseBrushLinkRepository brushLinkRepository_ { session_ };
+	BrushDatabaseBrushDetailRepository brushDetailRepository_ { session_ };
+	BrushDatabaseBrushStorageRepository brushStorageRepository_ { session_ };
+	BrushDatabaseReferencesRepository referencesRepository_ { session_ };
+	BrushDatabaseCatalogRepository catalogRepository_ { session_, schemaManager_ };
+};
+
+class BrushDatabaseCoreApi {
+public:
+	explicit BrushDatabaseCoreApi(BrushDatabaseState &state);
 
 	bool initialize(const wxString &databasePath);
 	bool openReadOnly(const wxString &databasePath);
@@ -396,41 +743,130 @@ public:
 	bool isReadOnly() const;
 	const wxString &getDatabasePath() const;
 	const wxString &getLastError() const;
+	int getLastSqliteErrorCode() const;
+	int getLastSqliteExtendedErrorCode() const;
 	bool testDatabaseConnection();
+	bool quickCheck(int maxErrors = 1);
+
+protected:
+	BrushDatabaseState &state_;
+};
+
+class BrushDatabaseBrushApi {
+public:
+	explicit BrushDatabaseBrushApi(BrushDatabaseState &state);
 
 	bool upsertBrush(const BrushRecord &brush, int64_t &brushId);
+	bool getBrushById(int64_t brushId, BrushRecord &outBrush);
+	bool updateBrush(const BrushRecord &brush);
 	bool listBrushesByType(const wxString &type, std::vector<BrushRecord> &outBrushes);
+	bool findBrushByNameAndType(const wxString &name, const wxString &type, BrushRecord &outBrush);
 	bool getCompleteBrushById(int64_t brushId, BrushStorageRecord &outBrush);
+	bool listCompleteBrushesByType(const wxString &type, std::vector<BrushStorageRecord> &outBrushes);
+	bool updateBrushReferenceNames(int64_t brushId, const wxString &oldName, const wxString &newName);
+	bool deleteBrushReferences(int64_t brushId, const wxString &brushName);
+	bool deleteBrush(int64_t brushId);
 	bool deleteBrushesByType(const wxString &type);
 	bool replaceBrushItems(int64_t brushId, const std::vector<BrushItemRecord> &items);
+
+protected:
+	BrushDatabaseState &state_;
+};
+
+class BrushDatabaseBordersApi {
+public:
+	explicit BrushDatabaseBordersApi(BrushDatabaseState &state);
+
 	bool upsertBorderSet(const BorderSetRecord &borderSet, int64_t &borderSetId);
+	bool getBorderSetById(int64_t borderSetId, BorderSetRecord &outBorderSet);
 	bool findBorderSetByXmlBorderId(int xmlBorderId, BorderSetRecord &outBorderSet);
+	bool listBorderSetsByScope(const wxString &borderScope, std::vector<BorderSetRecord> &outBorderSets);
+	bool listBorderSetUsages(int64_t borderSetId, std::vector<BorderSetUsageRecord> &outUsages);
+	bool deleteBorderSet(int64_t borderSetId);
 	bool replaceBorderSetItems(int64_t borderSetId, const std::vector<BorderSetItemRecord> &items);
+	bool getBorderSetItems(int64_t borderSetId, std::vector<BorderSetItemRecord> &outItems);
 	bool deleteBorderSetsByScope(const wxString &borderScope);
 	bool deleteOwnedBorderSetsForBrush(int64_t brushId);
 	bool replaceGroundBrushBorders(int64_t brushId, const std::vector<GroundBrushBorderRecord> &borders);
+
+protected:
+	BrushDatabaseState &state_;
+};
+
+class BrushDatabaseLinksApi {
+public:
+	explicit BrushDatabaseLinksApi(BrushDatabaseState &state);
+
 	bool replaceBrushLinks(int64_t brushId, const std::vector<BrushLinkRecord> &links);
+	bool listBrushUsages(int64_t brushId, const wxString &brushName, std::vector<BrushUsageRecord> &outUsages);
+
+protected:
+	BrushDatabaseState &state_;
+};
+
+class BrushDatabaseDetailsApi {
+public:
+	explicit BrushDatabaseDetailsApi(BrushDatabaseState &state);
+
 	bool replaceWallParts(int64_t brushId, const std::vector<WallPartRecord> &parts);
 	bool replaceCarpetNodes(int64_t brushId, const std::vector<CarpetNodeRecord> &nodes);
 	bool replaceTableNodes(int64_t brushId, const std::vector<TableNodeRecord> &nodes);
 	bool replaceDoodadAlternatives(int64_t brushId, const std::vector<DoodadAlternativeRecord> &alternatives);
+
+protected:
+	BrushDatabaseState &state_;
+};
+
+class BrushDatabaseReferencesApi {
+public:
+	explicit BrushDatabaseReferencesApi(BrushDatabaseState &state);
+
 	bool resolveGroundReferenceNames();
 
+protected:
+	BrushDatabaseState &state_;
+};
+
+class BrushDatabaseCatalogApi {
+public:
+	explicit BrushDatabaseCatalogApi(BrushDatabaseState &state);
+
 	bool replaceAllTilesets(const std::vector<TilesetStorageRecord> &tilesets);
+	bool saveTileset(const TilesetStorageRecord &tileset);
+	bool deleteTileset(const wxString &name);
+	bool savePaletteGroup(const PaletteGroupRecord &group);
+	bool deletePaletteGroup(const wxString &name);
+	bool getAllPaletteGroups(std::vector<PaletteGroupRecord> &outGroups);
 	bool getAllTilesets(std::vector<TilesetStorageRecord> &outTilesets);
 	bool generateAuditReport(MaterialsDatabaseAuditReport &outReport);
 	bool hasCompleteImportForCurrentSchema(bool &outReady);
+	bool hasCompleteImportForCurrentSchema(bool &outReady, wxString &outReason);
+	bool isMaterialsImportComplete(bool &outComplete, wxString &outReason);
+	bool getMaterialsImportStatus(MaterialsImportStatusRecord &outStatus, wxString &outReason);
+	bool markMaterialsImportComplete(const wxString &source);
+	bool getCurrentSchemaVersion(int &outVersion);
 	int getExpectedSchemaVersion() const;
+
+protected:
+	BrushDatabaseState &state_;
+};
+
+class BrushDatabase : public BrushDatabaseState,
+					  public BrushDatabaseCoreApi,
+					  public BrushDatabaseBrushApi,
+					  public BrushDatabaseBordersApi,
+					  public BrushDatabaseLinksApi,
+					  public BrushDatabaseDetailsApi,
+					  public BrushDatabaseReferencesApi,
+					  public BrushDatabaseCatalogApi {
+public:
+	BrushDatabase();
+	~BrushDatabase();
+
 	template <typename Operation>
 	bool runInTransaction(Operation &&operation) {
-		return session_.runInTransaction(std::forward<Operation>(operation));
+		return session().runInTransaction(std::forward<Operation>(operation));
 	}
-
-private:
-	BrushDatabaseSession session_;
-	BrushDatabaseSchemaManager schemaManager_ { session_ };
-	BrushDatabaseBrushRepository brushRepository_ { session_ };
-	BrushDatabaseCatalogRepository catalogRepository_ { session_, schemaManager_ };
 };
 
 extern BrushDatabase g_brush_database;

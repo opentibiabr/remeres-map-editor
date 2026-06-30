@@ -23,6 +23,23 @@
 //=============================================================================
 // Doodad brush
 
+namespace {
+	void ClearDoodadBrushFromItem(Item* item, const DoodadBrush* brush) {
+		if (!item) {
+			return;
+		}
+		if (auto type = g_items.getRawItemType(item->getID()); type && type->doodad_brush == brush) {
+			type->doodad_brush = nullptr;
+		}
+	}
+
+	void ClearDoodadBrushFromItems(const ItemVector &items, const DoodadBrush* brush) {
+		for (Item* item : items) {
+			ClearDoodadBrushFromItem(item, brush);
+		}
+	}
+}
+
 DoodadBrush::DoodadBrush() :
 	look_id(0),
 	thickness(0),
@@ -38,9 +55,41 @@ DoodadBrush::DoodadBrush() :
 }
 
 DoodadBrush::~DoodadBrush() {
-	for (std::vector<AlternativeBlock*>::iterator alt_iter = alternatives.begin(); alt_iter != alternatives.end(); ++alt_iter) {
-		delete *alt_iter;
+	for (AlternativeBlock* alternative : alternatives) {
+		std::unique_ptr<AlternativeBlock> owned(alternative);
 	}
+}
+
+void DoodadBrush::resetRuntimeState() {
+	for (AlternativeBlock* alternative : alternatives) {
+		std::unique_ptr<AlternativeBlock> owned(alternative);
+		if (!owned) {
+			continue;
+		}
+
+		for (const SingleBlock &single : owned->single_items) {
+			ClearDoodadBrushFromItem(single.item, this);
+		}
+
+		for (const CompositeBlock &composite : owned->composite_items) {
+			for (const auto &[tilePos, tileItems] : composite.items) {
+				(void)tilePos;
+				ClearDoodadBrushFromItems(tileItems, this);
+			}
+		}
+	}
+	alternatives.clear();
+
+	look_id = 0;
+	thickness = 0;
+	thickness_ceiling = 0;
+	draggable = false;
+	on_blocking = false;
+	one_size = false;
+	do_new_borders = false;
+	on_duplicate = false;
+	clear_mapflags = 0;
+	clear_statflags = 0;
 }
 
 DoodadBrush::AlternativeBlock::AlternativeBlock() :
@@ -169,6 +218,8 @@ bool DoodadBrush::loadAlternative(pugi::xml_node node, wxArrayString &warnings, 
 }
 
 bool DoodadBrush::load(pugi::xml_node node, wxArrayString &warnings) {
+	resetRuntimeState();
+
 	pugi::xml_attribute attribute;
 	if ((attribute = node.attribute("lookid"))) {
 		look_id = attribute.as_uint();

@@ -17,6 +17,7 @@
 
 #include "main.h"
 
+#include "brush_database.h"
 #include "brush.h"
 #include "carpet_brush.h"
 #include "monster_brush.h"
@@ -47,7 +48,489 @@
 
 #include "gui.h"
 
+#include <memory>
+#include <sstream>
+#include <unordered_map>
+#include <unordered_set>
+
 Brushes g_brushes;
+
+namespace {
+	class BrushXmlBuildError final : public std::runtime_error {
+	public:
+		explicit BrushXmlBuildError(const wxString &message) :
+			std::runtime_error(message.ToStdString()) { }
+	};
+
+	void AppendStringAttribute(pugi::xml_node node, const char* name, const wxString &value) {
+		if (!value.IsEmpty()) {
+			node.append_attribute(name).set_value(value.utf8_str());
+		}
+	}
+
+	void AppendStringAttribute(pugi::xml_node node, const char* name, const std::string &value) {
+		if (!value.empty()) {
+			node.append_attribute(name).set_value(value.c_str());
+		}
+	}
+
+	void AppendStringAttribute(pugi::xml_node node, const char* name, const char* value) {
+		if (value && value[0] != '\0') {
+			node.append_attribute(name).set_value(value);
+		}
+	}
+
+	void AppendIntAttribute(pugi::xml_node node, const char* name, int value) {
+		node.append_attribute(name).set_value(value);
+	}
+
+	void AppendBoolAttribute(pugi::xml_node node, const char* name, bool value) {
+		node.append_attribute(name).set_value(value ? 1 : 0);
+	}
+
+	bool LoadBrushStoragesForType(const wxString &type, std::vector<BrushStorageRecord> &outStorages, wxString &error) {
+		std::vector<BrushStorageRecord> storages;
+		if (!g_brush_database.listCompleteBrushesByType(type, storages)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+
+		outStorages.reserve(outStorages.size() + storages.size());
+		for (auto &storage : storages) {
+			outStorages.push_back(std::move(storage));
+		}
+		return true;
+	}
+
+	struct BorderSetStorageCache {
+		std::unordered_map<int64_t, BorderSetStorageRecord> entries;
+	};
+
+	bool FetchBorderSetStorage(int64_t borderSetId, BorderSetStorageRecord &outStorage, wxString &error, BorderSetStorageCache* cache) {
+		if (cache) {
+			auto it = cache->entries.find(borderSetId);
+			if (it != cache->entries.end()) {
+				outStorage = it->second;
+				return true;
+			}
+		}
+
+		outStorage = BorderSetStorageRecord();
+		if (!g_brush_database.getBorderSetById(borderSetId, outStorage.borderSet)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+		if (!g_brush_database.getBorderSetItems(borderSetId, outStorage.items)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+
+		if (cache) {
+			cache->entries.emplace(borderSetId, outStorage);
+		}
+		return true;
+	}
+
+	bool FetchBorderSetStorage(int64_t borderSetId, BorderSetStorageRecord &outStorage, wxString &error) {
+		return FetchBorderSetStorage(borderSetId, outStorage, error, nullptr);
+	}
+
+	void AppendBorderSetItems(pugi::xml_node node, const std::vector<BorderSetItemRecord> &items) {
+		for (const BorderSetItemRecord &item : items) {
+			pugi::xml_node itemNode = node.append_child("borderitem");
+			AppendStringAttribute(itemNode, "edge", item.edge);
+			AppendIntAttribute(itemNode, "item", item.itemId);
+		}
+	}
+
+	void AppendGroundCaseConditionNode(pugi::xml_node conditionsNode, const GroundBorderCaseConditionRecord &condition) {
+		pugi::xml_node node = conditionsNode.append_child(condition.conditionType.ToStdString().c_str());
+		if (condition.conditionType == "match_group") {
+			AppendIntAttribute(node, "group", condition.matchValue);
+		} else {
+			AppendIntAttribute(node, "id", condition.matchValue);
+		}
+		AppendStringAttribute(node, "edge", condition.edge);
+	}
+
+	void AppendGroundCaseActionNode(pugi::xml_node actionsNode, const GroundBorderCaseActionRecord &action) {
+		pugi::xml_node node = actionsNode.append_child(action.actionType.ToStdString().c_str());
+		if (action.actionType != "delete_borders") {
+			AppendIntAttribute(node, "id", action.targetValue);
+		}
+		if (!action.edge.IsEmpty()) {
+			AppendStringAttribute(node, "edge", action.edge);
+		}
+		if (action.actionType != "delete_borders") {
+			AppendIntAttribute(node, "with", action.replacementValue);
+		}
+	}
+
+	void AppendGroundSpecificCases(pugi::xml_node borderNode, const std::vector<GroundBorderCaseRecord> &cases) {
+		for (const GroundBorderCaseRecord &caseRecord : cases) {
+			pugi::xml_node specificNode = borderNode.append_child("specific");
+			if (!caseRecord.conditions.empty()) {
+				pugi::xml_node conditionsNode = specificNode.append_child("conditions");
+				for (const GroundBorderCaseConditionRecord &condition : caseRecord.conditions) {
+					AppendGroundCaseConditionNode(conditionsNode, condition);
+				}
+			}
+			if (!caseRecord.actions.empty()) {
+				pugi::xml_node actionsNode = specificNode.append_child("actions");
+				for (const GroundBorderCaseActionRecord &action : caseRecord.actions) {
+					AppendGroundCaseActionNode(actionsNode, action);
+				}
+			}
+		}
+	}
+
+	bool AppendGroundBorderNode(pugi::xml_node brushNode, const GroundBrushBorderRecord &borderRecord, uint16_t fallbackGroundEquivalent, const wxString &brushName, BorderSetStorageCache* borderSetCache, wxString &error) {
+		BorderSetStorageRecord borderSetStorage;
+		if (!FetchBorderSetStorage(borderRecord.borderSetId, borderSetStorage, error, borderSetCache)) {
+			return false;
+		}
+
+		const bool optionalBorder = borderRecord.borderRole == "optional";
+		pugi::xml_node borderNode = brushNode.append_child(optionalBorder ? "optional" : "border");
+		if (!optionalBorder) {
+			if (!borderRecord.align.IsEmpty() && borderRecord.align != "optional") {
+				AppendStringAttribute(borderNode, "align", borderRecord.align);
+			}
+			if (borderRecord.targetMode == "none") {
+				AppendStringAttribute(borderNode, "to", "none");
+			} else if (borderRecord.targetMode == "brush") {
+				AppendStringAttribute(borderNode, "to", borderRecord.targetBrushName);
+			}
+			if (borderRecord.superBorder) {
+				AppendBoolAttribute(borderNode, "super", true);
+			}
+		}
+
+		const BorderSetRecord &borderSet = borderSetStorage.borderSet;
+		if (borderSet.xmlBorderId > 0 && borderSet.borderScope == "global") {
+			AppendIntAttribute(borderNode, "id", borderSet.xmlBorderId);
+		} else {
+			int groundEquivalent = borderSet.groundEquivalent;
+			if (groundEquivalent <= 0) {
+				groundEquivalent = fallbackGroundEquivalent;
+			}
+			if (groundEquivalent <= 0) {
+				error = wxString::Format(
+					"Failed to inline border set %lld for ground brush \"%s\": missing ground_equivalent (borderSet.groundEquivalent=%d).",
+					static_cast<long long>(borderSet.id),
+					brushName,
+					borderSet.groundEquivalent
+				);
+				return false;
+			}
+			AppendIntAttribute(borderNode, "ground_equivalent", groundEquivalent);
+			if (borderSet.borderGroup > 0) {
+				AppendIntAttribute(borderNode, "group", borderSet.borderGroup);
+			}
+			if (!borderSet.borderType.IsEmpty() && borderSet.borderType != "normal") {
+				AppendStringAttribute(borderNode, "type", borderSet.borderType);
+			}
+			AppendBorderSetItems(borderNode, borderSetStorage.items);
+		}
+
+		AppendGroundSpecificCases(borderNode, borderRecord.cases);
+		return true;
+	}
+
+	void AppendWallItemsAndDoors(pugi::xml_node node, const WallPartRecord &part) {
+		for (const WallPartItemRecord &item : part.items) {
+			pugi::xml_node itemNode = node.append_child("item");
+			AppendIntAttribute(itemNode, "id", item.itemId);
+			AppendIntAttribute(itemNode, "chance", item.chance);
+		}
+		for (const WallPartDoorRecord &door : part.doors) {
+			pugi::xml_node doorNode = node.append_child("door");
+			AppendIntAttribute(doorNode, "id", door.itemId);
+			AppendStringAttribute(doorNode, "type", door.doorType);
+			AppendBoolAttribute(doorNode, "open", door.isOpen);
+			AppendBoolAttribute(doorNode, "hate", door.wallHateMe);
+		}
+	}
+
+	void AppendDoodadAlternative(pugi::xml_node brushNode, const DoodadAlternativeRecord &alternative) {
+		pugi::xml_node alternativeNode = brushNode.append_child("alternate");
+		for (const DoodadSingleItemRecord &item : alternative.singleItems) {
+			pugi::xml_node itemNode = alternativeNode.append_child("item");
+			AppendIntAttribute(itemNode, "id", item.itemId);
+			AppendIntAttribute(itemNode, "chance", item.chance);
+		}
+		for (const DoodadCompositeRecord &composite : alternative.composites) {
+			pugi::xml_node compositeNode = alternativeNode.append_child("composite");
+			AppendIntAttribute(compositeNode, "chance", composite.chance);
+			for (const DoodadCompositeTileRecord &tile : composite.tiles) {
+				pugi::xml_node tileNode = compositeNode.append_child("tile");
+				AppendIntAttribute(tileNode, "x", tile.offsetX);
+				AppendIntAttribute(tileNode, "y", tile.offsetY);
+				AppendIntAttribute(tileNode, "z", tile.offsetZ);
+				for (const DoodadCompositeTileItemRecord &item : tile.items) {
+					pugi::xml_node itemNode = tileNode.append_child("item");
+					AppendIntAttribute(itemNode, "id", item.itemId);
+				}
+			}
+		}
+	}
+
+	template <typename NodeRecord, typename ItemRecord>
+	void AppendAlignedNodes(pugi::xml_node brushNode, const char* containerName, const std::vector<NodeRecord> &nodes) {
+		for (const NodeRecord &node : nodes) {
+			pugi::xml_node containerNode = brushNode.append_child(containerName);
+			AppendStringAttribute(containerNode, "align", node.align);
+			for (const ItemRecord &item : node.items) {
+				pugi::xml_node itemNode = containerNode.append_child("item");
+				AppendIntAttribute(itemNode, "id", item.itemId);
+				AppendIntAttribute(itemNode, "chance", item.chance);
+			}
+		}
+	}
+
+	void AppendBrushLookIdAttributes(pugi::xml_node brushNode, const BrushRecord &brush) {
+		if (brush.serverLookId > 0) {
+			AppendIntAttribute(brushNode, "server_lookid", brush.serverLookId);
+			return;
+		}
+		if (brush.lookId > 0) {
+			AppendIntAttribute(brushNode, "lookid", brush.lookId);
+		}
+	}
+
+	void BuildGroundBrushNode(pugi::xml_node brushNode, const BrushStorageRecord &storage, BorderSetStorageCache* borderSetCache) {
+		const BrushRecord &brush = storage.brush;
+		AppendIntAttribute(brushNode, "z-order", brush.zOrder);
+		AppendBoolAttribute(brushNode, "randomize", brush.randomize);
+		if (brush.soloOptional) {
+			AppendBoolAttribute(brushNode, "solo_optional", true);
+		}
+
+		for (const BrushItemRecord &item : storage.items) {
+			pugi::xml_node itemNode = brushNode.append_child("item");
+			AppendIntAttribute(itemNode, "id", item.itemId);
+			AppendIntAttribute(itemNode, "chance", item.chance);
+		}
+
+		uint16_t fallbackGroundEquivalent = 0;
+		if (!storage.items.empty()) {
+			fallbackGroundEquivalent = static_cast<uint16_t>(storage.items.front().itemId);
+		}
+		for (const GroundBrushBorderRecord &border : storage.borders) {
+			wxString error;
+			if (!AppendGroundBorderNode(brushNode, border, fallbackGroundEquivalent, brush.name, borderSetCache, error)) {
+				throw BrushXmlBuildError(error);
+			}
+		}
+		for (const BrushLinkRecord &link : storage.links) {
+			pugi::xml_node linkNode = brushNode.append_child(link.relationType.ToStdString().c_str());
+			AppendStringAttribute(linkNode, "name", link.targetBrushName);
+		}
+	}
+
+	void AppendWallBrushCommonAttributes(pugi::xml_node brushNode, const BrushRecord &brush) {
+		if (brush.draggable) {
+			AppendBoolAttribute(brushNode, "draggable", true);
+		}
+		if (brush.onBlocking) {
+			AppendBoolAttribute(brushNode, "on_blocking", true);
+		}
+		if (brush.onDuplicate) {
+			AppendBoolAttribute(brushNode, "on_duplicate", true);
+		}
+		if (brush.redoBorders) {
+			AppendBoolAttribute(brushNode, "redo_borders", true);
+		}
+		if (brush.removeOptionalBorder) {
+			AppendBoolAttribute(brushNode, "remove_optional_border", true);
+		}
+		if (brush.oneSize) {
+			AppendBoolAttribute(brushNode, "one_size", true);
+		}
+		if (brush.thickness > 0 || brush.thicknessCeiling > 0) {
+			AppendStringAttribute(brushNode, "thickness", wxString::Format("%d/%d", brush.thickness, brush.thicknessCeiling));
+		}
+	}
+
+	void BuildWallBrushNode(pugi::xml_node brushNode, const BrushStorageRecord &storage) {
+		AppendWallBrushCommonAttributes(brushNode, storage.brush);
+
+		std::map<wxString, pugi::xml_node> wallNodesByType;
+		std::set<wxString> redirectTargets;
+		for (const BrushLinkRecord &link : storage.links) {
+			if (link.relationType == "redirect") {
+				redirectTargets.insert(link.targetBrushName);
+			}
+		}
+
+		for (const WallPartRecord &part : storage.wallParts) {
+			if (part.partType.StartsWith("alternate/")) {
+				pugi::xml_node alternateNode = brushNode.append_child("alternate");
+				AppendWallItemsAndDoors(alternateNode, part);
+				continue;
+			}
+
+			const wxString alternateMarker = "/alternate/";
+			const int alternateIndex = part.partType.Find(alternateMarker);
+			if (alternateIndex != wxNOT_FOUND) {
+				const wxString basePartType = part.partType.SubString(0, alternateIndex - 1);
+				pugi::xml_node wallNode = wallNodesByType[basePartType];
+				if (!wallNode) {
+					wallNode = brushNode.append_child("wall");
+					AppendStringAttribute(wallNode, "type", basePartType);
+					wallNodesByType[basePartType] = wallNode;
+				}
+				pugi::xml_node alternateNode = wallNode.append_child("alternate");
+				AppendWallItemsAndDoors(alternateNode, part);
+				continue;
+			}
+
+			pugi::xml_node wallNode = brushNode.append_child("wall");
+			AppendStringAttribute(wallNode, "type", part.partType);
+			AppendWallItemsAndDoors(wallNode, part);
+			wallNodesByType[part.partType] = wallNode;
+		}
+
+		std::set<wxString> emittedFriends;
+		for (const BrushLinkRecord &link : storage.links) {
+			if (link.relationType != "friend" && link.relationType != "redirect") {
+				continue;
+			}
+			if (!emittedFriends.insert(link.targetBrushName).second) {
+				continue;
+			}
+			pugi::xml_node friendNode = brushNode.append_child("friend");
+			AppendStringAttribute(friendNode, "name", link.targetBrushName);
+			if (redirectTargets.find(link.targetBrushName) != redirectTargets.end()) {
+				AppendBoolAttribute(friendNode, "redirect", true);
+			}
+		}
+	}
+
+	void AppendDoodadBrushCommonAttributes(pugi::xml_node brushNode, const BrushRecord &brush) {
+		if (brush.onBlocking) {
+			AppendBoolAttribute(brushNode, "on_blocking", true);
+		}
+		if (brush.onDuplicate) {
+			AppendBoolAttribute(brushNode, "on_duplicate", true);
+		}
+		if (brush.redoBorders) {
+			AppendBoolAttribute(brushNode, "redo_borders", true);
+		}
+		if (brush.removeOptionalBorder) {
+			AppendBoolAttribute(brushNode, "remove_optional_border", true);
+		}
+		if (brush.oneSize) {
+			AppendBoolAttribute(brushNode, "one_size", true);
+		}
+		if (brush.draggable) {
+			AppendBoolAttribute(brushNode, "draggable", true);
+		}
+		if (brush.thickness > 0 || brush.thicknessCeiling > 0) {
+			AppendStringAttribute(brushNode, "thickness", wxString::Format("%d/%d", brush.thickness, brush.thicknessCeiling));
+		}
+	}
+
+	void BuildDoodadBrushNode(pugi::xml_node brushNode, const BrushStorageRecord &storage) {
+		AppendDoodadBrushCommonAttributes(brushNode, storage.brush);
+		for (const DoodadAlternativeRecord &alternative : storage.doodadAlternatives) {
+			AppendDoodadAlternative(brushNode, alternative);
+		}
+	}
+
+	void BuildBrushNode(pugi::xml_document &doc, const BrushStorageRecord &storage, BorderSetStorageCache* borderSetCache) {
+		const BrushRecord &brush = storage.brush;
+		pugi::xml_node brushNode = doc.append_child("brush");
+		AppendStringAttribute(brushNode, "name", brush.name);
+		AppendStringAttribute(brushNode, "type", brush.type);
+		AppendBrushLookIdAttributes(brushNode, brush);
+
+		if (brush.type == "ground") {
+			BuildGroundBrushNode(brushNode, storage, borderSetCache);
+			return;
+		}
+
+		if (brush.type == "wall" || brush.type == "wall decoration") {
+			BuildWallBrushNode(brushNode, storage);
+			return;
+		}
+
+		if (brush.type == "doodad") {
+			BuildDoodadBrushNode(brushNode, storage);
+			return;
+		}
+
+		if (brush.type == "carpet") {
+			AppendAlignedNodes<CarpetNodeRecord, CarpetNodeItemRecord>(brushNode, "carpet", storage.carpetNodes);
+			return;
+		}
+
+		if (brush.type == "table") {
+			AppendAlignedNodes<TableNodeRecord, TableNodeItemRecord>(brushNode, "table", storage.tableNodes);
+		}
+	}
+
+	bool LoadGlobalBordersFromDatabase(Brushes &brushes, wxArrayString &warnings, wxString &error) {
+		std::vector<BorderSetRecord> borderSets;
+		if (!g_brush_database.listBorderSetsByScope("global", borderSets)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+
+		for (const BorderSetRecord &borderSet : borderSets) {
+			if (borderSet.xmlBorderId <= 0) {
+				continue;
+			}
+
+			std::vector<BorderSetItemRecord> items;
+			if (!g_brush_database.getBorderSetItems(borderSet.id, items)) {
+				error = g_brush_database.getLastError();
+				return false;
+			}
+
+			pugi::xml_document doc;
+			pugi::xml_node borderNode = doc.append_child("border");
+			AppendIntAttribute(borderNode, "id", borderSet.xmlBorderId);
+			if (borderSet.borderGroup > 0) {
+				AppendIntAttribute(borderNode, "group", borderSet.borderGroup);
+			}
+			if (!borderSet.borderType.IsEmpty() && borderSet.borderType != "normal") {
+				AppendStringAttribute(borderNode, "type", borderSet.borderType);
+			}
+			AppendBorderSetItems(borderNode, items);
+			if (!brushes.unserializeBorder(borderNode, warnings)) {
+				error = "Failed to load global border from SQLite.";
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	bool LoadGroundBrushIdsFromDatabase(std::vector<int64_t> &outBrushIds, wxString &error) {
+		outBrushIds.clear();
+		std::vector<BrushRecord> groundBrushes;
+		if (!g_brush_database.listBrushesByType("ground", groundBrushes)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+
+		outBrushIds.reserve(groundBrushes.size());
+		for (const BrushRecord &brush : groundBrushes) {
+			outBrushIds.push_back(brush.id);
+		}
+
+		return true;
+	}
+
+	void ResetGroundBrushRuntimeState(Brushes &brushes) {
+		for (const auto &[name, brush] : brushes.getMap()) {
+			if (brush && brush->isGround()) {
+				brush->asGround()->resetRuntimeState();
+			}
+		}
+	}
+}
 
 Brushes::Brushes() {
 	////
@@ -58,13 +541,13 @@ Brushes::~Brushes() {
 }
 
 void Brushes::clear() {
-	for (auto brushEntry : brushes) {
-		delete brushEntry.second;
+	for (const auto &[name, rawBrush] : brushes) {
+		std::unique_ptr<Brush> ownedBrush(rawBrush);
 	}
 	brushes.clear();
 
-	for (auto borderEntry : borders) {
-		delete borderEntry.second;
+	for (const auto &[id, rawBorder] : borders) {
+		std::unique_ptr<AutoBorder> ownedBorder(rawBorder);
 	}
 	borders.clear();
 }
@@ -110,6 +593,7 @@ bool Brushes::unserializeBrush(pugi::xml_node node, wxArrayString &warnings) {
 	}
 
 	Brush* brush = getBrush(brushName);
+	const bool createdNew = !brush;
 	if (!brush) {
 		if (!(attribute = node.attribute("type"))) {
 			warnings.push_back("Couldn't read brush type");
@@ -139,10 +623,13 @@ bool Brushes::unserializeBrush(pugi::xml_node node, wxArrayString &warnings) {
 	}
 
 	if (!node.first_child()) {
-		addBrush(brush);
+		if (createdNew) {
+			addBrush(brush);
+		}
 		return true;
 	}
 
+	const std::string originalName = brush->getName();
 	wxArrayString subWarnings;
 	brush->load(node, subWarnings);
 
@@ -151,23 +638,23 @@ bool Brushes::unserializeBrush(pugi::xml_node node, wxArrayString &warnings) {
 		warnings.insert(warnings.end(), subWarnings.begin(), subWarnings.end());
 	}
 
-	if (brush->getName() == "all" || brush->getName() == "none") {
-		warnings.push_back(wxString("Using reserved brushname '") << wxstr(brush->getName()) << "'.");
-		delete brush;
-		return false;
+	if (brush->getName() != originalName) {
+		warnings.push_back(wxString("Brush \"") << wxstr(originalName) << "\" attempted to change its name to \"" << wxstr(brush->getName()) << "\" while loading. Keeping the original name.");
+		brush->setName(originalName);
 	}
 
 	Brush* otherBrush = getBrush(brush->getName());
-	if (otherBrush) {
-		if (otherBrush != brush) {
-			warnings.push_back(wxString("Duplicate brush name ") << wxstr(brush->getName()) << ". Undefined behaviour may ensue.");
-		} else {
-			// Don't insert
-			return true;
+	if (otherBrush && otherBrush != brush) {
+		warnings.push_back(wxString("Duplicate brush name ") << wxstr(brush->getName()) << ". Skipping load to avoid undefined behaviour.");
+		if (createdNew) {
+			std::unique_ptr<Brush> ownedBrush(brush);
 		}
+		return false;
 	}
 
-	addBrush(brush);
+	if (!otherBrush) {
+		addBrush(brush);
+	}
 	return true;
 }
 
@@ -190,10 +677,264 @@ bool Brushes::unserializeBorder(pugi::xml_node node, wxArrayString &warnings) {
 	return true;
 }
 
+bool Brushes::loadFromDatabase(wxArrayString &warnings) {
+	if (!g_brush_database.isOpen()) {
+		warnings.push_back("SQLite brush load skipped because the brush database is not open.");
+		return false;
+	}
+
+	wxString error;
+	if (!LoadGlobalBordersFromDatabase(*this, warnings, error)) {
+		if (!error.IsEmpty()) {
+			warnings.push_back("Failed to load global borders from SQLite: " + error);
+		}
+		return false;
+	}
+
+	std::vector<BrushStorageRecord> storages;
+	static const std::vector<wxString> supportedTypes = {
+		"ground",
+		"wall",
+		"wall decoration",
+		"doodad",
+		"carpet",
+		"table"
+	};
+	for (const wxString &type : supportedTypes) {
+		if (!LoadBrushStoragesForType(type, storages, error)) {
+			if (!error.IsEmpty()) {
+				warnings.push_back("Failed to load SQLite brushes of type \"" + type + "\": " + error);
+			}
+			return false;
+		}
+	}
+
+	size_t shellCount = 0;
+	for (const BrushStorageRecord &storage : storages) {
+		if (getBrush(storage.brush.name.ToStdString())) {
+			continue;
+		}
+		pugi::xml_document shellDoc;
+		pugi::xml_node shellNode = shellDoc.append_child("brush");
+		AppendStringAttribute(shellNode, "name", storage.brush.name);
+		AppendStringAttribute(shellNode, "type", storage.brush.type);
+		if (!unserializeBrush(shellNode, warnings)) {
+			warnings.push_back("Failed to create SQLite brush shell for \"" + storage.brush.name + "\".");
+			continue;
+		}
+		++shellCount;
+	}
+
+	size_t hydratedCount = 0;
+	BorderSetStorageCache borderSetCache;
+	for (const BrushStorageRecord &storage : storages) {
+		try {
+			pugi::xml_document brushDoc;
+			BuildBrushNode(brushDoc, storage, &borderSetCache);
+			if (!unserializeBrush(brushDoc.child("brush"), warnings)) {
+				warnings.push_back("Failed to hydrate SQLite brush \"" + storage.brush.name + "\".");
+				continue;
+			}
+			++hydratedCount;
+		} catch (const BrushXmlBuildError &ex) {
+			warnings.push_back("Failed to build SQLite brush \"" + storage.brush.name + "\": " + wxString::FromUTF8(ex.what()));
+			continue;
+		}
+	}
+
+	if (shellCount == 0) {
+		warnings.push_back("SQLite brush load did not create any brush shells.");
+		return false;
+	}
+
+	if (hydratedCount != storages.size()) {
+		warnings.push_back(wxString::Format("SQLite brush load hydrated %zu of %zu brushes; keeping shell brushes for the remaining entries.", hydratedCount, storages.size()));
+	}
+
+	spdlog::info(
+		"Loaded {} SQLite brush shells and fully hydrated {} brushes from the materials database",
+		shellCount,
+		hydratedCount
+	);
+	return true;
+}
+
+bool Brushes::reloadBrushFromDatabase(int64_t brushId, wxArrayString &warnings, wxString &error) {
+	error.clear();
+
+	if (!g_brush_database.isOpen()) {
+		error = "SQLite brush database is not open.";
+		return false;
+	}
+
+	BrushStorageRecord storage;
+	if (!g_brush_database.getCompleteBrushById(brushId, storage)) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
+
+	try {
+		pugi::xml_document brushDoc;
+		BuildBrushNode(brushDoc, storage, nullptr);
+		if (!unserializeBrush(brushDoc.child("brush"), warnings)) {
+			error = "Failed to hydrate runtime brush from SQLite storage.";
+			return false;
+		}
+	} catch (const BrushXmlBuildError &ex) {
+		error = wxString::FromUTF8(ex.what());
+		return false;
+	}
+
+	return true;
+}
+
+bool Brushes::reloadBrushFromStorage(const BrushStorageRecord &storage, wxArrayString &warnings, wxString &error) {
+	error.clear();
+
+	try {
+		pugi::xml_document brushDoc;
+		BuildBrushNode(brushDoc, storage, nullptr);
+		if (!unserializeBrush(brushDoc.child("brush"), warnings)) {
+			error = "Failed to hydrate runtime brush from in-memory storage.";
+			return false;
+		}
+	} catch (const BrushXmlBuildError &ex) {
+		error = wxString::FromUTF8(ex.what());
+		return false;
+	}
+
+	return true;
+}
+
+bool Brushes::buildBrushXmlFromStorage(const BrushStorageRecord &storage, wxString &outXml, wxString &error) const {
+	outXml.clear();
+	error.clear();
+	try {
+		pugi::xml_document brushDoc;
+		BuildBrushNode(brushDoc, storage, nullptr);
+		std::ostringstream stream;
+		brushDoc.save(stream, "\t", pugi::format_default, pugi::encoding_utf8);
+		outXml = wxString::FromUTF8(stream.str());
+	} catch (const BrushXmlBuildError &ex) {
+		error = wxString::FromUTF8(ex.what());
+		return false;
+	}
+	return true;
+}
+
+bool Brushes::reloadBorderSetFromDatabase(int64_t borderSetId, wxArrayString &warnings, wxString &error) {
+	error.clear();
+
+	if (!g_brush_database.isOpen()) {
+		error = "SQLite brush database is not open.";
+		return false;
+	}
+
+	BorderSetStorageRecord borderSetStorage;
+	if (!FetchBorderSetStorage(borderSetId, borderSetStorage, error)) {
+		return false;
+	}
+
+	const BorderSetRecord &borderSet = borderSetStorage.borderSet;
+	if (borderSet.borderScope == "inline" && borderSet.ownerBrushId > 0) {
+		return reloadBrushFromDatabase(borderSet.ownerBrushId, warnings, error);
+	}
+
+	if (borderSet.borderScope != "global" || borderSet.xmlBorderId <= 0) {
+		error = "Unsupported border set runtime refresh configuration.";
+		return false;
+	}
+
+	std::vector<int64_t> groundBrushIds;
+	if (!LoadGroundBrushIdsFromDatabase(groundBrushIds, error)) {
+		return false;
+	}
+
+	std::vector<BorderSetRecord> globalBorderSets;
+	if (!g_brush_database.listBorderSetsByScope("global", globalBorderSets)) {
+		error = g_brush_database.getLastError();
+		return false;
+	}
+
+	std::unordered_set<int> globalBorderIds;
+	for (const BorderSetRecord &set : globalBorderSets) {
+		if (set.xmlBorderId <= 0) {
+			continue;
+		}
+		if (!globalBorderIds.insert(set.xmlBorderId).second) {
+			error = wxString::Format("Duplicate global border id %d found in SQLite.", set.xmlBorderId);
+			return false;
+		}
+		std::vector<BorderSetItemRecord> items;
+		if (!g_brush_database.getBorderSetItems(set.id, items)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+	}
+
+	BorderSetStorageCache borderSetCache;
+	for (int64_t groundBrushId : groundBrushIds) {
+		BrushStorageRecord storage;
+		if (!g_brush_database.getCompleteBrushById(groundBrushId, storage)) {
+			error = g_brush_database.getLastError();
+			return false;
+		}
+		try {
+			pugi::xml_document doc;
+			BuildBrushNode(doc, storage, &borderSetCache);
+		} catch (const BrushXmlBuildError &ex) {
+			error = wxString::FromUTF8(ex.what());
+			return false;
+		}
+	}
+
+	ResetGroundBrushRuntimeState(*this);
+	for (const auto &[id, rawBorder] : borders) {
+		std::unique_ptr<AutoBorder> ownedBorder(rawBorder);
+	}
+	borders.clear();
+
+	if (!LoadGlobalBordersFromDatabase(*this, warnings, error)) {
+		return false;
+	}
+
+	for (int64_t groundBrushId : groundBrushIds) {
+		if (!reloadBrushFromDatabase(groundBrushId, warnings, error)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
 void Brushes::addBrush(Brush* brush) {
 	if (brush) {
+		const auto [it, end] = brushes.equal_range(brush->getName());
+		for (auto current = it; current != end; ++current) {
+			if (current->second == brush) {
+				return;
+			}
+		}
 		brushes.insert(std::make_pair(brush->getName(), brush));
 	}
+}
+
+bool Brushes::renameBrush(Brush* brush, std::string_view oldName, std::string_view newName) {
+	if (!brush || oldName == newName) {
+		return false;
+	}
+
+	for (auto it = brushes.begin(); it != brushes.end();) {
+		if (it->second == brush) {
+			it = brushes.erase(it);
+			continue;
+		}
+		++it;
+	}
+
+	brush->setName(std::string(newName));
+	addBrush(brush);
+	return true;
 }
 
 Brush* Brushes::getBrush(const std::string &name) const {

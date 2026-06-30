@@ -3,6 +3,7 @@
 
 #include "brush_database.h"
 
+#include <wx/panel.h>
 #include <wx/dialog.h>
 
 class wxChoice;
@@ -12,12 +13,14 @@ class wxNotebook;
 class wxTextCtrl;
 class wxWindow;
 
-class SQLiteMaterialsInspectorDialog : public wxDialog {
+class SQLiteMaterialsInspectorPanel : public wxPanel {
 public:
-	explicit SQLiteMaterialsInspectorDialog(wxWindow* parent);
+	explicit SQLiteMaterialsInspectorPanel(wxWindow* parent);
+	void ReloadData();
 
 private:
-	void ReloadData();
+	void OnResetDatabaseFromXml();
+
 	void RefreshSummary();
 	void RefreshBrushList();
 	void RefreshBrushDetails();
@@ -28,7 +31,9 @@ private:
 	wxTextCtrl* summaryText_ = nullptr;
 	wxChoice* brushTypeChoice_ = nullptr;
 	wxListBox* brushList_ = nullptr;
+	wxNotebook* brushDetailsNotebook_ = nullptr;
 	wxTextCtrl* brushDetailsText_ = nullptr;
+	wxTextCtrl* brushRuntimeXmlText_ = nullptr;
 	wxListBox* tilesetList_ = nullptr;
 	wxTextCtrl* tilesetDetailsText_ = nullptr;
 
@@ -36,6 +41,14 @@ private:
 	MaterialsDatabaseAuditReport auditReport_;
 	std::vector<BrushRecord> currentBrushes_;
 	std::vector<TilesetStorageRecord> tilesets_;
+};
+
+class SQLiteMaterialsInspectorDialog : public wxDialog {
+public:
+	explicit SQLiteMaterialsInspectorDialog(wxWindow* parent);
+
+private:
+	SQLiteMaterialsInspectorPanel* panel_ = nullptr;
 };
 
 #endif

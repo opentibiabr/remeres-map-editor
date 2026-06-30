@@ -36,7 +36,23 @@ TableBrush::~TableBrush() {
 	////
 }
 
+void TableBrush::resetRuntimeState() {
+	look_id = 0;
+	for (TableNode &node : table_items) {
+		for (const TableType &item : node.items) {
+			if (auto type = g_items.getRawItemType(item.item_id); type && type->brush == this) {
+				type->brush = nullptr;
+				type->isTable = false;
+			}
+		}
+		node.items.clear();
+		node.total_chance = 0;
+	}
+}
+
 bool TableBrush::load(pugi::xml_node node, wxArrayString &warnings) {
+	resetRuntimeState();
+
 	if (const pugi::xml_attribute attribute = node.attribute("server_lookid")) {
 		look_id = g_items.getItemType(attribute.as_uint()).clientID;
 	}

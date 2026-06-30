@@ -6047,14 +6047,12 @@
 	</brush>
 
 	<brush name="steel bars" type="wall" server_lookid="2183">
-		<wall type="pole">			   <item id="89" chance="1"/> </wall>
 		<wall type="horizontal">		 <item id="2182" chance="1"/> </wall>
 		<wall type="vertical">		   <item id="2181" chance="1"/> </wall>
 		<wall type="corner">			 <item id="2183" chance="1"/> </wall>
 	</brush>
 
 	<brush name="steel rebar" type="wall" server_lookid="2185">
-		<wall type="pole">			   <item id="88" chance="1"/> </wall>
 		<wall type="horizontal">		 <item id="2185" chance="1"/> </wall>
 		<wall type="vertical">		   <item id="2184" chance="1"/> </wall>
 		<wall type="corner">			 <item id="2184" chance="1"/> </wall> <!-- Temporary solution until multiple items are allowed! -->

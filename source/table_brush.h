@@ -39,6 +39,7 @@ public:
 	}
 
 	virtual bool load(pugi::xml_node node, wxArrayString &warnings);
+	void resetRuntimeState();
 
 	virtual bool canDraw(BaseMap* map, const Position &position) const;
 	virtual void draw(BaseMap* map, Tile* tile, void* parameter);
@@ -48,6 +49,9 @@ public:
 
 	virtual int getLookID() const {
 		return look_id;
+	}
+	void setLookID(uint16_t newLookId) override {
+		look_id = newLookId;
 	}
 
 	virtual std::string getName() const {

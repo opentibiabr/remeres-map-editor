@@ -33,7 +33,42 @@ WallBrush::~WallBrush() {
 	////
 }
 
+void WallBrush::resetRuntimeState() {
+	look_id = 0;
+	for (uint32_t alignment = 0; alignment < 17; ++alignment) {
+		for (const WallType &wallType : wall_items[alignment].items) {
+			if (auto type = g_items.getRawItemType(wallType.id); type && type->brush == this) {
+				type->brush = nullptr;
+				type->isWall = false;
+				type->isBrushDoor = false;
+				type->isOpen = false;
+				type->wall_hate_me = false;
+				type->border_alignment = BORDER_NONE;
+			}
+		}
+		wall_items[alignment].items.clear();
+		wall_items[alignment].total_chance = 0;
+
+		for (const DoorType &doorType : door_items[alignment]) {
+			if (auto type = g_items.getRawItemType(doorType.id); type && type->brush == this) {
+				type->brush = nullptr;
+				type->isWall = false;
+				type->isBrushDoor = false;
+				type->isOpen = false;
+				type->wall_hate_me = false;
+				type->border_alignment = BORDER_NONE;
+			}
+		}
+		door_items[alignment].clear();
+	}
+
+	friends.clear();
+	redirect_to = nullptr;
+}
+
 bool WallBrush::load(pugi::xml_node node, wxArrayString &warnings) {
+	resetRuntimeState();
+
 	pugi::xml_attribute attribute;
 	if ((attribute = node.attribute("lookid"))) {
 		look_id = attribute.as_uint();

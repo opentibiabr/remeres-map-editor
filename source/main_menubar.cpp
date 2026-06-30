@@ -27,11 +27,14 @@
 #include "result_window.h"
 #include "find_item_window.h"
 #include "settings.h"
+#include "materials_workbench_window.h"
 #include "iomap_otbm.h"
 #include "sqlite_materials_inspector.h"
 #include "lua/lua_script_manager.h"
 #include "lua/lua_scripts_window.h"
 #include "gui.h"
+
+#include <functional>
 
 #include <wx/chartype.h>
 #include <wx/choicdlg.h>
@@ -566,10 +569,10 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	using namespace MenuBar;
 	checking_programmaticly = false;
 
-#define MAKE_ACTION(id, kind, handler) actions[#id] = new MenuBar::Action(#id, id, kind, wxCommandEventFunction(&MainMenuBar::handler))
-#define MAKE_SET_ACTION(id, kind, setting_, handler)                                                  \
-	actions[#id] = new MenuBar::Action(#id, id, kind, wxCommandEventFunction(&MainMenuBar::handler)); \
-	actions[#id].setting = setting_
+#define MAKE_ACTION(id, kind, handler) actions[#id] = new MenuBar::Action(#id, id, kind, std::mem_fn(&MainMenuBar::handler))
+#define MAKE_SET_ACTION(id, kind, setting_, handler)                                       \
+	actions[#id] = new MenuBar::Action(#id, id, kind, std::mem_fn(&MainMenuBar::handler)); \
+	actions[#id]->setting = setting_
 
 	MAKE_ACTION(NEW, wxITEM_NORMAL, OnNew);
 	MAKE_ACTION(OPEN, wxITEM_NORMAL, OnOpen);
@@ -641,6 +644,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 
 	MAKE_ACTION(CLEAR_INVALID_HOUSES, wxITEM_NORMAL, OnClearHouseTiles);
 	MAKE_ACTION(CLEAR_MODIFIED_STATE, wxITEM_NORMAL, OnClearModifiedState);
+	MAKE_ACTION(TOOLS_MATERIALS_WORKBENCH, wxITEM_NORMAL, OnMaterialsWorkbench);
 	MAKE_ACTION(MAP_REMOVE_ITEMS, wxITEM_NORMAL, OnMapRemoveItems);
 	MAKE_ACTION(MAP_REMOVE_CORPSES, wxITEM_NORMAL, OnMapRemoveCorpses);
 	MAKE_ACTION(MAP_REMOVE_UNREACHABLE_TILES, wxITEM_NORMAL, OnMapRemoveUnreachable);
@@ -692,7 +696,6 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 
 	MAKE_ACTION(WIN_MINIMAP, wxITEM_NORMAL, OnMinimapWindow);
 	MAKE_ACTION(WIN_ACTIONS_HISTORY, wxITEM_NORMAL, OnActionsHistoryWindow);
-	MAKE_ACTION(WIN_SQLITE_MATERIALS_INSPECTOR, wxITEM_NORMAL, OnSQLiteMaterialsInspector);
 	MAKE_ACTION(NEW_PALETTE, wxITEM_NORMAL, OnNewPalette);
 	MAKE_ACTION(TAKE_SCREENSHOT, wxITEM_NORMAL, OnTakeScreenshot);
 
@@ -759,7 +762,11 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	// Tie all events to this handler!
 
 	for (std::map<std::string, MenuBar::Action*>::iterator ai = actions.begin(); ai != actions.end(); ++ai) {
-		frame->Connect(MAIN_FRAME_MENU + ai->second->id, wxEVT_COMMAND_MENU_SELECTED, (wxObjectEventFunction)(wxEventFunction)(ai->second->handler), nullptr, this);
+		frame->Bind(
+			wxEVT_COMMAND_MENU_SELECTED,
+			[this](wxCommandEvent &event) { OnMenuAction(event); },
+			MAIN_FRAME_MENU + ai->second->id
+		);
 	}
 	for (size_t i = 0; i < 10; ++i) {
 		frame->Connect(recentFiles.GetBaseId() + i, wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainMenuBar::OnOpenRecent), nullptr, this);
@@ -772,6 +779,17 @@ MainMenuBar::~MainMenuBar() {
 	for (std::map<std::string, MenuBar::Action*>::iterator ai = actions.begin(); ai != actions.end(); ++ai) {
 		delete ai->second;
 	}
+}
+
+void MainMenuBar::OnMenuAction(wxCommandEvent &event) {
+	const int targetId = event.GetId() - MAIN_FRAME_MENU;
+	for (const auto &[name, action] : actions) {
+		if (action && action->id == targetId) {
+			action->handler(*this, event);
+			return;
+		}
+	}
+	event.Skip();
 }
 
 namespace OnMapRemoveItems {
@@ -915,6 +933,7 @@ void MainMenuBar::Update() {
 	EnableItem(MAP_REMOVE_EMPTY_NPCS_SPAWNS, is_local);
 	EnableItem(CLEAR_INVALID_HOUSES, is_local);
 	EnableItem(CLEAR_MODIFIED_STATE, is_local);
+	EnableItem(TOOLS_MATERIALS_WORKBENCH, loaded && g_settings.getBoolean(Config::USE_SQLITE_MATERIALS));
 
 	EnableItem(EDIT_TOWNS, is_local);
 	EnableItem(EDIT_ITEMS, false);
@@ -935,7 +954,6 @@ void MainMenuBar::Update() {
 	CheckItem(SHOW_SPAWNS_NPC, g_settings.getBoolean(Config::SHOW_SPAWNS_NPC));
 
 	EnableItem(WIN_MINIMAP, loaded);
-	EnableItem(WIN_SQLITE_MATERIALS_INSPECTOR, loaded && g_settings.getBoolean(Config::USE_SQLITE_MATERIALS) && !g_gui.IsAsyncSqliteBootstrapRunning());
 	EnableItem(NEW_PALETTE, loaded);
 	EnableItem(SELECT_TERRAIN, loaded);
 	EnableItem(SELECT_DOODAD, loaded);
@@ -2915,9 +2933,12 @@ void MainMenuBar::OnActionsHistoryWindow(wxCommandEvent &WXUNUSED(event)) {
 	g_gui.ShowActionsWindow();
 }
 
-void MainMenuBar::OnSQLiteMaterialsInspector(wxCommandEvent &WXUNUSED(event)) {
-	SQLiteMaterialsInspectorDialog dialog(frame);
-	dialog.ShowModal();
+void MainMenuBar::OnMaterialsWorkbench([[maybe_unused]] wxCommandEvent &event) {
+	if (g_gui.IsAsyncSqliteBootstrapRunning()) {
+		g_gui.PopupDialog(frame, "SQLite bootstrap running", "The Materials Workbench is unavailable while the SQLite bootstrap is running.", wxOK | wxICON_INFORMATION);
+		return;
+	}
+	MaterialsWorkbenchWindow::Open(frame);
 }
 
 void MainMenuBar::OnNewPalette(wxCommandEvent &event) {

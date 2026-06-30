@@ -36,6 +36,7 @@ public:
 	bool migrateWallsToSQLite(wxString &error, wxArrayString &warnings);
 	bool migrateDecorativeBrushesToSQLite(wxString &error, wxArrayString &warnings);
 	bool migrateTilesetsToSQLite(wxString &error, wxArrayString &warnings);
+	bool loadTilesetsFromDatabase(wxArrayString &warnings);
 
 	TilesetContainer tilesets;
 
@@ -60,6 +61,7 @@ protected:
 
 private:
 	void populateRawBrushes(Tileset* others);
+	void clearTilesets();
 	bool modified = false;
 	Materials(const Materials &);
 	Materials &operator=(const Materials &);

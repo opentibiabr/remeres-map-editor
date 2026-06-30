@@ -18,6 +18,8 @@
 #ifndef RME_PALETTE_BRUSHLIST_
 #define RME_PALETTE_BRUSHLIST_
 
+#include <unordered_map>
+
 #include "main.h"
 #include "palette_common.h"
 
@@ -40,6 +42,12 @@ public:
 	explicit BrushBoxInterface(const TilesetCategory* tileset) noexcept :
 		tileset(tileset) {
 		ASSERT(tileset);
+		if (tileset) {
+			brushIndices.reserve(tileset->brushlist.size());
+			for (size_t index = 0; index < tileset->brushlist.size(); ++index) {
+				brushIndices.emplace(tileset->brushlist[index], index);
+			}
+		}
 	}
 	virtual ~BrushBoxInterface() = default;
 
@@ -67,6 +75,7 @@ public:
 
 protected:
 	const TilesetCategory* const tileset;
+	std::unordered_map<const Brush*, size_t> brushIndices;
 	bool loaded = false;
 	int currentPage = 1;
 	int totalPages = 1;
@@ -140,6 +149,8 @@ public:
 	void OnClickBrushButton(wxCommandEvent &event);
 
 private:
+	void BuildButtonPool();
+	void RefreshPageButtons(size_t startOffset, size_t endOffset);
 	// Used internally to select a button.
 	void Select(BrushButton* brushButton);
 	// Used internally to deselect a button before selecting a new one.
@@ -151,9 +162,10 @@ private:
 	BrushButton* selectedButton = nullptr;
 	std::vector<BrushButton*> brushButtons;
 	RenderSize iconSize;
+	size_t visibleButtonCount = 0;
 
 	wxBoxSizer* stacksizer = nullptr;
-	std::vector<const wxBoxSizer*> rowsizers;
+	std::vector<wxBoxSizer*> rowsizers;
 
 	DECLARE_EVENT_TABLE();
 };
@@ -201,18 +213,28 @@ public:
 	[[nodiscard]] BrushBoxInterface* GetBrushBox() const;
 
 protected:
+	void RebuildBrushIndex();
+
 	const TilesetCategory* tileset;
 	wxSizer* sizer = newd wxBoxSizer(wxVERTICAL);
 	BrushBoxInterface* brushbox;
 	bool loaded = false;
 	BrushListType listType = BRUSHLIST_LISTBOX;
+	std::unordered_map<const Brush*, size_t> brushIndices;
 
 	DECLARE_EVENT_TABLE();
 };
 
 class BrushPalettePanel : public PalettePanel {
 public:
-	BrushPalettePanel(wxWindow* parent, const TilesetContainer &tilesets, TilesetCategoryType category, wxWindowID id = wxID_ANY);
+	BrushPalettePanel(
+		wxWindow* parent,
+		const TilesetContainer &tilesets,
+		TilesetCategoryType category,
+		const wxString &displayName = wxString(),
+		const wxString &paletteGroupFilter = wxString(),
+		wxWindowID id = wxID_ANY
+	);
 	~BrushPalettePanel();
 
 	void RemovePagination();
@@ -228,7 +250,9 @@ public:
 	void LoadAllContents();
 
 	PaletteType GetType() const;
+	wxString GetName() const override;
 	BrushListType GetListType() const;
+	bool HasPages() const;
 
 	// Sets the display type (list or icons)
 	void SetListType(BrushListType newListType);
@@ -267,6 +291,8 @@ protected:
 	wxSizer* sizer = newd wxBoxSizer(wxVERTICAL);
 	wxSizer* pageInfoSizer = newd wxFlexGridSizer(7, 1, 1);
 	PaletteType paletteType;
+	wxString displayName_;
+	wxString paletteGroupFilter_;
 	wxChoicebook* choicebook = nullptr;
 	wxButton* nextPageButton = nullptr;
 	wxButton* previousPageButton = nullptr;
@@ -274,6 +300,8 @@ protected:
 	wxStaticText* pageInfo = nullptr;
 	BrushSizePanel* sizePanel = nullptr;
 	std::map<wxWindow*, Brush*> rememberedBrushes;
+	std::unordered_map<const Brush*, int> pageIndexByBrush;
+	std::vector<std::string> tilesetNamesByPage;
 
 	DECLARE_EVENT_TABLE();
 };

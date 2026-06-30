@@ -19,6 +19,8 @@
 #define RME_BRUSH_H_
 #include "main.h"
 
+#include <string_view>
+
 #include "position.h"
 
 #include "brush_enums.h"
@@ -55,6 +57,7 @@ class WaypointBrush;
 class FlagBrush;
 class EraserBrush;
 class ZoneBrush;
+struct BrushStorageRecord;
 
 //=============================================================================
 // Brushes, holds all brushes
@@ -72,9 +75,15 @@ public:
 	Brush* getBrush(const std::string &name) const;
 
 	void addBrush(Brush* brush);
+	bool renameBrush(Brush* brush, std::string_view oldName, std::string_view newName);
+	bool reloadBrushFromStorage(const BrushStorageRecord &storage, wxArrayString &warnings, wxString &error);
+	bool reloadBrushFromDatabase(int64_t brushId, wxArrayString &warnings, wxString &error);
+	bool reloadBorderSetFromDatabase(int64_t borderSetId, wxArrayString &warnings, wxString &error);
+	bool buildBrushXmlFromStorage(const BrushStorageRecord &storage, wxString &outXml, wxString &error) const;
 
 	bool unserializeBorder(pugi::xml_node node, wxArrayString &warnings);
 	bool unserializeBrush(pugi::xml_node node, wxArrayString &warnings);
+	bool loadFromDatabase(wxArrayString &warnings);
 
 	const BrushMap &getMap() const noexcept {
 		return brushes;
@@ -115,6 +124,10 @@ public:
 	virtual std::string getName() const = 0;
 	virtual void setName(const std::string &newName) {
 		ASSERT(_MSG("setName attempted on nameless brush!"));
+	}
+	virtual void setLookID(uint16_t newLookId) {
+		// Intentionally a no-op: not all brush types have a look id.
+		(void)newLookId;
 	}
 
 	virtual int getLookID() const = 0;
@@ -279,37 +292,40 @@ protected:
 class TerrainBrush : public Brush {
 public:
 	TerrainBrush();
-	virtual ~TerrainBrush();
+	~TerrainBrush() override;
 
-	bool isTerrain() const {
+	bool isTerrain() const override {
 		return true;
 	}
 	TerrainBrush* asTerrain() {
 		return static_cast<TerrainBrush*>(this);
 	}
 
-	virtual bool canDraw(BaseMap* map, const Position &position) const {
+	bool canDraw(BaseMap* map, const Position &position) const override {
 		return true;
 	}
 
-	virtual std::string getName() const {
+	std::string getName() const override {
 		return name;
 	}
-	virtual void setName(const std::string &newName) {
+	void setName(const std::string &newName) override {
 		name = newName;
+	}
+	void setLookID(uint16_t newLookId) override {
+		look_id = newLookId;
 	}
 
 	virtual int32_t getZ() const {
 		return 0;
 	}
-	virtual int32_t getLookID() const {
+	int getLookID() const override {
 		return look_id;
 	}
 
-	virtual bool needBorders() const {
+	bool needBorders() const override {
 		return true;
 	}
-	virtual bool canDrag() const {
+	bool canDrag() const override {
 		return true;
 	}
 

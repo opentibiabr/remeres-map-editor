@@ -60,7 +60,7 @@ void PalettePanel::LoadCurrentContents() {
 	for (ToolBarList::iterator iter = tool_bars.begin(); iter != tool_bars.end(); ++iter) {
 		(*iter)->OnSwitchIn();
 	}
-	Fit();
+	Layout();
 }
 
 void PalettePanel::LoadAllContents() {
@@ -103,7 +103,7 @@ wxString PalettePanel::GetName() const {
 		case TILESET_HOUSE:
 			return "House Palette";
 		case TILESET_RAW:
-			return "RAW Palette";
+			return "Other Palette";
 		case TILESET_WAYPOINT:
 			return "Waypoint Palette";
 		case TILESET_ZONES:
@@ -206,7 +206,15 @@ void BrushSizePanel::InvalidateContents() {
 		DestroyChildren();
 		SetSizer(nullptr);
 
-		brushshapeSquareButton = brushshapeCircleButton = brushsize0Button = brushsize1Button = brushsize2Button = brushsize4Button = brushsize6Button = brushsize8Button = brushsize11Button = nullptr;
+		brushshapeSquareButton = nullptr;
+		brushshapeCircleButton = nullptr;
+		brushsize0Button = nullptr;
+		brushsize1Button = nullptr;
+		brushsize2Button = nullptr;
+		brushsize4Button = nullptr;
+		brushsize6Button = nullptr;
+		brushsize8Button = nullptr;
+		brushsize11Button = nullptr;
 
 		loaded = false;
 	}
@@ -431,7 +439,18 @@ void BrushToolPanel::InvalidateContents() {
 		DestroyChildren();
 		SetSizer(nullptr);
 
-		optionalBorderButton = eraserButton = normalDoorButton = lockedDoorButton = magicDoorButton = questDoorButton = hatchDoorButton = windowDoorButton = pzBrushButton = nopvpBrushButton = nologBrushButton = pvpzoneBrushButton = nullptr;
+		optionalBorderButton = nullptr;
+		eraserButton = nullptr;
+		normalDoorButton = nullptr;
+		lockedDoorButton = nullptr;
+		magicDoorButton = nullptr;
+		questDoorButton = nullptr;
+		hatchDoorButton = nullptr;
+		windowDoorButton = nullptr;
+		pzBrushButton = nullptr;
+		nopvpBrushButton = nullptr;
+		nologBrushButton = nullptr;
+		pvpzoneBrushButton = nullptr;
 
 		loaded = false;
 	}
@@ -757,12 +776,18 @@ BrushButton::BrushButton(wxWindow* parent, Brush* _brush, RenderSize sz, uint32_
 	brush(_brush) {
 	ASSERT(sz != RENDER_SIZE_64x64);
 	ASSERT(brush);
-	SetSprite(brush->getLookID());
-	SetToolTip(wxstr(brush->getName()));
+	SetBrush(brush);
 }
 
 BrushButton::~BrushButton() {
 	////
+}
+
+void BrushButton::SetBrush(Brush* newBrush) {
+	ASSERT(newBrush);
+	brush = newBrush;
+	SetSprite(brush->getLookID());
+	SetToolTip(wxstr(brush->getName()));
 }
 
 void BrushButton::OnKey(wxKeyEvent &event) {
