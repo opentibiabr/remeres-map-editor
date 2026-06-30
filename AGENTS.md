@@ -27,6 +27,11 @@
 - Do not compile, build, or run compile-triggering validation commands unless the user explicitly asks.
 - Prefer non-build checks such as `git diff --check`, focused file inspection, and static reasoning when the user did not ask for a build.
 
+## Static Analysis (SonarQube)
+
+- Before writing or modifying any C++ code, read `docs/sonarqube.md` and apply every rule that is relevant to the change. Do not rely on general C++ knowledge — use the rulebook as the authoritative source.
+- After generating code, run through the pre-commit checklist at the bottom of `docs/sonarqube.md` before considering the task complete.
+
 ## Precompiled Header Policy
 
 - This project uses `source/main.h` as the precompiled header through `source/CMakeLists.txt`.
