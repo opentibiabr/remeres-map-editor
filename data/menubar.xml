@@ -18,6 +18,8 @@
         <menu name="$Export">
             <item name="$Export Minimap..." action="EXPORT_MINIMAP" help="Export minimap to an image file."/>
             <item name="$Export Tilesets..." action="EXPORT_TILESETS" help="Export tilesets to an xml file."/>
+            <item name="Export $City Learning Sample..." action="EXPORT_CITY_SAMPLE" help="Export the selected area as a semantic city learning JSON sample."/>
+            <item name="Export $All Town Learning Corpus..." action="EXPORT_ALL_TOWN_CORPUS" help="Export all inferred town districts as a semantic city learning JSON corpus."/>
         </menu>
         <menu name="$Client Assets">
             <item name="Export $Static House Data..." action="EXPORT_STATIC_HOUSE_DATA" help="Export staticdata and staticmapdata protobuf assets."/>
@@ -80,6 +82,7 @@
     </menu>
     <menu name="$Map">
         <item name="Edit $Towns" hotkey="Ctrl+T" action="EDIT_TOWNS" help="Edit towns."/>
+        <item name="Change $City Style..." action="CHANGE_CITY_STYLE" help="Replace detected city walls with another compatible wall style."/>
         <item name="Edit $Items" hotkey="Ctrl+I" action="EDIT_ITEMS" help="Edit items."/>
         <item name="Edit $Monsters" action="EDIT_MONSTERS" help="Edit monsters."/>
         <separator/>

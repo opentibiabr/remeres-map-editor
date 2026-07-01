@@ -30,10 +30,12 @@ class MapWindow;
 class MapPopupMenu;
 class AnimationTimer;
 class MapDrawer;
+class BaseMap;
+struct DrawingOptions;
 
 class MapCanvas : public wxGLCanvas {
 public:
-	MapCanvas(MapWindow* parent, Editor &editor, int* attriblist);
+	MapCanvas(wxWindow* parent, Editor &editor, int* attriblist);
 	virtual ~MapCanvas();
 	void Reset();
 
@@ -88,6 +90,8 @@ public:
 	void OnSelectDoodadBrush(wxCommandEvent &event);
 	void OnSelectDoorBrush(wxCommandEvent &event);
 	void OnSelectWallBrush(wxCommandEvent &event);
+	void OnChangeBuildStyle(wxCommandEvent &event);
+	void OnChangeConnectedGroundStyle(wxCommandEvent &event);
 	void OnSelectCarpetBrush(wxCommandEvent &event);
 	void OnSelectTableBrush(wxCommandEvent &event);
 	void OnSelectMonsterBrush(wxCommandEvent &event);
@@ -124,6 +128,8 @@ public:
 	}
 	virtual void SetZoom(double value);
 	virtual void GetViewBox(int* view_scroll_x, int* view_scroll_y, int* screensize_x, int* screensize_y) const;
+	void SetPreviewMap(BaseMap* map);
+	Tile* GetPreviewTile(const Position &position) const;
 
 	MapWindow* GetMapWindow() const;
 	Position GetCursorPosition() const;
@@ -134,6 +140,9 @@ public:
 protected:
 	void getTilesToDraw(int mouse_map_x, int mouse_map_y, int floor, PositionVector* tilestodraw, PositionVector* tilestoborder, bool fill = false);
 	bool floodFill(Map* map, const Position &center, int x, int y, GroundBrush* brush, PositionVector* positions);
+	virtual void ConfigureDrawingOptions(DrawingOptions &options);
+	virtual void CenterViewOnPosition(const Position &position);
+	virtual void OnFloorChanged();
 
 private:
 	void QueueRefresh(bool mark_scene_dirty);
@@ -196,6 +205,7 @@ private:
 	wxStopWatch refresh_watch;
 	MapPopupMenu* popup_menu;
 	AnimationTimer* animation_timer;
+	BaseMap* preview_map;
 
 	friend class MapDrawer;
 	friend class AnimationTimer;

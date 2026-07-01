@@ -175,7 +175,7 @@ END_EVENT_TABLE()
 class MapPreviewCanvas : public MapCanvas {
 public:
 	MapPreviewCanvas(wxWindow* parent, Editor &editor) :
-		MapCanvas(nullptr, editor, nullptr) {
+		MapCanvas(parent, editor, nullptr) {
 
 		ChangeFloor(7);
 		MapPreviewCanvas::SetZoom(1.0);
@@ -228,6 +228,18 @@ public:
 	void GetScreenCenter(int* map_x, int* map_y) override {
 		wxSize size = GetClientSize();
 		ScreenToMap(size.GetWidth() / 2, size.GetHeight() / 2, map_x, map_y);
+	}
+
+	void CenterViewOnPosition(const Position &position) override {
+		wxSize size = GetClientSize();
+		const int width = size.GetWidth() > 0 ? size.GetWidth() : 400;
+		const int height = size.GetHeight() > 0 ? size.GetHeight() : 300;
+		const int floorOffset = position.z < 8 ? (rme::MapGroundLayer - position.z) * rme::TileSize : 0;
+		view_x = (position.x * 32) - floorOffset - (width * GetZoom()) / 2;
+		view_y = (position.y * 32) - floorOffset - (height * GetZoom()) / 2;
+	}
+
+	void OnFloorChanged() override {
 	}
 
 	void SetPosition(int x, int y, int z) {

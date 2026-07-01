@@ -23,6 +23,8 @@
 #include "about_window.h"
 #include "minimap_window.h"
 #include "bitmap_to_map_window.h"
+#include "change_city_style_window.h"
+#include "city_corpus.h"
 #include "dat_debug_view.h"
 #include "result_window.h"
 #include "find_item_window.h"
@@ -589,6 +591,8 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(EXPORT_CYCLOPEDIA_MAP, wxITEM_NORMAL, OnExportCyclopediaMapData);
 	MAKE_ACTION(REVERT_CYCLOPEDIA_ASSETS, wxITEM_NORMAL, OnRevertCyclopediaAssets);
 	MAKE_ACTION(EXPORT_TILESETS, wxITEM_NORMAL, OnExportTilesets);
+	MAKE_ACTION(EXPORT_CITY_SAMPLE, wxITEM_NORMAL, OnExportCitySample);
+	MAKE_ACTION(EXPORT_ALL_TOWN_CORPUS, wxITEM_NORMAL, OnExportAllTownCorpus);
 
 	MAKE_ACTION(RELOAD_DATA, wxITEM_NORMAL, OnReloadDataFiles);
 	// MAKE_ACTION(RECENT_FILES, wxITEM_NORMAL, OnRecent);
@@ -641,6 +645,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 
 	MAKE_ACTION(CLEAR_INVALID_HOUSES, wxITEM_NORMAL, OnClearHouseTiles);
 	MAKE_ACTION(CLEAR_MODIFIED_STATE, wxITEM_NORMAL, OnClearModifiedState);
+	MAKE_ACTION(CHANGE_CITY_STYLE, wxITEM_NORMAL, OnChangeCityStyle);
 	MAKE_ACTION(MAP_REMOVE_ITEMS, wxITEM_NORMAL, OnMapRemoveItems);
 	MAKE_ACTION(MAP_REMOVE_CORPSES, wxITEM_NORMAL, OnMapRemoveCorpses);
 	MAKE_ACTION(MAP_REMOVE_UNREACHABLE_TILES, wxITEM_NORMAL, OnMapRemoveUnreachable);
@@ -876,6 +881,8 @@ void MainMenuBar::Update() {
 	EnableItem(EXPORT_CYCLOPEDIA_MAP, is_local);
 	EnableItem(REVERT_CYCLOPEDIA_ASSETS, true);
 	EnableItem(EXPORT_TILESETS, loaded);
+	EnableItem(EXPORT_CITY_SAMPLE, is_local && has_selection);
+	EnableItem(EXPORT_ALL_TOWN_CORPUS, is_local);
 
 	EnableItem(FIND_ITEM, is_host);
 	EnableItem(REPLACE_ITEMS, is_local);
@@ -915,6 +922,7 @@ void MainMenuBar::Update() {
 	EnableItem(MAP_REMOVE_EMPTY_NPCS_SPAWNS, is_local);
 	EnableItem(CLEAR_INVALID_HOUSES, is_local);
 	EnableItem(CLEAR_MODIFIED_STATE, is_local);
+	EnableItem(CHANGE_CITY_STYLE, is_local);
 
 	EnableItem(EDIT_TOWNS, is_local);
 	EnableItem(EDIT_ITEMS, false);
@@ -1588,6 +1596,18 @@ void MainMenuBar::OnExportTilesets(wxCommandEvent &WXUNUSED(event)) {
 		ExportTilesetsWindow dlg(frame, *g_gui.GetCurrentEditor());
 		dlg.ShowModal();
 		dlg.Destroy();
+	}
+}
+
+void MainMenuBar::OnExportCitySample(wxCommandEvent &WXUNUSED(event)) {
+	if (g_gui.IsEditorOpen()) {
+		CityCorpus::ExportSelection(*g_gui.GetCurrentEditor(), frame);
+	}
+}
+
+void MainMenuBar::OnExportAllTownCorpus(wxCommandEvent &WXUNUSED(event)) {
+	if (g_gui.IsEditorOpen()) {
+		CityCorpus::ExportAllTowns(*g_gui.GetCurrentEditor(), frame);
 	}
 }
 
@@ -2507,6 +2527,16 @@ void MainMenuBar::OnMapEditTowns(wxCommandEvent &WXUNUSED(event)) {
 		town_dialog->ShowModal();
 		town_dialog->Destroy();
 	}
+}
+
+void MainMenuBar::OnChangeCityStyle(wxCommandEvent &WXUNUSED(event)) {
+	Editor* editor = g_gui.GetCurrentEditor();
+	if (!editor) {
+		return;
+	}
+	ChangeCityStyleDialog dialog(frame, *editor);
+	dialog.ShowModal();
+	g_gui.RefreshView();
 }
 
 void MainMenuBar::OnMapEditItems(wxCommandEvent &WXUNUSED(event)) {
