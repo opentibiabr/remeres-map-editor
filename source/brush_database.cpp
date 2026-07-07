@@ -6197,7 +6197,8 @@ bool BrushDatabaseCatalogRepository::getAllTilesets(std::vector<TilesetStorageRe
 				"pg.name COLLATE NOCASE ASC, "
 				"t.name COLLATE NOCASE ASC, "
 				"t.id ASC;",
-				&tilesetStmt)) {
+				&tilesetStmt
+			)) {
 			return false;
 		}
 		tilesetStmtGuard.reset(tilesetStmt);
