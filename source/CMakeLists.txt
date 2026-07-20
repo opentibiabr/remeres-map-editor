@@ -25,6 +25,23 @@ find_package(
              base
              CONFIG
   REQUIRED)
+# wxWidgets/vcpkg may bake in XQuartz libGL; that breaks Cocoa textures (black tiles).
+if(APPLE)
+  find_library(RME_OPENGL_FRAMEWORK OpenGL REQUIRED)
+  if(TARGET OpenGL::GL)
+    set_property(TARGET OpenGL::GL PROPERTY IMPORTED_LOCATION
+                 "${RME_OPENGL_FRAMEWORK}")
+  endif()
+  if(TARGET wx::wxgl)
+    get_target_property(_rme_gl_libs wx::wxgl INTERFACE_LINK_LIBRARIES)
+    if(_rme_gl_libs)
+      list(FILTER _rme_gl_libs EXCLUDE REGEX "X11.*/libGL")
+      set_property(TARGET wx::wxgl PROPERTY INTERFACE_LINK_LIBRARIES
+                   "${_rme_gl_libs}")
+    endif()
+  endif()
+  set(OPENGL_LIBRARIES "${RME_OPENGL_FRAMEWORK}")
+endif()
 if(DEFINED VCPKG_TARGET_TRIPLET)
   unset(ZLIB_LIBRARY CACHE)
   unset(ZLIB_LIBRARY_DEBUG CACHE)
