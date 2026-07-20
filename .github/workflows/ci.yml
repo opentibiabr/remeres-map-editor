@@ -88,6 +88,7 @@ jobs:
               - ".reviewdog.yml"
               - ".github/workflows/ci.yml"
               - ".github/workflows/reusable-build-linux.yml"
+              - ".github/workflows/reusable-build-macos.yml"
               - ".github/workflows/reusable-build-windows.yml"
               - ".github/workflows/reusable-checks.yml"
               - ".github/workflows/autofix-ci.yml"
@@ -124,6 +125,16 @@ jobs:
       contents: read
       packages: read
     uses: ./.github/workflows/reusable-build-linux.yml
+    secrets: inherit
+
+  build-macos:
+    name: Build - macOS
+    needs: [changes, checks]
+    if: needs.changes.outputs.compile == 'true' && needs.checks.result == 'success' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/reusable-build-macos.yml
     secrets: inherit
 
   build-windows:
