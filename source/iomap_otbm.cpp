@@ -6213,7 +6213,7 @@ bool IOMapOTBM::saveStaticData(Map &map, const FileName &dir, const std::vector<
 
 	const auto registerExportError = [&](const std::string &errorMessage) {
 		lastStaticHouseExportReport.errors.push_back(errorMessage);
-		warning("%s", wxstr(errorMessage));
+		warning("%s", errorMessage.c_str());
 	};
 
 	struct StaticHouseExportFilterScopeGuard final {

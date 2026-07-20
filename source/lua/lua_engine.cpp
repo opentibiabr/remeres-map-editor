@@ -109,28 +109,28 @@ std::string LuaEngine::sanitizeScriptPath(const std::string &filename) {
 
 void LuaEngine::setupSandbox() {
 	if (lua["os"].valid()) {
-		lua["os"]["execute"] = sol::nil;
-		lua["os"]["exit"] = sol::nil;
-		lua["os"]["remove"] = sol::nil;
-		lua["os"]["rename"] = sol::nil;
-		lua["os"]["tmpname"] = sol::nil;
-		lua["os"]["getenv"] = sol::nil;
-		lua["os"]["setlocale"] = sol::nil;
+		lua["os"]["execute"] = sol::lua_nil;
+		lua["os"]["exit"] = sol::lua_nil;
+		lua["os"]["remove"] = sol::lua_nil;
+		lua["os"]["rename"] = sol::lua_nil;
+		lua["os"]["tmpname"] = sol::lua_nil;
+		lua["os"]["getenv"] = sol::lua_nil;
+		lua["os"]["setlocale"] = sol::lua_nil;
 	}
 
-	lua["io"] = sol::nil;
+	lua["io"] = sol::lua_nil;
 
 	if (lua["package"].valid()) {
-		lua["package"]["loadlib"] = sol::nil;
-		lua["package"]["path"] = sol::nil;
-		lua["package"]["cpath"] = sol::nil;
-		lua["package"]["searchpath"] = sol::nil;
+		lua["package"]["loadlib"] = sol::lua_nil;
+		lua["package"]["path"] = sol::lua_nil;
+		lua["package"]["cpath"] = sol::lua_nil;
+		lua["package"]["searchpath"] = sol::lua_nil;
 
 		if (lua["package"]["searchers"].valid()) {
 			sol::table searchers = lua["package"]["searchers"];
-			searchers[2] = sol::nil; // Disable Lua file searcher
-			searchers[3] = sol::nil;
-			searchers[4] = sol::nil;
+			searchers[2] = sol::lua_nil; // Disable Lua file searcher
+			searchers[3] = sol::lua_nil;
+			searchers[4] = sol::lua_nil;
 		}
 	}
 
@@ -194,7 +194,7 @@ void LuaEngine::setupSandbox() {
 			if (result.return_count() > 0) {
 				return result[0];
 			}
-			return sol::nil;
+			return sol::lua_nil;
 		};
 
 		return sol::make_object(this->lua, wrapper);

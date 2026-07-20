@@ -41,7 +41,7 @@ namespace LuaAPI {
 			sol::state_view lua(ts);
 
 			if (!map) {
-				return std::make_tuple(sol::nil, sol::nil);
+				return std::make_tuple(sol::lua_nil, sol::lua_nil);
 			}
 
 			// Find next valid tile
@@ -58,7 +58,7 @@ namespace LuaAPI {
 				}
 			}
 
-			return std::make_tuple(sol::nil, sol::nil);
+			return std::make_tuple(sol::lua_nil, sol::lua_nil);
 		}
 
 	private:

@@ -383,8 +383,8 @@ namespace LuaAPI {
 		sol::state_view lua(ts2);
 		std::string content;
 
-		sol::object data = (second.valid() && !second.is<sol::nil_t>()) ? second : first;
-		if (!data.valid() || data.is<sol::nil_t>()) {
+		sol::object data = (second.valid() && !second.is<sol::lua_nil_t>()) ? second : first;
+		if (!data.valid() || data.is<sol::lua_nil_t>()) {
 			return false;
 		}
 
@@ -443,7 +443,7 @@ namespace LuaAPI {
 			sol::state_view lua(ts2);
 			std::ifstream file(path);
 			if (!file.is_open()) {
-				return sol::make_object(lua, sol::nil);
+				return sol::make_object(lua, sol::lua_nil);
 			}
 
 			std::stringstream buffer;
@@ -452,24 +452,24 @@ namespace LuaAPI {
 
 			std::string content = buffer.str();
 			if (content.empty()) {
-				return sol::make_object(lua, sol::nil);
+				return sol::make_object(lua, sol::lua_nil);
 			}
 
 			sol::table json = lua["json"];
 			if (!json.valid() || !json["decode"].valid()) {
-				return sol::make_object(lua, sol::nil);
+				return sol::make_object(lua, sol::lua_nil);
 			}
 
 			try {
 				sol::function decode = json["decode"];
 				sol::protected_function_result result = decode(content);
 				if (!result.valid()) {
-					return sol::make_object(lua, sol::nil);
+					return sol::make_object(lua, sol::lua_nil);
 				}
 				sol::object decoded = result;
 				return sol::make_object(lua, decoded);
 			} catch (const sol::error &) {
-				return sol::make_object(lua, sol::nil);
+				return sol::make_object(lua, sol::lua_nil);
 			}
 		};
 
@@ -496,14 +496,14 @@ namespace LuaAPI {
 			if (map) {
 				return sol::make_object(lua, map);
 			}
-			return sol::nil;
+			return sol::lua_nil;
 		}
 		if (key == "selection") {
 			Selection* sel = getSelection();
 			if (sel) {
 				return sol::make_object(lua, sel);
 			}
-			return sol::nil;
+			return sol::lua_nil;
 		}
 		if (key == "borders") {
 			return getBorders(ts);
@@ -513,14 +513,14 @@ namespace LuaAPI {
 			if (editor) {
 				return sol::make_object(lua, editor);
 			}
-			return sol::nil;
+			return sol::lua_nil;
 		}
 		if (key == "brush") {
 			Brush* b = g_gui.GetCurrentBrush();
 			if (b) {
 				return sol::make_object(lua, b);
 			}
-			return sol::nil;
+			return sol::lua_nil;
 		}
 		if (key == "brushSize") {
 			return sol::make_object(lua, g_gui.GetBrushSize());
@@ -534,7 +534,7 @@ namespace LuaAPI {
 		if (key == "spawnTime") {
 			return sol::make_object(lua, 0);
 		}
-		return sol::nil;
+		return sol::lua_nil;
 	}
 
 	static void appPropertySetter(sol::this_state ts, sol::table self, std::string key, sol::object value) {

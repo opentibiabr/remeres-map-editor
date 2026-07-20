@@ -2722,12 +2722,12 @@ sol::table LuaDialog::getBounds() {
 sol::object LuaDialog::getActiveTab() {
 	wxNotebook* notebook = activeNotebook ? activeNotebook : currentNotebook;
 	if (!notebook) {
-		return sol::make_object(lua, sol::nil);
+		return sol::make_object(lua, sol::lua_nil);
 	}
 
 	int selection = notebook->GetSelection();
 	if (selection == wxNOT_FOUND) {
-		return sol::make_object(lua, sol::nil);
+		return sol::make_object(lua, sol::lua_nil);
 	}
 
 	wxString text = notebook->GetPageText(selection);

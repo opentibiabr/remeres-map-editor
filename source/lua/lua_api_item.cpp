@@ -99,7 +99,7 @@ namespace LuaAPI {
 		items["get"] = [](sol::this_state ts, int id) -> sol::object {
 			sol::state_view lua(ts);
 			if (g_items[id].id == 0) {
-				return sol::nil;
+				return sol::lua_nil;
 			}
 			ItemType &it = g_items[id];
 			sol::table info = lua.create_table();
@@ -114,7 +114,7 @@ namespace LuaAPI {
 		items["getInfo"] = [](sol::this_state ts, int id) -> sol::object {
 			sol::state_view lua(ts);
 			if (g_items[id].id == 0) {
-				return sol::nil;
+				return sol::lua_nil;
 			}
 			ItemType &it = g_items[id];
 			sol::table info = lua.create_table();

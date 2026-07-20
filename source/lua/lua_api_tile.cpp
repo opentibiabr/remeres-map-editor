@@ -245,7 +245,7 @@ namespace LuaAPI {
 				newGround = item->deepCopy();
 			}
 			// nullptr Item* treated as removal
-		} else if (groundObj.is<sol::nil_t>()) {
+		} else if (groundObj.is<sol::lua_nil_t>()) {
 			// Explicit nil: remove ground (newGround stays nullptr)
 		} else {
 			throw sol::error("Invalid argument: expected item id (int), Item*, or nil");

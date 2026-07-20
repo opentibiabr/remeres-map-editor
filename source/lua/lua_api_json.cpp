@@ -11,7 +11,7 @@ namespace LuaAPI {
 	// Convert nlohmann::json to Lua Object
 	sol::object valueToLua(const nlohmann::json &val, sol::state_view &lua) {
 		if (val.is_null()) {
-			return sol::nil;
+			return sol::lua_nil;
 		} else if (val.is_boolean()) {
 			return sol::make_object(lua, val.get<bool>());
 		} else if (val.is_number_integer()) {
@@ -33,13 +33,13 @@ namespace LuaAPI {
 			}
 			return t;
 		}
-		return sol::nil;
+		return sol::lua_nil;
 	}
 
 	// Convert Lua Object to nlohmann::json
 	nlohmann::json luaToValue(const sol::object &obj) {
 		switch (obj.get_type()) {
-			case sol::type::nil:
+			case sol::type::lua_nil:
 				return nullptr;
 			case sol::type::boolean:
 				return obj.as<bool>();
@@ -131,7 +131,7 @@ namespace LuaAPI {
 				sol::state_view lua(s);
 				return valueToLua(val, lua);
 			} catch (const nlohmann::json::parse_error &) {
-				return sol::nil;
+				return sol::lua_nil;
 			}
 		});
 

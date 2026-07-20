@@ -478,7 +478,7 @@ void LuaOverlayManager::updateMapOverlayHover(LuaEngine &engine, int map_x, int 
 
 		try {
 			sol::object result = overlay.onhover(info);
-			if (!result.valid() || result.is<sol::nil_t>()) {
+			if (!result.valid() || result.is<sol::lua_nil_t>()) {
 				continue;
 			}
 
