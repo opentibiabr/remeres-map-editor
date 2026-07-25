@@ -549,7 +549,7 @@ wxNotebookPage* PreferencesWindow::CreateClientPage() {
 
 	wxBoxSizer* client_path_sizer = newd wxBoxSizer(wxHORIZONTAL);
 	version_dir_picker = newd wxTextCtrl(client_list_window, wxID_ANY, ClientAssets::getPath());
-	version_dir_picker->SetEditable(false);
+	version_dir_picker->SetEditable(true);
 	wxButton* client_browse_button = newd wxButton(client_list_window, wxID_ANY, "Browse...");
 	client_browse_button->Bind(wxEVT_BUTTON, &PreferencesWindow::OnBrowseClientPath, this);
 	client_path_sizer->Add(version_dir_picker, wxSizerFlags(1).Expand());
@@ -615,7 +615,11 @@ void PreferencesWindow::OnClickApply(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void PreferencesWindow::OnBrowseClientPath(wxCommandEvent &WXUNUSED(event)) {
+#ifdef __WXOSX__
+	wxFileDialog dialog(this, "Select Tibia application", version_dir_picker->GetValue(), "", "Applications (*.app)|*.app", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+#else
 	wxDirDialog dialog(this, "Select client directory", version_dir_picker->GetValue(), wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+#endif
 	if (dialog.ShowModal() == wxID_OK) {
 		wxString path = dialog.GetPath();
 		version_dir_picker->SetValue(path);

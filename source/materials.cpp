@@ -1540,10 +1540,10 @@ bool Materials::migrateGroundsToSQLite(wxString &error, wxArrayString &warnings)
 		return false;
 	}
 
-	const FileName bordersFile(GUI::GetDataDirectory() + "materials/borders.xml");
+	const FileName bordersFile(g_gui.getFoundDataDirectory() + "materials/borders.xml");
 	// Ground brushes are not confined to grounds.xml in the current dataset, so import
 	// every ground brush reachable from the shared brushs.xml include tree.
-	const FileName brushsRoot(GUI::GetDataDirectory() + "materials/brushs.xml");
+	const FileName brushsRoot(g_gui.getFoundDataDirectory() + "materials/brushs.xml");
 
 	if (!g_brush_database.deleteBrushesByType("ground")) {
 		error = g_brush_database.getLastError();
@@ -1583,7 +1583,7 @@ bool Materials::migrateWallsToSQLite(wxString &error, wxArrayString &warnings) {
 
 	// Wall brushes are not confined to walls.xml in the current dataset, so import
 	// every wall brush reachable from the shared brushs.xml include tree.
-	const FileName brushsRoot(GUI::GetDataDirectory() + "materials/brushs.xml");
+	const FileName brushsRoot(g_gui.getFoundDataDirectory() + "materials/brushs.xml");
 	if (!g_brush_database.deleteBrushesByType("wall")) {
 		error = g_brush_database.getLastError();
 		return false;
@@ -1610,7 +1610,7 @@ bool Materials::migrateDecorativeBrushesToSQLite(wxString &error, wxArrayString 
 		return false;
 	}
 
-	const FileName brushsRoot(GUI::GetDataDirectory() + "materials/brushs.xml");
+	const FileName brushsRoot(g_gui.getFoundDataDirectory() + "materials/brushs.xml");
 	if (!g_brush_database.deleteBrushesByType("doodad")) {
 		error = g_brush_database.getLastError();
 		return false;
@@ -1643,7 +1643,7 @@ bool Materials::migrateTilesetsToSQLite(wxString &error, wxArrayString &warnings
 		return false;
 	}
 
-	const FileName tilesetsRoot(GUI::GetDataDirectory() + "materials/tilesets.xml");
+	const FileName tilesetsRoot(g_gui.getFoundDataDirectory() + "materials/tilesets.xml");
 	std::vector<TilesetStorageRecord> tilesetsToStore;
 	std::set<wxString> visited;
 	if (!ImportTilesetsRecursive(tilesetsRoot, warnings, visited, tilesetsToStore)) {

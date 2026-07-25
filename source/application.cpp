@@ -565,8 +565,7 @@ void MainFrame::ShowMissingMonsters() {
 
 	if (!missingMonsters.IsEmpty()) {
 		wxString missingMonstersStr = "Missing Monsters:\n" + wxJoin(missingMonsters, '\n');
-		wxMessageDialog dialog(this, missingMonstersStr, "Missing Monsters", wxOK | wxICON_INFORMATION);
-		dialog.ShowModal();
+		g_gui.ShowTextBox(this, "Missing Monsters", missingMonstersStr);
 	}
 }
 
@@ -575,8 +574,7 @@ void MainFrame::ShowMissingNpcs() {
 
 	if (!missingNpcs.IsEmpty()) {
 		wxString missingNpcsStr = "Missing NPCs:\n" + wxJoin(missingNpcs, '\n');
-		wxMessageDialog dialog(this, missingNpcsStr, "Missing NPCs", wxOK | wxICON_INFORMATION);
-		dialog.ShowModal();
+		g_gui.ShowTextBox(this, "Missing NPCs", missingNpcsStr);
 	}
 }
 

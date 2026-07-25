@@ -62,32 +62,36 @@ bool ClientAssets::loadAppearanceProtobuf(wxString &error, wxArrayString &warnin
 	using namespace canary::protobuf::appearances;
 	using json = nlohmann::json;
 
-	auto clientDirectory = ClientAssets::getPath().ToStdString() + "/";
-	if (!wxDirExists(wxString(clientDirectory))) {
-		logErrorAndSetMessage(fmt::format("Client directory is not a valid path: {}", clientDirectory), error);
-		return false;
+	const std::filesystem::path selectedDirectory(ClientAssets::getPath().ToStdString());
+	if (!std::filesystem::is_directory(selectedDirectory)) {
+		return logErrorAndSetMessage(fmt::format("Client directory is not a valid path: {}", selectedDirectory.string()), error);
 	}
 
-	auto assetsDirectory = clientDirectory + "/assets/";
-	if (!wxDirExists(wxString(assetsDirectory))) {
-		logErrorAndSetMessage(fmt::format("Assets directory not found in path: {}", assetsDirectory), error);
-		return false;
+	std::filesystem::path packagePath = selectedDirectory / "package.json";
+	if (!std::filesystem::exists(packagePath)) {
+		packagePath = selectedDirectory.parent_path().parent_path() / "package.json";
 	}
 
-	if (!g_spriteAppearances.loadCatalogContent(assetsDirectory, false)) {
-		logErrorAndSetMessage(fmt::format("Failed to load catalog content from directory: {}", assetsDirectory), error);
-		return false;
+	std::filesystem::path assetsDirectory = selectedDirectory / "assets";
+	if (!std::filesystem::is_directory(assetsDirectory)) {
+		assetsDirectory = selectedDirectory / "Contents" / "Resources" / "assets";
+	}
+	if (!std::filesystem::is_directory(assetsDirectory)) {
+		return logErrorAndSetMessage(fmt::format("Assets directory not found for client path: {}", selectedDirectory.string()), error);
 	}
 
-	using json = nlohmann::json;
-	std::filesystem::path packagesPath = std::filesystem::path(clientDirectory) / std::filesystem::path("package.json");
-	if (!std::filesystem::exists(packagesPath)) {
+	const std::string assetsPath = assetsDirectory.string() + "/";
+	if (!g_spriteAppearances.loadCatalogContent(assetsPath, false)) {
+		return logErrorAndSetMessage(fmt::format("Failed to load catalog content from directory: {}", assetsPath), error);
+	}
+
+	if (!std::filesystem::exists(packagePath)) {
 		error = "The file package.json is not present in the client directory.";
-		spdlog::error("The file package.json is not present in the client directory. {}", packagesPath.string().c_str());
+		spdlog::error("The file package.json is not present for client path. {}", selectedDirectory.string());
 		return false;
 	}
 
-	std::ifstream file(packagesPath, std::ios::in);
+	std::ifstream file(packagePath, std::ios::in);
 	if (!file.is_open()) {
 		error = "Failed to open packages.json";
 		spdlog::error("Failed to open packages.json");
@@ -102,7 +106,7 @@ bool ClientAssets::loadAppearanceProtobuf(wxString &error, wxArrayString &warnin
 
 	const std::string appearanceFileName = g_spriteAppearances.getAppearanceFileName();
 
-	std::fstream fileStream(assetsDirectory + appearanceFileName, std::ios::in | std::ios::binary);
+	std::fstream fileStream(assetsDirectory / appearanceFileName, std::ios::in | std::ios::binary);
 	if (!fileStream.is_open()) {
 		error = "Failed to load " + appearanceFileName + " from the client folder, file cannot be oppened";
 		spdlog::error("[{}] - Failed to load {}, file cannot be oppened", __func__, appearanceFileName);
