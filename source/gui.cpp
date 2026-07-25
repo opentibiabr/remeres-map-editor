@@ -1449,7 +1449,7 @@ void GUI::StartAsyncSqliteBootstrapImport() {
 	SetStatusText("Building SQLite materials database in background...");
 	UpdateMenubar();
 
-	sqlite_bootstrap_thread_ = std::jthread(&GUI::RunAsyncSqliteBootstrapImport, this);
+	sqlite_bootstrap_thread_ = std::thread(&GUI::RunAsyncSqliteBootstrapImport, this);
 }
 
 void GUI::SetTitle(wxString title) {

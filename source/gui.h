@@ -513,7 +513,7 @@ protected:
 
 	wxWindowDisabler* winDisabler;
 	int disabled_counter;
-	std::jthread sqlite_bootstrap_thread_;
+	std::thread sqlite_bootstrap_thread_;
 	std::atomic<bool> sqlite_bootstrap_running_ = false;
 
 	friend class RenderingLock;
