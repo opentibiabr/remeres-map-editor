@@ -48,6 +48,7 @@ jobs:
             ccache \
             libtool \
             mono \
+            nuget \
             ninja \
             pkg-config
           ninja --version
