@@ -55,7 +55,7 @@ jobs:
           ccache --version
 
       - name: CCache
-        uses: hendrikmuhs/ccache-action@v1.2.23
+        uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03  # v1.2.23
         with:
           max-size: "1G"
           key: ccache-macos-${{ matrix.buildtype }}
@@ -63,7 +63,7 @@ jobs:
             ccache-macos
 
       - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v11
+        uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2  # v11
         with:
           vcpkgGitURL: "https://github.com/microsoft/vcpkg.git"
           vcpkgGitCommitId: ${{ env.VCPKG_GIT_COMMIT_ID }}
@@ -91,7 +91,7 @@ jobs:
             -source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
 
       - name: Run CMake
-        uses: lukka/run-cmake@v10
+        uses: lukka/run-cmake@5d55ea7949e25f69f0ecb516d8d572297e03a956  # v10
         with:
           configurePreset: ${{ matrix.buildtype }}
           buildPreset: ${{ matrix.buildtype }}
