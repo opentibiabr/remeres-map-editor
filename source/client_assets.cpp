@@ -63,20 +63,25 @@ bool ClientAssets::loadAppearanceProtobuf(wxString &error, wxArrayString &warnin
 	using json = nlohmann::json;
 
 	const std::filesystem::path selectedDirectory(ClientAssets::getPath().ToStdString());
-	if (!std::filesystem::is_directory(selectedDirectory)) {
+	std::error_code filesystemError;
+	if (!std::filesystem::is_directory(selectedDirectory, filesystemError)) {
+		if (filesystemError && filesystemError != std::errc::no_such_file_or_directory) {
+			return logErrorAndSetMessage(fmt::format("Could not inspect client path {}: {}", selectedDirectory.string(), filesystemError.message()), error);
+		}
 		return logErrorAndSetMessage(fmt::format("Client directory is not a valid path: {}", selectedDirectory.string()), error);
 	}
 
-	std::filesystem::path packagePath = selectedDirectory / "package.json";
-	if (!std::filesystem::exists(packagePath)) {
-		packagePath = selectedDirectory.parent_path().parent_path() / "package.json";
-	}
-
 	std::filesystem::path assetsDirectory = selectedDirectory / "assets";
-	if (!std::filesystem::is_directory(assetsDirectory)) {
+	if (!std::filesystem::is_directory(assetsDirectory, filesystemError)) {
+		if (filesystemError && filesystemError != std::errc::no_such_file_or_directory) {
+			return logErrorAndSetMessage(fmt::format("Could not inspect assets path {}: {}", assetsDirectory.string(), filesystemError.message()), error);
+		}
 		assetsDirectory = selectedDirectory / "Contents" / "Resources" / "assets";
 	}
-	if (!std::filesystem::is_directory(assetsDirectory)) {
+	if (!std::filesystem::is_directory(assetsDirectory, filesystemError)) {
+		if (filesystemError && filesystemError != std::errc::no_such_file_or_directory) {
+			return logErrorAndSetMessage(fmt::format("Could not inspect assets path {}: {}", assetsDirectory.string(), filesystemError.message()), error);
+		}
 		return logErrorAndSetMessage(fmt::format("Assets directory not found for client path: {}", selectedDirectory.string()), error);
 	}
 
@@ -85,10 +90,23 @@ bool ClientAssets::loadAppearanceProtobuf(wxString &error, wxArrayString &warnin
 		return logErrorAndSetMessage(fmt::format("Failed to load catalog content from directory: {}", assetsPath), error);
 	}
 
-	if (!std::filesystem::exists(packagePath)) {
-		error = "The file package.json is not present in the client directory.";
-		spdlog::error("The file package.json is not present for client path. {}", selectedDirectory.string());
-		return false;
+	std::filesystem::path packagePath;
+	for (const auto &candidate : {
+			 selectedDirectory / "package.json",
+			 assetsDirectory.parent_path() / "package.json",
+			 assetsDirectory.parent_path() / "app" / "package.json",
+			 assetsDirectory.parent_path().parent_path().parent_path() / "package.json",
+		 }) {
+		if (std::filesystem::exists(candidate, filesystemError)) {
+			packagePath = candidate;
+			break;
+		}
+		if (filesystemError && filesystemError != std::errc::no_such_file_or_directory) {
+			return logErrorAndSetMessage(fmt::format("Could not inspect package path {}: {}", candidate.string(), filesystemError.message()), error);
+		}
+	}
+	if (packagePath.empty()) {
+		return logErrorAndSetMessage(fmt::format("The file package.json is not present for client path: {}", selectedDirectory.string()), error);
 	}
 
 	std::ifstream file(packagePath, std::ios::in);
