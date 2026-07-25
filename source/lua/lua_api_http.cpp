@@ -37,6 +37,16 @@ namespace LuaAPI {
 		static constexpr size_t kMaxBufferedBytes = 4 * 1024 * 1024; // 4 MB
 
 		StreamSession() = default;
+		~StreamSession() {
+			if (!worker_.joinable()) {
+				return;
+			}
+			if (worker_.get_id() == std::this_thread::get_id()) {
+				worker_.detach();
+			} else {
+				worker_.join();
+			}
+		}
 
 		bool appendChunk(const std::string &chunk) {
 			std::scoped_lock lock(mutex_);
@@ -121,7 +131,7 @@ namespace LuaAPI {
 			cv_.notify_all();
 		}
 
-		void setWorker(std::jthread &&t) {
+		void setWorker(std::thread &&t) {
 			worker_ = std::move(t);
 		}
 
@@ -135,7 +145,7 @@ namespace LuaAPI {
 		std::string errorMessage_;
 		std::atomic<int> statusCode_ = 0;
 		cpr::Header responseHeaders_;
-		std::jthread worker_;
+		std::thread worker_;
 	};
 
 	static std::map<int, std::shared_ptr<StreamSession>> &streamSessions() {
@@ -360,7 +370,7 @@ namespace LuaAPI {
 		}
 
 		// Start the streaming request in a separate thread
-		session->setWorker(std::jthread([session, url, body, headers](std::stop_token) {
+		session->setWorker(std::thread([session, url, body, headers]() {
 			std::function<bool(std::string_view, intptr_t)> writeCallback = [session](std::string_view data, intptr_t /*userdata*/) {
 				return session->appendChunk(std::string(data));
 			};
