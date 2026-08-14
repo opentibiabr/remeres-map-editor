@@ -22,7 +22,7 @@
 #include "position.h"
 
 BEGIN_EVENT_TABLE(SearchResultWindow, wxPanel)
-EVT_LISTBOX_DCLICK(wxID_ANY, SearchResultWindow::OnClickResult)
+EVT_LISTBOX(wxID_ANY, SearchResultWindow::OnClickResult)
 EVT_BUTTON(wxID_FILE, SearchResultWindow::OnClickExport)
 EVT_BUTTON(wxID_CLEAR, SearchResultWindow::OnClickClear)
 END_EVENT_TABLE()
