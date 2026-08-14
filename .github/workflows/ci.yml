@@ -92,6 +92,7 @@ jobs:
               - ".github/workflows/reusable-build-windows.yml"
               - ".github/workflows/reusable-checks.yml"
               - ".github/workflows/autofix-ci.yml"
+              - ".github/workflows/update_vcpkg_baseline.yml"
             docker:
               - "Dockerfile"
               - ".dockerignore"
@@ -106,6 +107,7 @@ jobs:
               - "CMakePresets.json"
               - ".github/workflows/ci.yml"
               - ".github/workflows/reusable-build-docker.yml"
+              - ".github/workflows/update_vcpkg_baseline.yml"
 
   checks:
     name: Fast Checks
