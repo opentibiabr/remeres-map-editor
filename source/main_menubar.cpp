@@ -26,6 +26,7 @@
 #include "dat_debug_view.h"
 #include "result_window.h"
 #include "find_item_window.h"
+#include "monster.h"
 #include "settings.h"
 #include "iomap_otbm.h"
 #include "sqlite_materials_inspector.h"
@@ -36,7 +37,9 @@
 #include <wx/chartype.h>
 #include <wx/choicdlg.h>
 #include <wx/dirdlg.h>
+#include <wx/listbox.h>
 #include <wx/msgdlg.h>
+#include <wx/stattext.h>
 #include <wx/textdlg.h>
 #include <wx/tokenzr.h>
 
@@ -59,6 +62,76 @@
 
 namespace {
 	constexpr int CyclopediaExportStatusMinIntervalMs = 1000;
+
+	class MonsterSearchDialog final : public wxDialog {
+	public:
+		MonsterSearchDialog(wxWindow* parent, const wxArrayString &monsterNames) :
+			wxDialog(parent, wxID_ANY, "Find Monster", wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER),
+			monsterNames(monsterNames) {
+			wxBoxSizer* dialogSizer = new wxBoxSizer(wxVERTICAL);
+			dialogSizer->Add(new wxStaticText(this, wxID_ANY, "Search for a monster:"), 0, wxLEFT | wxRIGHT | wxTOP, 12);
+
+			searchInput = new wxTextCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
+			searchInput->SetHint("Type a monster name");
+			searchInput->AutoComplete(monsterNames);
+			dialogSizer->Add(searchInput, 0, wxEXPAND | wxALL, 12);
+
+			resultList = new wxListBox(this, wxID_ANY, wxDefaultPosition, wxSize(330, 230), monsterNames, wxLB_SINGLE | wxLB_ALWAYS_SB);
+			dialogSizer->Add(resultList, 1, wxEXPAND | wxLEFT | wxRIGHT, 12);
+
+			wxSizer* buttonSizer = CreateSeparatedButtonSizer(wxOK | wxCANCEL);
+			if (buttonSizer != nullptr) {
+				dialogSizer->Add(buttonSizer, 0, wxEXPAND | wxALL, 12);
+			}
+
+			SetSizerAndFit(dialogSizer);
+			SetMinSize(GetSize());
+			selectFirstResult();
+
+			searchInput->Bind(wxEVT_TEXT, &MonsterSearchDialog::OnSearch, this);
+			searchInput->Bind(wxEVT_TEXT_ENTER, &MonsterSearchDialog::OnConfirm, this);
+			resultList->Bind(wxEVT_LISTBOX_DCLICK, &MonsterSearchDialog::OnConfirm, this);
+			Bind(wxEVT_BUTTON, &MonsterSearchDialog::OnConfirm, this, wxID_OK);
+			searchInput->SetFocus();
+		}
+
+		wxString GetMonsterName() const {
+			return resultList->GetSelection() == wxNOT_FOUND ? wxString() : resultList->GetStringSelection();
+		}
+
+	private:
+		void OnSearch(wxCommandEvent &) {
+			const wxString query = searchInput->GetValue().Lower();
+			resultList->Freeze();
+			resultList->Clear();
+
+			for (const wxString &monsterName : monsterNames) {
+				if (query.empty() || monsterName.Lower().Contains(query)) {
+					resultList->Append(monsterName);
+				}
+			}
+
+			selectFirstResult();
+			FindWindow(wxID_OK)->Enable(!resultList->IsEmpty());
+			resultList->Thaw();
+		}
+
+		void OnConfirm(wxCommandEvent &) {
+			if (resultList->GetSelection() != wxNOT_FOUND) {
+				EndModal(wxID_OK);
+			}
+		}
+
+		void selectFirstResult() {
+			if (!resultList->IsEmpty()) {
+				resultList->SetSelection(0);
+			}
+		}
+
+		const wxArrayString monsterNames;
+		wxTextCtrl* searchInput;
+		wxListBox* resultList;
+	};
 
 	bool selectAssetsOrCustomFolder(
 		wxWindow* parent,
@@ -599,6 +672,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(REDO, wxITEM_NORMAL, OnRedo);
 
 	MAKE_ACTION(FIND_ITEM, wxITEM_NORMAL, OnSearchForItem);
+	MAKE_ACTION(FIND_MONSTER, wxITEM_NORMAL, OnSearchForMonster);
 	MAKE_ACTION(REPLACE_ITEMS, wxITEM_NORMAL, OnReplaceItems);
 	MAKE_ACTION(SEARCH_ON_MAP_EVERYTHING, wxITEM_NORMAL, OnSearchForStuffOnMap);
 	MAKE_ACTION(SEARCH_ON_MAP_UNIQUE, wxITEM_NORMAL, OnSearchForUniqueOnMap);
@@ -878,6 +952,7 @@ void MainMenuBar::Update() {
 	EnableItem(EXPORT_TILESETS, loaded);
 
 	EnableItem(FIND_ITEM, is_host);
+	EnableItem(FIND_MONSTER, is_host);
 	EnableItem(REPLACE_ITEMS, is_local);
 	EnableItem(SEARCH_ON_MAP_EVERYTHING, is_host);
 	EnableItem(SEARCH_ON_MAP_UNIQUE, is_host);
@@ -1750,6 +1825,64 @@ void MainMenuBar::OnSearchForItem(wxCommandEvent &WXUNUSED(event)) {
 		}
 	}
 	dialog.Destroy();
+}
+
+void MainMenuBar::OnSearchForMonster(wxCommandEvent &WXUNUSED(event)) {
+	if (!g_gui.IsEditorOpen()) {
+		return;
+	}
+
+	wxArrayString monsterNames;
+	for (const auto &entry : g_monsters) {
+		monsterNames.Add(wxstr(entry.second->name));
+	}
+
+	if (monsterNames.empty()) {
+		g_gui.PopupDialog("Find Monster", "No monsters are loaded.", wxOK);
+		return;
+	}
+
+	MonsterSearchDialog dialog(frame, monsterNames);
+	if (dialog.ShowModal() != wxID_OK) {
+		return;
+	}
+
+	const std::string monsterName = nstr(dialog.GetMonsterName());
+	const std::string normalizedMonsterName = as_lower_str(monsterName);
+	const uint32_t maxCount = static_cast<uint32_t>(g_settings.getInteger(Config::REPLACE_SIZE));
+	uint32_t matchCount = 0;
+	bool limitReached = false;
+
+	SearchResultWindow* window = g_gui.ShowSearchWindow();
+	window->Clear();
+
+	Map &map = g_gui.GetCurrentMap();
+	for (MapIterator it = map.begin(); it != map.end(); ++it) {
+		Tile* tile = (*it)->get();
+		for (const Monster* monster : tile->monsters) {
+			if (as_lower_str(monster->getTypeName()) != normalizedMonsterName) {
+				continue;
+			}
+
+			if (matchCount >= maxCount) {
+				limitReached = true;
+				break;
+			}
+
+			window->AddPosition(wxstr(monster->getName()), tile->getPosition());
+			++matchCount;
+		}
+
+		if (limitReached) {
+			break;
+		}
+	}
+
+	if (limitReached) {
+		wxString message;
+		message << "The configured limit has been reached. Only " << maxCount << " results will be displayed.";
+		g_gui.PopupDialog("Notice", message, wxOK);
+	}
 }
 
 void MainMenuBar::OnReplaceItems(wxCommandEvent &WXUNUSED(event)) {
