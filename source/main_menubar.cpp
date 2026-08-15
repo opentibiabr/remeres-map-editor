@@ -1827,14 +1827,15 @@ void MainMenuBar::OnSearchForItem(wxCommandEvent &WXUNUSED(event)) {
 	dialog.Destroy();
 }
 
-void MainMenuBar::OnSearchForMonster(wxCommandEvent &WXUNUSED(event)) {
+void MainMenuBar::OnSearchForMonster(wxCommandEvent &) {
 	if (!g_gui.IsEditorOpen()) {
 		return;
 	}
 
 	wxArrayString monsterNames;
-	for (const auto &entry : g_monsters) {
-		monsterNames.Add(wxstr(entry.second->name));
+	for (const auto &[monsterId, monsterType] : g_monsters) {
+		static_cast<void>(monsterId);
+		monsterNames.Add(wxstr(monsterType->name));
 	}
 
 	if (monsterNames.empty()) {
@@ -1849,7 +1850,7 @@ void MainMenuBar::OnSearchForMonster(wxCommandEvent &WXUNUSED(event)) {
 
 	const std::string monsterName = nstr(dialog.GetMonsterName());
 	const std::string normalizedMonsterName = as_lower_str(monsterName);
-	const uint32_t maxCount = static_cast<uint32_t>(g_settings.getInteger(Config::REPLACE_SIZE));
+	const auto maxCount = static_cast<uint32_t>(g_settings.getInteger(Config::REPLACE_SIZE));
 	uint32_t matchCount = 0;
 	bool limitReached = false;
 
