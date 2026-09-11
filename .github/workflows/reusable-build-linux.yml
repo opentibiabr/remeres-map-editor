@@ -122,7 +122,10 @@ jobs:
         with:
           configurePreset: ${{ matrix.buildtype }}
           buildPreset: ${{ matrix.buildtype }}
-          configurePresetAdditionalArgs: "['-DTOGGLE_BIN_FOLDER=ON', '-DOPTIONS_ENABLE_IPO=OFF']"
+          configurePresetAdditionalArgs: "['-DTOGGLE_BIN_FOLDER=ON', '-DOPTIONS_ENABLE_IPO=OFF', '-DWORLD_LAYER_TESTS=ON']"
+
+      - name: Run world layer contract tests
+        run: ctest --test-dir build/${{ matrix.buildtype }} --output-on-failure -R '^world_layers_contract$'
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v7

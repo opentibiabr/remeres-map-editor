@@ -98,6 +98,9 @@ configured build directory and project build workflow when compilation is author
 The headless target depends on the shared JSON model, document and map validator,
 without wxWidgets or OpenGL at runtime.
 
+The Linux and Windows CI builds enable and run the contract suite. Windows covers
+both CMake and the Visual Studio solution workflow.
+
 The Visual Studio workflow has the same headless test in
 `vcproj/Project/WorldLayersTests.vcxproj`, sharing the solution's manifest dependency
 directory. From a Visual Studio developer terminal at the repository root, run:
