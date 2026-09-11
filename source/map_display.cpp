@@ -1541,7 +1541,9 @@ void MapCanvas::OnMousePropertiesRelease(wxMouseEvent &event) {
 	if (auto world = editor.world.get(); world && !world->document.selected.empty()) {
 		wxMenu menu;
 		menu.Append(wxID_PROPERTIES, "Properties...");
-		menu.Bind(wxEVT_MENU, [this](wxCommandEvent &) { editor.world->editProperties(g_gui.root); }, wxID_PROPERTIES);
+		menu.Bind(
+			wxEVT_MENU, [this](wxCommandEvent &) { editor.world->editProperties(g_gui.root); }, wxID_PROPERTIES
+		);
 		PopupMenu(&menu, event.GetPosition());
 		return;
 	}

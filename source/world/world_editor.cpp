@@ -293,7 +293,8 @@ void WorldLayerEditor::editProperties(wxWindow* parent) {
 namespace {
 	class WorldPalettePanel final : public PalettePanel {
 	public:
-		explicit WorldPalettePanel(wxWindow* parent) : PalettePanel(parent) {
+		explicit WorldPalettePanel(wxWindow* parent) :
+			PalettePanel(parent) {
 			SetExtraStyle(GetExtraStyle() | wxWS_EX_PROCESS_IDLE);
 			auto sizer = new wxBoxSizer(wxVERTICAL);
 			auto load = new wxButton(this, wxID_ANY, "Load server worlds...");

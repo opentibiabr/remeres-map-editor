@@ -838,13 +838,15 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	for (std::map<std::string, MenuBar::Action*>::iterator ai = actions.begin(); ai != actions.end(); ++ai) {
 		frame->Connect(MAIN_FRAME_MENU + ai->second->id, wxEVT_COMMAND_MENU_SELECTED, (wxObjectEventFunction)(wxEventFunction)(ai->second->handler), nullptr, this);
 	}
-	frame->Bind(wxEVT_MENU, [](wxCommandEvent &event) {
+	frame->Bind(
+		wxEVT_MENU, [](wxCommandEvent &event) {
 		const auto editor = g_gui.GetCurrentEditor();
 		if (editor && editor->world) {
 			g_gui.PopupDialog("Live editing", "Live editing does not synchronize server world catalogs yet.", wxOK);
 			return;
 		}
-		event.Skip(); }, MAIN_FRAME_MENU + LIVE_START);
+		event.Skip(); }, MAIN_FRAME_MENU + LIVE_START
+	);
 	for (size_t i = 0; i < 10; ++i) {
 		frame->Connect(recentFiles.GetBaseId() + i, wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainMenuBar::OnOpenRecent), nullptr, this);
 	}
