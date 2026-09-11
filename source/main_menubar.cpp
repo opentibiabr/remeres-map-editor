@@ -842,12 +842,14 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 								MAP_REMOVE_ITEMS, MAP_REMOVE_CORPSES, MAP_REMOVE_UNREACHABLE_TILES,
 								MAP_REMOVE_EMPTY_MONSTERS_SPAWNS, MAP_REMOVE_EMPTY_NPCS_SPAWNS, MAP_PROPERTIES,
 								LIVE_START, RELOAD_DATA }) {
-		frame->Bind(wxEVT_MENU, [](wxCommandEvent &event) {
+		frame->Bind(
+			wxEVT_MENU, [](wxCommandEvent &event) {
 			const auto editor = g_gui.GetCurrentEditor();
 			if (editor && editor->world) {
 				g_gui.SetStatusText("World project: edit external objects in World Layers. Open the OTBM separately to edit the base map."); return;
 			}
-			event.Skip(); }, MAIN_FRAME_MENU + command);
+			event.Skip(); }, MAIN_FRAME_MENU + command
+		);
 	}
 	for (size_t i = 0; i < 10; ++i) {
 		frame->Connect(recentFiles.GetBaseId() + i, wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainMenuBar::OnOpenRecent), nullptr, this);

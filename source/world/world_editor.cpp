@@ -19,7 +19,8 @@ namespace {
 
 	class EditorMapView final : public world_layers::MapView {
 	public:
-		EditorMapView(Map &map, const std::vector<world_layers::UniqueOccurrence> &ids) : map(map), ids(ids) { }
+		EditorMapView(Map &map, const std::vector<world_layers::UniqueOccurrence> &ids) :
+			map(map), ids(ids) { }
 		bool nativeTeleport(uint16_t id) const override {
 			return g_items.getItemType(id).isTeleport();
 		}
@@ -67,7 +68,8 @@ namespace {
 	}
 }
 
-WorldLayerEditor::WorldLayerEditor(Editor &owner, WorldLayerDocument data) : document(std::move(data)), editor(owner) {
+WorldLayerEditor::WorldLayerEditor(Editor &owner, WorldLayerDocument data) :
+	document(std::move(data)), editor(owner) {
 	pugi::xml_document catalog;
 	const auto loaded = catalog.load_file(document.data().items.c_str());
 	std::unordered_set<uint16_t> teleportIds;
@@ -212,7 +214,8 @@ void WorldLayerEditor::finishDrag(bool commit) {
 namespace {
 	class WorldLayerPanel final : public wxPanel {
 	public:
-		explicit WorldLayerPanel(wxWindow* parent) : wxPanel(parent) {
+		explicit WorldLayerPanel(wxWindow* parent) :
+			wxPanel(parent) {
 			SetExtraStyle(GetExtraStyle() | wxWS_EX_PROCESS_IDLE);
 			auto layout = new wxBoxSizer(wxVERTICAL);
 			visible = new wxCheckBox(this, wxID_ANY, "Show external objects and replacements");
