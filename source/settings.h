@@ -191,6 +191,7 @@ namespace Config {
 
 		MONSTERS_LUA_DIRECTORY,
 		NPCS_LUA_DIRECTORY,
+		WORLD_CATALOG_FILE,
 
 		LAST,
 	};

@@ -88,6 +88,7 @@ protected:
 	BrushPalettePanel* doodadPalette = nullptr;
 	BrushPalettePanel* itemPalette = nullptr;
 	MonsterPalettePanel* monsterPalette = nullptr;
+	PalettePanel* worldPalette = nullptr;
 	NpcPalettePanel* npcPalette = nullptr;
 	HousePalettePanel* housePalette = nullptr;
 	WaypointPalettePanel* waypointPalette = nullptr;

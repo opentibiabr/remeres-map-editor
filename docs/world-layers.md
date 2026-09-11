@@ -1,51 +1,59 @@
-# Editing world layers
+# Editing server worlds in a normal map
 
-A world project opens an OTBM as the background for external objects. Object
-positions, AID/UID attributes and teleport relationships live in readable JSON
-layers. RME renders them on the native canvas and Canary resolves them during
-startup. Saving a world project writes layers only; it never invokes OTBM saving.
+Open and edit your OTBM normally. A server world catalog adds external objects to
+that same map tab. Terrain and ordinary items remain editable with the existing
+brushes, palettes, selection tools and Lua scripts. External object properties
+are stored in JSON layers and resolved by Canary during startup.
 
-## Open and edit
+## Load the server catalog
 
-1. Install the normal client assets in RME and use an item catalog compatible with
-   your server. Choose **File > Open World Project...** (Ctrl+Alt+O) or
-   **Open World Project...** on the welcome screen, then select a `*.world.json`.
-   The normal **File > Open** dialog also accepts world projects. The project
-   points to its OTBM, server `items.xml`, and explicit layer list using relative paths.
-2. The **World Layers** panel opens on the right and the map centers on the first
-   object, unless a saved view position is available. Use **View > World Layers**
-   (Ctrl+Alt+L) to show or hide the panel at any time, including before a project is
-   open. Its **Open project...** button and introductory text guide the next step.
-   Opening an OTBM alone does not load external layers.
-3. Search by object ID in the panel, then select an object and choose **Go to object**.
-   Double-clicking a list entry also centers the map on that object.
-   Click or drag external objects directly on the map. The source selector that
-   identifies a replaced OTBM item remains fixed at its original position.
-4. Use the inspector to change position, AID, UID, destination object and arrival
-   offset, then click **Apply changes**. AID may repeat; UID must be unique. Identity and
-   origin are read-only in this first version.
-5. Use **Go to arrival** to inspect the resolved destination, including destinations
-   on another floor. The selected object's label shows its target and arrival floor;
-   destinations on the current floor also have a connecting line and marker.
-6. Ctrl+Z/Ctrl+Y undo and redo layer edits. Escape cancels an active drag. **Save layers**
-   or Ctrl+S saves applied changes. The panel identifies the current project, reports
-   unsaved layer changes and shows validation issues when present. Reopening the
-   project reconstructs the same objects. The panel scrolls when space is limited.
+RME uses the existing `*.world.json` format as a catalog: it lists the OTBM,
+server `items.xml`, and layer files in load order. All paths are relative to that
+catalog. No Lua execution or recursive script discovery is required.
 
-Blue outlines identify external objects, yellow identifies the selection, and red
-indicates validation errors. Hide external objects to inspect the unchanged OTBM
-originals. Original items are suppressed only in a valid effective preview; they
-are never removed from the editor's base-map data.
+1. Open the OTBM with **File > Open** or the normal welcome screen.
+2. RME automatically looks for `<map-name>.world.json` beside it. For a catalog
+   elsewhere in the server folder, choose **Map > Load Server Worlds...** while
+   the OTBM is open. RME verifies that the catalog refers to that exact map file.
+3. The chosen catalog is remembered in **Preferences > Directories > World
+   catalog**, beside the NPC and monster source paths. It loads automatically
+   when its corresponding OTBM is opened. Unrelated maps keep their normal flow.
+   A sibling catalog takes priority over this configured fallback.
+4. Find objects in **Worlds**, a category of the existing palette beside NPCs and
+   RAW. **View > Worlds Palette** (Ctrl+Alt+L) selects that category. Search by
+   qualified object ID, name, item ID, AID or UID; selecting a result centers the map.
 
-World project mode keeps base-map drawing, modification tools, live hosting and
-base-map Lua scripts unavailable. Open the OTBM separately to edit terrain and
-ordinary map items. The layer document has its own undo history and dirty state.
+Opening a catalog through **File > Open** remains a shortcut to its normal OTBM.
+There is no separate world project mode, extra map tab type or standalone inspector.
+An invalid catalog reports an error without disabling ordinary OTBM editing.
+
+## Edit on the map
+
+In selection mode, click and drag an external object directly on the canvas.
+Double-click it, or use its right-click **Properties...** command, to open the
+normal item properties window. The Worlds palette also provides **Properties...**.
+
+World item properties show the qualified identity, layer file and anchored
+replacement selector. Edit the name, position, AID, UID, destination object and
+arrival offset, then choose **OK**. AID may repeat; each nonzero UID must be unique
+across world layers and the base map, including container contents. A blank
+destination makes an inert portal. **Cancel** leaves the object unchanged.
+
+**Go to arrival** in the palette navigates to the resolved destination, including
+another floor. Blue outlines identify external objects, yellow identifies the
+selection, and red indicates validation errors. **Show world objects** toggles
+the preview so the base OTBM originals can be inspected. Originals are suppressed
+only in a valid preview; the overlay never removes them from base-map data.
+
+Choose another palette or switch to drawing mode to edit ordinary map content.
+Ctrl+Z/Ctrl+Y use one chronological history for base-map and world-object actions.
+Escape cancels a world drag. Map actions refresh the UID index for affected tiles;
+bulk changes outside the action queue trigger a new census before validation.
 
 ## Example: Black Knight
 
 The Canary global datapack supplies `world/otservbr.world.json` and
-`world/layers/black_knight.layer.json`. Open that project beside the normal
-`otservbr.otbm`. It contains two externally owned replacements for item 1949:
+`world/layers/black_knight.layer.json`. Open `otservbr.otbm` normally; its sibling catalog loads automatically. It contains two externally owned replacements for item 1949:
 
 | Identity | Original position | Destination | Arrival offset |
 | --- | --- | --- | --- |
@@ -77,28 +85,45 @@ external items as native teleports and the loaded RME catalog must recognize the
 One external object per tile is supported.
 
 Malformed JSON, unknown fields/components and unsupported schema versions prevent
-opening the project; existing files are preserved. Semantically invalid drafts
+attaching the catalog; the ordinary map remains open and existing files are preserved. Semantically invalid drafts
 remain editable, display diagnostics and can be saved. Canary rejects these drafts
 before accepting connections. Its final validation also sees legacy startup changes
 that RME cannot simulate, so the local server validation remains necessary.
 
 ## Saving and external edits
 
-Only changed layers are serialized, with stable field order and indentation. The
-project, OTBM and item catalog remain unchanged. Each layer is written to a temporary
-file and atomically replaced; a multi-layer save is not a single filesystem transaction.
-If a later layer fails, successfully saved layers are acknowledged and the others
-remain dirty. A failed save does not silently close the editor.
+Ctrl+S saves each kind of change to its own file:
 
-Before saving, RME compares project and layer contents with the bytes read at open
-or last save. An external modification blocks overwrite. **Save selected layer copy**
-exports the current draft to a different `*.layer.json` for manual reconciliation.
-Then close/reopen the project to read external edits. There is no watcher, automatic
-merge or server hot reload in v1; restart Canary after applying the layer changes.
+- If only external objects changed, RME writes only changed layer JSON files and
+  skips OTBM serialization. The base map hash remains identical.
+- If the base map changed, its normal OTBM save path runs. External objects remain
+  in their layers and are never baked into the OTBM.
+- If both changed, layers are saved first, then the base map. Each successful save
+  is acknowledged independently; failures retain the remaining unsaved work.
 
-The inspector does not create/delete objects, rename identities, edit replacement
-selectors or move OTBM objects. Edit the JSON explicitly for those authoring tasks
-and reopen the project. Unknown future components are rejected rather than discarded.
+Layer JSON keeps stable field order and indentation. Before saving, RME compares
+catalog and layer contents with the bytes read at open or last save. An external
+modification blocks overwrite. Each layer replacement is atomic; saving several
+layers and the map is not one filesystem transaction. A failed save does not
+silently close an editor with unsaved changes.
+
+**Save As** writes a new OTBM with its own auxiliary map files, a sibling
+`<new-name>.world.json`, and a `<new-name>.world-layers/` directory containing
+copies of every layer, including unsaved world edits. The tab then uses those
+copies. Source layers remain untouched and existing destination catalogs are
+never overwritten. Relative item-catalog paths require the same filesystem.
+If the map copy succeeds but the catalog copy fails, the tab keeps the original
+association and reports that the base copy was written.
+
+Save and close/reopen the OTBM to read external catalog edits. There is no file
+watcher, catalog replacement inside an active undo history, automatic merge or
+server hot reload. Restart Canary after applying layer changes.
+
+Version 1 edits existing native teleports. Add/delete declarations, rename stable
+identities and change replacement selectors in JSON, then reopen the map. Cut and
+Delete on an external selection leave the base original intact and explain this
+limit. Live editing is unavailable for maps with an attached catalog because its
+network protocol does not synchronize these external objects.
 
 ## Tests
 
@@ -119,14 +144,19 @@ directory. From a Visual Studio developer terminal at the repository root, run:
 msbuild vcproj/Project/WorldLayersTests.vcxproj /t:RunWorldLayerTests /p:Configuration=Release /p:Platform=x64 /m:1
 ```
 
-The test checks identity-based arrivals, shared AIDs, duplicate UIDs, conflicts with
-unconsumed originals, duplicate JSON properties, undo/redo, reopen, external write
-conflicts and byte-for-byte preservation of an OTBM sentinel. A sentinel proves the
-document's save routing; it does not replace visual testing of the actual editor.
+The test checks identity-based arrivals, shared AIDs, duplicate UIDs, conflicts
+with unconsumed originals, duplicate JSON properties, native action snapshots,
+undo/redo, reopen, external write conflicts, map association, independent Save As
+catalogs and byte-for-byte preservation of OTBM sentinels. These tests exercise
+the document contract; they do not replace visual testing of the actual editor.
 
-For the integration check, record the real map hash, open Black Knight, move the
-exit, undo/redo, save and reopen. Verify a single effective portal at each location,
-cross-floor navigation, validation diagnostics and an unchanged OTBM hash. Restart
+For the integration check, record the real map hash, open its OTBM, load Black
+Knight, move the exit, undo/redo, save and reopen. Verify a single effective portal,
+native properties, palette search, cross-floor navigation, diagnostics and an
+unchanged OTBM hash after a layer-only edit. Then mix a terrain edit with a world
+edit, undo them in order, save both and reopen. Confirm that terrain persists only
+in the OTBM and world edits persist only in JSON. Check Save As independence and
+failed saves separately. Restart
 a local Canary with that project and check native creature/item travel and the
 legacy fallback with `worldProject = ""`. Record these checks separately from
 headless tests; passing document tests does not prove the native UI or gameplay.

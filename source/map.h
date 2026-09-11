@@ -56,6 +56,9 @@ public:
 	}
 	// Makes a change, doesn't matter what. Just so that it asks when saving (Also adds a * to the window title)
 	bool doChange();
+	uint64_t revision() const noexcept {
+		return change_revision;
+	}
 	// Clears any changes
 	bool clearChanges();
 
@@ -187,6 +190,7 @@ protected:
 	void removeUniqueId(uint16_t uid);
 
 	bool has_changed; // If the map has changed
+	uint64_t change_revision = 0;
 	bool unnamed; // If the map has yet to receive a name
 
 	friend class IOMapOTBM;

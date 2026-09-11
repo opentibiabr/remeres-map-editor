@@ -295,9 +295,7 @@ void MapDrawer::Draw() {
 		DrawSelectionBox();
 	}
 	DrawLiveCursors();
-	if (!editor.world) {
-		DrawBrush();
-	}
+	DrawBrush();
 	DrawWorldLayers();
 	if (options.show_grid && zoom <= 10.f) {
 		DrawGrid();

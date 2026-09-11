@@ -29,6 +29,10 @@ class Action;
 class BatchAction;
 class ActionQueue;
 
+namespace world_layers {
+	struct Object;
+}
+
 enum ActionIdentifier {
 	ACTION_MOVE,
 	ACTION_REMOTE,
@@ -46,6 +50,7 @@ enum ActionIdentifier {
 	ACTION_REPLACE_ITEMS,
 	ACTION_CHANGE_PROPERTIES,
 	ACTION_LUA_SCRIPT,
+	ACTION_WORLD_OBJECT,
 };
 
 enum ChangeType {
@@ -53,6 +58,7 @@ enum ChangeType {
 	CHANGE_TILE,
 	CHANGE_MOVE_HOUSE_EXIT,
 	CHANGE_MOVE_WAYPOINT,
+	CHANGE_WORLD_OBJECT,
 };
 
 struct HouseData {
@@ -72,6 +78,7 @@ public:
 
 	static Change* Create(House* house, const Position &position);
 	static Change* Create(Waypoint* waypoint, const Position &position);
+	static Change* CreateWorldObject(const std::string &id, const world_layers::Object &value);
 
 	void clear();
 

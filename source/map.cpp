@@ -340,6 +340,7 @@ Position Map::getZonePosition(unsigned int zoneId) {
 }
 
 bool Map::doChange() {
+	++change_revision;
 	bool doupdate = !has_changed;
 	has_changed = true;
 	return doupdate;

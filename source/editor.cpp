@@ -159,41 +159,24 @@ BatchAction* Editor::createBatch(ActionIdentifier type) {
 }
 
 void Editor::addBatch(BatchAction* action, int stacking_delay) {
-	if (world) {
-		delete action;
-		return;
-	}
 	actionQueue->addBatch(action, stacking_delay);
 }
 
 void Editor::addAction(Action* action, int stacking_delay) {
-	if (world) {
-		delete action;
-		return;
-	}
 	actionQueue->addAction(action, stacking_delay);
 }
 
 bool Editor::canUndo() const {
-	if (world) {
-		return world->document.canUndo();
-	}
 	return actionQueue->canUndo();
 }
 
 bool Editor::canRedo() const {
-	if (world) {
-		return world->document.canRedo();
-	}
 	return actionQueue->canRedo();
 }
 
 void Editor::undo(int indexes) {
 	if (world) {
 		world->finishDrag(false);
-		while (indexes-- > 0 && world->document.undo()) { }
-		world->refresh();
-		return;
 	}
 	if (indexes <= 0 || !actionQueue->canUndo()) {
 		return;
@@ -212,9 +195,6 @@ void Editor::undo(int indexes) {
 void Editor::redo(int indexes) {
 	if (world) {
 		world->finishDrag(false);
-		while (indexes-- > 0 && world->document.redo()) { }
-		world->refresh();
-		return;
 	}
 	if (indexes <= 0 || !actionQueue->canRedo()) {
 		return;
@@ -246,8 +226,8 @@ void Editor::clearActions() {
 }
 
 bool Editor::hasChanges() const {
-	if (world) {
-		return world->document.dirty();
+	if (world && world->document.dirty()) {
+		return true;
 	}
 	if (map.hasChanged()) {
 		if (map.getTileCount() == 0) {
@@ -264,11 +244,31 @@ void Editor::clearChanges() {
 
 void Editor::saveMap(FileName filename, bool showdialog) {
 	if (world) {
-		world->save();
-		return;
+		world->finishDrag(true);
+	}
+	const auto previousFilename = map.filename;
+	const auto previousName = map.name;
+	const auto previousMonsterFile = map.spawnmonsterfile;
+	const auto previousNpcFile = map.spawnnpcfile;
+	const auto previousHouseFile = map.housefile;
+	const auto previousZoneFile = map.zonefile;
+	const bool copyWorld = world && !filename.GetFullPath().empty() && !world->document.matchesMap(std::filesystem::u8path(nstr(filename.GetFullPath())));
+	if (copyWorld) {
+		std::string error;
+		if (!world->document.canCopyForMap(std::filesystem::u8path(nstr(filename.GetFullPath())), error)) {
+			g_gui.PopupDialog("Cannot copy server worlds", wxstr(error), wxOK);
+			return;
+		}
+	} else if (world) {
+		if (world->document.dirty() && !world->save()) {
+			return;
+		}
+		if (!map.hasChanged()) {
+			return;
+		}
 	}
 	std::string savefile = filename.GetFullPath().mb_str(wxConvUTF8).data();
-	bool save_as = false;
+	bool save_as = copyWorld;
 	bool save_otgz = false;
 
 	if (savefile.empty()) {
@@ -280,7 +280,7 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 	}
 
 	// If not named yet, propagate the file name to the auxilliary files
-	if (map.unnamed) {
+	if (map.unnamed || copyWorld) {
 		FileName _name(filename);
 		_name.SetExt("xml");
 
@@ -422,6 +422,14 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 
 		// If failure, don't run the rest of the function
 		if (!success) {
+			if (world) {
+				map.filename = previousFilename;
+				map.name = previousName;
+				map.spawnmonsterfile = previousMonsterFile;
+				map.spawnnpcfile = previousNpcFile;
+				map.housefile = previousHouseFile;
+				map.zonefile = previousZoneFile;
+			}
 			return;
 		}
 	}
@@ -488,6 +496,20 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 
 	deleteOldBackups(map_path + "backups/");
 
+	if (copyWorld) {
+		std::string error;
+		if (!world->document.copyForMap(std::filesystem::u8path(map.filename), error)) {
+			map.filename = previousFilename;
+			map.name = previousName;
+			map.spawnmonsterfile = previousMonsterFile;
+			map.spawnnpcfile = previousNpcFile;
+			map.housefile = previousHouseFile;
+			map.zonefile = previousZoneFile;
+			g_gui.PopupDialog("Cannot copy server worlds", "The base map copy was written, but its world catalog could not be copied. This tab still edits the original map.\n" + wxstr(error), wxOK);
+			return;
+		}
+		world->refresh();
+	}
 	clearChanges();
 }
 

@@ -42,8 +42,8 @@ void WelcomeDialog::OnButtonClicked(const wxMouseEvent &event) {
 		} else {
 			wxCommandEvent action_event(WELCOME_DIALOG_ACTION);
 			if (button->GetAction() == wxID_OPEN) {
-				wxString wildcard = "Maps and world projects (*.otbm;*.world.json)|*.otbm;*.world.json|OpenTibia Binary Map (*.otbm)|*.otbm|World project (*.world.json)|*.world.json";
-				wxFileDialog file_dialog(this, "Open map or world project", "", "", wildcard, wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+				wxString wildcard = "Maps and world catalogs (*.otbm;*.world.json)|*.otbm;*.world.json|OpenTibia Binary Map (*.otbm)|*.otbm|World catalog (*.world.json)|*.world.json";
+				wxFileDialog file_dialog(this, "Open map", "", "", wildcard, wxFD_OPEN | wxFD_FILE_MUST_EXIST);
 				if (file_dialog.ShowModal() == wxID_OK) {
 					action_event.SetString(file_dialog.GetPath());
 				} else {
@@ -98,9 +98,6 @@ WelcomeDialogPanel::WelcomeDialogPanel(WelcomeDialog* dialog, const wxSize &size
 	auto* open_map_button = newd WelcomeDialogButton(this, wxDefaultPosition, button_size, button_base_colour, "Open");
 	open_map_button->SetAction(wxID_OPEN);
 	open_map_button->Bind(wxEVT_LEFT_UP, &WelcomeDialog::OnButtonClicked, dialog);
-	auto* open_world_button = new wxButton(this, wxID_ANY, "Open World Project...", wxDefaultPosition, button_size);
-	open_world_button->SetToolTip("Open a .world.json project to edit external objects without changing the OTBM.");
-	open_world_button->Bind(wxEVT_BUTTON, [](wxCommandEvent &) { g_gui.OpenWorldProject(); });
 	auto* preferences_button = newd WelcomeDialogButton(this, wxDefaultPosition, button_size, button_base_colour, "Preferences");
 	preferences_button->SetAction(wxID_PREFERENCES);
 	preferences_button->Bind(wxEVT_LEFT_UP, &WelcomeDialog::OnButtonClicked, dialog);
@@ -112,7 +109,6 @@ WelcomeDialogPanel::WelcomeDialogPanel(WelcomeDialog* dialog, const wxSize &size
 	buttons_sizer->AddSpacer(size.y / 2);
 	buttons_sizer->Add(new_map_button, 0, wxALIGN_CENTER | wxTOP, FROM_DIP(this, 10));
 	buttons_sizer->Add(open_map_button, 0, wxALIGN_CENTER | wxTOP, FROM_DIP(this, 10));
-	buttons_sizer->Add(open_world_button, 0, wxALIGN_CENTER | wxTOP, FROM_DIP(this, 10));
 	buttons_sizer->Add(preferences_button, 0, wxALIGN_CENTER | wxTOP, FROM_DIP(this, 10));
 
 	wxSizer* vertical_sizer = newd wxBoxSizer(wxVERTICAL);

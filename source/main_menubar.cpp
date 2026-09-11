@@ -647,7 +647,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 
 	MAKE_ACTION(NEW, wxITEM_NORMAL, OnNew);
 	MAKE_ACTION(OPEN, wxITEM_NORMAL, OnOpen);
-	MAKE_ACTION(OPEN_WORLD_PROJECT, wxITEM_NORMAL, OnOpenWorldProject);
+	MAKE_ACTION(LOAD_SERVER_WORLDS, wxITEM_NORMAL, OnLoadServerWorlds);
 	MAKE_ACTION(SAVE, wxITEM_NORMAL, OnSave);
 	MAKE_ACTION(SAVE_AS, wxITEM_NORMAL, OnSaveAs);
 	MAKE_ACTION(GENERATE_MAP, wxITEM_NORMAL, OnGenerateMap);
@@ -732,7 +732,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(VIEW_TOOLBARS_SIZES, wxITEM_CHECK, OnToolbars);
 	MAKE_ACTION(VIEW_TOOLBARS_INDICATORS, wxITEM_CHECK, OnToolbars);
 	MAKE_ACTION(VIEW_TOOLBARS_STANDARD, wxITEM_CHECK, OnToolbars);
-	MAKE_ACTION(VIEW_WORLD_LAYERS, wxITEM_CHECK, OnWorldLayers);
+	MAKE_ACTION(VIEW_WORLDS, wxITEM_NORMAL, OnWorlds);
 	MAKE_ACTION(NEW_VIEW, wxITEM_NORMAL, OnNewView);
 	MAKE_ACTION(TOGGLE_FULLSCREEN, wxITEM_NORMAL, OnToggleFullscreen);
 
@@ -838,26 +838,13 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	for (std::map<std::string, MenuBar::Action*>::iterator ai = actions.begin(); ai != actions.end(); ++ai) {
 		frame->Connect(MAIN_FRAME_MENU + ai->second->id, wxEVT_COMMAND_MENU_SELECTED, (wxObjectEventFunction)(wxEventFunction)(ai->second->handler), nullptr, this);
 	}
-	frame->Bind(wxEVT_UPDATE_UI, [](wxUpdateUIEvent &event) { event.Check(IsWorldLayerPanelShown()); }, MAIN_FRAME_MENU + VIEW_WORLD_LAYERS);
-
-	// A world project owns only external layers. Base-map tools require opening the OTBM separately.
-	for (const auto command : { GENERATE_MAP, IMPORT_MAP, IMPORT_MINIMAP, IMPORT_BITMAP_TO_MAP,
-								REPLACE_ITEMS, BORDERIZE_SELECTION, BORDERIZE_MAP, RANDOMIZE_SELECTION, RANDOMIZE_MAP,
-								REPLACE_ON_SELECTION_ITEMS, REMOVE_ON_SELECTION_ITEM, REMOVE_ON_SELECTION_MONSTER, ON_EDIT_EDIT_MONSTER_SPAWN_TIME,
-								REMOVE_ON_MAP_DUPLICATED_ITEMS, REMOVE_ON_SELECTION_DUPLICATED_ITEMS, MAP_CLEANUP, MAP_CLEAN_HOUSE_ITEMS,
-								CUT, PASTE, EDIT_TOWNS, EDIT_ITEMS, CLEAR_INVALID_HOUSES, CLEAR_MODIFIED_STATE,
-								MAP_REMOVE_ITEMS, MAP_REMOVE_CORPSES, MAP_REMOVE_UNREACHABLE_TILES,
-								MAP_REMOVE_EMPTY_MONSTERS_SPAWNS, MAP_REMOVE_EMPTY_NPCS_SPAWNS, MAP_PROPERTIES,
-								LIVE_START, RELOAD_DATA }) {
-		frame->Bind(
-			wxEVT_MENU, [](wxCommandEvent &event) {
-			const auto editor = g_gui.GetCurrentEditor();
-			if (editor && editor->world) {
-				g_gui.SetStatusText("World project: edit external objects in World Layers. Open the OTBM separately to edit the base map."); return;
-			}
-			event.Skip(); }, MAIN_FRAME_MENU + command
-		);
-	}
+	frame->Bind(wxEVT_MENU, [](wxCommandEvent &event) {
+		const auto editor = g_gui.GetCurrentEditor();
+		if (editor && editor->world) {
+			g_gui.PopupDialog("Live editing", "Live editing does not synchronize server world catalogs yet.", wxOK);
+			return;
+		}
+		event.Skip(); }, MAIN_FRAME_MENU + LIVE_START);
 	for (size_t i = 0; i < 10; ++i) {
 		frame->Connect(recentFiles.GetBaseId() + i, wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainMenuBar::OnOpenRecent), nullptr, this);
 	}
@@ -963,6 +950,7 @@ void MainMenuBar::Update() {
 	EnableItem(CLOSE, is_local);
 	EnableItem(SAVE, is_host);
 	EnableItem(SAVE_AS, is_host);
+	EnableItem(LOAD_SERVER_WORLDS, is_local);
 	EnableItem(GENERATE_MAP, false);
 
 	EnableItem(IMPORT_MAP, is_local);
@@ -1405,8 +1393,8 @@ void MainMenuBar::OnOpen(wxCommandEvent &WXUNUSED(event)) {
 	g_gui.OpenMap();
 }
 
-void MainMenuBar::OnOpenWorldProject(wxCommandEvent &WXUNUSED(event)) {
-	g_gui.OpenWorldProject();
+void MainMenuBar::OnLoadServerWorlds(wxCommandEvent &WXUNUSED(event)) {
+	g_gui.LoadServerWorlds();
 }
 
 void MainMenuBar::OnClose(wxCommandEvent &WXUNUSED(event)) {
@@ -2976,8 +2964,8 @@ void MainMenuBar::OnToolbars(wxCommandEvent &event) {
 	}
 }
 
-void MainMenuBar::OnWorldLayers(wxCommandEvent &event) {
-	ShowWorldLayerPanel(event.IsChecked());
+void MainMenuBar::OnWorlds(wxCommandEvent &event) {
+	ShowWorldPalette();
 }
 
 void MainMenuBar::OnNewView(wxCommandEvent &WXUNUSED(event)) {

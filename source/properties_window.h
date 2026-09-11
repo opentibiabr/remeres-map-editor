@@ -26,10 +26,14 @@
 class ContainerItemButton;
 class ContainerItemPopupMenu;
 class ItemAttribute;
+namespace world_layers {
+	struct Object;
+	struct Project;
+}
 
 class PropertiesWindow : public ObjectPropertiesWindowBase {
 public:
-	PropertiesWindow(wxWindow* parent, const Map* map, const Tile* tile, Item* item, wxPoint position = wxDefaultPosition);
+	PropertiesWindow(wxWindow* parent, const Map* map, const Tile* tile, Item* item, wxPoint position = wxDefaultPosition, world_layers::Object* worldObject = nullptr, const world_layers::Project* worldProject = nullptr, const std::string &worldId = {});
 	~PropertiesWindow();
 
 	void OnClipboardText(wxClipboardTextEvent &evt);
@@ -67,7 +71,7 @@ protected:
 	void saveContainerPanel();
 
 	// Advanced pane
-	wxGrid* attributesGrid;
+	wxGrid* attributesGrid = nullptr;
 	wxWindow* createAttributesPanel(wxWindow* parent);
 	void saveAttributesPanel();
 	void SetGridValue(wxGrid* grid, int rowIndex, std::string name, const ItemAttribute &attr);
@@ -96,6 +100,14 @@ protected:
 
 	wxNotebook* notebook;
 	wxWindow* currentPanel;
+	world_layers::Object* worldObject;
+	const world_layers::Project* worldProject;
+	std::string worldId;
+	wxTextCtrl* worldName = nullptr;
+	wxSpinCtrl* worldPosition[3] = {};
+	wxSpinCtrl* worldOffset[3] = {};
+	wxComboBox* worldDestination = nullptr;
+	void createWorldControls(wxPanel* parent, wxFlexGridSizer* sizer);
 
 	DECLARE_EVENT_TABLE()
 };

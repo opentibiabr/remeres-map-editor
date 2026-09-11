@@ -60,7 +60,7 @@ public: // Functions
 	LiveServer* GetLiveServer() const;
 	LiveSocket &GetLive() const;
 	bool CanEdit() const noexcept {
-		return !world;
+		return true;
 	}
 	bool IsLocal() const;
 	bool IsLive() const;

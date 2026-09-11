@@ -501,8 +501,8 @@ bool GUI::NewMap() {
 }
 
 void GUI::OpenMap() {
-	wxString wildcard = wxString("Maps and world projects (*.otbm;*.world.json)|*.otbm;*.world.json|World project (*.world.json)|*.world.json|") + MAP_LOAD_FILE_WILDCARD;
-	wxFileDialog dialog(root, "Open map or world project", wxEmptyString, wxEmptyString, wildcard, wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE);
+	wxString wildcard = wxString("Maps and world catalogs (*.otbm;*.world.json)|*.otbm;*.world.json|World catalog (*.world.json)|*.world.json|") + MAP_LOAD_FILE_WILDCARD;
+	wxFileDialog dialog(root, "Open map", wxEmptyString, wxEmptyString, wildcard, wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE);
 
 	if (dialog.ShowModal() == wxID_OK) {
 		wxArrayString paths;
@@ -513,17 +513,49 @@ void GUI::OpenMap() {
 	}
 }
 
-void GUI::OpenWorldProject() {
-	wxString path;
-	{
-		wxWindow* parent = IsWelcomeDialogShown() ? static_cast<wxWindow*>(welcomeDialog) : root;
-		wxFileDialog dialog(parent, "Open World Project", wxEmptyString, wxEmptyString, "World project (*.world.json)|*.world.json", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
-		if (dialog.ShowModal() != wxID_OK) {
-			return;
-		}
-		path = dialog.GetPath();
+bool GUI::LoadServerWorlds(const wxString &path, bool automatic) {
+	const auto editor = GetCurrentEditor();
+	if (!editor || editor->IsLiveClient() || editor->IsLiveServer()) {
+		return false;
 	}
-	LoadMap(FileName(path));
+	if (editor->world) {
+		if (!automatic) {
+			ShowWorldPalette();
+			PopupDialog(root, "Server worlds", "This map already has a world catalog. Save and reopen the map to reload it.", wxOK);
+		}
+		return true;
+	}
+	wxString file = path;
+	if (file.empty()) {
+		wxFileDialog dialog(root, "Load server worlds for this map", "", "", "World catalog (*.world.json)|*.world.json", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+		if (dialog.ShowModal() != wxID_OK) {
+			return false;
+		}
+		file = dialog.GetPath();
+	}
+	WorldLayerDocument document;
+	std::string error;
+	if (!document.open(std::filesystem::u8path(nstr(file)), error)) {
+		PopupDialog(root, "Cannot load server worlds", wxstr(error), wxOK);
+		return false;
+	}
+	if (!document.matchesMap(std::filesystem::u8path(editor->getMap().getFilename()))) {
+		if (!automatic) {
+			PopupDialog(root, "Different map", "This catalog refers to another OTBM. Open that map first.", wxOK);
+		}
+		return false;
+	}
+	editor->world = std::make_unique<WorldLayerEditor>(*editor, std::move(document));
+	if (!automatic) {
+		g_settings.setString(Config::WORLD_CATALOG_FILE, nstr(file));
+		ShowWorldPalette();
+	}
+	for (const auto palette : palettes) {
+		palette->OnUpdate(&editor->getMap());
+	}
+	SetStatusText("Server world objects loaded into this map. Double-click an object to edit its properties.");
+	editor->world->refresh();
+	return true;
 }
 
 void GUI::SaveMap() {
@@ -544,11 +576,6 @@ void GUI::SaveMap() {
 }
 
 void GUI::SaveMapAs() {
-	if (const auto editor = GetCurrentEditor(); editor && editor->world) {
-		ShowWorldLayerPanel();
-		PopupDialog(root, "World project", "Use Save selected layer copy in World Layers to export a layer.", wxOK);
-		return;
-	}
 	if (!IsEditorOpen()) {
 		return;
 	}
@@ -571,7 +598,7 @@ bool GUI::LoadMap(const FileName &fileName) {
 		worldDocument = std::make_unique<WorldLayerDocument>();
 		std::string error;
 		if (!worldDocument->open(std::filesystem::u8path(nstr(fileName.GetFullPath())), error)) {
-			PopupDialog(root, "Cannot open world project", wxstr(error), wxOK);
+			PopupDialog(root, "Cannot read world catalog", wxstr(error), wxOK);
 			return false;
 		}
 		actualFile = FileName(wxstr(worldDocument->data().map.generic_string()));
@@ -604,9 +631,18 @@ bool GUI::LoadMap(const FileName &fileName) {
 	auto* mapTab = newd MapTab(tabbook, editor);
 	mapTab->OnSwitchEditorMode(mode);
 
-	root->AddRecentFile(fileName);
-	if (editor->world) {
-		ShowWorldLayerPanel();
+	root->AddRecentFile(actualFile);
+	if (!editor->world) {
+		FileName catalog(actualFile);
+		catalog.SetExt("world.json");
+		if (catalog.FileExists()) {
+			LoadServerWorlds(catalog.GetFullPath(), true);
+		} else {
+			const auto configured = wxstr(g_settings.getString(Config::WORLD_CATALOG_FILE));
+			if (!configured.empty()) {
+				LoadServerWorlds(configured, true);
+			}
+		}
 	}
 
 	mapTab->GetView()->FitToMap();
@@ -617,17 +653,11 @@ bool GUI::LoadMap(const FileName &fileName) {
 
 	FitViewToMap(mapTab);
 	root->UpdateMenubar();
-	if (editor->world) {
-		const auto &document = editor->world->document;
-		if (const auto object = document.data().find(document.selected)) {
-			mapTab->SetScreenCenterPosition(Position(object->position.x, object->position.y, object->position.z));
-		}
-	}
 
 	std::string path = g_settings.getString(Config::RECENT_EDITED_MAP_PATH);
 	if (!path.empty()) {
 		FileName file(path);
-		if (file == fileName) {
+		if (file == actualFile) {
 			std::istringstream stream(g_settings.getString(Config::RECENT_EDITED_MAP_POSITION));
 			Position position;
 			stream >> position;
@@ -1141,6 +1171,9 @@ bool GUI::IsMinimapVisible() const {
 //=============================================================================
 
 void GUI::RefreshView() {
+	if (const auto editor = GetCurrentEditor(); editor && editor->world) {
+		editor->world->synchronizeMap();
+	}
 	EditorTab* editorTab = GetCurrentTab();
 	if (!editorTab) {
 		return;
@@ -1595,6 +1628,9 @@ void GUI::SetSelectionMode() {
 }
 
 void GUI::SetDrawingMode() {
+	if (const auto editor = GetCurrentEditor(); editor && editor->world) {
+		editor->world->document.selected.clear();
+	}
 	if (mode == DRAWING_MODE) {
 		return;
 	}

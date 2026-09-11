@@ -22,6 +22,21 @@
 #include "map.h"
 #include "editor.h"
 #include "gui.h"
+#include "world/world_editor.h"
+
+namespace {
+	struct WorldObjectChangeData {
+		std::string id;
+		world_layers::Object value;
+	};
+}
+
+Change* Change::CreateWorldObject(const std::string &id, const world_layers::Object &value) {
+	Change* change = new Change();
+	change->type = CHANGE_WORLD_OBJECT;
+	change->data = new WorldObjectChangeData { id, value };
+	return change;
+}
 
 Change::Change() :
 	type(CHANGE_NONE), data(nullptr) {
@@ -66,6 +81,9 @@ void Change::clear() {
 			ASSERT(data);
 			delete reinterpret_cast<WaypointData*>(data);
 			break;
+		case CHANGE_WORLD_OBJECT:
+			delete reinterpret_cast<WorldObjectChangeData*>(data);
+			break;
 		case CHANGE_NONE:
 			break;
 		default:
@@ -85,6 +103,12 @@ uint32_t Change::memsize() const {
 	uint32_t mem = sizeof(*this);
 	if (type == CHANGE_TILE) {
 		mem += reinterpret_cast<Tile*>(data)->memsize();
+	} else if (type == CHANGE_WORLD_OBJECT) {
+		const auto value = static_cast<const WorldObjectChangeData*>(data);
+		mem += sizeof(*value) + value->id.capacity() + value->value.id.capacity() + value->value.name.capacity();
+		if (value->value.teleport) {
+			mem += value->value.teleport->destination.capacity();
+		}
 	}
 	return mem;
 }
@@ -103,6 +127,9 @@ Action::~Action() {
 }
 
 size_t Action::approx_memsize() const {
+	if (type == ACTION_WORLD_OBJECT) {
+		return memsize();
+	}
 	uint32_t mem = sizeof(*this);
 	mem += changes.size() * (sizeof(Change) + sizeof(Tile) + sizeof(Item) + 6 /* approx overhead*/);
 	return mem;
@@ -113,8 +140,8 @@ size_t Action::memsize() const {
 	mem += sizeof(Change*) * 3 * changes.size();
 
 	for (const Change* change : changes) {
-		if (change && change->getType() == CHANGE_TILE) {
-			mem += reinterpret_cast<Tile*>(change->getData())->memsize();
+		if (change) {
+			mem += change->memsize();
 		}
 	}
 
@@ -122,6 +149,12 @@ size_t Action::memsize() const {
 }
 
 void Action::commit(DirtyList* dirty_list) {
+	if (editor.world) {
+		editor.world->synchronizeMap();
+		if (type != ACTION_WORLD_OBJECT) {
+			editor.world->document.selected.clear();
+		}
+	}
 	Map &map = editor.getMap();
 	Selection &selection = editor.getSelection();
 	selection.start(Selection::INTERNAL);
@@ -144,6 +177,9 @@ void Action::commit(DirtyList* dirty_list) {
 				}
 
 				Tile* old_tile = map.swapTile(pos, new_tile);
+				if (editor.world) {
+					editor.world->updateTile(pos);
+				}
 				TileLocation* location = new_tile->getLocation();
 
 				// Update other nodes in the network
@@ -266,12 +302,22 @@ void Action::commit(DirtyList* dirty_list) {
 				break;
 			}
 
+			case CHANGE_WORLD_OBJECT: {
+				auto data = static_cast<WorldObjectChangeData*>(change->data);
+				if (editor.world && editor.world->document.exchange(data->id, data->value)) {
+					editor.world->document.selected = data->id;
+				}
+				break;
+			}
 			default:
 				break;
 		}
 	}
 	selection.finish(Selection::INTERNAL);
 	commited = true;
+	if (editor.world) {
+		editor.world->validate();
+	}
 }
 
 void Action::undo(DirtyList* dirty_list) {
@@ -280,6 +326,12 @@ void Action::undo(DirtyList* dirty_list) {
 	}
 
 	Map &map = editor.getMap();
+	if (editor.world) {
+		editor.world->synchronizeMap();
+		if (type != ACTION_WORLD_OBJECT) {
+			editor.world->document.selected.clear();
+		}
+	}
 	Selection &selection = editor.getSelection();
 	selection.start(Selection::INTERNAL);
 
@@ -301,6 +353,9 @@ void Action::undo(DirtyList* dirty_list) {
 				}
 
 				Tile* new_tile = map.swapTile(pos, old_tile);
+				if (editor.world) {
+					editor.world->updateTile(pos);
+				}
 
 				// Update server side change list (for broadcast)
 				if (editor.IsLiveServer() && dirty_list) {
@@ -398,6 +453,13 @@ void Action::undo(DirtyList* dirty_list) {
 				break;
 			}
 
+			case CHANGE_WORLD_OBJECT: {
+				auto data = static_cast<WorldObjectChangeData*>(change->data);
+				if (editor.world && editor.world->document.exchange(data->id, data->value)) {
+					editor.world->document.selected = data->id;
+				}
+				break;
+			}
 			default:
 				break;
 		}
@@ -405,6 +467,9 @@ void Action::undo(DirtyList* dirty_list) {
 
 	selection.finish(Selection::INTERNAL);
 	commited = false;
+	if (editor.world) {
+		editor.world->validate();
+	}
 }
 
 BatchAction::BatchAction(Editor &editor, ActionIdentifier ident) :
@@ -547,7 +612,11 @@ void ActionQueue::addBatch(BatchAction* batch, int stacking_delay) {
 	batch->commit();
 
 	// Update title
-	if (batch->isNoSelection() && editor.getMap().doChange()) {
+	const bool changed = batch->isNoSelection() && batch->getType() != ACTION_WORLD_OBJECT && editor.getMap().doChange();
+	if (editor.world) {
+		editor.world->acknowledgeMapChange();
+	}
+	if (changed || editor.world) {
 		g_gui.UpdateTitle();
 	}
 
@@ -632,7 +701,11 @@ bool ActionQueue::undo() {
 		}
 
 		// Update title
-		if (batch && batch->isNoSelection() && editor.getMap().doChange()) {
+		const bool changed = batch && batch->isNoSelection() && batch->getType() != ACTION_WORLD_OBJECT && editor.getMap().doChange();
+		if (editor.world) {
+			editor.world->acknowledgeMapChange();
+		}
+		if (changed || editor.world) {
 			g_gui.UpdateTitle();
 		}
 		return true;
@@ -649,7 +722,11 @@ bool ActionQueue::redo() {
 		current++;
 
 		// Update title
-		if (batch && batch->isNoSelection() && editor.getMap().doChange()) {
+		const bool changed = batch && batch->isNoSelection() && batch->getType() != ACTION_WORLD_OBJECT && editor.getMap().doChange();
+		if (editor.world) {
+			editor.world->acknowledgeMapChange();
+		}
+		if (changed || editor.world) {
 			g_gui.UpdateTitle();
 		}
 		return true;
@@ -706,6 +783,8 @@ wxString ActionQueue::createLabel(ActionIdentifier type) {
 			return "Change Properties";
 		case ACTION_LUA_SCRIPT:
 			return "Lua Script";
+		case ACTION_WORLD_OBJECT:
+			return "World Object";
 		default:
 			return wxEmptyString;
 	}
