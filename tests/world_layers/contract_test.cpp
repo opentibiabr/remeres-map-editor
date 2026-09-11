@@ -5,6 +5,7 @@
 #include <iostream>
 #include <stdexcept>
 
+void runWorldExternalTests(const std::filesystem::path &scratch);
 void runWorldFileTests(const std::filesystem::path &scratch);
 
 namespace {
@@ -22,6 +23,79 @@ namespace {
 		std::ofstream stream(file, std::ios::binary | std::ios::trunc);
 		stream << value;
 		require(stream.good(), "write fixture");
+	}
+	void authoring(const std::filesystem::path &scratch) {
+		using namespace world_layers;
+		std::filesystem::path root;
+		for (unsigned i = 0; i < 10000; ++i) {
+			const auto path = scratch / ("authoring-" + std::to_string(i));
+			if (std::filesystem::create_directory(path)) {
+				root = path;
+				break;
+			}
+		}
+		require(!root.empty(), "reserve authoring fixture");
+		write(root / "map.otbm", "unchanged base map");
+		write(root / "items.xml", "<items/>");
+		WorldLayerDocument document;
+		std::string error;
+		require(document.create(root / "map.world.json", root / "map.otbm", root / "items.xml", "authoring", error), "create unsaved catalog");
+		require(document.dirty(), "new catalog is unsaved");
+		auto project = document.data();
+		Layer a, b;
+		a.id = "quest";
+		a.file = root / "quest.layer.json";
+		a.schemaVersion = 2;
+		b.id = "library";
+		b.file = root / "library.layer.json";
+		b.schemaVersion = 2;
+		Object arrival;
+		arrival.id = "quest.arrival";
+		arrival.kind = ObjectKind::Anchor;
+		arrival.position = { 100, 100, 7 };
+		Object portal;
+		portal.id = "quest.portal";
+		portal.itemId = 1949;
+		portal.position = { 101, 100, 7 };
+		portal.teleport = Teleport { arrival.id, {} };
+		a.objects = { arrival, portal };
+		project.layers = { a, b };
+		require(document.editProject(project, error), "create layers and declarations together");
+		require(document.undo() && document.data().layers.empty(), "undo structural creation");
+		require(document.redo() && document.data().find(arrival.id), "redo structural creation");
+		require(document.save(error) && !document.dirty(), "save new catalog and layer files");
+		const auto original = bytes(root / "map.otbm");
+		project = document.data();
+		require(!WorldLayerDocument::removeObject(project, arrival.id, error), "referenced object deletion must report dependencies");
+		require(WorldLayerDocument::renameObject(project, arrival.id, "library.arrival", error), "rename stable identity explicitly");
+		require(project.find(portal.id)->teleport->destination == "library.arrival", "rename updates references");
+		require(WorldLayerDocument::moveToLayer(project, "library.arrival", b.file, error), "move declaration to another file without changing identity");
+		require(document.editProject(project, error), "record cross-document rename and move");
+		require(document.undo() && document.data().find(arrival.id) && !document.dirty(), "undo restores identities, references and destination files");
+		require(document.redo() && document.save(error), "redo and save cross-document operation");
+		require(bytes(root / "map.otbm") == original, "structural authoring never modifies OTBM");
+		project = document.data();
+		project.find(portal.id)->attributes["text"] = Value { std::string("Unicode: biblioteca ç 漢字\nsegunda linha") };
+		project.find(portal.id)->aidOverride = true;
+		project.find(portal.id)->aid = 0;
+		WorldDocumentChange old;
+		require(document.makeChange(project, old, error), "prepare native action with source revisions");
+		require(document.exchange(old, error), "apply native action");
+		require(document.exchange(old, error), "exchange reverses native action");
+		require(document.open(root / "map.world.json", error), "reload valid external revision");
+		require(!document.exchange(old, error) && !document.dirty(), "old commands cannot overwrite a reloaded document");
+		project = document.data();
+		project.find(portal.id)->teleport->destination = "missing.object";
+		require(document.editProject(project, error), "retain a temporarily invalid reference in an editable draft");
+		require(!document.save(error), "invalid active configuration cannot be saved");
+		require(document.undo() && !document.dirty(), "undo invalid reference without losing saved data");
+		project = document.data();
+		require(WorldLayerDocument::removeObject(project, portal.id, error), "delete unreferenced object");
+		require(WorldLayerDocument::removeObject(project, "library.arrival", error), "delete former target after dependency removal");
+		project.layers.erase(project.layers.begin());
+		require(document.editProject(project, error) && document.save(error), "remove a layer from the active catalog");
+		require(std::filesystem::exists(a.file), "removing a layer preserves its previous disk file for recovery");
+		require(document.undo() && document.data().find(portal.id), "undo layer and object removal");
 	}
 }
 
@@ -168,7 +242,9 @@ int main(int argc, char** argv) {
 		diagnostics.clear();
 		require(!world_layers::validateMap(project, conflictMap, plan, diagnostics), "cycle through base-map teleport must be rejected");
 		runWorldV2Tests(scratch);
+		authoring(scratch);
 		runWorldFileTests(scratch);
+		runWorldExternalTests(scratch);
 		std::cout << "World layer identity, validation, undo, persistence and OTBM preservation passed\n";
 		return 0;
 	} catch (const std::exception &error) {

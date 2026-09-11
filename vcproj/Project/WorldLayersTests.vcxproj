@@ -51,8 +51,11 @@
     <ClCompile Include="..\..\tests\world_layers\contract_test.cpp" />
     <ClCompile Include="..\..\tests\world_layers\contract_v2.cpp" />
     <ClCompile Include="..\..\tests\world_layers\file_contract.cpp" />
+    <ClCompile Include="..\..\tests\world_layers\external_contract.cpp" />
     <ClCompile Include="..\..\source\world\world_layers.cpp" />
-    <ClCompile Include="..\..\source\world\world_files.cpp" />
+    <ClCompile Include="..\..\source\world\world_files.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="..\..\source\world\world_format.cpp" />
     <ClCompile Include="..\..\source\world\world_selectors.cpp" />
     <ClCompile Include="..\..\source\world\world_validation.cpp" />
