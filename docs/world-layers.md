@@ -14,10 +14,12 @@ catalog. No Lua execution or recursive script discovery is required.
 1. Open the OTBM with **File > Open** or the normal welcome screen.
 2. RME automatically looks for `<map-name>.world.json` beside it. For a catalog
    elsewhere in the server folder, choose **Map > Load Server Worlds...** while
-   the OTBM is open. RME verifies that the catalog refers to that exact map file.
+   the OTBM is open. This also accepts an editor copy at a different path:
+   validation uses the open map.
 3. The chosen catalog is remembered in **Preferences > Directories > World
    catalog**, beside the NPC and monster source paths. It loads automatically
-   when its corresponding OTBM is opened. Unrelated maps keep their normal flow.
+   when its server OTBM or the last explicitly associated map copy is opened.
+   Unrelated maps keep their normal flow.
    A sibling catalog takes priority over this configured fallback.
 4. Find objects in **Worlds**, a category of the existing palette beside NPCs and
    RAW. **View > Worlds Palette** (Ctrl+Alt+L) selects that category. Search by
@@ -25,6 +27,8 @@ catalog. No Lua execution or recursive script discovery is required.
 
 Opening a catalog through **File > Open** remains a shortcut to its normal OTBM.
 There is no separate world project mode, extra map tab type or standalone inspector.
+Loading a catalog for a map copy keeps world edits directed to the selected server
+layers. Use **Save As** when the copy should have independent world files.
 An invalid catalog reports an error without disabling ordinary OTBM editing.
 
 ## Edit on the map

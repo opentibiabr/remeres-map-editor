@@ -784,6 +784,9 @@ void PreferencesWindow::Apply() {
 
 	g_settings.setString(Config::MONSTERS_LUA_DIRECTORY, nstr(monsters_lua_dir_picker->GetValue()));
 	g_settings.setString(Config::NPCS_LUA_DIRECTORY, nstr(npcs_lua_dir_picker->GetValue()));
+	if (g_settings.getString(Config::WORLD_CATALOG_FILE) != nstr(world_catalog_picker->GetValue())) {
+		g_settings.setString(Config::WORLD_CATALOG_MAP_FILE, "");
+	}
 	g_settings.setString(Config::WORLD_CATALOG_FILE, nstr(world_catalog_picker->GetValue()));
 
 	ClientAssets::setPath(version_dir_picker->GetValue());

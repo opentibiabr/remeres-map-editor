@@ -539,15 +539,17 @@ bool GUI::LoadServerWorlds(const wxString &path, bool automatic) {
 		PopupDialog(root, "Cannot load server worlds", wxstr(error), wxOK);
 		return false;
 	}
-	if (!document.matchesMap(std::filesystem::u8path(editor->getMap().getFilename()))) {
-		if (!automatic) {
-			PopupDialog(root, "Different map", "This catalog refers to another OTBM. Open that map first.", wxOK);
+	if (automatic && !document.matchesMap(std::filesystem::u8path(editor->getMap().getFilename()))) {
+		const FileName configured(wxstr(g_settings.getString(Config::WORLD_CATALOG_FILE)));
+		const FileName associated(wxstr(g_settings.getString(Config::WORLD_CATALOG_MAP_FILE)));
+		if (FileName(file) != configured || associated != FileName(wxstr(editor->getMap().getFilename()))) {
+			return false;
 		}
-		return false;
 	}
 	editor->world = std::make_unique<WorldLayerEditor>(*editor, std::move(document));
 	if (!automatic) {
 		g_settings.setString(Config::WORLD_CATALOG_FILE, nstr(file));
+		g_settings.setString(Config::WORLD_CATALOG_MAP_FILE, editor->getMap().getFilename());
 		ShowWorldPalette();
 	}
 	for (const auto palette : palettes) {

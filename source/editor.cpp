@@ -252,7 +252,7 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 	const auto previousNpcFile = map.spawnnpcfile;
 	const auto previousHouseFile = map.housefile;
 	const auto previousZoneFile = map.zonefile;
-	const bool copyWorld = world && !filename.GetFullPath().empty() && !world->document.matchesMap(std::filesystem::u8path(nstr(filename.GetFullPath())));
+	const bool copyWorld = world && !filename.GetFullPath().empty() && filename != FileName(wxstr(map.filename));
 	if (copyWorld) {
 		std::string error;
 		if (!world->document.canCopyForMap(std::filesystem::u8path(nstr(filename.GetFullPath())), error)) {
