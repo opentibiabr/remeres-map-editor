@@ -611,14 +611,21 @@ bool GUI::LoadMap(const FileName &fileName) {
 		bool associated = false;
 		const FileName configured(wxstr(g_settings.getString(Config::WORLD_CATALOG_FILE)));
 		const FileName configuredMap(wxstr(g_settings.getString(Config::WORLD_CATALOG_MAP_FILE)));
-		if (catalog == configured && configuredMap == actualFile) associated = true;
+		if (catalog == configured && configuredMap == actualFile) {
+			associated = true;
+		}
 		if (!catalog.FileExists()) {
-			if (configured.FileExists() && configuredMap == actualFile) { catalog = configured; associated = true; }
+			if (configured.FileExists() && configuredMap == actualFile) {
+				catalog = configured;
+				associated = true;
+			}
 		}
 		if (catalog.FileExists() || world_files::pending(std::filesystem::u8path(nstr(catalog.GetFullPath())))) {
 			worldDocument = std::make_unique<WorldLayerDocument>();
 			std::string error;
-			if (!RecoverWorldPublication(std::filesystem::u8path(nstr(catalog.GetFullPath())), root)) return false;
+			if (!RecoverWorldPublication(std::filesystem::u8path(nstr(catalog.GetFullPath())), root)) {
+				return false;
+			}
 			if (!worldDocument->open(std::filesystem::u8path(nstr(catalog.GetFullPath())), error)) {
 				PopupDialog(root, "Cannot read world catalog", wxstr(error), wxOK);
 				return false;

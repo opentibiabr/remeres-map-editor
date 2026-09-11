@@ -157,7 +157,8 @@ namespace {
 
 class WorldFileMonitor final : public wxEvtHandler {
 public:
-	explicit WorldFileMonitor(WorldLayerEditor &editor) : editor(editor), timer(this) {
+	explicit WorldFileMonitor(WorldLayerEditor &editor) :
+		editor(editor), timer(this) {
 		Bind(wxEVT_TIMER, &WorldFileMonitor::tick, this);
 #if wxUSE_FSWATCHER
 		watcher.SetOwner(this);
