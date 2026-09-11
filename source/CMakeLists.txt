@@ -323,7 +323,7 @@ target_sources(
           welcome_dialog.cpp
           zone_brush.cpp
           zones.cpp
-          world/world_layers.cpp world/world_format.cpp world/world_selectors.cpp
+          world/world_layers.cpp world/world_files.cpp world/world_format.cpp world/world_selectors.cpp
           world/world_validation.cpp
           world/world_document.cpp
           world/world_editor.cpp)
@@ -379,5 +379,5 @@ endif()
 
 # Shared JSON/document code also runs in headless contract tests.
 set_source_files_properties(
-  world/world_layers.cpp world/world_format.cpp world/world_selectors.cpp world/world_validation.cpp world/world_document.cpp
+  world/world_layers.cpp world/world_files.cpp world/world_format.cpp world/world_selectors.cpp world/world_validation.cpp world/world_document.cpp
   PROPERTIES SKIP_PRECOMPILE_HEADERS ON SKIP_UNITY_BUILD_INCLUSION ON)

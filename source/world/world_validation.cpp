@@ -9,13 +9,15 @@
 
 namespace world_layers {
 	namespace {
-		auto key(const Position &position) {
+		auto validationKey(const Position &position) {
 			return std::tuple(position.x, position.y, position.z);
 		}
 	}
 
 	bool validateMap(const Project &project, MapView &map, ApplicationPlan &plan, Diagnostics &diagnostics) {
-		if (project.schemaVersion == 2) return validateMapV2(project, map, plan, diagnostics);
+		if (project.schemaVersion == 2) {
+			return validateMapV2(project, map, plan, diagnostics);
+		}
 		const auto initialErrors = diagnostics.size();
 		validateProject(project, diagnostics);
 		if (diagnostics.size() != initialErrors) {
@@ -30,7 +32,7 @@ namespace world_layers {
 		for (const auto &layer : project.layers) {
 			for (const auto &object : layer.objects) {
 				ResolvedObject entry { layer.id + "." + object.id, 0, destination(project, object) };
-				external.emplace(key(object.position), &object);
+				external.emplace(validationKey(object.position), &object);
 				if (!map.nativeTeleport(object.itemId)) {
 					fail(layer, object, "/origin/itemId", "Version 1 requires a native teleport item");
 				}
@@ -74,14 +76,14 @@ namespace world_layers {
 					fail(layer, object, "/components/destination", "Arrival requires an existing, unblocked, non-house tile with ground");
 					continue;
 				}
-				std::set<std::tuple<int32_t, int32_t, int32_t>> visited { key(object.position) };
+				std::set<std::tuple<int32_t, int32_t, int32_t>> visited { validationKey(object.position) };
 				std::optional<Position> next = arrival;
 				while (next) {
-					if (!visited.insert(key(*next)).second) {
+					if (!visited.insert(validationKey(*next)).second) {
 						fail(layer, object, "/components/destination", "Effective teleport cycle");
 						break;
 					}
-					const auto generated = external.find(key(*next));
+					const auto generated = external.find(validationKey(*next));
 					if (generated != external.end()) {
 						next = destination(project, *generated->second);
 					} else {

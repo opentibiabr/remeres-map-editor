@@ -9,6 +9,7 @@ else()
 endif()
 add_executable(world-tool main.cpp
   "${WORLD_SOURCE}/world/world_layers.cpp"
+  "${WORLD_SOURCE}/world/world_files.cpp"
   "${WORLD_SOURCE}/world/world_format.cpp"
   "${WORLD_SOURCE}/world/world_validation.cpp"
   "${WORLD_SOURCE}/world/world_selectors.cpp"

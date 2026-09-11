@@ -52,6 +52,9 @@
 
 
     <ClCompile Include="..\..\source\world\world_layers.cpp" />
+    <ClCompile Include="..\..\source\world\world_files.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="..\..\source\world\world_format.cpp" />
     <ClCompile Include="..\..\source\world\world_selectors.cpp" />
     <ClCompile Include="..\..\source\world\world_validation.cpp" />

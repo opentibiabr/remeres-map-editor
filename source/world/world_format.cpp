@@ -68,9 +68,10 @@ namespace world_layers {
 			return { { "x", position.x }, { "y", position.y }, { "z", position.z } };
 		}
 
-		class Reader {
+		class FormatReader {
 		public:
-			Reader(const std::filesystem::path &file, Diagnostics &diagnostics) : file(file), diagnostics(diagnostics) { }
+			FormatReader(const std::filesystem::path &file, Diagnostics &diagnostics) :
+				file(file), diagnostics(diagnostics) { }
 			std::string object;
 			bool fail(const std::string &field, const std::string &message) {
 				diagnostics.push_back({ file, object, field, message });
@@ -193,13 +194,13 @@ namespace world_layers {
 			Diagnostics &diagnostics;
 		};
 
-		bool readReference(Reader &reader, const Json &value, const std::string &field, Reference &reference) {
+		bool readReference(FormatReader &reader, const Json &value, const std::string &field, Reference &reference) {
 			return reader.keys(value, field, { "object", "offset" })
 				&& reader.identifier(value.value("object", Json()), field + "/object", reference.object)
 				&& (!value.contains("offset") || reader.position(value["offset"], field + "/offset", reference.offset, true));
 		}
 
-		bool readRelations(Reader &reader, const Json &value, const std::string &field, std::map<std::string, std::vector<Reference>> &relations) {
+		bool readRelations(FormatReader &reader, const Json &value, const std::string &field, std::map<std::string, std::vector<Reference>> &relations) {
 			if (!value.is_object()) {
 				return reader.fail(field, "Expected named relations");
 			}
@@ -218,7 +219,7 @@ namespace world_layers {
 			return true;
 		}
 
-		bool readAttributes(Reader &reader, const Json &value, const std::string &field, Value::Record &attributes) {
+		bool readAttributes(FormatReader &reader, const Json &value, const std::string &field, Value::Record &attributes) {
 			if (!reader.keys(value, field, { "aid", "uid", "text", "description", "name", "article", "plural", "writer", "date", "custom" })) {
 				return false;
 			}
@@ -246,7 +247,7 @@ namespace world_layers {
 			return true;
 		}
 
-		bool readSelector(Reader &reader, const Json &value, Selector &selector) {
+		bool readSelector(FormatReader &reader, const Json &value, Selector &selector) {
 			const std::string field = "/source/selector";
 			if (!reader.keys(value, field, { "position", "part", "container", "itemId", "attributes", "occurrence" })
 			    || !reader.number(value.value("itemId", Json()), field + "/itemId", selector.itemId, 1)) {
@@ -289,7 +290,7 @@ namespace world_layers {
 			return true;
 		}
 
-		bool readBinding(Reader &reader, const Json &value, BehaviorBinding &binding) {
+		bool readBinding(FormatReader &reader, const Json &value, BehaviorBinding &binding) {
 			if (!reader.keys(value, "/behaviors", { "id", "contractVersion", "events", "parameters", "relations" })
 			    || !reader.identifier(value.value("id", Json()), "/behaviors/id", binding.id)
 			    || !reader.number(value.value("contractVersion", Json()), "/behaviors/contractVersion", binding.contractVersion, 1, 0xffffffffLL)
@@ -308,7 +309,7 @@ namespace world_layers {
 			return !value.contains("relations") || readRelations(reader, value["relations"], "/behaviors/relations", binding.relations);
 		}
 
-		bool readObject(Reader &reader, const Json &value, Object &object) {
+		bool readObject(FormatReader &reader, const Json &value, Object &object) {
 			if (!reader.keys(value, "/objects", { "id", "name", "kind", "source", "position", "lifecycle", "attributes", "components", "relations", "behaviors" })
 			    || !reader.identifier(value.value("id", Json()), "/id", object.id)) {
 				return false;
@@ -455,7 +456,7 @@ namespace world_layers {
 			return true;
 		}
 
-		bool readParameter(Reader &reader, const Json &value, const std::string &field, Parameter &parameter, size_t depth = 0) {
+		bool readParameter(FormatReader &reader, const Json &value, const std::string &field, Parameter &parameter, size_t depth = 0) {
 			if (depth > MaxDepth) {
 				return reader.fail(field, "Parameter nesting exceeds 128");
 			}
@@ -632,7 +633,7 @@ namespace world_layers {
 	}
 
 	bool parseLayerV2(const std::string &source, const std::filesystem::path &file, Layer &layer, Diagnostics &diagnostics) {
-		Reader reader(file, diagnostics);
+		FormatReader reader(file, diagnostics);
 		Json value;
 		Layer parsed;
 		parsed.file = file;
@@ -667,7 +668,7 @@ namespace world_layers {
 	}
 
 	bool parseBehavior(const std::string &source, const std::filesystem::path &file, BehaviorDescriptor &descriptor, Diagnostics &diagnostics) {
-		Reader reader(file, diagnostics);
+		FormatReader reader(file, diagnostics);
 		Json value;
 		BehaviorDescriptor parsed;
 		parsed.file = file;
@@ -755,11 +756,11 @@ namespace world_layers {
 		return true;
 	}
 
-	bool loadMigration(const std::filesystem::path &file, MigrationRecord &record, Diagnostics &diagnostics) {
-		Reader reader(file, diagnostics);
+	bool loadMigration(const std::filesystem::path &file, MigrationRecord &record, Diagnostics &diagnostics, SourceFiles* sources) {
+		FormatReader reader(file, diagnostics);
 		std::string source, error;
 		Json json;
-		if (!readFile(file, source, error)) {
+		if (!readProjectSource(file, source, error, sources)) {
 			return reader.fail("", error);
 		}
 		if (!reader.parse(source, json) || !reader.keys(json, "", { "$schema", "schemaVersion", "id", "sources", "claims" })) {
@@ -842,14 +843,14 @@ namespace world_layers {
 		return true;
 	}
 
-	bool loadProjectV2(const std::filesystem::path &file, Project &project, Diagnostics &diagnostics) {
-		Reader reader(file, diagnostics);
+	bool loadProjectV2(const std::filesystem::path &file, Project &project, Diagnostics &diagnostics, SourceFiles* sources) {
+		FormatReader reader(file, diagnostics);
 		std::string source, error;
 		Json value;
 		Project parsed;
 		parsed.file = file;
 		parsed.schemaVersion = 2;
-		if (!readFile(file, source, error)) {
+		if (!readProjectSource(file, source, error, sources)) {
 			return reader.fail("", error);
 		}
 		if (!reader.parse(source, value) || !reader.keys(value, "", { "$schema", "schemaVersion", "id", "map", "items", "layers", "behaviorCatalog", "migrations" })) {
@@ -881,7 +882,7 @@ namespace world_layers {
 			if (!files.insert(layer.file).second) {
 				return reader.fail("/layers/file", "Duplicate document path");
 			}
-			if (!readFile(layer.file, source, error)) {
+			if (!readProjectSource(layer.file, source, error, sources)) {
 				return reader.fail("/layers/file", layer.file.generic_string() + ": " + error);
 			}
 			const auto layerFile = layer.file;
@@ -905,7 +906,7 @@ namespace world_layers {
 				if (!files.insert(path).second) {
 					return reader.fail("/behaviorCatalog", "Duplicate document path");
 				}
-				if (!readFile(path, source, error)) {
+				if (!readProjectSource(path, source, error, sources)) {
 					return reader.fail("/behaviorCatalog", path.generic_string() + ": " + error);
 				}
 				if (!parseBehavior(source, path, behavior, diagnostics)) {
@@ -930,7 +931,7 @@ namespace world_layers {
 					return reader.fail("/migrations", "Duplicate document path");
 				}
 				MigrationRecord record;
-				if (!loadMigration(path, record, diagnostics)) {
+				if (!loadMigration(path, record, diagnostics, sources)) {
 					return false;
 				}
 				parsed.migrationRecords.push_back(std::move(record));
@@ -1038,6 +1039,18 @@ namespace world_layers {
 		return json.dump(2) + "\n";
 	}
 
+	std::string serializeMigration(const MigrationRecord &record) {
+		const auto relative = [&](const std::filesystem::path &file) { return file.lexically_relative(record.file.parent_path()).generic_string(); };
+		Json json = { { "schemaVersion", 2 }, { "id", record.id }, { "sources", Json::array() }, { "claims", Json::array() } };
+		for (const auto &[file, sha256] : record.sources) {
+			json["sources"].push_back({ { "file", relative(file) }, { "sha256", sha256 } });
+		}
+		for (const auto &claim : record.claims) {
+			json["claims"].push_back({ { "source", { { "file", relative(claim.file) }, { "table", claim.table }, { "key", claim.key }, { "declaration", claim.declaration }, { "fingerprint", claim.fingerprint } } }, { "occurrence", claim.occurrence }, { "object", claim.object }, { "responsibilities", claim.responsibilities } });
+		}
+		return json.dump(2) + "\n";
+	}
+
 	bool validateParameter(const Parameter &schema, const Value &value, std::string &error) {
 		const auto json = encode(value);
 		const auto fail = [&](const std::string &message) { error = message; return false; };
@@ -1072,7 +1085,7 @@ namespace world_layers {
 		if (type == "position" || type == "offset" || type == "objectRef") {
 			Diagnostics diagnostics;
 			const std::filesystem::path file;
-			Reader reader(file, diagnostics);
+			FormatReader reader(file, diagnostics);
 			Position position;
 			Reference reference;
 			const bool valid = type == "objectRef" ? readReference(reader, json, "", reference) : reader.position(json, "", position, type == "offset");
@@ -1296,7 +1309,7 @@ namespace world_layers {
 	bool parseValue(const std::string &source, Value &value, std::string &error) {
 		Diagnostics diagnostics;
 		const std::filesystem::path file;
-		Reader reader(file, diagnostics);
+		FormatReader reader(file, diagnostics);
 		Json parsed;
 		if (!reader.parse(source, parsed)) {
 			error = diagnostics.front().message;

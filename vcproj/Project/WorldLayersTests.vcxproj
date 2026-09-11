@@ -37,6 +37,7 @@
       <AdditionalIncludeDirectories>..\..\source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PreprocessorDefinitions>WORLD_FILES_TEST_HOOKS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ExceptionHandling>Sync</ExceptionHandling>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
@@ -49,7 +50,9 @@
   <ItemGroup>
     <ClCompile Include="..\..\tests\world_layers\contract_test.cpp" />
     <ClCompile Include="..\..\tests\world_layers\contract_v2.cpp" />
+    <ClCompile Include="..\..\tests\world_layers\file_contract.cpp" />
     <ClCompile Include="..\..\source\world\world_layers.cpp" />
+    <ClCompile Include="..\..\source\world\world_files.cpp" />
     <ClCompile Include="..\..\source\world\world_format.cpp" />
     <ClCompile Include="..\..\source\world\world_selectors.cpp" />
     <ClCompile Include="..\..\source\world\world_validation.cpp" />

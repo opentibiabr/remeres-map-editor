@@ -5,6 +5,8 @@
 #include <iostream>
 #include <stdexcept>
 
+void runWorldFileTests(const std::filesystem::path &scratch);
+
 namespace {
 	void require(bool condition, const char* message) {
 		if (!condition) {
@@ -166,6 +168,7 @@ int main(int argc, char** argv) {
 		diagnostics.clear();
 		require(!world_layers::validateMap(project, conflictMap, plan, diagnostics), "cycle through base-map teleport must be rejected");
 		runWorldV2Tests(scratch);
+		runWorldFileTests(scratch);
 		std::cout << "World layer identity, validation, undo, persistence and OTBM preservation passed\n";
 		return 0;
 	} catch (const std::exception &error) {
