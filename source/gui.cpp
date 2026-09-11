@@ -16,6 +16,7 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "main.h"
+#include "world/world_editor.h"
 
 #include "gui.h"
 
@@ -500,7 +501,7 @@ bool GUI::NewMap() {
 }
 
 void GUI::OpenMap() {
-	wxString wildcard = MAP_LOAD_FILE_WILDCARD;
+	wxString wildcard = wxString("World project (*.world.json)|*.world.json|") + MAP_LOAD_FILE_WILDCARD;
 	wxFileDialog dialog(root, "Open map file", wxEmptyString, wxEmptyString, wildcard, wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE);
 
 	if (dialog.ShowModal() == wxID_OK) {
@@ -530,6 +531,11 @@ void GUI::SaveMap() {
 }
 
 void GUI::SaveMapAs() {
+	if (const auto editor = GetCurrentEditor(); editor && editor->world) {
+		ShowWorldLayerPanel();
+		PopupDialog(root, "World project", "Use Save selected layer copy in World Layers to export a layer.", wxOK);
+		return;
+	}
 	if (!IsEditorOpen()) {
 		return;
 	}
@@ -546,6 +552,18 @@ void GUI::SaveMapAs() {
 }
 
 bool GUI::LoadMap(const FileName &fileName) {
+	std::unique_ptr<WorldLayerDocument> worldDocument;
+	FileName actualFile = fileName;
+	if (fileName.GetFullPath().EndsWith(".world.json")) {
+		worldDocument = std::make_unique<WorldLayerDocument>();
+		std::string error;
+		if (!worldDocument->open(std::filesystem::u8path(nstr(fileName.GetFullPath())), error)) {
+			PopupDialog(root, "Cannot open world project", wxstr(error), wxOK);
+			return false;
+		}
+		actualFile = FileName(wxstr(worldDocument->data().map.generic_string()));
+	}
+
 	rme::bindPooledObjectOwnerThread();
 
 	FinishWelcomeDialog();
@@ -558,7 +576,10 @@ bool GUI::LoadMap(const FileName &fileName) {
 
 	Editor* editor;
 	try {
-		editor = newd Editor(copybuffer, fileName);
+		editor = newd Editor(copybuffer, actualFile);
+		if (worldDocument) {
+			editor->world = std::make_unique<WorldLayerEditor>(*editor, std::move(*worldDocument));
+		}
 	} catch (std::runtime_error &e) {
 		rme::dumpPooledObjectStats();
 		PopupDialog(root, "Error!", wxString(e.what(), wxConvUTF8), wxOK);
@@ -571,6 +592,9 @@ bool GUI::LoadMap(const FileName &fileName) {
 	mapTab->OnSwitchEditorMode(mode);
 
 	root->AddRecentFile(fileName);
+	if (editor->world) {
+		ShowWorldLayerPanel();
+	}
 
 	mapTab->GetView()->FitToMap();
 	UpdateTitle();

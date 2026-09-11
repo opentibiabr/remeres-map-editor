@@ -18,6 +18,8 @@
 #ifndef RME_EDITOR_H
 #define RME_EDITOR_H
 
+#include <memory>
+
 #include "item.h"
 #include "tile.h"
 #include "iomap.h"
@@ -32,12 +34,15 @@ class LiveClient;
 class LiveServer;
 class LiveSocket;
 
+class WorldLayerEditor;
+
 class Editor {
 public:
 	Editor(CopyBuffer &copybuffer, LiveClient* client);
 	Editor(CopyBuffer &copybuffer, const FileName &fn);
 	Editor(CopyBuffer &copybuffer);
 	~Editor();
+	std::unique_ptr<WorldLayerEditor> world;
 
 protected:
 	// Live Server
@@ -55,7 +60,7 @@ public: // Functions
 	LiveServer* GetLiveServer() const;
 	LiveSocket &GetLive() const;
 	bool CanEdit() const noexcept {
-		return true;
+		return !world;
 	}
 	bool IsLocal() const;
 	bool IsLive() const;

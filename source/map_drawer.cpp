@@ -16,6 +16,7 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "main.h"
+#include "world/world_editor.h"
 
 #ifdef __WINDOWS__
 	#include <windows.h>
@@ -294,7 +295,10 @@ void MapDrawer::Draw() {
 		DrawSelectionBox();
 	}
 	DrawLiveCursors();
-	DrawBrush();
+	if (!editor.world) {
+		DrawBrush();
+	}
+	DrawWorldLayers();
 	if (options.show_grid && zoom <= 10.f) {
 		DrawGrid();
 	}
@@ -306,6 +310,57 @@ void MapDrawer::Draw() {
 	}
 	if (options.show_performance_stats) {
 		DrawPerformanceStats();
+	}
+}
+
+void MapDrawer::DrawWorldLayers() {
+	const auto world = editor.world.get();
+	if (!world || !world->document.visible) {
+		return;
+	}
+	const auto &project = world->document.data();
+	for (const auto &layer : project.layers) {
+		for (const auto &object : layer.objects) {
+			const auto id = layer.id + "." + object.id;
+			const auto position = world->position(id);
+			if (position.z != floor || position.x < start_x - 2 || position.x > end_x + 2 || position.y < start_y - 2 || position.y > end_y + 2) {
+				continue;
+			}
+			int x, y;
+			getDrawPosition(Position(position.x, position.y, position.z), x, y);
+			const auto sprite = world->sprite(object.itemId);
+			if (sprite) {
+				int sx = x, sy = y;
+				BlitItem(sx, sy, Position(position.x, position.y, position.z), sprite, true, 255, 255, 255, 210);
+			}
+			const bool selected = id == world->document.selected;
+			const bool invalid = std::any_of(world->diagnostics.begin(), world->diagnostics.end(), [&](const auto &diagnostic) { return diagnostic.object.empty() || diagnostic.object == id; });
+			const GLColor color = invalid ? GLColor { 255, 90, 75, 240 } : selected ? GLColor { 255, 210, 65, 240 }
+																					: GLColor { 50, 210, 245, 230 };
+			renderer->drawRect(x, y, rme::TileSize, rme::TileSize, color, selected ? 3.0f : 1.5f);
+			renderer->drawText(x, y - 15, id, color.r, color.g, color.b, color.a);
+			if (!selected || !object.teleport) {
+				continue;
+			}
+			const auto target = project.find(object.teleport->destination);
+			if (!target) {
+				continue;
+			}
+			const auto targetPosition = world->position(object.teleport->destination);
+			const auto &offset = object.teleport->destinationOffset;
+			const world_layers::Position arrival { targetPosition.x + offset.x, targetPosition.y + offset.y, targetPosition.z + offset.z };
+			if (!world_layers::isValidPosition(arrival)) {
+				continue;
+			}
+			const auto label = "-> " + object.teleport->destination + " (floor " + std::to_string(arrival.z) + ")";
+			renderer->drawText(x, y + rme::TileSize + 3, label, color.r, color.g, color.b, color.a);
+			if (arrival.z == floor) {
+				int tx, ty;
+				getDrawPosition(Position(arrival.x, arrival.y, arrival.z), tx, ty);
+				renderer->drawLine(x + 16, y + 16, tx + 16, ty + 16, color, 2.0f);
+				renderer->drawRect(tx + 9, ty + 9, 14, 14, color, 2.0f);
+			}
+		}
 	}
 }
 
@@ -1561,6 +1616,9 @@ void MapDrawer::DrawTile(TileLocation* location) {
 
 	if (!hidden && !tile->items.empty()) {
 		for (Item* item : tile->items) {
+			if (editor.world && editor.world->suppressed(item)) {
+				continue;
+			}
 
 			if (options.show_preview && zoom <= 2.0) {
 				item->animate();

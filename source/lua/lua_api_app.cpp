@@ -110,8 +110,8 @@ namespace LuaAPI {
 			}
 
 			editor = ed;
-			if (!editor) {
-				throw sol::error("No editor or action queue available");
+			if (!editor || !editor->CanEdit()) {
+				throw sol::error("No editable base map or action queue available");
 			}
 
 			active = true;

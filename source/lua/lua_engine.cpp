@@ -17,6 +17,8 @@
 
 #include "main.h"
 #include "lua_engine.h"
+#include "editor.h"
+#include "gui.h"
 
 #include <fstream>
 #include <sstream>
@@ -258,6 +260,10 @@ void LuaEngine::setPrintCallback(PrintCallback callback) {
 }
 
 bool LuaEngine::executeFile(const std::string &filepath) {
+	if (const auto editor = g_gui.GetCurrentEditor(); editor && editor->world) {
+		lastError = "Open the OTBM separately to run base-map scripts. World projects edit external layers only.";
+		return false;
+	}
 	if (!initialized) {
 		lastError = "Lua engine not initialized";
 		return false;
@@ -334,6 +340,10 @@ bool LuaEngine::executeFile(const std::string &filepath) {
 }
 
 bool LuaEngine::executeString(const std::string &code, const std::string &chunkName) {
+	if (const auto editor = g_gui.GetCurrentEditor(); editor && editor->world) {
+		lastError = "Open the OTBM separately to run base-map scripts. World projects edit external layers only.";
+		return false;
+	}
 	if (!initialized) {
 		lastError = "Lua engine not initialized";
 		return false;

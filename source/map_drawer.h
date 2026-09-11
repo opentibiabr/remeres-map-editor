@@ -182,6 +182,7 @@ public:
 	void Release();
 
 	void Draw();
+	void DrawWorldLayers();
 	void DrawBackground();
 	void DrawShade(int mapz);
 	void DrawMap();

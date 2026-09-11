@@ -16,6 +16,7 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "main.h"
+#include "world/world_editor.h"
 #include <array>
 
 #include "gui.h"
@@ -141,6 +142,11 @@ MapCanvas::MapCanvas(MapWindow* parent, Editor &editor, int* attriblist) :
 
 	last_mmb_click_x(-1),
 	last_mmb_click_y(-1) {
+	Bind(wxEVT_MOUSE_CAPTURE_LOST, [this](wxMouseCaptureLostEvent &) {
+		if (this->editor.world) {
+			this->editor.world->finishDrag(false);
+		}
+	});
 	popup_menu = newd MapPopupMenu(editor);
 	animation_timer = newd AnimationTimer(this);
 	drawer = new MapDrawer(this);
@@ -495,6 +501,13 @@ void MapCanvas::OnMouseMove(wxMouseEvent &event) {
 		UpdateZoomStatus();
 	}
 
+	if (auto world = editor.world.get()) {
+		if (world->drag && event.LeftIsDown()) {
+			world->drag = world_layers::Position { mouse_map_x, mouse_map_y, floor };
+			Refresh();
+		}
+		return;
+	}
 	if (g_gui.IsSelectionMode()) {
 		if (map_update && isPasting()) {
 			Refresh();
@@ -614,6 +627,10 @@ void MapCanvas::OnMouseLeftClick(wxMouseEvent &event) {
 }
 
 void MapCanvas::OnMouseLeftDoubleClick(wxMouseEvent &event) {
+	if (editor.world) {
+		ShowWorldLayerPanel();
+		return;
+	}
 	if (!g_settings.getInteger(Config::DOUBLECLICK_PROPERTIES)) {
 		return;
 	}
@@ -698,6 +715,22 @@ void MapCanvas::OnMouseRightRelease(wxMouseEvent &event) {
 }
 
 void MapCanvas::OnMouseActionClick(wxMouseEvent &event) {
+	if (auto world = editor.world.get()) {
+		SetFocus();
+		int x, y;
+		ScreenToMap(event.GetX(), event.GetY(), &x, &y);
+		world->document.selected = world->at({ x, y, floor });
+		if (!world->document.selected.empty()) {
+			world->drag = world->position(world->document.selected);
+			if (!HasCapture()) {
+				CaptureMouse();
+			}
+		}
+		ShowWorldLayerPanel();
+		Refresh();
+		return;
+	}
+
 	SetFocus();
 
 	int mouse_map_x, mouse_map_y;
@@ -1042,6 +1075,19 @@ void MapCanvas::OnMouseActionClick(wxMouseEvent &event) {
 }
 
 void MapCanvas::OnMouseActionRelease(wxMouseEvent &event) {
+	if (auto world = editor.world.get()) {
+		if (world->drag) {
+			int x, y;
+			ScreenToMap(event.GetX(), event.GetY(), &x, &y);
+			world->drag = world_layers::Position { x, y, floor };
+		}
+		world->finishDrag(true);
+		if (HasCapture()) {
+			ReleaseMouse();
+		}
+		return;
+	}
+
 	int mouse_map_x, mouse_map_y;
 	ScreenToMap(event.GetX(), event.GetY(), &mouse_map_x, &mouse_map_y);
 
@@ -1407,6 +1453,10 @@ void MapCanvas::OnMouseCameraRelease(wxMouseEvent &event) {
 }
 
 void MapCanvas::OnMousePropertiesClick(wxMouseEvent &event) {
+	if (editor.world) {
+		ShowWorldLayerPanel();
+		return;
+	}
 	SetFocus();
 
 	int mouse_map_x, mouse_map_y;
@@ -1474,6 +1524,9 @@ void MapCanvas::OnMousePropertiesClick(wxMouseEvent &event) {
 }
 
 void MapCanvas::OnMousePropertiesRelease(wxMouseEvent &event) {
+	if (editor.world) {
+		return;
+	}
 	int mouse_map_x, mouse_map_y;
 	ScreenToMap(event.GetX(), event.GetY(), &mouse_map_x, &mouse_map_y);
 
@@ -1697,6 +1750,19 @@ void MapCanvas::OnGainMouse(wxMouseEvent &event) {
 }
 
 void MapCanvas::OnKeyDown(wxKeyEvent &event) {
+	if (auto world = editor.world.get()) {
+		if (event.GetKeyCode() == WXK_ESCAPE) {
+			world->finishDrag(false);
+			if (HasCapture()) {
+				ReleaseMouse();
+			}
+			return;
+		}
+		if (event.GetKeyCode() == WXK_DELETE || event.GetKeyCode() == WXK_BACK || event.GetKeyCode() == WXK_SPACE) {
+			return;
+		}
+	}
+
 // wxGTK does not propagate keyboard events from wxGLCanvas
 // to the frame's accelerator table, so we dispatch manually.
 #ifdef __LINUX__
@@ -2184,6 +2250,9 @@ void MapCanvas::OnCopy(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void MapCanvas::OnCut(wxCommandEvent &WXUNUSED(event)) {
+	if (editor.world) {
+		return;
+	}
 	if (g_gui.IsSelectionMode()) {
 		editor.copybuffer.cut(editor, GetFloor());
 	}
@@ -2191,11 +2260,17 @@ void MapCanvas::OnCut(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void MapCanvas::OnPaste(wxCommandEvent &WXUNUSED(event)) {
+	if (editor.world) {
+		return;
+	}
 	g_gui.DoPaste();
 	g_gui.RefreshView();
 }
 
 void MapCanvas::OnDelete(wxCommandEvent &WXUNUSED(event)) {
+	if (editor.world) {
+		return;
+	}
 	editor.destroySelection();
 	g_gui.RefreshView();
 }
@@ -2558,6 +2633,10 @@ void MapCanvas::OnSelectMoveTo(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void MapCanvas::OnProperties(wxCommandEvent &WXUNUSED(event)) {
+	if (editor.world) {
+		ShowWorldLayerPanel();
+		return;
+	}
 	if (editor.getSelection().size() != 1) {
 		return;
 	}
@@ -2658,6 +2737,9 @@ void MapCanvas::EndPasting() {
 }
 
 void MapCanvas::Reset() {
+	if (editor.world) {
+		editor.world->finishDrag(false);
+	}
 	cursor_x = 0;
 	cursor_y = 0;
 
