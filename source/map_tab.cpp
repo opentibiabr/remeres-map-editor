@@ -95,7 +95,8 @@ MapWindow* MapTab::GetView() const {
 wxString MapTab::GetTitle() const {
 	wxString ss;
 	const Map &map = iref->editor->getMap();
-	ss << wxstr(map.getName()) << (iref->editor->world ? " [World Layers]" : "") << (iref->editor->hasChanges() ? "*" : "");
+	const auto world = iref->editor->world.get();
+	ss << (world ? wxstr(world->document.data().file.filename().generic_string()) : wxstr(map.getName())) << (world ? " [World Layers]" : "") << (iref->editor->hasChanges() ? "*" : "");
 	return ss;
 }
 

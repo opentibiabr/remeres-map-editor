@@ -501,7 +501,7 @@ bool GUI::NewMap() {
 }
 
 void GUI::OpenMap() {
-	wxString wildcard = wxString("World project (*.world.json)|*.world.json|") + MAP_LOAD_FILE_WILDCARD;
+	wxString wildcard = wxString("Maps and world projects (*.otbm;*.world.json)|*.otbm;*.world.json|World project (*.world.json)|*.world.json|") + MAP_LOAD_FILE_WILDCARD;
 	wxFileDialog dialog(root, "Open map file", wxEmptyString, wxEmptyString, wildcard, wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE);
 
 	if (dialog.ShowModal() == wxID_OK) {

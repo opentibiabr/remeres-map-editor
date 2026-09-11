@@ -290,6 +290,7 @@ namespace {
 		wxSpinCtrl* uid;
 		wxComboBox* destination;
 		wxTextCtrl* errors;
+		const WorldLayerDocument* activeDocument = nullptr;
 		std::string identity, selection;
 		uint64_t revision = 0;
 
@@ -297,15 +298,17 @@ namespace {
 			auto world = current();
 			if (!world) {
 				Enable(false);
+				activeDocument = nullptr;
 				identity.clear();
 				return;
 			}
 			Enable(true);
 			const auto &document = world->document;
 			const auto path = document.data().file.generic_string();
-			if (!force && identity == path && revision == document.revision() && selection == document.selected) {
+			if (!force && activeDocument == &document && identity == path && revision == document.revision() && selection == document.selected) {
 				return;
 			}
+			activeDocument = &document;
 			identity = path;
 			revision = document.revision();
 			selection = document.selected;
