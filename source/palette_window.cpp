@@ -18,6 +18,7 @@
 #include "main.h"
 
 #include "settings.h"
+#include "editor.h"
 #include "gui.h"
 #include "brush.h"
 #include "map_display.h"
@@ -460,6 +461,8 @@ void PaletteWindow::OnUpdateBrushSize(BrushShape shape, int size) {
 }
 
 void PaletteWindow::OnUpdate(Map* map) {
+	const auto editor = g_gui.GetCurrentEditor();
+	Enable(editor && editor->CanEdit());
 	if (monsterPalette) {
 		monsterPalette->OnUpdate();
 	}
