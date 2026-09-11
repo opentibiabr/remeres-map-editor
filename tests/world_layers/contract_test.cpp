@@ -61,6 +61,56 @@ int main(int argc, char** argv) {
 		require(!document.save(error), "external write must block save");
 		require(bytes(scratch / "black_knight.layer.json") == originalLayer, "external changes must remain intact");
 		require(document.dirty(), "failed save must retain draft");
+
+		WorldLayerDocument integrated;
+		error.clear();
+		require(integrated.open(scratch / "world.world.json", error), "open catalog for normal map editing");
+		require(integrated.matchesMap(scratch / "." / "world.otbm"), "associate catalog with its OTBM");
+		write(scratch / "unrelated.otbm", originalMap);
+		require(!integrated.matchesMap(scratch / "unrelated.otbm"), "identical map bytes do not imply the same map file");
+		require(!integrated.matchesMap(scratch / "missing.otbm"), "missing map cannot be associated");
+		const auto before = *integrated.data().find("black_knight.exit");
+		auto snapshot = before;
+		snapshot.position.x += 2;
+		snapshot.aid = 24873;
+		require(integrated.exchange("black_knight.exit", snapshot), "native action commits a snapshot");
+		require(snapshot == before && integrated.dirty(), "native action owns the previous value");
+		require(!integrated.canUndo(), "native actions must not also populate the document history");
+		require(integrated.exchange("black_knight.exit", snapshot) && !integrated.dirty(), "native undo returns to saved state");
+		require(integrated.exchange("black_knight.exit", snapshot) && integrated.dirty(), "native redo restores the world edit");
+		auto invalid = *integrated.data().find("black_knight.exit");
+		invalid.position.z = 16;
+		require(!integrated.exchange("black_knight.exit", invalid), "invalid native snapshot is rejected");
+		invalid = *integrated.data().find("black_knight.exit");
+		invalid.id = "renamed";
+		require(!integrated.exchange("black_knight.exit", invalid), "native snapshots cannot change identity");
+		std::filesystem::path copyRoot;
+		for (unsigned i = 0; i < 10000; ++i) {
+			const auto candidate = scratch / ("map-copy-" + std::to_string(i));
+			if (std::filesystem::create_directory(candidate)) {
+				copyRoot = candidate;
+				break;
+			}
+		}
+		require(!copyRoot.empty(), "reserve isolated map-copy fixture");
+		const auto copyMap = copyRoot / "copy.otbm";
+		write(copyMap, originalMap);
+		const auto edited = *integrated.data().find("black_knight.exit");
+		require(integrated.copyForMap(copyMap, error), "Save As copies the catalog and all layers");
+		require(integrated.matchesMap(copyMap) && !integrated.dirty(), "copied catalog attaches to the new OTBM");
+		require(*integrated.data().find("black_knight.exit") == edited, "Save As includes unsaved world edits");
+		require(bytes(scratch / "black_knight.layer.json") == originalLayer && bytes(scratch / "world.world.json") == originalProject, "Save As preserves source layers and catalog");
+		require(bytes(scratch / "world.otbm") == originalMap && bytes(copyMap) == originalMap, "catalog copy never serializes either OTBM");
+		require(integrated.exchange("black_knight.exit", snapshot) && integrated.dirty(), "native undo remains valid after Save As");
+		require(integrated.save(error), "save undo only into the copied layer");
+		require(bytes(scratch / "black_knight.layer.json") == originalLayer, "later copied-map edits cannot modify source layers");
+		const auto copiedLayer = bytes(copyRoot / "copy.world-layers" / "black_knight.layer.json");
+		require(!integrated.copyForMap(copyMap, error), "Save As must not overwrite an existing catalog");
+		require(bytes(copyRoot / "copy.world-layers" / "black_knight.layer.json") == copiedLayer, "rejected copy preserves destination");
+		WorldLayerDocument copied;
+		require(copied.open(copyRoot / "copy.world.json", error) && copied.matchesMap(copyMap), "normal OTBM reopening can discover its sibling catalog");
+		std::error_code equivalentError;
+		require(std::filesystem::equivalent(copied.data().items, scratch / "items.xml", equivalentError), "copied item catalog paths stay relative and resolve correctly");
 		world_layers::Project project;
 		world_layers::Diagnostics diagnostics;
 		require(world_layers::loadProject(fixture / "world.world.json", project, diagnostics), "load shared fixture");

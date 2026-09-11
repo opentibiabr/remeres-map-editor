@@ -8,7 +8,9 @@ public:
 	const world_layers::Project &data() const {
 		return project;
 	}
+	bool matchesMap(const std::filesystem::path &file) const;
 	bool edit(const std::string &id, const world_layers::Object &value);
+	bool exchange(const std::string &id, world_layers::Object &value);
 	bool undo();
 	bool redo();
 	bool canUndo() const {
@@ -19,6 +21,8 @@ public:
 	}
 	bool dirty() const;
 	bool save(std::string &error);
+	bool canCopyForMap(const std::filesystem::path &map, std::string &error) const;
+	bool copyForMap(const std::filesystem::path &map, std::string &error);
 	uint64_t revision() const {
 		return generation;
 	}
