@@ -838,7 +838,9 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	for (std::map<std::string, MenuBar::Action*>::iterator ai = actions.begin(); ai != actions.end(); ++ai) {
 		frame->Connect(MAIN_FRAME_MENU + ai->second->id, wxEVT_COMMAND_MENU_SELECTED, (wxObjectEventFunction)(wxEventFunction)(ai->second->handler), nullptr, this);
 	}
-	frame->Bind(wxEVT_UPDATE_UI, [](wxUpdateUIEvent &event) { event.Check(IsWorldLayerPanelShown()); }, MAIN_FRAME_MENU + VIEW_WORLD_LAYERS);
+	frame->Bind(
+		wxEVT_UPDATE_UI, [](wxUpdateUIEvent &event) { event.Check(IsWorldLayerPanelShown()); }, MAIN_FRAME_MENU + VIEW_WORLD_LAYERS
+	);
 
 	// A world project owns only external layers. Base-map tools require opening the OTBM separately.
 	for (const auto command : { GENERATE_MAP, IMPORT_MAP, IMPORT_MINIMAP, IMPORT_BITMAP_TO_MAP,
