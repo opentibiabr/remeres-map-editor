@@ -29,9 +29,7 @@ class Action;
 class BatchAction;
 class ActionQueue;
 
-namespace world_layers {
-	struct Object;
-}
+struct WorldDocumentChange;
 
 enum ActionIdentifier {
 	ACTION_MOVE,
@@ -78,7 +76,7 @@ public:
 
 	static Change* Create(House* house, const Position &position);
 	static Change* Create(Waypoint* waypoint, const Position &position);
-	static Change* CreateWorldObject(const std::string &id, const world_layers::Object &value);
+	static Change* CreateWorldDocument(WorldDocumentChange value);
 
 	void clear();
 
@@ -151,6 +149,7 @@ public:
 	bool empty() const noexcept {
 		return changes.empty();
 	}
+	bool affectsMap() const;
 	ActionIdentifier getType() const noexcept {
 		return type;
 	}
@@ -168,6 +167,8 @@ protected:
 	Action(Editor &editor, ActionIdentifier ident);
 
 	bool commited;
+	bool retired = false;
+	bool prepareWorldChanges();
 	ChangeList changes;
 	Editor &editor;
 	ActionIdentifier type;
@@ -200,6 +201,7 @@ public:
 		return label;
 	}
 	bool isNoSelection() const noexcept;
+	bool affectsMap() const;
 
 	virtual void addAction(Action* action);
 	virtual void addAndCommitAction(Action* action);

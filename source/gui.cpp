@@ -605,6 +605,30 @@ bool GUI::LoadMap(const FileName &fileName) {
 		}
 		actualFile = FileName(wxstr(worldDocument->data().map.generic_string()));
 	}
+	if (!worldDocument) {
+		FileName catalog(actualFile);
+		catalog.SetExt("world.json");
+		bool associated = false;
+		const FileName configured(wxstr(g_settings.getString(Config::WORLD_CATALOG_FILE)));
+		const FileName configuredMap(wxstr(g_settings.getString(Config::WORLD_CATALOG_MAP_FILE)));
+		if (catalog == configured && configuredMap == actualFile) associated = true;
+		if (!catalog.FileExists()) {
+			if (configured.FileExists() && configuredMap == actualFile) { catalog = configured; associated = true; }
+		}
+		if (catalog.FileExists() || world_files::pending(std::filesystem::u8path(nstr(catalog.GetFullPath())))) {
+			worldDocument = std::make_unique<WorldLayerDocument>();
+			std::string error;
+			if (!RecoverWorldPublication(std::filesystem::u8path(nstr(catalog.GetFullPath())), root)) return false;
+			if (!worldDocument->open(std::filesystem::u8path(nstr(catalog.GetFullPath())), error)) {
+				PopupDialog(root, "Cannot read world catalog", wxstr(error), wxOK);
+				return false;
+			}
+			if (!associated && !worldDocument->matchesMap(std::filesystem::u8path(nstr(actualFile.GetFullPath())))) {
+				PopupDialog(root, "World catalog association", "The sibling catalog refers to another map. Associate it explicitly with this copy in Preferences > Directories.", wxOK);
+				return false;
+			}
+		}
+	}
 
 	rme::bindPooledObjectOwnerThread();
 
@@ -634,18 +658,6 @@ bool GUI::LoadMap(const FileName &fileName) {
 	mapTab->OnSwitchEditorMode(mode);
 
 	root->AddRecentFile(actualFile);
-	if (!editor->world) {
-		FileName catalog(actualFile);
-		catalog.SetExt("world.json");
-		if (catalog.FileExists()) {
-			LoadServerWorlds(catalog.GetFullPath(), true);
-		} else {
-			const auto configured = wxstr(g_settings.getString(Config::WORLD_CATALOG_FILE));
-			if (!configured.empty()) {
-				LoadServerWorlds(configured, true);
-			}
-		}
-	}
 
 	mapTab->GetView()->FitToMap();
 	UpdateTitle();

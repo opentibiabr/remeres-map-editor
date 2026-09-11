@@ -1781,7 +1781,7 @@ void MapCanvas::OnKeyDown(wxKeyEvent &event) {
 			return;
 		}
 		if (!world->document.selected.empty() && (event.GetKeyCode() == WXK_DELETE || event.GetKeyCode() == WXK_BACK)) {
-			g_gui.SetStatusText("World objects can be moved and edited here. Add or remove declarations in their layer file, then reopen the map.");
+			world->removeSelected();
 			return;
 		}
 	}
@@ -2274,7 +2274,7 @@ void MapCanvas::OnCopy(wxCommandEvent &WXUNUSED(event)) {
 
 void MapCanvas::OnCut(wxCommandEvent &WXUNUSED(event)) {
 	if (editor.world && !editor.world->document.selected.empty()) {
-		g_gui.SetStatusText("Add or remove world declarations in their layer file, then reopen the map.");
+		g_gui.SetStatusText("Move this World object by dragging it; Delete removes its declaration.");
 		return;
 	}
 	if (g_gui.IsSelectionMode()) {
@@ -2293,7 +2293,7 @@ void MapCanvas::OnPaste(wxCommandEvent &WXUNUSED(event)) {
 
 void MapCanvas::OnDelete(wxCommandEvent &WXUNUSED(event)) {
 	if (editor.world && !editor.world->document.selected.empty()) {
-		g_gui.SetStatusText("Add or remove world declarations in their layer file, then reopen the map.");
+		editor.world->removeSelected();
 		return;
 	}
 	editor.destroySelection();

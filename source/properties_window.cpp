@@ -19,6 +19,8 @@
 
 #include "properties_window.h"
 #include "world/world_layers.hpp"
+#include "world/world_properties.h"
+#include "world/world_validation.hpp"
 
 #include "gui_ids.h"
 #include "complexitem.h"
@@ -47,18 +49,18 @@ EVT_NOTEBOOK_PAGE_CHANGED(wxID_ANY, PropertiesWindow::OnNotebookPageChanged)
 EVT_GRID_CELL_CHANGED(PropertiesWindow::OnGridValueChanged)
 END_EVENT_TABLE()
 
-PropertiesWindow::PropertiesWindow(wxWindow* parent, const Map* map, const Tile* tile_parent, Item* item, wxPoint pos, world_layers::Object* object, const world_layers::Project* project, const std::string &id) :
+PropertiesWindow::PropertiesWindow(wxWindow* parent, const Map* map, const Tile* tile_parent, Item* item, wxPoint pos, world_layers::Object* object, const world_layers::Project* project, const std::string &id, world_layers::Project* draft, const world_layers::MapItem* base) :
 	ObjectPropertiesWindowBase(parent, "Item Properties", map, tile_parent, item, pos),
 	currentPanel(nullptr), worldObject(object), worldProject(project), worldId(id) {
-	ASSERT(edit_item);
+	ASSERT(edit_item || (object && draft));
 	notebook = newd wxNotebook(this, wxID_ANY, wxDefaultPosition, wxSize(600, 300));
 
-	notebook->AddPage(createGeneralPanel(notebook), "Simple", true);
-	if (dynamic_cast<Container*>(item)) {
-		notebook->AddPage(createContainerPanel(notebook), "Contents");
-	}
-	if (!worldObject) {
-		notebook->AddPage(createAttributesPanel(notebook), "Advanced");
+	if (worldObject && draft && draft->schemaVersion == 2) {
+		worldProperties = std::make_unique<WorldProperties>(notebook, *worldObject, *draft, base ? *base : world_layers::MapItem {}, map);
+	} else {
+		notebook->AddPage(createGeneralPanel(notebook), "Simple", true);
+		if (dynamic_cast<Container*>(item)) notebook->AddPage(createContainerPanel(notebook), "Contents");
+		if (!worldObject) notebook->AddPage(createAttributesPanel(notebook), "Advanced");
 	}
 
 	wxSizer* topSizer = newd wxBoxSizer(wxVERTICAL);
@@ -92,6 +94,7 @@ PropertiesWindow::~PropertiesWindow() {
 }
 
 void PropertiesWindow::Update() {
+	if (worldProperties) { wxDialog::Update(); return; }
 	Container* container = dynamic_cast<Container*>(edit_item);
 	if (container) {
 		for (uint32_t i = 0; i < container->getVolume(); ++i) {
@@ -627,7 +630,10 @@ void PropertiesWindow::OnGridValueChanged(wxGridEvent &event) {
 }
 
 void PropertiesWindow::OnClickOK(wxCommandEvent &) {
-	if (worldObject) {
+	if (worldProperties) {
+		std::string error;
+		if (!worldProperties->read(error)) { wxMessageBox(wxstr(error), "World validation", wxOK | wxICON_INFORMATION, this); return; }
+	} else if (worldObject) {
 		worldObject->name = nstr(worldName->GetValue());
 		worldObject->aid = static_cast<uint16_t>(simpleActionIdField->GetValue());
 		worldObject->uid = static_cast<uint16_t>(simpleUniqueIdField->GetValue());

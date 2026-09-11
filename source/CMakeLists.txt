@@ -326,7 +326,7 @@ target_sources(
           world/world_layers.cpp world/world_files.cpp world/world_format.cpp world/world_selectors.cpp
           world/world_validation.cpp
           world/world_document.cpp
-          world/world_editor.cpp)
+          world/world_editor.cpp world/world_properties.cpp)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   set_source_files_properties(

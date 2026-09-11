@@ -318,8 +318,10 @@ void MapDrawer::DrawWorldLayers() {
 	}
 	const auto &project = world->document.data();
 	for (const auto &layer : project.layers) {
+		if (!layer.enabled) continue;
 		for (const auto &object : layer.objects) {
-			const auto id = layer.id + "." + object.id;
+			if (!object.container.empty()) continue;
+			const auto id = world_layers::objectId(layer, object);
 			const auto position = world->position(id);
 			if (position.z != floor || position.x < start_x - 2 || position.x > end_x + 2 || position.y < start_y - 2 || position.y > end_y + 2) {
 				continue;
@@ -327,7 +329,7 @@ void MapDrawer::DrawWorldLayers() {
 			int x, y;
 			getDrawPosition(Position(position.x, position.y, position.z), x, y);
 			const auto sprite = world->sprite(object.itemId);
-			if (sprite) {
+			if (sprite && object.mode != world_layers::SourceMode::Map) {
 				int sx = x, sy = y;
 				BlitItem(sx, sy, Position(position.x, position.y, position.z), sprite, true, 255, 255, 255, 210);
 			}

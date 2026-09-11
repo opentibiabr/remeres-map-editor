@@ -26,14 +26,16 @@
 class ContainerItemButton;
 class ContainerItemPopupMenu;
 class ItemAttribute;
+class WorldProperties;
 namespace world_layers {
 	struct Object;
 	struct Project;
+	struct MapItem;
 }
 
 class PropertiesWindow : public ObjectPropertiesWindowBase {
 public:
-	PropertiesWindow(wxWindow* parent, const Map* map, const Tile* tile, Item* item, wxPoint position = wxDefaultPosition, world_layers::Object* worldObject = nullptr, const world_layers::Project* worldProject = nullptr, const std::string &worldId = {});
+	PropertiesWindow(wxWindow* parent, const Map* map, const Tile* tile, Item* item, wxPoint position = wxDefaultPosition, world_layers::Object* worldObject = nullptr, const world_layers::Project* worldProject = nullptr, const std::string &worldId = {}, world_layers::Project* worldDraft = nullptr, const world_layers::MapItem* worldBase = nullptr);
 	~PropertiesWindow();
 
 	void OnClipboardText(wxClipboardTextEvent &evt);
@@ -103,6 +105,7 @@ protected:
 	world_layers::Object* worldObject;
 	const world_layers::Project* worldProject;
 	std::string worldId;
+	std::unique_ptr<WorldProperties> worldProperties;
 	wxTextCtrl* worldName = nullptr;
 	wxSpinCtrl* worldPosition[3] = {};
 	wxSpinCtrl* worldOffset[3] = {};
