@@ -962,6 +962,10 @@ PaletteWindow* GUI::GetPalette() {
 	return palettes.front();
 }
 
+const std::list<PaletteWindow*> &GUI::GetPalettes() {
+	return palettes;
+}
+
 PaletteWindow* GUI::NewPalette() {
 	return CreatePalette();
 }
