@@ -7,7 +7,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{E711B0C8-8D81-40C1-8854-742494C40A0F}</ProjectGuid>
+    <ProjectGuid>{5A464465-F4D5-483F-9C21-DC0771C1C2DD}</ProjectGuid>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <Configuration Condition="'$(Configuration)' == ''">Release</Configuration>
     <Platform Condition="'$(Platform)' == ''">x64</Platform>
@@ -28,9 +28,9 @@
     <VcpkgApplocalDeps>false</VcpkgApplocalDeps>
   </PropertyGroup>
   <PropertyGroup>
-    <OutDir>$(MSBuildProjectDirectory)\$(Platform)\$(Configuration)\world_layers_tests\</OutDir>
+    <OutDir>$(MSBuildProjectDirectory)\$(Platform)\$(Configuration)\world_tool\</OutDir>
     <IntDir>$(OutDir)obj\</IntDir>
-    <TargetName>world_layers_test</TargetName>
+    <TargetName>world-tool</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
@@ -44,20 +44,23 @@
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
+      <AdditionalDependencies>pugixml.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(MSBuildProjectDirectory)\vcpkg_installed\x64-windows\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\tests\world_layers\contract_test.cpp" />
-    <ClCompile Include="..\..\tests\world_layers\contract_v2.cpp" />
+
+
     <ClCompile Include="..\..\source\world\world_layers.cpp" />
     <ClCompile Include="..\..\source\world\world_format.cpp" />
     <ClCompile Include="..\..\source\world\world_selectors.cpp" />
     <ClCompile Include="..\..\source\world\world_validation.cpp" />
-    <ClCompile Include="..\..\source\world\world_document.cpp" />
+    <ClCompile Include="..\..\source\world\world_snapshot.cpp" />
+    <ClCompile Include="..\..\tools\world_tool\main.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Import Project="$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.targets" Condition="'$(_ZVcpkgRoot)' == '' and Exists('$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.targets')" />
-  <Target Name="RunWorldLayerTests" DependsOnTargets="Build">
-    <Exec Command="&quot;$(TargetPath)&quot; &quot;$(MSBuildProjectDirectory)\..\..\tests\world_layers\fixtures&quot; &quot;$(OutDir)scratch&quot;" />
+  <Target Name="CopyWorldToolRuntime" AfterTargets="Build">
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\vcpkg_installed\x64-windows\bin\pugixml.dll" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
   </Target>
 </Project>

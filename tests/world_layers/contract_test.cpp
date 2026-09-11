@@ -1,5 +1,6 @@
 #include "world/world_document.h"
 #include "map_fixture.hpp"
+#include "contract_v2.hpp"
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
@@ -129,7 +130,7 @@ int main(int argc, char** argv) {
 		diagnostics.clear();
 		require(!world_layers::parseLayer(R"({"schemaVersion":1,"id":"a","id":"b","objects":[]})", "duplicate.json", layer, diagnostics), "duplicate JSON property");
 		diagnostics.clear();
-		require(!world_layers::parseLayer(R"({"schemaVersion":2,"id":"future","objects":[]})", "future.json", layer, diagnostics), "future schema must be rejected");
+		require(!world_layers::parseLayer(R"({"schemaVersion":3,"id":"future","objects":[]})", "future.json", layer, diagnostics), "future schema must be rejected");
 		diagnostics.clear();
 		require(!world_layers::parseLayer(R"({"schemaVersion":1,"id":"future","objects":[{"id":"entry","position":{"x":1,"y":1,"z":7},"origin":{"type":"layer","itemId":1949},"components":[{"type":"future"}]}]})", "future.json", layer, diagnostics), "unknown component must be rejected");
 		auto entry = project.find("black_knight.entry");
@@ -164,6 +165,7 @@ int main(int argc, char** argv) {
 		arrivalTile.items.push_back({ 999, 1949, 0, true, entry->position });
 		diagnostics.clear();
 		require(!world_layers::validateMap(project, conflictMap, plan, diagnostics), "cycle through base-map teleport must be rejected");
+		runWorldV2Tests(scratch);
 		std::cout << "World layer identity, validation, undo, persistence and OTBM preservation passed\n";
 		return 0;
 	} catch (const std::exception &error) {

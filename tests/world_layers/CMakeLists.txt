@@ -1,6 +1,6 @@
 add_executable(
   world_layers_test
-  contract_test.cpp ../../source/world/world_layers.cpp
+  contract_test.cpp contract_v2.cpp ../../source/world/world_layers.cpp ../../source/world/world_format.cpp ../../source/world/world_selectors.cpp
   ../../source/world/world_validation.cpp ../../source/world/world_document.cpp)
 target_compile_features(world_layers_test PRIVATE cxx_std_20)
 target_include_directories(world_layers_test PRIVATE ../../source)
