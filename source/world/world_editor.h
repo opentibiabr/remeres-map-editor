@@ -32,4 +32,5 @@ private:
 	std::unordered_map<uint16_t, std::unique_ptr<Item>> sprites;
 };
 
-void ShowWorldLayerPanel();
+void ShowWorldLayerPanel(bool show = true);
+bool IsWorldLayerPanelShown();

@@ -8,19 +8,29 @@ startup. Saving a world project writes layers only; it never invokes OTBM saving
 ## Open and edit
 
 1. Install the normal client assets in RME and use an item catalog compatible with
-   your server. Open a `*.world.json` file through **File > Open**. The project
+   your server. Choose **File > Open World Project...** (Ctrl+Alt+O) or
+   **Open World Project...** on the welcome screen, then select a `*.world.json`.
+   The normal **File > Open** dialog also accepts world projects. The project
    points to its OTBM, server `items.xml`, and explicit layer list using relative paths.
-2. Select an object in the **World Layers** panel and choose **Go to object**.
+2. The **World Layers** panel opens on the right and the map centers on the first
+   object, unless a saved view position is available. Use **View > World Layers**
+   (Ctrl+Alt+L) to show or hide the panel at any time, including before a project is
+   open. Its **Open project...** button and introductory text guide the next step.
+   Opening an OTBM alone does not load external layers.
+3. Search by object ID in the panel, then select an object and choose **Go to object**.
+   Double-clicking a list entry also centers the map on that object.
    Click or drag external objects directly on the map. The source selector that
    identifies a replaced OTBM item remains fixed at its original position.
-3. Use the inspector to change position, AID, UID, destination object and arrival
-   offset, then click **Apply**. AID may repeat; UID must be unique. Identity and
+4. Use the inspector to change position, AID, UID, destination object and arrival
+   offset, then click **Apply changes**. AID may repeat; UID must be unique. Identity and
    origin are read-only in this first version.
-4. Use **Go to arrival** to inspect the resolved destination, including destinations
+5. Use **Go to arrival** to inspect the resolved destination, including destinations
    on another floor. The selected object's label shows its target and arrival floor;
    destinations on the current floor also have a connecting line and marker.
-5. Ctrl+Z/Ctrl+Y undo and redo layer edits. Escape cancels an active drag. Ctrl+S
-   saves changed layers. Reopening the project reconstructs the same objects.
+6. Ctrl+Z/Ctrl+Y undo and redo layer edits. Escape cancels an active drag. **Save layers**
+   or Ctrl+S saves applied changes. The panel identifies the current project, reports
+   unsaved layer changes and shows validation issues when present. Reopening the
+   project reconstructs the same objects. The panel scrolls when space is limited.
 
 Blue outlines identify external objects, yellow identifies the selection, and red
 indicates validation errors. Hide external objects to inspect the unchanged OTBM

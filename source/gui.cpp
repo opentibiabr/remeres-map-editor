@@ -502,7 +502,7 @@ bool GUI::NewMap() {
 
 void GUI::OpenMap() {
 	wxString wildcard = wxString("Maps and world projects (*.otbm;*.world.json)|*.otbm;*.world.json|World project (*.world.json)|*.world.json|") + MAP_LOAD_FILE_WILDCARD;
-	wxFileDialog dialog(root, "Open map file", wxEmptyString, wxEmptyString, wildcard, wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE);
+	wxFileDialog dialog(root, "Open map or world project", wxEmptyString, wxEmptyString, wildcard, wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE);
 
 	if (dialog.ShowModal() == wxID_OK) {
 		wxArrayString paths;
@@ -511,6 +511,19 @@ void GUI::OpenMap() {
 			LoadMap(FileName(paths[i]));
 		}
 	}
+}
+
+void GUI::OpenWorldProject() {
+	wxString path;
+	{
+		wxWindow* parent = IsWelcomeDialogShown() ? static_cast<wxWindow*>(welcomeDialog) : root;
+		wxFileDialog dialog(parent, "Open World Project", wxEmptyString, wxEmptyString, "World project (*.world.json)|*.world.json", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+		if (dialog.ShowModal() != wxID_OK) {
+			return;
+		}
+		path = dialog.GetPath();
+	}
+	LoadMap(FileName(path));
 }
 
 void GUI::SaveMap() {
@@ -604,6 +617,12 @@ bool GUI::LoadMap(const FileName &fileName) {
 
 	FitViewToMap(mapTab);
 	root->UpdateMenubar();
+	if (editor->world) {
+		const auto &document = editor->world->document;
+		if (const auto object = document.data().find(document.selected)) {
+			mapTab->SetScreenCenterPosition(Position(object->position.x, object->position.y, object->position.z));
+		}
+	}
 
 	std::string path = g_settings.getString(Config::RECENT_EDITED_MAP_PATH);
 	if (!path.empty()) {

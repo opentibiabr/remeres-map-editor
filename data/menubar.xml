@@ -2,7 +2,8 @@
 <menubar>
     <menu name="$File">
         <item name="$New..." hotkey="Ctrl+N" action="NEW" help="Create a new map."/>
-        <item name="$Open..." hotkey="Ctrl+O" action="OPEN" help="Open another map."/>
+        <item name="$Open..." hotkey="Ctrl+O" action="OPEN" help="Open a map or world project."/>
+        <item name="Open $World Project..." hotkey="Ctrl+Alt+O" action="OPEN_WORLD_PROJECT" help="Open a .world.json project to edit external objects without changing the OTBM."/>
         <item name="$Save" hotkey="Ctrl+S" action="SAVE" help="Save the current map."/>
         <item name="Save $As..." hotkey="Ctrl+Alt+S" action="SAVE_AS" help="Save the current map as a new file."/>
         <item name="$Generate Map" action="GENERATE_MAP" help="Generate a new map."/>
@@ -120,6 +121,8 @@
         <item name="Ra$ndomize Selection" action="RANDOMIZE_SELECTION" help="Randomizes the ground tiles of the selected area."/>
     </menu>
     <menu name="$View">
+        <item name="$World Layers" hotkey="Ctrl+Alt+L" action="VIEW_WORLD_LAYERS" help="Show or hide the World Layers panel. Open a project and edit its external objects here."/>
+        <separator/>
         <menu name="Toolbars">
             <item name="Brushes" action="VIEW_TOOLBARS_BRUSHES" help="Show or hide the Brushes toolbar."/>
             <item name="Position" action="VIEW_TOOLBARS_POSITION" help="Show or hide the Position toolbar."/>

@@ -726,7 +726,6 @@ void MapCanvas::OnMouseActionClick(wxMouseEvent &event) {
 				CaptureMouse();
 			}
 		}
-		ShowWorldLayerPanel();
 		Refresh();
 		return;
 	}

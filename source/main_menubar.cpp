@@ -33,6 +33,7 @@
 #include "lua/lua_script_manager.h"
 #include "lua/lua_scripts_window.h"
 #include "gui.h"
+#include "world/world_editor.h"
 
 #include <wx/chartype.h>
 #include <wx/choicdlg.h>
@@ -646,6 +647,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 
 	MAKE_ACTION(NEW, wxITEM_NORMAL, OnNew);
 	MAKE_ACTION(OPEN, wxITEM_NORMAL, OnOpen);
+	MAKE_ACTION(OPEN_WORLD_PROJECT, wxITEM_NORMAL, OnOpenWorldProject);
 	MAKE_ACTION(SAVE, wxITEM_NORMAL, OnSave);
 	MAKE_ACTION(SAVE_AS, wxITEM_NORMAL, OnSaveAs);
 	MAKE_ACTION(GENERATE_MAP, wxITEM_NORMAL, OnGenerateMap);
@@ -730,6 +732,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(VIEW_TOOLBARS_SIZES, wxITEM_CHECK, OnToolbars);
 	MAKE_ACTION(VIEW_TOOLBARS_INDICATORS, wxITEM_CHECK, OnToolbars);
 	MAKE_ACTION(VIEW_TOOLBARS_STANDARD, wxITEM_CHECK, OnToolbars);
+	MAKE_ACTION(VIEW_WORLD_LAYERS, wxITEM_CHECK, OnWorldLayers);
 	MAKE_ACTION(NEW_VIEW, wxITEM_NORMAL, OnNewView);
 	MAKE_ACTION(TOGGLE_FULLSCREEN, wxITEM_NORMAL, OnToggleFullscreen);
 
@@ -835,6 +838,8 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	for (std::map<std::string, MenuBar::Action*>::iterator ai = actions.begin(); ai != actions.end(); ++ai) {
 		frame->Connect(MAIN_FRAME_MENU + ai->second->id, wxEVT_COMMAND_MENU_SELECTED, (wxObjectEventFunction)(wxEventFunction)(ai->second->handler), nullptr, this);
 	}
+	frame->Bind(wxEVT_UPDATE_UI, [](wxUpdateUIEvent &event) { event.Check(IsWorldLayerPanelShown()); }, MAIN_FRAME_MENU + VIEW_WORLD_LAYERS);
+
 	// A world project owns only external layers. Base-map tools require opening the OTBM separately.
 	for (const auto command : { GENERATE_MAP, IMPORT_MAP, IMPORT_MINIMAP, IMPORT_BITMAP_TO_MAP,
 								REPLACE_ITEMS, BORDERIZE_SELECTION, BORDERIZE_MAP, RANDOMIZE_SELECTION, RANDOMIZE_MAP,
@@ -1398,6 +1403,10 @@ void MainMenuBar::OnOpenRecent(wxCommandEvent &event) {
 
 void MainMenuBar::OnOpen(wxCommandEvent &WXUNUSED(event)) {
 	g_gui.OpenMap();
+}
+
+void MainMenuBar::OnOpenWorldProject(wxCommandEvent &WXUNUSED(event)) {
+	g_gui.OpenWorldProject();
 }
 
 void MainMenuBar::OnClose(wxCommandEvent &WXUNUSED(event)) {
@@ -2965,6 +2974,10 @@ void MainMenuBar::OnToolbars(wxCommandEvent &event) {
 		default:
 			break;
 	}
+}
+
+void MainMenuBar::OnWorldLayers(wxCommandEvent &event) {
+	ShowWorldLayerPanel(event.IsChecked());
 }
 
 void MainMenuBar::OnNewView(wxCommandEvent &WXUNUSED(event)) {
