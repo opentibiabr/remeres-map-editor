@@ -725,6 +725,11 @@ void MapCanvas::OnMouseActionClick(wxMouseEvent &event) {
 	if (auto world = editor.world.get()) {
 		int x, y;
 		ScreenToMap(event.GetX(), event.GetY(), &x, &y);
+		if (world->pickAt({ x, y, floor })) {
+			SetFocus();
+			Refresh();
+			return;
+		}
 		const auto id = world->at({ x, y, floor });
 		if (g_gui.IsSelectionMode() && !isPasting() && !event.AltDown() && !event.ShiftDown() && !id.empty()) {
 			SetFocus();
@@ -1771,7 +1776,8 @@ void MapCanvas::OnGainMouse(wxMouseEvent &event) {
 
 void MapCanvas::OnKeyDown(wxKeyEvent &event) {
 	if (auto world = editor.world.get()) {
-		if (event.GetKeyCode() == WXK_ESCAPE && (world->drag || !world->document.selected.empty())) {
+		if (event.GetKeyCode() == WXK_ESCAPE && (world->isPicking() || world->drag || !world->document.selected.empty())) {
+			world->cancelPick();
 			world->finishDrag(false);
 			world->document.selected.clear();
 			Refresh();

@@ -36,6 +36,11 @@ public:
 	void createObject(world_layers::ObjectKind kind, world_layers::SourceMode mode);
 	void renameSelected();
 	void moveSelectedToLayer();
+	void pickOriginal();
+	void pickRelation();
+	bool pickAt(const world_layers::Position &position);
+	void cancelPick();
+	bool isPicking() const;
 	void refresh();
 	void checkExternal(bool interactive);
 	void saveDraft();
@@ -53,12 +58,24 @@ public:
 	std::string externalStatus;
 
 private:
+	enum class PickKind { Original,
+		                  Teleport,
+		                  ObjectRelation,
+		                  BehaviorRelation };
+	struct MapPick {
+		PickKind kind;
+		std::string source, relation;
+		size_t behavior = 0;
+		uint64_t revision = 0;
+	};
+	std::optional<MapPick> mapPick;
 	Editor &editor;
 	world_layers::ApplicationPlan plan;
 	world_layers::Diagnostics catalogDiagnostics;
 	std::unordered_map<uint64_t, std::vector<world_layers::UniqueOccurrence>> uniqueIds;
 	uint64_t mapRevision = 0;
 	std::unordered_map<uint16_t, std::unique_ptr<Item>> sprites;
+	std::unordered_map<uint64_t, std::vector<std::string>> positionObjects;
 	std::optional<std::filesystem::path> chooseLayer();
 	std::unique_ptr<WorldFileMonitor> fileMonitor;
 };

@@ -23,6 +23,9 @@ namespace {
 	world_layers::Position portable(const Position &p) {
 		return { p.x, p.y, p.z };
 	}
+	uint64_t positionKey(const world_layers::Position &p) {
+		return (uint64_t(p.x) << 20) | (uint64_t(p.y) << 4) | uint64_t(p.z);
+	}
 	world_layers::MapItem snapshot(Item* item, bool ground = false) {
 		using world_layers::Value;
 		world_layers::MapItem result;
@@ -544,10 +547,215 @@ void WorldLayerEditor::moveSelectedToLayer() {
 	editProject(next, document.selected);
 }
 
+bool WorldLayerEditor::isPicking() const {
+	return mapPick.has_value();
+}
+
+void WorldLayerEditor::cancelPick() {
+	mapPick.reset();
+	g_gui.SetStatusText("");
+}
+
+void WorldLayerEditor::pickOriginal() {
+	if (!ensureV2()) {
+		return;
+	}
+	const auto object = document.data().find(document.selected);
+	if (!object || !object->selector) {
+		g_gui.PopupDialog("Choose a World declaration", "Select a declaration bound to a base item or an external replacement first.", wxOK);
+		return;
+	}
+	mapPick = MapPick { PickKind::Original, document.selected, {}, 0, document.revision() };
+	g_gui.SetSelectionMode();
+	g_gui.SetStatusText("Click the tile containing the new original. Choose its exact item; Escape cancels.");
+}
+
+void WorldLayerEditor::pickRelation() {
+	if (!ensureV2()) {
+		return;
+	}
+	const auto object = document.data().find(document.selected);
+	if (!object) {
+		g_gui.PopupDialog("Choose a World declaration", "Select the source object in the Worlds palette or on the map first.", wxOK);
+		return;
+	}
+	std::vector<MapPick> choices;
+	wxArrayString labels;
+	const auto add = [&](PickKind kind, const std::string &name, size_t behavior, const std::string &label) {
+		choices.push_back({ kind, document.selected, name, behavior, document.revision() });
+		labels.Add(wxstr(label));
+	};
+	if (object->kind == world_layers::ObjectKind::Item && g_items.getItemType(object->itemId).isTeleport()) {
+		add(PickKind::Teleport, {}, 0, "Teleport destination");
+	}
+	for (size_t i = 0; i < object->behaviors.size(); ++i) {
+		const auto &binding = object->behaviors[i];
+		if (const auto descriptor = document.data().behavior(binding.id)) {
+			for (const auto &[name, relation] : descriptor->relations) {
+				add(PickKind::BehaviorRelation, name, i, binding.id + ": " + (relation.label.empty() ? name : relation.label));
+			}
+		}
+	}
+	for (const auto &[name, values] : object->relations) {
+		add(PickKind::ObjectRelation, name, 0, "Relation: " + name);
+	}
+	add(PickKind::ObjectRelation, {}, 0, "New named relation...");
+	wxSingleChoiceDialog choose(g_gui.root, "Choose which relationship to set, then click its target on the normal map.", "Choose relation on map", labels);
+	if (choose.ShowModal() != wxID_OK) {
+		return;
+	}
+	auto request = choices.at(choose.GetSelection());
+	if (request.kind == PickKind::ObjectRelation && request.relation.empty()) {
+		request.relation = nstr(wxGetTextFromUser("Relation name", "New relation", "", g_gui.root));
+		if (request.relation.empty()) {
+			return;
+		}
+	}
+	mapPick = std::move(request);
+	document.visible = true;
+	g_gui.SetSelectionMode();
+	g_gui.SetStatusText("Click the related World object. Multiple objects on one tile will be listed. Escape cancels.");
+}
+
+bool WorldLayerEditor::pickAt(const world_layers::Position &position) {
+	if (!mapPick) {
+		return false;
+	}
+	const auto request = *mapPick;
+	if (document.revision() != request.revision || !document.data().find(request.source)) {
+		cancelPick();
+		g_gui.PopupDialog("World changed", "The source document changed while choosing a target. Start the operation again with the current revision.", wxOK);
+		return true;
+	}
+	synchronizeMap();
+	auto next = document.data();
+	auto object = next.find(request.source);
+	if (request.kind == PickKind::Original) {
+		const auto tile = editor.getMap().getTile(native(position));
+		if (!tile) {
+			g_gui.SetStatusText("This tile has no base items. Choose another tile or press Escape.");
+			return true;
+		}
+		struct Candidate {
+			world_layers::MapItem item;
+			world_layers::Selector selector;
+			std::vector<world_layers::MapItem> peers;
+		};
+		std::vector<Candidate> candidates;
+		wxArrayString labels;
+		EditorMapView view(editor.getMap(), uniqueIds);
+		const auto collect = [&](const auto &self, const std::vector<world_layers::MapItem> &items, const std::string &container) -> void {
+			for (const auto &item : items) {
+				world_layers::Selector selector;
+				selector.position = position;
+				selector.container = container;
+				selector.itemId = item.itemId;
+				selector.ground = item.ground;
+				candidates.push_back({ item, selector, items });
+				labels.Add(wxstr((container.empty() ? std::string() : container + " / ") + (item.ground ? "Ground " : "Item ") + std::to_string(item.itemId) + ", AID " + std::to_string(item.aid) + ", UID " + std::to_string(item.uid)));
+				if (item.container) {
+					const auto parent = std::find_if(plan.objects.begin(), plan.objects.end(), [&](const auto &entry) { return entry.original == item.key; });
+					if (parent != plan.objects.end()) {
+						self(self, item.children, parent->id);
+					}
+				}
+			}
+		};
+		collect(collect, view.tile(position).items, {});
+		if (candidates.empty()) {
+			return true;
+		}
+		wxSingleChoiceDialog choose(g_gui.root, "Choose the exact original. Contained items are listed when their container has a World binding.", "Reassociate original", labels);
+		if (choose.ShowModal() != wxID_OK) {
+			return true;
+		}
+		auto &chosen = candidates.at(choose.GetSelection());
+		std::string error;
+		if (!world_layers::captureSelector(chosen.selector, chosen.peers, chosen.item.key, error)) {
+			g_gui.PopupDialog("Cannot select original", wxstr(error), wxOK);
+			return true;
+		}
+		object->selector = std::move(chosen.selector);
+		object->replaces.reset();
+		if (object->mode == world_layers::SourceMode::Map) {
+			object->position = position;
+			object->itemId = chosen.item.itemId;
+		}
+	} else {
+		const auto found = positionObjects.find(positionKey(position));
+		std::vector<std::string> ids;
+		wxArrayString labels;
+		const world_layers::RelationType* type = nullptr;
+		if (request.kind == PickKind::BehaviorRelation) {
+			const auto descriptor = next.behavior(object->behaviors.at(request.behavior).id);
+			if (!descriptor || !descriptor->relations.contains(request.relation)) {
+				cancelPick();
+				return true;
+			}
+			type = &descriptor->relations.at(request.relation);
+		}
+		EditorMapView view(editor.getMap(), uniqueIds);
+		if (found != positionObjects.end()) {
+			for (const auto &id : found->second) {
+				const auto target = next.find(id);
+				if (type && ((type->targetKind == "item") != (target->kind == world_layers::ObjectKind::Item) || std::any_of(type->capabilities.begin(), type->capabilities.end(), [&](const auto &capability) { return !view.capability(target->itemId, capability); }))) {
+					continue;
+				}
+				ids.push_back(id);
+				labels.Add(wxstr(target->name.empty() ? id : target->name + " (" + id + ")"));
+			}
+		}
+		if (ids.empty()) {
+			g_gui.SetStatusText("No compatible World object here. Create a World binding or reference point first, or choose another tile.");
+			return true;
+		}
+		size_t selected = 0;
+		if (ids.size() > 1) {
+			wxSingleChoiceDialog choose(g_gui.root, "Choose the exact related object", "World objects on this tile", labels);
+			if (choose.ShowModal() != wxID_OK) {
+				return true;
+			}
+			selected = choose.GetSelection();
+		}
+		if (request.kind == PickKind::Teleport) {
+			if (!object->teleport) {
+				object->teleport = world_layers::Teleport {};
+			}
+			object->teleport->destination = ids[selected];
+		} else {
+			auto &references = request.kind == PickKind::ObjectRelation ? object->relations[request.relation] : object->behaviors.at(request.behavior).relations[request.relation];
+			if (!type || type->maximum == 1) {
+				const auto offset = references.size() == 1 ? references.front().offset : world_layers::Position {};
+				references = { { ids[selected], offset } };
+			} else if (references.size() < type->maximum) {
+				references.push_back({ ids[selected], {} });
+			} else {
+				g_gui.PopupDialog("Relation is full", "Remove an existing related object in Properties before adding another.", wxOK);
+				return true;
+			}
+		}
+	}
+	// Modal target choosers may process a file notification while they are open.
+	if (document.revision() != request.revision) {
+		cancelPick();
+		g_gui.PopupDialog("World changed", "The document changed while choosing. Your existing work was preserved; choose again.", wxOK);
+		return true;
+	}
+	cancelPick();
+	editProject(next, request.source);
+	return true;
+}
+
 void WorldLayerEditor::validate() {
 	++validationRevision;
+	positionObjects.clear();
 	for (const auto &layer : document.data().layers) {
 		for (const auto &object : layer.objects) {
+			if (layer.enabled && object.container.empty() && (!object.selector || object.selector->container.empty())) {
+				if (const auto position = world_layers::objectPosition(document.data(), object)) {
+					positionObjects[positionKey(*position)].push_back(world_layers::objectId(layer, object));
+				}
+			}
 			if (object.kind == world_layers::ObjectKind::Item && !sprites.contains(object.itemId) && g_items.isValidID(object.itemId)) {
 				sprites.emplace(object.itemId, Item::Create(object.itemId));
 			}
@@ -741,17 +949,8 @@ std::string WorldLayerEditor::at(const world_layers::Position &position) const {
 	if (!document.visible) {
 		return {};
 	}
-	for (const auto &layer : document.data().layers) {
-		if (!layer.enabled) {
-			continue;
-		}
-		for (const auto &object : layer.objects) {
-			if (world_layers::objectPosition(document.data(), object) == position) {
-				return world_layers::objectId(layer, object);
-			}
-		}
-	}
-	return {};
+	const auto found = positionObjects.find(positionKey(position));
+	return found == positionObjects.end() || found->second.empty() ? std::string() : found->second.front();
 }
 
 world_layers::Position WorldLayerEditor::position(const std::string &id) const {
@@ -1095,6 +1294,10 @@ namespace {
 				entry("Rename selected object...", [](wxCommandEvent &) { if (auto world = current()){ world->renameSelected();
 } });
 				entry("Move selected declaration to layer...", [](wxCommandEvent &) { if (auto world = current()){ world->moveSelectedToLayer();
+} });
+				entry("Choose related object on map...", [](wxCommandEvent &) { if (auto world = current()){ world->pickRelation();
+} });
+				entry("Reassociate original on map...", [](wxCommandEvent &) { if (auto world = current()){ world->pickOriginal();
 } });
 				entry("Delete selected declaration", [](wxCommandEvent &) { if (auto world = current()){ world->removeSelected();
 } });

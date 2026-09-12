@@ -56,6 +56,14 @@ or moving its position preserves those references. Explicit identity renaming
 updates the affected references in the same action. **Go to arrival** navigates
 to a teleport's resolved destination, including another floor.
 
+**Manage... > Choose related object on map...** selects the relationship first
+and its target with the next click on the ordinary canvas. Compatible objects
+sharing a tile are listed individually. **Reassociate original on map...** lets
+you choose the exact base item again after its selector becomes invalid. This
+changes the binding without moving the base item or the external replacement.
+Escape cancels either operation. A document revision change cancels a pending
+choice instead of applying it to stale data.
+
 Ctrl+Z/Ctrl+Y use the same chronological history for map and World changes.
 Escape cancels an external drag. Preview visibility can be toggled to inspect the
 base map; external replacements never remove originals from the OTBM data.
