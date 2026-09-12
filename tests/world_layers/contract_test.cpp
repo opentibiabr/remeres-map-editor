@@ -149,6 +149,19 @@ namespace {
 		require(document.editProject(project, error) && document.save(error), "remove a layer from the active catalog");
 		require(std::filesystem::exists(a.file), "removing a layer preserves its previous disk file for recovery");
 		require(document.undo() && document.data().find(portal.id), "undo layer and object removal");
+		const auto sourceCatalog = bytes(root / "map.world.json"), sourceLayer = bytes(a.file);
+		project = document.data();
+		project.find(portal.id)->attributes["text"] = Value { std::string("native history") };
+		WorldDocumentChange native;
+		require(document.makeChange(project, native, error) && document.exchange(native, error), "record native action before Save As");
+		write(root / "copy.otbm", original);
+		require(document.copyForMap(root / "copy.otbm", error, { &native, &old }), "copy and rebase both native and document histories");
+		require(document.exchange(native, error), "native World action remains reversible in copied files");
+		require(!document.exchange(old, error), "Save As must not revive an action invalidated by external reload");
+		require(document.redo() && !document.data().find(portal.id), "redo structural deletion after Save As");
+		require(document.undo() && document.data().find(portal.id), "undo restores deleted layers under copied paths");
+		require(document.save(error), "save changes from rebased history");
+		require(bytes(root / "map.world.json") == sourceCatalog && bytes(a.file) == sourceLayer, "rebased structural actions never write to original documents");
 	}
 }
 

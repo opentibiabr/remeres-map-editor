@@ -498,7 +498,7 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 
 	if (copyWorld) {
 		std::string error;
-		if (!world->document.copyForMap(std::filesystem::u8path(map.filename), error)) {
+		if (!world->document.copyForMap(std::filesystem::u8path(map.filename), error, actionQueue->worldDocumentChanges())) {
 			map.filename = previousFilename;
 			map.name = previousName;
 			map.spawnmonsterfile = previousMonsterFile;

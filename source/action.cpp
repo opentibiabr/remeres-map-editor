@@ -822,6 +822,20 @@ void ActionQueue::clear() {
 	current = 0;
 }
 
+std::vector<WorldDocumentChange*> ActionQueue::worldDocumentChanges() const {
+	std::vector<WorldDocumentChange*> result;
+	for (const auto batch : actions) {
+		for (const auto action : batch->batch) {
+			for (const auto change : action->changes) {
+				if (change->getType() == CHANGE_WORLD_OBJECT) {
+					result.push_back(static_cast<WorldDocumentChange*>(change->getData()));
+				}
+			}
+		}
+	}
+	return result;
+}
+
 wxString ActionQueue::createLabel(ActionIdentifier type) {
 	switch (type) {
 		case ACTION_MOVE:

@@ -273,6 +273,7 @@ public:
 	bool hasChanges() const;
 
 	void generateLabels();
+	std::vector<WorldDocumentChange*> worldDocumentChanges() const;
 
 protected:
 	static wxString createLabel(ActionIdentifier type);

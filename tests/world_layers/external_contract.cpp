@@ -39,6 +39,16 @@ void runWorldExternalTests(const std::filesystem::path &scratch) {
 		layer.objects.push_back(object);
 		project.layers.push_back(layer);
 	}
+	const auto descriptorFile = root / "example.behavior.json", scriptFile = root / "example.lua";
+	const std::string descriptorSource = R"({"schemaVersion":2,"id":"example.behavior","contractVersion":1,"script":"example.lua","targetKind":"item","events":["onUse"],"parameters":{},"relations":{}})";
+	const std::string scriptSource = "-- loaded implementation\n";
+	write(descriptorFile, descriptorSource);
+	write(scriptFile, scriptSource);
+	BehaviorDescriptor descriptor;
+	Diagnostics descriptorDiagnostics;
+	check(parseBehavior(descriptorSource, descriptorFile, descriptor, descriptorDiagnostics), "parse observed descriptor");
+	project.behaviors.push_back(descriptor);
+	check(document.observe(descriptorFile, error) && document.observe(scriptFile, error), "retain exact implementation revisions");
 	check(document.editProject(project, error) && document.save(error), "save two independent documents");
 	const auto baseline = document.data();
 	project = baseline;
@@ -64,10 +74,17 @@ void runWorldExternalTests(const std::filesystem::path &scratch) {
 	write(external.file, "{\"schemaVersion\":2,");
 	check(document.reconcileExternal(false, changes, error) == WorldExternalResult::Invalid && document.data().find("one.anchor")->position.x == 103, "truncated JSON preserves the valid draft");
 	std::filesystem::path draft;
+	write(descriptorFile, "{invalid descriptor");
+	write(scriptFile, "-- unacknowledged implementation edit\n");
 	check(document.saveDraft(root / "draft", draft, error), "preserve local draft outside the active catalog");
 	Project reopened;
 	Diagnostics diagnostics;
 	check(loadProject(draft, reopened, diagnostics) && reopened.find("one.anchor")->position.x == 103, "draft contains local values and relative references");
+	std::string preservedScript;
+	check(reopened.behaviors.size() == 1 && reopened.behaviors.front().file.parent_path() == draft.parent_path(), "draft preserves a valid descriptor independently of its broken source");
+	check(readFile(reopened.behaviors.front().script, preservedScript, error) && preservedScript == scriptSource, "draft keeps the loaded Lua revision without copying an unacknowledged edit");
+	write(descriptorFile, descriptorSource);
+	write(scriptFile, scriptSource);
 	write(external.file, serializeLayer(external));
 	project = document.data();
 	project.find("two.anchor")->position.y = 105;

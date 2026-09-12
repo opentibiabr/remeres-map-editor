@@ -88,7 +88,7 @@ public:
 	bool dirty() const;
 	bool save(std::string &error);
 	bool canCopyForMap(const std::filesystem::path &map, std::string &error) const;
-	bool copyForMap(const std::filesystem::path &map, std::string &error);
+	bool copyForMap(const std::filesystem::path &map, std::string &error, const std::vector<WorldDocumentChange*> &editorHistory = {});
 	uint64_t revision() const {
 		return generation;
 	}

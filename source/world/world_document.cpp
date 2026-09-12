@@ -457,9 +457,33 @@ bool WorldLayerDocument::saveDraft(const std::filesystem::path &directory, std::
 				}
 			}
 			copy.migrationRecords[i].file = file;
+			copy.migrationRecords[i].receipt.clear();
+		}
+		Files dependencies;
+		std::map<std::filesystem::path, std::filesystem::path> scripts;
+		for (size_t i = 0; i < copy.behaviors.size(); ++i) {
+			auto &descriptor = copy.behaviors[i];
+			const auto definition = source.find(descriptor.file), implementation = source.find(descriptor.script);
+			if (definition == source.end() || implementation == source.end()) {
+				error = "Cannot preserve a behavior without its loaded source revision: " + descriptor.id;
+				return false;
+			}
+			if (!scripts.contains(descriptor.script)) {
+				const auto target = copy.file.parent_path() / ("script-" + std::to_string(scripts.size()) + ".draft.lua");
+				scripts[descriptor.script] = target;
+				dependencies[target] = implementation->second;
+			}
+			descriptor.file = copy.file.parent_path() / ("behavior-" + std::to_string(i) + ".draft.json");
+			descriptor.script = scripts.at(descriptor.script);
+			auto json = nlohmann::ordered_json::parse(definition->second);
+			json["script"] = descriptor.script.filename().generic_string();
+			dependencies[descriptor.file] = json.dump(2) + "\n";
 		}
 		world_files::Publication publication { copy.file, copy.file.parent_path(), {}, {} };
 		const auto files = documents(copy);
+		for (const auto &[file, bytes] : dependencies) {
+			publication.changes.push_back({ file, {}, bytes });
+		}
 		for (const auto &[file, bytes] : files) {
 			if (file != copy.file) {
 				publication.changes.push_back({ file, {}, bytes });
@@ -874,7 +898,7 @@ bool WorldLayerDocument::canCopyForMap(const std::filesystem::path &map, std::st
 		return false;
 	}
 }
-bool WorldLayerDocument::copyForMap(const std::filesystem::path &map, std::string &error) {
+bool WorldLayerDocument::copyForMap(const std::filesystem::path &map, std::string &error, const std::vector<WorldDocumentChange*> &editorHistory) {
 	if (!canCopyForMap(map, error)) {
 		return false;
 	}
@@ -884,31 +908,118 @@ bool WorldLayerDocument::copyForMap(const std::filesystem::path &map, std::strin
 		copy.project.file = copiedCatalog(std::filesystem::absolute(map).lexically_normal());
 		copy.project.map = std::filesystem::absolute(map).lexically_normal();
 		std::map<std::filesystem::path, std::filesystem::path> renamed;
+		renamed[project.file] = copy.project.file;
+		std::set<std::filesystem::path> occupied;
 		for (auto &layer : copy.project.layers) {
 			const auto file = copiedLayers(copy.project.map) / (layer.id + ".layer.json");
 			renamed[layer.file] = file;
+			occupied.insert(file);
 			layer.file = file;
 		}
 		for (size_t i = 0; i < copy.project.migrationRecords.size(); ++i) {
 			auto &record = copy.project.migrationRecords[i];
 			const auto file = copiedLayers(copy.project.map) / ("migration-" + std::to_string(i) + ".json");
 			renamed[record.file] = file;
+			occupied.insert(file);
 			for (auto &path : copy.project.migrations) {
 				if (path == record.file) {
 					path = file;
 				}
 			}
 			record.file = file;
+			// The original receipt can only revert the original publication.
+			record.receipt.clear();
+		}
+		const auto relocated = [&](const std::filesystem::path &file) {
+			const auto found = renamed.find(file);
+			return found == renamed.end() ? file : found->second;
+		};
+		const auto relocateLayer = [&](world_layers::Layer &layer) {
+			if (!renamed.contains(layer.file)) {
+				// Deleted and redo-only layers still need distinct destinations.
+				size_t sequence = 0;
+				auto file = copiedLayers(copy.project.map) / layer.file.filename();
+				while (occupied.contains(file)) {
+					file = copiedLayers(copy.project.map) / ("history-" + std::to_string(++sequence) + "-" + layer.file.filename().string());
+				}
+				occupied.insert(file);
+				renamed[layer.file] = file;
+			}
+			layer.file = renamed.at(layer.file);
+		};
+		const auto relocateHeader = [&](world_layers::Project &value) {
+			value.file = copy.project.file;
+			value.map = copy.project.map;
+			for (auto &layer : value.layers) {
+				relocateLayer(layer);
+			}
+			for (auto &file : value.migrations) {
+				file = relocated(file);
+			}
+		};
+		const auto relocateChange = [&](WorldDocumentChange &change) {
+			if (change.catalog) {
+				relocateHeader(change.catalog->expected);
+				relocateHeader(change.catalog->replacement);
+			}
+			decltype(change.layers) layers;
+			for (auto &[file, delta] : change.layers) {
+				if (delta.expected) {
+					relocateLayer(*delta.expected);
+				}
+				if (delta.replacement) {
+					relocateLayer(*delta.replacement);
+				}
+				layers.emplace(relocated(file), std::move(delta));
+			}
+			change.layers = std::move(layers);
+			decltype(change.migrations) migrations;
+			for (auto &[file, delta] : change.migrations) {
+				delta.expected.file = delta.replacement.file = relocated(file);
+				delta.expected.receipt.clear();
+				delta.replacement.receipt.clear();
+				migrations.emplace(relocated(file), std::move(delta));
+			}
+			change.migrations = std::move(migrations);
+			decltype(change.revisions) revisions;
+			for (const auto &[file, epoch] : change.revisions) {
+				revisions.emplace(relocated(file), epoch);
+			}
+			change.revisions = std::move(revisions);
+		};
+		copy.history = history;
+		copy.cursor = cursor;
+		for (auto &change : copy.history) {
+			relocateChange(change);
+		}
+		std::vector<std::pair<WorldDocumentChange*, WorldDocumentChange>> staged;
+		for (const auto change : editorHistory) {
+			if (change) {
+				staged.emplace_back(change, *change);
+				relocateChange(staged.back().second);
+			}
+		}
+		for (const auto &[file, epoch] : fileRevisions) {
+			copy.fileRevisions.emplace(relocated(file), epoch);
+		}
+		for (const auto &descriptor : project.behaviors) {
+			for (const auto &file : { descriptor.file, descriptor.script }) {
+				const auto original = source.find(file);
+				if (original != source.end()) {
+					copy.source.emplace(*original);
+				}
+			}
 		}
 		if (!copy.save(error)) {
 			return false;
 		}
-		// Existing object actions remain usable; document actions whose file paths
-		// changed are intentionally rejected until they are rebased by the editor.
 		copy.selected = selected;
 		copy.visible = visible;
 		copy.generation = generation + 1;
 		*this = std::move(copy);
+		for (auto &[target, value] : staged) {
+			*target = std::move(value);
+		}
 		return true;
 	} catch (const std::exception &exception) {
 		error = exception.what();

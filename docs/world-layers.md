@@ -1,166 +1,129 @@
 # Editing server worlds in a normal map
 
-Open and edit your OTBM normally. A server world catalog adds external objects to
-that same map tab. Terrain and ordinary items remain editable with the existing
-brushes, palettes, selection tools and Lua scripts. External object properties
-are stored in JSON layers and resolved by Canary during startup.
+World configuration belongs to the JSON files in the server's `world/` directory.
+RME edits those files directly while displaying their objects in the ordinary
+OTBM map tab. Canary reads the same files at startup; there is no export step or
+change to the OTBM format.
 
-## Load the server catalog
+## Open and discover
 
-RME uses the existing `*.world.json` format as a catalog: it lists the OTBM,
-server `items.xml`, and layer files in load order. All paths are relative to that
-catalog. No Lua execution or recursive script discovery is required.
+1. Open the OTBM with **File > Open**. RME loads its sibling
+   `<map-name>.world.json` during map opening, before enabling editing.
+2. For another catalog or an explicitly associated map copy, use
+   **Map > Load Server Worlds...**. The association is remembered in
+   **Preferences > Directories > World catalog**. A sibling catalog takes priority.
+3. Use the normal **Worlds** palette beside NPCs and RAW, or select it with
+   **View > Worlds Palette** (Ctrl+Alt+L). Search by identity, name, item ID, AID
+   or UID. Selecting a result centers the map.
+4. If the map has no catalog, the palette offers **Create world catalog...**.
 
-1. Open the OTBM with **File > Open** or the normal welcome screen.
-2. RME automatically looks for `<map-name>.world.json` beside it. For a catalog
-   elsewhere in the server folder, choose **Map > Load Server Worlds...** while
-   the OTBM is open. This also accepts an editor copy at a different path:
-   validation uses the open map.
-3. The chosen catalog is remembered in **Preferences > Directories > World
-   catalog**, beside the NPC and monster source paths. It loads automatically
-   when its server OTBM or the last explicitly associated map copy is opened.
-   Unrelated maps keep their normal flow.
-   A sibling catalog takes priority over this configured fallback.
-4. Find objects in **Worlds**, a category of the existing palette beside NPCs and
-   RAW. **View > Worlds Palette** (Ctrl+Alt+L) selects that category. Search by
-   qualified object ID, name, item ID, AID or UID; selecting a result centers the map.
+A catalog lists active layers and behavior descriptors explicitly. Paths are
+relative to the declaring file. Files merely present in a directory are not
+activated. Use **Manage...** to include a layer or descriptor. Opening a catalog
+through **File > Open** is a shortcut to its normal OTBM; there is no separate
+World editing mode. An invalid catalog reports its diagnostics while ordinary
+map editing remains available.
 
-Opening a catalog through **File > Open** remains a shortcut to its normal OTBM.
-There is no separate world project mode, extra map tab type or standalone inspector.
-Loading a catalog for a map copy keeps world edits directed to the selected server
-layers. Use **Save As** when the copy should have independent world files.
-An invalid catalog reports an error without disabling ordinary OTBM editing.
+## Author configuration
 
-## Edit on the map
+The palette's creation menu supports configuring a selected base item, creating
+an external item, replacing a selected original, and creating a reference point.
+**Manage...** provides layer creation, renaming, activation and removal, object
+renaming and removal, and moving declarations between layers. Deleting a
+referenced object reports its dependents.
 
-In selection mode, click and drag an external object directly on the canvas.
-Double-click it, or use its right-click **Properties...** command, to open the
-normal item properties window. The Worlds palette also provides **Properties...**.
+Select objects directly on the canvas and open their normal **Properties...**
+dialog. The World pages expose the identity, destination file, original selector,
+attributes, behaviors, relations and container content. Behavior fields come
+from the catalog's JSON descriptors, including nested lists and records.
+Attribute overrides are separate from inherited values: absence inherits;
+`aid: 0` or `uid: 0` explicitly clears. AID may repeat. Every nonzero effective
+UID must be unique, including inherited IDs and container contents.
 
-World item properties show the qualified identity, layer file and anchored
-replacement selector. Edit the name, position, AID, UID, destination object and
-arrival offset, then choose **OK**. AID may repeat; each nonzero UID must be unique
-across world layers and the base map, including container contents. A blank
-destination makes an inert portal. **Cancel** leaves the object unchanged.
+External items and reference points move by changing JSON. Moving a configured
+base item with the normal selection tool changes its OTBM position and selector
+in one undo batch. Moving a replacement's original does not move the external
+replacement. Occurrence selectors retain the selected original even when another
+identical item shares its tile; invalidated preconditions require reassociation.
 
-**Go to arrival** in the palette navigates to the resolved destination, including
-another floor. Blue outlines identify external objects, yellow identifies the
-selection, and red indicates validation errors. **Show world objects** toggles
-the preview so the base OTBM originals can be inspected. Originals are suppressed
-only in a valid preview; the overlay never removes them from base-map data.
+Container properties distinguish existing children from created content.
+`fixture` owns a fixed instance. `refillOnStartup` is intended for collectible
+content that is reconciled after persistence loads; it cannot reserve a UID.
+RME previews initial configuration, while the server owns subsequent game state.
 
-Choose another palette or switch to drawing mode to edit ordinary map content.
-Ctrl+Z/Ctrl+Y use one chronological history for base-map and world-object actions.
-Escape cancels a world drag. Map actions refresh the UID index for affected tiles;
-bulk changes outside the action queue trigger a new census before validation.
+References use stable full object identities. Moving a declaration between files
+or moving its position preserves those references. Explicit identity renaming
+updates the affected references in the same action. **Go to arrival** navigates
+to a teleport's resolved destination, including another floor.
 
-## Example: Black Knight
+Ctrl+Z/Ctrl+Y use the same chronological history for map and World changes.
+Escape cancels an external drag. Preview visibility can be toggled to inspect the
+base map; external replacements never remove originals from the OTBM data.
 
-The Canary global datapack supplies `world/otservbr.world.json` and
-`world/layers/black_knight.layer.json`. Open `otservbr.otbm` normally; its sibling catalog loads automatically. It contains two externally owned replacements for item 1949:
+## Save, copy and resolve conflicts
 
-| Identity | Original position | Destination | Arrival offset |
-| --- | --- | --- | --- |
-| `black_knight.entry` | 32874,31941,12 | `black_knight.exit` | 0,-7,0 |
-| `black_knight.exit` | 32874,31955,11 | `black_knight.entry` | 0,1,0 |
+Ctrl+S saves changes to their owning files. JSON-only changes skip OTBM
+serialization and preserve its bytes. When both destinations changed, each
+successful save is acknowledged independently; a failure keeps the remaining
+work dirty. The OTBM and World publication are separate transactions.
 
-The offsets preserve the existing quest arrival positions. Moving the exit also
-moves the entry's resolved arrival, while the original exit remains suppressed at
-its old location. The UIDs remain 38012 and 38013.
+**Save As** writes a new OTBM and auxiliary files, a sibling
+`<new-name>.world.json`, and a `<new-name>.world-layers/` directory. It includes
+unsaved World changes and rebases both structural and object history to the new
+files. Undoing later cannot write into the original catalog. Existing destination
+catalogs are never overwritten. Behaviors keep their configured relative links,
+and changed descriptor/script revisions block the copy. Migration ownership is
+copied, but a receipt for the original publication is not used to revert a copy.
+If the map copy succeeds and its World copy fails, the tab retains its original
+association and reports the written base copy.
 
-## Contract and validation
+RME watches the configured files and checks again after regaining focus and at
+periodic intervals. Valid unrelated edits reload while preserving local work.
+Overlapping edits offer base/local/disk comparison, a draft copy, or confirmed
+reload limited to the conflict. Invalid JSON and missing files preserve the last
+valid scene. Historical actions tied to superseded revisions cannot overwrite
+the external work; independent history remains usable.
 
-See `schemas/world-project-v1.schema.json` and `schemas/world-layer-v1.schema.json`.
-The shared model and validator live in `source/world/world_layers.*` and
-`source/world/world_validation.*`. Their corresponding implementation in Canary
-must be updated together when the format changes; neither application executes
-JSON as Lua. Fixtures are in `tests/world_layers/fixtures`.
+Invalid configuration cannot be saved to active files. **Manage... > Preserve
+World draft...** writes a separate, inactive snapshot, including the loaded
+versions of descriptors and Lua implementations even when their disk copies
+have changed. Its filenames are not automatically discovered as active content.
+See [file publication and recovery](world-file-publication.md) for interrupted
+multi-file saves and the retained recovery data.
 
-Version 1 supports native teleport items, optionally replacing a single original
-identified by position and item ID. References use `<layer.id>.<object.id>` and are
-independent of AID and UID. Arrival is the target position plus an integer offset.
-An absent teleport component means an inert native portal.
+## Contract and compatibility
 
-Validation detects duplicate identities/UIDs, ambiguous originals, duplicate
-replacement claims, missing references, competing portals, blocked or missing
-ground, houses, invalid coordinates and effective teleport cycles. UID checks
-include base-map container contents. The project's server catalog must declare
-external items as native teleports and the loaded RME catalog must recognize them.
-One external object per tile is supported.
+The shared model, validator and file service live in `source/world/`; schemas
+live in `schemas/`. Version 2 supports map bindings, external creation,
+replacement, anchors, typed attributes, relations and behavior descriptors.
+Several compatible items may occupy a tile. Teleport arrival restrictions are
+specific to teleport components, not a general restriction on doors or items.
 
-Malformed JSON, unknown fields/components and unsupported schema versions prevent
-attaching the catalog; the ordinary map remains open and existing files are preserved. Semantically invalid drafts
-remain editable, display diagnostics and can be saved. Canary rejects these drafts
-before accepting connections. Its final validation also sees legacy startup changes
-that RME cannot simulate, so the local server validation remains necessary.
+Version 1 remains readable. Opening it never silently converts it; structural
+v2 operations require explicit conversion. The original Black Knight example
+uses `black_knight.entry` and `black_knight.exit`, with UIDs 38012 and 38013 and
+arrival offsets `(0,-7,0)` and `(0,1,0)` respectively.
 
-## Saving and external edits
+Canary's startup modes are `legacy`, `world` and `mixed`. Restart the server to
+apply configuration changes. Lua reload only reloads compatible implementations;
+it does not reload the world. RME live editing is unavailable for attached World
+catalogs because that network protocol does not synchronize these documents.
 
-Ctrl+S saves each kind of change to its own file:
+## Validation
 
-- If only external objects changed, RME writes only changed layer JSON files and
-  skips OTBM serialization. The base map hash remains identical.
-- If the base map changed, its normal OTBM save path runs. External objects remain
-  in their layers and are never baked into the OTBM.
-- If both changed, layers are saved first, then the base map. Each successful save
-  is acknowledged independently; failures retain the remaining unsaved work.
-
-Layer JSON keeps stable field order and indentation. Before saving, RME compares
-catalog and layer contents with the bytes read at open or last save. An external
-modification blocks overwrite. Each layer replacement is atomic; saving several
-layers and the map is not one filesystem transaction. A failed save does not
-silently close an editor with unsaved changes.
-
-**Save As** writes a new OTBM with its own auxiliary map files, a sibling
-`<new-name>.world.json`, and a `<new-name>.world-layers/` directory containing
-copies of every layer, including unsaved world edits. The tab then uses those
-copies. Source layers remain untouched and existing destination catalogs are
-never overwritten. Relative item-catalog paths require the same filesystem.
-If the map copy succeeds but the catalog copy fails, the tab keeps the original
-association and reports that the base copy was written.
-
-Save and close/reopen the OTBM to read external catalog edits. There is no file
-watcher, catalog replacement inside an active undo history, automatic merge or
-server hot reload. Restart Canary after applying layer changes.
-
-Version 1 edits existing native teleports. Add/delete declarations, rename stable
-identities and change replacement selectors in JSON, then reopen the map. Cut and
-Delete on an external selection leave the base original intact and explain this
-limit. Live editing is unavailable for maps with an attached catalog because its
-network protocol does not synchronize these external objects.
-
-## Tests
-
-The optional `WORLD_LAYER_TESTS` CMake setting adds `world_layers_test` and the
-`world_layers_contract` CTest entry to the maintained build. Use the existing
-configured build directory and project build workflow when compilation is authorized.
-The headless target depends on the shared JSON model, document and map validator,
-without wxWidgets or OpenGL at runtime.
-
-The Linux and Windows CI builds enable and run the contract suite. Windows covers
-both CMake and the Visual Studio solution workflow.
-
-The Visual Studio workflow has the same headless test in
-`vcproj/Project/WorldLayersTests.vcxproj`, sharing the solution's manifest dependency
-directory. From a Visual Studio developer terminal at the repository root, run:
+The maintained headless suite checks v1/v2 contracts, selectors, UIDs, authoring,
+structural and native history, Save As, external edits, draft dependencies,
+transaction conflicts/recovery and byte-for-byte OTBM preservation. When a local
+build is authorized, reuse the configured build workflow. From a Visual Studio
+developer terminal at the repository root:
 
 ```powershell
 msbuild vcproj/Project/WorldLayersTests.vcxproj /t:RunWorldLayerTests /p:Configuration=Release /p:Platform=x64 /m:1
 ```
 
-The test checks identity-based arrivals, shared AIDs, duplicate UIDs, conflicts
-with unconsumed originals, duplicate JSON properties, native action snapshots,
-undo/redo, reopen, external write conflicts, map association, independent Save As
-catalogs and byte-for-byte preservation of OTBM sentinels. These tests exercise
-the document contract; they do not replace visual testing of the actual editor.
-
-For the integration check, record the real map hash, open its OTBM, load Black
-Knight, move the exit, undo/redo, save and reopen. Verify a single effective portal,
-native properties, palette search, cross-floor navigation, diagnostics and an
-unchanged OTBM hash after a layer-only edit. Then mix a terrain edit with a world
-edit, undo them in order, save both and reopen. Confirm that terrain persists only
-in the OTBM and world edits persist only in JSON. Check Save As independence and
-failed saves separately. Restart
-a local Canary with that project and check native creature/item travel and the
-legacy fallback with `worldProject = ""`. Record these checks separately from
-headless tests; passing document tests does not prove the native UI or gameplay.
+The optional `WORLD_LAYER_TESTS` CMake setting provides the same contract suite.
+Linux and Windows CI exercise the maintained entries. Native tests do not replace
+a visual walkthrough: create items, relations and container content; mix map and
+World undo/redo; save and reopen; edit JSON externally; test conflicts and recovery;
+and confirm the real OTBM hash after JSON-only changes. Run the same saved project
+in Canary to verify behavior, persistence and compatibility separately.
