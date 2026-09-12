@@ -703,10 +703,6 @@ bool WorldLayerDocument::makeChange(const world_layers::Project &value, WorldDoc
 
 bool WorldLayerDocument::makeObjectChange(const std::string &id, const world_layers::Object &value, WorldDocumentChange &change, std::string &error) const {
 	try {
-		if (project.schemaVersion != 2) {
-			error = "Convert this project to v2 before editing declarations";
-			return false;
-		}
 		const auto location = project.objects.find(id);
 		const auto current = project.find(id);
 		if (location == project.objects.end() || !current || current->id != value.id || !world_layers::isValidPosition(value.position)) {
