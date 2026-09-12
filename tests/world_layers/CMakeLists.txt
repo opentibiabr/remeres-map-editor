@@ -19,3 +19,6 @@ add_test(NAME world_layers_contract
                  "${CMAKE_CURRENT_BINARY_DIR}/scratch")
 
 target_compile_definitions(world_layers_test PRIVATE WORLD_FILES_TEST_HOOKS)
+if(MSVC)
+  target_compile_options(world_layers_test PRIVATE /Z7)
+endif()
