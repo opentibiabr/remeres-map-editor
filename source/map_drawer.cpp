@@ -318,9 +318,13 @@ void MapDrawer::DrawWorldLayers() {
 	}
 	const auto &project = world->document.data();
 	for (const auto &layer : project.layers) {
-		if (!layer.enabled) continue;
+		if (!layer.enabled) {
+			continue;
+		}
 		for (const auto &object : layer.objects) {
-			if (!object.container.empty()) continue;
+			if (!object.container.empty()) {
+				continue;
+			}
 			const auto id = world_layers::objectId(layer, object);
 			const auto position = world->position(id);
 			if (position.z != floor || position.x < start_x - 2 || position.x > end_x + 2 || position.y < start_y - 2 || position.y > end_y + 2) {

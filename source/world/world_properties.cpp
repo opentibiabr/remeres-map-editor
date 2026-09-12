@@ -228,9 +228,11 @@ namespace {
 			refresh();
 			layout->Add(dialog.CreateStdDialogButtonSizer(wxOK | wxCANCEL), 0, wxALIGN_RIGHT | wxALL, 8);
 			dialog.SetSizer(layout);
-			dialog.Bind(wxEVT_BUTTON, [&](wxCommandEvent &) { std::string error; if (validateParameter(type, draft, error)){ dialog.EndModal(wxID_OK);
+			dialog.Bind(
+				wxEVT_BUTTON, [&](wxCommandEvent &) { std::string error; if (validateParameter(type, draft, error)){ dialog.EndModal(wxID_OK);
 } else{ problem(&dialog, error);
-} }, wxID_OK);
+} }, wxID_OK
+			);
 			if (dialog.ShowModal() != wxID_OK) {
 				return false;
 			}
@@ -302,12 +304,14 @@ namespace {
 		}
 		layout->Add(dialog.CreateStdDialogButtonSizer(wxOK | wxCANCEL), 0, wxALIGN_RIGHT | wxALL, 8);
 		dialog.SetSizer(layout);
-		dialog.Bind(wxEVT_BUTTON, [&](wxCommandEvent &) {
+		dialog.Bind(
+			wxEVT_BUTTON, [&](wxCommandEvent &) {
 			std::string error;
 			if (read(error) && ((fullInteger && type.type == "integer") || validateParameter(type, draft, error))){ dialog.EndModal(wxID_OK);
 }
 			else{ problem(&dialog, error);
-} }, wxID_OK);
+} }, wxID_OK
+		);
 		if (dialog.ShowModal() != wxID_OK) {
 			return false;
 		}
@@ -391,7 +395,8 @@ namespace {
 		layout->Add(relations, 0, wxEXPAND | wxALL, 8);
 		layout->Add(dialog.CreateStdDialogButtonSizer(wxOK | wxCANCEL), 0, wxALIGN_RIGHT | wxALL, 8);
 		dialog.SetSizer(layout);
-		dialog.Bind(wxEVT_BUTTON, [&](wxCommandEvent &) {
+		dialog.Bind(
+			wxEVT_BUTTON, [&](wxCommandEvent &) {
 			draft.events.clear();
 			for (unsigned i = 0; i < events->GetCount(); ++i){ if (events->IsChecked(i)){ draft.events.push_back(descriptor->events[i]);
 }}
@@ -403,7 +408,8 @@ namespace {
 				const auto count = draft.relations.contains(name) ? draft.relations.at(name).size() : 0;
 				if (count < type.minimum || count > type.maximum) { problem(&dialog, "Relation requires a different number of targets: " + name); return; }
 			}
-			dialog.EndModal(wxID_OK); }, wxID_OK);
+			dialog.EndModal(wxID_OK); }, wxID_OK
+		);
 		if (dialog.ShowModal() != wxID_OK) {
 			return false;
 		}
@@ -427,7 +433,8 @@ struct WorldProperties::State {
 	wxListBox *attributes = nullptr, *behaviors = nullptr, *relations = nullptr, *contents = nullptr;
 	std::vector<std::string> attributeKeys, relationKeys, childIds;
 
-	State(wxNotebook* notebook, Object &object, Project &project, const MapItem &base, const Map* map) : notebook(notebook), object(object), project(project), base(base), map(map) { }
+	State(wxNotebook* notebook, Object &object, Project &project, const MapItem &base, const Map* map) :
+		notebook(notebook), object(object), project(project), base(base), map(map) { }
 	wxScrolledWindow* page(const wxString &title, wxBoxSizer*&layout) {
 		auto panel = new wxScrolledWindow(notebook, wxID_ANY);
 		panel->SetScrollRate(8, 8);
@@ -917,7 +924,8 @@ struct WorldProperties::State {
 	}
 };
 
-WorldProperties::WorldProperties(wxNotebook* notebook, world_layers::Object &object, world_layers::Project &project, const world_layers::MapItem &base, const Map* map) : state(std::make_unique<State>(notebook, object, project, base, map)) {
+WorldProperties::WorldProperties(wxNotebook* notebook, world_layers::Object &object, world_layers::Project &project, const world_layers::MapItem &base, const Map* map) :
+	state(std::make_unique<State>(notebook, object, project, base, map)) {
 	state->general();
 	if (object.kind == world_layers::ObjectKind::Item) {
 		state->attributePage();
