@@ -521,7 +521,7 @@ bool GUI::LoadServerWorlds(const wxString &path, bool automatic) {
 	if (editor->world) {
 		if (!automatic) {
 			ShowWorldPalette();
-			PopupDialog(root, "Server worlds", "This map already has a world catalog. Save and reopen the map to reload it.", wxOK);
+			SetStatusText("This map's World catalog is already loaded and monitored for external changes.");
 		}
 		return true;
 	}

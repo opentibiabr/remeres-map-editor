@@ -952,7 +952,7 @@ void MainMenuBar::Update() {
 	EnableItem(CLOSE, is_local);
 	EnableItem(SAVE, is_host);
 	EnableItem(SAVE_AS, is_host);
-	EnableItem(LOAD_SERVER_WORLDS, is_local);
+	EnableItem(LOAD_SERVER_WORLDS, is_local && !editor->world);
 	EnableItem(GENERATE_MAP, false);
 
 	EnableItem(IMPORT_MAP, is_local);

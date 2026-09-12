@@ -1252,11 +1252,11 @@ namespace {
 			PalettePanel(parent) {
 			SetExtraStyle(GetExtraStyle() | wxWS_EX_PROCESS_IDLE);
 			auto sizer = new wxBoxSizer(wxVERTICAL);
-			auto load = new wxButton(this, wxID_ANY, "Load server worlds...");
+			load = new wxButton(this, wxID_ANY, "Load server worlds...");
 			load->SetToolTip("Associate a server .world.json catalog with the open OTBM.");
 			load->Bind(wxEVT_BUTTON, [](wxCommandEvent &) { g_gui.LoadServerWorlds(); });
 			sizer->Add(load, 0, wxEXPAND | wxALL, 5);
-			auto createCatalog = new wxButton(this, wxID_ANY, "Create world catalog...");
+			createCatalog = new wxButton(this, wxID_ANY, "Create world catalog...");
 			createCatalog->Bind(wxEVT_BUTTON, [](wxCommandEvent &) { CreateWorldCatalog(); });
 			sizer->Add(createCatalog, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
 			auto commands = new wxBoxSizer(wxHORIZONTAL);
@@ -1368,6 +1368,8 @@ namespace {
 
 	private:
 		wxStaticText* catalog;
+		wxButton* load;
+		wxButton* createCatalog;
 		wxCheckBox* visible;
 		wxTextCtrl* filter;
 		WorldObjectList* objects;
@@ -1406,9 +1408,11 @@ namespace {
 			visible->Enable(world != nullptr);
 			visible->SetValue(world && world->document.visible);
 			filter->Enable(world != nullptr);
+			load->Show(world == nullptr);
+			createCatalog->Show(world == nullptr);
 			if (world && listChanged) {
 				const auto &project = world->document.data();
-				catalog->SetLabel(wxstr(project.file.filename().generic_string()));
+				catalog->SetLabel(wxstr("World catalog loaded: " + project.file.filename().generic_string()));
 				catalog->SetToolTip(wxstr(project.file.generic_string()));
 				const auto search = filter->GetValue().Lower();
 				std::vector<wxString> labels;
