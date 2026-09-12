@@ -71,6 +71,7 @@ namespace {
 	struct WorldLoadResult {
 		WorldLayerDocument document;
 		WorldItemCatalog items;
+		std::map<std::filesystem::path, world_files::Revision> revisions;
 		std::string error;
 		bool loaded = false;
 	};
@@ -543,6 +544,7 @@ void GUI::QueueServerWorlds(Editor &editor, const std::filesystem::path &catalog
 		result.loaded = result.document.open(catalog, result.error);
 		if (result.loaded) {
 			result.items = LoadWorldItemCatalog(result.document.data().items);
+			result.revisions = result.document.observedRevisions();
 		}
 		return result;
 	});
@@ -575,7 +577,7 @@ bool GUI::ProcessPendingWorldLoads() {
 		} else if (editor && !(*load)->associated && !result.document.matchesMap(std::filesystem::u8path(editor->getMap().getFilename()))) {
 			PopupDialog(root, "World catalog association", "The sibling catalog refers to another map. Associate it explicitly with this copy in Preferences > Directories.", wxOK);
 		} else if (editor && !editor->world) {
-			editor->world = std::make_unique<WorldLayerEditor>(*editor, std::move(result.document), std::move(result.items));
+			editor->world = std::make_unique<WorldLayerEditor>(*editor, std::move(result.document), std::move(result.items), std::move(result.revisions));
 			if (GetCurrentEditor() == editor) {
 				for (const auto palette : palettes) {
 					palette->OnUpdate(&editor->getMap());
@@ -629,7 +631,8 @@ bool GUI::LoadServerWorlds(const wxString &path, bool automatic) {
 		return false;
 	}
 	auto items = LoadWorldItemCatalog(document.data().items);
-	editor->world = std::make_unique<WorldLayerEditor>(*editor, std::move(document), std::move(items));
+	auto revisions = document.observedRevisions();
+	editor->world = std::make_unique<WorldLayerEditor>(*editor, std::move(document), std::move(items), std::move(revisions));
 	if (!automatic) {
 		g_settings.setString(Config::WORLD_CATALOG_FILE, nstr(file));
 		g_settings.setString(Config::WORLD_CATALOG_MAP_FILE, editor->getMap().getFilename());

@@ -300,14 +300,17 @@ WorldItemCatalog LoadWorldItemCatalog(const std::filesystem::path &file) {
 
 class WorldFileMonitor final : public wxEvtHandler {
 public:
-	explicit WorldFileMonitor(WorldLayerEditor &editor) :
-		editor(editor), timer(this) {
+	WorldFileMonitor(WorldLayerEditor &editor, std::map<std::filesystem::path, world_files::Revision> baseline) :
+		editor(editor), timer(this), checkedAt(wxGetUTCTimeMillis()) {
+		for (auto &[file, revision] : baseline) {
+			revisions.emplace(std::move(file), std::make_shared<const world_files::Revision>(std::move(revision)));
+		}
 		Bind(wxEVT_TIMER, &WorldFileMonitor::tick, this);
 #if wxUSE_FSWATCHER
 		watcher.SetOwner(this);
 		Bind(wxEVT_FSWATCHER, &WorldFileMonitor::changed, this);
 #endif
-		timer.Start(500);
+		timer.Start(250);
 	}
 	~WorldFileMonitor() override {
 		timer.Stop();
@@ -318,24 +321,61 @@ public:
 #endif
 		Unbind(wxEVT_TIMER, &WorldFileMonitor::tick, this);
 		DeletePendingEvents();
+		if (scan) {
+			scan->wait();
+		}
 	}
 	WorldFileMonitor(const WorldFileMonitor &) = delete;
 	WorldFileMonitor &operator=(const WorldFileMonitor &) = delete;
 
 private:
+	using SharedRevision = std::shared_ptr<const world_files::Revision>;
+	using Revisions = std::map<std::filesystem::path, SharedRevision>;
+	struct ScanResult {
+		Revisions revisions;
+		std::string error;
+		bool changed = false;
+	};
 	WorldLayerEditor &editor;
 	wxTimer timer;
 #if wxUSE_FSWATCHER
 	wxFileSystemWatcher watcher;
-	void changed(wxFileSystemWatcherEvent &) {
+	void changed(wxFileSystemWatcherEvent &event) {
 		eventTime = wxGetUTCTimeMillis();
-		needsCheck = true;
+		std::error_code error;
+		const auto path = std::filesystem::weakly_canonical(std::filesystem::u8path(nstr(event.GetPath().GetFullPath())), error);
+		const auto normalized = error ? std::filesystem::absolute(std::filesystem::u8path(nstr(event.GetPath().GetFullPath()))).lexically_normal() : path;
+		if (observed.contains(normalized)) {
+			dirty.insert(normalized);
+		}
 	}
 #endif
 	std::set<std::filesystem::path> directories;
+	std::set<std::filesystem::path> observed, dirty;
+	Revisions revisions;
+	std::optional<std::future<ScanResult>> scan;
 	uint64_t revision = UINT64_MAX;
 	wxLongLong eventTime = 0, checkedAt = 0;
-	bool needsCheck = true, active = false;
+	bool fullScan = false, active = false;
+	void beginScan(std::set<std::filesystem::path> files) {
+		const auto before = revisions;
+		scan.emplace(std::async(std::launch::async, [files = std::move(files), before] {
+			ScanResult result { before };
+			for (const auto &file : files) {
+				world_files::Revision disk;
+				if (!world_files::revision(file, disk, result.error)) {
+					result.changed = true;
+					break;
+				}
+				const auto previous = before.find(file);
+				if (previous == before.end() || *previous->second != disk) {
+					result.changed = true;
+				}
+				result.revisions[file] = std::make_shared<const world_files::Revision>(std::move(disk));
+			}
+			return result;
+		}));
+	}
 	void tick(wxTimerEvent &) {
 		// A properties dialog owns an editable draft and synchronous base-item
 		// pointers. Publish external revisions only after modal editing finishes.
@@ -350,14 +390,24 @@ private:
 		}
 		const bool foreground = wxTheApp && wxTheApp->IsActive();
 		if (foreground && !active) {
-			needsCheck = true;
+			fullScan = true;
 		}
 		active = foreground;
 		const auto now = wxGetUTCTimeMillis();
+		if (scan && scan->wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+			auto result = scan->get();
+			scan.reset();
+			revisions = std::move(result.revisions);
+			if (result.changed) {
+				editor.checkExternal(false);
+			}
+		}
 		if (revision != editor.document.revision()) {
 			revision = editor.document.revision();
 			std::set<std::filesystem::path> next;
+			observed.clear();
 			for (const auto &file : editor.document.observedFiles()) {
+				observed.insert(file);
 				auto directory = file.parent_path();
 				std::error_code error;
 				while (!directory.empty() && !std::filesystem::exists(directory, error)) {
@@ -381,20 +431,24 @@ private:
 			}
 #endif
 			directories = std::move(next);
+			fullScan = true;
 		}
-		if (((needsCheck && now - eventTime >= 400) || now - checkedAt >= 5000)) {
-			needsCheck = false;
+		if (!scan && ((fullScan && now - eventTime >= 400) || (!dirty.empty() && now - eventTime >= 400) || now - checkedAt >= 5000)) {
+			const bool inspectAll = fullScan || now - checkedAt >= 5000;
+			fullScan = false;
 			checkedAt = now;
-			editor.checkExternal(false);
+			auto files = inspectAll ? observed : std::move(dirty);
+			dirty.clear();
+			beginScan(std::move(files));
 		}
 	}
 };
 
-WorldLayerEditor::WorldLayerEditor(Editor &owner, WorldLayerDocument data, WorldItemCatalog items) :
+WorldLayerEditor::WorldLayerEditor(Editor &owner, WorldLayerDocument data, WorldItemCatalog items, std::map<std::filesystem::path, world_files::Revision> revisions) :
 	document(std::move(data)), editor(owner), catalogDiagnostics(std::move(items.diagnostics)), knownItems(std::move(items.knownItems)) {
 	acknowledgeMapChange();
 	validate();
-	fileMonitor = std::make_unique<WorldFileMonitor>(*this);
+	fileMonitor = std::make_unique<WorldFileMonitor>(*this, std::move(revisions));
 }
 
 WorldLayerEditor::~WorldLayerEditor() = default;
@@ -2091,7 +2145,8 @@ void CreateWorldCatalog() {
 		return;
 	}
 	auto items = LoadWorldItemCatalog(document.data().items);
-	editor->world = std::make_unique<WorldLayerEditor>(*editor, std::move(document), std::move(items));
+	auto revisions = document.observedRevisions();
+	editor->world = std::make_unique<WorldLayerEditor>(*editor, std::move(document), std::move(items), std::move(revisions));
 	ShowWorldPalette();
 	editor->world->refresh();
 	editor->world->manageLayers();

@@ -342,6 +342,15 @@ std::vector<std::filesystem::path> WorldLayerDocument::observedFiles() const {
 	return { paths.begin(), paths.end() };
 }
 
+std::map<std::filesystem::path, world_files::Revision> WorldLayerDocument::observedRevisions() const {
+	std::map<std::filesystem::path, world_files::Revision> result;
+	for (const auto &file : observedFiles()) {
+		const auto found = source.find(file);
+		result.emplace(file, found == source.end() ? world_files::Revision() : world_files::Revision(found->second));
+	}
+	return result;
+}
+
 bool WorldLayerDocument::externalChanges(std::vector<WorldExternalChange> &changes, std::string &error) const {
 	std::vector<WorldExternalChange> found;
 	for (const auto &file : observedFiles()) {

@@ -24,7 +24,7 @@ WorldItemCatalog LoadWorldItemCatalog(const std::filesystem::path &file);
 
 class WorldLayerEditor {
 public:
-	WorldLayerEditor(Editor &editor, WorldLayerDocument document, WorldItemCatalog items);
+	WorldLayerEditor(Editor &editor, WorldLayerDocument document, WorldItemCatalog items, std::map<std::filesystem::path, world_files::Revision> revisions);
 	~WorldLayerEditor();
 	void validate();
 	void synchronizeMap();

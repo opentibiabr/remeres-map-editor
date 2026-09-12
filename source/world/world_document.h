@@ -68,6 +68,7 @@ public:
 	bool externalChanges(std::vector<WorldExternalChange> &changes, std::string &error) const;
 	WorldExternalResult reconcileExternal(bool discardConflicts, std::vector<WorldExternalChange> &changes, std::string &error);
 	std::vector<std::filesystem::path> observedFiles() const;
+	std::map<std::filesystem::path, world_files::Revision> observedRevisions() const;
 	bool saveDraft(const std::filesystem::path &directory, std::filesystem::path &catalog, std::string &error) const;
 	const world_layers::Project &data() const {
 		return project;
