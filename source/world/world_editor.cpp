@@ -75,7 +75,8 @@ namespace {
 
 	class EditorMapView final : public world_layers::MapView {
 	public:
-		EditorMapView(Map &map, const std::bitset<65536> &knownItems) : map(map), knownItems(knownItems) { }
+		EditorMapView(Map &map, const std::bitset<65536> &knownItems) :
+			map(map), knownItems(knownItems) { }
 		bool nativeTeleport(uint16_t id) const override {
 			return g_items.isValidID(id) && g_items.getItemType(id).isTeleport();
 		}
