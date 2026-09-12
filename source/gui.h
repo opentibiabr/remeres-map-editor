@@ -340,6 +340,8 @@ public:
 	void SetScreenCenterPosition(const Position &position, bool showIndicator = true);
 	// Refresh the view canvas
 	void RefreshView();
+	void RefreshEditorView(Editor* editor);
+	void RefreshEditorOverlay(Editor* editor);
 	// Fit all/specified current map view to map dimensions
 	void FitViewToMap();
 	void FitViewToMap(MapTab* mt);

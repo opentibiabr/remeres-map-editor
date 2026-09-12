@@ -1226,6 +1226,34 @@ void GUI::RefreshView() {
 	}
 }
 
+void GUI::RefreshEditorView(Editor* editor) {
+	if (!editor) {
+		return;
+	}
+	for (int32_t index = 0; index < tabbook->GetTabCount(); ++index) {
+		auto* mapTab = dynamic_cast<MapTab*>(tabbook->GetTab(index));
+		if (!mapTab || mapTab->GetEditor() != editor) {
+			continue;
+		}
+		mapTab->GetCanvas()->Refresh();
+		mapTab->GetWindow()->Update();
+	}
+}
+
+void GUI::RefreshEditorOverlay(Editor* editor) {
+	if (!editor) {
+		return;
+	}
+	for (int32_t index = 0; index < tabbook->GetTabCount(); ++index) {
+		auto* mapTab = dynamic_cast<MapTab*>(tabbook->GetTab(index));
+		if (!mapTab || mapTab->GetEditor() != editor) {
+			continue;
+		}
+		mapTab->GetCanvas()->RefreshOverlay();
+		mapTab->GetWindow()->Update();
+	}
+}
+
 void GUI::CreateLoadBar(wxString message, bool canCancel /* = false */) {
 	CreateLoadBar(message, canCancel, true);
 }

@@ -100,6 +100,7 @@ public:
 	void OnProperties(wxCommandEvent &event);
 
 	virtual void Refresh();
+	void RefreshOverlay();
 
 	virtual void ScreenToMap(int screen_x, int screen_y, int* map_x, int* map_y);
 	void MouseToMap(int* map_x, int* map_y) {

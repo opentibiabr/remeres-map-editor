@@ -1183,7 +1183,15 @@ void WorldLayerEditor::refresh() {
 	}
 	g_gui.UpdateTitle();
 	g_gui.root->UpdateMenubar();
-	g_gui.RefreshView();
+	refreshDisplay();
+}
+
+void WorldLayerEditor::refreshDisplay(bool overlayOnly) {
+	if (overlayOnly) {
+		g_gui.RefreshEditorOverlay(&editor);
+	} else {
+		g_gui.RefreshEditorView(&editor);
+	}
 }
 
 bool WorldLayerEditor::save() {
@@ -1394,10 +1402,13 @@ void WorldLayerEditor::finishDrag(bool commit) {
 		if (const auto object = document.data().find(document.selected)) {
 			auto changed = *object;
 			changed.position = position;
-			edit(document.selected, changed);
+			if (changed != *object) {
+				edit(document.selected, changed);
+				return;
+			}
 		}
 	}
-	g_gui.RefreshView();
+	refreshDisplay(true);
 }
 
 void WorldLayerEditor::acknowledgeMapChange() {
@@ -1423,7 +1434,7 @@ void WorldLayerEditor::select(const std::string &id) {
 	selection.updateSelectionCount();
 	document.selected = id;
 	g_gui.SetSelectionMode();
-	g_gui.RefreshView();
+	refreshDisplay(true);
 }
 
 void WorldLayerEditor::edit(const std::string &id, const world_layers::Object &value) {
@@ -1748,7 +1759,7 @@ namespace {
 					world->finishDrag(false);
 					world->document.visible = visible->GetValue();
 					world->document.selected.clear();
-					g_gui.RefreshView();
+					world->refreshDisplay();
 				}
 			});
 			sizer->Add(visible, 0, wxEXPAND | wxALL, 5);

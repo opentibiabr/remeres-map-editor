@@ -164,6 +164,10 @@ void MapCanvas::Refresh() {
 	QueueRefresh(true);
 }
 
+void MapCanvas::RefreshOverlay() {
+	QueueRefresh(false);
+}
+
 void MapCanvas::QueueRefresh(bool mark_scene_dirty) {
 	if (mark_scene_dirty) {
 		drawer->markDirty();
@@ -504,7 +508,7 @@ void MapCanvas::OnMouseMove(wxMouseEvent &event) {
 	if (auto world = editor.world.get(); world && world->drag) {
 		if (event.LeftIsDown()) {
 			world->drag = world_layers::Position { mouse_map_x, mouse_map_y, floor };
-			Refresh();
+			RefreshOverlay();
 		}
 		return;
 	}
@@ -727,7 +731,7 @@ void MapCanvas::OnMouseActionClick(wxMouseEvent &event) {
 		ScreenToMap(event.GetX(), event.GetY(), &x, &y);
 		if (world->pickAt({ x, y, floor })) {
 			SetFocus();
-			Refresh();
+			RefreshOverlay();
 			return;
 		}
 		const auto id = world->at({ x, y, floor });
@@ -738,7 +742,6 @@ void MapCanvas::OnMouseActionClick(wxMouseEvent &event) {
 			if (!HasCapture()) {
 				CaptureMouse();
 			}
-			Refresh();
 			return;
 		}
 		world->document.selected.clear();

@@ -44,6 +44,7 @@ public:
 	void cancelPick();
 	bool isPicking() const;
 	void refresh();
+	void refreshDisplay(bool overlayOnly = false);
 	void checkExternal(bool interactive);
 	void saveDraft();
 	bool save();
