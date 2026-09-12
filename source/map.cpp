@@ -832,7 +832,17 @@ void Map::updateUniqueIds(Tile* old_tile, Tile* new_tile) {
 		visit(old_tile, [&](const Item* item, const Position &, bool, const std::vector<const Item*> &) {
 			if (item->getUniqueID()) {
 				removeUniqueId(item->getUniqueID());
-				std::erase_if(uniqueItemOccurrences, [&](const auto &entry) { return entry.item == item; });
+				const auto indexed = uniqueItemIndexes.find(item);
+				if (indexed != uniqueItemIndexes.end()) {
+					const auto index = indexed->second;
+					const auto last = uniqueItemOccurrences.size() - 1;
+					if (index != last) {
+						uniqueItemOccurrences[index] = uniqueItemOccurrences[last];
+						uniqueItemIndexes[uniqueItemOccurrences[index].item] = index;
+					}
+					uniqueItemOccurrences.pop_back();
+					uniqueItemIndexes.erase(indexed);
+				}
 			}
 			identifierItemOccurrences.erase(item);
 		});
@@ -842,6 +852,7 @@ void Map::updateUniqueIds(Tile* old_tile, Tile* new_tile) {
 		visit(new_tile, [&](const Item* item, const Position &position, bool ground, const std::vector<const Item*> &containers) {
 			if (item->getUniqueID()) {
 				addUniqueId(item->getUniqueID());
+				uniqueItemIndexes[item] = uniqueItemOccurrences.size();
 				uniqueItemOccurrences.push_back({ item->getUniqueID(), item, position });
 			}
 			if (item->getActionID() || item->getUniqueID()) {

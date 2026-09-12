@@ -230,6 +230,7 @@ public:
 private:
 	std::unordered_map<uint16_t, size_t> uniqueIds;
 	std::vector<MapUniqueItem> uniqueItemOccurrences;
+	std::unordered_map<const Item*, size_t> uniqueItemIndexes;
 	std::unordered_map<const Item*, MapIdentifierItem> identifierItemOccurrences;
 	// Updated by the existing per-tile mutation hook. Adoption can therefore
 	// distinguish a selector that depends on an unsaved map edit without a
