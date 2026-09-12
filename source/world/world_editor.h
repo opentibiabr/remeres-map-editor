@@ -3,6 +3,7 @@
 #include "world/world_document.h"
 #include "world/world_view_index.h"
 #include "world/world_validation.hpp"
+#include <bitset>
 #include <memory>
 
 class Editor;
@@ -75,6 +76,7 @@ private:
 	Editor &editor;
 	world_layers::ApplicationPlan plan;
 	world_layers::Diagnostics catalogDiagnostics;
+	std::bitset<65536> knownItems;
 	uint64_t mapRevision = 0;
 	uint64_t validatedRevision = UINT64_MAX;
 	mutable std::unordered_map<uint16_t, std::unique_ptr<Item>> sprites;

@@ -75,16 +75,19 @@ namespace {
 
 	class EditorMapView final : public world_layers::MapView {
 	public:
-		explicit EditorMapView(Map &map) : map(map) { }
+		EditorMapView(Map &map, const std::bitset<65536> &knownItems) : map(map), knownItems(knownItems) { }
 		bool nativeTeleport(uint16_t id) const override {
-			return g_items.getItemType(id).isTeleport();
+			return g_items.isValidID(id) && g_items.getItemType(id).isTeleport();
 		}
 		bool knownItem(uint16_t id) const override {
-			return g_items.isValidID(id);
+			return knownItems.test(id) || g_items.isValidID(id);
 		}
 		bool capability(uint16_t id, const std::string &name) const override {
 			if (!knownItem(id)) {
 				return false;
+			}
+			if (!g_items.isValidID(id)) {
+				return MapView::capability(id, name);
 			}
 			const auto &type = g_items.getItemType(id);
 			if (name == "container") {
@@ -144,6 +147,7 @@ namespace {
 
 	private:
 		Map &map;
+		const std::bitset<65536> &knownItems;
 	};
 
 	WorldLayerEditor* current() {
@@ -250,6 +254,19 @@ WorldLayerEditor::WorldLayerEditor(Editor &owner, WorldLayerDocument data) :
 	const auto loaded = catalog.load_file(document.data().items.c_str());
 	if (!loaded || !catalog.child("items")) {
 		catalogDiagnostics.push_back({ document.data().items, "", "", "Cannot read the project's item catalog" });
+	} else {
+		for (const auto item : catalog.child("items").children("item")) {
+			const auto first = item.attribute("id") ? item.attribute("id").as_uint() : item.attribute("fromid").as_uint();
+			const auto last = item.attribute("id") ? first : item.attribute("toid").as_uint();
+			if (!first || first > last || last >= knownItems.size()) {
+				catalogDiagnostics.push_back({ document.data().items, "", "", "Invalid item ID range in the project's item catalog" });
+				knownItems.reset();
+				break;
+			}
+			for (auto id = first; id <= last; ++id) {
+				knownItems.set(id);
+			}
+		}
 	}
 	acknowledgeMapChange();
 	validate();
@@ -632,7 +649,7 @@ bool WorldLayerEditor::pickAt(const world_layers::Position &position) {
 		};
 		std::vector<Candidate> candidates;
 		wxArrayString labels;
-		EditorMapView view(editor.getMap());
+		EditorMapView view(editor.getMap(), knownItems);
 		const auto collect = [&](const auto &self, const std::vector<world_layers::MapItem> &items, const std::string &container) -> void {
 			for (const auto &item : items) {
 				world_layers::Selector selector;
@@ -683,7 +700,7 @@ bool WorldLayerEditor::pickAt(const world_layers::Position &position) {
 			}
 			type = &descriptor->relations.at(request.relation);
 		}
-		EditorMapView view(editor.getMap());
+		EditorMapView view(editor.getMap(), knownItems);
 		if (!found.empty()) {
 			for (const auto index : found) {
 				const auto &id = spatialIndex.entry(index).id;
@@ -741,7 +758,7 @@ void WorldLayerEditor::validate() {
 	validatedRevision = document.revision();
 	diagnostics.clear();
 	plan = {};
-	EditorMapView view(editor.getMap());
+	EditorMapView view(editor.getMap(), knownItems);
 	world_layers::validateMap(document.data(), view, plan, diagnostics);
 	diagnostics.insert(diagnostics.end(), catalogDiagnostics.begin(), catalogDiagnostics.end());
 	if (!catalogDiagnostics.empty()) {
