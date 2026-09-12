@@ -804,9 +804,15 @@ bool Map::exportMinimap(FileName filename, int floor /*= rme::MapGroundLayer*/, 
 void Map::updateUniqueIds(Tile* old_tile, Tile* new_tile) {
 	if (old_tile) {
 		changedTilesSinceSave.insert(old_tile->getPosition());
+		if (trackWorldChanges) {
+			pendingWorldChanges.positions.insert(old_tile->getPosition());
+		}
 	}
 	if (new_tile) {
 		changedTilesSinceSave.insert(new_tile->getPosition());
+		if (trackWorldChanges) {
+			pendingWorldChanges.positions.insert(new_tile->getPosition());
+		}
 	}
 	const auto visit = [](const Tile* tile, const auto &operation) {
 		if (!tile) {
@@ -830,6 +836,9 @@ void Map::updateUniqueIds(Tile* old_tile, Tile* new_tile) {
 	};
 	if (old_tile) {
 		visit(old_tile, [&](const Item* item, const Position &, bool, const std::vector<const Item*> &) {
+			if (trackWorldChanges && (item->getActionID() || item->getUniqueID())) {
+				pendingWorldChanges.identifiers = true;
+			}
 			if (item->getUniqueID()) {
 				removeUniqueId(item->getUniqueID());
 				const auto indexed = uniqueItemIndexes.find(item);
@@ -860,6 +869,9 @@ void Map::updateUniqueIds(Tile* old_tile, Tile* new_tile) {
 
 	if (new_tile) {
 		visit(new_tile, [&](const Item* item, const Position &position, bool ground, const std::vector<const Item*> &containers) {
+			if (trackWorldChanges && (item->getActionID() || item->getUniqueID())) {
+				pendingWorldChanges.identifiers = true;
+			}
 			if (item->getUniqueID()) {
 				addUniqueId(item->getUniqueID());
 				uniqueItemIndexes[item] = uniqueItemOccurrences.size();
@@ -881,6 +893,12 @@ void Map::updateUniqueIds(Tile* old_tile, Tile* new_tile) {
 			}
 		});
 	}
+}
+
+MapWorldChanges Map::takeWorldChanges() {
+	auto changes = std::move(pendingWorldChanges);
+	pendingWorldChanges = {};
+	return changes;
 }
 
 std::vector<MapIdentifierItem> Map::identifierItems() const {

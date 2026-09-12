@@ -446,6 +446,7 @@ private:
 
 WorldLayerEditor::WorldLayerEditor(Editor &owner, WorldLayerDocument data, WorldItemCatalog items, std::map<std::filesystem::path, world_files::Revision> revisions) :
 	document(std::move(data)), editor(owner), catalogDiagnostics(std::move(items.diagnostics)), knownItems(std::move(items.knownItems)) {
+	editor.getMap().beginWorldChangeTracking();
 	acknowledgeMapChange();
 	validate();
 	fileMonitor = std::make_unique<WorldFileMonitor>(*this, std::move(revisions));
@@ -1281,6 +1282,9 @@ bool WorldLayerEditor::pickAt(const world_layers::Position &position) {
 }
 
 void WorldLayerEditor::validate() {
+	editor.getMap().takeWorldChanges();
+	mapRevision = editor.getMap().revision();
+	mapValidationPending = false;
 	++validationRevision;
 	validatedRevision = document.revision();
 	diagnostics.clear();
@@ -1292,6 +1296,31 @@ void WorldLayerEditor::validate() {
 		plan = {};
 	}
 	spatialIndex.rebuild(document.data(), diagnostics);
+	selectorRoots.clear();
+	const auto selectorRoot = [&](const auto &self, const world_layers::Object &object, std::unordered_set<std::string> &visiting) -> std::optional<world_layers::Position> {
+		if (!object.selector) {
+			return std::nullopt;
+		}
+		if (object.selector->container.empty()) {
+			return object.selector->position;
+		}
+		if (!visiting.insert(object.selector->container).second) {
+			return std::nullopt;
+		}
+		const auto parent = document.data().find(object.selector->container);
+		return parent ? self(self, *parent, visiting) : std::nullopt;
+	};
+	for (const auto &layer : document.data().layers) {
+		if (!layer.enabled) {
+			continue;
+		}
+		for (const auto &object : layer.objects) {
+			std::unordered_set<std::string> visiting;
+			if (const auto root = selectorRoot(selectorRoot, object, visiting)) {
+				selectorRoots[*root].push_back(world_layers::objectId(layer, object));
+			}
+		}
+	}
 }
 
 void WorldLayerEditor::refresh() {
@@ -1530,7 +1559,34 @@ void WorldLayerEditor::finishDrag(bool commit) {
 }
 
 void WorldLayerEditor::acknowledgeMapChange() {
+	auto changes = editor.getMap().takeWorldChanges();
 	mapRevision = editor.getMap().revision();
+	if (changes.empty()) {
+		return;
+	}
+
+	std::unordered_set<std::string> affected;
+	for (const auto &position : changes.positions) {
+		const auto found = selectorRoots.find(portable(position));
+		if (found != selectorRoots.end()) {
+			affected.insert(found->second.begin(), found->second.end());
+		}
+	}
+	if (affected.empty() && !changes.identifiers) {
+		return;
+	}
+
+	mapValidationPending = true;
+	++validationRevision;
+	if (!affected.empty()) {
+		std::erase_if(plan.objects, [&](const auto &object) { return affected.contains(object.id); });
+		plan.originals.clear();
+		for (const auto &object : plan.objects) {
+			if (object.original) {
+				plan.originals.insert(object.original);
+			}
+		}
+	}
 }
 
 void WorldLayerEditor::synchronizeMap() {
@@ -1538,7 +1594,13 @@ void WorldLayerEditor::synchronizeMap() {
 		return;
 	}
 	acknowledgeMapChange();
-	validate();
+}
+
+void WorldLayerEditor::ensureMapValidated() {
+	synchronizeMap();
+	if (mapValidationPending) {
+		validate();
+	}
 }
 
 void WorldLayerEditor::select(const std::string &id) {
@@ -1590,6 +1652,7 @@ world_layers::MapItem WorldLayerEditor::baseItem(const std::string &id) const {
 }
 
 bool WorldLayerEditor::moveBaseItem(const std::string &id, const world_layers::Object &value, const world_layers::Project* draft) {
+	ensureMapValidated();
 	const auto definition = document.data().find(id);
 	if (!definition || !definition->selector || !definition->selector->container.empty() || !world_layers::isValidPosition(value.position)) {
 		return false;
@@ -1677,7 +1740,7 @@ bool WorldLayerEditor::moveBaseItem(const std::string &id, const world_layers::O
 }
 
 std::unique_ptr<WorldBaseMove> WorldLayerEditor::beginBaseMove(const Position &offset, std::string &error) {
-	synchronizeMap();
+	ensureMapValidated();
 	if (!diagnostics.empty()) {
 		error = diagnostics.front().describe();
 		return nullptr;
@@ -1755,6 +1818,7 @@ void WorldLayerEditor::removeSelected() {
 
 void WorldLayerEditor::editProperties(wxWindow* parent) {
 	finishDrag(false);
+	ensureMapValidated();
 	const auto object = document.data().find(document.selected);
 	if (!object) {
 		return;
@@ -2052,7 +2116,12 @@ namespace {
 				updatingSelection = false;
 			}
 			if (world && statusChanged) {
-				std::string text = world->diagnostics.empty() ? "World objects are valid.\n" : "World validation needs attention:\n";
+				std::string text;
+				if (world->mapValidationPending) {
+					text = "World validation is pending for changed map identifiers or selector tiles. It will run before an operation that requires the resolved base map.\n";
+				} else {
+					text = world->diagnostics.empty() ? "World objects are valid.\n" : "World validation needs attention:\n";
+				}
 				if (!world->externalStatus.empty()) {
 					text = world->externalStatus + "\n\n" + text;
 				}

@@ -39,6 +39,15 @@ struct MapUniqueItem {
 	Position position;
 };
 
+struct MapWorldChanges {
+	std::set<Position> positions;
+	bool identifiers = false;
+
+	bool empty() const noexcept {
+		return positions.empty() && !identifiers;
+	}
+};
+
 struct MapIdentifierItem {
 	uint16_t itemId;
 	uint16_t aid;
@@ -182,6 +191,11 @@ public:
 	bool identifierTileChangedSinceSave(const Position &position) const {
 		return changedTilesSinceSave.contains(position);
 	}
+	MapWorldChanges takeWorldChanges();
+	void beginWorldChangeTracking() {
+		pendingWorldChanges = {};
+		trackWorldChanges = true;
+	}
 
 protected:
 	// Loads a map
@@ -237,6 +251,8 @@ private:
 	std::unordered_map<const Item*, size_t> uniqueItemIndexes;
 	std::unordered_map<const Item*, MapIdentifierItem> identifierItemOccurrences;
 	std::map<Position, std::vector<const Item*>> identifierItemsByTile;
+	MapWorldChanges pendingWorldChanges;
+	bool trackWorldChanges = false;
 	// Updated by the existing per-tile mutation hook. Adoption can therefore
 	// distinguish a selector that depends on an unsaved map edit without a
 	// second whole-map traversal.

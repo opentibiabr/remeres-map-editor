@@ -68,6 +68,7 @@ public:
 	WorldLayerDocument document;
 	world_layers::Diagnostics diagnostics;
 	uint64_t validationRevision = 0;
+	bool mapValidationPending = false;
 	std::optional<world_layers::Position> drag;
 	std::string externalStatus;
 
@@ -91,8 +92,10 @@ private:
 	uint64_t validatedRevision = UINT64_MAX;
 	mutable std::unordered_map<uint16_t, std::unique_ptr<Item>> sprites;
 	WorldViewIndex spatialIndex;
+	std::map<world_layers::Position, std::vector<std::string>> selectorRoots;
 	std::optional<std::filesystem::path> chooseLayer();
 	std::unique_ptr<WorldFileMonitor> fileMonitor;
+	void ensureMapValidated();
 };
 
 PalettePanel* CreateWorldPalette(wxWindow* parent);
