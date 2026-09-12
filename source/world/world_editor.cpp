@@ -1446,9 +1446,20 @@ void WorldLayerEditor::edit(const std::string &id, const world_layers::Object &v
 		moveBaseItem(id, value);
 		return;
 	}
-	auto next = document.data();
-	*next.find(id) = value;
-	editProject(next, id);
+	WorldDocumentChange change;
+	std::string error;
+	if (!document.makeObjectChange(id, value, change, error)) {
+		if (!error.empty()) {
+			g_gui.PopupDialog("Cannot edit World", wxstr(error), wxOK);
+		}
+		return;
+	}
+	change.selected = id;
+	auto action = editor.createAction(ACTION_WORLD_OBJECT);
+	action->addChange(Change::CreateWorldDocument(std::move(change)));
+	editor.addAction(action);
+	editor.updateActions();
+	refresh();
 }
 
 world_layers::MapItem WorldLayerEditor::baseItem(const std::string &id) const {
@@ -1632,7 +1643,11 @@ void WorldLayerEditor::editProperties(wxWindow* parent) {
 	}
 	const auto id = document.selected;
 	auto value = *object;
-	auto draft = document.data();
+	std::optional<world_layers::Project> draft;
+	if (value.kind == world_layers::ObjectKind::Item && g_items.getItemType(value.itemId).isContainer()) {
+		draft.emplace(document.data());
+	}
+	const auto &project = draft ? *draft : document.data();
 	const auto original = baseItem(id);
 	std::unique_ptr<Item> item(value.kind == world_layers::ObjectKind::Item ? Item::Create(value.itemId) : nullptr);
 	if (!item && value.kind == world_layers::ObjectKind::Item) {
@@ -1642,13 +1657,17 @@ void WorldLayerEditor::editProperties(wxWindow* parent) {
 		item->setActionID(value.aid);
 		item->setUniqueID(value.uid);
 	}
-	PropertiesWindow dialog(parent, &editor.getMap(), editor.getMap().getTile(native(value.position)), item.get(), wxDefaultPosition, &value, &draft, id, &draft, &original);
+	PropertiesWindow dialog(parent, &editor.getMap(), editor.getMap().getTile(native(value.position)), item.get(), wxDefaultPosition, &value, &project, id, draft ? &*draft : nullptr, &original);
 	if (dialog.ShowModal() == 1) {
-		*draft.find(id) = value;
+		if (draft) {
+			*draft->find(id) = value;
+		}
 		if (object->mode == world_layers::SourceMode::Map && object->position != value.position) {
-			moveBaseItem(id, value, &draft);
+			moveBaseItem(id, value, draft ? &*draft : nullptr);
+		} else if (draft) {
+			editProject(*draft, id);
 		} else {
-			editProject(draft, id);
+			edit(id, value);
 		}
 	}
 }

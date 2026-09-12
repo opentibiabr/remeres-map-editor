@@ -476,7 +476,8 @@ namespace {
 struct WorldProperties::State {
 	wxNotebook* notebook;
 	world_layers::Object &object;
-	world_layers::Project &project;
+	const world_layers::Project &project;
+	world_layers::Project* draft;
 	world_layers::MapItem base;
 	const Map* map;
 	wxTextCtrl* name = nullptr;
@@ -488,8 +489,8 @@ struct WorldProperties::State {
 	wxListBox *attributes = nullptr, *behaviors = nullptr, *relations = nullptr, *contents = nullptr;
 	std::vector<std::string> attributeKeys, relationKeys, childIds;
 
-	State(wxNotebook* notebook, Object &object, Project &project, const MapItem &base, const Map* map) :
-		notebook(notebook), object(object), project(project), base(base), map(map) { }
+	State(wxNotebook* notebook, Object &object, const Project &project, Project* draft, const MapItem &base, const Map* map) :
+		notebook(notebook), object(object), project(project), draft(draft), base(base), map(map) { }
 	wxScrolledWindow* page(const wxString &title, wxBoxSizer*&layout) {
 		auto panel = new wxScrolledWindow(notebook, wxID_ANY);
 		panel->SetScrollRate(8, 8);
@@ -831,7 +832,7 @@ struct WorldProperties::State {
 	void refreshContents() {
 		contents->Clear();
 		childIds.clear();
-		for (const auto &layer : project.layers) {
+		for (const auto &layer : draft->layers) {
 			for (const auto &child : layer.objects) {
 				if (child.container == object.id || (child.selector && child.selector->container == object.id)) {
 					childIds.push_back(objectId(layer, child));
@@ -841,23 +842,23 @@ struct WorldProperties::State {
 		}
 	}
 	bool editChild(const std::string &id, const MapItem &original = {}) {
-		const auto current = project.find(id);
+		const auto current = draft->find(id);
 		if (!current) {
 			return false;
 		}
 		auto child = *current;
-		auto draft = project;
+		auto childDraft = *draft;
 		std::unique_ptr<Item> preview(Item::Create(child.itemId));
-		PropertiesWindow dialog(notebook, map, nullptr, preview.get(), wxDefaultPosition, &child, &draft, id, &draft, &original);
+		PropertiesWindow dialog(notebook, map, nullptr, preview.get(), wxDefaultPosition, &child, &childDraft, id, &childDraft, &original);
 		if (dialog.ShowModal() != 1) {
 			return false;
 		}
-		const auto destination = draft.find(id);
+		const auto destination = childDraft.find(id);
 		if (!destination) {
 			return false;
 		}
 		*destination = std::move(child);
-		project = std::move(draft);
+		*draft = std::move(childDraft);
 		refreshContents();
 		return true;
 	}
@@ -896,7 +897,7 @@ struct WorldProperties::State {
 			if (identity.empty()) {
 				return;
 			}
-			if (project.find(identity)) {
+			if (draft->find(identity)) {
 				problem(panel, "That identity already exists");
 				return;
 			}
@@ -919,19 +920,20 @@ struct WorldProperties::State {
 			} else {
 				child.lifecycle = Lifecycle::RefillOnStartup;
 			}
-			const auto parent = project.objects.find(object.id);
-			if (parent == project.objects.end()) {
+			const auto parent = draft->objects.find(object.id);
+			if (parent == draft->objects.end()) {
 				return;
 			}
-			auto before = project;
-			project.layers[parent->second.first].objects.push_back(child);
+			auto before = *draft;
+			draft->layers[parent->second.first].objects.push_back(child);
 			Diagnostics diagnostics;
-			if (!project.rebuildIndex(diagnostics)) {
+			if (!draft->rebuildIndex(diagnostics)) {
 				problem(panel, diagnostics.front().describe());
+				*draft = std::move(before);
 				return;
 			}
 			if (!editChild(identity, original)) {
-				project = std::move(before);
+				*draft = std::move(before);
 			}
 			refreshContents();
 		};
@@ -945,7 +947,7 @@ struct WorldProperties::State {
 				return;
 			}
 			MapItem original;
-			const auto child = project.find(childIds[index]);
+			const auto child = draft->find(childIds[index]);
 			std::string error;
 			if (child && child->selector) {
 				resolveSelector(*child->selector, base.children, original, error);
@@ -953,7 +955,7 @@ struct WorldProperties::State {
 			editChild(childIds[index], original);
 		});
 		button(panel, row, "Remove declaration", [this, panel](wxCommandEvent &) { const auto index = contents->GetSelection(); if (index == wxNOT_FOUND){ return;
-} std::string error; if (!WorldLayerDocument::removeObject(project, childIds[index], error)){ problem(panel, error);
+} std::string error; if (!WorldLayerDocument::removeObject(*draft, childIds[index], error)){ problem(panel, error);
 } refreshContents(); });
 		layout->Add(row, 0, wxALL, 8);
 		refreshContents();
@@ -993,15 +995,15 @@ struct WorldProperties::State {
 	}
 };
 
-WorldProperties::WorldProperties(wxNotebook* notebook, world_layers::Object &object, world_layers::Project &project, const world_layers::MapItem &base, const Map* map) :
-	state(std::make_unique<State>(notebook, object, project, base, map)) {
+WorldProperties::WorldProperties(wxNotebook* notebook, world_layers::Object &object, const world_layers::Project &project, world_layers::Project* draft, const world_layers::MapItem &base, const Map* map) :
+	state(std::make_unique<State>(notebook, object, project, draft, base, map)) {
 	state->general();
 	if (object.kind == world_layers::ObjectKind::Item) {
 		state->attributePage();
 	}
 	state->behaviorPage();
 	state->relationPage();
-	if (object.kind == world_layers::ObjectKind::Item && g_items.getItemType(object.itemId).isContainer()) {
+	if (draft && object.kind == world_layers::ObjectKind::Item && g_items.getItemType(object.itemId).isContainer()) {
 		state->contentsPage();
 	}
 }

@@ -102,6 +102,22 @@ namespace {
 		}
 		return result;
 	}
+	std::set<std::filesystem::path> dirtyDocuments(const Project &project, const Files &saved) {
+		const auto current = documents(project);
+		std::set<std::filesystem::path> result;
+		for (const auto &[path, content] : current) {
+			const auto before = saved.find(path);
+			if (before == saved.end() || before->second != content) {
+				result.insert(path);
+			}
+		}
+		for (const auto &[path, content] : saved) {
+			if (!current.contains(path)) {
+				result.insert(path);
+			}
+		}
+		return result;
+	}
 	Project header(const Project &project) {
 		auto result = project;
 		result.objects.clear();
@@ -222,6 +238,13 @@ namespace {
 
 size_t WorldDocumentChange::memorySize() const {
 	size_t result = sizeof(*this);
+	for (const auto &[id, change] : objects) {
+		world_layers::Layer layer;
+		layer.schemaVersion = 2;
+		layer.id = "history";
+		layer.objects = { change.expected, change.replacement };
+		result += world_layers::serializeLayer(layer).size();
+	}
 	for (const auto &[file, change] : layers) {
 		if (change.expected) {
 			result += world_layers::serializeLayer(*change.expected).size();
@@ -278,6 +301,7 @@ bool WorldLayerDocument::create(const std::filesystem::path &file, const std::fi
 	}
 	created.generation = generation + 1;
 	created.unsaved = true;
+	created.dirtyFiles.insert(created.project.file);
 	*this = std::move(created);
 	return true;
 }
@@ -534,7 +558,8 @@ WorldExternalResult WorldLayerDocument::reconcileExternal(bool discardConflicts,
 		project = std::move(merged);
 		source = std::move(disk.source);
 		saved = std::move(disk.saved);
-		unsaved = documents(project) != saved;
+		dirtyFiles = dirtyDocuments(project, saved);
+		unsaved = !dirtyFiles.empty();
 		if (!project.find(selected)) {
 			selected.clear();
 		}
@@ -667,11 +692,68 @@ bool WorldLayerDocument::makeChange(const world_layers::Project &value, WorldDoc
 	}
 }
 
+bool WorldLayerDocument::makeObjectChange(const std::string &id, const world_layers::Object &value, WorldDocumentChange &change, std::string &error) const {
+	try {
+		if (project.schemaVersion != 2) {
+			error = "Convert this project to v2 before editing declarations";
+			return false;
+		}
+		const auto location = project.objects.find(id);
+		const auto current = project.find(id);
+		if (location == project.objects.end() || !current || current->id != value.id || !world_layers::isValidPosition(value.position)) {
+			error = "World declaration changed before the edit could be recorded";
+			return false;
+		}
+		if (*current == value) {
+			return false;
+		}
+		const auto &owner = project.layers[location->second.first];
+		world_layers::Layer probe;
+		probe.file = owner.file;
+		probe.schema = owner.schema;
+		probe.id = owner.id;
+		probe.name = owner.name;
+		probe.schemaVersion = owner.schemaVersion;
+		probe.enabled = owner.enabled;
+		probe.objects = { value };
+		world_layers::Layer parsed;
+		world_layers::Diagnostics diagnostics;
+		if (!world_layers::parseLayer(world_layers::serializeLayer(probe), owner.file, parsed, diagnostics)) {
+			errors(diagnostics, error);
+			return false;
+		}
+		WorldDocumentChange result;
+		result.selected = selected;
+		result.objects.emplace(id, WorldDocumentChange::ObjectDelta { owner.file, id, *current, value });
+		const auto guard = [&](const std::filesystem::path &path) {
+			const auto revision = fileRevisions.find(path);
+			result.revisions[path] = revision == fileRevisions.end() ? 0 : revision->second;
+		};
+		guard(owner.file);
+		for (const auto &descriptor : project.behaviors) {
+			guard(descriptor.file);
+		}
+		change = std::move(result);
+		return true;
+	} catch (const std::exception &exception) {
+		error = exception.what();
+		return false;
+	}
+}
+
 bool WorldLayerDocument::canExchange(const WorldDocumentChange &change, std::string &error) const {
 	for (const auto &[path, expected] : change.revisions) {
 		const auto found = fileRevisions.find(path);
 		if ((found == fileRevisions.end() ? 0 : found->second) != expected) {
 			error = "This World action belongs to a document revision replaced outside the editor: " + path.generic_string();
+			return false;
+		}
+	}
+	for (const auto &[id, delta] : change.objects) {
+		const auto location = project.objects.find(id);
+		const auto current = project.find(id);
+		if (location == project.objects.end() || !current || project.layers[location->second.first].file != delta.layer || *current != delta.expected) {
+			error = "Object no longer matches this action: " + id;
 			return false;
 		}
 	}
@@ -699,6 +781,27 @@ bool WorldLayerDocument::canExchange(const WorldDocumentChange &change, std::str
 bool WorldLayerDocument::exchange(WorldDocumentChange &change, std::string &error) {
 	if (!canExchange(change, error)) {
 		return false;
+	}
+	if (!change.objects.empty() && change.layers.empty() && change.migrations.empty() && !change.catalog) {
+		std::set<std::filesystem::path> affected;
+		for (auto &[id, delta] : change.objects) {
+			*project.find(id) = delta.replacement;
+			affected.insert(delta.layer);
+			std::swap(delta.expected, delta.replacement);
+		}
+		for (const auto &path : affected) {
+			const auto layer = layerAt(project, path);
+			const auto before = saved.find(path);
+			if (!layer || before == saved.end() || world_layers::serializeLayer(*layer) != before->second) {
+				dirtyFiles.insert(path);
+			} else {
+				dirtyFiles.erase(path);
+			}
+		}
+		unsaved = !dirtyFiles.empty();
+		std::swap(selected, change.selected);
+		++generation;
+		return true;
 	}
 	auto next = project;
 	for (const auto &[path, delta] : change.migrations) {
@@ -739,7 +842,8 @@ bool WorldLayerDocument::exchange(WorldDocumentChange &change, std::string &erro
 		return false;
 	}
 	project = std::move(next);
-	unsaved = documents(project) != saved;
+	dirtyFiles = dirtyDocuments(project, saved);
+	unsaved = !dirtyFiles.empty();
 	for (auto &[file, delta] : change.layers) {
 		std::swap(delta.expected, delta.replacement);
 	}
@@ -769,27 +873,26 @@ bool WorldLayerDocument::editProject(const world_layers::Project &value, std::st
 }
 
 bool WorldLayerDocument::edit(const std::string &id, const world_layers::Object &value) {
-	auto next = project;
-	const auto object = next.find(id);
-	if (!object || object->id != value.id || !world_layers::isValidPosition(value.position)) {
+	WorldDocumentChange change;
+	std::string error;
+	if (!makeObjectChange(id, value, change, error) || !exchange(change, error)) {
 		return false;
 	}
-	*object = value;
-	std::string error;
-	return editProject(next, error);
+	history.resize(cursor);
+	history.push_back(std::move(change));
+	++cursor;
+	return true;
 }
 
 bool WorldLayerDocument::exchange(const std::string &id, world_layers::Object &value) {
 	const auto current = project.find(id);
-	if (!current || current->id != value.id || !world_layers::isValidPosition(value.position)) {
+	if (!current) {
 		return false;
 	}
 	const auto before = *current;
-	auto next = project;
-	*next.find(id) = value;
 	WorldDocumentChange change;
 	std::string error;
-	if (!makeChange(next, change, error) || !exchange(change, error)) {
+	if (!makeObjectChange(id, value, change, error) || !exchange(change, error)) {
 		return false;
 	}
 	value = before;
@@ -862,6 +965,7 @@ bool WorldLayerDocument::save(std::string &error) {
 			}
 		}
 		saved = pending;
+		dirtyFiles.clear();
 		unsaved = false;
 		return true;
 	} catch (const std::exception &exception) {
@@ -1078,6 +1182,9 @@ bool WorldLayerDocument::copyForMap(const std::filesystem::path &map, std::strin
 				layers.emplace(relocated(file), std::move(delta));
 			}
 			change.layers = std::move(layers);
+			for (auto &[id, delta] : change.objects) {
+				delta.layer = relocated(delta.layer);
+			}
 			decltype(change.migrations) migrations;
 			for (auto &[file, delta] : change.migrations) {
 				delta.expected.file = delta.replacement.file = relocated(file);

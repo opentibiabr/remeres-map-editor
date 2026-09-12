@@ -37,6 +37,11 @@ enum class WorldExternalResult { Unchanged,
 	                             Invalid };
 
 struct WorldDocumentChange {
+	struct ObjectDelta {
+		std::filesystem::path layer;
+		std::string id;
+		world_layers::Object expected, replacement;
+	};
 	struct Layer {
 		std::optional<world_layers::Layer> expected, replacement;
 	};
@@ -47,6 +52,7 @@ struct WorldDocumentChange {
 		world_layers::MigrationRecord expected, replacement;
 	};
 	std::map<std::filesystem::path, Layer> layers;
+	std::map<std::string, ObjectDelta> objects;
 	std::optional<Catalog> catalog;
 	std::map<std::filesystem::path, Migration> migrations;
 	std::map<std::filesystem::path, uint64_t> revisions;
@@ -70,6 +76,7 @@ public:
 	bool edit(const std::string &id, const world_layers::Object &value);
 	bool exchange(const std::string &id, world_layers::Object &value);
 	bool makeChange(const world_layers::Project &value, WorldDocumentChange &change, std::string &error) const;
+	bool makeObjectChange(const std::string &id, const world_layers::Object &value, WorldDocumentChange &change, std::string &error) const;
 	bool canExchange(const WorldDocumentChange &change, std::string &error) const;
 	bool exchange(WorldDocumentChange &change, std::string &error);
 	bool editProject(const world_layers::Project &value, std::string &error);
@@ -100,6 +107,7 @@ private:
 	world_layers::Project project;
 	std::map<std::filesystem::path, std::string> source, saved;
 	std::map<std::filesystem::path, uint64_t> fileRevisions;
+	std::set<std::filesystem::path> dirtyFiles;
 	std::vector<WorldDocumentChange> history;
 	size_t cursor = 0;
 	uint64_t generation = 0;

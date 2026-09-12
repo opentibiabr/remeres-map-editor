@@ -15,7 +15,7 @@ namespace world_layers {
 // dialog's draft until its caller creates a single native undo action.
 class WorldProperties {
 public:
-	WorldProperties(wxNotebook* notebook, world_layers::Object &object, world_layers::Project &project, const world_layers::MapItem &base, const Map* map);
+	WorldProperties(wxNotebook* notebook, world_layers::Object &object, const world_layers::Project &project, world_layers::Project* draft, const world_layers::MapItem &base, const Map* map);
 	~WorldProperties();
 	bool read(std::string &error);
 

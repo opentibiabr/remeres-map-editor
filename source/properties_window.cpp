@@ -52,11 +52,11 @@ END_EVENT_TABLE()
 PropertiesWindow::PropertiesWindow(wxWindow* parent, const Map* map, const Tile* tile_parent, Item* item, wxPoint pos, world_layers::Object* object, const world_layers::Project* project, const std::string &id, world_layers::Project* draft, const world_layers::MapItem* base) :
 	ObjectPropertiesWindowBase(parent, "Item Properties", map, tile_parent, item, pos),
 	currentPanel(nullptr), worldObject(object), worldProject(project), worldId(id) {
-	ASSERT(edit_item || (object && draft));
+	ASSERT(edit_item || (object && project));
 	notebook = newd wxNotebook(this, wxID_ANY, wxDefaultPosition, wxSize(600, 300));
 
-	if (worldObject && draft && draft->schemaVersion == 2) {
-		worldProperties = std::make_unique<WorldProperties>(notebook, *worldObject, *draft, base ? *base : world_layers::MapItem {}, map);
+	if (worldObject && project && project->schemaVersion == 2) {
+		worldProperties = std::make_unique<WorldProperties>(notebook, *worldObject, *project, draft, base ? *base : world_layers::MapItem {}, map);
 	} else {
 		notebook->AddPage(createGeneralPanel(notebook), "Simple", true);
 		if (dynamic_cast<Container*>(item)) {
