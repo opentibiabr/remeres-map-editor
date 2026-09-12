@@ -213,8 +213,8 @@ protected:
 	BatchAction(Editor &editor, ActionIdentifier ident);
 
 	virtual void commit();
-	virtual void undo();
-	virtual void redo();
+	virtual bool undo();
+	virtual bool redo();
 
 	void merge(BatchAction* other);
 	bool prepareWorldChanges(bool undoing, bool uncommittedOnly = false);

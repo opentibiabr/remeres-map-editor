@@ -80,7 +80,7 @@ void NetworkedBatchAction::commit() {
 	queue.broadcast(dirty_list);
 }
 
-void NetworkedBatchAction::undo() {
+bool NetworkedBatchAction::undo() {
 	// Track changed nodes...
 	DirtyList dirty_list;
 
@@ -89,10 +89,12 @@ void NetworkedBatchAction::undo() {
 	}
 	// Broadcast changes!
 	queue.broadcast(dirty_list);
+	return true;
 }
 
-void NetworkedBatchAction::redo() {
+bool NetworkedBatchAction::redo() {
 	commit();
+	return true;
 }
 
 //===================

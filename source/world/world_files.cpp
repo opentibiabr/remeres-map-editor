@@ -178,14 +178,22 @@ namespace world_files {
 			return false;
 #endif
 		}
-		void syncDirectory(const std::filesystem::path &directory) {
+		bool syncDirectory(const std::filesystem::path &directory, std::string &error) {
 #ifndef _WIN32
 			const auto descriptor = open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-			if (descriptor != -1) {
-				fsync(descriptor);
-				close(descriptor);
+			if (descriptor == -1) {
+				error = systemError();
+				return false;
+			}
+			const bool synced = fsync(descriptor) == 0;
+			const int syncError = synced ? 0 : errno;
+			const bool closed = close(descriptor) == 0;
+			if (!synced || !closed) {
+				error = std::error_code(synced ? errno : syncError, std::generic_category()).message();
+				return false;
 			}
 #endif
+			return true;
 		}
 		std::string nonce() {
 			return std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + "-" + std::to_string(std::random_device {}());
@@ -275,7 +283,9 @@ namespace world_files {
 					return false;
 				}
 			}
-			syncDirectory(change.file.parent_path());
+			if (!syncDirectory(change.file.parent_path(), error)) {
+				return false;
+			}
 			checkpoint("installed", change.file);
 			return expected(change.file, change.after, error);
 		}
@@ -290,8 +300,7 @@ namespace world_files {
 				error = "Cannot finish World publication: " + code.message();
 				return false;
 			}
-			syncDirectory(catalog.parent_path());
-			return true;
+			return syncDirectory(catalog.parent_path(), error);
 		}
 		bool jsonFile(const std::filesystem::path &file, Json &value, std::string &error) {
 			Revision content;
@@ -457,11 +466,15 @@ namespace world_files {
 			if (!durable(directory / "journal.json", journal.dump(2), error)) {
 				return false;
 			}
-			syncDirectory(directory);
+			if (!syncDirectory(directory, error)) {
+				return false;
+			}
 			if (!durable(sidecar(catalog, ".pending"), Json { { "version", 1 }, { "directory", id } }.dump(), error)) {
 				return false;
 			}
-			syncDirectory(catalog.parent_path());
+			if (!syncDirectory(catalog.parent_path(), error)) {
+				return false;
+			}
 			checkpoint("prepared", catalog);
 			for (size_t i = 0; i < publication.changes.size(); ++i) {
 				if (!install(publication.changes[i], directory, std::to_string(i), error)) {

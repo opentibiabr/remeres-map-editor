@@ -10,6 +10,8 @@
 #include <wx/numdlg.h>
 #include <wx/scrolwin.h>
 #include <charconv>
+#include <locale>
+#include <sstream>
 
 namespace {
 	using namespace world_layers;
@@ -292,8 +294,10 @@ namespace {
 					draft = Value { number };
 				} else {
 					double number = 0;
-					const auto parsed = std::from_chars(text.data(), text.data() + text.size(), number);
-					if (parsed.ec != std::errc {} || parsed.ptr != text.data() + text.size() || !std::isfinite(number)) {
+					std::istringstream stream(text);
+					stream.imbue(std::locale::classic());
+					stream >> number;
+					if (!stream || stream.peek() != std::char_traits<char>::eof() || !std::isfinite(number)) {
 						error = "Enter a finite number";
 						return false;
 					}
@@ -638,8 +642,14 @@ struct WorldProperties::State {
 			refreshAttributes();
 		});
 		button(panel, row, "Add custom...", [this, panel](wxCommandEvent &) {
-			const auto name = wxGetTextFromUser("Attribute key", "Custom attribute", "", panel);
+			auto name = wxGetTextFromUser("Attribute key", "Custom attribute", "", panel);
+			name.Trim(true).Trim(false);
 			if (name.empty()) {
+				problem(panel, "Attribute key cannot be blank");
+				return;
+			}
+			if (nstr(name).starts_with("__world.")) {
+				problem(panel, "Keys beginning with __world. are reserved for runtime ownership metadata");
 				return;
 			}
 			wxArrayString choices;
@@ -780,14 +790,22 @@ struct WorldProperties::State {
 		}
 	}
 	bool editChild(const std::string &id, const MapItem &original = {}) {
-		auto child = *project.find(id);
+		const auto current = project.find(id);
+		if (!current) {
+			return false;
+		}
+		auto child = *current;
 		auto draft = project;
 		std::unique_ptr<Item> preview(Item::Create(child.itemId));
 		PropertiesWindow dialog(notebook, map, nullptr, preview.get(), wxDefaultPosition, &child, &draft, id, &draft, &original);
 		if (dialog.ShowModal() != 1) {
 			return false;
 		}
-		*draft.find(id) = std::move(child);
+		const auto destination = draft.find(id);
+		if (!destination) {
+			return false;
+		}
+		*destination = std::move(child);
 		project = std::move(draft);
 		refreshContents();
 		return true;

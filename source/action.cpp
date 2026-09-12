@@ -332,9 +332,6 @@ void Action::commit(DirtyList* dirty_list) {
 	}
 	selection.finish(Selection::INTERNAL);
 	commited = true;
-	if (editor.world) {
-		editor.world->validate();
-	}
 }
 
 void Action::undo(DirtyList* dirty_list) {
@@ -486,9 +483,6 @@ void Action::undo(DirtyList* dirty_list) {
 
 	selection.finish(Selection::INTERNAL);
 	commited = false;
-	if (editor.world) {
-		editor.world->validate();
-	}
 }
 
 BatchAction::BatchAction(Editor &editor, ActionIdentifier ident) :
@@ -572,24 +566,35 @@ void BatchAction::commit() {
 			action->commit(nullptr);
 		}
 	}
+	if (editor.world) {
+		editor.world->validate();
+	}
 }
 
-void BatchAction::undo() {
+bool BatchAction::undo() {
 	if (!prepareWorldChanges(true)) {
-		return;
+		return false;
 	}
 	for (Action* action : std::views::reverse(batch)) {
 		action->undo(nullptr);
 	}
+	if (editor.world) {
+		editor.world->validate();
+	}
+	return true;
 }
 
-void BatchAction::redo() {
+bool BatchAction::redo() {
 	if (!prepareWorldChanges(false)) {
-		return;
+		return false;
 	}
 	for (Action* action : batch) {
 		action->redo(nullptr);
 	}
+	if (editor.world) {
+		editor.world->validate();
+	}
+	return true;
 }
 
 bool BatchAction::prepareWorldChanges(bool undoing, bool uncommittedOnly) {
@@ -626,6 +631,9 @@ void BatchAction::rollback() {
 		if (action->isCommited()) {
 			action->undo(nullptr);
 		}
+	}
+	if (editor.world) {
+		editor.world->validate();
 	}
 }
 
@@ -759,11 +767,11 @@ void ActionQueue::generateLabels() {
 
 bool ActionQueue::undo() {
 	if (current > 0) {
-		current--;
-		BatchAction* batch = actions.at(current);
-		if (batch) {
-			batch->undo();
+		BatchAction* batch = actions.at(current - 1);
+		if (!batch || !batch->undo()) {
+			return false;
 		}
+		current--;
 
 		// Update title
 		const bool changed = batch && batch->isNoSelection() && batch->affectsMap() && editor.getMap().doChange();
@@ -781,8 +789,8 @@ bool ActionQueue::undo() {
 bool ActionQueue::redo() {
 	if (current < actions.size()) {
 		BatchAction* batch = actions.at(current);
-		if (batch) {
-			batch->redo();
+		if (!batch || !batch->redo()) {
+			return false;
 		}
 		current++;
 

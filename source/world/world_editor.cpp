@@ -1069,7 +1069,12 @@ bool WorldLayerEditor::moveBaseItem(const std::string &id, const world_layers::O
 	};
 	pairTile(origin, from.get());
 	pairTile(destination, to.get());
-	Item* moving = copied.at(base.key);
+	const auto movingEntry = copied.find(base.key);
+	if (movingEntry == copied.end()) {
+		g_gui.PopupDialog("Cannot move base item", "The selected original changed while preparing the move. Revalidate the World project and try again.", wxOK);
+		return false;
+	}
+	Item* moving = movingEntry->second;
 	if (from->ground == moving) {
 		from->ground = nullptr;
 	} else {
@@ -1116,8 +1121,12 @@ bool WorldLayerEditor::moveBaseItem(const std::string &id, const world_layers::O
 	return true;
 }
 
-std::unique_ptr<WorldBaseMove> WorldLayerEditor::beginBaseMove(const Position &offset) {
+std::unique_ptr<WorldBaseMove> WorldLayerEditor::beginBaseMove(const Position &offset, std::string &error) {
 	synchronizeMap();
+	if (!diagnostics.empty()) {
+		error = diagnostics.front().describe();
+		return nullptr;
+	}
 	std::set<uint64_t> selected;
 	for (const auto tile : editor.getSelection()) {
 		if (tile->ground && tile->ground->isSelected()) {

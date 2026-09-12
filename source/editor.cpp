@@ -1058,7 +1058,12 @@ void Editor::moveSelection(const Position &offset) {
 	if (!CanEdit() || !hasSelection()) {
 		return;
 	}
-	auto worldMove = world ? world->beginBaseMove(offset) : nullptr;
+	std::string worldError;
+	auto worldMove = world ? world->beginBaseMove(offset, worldError) : nullptr;
+	if (world && !worldMove) {
+		g_gui.PopupDialog("Cannot move World base items", wxstr(worldError), wxOK);
+		return;
+	}
 
 	bool borderize = false;
 	int drag_threshold = g_settings.getInteger(Config::BORDERIZE_DRAG_THRESHOLD);

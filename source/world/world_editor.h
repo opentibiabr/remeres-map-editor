@@ -29,7 +29,7 @@ public:
 	void removeSelected();
 	world_layers::MapItem baseItem(const std::string &id) const;
 	bool moveBaseItem(const std::string &id, const world_layers::Object &value, const world_layers::Project* draft = nullptr);
-	std::unique_ptr<WorldBaseMove> beginBaseMove(const Position &offset);
+	std::unique_ptr<WorldBaseMove> beginBaseMove(const Position &offset, std::string &error);
 	bool finishBaseMove(WorldBaseMove &move, BatchAction &batch, std::string &error);
 	bool ensureV2();
 	void manageLayers();

@@ -535,6 +535,9 @@ bool GUI::LoadServerWorlds(const wxString &path, bool automatic) {
 	}
 	WorldLayerDocument document;
 	std::string error;
+	if (!RecoverWorldPublication(std::filesystem::u8path(nstr(file)), root)) {
+		return false;
+	}
 	if (!document.open(std::filesystem::u8path(nstr(file)), error)) {
 		PopupDialog(root, "Cannot load server worlds", wxstr(error), wxOK);
 		return false;
@@ -599,6 +602,9 @@ bool GUI::LoadMap(const FileName &fileName) {
 	if (fileName.GetFullPath().EndsWith(".world.json")) {
 		worldDocument = std::make_unique<WorldLayerDocument>();
 		std::string error;
+		if (!RecoverWorldPublication(std::filesystem::u8path(nstr(fileName.GetFullPath())), root)) {
+			return false;
+		}
 		if (!worldDocument->open(std::filesystem::u8path(nstr(fileName.GetFullPath())), error)) {
 			PopupDialog(root, "Cannot read world catalog", wxstr(error), wxOK);
 			return false;
