@@ -2023,7 +2023,9 @@ namespace {
 			filter = new wxTextCtrl(this, wxID_ANY);
 			filter->SetHint("Find a world or object...");
 			filter->Bind(wxEVT_TEXT, [this](wxCommandEvent &) { filterTimer.StartOnce(150); });
-			Bind(wxEVT_TIMER, [this](wxTimerEvent &) { update(true); }, filterTimer.GetId());
+			Bind(
+				wxEVT_TIMER, [this](wxTimerEvent &) { update(true); }, filterTimer.GetId()
+			);
 			sizer->Add(filter, 0, wxEXPAND | wxALL, 5);
 			objects = new WorldObjectList(this);
 			objects->Bind(wxEVT_LIST_ITEM_SELECTED, [this](wxListEvent &event) {

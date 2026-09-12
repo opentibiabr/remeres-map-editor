@@ -366,11 +366,14 @@ MainFrame::MainFrame(const wxString &title, const wxPoint &pos, const wxSize &si
 	wxFrame((wxFrame*)nullptr, -1, title, pos, size, wxDEFAULT_FRAME_STYLE), world_load_timer(this) {
 	// Receive idle events
 	SetExtraStyle(wxWS_EX_PROCESS_IDLE);
-	Bind(wxEVT_TIMER, [this](wxTimerEvent &) {
-		if (!g_gui.ProcessPendingWorldLoads()) {
-			world_load_timer.Stop();
-		}
-	}, world_load_timer.GetId());
+	Bind(
+		wxEVT_TIMER, [this](wxTimerEvent &) {
+			if (!g_gui.ProcessPendingWorldLoads()) {
+				world_load_timer.Stop();
+			}
+		},
+		world_load_timer.GetId()
+	);
 
 #if wxCHECK_VERSION(3, 1, 0) // 3.1.0 or higher
 	// Make sure ShowFullScreen() uses the full screen API on macOS
