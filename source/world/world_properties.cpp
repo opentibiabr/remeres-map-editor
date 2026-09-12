@@ -97,7 +97,13 @@ namespace {
 	class ReferenceComboBox final : public wxComboBox {
 	public:
 		ReferenceComboBox(wxWindow* parent, const Project &project, const std::string &value, bool containersOnly) :
-			wxComboBox(parent, wxID_ANY, wxstr(value)), project(project), containersOnly(containersOnly) {
+			wxComboBox(parent, wxID_ANY, wxstr(value)) {
+			for (const auto &[id, location] : project.objects) {
+				const auto &object = project.layers[location.first].objects[location.second];
+				if (!containersOnly || (object.kind == ObjectKind::Item && g_items.getItemType(object.itemId).isContainer())) {
+					entries.emplace_back(wxstr(id).Lower(), id);
+				}
+			}
 			Append("");
 			if (!value.empty()) {
 				Append(wxstr(value));
@@ -109,8 +115,7 @@ namespace {
 
 	private:
 		static constexpr size_t ResultLimit = 100;
-		const Project &project;
-		bool containersOnly;
+		std::vector<std::pair<wxString, std::string>> entries;
 		bool updating = false;
 		wxString lastQuery;
 
@@ -127,18 +132,13 @@ namespace {
 			std::vector<std::string> matches;
 			if (query.length() >= 2) {
 				const auto needle = query.Lower();
-				for (const auto &[id, location] : project.objects) {
-					const auto &object = project.layers[location.first].objects[location.second];
-					if (containersOnly && (object.kind != ObjectKind::Item || !g_items.getItemType(object.itemId).isContainer())) {
-						continue;
-					}
-					if (wxstr(id).Lower().Contains(needle)) {
+				for (const auto &[search, id] : entries) {
+					if (search.Contains(needle)) {
 						matches.push_back(id);
+						if (matches.size() == ResultLimit) {
+							break;
+						}
 					}
-				}
-				std::sort(matches.begin(), matches.end());
-				if (matches.size() > ResultLimit) {
-					matches.resize(ResultLimit);
 				}
 			}
 
@@ -156,9 +156,6 @@ namespace {
 			updating = false;
 		}
 	};
-	wxComboBox* referenceChoice(wxWindow* parent, const Project &project, const std::string &value, bool containers = false) {
-		return new ReferenceComboBox(parent, project, value, containers);
-	}
 	std::array<wxSpinCtrl*, 3> positionFields(wxWindow* parent, wxSizer* sizer, const WorldPosition &position, bool offset = false) {
 		std::array<wxSpinCtrl*, 3> controls;
 		const int values[] = { position.x, position.y, position.z };
@@ -319,7 +316,7 @@ namespace {
 					reference = valueReference(draft);
 				}
 			}
-			auto control = referenceChoice(&dialog, project, reference.object);
+			auto control = CreateWorldReferenceChoice(&dialog, project, reference.object);
 			layout->Add(control, 0, wxEXPAND | wxALL, 8);
 			auto row = new wxBoxSizer(wxHORIZONTAL);
 			const auto fields = positionFields(&dialog, row, reference.offset, true);
@@ -473,6 +470,10 @@ namespace {
 	}
 }
 
+wxComboBox* CreateWorldReferenceChoice(wxWindow* parent, const world_layers::Project &project, const std::string &value, bool containersOnly) {
+	return new ReferenceComboBox(parent, project, value, containersOnly);
+}
+
 struct WorldProperties::State {
 	wxNotebook* notebook;
 	world_layers::Object &object;
@@ -564,7 +565,7 @@ struct WorldProperties::State {
 		layout->Add(lifecycle, 0, wxEXPAND | wxALL, 8);
 		if (object.mode != SourceMode::Map) {
 			layout->Add(new wxStaticText(panel, wxID_ANY, "Container (empty means map position)"), 0, wxLEFT | wxRIGHT, 8);
-			container = referenceChoice(panel, project, object.container, true);
+			container = CreateWorldReferenceChoice(panel, project, object.container, true);
 			layout->Add(container, 0, wxEXPAND | wxALL, 8);
 			row = new wxBoxSizer(wxHORIZONTAL);
 			row->Add(new wxStaticText(panel, wxID_ANY, "Insertion order (0 = first)"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
@@ -790,7 +791,7 @@ struct WorldProperties::State {
 			hasTeleport = new wxCheckBox(panel, wxID_ANY, "Native teleport destination");
 			hasTeleport->SetValue(object.teleport.has_value());
 			layout->Add(hasTeleport, 0, wxALL, 8);
-			destination = referenceChoice(panel, project, object.teleport ? object.teleport->destination : "");
+			destination = CreateWorldReferenceChoice(panel, project, object.teleport ? object.teleport->destination : "");
 			layout->Add(destination, 0, wxEXPAND | wxALL, 8);
 			auto row = new wxBoxSizer(wxHORIZONTAL);
 			offset = positionFields(panel, row, object.teleport ? object.teleport->destinationOffset : WorldPosition {}, true);

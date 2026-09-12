@@ -18,6 +18,7 @@
 #include <wx/notebook.h>
 #include <wx/dirdlg.h>
 #include <wx/progdlg.h>
+#include <wx/timer.h>
 
 #include <atomic>
 #include <thread>
@@ -1721,7 +1722,7 @@ namespace {
 	class WorldPalettePanel final : public PalettePanel {
 	public:
 		explicit WorldPalettePanel(wxWindow* parent) :
-			PalettePanel(parent) {
+			PalettePanel(parent), filterTimer(this) {
 			SetExtraStyle(GetExtraStyle() | wxWS_EX_PROCESS_IDLE);
 			auto sizer = new wxBoxSizer(wxVERTICAL);
 			load = new wxButton(this, wxID_ANY, "Load server worlds...");
@@ -1802,7 +1803,8 @@ namespace {
 			sizer->Add(visible, 0, wxEXPAND | wxALL, 5);
 			filter = new wxTextCtrl(this, wxID_ANY);
 			filter->SetHint("Find a world or object...");
-			filter->Bind(wxEVT_TEXT, [this](wxCommandEvent &) { update(true); });
+			filter->Bind(wxEVT_TEXT, [this](wxCommandEvent &) { filterTimer.StartOnce(150); });
+			Bind(wxEVT_TIMER, [this](wxTimerEvent &) { update(true); }, filterTimer.GetId());
 			sizer->Add(filter, 0, wxEXPAND | wxALL, 5);
 			objects = new WorldObjectList(this);
 			objects->Bind(wxEVT_LIST_ITEM_SELECTED, [this](wxListEvent &event) {
@@ -1830,6 +1832,9 @@ namespace {
 } event.Skip(); });
 			update(true);
 		}
+		~WorldPalettePanel() override {
+			filterTimer.Stop();
+		}
 		wxString GetName() const override {
 			return "Worlds";
 		}
@@ -1846,6 +1851,12 @@ namespace {
 		}
 
 	private:
+		struct CachedObject {
+			std::string id;
+			wxString label;
+			wxString search;
+		};
+		wxTimer filterTimer;
 		wxStaticText* catalog;
 		wxButton* load;
 		wxButton* createCatalog;
@@ -1857,15 +1868,16 @@ namespace {
 		wxButton* propertiesButton;
 		wxButton* arrivalButton;
 		std::vector<std::string> ids;
+		std::vector<CachedObject> cachedObjects;
 		std::unordered_map<std::string, long> rows;
 		const WorldLayerDocument* active = nullptr;
 		uint64_t revision = 0;
-		uint64_t validationRevision = 0;
+		uint64_t validationRevision = UINT64_MAX;
 		std::string selected;
 		std::string externalStatus;
 		bool updatingSelection = false;
 
-		void update(bool forceList) {
+		void update(bool filterChanged) {
 			const auto world = current();
 			const auto nextActive = world ? &world->document : nullptr;
 			const auto nextRevision = world ? world->document.revision() : 0;
@@ -1873,8 +1885,9 @@ namespace {
 			const auto nextSelected = world ? world->document.selected : std::string {};
 			const auto nextExternalStatus = world ? world->externalStatus : std::string {};
 			const bool activeChanged = active != nextActive;
-			const bool listChanged = forceList || activeChanged || revision != nextRevision;
-			const bool statusChanged = forceList || activeChanged || validationRevision != nextValidation || externalStatus != nextExternalStatus;
+			const bool sourceChanged = activeChanged || revision != nextRevision;
+			const bool listChanged = filterChanged || sourceChanged;
+			const bool statusChanged = activeChanged || validationRevision != nextValidation || externalStatus != nextExternalStatus;
 			const bool selectionChanged = activeChanged || selected != nextSelected;
 			const bool visibilityChanged = visible->GetValue() != (world && world->document.visible);
 			if (!listChanged && !statusChanged && !selectionChanged && !visibilityChanged) {
@@ -1895,27 +1908,38 @@ namespace {
 				const auto &project = world->document.data();
 				catalog->SetLabel(wxstr("World catalog loaded: " + project.file.filename().generic_string()));
 				catalog->SetToolTip(wxstr(project.file.generic_string()));
+				if (sourceChanged) {
+					cachedObjects.clear();
+					cachedObjects.reserve(project.objects.size());
+					for (const auto &layer : project.layers) {
+						for (const auto &object : layer.objects) {
+							const auto id = world_layers::objectId(layer, object);
+							const auto label = wxstr(id + (object.name.empty() ? "" : " - " + object.name));
+							cachedObjects.push_back({ id, label, (label + wxstr(" " + std::to_string(object.itemId) + " " + std::to_string(object.aid) + " " + std::to_string(object.uid))).Lower() });
+						}
+					}
+				}
 				const auto search = filter->GetValue().Lower();
 				std::vector<wxString> labels;
+				labels.reserve(cachedObjects.size());
 				ids.clear();
+				ids.reserve(cachedObjects.size());
 				rows.clear();
-				for (const auto &layer : project.layers) {
-					for (const auto &object : layer.objects) {
-						const auto id = world_layers::objectId(layer, object);
-						const auto label = wxstr(id + (object.name.empty() ? "" : " - " + object.name));
-						if (!search.empty() && !(label + wxstr(" " + std::to_string(object.itemId) + " " + std::to_string(object.aid) + " " + std::to_string(object.uid))).Lower().Contains(search)) {
-							continue;
-						}
-						rows.emplace(id, static_cast<long>(ids.size()));
-						ids.push_back(id);
-						labels.push_back(label);
+				rows.reserve(cachedObjects.size());
+				for (const auto &object : cachedObjects) {
+					if (!search.empty() && !object.search.Contains(search)) {
+						continue;
 					}
+					rows.emplace(object.id, static_cast<long>(ids.size()));
+					ids.push_back(object.id);
+					labels.push_back(object.label);
 				}
 				objects->setRows(std::move(labels));
 			} else if (!world && listChanged) {
 				catalog->SetLabel("No world catalog loaded.");
 				catalog->UnsetToolTip();
 				ids.clear();
+				cachedObjects.clear();
 				rows.clear();
 				objects->setRows({});
 			}
@@ -1933,8 +1957,12 @@ namespace {
 				if (!world->externalStatus.empty()) {
 					text = world->externalStatus + "\n\n" + text;
 				}
-				for (const auto &error : world->diagnostics) {
-					text += error.describe() + "\n";
+				constexpr size_t diagnosticPreview = 20;
+				for (size_t i = 0; i < std::min(diagnosticPreview, world->diagnostics.size()); ++i) {
+					text += world->diagnostics[i].describe() + "\n";
+				}
+				if (world->diagnostics.size() > diagnosticPreview) {
+					text += "... " + std::to_string(world->diagnostics.size() - diagnosticPreview) + " additional diagnostics. Open the affected objects or files for details.\n";
 				}
 				text += "\nSelect and drag objects on the map. Double-click for properties. Ctrl+S saves map and layer changes.";
 				status->ChangeValue(wxstr(text));

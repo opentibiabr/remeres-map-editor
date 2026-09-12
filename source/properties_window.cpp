@@ -820,14 +820,7 @@ void PropertiesWindow::createWorldControls(wxPanel* parent, wxFlexGridSizer* siz
 	};
 	position("Position", worldPosition, worldObject->position, false);
 	sizer->Add(new wxStaticText(parent, wxID_ANY, "Destination object"));
-	worldDestination = new wxComboBox(parent, wxID_ANY);
-	worldDestination->Append("");
-	for (const auto &layer : worldProject->layers) {
-		for (const auto &object : layer.objects) {
-			worldDestination->Append(wxstr(layer.id + "." + object.id));
-		}
-	}
-	worldDestination->SetValue(worldObject->teleport ? wxstr(worldObject->teleport->destination) : wxString());
+	worldDestination = CreateWorldReferenceChoice(parent, *worldProject, worldObject->teleport ? worldObject->teleport->destination : "");
 	worldDestination->SetToolTip("Choose a stable world object ID. AID may repeat; each nonzero UID must be unique across the map and world layers.");
 	sizer->Add(worldDestination, 1, wxEXPAND);
 	position("Arrival offset", worldOffset, worldObject->teleport ? worldObject->teleport->destinationOffset : world_layers::Position {}, true);
