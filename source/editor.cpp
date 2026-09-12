@@ -253,6 +253,7 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 	const auto previousHouseFile = map.housefile;
 	const auto previousZoneFile = map.zonefile;
 	const bool copyWorld = world && !filename.GetFullPath().empty() && filename != FileName(wxstr(map.filename));
+	bool coordinatedWorldSave = false;
 	if (copyWorld) {
 		std::string error;
 		if (!world->document.canCopyForMap(std::filesystem::u8path(nstr(filename.GetFullPath())), error)) {
@@ -260,10 +261,22 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 			return;
 		}
 	} else if (world) {
-		if (world->document.dirty() && !world->save()) {
-			return;
+		if (world->document.dirty()) {
+			coordinatedWorldSave = world->dependsOnUnsavedMap();
+			if (coordinatedWorldSave) {
+				world->validate();
+				if (!world->diagnostics.empty()) {
+					g_gui.PopupDialog("Cannot save World", wxstr(world->diagnostics.front().describe() + "\nThe map and World files were not published."), wxOK);
+					return;
+				}
+			} else if (!world->save()) {
+				return;
+			}
 		}
 		if (!map.hasChanged()) {
+			if (coordinatedWorldSave) {
+				g_gui.PopupDialog("Unsaved map dependency", "A World selector depends on a map revision that is not marked for saving. Reassociate the target or save the map edit first.", wxOK);
+			}
 			return;
 		}
 	}
@@ -304,6 +317,21 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 	// Make temporary backups
 	// converter.Assign(wxstr(savefile));
 	std::string backup_otbm, backup_house, backup_spawn, backup_spawn_npc, backup_zones;
+	bool coordinationStarted = false;
+	if (coordinatedWorldSave) {
+		std::string error;
+		if (!world_files::beginCoordination(world->document.data().file, error)) {
+			map.filename = previousFilename;
+			map.name = previousName;
+			map.spawnmonsterfile = previousMonsterFile;
+			map.spawnnpcfile = previousNpcFile;
+			map.housefile = previousHouseFile;
+			map.zonefile = previousZoneFile;
+			g_gui.PopupDialog("Cannot coordinate map and World save", wxstr(error), wxOK);
+			return;
+		}
+		coordinationStarted = true;
+	}
 
 	if (converter.GetExt() == "otgz") {
 		save_otgz = true;
@@ -355,7 +383,9 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 		f << backup_otbm << std::endl
 		  << backup_house << std::endl
 		  << backup_spawn << std::endl
-		  << backup_spawn_npc << std::endl;
+		  << backup_spawn_npc << std::endl
+		  << backup_zones << std::endl
+		  << (coordinationStarted ? world->document.data().file.generic_string() : std::string()) << std::endl;
 	}
 
 	{
@@ -372,50 +402,63 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 		// Perform the actual save
 		IOMapOTBM mapsaver(map.getVersion());
 		bool success = mapsaver.saveMap(map, fn);
+		bool recoveryPending = false;
+		if (success && coordinatedWorldSave) {
+			if (!world->save()) {
+				success = false;
+			} else {
+				std::string error;
+				if (!world_files::endCoordination(world->document.data().file, error)) {
+					success = false;
+					recoveryPending = true;
+					g_gui.PopupDialog("Coordinated save needs recovery", wxstr("The map and World files were published, but their recovery guard could not be finalized. Reopen the map and finish or restore the coordinated save.\n" + error), wxOK);
+				}
+			}
+		}
 
 		if (showdialog) {
 			g_gui.DestroyLoadBar();
 		}
 
 		// Check for errors...
-		if (!success) {
+		if (!success && !recoveryPending) {
 			// Rename the temporary backup files back to their previous names
-			if (!backup_otbm.empty()) {
-				converter.SetFullName(wxstr(savefile));
-				std::string otbm_filename = map_path + nstr(converter.GetName());
-				std::rename(backup_otbm.c_str(), std::string(otbm_filename + (save_otgz ? ".otgz" : ".otbm")).c_str());
+			const auto restore = [&](const std::string &target, const std::string &backup) {
+				if (!backup.empty() || coordinationStarted) {
+					std::remove(target.c_str());
+				}
+				if (!backup.empty()) {
+					std::rename(backup.c_str(), target.c_str());
+				}
+			};
+			restore(savefile, backup_otbm);
+			if (!save_otgz) {
+				restore(map_path + map.housefile, backup_house);
+				restore(map_path + map.spawnmonsterfile, backup_spawn);
+				restore(map_path + map.spawnnpcfile, backup_spawn_npc);
+				restore(map_path + map.zonefile, backup_zones);
 			}
 
-			if (!backup_house.empty()) {
-				converter.SetFullName(wxstr(map.housefile));
-				std::string house_filename = map_path + nstr(converter.GetName());
-				std::rename(backup_house.c_str(), std::string(house_filename + ".xml").c_str());
-			}
-
-			if (!backup_spawn.empty()) {
-				converter.SetFullName(wxstr(map.spawnmonsterfile));
-				std::string spawn_filename = map_path + nstr(converter.GetName());
-				std::rename(backup_spawn.c_str(), std::string(spawn_filename + ".xml").c_str());
-			}
-
-			if (!backup_spawn_npc.empty()) {
-				converter.SetFullName(wxstr(map.spawnnpcfile));
-				std::string spawnnpc_filename = map_path + nstr(converter.GetName());
-				std::rename(backup_spawn_npc.c_str(), std::string(spawnnpc_filename + ".xml").c_str());
-			}
-
-			if (!backup_zones.empty()) {
-				converter.SetFullName(wxstr(map.zonefile));
-				std::string zones_filename = map_path + nstr(converter.GetName());
-				std::rename(backup_zones.c_str(), std::string(zones_filename + ".xml").c_str());
+			if (coordinationStarted && world_files::coordinatedPending(world->document.data().file)) {
+				std::string error;
+				if (!world_files::recoverCoordination(world->document.data().file, world->document.data().file.parent_path(), true, error)) {
+					recoveryPending = true;
+					g_gui.PopupDialog("Coordinated save needs recovery", wxstr("The previous map files were restored, but the World transaction still requires recovery. Reopen the map and choose Restore previous files.\n" + error), wxOK);
+				}
 			}
 
 			// Display the error
-			g_gui.PopupDialog("Error", "Could not save, unable to open target for writing.", wxOK);
+			if (!recoveryPending) {
+				if (coordinationStarted) {
+					g_gui.PopupDialog("Coordinated save rolled back", "The save did not complete, so the previous map and World revisions were restored. Both edits remain open.", wxOK);
+				} else {
+					g_gui.PopupDialog("Error", "Could not save, unable to open target for writing.", wxOK);
+				}
+			}
 		}
 
 		// Remove temporary save runfile
-		{
+		if (!recoveryPending) {
 			std::string n = nstr(g_gui.GetLocalDataDirectory()) + ".saving.txt";
 			std::remove(n.c_str());
 		}

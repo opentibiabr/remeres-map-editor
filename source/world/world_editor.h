@@ -34,6 +34,7 @@ public:
 	bool ensureV2();
 	void manageLayers();
 	void manageDescriptors();
+	void adoptIdentifiers();
 	void createObject(world_layers::ObjectKind kind, world_layers::SourceMode mode);
 	void renameSelected();
 	void moveSelectedToLayer();
@@ -54,6 +55,7 @@ public:
 		return spatialIndex;
 	}
 	void finishDrag(bool commit);
+	bool dependsOnUnsavedMap() const;
 
 	WorldLayerDocument document;
 	world_layers::Diagnostics diagnostics;

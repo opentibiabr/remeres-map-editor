@@ -215,7 +215,7 @@ namespace world_files {
 				return false;
 			}
 			const auto path = std::filesystem::weakly_canonical(file);
-			for (const auto suffix : { ".lock", ".pending", ".revision", ".transactions" }) {
+			for (const auto suffix : { ".lock", ".pending", ".coordinated.pending", ".coordinated.rollback", ".revision", ".transactions" }) {
 				if (path == std::filesystem::weakly_canonical(sidecar(catalog, suffix))) {
 					return false;
 				}
@@ -293,6 +293,11 @@ namespace world_files {
 			const auto token = nonce();
 			const auto temporary = directory / ("revision-" + token);
 			if (!durable(temporary, token, error) || !move(temporary, sidecar(catalog, ".revision"), true, error)) {
+				return false;
+			}
+			if (coordinatedPending(catalog)
+			    && !std::filesystem::exists(sidecar(catalog, ".coordinated.rollback"))
+			    && !durable(sidecar(catalog, ".coordinated.rollback"), Json { { "version", 1 }, { "directory", directory.filename().generic_string() } }.dump(), error)) {
 				return false;
 			}
 			std::error_code code;
@@ -390,9 +395,136 @@ namespace world_files {
 		result = std::move(bytes);
 		return true;
 	}
-	bool pending(const std::filesystem::path &catalog) {
+	bool transactionPending(const std::filesystem::path &catalog) {
 		std::error_code error;
 		return std::filesystem::exists(sidecar(catalog, ".pending"), error) || bool(error);
+	}
+	bool coordinatedPending(const std::filesystem::path &catalog) {
+		std::error_code error;
+		return std::filesystem::exists(sidecar(catalog, ".coordinated.pending"), error) || bool(error);
+	}
+	bool pending(const std::filesystem::path &catalog) {
+		return transactionPending(catalog) || coordinatedPending(catalog);
+	}
+	bool beginCoordination(const std::filesystem::path &catalogFile, std::string &error) {
+		try {
+			const auto catalog = std::filesystem::absolute(catalogFile).lexically_normal();
+			std::filesystem::create_directories(catalog.parent_path());
+			Lease lock;
+			if (!lock.acquire(sidecar(catalog, ".lock"), true, false, error)) {
+				return false;
+			}
+			if (pending(catalog)) {
+				error = "An interrupted World publication requires recovery: " + catalog.generic_string();
+				return false;
+			}
+			if (!durable(sidecar(catalog, ".coordinated.pending"), Json { { "version", 1 }, { "operation", "map-and-world-save" } }.dump(), error)) {
+				return false;
+			}
+			return syncDirectory(catalog.parent_path(), error);
+		} catch (const std::exception &exception) {
+			error = exception.what();
+			return false;
+		}
+	}
+	bool endCoordination(const std::filesystem::path &catalogFile, std::string &error) {
+		try {
+			const auto catalog = std::filesystem::absolute(catalogFile).lexically_normal();
+			Lease lock;
+			if (!lock.acquire(sidecar(catalog, ".lock"), true, false, error)) {
+				return false;
+			}
+			if (transactionPending(catalog)) {
+				error = "The World transaction must be recovered before clearing its coordinated save guard";
+				return false;
+			}
+			Json receipt;
+			std::filesystem::path directory;
+			if (std::filesystem::exists(sidecar(catalog, ".coordinated.rollback"))) {
+				if (!jsonFile(sidecar(catalog, ".coordinated.rollback"), receipt, error)
+				    || !fields(receipt, { "version", "directory" })
+				    || receipt.value("version", 0) != 1
+				    || !receipt["directory"].is_string()) {
+					error = "Invalid coordinated save recovery receipt";
+					return false;
+				}
+				const std::filesystem::path name = receipt["directory"].get<std::string>();
+				if (name.empty() || name != name.filename() || name == "." || name == "..") {
+					error = "Invalid coordinated save recovery directory";
+					return false;
+				}
+				directory = sidecar(catalog, ".transactions") / name;
+			}
+			std::error_code code;
+			std::filesystem::remove(sidecar(catalog, ".coordinated.pending"), code);
+			if (code) {
+				error = "Cannot clear coordinated save guard: " + code.message();
+				return false;
+			}
+			std::filesystem::remove(sidecar(catalog, ".coordinated.rollback"), code);
+			if (code) {
+				error = "Cannot clear coordinated save recovery receipt: " + code.message();
+				return false;
+			}
+			if (!directory.empty()) {
+				std::filesystem::remove_all(directory, code);
+				if (code) {
+					error = "Cannot remove coordinated save recovery data: " + code.message();
+					return false;
+				}
+			}
+			return syncDirectory(catalog.parent_path(), error);
+		} catch (const std::exception &exception) {
+			error = exception.what();
+			return false;
+		}
+	}
+
+	bool recoverCoordination(const std::filesystem::path &catalogFile, const std::filesystem::path &root, bool rollback, std::string &error) {
+		try {
+			const auto catalog = std::filesystem::absolute(catalogFile).lexically_normal();
+			const auto receiptFile = sidecar(catalog, ".coordinated.rollback");
+			if (!coordinatedPending(catalog) && !transactionPending(catalog) && !std::filesystem::exists(receiptFile)) {
+				return true;
+			}
+			bool recoveredPending = false;
+			if (transactionPending(catalog)) {
+				if (!recover(catalog, root, rollback, error)) {
+					return false;
+				}
+				recoveredPending = true;
+			}
+			if (rollback && !recoveredPending && std::filesystem::exists(receiptFile)) {
+				Json receipt;
+				if (!jsonFile(receiptFile, receipt, error)
+				    || !fields(receipt, { "version", "directory" })
+				    || receipt.value("version", 0) != 1
+				    || !receipt["directory"].is_string()) {
+					error = "Invalid coordinated save recovery receipt";
+					return false;
+				}
+				const std::filesystem::path name = receipt["directory"].get<std::string>();
+				if (name.empty() || name != name.filename() || name == "." || name == "..") {
+					error = "Invalid coordinated save recovery directory";
+					return false;
+				}
+				std::error_code code;
+				std::filesystem::remove(receiptFile, code);
+				if (code || !durable(sidecar(catalog, ".pending"), Json { { "version", 1 }, { "directory", name.generic_string() } }.dump(), error)) {
+					if (error.empty()) {
+						error = "Cannot prepare coordinated rollback: " + code.message();
+					}
+					return false;
+				}
+				if (!syncDirectory(catalog.parent_path(), error) || !recover(catalog, root, true, error)) {
+					return false;
+				}
+			}
+			return endCoordination(catalog, error);
+		} catch (const std::exception &exception) {
+			error = exception.what();
+			return false;
+		}
 	}
 
 	bool publish(const Publication &publication, std::string &error) {
@@ -408,7 +540,7 @@ namespace world_files {
 			if (!lock.acquire(sidecar(catalog, ".lock"), true, false, error)) {
 				return false;
 			}
-			if (pending(catalog)) {
+			if (transactionPending(catalog)) {
 				error = "An interrupted World publication requires recovery: " + catalog.generic_string();
 				return false;
 			}

@@ -69,12 +69,44 @@ Ctrl+Z/Ctrl+Y use the same chronological history for map and World changes.
 Escape cancels an external drag. Preview visibility can be toggled to inspect the
 base map; external replacements never remove originals from the OTBM data.
 
+## Adopt existing AID and UID values
+
+Use **Map > Adopt map AID/UID...** or the button in the Worlds palette to create
+stable World identities for existing map items in one batch. The assistant can
+use selected items, a selected region, the visible floor area or the complete
+identifier index. It always validates UID uniqueness against the complete map,
+including items outside the chosen scope and nested container content.
+
+The assistant works from an immutable snapshot of the open session, including
+unsaved edits. Analysis runs only after this command, on a cancelable worker; map
+navigation, rendering and mouse movement never start it. The result is discarded
+if the map or a World document changes before application.
+
+For the `world` profile, the assistant shows and adopts proven OTBM values plus
+existing active World overrides. Repeating the operation reuses the same
+identity and preserves authored overrides, including an explicit zero. A binding
+found in a disabled layer must be reactivated or moved explicitly. For `legacy`
+or `mixed`, RME creates identities without claiming a value because it does not
+execute Lua; use the Python migration report to prove loader writes and exact
+ownership claims. Behavior migration remains a separate reviewed bundle.
+
+The complete adoption is one normal World history action. Undo and redo edit the
+in-memory World documents only; they do not patch Lua or rewrite the OTBM.
+
 ## Save, copy and resolve conflicts
 
-Ctrl+S saves changes to their owning files. JSON-only changes skip OTBM
-serialization and preserve its bytes. When both destinations changed, each
-successful save is acknowledged independently; a failure keeps the remaining
-work dirty. The OTBM and World publication are separate transactions.
+Ctrl+S saves changes to their owning files. JSON-only changes whose selectors
+still match the persisted map skip OTBM serialization and preserve its bytes.
+RME tracks touched identifier tiles incrementally, so unrelated unsaved terrain
+does not force a map save.
+
+When a World selector depends on an item created, moved, changed or reassociated
+since the last map save, RME validates both revisions and saves the map before
+publishing World. A map serialization failure publishes no JSON. A World
+publication failure restores the newly written OTBM and auxiliary files and
+keeps both edits open; success is never reported for only one side. Interrupted
+World publication keeps its pending marker, so Canary refuses that project until
+RME finishes or restores it through the recovery dialog.
 
 **Save As** writes a new OTBM and auxiliary files, a sibling
 `<new-name>.world.json`, and a `<new-name>.world-layers/` directory. It includes

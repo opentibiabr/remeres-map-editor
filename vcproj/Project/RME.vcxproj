@@ -284,6 +284,9 @@
     <ClCompile Include="..\..\source\world\world_validation.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="..\..\source\world\world_effective.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="..\..\source\world\world_document.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
@@ -297,6 +300,7 @@
     <ClInclude Include="..\..\source\world\world_layers.hpp" />
     <ClInclude Include="..\..\source\world\world_files.hpp" />
     <ClInclude Include="..\..\source\world\world_validation.hpp" />
+    <ClInclude Include="..\..\source\world\world_effective.hpp" />
     <ClInclude Include="..\..\source\world\world_document.h" />
     <ClInclude Include="..\..\source\world\world_editor.h" />
     <ClCompile Include="..\..\source\add_item_window.cpp" />

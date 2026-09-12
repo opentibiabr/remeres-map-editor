@@ -648,6 +648,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(NEW, wxITEM_NORMAL, OnNew);
 	MAKE_ACTION(OPEN, wxITEM_NORMAL, OnOpen);
 	MAKE_ACTION(LOAD_SERVER_WORLDS, wxITEM_NORMAL, OnLoadServerWorlds);
+	MAKE_ACTION(ADOPT_WORLD_IDENTIFIERS, wxITEM_NORMAL, OnAdoptWorldIdentifiers);
 	MAKE_ACTION(SAVE, wxITEM_NORMAL, OnSave);
 	MAKE_ACTION(SAVE_AS, wxITEM_NORMAL, OnSaveAs);
 	MAKE_ACTION(GENERATE_MAP, wxITEM_NORMAL, OnGenerateMap);
@@ -953,6 +954,7 @@ void MainMenuBar::Update() {
 	EnableItem(SAVE, is_host);
 	EnableItem(SAVE_AS, is_host);
 	EnableItem(LOAD_SERVER_WORLDS, is_local && !editor->world);
+	EnableItem(ADOPT_WORLD_IDENTIFIERS, is_local && editor->world);
 	EnableItem(GENERATE_MAP, false);
 
 	EnableItem(IMPORT_MAP, is_local);
@@ -1397,6 +1399,12 @@ void MainMenuBar::OnOpen(wxCommandEvent &WXUNUSED(event)) {
 
 void MainMenuBar::OnLoadServerWorlds(wxCommandEvent &WXUNUSED(event)) {
 	g_gui.LoadServerWorlds();
+}
+
+void MainMenuBar::OnAdoptWorldIdentifiers(wxCommandEvent &WXUNUSED(event)) {
+	if (const auto editor = g_gui.GetCurrentEditor(); editor && editor->world) {
+		editor->world->adoptIdentifiers();
+	}
 }
 
 void MainMenuBar::OnClose(wxCommandEvent &WXUNUSED(event)) {

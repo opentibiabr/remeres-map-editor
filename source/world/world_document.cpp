@@ -357,7 +357,7 @@ WorldExternalResult WorldLayerDocument::reconcileExternal(bool discardConflicts,
 		if (!externalChanges(changes, error)) {
 			return WorldExternalResult::Invalid;
 		}
-		if (world_files::pending(project.file)) {
+		if (world_files::transactionPending(project.file)) {
 			error = "An interrupted World save requires recovery. Use Review external changes to finish or restore it.";
 			return WorldExternalResult::Invalid;
 		}

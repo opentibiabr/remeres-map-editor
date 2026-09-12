@@ -52,6 +52,7 @@
 
 
     <ClCompile Include="..\..\source\world\world_layers.cpp" />
+    <ClCompile Include="..\..\source\world\world_effective.cpp" />
     <ClCompile Include="..\..\source\world\world_files.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>

@@ -1,6 +1,7 @@
 #include "main.h"
 
 #include "world/world_editor.h"
+#include "world/world_effective.hpp"
 #include "application.h"
 #include "complexitem.h"
 #include "editor.h"
@@ -16,6 +17,10 @@
 #include <wx/listctrl.h>
 #include <wx/notebook.h>
 #include <wx/dirdlg.h>
+#include <wx/progdlg.h>
+
+#include <atomic>
+#include <thread>
 
 namespace {
 	Position native(const world_layers::Position &p) {
@@ -145,11 +150,81 @@ namespace {
 			}
 			return result;
 		}
+		std::vector<world_layers::IdentifierOccurrence> identifiers() override {
+			using Key = std::tuple<int32_t, int32_t, int32_t>;
+			std::map<Key, world_layers::MapTile> tiles;
+			std::vector<world_layers::IdentifierOccurrence> result;
+			const auto indexed = map.identifierItems();
+			result.reserve(indexed.size());
+			for (const auto &entry : indexed) {
+				const auto position = portable(entry.position);
+				const Key key { position.x, position.y, position.z };
+				auto [cached, inserted] = tiles.try_emplace(key);
+				if (inserted) {
+					cached->second = tile(position);
+				}
+				const std::vector<world_layers::MapItem>* siblings = &cached->second.items;
+				std::vector<uint64_t> containers;
+				bool available = true;
+				for (const auto parent : entry.containers) {
+					const auto found = std::find_if(siblings->begin(), siblings->end(), [&](const auto &candidate) { return candidate.key == reinterpret_cast<uintptr_t>(parent); });
+					if (found == siblings->end()) {
+						available = false;
+						break;
+					}
+					containers.push_back(found->key);
+					siblings = &found->children;
+				}
+				if (!available) {
+					continue;
+				}
+				world_layers::Selector selector;
+				selector.itemId = entry.itemId;
+				selector.ground = entry.ground;
+				std::string error;
+				if (!world_layers::captureSelector(selector, *siblings, reinterpret_cast<uintptr_t>(entry.item), error)) {
+					continue;
+				}
+				result.push_back({ reinterpret_cast<uintptr_t>(entry.item), position, entry.itemId, entry.aid, entry.uid, entry.ground, std::move(containers), selector.occurrence });
+			}
+			return result;
+		}
 
 	private:
 		Map &map;
 		const std::bitset<65536> &knownItems;
 	};
+
+	class FrozenMapView final : public world_layers::MapView {
+	public:
+		using TileKey = std::tuple<int32_t, int32_t, int32_t>;
+		std::map<TileKey, world_layers::MapTile> tiles;
+		std::vector<world_layers::IdentifierOccurrence> census;
+
+		bool nativeTeleport(uint16_t) const override {
+			return false;
+		}
+		world_layers::MapTile tile(const world_layers::Position &position) override {
+			const auto found = tiles.find({ position.x, position.y, position.z });
+			return found == tiles.end() ? world_layers::MapTile {} : found->second;
+		}
+		std::vector<world_layers::UniqueOccurrence> uniqueIds(const std::unordered_set<uint16_t> &requested) override {
+			std::vector<world_layers::UniqueOccurrence> result;
+			for (const auto &entry : census) {
+				if (entry.uid && (requested.empty() || requested.contains(entry.uid))) {
+					result.push_back({ entry.uid, entry.key, entry.position });
+				}
+			}
+			return result;
+		}
+		std::vector<world_layers::IdentifierOccurrence> identifiers() override {
+			return census;
+		}
+	};
+
+	std::string adoptionId(const std::string &nameSpace, const world_layers::Position &position, uint16_t itemId, uint32_t occurrence, bool child) {
+		return nameSpace + (child ? ".child_" : ".item_") + std::to_string(position.x) + "_" + std::to_string(position.y) + "_" + std::to_string(position.z) + "_" + std::to_string(itemId) + "_" + std::to_string(occurrence);
+	}
 
 	WorldLayerEditor* current() {
 		const auto editor = g_gui.GetCurrentEditor();
@@ -308,6 +383,339 @@ std::optional<std::filesystem::path> WorldLayerEditor::chooseLayer() {
 		return std::nullopt;
 	}
 	return document.data().layers[dialog.GetSelection()].file;
+}
+
+void WorldLayerEditor::adoptIdentifiers() {
+	if (!ensureV2()) {
+		return;
+	}
+	EditorMapView live(editor.getMap(), knownItems);
+	auto census = live.identifiers();
+	if (census.empty()) {
+		g_gui.PopupDialog("Adopt map identifiers", "The current map session has no items with an AID or UID.", wxOK);
+		return;
+	}
+	std::sort(census.begin(), census.end(), [](const auto &left, const auto &right) {
+		return std::tie(left.position.z, left.position.y, left.position.x, left.itemId, left.key) < std::tie(right.position.z, right.position.y, right.position.x, right.itemId, right.key);
+	});
+
+	wxArrayString scopes;
+	scopes.Add("Selected items");
+	scopes.Add("Selected region");
+	scopes.Add("Visible floor area");
+	scopes.Add("Entire map identifier index");
+	wxSingleChoiceDialog scopeDialog(g_gui.root, "Choose which existing map items to adopt. UID validation still covers the whole map.", "Adopt map AID/UID", scopes);
+	if (scopeDialog.ShowModal() != wxID_OK) {
+		return;
+	}
+	const auto scope = scopeDialog.GetSelection();
+	std::unordered_set<uint64_t> selectedItems;
+	std::set<Position> selectedTiles;
+	for (const auto tile : editor.getSelection()) {
+		selectedTiles.insert(tile->getPosition());
+		for (const auto item : tile->getSelectedItems()) {
+			selectedItems.insert(reinterpret_cast<uintptr_t>(item));
+		}
+	}
+	int visibleMinX = 0, visibleMinY = 0, visibleMaxX = 0, visibleMaxY = 0, visibleFloor = -1;
+	if (scope == 2) {
+		const auto tab = g_gui.GetCurrentMapTab();
+		if (!tab) {
+			return;
+		}
+		auto canvas = tab->GetCanvas();
+		const auto size = canvas->GetClientSize();
+		canvas->ScreenToMap(0, 0, &visibleMinX, &visibleMinY);
+		canvas->ScreenToMap(size.GetWidth(), size.GetHeight(), &visibleMaxX, &visibleMaxY);
+		if (visibleMinX > visibleMaxX) {
+			std::swap(visibleMinX, visibleMaxX);
+		}
+		if (visibleMinY > visibleMaxY) {
+			std::swap(visibleMinY, visibleMaxY);
+		}
+		visibleFloor = canvas->GetFloor();
+	}
+	const auto inScope = [&](const world_layers::IdentifierOccurrence &entry) {
+		if (scope == 0) {
+			return selectedItems.contains(entry.key);
+		}
+		if (scope == 1) {
+			return selectedTiles.contains(native(entry.position));
+		}
+		if (scope == 2) {
+			return entry.position.z == visibleFloor && entry.position.x >= visibleMinX && entry.position.x <= visibleMaxX && entry.position.y >= visibleMinY && entry.position.y <= visibleMaxY;
+		}
+		return true;
+	};
+	if (std::none_of(census.begin(), census.end(), inScope)) {
+		g_gui.PopupDialog("Adopt map identifiers", "The selected scope contains no item with an AID or UID.", wxOK);
+		return;
+	}
+
+	wxArrayString profiles;
+	profiles.Add("World: use OTBM plus active World overrides");
+	profiles.Add("Legacy: create identities only; legacy writes need a CLI report");
+	profiles.Add("Mixed: create identities only; exact claims need a CLI report");
+	wxSingleChoiceDialog profileDialog(g_gui.root, "Choose the configuration mode being prepared. The editor never executes Lua to guess an effective value.", "Effective configuration", profiles);
+	if (profileDialog.ShowModal() != wxID_OK) {
+		return;
+	}
+	const auto profile = profileDialog.GetSelection();
+	auto mode = world_layers::EffectiveMode::World;
+	if (profile == 1) {
+		mode = world_layers::EffectiveMode::Legacy;
+	} else if (profile == 2) {
+		mode = world_layers::EffectiveMode::Mixed;
+	}
+	const bool adoptValues = profile == 0;
+
+	bool includeAid = false, includeUid = false;
+	if (adoptValues) {
+		wxArrayString responsibilities;
+		responsibilities.Add("Action ID (AID)");
+		responsibilities.Add("Unique ID (UID)");
+		wxMultiChoiceDialog responsibilityDialog(g_gui.root, "Choose the proven identifier responsibilities to adopt.", "Responsibilities", responsibilities);
+		wxArrayInt defaults;
+		defaults.Add(0);
+		defaults.Add(1);
+		responsibilityDialog.SetSelections(defaults);
+		if (responsibilityDialog.ShowModal() != wxID_OK) {
+			return;
+		}
+		for (const auto selected : responsibilityDialog.GetSelections()) {
+			includeAid = includeAid || selected == 0;
+			includeUid = includeUid || selected == 1;
+		}
+		if (!includeAid && !includeUid) {
+			return;
+		}
+	}
+
+	const auto layerFile = chooseLayer();
+	if (!layerFile) {
+		return;
+	}
+	const auto chosenLayer = std::find_if(document.data().layers.begin(), document.data().layers.end(), [&](const auto &layer) { return layer.file == *layerFile; });
+	if (chosenLayer == document.data().layers.end() || !chosenLayer->enabled) {
+		g_gui.PopupDialog("Disabled World layer", "Choose an enabled layer. Adoption never activates a layer or duplicates an identity silently.", wxOK);
+		return;
+	}
+	auto nameSpace = nstr(wxGetTextFromUser("Stable namespace for newly adopted objects", "Adopt map AID/UID", chosenLayer->id + ".map", g_gui.root));
+	if (nameSpace.empty()) {
+		return;
+	}
+
+	FrozenMapView frozen;
+	frozen.census = census;
+	std::set<FrozenMapView::TileKey> positions;
+	for (const auto &entry : census) {
+		positions.emplace(entry.position.x, entry.position.y, entry.position.z);
+	}
+	for (const auto &layer : document.data().layers) {
+		for (const auto &object : layer.objects) {
+			if (object.selector && object.selector->container.empty()) {
+				positions.emplace(object.selector->position.x, object.selector->position.y, object.selector->position.z);
+			}
+		}
+	}
+	for (const auto &[x, y, z] : positions) {
+		frozen.tiles.emplace(FrozenMapView::TileKey { x, y, z }, live.tile({ x, y, z }));
+	}
+	const auto mapRevision = editor.getMap().revision();
+	const auto documentRevision = document.revision();
+	const auto project = document.data();
+	std::atomic_bool cancelled = false, done = false;
+	bool valid = false;
+	world_layers::EffectiveWorldModel effective;
+	world_layers::Diagnostics analysisDiagnostics;
+	std::jthread worker([&] {
+		valid = world_layers::buildEffectiveWorldModel(project, frozen, mode, {}, effective, analysisDiagnostics, [&] { return cancelled.load(std::memory_order_relaxed); });
+		done.store(true, std::memory_order_release);
+	});
+	wxProgressDialog progress("Adopt map AID/UID", "Analyzing the immutable map-session snapshot...", 100, g_gui.root, wxPD_APP_MODAL | wxPD_CAN_ABORT | wxPD_SMOOTH);
+	while (!done.load(std::memory_order_acquire)) {
+		if (!progress.Pulse()) {
+			cancelled.store(true, std::memory_order_relaxed);
+		}
+		wxMilliSleep(10);
+	}
+	worker.join();
+	if (cancelled.load(std::memory_order_relaxed)) {
+		return;
+	}
+	if (editor.getMap().revision() != mapRevision || document.revision() != documentRevision) {
+		g_gui.PopupDialog("World changed", "The map or World documents changed during analysis. Run adoption again against the current revisions.", wxOK);
+		return;
+	}
+	if (!valid) {
+		std::string message = analysisDiagnostics.empty() ? "The effective map could not be proven." : analysisDiagnostics.front().describe();
+		g_gui.PopupDialog("Cannot adopt identifiers", wxstr(message), wxOK);
+		return;
+	}
+
+	size_t candidates = 0, existing = 0, aidCount = 0, uidCount = 0;
+	for (const auto &instance : effective.instances) {
+		if (!instance.base.key || !inScope(instance.base)) {
+			continue;
+		}
+		++candidates;
+		existing += !instance.object.empty();
+		aidCount += adoptValues && includeAid && instance.aid.effective.has_value() && instance.aid.confidence == world_layers::EffectiveConfidence::Proven;
+		uidCount += adoptValues && includeUid && instance.uid.effective.has_value() && instance.uid.confidence == world_layers::EffectiveConfidence::Proven;
+	}
+	const auto review = wxString::Format("Objects in scope: %llu\nExisting identities reused: %llu\nProven AIDs adopted: %llu\nProven UIDs adopted: %llu\n\nApply this as one undoable World operation?", static_cast<unsigned long long>(candidates), static_cast<unsigned long long>(existing), static_cast<unsigned long long>(aidCount), static_cast<unsigned long long>(uidCount));
+	if (wxMessageBox(review, "Review identifier adoption", wxYES_NO | wxICON_QUESTION, g_gui.root) != wxYES) {
+		return;
+	}
+
+	auto next = document.data();
+	auto layer = std::find_if(next.layers.begin(), next.layers.end(), [&](const auto &entry) { return entry.file == *layerFile; });
+	std::map<uint64_t, std::string> identities;
+	std::map<uint64_t, bool> disabled;
+	for (const auto &instance : effective.instances) {
+		if (instance.base.key && !instance.object.empty()) {
+			identities.emplace(instance.base.key, instance.object);
+			disabled.emplace(instance.base.key, instance.worldDisabled && !instance.worldActive);
+		}
+	}
+	struct BaseNode {
+		world_layers::Position position;
+		const world_layers::MapItem* item = nullptr;
+		const std::vector<world_layers::MapItem>* siblings = nullptr;
+		uint64_t parent = 0;
+	};
+	std::map<uint64_t, BaseNode> nodes;
+	for (const auto &[tileKey, tile] : frozen.tiles) {
+		const auto [x, y, z] = tileKey;
+		const auto index = [&](const auto &self, const std::vector<world_layers::MapItem> &items, uint64_t parent) -> void {
+			for (const auto &item : items) {
+				nodes.emplace(item.key, BaseNode { { x, y, z }, &item, &items, parent });
+				self(self, item.children, item.key);
+			}
+		};
+		index(index, tile.items, 0);
+	}
+	const auto findObject = [&](const std::string &id) -> world_layers::Object* {
+		for (auto &entry : next.layers) {
+			for (auto &object : entry.objects) {
+				if (world_layers::objectId(entry, object) == id) {
+					return &object;
+				}
+			}
+		}
+		return nullptr;
+	};
+	std::string adoptionError;
+	std::function<std::string(uint64_t)> ensureObject = [&](uint64_t key) -> std::string {
+		if (const auto found = identities.find(key); found != identities.end()) {
+			if (disabled[key]) {
+				adoptionError = found->second + " already binds this item in a disabled layer. Reactivate or move that declaration explicitly.";
+				return {};
+			}
+			return found->second;
+		}
+		const auto found = nodes.find(key);
+		if (found == nodes.end() || !found->second.item || !found->second.siblings) {
+			adoptionError = "A base item changed after its snapshot was captured.";
+			return {};
+		}
+		std::string parent;
+		if (found->second.parent) {
+			parent = ensureObject(found->second.parent);
+			if (parent.empty()) {
+				return {};
+			}
+		}
+		world_layers::Selector selector;
+		selector.position = found->second.position;
+		selector.container = parent;
+		selector.itemId = found->second.item->itemId;
+		selector.ground = found->second.item->ground;
+		if (!world_layers::captureSelector(selector, *found->second.siblings, key, adoptionError)) {
+			return {};
+		}
+		const auto occurrence = selector.occurrence ? selector.occurrence->index : 0;
+		auto id = adoptionId(nameSpace, found->second.position, found->second.item->itemId, occurrence, !parent.empty());
+		const auto base = id;
+		for (uint32_t suffix = 2; next.find(id) || std::any_of(layer->objects.begin(), layer->objects.end(), [&](const auto &object) { return world_layers::objectId(*layer, object) == id; }); ++suffix) {
+			id = base + "_" + std::to_string(suffix);
+		}
+		world_layers::Object object;
+		object.id = id;
+		object.kind = world_layers::ObjectKind::Item;
+		object.mode = world_layers::SourceMode::Map;
+		object.lifecycle = world_layers::Lifecycle::Native;
+		object.position = found->second.position;
+		object.itemId = found->second.item->itemId;
+		object.selector = std::move(selector);
+		layer->objects.push_back(std::move(object));
+		identities.emplace(key, id);
+		disabled.emplace(key, false);
+		return id;
+	};
+	std::string selectedObject;
+	for (const auto &instance : effective.instances) {
+		if (!instance.base.key || !inScope(instance.base)) {
+			continue;
+		}
+		const auto id = ensureObject(instance.base.key);
+		if (id.empty()) {
+			break;
+		}
+		auto object = findObject(id);
+		if (!object) {
+			adoptionError = "The adopted identity could not be resolved in the draft.";
+			break;
+		}
+		if (adoptValues && includeAid && !object->aidOverride && instance.aid.confidence == world_layers::EffectiveConfidence::Proven && instance.aid.effective.has_value()) {
+			object->aid = *instance.aid.effective;
+			object->aidOverride = true;
+		}
+		if (adoptValues && includeUid && !object->uidOverride && instance.uid.confidence == world_layers::EffectiveConfidence::Proven && instance.uid.effective.has_value()) {
+			object->uid = *instance.uid.effective;
+			object->uidOverride = true;
+		}
+		selectedObject = id;
+	}
+	world_layers::Diagnostics structureDiagnostics;
+	if (!adoptionError.empty() || !next.rebuildIndex(structureDiagnostics)) {
+		g_gui.PopupDialog("Cannot adopt identifiers", wxstr(adoptionError.empty() ? structureDiagnostics.front().describe() : adoptionError), wxOK);
+		return;
+	}
+	if (!editProject(next, selectedObject)) {
+		return;
+	}
+	if (!adoptValues) {
+		externalStatus = "Base identities were adopted. AID/UID remain unclaimed until a Python 3.12 migration report proves the legacy/mixed effective values and exact writers.";
+	}
+	ShowWorldPalette();
+}
+
+bool WorldLayerEditor::dependsOnUnsavedMap() const {
+	std::set<std::string> visiting;
+	std::function<std::optional<world_layers::Position>(const world_layers::Object &)> root = [&](const world_layers::Object &object) -> std::optional<world_layers::Position> {
+		if (!object.selector) {
+			return std::nullopt;
+		}
+		if (object.selector->container.empty()) {
+			return object.selector->position;
+		}
+		if (!visiting.insert(object.selector->container).second) {
+			return std::nullopt;
+		}
+		const auto parent = document.data().find(object.selector->container);
+		const auto result = parent ? root(*parent) : std::nullopt;
+		visiting.erase(object.selector->container);
+		return result;
+	};
+	for (const auto &layer : document.data().layers) {
+		for (const auto &object : layer.objects) {
+			if (const auto position = root(object); position && editor.getMap().identifierTileChangedSinceSave(native(*position))) {
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 void WorldLayerEditor::manageLayers() {
@@ -816,14 +1224,21 @@ bool RecoverWorldPublication(const std::filesystem::path &catalog, wxWindow* par
 	if (!world_files::pending(catalog)) {
 		return true;
 	}
-	wxMessageDialog prompt(parent, "An earlier save was interrupted. Finish publishing that version, or restore the files from before that save? Later edits are preserved and will be reported as conflicts.", "Recover World files", wxYES_NO | wxCANCEL | wxICON_WARNING);
+	const bool coordinated = world_files::coordinatedPending(catalog);
+	const wxString message = coordinated
+		? "An earlier coordinated map and World save was interrupted. Keep the published versions, or restore the World files that match the map backup you restored? Later edits are preserved and reported as conflicts."
+		: "An earlier save was interrupted. Finish publishing that version, or restore the files from before that save? Later edits are preserved and will be reported as conflicts.";
+	wxMessageDialog prompt(parent, message, "Recover World files", wxYES_NO | wxCANCEL | wxICON_WARNING);
 	prompt.SetYesNoLabels("Finish save", "Restore previous files");
 	const auto choice = prompt.ShowModal();
 	if (choice == wxID_CANCEL) {
 		return false;
 	}
 	std::string error;
-	if (!world_files::recover(catalog, catalog.parent_path(), choice == wxID_NO, error)) {
+	const bool recovered = coordinated
+		? world_files::recoverCoordination(catalog, catalog.parent_path(), choice == wxID_NO, error)
+		: world_files::recover(catalog, catalog.parent_path(), choice == wxID_NO, error);
+	if (!recovered) {
 		wxMessageBox(wxstr(error), "World recovery needs attention", wxOK | wxICON_ERROR, parent);
 		return false;
 	}
@@ -1268,6 +1683,11 @@ namespace {
 			createCatalog = new wxButton(this, wxID_ANY, "Create world catalog...");
 			createCatalog->Bind(wxEVT_BUTTON, [](wxCommandEvent &) { CreateWorldCatalog(); });
 			sizer->Add(createCatalog, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
+			adopt = new wxButton(this, wxID_ANY, "Adopt map AID/UID...");
+			adopt->SetToolTip("Create or reuse World identities for identifiers in the current map session.");
+			adopt->Bind(wxEVT_BUTTON, [](wxCommandEvent &) { if (auto world = current()){ world->adoptIdentifiers();
+} });
+			sizer->Add(adopt, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
 			auto commands = new wxBoxSizer(wxHORIZONTAL);
 			auto add = new wxButton(this, wxID_ANY, "Add...");
 			add->Bind(wxEVT_BUTTON, [this, add](wxCommandEvent &) {
@@ -1296,6 +1716,8 @@ namespace {
 				wxMenu menu;
 				const auto entry = [&](const wxString &label, auto callback) { const auto item = menu.Append(wxID_ANY, label); menu.Bind(wxEVT_MENU, callback, item->GetId()); };
 				entry("Layers...", [](wxCommandEvent &) { if (auto world = current()){ world->manageLayers();
+} });
+				entry("Adopt map AID/UID...", [](wxCommandEvent &) { if (auto world = current()){ world->adoptIdentifiers();
 } });
 				entry("Review external changes...", [](wxCommandEvent &) { if (auto world = current()){ world->checkExternal(true);
 } });
@@ -1379,6 +1801,7 @@ namespace {
 		wxStaticText* catalog;
 		wxButton* load;
 		wxButton* createCatalog;
+		wxButton* adopt;
 		wxCheckBox* visible;
 		wxTextCtrl* filter;
 		WorldObjectList* objects;
@@ -1419,6 +1842,7 @@ namespace {
 			filter->Enable(world != nullptr);
 			load->Show(world == nullptr);
 			createCatalog->Show(world == nullptr);
+			adopt->Show(world != nullptr);
 			if (world && listChanged) {
 				const auto &project = world->document.data();
 				catalog->SetLabel(wxstr("World catalog loaded: " + project.file.filename().generic_string()));

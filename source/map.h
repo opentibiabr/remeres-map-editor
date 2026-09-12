@@ -28,12 +28,24 @@
 #include "zones.h"
 #include "templates.h"
 #include "spawn_npc.h"
+#include <set>
 #include <unordered_map>
+#include <vector>
 
 struct MapUniqueItem {
 	uint16_t uid;
 	const Item* item;
 	Position position;
+};
+
+struct MapIdentifierItem {
+	uint16_t itemId;
+	uint16_t aid;
+	uint16_t uid;
+	const Item* item;
+	Position position;
+	bool ground;
+	std::vector<const Item*> containers;
 };
 
 class Map : public BaseMap {
@@ -162,6 +174,10 @@ public:
 	const std::vector<MapUniqueItem> &uniqueItems() const noexcept {
 		return uniqueItemOccurrences;
 	}
+	std::vector<MapIdentifierItem> identifierItems() const;
+	bool identifierTileChangedSinceSave(const Position &position) const {
+		return changedTilesSinceSave.contains(position);
+	}
 
 protected:
 	// Loads a map
@@ -214,6 +230,11 @@ public:
 private:
 	std::unordered_map<uint16_t, size_t> uniqueIds;
 	std::vector<MapUniqueItem> uniqueItemOccurrences;
+	std::unordered_map<const Item*, MapIdentifierItem> identifierItemOccurrences;
+	// Updated by the existing per-tile mutation hook. Adoption can therefore
+	// distinguish a selector that depends on an unsaved map edit without a
+	// second whole-map traversal.
+	std::set<Position> changedTilesSinceSave;
 };
 
 template <typename ForeachType>

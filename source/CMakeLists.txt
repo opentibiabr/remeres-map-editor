@@ -324,6 +324,7 @@ target_sources(
           zone_brush.cpp
           zones.cpp
           world/world_layers.cpp
+          world/world_effective.cpp
           world/world_files.cpp
           world/world_format.cpp
           world/world_selectors.cpp
@@ -385,6 +386,7 @@ endif()
 # Shared JSON/document code also runs in headless contract tests.
 set_source_files_properties(
   world/world_layers.cpp
+  world/world_effective.cpp
   world/world_files.cpp
   world/world_format.cpp
   world/world_selectors.cpp

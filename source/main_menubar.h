@@ -27,6 +27,7 @@ namespace MenuBar {
 		NEW,
 		OPEN,
 		LOAD_SERVER_WORLDS,
+		ADOPT_WORLD_IDENTIFIERS,
 		SAVE,
 		SAVE_AS,
 		GENERATE_MAP,
@@ -209,6 +210,7 @@ public:
 	void OnNew(wxCommandEvent &event);
 	void OnOpen(wxCommandEvent &event);
 	void OnLoadServerWorlds(wxCommandEvent &event);
+	void OnAdoptWorldIdentifiers(wxCommandEvent &event);
 	void OnGenerateMap(wxCommandEvent &event);
 	void OnOpenRecent(wxCommandEvent &event);
 	void OnSave(wxCommandEvent &event);

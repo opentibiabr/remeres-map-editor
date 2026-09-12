@@ -1,4 +1,5 @@
 #include "contract_v2.hpp"
+#include "world/world_effective.hpp"
 #include "world/world_validation.hpp"
 
 #include <fstream>
@@ -22,6 +23,7 @@ namespace {
 		using Key = std::tuple<int32_t, int32_t, int32_t>;
 		std::map<Key, MapTile> tiles;
 		std::vector<UniqueOccurrence> ids;
+		std::vector<IdentifierOccurrence> identifierRows;
 		std::map<Key, MapTile> baseline;
 		std::map<uint64_t, uint16_t> persistedUids;
 		bool nativeTeleport(uint16_t id) const override {
@@ -60,6 +62,9 @@ namespace {
 			}
 			return result;
 		}
+		std::vector<IdentifierOccurrence> identifiers() override {
+			return identifierRows;
+		}
 	};
 	const char* layerSource = R"json({"schemaVersion":2,"id":"authoring-example","name":"Biblioteca — São João","objects":[
 		{"id":"example.sign","kind":"item","source":{"mode":"map","selector":{"position":{"x":100,"y":100,"z":7},"part":"item","itemId":2012}},"attributes":{"text":"Entrada da biblioteca.\nRespeite os visitantes.","aid":0}},
@@ -67,7 +72,7 @@ namespace {
 		{"id":"example.arrival","kind":"anchor","position":{"x":110,"y":110,"z":7}},
 		{"id":"example.portal","kind":"item","source":{"mode":"create","itemId":1949,"count":1,"placement":{"position":{"x":102,"y":100,"z":7}}},"lifecycle":"fixture","attributes":{"uid":45001},"components":[{"type":"teleport","destination":{"object":"example.arrival","offset":{"x":0,"y":-1,"z":0}}}]},
 		{"id":"example.door","kind":"item","source":{"mode":"map","selector":{"position":{"x":104,"y":102,"z":7},"part":"item","itemId":1662}},"attributes":{"aid":12107}},
-		{"id":"example.lever","kind":"item","source":{"mode":"map","selector":{"position":{"x":103,"y":102,"z":7},"part":"item","itemId":2772}},"attributes":{"aid":12107},"behaviors":[{"id":"quest.gated_door","contractVersion":1,"events":["onUse"],"parameters":{"storageKey":60001,"openDoorItemId":1663},"relations":{"door":{"object":"example.door"}}}]},
+		{"id":"example.lever","kind":"item","source":{"mode":"map","selector":{"position":{"x":103,"y":102,"z":7},"part":"item","itemId":2772}},"attributes":{"aid":12107},"behaviors":[{"id":"quest.gated_door","contractVersion":1,"events":["onUse"],"eventOptions":{"onUse":{"allowFarUse":true,"blockWalls":false,"checkFloor":true}},"parameters":{"storageKey":60001,"openDoorItemId":1663},"relations":{"door":{"object":"example.door"}}}]},
 		{"id":"example.bookcase","kind":"item","source":{"mode":"map","selector":{"position":{"x":100,"y":104,"z":7},"part":"item","itemId":2435}}},
 		{"id":"example.existing_book","kind":"item","source":{"mode":"map","selector":{"container":"example.bookcase","itemId":2828}},"attributes":{"text":"Este livro já pertence ao mapa-base."}},
 		{"id":"example.external_book","kind":"item","source":{"mode":"create","itemId":2828,"count":1,"placement":{"container":"example.bookcase","order":0}},"lifecycle":"refillOnStartup","attributes":{"text":"História da biblioteca.\nSegunda página.","writer":"Bibliotecário"}},
@@ -200,9 +205,53 @@ void runWorldV2Tests(const std::filesystem::path &scratch) {
 	MigrationRecord reread;
 	require(loadMigration(root / "migration.json", reread, diagnostics) && serializeMigration(reread) == serializedMigration, "migration identity rewrite round trip retains source preconditions");
 	require(reread.receipt == record.receipt, "tool recovery metadata remains associated after migration serialization");
+	const auto sourceKinds = std::string(R"json({"schemaVersion":2,"id":"source-kinds","sources":[{"file":"example.otbm","sha256":")json") + digest
+		+ R"json(","format":"binary"},{"file":"legacy.lua","sha256":")json" + digest
+		+ R"json("}],"claims":[{"source":{"kind":"otbmItem","file":"example.otbm","declaration":1,"fingerprint":")json" + digest
+		+ R"json("},"occurrence":"tile:103:102:7/item:0","object":"example.lever","responsibilities":["attributes.aid"]},{"source":{"kind":"luaRegistration","file":"legacy.lua","registration":"Action","selector":"aid","value":"12107","event":"onUse","declaration":1,"fingerprint":")json" + digest
+		+ R"json("},"occurrence":"registration:1","object":"example.lever","responsibilities":["onUse"]}]})json";
+	write(root / "source-kinds.json", sourceKinds);
+	MigrationRecord sourceKindsRecord;
+	diagnostics.clear();
+	require(loadMigration(root / "source-kinds.json", sourceKindsRecord, diagnostics), diagnostics.empty() ? "all migration source kinds parse" : diagnostics.front().describe());
+	require(sourceKindsRecord.claims.size() == 2 && sourceKindsRecord.claims[0].kind == MigrationSourceKind::OtbmItem && sourceKindsRecord.claims[1].kind == MigrationSourceKind::LuaRegistration, "migration source kind remains explicit");
+	require(sourceKindsRecord.sourceFormats.at(root / "example.otbm") == MigrationHashFormat::Binary, "binary map revision is distinguished from normalized text");
+	const auto serializedSourceKinds = serializeMigration(sourceKindsRecord);
+	write(root / "source-kinds.json", serializedSourceKinds);
+	MigrationRecord rereadSourceKinds;
+	require(loadMigration(root / "source-kinds.json", rereadSourceKinds, diagnostics) && serializeMigration(rereadSourceKinds) == serializedSourceKinds, "all migration source kinds round trip");
 	project.migrationRecords.push_back(record);
 	require(check(), "migration target and responsibility validation");
+	map.identifierRows = {
+		{ 1, { 100, 100, 7 }, 2012, 0, 0, false },
+		{ 2, { 104, 102, 7 }, 1662, 0, 0, false },
+		{ 3, { 103, 102, 7 }, 2772, 100, 0, false },
+	};
+	LegacyIdentifierWrite legacyWrite;
+	legacyWrite.itemKey = 3;
+	legacyWrite.property = IdentifierProperty::Aid;
+	legacyWrite.value = 200;
+	legacyWrite.confidence = EffectiveConfidence::Proven;
+	legacyWrite.file = root / "legacy.lua";
+	legacyWrite.table = "LeverAction";
+	legacyWrite.key = "12107";
+	legacyWrite.declaration = 2;
+	legacyWrite.occurrence = "1.item";
+	legacyWrite.evidence = "recognized table assignment";
+	EffectiveWorldModel effective;
+	diagnostics.clear();
+	require(buildEffectiveWorldModel(project, map, EffectiveMode::Mixed, { legacyWrite }, effective, diagnostics), diagnostics.empty() ? "effective model accepts exact ownership claim" : diagnostics.front().describe());
+	const auto effectiveLever = std::find_if(effective.instances.begin(), effective.instances.end(), [](const auto &entry) { return entry.object == "example.lever"; });
+	require(effectiveLever != effective.instances.end() && effectiveLever->aid.effective == 12107 && effectiveLever->aid.owner == EffectiveOwner::World, "claimed legacy write is suppressed before the World override");
+	project.migrationRecords.clear();
+	diagnostics.clear();
+	require(!buildEffectiveWorldModel(project, map, EffectiveMode::Mixed, { legacyWrite }, effective, diagnostics), "mixed overlap without an exact claim is rejected instead of using last-writer-wins");
+	project.migrationRecords.push_back(record);
 	project.layers[0].enabled = false;
+	diagnostics.clear();
+	require(buildEffectiveWorldModel(project, map, EffectiveMode::Mixed, { legacyWrite }, effective, diagnostics), "disabled World ownership remains resolvable");
+	const auto suspendedLever = std::find_if(effective.instances.begin(), effective.instances.end(), [](const auto &entry) { return entry.object == "example.lever"; });
+	require(suspendedLever != effective.instances.end() && suspendedLever->aid.effective == 100 && suspendedLever->aid.owner == EffectiveOwner::SuspendedWorld, "disabled claim suppresses legacy while leaving the base value effective");
 	require(check(), "disabled layer retains migration ownership");
 	project.layers[0].enabled = true;
 	auto separateDeclaration = record;
@@ -213,6 +262,29 @@ void runWorldV2Tests(const std::filesystem::path &scratch) {
 	project.migrationRecords.back().claims.front().declaration = record.claims.front().declaration;
 	require(!check(), "duplicate migration/ownership rejected");
 	project.migrationRecords.clear();
+	project.find("example.lever")->behaviors[0].eventOptions["onEquip"]["slots"] = Value { Value::List { Value { "head" } } };
+	require(!check(), "event invocation options cannot be attached without owning the event");
+	project.find("example.lever")->behaviors[0].eventOptions.erase("onEquip");
+	BehaviorDescriptor equipmentDescriptor;
+	equipmentDescriptor.file = root / "equipment.behavior.json";
+	equipmentDescriptor.script = root / "equipment.lua";
+	equipmentDescriptor.id = "example.equipment";
+	equipmentDescriptor.targetKind = "item";
+	equipmentDescriptor.events = { "onEquip", "onDeEquip" };
+	project.behaviors.push_back(equipmentDescriptor);
+	BehaviorBinding equipmentBinding;
+	equipmentBinding.id = equipmentDescriptor.id;
+	equipmentBinding.events = { "onEquip" };
+	project.find("example.lever")->behaviors.push_back(equipmentBinding);
+	require(!check(), "equipment ownership requires explicit slot options");
+	auto &equipmentOptions = project.find("example.lever")->behaviors.back().eventOptions["onEquip"];
+	equipmentOptions["slots"] = Value { Value::List { Value { "head" } } };
+	equipmentOptions["level"] = Value { int64_t(20) };
+	require(check(), "typed equipment options preserve native dispatch requirements");
+	equipmentOptions["slots"] = Value { Value::List { Value { "helmet" } } };
+	require(!check(), "unknown equipment slots are rejected by the shared validator");
+	project.find("example.lever")->behaviors.pop_back();
+	project.behaviors.pop_back();
 	write(root / "migration.json", R"({"schemaVersion":2,"id":"bad","sources":[],"claims":[{"source":{"file":"legacy.lua"},"occurrence":"1.item","object":"example.lever","responsibilities":["attributes.aid"]}]})");
 	diagnostics.clear();
 	require(!loadMigration(root / "migration.json", record, diagnostics), "claims without source revisions rejected");

@@ -5,6 +5,7 @@ add_executable(
   file_contract.cpp
   external_contract.cpp
   ../../source/world/world_layers.cpp
+  ../../source/world/world_effective.cpp
   ../../source/world/world_files.cpp
   ../../source/world/world_format.cpp
   ../../source/world/world_selectors.cpp

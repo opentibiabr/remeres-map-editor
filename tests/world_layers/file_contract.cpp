@@ -123,6 +123,27 @@ void runWorldFileTests(const std::filesystem::path &scratch) {
 	check(!recover(catalog, root, false, error) && get(layer) == "second", "recovery checks external read-only dependencies");
 	put(external, "original implementation");
 	check(recover(catalog, root, true, error), "recover after resolving external dependency");
+	publication.changes = { { layer, "second", "coordinated" }, { catalog, "catalog-second", "catalog-coordinated" } };
+	check(beginCoordination(catalog, error), "begin coordinated map and World save");
+	check(coordinatedPending(catalog) && pending(catalog), "coordinated save blocks project readers");
+	{
+		ReadGuard guard(catalog, error);
+		check(!guard.valid(), "reader rejects a coordinated partial set");
+	}
+	check(publish(publication, error), "publish World files while the coordinated guard remains");
+	check(!transactionPending(catalog) && coordinatedPending(catalog), "completed World publication retains coordinated rollback data");
+	check(recoverCoordination(catalog, root, true, error), "coordinated rollback restores World files");
+	check(get(layer) == "second" && get(catalog) == "catalog-second" && !pending(catalog), "coordinated rollback is complete");
+	check(beginCoordination(catalog, error), "begin second coordinated save");
+	check(publish(publication, error), "publish second coordinated World revision");
+	check(endCoordination(catalog, error), "commit coordinated World revision");
+	check(get(layer) == "coordinated" && get(catalog) == "catalog-coordinated" && !pending(catalog), "coordinated commit is complete");
+	publication.changes = { { layer, "coordinated", "interrupted" }, { catalog, "catalog-coordinated", "catalog-interrupted" } };
+	check(beginCoordination(catalog, error), "begin interrupted coordinated save");
+	arm("installed", layer, 1);
+	check(!publish(publication, error) && transactionPending(catalog), "interrupted coordinated World transaction remains recoverable");
+	check(recoverCoordination(catalog, root, true, error), "rollback interrupted coordinated transaction");
+	check(get(layer) == "coordinated" && get(catalog) == "catalog-coordinated" && !pending(catalog), "interrupted coordinated rollback is complete");
 	publication.changes = { { root / "map.world.json.pending", {}, "invalid" } };
 	check(!publish(publication, error) && !pending(catalog), "reserved transaction paths cannot be publication targets");
 	world_files::setTestHook(nullptr);
