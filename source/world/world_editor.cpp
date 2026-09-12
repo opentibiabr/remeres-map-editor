@@ -301,9 +301,16 @@ WorldItemCatalog LoadWorldItemCatalog(const std::filesystem::path &file) {
 class WorldFileMonitor final : public wxEvtHandler {
 public:
 	WorldFileMonitor(WorldLayerEditor &editor, std::map<std::filesystem::path, world_files::Revision> baseline) :
-		editor(editor), timer(this), checkedAt(wxGetUTCTimeMillis()) {
+		editor(editor), timer(this), checkedAt(wxGetUTCTimeMillis()), exactCheckedAt(checkedAt) {
 		for (auto &[file, revision] : baseline) {
 			revisions.emplace(std::move(file), std::make_shared<const world_files::Revision>(std::move(revision)));
+		}
+		for (const auto &entry : revisions) {
+			Stamp current;
+			std::string error;
+			if (stamp(entry.first, current, error)) {
+				stamps.emplace(entry.first, current);
+			}
 		}
 		Bind(wxEVT_TIMER, &WorldFileMonitor::tick, this);
 #if wxUSE_FSWATCHER
@@ -331,8 +338,16 @@ public:
 private:
 	using SharedRevision = std::shared_ptr<const world_files::Revision>;
 	using Revisions = std::map<std::filesystem::path, SharedRevision>;
+	struct Stamp {
+		bool exists = false;
+		uintmax_t size = 0;
+		std::filesystem::file_time_type written;
+		bool operator==(const Stamp &) const = default;
+	};
+	using Stamps = std::map<std::filesystem::path, Stamp>;
 	struct ScanResult {
 		Revisions revisions;
+		Stamps stamps;
 		std::string error;
 		bool changed = false;
 	};
@@ -353,15 +368,52 @@ private:
 	std::set<std::filesystem::path> directories;
 	std::set<std::filesystem::path> observed, dirty;
 	Revisions revisions;
+	Stamps stamps;
 	std::optional<std::future<ScanResult>> scan;
 	uint64_t revision = UINT64_MAX;
-	wxLongLong eventTime = 0, checkedAt = 0;
+	wxLongLong eventTime = 0, checkedAt = 0, exactCheckedAt = 0;
 	bool fullScan = false, active = false;
-	void beginScan(std::set<std::filesystem::path> files) {
+	static bool stamp(const std::filesystem::path &file, Stamp &result, std::string &error) {
+		std::error_code code;
+		result.exists = std::filesystem::exists(file, code);
+		if (code) {
+			error = code.message();
+			return false;
+		}
+		if (!result.exists) {
+			return true;
+		}
+		result.size = std::filesystem::file_size(file, code);
+		if (code) {
+			error = code.message();
+			return false;
+		}
+		result.written = std::filesystem::last_write_time(file, code);
+		if (code) {
+			error = code.message();
+			return false;
+		}
+		return true;
+	}
+	void beginScan(std::set<std::filesystem::path> files, bool exactAll, std::set<std::filesystem::path> exactFiles) {
 		const auto before = revisions;
-		scan.emplace(std::async(std::launch::async, [files = std::move(files), before] {
-			ScanResult result { before };
+		const auto beforeStamps = stamps;
+		scan.emplace(std::async(std::launch::async, [files = std::move(files), exactFiles = std::move(exactFiles), before, beforeStamps, exactAll] {
+			ScanResult result;
+			result.revisions = before;
+			result.stamps = beforeStamps;
 			for (const auto &file : files) {
+				Stamp current;
+				if (!stamp(file, current, result.error)) {
+					result.changed = true;
+					break;
+				}
+				const auto previousStamp = beforeStamps.find(file);
+				const bool metadataChanged = previousStamp == beforeStamps.end() || previousStamp->second != current;
+				result.stamps[file] = current;
+				if (!exactAll && !exactFiles.contains(file) && !metadataChanged) {
+					continue;
+				}
 				world_files::Revision disk;
 				if (!world_files::revision(file, disk, result.error)) {
 					result.changed = true;
@@ -398,6 +450,7 @@ private:
 			auto result = scan->get();
 			scan.reset();
 			revisions = std::move(result.revisions);
+			stamps = std::move(result.stamps);
 			if (result.changed) {
 				editor.checkExternal(false);
 			}
@@ -433,13 +486,19 @@ private:
 			directories = std::move(next);
 			fullScan = true;
 		}
-		if (!scan && ((fullScan && now - eventTime >= 400) || (!dirty.empty() && now - eventTime >= 400) || now - checkedAt >= 5000)) {
-			const bool inspectAll = fullScan || now - checkedAt >= 5000;
+		const bool periodic = now - checkedAt >= 5000;
+		const bool exactPeriodic = now - exactCheckedAt >= 60000;
+		if (!scan && ((fullScan && now - eventTime >= 400) || (!dirty.empty() && now - eventTime >= 400) || periodic || exactPeriodic)) {
+			const bool inspectAll = fullScan || periodic || exactPeriodic;
 			fullScan = false;
 			checkedAt = now;
-			auto files = inspectAll ? observed : std::move(dirty);
+			if (exactPeriodic) {
+				exactCheckedAt = now;
+			}
+			auto exactFiles = std::move(dirty);
+			auto files = inspectAll ? observed : exactFiles;
 			dirty.clear();
-			beginScan(std::move(files));
+			beginScan(std::move(files), exactPeriodic, std::move(exactFiles));
 		}
 	}
 };
