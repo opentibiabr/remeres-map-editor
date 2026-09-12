@@ -844,7 +844,17 @@ void Map::updateUniqueIds(Tile* old_tile, Tile* new_tile) {
 					uniqueItemIndexes.erase(indexed);
 				}
 			}
-			identifierItemOccurrences.erase(item);
+			const auto identifier = identifierItemOccurrences.find(item);
+			if (identifier != identifierItemOccurrences.end()) {
+				const auto tile = identifierItemsByTile.find(identifier->second.position);
+				if (tile != identifierItemsByTile.end()) {
+					std::erase(tile->second, item);
+					if (tile->second.empty()) {
+						identifierItemsByTile.erase(tile);
+					}
+				}
+				identifierItemOccurrences.erase(identifier);
+			}
 		});
 	}
 
@@ -856,7 +866,18 @@ void Map::updateUniqueIds(Tile* old_tile, Tile* new_tile) {
 				uniqueItemOccurrences.push_back({ item->getUniqueID(), item, position });
 			}
 			if (item->getActionID() || item->getUniqueID()) {
-				identifierItemOccurrences.emplace(item, MapIdentifierItem { item->getID(), item->getActionID(), item->getUniqueID(), item, position, ground, containers });
+				const auto [identifier, inserted] = identifierItemOccurrences.emplace(item, MapIdentifierItem { item->getID(), item->getActionID(), item->getUniqueID(), item, position, ground, containers });
+				if (!inserted) {
+					const auto previous = identifierItemsByTile.find(identifier->second.position);
+					if (previous != identifierItemsByTile.end()) {
+						std::erase(previous->second, item);
+						if (previous->second.empty()) {
+							identifierItemsByTile.erase(previous);
+						}
+					}
+					identifier->second = MapIdentifierItem { item->getID(), item->getActionID(), item->getUniqueID(), item, position, ground, containers };
+				}
+				identifierItemsByTile[position].push_back(item);
 			}
 		});
 	}
@@ -867,6 +888,49 @@ std::vector<MapIdentifierItem> Map::identifierItems() const {
 	result.reserve(identifierItemOccurrences.size());
 	for (const auto &[item, occurrence] : identifierItemOccurrences) {
 		result.push_back(occurrence);
+	}
+	return result;
+}
+
+std::vector<MapIdentifierItem> Map::identifierItems(const std::unordered_set<const Item*> &items) const {
+	std::vector<MapIdentifierItem> result;
+	result.reserve(items.size());
+	for (const auto item : items) {
+		const auto found = identifierItemOccurrences.find(item);
+		if (found != identifierItemOccurrences.end()) {
+			result.push_back(found->second);
+		}
+	}
+	return result;
+}
+
+std::vector<MapIdentifierItem> Map::identifierItems(const std::set<Position> &positions) const {
+	std::vector<MapIdentifierItem> result;
+	for (const auto &position : positions) {
+		const auto tile = identifierItemsByTile.find(position);
+		if (tile == identifierItemsByTile.end()) {
+			continue;
+		}
+		for (const auto item : tile->second) {
+			result.push_back(identifierItemOccurrences.at(item));
+		}
+	}
+	return result;
+}
+
+std::vector<MapIdentifierItem> Map::identifierItems(const Position &minimum, const Position &maximum) const {
+	std::vector<MapIdentifierItem> result;
+	for (auto tile = identifierItemsByTile.lower_bound(minimum); tile != identifierItemsByTile.end(); ++tile) {
+		const auto &position = tile->first;
+		if (position.z != minimum.z || position.y > maximum.y) {
+			break;
+		}
+		if (position.x < minimum.x || position.x > maximum.x) {
+			continue;
+		}
+		for (const auto item : tile->second) {
+			result.push_back(identifierItemOccurrences.at(item));
+		}
 	}
 	return result;
 }

@@ -28,6 +28,7 @@
 #include "zones.h"
 #include "templates.h"
 #include "spawn_npc.h"
+#include <map>
 #include <set>
 #include <unordered_map>
 #include <vector>
@@ -175,6 +176,9 @@ public:
 		return uniqueItemOccurrences;
 	}
 	std::vector<MapIdentifierItem> identifierItems() const;
+	std::vector<MapIdentifierItem> identifierItems(const std::unordered_set<const Item*> &items) const;
+	std::vector<MapIdentifierItem> identifierItems(const std::set<Position> &positions) const;
+	std::vector<MapIdentifierItem> identifierItems(const Position &minimum, const Position &maximum) const;
 	bool identifierTileChangedSinceSave(const Position &position) const {
 		return changedTilesSinceSave.contains(position);
 	}
@@ -232,6 +236,7 @@ private:
 	std::vector<MapUniqueItem> uniqueItemOccurrences;
 	std::unordered_map<const Item*, size_t> uniqueItemIndexes;
 	std::unordered_map<const Item*, MapIdentifierItem> identifierItemOccurrences;
+	std::map<Position, std::vector<const Item*>> identifierItemsByTile;
 	// Updated by the existing per-tile mutation hook. Adoption can therefore
 	// distinguish a selector that depends on an unsaved map edit without a
 	// second whole-map traversal.

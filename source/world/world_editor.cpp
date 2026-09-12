@@ -151,10 +151,12 @@ namespace {
 			return result;
 		}
 		std::vector<world_layers::IdentifierOccurrence> identifiers() override {
+			return identifiers(map.identifierItems());
+		}
+		std::vector<world_layers::IdentifierOccurrence> identifiers(const std::vector<MapIdentifierItem> &indexed) {
 			using Key = std::tuple<int32_t, int32_t, int32_t>;
 			std::map<Key, world_layers::MapTile> tiles;
 			std::vector<world_layers::IdentifierOccurrence> result;
-			const auto indexed = map.identifierItems();
 			result.reserve(indexed.size());
 			for (const auto &entry : indexed) {
 				const auto position = portable(entry.position);
@@ -389,16 +391,6 @@ void WorldLayerEditor::adoptIdentifiers() {
 	if (!ensureV2()) {
 		return;
 	}
-	EditorMapView live(editor.getMap(), knownItems);
-	auto census = live.identifiers();
-	if (census.empty()) {
-		g_gui.PopupDialog("Adopt map identifiers", "The current map session has no items with an AID or UID.", wxOK);
-		return;
-	}
-	std::sort(census.begin(), census.end(), [](const auto &left, const auto &right) {
-		return std::tie(left.position.z, left.position.y, left.position.x, left.itemId, left.key) < std::tie(right.position.z, right.position.y, right.position.x, right.itemId, right.key);
-	});
-
 	wxArrayString scopes;
 	scopes.Add("Selected items");
 	scopes.Add("Selected region");
@@ -409,12 +401,12 @@ void WorldLayerEditor::adoptIdentifiers() {
 		return;
 	}
 	const auto scope = scopeDialog.GetSelection();
-	std::unordered_set<uint64_t> selectedItems;
+	std::unordered_set<const Item*> selectedItems;
 	std::set<Position> selectedTiles;
 	for (const auto tile : editor.getSelection()) {
 		selectedTiles.insert(tile->getPosition());
 		for (const auto item : tile->getSelectedItems()) {
-			selectedItems.insert(reinterpret_cast<uintptr_t>(item));
+			selectedItems.insert(item);
 		}
 	}
 	int visibleMinX = 0, visibleMinY = 0, visibleMaxX = 0, visibleMaxY = 0, visibleFloor = -1;
@@ -435,9 +427,40 @@ void WorldLayerEditor::adoptIdentifiers() {
 		}
 		visibleFloor = canvas->GetFloor();
 	}
+	EditorMapView live(editor.getMap(), knownItems);
+	std::vector<MapIdentifierItem> indexed;
+	if (scope == 0) {
+		indexed = editor.getMap().identifierItems(selectedItems);
+	} else if (scope == 1) {
+		indexed = editor.getMap().identifierItems(selectedTiles);
+	} else if (scope == 2) {
+		indexed = editor.getMap().identifierItems(Position(visibleMinX, visibleMinY, visibleFloor), Position(visibleMaxX, visibleMaxY, visibleFloor));
+	} else {
+		indexed = editor.getMap().identifierItems();
+	}
+	auto scopedCensus = live.identifiers(indexed);
+	if (scopedCensus.empty()) {
+		g_gui.PopupDialog("Adopt map identifiers", "The selected scope contains no item with an AID or UID.", wxOK);
+		return;
+	}
+	auto census = scopedCensus;
+	std::unordered_set<uint64_t> indexedKeys;
+	indexedKeys.reserve(census.size() + editor.getMap().uniqueItems().size());
+	for (const auto &entry : census) {
+		indexedKeys.insert(entry.key);
+	}
+	for (const auto &entry : editor.getMap().uniqueItems()) {
+		const auto key = reinterpret_cast<uintptr_t>(entry.item);
+		if (indexedKeys.insert(key).second) {
+			census.push_back({ key, portable(entry.position), entry.item->getID(), entry.item->getActionID(), entry.uid });
+		}
+	}
+	std::sort(census.begin(), census.end(), [](const auto &left, const auto &right) {
+		return std::tie(left.position.z, left.position.y, left.position.x, left.itemId, left.key) < std::tie(right.position.z, right.position.y, right.position.x, right.itemId, right.key);
+	});
 	const auto inScope = [&](const world_layers::IdentifierOccurrence &entry) {
 		if (scope == 0) {
-			return selectedItems.contains(entry.key);
+			return selectedItems.contains(reinterpret_cast<const Item*>(static_cast<uintptr_t>(entry.key)));
 		}
 		if (scope == 1) {
 			return selectedTiles.contains(native(entry.position));
@@ -447,11 +470,6 @@ void WorldLayerEditor::adoptIdentifiers() {
 		}
 		return true;
 	};
-	if (std::none_of(census.begin(), census.end(), inScope)) {
-		g_gui.PopupDialog("Adopt map identifiers", "The selected scope contains no item with an AID or UID.", wxOK);
-		return;
-	}
-
 	wxArrayString profiles;
 	profiles.Add("World: use OTBM plus active World overrides");
 	profiles.Add("Legacy: create identities only; legacy writes need a CLI report");
@@ -508,7 +526,7 @@ void WorldLayerEditor::adoptIdentifiers() {
 	FrozenMapView frozen;
 	frozen.census = census;
 	std::set<FrozenMapView::TileKey> positions;
-	for (const auto &entry : census) {
+	for (const auto &entry : scopedCensus) {
 		positions.emplace(entry.position.x, entry.position.y, entry.position.z);
 	}
 	for (const auto &layer : document.data().layers) {
