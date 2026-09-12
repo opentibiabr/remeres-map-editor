@@ -42,9 +42,13 @@ public:
 	Editor(CopyBuffer &copybuffer, const FileName &fn);
 	Editor(CopyBuffer &copybuffer);
 	~Editor();
+	uint64_t sessionId() const noexcept {
+		return session_id;
+	}
 	std::unique_ptr<WorldLayerEditor> world;
 
 protected:
+	const uint64_t session_id;
 	// Live Server
 	LiveServer* live_server;
 	LiveClient* live_client;

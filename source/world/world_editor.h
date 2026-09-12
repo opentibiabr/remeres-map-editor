@@ -15,9 +15,16 @@ class WorldFileMonitor;
 class Tile;
 class BatchAction;
 
+struct WorldItemCatalog {
+	std::bitset<65536> knownItems;
+	world_layers::Diagnostics diagnostics;
+};
+
+WorldItemCatalog LoadWorldItemCatalog(const std::filesystem::path &file);
+
 class WorldLayerEditor {
 public:
-	WorldLayerEditor(Editor &editor, WorldLayerDocument document);
+	WorldLayerEditor(Editor &editor, WorldLayerDocument document, WorldItemCatalog items);
 	~WorldLayerEditor();
 	void validate();
 	void synchronizeMap();

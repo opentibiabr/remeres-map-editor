@@ -496,4 +496,34 @@ namespace world_layers {
 		return json.dump(2) + "\n";
 	}
 
+	bool readProjectMapPath(const std::filesystem::path &file, std::filesystem::path &map, Diagnostics &diagnostics) {
+		try {
+			const auto catalog = std::filesystem::absolute(file).lexically_normal();
+			std::string error;
+			world_files::ReadGuard guard(catalog, error);
+			if (!guard.valid()) {
+				diagnostics.push_back({ catalog, "", "", error });
+				return false;
+			}
+			std::string source;
+			Json json;
+			Reader reader(catalog, diagnostics);
+			if (!readFile(catalog, source, error)) {
+				return reader.fail("", error);
+			}
+			if (!reader.parse(source, json)) {
+				return false;
+			}
+			if (!json.is_object()) {
+				return reader.fail("", "Expected an object");
+			}
+			int32_t version = 0;
+			return reader.integer(json.value("schemaVersion", Json()), "/schemaVersion", 1, 2, version)
+				&& relativeFile(reader, json.value("map", Json()), catalog.parent_path(), "/map", map);
+		} catch (const std::exception &exception) {
+			diagnostics.push_back({ file, "", "", exception.what() });
+			return false;
+		}
+	}
+
 } // namespace world_layers

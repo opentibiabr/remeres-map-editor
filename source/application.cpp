@@ -363,9 +363,14 @@ bool Application::ParseCommandLineMap(wxString &fileName) {
 }
 
 MainFrame::MainFrame(const wxString &title, const wxPoint &pos, const wxSize &size) :
-	wxFrame((wxFrame*)nullptr, -1, title, pos, size, wxDEFAULT_FRAME_STYLE) {
+	wxFrame((wxFrame*)nullptr, -1, title, pos, size, wxDEFAULT_FRAME_STYLE), world_load_timer(this) {
 	// Receive idle events
 	SetExtraStyle(wxWS_EX_PROCESS_IDLE);
+	Bind(wxEVT_TIMER, [this](wxTimerEvent &) {
+		if (!g_gui.ProcessPendingWorldLoads()) {
+			world_load_timer.Stop();
+		}
+	}, world_load_timer.GetId());
 
 #if wxCHECK_VERSION(3, 1, 0) // 3.1.0 or higher
 	// Make sure ShowFullScreen() uses the full screen API on macOS
@@ -407,6 +412,12 @@ MainFrame::~MainFrame() = default;
 
 void MainFrame::OnIdle(wxIdleEvent &event) {
 	////
+}
+
+void MainFrame::WatchPendingWorldLoads() {
+	if (!world_load_timer.IsRunning()) {
+		world_load_timer.Start(50);
+	}
 }
 
 #ifdef _USE_UPDATER_

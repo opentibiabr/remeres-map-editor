@@ -254,6 +254,10 @@ int main(int argc, char** argv) {
 		const auto originalLayer = bytes(scratch / "black_knight.layer.json");
 		WorldLayerDocument document;
 		std::string error;
+		std::filesystem::path catalogMap;
+		world_layers::Diagnostics headerDiagnostics;
+		require(world_layers::readProjectMapPath(scratch / "world.world.json", catalogMap, headerDiagnostics), "read the map path without loading project dependencies");
+		require(catalogMap == std::filesystem::weakly_canonical(scratch / "world.otbm"), "resolve the catalog map path relative to the catalog");
 		require(document.open(scratch / "world.world.json", error), "open project");
 		require(!document.dirty(), "open must be clean");
 		auto object = *document.data().find("black_knight.exit");

@@ -21,6 +21,7 @@
 #include <wx/timer.h>
 
 #include <atomic>
+#include <mutex>
 #include <thread>
 
 namespace {
@@ -235,6 +236,68 @@ namespace {
 	}
 }
 
+WorldItemCatalog LoadWorldItemCatalog(const std::filesystem::path &file) {
+	struct Stamp {
+		uintmax_t size = 0;
+		std::filesystem::file_time_type written;
+		bool operator==(const Stamp &) const = default;
+	};
+	struct Entry {
+		Stamp stamp;
+		WorldItemCatalog catalog;
+	};
+	static std::mutex mutex;
+	static std::map<std::filesystem::path, Entry> cache;
+	std::error_code pathError;
+	const auto resolved = std::filesystem::weakly_canonical(file, pathError);
+	const auto path = pathError ? std::filesystem::absolute(file).lexically_normal() : resolved;
+	const auto readStamp = [&]() -> std::optional<Stamp> {
+		std::error_code error;
+		const auto size = std::filesystem::file_size(path, error);
+		if (error) {
+			return std::nullopt;
+		}
+		const auto written = std::filesystem::last_write_time(path, error);
+		return error ? std::nullopt : std::optional<Stamp>(Stamp { size, written });
+	};
+	const auto before = readStamp();
+	if (before) {
+		std::scoped_lock lock(mutex);
+		if (const auto found = cache.find(path); found != cache.end() && found->second.stamp == *before) {
+			return found->second.catalog;
+		}
+	}
+
+	WorldItemCatalog result;
+	pugi::xml_document catalog;
+	const auto loaded = catalog.load_file(path.c_str());
+	if (!loaded || !catalog.child("items")) {
+		result.diagnostics.push_back({ path, "", "", "Cannot read the project's item catalog" });
+	} else {
+		for (const auto item : catalog.child("items").children("item")) {
+			const auto first = item.attribute("id") ? item.attribute("id").as_uint() : item.attribute("fromid").as_uint();
+			const auto last = item.attribute("id") ? first : item.attribute("toid").as_uint();
+			if (!first || first > last || last >= result.knownItems.size()) {
+				result.diagnostics.push_back({ path, "", "", "Invalid item ID range in the project's item catalog" });
+				result.knownItems.reset();
+				break;
+			}
+			for (auto id = first; id <= last; ++id) {
+				result.knownItems.set(id);
+			}
+		}
+	}
+	const auto after = readStamp();
+	if (before && after && *before == *after) {
+		std::scoped_lock lock(mutex);
+		cache[path] = { *after, result };
+	} else if (before && after) {
+		result.knownItems.reset();
+		result.diagnostics.push_back({ path, "", "", "The item catalog changed while it was loading" });
+	}
+	return result;
+}
+
 class WorldFileMonitor final : public wxEvtHandler {
 public:
 	explicit WorldFileMonitor(WorldLayerEditor &editor) :
@@ -327,26 +390,8 @@ private:
 	}
 };
 
-WorldLayerEditor::WorldLayerEditor(Editor &owner, WorldLayerDocument data) :
-	document(std::move(data)), editor(owner) {
-	pugi::xml_document catalog;
-	const auto loaded = catalog.load_file(document.data().items.c_str());
-	if (!loaded || !catalog.child("items")) {
-		catalogDiagnostics.push_back({ document.data().items, "", "", "Cannot read the project's item catalog" });
-	} else {
-		for (const auto item : catalog.child("items").children("item")) {
-			const auto first = item.attribute("id") ? item.attribute("id").as_uint() : item.attribute("fromid").as_uint();
-			const auto last = item.attribute("id") ? first : item.attribute("toid").as_uint();
-			if (!first || first > last || last >= knownItems.size()) {
-				catalogDiagnostics.push_back({ document.data().items, "", "", "Invalid item ID range in the project's item catalog" });
-				knownItems.reset();
-				break;
-			}
-			for (auto id = first; id <= last; ++id) {
-				knownItems.set(id);
-			}
-		}
-	}
+WorldLayerEditor::WorldLayerEditor(Editor &owner, WorldLayerDocument data, WorldItemCatalog items) :
+	document(std::move(data)), editor(owner), catalogDiagnostics(std::move(items.diagnostics)), knownItems(std::move(items.knownItems)) {
 	acknowledgeMapChange();
 	validate();
 	fileMonitor = std::make_unique<WorldFileMonitor>(*this);
@@ -2045,7 +2090,8 @@ void CreateWorldCatalog() {
 		g_gui.PopupDialog("Cannot create World catalog", wxstr(error), wxOK);
 		return;
 	}
-	editor->world = std::make_unique<WorldLayerEditor>(*editor, std::move(document));
+	auto items = LoadWorldItemCatalog(document.data().items);
+	editor->world = std::make_unique<WorldLayerEditor>(*editor, std::move(document), std::move(items));
 	ShowWorldPalette();
 	editor->world->refresh();
 	editor->world->manageLayers();

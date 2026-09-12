@@ -206,6 +206,7 @@ namespace world_layers {
 	bool parseLayer(const std::string &source, const std::filesystem::path &file, Layer &layer, Diagnostics &diagnostics);
 	using SourceFiles = std::map<std::filesystem::path, std::string>;
 	bool loadProject(const std::filesystem::path &file, Project &project, Diagnostics &diagnostics, SourceFiles* sources = nullptr);
+	bool readProjectMapPath(const std::filesystem::path &file, std::filesystem::path &map, Diagnostics &diagnostics);
 	bool readProjectSource(const std::filesystem::path &file, std::string &content, std::string &error, SourceFiles* sources);
 	void validateProject(const Project &project, Diagnostics &diagnostics);
 	std::string serializeLayer(const Layer &layer);

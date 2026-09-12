@@ -50,7 +50,12 @@
 
 namespace fs = std::filesystem;
 
+namespace {
+	std::atomic<uint64_t> nextEditorSession { 1 };
+}
+
 Editor::Editor(CopyBuffer &copybuffer) :
+	session_id(nextEditorSession.fetch_add(1, std::memory_order_relaxed)),
 	live_server(nullptr),
 	live_client(nullptr),
 	actionQueue(newd ActionQueue(*this)),
@@ -86,6 +91,7 @@ Editor::Editor(CopyBuffer &copybuffer) :
 
 // Used for loading a new map from "open map" menu
 Editor::Editor(CopyBuffer &copybuffer, const FileName &fn) :
+	session_id(nextEditorSession.fetch_add(1, std::memory_order_relaxed)),
 	live_server(nullptr),
 	live_client(nullptr),
 	actionQueue(newd ActionQueue(*this)),
@@ -135,6 +141,7 @@ Editor::Editor(CopyBuffer &copybuffer, const FileName &fn) :
 }
 
 Editor::Editor(CopyBuffer &copybuffer, LiveClient* client) :
+	session_id(nextEditorSession.fetch_add(1, std::memory_order_relaxed)),
 	live_server(nullptr),
 	live_client(client),
 	actionQueue(newd NetworkedActionQueue(*this)),
