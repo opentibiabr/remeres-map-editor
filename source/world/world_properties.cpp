@@ -94,19 +94,70 @@ namespace {
 		}
 		return result;
 	}
-	wxComboBox* referenceChoice(wxWindow* parent, const Project &project, const std::string &value, bool containers = false) {
-		auto choice = new wxComboBox(parent, wxID_ANY, wxstr(value));
-		choice->Append("");
-		for (const auto &layer : project.layers) {
-			for (const auto &object : layer.objects) {
-				if (containers && (object.kind != ObjectKind::Item || !g_items.getItemType(object.itemId).isContainer())) {
-					continue;
-				}
-				choice->Append(wxstr(objectId(layer, object)));
+	class ReferenceComboBox final : public wxComboBox {
+	public:
+		ReferenceComboBox(wxWindow* parent, const Project &project, const std::string &value, bool containersOnly) :
+			wxComboBox(parent, wxID_ANY, wxstr(value)), project(project), containersOnly(containersOnly) {
+			Append("");
+			if (!value.empty()) {
+				Append(wxstr(value));
 			}
+			SetValue(wxstr(value));
+			SetToolTip("Type at least two characters to search object identities. Results are loaded on demand.");
+			Bind(wxEVT_TEXT, &ReferenceComboBox::search, this);
 		}
-		choice->SetToolTip("Choose an object identity or type to search. References follow its position.");
-		return choice;
+
+	private:
+		static constexpr size_t ResultLimit = 100;
+		const Project &project;
+		bool containersOnly;
+		bool updating = false;
+		wxString lastQuery;
+
+		void search(wxCommandEvent &event) {
+			event.Skip();
+			if (updating) {
+				return;
+			}
+			const auto query = GetValue();
+			if (query == lastQuery) {
+				return;
+			}
+			lastQuery = query;
+			std::vector<std::string> matches;
+			if (query.length() >= 2) {
+				const auto needle = query.Lower();
+				for (const auto &[id, location] : project.objects) {
+					const auto &object = project.layers[location.first].objects[location.second];
+					if (containersOnly && (object.kind != ObjectKind::Item || !g_items.getItemType(object.itemId).isContainer())) {
+						continue;
+					}
+					if (wxstr(id).Lower().Contains(needle)) {
+						matches.push_back(id);
+					}
+				}
+				std::sort(matches.begin(), matches.end());
+				if (matches.size() > ResultLimit) {
+					matches.resize(ResultLimit);
+				}
+			}
+
+			const auto insertionPoint = GetInsertionPoint();
+			updating = true;
+			Freeze();
+			Clear();
+			Append("");
+			for (const auto &id : matches) {
+				Append(wxstr(id));
+			}
+			SetValue(query);
+			SetInsertionPoint(std::min<long>(insertionPoint, query.length()));
+			Thaw();
+			updating = false;
+		}
+	};
+	wxComboBox* referenceChoice(wxWindow* parent, const Project &project, const std::string &value, bool containers = false) {
+		return new ReferenceComboBox(parent, project, value, containers);
 	}
 	std::array<wxSpinCtrl*, 3> positionFields(wxWindow* parent, wxSizer* sizer, const WorldPosition &position, bool offset = false) {
 		std::array<wxSpinCtrl*, 3> controls;
