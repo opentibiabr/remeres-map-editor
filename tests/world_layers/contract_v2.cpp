@@ -119,6 +119,9 @@ void runWorldV2Tests(const std::filesystem::path &scratch) {
 	require(check(), diagnostics.empty() ? "resolve complete example" : diagnostics.front().describe());
 	require(plan.objects.size() == 9 && plan.originals.size() == 1 && plan.originals.contains(6), "bindings are not suppressed originals; replacements are");
 	require(plan.objects[0].original == 1, "bind exact original");
+	map.tiles[{ 110, 109, 7 }].items.push_back({ 800, 1949, 0, true, { 200, 200, 7 } });
+	require(!check(), "every arrival reached through a base teleport is validated");
+	map.tiles[{ 110, 109, 7 }].items.pop_back();
 	map.tiles[{ 100, 100, 7 }].ground = false;
 	require(check(), "existing wall items can be configured on a tile without ground");
 	map.tiles[{ 100, 100, 7 }].ground = true;
@@ -199,7 +202,12 @@ void runWorldV2Tests(const std::filesystem::path &scratch) {
 	project.layers[0].enabled = false;
 	require(check(), "disabled layer retains migration ownership");
 	project.layers[0].enabled = true;
-	project.migrationRecords.push_back(record);
+	auto separateDeclaration = record;
+	separateDeclaration.id = "fixture-migration-other-declaration";
+	separateDeclaration.claims.front().declaration = 3;
+	project.migrationRecords.push_back(separateDeclaration);
+	require(check(), "separate legacy declarations may own the same occurrence label and responsibility");
+	project.migrationRecords.back().claims.front().declaration = record.claims.front().declaration;
 	require(!check(), "duplicate migration/ownership rejected");
 	project.migrationRecords.clear();
 	write(root / "migration.json", R"({"schemaVersion":2,"id":"bad","sources":[],"claims":[{"source":{"file":"legacy.lua"},"occurrence":"1.item","object":"example.lever","responsibilities":["attributes.aid"]}]})");
@@ -223,6 +231,7 @@ void runWorldV2Tests(const std::filesystem::path &scratch) {
 	require(resolveSelector(selected, candidates, chosen, error) && chosen.key == 102, "captured selector resolves exactly the clicked occurrence");
 	candidates.pop_back();
 	require(!resolveSelector(selected, candidates, chosen, error), "removing an indistinguishable item invalidates the captured selection");
+	require(captureSelector(selected, candidates, 101, error) && !selected.occurrence, "reassociation clears stale occurrence preconditions when the selector becomes unique");
 	BehaviorDescriptor defaults;
 	Parameter amount;
 	amount.type = "integer";

@@ -350,6 +350,10 @@ int main(int argc, char** argv) {
 		require(!world_layers::parseLayer(R"({"schemaVersion":3,"id":"future","objects":[]})", "future.json", layer, diagnostics), "future schema must be rejected");
 		diagnostics.clear();
 		require(!world_layers::parseLayer(R"({"schemaVersion":1,"id":"future","objects":[{"id":"entry","position":{"x":1,"y":1,"z":7},"origin":{"type":"layer","itemId":1949},"components":[{"type":"future"}]}]})", "future.json", layer, diagnostics), "unknown component must be rejected");
+		write(scratch / "mixed-version.world.json", R"({"schemaVersion":1,"map":"world.otbm","items":"items.xml","layers":["mixed-version.layer.json"]})");
+		write(scratch / "mixed-version.layer.json", R"({"schemaVersion":2,"id":"mixed","objects":[{"id":"mixed.anchor","kind":"anchor","position":{"x":1,"y":1,"z":7}}]})");
+		diagnostics.clear();
+		require(!world_layers::loadProject(scratch / "mixed-version.world.json", project, diagnostics), "v1 catalogs cannot import v2 layers under v1 identity semantics");
 		auto entry = project.find("black_knight.entry");
 		const auto originalTeleport = entry->teleport;
 		entry->teleport->destination = "missing.object";
