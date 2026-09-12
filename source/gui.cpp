@@ -16,6 +16,7 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "main.h"
+#include "world/world_editor.h"
 
 #include "gui.h"
 
@@ -500,8 +501,8 @@ bool GUI::NewMap() {
 }
 
 void GUI::OpenMap() {
-	wxString wildcard = MAP_LOAD_FILE_WILDCARD;
-	wxFileDialog dialog(root, "Open map file", wxEmptyString, wxEmptyString, wildcard, wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE);
+	wxString wildcard = wxString("Maps and world catalogs (*.otbm;*.world.json)|*.otbm;*.world.json|World catalog (*.world.json)|*.world.json|") + MAP_LOAD_FILE_WILDCARD;
+	wxFileDialog dialog(root, "Open map", wxEmptyString, wxEmptyString, wildcard, wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE);
 
 	if (dialog.ShowModal() == wxID_OK) {
 		wxArrayString paths;
@@ -510,6 +511,56 @@ void GUI::OpenMap() {
 			LoadMap(FileName(paths[i]));
 		}
 	}
+}
+
+bool GUI::LoadServerWorlds(const wxString &path, bool automatic) {
+	const auto editor = GetCurrentEditor();
+	if (!editor || editor->IsLiveClient() || editor->IsLiveServer()) {
+		return false;
+	}
+	if (editor->world) {
+		if (!automatic) {
+			ShowWorldPalette();
+			SetStatusText("This map's World catalog is already loaded and monitored for external changes.");
+		}
+		return true;
+	}
+	wxString file = path;
+	if (file.empty()) {
+		wxFileDialog dialog(root, "Load server worlds for this map", "", "", "World catalog (*.world.json)|*.world.json", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+		if (dialog.ShowModal() != wxID_OK) {
+			return false;
+		}
+		file = dialog.GetPath();
+	}
+	WorldLayerDocument document;
+	std::string error;
+	if (!RecoverWorldPublication(std::filesystem::u8path(nstr(file)), root)) {
+		return false;
+	}
+	if (!document.open(std::filesystem::u8path(nstr(file)), error)) {
+		PopupDialog(root, "Cannot load server worlds", wxstr(error), wxOK);
+		return false;
+	}
+	if (automatic && !document.matchesMap(std::filesystem::u8path(editor->getMap().getFilename()))) {
+		const FileName configured(wxstr(g_settings.getString(Config::WORLD_CATALOG_FILE)));
+		const FileName associated(wxstr(g_settings.getString(Config::WORLD_CATALOG_MAP_FILE)));
+		if (FileName(file) != configured || associated != FileName(wxstr(editor->getMap().getFilename()))) {
+			return false;
+		}
+	}
+	editor->world = std::make_unique<WorldLayerEditor>(*editor, std::move(document));
+	if (!automatic) {
+		g_settings.setString(Config::WORLD_CATALOG_FILE, nstr(file));
+		g_settings.setString(Config::WORLD_CATALOG_MAP_FILE, editor->getMap().getFilename());
+		ShowWorldPalette();
+	}
+	for (const auto palette : palettes) {
+		palette->OnUpdate(&editor->getMap());
+	}
+	SetStatusText("Server world objects loaded into this map. Double-click an object to edit its properties.");
+	editor->world->refresh();
+	return true;
 }
 
 void GUI::SaveMap() {
@@ -546,6 +597,52 @@ void GUI::SaveMapAs() {
 }
 
 bool GUI::LoadMap(const FileName &fileName) {
+	std::unique_ptr<WorldLayerDocument> worldDocument;
+	FileName actualFile = fileName;
+	if (fileName.GetFullPath().EndsWith(".world.json")) {
+		worldDocument = std::make_unique<WorldLayerDocument>();
+		std::string error;
+		if (!RecoverWorldPublication(std::filesystem::u8path(nstr(fileName.GetFullPath())), root)) {
+			return false;
+		}
+		if (!worldDocument->open(std::filesystem::u8path(nstr(fileName.GetFullPath())), error)) {
+			PopupDialog(root, "Cannot read world catalog", wxstr(error), wxOK);
+			return false;
+		}
+		actualFile = FileName(wxstr(worldDocument->data().map.generic_string()));
+	}
+	if (!worldDocument) {
+		FileName catalog(actualFile);
+		catalog.SetExt("world.json");
+		bool associated = false;
+		const FileName configured(wxstr(g_settings.getString(Config::WORLD_CATALOG_FILE)));
+		const FileName configuredMap(wxstr(g_settings.getString(Config::WORLD_CATALOG_MAP_FILE)));
+		if (catalog == configured && configuredMap == actualFile) {
+			associated = true;
+		}
+		if (!catalog.FileExists()) {
+			if (configured.FileExists() && configuredMap == actualFile) {
+				catalog = configured;
+				associated = true;
+			}
+		}
+		if (catalog.FileExists() || world_files::pending(std::filesystem::u8path(nstr(catalog.GetFullPath())))) {
+			worldDocument = std::make_unique<WorldLayerDocument>();
+			std::string error;
+			if (!RecoverWorldPublication(std::filesystem::u8path(nstr(catalog.GetFullPath())), root)) {
+				return false;
+			}
+			if (!worldDocument->open(std::filesystem::u8path(nstr(catalog.GetFullPath())), error)) {
+				PopupDialog(root, "Cannot read world catalog", wxstr(error), wxOK);
+				return false;
+			}
+			if (!associated && !worldDocument->matchesMap(std::filesystem::u8path(nstr(actualFile.GetFullPath())))) {
+				PopupDialog(root, "World catalog association", "The sibling catalog refers to another map. Associate it explicitly with this copy in Preferences > Directories.", wxOK);
+				return false;
+			}
+		}
+	}
+
 	rme::bindPooledObjectOwnerThread();
 
 	FinishWelcomeDialog();
@@ -558,7 +655,10 @@ bool GUI::LoadMap(const FileName &fileName) {
 
 	Editor* editor;
 	try {
-		editor = newd Editor(copybuffer, fileName);
+		editor = newd Editor(copybuffer, actualFile);
+		if (worldDocument) {
+			editor->world = std::make_unique<WorldLayerEditor>(*editor, std::move(*worldDocument));
+		}
 	} catch (std::runtime_error &e) {
 		rme::dumpPooledObjectStats();
 		PopupDialog(root, "Error!", wxString(e.what(), wxConvUTF8), wxOK);
@@ -570,7 +670,7 @@ bool GUI::LoadMap(const FileName &fileName) {
 	auto* mapTab = newd MapTab(tabbook, editor);
 	mapTab->OnSwitchEditorMode(mode);
 
-	root->AddRecentFile(fileName);
+	root->AddRecentFile(actualFile);
 
 	mapTab->GetView()->FitToMap();
 	UpdateTitle();
@@ -584,7 +684,7 @@ bool GUI::LoadMap(const FileName &fileName) {
 	std::string path = g_settings.getString(Config::RECENT_EDITED_MAP_PATH);
 	if (!path.empty()) {
 		FileName file(path);
-		if (file == fileName) {
+		if (file == actualFile) {
 			std::istringstream stream(g_settings.getString(Config::RECENT_EDITED_MAP_POSITION));
 			Position position;
 			stream >> position;
@@ -938,6 +1038,10 @@ PaletteWindow* GUI::GetPalette() {
 	return palettes.front();
 }
 
+const std::list<PaletteWindow*> &GUI::GetPalettes() {
+	return palettes;
+}
+
 PaletteWindow* GUI::NewPalette() {
 	return CreatePalette();
 }
@@ -1094,6 +1198,9 @@ bool GUI::IsMinimapVisible() const {
 //=============================================================================
 
 void GUI::RefreshView() {
+	if (const auto editor = GetCurrentEditor(); editor && editor->world) {
+		editor->world->synchronizeMap();
+	}
 	EditorTab* editorTab = GetCurrentTab();
 	if (!editorTab) {
 		return;
@@ -1548,6 +1655,9 @@ void GUI::SetSelectionMode() {
 }
 
 void GUI::SetDrawingMode() {
+	if (const auto editor = GetCurrentEditor(); editor && editor->world) {
+		editor->world->document.selected.clear();
+	}
 	if (mode == DRAWING_MODE) {
 		return;
 	}

@@ -322,7 +322,16 @@ target_sources(
           waypoints.cpp
           welcome_dialog.cpp
           zone_brush.cpp
-          zones.cpp)
+          zones.cpp
+          world/world_layers.cpp
+          world/world_files.cpp
+          world/world_format.cpp
+          world/world_selectors.cpp
+          world/world_validation.cpp
+          world/world_document.cpp
+          world/world_view_index.cpp
+          world/world_editor.cpp
+          world/world_properties.cpp)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   set_source_files_properties(
@@ -372,3 +381,14 @@ else()
   set_target_properties(${PROJECT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
                                                    "${CMAKE_SOURCE_DIR}/")
 endif()
+
+# Shared JSON/document code also runs in headless contract tests.
+set_source_files_properties(
+  world/world_layers.cpp
+  world/world_files.cpp
+  world/world_format.cpp
+  world/world_selectors.cpp
+  world/world_validation.cpp
+  world/world_document.cpp
+  world/world_view_index.cpp
+  PROPERTIES SKIP_PRECOMPILE_HEADERS ON SKIP_UNITY_BUILD_INCLUSION ON)

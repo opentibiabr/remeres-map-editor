@@ -40,10 +40,16 @@ public:
 	Container* getContainer() override {
 		return this;
 	}
+	const Container* getContainer() const override {
+		return this;
+	}
 
 	Item* getItem(size_t index) const;
 
 	ItemVector &getVector() noexcept {
+		return contents;
+	}
+	const ItemVector &getVector() const noexcept {
 		return contents;
 	}
 	size_t getItemCount() const noexcept {

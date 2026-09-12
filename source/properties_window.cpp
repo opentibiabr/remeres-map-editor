@@ -18,6 +18,9 @@
 #include "main.h"
 
 #include "properties_window.h"
+#include "world/world_layers.hpp"
+#include "world/world_properties.h"
+#include "world/world_validation.hpp"
 
 #include "gui_ids.h"
 #include "complexitem.h"
@@ -46,17 +49,23 @@ EVT_NOTEBOOK_PAGE_CHANGED(wxID_ANY, PropertiesWindow::OnNotebookPageChanged)
 EVT_GRID_CELL_CHANGED(PropertiesWindow::OnGridValueChanged)
 END_EVENT_TABLE()
 
-PropertiesWindow::PropertiesWindow(wxWindow* parent, const Map* map, const Tile* tile_parent, Item* item, wxPoint pos) :
+PropertiesWindow::PropertiesWindow(wxWindow* parent, const Map* map, const Tile* tile_parent, Item* item, wxPoint pos, world_layers::Object* object, const world_layers::Project* project, const std::string &id, world_layers::Project* draft, const world_layers::MapItem* base) :
 	ObjectPropertiesWindowBase(parent, "Item Properties", map, tile_parent, item, pos),
-	currentPanel(nullptr) {
-	ASSERT(edit_item);
+	currentPanel(nullptr), worldObject(object), worldProject(project), worldId(id) {
+	ASSERT(edit_item || (object && draft));
 	notebook = newd wxNotebook(this, wxID_ANY, wxDefaultPosition, wxSize(600, 300));
 
-	notebook->AddPage(createGeneralPanel(notebook), "Simple", true);
-	if (dynamic_cast<Container*>(item)) {
-		notebook->AddPage(createContainerPanel(notebook), "Contents");
+	if (worldObject && draft && draft->schemaVersion == 2) {
+		worldProperties = std::make_unique<WorldProperties>(notebook, *worldObject, *draft, base ? *base : world_layers::MapItem {}, map);
+	} else {
+		notebook->AddPage(createGeneralPanel(notebook), "Simple", true);
+		if (dynamic_cast<Container*>(item)) {
+			notebook->AddPage(createContainerPanel(notebook), "Contents");
+		}
+		if (!worldObject) {
+			notebook->AddPage(createAttributesPanel(notebook), "Advanced");
+		}
 	}
-	notebook->AddPage(createAttributesPanel(notebook), "Advanced");
 
 	wxSizer* topSizer = newd wxBoxSizer(wxVERTICAL);
 	topSizer->Add(notebook, wxSizerFlags(1).DoubleBorder());
@@ -89,6 +98,10 @@ PropertiesWindow::~PropertiesWindow() {
 }
 
 void PropertiesWindow::Update() {
+	if (worldProperties) {
+		wxDialog::Update();
+		return;
+	}
 	Container* container = dynamic_cast<Container*>(edit_item);
 	if (container) {
 		for (uint32_t i = 0; i < container->getVolume(); ++i) {
@@ -99,6 +112,9 @@ void PropertiesWindow::Update() {
 }
 
 void PropertiesWindow::SetAdvancedPropertyNumberData(const wxString &attributeName, int value) {
+	if (!attributesGrid) {
+		return;
+	}
 	const auto rowsCount = attributesGrid->GetNumberRows();
 
 	bool found = false;
@@ -246,7 +262,11 @@ wxWindow* PropertiesWindow::createGeneralPanel(wxWindow* parent) {
 
 	createDepotIdChoiceCtrl(panel, gridsizer);
 	createDoorIdCtrl(panel, gridsizer);
-	createTeleportDestinationCtrl(panel, gridsizer);
+	if (worldObject) {
+		createWorldControls(panel, gridsizer);
+	} else {
+		createTeleportDestinationCtrl(panel, gridsizer);
+	}
 	createLiquidChoiceCtrl(panel, gridsizer);
 
 	panel->SetSizerAndFit(gridsizer);
@@ -617,7 +637,26 @@ void PropertiesWindow::OnGridValueChanged(wxGridEvent &event) {
 }
 
 void PropertiesWindow::OnClickOK(wxCommandEvent &) {
-	saveAttributesPanel();
+	if (worldProperties) {
+		std::string error;
+		if (!worldProperties->read(error)) {
+			wxMessageBox(wxstr(error), "World validation", wxOK | wxICON_INFORMATION, this);
+			return;
+		}
+	} else if (worldObject) {
+		worldObject->name = nstr(worldName->GetValue());
+		worldObject->aid = static_cast<uint16_t>(simpleActionIdField->GetValue());
+		worldObject->uid = static_cast<uint16_t>(simpleUniqueIdField->GetValue());
+		worldObject->position = { worldPosition[0]->GetValue(), worldPosition[1]->GetValue(), worldPosition[2]->GetValue() };
+		const auto target = nstr(worldDestination->GetValue());
+		if (target.empty()) {
+			worldObject->teleport.reset();
+		} else {
+			worldObject->teleport = world_layers::Teleport { target, { worldOffset[0]->GetValue(), worldOffset[1]->GetValue(), worldOffset[2]->GetValue() } };
+		}
+	} else {
+		saveAttributesPanel();
+	}
 	EndModal(1);
 }
 
@@ -745,4 +784,51 @@ void PropertiesWindow::OnLiquidChoice(wxCommandEvent &event) {
 	const auto rowsCount = attributesGrid->GetNumberRows();
 
 	SetAdvancedPropertyNumberData("subtype", *newLiquidType);
+}
+
+void PropertiesWindow::createWorldControls(wxPanel* parent, wxFlexGridSizer* sizer) {
+	const auto label = [&](const wxString &name, const wxString &value) {
+		sizer->Add(new wxStaticText(parent, wxID_ANY, name));
+		auto text = new wxStaticText(parent, wxID_ANY, value);
+		text->Wrap(450);
+		sizer->Add(text, 1, wxEXPAND);
+	};
+	label("World object", wxstr(worldId));
+	const auto entry = worldProject->objects.find(worldId);
+	if (entry != worldProject->objects.end()) {
+		label("Saved in", wxstr(worldProject->layers[entry->second.first].file.generic_string()));
+	}
+	if (worldObject->replaces) {
+		const auto &p = worldObject->replaces->position;
+		label("Base item replaced", wxString::Format("%u at %d, %d, %d", worldObject->replaces->itemId, p.x, p.y, p.z));
+	}
+	sizer->Add(new wxStaticText(parent, wxID_ANY, "Name"));
+	worldName = new wxTextCtrl(parent, wxID_ANY, wxstr(worldObject->name));
+	sizer->Add(worldName, 1, wxEXPAND);
+	const auto position = [&](const wxString &name, wxSpinCtrl** fields, const world_layers::Position &value, bool offset) {
+		sizer->Add(new wxStaticText(parent, wxID_ANY, name));
+		auto row = new wxBoxSizer(wxHORIZONTAL);
+		const int values[] = { value.x, value.y, value.z };
+		const wxString labels[] = { "X", "Y", "Floor" };
+		for (size_t i = 0; i < 3; ++i) {
+			row->Add(new wxStaticText(parent, wxID_ANY, labels[i]), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 3);
+			const int maximum = i == 2 ? 15 : 65535;
+			fields[i] = new wxSpinCtrl(parent, wxID_ANY, "", wxDefaultPosition, wxSize(90, -1), wxSP_ARROW_KEYS, offset ? -maximum : 0, maximum, values[i]);
+			row->Add(fields[i], 1, wxRIGHT, 5);
+		}
+		sizer->Add(row, 1, wxEXPAND);
+	};
+	position("Position", worldPosition, worldObject->position, false);
+	sizer->Add(new wxStaticText(parent, wxID_ANY, "Destination object"));
+	worldDestination = new wxComboBox(parent, wxID_ANY);
+	worldDestination->Append("");
+	for (const auto &layer : worldProject->layers) {
+		for (const auto &object : layer.objects) {
+			worldDestination->Append(wxstr(layer.id + "." + object.id));
+		}
+	}
+	worldDestination->SetValue(worldObject->teleport ? wxstr(worldObject->teleport->destination) : wxString());
+	worldDestination->SetToolTip("Choose a stable world object ID. AID may repeat; each nonzero UID must be unique across the map and world layers.");
+	sizer->Add(worldDestination, 1, wxEXPAND);
+	position("Arrival offset", worldOffset, worldObject->teleport ? worldObject->teleport->destinationOffset : world_layers::Position {}, true);
 }

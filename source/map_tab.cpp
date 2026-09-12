@@ -16,6 +16,8 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "main.h"
+#include "world/world_editor.h"
+#include "palette_window.h"
 #include <thread>
 #ifdef __linux__
 	#include <malloc.h>
@@ -93,7 +95,7 @@ MapWindow* MapTab::GetView() const {
 wxString MapTab::GetTitle() const {
 	wxString ss;
 	const Map &map = iref->editor->getMap();
-	ss << wxstr(map.getName()) << (map.hasChanged() ? "*" : "");
+	ss << wxstr(map.getName()) << (iref->editor->hasChanges() ? "*" : "");
 	return ss;
 }
 
@@ -106,6 +108,10 @@ Map* MapTab::GetMap() const {
 }
 
 void MapTab::VisibilityCheck() {
+	const auto active = g_gui.GetCurrentEditor();
+	for (const auto palette : g_gui.GetPalettes()) {
+		palette->Enable(active && active->CanEdit());
+	}
 	EditorTab* editorTab = aui->GetCurrentTab();
 	MapTab* mapTab = dynamic_cast<MapTab*>(editorTab);
 	UpdateDialogs(mapTab && HasSameReference(mapTab));

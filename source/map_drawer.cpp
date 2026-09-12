@@ -16,6 +16,7 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "main.h"
+#include "world/world_editor.h"
 
 #ifdef __WINDOWS__
 	#include <windows.h>
@@ -295,6 +296,7 @@ void MapDrawer::Draw() {
 	}
 	DrawLiveCursors();
 	DrawBrush();
+	DrawWorldLayers();
 	if (options.show_grid && zoom <= 10.f) {
 		DrawGrid();
 	}
@@ -306,6 +308,75 @@ void MapDrawer::Draw() {
 	}
 	if (options.show_performance_stats) {
 		DrawPerformanceStats();
+	}
+}
+
+void MapDrawer::DrawWorldLayers() {
+	const auto world = editor.world.get();
+	if (!world || !world->document.visible) {
+		return;
+	}
+	const auto &project = world->document.data();
+	const auto &index = world->viewIndex();
+	const int left = start_x - 2, top = start_y - 2, right = end_x + 2, bottom = end_y + 2;
+	const auto hovered = world->at({ mouse_map_x, mouse_map_y, floor });
+	bool selectedDrawn = false;
+	const auto draw = [&](const WorldViewIndex::Entry &entry) {
+		const bool selected = entry.id == world->document.selected;
+		const auto position = selected ? world->position(entry.id) : entry.position;
+		if (position.z != floor || position.x < left || position.x > right || position.y < top || position.y > bottom) {
+			return;
+		}
+		selectedDrawn = selectedDrawn || selected;
+		int x, y;
+		getDrawPosition(Position(position.x, position.y, position.z), x, y);
+		if (entry.mode != world_layers::SourceMode::Map) {
+			if (const auto sprite = world->sprite(entry.itemId)) {
+				int sx = x, sy = y;
+				BlitItem(sx, sy, Position(position.x, position.y, position.z), sprite, true, 255, 255, 255, 210);
+			}
+		}
+		GLColor color { 50, 210, 245, 230 };
+		if (entry.invalid) {
+			color = { 255, 90, 75, 240 };
+		} else if (selected) {
+			color = { 255, 210, 65, 240 };
+		}
+		renderer->drawRect(x, y, rme::TileSize, rme::TileSize, color, selected ? 3.0f : 1.5f);
+		if (selected || entry.id == hovered) {
+			renderer->drawText(x, y - 15, entry.id, color.r, color.g, color.b, color.a);
+		}
+		if (!selected) {
+			return;
+		}
+		const auto object = project.find(entry.id);
+		if (!object || !object->teleport || !project.find(object->teleport->destination)) {
+			return;
+		}
+		const auto targetPosition = world->position(object->teleport->destination);
+		const auto &offset = object->teleport->destinationOffset;
+		const world_layers::Position arrival { targetPosition.x + offset.x, targetPosition.y + offset.y, targetPosition.z + offset.z };
+		if (!world_layers::isValidPosition(arrival)) {
+			return;
+		}
+		const auto label = "-> " + object->teleport->destination + " (floor " + std::to_string(arrival.z) + ")";
+		renderer->drawText(x, y + rme::TileSize + 3, label, color.r, color.g, color.b, color.a);
+		if (arrival.z == floor) {
+			int tx, ty;
+			getDrawPosition(Position(arrival.x, arrival.y, arrival.z), tx, ty);
+			renderer->drawLine(x + 16, y + 16, tx + 16, ty + 16, color, 2.0f);
+			renderer->drawRect(tx + 9, ty + 9, 14, 14, color, 2.0f);
+		}
+	};
+	for (const auto candidate : index.visible(floor, left, top, right, bottom)) {
+		draw(index.entry(candidate));
+	}
+	// The selected object can cross the cached viewport boundary while it is
+	// being dragged. Include that single moving entry without a global scan.
+	if (world->drag && !selectedDrawn) {
+		if (const auto selected = index.find(world->document.selected)) {
+			draw(*selected);
+		}
 	}
 }
 
@@ -1561,6 +1632,9 @@ void MapDrawer::DrawTile(TileLocation* location) {
 
 	if (!hidden && !tile->items.empty()) {
 		for (Item* item : tile->items) {
+			if (editor.world && editor.world->suppressed(item)) {
+				continue;
+			}
 
 			if (options.show_preview && zoom <= 2.0) {
 				item->animate();

@@ -17,6 +17,8 @@
 
 #include "main.h"
 #include "lua_engine.h"
+#include "editor.h"
+#include "gui.h"
 
 #include <fstream>
 #include <sstream>

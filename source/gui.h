@@ -386,6 +386,7 @@ public:
 	}
 	bool NewMap();
 	void OpenMap();
+	bool LoadServerWorlds(const wxString &path = wxEmptyString, bool automatic = false);
 	void SaveMap();
 	void SaveMapAs();
 	bool LoadMap(const FileName &fileName);

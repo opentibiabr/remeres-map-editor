@@ -547,6 +547,9 @@ bool MainFrame::DoQuerySave(bool doclose, bool checkTileset) {
 					return false;
 				}
 			}
+			if (editor.hasChanges()) {
+				return false;
+			}
 		} else if (ret == wxID_CANCEL) {
 			return false;
 		}

@@ -108,6 +108,9 @@ public:
 	virtual Container* getContainer() {
 		return nullptr;
 	}
+	virtual const Container* getContainer() const {
+		return nullptr;
+	}
 	virtual Depot* getDepot() {
 		return nullptr;
 	}

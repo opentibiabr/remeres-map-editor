@@ -29,6 +29,8 @@ class Action;
 class BatchAction;
 class ActionQueue;
 
+struct WorldDocumentChange;
+
 enum ActionIdentifier {
 	ACTION_MOVE,
 	ACTION_REMOTE,
@@ -46,6 +48,7 @@ enum ActionIdentifier {
 	ACTION_REPLACE_ITEMS,
 	ACTION_CHANGE_PROPERTIES,
 	ACTION_LUA_SCRIPT,
+	ACTION_WORLD_OBJECT,
 };
 
 enum ChangeType {
@@ -53,6 +56,7 @@ enum ChangeType {
 	CHANGE_TILE,
 	CHANGE_MOVE_HOUSE_EXIT,
 	CHANGE_MOVE_WAYPOINT,
+	CHANGE_WORLD_OBJECT,
 };
 
 struct HouseData {
@@ -72,6 +76,7 @@ public:
 
 	static Change* Create(House* house, const Position &position);
 	static Change* Create(Waypoint* waypoint, const Position &position);
+	static Change* CreateWorldDocument(WorldDocumentChange value);
 
 	void clear();
 
@@ -144,6 +149,7 @@ public:
 	bool empty() const noexcept {
 		return changes.empty();
 	}
+	bool affectsMap() const;
 	ActionIdentifier getType() const noexcept {
 		return type;
 	}
@@ -161,11 +167,14 @@ protected:
 	Action(Editor &editor, ActionIdentifier ident);
 
 	bool commited;
+	bool retired = false;
+	bool prepareWorldChanges();
 	ChangeList changes;
 	Editor &editor;
 	ActionIdentifier type;
 
 	friend class ActionQueue;
+	friend class BatchAction;
 };
 
 typedef std::vector<Action*> ActionVector;
@@ -193,18 +202,22 @@ public:
 		return label;
 	}
 	bool isNoSelection() const noexcept;
+	bool affectsMap() const;
 
 	virtual void addAction(Action* action);
 	virtual void addAndCommitAction(Action* action);
+	// Roll back a provisional batch before adding it to the action queue.
+	void rollback();
 
 protected:
 	BatchAction(Editor &editor, ActionIdentifier ident);
 
 	virtual void commit();
-	virtual void undo();
-	virtual void redo();
+	virtual bool undo();
+	virtual bool redo();
 
 	void merge(BatchAction* other);
+	bool prepareWorldChanges(bool undoing, bool uncommittedOnly = false);
 
 	Editor &editor;
 	int timestamp;
@@ -212,6 +225,7 @@ protected:
 	ActionIdentifier type;
 	ActionVector batch;
 	wxString label;
+	bool retired = false;
 
 	friend class ActionQueue;
 };
@@ -259,6 +273,7 @@ public:
 	bool hasChanges() const;
 
 	void generateLabels();
+	std::vector<WorldDocumentChange*> worldDocumentChanges() const;
 
 protected:
 	static wxString createLabel(ActionIdentifier type);

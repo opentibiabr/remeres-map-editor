@@ -29,9 +29,22 @@
 #include "carpet_brush.h"
 #include "table_brush.h"
 #include "graphics.h"
+#include "complexitem.h"
 #include "npc.h"
 #include "spawn_npc.h"
 #include "object_pool.h"
+
+namespace {
+	bool containsUniqueId(const Item* item) {
+		if (item->getUniqueID() != 0) {
+			return true;
+		}
+		if (const auto container = item->getContainer()) {
+			return std::any_of(container->getVector().begin(), container->getVector().end(), containsUniqueId);
+		}
+		return false;
+	}
+}
 
 void* Tile::operator new(size_t size) {
 	return rme::allocatePooledObject(size);
@@ -589,7 +602,7 @@ void Tile::updateStateForItem(const Item* item, const ItemType &type) {
 	if (item->isSelected()) {
 		statflags |= TILESTATE_SELECTED;
 	}
-	if (item->getUniqueID() != 0) {
+	if (containsUniqueId(item)) {
 		statflags |= TILESTATE_UNIQUE;
 	}
 	if (type.sprite) {
@@ -648,7 +661,7 @@ void Tile::update() {
 		if (groundType.unpassable) {
 			statflags |= TILESTATE_BLOCKING;
 		}
-		if (ground->getUniqueID() != 0) {
+		if (containsUniqueId(ground)) {
 			statflags |= TILESTATE_UNIQUE;
 		}
 		if (groundType.sprite) {
@@ -665,7 +678,7 @@ void Tile::update() {
 		if (item->isSelected()) {
 			statflags |= TILESTATE_SELECTED;
 		}
-		if (item->getUniqueID() != 0) {
+		if (containsUniqueId(item)) {
 			statflags |= TILESTATE_UNIQUE;
 		}
 		if (type.sprite) {

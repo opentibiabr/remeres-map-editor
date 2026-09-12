@@ -16,6 +16,7 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "main.h"
+#include "world/world_editor.h"
 
 #include "editor.h"
 #include "materials.h"
@@ -174,6 +175,9 @@ bool Editor::canRedo() const {
 }
 
 void Editor::undo(int indexes) {
+	if (world) {
+		world->finishDrag(false);
+	}
 	if (indexes <= 0 || !actionQueue->canUndo()) {
 		return;
 	}
@@ -189,6 +193,9 @@ void Editor::undo(int indexes) {
 }
 
 void Editor::redo(int indexes) {
+	if (world) {
+		world->finishDrag(false);
+	}
 	if (indexes <= 0 || !actionQueue->canRedo()) {
 		return;
 	}
@@ -219,6 +226,9 @@ void Editor::clearActions() {
 }
 
 bool Editor::hasChanges() const {
+	if (world && world->document.dirty()) {
+		return true;
+	}
 	if (map.hasChanged()) {
 		if (map.getTileCount() == 0) {
 			return actionQueue->hasChanges();
@@ -233,8 +243,32 @@ void Editor::clearChanges() {
 }
 
 void Editor::saveMap(FileName filename, bool showdialog) {
+	if (world) {
+		world->finishDrag(true);
+	}
+	const auto previousFilename = map.filename;
+	const auto previousName = map.name;
+	const auto previousMonsterFile = map.spawnmonsterfile;
+	const auto previousNpcFile = map.spawnnpcfile;
+	const auto previousHouseFile = map.housefile;
+	const auto previousZoneFile = map.zonefile;
+	const bool copyWorld = world && !filename.GetFullPath().empty() && filename != FileName(wxstr(map.filename));
+	if (copyWorld) {
+		std::string error;
+		if (!world->document.canCopyForMap(std::filesystem::u8path(nstr(filename.GetFullPath())), error)) {
+			g_gui.PopupDialog("Cannot copy server worlds", wxstr(error), wxOK);
+			return;
+		}
+	} else if (world) {
+		if (world->document.dirty() && !world->save()) {
+			return;
+		}
+		if (!map.hasChanged()) {
+			return;
+		}
+	}
 	std::string savefile = filename.GetFullPath().mb_str(wxConvUTF8).data();
-	bool save_as = false;
+	bool save_as = copyWorld;
 	bool save_otgz = false;
 
 	if (savefile.empty()) {
@@ -246,7 +280,7 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 	}
 
 	// If not named yet, propagate the file name to the auxilliary files
-	if (map.unnamed) {
+	if (map.unnamed || copyWorld) {
 		FileName _name(filename);
 		_name.SetExt("xml");
 
@@ -388,6 +422,14 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 
 		// If failure, don't run the rest of the function
 		if (!success) {
+			if (world) {
+				map.filename = previousFilename;
+				map.name = previousName;
+				map.spawnmonsterfile = previousMonsterFile;
+				map.spawnnpcfile = previousNpcFile;
+				map.housefile = previousHouseFile;
+				map.zonefile = previousZoneFile;
+			}
 			return;
 		}
 	}
@@ -454,6 +496,20 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 
 	deleteOldBackups(map_path + "backups/");
 
+	if (copyWorld) {
+		std::string error;
+		if (!world->document.copyForMap(std::filesystem::u8path(map.filename), error, actionQueue->worldDocumentChanges())) {
+			map.filename = previousFilename;
+			map.name = previousName;
+			map.spawnmonsterfile = previousMonsterFile;
+			map.spawnnpcfile = previousNpcFile;
+			map.housefile = previousHouseFile;
+			map.zonefile = previousZoneFile;
+			g_gui.PopupDialog("Cannot copy server worlds", "The base map copy was written, but its world catalog could not be copied. This tab still edits the original map.\n" + wxstr(error), wxOK);
+			return;
+		}
+		world->refresh();
+	}
 	clearChanges();
 }
 
@@ -1002,6 +1058,12 @@ void Editor::moveSelection(const Position &offset) {
 	if (!CanEdit() || !hasSelection()) {
 		return;
 	}
+	std::string worldError;
+	auto worldMove = world ? world->beginBaseMove(offset, worldError) : nullptr;
+	if (world && !worldMove) {
+		g_gui.PopupDialog("Cannot move World base items", wxstr(worldError), wxOK);
+		return;
+	}
 
 	bool borderize = false;
 	int drag_threshold = g_settings.getInteger(Config::BORDERIZE_DRAG_THRESHOLD);
@@ -1015,6 +1077,7 @@ void Editor::moveSelection(const Position &offset) {
 	// Update the tiles with the new positions
 	for (Tile* tile : selection) {
 		Tile* new_tile = tile->deepCopy(map);
+		TrackWorldTileCopy(worldMove.get(), *tile, *new_tile);
 		Tile* storage_tile = map.allocator(tile->getLocation());
 
 		ItemVector selected_items = new_tile->popSelectedItems();
@@ -1110,6 +1173,7 @@ void Editor::moveSelection(const Position &offset) {
 		// Create borders
 		for (const Tile* tile : borderize_tiles) {
 			Tile* new_tile = tile->deepCopy(map);
+			TrackWorldTileCopy(worldMove.get(), *tile, *new_tile);
 			if (borderize) {
 				new_tile->borderize(&map);
 			}
@@ -1142,6 +1206,7 @@ void Editor::moveSelection(const Position &offset) {
 			// Move items
 			if (old_dest_tile) {
 				new_dest_tile = old_dest_tile->deepCopy(map);
+				TrackWorldTileCopy(worldMove.get(), *old_dest_tile, *new_dest_tile);
 			} else {
 				new_dest_tile = map.allocator(location);
 			}
@@ -1226,6 +1291,7 @@ void Editor::moveSelection(const Position &offset) {
 			}
 			if (tile->ground->getGroundBrush()) {
 				Tile* new_tile = tile->deepCopy(map);
+				TrackWorldTileCopy(worldMove.get(), *tile, *new_tile);
 				if (borderize) {
 					new_tile->borderize(&map);
 				}
@@ -1241,7 +1307,19 @@ void Editor::moveSelection(const Position &offset) {
 		batch_action->addAndCommitAction(action);
 	}
 
-	// Store the action for undo
+	if (worldMove) {
+		std::string error;
+		if (!world->finishBaseMove(*worldMove, *batch_action, error)) {
+			batch_action->rollback();
+			delete batch_action;
+			world->refresh();
+			selection.updateSelectionCount();
+			g_gui.PopupDialog("Cannot move World base items", wxstr(error), wxOK);
+			return;
+		}
+	}
+
+	// Store the map changes and their World selectors in the same undo batch.
 	addBatch(batch_action);
 	updateActions();
 	selection.updateSelectionCount();

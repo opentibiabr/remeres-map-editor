@@ -1,0 +1,6 @@
+# Keep the shared model/validator identical to Canary's formatting.
+BasedOnStyle: InheritParentConfig
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterFunction: false
+UseTab: AlignWithSpaces
