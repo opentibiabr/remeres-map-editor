@@ -2,6 +2,30 @@
 
 #include "world/world_layers.hpp"
 #include "world/world_files.hpp"
+#include <set>
+
+namespace world_layers {
+	class MapView;
+	struct ApplicationPlan;
+}
+
+// Synchronous provenance tracking across the native map editor's tile copies.
+// Keys are never retained after the move has either committed or rolled back.
+class WorldBaseMove {
+public:
+	WorldBaseMove(const world_layers::Project &project, const world_layers::ApplicationPlan &plan, world_layers::MapView &map, const world_layers::Position &offset, const std::set<uint64_t> &selected);
+	void copied(uint64_t before, uint64_t after);
+	bool finish(world_layers::MapView &map, world_layers::Project &project, std::string &error) const;
+
+private:
+	struct Binding {
+		std::string id, fingerprint;
+		uint64_t key;
+		world_layers::Position position;
+	};
+	std::vector<Binding> bindings;
+	std::map<uint64_t, std::vector<size_t>> keys;
+};
 
 struct WorldExternalChange {
 	std::filesystem::path file;

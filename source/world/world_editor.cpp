@@ -940,6 +940,51 @@ bool WorldLayerEditor::moveBaseItem(const std::string &id, const world_layers::O
 	return true;
 }
 
+std::unique_ptr<WorldBaseMove> WorldLayerEditor::beginBaseMove(const Position &offset) {
+	synchronizeMap();
+	std::set<uint64_t> selected;
+	for (const auto tile : editor.getSelection()) {
+		if (tile->ground && tile->ground->isSelected()) {
+			selected.insert(reinterpret_cast<uintptr_t>(tile->ground));
+		}
+		for (const auto item : tile->items) {
+			if (item->isSelected()) {
+				selected.insert(reinterpret_cast<uintptr_t>(item));
+			}
+		}
+	}
+	EditorMapView map(editor.getMap(), uniqueIds);
+	return std::make_unique<WorldBaseMove>(document.data(), plan, map, portable(offset), selected);
+}
+
+void TrackWorldTileCopy(WorldBaseMove* move, const Tile &before, const Tile &after) {
+	if (!move) {
+		return;
+	}
+	if (before.ground && after.ground) {
+		move->copied(reinterpret_cast<uintptr_t>(before.ground), reinterpret_cast<uintptr_t>(after.ground));
+	}
+	for (size_t i = 0; i < before.items.size(); ++i) {
+		move->copied(reinterpret_cast<uintptr_t>(before.items[i]), reinterpret_cast<uintptr_t>(after.items[i]));
+	}
+}
+
+bool WorldLayerEditor::finishBaseMove(WorldBaseMove &move, BatchAction &batch, std::string &error) {
+	EditorMapView map(editor.getMap(), uniqueIds);
+	auto next = document.data();
+	if (!move.finish(map, next, error)) {
+		return false;
+	}
+	WorldDocumentChange change;
+	if (!document.makeChange(next, change, error)) {
+		return error.empty(); // No World selector was affected.
+	}
+	auto action = editor.createAction(ACTION_MOVE);
+	action->addChange(Change::CreateWorldDocument(std::move(change)));
+	batch.addAndCommitAction(action);
+	return true;
+}
+
 bool WorldLayerEditor::editProject(const world_layers::Project &value, const std::string &selection) {
 	WorldDocumentChange change;
 	std::string error;

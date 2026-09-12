@@ -1,5 +1,6 @@
 #include "world/world_document.h"
 #include "world/world_files.hpp"
+#include "world/world_validation.hpp"
 
 #include <exception>
 #include <fstream>
@@ -7,6 +8,66 @@
 #include <algorithm>
 #include <set>
 #include <nlohmann/json.hpp>
+
+WorldBaseMove::WorldBaseMove(const world_layers::Project &project, const world_layers::ApplicationPlan &plan, world_layers::MapView &map, const world_layers::Position &offset, const std::set<uint64_t> &selected) {
+	for (const auto &resolved : plan.objects) {
+		const auto object = project.find(resolved.id);
+		if (!object || !object->selector || !object->selector->container.empty() || !resolved.original) {
+			continue;
+		}
+		const auto tile = map.tile(object->selector->position);
+		const auto original = std::find_if(tile.items.begin(), tile.items.end(), [&](const auto &item) { return item.key == resolved.original; });
+		if (original == tile.items.end()) {
+			continue;
+		}
+		auto position = object->selector->position;
+		if (selected.contains(resolved.original)) {
+			position = { position.x - offset.x, position.y - offset.y, position.z - offset.z };
+		}
+		keys[resolved.original].push_back(bindings.size());
+		bindings.push_back({ resolved.id, world_layers::selectorFingerprint({ *original }), resolved.original, position });
+	}
+}
+
+void WorldBaseMove::copied(uint64_t before, uint64_t after) {
+	const auto found = keys.find(before);
+	if (found == keys.end() || before == after) {
+		return;
+	}
+	auto indices = std::move(found->second);
+	keys.erase(found);
+	for (const auto index : indices) {
+		bindings[index].key = after;
+		keys[after].push_back(index);
+	}
+}
+
+bool WorldBaseMove::finish(world_layers::MapView &map, world_layers::Project &project, std::string &error) const {
+	auto next = project;
+	for (const auto &binding : bindings) {
+		const auto tile = map.tile(binding.position);
+		const auto found = std::find_if(tile.items.begin(), tile.items.end(), [&](const auto &item) { return item.key == binding.key; });
+		if (found == tile.items.end() || world_layers::selectorFingerprint({ *found }) != binding.fingerprint) {
+			error = "Moving this selection would remove or change the base item of " + binding.id + ". Reassociate that declaration before replacing its original.";
+			return false;
+		}
+		const auto object = next.find(binding.id);
+		if (!object || !object->selector) {
+			error = "World declaration changed during the map move: " + binding.id;
+			return false;
+		}
+		object->selector->position = binding.position;
+		if (object->mode == world_layers::SourceMode::Map) {
+			object->position = binding.position;
+		}
+		if (!world_layers::captureSelector(*object->selector, tile.items, binding.key, error)) {
+			return false;
+		}
+	}
+	project = std::move(next);
+	return true;
+}
+
 namespace {
 	using namespace world_layers;
 	using Files = std::map<std::filesystem::path, std::string>;

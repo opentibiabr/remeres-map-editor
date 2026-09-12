@@ -174,6 +174,7 @@ protected:
 	ActionIdentifier type;
 
 	friend class ActionQueue;
+	friend class BatchAction;
 };
 
 typedef std::vector<Action*> ActionVector;
@@ -205,6 +206,8 @@ public:
 
 	virtual void addAction(Action* action);
 	virtual void addAndCommitAction(Action* action);
+	// Roll back a provisional batch before adding it to the action queue.
+	void rollback();
 
 protected:
 	BatchAction(Editor &editor, ActionIdentifier ident);
@@ -214,6 +217,7 @@ protected:
 	virtual void redo();
 
 	void merge(BatchAction* other);
+	bool prepareWorldChanges(bool undoing, bool uncommittedOnly = false);
 
 	Editor &editor;
 	int timestamp;
@@ -221,6 +225,7 @@ protected:
 	ActionIdentifier type;
 	ActionVector batch;
 	wxString label;
+	bool retired = false;
 
 	friend class ActionQueue;
 };

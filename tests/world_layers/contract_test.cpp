@@ -24,6 +24,59 @@ namespace {
 		stream << value;
 		require(stream.good(), "write fixture");
 	}
+	void baseMovement() {
+		using namespace world_layers;
+		Project project;
+		project.schemaVersion = 2;
+		Layer layer;
+		layer.id = "move";
+		layer.schemaVersion = 2;
+		layer.file = "move.layer.json";
+		const Position source { 100, 100, 7 }, target { 101, 100, 7 };
+		for (const auto id : { "move.bound", "move.original", "move.neighbor" }) {
+			Object object;
+			object.id = id;
+			object.mode = SourceMode::Map;
+			object.position = source;
+			object.itemId = 2772;
+			object.selector = Selector {};
+			object.selector->itemId = 2772;
+			object.selector->position = source;
+			layer.objects.push_back(object);
+		}
+		layer.objects[1].mode = SourceMode::Replace;
+		layer.objects[1].position = { 110, 100, 7 };
+		project.layers.push_back(layer);
+		Diagnostics diagnostics;
+		require(project.rebuildIndex(diagnostics), "index movement declarations");
+		WorldMapFixture map(project);
+		map.tiles[WorldMapFixture::key(source)] = { true, true, false, false, { { 1, 2772 }, { 2, 2772 }, { 3, 2772 } } };
+		map.tiles[WorldMapFixture::key(target)] = { true, true, false, false, { { 4, 2772 } } };
+		ApplicationPlan plan;
+		for (size_t i = 0; i < 3; ++i) {
+			plan.objects.push_back({ project.layers[0].objects[i].id, i + 1 });
+		}
+		WorldBaseMove move(project, plan, map, { -1, 0, 0 }, { 1, 2 });
+		move.copied(1, 11);
+		move.copied(2, 12);
+		move.copied(3, 13);
+		move.copied(11, 21); // Border processing takes another tile copy.
+		move.copied(12, 22);
+		map.tiles[WorldMapFixture::key(source)].items = { { 13, 2772 } };
+		map.tiles[WorldMapFixture::key(target)].items = { { 4, 2772 }, { 21, 2772 }, { 22, 2772 } };
+		std::string error;
+		require(move.finish(map, project, error), "native move updates exact originals across consecutive copies");
+		require(project.find("move.bound")->position == target, "bound item's effective position follows the base item");
+		require(project.find("move.original")->position == Position { 110, 100, 7 } && project.find("move.original")->selector->position == target, "replacement placement stays separate from its moved original");
+		MapItem selected;
+		require(resolveSelector(*project.find("move.bound")->selector, map.tile(target).items, selected, error) && selected.key == 21, "moved item selects its occurrence among identical destination items");
+		require(resolveSelector(*project.find("move.original")->selector, map.tile(target).items, selected, error) && selected.key == 22, "second moved item keeps a distinct occurrence");
+		require(resolveSelector(*project.find("move.neighbor")->selector, map.tile(source).items, selected, error) && selected.key == 13, "stationary neighbor receives refreshed occurrence preconditions");
+		const auto before = serializeLayer(project.layers[0]);
+		map.tiles[WorldMapFixture::key(target)].items.pop_back();
+		require(!move.finish(map, project, error) && serializeLayer(project.layers[0]) == before, "overwritten managed original rejects the entire selector update");
+	}
+
 	void authoring(const std::filesystem::path &scratch) {
 		using namespace world_layers;
 		std::filesystem::path root;
@@ -242,6 +295,7 @@ int main(int argc, char** argv) {
 		diagnostics.clear();
 		require(!world_layers::validateMap(project, conflictMap, plan, diagnostics), "cycle through base-map teleport must be rejected");
 		runWorldV2Tests(scratch);
+		baseMovement();
 		authoring(scratch);
 		runWorldFileTests(scratch);
 		runWorldExternalTests(scratch);

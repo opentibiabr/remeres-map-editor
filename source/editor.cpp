@@ -1058,6 +1058,7 @@ void Editor::moveSelection(const Position &offset) {
 	if (!CanEdit() || !hasSelection()) {
 		return;
 	}
+	auto worldMove = world ? world->beginBaseMove(offset) : nullptr;
 
 	bool borderize = false;
 	int drag_threshold = g_settings.getInteger(Config::BORDERIZE_DRAG_THRESHOLD);
@@ -1071,6 +1072,7 @@ void Editor::moveSelection(const Position &offset) {
 	// Update the tiles with the new positions
 	for (Tile* tile : selection) {
 		Tile* new_tile = tile->deepCopy(map);
+		TrackWorldTileCopy(worldMove.get(), *tile, *new_tile);
 		Tile* storage_tile = map.allocator(tile->getLocation());
 
 		ItemVector selected_items = new_tile->popSelectedItems();
@@ -1166,6 +1168,7 @@ void Editor::moveSelection(const Position &offset) {
 		// Create borders
 		for (const Tile* tile : borderize_tiles) {
 			Tile* new_tile = tile->deepCopy(map);
+			TrackWorldTileCopy(worldMove.get(), *tile, *new_tile);
 			if (borderize) {
 				new_tile->borderize(&map);
 			}
@@ -1198,6 +1201,7 @@ void Editor::moveSelection(const Position &offset) {
 			// Move items
 			if (old_dest_tile) {
 				new_dest_tile = old_dest_tile->deepCopy(map);
+				TrackWorldTileCopy(worldMove.get(), *old_dest_tile, *new_dest_tile);
 			} else {
 				new_dest_tile = map.allocator(location);
 			}
@@ -1282,6 +1286,7 @@ void Editor::moveSelection(const Position &offset) {
 			}
 			if (tile->ground->getGroundBrush()) {
 				Tile* new_tile = tile->deepCopy(map);
+				TrackWorldTileCopy(worldMove.get(), *tile, *new_tile);
 				if (borderize) {
 					new_tile->borderize(&map);
 				}
@@ -1297,7 +1302,19 @@ void Editor::moveSelection(const Position &offset) {
 		batch_action->addAndCommitAction(action);
 	}
 
-	// Store the action for undo
+	if (worldMove) {
+		std::string error;
+		if (!world->finishBaseMove(*worldMove, *batch_action, error)) {
+			batch_action->rollback();
+			delete batch_action;
+			world->refresh();
+			selection.updateSelectionCount();
+			g_gui.PopupDialog("Cannot move World base items", wxstr(error), wxOK);
+			return;
+		}
+	}
+
+	// Store the map changes and their World selectors in the same undo batch.
 	addBatch(batch_action);
 	updateActions();
 	selection.updateSelectionCount();

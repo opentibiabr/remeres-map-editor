@@ -121,7 +121,7 @@ bool Action::affectsMap() const {
 }
 
 bool BatchAction::affectsMap() const {
-	return std::any_of(batch.begin(), batch.end(), [](const Action* action) { return action->affectsMap(); });
+	return !retired && std::any_of(batch.begin(), batch.end(), [](const Action* action) { return action->affectsMap(); });
 }
 
 size_t Action::approx_memsize() const {
@@ -570,6 +570,9 @@ void BatchAction::addAndCommitAction(Action* action) {
 }
 
 void BatchAction::commit() {
+	if (!prepareWorldChanges(false, true)) {
+		return;
+	}
 	for (Action* action : batch) {
 		if (action && !action->isCommited()) {
 			action->commit(nullptr);
@@ -578,14 +581,57 @@ void BatchAction::commit() {
 }
 
 void BatchAction::undo() {
+	if (!prepareWorldChanges(true)) {
+		return;
+	}
 	for (Action* action : std::views::reverse(batch)) {
 		action->undo(nullptr);
 	}
 }
 
 void BatchAction::redo() {
+	if (!prepareWorldChanges(false)) {
+		return;
+	}
 	for (Action* action : batch) {
 		action->redo(nullptr);
+	}
+}
+
+bool BatchAction::prepareWorldChanges(bool undoing, bool uncommittedOnly) {
+	if (retired) {
+		return false;
+	}
+	std::optional<WorldLayerDocument> probe;
+	std::string error;
+	for (size_t i = 0; i < batch.size(); ++i) {
+		const auto action = batch[undoing ? batch.size() - i - 1 : i];
+		if (uncommittedOnly && action->isCommited()) {
+			continue;
+		}
+		for (const auto change : action->changes) {
+			if (change->getType() != CHANGE_WORLD_OBJECT) {
+				continue;
+			}
+			if (editor.world && !probe) {
+				probe = editor.world->document;
+			}
+			auto copy = *static_cast<WorldDocumentChange*>(change->getData());
+			if (!probe || !probe->exchange(copy, error)) {
+				retired = true;
+				g_gui.SetStatusText(wxstr(error.empty() ? "Map and World action retired because its document was closed" : error));
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+void BatchAction::rollback() {
+	for (const auto action : std::views::reverse(batch)) {
+		if (action->isCommited()) {
+			action->undo(nullptr);
+		}
 	}
 }
 
