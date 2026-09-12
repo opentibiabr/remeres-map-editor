@@ -5,6 +5,7 @@
 #include "world/world_validation.hpp"
 #include <bitset>
 #include <memory>
+#include <tuple>
 
 class Editor;
 class Item;
@@ -92,7 +93,8 @@ private:
 	uint64_t validatedRevision = UINT64_MAX;
 	mutable std::unordered_map<uint16_t, std::unique_ptr<Item>> sprites;
 	WorldViewIndex spatialIndex;
-	std::map<world_layers::Position, std::vector<std::string>> selectorRoots;
+	using SelectorRoot = std::tuple<int32_t, int32_t, int32_t>;
+	std::map<SelectorRoot, std::vector<std::string>> selectorRoots;
 	std::optional<std::filesystem::path> chooseLayer();
 	std::unique_ptr<WorldFileMonitor> fileMonitor;
 	void ensureMapValidated();

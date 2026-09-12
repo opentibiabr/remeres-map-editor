@@ -1376,7 +1376,7 @@ void WorldLayerEditor::validate() {
 		for (const auto &object : layer.objects) {
 			std::unordered_set<std::string> visiting;
 			if (const auto root = selectorRoot(selectorRoot, object, visiting)) {
-				selectorRoots[*root].push_back(world_layers::objectId(layer, object));
+				selectorRoots[{ root->x, root->y, root->z }].push_back(world_layers::objectId(layer, object));
 			}
 		}
 	}
@@ -1626,7 +1626,7 @@ void WorldLayerEditor::acknowledgeMapChange() {
 
 	std::unordered_set<std::string> affected;
 	for (const auto &position : changes.positions) {
-		const auto found = selectorRoots.find(portable(position));
+		const auto found = selectorRoots.find({ position.x, position.y, position.z });
 		if (found != selectorRoots.end()) {
 			affected.insert(found->second.begin(), found->second.end());
 		}
@@ -2269,9 +2269,9 @@ void CreateWorldCatalog() {
 		g_gui.PopupDialog("Cannot create World catalog", wxstr(error), wxOK);
 		return;
 	}
-	auto items = LoadWorldItemCatalog(document.data().items);
+	auto itemCatalog = LoadWorldItemCatalog(document.data().items);
 	auto revisions = document.observedRevisions();
-	editor->world = std::make_unique<WorldLayerEditor>(*editor, std::move(document), std::move(items), std::move(revisions));
+	editor->world = std::make_unique<WorldLayerEditor>(*editor, std::move(document), std::move(itemCatalog), std::move(revisions));
 	ShowWorldPalette();
 	editor->world->refresh();
 	editor->world->manageLayers();
