@@ -1638,13 +1638,10 @@ void WorldLayerEditor::acknowledgeMapChange() {
 	mapValidationPending = true;
 	++validationRevision;
 	if (!affected.empty()) {
-		std::erase_if(plan.objects, [&](const auto &object) { return affected.contains(object.id); });
-		plan.originals.clear();
-		for (const auto &object : plan.objects) {
-			if (object.original) {
-				plan.originals.insert(object.original);
-			}
-		}
+		// Replacement suppression also contains every descendant of a consumed
+		// container. It cannot be reconstructed from the flattened bindings after
+		// one base pointer changes, so discard the transient plan until validation.
+		plan = {};
 	}
 }
 
