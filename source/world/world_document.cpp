@@ -10,6 +10,14 @@
 #include <nlohmann/json.hpp>
 
 WorldBaseMove::WorldBaseMove(const world_layers::Project &project, const world_layers::ApplicationPlan &plan, world_layers::MapView &map, const world_layers::Position &offset, const std::set<uint64_t> &selected) {
+	const auto track = [&](const world_layers::Object &object, const std::string &id, const world_layers::MapItem &original) {
+		auto position = object.selector->position;
+		if (selected.contains(original.key)) {
+			position = { position.x - offset.x, position.y - offset.y, position.z - offset.z };
+		}
+		keys[original.key].push_back(bindings.size());
+		bindings.push_back({ id, world_layers::selectorFingerprint({ original }), original.key, position });
+	};
 	for (const auto &resolved : plan.objects) {
 		const auto object = project.find(resolved.id);
 		if (!object || !object->selector || !object->selector->container.empty() || !resolved.original) {
@@ -20,12 +28,24 @@ WorldBaseMove::WorldBaseMove(const world_layers::Project &project, const world_l
 		if (original == tile.items.end()) {
 			continue;
 		}
-		auto position = object->selector->position;
-		if (selected.contains(resolved.original)) {
-			position = { position.x - offset.x, position.y - offset.y, position.z - offset.z };
+		track(*object, resolved.id, *original);
+	}
+	// Inactive layers do not enter the application plan, but moving their
+	// original still has to update the saved selector before reactivation.
+	for (const auto &layer : project.layers) {
+		if (layer.enabled) {
+			continue;
 		}
-		keys[resolved.original].push_back(bindings.size());
-		bindings.push_back({ resolved.id, world_layers::selectorFingerprint({ *original }), resolved.original, position });
+		for (const auto &object : layer.objects) {
+			if (!object.selector || !object.selector->container.empty()) {
+				continue;
+			}
+			world_layers::MapItem original;
+			std::string error;
+			if (world_layers::resolveSelector(*object.selector, map.tile(object.selector->position).items, original, error)) {
+				track(object, world_layers::objectId(layer, object), original);
+			}
+		}
 	}
 }
 

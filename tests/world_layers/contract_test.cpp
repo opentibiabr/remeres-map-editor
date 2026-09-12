@@ -56,6 +56,16 @@ namespace {
 		for (size_t i = 0; i < 3; ++i) {
 			plan.objects.push_back({ project.layers[0].objects[i].id, i + 1 });
 		}
+		auto inactive = layer;
+		inactive.id = "inactive";
+		inactive.file = "inactive.layer.json";
+		inactive.enabled = false;
+		inactive.objects.resize(1);
+		inactive.objects[0].id = "inactive.bound";
+		std::string error;
+		require(captureSelector(*inactive.objects[0].selector, map.tile(source).items, 1, error), "capture inactive binding before moving its original");
+		project.layers.push_back(inactive);
+		require(project.rebuildIndex(diagnostics), "index inactive movement declaration");
 		WorldBaseMove move(project, plan, map, { -1, 0, 0 }, { 1, 2 });
 		move.copied(1, 11);
 		move.copied(2, 12);
@@ -64,11 +74,12 @@ namespace {
 		move.copied(12, 22);
 		map.tiles[WorldMapFixture::key(source)].items = { { 13, 2772 } };
 		map.tiles[WorldMapFixture::key(target)].items = { { 4, 2772 }, { 21, 2772 }, { 22, 2772 } };
-		std::string error;
 		require(move.finish(map, project, error), "native move updates exact originals across consecutive copies");
 		require(project.find("move.bound")->position == target, "bound item's effective position follows the base item");
 		require(project.find("move.original")->position == Position { 110, 100, 7 } && project.find("move.original")->selector->position == target, "replacement placement stays separate from its moved original");
 		MapItem selected;
+		require(project.find("inactive.bound")->position == target && resolveSelector(*project.find("inactive.bound")->selector, map.tile(target).items, selected, error) && selected.key == 21, "inactive binding follows the same original without activating its layer");
+		require(!project.layers[1].enabled, "base movement preserves inactive layer status");
 		require(resolveSelector(*project.find("move.bound")->selector, map.tile(target).items, selected, error) && selected.key == 21, "moved item selects its occurrence among identical destination items");
 		require(resolveSelector(*project.find("move.original")->selector, map.tile(target).items, selected, error) && selected.key == 22, "second moved item keeps a distinct occurrence");
 		require(resolveSelector(*project.find("move.neighbor")->selector, map.tile(source).items, selected, error) && selected.key == 13, "stationary neighbor receives refreshed occurrence preconditions");
