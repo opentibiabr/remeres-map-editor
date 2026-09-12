@@ -327,8 +327,65 @@ WorldExternalResult WorldLayerDocument::reconcileExternal(bool discardConflicts,
 			return WorldExternalResult::Unchanged;
 		}
 		WorldLayerDocument disk;
-		if (!disk.open(project.file, error)) {
+		world_files::Revision catalogBytes;
+		if (!world_files::revision(project.file, catalogBytes, error)) {
 			return WorldExternalResult::Invalid;
+		}
+		const bool unpublished = !source.contains(project.file) && !catalogBytes;
+		if (unpublished) {
+			disk.project = header(project);
+			disk.project.layers.clear();
+			disk.project.behaviors.clear();
+		} else if (!disk.open(project.file, error)) {
+			return WorldExternalResult::Invalid;
+		}
+		// A newly included dependency may not belong to the disk catalog yet.
+		// Read it under the same publication protocol without publishing a
+		// temporary catalog or treating an absent existing file as empty data.
+		world_files::ReadGuard guard(project.file, error);
+		if (!guard.valid()) {
+			return WorldExternalResult::Invalid;
+		}
+		const bool externalCatalog = std::any_of(changes.begin(), changes.end(), [&](const auto &entry) { return entry.file == project.file; });
+		if (!externalCatalog) {
+			Diagnostics diagnostics;
+			for (const auto &layer : project.layers) {
+				if (layerAt(disk.project, layer.file)) {
+					continue;
+				}
+				world_files::Revision bytes;
+				if (!world_files::revision(layer.file, bytes, error)) {
+					return WorldExternalResult::Invalid;
+				}
+				if (!bytes && !source.contains(layer.file)) {
+					continue; // A locally created, still unpublished layer.
+				}
+				Layer parsed;
+				if (!bytes || !parseLayer(*bytes, layer.file, parsed, diagnostics)) {
+					errors(diagnostics, error);
+					if (!bytes) {
+						error = "A referenced layer was removed: " + layer.file.generic_string();
+					}
+					return WorldExternalResult::Invalid;
+				}
+				parsed.enabled = layer.enabled;
+				disk.source[layer.file] = *bytes;
+				disk.saved[layer.file] = serializeLayer(parsed);
+				disk.project.layers.push_back(std::move(parsed));
+			}
+			for (const auto &descriptor : project.behaviors) {
+				if (std::any_of(disk.project.behaviors.begin(), disk.project.behaviors.end(), [&](const auto &entry) { return entry.file == descriptor.file; })) {
+					continue;
+				}
+				std::string bytes, script;
+				BehaviorDescriptor parsed;
+				if (!readProjectSource(descriptor.file, bytes, error, &disk.source) || !parseBehavior(bytes, descriptor.file, parsed, diagnostics)
+				    || !readProjectSource(parsed.script, script, error, &disk.source)) {
+					errors(diagnostics, error);
+					return WorldExternalResult::Invalid;
+				}
+				disk.project.behaviors.push_back(std::move(parsed));
+			}
 		}
 		if (disk.project.map != project.map) {
 			error = "The external catalog changed its base map. Reopen the corresponding OTBM to use it.";
@@ -414,6 +471,16 @@ WorldExternalResult WorldLayerDocument::reconcileExternal(bool discardConflicts,
 			}
 		}
 		if (!structure(merged, error)) {
+			return WorldExternalResult::Invalid;
+		}
+		for (const auto &[file, bytes] : disk.source) {
+			world_files::Revision currentBytes;
+			if (!world_files::revision(file, currentBytes, error) || currentBytes != world_files::Revision(bytes)) {
+				error = "A document changed during external reconciliation: " + file.generic_string();
+				return WorldExternalResult::Invalid;
+			}
+		}
+		if (!guard.unchanged(error)) {
 			return WorldExternalResult::Invalid;
 		}
 		// Keep the exact parsed bytes as the save baseline, not a second read

@@ -87,6 +87,8 @@ association and reports the written base copy.
 
 RME watches the configured files and checks again after regaining focus and at
 periodic intervals. Valid unrelated edits reload while preserving local work.
+This includes descriptors and scripts included locally before the catalog has
+been saved: reloading those files preserves the unpublished catalog and objects.
 Overlapping edits offer base/local/disk comparison, a draft copy, or confirmed
 reload limited to the conflict. Invalid JSON and missing files preserve the last
 valid scene. Historical actions tied to superseded revisions cannot overwrite

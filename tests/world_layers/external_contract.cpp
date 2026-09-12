@@ -49,7 +49,28 @@ void runWorldExternalTests(const std::filesystem::path &scratch) {
 	check(parseBehavior(descriptorSource, descriptorFile, descriptor, descriptorDiagnostics), "parse observed descriptor");
 	project.behaviors.push_back(descriptor);
 	check(document.observe(descriptorFile, error) && document.observe(scriptFile, error), "retain exact implementation revisions");
-	check(document.editProject(project, error) && document.save(error), "save two independent documents");
+	check(document.editProject(project, error), "stage two unpublished documents");
+	std::vector<WorldExternalChange> changes;
+	write(scriptFile, "-- edited before the first save\n");
+	check(document.reconcileExternal(false, changes, error) == WorldExternalResult::Reloaded, "reload implementation before the catalog exists on disk");
+	check(!std::filesystem::exists(project.file) && document.dirty() && document.data().find("one.anchor"), "external reload retains unpublished catalog and objects without writing them");
+	write(scriptFile, scriptSource);
+	check(document.reconcileExternal(false, changes, error) == WorldExternalResult::Reloaded && document.save(error), "save after reconciling unpublished dependencies");
+	// Include another descriptor locally, then edit it before publishing the
+	// catalog entry. The older disk catalog must not discard this dependency.
+	const auto extraFile = root / "extra.behavior.json";
+	const std::string extraSource = R"({"schemaVersion":2,"id":"extra.behavior","contractVersion":1,"script":"example.lua","targetKind":"item","events":["onUse"],"parameters":{},"relations":{}})";
+	write(extraFile, extraSource);
+	BehaviorDescriptor extra;
+	check(parseBehavior(extraSource, extraFile, extra, descriptorDiagnostics) && document.observe(extraFile, error), "observe a locally included descriptor");
+	project = document.data();
+	project.behaviors.push_back(extra);
+	check(document.editProject(project, error), "include descriptor before catalog save");
+	write(extraFile, extraSource.substr(0, extraSource.size() - 1) + R"(,"name":"Edited externally"})");
+	check(document.reconcileExternal(false, changes, error) == WorldExternalResult::Reloaded && document.data().behavior("extra.behavior")->name == "Edited externally", "reload a descriptor absent from the saved catalog");
+	project = document.data();
+	project.behaviors.pop_back();
+	check(document.editProject(project, error) && document.save(error), "remove temporary descriptor from the local catalog");
 	const auto baseline = document.data();
 	project = baseline;
 	project.find("one.anchor")->position.x = 101;
@@ -57,7 +78,6 @@ void runWorldExternalTests(const std::filesystem::path &scratch) {
 	auto external = baseline.layers[1];
 	external.objects[0].position.y = 102;
 	write(external.file, serializeLayer(external));
-	std::vector<WorldExternalChange> changes;
 	check(document.reconcileExternal(false, changes, error) == WorldExternalResult::Reloaded, "automatically reload unrelated external file");
 	check(document.data().find("one.anchor")->position.x == 101 && document.data().find("two.anchor")->position.y == 102 && document.dirty(), "external reload retains local edits");
 	check(document.undo() && document.data().find("one.anchor")->position.x == 100 && document.data().find("two.anchor")->position.y == 102, "unrelated history survives external reload");
