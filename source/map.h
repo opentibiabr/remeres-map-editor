@@ -28,6 +28,13 @@
 #include "zones.h"
 #include "templates.h"
 #include "spawn_npc.h"
+#include <unordered_map>
+
+struct MapUniqueItem {
+	uint16_t uid;
+	const Item* item;
+	Position position;
+};
 
 class Map : public BaseMap {
 public:
@@ -152,6 +159,9 @@ public:
 	}
 
 	bool hasUniqueId(uint16_t uid) const;
+	const std::vector<MapUniqueItem> &uniqueItems() const noexcept {
+		return uniqueItemOccurrences;
+	}
 
 protected:
 	// Loads a map
@@ -202,7 +212,8 @@ public:
 	Zones zones;
 
 private:
-	std::vector<uint16_t> uniqueIds;
+	std::unordered_map<uint16_t, size_t> uniqueIds;
+	std::vector<MapUniqueItem> uniqueItemOccurrences;
 };
 
 template <typename ForeachType>

@@ -60,6 +60,7 @@
     <ClCompile Include="..\..\source\world\world_selectors.cpp" />
     <ClCompile Include="..\..\source\world\world_validation.cpp" />
     <ClCompile Include="..\..\source\world\world_document.cpp" />
+    <ClCompile Include="..\..\source\world\world_view_index.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Import Project="$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.targets" Condition="'$(_ZVcpkgRoot)' == '' and Exists('$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.targets')" />

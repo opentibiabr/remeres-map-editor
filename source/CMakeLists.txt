@@ -329,6 +329,7 @@ target_sources(
           world/world_selectors.cpp
           world/world_validation.cpp
           world/world_document.cpp
+          world/world_view_index.cpp
           world/world_editor.cpp
           world/world_properties.cpp)
 
@@ -385,4 +386,5 @@ endif()
 set_source_files_properties(
   world/world_layers.cpp world/world_files.cpp world/world_format.cpp
   world/world_selectors.cpp world/world_validation.cpp world/world_document.cpp
+  world/world_view_index.cpp
   PROPERTIES SKIP_PRECOMPILE_HEADERS ON SKIP_UNITY_BUILD_INCLUSION ON)

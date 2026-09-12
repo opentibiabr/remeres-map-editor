@@ -119,6 +119,26 @@ apply configuration changes. Lua reload only reloads compatible implementations;
 it does not reload the world. RME live editing is unavailable for attached World
 catalogs because that network protocol does not synchronize these documents.
 
+## Performance model
+
+RME parses and validates the complete active project when it opens and whenever
+the map or a World document changes. This global pass is required to detect
+duplicate UIDs, ambiguous selectors and broken references. Navigation does not
+repeat that work.
+
+The canvas maintains a spatial display index and queries only objects on the
+current floor inside the visible viewport. Item previews are created when an
+external object first becomes visible. Object labels are drawn only for the
+selected or hovered object. The Worlds palette uses a virtual list, so scrolling
+requests only visible rows from the native control; filtering rebuilds its result
+only when the query or document revision changes.
+
+The map maintains its effective UID census as tiles are loaded, replaced, undone
+or redone. Attaching a World project therefore reuses that index instead of
+scanning the complete OTBM. File monitoring compares source revisions without
+serializing every document on each poll and materializes local comparison text
+only for files that changed on disk.
+
 ## Validation
 
 The maintained headless suite checks v1/v2 contracts, selectors, UIDs, authoring,

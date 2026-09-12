@@ -1,6 +1,8 @@
 #include "world/world_document.h"
+#include "world/world_view_index.h"
 #include "map_fixture.hpp"
 #include "contract_v2.hpp"
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
@@ -13,6 +15,43 @@ namespace {
 		if (!condition) {
 			throw std::runtime_error(message);
 		}
+	}
+	void viewIndexContract() {
+		world_layers::Project project;
+		project.schemaVersion = 2;
+		world_layers::Layer active;
+		active.id = "active";
+		active.schemaVersion = 2;
+		for (const auto &[id, position] : std::vector<std::pair<std::string, world_layers::Position>> {
+				 { "first", { 100, 100, 7 } }, { "second", { 100, 100, 7 } }, { "far", { 105, 105, 7 } }, { "other_floor", { 100, 100, 8 } } }) {
+			world_layers::Object object;
+			object.id = id;
+			object.kind = world_layers::ObjectKind::Anchor;
+			object.position = position;
+			active.objects.push_back(object);
+		}
+		auto contained = active.objects.front();
+		contained.id = "contained";
+		contained.container = "active.first";
+		active.objects.push_back(contained);
+		project.layers.push_back(active);
+		auto disabled = active;
+		disabled.id = "disabled";
+		disabled.enabled = false;
+		disabled.objects.front().id = "hidden";
+		project.layers.push_back(disabled);
+
+		WorldViewIndex index;
+		index.rebuild(project, { { {}, "first", {}, "invalid fixture" } });
+		const auto &sameTile = index.at({ 100, 100, 7 });
+		require(sameTile.size() == 2, "spatial index excludes contained and inactive objects");
+		require(index.entry(sameTile[0]).id == "first" && index.entry(sameTile[1]).id == "second", "spatial index preserves catalog order");
+		require(index.entry(sameTile[0]).invalid && !index.entry(sameTile[1]).invalid, "spatial index retains per-object diagnostics");
+		const auto &near = index.visible(7, 99, 99, 101, 101);
+		require(near.size() == 2, "viewport query includes only visible objects on its floor");
+		const auto &far = index.visible(7, 104, 104, 106, 106);
+		require(far.size() == 1 && index.entry(far.front()).id == "far", "viewport bounds invalidate the cached query");
+		require(index.find("other_floor") && !index.find("hidden") && !index.find("missing"), "identity lookup follows active top-level entries");
 	}
 	std::string bytes(const std::filesystem::path &file) {
 		std::string value, error;
@@ -178,6 +217,30 @@ namespace {
 
 int main(int argc, char** argv) {
 	try {
+		if (argc == 3 && std::string(argv[1]) == "--benchmark-project") {
+			WorldLayerDocument document;
+			std::string error;
+			const auto measure = [&](const char* stage, const auto &operation) {
+				const auto before = std::chrono::steady_clock::now();
+				operation();
+				const auto elapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - before).count();
+				std::cout << stage << ": " << elapsed << " ms" << std::endl;
+			};
+			measure("open", [&] {
+				if (!document.open(std::filesystem::u8path(argv[2]), error)) {
+					throw std::runtime_error(error);
+				}
+			});
+			std::cout << "objects: " << document.data().objects.size() << std::endl;
+			for (int iteration = 0; iteration < 3; ++iteration) {
+				measure("observe", [&] { require(!document.observedFiles().empty(), "observed catalog must not be empty"); });
+				measure("poll", [&] {
+					std::vector<WorldExternalChange> changes;
+					require(document.reconcileExternal(false, changes, error) == WorldExternalResult::Unchanged, "benchmark requires unchanged input files");
+				});
+			}
+			return 0;
+		}
 		require(argc == 3, "expected fixture and scratch directories");
 		const auto fixture = std::filesystem::path(argv[1]);
 		const auto scratch = std::filesystem::path(argv[2]);
@@ -282,6 +345,7 @@ int main(int argc, char** argv) {
 		world_layers::Layer layer;
 		diagnostics.clear();
 		require(!world_layers::parseLayer(R"({"schemaVersion":1,"id":"a","id":"b","objects":[]})", "duplicate.json", layer, diagnostics), "duplicate JSON property");
+		viewIndexContract();
 		diagnostics.clear();
 		require(!world_layers::parseLayer(R"({"schemaVersion":3,"id":"future","objects":[]})", "future.json", layer, diagnostics), "future schema must be rejected");
 		diagnostics.clear();

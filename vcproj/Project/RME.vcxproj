@@ -288,6 +288,10 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="..\..\source\world\world_editor.cpp" />
+    <ClCompile Include="..\..\source\world\world_view_index.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClInclude Include="..\..\source\world\world_view_index.h" />
     <ClCompile Include="..\..\source\world\world_properties.cpp" />
     <ClInclude Include="..\..\source\world\world_properties.h" />
     <ClInclude Include="..\..\source\world\world_layers.hpp" />

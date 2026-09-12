@@ -1,6 +1,7 @@
 #pragma once
 
 #include "world/world_document.h"
+#include "world/world_view_index.h"
 #include "world/world_validation.hpp"
 #include <memory>
 
@@ -20,7 +21,6 @@ public:
 	void validate();
 	void synchronizeMap();
 	void acknowledgeMapChange();
-	void updateTile(const Position &position);
 	void select(const std::string &id);
 	void editProperties(wxWindow* parent);
 	void edit(const std::string &id, const world_layers::Object &value);
@@ -49,6 +49,9 @@ public:
 	const Item* sprite(uint16_t id) const;
 	std::string at(const world_layers::Position &position) const;
 	world_layers::Position position(const std::string &id) const;
+	const WorldViewIndex &viewIndex() const {
+		return spatialIndex;
+	}
 	void finishDrag(bool commit);
 
 	WorldLayerDocument document;
@@ -72,10 +75,10 @@ private:
 	Editor &editor;
 	world_layers::ApplicationPlan plan;
 	world_layers::Diagnostics catalogDiagnostics;
-	std::unordered_map<uint64_t, std::vector<world_layers::UniqueOccurrence>> uniqueIds;
 	uint64_t mapRevision = 0;
-	std::unordered_map<uint16_t, std::unique_ptr<Item>> sprites;
-	std::unordered_map<uint64_t, std::vector<std::string>> positionObjects;
+	uint64_t validatedRevision = UINT64_MAX;
+	mutable std::unordered_map<uint16_t, std::unique_ptr<Item>> sprites;
+	WorldViewIndex spatialIndex;
 	std::optional<std::filesystem::path> chooseLayer();
 	std::unique_ptr<WorldFileMonitor> fileMonitor;
 };

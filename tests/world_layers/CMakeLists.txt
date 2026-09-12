@@ -9,7 +9,8 @@ add_executable(
   ../../source/world/world_format.cpp
   ../../source/world/world_selectors.cpp
   ../../source/world/world_validation.cpp
-  ../../source/world/world_document.cpp)
+  ../../source/world/world_document.cpp
+  ../../source/world/world_view_index.cpp)
 target_compile_features(world_layers_test PRIVATE cxx_std_20)
 target_include_directories(world_layers_test PRIVATE ../../source)
 target_link_libraries(world_layers_test PRIVATE nlohmann_json::nlohmann_json)

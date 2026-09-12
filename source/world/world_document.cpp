@@ -304,8 +304,12 @@ std::vector<std::filesystem::path> WorldLayerDocument::observedFiles() const {
 	for (const auto &[file, content] : source) {
 		paths.insert(file);
 	}
-	for (const auto &[file, content] : documents(project)) {
-		paths.insert(file);
+	paths.insert(project.file);
+	for (const auto &layer : project.layers) {
+		paths.insert(layer.file);
+	}
+	for (const auto &record : project.migrationRecords) {
+		paths.insert(record.file);
 	}
 	for (const auto &descriptor : project.behaviors) {
 		paths.insert(descriptor.file);
@@ -316,19 +320,33 @@ std::vector<std::filesystem::path> WorldLayerDocument::observedFiles() const {
 
 bool WorldLayerDocument::externalChanges(std::vector<WorldExternalChange> &changes, std::string &error) const {
 	std::vector<WorldExternalChange> found;
-	const auto current = documents(project);
 	for (const auto &file : observedFiles()) {
 		world_files::Revision disk;
 		if (!world_files::revision(file, disk, error)) {
 			return false;
 		}
 		const auto original = source.find(file);
-		const auto base = original == source.end() ? world_files::Revision() : world_files::Revision(original->second);
-		if (disk == base) {
+		if (original == source.end() ? !disk : disk && *disk == original->second) {
 			continue;
 		}
-		const auto value = current.find(file);
-		found.push_back({ file, base, value == current.end() ? base : world_files::Revision(value->second), disk });
+		const auto base = original == source.end() ? world_files::Revision() : world_files::Revision(original->second);
+		// Materialize comparison text only for a file that actually changed.
+		// Unchanged polling still compares exact bytes, including edits that
+		// preserve the file's size and modification time.
+		auto local = base;
+		if (file == project.file) {
+			local = serializeProject(project);
+		} else if (const auto layer = layerAt(project, file)) {
+			local = serializeLayer(*layer);
+		} else {
+			for (const auto &record : project.migrationRecords) {
+				if (record.file == file) {
+					local = serializeMigration(record);
+					break;
+				}
+			}
+		}
+		found.push_back({ file, base, std::move(local), std::move(disk) });
 	}
 	changes = std::move(found);
 	return true;

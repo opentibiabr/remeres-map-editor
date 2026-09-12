@@ -13,6 +13,7 @@
 #include <wx/choicdlg.h>
 #include <wx/numdlg.h>
 #include <wx/fswatcher.h>
+#include <wx/listctrl.h>
 #include <wx/notebook.h>
 #include <wx/dirdlg.h>
 
@@ -22,9 +23,6 @@ namespace {
 	}
 	world_layers::Position portable(const Position &p) {
 		return { p.x, p.y, p.z };
-	}
-	uint64_t positionKey(const world_layers::Position &p) {
-		return (uint64_t(p.x) << 20) | (uint64_t(p.y) << 4) | uint64_t(p.z);
 	}
 	world_layers::MapItem snapshot(Item* item, bool ground = false) {
 		using world_layers::Value;
@@ -77,8 +75,7 @@ namespace {
 
 	class EditorMapView final : public world_layers::MapView {
 	public:
-		EditorMapView(Map &map, const std::unordered_map<uint64_t, std::vector<world_layers::UniqueOccurrence>> &ids) :
-			map(map), ids(ids) { }
+		explicit EditorMapView(Map &map) : map(map) { }
 		bool nativeTeleport(uint16_t id) const override {
 			return g_items.getItemType(id).isTeleport();
 		}
@@ -137,11 +134,9 @@ namespace {
 		}
 		std::vector<world_layers::UniqueOccurrence> uniqueIds(const std::unordered_set<uint16_t> &requested) override {
 			std::vector<world_layers::UniqueOccurrence> result;
-			for (const auto &[position, entries] : ids) {
-				for (const auto &entry : entries) {
-					if (requested.empty() || requested.contains(entry.uid)) {
-						result.push_back(entry);
-					}
+			for (const auto &entry : map.uniqueItems()) {
+				if (requested.empty() || requested.contains(entry.uid)) {
+					result.push_back({ entry.uid, reinterpret_cast<uintptr_t>(entry.item), portable(entry.position) });
 				}
 			}
 			return result;
@@ -149,7 +144,6 @@ namespace {
 
 	private:
 		Map &map;
-		const std::unordered_map<uint64_t, std::vector<world_layers::UniqueOccurrence>> &ids;
 	};
 
 	WorldLayerEditor* current() {
@@ -256,11 +250,6 @@ WorldLayerEditor::WorldLayerEditor(Editor &owner, WorldLayerDocument data) :
 	const auto loaded = catalog.load_file(document.data().items.c_str());
 	if (!loaded || !catalog.child("items")) {
 		catalogDiagnostics.push_back({ document.data().items, "", "", "Cannot read the project's item catalog" });
-	}
-	for (auto it = editor.getMap().begin(); it != editor.getMap().end(); ++it) {
-		if (const auto tile = (*it)->get()) {
-			updateTile(tile->getPosition());
-		}
 	}
 	acknowledgeMapChange();
 	validate();
@@ -643,7 +632,7 @@ bool WorldLayerEditor::pickAt(const world_layers::Position &position) {
 		};
 		std::vector<Candidate> candidates;
 		wxArrayString labels;
-		EditorMapView view(editor.getMap(), uniqueIds);
+		EditorMapView view(editor.getMap());
 		const auto collect = [&](const auto &self, const std::vector<world_layers::MapItem> &items, const std::string &container) -> void {
 			for (const auto &item : items) {
 				world_layers::Selector selector;
@@ -682,7 +671,7 @@ bool WorldLayerEditor::pickAt(const world_layers::Position &position) {
 			object->itemId = chosen.item.itemId;
 		}
 	} else {
-		const auto found = positionObjects.find(positionKey(position));
+		const auto &found = spatialIndex.at(position);
 		std::vector<std::string> ids;
 		wxArrayString labels;
 		const world_layers::RelationType* type = nullptr;
@@ -694,9 +683,10 @@ bool WorldLayerEditor::pickAt(const world_layers::Position &position) {
 			}
 			type = &descriptor->relations.at(request.relation);
 		}
-		EditorMapView view(editor.getMap(), uniqueIds);
-		if (found != positionObjects.end()) {
-			for (const auto &id : found->second) {
+		EditorMapView view(editor.getMap());
+		if (!found.empty()) {
+			for (const auto index : found) {
+				const auto &id = spatialIndex.entry(index).id;
 				const auto target = next.find(id);
 				if (type && ((type->targetKind == "item") != (target->kind == world_layers::ObjectKind::Item) || std::any_of(type->capabilities.begin(), type->capabilities.end(), [&](const auto &capability) { return !view.capability(target->itemId, capability); }))) {
 					continue;
@@ -748,32 +738,23 @@ bool WorldLayerEditor::pickAt(const world_layers::Position &position) {
 
 void WorldLayerEditor::validate() {
 	++validationRevision;
-	positionObjects.clear();
-	for (const auto &layer : document.data().layers) {
-		for (const auto &object : layer.objects) {
-			if (layer.enabled && object.container.empty() && (!object.selector || object.selector->container.empty())) {
-				if (const auto position = world_layers::objectPosition(document.data(), object)) {
-					positionObjects[positionKey(*position)].push_back(world_layers::objectId(layer, object));
-				}
-			}
-			if (object.kind == world_layers::ObjectKind::Item && !sprites.contains(object.itemId) && g_items.isValidID(object.itemId)) {
-				sprites.emplace(object.itemId, Item::Create(object.itemId));
-			}
-		}
-	}
+	validatedRevision = document.revision();
 	diagnostics.clear();
 	plan = {};
-	EditorMapView view(editor.getMap(), uniqueIds);
+	EditorMapView view(editor.getMap());
 	world_layers::validateMap(document.data(), view, plan, diagnostics);
 	diagnostics.insert(diagnostics.end(), catalogDiagnostics.begin(), catalogDiagnostics.end());
 	if (!catalogDiagnostics.empty()) {
 		plan = {};
 	}
+	spatialIndex.rebuild(document.data(), diagnostics);
 }
 
 void WorldLayerEditor::refresh() {
 	synchronizeMap();
-	validate();
+	if (validatedRevision != document.revision()) {
+		validate();
+	}
 	g_gui.UpdateTitle();
 	g_gui.root->UpdateMenubar();
 	g_gui.RefreshView();
@@ -941,36 +922,49 @@ bool WorldLayerEditor::suppressed(const Item* item) const {
 }
 
 const Item* WorldLayerEditor::sprite(uint16_t id) const {
-	const auto it = sprites.find(id);
-	return it == sprites.end() ? nullptr : it->second.get();
+	if (!g_items.isValidID(id)) {
+		return nullptr;
+	}
+	const auto [it, inserted] = sprites.try_emplace(id);
+	if (inserted) {
+		it->second.reset(Item::Create(id));
+	}
+	return it->second.get();
 }
 
 std::string WorldLayerEditor::at(const world_layers::Position &position) const {
 	if (!document.visible) {
 		return {};
 	}
-	const auto found = positionObjects.find(positionKey(position));
-	return found == positionObjects.end() || found->second.empty() ? std::string() : found->second.front();
+	const auto &found = spatialIndex.at(position);
+	return found.empty() ? std::string() : spatialIndex.entry(found.front()).id;
 }
 
 world_layers::Position WorldLayerEditor::position(const std::string &id) const {
 	if (drag && document.selected == id) {
 		return *drag;
 	}
+	if (const auto indexed = spatialIndex.find(id)) {
+		return indexed->position;
+	}
 	const auto object = document.data().find(id);
 	return object ? world_layers::objectPosition(document.data(), *object).value_or(world_layers::Position {}) : world_layers::Position {};
 }
 
 void WorldLayerEditor::finishDrag(bool commit) {
-	if (drag && commit) {
+	if (!drag) {
+		return;
+	}
+	const auto position = *drag;
+	drag.reset();
+	if (commit) {
 		if (const auto object = document.data().find(document.selected)) {
 			auto changed = *object;
-			changed.position = *drag;
+			changed.position = position;
 			edit(document.selected, changed);
 		}
 	}
-	drag.reset();
-	refresh();
+	g_gui.RefreshView();
 }
 
 void WorldLayerEditor::acknowledgeMapChange() {
@@ -981,44 +975,8 @@ void WorldLayerEditor::synchronizeMap() {
 	if (mapRevision == editor.getMap().revision()) {
 		return;
 	}
-	uniqueIds.clear();
-	for (auto it = editor.getMap().begin(); it != editor.getMap().end(); ++it) {
-		if (const auto tile = (*it)->get()) {
-			updateTile(tile->getPosition());
-		}
-	}
 	acknowledgeMapChange();
 	validate();
-}
-
-void WorldLayerEditor::updateTile(const Position &position) {
-	const uint64_t key = (uint64_t(position.x) << 20) | (uint64_t(position.y) << 4) | uint64_t(position.z);
-	uniqueIds.erase(key);
-	const auto tile = editor.getMap().getTile(position);
-	if (!tile) {
-		return;
-	}
-	std::vector<world_layers::UniqueOccurrence> entries;
-	const auto scan = [&](const auto &self, Item* item) -> void {
-		if (!item) {
-			return;
-		}
-		if (item->getUniqueID()) {
-			entries.push_back({ item->getUniqueID(), reinterpret_cast<uintptr_t>(item), portable(position) });
-		}
-		if (const auto container = item->getContainer()) {
-			for (auto child : container->getVector()) {
-				self(self, child);
-			}
-		}
-	};
-	scan(scan, tile->ground);
-	for (auto item : tile->items) {
-		scan(scan, item);
-	}
-	if (!entries.empty()) {
-		uniqueIds.emplace(key, std::move(entries));
-	}
 }
 
 void WorldLayerEditor::select(const std::string &id) {
@@ -1153,7 +1111,7 @@ std::unique_ptr<WorldBaseMove> WorldLayerEditor::beginBaseMove(const Position &o
 			}
 		}
 	}
-	EditorMapView map(editor.getMap(), uniqueIds);
+	EditorMapView map(editor.getMap(), knownItems);
 	return std::make_unique<WorldBaseMove>(document.data(), plan, map, portable(offset), selected);
 }
 
@@ -1170,7 +1128,7 @@ void TrackWorldTileCopy(WorldBaseMove* move, const Tile &before, const Tile &aft
 }
 
 bool WorldLayerEditor::finishBaseMove(WorldBaseMove &move, BatchAction &batch, std::string &error) {
-	EditorMapView map(editor.getMap(), uniqueIds);
+	EditorMapView map(editor.getMap(), knownItems);
 	auto next = document.data();
 	if (!move.finish(map, next, error)) {
 		return false;
@@ -1243,6 +1201,33 @@ void WorldLayerEditor::editProperties(wxWindow* parent) {
 }
 
 namespace {
+	class WorldObjectList final : public wxListCtrl {
+	public:
+		explicit WorldObjectList(wxWindow* parent) :
+			wxListCtrl(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL | wxLC_NO_HEADER | wxLC_VIRTUAL) {
+			InsertColumn(0, "World object");
+			Bind(wxEVT_SIZE, [this](wxSizeEvent &event) {
+				SetColumnWidth(0, std::max(1, GetClientSize().GetWidth()));
+				event.Skip();
+			});
+		}
+		void setRows(std::vector<wxString> values) {
+			rows = std::move(values);
+			SetItemCount(static_cast<long>(rows.size()));
+			if (!rows.empty()) {
+				RefreshItems(0, static_cast<long>(rows.size() - 1));
+			}
+		}
+
+	protected:
+		wxString OnGetItemText(long item, long) const override {
+			return item >= 0 && static_cast<size_t>(item) < rows.size() ? rows[item] : wxString {};
+		}
+
+	private:
+		std::vector<wxString> rows;
+	};
+
 	class WorldPalettePanel final : public PalettePanel {
 	public:
 		explicit WorldPalettePanel(wxWindow* parent) :
@@ -1273,7 +1258,7 @@ namespace {
 				entry("Create reference point", [](wxCommandEvent &) { if (auto world = current()){ world->createObject(world_layers::ObjectKind::Anchor, world_layers::SourceMode::Create);
 } });
 				PopupMenu(&menu, add->GetPosition() + wxPoint(0, add->GetSize().y));
-				update(true);
+				update(false);
 			});
 			commands->Add(add, 1, wxRIGHT, 5);
 			auto manage = new wxButton(this, wxID_ANY, "Manage...");
@@ -1302,7 +1287,7 @@ namespace {
 				entry("Delete selected declaration", [](wxCommandEvent &) { if (auto world = current()){ world->removeSelected();
 } });
 				PopupMenu(&menu, manage->GetPosition() + wxPoint(0, manage->GetSize().y));
-				update(true);
+				update(false);
 			});
 			commands->Add(manage, 1);
 			sizer->Add(commands, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
@@ -1322,16 +1307,16 @@ namespace {
 			filter->SetHint("Find a world or object...");
 			filter->Bind(wxEVT_TEXT, [this](wxCommandEvent &) { update(true); });
 			sizer->Add(filter, 0, wxEXPAND | wxALL, 5);
-			objects = new wxListBox(this, wxID_ANY);
-			objects->Bind(wxEVT_LISTBOX, [this](wxCommandEvent &) {
-				const auto index = objects->GetSelection();
-				if (auto world = current(); world && index != wxNOT_FOUND && size_t(index) < ids.size()) {
+			objects = new WorldObjectList(this);
+			objects->Bind(wxEVT_LIST_ITEM_SELECTED, [this](wxListEvent &event) {
+				const auto index = event.GetIndex();
+				if (auto world = current(); !updatingSelection && world && index >= 0 && size_t(index) < ids.size()) {
 					world->document.visible = true;
 					world->select(ids[index]);
 					navigate(false);
 				}
 			});
-			objects->Bind(wxEVT_LISTBOX_DCLICK, [this](wxCommandEvent &) { properties(); });
+			objects->Bind(wxEVT_LIST_ITEM_ACTIVATED, [this](wxListEvent &) { properties(); });
 			sizer->Add(objects, 1, wxEXPAND | wxALL, 5);
 			auto row = new wxBoxSizer(wxHORIZONTAL);
 			propertiesButton = new wxButton(this, wxID_ANY, "Properties...");
@@ -1357,49 +1342,60 @@ namespace {
 		void OnSwitchIn() override {
 			PalettePanel::OnSwitchIn();
 			g_gui.SetSelectionMode();
-			update(true);
+			update(false);
 		}
 		void OnUpdate() override {
-			update(true);
+			update(false);
 		}
 
 	private:
 		wxStaticText* catalog;
 		wxCheckBox* visible;
 		wxTextCtrl* filter;
-		wxListBox* objects;
+		WorldObjectList* objects;
 		wxTextCtrl* status;
 		wxButton* propertiesButton;
 		wxButton* arrivalButton;
 		std::vector<std::string> ids;
+		std::unordered_map<std::string, long> rows;
 		const WorldLayerDocument* active = nullptr;
 		uint64_t revision = 0;
 		uint64_t validationRevision = 0;
 		std::string selected;
+		std::string externalStatus;
+		bool updatingSelection = false;
 
-		void update(bool force) {
+		void update(bool forceList) {
 			const auto world = current();
-			if (!force && world && active == &world->document && revision == world->document.revision() && validationRevision == world->validationRevision && selected == world->document.selected && visible->GetValue() == world->document.visible) {
+			const auto nextActive = world ? &world->document : nullptr;
+			const auto nextRevision = world ? world->document.revision() : 0;
+			const auto nextValidation = world ? world->validationRevision : 0;
+			const auto nextSelected = world ? world->document.selected : std::string {};
+			const auto nextExternalStatus = world ? world->externalStatus : std::string {};
+			const bool activeChanged = active != nextActive;
+			const bool listChanged = forceList || activeChanged || revision != nextRevision;
+			const bool statusChanged = forceList || activeChanged || validationRevision != nextValidation || externalStatus != nextExternalStatus;
+			const bool selectionChanged = activeChanged || selected != nextSelected;
+			const bool visibilityChanged = visible->GetValue() != (world && world->document.visible);
+			if (!listChanged && !statusChanged && !selectionChanged && !visibilityChanged) {
 				return;
 			}
-			if (!force && !world && !active) {
-				return;
-			}
-			active = world ? &world->document : nullptr;
-			selected = world ? world->document.selected : "";
-			revision = world ? world->document.revision() : 0;
-			validationRevision = world ? world->validationRevision : 0;
+			active = nextActive;
+			selected = nextSelected;
+			revision = nextRevision;
+			validationRevision = nextValidation;
+			externalStatus = nextExternalStatus;
 			visible->Enable(world != nullptr);
 			visible->SetValue(world && world->document.visible);
 			filter->Enable(world != nullptr);
-			objects->Freeze();
-			objects->Clear();
-			ids.clear();
-			if (world) {
+			if (world && listChanged) {
 				const auto &project = world->document.data();
 				catalog->SetLabel(wxstr(project.file.filename().generic_string()));
 				catalog->SetToolTip(wxstr(project.file.generic_string()));
 				const auto search = filter->GetValue().Lower();
+				std::vector<wxString> labels;
+				ids.clear();
+				rows.clear();
 				for (const auto &layer : project.layers) {
 					for (const auto &object : layer.objects) {
 						const auto id = world_layers::objectId(layer, object);
@@ -1407,13 +1403,29 @@ namespace {
 						if (!search.empty() && !(label + wxstr(" " + std::to_string(object.itemId) + " " + std::to_string(object.aid) + " " + std::to_string(object.uid))).Lower().Contains(search)) {
 							continue;
 						}
+						rows.emplace(id, static_cast<long>(ids.size()));
 						ids.push_back(id);
-						const auto index = objects->Append(label);
-						if (selected == id) {
-							objects->SetSelection(index);
-						}
+						labels.push_back(label);
 					}
 				}
+				objects->setRows(std::move(labels));
+			} else if (!world && listChanged) {
+				catalog->SetLabel("No world catalog loaded.");
+				catalog->UnsetToolTip();
+				ids.clear();
+				rows.clear();
+				objects->setRows({});
+			}
+			if (selectionChanged || listChanged) {
+				updatingSelection = true;
+				objects->SetItemState(-1, 0, wxLIST_STATE_SELECTED | wxLIST_STATE_FOCUSED);
+				if (const auto row = rows.find(selected); row != rows.end()) {
+					objects->SetItemState(row->second, wxLIST_STATE_SELECTED | wxLIST_STATE_FOCUSED, wxLIST_STATE_SELECTED | wxLIST_STATE_FOCUSED);
+					objects->EnsureVisible(row->second);
+				}
+				updatingSelection = false;
+			}
+			if (world && statusChanged) {
 				std::string text = world->diagnostics.empty() ? "World objects are valid.\n" : "World validation needs attention:\n";
 				if (!world->externalStatus.empty()) {
 					text = world->externalStatus + "\n\n" + text;
@@ -1423,21 +1435,20 @@ namespace {
 				}
 				text += "\nSelect and drag objects on the map. Double-click for properties. Ctrl+S saves map and layer changes.";
 				status->ChangeValue(wxstr(text));
-			} else {
-				catalog->SetLabel("No world catalog loaded.");
-				catalog->UnsetToolTip();
+			} else if (!world && statusChanged) {
 				status->ChangeValue("Open an OTBM, then load its server world catalog. You can also configure the catalog in Preferences > Directories.");
 			}
-			objects->Thaw();
 			propertiesButton->Enable(world && world->document.data().find(selected));
 			arrivalButton->Enable(world && world->document.data().find(selected) && world->document.data().find(selected)->teleport.has_value());
-			Layout();
+			if (activeChanged || listChanged || statusChanged) {
+				Layout();
+			}
 		}
 		void properties() {
 			if (auto world = current()) {
 				world->editProperties(g_gui.root);
 			}
-			update(true);
+			update(false);
 		}
 		void navigate(bool arrival) {
 			const auto world = current();
