@@ -182,6 +182,7 @@
         <item name="$Npc Palette" hotkey="N" action="SELECT_NPC" help="Select the Npc palette."/>
         <item name="$Waypoint Palette" hotkey="W" action="SELECT_WAYPOINT" help="Select the Waypoint palette."/>
         <item name="$Zones Palette" hotkey="Z" action="SELECT_ZONES" help="Select the Zones palette."/>
+        <item name="Worlds Palette" action="VIEW_WORLDS" help="Select Worlds in the normal palette to find server world objects."/>
         <item name="$RAW Palette" hotkey="R" action="SELECT_RAW" help="Select the RAW palette."/>
     </menu>
     <!--

@@ -13,6 +13,7 @@ change to the OTBM format.
    **Map > Load Server Worlds...**. The association is remembered in
    **Preferences > Directories > World catalog**. A sibling catalog takes priority.
 3. Use the normal **Worlds** palette beside NPCs and RAW, or select it with
+   **Window > Worlds Palette**. It is also available through
    **View > Worlds Palette** (Ctrl+Alt+L). Search by identity, name, item ID, AID
    or UID. Selecting a result centers the map.
 4. If the map has no catalog, the palette offers **Create world catalog...**.
