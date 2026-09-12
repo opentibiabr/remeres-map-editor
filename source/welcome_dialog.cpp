@@ -19,6 +19,7 @@
 #include "welcome_dialog.h"
 #include "settings.h"
 #include "preferences.h"
+#include "gui.h"
 
 wxDEFINE_EVENT(WELCOME_DIALOG_ACTION, wxCommandEvent);
 
@@ -41,8 +42,8 @@ void WelcomeDialog::OnButtonClicked(const wxMouseEvent &event) {
 		} else {
 			wxCommandEvent action_event(WELCOME_DIALOG_ACTION);
 			if (button->GetAction() == wxID_OPEN) {
-				wxString wildcard = "OpenTibia Binary Map (*.otbm)|*.otbm";
-				wxFileDialog file_dialog(this, "Open map file", "", "", wildcard, wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+				wxString wildcard = "Maps and world catalogs (*.otbm;*.world.json)|*.otbm;*.world.json|OpenTibia Binary Map (*.otbm)|*.otbm|World catalog (*.world.json)|*.world.json";
+				wxFileDialog file_dialog(this, "Open map", "", "", wildcard, wxFD_OPEN | wxFD_FILE_MUST_EXIST);
 				if (file_dialog.ShowModal() == wxID_OK) {
 					action_event.SetString(file_dialog.GetPath());
 				} else {
@@ -83,7 +84,7 @@ WelcomeDialogPanel::WelcomeDialogPanel(WelcomeDialog* dialog, const wxSize &size
 	recent_maps_panel->SetMaxSize(wxSize(size.x / 2, size.y));
 	recent_maps_panel->SetBackgroundColour(base_colour.ChangeLightness(98));
 
-	wxSize button_size = FROM_DIP(this, wxSize(150, 35));
+	wxSize button_size = FROM_DIP(this, wxSize(180, 35));
 	wxColour button_base_colour = base_colour.ChangeLightness(90);
 
 	int button_pos_center_x = size.x / 4 - button_size.x / 2;

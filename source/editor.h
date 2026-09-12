@@ -18,6 +18,8 @@
 #ifndef RME_EDITOR_H
 #define RME_EDITOR_H
 
+#include <memory>
+
 #include "item.h"
 #include "tile.h"
 #include "iomap.h"
@@ -32,14 +34,21 @@ class LiveClient;
 class LiveServer;
 class LiveSocket;
 
+class WorldLayerEditor;
+
 class Editor {
 public:
 	Editor(CopyBuffer &copybuffer, LiveClient* client);
 	Editor(CopyBuffer &copybuffer, const FileName &fn);
 	Editor(CopyBuffer &copybuffer);
 	~Editor();
+	uint64_t sessionId() const noexcept {
+		return session_id;
+	}
+	std::unique_ptr<WorldLayerEditor> world;
 
 protected:
+	const uint64_t session_id;
 	// Live Server
 	LiveServer* live_server;
 	LiveClient* live_client;

@@ -16,6 +16,7 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "main.h"
+#include "world/world_editor.h"
 
 #include "editor.h"
 #include "materials.h"
@@ -49,7 +50,12 @@
 
 namespace fs = std::filesystem;
 
+namespace {
+	std::atomic<uint64_t> nextEditorSession { 1 };
+}
+
 Editor::Editor(CopyBuffer &copybuffer) :
+	session_id(nextEditorSession.fetch_add(1, std::memory_order_relaxed)),
 	live_server(nullptr),
 	live_client(nullptr),
 	actionQueue(newd ActionQueue(*this)),
@@ -85,6 +91,7 @@ Editor::Editor(CopyBuffer &copybuffer) :
 
 // Used for loading a new map from "open map" menu
 Editor::Editor(CopyBuffer &copybuffer, const FileName &fn) :
+	session_id(nextEditorSession.fetch_add(1, std::memory_order_relaxed)),
 	live_server(nullptr),
 	live_client(nullptr),
 	actionQueue(newd ActionQueue(*this)),
@@ -134,6 +141,7 @@ Editor::Editor(CopyBuffer &copybuffer, const FileName &fn) :
 }
 
 Editor::Editor(CopyBuffer &copybuffer, LiveClient* client) :
+	session_id(nextEditorSession.fetch_add(1, std::memory_order_relaxed)),
 	live_server(nullptr),
 	live_client(client),
 	actionQueue(newd NetworkedActionQueue(*this)),
@@ -174,6 +182,9 @@ bool Editor::canRedo() const {
 }
 
 void Editor::undo(int indexes) {
+	if (world) {
+		world->finishDrag(false);
+	}
 	if (indexes <= 0 || !actionQueue->canUndo()) {
 		return;
 	}
@@ -189,6 +200,9 @@ void Editor::undo(int indexes) {
 }
 
 void Editor::redo(int indexes) {
+	if (world) {
+		world->finishDrag(false);
+	}
 	if (indexes <= 0 || !actionQueue->canRedo()) {
 		return;
 	}
@@ -219,6 +233,9 @@ void Editor::clearActions() {
 }
 
 bool Editor::hasChanges() const {
+	if (world && world->document.dirty()) {
+		return true;
+	}
 	if (map.hasChanged()) {
 		if (map.getTileCount() == 0) {
 			return actionQueue->hasChanges();
@@ -233,8 +250,45 @@ void Editor::clearChanges() {
 }
 
 void Editor::saveMap(FileName filename, bool showdialog) {
+	if (world) {
+		world->finishDrag(true);
+	}
+	const auto previousFilename = map.filename;
+	const auto previousName = map.name;
+	const auto previousMonsterFile = map.spawnmonsterfile;
+	const auto previousNpcFile = map.spawnnpcfile;
+	const auto previousHouseFile = map.housefile;
+	const auto previousZoneFile = map.zonefile;
+	const bool copyWorld = world && !filename.GetFullPath().empty() && filename != FileName(wxstr(map.filename));
+	bool coordinatedWorldSave = false;
+	if (copyWorld) {
+		std::string error;
+		if (!world->document.canCopyForMap(std::filesystem::u8path(nstr(filename.GetFullPath())), error)) {
+			g_gui.PopupDialog("Cannot copy server worlds", wxstr(error), wxOK);
+			return;
+		}
+	} else if (world) {
+		if (world->document.dirty()) {
+			coordinatedWorldSave = world->dependsOnUnsavedMap();
+			if (coordinatedWorldSave) {
+				world->validate();
+				if (!world->diagnostics.empty()) {
+					g_gui.PopupDialog("Cannot save World", wxstr(world->diagnostics.front().describe() + "\nThe map and World files were not published."), wxOK);
+					return;
+				}
+			} else if (!world->save()) {
+				return;
+			}
+		}
+		if (!map.hasChanged()) {
+			if (coordinatedWorldSave) {
+				g_gui.PopupDialog("Unsaved map dependency", "A World selector depends on a map revision that is not marked for saving. Reassociate the target or save the map edit first.", wxOK);
+			}
+			return;
+		}
+	}
 	std::string savefile = filename.GetFullPath().mb_str(wxConvUTF8).data();
-	bool save_as = false;
+	bool save_as = copyWorld;
 	bool save_otgz = false;
 
 	if (savefile.empty()) {
@@ -246,7 +300,7 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 	}
 
 	// If not named yet, propagate the file name to the auxilliary files
-	if (map.unnamed) {
+	if (map.unnamed || copyWorld) {
 		FileName _name(filename);
 		_name.SetExt("xml");
 
@@ -270,6 +324,21 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 	// Make temporary backups
 	// converter.Assign(wxstr(savefile));
 	std::string backup_otbm, backup_house, backup_spawn, backup_spawn_npc, backup_zones;
+	bool coordinationStarted = false;
+	if (coordinatedWorldSave) {
+		std::string error;
+		if (!world_files::beginCoordination(world->document.data().file, error)) {
+			map.filename = previousFilename;
+			map.name = previousName;
+			map.spawnmonsterfile = previousMonsterFile;
+			map.spawnnpcfile = previousNpcFile;
+			map.housefile = previousHouseFile;
+			map.zonefile = previousZoneFile;
+			g_gui.PopupDialog("Cannot coordinate map and World save", wxstr(error), wxOK);
+			return;
+		}
+		coordinationStarted = true;
+	}
 
 	if (converter.GetExt() == "otgz") {
 		save_otgz = true;
@@ -321,7 +390,9 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 		f << backup_otbm << std::endl
 		  << backup_house << std::endl
 		  << backup_spawn << std::endl
-		  << backup_spawn_npc << std::endl;
+		  << backup_spawn_npc << std::endl
+		  << backup_zones << std::endl
+		  << (coordinationStarted ? world->document.data().file.generic_string() : std::string()) << std::endl;
 	}
 
 	{
@@ -338,56 +409,77 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 		// Perform the actual save
 		IOMapOTBM mapsaver(map.getVersion());
 		bool success = mapsaver.saveMap(map, fn);
+		bool recoveryPending = false;
+		if (success && coordinatedWorldSave) {
+			if (!world->save()) {
+				success = false;
+			} else {
+				std::string error;
+				if (!world_files::endCoordination(world->document.data().file, error)) {
+					success = false;
+					recoveryPending = true;
+					g_gui.PopupDialog("Coordinated save needs recovery", wxstr("The map and World files were published, but their recovery guard could not be finalized. Reopen the map and finish or restore the coordinated save.\n" + error), wxOK);
+				}
+			}
+		}
 
 		if (showdialog) {
 			g_gui.DestroyLoadBar();
 		}
 
 		// Check for errors...
-		if (!success) {
+		if (!success && !recoveryPending) {
 			// Rename the temporary backup files back to their previous names
-			if (!backup_otbm.empty()) {
-				converter.SetFullName(wxstr(savefile));
-				std::string otbm_filename = map_path + nstr(converter.GetName());
-				std::rename(backup_otbm.c_str(), std::string(otbm_filename + (save_otgz ? ".otgz" : ".otbm")).c_str());
+			const auto restore = [&](const std::string &target, const std::string &backup) {
+				if (!backup.empty() || coordinationStarted) {
+					std::remove(target.c_str());
+				}
+				if (!backup.empty()) {
+					std::rename(backup.c_str(), target.c_str());
+				}
+			};
+			restore(savefile, backup_otbm);
+			if (!save_otgz) {
+				restore(map_path + map.housefile, backup_house);
+				restore(map_path + map.spawnmonsterfile, backup_spawn);
+				restore(map_path + map.spawnnpcfile, backup_spawn_npc);
+				restore(map_path + map.zonefile, backup_zones);
 			}
 
-			if (!backup_house.empty()) {
-				converter.SetFullName(wxstr(map.housefile));
-				std::string house_filename = map_path + nstr(converter.GetName());
-				std::rename(backup_house.c_str(), std::string(house_filename + ".xml").c_str());
-			}
-
-			if (!backup_spawn.empty()) {
-				converter.SetFullName(wxstr(map.spawnmonsterfile));
-				std::string spawn_filename = map_path + nstr(converter.GetName());
-				std::rename(backup_spawn.c_str(), std::string(spawn_filename + ".xml").c_str());
-			}
-
-			if (!backup_spawn_npc.empty()) {
-				converter.SetFullName(wxstr(map.spawnnpcfile));
-				std::string spawnnpc_filename = map_path + nstr(converter.GetName());
-				std::rename(backup_spawn_npc.c_str(), std::string(spawnnpc_filename + ".xml").c_str());
-			}
-
-			if (!backup_zones.empty()) {
-				converter.SetFullName(wxstr(map.zonefile));
-				std::string zones_filename = map_path + nstr(converter.GetName());
-				std::rename(backup_zones.c_str(), std::string(zones_filename + ".xml").c_str());
+			if (coordinationStarted && world_files::coordinatedPending(world->document.data().file)) {
+				std::string error;
+				if (!world_files::recoverCoordination(world->document.data().file, world->document.data().file.parent_path(), true, error)) {
+					recoveryPending = true;
+					g_gui.PopupDialog("Coordinated save needs recovery", wxstr("The previous map files were restored, but the World transaction still requires recovery. Reopen the map and choose Restore previous files.\n" + error), wxOK);
+				}
 			}
 
 			// Display the error
-			g_gui.PopupDialog("Error", "Could not save, unable to open target for writing.", wxOK);
+			if (!recoveryPending) {
+				if (coordinationStarted) {
+					g_gui.PopupDialog("Coordinated save rolled back", "The save did not complete, so the previous map and World revisions were restored. Both edits remain open.", wxOK);
+				} else {
+					g_gui.PopupDialog("Error", "Could not save, unable to open target for writing.", wxOK);
+				}
+			}
 		}
 
 		// Remove temporary save runfile
-		{
+		if (!recoveryPending) {
 			std::string n = nstr(g_gui.GetLocalDataDirectory()) + ".saving.txt";
 			std::remove(n.c_str());
 		}
 
 		// If failure, don't run the rest of the function
 		if (!success) {
+			if (world) {
+				map.filename = previousFilename;
+				map.name = previousName;
+				map.spawnmonsterfile = previousMonsterFile;
+				map.spawnnpcfile = previousNpcFile;
+				map.housefile = previousHouseFile;
+				map.zonefile = previousZoneFile;
+			}
 			return;
 		}
 	}
@@ -454,6 +546,20 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 
 	deleteOldBackups(map_path + "backups/");
 
+	if (copyWorld) {
+		std::string error;
+		if (!world->document.copyForMap(std::filesystem::u8path(map.filename), error, actionQueue->worldDocumentChanges())) {
+			map.filename = previousFilename;
+			map.name = previousName;
+			map.spawnmonsterfile = previousMonsterFile;
+			map.spawnnpcfile = previousNpcFile;
+			map.housefile = previousHouseFile;
+			map.zonefile = previousZoneFile;
+			g_gui.PopupDialog("Cannot copy server worlds", "The base map copy was written, but its world catalog could not be copied. This tab still edits the original map.\n" + wxstr(error), wxOK);
+			return;
+		}
+		world->refresh();
+	}
 	clearChanges();
 }
 
@@ -1002,6 +1108,12 @@ void Editor::moveSelection(const Position &offset) {
 	if (!CanEdit() || !hasSelection()) {
 		return;
 	}
+	std::string worldError;
+	auto worldMove = world ? world->beginBaseMove(offset, worldError) : nullptr;
+	if (world && !worldMove) {
+		g_gui.PopupDialog("Cannot move World base items", wxstr(worldError), wxOK);
+		return;
+	}
 
 	bool borderize = false;
 	int drag_threshold = g_settings.getInteger(Config::BORDERIZE_DRAG_THRESHOLD);
@@ -1015,6 +1127,7 @@ void Editor::moveSelection(const Position &offset) {
 	// Update the tiles with the new positions
 	for (Tile* tile : selection) {
 		Tile* new_tile = tile->deepCopy(map);
+		TrackWorldTileCopy(worldMove.get(), *tile, *new_tile);
 		Tile* storage_tile = map.allocator(tile->getLocation());
 
 		ItemVector selected_items = new_tile->popSelectedItems();
@@ -1110,6 +1223,7 @@ void Editor::moveSelection(const Position &offset) {
 		// Create borders
 		for (const Tile* tile : borderize_tiles) {
 			Tile* new_tile = tile->deepCopy(map);
+			TrackWorldTileCopy(worldMove.get(), *tile, *new_tile);
 			if (borderize) {
 				new_tile->borderize(&map);
 			}
@@ -1142,6 +1256,7 @@ void Editor::moveSelection(const Position &offset) {
 			// Move items
 			if (old_dest_tile) {
 				new_dest_tile = old_dest_tile->deepCopy(map);
+				TrackWorldTileCopy(worldMove.get(), *old_dest_tile, *new_dest_tile);
 			} else {
 				new_dest_tile = map.allocator(location);
 			}
@@ -1226,6 +1341,7 @@ void Editor::moveSelection(const Position &offset) {
 			}
 			if (tile->ground->getGroundBrush()) {
 				Tile* new_tile = tile->deepCopy(map);
+				TrackWorldTileCopy(worldMove.get(), *tile, *new_tile);
 				if (borderize) {
 					new_tile->borderize(&map);
 				}
@@ -1241,7 +1357,19 @@ void Editor::moveSelection(const Position &offset) {
 		batch_action->addAndCommitAction(action);
 	}
 
-	// Store the action for undo
+	if (worldMove) {
+		std::string error;
+		if (!world->finishBaseMove(*worldMove, *batch_action, error)) {
+			batch_action->rollback();
+			delete batch_action;
+			world->refresh();
+			selection.updateSelectionCount();
+			g_gui.PopupDialog("Cannot move World base items", wxstr(error), wxOK);
+			return;
+		}
+	}
+
+	// Store the map changes and their World selectors in the same undo batch.
 	addBatch(batch_action);
 	updateActions();
 	selection.updateSelectionCount();

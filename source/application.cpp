@@ -36,6 +36,7 @@
 #include "monster.h"
 #include "npc.h"
 #include "lua/lua_script_manager.h"
+#include "world/world_files.hpp"
 
 #include "../brushes/icon/rme_icon.xpm"
 
@@ -219,16 +220,16 @@ bool Application::OnInit() {
 	if (save_failed_file.FileExists()) {
 		std::ifstream f(nstr(save_failed_file.GetFullPath()).c_str(), std::ios::in);
 
-		std::string backup_otbm, backup_house, backup_spawn, backup_spawn_npc;
+		std::string backup_otbm, backup_house, backup_spawn, backup_spawn_npc, backup_zones, world_catalog;
 
 		getline(f, backup_otbm);
 		getline(f, backup_house);
 		getline(f, backup_spawn);
 		getline(f, backup_spawn_npc);
+		getline(f, backup_zones);
+		getline(f, world_catalog);
 
-		// Remove the file
 		f.close();
-		std::remove(nstr(save_failed_file.GetFullPath()).c_str());
 
 		// Query file retrieval if possible
 		if (!backup_otbm.empty()) {
@@ -246,6 +247,14 @@ bool Application::OnInit() {
 			);
 
 			if (ret == wxID_YES) {
+				if (!world_catalog.empty()) {
+					std::string error;
+					const auto catalog = std::filesystem::u8path(world_catalog);
+					if (!world_files::recoverCoordination(catalog, catalog.parent_path(), true, error)) {
+						g_gui.PopupDialog("World recovery needs attention", wxstr(error), wxOK);
+						return true;
+					}
+				}
 				// Recover if the user so wishes
 				std::remove(backup_otbm.substr(0, backup_otbm.size() - 1).c_str());
 				std::rename(backup_otbm.c_str(), backup_otbm.substr(0, backup_otbm.size() - 1).c_str());
@@ -262,11 +271,28 @@ bool Application::OnInit() {
 					std::remove(backup_spawn_npc.substr(0, backup_spawn_npc.size() - 1).c_str());
 					std::rename(backup_spawn_npc.c_str(), backup_spawn_npc.substr(0, backup_spawn_npc.size() - 1).c_str());
 				}
+				if (!backup_zones.empty()) {
+					std::remove(backup_zones.substr(0, backup_zones.size() - 1).c_str());
+					std::rename(backup_zones.c_str(), backup_zones.substr(0, backup_zones.size() - 1).c_str());
+				}
+				std::remove(nstr(save_failed_file.GetFullPath()).c_str());
 
 				// Load the map
 				g_gui.LoadMap(wxstr(backup_otbm.substr(0, backup_otbm.size() - 1)));
 				return true;
 			}
+			if (!world_catalog.empty()) {
+				std::string error;
+				const auto catalog = std::filesystem::u8path(world_catalog);
+				if (!world_files::recoverCoordination(catalog, catalog.parent_path(), false, error)) {
+					g_gui.PopupDialog("World recovery needs attention", wxstr(error), wxOK);
+					return true;
+				}
+			}
+			std::remove(nstr(save_failed_file.GetFullPath()).c_str());
+		}
+		if (backup_otbm.empty()) {
+			std::remove(nstr(save_failed_file.GetFullPath()).c_str());
 		}
 	}
 	// Keep track of first event loop entry
@@ -337,9 +363,17 @@ bool Application::ParseCommandLineMap(wxString &fileName) {
 }
 
 MainFrame::MainFrame(const wxString &title, const wxPoint &pos, const wxSize &size) :
-	wxFrame((wxFrame*)nullptr, -1, title, pos, size, wxDEFAULT_FRAME_STYLE) {
+	wxFrame((wxFrame*)nullptr, -1, title, pos, size, wxDEFAULT_FRAME_STYLE), world_load_timer(this) {
 	// Receive idle events
 	SetExtraStyle(wxWS_EX_PROCESS_IDLE);
+	Bind(
+		wxEVT_TIMER, [this](wxTimerEvent &) {
+			if (!g_gui.ProcessPendingWorldLoads()) {
+				world_load_timer.Stop();
+			}
+		},
+		world_load_timer.GetId()
+	);
 
 #if wxCHECK_VERSION(3, 1, 0) // 3.1.0 or higher
 	// Make sure ShowFullScreen() uses the full screen API on macOS
@@ -381,6 +415,12 @@ MainFrame::~MainFrame() = default;
 
 void MainFrame::OnIdle(wxIdleEvent &event) {
 	////
+}
+
+void MainFrame::WatchPendingWorldLoads() {
+	if (!world_load_timer.IsRunning()) {
+		world_load_timer.Start(50);
+	}
 }
 
 #ifdef _USE_UPDATER_
@@ -546,6 +586,9 @@ bool MainFrame::DoQuerySave(bool doclose, bool checkTileset) {
 				} else {
 					return false;
 				}
+			}
+			if (editor.hasChanges()) {
+				return false;
 			}
 		} else if (ret == wxID_CANCEL) {
 			return false;

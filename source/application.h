@@ -26,6 +26,7 @@
 #include "process_com.h"
 #include "map_display.h"
 #include "welcome_dialog.h"
+#include <wx/timer.h>
 
 class Item;
 class Monster;
@@ -89,6 +90,7 @@ public:
 	void UpdateFloorMenu();
 	void UpdateIndicatorsMenu();
 	void OnIdle(wxIdleEvent &event);
+	void WatchPendingWorldLoads();
 	void OnExit(wxCloseEvent &event);
 
 #ifdef _USE_UPDATER_
@@ -104,6 +106,7 @@ public:
 protected:
 	MainMenuBar* menu_bar;
 	MainToolBar* tool_bar;
+	wxTimer world_load_timer;
 
 	friend class Application;
 	friend class GUI;

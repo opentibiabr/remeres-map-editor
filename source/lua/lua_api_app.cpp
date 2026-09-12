@@ -109,11 +109,11 @@ namespace LuaAPI {
 				throw sol::error("Transaction already in progress");
 			}
 
-			editor = ed;
-			if (!editor) {
-				throw sol::error("No editor or action queue available");
+			if (!ed || !ed->CanEdit()) {
+				throw sol::error("No editable base map or action queue available");
 			}
 
+			editor = ed;
 			active = true;
 			batch.reset(editor->getActionQueue()->createBatch(ACTION_LUA_SCRIPT));
 			action.reset(editor->getActionQueue()->createAction(ACTION_LUA_SCRIPT));

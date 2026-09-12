@@ -45,8 +45,8 @@ public:
 
 protected:
 	void commit();
-	void undo();
-	void redo();
+	bool undo();
+	bool redo();
 
 	friend class NetworkedActionQueue;
 };

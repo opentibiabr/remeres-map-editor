@@ -22,6 +22,14 @@
 #include "map.h"
 #include "editor.h"
 #include "gui.h"
+#include "world/world_editor.h"
+
+Change* Change::CreateWorldDocument(WorldDocumentChange value) {
+	Change* change = new Change();
+	change->type = CHANGE_WORLD_OBJECT;
+	change->data = new WorldDocumentChange(std::move(value));
+	return change;
+}
 
 Change::Change() :
 	type(CHANGE_NONE), data(nullptr) {
@@ -66,6 +74,9 @@ void Change::clear() {
 			ASSERT(data);
 			delete reinterpret_cast<WaypointData*>(data);
 			break;
+		case CHANGE_WORLD_OBJECT:
+			delete reinterpret_cast<WorldDocumentChange*>(data);
+			break;
 		case CHANGE_NONE:
 			break;
 		default:
@@ -85,6 +96,9 @@ uint32_t Change::memsize() const {
 	uint32_t mem = sizeof(*this);
 	if (type == CHANGE_TILE) {
 		mem += reinterpret_cast<Tile*>(data)->memsize();
+	} else if (type == CHANGE_WORLD_OBJECT) {
+		const auto size = static_cast<const WorldDocumentChange*>(data)->memorySize();
+		mem = static_cast<uint32_t>(std::min<uint64_t>(uint64_t(mem) + size, UINT32_MAX));
 	}
 	return mem;
 }
@@ -102,7 +116,18 @@ Action::~Action() {
 	changes.clear();
 }
 
+bool Action::affectsMap() const {
+	return !retired && std::any_of(changes.begin(), changes.end(), [](const Change* change) { return change->getType() != CHANGE_WORLD_OBJECT && change->getType() != CHANGE_NONE; });
+}
+
+bool BatchAction::affectsMap() const {
+	return !retired && std::any_of(batch.begin(), batch.end(), [](const Action* action) { return action->affectsMap(); });
+}
+
 size_t Action::approx_memsize() const {
+	if (type == ACTION_WORLD_OBJECT) {
+		return memsize();
+	}
 	uint32_t mem = sizeof(*this);
 	mem += changes.size() * (sizeof(Change) + sizeof(Tile) + sizeof(Item) + 6 /* approx overhead*/);
 	return mem;
@@ -113,15 +138,42 @@ size_t Action::memsize() const {
 	mem += sizeof(Change*) * 3 * changes.size();
 
 	for (const Change* change : changes) {
-		if (change && change->getType() == CHANGE_TILE) {
-			mem += reinterpret_cast<Tile*>(change->getData())->memsize();
+		if (change) {
+			mem += change->memsize();
 		}
 	}
 
 	return mem;
 }
 
+bool Action::prepareWorldChanges() {
+	if (retired) {
+		return false;
+	}
+	for (const auto change : changes) {
+		if (change->getType() == CHANGE_WORLD_OBJECT) {
+			std::string error;
+			if (!editor.world || !editor.world->document.canExchange(*static_cast<WorldDocumentChange*>(change->data), error)) {
+				retired = true;
+				g_gui.SetStatusText(wxstr(error.empty() ? "World action retired because its document was closed" : error));
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 void Action::commit(DirtyList* dirty_list) {
+	if (!prepareWorldChanges()) {
+		commited = true;
+		return;
+	}
+	if (editor.world) {
+		editor.world->synchronizeMap();
+		if (type != ACTION_WORLD_OBJECT) {
+			editor.world->document.selected.clear();
+		}
+	}
 	Map &map = editor.getMap();
 	Selection &selection = editor.getSelection();
 	selection.start(Selection::INTERNAL);
@@ -266,6 +318,14 @@ void Action::commit(DirtyList* dirty_list) {
 				break;
 			}
 
+			case CHANGE_WORLD_OBJECT: {
+				auto data = static_cast<WorldDocumentChange*>(change->data);
+				std::string error;
+				if (editor.world && !editor.world->document.exchange(*data, error)) {
+					g_gui.SetStatusText(wxstr(error));
+				}
+				break;
+			}
 			default:
 				break;
 		}
@@ -275,11 +335,21 @@ void Action::commit(DirtyList* dirty_list) {
 }
 
 void Action::undo(DirtyList* dirty_list) {
+	if (!prepareWorldChanges()) {
+		commited = false;
+		return;
+	}
 	if (changes.empty()) {
 		return;
 	}
 
 	Map &map = editor.getMap();
+	if (editor.world) {
+		editor.world->synchronizeMap();
+		if (type != ACTION_WORLD_OBJECT) {
+			editor.world->document.selected.clear();
+		}
+	}
 	Selection &selection = editor.getSelection();
 	selection.start(Selection::INTERNAL);
 
@@ -398,6 +468,14 @@ void Action::undo(DirtyList* dirty_list) {
 				break;
 			}
 
+			case CHANGE_WORLD_OBJECT: {
+				auto data = static_cast<WorldDocumentChange*>(change->data);
+				std::string error;
+				if (editor.world && !editor.world->document.exchange(*data, error)) {
+					g_gui.SetStatusText(wxstr(error));
+				}
+				break;
+			}
 			default:
 				break;
 		}
@@ -480,22 +558,82 @@ void BatchAction::addAndCommitAction(Action* action) {
 }
 
 void BatchAction::commit() {
+	if (!prepareWorldChanges(false, true)) {
+		return;
+	}
 	for (Action* action : batch) {
 		if (action && !action->isCommited()) {
 			action->commit(nullptr);
 		}
 	}
-}
-
-void BatchAction::undo() {
-	for (Action* action : std::views::reverse(batch)) {
-		action->undo(nullptr);
+	if (editor.world) {
+		editor.world->validate();
 	}
 }
 
-void BatchAction::redo() {
+bool BatchAction::undo() {
+	if (!prepareWorldChanges(true)) {
+		return false;
+	}
+	for (Action* action : std::views::reverse(batch)) {
+		action->undo(nullptr);
+	}
+	if (editor.world) {
+		editor.world->validate();
+	}
+	return true;
+}
+
+bool BatchAction::redo() {
+	if (!prepareWorldChanges(false)) {
+		return false;
+	}
 	for (Action* action : batch) {
 		action->redo(nullptr);
+	}
+	if (editor.world) {
+		editor.world->validate();
+	}
+	return true;
+}
+
+bool BatchAction::prepareWorldChanges(bool undoing, bool uncommittedOnly) {
+	if (retired) {
+		return false;
+	}
+	std::optional<WorldLayerDocument> probe;
+	std::string error;
+	for (size_t i = 0; i < batch.size(); ++i) {
+		const auto action = batch[undoing ? batch.size() - i - 1 : i];
+		if (uncommittedOnly && action->isCommited()) {
+			continue;
+		}
+		for (const auto change : action->changes) {
+			if (change->getType() != CHANGE_WORLD_OBJECT) {
+				continue;
+			}
+			if (editor.world && !probe) {
+				probe = editor.world->document;
+			}
+			auto copy = *static_cast<WorldDocumentChange*>(change->getData());
+			if (!probe || !probe->exchange(copy, error)) {
+				retired = true;
+				g_gui.SetStatusText(wxstr(error.empty() ? "Map and World action retired because its document was closed" : error));
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+void BatchAction::rollback() {
+	for (const auto action : std::views::reverse(batch)) {
+		if (action->isCommited()) {
+			action->undo(nullptr);
+		}
+	}
+	if (editor.world) {
+		editor.world->validate();
 	}
 }
 
@@ -547,7 +685,11 @@ void ActionQueue::addBatch(BatchAction* batch, int stacking_delay) {
 	batch->commit();
 
 	// Update title
-	if (batch->isNoSelection() && editor.getMap().doChange()) {
+	const bool changed = batch->isNoSelection() && batch->affectsMap() && editor.getMap().doChange();
+	if (editor.world) {
+		editor.world->acknowledgeMapChange();
+	}
+	if (changed || editor.world) {
 		g_gui.UpdateTitle();
 	}
 
@@ -625,14 +767,18 @@ void ActionQueue::generateLabels() {
 
 bool ActionQueue::undo() {
 	if (current > 0) {
-		current--;
-		BatchAction* batch = actions.at(current);
-		if (batch) {
-			batch->undo();
+		BatchAction* batch = actions.at(current - 1);
+		if (!batch || !batch->undo()) {
+			return false;
 		}
+		current--;
 
 		// Update title
-		if (batch && batch->isNoSelection() && editor.getMap().doChange()) {
+		const bool changed = batch && batch->isNoSelection() && batch->affectsMap() && editor.getMap().doChange();
+		if (editor.world) {
+			editor.world->acknowledgeMapChange();
+		}
+		if (changed || editor.world) {
 			g_gui.UpdateTitle();
 		}
 		return true;
@@ -643,13 +789,17 @@ bool ActionQueue::undo() {
 bool ActionQueue::redo() {
 	if (current < actions.size()) {
 		BatchAction* batch = actions.at(current);
-		if (batch) {
-			batch->redo();
+		if (!batch || !batch->redo()) {
+			return false;
 		}
 		current++;
 
 		// Update title
-		if (batch && batch->isNoSelection() && editor.getMap().doChange()) {
+		const bool changed = batch && batch->isNoSelection() && batch->affectsMap() && editor.getMap().doChange();
+		if (editor.world) {
+			editor.world->acknowledgeMapChange();
+		}
+		if (changed || editor.world) {
 			g_gui.UpdateTitle();
 		}
 		return true;
@@ -672,6 +822,20 @@ void ActionQueue::clear() {
 	}
 	actions.clear();
 	current = 0;
+}
+
+std::vector<WorldDocumentChange*> ActionQueue::worldDocumentChanges() const {
+	std::vector<WorldDocumentChange*> result;
+	for (const auto batch : actions) {
+		for (const auto action : batch->batch) {
+			for (const auto change : action->changes) {
+				if (change->getType() == CHANGE_WORLD_OBJECT) {
+					result.push_back(static_cast<WorldDocumentChange*>(change->getData()));
+				}
+			}
+		}
+	}
+	return result;
 }
 
 wxString ActionQueue::createLabel(ActionIdentifier type) {
@@ -706,6 +870,8 @@ wxString ActionQueue::createLabel(ActionIdentifier type) {
 			return "Change Properties";
 		case ACTION_LUA_SCRIPT:
 			return "Lua Script";
+		case ACTION_WORLD_OBJECT:
+			return "World Object";
 		default:
 			return wxEmptyString;
 	}

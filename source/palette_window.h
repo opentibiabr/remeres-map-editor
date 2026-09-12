@@ -19,6 +19,7 @@
 #define RME_PALETTE_H_
 
 #include "palette_common.h"
+#include "settings.h"
 
 class BrushPalettePanel;
 class MonsterPalettePanel;
@@ -87,6 +88,7 @@ protected:
 	BrushPalettePanel* doodadPalette = nullptr;
 	BrushPalettePanel* itemPalette = nullptr;
 	MonsterPalettePanel* monsterPalette = nullptr;
+	PalettePanel* worldPalette = nullptr;
 	NpcPalettePanel* npcPalette = nullptr;
 	HousePalettePanel* housePalette = nullptr;
 	WaypointPalettePanel* waypointPalette = nullptr;

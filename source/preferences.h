@@ -119,6 +119,7 @@ protected:
 	wxTextCtrl* version_dir_picker;
 	wxTextCtrl* monsters_lua_dir_picker;
 	wxTextCtrl* npcs_lua_dir_picker;
+	wxTextCtrl* world_catalog_picker;
 	wxCheckBox* check_sigs_chkbox;
 
 	// Create controls

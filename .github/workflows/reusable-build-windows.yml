@@ -155,7 +155,11 @@ jobs:
         with:
           configurePreset: windows-release
           buildPreset: windows-release
-          configurePresetAdditionalArgs: "['-DTOGGLE_BIN_FOLDER=ON', '-DOPTIONS_ENABLE_IPO=OFF']"
+          configurePresetAdditionalArgs: "['-DTOGGLE_BIN_FOLDER=ON', '-DOPTIONS_ENABLE_IPO=OFF', '-DWORLD_LAYER_TESTS=ON']"
+
+      - name: Run world layer contract tests (CMake)
+        if: matrix.type == 'CMake'
+        run: ctest --test-dir build/windows-release --output-on-failure -R '^world_layers_contract$'
 
       - name: Build project (MSBuild solution)
         if: matrix.type == 'Solution'
@@ -169,6 +173,16 @@ jobs:
             /p:VcpkgEnableManifest=true `
             /p:VcpkgRoot="$vcpkgRoot" `
             /p:GITHUB_WORKSPACE="${{ github.workspace }}"
+
+      - name: Run world layer contract tests (MSBuild solution)
+        if: matrix.type == 'Solution' && matrix.configuration == 'Release'
+        shell: pwsh
+        run: |
+          $vcpkgRoot = Join-Path (Get-Location) "vcpkg"
+          msbuild.exe vcproj/Project/WorldLayersTests.vcxproj `
+            /t:RunWorldLayerTests /m:1 `
+            /p:Configuration=Release /p:Platform=x64 `
+            /p:VcpkgRoot="$vcpkgRoot"
 
       - name: Verify vcpkg binary cache push
         if: matrix.type == 'CMake' && success() && env.VCPKG_BINARY_CACHE_ACCESS == 'readwrite'
