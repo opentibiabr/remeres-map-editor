@@ -528,7 +528,7 @@ void WorldLayerEditor::adoptIdentifiers() {
 	bool valid = false;
 	world_layers::EffectiveWorldModel effective;
 	world_layers::Diagnostics analysisDiagnostics;
-	std::jthread worker([&] {
+	std::thread worker([&] {
 		valid = world_layers::buildEffectiveWorldModel(project, frozen, mode, {}, effective, analysisDiagnostics, [&] { return cancelled.load(std::memory_order_relaxed); });
 		done.store(true, std::memory_order_release);
 	});
