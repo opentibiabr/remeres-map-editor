@@ -21,6 +21,8 @@
 #include "editor.h"
 #include "client_assets.h"
 #include "gui.h"
+#include "monsters.h"
+#include "npcs.h"
 
 #include "preferences.h"
 
@@ -767,8 +769,14 @@ void PreferencesWindow::Apply() {
 	g_settings.setFloat(Config::SCROLL_SPEED, scroll_mul * scroll_speed_slider->GetValue() / 10.f);
 	g_settings.setFloat(Config::ZOOM_SPEED, zoom_speed_slider->GetValue() / 10.f);
 
-	g_settings.setString(Config::MONSTERS_LUA_DIRECTORY, nstr(monsters_lua_dir_picker->GetValue()));
-	g_settings.setString(Config::NPCS_LUA_DIRECTORY, nstr(npcs_lua_dir_picker->GetValue()));
+	const std::string oldMonstersLuaDir = g_settings.getString(Config::MONSTERS_LUA_DIRECTORY);
+	const std::string oldNpcsLuaDir = g_settings.getString(Config::NPCS_LUA_DIRECTORY);
+	const std::string monstersLuaDir = nstr(monsters_lua_dir_picker->GetValue());
+	const std::string npcsLuaDir = nstr(npcs_lua_dir_picker->GetValue());
+	const bool monstersLuaDirChanged = oldMonstersLuaDir != monstersLuaDir;
+	const bool npcsLuaDirChanged = oldNpcsLuaDir != npcsLuaDir;
+	g_settings.setString(Config::MONSTERS_LUA_DIRECTORY, monstersLuaDir);
+	g_settings.setString(Config::NPCS_LUA_DIRECTORY, npcsLuaDir);
 
 	ClientAssets::setPath(version_dir_picker->GetValue());
 	ClientAssets::save();
@@ -776,14 +784,35 @@ void PreferencesWindow::Apply() {
 
 	g_settings.save();
 
+	wxArrayString luaWarnings;
+	if (ClientAssets::isLoaded()) {
+		if (monstersLuaDirChanged && !monstersLuaDir.empty()) {
+			wxString error;
+			wxArrayString warnings;
+			if (!g_monsters.loadFromLuaDir(wxString(monstersLuaDir), error, warnings)) {
+				luaWarnings.push_back(error);
+			}
+			for (const auto &warning : warnings) {
+				luaWarnings.push_back(warning);
+			}
+		}
+		if (npcsLuaDirChanged && !npcsLuaDir.empty()) {
+			wxString error;
+			wxArrayString warnings;
+			if (!g_npcs.loadFromLuaDir(wxString(npcsLuaDir), error, warnings)) {
+				luaWarnings.push_back(error);
+			}
+			for (const auto &warning : warnings) {
+				luaWarnings.push_back(warning);
+			}
+		}
+	}
+
 	if (must_restart) {
 		g_gui.PopupDialog(this, "Notice", "You must restart the editor for the changes to take effect.", wxOK);
 	}
 
-	if (!palette_update_needed) {
-		// update palette icons
-		g_gui.RebuildPalettes();
-	} else {
+	if (palette_update_needed) {
 		// change palette structure
 		wxString error;
 		wxArrayString warnings;
@@ -791,5 +820,18 @@ void PreferencesWindow::Apply() {
 			g_gui.PopupDialog("Error", error, wxOK);
 			g_gui.ListDialog("Warnings", warnings);
 		}
+	}
+	if (!palette_update_needed || monstersLuaDirChanged || npcsLuaDirChanged) {
+		// update palette settings and creature lists
+		g_gui.RebuildPalettes();
+	}
+	if (monstersLuaDirChanged || npcsLuaDirChanged) {
+		g_gui.RefreshView();
+	}
+	if (!luaWarnings.IsEmpty()) {
+		g_gui.ListDialog("Warnings", luaWarnings);
+	}
+	if ((monstersLuaDirChanged && !oldMonstersLuaDir.empty()) || (npcsLuaDirChanged && !oldNpcsLuaDir.empty())) {
+		g_gui.PopupDialog(this, "Notice", "Restart the editor to remove definitions from the previous Lua directories.", wxOK);
 	}
 }
