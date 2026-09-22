@@ -839,9 +839,7 @@ void PreferencesWindow::Apply() {
 	if (monstersLuaChange.applied || npcsLuaChange.applied) {
 		g_gui.RefreshView();
 	}
-	if (!luaWarnings.IsEmpty()) {
-		g_gui.ListDialog("Warnings", luaWarnings);
-	}
+	g_gui.ListDialog("Warnings", luaWarnings);
 	if (monstersLuaChange.needsRestart || npcsLuaChange.needsRestart) {
 		g_gui.PopupDialog(this, "Notice", "Restart the editor to remove definitions from the previous Lua directories.", wxOK);
 	}
