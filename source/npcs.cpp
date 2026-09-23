@@ -252,8 +252,12 @@ wxArrayString NpcDatabase::getMissingNpcNames() const {
 }
 
 bool NpcDatabase::loadFromLuaDir(const wxString &directory, wxString &error, wxArrayString &warnings) {
-	if (directory.IsEmpty() || !wxDir::Exists(directory)) {
+	if (directory.IsEmpty()) {
 		return true;
+	}
+	if (!wxDir::Exists(directory)) {
+		error = "NPCs Lua directory does not exist: " + directory;
+		return false;
 	}
 
 	wxArrayString luaFiles;
