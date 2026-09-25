@@ -47,6 +47,13 @@ Position CopyBuffer::getPosition() const {
 }
 
 void CopyBuffer::clear() {
+	if (!tiles) {
+		return;
+	}
+
+	if (g_gui.secondary_map == tiles) {
+		g_gui.secondary_map = nullptr;
+	}
 	delete tiles;
 	tiles = nullptr;
 }
