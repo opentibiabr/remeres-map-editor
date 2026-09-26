@@ -647,7 +647,6 @@ namespace mcp {
 			return imageResult(encodePngBase64(image), "image/png");
 		}
 
-
 		// Editor::importMap merges another .otbm in at an offset, which is how
 		// a world gets assembled from separately built pieces.
 		ImportType parseImportType(const json &params, const char* key) {
@@ -768,8 +767,8 @@ namespace mcp {
 					   toolMapNew });
 
 		registry.add({ "map_properties",
-					  "Read or change the map's name, description, dimensions and sidecar filenames. "
-					  "Called with no fields it just reports the current values.",
+					   "Read or change the map's name, description, dimensions and sidecar filenames. "
+					   "Called with no fields it just reports the current values.",
 					   json {
 						   { "type", "object" },
 						   { "properties", json { { "name", json { { "type", "string" } } }, { "description", json { { "type", "string" } } }, { "width", json { { "type", "integer" } } }, { "height", json { { "type", "integer" } } }, { "houseFilename", json { { "type", "string" } } }, { "spawnMonsterFilename", json { { "type", "string" } } }, { "spawnNpcFilename", json { { "type", "string" } } }, { "zoneFilename", json { { "type", "string" } } }, { "allowShrink", json { { "type", "boolean" }, { "description", "permit dimensions smaller than the current ones" } } } } } },

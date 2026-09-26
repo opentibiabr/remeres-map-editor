@@ -556,9 +556,7 @@ namespace mcp {
 				{ "reachableTiles", result.visited.size() },
 				{ "sealed", !result.hitLimit },
 				{ "bounds", json { { "from", json { { "x", minX }, { "y", minY }, { "z", from.z } } }, { "to", json { { "x", maxX }, { "y", maxY }, { "z", from.z } } } } },
-				{ "note", result.hitLimit
-					  ? "hit maxTiles, so this area is open to the rest of the map (or very large)"
-					  : "the walkable area is fully enclosed; these are all the tiles reachable from the start" } });
+				{ "note", result.hitLimit ? "hit maxTiles, so this area is open to the rest of the map (or very large)" : "the walkable area is fully enclosed; these are all the tiles reachable from the start" } });
 		}
 
 		// ------------------------------------------------------------------
@@ -809,7 +807,6 @@ namespace mcp {
 				{ "tilesPerFloor", std::move(floors) },
 				{ "topMonsters", std::move(topMonsters) } });
 		}
-
 
 		// Teleports are the backbone of quest routing and the easiest thing to
 		// get silently wrong: a destination left at 0,0,0, or pointing at a

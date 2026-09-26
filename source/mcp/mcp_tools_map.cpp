@@ -109,7 +109,6 @@ namespace mcp {
 		// Serialization
 		// ------------------------------------------------------------------
 
-
 		json tileToJson(const Tile* tile) {
 			json out { { "position", positionToJson(tile->getPosition()) } };
 
@@ -819,7 +818,6 @@ namespace mcp {
 		// ------------------------------------------------------------------
 		// Schemas
 		// ------------------------------------------------------------------
-
 
 	} // namespace
 

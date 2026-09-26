@@ -43,7 +43,6 @@ namespace mcp {
 		// the same order of magnitude as a large brush stroke.
 		constexpr size_t MAX_EDIT_TILES = 20000;
 
-
 		void applyFlags(Tile* tile, const json &flags) {
 			const auto set = [&](const char* key, uint16_t flag) {
 				if (!flags.contains(key)) {
@@ -324,7 +323,6 @@ namespace mcp {
 
 			throw McpError("op must be one of: undo, redo, save, goto, select, deselect, clear_selection");
 		}
-
 
 		json tileEditSchema() {
 			json flags {

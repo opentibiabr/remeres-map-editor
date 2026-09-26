@@ -549,7 +549,6 @@ namespace mcp {
 		// Schemas
 		// ------------------------------------------------------------------
 
-
 	} // namespace
 
 	void registerManageTools(ToolRegistry &registry) {
