@@ -263,6 +263,26 @@ target_sources(
           lua/lua_api_json.cpp
           lua/lua_api_algo.cpp
           lua/lua_scripts_window.cpp
+          mcp/mcp_server.cpp
+          mcp/mcp_write.cpp
+          mcp/mcp_tools_edit.cpp
+          mcp/mcp_tools_manage.cpp
+          mcp/mcp_tools_assets.cpp
+          mcp/mcp_tools_analyze.cpp
+          mcp/mcp_tools_brush.cpp
+          mcp/mcp_tools_select.cpp
+          mcp/mcp_tools_io.cpp
+          mcp/mcp_tools_clientview.cpp
+          mcp/mcp_tools_terrain.cpp
+          mcp/mcp_tools_stamp.cpp
+          mcp/mcp_tools_guide.cpp
+          mcp/mcp_tools_ops.cpp
+          mcp/mcp_tools.cpp
+          mcp/mcp_tools_map.cpp
+          mcp/mcp_tools_entities.cpp
+          mcp/mcp_tools_script.cpp
+          mcp/mcp_render.cpp
+          mcp/mcp_window.cpp
           main_menubar.cpp
           main_toolbar.cpp
           map.cpp

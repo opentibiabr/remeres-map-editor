@@ -17,6 +17,7 @@
 
 #include "main.h"
 #include <array>
+#include <cstring>
 
 #include "gui.h"
 #include "editor.h"
@@ -281,6 +282,35 @@ void MapCanvas::ShowPositionIndicator(const Position &position) {
 			Update();
 		}
 	}
+}
+
+wxImage MapCanvas::CaptureScreenshot() {
+	int screensize_x, screensize_y;
+	GetViewBox(&view_scroll_x, &view_scroll_y, &screensize_x, &screensize_y);
+
+	int view_x, view_y;
+	GetMapWindow()->GetViewSize(&view_x, &view_y);
+
+	const int width = std::max(screensize_x, view_x);
+	const int height = std::max(screensize_y, view_y);
+	if (width <= 0 || height <= 0) {
+		return wxImage();
+	}
+
+	delete[] screenshot_buffer;
+	screenshot_buffer = newd uint8_t[3 * width * height]();
+
+	// The GL readback happens during the paint, so force one now.
+	Refresh();
+	wxGLCanvas::Update();
+
+	if (!screenshot_buffer) {
+		return wxImage();
+	}
+
+	wxImage image(view_x, view_y);
+	std::memcpy(image.GetData(), screenshot_buffer, static_cast<size_t>(3) * view_x * view_y);
+	return image;
 }
 
 void MapCanvas::TakeScreenshot(wxFileName path, wxString format) {

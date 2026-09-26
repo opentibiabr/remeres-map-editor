@@ -192,6 +192,10 @@ namespace Config {
 		MONSTERS_LUA_DIRECTORY,
 		NPCS_LUA_DIRECTORY,
 
+		MCP_ENABLED,
+		MCP_PORT,
+		MCP_ALLOW_WRITE,
+
 		LAST,
 	};
 }
