@@ -438,8 +438,7 @@ namespace mcp {
 								properties["limit"] = json { { "type", "integer" }, { "description", "max spawns returned, default 200" } };
 								return properties;
 							}() } },
-					   false,
-					   toolSpawnList });
+					   false, toolSpawnList });
 
 		registry.add({ "monster_types_list",
 					   "List the monster types available in this editor installation, so you know which names can legally be placed on the map.",

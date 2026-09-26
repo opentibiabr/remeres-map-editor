@@ -145,8 +145,7 @@ namespace mcp {
 					throw McpError("could not render the client view; are the client sprites loaded?");
 				}
 				return json {
-					{ "content", json::array({ json { { "type", "text" }, { "text", out.dump(2) } },
-											   json { { "type", "image" }, { "data", encodePngBase64(image) }, { "mimeType", "image/png" } } }) }
+					{ "content", json::array({ json { { "type", "text" }, { "text", out.dump(2) } }, json { { "type", "image" }, { "data", encodePngBase64(image) }, { "mimeType", "image/png" } } }) }
 				};
 			}
 

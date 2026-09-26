@@ -330,12 +330,7 @@ namespace mcp {
 		running = true;
 
 		ToolRegistry::get().ensureRegistered();
-		log(LogLevel::Info, fmt::format(
-								"listening on {} with {} tools ({})",
-								getEndpointUrl(),
-								ToolRegistry::get().all().size(),
-								writeAllowed ? "writes allowed" : "read-only"
-							));
+		log(LogLevel::Info, fmt::format("listening on {} with {} tools ({})", getEndpointUrl(), ToolRegistry::get().all().size(), writeAllowed ? "writes allowed" : "read-only"));
 
 		accept();
 		return true;
@@ -406,7 +401,10 @@ namespace mcp {
 
 		try {
 			if (method == "initialize") {
-				return makeResult(id, json { { "protocolVersion", PROTOCOL_VERSION }, { "capabilities", json { { "tools", json { { "listChanged", false } } } } }, { "serverInfo", json { { "name", "remeres-map-editor" }, { "version", __RME_VERSION__ } } }, { "instructions", "Tools for reading and editing the OTBM map currently open in Remere's Map Editor. " "Start with map_info, then map_read_region (mode=summary) to orient yourself in an area, " "and map_render_region to actually see it. Writes go through run_lua and are refused unless " "the user enabled writing in the editor's MCP panel." } });
+				return makeResult(id, json { { "protocolVersion", PROTOCOL_VERSION }, { "capabilities", json { { "tools", json { { "listChanged", false } } } } }, { "serverInfo", json { { "name", "remeres-map-editor" }, { "version", __RME_VERSION__ } } }, { "instructions", "Tools for reading and editing the OTBM map currently open in Remere's Map Editor. "
+																																																																				  "Start with map_info, then map_read_region (mode=summary) to orient yourself in an area, "
+																																																																				  "and map_render_region to actually see it. Writes go through run_lua and are refused unless "
+																																																																				  "the user enabled writing in the editor's MCP panel." } });
 			}
 
 			if (method == "ping") {
