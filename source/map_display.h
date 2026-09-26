@@ -130,6 +130,9 @@ public:
 
 	void ShowPositionIndicator(const Position &position);
 	void TakeScreenshot(wxFileName path, wxString format);
+	// Same GL capture as TakeScreenshot, but hands back the image instead of
+	// writing a timestamped file. Used by the MCP map_screenshot tool.
+	wxImage CaptureScreenshot();
 
 protected:
 	void getTilesToDraw(int mouse_map_x, int mouse_map_y, int floor, PositionVector* tilestodraw, PositionVector* tilestoborder, bool fill = false);

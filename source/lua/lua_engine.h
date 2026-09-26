@@ -36,6 +36,11 @@ public:
 	}
 
 	void setPrintCallback(PrintCallback callback);
+	// Lets a caller temporarily divert print() and put back whatever was
+	// installed before (used by the MCP run_lua tool to capture output).
+	PrintCallback getPrintCallback() const {
+		return printCallback;
+	}
 
 	bool executeFile(const std::string &filepath);
 	bool executeString(const std::string &code, const std::string &chunkName = "chunk");
