@@ -77,6 +77,7 @@ public:
 	void OnEditComment(wxCommandEvent &event);
 	void OnResolveComment(wxCommandEvent &event);
 	void OnDeleteComment(wxCommandEvent &event);
+	void OnReplyComment(wxCommandEvent &event);
 	void OnCopyItemId(wxCommandEvent &event);
 	void OnCopyName(wxCommandEvent &event);
 	void OnBrowseTile(wxCommandEvent &event);

@@ -33,6 +33,7 @@
 #include "map_drawer.h"
 #include "application.h"
 #include "collab/collab_session.h"
+#include "collab/collab_window.h"
 #include "browse_tile_window.h"
 
 #include "main_menubar.h"
@@ -107,6 +108,7 @@ EVT_MENU(MAP_POPUP_MENU_ADD_COMMENT, MapCanvas::OnAddComment)
 EVT_MENU(MAP_POPUP_MENU_EDIT_COMMENT, MapCanvas::OnEditComment)
 EVT_MENU(MAP_POPUP_MENU_RESOLVE_COMMENT, MapCanvas::OnResolveComment)
 EVT_MENU(MAP_POPUP_MENU_DELETE_COMMENT, MapCanvas::OnDeleteComment)
+EVT_MENU(MAP_POPUP_MENU_REPLY_COMMENT, MapCanvas::OnReplyComment)
 // ----
 EVT_MENU(MAP_POPUP_MENU_BROWSE_TILE, MapCanvas::OnBrowseTile)
 END_EVENT_TABLE()
@@ -2279,11 +2281,15 @@ void MapCanvas::OnCopyPosition(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void MapCanvas::OnAddComment(wxCommandEvent &WXUNUSED(event)) {
-	wxTextEntryDialog dialog(this, "Comment:", "Add Comment", "", wxTextEntryDialogStyle | wxTE_MULTILINE);
-	if (dialog.ShowModal() == wxID_OK && !dialog.GetValue().IsEmpty()) {
-		editor.getMap().comments.add(popup_pos, nstr(dialog.GetValue()));
+	MapComment draft;
+	draft.pos = popup_pos;
+	if (CollabWindow::EditComment(this, draft, true)) {
+		editor.getMap().comments.add(draft.pos, draft.text, 0, draft.assignee, draft.kind);
 		editor.getMap().doChange();
 		g_gui.RefreshView();
+		if (CollabWindow::Get()) {
+			CollabWindow::Get()->RefreshComments();
+		}
 	}
 }
 
@@ -2292,11 +2298,32 @@ void MapCanvas::OnEditComment(wxCommandEvent &WXUNUSED(event)) {
 	if (!comment) {
 		return;
 	}
-	wxTextEntryDialog dialog(this, "Comment by " + wxstr(comment->author) + ":", "Edit Comment", wxstr(comment->text), wxTextEntryDialogStyle | wxTE_MULTILINE);
-	if (dialog.ShowModal() == wxID_OK && !dialog.GetValue().IsEmpty()) {
-		editor.getMap().comments.edit(comment->id, nstr(dialog.GetValue()));
+	MapComment draft = *comment;
+	if (CollabWindow::EditComment(this, draft, false)) {
+		editor.getMap().comments.update(draft.id, draft.text, draft.assignee, draft.kind);
 		editor.getMap().doChange();
 		g_gui.RefreshView();
+		if (CollabWindow::Get()) {
+			CollabWindow::Get()->RefreshComments();
+		}
+	}
+}
+
+void MapCanvas::OnReplyComment(wxCommandEvent &WXUNUSED(event)) {
+	const MapComment* comment = editor.getMap().comments.at(popup_pos);
+	if (!comment) {
+		return;
+	}
+	MapComment reply;
+	reply.pos = comment->pos;
+	reply.parent = comment->id;
+	if (CollabWindow::EditComment(this, reply, true)) {
+		editor.getMap().comments.add(reply.pos, reply.text, reply.parent);
+		editor.getMap().doChange();
+		g_gui.RefreshView();
+		if (CollabWindow::Get()) {
+			CollabWindow::Get()->RefreshComments();
+		}
 	}
 }
 
@@ -2808,6 +2835,7 @@ void MapPopupMenu::Update(const Position &pos) {
 	const MapComment* comment = editor.getMap().comments.at(pos);
 	if (comment) {
 		Append(MAP_POPUP_MENU_EDIT_COMMENT, "Edit Comment...", "Edit the comment on this tile");
+		Append(MAP_POPUP_MENU_REPLY_COMMENT, "Reply to Comment...", "Add a reply to the comment on this tile");
 		Append(MAP_POPUP_MENU_RESOLVE_COMMENT, comment->resolved ? "Reopen Comment" : "Resolve Comment", "Toggle the resolved state of the comment");
 		Append(MAP_POPUP_MENU_DELETE_COMMENT, "Delete Comment", "Remove the comment on this tile");
 	} else {

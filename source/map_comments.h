@@ -29,6 +29,9 @@ struct MapComment {
 	int64_t created = 0;
 	int64_t edited = 0;
 	bool resolved = false;
+	uint32_t parent = 0; // id of the comment this one replies to, 0 for a thread's first comment
+	std::string assignee; // who should deal with it, empty for nobody
+	uint8_t kind = 0; // see MapComments::kindName
 };
 
 // Free-form notes pinned to map positions. Stored in a "<map name>-comments.xml" sidecar file.
@@ -42,16 +45,36 @@ public:
 	static constexpr size_t kPaletteSize = 12;
 	static uint32_t paletteColor(size_t index);
 
+	// In a collaboration session comments are written under the session name (the host
+	// checks it); empty means the settings name again.
+	static void setAuthorOverride(const std::string &name);
+	static constexpr uint8_t kKindCount = 4;
+	static const char* kindName(uint8_t kind);
+	// Marker color of a kind, 0 for plain notes (they use their author's color).
+	static uint32_t kindColor(uint8_t kind);
+
+	// Ids are (prefix << 20 | counter) so that two users adding comments at the same time
+	// never pick the same id; the session sets the prefix to the user id.
+	void setIdPrefix(uint32_t prefix) noexcept {
+		idPrefix = prefix & 0xFFF;
+	}
+
 	// Adds a comment authored by the local user and returns it.
-	const MapComment &add(const Position &pos, const std::string &text);
+	const MapComment &add(const Position &pos, const std::string &text, uint32_t parent = 0, const std::string &assignee = std::string(), uint8_t kind = 0);
 	bool edit(uint32_t id, const std::string &text);
+	bool update(uint32_t id, const std::string &text, const std::string &assignee, uint8_t kind);
 	bool setResolved(uint32_t id, bool resolved);
+	// Removes the comment and the replies to it.
 	bool remove(uint32_t id);
+	// Insert or replace a comment as it came from somebody else.
+	void upsert(const MapComment &comment);
 	void clear();
 
 	const MapComment* get(uint32_t id) const;
-	// First comment on the tile, or nullptr.
+	// The first comment of a thread on the tile (replies are not returned), or nullptr.
 	const MapComment* at(const Position &pos) const;
+	// The thread's first comment for any comment of it.
+	const MapComment* rootOf(const MapComment &comment) const;
 	const std::vector<MapComment> &all() const noexcept {
 		return comments;
 	}
@@ -73,7 +96,8 @@ private:
 
 	// ponytail: linear scans, fine for hundreds of comments; index by position if it grows.
 	std::vector<MapComment> comments;
-	uint32_t nextId = 1;
+	uint32_t nextId = 1; // counter part of the next id
+	uint32_t idPrefix = 0;
 };
 
 #endif

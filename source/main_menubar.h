@@ -139,6 +139,8 @@ namespace MenuBar {
 		COLLAB_JOIN,
 		COLLAB_LEAVE,
 		COLLAB_ADD_COMMENT,
+		COLLAB_SHOW_CURSORS,
+		COLLAB_SHOW_NAMES,
 		WIN_SQLITE_MATERIALS_INSPECTOR,
 		NEW_PALETTE,
 		TAKE_SCREENSHOT,
@@ -304,6 +306,7 @@ public:
 	void OnCollabWindow(wxCommandEvent &event);
 	void OnCollabSession(wxCommandEvent &event);
 	void OnCollabAddComment(wxCommandEvent &event);
+	void OnCollabToggle(wxCommandEvent &event);
 	void OnSQLiteMaterialsInspector(wxCommandEvent &event);
 	void OnNewPalette(wxCommandEvent &event);
 	void OnTakeScreenshot(wxCommandEvent &event);

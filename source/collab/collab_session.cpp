@@ -33,6 +33,7 @@
 #include "../tile.h"
 #include "../map_comments.h"
 #include "../net_connection.h"
+#include "../settings.h"
 
 #include <zlib.h>
 
@@ -81,7 +82,7 @@ namespace collab {
 			user.name = sanitizeText(r.str(kMaxName * 4), kMaxName);
 			user.color = r.u32() & 0xFFFFFF;
 			const uint8_t role = r.u8();
-			if (user.name.empty() || role > static_cast<uint8_t>(Role::Viewer)) {
+			if (user.name.empty() || role > static_cast<uint8_t>(Role::Commenter)) {
 				throw ProtocolError("invalid user");
 			}
 			user.role = static_cast<Role>(role);
@@ -294,8 +295,28 @@ namespace collab {
 			const User* me = self();
 			statusText = fmt::format("Connected to host - role {}", me ? roleName(me->role) : "?");
 		}
+		if (g_gui.root) {
+			g_gui.UpdateTitle(); // the participant count is in the tab title
+		}
 		if (onChanged) {
 			onChanged();
+		}
+	}
+
+	std::string Session::titleMark(const Editor* editor) const {
+		if (!editor || editor != boundEditor() || (currentState != State::Hosting && currentState != State::Joined)) {
+			return std::string();
+		}
+		return fmt::format("[{}{}] ", editor->IsProtectedCopy() ? "Protected " : "", userList.size());
+	}
+
+	void Session::pushToast(const std::string &text) {
+		toastQueue.push_back({ text, Clock::now() + std::chrono::seconds(5) });
+		while (toastQueue.size() > 4) {
+			toastQueue.pop_front();
+		}
+		if (onOverlayChanged) {
+			onOverlayChanged();
 		}
 	}
 
@@ -311,7 +332,7 @@ namespace collab {
 		if (actor.role == Role::Host) {
 			return true;
 		}
-		return actor.role == Role::Admin && target.role != Role::Admin && (newRole == Role::Editor || newRole == Role::Viewer);
+		return actor.role == Role::Admin && target.role != Role::Admin && (newRole == Role::Editor || newRole == Role::Viewer || newRole == Role::Commenter);
 	}
 
 	bool Session::mayKick(const User &actor, const User &target) {
@@ -326,7 +347,16 @@ namespace collab {
 		return me && active() && mayKick(*me, target);
 	}
 
-	uint32_t Session::pickColor() const {
+	uint32_t Session::pickColor(uint32_t preferred) const {
+		if (preferred != 0) {
+			bool taken = false;
+			for (const auto &entry : userList) {
+				taken = taken || entry.second.color == preferred;
+			}
+			if (!taken) {
+				return preferred;
+			}
+		}
 		for (size_t i = 0; i < MapComments::kPaletteSize; ++i) {
 			const uint32_t color = MapComments::paletteColor(i);
 			bool used = false;
@@ -587,18 +617,21 @@ namespace collab {
 		nextClaimId = 1;
 		acceptor = listener;
 		listenPort = port;
-		defaultRole = defaultRoleForJoiners == Role::Viewer ? Role::Viewer : Role::Editor;
+		defaultRole = (defaultRoleForJoiners == Role::Viewer || defaultRoleForJoiners == Role::Commenter) ? defaultRoleForJoiners : Role::Editor;
 		chatLog.clear();
 		userList.clear();
 		remoteCursors.clear();
 		nextUserId = 1;
 		selfId = 0;
 		selfName = cleanName;
+		MapComments::setAuthorOverride(cleanName);
+		editor->getMap().comments.setIdPrefix(0);
 
 		User host;
 		host.id = 0;
 		host.name = cleanName;
-		host.color = MapComments::paletteColor(0);
+		const int chosenColor = g_settings.getInteger(Config::COLLAB_USER_COLOR) & 0xFFFFFF;
+		host.color = chosenColor != 0 ? static_cast<uint32_t>(chosenColor) : MapComments::paletteColor(0);
 		host.role = Role::Host;
 		userList[0] = host;
 
@@ -681,6 +714,7 @@ namespace collab {
 		const std::string version = reader.str(64);
 		const uint16_t protocol = reader.u16();
 		const uint32_t otbm = reader.u32();
+		const uint32_t preferredColor = reader.u32() & 0xFFFFFF;
 
 		if (protocol != kProtocolVersion || version != __RME_VERSION__) {
 			rejectPeer(peer, fmt::format("Version mismatch: the host runs RME {} (protocol {}), you run RME {} (protocol {})", __RME_VERSION__, kProtocolVersion, sanitizeText(version, 32), protocol));
@@ -718,7 +752,7 @@ namespace collab {
 		User user;
 		user.id = nextUserId++;
 		user.name = uniqueName(cleanName);
-		user.color = pickColor();
+		user.color = pickColor(preferredColor);
 		user.role = defaultRole;
 		userList[user.id] = user;
 		peer.userId = user.id;
@@ -749,6 +783,7 @@ namespace collab {
 		broadcast(Msg::UserJoined, joined.buffer, peer.conn.get());
 
 		addSystemChat(user.name + " joined");
+		pushToast(user.name + " joined");
 		changed();
 	}
 
@@ -804,7 +839,7 @@ namespace collab {
 			case Msg::SetRole: {
 				const uint32_t target = reader.u32();
 				const uint8_t role = reader.u8();
-				if (role > static_cast<uint8_t>(Role::Viewer)) {
+				if (role > static_cast<uint8_t>(Role::Commenter)) {
 					throw ProtocolError("invalid role");
 				}
 				applyRole(actor, target, static_cast<Role>(role));
@@ -850,10 +885,10 @@ namespace collab {
 				hostRemoveClaim(actor, reader.u32());
 				return;
 			case Msg::TileBatch:
-				hostTileBatch(actor, reader);
+				hostTileBatch(peer, actor, reader);
 				return;
 			case Msg::MetaOps:
-				hostMetaOps(actor, peer.conn.get(), reader);
+				hostMetaOps(peer, actor, reader);
 				return;
 			case Msg::HistoryQuery:
 			case Msg::HistoryRevert:
@@ -1067,6 +1102,8 @@ namespace collab {
 			return;
 		}
 		clientEditor = editor; // before closing the old tab, so that closing it does not end the session
+		MapComments::setAuthorOverride(self() ? self()->name : std::string());
+		editor->getMap().comments.setIdPrefix(selfId);
 		if (previous) {
 			g_gui.CloseEditorTabs(previous);
 		}
@@ -1110,11 +1147,18 @@ namespace collab {
 			case Msg::UserUpdated: {
 				User user = readUser(reader);
 				userList[user.id] = user;
+				if (type == Msg::UserJoined) {
+					pushToast(user.name + " joined");
+				}
 				changed();
 				return;
 			}
 			case Msg::UserLeft: {
 				const uint32_t id = reader.u32();
+				auto leaving = userList.find(id);
+				if (leaving != userList.end()) {
+					pushToast(leaving->second.name + " left");
+				}
 				userList.erase(id);
 				remoteCursors.erase(id);
 				remoteViews.erase(id);
@@ -1224,6 +1268,7 @@ namespace collab {
 		w.str(__RME_VERSION__);
 		w.u16(kProtocolVersion);
 		w.u32(static_cast<uint32_t>(g_gui.getLoadedMapVersion().otbm));
+		w.u32(static_cast<uint32_t>(g_settings.getInteger(Config::COLLAB_USER_COLOR)) & 0xFFFFFF);
 		conn->send(Msg::Hello, w.buffer);
 	}
 
@@ -1281,6 +1326,7 @@ namespace collab {
 			w.u32(peer.userId);
 			broadcast(Msg::UserLeft, w.buffer);
 			addSystemChat(name + " left");
+			pushToast(name + " left");
 			changed();
 			if (onCursorsChanged) {
 				onCursorsChanged();
@@ -1367,7 +1413,7 @@ namespace collab {
 		}
 		if (editor == clientEditor && editor) {
 			const User* me = self();
-			return currentState == State::Joined && me && me->role != Role::Viewer;
+			return currentState == State::Joined && me && canEditMap(me->role);
 		}
 		return true;
 	}
@@ -1557,9 +1603,9 @@ namespace collab {
 		g_gui.RefreshView();
 	}
 
-	void Session::hostTileBatch(const User &actor, ByteReader &reader) {
-		if (actor.role == Role::Viewer || !hostEditor) {
-			return; // the viewer's own editor already refuses to edit
+	void Session::hostTileBatch(Peer &peer, const User &actor, ByteReader &reader) {
+		if (!canEditMap(actor.role) || !hostEditor) {
+			return; // their own editor already refuses to edit
 		}
 		const uint32_t seq = reader.u32();
 		const uint8_t type = reader.u8();
@@ -1567,8 +1613,61 @@ namespace collab {
 			throw ProtocolError("invalid action type");
 		}
 		const uint32_t count = reader.u32();
-		std::vector<Tile*> tiles = readTiles(reader, count, hostEditor->getMap());
+		Map &map = hostEditor->getMap();
+		std::vector<Tile*> tiles = readTiles(reader, count, map);
+
+		if (actor.role == Role::Editor && !hostOptions.editorsSpawns) {
+			// The host does not let editors touch spawns and creatures: those tiles are not applied,
+			// and the editor gets them back the way they really are.
+			std::vector<Tile*> allowed;
+			std::vector<Position> refused;
+			for (Tile* tile : tiles) {
+				if (sameCreatures(tile, map.getTile(tile->getPosition()))) {
+					allowed.push_back(tile);
+				} else {
+					refused.push_back(tile->getPosition());
+					delete tile;
+				}
+			}
+			applyTiles(allowed, actor.id, seq);
+			sendTilesTo(peer, refused);
+			return;
+		}
 		applyTiles(tiles, actor.id, seq);
+	}
+
+	void Session::sendTilesTo(Peer &peer, const std::vector<Position> &positions) {
+		if (positions.empty() || !hostEditor) {
+			return;
+		}
+		Map &map = hostEditor->getMap();
+		VirtualIOMap io(map.getVersion());
+		ByteWriter records;
+		uint32_t count = 0;
+		auto emit = [&] {
+			if (count == 0) {
+				return;
+			}
+			ByteWriter frame;
+			frame.u32(0); // origin: the host, never the receiver
+			frame.u32(0);
+			frame.u32(count);
+			frame.buffer.insert(frame.buffer.end(), records.buffer.begin(), records.buffer.end());
+			sendTo(peer, Msg::TileUpdate, frame.buffer);
+			records = ByteWriter();
+			count = 0;
+		};
+		for (const Position &pos : positions) {
+			records.u16(static_cast<uint16_t>(pos.x));
+			records.u16(static_cast<uint16_t>(pos.y));
+			records.u8(static_cast<uint8_t>(pos.z));
+			records.blob(encodeTile(map.getTile(pos), io));
+			++count;
+			if (count >= kMaxTilesPerFrame || records.buffer.size() >= kMaxTileFrameBytes) {
+				emit();
+			}
+		}
+		emit();
 	}
 
 	void Session::clientTileUpdate(ByteReader &reader) {
@@ -1638,8 +1737,17 @@ namespace collab {
 			return;
 		}
 		Map &map = editor->getMap();
+		bool commentsTouched = false;
 		for (const MetaOp &op : ops) {
+			std::optional<std::string> previous;
+			if (op.kind == MetaKind::Comment) {
+				commentsTouched = true;
+				previous = captureMetaEntry(map, op.kind, op.key);
+			}
 			applyMetaOp(map, op);
+			if (op.kind == MetaKind::Comment && !op.remove) {
+				notifyAboutComment(op, previous);
+			}
 			// What the map holds now is what both sides agree on: do not send it back.
 			const auto key = std::make_pair(static_cast<uint8_t>(op.kind), op.key);
 			if (auto current = captureMetaEntry(map, op.kind, op.key)) {
@@ -1652,16 +1760,126 @@ namespace collab {
 		map.doChange();
 		g_gui.RefreshPalettes();
 		g_gui.RefreshView();
+		if (commentsTouched && onCommentsChanged) {
+			onCommentsChanged();
+		}
 	}
 
-	void Session::hostMetaOps(const User &actor, const Connection* from, ByteReader &reader) {
-		if (actor.role == Role::Viewer || !hostEditor) {
+	void Session::notifyAboutComment(const MetaOp &op, const std::optional<std::string> &previous) {
+		const User* me = self();
+		if (!me) {
+			return;
+		}
+		const uint32_t id = static_cast<uint32_t>(std::strtoul(op.key.c_str(), nullptr, 10));
+		MapComment now;
+		std::optional<MapComment> before;
+		try {
+			now = decodeComment(id, op.data);
+			if (previous) {
+				before = decodeComment(id, *previous);
+			}
+		} catch (const ProtocolError &) {
+			return;
+		}
+		if (now.author == me->name) {
+			return;
+		}
+
+		auto lower = [](std::string text) {
+			std::transform(text.begin(), text.end(), text.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+			return text;
+		};
+		const std::string mention = "@" + lower(me->name);
+		const bool mentioned = lower(now.text).find(mention) != std::string::npos && (!before || lower(before->text).find(mention) == std::string::npos);
+		const bool assigned = now.assignee == me->name && (!before || before->assignee != me->name);
+		if (mentioned || assigned) {
+			const std::string text = now.author + (mentioned ? " mentioned you in a comment" : " assigned a comment to you");
+			pushToast(text);
+			ChatLine line;
+			line.system = true;
+			line.time = nowSeconds();
+			line.text = text;
+			storeChat(line);
+		}
+	}
+
+	bool Session::mayApplyMeta(const User &actor, const MetaOp &op) {
+		if (actor.role == Role::Host || actor.role == Role::Admin) {
+			return true;
+		}
+		switch (op.kind) {
+			case MetaKind::Comment: {
+				if (actor.role == Role::Viewer) {
+					return false;
+				}
+				const uint32_t id = static_cast<uint32_t>(std::strtoul(op.key.c_str(), nullptr, 10));
+				if (id == 0) {
+					return false;
+				}
+				const MapComment* existing = hostEditor->getMap().comments.get(id);
+				if (op.remove) {
+					return !existing || existing->author == actor.name;
+				}
+				const MapComment incoming = decodeComment(id, op.data); // malformed: the sender is dropped
+				if (existing && existing->author != actor.name) {
+					// Somebody else's comment: only marking it resolved or open is allowed.
+					return incoming.author == existing->author && incoming.parent == existing->parent && incoming.text == existing->text && incoming.assignee == existing->assignee && incoming.kind == existing->kind && incoming.pos == existing->pos;
+				}
+				return incoming.author == actor.name; // no writing in somebody else's name
+			}
+			case MetaKind::MapProps:
+				return actor.role == Role::Editor && hostOptions.editorsProps;
+			default:
+				return actor.role == Role::Editor && hostOptions.editorsMeta;
+		}
+	}
+
+	// What the host holds for the refused entries, so the sender's map goes back to it.
+	void Session::correctMeta(Peer &peer, const std::vector<MetaOp> &rejected) {
+		Map &map = hostEditor->getMap();
+		std::vector<MetaOp> fixes;
+		for (const MetaOp &op : rejected) {
+			MetaOp fix;
+			fix.kind = op.kind;
+			fix.key = op.key;
+			try {
+				if (auto current = captureMetaEntry(map, op.kind, op.key)) {
+					fix.data = *current;
+				} else {
+					fix.remove = true;
+				}
+			} catch (const ProtocolError &) {
+				continue;
+			}
+			fixes.push_back(std::move(fix));
+		}
+		constexpr size_t kOpsPerFrame = 500;
+		for (size_t start = 0; start < fixes.size(); start += kOpsPerFrame) {
+			const std::vector<MetaOp> chunk(fixes.begin() + start, fixes.begin() + std::min(fixes.size(), start + kOpsPerFrame));
+			ByteWriter w;
+			writeMetaOps(w, chunk);
+			sendTo(peer, Msg::MetaOps, w.buffer);
+		}
+	}
+
+	void Session::hostMetaOps(Peer &peer, const User &actor, ByteReader &reader) {
+		if (!hostEditor) {
 			return;
 		}
 		const std::vector<MetaOp> ops = readMetaOps(reader);
-		applyIncomingMeta(ops);
-		sendMetaOps(ops, from);
-		recordMetaInfo(actor.id, ops);
+		std::vector<MetaOp> allowed;
+		std::vector<MetaOp> rejected;
+		for (const MetaOp &op : ops) {
+			(mayApplyMeta(actor, op) ? allowed : rejected).push_back(op);
+		}
+		if (!allowed.empty()) {
+			applyIncomingMeta(allowed);
+			sendMetaOps(allowed, peer.conn.get());
+			recordMetaInfo(actor.id, allowed);
+		}
+		if (!rejected.empty()) {
+			correctMeta(peer, rejected);
+		}
 	}
 
 	void Session::clientMetaOps(ByteReader &reader) {
@@ -1783,16 +2001,21 @@ namespace collab {
 		if (!journal || ops.empty()) {
 			return;
 		}
-		static const char* const names[] = { "Houses", "Towns", "Waypoints", "Zones", "Map properties" };
+		static const char* const names[] = { "Houses", "Towns", "Waypoints", "Zones", "Map properties", "Comments" };
 		size_t counts[static_cast<size_t>(MetaKind::Count)] = {};
 		for (const MetaOp &op : ops) {
-			++counts[static_cast<size_t>(op.kind)];
+			if (op.kind != MetaKind::Comment) { // chatty and not revertable anyway
+				++counts[static_cast<size_t>(op.kind)];
+			}
 		}
 		std::string label;
 		for (size_t i = 0; i < static_cast<size_t>(MetaKind::Count); ++i) {
 			if (counts[i] > 0) {
 				label += (label.empty() ? "" : ", ") + std::string(names[i]) + " (" + std::to_string(counts[i]) + ")";
 			}
+		}
+		if (label.empty()) {
+			return;
 		}
 		auto user = userList.find(origin);
 		publishEntry(journal->appendInfo(user != userList.end() ? user->second.name : "Unknown", user != userList.end() ? user->second.color : 0x9E9E9E, label));
@@ -2152,6 +2375,15 @@ namespace collab {
 		if (currentState != State::Hosting && currentState != State::Joined) {
 			return;
 		}
+		if (!toastQueue.empty()) {
+			const size_t before = toastQueue.size();
+			while (!toastQueue.empty() && toastQueue.front().until <= Clock::now()) {
+				toastQueue.pop_front();
+			}
+			if (toastQueue.size() != before && onOverlayChanged) {
+				onOverlayChanged();
+			}
+		}
 		const Position view = currentView();
 		if (!view.isValid()) {
 			return;
@@ -2181,7 +2413,7 @@ namespace collab {
 
 	void Session::claimArea(const Position &a, const Position &b) {
 		const User* me = self();
-		if (!me || me->role == Role::Viewer || a.z != b.z) {
+		if (!me || !canEditMap(me->role) || a.z != b.z) {
 			return;
 		}
 		if (currentState == State::Hosting) {
@@ -2222,7 +2454,7 @@ namespace collab {
 	void Session::hostAddClaim(const User &actor, const Position &a, const Position &b) {
 		constexpr int kMaxSide = 2048;
 		constexpr size_t kMaxPerUser = 8;
-		if (actor.role == Role::Viewer || !a.isValid() || !b.isValid() || a.z != b.z) {
+		if (!canEditMap(actor.role) || !a.isValid() || !b.isValid() || a.z != b.z) {
 			return;
 		}
 		const Position from(std::min(a.x, b.x), std::min(a.y, b.y), a.z);
@@ -2510,6 +2742,7 @@ namespace collab {
 			link->close("Left");
 			link.reset();
 		}
+		MapComments::setAuthorOverride(std::string());
 		if (pumpTimer) {
 			pumpTimer->Stop();
 		}

@@ -212,6 +212,42 @@ namespace collab {
 		return std::string(w.buffer.begin(), w.buffer.end());
 	}
 
+	bool sameCreatures(const Tile* a, const Tile* b) {
+		const bool hasA = a != nullptr;
+		const bool hasB = b != nullptr;
+		const SpawnMonster* spawnA = hasA ? a->spawnMonster : nullptr;
+		const SpawnMonster* spawnB = hasB ? b->spawnMonster : nullptr;
+		if ((spawnA != nullptr) != (spawnB != nullptr) || (spawnA && spawnA->getSize() != spawnB->getSize())) {
+			return false;
+		}
+		const SpawnNpc* npcSpawnA = hasA ? a->spawnNpc : nullptr;
+		const SpawnNpc* npcSpawnB = hasB ? b->spawnNpc : nullptr;
+		if ((npcSpawnA != nullptr) != (npcSpawnB != nullptr) || (npcSpawnA && npcSpawnA->getSize() != npcSpawnB->getSize())) {
+			return false;
+		}
+		const Npc* npcA = hasA ? a->npc : nullptr;
+		const Npc* npcB = hasB ? b->npc : nullptr;
+		if ((npcA != nullptr) != (npcB != nullptr)) {
+			return false;
+		}
+		if (npcA && (npcA->getTypeName() != npcB->getTypeName() || npcA->getSpawnNpcTime() != npcB->getSpawnNpcTime() || npcA->getDirection() != npcB->getDirection())) {
+			return false;
+		}
+		const size_t countA = hasA ? a->monsters.size() : 0;
+		const size_t countB = hasB ? b->monsters.size() : 0;
+		if (countA != countB) {
+			return false;
+		}
+		for (size_t i = 0; i < countA; ++i) {
+			const Monster* x = a->monsters[i];
+			const Monster* y = b->monsters[i];
+			if (x->getTypeName() != y->getTypeName() || x->getSpawnMonsterTime() != y->getSpawnMonsterTime() || x->getDirection() != y->getDirection() || x->getWeight() != y->getWeight()) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	Tile* decodeTile(Map &map, const Position &pos, const std::string &bytes, const IOMap &io) {
 		Tile* tile = map.allocator(map.createTileL(pos));
 		if (bytes.empty()) {

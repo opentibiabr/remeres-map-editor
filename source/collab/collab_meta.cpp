@@ -101,7 +101,42 @@ namespace collab {
 			return bytes(w);
 		}
 
+		std::string encodeComment(const MapComment &comment) {
+			ByteWriter w;
+			w.u32(comment.parent);
+			w.str(comment.author);
+			w.u32(comment.authorColor);
+			w.blob(comment.text);
+			w.u32(static_cast<uint32_t>(comment.created));
+			w.u32(static_cast<uint32_t>(comment.edited));
+			w.u8(comment.resolved ? 1 : 0);
+			w.str(comment.assignee);
+			w.u8(comment.kind);
+			writePosition(w, comment.pos);
+			return bytes(w);
+		}
+
 		const std::string kPropsKey = "map";
+	}
+
+	MapComment decodeComment(uint32_t id, const std::string &data) {
+		ByteReader r(reinterpret_cast<const uint8_t*>(data.data()), data.size());
+		MapComment comment;
+		comment.id = id;
+		comment.parent = r.u32();
+		comment.author = r.str(kMaxKey);
+		comment.authorColor = r.u32() & 0xFFFFFF;
+		comment.text = r.blob(16 * 1024);
+		comment.created = r.u32();
+		comment.edited = r.u32();
+		comment.resolved = r.u8() != 0;
+		comment.assignee = r.str(kMaxKey);
+		comment.kind = static_cast<uint8_t>(r.u8() % MapComments::kKindCount);
+		comment.pos = readPosition(r);
+		if (!comment.pos.isValid() || comment.author.empty()) {
+			throw ProtocolError("invalid comment");
+		}
+		return comment;
 	}
 
 	MetaState captureMeta(Map &map) {
@@ -117,6 +152,9 @@ namespace collab {
 		}
 		for (const auto &entry : map.zones.zones) {
 			state[keyOf(MetaKind::Zone, entry.first)] = encodeZone(entry.second);
+		}
+		for (const MapComment &comment : map.comments.all()) {
+			state[keyOf(MetaKind::Comment, std::to_string(comment.id))] = encodeComment(comment);
 		}
 		state[keyOf(MetaKind::MapProps, kPropsKey)] = encodeProps(map);
 		return state;
@@ -139,6 +177,10 @@ namespace collab {
 			case MetaKind::Zone: {
 				auto it = map.zones.zones.find(key);
 				return it != map.zones.zones.end() ? std::optional<std::string>(encodeZone(it->second)) : std::nullopt;
+			}
+			case MetaKind::Comment: {
+				const MapComment* comment = map.comments.get(parseId(key));
+				return comment ? std::optional<std::string>(encodeComment(*comment)) : std::nullopt;
 			}
 			case MetaKind::MapProps:
 				return encodeProps(map);
@@ -245,6 +287,15 @@ namespace collab {
 				if (map.zones.getZoneID(op.key) != id) {
 					map.zones.removeZone(op.key);
 					map.zones.addZone(op.key, id); // false when another zone owns the id: leave it out
+				}
+				return;
+			}
+			case MetaKind::Comment: {
+				const uint32_t id = parseId(op.key);
+				if (op.remove) {
+					map.comments.remove(id);
+				} else {
+					map.comments.upsert(decodeComment(id, op.data));
 				}
 				return;
 			}

@@ -26,7 +26,7 @@
 
 namespace collab {
 
-	constexpr uint16_t kProtocolVersion = 1;
+	constexpr uint16_t kProtocolVersion = 2;
 
 	// Limits. Everything read from the network is checked against these.
 	constexpr size_t kMaxFrame = 1024 * 1024; // plaintext, type byte included
@@ -84,7 +84,13 @@ namespace collab {
 		Admin,
 		Editor,
 		Viewer,
+		Commenter, // like a viewer, but may write comments
 	};
+
+	// Who may change the map itself.
+	inline bool canEditMap(Role role) {
+		return role == Role::Host || role == Role::Admin || role == Role::Editor;
+	}
 
 	inline const char* roleName(Role role) {
 		switch (role) {
@@ -96,6 +102,8 @@ namespace collab {
 				return "Editor";
 			case Role::Viewer:
 				return "Viewer";
+			case Role::Commenter:
+				return "Commenter";
 		}
 		return "?";
 	}

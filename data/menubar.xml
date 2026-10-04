@@ -215,6 +215,9 @@
         <item name="$Leave Session" action="COLLAB_LEAVE" help="Stop hosting or leave the current session."/>
         <separator/>
         <item name="Add $Comment at Cursor" action="COLLAB_ADD_COMMENT" help="Leave a comment on the tile under the cursor."/>
+        <separator/>
+        <item name="Show Cur$sors" action="COLLAB_SHOW_CURSORS" help="Show where the other participants are pointing."/>
+        <item name="Show $Names" action="COLLAB_SHOW_NAMES" help="Show the names of the other participants next to their cursors and areas."/>
     </menu>
     <menu name="$MCP">
         <item name="MCP $Server" action="WIN_MCP" help="Displays the MCP server window, which lets an AI client read and edit this map."/>

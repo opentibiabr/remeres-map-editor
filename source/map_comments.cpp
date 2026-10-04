@@ -35,9 +35,36 @@ namespace {
 	int64_t now() {
 		return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 	}
+
+	std::string authorOverride;
+}
+
+void MapComments::setAuthorOverride(const std::string &name) {
+	authorOverride = name;
+}
+
+const char* MapComments::kindName(uint8_t kind) {
+	static const char* const names[] = { "Note", "Bug", "Idea", "To do" };
+	return names[kind % kKindCount];
+}
+
+uint32_t MapComments::kindColor(uint8_t kind) {
+	switch (kind) {
+		case 1:
+			return 0xF44336; // bug
+		case 2:
+			return 0xFFC107; // idea
+		case 3:
+			return 0x2196F3; // to do
+		default:
+			return 0;
+	}
 }
 
 std::string MapComments::localAuthor() {
+	if (!authorOverride.empty()) {
+		return authorOverride;
+	}
 	std::string name = g_settings.getString(Config::COLLAB_USER_NAME);
 	if (name.empty()) {
 		name = nstr(wxGetUserId());
@@ -67,17 +94,34 @@ const MapComment* MapComments::get(uint32_t id) const {
 
 const MapComment* MapComments::at(const Position &pos) const {
 	for (const MapComment &c : comments) {
-		if (c.pos == pos) {
+		if (c.pos == pos && c.parent == 0) {
 			return &c;
 		}
 	}
 	return nullptr;
 }
 
-const MapComment &MapComments::add(const Position &pos, const std::string &text) {
+const MapComment* MapComments::rootOf(const MapComment &comment) const {
+	const MapComment* root = &comment;
+	for (int depth = 0; root->parent != 0 && depth < 8; ++depth) {
+		const MapComment* parent = get(root->parent);
+		if (!parent) {
+			break;
+		}
+		root = parent;
+	}
+	return root;
+}
+
+const MapComment &MapComments::add(const Position &pos, const std::string &text, uint32_t parent, const std::string &assignee, uint8_t kind) {
 	MapComment c;
-	c.id = nextId++;
+	do {
+		c.id = (idPrefix << 20) | (nextId++ & 0xFFFFF);
+	} while (c.id == 0 || find(c.id));
 	c.pos = pos;
+	c.parent = parent;
+	c.assignee = assignee;
+	c.kind = kind % kKindCount;
 	c.author = localAuthor();
 	c.authorColor = colorForAuthor(c.author);
 	c.text = text;
@@ -96,6 +140,27 @@ bool MapComments::edit(uint32_t id, const std::string &text) {
 	return true;
 }
 
+bool MapComments::update(uint32_t id, const std::string &text, const std::string &assignee, uint8_t kind) {
+	MapComment* c = find(id);
+	if (!c) {
+		return false;
+	}
+	c->text = text;
+	c->assignee = assignee;
+	c->kind = kind % kKindCount;
+	c->edited = now();
+	return true;
+}
+
+void MapComments::upsert(const MapComment &comment) {
+	if (MapComment* existing = find(comment.id)) {
+		*existing = comment;
+	} else {
+		comments.push_back(comment);
+	}
+	nextId = std::max(nextId, (comment.id & 0xFFFFF) + 1);
+}
+
 bool MapComments::setResolved(uint32_t id, bool resolved) {
 	MapComment* c = find(id);
 	if (!c) {
@@ -106,7 +171,7 @@ bool MapComments::setResolved(uint32_t id, bool resolved) {
 }
 
 bool MapComments::remove(uint32_t id) {
-	auto it = std::remove_if(comments.begin(), comments.end(), [id](const MapComment &c) { return c.id == id; });
+	auto it = std::remove_if(comments.begin(), comments.end(), [id](const MapComment &c) { return c.id == id || c.parent == id; });
 	if (it == comments.end()) {
 		return false;
 	}
@@ -141,7 +206,7 @@ bool MapComments::loadDocument(const pugi::xml_document &doc) {
 		MapComment c;
 		c.id = node.attribute("id").as_uint();
 		if (c.id == 0 || find(c.id)) {
-			c.id = nextId; // Missing or duplicated id, assign a fresh one
+			c.id = nextId++; // Missing or duplicated id, assign a fresh one
 		}
 		c.pos = Position(node.attribute("x").as_int(), node.attribute("y").as_int(), node.attribute("z").as_int());
 		if (!c.pos.isValid()) {
@@ -154,7 +219,10 @@ bool MapComments::loadDocument(const pugi::xml_document &doc) {
 		c.edited = node.attribute("edited").as_llong();
 		c.resolved = node.attribute("resolved").as_bool();
 		c.text = node.text().as_string();
-		nextId = std::max(nextId, c.id + 1);
+		c.parent = node.attribute("parent").as_uint();
+		c.assignee = node.attribute("assignee").as_string();
+		c.kind = static_cast<uint8_t>(node.attribute("kind").as_uint() % kKindCount);
+		nextId = std::max(nextId, (c.id & 0xFFFFF) + 1);
 		comments.push_back(std::move(c));
 	}
 	return true;
@@ -192,6 +260,15 @@ void MapComments::fillDocument(pugi::xml_document &doc) const {
 		node.append_attribute("created") = static_cast<long long>(c.created);
 		node.append_attribute("edited") = static_cast<long long>(c.edited);
 		node.append_attribute("resolved") = c.resolved ? 1 : 0;
+		if (c.parent != 0) {
+			node.append_attribute("parent") = c.parent;
+		}
+		if (!c.assignee.empty()) {
+			node.append_attribute("assignee") = c.assignee.c_str();
+		}
+		if (c.kind != 0) {
+			node.append_attribute("kind") = static_cast<unsigned>(c.kind);
+		}
 		node.text().set(c.text.c_str());
 	}
 }

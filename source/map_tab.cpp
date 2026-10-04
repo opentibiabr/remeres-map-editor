@@ -92,7 +92,7 @@ MapWindow* MapTab::GetView() const {
 wxString MapTab::GetTitle() const {
 	wxString ss;
 	const Map &map = iref->editor->getMap();
-	ss << wxstr(map.getName()) << (map.hasChanged() ? "*" : "");
+	ss << wxstr(collab::Session::get().titleMark(iref->editor)) << wxstr(map.getName()) << (map.hasChanged() ? "*" : "");
 	return ss;
 }
 

@@ -861,7 +861,7 @@ void MapDrawer::DrawCollabCursors() {
 		}
 	}
 
-	if (labels.empty()) {
+	if (labels.empty() && session.toasts().empty()) {
 		return;
 	}
 
@@ -879,6 +879,18 @@ void MapDrawer::DrawCollabCursors() {
 		renderer->drawColoredQuad(x, y, width + 6.0f, line_height + 2.0f, { 0, 0, 0, 170 });
 		renderer->drawText(x + 3.0f, y + renderer->getAscent() + 1.0f, label.text, static_cast<uint8_t>(label.rgb >> 16), static_cast<uint8_t>(label.rgb >> 8), static_cast<uint8_t>(label.rgb), 255);
 	}
+
+	// Messages like "Ana joined" or "Ana mentioned you", stacked in the top left corner.
+	float toastY = 36.0f;
+	for (const collab::Toast &toast : session.toasts()) {
+		float width = 0.0f;
+		for (char c : toast.text) {
+			width += renderer->getCharWidth(c);
+		}
+		renderer->drawColoredQuad(10.0f, toastY, width + 12.0f, line_height + 6.0f, { 30, 30, 30, 210 });
+		renderer->drawText(16.0f, toastY + 3.0f + renderer->getAscent(), toast.text, 255, 255, 255, 255);
+		toastY += line_height + 10.0f;
+	}
 	renderer->flush();
 
 	std::array<int, 4> vPort {};
@@ -893,7 +905,7 @@ void MapDrawer::DrawComments() {
 
 	const Position mouse(mouse_map_x, mouse_map_y, floor);
 	for (const MapComment &comment : editor.getMap().comments.all()) {
-		if (comment.pos.z != floor) {
+		if (comment.pos.z != floor || comment.parent != 0) {
 			continue;
 		}
 
@@ -904,7 +916,8 @@ void MapDrawer::DrawComments() {
 			continue;
 		}
 
-		const uint32_t rgb = comment.resolved ? 0x9E9E9E : comment.authorColor;
+		const uint32_t kindRgb = MapComments::kindColor(comment.kind);
+		const uint32_t rgb = comment.resolved ? 0x9E9E9E : (kindRgb != 0 ? kindRgb : comment.authorColor);
 		constexpr int size = 10;
 		const int mx = x + rme::TileSize - size;
 		renderer->drawColoredQuad(mx - 1, y - 1, size + 2, size + 2, { 0, 0, 0, 200 });
@@ -912,8 +925,16 @@ void MapDrawer::DrawComments() {
 
 		if (options.isTooltips() && comment.pos == mouse) {
 			auto &tip = MakeTooltip(comment.pos.x, comment.pos.y, comment.pos.z, 255, 244, 179);
-			tip.addEntry(comment.resolved ? "resolved: " : "comment: ", comment.author);
+			tip.addEntry(std::string(comment.resolved ? "resolved " : "") + MapComments::kindName(comment.kind) + ": ", comment.author);
 			tip.addEntry("", comment.text);
+			if (!comment.assignee.empty()) {
+				tip.addEntry("assigned to: ", comment.assignee);
+			}
+			for (const MapComment &reply : editor.getMap().comments.all()) {
+				if (reply.parent == comment.id) {
+					tip.addEntry("reply: ", reply.author + ": " + reply.text);
+				}
+			}
 		}
 	}
 }

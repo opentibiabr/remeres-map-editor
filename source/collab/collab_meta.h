@@ -26,6 +26,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "../map_comments.h"
 #include "../position.h"
 
 class Map;
@@ -41,6 +42,7 @@ namespace collab {
 		Waypoint,
 		Zone,
 		MapProps,
+		Comment,
 		Count,
 	};
 
@@ -60,6 +62,9 @@ namespace collab {
 	// The current encoding of one entry, nullopt if it does not exist.
 	std::optional<std::string> captureMetaEntry(Map &map, MetaKind kind, const std::string &key);
 	std::vector<MetaOp> diffMeta(const MetaState &before, const MetaState &after);
+
+	// A comment as carried by a Comment entry. Throws ProtocolError when malformed.
+	MapComment decodeComment(uint32_t id, const std::string &data);
 
 	// Where tiles of houses that did not exist yet wait for their house.
 	using PendingHouseTiles = std::unordered_map<uint32_t, std::vector<Position>>;

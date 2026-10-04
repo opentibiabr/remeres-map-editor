@@ -34,6 +34,9 @@ namespace collab {
 	// The empty string means "blank tile", which is also what a missing tile encodes to.
 	std::string encodeTile(const Tile* tile, const IOMap &io);
 
+	// True when both tiles have the same spawns, monsters and npc (either may be null).
+	bool sameCreatures(const Tile* a, const Tile* b);
+
 	// Builds a new tile owned by the caller (normally handed to a Change). An empty string gives
 	// a blank tile. Throws ProtocolError on malformed or hostile input and never leaks.
 	Tile* decodeTile(Map &map, const Position &pos, const std::string &bytes, const IOMap &io);

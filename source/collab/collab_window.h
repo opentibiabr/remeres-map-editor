@@ -25,6 +25,7 @@
 
 class wxButton;
 class wxCheckBox;
+class wxColourPickerCtrl;
 class wxChoice;
 class wxListCtrl;
 class wxListEvent;
@@ -51,6 +52,11 @@ public:
 
 	// Rebuilds the comments list from the current editor's map.
 	void RefreshComments();
+	// The cursor/name check boxes follow the settings (the menu changes them too).
+	void RefreshToggles();
+
+	// The dialog to write or edit a comment: text, type and assignee. False when cancelled.
+	static bool EditComment(wxWindow* parent, MapComment &comment, bool isNew);
 
 	static CollabWindow* Get() {
 		return instance;
@@ -74,6 +80,9 @@ private:
 	void SendChat();
 	void ShowUserMenu(uint32_t userId);
 	void RefreshHistory();
+	void ReplyToSelected();
+	void GoToNextOpen();
+	std::vector<const MapComment*> ThreadRoots() const;
 	std::string HistoryFilter() const;
 	const collab::JournalEntry* SelectedHistoryEntry() const;
 
@@ -87,6 +96,13 @@ private:
 	wxSpinCtrl* host_port = nullptr;
 	wxTextCtrl* host_password = nullptr;
 	wxChoice* host_role = nullptr;
+	wxCheckBox* host_perm_meta = nullptr;
+	wxCheckBox* host_perm_props = nullptr;
+	wxCheckBox* host_perm_spawns = nullptr;
+	wxSpinCtrl* host_autosave = nullptr;
+	wxColourPickerCtrl* color_picker = nullptr;
+	wxCheckBox* chat_sound = nullptr;
+	bool rebuilding_chat = false;
 	wxCheckBox* host_share = nullptr;
 	wxCheckBox* host_save_all = nullptr;
 	wxButton* start_button = nullptr;
@@ -124,6 +140,8 @@ private:
 	wxListCtrl* comment_list = nullptr;
 	wxCheckBox* show_resolved = nullptr;
 	wxSearchCtrl* search = nullptr;
+	wxCheckBox* mine_only = nullptr;
+	wxChoice* kind_filter = nullptr;
 
 	static CollabWindow* instance;
 };

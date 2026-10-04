@@ -28,6 +28,10 @@
 
 #include <wx/button.h>
 #include <wx/clipboard.h>
+#include <wx/clrpicker.h>
+#include <wx/combobox.h>
+#include <wx/dialog.h>
+#include <wx/wrapsizer.h>
 #include <wx/checkbox.h>
 #include <wx/choice.h>
 #include <wx/listctrl.h>
@@ -48,6 +52,8 @@ namespace {
 		COL_AUTHOR,
 		COL_POSITION,
 		COL_TEXT,
+		COL_TYPE,
+		COL_ASSIGNEE,
 		COL_STATUS,
 	};
 
@@ -121,6 +127,7 @@ CollabWindow::CollabWindow(wxWindow* parent) :
 	collab_session.onChanged = [this] { OnSessionChanged(); };
 	collab_session.onChat = [this](const collab::ChatLine &line) { AppendChat(line); };
 	collab_session.onHistoryChanged = [this] { RefreshHistory(); };
+	collab_session.onCommentsChanged = [this] { RefreshComments(); };
 	collab_session.onHistoryResult = [this](const std::string &message) { history_status->SetLabel(wxstr(message)); };
 	RebuildChat();
 	OnSessionChanged();
@@ -131,6 +138,7 @@ CollabWindow::~CollabWindow() {
 	collab_session.onChanged = nullptr;
 	collab_session.onChat = nullptr;
 	collab_session.onHistoryChanged = nullptr;
+	collab_session.onCommentsChanged = nullptr;
 	collab_session.onHistoryResult = nullptr;
 	if (instance == this) {
 		instance = nullptr;
@@ -157,6 +165,22 @@ void CollabWindow::BuildSessionPage(wxWindow* page) {
 		g_settings.setString(Config::COLLAB_USER_NAME, nstr(name_text->GetValue()));
 	});
 	name_row->Add(name_text, 1);
+	const int savedColor = g_settings.getInteger(Config::COLLAB_USER_COLOR) & 0xFFFFFF;
+	color_picker = newd wxColourPickerCtrl(page, wxID_ANY, toColour(savedColor != 0 ? static_cast<uint32_t>(savedColor) : MapComments::paletteColor(0)));
+	color_picker->SetToolTip("Your color for cursors, areas and comments (the host keeps it unless somebody has it already)");
+	color_picker->Bind(wxEVT_COLOURPICKER_CHANGED, [](wxColourPickerEvent &event) {
+		const wxColour colour = event.GetColour();
+		const int rgb = (colour.Red() << 16) | (colour.Green() << 8) | colour.Blue();
+		g_settings.setInteger(Config::COLLAB_USER_COLOR, rgb != 0 ? rgb : 1);
+	});
+	name_row->Add(color_picker, 0, wxLEFT, 6);
+	auto* auto_color = newd wxButton(page, wxID_ANY, "Auto", wxDefaultPosition, wxSize(48, -1));
+	auto_color->SetToolTip("Let the host pick a color");
+	auto_color->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
+		g_settings.setInteger(Config::COLLAB_USER_COLOR, 0);
+		color_picker->SetColour(toColour(MapComments::paletteColor(0)));
+	});
+	name_row->Add(auto_color, 0, wxLEFT, 4);
 	root->Add(name_row, 0, wxEXPAND | wxALL, 8);
 
 	status_label = newd wxStaticText(page, wxID_ANY, "");
@@ -177,7 +201,9 @@ void CollabWindow::BuildSessionPage(wxWindow* page) {
 	host_role = newd wxChoice(host_box, wxID_ANY);
 	host_role->Append("Editor");
 	host_role->Append("Viewer");
-	host_role->SetSelection(g_settings.getInteger(Config::COLLAB_DEFAULT_ROLE) == static_cast<int>(collab::Role::Viewer) ? 1 : 0);
+	host_role->Append("Commenter");
+	const int savedRole = g_settings.getInteger(Config::COLLAB_DEFAULT_ROLE);
+	host_role->SetSelection(savedRole == static_cast<int>(collab::Role::Viewer) ? 1 : (savedRole == static_cast<int>(collab::Role::Commenter) ? 2 : 0));
 	addRow(host, host_box, "Joiners are:", host_role);
 	host_share = newd wxCheckBox(host_box, wxID_ANY, "Share map with participants (they can keep and save a copy)");
 	host_share->SetValue(g_settings.getBoolean(Config::COLLAB_SHARE_MAP));
@@ -188,9 +214,32 @@ void CollabWindow::BuildSessionPage(wxWindow* page) {
 	host_save_all->SetValue(g_settings.getBoolean(Config::COLLAB_SAVE_ON_PARTICIPANTS));
 	host_save_all->Enable(host_share->GetValue());
 	host->Add(host_save_all, 0, wxALL, 3);
+
+	host_perm_meta = newd wxCheckBox(host_box, wxID_ANY, "Editors can change houses, towns, waypoints and zones");
+	host_perm_meta->SetValue(g_settings.getBoolean(Config::COLLAB_PERM_META));
+	host->Add(host_perm_meta, 0, wxALL, 3);
+	host_perm_props = newd wxCheckBox(host_box, wxID_ANY, "Editors can change the map properties");
+	host_perm_props->SetValue(g_settings.getBoolean(Config::COLLAB_PERM_PROPS));
+	host->Add(host_perm_props, 0, wxALL, 3);
+	host_perm_spawns = newd wxCheckBox(host_box, wxID_ANY, "Editors can change spawns, monsters and npcs");
+	host_perm_spawns->SetValue(g_settings.getBoolean(Config::COLLAB_PERM_SPAWNS));
+	host->Add(host_perm_spawns, 0, wxALL, 3);
+	host_autosave = newd wxSpinCtrl(host_box, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 240, g_settings.getInteger(Config::COLLAB_AUTOSAVE_MINUTES));
+	host_autosave->SetToolTip("The host saves the map by itself every N minutes while somebody is connected (needs a saved map). 0 turns it off.");
+	addRow(host, host_box, "Autosave (minutes):", host_autosave);
 	start_button = newd wxButton(host_box, wxID_ANY, "Start hosting");
 	start_button->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
-		const auto role = host_role->GetSelection() == 1 ? collab::Role::Viewer : collab::Role::Editor;
+		const auto role = host_role->GetSelection() == 1 ? collab::Role::Viewer : (host_role->GetSelection() == 2 ? collab::Role::Commenter : collab::Role::Editor);
+		g_settings.setInteger(Config::COLLAB_PERM_META, host_perm_meta->GetValue());
+		g_settings.setInteger(Config::COLLAB_PERM_PROPS, host_perm_props->GetValue());
+		g_settings.setInteger(Config::COLLAB_PERM_SPAWNS, host_perm_spawns->GetValue());
+		g_settings.setInteger(Config::COLLAB_AUTOSAVE_MINUTES, host_autosave->GetValue());
+		collab::HostOptions options;
+		options.editorsMeta = host_perm_meta->GetValue();
+		options.editorsProps = host_perm_props->GetValue();
+		options.editorsSpawns = host_perm_spawns->GetValue();
+		options.autosaveMinutes = host_autosave->GetValue();
+		collab::Session::get().hostOptions = options;
 		g_settings.setInteger(Config::COLLAB_PORT, host_port->GetValue());
 		g_settings.setInteger(Config::COLLAB_DEFAULT_ROLE, static_cast<int>(role));
 		g_settings.setInteger(Config::COLLAB_SHARE_MAP, host_share->GetValue());
@@ -338,7 +387,13 @@ void CollabWindow::UpdateStartButton() {
 	start_button->SetToolTip(!has_map ? "Open the map you want to share first" : (has_password ? "" : "The password needs at least 6 characters"));
 }
 
+void CollabWindow::RefreshToggles() {
+	show_cursors->SetValue(g_settings.getBoolean(Config::COLLAB_SHOW_CURSORS));
+	show_names->SetValue(g_settings.getBoolean(Config::COLLAB_SHOW_NAMES));
+}
+
 void CollabWindow::OnSessionChanged() {
+	RefreshToggles();
 	collab::Session &collab_session = collab::Session::get();
 	const bool active = collab_session.active();
 
@@ -358,7 +413,7 @@ void CollabWindow::OnSessionChanged() {
 	save_request_button->Show(collab_session.state() == collab::State::Joined && me && me->role == collab::Role::Admin);
 
 	const bool joined_or_host = collab_session.state() == collab::State::Hosting || collab_session.state() == collab::State::Joined;
-	const bool can_edit_role = joined_or_host && me && me->role != collab::Role::Viewer;
+	const bool can_edit_role = joined_or_host && me && collab::canEditMap(me->role);
 	const bool can_summon = joined_or_host && me && (me->role == collab::Role::Host || me->role == collab::Role::Admin);
 	invite_label->Show(collab_session.isHost());
 	invite_button->Show(collab_session.isHost());
@@ -424,6 +479,7 @@ void CollabWindow::ShowUserMenu(uint32_t userId) {
 		ID_VIEWER,
 		ID_KICK,
 		ID_FOLLOW,
+		ID_COMMENTER,
 	};
 	wxMenu menu;
 	menu.Append(ID_GOTO, "Go to cursor")->Enable(collab_session.cursors().count(userId) > 0);
@@ -437,6 +493,7 @@ void CollabWindow::ShowUserMenu(uint32_t userId) {
 		}
 		menu.Append(ID_EDITOR, "Make editor");
 		menu.Append(ID_VIEWER, "Make viewer");
+		menu.Append(ID_COMMENTER, "Make commenter");
 		menu.AppendSeparator();
 		menu.Append(ID_KICK, "Kick");
 	}
@@ -467,6 +524,9 @@ void CollabWindow::ShowUserMenu(uint32_t userId) {
 					break;
 				case ID_VIEWER:
 					s.setRole(userId, collab::Role::Viewer);
+					break;
+				case ID_COMMENTER:
+					s.setRole(userId, collab::Role::Commenter);
 					break;
 				case ID_KICK:
 					s.kick(userId);
@@ -505,6 +565,11 @@ void CollabWindow::BuildChatPage(wxWindow* page) {
 	input_row->Add(send, 0);
 	root->Add(input_row, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 6);
 
+	chat_sound = newd wxCheckBox(page, wxID_ANY, "Play a sound for new messages");
+	chat_sound->SetValue(g_settings.getBoolean(Config::COLLAB_CHAT_SOUND));
+	chat_sound->Bind(wxEVT_CHECKBOX, [this](wxCommandEvent &) { g_settings.setInteger(Config::COLLAB_CHAT_SOUND, chat_sound->GetValue()); });
+	root->Add(chat_sound, 0, wxLEFT | wxRIGHT | wxBOTTOM, 6);
+
 	page->SetSizer(root);
 }
 
@@ -538,14 +603,20 @@ void CollabWindow::AppendChat(const collab::ChatLine &line) {
 		++unread_chat;
 		notebook->SetPageText(PAGE_CHAT, wxString::Format("Chat (%d)", unread_chat));
 	}
+
+	if (!rebuilding_chat && !line.system && line.userId != collab::Session::get().myId() && g_settings.getBoolean(Config::COLLAB_CHAT_SOUND)) {
+		wxBell();
+	}
 }
 
 void CollabWindow::RebuildChat() {
 	chat_log->Clear();
 	const int unread = unread_chat;
+	rebuilding_chat = true; // old messages do not beep
 	for (const collab::ChatLine &line : collab::Session::get().chat()) {
 		AppendChat(line);
 	}
+	rebuilding_chat = false;
 	unread_chat = unread;
 	notebook->SetPageText(PAGE_CHAT, unread > 0 ? wxString::Format("Chat (%d)", unread) : wxString("Chat"));
 }
@@ -690,22 +761,84 @@ void CollabWindow::RefreshHistory() {
 
 // ---- Comments page ------------------------------------------------------------------------
 
+bool CollabWindow::EditComment(wxWindow* parent, MapComment &comment, bool isNew) {
+	wxDialog dialog(parent, wxID_ANY, isNew ? (comment.parent != 0 ? "Reply" : "Add Comment") : "Edit Comment", wxDefaultPosition, wxSize(440, comment.parent != 0 ? 250 : 300));
+	auto* root = newd wxBoxSizer(wxVERTICAL);
+
+	auto* text = newd wxTextCtrl(&dialog, wxID_ANY, wxstr(comment.text), wxDefaultPosition, wxSize(-1, 120), wxTE_MULTILINE);
+	text->SetMaxLength(2000);
+	root->Add(text, 1, wxEXPAND | wxALL, 8);
+	root->Add(newd wxStaticText(&dialog, wxID_ANY, "Write @name to mention somebody: they get a notification."), 0, wxLEFT | wxRIGHT | wxBOTTOM, 8);
+
+	wxChoice* kind = nullptr;
+	wxComboBox* assignee = nullptr;
+	if (comment.parent == 0) { // a reply belongs to its thread's type and assignee
+		auto* row = newd wxBoxSizer(wxHORIZONTAL);
+		row->Add(newd wxStaticText(&dialog, wxID_ANY, "Type:"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 4);
+		kind = newd wxChoice(&dialog, wxID_ANY);
+		for (uint8_t k = 0; k < MapComments::kKindCount; ++k) {
+			kind->Append(MapComments::kindName(k));
+		}
+		kind->SetSelection(comment.kind % MapComments::kKindCount);
+		row->Add(kind, 0, wxRIGHT, 12);
+		row->Add(newd wxStaticText(&dialog, wxID_ANY, "Assign to:"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 4);
+		assignee = newd wxComboBox(&dialog, wxID_ANY, wxstr(comment.assignee));
+		for (const auto &entry : collab::Session::get().users()) {
+			assignee->Append(wxstr(entry.second.name));
+		}
+		row->Add(assignee, 1);
+		root->Add(row, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 8);
+	}
+
+	root->Add(dialog.CreateStdDialogButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxALL, 8);
+	dialog.SetSizer(root);
+	text->SetFocus();
+	if (dialog.ShowModal() != wxID_OK) {
+		return false;
+	}
+
+	const std::string value = nstr(text->GetValue().Trim().Trim(false));
+	if (value.empty()) {
+		return false;
+	}
+	comment.text = value;
+	if (kind && assignee) {
+		comment.kind = static_cast<uint8_t>(kind->GetSelection());
+		comment.assignee = nstr(assignee->GetValue().Trim().Trim(false));
+	}
+	return true;
+}
+
 void CollabWindow::BuildCommentsPage(wxWindow* page) {
 	auto* root = newd wxBoxSizer(wxVERTICAL);
 
-	auto* filter = newd wxBoxSizer(wxHORIZONTAL);
+	auto* filter = newd wxWrapSizer(wxHORIZONTAL);
 	show_resolved = newd wxCheckBox(page, wxID_ANY, "Show resolved");
 	show_resolved->Bind(wxEVT_CHECKBOX, [this](wxCommandEvent &) { RefreshComments(); });
 	filter->Add(show_resolved, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
-	search = newd wxSearchCtrl(page, wxID_ANY);
-	search->Bind(wxEVT_TEXT, [this](wxCommandEvent &) { RefreshComments(); });
-	filter->Add(search, 1);
+	mine_only = newd wxCheckBox(page, wxID_ANY, "Assigned to me");
+	mine_only->Bind(wxEVT_CHECKBOX, [this](wxCommandEvent &) { RefreshComments(); });
+	filter->Add(mine_only, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
+	kind_filter = newd wxChoice(page, wxID_ANY);
+	kind_filter->Append("All types");
+	for (uint8_t k = 0; k < MapComments::kKindCount; ++k) {
+		kind_filter->Append(MapComments::kindName(k));
+	}
+	kind_filter->SetSelection(0);
+	kind_filter->Bind(wxEVT_CHOICE, [this](wxCommandEvent &) { RefreshComments(); });
+	filter->Add(kind_filter, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
 	root->Add(filter, 0, wxEXPAND | wxALL, 6);
 
+	search = newd wxSearchCtrl(page, wxID_ANY);
+	search->Bind(wxEVT_TEXT, [this](wxCommandEvent &) { RefreshComments(); });
+	root->Add(search, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 6);
+
 	comment_list = newd wxListCtrl(page, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL);
-	comment_list->InsertColumn(COL_AUTHOR, "Author", wxLIST_FORMAT_LEFT, 80);
-	comment_list->InsertColumn(COL_POSITION, "Position", wxLIST_FORMAT_LEFT, 100);
-	comment_list->InsertColumn(COL_TEXT, "Text", wxLIST_FORMAT_LEFT, 160);
+	comment_list->InsertColumn(COL_AUTHOR, "Author", wxLIST_FORMAT_LEFT, 72);
+	comment_list->InsertColumn(COL_POSITION, "Position", wxLIST_FORMAT_LEFT, 92);
+	comment_list->InsertColumn(COL_TEXT, "Text", wxLIST_FORMAT_LEFT, 150);
+	comment_list->InsertColumn(COL_TYPE, "Type", wxLIST_FORMAT_LEFT, 50);
+	comment_list->InsertColumn(COL_ASSIGNEE, "Assigned", wxLIST_FORMAT_LEFT, 70);
 	comment_list->InsertColumn(COL_STATUS, "Status", wxLIST_FORMAT_LEFT, 60);
 	root->Add(comment_list, 1, wxEXPAND | wxLEFT | wxRIGHT, 6);
 
@@ -716,27 +849,44 @@ void CollabWindow::BuildCommentsPage(wxWindow* page) {
 	};
 	comment_list->Bind(wxEVT_LIST_ITEM_ACTIVATED, [goTo](wxListEvent &) { goTo(); });
 
-	auto* buttons = newd wxBoxSizer(wxHORIZONTAL);
-	makeButton(page, buttons, "Go to")->Bind(wxEVT_BUTTON, [goTo](wxCommandEvent &) { goTo(); });
-	makeButton(page, buttons, "Resolve")->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
+	// Changes go through the map's comments; the session replicates them like any other change.
+	auto mutate = [this](const std::function<void(Editor &, const MapComment &)> &change) {
 		const MapComment* c = SelectedComment();
 		Editor* editor = g_gui.GetCurrentEditor();
 		if (c && editor) {
-			editor->getMap().comments.setResolved(c->id, !c->resolved);
+			change(*editor, *c);
+			editor->getMap().doChange();
+			RefreshComments();
+			g_gui.RefreshView();
+		}
+	};
+
+	auto* buttons = newd wxWrapSizer(wxHORIZONTAL);
+	makeButton(page, buttons, "Go to")->Bind(wxEVT_BUTTON, [goTo](wxCommandEvent &) { goTo(); });
+	makeButton(page, buttons, "Next open")->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { GoToNextOpen(); });
+	makeButton(page, buttons, "Reply")->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { ReplyToSelected(); });
+	makeButton(page, buttons, "Edit")->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
+		const MapComment* c = SelectedComment();
+		Editor* editor = g_gui.GetCurrentEditor();
+		if (!c || !editor) {
+			return;
+		}
+		MapComment draft = *c;
+		if (EditComment(this, draft, false)) {
+			editor->getMap().comments.update(draft.id, draft.text, draft.assignee, draft.kind);
 			editor->getMap().doChange();
 			RefreshComments();
 			g_gui.RefreshView();
 		}
 	});
-	makeButton(page, buttons, "Delete")->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
-		const MapComment* c = SelectedComment();
-		Editor* editor = g_gui.GetCurrentEditor();
-		if (c && editor) {
-			editor->getMap().comments.remove(c->id);
-			editor->getMap().doChange();
-			RefreshComments();
-			g_gui.RefreshView();
-		}
+	makeButton(page, buttons, "Resolve")->Bind(wxEVT_BUTTON, [mutate](wxCommandEvent &) {
+		mutate([](Editor &editor, const MapComment &c) {
+			const MapComment* root = editor.getMap().comments.rootOf(c); // the thread is resolved as a whole
+			editor.getMap().comments.setResolved(root->id, !root->resolved);
+		});
+	});
+	makeButton(page, buttons, "Delete")->Bind(wxEVT_BUTTON, [mutate](wxCommandEvent &) {
+		mutate([](Editor &editor, const MapComment &c) { editor.getMap().comments.remove(c.id); });
 	});
 	makeButton(page, buttons, "Add at cursor")->Bind(wxEVT_BUTTON, [](wxCommandEvent &) { AddCommentAtCursor(); });
 	makeButton(page, buttons, "Refresh")->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { RefreshComments(); });
@@ -754,6 +904,23 @@ const MapComment* CollabWindow::SelectedComment() const {
 	return editor->getMap().comments.get(static_cast<uint32_t>(comment_list->GetItemData(item)));
 }
 
+// First comments of every thread (a reply whose first comment is gone counts as one), by id.
+std::vector<const MapComment*> CollabWindow::ThreadRoots() const {
+	std::vector<const MapComment*> roots;
+	Editor* editor = g_gui.GetCurrentEditor();
+	if (!editor) {
+		return roots;
+	}
+	const MapComments &comments = editor->getMap().comments;
+	for (const MapComment &c : comments.all()) {
+		if (c.parent == 0 || !comments.get(c.parent)) {
+			roots.push_back(&c);
+		}
+	}
+	std::sort(roots.begin(), roots.end(), [](const MapComment* a, const MapComment* b) { return a->id < b->id; });
+	return roots;
+}
+
 void CollabWindow::RefreshComments() {
 	if (!comment_list) {
 		return;
@@ -765,20 +932,114 @@ void CollabWindow::RefreshComments() {
 		return;
 	}
 
+	const MapComments &comments = editor->getMap().comments;
 	const std::string needle = nstr(search->GetValue().Lower());
-	for (const MapComment &c : editor->getMap().comments.all()) {
-		if (c.resolved && !show_resolved->GetValue()) {
-			continue;
-		}
-		if (!needle.empty() && nstr(wxstr(c.text + " " + c.author).Lower()).find(needle) == std::string::npos) {
-			continue;
-		}
+	const std::string me = MapComments::localAuthor();
+	const int kindIndex = kind_filter->GetSelection();
+
+	auto matches = [&](const MapComment &c) {
+		return needle.empty() || nstr(wxstr(c.text + " " + c.author).Lower()).find(needle) != std::string::npos;
+	};
+	auto addRow = [&](const MapComment &c, const MapComment &root, bool reply) {
+		const wxString text = wxstr(c.text).BeforeFirst('\n');
 		long row = comment_list->InsertItem(comment_list->GetItemCount(), wxstr(c.author));
 		comment_list->SetItem(row, COL_POSITION, wxString::Format("%d, %d, %d", c.pos.x, c.pos.y, c.pos.z));
-		comment_list->SetItem(row, COL_TEXT, wxstr(c.text).BeforeFirst('\n'));
-		comment_list->SetItem(row, COL_STATUS, c.resolved ? "Resolved" : "Open");
+		comment_list->SetItem(row, COL_TEXT, reply ? ">> " + text : text);
+		if (!reply) {
+			comment_list->SetItem(row, COL_TYPE, MapComments::kindName(c.kind));
+			comment_list->SetItem(row, COL_ASSIGNEE, wxstr(c.assignee));
+			comment_list->SetItem(row, COL_STATUS, root.resolved ? "Resolved" : "Open");
+		}
 		comment_list->SetItemData(row, c.id);
+		if (root.resolved) {
+			comment_list->SetItemTextColour(row, wxColour(128, 128, 128));
+		}
+	};
+
+	for (const MapComment* root : ThreadRoots()) {
+		if (root->resolved && !show_resolved->GetValue()) {
+			continue;
+		}
+		if (mine_only->GetValue() && root->assignee != me) {
+			continue;
+		}
+		if (kindIndex > 0 && root->kind != kindIndex - 1) {
+			continue;
+		}
+
+		std::vector<const MapComment*> replies;
+		for (const MapComment &c : comments.all()) {
+			if (c.parent == root->id) {
+				replies.push_back(&c);
+			}
+		}
+		std::sort(replies.begin(), replies.end(), [](const MapComment* a, const MapComment* b) { return a->id < b->id; });
+
+		bool found = matches(*root);
+		for (const MapComment* reply : replies) {
+			found = found || matches(*reply);
+		}
+		if (!found) {
+			continue;
+		}
+		addRow(*root, *root, false);
+		for (const MapComment* reply : replies) {
+			addRow(*reply, *root, true);
+		}
 	}
+}
+
+void CollabWindow::ReplyToSelected() {
+	const MapComment* c = SelectedComment();
+	Editor* editor = g_gui.GetCurrentEditor();
+	if (!c || !editor) {
+		return;
+	}
+	const MapComment* root = editor->getMap().comments.rootOf(*c);
+	MapComment reply;
+	reply.pos = root->pos;
+	reply.parent = root->id;
+	if (EditComment(this, reply, true)) {
+		editor->getMap().comments.add(reply.pos, reply.text, reply.parent);
+		editor->getMap().doChange();
+		RefreshComments();
+		g_gui.RefreshView();
+	}
+}
+
+// Goes to the next unresolved thread after the selected one, wrapping around.
+void CollabWindow::GoToNextOpen() {
+	const std::vector<const MapComment*> roots = ThreadRoots();
+	if (roots.empty()) {
+		return;
+	}
+	const MapComment* selected = SelectedComment();
+	const MapComment* current = selected && g_gui.GetCurrentEditor() ? g_gui.GetCurrentEditor()->getMap().comments.rootOf(*selected) : nullptr;
+
+	size_t start = 0;
+	if (current) {
+		for (size_t i = 0; i < roots.size(); ++i) {
+			if (roots[i]->id == current->id) {
+				start = i + 1;
+			}
+		}
+	}
+	for (size_t step = 0; step < roots.size(); ++step) {
+		const MapComment* candidate = roots[(start + step) % roots.size()];
+		if (candidate->resolved) {
+			continue;
+		}
+		g_gui.SetScreenCenterPosition(candidate->pos);
+		for (long row = 0; row < comment_list->GetItemCount(); ++row) {
+			if (static_cast<uint32_t>(comment_list->GetItemData(row)) == candidate->id) {
+				comment_list->SetItemState(row, wxLIST_STATE_SELECTED | wxLIST_STATE_FOCUSED, wxLIST_STATE_SELECTED | wxLIST_STATE_FOCUSED);
+				comment_list->EnsureVisible(row);
+				break;
+			}
+		}
+		return;
+	}
+	g_gui.SetStatusText("No open comments");
 }
 
 void CollabWindow::AddCommentAtCursor() {
@@ -792,14 +1053,14 @@ void CollabWindow::AddCommentAtCursor() {
 	int x;
 	int y;
 	canvas->MouseToMap(&x, &y);
-	const Position pos(x, y, canvas->GetFloor());
-	if (!pos.isValid()) {
+	MapComment draft;
+	draft.pos = Position(x, y, canvas->GetFloor());
+	if (!draft.pos.isValid()) {
 		return;
 	}
 
-	wxTextEntryDialog dialog(tab, "Comment:", "Add Comment", "", wxTextEntryDialogStyle | wxTE_MULTILINE);
-	if (dialog.ShowModal() == wxID_OK && !dialog.GetValue().IsEmpty()) {
-		editor->getMap().comments.add(pos, nstr(dialog.GetValue()));
+	if (EditComment(tab, draft, true)) {
+		editor->getMap().comments.add(draft.pos, draft.text, 0, draft.assignee, draft.kind);
 		editor->getMap().doChange();
 		g_gui.RefreshView();
 		if (instance) {

@@ -26,6 +26,8 @@
 #include "../position.h"
 
 #include <chrono>
+#include <deque>
+#include <optional>
 #include <memory>
 #include <functional>
 #include <map>
@@ -71,6 +73,20 @@ namespace collab {
 		bool system = false;
 	};
 
+	// What the host allows its Editors to change; Admins and the host can always change everything.
+	struct HostOptions {
+		bool editorsMeta = true; // houses, towns, waypoints, zones
+		bool editorsProps = true; // map description and size
+		bool editorsSpawns = true; // spawns, monsters, npcs
+		int autosaveMinutes = 0; // 0: never
+		std::string viewerPassword; // optional second password: whoever uses it joins as a Viewer
+	};
+
+	struct Toast {
+		std::string text;
+		std::chrono::steady_clock::time_point until;
+	};
+
 	enum class State {
 		Idle,
 		Hosting,
@@ -89,6 +105,9 @@ namespace collab {
 		static Session &get();
 		Session();
 		~Session();
+
+		// Set before startHosting().
+		HostOptions hostOptions;
 
 		State state() const noexcept {
 			return currentState;
@@ -146,6 +165,14 @@ namespace collab {
 		}
 		std::function<void()> onHistoryChanged;
 		std::function<void(const std::string &)> onHistoryResult;
+
+		// Short messages drawn over the map (somebody joined, mentioned you...).
+		void pushToast(const std::string &text);
+		const std::deque<Toast> &toasts() const noexcept {
+			return toastQueue;
+		}
+		// "[3] " in front of the tab title of the shared map, empty for other maps.
+		std::string titleMark(const Editor* editor) const;
 
 		void sendChat(const std::string &text);
 		void onLocalCursor(const Position &pos, uint8_t brushSize, bool mouseDown);
@@ -212,6 +239,8 @@ namespace collab {
 		// Set by the panel. Called on the GUI thread.
 		std::function<void()> onChanged;
 		std::function<void(const ChatLine &)> onChat;
+		// Comments were added, changed or removed by somebody else.
+		std::function<void()> onCommentsChanged;
 		// A remote cursor moved: the map views need a repaint.
 		std::function<void()> onCursorsChanged;
 		// Claims or the revert preview changed: the map views need a repaint.
@@ -267,7 +296,7 @@ namespace collab {
 		void finishJoin();
 		int confirmStopPrompt();
 		Peer* peerForUser(uint32_t userId);
-		uint32_t pickColor() const;
+		uint32_t pickColor(uint32_t preferred = 0) const;
 		std::string uniqueName(const std::string &wanted) const;
 		static bool mayChangeRole(const User &actor, const User &target, Role newRole);
 		static bool mayKick(const User &actor, const User &target);
@@ -320,8 +349,12 @@ namespace collab {
 		void endApply();
 		std::vector<Tile*> readTiles(ByteReader &reader, uint32_t count, Map &map);
 		void applyTiles(std::vector<Tile*> &tiles, uint32_t origin, uint32_t seq);
-		void hostTileBatch(const User &actor, ByteReader &reader);
-		void hostMetaOps(const User &actor, const Connection* from, ByteReader &reader);
+		void hostTileBatch(Peer &peer, const User &actor, ByteReader &reader);
+		void hostMetaOps(Peer &peer, const User &actor, ByteReader &reader);
+		bool mayApplyMeta(const User &actor, const MetaOp &op);
+		void correctMeta(Peer &peer, const std::vector<MetaOp> &rejected);
+		void sendTilesTo(Peer &peer, const std::vector<Position> &positions);
+		void notifyAboutComment(const MetaOp &op, const std::optional<std::string> &previous);
 		void applyIncomingMeta(const std::vector<MetaOp> &ops);
 		void sendMetaOps(const std::vector<MetaOp> &ops, const Connection* except);
 		void clientWelcome(ByteReader &reader);
@@ -358,6 +391,7 @@ namespace collab {
 		std::chrono::steady_clock::time_point lastClaimWarning;
 		std::vector<std::string> lanList;
 		std::vector<Position> previewChangeList;
+		std::deque<Toast> toastQueue;
 		std::vector<Position> previewConflictList;
 		struct DeferredCursor {
 			Position pos;

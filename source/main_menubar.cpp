@@ -772,6 +772,8 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(COLLAB_JOIN, wxITEM_NORMAL, OnCollabSession);
 	MAKE_ACTION(COLLAB_LEAVE, wxITEM_NORMAL, OnCollabSession);
 	MAKE_ACTION(COLLAB_ADD_COMMENT, wxITEM_NORMAL, OnCollabAddComment);
+	MAKE_ACTION(COLLAB_SHOW_CURSORS, wxITEM_CHECK, OnCollabToggle);
+	MAKE_ACTION(COLLAB_SHOW_NAMES, wxITEM_CHECK, OnCollabToggle);
 	MAKE_ACTION(WIN_SQLITE_MATERIALS_INSPECTOR, wxITEM_NORMAL, OnSQLiteMaterialsInspector);
 	MAKE_ACTION(NEW_PALETTE, wxITEM_NORMAL, OnNewPalette);
 	MAKE_ACTION(TAKE_SCREENSHOT, wxITEM_NORMAL, OnTakeScreenshot);
@@ -942,6 +944,8 @@ void MainMenuBar::Update() {
 	EnableItem(CLOSE, is_local);
 	EnableItem(COLLAB_ADD_COMMENT, has_map);
 	EnableItem(COLLAB_LEAVE, false);
+	CheckItem(COLLAB_SHOW_CURSORS, g_settings.getBoolean(Config::COLLAB_SHOW_CURSORS));
+	CheckItem(COLLAB_SHOW_NAMES, g_settings.getBoolean(Config::COLLAB_SHOW_NAMES));
 	EnableItem(SAVE, is_host);
 	EnableItem(SAVE_AS, is_host);
 	EnableItem(GENERATE_MAP, false);
@@ -3075,6 +3079,15 @@ void MainMenuBar::OnCollabSession(wxCommandEvent &WXUNUSED(event)) {
 
 void MainMenuBar::OnCollabAddComment(wxCommandEvent &WXUNUSED(event)) {
 	CollabWindow::AddCommentAtCursor();
+}
+
+void MainMenuBar::OnCollabToggle(wxCommandEvent &WXUNUSED(event)) {
+	g_settings.setInteger(Config::COLLAB_SHOW_CURSORS, IsItemChecked(MenuBar::COLLAB_SHOW_CURSORS));
+	g_settings.setInteger(Config::COLLAB_SHOW_NAMES, IsItemChecked(MenuBar::COLLAB_SHOW_NAMES));
+	if (CollabWindow::Get()) {
+		CollabWindow::Get()->RefreshToggles();
+	}
+	g_gui.RefreshView();
 }
 
 void MainMenuBar::OnSQLiteMaterialsInspector(wxCommandEvent &WXUNUSED(event)) {
