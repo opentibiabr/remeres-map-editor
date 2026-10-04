@@ -304,7 +304,7 @@ void CollabWindow::OnSessionChanged() {
 	history_page->Enable(history_allowed);
 	if (history_allowed && !history_requested) {
 		history_requested = true;
-		collab_session.requestHistory(0);
+		collab_session.requestHistory(0, HistoryFilter());
 	} else if (!history_allowed) {
 		history_requested = false;
 		history_status->SetLabel(active ? "Only the host and admins see the history" : "Start or join a session to see the history");
@@ -495,7 +495,7 @@ void CollabWindow::BuildHistoryPage(wxWindow* page) {
 	history_user = newd wxChoice(page, wxID_ANY);
 	history_user->Append("All users");
 	history_user->SetSelection(0);
-	history_user->Bind(wxEVT_CHOICE, [this](wxCommandEvent &) { RefreshHistory(); });
+	history_user->Bind(wxEVT_CHOICE, [this](wxCommandEvent &) { collab::Session::get().requestHistory(0, HistoryFilter()); });
 	filter->Add(history_user, 1);
 	root->Add(filter, 0, wxEXPAND | wxALL, 6);
 
@@ -532,11 +532,11 @@ void CollabWindow::BuildHistoryPage(wxWindow* page) {
 	};
 	makeButton(page, buttons, "Go to")->Bind(wxEVT_BUTTON, [goTo](wxCommandEvent &) { goTo(); });
 	history_list->Bind(wxEVT_LIST_ITEM_ACTIVATED, [goTo](wxListEvent &) { goTo(); });
-	makeButton(page, buttons, "Refresh")->Bind(wxEVT_BUTTON, [](wxCommandEvent &) { collab::Session::get().requestHistory(0); });
-	makeButton(page, buttons, "Older")->Bind(wxEVT_BUTTON, [](wxCommandEvent &) {
+	makeButton(page, buttons, "Refresh")->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { collab::Session::get().requestHistory(0, HistoryFilter()); });
+	makeButton(page, buttons, "Older")->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
 		const auto &entries = collab::Session::get().history();
 		if (!entries.empty()) {
-			collab::Session::get().requestHistory(entries.back().id);
+			collab::Session::get().requestHistory(entries.back().id, HistoryFilter());
 		}
 	});
 	root->Add(buttons, 0, wxALL, 6);
@@ -558,29 +558,28 @@ const collab::JournalEntry* CollabWindow::SelectedHistoryEntry() const {
 	return nullptr;
 }
 
+std::string CollabWindow::HistoryFilter() const {
+	return history_user->GetSelection() > 0 ? nstr(history_user->GetStringSelection()) : std::string();
+}
+
 void CollabWindow::RefreshHistory() {
 	if (!history_list) {
 		return;
 	}
 	const auto &entries = collab::Session::get().history();
 
-	// The user filter lists everybody who appears in the loaded entries.
+	// The filter lists everybody who ever edited the map; the host applies the choice.
 	const wxString selected = history_user->GetSelection() > 0 ? history_user->GetStringSelection() : wxString();
 	history_user->Clear();
 	history_user->Append("All users");
-	for (const collab::JournalEntry &entry : entries) {
-		if (history_user->FindString(wxstr(entry.user)) == wxNOT_FOUND) {
-			history_user->Append(wxstr(entry.user));
-		}
+	for (const std::string &name : collab::Session::get().historyUsers()) {
+		history_user->Append(wxstr(name));
 	}
 	const int again = selected.empty() ? wxNOT_FOUND : history_user->FindString(selected);
 	history_user->SetSelection(again == wxNOT_FOUND ? 0 : again);
 
 	history_list->DeleteAllItems();
 	for (const collab::JournalEntry &entry : entries) {
-		if (history_user->GetSelection() > 0 && wxstr(entry.user) != history_user->GetStringSelection()) {
-			continue;
-		}
 		const long row = history_list->InsertItem(history_list->GetItemCount(), wxString::Format("%lld", static_cast<long long>(entry.id)));
 		history_list->SetItem(row, HIST_TIME, wxDateTime(static_cast<time_t>(entry.created)).Format("%H:%M:%S"));
 		history_list->SetItem(row, HIST_USER, wxstr(entry.user));

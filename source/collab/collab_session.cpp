@@ -1557,11 +1557,21 @@ namespace collab {
 		}
 	}
 
+	void Session::noteHistoryUser(const std::string &name) {
+		if (!name.empty() && std::find(historyUserNames.begin(), historyUserNames.end(), name) == historyUserNames.end()) {
+			historyUserNames.push_back(name);
+			std::sort(historyUserNames.begin(), historyUserNames.end());
+		}
+	}
+
 	void Session::publishEntry(const JournalEntry &entry) {
 		if (entry.id == 0) {
 			return;
 		}
-		mergeHistory({ entry }, false);
+		noteHistoryUser(entry.user);
+		if (historyFilter.empty() || entry.user == historyFilter) {
+			mergeHistory({ entry }, false);
+		}
 
 		ByteWriter w;
 		writeEntry(w, entry);
@@ -1673,19 +1683,23 @@ namespace collab {
 		return outcome;
 	}
 
-	void Session::requestHistory(int64_t beforeId) {
+	void Session::requestHistory(int64_t beforeId, const std::string &userFilter) {
 		if (!canSeeHistory()) {
 			return;
 		}
+		historyFilter = sanitizeText(userFilter, kMaxName);
 		if (currentState == State::Hosting) {
 			if (journal) {
-				mergeHistory(journal->list(beforeId, 200, std::string()), beforeId == 0);
+				for (const std::string &name : journal->users()) {
+					noteHistoryUser(name);
+				}
+				mergeHistory(journal->list(beforeId, 200, historyFilter), beforeId == 0);
 			}
 		} else if (link) {
 			ByteWriter w;
 			w.u64(static_cast<uint64_t>(beforeId));
 			w.u16(200);
-			w.str(std::string());
+			w.str(historyFilter);
 			link->send(Msg::HistoryQuery, w.buffer);
 		}
 	}
@@ -1732,6 +1746,11 @@ namespace collab {
 			for (const JournalEntry &entry : entries) {
 				writeEntry(w, entry);
 			}
+			const std::vector<std::string> names = journal ? journal->users() : std::vector<std::string>();
+			w.u16(static_cast<uint16_t>(std::min<size_t>(names.size(), kMaxUsers * 4)));
+			for (size_t i = 0; i < names.size() && i < kMaxUsers * 4; ++i) {
+				w.str(names[i]);
+			}
 			sendTo(peer, Msg::HistoryPage, w.buffer);
 			return;
 		}
@@ -1760,7 +1779,11 @@ namespace collab {
 			return;
 		}
 		if (type == Msg::HistoryAppend) {
-			mergeHistory({ readEntry(reader) }, false);
+			const JournalEntry entry = readEntry(reader);
+			noteHistoryUser(entry.user);
+			if (historyFilter.empty() || entry.user == historyFilter) {
+				mergeHistory({ entry }, false);
+			}
 			return;
 		}
 		if (type == Msg::HistoryPage) {
@@ -1772,6 +1795,13 @@ namespace collab {
 			std::vector<JournalEntry> entries;
 			for (uint16_t i = 0; i < count; ++i) {
 				entries.push_back(readEntry(reader));
+			}
+			const uint16_t names = reader.u16();
+			if (names > kMaxUsers * 4) {
+				throw ProtocolError("too many history users");
+			}
+			for (uint16_t i = 0; i < names; ++i) {
+				noteHistoryUser(sanitizeText(reader.str(kMaxName * 4), kMaxName));
 			}
 			mergeHistory(entries, replace);
 			return;
@@ -1964,6 +1994,8 @@ namespace collab {
 		deferredCursor.valid = false;
 		journal.reset();
 		historyList.clear();
+		historyUserNames.clear();
+		historyFilter.clear();
 		localSavePath.clear();
 		revertLabel.clear();
 		pending = Pending();

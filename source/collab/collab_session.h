@@ -119,14 +119,20 @@ namespace collab {
 
 		// ---- history (host and admins) ----
 		bool canSeeHistory() const;
-		// beforeId 0 loads the newest page, otherwise the page before that entry.
-		void requestHistory(int64_t beforeId);
+		// beforeId 0 loads the newest page, otherwise the page before that entry. A non-empty
+		// userFilter only lists that user's entries (the host does the filtering), and keeps
+		// applying to entries that arrive later.
+		void requestHistory(int64_t beforeId, const std::string &userFilter = std::string());
 		void revertEntry(int64_t entryId, bool force);
 		void reapplyEntry(int64_t entryId, bool force);
 		// Admins ask the host to save the map.
 		void requestSave();
 		const std::vector<JournalEntry> &history() const noexcept {
 			return historyList;
+		}
+		// Everybody who has edited the map (the filter choices), not only the loaded page.
+		const std::vector<std::string> &historyUsers() const noexcept {
+			return historyUserNames;
 		}
 		std::function<void()> onHistoryChanged;
 		std::function<void(const std::string &)> onHistoryResult;
@@ -310,6 +316,9 @@ namespace collab {
 
 		std::unique_ptr<Journal> journal; // host only
 		std::vector<JournalEntry> historyList; // newest first
+		std::vector<std::string> historyUserNames;
+		std::string historyFilter; // empty: all users
+		void noteHistoryUser(const std::string &name);
 		std::string revertLabel; // label of the revert being applied, empty otherwise
 		std::string localSavePath; // shared copy: where "also save on participants' machines" writes
 		std::string statusText;

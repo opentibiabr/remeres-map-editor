@@ -79,6 +79,8 @@ namespace collab {
 		std::vector<JournalEntry> list(int64_t beforeId, int limit, const std::string &userFilter);
 		bool get(int64_t id, JournalEntry &out);
 		std::vector<JournalTile> tiles(int64_t id);
+		// Every user name in the history, for the filter.
+		std::vector<std::string> users();
 		void setState(int64_t id, EntryState state);
 		void addChat(const std::string &user, const std::string &text);
 

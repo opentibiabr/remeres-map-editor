@@ -74,6 +74,7 @@ private:
 	void SendChat();
 	void ShowUserMenu(uint32_t userId);
 	void RefreshHistory();
+	std::string HistoryFilter() const;
 	const collab::JournalEntry* SelectedHistoryEntry() const;
 
 	wxNotebook* notebook = nullptr;

@@ -292,6 +292,15 @@ namespace collab {
 		return rows;
 	}
 
+	std::vector<std::string> Journal::users() {
+		std::vector<std::string> names;
+		Stmt s(db, "SELECT DISTINCT user_name FROM entries ORDER BY user_name");
+		while (s.ok() && s.step()) {
+			names.push_back(s.text(0));
+		}
+		return names;
+	}
+
 	void Journal::setState(int64_t id, EntryState state) {
 		Stmt s(db, "UPDATE entries SET state = ?2 WHERE id = ?1");
 		s.bind(1, id);
