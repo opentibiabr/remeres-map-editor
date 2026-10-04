@@ -48,6 +48,9 @@
 
 BEGIN_EVENT_TABLE(MainFrame, wxFrame)
 EVT_CLOSE(MainFrame::OnExit)
+#ifndef __WINDOWS__
+EVT_CHAR_HOOK(MainFrame::OnCharHook)
+#endif
 
 // Update check complete
 #ifdef _USE_UPDATER_
@@ -464,6 +467,17 @@ bool MainFrame::MSWTranslateMessage(WXMSG* msg) {
 		}
 	}
 	return false;
+}
+#else
+void MainFrame::OnCharHook(wxKeyEvent &event) {
+	// Typing in a text field must never fire menu accelerators: a handled hook event skips them,
+	// and DoAllowNextEvent still lets the field receive the key.
+	wxWindow* focused = wxWindow::FindFocus();
+	if (dynamic_cast<wxTextEntry*>(focused) != nullptr || dynamic_cast<wxSpinCtrl*>(focused) != nullptr) {
+		event.DoAllowNextEvent();
+		return;
+	}
+	event.Skip();
 }
 #endif
 

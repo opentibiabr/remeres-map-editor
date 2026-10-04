@@ -94,10 +94,13 @@ namespace {
 	#else
 			{ "paplay", "message-notification.ogg", "" },
 			{ "pw-play", "message-notification.ogg", "" },
+			{ "gst-play-1.0", "message-notification.ogg", "--quiet" }, // GStreamer, ships with most desktops
+			{ "canberra-gtk-play", "message-notification.ogg", "-f" },
 			{ "ogg123", "message-notification.ogg", "-q" },
 			{ "ffplay", "message-notification.ogg", "-nodisp -autoexit -loglevel quiet" },
 			{ "mpv", "message-notification.ogg", "--no-video --really-quiet" },
 			{ "play", "message-notification.ogg", "-q" }, // sox
+			{ "cvlc", "message-notification.ogg", "--play-and-exit --quiet" },
 	#endif
 		};
 		wxPathList searchPath;
