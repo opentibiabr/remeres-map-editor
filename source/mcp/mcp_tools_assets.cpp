@@ -401,9 +401,21 @@ namespace mcp {
 		// match for the kind.
 		std::filesystem::path resolveDataFile(const std::filesystem::path &directory, const std::string &kind, const std::string &filename) {
 			if (!filename.empty()) {
-				const std::filesystem::path explicitPath = directory / filename;
-				if (!std::filesystem::exists(explicitPath)) {
-					throw McpError(fmt::format("{} does not exist in the assets directory", filename));
+				// The argument comes from the MCP client, so it must name a file
+				// directly inside the assets directory: an absolute path or ".."
+				// would otherwise read (and probe the existence of) any file.
+				const std::filesystem::path requested(filename);
+				const std::string missing = fmt::format("{} does not exist in the assets directory", filename);
+				if (requested.has_parent_path() || requested.has_root_name() || requested.has_root_directory() || requested.filename() != requested) {
+					throw McpError(missing);
+				}
+
+				std::error_code error;
+				const std::filesystem::path explicitPath = std::filesystem::weakly_canonical(directory / requested, error);
+				const std::filesystem::path root = std::filesystem::weakly_canonical(directory, error);
+				// Also covers a symlink inside the directory that points outside.
+				if (error || explicitPath.parent_path() != root || !std::filesystem::is_regular_file(explicitPath, error)) {
+					throw McpError(missing);
 				}
 				return explicitPath;
 			}
