@@ -389,9 +389,14 @@ target_link_libraries(
           cpr::cpr
           SQLite3::SQLite3
           unofficial-sodium::sodium
-          unofficial-sodium::sodium_config_public
           $<$<PLATFORM_ID:Linux>:xcb>
           $<$<PLATFORM_ID:Windows>:psapi>)
+
+# The vcpkg sodium port does not define this for static triplets, and without it the
+# headers declare every symbol dllimport.
+if(VCPKG_TARGET_TRIPLET MATCHES "static")
+  target_compile_definitions(${PROJECT_NAME} PRIVATE SODIUM_STATIC)
+endif()
 
 # Link compilation files to build/bin folder, else link to the main dir
 if(TOGGLE_BIN_FOLDER)
