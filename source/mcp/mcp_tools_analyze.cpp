@@ -142,6 +142,32 @@ namespace mcp {
 			std::map<uint32_t, int64_t> houseBedCounts;
 			std::map<uint32_t, std::vector<uint8_t>> houseDoorIds;
 
+			// A creature just outside a spawn radius (and covered by no other spawn)
+			// is the usual misplaced-creature mistake. Collect positions in a set so
+			// a creature near two spawns counts once, and so the tile visitor can
+			// leave it out of creature_without_spawn: one problem, one report.
+			std::set<Position> outsideSpawnRadius;
+			for (const Position &spawnPosition : map.spawnsMonster) {
+				const Tile* spawnTile = map.getTile(spawnPosition);
+				if (!spawnTile || !spawnTile->spawnMonster) {
+					continue;
+				}
+				const int radius = spawnTile->spawnMonster->getSize();
+				// One ring beyond the radius.
+				for (int y = -radius - 1; y <= radius + 1; ++y) {
+					for (int x = -radius - 1; x <= radius + 1; ++x) {
+						if (std::abs(x) <= radius && std::abs(y) <= radius) {
+							continue;
+						}
+						const Position nearby = spawnPosition + Position(x, y, 0);
+						const Tile* tile = map.getTile(nearby);
+						if (tile && !tile->monsters.empty() && map.getSpawnMonsterList(nearby).empty()) {
+							outsideSpawnRadius.insert(nearby);
+						}
+					}
+				}
+			}
+
 			auto visit = [&](TileLocation* location) {
 				Tile* tile = location ? location->get() : nullptr;
 				if (!tile || tile->empty()) {
@@ -192,7 +218,7 @@ namespace mcp {
 				if (hasCreature && !tile->spawnMonster && !tile->spawnNpc) {
 					// The spawn may sit on a nearby tile; only flag it when no
 					// spawn covers this position at all.
-					if (map.getSpawnMonsterList(position).empty() && map.getSpawnNpcList(position).empty()) {
+					if (map.getSpawnMonsterList(position).empty() && map.getSpawnNpcList(position).empty() && !outsideSpawnRadius.count(position)) {
 						creatureWithoutSpawn.hit(position);
 					}
 				}
@@ -240,6 +266,9 @@ namespace mcp {
 				}
 			};
 			map.forEachTileLocation(visit);
+			for (const Position &position : outsideSpawnRadius) {
+				creatureOutsideSpawnRadius.hit(position);
+			}
 
 			// Entity-level checks, which do not need a tile walk.
 			IdIssue houseWithoutExit;
@@ -284,33 +313,6 @@ namespace mcp {
 				const Tile* spawnTile = map.getTile(spawnPosition);
 				if (spawnTile && spawnTile->spawnNpc && !radiusHasCreature(spawnPosition, spawnTile->spawnNpc->getSize(), true)) {
 					spawnWithoutCreature.hit(spawnPosition);
-				}
-			}
-
-			// Creatures are only respawned by a spawn that covers their tile.
-			for (const Position &spawnPosition : map.spawnsMonster) {
-				const Tile* spawnTile = map.getTile(spawnPosition);
-				if (!spawnTile || !spawnTile->spawnMonster) {
-					continue;
-				}
-				const int radius = spawnTile->spawnMonster->getSize();
-				// Look one ring beyond the radius: creatures just outside are
-				// the mistake worth reporting.
-				for (int y = -radius - 2; y <= radius + 2; ++y) {
-					for (int x = -radius - 2; x <= radius + 2; ++x) {
-						if (std::abs(x) <= radius && std::abs(y) <= radius) {
-							continue;
-						}
-						const Position nearby = spawnPosition + Position(x, y, 0);
-						const Tile* tile = map.getTile(nearby);
-						if (!tile || tile->monsters.empty()) {
-							continue;
-						}
-						// Only a complaint when no spawn at all covers it.
-						if (map.getSpawnMonsterList(nearby).empty()) {
-							creatureOutsideSpawnRadius.hit(nearby);
-						}
-					}
 				}
 			}
 
