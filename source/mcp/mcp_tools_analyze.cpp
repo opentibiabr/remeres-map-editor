@@ -186,12 +186,9 @@ namespace mcp {
 					spawnInProtectionZone.hit(position);
 				}
 
-				// A spawn with nothing to spawn, and creatures with no spawn to
-				// hold them, are both silently broken in game.
+				// Creatures with no spawn to hold them are silently broken in
+				// game. (Spawns with nothing to spawn are checked per radius below.)
 				const bool hasCreature = !tile->monsters.empty() || tile->npc;
-				if ((tile->spawnMonster && tile->monsters.empty()) || (tile->spawnNpc && !tile->npc)) {
-					spawnWithoutCreature.hit(position);
-				}
 				if (hasCreature && !tile->spawnMonster && !tile->spawnNpc) {
 					// The spawn may sit on a nearby tile; only flag it when no
 					// spawn covers this position at all.
@@ -261,6 +258,32 @@ namespace mcp {
 				}
 				if (house->townid != 0 && !map.towns.getTown(house->townid)) {
 					houseUnknownTown.hit(houseId);
+				}
+			}
+
+			// A spawn is empty only when nothing stands anywhere in its radius;
+			// the spawn tile itself usually holds no creature.
+			auto radiusHasCreature = [&](const Position &center, int radius, bool npcSpawn) {
+				for (int y = -radius; y <= radius; ++y) {
+					for (int x = -radius; x <= radius; ++x) {
+						const Tile* tile = map.getTile(center + Position(x, y, 0));
+						if (tile && (npcSpawn ? tile->npc != nullptr : !tile->monsters.empty())) {
+							return true;
+						}
+					}
+				}
+				return false;
+			};
+			for (const Position &spawnPosition : map.spawnsMonster) {
+				const Tile* spawnTile = map.getTile(spawnPosition);
+				if (spawnTile && spawnTile->spawnMonster && !radiusHasCreature(spawnPosition, spawnTile->spawnMonster->getSize(), false)) {
+					spawnWithoutCreature.hit(spawnPosition);
+				}
+			}
+			for (const Position &spawnPosition : map.spawnsNpc) {
+				const Tile* spawnTile = map.getTile(spawnPosition);
+				if (spawnTile && spawnTile->spawnNpc && !radiusHasCreature(spawnPosition, spawnTile->spawnNpc->getSize(), true)) {
+					spawnWithoutCreature.hit(spawnPosition);
 				}
 			}
 
