@@ -154,7 +154,7 @@ namespace mcp {
 
 			// Borders and walls read their neighbours from the live map, so they
 			// are computed after the whole batch is applied.
-			const size_t changed = batch.commit(borderize, wallize);
+			const size_t changed = batch.commit({ borderize, wallize });
 			return jsonResult(json { { "tilesChanged", changed }, { "undoable", true } });
 		}
 
@@ -198,7 +198,7 @@ namespace mcp {
 				tile->update();
 			}
 
-			const size_t changed = batch.commit(borderize);
+			const size_t changed = batch.commit({ borderize, !erase && brush->isWall(), !erase && brush->isTable(), !erase && brush->isCarpet() });
 			return jsonResult(json {
 				{ "brush", name },
 				{ "mode", erase ? "erase" : "draw" },
