@@ -152,7 +152,7 @@ MapCanvas::~MapCanvas() {
 	delete popup_menu;
 	delete animation_timer;
 	delete drawer;
-	free(screenshot_buffer);
+	delete[] screenshot_buffer;
 }
 
 void MapCanvas::Refresh() {
@@ -310,6 +310,11 @@ wxImage MapCanvas::CaptureScreenshot() {
 
 	wxImage image(view_x, view_y);
 	std::memcpy(image.GetData(), screenshot_buffer, static_cast<size_t>(3) * view_x * view_y);
+
+	// Drop the buffer so OnPaint stops forcing in-game options and reading back every frame.
+	delete[] screenshot_buffer;
+	screenshot_buffer = nullptr;
+	Refresh();
 	return image;
 }
 
