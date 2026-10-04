@@ -22,6 +22,7 @@
 #include "map.h"
 #include "editor.h"
 #include "gui.h"
+#include "collab/collab_session.h"
 
 Change::Change() :
 	type(CHANGE_NONE), data(nullptr) {
@@ -223,6 +224,7 @@ void Action::commit(DirtyList* dirty_list) {
 					}
 				}
 				new_tile->modify();
+				collab::Session::get().onTileCommitted(editor, type, pos, old_tile);
 
 				// Update client dirty list
 				if (editor.IsLiveClient() && dirty_list && type != ACTION_REMOTE) {
@@ -355,6 +357,7 @@ void Action::undo(DirtyList* dirty_list) {
 					map.removeSpawnNpc(new_tile);
 				}
 				*data = new_tile;
+				collab::Session::get().onTileCommitted(editor, type, pos, new_tile);
 
 				// Update client dirty list
 				if (editor.IsLiveClient() && dirty_list && type != ACTION_REMOTE) {

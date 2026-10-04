@@ -19,6 +19,7 @@
 #define RME_COLLAB_SESSION_H
 
 #include "collab_connection.h"
+#include "collab_meta.h"
 #include "collab_protocol.h"
 
 #include "../position.h"
@@ -30,6 +31,8 @@
 #include <unordered_map>
 
 class Editor;
+class Map;
+class Tile;
 class wxTimer;
 
 namespace collab {
@@ -102,6 +105,15 @@ namespace collab {
 		// Snapshot download progress while joining, 0-100.
 		int downloadPercent() const;
 
+		// ---- editor hooks (GUI thread) ----
+		// A tile of the shared map was swapped by an action (commit, undo or redo).
+		// actionType is an ActionIdentifier; before is the tile that was replaced (may be null).
+		void onTileCommitted(Editor &editor, int actionType, const Position &pos, const Tile* before);
+		// A whole-map operation changed the map behind the undo queue: send everyone a fresh copy.
+		void onWholeMapOperation(Editor* editor);
+		// Viewers cannot edit; remote updates being applied always pass.
+		bool canEdit(const Editor* editor) const;
+
 		void sendChat(const std::string &text);
 		void onLocalCursor(const Position &pos, uint8_t brushSize, bool mouseDown);
 		void setRole(uint32_t userId, Role role);
@@ -143,6 +155,7 @@ namespace collab {
 		void handleFrame(const Connection::Ptr &conn, const std::vector<uint8_t> &frame, uint64_t generation);
 		void handleClosed(const Connection::Ptr &conn, const std::string &reason, uint64_t generation);
 		void onPumpTick();
+		void onMetaTick();
 
 	private:
 		struct Peer {
@@ -153,6 +166,7 @@ namespace collab {
 			// Map download: other traffic waits until the whole snapshot is out, so the peer
 			// never sees an update before the map it applies to.
 			bool streaming = false;
+			bool resyncAfter = false; // a whole-map operation happened while it was downloading
 			std::shared_ptr<const std::string> snapshot;
 			size_t snapshotSent = 0;
 			std::vector<std::pair<Msg, std::vector<uint8_t>>> deferred;
@@ -176,7 +190,9 @@ namespace collab {
 		void dropPeer(const Connection::Ptr &conn, const std::string &reason);
 		void broadcast(Msg type, const std::vector<uint8_t> &payload, const Connection* except = nullptr);
 		void sendTo(Peer &peer, Msg type, const std::vector<uint8_t> &payload);
-		void startStreaming(Peer &peer, std::string snapshot);
+		void startStreaming(Peer &peer, std::shared_ptr<const std::string> snapshot);
+		void resyncPeer(Peer &peer, std::shared_ptr<const std::string> snapshot);
+		void runResync();
 		void pumpSnapshots();
 		void finishJoin();
 		int confirmStopPrompt();
@@ -191,6 +207,23 @@ namespace collab {
 		// Client side
 		void clientFrame(const std::vector<uint8_t> &frame);
 		void clientSnapshotFrame(Msg type, ByteReader &reader);
+		void clientTileUpdate(ByteReader &reader);
+		void clientMetaOps(ByteReader &reader);
+
+		// Live replication
+		Editor* boundEditor() const noexcept {
+			return hostEditor ? hostEditor : clientEditor;
+		}
+		void scheduleFlush();
+		void flushPending(uint32_t origin, uint32_t originSeq);
+		void beginApply(uint32_t origin, uint32_t seq);
+		void endApply();
+		std::vector<Tile*> readTiles(ByteReader &reader, uint32_t count, Map &map);
+		void applyTiles(std::vector<Tile*> &tiles, uint32_t origin, uint32_t seq);
+		void hostTileBatch(const User &actor, ByteReader &reader);
+		void hostMetaOps(const User &actor, const Connection* from, ByteReader &reader);
+		void applyIncomingMeta(const std::vector<MetaOp> &ops);
+		void sendMetaOps(const std::vector<MetaOp> &ops, const Connection* except);
 		void clientWelcome(ByteReader &reader);
 
 		State currentState = State::Idle;
@@ -213,6 +246,23 @@ namespace collab {
 			std::string data;
 		} download;
 		std::unique_ptr<wxTimer> pumpTimer;
+		std::unique_ptr<wxTimer> metaTimer;
+
+		// Tiles changed locally and not sent yet, first "before" state per tile (host only).
+		struct Pending {
+			std::map<Position, std::string> before;
+			int type = 0;
+		} pending;
+		bool flushScheduled = false;
+		bool applying = false; // a remote update is being applied: do not send it back
+		uint32_t applyOrigin = 0;
+		uint32_t applySeq = 0;
+		uint32_t clientSeq = 0;
+		std::map<Position, uint32_t> lastSentSeq; // newest local edit per tile still in flight
+		MetaState lastSynced;
+		PendingHouseTiles pendingHouseTiles;
+		bool resyncScheduled = false;
+		bool resyncing = false; // client: a new snapshot of the same session is downloading
 		std::string statusText;
 		uint32_t nextUserId = 1;
 

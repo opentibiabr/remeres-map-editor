@@ -736,6 +736,29 @@ Editor* GUI::OpenCollabEditor(const collab::Snapshot &snapshot, bool protectedCo
 	return editor;
 }
 
+Editor* GUI::ReplaceCollabEditor(Editor* old, const collab::Snapshot &snapshot, bool protectedCopy) {
+	Position center;
+	int floor = rme::MapGroundLayer;
+	bool found = false;
+	for (int i = 0; i < tabbook->GetTabCount() && !found; ++i) {
+		auto* mapTab = dynamic_cast<MapTab*>(tabbook->GetTab(i));
+		if (mapTab && mapTab->GetEditor() == old) {
+			center = mapTab->GetScreenCenterPosition();
+			floor = mapTab->GetCanvas()->GetFloor();
+			found = true;
+		}
+	}
+
+	Editor* editor = OpenCollabEditor(snapshot, protectedCopy);
+	if (editor && found) {
+		MapTab* mapTab = GetCurrentMapTab();
+		if (mapTab && mapTab->GetEditor() == editor) {
+			mapTab->SetScreenCenterPosition(Position(center.x, center.y, floor));
+		}
+	}
+	return editor;
+}
+
 void GUI::CloseEditorTabs(Editor* editor) {
 	for (int i = 0; i < tabbook->GetTabCount(); ++i) {
 		auto* mapTab = dynamic_cast<MapTab*>(tabbook->GetTab(i));

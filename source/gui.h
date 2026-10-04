@@ -385,6 +385,8 @@ public:
 	void NewMapView();
 	// Opens a map received from a collaboration host. Returns the new editor or nullptr.
 	Editor* OpenCollabEditor(const collab::Snapshot &snapshot, bool protectedCopy);
+	// Same, for a resync: keeps the camera of the editor being replaced (that one is closed by the caller).
+	Editor* ReplaceCollabEditor(Editor* old, const collab::Snapshot &snapshot, bool protectedCopy);
 	// Closes every tab of this editor without asking to save.
 	void CloseEditorTabs(Editor* editor);
 

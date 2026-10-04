@@ -59,10 +59,8 @@ public: // Functions
 	LiveClient* GetLiveClient() const;
 	LiveServer* GetLiveServer() const;
 	LiveSocket &GetLive() const;
-	// Collaboration clients are read-only until live replication is in place.
-	bool CanEdit() const noexcept {
-		return !collab_client;
-	}
+	// False for Viewers of a collaboration session.
+	bool CanEdit() const;
 	bool IsCollabClient() const noexcept {
 		return collab_client;
 	}

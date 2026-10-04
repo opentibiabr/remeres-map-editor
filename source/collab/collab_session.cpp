@@ -20,9 +20,14 @@
 #include "collab_session.h"
 
 #include "collab_snapshot.h"
+#include "collab_tile_codec.h"
 
+#include "../action.h"
 #include "../editor.h"
 #include "../gui.h"
+#include "../iomap.h"
+#include "../map.h"
+#include "../tile.h"
 #include "../map_comments.h"
 #include "../net_connection.h"
 
@@ -130,6 +135,20 @@ namespace collab {
 		public:
 			void Notify() override {
 				Session::get().onPumpTick();
+			}
+		};
+
+		class MetaTimer : public wxTimer {
+		public:
+			void Notify() override {
+				Session::get().onMetaTick();
+			}
+		};
+
+		struct ScopeExit {
+			std::function<void()> fn;
+			~ScopeExit() {
+				fn();
 			}
 		};
 
@@ -265,9 +284,9 @@ namespace collab {
 
 	// ---- map download (host side) --------------------------------------------------------
 
-	void Session::startStreaming(Peer &peer, std::string snapshot) {
-		const size_t total = snapshot.size();
-		peer.snapshot = std::make_shared<const std::string>(std::move(snapshot));
+	void Session::startStreaming(Peer &peer, std::shared_ptr<const std::string> snapshot) {
+		const size_t total = snapshot->size();
+		peer.snapshot = std::move(snapshot);
 		peer.snapshotSent = 0;
 		peer.streaming = true;
 
@@ -326,6 +345,16 @@ namespace collab {
 				peer.conn->send(frame.first, frame.second);
 			}
 			peer.deferred.clear();
+
+			if (peer.resyncAfter && hostEditor) {
+				peer.resyncAfter = false;
+				std::string fresh;
+				std::string error;
+				if (buildSnapshot(*hostEditor, fresh, error)) {
+					resyncPeer(peer, std::make_shared<const std::string>(std::move(fresh)));
+					any = true;
+				}
+			}
 		}
 		if (!any && pumpTimer) {
 			pumpTimer->Stop();
@@ -461,6 +490,13 @@ namespace collab {
 		userList[0] = host;
 
 		currentState = State::Hosting;
+		lastSynced = captureMeta(editor->getMap());
+		pending = Pending();
+		pendingHouseTiles.clear();
+		if (!metaTimer) {
+			metaTimer = std::make_unique<MetaTimer>();
+		}
+		metaTimer->Start(500);
 		acceptLoop(listener, generation, salt, keys);
 		changed();
 		return true;
@@ -576,7 +612,7 @@ namespace collab {
 		welcome.u8(saveOnParticipantsFlag ? 1 : 0);
 		welcome.str(sessionMapName.substr(0, 255));
 		peer.conn->send(Msg::Welcome, welcome.buffer);
-		startStreaming(peer, std::move(snapshot));
+		startStreaming(peer, std::make_shared<const std::string>(std::move(snapshot)));
 
 		ByteWriter joined;
 		writeUser(joined, user);
@@ -646,6 +682,12 @@ namespace collab {
 			}
 			case Msg::Kick:
 				applyKick(actor, reader.u32());
+				return;
+			case Msg::TileBatch:
+				hostTileBatch(actor, reader);
+				return;
+			case Msg::MetaOps:
+				hostMetaOps(actor, peer.conn.get(), reader);
 				return;
 			case Msg::Bye:
 				dropPeer(peer.conn, "Left");
@@ -834,14 +876,28 @@ namespace collab {
 		}
 
 		// Whole-map loading blocks the GUI; this is the same cost as opening a file.
-		Editor* editor = g_gui.OpenCollabEditor(snapshot, !shareMapFlag);
+		Editor* previous = clientEditor;
+		Editor* editor = previous ? g_gui.ReplaceCollabEditor(previous, snapshot, !shareMapFlag) : g_gui.OpenCollabEditor(snapshot, !shareMapFlag);
 		snapshot.wipe();
+		resyncing = false;
 		if (!editor) {
 			resetToIdle("Could not open the shared map");
 			return;
 		}
-		clientEditor = editor;
+		clientEditor = editor; // before closing the old tab, so that closing it does not end the session
+		if (previous) {
+			g_gui.CloseEditorTabs(previous);
+		}
+
 		currentState = State::Joined;
+		lastSynced = captureMeta(editor->getMap());
+		pending = Pending();
+		lastSentSeq.clear();
+		pendingHouseTiles.clear();
+		if (!metaTimer) {
+			metaTimer = std::make_unique<MetaTimer>();
+		}
+		metaTimer->Start(500);
 		changed();
 	}
 
@@ -906,6 +962,28 @@ namespace collab {
 			}
 			case Msg::Bye:
 				resetToIdle("Disconnected: " + sanitizeText(reader.str(512), 300));
+				return;
+			case Msg::TileUpdate:
+				clientTileUpdate(reader);
+				return;
+			case Msg::MetaOps:
+				clientMetaOps(reader);
+				return;
+			case Msg::FullResync:
+				// The host ran a whole-map operation: a new snapshot follows. Local edits in
+				// flight are moot, the new map replaces everything.
+				download = Download();
+				resyncing = true;
+				pending = Pending();
+				lastSentSeq.clear();
+				return;
+			case Msg::SnapshotBegin:
+			case Msg::SnapshotChunk:
+			case Msg::SnapshotEnd:
+				if (!resyncing) {
+					throw ProtocolError("unexpected snapshot");
+				}
+				clientSnapshotFrame(type, reader);
 				return;
 			default:
 				throw ProtocolError("unexpected message");
@@ -1029,6 +1107,347 @@ namespace collab {
 		}
 	}
 
+	// ---- live tile replication -----------------------------------------------------------
+
+	bool Session::canEdit(const Editor* editor) const {
+		if (applying) {
+			return true;
+		}
+		if (editor == clientEditor && editor) {
+			const User* me = self();
+			return currentState == State::Joined && me && me->role != Role::Viewer;
+		}
+		return true;
+	}
+
+	void Session::onTileCommitted(Editor &editor, int actionType, const Position &pos, const Tile* before) {
+		if ((currentState != State::Hosting && currentState != State::Joined) || &editor != boundEditor()) {
+			return;
+		}
+		if (actionType == ACTION_SELECT || actionType == ACTION_UNSELECT) {
+			return;
+		}
+		if (applying && !isHost()) {
+			return; // it came from the host
+		}
+
+		if (pending.before.find(pos) == pending.before.end()) {
+			std::string blob;
+			if (isHost()) {
+				VirtualIOMap io(editor.getMap().getVersion());
+				blob = encodeTile(before, io); // kept for the history, see the journal
+			}
+			pending.before.emplace(pos, std::move(blob));
+		}
+		pending.type = actionType;
+		if (!applying) {
+			scheduleFlush();
+		}
+	}
+
+	void Session::scheduleFlush() {
+		if (flushScheduled) {
+			return;
+		}
+		flushScheduled = true;
+		// Many tile swaps of one brush stroke or paste become one batch.
+		hop([] {
+			Session &session = Session::get();
+			session.flushScheduled = false;
+			session.flushPending(session.selfId, 0);
+		});
+	}
+
+	void Session::beginApply(uint32_t origin, uint32_t seq) {
+		flushPending(selfId, 0); // earlier local edits keep their own origin
+		applying = true;
+		applyOrigin = origin;
+		applySeq = seq;
+	}
+
+	void Session::endApply() {
+		flushPending(applyOrigin, applySeq);
+		applying = false;
+	}
+
+	void Session::flushPending(uint32_t origin, uint32_t originSeq) {
+		if (pending.before.empty()) {
+			return;
+		}
+		Pending batch = std::move(pending);
+		pending = Pending();
+
+		Editor* editor = boundEditor();
+		if (!editor || (currentState != State::Hosting && currentState != State::Joined)) {
+			return;
+		}
+
+		Map &map = editor->getMap();
+		VirtualIOMap io(map.getVersion());
+		const bool host = isHost();
+
+		ByteWriter records;
+		std::vector<Position> framePositions;
+		uint32_t count = 0;
+		auto emit = [&] {
+			if (count == 0) {
+				return;
+			}
+			ByteWriter frame;
+			if (host) {
+				frame.u32(origin);
+				frame.u32(originSeq);
+			} else {
+				const uint32_t seq = ++clientSeq;
+				frame.u32(seq);
+				frame.u8(static_cast<uint8_t>(batch.type));
+				for (const Position &framePosition : framePositions) {
+					lastSentSeq[framePosition] = seq;
+				}
+			}
+			frame.u32(count);
+			frame.buffer.insert(frame.buffer.end(), records.buffer.begin(), records.buffer.end());
+
+			if (host) {
+				broadcast(Msg::TileUpdate, frame.buffer);
+			} else if (link) {
+				link->send(Msg::TileBatch, frame.buffer);
+			}
+			records = ByteWriter();
+			framePositions.clear();
+			count = 0;
+		};
+
+		for (const auto &entry : batch.before) {
+			const Position &pos = entry.first;
+			records.u16(static_cast<uint16_t>(pos.x));
+			records.u16(static_cast<uint16_t>(pos.y));
+			records.u8(static_cast<uint8_t>(pos.z));
+			records.blob(encodeTile(map.getTile(pos), io));
+			framePositions.push_back(pos);
+			++count;
+			if (count >= kMaxTilesPerFrame || records.buffer.size() >= kMaxTileFrameBytes) {
+				emit();
+			}
+		}
+		emit();
+	}
+
+	std::vector<Tile*> Session::readTiles(ByteReader &reader, uint32_t count, Map &map) {
+		if (count == 0 || count > kMaxTilesPerFrame) {
+			throw ProtocolError("invalid tile count");
+		}
+		VirtualIOMap io(map.getVersion());
+		std::vector<Tile*> tiles;
+		try {
+			for (uint32_t i = 0; i < count; ++i) {
+				const int x = reader.u16();
+				const int y = reader.u16();
+				const int z = reader.u8();
+				const Position pos(x, y, z);
+				if (!pos.isValid() || x >= map.getWidth() || y >= map.getHeight()) {
+					throw ProtocolError("tile outside the map");
+				}
+				tiles.push_back(decodeTile(map, pos, reader.blob(1024 * 1024), io));
+			}
+		} catch (...) {
+			for (Tile* tile : tiles) {
+				delete tile;
+			}
+			throw;
+		}
+		return tiles;
+	}
+
+	void Session::applyTiles(std::vector<Tile*> &tiles, uint32_t origin, uint32_t seq) {
+		Editor* editor = boundEditor();
+		if (!editor || tiles.empty()) {
+			for (Tile* tile : tiles) {
+				delete tile;
+			}
+			tiles.clear();
+			return;
+		}
+
+		std::vector<Position> positions;
+		Action* action = editor->createAction(ACTION_REMOTE);
+		for (Tile* tile : tiles) {
+			positions.push_back(tile->getPosition());
+			action->addChange(newd Change(tile));
+		}
+		tiles.clear();
+
+		beginApply(origin, seq);
+		{
+			ScopeExit done { [this] { endApply(); } };
+			editor->addAction(action); // ACTION_REMOTE: committed, never kept in the undo history
+		}
+
+		// Tiles may name a house whose entry has not arrived yet (houses sync a moment later).
+		Map &map = editor->getMap();
+		for (const Position &pos : positions) {
+			const Tile* tile = map.getTile(pos);
+			if (tile && tile->getHouseID() != 0 && !map.houses.getHouse(tile->getHouseID())) {
+				pendingHouseTiles[tile->getHouseID()].push_back(pos);
+			}
+		}
+		g_gui.RefreshView();
+	}
+
+	void Session::hostTileBatch(const User &actor, ByteReader &reader) {
+		if (actor.role == Role::Viewer || !hostEditor) {
+			return; // the viewer's own editor already refuses to edit
+		}
+		const uint32_t seq = reader.u32();
+		const uint8_t type = reader.u8();
+		if (type > ACTION_MCP) {
+			throw ProtocolError("invalid action type");
+		}
+		const uint32_t count = reader.u32();
+		std::vector<Tile*> tiles = readTiles(reader, count, hostEditor->getMap());
+		applyTiles(tiles, actor.id, seq);
+	}
+
+	void Session::clientTileUpdate(ByteReader &reader) {
+		if (!clientEditor) {
+			return;
+		}
+		const uint32_t origin = reader.u32();
+		const uint32_t originSeq = reader.u32();
+		const uint32_t count = reader.u32();
+		std::vector<Tile*> tiles = readTiles(reader, count, clientEditor->getMap());
+
+		// Our own newer edit of the same tile is still on its way to the host: applying this older
+		// state would flash it back for a moment. Our own echo is applied, it fixes the cases where
+		// another user's update crossed it.
+		std::vector<Tile*> keep;
+		for (Tile* tile : tiles) {
+			const Position &pos = tile->getPosition();
+			auto it = lastSentSeq.find(pos);
+			if (origin == selfId && it != lastSentSeq.end()) {
+				if (it->second > originSeq) {
+					delete tile;
+					continue;
+				}
+				lastSentSeq.erase(it);
+			}
+			keep.push_back(tile);
+		}
+		applyTiles(keep, origin, originSeq);
+	}
+
+	// ---- houses, towns, waypoints, zones, map properties ----------------------------------
+
+	void Session::onMetaTick() {
+		Editor* editor = boundEditor();
+		if (!editor || (currentState != State::Hosting && currentState != State::Joined)) {
+			return;
+		}
+		MetaState current = captureMeta(editor->getMap());
+		const std::vector<MetaOp> ops = diffMeta(lastSynced, current);
+		if (ops.empty()) {
+			return;
+		}
+		lastSynced = std::move(current);
+		sendMetaOps(ops, nullptr);
+	}
+
+	void Session::sendMetaOps(const std::vector<MetaOp> &ops, const Connection* except) {
+		constexpr size_t kOpsPerFrame = 500;
+		for (size_t start = 0; start < ops.size(); start += kOpsPerFrame) {
+			const std::vector<MetaOp> chunk(ops.begin() + start, ops.begin() + std::min(ops.size(), start + kOpsPerFrame));
+			ByteWriter w;
+			writeMetaOps(w, chunk);
+			if (isHost()) {
+				broadcast(Msg::MetaOps, w.buffer, except);
+			} else if (link) {
+				link->send(Msg::MetaOps, w.buffer);
+			}
+		}
+	}
+
+	void Session::applyIncomingMeta(const std::vector<MetaOp> &ops) {
+		Editor* editor = boundEditor();
+		if (!editor) {
+			return;
+		}
+		Map &map = editor->getMap();
+		for (const MetaOp &op : ops) {
+			applyMetaOp(map, op);
+			// What the map holds now is what both sides agree on: do not send it back.
+			const auto key = std::make_pair(static_cast<uint8_t>(op.kind), op.key);
+			if (auto current = captureMetaEntry(map, op.kind, op.key)) {
+				lastSynced[key] = *current;
+			} else {
+				lastSynced.erase(key);
+			}
+		}
+		attachPendingHouseTiles(map, pendingHouseTiles);
+		map.doChange();
+		g_gui.RefreshPalettes();
+		g_gui.RefreshView();
+	}
+
+	void Session::hostMetaOps(const User &actor, const Connection* from, ByteReader &reader) {
+		if (actor.role == Role::Viewer || !hostEditor) {
+			return;
+		}
+		const std::vector<MetaOp> ops = readMetaOps(reader);
+		applyIncomingMeta(ops);
+		sendMetaOps(ops, from);
+	}
+
+	void Session::clientMetaOps(ByteReader &reader) {
+		applyIncomingMeta(readMetaOps(reader));
+	}
+
+	// ---- whole-map operations ------------------------------------------------------------
+
+	void Session::onWholeMapOperation(Editor* editor) {
+		if (currentState != State::Hosting || editor != hostEditor || resyncScheduled) {
+			return;
+		}
+		resyncScheduled = true;
+		hop([] { Session::get().runResync(); }); // after the operation that called us returns
+	}
+
+	void Session::resyncPeer(Peer &peer, std::shared_ptr<const std::string> snapshot) {
+		if (peer.streaming) {
+			peer.resyncAfter = true; // it gets the new copy when the current download ends
+			return;
+		}
+		peer.conn->send(Msg::FullResync);
+		startStreaming(peer, std::move(snapshot));
+	}
+
+	void Session::runResync() {
+		resyncScheduled = false;
+		if (currentState != State::Hosting || !hostEditor) {
+			return;
+		}
+		// The snapshot already contains everything that is waiting to be sent.
+		pending = Pending();
+		lastSynced = captureMeta(hostEditor->getMap());
+
+		std::shared_ptr<const std::string> snapshot;
+		for (auto &entry : peers) {
+			Peer &peer = entry.second;
+			if (!peer.hello || peer.dropping) {
+				continue;
+			}
+			if (!snapshot) {
+				std::string bytes;
+				std::string error;
+				if (!buildSnapshot(*hostEditor, bytes, error)) {
+					addSystemChat("Could not resend the map to participants: " + error);
+					return;
+				}
+				snapshot = std::make_shared<const std::string>(std::move(bytes));
+			}
+			resyncPeer(peer, snapshot);
+		}
+	}
+
 	// ---- teardown ------------------------------------------------------------------------
 
 	int Session::confirmStopPrompt() {
@@ -1109,6 +1528,16 @@ namespace collab {
 		if (pumpTimer) {
 			pumpTimer->Stop();
 		}
+		if (metaTimer) {
+			metaTimer->Stop();
+		}
+		pending = Pending();
+		lastSentSeq.clear();
+		lastSynced.clear();
+		pendingHouseTiles.clear();
+		clientSeq = 0;
+		applying = false;
+		resyncing = false;
 		peers.clear();
 		userList.clear();
 		remoteCursors.clear();

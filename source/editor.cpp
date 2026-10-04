@@ -42,6 +42,7 @@
 #include "live_server.h"
 #include "live_client.h"
 #include "live_action.h"
+#include "collab/collab_session.h"
 #include "collab/collab_snapshot.h"
 
 #include <filesystem>
@@ -171,6 +172,10 @@ Editor::~Editor() {
 	delete actionQueue;
 }
 
+bool Editor::CanEdit() const {
+	return !collab_client || collab::Session::get().canEdit(this);
+}
+
 Action* Editor::createAction(ActionIdentifier type) {
 	return actionQueue->createAction(type);
 }
@@ -241,6 +246,8 @@ void Editor::resetActionsTimer() {
 
 void Editor::clearActions() {
 	actionQueue->clear();
+	// Callers of clearActions have just changed the map in a way the undo queue cannot describe.
+	collab::Session::get().onWholeMapOperation(this);
 	g_gui.UpdateActions();
 }
 
@@ -499,6 +506,7 @@ bool Editor::importMiniMap(FileName filename, int import, int import_x_offset, i
 bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offset, int import_z_offset, ImportType house_import_type, ImportType spawn_import_type, ImportType spawn_npc_import_type) {
 	selection.clear();
 	actionQueue->clear();
+	collab::Session::get().onWholeMapOperation(this); // runs after the import, the map is resent whole
 
 	Map imported_map;
 	bool loaded = imported_map.open(nstr(filename.GetFullPath()));

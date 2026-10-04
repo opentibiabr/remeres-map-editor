@@ -35,6 +35,8 @@ namespace collab {
 	constexpr size_t kMaxChat = 500; // characters
 	constexpr size_t kMinPassword = 6;
 	constexpr size_t kSnapshotChunk = 256 * 1024;
+	constexpr size_t kMaxTilesPerFrame = 4000;
+	constexpr size_t kMaxTileFrameBytes = 900 * 1024; // keeps a frame under kMaxFrame
 	constexpr size_t kMaxSnapshot = 0x7FFFFFFF; // compressed and uncompressed
 	constexpr size_t kMaxOutbox = 64 * 1024 * 1024; // bytes queued for one peer
 	constexpr int kMaxCursorsPerSecond = 30;
@@ -56,6 +58,10 @@ namespace collab {
 		SnapshotBegin, // S->C totalBytes, chunkCount
 		SnapshotChunk, // S->C raw bytes
 		SnapshotEnd, // S->C crc32
+		TileBatch, // C->S seq, actionType, count, tile records
+		TileUpdate, // S->C originUserId, originSeq, count, tile records
+		MetaOps, // both: houses, towns, waypoints, zones, map properties
+		FullResync, // S->C: a whole-map operation happened, a new snapshot follows
 	};
 
 	enum class Role : uint8_t {

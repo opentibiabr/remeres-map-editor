@@ -290,9 +290,11 @@ target_sources(
           map_comments.cpp
           collab/collab_connection.cpp
           collab/collab_crypto.cpp
+          collab/collab_meta.cpp
           collab/collab_selfcheck.cpp
           collab/collab_session.cpp
           collab/collab_snapshot.cpp
+          collab/collab_tile_codec.cpp
           collab/collab_window.cpp
           map_display.cpp
           map_drawer.cpp
