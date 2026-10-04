@@ -249,6 +249,7 @@ namespace collab {
 		if (!db) {
 			return result;
 		}
+		openEntries.clear(); // the next edit of anybody starts a new entry, after this one
 		Stmt insert(db, "INSERT INTO entries(user_name, user_color, action_type, label, created, updated, tile_count, min_x, min_y, max_x, max_y, z_mask, state) VALUES(?1, ?2, ?6, ?3, ?4, ?5, 0, 0, 0, 0, 0, 0, 3)");
 		insert.bind(1, user);
 		insert.bind(2, static_cast<int64_t>(color));

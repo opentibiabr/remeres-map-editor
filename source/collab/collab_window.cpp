@@ -791,8 +791,11 @@ void CollabWindow::BuildHistoryPage(wxWindow* page) {
 			history_status->SetLabel("Select a restore point in the list first");
 			return;
 		}
-		if (wxMessageBox("Put the whole map back to \"" + wxstr(entry->label) + "\"? Everything edited after it is undone, for everybody.", "Restore", wxYES_NO | wxICON_QUESTION, this) == wxYES) {
-			collab::Session::get().restoreToPoint(entry->id);
+		const int64_t pointId = entry->id; // copied: the history changes while the dialog is open
+		const wxString label = wxstr(entry->label);
+		if (wxMessageBox("Put the whole map back to \"" + label + "\"? Everything edited after it is undone, for everybody.", "Restore", wxYES_NO | wxICON_QUESTION, this) == wxYES) {
+			history_status->SetLabel("Restoring...");
+			collab::Session::get().restoreToPoint(pointId);
 		}
 	});
 	history_minutes = newd wxSpinCtrl(page, wxID_ANY, "10", wxDefaultPosition, wxSize(56, -1), wxSP_ARROW_KEYS, 1, 1440, 10);
@@ -859,9 +862,18 @@ void CollabWindow::RefreshHistory() {
 	const int again = selected.empty() ? wxNOT_FOUND : history_user->FindString(selected);
 	history_user->SetSelection(again == wxNOT_FOUND ? 0 : again);
 
+	long selectedId = -1;
+	const long selectedRow = history_list->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+	if (selectedRow >= 0) {
+		selectedId = static_cast<long>(history_list->GetItemData(selectedRow));
+	}
+
 	history_list->DeleteAllItems();
 	for (const collab::JournalEntry &entry : entries) {
 		const long row = history_list->InsertItem(history_list->GetItemCount(), wxString::Format("%lld", static_cast<long long>(entry.id)));
+		if (static_cast<long>(entry.id) == selectedId) {
+			history_list->SetItemState(row, wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
+		}
 		history_list->SetItem(row, HIST_TIME, wxDateTime(static_cast<time_t>(entry.created)).Format("%H:%M:%S"));
 		history_list->SetItem(row, HIST_USER, wxstr(entry.user));
 		history_list->SetItem(row, HIST_ACTION, wxstr(entry.label));
