@@ -142,6 +142,14 @@ namespace collab {
 			}
 		};
 
+		// One-shot: sends the newest cursor position that the rate limit held back.
+		class CursorTimer : public wxTimer {
+		public:
+			void Notify() override {
+				Session::get().onCursorTick();
+			}
+		};
+
 		class MetaTimer : public wxTimer {
 		public:
 			void Notify() override {
@@ -1125,15 +1133,39 @@ namespace collab {
 			return;
 		}
 		const Clock::time_point now = Clock::now();
-		// ponytail: dropped samples are not re-sent, so a remote cursor can stay a tile or two
-		// behind when the mouse stops. Add a trailing timer if it bothers anyone.
 		if (mouseDown == lastSentDown && now - lastSentAt < kLocalCursorInterval) {
+			// Too soon: remember it and send it when the interval is over, so the others see
+			// where the mouse stopped.
+			deferredCursor = { pos, brushSize, mouseDown, true };
+			if (!cursorTimer) {
+				cursorTimer = std::make_unique<CursorTimer>();
+			}
+			if (!cursorTimer->IsRunning()) {
+				const auto wait = std::chrono::duration_cast<std::chrono::milliseconds>(kLocalCursorInterval - (now - lastSentAt));
+				cursorTimer->StartOnce(std::max<int>(1, static_cast<int>(wait.count())));
+			}
 			return;
 		}
+		deferredCursor.valid = false;
+		sendCursor(pos, brushSize, mouseDown);
+	}
+
+	void Session::onCursorTick() {
+		if (!deferredCursor.valid || (currentState != State::Hosting && currentState != State::Joined)) {
+			return;
+		}
+		deferredCursor.valid = false;
+		if (deferredCursor.pos == lastSentPos && deferredCursor.brushSize == lastSentBrush && deferredCursor.mouseDown == lastSentDown) {
+			return;
+		}
+		sendCursor(deferredCursor.pos, deferredCursor.brushSize, deferredCursor.mouseDown);
+	}
+
+	void Session::sendCursor(const Position &pos, uint8_t brushSize, bool mouseDown) {
 		lastSentPos = pos;
 		lastSentBrush = brushSize;
 		lastSentDown = mouseDown;
-		lastSentAt = now;
+		lastSentAt = Clock::now();
 
 		ByteWriter w;
 		if (currentState == State::Hosting) {
@@ -1777,14 +1809,13 @@ namespace collab {
 	}
 
 	void Session::saveLocalCopy() {
-		if (!clientEditor || !shareMapFlag || localSaveDeclined || currentState != State::Joined) {
+		if (!clientEditor || !shareMapFlag || currentState != State::Joined) {
 			return;
 		}
 		if (localSavePath.empty()) {
 			wxFileDialog dialog(g_gui.root, "Save a local copy of the shared map", wxEmptyString, wxstr(sessionMapName), "OTBM map (*.otbm)|*.otbm", wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
 			if (dialog.ShowModal() != wxID_OK) {
-				localSaveDeclined = true; // do not ask again in this session
-				return;
+				return; // skipped this time, the next save of the host asks again
 			}
 			localSavePath = nstr(dialog.GetPath());
 		}
@@ -1927,10 +1958,13 @@ namespace collab {
 		if (metaTimer) {
 			metaTimer->Stop();
 		}
+		if (cursorTimer) {
+			cursorTimer->Stop();
+		}
+		deferredCursor.valid = false;
 		journal.reset();
 		historyList.clear();
 		localSavePath.clear();
-		localSaveDeclined = false;
 		revertLabel.clear();
 		pending = Pending();
 		lastSentSeq.clear();

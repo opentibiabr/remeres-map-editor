@@ -173,6 +173,7 @@ namespace collab {
 		void handleClosed(const Connection::Ptr &conn, const std::string &reason, uint64_t generation);
 		void onPumpTick();
 		void onMetaTick();
+		void onCursorTick();
 
 	private:
 		struct Peer {
@@ -244,6 +245,7 @@ namespace collab {
 		void hostHistoryFrame(Peer &peer, const User &actor, Msg type, ByteReader &reader);
 		void clientHistoryFrame(Msg type, ByteReader &reader);
 		void saveLocalCopy();
+		void sendCursor(const Position &pos, uint8_t brushSize, bool mouseDown);
 
 		// Live replication
 		Editor* boundEditor() const noexcept {
@@ -282,6 +284,13 @@ namespace collab {
 		} download;
 		std::unique_ptr<wxTimer> pumpTimer;
 		std::unique_ptr<wxTimer> metaTimer;
+		std::unique_ptr<wxTimer> cursorTimer;
+		struct DeferredCursor {
+			Position pos;
+			uint8_t brushSize = 0;
+			bool mouseDown = false;
+			bool valid = false;
+		} deferredCursor;
 
 		// Tiles changed locally and not sent yet, first "before" state per tile (host only).
 		struct Pending {
@@ -303,7 +312,6 @@ namespace collab {
 		std::vector<JournalEntry> historyList; // newest first
 		std::string revertLabel; // label of the revert being applied, empty otherwise
 		std::string localSavePath; // shared copy: where "also save on participants' machines" writes
-		bool localSaveDeclined = false;
 		std::string statusText;
 		uint32_t nextUserId = 1;
 
