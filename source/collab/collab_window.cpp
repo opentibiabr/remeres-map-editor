@@ -27,7 +27,7 @@
 #include "../settings.h"
 
 #include <wx/button.h>
-#include <wx/clipboard.h>
+#include <wx/clipbrd.h>
 #include <wx/filedlg.h>
 #include <wx/clrpicker.h>
 #include <wx/combobox.h>

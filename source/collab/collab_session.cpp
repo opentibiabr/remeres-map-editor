@@ -2268,7 +2268,8 @@ namespace collab {
 			// A map that was never saved keeps its history in the user data directory.
 			const wxString folder = wxStandardPaths::Get().GetUserDataDir() + wxFileName::GetPathSeparator() + "collab";
 			wxFileName::Mkdir(folder, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
-			return nstr(folder + wxFileName::GetPathSeparator() + wxDateTime::Now().Format("%Y%m%d-%H%M%S") + ".sqlite");
+			const wxString file = folder + wxFileName::GetPathSeparator() + wxDateTime::Now().Format("%Y%m%d-%H%M%S") + ".sqlite";
+			return nstr(file); // nstr does not parenthesize its argument
 		}
 	}
 
