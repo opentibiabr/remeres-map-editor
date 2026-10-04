@@ -168,7 +168,7 @@ namespace collab {
 				}
 				presence.selFrom = Position(std::min(x1, x2), std::min(y1, y2), z);
 				presence.selTo = Position(std::max(x1, x2), std::max(y1, y2), z);
-				presence.selLabel = sanitizeText(r.str(256), 32);
+				presence.selLabel = sanitizeText(r.str(512), 64);
 			}
 			presence.tool = sanitizeText(r.str(256), 40);
 			presence.typing = r.u8() != 0;
@@ -2878,21 +2878,30 @@ namespace collab {
 				if (editor->getSelection().size() == 1) {
 					presence.selLabel = "Selected Tile";
 					if (Tile* tile = editor->getSelection().getSelectedTile()) {
-						const char* kind = nullptr;
+						const auto monsters = tile->getSelectedMonsters();
+						const auto items = tile->getSelectedItems();
+						std::string kind;
 						int kinds = 0;
-						auto note = [&](bool present, const char* name) {
+						auto note = [&](bool present, std::string text) {
 							if (present) {
-								kind = name;
+								kind = std::move(text);
 								++kinds;
 							}
 						};
-						note(!tile->getSelectedMonsters().empty(), "Monster");
-						note(tile->npc && tile->npc->isSelected(), "NPC");
-						note(!tile->getSelectedItems().empty(), "Item");
+						// "Monster: Rat" for one, "Monsters (3)" for several
+						auto describe = [](const char* singular, const char* plural, size_t count, const std::string &name) {
+							if (count > 1) {
+								return std::string(plural) + " (" + std::to_string(count) + ")";
+							}
+							return name.empty() ? std::string(singular) : std::string(singular) + ": " + name;
+						};
+						note(!monsters.empty(), describe("Monster", "Monsters", monsters.size(), monsters.empty() ? std::string() : monsters.front()->getName()));
+						note(tile->npc && tile->npc->isSelected(), describe("NPC", "NPCs", 1, tile->npc ? tile->npc->getName() : std::string()));
+						note(!items.empty(), describe("Item", "Items", items.size(), items.empty() ? std::string() : items.front()->getName()));
 						note(tile->spawnMonster && tile->spawnMonster->isSelected(), "Spawn");
 						note(tile->spawnNpc && tile->spawnNpc->isSelected(), "NPC Spawn");
 						if (kinds == 1) {
-							presence.selLabel = std::string("Selected ") + kind;
+							presence.selLabel = sanitizeText("Selected " + kind, 64);
 						}
 					}
 				}
