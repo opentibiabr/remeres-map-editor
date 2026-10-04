@@ -237,13 +237,29 @@ namespace mcp {
 			});
 		}
 
+		// Handlers wait on the GUI thread, so run them on the worker pool and
+		// post the reply back to the socket's executor.
 		void handleBody(const std::string &body) {
+			auto self = shared_from_this();
+			asio::post(server.workers, [this, self, body]() {
+				std::pair<int, std::string> reply = process(body);
+				asio::post(socket.get_executor(), [this, self, reply = std::move(reply)]() {
+					if (!server.running) {
+						std::error_code ignored;
+						socket.close(ignored);
+						return;
+					}
+					respond(reply.first, reply.second, true);
+				});
+			});
+		}
+
+		std::pair<int, std::string> process(const std::string &body) {
 			json request;
 			try {
 				request = json::parse(body);
 			} catch (const std::exception &e) {
-				respond(400, makeError(nullptr, ERROR_PARSE, std::string("invalid JSON: ") + e.what()).dump(), true);
-				return;
+				return { 400, makeError(nullptr, ERROR_PARSE, std::string("invalid JSON: ") + e.what()).dump() };
 			}
 
 			// A batch is a JSON array of requests; respond with an array of the
@@ -256,19 +272,16 @@ namespace mcp {
 					}
 				}
 				if (responses.empty()) {
-					respond(202, "", true);
-				} else {
-					respond(200, responses.dump(), true);
+					return { 202, "" };
 				}
-				return;
+				return { 200, responses.dump() };
 			}
 
 			if (auto response = server.handleRequest(request)) {
-				respond(200, response->dump(), true);
-			} else {
-				// Notifications get an accepted-with-no-content reply.
-				respond(202, "", true);
+				return { 200, response->dump() };
 			}
+			// Notifications get an accepted-with-no-content reply.
+			return { 202, "" };
 		}
 
 		void respond(int status, const std::string &body, bool keepAlive, const std::string &extraHeaders = "") {
@@ -363,6 +376,17 @@ namespace mcp {
 			acceptor->close(ignored);
 			acceptor.reset();
 		}
+
+		std::vector<std::weak_ptr<Session>> open;
+		{
+			std::lock_guard<std::mutex> lock(sessionMutex);
+			open.swap(sessions);
+		}
+		for (auto &weak : open) {
+			if (auto session = weak.lock()) {
+				session->close();
+			}
+		}
 		log(LogLevel::Info, "server stopped");
 	}
 
@@ -376,17 +400,6 @@ namespace mcp {
 	}
 
 	void Server::log(LogLevel level, const std::string &message) {
-
-		std::vector<std::weak_ptr<Session>> open;
-		{
-			std::lock_guard<std::mutex> lock(sessionMutex);
-			open.swap(sessions);
-		}
-		for (auto &weak : open) {
-			if (auto session = weak.lock()) {
-				session->close();
-			}
-		}
 		LogCallback callback;
 		{
 			std::lock_guard<std::mutex> lock(logMutex);
