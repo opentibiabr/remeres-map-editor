@@ -289,14 +289,17 @@ namespace mcp {
 				}
 			}
 
+			// Read the size before results is moved out: a moved-from json is
+			// null, which would make every non-empty search look truncated.
+			const size_t returned = results.size();
 			json out {
 				{ "what", what },
 				{ "scope", scopeName(scoped.scope) },
 				{ "total", total },
-				{ "returned", results.size() },
+				{ "returned", returned },
 				{ "results", std::move(results) }
 			};
-			if (total > static_cast<int64_t>(results.size())) {
+			if (total > static_cast<int64_t>(returned)) {
 				out["truncated"] = true;
 				out["note"] = "raise limit, or narrow the scope with from/to or useSelection";
 			}
