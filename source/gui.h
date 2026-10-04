@@ -67,6 +67,9 @@ class ActionsHistoryWindow;
 class LuaScriptsWindow;
 class McpWindow;
 class CollabWindow;
+namespace collab {
+	struct Snapshot;
+}
 class PaletteWindow;
 class OldPropertiesWindow;
 class TilesetWindow;
@@ -380,6 +383,10 @@ public:
 	bool CloseLiveEditors(LiveSocket* sock);
 	bool CloseAllEditors();
 	void NewMapView();
+	// Opens a map received from a collaboration host. Returns the new editor or nullptr.
+	Editor* OpenCollabEditor(const collab::Snapshot &snapshot, bool protectedCopy);
+	// Closes every tab of this editor without asking to save.
+	void CloseEditorTabs(Editor* editor);
 
 	// Map
 	Map &GetCurrentMap();

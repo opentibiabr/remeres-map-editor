@@ -529,6 +529,9 @@ bool MainFrame::DoQuerySave(bool doclose, bool checkTileset) {
 	}
 
 	Editor &editor = *g_gui.GetCurrentEditor();
+	if (!collab::Session::get().confirmCloseEditor(&editor)) {
+		return false;
+	}
 	if (editor.IsLiveClient()) {
 		long ret = g_gui.PopupDialog(
 			"Disconnect",
@@ -674,6 +677,13 @@ bool MainFrame::LoadMap(FileName name) {
 
 void MainFrame::OnExit(wxCloseEvent &event) {
 	if (!DoQuerySaveTileset()) {
+		if (event.CanVeto()) {
+			event.Veto();
+			return;
+		}
+	}
+
+	if (!collab::Session::get().confirmShutdown()) {
 		if (event.CanVeto()) {
 			event.Veto();
 			return;

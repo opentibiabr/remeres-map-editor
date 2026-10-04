@@ -23,6 +23,7 @@
 
 #include <asio.hpp>
 
+#include <atomic>
 #include <deque>
 #include <functional>
 #include <memory>
@@ -64,6 +65,10 @@ namespace collab {
 
 		std::string remoteAddress() const {
 			return remote;
+		}
+		// Bytes waiting to be written (approximate, readable from any thread).
+		size_t queuedBytes() const noexcept {
+			return outboxBytes.load();
 		}
 
 	private:
@@ -107,7 +112,7 @@ namespace collab {
 		std::array<uint8_t, 4> lengthBuffer {};
 		std::vector<uint8_t> bodyBuffer;
 		std::deque<std::vector<uint8_t>> outbox;
-		size_t outboxBytes = 0;
+		std::atomic<size_t> outboxBytes { 0 };
 	};
 
 } // namespace collab

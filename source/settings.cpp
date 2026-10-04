@@ -363,6 +363,8 @@ void Settings::IO(IOMode mode) {
 	Int(COLLAB_DEFAULT_ROLE, 2); // collab::Role::Editor
 	Int(COLLAB_SHOW_CURSORS, 1);
 	Int(COLLAB_SHOW_NAMES, 1);
+	Int(COLLAB_SHARE_MAP, 0);
+	Int(COLLAB_SAVE_ON_PARTICIPANTS, 0);
 
 	section("");
 	Int(GOTO_WEBSITE_ON_BOOT, 0);

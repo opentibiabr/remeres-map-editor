@@ -83,6 +83,8 @@ private:
 	wxSpinCtrl* host_port = nullptr;
 	wxTextCtrl* host_password = nullptr;
 	wxChoice* host_role = nullptr;
+	wxCheckBox* host_share = nullptr;
+	wxCheckBox* host_save_all = nullptr;
 	wxButton* start_button = nullptr;
 	wxTextCtrl* join_address = nullptr;
 	wxSpinCtrl* join_port = nullptr;

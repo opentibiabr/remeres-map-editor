@@ -712,6 +712,41 @@ bool GUI::CloseAllEditors() {
 	return true;
 }
 
+Editor* GUI::OpenCollabEditor(const collab::Snapshot &snapshot, bool protectedCopy) {
+	FinishWelcomeDialog();
+
+	Editor* editor;
+	try {
+		editor = newd Editor(copybuffer, snapshot);
+	} catch (std::runtime_error &e) {
+		PopupDialog(root, "Error!", wxString(e.what(), wxConvUTF8), wxOK);
+		return nullptr;
+	}
+	editor->SetCollabClient(true, protectedCopy);
+
+	auto* mapTab = newd MapTab(tabbook, editor);
+	mapTab->OnSwitchEditorMode(mode);
+	mapTab->GetView()->FitToMap();
+	UpdateTitle();
+	FitViewToMap(mapTab);
+	root->UpdateMenubar();
+	for (const auto &palette : palettes) {
+		palette->OnUpdate(mapTab->GetMap());
+	}
+	return editor;
+}
+
+void GUI::CloseEditorTabs(Editor* editor) {
+	for (int i = 0; i < tabbook->GetTabCount(); ++i) {
+		auto* mapTab = dynamic_cast<MapTab*>(tabbook->GetTab(i));
+		if (mapTab && mapTab->GetEditor() == editor) {
+			tabbook->DeleteTab(i--);
+		}
+	}
+	RefreshPalettes();
+	root->UpdateMenubar();
+}
+
 void GUI::NewMapView() {
 	MapTab* mapTab = GetCurrentMapTab();
 	if (mapTab) {

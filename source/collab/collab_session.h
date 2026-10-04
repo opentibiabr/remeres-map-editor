@@ -24,9 +24,13 @@
 #include "../position.h"
 
 #include <chrono>
+#include <memory>
 #include <functional>
 #include <map>
 #include <unordered_map>
+
+class Editor;
+class wxTimer;
 
 namespace collab {
 
@@ -69,6 +73,8 @@ namespace collab {
 	class Session {
 	public:
 		static Session &get();
+		Session();
+		~Session();
 
 		State state() const noexcept {
 			return currentState;
@@ -81,11 +87,20 @@ namespace collab {
 		}
 
 		// Binds the port and starts accepting. The password is mandatory (kMinPassword).
-		bool startHosting(const std::string &name, uint16_t port, const std::string &password, Role defaultRole, std::string &error);
+		// editor is the map being shared; shareMap lets participants keep and save a copy.
+		bool startHosting(Editor* editor, const std::string &name, uint16_t port, const std::string &password, Role defaultRole, bool shareMap, bool saveOnParticipants, std::string &error);
 		// Asynchronous: progress and errors arrive through status() / onChanged.
 		void join(const std::string &name, const std::string &host, uint16_t port, const std::string &password);
 		// Stops hosting, leaves, or cancels a pending join.
 		void leave();
+
+		// Closing the map tab / the app while hosting asks first. False means "do not close".
+		bool confirmCloseEditor(Editor* editor);
+		bool confirmShutdown();
+		// The editor is being destroyed: end the session that depends on it.
+		void onEditorClosing(Editor* editor);
+		// Snapshot download progress while joining, 0-100.
+		int downloadPercent() const;
 
 		void sendChat(const std::string &text);
 		void onLocalCursor(const Position &pos, uint8_t brushSize, bool mouseDown);
@@ -112,6 +127,9 @@ namespace collab {
 		uint16_t port() const noexcept {
 			return listenPort;
 		}
+		bool sharesMap() const noexcept {
+			return shareMapFlag;
+		}
 
 		// Set by the panel. Called on the GUI thread.
 		std::function<void()> onChanged;
@@ -124,6 +142,7 @@ namespace collab {
 		void handleReady(const Connection::Ptr &conn, uint64_t generation);
 		void handleFrame(const Connection::Ptr &conn, const std::vector<uint8_t> &frame, uint64_t generation);
 		void handleClosed(const Connection::Ptr &conn, const std::string &reason, uint64_t generation);
+		void onPumpTick();
 
 	private:
 		struct Peer {
@@ -131,6 +150,12 @@ namespace collab {
 			uint32_t userId = 0;
 			bool hello = false;
 			bool dropping = false; // closing: ignore its frames, no more broadcasts
+			// Map download: other traffic waits until the whole snapshot is out, so the peer
+			// never sees an update before the map it applies to.
+			bool streaming = false;
+			std::shared_ptr<const std::string> snapshot;
+			size_t snapshotSent = 0;
+			std::vector<std::pair<Msg, std::vector<uint8_t>>> deferred;
 			std::chrono::steady_clock::time_point lastCursor;
 			std::chrono::steady_clock::time_point chatWindow;
 			int chatCount = 0;
@@ -150,6 +175,11 @@ namespace collab {
 		void rejectPeer(Peer &peer, const std::string &reason);
 		void dropPeer(const Connection::Ptr &conn, const std::string &reason);
 		void broadcast(Msg type, const std::vector<uint8_t> &payload, const Connection* except = nullptr);
+		void sendTo(Peer &peer, Msg type, const std::vector<uint8_t> &payload);
+		void startStreaming(Peer &peer, std::string snapshot);
+		void pumpSnapshots();
+		void finishJoin();
+		int confirmStopPrompt();
 		Peer* peerForUser(uint32_t userId);
 		uint32_t pickColor() const;
 		std::string uniqueName(const std::string &wanted) const;
@@ -160,6 +190,7 @@ namespace collab {
 
 		// Client side
 		void clientFrame(const std::vector<uint8_t> &frame);
+		void clientSnapshotFrame(Msg type, ByteReader &reader);
 		void clientWelcome(ByteReader &reader);
 
 		State currentState = State::Idle;
@@ -168,6 +199,20 @@ namespace collab {
 		uint16_t listenPort = 0;
 		Role defaultRole = Role::Editor;
 		std::string selfName;
+		Editor* hostEditor = nullptr; // hosting: the shared map
+		Editor* clientEditor = nullptr; // joined: our copy of it
+		bool shareMapFlag = false;
+		bool saveOnParticipantsFlag = false;
+		std::string sessionMapName;
+		bool welcomed = false;
+		struct Download {
+			uint32_t total = 0;
+			uint32_t chunks = 0;
+			uint32_t received = 0;
+			bool begun = false;
+			std::string data;
+		} download;
+		std::unique_ptr<wxTimer> pumpTimer;
 		std::string statusText;
 		uint32_t nextUserId = 1;
 

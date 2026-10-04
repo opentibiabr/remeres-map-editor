@@ -19,8 +19,16 @@
 
 #include "collab_session.h"
 
+#include "collab_snapshot.h"
+
+#include "../editor.h"
+#include "../gui.h"
 #include "../map_comments.h"
 #include "../net_connection.h"
+
+#include <zlib.h>
+
+#include <sodium.h>
 
 #include <ctime>
 
@@ -115,6 +123,22 @@ namespace collab {
 		}
 		return w.utf8_string();
 	}
+
+	namespace {
+		// Fires the snapshot pump while a participant is downloading the map.
+		class PumpTimer : public wxTimer {
+		public:
+			void Notify() override {
+				Session::get().onPumpTick();
+			}
+		};
+
+		constexpr size_t kStreamHighWater = 4 * 1024 * 1024; // queued bytes before pausing a download
+		constexpr int kChunksPerTick = 8;
+	}
+
+	Session::Session() = default;
+	Session::~Session() = default;
 
 	Session &Session::get() {
 		static Session session;
@@ -224,10 +248,87 @@ namespace collab {
 
 	void Session::broadcast(Msg type, const std::vector<uint8_t> &payload, const Connection* except) {
 		for (auto &entry : peers) {
-			const Peer &peer = entry.second;
+			Peer &peer = entry.second;
 			if (peer.hello && !peer.dropping && peer.conn.get() != except) {
-				peer.conn->send(type, payload);
+				sendTo(peer, type, payload);
 			}
+		}
+	}
+
+	void Session::sendTo(Peer &peer, Msg type, const std::vector<uint8_t> &payload) {
+		if (!peer.streaming) {
+			peer.conn->send(type, payload);
+		} else if (type != Msg::Cursor) {
+			peer.deferred.emplace_back(type, payload); // cursors are stale by the time the map is out
+		}
+	}
+
+	// ---- map download (host side) --------------------------------------------------------
+
+	void Session::startStreaming(Peer &peer, std::string snapshot) {
+		const size_t total = snapshot.size();
+		peer.snapshot = std::make_shared<const std::string>(std::move(snapshot));
+		peer.snapshotSent = 0;
+		peer.streaming = true;
+
+		ByteWriter begin;
+		begin.u32(static_cast<uint32_t>(total));
+		begin.u32(static_cast<uint32_t>((total + kSnapshotChunk - 1) / kSnapshotChunk));
+		peer.conn->send(Msg::SnapshotBegin, begin.buffer);
+
+		if (!pumpTimer) {
+			pumpTimer = std::make_unique<PumpTimer>();
+		}
+		if (!pumpTimer->IsRunning()) {
+			pumpTimer->Start(30);
+		}
+		pumpSnapshots();
+	}
+
+	void Session::onPumpTick() {
+		pumpSnapshots();
+	}
+
+	void Session::pumpSnapshots() {
+		bool any = false;
+		for (auto &entry : peers) {
+			Peer &peer = entry.second;
+			if (!peer.streaming) {
+				continue;
+			}
+			if (peer.dropping) {
+				peer.streaming = false;
+				peer.snapshot.reset();
+				continue;
+			}
+
+			const std::string &data = *peer.snapshot;
+			if (peer.conn->queuedBytes() < kStreamHighWater) {
+				for (int i = 0; i < kChunksPerTick && peer.snapshotSent < data.size(); ++i) {
+					const size_t n = std::min(kSnapshotChunk, data.size() - peer.snapshotSent);
+					const auto* begin = reinterpret_cast<const uint8_t*>(data.data()) + peer.snapshotSent;
+					peer.conn->send(Msg::SnapshotChunk, std::vector<uint8_t>(begin, begin + n));
+					peer.snapshotSent += n;
+				}
+			}
+
+			if (peer.snapshotSent < data.size()) {
+				any = true;
+				continue;
+			}
+
+			ByteWriter end;
+			end.u32(static_cast<uint32_t>(crc32(0, reinterpret_cast<const Bytef*>(data.data()), static_cast<uInt>(data.size()))));
+			peer.conn->send(Msg::SnapshotEnd, end.buffer);
+			peer.streaming = false;
+			peer.snapshot.reset();
+			for (auto &frame : peer.deferred) {
+				peer.conn->send(frame.first, frame.second);
+			}
+			peer.deferred.clear();
+		}
+		if (!any && pumpTimer) {
+			pumpTimer->Stop();
 		}
 	}
 
@@ -288,9 +389,13 @@ namespace collab {
 
 	// ---- hosting -------------------------------------------------------------------------
 
-	bool Session::startHosting(const std::string &name, uint16_t port, const std::string &password, Role defaultRoleForJoiners, std::string &error) {
+	bool Session::startHosting(Editor* editor, const std::string &name, uint16_t port, const std::string &password, Role defaultRoleForJoiners, bool shareMap, bool saveOnParticipants, std::string &error) {
 		if (active()) {
 			error = "A session is already active";
+			return false;
+		}
+		if (!editor || editor->IsCollabClient()) {
+			error = "Open the map you want to share first";
 			return false;
 		}
 		if (password.size() < kMinPassword) {
@@ -334,6 +439,10 @@ namespace collab {
 		}
 
 		++generation;
+		hostEditor = editor;
+		shareMapFlag = shareMap;
+		saveOnParticipantsFlag = shareMap && saveOnParticipants;
+		sessionMapName = editor->getMap().getName();
 		acceptor = listener;
 		listenPort = port;
 		defaultRole = defaultRoleForJoiners == Role::Viewer ? Role::Viewer : Role::Editor;
@@ -410,6 +519,7 @@ namespace collab {
 		const std::string name = reader.str(kMaxName * 4);
 		const std::string version = reader.str(64);
 		const uint16_t protocol = reader.u16();
+		const uint32_t otbm = reader.u32();
 
 		if (protocol != kProtocolVersion || version != __RME_VERSION__) {
 			rejectPeer(peer, fmt::format("Version mismatch: the host runs RME {} (protocol {}), you run RME {} (protocol {})", __RME_VERSION__, kProtocolVersion, sanitizeText(version, 32), protocol));
@@ -420,9 +530,28 @@ namespace collab {
 			return;
 		}
 
+		if (!hostEditor) {
+			rejectPeer(peer, "The host has no map open");
+			return;
+		}
+		const uint32_t hostOtbm = static_cast<uint32_t>(hostEditor->getMap().getVersion().otbm);
+		if (otbm != hostOtbm) {
+			rejectPeer(peer, fmt::format("Map version mismatch: the host map is OTBM {} but you have OTBM {} loaded. Load the matching client version before joining.", hostOtbm, otbm));
+			return;
+		}
+
 		std::string cleanName = sanitizeText(name, kMaxName);
 		if (cleanName.empty()) {
 			cleanName = "User";
+		}
+
+		// The password was proven by decrypting this frame; building a big map can take a while.
+		peer.conn->markAuthenticated();
+		std::string snapshot;
+		std::string snapshotError;
+		if (!buildSnapshot(*hostEditor, snapshot, snapshotError)) {
+			rejectPeer(peer, "The host could not prepare the map: " + snapshotError);
+			return;
 		}
 
 		User user;
@@ -443,7 +572,11 @@ namespace collab {
 		for (const auto &entry : userList) {
 			writeUser(welcome, entry.second);
 		}
+		welcome.u8(shareMapFlag ? 1 : 0);
+		welcome.u8(saveOnParticipantsFlag ? 1 : 0);
+		welcome.str(sessionMapName.substr(0, 255));
 		peer.conn->send(Msg::Welcome, welcome.buffer);
+		startStreaming(peer, std::move(snapshot));
 
 		ByteWriter joined;
 		writeUser(joined, user);
@@ -607,6 +740,8 @@ namespace collab {
 		userList.clear();
 		remoteCursors.clear();
 		selfId = 0;
+		welcomed = false;
+		download = Download();
 		currentState = State::Connecting;
 		statusText = fmt::format("Connecting to {}:{}...", trimmedHost.utf8_string(), port);
 		link = Connection::makeClient(io(), trimmedHost.utf8_string(), port, password, makeCallbacks(generation));
@@ -630,8 +765,83 @@ namespace collab {
 		if (userList.find(selfId) == userList.end()) {
 			throw ProtocolError("user list without ourselves");
 		}
-		currentState = State::Joined;
+		shareMapFlag = reader.u8() != 0;
+		saveOnParticipantsFlag = reader.u8() != 0;
+		sessionMapName = sanitizeText(reader.str(255 * 4), 255);
+		welcomed = true;
 		link->markAuthenticated();
+		statusText = "Receiving the map...";
+		changed();
+	}
+
+	int Session::downloadPercent() const {
+		if (!download.begun || download.total == 0) {
+			return 0;
+		}
+		return static_cast<int>(std::min<uint64_t>(100, static_cast<uint64_t>(download.data.size()) * 100 / download.total));
+	}
+
+	void Session::clientSnapshotFrame(Msg type, ByteReader &reader) {
+		switch (type) {
+			case Msg::SnapshotBegin: {
+				if (download.begun) {
+					throw ProtocolError("duplicate snapshot");
+				}
+				download.total = reader.u32();
+				download.chunks = reader.u32();
+				if (download.total == 0 || download.total > kMaxSnapshot || download.chunks != (download.total + kSnapshotChunk - 1) / kSnapshotChunk) {
+					throw ProtocolError("invalid snapshot header");
+				}
+				download.begun = true;
+				download.data.reserve(std::min<size_t>(download.total, 256u * 1024 * 1024));
+				return;
+			}
+			case Msg::SnapshotChunk: {
+				if (!download.begun || reader.remaining() == 0 || reader.remaining() > kSnapshotChunk || download.data.size() + reader.remaining() > download.total) {
+					throw ProtocolError("invalid snapshot chunk");
+				}
+				download.data.append(reinterpret_cast<const char*>(reader.current()), reader.remaining());
+				++download.received;
+				statusText = fmt::format("Receiving the map... {}%", downloadPercent());
+				changed();
+				return;
+			}
+			case Msg::SnapshotEnd: {
+				const uint32_t expected = reader.u32();
+				const auto actual = static_cast<uint32_t>(crc32(0, reinterpret_cast<const Bytef*>(download.data.data()), static_cast<uInt>(download.data.size())));
+				if (!download.begun || download.data.size() != download.total || actual != expected) {
+					throw ProtocolError("corrupted snapshot");
+				}
+				finishJoin();
+				return;
+			}
+			default:
+				throw ProtocolError("expected the map");
+		}
+	}
+
+	void Session::finishJoin() {
+		Snapshot snapshot;
+		std::string error;
+		const bool parsed = parseSnapshot(download.data, snapshot, error);
+		if (!download.data.empty()) {
+			sodium_memzero(download.data.data(), download.data.size());
+		}
+		download = Download();
+		if (!parsed) {
+			resetToIdle("Could not read the shared map: " + error);
+			return;
+		}
+
+		// Whole-map loading blocks the GUI; this is the same cost as opening a file.
+		Editor* editor = g_gui.OpenCollabEditor(snapshot, !shareMapFlag);
+		snapshot.wipe();
+		if (!editor) {
+			resetToIdle("Could not open the shared map");
+			return;
+		}
+		clientEditor = editor;
+		currentState = State::Joined;
 		changed();
 	}
 
@@ -640,7 +850,9 @@ namespace collab {
 		const Msg type = static_cast<Msg>(reader.u8());
 
 		if (currentState == State::Connecting) {
-			if (type == Msg::Welcome) {
+			if (welcomed) {
+				clientSnapshotFrame(type, reader);
+			} else if (type == Msg::Welcome) {
 				clientWelcome(reader);
 			} else if (type == Msg::Reject) {
 				resetToIdle("Rejected: " + sanitizeText(reader.str(512), 300));
@@ -710,6 +922,7 @@ namespace collab {
 		w.str(selfName);
 		w.str(__RME_VERSION__);
 		w.u16(kProtocolVersion);
+		w.u32(static_cast<uint32_t>(g_gui.getLoadedMapVersion().otbm));
 		conn->send(Msg::Hello, w.buffer);
 	}
 
@@ -818,6 +1031,43 @@ namespace collab {
 
 	// ---- teardown ------------------------------------------------------------------------
 
+	int Session::confirmStopPrompt() {
+		const size_t others = userList.size() > 0 ? userList.size() - 1 : 0;
+		if (others == 0) {
+			return wxID_YES;
+		}
+		return g_gui.PopupDialog("Stop the session", wxString::Format("Closing this map stops the collaboration session for %zu participant(s). Continue?", others), wxYES | wxNO);
+	}
+
+	bool Session::confirmCloseEditor(Editor* editor) {
+		if (currentState != State::Hosting || editor != hostEditor) {
+			return true;
+		}
+		if (confirmStopPrompt() != wxID_YES) {
+			return false;
+		}
+		leave();
+		return true;
+	}
+
+	bool Session::confirmShutdown() {
+		if (currentState != State::Hosting) {
+			return true;
+		}
+		return confirmStopPrompt() == wxID_YES; // leave() runs with the other shutdown steps
+	}
+
+	void Session::onEditorClosing(Editor* editor) {
+		if (editor == hostEditor) {
+			hostEditor = nullptr;
+			leave();
+		}
+		if (editor == clientEditor) {
+			clientEditor = nullptr;
+			leave();
+		}
+	}
+
 	void Session::leave() {
 		if (!active()) {
 			return;
@@ -856,14 +1106,34 @@ namespace collab {
 			link->close("Left");
 			link.reset();
 		}
+		if (pumpTimer) {
+			pumpTimer->Stop();
+		}
 		peers.clear();
 		userList.clear();
 		remoteCursors.clear();
 		selfId = 0;
+		hostEditor = nullptr;
+		welcomed = false;
+		download = Download();
+
+		std::string finalMessage = message;
+		if (clientEditor) {
+			Editor* editor = clientEditor;
+			clientEditor = nullptr;
+			if (editor->IsProtectedCopy()) {
+				// Nothing was written to disk, closing the tab discards the only copy.
+				g_gui.CloseEditorTabs(editor);
+				finalMessage += " - the host did not share this map, so it was discarded";
+			} else {
+				editor->SetCollabClient(false, false); // keeps working as a local, unsaved map
+				finalMessage += " - the map stays open as a local copy";
+			}
+		}
 		currentState = State::Idle;
 		++generation; // late callbacks of the old session are ignored
 		lastSentPos = Position();
-		statusText = message;
+		statusText = finalMessage;
 		changed();
 		if (onCursorsChanged) {
 			onCursorsChanged();

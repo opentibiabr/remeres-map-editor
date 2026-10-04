@@ -942,8 +942,9 @@ void MainMenuBar::Update() {
 	bool has_map = editor != nullptr;
 	bool has_selection = editor && editor->hasSelection();
 	bool is_live = editor && editor->IsLive();
-	bool is_host = has_map && !editor->IsLiveClient();
-	bool is_local = has_map && !is_live;
+	bool is_collab_client = editor && editor->IsCollabClient();
+	bool is_host = has_map && !editor->IsLiveClient() && !is_collab_client;
+	bool is_local = has_map && !is_live && !is_collab_client;
 
 	EnableItem(CLOSE, is_local);
 	EnableItem(COLLAB_ADD_COMMENT, has_map);
@@ -1008,6 +1009,15 @@ void MainMenuBar::Update() {
 	EnableItem(MAP_CLEANUP, is_local);
 	EnableItem(MAP_PROPERTIES, is_local);
 	EnableItem(MAP_STATISTICS, is_local);
+
+	// A collaboration copy the host did not share can only be looked at and edited.
+	if (editor && editor->IsProtectedCopy()) {
+		for (auto item : { SAVE, SAVE_AS, EXPORT_MINIMAP, EXPORT_STATIC_HOUSE_DATA, EXPORT_CYCLOPEDIA_MAP, TAKE_SCREENSHOT, CUT, COPY }) {
+			EnableItem(item, false);
+		}
+	} else if (is_collab_client) {
+		EnableItem(SAVE_AS, true); // a shared copy can be saved locally
+	}
 
 	EnableItem(NEW_VIEW, has_map);
 	EnableItem(ZOOM_IN, has_map);

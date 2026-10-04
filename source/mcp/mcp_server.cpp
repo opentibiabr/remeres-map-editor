@@ -25,6 +25,8 @@
 #include "../common.h"
 #include "../definitions.h"
 #include "../net_connection.h"
+#include "../editor.h"
+#include "../gui.h"
 
 #include <algorithm>
 #include <cctype>
@@ -527,6 +529,10 @@ namespace mcp {
 			// Editor state is not thread safe, so the handler runs on the GUI
 			// thread while this network thread waits.
 			json result = callOnGui([tool, arguments]() {
+				Editor* editor = g_gui.GetCurrentEditor();
+				if (editor && editor->IsProtectedCopy()) {
+					throw McpError("The current map is a protected collaboration copy");
+				}
 				return tool->handler(arguments);
 			});
 

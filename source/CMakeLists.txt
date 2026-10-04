@@ -292,6 +292,7 @@ target_sources(
           collab/collab_crypto.cpp
           collab/collab_selfcheck.cpp
           collab/collab_session.cpp
+          collab/collab_snapshot.cpp
           collab/collab_window.cpp
           map_display.cpp
           map_drawer.cpp

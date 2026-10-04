@@ -120,12 +120,18 @@ void MapComments::clear() {
 }
 
 bool MapComments::load(const std::string &path) {
-	clear();
-
 	pugi::xml_document doc;
-	if (!doc.load_file(path.c_str())) {
-		return false;
-	}
+	clear();
+	return doc.load_file(path.c_str()) && loadDocument(doc);
+}
+
+bool MapComments::loadXml(const std::string &xml) {
+	pugi::xml_document doc;
+	clear();
+	return doc.load_buffer(xml.data(), xml.size()) && loadDocument(doc);
+}
+
+bool MapComments::loadDocument(const pugi::xml_document &doc) {
 	pugi::xml_node root = doc.child("comments");
 	if (!root) {
 		return false;
@@ -161,6 +167,19 @@ bool MapComments::save(const std::string &path) const {
 	}
 
 	pugi::xml_document doc;
+	fillDocument(doc);
+	return doc.save_file(path.c_str(), "\t", pugi::format_default, pugi::encoding_utf8);
+}
+
+std::string MapComments::toXml() const {
+	pugi::xml_document doc;
+	fillDocument(doc);
+	std::ostringstream stream;
+	doc.save(stream, "", pugi::format_raw, pugi::encoding_utf8);
+	return stream.str();
+}
+
+void MapComments::fillDocument(pugi::xml_document &doc) const {
 	pugi::xml_node root = doc.append_child("comments");
 	for (const MapComment &c : comments) {
 		pugi::xml_node node = root.append_child("comment");
@@ -175,5 +194,4 @@ bool MapComments::save(const std::string &path) const {
 		node.append_attribute("resolved") = c.resolved ? 1 : 0;
 		node.text().set(c.text.c_str());
 	}
-	return doc.save_file(path.c_str(), "\t", pugi::format_default, pugi::encoding_utf8);
 }

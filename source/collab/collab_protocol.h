@@ -34,6 +34,8 @@ namespace collab {
 	constexpr size_t kMaxName = 32; // characters
 	constexpr size_t kMaxChat = 500; // characters
 	constexpr size_t kMinPassword = 6;
+	constexpr size_t kSnapshotChunk = 256 * 1024;
+	constexpr size_t kMaxSnapshot = 0x7FFFFFFF; // compressed and uncompressed
 	constexpr size_t kMaxOutbox = 64 * 1024 * 1024; // bytes queued for one peer
 	constexpr int kMaxCursorsPerSecond = 30;
 	constexpr int kMaxChatPerSecond = 5;
@@ -51,6 +53,9 @@ namespace collab {
 		SetRole, // C->S userId, role
 		Kick, // C->S userId
 		Bye, // both reason
+		SnapshotBegin, // S->C totalBytes, chunkCount
+		SnapshotChunk, // S->C raw bytes
+		SnapshotEnd, // S->C crc32
 	};
 
 	enum class Role : uint8_t {
@@ -115,6 +120,17 @@ namespace collab {
 			pos += len;
 			return s;
 		}
+		// u32 length prefix, rejected when longer than maxLen bytes.
+		std::string blob(size_t maxLen) {
+			size_t len = u32();
+			if (len > maxLen) {
+				throw ProtocolError("blob too long");
+			}
+			need(len);
+			std::string s(reinterpret_cast<const char*>(data + pos), len);
+			pos += len;
+			return s;
+		}
 		void skip(size_t n) {
 			need(n);
 			pos += n;
@@ -156,6 +172,10 @@ namespace collab {
 				throw ProtocolError("string too long");
 			}
 			u16(static_cast<uint16_t>(s.size()));
+			buffer.insert(buffer.end(), s.begin(), s.end());
+		}
+		void blob(const std::string &s) {
+			u32(static_cast<uint32_t>(s.size()));
 			buffer.insert(buffer.end(), s.begin(), s.end());
 		}
 		std::vector<uint8_t> buffer;

@@ -28,6 +28,7 @@
 #include "map_tab.h"
 #include "editor_tabs.h"
 #include "map_display.h"
+#include "collab/collab_session.h"
 
 MapTab::MapTab(MapTabbook* aui, Editor* editor) :
 	EditorTab(),
@@ -64,6 +65,7 @@ MapTab::~MapTab() {
 		if (ed->IsLive()) {
 			ed->CloseLiveServer();
 		}
+		collab::Session::get().onEditorClosing(ed);
 
 		std::thread([ed]() {
 			delete ed;

@@ -106,6 +106,9 @@ CollabWindow::CollabWindow(wxWindow* parent) :
 		if (event.GetSelection() == PAGE_COMMENTS) {
 			RefreshComments();
 		}
+		if (event.GetSelection() == PAGE_SESSION) {
+			UpdateStartButton(); // a map may have been opened or closed meanwhile
+		}
 		if (event.GetSelection() == PAGE_CHAT && unread_chat > 0) {
 			unread_chat = 0;
 			notebook->SetPageText(PAGE_CHAT, "Chat");
@@ -177,13 +180,24 @@ void CollabWindow::BuildSessionPage(wxWindow* page) {
 	host_role->Append("Viewer");
 	host_role->SetSelection(g_settings.getInteger(Config::COLLAB_DEFAULT_ROLE) == static_cast<int>(collab::Role::Viewer) ? 1 : 0);
 	addRow(host, host_box, "Joiners are:", host_role);
+	host_share = newd wxCheckBox(host_box, wxID_ANY, "Share map with participants (they can keep and save a copy)");
+	host_share->SetValue(g_settings.getBoolean(Config::COLLAB_SHARE_MAP));
+	host_share->SetToolTip("Off: participants only see the map while connected; it is never written to their disk.");
+	host_share->Bind(wxEVT_CHECKBOX, [this](wxCommandEvent &) { host_save_all->Enable(host_share->GetValue()); });
+	host->Add(host_share, 0, wxALL, 3);
+	host_save_all = newd wxCheckBox(host_box, wxID_ANY, "Also save on participants' machines");
+	host_save_all->SetValue(g_settings.getBoolean(Config::COLLAB_SAVE_ON_PARTICIPANTS));
+	host_save_all->Enable(host_share->GetValue());
+	host->Add(host_save_all, 0, wxALL, 3);
 	start_button = newd wxButton(host_box, wxID_ANY, "Start hosting");
 	start_button->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
 		const auto role = host_role->GetSelection() == 1 ? collab::Role::Viewer : collab::Role::Editor;
 		g_settings.setInteger(Config::COLLAB_PORT, host_port->GetValue());
 		g_settings.setInteger(Config::COLLAB_DEFAULT_ROLE, static_cast<int>(role));
+		g_settings.setInteger(Config::COLLAB_SHARE_MAP, host_share->GetValue());
+		g_settings.setInteger(Config::COLLAB_SAVE_ON_PARTICIPANTS, host_save_all->GetValue());
 		std::string error;
-		if (collab::Session::get().startHosting(nstr(name_text->GetValue()), static_cast<uint16_t>(host_port->GetValue()), nstr(host_password->GetValue()), role, error)) {
+		if (collab::Session::get().startHosting(g_gui.GetCurrentEditor(), nstr(name_text->GetValue()), static_cast<uint16_t>(host_port->GetValue()), nstr(host_password->GetValue()), role, host_share->GetValue(), host_save_all->GetValue(), error)) {
 			host_password->Clear();
 		} else {
 			status_label->SetLabel(wxstr(error));
@@ -257,9 +271,11 @@ void CollabWindow::BuildSessionPage(wxWindow* page) {
 }
 
 void CollabWindow::UpdateStartButton() {
-	const bool ok = host_password->GetValue().length() >= collab::kMinPassword;
-	start_button->Enable(ok);
-	start_button->SetToolTip(ok ? "" : "The password needs at least 6 characters");
+	Editor* editor = g_gui.GetCurrentEditor();
+	const bool has_map = editor && !editor->IsCollabClient();
+	const bool has_password = host_password->GetValue().length() >= collab::kMinPassword;
+	start_button->Enable(has_map && has_password);
+	start_button->SetToolTip(!has_map ? "Open the map you want to share first" : (has_password ? "" : "The password needs at least 6 characters"));
 }
 
 void CollabWindow::OnSessionChanged() {

@@ -31,11 +31,16 @@ class CopyBuffer;
 class LiveClient;
 class LiveServer;
 class LiveSocket;
+namespace collab {
+	struct Snapshot;
+}
 
 class Editor {
 public:
 	Editor(CopyBuffer &copybuffer, LiveClient* client);
 	Editor(CopyBuffer &copybuffer, const FileName &fn);
+	// A map received from a collaboration host (see collab_snapshot.h).
+	Editor(CopyBuffer &copybuffer, const collab::Snapshot &snapshot);
 	Editor(CopyBuffer &copybuffer);
 	~Editor();
 
@@ -54,8 +59,19 @@ public: // Functions
 	LiveClient* GetLiveClient() const;
 	LiveServer* GetLiveServer() const;
 	LiveSocket &GetLive() const;
+	// Collaboration clients are read-only until live replication is in place.
 	bool CanEdit() const noexcept {
-		return true;
+		return !collab_client;
+	}
+	bool IsCollabClient() const noexcept {
+		return collab_client;
+	}
+	bool IsProtectedCopy() const noexcept {
+		return map.protectedCopy;
+	}
+	void SetCollabClient(bool client, bool protectedCopy) noexcept {
+		collab_client = client;
+		map.protectedCopy = client && protectedCopy;
 	}
 	bool IsLocal() const;
 	bool IsLive() const;
@@ -165,6 +181,7 @@ protected:
 
 private:
 	friend class MapCanvas;
+	bool collab_client = false;
 	Map map;
 	Selection selection;
 	ActionQueue* actionQueue;

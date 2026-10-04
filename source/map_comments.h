@@ -62,9 +62,14 @@ public:
 	// Sidecar file. save() removes the file when there is nothing to store.
 	bool load(const std::string &path);
 	bool save(const std::string &path) const;
+	// Same format, in memory (collaboration snapshots).
+	bool loadXml(const std::string &xml);
+	std::string toXml() const;
 
 private:
 	MapComment* find(uint32_t id);
+	bool loadDocument(const pugi::xml_document &doc);
+	void fillDocument(pugi::xml_document &doc) const;
 
 	// ponytail: linear scans, fine for hundreds of comments; index by position if it grows.
 	std::vector<MapComment> comments;

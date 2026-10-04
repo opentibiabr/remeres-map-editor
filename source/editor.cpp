@@ -42,6 +42,7 @@
 #include "live_server.h"
 #include "live_client.h"
 #include "live_action.h"
+#include "collab/collab_snapshot.h"
 
 #include <filesystem>
 #include <chrono>
@@ -131,6 +132,31 @@ Editor::Editor(CopyBuffer &copybuffer, const FileName &fn) :
 		ScopedLoadingBar LoadingBar("Loading OTBM map...");
 		success = map.open(nstr(fn.GetFullPath()));
 	}
+}
+
+Editor::Editor(CopyBuffer &copybuffer, const collab::Snapshot &snapshot) :
+	live_server(nullptr),
+	live_client(nullptr),
+	actionQueue(newd ActionQueue(*this)),
+	selection(*this),
+	copybuffer(copybuffer),
+	replace_brush(nullptr) {
+	wxString error;
+	wxArrayString warnings;
+	if (!g_gui.loadMapWindow(error, warnings)) {
+		throw std::runtime_error("Could not load the client data needed by this map:\n" + nstr(error));
+	}
+
+	ScopedLoadingBar loadingBar("Loading shared map...");
+	std::string loadError;
+	if (!collab::loadSnapshotInto(map, snapshot, loadError)) {
+		throw std::runtime_error("Could not load the shared map: " + loadError);
+	}
+
+	// No file: Save As asks for a name, like a new map.
+	map.setName(snapshot.mapName + " (collab)");
+	map.unnamed = true;
+	map.doChange();
 }
 
 Editor::Editor(CopyBuffer &copybuffer, LiveClient* client) :
@@ -233,6 +259,11 @@ void Editor::clearChanges() {
 }
 
 void Editor::saveMap(FileName filename, bool showdialog) {
+	if (map.protectedCopy) {
+		g_gui.PopupDialog("Protected map", "The host did not share this map, so it cannot be saved.", wxOK);
+		return;
+	}
+
 	std::string savefile = filename.GetFullPath().mb_str(wxConvUTF8).data();
 	bool save_as = false;
 	bool save_otgz = false;
