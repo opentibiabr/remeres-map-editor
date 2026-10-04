@@ -70,6 +70,7 @@ namespace collab {
 		bool hasSelection = false;
 		Position selFrom;
 		Position selTo;
+		std::string selLabel; // what is selected: "Selected Tile", "Selected Monster", "Selection"...
 		std::string tool;
 		bool typing = false;
 		std::chrono::steady_clock::time_point updated;

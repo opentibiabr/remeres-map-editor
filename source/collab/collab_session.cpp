@@ -31,6 +31,9 @@
 #include "../map_display.h"
 #include "../map_tab.h"
 #include "../map.h"
+#include "../npc.h"
+#include "../spawn_monster.h"
+#include "../spawn_npc.h"
 #include "../tile.h"
 #include "../map_comments.h"
 #include "../net_connection.h"
@@ -145,6 +148,7 @@ namespace collab {
 				w.u16(static_cast<uint16_t>(presence.selTo.x));
 				w.u16(static_cast<uint16_t>(presence.selTo.y));
 				w.u8(static_cast<uint8_t>(presence.selFrom.z));
+				w.str(presence.selLabel);
 			}
 			w.str(presence.tool);
 			w.u8(presence.typing ? 1 : 0);
@@ -164,6 +168,7 @@ namespace collab {
 				}
 				presence.selFrom = Position(std::min(x1, x2), std::min(y1, y2), z);
 				presence.selTo = Position(std::max(x1, x2), std::max(y1, y2), z);
+				presence.selLabel = sanitizeText(r.str(256), 32);
 			}
 			presence.tool = sanitizeText(r.str(256), 40);
 			presence.typing = r.u8() != 0;
@@ -172,7 +177,7 @@ namespace collab {
 		}
 
 		bool samePresence(const Presence &a, const Presence &b) {
-			return a.hasSelection == b.hasSelection && (!a.hasSelection || (a.selFrom == b.selFrom && a.selTo == b.selTo)) && a.tool == b.tool && a.typing == b.typing;
+			return a.hasSelection == b.hasSelection && (!a.hasSelection || (a.selFrom == b.selFrom && a.selTo == b.selTo && a.selLabel == b.selLabel)) && a.tool == b.tool && a.typing == b.typing;
 		}
 
 		void writeClaimAdd(ByteWriter &w, const Claim &claim) {
@@ -2867,6 +2872,30 @@ namespace collab {
 				presence.hasSelection = true;
 				presence.selFrom = from;
 				presence.selTo = to;
+				presence.selLabel = "Selection";
+
+				// One tile: say what is on it that was selected, when it is a single kind of thing.
+				if (editor->getSelection().size() == 1) {
+					presence.selLabel = "Selected Tile";
+					if (Tile* tile = editor->getSelection().getSelectedTile()) {
+						const char* kind = nullptr;
+						int kinds = 0;
+						auto note = [&](bool present, const char* name) {
+							if (present) {
+								kind = name;
+								++kinds;
+							}
+						};
+						note(!tile->getSelectedMonsters().empty(), "Monster");
+						note(tile->npc && tile->npc->isSelected(), "NPC");
+						note(!tile->getSelectedItems().empty(), "Item");
+						note(tile->spawnMonster && tile->spawnMonster->isSelected(), "Spawn");
+						note(tile->spawnNpc && tile->spawnNpc->isSelected(), "NPC Spawn");
+						if (kinds == 1) {
+							presence.selLabel = std::string("Selected ") + kind;
+						}
+					}
+				}
 			}
 		}
 		if (g_gui.IsSelectionMode()) {

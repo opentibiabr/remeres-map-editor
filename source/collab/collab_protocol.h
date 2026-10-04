@@ -26,7 +26,7 @@
 
 namespace collab {
 
-	constexpr uint16_t kProtocolVersion = 4;
+	constexpr uint16_t kProtocolVersion = 5;
 
 	// Limits. Everything read from the network is checked against these.
 	constexpr size_t kMaxFrame = 1024 * 1024; // plaintext, type byte included
