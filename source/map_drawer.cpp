@@ -42,7 +42,6 @@
 #include <unordered_set>
 #include "map_display.h"
 #include "copybuffer.h"
-#include "live_socket.h"
 #include "collab/collab_session.h"
 #include "graphics.h"
 
@@ -296,7 +295,6 @@ void MapDrawer::Draw() {
 	if (options.dragging) {
 		DrawSelectionBox();
 	}
-	DrawLiveCursors();
 	DrawCollabCursors();
 	DrawComments();
 	DrawBrush();
@@ -340,7 +338,6 @@ void MapDrawer::DrawShade(int map_z) {
 
 void MapDrawer::DrawMap() {
 	tooltips.clear();
-	bool live_client = editor.IsLiveClient();
 
 	Brush* brush = g_gui.GetCurrentBrush();
 
@@ -373,41 +370,25 @@ void MapDrawer::DrawMap() {
 				for (int nd_map_y = nd_start_y; nd_map_y <= nd_end_y; nd_map_y += 4) {
 					QTreeNode* nd = editor.getMap().getLeaf(nd_map_x, nd_map_y);
 					if (!nd) {
-						if (!live_client) {
-							continue;
-						}
-						nd = editor.getMap().createLeaf(nd_map_x, nd_map_y);
-						nd->setVisible(false, false);
+						continue;
 					}
 
-					if (!live_client || nd->isVisible(map_z > rme::MapGroundLayer)) {
+					for (int map_x = 0; map_x < 4; ++map_x) {
+						for (int map_y = 0; map_y < 4; ++map_y) {
+							TileLocation* location = nd->getTile(map_x, map_y, map_z);
+							DrawTile(location);
+							// draw light, but only if not zoomed too far
+							if (location && options.show_lights && zoom <= 10) {
+								AddLight(location);
+							}
+						}
+					}
+					if (tile_indicators) {
 						for (int map_x = 0; map_x < 4; ++map_x) {
 							for (int map_y = 0; map_y < 4; ++map_y) {
-								TileLocation* location = nd->getTile(map_x, map_y, map_z);
-								DrawTile(location);
-								// draw light, but only if not zoomed too far
-								if (location && options.show_lights && zoom <= 10) {
-									AddLight(location);
-								}
+								DrawTileIndicators(nd->getTile(map_x, map_y, map_z));
 							}
 						}
-						if (tile_indicators) {
-							for (int map_x = 0; map_x < 4; ++map_x) {
-								for (int map_y = 0; map_y < 4; ++map_y) {
-									DrawTileIndicators(nd->getTile(map_x, map_y, map_z));
-								}
-							}
-						}
-					} else {
-						if (!nd->isRequested(map_z > rme::MapGroundLayer)) {
-							// Request the node
-							editor.QueryNode(nd_map_x, nd_map_y, map_z > rme::MapGroundLayer);
-							nd->setRequested(map_z > rme::MapGroundLayer, true);
-						}
-						int cy = (nd_map_y)*rme::TileSize - view_scroll_y - getFloorAdjustment(floor);
-						int cx = (nd_map_x)*rme::TileSize - view_scroll_x - getFloorAdjustment(floor);
-
-						renderer->drawColoredQuad(cx, cy, rme::TileSize * 4, rme::TileSize * 4, { 255, 0, 255, 128 });
 					}
 				}
 			}
@@ -766,44 +747,6 @@ void MapDrawer::DrawSelectionBox() {
 	float lineW = zoom > 1.0f ? zoom : 1.0f;
 	int dashFactor = std::max(1, static_cast<int>(2 * zoom));
 	renderer->drawStippledLines(verts.data(), 4, GLColor { 255, 255, 255, 255 }, lineW, dashFactor, 0xAAAA);
-}
-
-void MapDrawer::DrawLiveCursors() {
-	if (options.ingame || !editor.IsLive()) {
-		return;
-	}
-
-	LiveSocket &live = editor.GetLive();
-	for (LiveCursor &cursor : live.getCursorList()) {
-		if (cursor.pos.z <= rme::MapGroundLayer && floor > rme::MapGroundLayer) {
-			continue;
-		}
-
-		if (cursor.pos.z > rme::MapGroundLayer && floor <= 8) {
-			continue;
-		}
-
-		if (cursor.pos.z < floor) {
-			cursor.color = wxColor(
-				cursor.color.Red(),
-				cursor.color.Green(),
-				cursor.color.Blue(),
-				std::max<uint8_t>(cursor.color.Alpha() / 2, 64)
-			);
-		}
-
-		int offset;
-		if (cursor.pos.z <= rme::MapGroundLayer) {
-			offset = (rme::MapGroundLayer - cursor.pos.z) * rme::TileSize;
-		} else {
-			offset = rme::TileSize * (floor - cursor.pos.z);
-		}
-
-		float draw_x = ((cursor.pos.x * rme::TileSize) - view_scroll_x) - offset;
-		float draw_y = ((cursor.pos.y * rme::TileSize) - view_scroll_y) - offset;
-
-		renderer->drawColoredQuad(draw_x, draw_y, rme::TileSize, rme::TileSize, { cursor.color.Red(), cursor.color.Green(), cursor.color.Blue(), cursor.color.Alpha() });
-	}
 }
 
 void MapDrawer::DrawCollabCursors() {

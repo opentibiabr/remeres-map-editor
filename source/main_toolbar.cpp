@@ -206,11 +206,11 @@ void MainToolBar::UpdateButtons() {
 	}
 
 	bool has_map = editor != nullptr;
-	bool is_host = has_map && !editor->IsLiveClient() && !editor->IsCollabClient();
+	bool is_host = has_map && !editor->IsCollabClient();
 	bool is_protected = has_map && editor->IsProtectedCopy();
 
 	standard_toolbar->EnableTool(wxID_SAVE, is_host);
-	standard_toolbar->EnableTool(wxID_SAVEAS, has_map && !editor->IsLiveClient() && !is_protected);
+	standard_toolbar->EnableTool(wxID_SAVEAS, has_map && !is_protected);
 	standard_toolbar->EnableTool(wxID_CUT, has_map && !is_protected);
 	standard_toolbar->EnableTool(wxID_COPY, has_map && !is_protected);
 	standard_toolbar->Refresh();

@@ -47,9 +47,6 @@
 #include "sprite_appearances.h"
 #include "preferences.h"
 
-#include "live_client.h"
-#include "live_tab.h"
-#include "live_server.h"
 
 #include <appearances.pb.h>
 
@@ -668,27 +665,6 @@ void GUI::CloseCurrentEditor() {
 	root->UpdateMenubar();
 }
 
-bool GUI::CloseLiveEditors(LiveSocket* sock) {
-	for (int i = 0; i < tabbook->GetTabCount(); ++i) {
-		auto* mapTab = dynamic_cast<MapTab*>(tabbook->GetTab(i));
-		if (mapTab) {
-			Editor* editor = mapTab->GetEditor();
-			if (editor->GetLiveClient() == sock) {
-				tabbook->DeleteTab(i--);
-			}
-		}
-		auto* liveLogTab = dynamic_cast<LiveLogTab*>(tabbook->GetTab(i));
-		if (liveLogTab) {
-			if (liveLogTab->GetSocket() == sock) {
-				liveLogTab->Disconnect();
-				tabbook->DeleteTab(i--);
-			}
-		}
-	}
-	root->UpdateMenubar();
-	return true;
-}
-
 bool GUI::CloseAllEditors() {
 	for (int i = 0; i < tabbook->GetTabCount(); ++i) {
 		auto* mapTab = dynamic_cast<MapTab*>(tabbook->GetTab(i));
@@ -1217,12 +1193,6 @@ void GUI::CreateLoadBar(wxString message, bool canCancel, bool appModal) {
 	progressBar->SetSize(280, -1);
 	progressBar->Show(true);
 
-	for (int idx = 0; idx < tabbook->GetTabCount(); ++idx) {
-		auto* mt = dynamic_cast<MapTab*>(tabbook->GetTab(idx));
-		if (mt && mt->GetEditor()->IsLiveServer()) {
-			mt->GetEditor()->GetLiveServer()->startOperation(progressText);
-		}
-	}
 	progressBar->Update(0);
 }
 
@@ -1258,16 +1228,6 @@ bool GUI::SetLoadDone(int32_t done, const wxString &newMessage) {
 			&skip
 		);
 		currentProgress = newProgress;
-	}
-
-	for (int32_t index = 0; index < tabbook->GetTabCount(); ++index) {
-		auto* mapTab = dynamic_cast<MapTab*>(tabbook->GetTab(index));
-		if (mapTab && mapTab->GetEditor()) {
-			LiveServer* server = mapTab->GetEditor()->GetLiveServer();
-			if (server) {
-				server->updateOperation(newProgress);
-			}
-		}
 	}
 
 	return continueProcessing && !skip;

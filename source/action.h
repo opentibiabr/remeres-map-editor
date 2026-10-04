@@ -96,39 +96,6 @@ private:
 
 typedef std::vector<Change*> ChangeList;
 
-// A dirty list represents a list of all tiles that was changed in an action
-class DirtyList {
-public:
-	struct ValueType {
-		uint32_t pos;
-		uint32_t floors;
-	};
-
-	uint32_t owner = 0;
-
-protected:
-	struct Comparator {
-		bool operator()(const ValueType &a, const ValueType &b) const {
-			return a.pos < b.pos;
-		}
-	};
-
-public:
-	typedef std::set<ValueType, Comparator> SetType;
-
-	void AddPosition(int x, int y, int z);
-	void AddChange(Change* c);
-	bool Empty() const {
-		return iset.empty() && ichanges.empty();
-	}
-	SetType &GetPosList();
-	ChangeList &GetChanges();
-
-protected:
-	SetType iset;
-	ChangeList ichanges;
-};
-
 class Action {
 public:
 	virtual ~Action();
@@ -150,13 +117,13 @@ public:
 		return type;
 	}
 
-	void commit(DirtyList* dirty_list);
+	void commit();
 	bool isCommited() const noexcept {
 		return commited;
 	}
-	void undo(DirtyList* dirty_list);
-	void redo(DirtyList* dirty_list) {
-		commit(dirty_list);
+	void undo();
+	void redo() {
+		commit();
 	}
 
 protected:

@@ -62,9 +62,6 @@ MapTab::~MapTab() {
 		iref->editor = nullptr;
 		delete iref;
 
-		if (ed->IsLive()) {
-			ed->CloseLiveServer();
-		}
 		collab::Session::get().onEditorClosing(ed);
 
 		std::thread([ed]() {

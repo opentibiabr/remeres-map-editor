@@ -32,7 +32,6 @@
 #include "map_display.h"
 #include "map_drawer.h"
 #include "application.h"
-#include "live_server.h"
 #include "collab/collab_session.h"
 #include "browse_tile_window.h"
 
@@ -279,9 +278,6 @@ void MapCanvas::OnPaint(wxPaintEvent &event) {
 
 	// Swap buffer
 	SwapBuffers();
-
-	// Send newd node requests
-	editor.SendNodeRequests();
 }
 
 void MapCanvas::ShowPositionIndicator(const Position &position) {
@@ -475,10 +471,6 @@ void MapCanvas::UpdatePositionStatus(int x, int y) {
 	const auto tile = editor.getMap().getTile(map_x, map_y, floor);
 
 	std::string description = "Nothing";
-
-	if (editor.IsLive()) {
-		editor.GetLive().updateCursor(Position(map_x, map_y, floor));
-	}
 
 	if (!tile) {
 		g_gui.root->SetStatusText(description, 1);

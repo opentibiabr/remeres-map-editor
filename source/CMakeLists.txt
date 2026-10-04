@@ -237,12 +237,6 @@ target_sources(
           item_attributes.cpp
           item.cpp
           items.cpp
-          live_action.cpp
-          live_client.cpp
-          live_peer.cpp
-          live_server.cpp
-          live_socket.cpp
-          live_tab.cpp
           lua/lua_engine.cpp
           lua/lua_script.cpp
           lua/lua_script_manager.cpp
@@ -328,7 +322,6 @@ target_sources(
           raw_brush.cpp
           replace_items_window.cpp
           result_window.cpp
-          rme_net.cpp
           selection.cpp
           settings.cpp
           sqlite_materials_inspector.cpp

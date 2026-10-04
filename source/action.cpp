@@ -122,7 +122,7 @@ size_t Action::memsize() const {
 	return mem;
 }
 
-void Action::commit(DirtyList* dirty_list) {
+void Action::commit() {
 	Map &map = editor.getMap();
 	Selection &selection = editor.getSelection();
 	selection.start(Selection::INTERNAL);
@@ -136,21 +136,8 @@ void Action::commit(DirtyList* dirty_list) {
 
 				const Position &pos = new_tile->getPosition();
 
-				if (editor.IsLiveClient()) {
-					QTreeNode* node = map.getLeaf(pos.x, pos.y);
-					if (!node || !node->isVisible(pos.z > rme::MapGroundLayer)) {
-						change->clear();
-						continue;
-					}
-				}
-
 				Tile* old_tile = map.swapTile(pos, new_tile);
 				TileLocation* location = new_tile->getLocation();
-
-				// Update other nodes in the network
-				if (editor.IsLiveServer() && dirty_list) {
-					dirty_list->AddPosition(pos.x, pos.y, pos.z);
-				}
 
 				new_tile->update();
 
@@ -225,11 +212,6 @@ void Action::commit(DirtyList* dirty_list) {
 				}
 				new_tile->modify();
 				collab::Session::get().onTileCommitted(editor, type, pos, old_tile);
-
-				// Update client dirty list
-				if (editor.IsLiveClient() && dirty_list && type != ACTION_REMOTE) {
-					dirty_list->AddChange(change);
-				}
 				break;
 			}
 
@@ -276,7 +258,7 @@ void Action::commit(DirtyList* dirty_list) {
 	commited = true;
 }
 
-void Action::undo(DirtyList* dirty_list) {
+void Action::undo() {
 	if (changes.empty()) {
 		return;
 	}
@@ -293,21 +275,7 @@ void Action::undo(DirtyList* dirty_list) {
 				ASSERT(old_tile);
 				const Position &pos = old_tile->getPosition();
 
-				if (editor.IsLiveClient()) {
-					QTreeNode* node = map.getLeaf(pos.x, pos.y);
-					if (!node || !node->isVisible(pos.z > rme::MapGroundLayer)) {
-						// Delete all changes that affect tiles outside our view
-						change->clear();
-						continue;
-					}
-				}
-
 				Tile* new_tile = map.swapTile(pos, old_tile);
-
-				// Update server side change list (for broadcast)
-				if (editor.IsLiveServer() && dirty_list) {
-					dirty_list->AddPosition(pos.x, pos.y, pos.z);
-				}
 
 				if (old_tile->isSelected()) {
 					selection.addInternal(old_tile);
@@ -358,11 +326,6 @@ void Action::undo(DirtyList* dirty_list) {
 				}
 				*data = new_tile;
 				collab::Session::get().onTileCommitted(editor, type, pos, new_tile);
-
-				// Update client dirty list
-				if (editor.IsLiveClient() && dirty_list && type != ACTION_REMOTE) {
-					dirty_list->AddChange(change);
-				}
 				break;
 			}
 
@@ -477,7 +440,7 @@ void BatchAction::addAndCommitAction(Action* action) {
 		return;
 	}
 
-	action->commit(nullptr);
+	action->commit();
 	batch.push_back(action);
 	timestamp = time(nullptr);
 }
@@ -485,20 +448,20 @@ void BatchAction::addAndCommitAction(Action* action) {
 void BatchAction::commit() {
 	for (Action* action : batch) {
 		if (action && !action->isCommited()) {
-			action->commit(nullptr);
+			action->commit();
 		}
 	}
 }
 
 void BatchAction::undo() {
 	for (Action* action : std::views::reverse(batch)) {
-		action->undo(nullptr);
+		action->undo();
 	}
 }
 
 void BatchAction::redo() {
 	for (Action* action : batch) {
-		action->redo(nullptr);
+		action->redo();
 	}
 }
 
@@ -718,29 +681,3 @@ wxString ActionQueue::createLabel(ActionIdentifier type) {
 	}
 }
 
-void DirtyList::AddPosition(int x, int y, int z) {
-	uint32_t m = ((x >> 2) << 18) | ((y >> 2) << 4);
-	ValueType fi = { m, 0 };
-	SetType::iterator s = iset.find(fi);
-	if (s != iset.end()) {
-		ValueType v = *s;
-		iset.erase(s);
-		v.floors = (1 << z) | v.floors;
-		iset.insert(v);
-	} else {
-		ValueType v = { m, (uint32_t)(1 << z) };
-		iset.insert(v);
-	}
-}
-
-void DirtyList::AddChange(Change* c) {
-	ichanges.push_back(c);
-}
-
-DirtyList::SetType &DirtyList::GetPosList() {
-	return iset;
-}
-
-ChangeList &DirtyList::GetChanges() {
-	return ichanges;
-}

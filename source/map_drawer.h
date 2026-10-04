@@ -190,7 +190,6 @@ public:
 	void DrawDraggingShadow();
 	void DrawHigherFloors();
 	void DrawSelectionBox();
-	void DrawLiveCursors();
 	void DrawComments();
 	void DrawCollabCursors();
 	void DrawBrush();

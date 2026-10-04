@@ -142,9 +142,6 @@ namespace MenuBar {
 		WIN_SQLITE_MATERIALS_INSPECTOR,
 		NEW_PALETTE,
 		TAKE_SCREENSHOT,
-		LIVE_START,
-		LIVE_JOIN,
-		LIVE_CLOSE,
 		SELECT_TERRAIN,
 		SELECT_DOODAD,
 		SELECT_ITEM,
@@ -299,9 +296,6 @@ public:
 	void OnChangeViewSettings(wxCommandEvent &event);
 
 	// Network menu
-	void OnStartLive(wxCommandEvent &event);
-	void OnJoinLive(wxCommandEvent &event);
-	void OnCloseLive(wxCommandEvent &event);
 
 	// Window Menu
 	void OnMinimapWindow(wxCommandEvent &event);
