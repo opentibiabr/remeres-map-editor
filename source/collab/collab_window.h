@@ -31,6 +31,7 @@ class wxListCtrl;
 class wxListEvent;
 class wxNotebook;
 class wxSearchCtrl;
+class wxScrolledWindow;
 class wxSpinCtrl;
 class wxStaticText;
 class wxTextCtrl;
@@ -88,6 +89,7 @@ private:
 	const collab::JournalEntry* SelectedHistoryEntry() const;
 
 	wxNotebook* notebook = nullptr;
+	wxScrolledWindow* session_page = nullptr;
 	wxTextCtrl* name_text = nullptr;
 	wxStaticText* status_label = nullptr;
 

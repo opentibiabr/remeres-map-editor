@@ -38,6 +38,7 @@
 #include <wx/listctrl.h>
 #include <wx/menu.h>
 #include <wx/notebook.h>
+#include <wx/scrolwin.h>
 #include <wx/sizer.h>
 #include <wx/spinctrl.h>
 #include <wx/srchctrl.h>
@@ -139,7 +140,9 @@ CollabWindow::CollabWindow(wxWindow* parent) :
 
 	notebook = newd wxNotebook(this, wxID_ANY);
 
-	auto* session = newd wxPanel(notebook);
+	session_page = newd wxScrolledWindow(notebook, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL);
+	session_page->SetScrollRate(0, 12);
+	auto* session = session_page;
 	BuildSessionPage(session);
 	notebook->AddPage(session, "Session");
 
@@ -347,6 +350,15 @@ void CollabWindow::BuildSessionPage(wxWindow* page) {
 	// -- active: participants and options
 	active_panel = newd wxPanel(page);
 	auto* active = newd wxBoxSizer(wxVERTICAL);
+	leave_button = newd wxButton(active_panel, wxID_ANY, "Leave");
+	leave_button->Bind(wxEVT_BUTTON, [](wxCommandEvent &) { collab::Session::get().leave(); });
+	save_request_button = newd wxButton(active_panel, wxID_ANY, "Request save");
+	save_request_button->SetToolTip("Ask the host to save the map");
+	save_request_button->Bind(wxEVT_BUTTON, [](wxCommandEvent &) { collab::Session::get().requestSave(); });
+	auto* buttons = newd wxBoxSizer(wxHORIZONTAL);
+	buttons->Add(leave_button, 0, wxRIGHT, 4);
+	buttons->Add(save_request_button, 0);
+	active->Add(buttons, 0, wxBOTTOM, 6);
 	user_list = newd wxListCtrl(active_panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL);
 	user_list->InsertColumn(USER_NAME, "Participant", wxLIST_FORMAT_LEFT, 180);
 	user_list->InsertColumn(USER_ROLE, "Role", wxLIST_FORMAT_LEFT, 74);
@@ -424,15 +436,6 @@ void CollabWindow::BuildSessionPage(wxWindow* page) {
 	summon_button->Bind(wxEVT_BUTTON, [](wxCommandEvent &) { collab::Session::get().summonAll(); });
 	active->Add(summon_button, 0, wxBOTTOM, 6);
 
-	leave_button = newd wxButton(active_panel, wxID_ANY, "Leave");
-	leave_button->Bind(wxEVT_BUTTON, [](wxCommandEvent &) { collab::Session::get().leave(); });
-	save_request_button = newd wxButton(active_panel, wxID_ANY, "Request save");
-	save_request_button->SetToolTip("Ask the host to save the map");
-	save_request_button->Bind(wxEVT_BUTTON, [](wxCommandEvent &) { collab::Session::get().requestSave(); });
-	auto* buttons = newd wxBoxSizer(wxHORIZONTAL);
-	buttons->Add(leave_button, 0, wxRIGHT, 4);
-	buttons->Add(save_request_button, 0);
-	active->Add(buttons, 0);
 	active_panel->SetSizer(active);
 	root->Add(active_panel, 1, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 8);
 
@@ -507,6 +510,7 @@ void CollabWindow::OnSessionChanged() {
 
 	RefreshUsers();
 	Layout();
+	session_page->FitInside(); // the scroll range follows what is shown
 }
 
 // Somebody started or stopped typing, or changed tool: the list and the chat hint follow.
