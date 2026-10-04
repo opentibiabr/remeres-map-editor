@@ -53,7 +53,7 @@
 CollabWindow* CollabWindow::instance = nullptr;
 
 namespace {
-		enum Column {
+	enum Column {
 		COL_AUTHOR,
 		COL_POSITION,
 		COL_TEXT,
@@ -89,16 +89,16 @@ namespace {
 			const char* arguments;
 		};
 		static const Player players[] = {
-#ifdef __APPLE__
+	#ifdef __APPLE__
 			{ "afplay", "message-notification.mp3", "" },
-#else
+	#else
 			{ "paplay", "message-notification.ogg", "" },
 			{ "pw-play", "message-notification.ogg", "" },
 			{ "ogg123", "message-notification.ogg", "-q" },
 			{ "ffplay", "message-notification.ogg", "-nodisp -autoexit -loglevel quiet" },
 			{ "mpv", "message-notification.ogg", "--no-video --really-quiet" },
 			{ "play", "message-notification.ogg", "-q" }, // sox
-#endif
+	#endif
 		};
 		wxPathList searchPath;
 		searchPath.AddEnvList("PATH");

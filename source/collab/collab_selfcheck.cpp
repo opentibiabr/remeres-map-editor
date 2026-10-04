@@ -78,23 +78,23 @@ namespace collab {
 			for (size_t cut = 0; cut < w.buffer.size(); ++cut) {
 				std::vector<uint8_t> truncated(w.buffer.begin(), w.buffer.begin() + cut);
 				check(throwsProtocolError([&] {
-					ByteReader t(truncated);
-					t.u8();
-					t.u16();
-					t.u32();
-					t.str(16);
-				}),
-					"truncated buffer rejected");
+						  ByteReader t(truncated);
+						  t.u8();
+						  t.u16();
+						  t.u32();
+						  t.str(16);
+					  }),
+					  "truncated buffer rejected");
 			}
 
 			check(throwsProtocolError([&] {
-				ByteReader t(w.buffer);
-				t.u8();
-				t.u16();
-				t.u32();
-				t.str(2); // longer than the cap
-			}),
-				"string cap enforced");
+					  ByteReader t(w.buffer);
+					  t.u8();
+					  t.u16();
+					  t.u32();
+					  t.str(2); // longer than the cap
+				  }),
+				  "string cap enforced");
 
 			// Garbage: either parses or throws ProtocolError, nothing else.
 			std::mt19937 rng(1234);
@@ -457,10 +457,10 @@ namespace collab {
 			for (size_t cut = 0; cut < w.buffer.size(); ++cut) {
 				std::vector<uint8_t> truncated(w.buffer.begin(), w.buffer.begin() + cut);
 				check(throwsProtocolError([&] {
-					ByteReader t(truncated);
-					readMetaOps(t);
-				}),
-					"truncated meta ops rejected");
+						  ByteReader t(truncated);
+						  readMetaOps(t);
+					  }),
+					  "truncated meta ops rejected");
 			}
 		}
 

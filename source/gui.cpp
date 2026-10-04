@@ -47,7 +47,6 @@
 #include "sprite_appearances.h"
 #include "preferences.h"
 
-
 #include <appearances.pb.h>
 
 namespace InternalGUI {
