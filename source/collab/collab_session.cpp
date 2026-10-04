@@ -72,6 +72,9 @@ namespace collab {
 			return static_cast<int64_t>(std::time(nullptr));
 		}
 
+		// Defined with the history code below; startHosting needs it first.
+		std::string journalPath(Editor &editor);
+
 		void writeUser(ByteWriter &w, const User &user) {
 			w.u32(user.id);
 			w.str(user.name);
