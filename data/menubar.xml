@@ -157,6 +157,7 @@
         <item name="Show $houses" hotkey="Ctrl+H" action="SHOW_HOUSES" help="Show houses on the map."/>
         <item name="Show $pathing" hotkey="O" action="SHOW_PATHING" help="Show pathing grid (blocking tiles)."/>
         <item name="Show T$ooltips" hotkey="Y" action="SHOW_TOOLTIPS" help="Show tooltips."/>
+        <item name="Show Co$mments" hotkey="Shift+C" action="SHOW_COMMENTS" help="Show map comments."/>
         <item name="Show Previe$w" hotkey="L" action="SHOW_PREVIEW" help="Show animations and lights preview."/>
         <menu name="Show Indicators">
             <item name="Show Wall Hoo$ks" hotkey="K" action="SHOW_WALL_HOOKS" help="Show indicators for wall hooks."/>
@@ -182,13 +183,6 @@
         <item name="$RAW Palette" hotkey="R" action="SELECT_RAW" help="Select the RAW palette."/>
     </menu>
     <!--
-    <menu name="$Live">
-        <item name="$Host Server" action="LIVE_START" help="Start a live mapping session (as the host)."/>
-        <item name="$Join Server" action="LIVE_JOIN" help="Join a live mapping session."/>
-        <item name="$Leave Server" action="LIVE_CLOSE" help="Leave this live mapping session."/>
-    </menu>
-    -->
-    <!--
     <menu name="$Debug">
         <item name="$Debug .dat" action="DEBUG_VIEW_DAT" help="View all item sprites available."/>
     </menu>
@@ -212,6 +206,21 @@
         <item name="Floor 15" action="FLOOR_15" help=""/>
     </menu>
     <menu name="$Scripts">
+    </menu>
+    <menu name="$Collaborate">
+        <item name="Collaborate $Panel" action="WIN_COLLAB" help="Show the collaboration panel: host or join a session, chat, comments and history."/>
+        <separator/>
+        <item name="$Host Session..." action="COLLAB_HOST" help="Share the current map with other editors."/>
+        <item name="$Join Session..." action="COLLAB_JOIN" help="Connect to a session hosted by someone else."/>
+        <item name="$Leave Session" action="COLLAB_LEAVE" help="Stop hosting or leave the current session."/>
+        <separator/>
+        <item name="Add $Comment at Cursor" action="COLLAB_ADD_COMMENT" help="Leave a comment on the tile under the cursor."/>
+        <separator/>
+        <item name="Show Cur$sors" action="COLLAB_SHOW_CURSORS" help="Show where the other participants are pointing."/>
+        <item name="Show $Names" action="COLLAB_SHOW_NAMES" help="Show the names of the other participants next to their cursors and areas."/>
+    </menu>
+    <menu name="$MCP">
+        <item name="MCP $Server" action="WIN_MCP" help="Displays the MCP server window, which lets an AI client read and edit this map."/>
     </menu>
     <menu name="$About">
         <item name="Goto $Website" hotkey="F3" action="GOTO_WEBSITE" help=""/>

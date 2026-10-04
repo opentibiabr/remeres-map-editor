@@ -17,6 +17,7 @@
 
 #include "main.h"
 #include <array>
+#include <cstring>
 
 #include "gui.h"
 #include "editor.h"
@@ -31,7 +32,8 @@
 #include "map_display.h"
 #include "map_drawer.h"
 #include "application.h"
-#include "live_server.h"
+#include "collab/collab_session.h"
+#include "collab/collab_window.h"
 #include "browse_tile_window.h"
 
 #include "main_menubar.h"
@@ -102,6 +104,12 @@ EVT_MENU(MAP_POPUP_MENU_MOVE_TO_TILESET, MapCanvas::OnSelectMoveTo)
 // ----
 EVT_MENU(MAP_POPUP_MENU_PROPERTIES, MapCanvas::OnProperties)
 // ----
+EVT_MENU(MAP_POPUP_MENU_ADD_COMMENT, MapCanvas::OnAddComment)
+EVT_MENU(MAP_POPUP_MENU_EDIT_COMMENT, MapCanvas::OnEditComment)
+EVT_MENU(MAP_POPUP_MENU_RESOLVE_COMMENT, MapCanvas::OnResolveComment)
+EVT_MENU(MAP_POPUP_MENU_DELETE_COMMENT, MapCanvas::OnDeleteComment)
+EVT_MENU(MAP_POPUP_MENU_REPLY_COMMENT, MapCanvas::OnReplyComment)
+// ----
 EVT_MENU(MAP_POPUP_MENU_BROWSE_TILE, MapCanvas::OnBrowseTile)
 END_EVENT_TABLE()
 
@@ -122,6 +130,7 @@ MapCanvas::MapCanvas(MapWindow* parent, Editor &editor, int* attriblist) :
 	replace_dragging(false),
 
 	screenshot_buffer(nullptr),
+	screenshot_captured(false),
 
 	drag_start_x(-1),
 	drag_start_y(-1),
@@ -151,7 +160,7 @@ MapCanvas::~MapCanvas() {
 	delete popup_menu;
 	delete animation_timer;
 	delete drawer;
-	free(screenshot_buffer);
+	delete[] screenshot_buffer;
 }
 
 void MapCanvas::Refresh() {
@@ -227,6 +236,7 @@ void MapCanvas::OnPaint(wxPaintEvent &event) {
 			options.highlight_items = g_settings.getBoolean(Config::HIGHLIGHT_ITEMS);
 			options.show_blocking = g_settings.getBoolean(Config::SHOW_BLOCKING);
 			options.show_tooltips = g_settings.getBoolean(Config::SHOW_TOOLTIPS);
+			options.show_comments = g_settings.getBoolean(Config::SHOW_COMMENTS);
 			options.show_performance_stats = g_settings.getBoolean(Config::SHOW_PERFORMANCE_STATS);
 			options.show_as_minimap = g_settings.getBoolean(Config::SHOW_AS_MINIMAP);
 			options.show_only_colors = g_settings.getBoolean(Config::SHOW_ONLY_TILEFLAGS);
@@ -259,6 +269,7 @@ void MapCanvas::OnPaint(wxPaintEvent &event) {
 
 		if (screenshot_buffer) {
 			drawer->TakeScreenshot(screenshot_buffer);
+			screenshot_captured = true;
 		}
 
 		drawer->Release();
@@ -269,9 +280,6 @@ void MapCanvas::OnPaint(wxPaintEvent &event) {
 
 	// Swap buffer
 	SwapBuffers();
-
-	// Send newd node requests
-	editor.SendNodeRequests();
 }
 
 void MapCanvas::ShowPositionIndicator(const Position &position) {
@@ -281,6 +289,46 @@ void MapCanvas::ShowPositionIndicator(const Position &position) {
 			Update();
 		}
 	}
+}
+
+wxImage MapCanvas::CaptureScreenshot() {
+	int screensize_x, screensize_y;
+	GetViewBox(&view_scroll_x, &view_scroll_y, &screensize_x, &screensize_y);
+
+	int view_x, view_y;
+	GetMapWindow()->GetViewSize(&view_x, &view_y);
+
+	const int width = std::max(screensize_x, view_x);
+	const int height = std::max(screensize_y, view_y);
+	if (width <= 0 || height <= 0) {
+		return wxImage();
+	}
+
+	// OnPaint skips the readback when the canvas is hidden or rendering is off;
+	// bail out now instead of returning an all-black image.
+	if (!IsShownOnScreen() || !g_gui.IsRenderingEnabled()) {
+		return wxImage();
+	}
+
+	delete[] screenshot_buffer;
+	screenshot_buffer = newd uint8_t[3 * width * height]();
+	screenshot_captured = false;
+
+	// The GL readback happens during the paint, so force one now.
+	Refresh();
+	wxGLCanvas::Update();
+
+	wxImage image;
+	if (screenshot_captured) {
+		image.Create(view_x, view_y);
+		std::memcpy(image.GetData(), screenshot_buffer, static_cast<size_t>(3) * view_x * view_y);
+	}
+
+	// Drop the buffer so OnPaint stops forcing in-game options and reading back every frame.
+	delete[] screenshot_buffer;
+	screenshot_buffer = nullptr;
+	Refresh();
+	return image;
 }
 
 void MapCanvas::TakeScreenshot(wxFileName path, wxString format) {
@@ -420,14 +468,11 @@ void MapCanvas::UpdatePositionStatus(int x, int y) {
 	ScreenToMap(x, y, &map_x, &map_y);
 
 	g_gui.root->SetStatusText(fmt::format("x: {} y: {} z: {}", map_x, map_y, floor), 2);
+	NotifyCollabCursor(x, y, wxGetMouseState().LeftIsDown());
 
 	const auto tile = editor.getMap().getTile(map_x, map_y, floor);
 
 	std::string description = "Nothing";
-
-	if (editor.IsLive()) {
-		editor.GetLive().updateCursor(Position(map_x, map_y, floor));
-	}
 
 	if (!tile) {
 		g_gui.root->SetStatusText(description, 1);
@@ -605,12 +650,26 @@ void MapCanvas::OnMouseMove(wxMouseEvent &event) {
 	}
 }
 
+void MapCanvas::NotifyCollabCursor(int screen_x, int screen_y, bool mouse_down) {
+	collab::Session &session = collab::Session::get();
+	if (!session.active()) {
+		return;
+	}
+	int map_x, map_y;
+	ScreenToMap(screen_x, screen_y, &map_x, &map_y);
+	// The brush footprint only matters while drawing.
+	const uint8_t brush_size = g_gui.IsDrawingMode() ? static_cast<uint8_t>(g_gui.GetBrushSize()) : 0;
+	session.onLocalCursor(Position(map_x, map_y, floor), brush_size, mouse_down);
+}
+
 void MapCanvas::OnMouseLeftRelease(wxMouseEvent &event) {
 	OnMouseActionRelease(event);
+	NotifyCollabCursor(event.GetX(), event.GetY(), false);
 }
 
 void MapCanvas::OnMouseLeftClick(wxMouseEvent &event) {
 	OnMouseActionClick(event);
+	NotifyCollabCursor(event.GetX(), event.GetY(), true);
 }
 
 void MapCanvas::OnMouseLeftDoubleClick(wxMouseEvent &event) {
@@ -1611,7 +1670,8 @@ void MapCanvas::OnMousePropertiesRelease(wxMouseEvent &event) {
 		// Nothing
 	}
 
-	popup_menu->Update();
+	popup_pos = Position(mouse_map_x, mouse_map_y, floor);
+	popup_menu->Update(popup_pos);
 	PopupMenu(popup_menu);
 
 	editor.resetActionsTimer();
@@ -2220,6 +2280,71 @@ void MapCanvas::OnCopyPosition(wxCommandEvent &WXUNUSED(event)) {
 	}
 }
 
+void MapCanvas::OnAddComment(wxCommandEvent &WXUNUSED(event)) {
+	MapComment draft;
+	draft.pos = popup_pos;
+	if (CollabWindow::EditComment(this, draft, true)) {
+		editor.getMap().comments.add(draft.pos, draft.text, 0, draft.assignee, draft.kind);
+		editor.getMap().doChange();
+		g_gui.RefreshView();
+		if (CollabWindow::Get()) {
+			CollabWindow::Get()->RefreshComments();
+		}
+	}
+}
+
+void MapCanvas::OnEditComment(wxCommandEvent &WXUNUSED(event)) {
+	const MapComment* comment = editor.getMap().comments.at(popup_pos);
+	if (!comment) {
+		return;
+	}
+	MapComment draft = *comment;
+	if (CollabWindow::EditComment(this, draft, false)) {
+		editor.getMap().comments.update(draft.id, draft.text, draft.assignee, draft.kind);
+		editor.getMap().doChange();
+		g_gui.RefreshView();
+		if (CollabWindow::Get()) {
+			CollabWindow::Get()->RefreshComments();
+		}
+	}
+}
+
+void MapCanvas::OnReplyComment(wxCommandEvent &WXUNUSED(event)) {
+	const MapComment* comment = editor.getMap().comments.at(popup_pos);
+	if (!comment) {
+		return;
+	}
+	MapComment reply;
+	reply.pos = comment->pos;
+	reply.parent = comment->id;
+	if (CollabWindow::EditComment(this, reply, true)) {
+		editor.getMap().comments.add(reply.pos, reply.text, reply.parent);
+		editor.getMap().doChange();
+		g_gui.RefreshView();
+		if (CollabWindow::Get()) {
+			CollabWindow::Get()->RefreshComments();
+		}
+	}
+}
+
+void MapCanvas::OnResolveComment(wxCommandEvent &WXUNUSED(event)) {
+	const MapComment* comment = editor.getMap().comments.at(popup_pos);
+	if (comment) {
+		editor.getMap().comments.setResolved(comment->id, !comment->resolved);
+		editor.getMap().doChange();
+		g_gui.RefreshView();
+	}
+}
+
+void MapCanvas::OnDeleteComment(wxCommandEvent &WXUNUSED(event)) {
+	const MapComment* comment = editor.getMap().comments.at(popup_pos);
+	if (comment) {
+		editor.getMap().comments.remove(comment->id);
+		editor.getMap().doChange();
+		g_gui.RefreshView();
+	}
+}
+
 void MapCanvas::OnCopyItemId(wxCommandEvent &WXUNUSED(event)) {
 	ASSERT(editor.getSelection().size() == 1);
 
@@ -2697,7 +2822,7 @@ MapPopupMenu::~MapPopupMenu() {
 	////
 }
 
-void MapPopupMenu::Update() {
+void MapPopupMenu::Update(const Position &pos) {
 	// Clear the menu of all items
 	while (GetMenuItemCount() != 0) {
 		wxMenuItem* m_item = FindItemByPosition(0);
@@ -2706,6 +2831,17 @@ void MapPopupMenu::Update() {
 	}
 
 	bool anything_selected = editor.hasSelection();
+
+	const MapComment* comment = editor.getMap().comments.at(pos);
+	if (comment) {
+		Append(MAP_POPUP_MENU_EDIT_COMMENT, "Edit Comment...", "Edit the comment on this tile");
+		Append(MAP_POPUP_MENU_REPLY_COMMENT, "Reply to Comment...", "Add a reply to the comment on this tile");
+		Append(MAP_POPUP_MENU_RESOLVE_COMMENT, comment->resolved ? "Reopen Comment" : "Resolve Comment", "Toggle the resolved state of the comment");
+		Append(MAP_POPUP_MENU_DELETE_COMMENT, "Delete Comment", "Remove the comment on this tile");
+	} else {
+		Append(MAP_POPUP_MENU_ADD_COMMENT, "Add Comment Here...", "Leave a comment on this tile");
+	}
+	AppendSeparator();
 
 	wxMenuItem* cutItem = Append(MAP_POPUP_MENU_CUT, "&Cut\tCTRL+X", "Cut out all selected items");
 	cutItem->Enable(anything_selected);

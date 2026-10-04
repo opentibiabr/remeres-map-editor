@@ -40,6 +40,16 @@ Map::~Map() {
 	////
 }
 
+std::string Map::getCommentsFilename() const {
+	if (filename.empty()) {
+		return std::string();
+	}
+	wxFileName fn(wxstr(filename));
+	fn.SetName(fn.GetName() + "-comments");
+	fn.SetExt("xml");
+	return nstr(fn.GetFullPath());
+}
+
 bool Map::open(const std::string file) {
 	if (file == filename) {
 		return true; // Do not reopen ourselves!

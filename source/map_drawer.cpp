@@ -42,7 +42,7 @@
 #include <unordered_set>
 #include "map_display.h"
 #include "copybuffer.h"
-#include "live_socket.h"
+#include "collab/collab_session.h"
 #include "graphics.h"
 
 #include "doodad_brush.h"
@@ -89,6 +89,7 @@ void DrawingOptions::SetDefault() {
 	highlight_items = false;
 	show_blocking = false;
 	show_tooltips = false;
+	show_comments = false;
 	show_as_minimap = false;
 	show_only_colors = false;
 	show_only_modified = false;
@@ -123,6 +124,7 @@ void DrawingOptions::SetIngame() {
 	highlight_items = false;
 	show_blocking = false;
 	show_tooltips = false;
+	show_comments = false;
 	show_performance_stats = false;
 	show_as_minimap = false;
 	show_only_colors = false;
@@ -293,7 +295,8 @@ void MapDrawer::Draw() {
 	if (options.dragging) {
 		DrawSelectionBox();
 	}
-	DrawLiveCursors();
+	DrawCollabCursors();
+	DrawComments();
 	DrawBrush();
 	if (options.show_grid && zoom <= 10.f) {
 		DrawGrid();
@@ -335,7 +338,6 @@ void MapDrawer::DrawShade(int map_z) {
 
 void MapDrawer::DrawMap() {
 	tooltips.clear();
-	bool live_client = editor.IsLiveClient();
 
 	Brush* brush = g_gui.GetCurrentBrush();
 
@@ -368,41 +370,25 @@ void MapDrawer::DrawMap() {
 				for (int nd_map_y = nd_start_y; nd_map_y <= nd_end_y; nd_map_y += 4) {
 					QTreeNode* nd = editor.getMap().getLeaf(nd_map_x, nd_map_y);
 					if (!nd) {
-						if (!live_client) {
-							continue;
-						}
-						nd = editor.getMap().createLeaf(nd_map_x, nd_map_y);
-						nd->setVisible(false, false);
+						continue;
 					}
 
-					if (!live_client || nd->isVisible(map_z > rme::MapGroundLayer)) {
+					for (int map_x = 0; map_x < 4; ++map_x) {
+						for (int map_y = 0; map_y < 4; ++map_y) {
+							TileLocation* location = nd->getTile(map_x, map_y, map_z);
+							DrawTile(location);
+							// draw light, but only if not zoomed too far
+							if (location && options.show_lights && zoom <= 10) {
+								AddLight(location);
+							}
+						}
+					}
+					if (tile_indicators) {
 						for (int map_x = 0; map_x < 4; ++map_x) {
 							for (int map_y = 0; map_y < 4; ++map_y) {
-								TileLocation* location = nd->getTile(map_x, map_y, map_z);
-								DrawTile(location);
-								// draw light, but only if not zoomed too far
-								if (location && options.show_lights && zoom <= 10) {
-									AddLight(location);
-								}
+								DrawTileIndicators(nd->getTile(map_x, map_y, map_z));
 							}
 						}
-						if (tile_indicators) {
-							for (int map_x = 0; map_x < 4; ++map_x) {
-								for (int map_y = 0; map_y < 4; ++map_y) {
-									DrawTileIndicators(nd->getTile(map_x, map_y, map_z));
-								}
-							}
-						}
-					} else {
-						if (!nd->isRequested(map_z > rme::MapGroundLayer)) {
-							// Request the node
-							editor.QueryNode(nd_map_x, nd_map_y, map_z > rme::MapGroundLayer);
-							nd->setRequested(map_z > rme::MapGroundLayer, true);
-						}
-						int cy = (nd_map_y)*rme::TileSize - view_scroll_y - getFloorAdjustment(floor);
-						int cx = (nd_map_x)*rme::TileSize - view_scroll_x - getFloorAdjustment(floor);
-
-						renderer->drawColoredQuad(cx, cy, rme::TileSize * 4, rme::TileSize * 4, { 255, 0, 255, 128 });
 					}
 				}
 			}
@@ -763,41 +749,219 @@ void MapDrawer::DrawSelectionBox() {
 	renderer->drawStippledLines(verts.data(), 4, GLColor { 255, 255, 255, 255 }, lineW, dashFactor, 0xAAAA);
 }
 
-void MapDrawer::DrawLiveCursors() {
-	if (options.ingame || !editor.IsLive()) {
+void MapDrawer::DrawCollabCursors() {
+	collab::Session &session = collab::Session::get();
+	if (options.ingame || !session.active()) {
 		return;
 	}
+	const bool show_cursors = g_settings.getBoolean(Config::COLLAB_SHOW_CURSORS);
 
-	LiveSocket &live = editor.GetLive();
-	for (LiveCursor &cursor : live.getCursorList()) {
-		if (cursor.pos.z <= rme::MapGroundLayer && floor > rme::MapGroundLayer) {
+	struct Label {
+		float x;
+		float y;
+		std::string text;
+		uint32_t rgb;
+	};
+	std::vector<Label> labels;
+	const bool names = g_settings.getBoolean(Config::COLLAB_SHOW_NAMES) && zoom <= 4.0f;
+	const auto now = std::chrono::steady_clock::now();
+
+	// Where the tiles of floor z are drawn, relative to the scroll position.
+	auto floorOffset = [this](int z) {
+		return z <= rme::MapGroundLayer ? (rme::MapGroundLayer - z) * rme::TileSize : rme::TileSize * (floor - z);
+	};
+
+	// Areas somebody reserved: a tinted rectangle with the owner's name. A hint, not a lock.
+	for (const auto &entry : session.claims()) {
+		const collab::Claim &claim = entry.second;
+		if (claim.from.z != floor) {
+			continue;
+		}
+		const int offset = floorOffset(claim.from.z);
+		const float x0 = static_cast<float>(((claim.from.x * rme::TileSize) - view_scroll_x) - offset);
+		const float y0 = static_cast<float>(((claim.from.y * rme::TileSize) - view_scroll_y) - offset);
+		const float w = static_cast<float>((claim.to.x - claim.from.x + 1) * rme::TileSize);
+		const float h = static_cast<float>((claim.to.y - claim.from.y + 1) * rme::TileSize);
+		if (x0 > screensize_x * zoom || y0 > screensize_y * zoom || x0 + w < 0 || y0 + h < 0) {
+			continue;
+		}
+		const auto r = static_cast<uint8_t>(claim.color >> 16);
+		const auto g = static_cast<uint8_t>(claim.color >> 8);
+		const auto b = static_cast<uint8_t>(claim.color);
+		renderer->drawColoredQuad(x0, y0, w, h, { r, g, b, 28 });
+		renderer->drawRect(x0, y0, w, h, { r, g, b, 200 }, 2.0f);
+		if (names) {
+			labels.push_back({ x0, y0, claim.ownerName, claim.color });
+		}
+	}
+
+	// What the others have selected.
+	for (const auto &entry : session.presences()) {
+		const collab::Presence &presence = entry.second;
+		const auto user = session.users().find(entry.first);
+		if (!presence.hasSelection || user == session.users().end() || presence.selFrom.z != floor) {
+			continue;
+		}
+		const int offset = floorOffset(presence.selFrom.z);
+		const float x0 = static_cast<float>(((presence.selFrom.x * rme::TileSize) - view_scroll_x) - offset);
+		const float y0 = static_cast<float>(((presence.selFrom.y * rme::TileSize) - view_scroll_y) - offset);
+		const float w = static_cast<float>((presence.selTo.x - presence.selFrom.x + 1) * rme::TileSize);
+		const float h = static_cast<float>((presence.selTo.y - presence.selFrom.y + 1) * rme::TileSize);
+		if (x0 > screensize_x * zoom || y0 > screensize_y * zoom || x0 + w < 0 || y0 + h < 0) {
+			continue;
+		}
+		const uint32_t rgb = user->second.color;
+		const auto r = static_cast<uint8_t>(rgb >> 16);
+		const auto g = static_cast<uint8_t>(rgb >> 8);
+		const auto b = static_cast<uint8_t>(rgb);
+		renderer->drawColoredQuad(x0, y0, w, h, { r, g, b, 22 });
+		renderer->drawRect(x0, y0, w, h, { r, g, b, 170 }, 1.0f);
+		if (names) {
+			labels.push_back({ x0, y0, (presence.selLabel.empty() ? std::string("Selection") : presence.selLabel) + " - " + user->second.name, rgb });
+		}
+	}
+
+	// What a revert or reapply would do: tiles it changes in yellow, tiles it would skip in red.
+	auto drawPreview = [&](const std::vector<Position> &tiles, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+		for (const Position &pos : tiles) {
+			if (pos.z != floor) {
+				continue;
+			}
+			const int offset = floorOffset(pos.z);
+			renderer->drawColoredQuad(static_cast<float>(((pos.x * rme::TileSize) - view_scroll_x) - offset), static_cast<float>(((pos.y * rme::TileSize) - view_scroll_y) - offset), rme::TileSize, rme::TileSize, { r, g, b, a });
+		}
+	};
+	drawPreview(session.previewChanges(), 255, 214, 0, 110);
+	drawPreview(session.previewConflicts(), 244, 67, 54, 130);
+
+	for (const auto &entry : session.cursors()) {
+		if (!show_cursors) {
+			break;
+		}
+		const auto user = session.users().find(entry.first);
+		if (user == session.users().end()) {
+			continue;
+		}
+		const collab::RemoteCursor &cursor = entry.second;
+		const Position &pos = cursor.pos;
+		if (pos.z <= rme::MapGroundLayer && floor > rme::MapGroundLayer) {
+			continue;
+		}
+		if (pos.z > rme::MapGroundLayer && floor <= 8) {
 			continue;
 		}
 
-		if (cursor.pos.z > rme::MapGroundLayer && floor <= 8) {
-			continue;
+		float fill = 70.0f;
+		float line = 220.0f;
+		if (pos.z < floor) {
+			fill /= 2; // a floor above the one being viewed
+			line /= 2;
 		}
-
-		if (cursor.pos.z < floor) {
-			cursor.color = wxColor(
-				cursor.color.Red(),
-				cursor.color.Green(),
-				cursor.color.Blue(),
-				std::max<uint8_t>(cursor.color.Alpha() / 2, 64)
-			);
+		if (now - cursor.lastUpdate > std::chrono::seconds(30)) {
+			fill = std::min(fill, 35.0f);
+			line = std::min(line, 35.0f);
 		}
 
 		int offset;
-		if (cursor.pos.z <= rme::MapGroundLayer) {
-			offset = (rme::MapGroundLayer - cursor.pos.z) * rme::TileSize;
+		if (pos.z <= rme::MapGroundLayer) {
+			offset = (rme::MapGroundLayer - pos.z) * rme::TileSize;
 		} else {
-			offset = rme::TileSize * (floor - cursor.pos.z);
+			offset = rme::TileSize * (floor - pos.z);
+		}
+		const float draw_x = static_cast<float>(((pos.x * rme::TileSize) - view_scroll_x) - offset);
+		const float draw_y = static_cast<float>(((pos.y * rme::TileSize) - view_scroll_y) - offset);
+
+		const uint32_t rgb = user->second.color;
+		const auto r = static_cast<uint8_t>(rgb >> 16);
+		const auto g = static_cast<uint8_t>(rgb >> 8);
+		const auto b = static_cast<uint8_t>(rgb);
+
+		// While the mouse is down the whole brush footprint is outlined.
+		const int radius = cursor.mouseDown ? cursor.brushSize : 0;
+		const float side = static_cast<float>((2 * radius + 1) * rme::TileSize);
+		renderer->drawColoredQuad(draw_x, draw_y, rme::TileSize, rme::TileSize, { r, g, b, static_cast<uint8_t>(fill) });
+		renderer->drawRect(draw_x - radius * rme::TileSize, draw_y - radius * rme::TileSize, side, side, { r, g, b, static_cast<uint8_t>(line) }, 2.0f);
+
+		if (names) {
+			labels.push_back({ draw_x, draw_y, user->second.name, rgb });
+		}
+	}
+
+	if (labels.empty() && session.toasts().empty()) {
+		return;
+	}
+
+	// Text is drawn in screen space, like the tooltips.
+	renderer->flush();
+	renderer->setOrtho(0, static_cast<float>(screensize_x), static_cast<float>(screensize_y), 0);
+	const float line_height = renderer->getLineHeight();
+	for (const Label &label : labels) {
+		float width = 0.0f;
+		for (char c : label.text) {
+			width += renderer->getCharWidth(c);
+		}
+		const float x = label.x / zoom;
+		const float y = label.y / zoom - line_height - 3.0f;
+		renderer->drawColoredQuad(x, y, width + 6.0f, line_height + 2.0f, { 0, 0, 0, 170 });
+		renderer->drawText(x + 3.0f, y + renderer->getAscent() + 1.0f, label.text, static_cast<uint8_t>(label.rgb >> 16), static_cast<uint8_t>(label.rgb >> 8), static_cast<uint8_t>(label.rgb), 255);
+	}
+
+	// Messages like "Ana joined" or "Ana mentioned you", stacked in the top left corner.
+	float toastY = 36.0f;
+	for (const collab::Toast &toast : session.toasts()) {
+		float width = 0.0f;
+		for (char c : toast.text) {
+			width += renderer->getCharWidth(c);
+		}
+		renderer->drawColoredQuad(10.0f, toastY, width + 12.0f, line_height + 6.0f, { 30, 30, 30, 210 });
+		renderer->drawText(16.0f, toastY + 3.0f + renderer->getAscent(), toast.text, 255, 255, 255, 255);
+		toastY += line_height + 10.0f;
+	}
+	renderer->flush();
+
+	std::array<int, 4> vPort {};
+	glGetIntegerv(GL_VIEWPORT, vPort.data());
+	renderer->setOrtho(0, vPort[2] * zoom, vPort[3] * zoom, 0);
+}
+
+void MapDrawer::DrawComments() {
+	if (options.ingame || !options.show_comments) {
+		return;
+	}
+
+	const Position mouse(mouse_map_x, mouse_map_y, floor);
+	for (const MapComment &comment : editor.getMap().comments.all()) {
+		if (comment.pos.z != floor || comment.parent != 0) {
+			continue;
 		}
 
-		float draw_x = ((cursor.pos.x * rme::TileSize) - view_scroll_x) - offset;
-		float draw_y = ((cursor.pos.y * rme::TileSize) - view_scroll_y) - offset;
+		int x;
+		int y;
+		getDrawPosition(comment.pos, x, y);
+		if (x < -rme::TileSize || y < -rme::TileSize || x > screensize_x * zoom || y > screensize_y * zoom) {
+			continue;
+		}
 
-		renderer->drawColoredQuad(draw_x, draw_y, rme::TileSize, rme::TileSize, { cursor.color.Red(), cursor.color.Green(), cursor.color.Blue(), cursor.color.Alpha() });
+		const uint32_t kindRgb = MapComments::kindColor(comment.kind);
+		const uint32_t rgb = comment.resolved ? 0x9E9E9E : (kindRgb != 0 ? kindRgb : comment.authorColor);
+		constexpr int size = 10;
+		const int mx = x + rme::TileSize - size;
+		renderer->drawColoredQuad(mx - 1, y - 1, size + 2, size + 2, { 0, 0, 0, 200 });
+		renderer->drawColoredQuad(mx, y, size, size, { static_cast<uint8_t>(rgb >> 16), static_cast<uint8_t>(rgb >> 8), static_cast<uint8_t>(rgb), 255 });
+
+		if (options.isTooltips() && comment.pos == mouse) {
+			auto &tip = MakeTooltip(comment.pos.x, comment.pos.y, comment.pos.z, 255, 244, 179);
+			tip.addEntry(std::string(comment.resolved ? "resolved " : "") + MapComments::kindName(comment.kind) + ": ", comment.author);
+			tip.addEntry("", comment.text);
+			if (!comment.assignee.empty()) {
+				tip.addEntry("assigned to: ", comment.assignee);
+			}
+			for (const MapComment &reply : editor.getMap().comments.all()) {
+				if (reply.parent == comment.id) {
+					tip.addEntry("reply: ", reply.author + ": " + reply.text);
+				}
+			}
+		}
 	}
 }
 

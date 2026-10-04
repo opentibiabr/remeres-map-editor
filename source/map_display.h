@@ -72,6 +72,12 @@ public:
 	void OnCut(wxCommandEvent &event);
 	void OnCopy(wxCommandEvent &event);
 	void OnCopyPosition(wxCommandEvent &event);
+	void NotifyCollabCursor(int screen_x, int screen_y, bool mouse_down);
+	void OnAddComment(wxCommandEvent &event);
+	void OnEditComment(wxCommandEvent &event);
+	void OnResolveComment(wxCommandEvent &event);
+	void OnDeleteComment(wxCommandEvent &event);
+	void OnReplyComment(wxCommandEvent &event);
 	void OnCopyItemId(wxCommandEvent &event);
 	void OnCopyName(wxCommandEvent &event);
 	void OnBrowseTile(wxCommandEvent &event);
@@ -130,6 +136,9 @@ public:
 
 	void ShowPositionIndicator(const Position &position);
 	void TakeScreenshot(wxFileName path, wxString format);
+	// Same GL capture as TakeScreenshot, but hands back the image instead of
+	// writing a timestamped file. Used by the MCP map_screenshot tool.
+	wxImage CaptureScreenshot();
 
 protected:
 	void getTilesToDraw(int mouse_map_x, int mouse_map_y, int floor, PositionVector* tilestodraw, PositionVector* tilestoborder, bool fill = false);
@@ -168,6 +177,7 @@ private:
 	bool replace_dragging;
 
 	uint8_t* screenshot_buffer;
+	bool screenshot_captured;
 
 	int drag_start_x;
 	int drag_start_y;
@@ -195,6 +205,7 @@ private:
 
 	wxStopWatch refresh_watch;
 	MapPopupMenu* popup_menu;
+	Position popup_pos; // Tile under the last right click
 	AnimationTimer* animation_timer;
 
 	friend class MapDrawer;
@@ -209,7 +220,7 @@ public:
 	MapPopupMenu(Editor &editor);
 	virtual ~MapPopupMenu();
 
-	void Update();
+	void Update(const Position &pos);
 
 protected:
 	Editor &editor;

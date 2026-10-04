@@ -33,6 +33,7 @@
 #include "lua/lua_script_manager.h"
 #include "lua/lua_scripts_window.h"
 #include "gui.h"
+#include "collab/collab_window.h"
 
 #include <wx/chartype.h>
 #include <wx/choicdlg.h>
@@ -57,8 +58,6 @@
 #include "items.h"
 #include "editor.h"
 #include "materials.h"
-#include "live_client.h"
-#include "live_server.h"
 
 namespace {
 	constexpr int CyclopediaExportStatusMinIntervalMs = 1000;
@@ -758,6 +757,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(SHOW_HOUSES, wxITEM_CHECK, OnChangeViewSettings);
 	MAKE_ACTION(SHOW_PATHING, wxITEM_CHECK, OnChangeViewSettings);
 	MAKE_ACTION(SHOW_TOOLTIPS, wxITEM_CHECK, OnChangeViewSettings);
+	MAKE_ACTION(SHOW_COMMENTS, wxITEM_CHECK, OnChangeViewSettings);
 	MAKE_ACTION(SHOW_PREVIEW, wxITEM_CHECK, OnChangeViewSettings);
 	MAKE_ACTION(SHOW_WALL_HOOKS, wxITEM_CHECK, OnChangeViewSettings);
 	MAKE_ACTION(SHOW_PICKUPABLES, wxITEM_CHECK, OnChangeViewSettings);
@@ -766,13 +766,17 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 
 	MAKE_ACTION(WIN_MINIMAP, wxITEM_NORMAL, OnMinimapWindow);
 	MAKE_ACTION(WIN_ACTIONS_HISTORY, wxITEM_NORMAL, OnActionsHistoryWindow);
+	MAKE_ACTION(WIN_MCP, wxITEM_NORMAL, OnMcpWindow);
+	MAKE_ACTION(WIN_COLLAB, wxITEM_NORMAL, OnCollabWindow);
+	MAKE_ACTION(COLLAB_HOST, wxITEM_NORMAL, OnCollabSession);
+	MAKE_ACTION(COLLAB_JOIN, wxITEM_NORMAL, OnCollabSession);
+	MAKE_ACTION(COLLAB_LEAVE, wxITEM_NORMAL, OnCollabSession);
+	MAKE_ACTION(COLLAB_ADD_COMMENT, wxITEM_NORMAL, OnCollabAddComment);
+	MAKE_ACTION(COLLAB_SHOW_CURSORS, wxITEM_CHECK, OnCollabToggle);
+	MAKE_ACTION(COLLAB_SHOW_NAMES, wxITEM_CHECK, OnCollabToggle);
 	MAKE_ACTION(WIN_SQLITE_MATERIALS_INSPECTOR, wxITEM_NORMAL, OnSQLiteMaterialsInspector);
 	MAKE_ACTION(NEW_PALETTE, wxITEM_NORMAL, OnNewPalette);
 	MAKE_ACTION(TAKE_SCREENSHOT, wxITEM_NORMAL, OnTakeScreenshot);
-
-	MAKE_ACTION(LIVE_START, wxITEM_NORMAL, OnStartLive);
-	MAKE_ACTION(LIVE_JOIN, wxITEM_NORMAL, OnJoinLive);
-	MAKE_ACTION(LIVE_CLOSE, wxITEM_NORMAL, OnCloseLive);
 
 	MAKE_ACTION(SELECT_TERRAIN, wxITEM_NORMAL, OnSelectTerrainPalette);
 	MAKE_ACTION(SELECT_DOODAD, wxITEM_NORMAL, OnSelectDoodadPalette);
@@ -933,11 +937,15 @@ void MainMenuBar::Update() {
 	bool loaded = ClientAssets::isLoaded();
 	bool has_map = editor != nullptr;
 	bool has_selection = editor && editor->hasSelection();
-	bool is_live = editor && editor->IsLive();
-	bool is_host = has_map && !editor->IsLiveClient();
-	bool is_local = has_map && !is_live;
+	bool is_collab_client = editor && editor->IsCollabClient();
+	bool is_host = has_map && !is_collab_client;
+	bool is_local = is_host;
 
 	EnableItem(CLOSE, is_local);
+	EnableItem(COLLAB_ADD_COMMENT, has_map);
+	EnableItem(COLLAB_LEAVE, false);
+	CheckItem(COLLAB_SHOW_CURSORS, g_settings.getBoolean(Config::COLLAB_SHOW_CURSORS));
+	CheckItem(COLLAB_SHOW_NAMES, g_settings.getBoolean(Config::COLLAB_SHOW_NAMES));
 	EnableItem(SAVE, is_host);
 	EnableItem(SAVE_AS, is_host);
 	EnableItem(GENERATE_MAP, false);
@@ -999,6 +1007,15 @@ void MainMenuBar::Update() {
 	EnableItem(MAP_PROPERTIES, is_local);
 	EnableItem(MAP_STATISTICS, is_local);
 
+	// A collaboration copy the host did not share can only be looked at and edited.
+	if (editor && editor->IsProtectedCopy()) {
+		for (auto item : { SAVE, SAVE_AS, EXPORT_MINIMAP, EXPORT_STATIC_HOUSE_DATA, EXPORT_CYCLOPEDIA_MAP, TAKE_SCREENSHOT, CUT, COPY }) {
+			EnableItem(item, false);
+		}
+	} else if (is_collab_client) {
+		EnableItem(SAVE_AS, true); // a shared copy can be saved locally
+	}
+
 	EnableItem(NEW_VIEW, has_map);
 	EnableItem(ZOOM_IN, has_map);
 	EnableItem(ZOOM_OUT, has_map);
@@ -1021,10 +1038,6 @@ void MainMenuBar::Update() {
 	EnableItem(SELECT_WAYPOINT, loaded);
 	EnableItem(SELECT_ZONES, loaded);
 	EnableItem(SELECT_RAW, loaded);
-
-	EnableItem(LIVE_START, is_local);
-	EnableItem(LIVE_JOIN, loaded);
-	EnableItem(LIVE_CLOSE, is_live);
 
 	EnableItem(DEBUG_VIEW_DAT, loaded);
 
@@ -1095,6 +1108,7 @@ void MainMenuBar::LoadValues() {
 	CheckItem(SHOW_HOUSES, g_settings.getBoolean(Config::SHOW_HOUSES));
 	CheckItem(SHOW_PATHING, g_settings.getBoolean(Config::SHOW_BLOCKING));
 	CheckItem(SHOW_TOOLTIPS, g_settings.getBoolean(Config::SHOW_TOOLTIPS));
+	CheckItem(SHOW_COMMENTS, g_settings.getBoolean(Config::SHOW_COMMENTS));
 	CheckItem(SHOW_PREVIEW, g_settings.getBoolean(Config::SHOW_PREVIEW));
 	CheckItem(SHOW_WALL_HOOKS, g_settings.getBoolean(Config::SHOW_WALL_HOOKS));
 	CheckItem(SHOW_PICKUPABLES, g_settings.getBoolean(Config::SHOW_PICKUPABLES));
@@ -3018,6 +3032,7 @@ void MainMenuBar::OnChangeViewSettings(wxCommandEvent &event) {
 	g_settings.setInteger(Config::HIGHLIGHT_ITEMS, IsItemChecked(MenuBar::HIGHLIGHT_ITEMS));
 	g_settings.setInteger(Config::SHOW_BLOCKING, IsItemChecked(MenuBar::SHOW_PATHING));
 	g_settings.setInteger(Config::SHOW_TOOLTIPS, IsItemChecked(MenuBar::SHOW_TOOLTIPS));
+	g_settings.setInteger(Config::SHOW_COMMENTS, IsItemChecked(MenuBar::SHOW_COMMENTS));
 	g_settings.setInteger(Config::SHOW_PREVIEW, IsItemChecked(MenuBar::SHOW_PREVIEW));
 	g_settings.setInteger(Config::SHOW_WALL_HOOKS, IsItemChecked(MenuBar::SHOW_WALL_HOOKS));
 	g_settings.setInteger(Config::SHOW_PICKUPABLES, IsItemChecked(MenuBar::SHOW_PICKUPABLES));
@@ -3047,6 +3062,32 @@ void MainMenuBar::OnMinimapWindow(wxCommandEvent &event) {
 
 void MainMenuBar::OnActionsHistoryWindow(wxCommandEvent &WXUNUSED(event)) {
 	g_gui.ShowActionsWindow();
+}
+
+void MainMenuBar::OnMcpWindow(wxCommandEvent &WXUNUSED(event)) {
+	g_gui.ShowMcpWindow();
+}
+
+void MainMenuBar::OnCollabWindow(wxCommandEvent &WXUNUSED(event)) {
+	g_gui.ShowCollabWindow();
+}
+
+// Host/Join/Leave only bring up the Session tab until networking is implemented.
+void MainMenuBar::OnCollabSession(wxCommandEvent &WXUNUSED(event)) {
+	g_gui.ShowCollabWindow()->SelectPage(CollabWindow::PAGE_SESSION);
+}
+
+void MainMenuBar::OnCollabAddComment(wxCommandEvent &WXUNUSED(event)) {
+	CollabWindow::AddCommentAtCursor();
+}
+
+void MainMenuBar::OnCollabToggle(wxCommandEvent &WXUNUSED(event)) {
+	g_settings.setInteger(Config::COLLAB_SHOW_CURSORS, IsItemChecked(MenuBar::COLLAB_SHOW_CURSORS));
+	g_settings.setInteger(Config::COLLAB_SHOW_NAMES, IsItemChecked(MenuBar::COLLAB_SHOW_NAMES));
+	if (CollabWindow::Get()) {
+		CollabWindow::Get()->RefreshToggles();
+	}
+	g_gui.RefreshView();
 }
 
 void MainMenuBar::OnSQLiteMaterialsInspector(wxCommandEvent &WXUNUSED(event)) {
@@ -3092,162 +3133,6 @@ void MainMenuBar::OnSelectZonesPalette(wxCommandEvent &WXUNUSED(event)) {
 
 void MainMenuBar::OnSelectRawPalette(wxCommandEvent &WXUNUSED(event)) {
 	g_gui.SelectPalettePage(TILESET_RAW);
-}
-
-void MainMenuBar::OnStartLive(wxCommandEvent &event) {
-	Editor* editor = g_gui.GetCurrentEditor();
-	if (!editor) {
-		g_gui.PopupDialog("Error", "You need to have a map open to start a live mapping session.", wxOK);
-		return;
-	}
-	if (editor->IsLive()) {
-		g_gui.PopupDialog("Error", "You can not start two live servers on the same map (or a server using a remote map).", wxOK);
-		return;
-	}
-
-	wxDialog* live_host_dlg = newd wxDialog(frame, wxID_ANY, "Host Live Server", wxDefaultPosition, wxDefaultSize);
-
-	wxSizer* top_sizer = newd wxBoxSizer(wxVERTICAL);
-	wxFlexGridSizer* gsizer = newd wxFlexGridSizer(2, 10, 10);
-	gsizer->AddGrowableCol(0, 2);
-	gsizer->AddGrowableCol(1, 3);
-
-	// Data fields
-	wxTextCtrl* hostname;
-	wxSpinCtrl* port;
-	wxTextCtrl* password;
-	wxCheckBox* allow_copy;
-
-	gsizer->Add(newd wxStaticText(live_host_dlg, wxID_ANY, "Server Name:"));
-	gsizer->Add(hostname = newd wxTextCtrl(live_host_dlg, wxID_ANY, "RME Live Server"), 0, wxEXPAND);
-
-	gsizer->Add(newd wxStaticText(live_host_dlg, wxID_ANY, "Port:"));
-	gsizer->Add(port = newd wxSpinCtrl(live_host_dlg, wxID_ANY, "31313", wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 1, 65535, 31313), 0, wxEXPAND);
-
-	gsizer->Add(newd wxStaticText(live_host_dlg, wxID_ANY, "Password:"));
-	gsizer->Add(password = newd wxTextCtrl(live_host_dlg, wxID_ANY), 0, wxEXPAND);
-
-	top_sizer->Add(gsizer, 0, wxALL, 20);
-
-	top_sizer->Add(allow_copy = newd wxCheckBox(live_host_dlg, wxID_ANY, "Allow copy & paste between maps."), 0, wxRIGHT | wxLEFT, 20);
-	allow_copy->SetToolTip("Allows remote clients to copy & paste from the hosted map to local maps.");
-
-	wxSizer* ok_sizer = newd wxBoxSizer(wxHORIZONTAL);
-	ok_sizer->Add(newd wxButton(live_host_dlg, wxID_OK, "OK"), 1, wxCENTER);
-	ok_sizer->Add(newd wxButton(live_host_dlg, wxID_CANCEL, "Cancel"), wxCENTER, 1);
-	top_sizer->Add(ok_sizer, 0, wxCENTER | wxALL, 20);
-
-	live_host_dlg->SetSizerAndFit(top_sizer);
-
-	while (true) {
-		int ret = live_host_dlg->ShowModal();
-		if (ret == wxID_OK) {
-			LiveServer* liveServer = editor->StartLiveServer();
-			liveServer->setName(hostname->GetValue());
-			liveServer->setPassword(password->GetValue());
-			liveServer->setPort(port->GetValue());
-
-			const wxString &error = liveServer->getLastError();
-			if (!error.empty()) {
-				g_gui.PopupDialog(live_host_dlg, "Error", error, wxOK);
-				editor->CloseLiveServer();
-				continue;
-			}
-
-			if (!liveServer->bind()) {
-				g_gui.PopupDialog("Socket Error", "Could not bind socket! Try another port?", wxOK);
-				editor->CloseLiveServer();
-			} else {
-				liveServer->createLogWindow(g_gui.tabbook);
-			}
-			break;
-		} else {
-			break;
-		}
-	}
-	live_host_dlg->Destroy();
-	Update();
-}
-
-void MainMenuBar::OnJoinLive(wxCommandEvent &event) {
-	wxDialog* live_join_dlg = newd wxDialog(frame, wxID_ANY, "Join Live Server", wxDefaultPosition, wxDefaultSize);
-
-	wxSizer* top_sizer = newd wxBoxSizer(wxVERTICAL);
-	wxFlexGridSizer* gsizer = newd wxFlexGridSizer(2, 10, 10);
-	gsizer->AddGrowableCol(0, 2);
-	gsizer->AddGrowableCol(1, 3);
-
-	// Data fields
-	wxTextCtrl* name;
-	wxTextCtrl* ip;
-	wxSpinCtrl* port;
-	wxTextCtrl* password;
-
-	gsizer->Add(newd wxStaticText(live_join_dlg, wxID_ANY, "Name:"));
-	gsizer->Add(name = newd wxTextCtrl(live_join_dlg, wxID_ANY, ""), 0, wxEXPAND);
-
-	gsizer->Add(newd wxStaticText(live_join_dlg, wxID_ANY, "IP:"));
-	gsizer->Add(ip = newd wxTextCtrl(live_join_dlg, wxID_ANY, "localhost"), 0, wxEXPAND);
-
-	gsizer->Add(newd wxStaticText(live_join_dlg, wxID_ANY, "Port:"));
-	gsizer->Add(port = newd wxSpinCtrl(live_join_dlg, wxID_ANY, "31313", wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 1, 65535, 31313), 0, wxEXPAND);
-
-	gsizer->Add(newd wxStaticText(live_join_dlg, wxID_ANY, "Password:"));
-	gsizer->Add(password = newd wxTextCtrl(live_join_dlg, wxID_ANY), 0, wxEXPAND);
-
-	top_sizer->Add(gsizer, 0, wxALL, 20);
-
-	wxSizer* ok_sizer = newd wxBoxSizer(wxHORIZONTAL);
-	ok_sizer->Add(newd wxButton(live_join_dlg, wxID_OK, "OK"), 1, wxRIGHT);
-	ok_sizer->Add(newd wxButton(live_join_dlg, wxID_CANCEL, "Cancel"), 1, wxRIGHT);
-	top_sizer->Add(ok_sizer, 0, wxCENTER | wxALL, 20);
-
-	live_join_dlg->SetSizerAndFit(top_sizer);
-
-	while (true) {
-		int ret = live_join_dlg->ShowModal();
-		if (ret == wxID_OK) {
-			LiveClient* liveClient = newd LiveClient();
-			liveClient->setPassword(password->GetValue());
-
-			wxString tmp = name->GetValue();
-			if (tmp.empty()) {
-				tmp = "User";
-			}
-			liveClient->setName(tmp);
-
-			const wxString &error = liveClient->getLastError();
-			if (!error.empty()) {
-				g_gui.PopupDialog(live_join_dlg, "Error", error, wxOK);
-				delete liveClient;
-				continue;
-			}
-
-			const wxString &address = ip->GetValue();
-			int32_t portNumber = port->GetValue();
-
-			liveClient->createLogWindow(g_gui.tabbook);
-			if (!liveClient->connect(nstr(address), portNumber)) {
-				g_gui.PopupDialog("Connection Error", liveClient->getLastError(), wxOK);
-				delete liveClient;
-			}
-
-			break;
-		} else {
-			break;
-		}
-	}
-	live_join_dlg->Destroy();
-	Update();
-}
-
-void MainMenuBar::OnCloseLive(wxCommandEvent &event) {
-	Editor* editor = g_gui.GetCurrentEditor();
-	if (editor && editor->IsLive()) {
-		g_gui.CloseLiveEditors(&editor->GetLive());
-	}
-
-	Update();
 }
 
 void MainMenuBar::SearchItems(bool unique, bool action, bool container, bool writable, bool onSelection /* = false*/) {

@@ -55,6 +55,7 @@ find_package(liblzma CONFIG REQUIRED)
 find_package(Protobuf REQUIRED)
 find_package(cpr CONFIG REQUIRED)
 find_package(SQLite3 REQUIRED)
+find_package(unofficial-sodium CONFIG REQUIRED)
 if(TARGET SQLite::SQLite3 AND NOT TARGET SQLite3::SQLite3)
   add_library(SQLite3::SQLite3 ALIAS SQLite::SQLite3)
 endif()
@@ -236,12 +237,6 @@ target_sources(
           item_attributes.cpp
           item.cpp
           items.cpp
-          live_action.cpp
-          live_client.cpp
-          live_peer.cpp
-          live_server.cpp
-          live_socket.cpp
-          live_tab.cpp
           lua/lua_engine.cpp
           lua/lua_script.cpp
           lua/lua_script_manager.cpp
@@ -263,9 +258,39 @@ target_sources(
           lua/lua_api_json.cpp
           lua/lua_api_algo.cpp
           lua/lua_scripts_window.cpp
+          mcp/mcp_server.cpp
+          mcp/mcp_write.cpp
+          mcp/mcp_tools_edit.cpp
+          mcp/mcp_tools_manage.cpp
+          mcp/mcp_tools_assets.cpp
+          mcp/mcp_tools_analyze.cpp
+          mcp/mcp_tools_brush.cpp
+          mcp/mcp_tools_select.cpp
+          mcp/mcp_tools_io.cpp
+          mcp/mcp_tools_clientview.cpp
+          mcp/mcp_tools_terrain.cpp
+          mcp/mcp_tools_stamp.cpp
+          mcp/mcp_tools_guide.cpp
+          mcp/mcp_tools_ops.cpp
+          mcp/mcp_tools.cpp
+          mcp/mcp_tools_map.cpp
+          mcp/mcp_tools_entities.cpp
+          mcp/mcp_tools_script.cpp
+          mcp/mcp_render.cpp
+          mcp/mcp_window.cpp
           main_menubar.cpp
           main_toolbar.cpp
           map.cpp
+          map_comments.cpp
+          collab/collab_connection.cpp
+          collab/collab_crypto.cpp
+          collab/collab_journal.cpp
+          collab/collab_meta.cpp
+          collab/collab_selfcheck.cpp
+          collab/collab_session.cpp
+          collab/collab_snapshot.cpp
+          collab/collab_tile_codec.cpp
+          collab/collab_window.cpp
           map_display.cpp
           map_drawer.cpp
           map_region.cpp
@@ -297,7 +322,6 @@ target_sources(
           raw_brush.cpp
           replace_items_window.cpp
           result_window.cpp
-          rme_net.cpp
           selection.cpp
           settings.cpp
           sqlite_materials_inspector.cpp
@@ -361,8 +385,16 @@ target_link_libraries(
           sol2::sol2
           cpr::cpr
           SQLite3::SQLite3
+          unofficial-sodium::sodium
           $<$<PLATFORM_ID:Linux>:xcb>
-          $<$<PLATFORM_ID:Windows>:psapi>)
+          $<$<PLATFORM_ID:Windows>:psapi>
+          $<$<PLATFORM_ID:Windows>:winmm>)
+
+# The vcpkg sodium port does not define this for static triplets, and without it
+# the headers declare every symbol dllimport.
+if(VCPKG_TARGET_TRIPLET MATCHES "static")
+  target_compile_definitions(${PROJECT_NAME} PRIVATE SODIUM_STATIC)
+endif()
 
 # Link compilation files to build/bin folder, else link to the main dir
 if(TOGGLE_BIN_FOLDER)

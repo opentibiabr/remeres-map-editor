@@ -89,6 +89,7 @@ public:
 	bool highlight_items;
 	bool show_blocking;
 	bool show_tooltips;
+	bool show_comments;
 	bool show_performance_stats;
 	bool show_as_minimap;
 	bool show_only_colors;
@@ -189,7 +190,8 @@ public:
 	void DrawDraggingShadow();
 	void DrawHigherFloors();
 	void DrawSelectionBox();
-	void DrawLiveCursors();
+	void DrawComments();
+	void DrawCollabCursors();
 	void DrawBrush();
 	void DrawIngameBox();
 	void DrawGrid();
