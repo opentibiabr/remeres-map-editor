@@ -816,6 +816,10 @@ void MapDrawer::DrawCollabCursors() {
 		const auto b = static_cast<uint8_t>(rgb);
 		renderer->drawColoredQuad(x0, y0, w, h, { r, g, b, 22 });
 		renderer->drawRect(x0, y0, w, h, { r, g, b, 170 }, 1.0f);
+		if (names) {
+			const bool single = presence.selFrom == presence.selTo;
+			labels.push_back({ x0, y0, std::string(single ? "Selected Tile - " : "Selection - ") + user->second.name, rgb });
+		}
 	}
 
 	// What a revert or reapply would do: tiles it changes in yellow, tiles it would skip in red.

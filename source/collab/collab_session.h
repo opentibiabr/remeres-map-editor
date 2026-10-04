@@ -339,7 +339,7 @@ namespace collab {
 		void finishJoin();
 		int confirmStopPrompt();
 		Peer* peerForUser(uint32_t userId);
-		uint32_t pickColor(uint32_t preferred = 0) const;
+		uint32_t pickColor() const;
 		std::string uniqueName(const std::string &wanted) const;
 		static bool mayChangeRole(const User &actor, const User &target, Role newRole);
 		static bool mayKick(const User &actor, const User &target);

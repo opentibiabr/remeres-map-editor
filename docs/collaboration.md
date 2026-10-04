@@ -85,7 +85,7 @@ Comments are stored in `<map>-comments.xml` next to the map, so they work with o
 
 ## Small things
 
-* Your **color** is yours to pick (next to your name); the host keeps it unless somebody already has it.
+* Everybody's **color** is assigned by the host, one per participant, and is the same on every screen.
 * *Collaborate → Show Cursors / Show Names* toggle the cursors without opening the panel. Joins, leaves and mentions appear as short messages over the map; there is an option for a sound when a chat message arrives (`data/sounds/message-notification.mp3` and `.ogg`; Windows plays the mp3 itself, macOS uses `afplay`, Linux the first of `paplay`, `pw-play`, `ogg123`, `ffplay`, `mpv` or `play` that is installed; without any of them the system beep is used).
 * The tab title shows how many people are in the session, and the selections, tools and typing state of the others are visible (the minimap marks where their cameras are).
 

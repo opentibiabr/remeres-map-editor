@@ -365,7 +365,6 @@ void Settings::IO(IOMode mode) {
 	Int(COLLAB_SHOW_NAMES, 1);
 	Int(COLLAB_SHARE_MAP, 0);
 	Int(COLLAB_SAVE_ON_PARTICIPANTS, 0);
-	Int(COLLAB_USER_COLOR, 0); // 0: the host picks one
 	Int(COLLAB_CHAT_SOUND, 1);
 	Int(COLLAB_AUTOSAVE_MINUTES, 0);
 	Int(COLLAB_PERM_META, 1);

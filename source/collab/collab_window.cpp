@@ -29,7 +29,6 @@
 #include <wx/button.h>
 #include <wx/clipbrd.h>
 #include <wx/filedlg.h>
-#include <wx/clrpicker.h>
 #include <wx/combobox.h>
 #include <wx/dialog.h>
 #include <wx/wrapsizer.h>
@@ -222,22 +221,6 @@ void CollabWindow::BuildSessionPage(wxWindow* page) {
 		g_settings.setString(Config::COLLAB_USER_NAME, nstr(name_text->GetValue()));
 	});
 	name_row->Add(name_text, 1);
-	const int savedColor = g_settings.getInteger(Config::COLLAB_USER_COLOR) & 0xFFFFFF;
-	color_picker = newd wxColourPickerCtrl(page, wxID_ANY, toColour(savedColor != 0 ? static_cast<uint32_t>(savedColor) : MapComments::paletteColor(0)));
-	color_picker->SetToolTip("Your color for cursors, areas and comments (the host keeps it unless somebody has it already)");
-	color_picker->Bind(wxEVT_COLOURPICKER_CHANGED, [](wxColourPickerEvent &event) {
-		const wxColour colour = event.GetColour();
-		const int rgb = (colour.Red() << 16) | (colour.Green() << 8) | colour.Blue();
-		g_settings.setInteger(Config::COLLAB_USER_COLOR, rgb != 0 ? rgb : 1);
-	});
-	name_row->Add(color_picker, 0, wxLEFT, 6);
-	auto* auto_color = newd wxButton(page, wxID_ANY, "Auto", wxDefaultPosition, wxSize(48, -1));
-	auto_color->SetToolTip("Let the host pick a color");
-	auto_color->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
-		g_settings.setInteger(Config::COLLAB_USER_COLOR, 0);
-		color_picker->SetColour(toColour(MapComments::paletteColor(0)));
-	});
-	name_row->Add(auto_color, 0, wxLEFT, 4);
 	root->Add(name_row, 0, wxEXPAND | wxALL, 8);
 
 	status_label = newd wxStaticText(page, wxID_ANY, "");

@@ -459,16 +459,7 @@ namespace collab {
 		return me && active() && mayKick(*me, target);
 	}
 
-	uint32_t Session::pickColor(uint32_t preferred) const {
-		if (preferred != 0) {
-			bool taken = false;
-			for (const auto &entry : userList) {
-				taken = taken || entry.second.color == preferred;
-			}
-			if (!taken) {
-				return preferred;
-			}
-		}
+	uint32_t Session::pickColor() const {
 		for (size_t i = 0; i < MapComments::kPaletteSize; ++i) {
 			const uint32_t color = MapComments::paletteColor(i);
 			bool used = false;
@@ -758,8 +749,7 @@ namespace collab {
 		User host;
 		host.id = 0;
 		host.name = cleanName;
-		const int chosenColor = g_settings.getInteger(Config::COLLAB_USER_COLOR) & 0xFFFFFF;
-		host.color = chosenColor != 0 ? static_cast<uint32_t>(chosenColor) : MapComments::paletteColor(0);
+		host.color = MapComments::paletteColor(0);
 		host.role = Role::Host;
 		userList[0] = host;
 
@@ -850,7 +840,6 @@ namespace collab {
 		const std::string version = reader.str(64);
 		const uint16_t protocol = reader.u16();
 		const uint32_t otbm = reader.u32();
-		const uint32_t preferredColor = reader.u32() & 0xFFFFFF;
 
 		if (protocol != kProtocolVersion || version != __RME_VERSION__) {
 			rejectPeer(peer, fmt::format("Version mismatch: the host runs RME {} (protocol {}), you run RME {} (protocol {})", __RME_VERSION__, kProtocolVersion, sanitizeText(version, 32), protocol));
@@ -882,7 +871,7 @@ namespace collab {
 		User user;
 		user.id = nextUserId++;
 		user.name = uniqueName(cleanName);
-		user.color = pickColor(preferredColor);
+		user.color = pickColor();
 		user.role = peer.conn->keyIndex() == 1 ? Role::Viewer : defaultRole; // the viewer password only reads
 		userList[user.id] = user;
 		peer.userId = user.id;
@@ -1545,7 +1534,6 @@ namespace collab {
 		w.str(__RME_VERSION__);
 		w.u16(kProtocolVersion);
 		w.u32(static_cast<uint32_t>(g_gui.getLoadedMapVersion().otbm));
-		w.u32(static_cast<uint32_t>(g_settings.getInteger(Config::COLLAB_USER_COLOR)) & 0xFFFFFF);
 		conn->send(Msg::Hello, w.buffer);
 	}
 

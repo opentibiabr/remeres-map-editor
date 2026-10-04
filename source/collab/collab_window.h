@@ -25,7 +25,6 @@
 
 class wxButton;
 class wxCheckBox;
-class wxColourPickerCtrl;
 class wxChoice;
 class wxListCtrl;
 class wxListEvent;
@@ -104,7 +103,6 @@ private:
 	wxCheckBox* host_perm_props = nullptr;
 	wxCheckBox* host_perm_spawns = nullptr;
 	wxSpinCtrl* host_autosave = nullptr;
-	wxColourPickerCtrl* color_picker = nullptr;
 	wxCheckBox* chat_sound = nullptr;
 	bool rebuilding_chat = false;
 	wxCheckBox* host_share = nullptr;
