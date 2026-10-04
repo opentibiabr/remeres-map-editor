@@ -30,6 +30,20 @@ class Tile;
 
 namespace mcp {
 
+	// Which neighbour-dependent recalculations to run after the edits land.
+	// Namespace scope, not nested: a nested type with default member
+	// initializers cannot be used as a default argument inside its own class.
+	struct TilePasses {
+		bool borderize = false;
+		bool wallize = false;
+		bool tableize = false;
+		bool carpetize = false;
+
+		bool any() const noexcept {
+			return borderize || wallize || tableize || carpetize;
+		}
+	};
+
 	// Collects tile edits into one undoable Action.
 	//
 	// This follows Editor::drawInternal (editor.cpp): build a deep copy of each
@@ -57,11 +71,11 @@ namespace mcp {
 		// view. Returns how many tiles were touched. Safe to call once; a batch
 		// that collected nothing commits nothing.
 		//
-		// borderize/wallize recalculate borders and walls for the edited tiles
-		// and their 8 neighbours. That has to happen after the edits are on the
-		// map (Tile::borderize reads neighbours from it), so it runs as a second
-		// action in the same undo step, like Editor::draw's border pass.
-		size_t commit(bool borderize = false, bool wallize = false);
+		// The passes recalculate the edited tiles and their 8 neighbours. That
+		// has to happen after the edits are on the map (they read neighbours from
+		// it), so it runs as a second action in the same undo step, like
+		// Editor::draw's border pass.
+		size_t commit(const TilePasses &passes = TilePasses());
 
 		bool empty() const noexcept {
 			return pending.empty();

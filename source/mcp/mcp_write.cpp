@@ -61,7 +61,7 @@ namespace mcp {
 		return copy;
 	}
 
-	size_t TileBatch::commit(bool borderize, bool wallize) {
+	size_t TileBatch::commit(const TilePasses &passes) {
 		committed = true;
 
 		if (pending.empty()) {
@@ -77,7 +77,7 @@ namespace mcp {
 		}
 		pending.clear();
 
-		if (!borderize && !wallize) {
+		if (!passes.any()) {
 			editor.addAction(action);
 		} else {
 			Map &map = editor.getMap();
@@ -103,10 +103,16 @@ namespace mcp {
 					continue;
 				}
 				Tile* copy = current->deepCopy(map);
-				if (wallize) {
+				if (passes.wallize) {
 					copy->wallize(&map);
 				}
-				if (borderize) {
+				if (passes.tableize) {
+					copy->tableize(&map);
+				}
+				if (passes.carpetize) {
+					copy->carpetize(&map);
+				}
+				if (passes.borderize) {
 					copy->borderize(&map);
 				}
 				copy->update();
