@@ -25,6 +25,8 @@
 #include "../map.h"
 #include "../tile.h"
 
+#include <set>
+
 namespace mcp {
 
 	TileBatch::TileBatch(Editor &editor, ActionIdentifier type) :
@@ -59,7 +61,7 @@ namespace mcp {
 		return copy;
 	}
 
-	size_t TileBatch::commit() {
+	size_t TileBatch::commit(bool borderize, bool wallize) {
 		committed = true;
 
 		if (pending.empty()) {
@@ -68,12 +70,51 @@ namespace mcp {
 		}
 
 		const size_t count = pending.size();
+		std::set<Position> touched;
 		for (auto &[position, tile] : pending) {
 			action->addChange(newd Change(tile));
+			touched.insert(position);
 		}
 		pending.clear();
 
-		editor.addAction(action);
+		if (!borderize && !wallize) {
+			editor.addAction(action);
+		} else {
+			Map &map = editor.getMap();
+			BatchAction* batch = editor.createBatch(action->getType());
+			batch->addAndCommitAction(action);
+
+			std::set<Position> targets;
+			for (const Position &position : touched) {
+				for (int dy = -1; dy <= 1; ++dy) {
+					for (int dx = -1; dx <= 1; ++dx) {
+						const Position neighbour(position.x + dx, position.y + dy, position.z);
+						if (neighbour.isValid()) {
+							targets.insert(neighbour);
+						}
+					}
+				}
+			}
+
+			Action* fixup = editor.createAction(batch);
+			for (const Position &position : targets) {
+				const Tile* current = map.getTile(position);
+				if (!current) {
+					continue;
+				}
+				Tile* copy = current->deepCopy(map);
+				if (wallize) {
+					copy->wallize(&map);
+				}
+				if (borderize) {
+					copy->borderize(&map);
+				}
+				copy->update();
+				fixup->addChange(newd Change(copy));
+			}
+			batch->addAndCommitAction(fixup);
+			editor.addBatch(batch);
+		}
 		editor.getMap().doChange();
 		g_gui.RefreshView();
 
