@@ -439,8 +439,9 @@ namespace mcp {
 			if (method == "initialize") {
 				return makeResult(id, json { { "protocolVersion", PROTOCOL_VERSION }, { "capabilities", json { { "tools", json { { "listChanged", false } } } } }, { "serverInfo", json { { "name", "remeres-map-editor" }, { "version", __RME_VERSION__ } } }, { "instructions", "Tools for reading and editing the OTBM map currently open in Remere's Map Editor. "
 																																																																				  "Start with map_info, then map_read_region (mode=summary) to orient yourself in an area, "
-																																																																				  "and map_render_region to actually see it. Writes go through run_lua and are refused unless "
-																																																																				  "the user enabled writing in the editor's MCP panel." } });
+																																																																				  "and map_render_region to actually see it. Call generation_guide before building. Edits go through the "
+																																																																				  "dedicated undo-safe tools (tile_edit, brush_apply, the *_manage tools, region_paste); run_lua is the "
+																																																																				  "escape hatch. All writes are refused unless the user enabled writing in the editor's MCP panel." } });
 			}
 
 			if (method == "ping") {
