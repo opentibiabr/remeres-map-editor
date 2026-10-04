@@ -135,9 +135,16 @@ namespace mcp {
 						throw McpError("color must be a hex string like \"#3366cc\", or an object with r, g and b");
 					}
 				} else if (color.is_object() && color.contains("r") && color.contains("g") && color.contains("b")) {
-					mapping.r = static_cast<uint8_t>(color["r"].get<int>());
-					mapping.g = static_cast<uint8_t>(color["g"].get<int>());
-					mapping.b = static_cast<uint8_t>(color["b"].get<int>());
+					const auto channel = [&](const char* key) {
+						const json &value = color[key];
+						if (!value.is_number_integer() || value.get<int64_t>() < 0 || value.get<int64_t>() > 255) {
+							throw McpError(fmt::format("color.{} must be an integer from 0 to 255", key));
+						}
+						return static_cast<uint8_t>(value.get<int>());
+					};
+					mapping.r = channel("r");
+					mapping.g = channel("g");
+					mapping.b = channel("b");
 				} else {
 					throw McpError("color must be a hex string like \"#3366cc\", or an object with r, g and b");
 				}
