@@ -32,6 +32,7 @@
 #include <cstring>
 #include <istream>
 #include <sstream>
+#include <string_view>
 #include <unordered_map>
 
 namespace mcp {
@@ -74,15 +75,15 @@ namespace mcp {
 				return true;
 			}
 			const std::string value = toLower(origin);
-			static const char* prefixes[] = {
+			static constexpr std::string_view prefixes[] = {
 				"http://localhost", "https://localhost",
 				"http://127.0.0.1", "https://127.0.0.1",
 				"http://[::1]", "https://[::1]"
 			};
-			for (const char* prefix : prefixes) {
-				if (value.rfind(prefix, 0) == 0) {
+			for (const std::string_view prefix : prefixes) {
+				if (value.compare(0, prefix.size(), prefix) == 0) {
 					// Guard against "http://localhost.evil.com".
-					const size_t length = std::strlen(prefix);
+					const size_t length = prefix.size();
 					if (value.size() == length || value[length] == ':' || value[length] == '/') {
 						return true;
 					}
