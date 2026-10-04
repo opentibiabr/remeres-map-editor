@@ -214,6 +214,7 @@ void Settings::IO(IOMode mode) {
 	Int(SHOW_HOUSES, 1);
 	Int(SHOW_BLOCKING, 0);
 	Int(SHOW_TOOLTIPS, 1);
+	Int(SHOW_COMMENTS, 1);
 	Int(SHOW_PERFORMANCE_STATS, 0);
 	Int(SHOW_ONLY_TILEFLAGS, 0);
 	Int(SHOW_ONLY_MODIFIED_TILES, 0);
@@ -354,6 +355,9 @@ void Settings::IO(IOMode mode) {
 	Int(MCP_ENABLED, 0);
 	Int(MCP_PORT, 7331);
 	Int(MCP_ALLOW_WRITE, 0);
+
+	section("COLLAB");
+	String(COLLAB_USER_NAME, "");
 
 	section("");
 	Int(GOTO_WEBSITE_ON_BOOT, 0);

@@ -4911,6 +4911,8 @@ bool IOMapOTBM::loadMap(Map &map, const FileName &filename) {
 		warning("Failed to load npcs spawns.");
 		map.spawnnpcfile = nstr(filename.GetName()) + "-npc.xml";
 	}
+	// Optional, the file only exists when the map has comments
+	map.comments.load(map.getCommentsFilename());
 	return true;
 }
 

@@ -28,6 +28,7 @@
 #include "zones.h"
 #include "templates.h"
 #include "spawn_npc.h"
+#include "map_comments.h"
 
 class Map : public BaseMap {
 public:
@@ -180,6 +181,10 @@ public:
 	Houses houses;
 	SpawnsMonster spawnsMonster;
 	SpawnsNpc spawnsNpc;
+	MapComments comments;
+
+	// "<map name>-comments.xml" next to the map file, empty if the map has no file yet
+	std::string getCommentsFilename() const;
 
 protected:
 	void updateUniqueIds(Tile* old_tile, Tile* new_tile) override;

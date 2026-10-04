@@ -72,6 +72,10 @@ public:
 	void OnCut(wxCommandEvent &event);
 	void OnCopy(wxCommandEvent &event);
 	void OnCopyPosition(wxCommandEvent &event);
+	void OnAddComment(wxCommandEvent &event);
+	void OnEditComment(wxCommandEvent &event);
+	void OnResolveComment(wxCommandEvent &event);
+	void OnDeleteComment(wxCommandEvent &event);
 	void OnCopyItemId(wxCommandEvent &event);
 	void OnCopyName(wxCommandEvent &event);
 	void OnBrowseTile(wxCommandEvent &event);
@@ -199,6 +203,7 @@ private:
 
 	wxStopWatch refresh_watch;
 	MapPopupMenu* popup_menu;
+	Position popup_pos; // Tile under the last right click
 	AnimationTimer* animation_timer;
 
 	friend class MapDrawer;
@@ -213,7 +218,7 @@ public:
 	MapPopupMenu(Editor &editor);
 	virtual ~MapPopupMenu();
 
-	void Update();
+	void Update(const Position &pos);
 
 protected:
 	Editor &editor;

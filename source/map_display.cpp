@@ -103,6 +103,11 @@ EVT_MENU(MAP_POPUP_MENU_MOVE_TO_TILESET, MapCanvas::OnSelectMoveTo)
 // ----
 EVT_MENU(MAP_POPUP_MENU_PROPERTIES, MapCanvas::OnProperties)
 // ----
+EVT_MENU(MAP_POPUP_MENU_ADD_COMMENT, MapCanvas::OnAddComment)
+EVT_MENU(MAP_POPUP_MENU_EDIT_COMMENT, MapCanvas::OnEditComment)
+EVT_MENU(MAP_POPUP_MENU_RESOLVE_COMMENT, MapCanvas::OnResolveComment)
+EVT_MENU(MAP_POPUP_MENU_DELETE_COMMENT, MapCanvas::OnDeleteComment)
+// ----
 EVT_MENU(MAP_POPUP_MENU_BROWSE_TILE, MapCanvas::OnBrowseTile)
 END_EVENT_TABLE()
 
@@ -229,6 +234,7 @@ void MapCanvas::OnPaint(wxPaintEvent &event) {
 			options.highlight_items = g_settings.getBoolean(Config::HIGHLIGHT_ITEMS);
 			options.show_blocking = g_settings.getBoolean(Config::SHOW_BLOCKING);
 			options.show_tooltips = g_settings.getBoolean(Config::SHOW_TOOLTIPS);
+			options.show_comments = g_settings.getBoolean(Config::SHOW_COMMENTS);
 			options.show_performance_stats = g_settings.getBoolean(Config::SHOW_PERFORMANCE_STATS);
 			options.show_as_minimap = g_settings.getBoolean(Config::SHOW_AS_MINIMAP);
 			options.show_only_colors = g_settings.getBoolean(Config::SHOW_ONLY_TILEFLAGS);
@@ -1654,7 +1660,8 @@ void MapCanvas::OnMousePropertiesRelease(wxMouseEvent &event) {
 		// Nothing
 	}
 
-	popup_menu->Update();
+	popup_pos = Position(mouse_map_x, mouse_map_y, floor);
+	popup_menu->Update(popup_pos);
 	PopupMenu(popup_menu);
 
 	editor.resetActionsTimer();
@@ -2263,6 +2270,46 @@ void MapCanvas::OnCopyPosition(wxCommandEvent &WXUNUSED(event)) {
 	}
 }
 
+void MapCanvas::OnAddComment(wxCommandEvent &WXUNUSED(event)) {
+	wxTextEntryDialog dialog(this, "Comment:", "Add Comment", "", wxTextEntryDialogStyle | wxTE_MULTILINE);
+	if (dialog.ShowModal() == wxID_OK && !dialog.GetValue().IsEmpty()) {
+		editor.getMap().comments.add(popup_pos, nstr(dialog.GetValue()));
+		editor.getMap().doChange();
+		g_gui.RefreshView();
+	}
+}
+
+void MapCanvas::OnEditComment(wxCommandEvent &WXUNUSED(event)) {
+	const MapComment* comment = editor.getMap().comments.at(popup_pos);
+	if (!comment) {
+		return;
+	}
+	wxTextEntryDialog dialog(this, "Comment by " + wxstr(comment->author) + ":", "Edit Comment", wxstr(comment->text), wxTextEntryDialogStyle | wxTE_MULTILINE);
+	if (dialog.ShowModal() == wxID_OK && !dialog.GetValue().IsEmpty()) {
+		editor.getMap().comments.edit(comment->id, nstr(dialog.GetValue()));
+		editor.getMap().doChange();
+		g_gui.RefreshView();
+	}
+}
+
+void MapCanvas::OnResolveComment(wxCommandEvent &WXUNUSED(event)) {
+	const MapComment* comment = editor.getMap().comments.at(popup_pos);
+	if (comment) {
+		editor.getMap().comments.setResolved(comment->id, !comment->resolved);
+		editor.getMap().doChange();
+		g_gui.RefreshView();
+	}
+}
+
+void MapCanvas::OnDeleteComment(wxCommandEvent &WXUNUSED(event)) {
+	const MapComment* comment = editor.getMap().comments.at(popup_pos);
+	if (comment) {
+		editor.getMap().comments.remove(comment->id);
+		editor.getMap().doChange();
+		g_gui.RefreshView();
+	}
+}
+
 void MapCanvas::OnCopyItemId(wxCommandEvent &WXUNUSED(event)) {
 	ASSERT(editor.getSelection().size() == 1);
 
@@ -2740,7 +2787,7 @@ MapPopupMenu::~MapPopupMenu() {
 	////
 }
 
-void MapPopupMenu::Update() {
+void MapPopupMenu::Update(const Position &pos) {
 	// Clear the menu of all items
 	while (GetMenuItemCount() != 0) {
 		wxMenuItem* m_item = FindItemByPosition(0);
@@ -2749,6 +2796,16 @@ void MapPopupMenu::Update() {
 	}
 
 	bool anything_selected = editor.hasSelection();
+
+	const MapComment* comment = editor.getMap().comments.at(pos);
+	if (comment) {
+		Append(MAP_POPUP_MENU_EDIT_COMMENT, "Edit Comment...", "Edit the comment on this tile");
+		Append(MAP_POPUP_MENU_RESOLVE_COMMENT, comment->resolved ? "Reopen Comment" : "Resolve Comment", "Toggle the resolved state of the comment");
+		Append(MAP_POPUP_MENU_DELETE_COMMENT, "Delete Comment", "Remove the comment on this tile");
+	} else {
+		Append(MAP_POPUP_MENU_ADD_COMMENT, "Add Comment Here...", "Leave a comment on this tile");
+	}
+	AppendSeparator();
 
 	wxMenuItem* cutItem = Append(MAP_POPUP_MENU_CUT, "&Cut\tCTRL+X", "Cut out all selected items");
 	cutItem->Enable(anything_selected);

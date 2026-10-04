@@ -390,6 +390,10 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 		if (!success) {
 			return;
 		}
+
+		if (!save_otgz) {
+			map.comments.save(map.getCommentsFilename());
+		}
 	}
 
 	// Move to permanent backup

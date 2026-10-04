@@ -89,6 +89,7 @@ void DrawingOptions::SetDefault() {
 	highlight_items = false;
 	show_blocking = false;
 	show_tooltips = false;
+	show_comments = false;
 	show_as_minimap = false;
 	show_only_colors = false;
 	show_only_modified = false;
@@ -123,6 +124,7 @@ void DrawingOptions::SetIngame() {
 	highlight_items = false;
 	show_blocking = false;
 	show_tooltips = false;
+	show_comments = false;
 	show_performance_stats = false;
 	show_as_minimap = false;
 	show_only_colors = false;
@@ -294,6 +296,7 @@ void MapDrawer::Draw() {
 		DrawSelectionBox();
 	}
 	DrawLiveCursors();
+	DrawComments();
 	DrawBrush();
 	if (options.show_grid && zoom <= 10.f) {
 		DrawGrid();
@@ -798,6 +801,38 @@ void MapDrawer::DrawLiveCursors() {
 		float draw_y = ((cursor.pos.y * rme::TileSize) - view_scroll_y) - offset;
 
 		renderer->drawColoredQuad(draw_x, draw_y, rme::TileSize, rme::TileSize, { cursor.color.Red(), cursor.color.Green(), cursor.color.Blue(), cursor.color.Alpha() });
+	}
+}
+
+void MapDrawer::DrawComments() {
+	if (options.ingame || !options.show_comments) {
+		return;
+	}
+
+	const Position mouse(mouse_map_x, mouse_map_y, floor);
+	for (const MapComment &comment : editor.getMap().comments.all()) {
+		if (comment.pos.z != floor) {
+			continue;
+		}
+
+		int x;
+		int y;
+		getDrawPosition(comment.pos, x, y);
+		if (x < -rme::TileSize || y < -rme::TileSize || x > screensize_x * zoom || y > screensize_y * zoom) {
+			continue;
+		}
+
+		const uint32_t rgb = comment.resolved ? 0x9E9E9E : comment.authorColor;
+		constexpr int size = 10;
+		const int mx = x + rme::TileSize - size;
+		renderer->drawColoredQuad(mx - 1, y - 1, size + 2, size + 2, { 0, 0, 0, 200 });
+		renderer->drawColoredQuad(mx, y, size, size, { static_cast<uint8_t>(rgb >> 16), static_cast<uint8_t>(rgb >> 8), static_cast<uint8_t>(rgb), 255 });
+
+		if (options.isTooltips() && comment.pos == mouse) {
+			auto &tip = MakeTooltip(comment.pos.x, comment.pos.y, comment.pos.z, 255, 244, 179);
+			tip.addEntry(comment.resolved ? "resolved: " : "comment: ", comment.author);
+			tip.addEntry("", comment.text);
+		}
 	}
 }
 
