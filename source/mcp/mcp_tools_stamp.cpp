@@ -46,16 +46,18 @@ namespace mcp {
 
 	namespace {
 
-		// A stamp keeps its own deep-copied tiles, detached from any map, so it
-		// survives the source area being edited or the map being closed.
+		// A stamp keeps its own tiles in a private BaseMap, so each tile's
+		// TileLocation belongs to the stamp and survives the source map being
+		// edited or closed (a plain deepCopy would keep pointing at the source).
 		struct Stamp {
 			int width = 0;
 			int height = 0;
 			int floors = 0;
 			Position origin;
 			std::string description;
-			// Keyed by local offset so sparse areas stay cheap.
-			std::map<std::tuple<int, int, int>, std::unique_ptr<Tile>> tiles;
+			BaseMap storage;
+			// Keyed by local offset so sparse areas stay cheap; owned by storage.
+			std::map<std::tuple<int, int, int>, Tile*> tiles;
 		};
 
 		// Session-scoped: stamps live as long as the editor runs. They are a
@@ -181,12 +183,19 @@ namespace mcp {
 							if (!source || source->empty()) {
 								continue;
 							}
-							// deepCopy needs a map to allocate from; the copy is
-							// then owned by the stamp, not by any map.
-							stamp->tiles.emplace(
-								std::make_tuple(x - minX, y - minY, z - minZ),
-								std::unique_ptr<Tile>(source->deepCopy(map))
-							);
+							const int localX = x - minX;
+							const int localY = y - minY;
+							const int localZ = z - minZ;
+							Tile* stored = stamp->storage.createTile(localX, localY, localZ);
+							// merge() moves the contents across but not the map
+							// flags beyond PZ, so carry those and the zones too.
+							std::unique_ptr<Tile> copy(source->deepCopy(map));
+							stored->merge(copy.get());
+							stored->setMapFlags(source->getMapFlags());
+							for (const unsigned int zone : source->zones) {
+								stored->addZone(zone);
+							}
+							stamp->tiles.emplace(std::make_tuple(localX, localY, localZ), stored);
 						}
 					}
 				}
