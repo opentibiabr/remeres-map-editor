@@ -525,6 +525,32 @@
     <ClInclude Include="..\..\source\bitmap_to_map_window.h" />
     <ClCompile Include="..\..\source\bitmap_to_map_converter.cpp" />
     <ClInclude Include="..\..\source\bitmap_to_map_converter.h" />
+    <ClCompile Include="..\..\source\mcp\mcp_render.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_server.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_analyze.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_assets.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_brush.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_clientview.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_edit.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_entities.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_guide.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_io.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_manage.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_map.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_ops.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_script.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_select.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_stamp.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_terrain.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_window.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_write.cpp" />
+    <ClInclude Include="..\..\source\mcp\mcp_common.h" />
+    <ClInclude Include="..\..\source\mcp\mcp_gui_call.h" />
+    <ClInclude Include="..\..\source\mcp\mcp_server.h" />
+    <ClInclude Include="..\..\source\mcp\mcp_tools.h" />
+    <ClInclude Include="..\..\source\mcp\mcp_window.h" />
+    <ClInclude Include="..\..\source\mcp\mcp_write.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\source\mkpch.cpp">
