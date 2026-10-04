@@ -101,9 +101,6 @@ void WaypointPalettePanel::OnUpdate() {
 	if (wxTextCtrl* tc = waypoint_list->GetEditControl()) {
 		Waypoint* wp = map->waypoints.getWaypoint(nstr(tc->GetValue()));
 		if (wp && !wp->pos.isValid()) {
-			if (map->getTile(wp->pos)) {
-				map->getTileL(wp->pos)->decreaseWaypointCount();
-			}
 			map->waypoints.removeWaypoint(wp->name);
 		}
 	}
@@ -174,9 +171,6 @@ void WaypointPalettePanel::OnEditWaypointLabel(wxListEvent &event) {
 
 				Waypoint* rwp = map->waypoints.getWaypoint(oldwpname);
 				if (rwp) {
-					if (map->getTile(rwp->pos)) {
-						map->getTileL(rwp->pos)->decreaseWaypointCount();
-					}
 					map->waypoints.removeWaypoint(rwp->name);
 				}
 
@@ -213,9 +207,6 @@ void WaypointPalettePanel::OnClickRemoveWaypoint(wxCommandEvent &event) {
 	if (item != -1) {
 		Waypoint* wp = map->waypoints.getWaypoint(nstr(waypoint_list->GetItemText(item)));
 		if (wp) {
-			if (map->getTile(wp->pos)) {
-				map->getTileL(wp->pos)->decreaseWaypointCount();
-			}
 			map->waypoints.removeWaypoint(wp->name);
 		}
 		waypoint_list->DeleteItem(item);

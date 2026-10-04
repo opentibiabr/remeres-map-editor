@@ -72,7 +72,9 @@ void Waypoints::removeWaypoint(std::string name) {
 	// phantom waypoint and never counts as empty again.
 	if (iter->second && iter->second->pos.isValid()) {
 		if (Tile* tile = map.getTile(iter->second->pos)) {
-			tile->getLocation()->decreaseWaypointCount();
+			if (tile->getLocation()->getWaypointCount() > 0) {
+				tile->getLocation()->decreaseWaypointCount();
+			}
 		}
 	}
 	delete iter->second;
