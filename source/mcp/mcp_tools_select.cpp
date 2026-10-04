@@ -330,6 +330,11 @@ namespace mcp {
 				const Position b = parsePosition(params["to"], "to");
 				const bool additive = params.value("add", false);
 
+				const int64_t volume = (static_cast<int64_t>(std::abs(a.x - b.x)) + 1) * (std::abs(a.y - b.y) + 1) * (std::abs(a.z - b.z) + 1);
+				if (volume > MAX_REGION_VOLUME) {
+					throw McpError(fmt::format("the region covers {} tiles, above the {} limit; narrow it", volume, MAX_REGION_VOLUME));
+				}
+
 				selection.start(Selection::NONE);
 				if (!additive) {
 					selection.clear();
