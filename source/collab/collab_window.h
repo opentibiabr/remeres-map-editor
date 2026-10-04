@@ -21,16 +21,21 @@
 #include <wx/panel.h>
 
 #include "../map_comments.h"
+#include "collab_session.h"
 
+class wxButton;
 class wxCheckBox;
+class wxChoice;
 class wxListCtrl;
 class wxListEvent;
 class wxNotebook;
 class wxSearchCtrl;
+class wxSpinCtrl;
+class wxStaticText;
 class wxTextCtrl;
 
-// Dockable "Collaborate" panel. Session, Chat and History are placeholders until
-// the networking phases land; Comments already works against Map::comments.
+// Dockable "Collaborate" panel: Session (host/join, participants), Chat, Comments and
+// History (still a placeholder).
 class CollabWindow : public wxPanel {
 public:
 	explicit CollabWindow(wxWindow* parent);
@@ -56,11 +61,45 @@ public:
 
 private:
 	void BuildSessionPage(wxWindow* page);
+	void BuildChatPage(wxWindow* page);
 	void BuildCommentsPage(wxWindow* page);
 	const MapComment* SelectedComment() const;
 
+	void OnSessionChanged();
+	void RefreshUsers();
+	void RebuildChat();
+	void AppendChat(const collab::ChatLine &line);
+	void UpdateStartButton();
+	void SendChat();
+	void ShowUserMenu(uint32_t userId);
+
 	wxNotebook* notebook = nullptr;
 	wxTextCtrl* name_text = nullptr;
+	wxStaticText* status_label = nullptr;
+
+	// Session page: idle forms and active view
+	wxPanel* idle_panel = nullptr;
+	wxPanel* active_panel = nullptr;
+	wxSpinCtrl* host_port = nullptr;
+	wxTextCtrl* host_password = nullptr;
+	wxChoice* host_role = nullptr;
+	wxButton* start_button = nullptr;
+	wxTextCtrl* join_address = nullptr;
+	wxSpinCtrl* join_port = nullptr;
+	wxTextCtrl* join_password = nullptr;
+	wxListCtrl* user_list = nullptr;
+	wxCheckBox* show_cursors = nullptr;
+	wxCheckBox* show_names = nullptr;
+	wxButton* leave_button = nullptr;
+
+	// Chat page
+	wxPanel* chat_page = nullptr;
+	wxTextCtrl* chat_log = nullptr;
+	wxTextCtrl* chat_input = nullptr;
+	int unread_chat = 0;
+	bool was_active = false;
+
+	// Comments page
 	wxListCtrl* comment_list = nullptr;
 	wxCheckBox* show_resolved = nullptr;
 	wxSearchCtrl* search = nullptr;

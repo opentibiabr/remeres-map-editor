@@ -55,6 +55,7 @@ find_package(liblzma CONFIG REQUIRED)
 find_package(Protobuf REQUIRED)
 find_package(cpr CONFIG REQUIRED)
 find_package(SQLite3 REQUIRED)
+find_package(unofficial-sodium CONFIG REQUIRED)
 if(TARGET SQLite::SQLite3 AND NOT TARGET SQLite3::SQLite3)
   add_library(SQLite3::SQLite3 ALIAS SQLite::SQLite3)
 endif()
@@ -287,6 +288,10 @@ target_sources(
           main_toolbar.cpp
           map.cpp
           map_comments.cpp
+          collab/collab_connection.cpp
+          collab/collab_crypto.cpp
+          collab/collab_selfcheck.cpp
+          collab/collab_session.cpp
           collab/collab_window.cpp
           map_display.cpp
           map_drawer.cpp
@@ -383,6 +388,8 @@ target_link_libraries(
           sol2::sol2
           cpr::cpr
           SQLite3::SQLite3
+          unofficial-sodium::sodium
+          unofficial-sodium::sodium_config_public
           $<$<PLATFORM_ID:Linux>:xcb>
           $<$<PLATFORM_ID:Windows>:psapi>)
 

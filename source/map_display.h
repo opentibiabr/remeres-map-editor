@@ -72,6 +72,7 @@ public:
 	void OnCut(wxCommandEvent &event);
 	void OnCopy(wxCommandEvent &event);
 	void OnCopyPosition(wxCommandEvent &event);
+	void NotifyCollabCursor(int screen_x, int screen_y, bool mouse_down);
 	void OnAddComment(wxCommandEvent &event);
 	void OnEditComment(wxCommandEvent &event);
 	void OnResolveComment(wxCommandEvent &event);

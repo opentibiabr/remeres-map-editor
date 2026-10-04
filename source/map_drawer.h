@@ -192,6 +192,7 @@ public:
 	void DrawSelectionBox();
 	void DrawLiveCursors();
 	void DrawComments();
+	void DrawCollabCursors();
 	void DrawBrush();
 	void DrawIngameBox();
 	void DrawGrid();

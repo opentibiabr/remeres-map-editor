@@ -1,0 +1,180 @@
+//////////////////////////////////////////////////////////////////////
+// This file is part of Remere's Map Editor
+//////////////////////////////////////////////////////////////////////
+// Remere's Map Editor is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Remere's Map Editor is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <http://www.gnu.org/licenses/>.
+//////////////////////////////////////////////////////////////////////
+
+#ifndef RME_COLLAB_PROTOCOL_H
+#define RME_COLLAB_PROTOCOL_H
+
+#include <cstdint>
+#include <cstring>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+namespace collab {
+
+	constexpr uint16_t kProtocolVersion = 1;
+
+	// Limits. Everything read from the network is checked against these.
+	constexpr size_t kMaxFrame = 1024 * 1024; // plaintext, type byte included
+	constexpr size_t kMaxUsers = 32;
+	constexpr size_t kMaxName = 32; // characters
+	constexpr size_t kMaxChat = 500; // characters
+	constexpr size_t kMinPassword = 6;
+	constexpr size_t kMaxOutbox = 64 * 1024 * 1024; // bytes queued for one peer
+	constexpr int kMaxCursorsPerSecond = 30;
+	constexpr int kMaxChatPerSecond = 5;
+
+	enum class Msg : uint8_t {
+		Hello = 1, // C->S name, rmeVersion, protocol
+		Welcome, // S->C userId, color, role, users
+		Reject, // S->C reason
+		UserJoined, // S->C user
+		UserLeft, // S->C userId
+		UserUpdated, // S->C user
+		Cursor, // C->S: x y z brush flags, S->C: userId x y z brush flags
+		Chat, // C->S text
+		ChatMsg, // S->C userId, text, time, system
+		SetRole, // C->S userId, role
+		Kick, // C->S userId
+		Bye, // both reason
+	};
+
+	enum class Role : uint8_t {
+		Host,
+		Admin,
+		Editor,
+		Viewer,
+	};
+
+	inline const char* roleName(Role role) {
+		switch (role) {
+			case Role::Host:
+				return "Host";
+			case Role::Admin:
+				return "Admin";
+			case Role::Editor:
+				return "Editor";
+			case Role::Viewer:
+				return "Viewer";
+		}
+		return "?";
+	}
+
+	struct ProtocolError : std::runtime_error {
+		using std::runtime_error::runtime_error;
+	};
+
+	// Bounds-checked big-endian reader. Every read past the end throws ProtocolError.
+	class ByteReader {
+	public:
+		ByteReader(const uint8_t* data, size_t size) :
+			data(data), size(size) { }
+		explicit ByteReader(const std::vector<uint8_t> &buffer, size_t offset = 0) :
+			data(buffer.data()), size(buffer.size()) {
+			skip(offset);
+		}
+
+		uint8_t u8() {
+			need(1);
+			return data[pos++];
+		}
+		uint16_t u16() {
+			need(2);
+			uint16_t v = static_cast<uint16_t>((data[pos] << 8) | data[pos + 1]);
+			pos += 2;
+			return v;
+		}
+		uint32_t u32() {
+			need(4);
+			uint32_t v = (static_cast<uint32_t>(data[pos]) << 24) | (static_cast<uint32_t>(data[pos + 1]) << 16) | (static_cast<uint32_t>(data[pos + 2]) << 8) | data[pos + 3];
+			pos += 4;
+			return v;
+		}
+		// u16 length prefix, rejected when longer than maxLen bytes.
+		std::string str(size_t maxLen) {
+			size_t len = u16();
+			if (len > maxLen) {
+				throw ProtocolError("string too long");
+			}
+			need(len);
+			std::string s(reinterpret_cast<const char*>(data + pos), len);
+			pos += len;
+			return s;
+		}
+		void skip(size_t n) {
+			need(n);
+			pos += n;
+		}
+		size_t remaining() const noexcept {
+			return size - pos;
+		}
+		const uint8_t* current() const noexcept {
+			return data + pos;
+		}
+
+	private:
+		void need(size_t n) const {
+			if (n > size - pos) {
+				throw ProtocolError("truncated message");
+			}
+		}
+
+		const uint8_t* data;
+		size_t size;
+		size_t pos = 0;
+	};
+
+	class ByteWriter {
+	public:
+		void u8(uint8_t v) {
+			buffer.push_back(v);
+		}
+		void u16(uint16_t v) {
+			buffer.push_back(static_cast<uint8_t>(v >> 8));
+			buffer.push_back(static_cast<uint8_t>(v));
+		}
+		void u32(uint32_t v) {
+			u16(static_cast<uint16_t>(v >> 16));
+			u16(static_cast<uint16_t>(v));
+		}
+		void str(const std::string &s) {
+			if (s.size() > 0xFFFF) {
+				throw ProtocolError("string too long");
+			}
+			u16(static_cast<uint16_t>(s.size()));
+			buffer.insert(buffer.end(), s.begin(), s.end());
+		}
+		std::vector<uint8_t> buffer;
+	};
+
+	// Frame plaintext = type byte + payload. Payloads are fixed binary layouts written with
+	// ByteWriter (no general-purpose parser on untrusted input).
+	inline std::vector<uint8_t> makeFrame(Msg type, const std::vector<uint8_t> &payload = {}) {
+		std::vector<uint8_t> frame;
+		frame.reserve(payload.size() + 1);
+		frame.push_back(static_cast<uint8_t>(type));
+		frame.insert(frame.end(), payload.begin(), payload.end());
+		return frame;
+	}
+
+// Runnable check of the protocol primitives and crypto, see collab_selfcheck.cpp.
+	// Exposed as the hidden --collab-selfcheck command line switch.
+	bool selfCheck();
+
+} // namespace collab
+
+#endif

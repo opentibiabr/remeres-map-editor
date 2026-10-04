@@ -38,6 +38,9 @@
 #include "lua/lua_script_manager.h"
 #include "mcp/mcp_server.h"
 #include "mcp/mcp_window.h"
+#include "collab/collab_crypto.h"
+#include "collab/collab_protocol.h"
+#include "collab/collab_session.h"
 
 #include "../brushes/icon/rme_icon.xpm"
 
@@ -96,6 +99,11 @@ Application::~Application() {
 }
 
 bool Application::OnInit() {
+	// Hidden switch for CI / manual checks of the collaboration primitives.
+	if (argc == 2 && wxString(argv[1]) == "--collab-selfcheck") {
+		std::exit(collab::selfCheck() ? 0 : 1);
+	}
+
 #if defined __DEBUG_MODE__ && defined __WINDOWS__
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
@@ -120,6 +128,11 @@ bool Application::OnInit() {
 	g_settings.load();
 	g_gui.LoadHotkeys();
 	ClientAssets::load();
+
+	if (!collab::crypto::init()) {
+		spdlog::warn("Could not initialize libsodium, collaboration sessions are unavailable");
+	}
+	collab::Session::get().onCursorsChanged = [] { g_gui.RefreshView(); };
 
 #ifdef _USE_PROCESS_COM
 	m_single_instance_checker = newd wxSingleInstanceChecker; // Instance checker has to stay alive throughout the applications lifetime
@@ -313,6 +326,7 @@ void Application::Unload() {
 }
 
 int Application::OnExit() {
+	collab::Session::get().leave();
 	mcp::Server::get().stop();
 	g_luaScripts.shutdown();
 #ifdef _USE_PROCESS_COM
@@ -323,6 +337,7 @@ int Application::OnExit() {
 }
 
 void Application::ShutdownServices() {
+	collab::Session::get().leave();
 	mcp::Server::get().stop();
 	g_luaScripts.shutdown();
 #ifdef _USE_PROCESS_COM

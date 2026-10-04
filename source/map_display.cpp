@@ -33,6 +33,7 @@
 #include "map_drawer.h"
 #include "application.h"
 #include "live_server.h"
+#include "collab/collab_session.h"
 #include "browse_tile_window.h"
 
 #include "main_menubar.h"
@@ -469,6 +470,7 @@ void MapCanvas::UpdatePositionStatus(int x, int y) {
 	ScreenToMap(x, y, &map_x, &map_y);
 
 	g_gui.root->SetStatusText(fmt::format("x: {} y: {} z: {}", map_x, map_y, floor), 2);
+	NotifyCollabCursor(x, y, wxGetMouseState().LeftIsDown());
 
 	const auto tile = editor.getMap().getTile(map_x, map_y, floor);
 
@@ -654,12 +656,26 @@ void MapCanvas::OnMouseMove(wxMouseEvent &event) {
 	}
 }
 
+void MapCanvas::NotifyCollabCursor(int screen_x, int screen_y, bool mouse_down) {
+	collab::Session &session = collab::Session::get();
+	if (!session.active()) {
+		return;
+	}
+	int map_x, map_y;
+	ScreenToMap(screen_x, screen_y, &map_x, &map_y);
+	// The brush footprint only matters while drawing.
+	const uint8_t brush_size = g_gui.IsDrawingMode() ? static_cast<uint8_t>(g_gui.GetBrushSize()) : 0;
+	session.onLocalCursor(Position(map_x, map_y, floor), brush_size, mouse_down);
+}
+
 void MapCanvas::OnMouseLeftRelease(wxMouseEvent &event) {
 	OnMouseActionRelease(event);
+	NotifyCollabCursor(event.GetX(), event.GetY(), false);
 }
 
 void MapCanvas::OnMouseLeftClick(wxMouseEvent &event) {
 	OnMouseActionClick(event);
+	NotifyCollabCursor(event.GetX(), event.GetY(), true);
 }
 
 void MapCanvas::OnMouseLeftDoubleClick(wxMouseEvent &event) {

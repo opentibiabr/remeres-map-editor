@@ -52,6 +52,10 @@ uint32_t MapComments::colorForAuthor(const std::string &author) {
 	return kPalette[std::hash<std::string> {}(author) % std::size(kPalette)];
 }
 
+uint32_t MapComments::paletteColor(size_t index) {
+	return kPalette[index % std::size(kPalette)];
+}
+
 MapComment* MapComments::find(uint32_t id) {
 	auto it = std::find_if(comments.begin(), comments.end(), [id](const MapComment &c) { return c.id == id; });
 	return it == comments.end() ? nullptr : &*it;

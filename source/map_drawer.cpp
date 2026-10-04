@@ -43,6 +43,7 @@
 #include "map_display.h"
 #include "copybuffer.h"
 #include "live_socket.h"
+#include "collab/collab_session.h"
 #include "graphics.h"
 
 #include "doodad_brush.h"
@@ -296,6 +297,7 @@ void MapDrawer::Draw() {
 		DrawSelectionBox();
 	}
 	DrawLiveCursors();
+	DrawCollabCursors();
 	DrawComments();
 	DrawBrush();
 	if (options.show_grid && zoom <= 10.f) {
@@ -802,6 +804,97 @@ void MapDrawer::DrawLiveCursors() {
 
 		renderer->drawColoredQuad(draw_x, draw_y, rme::TileSize, rme::TileSize, { cursor.color.Red(), cursor.color.Green(), cursor.color.Blue(), cursor.color.Alpha() });
 	}
+}
+
+void MapDrawer::DrawCollabCursors() {
+	collab::Session &session = collab::Session::get();
+	if (options.ingame || !session.active() || !g_settings.getBoolean(Config::COLLAB_SHOW_CURSORS)) {
+		return;
+	}
+
+	struct Label {
+		float x;
+		float y;
+		std::string text;
+		uint32_t rgb;
+	};
+	std::vector<Label> labels;
+	const bool names = g_settings.getBoolean(Config::COLLAB_SHOW_NAMES) && zoom <= 4.0f;
+	const auto now = std::chrono::steady_clock::now();
+
+	for (const auto &entry : session.cursors()) {
+		const auto user = session.users().find(entry.first);
+		if (user == session.users().end()) {
+			continue;
+		}
+		const collab::RemoteCursor &cursor = entry.second;
+		const Position &pos = cursor.pos;
+		if (pos.z <= rme::MapGroundLayer && floor > rme::MapGroundLayer) {
+			continue;
+		}
+		if (pos.z > rme::MapGroundLayer && floor <= 8) {
+			continue;
+		}
+
+		float fill = 70.0f;
+		float line = 220.0f;
+		if (pos.z < floor) {
+			fill /= 2; // a floor above the one being viewed
+			line /= 2;
+		}
+		if (now - cursor.lastUpdate > std::chrono::seconds(30)) {
+			fill = std::min(fill, 35.0f);
+			line = std::min(line, 35.0f);
+		}
+
+		int offset;
+		if (pos.z <= rme::MapGroundLayer) {
+			offset = (rme::MapGroundLayer - pos.z) * rme::TileSize;
+		} else {
+			offset = rme::TileSize * (floor - pos.z);
+		}
+		const float draw_x = static_cast<float>(((pos.x * rme::TileSize) - view_scroll_x) - offset);
+		const float draw_y = static_cast<float>(((pos.y * rme::TileSize) - view_scroll_y) - offset);
+
+		const uint32_t rgb = user->second.color;
+		const auto r = static_cast<uint8_t>(rgb >> 16);
+		const auto g = static_cast<uint8_t>(rgb >> 8);
+		const auto b = static_cast<uint8_t>(rgb);
+
+		// While the mouse is down the whole brush footprint is outlined.
+		const int radius = cursor.mouseDown ? cursor.brushSize : 0;
+		const float side = static_cast<float>((2 * radius + 1) * rme::TileSize);
+		renderer->drawColoredQuad(draw_x, draw_y, rme::TileSize, rme::TileSize, { r, g, b, static_cast<uint8_t>(fill) });
+		renderer->drawRect(draw_x - radius * rme::TileSize, draw_y - radius * rme::TileSize, side, side, { r, g, b, static_cast<uint8_t>(line) }, 2.0f);
+
+		if (names) {
+			labels.push_back({ draw_x, draw_y, user->second.name, rgb });
+		}
+	}
+
+	if (labels.empty()) {
+		return;
+	}
+
+	// Text is drawn in screen space, like the tooltips.
+	renderer->flush();
+	renderer->setOrtho(0, static_cast<float>(screensize_x), static_cast<float>(screensize_y), 0);
+	const float line_height = renderer->getLineHeight();
+	for (const Label &label : labels) {
+		float width = 0.0f;
+		for (char c : label.text) {
+			width += renderer->getCharWidth(c);
+		}
+		const float x = label.x / zoom;
+		const float y = label.y / zoom - line_height - 3.0f;
+		renderer->drawColoredQuad(x, y, width + 6.0f, line_height + 2.0f, { 0, 0, 0, 170 });
+		renderer->drawText(x + 3.0f, y + renderer->getAscent() + 1.0f, label.text, static_cast<uint8_t>(label.rgb >> 16), static_cast<uint8_t>(label.rgb >> 8), static_cast<uint8_t>(label.rgb), 255);
+	}
+	renderer->flush();
+
+	std::array<int, 4> vPort {};
+	glGetIntegerv(GL_VIEWPORT, vPort.data());
+	renderer->setOrtho(0, vPort[2] * zoom, vPort[3] * zoom, 0);
 }
 
 void MapDrawer::DrawComments() {

@@ -38,6 +38,9 @@ public:
 	static std::string localAuthor();
 	// Stable per-name color, 0xRRGGBB.
 	static uint32_t colorForAuthor(const std::string &author);
+	// Fixed palette shared with the collaboration user colors.
+	static constexpr size_t kPaletteSize = 12;
+	static uint32_t paletteColor(size_t index);
 
 	// Adds a comment authored by the local user and returns it.
 	const MapComment &add(const Position &pos, const std::string &text);

@@ -358,6 +358,11 @@ void Settings::IO(IOMode mode) {
 
 	section("COLLAB");
 	String(COLLAB_USER_NAME, "");
+	Int(COLLAB_PORT, 31313);
+	String(COLLAB_LAST_ADDRESS, "localhost");
+	Int(COLLAB_DEFAULT_ROLE, 2); // collab::Role::Editor
+	Int(COLLAB_SHOW_CURSORS, 1);
+	Int(COLLAB_SHOW_NAMES, 1);
 
 	section("");
 	Int(GOTO_WEBSITE_ON_BOOT, 0);
