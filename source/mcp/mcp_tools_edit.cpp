@@ -234,7 +234,7 @@ namespace mcp {
 				tile->update();
 			}
 
-			const size_t changed = batch.commit({ borderize, !erase && brush->isWall(), !erase && brush->isTable(), !erase && brush->isCarpet() });
+			const size_t changed = batch.commit({ borderize, brush->isWall(), brush->isTable(), brush->isCarpet() });
 			return jsonResult(json {
 				{ "brush", name },
 				{ "mode", erase ? "erase" : "draw" },
