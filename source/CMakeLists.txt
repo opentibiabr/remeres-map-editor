@@ -390,8 +390,8 @@ target_link_libraries(
           $<$<PLATFORM_ID:Windows>:psapi>
           $<$<PLATFORM_ID:Windows>:winmm>)
 
-# The vcpkg sodium port does not define this for static triplets, and without it the
-# headers declare every symbol dllimport.
+# The vcpkg sodium port does not define this for static triplets, and without it
+# the headers declare every symbol dllimport.
 if(VCPKG_TARGET_TRIPLET MATCHES "static")
   target_compile_definitions(${PROJECT_NAME} PRIVATE SODIUM_STATIC)
 endif()

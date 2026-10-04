@@ -234,7 +234,7 @@ namespace collab {
 		return frame;
 	}
 
-// Runnable check of the protocol primitives and crypto, see collab_selfcheck.cpp.
+	// Runnable check of the protocol primitives and crypto, see collab_selfcheck.cpp.
 	// Exposed as the hidden --collab-selfcheck command line switch.
 	bool selfCheck();
 

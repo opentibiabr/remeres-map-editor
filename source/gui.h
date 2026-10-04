@@ -76,7 +76,6 @@ class TilesetWindow;
 class EditTownsDialog;
 class ItemButton;
 
-
 extern const wxEventType EVT_UPDATE_MENUS;
 extern const wxEventType EVT_UPDATE_ACTIONS;
 
