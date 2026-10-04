@@ -38,6 +38,8 @@
 #include "lua/lua_script_manager.h"
 #include "mcp/mcp_server.h"
 #include "mcp/mcp_window.h"
+#include <wx/spinctrl.h>
+#include <wx/textentry.h>
 #include "collab/collab_crypto.h"
 #include "collab/collab_protocol.h"
 #include "collab/collab_session.h"
@@ -448,7 +450,10 @@ void MainFrame::OnUpdateActions(wxCommandEvent &) {
 
 #ifdef __WINDOWS__
 bool MainFrame::MSWTranslateMessage(WXMSG* msg) {
-	if (g_gui.AreHotkeysEnabled()) {
+	// Typing in any text field (collaboration chat, names, passwords...) must never fire menu accelerators.
+	wxWindow* focused = wxWindow::FindFocus();
+	const bool typing = dynamic_cast<wxTextEntry*>(focused) != nullptr || dynamic_cast<wxSpinCtrl*>(focused) != nullptr;
+	if (g_gui.AreHotkeysEnabled() && !typing) {
 		if (wxFrame::MSWTranslateMessage(msg)) {
 			return true;
 		}
