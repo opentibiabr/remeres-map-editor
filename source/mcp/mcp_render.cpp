@@ -146,7 +146,7 @@ namespace mcp {
 
 	} // namespace
 
-	// ponytail: draws each item's base sprite (layer 0, frame 0) only - no
+	// Draws each item's base sprite (layer 0, frame 0) only - no
 	// animation phase, pattern variation or per-layer compositing. That covers
 	// ground, borders and walls, which is what region and brush previews are
 	// for. The full-fidelity reference is buildCyclopediaSatelliteChunk in
