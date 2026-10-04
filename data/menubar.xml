@@ -214,6 +214,15 @@
     </menu>
     <menu name="$Scripts">
     </menu>
+    <menu name="$Collaborate">
+        <item name="Collaborate $Panel" action="WIN_COLLAB" help="Show the collaboration panel: host or join a session, chat, comments and history."/>
+        <separator/>
+        <item name="$Host Session..." action="COLLAB_HOST" help="Share the current map with other editors."/>
+        <item name="$Join Session..." action="COLLAB_JOIN" help="Connect to a session hosted by someone else."/>
+        <item name="$Leave Session" action="COLLAB_LEAVE" help="Stop hosting or leave the current session."/>
+        <separator/>
+        <item name="Add $Comment at Cursor" action="COLLAB_ADD_COMMENT" help="Leave a comment on the tile under the cursor."/>
+    </menu>
     <menu name="$MCP">
         <item name="MCP $Server" action="WIN_MCP" help="Displays the MCP server window, which lets an AI client read and edit this map."/>
     </menu>

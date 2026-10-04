@@ -287,6 +287,7 @@ target_sources(
           main_toolbar.cpp
           map.cpp
           map_comments.cpp
+          collab/collab_window.cpp
           map_display.cpp
           map_drawer.cpp
           map_region.cpp

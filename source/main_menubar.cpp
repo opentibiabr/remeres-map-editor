@@ -33,6 +33,7 @@
 #include "lua/lua_script_manager.h"
 #include "lua/lua_scripts_window.h"
 #include "gui.h"
+#include "collab/collab_window.h"
 
 #include <wx/chartype.h>
 #include <wx/choicdlg.h>
@@ -768,6 +769,11 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(WIN_MINIMAP, wxITEM_NORMAL, OnMinimapWindow);
 	MAKE_ACTION(WIN_ACTIONS_HISTORY, wxITEM_NORMAL, OnActionsHistoryWindow);
 	MAKE_ACTION(WIN_MCP, wxITEM_NORMAL, OnMcpWindow);
+	MAKE_ACTION(WIN_COLLAB, wxITEM_NORMAL, OnCollabWindow);
+	MAKE_ACTION(COLLAB_HOST, wxITEM_NORMAL, OnCollabSession);
+	MAKE_ACTION(COLLAB_JOIN, wxITEM_NORMAL, OnCollabSession);
+	MAKE_ACTION(COLLAB_LEAVE, wxITEM_NORMAL, OnCollabSession);
+	MAKE_ACTION(COLLAB_ADD_COMMENT, wxITEM_NORMAL, OnCollabAddComment);
 	MAKE_ACTION(WIN_SQLITE_MATERIALS_INSPECTOR, wxITEM_NORMAL, OnSQLiteMaterialsInspector);
 	MAKE_ACTION(NEW_PALETTE, wxITEM_NORMAL, OnNewPalette);
 	MAKE_ACTION(TAKE_SCREENSHOT, wxITEM_NORMAL, OnTakeScreenshot);
@@ -940,6 +946,8 @@ void MainMenuBar::Update() {
 	bool is_local = has_map && !is_live;
 
 	EnableItem(CLOSE, is_local);
+	EnableItem(COLLAB_ADD_COMMENT, has_map);
+	EnableItem(COLLAB_LEAVE, false);
 	EnableItem(SAVE, is_host);
 	EnableItem(SAVE_AS, is_host);
 	EnableItem(GENERATE_MAP, false);
@@ -3055,6 +3063,19 @@ void MainMenuBar::OnActionsHistoryWindow(wxCommandEvent &WXUNUSED(event)) {
 
 void MainMenuBar::OnMcpWindow(wxCommandEvent &WXUNUSED(event)) {
 	g_gui.ShowMcpWindow();
+}
+
+void MainMenuBar::OnCollabWindow(wxCommandEvent &WXUNUSED(event)) {
+	g_gui.ShowCollabWindow();
+}
+
+// Host/Join/Leave only bring up the Session tab until networking is implemented.
+void MainMenuBar::OnCollabSession(wxCommandEvent &WXUNUSED(event)) {
+	g_gui.ShowCollabWindow()->SelectPage(CollabWindow::PAGE_SESSION);
+}
+
+void MainMenuBar::OnCollabAddComment(wxCommandEvent &WXUNUSED(event)) {
+	CollabWindow::AddCommentAtCursor();
 }
 
 void MainMenuBar::OnSQLiteMaterialsInspector(wxCommandEvent &WXUNUSED(event)) {

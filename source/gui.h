@@ -66,6 +66,7 @@ class MinimapWindow;
 class ActionsHistoryWindow;
 class LuaScriptsWindow;
 class McpWindow;
+class CollabWindow;
 class PaletteWindow;
 class OldPropertiesWindow;
 class TilesetWindow;
@@ -259,6 +260,7 @@ public:
 	LuaScriptsWindow* ShowScriptManagerWindow();
 
 	McpWindow* ShowMcpWindow();
+	CollabWindow* ShowCollabWindow();
 
 	// Minimap
 	void CreateMinimap();
@@ -445,6 +447,7 @@ public:
 	ActionsHistoryWindow* actions_history_window;
 	LuaScriptsWindow* script_manager_window;
 	McpWindow* mcp_window = nullptr;
+	CollabWindow* collab_window = nullptr;
 	GraphicManager gfx;
 
 	BaseMap* secondary_map; // A buffer map

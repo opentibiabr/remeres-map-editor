@@ -134,6 +134,11 @@ namespace MenuBar {
 		WIN_MINIMAP,
 		WIN_ACTIONS_HISTORY,
 		WIN_MCP,
+		WIN_COLLAB,
+		COLLAB_HOST,
+		COLLAB_JOIN,
+		COLLAB_LEAVE,
+		COLLAB_ADD_COMMENT,
 		WIN_SQLITE_MATERIALS_INSPECTOR,
 		NEW_PALETTE,
 		TAKE_SCREENSHOT,
@@ -302,6 +307,9 @@ public:
 	void OnMinimapWindow(wxCommandEvent &event);
 	void OnActionsHistoryWindow(wxCommandEvent &event);
 	void OnMcpWindow(wxCommandEvent &event);
+	void OnCollabWindow(wxCommandEvent &event);
+	void OnCollabSession(wxCommandEvent &event);
+	void OnCollabAddComment(wxCommandEvent &event);
 	void OnSQLiteMaterialsInspector(wxCommandEvent &event);
 	void OnNewPalette(wxCommandEvent &event);
 	void OnTakeScreenshot(wxCommandEvent &event);

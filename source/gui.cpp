@@ -43,6 +43,7 @@
 #include "actions_history_window.h"
 #include "lua/lua_scripts_window.h"
 #include "mcp/mcp_window.h"
+#include "collab/collab_window.h"
 #include "sprite_appearances.h"
 #include "preferences.h"
 
@@ -938,6 +939,17 @@ McpWindow* GUI::ShowMcpWindow() {
 	}
 	aui_manager->Update();
 	return mcp_window;
+}
+
+CollabWindow* GUI::ShowCollabWindow() {
+	if (!collab_window) {
+		collab_window = newd CollabWindow(root);
+		aui_manager->AddPane(collab_window, wxAuiPaneInfo().Name("collab").Caption("Collaborate").Right().Layer(1).Position(1).CloseButton(true).MinSize(320, 300).BestSize(420, 520));
+	} else {
+		aui_manager->GetPane(collab_window).Show();
+	}
+	aui_manager->Update();
+	return collab_window;
 }
 
 //=============================================================================
