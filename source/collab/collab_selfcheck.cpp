@@ -40,12 +40,25 @@
 #include <condition_variable>
 #include <cstdio>
 #include <mutex>
-#include <random>
+#include <cstdint>
 
 namespace collab {
 
 	namespace {
 		int failures = 0;
+
+		// fixed-sequence byte noise for the fuzz cases; not used for anything security related
+		struct Noise {
+			uint32_t state;
+			explicit Noise(uint32_t seed) :
+				state(seed ? seed : 1) { }
+			uint32_t operator()() {
+				state ^= state << 13;
+				state ^= state >> 17;
+				state ^= state << 5;
+				return state;
+			}
+		};
 
 		void check(bool ok, const char* what) {
 			if (!ok) {
@@ -97,7 +110,7 @@ namespace collab {
 				"string cap enforced");
 
 			// Garbage: either parses or throws ProtocolError, nothing else.
-			std::mt19937 rng(1234);
+			Noise rng(1234);
 			for (int i = 0; i < 2000; ++i) {
 				std::vector<uint8_t> garbage(rng() % 64);
 				for (auto &b : garbage) {
@@ -208,7 +221,7 @@ namespace collab {
 				std::string e;
 				check(!parseSnapshot(good.substr(0, cut), s, e), "truncated snapshot rejected");
 			}
-			std::mt19937 rng(99);
+			Noise rng(99);
 			for (int i = 0; i < 300; ++i) {
 				std::string garbage(1 + rng() % 200, '\0');
 				for (auto &c : garbage) {
@@ -264,7 +277,7 @@ namespace collab {
 			for (size_t cut = 0; cut < bytes.size(); ++cut) {
 				check(throwsProtocolError([&] { delete decodeTile(map, pos, bytes.substr(0, cut), io); }) || cut == 0, "truncated tile rejected");
 			}
-			std::mt19937 rng(7);
+			Noise rng(7);
 			for (int i = 0; i < 500; ++i) {
 				std::string garbage(rng() % 96, '\0');
 				for (auto &c : garbage) {
