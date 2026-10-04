@@ -80,6 +80,7 @@ private:
 	void SendChat();
 	void ShowUserMenu(uint32_t userId);
 	void RefreshHistory();
+	void RefreshPresence();
 	void ReplyToSelected();
 	void GoToNextOpen();
 	std::vector<const MapComment*> ThreadRoots() const;
@@ -125,6 +126,7 @@ private:
 	wxPanel* chat_page = nullptr;
 	wxTextCtrl* chat_log = nullptr;
 	wxTextCtrl* chat_input = nullptr;
+	wxStaticText* typing_label = nullptr;
 	int unread_chat = 0;
 	bool was_active = false;
 
@@ -134,6 +136,7 @@ private:
 	wxChoice* history_user = nullptr;
 	wxCheckBox* history_force = nullptr;
 	wxStaticText* history_status = nullptr;
+	wxSpinCtrl* history_minutes = nullptr;
 	bool history_requested = false;
 
 	// Comments page

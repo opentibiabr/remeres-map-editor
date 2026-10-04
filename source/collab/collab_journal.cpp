@@ -244,17 +244,18 @@ namespace collab {
 		return result;
 	}
 
-	JournalEntry Journal::appendInfo(const std::string &user, uint32_t color, const std::string &label) {
+	JournalEntry Journal::appendInfo(const std::string &user, uint32_t color, const std::string &label, int actionType) {
 		JournalEntry result;
 		if (!db) {
 			return result;
 		}
-		Stmt insert(db, "INSERT INTO entries(user_name, user_color, action_type, label, created, updated, tile_count, min_x, min_y, max_x, max_y, z_mask, state) VALUES(?1, ?2, 0, ?3, ?4, ?5, 0, 0, 0, 0, 0, 0, 3)");
+		Stmt insert(db, "INSERT INTO entries(user_name, user_color, action_type, label, created, updated, tile_count, min_x, min_y, max_x, max_y, z_mask, state) VALUES(?1, ?2, ?6, ?3, ?4, ?5, 0, 0, 0, 0, 0, 0, 3)");
 		insert.bind(1, user);
 		insert.bind(2, static_cast<int64_t>(color));
 		insert.bind(3, label);
 		insert.bind(4, static_cast<int64_t>(std::time(nullptr)));
 		insert.bind(5, nowMs());
+		insert.bind(6, static_cast<int64_t>(actionType));
 		insert.run();
 		get(sqlite3_last_insert_rowid(db), result);
 		return result;
@@ -273,6 +274,33 @@ namespace collab {
 			entries.push_back(readEntry(s));
 		}
 		return entries;
+	}
+
+	std::vector<JournalEntry> Journal::listSince(const std::string &user, int64_t sinceSeconds) {
+		std::vector<JournalEntry> entries;
+		Stmt s(db, (std::string("SELECT ") + kEntryColumns + " FROM entries WHERE created >= ?1 AND state NOT IN (1, 3) AND (?2 = '' OR user_name = ?2) ORDER BY id DESC LIMIT 500").c_str());
+		if (!s.ok()) {
+			return entries;
+		}
+		s.bind(1, sinceSeconds);
+		s.bind(2, user);
+		while (s.step()) {
+			entries.push_back(readEntry(s));
+		}
+		return entries;
+	}
+
+	std::vector<int64_t> Journal::idsAfter(int64_t id) {
+		std::vector<int64_t> ids;
+		Stmt s(db, "SELECT id FROM entries WHERE id > ?1 AND state != 3 ORDER BY id ASC");
+		if (!s.ok()) {
+			return ids;
+		}
+		s.bind(1, id);
+		while (s.step()) {
+			ids.push_back(s.integer(0));
+		}
+		return ids;
 	}
 
 	std::vector<JournalTile> Journal::tiles(int64_t id) {

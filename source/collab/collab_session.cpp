@@ -26,6 +26,7 @@
 #include "../action.h"
 #include "../editor.h"
 #include "../gui.h"
+#include "../brush.h"
 #include "../iomap.h"
 #include "../map_display.h"
 #include "../map_tab.h"
@@ -43,6 +44,7 @@
 #include <sodium.h>
 
 #include <ctime>
+#include <fstream>
 
 namespace collab {
 
@@ -129,6 +131,44 @@ namespace collab {
 			w.u16(static_cast<uint16_t>(pos.x));
 			w.u16(static_cast<uint16_t>(pos.y));
 			w.u8(static_cast<uint8_t>(pos.z));
+		}
+
+		void writePresence(ByteWriter &w, const Presence &presence) {
+			w.u8(presence.hasSelection ? 1 : 0);
+			if (presence.hasSelection) {
+				w.u16(static_cast<uint16_t>(presence.selFrom.x));
+				w.u16(static_cast<uint16_t>(presence.selFrom.y));
+				w.u16(static_cast<uint16_t>(presence.selTo.x));
+				w.u16(static_cast<uint16_t>(presence.selTo.y));
+				w.u8(static_cast<uint8_t>(presence.selFrom.z));
+			}
+			w.str(presence.tool);
+			w.u8(presence.typing ? 1 : 0);
+		}
+
+		Presence readPresence(ByteReader &r) {
+			Presence presence;
+			presence.hasSelection = r.u8() != 0;
+			if (presence.hasSelection) {
+				const int x1 = r.u16();
+				const int y1 = r.u16();
+				const int x2 = r.u16();
+				const int y2 = r.u16();
+				const int z = r.u8();
+				if (z > kMaxFloor) {
+					throw ProtocolError("invalid selection");
+				}
+				presence.selFrom = Position(std::min(x1, x2), std::min(y1, y2), z);
+				presence.selTo = Position(std::max(x1, x2), std::max(y1, y2), z);
+			}
+			presence.tool = sanitizeText(r.str(256), 40);
+			presence.typing = r.u8() != 0;
+			presence.updated = std::chrono::steady_clock::now();
+			return presence;
+		}
+
+		bool samePresence(const Presence &a, const Presence &b) {
+			return a.hasSelection == b.hasSelection && (!a.hasSelection || (a.selFrom == b.selFrom && a.selTo == b.selTo)) && a.tool == b.tool && a.typing == b.typing;
 		}
 
 		void writeClaimAdd(ByteWriter &w, const Claim &claim) {
@@ -414,7 +454,7 @@ namespace collab {
 	void Session::sendTo(Peer &peer, Msg type, const std::vector<uint8_t> &payload) {
 		if (!peer.streaming) {
 			peer.conn->send(type, payload);
-		} else if (type != Msg::Cursor && type != Msg::View) {
+		} else if (type != Msg::Cursor && type != Msg::View && type != Msg::Presence) {
 			peer.deferred.emplace_back(type, payload); // cursors and views are stale by the time the map is out
 		}
 	}
@@ -482,6 +522,7 @@ namespace collab {
 				peer.conn->send(frame.first, frame.second);
 			}
 			peer.deferred.clear();
+			sendPresenceTo(peer);
 
 			if (peer.resyncAfter && hostEditor) {
 				peer.resyncAfter = false;
@@ -654,6 +695,7 @@ namespace collab {
 			viewTimer = std::make_unique<ViewTimer>();
 		}
 		lastSentView = Position();
+		presenceSent = false;
 		viewTimer->Start(250);
 		acceptLoop(listener, generation, salt, keys);
 		changed();
@@ -860,6 +902,18 @@ namespace collab {
 				}
 				return;
 			}
+			case Msg::Presence: {
+				const Presence presence = readPresence(reader);
+				remotePresence[actor.id] = presence;
+				ByteWriter w;
+				w.u32(actor.id);
+				writePresence(w, presence);
+				broadcast(Msg::Presence, w.buffer, peer.conn.get());
+				if (onPresenceChanged) {
+					onPresenceChanged();
+				}
+				return;
+			}
 			case Msg::Summon: {
 				const Position target = readView(reader);
 				if (actor.role != Role::Host && actor.role != Role::Admin) {
@@ -894,6 +948,9 @@ namespace collab {
 			case Msg::HistoryRevert:
 			case Msg::HistoryReapply:
 			case Msg::HistoryPreview:
+			case Msg::HistoryMark:
+			case Msg::HistoryRestore:
+			case Msg::HistoryRevertRecent:
 				hostHistoryFrame(peer, actor, type, reader);
 				return;
 			case Msg::SaveRequest:
@@ -1121,6 +1178,7 @@ namespace collab {
 			viewTimer = std::make_unique<ViewTimer>();
 		}
 		lastSentView = Position();
+		presenceSent = false;
 		viewTimer->Start(250);
 		changed();
 	}
@@ -1162,6 +1220,7 @@ namespace collab {
 				userList.erase(id);
 				remoteCursors.erase(id);
 				remoteViews.erase(id);
+				remotePresence.erase(id);
 				if (followId == id) {
 					followId = 0;
 				}
@@ -1217,6 +1276,20 @@ namespace collab {
 					remoteViews[id] = view;
 					if (followId == id) {
 						applyFollow(view);
+					}
+				}
+				return;
+			}
+			case Msg::Presence: {
+				const uint32_t id = reader.u32();
+				const Presence presence = readPresence(reader);
+				if (id != selfId && userList.count(id)) {
+					remotePresence[id] = presence;
+					if (onPresenceChanged) {
+						onPresenceChanged();
+					}
+					if (onOverlayChanged) {
+						onOverlayChanged();
 					}
 				}
 				return;
@@ -1317,6 +1390,7 @@ namespace collab {
 			userList.erase(user);
 			remoteCursors.erase(peer.userId);
 			remoteViews.erase(peer.userId);
+			remotePresence.erase(peer.userId);
 			if (followId == peer.userId) {
 				followId = 0;
 			}
@@ -2124,6 +2198,201 @@ namespace collab {
 		}
 	}
 
+	void Session::replyHistoryResult(Peer &peer, int64_t entryId, const RevertOutcome &outcome) {
+		ByteWriter w;
+		w.u64(static_cast<uint64_t>(entryId));
+		w.u8(outcome.ok ? 1 : 0);
+		w.u32(outcome.applied);
+		w.u32(outcome.skipped);
+		w.u16(0);
+		w.str(outcome.message);
+		sendTo(peer, Msg::HistoryResult, w.buffer);
+	}
+
+	// Applies tiles as one revert-like action by the actor (it shows up in the history as theirs).
+	void Session::applyAsAction(const User &actor, std::vector<Tile*> &tiles, const std::string &label) {
+		if (tiles.empty() || !hostEditor) {
+			return;
+		}
+		revertLabel = label;
+		Action* action = hostEditor->createAction(ACTION_COLLAB_REVERT);
+		for (Tile* tile : tiles) {
+			action->addChange(newd Change(tile));
+		}
+		tiles.clear();
+		beginApply(actor.id, 0);
+		{
+			ScopeExit done { [this] { endApply(); } };
+			hostEditor->addAction(action);
+		}
+		revertLabel.clear();
+		g_gui.RefreshView();
+	}
+
+	Session::RevertOutcome Session::executeRestore(const User &actor, int64_t pointId) {
+		RevertOutcome outcome;
+		if (!journal || !hostEditor || currentState != State::Hosting || (actor.role != Role::Host && actor.role != Role::Admin)) {
+			outcome.message = "Only the host and admins can restore";
+			return outcome;
+		}
+		JournalEntry point;
+		if (!journal->get(pointId, point) || point.actionType != kRestorePoint) {
+			outcome.message = "That entry is not a restore point";
+			return outcome;
+		}
+
+		// Walking the history forward, the first "before" of a tile is how it was at the point.
+		const std::vector<int64_t> ids = journal->idsAfter(pointId);
+		std::map<Position, std::string> wanted;
+		for (int64_t id : ids) {
+			for (const JournalTile &row : journal->tiles(id)) {
+				wanted.emplace(row.pos, row.before);
+			}
+		}
+
+		Map &map = hostEditor->getMap();
+		VirtualIOMap io(map.getVersion());
+		std::vector<Tile*> tiles;
+		for (const auto &entry : wanted) {
+			if (encodeTile(map.getTile(entry.first), io) == entry.second) {
+				continue;
+			}
+			try {
+				tiles.push_back(decodeTile(map, entry.first, entry.second, io));
+			} catch (const ProtocolError &) {
+				++outcome.skipped;
+			}
+		}
+		outcome.applied = static_cast<uint32_t>(tiles.size());
+		applyAsAction(actor, tiles, "Restore #" + std::to_string(pointId));
+
+		for (int64_t id : ids) {
+			journal->setState(id, EntryState::Reverted);
+			JournalEntry updated;
+			if (journal->get(id, updated)) {
+				publishEntry(updated);
+			}
+		}
+		outcome.ok = true;
+		outcome.message = fmt::format("Restored {} tiles to \"{}\" ({} entries rolled back)", outcome.applied, point.label, ids.size());
+		return outcome;
+	}
+
+	Session::RevertOutcome Session::executeRevertRecent(const User &actor, const std::string &user, int minutes, bool force) {
+		RevertOutcome total;
+		if (!journal || !hostEditor || currentState != State::Hosting || (actor.role != Role::Host && actor.role != Role::Admin)) {
+			total.message = "Only the host and admins can revert";
+			return total;
+		}
+		if (user.empty() || minutes <= 0) {
+			total.message = "Pick a user and a number of minutes";
+			return total;
+		}
+
+		// Newest first, so that each entry meets the map the way its own edit left it.
+		const std::vector<JournalEntry> entries = journal->listSince(user, nowSeconds() - static_cast<int64_t>(minutes) * 60);
+		size_t reverted = 0;
+		for (const JournalEntry &entry : entries) {
+			const RevertOutcome one = executeRevert(actor, entry.id, false, force);
+			if (one.ok) {
+				++reverted;
+				total.applied += one.applied;
+				total.skipped += one.skipped;
+			}
+		}
+		total.ok = true;
+		total.message = fmt::format("Reverted {} entries by {} from the last {} minutes: {} tiles, {} skipped", reverted, user, minutes, total.applied, total.skipped);
+		return total;
+	}
+
+	void Session::markRestorePoint(const std::string &name) {
+		const std::string clean = sanitizeText(name, 64);
+		const User* me = self();
+		if (clean.empty() || !me || !canSeeHistory()) {
+			return;
+		}
+		if (currentState == State::Hosting) {
+			if (journal) {
+				publishEntry(journal->appendInfo(me->name, me->color, "Restore point: " + clean, kRestorePoint));
+			}
+		} else if (link) {
+			ByteWriter w;
+			w.str(clean);
+			link->send(Msg::HistoryMark, w.buffer);
+		}
+	}
+
+	void Session::restoreToPoint(int64_t entryId) {
+		clearPreview();
+		if (currentState == State::Hosting) {
+			const User* me = self();
+			if (me) {
+				const RevertOutcome outcome = executeRestore(*me, entryId);
+				if (onHistoryResult) {
+					onHistoryResult(outcome.message);
+				}
+			}
+		} else if (canSeeHistory() && link) {
+			ByteWriter w;
+			w.u64(static_cast<uint64_t>(entryId));
+			link->send(Msg::HistoryRestore, w.buffer);
+		}
+	}
+
+	void Session::revertRecent(const std::string &user, int minutes, bool force) {
+		clearPreview();
+		if (currentState == State::Hosting) {
+			const User* me = self();
+			if (me) {
+				const RevertOutcome outcome = executeRevertRecent(*me, user, minutes, force);
+				if (onHistoryResult) {
+					onHistoryResult(outcome.message);
+				}
+			}
+		} else if (canSeeHistory() && link) {
+			ByteWriter w;
+			w.str(user);
+			w.u32(static_cast<uint32_t>(std::max(minutes, 0)));
+			w.u8(force ? 1 : 0);
+			link->send(Msg::HistoryRevertRecent, w.buffer);
+		}
+	}
+
+	bool Session::exportHistoryCsv(const std::string &path) {
+		if (!canSeeHistory()) {
+			return false;
+		}
+		// The host has all of it; an admin exports what is loaded in the tab.
+		const std::vector<JournalEntry> entries = (currentState == State::Hosting && journal) ? journal->list(0, 1000000, std::string()) : historyList;
+
+		auto field = [](std::string text) {
+			std::string quoted = "\"";
+			for (char c : text) {
+				quoted += c == '"' ? std::string("\"\"") : std::string(1, c);
+			}
+			return quoted + "\"";
+		};
+		std::ofstream file(path, std::ios::binary | std::ios::trunc);
+		if (!file) {
+			return false;
+		}
+		file << "id,time,user,action,tiles,state,x,y,z\r\n";
+		static const char* const states[] = { "applied", "reverted", "partial", "info" };
+		for (const JournalEntry &entry : entries) {
+			char when[32] = {};
+			const std::time_t seconds = static_cast<std::time_t>(entry.created);
+			std::tm local {};
+#ifdef _WIN32
+			localtime_s(&local, &seconds);
+#else
+			localtime_r(&seconds, &local);
+#endif
+			std::strftime(when, sizeof(when), "%Y-%m-%d %H:%M:%S", &local);
+			file << entry.id << ',' << when << ',' << field(entry.user) << ',' << field(entry.label) << ',' << entry.tileCount << ',' << states[std::clamp(entry.state, 0, 3)] << ',' << entry.center.x << ',' << entry.center.y << ',' << entry.center.z << "\r\n";
+		}
+		return static_cast<bool>(file);
+	}
+
 	void Session::previewEntry(int64_t entryId, bool reapply, bool force) {
 		if (!canSeeHistory()) {
 			return;
@@ -2214,6 +2483,26 @@ namespace collab {
 			return;
 		}
 
+		if (type == Msg::HistoryMark) {
+			const std::string name = sanitizeText(reader.str(256), 64);
+			if (!name.empty() && journal) {
+				const JournalEntry mark = journal->appendInfo(actor.name, actor.color, "Restore point: " + name, kRestorePoint);
+				publishEntry(mark);
+			}
+			return;
+		}
+		if (type == Msg::HistoryRestore) {
+			const auto pointId = static_cast<int64_t>(reader.u64());
+			replyHistoryResult(peer, pointId, executeRestore(actor, pointId));
+			return;
+		}
+		if (type == Msg::HistoryRevertRecent) {
+			const std::string user = sanitizeText(reader.str(kMaxName * 4), kMaxName);
+			const int minutes = static_cast<int>(std::min<uint32_t>(reader.u32(), 24 * 60));
+			const bool recentForce = reader.u8() != 0;
+			replyHistoryResult(peer, 0, executeRevertRecent(actor, user, minutes, recentForce));
+			return;
+		}
 		if (type == Msg::HistoryPreview) {
 			const auto previewId = static_cast<int64_t>(reader.u64());
 			const bool reapply = reader.u8() != 0;
@@ -2309,6 +2598,66 @@ namespace collab {
 
 	// ---- views and summons ---------------------------------------------------------------
 
+	Presence Session::currentPresence() const {
+		Presence presence;
+		Editor* editor = boundEditor();
+		if (editor && editor->hasSelection()) {
+			const Position from = editor->getSelection().minPosition();
+			const Position to = editor->getSelection().maxPosition();
+			if (from.z == to.z) { // a selection over several floors is not shown
+				presence.hasSelection = true;
+				presence.selFrom = from;
+				presence.selTo = to;
+			}
+		}
+		if (g_gui.IsSelectionMode()) {
+			presence.tool = "Selecting";
+		} else if (Brush* brush = g_gui.GetCurrentBrush()) {
+			presence.tool = sanitizeText(brush->getName(), 40);
+		}
+		presence.typing = everTyped && Clock::now() - lastTyping < std::chrono::seconds(3);
+		return presence;
+	}
+
+	void Session::onLocalTyping() {
+		everTyped = true;
+		lastTyping = Clock::now();
+	}
+
+	void Session::sendPresenceTo(Peer &peer) {
+		for (const auto &entry : remoteViews) {
+			if (entry.first == peer.userId) {
+				continue;
+			}
+			ByteWriter w;
+			w.u32(entry.first);
+			writeView(w, entry.second);
+			peer.conn->send(Msg::View, w.buffer);
+		}
+		for (const auto &entry : remotePresence) {
+			if (entry.first == peer.userId) {
+				continue;
+			}
+			ByteWriter w;
+			w.u32(entry.first);
+			writePresence(w, entry.second);
+			peer.conn->send(Msg::Presence, w.buffer);
+		}
+		if (presenceSent) { // the host's own
+			ByteWriter w;
+			w.u32(selfId);
+			writePresence(w, lastSentPresence);
+			peer.conn->send(Msg::Presence, w.buffer);
+		}
+		const Position view = lastSentView;
+		if (view.isValid()) {
+			ByteWriter w;
+			w.u32(selfId);
+			writeView(w, view);
+			peer.conn->send(Msg::View, w.buffer);
+		}
+	}
+
 	Position Session::currentView() const {
 		MapTab* tab = g_gui.GetCurrentMapTab();
 		Editor* editor = boundEditor();
@@ -2394,18 +2743,45 @@ namespace collab {
 			stopFollowing();
 		}
 
-		if (view == lastSentView) {
-			return;
+		if (view != lastSentView) {
+			lastSentView = view;
+			ByteWriter w;
+			if (currentState == State::Hosting) {
+				w.u32(selfId);
+				writeView(w, view);
+				broadcast(Msg::View, w.buffer);
+			} else if (link) {
+				writeView(w, view);
+				link->send(Msg::View, w.buffer);
+			}
 		}
-		lastSentView = view;
-		ByteWriter w;
-		if (currentState == State::Hosting) {
-			w.u32(selfId);
-			writeView(w, view);
-			broadcast(Msg::View, w.buffer);
-		} else if (link) {
-			writeView(w, view);
-			link->send(Msg::View, w.buffer);
+
+		// Selection, tool and typing, sent when something changed.
+		const Presence presence = currentPresence();
+		if (!presenceSent || !samePresence(presence, lastSentPresence)) {
+			lastSentPresence = presence;
+			presenceSent = true;
+			ByteWriter w;
+			if (currentState == State::Hosting) {
+				w.u32(selfId);
+				writePresence(w, presence);
+				broadcast(Msg::Presence, w.buffer);
+			} else if (link) {
+				writePresence(w, presence);
+				link->send(Msg::Presence, w.buffer);
+			}
+		}
+
+		// Somebody who stopped typing without telling us (connection trouble) does not type forever.
+		bool expired = false;
+		for (auto &entry : remotePresence) {
+			if (entry.second.typing && Clock::now() - entry.second.updated > std::chrono::seconds(5)) {
+				entry.second.typing = false;
+				expired = true;
+			}
+		}
+		if (expired && onPresenceChanged) {
+			onPresenceChanged();
 		}
 	}
 
@@ -2758,6 +3134,9 @@ namespace collab {
 		deferredCursor.valid = false;
 		followId = 0;
 		remoteViews.clear();
+		remotePresence.clear();
+		presenceSent = false;
+		everTyped = false;
 		claimList.clear();
 		lanList.clear();
 		previewChangeList.clear();

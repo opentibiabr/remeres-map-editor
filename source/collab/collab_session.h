@@ -64,6 +64,16 @@ namespace collab {
 		Position to;
 	};
 
+	// What somebody is doing besides pointing: their selection, their tool, whether they type in the chat.
+	struct Presence {
+		bool hasSelection = false;
+		Position selFrom;
+		Position selTo;
+		std::string tool;
+		bool typing = false;
+		std::chrono::steady_clock::time_point updated;
+	};
+
 	struct ChatLine {
 		uint32_t userId = 0;
 		std::string name;
@@ -156,6 +166,14 @@ namespace collab {
 		void reapplyEntry(int64_t entryId, bool force);
 		// Admins ask the host to save the map.
 		void requestSave();
+		// Named restore points and bulk reverts (host and admins).
+		void markRestorePoint(const std::string &name);
+		// Puts the map back to how it was at that restore point (an entry with kRestorePoint).
+		void restoreToPoint(int64_t entryId);
+		// Reverts everything a user did in the last minutes, newest first.
+		void revertRecent(const std::string &user, int minutes, bool force);
+		// Writes the loaded history (all of it on the host) as CSV.
+		bool exportHistoryCsv(const std::string &path);
 		const std::vector<JournalEntry> &history() const noexcept {
 			return historyList;
 		}
@@ -188,6 +206,17 @@ namespace collab {
 		}
 		// Host and admins: everybody's camera goes to where mine is.
 		void summonAll();
+
+		// ---- presence ----
+		const std::unordered_map<uint32_t, Presence> &presences() const noexcept {
+			return remotePresence;
+		}
+		// Where the others' cameras are (the minimap shows them).
+		const std::unordered_map<uint32_t, Position> &views() const noexcept {
+			return remoteViews;
+		}
+		// The chat input changed: others see "typing...".
+		void onLocalTyping();
 
 		// ---- reserved areas ----
 		void claimArea(const Position &a, const Position &b);
@@ -239,6 +268,8 @@ namespace collab {
 		// Set by the panel. Called on the GUI thread.
 		std::function<void()> onChanged;
 		std::function<void(const ChatLine &)> onChat;
+		// Somebody's selection, tool or typing state changed.
+		std::function<void()> onPresenceChanged;
 		// Comments were added, changed or removed by somebody else.
 		std::function<void()> onCommentsChanged;
 		// A remote cursor moved: the map views need a repaint.
@@ -310,6 +341,10 @@ namespace collab {
 		void clientMetaOps(ByteReader &reader);
 		void clientClaims(ByteReader &reader);
 
+		// Presence
+		Presence currentPresence() const;
+		void sendPresenceTo(Peer &peer);
+
 		// Views, claims
 		Position currentView() const;
 		void applyFollow(const Position &view);
@@ -330,6 +365,10 @@ namespace collab {
 		};
 		RevertOutcome executeRevert(const User &actor, int64_t entryId, bool reapply, bool force, bool dryRun = false);
 		void runHistoryAction(int64_t entryId, bool reapply, bool force);
+		RevertOutcome executeRestore(const User &actor, int64_t pointId);
+		RevertOutcome executeRevertRecent(const User &actor, const std::string &user, int minutes, bool force);
+		void applyAsAction(const User &actor, std::vector<Tile*> &tiles, const std::string &label);
+		void replyHistoryResult(Peer &peer, int64_t entryId, const RevertOutcome &outcome);
 		void recordHistory(uint32_t origin, int actionType, const std::vector<JournalTile> &rows);
 		void recordMetaInfo(uint32_t origin, const std::vector<MetaOp> &ops);
 		void publishEntry(const JournalEntry &entry);
@@ -392,6 +431,11 @@ namespace collab {
 		std::vector<std::string> lanList;
 		std::vector<Position> previewChangeList;
 		std::deque<Toast> toastQueue;
+		std::unordered_map<uint32_t, Presence> remotePresence;
+		Presence lastSentPresence;
+		bool presenceSent = false;
+		bool everTyped = false;
+		std::chrono::steady_clock::time_point lastTyping;
 		std::vector<Position> previewConflictList;
 		struct DeferredCursor {
 			Position pos;

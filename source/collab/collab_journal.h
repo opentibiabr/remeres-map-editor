@@ -29,6 +29,8 @@ struct sqlite3;
 
 namespace collab {
 
+	constexpr int kRestorePoint = 100; // JournalEntry::actionType of a restore point
+
 	enum class EntryState : int {
 		Applied = 0,
 		Reverted = 1,
@@ -74,7 +76,12 @@ namespace collab {
 		// the last "after" wins). Tiles whose bytes did not change are dropped. Returns the entry
 		// the batch ended up in, id 0 if nothing was recorded.
 		JournalEntry append(const std::string &user, uint32_t color, int actionType, const std::string &label, const std::vector<JournalTile> &tiles);
-		JournalEntry appendInfo(const std::string &user, uint32_t color, const std::string &label);
+		// actionType kRestorePoint marks a named restore point.
+		JournalEntry appendInfo(const std::string &user, uint32_t color, const std::string &label, int actionType = 0);
+		// Entries of a user (any user when empty) made since a time, newest first, that can still be reverted.
+		std::vector<JournalEntry> listSince(const std::string &user, int64_t sinceSeconds);
+		// Revertable entries after the given one, oldest first.
+		std::vector<int64_t> idsAfter(int64_t id);
 
 		std::vector<JournalEntry> list(int64_t beforeId, int limit, const std::string &userFilter);
 		bool get(int64_t id, JournalEntry &out);

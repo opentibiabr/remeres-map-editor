@@ -77,6 +77,10 @@ namespace collab {
 		Claims, // S->C op (0 add, 1 remove), claim
 		HistoryPreview, // C(admin)->S entryId, reapply, force: what would a revert change
 		HistoryPreviewResult, // S->C tiles it would change, conflicts, message
+		HistoryMark, // C(admin)->S name: a named restore point
+		HistoryRestore, // C(admin)->S restore point entry id
+		HistoryRevertRecent, // C(admin)->S user, minutes, force
+		Presence, // C->S selection, tool, typing; S->C with the user id first
 	};
 
 	enum class Role : uint8_t {

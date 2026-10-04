@@ -28,6 +28,7 @@
 
 #include <wx/button.h>
 #include <wx/clipboard.h>
+#include <wx/filedlg.h>
 #include <wx/clrpicker.h>
 #include <wx/combobox.h>
 #include <wx/dialog.h>
@@ -60,6 +61,7 @@ namespace {
 	enum UserColumn {
 		USER_NAME,
 		USER_ROLE,
+		USER_DOING,
 	};
 
 	wxButton* makeButton(wxWindow* parent, wxSizer* sizer, const wxString &label) {
@@ -126,6 +128,7 @@ CollabWindow::CollabWindow(wxWindow* parent) :
 	collab::Session &collab_session = collab::Session::get();
 	collab_session.onChanged = [this] { OnSessionChanged(); };
 	collab_session.onChat = [this](const collab::ChatLine &line) { AppendChat(line); };
+	collab_session.onPresenceChanged = [this] { RefreshPresence(); };
 	collab_session.onHistoryChanged = [this] { RefreshHistory(); };
 	collab_session.onCommentsChanged = [this] { RefreshComments(); };
 	collab_session.onHistoryResult = [this](const std::string &message) { history_status->SetLabel(wxstr(message)); };
@@ -137,6 +140,7 @@ CollabWindow::~CollabWindow() {
 	collab::Session &collab_session = collab::Session::get();
 	collab_session.onChanged = nullptr;
 	collab_session.onChat = nullptr;
+	collab_session.onPresenceChanged = nullptr;
 	collab_session.onHistoryChanged = nullptr;
 	collab_session.onCommentsChanged = nullptr;
 	collab_session.onHistoryResult = nullptr;
@@ -290,7 +294,8 @@ void CollabWindow::BuildSessionPage(wxWindow* page) {
 	auto* active = newd wxBoxSizer(wxVERTICAL);
 	user_list = newd wxListCtrl(active_panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL);
 	user_list->InsertColumn(USER_NAME, "Participant", wxLIST_FORMAT_LEFT, 180);
-	user_list->InsertColumn(USER_ROLE, "Role", wxLIST_FORMAT_LEFT, 80);
+	user_list->InsertColumn(USER_ROLE, "Role", wxLIST_FORMAT_LEFT, 74);
+	user_list->InsertColumn(USER_DOING, "Doing", wxLIST_FORMAT_LEFT, 110);
 	user_list->Bind(wxEVT_LIST_ITEM_RIGHT_CLICK, [this](wxListEvent &event) {
 		ShowUserMenu(static_cast<uint32_t>(user_list->GetItemData(event.GetIndex())));
 	});
@@ -448,6 +453,21 @@ void CollabWindow::OnSessionChanged() {
 	Layout();
 }
 
+// Somebody started or stopped typing, or changed tool: the list and the chat hint follow.
+void CollabWindow::RefreshPresence() {
+	RefreshUsers();
+
+	wxString who;
+	int typing = 0;
+	for (const auto &entry : collab::Session::get().presences()) {
+		auto user = collab::Session::get().users().find(entry.first);
+		if (entry.second.typing && user != collab::Session::get().users().end()) {
+			who += (typing++ ? ", " : "") + wxstr(user->second.name);
+		}
+	}
+	typing_label->SetLabel(typing == 0 ? wxString() : (typing == 1 ? who + " is typing..." : who + " are typing..."));
+}
+
 void CollabWindow::RefreshUsers() {
 	user_list->DeleteAllItems();
 	const collab::Session &collab_session = collab::Session::get();
@@ -459,6 +479,14 @@ void CollabWindow::RefreshUsers() {
 		}
 		long row = user_list->InsertItem(user_list->GetItemCount(), label);
 		user_list->SetItem(row, USER_ROLE, collab::roleName(user.role));
+		const auto presence = collab_session.presences().find(user.id);
+		if (presence != collab_session.presences().end()) {
+			wxString doing = wxstr(presence->second.tool);
+			if (presence->second.typing) {
+				doing += doing.empty() ? "typing..." : " (typing...)";
+			}
+			user_list->SetItem(row, USER_DOING, doing);
+		}
 		user_list->SetItemData(row, user.id);
 		user_list->SetItemTextColour(row, toColour(user.color));
 	}
@@ -546,10 +574,14 @@ void CollabWindow::BuildChatPage(wxWindow* page) {
 	chat_log = newd wxTextCtrl(page, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_RICH2 | wxTE_READONLY);
 	root->Add(chat_log, 1, wxEXPAND | wxALL, 6);
 
+	typing_label = newd wxStaticText(page, wxID_ANY, "");
+	root->Add(typing_label, 0, wxEXPAND | wxLEFT | wxRIGHT, 6);
+
 	auto* input_row = newd wxBoxSizer(wxHORIZONTAL);
 	chat_input = newd wxTextCtrl(page, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
 	chat_input->SetMaxLength(collab::kMaxChat);
 	chat_input->Bind(wxEVT_TEXT_ENTER, [this](wxCommandEvent &) { SendChat(); });
+	chat_input->Bind(wxEVT_TEXT, [](wxCommandEvent &) { collab::Session::get().onLocalTyping(); });
 	// Typing must not trigger the editor's single-key hotkeys.
 	chat_input->Bind(wxEVT_SET_FOCUS, [](wxFocusEvent &event) {
 		g_gui.DisableHotkeys();
@@ -675,7 +707,7 @@ void CollabWindow::BuildHistoryPage(wxWindow* page) {
 	history_force = newd wxCheckBox(page, wxID_ANY, "Force (overwrite tiles changed later)");
 	root->Add(history_force, 0, wxLEFT | wxRIGHT | wxTOP, 6);
 
-	auto* buttons = newd wxBoxSizer(wxHORIZONTAL);
+	auto* buttons = newd wxWrapSizer(wxHORIZONTAL);
 	makeButton(page, buttons, "Revert")->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
 		if (const collab::JournalEntry* entry = SelectedHistoryEntry()) {
 			collab::Session::get().revertEntry(entry->id, history_force->GetValue());
@@ -700,6 +732,40 @@ void CollabWindow::BuildHistoryPage(wxWindow* page) {
 	};
 	makeButton(page, buttons, "Go to")->Bind(wxEVT_BUTTON, [goTo](wxCommandEvent &) { goTo(); });
 	history_list->Bind(wxEVT_LIST_ITEM_ACTIVATED, [goTo](wxListEvent &) { goTo(); });
+	makeButton(page, buttons, "Mark restore point...")->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
+		wxTextEntryDialog dialog(this, "Name of this moment (for example \"before the new town\"):", "Restore point");
+		if (dialog.ShowModal() == wxID_OK && !dialog.GetValue().Trim().IsEmpty()) {
+			collab::Session::get().markRestorePoint(nstr(dialog.GetValue()));
+		}
+	});
+	makeButton(page, buttons, "Restore to point")->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
+		const collab::JournalEntry* entry = SelectedHistoryEntry();
+		if (!entry || entry->actionType != collab::kRestorePoint) {
+			history_status->SetLabel("Select a restore point in the list first");
+			return;
+		}
+		if (wxMessageBox("Put the whole map back to \"" + wxstr(entry->label) + "\"? Everything edited after it is undone, for everybody.", "Restore", wxYES_NO | wxICON_QUESTION, this) == wxYES) {
+			collab::Session::get().restoreToPoint(entry->id);
+		}
+	});
+	history_minutes = newd wxSpinCtrl(page, wxID_ANY, "10", wxDefaultPosition, wxSize(56, -1), wxSP_ARROW_KEYS, 1, 1440, 10);
+	buttons->Add(history_minutes, 0, wxRIGHT | wxALIGN_CENTER_VERTICAL, 4);
+	makeButton(page, buttons, "Revert user's last minutes")->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
+		const std::string user = HistoryFilter();
+		if (user.empty()) {
+			history_status->SetLabel("Pick a user in the filter first");
+			return;
+		}
+		if (wxMessageBox(wxString::Format("Revert everything %s did in the last %d minutes?", wxstr(user), history_minutes->GetValue()), "Revert", wxYES_NO | wxICON_QUESTION, this) == wxYES) {
+			collab::Session::get().revertRecent(user, history_minutes->GetValue(), history_force->GetValue());
+		}
+	});
+	makeButton(page, buttons, "Export CSV")->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
+		wxFileDialog dialog(this, "Export the history", wxEmptyString, "history.csv", "CSV (*.csv)|*.csv", wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
+		if (dialog.ShowModal() == wxID_OK) {
+			history_status->SetLabel(collab::Session::get().exportHistoryCsv(nstr(dialog.GetPath())) ? "History exported" : "Could not write the file");
+		}
+	});
 	makeButton(page, buttons, "Refresh")->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { collab::Session::get().requestHistory(0, HistoryFilter()); });
 	makeButton(page, buttons, "Older")->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
 		const auto &entries = collab::Session::get().history();

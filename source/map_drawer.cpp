@@ -795,6 +795,29 @@ void MapDrawer::DrawCollabCursors() {
 		}
 	}
 
+	// What the others have selected.
+	for (const auto &entry : session.presences()) {
+		const collab::Presence &presence = entry.second;
+		const auto user = session.users().find(entry.first);
+		if (!presence.hasSelection || user == session.users().end() || presence.selFrom.z != floor) {
+			continue;
+		}
+		const int offset = floorOffset(presence.selFrom.z);
+		const float x0 = static_cast<float>(((presence.selFrom.x * rme::TileSize) - view_scroll_x) - offset);
+		const float y0 = static_cast<float>(((presence.selFrom.y * rme::TileSize) - view_scroll_y) - offset);
+		const float w = static_cast<float>((presence.selTo.x - presence.selFrom.x + 1) * rme::TileSize);
+		const float h = static_cast<float>((presence.selTo.y - presence.selFrom.y + 1) * rme::TileSize);
+		if (x0 > screensize_x * zoom || y0 > screensize_y * zoom || x0 + w < 0 || y0 + h < 0) {
+			continue;
+		}
+		const uint32_t rgb = user->second.color;
+		const auto r = static_cast<uint8_t>(rgb >> 16);
+		const auto g = static_cast<uint8_t>(rgb >> 8);
+		const auto b = static_cast<uint8_t>(rgb);
+		renderer->drawColoredQuad(x0, y0, w, h, { r, g, b, 22 });
+		renderer->drawRect(x0, y0, w, h, { r, g, b, 170 }, 1.0f);
+	}
+
 	// What a revert or reapply would do: tiles it changes in yellow, tiles it would skip in red.
 	auto drawPreview = [&](const std::vector<Position> &tiles, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
 		for (const Position &pos : tiles) {
