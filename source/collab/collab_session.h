@@ -52,6 +52,16 @@ namespace collab {
 		std::chrono::steady_clock::time_point lastUpdate;
 	};
 
+	// A rectangle of one floor an editor marked as theirs. Only a hint, nothing is enforced.
+	struct Claim {
+		uint32_t id = 0;
+		uint32_t ownerId = 0;
+		std::string ownerName;
+		uint32_t color = 0;
+		Position from;
+		Position to;
+	};
+
 	struct ChatLine {
 		uint32_t userId = 0;
 		std::string name;
@@ -142,6 +152,39 @@ namespace collab {
 		void setRole(uint32_t userId, Role role);
 		void kick(uint32_t userId);
 
+		// ---- following and gathering ----
+		// Follows another participant's camera until the user moves their own.
+		void follow(uint32_t userId);
+		void stopFollowing();
+		uint32_t followedUser() const noexcept {
+			return followId;
+		}
+		// Host and admins: everybody's camera goes to where mine is.
+		void summonAll();
+
+		// ---- reserved areas ----
+		void claimArea(const Position &a, const Position &b);
+		void releaseMyClaims();
+		const std::map<uint32_t, Claim> &claims() const noexcept {
+			return claimList;
+		}
+
+		// ---- inviting ----
+		// Local network addresses of the host, for the invite.
+		const std::vector<std::string> &lanAddresses() const noexcept {
+			return lanList;
+		}
+
+		// ---- revert preview (host and admins) ----
+		void previewEntry(int64_t entryId, bool reapply, bool force);
+		void clearPreview();
+		const std::vector<Position> &previewChanges() const noexcept {
+			return previewChangeList;
+		}
+		const std::vector<Position> &previewConflicts() const noexcept {
+			return previewConflictList;
+		}
+
 		uint32_t myId() const noexcept {
 			return selfId;
 		}
@@ -171,6 +214,8 @@ namespace collab {
 		std::function<void(const ChatLine &)> onChat;
 		// A remote cursor moved: the map views need a repaint.
 		std::function<void()> onCursorsChanged;
+		// Claims or the revert preview changed: the map views need a repaint.
+		std::function<void()> onOverlayChanged;
 
 		// Network callbacks (already on the GUI thread). Public only for the CallAfter lambdas.
 		void handleAccepted(const Connection::Ptr &conn, uint64_t generation);
@@ -180,6 +225,7 @@ namespace collab {
 		void onPumpTick();
 		void onMetaTick();
 		void onCursorTick();
+		void onViewTick();
 
 	private:
 		struct Peer {
@@ -233,6 +279,16 @@ namespace collab {
 		void clientSnapshotFrame(Msg type, ByteReader &reader);
 		void clientTileUpdate(ByteReader &reader);
 		void clientMetaOps(ByteReader &reader);
+		void clientClaims(ByteReader &reader);
+
+		// Views, claims
+		Position currentView() const;
+		void applyFollow(const Position &view);
+		void applySummon(const std::string &who, const Position &target);
+		void hostAddClaim(const User &actor, const Position &a, const Position &b);
+		void hostRemoveClaim(const User &actor, uint32_t claimId);
+		void removeClaimsOf(uint32_t userId);
+		void warnAboutClaims(const std::map<Position, std::string> &tiles);
 
 		// History and saving
 		struct RevertOutcome {
@@ -240,9 +296,10 @@ namespace collab {
 			uint32_t applied = 0;
 			uint32_t skipped = 0;
 			std::vector<Position> conflicts;
+			std::vector<Position> changes; // dry runs only: the tiles that would change
 			std::string message;
 		};
-		RevertOutcome executeRevert(const User &actor, int64_t entryId, bool reapply, bool force);
+		RevertOutcome executeRevert(const User &actor, int64_t entryId, bool reapply, bool force, bool dryRun = false);
 		void runHistoryAction(int64_t entryId, bool reapply, bool force);
 		void recordHistory(uint32_t origin, int actionType, const std::vector<JournalTile> &rows);
 		void recordMetaInfo(uint32_t origin, const std::vector<MetaOp> &ops);
@@ -291,6 +348,17 @@ namespace collab {
 		std::unique_ptr<wxTimer> pumpTimer;
 		std::unique_ptr<wxTimer> metaTimer;
 		std::unique_ptr<wxTimer> cursorTimer;
+		std::unique_ptr<wxTimer> viewTimer;
+		uint32_t followId = 0;
+		Position lastFollowApplied;
+		Position lastSentView;
+		std::unordered_map<uint32_t, Position> remoteViews;
+		std::map<uint32_t, Claim> claimList;
+		uint32_t nextClaimId = 1;
+		std::chrono::steady_clock::time_point lastClaimWarning;
+		std::vector<std::string> lanList;
+		std::vector<Position> previewChangeList;
+		std::vector<Position> previewConflictList;
 		struct DeferredCursor {
 			Position pos;
 			uint8_t brushSize = 0;

@@ -27,6 +27,8 @@
 #include "../editor.h"
 #include "../gui.h"
 #include "../iomap.h"
+#include "../map_display.h"
+#include "../map_tab.h"
 #include "../map.h"
 #include "../tile.h"
 #include "../map_comments.h"
@@ -111,6 +113,92 @@ namespace collab {
 			w.u8(brushSize);
 			w.u8(mouseDown ? 1 : 0);
 		}
+
+		Position readView(ByteReader &r) {
+			const int x = r.u16();
+			const int y = r.u16();
+			const int z = r.u8();
+			if (z > kMaxFloor) {
+				throw ProtocolError("invalid position");
+			}
+			return Position(x, y, z);
+		}
+
+		void writeView(ByteWriter &w, const Position &pos) {
+			w.u16(static_cast<uint16_t>(pos.x));
+			w.u16(static_cast<uint16_t>(pos.y));
+			w.u8(static_cast<uint8_t>(pos.z));
+		}
+
+		void writeClaimAdd(ByteWriter &w, const Claim &claim) {
+			w.u8(0);
+			w.u32(claim.id);
+			w.u32(claim.ownerId);
+			w.u16(static_cast<uint16_t>(claim.from.x));
+			w.u16(static_cast<uint16_t>(claim.from.y));
+			w.u16(static_cast<uint16_t>(claim.to.x));
+			w.u16(static_cast<uint16_t>(claim.to.y));
+			w.u8(static_cast<uint8_t>(claim.from.z));
+		}
+
+		void writePositions(ByteWriter &w, const std::vector<Position> &positions) {
+			const size_t count = std::min<size_t>(positions.size(), 5000);
+			w.u16(static_cast<uint16_t>(count));
+			for (size_t i = 0; i < count; ++i) {
+				writeView(w, positions[i]);
+			}
+		}
+
+		std::vector<Position> readPositions(ByteReader &r) {
+			const uint16_t count = r.u16();
+			if (count > 5000) {
+				throw ProtocolError("too many positions");
+			}
+			std::vector<Position> positions;
+			positions.reserve(count);
+			for (uint16_t i = 0; i < count; ++i) {
+				positions.push_back(readView(r));
+			}
+			return positions;
+		}
+
+		// This machine's IPv4 addresses that a participant on the same network can reach.
+		std::vector<std::string> localAddresses() {
+			std::vector<std::string> found;
+			auto add = [&found](const asio::ip::address &address) {
+				if (address.is_v4() && !address.is_loopback()) {
+					const std::string text = address.to_string();
+					if (std::find(found.begin(), found.end(), text) == found.end()) {
+						found.push_back(text);
+					}
+				}
+			};
+
+			std::error_code ec;
+			{
+				// Connecting a UDP socket sends nothing; it only picks the interface that would
+				// be used to reach the internet, which is the main LAN address.
+				asio::ip::udp::socket probe(io());
+				probe.open(asio::ip::udp::v4(), ec);
+				if (!ec) {
+					probe.connect(asio::ip::udp::endpoint(asio::ip::make_address_v4("8.8.8.8"), 53), ec);
+				}
+				if (!ec) {
+					const auto local = probe.local_endpoint(ec);
+					if (!ec) {
+						add(local.address());
+					}
+				}
+			}
+			const std::string host = asio::ip::host_name(ec);
+			if (!ec) {
+				asio::ip::tcp::resolver resolver(io());
+				for (const auto &entry : resolver.resolve(host, "0", ec)) {
+					add(entry.endpoint().address());
+				}
+			}
+			return found;
+		}
 	}
 
 	std::string sanitizeText(const std::string &text, size_t maxChars) {
@@ -147,6 +235,13 @@ namespace collab {
 		public:
 			void Notify() override {
 				Session::get().onCursorTick();
+			}
+		};
+
+		class ViewTimer : public wxTimer {
+		public:
+			void Notify() override {
+				Session::get().onViewTick();
 			}
 		};
 
@@ -289,8 +384,8 @@ namespace collab {
 	void Session::sendTo(Peer &peer, Msg type, const std::vector<uint8_t> &payload) {
 		if (!peer.streaming) {
 			peer.conn->send(type, payload);
-		} else if (type != Msg::Cursor) {
-			peer.deferred.emplace_back(type, payload); // cursors are stale by the time the map is out
+		} else if (type != Msg::Cursor && type != Msg::View) {
+			peer.deferred.emplace_back(type, payload); // cursors and views are stale by the time the map is out
 		}
 	}
 
@@ -487,6 +582,9 @@ namespace collab {
 		shareMapFlag = shareMap;
 		saveOnParticipantsFlag = shareMap && saveOnParticipants;
 		sessionMapName = editor->getMap().getName();
+		lanList = localAddresses();
+		claimList.clear();
+		nextClaimId = 1;
 		acceptor = listener;
 		listenPort = port;
 		defaultRole = defaultRoleForJoiners == Role::Viewer ? Role::Viewer : Role::Editor;
@@ -519,6 +617,11 @@ namespace collab {
 			metaTimer = std::make_unique<MetaTimer>();
 		}
 		metaTimer->Start(500);
+		if (!viewTimer) {
+			viewTimer = std::make_unique<ViewTimer>();
+		}
+		lastSentView = Position();
+		viewTimer->Start(250);
 		acceptLoop(listener, generation, salt, keys);
 		changed();
 		return true;
@@ -635,6 +738,11 @@ namespace collab {
 		welcome.str(sessionMapName.substr(0, 255));
 		peer.conn->send(Msg::Welcome, welcome.buffer);
 		startStreaming(peer, std::make_shared<const std::string>(std::move(snapshot)));
+		for (const auto &entry : claimList) {
+			ByteWriter claim;
+			writeClaimAdd(claim, entry.second);
+			sendTo(peer, Msg::Claims, claim.buffer); // after the map: the peer is still streaming
+		}
 
 		ByteWriter joined;
 		writeUser(joined, user);
@@ -705,6 +813,42 @@ namespace collab {
 			case Msg::Kick:
 				applyKick(actor, reader.u32());
 				return;
+			case Msg::View: {
+				const Position view = readView(reader);
+				remoteViews[actor.id] = view;
+				ByteWriter w;
+				w.u32(actor.id);
+				writeView(w, view);
+				broadcast(Msg::View, w.buffer, peer.conn.get());
+				if (followId == actor.id) {
+					applyFollow(view);
+				}
+				return;
+			}
+			case Msg::Summon: {
+				const Position target = readView(reader);
+				if (actor.role != Role::Host && actor.role != Role::Admin) {
+					return;
+				}
+				ByteWriter w;
+				w.u32(actor.id);
+				writeView(w, target);
+				broadcast(Msg::Summon, w.buffer, peer.conn.get());
+				applySummon(actor.name, target);
+				return;
+			}
+			case Msg::ClaimAdd: {
+				const int x1 = reader.u16();
+				const int y1 = reader.u16();
+				const int x2 = reader.u16();
+				const int y2 = reader.u16();
+				const int z = reader.u8();
+				hostAddClaim(actor, Position(x1, y1, z), Position(x2, y2, z));
+				return;
+			}
+			case Msg::ClaimRemove:
+				hostRemoveClaim(actor, reader.u32());
+				return;
 			case Msg::TileBatch:
 				hostTileBatch(actor, reader);
 				return;
@@ -714,6 +858,7 @@ namespace collab {
 			case Msg::HistoryQuery:
 			case Msg::HistoryRevert:
 			case Msg::HistoryReapply:
+			case Msg::HistoryPreview:
 				hostHistoryFrame(peer, actor, type, reader);
 				return;
 			case Msg::SaveRequest:
@@ -935,6 +1080,11 @@ namespace collab {
 			metaTimer = std::make_unique<MetaTimer>();
 		}
 		metaTimer->Start(500);
+		if (!viewTimer) {
+			viewTimer = std::make_unique<ViewTimer>();
+		}
+		lastSentView = Position();
+		viewTimer->Start(250);
 		changed();
 	}
 
@@ -967,6 +1117,10 @@ namespace collab {
 				const uint32_t id = reader.u32();
 				userList.erase(id);
 				remoteCursors.erase(id);
+				remoteViews.erase(id);
+				if (followId == id) {
+					followId = 0;
+				}
 				changed();
 				if (onCursorsChanged) {
 					onCursorsChanged();
@@ -1009,7 +1163,29 @@ namespace collab {
 			case Msg::HistoryPage:
 			case Msg::HistoryAppend:
 			case Msg::HistoryResult:
+			case Msg::HistoryPreviewResult:
 				clientHistoryFrame(type, reader);
+				return;
+			case Msg::View: {
+				const uint32_t id = reader.u32();
+				const Position view = readView(reader);
+				if (id != selfId && userList.count(id)) {
+					remoteViews[id] = view;
+					if (followId == id) {
+						applyFollow(view);
+					}
+				}
+				return;
+			}
+			case Msg::Summon: {
+				const uint32_t id = reader.u32();
+				const Position target = readView(reader);
+				auto who = userList.find(id);
+				applySummon(who != userList.end() ? who->second.name : std::string("Someone"), target);
+				return;
+			}
+			case Msg::Claims:
+				clientClaims(reader);
 				return;
 			case Msg::SaveNotice:
 				if (shareMapFlag) {
@@ -1095,6 +1271,11 @@ namespace collab {
 			const std::string name = user->second.name;
 			userList.erase(user);
 			remoteCursors.erase(peer.userId);
+			remoteViews.erase(peer.userId);
+			if (followId == peer.userId) {
+				followId = 0;
+			}
+			removeClaimsOf(peer.userId);
 
 			ByteWriter w;
 			w.u32(peer.userId);
@@ -1247,6 +1428,9 @@ namespace collab {
 		}
 		Pending batch = std::move(pending);
 		pending = Pending();
+		if (origin == selfId && !applying) {
+			warnAboutClaims(batch.before);
+		}
 
 		Editor* editor = boundEditor();
 		if (!editor || (currentState != State::Hosting && currentState != State::Joined)) {
@@ -1614,7 +1798,7 @@ namespace collab {
 		publishEntry(journal->appendInfo(user != userList.end() ? user->second.name : "Unknown", user != userList.end() ? user->second.color : 0x9E9E9E, label));
 	}
 
-	Session::RevertOutcome Session::executeRevert(const User &actor, int64_t entryId, bool reapply, bool force) {
+	Session::RevertOutcome Session::executeRevert(const User &actor, int64_t entryId, bool reapply, bool force, bool dryRun) {
 		RevertOutcome outcome;
 		if (!journal || !hostEditor || currentState != State::Hosting) {
 			outcome.message = "History is not available";
@@ -1642,9 +1826,16 @@ namespace collab {
 			}
 			if (current != expected && !force) {
 				++outcome.skipped; // somebody changed it after this entry
-				if (outcome.conflicts.size() < 100) {
+				if (outcome.conflicts.size() < 5000) {
 					outcome.conflicts.push_back(row.pos);
 				}
+				continue;
+			}
+			if (dryRun) {
+				if (outcome.changes.size() < 5000) {
+					outcome.changes.push_back(row.pos);
+				}
+				++outcome.applied;
 				continue;
 			}
 			try {
@@ -1652,6 +1843,12 @@ namespace collab {
 			} catch (const ProtocolError &) {
 				++outcome.skipped;
 			}
+		}
+
+		if (dryRun) {
+			outcome.ok = true;
+			outcome.message = fmt::format("{} would change {} tiles, {} would be skipped (changed later by others)", reapply ? "Reapply" : "Revert", outcome.applied, outcome.skipped);
+			return outcome;
 		}
 
 		outcome.applied = static_cast<uint32_t>(tiles.size());
@@ -1704,7 +1901,46 @@ namespace collab {
 		}
 	}
 
+	void Session::previewEntry(int64_t entryId, bool reapply, bool force) {
+		if (!canSeeHistory()) {
+			return;
+		}
+		if (currentState == State::Hosting) {
+			const User* me = self();
+			if (!me) {
+				return;
+			}
+			const RevertOutcome outcome = executeRevert(*me, entryId, reapply, force, true);
+			previewChangeList = outcome.changes;
+			previewConflictList = outcome.conflicts;
+			if (onHistoryResult) {
+				onHistoryResult(outcome.message);
+			}
+			if (onOverlayChanged) {
+				onOverlayChanged();
+			}
+		} else if (link) {
+			ByteWriter w;
+			w.u64(static_cast<uint64_t>(entryId));
+			w.u8(reapply ? 1 : 0);
+			w.u8(force ? 1 : 0);
+			link->send(Msg::HistoryPreview, w.buffer);
+		}
+	}
+
+	void Session::clearPreview() {
+		if (previewChangeList.empty() && previewConflictList.empty()) {
+			return;
+		}
+		previewChangeList.clear();
+		previewConflictList.clear();
+		if (onOverlayChanged) {
+			onOverlayChanged();
+		}
+	}
+
 	void Session::runHistoryAction(int64_t entryId, bool reapply, bool force) {
+		clearPreview();
 		if (currentState == State::Hosting) {
 			const User* me = self();
 			if (me) {
@@ -1752,6 +1988,20 @@ namespace collab {
 				w.str(names[i]);
 			}
 			sendTo(peer, Msg::HistoryPage, w.buffer);
+			return;
+		}
+
+		if (type == Msg::HistoryPreview) {
+			const auto previewId = static_cast<int64_t>(reader.u64());
+			const bool reapply = reader.u8() != 0;
+			const bool previewForce = reader.u8() != 0;
+			const RevertOutcome preview = executeRevert(actor, previewId, reapply, previewForce, true);
+
+			ByteWriter w;
+			writePositions(w, preview.changes);
+			writePositions(w, preview.conflicts);
+			w.str(preview.message);
+			sendTo(peer, Msg::HistoryPreviewResult, w.buffer);
 			return;
 		}
 
@@ -1807,7 +2057,21 @@ namespace collab {
 			return;
 		}
 
+		if (type == Msg::HistoryPreviewResult) {
+			previewChangeList = readPositions(reader);
+			previewConflictList = readPositions(reader);
+			const std::string summary = sanitizeText(reader.str(1024), 300);
+			if (onHistoryResult && !summary.empty()) {
+				onHistoryResult(summary);
+			}
+			if (onOverlayChanged) {
+				onOverlayChanged();
+			}
+			return;
+		}
+
 		// HistoryResult
+		clearPreview();
 		reader.u64(); // entry id
 		reader.u8(); // ok
 		reader.u32(); // applied
@@ -1817,6 +2081,270 @@ namespace collab {
 		const std::string message = sanitizeText(reader.str(1024), 300);
 		if (onHistoryResult && !message.empty()) {
 			onHistoryResult(message);
+		}
+	}
+
+	// ---- views and summons ---------------------------------------------------------------
+
+	Position Session::currentView() const {
+		MapTab* tab = g_gui.GetCurrentMapTab();
+		Editor* editor = boundEditor();
+		if (!tab || !editor || tab->GetEditor() != editor) {
+			return Position();
+		}
+		const Position center = tab->GetScreenCenterPosition();
+		return Position(center.x, center.y, tab->GetCanvas()->GetFloor());
+	}
+
+	void Session::follow(uint32_t userId) {
+		if (userId == selfId || userList.find(userId) == userList.end()) {
+			return;
+		}
+		followId = userId;
+		auto view = remoteViews.find(userId);
+		if (view != remoteViews.end()) {
+			applyFollow(view->second);
+		}
+		changed();
+	}
+
+	void Session::stopFollowing() {
+		if (followId != 0) {
+			followId = 0;
+			changed();
+		}
+	}
+
+	void Session::applyFollow(const Position &view) {
+		g_gui.SetScreenCenterPosition(view, false);
+		lastFollowApplied = currentView(); // where the view really ended up (map edges, rounding)
+	}
+
+	void Session::applySummon(const std::string &who, const Position &target) {
+		g_gui.SetScreenCenterPosition(target);
+		lastFollowApplied = currentView();
+
+		ChatLine line;
+		line.system = true;
+		line.time = nowSeconds();
+		line.text = who + " brought everyone to " + std::to_string(target.x) + ", " + std::to_string(target.y) + ", " + std::to_string(target.z);
+		storeChat(line);
+	}
+
+	void Session::summonAll() {
+		const User* me = self();
+		const Position view = currentView();
+		if (!me || !view.isValid() || (me->role != Role::Host && me->role != Role::Admin)) {
+			return;
+		}
+		ByteWriter w;
+		if (currentState == State::Hosting) {
+			w.u32(selfId);
+			writeView(w, view);
+			broadcast(Msg::Summon, w.buffer);
+		} else if (currentState == State::Joined && link) {
+			writeView(w, view);
+			link->send(Msg::Summon, w.buffer);
+		}
+	}
+
+	void Session::onViewTick() {
+		if (currentState != State::Hosting && currentState != State::Joined) {
+			return;
+		}
+		const Position view = currentView();
+		if (!view.isValid()) {
+			return;
+		}
+
+		// Moving the camera yourself ends following.
+		if (followId != 0 && (std::abs(view.x - lastFollowApplied.x) > 3 || std::abs(view.y - lastFollowApplied.y) > 3 || view.z != lastFollowApplied.z)) {
+			stopFollowing();
+		}
+
+		if (view == lastSentView) {
+			return;
+		}
+		lastSentView = view;
+		ByteWriter w;
+		if (currentState == State::Hosting) {
+			w.u32(selfId);
+			writeView(w, view);
+			broadcast(Msg::View, w.buffer);
+		} else if (link) {
+			writeView(w, view);
+			link->send(Msg::View, w.buffer);
+		}
+	}
+
+	// ---- reserved areas ------------------------------------------------------------------
+
+	void Session::claimArea(const Position &a, const Position &b) {
+		const User* me = self();
+		if (!me || me->role == Role::Viewer || a.z != b.z) {
+			return;
+		}
+		if (currentState == State::Hosting) {
+			hostAddClaim(*me, a, b);
+		} else if (currentState == State::Joined && link) {
+			ByteWriter w;
+			w.u16(static_cast<uint16_t>(a.x));
+			w.u16(static_cast<uint16_t>(a.y));
+			w.u16(static_cast<uint16_t>(b.x));
+			w.u16(static_cast<uint16_t>(b.y));
+			w.u8(static_cast<uint8_t>(a.z));
+			link->send(Msg::ClaimAdd, w.buffer);
+		}
+	}
+
+	void Session::releaseMyClaims() {
+		const User* me = self();
+		if (!me) {
+			return;
+		}
+		std::vector<uint32_t> mine;
+		for (const auto &entry : claimList) {
+			if (entry.second.ownerId == selfId) {
+				mine.push_back(entry.first);
+			}
+		}
+		for (uint32_t id : mine) {
+			if (currentState == State::Hosting) {
+				hostRemoveClaim(*me, id);
+			} else if (link) {
+				ByteWriter w;
+				w.u32(id);
+				link->send(Msg::ClaimRemove, w.buffer);
+			}
+		}
+	}
+
+	void Session::hostAddClaim(const User &actor, const Position &a, const Position &b) {
+		constexpr int kMaxSide = 2048;
+		constexpr size_t kMaxPerUser = 8;
+		if (actor.role == Role::Viewer || !a.isValid() || !b.isValid() || a.z != b.z) {
+			return;
+		}
+		const Position from(std::min(a.x, b.x), std::min(a.y, b.y), a.z);
+		const Position to(std::max(a.x, b.x), std::max(a.y, b.y), a.z);
+		if (to.x - from.x >= kMaxSide || to.y - from.y >= kMaxSide) {
+			return;
+		}
+		size_t owned = 0;
+		for (const auto &entry : claimList) {
+			owned += entry.second.ownerId == actor.id ? 1 : 0;
+		}
+		if (owned >= kMaxPerUser) {
+			return;
+		}
+
+		Claim claim;
+		claim.id = nextClaimId++;
+		claim.ownerId = actor.id;
+		claim.ownerName = actor.name;
+		claim.color = actor.color;
+		claim.from = from;
+		claim.to = to;
+		claimList[claim.id] = claim;
+
+		ByteWriter w;
+		writeClaimAdd(w, claim);
+		broadcast(Msg::Claims, w.buffer);
+		if (onOverlayChanged) {
+			onOverlayChanged();
+		}
+	}
+
+	void Session::hostRemoveClaim(const User &actor, uint32_t claimId) {
+		auto it = claimList.find(claimId);
+		if (it == claimList.end()) {
+			return;
+		}
+		if (it->second.ownerId != actor.id && actor.role != Role::Host && actor.role != Role::Admin) {
+			return;
+		}
+		claimList.erase(it);
+
+		ByteWriter w;
+		w.u8(1);
+		w.u32(claimId);
+		broadcast(Msg::Claims, w.buffer);
+		if (onOverlayChanged) {
+			onOverlayChanged();
+		}
+	}
+
+	void Session::removeClaimsOf(uint32_t userId) {
+		std::vector<uint32_t> ids;
+		for (const auto &entry : claimList) {
+			if (entry.second.ownerId == userId) {
+				ids.push_back(entry.first);
+			}
+		}
+		for (uint32_t id : ids) {
+			claimList.erase(id);
+			ByteWriter w;
+			w.u8(1);
+			w.u32(id);
+			broadcast(Msg::Claims, w.buffer);
+		}
+		if (!ids.empty() && onOverlayChanged) {
+			onOverlayChanged();
+		}
+	}
+
+	void Session::clientClaims(ByteReader &reader) {
+		const uint8_t op = reader.u8();
+		if (op == 1) {
+			claimList.erase(reader.u32());
+		} else if (op == 0) {
+			Claim claim;
+			claim.id = reader.u32();
+			claim.ownerId = reader.u32();
+			const int x1 = reader.u16();
+			const int y1 = reader.u16();
+			const int x2 = reader.u16();
+			const int y2 = reader.u16();
+			const int z = reader.u8();
+			claim.from = Position(std::min(x1, x2), std::min(y1, y2), z);
+			claim.to = Position(std::max(x1, x2), std::max(y1, y2), z);
+			if (z > kMaxFloor || !claim.from.isValid()) {
+				throw ProtocolError("invalid area");
+			}
+			auto owner = userList.find(claim.ownerId);
+			claim.ownerName = owner != userList.end() ? owner->second.name : "?";
+			claim.color = owner != userList.end() ? owner->second.color : 0x9E9E9E;
+			claimList[claim.id] = claim;
+		} else {
+			throw ProtocolError("unknown claim operation");
+		}
+		if (onOverlayChanged) {
+			onOverlayChanged();
+		}
+	}
+
+	void Session::warnAboutClaims(const std::map<Position, std::string> &tiles) {
+		if (claimList.empty()) {
+			return;
+		}
+		const Clock::time_point now = Clock::now();
+		if (now - lastClaimWarning < std::chrono::seconds(2)) {
+			return;
+		}
+		size_t checked = 0;
+		for (const auto &tile : tiles) {
+			if (++checked > 5000) {
+				break;
+			}
+			const Position &pos = tile.first;
+			for (const auto &entry : claimList) {
+				const Claim &claim = entry.second;
+				if (claim.ownerId != selfId && pos.z == claim.from.z && pos.x >= claim.from.x && pos.x <= claim.to.x && pos.y >= claim.from.y && pos.y <= claim.to.y) {
+					lastClaimWarning = now;
+					g_gui.SetStatusText(wxstr("You are editing inside the area reserved by " + claim.ownerName));
+					return;
+				}
+			}
 		}
 	}
 
@@ -1991,7 +2519,16 @@ namespace collab {
 		if (cursorTimer) {
 			cursorTimer->Stop();
 		}
+		if (viewTimer) {
+			viewTimer->Stop();
+		}
 		deferredCursor.valid = false;
+		followId = 0;
+		remoteViews.clear();
+		claimList.clear();
+		lanList.clear();
+		previewChangeList.clear();
+		previewConflictList.clear();
 		journal.reset();
 		historyList.clear();
 		historyUserNames.clear();

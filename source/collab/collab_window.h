@@ -98,6 +98,12 @@ private:
 	wxCheckBox* show_names = nullptr;
 	wxButton* leave_button = nullptr;
 	wxButton* save_request_button = nullptr;
+	wxStaticText* invite_label = nullptr;
+	wxButton* invite_button = nullptr;
+	wxStaticText* follow_label = nullptr;
+	wxButton* summon_button = nullptr;
+	wxButton* claim_button = nullptr;
+	wxButton* release_button = nullptr;
 
 	// Chat page
 	wxPanel* chat_page = nullptr;

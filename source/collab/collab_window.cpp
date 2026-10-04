@@ -27,6 +27,7 @@
 #include "../settings.h"
 
 #include <wx/button.h>
+#include <wx/clipboard.h>
 #include <wx/checkbox.h>
 #include <wx/choice.h>
 #include <wx/listctrl.h>
@@ -208,6 +209,16 @@ void CollabWindow::BuildSessionPage(wxWindow* page) {
 	auto* join = newd wxStaticBoxSizer(wxVERTICAL, idle_panel, "Join");
 	wxWindow* join_box = join->GetStaticBox();
 	join_address = newd wxTextCtrl(join_box, wxID_ANY, wxstr(g_settings.getString(Config::COLLAB_LAST_ADDRESS)));
+	// An invite is "address:port": pasting it fills both fields.
+	join_address->Bind(wxEVT_TEXT, [this](wxCommandEvent &) {
+		const wxString text = join_address->GetValue().Trim().Trim(false);
+		const int colon = text.Find(':', true);
+		long port = 0;
+		if (colon != wxNOT_FOUND && text.find(':') == static_cast<size_t>(colon) && text.Mid(colon + 1).ToLong(&port) && port > 0 && port < 65536) {
+			join_address->ChangeValue(text.Left(colon));
+			join_port->SetValue(static_cast<int>(port));
+		}
+	});
 	addRow(join, join_box, "Address:", join_address);
 	join_port = newd wxSpinCtrl(join_box, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 1, 65535, g_settings.getInteger(Config::COLLAB_PORT));
 	addRow(join, join_box, "Port:", join_port);
@@ -258,6 +269,51 @@ void CollabWindow::BuildSessionPage(wxWindow* page) {
 	});
 	active->Add(show_names, 0, wxBOTTOM, 6);
 
+	invite_label = newd wxStaticText(active_panel, wxID_ANY, "");
+	active->Add(invite_label, 0, wxEXPAND | wxBOTTOM, 3);
+	invite_button = newd wxButton(active_panel, wxID_ANY, "Copy invite");
+	invite_button->SetToolTip("Copies address:port. Send the password separately.");
+	invite_button->Bind(wxEVT_BUTTON, [](wxCommandEvent &) {
+		const auto &addresses = collab::Session::get().lanAddresses();
+		const wxString text = wxstr((addresses.empty() ? std::string("localhost") : addresses.front()) + ":" + std::to_string(collab::Session::get().port()));
+		if (wxTheClipboard->Open()) {
+			wxTheClipboard->SetData(newd wxTextDataObject(text));
+			wxTheClipboard->Close();
+		}
+	});
+	active->Add(invite_button, 0, wxBOTTOM, 6);
+
+	follow_label = newd wxStaticText(active_panel, wxID_ANY, "");
+	active->Add(follow_label, 0, wxEXPAND | wxBOTTOM, 3);
+
+	auto* areas = newd wxBoxSizer(wxHORIZONTAL);
+	claim_button = newd wxButton(active_panel, wxID_ANY, "Reserve selection");
+	claim_button->SetToolTip("Mark the selected tiles as your area: the others see it with your name.");
+	claim_button->Bind(wxEVT_BUTTON, [](wxCommandEvent &) {
+		Editor* editor = g_gui.GetCurrentEditor();
+		if (!editor || !editor->hasSelection()) {
+			g_gui.SetStatusText("Select the tiles you want to reserve first");
+			return;
+		}
+		const Position from = editor->getSelection().minPosition();
+		const Position to = editor->getSelection().maxPosition();
+		if (from.z != to.z) {
+			g_gui.SetStatusText("A reserved area belongs to a single floor");
+			return;
+		}
+		collab::Session::get().claimArea(from, to);
+	});
+	release_button = newd wxButton(active_panel, wxID_ANY, "Release my areas");
+	release_button->Bind(wxEVT_BUTTON, [](wxCommandEvent &) { collab::Session::get().releaseMyClaims(); });
+	areas->Add(claim_button, 0, wxRIGHT, 4);
+	areas->Add(release_button, 0);
+	active->Add(areas, 0, wxBOTTOM, 6);
+
+	summon_button = newd wxButton(active_panel, wxID_ANY, "Bring everyone here");
+	summon_button->SetToolTip("Moves every participant's camera to where yours is");
+	summon_button->Bind(wxEVT_BUTTON, [](wxCommandEvent &) { collab::Session::get().summonAll(); });
+	active->Add(summon_button, 0, wxBOTTOM, 6);
+
 	leave_button = newd wxButton(active_panel, wxID_ANY, "Leave");
 	leave_button->Bind(wxEVT_BUTTON, [](wxCommandEvent &) { collab::Session::get().leave(); });
 	save_request_button = newd wxButton(active_panel, wxID_ANY, "Request save");
@@ -300,6 +356,29 @@ void CollabWindow::OnSessionChanged() {
 
 	const collab::User* me = collab_session.self();
 	save_request_button->Show(collab_session.state() == collab::State::Joined && me && me->role == collab::Role::Admin);
+
+	const bool joined_or_host = collab_session.state() == collab::State::Hosting || collab_session.state() == collab::State::Joined;
+	const bool can_edit_role = joined_or_host && me && me->role != collab::Role::Viewer;
+	const bool can_summon = joined_or_host && me && (me->role == collab::Role::Host || me->role == collab::Role::Admin);
+	invite_label->Show(collab_session.isHost());
+	invite_button->Show(collab_session.isHost());
+	if (collab_session.isHost()) {
+		wxString text = "Invite: ";
+		const auto &addresses = collab_session.lanAddresses();
+		if (addresses.empty()) {
+			text += wxString::Format("localhost:%u", static_cast<unsigned>(collab_session.port()));
+		}
+		for (size_t i = 0; i < addresses.size(); ++i) {
+			text += (i ? ", " : "") + wxString::Format("%s:%u", wxstr(addresses[i]), static_cast<unsigned>(collab_session.port()));
+		}
+		invite_label->SetLabel(text);
+		invite_label->Wrap(GetClientSize().GetWidth() > 40 ? GetClientSize().GetWidth() - 40 : 300);
+	}
+	claim_button->Show(can_edit_role);
+	release_button->Show(can_edit_role);
+	summon_button->Show(can_summon);
+	const auto followed = collab_session.users().find(collab_session.followedUser());
+	follow_label->SetLabel(collab_session.followedUser() != 0 && followed != collab_session.users().end() ? "Following " + wxstr(followed->second.name) + " (move your camera to stop)" : wxString());
 	const bool history_allowed = collab_session.canSeeHistory();
 	history_page->Enable(history_allowed);
 	if (history_allowed && !history_requested) {
@@ -344,9 +423,13 @@ void CollabWindow::ShowUserMenu(uint32_t userId) {
 		ID_EDITOR,
 		ID_VIEWER,
 		ID_KICK,
+		ID_FOLLOW,
 	};
 	wxMenu menu;
 	menu.Append(ID_GOTO, "Go to cursor")->Enable(collab_session.cursors().count(userId) > 0);
+	if (userId != collab_session.myId()) {
+		menu.Append(ID_FOLLOW, collab_session.followedUser() == userId ? "Stop following" : "Follow");
+	}
 	if (collab_session.canManage(user)) {
 		menu.AppendSeparator();
 		if (collab_session.isHost()) {
@@ -369,6 +452,13 @@ void CollabWindow::ShowUserMenu(uint32_t userId) {
 					}
 					break;
 				}
+				case ID_FOLLOW:
+					if (s.followedUser() == userId) {
+						s.stopFollowing();
+					} else {
+						s.follow(userId);
+					}
+					break;
 				case ID_ADMIN:
 					s.setRole(userId, collab::Role::Admin);
 					break;
@@ -525,6 +615,13 @@ void CollabWindow::BuildHistoryPage(wxWindow* page) {
 			collab::Session::get().reapplyEntry(entry->id, history_force->GetValue());
 		}
 	});
+	makeButton(page, buttons, "Preview")->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
+		if (const collab::JournalEntry* entry = SelectedHistoryEntry()) {
+			// Yellow tiles would change, red ones are conflicts that would be skipped.
+			collab::Session::get().previewEntry(entry->id, entry->state == static_cast<int>(collab::EntryState::Reverted), history_force->GetValue());
+		}
+	});
+	makeButton(page, buttons, "Clear preview")->Bind(wxEVT_BUTTON, [](wxCommandEvent &) { collab::Session::get().clearPreview(); });
 	auto goTo = [this]() {
 		if (const collab::JournalEntry* entry = SelectedHistoryEntry()) {
 			g_gui.SetScreenCenterPosition(entry->center);

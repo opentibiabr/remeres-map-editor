@@ -14,6 +14,8 @@ This replaces the old, hidden "Live" feature, which has been removed.
    * **On: shared copy.** Participants can *Save As* a local copy whenever they want. If you also tick **Also save on participants' machines**, every time the host saves, each participant's copy is saved too (they choose the file once, later saves are silent).
 5. *Start hosting*. Give the participants your address, the port and the password.
 
+Once the session runs, the panel lists the host's local network addresses with a **Copy invite** button (it copies `address:port`; send the password separately). Pasting `address:port` into the Address field of the Join form fills the port too.
+
 The host binds `0.0.0.0:<port>`. Over the internet you need to forward the port on your router, or use a VPN such as Tailscale or ZeroTier. There is no relay server.
 
 Stopping the session, closing the map tab or closing the editor while participants are connected asks first.
@@ -31,6 +33,12 @@ Stopping the session, closing the map tab or closing the editor while participan
 * **Chat** and comments.
 
 The host is authoritative: when two people change the same tile at the same moment, the host's order wins and everybody ends up with the same result. Ctrl+Z only undoes *your own* edits, and it can overwrite what someone else did to the same tile afterwards; use the History tab to revert safely.
+
+## Working together
+
+* **Follow:** right-click a participant → *Follow*. Your camera (position and floor) tracks theirs until you move your own camera.
+* **Bring everyone here** (host and admins): moves every participant's camera to where yours is.
+* **Reserved areas:** select tiles and press *Reserve selection* to mark them as yours (one floor, at most 8 areas per person). Everybody sees the rectangle with your name, and editing inside somebody else's area shows a notice in the status bar. It is a hint, nothing is blocked. *Release my areas* removes them; the host and admins can remove anyone's, and an area disappears with its owner's connection.
 
 ## Roles
 
@@ -52,6 +60,7 @@ In the **History** tab:
 * **Revert** puts back the tiles an entry changed. A tile that someone else changed *after* that entry is **skipped** and reported as a conflict, unless **Force** is ticked.
 * **Reapply** undoes a revert, with the same conflict rules.
 * The revert itself is a normal edit by whoever did it: it is replicated and shows up as a new entry.
+* **Preview** shows on the map what a revert (or reapply) would do before you apply it: yellow tiles would change, red tiles are conflicts that would be skipped. *Clear preview* removes the overlay; reverting clears it too.
 * The history survives restarting the host with the same map.
 
 ## Comments

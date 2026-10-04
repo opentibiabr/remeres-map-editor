@@ -751,9 +751,10 @@ void MapDrawer::DrawSelectionBox() {
 
 void MapDrawer::DrawCollabCursors() {
 	collab::Session &session = collab::Session::get();
-	if (options.ingame || !session.active() || !g_settings.getBoolean(Config::COLLAB_SHOW_CURSORS)) {
+	if (options.ingame || !session.active()) {
 		return;
 	}
+	const bool show_cursors = g_settings.getBoolean(Config::COLLAB_SHOW_CURSORS);
 
 	struct Label {
 		float x;
@@ -765,7 +766,52 @@ void MapDrawer::DrawCollabCursors() {
 	const bool names = g_settings.getBoolean(Config::COLLAB_SHOW_NAMES) && zoom <= 4.0f;
 	const auto now = std::chrono::steady_clock::now();
 
+	// Where the tiles of floor z are drawn, relative to the scroll position.
+	auto floorOffset = [this](int z) {
+		return z <= rme::MapGroundLayer ? (rme::MapGroundLayer - z) * rme::TileSize : rme::TileSize * (floor - z);
+	};
+
+	// Areas somebody reserved: a tinted rectangle with the owner's name. A hint, not a lock.
+	for (const auto &entry : session.claims()) {
+		const collab::Claim &claim = entry.second;
+		if (claim.from.z != floor) {
+			continue;
+		}
+		const int offset = floorOffset(claim.from.z);
+		const float x0 = static_cast<float>(((claim.from.x * rme::TileSize) - view_scroll_x) - offset);
+		const float y0 = static_cast<float>(((claim.from.y * rme::TileSize) - view_scroll_y) - offset);
+		const float w = static_cast<float>((claim.to.x - claim.from.x + 1) * rme::TileSize);
+		const float h = static_cast<float>((claim.to.y - claim.from.y + 1) * rme::TileSize);
+		if (x0 > screensize_x * zoom || y0 > screensize_y * zoom || x0 + w < 0 || y0 + h < 0) {
+			continue;
+		}
+		const auto r = static_cast<uint8_t>(claim.color >> 16);
+		const auto g = static_cast<uint8_t>(claim.color >> 8);
+		const auto b = static_cast<uint8_t>(claim.color);
+		renderer->drawColoredQuad(x0, y0, w, h, { r, g, b, 28 });
+		renderer->drawRect(x0, y0, w, h, { r, g, b, 200 }, 2.0f);
+		if (names) {
+			labels.push_back({ x0, y0, claim.ownerName, claim.color });
+		}
+	}
+
+	// What a revert or reapply would do: tiles it changes in yellow, tiles it would skip in red.
+	auto drawPreview = [&](const std::vector<Position> &tiles, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+		for (const Position &pos : tiles) {
+			if (pos.z != floor) {
+				continue;
+			}
+			const int offset = floorOffset(pos.z);
+			renderer->drawColoredQuad(static_cast<float>(((pos.x * rme::TileSize) - view_scroll_x) - offset), static_cast<float>(((pos.y * rme::TileSize) - view_scroll_y) - offset), rme::TileSize, rme::TileSize, { r, g, b, a });
+		}
+	};
+	drawPreview(session.previewChanges(), 255, 214, 0, 110);
+	drawPreview(session.previewConflicts(), 244, 67, 54, 130);
+
 	for (const auto &entry : session.cursors()) {
+		if (!show_cursors) {
+			break;
+		}
 		const auto user = session.users().find(entry.first);
 		if (user == session.users().end()) {
 			continue;

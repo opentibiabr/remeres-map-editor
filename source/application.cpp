@@ -135,6 +135,7 @@ bool Application::OnInit() {
 		spdlog::warn("Could not initialize libsodium, collaboration sessions are unavailable");
 	}
 	collab::Session::get().onCursorsChanged = [] { g_gui.RefreshView(); };
+	collab::Session::get().onOverlayChanged = [] { g_gui.RefreshView(); };
 
 #ifdef _USE_PROCESS_COM
 	m_single_instance_checker = newd wxSingleInstanceChecker; // Instance checker has to stay alive throughout the applications lifetime

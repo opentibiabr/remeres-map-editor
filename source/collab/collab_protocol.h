@@ -70,6 +70,13 @@ namespace collab {
 		HistoryResult, // S->C entryId, ok, applied, conflicts, message
 		SaveRequest, // C(admin)->S
 		SaveNotice, // S->C map name: participants with a shared copy save it locally
+		View, // C->S x, y, floor of the screen center; S->C with the user id first
+		Summon, // C(admin)->S x, y, floor; S->C summoner id first: everybody goes there
+		ClaimAdd, // C->S x1, y1, x2, y2, floor
+		ClaimRemove, // C->S claim id
+		Claims, // S->C op (0 add, 1 remove), claim
+		HistoryPreview, // C(admin)->S entryId, reapply, force: what would a revert change
+		HistoryPreviewResult, // S->C tiles it would change, conflicts, message
 	};
 
 	enum class Role : uint8_t {
