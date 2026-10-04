@@ -26,10 +26,42 @@
 #include <cstdio>
 
 namespace {
-	// Material 500 tones, shared with the collaboration user colors.
+	// 32 colors that are easy to tell apart, in the order the host hands them out: the first ones
+	// are the most different from each other (blue, green, red, purple, orange, teal, pink,
+	// brown...), the last ones are darker and lighter variants. Shared with the user colors.
 	constexpr uint32_t kPalette[] = {
-		0xF44336, 0xE91E63, 0x9C27B0, 0x3F51B5, 0x2196F3, 0x009688,
-		0x4CAF50, 0xFF9800, 0xFF5722, 0x795548, 0x607D8B, 0x00BCD4
+		0x1E88E5, // blue
+		0x43A047, // green
+		0xE53935, // red
+		0x8E24AA, // purple
+		0xFB8C00, // orange
+		0x00897B, // teal
+		0xEC407A, // pink
+		0x6D4C41, // brown
+		0xFDD835, // yellow
+		0x00ACC1, // cyan
+		0xB39DDB, // lilac
+		0xC0CA33, // lime
+		0x3949AB, // indigo
+		0xFF7043, // coral
+		0x7CB342, // light green
+		0xAD1457, // raspberry
+		0x4DD0E1, // sky
+		0xA1887F, // taupe
+		0x5E35B1, // deep purple
+		0xFFB74D, // amber
+		0x26A69A, // sea green
+		0xF48FB1, // light pink
+		0x9E9D24, // olive
+		0x1565C0, // dark blue
+		0x2E7D32, // dark green
+		0xC62828, // dark red
+		0x6A1B9A, // dark purple
+		0xEF6C00, // dark orange
+		0x00695C, // dark teal
+		0x90A4AE, // blue grey
+		0xD4E157, // light lime
+		0x81D4FA, // light blue
 	};
 
 	int64_t now() {

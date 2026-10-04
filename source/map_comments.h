@@ -42,7 +42,7 @@ public:
 	// Stable per-name color, 0xRRGGBB.
 	static uint32_t colorForAuthor(const std::string &author);
 	// Fixed palette shared with the collaboration user colors.
-	static constexpr size_t kPaletteSize = 12;
+	static constexpr size_t kPaletteSize = 32;
 	static uint32_t paletteColor(size_t index);
 
 	// In a collaboration session comments are written under the session name (the host
