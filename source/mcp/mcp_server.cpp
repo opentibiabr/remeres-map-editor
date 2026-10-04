@@ -122,6 +122,15 @@ namespace mcp {
 			readHeaders();
 		}
 
+		// Safe from any thread: the close runs on the socket's executor.
+		void close() {
+			auto self = shared_from_this();
+			asio::post(socket.get_executor(), [self]() {
+				std::error_code ignored;
+				self->socket.close(ignored);
+			});
+		}
+
 	private:
 		void readHeaders() {
 			auto self = shared_from_this();
@@ -134,6 +143,13 @@ namespace mcp {
 		}
 
 		void onHeaders(size_t headerBytes) {
+			// Keep-alive clients outlive the acceptor, so re-check on every request.
+			if (!server.running) {
+				std::error_code ignored;
+				socket.close(ignored);
+				return;
+			}
+
 			std::istream stream(&buffer);
 			std::string requestLine;
 			std::getline(stream, requestLine);
@@ -360,6 +376,17 @@ namespace mcp {
 	}
 
 	void Server::log(LogLevel level, const std::string &message) {
+
+		std::vector<std::weak_ptr<Session>> open;
+		{
+			std::lock_guard<std::mutex> lock(sessionMutex);
+			open.swap(sessions);
+		}
+		for (auto &weak : open) {
+			if (auto session = weak.lock()) {
+				session->close();
+			}
+		}
 		LogCallback callback;
 		{
 			std::lock_guard<std::mutex> lock(logMutex);
@@ -378,7 +405,16 @@ namespace mcp {
 		auto socket = std::make_shared<asio::ip::tcp::socket>(NetworkConnection::getInstance().get_service());
 		acceptor->async_accept(*socket, [this, socket](const std::error_code &error) {
 			if (!error && running) {
-				std::make_shared<Session>(*this, std::move(*socket))->start();
+				auto session = std::make_shared<Session>(*this, std::move(*socket));
+				{
+					std::lock_guard<std::mutex> lock(sessionMutex);
+					sessions.erase(std::remove_if(sessions.begin(), sessions.end(), [](const std::weak_ptr<Session> &s) {
+						return s.expired();
+					}),
+								   sessions.end());
+					sessions.push_back(session);
+				}
+				session->start();
 			}
 			accept();
 		});
