@@ -387,7 +387,8 @@ target_link_libraries(
           SQLite3::SQLite3
           unofficial-sodium::sodium
           $<$<PLATFORM_ID:Linux>:xcb>
-          $<$<PLATFORM_ID:Windows>:psapi>)
+          $<$<PLATFORM_ID:Windows>:psapi>
+          $<$<PLATFORM_ID:Windows>:winmm>)
 
 # The vcpkg sodium port does not define this for static triplets, and without it the
 # headers declare every symbol dllimport.

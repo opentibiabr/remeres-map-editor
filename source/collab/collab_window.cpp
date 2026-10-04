@@ -46,6 +46,10 @@
 #include <wx/textctrl.h>
 #include <wx/textdlg.h>
 
+#ifdef __WINDOWS__
+	#include <mmsystem.h>
+#endif
+
 CollabWindow* CollabWindow::instance = nullptr;
 
 namespace {
@@ -64,6 +68,22 @@ namespace {
 		USER_DOING,
 		USER_PING,
 	};
+
+	// data/sounds/message-notification.mp3. Windows plays it through MCI (wxSound only does WAV);
+	// elsewhere, or when it cannot be played, the system beep stands in.
+	void playNotificationSound() {
+#ifdef __WINDOWS__
+		const wxString path = GUI::GetDataDirectory() + "sounds" + wxFileName::GetPathSeparator() + "message-notification.mp3";
+		if (wxFileExists(path)) {
+			mciSendStringW(L"close rmeNotification", nullptr, 0, nullptr);
+			const std::wstring open = L"open \"" + path.ToStdWstring() + L"\" type mpegvideo alias rmeNotification";
+			if (mciSendStringW(open.c_str(), nullptr, 0, nullptr) == 0 && mciSendStringW(L"play rmeNotification from 0", nullptr, 0, nullptr) == 0) {
+				return;
+			}
+		}
+#endif
+		wxBell();
+	}
 
 	wxButton* makeButton(wxWindow* parent, wxSizer* sizer, const wxString &label) {
 		auto* button = newd wxButton(parent, wxID_ANY, label);
@@ -648,7 +668,7 @@ void CollabWindow::AppendChat(const collab::ChatLine &line) {
 	}
 
 	if (!rebuilding_chat && !line.system && line.userId != collab::Session::get().myId() && g_settings.getBoolean(Config::COLLAB_CHAT_SOUND)) {
-		wxBell();
+		playNotificationSound();
 	}
 }
 
