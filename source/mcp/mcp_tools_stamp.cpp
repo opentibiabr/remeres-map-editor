@@ -357,6 +357,11 @@ namespace mcp {
 						tile->spawnMonster = nullptr;
 						delete tile->spawnNpc;
 						tile->spawnNpc = nullptr;
+						// Tile::merge only ever sets these, so a position that loses
+						// its house or PZ would otherwise keep the stale values.
+						tile->setHouse(nullptr);
+						tile->unsetMapFlags(tile->getMapFlags());
+						tile->removeZones();
 					}
 				}
 			}
@@ -373,6 +378,11 @@ namespace mcp {
 				Tile* destination = batch.edit(Position(minX + x, minY + y, minZ + localZ));
 				std::unique_ptr<Tile> incoming(sourceTile->deepCopy(map));
 				destination->merge(incoming.get());
+				// merge copies neither the other map flags nor the zones.
+				destination->setMapFlags(sourceTile->getMapFlags());
+				for (const unsigned int zone : sourceTile->zones) {
+					destination->addZone(zone);
+				}
 				destination->update();
 				++moved;
 			}
