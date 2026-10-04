@@ -26,6 +26,7 @@
 #include "../position.h"
 
 #include <chrono>
+#include <functional>
 #include <deque>
 #include <optional>
 #include <memory>
@@ -207,6 +208,10 @@ namespace collab {
 		// Host and admins: everybody's camera goes to where mine is.
 		void summonAll();
 
+		// Round trip time to a participant in milliseconds, -1 when unknown. The host measures
+		// every participant, a participant only the host (user 0).
+		int latencyMs(uint32_t userId) const;
+
 		// ---- presence ----
 		const std::unordered_map<uint32_t, Presence> &presences() const noexcept {
 			return remotePresence;
@@ -286,6 +291,8 @@ namespace collab {
 		void onMetaTick();
 		void onCursorTick();
 		void onViewTick();
+		void onAutosaveTick();
+		void onReconnectTick();
 
 	private:
 		struct Peer {
@@ -303,10 +310,11 @@ namespace collab {
 			std::chrono::steady_clock::time_point lastCursor;
 			std::chrono::steady_clock::time_point chatWindow;
 			int chatCount = 0;
+			int rttMs = -1;
 		};
 
 		static Connection::Callbacks makeCallbacks(uint64_t generation);
-		static void acceptLoop(std::shared_ptr<asio::ip::tcp::acceptor> acceptor, uint64_t generation, crypto::Salt salt, std::shared_ptr<const crypto::SessionKeys> keys);
+		static void acceptLoop(std::shared_ptr<asio::ip::tcp::acceptor> acceptor, uint64_t generation, crypto::Salt salt, std::vector<std::shared_ptr<const crypto::SessionKeys>> keysets);
 		void changed();
 		void resetToIdle(const std::string &message);
 		void addSystemChat(const std::string &text);
@@ -321,7 +329,11 @@ namespace collab {
 		void broadcast(Msg type, const std::vector<uint8_t> &payload, const Connection* except = nullptr);
 		void sendTo(Peer &peer, Msg type, const std::vector<uint8_t> &payload);
 		void startStreaming(Peer &peer, std::shared_ptr<const std::string> snapshot);
-		void resyncPeer(Peer &peer, std::shared_ptr<const std::string> snapshot);
+		// The map is serialized now and compressed on another thread; done runs on the GUI thread.
+		void buildSnapshotAsync(std::function<void(std::shared_ptr<const std::string>, const std::string &)> done);
+		void beginPeerResync(Peer &peer);
+		void streamTo(std::vector<Connection::Ptr> targets);
+		void invalidateSnapshot();
 		void runResync();
 		void pumpSnapshots();
 		void finishJoin();
@@ -340,6 +352,13 @@ namespace collab {
 		void clientTileUpdate(ByteReader &reader);
 		void clientMetaOps(ByteReader &reader);
 		void clientClaims(ByteReader &reader);
+
+		// Connection health and recovery
+		void sendPings();
+		void answerPing(Connection &conn, ByteReader &reader);
+		void notePong(Peer* peer, ByteReader &reader);
+		void beginReconnect(const std::string &reason);
+		void scheduleReconnect(const std::string &reason);
 
 		// Presence
 		Presence currentPresence() const;
@@ -431,6 +450,19 @@ namespace collab {
 		std::vector<std::string> lanList;
 		std::vector<Position> previewChangeList;
 		std::deque<Toast> toastQueue;
+		int hostRttMs = -1;
+		int pingTick = 0;
+		uint64_t dataVersion = 0; // changes with every change of the shared map
+		std::shared_ptr<const std::string> snapshotCache; // the compressed map, while dataVersion has not moved
+		int pingCounter = 0;
+		std::unique_ptr<wxTimer> autosaveTimer;
+		std::chrono::steady_clock::time_point lastAutosave;
+		// Joined: what it takes to rejoin after the connection dropped (wiped when the session ends).
+		std::unique_ptr<wxTimer> reconnectTimer;
+		std::string reconnectHost;
+		uint16_t reconnectPort = 0;
+		std::string reconnectPassword;
+		int reconnectAttempt = 0; // 0: not reconnecting
 		std::unordered_map<uint32_t, Presence> remotePresence;
 		Presence lastSentPresence;
 		bool presenceSent = false;

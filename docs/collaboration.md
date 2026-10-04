@@ -8,7 +8,9 @@ This replaces the old, hidden "Live" feature, which has been removed.
 
 1. Open the map you want to share.
 2. Collaborate → *Host Session...* (or open the panel and use the **Session** tab).
-3. Set a **password** (mandatory, at least 6 characters), a port (default `31313`) and what joiners can do (*Editor* or *Viewer*).
+3. Set a **password** (mandatory, at least 6 characters), a port (default `31313`) and what joiners can do (*Editor*, *Viewer* or *Commenter*). An optional **viewer password** lets people in as Viewers only: give one password to the team and the other to the people who should just look.
+   * Choose what **Editors** may change: houses/towns/waypoints/zones, the map properties, and spawns/monsters/npcs. Admins and the host can always change everything. What an editor is not allowed to change is not applied, and their map is put back the way it really is.
+   * **Autosave** (minutes) makes the host save the map by itself while somebody is connected (the map needs a file).
 4. Decide whether to **share the map**:
    * **Off (default): protected copy.** Participants see and edit the map while connected, but cannot save, export, copy out of it, or use Lua/MCP on it. Nothing is ever written to their disk. When they disconnect (or the host stops), their copy is discarded without asking to save.
    * **On: shared copy.** Participants can *Save As* a local copy whenever they want. If you also tick **Also save on participants' machines**, every time the host saves, each participant's copy is saved too (they choose the file once, later saves are silent).
@@ -42,12 +44,15 @@ The host is authoritative: when two people change the same tile at the same mome
 
 ## Roles
 
-| Role | Edit the map | Chat and comments | Edit others' comments | Revert / reapply | Kick / change roles |
-|---|---|---|---|---|---|
-| Host | yes | yes | yes | yes | yes |
-| Admin | yes | yes | yes | yes | Editors and Viewers only |
-| Editor | yes | yes | own only | no | no |
-| Viewer | no | yes | own only | no | no |
+| Role | Edit the map | Chat | Write comments | Edit others' comments | Revert / reapply | Kick / change roles |
+|---|---|---|---|---|---|---|
+| Host | yes | yes | yes | yes | yes | yes |
+| Admin | yes | yes | yes | yes | yes | Editors, Viewers and Commenters only |
+| Editor | yes (within what the host allows) | yes | yes | own only | no | no |
+| Commenter | no | yes | yes | own only | no | no |
+| Viewer | no | yes | no | no | no | no |
+
+Anybody can mark a thread resolved or open again.
 
 The host changes roles (and kicks) from the participants list context menu.
 
@@ -61,11 +66,28 @@ In the **History** tab:
 * **Reapply** undoes a revert, with the same conflict rules.
 * The revert itself is a normal edit by whoever did it: it is replicated and shows up as a new entry.
 * **Preview** shows on the map what a revert (or reapply) would do before you apply it: yellow tiles would change, red tiles are conflicts that would be skipped. *Clear preview* removes the overlay; reverting clears it too.
+* **Mark restore point...** gives the current moment a name. **Restore to point** puts the whole map back to how it was then, undoing everything edited after it (also things that were reverted before), for everybody.
+* **Revert user's last minutes** reverts everything the user picked in the filter did in the last N minutes, newest first.
+* **Export CSV** writes the history (all of it on the host, the loaded entries for an admin).
 * The history survives restarting the host with the same map.
 
 ## Comments
 
-*Show comments* (View menu, `Shift+C`) shows markers on the map; right-click a tile to add, edit, resolve or delete a comment. Comments are stored in `<map>-comments.xml` next to the map, so they work with or without a session, and the file is not part of the OTBM. In a session they are shared with everybody.
+*Show comments* (View menu, `Shift+C`) shows markers on the map; right-click a tile to add, edit, reply to, resolve or delete a comment. A comment has a **type** (note, bug, idea, to do; the marker color follows it), an optional **assignee** and can have **replies**, which form a thread. Writing `@name` mentions somebody: they get a toast and a line in the chat, and so does the person a comment is assigned to. In the Comments tab you can filter by type and by "assigned to me", search, and jump with *Next open*.
+
+Comments are stored in `<map>-comments.xml` next to the map, so they work with or without a session, and the file is not part of the OTBM. In a session they are shared with everybody like the rest of the map data.
+
+## Staying connected
+
+* The panel shows the **round trip time** (the host sees everybody's), warns when the connection is slow and says whether your edits are **synced** with the host.
+* If the connection drops, the editor **reconnects by itself** (up to 8 attempts, with growing pauses). Your copy of the map stays open but read-only meanwhile; when you are back in, the host sends the map again and your view is kept. The password is only kept in memory for this and wiped when the session ends.
+* A big map is **compressed on a background thread** and a map nobody has changed since it was last compressed is sent again as it is, so joining no longer freezes the host for as long. Serializing the map still happens on the interface thread, as in a save.
+
+## Small things
+
+* Your **color** is yours to pick (next to your name); the host keeps it unless somebody already has it.
+* *Collaborate → Show Cursors / Show Names* toggle the cursors without opening the panel. Joins, leaves and mentions appear as short messages over the map; there is an option for a sound when a chat message arrives.
+* The tab title shows how many people are in the session, and the selections, tools and typing state of the others are visible (the minimap marks where their cameras are).
 
 ## Security
 
@@ -76,7 +98,8 @@ In the **History** tab:
 
 ## Not included (yet)
 
-* A relay or NAT traversal server; reconnecting and resuming after a dropped connection.
+* A relay or NAT traversal server; resuming only the missed changes after a reconnect (the whole map is sent again).
+* Showing what a participant is about to paste.
 * Reverting house, town, waypoint or zone changes (they are only listed).
 * Locking areas or merging edits finer than a tile.
 * More than one session per editor.

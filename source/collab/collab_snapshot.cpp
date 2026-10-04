@@ -52,7 +52,7 @@ namespace collab {
 		wipeString(comments);
 	}
 
-	bool buildSnapshot(Editor &editor, std::string &compressed, std::string &error) {
+	bool serializeSnapshot(Editor &editor, std::string &raw, std::string &error) {
 		Map &map = editor.getMap();
 
 		Snapshot snapshot;
@@ -80,20 +80,31 @@ namespace collab {
 			error = "The map is too big to share";
 			return false;
 		}
+		raw.assign(reinterpret_cast<const char*>(w.buffer.data()), w.buffer.size());
+		return true;
+	}
 
-		uLongf bound = compressBound(static_cast<uLong>(w.buffer.size()));
+	bool compressSnapshot(const std::string &raw, std::string &compressed, std::string &error) {
+		// The bigger the map, the more a fast level matters for how long the participant waits.
+		const int level = raw.size() > (64u << 20) ? 1 : (raw.size() > (16u << 20) ? 3 : 6);
+		uLongf bound = compressBound(static_cast<uLong>(raw.size()));
 		compressed.assign(4 + bound, '\0');
-		const uint32_t rawSize = static_cast<uint32_t>(w.buffer.size());
+		const uint32_t rawSize = static_cast<uint32_t>(raw.size());
 		compressed[0] = static_cast<char>(rawSize >> 24);
 		compressed[1] = static_cast<char>(rawSize >> 16);
 		compressed[2] = static_cast<char>(rawSize >> 8);
 		compressed[3] = static_cast<char>(rawSize);
-		if (compress2(reinterpret_cast<Bytef*>(compressed.data() + 4), &bound, w.buffer.data(), static_cast<uLong>(w.buffer.size()), 6) != Z_OK) {
+		if (compress2(reinterpret_cast<Bytef*>(compressed.data() + 4), &bound, reinterpret_cast<const Bytef*>(raw.data()), static_cast<uLong>(raw.size()), level) != Z_OK) {
 			error = "Could not compress the map";
 			return false;
 		}
 		compressed.resize(4 + bound);
 		return true;
+	}
+
+	bool buildSnapshot(Editor &editor, std::string &compressed, std::string &error) {
+		std::string raw;
+		return serializeSnapshot(editor, raw, error) && compressSnapshot(raw, compressed, error);
 	}
 
 	bool parseSnapshot(const std::string &compressed, Snapshot &out, std::string &error) {

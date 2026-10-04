@@ -96,6 +96,7 @@ private:
 	wxPanel* active_panel = nullptr;
 	wxSpinCtrl* host_port = nullptr;
 	wxTextCtrl* host_password = nullptr;
+	wxTextCtrl* host_viewer_password = nullptr;
 	wxChoice* host_role = nullptr;
 	wxCheckBox* host_perm_meta = nullptr;
 	wxCheckBox* host_perm_props = nullptr;

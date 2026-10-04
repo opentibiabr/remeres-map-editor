@@ -35,7 +35,12 @@ namespace collab {
 		void wipe();
 	};
 
-	// Host, GUI thread (shows a loading bar). Output: u32 uncompressed size + zlib stream.
+	// Host, GUI thread (shows a loading bar): the uncompressed container, a copy of everything
+	// the map holds at this moment, so the rest can happen on another thread.
+	bool serializeSnapshot(Editor &editor, std::string &raw, std::string &error);
+	// Any thread. Output: u32 uncompressed size + zlib stream. Big maps use a faster, lighter level.
+	bool compressSnapshot(const std::string &raw, std::string &compressed, std::string &error);
+	// Both steps in a row, on the calling thread.
 	bool buildSnapshot(Editor &editor, std::string &compressed, std::string &error);
 	// Participant. Rejects anything malformed or bigger than kMaxSnapshot.
 	bool parseSnapshot(const std::string &compressed, Snapshot &out, std::string &error);

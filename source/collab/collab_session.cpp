@@ -44,6 +44,7 @@
 #include <sodium.h>
 
 #include <ctime>
+#include <thread>
 #include <fstream>
 
 namespace collab {
@@ -279,6 +280,24 @@ namespace collab {
 			}
 		};
 
+		class AutosaveTimer : public wxTimer {
+		public:
+			void Notify() override {
+				Session::get().onAutosaveTick();
+			}
+		};
+
+		class ReconnectTimer : public wxTimer {
+		public:
+			void Notify() override {
+				Session::get().onReconnectTick();
+			}
+		};
+
+		int64_t steadyMillis() {
+			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+		}
+
 		class ViewTimer : public wxTimer {
 		public:
 			void Notify() override {
@@ -334,12 +353,62 @@ namespace collab {
 		} else if (currentState == State::Joined) {
 			const User* me = self();
 			statusText = fmt::format("Connected to host - role {}", me ? roleName(me->role) : "?");
+			if (hostRttMs >= 0) {
+				statusText += fmt::format(" - {} ms{}", hostRttMs, hostRttMs > 800 ? " (slow connection)" : "");
+			}
+			statusText += (pending.before.empty() && lastSentSeq.empty()) ? " - synced" : " - syncing...";
 		}
 		if (g_gui.root) {
 			g_gui.UpdateTitle(); // the participant count is in the tab title
 		}
 		if (onChanged) {
 			onChanged();
+		}
+	}
+
+	int Session::latencyMs(uint32_t userId) const {
+		if (currentState == State::Hosting) {
+			for (const auto &entry : peers) {
+				if (entry.second.hello && entry.second.userId == userId) {
+					return entry.second.rttMs;
+				}
+			}
+			return -1;
+		}
+		return currentState == State::Joined && userId == 0 ? hostRttMs : -1;
+	}
+
+	void Session::sendPings() {
+		ByteWriter w;
+		w.u32(++pingTick);
+		w.u64(static_cast<uint64_t>(steadyMillis()));
+		if (currentState == State::Hosting) {
+			for (auto &entry : peers) {
+				if (entry.second.hello && !entry.second.dropping && !entry.second.streaming) {
+					entry.second.conn->send(Msg::Ping, w.buffer); // not through sendTo: it must not wait for a download
+				}
+			}
+		} else if (currentState == State::Joined && link) {
+			link->send(Msg::Ping, w.buffer);
+		}
+	}
+
+	void Session::answerPing(Connection &conn, ByteReader &reader) {
+		ByteWriter w;
+		w.u32(reader.u32());
+		w.u64(reader.u64());
+		conn.send(Msg::Pong, w.buffer);
+	}
+
+	void Session::notePong(Peer* peer, ByteReader &reader) {
+		reader.u32();
+		const int64_t sent = static_cast<int64_t>(reader.u64());
+		const int rtt = static_cast<int>(std::clamp<int64_t>(steadyMillis() - sent, 0, 60000));
+		int &slot = peer ? peer->rttMs : hostRttMs;
+		const bool noticeable = slot < 0 || std::abs(rtt - slot) > 30 || (rtt > 800) != (slot > 800);
+		slot = rtt;
+		if (noticeable) {
+			changed();
 		}
 	}
 
@@ -497,6 +566,9 @@ namespace collab {
 				peer.snapshot.reset();
 				continue;
 			}
+			if (!peer.snapshot) {
+				continue; // still being compressed
+			}
 
 			const std::string &data = *peer.snapshot;
 			if (peer.conn->queuedBytes() < kStreamHighWater) {
@@ -526,12 +598,8 @@ namespace collab {
 
 			if (peer.resyncAfter && hostEditor) {
 				peer.resyncAfter = false;
-				std::string fresh;
-				std::string error;
-				if (buildSnapshot(*hostEditor, fresh, error)) {
-					resyncPeer(peer, std::make_shared<const std::string>(std::move(fresh)));
-					any = true;
-				}
+				beginPeerResync(peer);
+				streamTo({ peer.conn });
 			}
 		}
 		if (!any && pumpTimer) {
@@ -618,16 +686,32 @@ namespace collab {
 			cleanName = "Host";
 		}
 
+		// An optional second password lets people in as Viewers: its key set is index 1.
+		const std::string viewerPassword = hostOptions.viewerPassword;
+		if (!viewerPassword.empty() && (viewerPassword.size() < kMinPassword || viewerPassword == password)) {
+			error = fmt::format("The viewer password needs at least {} characters and must differ from the main one", kMinPassword);
+			return false;
+		}
+
 		const crypto::Salt salt = crypto::randomSalt();
-		std::shared_ptr<const crypto::SessionKeys> keys;
+		std::vector<std::shared_ptr<const crypto::SessionKeys>> keysets;
 		{
 			wxBusyCursor busy;
-			auto derived = crypto::deriveKeys(password, salt);
-			if (!derived) {
-				error = "Could not derive the session key (out of memory?)";
-				return false;
+			for (const std::string* candidate : { &password, &viewerPassword }) {
+				if (candidate == &viewerPassword && viewerPassword.empty()) {
+					break;
+				}
+				auto derived = crypto::deriveKeys(*candidate, salt);
+				if (!derived) {
+					error = "Could not derive the session key (out of memory?)";
+					return false;
+				}
+				keysets.push_back(std::make_shared<const crypto::SessionKeys>(*derived));
 			}
-			keys = std::make_shared<const crypto::SessionKeys>(*derived);
+		}
+		if (!hostOptions.viewerPassword.empty()) {
+			sodium_memzero(hostOptions.viewerPassword.data(), hostOptions.viewerPassword.size());
+			hostOptions.viewerPassword.clear();
 		}
 
 		NetworkConnection &network = NetworkConnection::getInstance();
@@ -697,24 +781,31 @@ namespace collab {
 		lastSentView = Position();
 		presenceSent = false;
 		viewTimer->Start(250);
-		acceptLoop(listener, generation, salt, keys);
+		if (currentState == State::Hosting && hostOptions.autosaveMinutes > 0) {
+			if (!autosaveTimer) {
+				autosaveTimer = std::make_unique<AutosaveTimer>();
+			}
+			lastAutosave = Clock::now();
+			autosaveTimer->Start(30 * 1000);
+		}
+		acceptLoop(listener, generation, salt, keysets);
 		changed();
 		return true;
 	}
 
-	void Session::acceptLoop(std::shared_ptr<asio::ip::tcp::acceptor> acceptor, uint64_t generation, crypto::Salt salt, std::shared_ptr<const crypto::SessionKeys> keys) {
+	void Session::acceptLoop(std::shared_ptr<asio::ip::tcp::acceptor> acceptor, uint64_t generation, crypto::Salt salt, std::vector<std::shared_ptr<const crypto::SessionKeys>> keysets) {
 		auto socket = std::make_shared<asio::ip::tcp::socket>(io());
-		acceptor->async_accept(*socket, [acceptor, generation, salt, keys, socket](const std::error_code &error) {
+		acceptor->async_accept(*socket, [acceptor, generation, salt, keysets, socket](const std::error_code &error) {
 			if (error == asio::error::operation_aborted) {
 				return;
 			}
 			if (!error) {
-				auto conn = Connection::makeServer(io(), std::move(*socket), salt, keys, makeCallbacks(generation));
+				auto conn = Connection::makeServer(io(), std::move(*socket), salt, keysets, makeCallbacks(generation));
 				hop([conn, generation] { Session::get().handleAccepted(conn, generation); });
 				conn->start();
 			}
 			if (acceptor->is_open()) {
-				acceptLoop(acceptor, generation, salt, keys);
+				acceptLoop(acceptor, generation, salt, keysets);
 			}
 		});
 	}
@@ -782,20 +873,14 @@ namespace collab {
 			cleanName = "User";
 		}
 
-		// The password was proven by decrypting this frame; building a big map can take a while.
+		// The password was proven by decrypting this frame.
 		peer.conn->markAuthenticated();
-		std::string snapshot;
-		std::string snapshotError;
-		if (!buildSnapshot(*hostEditor, snapshot, snapshotError)) {
-			rejectPeer(peer, "The host could not prepare the map: " + snapshotError);
-			return;
-		}
 
 		User user;
 		user.id = nextUserId++;
 		user.name = uniqueName(cleanName);
 		user.color = pickColor(preferredColor);
-		user.role = defaultRole;
+		user.role = peer.conn->keyIndex() == 1 ? Role::Viewer : defaultRole; // the viewer password only reads
 		userList[user.id] = user;
 		peer.userId = user.id;
 		peer.hello = true;
@@ -813,7 +898,10 @@ namespace collab {
 		welcome.u8(saveOnParticipantsFlag ? 1 : 0);
 		welcome.str(sessionMapName.substr(0, 255));
 		peer.conn->send(Msg::Welcome, welcome.buffer);
-		startStreaming(peer, std::make_shared<const std::string>(std::move(snapshot)));
+		// Everything that happens from now on waits for the participant until the map is sent.
+		peer.streaming = true;
+		peer.snapshot.reset();
+		peer.snapshotSent = 0;
 		for (const auto &entry : claimList) {
 			ByteWriter claim;
 			writeClaimAdd(claim, entry.second);
@@ -827,6 +915,89 @@ namespace collab {
 		addSystemChat(user.name + " joined");
 		pushToast(user.name + " joined");
 		changed();
+
+		// Serialized right here, so the map is exactly the state the held-back changes build on.
+		const Connection::Ptr joining = peer.conn;
+		buildSnapshotAsync([joining](std::shared_ptr<const std::string> snapshot, const std::string &error) {
+			Session &session = Session::get();
+			auto it = session.peers.find(joining.get());
+			if (it == session.peers.end() || it->second.dropping) {
+				return;
+			}
+			if (!snapshot) {
+				session.dropPeer(joining, "The host could not prepare the map: " + error);
+				return;
+			}
+			session.startStreaming(it->second, snapshot);
+		});
+	}
+
+	void Session::invalidateSnapshot() {
+		++dataVersion;
+		snapshotCache.reset();
+	}
+
+	void Session::buildSnapshotAsync(std::function<void(std::shared_ptr<const std::string>, const std::string &)> done) {
+		if (!hostEditor) {
+			done(nullptr, "no map is open");
+			return;
+		}
+		if (snapshotCache) { // nothing changed since the last participant got it
+			done(snapshotCache, std::string());
+			return;
+		}
+
+		std::string raw;
+		std::string error;
+		if (!serializeSnapshot(*hostEditor, raw, error)) {
+			done(nullptr, error);
+			return;
+		}
+
+		const uint64_t version = dataVersion;
+		const uint64_t gen = generation;
+		std::thread([done, raw = std::move(raw), version, gen]() mutable {
+			std::string compressed;
+			std::string failure;
+			std::shared_ptr<const std::string> result;
+			if (compressSnapshot(raw, compressed, failure)) {
+				result = std::make_shared<const std::string>(std::move(compressed));
+			}
+			hop([done, result, failure, version, gen] {
+				Session &session = Session::get();
+				if (gen != session.generation) {
+					return; // the session ended meanwhile
+				}
+				if (result && version == session.dataVersion) {
+					session.snapshotCache = result;
+				}
+				done(result, failure);
+			});
+		}).detach();
+	}
+
+	void Session::beginPeerResync(Peer &peer) {
+		peer.conn->send(Msg::FullResync); // what follows is held back until the new map is out
+		peer.streaming = true;
+		peer.snapshot.reset();
+		peer.snapshotSent = 0;
+	}
+
+	void Session::streamTo(std::vector<Connection::Ptr> targets) {
+		buildSnapshotAsync([targets](std::shared_ptr<const std::string> snapshot, const std::string &error) {
+			Session &session = Session::get();
+			for (const Connection::Ptr &conn : targets) {
+				auto it = session.peers.find(conn.get());
+				if (it == session.peers.end() || it->second.dropping) {
+					continue;
+				}
+				if (!snapshot) {
+					session.dropPeer(conn, "The host could not resend the map: " + error);
+					continue;
+				}
+				session.startStreaming(it->second, snapshot);
+			}
+		});
 	}
 
 	void Session::hostFrame(Peer &peer, const std::vector<uint8_t> &frame) {
@@ -889,6 +1060,12 @@ namespace collab {
 			}
 			case Msg::Kick:
 				applyKick(actor, reader.u32());
+				return;
+			case Msg::Ping:
+				answerPing(*peer.conn, reader);
+				return;
+			case Msg::Pong:
+				notePong(&peer, reader);
 				return;
 			case Msg::View: {
 				const Position view = readView(reader);
@@ -1058,6 +1235,11 @@ namespace collab {
 		selfId = 0;
 		welcomed = false;
 		download = Download();
+		reconnectAttempt = 0;
+		reconnectHost = trimmedHost.utf8_string();
+		reconnectPort = port;
+		reconnectPassword = password; // only to rejoin after a dropped connection; wiped when the session ends
+		hostRttMs = -1;
 		currentState = State::Connecting;
 		statusText = fmt::format("Connecting to {}:{}...", trimmedHost.utf8_string(), port);
 		link = Connection::makeClient(io(), trimmedHost.utf8_string(), port, password, makeCallbacks(generation));
@@ -1166,6 +1348,7 @@ namespace collab {
 		}
 
 		currentState = State::Joined;
+		reconnectAttempt = 0;
 		lastSynced = captureMeta(editor->getMap());
 		pending = Pending();
 		lastSentSeq.clear();
@@ -1180,12 +1363,30 @@ namespace collab {
 		lastSentView = Position();
 		presenceSent = false;
 		viewTimer->Start(250);
+		if (currentState == State::Hosting && hostOptions.autosaveMinutes > 0) {
+			if (!autosaveTimer) {
+				autosaveTimer = std::make_unique<AutosaveTimer>();
+			}
+			lastAutosave = Clock::now();
+			autosaveTimer->Start(30 * 1000);
+		}
 		changed();
 	}
 
 	void Session::clientFrame(const std::vector<uint8_t> &frame) {
 		ByteReader reader(frame);
 		const Msg type = static_cast<Msg>(reader.u8());
+
+		if (type == Msg::Ping) {
+			if (link) {
+				answerPing(*link, reader);
+			}
+			return;
+		}
+		if (type == Msg::Pong) {
+			notePong(nullptr, reader);
+			return;
+		}
 
 		if (currentState == State::Connecting) {
 			if (welcomed) {
@@ -1412,12 +1613,65 @@ namespace collab {
 			return;
 		}
 		link.reset();
+		if (currentState == State::Connecting && reconnectAttempt > 0) {
+			++reconnectAttempt; // this try failed too
+			scheduleReconnect(reason);
+			return;
+		}
+		if (currentState == State::Joined && clientEditor && !reconnectPassword.empty()) {
+			beginReconnect(reason); // the map stays open (read-only) while we try to get back in
+			return;
+		}
 		if (currentState == State::Connecting) {
 			const bool silent = reason == "Connection closed" || reason == "Connection lost" || reason == "Wrong password or corrupted stream";
 			resetToIdle(silent ? "Wrong password or not an RME collaboration server." : reason);
 		} else {
 			resetToIdle("Disconnected: " + reason);
 		}
+	}
+
+	// ---- reconnecting --------------------------------------------------------------------
+
+	void Session::beginReconnect(const std::string &reason) {
+		reconnectAttempt = 1;
+		currentState = State::Connecting;
+		welcomed = false;
+		resyncing = false;
+		download = Download();
+		pending = Pending();
+		lastSentSeq.clear();
+		remoteCursors.clear();
+		remoteViews.clear();
+		remotePresence.clear();
+		hostRttMs = -1;
+		followId = 0;
+		scheduleReconnect(reason);
+	}
+
+	void Session::scheduleReconnect(const std::string &reason) {
+		constexpr int kMaxAttempts = 8;
+		if (reconnectAttempt > kMaxAttempts) {
+			resetToIdle("Could not reconnect (" + reason + ")");
+			return;
+		}
+		if (!reconnectTimer) {
+			reconnectTimer = std::make_unique<ReconnectTimer>();
+		}
+		const int delay = std::min(1000 * reconnectAttempt, 8000);
+		statusText = fmt::format("Connection lost ({}) - reconnecting in {} s (attempt {} of {}). The map is read-only meanwhile.", reason, delay / 1000, reconnectAttempt, kMaxAttempts);
+		reconnectTimer->StartOnce(delay);
+		changed();
+	}
+
+	void Session::onReconnectTick() {
+		if (currentState != State::Connecting || reconnectAttempt == 0 || link) {
+			return;
+		}
+		statusText = fmt::format("Reconnecting to {}:{} (attempt {})...", reconnectHost, reconnectPort, reconnectAttempt);
+		++generation;
+		link = Connection::makeClient(io(), reconnectHost, reconnectPort, reconnectPassword, makeCallbacks(generation));
+		link->start();
+		changed();
 	}
 
 	// ---- presence ------------------------------------------------------------------------
@@ -1498,6 +1752,9 @@ namespace collab {
 		}
 		if (actionType == ACTION_SELECT || actionType == ACTION_UNSELECT) {
 			return;
+		}
+		if (isHost()) {
+			invalidateSnapshot();
 		}
 		if (applying && !isHost()) {
 			return; // it came from the host
@@ -1785,6 +2042,7 @@ namespace collab {
 			return;
 		}
 		lastSynced = std::move(current);
+		invalidateSnapshot();
 		sendMetaOps(ops, nullptr);
 		if (isHost()) {
 			recordMetaInfo(selfId, ops);
@@ -1811,6 +2069,7 @@ namespace collab {
 			return;
 		}
 		Map &map = editor->getMap();
+		invalidateSnapshot();
 		bool commentsTouched = false;
 		for (const MetaOp &op : ops) {
 			std::optional<std::string> previous;
@@ -2720,6 +2979,23 @@ namespace collab {
 		}
 	}
 
+	// The host saves by itself every few minutes while somebody works with it.
+	void Session::onAutosaveTick() {
+		if (currentState != State::Hosting || !hostEditor || hostOptions.autosaveMinutes <= 0 || userList.size() < 2) {
+			return;
+		}
+		if (Clock::now() - lastAutosave < std::chrono::minutes(hostOptions.autosaveMinutes)) {
+			return;
+		}
+		Map &map = hostEditor->getMap();
+		if (!map.hasFile() || !map.hasChanged()) {
+			return; // nothing to write, or nowhere to write it
+		}
+		lastAutosave = Clock::now();
+		hostEditor->saveMap(FileName(), false);
+		addSystemChat("The host's map was saved automatically");
+	}
+
 	void Session::onViewTick() {
 		if (currentState != State::Hosting && currentState != State::Joined) {
 			return;
@@ -2754,6 +3030,11 @@ namespace collab {
 				writeView(w, view);
 				link->send(Msg::View, w.buffer);
 			}
+		}
+
+		if (++pingCounter >= 16) { // every 4 seconds
+			pingCounter = 0;
+			sendPings();
 		}
 
 		// Selection, tool and typing, sent when something changed.
@@ -3004,15 +3285,6 @@ namespace collab {
 		hop([] { Session::get().runResync(); }); // after the operation that called us returns
 	}
 
-	void Session::resyncPeer(Peer &peer, std::shared_ptr<const std::string> snapshot) {
-		if (peer.streaming) {
-			peer.resyncAfter = true; // it gets the new copy when the current download ends
-			return;
-		}
-		peer.conn->send(Msg::FullResync);
-		startStreaming(peer, std::move(snapshot));
-	}
-
 	void Session::runResync() {
 		resyncScheduled = false;
 		if (currentState != State::Hosting || !hostEditor) {
@@ -3022,22 +3294,22 @@ namespace collab {
 		pending = Pending();
 		lastSynced = captureMeta(hostEditor->getMap());
 
-		std::shared_ptr<const std::string> snapshot;
+		invalidateSnapshot();
+		std::vector<Connection::Ptr> targets;
 		for (auto &entry : peers) {
 			Peer &peer = entry.second;
 			if (!peer.hello || peer.dropping) {
 				continue;
 			}
-			if (!snapshot) {
-				std::string bytes;
-				std::string error;
-				if (!buildSnapshot(*hostEditor, bytes, error)) {
-					addSystemChat("Could not resend the map to participants: " + error);
-					return;
-				}
-				snapshot = std::make_shared<const std::string>(std::move(bytes));
+			if (peer.streaming) {
+				peer.resyncAfter = true; // it gets the new copy when the current download ends
+				continue;
 			}
-			resyncPeer(peer, snapshot);
+			beginPeerResync(peer);
+			targets.push_back(peer.conn);
+		}
+		if (!targets.empty()) {
+			streamTo(std::move(targets));
 		}
 	}
 
@@ -3131,6 +3403,18 @@ namespace collab {
 		if (viewTimer) {
 			viewTimer->Stop();
 		}
+		if (autosaveTimer) {
+			autosaveTimer->Stop();
+		}
+		if (reconnectTimer) {
+			reconnectTimer->Stop();
+		}
+		reconnectAttempt = 0;
+		if (!reconnectPassword.empty()) {
+			sodium_memzero(reconnectPassword.data(), reconnectPassword.size());
+			reconnectPassword.clear();
+		}
+		hostRttMs = -1;
 		deferredCursor.valid = false;
 		followId = 0;
 		remoteViews.clear();

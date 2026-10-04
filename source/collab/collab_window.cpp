@@ -62,6 +62,7 @@ namespace {
 		USER_NAME,
 		USER_ROLE,
 		USER_DOING,
+		USER_PING,
 	};
 
 	wxButton* makeButton(wxWindow* parent, wxSizer* sizer, const wxString &label) {
@@ -202,6 +203,9 @@ void CollabWindow::BuildSessionPage(wxWindow* page) {
 	host_password->SetHint("At least 6 characters");
 	host_password->Bind(wxEVT_TEXT, [this](wxCommandEvent &) { UpdateStartButton(); });
 	addRow(host, host_box, "Password:", host_password);
+	host_viewer_password = newd wxTextCtrl(host_box, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_PASSWORD);
+	host_viewer_password->SetHint("Optional: whoever uses it joins as a Viewer");
+	addRow(host, host_box, "Viewer password:", host_viewer_password);
 	host_role = newd wxChoice(host_box, wxID_ANY);
 	host_role->Append("Editor");
 	host_role->Append("Viewer");
@@ -243,6 +247,7 @@ void CollabWindow::BuildSessionPage(wxWindow* page) {
 		options.editorsProps = host_perm_props->GetValue();
 		options.editorsSpawns = host_perm_spawns->GetValue();
 		options.autosaveMinutes = host_autosave->GetValue();
+		options.viewerPassword = nstr(host_viewer_password->GetValue());
 		collab::Session::get().hostOptions = options;
 		g_settings.setInteger(Config::COLLAB_PORT, host_port->GetValue());
 		g_settings.setInteger(Config::COLLAB_DEFAULT_ROLE, static_cast<int>(role));
@@ -251,6 +256,7 @@ void CollabWindow::BuildSessionPage(wxWindow* page) {
 		std::string error;
 		if (collab::Session::get().startHosting(g_gui.GetCurrentEditor(), nstr(name_text->GetValue()), static_cast<uint16_t>(host_port->GetValue()), nstr(host_password->GetValue()), role, host_share->GetValue(), host_save_all->GetValue(), error)) {
 			host_password->Clear();
+			host_viewer_password->Clear();
 		} else {
 			status_label->SetLabel(wxstr(error));
 			Layout();
@@ -295,7 +301,8 @@ void CollabWindow::BuildSessionPage(wxWindow* page) {
 	user_list = newd wxListCtrl(active_panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL);
 	user_list->InsertColumn(USER_NAME, "Participant", wxLIST_FORMAT_LEFT, 180);
 	user_list->InsertColumn(USER_ROLE, "Role", wxLIST_FORMAT_LEFT, 74);
-	user_list->InsertColumn(USER_DOING, "Doing", wxLIST_FORMAT_LEFT, 110);
+	user_list->InsertColumn(USER_DOING, "Doing", wxLIST_FORMAT_LEFT, 100);
+	user_list->InsertColumn(USER_PING, "Ping", wxLIST_FORMAT_LEFT, 56);
 	user_list->Bind(wxEVT_LIST_ITEM_RIGHT_CLICK, [this](wxListEvent &event) {
 		ShowUserMenu(static_cast<uint32_t>(user_list->GetItemData(event.GetIndex())));
 	});
@@ -479,6 +486,10 @@ void CollabWindow::RefreshUsers() {
 		}
 		long row = user_list->InsertItem(user_list->GetItemCount(), label);
 		user_list->SetItem(row, USER_ROLE, collab::roleName(user.role));
+		const int latency = collab_session.latencyMs(user.id);
+		if (latency >= 0) {
+			user_list->SetItem(row, USER_PING, wxString::Format("%d ms", latency));
+		}
 		const auto presence = collab_session.presences().find(user.id);
 		if (presence != collab_session.presences().end()) {
 			wxString doing = wxstr(presence->second.tool);

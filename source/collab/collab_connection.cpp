@@ -36,12 +36,12 @@ namespace collab {
 
 	Connection::~Connection() = default;
 
-	Connection::Ptr Connection::makeServer(asio::io_context &io, asio::ip::tcp::socket socket, const crypto::Salt &salt, std::shared_ptr<const crypto::SessionKeys> keys, Callbacks callbacks) {
+	Connection::Ptr Connection::makeServer(asio::io_context &io, asio::ip::tcp::socket socket, const crypto::Salt &salt, std::vector<std::shared_ptr<const crypto::SessionKeys>> keysets, Callbacks callbacks) {
 		Ptr conn(new Connection(io, std::move(callbacks)));
 		conn->socket = std::move(socket);
 		conn->serverSide = true;
 		conn->salt = salt;
-		conn->keysHold = std::move(keys);
+		conn->keysHold = std::move(keysets);
 		return conn;
 	}
 
@@ -88,26 +88,18 @@ namespace collab {
 			}
 		});
 
-		pusher = std::make_unique<crypto::Pusher>(keysHold->serverToClient);
-
-		// Plain banner: magic, protocol version, password salt, our stream header.
+		// Plain banner: magic, protocol version, password salt. Our own stream header follows once the
+		// first frame has shown which of the passwords the peer used.
 		std::vector<uint8_t> hello(kMagic, kMagic + sizeof(kMagic));
 		hello.push_back(static_cast<uint8_t>(kProtocolVersion >> 8));
 		hello.push_back(static_cast<uint8_t>(kProtocolVersion));
 		hello.insert(hello.end(), salt.begin(), salt.end());
-		hello.insert(hello.end(), pusher->header().begin(), pusher->header().end());
 		enqueue(std::move(hello));
 
 		asio::async_read(socket, asio::buffer(peerHeader), [self](const std::error_code &error, size_t) {
 			if (error) {
 				self->closeNow("Connection lost during handshake");
 				return;
-			}
-			self->puller = std::make_unique<crypto::Puller>(self->keysHold->clientToServer, self->peerHeader);
-			self->keysHold.reset();
-			self->ready = true;
-			if (self->callbacks.onReady) {
-				self->callbacks.onReady(self);
 			}
 			self->readFrameHeader();
 		});
@@ -155,7 +147,6 @@ namespace collab {
 			return;
 		}
 		std::memcpy(salt.data(), banner.data() + 10, salt.size());
-		std::memcpy(peerHeader.data(), banner.data() + 10 + salt.size(), peerHeader.size());
 
 		// Argon2 takes a noticeable fraction of a second: keep it off the network thread.
 		std::thread([self = shared_from_this(), pw = std::move(password), salt = salt]() mutable {
@@ -174,13 +165,20 @@ namespace collab {
 					return;
 				}
 				self->pusher = std::make_unique<crypto::Pusher>(shared->clientToServer);
-				self->puller = std::make_unique<crypto::Puller>(shared->serverToClient, self->peerHeader);
 				self->enqueue(std::vector<uint8_t>(self->pusher->header().begin(), self->pusher->header().end()));
 				self->ready = true;
 				if (self->callbacks.onReady) {
 					self->callbacks.onReady(self);
 				}
-				self->readFrameHeader();
+				// The host answers with its own stream header once it knows which password we used.
+				asio::async_read(self->socket, asio::buffer(self->peerHeader), [self, shared](const std::error_code &error, size_t) {
+					if (error) {
+						self->closeNow(error == asio::error::eof ? "Connection closed" : "Connection lost");
+						return;
+					}
+					self->puller = std::make_unique<crypto::Puller>(shared->serverToClient, self->peerHeader);
+					self->readFrameHeader();
+				});
 			});
 		}).detach();
 		password.clear();
@@ -212,10 +210,14 @@ namespace collab {
 				self->closeNow("Connection lost");
 				return;
 			}
-			auto plain = self->puller->decrypt(self->bodyBuffer.data(), self->bodyBuffer.size());
+			const bool first = !self->puller; // host side: the first frame decides which password was used
+			auto plain = first ? self->identifyPeer() : self->puller->decrypt(self->bodyBuffer.data(), self->bodyBuffer.size());
 			if (!plain) {
 				self->closeNow("Wrong password or corrupted stream");
 				return;
+			}
+			if (first && self->callbacks.onReady) {
+				self->callbacks.onReady(self);
 			}
 			if (self->callbacks.onFrame) {
 				self->callbacks.onFrame(self, std::move(*plain));
@@ -224,6 +226,24 @@ namespace collab {
 				self->readFrameHeader();
 			}
 		});
+	}
+
+	std::optional<std::vector<uint8_t>> Connection::identifyPeer() {
+		for (size_t i = 0; i < keysHold.size(); ++i) {
+			auto candidate = std::make_unique<crypto::Puller>(keysHold[i]->clientToServer, peerHeader);
+			auto plain = candidate->decrypt(bodyBuffer.data(), bodyBuffer.size());
+			if (!plain) {
+				continue;
+			}
+			puller = std::move(candidate);
+			pusher = std::make_unique<crypto::Pusher>(keysHold[i]->serverToClient);
+			matchedKey = i;
+			enqueue(std::vector<uint8_t>(pusher->header().begin(), pusher->header().end()));
+			ready = true;
+			keysHold.clear();
+			return plain;
+		}
+		return std::nullopt;
 	}
 
 	void Connection::send(Msg type, const std::vector<uint8_t> &payload) {

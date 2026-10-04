@@ -27,6 +27,7 @@
 #include <deque>
 #include <functional>
 #include <memory>
+#include <optional>
 
 namespace collab {
 
@@ -50,7 +51,8 @@ namespace collab {
 		};
 
 		// Host side: the socket was just accepted. Keys come from the session password.
-		static Ptr makeServer(asio::io_context &io, asio::ip::tcp::socket socket, const crypto::Salt &salt, std::shared_ptr<const crypto::SessionKeys> keys, Callbacks callbacks);
+		// The peer may use any of the passwords (one key set each); the first frame tells which, see keyIndex().
+		static Ptr makeServer(asio::io_context &io, asio::ip::tcp::socket socket, const crypto::Salt &salt, std::vector<std::shared_ptr<const crypto::SessionKeys>> keysets, Callbacks callbacks);
 		// Client side: resolves and connects, then runs the handshake. The password is only
 		// used to derive keys (on a worker thread) and is wiped afterwards.
 		static Ptr makeClient(asio::io_context &io, std::string host, uint16_t port, std::string password, Callbacks callbacks);
@@ -62,6 +64,11 @@ namespace collab {
 		void close(const std::string &reason);
 		// Host side: the peer proved it knows the password, stop the handshake deadline.
 		void markAuthenticated();
+
+		// Host side: which of the key sets the peer proved to know (valid once onReady ran).
+		size_t keyIndex() const noexcept {
+			return matchedKey;
+		}
 
 		std::string remoteAddress() const {
 			return remote;
@@ -80,6 +87,8 @@ namespace collab {
 		void beginStreams(std::shared_ptr<const crypto::SessionKeys> keys, bool server);
 		void readFrameHeader();
 		void readFrameBody(uint32_t length);
+		// Host side, first frame: finds the key set that decrypts it and starts our own stream.
+		std::optional<std::vector<uint8_t>> identifyPeer();
 		void enqueue(std::vector<uint8_t> bytes);
 		void pump();
 		void closeNow(const std::string &reason);
@@ -98,12 +107,13 @@ namespace collab {
 
 		// Server only
 		crypto::Salt salt {};
-		std::shared_ptr<const crypto::SessionKeys> keysHold;
+		std::vector<std::shared_ptr<const crypto::SessionKeys>> keysHold;
+		size_t matchedKey = 0;
 		// Client only
 		std::string host;
 		uint16_t port = 0;
 		std::string password;
-		std::array<uint8_t, 8 + 2 + crypto::kSaltBytes + crypto::kHeaderBytes> banner {};
+		std::array<uint8_t, 8 + 2 + crypto::kSaltBytes> banner {};
 		asio::ip::tcp::resolver resolver;
 
 		std::unique_ptr<crypto::Pusher> pusher;

@@ -26,7 +26,7 @@
 
 namespace collab {
 
-	constexpr uint16_t kProtocolVersion = 2;
+	constexpr uint16_t kProtocolVersion = 3;
 
 	// Limits. Everything read from the network is checked against these.
 	constexpr size_t kMaxFrame = 1024 * 1024; // plaintext, type byte included
@@ -81,6 +81,8 @@ namespace collab {
 		HistoryRestore, // C(admin)->S restore point entry id
 		HistoryRevertRecent, // C(admin)->S user, minutes, force
 		Presence, // C->S selection, tool, typing; S->C with the user id first
+		Ping, // both: id, sender clock
+		Pong, // both: the same, echoed
 	};
 
 	enum class Role : uint8_t {
