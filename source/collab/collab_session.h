@@ -19,6 +19,7 @@
 #define RME_COLLAB_SESSION_H
 
 #include "collab_connection.h"
+#include "collab_journal.h"
 #include "collab_meta.h"
 #include "collab_protocol.h"
 
@@ -113,6 +114,22 @@ namespace collab {
 		void onWholeMapOperation(Editor* editor);
 		// Viewers cannot edit; remote updates being applied always pass.
 		bool canEdit(const Editor* editor) const;
+		// The host saved the shared map: participants that keep a copy save theirs too.
+		void onHostSaved(Editor* editor);
+
+		// ---- history (host and admins) ----
+		bool canSeeHistory() const;
+		// beforeId 0 loads the newest page, otherwise the page before that entry.
+		void requestHistory(int64_t beforeId);
+		void revertEntry(int64_t entryId, bool force);
+		void reapplyEntry(int64_t entryId, bool force);
+		// Admins ask the host to save the map.
+		void requestSave();
+		const std::vector<JournalEntry> &history() const noexcept {
+			return historyList;
+		}
+		std::function<void()> onHistoryChanged;
+		std::function<void(const std::string &)> onHistoryResult;
 
 		void sendChat(const std::string &text);
 		void onLocalCursor(const Position &pos, uint8_t brushSize, bool mouseDown);
@@ -210,6 +227,24 @@ namespace collab {
 		void clientTileUpdate(ByteReader &reader);
 		void clientMetaOps(ByteReader &reader);
 
+		// History and saving
+		struct RevertOutcome {
+			bool ok = false;
+			uint32_t applied = 0;
+			uint32_t skipped = 0;
+			std::vector<Position> conflicts;
+			std::string message;
+		};
+		RevertOutcome executeRevert(const User &actor, int64_t entryId, bool reapply, bool force);
+		void runHistoryAction(int64_t entryId, bool reapply, bool force);
+		void recordHistory(uint32_t origin, int actionType, const std::vector<JournalTile> &rows);
+		void recordMetaInfo(uint32_t origin, const std::vector<MetaOp> &ops);
+		void publishEntry(const JournalEntry &entry);
+		void mergeHistory(const std::vector<JournalEntry> &entries, bool replace);
+		void hostHistoryFrame(Peer &peer, const User &actor, Msg type, ByteReader &reader);
+		void clientHistoryFrame(Msg type, ByteReader &reader);
+		void saveLocalCopy();
+
 		// Live replication
 		Editor* boundEditor() const noexcept {
 			return hostEditor ? hostEditor : clientEditor;
@@ -263,6 +298,12 @@ namespace collab {
 		PendingHouseTiles pendingHouseTiles;
 		bool resyncScheduled = false;
 		bool resyncing = false; // client: a new snapshot of the same session is downloading
+
+		std::unique_ptr<Journal> journal; // host only
+		std::vector<JournalEntry> historyList; // newest first
+		std::string revertLabel; // label of the revert being applied, empty otherwise
+		std::string localSavePath; // shared copy: where "also save on participants' machines" writes
+		bool localSaveDeclined = false;
 		std::string statusText;
 		uint32_t nextUserId = 1;
 

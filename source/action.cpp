@@ -711,6 +711,8 @@ wxString ActionQueue::createLabel(ActionIdentifier type) {
 			return "Lua Script";
 		case ACTION_MCP:
 			return "MCP";
+		case ACTION_COLLAB_REVERT:
+			return "Revert";
 		default:
 			return wxEmptyString;
 	}

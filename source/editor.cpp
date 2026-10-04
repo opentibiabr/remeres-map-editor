@@ -432,6 +432,7 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 		if (!save_otgz) {
 			map.comments.save(map.getCommentsFilename());
 		}
+		collab::Session::get().onHostSaved(this);
 	}
 
 	// Move to permanent backup

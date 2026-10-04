@@ -47,6 +47,7 @@ enum ActionIdentifier {
 	ACTION_CHANGE_PROPERTIES,
 	ACTION_LUA_SCRIPT,
 	ACTION_MCP,
+	ACTION_COLLAB_REVERT, // a collaboration history revert / reapply
 };
 
 enum ChangeType {
@@ -260,6 +261,11 @@ public:
 	bool hasChanges() const;
 
 	void generateLabels();
+
+	// Display name of an action type ("Draw", "Paste"...).
+	static wxString labelFor(ActionIdentifier type) {
+		return createLabel(type);
+	}
 
 protected:
 	static wxString createLabel(ActionIdentifier type);

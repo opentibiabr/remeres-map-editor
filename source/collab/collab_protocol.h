@@ -62,6 +62,14 @@ namespace collab {
 		TileUpdate, // S->C originUserId, originSeq, count, tile records
 		MetaOps, // both: houses, towns, waypoints, zones, map properties
 		FullResync, // S->C: a whole-map operation happened, a new snapshot follows
+		HistoryQuery, // C(admin)->S beforeId, limit, user filter
+		HistoryPage, // S->C(admin) replace flag, entries
+		HistoryAppend, // S->C(admin) one new or updated entry
+		HistoryRevert, // C(admin)->S entryId, force
+		HistoryReapply, // C(admin)->S entryId, force
+		HistoryResult, // S->C entryId, ok, applied, conflicts, message
+		SaveRequest, // C(admin)->S
+		SaveNotice, // S->C map name: participants with a shared copy save it locally
 	};
 
 	enum class Role : uint8_t {
@@ -108,6 +116,10 @@ namespace collab {
 			uint16_t v = static_cast<uint16_t>((data[pos] << 8) | data[pos + 1]);
 			pos += 2;
 			return v;
+		}
+		uint64_t u64() {
+			const uint64_t high = u32();
+			return (high << 32) | u32();
 		}
 		uint32_t u32() {
 			need(4);
@@ -172,6 +184,10 @@ namespace collab {
 		void u32(uint32_t v) {
 			u16(static_cast<uint16_t>(v >> 16));
 			u16(static_cast<uint16_t>(v));
+		}
+		void u64(uint64_t v) {
+			u32(static_cast<uint32_t>(v >> 32));
+			u32(static_cast<uint32_t>(v));
 		}
 		void str(const std::string &s) {
 			if (s.size() > 0xFFFF) {

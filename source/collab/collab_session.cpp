@@ -20,6 +20,7 @@
 #include "collab_session.h"
 
 #include "collab_snapshot.h"
+#include "collab_journal.h"
 #include "collab_tile_codec.h"
 
 #include "../action.h"
@@ -32,6 +33,9 @@
 #include "../net_connection.h"
 
 #include <zlib.h>
+
+#include <wx/filedlg.h>
+#include <wx/stdpaths.h>
 
 #include <sodium.h>
 
@@ -394,6 +398,9 @@ namespace collab {
 		w.str(line.text);
 		broadcast(Msg::ChatMsg, w.buffer);
 		storeChat(line);
+		if (journal && !system) {
+			journal->addChat(line.name, line.text);
+		}
 	}
 
 	void Session::addSystemChat(const std::string &text) {
@@ -490,6 +497,13 @@ namespace collab {
 		userList[0] = host;
 
 		currentState = State::Hosting;
+		historyList.clear();
+		journal = std::make_unique<Journal>();
+		std::string journalError;
+		if (!journal->open(journalPath(*editor), journalError)) {
+			journal.reset();
+			addSystemChat("History is disabled: " + journalError);
+		}
 		lastSynced = captureMeta(editor->getMap());
 		pending = Pending();
 		pendingHouseTiles.clear();
@@ -688,6 +702,21 @@ namespace collab {
 				return;
 			case Msg::MetaOps:
 				hostMetaOps(actor, peer.conn.get(), reader);
+				return;
+			case Msg::HistoryQuery:
+			case Msg::HistoryRevert:
+			case Msg::HistoryReapply:
+				hostHistoryFrame(peer, actor, type, reader);
+				return;
+			case Msg::SaveRequest:
+				if (actor.role == Role::Admin && hostEditor) {
+					if (!hostEditor->getMap().hasFile()) {
+						addSystemChat(actor.name + " asked the host to save, but the map has no file yet");
+					} else {
+						addSystemChat(actor.name + " requested a save");
+						hostEditor->saveMap(FileName(), true);
+					}
+				}
 				return;
 			case Msg::Bye:
 				dropPeer(peer.conn, "Left");
@@ -969,6 +998,16 @@ namespace collab {
 			case Msg::MetaOps:
 				clientMetaOps(reader);
 				return;
+			case Msg::HistoryPage:
+			case Msg::HistoryAppend:
+			case Msg::HistoryResult:
+				clientHistoryFrame(type, reader);
+				return;
+			case Msg::SaveNotice:
+				if (shareMapFlag) {
+					hop([] { Session::get().saveLocalCopy(); }); // not inside the network event
+				}
+				return;
 			case Msg::FullResync:
 				// The host ran a whole-map operation: a new snapshot follows. Local edits in
 				// flight are moot, the new map replaces everything.
@@ -1188,6 +1227,7 @@ namespace collab {
 
 		ByteWriter records;
 		std::vector<Position> framePositions;
+		std::vector<JournalTile> journalRows;
 		uint32_t count = 0;
 		auto emit = [&] {
 			if (count == 0) {
@@ -1223,7 +1263,11 @@ namespace collab {
 			records.u16(static_cast<uint16_t>(pos.x));
 			records.u16(static_cast<uint16_t>(pos.y));
 			records.u8(static_cast<uint8_t>(pos.z));
-			records.blob(encodeTile(map.getTile(pos), io));
+			const std::string after = encodeTile(map.getTile(pos), io);
+			records.blob(after);
+			if (host) {
+				journalRows.push_back({ pos, entry.second, after });
+			}
 			framePositions.push_back(pos);
 			++count;
 			if (count >= kMaxTilesPerFrame || records.buffer.size() >= kMaxTileFrameBytes) {
@@ -1231,6 +1275,9 @@ namespace collab {
 			}
 		}
 		emit();
+		if (host) {
+			recordHistory(origin, batch.type, journalRows);
+		}
 	}
 
 	std::vector<Tile*> Session::readTiles(ByteReader &reader, uint32_t count, Map &map) {
@@ -1350,6 +1397,9 @@ namespace collab {
 		}
 		lastSynced = std::move(current);
 		sendMetaOps(ops, nullptr);
+		if (isHost()) {
+			recordMetaInfo(selfId, ops);
+		}
 	}
 
 	void Session::sendMetaOps(const std::vector<MetaOp> &ops, const Connection* except) {
@@ -1395,10 +1445,356 @@ namespace collab {
 		const std::vector<MetaOp> ops = readMetaOps(reader);
 		applyIncomingMeta(ops);
 		sendMetaOps(ops, from);
+		recordMetaInfo(actor.id, ops);
 	}
 
 	void Session::clientMetaOps(ByteReader &reader) {
 		applyIncomingMeta(readMetaOps(reader));
+	}
+
+	// ---- history -------------------------------------------------------------------------
+
+	namespace {
+		void writeEntry(ByteWriter &w, const JournalEntry &e) {
+			w.u64(static_cast<uint64_t>(e.id));
+			w.str(e.user);
+			w.u32(e.color);
+			w.u8(static_cast<uint8_t>(e.actionType));
+			w.str(e.label);
+			w.u32(static_cast<uint32_t>(e.created));
+			w.u32(e.tileCount);
+			w.u8(static_cast<uint8_t>(e.state));
+			w.u16(static_cast<uint16_t>(e.center.x));
+			w.u16(static_cast<uint16_t>(e.center.y));
+			w.u8(static_cast<uint8_t>(e.center.z));
+		}
+
+		JournalEntry readEntry(ByteReader &r) {
+			JournalEntry e;
+			e.id = static_cast<int64_t>(r.u64());
+			e.user = sanitizeText(r.str(kMaxName * 4), kMaxName);
+			e.color = r.u32() & 0xFFFFFF;
+			e.actionType = r.u8();
+			e.label = sanitizeText(r.str(256), 64);
+			e.created = r.u32();
+			e.tileCount = r.u32();
+			e.state = r.u8();
+			const int x = r.u16();
+			const int y = r.u16();
+			const int z = r.u8();
+			e.center = Position(x, y, z);
+			if (e.id <= 0 || e.state > static_cast<int>(EntryState::Info) || z > kMaxFloor) {
+				throw ProtocolError("invalid history entry");
+			}
+			return e;
+		}
+
+		std::string journalPath(Editor &editor) {
+			const Map &map = editor.getMap();
+			if (map.hasFile()) {
+				wxFileName file(wxstr(map.getFilename()));
+				return nstr(file.GetPathWithSep()) + nstr(file.GetName()) + ".collab.sqlite";
+			}
+			// A map that was never saved keeps its history in the user data directory.
+			const wxString folder = wxStandardPaths::Get().GetUserDataDir() + wxFileName::GetPathSeparator() + "collab";
+			wxFileName::Mkdir(folder, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+			return nstr(folder + wxFileName::GetPathSeparator() + wxDateTime::Now().Format("%Y%m%d-%H%M%S") + ".sqlite");
+		}
+	}
+
+	bool Session::canSeeHistory() const {
+		const User* me = self();
+		return me && (currentState == State::Hosting || currentState == State::Joined) && (me->role == Role::Host || me->role == Role::Admin);
+	}
+
+	void Session::mergeHistory(const std::vector<JournalEntry> &entries, bool replace) {
+		if (replace) {
+			historyList.clear();
+		}
+		for (const JournalEntry &entry : entries) {
+			auto existing = std::find_if(historyList.begin(), historyList.end(), [&](const JournalEntry &e) { return e.id == entry.id; });
+			if (existing != historyList.end()) {
+				*existing = entry;
+			} else {
+				historyList.push_back(entry);
+			}
+		}
+		std::sort(historyList.begin(), historyList.end(), [](const JournalEntry &a, const JournalEntry &b) { return a.id > b.id; });
+		if (onHistoryChanged) {
+			onHistoryChanged();
+		}
+	}
+
+	void Session::publishEntry(const JournalEntry &entry) {
+		if (entry.id == 0) {
+			return;
+		}
+		mergeHistory({ entry }, false);
+
+		ByteWriter w;
+		writeEntry(w, entry);
+		for (auto &item : peers) {
+			Peer &peer = item.second;
+			auto user = userList.find(peer.userId);
+			if (peer.hello && !peer.dropping && user != userList.end() && user->second.role == Role::Admin) {
+				sendTo(peer, Msg::HistoryAppend, w.buffer);
+			}
+		}
+	}
+
+	void Session::recordHistory(uint32_t origin, int actionType, const std::vector<JournalTile> &rows) {
+		if (!journal) {
+			return;
+		}
+		auto user = userList.find(origin);
+		const std::string name = user != userList.end() ? user->second.name : "Unknown";
+		const uint32_t color = user != userList.end() ? user->second.color : 0x9E9E9E;
+		const std::string label = revertLabel.empty() ? nstr(ActionQueue::labelFor(static_cast<ActionIdentifier>(actionType))) : revertLabel;
+		publishEntry(journal->append(name, color, actionType, label, rows));
+	}
+
+	void Session::recordMetaInfo(uint32_t origin, const std::vector<MetaOp> &ops) {
+		if (!journal || ops.empty()) {
+			return;
+		}
+		static const char* const names[] = { "Houses", "Towns", "Waypoints", "Zones", "Map properties" };
+		size_t counts[static_cast<size_t>(MetaKind::Count)] = {};
+		for (const MetaOp &op : ops) {
+			++counts[static_cast<size_t>(op.kind)];
+		}
+		std::string label;
+		for (size_t i = 0; i < static_cast<size_t>(MetaKind::Count); ++i) {
+			if (counts[i] > 0) {
+				label += (label.empty() ? "" : ", ") + std::string(names[i]) + " (" + std::to_string(counts[i]) + ")";
+			}
+		}
+		auto user = userList.find(origin);
+		publishEntry(journal->appendInfo(user != userList.end() ? user->second.name : "Unknown", user != userList.end() ? user->second.color : 0x9E9E9E, label));
+	}
+
+	Session::RevertOutcome Session::executeRevert(const User &actor, int64_t entryId, bool reapply, bool force) {
+		RevertOutcome outcome;
+		if (!journal || !hostEditor || currentState != State::Hosting) {
+			outcome.message = "History is not available";
+			return outcome;
+		}
+		if (actor.role != Role::Host && actor.role != Role::Admin) {
+			outcome.message = "Only the host and admins can revert";
+			return outcome;
+		}
+		JournalEntry entry;
+		if (!journal->get(entryId, entry) || entry.state == static_cast<int>(EntryState::Info)) {
+			outcome.message = "That entry cannot be reverted";
+			return outcome;
+		}
+
+		Map &map = hostEditor->getMap();
+		VirtualIOMap io(map.getVersion());
+		std::vector<Tile*> tiles;
+		for (const JournalTile &row : journal->tiles(entryId)) {
+			const std::string &expected = reapply ? row.before : row.after;
+			const std::string &target = reapply ? row.after : row.before;
+			const std::string current = encodeTile(map.getTile(row.pos), io);
+			if (current == target) {
+				continue; // already there
+			}
+			if (current != expected && !force) {
+				++outcome.skipped; // somebody changed it after this entry
+				if (outcome.conflicts.size() < 100) {
+					outcome.conflicts.push_back(row.pos);
+				}
+				continue;
+			}
+			try {
+				tiles.push_back(decodeTile(map, row.pos, target, io));
+			} catch (const ProtocolError &) {
+				++outcome.skipped;
+			}
+		}
+
+		outcome.applied = static_cast<uint32_t>(tiles.size());
+		if (!tiles.empty()) {
+			revertLabel = fmt::format("{} #{}", reapply ? "Reapply" : "Revert", entryId);
+			Action* action = hostEditor->createAction(ACTION_COLLAB_REVERT);
+			for (Tile* tile : tiles) {
+				action->addChange(newd Change(tile));
+			}
+			// Applied as the actor, so the history shows who reverted.
+			beginApply(actor.id, 0);
+			{
+				ScopeExit done { [this] { endApply(); } };
+				hostEditor->addAction(action);
+			}
+			revertLabel.clear();
+			g_gui.RefreshView();
+		}
+
+		const EntryState state = outcome.skipped == 0 ? (reapply ? EntryState::Applied : EntryState::Reverted) : EntryState::PartiallyReverted;
+		journal->setState(entryId, state);
+		JournalEntry updated;
+		if (journal->get(entryId, updated)) {
+			publishEntry(updated);
+		}
+
+		outcome.ok = true;
+		outcome.message = fmt::format("{} {} tiles, {} skipped (changed later by others)", reapply ? "Reapplied" : "Reverted", outcome.applied, outcome.skipped);
+		return outcome;
+	}
+
+	void Session::requestHistory(int64_t beforeId) {
+		if (!canSeeHistory()) {
+			return;
+		}
+		if (currentState == State::Hosting) {
+			if (journal) {
+				mergeHistory(journal->list(beforeId, 200, std::string()), beforeId == 0);
+			}
+		} else if (link) {
+			ByteWriter w;
+			w.u64(static_cast<uint64_t>(beforeId));
+			w.u16(200);
+			w.str(std::string());
+			link->send(Msg::HistoryQuery, w.buffer);
+		}
+	}
+
+	void Session::runHistoryAction(int64_t entryId, bool reapply, bool force) {
+		if (currentState == State::Hosting) {
+			const User* me = self();
+			if (me) {
+				const RevertOutcome outcome = executeRevert(*me, entryId, reapply, force);
+				if (onHistoryResult) {
+					onHistoryResult(outcome.message);
+				}
+			}
+		} else if (canSeeHistory() && link) {
+			ByteWriter w;
+			w.u64(static_cast<uint64_t>(entryId));
+			w.u8(force ? 1 : 0);
+			link->send(reapply ? Msg::HistoryReapply : Msg::HistoryRevert, w.buffer);
+		}
+	}
+
+	void Session::revertEntry(int64_t entryId, bool force) {
+		runHistoryAction(entryId, false, force);
+	}
+
+	void Session::reapplyEntry(int64_t entryId, bool force) {
+		runHistoryAction(entryId, true, force);
+	}
+
+	void Session::hostHistoryFrame(Peer &peer, const User &actor, Msg type, ByteReader &reader) {
+		if (actor.role != Role::Host && actor.role != Role::Admin) {
+			return;
+		}
+
+		if (type == Msg::HistoryQuery) {
+			const auto beforeId = static_cast<int64_t>(reader.u64());
+			const int limit = std::min<int>(reader.u16(), 200);
+			const std::string filter = sanitizeText(reader.str(kMaxName * 4), kMaxName);
+			const std::vector<JournalEntry> entries = journal ? journal->list(beforeId, limit, filter) : std::vector<JournalEntry>();
+
+			ByteWriter w;
+			w.u8(beforeId == 0 ? 1 : 0);
+			w.u16(static_cast<uint16_t>(entries.size()));
+			for (const JournalEntry &entry : entries) {
+				writeEntry(w, entry);
+			}
+			sendTo(peer, Msg::HistoryPage, w.buffer);
+			return;
+		}
+
+		const auto entryId = static_cast<int64_t>(reader.u64());
+		const bool force = reader.u8() != 0;
+		const RevertOutcome outcome = executeRevert(actor, entryId, type == Msg::HistoryReapply, force);
+
+		ByteWriter w;
+		w.u64(static_cast<uint64_t>(entryId));
+		w.u8(outcome.ok ? 1 : 0);
+		w.u32(outcome.applied);
+		w.u32(outcome.skipped);
+		w.u16(static_cast<uint16_t>(outcome.conflicts.size()));
+		for (const Position &pos : outcome.conflicts) {
+			w.u16(static_cast<uint16_t>(pos.x));
+			w.u16(static_cast<uint16_t>(pos.y));
+			w.u8(static_cast<uint8_t>(pos.z));
+		}
+		w.str(outcome.message);
+		sendTo(peer, Msg::HistoryResult, w.buffer);
+	}
+
+	void Session::clientHistoryFrame(Msg type, ByteReader &reader) {
+		if (!canSeeHistory()) {
+			return;
+		}
+		if (type == Msg::HistoryAppend) {
+			mergeHistory({ readEntry(reader) }, false);
+			return;
+		}
+		if (type == Msg::HistoryPage) {
+			const bool replace = reader.u8() != 0;
+			const uint16_t count = reader.u16();
+			if (count > 200) {
+				throw ProtocolError("history page too long");
+			}
+			std::vector<JournalEntry> entries;
+			for (uint16_t i = 0; i < count; ++i) {
+				entries.push_back(readEntry(reader));
+			}
+			mergeHistory(entries, replace);
+			return;
+		}
+
+		// HistoryResult
+		reader.u64(); // entry id
+		reader.u8(); // ok
+		reader.u32(); // applied
+		reader.u32(); // skipped
+		const uint16_t conflicts = reader.u16();
+		reader.skip(static_cast<size_t>(conflicts) * 5); // positions, the message says how many
+		const std::string message = sanitizeText(reader.str(1024), 300);
+		if (onHistoryResult && !message.empty()) {
+			onHistoryResult(message);
+		}
+	}
+
+	// ---- saving --------------------------------------------------------------------------
+
+	void Session::onHostSaved(Editor* editor) {
+		if (currentState != State::Hosting || editor != hostEditor || !saveOnParticipantsFlag) {
+			return;
+		}
+		ByteWriter w;
+		w.str(sessionMapName.substr(0, 255));
+		broadcast(Msg::SaveNotice, w.buffer);
+	}
+
+	void Session::requestSave() {
+		const User* me = self();
+		if (currentState == State::Joined && link && me && me->role == Role::Admin) {
+			link->send(Msg::SaveRequest);
+		}
+	}
+
+	void Session::saveLocalCopy() {
+		if (!clientEditor || !shareMapFlag || localSaveDeclined || currentState != State::Joined) {
+			return;
+		}
+		if (localSavePath.empty()) {
+			wxFileDialog dialog(g_gui.root, "Save a local copy of the shared map", wxEmptyString, wxstr(sessionMapName), "OTBM map (*.otbm)|*.otbm", wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
+			if (dialog.ShowModal() != wxID_OK) {
+				localSaveDeclined = true; // do not ask again in this session
+				return;
+			}
+			localSavePath = nstr(dialog.GetPath());
+		}
+
+		clientEditor->saveMap(FileName(wxstr(localSavePath)), true);
+		ChatLine line;
+		line.system = true;
+		line.time = nowSeconds();
+		line.text = "Saved locally to " + localSavePath;
+		storeChat(line);
 	}
 
 	// ---- whole-map operations ------------------------------------------------------------
@@ -1531,6 +1927,11 @@ namespace collab {
 		if (metaTimer) {
 			metaTimer->Stop();
 		}
+		journal.reset();
+		historyList.clear();
+		localSavePath.clear();
+		localSaveDeclined = false;
+		revertLabel.clear();
 		pending = Pending();
 		lastSentSeq.clear();
 		lastSynced.clear();

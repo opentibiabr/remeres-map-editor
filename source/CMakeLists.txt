@@ -290,6 +290,7 @@ target_sources(
           map_comments.cpp
           collab/collab_connection.cpp
           collab/collab_crypto.cpp
+          collab/collab_journal.cpp
           collab/collab_meta.cpp
           collab/collab_selfcheck.cpp
           collab/collab_session.cpp

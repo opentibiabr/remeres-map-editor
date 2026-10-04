@@ -63,6 +63,7 @@ private:
 	void BuildSessionPage(wxWindow* page);
 	void BuildChatPage(wxWindow* page);
 	void BuildCommentsPage(wxWindow* page);
+	void BuildHistoryPage(wxWindow* page);
 	const MapComment* SelectedComment() const;
 
 	void OnSessionChanged();
@@ -72,6 +73,8 @@ private:
 	void UpdateStartButton();
 	void SendChat();
 	void ShowUserMenu(uint32_t userId);
+	void RefreshHistory();
+	const collab::JournalEntry* SelectedHistoryEntry() const;
 
 	wxNotebook* notebook = nullptr;
 	wxTextCtrl* name_text = nullptr;
@@ -93,6 +96,7 @@ private:
 	wxCheckBox* show_cursors = nullptr;
 	wxCheckBox* show_names = nullptr;
 	wxButton* leave_button = nullptr;
+	wxButton* save_request_button = nullptr;
 
 	// Chat page
 	wxPanel* chat_page = nullptr;
@@ -100,6 +104,14 @@ private:
 	wxTextCtrl* chat_input = nullptr;
 	int unread_chat = 0;
 	bool was_active = false;
+
+	// History page (host and admins)
+	wxPanel* history_page = nullptr;
+	wxListCtrl* history_list = nullptr;
+	wxChoice* history_user = nullptr;
+	wxCheckBox* history_force = nullptr;
+	wxStaticText* history_status = nullptr;
+	bool history_requested = false;
 
 	// Comments page
 	wxListCtrl* comment_list = nullptr;

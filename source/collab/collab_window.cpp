@@ -43,9 +43,7 @@
 CollabWindow* CollabWindow::instance = nullptr;
 
 namespace {
-	const char* kComingNext = "Coming in a later phase";
-
-	enum Column {
+		enum Column {
 		COL_AUTHOR,
 		COL_POSITION,
 		COL_TEXT,
@@ -94,13 +92,9 @@ CollabWindow::CollabWindow(wxWindow* parent) :
 	BuildCommentsPage(comments);
 	notebook->AddPage(comments, "Comments");
 
-	// History needs the journal from a later phase.
-	auto* history = newd wxPanel(notebook);
-	auto* history_box = newd wxBoxSizer(wxVERTICAL);
-	history_box->Add(newd wxStaticText(history, wxID_ANY, kComingNext), 0, wxALL, 12);
-	history->SetSizer(history_box);
-	history->Enable(false);
-	notebook->AddPage(history, "History");
+	history_page = newd wxPanel(notebook);
+	BuildHistoryPage(history_page);
+	notebook->AddPage(history_page, "History");
 
 	notebook->Bind(wxEVT_NOTEBOOK_PAGE_CHANGED, [this](wxBookCtrlEvent &event) {
 		if (event.GetSelection() == PAGE_COMMENTS) {
@@ -125,6 +119,8 @@ CollabWindow::CollabWindow(wxWindow* parent) :
 	collab::Session &collab_session = collab::Session::get();
 	collab_session.onChanged = [this] { OnSessionChanged(); };
 	collab_session.onChat = [this](const collab::ChatLine &line) { AppendChat(line); };
+	collab_session.onHistoryChanged = [this] { RefreshHistory(); };
+	collab_session.onHistoryResult = [this](const std::string &message) { history_status->SetLabel(wxstr(message)); };
 	RebuildChat();
 	OnSessionChanged();
 }
@@ -133,6 +129,8 @@ CollabWindow::~CollabWindow() {
 	collab::Session &collab_session = collab::Session::get();
 	collab_session.onChanged = nullptr;
 	collab_session.onChat = nullptr;
+	collab_session.onHistoryChanged = nullptr;
+	collab_session.onHistoryResult = nullptr;
 	if (instance == this) {
 		instance = nullptr;
 	}
@@ -262,7 +260,13 @@ void CollabWindow::BuildSessionPage(wxWindow* page) {
 
 	leave_button = newd wxButton(active_panel, wxID_ANY, "Leave");
 	leave_button->Bind(wxEVT_BUTTON, [](wxCommandEvent &) { collab::Session::get().leave(); });
-	active->Add(leave_button, 0);
+	save_request_button = newd wxButton(active_panel, wxID_ANY, "Request save");
+	save_request_button->SetToolTip("Ask the host to save the map");
+	save_request_button->Bind(wxEVT_BUTTON, [](wxCommandEvent &) { collab::Session::get().requestSave(); });
+	auto* buttons = newd wxBoxSizer(wxHORIZONTAL);
+	buttons->Add(leave_button, 0, wxRIGHT, 4);
+	buttons->Add(save_request_button, 0);
+	active->Add(buttons, 0);
 	active_panel->SetSizer(active);
 	root->Add(active_panel, 1, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 8);
 
@@ -293,6 +297,18 @@ void CollabWindow::OnSessionChanged() {
 		RebuildChat(); // a new session starts with an empty log
 	}
 	was_active = active;
+
+	const collab::User* me = collab_session.self();
+	save_request_button->Show(collab_session.state() == collab::State::Joined && me && me->role == collab::Role::Admin);
+	const bool history_allowed = collab_session.canSeeHistory();
+	history_page->Enable(history_allowed);
+	if (history_allowed && !history_requested) {
+		history_requested = true;
+		collab_session.requestHistory(0);
+	} else if (!history_allowed) {
+		history_requested = false;
+		history_status->SetLabel(active ? "Only the host and admins see the history" : "Start or join a session to see the history");
+	}
 
 	RefreshUsers();
 	Layout();
@@ -442,6 +458,138 @@ void CollabWindow::RebuildChat() {
 	}
 	unread_chat = unread;
 	notebook->SetPageText(PAGE_CHAT, unread > 0 ? wxString::Format("Chat (%d)", unread) : wxString("Chat"));
+}
+
+// ---- History page -------------------------------------------------------------------------
+
+namespace {
+	enum HistoryColumn {
+		HIST_ID,
+		HIST_TIME,
+		HIST_USER,
+		HIST_ACTION,
+		HIST_TILES,
+		HIST_STATE,
+	};
+
+	const char* entryStateName(int state) {
+		switch (static_cast<collab::EntryState>(state)) {
+			case collab::EntryState::Applied:
+				return "Applied";
+			case collab::EntryState::Reverted:
+				return "Reverted";
+			case collab::EntryState::PartiallyReverted:
+				return "Partial";
+			case collab::EntryState::Info:
+				return "Info";
+		}
+		return "?";
+	}
+}
+
+void CollabWindow::BuildHistoryPage(wxWindow* page) {
+	auto* root = newd wxBoxSizer(wxVERTICAL);
+
+	auto* filter = newd wxBoxSizer(wxHORIZONTAL);
+	filter->Add(newd wxStaticText(page, wxID_ANY, "User:"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 6);
+	history_user = newd wxChoice(page, wxID_ANY);
+	history_user->Append("All users");
+	history_user->SetSelection(0);
+	history_user->Bind(wxEVT_CHOICE, [this](wxCommandEvent &) { RefreshHistory(); });
+	filter->Add(history_user, 1);
+	root->Add(filter, 0, wxEXPAND | wxALL, 6);
+
+	history_list = newd wxListCtrl(page, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL);
+	history_list->InsertColumn(HIST_ID, "#", wxLIST_FORMAT_LEFT, 44);
+	history_list->InsertColumn(HIST_TIME, "Time", wxLIST_FORMAT_LEFT, 62);
+	history_list->InsertColumn(HIST_USER, "User", wxLIST_FORMAT_LEFT, 80);
+	history_list->InsertColumn(HIST_ACTION, "Action", wxLIST_FORMAT_LEFT, 90);
+	history_list->InsertColumn(HIST_TILES, "Tiles", wxLIST_FORMAT_LEFT, 48);
+	history_list->InsertColumn(HIST_STATE, "State", wxLIST_FORMAT_LEFT, 64);
+	root->Add(history_list, 1, wxEXPAND | wxLEFT | wxRIGHT, 6);
+
+	history_status = newd wxStaticText(page, wxID_ANY, "");
+	root->Add(history_status, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 6);
+
+	history_force = newd wxCheckBox(page, wxID_ANY, "Force (overwrite tiles changed later)");
+	root->Add(history_force, 0, wxLEFT | wxRIGHT | wxTOP, 6);
+
+	auto* buttons = newd wxBoxSizer(wxHORIZONTAL);
+	makeButton(page, buttons, "Revert")->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
+		if (const collab::JournalEntry* entry = SelectedHistoryEntry()) {
+			collab::Session::get().revertEntry(entry->id, history_force->GetValue());
+		}
+	});
+	makeButton(page, buttons, "Reapply")->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
+		if (const collab::JournalEntry* entry = SelectedHistoryEntry()) {
+			collab::Session::get().reapplyEntry(entry->id, history_force->GetValue());
+		}
+	});
+	auto goTo = [this]() {
+		if (const collab::JournalEntry* entry = SelectedHistoryEntry()) {
+			g_gui.SetScreenCenterPosition(entry->center);
+		}
+	};
+	makeButton(page, buttons, "Go to")->Bind(wxEVT_BUTTON, [goTo](wxCommandEvent &) { goTo(); });
+	history_list->Bind(wxEVT_LIST_ITEM_ACTIVATED, [goTo](wxListEvent &) { goTo(); });
+	makeButton(page, buttons, "Refresh")->Bind(wxEVT_BUTTON, [](wxCommandEvent &) { collab::Session::get().requestHistory(0); });
+	makeButton(page, buttons, "Older")->Bind(wxEVT_BUTTON, [](wxCommandEvent &) {
+		const auto &entries = collab::Session::get().history();
+		if (!entries.empty()) {
+			collab::Session::get().requestHistory(entries.back().id);
+		}
+	});
+	root->Add(buttons, 0, wxALL, 6);
+
+	page->SetSizer(root);
+}
+
+const collab::JournalEntry* CollabWindow::SelectedHistoryEntry() const {
+	const long item = history_list->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+	if (item < 0) {
+		return nullptr;
+	}
+	const auto id = static_cast<int64_t>(history_list->GetItemData(item));
+	for (const collab::JournalEntry &entry : collab::Session::get().history()) {
+		if (entry.id == id) {
+			return &entry;
+		}
+	}
+	return nullptr;
+}
+
+void CollabWindow::RefreshHistory() {
+	if (!history_list) {
+		return;
+	}
+	const auto &entries = collab::Session::get().history();
+
+	// The user filter lists everybody who appears in the loaded entries.
+	const wxString selected = history_user->GetSelection() > 0 ? history_user->GetStringSelection() : wxString();
+	history_user->Clear();
+	history_user->Append("All users");
+	for (const collab::JournalEntry &entry : entries) {
+		if (history_user->FindString(wxstr(entry.user)) == wxNOT_FOUND) {
+			history_user->Append(wxstr(entry.user));
+		}
+	}
+	const int again = selected.empty() ? wxNOT_FOUND : history_user->FindString(selected);
+	history_user->SetSelection(again == wxNOT_FOUND ? 0 : again);
+
+	history_list->DeleteAllItems();
+	for (const collab::JournalEntry &entry : entries) {
+		if (history_user->GetSelection() > 0 && wxstr(entry.user) != history_user->GetStringSelection()) {
+			continue;
+		}
+		const long row = history_list->InsertItem(history_list->GetItemCount(), wxString::Format("%lld", static_cast<long long>(entry.id)));
+		history_list->SetItem(row, HIST_TIME, wxDateTime(static_cast<time_t>(entry.created)).Format("%H:%M:%S"));
+		history_list->SetItem(row, HIST_USER, wxstr(entry.user));
+		history_list->SetItem(row, HIST_ACTION, wxstr(entry.label));
+		history_list->SetItem(row, HIST_TILES, entry.state == static_cast<int>(collab::EntryState::Info) ? wxString("-") : wxString::Format("%u", entry.tileCount));
+		history_list->SetItem(row, HIST_STATE, entryStateName(entry.state));
+		history_list->SetItemData(row, static_cast<wxUIntPtr>(entry.id));
+		history_list->SetItemTextColour(row, entry.state == static_cast<int>(collab::EntryState::Reverted) ? wxColour(128, 128, 128) : toColour(entry.color));
+	}
 }
 
 // ---- Comments page ------------------------------------------------------------------------
