@@ -47,6 +47,11 @@ namespace mcp {
 		// a megabyte of base64 - past that the model pays more than it learns.
 		constexpr int MAX_IMAGE_DIMENSION = 2048;
 
+		// renderTileRegion composites at native sprite size before scaling, so the
+		// output limit alone does not bound memory: pixelsPerTile=4 lets a 512x512
+		// region through, which is a ~1 GB canvas. This bounds the canvas itself.
+		constexpr int64_t MAX_CANVAS_PIXELS = 4096LL * 4096LL;
+
 		json toolRenderRegion(const json &params) {
 			Editor* editor = requireEditor();
 			Map &map = editor->getMap();
@@ -83,6 +88,12 @@ namespace mcp {
 					throw McpError(fmt::format(
 						"a {}x{} tile region at {} pixels per tile exceeds the {}px image limit; lower pixelsPerTile or narrow the region",
 						tilesWide, tilesHigh, pixelsPerTile, MAX_IMAGE_DIMENSION
+					));
+				}
+				if (static_cast<int64_t>(tilesWide) * rme::SpritePixels * tilesHigh * rme::SpritePixels > MAX_CANVAS_PIXELS) {
+					throw McpError(fmt::format(
+						"a {}x{} tile region is too large to composite in sprites mode; narrow it or use mode=minimap",
+						tilesWide, tilesHigh
 					));
 				}
 				const wxImage rendered = renderTileRegion(map, Position(minX, minY, z), tilesWide, tilesHigh, pixelsPerTile);
@@ -162,6 +173,9 @@ namespace mcp {
 		const int canvasHeight = height * TILE;
 
 		wxImage canvas(canvasWidth, canvasHeight);
+		if (!canvas.IsOk()) {
+			return wxImage();
+		}
 		canvas.InitAlpha();
 		std::fill_n(canvas.GetData(), static_cast<size_t>(canvasWidth) * canvasHeight * 3, 0);
 		std::fill_n(canvas.GetAlpha(), static_cast<size_t>(canvasWidth) * canvasHeight, 0);
