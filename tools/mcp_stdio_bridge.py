@@ -15,10 +15,24 @@ no dependencies.
 import json
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 
 DEFAULT_URL = "http://127.0.0.1:7331/mcp"
 TIMEOUT_SECONDS = 120
+LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
+
+
+def validate_url(url: str) -> str:
+    """The editor only ever listens on loopback, so refuse any other target.
+
+    The URL comes from the command line, which an agent may have filled in; this
+    keeps the bridge from being pointed at arbitrary hosts.
+    """
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https") or parsed.hostname not in LOOPBACK_HOSTS:
+        raise ValueError(f"refusing {url!r}: the bridge only connects to the local editor (127.0.0.1, localhost or ::1)")
+    return url
 
 
 def forward(url: str, payload: bytes) -> bytes:
@@ -41,7 +55,11 @@ def error_response(message_id, message: str) -> dict:
 
 
 def main() -> int:
-    url = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_URL
+    try:
+        url = validate_url(sys.argv[1] if len(sys.argv) > 1 else DEFAULT_URL)
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        return 2
 
     for line in sys.stdin:
         line = line.strip()
