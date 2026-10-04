@@ -182,7 +182,8 @@ if(SPEED_UP_BUILD_UNITY)
   # The MCP tool files are heavy on nlohmann::json initializer lists; merged
   # into unity chunks they exhaust the MSVC heap (C1060), so compile them alone.
   file(GLOB MCP_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/mcp/*.cpp)
-  set_source_files_properties(${MCP_SOURCES} PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+  set_source_files_properties(${MCP_SOURCES}
+                              PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
   log_option_enabled("Build unity for speed up compilation")
 else()
   # === PRECOMPILED HEADER ===
