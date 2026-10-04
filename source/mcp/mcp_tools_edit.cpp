@@ -21,6 +21,7 @@
 #include "mcp_write.h"
 
 #include "../brush.h"
+#include "../ground_brush.h"
 #include "../common.h"
 #include "../editor.h"
 #include "../gui.h"
@@ -33,6 +34,7 @@
 
 #include <algorithm>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace mcp {
@@ -181,7 +183,28 @@ namespace mcp {
 
 			const bool erase = params.value("erase", false);
 			const bool borderize = params.value("borderize", false);
-			bool alt = params.value("alt", false);
+			const bool alt = params.value("alt", false);
+
+			// Brush::draw takes an untyped parameter whose type depends on the
+			// brush, and the creature/spawn brushes need an int (spawn size or
+			// time) this tool does not supply. Erasing never needs a parameter.
+			if (!erase && (brush->isMonster() || brush->isSpawnMonster() || brush->isNpc() || brush->isSpawnNpc() || brush->isHouseExit() || brush->isWaypoint())) {
+				throw McpError(fmt::format("brush '{}' cannot be drawn with brush_apply; use spawn_manage, house_manage or waypoint_manage", name));
+			}
+
+			// Same parameters the editor's own draw paths pass for each kind.
+			bool altFlag = alt;
+			int variation = 0;
+			std::pair<bool, GroundBrush*> groundParam { true, nullptr };
+			void* drawParam = nullptr;
+			if (brush->isGround()) {
+				// alt on a ground brush means "only where no ground brush is set yet".
+				drawParam = alt ? &groundParam : nullptr;
+			} else if (brush->isDoodad()) {
+				drawParam = &variation;
+			} else if (brush->isWall() || brush->isRaw()) {
+				drawParam = &altFlag;
+			}
 
 			TileBatch batch(*editor, erase ? ACTION_ERASE : ACTION_DRAW);
 
@@ -192,7 +215,7 @@ namespace mcp {
 				if (erase) {
 					brush->undraw(&map, tile);
 				} else {
-					brush->draw(&map, tile, &alt);
+					brush->draw(&map, tile, drawParam);
 				}
 
 				tile->update();
