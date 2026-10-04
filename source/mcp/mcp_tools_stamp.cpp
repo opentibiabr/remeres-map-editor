@@ -262,6 +262,9 @@ namespace mcp {
 				// has to be owned here or it leaks.
 				Tile* destination = batch.edit(target);
 				std::unique_ptr<Tile> incoming(sourceTile->deepCopy(map));
+				// Each placement is its own copy: keeping the captured house id
+				// would make every copy part of the original house.
+				incoming->setHouse(nullptr);
 				destination->merge(incoming.get());
 				destination->update();
 				++placed;
