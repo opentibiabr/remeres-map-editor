@@ -440,7 +440,10 @@ namespace collab {
 		std::unique_ptr<wxTimer> metaTimer;
 		std::unique_ptr<wxTimer> cursorTimer;
 		std::unique_ptr<wxTimer> viewTimer;
-		uint32_t followId = 0;
+		uint32_t followId = 0; // 0: not following anybody (only somebody choosing "Follow" changes that)
+		// A new participant starts where the host is, once; the host's position arrives after the map.
+		bool joinJumpPending = false;
+		std::chrono::steady_clock::time_point joinJumpUntil;
 		Position lastFollowApplied;
 		Position lastSentView;
 		std::unordered_map<uint32_t, Position> remoteViews;

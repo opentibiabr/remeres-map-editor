@@ -1333,6 +1333,8 @@ namespace collab {
 			return;
 		}
 		clientEditor = editor; // before closing the old tab, so that closing it does not end the session
+		joinJumpPending = previous == nullptr; // a map replaced by a resync or a reconnect keeps the view
+		joinJumpUntil = Clock::now() + std::chrono::seconds(10);
 		MapComments::setAuthorOverride(self() ? self()->name : std::string());
 		editor->getMap().comments.setIdPrefix(selfId);
 		if (previous) {
@@ -1469,6 +1471,12 @@ namespace collab {
 					remoteViews[id] = view;
 					if (followId == id) {
 						applyFollow(view);
+					}
+				}
+				if (id == 0 && joinJumpPending) {
+					joinJumpPending = false;
+					if (Clock::now() < joinJumpUntil) {
+						applyFollow(view); // one jump to the host; following stays off
 					}
 				}
 				return;
@@ -3409,6 +3417,7 @@ namespace collab {
 		hostRttMs = -1;
 		deferredCursor.valid = false;
 		followId = 0;
+		joinJumpPending = false;
 		remoteViews.clear();
 		remotePresence.clear();
 		presenceSent = false;

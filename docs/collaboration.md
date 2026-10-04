@@ -38,6 +38,7 @@ The host is authoritative: when two people change the same tile at the same mome
 
 ## Working together
 
+* **Where you start:** when you join, your camera goes once to where the host is. Following is off; it only turns on when you choose *Follow* yourself.
 * **Follow:** right-click a participant → *Follow*. Your camera (position and floor) tracks theirs until you move your own camera.
 * **Bring everyone here** (host and admins): moves every participant's camera to where yours is.
 * **Reserved areas:** select tiles and press *Reserve selection* to mark them as yours (one floor, at most 8 areas per person). Everybody sees the rectangle with your name, and editing inside somebody else's area shows a notice in the status bar. It is a hint, nothing is blocked. *Release my areas* removes them; the host and admins can remove anyone's, and an area disappears with its owner's connection.
