@@ -150,6 +150,9 @@ namespace mcp {
 				}
 
 				mapping.ignore = entry.value("ignore", false);
+				if (entry.contains("matchMode") && !entry["matchMode"].is_string()) {
+					throw McpError("matchMode must be rgb or hue");
+				}
 				mapping.matchMode = entry.contains("matchMode")
 					? parseMatchMode(as_lower_str(entry["matchMode"].get<std::string>()))
 					: defaultMode;
