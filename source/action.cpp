@@ -680,4 +680,3 @@ wxString ActionQueue::createLabel(ActionIdentifier type) {
 			return wxEmptyString;
 	}
 }
-
