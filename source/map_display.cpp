@@ -123,6 +123,7 @@ MapCanvas::MapCanvas(MapWindow* parent, Editor &editor, int* attriblist) :
 	replace_dragging(false),
 
 	screenshot_buffer(nullptr),
+	screenshot_captured(false),
 
 	drag_start_x(-1),
 	drag_start_y(-1),
@@ -260,6 +261,7 @@ void MapCanvas::OnPaint(wxPaintEvent &event) {
 
 		if (screenshot_buffer) {
 			drawer->TakeScreenshot(screenshot_buffer);
+			screenshot_captured = true;
 		}
 
 		drawer->Release();
@@ -297,19 +299,25 @@ wxImage MapCanvas::CaptureScreenshot() {
 		return wxImage();
 	}
 
+	// OnPaint skips the readback when the canvas is hidden or rendering is off;
+	// bail out now instead of returning an all-black image.
+	if (!IsShownOnScreen() || !g_gui.IsRenderingEnabled()) {
+		return wxImage();
+	}
+
 	delete[] screenshot_buffer;
 	screenshot_buffer = newd uint8_t[3 * width * height]();
+	screenshot_captured = false;
 
 	// The GL readback happens during the paint, so force one now.
 	Refresh();
 	wxGLCanvas::Update();
 
-	if (!screenshot_buffer) {
-		return wxImage();
+	wxImage image;
+	if (screenshot_captured) {
+		image.Create(view_x, view_y);
+		std::memcpy(image.GetData(), screenshot_buffer, static_cast<size_t>(3) * view_x * view_y);
 	}
-
-	wxImage image(view_x, view_y);
-	std::memcpy(image.GetData(), screenshot_buffer, static_cast<size_t>(3) * view_x * view_y);
 
 	// Drop the buffer so OnPaint stops forcing in-game options and reading back every frame.
 	delete[] screenshot_buffer;

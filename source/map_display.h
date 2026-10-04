@@ -171,6 +171,7 @@ private:
 	bool replace_dragging;
 
 	uint8_t* screenshot_buffer;
+	bool screenshot_captured;
 
 	int drag_start_x;
 	int drag_start_y;
