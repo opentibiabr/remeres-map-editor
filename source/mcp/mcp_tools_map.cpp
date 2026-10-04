@@ -745,8 +745,9 @@ namespace mcp {
 			json exact = json::array();
 			json partial = json::array();
 
-			for (uint16_t id = g_items.getMinID(); id <= g_items.getMaxID(); ++id) {
-				const ItemType &type = g_items[id];
+			// Wider than the id type: a uint16_t counter would wrap at 0xFFFF and never end.
+			for (uint32_t id = g_items.getMinID(); id <= g_items.getMaxID(); ++id) {
+				const ItemType &type = g_items[static_cast<uint16_t>(id)];
 				if (type.id == 0 || type.name.empty()) {
 					continue;
 				}
