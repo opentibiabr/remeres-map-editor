@@ -28,6 +28,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace mcp {
 
@@ -88,6 +89,10 @@ namespace mcp {
 		json handleToolCall(const json &params);
 
 		std::shared_ptr<asio::ip::tcp::acceptor> acceptor;
+		// Open client connections, so stop() can cut them off.
+		std::mutex sessionMutex;
+		std::vector<std::weak_ptr<Session>> sessions;
+
 		std::atomic<bool> running { false };
 		std::atomic<bool> writeAllowed { false };
 		uint16_t port = 0;
