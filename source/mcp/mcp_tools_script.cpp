@@ -23,6 +23,7 @@
 #include "../lua/lua_engine.h"
 #include "../lua/lua_script_manager.h"
 
+#include <chrono>
 #include <string>
 
 namespace mcp {
@@ -33,8 +34,8 @@ namespace mcp {
 		// writes go through that rather than being reimplemented as dozens of
 		// typed tools. Everything the Lua console can do is reachable here,
 		// including app.transaction, which keeps edits on the undo stack.
-		constexpr const char* RUN_LUA_DESCRIPTION = "Run a Lua script inside the editor and get its print() output back. This is the write path: "
-													"it is refused while the MCP panel is in read-only mode.\n"
+		constexpr const char* RUN_LUA_DESCRIPTION = "Run a Lua script inside the editor and get its print() output back. Use it for edits the dedicated tools "
+													"cannot express; it is refused while the MCP panel is in read-only mode.\n"
 													"\n"
 													"Always wrap map edits in app.transaction(function() ... end) so they land on the undo stack "
 													"as a single step the user can revert with Ctrl+Z.\n"
@@ -65,6 +66,35 @@ namespace mcp {
 													"  app.refresh()\n"
 													"  print('done')";
 
+		// A script that never returns would freeze the GUI thread, and with it the
+		// whole editor. A count hook fires every N VM instructions and aborts the
+		// script once the deadline passes.
+		constexpr auto SCRIPT_TIME_LIMIT = std::chrono::seconds(20);
+		constexpr int HOOK_INSTRUCTION_INTERVAL = 100000;
+		std::chrono::steady_clock::time_point scriptDeadline; // GUI thread only
+
+		void deadlineHook(lua_State* L, lua_Debug*) {
+			if (std::chrono::steady_clock::now() > scriptDeadline) {
+				luaL_error(L, "script aborted: exceeded the %d second limit", static_cast<int>(SCRIPT_TIME_LIMIT.count()));
+			}
+		}
+
+		// Restores whatever hook was installed, even if the script throws.
+		struct DeadlineGuard {
+			lua_State* L;
+			lua_Hook previousHook;
+			int previousMask;
+			int previousCount;
+			explicit DeadlineGuard(lua_State* state) :
+				L(state), previousHook(lua_gethook(state)), previousMask(lua_gethookmask(state)), previousCount(lua_gethookcount(state)) {
+				scriptDeadline = std::chrono::steady_clock::now() + SCRIPT_TIME_LIMIT;
+				lua_sethook(L, deadlineHook, LUA_MASKCOUNT, HOOK_INSTRUCTION_INTERVAL);
+			}
+			~DeadlineGuard() {
+				lua_sethook(L, previousHook, previousMask, previousCount);
+			}
+		};
+
 		json toolRunLua(const json &params) {
 			const std::string code = readString(params, "code");
 			if (code.empty()) {
@@ -94,7 +124,13 @@ namespace mcp {
 				output += '\n';
 			});
 
-			const bool ok = engine.executeString(code, "mcp");
+			// Known limit: a script that pcalls the abort and loops can outlive it; a
+			// separate watchdog thread would be needed to be airtight.
+			bool ok;
+			{
+				DeadlineGuard deadline(engine.getState().lua_state());
+				ok = engine.executeString(code, "mcp");
+			}
 			const std::string error = ok ? std::string() : engine.getLastError();
 
 			json out {
