@@ -23,6 +23,7 @@
 #include <wx/app.h>
 #include <wx/thread.h>
 
+#include <atomic>
 #include <chrono>
 #include <future>
 #include <memory>
@@ -43,6 +44,11 @@ namespace mcp {
 	// fn must own everything it touches: capturing a reference to a caller
 	// local would dangle when it finally runs. The promise is held by shared_ptr
 	// for the same reason.
+	//
+	// A timed-out call must not run later: the client already got an error and
+	// would retry, applying a mutating tool twice. The waiter and the queued
+	// lambda race on a shared state; only one of them wins the transition out of
+	// Pending. If the lambda already started, the waiter keeps waiting for it.
 	template <typename Fn>
 	auto callOnGui(Fn &&fn) -> std::invoke_result_t<Fn> {
 		using Result = std::invoke_result_t<Fn>;
@@ -51,19 +57,38 @@ namespace mcp {
 			return fn();
 		}
 
+		enum State { Pending,
+					 Started,
+					 Cancelled };
+
 		auto promise = std::make_shared<std::promise<Result>>();
+		auto state = std::make_shared<std::atomic<int>>(Pending);
 		std::future<Result> future = promise->get_future();
 
-		wxTheApp->CallAfter([promise, fn = std::forward<Fn>(fn)]() mutable {
+		wxTheApp->CallAfter([promise, state, fn = std::forward<Fn>(fn)]() mutable {
+			int expected = Pending;
+			if (!state->compare_exchange_strong(expected, Started)) {
+				return; // timed out and cancelled while queued
+			}
 			try {
-				promise->set_value(fn());
+				if constexpr (std::is_void_v<Result>) {
+					fn();
+					promise->set_value();
+				} else {
+					promise->set_value(fn());
+				}
 			} catch (...) {
 				promise->set_exception(std::current_exception());
 			}
 		});
 
 		if (future.wait_for(std::chrono::seconds(30)) != std::future_status::ready) {
-			throw McpError("timed out waiting for the editor: it may be busy or showing a modal dialog");
+			int expected = Pending;
+			if (state->compare_exchange_strong(expected, Cancelled)) {
+				throw McpError("timed out waiting for the editor: it may be busy or showing a modal dialog");
+			}
+			// Already started on the GUI thread: let it finish rather than abandon a half-applied edit.
+			future.wait();
 		}
 
 		return future.get();
