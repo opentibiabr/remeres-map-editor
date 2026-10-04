@@ -671,7 +671,7 @@ namespace mcp {
 										if (!neighbour) {
 											continue;
 										}
-										auto leadsBack = [z](const Item* candidate) {
+										auto leadsBack = [&](const Item* candidate) {
 											if (!candidate) {
 												return false;
 											}
@@ -679,10 +679,15 @@ namespace mcp {
 											if (!candidateType.isFloorChange()) {
 												return false;
 											}
-											// Down goes deeper, the directional
-											// ones go up; either can be the
-											// return leg depending on which way
-											// this transition went.
+											// Going down is undone by a directional
+											// (upward) change, going up by a down one.
+											const bool candidateDown = candidateType.floorChangeDown;
+											if (direction == "down") {
+												return !candidateDown;
+											}
+											if (direction != "unknown") {
+												return candidateDown;
+											}
 											return true;
 										};
 										if (leadsBack(neighbour->ground)) {
