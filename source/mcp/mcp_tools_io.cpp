@@ -368,15 +368,40 @@ namespace mcp {
 	} // namespace
 
 	void registerIoTools(ToolRegistry &registry) {
+		// The schema is built in small pieces: one huge nested braced initializer makes MSVC run out of heap.
+		json mappingProperties = json::object();
+		mappingProperties["color"] = json { { "description", "hex like \"#3366cc\", or {r,g,b}" } };
+		mappingProperties["brush"] = json { { "type", "string" }, { "description", "brush name; required unless ignore is true" } };
+		mappingProperties["ignore"] = json { { "type", "boolean" }, { "description", "leave pixels of this colour untouched" } };
+		mappingProperties["matchMode"] = json { { "type", "string" }, { "enum", json::array({ "rgb", "hue" }) } };
+
+		json mappingItem = json::object();
+		mappingItem["type"] = "object";
+		mappingItem["properties"] = mappingProperties;
+		mappingItem["required"] = json::array({ "color" });
+
+		json bitmapProperties = json::object();
+		bitmapProperties["path"] = json { { "type", "string" }, { "description", "image file to read; mutually exclusive with imageBase64" } };
+		bitmapProperties["imageBase64"] = json { { "type", "string" }, { "description", "the image inline, base64 encoded (png or bmp)" } };
+		bitmapProperties["mappings"] = json { { "type", "array" }, { "description", "colour to brush entries" }, { "items", mappingItem } };
+		bitmapProperties["tolerance"] = json { { "type", "integer" }, { "description", "colour distance allowed when matching, 0-255, default 0" } };
+		bitmapProperties["matchMode"] = json { { "type", "string" }, { "enum", json::array({ "rgb", "hue" }) }, { "description", "default for mappings that do not set their own" } };
+		bitmapProperties["offsetX"] = json { { "type", "integer" }, { "description", "map x of the image top-left" } };
+		bitmapProperties["offsetY"] = json { { "type", "integer" }, { "description", "map y of the image top-left" } };
+		bitmapProperties["offsetZ"] = json { { "type", "integer" }, { "description", "floor, default 7" } };
+		bitmapProperties["confirm"] = json { { "type", "boolean" }, { "description", "required for images larger than the region guard" } };
+
+		json bitmapSchema = json::object();
+		bitmapSchema["type"] = "object";
+		bitmapSchema["properties"] = bitmapProperties;
+		bitmapSchema["required"] = json::array({ "mappings" });
+
 		registry.add({ "map_from_bitmap",
 					   "Paint terrain from an image: one pixel becomes one tile, each colour mapped to a brush. "
 					   "Because it applies brushes, borders and transitions are generated properly - this is the way to lay out "
 					   "coastlines, rivers, lakes, forests and roads at scale. "
 					   "Supply the image as a file path, or inline as base64 so you can generate the mask yourself. Undoable.",
-					   json {
-						   { "type", "object" },
-						   { "properties", json { { "path", json { { "type", "string" }, { "description", "image file to read; mutually exclusive with imageBase64" } } }, { "imageBase64", json { { "type", "string" }, { "description", "the image inline, base64 encoded (png or bmp)" } } }, { "mappings", json { { "type", "array" }, { "description", "colour to brush entries" }, { "items", json { { "type", "object" }, { "properties", json { { "color", json { { "description", "hex like \"#3366cc\", or {r,g,b}" } } }, { "brush", json { { "type", "string" }, { "description", "brush name; required unless ignore is true" } } }, { "ignore", json { { "type", "boolean" }, { "description", "leave pixels of this colour untouched" } } }, { "matchMode", json { { "type", "string" }, { "enum", json::array({ "rgb", "hue" }) } } } } }, { "required", json::array({ "color" }) } } } } }, { "tolerance", json { { "type", "integer" }, { "description", "colour distance allowed when matching, 0-255, default 0" } } }, { "matchMode", json { { "type", "string" }, { "enum", json::array({ "rgb", "hue" }) }, { "description", "default for mappings that do not set their own" } } }, { "offsetX", json { { "type", "integer" }, { "description", "map x of the image top-left" } } }, { "offsetY", json { { "type", "integer" }, { "description", "map y of the image top-left" } } }, { "offsetZ", json { { "type", "integer" }, { "description", "floor, default 7" } } }, { "confirm", json { { "type", "boolean" }, { "description", "required for images larger than the region guard" } } } } },
-						   { "required", json::array({ "mappings" }) } },
+					   bitmapSchema,
 					   true,
 					   toolMapFromBitmap });
 
