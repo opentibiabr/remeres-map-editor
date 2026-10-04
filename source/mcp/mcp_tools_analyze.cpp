@@ -776,6 +776,9 @@ namespace mcp {
 					++houseTiles;
 				}
 				for (const Item* item : tile->items) {
+					if (!item) {
+						continue;
+					}
 					++items;
 					if (dynamic_cast<const Container*>(item)) {
 						++containers;
