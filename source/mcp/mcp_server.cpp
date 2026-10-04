@@ -422,8 +422,8 @@ namespace mcp {
 				{
 					std::lock_guard<std::mutex> lock(sessionMutex);
 					sessions.erase(std::remove_if(sessions.begin(), sessions.end(), [](const std::weak_ptr<Session> &s) {
-						return s.expired();
-					}),
+									   return s.expired();
+								   }),
 								   sessions.end());
 					sessions.push_back(session);
 				}
