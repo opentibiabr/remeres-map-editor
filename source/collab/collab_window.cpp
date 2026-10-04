@@ -69,8 +69,9 @@ namespace {
 		USER_PING,
 	};
 
-	// data/sounds/message-notification.mp3. Windows plays it through MCI (wxSound only does WAV);
-	// elsewhere, or when it cannot be played, the system beep stands in.
+	// data/sounds/message-notification.mp3 (and .ogg). wxSound only plays WAV, so Windows uses MCI
+	// and the other systems hand the file to a player that is usually installed; when nothing can
+	// play it, the system beep stands in.
 	void playNotificationSound() {
 #ifdef __WINDOWS__
 		const wxString path = GUI::GetDataDirectory() + "sounds" + wxFileName::GetPathSeparator() + "message-notification.mp3";
@@ -78,6 +79,34 @@ namespace {
 			mciSendStringW(L"close rmeNotification", nullptr, 0, nullptr);
 			const std::wstring open = L"open \"" + path.ToStdWstring() + L"\" type mpegvideo alias rmeNotification";
 			if (mciSendStringW(open.c_str(), nullptr, 0, nullptr) == 0 && mciSendStringW(L"play rmeNotification from 0", nullptr, 0, nullptr) == 0) {
+				return;
+			}
+		}
+#else
+		struct Player {
+			const char* program;
+			const char* file;
+			const char* arguments;
+		};
+		static const Player players[] = {
+#ifdef __APPLE__
+			{ "afplay", "message-notification.mp3", "" },
+#else
+			{ "paplay", "message-notification.ogg", "" },
+			{ "pw-play", "message-notification.ogg", "" },
+			{ "ogg123", "message-notification.ogg", "-q" },
+			{ "ffplay", "message-notification.ogg", "-nodisp -autoexit -loglevel quiet" },
+			{ "mpv", "message-notification.ogg", "--no-video --really-quiet" },
+			{ "play", "message-notification.ogg", "-q" }, // sox
+#endif
+		};
+		wxPathList searchPath;
+		searchPath.AddEnvList("PATH");
+		for (const Player &player : players) {
+			const wxString program = searchPath.FindValidPath(player.program);
+			const wxString file = GUI::GetDataDirectory() + "sounds" + wxFileName::GetPathSeparator() + player.file;
+			if (!program.empty() && wxFileExists(file)) {
+				wxExecute("\"" + program + "\" " + player.arguments + " \"" + file + "\"", wxEXEC_ASYNC);
 				return;
 			}
 		}
