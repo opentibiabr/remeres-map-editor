@@ -339,7 +339,8 @@ namespace mcp {
 				}
 
 				const int64_t actualBeds = houseBedCounts.count(houseId) ? houseBedCounts[houseId] : 0;
-				if (actualBeds != house->beds) {
+				// Each bed is two linked items (pillow + blanket), both typed "bed".
+				if (actualBeds != static_cast<int64_t>(house->beds) * 2) {
 					houseBedMismatch.hit(houseId);
 					if (bedDetails.size() < MAX_SAMPLES) {
 						bedDetails.push_back(json { { "houseId", houseId }, { "declaredBeds", house->beds }, { "bedItemsFound", actualBeds } });
