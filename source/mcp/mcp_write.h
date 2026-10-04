@@ -56,7 +56,12 @@ namespace mcp {
 		// Applies the collected changes as a single undo step and refreshes the
 		// view. Returns how many tiles were touched. Safe to call once; a batch
 		// that collected nothing commits nothing.
-		size_t commit();
+		//
+		// borderize/wallize recalculate borders and walls for the edited tiles
+		// and their 8 neighbours. That has to happen after the edits are on the
+		// map (Tile::borderize reads neighbours from it), so it runs as a second
+		// action in the same undo step, like Editor::draw's border pass.
+		size_t commit(bool borderize = false, bool wallize = false);
 
 		bool empty() const noexcept {
 			return pending.empty();

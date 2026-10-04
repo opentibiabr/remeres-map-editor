@@ -149,17 +149,12 @@ namespace mcp {
 					}
 				}
 
-				if (borderize) {
-					tile->borderize(&map);
-				}
-				if (wallize) {
-					tile->wallize(&map);
-				}
-
 				tile->update();
 			}
 
-			const size_t changed = batch.commit();
+			// Borders and walls read their neighbours from the live map, so they
+			// are computed after the whole batch is applied.
+			const size_t changed = batch.commit(borderize, wallize);
 			return jsonResult(json { { "tilesChanged", changed }, { "undoable", true } });
 		}
 
@@ -200,13 +195,10 @@ namespace mcp {
 					brush->draw(&map, tile, &alt);
 				}
 
-				if (borderize) {
-					tile->borderize(&map);
-				}
 				tile->update();
 			}
 
-			const size_t changed = batch.commit();
+			const size_t changed = batch.commit(borderize);
 			return jsonResult(json {
 				{ "brush", name },
 				{ "mode", erase ? "erase" : "draw" },
