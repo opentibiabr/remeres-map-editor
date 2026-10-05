@@ -324,20 +324,7 @@ namespace mcp {
 					if (!tile) {
 						return;
 					}
-					std::unordered_set<uint16_t> seen;
-					for (auto it = tile->items.begin(); it != tile->items.end();) {
-						if ((*it)->isGroundTile() || (*it)->getItemType().hasElevation) {
-							++it;
-							continue;
-						}
-						if (seen.insert((*it)->getID()).second) {
-							++it;
-							continue;
-						}
-						delete *it;
-						it = tile->items.erase(it);
-						++removed;
-					}
+					removed += removeDuplicateItems(tile);
 				};
 				map.forEachTileLocation(visit);
 				applied.push_back("removeDuplicateItems");

@@ -481,21 +481,7 @@ namespace mcp {
 				TileBatch batch(*editor);
 				for (const Position &position : positions) {
 					Tile* tile = batch.edit(position);
-					std::unordered_set<uint16_t> seen;
-					for (auto it = tile->items.begin(); it != tile->items.end();) {
-						const ItemType &type = (*it)->getItemType();
-						if ((*it)->isGroundTile() || type.hasElevation) {
-							++it;
-							continue;
-						}
-						if (seen.insert((*it)->getID()).second) {
-							++it;
-							continue;
-						}
-						delete *it;
-						it = tile->items.erase(it);
-						++removed;
-					}
+					removed += removeDuplicateItems(tile);
 					tile->update();
 				}
 				batch.commit();

@@ -32,6 +32,7 @@
 
 #include <algorithm>
 #include <set>
+#include <unordered_set>
 #include <vector>
 
 namespace mcp {
@@ -212,6 +213,27 @@ namespace mcp {
 			tile->items.erase(found);
 		}
 		return matched;
+	}
+
+	int64_t removeDuplicateItems(Tile* tile) {
+		int64_t removed = 0;
+		std::unordered_set<uint16_t> seen;
+		for (auto it = tile->items.begin(); it != tile->items.end();) {
+			Item* item = *it;
+			if (item->isGroundTile() || item->getItemType().hasElevation) {
+				++it;
+				continue;
+			}
+			const bool carriesId = item->getActionID() > 0 || item->getUniqueID() > 0;
+			if (seen.insert(item->getID()).second || carriesId) {
+				++it;
+				continue;
+			}
+			delete item;
+			it = tile->items.erase(it);
+			++removed;
+		}
+		return removed;
 	}
 
 } // namespace mcp

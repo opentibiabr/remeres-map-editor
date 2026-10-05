@@ -99,6 +99,12 @@ namespace mcp {
 	// deletes them instead. Returns how many items matched.
 	int64_t replaceItemOnTile(Tile* tile, uint16_t fromId, uint16_t toId);
 
+	// Deletes repeated item ids on the tile, like the editor's duplicate cleaner:
+	// ground and elevated items are left alone, and so is anything carrying an
+	// action or unique id (distinct quest items often share a base id). Returns
+	// how many items were deleted.
+	int64_t removeDuplicateItems(Tile* tile);
+
 	// Brush::draw takes an untyped parameter whose type depends on the brush
 	// kind; passing the wrong one reads past the object. This builds the one the
 	// editor's own draw paths use, for brush_apply and brush_preview alike.
