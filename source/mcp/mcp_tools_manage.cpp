@@ -336,27 +336,16 @@ namespace mcp {
 					throw McpError(fmt::format("no zone named '{}'", name));
 				}
 
-				// Strip the id off every tile first, otherwise tiles keep
-				// referencing a zone that no longer has a name.
-				std::vector<Position> tagged;
-				auto collect = [&](TileLocation* location) {
-					Tile* tile = location ? location->get() : nullptr;
-					if (tile && tile->hasZone(zoneId)) {
-						tagged.push_back(tile->getPosition());
-					}
-				};
-				map.forEachTileLocation(collect);
-
-				TileBatch batch(*editor);
-				for (const Position &position : tagged) {
-					batch.edit(position)->removeZone(zoneId);
-				}
-				batch.commit();
-
+				// Same as the zone palette's Remove: drop the registry entry, then
+				// strip the dangling id from every tile. It is deliberately not an
+				// undo step: a tile action could restore ids for a zone that no
+				// longer exists, or whose id a new zone has since taken.
 				map.zones.removeZone(name);
+				map.cleanDeletedZones(false);
 				map.doChange();
+				g_gui.RefreshPalettes();
 				g_gui.RefreshView();
-				return jsonResult(json { { "op", op }, { "name", name }, { "zoneId", zoneId }, { "tilesCleared", tagged.size() } });
+				return jsonResult(json { { "op", op }, { "name", name }, { "zoneId", zoneId }, { "undoable", false } });
 			}
 
 			if (op == "assign_tiles" || op == "unassign_tiles") {
@@ -603,7 +592,7 @@ namespace mcp {
 					   toolWaypointManage });
 
 		registry.add({ "zone_manage",
-					   "Create or delete a zone, and tag or untag tiles with it. Deleting a zone also strips its id from every tile that carried it.",
+					   "Create or delete a zone, and tag or untag tiles with it. Deleting a zone also strips its id from every tile that carried it, and cannot be undone.",
 					   json {
 						   { "type", "object" },
 						   { "properties", json { { "op", json { { "type", "string" }, { "enum", json::array({ "create", "delete", "assign_tiles", "unassign_tiles" }) } } }, { "name", json { { "type", "string" } } }, { "zoneId", json { { "type", "integer" }, { "description", "alternative to name for the tile operations" } } }, { "positions", positionArraySchema("tiles for assign_tiles and unassign_tiles") } } },
