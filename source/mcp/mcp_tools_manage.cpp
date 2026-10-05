@@ -435,7 +435,8 @@ namespace mcp {
 			Tile* tile = batch.edit(position);
 
 			if (op == "create") {
-				const int radius = readInt(params, "radius", 3, 0, 99);
+				// The spawn loaders discard any node with radius < 1, so 0 would vanish on save.
+				const int radius = readInt(params, "radius", 3, 1, 99);
 				if (npcKind) {
 					delete tile->spawnNpc;
 					tile->spawnNpc = newd SpawnNpc(radius);
@@ -449,11 +450,11 @@ namespace mcp {
 			}
 
 			if (op == "update") {
-				const int radius = readInt(params, "radius", -1, 0, 99);
-				if (radius < 0) {
+				if (!params.contains("radius")) {
 					throw McpError("update needs a radius");
 				}
 				if (npcKind) {
+				const int radius = readInt(params, "radius", 1, 1, 99);
 					if (!tile->spawnNpc) {
 						throw McpError("there is no npc spawn on that tile");
 					}
@@ -606,7 +607,7 @@ namespace mcp {
 					   "add_creature takes spawnTime, weight and the direction the creature faces.",
 					   json {
 						   { "type", "object" },
-						   { "properties", json { { "op", json { { "type", "string" }, { "enum", json::array({ "create", "update", "delete", "add_creature", "remove_creature" }) } } }, { "kind", json { { "type", "string" }, { "enum", json::array({ "monster", "npc" }) }, { "description", "default monster" } } }, { "position", positionSchema("the tile to act on") }, { "radius", json { { "type", "integer" }, { "description", "for create and update, 0-99, default 3" } } }, { "name", json { { "type", "string" }, { "description", "creature name; omit on remove_creature to clear them all" } } }, { "spawnTime", json { { "type", "integer" }, { "description", "seconds between respawns, default 60" } } }, { "weight", json { { "type", "integer" }, { "description", "monster spawn weight, default 1" } } }, { "direction", json { { "type", "string" }, { "enum", json::array({ "north", "east", "south", "west" }) }, { "description", "which way the creature faces, default south" } } } } },
+						   { "properties", json { { "op", json { { "type", "string" }, { "enum", json::array({ "create", "update", "delete", "add_creature", "remove_creature" }) } } }, { "kind", json { { "type", "string" }, { "enum", json::array({ "monster", "npc" }) }, { "description", "default monster" } } }, { "position", positionSchema("the tile to act on") }, { "radius", json { { "type", "integer" }, { "description", "for create and update, 1-99, default 3" } } }, { "name", json { { "type", "string" }, { "description", "creature name; omit on remove_creature to clear them all" } } }, { "spawnTime", json { { "type", "integer" }, { "description", "seconds between respawns, default 60" } } }, { "weight", json { { "type", "integer" }, { "description", "monster spawn weight, default 1" } } }, { "direction", json { { "type", "string" }, { "enum", json::array({ "north", "east", "south", "west" }) }, { "description", "which way the creature faces, default south" } } } } },
 						   { "required", json::array({ "op", "position" }) } },
 					   true,
 					   toolSpawnManage });
