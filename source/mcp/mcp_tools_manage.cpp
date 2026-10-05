@@ -25,6 +25,7 @@
 #include "../editor.h"
 #include "../gui.h"
 #include "../house.h"
+#include "../house_brush.h"
 #include "../map.h"
 #include "../monster.h"
 #include "../monsters.h"
@@ -37,8 +38,8 @@
 #include "../waypoints.h"
 #include "../zones.h"
 
-#include <string>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace mcp {
@@ -147,10 +148,15 @@ namespace mcp {
 			if (op == "delete") {
 				const std::string name = house->name;
 				const size_t tiles = house->size();
+				// The house palette keeps this pointer as list data and the active
+				// house brush may hold it too; drop the brush's, then rebuild the
+				// palettes after the delete (what the palette's own Remove does).
+				g_gui.house_brush->setHouse(nullptr);
 				// removeHouse() cleans every tile and deletes the object, so the
 				// pointer must not be touched afterwards.
 				map.houses.removeHouse(house);
 				map.doChange();
+				g_gui.RefreshPalettes();
 				g_gui.RefreshView();
 				return jsonResult(json { { "op", op }, { "houseId", id }, { "name", name }, { "tilesReleased", tiles } });
 			}
