@@ -420,6 +420,7 @@ namespace mcp {
 
 		json toolSpawnManage(const json &params) {
 			Editor* editor = requireEditor();
+			Map &map = editor->getMap();
 			const std::string op = requireOp(params);
 			const bool npcKind = isNpcKind(params);
 
@@ -453,8 +454,8 @@ namespace mcp {
 				if (!params.contains("radius")) {
 					throw McpError("update needs a radius");
 				}
-				if (npcKind) {
 				const int radius = readInt(params, "radius", 1, 1, 99);
+				if (npcKind) {
 					if (!tile->spawnNpc) {
 						throw McpError("there is no npc spawn on that tile");
 					}
@@ -493,6 +494,16 @@ namespace mcp {
 				const std::string name = readString(params, "name");
 				if (name.empty()) {
 					throw McpError("name is required");
+				}
+
+				// Saving writes each spawn and the creatures inside its radius, so a
+				// creature outside every matching spawn is lost on save and reopen.
+				// A tile holding its own spawn is covered by it.
+				const bool covered = npcKind
+					? (tile->spawnNpc || !map.getSpawnNpcList(position).empty())
+					: (tile->spawnMonster || !map.getSpawnMonsterList(position).empty());
+				if (!covered) {
+					throw McpError(fmt::format("no {} spawn covers that tile; create one first with op=create, or place the creature inside an existing spawn's radius", npcKind ? "npc" : "monster"));
 				}
 
 				if (npcKind) {
