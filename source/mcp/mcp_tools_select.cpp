@@ -469,33 +469,7 @@ namespace mcp {
 				for (const Position &position : positions) {
 					Tile* tile = batch.edit(position);
 
-					if (tile->ground && tile->ground->getID() == fromId) {
-						++affected;
-						if (replacing) {
-							tile->replaceGround(Item::Create(toId));
-						} else {
-							tile->clearGround();
-						}
-					}
-
-					for (auto it = tile->items.begin(); it != tile->items.end();) {
-						if ((*it)->getID() != fromId) {
-							++it;
-							continue;
-						}
-						++affected;
-						if (replacing) {
-							Item* replacement = Item::Create(toId);
-							replacement->setActionID((*it)->getActionID());
-							replacement->setUniqueID((*it)->getUniqueID());
-							delete *it;
-							*it = replacement;
-							++it;
-						} else {
-							delete *it;
-							it = tile->items.erase(it);
-						}
-					}
+					affected += replaceItemOnTile(tile, fromId, replacing ? toId : 0);
 					tile->update();
 				}
 				batch.commit();

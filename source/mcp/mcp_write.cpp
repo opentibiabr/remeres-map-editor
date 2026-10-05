@@ -25,10 +25,14 @@
 #include "../editor.h"
 #include "../ground_brush.h"
 #include "../gui.h"
+#include "../item.h"
+#include "../items.h"
 #include "../map.h"
 #include "../tile.h"
 
+#include <algorithm>
 #include <set>
+#include <vector>
 
 namespace mcp {
 
@@ -176,6 +180,38 @@ namespace mcp {
 		if (brush.isDoodad() && brush.asDoodad() && brush.asDoodad()->hasCompositeObjects(0)) {
 			throw McpError(fmt::format("doodad brush '{}' places multi-tile composites, which cannot be placed here; build it with tile_edit or stamp_place", name));
 		}
+	}
+
+	int64_t replaceItemOnTile(Tile* tile, uint16_t fromId, uint16_t toId) {
+		int64_t matched = 0;
+
+		if (tile->ground && tile->ground->getID() == fromId) {
+			++matched;
+			if (toId == 0) {
+				tile->clearGround();
+			} else {
+				transformItem(tile->ground, toId, tile);
+			}
+		}
+
+		// transformItem edits the stack in place, so collect the matches first.
+		std::vector<Item*> matches;
+		for (Item* item : tile->items) {
+			if (item->getID() == fromId) {
+				matches.push_back(item);
+			}
+		}
+		for (Item* item : matches) {
+			++matched;
+			if (toId != 0) {
+				transformItem(item, toId, tile);
+				continue;
+			}
+			const auto found = std::find(tile->items.begin(), tile->items.end(), item);
+			delete *found;
+			tile->items.erase(found);
+		}
+		return matched;
 	}
 
 } // namespace mcp

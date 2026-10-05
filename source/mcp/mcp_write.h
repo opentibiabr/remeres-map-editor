@@ -23,6 +23,7 @@
 #include "../action.h"
 #include "../position.h"
 
+#include <cstdint>
 #include <map>
 #include <string>
 #include <utility>
@@ -91,6 +92,12 @@ namespace mcp {
 		std::map<Position, Tile*> pending;
 		bool committed = false;
 	};
+
+	// Replaces every item with id fromId on the tile (ground and stack) by toId,
+	// keeping the item's attributes (count, text, uid/aid, container contents,
+	// teleport destination...) the way the editor's Replace Items does. toId 0
+	// deletes them instead. Returns how many items matched.
+	int64_t replaceItemOnTile(Tile* tile, uint16_t fromId, uint16_t toId);
 
 	// Brush::draw takes an untyped parameter whose type depends on the brush
 	// kind; passing the wrong one reads past the object. This builds the one the

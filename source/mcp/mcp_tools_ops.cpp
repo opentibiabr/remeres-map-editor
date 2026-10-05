@@ -216,34 +216,7 @@ namespace mcp {
 			for (const Position &position : targets) {
 				Tile* tile = batch.edit(position);
 
-				if (tile->ground && tile->ground->getID() == fromId) {
-					++replaced;
-					if (toId == 0) {
-						tile->clearGround();
-					} else {
-						tile->replaceGround(Item::Create(toId));
-					}
-				}
-
-				for (auto it = tile->items.begin(); it != tile->items.end();) {
-					if ((*it)->getID() != fromId) {
-						++it;
-						continue;
-					}
-					++replaced;
-					if (toId == 0) {
-						delete *it;
-						it = tile->items.erase(it);
-					} else {
-						// Keep the stack position; only the id changes.
-						Item* replacement = Item::Create(toId);
-						replacement->setActionID((*it)->getActionID());
-						replacement->setUniqueID((*it)->getUniqueID());
-						delete *it;
-						*it = replacement;
-						++it;
-					}
-				}
+				replaced += replaceItemOnTile(tile, fromId, toId);
 
 				tile->update();
 			}
