@@ -253,6 +253,8 @@ namespace mcp {
 				delete town;
 
 				map.doChange();
+				// The house palette's town choice holds Town pointers as item data.
+				g_gui.RefreshPalettes();
 				g_gui.RefreshView();
 				return jsonResult(json { { "op", op }, { "townId", id }, { "name", name }, { "orphanedHouses", attached } });
 			}
