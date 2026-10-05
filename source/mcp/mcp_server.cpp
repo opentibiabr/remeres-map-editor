@@ -526,9 +526,21 @@ namespace mcp {
 		try {
 			// Editor state is not thread safe, so the handler runs on the GUI
 			// thread while this network thread waits.
-			json result = callOnGui([tool, arguments]() {
-				return tool->handler(arguments);
-			});
+			// The permission and the server state are re-checked there, when the
+			// call actually starts: either may have changed while it was queued.
+			json result = callOnGui(
+				[this, tool, arguments]() {
+					if (!running) {
+						throw McpError("the MCP server was stopped");
+					}
+					if (tool->mutates && !writeAllowed) {
+						throw McpError("writes were disabled in the editor's MCP panel before this call ran");
+					}
+					return tool->handler(arguments);
+				},
+				[this]() {
+					return !running;
+				});
 
 			const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started);
 			log(LogLevel::Info, fmt::format("{} ok ({} ms)", name, elapsed.count()));

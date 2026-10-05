@@ -25,6 +25,8 @@
 
 #include <atomic>
 #include <chrono>
+#include <deque>
+#include <functional>
 #include <future>
 #include <memory>
 #include <type_traits>
@@ -32,9 +34,46 @@
 
 namespace mcp {
 
+	// GUI thread only. Tool handlers must not nest: a Lua script can call
+	// app.yield(), which drains pending CallAfter callbacks, and a second tool
+	// starting inside it (say map_open closing a clean untitled tab) would free
+	// the editor the first one still holds raw pointers to. While a handler is
+	// running, later tasks wait here and are re-queued once it has finished.
+	inline bool &guiBusy() {
+		static bool busy = false;
+		return busy;
+	}
+
+	inline std::deque<std::function<void()>> &deferredGuiTasks() {
+		static std::deque<std::function<void()>> tasks;
+		return tasks;
+	}
+
+	inline void runExclusiveOnGui(std::function<void()> task) {
+		if (guiBusy()) {
+			deferredGuiTasks().push_back(std::move(task));
+			return;
+		}
+
+		guiBusy() = true;
+		struct Release {
+			~Release() {
+				guiBusy() = false;
+				auto &deferred = deferredGuiTasks();
+				while (!deferred.empty()) {
+					wxTheApp->CallAfter([queued = std::move(deferred.front())]() mutable {
+						runExclusiveOnGui(std::move(queued));
+					});
+					deferred.pop_front();
+				}
+			}
+		} release;
+		task();
+	}
+
 	// Every tool handler touches editor state (Map, Tile, Item, GUI), none of
 	// which is thread safe, so handlers always run on the GUI thread while the
-	// asio thread blocks here waiting for the result.
+	// worker thread blocks here waiting for the result.
 	//
 	// The timeout matters: if the editor sits in a modal dialog the GUI thread
 	// never drains its idle queue, and without a deadline the socket would hang
@@ -45,12 +84,17 @@ namespace mcp {
 	// local would dangle when it finally runs. The promise is held by shared_ptr
 	// for the same reason.
 	//
-	// A timed-out call must not run later: the client already got an error and
-	// would retry, applying a mutating tool twice. The waiter and the queued
-	// lambda race on a shared state; only one of them wins the transition out of
-	// Pending. If the lambda already started, the waiter keeps waiting for it.
+	// A timed-out or aborted call must not run later: the client already got an
+	// error and would retry, applying a mutating tool twice. The waiter and the
+	// queued lambda race on a shared state; only one of them wins the transition
+	// out of Pending. If the lambda already started, the waiter keeps waiting
+	// for it.
+	//
+	// shouldAbort is polled from the waiting thread (the server passes "has it
+	// been stopped?"), so shutting the server down does not leave workers
+	// waiting out the full timeout.
 	template <typename Fn>
-	auto callOnGui(Fn &&fn) -> std::invoke_result_t<Fn> {
+	auto callOnGui(Fn &&fn, std::function<bool()> shouldAbort = nullptr) -> std::invoke_result_t<Fn> {
 		using Result = std::invoke_result_t<Fn>;
 
 		if (wxThread::IsMain()) {
@@ -63,32 +107,41 @@ namespace mcp {
 
 		auto promise = std::make_shared<std::promise<Result>>();
 		auto state = std::make_shared<std::atomic<int>>(Pending);
+		auto task = std::make_shared<std::decay_t<Fn>>(std::forward<Fn>(fn));
 		std::future<Result> future = promise->get_future();
 
-		wxTheApp->CallAfter([promise, state, fn = std::forward<Fn>(fn)]() mutable {
-			int expected = Pending;
-			if (!state->compare_exchange_strong(expected, Started)) {
-				return; // timed out and cancelled while queued
-			}
-			try {
-				if constexpr (std::is_void_v<Result>) {
-					fn();
-					promise->set_value();
-				} else {
-					promise->set_value(fn());
+		wxTheApp->CallAfter([promise, state, task]() {
+			runExclusiveOnGui([promise, state, task]() {
+				int expected = Pending;
+				if (!state->compare_exchange_strong(expected, Started)) {
+					return; // timed out and cancelled while queued
 				}
-			} catch (...) {
-				promise->set_exception(std::current_exception());
-			}
+				try {
+					if constexpr (std::is_void_v<Result>) {
+						(*task)();
+						promise->set_value();
+					} else {
+						promise->set_value((*task)());
+					}
+				} catch (...) {
+					promise->set_exception(std::current_exception());
+				}
+			});
 		});
 
-		if (future.wait_for(std::chrono::seconds(30)) != std::future_status::ready) {
+		const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+		while (future.wait_for(std::chrono::milliseconds(50)) != std::future_status::ready) {
+			const bool aborted = shouldAbort && shouldAbort();
+			if (!aborted && std::chrono::steady_clock::now() < deadline) {
+				continue;
+			}
 			int expected = Pending;
 			if (state->compare_exchange_strong(expected, Cancelled)) {
-				throw McpError("timed out waiting for the editor: it may be busy or showing a modal dialog");
+				throw McpError(aborted ? "the MCP server was stopped" : "timed out waiting for the editor: it may be busy or showing a modal dialog");
 			}
 			// Already started on the GUI thread: let it finish rather than abandon a half-applied edit.
 			future.wait();
+			break;
 		}
 
 		return future.get();
