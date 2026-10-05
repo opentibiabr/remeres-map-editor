@@ -42,7 +42,9 @@
 #include <wx/filename.h>
 
 #include <algorithm>
+#include <optional>
 #include <string>
+#include <utility>
 #include <unordered_set>
 #include <vector>
 
@@ -94,10 +96,10 @@ namespace mcp {
 			Selection &selection = editor->getSelection();
 			selection.start(Selection::NONE);
 			selection.clear();
-
-			int64_t selected = 0;
 			// See selection_op select_region: commit the deselection before re-adding.
 			selection.commit();
+
+			int64_t selected = 0;
 			for (int z = box.minZ; z <= box.maxZ; ++z) {
 				for (int y = box.minY; y <= box.maxY; ++y) {
 					for (int x = box.minX; x <= box.maxX; ++x) {
@@ -116,11 +118,11 @@ namespace mcp {
 			}
 
 			g_gui.copybuffer.copy(*editor, box.minZ);
-			g_gui.RefreshView();
-
 			// copy() anchors the buffer on the first occupied tile; anchor it on
 			// the requested corner instead so empty margins survive a paste.
 			g_gui.copybuffer.setPosition(Position(box.minX, box.minY, box.minZ));
+			g_gui.RefreshView();
+
 			return jsonResult(json {
 				{ "tilesCopied", g_gui.copybuffer.GetTileCount() },
 				{ "tilesSelected", selected },
@@ -525,33 +527,29 @@ namespace mcp {
 			Editor* editor = requireEditor();
 			Map &map = editor->getMap();
 
-			bool changed = false;
-			if (params.contains("name")) {
-				map.setName(params["name"].get<std::string>());
-				changed = true;
-			}
-			if (params.contains("description")) {
-				map.setMapDescription(params["description"].get<std::string>());
-				changed = true;
-			}
-			if (params.contains("houseFilename")) {
-				map.setHouseFilename(params["houseFilename"].get<std::string>());
-				changed = true;
-			}
-			if (params.contains("spawnMonsterFilename")) {
-				map.setSpawnMonsterFilename(params["spawnMonsterFilename"].get<std::string>());
-				changed = true;
-			}
-			if (params.contains("spawnNpcFilename")) {
-				map.setSpawnNpcFilename(params["spawnNpcFilename"].get<std::string>());
-				changed = true;
-			}
-			if (params.contains("zoneFilename")) {
-				map.setZoneFilename(params["zoneFilename"].get<std::string>());
-				changed = true;
-			}
+			// Read and validate every field before changing anything: a rejected
+			// request must not leave some of its fields applied (and the map not
+			// marked as changed).
+			auto readText = [&params](const char* key) {
+				std::optional<std::string> value;
+				if (params.contains(key)) {
+					if (!params[key].is_string()) {
+						throw McpError(fmt::format("{} must be a string", key));
+					}
+					value = params[key].get<std::string>();
+				}
+				return value;
+			};
+			const auto name = readText("name");
+			const auto description = readText("description");
+			const auto houseFilename = readText("houseFilename");
+			const auto spawnMonsterFilename = readText("spawnMonsterFilename");
+			const auto spawnNpcFilename = readText("spawnNpcFilename");
+			const auto zoneFilename = readText("zoneFilename");
+
 			// Shrinking the map would silently discard whatever lies outside
 			// the new bounds, so growing only unless the caller insists.
+			std::optional<std::pair<int, int>> newSize;
 			if (params.contains("width") || params.contains("height")) {
 				const int width = readInt(params, "width", map.getWidth(), 64, 65000);
 				const int height = readInt(params, "height", map.getHeight(), 64, 65000);
@@ -561,10 +559,32 @@ namespace mcp {
 						"pass allowShrink=true if that is intended"
 					);
 				}
-				map.setWidth(width);
-				map.setHeight(height);
-				changed = true;
+				newSize = std::make_pair(width, height);
 			}
+
+			if (name) {
+				map.setName(*name);
+			}
+			if (description) {
+				map.setMapDescription(*description);
+			}
+			if (houseFilename) {
+				map.setHouseFilename(*houseFilename);
+			}
+			if (spawnMonsterFilename) {
+				map.setSpawnMonsterFilename(*spawnMonsterFilename);
+			}
+			if (spawnNpcFilename) {
+				map.setSpawnNpcFilename(*spawnNpcFilename);
+			}
+			if (zoneFilename) {
+				map.setZoneFilename(*zoneFilename);
+			}
+			if (newSize) {
+				map.setWidth(newSize->first);
+				map.setHeight(newSize->second);
+			}
+			const bool changed = name || description || houseFilename || spawnMonsterFilename || spawnNpcFilename || zoneFilename || newSize;
 
 			if (changed) {
 				map.doChange();

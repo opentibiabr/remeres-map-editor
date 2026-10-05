@@ -38,6 +38,7 @@
 #include "../zones.h"
 
 #include <string>
+#include <optional>
 #include <vector>
 
 namespace mcp {
@@ -74,18 +75,31 @@ namespace mcp {
 			const std::string op = requireOp(params);
 
 			if (op == "create") {
-				auto* house = newd House(map);
+				// Parse and validate everything before the house exists: a bad
+				// field must not leave a half-created house behind.
 				// getEmptyID() matters: Houses::addHouse asserts on a duplicate id.
-				house->id = map.houses.getEmptyID();
-				house->name = readString(params, "name", fmt::format("Unnamed House {}", house->id));
-				house->townid = static_cast<uint32_t>(readInt(params, "townId", 0, 0, 0x7FFFFFFF));
-				house->rent = readInt(params, "rent", 0, 0, 0x7FFFFFFF);
-				house->beds = readInt(params, "beds", 0, 0, 0xFFFF);
-				house->guildhall = params.value("guildhall", false);
+				const uint32_t newId = map.houses.getEmptyID();
+				const std::string houseName = readString(params, "name", fmt::format("Unnamed House {}", newId));
+				const auto townId = static_cast<uint32_t>(readInt(params, "townId", 0, 0, 0x7FFFFFFF));
+				const int rent = readInt(params, "rent", 0, 0, 0x7FFFFFFF);
+				const int beds = readInt(params, "beds", 0, 0, 0xFFFF);
+				const bool guildhall = params.value("guildhall", false);
+				std::optional<Position> exitPosition;
+				if (params.contains("exit")) {
+					exitPosition = parsePosition(params["exit"], "exit");
+				}
+
+				auto* house = newd House(map);
+				house->id = newId;
+				house->name = houseName;
+				house->townid = townId;
+				house->rent = rent;
+				house->beds = beds;
+				house->guildhall = guildhall;
 				map.houses.addHouse(house);
 
-				if (params.contains("exit")) {
-					house->setExit(&map, parsePosition(params["exit"], "exit"));
+				if (exitPosition) {
+					house->setExit(&map, *exitPosition);
 				}
 
 				map.doChange();
