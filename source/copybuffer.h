@@ -35,6 +35,10 @@ public:
 	bool canPaste() const;
 	// Returns the upper-left corner of the copybuffer
 	Position getPosition() const;
+	// Overrides the paste origin; copy() derives it from the first occupied tile.
+	void setPosition(const Position &position) {
+		copyPos = position;
+	}
 
 	// Clears the copybuffer (eg. resets it)
 	void clear();

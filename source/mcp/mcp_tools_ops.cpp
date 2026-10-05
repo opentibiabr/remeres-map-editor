@@ -118,6 +118,9 @@ namespace mcp {
 			g_gui.copybuffer.copy(*editor, box.minZ);
 			g_gui.RefreshView();
 
+			// copy() anchors the buffer on the first occupied tile; anchor it on
+			// the requested corner instead so empty margins survive a paste.
+			g_gui.copybuffer.setPosition(Position(box.minX, box.minY, box.minZ));
 			return jsonResult(json {
 				{ "tilesCopied", g_gui.copybuffer.GetTileCount() },
 				{ "tilesSelected", selected },
