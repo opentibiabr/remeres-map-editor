@@ -117,7 +117,7 @@ namespace mcp {
 			throw McpError("matchMode must be rgb or hue");
 		}
 
-		std::vector<ColorMapping> parseMappings(const json &params, MatchMode defaultMode) {
+		std::vector<ColorMapping> parseMappings(const json &params) {
 			if (!params.contains("mappings") || !params["mappings"].is_array() || params["mappings"].empty()) {
 				throw McpError("mappings must be a non-empty array of colour to brush entries");
 			}
@@ -153,9 +153,10 @@ namespace mcp {
 				if (entry.contains("matchMode") && !entry["matchMode"].is_string()) {
 					throw McpError("matchMode must be rgb or hue");
 				}
-				mapping.matchMode = entry.contains("matchMode")
-					? parseMatchMode(as_lower_str(entry["matchMode"].get<std::string>()))
-					: defaultMode;
+				// Left unset it falls back to the call-wide mode inside the converter.
+				if (entry.contains("matchMode")) {
+					mapping.matchMode = parseMatchMode(as_lower_str(entry["matchMode"].get<std::string>()));
+				}
 
 				if (!mapping.ignore) {
 					mapping.brushName = entry.value("brush", std::string());
@@ -178,7 +179,7 @@ namespace mcp {
 
 			const wxImage image = loadInputImage(params);
 			const MatchMode defaultMode = parseMatchMode(as_lower_str(readString(params, "matchMode", "rgb")));
-			const std::vector<ColorMapping> mappings = parseMappings(params, defaultMode);
+			const std::vector<ColorMapping> mappings = parseMappings(params);
 
 			const int tolerance = readInt(params, "tolerance", 0, 0, 255);
 			const int offsetX = readInt(params, "offsetX", 0, 0, 65000);

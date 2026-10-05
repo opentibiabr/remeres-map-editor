@@ -20,6 +20,7 @@
 
 #include "main.h"
 #include <wx/image.h>
+#include <optional>
 #include <string>
 #include <vector>
 #include <set>
@@ -42,7 +43,8 @@ struct ColorMapping {
 	uint8_t b;
 	std::string brushName;
 	bool ignore;
-	MatchMode matchMode = MatchMode::MATCH_PIXEL_RGB;
+	// Overrides the converter-wide mode for this colour when set.
+	std::optional<MatchMode> matchMode;
 };
 
 struct ConvertResult {
