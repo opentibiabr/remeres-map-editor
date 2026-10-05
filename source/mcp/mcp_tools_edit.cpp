@@ -21,9 +21,7 @@
 #include "mcp_write.h"
 
 #include "../brush.h"
-#include "../ground_brush.h"
 #include "../common.h"
-#include "../doodad_brush.h"
 #include "../editor.h"
 #include "../gui.h"
 #include "../house.h"
@@ -186,38 +184,8 @@ namespace mcp {
 			const bool borderize = params.value("borderize", false);
 			const bool alt = params.value("alt", false);
 
-			// The house exit and waypoint brushes assert in both draw and undraw
-			// (the editor never calls them), so neither direction is allowed.
-			if (brush->isHouseExit() || brush->isWaypoint()) {
-				throw McpError(fmt::format("brush '{}' is not supported by brush_apply; use house_manage set_exit or waypoint_manage", name));
-			}
-
-			// Drawing needs context this tool does not supply: an int (spawn size
-			// or time) for creature/spawn brushes, a selected house for the house
-			// brush. Erasing needs neither.
-			if (!erase && (brush->isMonster() || brush->isSpawnMonster() || brush->isNpc() || brush->isSpawnNpc() || brush->isHouse())) {
-				throw McpError(fmt::format("brush '{}' cannot be drawn with brush_apply; use spawn_manage or house_manage assign_tiles", name));
-			}
-
-			// A composite doodad is a multi-tile pattern placed through a separate
-			// path; the single-tile draw below would silently skip it.
-			if (!erase && brush->isDoodad() && brush->asDoodad() && brush->asDoodad()->hasCompositeObjects(0)) {
-				throw McpError(fmt::format("doodad brush '{}' places multi-tile composites, which brush_apply cannot place; build it with tile_edit or stamp_place", name));
-			}
-
-			// Same parameters the editor's own draw paths pass for each kind.
-			bool altFlag = alt;
-			int variation = 0;
-			std::pair<bool, GroundBrush*> groundParam { true, nullptr };
-			void* drawParam = nullptr;
-			if (brush->isGround()) {
-				// alt on a ground brush means "only where no ground brush is set yet".
-				drawParam = alt ? &groundParam : nullptr;
-			} else if (brush->isDoodad()) {
-				drawParam = &variation;
-			} else if (brush->isWall() || brush->isRaw()) {
-				drawParam = &altFlag;
-			}
+			requireApplicableBrush(*brush, name, erase);
+			BrushDrawParam drawParam(*brush, alt);
 
 			TileBatch batch(*editor, erase ? ACTION_ERASE : ACTION_DRAW);
 
@@ -228,7 +196,7 @@ namespace mcp {
 				if (erase) {
 					brush->undraw(&map, tile);
 				} else {
-					brush->draw(&map, tile, drawParam);
+					brush->draw(&map, tile, drawParam.get());
 				}
 
 				tile->update();

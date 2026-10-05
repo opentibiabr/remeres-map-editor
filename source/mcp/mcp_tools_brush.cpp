@@ -23,6 +23,7 @@
 #include "main.h"
 
 #include "mcp_tools.h"
+#include "mcp_write.h"
 
 #include "../basemap.h"
 #include "../brush.h"
@@ -284,15 +285,17 @@ namespace mcp {
 			const int pixelsPerTile = readInt(params, "pixelsPerTile", 32, 8, 64);
 			const bool borderize = params.value("borderize", true);
 
+			requireApplicableBrush(*brush, name, false);
+
 			// A throwaway map: nothing here touches the map the user has open.
 			BaseMap scratch;
-			bool alt = false;
+			BrushDrawParam drawParam(*brush, false);
 
 			for (int y = 0; y < size; ++y) {
 				for (int x = 0; x < size; ++x) {
 					Tile* tile = scratch.createTile(x, y, rme::MapGroundLayer);
 					if (tile) {
-						brush->draw(&scratch, tile, &alt);
+						brush->draw(&scratch, tile, drawParam.get());
 					}
 				}
 			}

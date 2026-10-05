@@ -20,7 +20,10 @@
 #include "mcp_write.h"
 
 #include "../basemap.h"
+#include "../brush.h"
+#include "../doodad_brush.h"
 #include "../editor.h"
+#include "../ground_brush.h"
 #include "../gui.h"
 #include "../map.h"
 #include "../tile.h"
@@ -125,6 +128,41 @@ namespace mcp {
 		g_gui.RefreshView();
 
 		return count;
+	}
+
+	BrushDrawParam::BrushDrawParam(Brush &brush, bool alt) :
+		flag(alt) {
+		if (brush.isGround()) {
+			// alt on a ground brush means "only where no ground brush is set yet".
+			param = alt ? &ground : nullptr;
+		} else if (brush.isDoodad()) {
+			param = &variation;
+		} else if (brush.isWall() || brush.isRaw()) {
+			param = &flag;
+		}
+	}
+
+	void requireApplicableBrush(Brush &brush, const std::string &name, bool erase) {
+		// The house exit and waypoint brushes assert in both draw and undraw
+		// (the editor never calls them), so neither direction is allowed.
+		if (brush.isHouseExit() || brush.isWaypoint()) {
+			throw McpError(fmt::format("brush '{}' is not supported here; use house_manage set_exit or waypoint_manage", name));
+		}
+		if (erase) {
+			return;
+		}
+
+		// Drawing needs context this tool does not supply: an int (spawn size or
+		// time) for creature/spawn brushes, a selected house for the house brush.
+		if (brush.isMonster() || brush.isSpawnMonster() || brush.isNpc() || brush.isSpawnNpc() || brush.isHouse()) {
+			throw McpError(fmt::format("brush '{}' cannot be drawn here; use spawn_manage or house_manage assign_tiles", name));
+		}
+
+		// A composite doodad is a multi-tile pattern placed through a separate
+		// path; the single-tile draw would silently skip it.
+		if (brush.isDoodad() && brush.asDoodad() && brush.asDoodad()->hasCompositeObjects(0)) {
+			throw McpError(fmt::format("doodad brush '{}' places multi-tile composites, which cannot be placed here; build it with tile_edit or stamp_place", name));
+		}
 	}
 
 } // namespace mcp

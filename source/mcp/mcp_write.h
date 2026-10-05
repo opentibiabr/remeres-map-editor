@@ -24,8 +24,12 @@
 #include "../position.h"
 
 #include <map>
+#include <string>
+#include <utility>
 
+class Brush;
 class Editor;
+class GroundBrush;
 class Tile;
 
 namespace mcp {
@@ -87,6 +91,29 @@ namespace mcp {
 		std::map<Position, Tile*> pending;
 		bool committed = false;
 	};
+
+	// Brush::draw takes an untyped parameter whose type depends on the brush
+	// kind; passing the wrong one reads past the object. This builds the one the
+	// editor's own draw paths use, for brush_apply and brush_preview alike.
+	class BrushDrawParam {
+	public:
+		BrushDrawParam(Brush &brush, bool alt);
+
+		void* get() noexcept {
+			return param;
+		}
+
+	private:
+		bool flag;
+		int variation = 0;
+		std::pair<bool, GroundBrush*> ground { true, nullptr };
+		void* param = nullptr;
+	};
+
+	// Throws McpError for brushes a plain tool call cannot apply: ones that need
+	// context (spawn size, a selected house) or that assert in the editor. Erasing
+	// needs no context, so only waypoint and house exit are refused there.
+	void requireApplicableBrush(Brush &brush, const std::string &name, bool erase);
 
 } // namespace mcp
 
