@@ -266,6 +266,12 @@ namespace mcp {
 				// would make every copy part of the original house.
 				incoming->setHouse(nullptr);
 				destination->merge(incoming.get());
+				// merge() carries PZ but not the other map flags or the zones, which
+				// capture stored on the stamp tile.
+				destination->setMapFlags(sourceTile->getMapFlags());
+				for (const unsigned int zone : sourceTile->zones) {
+					destination->addZone(zone);
+				}
 				destination->update();
 				++placed;
 			}
