@@ -42,6 +42,7 @@
 
 #include <google/protobuf/util/json_util.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -363,6 +364,9 @@ namespace mcp {
 			const int limit = readInt(params, "limit", 64, 1, 512);
 			json spriteIds = json::array();
 			int64_t total = 0;
+			// Static appearances report 0 phases but still hold one set of sprites
+			// (the loader allocates max(1, phases)).
+			const int frames = std::max<int>(1, sprite->sprite_phase_size);
 
 			for (int layer = 0; layer < sprite->layers; ++layer) {
 				for (int px = 0; px < sprite->pattern_x; ++px) {
@@ -379,7 +383,10 @@ namespace mcp {
 									{ "patternY", py },
 									{ "patternZ", pz },
 									{ "frame", frame },
-									{ "spriteId", sprite->getSpriteID(layer, 0, px, py, pz, frame) } });
+									// count = -1 selects the pattern-aware lookup; a
+									// non-negative count would be a direct sprite index
+									// and return the same sprite for every variant.
+									{ "spriteId", sprite->getSpriteID(layer, -1, px, py, pz, frame) } });
 							}
 						}
 					}
