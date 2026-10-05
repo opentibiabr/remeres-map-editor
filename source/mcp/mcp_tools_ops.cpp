@@ -96,6 +96,8 @@ namespace mcp {
 			selection.clear();
 
 			int64_t selected = 0;
+			// See selection_op select_region: commit the deselection before re-adding.
+			selection.commit();
 			for (int z = box.minZ; z <= box.maxZ; ++z) {
 				for (int y = box.minY; y <= box.maxY; ++y) {
 					for (int x = box.minX; x <= box.maxX; ++x) {

@@ -338,6 +338,10 @@ namespace mcp {
 				selection.start(Selection::NONE);
 				if (!additive) {
 					selection.clear();
+					// clear() only queues deselected copies; committing them now keeps
+					// a tile that is also re-added below from getting a second change
+					// for the same position, which undo would replay out of order.
+					selection.commit();
 				}
 				int64_t added = 0;
 				for (int z = std::min(a.z, b.z); z <= std::max(a.z, b.z); ++z) {
