@@ -243,6 +243,11 @@ namespace mcp {
 				int wallCount = 0;
 				std::set<uint16_t> seen;
 
+				// A ground can carry a unique id too; it competes with the stack's.
+				if (tile->ground && tile->ground->getUniqueID() != 0) {
+					uniqueIdOwners[tile->ground->getUniqueID()].push_back(position);
+				}
+
 				for (const Item* item : tile->items) {
 					const ItemType &type = item->getItemType();
 					if (type.isGroundTile()) {
