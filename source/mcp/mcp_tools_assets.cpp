@@ -372,7 +372,7 @@ namespace mcp {
 				for (int px = 0; px < sprite->pattern_x; ++px) {
 					for (int py = 0; py < sprite->pattern_y; ++py) {
 						for (int pz = 0; pz < sprite->pattern_z; ++pz) {
-							for (int frame = 0; frame < sprite->sprite_phase_size; ++frame) {
+							for (int frame = 0; frame < frames; ++frame) {
 								++total;
 								if (static_cast<int>(spriteIds.size()) >= limit) {
 									continue;
@@ -487,23 +487,38 @@ namespace mcp {
 			}
 
 			const auto &data = entry.data();
-			const int width = data.has_dimensions() ? static_cast<int>(data.dimensions().pos_x()) : 0;
-			const int height = data.has_dimensions() ? static_cast<int>(data.dimensions().pos_y()) : 0;
-			const int floors = data.has_dimensions() ? static_cast<int>(data.dimensions().pos_z()) : 0;
+			// The fields are unsigned 32-bit and come from a file we did not write:
+			// do the arithmetic in 64 bits and bound the declared volume before
+			// using it as a divisor or an index range.
+			const int64_t width = data.has_dimensions() ? static_cast<int64_t>(data.dimensions().pos_x()) : 0;
+			const int64_t height = data.has_dimensions() ? static_cast<int64_t>(data.dimensions().pos_y()) : 0;
+			const int64_t floors = data.has_dimensions() ? static_cast<int64_t>(data.dimensions().pos_z()) : 0;
 
-			const int originX = data.has_origin() ? static_cast<int>(data.origin().pos_x()) : 0;
-			const int originY = data.has_origin() ? static_cast<int>(data.origin().pos_y()) : 0;
-			const int originZ = data.has_origin() ? static_cast<int>(data.origin().pos_z()) : 0;
+			const int64_t originX = data.has_origin() ? static_cast<int64_t>(data.origin().pos_x()) : 0;
+			const int64_t originY = data.has_origin() ? static_cast<int64_t>(data.origin().pos_y()) : 0;
+			const int64_t originZ = data.has_origin() ? static_cast<int64_t>(data.origin().pos_z()) : 0;
 
 			json tiles = json::array();
-			if (width <= 0 || height <= 0) {
+			if (width <= 0 || height <= 0 || floors <= 0) {
 				return json { { "tiles", std::move(tiles) }, { "note", "preview has no usable dimensions" } };
 			}
+			constexpr int64_t MAX_PREVIEW_DIMENSION = 0xFFFF;
+			constexpr int64_t MAX_PREVIEW_VOLUME = 1 << 20;
+			if (width > MAX_PREVIEW_DIMENSION || height > MAX_PREVIEW_DIMENSION || floors > MAX_PREVIEW_DIMENSION || width * height * floors > MAX_PREVIEW_VOLUME) {
+				return json { { "tiles", std::move(tiles) }, { "note", fmt::format("preview dimensions {}x{}x{} are implausibly large and were not decoded", width, height, floors) } };
+			}
 
-			const int floorArea = width * height;
+			const int64_t floorArea = width * height;
+			const int64_t volume = floorArea * floors;
 			int64_t linearIndex = 0;
+			bool truncated = false;
 
 			for (const auto &tile : data.preview().layer().tile()) {
+				if (linearIndex >= volume) {
+					// An entry past the declared volume would index a floor that does not exist.
+					truncated = true;
+					break;
+				}
 				const int64_t floor = linearIndex / floorArea;
 				const int64_t planeIndex = linearIndex % floorArea;
 				const int64_t x = planeIndex / height;
@@ -526,7 +541,8 @@ namespace mcp {
 				{ "origin", json { { "x", originX }, { "y", originY }, { "z", originZ } } },
 				{ "dimensions", json { { "width", width }, { "height", height }, { "floors", floors } } },
 				{ "decodedTiles", tiles.size() },
-				{ "tiles", std::move(tiles) }
+				{ "tiles", std::move(tiles) },
+				{ "truncated", truncated }
 			};
 		}
 
