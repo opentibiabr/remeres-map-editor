@@ -28,6 +28,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace mcp {
@@ -76,11 +77,12 @@ namespace mcp {
 
 	private:
 		Server() = default;
+		~Server();
 
 		class Session;
 		friend class Session;
 
-		void accept();
+		void accept(std::shared_ptr<asio::ip::tcp::acceptor> listener);
 		void log(LogLevel level, const std::string &message);
 
 		// Dispatches one JSON-RPC request. Returns std::nullopt for
@@ -88,21 +90,33 @@ namespace mcp {
 		std::optional<json> handleRequest(const json &request);
 		json handleToolCall(const json &params);
 
+		// The server owns its io_context and thread instead of borrowing the shared
+		// NetworkConnection one: the Live editing server stops that service on
+		// close, which would pull it out from under the MCP sockets.
+		asio::io_context context;
+		std::unique_ptr<asio::executor_work_guard<asio::io_context::executor_type>> workGuard;
+		std::thread ioThread;
+		// Only touched on the GUI thread; handlers capture their own copy.
 		std::shared_ptr<asio::ip::tcp::acceptor> acceptor;
-		// Tool calls block on the GUI thread (up to the callOnGui timeout), so
-		// they run here rather than on the shared network io thread.
-		asio::thread_pool workers { 2 };
 
 		// Open client connections, so stop() can cut them off.
 		std::mutex sessionMutex;
 		std::vector<std::weak_ptr<Session>> sessions;
 
 		std::atomic<bool> running { false };
+		// Tool calls handed to the worker pool and not finished yet.
+		std::atomic<int> inFlight { 0 };
 		std::atomic<bool> writeAllowed { false };
 		uint16_t port = 0;
 		std::string lastError;
 		LogCallback logCallback;
 		std::mutex logMutex;
+
+		// Declared last so it is destroyed first: tool calls still draining at
+		// exit join here while the members above (log callback, mutexes) are
+		// still alive. Tool calls block on the GUI thread (up to the callOnGui
+		// timeout), so they run here rather than on the io thread.
+		asio::thread_pool workers { 2 };
 	};
 
 } // namespace mcp

@@ -24,7 +24,6 @@
 
 #include "../common.h"
 #include "../definitions.h"
-#include "../net_connection.h"
 
 #include <algorithm>
 #include <cctype>
@@ -123,13 +122,10 @@ namespace mcp {
 			readHeaders();
 		}
 
-		// Safe from any thread: the close runs on the socket's executor.
-		void close() {
-			auto self = shared_from_this();
-			asio::post(socket.get_executor(), [self]() {
-				std::error_code ignored;
-				self->socket.close(ignored);
-			});
+		// Only once the io thread has been joined: nothing else touches the socket.
+		void closeNow() {
+			std::error_code ignored;
+			socket.close(ignored);
 		}
 
 	private:
@@ -242,8 +238,10 @@ namespace mcp {
 		// post the reply back to the socket's executor.
 		void handleBody(const std::string &body) {
 			auto self = shared_from_this();
+			++server.inFlight;
 			asio::post(server.workers, [this, self, body]() {
 				std::pair<int, std::string> reply = process(body);
+				--server.inFlight;
 				asio::post(socket.get_executor(), [this, self, reply = std::move(reply)]() {
 					if (!server.running) {
 						std::error_code ignored;
@@ -334,15 +332,9 @@ namespace mcp {
 
 		lastError.clear();
 
-		NetworkConnection &connection = NetworkConnection::getInstance();
-		if (!connection.start()) {
-			lastError = "could not start the network service";
-			return false;
-		}
-
+		context.restart();
 		try {
-			auto &service = connection.get_service();
-			acceptor = std::make_shared<asio::ip::tcp::acceptor>(service);
+			acceptor = std::make_shared<asio::ip::tcp::acceptor>(context);
 
 			// Loopback only: the editor must never be reachable from the LAN.
 			const asio::ip::tcp::endpoint endpoint(asio::ip::make_address("127.0.0.1"), requestedPort);
@@ -362,22 +354,47 @@ namespace mcp {
 		ToolRegistry::get().ensureRegistered();
 		log(LogLevel::Info, fmt::format("listening on {} with {} tools ({})", getEndpointUrl(), ToolRegistry::get().all().size(), writeAllowed ? "writes allowed" : "read-only"));
 
-		accept();
+		accept(acceptor);
+		workGuard = std::make_unique<asio::executor_work_guard<asio::io_context::executor_type>>(asio::make_work_guard(context));
+		ioThread = std::thread([this]() {
+			context.run();
+		});
 		return true;
+	}
+
+	Server::~Server() {
+		stop();
 	}
 
 	void Server::stop() {
 		if (!running) {
 			return;
 		}
+		// Workers poll this and abort, and queued GUI calls re-check it.
 		running = false;
 
+		// Drain tool calls that were already admitted. Skipped when stop() runs
+		// from inside a handler (a Lua yield processing a menu click): that
+		// handler's own worker is waiting on this very thread.
+		if (!guiBusy()) {
+			const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+			while (inFlight > 0 && std::chrono::steady_clock::now() < deadline) {
+				std::this_thread::sleep_for(std::chrono::milliseconds(10));
+			}
+		}
+
+		workGuard.reset();
+		context.stop();
+		if (ioThread.joinable()) {
+			ioThread.join();
+		}
+
+		// The io thread is gone, so the sockets can be closed directly.
 		if (acceptor) {
 			std::error_code ignored;
 			acceptor->close(ignored);
 			acceptor.reset();
 		}
-
 		std::vector<std::weak_ptr<Session>> open;
 		{
 			std::lock_guard<std::mutex> lock(sessionMutex);
@@ -385,7 +402,7 @@ namespace mcp {
 		}
 		for (auto &weak : open) {
 			if (auto session = weak.lock()) {
-				session->close();
+				session->closeNow();
 			}
 		}
 		log(LogLevel::Info, "server stopped");
@@ -411,14 +428,15 @@ namespace mcp {
 		}
 	}
 
-	void Server::accept() {
-		if (!running || !acceptor) {
-			return;
-		}
-
-		auto socket = std::make_shared<asio::ip::tcp::socket>(NetworkConnection::getInstance().get_service());
-		acceptor->async_accept(*socket, [this, socket](const std::error_code &error) {
-			if (!error && running) {
+	void Server::accept(std::shared_ptr<asio::ip::tcp::acceptor> listener) {
+		auto socket = std::make_shared<asio::ip::tcp::socket>(context);
+		// The handler keeps its own listener: the member is reset by stop() on
+		// another thread, so it must not be read from here.
+		listener->async_accept(*socket, [this, listener, socket](const std::error_code &error) {
+			if (error == asio::error::operation_aborted || !running) {
+				return;
+			}
+			if (!error) {
 				auto session = std::make_shared<Session>(*this, std::move(*socket));
 				{
 					std::lock_guard<std::mutex> lock(sessionMutex);
@@ -430,7 +448,7 @@ namespace mcp {
 				}
 				session->start();
 			}
-			accept();
+			accept(listener);
 		});
 	}
 
