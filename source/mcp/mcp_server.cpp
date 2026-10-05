@@ -558,7 +558,8 @@ namespace mcp {
 				},
 				[this]() {
 					return !running;
-				});
+				}
+			);
 
 			const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started);
 			log(LogLevel::Info, fmt::format("{} ok ({} ms)", name, elapsed.count()));
