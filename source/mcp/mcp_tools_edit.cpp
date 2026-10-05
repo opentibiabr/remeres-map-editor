@@ -289,9 +289,16 @@ namespace mcp {
 				Selection &selection = editor->getSelection();
 				const bool selecting = op == "select";
 
-				selection.start(Selection::NONE);
+				// Parse everything before the selection session opens: a bad entry
+				// would otherwise throw past finish() and leave the session open.
+				std::vector<Position> positions;
+				positions.reserve(params["positions"].size());
 				for (const json &entry : params["positions"]) {
-					const Position position = parsePosition(entry, "positions[]");
+					positions.push_back(parsePosition(entry, "positions[]"));
+				}
+
+				selection.start(Selection::NONE);
+				for (const Position &position : positions) {
 					Tile* tile = map.getTile(position);
 					if (!tile) {
 						continue;
