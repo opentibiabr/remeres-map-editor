@@ -361,8 +361,10 @@ namespace mcp {
 				if (!waypoint) {
 					continue;
 				}
+				// Tile::empty() counts the waypoint marker itself as content, so look
+				// at what is really on the tile.
 				const Tile* tile = map.getTile(waypoint->pos);
-				if (!tile || tile->empty()) {
+				if (!tile || (!tile->ground && tile->items.empty() && tile->monsters.empty() && !tile->npc)) {
 					waypointOnEmptyTile.hit(waypoint->pos);
 				}
 			}
