@@ -212,15 +212,16 @@ namespace mcp {
 					spawnInProtectionZone.hit(position);
 				}
 
-				// Creatures with no spawn to hold them are silently broken in
-				// game. (Spawns with nothing to spawn are checked per radius below.)
-				const bool hasCreature = !tile->monsters.empty() || tile->npc;
-				if (hasCreature && !tile->spawnMonster && !tile->spawnNpc) {
-					// The spawn may sit on a nearby tile; only flag it when no
-					// spawn covers this position at all.
-					if (map.getSpawnMonsterList(position).empty() && map.getSpawnNpcList(position).empty() && !outsideSpawnRadius.count(position)) {
-						creatureWithoutSpawn.hit(position);
-					}
+				// Creatures with no spawn to hold them are silently broken in game.
+				// Each kind needs a spawn of its own kind: saving walks the monster
+				// and npc spawns separately, so a monster on an npc spawn is lost.
+				// The spawn may sit on a nearby tile; only flag a creature when no
+				// matching spawn covers this position at all. (Spawns with nothing
+				// to spawn are checked per radius above.)
+				const bool monsterUncovered = !tile->monsters.empty() && !tile->spawnMonster && map.getSpawnMonsterList(position).empty();
+				const bool npcUncovered = tile->npc && !tile->spawnNpc && map.getSpawnNpcList(position).empty();
+				if ((monsterUncovered && !outsideSpawnRadius.count(position)) || npcUncovered) {
+					creatureWithoutSpawn.hit(position);
 				}
 
 				for (const Monster* monster : tile->monsters) {
