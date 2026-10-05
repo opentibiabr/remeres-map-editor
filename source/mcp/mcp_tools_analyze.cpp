@@ -666,7 +666,12 @@ namespace mcp {
 								target = Position(x - 1, y, z - 1);
 							}
 
-							const bool targetValid = target.z >= 0 && target.z < rme::MapLayers && target.x >= 0 && target.y >= 0 && target.x < map.getWidth() && target.y < map.getHeight();
+							// Some stairs set only the generic floor-change flag with no
+							// direction (the shipped "southalt"/"eastalt" ones). Their
+							// landing is not derivable here, so report it as unknown
+							// instead of treating the source tile as the destination.
+							const bool directionKnown = direction != "unknown";
+							const bool targetValid = directionKnown && target.z >= 0 && target.z < rme::MapLayers && target.x >= 0 && target.y >= 0 && target.x < map.getWidth() && target.y < map.getHeight();
 							const Tile* targetTile = targetValid ? map.getTile(target) : nullptr;
 
 							// A stair with no way back is the classic dungeon
@@ -692,13 +697,7 @@ namespace mcp {
 											// Going down is undone by a directional
 											// (upward) change, going up by a down one.
 											const bool candidateDown = candidateType.floorChangeDown;
-											if (direction == "down") {
-												return !candidateDown;
-											}
-											if (direction != "unknown") {
-												return candidateDown;
-											}
-											return true;
+											return direction == "down" ? !candidateDown : candidateDown;
 										};
 										if (leadsBack(neighbour->ground)) {
 											hasReturn = true;
@@ -717,14 +716,20 @@ namespace mcp {
 								{ "position", positionToJson(Position(x, y, z)) },
 								{ "itemId", item->getID() },
 								{ "itemName", item->getName() },
-								{ "direction", direction },
-								{ "target", positionToJson(target) },
-								{ "targetHasGround", targetTile && targetTile->ground },
-								{ "targetWalkable", targetValid && isWalkable(map, target) },
-								{ "hasReturnRoute", hasReturn }
+								{ "direction", direction }
 							};
-							if (targetValid && !hasReturn) {
-								entry["problem"] = "nothing at or beside the landing tile leads back to another floor";
+							if (!directionKnown) {
+								entry["target"] = nullptr;
+								entry["hasReturnRoute"] = nullptr;
+								entry["problem"] = "this floor change has no direction flag, so where it lands and whether there is a way back cannot be determined";
+							} else {
+								entry["target"] = positionToJson(target);
+								entry["targetHasGround"] = targetTile && targetTile->ground;
+								entry["targetWalkable"] = targetValid && isWalkable(map, target);
+								entry["hasReturnRoute"] = hasReturn;
+								if (targetValid && !hasReturn) {
+									entry["problem"] = "nothing at or beside the landing tile leads back to another floor";
+								}
 							}
 							transitions.push_back(std::move(entry));
 						};
