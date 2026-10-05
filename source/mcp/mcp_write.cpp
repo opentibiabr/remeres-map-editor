@@ -103,6 +103,19 @@ namespace mcp {
 			for (const Position &position : targets) {
 				const Tile* current = map.getTile(position);
 				if (!current) {
+					// A ground brush can put border items on a tile that holds
+					// nothing yet (an outer border to "none", the sea's shore), so
+					// borderize empty neighbours too and keep the ones that gain
+					// content, as Editor::drawInternal does.
+					if (passes.borderize) {
+						Tile* fresh = map.allocator(map.createTileL(position));
+						fresh->borderize(&map);
+						if (fresh->size() > 0) {
+							fixup->addChange(newd Change(fresh));
+						} else {
+							delete fresh;
+						}
+					}
 					continue;
 				}
 				Tile* copy = current->deepCopy(map);
