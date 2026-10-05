@@ -204,8 +204,8 @@ while the panel is in read-only mode.
 | `house_manage` | create / update / delete / set_exit / assign_tiles / unassign_tiles |
 | `town_manage` | create / update / delete (refuses to orphan houses unless forced) |
 | `waypoint_manage` | create / move / delete |
-| `zone_manage` | create / delete / assign_tiles / unassign_tiles |
-| `spawn_manage` | create / update (radius) / delete / add_creature / remove_creature, monster or npc. `add_creature` takes `spawnTime`, `weight` and the `direction` the creature faces. |
+| `zone_manage` | create / delete / assign_tiles / unassign_tiles. `delete` strips the zone from every tile and cannot be undone, like the zone palette's Remove. |
+| `spawn_manage` | create / update (radius, 1-99) / delete / add_creature / remove_creature, monster or npc. `add_creature` takes `spawnTime`, `weight` and the `direction` the creature faces, and requires a spawn of the same kind covering the tile (an uncovered creature is lost on save). |
 
 ### Regions and whole-map operations
 
@@ -214,7 +214,7 @@ while the panel is in read-only mode.
 | `region_copy` / `region_paste` | Duplicate a room, tower or camp through the editor clipboard. Undoable. |
 | `stamp_manage` / `stamp_place` | A named library of reusable pieces for the session, placed with 90-degree rotation and mirroring. A village out of one house. Undoable. |
 | `region_transform` | Rotate or mirror an area in place, for symmetric arenas and dungeon wings. 90/270 needs a square area. Undoable. |
-| `region_replace_items` | Swap one item id for another across a region or the whole map; `toItemId: 0` deletes. Carries action and unique ids over. Undoable. |
+| `region_replace_items` | Swap one item id for another across a region or the whole map; `toItemId: 0` deletes. Keeps the item's attributes (count, text, action and unique ids, container contents, teleport destination). Undoable. |
 | `map_cleanup` | The Edit > Tools passes over the whole map: remove invalid tiles, clear invalid houses, borderize, randomize, clear modified state, remove corpses, remove unreachable tiles, remove duplicated items, remove empty spawns. **Cannot be undone** and clears the undo history, so it requires `confirm: true`. Run `map_validate` first. |
 | `map_open` / `map_new` / `map_properties` | Open an .otbm, start an empty map, or read/change name, description, dimensions and sidecar filenames. Refuses to discard unsaved work unless told to. |
 | `map_import` | Merge another .otbm at an offset, with per-policy handling of houses and spawns. Requires `confirm: true`. |
@@ -249,10 +249,10 @@ texture id — see rule 9 in `docs/static-data.md`.
 reuses the editor's existing scripting API (`source/lua/`), so anything the
 Script Manager can do is reachable — useful for procedural generation, where
 the `noise`, `geo` and `algo` modules already do the heavy lifting. Wrap edits
-in `app.transaction(function() ... end)` so they land as one undo step.
+in `app.transaction("name", function() ... end)` so they land as one undo step.
 
 ```lua
-app.transaction(function()
+app.transaction("MCP edit", function()
   for x = 1000, 1004 do
     for y = 1000, 1004 do
       app.map:getOrCreateTile(x, y, 7).ground = Item.get(431)
@@ -266,10 +266,19 @@ app.refresh()
 
 - Transport and JSON-RPC: `source/mcp/mcp_server.cpp`. Only `POST /mcp` is
   implemented; there is no SSE stream because every tool call is one round trip.
-- Tool handlers run on the GUI thread via `callOnGui` in
-  `source/mcp/mcp_gui_call.h`, because `Map`, `Tile` and the GUI are not thread
-  safe. The 30 second deadline there is what keeps a modal dialog in the editor
-  from hanging a client connection.
+  The server owns its own `asio::io_context` and thread, so closing the Live
+  editing server (which stops the shared network service) cannot pull the
+  sockets out from under it.
+- Tool calls are handed to a small worker pool, which waits on the GUI thread
+  through `callOnGui` in `source/mcp/mcp_gui_call.h`, because `Map`, `Tile` and
+  the GUI are not thread safe. The 30 second deadline there is what keeps a
+  modal dialog in the editor from hanging a client connection. A call that
+  times out, or is still queued when the server is stopped, is cancelled and
+  never runs later (a client retry would otherwise apply an edit twice), and
+  the write permission is re-checked when a call actually starts.
+- Handlers never nest: if one is running and a Lua `app.yield()` drains the
+  queue, later calls wait until it finishes, so a second tool cannot close the
+  map a running script still holds pointers into.
 - Tools are registered per domain through the registry in `mcp_tools.{h,cpp}`:
   `mcp_tools_map.cpp` (reading), `mcp_tools_entities.cpp` (listing),
   `mcp_tools_edit.cpp` and `mcp_tools_manage.cpp` (writing),
