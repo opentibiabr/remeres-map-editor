@@ -36,6 +36,8 @@
 #include "monster.h"
 #include "npc.h"
 #include "lua/lua_script_manager.h"
+#include "mcp/mcp_server.h"
+#include "mcp/mcp_window.h"
 
 #include "../brushes/icon/rme_icon.xpm"
 
@@ -186,6 +188,9 @@ bool Application::OnInit() {
 	// Set idle event handling mode
 	wxIdleEvent::SetMode(wxIDLE_PROCESS_SPECIFIED);
 
+	// Bring the MCP server back up if it was left enabled last session.
+	McpWindow::StartFromSettings();
+
 	// Goto RME website?
 	if (g_settings.getInteger(Config::GOTO_WEBSITE_ON_BOOT) == 1) {
 		::wxLaunchDefaultBrowser("http://www.remeresmapeditor.com/", wxBROWSER_NEW_WINDOW);
@@ -308,6 +313,7 @@ void Application::Unload() {
 }
 
 int Application::OnExit() {
+	mcp::Server::get().stop();
 	g_luaScripts.shutdown();
 #ifdef _USE_PROCESS_COM
 	wxDELETE(m_proc_server);
@@ -317,6 +323,7 @@ int Application::OnExit() {
 }
 
 void Application::ShutdownServices() {
+	mcp::Server::get().stop();
 	g_luaScripts.shutdown();
 #ifdef _USE_PROCESS_COM
 	wxDELETE(m_proc_server);

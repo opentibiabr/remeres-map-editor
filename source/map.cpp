@@ -442,6 +442,12 @@ void Map::removeSpawnMonster(Tile* tile) {
 	}
 }
 
+namespace {
+	// A spawn covers at most MaxSpawnRadius tiles around its centre (enforced in
+	// setSize), so the search for covering spawns never needs to go further.
+	constexpr int MAX_SPAWN_SEARCH_RING = rme::MaxSpawnRadius + 1;
+}
+
 SpawnMonsterList Map::getSpawnMonsterList(const Tile* tile) const {
 	SpawnMonsterList list;
 	if (!tile) {
@@ -466,7 +472,8 @@ SpawnMonsterList Map::getSpawnMonsterList(const Tile* tile) const {
 	int start_y = position.y - 1;
 	int end_y = position.y + 1;
 
-	while (found != location->getSpawnMonsterCount()) {
+	// Bounded: a stale count must not turn this into an endless search.
+	for (int ring = 0; found != location->getSpawnMonsterCount() && ring < MAX_SPAWN_SEARCH_RING; ++ring) {
 		for (int x = start_x; x <= end_x; ++x) {
 			const Tile* start_tile = getTile(x, start_y, position.z);
 			if (start_tile && start_tile->spawnMonster) {
@@ -494,18 +501,6 @@ SpawnMonsterList Map::getSpawnMonsterList(const Tile* tile) const {
 			}
 		}
 
-		for (int y = start_y + 1; y < end_y; ++y) {
-			const Tile* start_tile = getTile(start_x, y, position.z);
-			if (start_tile && start_tile->spawnMonster) {
-				list.push_back(start_tile->spawnMonster);
-				++found;
-			}
-			const Tile* end_tile = getTile(end_x, y, position.z);
-			if (end_tile && end_tile->spawnMonster) {
-				list.push_back(end_tile->spawnMonster);
-				++found;
-			}
-		}
 		--start_x;
 		--start_y;
 		++end_x;
@@ -596,7 +591,7 @@ SpawnNpcList Map::getSpawnNpcList(const Tile* tile) const {
 	int start_y = position.y - 1;
 	int end_y = position.y + 1;
 
-	while (found != location->getSpawnNpcCount()) {
+	for (int ring = 0; found != location->getSpawnNpcCount() && ring < MAX_SPAWN_SEARCH_RING; ++ring) {
 		for (int x = start_x; x <= end_x; ++x) {
 			const Tile* start_tile = getTile(x, start_y, position.z);
 			if (start_tile && start_tile->spawnNpc) {

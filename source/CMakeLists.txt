@@ -179,6 +179,11 @@ if(SPEED_UP_BUILD_UNITY)
   set_target_properties(${PROJECT_NAME} PROPERTIES UNITY_BUILD ON)
   set_source_files_properties(gl_renderer.cpp
                               PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+  # The MCP tool files are heavy on nlohmann::json initializer lists; merged
+  # into unity chunks they exhaust the MSVC heap (C1060), so compile them alone.
+  file(GLOB MCP_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/mcp/*.cpp)
+  set_source_files_properties(${MCP_SOURCES}
+                              PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
   log_option_enabled("Build unity for speed up compilation")
 else()
   # === PRECOMPILED HEADER ===
@@ -263,6 +268,26 @@ target_sources(
           lua/lua_api_json.cpp
           lua/lua_api_algo.cpp
           lua/lua_scripts_window.cpp
+          mcp/mcp_server.cpp
+          mcp/mcp_write.cpp
+          mcp/mcp_tools_edit.cpp
+          mcp/mcp_tools_manage.cpp
+          mcp/mcp_tools_assets.cpp
+          mcp/mcp_tools_analyze.cpp
+          mcp/mcp_tools_brush.cpp
+          mcp/mcp_tools_select.cpp
+          mcp/mcp_tools_io.cpp
+          mcp/mcp_tools_clientview.cpp
+          mcp/mcp_tools_terrain.cpp
+          mcp/mcp_tools_stamp.cpp
+          mcp/mcp_tools_guide.cpp
+          mcp/mcp_tools_ops.cpp
+          mcp/mcp_tools.cpp
+          mcp/mcp_tools_map.cpp
+          mcp/mcp_tools_entities.cpp
+          mcp/mcp_tools_script.cpp
+          mcp/mcp_render.cpp
+          mcp/mcp_window.cpp
           main_menubar.cpp
           main_toolbar.cpp
           map.cpp
