@@ -120,6 +120,19 @@ Current emitted scales:
 
 The same scale set is emitted for both minimap and satellite assets.
 
+### Map asset origin projection
+
+Generated `MINIMAP` and `SATELLITE` descriptors store their `topleft` coordinates in the ground-floor projection:
+
+- `floorOffset = 7 - floor`
+- `topleft.posx = worldChunkStartX + floorOffset`
+- `topleft.posy = worldChunkStartY + floorOffset`
+- `topleft.posz = floor`
+
+The client recovers the bitmap's world origin by subtracting `7 - floor` from both coordinates. For example, a chunk starting at world `(100, 100)` stores `(99, 99, 8)` on floor `8` and `(92, 92, 15)` on floor `15`. Bitmap sampling, global map bounds, and chunk filenames retain world coordinates. Template `SUBAREA` descriptors are preserved as supplied.
+
+Projected origins must remain within the client's unsigned 16-bit coordinate range `0..65535`. An origin outside that range rejects the export during planning with a diagnostic, before rendering or encoding chunks and before replacing assets or catalog entries. Clamping the origin would move the bitmap relative to its tiles. For example, world coordinate `0` on floor `8` is rejected because its projected origin is `-1`; coordinate `8` on floor `15` projects to `0` and is valid. Normal RME map coordinates are limited to `65000`, below the upper projection boundary.
+
 ## 4. CIP Serialization Semantics
 
 `staticmapdata` tiles are serialized linearly inside a `width * height * floors` volume.
@@ -240,9 +253,10 @@ A non-build source-contract check can be run from the repository root:
 
 ```sh
 python scripts/tests/cyclopedia_floor_contract_test.py
+python scripts/tests/cyclopedia_origin_contract_test.py
 ```
 
-This checks the floor range, shared planning and bounds, sparse floor jobs, and paired asset scales and floor metadata. It does not validate rendered images or execute an export.
+These check the floor range, shared planning and bounds, sparse floor jobs, paired asset scales and floor metadata, and the origin projection round trip and coordinate boundaries. The origin check interprets constrained arithmetic extracted from the source and checks serializer wiring. Neither check compiles C++, validates rendered images, or executes an export.
 
 1. verify final data file hashes.
 
