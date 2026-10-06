@@ -443,8 +443,9 @@ void Map::removeSpawnMonster(Tile* tile) {
 }
 
 namespace {
-	// Far larger than any real spawn radius.
-	constexpr int MAX_SPAWN_SEARCH_RING = 128;
+	// A spawn covers at most MaxSpawnRadius tiles around its centre (enforced in
+	// setSize), so the search for covering spawns never needs to go further.
+	constexpr int MAX_SPAWN_SEARCH_RING = rme::MaxSpawnRadius + 1;
 }
 
 SpawnMonsterList Map::getSpawnMonsterList(const Tile* tile) const {

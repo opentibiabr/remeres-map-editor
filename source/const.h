@@ -22,6 +22,10 @@ namespace rme {
 
 	constexpr double PI = 3.14159265;
 
+	// Largest spawn radius any path can produce: both spawn classes clamp to it in
+	// setSize(), so per-tile spawn counts and the bounded lookups in Map agree.
+	constexpr int MaxSpawnRadius = 99;
+
 	// The height of the map (there should be more checks for this...)
 	constexpr int MapLayers = 16;
 
