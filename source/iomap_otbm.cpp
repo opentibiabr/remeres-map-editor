@@ -77,7 +77,7 @@ namespace {
 	// keep exact Cyclopedia rendering compatibility (walls/context/stack order).
 	constexpr bool PreserveTemplateStaticMapHouseItems = true;
 	constexpr int CyclopediaMinFloor = 0;
-	constexpr int CyclopediaMaxFloor = 7;
+	constexpr int CyclopediaMaxFloor = rme::MapMaxLayer;
 	constexpr int CyclopediaOpaqueSeaFloor = rme::MapGroundLayer;
 	constexpr int CyclopediaSatelliteBasePixelsPerSquare = 32;
 	constexpr double CyclopediaMinPixelsPerSquare = 0.5;
@@ -847,6 +847,21 @@ namespace {
 		const int chunkY = std::max(assetY / 32, 0);
 
 		return std::format("{}{:02}-{:04}-{:04}-{:02}-{}.bmp.lzma", minimap ? "minimap-" : "satellite-", scalePrefix, chunkX, chunkY, floor, hashHex);
+	}
+
+	bool getCyclopediaAssetOrigin(const CyclopediaChunkArea &area, uint32_t &originX, uint32_t &originY) {
+		// CIP origins use ground-floor projection; chunk pixels still use world coordinates.
+		const int64_t floorOffset = static_cast<int64_t>(rme::MapGroundLayer) - area.floor;
+		const int64_t projectedX = static_cast<int64_t>(area.startX) + floorOffset;
+		const int64_t projectedY = static_cast<int64_t>(area.startY) + floorOffset;
+		if (projectedX < 0 || projectedX > std::numeric_limits<uint16_t>::max()
+			|| projectedY < 0 || projectedY > std::numeric_limits<uint16_t>::max()) {
+			return false;
+		}
+
+		originX = static_cast<uint32_t>(projectedX);
+		originY = static_cast<uint32_t>(projectedY);
+		return true;
 	}
 
 	bool hasCyclopediaTileData(const Tile* tile) {
@@ -6628,10 +6643,14 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 					continue;
 				}
 
-				jobs.emplace_back(
-					layerIndex,
-					CyclopediaChunkArea { floor, chunkStartX, chunkStartY, chunkWidth, chunkHeight }
-				);
+				const CyclopediaChunkArea area { floor, chunkStartX, chunkStartY, chunkWidth, chunkHeight };
+				uint32_t originX = 0;
+				uint32_t originY = 0;
+				if (!getCyclopediaAssetOrigin(area, originX, originY)) {
+					warning("Cannot export cyclopedia map chunk at (%d, %d, %d): projected origin is outside 0..65535.", chunkStartX, chunkStartY, floor);
+					return false;
+				}
+				jobs.emplace_back(layerIndex, area);
 			}
 		}
 	}
@@ -6651,6 +6670,11 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 	std::deque<CyclopediaPendingAsset> pendingAssets;
 
 	auto flushPendingCyclopediaAsset = [&](CyclopediaPendingAsset &pendingAsset) {
+		uint32_t originX = 0;
+		uint32_t originY = 0;
+		if (!getCyclopediaAssetOrigin(pendingAsset.area, originX, originY)) {
+			return false;
+		}
 		CyclopediaEncodedAsset encodedAsset;
 		try {
 			encodedAsset = pendingAsset.encodedAsset.get();
@@ -6670,8 +6694,8 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 		mapAsset->set_areaid(0);
 		mapAsset->set_scale(pendingAsset.config.scale);
 		auto* topLeft = mapAsset->mutable_topleft();
-		topLeft->set_posx(static_cast<uint32_t>(std::max(pendingAsset.area.startX, 0)));
-		topLeft->set_posy(static_cast<uint32_t>(std::max(pendingAsset.area.startY, 0)));
+		topLeft->set_posx(originX);
+		topLeft->set_posy(originY);
 		topLeft->set_posz(static_cast<uint32_t>(std::max(pendingAsset.area.floor, 0)));
 
 		assets.emplace_back(assetFilename, std::move(encodedAsset.bytes));
