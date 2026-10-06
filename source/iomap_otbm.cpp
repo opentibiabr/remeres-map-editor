@@ -77,7 +77,7 @@ namespace {
 	// keep exact Cyclopedia rendering compatibility (walls/context/stack order).
 	constexpr bool PreserveTemplateStaticMapHouseItems = true;
 	constexpr int CyclopediaMinFloor = 0;
-	constexpr int CyclopediaMaxFloor = 7;
+	constexpr int CyclopediaMaxFloor = rme::MapMaxLayer;
 	constexpr int CyclopediaOpaqueSeaFloor = rme::MapGroundLayer;
 	constexpr int CyclopediaSatelliteBasePixelsPerSquare = 32;
 	constexpr double CyclopediaMinPixelsPerSquare = 0.5;

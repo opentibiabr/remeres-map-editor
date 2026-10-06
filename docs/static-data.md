@@ -110,7 +110,7 @@ Map data contains Cyclopedia map bounds and asset descriptors:
   - `heightsquare`
   - `scale`
 
-The exporter scans floors `0..7` and emits minimap and satellite chunks for each floor that contains visible tile data. `SUBAREA` entries come from the template mapdata and are kept for client compatibility.
+The exporter scans floors `0..15`, including underground floors, and emits minimap and satellite chunks only for floors and chunks that contain visible tile data. The upper floor limit follows `rme::MapMaxLayer`; empty floors do not create assets. `SUBAREA` entries come from the template mapdata and are kept for client compatibility.
 
 Current emitted scales:
 
@@ -158,12 +158,14 @@ Static house export:
 Cyclopedia map export:
 
 1. load the existing `map` template when available.
-2. scan map bounds across floors `0..7`.
+2. scan map bounds across floors `0..15`, including underground tile data.
 3. render minimap chunks from tile minimap colors.
 4. render satellite chunks for Surface View from the actual tile sprite stack, with minimap colors used only as fallback terrain.
 5. write each chunk as BMP bytes inside the CIP LZMA asset container.
 6. merge compatible template `mapdata` fields.
 7. write hash-named `map-<sha256>.dat`, write referenced assets, and update `catalog-content.json`.
+
+Existing exports limited to floors `0..7` must be regenerated to provide underground minimap and satellite layers. The exporter supplies the same floor and chunk coordinates for both asset types; discovery and darkening are client rendering behavior.
 
 Compatibility details currently applied:
 
@@ -234,6 +236,14 @@ Current exporter protections:
 
 ## 8. Validation Checklist
 
+A non-build source-contract check can be run from the repository root:
+
+```sh
+python scripts/tests/cyclopedia_floor_contract_test.py
+```
+
+This checks the floor range, shared planning and bounds, sparse floor jobs, and paired asset scales and floor metadata. It does not validate rendered images or execute an export.
+
 1. verify final data file hashes.
 
 ```sh
@@ -271,6 +281,8 @@ sha256sum assets/map-<hash>.dat
 - `heightsquare`
 - generated chunk filename
 - BMP dimensions after LZMA decode
+
+8. on a map with underground tiles, verify that floor `8` and the deepest occupied floor have `MINIMAP` and `SATELLITE` descriptors at all three scales. Confirm that floors without tile data have no generated chunks, that underground coordinates are included in map bounds, and that existing template `SUBAREA` assets remain referenced.
 
 ## 9. Regression Prevention Rules
 
