@@ -76,11 +76,115 @@ end
 local fromUid = math.floor(data.fromUid or 0)
 local toUid = math.floor(data.toUid or 0)
 local selectionOnly = (hasSelection and data.selectionOnly == true)
+local targetAreaText = selectionOnly and "na area selecionada" or "no mapa inteiro"
 
 if fromUid == toUid then
 	app.alert({
 		title = "Replace Unique ID",
 		text = "O Unique ID de origem e de destino sao iguais.",
+	})
+	return
+end
+
+local toUidAssigned = false
+local fromUidMatches = 0
+
+if selectionOnly then
+	local selTiles = app.selection.tiles
+	if selTiles then
+		for i = 1, #selTiles do
+			local tile = selTiles[i]
+			if tile then
+				if tile.hasGround and tile.ground and tile.ground.uniqueId == fromUid then
+					fromUidMatches = fromUidMatches + 1
+				end
+				local items = tile.items
+				if items and #items > 0 then
+					for j = 1, #items do
+						local item = items[j]
+						if item and item.uniqueId == fromUid then
+							fromUidMatches = fromUidMatches + 1
+						end
+					end
+				end
+			end
+		end
+	end
+
+	if fromUidMatches > 1 then
+		app.alert({
+			title = "Replace Unique ID",
+			text = string.format("Foram encontrados %d itens com o Unique ID %d %s.\nUnique IDs devem ser unicos. Operacao cancelada.", fromUidMatches, fromUid, targetAreaText),
+		})
+		return
+	end
+
+	if toUid > 0 then
+		for tile in app.map.tiles do
+			if tile then
+				if tile.hasGround and tile.ground and tile.ground.uniqueId == toUid then
+					toUidAssigned = true
+					break
+				end
+				local items = tile.items
+				if items and #items > 0 then
+					for j = 1, #items do
+						local item = items[j]
+						if item and item.uniqueId == toUid then
+							toUidAssigned = true
+							break
+						end
+					end
+				end
+				if toUidAssigned then
+					break
+				end
+			end
+		end
+	end
+else
+	for tile in app.map.tiles do
+		if tile then
+			if tile.hasGround and tile.ground then
+				local uid = tile.ground.uniqueId
+				if toUid > 0 and uid == toUid then
+					toUidAssigned = true
+				end
+				if uid == fromUid then
+					fromUidMatches = fromUidMatches + 1
+				end
+			end
+			local items = tile.items
+			if items and #items > 0 then
+				for j = 1, #items do
+					local item = items[j]
+					if item then
+						local uid = item.uniqueId
+						if toUid > 0 and uid == toUid then
+							toUidAssigned = true
+						end
+						if uid == fromUid then
+							fromUidMatches = fromUidMatches + 1
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
+if toUidAssigned then
+	app.alert({
+		title = "Replace Unique ID",
+		text = string.format("O Unique ID de destino (%d) ja esta em uso no mapa.\nUnique IDs devem ser unicos. Operacao cancelada.", toUid),
+	})
+	return
+end
+
+if fromUidMatches > 1 then
+	app.alert({
+		title = "Replace Unique ID",
+		text = string.format("Foram encontrados %d itens com o Unique ID %d %s.\nUnique IDs devem ser unicos. Operacao cancelada.", fromUidMatches, fromUid, targetAreaText),
 	})
 	return
 end
@@ -143,7 +247,6 @@ app.transaction(string.format("Replace UID %d -> %d", fromUid, toUid), function(
 	end
 end)
 
-local targetAreaText = selectionOnly and "na area selecionada" or "no mapa inteiro"
 print(string.format("[Replace UID] %d item(ns) alterado(s) em %d tile(s) %s (UID %d -> %d).", replacedItems, modifiedTiles, targetAreaText, fromUid, toUid))
 
 app.alert({
