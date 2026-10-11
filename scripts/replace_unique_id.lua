@@ -1,6 +1,6 @@
 -- @Title: Replace Unique ID
 -- @Description: Substitui Unique IDs de um valor para outro (ex: 8000 para 100) no mapa ou na selecao.
--- @Author: Remere's Map Editor
+-- @Author: André L. Morais
 -- @Version: 1.0.0
 
 if not app.hasMap() then
