@@ -1044,6 +1044,7 @@ GameSprite::GameSprite() :
 	sprite_phase_size(0),
 	numsprites(0),
 	animator(nullptr),
+	ground_speed(0),
 	draw_height(0),
 	minimap_color(0) {
 	m_wxMemoryDc[SPRITE_SIZE_16x16] = nullptr;
