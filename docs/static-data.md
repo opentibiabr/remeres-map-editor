@@ -11,6 +11,7 @@ Scope:
 - `map-<sha256>.dat`
 - `minimap-<scale>-<chunk_x>-<chunk_y>-<floor>-<sha256>.bmp.lzma`
 - `satellite-<scale>-<chunk_x>-<chunk_y>-<floor>-<sha256>.bmp.lzma`
+- `navigation-32-<chunk_x>-<chunk_y>-<floor>-<sha256>.bmp.lzma`
 - integration through `catalog-content.json`
 
 Main code references:
@@ -50,7 +51,7 @@ Catalog entries managed by the exporter:
 - `type: "staticmapdata"` points to `staticmapdata-<sha256>.dat`.
 - `type: "map"` points to `map-<sha256>.dat`.
 
-Minimap and satellite files are not listed directly in `catalog-content.json`. They are referenced by `MapData.mapassets` inside `map-<sha256>.dat`.
+Minimap, satellite, and navigation files are not listed directly in `catalog-content.json`. Visual files are referenced by `MapData.mapassets` inside `map-<sha256>.dat`; the optional `MapData.navigationassets` field references static path geometry.
 
 Important rules:
 
@@ -59,7 +60,7 @@ Important rules:
 - the default template lookup names are `staticdata.dat`, `staticmapdata.dat`, and `map.dat`, but final written files use hash-named filenames.
 - existing replaced files are moved to a timestamped snapshot under `bkps` before the new file is written.
 - backup snapshots are never overwritten; if two exports happen in the same second, a numeric suffix is added to the snapshot directory.
-- when `mapdata` is replaced, the previous `mapdata` file and its referenced minimap/satellite assets are moved to the export snapshot.
+- when `mapdata` is replaced, the previous `mapdata` file and its referenced minimap/satellite/navigation assets are moved to the export snapshot.
 - template `SUBAREA` assets are preserved in place because merged `mapdata` keeps referencing them.
 - if a preserved `SUBAREA` asset is missing from the output assets directory, the exporter restores it from the newest matching backup snapshot or from the source client assets before writing the new `mapdata`.
 - before updating `catalog-content.json`, every asset referenced by the final `mapdata` must exist in the output assets directory.
@@ -120,9 +121,26 @@ Current emitted scales:
 
 The same scale set is emitted for both minimap and satellite assets.
 
+### Optional navigation extension
+
+`MapData.navigationassets` is repeated protobuf field `6`. Each descriptor reuses `MapAssets`, with wire type `MINIMAP`, scale `1/32`, and a bitmap whose width and height equal `widthsquare` and `heightsquare`. Dimensions are positive and at most `512` squares per axis. Older readers can ignore field `6`; the existing visual `mapassets` field `3` and its enum values are unchanged. Navigation files are data only and must not be rendered as map textures.
+
+The payload uses the same CIP LZMA container and 32-bit BMP encoder as visual assets, with exactly one pixel per tile and these logical RGBA channels:
+
+| Channel | Value |
+| --- | --- |
+| R | Geometry flags: `NotPathable = 2`, `NotWalkable = 4`, `Empty = 8`; combined with bitwise OR. No exploration bit is exported. |
+| G | Ground speed in units of ten: `ceil(speed / 10)`, clamped to `1..255`. Missing ground uses `10`. |
+| B | Original 8-bit minimap palette index. A missing tile uses `255`. |
+| A | `255`. |
+
+Missing tiles or missing ground are `NotWalkable | Empty`. For tiles with ground, both ground and static items contribute their real `unpassable` and `blockPathfinder` properties to `NotWalkable` and `NotPathable`. Color never decides passage: equal minimap colors may represent a walkable floor or an obstacle. Dynamic server state can still change passage after export and must override this static geometry in a consumer.
+
+Navigation covers occupied chunks on floors `0..15`, including cells with zero minimap color. It reuses the existing sparse `512`-square plan and bounded asset encoder queue, with no image resampling or additional whole-map planning scan. Navigation encoding failures reject the export rather than publishing a partial geometry layer. The exporter replaces template navigation with current-map geometry, preserves template `SUBAREA` visuals, and includes navigation in backup, restore, and final referenced-file validation. Consumers should not infer exploration from static geometry; their personal discovery state remains separate.
+
 ### Map asset origin projection
 
-Generated `MINIMAP` and `SATELLITE` descriptors store their `topleft` coordinates in the ground-floor projection:
+Generated `MINIMAP`, `SATELLITE`, and navigation descriptors store their `topleft` coordinates in the ground-floor projection:
 
 - `floorOffset = 7 - floor`
 - `topleft.posx = worldChunkStartX + floorOffset`
@@ -175,6 +193,7 @@ Cyclopedia map export:
 3. render minimap chunks from tile minimap colors.
 4. render satellite chunks for Surface View from the actual tile sprite stack, with minimap colors used only as fallback terrain.
 5. write each chunk as BMP bytes inside the CIP LZMA asset container.
+   The `1/32` jobs also encode exact static navigation cells into the separate optional field `6`; visual RGB chunks retain their original contents.
 6. merge compatible template `mapdata` fields.
 7. write hash-named `map-<sha256>.dat`, write referenced assets, and update `catalog-content.json`.
 
@@ -254,9 +273,12 @@ A non-build source-contract check can be run from the repository root:
 ```sh
 python scripts/tests/cyclopedia_floor_contract_test.py
 python scripts/tests/cyclopedia_origin_contract_test.py
+python scripts/tests/cyclopedia_navigation_contract_test.py
 ```
 
 These check the floor range, shared planning and bounds, sparse floor jobs, paired asset scales and floor metadata, and the origin projection round trip and coordinate boundaries. The origin check interprets constrained arithmetic extracted from the source and checks serializer wiring. Neither check compiles C++, validates rendered images, or executes an export.
+
+The navigation check verifies protobuf field separation, bounded medium-scale planning, real collision-property wiring, source-extracted speed arithmetic, channel defaults, template replacement, and backup/restore participation. It does not execute the C++ tile builder or encode an asset. A compiled exporter and a compatible client are still needed for integrated validation.
 
 1. verify final data file hashes.
 
@@ -297,6 +319,8 @@ sha256sum assets/map-<hash>.dat
 - BMP dimensions after LZMA decode
 
 8. on a map with underground tiles, verify that floor `8` and the deepest occupied floor have `MINIMAP` and `SATELLITE` descriptors at all three scales. Confirm that floors without tile data have no generated chunks, that underground coordinates are included in map bounds, and that existing template `SUBAREA` assets remain referenced.
+
+9. verify every `navigationassets` filename exists and its decoded BMP has exactly the descriptor's tile dimensions. Compare equal-color walkable and blocked tiles against the source item properties, check void/groundless cells, and confirm that navigation produces a route before visiting without revealing the HD map. Regenerate geometry from the map and item definitions used by the server; visual similarity alone cannot establish collision parity.
 
 ## 9. Regression Prevention Rules
 

@@ -8,6 +8,8 @@ message MapData {
 	repeated MapAssets mapassets = 3;
 	optional Position topleftedge = 4;
 	optional Position bottomrightedge = 5;
+	// Optional static path geometry; kept outside the visual CIP mapassets list.
+	repeated MapAssets navigationassets = 6;
 }
 
 message Position {
