@@ -118,6 +118,21 @@
 			<brush name="vortex floor3"/>
 			<brush name="vortex floor4"/>
 			<brush name="void"/>
+			<brush name="old grass"/>
+			<brush name="old gravel"/>
+			<brush name="old sand"/>
+			<brush name="white sand"/>
+			<brush name="mossy earth ground"/>
+			<brush name="dry sand"/>
+			<brush name="burnt soil"/>
+			<brush name="dark burnt soil"/>
+			<brush name="lavender ice floor"/>
+			<brush name="frosted ice"/>
+			<brush name="swirled grass"/>
+			<brush name="swirled earth"/>
+			<brush name="swirled sand"/>
+			<brush name="root floor"/>
+			<brush name="scribbled sand"/>
 		</terrain>
 		<raw>
 			<item id="372"/>
