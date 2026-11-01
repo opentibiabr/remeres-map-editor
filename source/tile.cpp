@@ -745,6 +745,25 @@ Item* Tile::getWall() const {
 	return nullptr;
 }
 
+bool Tile::hasBorderBlockingWall() const {
+	for (const Item* item : items) {
+		if (!item->isWall()) {
+			continue;
+		}
+
+		const WallBrush* brush = item->getWallBrush();
+		if (brush && brush->isWallDecoration()) {
+			continue;
+		}
+
+		// Walls that can be seen through, like rope bridges, leave the terrain connected
+		if (item->isBrushDoor() || item->isBlockMissiles()) {
+			return true;
+		}
+	}
+	return false;
+}
+
 Item* Tile::getCarpet() const {
 	for (Item* item : items) {
 		if (item->isCarpet()) {

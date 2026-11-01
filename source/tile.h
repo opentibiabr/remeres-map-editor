@@ -247,6 +247,8 @@ public: // Functions
 	// Get the (first) wall of this tile
 	Item* getWall() const;
 	bool hasWall() const;
+	// If a wall on this tile keeps the grounds on each of its sides from bordering each other
+	bool hasBorderBlockingWall() const;
 	// Remove all walls from the tile (for autowall) (only of those belonging to the specified brush
 	void cleanWalls(WallBrush* brush);
 	// Remove all walls from the tile

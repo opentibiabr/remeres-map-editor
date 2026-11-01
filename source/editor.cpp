@@ -1874,6 +1874,11 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 					if (tile) {
 						Tile* new_tile = tile->deepCopy(map);
 						new_tile->wallize(&map);
+						// What used to cross this wall goes away now that the wall is there
+						if (!new_tile->hasBorderBlockingWall()) {
+							new_tile->cleanBorders();
+						}
+						new_tile->borderize(&map);
 						// if(*tile == *new_tile) delete new_tile;
 						action->addChange(newd Change(new_tile));
 					}

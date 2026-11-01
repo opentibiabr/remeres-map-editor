@@ -629,16 +629,49 @@ const GroundBrush::BorderBlock* GroundBrush::getBrushTo(GroundBrush* first, Grou
 	return nullptr;
 }
 
+// If a border piece looks at a neighbour behind a wall, in the neighbour order of doBorders
+static bool looksAtWall(BorderType alignment, const bool (&walled)[8]) {
+	switch (alignment) {
+		case NORTH_HORIZONTAL:
+			return walled[1];
+		case EAST_HORIZONTAL:
+			return walled[4];
+		case SOUTH_HORIZONTAL:
+			return walled[6];
+		case WEST_HORIZONTAL:
+			return walled[3];
+		case NORTHWEST_CORNER:
+			return walled[0];
+		case NORTHEAST_CORNER:
+			return walled[2];
+		case SOUTHWEST_CORNER:
+			return walled[5];
+		case SOUTHEAST_CORNER:
+			return walled[7];
+		case NORTHWEST_DIAGONAL:
+			return walled[1] || walled[3];
+		case NORTHEAST_DIAGONAL:
+			return walled[1] || walled[4];
+		case SOUTHWEST_DIAGONAL:
+			return walled[3] || walled[6];
+		case SOUTHEAST_DIAGONAL:
+			return walled[4] || walled[6];
+		default:
+			return false;
+	}
+}
+
 void GroundBrush::doBorders(BaseMap* map, Tile* tile) {
-	static const auto extractGroundBrushFromTile = [](BaseMap* map, uint32_t x, uint32_t y, uint32_t z) -> GroundBrush* {
-		Tile* tile = map->getTile(x, y, z);
-		if (tile) {
-			return tile->getGroundBrush();
-		}
-		return nullptr;
+	static constexpr int32_t neighbourOffsets[8][2] = {
+		{ -1, -1 }, { 0, -1 }, { 1, -1 }, { -1, 0 }, { 1, 0 }, { -1, 1 }, { 0, 1 }, { 1, 1 }
 	};
 
 	ASSERT(tile);
+
+	// The borders on a wall come from the grounds around it, and those can be on either side
+	if (tile->hasBorderBlockingWall()) {
+		return;
+	}
 
 	GroundBrush* borderBrush;
 	if (tile->ground) {
@@ -649,50 +682,31 @@ void GroundBrush::doBorders(BaseMap* map, Tile* tile) {
 
 	const Position &position = tile->getPosition();
 
-	uint32_t x = position.x;
-	uint32_t y = position.y;
-	uint32_t z = position.z;
+	int32_t x = position.x;
+	int32_t y = position.y;
+	int32_t z = position.z;
 
 	// Pair of visited / what border type
 	std::pair<bool, GroundBrush*> neighbours[8];
-	if (x == 0) {
-		if (y == 0) {
-			neighbours[0] = { false, nullptr };
-			neighbours[1] = { false, nullptr };
-			neighbours[2] = { false, nullptr };
-			neighbours[3] = { false, nullptr };
-			neighbours[4] = { false, extractGroundBrushFromTile(map, x + 1, y, z) };
-			neighbours[5] = { false, nullptr };
-			neighbours[6] = { false, extractGroundBrushFromTile(map, x, y + 1, z) };
-			neighbours[7] = { false, extractGroundBrushFromTile(map, x + 1, y + 1, z) };
-		} else {
-			neighbours[0] = { false, nullptr };
-			neighbours[1] = { false, extractGroundBrushFromTile(map, x, y - 1, z) };
-			neighbours[2] = { false, extractGroundBrushFromTile(map, x + 1, y - 1, z) };
-			neighbours[3] = { false, nullptr };
-			neighbours[4] = { false, extractGroundBrushFromTile(map, x + 1, y, z) };
-			neighbours[5] = { false, nullptr };
-			neighbours[6] = { false, extractGroundBrushFromTile(map, x, y + 1, z) };
-			neighbours[7] = { false, extractGroundBrushFromTile(map, x + 1, y + 1, z) };
-		}
-	} else if (y == 0) {
-		neighbours[0] = { false, nullptr };
-		neighbours[1] = { false, nullptr };
-		neighbours[2] = { false, nullptr };
-		neighbours[3] = { false, extractGroundBrushFromTile(map, x - 1, y, z) };
-		neighbours[4] = { false, extractGroundBrushFromTile(map, x + 1, y, z) };
-		neighbours[5] = { false, extractGroundBrushFromTile(map, x - 1, y + 1, z) };
-		neighbours[6] = { false, extractGroundBrushFromTile(map, x, y + 1, z) };
-		neighbours[7] = { false, extractGroundBrushFromTile(map, x + 1, y + 1, z) };
-	} else {
-		neighbours[0] = { false, extractGroundBrushFromTile(map, x - 1, y - 1, z) };
-		neighbours[1] = { false, extractGroundBrushFromTile(map, x, y - 1, z) };
-		neighbours[2] = { false, extractGroundBrushFromTile(map, x + 1, y - 1, z) };
-		neighbours[3] = { false, extractGroundBrushFromTile(map, x - 1, y, z) };
-		neighbours[4] = { false, extractGroundBrushFromTile(map, x + 1, y, z) };
-		neighbours[5] = { false, extractGroundBrushFromTile(map, x - 1, y + 1, z) };
-		neighbours[6] = { false, extractGroundBrushFromTile(map, x, y + 1, z) };
-		neighbours[7] = { false, extractGroundBrushFromTile(map, x + 1, y + 1, z) };
+	// Neighbours separated from this tile by a wall
+	bool walled[8] = { false };
+	for (int32_t i = 0; i < 8; ++i) {
+		const int32_t neighbourX = x + neighbourOffsets[i][0];
+		const int32_t neighbourY = y + neighbourOffsets[i][1];
+
+		Tile* neighbourTile = (neighbourX >= 0 && neighbourY >= 0) ? map->getTile(neighbourX, neighbourY, z) : nullptr;
+		neighbours[i] = { false, neighbourTile ? neighbourTile->getGroundBrush() : nullptr };
+		walled[i] = neighbourTile && neighbourTile->hasBorderBlockingWall();
+	}
+
+	// A diagonal neighbour is also out of reach when walls close both sides of the corner
+	walled[0] = walled[0] || (walled[1] && walled[3]);
+	walled[2] = walled[2] || (walled[1] && walled[4]);
+	walled[5] = walled[5] || (walled[3] && walled[6]);
+	walled[7] = walled[7] || (walled[4] && walled[6]);
+
+	for (int32_t i = 0; i < 8; ++i) {
+		neighbours[i].first = walled[i];
 	}
 
 	static std::vector<const BorderBlock*> specificList;
@@ -870,7 +884,22 @@ void GroundBrush::doBorders(BaseMap* map, Tile* tile) {
 	}
 
 	std::sort(borderList.begin(), borderList.end());
+
+	// A wall adds no borders and takes none away, so the pieces that look at one stay
+	ItemVector wallBorders;
+	for (auto it = tile->items.begin(); it != tile->items.end() && (*it)->isBorder();) {
+		if (looksAtWall((*it)->getBorderAlignment(), walled)) {
+			wallBorders.push_back(*it);
+			it = tile->items.erase(it);
+		} else {
+			++it;
+		}
+	}
+
 	tile->cleanBorders();
+	for (Item* item : wallBorders) {
+		tile->addBorderItem(item);
+	}
 
 	while (!borderList.empty()) {
 		BorderCluster &borderCluster = borderList.back();
