@@ -72,7 +72,7 @@ public:
 	bool DoQuerySaveTileset(bool doclose = true);
 	void ShowMissingMonsters();
 	void ShowMissingNpcs();
-	bool DoQueryImportCreatures();
+	bool DoQueryImportCreatures(const FileName &mapFile);
 	bool LoadMap(FileName name);
 
 	void AddRecentFile(const FileName &file);

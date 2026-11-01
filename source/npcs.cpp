@@ -23,9 +23,60 @@
 #include "npcs.h"
 #include "npc_brush.h"
 
+#include <cstdio>
 #include <wx/dir.h>
 
 #include "lua_parser.h"
+
+namespace {
+	// These files start with lines like: Name = "Adrenius" and Outfit = (9,0-0-0-0)
+	bool parseNpcFile(const std::string &content, std::string &name, Outfit &outfit) {
+		bool hasOutfit = false;
+
+		std::istringstream lines(content);
+		std::string line;
+		while ((name.empty() || !hasOutfit) && std::getline(lines, line)) {
+			const size_t equals = line.find('=');
+			if (equals == std::string::npos) {
+				continue;
+			}
+
+			std::string key = line.substr(0, equals);
+			trim(key);
+
+			const std::string value = line.substr(equals + 1);
+			if (key == "Name") {
+				const size_t open = value.find('"');
+				const size_t close = value.rfind('"');
+				if (open != std::string::npos && close > open) {
+					name = value.substr(open + 1, close - open - 1);
+				}
+			} else if (key == "Outfit") {
+				int type = 0;
+				int head = 0;
+				int body = 0;
+				int legs = 0;
+				int feet = 0;
+				int addon = 0;
+				const int count = std::sscanf(value.c_str(), " ( %d , %d - %d - %d - %d - %d", &type, &head, &body, &legs, &feet, &addon);
+				if (count == 2) {
+					// An item instead of a creature: (0,3031)
+					outfit.lookItem = head;
+					hasOutfit = true;
+				} else if (count >= 5) {
+					outfit.lookType = type;
+					outfit.lookHead = head;
+					outfit.lookBody = body;
+					outfit.lookLegs = legs;
+					outfit.lookFeet = feet;
+					outfit.lookAddon = addon;
+					hasOutfit = true;
+				}
+			}
+		}
+		return !name.empty() && hasOutfit;
+	}
+}
 
 NpcDatabase g_npcs;
 
@@ -81,7 +132,8 @@ NpcType* NpcType::loadFromOTXML(const FileName &filename, pugi::xml_document &do
 	}
 
 	NpcType* npcType = newd NpcType();
-	npcType->name = nstr(filename.GetName());
+	npcType->name = attribute.as_string();
+	npcType->outfit.name = npcType->name;
 
 	for (pugi::xml_node optionNode = node.first_child(); optionNode; optionNode = optionNode.next_sibling()) {
 		if (as_lower_str(optionNode.name()) != "look") {
@@ -96,7 +148,7 @@ NpcType* NpcType::loadFromOTXML(const FileName &filename, pugi::xml_document &do
 			npcType->outfit.lookItem = attribute.as_int();
 		}
 
-		if ((attribute = optionNode.attribute("addon"))) {
+		if ((attribute = optionNode.attribute("addon")) || (attribute = optionNode.attribute("addons"))) {
 			npcType->outfit.lookAddon = attribute.as_int();
 		}
 
@@ -306,4 +358,69 @@ bool NpcDatabase::loadFromLuaDir(const wxString &directory, wxString &error, wxA
 		npcMap[as_lower_str(npcType->name)] = npcType;
 	}
 	return true;
+}
+
+void NpcDatabase::addLoadedNpc(NpcType* npcType) {
+	npcType->standard = false;
+
+	NpcType* existing = (*this)[npcType->name];
+	if (!existing) {
+		npcMap[as_lower_str(npcType->name)] = npcType;
+		return;
+	}
+
+	if (existing->missing) {
+		existing->outfit = npcType->outfit;
+		existing->missing = false;
+	}
+	delete npcType;
+}
+
+bool NpcDatabase::loadFromXmlDir(const wxString &directory, wxArrayString &warnings) {
+	wxArrayString xmlFiles;
+	wxDir::GetAllFiles(directory, &xmlFiles, "*.xml", wxDIR_FILES | wxDIR_DIRS | wxDIR_HIDDEN);
+
+	int fileCount = 0;
+	for (const auto &filePath : xmlFiles) {
+		if (++fileCount % 50 == 0) {
+			wxSafeYield();
+		}
+
+		pugi::xml_document doc;
+		if (!doc.load_file(filePath.mb_str()) || !doc.child("npc")) {
+			continue;
+		}
+
+		if (NpcType* npcType = NpcType::loadFromOTXML(FileName(filePath), doc, warnings)) {
+			addLoadedNpc(npcType);
+		}
+	}
+	return true;
+}
+
+bool NpcDatabase::loadFromNpcFiles(const wxString &directory, wxArrayString &warnings) {
+	wxArrayString npcFiles;
+	wxDir::GetAllFiles(directory, &npcFiles, "*.npc", wxDIR_FILES | wxDIR_DIRS | wxDIR_HIDDEN);
+
+	int fileCount = 0;
+	for (const auto &filePath : npcFiles) {
+		if (++fileCount % 50 == 0) {
+			wxSafeYield();
+		}
+
+		NpcType* npcType = newd NpcType();
+		if (!parseNpcFile(LuaParser::readFileContent(filePath.ToStdString()), npcType->name, npcType->outfit)) {
+			warnings.push_back("Could not read npc: " + filePath);
+			delete npcType;
+			continue;
+		}
+
+		npcType->outfit.name = npcType->name;
+		addLoadedNpc(npcType);
+	}
+	return true;
+}
+
+bool NpcDatabase::loadFromDirectory(const wxString &directory, wxString &error, wxArrayString &warnings) {
+	return loadFromLuaDir(directory, error, warnings) && loadFromXmlDir(directory, warnings) && loadFromNpcFiles(directory, warnings);
 }

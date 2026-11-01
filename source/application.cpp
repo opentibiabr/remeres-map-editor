@@ -33,6 +33,7 @@
 #include "materials.h"
 #include "map.h"
 #include "complexitem.h"
+#include "creature_directories.h"
 #include "monster.h"
 #include "npc.h"
 #include "lua/lua_script_manager.h"
@@ -578,51 +579,56 @@ void MainFrame::ShowMissingNpcs() {
 	}
 }
 
-bool MainFrame::DoQueryImportCreatures() {
+namespace {
+	template <typename Database>
+	void loadMissingCreatures(Database &database, const wxString &directory) {
+		if (!database.hasMissing() || directory.empty() || !wxDir::Exists(directory)) {
+			return;
+		}
+
+		wxString error;
+		wxArrayString warnings;
+		if (!database.loadFromDirectory(directory, error, warnings)) {
+			wxLogWarning("%s", error);
+		}
+		for (const auto &warning : warnings) {
+			wxLogWarning("%s", warning);
+		}
+	}
+}
+
+bool MainFrame::DoQueryImportCreatures(const FileName &mapFile) {
 	if (!g_monsters.hasMissing() && !g_npcs.hasMissing()) {
 		g_gui.RefreshPalettes();
 		return true;
 	}
 
-	std::string monstersLuaDir = g_settings.getString(Config::MONSTERS_LUA_DIRECTORY);
-	std::string npcsLuaDir = g_settings.getString(Config::NPCS_LUA_DIRECTORY);
+	const CreatureDirectories found = findCreatureDirectories(mapFile);
+	adoptCreatureDirectories(found);
 
-	const bool monstersLuaReady = !monstersLuaDir.empty() && wxDir::Exists(wxstr(monstersLuaDir));
-	const bool npcsLuaReady = !npcsLuaDir.empty() && wxDir::Exists(wxstr(npcsLuaDir));
-	bool needsConfig = (g_monsters.hasMissing() && !monstersLuaReady)
-		|| (g_npcs.hasMissing() && !npcsLuaReady);
+	{
+		ScopedLoadingBar loadingBar("Searching for monsters and NPCs...");
 
-	if (needsConfig) {
-		long ret = g_gui.PopupDialog("Missing creatures", "There are missing creatures in the map. Would you like to configure the Lua directories to load them?", wxYES | wxNO);
+		const wxString monstersLuaDir = wxstr(g_settings.getString(Config::MONSTERS_LUA_DIRECTORY));
+		const wxString npcsLuaDir = wxstr(g_settings.getString(Config::NPCS_LUA_DIRECTORY));
+		loadMissingCreatures(g_monsters, monstersLuaDir);
+		loadMissingCreatures(g_npcs, npcsLuaDir);
+
+		// The configured folders can belong to another datapack than this map
+		if (found.monsters != monstersLuaDir) {
+			loadMissingCreatures(g_monsters, found.monsters);
+		}
+		if (found.npcs != npcsLuaDir) {
+			loadMissingCreatures(g_npcs, found.npcs);
+		}
+	}
+
+	if ((g_monsters.hasMissing() && found.monsters.empty()) || (g_npcs.hasMissing() && found.npcs.empty())) {
+		long ret = g_gui.PopupDialog("Missing creatures", "The monsters and NPCs of this map were not found automatically. Would you like to search for their Lua directories?", wxYES | wxNO);
 		if (ret == wxID_YES) {
 			PreferencesWindow dialog(g_gui.root);
 			dialog.getBookCtrl().SetSelection(4);
 			dialog.ShowModal();
-
-			monstersLuaDir = g_settings.getString(Config::MONSTERS_LUA_DIRECTORY);
-			npcsLuaDir = g_settings.getString(Config::NPCS_LUA_DIRECTORY);
-		}
-	}
-
-	if (g_monsters.hasMissing() && !monstersLuaDir.empty()) {
-		wxString luaErr;
-		wxArrayString luaWarn;
-		if (!g_monsters.loadFromLuaDir(wxString(monstersLuaDir), luaErr, luaWarn)) {
-			wxLogWarning("%s", luaErr);
-		}
-		for (const auto &warn : luaWarn) {
-			wxLogWarning("%s", warn);
-		}
-	}
-
-	if (g_npcs.hasMissing() && !npcsLuaDir.empty()) {
-		wxString luaErr;
-		wxArrayString luaWarn;
-		if (!g_npcs.loadFromLuaDir(wxString(npcsLuaDir), luaErr, luaWarn)) {
-			wxLogWarning("%s", luaErr);
-		}
-		for (const auto &warn : luaWarn) {
-			wxLogWarning("%s", warn);
 		}
 	}
 

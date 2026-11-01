@@ -448,6 +448,8 @@
     <ClCompile Include="..\..\source\action.cpp" />
     <ClInclude Include="..\..\source\client_assets.h" />
     <ClCompile Include="..\..\source\client_assets.cpp" />
+    <ClInclude Include="..\..\source\creature_directories.h" />
+    <ClCompile Include="..\..\source\creature_directories.cpp" />
     <ClInclude Include="..\..\source\copybuffer.h" />
     <ClCompile Include="..\..\source\copybuffer.cpp" />
     <ClInclude Include="..\..\source\monsters.h" />
