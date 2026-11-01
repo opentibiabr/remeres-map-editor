@@ -465,7 +465,7 @@ wxPanel* ReplaceBuildingWallsDialog::createBuildingPanel() {
 
 	const wxString scopes[] = { "This room", "This house", "This building", "All connected walls" };
 	scopeChoice = newd wxRadioBox(buildingPanel, wxID_ANY, "Replace in", wxDefaultPosition, wxDefaultSize, 4, scopes, 1, wxRA_SPECIFY_COLS);
-	scopeChoice->SetSelection(static_cast<int>(scope));
+	scopeChoice->SetSelection(std::to_underlying(scope));
 	sizer->Add(scopeChoice, 0, wxEXPAND | wxBOTTOM, FromDIP(6));
 
 	otherSideButton = newd wxButton(buildingPanel, wxID_ANY, "Use the Other Side of This Wall");
@@ -549,8 +549,8 @@ void ReplaceBuildingWallsDialog::rescan() {
 	if (scope == BuildingScope::House && scan.house == 0) {
 		scope = BuildingScope::Building;
 	}
-	scopeChoice->Enable(static_cast<unsigned int>(BuildingScope::House), houseFound);
-	scopeChoice->SetSelection(static_cast<int>(scope));
+	scopeChoice->Enable(static_cast<unsigned int>(std::to_underlying(BuildingScope::House)), houseFound);
+	scopeChoice->SetSelection(std::to_underlying(scope));
 
 	if (styles.empty()) {
 		styles = collectWallStyles(scan.originBrush);
@@ -613,7 +613,7 @@ void ReplaceBuildingWallsDialog::rebuildSourceList() {
 		sourceBrushes.push_back(entry.first);
 		sourceList->Append(wxString::Format("%s  (%zu)", wxstr(entry.first->getName()), entry.second));
 		// A style found only on walls shared with neighbours is theirs until someone says otherwise
-		sourceList->Check(sourceList->GetCount() - 1, ownStyles.count(entry.first) != 0);
+		sourceList->Check(sourceList->GetCount() - 1, ownStyles.contains(entry.first));
 	}
 
 	const bool several = sourceBrushes.size() > 1;
@@ -652,7 +652,7 @@ void ReplaceBuildingWallsDialog::refreshStyles() {
 		if (style.brush == scan.originBrush && sourceBrushes.size() == 1) {
 			continue;
 		}
-		if (!filter.empty() && as_lower_str(style.brush->getName()).find(filter) == std::string::npos) {
+		if (!filter.empty() && !as_lower_str(style.brush->getName()).contains(filter)) {
 			continue;
 		}
 
@@ -711,34 +711,34 @@ void ReplaceBuildingWallsDialog::updateLitTiles(const WallReplacementRequest &re
 	const bool lowOrigin = isLowWallStyle(scan.originBrush);
 
 	for (const BuildingFloor &floor : scan.floors) {
-		const bool floorSelected = request.floors.count(floor.z) != 0;
+		const bool floorSelected = request.floors.contains(floor.z);
 		for (const BuildingWall &wall : floor.walls) {
 			// Railings have no entry in the list of walls, and they are part of the building either way
-			const bool listed = wall.low != lowOrigin || request.sources.count(wall.brush) != 0;
-			if (!floorSelected || !listed || request.excluded.count(wall.position) != 0 || (wall.shared && !request.includeShared)) {
+			const bool listed = wall.low != lowOrigin || request.sources.contains(wall.brush);
+			if (!floorSelected || !listed || request.excluded.contains(wall.position) || (wall.shared && !request.includeShared)) {
 				litTiles.erase(wall.position);
 			}
 		}
 	}
 
 	for (auto it = litTiles.begin(); it != litTiles.end();) {
-		it = request.floors.count(it->z) == 0 ? litTiles.erase(it) : std::next(it);
+		it = !request.floors.contains(it->z) ? litTiles.erase(it) : std::next(it);
 	}
 
 	preview->SetPreviewFocus(&litTiles);
 }
 
-void ReplaceBuildingWallsDialog::updateOpenings() {
+std::vector<OpeningGroup> ReplaceBuildingWallsDialog::collectOpenings() const {
 	// The openings exist before a style is chosen, so they are always listed
 	std::map<::DoorType, size_t> counts;
 	std::map<::DoorType, uint16_t> samples;
 	const WallReplacementRequest request = makeRequest(nullptr);
 	for (const BuildingFloor &floor : scan.floors) {
-		if (request.floors.count(floor.z) == 0) {
+		if (!request.floors.contains(floor.z)) {
 			continue;
 		}
 		for (const BuildingWall &wall : floor.walls) {
-			if (wall.opening != WALL_UNDEFINED && request.sources.count(wall.brush) != 0 && request.excluded.count(wall.position) == 0) {
+			if (wall.opening != WALL_UNDEFINED && request.sources.contains(wall.brush) && !request.excluded.contains(wall.position)) {
 				++counts[wall.opening];
 				samples[wall.opening] = wall.itemId;
 			}
@@ -756,6 +756,35 @@ void ReplaceBuildingWallsDialog::updateOpenings() {
 			groups.push_back(group);
 		}
 	}
+	return groups;
+}
+
+void ReplaceBuildingWallsDialog::updateOpeningRow(OpeningRow &row, const OpeningGroup &group) {
+	row.type = group.type;
+	row.icon->SetBitmap(makeItemBitmap(buildingPanel, group.sampleItem));
+	row.label->SetLabel(group.missing ? wxString::Format("%s, no match", describeOpeningCount(group)) : describeOpeningCount(group));
+
+	if (!group.missing) {
+		return;
+	}
+
+	row.actions = { OpeningAction::KeepCurrent };
+	row.action->Clear();
+	row.action->Append("Keep as they are");
+	if (group.closestType != WALL_UNDEFINED) {
+		row.actions.push_back(OpeningAction::UseClosest);
+		row.action->Append(wxString::Format("Use %s", getOpeningName(group.closestType, true)));
+	}
+	row.actions.push_back(OpeningAction::ReplaceWithWall);
+	row.action->Append("Close with a wall");
+
+	const auto choice = openingActions.find(group.type);
+	const auto selected = std::find(row.actions.begin(), row.actions.end(), choice != openingActions.end() ? choice->second : OpeningAction::KeepCurrent);
+	row.action->SetSelection(selected != row.actions.end() ? static_cast<int>(selected - row.actions.begin()) : 0);
+}
+
+void ReplaceBuildingWallsDialog::updateOpenings() {
+	const std::vector<OpeningGroup> groups = collectOpenings();
 
 	openingHeader->Show(!groups.empty());
 	for (size_t index = 0; index < openingRows.size(); ++index) {
@@ -764,29 +793,8 @@ void ReplaceBuildingWallsDialog::updateOpenings() {
 		row.icon->Show(visible);
 		row.label->Show(visible);
 		row.action->Show(visible && groups[index].missing);
-		if (!visible) {
-			continue;
-		}
-
-		const OpeningGroup &group = groups[index];
-		row.type = group.type;
-		row.icon->SetBitmap(makeItemBitmap(buildingPanel, group.sampleItem));
-		row.label->SetLabel(group.missing ? wxString::Format("%s, no match", describeOpeningCount(group)) : describeOpeningCount(group));
-
-		if (group.missing) {
-			row.actions = { OpeningAction::KeepCurrent };
-			row.action->Clear();
-			row.action->Append("Keep as they are");
-			if (group.closestType != WALL_UNDEFINED) {
-				row.actions.push_back(OpeningAction::UseClosest);
-				row.action->Append(wxString::Format("Use %s", getOpeningName(group.closestType, true)));
-			}
-			row.actions.push_back(OpeningAction::ReplaceWithWall);
-			row.action->Append("Close with a wall");
-
-			const auto choice = openingActions.find(group.type);
-			const auto selected = std::find(row.actions.begin(), row.actions.end(), choice != openingActions.end() ? choice->second : OpeningAction::KeepCurrent);
-			row.action->SetSelection(selected != row.actions.end() ? static_cast<int>(selected - row.actions.begin()) : 0);
+		if (visible) {
+			updateOpeningRow(row, groups[index]);
 		}
 	}
 	buildingPanel->Layout();
@@ -897,7 +905,7 @@ void ReplaceBuildingWallsDialog::toggleWall(const Position &clicked) {
 			continue;
 		}
 
-		if (scan.tiles.count(position) == 0) {
+		if (!scan.tiles.contains(position)) {
 			addWallToScan(scan, editor.getMap(), position);
 			rebuildSourceList();
 		} else if (excluded.erase(position) == 0) {

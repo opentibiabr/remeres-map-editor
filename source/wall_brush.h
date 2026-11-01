@@ -96,8 +96,8 @@ protected:
 	std::vector<DoorType> door_items[17];
 
 	WallBrush* redirect_to;
-	WallBrush* railing;
-	bool railingOfWall;
+	WallBrush* railing = nullptr;
+	bool railingOfWall = false;
 
 	friend class DoorBrush;
 
