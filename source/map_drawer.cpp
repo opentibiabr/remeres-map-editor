@@ -1447,6 +1447,10 @@ void MapDrawer::DrawTile(TileLocation* location) {
 		return;
 	}
 
+	if (Tile* previewTile = canvas->GetPreviewTile(location->getPosition())) {
+		tile = previewTile;
+	}
+
 	if (options.show_only_modified && !tile->isModified()) {
 		return;
 	}
@@ -1466,7 +1470,12 @@ void MapDrawer::DrawTile(TileLocation* location) {
 	int draw_x, draw_y;
 	getDrawPosition(position, draw_x, draw_y);
 
+	const bool dimmed = canvas->IsPreviewDimmed(position);
+
 	uint8_t r = 255, g = 255, b = 255;
+	if (dimmed) {
+		r = g = b = 96;
+	}
 	if (only_colors || tile->hasGround()) {
 
 		if (!options.show_as_minimap) {
@@ -1566,7 +1575,7 @@ void MapDrawer::DrawTile(TileLocation* location) {
 				item->animate();
 			}
 
-			if (item->isBorder()) {
+			if (item->isBorder() || dimmed) {
 				BlitItem(draw_x, draw_y, tile, item, false, r, g, b);
 			} else {
 				BlitItem(draw_x, draw_y, tile, item);
