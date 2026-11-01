@@ -311,13 +311,12 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 	{
 		std::string monstersLuaDir = g_settings.getString(Config::MONSTERS_LUA_DIRECTORY);
 		if (monstersLuaDir.empty()) {
-			warnings.push_back("Monsters Lua Directory is not configured. Set it in Edit > Preferences.");
 			spdlog::warn("[GUI::LoadDataFiles] Monsters Lua Directory is not configured.");
 		} else {
 			g_gui.SetLoadDone(47, "Loading Canary monster Lua files...");
 			wxString luaErr;
 			wxArrayString luaWarn;
-			if (!g_monsters.loadFromLuaDir(wxString(monstersLuaDir), luaErr, luaWarn)) {
+			if (!g_monsters.loadFromDirectory(wxString(monstersLuaDir), luaErr, luaWarn)) {
 				warnings.push_back("Error loading Canary monster Lua files: " + luaErr);
 			}
 			for (const auto &w : luaWarn) {
@@ -329,13 +328,12 @@ bool GUI::LoadDataFiles(wxString &error, wxArrayString &warnings) {
 	{
 		std::string npcsLuaDir = g_settings.getString(Config::NPCS_LUA_DIRECTORY);
 		if (npcsLuaDir.empty()) {
-			warnings.push_back("NPCs Lua Directory is not configured. Set it in Edit > Preferences.");
 			spdlog::warn("[GUI::LoadDataFiles] NPCs Lua Directory is not configured.");
 		} else {
 			g_gui.SetLoadDone(48, "Loading Canary NPC Lua files...");
 			wxString luaErr;
 			wxArrayString luaWarn;
-			if (!g_npcs.loadFromLuaDir(wxString(npcsLuaDir), luaErr, luaWarn)) {
+			if (!g_npcs.loadFromDirectory(wxString(npcsLuaDir), luaErr, luaWarn)) {
 				warnings.push_back("Error loading Canary NPC Lua files: " + luaErr);
 			}
 			for (const auto &w : luaWarn) {
@@ -576,7 +574,7 @@ bool GUI::LoadMap(const FileName &fileName) {
 	UpdateTitle();
 	ListDialog("Map loader errors", mapTab->GetMap()->getWarnings());
 	// Npc and monsters
-	root->DoQueryImportCreatures();
+	root->DoQueryImportCreatures(fileName);
 
 	FitViewToMap(mapTab);
 	root->UpdateMenubar();

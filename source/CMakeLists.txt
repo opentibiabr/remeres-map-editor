@@ -210,6 +210,7 @@ target_sources(
           common_windows.cpp
           complexitem.cpp
           container_properties_window.cpp
+          creature_directories.cpp
           copybuffer.cpp
           monster_brush.cpp
           monster.cpp
