@@ -1869,7 +1869,15 @@ void MapCanvas::OnKeyDown(wxKeyEvent &event) {
 			break;
 		}
 		case 'z':
-		case 'Z': { // Rotate counterclockwise (actually shift variaton, but whatever... :P)
+		case 'Z': { // Rotate items, otherwise rotate counterclockwise (actually shift variaton, but whatever... :P)
+			if (g_gui.IsSelectionMode()) {
+				RotateSelectedItems();
+				break;
+			}
+			if (g_gui.GetCurrentBrush() && g_gui.GetCurrentBrush()->isRaw()) {
+				RotateCurrentRawBrush();
+				break;
+			}
 			int nv = g_gui.GetBrushVariation();
 			--nv;
 			if (nv < 0) {
@@ -2088,6 +2096,9 @@ bool MapCanvas::DispatchMenuShortcut(wxKeyEvent &event) {
 			case 'N':
 				menuId = static_cast<int>(MenuBar::SHOW_NPCS);
 				break;
+			case 'Z':
+				menuId = static_cast<int>(MenuBar::SELECT_ZONES);
+				break;
 		}
 	} else {
 		switch (key) {
@@ -2285,35 +2296,49 @@ void MapCanvas::OnBrowseTile(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void MapCanvas::OnRotateItem(wxCommandEvent &WXUNUSED(event)) {
+	RotateSelectedItems();
+}
+
+void MapCanvas::RotateSelectedItems() {
 	if (!editor.hasSelection()) {
 		return;
 	}
 
-	Selection &selection = editor.getSelection();
-	if (selection.size() != 1) {
-		return;
-	}
-
-	Tile* tile = selection.getSelectedTile();
-	ItemVector items = tile->getSelectedItems();
-	if (items.empty()) {
-		return;
-	}
-
-	Item* item = items.front();
-	if (!item || !item->isRoteable()) {
-		return;
-	}
-
 	Action* action = editor.createAction(ACTION_ROTATE_ITEM);
-	Tile* new_tile = tile->deepCopy(editor.getMap());
-	Item* new_item = new_tile->getSelectedItems().front();
-	new_item->doRotate();
-	action->addChange(new Change(new_tile));
+	for (Tile* tile : editor.getSelection()) {
+		Tile* new_tile = tile->deepCopy(editor.getMap());
+
+		bool rotated = false;
+		for (Item* item : new_tile->getSelectedItems()) {
+			if (item->isRoteable()) {
+				item->doRotate();
+				rotated = true;
+			}
+		}
+
+		if (rotated) {
+			action->addChange(newd Change(new_tile));
+		} else {
+			delete new_tile;
+		}
+	}
 
 	editor.addAction(action);
 	editor.updateActions();
 	g_gui.RefreshView();
+}
+
+void MapCanvas::RotateCurrentRawBrush() {
+	const auto type = g_gui.GetCurrentBrush()->asRaw()->getItemType();
+	if (!type || type->rotateTo == 0) {
+		return;
+	}
+
+	RAWBrush* rotated_brush = g_items.getItemType(type->rotateTo).raw_brush;
+	if (rotated_brush && !g_gui.SelectBrush(rotated_brush)) {
+		// The rotated item is not always listed in a palette
+		g_gui.SelectBrushInternal(rotated_brush);
+	}
 }
 
 void MapCanvas::OnGotoDestination(wxCommandEvent &WXUNUSED(event)) {
