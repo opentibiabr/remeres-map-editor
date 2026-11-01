@@ -25,9 +25,7 @@ uint32_t WallBrush::full_border_types[16];
 uint32_t WallBrush::half_border_types[16];
 
 WallBrush::WallBrush() :
-	redirect_to(nullptr),
-	railing(nullptr),
-	railingOfWall(false) {
+	redirect_to(nullptr) {
 	////
 }
 
@@ -222,13 +220,13 @@ bool WallBrush::load(pugi::xml_node node, wxArrayString &warnings) {
 				}
 			}
 		} else if (childName == "railing") {
-			const std::string &name = childNode.attribute("name").as_string();
-			Brush* brush = g_brushes.getBrush(name);
+			const std::string &railingName = childNode.attribute("name").as_string();
+			Brush* brush = g_brushes.getBrush(railingName);
 			if (brush && brush->isWall()) {
 				railing = brush->asWall();
 				railing->railingOfWall = true;
 			} else {
-				warnings.push_back("Wall brush railing: '" + wxstr(name) + "' is not a wall brush.");
+				warnings.push_back("Wall brush railing: '" + wxstr(railingName) + "' is not a wall brush.");
 			}
 		} else if (childName == "friend") {
 			const std::string &name = childNode.attribute("name").as_string();

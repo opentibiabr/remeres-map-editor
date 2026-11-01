@@ -29,6 +29,9 @@
 #include "tile.h"
 #include "wall_brush.h"
 
+#include <array>
+#include <optional>
+
 namespace {
 	// Walled areas bigger than this are outdoors, like a town behind its walls
 	constexpr size_t maxRoomTiles = 1600;
@@ -42,22 +45,34 @@ namespace {
 	constexpr int maxHouseReach = 64;
 
 	// The visible face of a wall looks south or east, so those sides are tried first
-	const Position cardinalDirections[] = {
+	const std::array<Position, 4> cardinalDirections = {
 		Position(0, 1, 0),
 		Position(1, 0, 0),
 		Position(0, -1, 0),
 		Position(-1, 0, 0),
 	};
 
-	const Position diagonalDirections[] = {
+	const std::array<Position, 4> diagonalDirections = {
 		Position(1, 1, 0),
 		Position(-1, 1, 0),
 		Position(1, -1, 0),
 		Position(-1, -1, 0),
 	};
 
+	// A position and the eight around it
+	std::array<Position, 9> withNeighbours(const Position &position) {
+		std::array<Position, 9> positions;
+		size_t index = 0;
+		for (int y = -1; y <= 1; ++y) {
+			for (int x = -1; x <= 1; ++x) {
+				positions[index++] = position + Position(x, y, 0);
+			}
+		}
+		return positions;
+	}
+
 	bool isLooseArchway(const Item* item) {
-		return !item->isWall() && as_lower_str(item->getFullName()).find("archway") != std::string::npos;
+		return !item->isWall() && as_lower_str(item->getFullName()).contains("archway");
 	}
 
 	const Item* findLooseArchway(const Tile* tile) {
@@ -164,7 +179,7 @@ namespace {
 				return type != WALL_WINDOW && type != WALL_HATCH_WINDOW;
 			}
 			if (item->isDoor()) {
-				return as_lower_str(item->getFullName()).find("window") == std::string::npos;
+				return !as_lower_str(item->getFullName()).contains("window");
 			}
 		}
 		return false;
@@ -194,7 +209,7 @@ namespace {
 					continue;
 				}
 
-				if (!tile || !tile->hasGround() || outdoors.count(position) != 0 || room.size() >= maxRoomTiles) {
+				if (!tile || !tile->hasGround() || outdoors.contains(position) || room.size() >= maxRoomTiles) {
 					outdoors.insert(position);
 					outdoors.insert(room.begin(), room.end());
 					return {};
@@ -267,29 +282,15 @@ namespace {
 		// Rooms that open into each other are one building, and what stands in a room does not divide it
 		std::set<Position> expandRooms(std::set<Position> interior, bool throughDoors) {
 			const bool indoors = isRoofed(interior);
-
-			std::set<uint32_t> houses;
-			for (const Position &position : interior) {
-				const uint32_t house = map.getTile(position)->getHouseID();
-				if (house != 0) {
-					houses.insert(house);
-				}
-			}
+			const std::set<uint32_t> houses = findHouses(interior);
 
 			std::set<Position> rejected;
 			PositionVector pending(interior.begin(), interior.end());
 
-			const auto leavesHouse = [this, &houses](const std::set<Position> &room) {
-				const size_t inside = std::count_if(room.begin(), room.end(), [this, &houses](const Position &position) {
-					return houses.count(map.getTile(position)->getHouseID()) != 0;
-				});
-				return !houses.empty() && inside * 2 < room.size();
-			};
-
 			const auto addRoom = [&](const Position &start) {
 				const std::set<Position> room = findRoom(start);
 				// A way out of a roofed building leads to the street, even when walls enclose it
-				if (room.empty() || room.size() > maxRoomBehindDoor || (indoors && !isRoofed(room)) || leavesHouse(room)) {
+				if (room.empty() || room.size() > maxRoomBehindDoor || (indoors && !isRoofed(room)) || leavesHouses(room, houses)) {
 					rejected.insert(start);
 					rejected.insert(room.begin(), room.end());
 					return;
@@ -305,21 +306,19 @@ namespace {
 
 				for (const Position &direction : cardinalDirections) {
 					const Position next = position + direction;
-					if (interior.count(next) != 0 || rejected.count(next) != 0) {
+					if (interior.contains(next) || rejected.contains(next)) {
 						continue;
 					}
 
-					const Tile* tile = next.isValid() ? map.getTile(next) : nullptr;
 					if (standsInRoom(next)) {
 						interior.insert(next);
 						pending.push_back(next);
-					} else if (tile && !isRoomLimit(tile)) {
-						addRoom(next);
-					} else if (throughDoors && isDoorway(tile)) {
-						const Position behind = next + direction;
-						if (interior.count(behind) == 0 && rejected.count(behind) == 0) {
-							addRoom(behind);
-						}
+						continue;
+					}
+
+					const std::optional<Position> start = findRoomStart(next, direction, throughDoors);
+					if (start && !interior.contains(*start) && !rejected.contains(*start)) {
+						addRoom(*start);
 					}
 				}
 			}
@@ -327,6 +326,36 @@ namespace {
 		}
 
 	private:
+		std::set<uint32_t> findHouses(const std::set<Position> &tiles) const {
+			std::set<uint32_t> houses;
+			for (const Position &position : tiles) {
+				const uint32_t house = map.getTile(position)->getHouseID();
+				if (house != 0) {
+					houses.insert(house);
+				}
+			}
+			return houses;
+		}
+
+		bool leavesHouses(const std::set<Position> &room, const std::set<uint32_t> &houses) const {
+			const size_t inside = std::count_if(room.begin(), room.end(), [this, &houses](const Position &position) {
+				return houses.contains(map.getTile(position)->getHouseID());
+			});
+			return !houses.empty() && inside * 2 < room.size();
+		}
+
+		// Where a room can go on from the tile next to it
+		std::optional<Position> findRoomStart(const Position &next, const Position &direction, bool throughDoors) const {
+			const Tile* tile = next.isValid() ? map.getTile(next) : nullptr;
+			if (tile && !isRoomLimit(tile)) {
+				return next;
+			}
+			if (throughDoors && isDoorway(tile)) {
+				return next + direction;
+			}
+			return std::nullopt;
+		}
+
 		bool standsInRoom(const Position &position) const {
 			return position.isValid() && isFurniture(map.getTile(position)) && !isInWallLine(map, position);
 		}
@@ -337,7 +366,7 @@ namespace {
 			const auto addSide = [&rooms, &wall, &search](const Position &direction) {
 				std::set<Position> room = search(wall + direction, direction);
 				const bool known = std::any_of(rooms.begin(), rooms.end(), [&room](const std::set<Position> &other) {
-					return !room.empty() && other.count(*room.begin()) != 0;
+					return !room.empty() && other.contains(*room.begin());
 				});
 				if (!room.empty() && !known) {
 					rooms.push_back(std::move(room));
@@ -447,15 +476,11 @@ namespace {
 			map(map) { }
 
 		bool isHouseWall(const Position &position, const WallBrush* brush) {
-			for (int y = -1; y <= 1; ++y) {
-				for (int x = -1; x <= 1; ++x) {
-					const Tile* tile = map.getTile(position.x + x, position.y + y, position.z);
-					if (tile && tile->getHouseID() != 0 && getStyle(tile->getHouseID()) == brush) {
-						return true;
-					}
-				}
-			}
-			return false;
+			const std::array<Position, 9> around = withNeighbours(position);
+			return std::any_of(around.begin(), around.end(), [this, brush](const Position &neighbour) {
+				const Tile* tile = map.getTile(neighbour);
+				return tile && tile->getHouseID() != 0 && getStyle(tile->getHouseID()) == brush;
+			});
 		}
 
 	private:
@@ -466,21 +491,9 @@ namespace {
 			}
 
 			std::map<const WallBrush*, size_t> counts;
-			std::set<Position> visited;
 			const House* house = map.houses.getHouse(id);
 			if (house) {
-				for (const Position &tile : house->getTiles()) {
-					for (int y = -1; y <= 1; ++y) {
-						for (int x = -1; x <= 1; ++x) {
-							const Position adjacent = tile + Position(x, y, 0);
-							const Tile* other = visited.insert(adjacent).second ? map.getTile(adjacent) : nullptr;
-							const Item* wall = other ? findStructuralWall(other) : nullptr;
-							if (wall) {
-								++counts[wall->getWallBrush()];
-							}
-						}
-					}
-				}
+				countWallStyles(*house, counts);
 			}
 
 			const auto mostUsed = std::max_element(counts.begin(), counts.end(), [](const auto &left, const auto &right) {
@@ -489,6 +502,19 @@ namespace {
 			const WallBrush* style = mostUsed != counts.end() ? mostUsed->first : nullptr;
 			styles[id] = style;
 			return style;
+		}
+
+		void countWallStyles(const House &house, std::map<const WallBrush*, size_t> &counts) const {
+			std::set<Position> visited;
+			for (const Position &tile : house.getTiles()) {
+				for (const Position &adjacent : withNeighbours(tile)) {
+					const Tile* other = visited.insert(adjacent).second ? map.getTile(adjacent) : nullptr;
+					const Item* wall = other ? findStructuralWall(other) : nullptr;
+					if (wall) {
+						++counts[wall->getWallBrush()];
+					}
+				}
+			}
 		}
 
 		const Map &map;
@@ -564,15 +590,15 @@ namespace {
 		for (BuildingWall &wall : walls) {
 			for (const Position &direction : cardinalDirections) {
 				const Position neighbour = wall.position + direction;
-				if (interior.count(neighbour) != 0 || isRoomLimit(map.getTile(neighbour))) {
+				if (interior.contains(neighbour) || isRoomLimit(map.getTile(neighbour))) {
 					continue;
 				}
 
-				if (otherRooms.count(neighbour) == 0) {
+				if (!otherRooms.contains(neighbour)) {
 					const std::set<Position> room = finder.findRoom(neighbour);
 					otherRooms.insert(room.begin(), room.end());
 				}
-				if (otherRooms.count(neighbour) != 0) {
+				if (otherRooms.contains(neighbour)) {
 					wall.shared = true;
 					break;
 				}
@@ -583,57 +609,59 @@ namespace {
 	std::set<Position> collectRoomWalls(const Map &map, FloorScan &scan) {
 		std::set<Position> visited;
 		for (const Position &position : scan.rooms) {
-			for (int y = -1; y <= 1; ++y) {
-				for (int x = -1; x <= 1; ++x) {
-					const Position adjacent = position + Position(x, y, 0);
-					// Railings are part of the rooms they stand in, but they are walls all the same
-					const bool inside = scan.rooms.count(adjacent) != 0 && !isFurniture(map.getTile(adjacent));
-					if (inside || !visited.insert(adjacent).second) {
-						continue;
-					}
-
-					readWalls(map, adjacent, scan.walls);
-					const Tile* tile = map.getTile(adjacent);
-					scan.unknownWalls += isUnknownWall(tile) || (isFurniture(tile) && isInWallLine(map, adjacent)) ? 1 : 0;
+			for (const Position &adjacent : withNeighbours(position)) {
+				// Railings are part of the rooms they stand in, but they are walls all the same
+				const bool inside = scan.rooms.contains(adjacent) && !isFurniture(map.getTile(adjacent));
+				if (inside || !visited.insert(adjacent).second) {
+					continue;
 				}
+
+				readWalls(map, adjacent, scan.walls);
+				const Tile* tile = map.getTile(adjacent);
+				scan.unknownWalls += isUnknownWall(tile) || (isFurniture(tile) && isInWallLine(map, adjacent)) ? 1 : 0;
 			}
 		}
 		return visited;
+	}
+
+	// Finds the rooms around a wall and takes the one on the requested side
+	void findFloorRooms(const Map &map, RoomFinder &finder, const Position &seed, int requestedSide, const WallBrush* originBrush, bool followWalls, FloorScan &scan) {
+		const auto findSides = [&finder, &scan](const Position &wall) {
+			std::vector<std::set<Position>> rooms = finder.findRoomsAround(wall);
+			if (rooms.empty()) {
+				rooms = finder.findRoofedAreasAround(wall);
+				scan.openToStreet = !rooms.empty();
+			}
+			return rooms;
+		};
+
+		Position start = seed;
+		std::vector<std::set<Position>> rooms = findSides(start);
+
+		// A wall over a void touches no room, but the walls it connects to do
+		if (rooms.empty() && followWalls) {
+			for (const BuildingWall &wall : findConnectedWalls(map, seed, originBrush)) {
+				start = wall.position;
+				rooms = findSides(start);
+				if (!rooms.empty()) {
+					break;
+				}
+			}
+		}
+
+		if (!rooms.empty()) {
+			scan.enclosed = true;
+			scan.sideCount = static_cast<int>(rooms.size());
+			scan.side = requestedSide >= 0 ? requestedSide % scan.sideCount : chooseSide(map, start, rooms);
+			scan.rooms = std::move(rooms[scan.side]);
+		}
 	}
 
 	FloorScan scanFloor(const Map &map, RoomFinder &finder, const Position &seed, BuildingScope scope, int requestedSide, const WallBrush* originBrush, bool followWalls = true) {
 		FloorScan scan;
 
 		if (scope != BuildingScope::ConnectedWalls) {
-			const auto findSides = [&finder, &scan](const Position &wall) {
-				std::vector<std::set<Position>> rooms = finder.findRoomsAround(wall);
-				if (rooms.empty()) {
-					rooms = finder.findRoofedAreasAround(wall);
-					scan.openToStreet = !rooms.empty();
-				}
-				return rooms;
-			};
-
-			Position start = seed;
-			std::vector<std::set<Position>> rooms = findSides(start);
-
-			// A wall over a void touches no room, but the walls it connects to do
-			if (rooms.empty() && followWalls) {
-				for (const BuildingWall &wall : findConnectedWalls(map, seed, originBrush)) {
-					start = wall.position;
-					rooms = findSides(start);
-					if (!rooms.empty()) {
-						break;
-					}
-				}
-			}
-
-			if (!rooms.empty()) {
-				scan.enclosed = true;
-				scan.sideCount = static_cast<int>(rooms.size());
-				scan.side = requestedSide >= 0 ? requestedSide % scan.sideCount : chooseSide(map, start, rooms);
-				scan.rooms = std::move(rooms[scan.side]);
-			}
+			findFloorRooms(map, finder, seed, requestedSide, originBrush, followWalls, scan);
 		}
 
 		if (!scan.enclosed) {
@@ -701,7 +729,7 @@ namespace {
 		// A roof can reach over an alley to the walls of the next building, unlike a closed room
 		const bool openToStreet = floor.openToStreet;
 		floor.walls.erase(std::remove_if(floor.walls.begin(), floor.walls.end(), [&ownTiles, &isOwnStyle, lowOrigin, openToStreet](const BuildingWall &wall) {
-							  const bool neighbour = !isOwnStyle(wall) && (ownTiles.count(wall.position) != 0 || (openToStreet && !wall.low));
+							  const bool neighbour = !isOwnStyle(wall) && (ownTiles.contains(wall.position) || (openToStreet && !wall.low));
 							  return neighbour || (wall.low != lowOrigin && !(wall.low && wall.brush->isRailing()));
 						  }),
 						  floor.walls.end());
@@ -735,7 +763,7 @@ namespace {
 		std::set<Position> visited;
 		for (const Position &seed : projection) {
 			const Tile* tile = map.getTile(seed);
-			if (visited.count(seed) != 0 || !tile || !findStructuralWall(tile)) {
+			if (visited.contains(seed) || !tile || !findStructuralWall(tile)) {
 				continue;
 			}
 
@@ -845,51 +873,24 @@ namespace {
 		}
 	}
 
-	// The house right behind the wall, or else the one most of these tiles belong to
-	const House* findHouse(const Map &map, const std::set<Position> &rooms, const Position &wall, bool openArea) {
-		bool touchesRooms = false;
-		const auto houseBehind = [&map, &rooms, &wall, &touchesRooms](const Position &direction) {
-			const Position position = wall + direction;
-			if (rooms.count(position) == 0) {
-				return static_cast<const House*>(nullptr);
-			}
-
-			touchesRooms = true;
-			const uint32_t id = map.getTile(position)->getHouseID();
-			return id != 0 ? map.houses.getHouse(id) : nullptr;
-		};
-
+	// The first house a check finds around a wall, which touches what is across a corner on the diagonals
+	template <typename Check>
+	const House* findHouseAround(Check check) {
 		for (const Position &direction : cardinalDirections) {
-			if (const House* house = houseBehind(direction)) {
+			if (const House* house = check(direction)) {
 				return house;
 			}
 		}
 		for (const Position &direction : diagonalDirections) {
-			if (const House* house = houseBehind(direction)) {
+			if (const House* house = check(direction)) {
 				return house;
 			}
 		}
+		return nullptr;
+	}
 
-		// Seen from a covered alley a thick wall hides the house behind its second layer, and
-		// the walls of a terrace close no room at all, so the tiles around them have to tell
-		if (openArea || !touchesRooms) {
-			const auto houseBeside = [&map, &wall](const Position &direction) {
-				const Tile* tile = map.getTile(wall + direction);
-				return tile && tile->getHouseID() != 0 ? map.houses.getHouse(tile->getHouseID()) : nullptr;
-			};
-
-			for (const Position &direction : cardinalDirections) {
-				if (const House* house = houseBeside(direction)) {
-					return house;
-				}
-			}
-			for (const Position &direction : diagonalDirections) {
-				if (const House* house = houseBeside(direction)) {
-					return house;
-				}
-			}
-		}
-
+	// The house most of these tiles belong to
+	const House* findMainHouse(const Map &map, const std::set<Position> &rooms) {
 		std::map<uint32_t, size_t> counts;
 		for (const Position &position : rooms) {
 			const uint32_t id = map.getTile(position)->getHouseID();
@@ -907,6 +908,39 @@ namespace {
 
 		const House* house = map.houses.getHouse(mostUsed->first);
 		return house && !house->getTiles().empty() ? house : nullptr;
+	}
+
+	// The house right behind the wall, or else the one most of these tiles belong to
+	const House* findHouse(const Map &map, const std::set<Position> &rooms, const Position &wall, bool openArea) {
+		bool touchesRooms = false;
+		const auto houseBehind = [&map, &rooms, &wall, &touchesRooms](const Position &direction) {
+			const Position position = wall + direction;
+			if (!rooms.contains(position)) {
+				return static_cast<const House*>(nullptr);
+			}
+
+			touchesRooms = true;
+			const uint32_t id = map.getTile(position)->getHouseID();
+			return id != 0 ? map.houses.getHouse(id) : nullptr;
+		};
+
+		if (const House* house = findHouseAround(houseBehind)) {
+			return house;
+		}
+
+		// Seen from a covered alley a thick wall hides the house behind its second layer, and
+		// the walls of a terrace close no room at all, so the tiles around them have to tell
+		if (openArea || !touchesRooms) {
+			const House* house = findHouseAround([&map, &wall](const Position &direction) {
+				const Tile* tile = map.getTile(wall + direction);
+				return tile && tile->getHouseID() != 0 ? map.houses.getHouse(tile->getHouseID()) : nullptr;
+			});
+			if (house) {
+				return house;
+			}
+		}
+
+		return findMainHouse(map, rooms);
 	}
 
 	// Houses that stand on each other are floors of one building, houses side by side are not
@@ -983,6 +1017,54 @@ namespace {
 
 	bool isWindow(::DoorType type) {
 		return type == WALL_WINDOW || type == WALL_HATCH_WINDOW;
+	}
+
+	// The new item of an opening the style has no match for, 0 when it stays as it is
+	uint16_t resolveMissingOpening(const WallReplacementRequest &request, const BuildingWall &wall, OpeningGroup &group) {
+		group.missing = true;
+
+		for (::DoorType alternative : getOpeningAlternatives(wall.opening)) {
+			if (group.closestType == WALL_UNDEFINED && findOpeningItem(request.target, wall, alternative) != 0) {
+				group.closestType = alternative;
+			}
+		}
+
+		const auto choice = request.openingActions.find(wall.opening);
+		const OpeningAction action = choice != request.openingActions.end() ? choice->second : OpeningAction::KeepCurrent;
+		if (action == OpeningAction::UseClosest && group.closestType != WALL_UNDEFINED) {
+			return findOpeningItem(request.target, wall, group.closestType);
+		}
+		return action == OpeningAction::ReplaceWithWall ? findWallItem(request.target, wall) : 0;
+	}
+
+	uint16_t planOpening(const WallReplacementRequest &request, const BuildingWall &wall, std::map<::DoorType, OpeningGroup> &groups, WallReplacementPlan &plan) {
+		OpeningGroup &group = groups[wall.opening];
+		group.type = wall.opening;
+		++group.count;
+
+		uint16_t replacement = findOpeningItem(request.target, wall, wall.opening);
+		if (replacement == 0) {
+			++plan.missingOpenings;
+			replacement = resolveMissingOpening(request, wall, group);
+		}
+
+		group.sampleItem = replacement != 0 ? replacement : wall.itemId;
+		if (replacement != 0) {
+			size_t &count = isWindow(wall.opening) ? plan.windowCount : plan.doorCount;
+			++count;
+		}
+		return replacement;
+	}
+
+	// A railing never grows into a wall: it takes the railing of the new style, or it stays
+	uint16_t planRailing(const WallReplacementRequest &request, const BuildingWall &wall, WallReplacementPlan &plan) {
+		++plan.railingCount;
+		plan.railingSample = wall.itemId;
+
+		const bool replaced = plan.railing && request.replaceRailings && wall.brush != plan.railing;
+		const uint16_t railing = replaced ? findWallItem(plan.railing, wall) : 0;
+		plan.railingsChanged += railing != 0 ? 1 : 0;
+		return railing;
 	}
 
 	void applyChange(Tile* tile, const WallChange &change) {
@@ -1127,38 +1209,23 @@ WallReplacementPlan planWallReplacement(const BuildingScan &scan, const WallRepl
 	plan.railing = lowTarget ? nullptr : request.target->getRailing();
 
 	for (const BuildingFloor &floor : scan.floors) {
-		if (request.floors.count(floor.z) == 0) {
+		if (!request.floors.contains(floor.z)) {
 			continue;
 		}
 
 		for (const BuildingWall &wall : floor.walls) {
-			if (request.excluded.count(wall.position) != 0) {
-				continue;
-			}
-
-			// A railing never grows into a wall: it takes the railing of the new style, or it stays
-			if (wall.low != lowTarget) {
-				if (wall.low) {
-					++plan.railingCount;
-					plan.railingSample = wall.itemId;
-
-					const bool replaced = plan.railing && request.replaceRailings && wall.brush != plan.railing;
-					const uint16_t railing = replaced ? findWallItem(plan.railing, wall) : 0;
-					if (railing != 0) {
-						++plan.railingsChanged;
-						plan.changes.push_back({ wall.position, wall.itemId, railing });
-						changedFloors.insert(wall.position.z);
-					}
-				}
-				continue;
-			}
-
-			if (request.sources.count(wall.brush) == 0 || (wall.shared && !request.includeShared) || wall.brush == request.target) {
+			if (request.excluded.contains(wall.position)) {
 				continue;
 			}
 
 			uint16_t replacement = 0;
-			if (wall.opening == WALL_UNDEFINED) {
+			if (wall.low != lowTarget) {
+				replacement = wall.low ? planRailing(request, wall, plan) : 0;
+			} else if (!request.sources.contains(wall.brush) || (wall.shared && !request.includeShared) || wall.brush == request.target) {
+				continue;
+			} else if (wall.opening != WALL_UNDEFINED) {
+				replacement = planOpening(request, wall, groups, plan);
+			} else {
 				replacement = findWallItem(request.target, wall);
 				if (replacement == 0) {
 					plan.problem = wxString::Format("This style has no piece for a wall shape used on floor %d.", wall.position.z);
@@ -1166,42 +1233,12 @@ WallReplacementPlan planWallReplacement(const BuildingScan &scan, const WallRepl
 					return plan;
 				}
 				++plan.wallCount;
-			} else {
-				OpeningGroup &group = groups[wall.opening];
-				group.type = wall.opening;
-				++group.count;
-
-				replacement = findOpeningItem(request.target, wall, wall.opening);
-				if (replacement == 0) {
-					group.missing = true;
-					++plan.missingOpenings;
-
-					for (::DoorType alternative : getOpeningAlternatives(wall.opening)) {
-						if (group.closestType == WALL_UNDEFINED && findOpeningItem(request.target, wall, alternative) != 0) {
-							group.closestType = alternative;
-						}
-					}
-
-					const auto choice = request.openingActions.find(wall.opening);
-					const OpeningAction action = choice != request.openingActions.end() ? choice->second : OpeningAction::KeepCurrent;
-					if (action == OpeningAction::UseClosest && group.closestType != WALL_UNDEFINED) {
-						replacement = findOpeningItem(request.target, wall, group.closestType);
-					} else if (action == OpeningAction::ReplaceWithWall) {
-						replacement = findWallItem(request.target, wall);
-					}
-				}
-
-				group.sampleItem = replacement != 0 ? replacement : wall.itemId;
-				if (replacement == 0) {
-					continue;
-				}
-
-				size_t &count = isWindow(wall.opening) ? plan.windowCount : plan.doorCount;
-				++count;
 			}
 
-			plan.changes.push_back({ wall.position, wall.itemId, replacement });
-			changedFloors.insert(wall.position.z);
+			if (replacement != 0) {
+				plan.changes.push_back({ wall.position, wall.itemId, replacement });
+				changedFloors.insert(wall.position.z);
+			}
 		}
 	}
 

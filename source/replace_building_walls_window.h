@@ -118,6 +118,8 @@ private:
 	void refreshStyles();
 	void refreshPlan();
 	void updateLitTiles(const WallReplacementRequest &request);
+	std::vector<OpeningGroup> collectOpenings() const;
+	void updateOpeningRow(OpeningRow &row, const OpeningGroup &group);
 	void updateOpenings();
 	void updateRailings();
 	void updateSummary();
