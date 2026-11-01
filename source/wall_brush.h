@@ -54,6 +54,21 @@ public:
 	// If the specified wall item is part of this wall
 	bool hasWall(Item* item);
 	::DoorType getDoorTypeFromID(uint16_t id);
+	// The items of this wall for a shape or a door type, 0 if there is none
+	// The seed picks among the variations of a shape with the chances of the brush
+	uint16_t getWallItemID(::BorderType alignment, uint32_t seed) const;
+	uint16_t getDoorItemID(::BorderType alignment, ::DoorType doorType, bool open) const;
+
+	// The railing made of the same material as this wall, when there is one
+	WallBrush* getRailing() const noexcept {
+		return railing;
+	}
+	// If a wall brush names this one as its railing
+	bool isRailing() const noexcept {
+		return railingOfWall;
+	}
+	// The basic shape a wall takes when a brush has no piece for this one
+	static ::BorderType getSimplifiedAlignment(::BorderType alignment);
 
 	virtual bool canSmear() const {
 		return false;
@@ -81,6 +96,8 @@ protected:
 	std::vector<DoorType> door_items[17];
 
 	WallBrush* redirect_to;
+	WallBrush* railing;
+	bool railingOfWall;
 
 	friend class DoorBrush;
 
