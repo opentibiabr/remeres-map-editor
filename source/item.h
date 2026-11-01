@@ -279,7 +279,7 @@ public:
 		return getItemType().isHangable;
 	}
 	bool isRoteable() const {
-		return getItemType().rotable && getItemType().rotateTo;
+		return getItemType().rotateTo != 0;
 	}
 	bool hasCharges() const {
 		return getItemType().charges != 0;
