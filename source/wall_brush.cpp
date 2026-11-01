@@ -25,7 +25,9 @@ uint32_t WallBrush::full_border_types[16];
 uint32_t WallBrush::half_border_types[16];
 
 WallBrush::WallBrush() :
-	redirect_to(nullptr) {
+	redirect_to(nullptr),
+	railing(nullptr),
+	railingOfWall(false) {
 	////
 }
 
@@ -218,6 +220,15 @@ bool WallBrush::load(pugi::xml_node node, wxArrayString &warnings) {
 						door_items[alignment].push_back(dt);
 					}
 				}
+			}
+		} else if (childName == "railing") {
+			const std::string &name = childNode.attribute("name").as_string();
+			Brush* brush = g_brushes.getBrush(name);
+			if (brush && brush->isWall()) {
+				railing = brush->asWall();
+				railing->railingOfWall = true;
+			} else {
+				warnings.push_back("Wall brush railing: '" + wxstr(name) + "' is not a wall brush.");
 			}
 		} else if (childName == "friend") {
 			const std::string &name = childNode.attribute("name").as_string();
@@ -643,14 +654,60 @@ bool WallBrush::hasWall(Item* item) {
 }
 
 ::DoorType WallBrush::getDoorTypeFromID(uint16_t id) {
-	for (int index = 0; index < 16; ++index) {
-		for (std::vector<DoorType>::const_iterator iter = door_items[index].begin(); iter != door_items[index].end(); ++iter) {
-			if (iter->id == id) {
-				return iter->type;
+	WallBrush* test_wall = this;
+	do {
+		for (int index = 0; index < 17; ++index) {
+			for (std::vector<DoorType>::const_iterator iter = test_wall->door_items[index].begin(); iter != test_wall->door_items[index].end(); ++iter) {
+				if (iter->id == id) {
+					return iter->type;
+				}
 			}
 		}
-	}
+		test_wall = test_wall->redirect_to;
+	} while (test_wall && test_wall != this);
 	return WALL_UNDEFINED;
+}
+
+uint16_t WallBrush::getWallItemID(::BorderType alignment, uint32_t seed) const {
+	const WallBrush* test_wall = this;
+	do {
+		const WallNode &node = test_wall->wall_items[int(alignment)];
+		if (!node.items.empty()) {
+			if (node.total_chance > 0) {
+				const int chance = static_cast<int>(seed % static_cast<uint32_t>(node.total_chance)) + 1;
+				for (const WallType &type : node.items) {
+					if (chance <= type.chance) {
+						return type.id;
+					}
+				}
+			}
+			return node.items.front().id;
+		}
+		test_wall = test_wall->redirect_to;
+	} while (test_wall && test_wall != this);
+	return 0;
+}
+
+::BorderType WallBrush::getSimplifiedAlignment(::BorderType alignment) {
+	for (int tiledata = 0; tiledata < 16; ++tiledata) {
+		if (full_border_types[tiledata] == static_cast<uint32_t>(alignment)) {
+			return ::BorderType(half_border_types[tiledata]);
+		}
+	}
+	return alignment;
+}
+
+uint16_t WallBrush::getDoorItemID(::BorderType alignment, ::DoorType doorType, bool open) const {
+	const WallBrush* test_wall = this;
+	do {
+		for (const DoorType &door : test_wall->door_items[int(alignment)]) {
+			if (door.type == doorType && g_items.getItemType(door.id).isOpen == open) {
+				return door.id;
+			}
+		}
+		test_wall = test_wall->redirect_to;
+	} while (test_wall && test_wall != this);
+	return 0;
 }
 
 //=============================================================================

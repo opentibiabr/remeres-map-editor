@@ -1,5 +1,6 @@
 <materials>
 	<brush name="stone wall" type="wall" server_lookid="1295">
+		<railing name="stone railing"/>
 		<wall type="horizontal">
 			<item id="1295" chance="500"/>
 			<item id="1297" chance="0"/> -- This needs to be here for backwards compability --
@@ -185,6 +186,7 @@
 	</brush>
 
 	<brush name="egypt wall" type="wall" server_lookid="1306">
+		<railing name="sandstone railing"/>
 		<wall type="horizontal">
 			<item id="1306" chance="1"/>
 			<item id="1308" chance="0"/>
@@ -231,6 +233,7 @@
 	</brush>
 
 	<brush name="egypt stone wall" type="wall" server_lookid="1346">
+		<railing name="sandy stone railing"/>
 		<wall type="horizontal">
 			<item id="1346" chance="1"/>
 			<item id="1348" chance="0"/>
@@ -357,6 +360,7 @@
 	</brush>
 
 	<brush name="marble wall" type="wall" server_lookid="1357">
+		<railing name="white blocks railing"/>
 		<wall type="horizontal">
 			<item id="1357" chance="4"/>
 
@@ -458,6 +462,7 @@
 	</brush>
 
 	<brush name="rock wall" type="wall" server_lookid="1113">
+		<railing name="stony railing"/>
 		<wall type="horizontal">
 			<item id="1113" chance="500"/>
 			<item id="1115" chance="0"/> -- This needs to be here for backwards compability --
@@ -847,6 +852,7 @@
 	</brush>
 	
 	<brush name="stone wall2" type="wall" server_lookid="1547">
+		<railing name="stone railing2"/>
 		<wall type="horizontal">
 			<item id="1547" chance="1"/>
 			<door id="1560" type="window"/>
@@ -864,6 +870,7 @@
 	</brush>
 	
 	<brush name="metal wall" type="wall" server_lookid="1335">
+		<railing name="steel bars"/>
 		<wall type="horizontal">
 			<item id="1335" chance="1"/>
 		</wall>
@@ -909,6 +916,7 @@
 	</brush>
 	
 	<brush name="bamboo wall" type="wall" server_lookid="1513">
+		<railing name="bamboo palisade"/>
 		<wall type="horizontal">
 			<item id="1513" chance="1"/>
 			<door id="1682" type="normal" open="false"/>
@@ -967,6 +975,7 @@
 	</brush>
 	
 	<brush name="palisade" type="wall" server_lookid="1598">
+		<railing name="palisade railing"/>
 		<wall type="horizontal">
 			<item id="1598" chance="1"/>
 		</wall>
@@ -982,6 +991,7 @@
 	</brush>
 	
 	<brush name="bone wall" type="wall" server_lookid="6395">
+		<railing name="bone railing"/>
 		<wall type="horizontal">
 			<item id="6395" chance="10"/>
 			<item id="6420" chance="10"/>
@@ -1001,6 +1011,7 @@
 	</brush>
 	
 	<brush name="frozen wall" type="wall" server_lookid="6740">
+		<railing name="snow elf railing"/>
 		<wall type="horizontal">
 			<item id="6740" chance="1"/>
 			<door id="7033" type="normal" open="false"/>
@@ -1069,6 +1080,7 @@
 	</brush>
 	
 	<brush name="stone wall3" type="wall" server_lookid="8202">
+		<railing name="stone railing3"/>
 		<wall type="horizontal">
 			<item id="8202" chance="1"/>
 			<door id="8252" type="normal" open="false"/>
@@ -1104,6 +1116,7 @@
 	</brush>
 	
 	<brush name="iron wall" type="wall" server_lookid="8294">
+		<railing name="steel rebar"/>
 		<wall type="horizontal">
 			<item id="8294" chance="10"/>
 			<item id="8295" chance="5"/>
@@ -1162,6 +1175,7 @@
 	</brush>
 	
 	<brush name="limestone wall" type="wall" server_lookid="9260">
+		<railing name="limestone railing"/>
 		<wall type="horizontal">
 			<item id="9260" chance="1"/>
 			<door id="9551" type="normal" open="false"/>
@@ -1298,6 +1312,7 @@
 	</brush>
 	
 	<brush name="blue palisade" type="wall" server_lookid="11556">
+		<railing name="blue palisade railing"/>
 		<wall type="horizontal">
 			<item id="11556" chance="10"/>
 			<item id="11555" chance="4"/>
@@ -1334,6 +1349,7 @@
 	</brush>
 	
 	<brush name="timber wall" type="wall" server_lookid="10589">
+		<railing name="timber railing"/>
 		<wall type="horizontal">
 			<item id="10589" chance="1"/>
 			<door id="11714" type="normal" open="false"/>
@@ -1359,6 +1375,7 @@
 	</brush>
 	
 	<brush name="light desert wall" type="wall" server_lookid="11860">
+		<railing name="sandstone railing"/>
 		<wall type="horizontal">
 			<item id="11860" chance="1"/>
 		</wall>
@@ -1389,6 +1406,7 @@
 	</brush>
 	
 	<brush name="rocky wall" type="wall" server_lookid="12388">
+		<railing name="rocky railing"/>
 		<wall type="horizontal">
 			<item id="12388" chance="1"/>
 		</wall>
@@ -1419,6 +1437,7 @@
 	</brush>
 	
 	<brush name="icy bones" type="wall" server_lookid="15722">
+		<railing name="icy bone railing"/>
 		<wall type="horizontal">
 			<item id="15722" chance="10"/>
 			<item id="15723" chance="2"/>
@@ -1599,6 +1618,7 @@
 	</brush>
 	
 	<brush name="roshamuul wall" type="wall" server_lookid="19456">
+		<railing name="roshamuul railing"/>
 		<wall type="horizontal">
 			<item id="19456" chance="1"/>
 			<door id="19462" type="window"/>
@@ -1616,6 +1636,7 @@
 	</brush>
 	
 	<brush name="oramond wall" type="wall" server_lookid="20397">
+		<railing name="oramond railing1"/>
 		<wall type="horizontal">
 			<item id="20397" chance="10"/>
 			<item id="20394" chance="2"/>
@@ -1639,6 +1660,7 @@
 	</brush>
 	
 	<brush name="oramond wall2" type="wall" server_lookid="20576">
+		<railing name="oramond railing2"/>
 		<wall type="horizontal">
 			<item id="20576" chance="10"/>
 			<item id="20577" chance="2"/>
@@ -1858,6 +1880,7 @@
 	</brush>
 	
 	<brush name="corrupted wall1" type="wall" server_lookid="10878">
+		<railing name="corrupted railing1"/>
 		<wall type="horizontal">
 			<item id="10878" chance="10"/>
 			<item id="10891" chance="4"/>
@@ -1895,6 +1918,7 @@
 	</brush>
 	
 	<brush name="corrupted wall2" type="wall" server_lookid="10982">
+		<railing name="corrupted railing2"/>
 		<wall type="horizontal">
 			<item id="10982" chance="1"/>
 			<door id="11232" type="normal" open="false"/>
@@ -1972,6 +1996,7 @@
 	</brush>
 	
 	<brush name="white stone wall" type="wall" server_lookid="33098">
+		<railing name="white stone railing"/>
 		<wall type="horizontal">
 			<item id="33098" chance="10"/>
 			<door id="33121" type="normal" open="true"/>
@@ -2233,6 +2258,7 @@
 	</brush>
 	
 	<brush name="heavy stones wall" type="wall" server_lookid="30736">
+		<railing name="heavy stones railing"/>
 		<wall type="horizontal">
 			<item id="30736" chance="10"/>
 			<item id="30737" chance="10"/>
@@ -2387,6 +2413,7 @@
 	</brush>
 	
 	<brush name="grass stone wall" type="wall" server_lookid="27037">
+		<railing name="mossy railing"/>
 		<wall type="horizontal">
 			<item id="27037" chance="10"/>
 			<door id="27050" type="normal" open="true"/>
@@ -2404,6 +2431,7 @@
 	</brush>
 	
 	<brush name="monument wall" type="wall" server_lookid="23817">
+		<railing name="monument railing"/>
 		<wall type="horizontal">
 			<item id="23817" chance="10"/>
 			<door id="23873" type="normal" open="false"/>
