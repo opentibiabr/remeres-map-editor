@@ -92,6 +92,22 @@
 			<brush name="slate floor 2"/>
 			<brush name="tessellated floor"/>
 			<brush name="stone dark floor simbols"/>
+			<brush name="dark brick pavement"/>
+			<brush name="wooden stake floor"/>
+			<brush name="veined white marble floor"/>
+			<brush name="teal stone floor"/>
+			<brush name="green stone floor"/>
+			<brush name="eldritch floor"/>
+			<brush name="hardened eldritch floor"/>
+			<brush name="cracked beige stone floor"/>
+			<brush name="overgrown beige stone floor"/>
+			<brush name="flooded stone floor"/>
+			<brush name="overgrown flagstone"/>
+			<brush name="dark slate rock"/>
+			<brush name="ornate blue tile"/>
+			<brush name="rooted dark rock"/>
+			<brush name="slate cobbles"/>
+			<brush name="dark floor"/>
 		</terrain>
 		<!-- Raw -->
 		<raw>
