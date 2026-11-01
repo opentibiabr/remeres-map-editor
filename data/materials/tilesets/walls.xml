@@ -95,6 +95,8 @@
 			<brush name="stone covered with purple"/>
 			<brush name="ornamented wall"/>
 			<brush name="new frozen wall"/>
+			<brush name="moist wall"/>
+			<brush name="sandy rock wall"/>
 		</terrain>
 		<!-- Raw -->
 		<raw>
