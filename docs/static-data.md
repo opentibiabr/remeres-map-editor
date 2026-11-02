@@ -110,7 +110,7 @@ Map data contains Cyclopedia map bounds and asset descriptors:
   - `heightsquare`
   - `scale`
 
-The exporter scans floors `0..7` and emits minimap and satellite chunks for each floor that contains visible tile data. `SUBAREA` entries come from the template mapdata and are kept for client compatibility.
+The exporter scans floors `0..15`, including underground floors, and emits minimap and satellite chunks only for floors and chunks that contain visible tile data. The upper floor limit follows `rme::MapMaxLayer`; empty floors do not create assets. `SUBAREA` entries come from the template mapdata and are kept for client compatibility.
 
 Current emitted scales:
 
@@ -119,6 +119,19 @@ Current emitted scales:
 - `1/16` with `256` square chunks and `2.0` pixels per square.
 
 The same scale set is emitted for both minimap and satellite assets.
+
+### Map asset origin projection
+
+Generated `MINIMAP` and `SATELLITE` descriptors store their `topleft` coordinates in the ground-floor projection:
+
+- `floorOffset = 7 - floor`
+- `topleft.posx = worldChunkStartX + floorOffset`
+- `topleft.posy = worldChunkStartY + floorOffset`
+- `topleft.posz = floor`
+
+The client recovers the bitmap's world origin by subtracting `7 - floor` from both coordinates. For example, a chunk starting at world `(100, 100)` stores `(99, 99, 8)` on floor `8` and `(92, 92, 15)` on floor `15`. Bitmap sampling, global map bounds, and chunk filenames retain world coordinates. Template `SUBAREA` descriptors are preserved as supplied.
+
+Projected origins must remain within the client's unsigned 16-bit coordinate range `0..65535`. An origin outside that range rejects the export during planning with a diagnostic, before rendering or encoding chunks and before replacing assets or catalog entries. Clamping the origin would move the bitmap relative to its tiles. For example, world coordinate `0` on floor `8` is rejected because its projected origin is `-1`; coordinate `8` on floor `15` projects to `0` and is valid. Normal RME map coordinates are limited to `65000`, below the upper projection boundary.
 
 ## 4. CIP Serialization Semantics
 
@@ -158,12 +171,14 @@ Static house export:
 Cyclopedia map export:
 
 1. load the existing `map` template when available.
-2. scan map bounds across floors `0..7`.
+2. scan map bounds across floors `0..15`, including underground tile data.
 3. render minimap chunks from tile minimap colors.
 4. render satellite chunks for Surface View from the actual tile sprite stack, with minimap colors used only as fallback terrain.
 5. write each chunk as BMP bytes inside the CIP LZMA asset container.
 6. merge compatible template `mapdata` fields.
 7. write hash-named `map-<sha256>.dat`, write referenced assets, and update `catalog-content.json`.
+
+Existing exports limited to floors `0..7` must be regenerated to provide underground minimap and satellite layers. The exporter supplies the same floor and chunk coordinates for both asset types; discovery and darkening are client rendering behavior.
 
 Compatibility details currently applied:
 
@@ -234,6 +249,15 @@ Current exporter protections:
 
 ## 8. Validation Checklist
 
+A non-build source-contract check can be run from the repository root:
+
+```sh
+python scripts/tests/cyclopedia_floor_contract_test.py
+python scripts/tests/cyclopedia_origin_contract_test.py
+```
+
+These check the floor range, shared planning and bounds, sparse floor jobs, paired asset scales and floor metadata, and the origin projection round trip and coordinate boundaries. The origin check interprets constrained arithmetic extracted from the source and checks serializer wiring. Neither check compiles C++, validates rendered images, or executes an export.
+
 1. verify final data file hashes.
 
 ```sh
@@ -271,6 +295,8 @@ sha256sum assets/map-<hash>.dat
 - `heightsquare`
 - generated chunk filename
 - BMP dimensions after LZMA decode
+
+8. on a map with underground tiles, verify that floor `8` and the deepest occupied floor have `MINIMAP` and `SATELLITE` descriptors at all three scales. Confirm that floors without tile data have no generated chunks, that underground coordinates are included in map bounds, and that existing template `SUBAREA` assets remain referenced.
 
 ## 9. Regression Prevention Rules
 
