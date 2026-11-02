@@ -350,6 +350,11 @@ void Settings::IO(IOMode mode) {
 	String(MONSTERS_LUA_DIRECTORY, "");
 	String(NPCS_LUA_DIRECTORY, "");
 
+	section("MCP");
+	Int(MCP_ENABLED, 0);
+	Int(MCP_PORT, 7331);
+	Int(MCP_ALLOW_WRITE, 0);
+
 	section("");
 	Int(GOTO_WEBSITE_ON_BOOT, 0);
 	Int(USE_UPDATER, 1);

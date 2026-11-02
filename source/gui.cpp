@@ -42,6 +42,7 @@
 #include "spawn_npc_brush.h"
 #include "actions_history_window.h"
 #include "lua/lua_scripts_window.h"
+#include "mcp/mcp_window.h"
 #include "sprite_appearances.h"
 #include "preferences.h"
 
@@ -926,6 +927,17 @@ LuaScriptsWindow* GUI::ShowScriptManagerWindow() {
 	aui_manager->Update();
 	script_manager_window->RefreshScriptList();
 	return script_manager_window;
+}
+
+McpWindow* GUI::ShowMcpWindow() {
+	if (!mcp_window) {
+		mcp_window = newd McpWindow(root);
+		aui_manager->AddPane(mcp_window, wxAuiPaneInfo().Caption("MCP Server").Right().Layer(1).CloseButton(true).MinSize(300, 240).BestSize(420, 340));
+	} else {
+		aui_manager->GetPane(mcp_window).Show();
+	}
+	aui_manager->Update();
+	return mcp_window;
 }
 
 //=============================================================================

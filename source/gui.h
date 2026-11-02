@@ -65,6 +65,7 @@ class SearchResultWindow;
 class MinimapWindow;
 class ActionsHistoryWindow;
 class LuaScriptsWindow;
+class McpWindow;
 class PaletteWindow;
 class OldPropertiesWindow;
 class TilesetWindow;
@@ -257,6 +258,8 @@ public:
 
 	LuaScriptsWindow* ShowScriptManagerWindow();
 
+	McpWindow* ShowMcpWindow();
+
 	// Minimap
 	void CreateMinimap();
 	void HideMinimap();
@@ -441,6 +444,7 @@ public:
 	SearchResultWindow* search_result_window;
 	ActionsHistoryWindow* actions_history_window;
 	LuaScriptsWindow* script_manager_window;
+	McpWindow* mcp_window = nullptr;
 	GraphicManager gfx;
 
 	BaseMap* secondary_map; // A buffer map
