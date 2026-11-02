@@ -65,13 +65,16 @@ class SearchResultWindow;
 class MinimapWindow;
 class ActionsHistoryWindow;
 class LuaScriptsWindow;
+class McpWindow;
+class CollabWindow;
+namespace collab {
+	struct Snapshot;
+}
 class PaletteWindow;
 class OldPropertiesWindow;
 class TilesetWindow;
 class EditTownsDialog;
 class ItemButton;
-
-class LiveSocket;
 
 extern const wxEventType EVT_UPDATE_MENUS;
 extern const wxEventType EVT_UPDATE_ACTIONS;
@@ -257,6 +260,9 @@ public:
 
 	LuaScriptsWindow* ShowScriptManagerWindow();
 
+	McpWindow* ShowMcpWindow();
+	CollabWindow* ShowCollabWindow();
+
 	// Minimap
 	void CreateMinimap();
 	void HideMinimap();
@@ -372,9 +378,14 @@ public:
 	Editor* GetCurrentEditor();
 	MapTab* GetCurrentMapTab() const;
 	void CycleTab(bool forward = true);
-	bool CloseLiveEditors(LiveSocket* sock);
 	bool CloseAllEditors();
 	void NewMapView();
+	// Opens a map received from a collaboration host. Returns the new editor or nullptr.
+	Editor* OpenCollabEditor(const collab::Snapshot &snapshot, bool protectedCopy);
+	// Same, for a resync: keeps the camera of the editor being replaced (that one is closed by the caller).
+	Editor* ReplaceCollabEditor(Editor* old, const collab::Snapshot &snapshot, bool protectedCopy);
+	// Closes every tab of this editor without asking to save.
+	void CloseEditorTabs(Editor* editor);
 
 	// Map
 	Map &GetCurrentMap();
@@ -441,6 +452,8 @@ public:
 	SearchResultWindow* search_result_window;
 	ActionsHistoryWindow* actions_history_window;
 	LuaScriptsWindow* script_manager_window;
+	McpWindow* mcp_window = nullptr;
+	CollabWindow* collab_window = nullptr;
 	GraphicManager gfx;
 
 	BaseMap* secondary_map; // A buffer map

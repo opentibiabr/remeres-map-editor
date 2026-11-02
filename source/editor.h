@@ -28,21 +28,17 @@
 
 class BaseMap;
 class CopyBuffer;
-class LiveClient;
-class LiveServer;
-class LiveSocket;
+namespace collab {
+	struct Snapshot;
+}
 
 class Editor {
 public:
-	Editor(CopyBuffer &copybuffer, LiveClient* client);
 	Editor(CopyBuffer &copybuffer, const FileName &fn);
+	// A map received from a collaboration host (see collab_snapshot.h).
+	Editor(CopyBuffer &copybuffer, const collab::Snapshot &snapshot);
 	Editor(CopyBuffer &copybuffer);
 	~Editor();
-
-protected:
-	// Live Server
-	LiveServer* live_server;
-	LiveClient* live_client;
 
 public:
 	// Public members
@@ -50,27 +46,18 @@ public:
 	GroundBrush* replace_brush;
 
 public: // Functions
-	// Live Server handling
-	LiveClient* GetLiveClient() const;
-	LiveServer* GetLiveServer() const;
-	LiveSocket &GetLive() const;
-	bool CanEdit() const noexcept {
-		return true;
+	// False for Viewers of a collaboration session.
+	bool CanEdit() const;
+	bool IsCollabClient() const noexcept {
+		return collab_client;
 	}
-	bool IsLocal() const;
-	bool IsLive() const;
-	bool IsLiveServer() const;
-	bool IsLiveClient() const;
-
-	// Server side
-	LiveServer* StartLiveServer();
-	void CloseLiveServer();
-	void BroadcastNodes(DirtyList &dirty_list);
-
-	// Client side
-	void QueryNode(int ndx, int ndy, bool underground);
-	void SendNodeRequests();
-
+	bool IsProtectedCopy() const noexcept {
+		return map.protectedCopy;
+	}
+	void SetCollabClient(bool client, bool protectedCopy) noexcept {
+		collab_client = client;
+		map.protectedCopy = client && protectedCopy;
+	}
 	bool hasChanges() const;
 	void clearChanges();
 
@@ -165,6 +152,7 @@ protected:
 
 private:
 	friend class MapCanvas;
+	bool collab_client = false;
 	Map map;
 	Selection selection;
 	ActionQueue* actionQueue;

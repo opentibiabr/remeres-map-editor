@@ -24,6 +24,7 @@
 #include "gui.h"
 #include "map_display.h"
 #include "minimap_window.h"
+#include "collab/collab_session.h"
 
 BEGIN_EVENT_TABLE(MinimapWindow, wxPanel)
 EVT_LEFT_DOWN(MinimapWindow::OnMouseClick)
@@ -171,6 +172,19 @@ void MinimapWindow::OnPaint(wxPaintEvent &event) {
 				pdc.DrawPoint(view_start_x - start_x, y - start_y);
 				pdc.DrawPoint(view_end_x - start_x, y - start_y);
 			}
+		}
+
+		// The other participants of a collaboration session: a square in their color where their camera is.
+		const collab::Session &session = collab::Session::get();
+		for (const auto &entry : session.views()) {
+			const auto user = session.users().find(entry.first);
+			if (user == session.users().end() || entry.second.z != floor) {
+				continue;
+			}
+			const wxColour colour((user->second.color >> 16) & 0xFF, (user->second.color >> 8) & 0xFF, user->second.color & 0xFF);
+			pdc.SetPen(wxPen(*wxBLACK, 1));
+			pdc.SetBrush(wxBrush(colour));
+			pdc.DrawRectangle(entry.second.x - start_x - 2, entry.second.y - start_y - 2, 5, 5);
 		}
 	}
 }

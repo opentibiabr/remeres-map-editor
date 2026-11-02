@@ -214,6 +214,7 @@ void Settings::IO(IOMode mode) {
 	Int(SHOW_HOUSES, 1);
 	Int(SHOW_BLOCKING, 0);
 	Int(SHOW_TOOLTIPS, 1);
+	Int(SHOW_COMMENTS, 1);
 	Int(SHOW_PERFORMANCE_STATS, 0);
 	Int(SHOW_ONLY_TILEFLAGS, 0);
 	Int(SHOW_ONLY_MODIFIED_TILES, 0);
@@ -349,6 +350,26 @@ void Settings::IO(IOMode mode) {
 	section("Creatures");
 	String(MONSTERS_LUA_DIRECTORY, "");
 	String(NPCS_LUA_DIRECTORY, "");
+
+	section("MCP");
+	Int(MCP_ENABLED, 0);
+	Int(MCP_PORT, 7331);
+	Int(MCP_ALLOW_WRITE, 0);
+
+	section("COLLAB");
+	String(COLLAB_USER_NAME, "");
+	Int(COLLAB_PORT, 31313);
+	String(COLLAB_LAST_ADDRESS, "localhost");
+	Int(COLLAB_DEFAULT_ROLE, 2); // collab::Role::Editor
+	Int(COLLAB_SHOW_CURSORS, 1);
+	Int(COLLAB_SHOW_NAMES, 1);
+	Int(COLLAB_SHARE_MAP, 0);
+	Int(COLLAB_SAVE_ON_PARTICIPANTS, 0);
+	Int(COLLAB_CHAT_SOUND, 1);
+	Int(COLLAB_AUTOSAVE_MINUTES, 0);
+	Int(COLLAB_PERM_META, 1);
+	Int(COLLAB_PERM_PROPS, 1);
+	Int(COLLAB_PERM_SPAWNS, 1);
 
 	section("");
 	Int(GOTO_WEBSITE_ON_BOOT, 0);

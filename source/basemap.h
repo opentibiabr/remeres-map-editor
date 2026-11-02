@@ -132,9 +132,6 @@ public:
 	Tile* swapTile(int x, int y, int z, Tile* new_tile);
 	Tile* swapTile(const Position &position, Tile* new_tile);
 
-	// Clears the visiblity according to the mask passed
-	void clearVisible(uint32_t mask);
-
 	uint64_t getTileCount() const noexcept {
 		return tilecount;
 	}

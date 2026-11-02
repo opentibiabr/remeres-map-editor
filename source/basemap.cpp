@@ -44,10 +44,6 @@ void BaseMap::clear(bool del) {
 	}
 }
 
-void BaseMap::clearVisible(uint32_t mask) {
-	root.clearVisible(mask);
-}
-
 Tile* BaseMap::createTile(int x, int y, int z) {
 	ASSERT(z < rme::MapLayers);
 	QTreeNode* leaf = root.getLeafForce(x, y);

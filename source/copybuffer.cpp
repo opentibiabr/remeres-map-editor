@@ -52,6 +52,10 @@ void CopyBuffer::clear() {
 }
 
 void CopyBuffer::copy(Editor &editor, int floor) {
+	if (editor.IsProtectedCopy()) {
+		g_gui.SetStatusText("This map is a protected collaboration copy: copying is disabled.");
+		return;
+	}
 	if (!editor.hasSelection()) {
 		g_gui.SetStatusText("No tiles to copy.");
 		return;
@@ -125,6 +129,10 @@ void CopyBuffer::copy(Editor &editor, int floor) {
 }
 
 void CopyBuffer::cut(Editor &editor, int floor) {
+	if (editor.IsProtectedCopy()) {
+		g_gui.SetStatusText("This map is a protected collaboration copy: cutting is disabled.");
+		return;
+	}
 	if (!editor.hasSelection()) {
 		g_gui.SetStatusText("No tiles to cut.");
 		return;

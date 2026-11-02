@@ -145,7 +145,8 @@ jobs:
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
         with:
-          vcpkgDirectory: ${{ matrix.type == 'Solution' && format('{0}/vcpkg', github.workspace) || '' }}
+          # short path: libsodium's deepest source files exceed MAX_PATH under run-vcpkg's default GUID directory
+          vcpkgDirectory: ${{ format('{0}/vcpkg', github.workspace) }}
           vcpkgGitURL: "https://github.com/microsoft/vcpkg.git"
           vcpkgGitCommitId: ${{ env.VCPKG_GIT_COMMIT_ID }}
 

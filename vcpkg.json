@@ -12,6 +12,7 @@
     "opengl",
     "protobuf",
     "liblzma",
+    "libsodium",
     "spdlog",
     "lua",
     "sol2",

@@ -125,6 +125,7 @@ namespace MenuBar {
 		SHOW_HOUSES,
 		SHOW_PATHING,
 		SHOW_TOOLTIPS,
+		SHOW_COMMENTS,
 		SHOW_PREVIEW,
 		SHOW_WALL_HOOKS,
 		SHOW_PICKUPABLES,
@@ -132,12 +133,17 @@ namespace MenuBar {
 		SHOW_AVOIDABLES,
 		WIN_MINIMAP,
 		WIN_ACTIONS_HISTORY,
+		WIN_MCP,
+		WIN_COLLAB,
+		COLLAB_HOST,
+		COLLAB_JOIN,
+		COLLAB_LEAVE,
+		COLLAB_ADD_COMMENT,
+		COLLAB_SHOW_CURSORS,
+		COLLAB_SHOW_NAMES,
 		WIN_SQLITE_MATERIALS_INSPECTOR,
 		NEW_PALETTE,
 		TAKE_SCREENSHOT,
-		LIVE_START,
-		LIVE_JOIN,
-		LIVE_CLOSE,
 		SELECT_TERRAIN,
 		SELECT_DOODAD,
 		SELECT_ITEM,
@@ -292,13 +298,15 @@ public:
 	void OnChangeViewSettings(wxCommandEvent &event);
 
 	// Network menu
-	void OnStartLive(wxCommandEvent &event);
-	void OnJoinLive(wxCommandEvent &event);
-	void OnCloseLive(wxCommandEvent &event);
 
 	// Window Menu
 	void OnMinimapWindow(wxCommandEvent &event);
 	void OnActionsHistoryWindow(wxCommandEvent &event);
+	void OnMcpWindow(wxCommandEvent &event);
+	void OnCollabWindow(wxCommandEvent &event);
+	void OnCollabSession(wxCommandEvent &event);
+	void OnCollabAddComment(wxCommandEvent &event);
+	void OnCollabToggle(wxCommandEvent &event);
 	void OnSQLiteMaterialsInspector(wxCommandEvent &event);
 	void OnNewPalette(wxCommandEvent &event);
 	void OnTakeScreenshot(wxCommandEvent &event);

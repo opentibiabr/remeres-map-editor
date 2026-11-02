@@ -143,6 +143,18 @@ public:
 
 	static bool getVersionInfo(const FileName &identifier, MapVersion &out_ver);
 
+	// A whole map as bytes: the OTBM plus the XML side files, as in an .otgz archive.
+	// Empty strings mean "nothing to store". Used by collaboration snapshots.
+	struct MemoryMap {
+		std::string otbm;
+		std::string monsters;
+		std::string npcs;
+		std::string houses;
+		std::string zones;
+	};
+	bool saveMemory(Map &map, MemoryMap &out);
+	bool loadMemory(Map &map, const MemoryMap &in);
+
 	virtual bool loadMap(Map &map, const FileName &identifier);
 	virtual bool saveMap(Map &map, const FileName &identifier);
 	bool saveStaticData(Map &map, const FileName &dir, const std::vector<std::string> &houseNamesFilter = {});

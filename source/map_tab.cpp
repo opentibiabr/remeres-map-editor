@@ -28,6 +28,7 @@
 #include "map_tab.h"
 #include "editor_tabs.h"
 #include "map_display.h"
+#include "collab/collab_session.h"
 
 MapTab::MapTab(MapTabbook* aui, Editor* editor) :
 	EditorTab(),
@@ -61,9 +62,7 @@ MapTab::~MapTab() {
 		iref->editor = nullptr;
 		delete iref;
 
-		if (ed->IsLive()) {
-			ed->CloseLiveServer();
-		}
+		collab::Session::get().onEditorClosing(ed);
 
 		std::thread([ed]() {
 			delete ed;
@@ -93,7 +92,7 @@ MapWindow* MapTab::GetView() const {
 wxString MapTab::GetTitle() const {
 	wxString ss;
 	const Map &map = iref->editor->getMap();
-	ss << wxstr(map.getName()) << (map.hasChanged() ? "*" : "");
+	ss << wxstr(collab::Session::get().titleMark(iref->editor)) << wxstr(map.getName()) << (map.hasChanged() ? "*" : "");
 	return ss;
 }
 

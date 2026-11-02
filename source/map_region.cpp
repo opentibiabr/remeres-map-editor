@@ -93,7 +93,6 @@ Floor::Floor(int sx, int sy, int z) {
 
 QTreeNode::QTreeNode(BaseMap &map) :
 	map(map),
-	visible(0),
 	isLeaf(false) {
 	// Doesn't matter if we're leaf or node
 	for (int i = 0; i < rme::MapLayers; ++i) {
@@ -170,70 +169,6 @@ Floor* QTreeNode::createFloor(int x, int y, int z) {
 		array[z] = newd Floor(x, y, z);
 	}
 	return array[z];
-}
-
-bool QTreeNode::isVisible(bool underground) {
-	return testFlags(visible, underground + 1);
-}
-
-bool QTreeNode::isRequested(bool underground) {
-	if (underground) {
-		return testFlags(visible, 4);
-	} else {
-		return testFlags(visible, 8);
-	}
-}
-
-void QTreeNode::clearVisible(uint32_t u) {
-	if (isLeaf) {
-		visible &= u;
-	} else {
-		for (int i = 0; i < rme::MapLayers; ++i) {
-			if (child[i]) {
-				child[i]->clearVisible(u);
-			}
-		}
-	}
-}
-
-bool QTreeNode::isVisible(uint32_t client, bool underground) {
-	if (underground) {
-		return testFlags(visible >> rme::MapLayers, static_cast<uint64_t>(1) << client);
-	} else {
-		return testFlags(visible, static_cast<uint64_t>(1) << client);
-	}
-}
-
-void QTreeNode::setVisible(bool underground, bool value) {
-	if (underground) {
-		if (value) {
-			visible |= 2;
-		} else {
-			visible &= ~2;
-		}
-	} else { // overground
-		if (value) {
-			visible |= 1;
-		} else {
-			visible &= 1;
-		}
-	}
-}
-
-void QTreeNode::setRequested(bool underground, bool r) {
-	if (r) {
-		visible |= (underground ? 4 : 8);
-	} else {
-		visible &= ~(underground ? 4 : 8);
-	}
-}
-
-void QTreeNode::setVisible(uint32_t client, bool underground, bool value) {
-	if (value) {
-		visible |= (1 << client << (underground ? rme::MapLayers : 0));
-	} else {
-		visible &= ~(1 << client << (underground ? rme::MapLayers : 0));
-	}
 }
 
 TileLocation* QTreeNode::getTile(int x, int y, int z) {
