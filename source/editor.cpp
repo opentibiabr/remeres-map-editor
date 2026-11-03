@@ -24,6 +24,8 @@
 #include "complexitem.h"
 #include "settings.h"
 #include "gui.h"
+#include "result_window.h"
+#include "duplicate_items_policy.h"
 #include "map_display.h"
 #include "brush.h"
 #include "ground_brush.h"
@@ -232,6 +234,44 @@ void Editor::clearChanges() {
 	map.clearChanges();
 }
 
+namespace {
+	// Tells the mapper what the save just wrote twice on the same tile. Nothing is changed in the saved file.
+	void announceDuplicateItems(const DuplicateItems::Report &report) {
+		if (report.empty()) {
+			return;
+		}
+
+		if (!report.listedTiles.empty()) {
+			SearchResultWindow* result = g_gui.ShowSearchWindow();
+			result->Clear();
+			for (const DuplicateItems::TileRef &tile : report.listedTiles) {
+				result->AddPosition("Redundant stacked items", Position(tile.x, tile.y, tile.z));
+			}
+		}
+
+		wxString text;
+		if (report.redundantTiles != 0) {
+			text << wxString::Format("%llu tiles stack %llu repeated copies of an always-on-top item (border, wall, shadow) with the same id. "
+									 "The copies draw nothing new and use up slots of the 10 things a client tile can show.\n"
+									 "Edit > Tools > Remove redundant stacked items removes them and can be undone. Save again afterwards.\n",
+									 static_cast<unsigned long long>(report.redundantTiles), static_cast<unsigned long long>(report.redundantCopies));
+			if (report.redundantTiles > report.listedTiles.size()) {
+				text << wxString::Format("The Search Results list shows the first %zu tiles.\n", report.listedTiles.size());
+			}
+		}
+
+		if (report.repeatedOrdinaryTiles != 0) {
+			if (!text.empty()) {
+				text << "\n";
+			}
+			const auto ordinaryTiles = static_cast<unsigned long long>(report.repeatedOrdinaryTiles);
+			text << wxString::Format("%llu tiles repeat an ordinary item with the same id. They were kept: review them with Edit > Find on Map > Find Duplicated Items.", ordinaryTiles);
+		}
+
+		g_gui.PopupDialog("Duplicated items", text, wxOK);
+	}
+}
+
 void Editor::saveMap(FileName filename, bool showdialog) {
 	std::string savefile = filename.GetFullPath().mb_str(wxConvUTF8).data();
 	bool save_as = false;
@@ -324,6 +364,8 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 		  << backup_spawn_npc << std::endl;
 	}
 
+	DuplicateItems::Report duplicateItems;
+
 	{
 
 		// Set up the Map paths
@@ -338,6 +380,7 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 		// Perform the actual save
 		IOMapOTBM mapsaver(map.getVersion());
 		bool success = mapsaver.saveMap(map, fn);
+		duplicateItems = mapsaver.getDuplicateItemReport();
 
 		if (showdialog) {
 			g_gui.DestroyLoadBar();
@@ -455,6 +498,10 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 	deleteOldBackups(map_path + "backups/");
 
 	clearChanges();
+
+	if (showdialog) {
+		announceDuplicateItems(duplicateItems);
+	}
 }
 
 bool Editor::importMiniMap(FileName filename, int import, int import_x_offset, int import_y_offset, int import_z_offset) {
