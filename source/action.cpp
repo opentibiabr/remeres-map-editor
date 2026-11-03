@@ -706,6 +706,8 @@ wxString ActionQueue::createLabel(ActionIdentifier type) {
 			return "Change Properties";
 		case ACTION_LUA_SCRIPT:
 			return "Lua Script";
+		case ACTION_REMOVE_REDUNDANT_ITEMS:
+			return "Remove Redundant Items";
 		default:
 			return wxEmptyString;
 	}
