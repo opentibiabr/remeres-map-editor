@@ -65,6 +65,7 @@
             <item name="Remove all $unreachable tiles..." action="MAP_REMOVE_UNREACHABLE_TILES" help="Removes all tiles that cannot be reached (or seen) by the player from the map."/>
             <item name="Remove all $duplicated items..." action="REMOVE_ON_MAP_DUPLICATED_ITEMS" help="Removes all items duplicated on map."/>
             <item name="Remove redundant $stacked items..." action="REMOVE_REDUNDANT_ITEMS_ON_MAP" help="Removes repeated copies of an always-on-top item (border, wall, shadow) stacked on the same tile. The last copy stays; items with attributes are never touched. Can be undone."/>
+            <item name="$Warn about repeated stacked items on save" action="DUPLICATE_ITEMS_SAVE_WARNING" help="Shows what the save found stacked twice on the same tile. Turning it off only applies to the current map."/>
             <item name="Remove empty monsters spawns" action="MAP_REMOVE_EMPTY_MONSTERS_SPAWNS" help="Removes all empty monsters spawns from the map."/>
             <item name="Remove empty npcs spawns" action="MAP_REMOVE_EMPTY_NPCS_SPAWNS" help="Removes all empty npcs spawns from the map."/>
             <item name="$Clear Invalid Houses" action="CLEAR_INVALID_HOUSES" help="Clears house tiles not belonging to any house."/>

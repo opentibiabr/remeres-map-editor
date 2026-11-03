@@ -25,7 +25,7 @@
 #include "settings.h"
 #include "gui.h"
 #include "result_window.h"
-#include "duplicate_items_policy.h"
+#include "duplicate_items.h"
 #include "map_display.h"
 #include "brush.h"
 #include "ground_brush.h"
@@ -44,6 +44,8 @@
 #include "live_server.h"
 #include "live_client.h"
 #include "live_action.h"
+
+#include <wx/richmsgdlg.h>
 
 #include <filesystem>
 #include <chrono>
@@ -235,9 +237,17 @@ void Editor::clearChanges() {
 }
 
 namespace {
-	// Tells the mapper what the save just wrote twice on the same tile. Nothing is changed in the saved file.
-	void announceDuplicateItems(const DuplicateItems::Report &report) {
+	// Tells the mapper what the save just wrote twice on the same tile. Nothing is changed in the saved file. A mapper who
+	// switched the warning off for this map gets a line in the status bar instead.
+	void announceDuplicateItems(const DuplicateItems::Report &report, const std::string &mapFile) {
 		if (report.empty()) {
+			return;
+		}
+
+		if (DuplicateItems::isWarningMuted(mapFile)) {
+			const auto redundantTiles = static_cast<unsigned long long>(report.redundantTiles);
+			const auto ordinaryTiles = static_cast<unsigned long long>(report.repeatedOrdinaryTiles);
+			g_gui.SetStatusText(wxString::Format("Duplicated items: %llu tiles stack redundant always-on-top copies, %llu repeat an ordinary item (the save warning is off for this map).", redundantTiles, ordinaryTiles));
 			return;
 		}
 
@@ -268,7 +278,18 @@ namespace {
 			text << wxString::Format("%llu tiles repeat an ordinary item with the same id. They were kept: review them with Edit > Find on Map > Find Duplicated Items.", ordinaryTiles);
 		}
 
-		g_gui.PopupDialog("Duplicated items", text, wxOK);
+		wxRichMessageDialog dialog(g_gui.root, text, "Duplicated items", wxOK | wxICON_INFORMATION);
+		dialog.ShowCheckBox("Do not show this again for this map");
+		dialog.ShowModal();
+		if (!dialog.IsCheckBoxChecked()) {
+			return;
+		}
+
+		if (DuplicateItems::setWarningMuted(mapFile, true)) {
+			g_gui.SetStatusText("Duplicated items warning turned off for this map. Edit > Tools > Warn about repeated stacked items on save turns it back on.");
+		} else {
+			g_gui.SetStatusText("Could not remember this choice: the path of this map cannot be stored.");
+		}
 	}
 }
 
@@ -500,7 +521,7 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 	clearChanges();
 
 	if (showdialog) {
-		announceDuplicateItems(duplicateItems);
+		announceDuplicateItems(duplicateItems, map.filename);
 	}
 }
 

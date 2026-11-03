@@ -20,9 +20,24 @@
 #include "duplicate_items.h"
 
 #include "item.h"
+#include "settings.h"
 #include "tile.h"
 
 namespace DuplicateItems {
+
+	namespace {
+		// The same file always gives the same key: dots are resolved, the path is made absolute and, where the file system
+		// ignores case, lowercased.
+		std::string mapKey(const std::string &mapFile) {
+			if (mapFile.empty()) {
+				return {};
+			}
+
+			wxFileName file(wxstr(mapFile));
+			file.Normalize(wxPATH_NORM_DOTS | wxPATH_NORM_ABSOLUTE | wxPATH_NORM_CASE);
+			return nstr(file.GetFullPath());
+		}
+	}
 
 	ItemFacts factsOf(Item* item) {
 		ItemFacts facts;
@@ -50,6 +65,26 @@ namespace DuplicateItems {
 
 	size_t removeRedundantCopies(Tile &tile) {
 		return eraseRedundantCopies(tile.items, factsOf, [](Item* item) { delete item; });
+	}
+
+	bool isWarningMuted(const std::string &mapFile) {
+		return MutedMaps::contains(g_settings.getString(Config::DUPLICATE_ITEMS_MUTED_MAPS), mapKey(mapFile));
+	}
+
+	bool setWarningMuted(const std::string &mapFile, bool muted) {
+		const std::string key = mapKey(mapFile);
+		const std::string stored = g_settings.getString(Config::DUPLICATE_ITEMS_MUTED_MAPS);
+		const std::string updated = muted ? MutedMaps::add(stored, key) : MutedMaps::remove(stored, key);
+		if (muted && !MutedMaps::contains(updated, key)) {
+			return false;
+		}
+
+		if (updated != stored) {
+			g_settings.setString(Config::DUPLICATE_ITEMS_MUTED_MAPS, updated);
+			// Written now, not at exit, so a crash does not bring the warning back.
+			g_settings.save();
+		}
+		return true;
 	}
 
 }

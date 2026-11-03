@@ -812,6 +812,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(REMOVE_ON_SELECTION_DUPLICATED_ITEMS, wxITEM_NORMAL, OnRemoveForDuplicateItemsOnSelection);
 	MAKE_ACTION(REMOVE_REDUNDANT_ITEMS_ON_MAP, wxITEM_NORMAL, OnRemoveRedundantItemsOnMap);
 	MAKE_ACTION(REMOVE_REDUNDANT_ITEMS_ON_SELECTION, wxITEM_NORMAL, OnRemoveRedundantItemsOnSelection);
+	MAKE_ACTION(DUPLICATE_ITEMS_SAVE_WARNING, wxITEM_CHECK, OnToggleDuplicateItemsSaveWarning);
 
 	MAKE_ACTION(SEARCH_ON_MAP_WALLS_UPON_WALLS, wxITEM_NORMAL, OnSearchForWallsUponWallsOnMap);
 	MAKE_ACTION(SEARCH_ON_SELECTION_WALLS_UPON_WALLS, wxITEM_NORMAL, OnSearchForWallsUponWallsOnSelection);
@@ -1037,6 +1038,10 @@ void MainMenuBar::Update() {
 	EnableItem(REMOVE_ON_SELECTION_DUPLICATED_ITEMS, is_local && has_selection);
 	EnableItem(REMOVE_REDUNDANT_ITEMS_ON_MAP, is_local);
 	EnableItem(REMOVE_REDUNDANT_ITEMS_ON_SELECTION, is_local && has_selection);
+	const bool map_has_file = has_map && editor->getMap().hasFile();
+	EnableItem(DUPLICATE_ITEMS_SAVE_WARNING, is_host && map_has_file);
+	// Checked means the warning is on, which it is for any map that did not turn it off.
+	CheckItem(DUPLICATE_ITEMS_SAVE_WARNING, !map_has_file || !DuplicateItems::isWarningMuted(editor->getMap().getFilename()));
 
 	EnableItem(SEARCH_ON_MAP_WALLS_UPON_WALLS, is_host);
 	EnableItem(SEARCH_ON_SELECTION_WALLS_UPON_WALLS, is_host && has_selection);
@@ -3310,6 +3315,23 @@ void MainMenuBar::OnRemoveRedundantItemsOnMap(wxCommandEvent &WXUNUSED(event)) {
 
 void MainMenuBar::OnRemoveRedundantItemsOnSelection(wxCommandEvent &WXUNUSED(event)) {
 	RemoveRedundantItems(true);
+}
+
+void MainMenuBar::OnToggleDuplicateItemsSaveWarning(wxCommandEvent &WXUNUSED(event)) {
+	Editor* editor = g_gui.GetCurrentEditor();
+	if (!editor || !editor->getMap().hasFile()) {
+		return;
+	}
+
+	// The menu item is checked while the warning is on.
+	const bool warn = IsItemChecked(MenuBar::DUPLICATE_ITEMS_SAVE_WARNING);
+	if (!DuplicateItems::setWarningMuted(editor->getMap().getFilename(), !warn)) {
+		g_gui.SetStatusText("Could not remember this choice: the path of this map cannot be stored.");
+		Update();
+		return;
+	}
+
+	g_gui.SetStatusText(warn ? "Duplicated items warning turned on for this map." : "Duplicated items warning turned off for this map.");
 }
 
 void MainMenuBar::OnSearchForWallsUponWallsOnMap(wxCommandEvent &WXUNUSED(event)) {

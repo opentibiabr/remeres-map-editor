@@ -18,9 +18,11 @@
 #ifndef RME_DUPLICATE_ITEMS_POLICY_H_
 #define RME_DUPLICATE_ITEMS_POLICY_H_
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -141,6 +143,79 @@ namespace DuplicateItems {
 			}
 		}
 	};
+
+	// The maps whose save warning the mapper switched off. The editor keeps them in one setting, so this works on that
+	// string: the keys joined by Separator, oldest first. A key identifies a map file; whoever calls normalizes the path so
+	// the same file always gives the same key.
+	namespace MutedMaps {
+
+		constexpr char Separator = '|';
+		// Past this the oldest entries are dropped, so the setting cannot grow without bound.
+		constexpr size_t MaxEntries = 100;
+
+		inline std::vector<std::string> split(const std::string &stored) {
+			std::vector<std::string> keys;
+			size_t start = 0;
+			while (start <= stored.size()) {
+				size_t end = stored.find(Separator, start);
+				if (end == std::string::npos) {
+					end = stored.size();
+				}
+				if (end > start) {
+					keys.push_back(stored.substr(start, end - start));
+				}
+				start = end + 1;
+			}
+			return keys;
+		}
+
+		inline std::string join(const std::vector<std::string> &keys) {
+			std::string stored;
+			for (const std::string &key : keys) {
+				if (!stored.empty()) {
+					stored += Separator;
+				}
+				stored += key;
+			}
+			return stored;
+		}
+
+		// A key the list can hold: not empty and without the separator.
+		inline bool usable(const std::string &key) {
+			return !key.empty() && key.find(Separator) == std::string::npos;
+		}
+
+		inline bool contains(const std::string &stored, const std::string &key) {
+			if (!usable(key)) {
+				return false;
+			}
+			const std::vector<std::string> keys = split(stored);
+			return std::find(keys.begin(), keys.end(), key) != keys.end();
+		}
+
+		// A key that cannot be held leaves the list as it was.
+		inline std::string add(const std::string &stored, const std::string &key) {
+			if (!usable(key)) {
+				return stored;
+			}
+			std::vector<std::string> keys = split(stored);
+			if (std::find(keys.begin(), keys.end(), key) != keys.end()) {
+				return stored;
+			}
+			keys.push_back(key);
+			if (keys.size() > MaxEntries) {
+				keys.erase(keys.begin(), keys.begin() + static_cast<std::ptrdiff_t>(keys.size() - MaxEntries));
+			}
+			return join(keys);
+		}
+
+		inline std::string remove(const std::string &stored, const std::string &key) {
+			std::vector<std::string> keys = split(stored);
+			keys.erase(std::remove(keys.begin(), keys.end(), key), keys.end());
+			return join(keys);
+		}
+
+	}
 
 }
 

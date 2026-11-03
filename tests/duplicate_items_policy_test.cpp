@@ -61,6 +61,7 @@ namespace {
 
 	using Ids = std::vector<uint16_t>;
 	using Indices = std::vector<size_t>;
+	using Keys = std::vector<std::string>;
 
 	void redundantCopies() {
 		check(redundant({}).empty(), "an empty tile has nothing redundant");
@@ -178,6 +179,49 @@ namespace {
 		check(found == Indices { 0 }, "a custom facts getter drives the same rules");
 	}
 
+	// The save warning is switched off per map: the setting holds the paths of the maps that did, and nothing else.
+	void mutedMaps() {
+		namespace Muted = DuplicateItems::MutedMaps;
+		const std::string world = "c:\\maps\\world.otbm";
+		const std::string other = "c:\\maps\\other.otbm";
+
+		check(!Muted::contains("", world), "an empty list mutes no map");
+		check(Muted::split("").empty(), "an empty list has no entries");
+
+		const std::string one = Muted::add("", world);
+		check(Muted::contains(one, world), "a map that was muted is muted");
+		check(!Muted::contains(one, other), "another map is not muted");
+		check(!Muted::contains(one, "c:\\maps\\world.otbm2"), "a longer path that starts the same is another map");
+		check(!Muted::contains(one, "c:\\maps\\world"), "a shorter path that starts the same is another map");
+
+		const std::string two = Muted::add(one, other);
+		check(Muted::contains(two, world) && Muted::contains(two, other), "muting a second map keeps the first");
+		check(Muted::split(two) == Keys { world, other }, "the maps are kept in the order they were muted");
+		check(Muted::add(two, world) == two, "muting a map twice changes nothing");
+
+		const std::string back = Muted::remove(two, world);
+		check(!Muted::contains(back, world) && Muted::contains(back, other), "turning the warning back on affects that map only");
+		check(Muted::remove(back, world) == back, "turning on a warning that was on changes nothing");
+		check(Muted::remove("", world).empty(), "removing from an empty list leaves it empty");
+		check(Muted::remove(Muted::remove(two, world), other).empty(), "removing every map empties the list");
+
+		// Paths that cannot be told apart in the stored string are refused.
+		check(Muted::add("", "").empty(), "an empty key is not stored");
+		check(Muted::add(one, "") == one, "an empty key leaves the list alone");
+		check(Muted::add(one, "a|b") == one, "a key with the separator is not stored");
+		check(!Muted::contains(one, "a|b") && !Muted::contains("a|b", "a|b"), "a key with the separator is never muted");
+		check(Muted::split("a||b|") == Keys { "a", "b" }, "empty segments are ignored");
+
+		// The list does not grow without bound: the oldest maps are forgotten first.
+		std::string crowded;
+		for (size_t index = 0; index < Muted::MaxEntries + 5; ++index) {
+			crowded = Muted::add(crowded, "map" + std::to_string(index));
+		}
+		check(Muted::split(crowded).size() == Muted::MaxEntries, "the list stops at the limit");
+		check(!Muted::contains(crowded, "map0") && !Muted::contains(crowded, "map4"), "the oldest maps are dropped");
+		check(Muted::contains(crowded, "map5") && Muted::contains(crowded, "map" + std::to_string(Muted::MaxEntries + 4)), "the newest maps stay");
+	}
+
 }
 
 int main() {
@@ -187,6 +231,7 @@ int main() {
 	report();
 	realTile();
 	throughAGetter();
+	mutedMaps();
 
 	if (failures != 0) {
 		std::cerr << failures << " check(s) failed\n";

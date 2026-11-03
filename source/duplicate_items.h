@@ -37,6 +37,14 @@ namespace DuplicateItems {
 	// Takes the redundant copies off the tile and deletes them. Returns how many.
 	size_t removeRedundantCopies(Tile &tile);
 
+	// Whether the mapper switched the save warning off for this map file. Maps are told apart by their file path, so the
+	// choice holds for that map alone and is kept between sessions.
+	bool isWarningMuted(const std::string &mapFile);
+
+	// Switches the save warning off or on for this map file and writes the setting. Returns false, leaving the setting
+	// as it was, when the file cannot be remembered (no path, or a path that holds the list separator).
+	bool setWarningMuted(const std::string &mapFile, bool muted);
+
 }
 
 #endif
