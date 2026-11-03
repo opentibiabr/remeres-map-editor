@@ -127,7 +127,7 @@ namespace DuplicateItems {
 				return;
 			}
 
-			const size_t copies = visitRedundantCopies(items, factsOf, [](size_t) { });
+			const size_t copies = visitRedundantCopies(items, factsOf, [](size_t) {});
 			if (copies != 0) {
 				++redundantTiles;
 				redundantCopies += copies;

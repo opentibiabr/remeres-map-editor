@@ -45,7 +45,7 @@ namespace DuplicateItems {
 	}
 
 	size_t countRedundantCopies(const Tile &tile) {
-		return visitRedundantCopies(tile.items, factsOf, [](size_t) { });
+		return visitRedundantCopies(tile.items, factsOf, [](size_t) {});
 	}
 
 	size_t removeRedundantCopies(Tile &tile) {
