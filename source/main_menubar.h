@@ -170,6 +170,9 @@ namespace MenuBar {
 		SEARCH_ON_SELECTION_DUPLICATED_ITEMS,
 		REMOVE_ON_MAP_DUPLICATED_ITEMS,
 		REMOVE_ON_SELECTION_DUPLICATED_ITEMS,
+		REMOVE_REDUNDANT_ITEMS_ON_MAP,
+		REMOVE_REDUNDANT_ITEMS_ON_SELECTION,
+		DUPLICATE_ITEMS_SAVE_WARNING,
 		SEARCH_ON_MAP_WALLS_UPON_WALLS,
 		SEARCH_ON_SELECTION_WALLS_UPON_WALLS,
 		IMPORT_BITMAP_TO_MAP,
@@ -323,6 +326,9 @@ public:
 	void OnSearchForDuplicateItemsOnSelection(wxCommandEvent &event);
 	void OnRemoveForDuplicateItemsOnMap(wxCommandEvent &event);
 	void OnRemoveForDuplicateItemsOnSelection(wxCommandEvent &event);
+	void OnRemoveRedundantItemsOnMap(wxCommandEvent &event);
+	void OnRemoveRedundantItemsOnSelection(wxCommandEvent &event);
+	void OnToggleDuplicateItemsSaveWarning(wxCommandEvent &event);
 	void OnSearchForWallsUponWallsOnMap(wxCommandEvent &event);
 	void OnSearchForWallsUponWallsOnSelection(wxCommandEvent &event);
 
@@ -334,6 +340,7 @@ protected:
 	void SearchItems(bool unique, bool action, bool container, bool writable, bool onSelection = false);
 	void SearchDuplicatedItems(bool onSelection = false);
 	void RemoveDuplicatesItems(bool onSelection = false);
+	void RemoveRedundantItems(bool onSelection = false);
 	void SearchWallsUponWalls(bool onSelection = false);
 
 protected:

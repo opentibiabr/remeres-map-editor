@@ -28,6 +28,7 @@
 #include "find_item_window.h"
 #include "monster.h"
 #include "settings.h"
+#include "duplicate_items.h"
 #include "iomap_otbm.h"
 #include "sqlite_materials_inspector.h"
 #include "lua/lua_script_manager.h"
@@ -809,6 +810,9 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(SEARCH_ON_SELECTION_DUPLICATED_ITEMS, wxITEM_NORMAL, OnSearchForDuplicateItemsOnSelection);
 	MAKE_ACTION(REMOVE_ON_MAP_DUPLICATED_ITEMS, wxITEM_NORMAL, OnRemoveForDuplicateItemsOnMap);
 	MAKE_ACTION(REMOVE_ON_SELECTION_DUPLICATED_ITEMS, wxITEM_NORMAL, OnRemoveForDuplicateItemsOnSelection);
+	MAKE_ACTION(REMOVE_REDUNDANT_ITEMS_ON_MAP, wxITEM_NORMAL, OnRemoveRedundantItemsOnMap);
+	MAKE_ACTION(REMOVE_REDUNDANT_ITEMS_ON_SELECTION, wxITEM_NORMAL, OnRemoveRedundantItemsOnSelection);
+	MAKE_ACTION(DUPLICATE_ITEMS_SAVE_WARNING, wxITEM_CHECK, OnToggleDuplicateItemsSaveWarning);
 
 	MAKE_ACTION(SEARCH_ON_MAP_WALLS_UPON_WALLS, wxITEM_NORMAL, OnSearchForWallsUponWallsOnMap);
 	MAKE_ACTION(SEARCH_ON_SELECTION_WALLS_UPON_WALLS, wxITEM_NORMAL, OnSearchForWallsUponWallsOnSelection);
@@ -1032,6 +1036,12 @@ void MainMenuBar::Update() {
 	EnableItem(SEARCH_ON_SELECTION_DUPLICATED_ITEMS, has_selection && is_host);
 	EnableItem(REMOVE_ON_MAP_DUPLICATED_ITEMS, is_local);
 	EnableItem(REMOVE_ON_SELECTION_DUPLICATED_ITEMS, is_local && has_selection);
+	EnableItem(REMOVE_REDUNDANT_ITEMS_ON_MAP, is_local);
+	EnableItem(REMOVE_REDUNDANT_ITEMS_ON_SELECTION, is_local && has_selection);
+	const bool map_has_file = has_map && editor->getMap().hasFile();
+	EnableItem(DUPLICATE_ITEMS_SAVE_WARNING, is_host && map_has_file);
+	// Checked means the warning is on, which it is for any map that did not turn it off.
+	CheckItem(DUPLICATE_ITEMS_SAVE_WARNING, !map_has_file || !DuplicateItems::isWarningMuted(editor->getMap().getFilename()));
 
 	EnableItem(SEARCH_ON_MAP_WALLS_UPON_WALLS, is_host);
 	EnableItem(SEARCH_ON_SELECTION_WALLS_UPON_WALLS, is_host && has_selection);
@@ -3299,6 +3309,31 @@ void MainMenuBar::OnRemoveForDuplicateItemsOnSelection(wxCommandEvent &WXUNUSED(
 	RemoveDuplicatesItems(true);
 }
 
+void MainMenuBar::OnRemoveRedundantItemsOnMap(wxCommandEvent &WXUNUSED(event)) {
+	RemoveRedundantItems(false);
+}
+
+void MainMenuBar::OnRemoveRedundantItemsOnSelection(wxCommandEvent &WXUNUSED(event)) {
+	RemoveRedundantItems(true);
+}
+
+void MainMenuBar::OnToggleDuplicateItemsSaveWarning(wxCommandEvent &WXUNUSED(event)) {
+	Editor* editor = g_gui.GetCurrentEditor();
+	if (!editor || !editor->getMap().hasFile()) {
+		return;
+	}
+
+	// The menu item is checked while the warning is on.
+	const bool warn = IsItemChecked(MenuBar::DUPLICATE_ITEMS_SAVE_WARNING);
+	if (!DuplicateItems::setWarningMuted(editor->getMap().getFilename(), !warn)) {
+		g_gui.SetStatusText("Could not remember this choice: the path of this map cannot be stored.");
+		Update();
+		return;
+	}
+
+	g_gui.SetStatusText(warn ? "Duplicated items warning turned on for this map." : "Duplicated items warning turned off for this map.");
+}
+
 void MainMenuBar::OnSearchForWallsUponWallsOnMap(wxCommandEvent &WXUNUSED(event)) {
 	SearchWallsUponWalls(false);
 }
@@ -3437,6 +3472,73 @@ void MainMenuBar::RemoveDuplicatesItems(bool onSelection /* = false*/) {
 
 		g_gui.GetCurrentMap().doChange();
 	}
+}
+
+void MainMenuBar::RemoveRedundantItems(bool onSelection /* = false*/) {
+	if (!g_gui.IsEditorOpen()) {
+		return;
+	}
+
+	Editor* editor = g_gui.GetCurrentEditor();
+	Map &map = editor->getMap();
+	const auto scope = onSelection ? "selected area" : "map";
+
+	g_gui.CreateLoadBar(wxString::Format("Searching the %s for repeated stacked items...", scope));
+
+	std::vector<Tile*> tiles;
+	size_t copies = 0;
+	long long done = 0;
+	const long long total = std::max<long long>(1, static_cast<long long>(map.getTileCount()));
+	for (TileLocation* location : map) {
+		if (++done % 0x8000 == 0) {
+			g_gui.SetLoadDone(static_cast<unsigned int>(100 * done / total));
+		}
+
+		Tile* tile = location->get();
+		if (!tile || (onSelection && !tile->isSelected())) {
+			continue;
+		}
+
+		const size_t found = DuplicateItems::countRedundantCopies(*tile);
+		if (found != 0) {
+			tiles.push_back(tile);
+			copies += found;
+		}
+	}
+
+	g_gui.DestroyLoadBar();
+
+	if (tiles.empty()) {
+		g_gui.PopupDialog("Remove Redundant Stacked Items", wxString::Format("No repeated always-on-top items found in the %s.", scope), wxOK);
+		return;
+	}
+
+	const auto dialogResult = g_gui.PopupDialog(
+		"Remove Redundant Stacked Items",
+		wxString::Format("%zu tiles of the %s stack %zu repeated copies of an always-on-top item (border, wall, shadow) with the same id and no attributes.\n\nOnly the last copy of each is kept, so the tiles look the same. Remove the extra copies?\n\nThis can be undone.", tiles.size(), scope, copies),
+		wxYES | wxNO
+	);
+	if (dialogResult != wxID_YES) {
+		return;
+	}
+
+	BatchAction* batch = editor->createBatch(ACTION_REMOVE_REDUNDANT_ITEMS);
+	Action* action = editor->createAction(batch);
+	size_t removed = 0;
+	for (Tile* tile : tiles) {
+		Tile* newTile = tile->deepCopy(map);
+		removed += DuplicateItems::removeRedundantCopies(*newTile);
+		if (tile->isSelected()) {
+			newTile->select();
+		}
+		action->addChange(new Change(newTile));
+	}
+	batch->addAndCommitAction(action);
+	editor->addBatch(batch);
+	editor->updateActions();
+	g_gui.RefreshView();
+
+	g_gui.SetStatusText(wxString::Format("Removed %zu repeated stacked items from %zu tiles.", removed, tiles.size()));
 }
 
 namespace SearchWallsUponWalls {

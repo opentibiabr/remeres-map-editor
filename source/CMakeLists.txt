@@ -217,6 +217,7 @@ target_sources(
           dat_debug_view.cpp
           dcbutton.cpp
           doodad_brush.cpp
+          duplicate_items.cpp
           editor.cpp
           editor_tabs.cpp
           eraser_brush.cpp

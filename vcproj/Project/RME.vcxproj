@@ -339,6 +339,9 @@
     <ClInclude Include="..\..\source\definitions.h" />
     <ClInclude Include="..\..\source\doodad_brush.h" />
     <ClCompile Include="..\..\source\doodad_brush.cpp" />
+    <ClInclude Include="..\..\source\duplicate_items.h" />
+    <ClInclude Include="..\..\source\duplicate_items_policy.h" />
+    <ClCompile Include="..\..\source\duplicate_items.cpp" />
     <ClCompile Include="..\..\source\eraser_brush.cpp" />
     <ClInclude Include="..\..\source\filehandle.h" />
     <ClCompile Include="..\..\source\filehandle.cpp" />

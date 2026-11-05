@@ -355,6 +355,7 @@ void Settings::IO(IOMode mode) {
 	Int(USE_UPDATER, 1);
 	String(RECENT_EDITED_MAP_PATH, "");
 	String(RECENT_EDITED_MAP_POSITION, "");
+	String(DUPLICATE_ITEMS_MUTED_MAPS, "");
 
 	Int(FIND_ITEM_MODE, 0);
 	Int(FIND_TILE_TYPE, 0);

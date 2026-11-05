@@ -24,6 +24,8 @@
 #include "complexitem.h"
 #include "settings.h"
 #include "gui.h"
+#include "result_window.h"
+#include "duplicate_items.h"
 #include "map_display.h"
 #include "brush.h"
 #include "ground_brush.h"
@@ -42,6 +44,8 @@
 #include "live_server.h"
 #include "live_client.h"
 #include "live_action.h"
+
+#include <wx/richmsgdlg.h>
 
 #include <filesystem>
 #include <chrono>
@@ -232,6 +236,63 @@ void Editor::clearChanges() {
 	map.clearChanges();
 }
 
+namespace {
+	// Tells the mapper what the save just wrote twice on the same tile. Nothing is changed in the saved file. A mapper who
+	// switched the warning off for this map gets a line in the status bar instead.
+	void announceDuplicateItems(const DuplicateItems::Report &report, const std::string &mapFile) {
+		if (report.empty()) {
+			return;
+		}
+
+		if (DuplicateItems::isWarningMuted(mapFile)) {
+			const auto redundantTiles = static_cast<unsigned long long>(report.redundantTiles);
+			const auto ordinaryTiles = static_cast<unsigned long long>(report.repeatedOrdinaryTiles);
+			g_gui.SetStatusText(wxString::Format("Duplicated items: %llu tiles stack redundant always-on-top copies, %llu repeat an ordinary item (the save warning is off for this map).", redundantTiles, ordinaryTiles));
+			return;
+		}
+
+		if (!report.listedTiles.empty()) {
+			SearchResultWindow* result = g_gui.ShowSearchWindow();
+			result->Clear();
+			for (const DuplicateItems::TileRef &tile : report.listedTiles) {
+				result->AddPosition("Redundant stacked items", Position(tile.x, tile.y, tile.z));
+			}
+		}
+
+		wxString text;
+		if (report.redundantTiles != 0) {
+			text << wxString::Format("%llu tiles stack %llu repeated copies of an always-on-top item (border, wall, shadow) with the same id. "
+									 "The copies draw nothing new and use up slots of the 10 things a client tile can show.\n"
+									 "Edit > Tools > Remove redundant stacked items removes them and can be undone. Save again afterwards.\n",
+									 static_cast<unsigned long long>(report.redundantTiles), static_cast<unsigned long long>(report.redundantCopies));
+			if (report.redundantTiles > report.listedTiles.size()) {
+				text << wxString::Format("The Search Results list shows the first %zu tiles.\n", report.listedTiles.size());
+			}
+		}
+
+		if (report.repeatedOrdinaryTiles != 0) {
+			if (!text.empty()) {
+				text << "\n";
+			}
+			const auto ordinaryTiles = static_cast<unsigned long long>(report.repeatedOrdinaryTiles);
+			text << wxString::Format("%llu tiles repeat an ordinary item with the same id. They were kept: review them with Edit > Find on Map > Find Duplicated Items.", ordinaryTiles);
+		}
+
+		wxRichMessageDialog dialog(g_gui.root, text, "Duplicated items", wxOK | wxICON_INFORMATION);
+		dialog.ShowCheckBox("Do not show this again for this map");
+		dialog.ShowModal();
+		if (!dialog.IsCheckBoxChecked()) {
+			return;
+		}
+
+		if (DuplicateItems::setWarningMuted(mapFile, true)) {
+			g_gui.SetStatusText("Duplicated items warning turned off for this map. Edit > Tools > Warn about repeated stacked items on save turns it back on.");
+		} else {
+			g_gui.SetStatusText("Could not remember this choice: the path of this map cannot be stored.");
+		}
+	}
+}
+
 void Editor::saveMap(FileName filename, bool showdialog) {
 	std::string savefile = filename.GetFullPath().mb_str(wxConvUTF8).data();
 	bool save_as = false;
@@ -324,6 +385,8 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 		  << backup_spawn_npc << std::endl;
 	}
 
+	DuplicateItems::Report duplicateItems;
+
 	{
 
 		// Set up the Map paths
@@ -338,6 +401,7 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 		// Perform the actual save
 		IOMapOTBM mapsaver(map.getVersion());
 		bool success = mapsaver.saveMap(map, fn);
+		duplicateItems = mapsaver.getDuplicateItemReport();
 
 		if (showdialog) {
 			g_gui.DestroyLoadBar();
@@ -455,6 +519,10 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 	deleteOldBackups(map_path + "backups/");
 
 	clearChanges();
+
+	if (showdialog) {
+		announceDuplicateItems(duplicateItems, map.filename);
+	}
 }
 
 bool Editor::importMiniMap(FileName filename, int import, int import_x_offset, int import_y_offset, int import_z_offset) {
