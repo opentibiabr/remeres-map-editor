@@ -21,6 +21,8 @@
 #include "items.h"
 #include "basemap.h"
 
+#include <array>
+
 uint32_t GroundBrush::border_types[256];
 
 int AutoBorder::edgeNameToID(const std::string &edgename) {
@@ -630,7 +632,7 @@ const GroundBrush::BorderBlock* GroundBrush::getBrushTo(GroundBrush* first, Grou
 }
 
 // If a border piece looks at a neighbour behind a wall, in the neighbour order of doBorders
-static bool looksAtWall(BorderType alignment, const bool (&walled)[8]) {
+static bool looksAtWall(BorderType alignment, const std::array<bool, 8> &walled) {
 	switch (alignment) {
 		case NORTH_HORIZONTAL:
 			return walled[1];
@@ -662,9 +664,7 @@ static bool looksAtWall(BorderType alignment, const bool (&walled)[8]) {
 }
 
 void GroundBrush::doBorders(BaseMap* map, Tile* tile) {
-	static constexpr int32_t neighbourOffsets[8][2] = {
-		{ -1, -1 }, { 0, -1 }, { 1, -1 }, { -1, 0 }, { 1, 0 }, { -1, 1 }, { 0, 1 }, { 1, 1 }
-	};
+	static constexpr std::array<std::array<int32_t, 2>, 8> neighbourOffsets = { { { -1, -1 }, { 0, -1 }, { 1, -1 }, { -1, 0 }, { 1, 0 }, { -1, 1 }, { 0, 1 }, { 1, 1 } } };
 
 	ASSERT(tile);
 
@@ -687,14 +687,14 @@ void GroundBrush::doBorders(BaseMap* map, Tile* tile) {
 	int32_t z = position.z;
 
 	// Pair of visited / what border type
-	std::pair<bool, GroundBrush*> neighbours[8];
+	std::array<std::pair<bool, GroundBrush*>, 8> neighbours {};
 	// Neighbours separated from this tile by a wall
-	bool walled[8] = { false };
+	std::array<bool, 8> walled {};
 	for (int32_t i = 0; i < 8; ++i) {
 		const int32_t neighbourX = x + neighbourOffsets[i][0];
 		const int32_t neighbourY = y + neighbourOffsets[i][1];
 
-		Tile* neighbourTile = (neighbourX >= 0 && neighbourY >= 0) ? map->getTile(neighbourX, neighbourY, z) : nullptr;
+		const Tile* neighbourTile = (neighbourX >= 0 && neighbourY >= 0) ? map->getTile(neighbourX, neighbourY, z) : nullptr;
 		neighbours[i] = { false, neighbourTile ? neighbourTile->getGroundBrush() : nullptr };
 		walled[i] = neighbourTile && neighbourTile->hasBorderBlockingWall();
 	}
