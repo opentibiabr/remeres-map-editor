@@ -328,6 +328,10 @@
     <ClCompile Include="..\..\source\positionctrl.cpp" />
     <ClInclude Include="..\..\source\carpet_brush.h" />
     <ClCompile Include="..\..\source\carpet_brush.cpp" />
+    <ClInclude Include="..\..\source\building_walls.h" />
+    <ClCompile Include="..\..\source\building_walls.cpp" />
+    <ClInclude Include="..\..\source\replace_building_walls_window.h" />
+    <ClCompile Include="..\..\source\replace_building_walls_window.cpp" />
     <ClInclude Include="..\..\source\common.h" />
     <ClCompile Include="..\..\source\common.cpp" />
     <ClInclude Include="..\..\source\container_properties_window.h" />
