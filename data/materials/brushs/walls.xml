@@ -221,8 +221,6 @@
 			<door id="7782" type="window"/>
 			<door id="7784" type="window"/>
 			<item id="8242" chance="0"/>
-			<item id="6281" chance="0"/>
-			<item id="6283" chance="0"/>
 		</wall>
 		<wall type="corner">
 			<item id="1274" chance="1"/>
