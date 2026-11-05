@@ -1214,14 +1214,14 @@ WallReplacementPlan planWallReplacement(const BuildingScan &scan, const WallRepl
 		}
 
 		for (const BuildingWall &wall : floor.walls) {
-			if (request.excluded.contains(wall.position)) {
+			if (request.excluded.contains(wall.position) || (wall.shared && !request.includeShared)) {
 				continue;
 			}
 
 			uint16_t replacement = 0;
 			if (wall.low != lowTarget) {
 				replacement = wall.low ? planRailing(request, wall, plan) : 0;
-			} else if (!request.sources.contains(wall.brush) || (wall.shared && !request.includeShared) || wall.brush == request.target) {
+			} else if (!request.sources.contains(wall.brush) || wall.brush == request.target) {
 				continue;
 			} else if (wall.opening != WALL_UNDEFINED) {
 				replacement = planOpening(request, wall, groups, plan);
