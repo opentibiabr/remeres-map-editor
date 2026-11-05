@@ -623,7 +623,7 @@ bool MainFrame::DoQueryImportCreatures(const FileName &mapFile) {
 		}
 	}
 
-	if ((g_monsters.hasMissing() && found.monsters.empty()) || (g_npcs.hasMissing() && found.npcs.empty())) {
+	if (g_monsters.hasMissing() || g_npcs.hasMissing()) {
 		long ret = g_gui.PopupDialog("Missing creatures", "The monsters and NPCs of this map were not found automatically. Would you like to search for their Lua directories?", wxYES | wxNO);
 		if (ret == wxID_YES) {
 			PreferencesWindow dialog(g_gui.root);
