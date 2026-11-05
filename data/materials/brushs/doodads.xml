@@ -6289,10 +6289,10 @@
 	</brush>
 
 	<brush name="pillar railing" type="wall" server_lookid="17618">
-		<wall type="pole">			   <item id="17621" chance="1"/> </wall>
-		<wall type="horizontal">		 <item id="17618" chance="1"/> </wall>
-		<wall type="vertical">		   <item id="17619" chance="1"/> </wall>
-		<wall type="corner">			 <item id="17620" chance="1"/> </wall>
+		<wall type="pole">			   <item id="17621" chance="1"/> <item id="17326" chance="0"/> <item id="17329" chance="0"/> </wall>
+		<wall type="horizontal">		 <item id="17618" chance="1"/> <item id="17323" chance="0"/> <item id="17328" chance="0"/> </wall>
+		<wall type="vertical">		   <item id="17619" chance="1"/> <item id="17324" chance="0"/> <item id="17327" chance="0"/> </wall>
+		<wall type="corner">			 <item id="17620" chance="1"/> <item id="17325" chance="0"/> </wall>
 	</brush>
 
 	<brush name="low stone wall" type="wall" server_lookid="17884">

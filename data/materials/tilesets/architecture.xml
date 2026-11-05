@@ -99,6 +99,8 @@
 			<brush name="short wall grass"/>
 			<brush name="stone pillar"/>
 			<brush name="stone pillar (grey)"/>
+			<brush name="wooden bars"/>
+			<brush name="low wooden railing"/>
 		</doodad>
 		<raw>
 			<!-- Railings -->
