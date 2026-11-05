@@ -55,9 +55,16 @@ public:
 
 	bool importXMLFromOT(const FileName &filename, wxString &error, wxArrayString &warnings);
 	bool loadFromLuaDir(const wxString &directory, wxString &error, wxArrayString &warnings);
+	bool loadFromXmlDir(const wxString &directory, wxArrayString &warnings);
+	bool loadFromNpcFiles(const wxString &directory, wxArrayString &warnings);
+	// Loads a server folder, whichever format its version keeps the npcs in
+	bool loadFromDirectory(const wxString &directory, wxString &error, wxArrayString &warnings);
 
 	bool saveToXML(const FileName &filename);
 	wxArrayString getMissingNpcNames() const;
+
+private:
+	void addLoadedNpc(NpcType* npcType);
 };
 
 class NpcType {

@@ -22,6 +22,7 @@
 #include "map.h"
 #include "client_assets.h"
 #include "complexitem.h"
+#include "creature_directories.h"
 #include "settings.h"
 #include "gui.h"
 #include "map_display.h"
@@ -112,6 +113,9 @@ Editor::Editor(CopyBuffer &copybuffer, const FileName &fn) :
 	bool success = true;
 	wxString error;
 	wxArrayString warnings;
+
+	// The creatures of the datapack of this map load together with the rest of the data
+	adoptCreatureDirectories(findCreatureDirectories(fn));
 
 	success = g_gui.loadMapWindow(error, warnings);
 	if (!success) {

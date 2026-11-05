@@ -55,6 +55,9 @@ public:
 
 	bool importXMLFromOT(const FileName &filename, wxString &error, wxArrayString &warnings);
 	bool loadFromLuaDir(const wxString &directory, wxString &error, wxArrayString &warnings);
+	bool loadFromXmlDir(const wxString &directory, wxArrayString &warnings);
+	// Loads a server folder, whichever format its version keeps the monsters in
+	bool loadFromDirectory(const wxString &directory, wxString &error, wxArrayString &warnings);
 
 	bool saveToXML(const FileName &filename);
 	wxArrayString getMissingMonsterNames() const;
