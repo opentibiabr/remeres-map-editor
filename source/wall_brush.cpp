@@ -674,12 +674,12 @@ bool WallBrush::hasWall(Item* item) {
 }
 
 ::DoorType WallBrush::getDoorTypeFromID(uint16_t id) {
-	WallBrush* test_wall = this;
+	const WallBrush* test_wall = this;
 	do {
-		for (int index = 0; index < 17; ++index) {
-			for (std::vector<DoorType>::const_iterator iter = test_wall->door_items[index].begin(); iter != test_wall->door_items[index].end(); ++iter) {
-				if (iter->id == id) {
-					return iter->type;
+		for (const auto &door_list : test_wall->door_items) {
+			for (const DoorType &door : door_list) {
+				if (door.id == id) {
+					return door.type;
 				}
 			}
 		}
