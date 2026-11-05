@@ -42,8 +42,8 @@ namespace DuplicateItems {
 		bool elevated = false;
 	};
 
-	// Calls onRedundant(index) for each always-on-top plain item that is listed again, plain, further along the tile, and
-	// returns how many there are. The last copy is the one that stays: the client draws it over the earlier ones, so
+	// Calls onRedundant(index) for each non-elevated, always-on-top plain item with a later plain copy and returns how
+	// many there are. The last copy is the one that stays: the client draws it over the earlier ones, so
 	// the tile looks the same and the order of the other items is kept. Indices are passed in ascending order.
 	template <typename Items, typename FactsOf, typename OnRedundant>
 	size_t visitRedundantCopies(const Items &items, FactsOf factsOf, OnRedundant onRedundant) {
@@ -51,7 +51,7 @@ namespace DuplicateItems {
 		size_t found = 0;
 		for (size_t index = 0; index + 1 < count; ++index) {
 			const ItemFacts item = factsOf(items[index]);
-			if (!item.alwaysOnTop || !item.plain) {
+			if (!item.alwaysOnTop || !item.plain || item.elevated) {
 				continue;
 			}
 

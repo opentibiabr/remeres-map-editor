@@ -81,6 +81,8 @@ namespace {
 		// Only always-on-top items count: ordinary repeats and elevated piles are decoration.
 		check(redundant({ ordinary(200), ordinary(200) }).empty(), "repeated ordinary items are not redundant");
 		check(redundant({ elevated(300), elevated(300) }).empty(), "repeated elevated items are not redundant");
+		const ItemFacts elevatedOverlay { 301, true, true, true };
+		check(redundant({ elevatedOverlay, elevatedOverlay }).empty(), "elevated overlays are never redundant");
 		check(redundant({ overlay(100), ordinary(200), overlay(100), ordinary(200) }) == Indices { 0 }, "ordinary items between copies do not matter");
 		check(redundant({ ItemFacts {}, ItemFacts {} }).empty(), "empty slots are ignored");
 	}
