@@ -197,8 +197,6 @@
 			<door id="7781" type="window"/>
 			<door id="7783" type="window"/>
 			<item id="8239" chance="0"/>
-			<item id="6280" chance="0"/>
-			<item id="6282" chance="0"/>
 		</wall>
 		<wall type="vertical">
 			<item id="1270" chance="1"/>
