@@ -61,6 +61,40 @@ void runWorldFileTests(const std::filesystem::path &scratch) {
 	const auto catalog = root / "map.world.json", layer = root / "layer.json";
 	std::string error;
 	{
+		const auto marker = root / ".saving.txt";
+		const auto map = root / "map.otbm";
+		const auto sidecar = root / "map-monster.xml";
+		const auto mapBackup = root / "map.otbm~";
+		const auto sidecarBackup = root / "map-monster.xml~";
+		put(map, "previous map");
+		put(sidecar, "previous spawns");
+		check(std::filesystem::create_directory(sidecarBackup), "obstruct one backup");
+		MapSaveRecovery save { catalog, { { map }, { sidecar } } };
+		bool recorded = false;
+		check(!prepareMapSave(marker, save, recorded, error) && !recorded, "an obstructed backup aborts preparation");
+		check(get(map) == "previous map" && get(sidecar) == "previous spawns", "backup failure leaves all originals in place");
+		check(std::filesystem::remove(sidecarBackup), "clear fixture obstruction");
+		error.clear();
+		check(prepareMapSave(marker, save, recorded, error) && recorded, "record and prepare complete backups");
+		put(map, "new map");
+		check(std::filesystem::create_directory(sidecar), "obstruct a restore target");
+		MapSaveRecovery interrupted;
+		check(readMapSave(marker, interrupted, error) && interrupted.writing && !interrupted.committed, "read incomplete save marker");
+		check(!restoreMapSave(interrupted, error) && std::filesystem::exists(marker), "failed restore remains retryable");
+		check(get(mapBackup) == "previous map" && get(sidecarBackup) == "previous spawns", "failed restore retains the backups");
+		check(std::filesystem::remove(sidecar), "clear restore obstruction");
+		error.clear();
+		check(restoreMapSave(interrupted, error) && get(map) == "previous map" && get(sidecar) == "previous spawns", "retry restores both original files");
+		check(clearMapSave(marker, error), "clear recovered map marker");
+		MapSaveRecovery committed { catalog, { { map }, { sidecar } } };
+		recorded = false;
+		check(prepareMapSave(marker, committed, recorded, error), "prepare a second map save");
+		check(markMapSaveCommitted(marker, committed, error), "persist the coordinated commit decision");
+		MapSaveRecovery reopened;
+		check(readMapSave(marker, reopened, error) && reopened.committed, "startup can distinguish a completed save");
+		check(clearMapSave(marker, error), "clear completed map marker");
+	}
+	{
 		const auto first = root / "first.world.json";
 		ReadGuard reader(first, error);
 		check(reader.valid(), "first reader need not create files in a read-only project");

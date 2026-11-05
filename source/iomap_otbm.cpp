@@ -4147,7 +4147,8 @@ namespace {
 
 		const wxString backupPath = filepath + "~";
 		if (!wxFileExists(filepath) && fileMatchesXmlContent(backupPath, content)) {
-			return wxRenameFile(backupPath, filepath, false);
+			// Keep the recovery copy until the complete map save commits.
+			return wxCopyFile(backupPath, filepath, false);
 		}
 
 		return writeContentToFile(filepath, content);
@@ -5826,16 +5827,24 @@ bool IOMapOTBM::saveMap(Map &map, const FileName &identifier) {
 	}
 
 	g_gui.SetLoadDone(99, "Saving monster spawns...");
-	saveSpawns(map, identifier);
+	if (!saveSpawns(map, identifier)) {
+		return false;
+	}
 
 	g_gui.SetLoadDone(99, "Saving houses...");
-	saveHouses(map, identifier);
+	if (!saveHouses(map, identifier)) {
+		return false;
+	}
 
 	g_gui.SetLoadDone(99, "Saving zones...");
-	saveZones(map, identifier);
+	if (!saveZones(map, identifier)) {
+		return false;
+	}
 
 	g_gui.SetLoadDone(99, "Saving npcs spawns...");
-	saveSpawnsNpc(map, identifier);
+	if (!saveSpawnsNpc(map, identifier)) {
+		return false;
+	}
 	return true;
 }
 

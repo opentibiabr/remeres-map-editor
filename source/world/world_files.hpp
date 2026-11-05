@@ -18,6 +18,21 @@ namespace world_files {
 		std::vector<Change> changes; // dependency order; catalog last
 		std::map<std::filesystem::path, Revision> guards;
 	};
+	struct MapSaveFile {
+		std::filesystem::path target;
+		bool existed = false;
+	};
+	struct MapSaveRecovery {
+		std::filesystem::path catalog;
+		std::vector<MapSaveFile> files;
+		bool writing = false;
+		bool committed = false;
+	};
+	bool prepareMapSave(const std::filesystem::path &marker, MapSaveRecovery &recovery, bool &recorded, std::string &error);
+	bool markMapSaveCommitted(const std::filesystem::path &marker, MapSaveRecovery &recovery, std::string &error);
+	bool readMapSave(const std::filesystem::path &marker, MapSaveRecovery &recovery, std::string &error);
+	bool restoreMapSave(const MapSaveRecovery &recovery, std::string &error);
+	bool clearMapSave(const std::filesystem::path &marker, std::string &error);
 	bool revision(const std::filesystem::path &file, Revision &result, std::string &error);
 	bool publish(const Publication &publication, std::string &error);
 	bool recover(const std::filesystem::path &catalog, const std::filesystem::path &root, bool rollback, std::string &error);

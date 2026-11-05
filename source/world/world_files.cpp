@@ -363,6 +363,221 @@ namespace world_files {
 	}
 #endif
 
+	namespace {
+		std::string mapPathText(const std::filesystem::path &path) {
+			const auto utf8 = path.u8string();
+			return { utf8.begin(), utf8.end() };
+		}
+
+		bool mapFileExists(const std::filesystem::path &path, bool &exists, std::string &error) {
+			std::error_code code;
+			const auto status = std::filesystem::symlink_status(path, code);
+			exists = std::filesystem::exists(status);
+			if ((code && code != std::errc::no_such_file_or_directory) || (exists && !std::filesystem::is_regular_file(status))) {
+				error = "Cannot use " + mapPathText(path) + ": " + (code ? code.message() : "not a regular file");
+				return false;
+			}
+			return true;
+		}
+
+		bool writeMapSave(const std::filesystem::path &marker, const MapSaveRecovery &recovery, std::string &error) {
+			Json files = Json::array();
+			for (const auto &file : recovery.files) {
+				files.push_back({ { "target", mapPathText(file.target) }, { "existed", file.existed } });
+			}
+			const Json record { { "version", 1 }, { "catalog", mapPathText(recovery.catalog) }, { "writing", recovery.writing }, { "committed", recovery.committed }, { "files", files } };
+			const auto temporary = sidecar(marker, (".next-" + nonce()).c_str());
+			const bool written = durable(temporary, record.dump(), error) && move(temporary, marker, recovery.writing, error);
+			if (!written) {
+				std::error_code ignored;
+				std::filesystem::remove(temporary, ignored);
+			}
+			return written;
+		}
+	}
+
+	bool prepareMapSave(const std::filesystem::path &marker, MapSaveRecovery &recovery, bool &recorded, std::string &error) {
+		try {
+			bool pendingSave = false;
+			if (!mapFileExists(marker, pendingSave, error)) {
+				return false;
+			}
+			if (pendingSave) {
+				error = "An interrupted map save requires recovery: " + mapPathText(marker);
+				return false;
+			}
+
+			std::set<std::filesystem::path> paths;
+			for (auto &file : recovery.files) {
+				file.target = std::filesystem::absolute(file.target).lexically_normal();
+				const auto backup = sidecar(file.target, "~");
+				if (!paths.insert(file.target).second || !paths.insert(backup).second) {
+					error = "Map save paths overlap: " + mapPathText(file.target);
+					return false;
+				}
+				if (!mapFileExists(file.target, file.existed, error)) {
+					return false;
+				}
+			}
+			for (const auto &file : recovery.files) {
+				if (!file.existed) {
+					continue;
+				}
+				const auto backup = sidecar(file.target, "~");
+				bool exists = false;
+				if (!mapFileExists(backup, exists, error)) {
+					return false;
+				}
+			}
+			// The preparation journal is visible before the first original is moved.
+			if (!writeMapSave(marker, recovery, error)) {
+				return false;
+			}
+			recorded = true;
+			for (const auto &file : recovery.files) {
+				if (!file.existed) {
+					continue;
+				}
+				const auto backup = sidecar(file.target, "~");
+				bool exists = false;
+				if (!mapFileExists(backup, exists, error) || (exists && !clearMapSave(backup, error))
+				    || !move(file.target, backup, false, error)) {
+					error = "Cannot back up " + mapPathText(file.target) + ": " + error;
+					return false;
+				}
+			}
+			recovery.writing = true;
+			if (!writeMapSave(marker, recovery, error)) {
+				recovery.writing = false;
+				return false;
+			}
+			return true;
+		} catch (const std::exception &exception) {
+			error = exception.what();
+			return false;
+		}
+	}
+
+	bool markMapSaveCommitted(const std::filesystem::path &marker, MapSaveRecovery &recovery, std::string &error) {
+		try {
+			recovery.committed = true;
+			if (writeMapSave(marker, recovery, error)) {
+				return true;
+			}
+		} catch (const std::exception &exception) {
+			error = exception.what();
+		}
+		recovery.committed = false;
+		return false;
+	}
+
+	bool readMapSave(const std::filesystem::path &marker, MapSaveRecovery &recovery, std::string &error) {
+		try {
+			std::ifstream input(marker);
+			if (!input) {
+				error = "Cannot read map save recovery record";
+				return false;
+			}
+			if (input.peek() != '{') {
+				// Older editors recorded up to five tilde-suffixed backup paths and the catalog.
+				std::string backup;
+				for (size_t index = 0; index < 5; ++index) {
+					std::getline(input, backup);
+					if (backup.ends_with("~")) {
+						recovery.files.push_back({ std::filesystem::u8path(backup.substr(0, backup.size() - 1)), true });
+					} else if (!backup.empty()) {
+						error = "Invalid map backup in recovery record: " + backup;
+						return false;
+					}
+				}
+				std::getline(input, backup);
+				recovery.catalog = std::filesystem::u8path(backup);
+				recovery.writing = true;
+				return true;
+			}
+
+			Json record;
+			input >> record;
+			if (record.at("version") != 1) {
+				error = "Unsupported map save recovery record version";
+				return false;
+			}
+			recovery.catalog = std::filesystem::u8path(record.at("catalog").get<std::string>());
+			recovery.writing = record.at("writing").get<bool>();
+			recovery.committed = record.value("committed", false);
+			for (const auto &file : record.at("files")) {
+				recovery.files.push_back({ std::filesystem::u8path(file.at("target").get<std::string>()), file.at("existed").get<bool>() });
+			}
+			if (recovery.files.empty() || recovery.files.front().target.empty()) {
+				error = "Map save recovery record is missing its target";
+				return false;
+			}
+			return true;
+		} catch (const std::exception &exception) {
+			error = exception.what();
+			return false;
+		}
+	}
+
+	bool restoreMapSave(const MapSaveRecovery &recovery, std::string &error) {
+		try {
+			bool restored = true;
+			for (const auto &file : recovery.files) {
+				const auto backup = sidecar(file.target, "~");
+				bool targetExists = false;
+				bool backupExists = false;
+				std::string problem;
+				if (!mapFileExists(file.target, targetExists, problem)) {
+					// A directory or symlink cannot be removed as a failed-save output.
+				} else if (!file.existed) {
+					if (recovery.writing && targetExists) {
+						clearMapSave(file.target, problem);
+					}
+				} else if (!recovery.writing && targetExists) {
+					continue; // Preparation never writes a target, so this original is already in place.
+				} else if (mapFileExists(backup, backupExists, problem)) {
+					if (!backupExists) {
+						problem = "Missing map backup: " + mapPathText(backup);
+					} else if (!recovery.writing) {
+						move(backup, file.target, false, problem);
+					} else {
+						// Keep the original backup for another recovery attempt. Install a
+						// complete copy instead of deleting the current target first.
+						const auto temporary = sidecar(file.target, (".restore-" + nonce()).c_str());
+						std::error_code code;
+						if (!std::filesystem::copy_file(backup, temporary, code)) {
+							problem = code.message();
+						} else {
+							move(temporary, file.target, true, problem);
+						}
+						std::filesystem::remove(temporary, code);
+					}
+				}
+				if (!problem.empty()) {
+					restored = false;
+					if (!error.empty()) {
+						error += '\n';
+					}
+					error += mapPathText(file.target) + ": " + problem;
+				}
+			}
+			return restored;
+		} catch (const std::exception &exception) {
+			error = exception.what();
+			return false;
+		}
+	}
+
+	bool clearMapSave(const std::filesystem::path &marker, std::string &error) {
+		std::error_code code;
+		std::filesystem::remove(marker, code);
+		if (code) {
+			error = "Cannot remove " + mapPathText(marker) + ": " + code.message();
+			return false;
+		}
+		return true;
+	}
+
 	bool revision(const std::filesystem::path &file, Revision &result, std::string &error) {
 		if (!regular(file, error)) {
 			return false;
