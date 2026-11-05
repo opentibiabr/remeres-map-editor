@@ -2306,21 +2306,25 @@ void MapCanvas::RotateSelectedItems() {
 
 	Action* action = editor.createAction(ACTION_ROTATE_ITEM);
 	for (Tile* tile : editor.getSelection()) {
-		Tile* new_tile = tile->deepCopy(editor.getMap());
+		bool has_roteable = false;
+		for (Item* item : tile->getSelectedItems()) {
+			if (item->isRoteable()) {
+				has_roteable = true;
+				break;
+			}
+		}
+		if (!has_roteable) {
+			continue;
+		}
 
-		bool rotated = false;
+		Tile* new_tile = tile->deepCopy(editor.getMap());
+		new_tile->setStatFlags(TILESTATE_SELECTED);
 		for (Item* item : new_tile->getSelectedItems()) {
 			if (item->isRoteable()) {
 				item->doRotate();
-				rotated = true;
 			}
 		}
-
-		if (rotated) {
-			action->addChange(newd Change(new_tile));
-		} else {
-			delete new_tile;
-		}
+		action->addChange(newd Change(new_tile));
 	}
 
 	editor.addAction(action);
