@@ -6,7 +6,7 @@
 if not app.hasMap() then
 	app.alert({
 		title = "Replace Unique ID",
-		text = "Nenhum mapa esta aberto no momento.",
+		text = "No map is currently open.",
 	})
 	return
 end
@@ -19,31 +19,50 @@ local dlg = Dialog({
 })
 
 dlg:label({
-	text = "Substitui Unique IDs em grounds e itens no mapa.",
+	text = "Replaces Unique IDs for grounds and items on the map.",
 })
 dlg:separator()
 
 dlg:number({
 	id = "fromUid",
-	label = "De Unique ID (Antigo):",
-	value = 8000,
-	min = 0,
+	label = "From Unique ID (Old):",
+	value = 1000,
+	min = 1000,
 	max = 65535,
 })
 
 dlg:number({
-	id = "toUid",
-	label = "Para Unique ID (Novo):",
-	value = 100,
-	min = 0,
-	max = 65535,
+    id = "toUid",
+    label = "To Unique ID (new):",
+	value = 1000,
+    onchange = function(d)
+        local value = tonumber(d.data.toUid)
+        local errorMessage = ""
+
+        if value and value < 1000 then
+            errorMessage = "Invalid Unique ID! Minimum allowed value is 1000."
+        elseif value and value > 65535 then
+            errorMessage = "Invalid Unique ID! Maximum allowed value is 65535."
+        elseif value and value == tonumber(d.data.fromUid) then
+    		errorMessage = "Destination ID cannot be the same as source ID."
+        elseif not value and d.data.toUid ~= "" then
+            errorMessage = "Please enter a valid numeric Unique ID."
+        end
+
+        d:modify({
+            uidWarning = {
+                text = errorMessage,
+                fgcolor = "#FF4444",
+            }
+        })
+    end,
 })
 
 if hasSelection then
 	dlg:separator()
 	dlg:check({
 		id = "selectionOnly",
-		text = "Apenas na area selecionada",
+		text = "Only in the selected area",
 		value = false,
 	})
 end
@@ -52,7 +71,7 @@ end
 dlg:separator()
 dlg:button({
 	id = "execute",
-	text = "Substituir",
+	text = "Replace",
 	focus = true,
 	onclick = function(d)
 		d:close()
@@ -60,10 +79,16 @@ dlg:button({
 })
 dlg:button({
 	id = "cancel",
-	text = "Cancelar",
+	text = "Cancel",
 	onclick = function(d)
 		d:close()
 	end,
+})
+
+dlg:label({
+	id = "uidWarning",
+	text = "",
+	fgcolor = "",
 })
 
 dlg:show()
@@ -76,12 +101,20 @@ end
 local fromUid = math.floor(data.fromUid or 0)
 local toUid = math.floor(data.toUid or 0)
 local selectionOnly = (hasSelection and data.selectionOnly == true)
-local targetAreaText = selectionOnly and "na area selecionada" or "no mapa inteiro"
+local targetAreaText = selectionOnly and "in the selected area" or "on the entire map"
 
 if fromUid == toUid then
 	app.alert({
 		title = "Replace Unique ID",
-		text = "O Unique ID de origem e de destino sao iguais.",
+		text = "The Unique ID of origin and destination are the same.",
+	})
+	return
+end
+
+if toUid < 1000 then
+	app.alert({
+		title = "Replace Unique ID",
+		text = "The Unique ID of destination must be greater than or equal to 1000.",
 	})
 	return
 end
@@ -114,7 +147,7 @@ if selectionOnly then
 	if fromUidMatches > 1 then
 		app.alert({
 			title = "Replace Unique ID",
-			text = string.format("Foram encontrados %d itens com o Unique ID %d %s.\nUnique IDs devem ser unicos. Operacao cancelada.", fromUidMatches, fromUid, targetAreaText),
+			text = string.format("Found %d items with Unique ID %d %s.\nUnique IDs must be unique. Operation cancelled.", fromUidMatches, fromUid, targetAreaText),
 		})
 		return
 	end
@@ -176,7 +209,7 @@ end
 if toUidAssigned then
 	app.alert({
 		title = "Replace Unique ID",
-		text = string.format("O Unique ID de destino (%d) ja esta em uso no mapa.\nUnique IDs devem ser unicos. Operacao cancelada.", toUid),
+		text = string.format("The Unique ID of destination (%d) is already in use on the map.\nUnique IDs must be unique. Operation cancelled.", toUid),
 	})
 	return
 end
@@ -184,7 +217,7 @@ end
 if fromUidMatches > 1 then
 	app.alert({
 		title = "Replace Unique ID",
-		text = string.format("Foram encontrados %d itens com o Unique ID %d %s.\nUnique IDs devem ser unicos. Operacao cancelada.", fromUidMatches, fromUid, targetAreaText),
+		text = string.format("Found %d items with Unique ID %d %s.\nUnique IDs must be unique. Operation cancelled.", fromUidMatches, fromUid, targetAreaText),
 	})
 	return
 end
@@ -200,11 +233,11 @@ app.transaction(string.format("Replace UID %d -> %d", fromUid, toUid), function(
 
 		local tileModified = false
 
-		-- 1. Verifica Ground (Chao)
+		-- 1. Check Ground
 		if tile.hasGround and tile.ground then
 			if tile.ground.uniqueId == fromUid then
 				if not tileModified then
-					tile.mapFlags = tile.mapFlags -- Notifica a transacao para suporte a Undo (Ctrl+Z)
+					tile.mapFlags = tile.mapFlags -- Notifies the transaction to support Undo (Ctrl+Z)
 					tileModified = true
 				end
 				tile.ground.uniqueId = toUid
@@ -212,14 +245,14 @@ app.transaction(string.format("Replace UID %d -> %d", fromUid, toUid), function(
 			end
 		end
 
-		-- 2. Verifica Itens no Tile (portas, baus, alavancas, paredes, etc.)
+		-- 2. Check for items on the tile (doors, chests, levers, walls, etc.)
 		local items = tile.items
 		if items and #items > 0 then
 			for i = 1, #items do
 				local item = items[i]
 				if item and item.uniqueId == fromUid then
 					if not tileModified then
-						tile.mapFlags = tile.mapFlags -- Notifica a transacao para suporte a Undo (Ctrl+Z)
+						tile.mapFlags = tile.mapFlags -- Notifies the transaction to support Undo (Ctrl+Z)
 						tileModified = true
 					end
 					item.uniqueId = toUid
@@ -247,9 +280,9 @@ app.transaction(string.format("Replace UID %d -> %d", fromUid, toUid), function(
 	end
 end)
 
-print(string.format("[Replace UID] %d item(ns) alterado(s) em %d tile(s) %s (UID %d -> %d).", replacedItems, modifiedTiles, targetAreaText, fromUid, toUid))
+print(string.format("[Replace UID] %d item(s) altered in %d tile(s) %s (UID %d -> %d).", replacedItems, modifiedTiles, targetAreaText, fromUid, toUid))
 
 app.alert({
 	title = "Replace Unique ID",
-	text = string.format("Substituicao concluida com sucesso!\n\nItens alterados: %d\nTiles modificados: %d\nEscopo: %s\nAlteracao: UID %d -> %d\n\n(Voce pode desfazer a alteracao usando Ctrl+Z se necessario)", replacedItems, modifiedTiles, targetAreaText, fromUid, toUid),
+	text = string.format("Replacement completed successfully!\n\nItems altered: %d\nTiles modified: %d\nScope: %s\nChange: UID %d -> %d\n\n(You can undo the change using Ctrl+Z if necessary)", replacedItems, modifiedTiles, targetAreaText, fromUid, toUid),
 })

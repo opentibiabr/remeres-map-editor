@@ -6,7 +6,7 @@
 if not app.hasMap() then
 	app.alert({
 		title = "Replace Action ID",
-		text = "Nenhum mapa esta aberto no momento.",
+		text = "No map is currently open.",
 	})
 	return
 end
@@ -19,31 +19,50 @@ local dlg = Dialog({
 })
 
 dlg:label({
-	text = "Substitui Action IDs em grounds e itens no mapa.",
+	text = "Replaces Action IDs on grounds and items on the map.",
 })
 dlg:separator()
 
 dlg:number({
 	id = "fromAid",
-	label = "De Action ID (Antigo):",
-	value = 8000,
+	label = "From Action ID (old):",
+	value = 100,
 	min = 0,
 	max = 65535,
 })
 
 dlg:number({
-	id = "toAid",
-	label = "Para Action ID (Novo):",
+    id = "toAid",
+    label = "To Action ID (new):",
 	value = 100,
-	min = 0,
-	max = 65535,
+    onchange = function(d)
+        local value = tonumber(d.data.toAid)
+        local errorMessage = ""
+
+        if value and value < 100 then
+            errorMessage = "Invalid Action ID! Minimum allowed value is 100."
+        elseif value and value > 65535 then
+            errorMessage = "Invalid Action ID! Maximum allowed value is 65535."
+        elseif value and value == tonumber(d.data.fromAid) then
+    		errorMessage = "Destination ID cannot be the same as source ID."
+        elseif not value and d.data.toAid ~= "" then
+            errorMessage = "Please enter a valid numeric Action ID."
+        end
+
+        d:modify({
+            aidWarning = {
+                text = errorMessage,
+                fgcolor = "#FF4444",
+            }
+        })
+    end,
 })
 
 if hasSelection then
 	dlg:separator()
 	dlg:check({
 		id = "selectionOnly",
-		text = "Apenas na area selecionada",
+		text = "Only in the selected area",
 		value = false,
 	})
 end
@@ -51,7 +70,7 @@ end
 dlg:separator()
 dlg:button({
 	id = "execute",
-	text = "Substituir",
+	text = "Replace",
 	focus = true,
 	onclick = function(d)
 		d:close()
@@ -59,10 +78,16 @@ dlg:button({
 })
 dlg:button({
 	id = "cancel",
-	text = "Cancelar",
+	text = "Cancel",
 	onclick = function(d)
 		d:close()
 	end,
+})
+
+dlg:label({
+	id = "aidWarning",
+	text = "",
+	fgcolor = "",
 })
 
 dlg:show()
@@ -79,7 +104,15 @@ local selectionOnly = (hasSelection and data.selectionOnly == true)
 if fromAid == toAid then
 	app.alert({
 		title = "Replace Action ID",
-		text = "O Action ID de origem e de destino sao iguais.",
+		text = "The Action ID of origin and destination are the same.",
+	})
+	return
+end
+
+if toAid < 100 then
+	app.alert({
+		title = "Invalid Action ID",
+		text = "The Action ID of destination must be greater than or equal to 100.",
 	})
 	return
 end
@@ -95,11 +128,11 @@ app.transaction(string.format("Replace AID %d -> %d", fromAid, toAid), function(
 
 		local tileModified = false
 
-		-- 1. Verifica Ground (Chao)
+		-- 1. Check Ground
 		if tile.hasGround and tile.ground then
 			if tile.ground.actionId == fromAid then
 				if not tileModified then
-					tile.mapFlags = tile.mapFlags -- Notifica a transacao para suporte a Undo (Ctrl+Z)
+					tile.mapFlags = tile.mapFlags -- Notifies the transaction to support Undo (Ctrl+Z)
 					tileModified = true
 				end
 				tile.ground.actionId = toAid
@@ -107,14 +140,14 @@ app.transaction(string.format("Replace AID %d -> %d", fromAid, toAid), function(
 			end
 		end
 
-		-- 2. Verifica Itens no Tile (portas, baus, alavancas, paredes, etc.)
+		-- 2. Check for items on the tile (doors, chests, levers, walls, etc.)
 		local items = tile.items
 		if items and #items > 0 then
 			for i = 1, #items do
 				local item = items[i]
 				if item and item.actionId == fromAid then
 					if not tileModified then
-						tile.mapFlags = tile.mapFlags -- Notifica a transacao para suporte a Undo (Ctrl+Z)
+						tile.mapFlags = tile.mapFlags -- Notifies the transaction to support Undo (Ctrl+Z)
 						tileModified = true
 					end
 					item.actionId = toAid
@@ -142,10 +175,10 @@ app.transaction(string.format("Replace AID %d -> %d", fromAid, toAid), function(
 	end
 end)
 
-local targetAreaText = selectionOnly and "na area selecionada" or "no mapa inteiro"
-print(string.format("[Replace AID] %d item(ns) alterado(s) em %d tile(s) %s (AID %d -> %d).", replacedItems, modifiedTiles, targetAreaText, fromAid, toAid))
+local targetAreaText = selectionOnly and "in the selected area" or "on the entire map"
+print(string.format("[Replace AID] %d item(s) changed in %d tile(s) %s (AID %d -> %d).", replacedItems, modifiedTiles, targetAreaText, fromAid, toAid))
 
 app.alert({
 	title = "Replace Action ID",
-	text = string.format("Substituicao concluida com sucesso!\n\nItens alterados: %d\nTiles modificados: %d\nEscopo: %s\nAlteracao: AID %d -> %d\n\n(Voce pode desfazer a alteracao usando Ctrl+Z se necessario)", replacedItems, modifiedTiles, targetAreaText, fromAid, toAid),
+	text = string.format("Replacement completed successfully!\n\nItems changed: %d\nTiles modified: %d\nScope: %s\nChange: AID %d -> %d\n\n(You can undo the change using Ctrl+Z if necessary)", replacedItems, modifiedTiles, targetAreaText, fromAid, toAid),
 })
