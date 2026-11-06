@@ -27,7 +27,7 @@ dlg:number({
 	id = "fromUid",
 	label = "From Unique ID (Old):",
 	value = 1000,
-	min = 1000,
+	min = 0,
 	max = 65535,
 })
 
@@ -111,10 +111,10 @@ if fromUid == toUid then
 	return
 end
 
-if toUid < 1000 then
+if toUid ~= 0 and (toUid < 1000 or toUid > 65535) then
 	app.alert({
 		title = "Replace Unique ID",
-		text = "The Unique ID of destination must be greater than or equal to 1000.",
+		text = "The Unique ID of destination must be 0 (clear) or between 1000 and 65535.",
 	})
 	return
 end

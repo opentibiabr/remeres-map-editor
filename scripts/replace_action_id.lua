@@ -109,10 +109,10 @@ if fromAid == toAid then
 	return
 end
 
-if toAid < 100 then
+if toAid ~= 0 and (toAid < 100 or toAid > 65535) then
 	app.alert({
 		title = "Invalid Action ID",
-		text = "The Action ID of destination must be greater than or equal to 100.",
+		text = "The Action ID of destination must be 0 (clear) or between 100 and 65535.",
 	})
 	return
 end
