@@ -538,7 +538,7 @@ void WallBrush::doWalls(BaseMap* map, Tile* tile) {
 					}
 				}
 
-				while (true) {
+				while (!wall->isBrushDoor()) {
 					if (try_brush == nullptr) {
 						break;
 					}
