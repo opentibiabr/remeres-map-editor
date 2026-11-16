@@ -266,7 +266,9 @@ void BrowseTileWindow::OnClickSelectRaw(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void BrowseTileWindow::OnClickProperties(wxCommandEvent &evt) {
-	const auto index = itemList->GetSelection();
+	// The list allows multiple selection, so GetSelection() is not allowed here.
+	unsigned long cookie;
+	const auto index = itemList->GetFirstSelected(cookie);
 	if (index == wxNOT_FOUND) {
 		return;
 	}
