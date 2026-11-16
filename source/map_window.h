@@ -86,10 +86,12 @@ protected:
 
 protected:
 	Editor &editor;
-	DCButton* gem;
-	MapCanvas* canvas;
-	wxScrollBar* hScroll;
-	wxScrollBar* vScroll;
+	// Null until the constructor creates them; wx can send size events while
+	// the canvas is still being created (for example from an assert dialog).
+	DCButton* gem = nullptr;
+	MapCanvas* canvas = nullptr;
+	wxScrollBar* hScroll = nullptr;
+	wxScrollBar* vScroll = nullptr;
 
 private:
 	ReplaceItemsDialog* replaceItemsDialog;
