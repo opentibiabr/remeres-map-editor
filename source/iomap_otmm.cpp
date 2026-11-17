@@ -480,7 +480,7 @@ bool IOMapOTMM::loadMap(Map &map, NodeFileReadHandle &f, const FileName &identif
 											if (item->unserializeItemNode_OTMM(*this, itemNode) == false) {
 												warning("Couldn't unserialize item attributes at %d:%d:%d", pos.x, pos.y, pos.z);
 											}
-											tile->addItem(item);
+											tile->addLoadedItem(item, item->getItemType());
 										}
 									} else {
 										warning("Unknown type of tile child node");
