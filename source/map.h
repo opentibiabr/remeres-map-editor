@@ -28,6 +28,7 @@
 #include "zones.h"
 #include "templates.h"
 #include "spawn_npc.h"
+#include "map_comments.h"
 
 class Map : public BaseMap {
 public:
@@ -52,7 +53,7 @@ public:
 	}
 	// Returns true if any change has been done since last save
 	bool hasChanged() const noexcept {
-		return has_changed;
+		return has_changed && !protectedCopy;
 	}
 	// Makes a change, doesn't matter what. Just so that it asks when saving (Also adds a * to the window title)
 	bool doChange();
@@ -176,10 +177,18 @@ protected:
 	std::string zonefile; // The zonefile
 
 public:
+	// A collaboration copy the host did not share: it is never saved or exported, so closing
+	// it must not ask to save either.
+	bool protectedCopy = false;
+
 	Towns towns;
 	Houses houses;
 	SpawnsMonster spawnsMonster;
 	SpawnsNpc spawnsNpc;
+	MapComments comments;
+
+	// "<map name>-comments.xml" next to the map file, empty if the map has no file yet
+	std::string getCommentsFilename() const;
 
 protected:
 	void updateUniqueIds(Tile* old_tile, Tile* new_tile) override;

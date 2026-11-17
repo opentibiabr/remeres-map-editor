@@ -39,9 +39,8 @@
 #include "spawn_npc_brush.h"
 #include "preferences.h"
 
-#include "live_server.h"
-#include "live_client.h"
-#include "live_action.h"
+#include "collab/collab_session.h"
+#include "collab/collab_snapshot.h"
 
 #include <filesystem>
 #include <chrono>
@@ -50,8 +49,6 @@
 namespace fs = std::filesystem;
 
 Editor::Editor(CopyBuffer &copybuffer) :
-	live_server(nullptr),
-	live_client(nullptr),
 	actionQueue(newd ActionQueue(*this)),
 	selection(*this),
 	copybuffer(copybuffer),
@@ -85,8 +82,6 @@ Editor::Editor(CopyBuffer &copybuffer) :
 
 // Used for loading a new map from "open map" menu
 Editor::Editor(CopyBuffer &copybuffer, const FileName &fn) :
-	live_server(nullptr),
-	live_client(nullptr),
 	actionQueue(newd ActionQueue(*this)),
 	selection(*this),
 	copybuffer(copybuffer),
@@ -133,16 +128,35 @@ Editor::Editor(CopyBuffer &copybuffer, const FileName &fn) :
 	}
 }
 
-Editor::Editor(CopyBuffer &copybuffer, LiveClient* client) :
-	live_server(nullptr),
-	live_client(client),
-	actionQueue(newd NetworkedActionQueue(*this)),
+Editor::Editor(CopyBuffer &copybuffer, const collab::Snapshot &snapshot) :
+	actionQueue(newd ActionQueue(*this)),
 	selection(*this),
 	copybuffer(copybuffer),
-	replace_brush(nullptr) { }
+	replace_brush(nullptr) {
+	wxString error;
+	wxArrayString warnings;
+	if (!g_gui.loadMapWindow(error, warnings)) {
+		throw std::runtime_error("Could not load the client data needed by this map:\n" + nstr(error));
+	}
+
+	ScopedLoadingBar loadingBar("Loading shared map...");
+	std::string loadError;
+	if (!collab::loadSnapshotInto(map, snapshot, loadError)) {
+		throw std::runtime_error("Could not load the shared map: " + loadError);
+	}
+
+	// No file: Save As asks for a name, like a new map.
+	map.setName(snapshot.mapName + " (collab)");
+	map.unnamed = true;
+	map.doChange();
+}
 
 Editor::~Editor() {
 	delete actionQueue;
+}
+
+bool Editor::CanEdit() const {
+	return !collab_client || collab::Session::get().canEdit(this);
 }
 
 Action* Editor::createAction(ActionIdentifier type) {
@@ -215,6 +229,8 @@ void Editor::resetActionsTimer() {
 
 void Editor::clearActions() {
 	actionQueue->clear();
+	// Callers of clearActions have just changed the map in a way the undo queue cannot describe.
+	collab::Session::get().onWholeMapOperation(this);
 	g_gui.UpdateActions();
 }
 
@@ -233,6 +249,11 @@ void Editor::clearChanges() {
 }
 
 void Editor::saveMap(FileName filename, bool showdialog) {
+	if (map.protectedCopy) {
+		g_gui.PopupDialog("Protected map", "The host did not share this map, so it cannot be saved.", wxOK);
+		return;
+	}
+
 	std::string savefile = filename.GetFullPath().mb_str(wxConvUTF8).data();
 	bool save_as = false;
 	bool save_otgz = false;
@@ -390,6 +411,11 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 		if (!success) {
 			return;
 		}
+
+		if (!save_otgz) {
+			map.comments.save(map.getCommentsFilename());
+		}
+		collab::Session::get().onHostSaved(this);
 	}
 
 	// Move to permanent backup
@@ -464,6 +490,7 @@ bool Editor::importMiniMap(FileName filename, int import, int import_x_offset, i
 bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offset, int import_z_offset, ImportType house_import_type, ImportType spawn_import_type, ImportType spawn_npc_import_type) {
 	selection.clear();
 	actionQueue->clear();
+	collab::Session::get().onWholeMapOperation(this); // runs after the import, the map is resent whole
 
 	Map imported_map;
 	bool loaded = imported_map.open(nstr(filename.GetFullPath()));
@@ -1950,92 +1977,6 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 			}
 		}
 		addAction(action, 2);
-	}
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Live!
-
-bool Editor::IsLiveClient() const {
-	return live_client != nullptr;
-}
-
-bool Editor::IsLiveServer() const {
-	return live_server != nullptr;
-}
-
-bool Editor::IsLive() const {
-	return IsLiveClient() || IsLiveServer();
-}
-
-bool Editor::IsLocal() const {
-	return !IsLive();
-}
-
-LiveClient* Editor::GetLiveClient() const {
-	return live_client;
-}
-
-LiveServer* Editor::GetLiveServer() const {
-	return live_server;
-}
-
-LiveSocket &Editor::GetLive() const {
-	if (live_server) {
-		return *live_server;
-	}
-	return *live_client;
-}
-
-LiveServer* Editor::StartLiveServer() {
-	ASSERT(IsLocal());
-	live_server = newd LiveServer(*this);
-
-	delete actionQueue;
-	actionQueue = newd NetworkedActionQueue(*this);
-
-	return live_server;
-}
-
-void Editor::BroadcastNodes(DirtyList &dirtyList) {
-	if (IsLiveClient()) {
-		live_client->sendChanges(dirtyList);
-	} else {
-		live_server->broadcastNodes(dirtyList);
-	}
-}
-
-void Editor::CloseLiveServer() {
-	ASSERT(IsLive());
-	if (live_client) {
-		live_client->close();
-
-		delete live_client;
-		live_client = nullptr;
-	}
-
-	if (live_server) {
-		live_server->close();
-
-		delete live_server;
-		live_server = nullptr;
-
-		delete actionQueue;
-		actionQueue = newd ActionQueue(*this);
-	}
-
-	NetworkConnection &connection = NetworkConnection::getInstance();
-	connection.stop();
-}
-
-void Editor::QueryNode(int ndx, int ndy, bool underground) {
-	ASSERT(live_client);
-	live_client->queryNode(ndx, ndy, underground);
-}
-
-void Editor::SendNodeRequests() {
-	if (live_client) {
-		live_client->sendNodeRequests();
 	}
 }
 

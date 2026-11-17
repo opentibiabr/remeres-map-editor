@@ -36,11 +36,21 @@
 #include "monster.h"
 #include "npc.h"
 #include "lua/lua_script_manager.h"
+#include "mcp/mcp_server.h"
+#include "mcp/mcp_window.h"
+#include <wx/spinctrl.h>
+#include <wx/textentry.h>
+#include "collab/collab_crypto.h"
+#include "collab/collab_protocol.h"
+#include "collab/collab_session.h"
 
 #include "../brushes/icon/rme_icon.xpm"
 
 BEGIN_EVENT_TABLE(MainFrame, wxFrame)
 EVT_CLOSE(MainFrame::OnExit)
+#ifndef __WINDOWS__
+EVT_CHAR_HOOK(MainFrame::OnCharHook)
+#endif
 
 // Update check complete
 #ifdef _USE_UPDATER_
@@ -94,6 +104,11 @@ Application::~Application() {
 }
 
 bool Application::OnInit() {
+	// Hidden switch for CI / manual checks of the collaboration primitives.
+	if (argc == 2 && wxString(argv[1]) == "--collab-selfcheck") {
+		std::exit(collab::selfCheck() ? 0 : 1);
+	}
+
 #if defined __DEBUG_MODE__ && defined __WINDOWS__
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
@@ -118,6 +133,12 @@ bool Application::OnInit() {
 	g_settings.load();
 	g_gui.LoadHotkeys();
 	ClientAssets::load();
+
+	if (!collab::crypto::init()) {
+		spdlog::warn("Could not initialize libsodium, collaboration sessions are unavailable");
+	}
+	collab::Session::get().onCursorsChanged = [] { g_gui.RefreshView(); };
+	collab::Session::get().onOverlayChanged = [] { g_gui.RefreshView(); };
 
 #ifdef _USE_PROCESS_COM
 	m_single_instance_checker = newd wxSingleInstanceChecker; // Instance checker has to stay alive throughout the applications lifetime
@@ -185,6 +206,9 @@ bool Application::OnInit() {
 
 	// Set idle event handling mode
 	wxIdleEvent::SetMode(wxIDLE_PROCESS_SPECIFIED);
+
+	// Bring the MCP server back up if it was left enabled last session.
+	McpWindow::StartFromSettings();
 
 	// Goto RME website?
 	if (g_settings.getInteger(Config::GOTO_WEBSITE_ON_BOOT) == 1) {
@@ -308,6 +332,8 @@ void Application::Unload() {
 }
 
 int Application::OnExit() {
+	collab::Session::get().leave();
+	mcp::Server::get().stop();
 	g_luaScripts.shutdown();
 #ifdef _USE_PROCESS_COM
 	wxDELETE(m_proc_server);
@@ -317,6 +343,8 @@ int Application::OnExit() {
 }
 
 void Application::ShutdownServices() {
+	collab::Session::get().leave();
+	mcp::Server::get().stop();
 	g_luaScripts.shutdown();
 #ifdef _USE_PROCESS_COM
 	wxDELETE(m_proc_server);
@@ -426,7 +454,10 @@ void MainFrame::OnUpdateActions(wxCommandEvent &) {
 
 #ifdef __WINDOWS__
 bool MainFrame::MSWTranslateMessage(WXMSG* msg) {
-	if (g_gui.AreHotkeysEnabled()) {
+	// Typing in any text field (collaboration chat, names, passwords...) must never fire menu accelerators.
+	wxWindow* focused = wxWindow::FindFocus();
+	const bool typing = dynamic_cast<wxTextEntry*>(focused) != nullptr || dynamic_cast<wxSpinCtrl*>(focused) != nullptr;
+	if (g_gui.AreHotkeysEnabled() && !typing) {
 		if (wxFrame::MSWTranslateMessage(msg)) {
 			return true;
 		}
@@ -437,6 +468,17 @@ bool MainFrame::MSWTranslateMessage(WXMSG* msg) {
 	}
 	return false;
 }
+#else
+void MainFrame::OnCharHook(wxKeyEvent &event) {
+	// Typing in a text field must never fire menu accelerators: a handled hook event skips them,
+	// and DoAllowNextEvent still lets the field receive the key.
+	wxWindow* focused = wxWindow::FindFocus();
+	if (dynamic_cast<wxTextEntry*>(focused) != nullptr || dynamic_cast<wxSpinCtrl*>(focused) != nullptr) {
+		event.DoAllowNextEvent();
+		return;
+	}
+	event.Skip();
+}
 #endif
 
 void MainFrame::UpdateMenubar() {
@@ -445,21 +487,6 @@ void MainFrame::UpdateMenubar() {
 }
 
 bool MainFrame::DoQueryClose() {
-	Editor* editor = g_gui.GetCurrentEditor();
-	if (editor) {
-		if (editor->IsLive()) {
-			long ret = g_gui.PopupDialog(
-				"Must Close Server",
-				wxString("You are currently connected to a live server, to close this map the connection must be severed."),
-				wxOK | wxCANCEL
-			);
-			if (ret == wxID_OK) {
-				editor->CloseLiveServer();
-			} else {
-				return false;
-			}
-		}
-	}
 	return true;
 }
 
@@ -502,33 +529,10 @@ bool MainFrame::DoQuerySave(bool doclose, bool checkTileset) {
 	}
 
 	Editor &editor = *g_gui.GetCurrentEditor();
-	if (editor.IsLiveClient()) {
-		long ret = g_gui.PopupDialog(
-			"Disconnect",
-			"Do you want to disconnect?",
-			wxYES | wxNO
-		);
-
-		if (ret != wxID_YES) {
-			return false;
-		}
-
-		editor.CloseLiveServer();
-		return DoQuerySave(doclose);
-	} else if (editor.IsLiveServer()) {
-		long ret = g_gui.PopupDialog(
-			"Shutdown",
-			"Do you want to shut down the server? (any clients will be disconnected)",
-			wxYES | wxNO
-		);
-
-		if (ret != wxID_YES) {
-			return false;
-		}
-
-		editor.CloseLiveServer();
-		return DoQuerySave(doclose);
-	} else if (g_gui.ShouldSave()) {
+	if (!collab::Session::get().confirmCloseEditor(&editor)) {
+		return false;
+	}
+	if (g_gui.ShouldSave()) {
 		long ret = g_gui.PopupDialog(
 			"Save changes",
 			"Do you want to save your changes to \"" + wxstr(g_gui.GetCurrentMap().getName()) + "\"?",
@@ -647,6 +651,13 @@ bool MainFrame::LoadMap(FileName name) {
 
 void MainFrame::OnExit(wxCloseEvent &event) {
 	if (!DoQuerySaveTileset()) {
+		if (event.CanVeto()) {
+			event.Veto();
+			return;
+		}
+	}
+
+	if (!collab::Session::get().confirmShutdown()) {
 		if (event.CanVeto()) {
 			event.Veto();
 			return;

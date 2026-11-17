@@ -149,7 +149,7 @@
       <LanguageStandard>stdcpp23</LanguageStandard>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>wxmsw33ud_core.lib;wxbase33ud.lib;wxmsw33ud_adv.lib;wxmsw33ud_html.lib;wxmsw33ud_aui.lib;wxmsw33ud_gl.lib;wxbase33ud_net.lib;comctl32.lib;Rpcrt4.lib;WS2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wxmsw33ud_core.lib;wxbase33ud.lib;wxmsw33ud_adv.lib;wxmsw33ud_html.lib;wxmsw33ud_aui.lib;wxmsw33ud_gl.lib;wxbase33ud_net.lib;comctl32.lib;Rpcrt4.lib;WS2_32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)..\dependencies\vs\lib\</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <GenerateMapFile>true</GenerateMapFile>
@@ -183,7 +183,7 @@
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>wxbase33ud.lib;wxmsw33ud_core.lib;wxmsw33ud_html.lib;wxbase33ud_xml.lib;wxmsw33ud_adv.lib;wxmsw33ud_aui.lib;wxmsw33ud_gl.lib;wxbase33ud_net.lib;comctl32.lib;Rpcrt4.lib;WS2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wxbase33ud.lib;wxmsw33ud_core.lib;wxmsw33ud_html.lib;wxbase33ud_xml.lib;wxmsw33ud_adv.lib;wxmsw33ud_aui.lib;wxmsw33ud_gl.lib;wxbase33ud_net.lib;comctl32.lib;Rpcrt4.lib;WS2_32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(ProjectDir)vcpkg_installed\x64-windows\debug\lib\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <GenerateMapFile>true</GenerateMapFile>
@@ -219,7 +219,7 @@
       <LanguageStandard>stdcpp23</LanguageStandard>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>wxbase33u.lib;wxmsw33u_core.lib;wxmsw33u_html.lib;wxbase33u_xml.lib;wxmsw33u_adv.lib;wxmsw33u_aui.lib;wxmsw33u_gl.lib;wxbase33u_net.lib;comctl32.lib;WS2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wxbase33u.lib;wxmsw33u_core.lib;wxmsw33u_html.lib;wxbase33u_xml.lib;wxmsw33u_adv.lib;wxmsw33u_aui.lib;wxmsw33u_gl.lib;wxbase33u_net.lib;comctl32.lib;WS2_32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
       <LargeAddressAware>true</LargeAddressAware>
@@ -258,7 +258,7 @@
       <LanguageStandard>stdcpp23</LanguageStandard>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>wxmsw33u_core.lib;wxbase33u.lib;wxmsw33u_adv.lib;wxmsw33u_html.lib;wxmsw33u_aui.lib;wxmsw33u_gl.lib;wxbase33u_net.lib;comctl32.lib;WS2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wxmsw33u_core.lib;wxbase33u.lib;wxmsw33u_adv.lib;wxmsw33u_html.lib;wxmsw33u_aui.lib;wxmsw33u_gl.lib;wxbase33u_net.lib;comctl32.lib;WS2_32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
       <LargeAddressAware>true</LargeAddressAware>
@@ -348,19 +348,6 @@
     <ClCompile Include="..\..\source\house_brush.cpp" />
     <ClInclude Include="..\..\source\house_exit_brush.h" />
     <ClCompile Include="..\..\source\house_exit_brush.cpp" />
-    <ClInclude Include="..\..\source\live_action.h" />
-    <ClCompile Include="..\..\source\live_action.cpp" />
-    <ClInclude Include="..\..\source\live_client.h" />
-    <ClCompile Include="..\..\source\live_client.cpp" />
-    <ClInclude Include="..\..\source\live_packets.h" />
-    <ClInclude Include="..\..\source\live_peer.h" />
-    <ClCompile Include="..\..\source\live_peer.cpp" />
-    <ClInclude Include="..\..\source\live_server.h" />
-    <ClCompile Include="..\..\source\live_server.cpp" />
-    <ClInclude Include="..\..\source\live_socket.h" />
-    <ClCompile Include="..\..\source\live_socket.cpp" />
-    <ClInclude Include="..\..\source\live_tab.h" />
-    <ClCompile Include="..\..\source\live_tab.cpp" />
     <ClInclude Include="..\..\source\map_allocator.h" />
     <ClInclude Include="..\..\source\map_region.h" />
     <ClCompile Include="..\..\source\map_region.cpp" />
@@ -384,8 +371,6 @@
     <ClCompile Include="..\..\source\raw_brush.cpp" />
     <ClInclude Include="..\..\source\replace_items_window.h" />
     <ClInclude Include="..\..\source\rme_forward_declarations.h" />
-    <ClInclude Include="..\..\source\rme_net.h" />
-    <ClCompile Include="..\..\source\rme_net.cpp" />
     <ClInclude Include="..\..\source\settings.h" />
     <ClCompile Include="..\..\source\settings.cpp" />
     <ClInclude Include="..\..\source\spawn_monster_brush.h" />
@@ -402,6 +387,52 @@
     <ClCompile Include="..\..\source\dcbutton.cpp" />
     <ClInclude Include="..\..\source\editor_tabs.h" />
     <ClCompile Include="..\..\source\editor_tabs.cpp" />
+    <ClCompile Include="..\..\source\map_comments.cpp" />
+    <ClInclude Include="..\..\source\map_comments.h" />
+    <ClInclude Include="..\..\source\mcp\mcp_common.h" />
+    <ClInclude Include="..\..\source\mcp\mcp_gui_call.h" />
+    <ClCompile Include="..\..\source\mcp\mcp_render.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_server.cpp" />
+    <ClInclude Include="..\..\source\mcp\mcp_server.h" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools.cpp" />
+    <ClInclude Include="..\..\source\mcp\mcp_tools.h" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_analyze.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_assets.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_brush.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_clientview.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_edit.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_entities.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_guide.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_io.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_manage.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_map.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_ops.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_script.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_select.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_stamp.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_tools_terrain.cpp" />
+    <ClCompile Include="..\..\source\mcp\mcp_window.cpp" />
+    <ClInclude Include="..\..\source\mcp\mcp_window.h" />
+    <ClCompile Include="..\..\source\mcp\mcp_write.cpp" />
+    <ClInclude Include="..\..\source\mcp\mcp_write.h" />
+    <ClCompile Include="..\..\source\collab\collab_connection.cpp" />
+    <ClInclude Include="..\..\source\collab\collab_connection.h" />
+    <ClCompile Include="..\..\source\collab\collab_crypto.cpp" />
+    <ClInclude Include="..\..\source\collab\collab_crypto.h" />
+    <ClCompile Include="..\..\source\collab\collab_journal.cpp" />
+    <ClInclude Include="..\..\source\collab\collab_journal.h" />
+    <ClCompile Include="..\..\source\collab\collab_meta.cpp" />
+    <ClInclude Include="..\..\source\collab\collab_meta.h" />
+    <ClInclude Include="..\..\source\collab\collab_protocol.h" />
+    <ClCompile Include="..\..\source\collab\collab_selfcheck.cpp" />
+    <ClCompile Include="..\..\source\collab\collab_session.cpp" />
+    <ClInclude Include="..\..\source\collab\collab_session.h" />
+    <ClCompile Include="..\..\source\collab\collab_snapshot.cpp" />
+    <ClInclude Include="..\..\source\collab\collab_snapshot.h" />
+    <ClCompile Include="..\..\source\collab\collab_tile_codec.cpp" />
+    <ClInclude Include="..\..\source\collab\collab_tile_codec.h" />
+    <ClCompile Include="..\..\source\collab\collab_window.cpp" />
+    <ClInclude Include="..\..\source\collab\collab_window.h" />
     <ClInclude Include="..\..\source\enums.h" />
     <ClInclude Include="..\..\source\gui.h" />
     <ClCompile Include="..\..\source\gui.cpp" />

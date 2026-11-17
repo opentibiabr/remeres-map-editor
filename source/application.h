@@ -97,6 +97,8 @@ public:
 
 #ifdef __WINDOWS__
 	virtual bool MSWTranslateMessage(WXMSG* msg);
+#else
+	void OnCharHook(wxKeyEvent &event);
 #endif
 
 	void PrepareDC(wxDC &dc);

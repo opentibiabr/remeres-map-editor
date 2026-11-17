@@ -19,6 +19,7 @@
 #include "lua_script_manager.h"
 #include "lua_api.h"
 #include "lua_api_image.h"
+#include "../editor.h"
 #include "../gui.h"
 #include "../tile.h"
 
@@ -600,6 +601,11 @@ void LuaScriptManager::runAutoScripts() {
 }
 
 bool LuaScriptManager::executeScript(const std::string &filepath) {
+	// Scripts can read and write anything: not on a map the host chose not to share.
+	if (Editor* editor = g_gui.GetCurrentEditor(); editor && editor->IsProtectedCopy()) {
+		lastError = "Scripts are disabled on a protected collaboration copy";
+		return false;
+	}
 	if (!initialized) {
 		lastError = "Script manager not initialized";
 		return false;

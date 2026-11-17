@@ -4911,6 +4911,8 @@ bool IOMapOTBM::loadMap(Map &map, const FileName &filename) {
 		warning("Failed to load npcs spawns.");
 		map.spawnnpcfile = nstr(filename.GetName()) + "-npc.xml";
 	}
+	// Optional, the file only exists when the map has comments
+	map.comments.load(map.getCommentsFilename());
 	return true;
 }
 
@@ -5836,6 +5838,53 @@ bool IOMapOTBM::saveMap(Map &map, const FileName &identifier) {
 
 	g_gui.SetLoadDone(99, "Saving npcs spawns...");
 	saveSpawnsNpc(map, identifier);
+	return true;
+}
+
+bool IOMapOTBM::saveMemory(Map &map, MemoryMap &out) {
+	MemoryNodeFileWriteHandle writer;
+	if (!saveMap(map, writer)) {
+		return false;
+	}
+	out.otbm.assign(reinterpret_cast<const char*>(writer.getMemory()), writer.getSize());
+
+	auto dump = [](const pugi::xml_document &doc) {
+		std::ostringstream stream;
+		doc.save(stream, "", pugi::format_raw, pugi::encoding_utf8);
+		return stream.str();
+	};
+	pugi::xml_document monsters;
+	out.monsters = saveSpawns(map, monsters) ? dump(monsters) : std::string();
+	pugi::xml_document npcs;
+	out.npcs = saveSpawnsNpc(map, npcs) ? dump(npcs) : std::string();
+	pugi::xml_document houses;
+	out.houses = saveHouses(map, houses) ? dump(houses) : std::string();
+	pugi::xml_document zones;
+	out.zones = saveZones(map, zones) ? dump(zones) : std::string();
+	return true;
+}
+
+bool IOMapOTBM::loadMemory(Map &map, const MemoryMap &in) {
+	MemoryNodeFileReadHandle reader(reinterpret_cast<const uint8_t*>(in.otbm.data()), in.otbm.size());
+	if (!loadMap(map, reader)) {
+		return false;
+	}
+	map.mapVersion = version;
+
+	// Same order as loading from disk: houses, zones, monster spawns, npc spawns.
+	auto load = [this, &map](const std::string &xml, const char* what, bool (IOMapOTBM::*fn)(Map &, pugi::xml_document &)) {
+		if (xml.empty()) {
+			return;
+		}
+		pugi::xml_document doc;
+		if (!doc.load_buffer(xml.data(), xml.size()) || !(this->*fn)(map, doc)) {
+			warning("Failed to load %s from the shared map.", what);
+		}
+	};
+	load(in.houses, "houses", &IOMapOTBM::loadHouses);
+	load(in.zones, "zones", &IOMapOTBM::loadZones);
+	load(in.monsters, "monster spawns", &IOMapOTBM::loadSpawnsMonster);
+	load(in.npcs, "npc spawns", &IOMapOTBM::loadSpawnsNpc);
 	return true;
 }
 

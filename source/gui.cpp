@@ -42,12 +42,10 @@
 #include "spawn_npc_brush.h"
 #include "actions_history_window.h"
 #include "lua/lua_scripts_window.h"
+#include "mcp/mcp_window.h"
+#include "collab/collab_window.h"
 #include "sprite_appearances.h"
 #include "preferences.h"
-
-#include "live_client.h"
-#include "live_tab.h"
-#include "live_server.h"
 
 #include <appearances.pb.h>
 
@@ -666,27 +664,6 @@ void GUI::CloseCurrentEditor() {
 	root->UpdateMenubar();
 }
 
-bool GUI::CloseLiveEditors(LiveSocket* sock) {
-	for (int i = 0; i < tabbook->GetTabCount(); ++i) {
-		auto* mapTab = dynamic_cast<MapTab*>(tabbook->GetTab(i));
-		if (mapTab) {
-			Editor* editor = mapTab->GetEditor();
-			if (editor->GetLiveClient() == sock) {
-				tabbook->DeleteTab(i--);
-			}
-		}
-		auto* liveLogTab = dynamic_cast<LiveLogTab*>(tabbook->GetTab(i));
-		if (liveLogTab) {
-			if (liveLogTab->GetSocket() == sock) {
-				liveLogTab->Disconnect();
-				tabbook->DeleteTab(i--);
-			}
-		}
-	}
-	root->UpdateMenubar();
-	return true;
-}
-
 bool GUI::CloseAllEditors() {
 	for (int i = 0; i < tabbook->GetTabCount(); ++i) {
 		auto* mapTab = dynamic_cast<MapTab*>(tabbook->GetTab(i));
@@ -708,6 +685,64 @@ bool GUI::CloseAllEditors() {
 		root->UpdateMenubar();
 	}
 	return true;
+}
+
+Editor* GUI::OpenCollabEditor(const collab::Snapshot &snapshot, bool protectedCopy) {
+	FinishWelcomeDialog();
+
+	Editor* editor;
+	try {
+		editor = newd Editor(copybuffer, snapshot);
+	} catch (std::runtime_error &e) {
+		PopupDialog(root, "Error!", wxString(e.what(), wxConvUTF8), wxOK);
+		return nullptr;
+	}
+	editor->SetCollabClient(true, protectedCopy);
+
+	auto* mapTab = newd MapTab(tabbook, editor);
+	mapTab->OnSwitchEditorMode(mode);
+	mapTab->GetView()->FitToMap();
+	UpdateTitle();
+	FitViewToMap(mapTab);
+	root->UpdateMenubar();
+	for (const auto &palette : palettes) {
+		palette->OnUpdate(mapTab->GetMap());
+	}
+	return editor;
+}
+
+Editor* GUI::ReplaceCollabEditor(Editor* old, const collab::Snapshot &snapshot, bool protectedCopy) {
+	Position center;
+	int floor = rme::MapGroundLayer;
+	bool found = false;
+	for (int i = 0; i < tabbook->GetTabCount() && !found; ++i) {
+		auto* mapTab = dynamic_cast<MapTab*>(tabbook->GetTab(i));
+		if (mapTab && mapTab->GetEditor() == old) {
+			center = mapTab->GetScreenCenterPosition();
+			floor = mapTab->GetCanvas()->GetFloor();
+			found = true;
+		}
+	}
+
+	Editor* editor = OpenCollabEditor(snapshot, protectedCopy);
+	if (editor && found) {
+		MapTab* mapTab = GetCurrentMapTab();
+		if (mapTab && mapTab->GetEditor() == editor) {
+			mapTab->SetScreenCenterPosition(Position(center.x, center.y, floor));
+		}
+	}
+	return editor;
+}
+
+void GUI::CloseEditorTabs(Editor* editor) {
+	for (int i = 0; i < tabbook->GetTabCount(); ++i) {
+		auto* mapTab = dynamic_cast<MapTab*>(tabbook->GetTab(i));
+		if (mapTab && mapTab->GetEditor() == editor) {
+			tabbook->DeleteTab(i--);
+		}
+	}
+	RefreshPalettes();
+	root->UpdateMenubar();
 }
 
 void GUI::NewMapView() {
@@ -928,6 +963,28 @@ LuaScriptsWindow* GUI::ShowScriptManagerWindow() {
 	return script_manager_window;
 }
 
+McpWindow* GUI::ShowMcpWindow() {
+	if (!mcp_window) {
+		mcp_window = newd McpWindow(root);
+		aui_manager->AddPane(mcp_window, wxAuiPaneInfo().Caption("MCP Server").Right().Layer(1).CloseButton(true).MinSize(300, 240).BestSize(420, 340));
+	} else {
+		aui_manager->GetPane(mcp_window).Show();
+	}
+	aui_manager->Update();
+	return mcp_window;
+}
+
+CollabWindow* GUI::ShowCollabWindow() {
+	if (!collab_window) {
+		collab_window = newd CollabWindow(root);
+		aui_manager->AddPane(collab_window, wxAuiPaneInfo().Name("collab").Caption("Collaborate").Right().Layer(1).Position(1).CloseButton(true).MinSize(320, 300).BestSize(420, 520));
+	} else {
+		aui_manager->GetPane(collab_window).Show();
+	}
+	aui_manager->Update();
+	return collab_window;
+}
+
 //=============================================================================
 // Palette Window Interface implementation
 
@@ -1135,12 +1192,6 @@ void GUI::CreateLoadBar(wxString message, bool canCancel, bool appModal) {
 	progressBar->SetSize(280, -1);
 	progressBar->Show(true);
 
-	for (int idx = 0; idx < tabbook->GetTabCount(); ++idx) {
-		auto* mt = dynamic_cast<MapTab*>(tabbook->GetTab(idx));
-		if (mt && mt->GetEditor()->IsLiveServer()) {
-			mt->GetEditor()->GetLiveServer()->startOperation(progressText);
-		}
-	}
 	progressBar->Update(0);
 }
 
@@ -1176,16 +1227,6 @@ bool GUI::SetLoadDone(int32_t done, const wxString &newMessage) {
 			&skip
 		);
 		currentProgress = newProgress;
-	}
-
-	for (int32_t index = 0; index < tabbook->GetTabCount(); ++index) {
-		auto* mapTab = dynamic_cast<MapTab*>(tabbook->GetTab(index));
-		if (mapTab && mapTab->GetEditor()) {
-			LiveServer* server = mapTab->GetEditor()->GetLiveServer();
-			if (server) {
-				server->updateOperation(newProgress);
-			}
-		}
 	}
 
 	return continueProcessing && !skip;

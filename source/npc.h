@@ -52,6 +52,10 @@ public:
 
 	bool isNpc() const;
 
+	[[nodiscard]] const std::string &getTypeName() const noexcept {
+		return type_name;
+	}
+
 	std::string getName() const;
 	NpcBrush* getBrush() const;
 
