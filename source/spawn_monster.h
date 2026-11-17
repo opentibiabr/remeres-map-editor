@@ -49,8 +49,9 @@ public:
 	}
 
 	void setSize(int newsize) {
-		ASSERT(newsize >= 0 && newsize < 100);
-		size = newsize;
+		// Loaders, the editor and the MCP tools all end up here, so clamp rather
+		// than rely on the debug-only assert.
+		size = std::clamp(newsize, 0, rme::MaxSpawnRadius);
 	}
 
 protected:

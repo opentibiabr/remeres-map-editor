@@ -74,7 +74,7 @@ const ColorMapping* BitmapToMapConverter::findMatchingColor(
 		}
 
 		int distance = -1;
-		if (matchMode == MatchMode::MATCH_HUE_HSL) {
+		if (mapping.matchMode.value_or(matchMode) == MatchMode::MATCH_HUE_HSL) {
 			float pixelHue = rgbToHue(r, g, b);
 			float mappingHue = rgbToHue(mapping.r, mapping.g, mapping.b);
 

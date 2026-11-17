@@ -213,6 +213,9 @@
     </menu>
     <menu name="$Scripts">
     </menu>
+    <menu name="$MCP">
+        <item name="MCP $Server" action="WIN_MCP" help="Displays the MCP server window, which lets an AI client read and edit this map."/>
+    </menu>
     <menu name="$About">
         <item name="Goto $Website" hotkey="F3" action="GOTO_WEBSITE" help=""/>
         <item name="$About..." hotkey="F1" action="ABOUT" help=""/>

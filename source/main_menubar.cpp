@@ -766,6 +766,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 
 	MAKE_ACTION(WIN_MINIMAP, wxITEM_NORMAL, OnMinimapWindow);
 	MAKE_ACTION(WIN_ACTIONS_HISTORY, wxITEM_NORMAL, OnActionsHistoryWindow);
+	MAKE_ACTION(WIN_MCP, wxITEM_NORMAL, OnMcpWindow);
 	MAKE_ACTION(WIN_SQLITE_MATERIALS_INSPECTOR, wxITEM_NORMAL, OnSQLiteMaterialsInspector);
 	MAKE_ACTION(NEW_PALETTE, wxITEM_NORMAL, OnNewPalette);
 	MAKE_ACTION(TAKE_SCREENSHOT, wxITEM_NORMAL, OnTakeScreenshot);
@@ -3047,6 +3048,10 @@ void MainMenuBar::OnMinimapWindow(wxCommandEvent &event) {
 
 void MainMenuBar::OnActionsHistoryWindow(wxCommandEvent &WXUNUSED(event)) {
 	g_gui.ShowActionsWindow();
+}
+
+void MainMenuBar::OnMcpWindow(wxCommandEvent &WXUNUSED(event)) {
+	g_gui.ShowMcpWindow();
 }
 
 void MainMenuBar::OnSQLiteMaterialsInspector(wxCommandEvent &WXUNUSED(event)) {

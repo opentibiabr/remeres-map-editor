@@ -132,6 +132,7 @@ namespace MenuBar {
 		SHOW_AVOIDABLES,
 		WIN_MINIMAP,
 		WIN_ACTIONS_HISTORY,
+		WIN_MCP,
 		WIN_SQLITE_MATERIALS_INSPECTOR,
 		NEW_PALETTE,
 		TAKE_SCREENSHOT,
@@ -299,6 +300,7 @@ public:
 	// Window Menu
 	void OnMinimapWindow(wxCommandEvent &event);
 	void OnActionsHistoryWindow(wxCommandEvent &event);
+	void OnMcpWindow(wxCommandEvent &event);
 	void OnSQLiteMaterialsInspector(wxCommandEvent &event);
 	void OnNewPalette(wxCommandEvent &event);
 	void OnTakeScreenshot(wxCommandEvent &event);

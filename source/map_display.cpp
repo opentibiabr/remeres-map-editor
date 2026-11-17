@@ -17,6 +17,7 @@
 
 #include "main.h"
 #include <array>
+#include <cstring>
 
 #include "gui.h"
 #include "editor.h"
@@ -122,6 +123,7 @@ MapCanvas::MapCanvas(MapWindow* parent, Editor &editor, int* attriblist) :
 	replace_dragging(false),
 
 	screenshot_buffer(nullptr),
+	screenshot_captured(false),
 
 	drag_start_x(-1),
 	drag_start_y(-1),
@@ -151,7 +153,7 @@ MapCanvas::~MapCanvas() {
 	delete popup_menu;
 	delete animation_timer;
 	delete drawer;
-	free(screenshot_buffer);
+	delete[] screenshot_buffer;
 }
 
 void MapCanvas::Refresh() {
@@ -259,6 +261,7 @@ void MapCanvas::OnPaint(wxPaintEvent &event) {
 
 		if (screenshot_buffer) {
 			drawer->TakeScreenshot(screenshot_buffer);
+			screenshot_captured = true;
 		}
 
 		drawer->Release();
@@ -281,6 +284,46 @@ void MapCanvas::ShowPositionIndicator(const Position &position) {
 			Update();
 		}
 	}
+}
+
+wxImage MapCanvas::CaptureScreenshot() {
+	int screensize_x, screensize_y;
+	GetViewBox(&view_scroll_x, &view_scroll_y, &screensize_x, &screensize_y);
+
+	int view_x, view_y;
+	GetMapWindow()->GetViewSize(&view_x, &view_y);
+
+	const int width = std::max(screensize_x, view_x);
+	const int height = std::max(screensize_y, view_y);
+	if (width <= 0 || height <= 0) {
+		return wxImage();
+	}
+
+	// OnPaint skips the readback when the canvas is hidden or rendering is off;
+	// bail out now instead of returning an all-black image.
+	if (!IsShownOnScreen() || !g_gui.IsRenderingEnabled()) {
+		return wxImage();
+	}
+
+	delete[] screenshot_buffer;
+	screenshot_buffer = newd uint8_t[3 * width * height]();
+	screenshot_captured = false;
+
+	// The GL readback happens during the paint, so force one now.
+	Refresh();
+	wxGLCanvas::Update();
+
+	wxImage image;
+	if (screenshot_captured) {
+		image.Create(view_x, view_y);
+		std::memcpy(image.GetData(), screenshot_buffer, static_cast<size_t>(3) * view_x * view_y);
+	}
+
+	// Drop the buffer so OnPaint stops forcing in-game options and reading back every frame.
+	delete[] screenshot_buffer;
+	screenshot_buffer = nullptr;
+	Refresh();
+	return image;
 }
 
 void MapCanvas::TakeScreenshot(wxFileName path, wxString format) {
