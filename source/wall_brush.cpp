@@ -240,7 +240,16 @@ bool WallBrush::load(pugi::xml_node node, wxArrayString &warnings) {
 					if (!brush->isWall()) {
 						warnings.push_back("Wall brush redirect link: '" + wxstr(name) + "' is not a wall brush.");
 					} else if (!redirect_to) {
-						redirect_to = brush->asWall();
+						WallBrush* target = brush->asWall();
+						const WallBrush* next = target;
+						while (next && next != this) {
+							next = next->redirect_to;
+						}
+						if (next == this) {
+							warnings.push_back("Wall brush '" + wxstr(getName()) + "' would create a redirect cycle through '" + wxstr(name) + "'.");
+						} else {
+							redirect_to = target;
+						}
 					} else {
 						warnings.push_back("Wall brush '" + wxstr(getName()) + "' has more than one redirect link.");
 					}
@@ -277,11 +286,8 @@ void WallBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 							return;
 						}
 
-						for (int i = alignment + 1; i != alignment; ++i) {
-							if (i == 16) {
-								i = 0;
-							}
-							WallNode &wn = try_brush->wall_items[i];
+						for (int step = 1; step < 16; ++step) {
+							WallNode &wn = try_brush->wall_items[(alignment + step) % 16];
 							if (wn.total_chance <= 0) {
 								continue;
 							}
@@ -325,8 +331,10 @@ void WallBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 			return;
 		}
 
-		for (int i = 0; i < 16; ++i) {
-			WallNode &wn = try_brush->wall_items[i];
+		// The first shape after the pole is a corner, so a wall with no pole starts as a straight piece
+		const int firstShape = try_brush->wall_items[WALL_POLE].total_chance > 0 ? WALL_POLE : WALL_HORIZONTAL;
+		for (int step = 0; step < 16; ++step) {
+			WallNode &wn = try_brush->wall_items[(firstShape + step) % 16];
 			if (wn.total_chance <= 0) {
 				continue;
 			}
@@ -370,6 +378,17 @@ bool hasMatchingWallBrushAtTile(BaseMap* map, WallBrush* wall_brush, uint32_t x,
 		}
 	}
 
+	return false;
+}
+
+bool WallBrush::hasPole() const {
+	const WallBrush* brush = this;
+	do {
+		if (!brush->wall_items[WALL_POLE].items.empty()) {
+			return true;
+		}
+		brush = brush->redirect_to;
+	} while (brush && brush != this);
 	return false;
 }
 
@@ -450,6 +469,11 @@ void WallBrush::doWalls(BaseMap* map, Tile* tile) {
 				bt = ::BorderType(full_border_types[tiledata]);
 			} else {
 				bt = ::BorderType(half_border_types[tiledata]);
+				// Railings have no poles, so their ends continue the run they belong to
+				if (bt == WALL_POLE && !wall_brush->hasPole()) {
+					const bool upright = tiledata == 0 ? wall->getWallAlignment() == WALL_VERTICAL : (tiledata & (WALLTILE_EAST | WALLTILE_WEST)) == 0;
+					bt = upright ? WALL_VERTICAL : WALL_HORIZONTAL;
+				}
 			}
 
 			if (wall->getWallAlignment() == WALL_UNTOUCHABLE) {
@@ -515,7 +539,15 @@ void WallBrush::doWalls(BaseMap* map, Tile* tile) {
 				uint16_t id = 0;
 				WallBrush* try_brush = wall_brush;
 
-				while (true) {
+				// Doors and windows stay what they are when the wall around them changes shape
+				if (wall->isBrushDoor()) {
+					id = wall_brush->getDoorItemID(bt, wall_brush->getDoorTypeFromID(wall->getID()), wall->isOpen());
+					if (id == 0 && i == 0) {
+						continue;
+					}
+				}
+
+				while (!wall->isBrushDoor()) {
 					if (try_brush == nullptr) {
 						break;
 					}
@@ -551,14 +583,23 @@ void WallBrush::doWalls(BaseMap* map, Tile* tile) {
 						break; // To prevent infinite loop
 					}
 				}
-				if (try_brush == nullptr && id == 0) {
+				if (id == 0) {
+					// This brush has no item for the shape, so the current wall is the closest fit
 					if (i == 1) {
-						++it;
+						items_to_add.push_back(wall);
+						it = tile->items.erase(it);
 					}
 					continue;
 				} else {
 					// If there is such an item, add it to the tile
-					Item* new_wall = Item::Create(id);
+					Item* new_wall = nullptr;
+					if (wall->isBrushDoor() && g_items.getItemType(id).isBrushDoor) {
+						// deepCopy creates the type of the new id and keeps the door, action and unique ids
+						wall->setID(id);
+						new_wall = wall->deepCopy();
+					} else {
+						new_wall = Item::Create(id);
+					}
 					if (wall->isSelected()) {
 						new_wall->select();
 					}
@@ -603,7 +644,6 @@ void WallBrush::doWalls(BaseMap* map, Tile* tile) {
 						}
 						++it;
 					} else {
-						++it;
 						break;
 					}
 				}
@@ -643,14 +683,31 @@ bool WallBrush::hasWall(Item* item) {
 }
 
 ::DoorType WallBrush::getDoorTypeFromID(uint16_t id) {
-	for (int index = 0; index < 16; ++index) {
-		for (std::vector<DoorType>::const_iterator iter = door_items[index].begin(); iter != door_items[index].end(); ++iter) {
-			if (iter->id == id) {
-				return iter->type;
+	const WallBrush* test_wall = this;
+	do {
+		for (const auto &door_list : test_wall->door_items) {
+			for (const DoorType &door : door_list) {
+				if (door.id == id) {
+					return door.type;
+				}
 			}
 		}
-	}
+		test_wall = test_wall->redirect_to;
+	} while (test_wall && test_wall != this);
 	return WALL_UNDEFINED;
+}
+
+uint16_t WallBrush::getDoorItemID(::BorderType alignment, ::DoorType doorType, bool open) const {
+	const WallBrush* test_wall = this;
+	do {
+		for (const DoorType &door : test_wall->door_items[int(alignment)]) {
+			if (door.type == doorType && g_items.getItemType(door.id).isOpen == open) {
+				return door.id;
+			}
+		}
+		test_wall = test_wall->redirect_to;
+	} while (test_wall && test_wall != this);
+	return 0;
 }
 
 //=============================================================================
