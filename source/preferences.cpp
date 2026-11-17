@@ -49,7 +49,7 @@ namespace {
 			if (ClientAssets::isLoaded()) {
 				wxString error;
 				wxArrayString loadWarnings;
-				const bool loaded = database.loadFromLuaDir(directory, error, loadWarnings);
+				const bool loaded = database.loadFromDirectory(directory, error, loadWarnings);
 				if (!loaded) {
 					warnings.push_back(error);
 				}
@@ -604,7 +604,7 @@ wxNotebookPage* PreferencesWindow::CreateClientPage() {
 	tmp_text->SetToolTip(tooltip);
 	version_dir_picker->SetToolTip(tooltip);
 
-	wxStaticText* monsters_lua_text = newd wxStaticText(client_list_window, wxID_ANY, wxString("Monsters Lua directory:"));
+	wxStaticText* monsters_lua_text = newd wxStaticText(client_list_window, wxID_ANY, wxString("Monsters directory:"));
 	client_list_sizer->Add(monsters_lua_text, wxSizerFlags(0).Expand());
 
 	wxBoxSizer* monsters_path_sizer = newd wxBoxSizer(wxHORIZONTAL);
@@ -615,10 +615,10 @@ wxNotebookPage* PreferencesWindow::CreateClientPage() {
 	monsters_path_sizer->Add(monsters_lua_dir_picker, wxSizerFlags(1).Expand());
 	monsters_path_sizer->Add(monsters_browse_button, wxSizerFlags(0).Border(wxLEFT, 5));
 	client_list_sizer->Add(monsters_path_sizer, wxSizerFlags(0).Border(wxRIGHT, 10).Expand());
-	monsters_lua_text->SetToolTip("Path to Canary server monster Lua files (e.g. data-otservbr-global/monster/)");
-	monsters_lua_dir_picker->SetToolTip("Path to Canary server monster Lua files (e.g. data-otservbr-global/monster/)");
+	monsters_lua_text->SetToolTip("Path to the server monster files, Lua or XML (e.g. data-otservbr-global/monster/ or data/monster/)");
+	monsters_lua_dir_picker->SetToolTip("Path to the server monster files, Lua or XML (e.g. data-otservbr-global/monster/ or data/monster/)");
 
-	wxStaticText* npcs_lua_text = newd wxStaticText(client_list_window, wxID_ANY, wxString("NPCs Lua directory:"));
+	wxStaticText* npcs_lua_text = newd wxStaticText(client_list_window, wxID_ANY, wxString("NPCs directory:"));
 	client_list_sizer->Add(npcs_lua_text, wxSizerFlags(0).Expand());
 
 	wxBoxSizer* npcs_path_sizer = newd wxBoxSizer(wxHORIZONTAL);
@@ -629,8 +629,8 @@ wxNotebookPage* PreferencesWindow::CreateClientPage() {
 	npcs_path_sizer->Add(npcs_lua_dir_picker, wxSizerFlags(1).Expand());
 	npcs_path_sizer->Add(npcs_browse_button, wxSizerFlags(0).Border(wxLEFT, 5));
 	client_list_sizer->Add(npcs_path_sizer, wxSizerFlags(0).Border(wxRIGHT, 10).Expand());
-	npcs_lua_text->SetToolTip("Path to Canary server NPC Lua files (e.g. data-otservbr-global/npc/)");
-	npcs_lua_dir_picker->SetToolTip("Path to Canary server NPC Lua files (e.g. data-otservbr-global/npc/)");
+	npcs_lua_text->SetToolTip("Path to the server NPC files, Lua, XML or .npc (e.g. data-otservbr-global/npc/ or data/npc/)");
+	npcs_lua_dir_picker->SetToolTip("Path to the server NPC files, Lua, XML or .npc (e.g. data-otservbr-global/npc/ or data/npc/)");
 
 	// Set the sizers
 	client_list_window->SetSizer(client_list_sizer);
@@ -671,7 +671,7 @@ void PreferencesWindow::OnBrowseClientPath(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void PreferencesWindow::OnBrowseMonstersPath(wxCommandEvent &WXUNUSED(event)) {
-	wxDirDialog dialog(this, "Select monsters Lua directory", monsters_lua_dir_picker->GetValue(), wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+	wxDirDialog dialog(this, "Select monsters directory", monsters_lua_dir_picker->GetValue(), wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
 	if (dialog.ShowModal() == wxID_OK) {
 		wxString path = dialog.GetPath();
 		monsters_lua_dir_picker->SetValue(path);
@@ -680,7 +680,7 @@ void PreferencesWindow::OnBrowseMonstersPath(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void PreferencesWindow::OnBrowseNpcsPath(wxCommandEvent &WXUNUSED(event)) {
-	wxDirDialog dialog(this, "Select NPCs Lua directory", npcs_lua_dir_picker->GetValue(), wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+	wxDirDialog dialog(this, "Select NPCs directory", npcs_lua_dir_picker->GetValue(), wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
 	if (dialog.ShowModal() == wxID_OK) {
 		wxString path = dialog.GetPath();
 		npcs_lua_dir_picker->SetValue(path);

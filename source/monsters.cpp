@@ -100,7 +100,7 @@ MonsterType* MonsterType::loadFromOTXML(const FileName &filename, pugi::xml_docu
 			ct->outfit.lookMount = attribute.as_int();
 		}
 
-		if ((attribute = optionNode.attribute("addon"))) {
+		if ((attribute = optionNode.attribute("addon")) || (attribute = optionNode.attribute("addons"))) {
 			ct->outfit.lookAddon = attribute.as_int();
 		}
 
@@ -388,4 +388,49 @@ bool MonsterDatabase::loadFromLuaDir(const wxString &directory, wxString &error,
 		monster_map[as_lower_str(ct->name)] = ct;
 	}
 	return true;
+}
+
+bool MonsterDatabase::loadFromXmlDir(const wxString &directory, wxArrayString &warnings) {
+	wxArrayString xmlFiles;
+	wxDir::GetAllFiles(directory, &xmlFiles, "*.xml", wxDIR_FILES | wxDIR_DIRS | wxDIR_HIDDEN);
+
+	int fileCount = 0;
+	for (const auto &filePath : xmlFiles) {
+		if (++fileCount % 50 == 0) {
+			wxSafeYield();
+		}
+
+		// monsters.xml only lists the same files that are read here
+		pugi::xml_document doc;
+		if (!doc.load_file(filePath.mb_str()) || !doc.child("monster")) {
+			continue;
+		}
+
+		MonsterType* loaded = MonsterType::loadFromOTXML(FileName(filePath), doc, warnings);
+		if (!loaded) {
+			continue;
+		}
+		loaded->standard = false;
+		loaded->folder = extractTopFolder(filePath, directory);
+
+		MonsterType* existing = (*this)[loaded->name];
+		if (!existing) {
+			monster_map[as_lower_str(loaded->name)] = loaded;
+			continue;
+		}
+
+		if (existing->folder.empty()) {
+			existing->folder = loaded->folder;
+		}
+		if (existing->missing) {
+			existing->outfit = loaded->outfit;
+			existing->missing = false;
+		}
+		delete loaded;
+	}
+	return true;
+}
+
+bool MonsterDatabase::loadFromDirectory(const wxString &directory, wxString &error, wxArrayString &warnings) {
+	return loadFromLuaDir(directory, error, warnings) && loadFromXmlDir(directory, warnings);
 }
