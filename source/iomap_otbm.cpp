@@ -77,7 +77,7 @@ namespace {
 	// keep exact Cyclopedia rendering compatibility (walls/context/stack order).
 	constexpr bool PreserveTemplateStaticMapHouseItems = true;
 	constexpr int CyclopediaMinFloor = 0;
-	constexpr int CyclopediaMaxFloor = 7;
+	constexpr int CyclopediaMaxFloor = rme::MapMaxLayer;
 	constexpr int CyclopediaOpaqueSeaFloor = rme::MapGroundLayer;
 	constexpr int CyclopediaSatelliteBasePixelsPerSquare = 32;
 	constexpr double CyclopediaMinPixelsPerSquare = 0.5;
@@ -98,6 +98,7 @@ namespace {
 		double scale = 0.0;
 		int chunkSize = 0;
 		double pixelsPerSquare = 1.0;
+		bool navigation = false;
 	};
 
 	struct CyclopediaChunkArea {
@@ -119,6 +120,7 @@ namespace {
 		{ false, 1.0 / 32.0, 512, 1.0 },
 		{ false, 1.0 / 16.0, 256, 2.0 },
 	} };
+	constexpr CyclopediaAssetLayerConfig CyclopediaNavigationLayer { true, 1.0 / 32.0, 512, 1.0, true };
 
 	constexpr bool areCyclopediaAssetLayersPaired() {
 		if (CyclopediaMinimapLayers.size() != CyclopediaSatelliteLayers.size()) {
@@ -841,12 +843,28 @@ namespace {
 		return std::min(CyclopediaMaxParallelAssetEncoders, hardwareThreads - 1);
 	}
 
-	std::string buildCyclopediaAssetFilename(const bool minimap, const double scale, const int assetX, const int assetY, const int floor, const std::string &hashHex) {
+	std::string buildCyclopediaAssetFilename(const bool minimap, const double scale, const int assetX, const int assetY, const int floor, const std::string &hashHex, const bool navigation = false) {
 		const int scalePrefix = std::max(1, static_cast<int>(std::llround(1.0 / std::max(scale, 0.000001))));
 		const int chunkX = std::max(assetX / 32, 0);
 		const int chunkY = std::max(assetY / 32, 0);
 
-		return std::format("{}{:02}-{:04}-{:04}-{:02}-{}.bmp.lzma", minimap ? "minimap-" : "satellite-", scalePrefix, chunkX, chunkY, floor, hashHex);
+		const char* prefix = navigation ? "navigation-" : (minimap ? "minimap-" : "satellite-");
+		return std::format("{}{:02}-{:04}-{:04}-{:02}-{}.bmp.lzma", prefix, scalePrefix, chunkX, chunkY, floor, hashHex);
+	}
+
+	bool getCyclopediaAssetOrigin(const CyclopediaChunkArea &area, uint32_t &originX, uint32_t &originY) {
+		// CIP origins use ground-floor projection; chunk pixels still use world coordinates.
+		const int64_t floorOffset = static_cast<int64_t>(rme::MapGroundLayer) - area.floor;
+		const int64_t projectedX = static_cast<int64_t>(area.startX) + floorOffset;
+		const int64_t projectedY = static_cast<int64_t>(area.startY) + floorOffset;
+		if (projectedX < 0 || projectedX > std::numeric_limits<uint16_t>::max()
+			|| projectedY < 0 || projectedY > std::numeric_limits<uint16_t>::max()) {
+			return false;
+		}
+
+		originX = static_cast<uint32_t>(projectedX);
+		originY = static_cast<uint32_t>(projectedY);
+		return true;
 	}
 
 	bool hasCyclopediaTileData(const Tile* tile) {
@@ -1216,6 +1234,61 @@ namespace {
 			}
 		}
 
+		return true;
+	}
+
+	std::array<uint8_t, 3> buildCyclopediaNavigationTile(const Tile* tile) {
+		// These are geometry bits, never personal exploration/WasSeen flags.
+		constexpr uint8_t notPathable = 2;
+		constexpr uint8_t notWalkable = 4;
+		constexpr uint8_t empty = 8;
+		std::array<uint8_t, 3> channels { static_cast<uint8_t>(notWalkable | empty), 10, 255 };
+		if (!tile) {
+			return channels;
+		}
+		channels[2] = tile->getMiniMapColor();
+		if (!tile->ground) {
+			return channels;
+		}
+
+		channels[0] = 0;
+		channels[1] = static_cast<uint8_t>(std::clamp((static_cast<int>(tile->getGroundSpeed()) + 9) / 10, 1, 255));
+		auto includeItem = [&](const Item* item) {
+			if (!item) {
+				return;
+			}
+			if (item->isBlocking()) {
+				channels[0] |= notWalkable;
+			}
+			if (item->isAvoidable()) {
+				channels[0] |= notPathable;
+			}
+		};
+		includeItem(tile->ground);
+		for (const Item* item : tile->items) {
+			includeItem(item);
+		}
+		return channels;
+	}
+
+	bool buildCyclopediaNavigationChunk(Map &map, const CyclopediaChunkArea &area, wxImage &image) {
+		if (area.width <= 0 || area.height <= 0
+			|| area.width > CyclopediaNavigationLayer.chunkSize || area.height > CyclopediaNavigationLayer.chunkSize
+			|| !image.Create(area.width, area.height, false)) {
+			return false;
+		}
+		unsigned char* data = image.GetData();
+		if (!data) {
+			return false;
+		}
+		for (int y = 0; y < area.height; ++y) {
+			for (int x = 0; x < area.width; ++x) {
+				const Position position(area.startX + x, area.startY + y, area.floor);
+				const auto channels = buildCyclopediaNavigationTile(getCyclopediaMapTile(map, position));
+				const size_t index = (static_cast<size_t>(y) * static_cast<size_t>(area.width) + static_cast<size_t>(x)) * rme::PixelFormatRGB;
+				std::memcpy(data + index, channels.data(), channels.size());
+			}
+		}
 		return true;
 	}
 
@@ -2964,7 +3037,7 @@ namespace {
 
 	std::string getCyclopediaAssetReplacementKey(const std::filesystem::path &path) {
 		const std::string filename = path.filename().string();
-		if (filename.rfind("minimap-", 0) != 0 && filename.rfind("satellite-", 0) != 0) {
+		if (filename.rfind("minimap-", 0) != 0 && filename.rfind("satellite-", 0) != 0 && filename.rfind("navigation-", 0) != 0) {
 			return std::string();
 		}
 
@@ -3199,6 +3272,9 @@ namespace {
 		}
 		for (const auto &mapAsset : generatedMapData.mapassets()) {
 			*mergedMapData.add_mapassets() = mapAsset;
+		}
+		for (const auto &mapAsset : generatedMapData.navigationassets()) {
+			*mergedMapData.add_navigationassets() = mapAsset;
 		}
 
 		if (generatedMapData.has_topleftedge()) {
@@ -3757,28 +3833,30 @@ namespace {
 		}
 
 		std::unordered_set<std::string> backedUpAssets;
-		backedUpAssets.reserve(static_cast<size_t>(previousMapData.mapassets_size() * 2));
-		for (const auto &mapAsset : previousMapData.mapassets()) {
-			if (mapAsset.type() == clienteditor::protobuf::mapdata::MapAssets_AssetsType_SUBAREA) {
-				continue;
-			}
+		backedUpAssets.reserve((static_cast<size_t>(previousMapData.mapassets_size()) + static_cast<size_t>(previousMapData.navigationassets_size())) * 2);
+		for (const auto* mapAssets : { &previousMapData.mapassets(), &previousMapData.navigationassets() }) {
+			for (const auto &mapAsset : *mapAssets) {
+				if (mapAsset.type() == clienteditor::protobuf::mapdata::MapAssets_AssetsType_SUBAREA) {
+					continue;
+				}
 
-			if (!mapAsset.has_filename() || mapAsset.filename().empty()) {
-				continue;
-			}
+				if (!mapAsset.has_filename() || mapAsset.filename().empty()) {
+					continue;
+				}
 
-			const std::filesystem::path assetRelativePath(mapAsset.filename());
-			if (!isSafeRelativePath(assetRelativePath)) {
-				return false;
-			}
+				const std::filesystem::path assetRelativePath(mapAsset.filename());
+				if (!isSafeRelativePath(assetRelativePath)) {
+					return false;
+				}
 
-			const std::string normalizedAssetFileName = assetRelativePath.generic_string();
-			if (replacementAssetFileNames.contains(normalizedAssetFileName) || !backedUpAssets.insert(normalizedAssetFileName).second) {
-				continue;
-			}
+				const std::string normalizedAssetFileName = assetRelativePath.generic_string();
+				if (replacementAssetFileNames.contains(normalizedAssetFileName) || !backedUpAssets.insert(normalizedAssetFileName).second) {
+					continue;
+				}
 
-			if (!backupFileIfExists(basePath / assetRelativePath, basePath, backupRootPath)) {
-				return false;
+				if (!backupFileIfExists(basePath / assetRelativePath, basePath, backupRootPath)) {
+					return false;
+				}
 			}
 		}
 
@@ -3834,27 +3912,29 @@ namespace {
 		const bool subareaOnly
 	) {
 		std::unordered_set<std::string> restoredAssets;
-		restoredAssets.reserve(static_cast<size_t>(mapData.mapassets_size()));
-		for (const auto &mapAsset : mapData.mapassets()) {
-			if (subareaOnly && mapAsset.type() != clienteditor::protobuf::mapdata::MapAssets_AssetsType_SUBAREA) {
-				continue;
-			}
-			if (!mapAsset.has_filename() || mapAsset.filename().empty()) {
-				continue;
-			}
+		restoredAssets.reserve(static_cast<size_t>(mapData.mapassets_size()) + static_cast<size_t>(mapData.navigationassets_size()));
+		for (const auto* mapAssets : { &mapData.mapassets(), &mapData.navigationassets() }) {
+			for (const auto &mapAsset : *mapAssets) {
+				if (subareaOnly && mapAsset.type() != clienteditor::protobuf::mapdata::MapAssets_AssetsType_SUBAREA) {
+					continue;
+				}
+				if (!mapAsset.has_filename() || mapAsset.filename().empty()) {
+					continue;
+				}
 
-			const std::filesystem::path assetRelativePath(mapAsset.filename());
-			if (!isSafeRelativePath(assetRelativePath)) {
-				return false;
-			}
+				const std::filesystem::path assetRelativePath(mapAsset.filename());
+				if (!isSafeRelativePath(assetRelativePath)) {
+					return false;
+				}
 
-			const std::string normalizedAssetFileName = assetRelativePath.generic_string();
-			if (!restoredAssets.insert(normalizedAssetFileName).second) {
-				continue;
-			}
+				const std::string normalizedAssetFileName = assetRelativePath.generic_string();
+				if (!restoredAssets.insert(normalizedAssetFileName).second) {
+					continue;
+				}
 
-			if (!restoreCyclopediaMapAssetFile(basePath, backupRootPath, templateBasePath, assetRelativePath, normalizedAssetFileName)) {
-				return false;
+				if (!restoreCyclopediaMapAssetFile(basePath, backupRootPath, templateBasePath, assetRelativePath, normalizedAssetFileName)) {
+					return false;
+				}
 			}
 		}
 
@@ -6605,6 +6685,7 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 
 	std::vector<CyclopediaRenderJob> jobs;
 	jobs.reserve(4096);
+	int navigationChunks = 0;
 
 	for (size_t floorIndex = 0; floorIndex < floorPlans.size(); ++floorIndex) {
 		const auto &floorPlan = floorPlans[floorIndex];
@@ -6628,10 +6709,17 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 					continue;
 				}
 
-				jobs.emplace_back(
-					layerIndex,
-					CyclopediaChunkArea { floor, chunkStartX, chunkStartY, chunkWidth, chunkHeight }
-				);
+				const CyclopediaChunkArea area { floor, chunkStartX, chunkStartY, chunkWidth, chunkHeight };
+				uint32_t originX = 0;
+				uint32_t originY = 0;
+				if (!getCyclopediaAssetOrigin(area, originX, originY)) {
+					warning("Cannot export cyclopedia map chunk at (%d, %d, %d): projected origin is outside 0..65535.", chunkStartX, chunkStartY, floor);
+					return false;
+				}
+				jobs.emplace_back(layerIndex, area);
+				if (config.chunkSize == CyclopediaNavigationLayer.chunkSize) {
+					++navigationChunks;
+				}
 			}
 		}
 	}
@@ -6646,11 +6734,16 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 	bool hasAnyAsset = false;
 	CyclopediaSatelliteRenderCache satelliteRenderCache;
 	int submittedAssets = 0;
-	const int totalAssets = std::max<int>(1, totalChunks * 2);
+	const int totalAssets = std::max<int>(1, totalChunks * 2 + navigationChunks);
 	const unsigned int maxPendingAssets = getCyclopediaParallelAssetEncoderCount();
 	std::deque<CyclopediaPendingAsset> pendingAssets;
 
 	auto flushPendingCyclopediaAsset = [&](CyclopediaPendingAsset &pendingAsset) {
+		uint32_t originX = 0;
+		uint32_t originY = 0;
+		if (!getCyclopediaAssetOrigin(pendingAsset.area, originX, originY)) {
+			return false;
+		}
 		CyclopediaEncodedAsset encodedAsset;
 		try {
 			encodedAsset = pendingAsset.encodedAsset.get();
@@ -6658,11 +6751,11 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 			return false;
 		}
 		if (!encodedAsset.success) {
-			return true;
+			return !pendingAsset.config.navigation;
 		}
 
-		const std::string assetFilename = buildCyclopediaAssetFilename(pendingAsset.config.minimap, pendingAsset.config.scale, pendingAsset.area.startX, pendingAsset.area.startY, pendingAsset.area.floor, encodedAsset.hashHex);
-		auto* mapAsset = mapData.add_mapassets();
+		const std::string assetFilename = buildCyclopediaAssetFilename(pendingAsset.config.minimap, pendingAsset.config.scale, pendingAsset.area.startX, pendingAsset.area.startY, pendingAsset.area.floor, encodedAsset.hashHex, pendingAsset.config.navigation);
+		auto* mapAsset = pendingAsset.config.navigation ? mapData.add_navigationassets() : mapData.add_mapassets();
 		mapAsset->set_type(pendingAsset.config.minimap ? MapAssets_AssetsType_MINIMAP : MapAssets_AssetsType_SATELLITE);
 		mapAsset->set_filename(assetFilename);
 		mapAsset->set_widthsquare(static_cast<uint32_t>(pendingAsset.area.width));
@@ -6670,12 +6763,14 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 		mapAsset->set_areaid(0);
 		mapAsset->set_scale(pendingAsset.config.scale);
 		auto* topLeft = mapAsset->mutable_topleft();
-		topLeft->set_posx(static_cast<uint32_t>(std::max(pendingAsset.area.startX, 0)));
-		topLeft->set_posy(static_cast<uint32_t>(std::max(pendingAsset.area.startY, 0)));
+		topLeft->set_posx(originX);
+		topLeft->set_posy(originY);
 		topLeft->set_posz(static_cast<uint32_t>(std::max(pendingAsset.area.floor, 0)));
 
 		assets.emplace_back(assetFilename, std::move(encodedAsset.bytes));
-		hasAnyAsset = true;
+		if (!pendingAsset.config.navigation) {
+			hasAnyAsset = true;
+		}
 		return true;
 	};
 	auto flushOldestPendingCyclopediaAsset = [&]() {
@@ -6691,12 +6786,12 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 
 	auto appendCyclopediaAsset = [&](const CyclopediaAssetLayerConfig &config, const CyclopediaChunkArea &area, const wxImage &outputAssetChunk, const int32_t done, const char spinner) {
 		if (!outputAssetChunk.IsOk() || outputAssetChunk.GetWidth() <= 0 || outputAssetChunk.GetHeight() <= 0) {
-			return true;
+			return !config.navigation;
 		}
 
 		std::vector<uint8_t> bmpBytes;
 		if (!encodeBmpV4(outputAssetChunk, bmpBytes)) {
-			return true;
+			return !config.navigation;
 		}
 
 		++submittedAssets;
@@ -6728,13 +6823,21 @@ bool IOMapOTBM::serializeCyclopediaMapData(Map &map, std::string &buffer, std::v
 			return false;
 		}
 
+		const auto &minimapConfig = CyclopediaMinimapLayers[job.layerIndex];
+		if (minimapConfig.chunkSize == CyclopediaNavigationLayer.chunkSize) {
+			wxImage navigationChunk;
+			if (!buildCyclopediaNavigationChunk(map, job.area, navigationChunk)
+				|| !appendCyclopediaAsset(CyclopediaNavigationLayer, job.area, navigationChunk, done, spinner)) {
+				return false;
+			}
+		}
+
 		wxImage minimapChunk;
 		bool chunkHasData = false;
 		if (!buildCyclopediaMinimapChunk(map, job.area, minimapChunk, chunkHasData) || !chunkHasData) {
 			continue;
 		}
 
-		const auto &minimapConfig = CyclopediaMinimapLayers[job.layerIndex];
 		wxImage minimapAssetChunk = minimapChunk.Copy();
 		if (resampleCyclopediaChunk(minimapAssetChunk, job.area.width, job.area.height, minimapConfig.pixelsPerSquare)
 			&& !appendCyclopediaAsset(minimapConfig, job.area, minimapAssetChunk, done, spinner)) {
