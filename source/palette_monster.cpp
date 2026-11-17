@@ -40,6 +40,7 @@ EVT_TOGGLEBUTTON(PALETTE_SPAWN_MONSTER_BRUSH_BUTTON, MonsterPalettePanel::OnClic
 
 EVT_SPINCTRL(PALETTE_MONSTER_SPAWN_TIME, MonsterPalettePanel::OnChangeSpawnMonsterTime)
 EVT_SPINCTRL(PALETTE_MONSTER_SPAWN_SIZE, MonsterPalettePanel::OnChangeSpawnMonsterSize)
+EVT_SPINCTRL(PALETTE_MONSTER_DEFAULT_WEIGHT, MonsterPalettePanel::OnChangeDefaultMonsterWeight)
 END_EVENT_TABLE()
 
 MonsterPalettePanel::MonsterPalettePanel(wxWindow* parent, wxWindowID id) :
@@ -334,6 +335,10 @@ void MonsterPalettePanel::OnChangeSpawnMonsterSize(wxSpinEvent &event) {
 		g_gui.SetBrushSize(event.GetPosition());
 		handling_event = false;
 	}
+}
+
+void MonsterPalettePanel::OnChangeDefaultMonsterWeight(wxSpinEvent &event) {
+	g_settings.setInteger(Config::MONSTER_DEFAULT_WEIGHT, event.GetPosition());
 }
 
 void MonsterPalettePanel::OnSetFocus(wxFocusEvent &event) {
