@@ -146,6 +146,8 @@ protected:
 	virtual void ConfigureDrawingOptions(DrawingOptions &options);
 	virtual void CenterViewOnPosition(const Position &position);
 	virtual void OnFloorChanged();
+	void RotateSelectedItems();
+	void RotateCurrentRawBrush();
 
 private:
 	void QueueRefresh(bool mark_scene_dirty);

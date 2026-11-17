@@ -58,6 +58,7 @@ public:
 	// The seed picks among the variations of a shape with the chances of the brush
 	uint16_t getWallItemID(::BorderType alignment, uint32_t seed) const;
 	uint16_t getDoorItemID(::BorderType alignment, ::DoorType doorType, bool open) const;
+	bool hasPole() const;
 
 	// The railing made of the same material as this wall, when there is one
 	WallBrush* getRailing() const noexcept {

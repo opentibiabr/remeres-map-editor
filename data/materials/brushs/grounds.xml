@@ -48,7 +48,7 @@
 		<optional id="120"/>
 	</brush>
 
-	<brush name="grass (dried)" type="ground" lookid="970" z-order="2900">
+	<brush name="grass (dried)" type="ground" lookid="970" z-order="2901">
 		<item id="970" chance="2500"/>
 		<item id="971" chance="2500"/>
 		<item id="972" chance="2500"/>
@@ -1083,7 +1083,7 @@
 		<item id="937" chance="1000"/>
 	</brush>
 
-	<brush name="grass (jungle)" type="ground" lookid="1019" z-order="3600">
+	<brush name="grass (jungle)" type="ground" lookid="1019" z-order="3601">
 		<item id="1019" chance="2500"/>
 		<item id="10197" chance="1000"/>
 		
@@ -1607,7 +1607,7 @@
 	</brush>
 	
 
-	<brush name="earth mountain" type="ground" lookid="9246" z-order="9900">
+	<brush name="earth mountain" type="ground" lookid="9246" z-order="9901">
 			<item id="9246" chance="1"/>
 			
 			<border align="outer" id="59"/>
@@ -1631,7 +1631,7 @@
 		<friend name="mountain"/>
 	</brush>
 
-	<brush name="snowy mountain" type="ground" lookid="6869" z-order="9901" solo_optional="true">
+	<brush name="snowy mountain" type="ground" lookid="6869" z-order="9910" solo_optional="true">
 		<item id="6869" chance="1"/>
 		
 		<border align="inner" to="none" id="53"/>
@@ -2727,7 +2727,7 @@
 		<border align="inner" to="none" id="1"/>
 	</brush>
 
-	<brush name="grotto" type="ground" lookid="13644" z-order="9900">
+	<brush name="grotto" type="ground" lookid="13644" z-order="9902">
 		<item id="13644" chance="2500"/>
 		<item id="13645" chance="2500"/>
 		<item id="13594" chance="2500"/>
@@ -2770,21 +2770,21 @@
 		<border align="inner" id="63"/>
 	</brush>
 
-	<brush name="muddy mountain" type="ground" lookid="16861" z-order="9900">
+	<brush name="muddy mountain" type="ground" lookid="16861" z-order="9903">
 		<item id="16861" chance="1"/>
 		
 		<border align="outer" to="none" id="66"/>
 		<border align="outer" id="66"/>
 	</brush>
 
-	<brush name="swamp clay mountain" type="ground" lookid="16866" z-order="9900">
+	<brush name="swamp clay mountain" type="ground" lookid="16866" z-order="9907">
 		<item id="16866" chance="1"/>
 		
 		<border align="outer" to="none" id="67"/>
 		<border align="outer" id="67"/>
 	</brush>
 
-	<brush name="purple crystal mountain" type="ground" lookid="18407" z-order="9900">
+	<brush name="purple crystal mountain" type="ground" lookid="18407" z-order="9904">
 		<item id="18407" chance="2500"/>
 		<item id="18408" chance="2500"/>
 		<item id="18409" chance="2000"/>
@@ -2794,14 +2794,14 @@
 		<border align="outer" id="64"/>
 	</brush>
 
-	<brush name="sandstone mountain" type="ground" lookid="18880" z-order="9900">
+	<brush name="sandstone mountain" type="ground" lookid="18880" z-order="9905">
 		<item id="18880" chance="1"/>
 		
 		<border align="outer" to="none" id="68"/>
 		<border align="outer" id="68"/>
 	</brush>
 
-	<brush name="seacrest mountain" type="ground" lookid="21560" z-order="9900">
+	<brush name="seacrest mountain" type="ground" lookid="21560" z-order="9906">
 		<item id="21560" chance="2500"/>
 		<item id="21561" chance="2500"/>
 		<item id="21562" chance="2500"/>
@@ -3298,7 +3298,7 @@
 		<border align="outer" id="70"/>
 	</brush>
 
-	<brush name="grass (krailos)" type="ground" lookid="22348" z-order="3000">
+	<brush name="grass (krailos)" type="ground" lookid="22348" z-order="3001">
 		<item id="22348" chance="100"/>
 		<item id="22349" chance="100"/>
 		<item id="22350" chance="100"/>
@@ -3519,7 +3519,7 @@
 		<border align="outer" id="225"/>
 	</brush>
 
-	<brush name="ancient paving" type="ground" lookid="30719" z-order="4000">
+	<brush name="ancient paving" type="ground" lookid="30719" z-order="4003">
 		<item id="30719" chance="2500"/>
 		<item id="30720" chance="2500"/>
 		<item id="30718" chance="2500"/>
@@ -3530,7 +3530,7 @@
 		<border align="outer" id="226"/>
 	</brush>
 
-	<brush name="reed" type="ground" lookid="30701" z-order="3500">
+	<brush name="reed" type="ground" lookid="30701" z-order="3501">
 		<item id="30701" chance="2500"/>
 		<item id="30702" chance="2500"/>
 		<item id="30703" chance="2500"/>
@@ -3540,7 +3540,7 @@
 		<border align="outer" id="227"/>
 	</brush>
 
-	<brush name="new icy floor" type="ground" lookid="29000" z-order="4000">
+	<brush name="new icy floor" type="ground" lookid="29000" z-order="4002">
 		<item id="29000" chance="2500"/>
 		<item id="29001" chance="2500"/>
 		<item id="29002" chance="2500"/>
@@ -3554,7 +3554,7 @@
 		<border align="outer" id="228"/>
 	</brush>
 
-	<brush name="new icy city floor" type="ground" lookid="29022" z-order="4000">
+	<brush name="new icy city floor" type="ground" lookid="29022" z-order="4001">
 		<item id="29022" chance="2500"/>
 		<item id="29023" chance="2500"/>
 		<item id="29024" chance="0"/>
@@ -3568,7 +3568,7 @@
 		<border align="outer" id="229"/>
 	</brush>
 
-	<brush name="new grass pavement" type="ground" lookid="29044" z-order="40000">
+	<brush name="new grass pavement" type="ground" lookid="29044" z-order="39996">
 		<item id="29044" chance="2500"/>
 		<item id="29045" chance="2500"/>
 		<item id="29046" chance="0"/>
@@ -3647,7 +3647,7 @@
 		<border align="outer" id="243"/>
 	</brush>
 
-	<brush name="stone path grass 1" type="ground" lookid="25245" z-order="40000">
+	<brush name="stone path grass 1" type="ground" lookid="25245" z-order="39997">
 		<item id="25245" chance="2500"/>
 		<item id="25246" chance="2500"/>
 		<item id="25247" chance="2500"/>
@@ -3666,7 +3666,7 @@
 		<item id="25248" chance="2500"/>
 	</brush>
 
-	<brush name="lush meadow" type="ground" lookid="25269" z-order="40000">
+	<brush name="lush meadow" type="ground" lookid="25269" z-order="39999">
 		<item id="25269" chance="2500"/>
 		<item id="25270" chance="2500"/>
 		<item id="25271" chance="2500"/>
@@ -3687,7 +3687,7 @@
 		<item id="25282" chance="2500"/>
 	</brush>
 
-	<brush name="new dark sand floor" type="ground" lookid="24952" z-order="40000">
+	<brush name="new dark sand floor" type="ground" lookid="24952" z-order="39995">
 		<item id="24952" chance="2500"/>
 		<border align="outer" id="244"/>
 	</brush>
@@ -3714,7 +3714,7 @@
 		<border align="outer" id="239"/>
 	</brush>
 
-	<brush name="green tree floor" type="ground" lookid="24089" z-order="40000">
+	<brush name="green tree floor" type="ground" lookid="24089" z-order="39998">
 		<item id="24089" chance="2500"/>
 		<item id="24090" chance="2500"/>
 		<item id="24091" chance="0"/>
@@ -3729,4 +3729,436 @@
 	</brush>
 	
 	
+	<brush name="old grass" type="ground" lookid="24605" z-order="3250">
+		<item id="24605" chance="25"/>
+
+		<border align="outer" id="249"/>
+	</brush>
+
+	<brush name="old gravel" type="ground" lookid="24669" z-order="4510">
+		<item id="24669" chance="25"/>
+
+		<border align="outer" id="250"/>
+	</brush>
+
+	<brush name="old sand" type="ground" lookid="24682" z-order="4660">
+		<item id="24682" chance="25"/>
+
+		<border align="outer" id="251"/>
+	</brush>
+
+	<brush name="white sand" type="ground" lookid="12274" z-order="4520">
+		<item id="12274" chance="25"/>
+
+		<border align="outer" id="252"/>
+	</brush>
+
+	<brush name="mossy earth ground" type="ground" lookid="32351" z-order="2950">
+		<item id="32351" chance="25"/>
+		<item id="32352" chance="25"/>
+		<item id="32353" chance="25"/>
+		<item id="32354" chance="25"/>
+		<item id="32355" chance="25"/>
+		<item id="32356" chance="25"/>
+		<item id="32357" chance="25"/>
+		<item id="32358" chance="25"/>
+		<item id="32359" chance="25"/>
+		<item id="32360" chance="25"/>
+		<item id="32361" chance="25"/>
+		<item id="32362" chance="25"/>
+		<item id="32363" chance="25"/>
+		<item id="32364" chance="25"/>
+		<item id="32365" chance="25"/>
+		<item id="32366" chance="25"/>
+		<item id="32367" chance="25"/>
+		<item id="32368" chance="25"/>
+		<item id="32369" chance="25"/>
+
+		<border align="outer" id="253"/>
+	</brush>
+
+	<brush name="dry sand" type="ground" lookid="32382" z-order="4670">
+		<item id="32382" chance="25"/>
+		<item id="32383" chance="25"/>
+		<item id="32384" chance="25"/>
+		<item id="32385" chance="25"/>
+		<item id="32386" chance="25"/>
+		<item id="32387" chance="25"/>
+		<item id="32388" chance="25"/>
+		<item id="32389" chance="25"/>
+		<item id="32390" chance="25"/>
+		<item id="32391" chance="25"/>
+		<item id="32392" chance="25"/>
+		<item id="32393" chance="25"/>
+		<item id="32394" chance="25"/>
+		<item id="32395" chance="25"/>
+		<item id="32396" chance="25"/>
+		<item id="32397" chance="25"/>
+		<item id="32398" chance="25"/>
+
+		<border align="outer" id="254"/>
+	</brush>
+
+	<brush name="burnt soil" type="ground" lookid="38852" z-order="1250">
+		<item id="38852" chance="25"/>
+		<item id="38853" chance="25"/>
+		<item id="38854" chance="25"/>
+		<item id="38855" chance="25"/>
+		<item id="38856" chance="25"/>
+		<item id="38857" chance="25"/>
+		<item id="38858" chance="25"/>
+		<item id="38859" chance="25"/>
+		<item id="38860" chance="25"/>
+		<item id="38861" chance="25"/>
+		<item id="38862" chance="25"/>
+
+		<border align="outer" id="255"/>
+	</brush>
+
+	<brush name="dark burnt soil" type="ground" lookid="38980" z-order="1260">
+		<item id="38980" chance="25"/>
+		<item id="38981" chance="25"/>
+		<item id="38982" chance="25"/>
+		<item id="38983" chance="25"/>
+		<item id="38984" chance="25"/>
+		<item id="38985" chance="25"/>
+		<item id="38986" chance="25"/>
+		<item id="38987" chance="25"/>
+		<item id="38988" chance="25"/>
+		<item id="38989" chance="25"/>
+		<item id="38990" chance="25"/>
+
+		<border align="outer" id="256"/>
+	</brush>
+
+	<brush name="lavender ice floor" type="ground" lookid="43196" z-order="3920">
+		<item id="43196" chance="25"/>
+
+		<border align="outer" id="257"/>
+	</brush>
+
+	<brush name="frosted ice" type="ground" lookid="45032" z-order="3930">
+		<item id="45032" chance="25"/>
+		<item id="45046" chance="25"/>
+
+		<border align="outer" id="258"/>
+	</brush>
+
+	<brush name="swirled grass" type="ground" lookid="44783" z-order="3350">
+		<item id="44783" chance="25"/>
+		<item id="44784" chance="25"/>
+		<item id="44785" chance="25"/>
+		<item id="44786" chance="25"/>
+		<item id="44787" chance="25"/>
+		<item id="44788" chance="25"/>
+		<item id="44789" chance="1"/>
+		<item id="44790" chance="1"/>
+		<item id="44791" chance="1"/>
+		<item id="44792" chance="1"/>
+
+		<border align="outer" id="259"/>
+	</brush>
+
+	<brush name="swirled earth" type="ground" lookid="44805" z-order="2960">
+		<item id="44805" chance="25"/>
+		<item id="44806" chance="25"/>
+		<item id="44807" chance="25"/>
+		<item id="44808" chance="25"/>
+		<item id="44809" chance="25"/>
+		<item id="44810" chance="25"/>
+		<item id="44811" chance="25"/>
+		<item id="44812" chance="25"/>
+
+		<border align="outer" id="260"/>
+	</brush>
+
+	<brush name="swirled sand" type="ground" lookid="44826" z-order="4680">
+		<item id="44826" chance="25"/>
+		<item id="44827" chance="25"/>
+		<item id="44828" chance="25"/>
+		<item id="44829" chance="25"/>
+		<item id="44830" chance="25"/>
+		<item id="44831" chance="25"/>
+		<item id="44832" chance="25"/>
+		<item id="44833" chance="25"/>
+
+		<border align="outer" id="261"/>
+	</brush>
+
+	<brush name="root floor" type="ground" lookid="45470" z-order="2970">
+		<item id="45470" chance="25"/>
+		<item id="45471" chance="25"/>
+		<item id="45472" chance="25"/>
+		<item id="45473" chance="25"/>
+		<item id="45474" chance="25"/>
+		<item id="45475" chance="25"/>
+		<item id="45476" chance="25"/>
+
+		<border align="outer" id="262"/>
+	</brush>
+
+	<brush name="scribbled sand" type="ground" lookid="50343" z-order="4690">
+		<item id="50343" chance="25"/>
+		<item id="50344" chance="25"/>
+		<item id="50345" chance="25"/>
+		<item id="50346" chance="25"/>
+		<item id="50347" chance="25"/>
+		<item id="50348" chance="25"/>
+		<item id="50349" chance="25"/>
+		<item id="50356" chance="25"/>
+		<item id="50357" chance="25"/>
+		<item id="50358" chance="25"/>
+		<item id="50359" chance="25"/>
+		<item id="50360" chance="25"/>
+		<item id="50361" chance="25"/>
+		<item id="50362" chance="25"/>
+		<item id="50363" chance="25"/>
+		<item id="50364" chance="25"/>
+		<item id="50365" chance="25"/>
+		<item id="50366" chance="25"/>
+		<item id="50367" chance="25"/>
+		<item id="50368" chance="25"/>
+		<item id="50369" chance="25"/>
+		<item id="50370" chance="25"/>
+		<item id="50371" chance="25"/>
+		<item id="50372" chance="25"/>
+		<item id="50373" chance="25"/>
+		<item id="50374" chance="25"/>
+		<item id="50375" chance="25"/>
+		<item id="50376" chance="25"/>
+		<item id="50377" chance="25"/>
+
+		<border align="outer" id="263"/>
+	</brush>
+
+	<brush name="dark brick pavement" type="ground" lookid="34840" z-order="40000">
+		<item id="34840" chance="25"/>
+		<item id="34841" chance="25"/>
+		<item id="34842" chance="25"/>
+		<item id="34843" chance="25"/>
+		<item id="34844" chance="25"/>
+
+		<border align="outer" id="264"/>
+	</brush>
+
+	<brush name="wooden stake floor" type="ground" lookid="35072" z-order="40000">
+		<item id="35072" chance="25"/>
+		<item id="35073" chance="25"/>
+
+		<border align="outer" id="265"/>
+	</brush>
+
+	<brush name="veined white marble floor" type="ground" lookid="35997" z-order="40000">
+		<item id="35997" chance="25"/>
+		<item id="35998" chance="25"/>
+
+		<border align="outer" id="266"/>
+	</brush>
+
+	<brush name="teal stone floor" type="ground" lookid="36021" z-order="40000">
+		<item id="36021" chance="25"/>
+		<item id="36022" chance="25"/>
+		<item id="36023" chance="25"/>
+		<item id="36024" chance="25"/>
+		<item id="36025" chance="25"/>
+
+		<border align="outer" id="267"/>
+	</brush>
+
+	<brush name="green stone floor" type="ground" lookid="36026" z-order="40000">
+		<item id="36026" chance="25"/>
+		<item id="36027" chance="25"/>
+		<item id="36028" chance="25"/>
+		<item id="36029" chance="25"/>
+
+		<border align="outer" id="268"/>
+	</brush>
+
+	<brush name="eldritch floor" type="ground" lookid="36276" z-order="40000">
+		<item id="36276" chance="25"/>
+		<item id="36277" chance="25"/>
+		<item id="36278" chance="25"/>
+		<item id="36279" chance="25"/>
+		<item id="36280" chance="25"/>
+		<item id="36281" chance="25"/>
+
+		<border align="outer" id="269"/>
+	</brush>
+
+	<brush name="hardened eldritch floor" type="ground" lookid="36344" z-order="40000">
+		<item id="36344" chance="25"/>
+		<item id="36345" chance="25"/>
+		<item id="36346" chance="25"/>
+		<item id="36347" chance="25"/>
+		<item id="36348" chance="25"/>
+		<item id="36349" chance="25"/>
+		<item id="36350" chance="25"/>
+
+		<border align="outer" id="270"/>
+	</brush>
+
+	<brush name="cracked beige stone floor" type="ground" lookid="38061" z-order="40000">
+		<item id="38061" chance="25"/>
+		<item id="38062" chance="25"/>
+		<item id="38063" chance="25"/>
+		<item id="38064" chance="25"/>
+		<item id="38065" chance="25"/>
+		<item id="38066" chance="25"/>
+		<item id="38067" chance="25"/>
+		<item id="38068" chance="25"/>
+		<item id="38069" chance="25"/>
+		<item id="38070" chance="25"/>
+		<item id="38075" chance="25"/>
+		<item id="38071" chance="1"/>
+		<item id="38072" chance="1"/>
+		<item id="38073" chance="1"/>
+		<item id="38074" chance="1"/>
+
+		<border align="outer" id="271"/>
+	</brush>
+
+	<brush name="overgrown beige stone floor" type="ground" lookid="38935" z-order="40000">
+		<item id="38935" chance="25"/>
+		<item id="38936" chance="25"/>
+		<item id="38937" chance="25"/>
+		<item id="38938" chance="25"/>
+		<item id="38939" chance="25"/>
+		<item id="38940" chance="25"/>
+		<item id="38941" chance="25"/>
+		<item id="38942" chance="25"/>
+		<item id="38943" chance="25"/>
+
+		<border align="outer" id="272"/>
+	</brush>
+
+	<brush name="flooded stone floor" type="ground" lookid="38382" z-order="40000">
+		<item id="38382" chance="25"/>
+		<item id="38383" chance="25"/>
+		<item id="38384" chance="25"/>
+		<item id="38385" chance="25"/>
+		<item id="38386" chance="25"/>
+
+		<border align="outer" id="273"/>
+	</brush>
+
+	<brush name="overgrown flagstone" type="ground" lookid="40309" z-order="40000">
+		<item id="40309" chance="25"/>
+		<item id="40310" chance="25"/>
+		<item id="40311" chance="25"/>
+		<item id="40312" chance="25"/>
+		<item id="40313" chance="25"/>
+		<item id="40314" chance="25"/>
+		<item id="40315" chance="25"/>
+		<item id="40316" chance="25"/>
+		<item id="40317" chance="25"/>
+		<item id="40318" chance="25"/>
+		<item id="40319" chance="25"/>
+		<item id="40320" chance="25"/>
+		<item id="40321" chance="25"/>
+		<item id="40322" chance="25"/>
+		<item id="40323" chance="25"/>
+
+		<border align="outer" id="274"/>
+	</brush>
+
+	<brush name="dark slate rock" type="ground" lookid="42662" z-order="40000">
+		<item id="42662" chance="25"/>
+		<item id="42663" chance="25"/>
+		<item id="42664" chance="25"/>
+		<item id="42665" chance="25"/>
+		<item id="42666" chance="25"/>
+		<item id="42667" chance="25"/>
+		<item id="42680" chance="1"/>
+		<item id="42681" chance="1"/>
+
+		<border align="outer" id="275"/>
+	</brush>
+
+	<brush name="ornate blue tile" type="ground" lookid="42756" z-order="40000">
+		<item id="42756" chance="25"/>
+		<item id="42757" chance="25"/>
+		<item id="42758" chance="25"/>
+		<item id="42759" chance="25"/>
+		<item id="42760" chance="25"/>
+		<item id="42761" chance="25"/>
+		<item id="42762" chance="25"/>
+		<item id="42763" chance="25"/>
+		<item id="42764" chance="25"/>
+		<item id="42765" chance="25"/>
+		<item id="42766" chance="25"/>
+		<item id="42767" chance="25"/>
+		<item id="42768" chance="25"/>
+		<item id="42769" chance="25"/>
+		<item id="42770" chance="25"/>
+		<item id="42771" chance="25"/>
+		<item id="42784" chance="25"/>
+		<item id="42785" chance="25"/>
+		<item id="42786" chance="25"/>
+		<item id="42787" chance="25"/>
+		<item id="42788" chance="25"/>
+		<item id="42789" chance="25"/>
+		<item id="42790" chance="25"/>
+		<item id="42791" chance="25"/>
+		<item id="42792" chance="25"/>
+		<item id="42793" chance="25"/>
+		<item id="42794" chance="25"/>
+		<item id="42795" chance="25"/>
+		<item id="42796" chance="25"/>
+		<item id="42797" chance="25"/>
+		<item id="42798" chance="25"/>
+		<item id="42799" chance="25"/>
+
+		<border align="outer" id="276"/>
+	</brush>
+
+	<brush name="rooted dark rock" type="ground" lookid="42973" z-order="40000">
+		<item id="42973" chance="25"/>
+		<item id="42974" chance="25"/>
+		<item id="42975" chance="25"/>
+		<item id="42976" chance="25"/>
+		<item id="42977" chance="25"/>
+		<item id="42978" chance="25"/>
+		<item id="42979" chance="25"/>
+		<item id="42980" chance="25"/>
+		<item id="42981" chance="25"/>
+		<item id="42982" chance="25"/>
+		<item id="42983" chance="25"/>
+
+		<border align="outer" id="277"/>
+	</brush>
+
+	<brush name="slate cobbles" type="ground" lookid="46629" z-order="40000">
+		<item id="46629" chance="25"/>
+		<item id="46630" chance="25"/>
+		<item id="46631" chance="25"/>
+		<item id="46632" chance="25"/>
+		<item id="46633" chance="25"/>
+		<item id="46634" chance="25"/>
+
+		<border align="outer" id="278"/>
+	</brush>
+
+	<brush name="dark floor" type="ground" lookid="49330" z-order="40000">
+		<item id="49330" chance="25"/>
+		<item id="49331" chance="25"/>
+		<item id="49332" chance="25"/>
+		<item id="49333" chance="25"/>
+		<item id="49334" chance="25"/>
+		<item id="49335" chance="25"/>
+		<item id="49336" chance="25"/>
+		<item id="49337" chance="25"/>
+		<item id="49338" chance="25"/>
+		<item id="49339" chance="25"/>
+		<item id="49340" chance="25"/>
+		<item id="49341" chance="25"/>
+		<item id="49342" chance="25"/>
+		<item id="49343" chance="25"/>
+		<item id="49344" chance="25"/>
+		<item id="49345" chance="25"/>
+		<item id="49346" chance="25"/>
+		<item id="49347" chance="25"/>
+
+		<border align="outer" id="279"/>
+	</brush>
+
 </materials>
