@@ -6073,8 +6073,7 @@ bool IOMapOTBM::saveSpawns(Map &map, pugi::xml_document &doc) {
 								monsterNode.append_attribute("direction") = monster->getDirection();
 							}
 
-							const auto weight = monster->getWeight();
-							monsterNode.append_attribute("weight") = weight > 0 ? weight : g_settings.getInteger(Config::MONSTER_DEFAULT_WEIGHT);
+							monsterNode.append_attribute("weight") = monster->getWeight();
 
 							// Mark as saved
 							monster->save();

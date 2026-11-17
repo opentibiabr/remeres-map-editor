@@ -82,6 +82,7 @@ void MonsterBrush::drawMonster(BaseMap* map, Tile* tile, void* parameter) {
 			});
 			if (it == tile->monsters.end()) {
 				const auto monster = newd Monster(monster_type);
+				monster->setWeight(g_settings.getInteger(Config::MONSTER_DEFAULT_WEIGHT));
 				monster->setSpawnMonsterTime(*(uint16_t*)parameter);
 				tile->monsters.emplace_back(monster);
 			}
