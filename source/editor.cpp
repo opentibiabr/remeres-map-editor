@@ -1683,7 +1683,7 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 			Tile* tile = location->get();
 			if (tile) {
 				Tile* new_tile = tile->deepCopy(map);
-				if (g_settings.getInteger(Config::USE_AUTOMAGIC)) {
+				if (g_settings.getInteger(Config::USE_AUTOMAGIC) && (brush->isEraser() || !new_tile->hasBorderBlockingWall())) {
 					new_tile->cleanBorders();
 				}
 				if (dodraw) {

@@ -897,8 +897,8 @@ void GroundBrush::doBorders(BaseMap* map, Tile* tile) {
 	}
 
 	tile->cleanBorders();
-	for (Item* item : wallBorders) {
-		tile->addBorderItem(item);
+	for (auto it = wallBorders.rbegin(); it != wallBorders.rend(); ++it) {
+		tile->addBorderItem(*it);
 	}
 
 	while (!borderList.empty()) {
