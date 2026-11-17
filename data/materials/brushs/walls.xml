@@ -1247,7 +1247,6 @@
 			<item id="6737" chance="0"/>
 			<item id="6769" chance="0"/>
 			<item id="6770" chance="0"/>
-			<item id="6729" chance="0"/>
 		</wall>
 		<wall type="vertical">
 			<item id="6739" chance="1"/>
@@ -1267,7 +1266,6 @@
 			<item id="6735" chance="0"/>
 			<item id="6771" chance="0"/>
 			<item id="6772" chance="0"/>
-			<item id="6728" chance="0"/>
 		</wall>
 		<wall type="corner">
 			<item id="6743" chance="1"/>
