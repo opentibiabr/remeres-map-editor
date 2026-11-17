@@ -19,6 +19,7 @@
 #define RME_OTBM_MAP_IO_H_
 
 #include "iomap.h"
+#include "duplicate_items_policy.h"
 #include <functional>
 #include <string>
 #include <utility>
@@ -150,9 +151,14 @@ public:
 	const StaticHouseExportReport &getLastStaticHouseExportReport() const {
 		return staticHouseExportReport_;
 	}
+	// Repeated items the last saved map stacks on its tiles.
+	const DuplicateItems::Report &getDuplicateItemReport() const {
+		return duplicateItemReport_;
+	}
 
 private:
 	StaticHouseExportReport staticHouseExportReport_;
+	DuplicateItems::Report duplicateItemReport_;
 
 protected:
 	static bool getVersionInfo(NodeFileReadHandle* f, MapVersion &out_ver);

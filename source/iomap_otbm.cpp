@@ -30,6 +30,7 @@
 #include "tile.h"
 #include "item.h"
 #include "complexitem.h"
+#include "duplicate_items.h"
 #include "town.h"
 #include "sprite_appearances.h"
 
@@ -4159,6 +4160,7 @@ namespace {
 		int localX = -1;
 		int localY = -1;
 		int localZ = -1;
+		DuplicateItems::Report* duplicateItems = nullptr;
 	};
 
 	FORCEINLINE void updateTileSaveProgress(const Map &map, TileAreaSaveState &state) {
@@ -4253,6 +4255,10 @@ namespace {
 		const Position &position = saveTile->getPosition();
 		if (needsNewTileArea(position, state)) {
 			beginTileArea(file, position, state);
+		}
+
+		if (state.duplicateItems) {
+			DuplicateItems::inspectTile(*saveTile, *state.duplicateItems);
 		}
 
 		file.addNode(saveTile->isHouseTile() ? OTBM_HOUSETILE : OTBM_TILE);
@@ -5891,7 +5897,9 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 			f.addString(nstr(tmpName.GetFullName()));
 
 			// Start writing tiles
+			duplicateItemReport_ = DuplicateItems::Report {};
 			TileAreaSaveState tileAreaState;
+			tileAreaState.duplicateItems = &duplicateItemReport_;
 			auto writeTileLocation = [&](TileLocation* tileLocation) {
 				saveTileLocation(self, map, f, tileAreaState, tileLocation);
 			};
