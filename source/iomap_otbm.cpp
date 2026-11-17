@@ -5429,7 +5429,8 @@ bool IOMapOTBM::loadSpawnsMonster(Map &map, pugi::xml_document &doc) {
 				break;
 			}
 
-			uint16_t spawntime = monsterNode.attribute("spawntime").as_uint(0);
+			const auto parsedSpawnTime = monsterNode.attribute("spawntime").as_uint(0);
+			uint16_t spawntime = static_cast<uint16_t>(std::min<uint32_t>(parsedSpawnTime, std::numeric_limits<uint16_t>::max()));
 			if (spawntime == 0) {
 				spawntime = g_settings.getInteger(Config::DEFAULT_SPAWN_MONSTER_TIME);
 			}
@@ -6072,10 +6073,8 @@ bool IOMapOTBM::saveSpawns(Map &map, pugi::xml_document &doc) {
 								monsterNode.append_attribute("direction") = monster->getDirection();
 							}
 
-							if (monsterTile->monsters.size() > 1) {
-								const auto weight = monster->getWeight();
-								monsterNode.append_attribute("weight") = weight > 0 ? weight : g_settings.getInteger(Config::MONSTER_DEFAULT_WEIGHT);
-							}
+							const auto weight = monster->getWeight();
+							monsterNode.append_attribute("weight") = weight > 0 ? weight : g_settings.getInteger(Config::MONSTER_DEFAULT_WEIGHT);
 
 							// Mark as saved
 							monster->save();
