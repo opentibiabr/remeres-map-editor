@@ -134,6 +134,8 @@ public:
 protected:
 	void getTilesToDraw(int mouse_map_x, int mouse_map_y, int floor, PositionVector* tilestodraw, PositionVector* tilestoborder, bool fill = false);
 	bool floodFill(Map* map, const Position &center, int x, int y, GroundBrush* brush, PositionVector* positions);
+	void RotateSelectedItems();
+	void RotateCurrentRawBrush();
 
 private:
 	void QueueRefresh(bool mark_scene_dirty);
