@@ -132,8 +132,8 @@ NpcType* NpcType::loadFromOTXML(const FileName &filename, pugi::xml_document &do
 	}
 
 	NpcType* npcType = newd NpcType();
-	npcType->name = attribute.as_string();
-	npcType->outfit.name = npcType->name;
+	npcType->name = nstr(filename.GetName());
+	npcType->outfit.name = attribute.as_string();
 
 	for (pugi::xml_node optionNode = node.first_child(); optionNode; optionNode = optionNode.next_sibling()) {
 		if (as_lower_str(optionNode.name()) != "look") {
