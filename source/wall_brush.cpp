@@ -240,7 +240,16 @@ bool WallBrush::load(pugi::xml_node node, wxArrayString &warnings) {
 					if (!brush->isWall()) {
 						warnings.push_back("Wall brush redirect link: '" + wxstr(name) + "' is not a wall brush.");
 					} else if (!redirect_to) {
-						redirect_to = brush->asWall();
+						WallBrush* target = brush->asWall();
+						const WallBrush* next = target;
+						while (next && next != this) {
+							next = next->redirect_to;
+						}
+						if (next == this) {
+							warnings.push_back("Wall brush '" + wxstr(getName()) + "' would create a redirect cycle through '" + wxstr(name) + "'.");
+						} else {
+							redirect_to = target;
+						}
 					} else {
 						warnings.push_back("Wall brush '" + wxstr(getName()) + "' has more than one redirect link.");
 					}
