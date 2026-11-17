@@ -2780,4 +2780,469 @@
 		<borderitem edge="dse" item="25436"/>
 	</border>	
 	
+	<border id="249"> -- old grass --
+		<borderitem edge="n"  item="24614"/>
+		<borderitem edge="w"  item="24611"/>
+		<borderitem edge="e"  item="24617"/>
+		<borderitem edge="s"  item="24606"/>
+		<borderitem edge="cnw" item="24612"/>
+		<borderitem edge="cne" item="24615"/>
+		<borderitem edge="cse" item="24608"/>
+		<borderitem edge="csw" item="24607"/>
+		<borderitem edge="dnw" item="24613"/>
+		<borderitem edge="dne" item="24616"/>
+		<borderitem edge="dse" item="24609"/>
+		<borderitem edge="dsw" item="24610"/>
+	</border>
+
+	<border id="250"> -- old gravel --
+		<borderitem edge="n"  item="24678"/>
+		<borderitem edge="w"  item="24675"/>
+		<borderitem edge="e"  item="24681"/>
+		<borderitem edge="s"  item="24670"/>
+		<borderitem edge="cnw" item="24676"/>
+		<borderitem edge="cne" item="24679"/>
+		<borderitem edge="cse" item="24672"/>
+		<borderitem edge="csw" item="24671"/>
+		<borderitem edge="dnw" item="24677"/>
+		<borderitem edge="dne" item="24680"/>
+		<borderitem edge="dse" item="24673"/>
+		<borderitem edge="dsw" item="24674"/>
+	</border>
+
+	<border id="251"> -- old sand --
+		<borderitem edge="n"  item="24691"/>
+		<borderitem edge="w"  item="24688"/>
+		<borderitem edge="e"  item="24694"/>
+		<borderitem edge="s"  item="24683"/>
+		<borderitem edge="cnw" item="24689"/>
+		<borderitem edge="cne" item="24692"/>
+		<borderitem edge="cse" item="24685"/>
+		<borderitem edge="csw" item="24684"/>
+		<borderitem edge="dnw" item="24690"/>
+		<borderitem edge="dne" item="24693"/>
+		<borderitem edge="dse" item="24686"/>
+		<borderitem edge="dsw" item="24687"/>
+	</border>
+
+	<border id="252"> -- white sand --
+		<borderitem edge="n"  item="12262"/>
+		<borderitem edge="w"  item="12265"/>
+		<borderitem edge="e"  item="12263"/>
+		<borderitem edge="s"  item="12264"/>
+		<borderitem edge="cnw" item="12266"/>
+		<borderitem edge="cne" item="12267"/>
+		<borderitem edge="cse" item="12269"/>
+		<borderitem edge="csw" item="12268"/>
+		<borderitem edge="dnw" item="12270"/>
+		<borderitem edge="dne" item="12271"/>
+		<borderitem edge="dse" item="12273"/>
+		<borderitem edge="dsw" item="12272"/>
+	</border>
+
+	<border id="253"> -- mossy earth ground --
+		<borderitem edge="n"  item="32371"/>
+		<borderitem edge="w"  item="32373"/>
+		<borderitem edge="e"  item="32372"/>
+		<borderitem edge="s"  item="32370"/>
+		<borderitem edge="cnw" item="32377"/>
+		<borderitem edge="cne" item="32376"/>
+		<borderitem edge="cse" item="32374"/>
+		<borderitem edge="csw" item="32375"/>
+		<borderitem edge="dnw" item="32381"/>
+		<borderitem edge="dne" item="32380"/>
+		<borderitem edge="dse" item="32378"/>
+		<borderitem edge="dsw" item="32379"/>
+	</border>
+
+	<border id="254"> -- dry sand --
+		<borderitem edge="n"  item="32400"/>
+		<borderitem edge="w"  item="32402"/>
+		<borderitem edge="e"  item="32401"/>
+		<borderitem edge="s"  item="32399"/>
+		<borderitem edge="cnw" item="32406"/>
+		<borderitem edge="cne" item="32405"/>
+		<borderitem edge="cse" item="32403"/>
+		<borderitem edge="csw" item="32404"/>
+		<borderitem edge="dnw" item="32410"/>
+		<borderitem edge="dne" item="32409"/>
+		<borderitem edge="dse" item="32407"/>
+		<borderitem edge="dsw" item="32408"/>
+	</border>
+
+	<border id="255"> -- burnt soil --
+		<borderitem edge="n"  item="38864"/>
+		<borderitem edge="w"  item="38866"/>
+		<borderitem edge="e"  item="38865"/>
+		<borderitem edge="s"  item="38863"/>
+		<borderitem edge="cnw" item="38870"/>
+		<borderitem edge="cne" item="38869"/>
+		<borderitem edge="cse" item="38867"/>
+		<borderitem edge="csw" item="38868"/>
+		<borderitem edge="dnw" item="38874"/>
+		<borderitem edge="dne" item="38873"/>
+		<borderitem edge="dse" item="38871"/>
+		<borderitem edge="dsw" item="38872"/>
+	</border>
+
+	<border id="256"> -- dark burnt soil --
+		<borderitem edge="n"  item="38992"/>
+		<borderitem edge="w"  item="38994"/>
+		<borderitem edge="e"  item="38993"/>
+		<borderitem edge="s"  item="38991"/>
+		<borderitem edge="cnw" item="38998"/>
+		<borderitem edge="cne" item="38997"/>
+		<borderitem edge="cse" item="38995"/>
+		<borderitem edge="csw" item="38996"/>
+		<borderitem edge="dnw" item="39002"/>
+		<borderitem edge="dne" item="39001"/>
+		<borderitem edge="dse" item="38999"/>
+		<borderitem edge="dsw" item="39000"/>
+	</border>
+
+	<border id="257"> -- lavender ice floor --
+		<borderitem edge="n"  item="43202"/>
+		<borderitem edge="w"  item="43204"/>
+		<borderitem edge="e"  item="43203"/>
+		<borderitem edge="s"  item="43201"/>
+		<borderitem edge="cnw" item="43208"/>
+		<borderitem edge="cne" item="43207"/>
+		<borderitem edge="cse" item="43205"/>
+		<borderitem edge="csw" item="43206"/>
+		<borderitem edge="dnw" item="43212"/>
+		<borderitem edge="dne" item="43211"/>
+		<borderitem edge="dse" item="43209"/>
+		<borderitem edge="dsw" item="43210"/>
+	</border>
+
+	<border id="258"> -- frosted ice --
+		<borderitem edge="n"  item="45034"/>
+		<borderitem edge="w"  item="45035"/>
+		<borderitem edge="e"  item="45036"/>
+		<borderitem edge="s"  item="45033"/>
+		<borderitem edge="cnw" item="45037"/>
+		<borderitem edge="cne" item="45040"/>
+		<borderitem edge="cse" item="45039"/>
+		<borderitem edge="csw" item="45038"/>
+		<borderitem edge="dnw" item="45043"/>
+		<borderitem edge="dne" item="45044"/>
+		<borderitem edge="dse" item="45042"/>
+		<borderitem edge="dsw" item="45041"/>
+	</border>
+
+	<border id="259"> -- swirled grass --
+		<borderitem edge="n"  item="44794"/>
+		<borderitem edge="w"  item="44796"/>
+		<borderitem edge="e"  item="44795"/>
+		<borderitem edge="s"  item="44793"/>
+		<borderitem edge="cnw" item="44800"/>
+		<borderitem edge="cne" item="44799"/>
+		<borderitem edge="cse" item="44797"/>
+		<borderitem edge="csw" item="44798"/>
+		<borderitem edge="dnw" item="44804"/>
+		<borderitem edge="dne" item="44803"/>
+		<borderitem edge="dse" item="44801"/>
+		<borderitem edge="dsw" item="44802"/>
+	</border>
+
+	<border id="260"> -- swirled earth --
+		<borderitem edge="n"  item="44815"/>
+		<borderitem edge="w"  item="44817"/>
+		<borderitem edge="e"  item="44816"/>
+		<borderitem edge="s"  item="44814"/>
+		<borderitem edge="cnw" item="44821"/>
+		<borderitem edge="cne" item="44820"/>
+		<borderitem edge="cse" item="44818"/>
+		<borderitem edge="csw" item="44819"/>
+		<borderitem edge="dnw" item="44825"/>
+		<borderitem edge="dne" item="44824"/>
+		<borderitem edge="dse" item="44822"/>
+		<borderitem edge="dsw" item="44823"/>
+	</border>
+
+	<border id="261"> -- swirled sand --
+		<borderitem edge="n"  item="44836"/>
+		<borderitem edge="w"  item="44838"/>
+		<borderitem edge="e"  item="44837"/>
+		<borderitem edge="s"  item="44835"/>
+		<borderitem edge="cnw" item="44842"/>
+		<borderitem edge="cne" item="44841"/>
+		<borderitem edge="cse" item="44839"/>
+		<borderitem edge="csw" item="44840"/>
+		<borderitem edge="dnw" item="44846"/>
+		<borderitem edge="dne" item="44845"/>
+		<borderitem edge="dse" item="44843"/>
+		<borderitem edge="dsw" item="44844"/>
+	</border>
+
+	<border id="262"> -- root floor --
+		<borderitem edge="n"  item="45478"/>
+		<borderitem edge="w"  item="45480"/>
+		<borderitem edge="e"  item="45479"/>
+		<borderitem edge="s"  item="45477"/>
+		<borderitem edge="cnw" item="45484"/>
+		<borderitem edge="cne" item="45483"/>
+		<borderitem edge="cse" item="45481"/>
+		<borderitem edge="csw" item="45482"/>
+		<borderitem edge="dnw" item="45488"/>
+		<borderitem edge="dne" item="45487"/>
+		<borderitem edge="dse" item="45485"/>
+		<borderitem edge="dsw" item="45486"/>
+	</border>
+
+	<border id="263"> -- scribbled sand --
+		<borderitem edge="n"  item="50379"/>
+		<borderitem edge="w"  item="50381"/>
+		<borderitem edge="e"  item="50380"/>
+		<borderitem edge="s"  item="50378"/>
+		<borderitem edge="cnw" item="50385"/>
+		<borderitem edge="cne" item="50384"/>
+		<borderitem edge="cse" item="50382"/>
+		<borderitem edge="csw" item="50383"/>
+		<borderitem edge="dnw" item="50389"/>
+		<borderitem edge="dne" item="50388"/>
+		<borderitem edge="dse" item="50386"/>
+		<borderitem edge="dsw" item="50387"/>
+	</border>
+
+	<border id="264"> -- dark brick pavement --
+		<borderitem edge="n"  item="34847"/>
+		<borderitem edge="w"  item="34849"/>
+		<borderitem edge="e"  item="34848"/>
+		<borderitem edge="s"  item="34846"/>
+		<borderitem edge="cnw" item="34853"/>
+		<borderitem edge="cne" item="34852"/>
+		<borderitem edge="cse" item="34850"/>
+		<borderitem edge="csw" item="34851"/>
+		<borderitem edge="dnw" item="34857"/>
+		<borderitem edge="dne" item="34856"/>
+		<borderitem edge="dse" item="34854"/>
+		<borderitem edge="dsw" item="34855"/>
+	</border>
+
+	<border id="265"> -- wooden stake floor --
+		<borderitem edge="n"  item="35053"/>
+		<borderitem edge="w"  item="35055"/>
+		<borderitem edge="e"  item="35054"/>
+		<borderitem edge="s"  item="35052"/>
+		<borderitem edge="cnw" item="35051"/>
+		<borderitem edge="cne" item="35050"/>
+		<borderitem edge="cse" item="35048"/>
+		<borderitem edge="csw" item="35049"/>
+		<borderitem edge="dnw" item="35056"/>
+		<borderitem edge="dne" item="35057"/>
+		<borderitem edge="dse" item="35059"/>
+		<borderitem edge="dsw" item="35058"/>
+	</border>
+
+	<border id="266"> -- veined white marble floor --
+		<borderitem edge="n"  item="36001"/>
+		<borderitem edge="w"  item="36003"/>
+		<borderitem edge="e"  item="36002"/>
+		<borderitem edge="s"  item="36000"/>
+		<borderitem edge="cnw" item="36007"/>
+		<borderitem edge="cne" item="36006"/>
+		<borderitem edge="cse" item="36004"/>
+		<borderitem edge="csw" item="36005"/>
+		<borderitem edge="dnw" item="36011"/>
+		<borderitem edge="dne" item="36010"/>
+		<borderitem edge="dse" item="36008"/>
+		<borderitem edge="dsw" item="36009"/>
+	</border>
+
+	<border id="267"> -- teal stone floor --
+		<borderitem edge="n"  item="36043"/>
+		<borderitem edge="w"  item="36045"/>
+		<borderitem edge="e"  item="36044"/>
+		<borderitem edge="s"  item="36042"/>
+		<borderitem edge="cnw" item="36052"/>
+		<borderitem edge="cne" item="36053"/>
+		<borderitem edge="cse" item="36050"/>
+		<borderitem edge="csw" item="36051"/>
+		<borderitem edge="dnw" item="36048"/>
+		<borderitem edge="dne" item="36049"/>
+		<borderitem edge="dse" item="36046"/>
+		<borderitem edge="dsw" item="36047"/>
+	</border>
+
+	<border id="268"> -- green stone floor --
+		<borderitem edge="n"  item="36031"/>
+		<borderitem edge="w"  item="36033"/>
+		<borderitem edge="e"  item="36032"/>
+		<borderitem edge="s"  item="36030"/>
+		<borderitem edge="cnw" item="36040"/>
+		<borderitem edge="cne" item="36041"/>
+		<borderitem edge="cse" item="36038"/>
+		<borderitem edge="csw" item="36039"/>
+		<borderitem edge="dnw" item="36036"/>
+		<borderitem edge="dne" item="36037"/>
+		<borderitem edge="dse" item="36034"/>
+		<borderitem edge="dsw" item="36035"/>
+	</border>
+
+	<border id="269"> -- eldritch floor --
+		<borderitem edge="n"  item="36283"/>
+		<borderitem edge="w"  item="36285"/>
+		<borderitem edge="e"  item="36284"/>
+		<borderitem edge="s"  item="36282"/>
+		<borderitem edge="cnw" item="36289"/>
+		<borderitem edge="cne" item="36288"/>
+		<borderitem edge="cse" item="36286"/>
+		<borderitem edge="csw" item="36287"/>
+		<borderitem edge="dnw" item="36293"/>
+		<borderitem edge="dne" item="36292"/>
+		<borderitem edge="dse" item="36290"/>
+		<borderitem edge="dsw" item="36291"/>
+	</border>
+
+	<border id="270"> -- hardened eldritch floor --
+		<borderitem edge="n"  item="36352"/>
+		<borderitem edge="w"  item="36354"/>
+		<borderitem edge="e"  item="36353"/>
+		<borderitem edge="s"  item="36351"/>
+		<borderitem edge="cnw" item="36358"/>
+		<borderitem edge="cne" item="36357"/>
+		<borderitem edge="cse" item="36355"/>
+		<borderitem edge="csw" item="36356"/>
+		<borderitem edge="dnw" item="36362"/>
+		<borderitem edge="dne" item="36361"/>
+		<borderitem edge="dse" item="36359"/>
+		<borderitem edge="dsw" item="36360"/>
+	</border>
+
+	<border id="271"> -- cracked beige stone floor --
+		<borderitem edge="n"  item="38077"/>
+		<borderitem edge="w"  item="38079"/>
+		<borderitem edge="e"  item="38078"/>
+		<borderitem edge="s"  item="38076"/>
+		<borderitem edge="cnw" item="38083"/>
+		<borderitem edge="cne" item="38082"/>
+		<borderitem edge="cse" item="38080"/>
+		<borderitem edge="csw" item="38081"/>
+		<borderitem edge="dnw" item="38087"/>
+		<borderitem edge="dne" item="38086"/>
+		<borderitem edge="dse" item="38084"/>
+		<borderitem edge="dsw" item="38085"/>
+	</border>
+
+	<border id="272"> -- overgrown beige stone floor --
+		<borderitem edge="n"  item="38945"/>
+		<borderitem edge="w"  item="38947"/>
+		<borderitem edge="e"  item="38946"/>
+		<borderitem edge="s"  item="38944"/>
+		<borderitem edge="cnw" item="38951"/>
+		<borderitem edge="cne" item="38950"/>
+		<borderitem edge="cse" item="38948"/>
+		<borderitem edge="csw" item="38949"/>
+		<borderitem edge="dnw" item="38955"/>
+		<borderitem edge="dne" item="38954"/>
+		<borderitem edge="dse" item="38952"/>
+		<borderitem edge="dsw" item="38953"/>
+	</border>
+
+	<border id="273"> -- flooded stone floor --
+		<borderitem edge="n"  item="38713"/>
+		<borderitem edge="w"  item="38715"/>
+		<borderitem edge="e"  item="38714"/>
+		<borderitem edge="s"  item="38712"/>
+		<borderitem edge="cnw" item="38719"/>
+		<borderitem edge="cne" item="38718"/>
+		<borderitem edge="cse" item="38716"/>
+		<borderitem edge="csw" item="38717"/>
+		<borderitem edge="dnw" item="38723"/>
+		<borderitem edge="dne" item="38722"/>
+		<borderitem edge="dse" item="38720"/>
+		<borderitem edge="dsw" item="38721"/>
+	</border>
+
+	<border id="274"> -- overgrown flagstone --
+		<borderitem edge="n"  item="40325"/>
+		<borderitem edge="w"  item="40327"/>
+		<borderitem edge="e"  item="40326"/>
+		<borderitem edge="s"  item="40324"/>
+		<borderitem edge="cnw" item="40331"/>
+		<borderitem edge="cne" item="40330"/>
+		<borderitem edge="cse" item="40328"/>
+		<borderitem edge="csw" item="40329"/>
+		<borderitem edge="dnw" item="40335"/>
+		<borderitem edge="dne" item="40334"/>
+		<borderitem edge="dse" item="40332"/>
+		<borderitem edge="dsw" item="40333"/>
+	</border>
+
+	<border id="275"> -- dark slate rock --
+		<borderitem edge="n"  item="42669"/>
+		<borderitem edge="w"  item="42671"/>
+		<borderitem edge="e"  item="42670"/>
+		<borderitem edge="s"  item="42668"/>
+		<borderitem edge="cnw" item="42675"/>
+		<borderitem edge="cne" item="42674"/>
+		<borderitem edge="cse" item="42672"/>
+		<borderitem edge="csw" item="42673"/>
+		<borderitem edge="dnw" item="42679"/>
+		<borderitem edge="dne" item="42678"/>
+		<borderitem edge="dse" item="42676"/>
+		<borderitem edge="dsw" item="42677"/>
+	</border>
+
+	<border id="276"> -- ornate blue tile --
+		<borderitem edge="n"  item="42773"/>
+		<borderitem edge="w"  item="42775"/>
+		<borderitem edge="e"  item="42774"/>
+		<borderitem edge="s"  item="42772"/>
+		<borderitem edge="cnw" item="42779"/>
+		<borderitem edge="cne" item="42778"/>
+		<borderitem edge="cse" item="42776"/>
+		<borderitem edge="csw" item="42777"/>
+		<borderitem edge="dnw" item="42783"/>
+		<borderitem edge="dne" item="42782"/>
+		<borderitem edge="dse" item="42780"/>
+		<borderitem edge="dsw" item="42781"/>
+	</border>
+
+	<border id="277"> -- rooted dark rock --
+		<borderitem edge="n"  item="42985"/>
+		<borderitem edge="w"  item="42987"/>
+		<borderitem edge="e"  item="42986"/>
+		<borderitem edge="s"  item="42984"/>
+		<borderitem edge="cnw" item="42991"/>
+		<borderitem edge="cne" item="42990"/>
+		<borderitem edge="cse" item="42988"/>
+		<borderitem edge="csw" item="42989"/>
+		<borderitem edge="dnw" item="42995"/>
+		<borderitem edge="dne" item="42994"/>
+		<borderitem edge="dse" item="42992"/>
+		<borderitem edge="dsw" item="42993"/>
+	</border>
+
+	<border id="278"> -- slate cobbles --
+		<borderitem edge="n"  item="46636"/>
+		<borderitem edge="w"  item="46638"/>
+		<borderitem edge="e"  item="46637"/>
+		<borderitem edge="s"  item="46635"/>
+		<borderitem edge="cnw" item="46645"/>
+		<borderitem edge="cne" item="46646"/>
+		<borderitem edge="cse" item="46643"/>
+		<borderitem edge="csw" item="46644"/>
+		<borderitem edge="dnw" item="46641"/>
+		<borderitem edge="dne" item="46642"/>
+		<borderitem edge="dse" item="46639"/>
+		<borderitem edge="dsw" item="46640"/>
+	</border>
+
+	<border id="279"> -- dark floor --
+		<borderitem edge="n"  item="49349"/>
+		<borderitem edge="w"  item="49351"/>
+		<borderitem edge="e"  item="49350"/>
+		<borderitem edge="s"  item="49348"/>
+		<borderitem edge="cnw" item="49355"/>
+		<borderitem edge="cne" item="49354"/>
+		<borderitem edge="cse" item="49352"/>
+		<borderitem edge="csw" item="49353"/>
+		<borderitem edge="dnw" item="49359"/>
+		<borderitem edge="dne" item="49358"/>
+		<borderitem edge="dse" item="49356"/>
+		<borderitem edge="dsw" item="49357"/>
+	</border>
+
 </materials>
