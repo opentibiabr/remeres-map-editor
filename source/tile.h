@@ -164,6 +164,7 @@ public: // Functions
 	Item* getItemAt(int index) const;
 	void addItem(Item* item);
 	void addItem(Item* item, const ItemType &type);
+	// Preserve serialized item order instead of applying brush insertion priorities.
 	void addLoadedItem(Item* item, const ItemType &type);
 	bool removeItem(const Item* item);
 	void clearGround();
