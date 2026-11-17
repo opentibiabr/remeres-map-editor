@@ -906,8 +906,20 @@ void ReplaceBuildingWallsDialog::toggleWall(const Position &clicked) {
 		}
 
 		if (!scan.tiles.contains(position)) {
+			std::map<WallBrush*, bool> previousSelection;
+			for (size_t index = 0; index < sourceBrushes.size(); ++index) {
+				previousSelection.emplace(sourceBrushes[index], sourceList->IsChecked(static_cast<unsigned int>(index)));
+			}
+
 			addWallToScan(scan, editor.getMap(), position);
 			rebuildSourceList();
+
+			for (size_t index = 0; index < sourceBrushes.size(); ++index) {
+				const auto previous = previousSelection.find(sourceBrushes[index]);
+				if (previous != previousSelection.end()) {
+					sourceList->Check(static_cast<unsigned int>(index), previous->second);
+				}
+			}
 		} else if (excluded.erase(position) == 0) {
 			excluded.insert(position);
 		}
