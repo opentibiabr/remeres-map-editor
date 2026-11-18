@@ -166,37 +166,38 @@ namespace {
 
 } // namespace
 
-DuplicateDoorIDChoice ShowDuplicateDoorIDsDialog(wxWindow* parent, const House &house, uint8_t proposedDoorID, const Tile* pendingTile, uint8_t originalDoorID, int pendingItemIndex, const Item* pendingItem, const Item* selectedLiveItem) {
-	const auto duplicatePositions = collectDuplicateDoorIDPositions(house, pendingTile, proposedDoorID, originalDoorID);
+DuplicateDoorIDChoice ShowDuplicateDoorIDsDialog(wxWindow* parent, const House &house, const DuplicateDoorIDChange &change) {
+	using enum DuplicateDoorIDChoice;
+	const auto duplicatePositions = collectDuplicateDoorIDPositions(house, change.pendingTile, change.proposedDoorID, change.originalDoorID);
 	if (duplicatePositions.empty()) {
-		return DuplicateDoorIDChoice::Continue;
+		return Continue;
 	}
 	const auto message = formatDuplicateDoorIDMessage(duplicatePositions);
 	const long choice = g_gui.PopupDialog(parent, "Duplicate House Door IDs", wxString::FromUTF8(message.c_str()), wxOK | wxCANCEL);
 	if (choice != wxID_OK) {
-		return DuplicateDoorIDChoice::Cancel;
+		return Cancel;
 	}
 
 	Editor* editor = g_gui.GetCurrentEditor();
 	if (!editor || editor->getMap().houses.getHouse(house.id) != &house) {
 		g_gui.PopupDialog(parent, "Error", "The house is no longer available in the current map.", wxOK | wxICON_ERROR);
-		return DuplicateDoorIDChoice::Cancel;
+		return Cancel;
 	}
 
 	Map &map = editor->getMap();
-	if (!pendingItemMatchesLiveTile(map, house, pendingTile, pendingItemIndex, pendingItem, selectedLiveItem)) {
+	if (!pendingItemMatchesLiveTile(map, house, change.pendingTile, change.pendingItemIndex, change.pendingItem, change.liveItem)) {
 		g_gui.PopupDialog(parent, "Door Changed", "The selected door changed while its properties were open. Renumbering was cancelled; review its properties and try again.", wxOK | wxICON_WARNING);
-		return DuplicateDoorIDChoice::Cancel;
+		return Cancel;
 	}
 	const auto tilePositions = getSortedHouseTilePositions(house, map);
 	if (countHouseDoors(house, map, tilePositions) > 255) {
 		g_gui.PopupDialog(parent, "Cannot Renumber Doors", "This house has more than 255 doors, so unique Door IDs cannot be assigned.", wxOK | wxICON_ERROR);
-		return DuplicateDoorIDChoice::Cancel;
+		return Cancel;
 	}
 
-	auto action = createHouseDoorRenumberAction(*editor, map, house, tilePositions, pendingTile, pendingItem, selectedLiveItem);
+	auto action = createHouseDoorRenumberAction(*editor, map, house, tilePositions, change.pendingTile, change.pendingItem, change.liveItem);
 	if (!action) {
-		return DuplicateDoorIDChoice::Cancel;
+		return Cancel;
 	}
 	if (!action->empty()) {
 		// Keep whole-house renumbering as one distinct undo step.
@@ -205,7 +206,7 @@ DuplicateDoorIDChoice ShowDuplicateDoorIDsDialog(wxWindow* parent, const House &
 		editor->updateActions();
 	}
 	g_gui.PopupDialog(parent, "Door IDs Renumbered", "All doors in this house have been assigned unique Door IDs.", wxOK | wxICON_INFORMATION);
-	return DuplicateDoorIDChoice::Renumber;
+	return Renumber;
 }
 
 #ifdef _MSC_VER

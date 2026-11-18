@@ -26,15 +26,15 @@
 
 namespace {
 
-	DuplicateDoorIDChoice checkDuplicateDoorID(wxWindow* parent, const Map* map, const Tile* tile, uint8_t proposedDoorID, uint8_t originalDoorID, int pendingItemIndex, const Item* pendingItem, const Item* liveItem) {
+	DuplicateDoorIDChoice checkDuplicateDoorID(wxWindow* parent, const Map* map, const Tile* tile, const DuplicateDoorIDChange &change) {
 		if (!g_settings.getInteger(Config::WARN_FOR_DUPLICATE_ID) || !map || !tile || !tile->isHouseTile()) {
 			return DuplicateDoorIDChoice::Continue;
 		}
 		const House* house = map->houses.getHouse(tile->getHouseID());
-		if (!house || !house->hasDoorID(proposedDoorID, tile, originalDoorID)) {
+		if (!house || !house->hasDoorID(change.proposedDoorID, tile, change.originalDoorID)) {
 			return DuplicateDoorIDChoice::Continue;
 		}
-		return ShowDuplicateDoorIDsDialog(parent, *house, proposedDoorID, tile, originalDoorID, pendingItemIndex, pendingItem, liveItem);
+		return ShowDuplicateDoorIDsDialog(parent, *house, change);
 	}
 
 } // namespace
@@ -657,7 +657,8 @@ void PropertiesWindow::OnClickOK(wxCommandEvent &) {
 				pendingItemIndex = static_cast<int>(std::distance(edit_tile->items.begin(), pendingItemPosition));
 			}
 		}
-		const auto duplicateChoice = checkDuplicateDoorID(this, edit_map, edit_tile, doorID, originalDoorID, pendingItemIndex, pendingItem.get(), edit_live_item);
+		const DuplicateDoorIDChange doorIDChange{doorID, originalDoorID, edit_tile, pendingItemIndex, pendingItem.get(), edit_live_item};
+		const auto duplicateChoice = checkDuplicateDoorID(this, edit_map, edit_tile, doorIDChange);
 		if (duplicateChoice == DuplicateDoorIDChoice::Renumber) {
 			EndModal(DOOR_IDS_RENUMBERED);
 			return;
