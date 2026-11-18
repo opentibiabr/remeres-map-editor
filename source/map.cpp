@@ -849,7 +849,11 @@ void Map::reindexTile(Tile* tile, bool contentChanged) {
 }
 
 void Map::updateUniqueIds(Tile* oldTile, Tile* newTile, bool contentChanged) {
-	const Position &position = newTile ? newTile->getPosition() : oldTile->getPosition();
+	const Tile* tile = newTile ? newTile : oldTile;
+	if (!tile) {
+		return;
+	}
+	const Position &position = tile->getPosition();
 	const bool trackPersistence = contentChanged && !loadingMap;
 	if (trackPersistence) {
 		changedTilesSinceSave.insert(position);
