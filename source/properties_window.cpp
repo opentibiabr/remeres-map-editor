@@ -26,7 +26,7 @@
 
 namespace {
 
-	DuplicateDoorIDChoice checkDuplicateDoorID(wxWindow* parent, const Map* map, const Tile* tile, uint8_t proposedDoorID, uint8_t originalDoorID, int pendingItemIndex, const Item* pendingItem) {
+	DuplicateDoorIDChoice checkDuplicateDoorID(wxWindow* parent, const Map* map, const Tile* tile, uint8_t proposedDoorID, uint8_t originalDoorID, int pendingItemIndex, const Item* pendingItem, const Item* liveItem) {
 		if (!g_settings.getInteger(Config::WARN_FOR_DUPLICATE_ID) || !map || !tile || !tile->isHouseTile()) {
 			return DuplicateDoorIDChoice::Continue;
 		}
@@ -34,7 +34,7 @@ namespace {
 		if (!house || !house->hasDoorID(proposedDoorID, tile, originalDoorID)) {
 			return DuplicateDoorIDChoice::Continue;
 		}
-		return ShowDuplicateDoorIDsDialog(parent, *house, proposedDoorID, tile, originalDoorID, pendingItemIndex, pendingItem);
+		return ShowDuplicateDoorIDsDialog(parent, *house, proposedDoorID, tile, originalDoorID, pendingItemIndex, pendingItem, liveItem);
 	}
 
 } // namespace
@@ -429,27 +429,27 @@ void PropertiesWindow::saveContainerPanel() {
 	////
 }
 
-void PropertiesWindow::setBasicAttributes() {
+void PropertiesWindow::setBasicAttributes(Item* target) {
 	const auto aid = simpleActionIdField->GetValue();
 	const auto uid = simpleUniqueIdField->GetValue();
 
 	if (aid > 0) {
-		edit_item->setAttribute("aid", ItemAttribute(aid));
+		target->setAttribute("aid", ItemAttribute(aid));
 	}
 
 	if (uid > 0) {
-		edit_item->setAttribute("uid", ItemAttribute(uid));
+		target->setAttribute("uid", ItemAttribute(uid));
 	}
 }
 
-void PropertiesWindow::setTeleportAttributes(const std::string &key, int value) {
-	if (!edit_item) {
+void PropertiesWindow::setTeleportAttributes(Item* target, const std::string &key, int value) {
+	if (!target) {
 		return;
 	}
 
-	setBasicAttributes();
+	setBasicAttributes(target);
 
-	auto teleportItem = dynamic_cast<Teleport*>(edit_item);
+	auto teleportItem = dynamic_cast<Teleport*>(target);
 	if (!teleportItem) {
 		return;
 	}
@@ -466,14 +466,14 @@ void PropertiesWindow::setTeleportAttributes(const std::string &key, int value) 
 	teleportItem->setDestination(position);
 }
 
-void PropertiesWindow::setDepotAttributes(const std::string &key, int value) {
-	if (!edit_item) {
+void PropertiesWindow::setDepotAttributes(Item* target, const std::string &key, int value) {
+	if (!target) {
 		return;
 	}
 
-	setBasicAttributes();
+	setBasicAttributes(target);
 
-	auto depot = dynamic_cast<Depot*>(edit_item);
+	auto depot = dynamic_cast<Depot*>(target);
 	if (!depot) {
 		return;
 	}
@@ -483,14 +483,14 @@ void PropertiesWindow::setDepotAttributes(const std::string &key, int value) {
 	}
 }
 
-void PropertiesWindow::setDoorAttributes(const std::string &key, int value) {
-	if (!edit_item) {
+void PropertiesWindow::setDoorAttributes(Item* target, const std::string &key, int value) {
+	if (!target) {
 		return;
 	}
 
-	setBasicAttributes();
+	setBasicAttributes(target);
 
-	auto door = dynamic_cast<Door*>(edit_item);
+	auto door = dynamic_cast<Door*>(target);
 	if (!door) {
 		return;
 	}
@@ -500,24 +500,24 @@ void PropertiesWindow::setDoorAttributes(const std::string &key, int value) {
 	}
 }
 
-void PropertiesWindow::setLiquidAttributes(const std::string &key, int value) {
-	if (!edit_item) {
+void PropertiesWindow::setLiquidAttributes(Item* target, const std::string &key, int value) {
+	if (!target) {
 		return;
 	}
 
-	setBasicAttributes();
+	setBasicAttributes(target);
 
-	if (!edit_item->isSplash() && !edit_item->isFluidContainer()) {
+	if (!target->isSplash() && !target->isFluidContainer()) {
 		return;
 	}
 
 	if (strcmp(key.c_str(), "subtype") == 0) {
-		edit_item->setSubtype(value);
+		target->setSubtype(value);
 	}
 }
 
-void PropertiesWindow::saveAttributesPanel() {
-	edit_item->clearAllAttributes();
+void PropertiesWindow::saveAttributesPanel(Item* target) {
+	target->clearAllAttributes();
 
 	for (int32_t rowIndex = 0; rowIndex < attributesGrid->GetNumberRows(); ++rowIndex) {
 		ItemAttribute attr;
@@ -546,16 +546,16 @@ void PropertiesWindow::saveAttributesPanel() {
 		int value;
 		const auto gotValue = cellValue.ToInt(&value);
 
-		if (dynamic_cast<Teleport*>(edit_item) && gotValue) {
-			setTeleportAttributes(key, value);
-		} else if (dynamic_cast<Depot*>(edit_item) && gotValue) {
-			setDepotAttributes(key, value);
-		} else if (dynamic_cast<Door*>(edit_item) && gotValue) {
-			setDoorAttributes(key, value);
-		} else if (edit_item->isSplash() || edit_item->isFluidContainer()) {
-			setLiquidAttributes(key, value);
+		if (dynamic_cast<Teleport*>(target) && gotValue) {
+			setTeleportAttributes(target, key, value);
+		} else if (dynamic_cast<Depot*>(target) && gotValue) {
+			setDepotAttributes(target, key, value);
+		} else if (dynamic_cast<Door*>(target) && gotValue) {
+			setDoorAttributes(target, key, value);
+		} else if (target->isSplash() || target->isFluidContainer()) {
+			setLiquidAttributes(target, key, value);
 		} else {
-			edit_item->setAttribute(key, attr);
+			target->setAttribute(key, attr);
 		}
 	}
 }
@@ -648,9 +648,8 @@ void PropertiesWindow::OnClickOK(wxCommandEvent &) {
 			doorID = static_cast<uint8_t>(advancedDoorID);
 		}
 		SetAdvancedPropertyNumberData("doorid", doorID);
-		saveAttributesPanel();
 		std::unique_ptr<Item> pendingItem(edit_item->deepCopy());
-		door->setDoorID(originalDoorID);
+		saveAttributesPanel(pendingItem.get());
 		int pendingItemIndex = -1;
 		if (edit_tile) {
 			const auto pendingItemPosition = std::find(edit_tile->items.begin(), edit_tile->items.end(), edit_item);
@@ -658,7 +657,7 @@ void PropertiesWindow::OnClickOK(wxCommandEvent &) {
 				pendingItemIndex = static_cast<int>(std::distance(edit_tile->items.begin(), pendingItemPosition));
 			}
 		}
-		const auto duplicateChoice = checkDuplicateDoorID(this, edit_map, edit_tile, doorID, originalDoorID, pendingItemIndex, pendingItem.get());
+		const auto duplicateChoice = checkDuplicateDoorID(this, edit_map, edit_tile, doorID, originalDoorID, pendingItemIndex, pendingItem.get(), edit_live_item);
 		if (duplicateChoice == DuplicateDoorIDChoice::Renumber) {
 			EndModal(DOOR_IDS_RENUMBERED);
 			return;
@@ -666,9 +665,15 @@ void PropertiesWindow::OnClickOK(wxCommandEvent &) {
 		if (duplicateChoice == DuplicateDoorIDChoice::Cancel) {
 			return;
 		}
-		door->setDoorID(doorID);
+		edit_item->clearAllAttributes();
+		for (const auto &[key, value] : pendingItem->getAttributes()) {
+			edit_item->setAttribute(key, value);
+		}
+		door->setDoorID(pendingItem->getDoor()->getDoorID());
+		EndModal(1);
+		return;
 	}
-	saveAttributesPanel();
+	saveAttributesPanel(edit_item);
 	EndModal(1);
 }
 

@@ -323,6 +323,7 @@ public:
 		wxWindow* parent, wxString title, wxPoint position = wxDefaultPosition
 	);
 
+	void setLiveItemBeingEdited(const Item* item) { edit_live_item = item; }
 	Item* getItemBeingEdited();
 	Monster* getMonsterBeingEdited();
 	SpawnMonster* getSpawnBeingEdited();
@@ -333,6 +334,7 @@ protected:
 	const Map* edit_map;
 	const Tile* edit_tile;
 	Item* edit_item;
+	const Item* edit_live_item = nullptr;
 	Monster* edit_monster;
 	SpawnMonster* edit_spawn_monster;
 	Npc* edit_npc;
@@ -346,7 +348,7 @@ enum class DuplicateDoorIDChoice {
 	Renumber,
 };
 constexpr int DOOR_IDS_RENUMBERED = -2;
-DuplicateDoorIDChoice ShowDuplicateDoorIDsDialog(wxWindow* parent, const House &house, uint8_t proposedDoorID, const Tile* pendingTile, uint8_t originalDoorID, int pendingItemIndex, const Item* pendingItem);
+DuplicateDoorIDChoice ShowDuplicateDoorIDsDialog(wxWindow* parent, const House &house, uint8_t proposedDoorID, const Tile* pendingTile, uint8_t originalDoorID, int pendingItemIndex, const Item* pendingItem, const Item* liveItem);
 
 /**
  * The edit towns dialog, ugly as sin.

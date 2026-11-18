@@ -36,6 +36,12 @@ END_EVENT_TABLE()
 
 BrowseTileListBox::BrowseTileListBox(wxWindow* parent, wxWindowID id, Tile* tile) :
 	wxVListBox(parent, id, wxDefaultPosition, wxSize(200, 180), wxLB_MULTIPLE), editTile(tile) {
+	const Tile* liveTile = g_gui.GetCurrentEditor()->getMap().getTile(tile->getPosition());
+	if (liveTile && liveTile->items.size() == tile->items.size()) {
+		for (size_t i = 0; i < tile->items.size(); ++i) {
+			liveItems.emplace(tile->items[i], liveTile->items[i]);
+		}
+	}
 	UpdateItems();
 }
 
@@ -113,12 +119,14 @@ void BrowseTileListBox::UpdateItems() {
 void BrowseTileListBox::OpenPropertiesWindow(int index) {
 	const auto* currentMap = &g_gui.GetCurrentEditor()->getMap();
 
-	wxDialog* dialog;
+	ObjectPropertiesWindowBase* dialog;
 	if (!g_settings.getInteger(Config::USE_OLD_ITEM_PROPERTIES_WINDOW)) {
 		dialog = newd PropertiesWindow(g_gui.root, currentMap, editTile, items[index]);
 	} else {
 		dialog = newd OldPropertiesWindow(g_gui.root, currentMap, editTile, items[index]);
 	}
+	const auto liveItem = liveItems.find(items[index]);
+	dialog->setLiveItemBeingEdited(liveItem != liveItems.end() ? liveItem->second : nullptr);
 	const int result = dialog->ShowModal();
 	dialog->Destroy();
 	if (result == DOOR_IDS_RENUMBERED) {

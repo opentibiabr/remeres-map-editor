@@ -700,7 +700,7 @@ void OldPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 								pendingItemIndex = static_cast<int>(std::distance(edit_tile->items.begin(), itemPosition));
 							}
 							const uint8_t originalDoorID = door->getDoorID();
-							const DuplicateDoorIDChoice choice = ShowDuplicateDoorIDsDialog(this, *house, new_door_id, edit_tile, originalDoorID, pendingItemIndex, pendingItem.get());
+							const DuplicateDoorIDChoice choice = ShowDuplicateDoorIDsDialog(this, *house, new_door_id, edit_tile, originalDoorID, pendingItemIndex, pendingItem.get(), edit_live_item);
 							if (choice == DuplicateDoorIDChoice::Renumber) {
 								EndModal(DOOR_IDS_RENUMBERED);
 								return;

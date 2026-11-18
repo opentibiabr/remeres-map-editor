@@ -763,10 +763,19 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 		TileLocation* location = map.createTileL(new_pos);
 
 		// Check if we should update any houses
+		const bool wasHouseTile = import_tile->isHouseTile();
 		int new_houseid = house_id_map[import_tile->getHouseID()];
 		House* house = map.houses.getHouse(new_houseid);
+		House* imported_house = imported_map.houses.getHouse(import_tile->getHouseID());
+		if (!imported_house) {
+			// Transferred houses already belong to the destination map.
+			imported_house = house;
+		}
+		if (imported_house) {
+			imported_house->removeTile(import_tile);
+		}
 		import_tile->setLocation(location);
-		if (import_tile->isHouseTile() && house_import_type != IMPORT_DONT && house) {
+		if (wasHouseTile && house_import_type != IMPORT_DONT && house) {
 			// Register the destination even when the imported house ID is unchanged.
 			house->addTile(import_tile);
 		} else {
