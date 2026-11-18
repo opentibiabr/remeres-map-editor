@@ -323,7 +323,9 @@ public:
 		wxWindow* parent, wxString title, wxPoint position = wxDefaultPosition
 	);
 
-	void setLiveItemBeingEdited(const Item* item) { edit_live_item = item; }
+	void setLiveItemBeingEdited(const Item* item) {
+		edit_live_item = item;
+	}
 	Item* getItemBeingEdited();
 	Monster* getMonsterBeingEdited();
 	SpawnMonster* getSpawnBeingEdited();
