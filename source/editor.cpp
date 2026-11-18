@@ -765,11 +765,12 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 		// Check if we should update any houses
 		int new_houseid = house_id_map[import_tile->getHouseID()];
 		House* house = map.houses.getHouse(new_houseid);
+		import_tile->setLocation(location);
 		if (import_tile->isHouseTile() && house_import_type != IMPORT_DONT && house) {
-			import_tile->setLocation(location);
+			// Register the destination even when the imported house ID is unchanged.
 			house->addTile(import_tile);
 		} else {
-			import_tile->setLocation(location);
+			import_tile->setHouse(nullptr);
 		}
 
 		if (offset != Position(0, 0, 0)) {

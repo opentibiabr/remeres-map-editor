@@ -64,7 +64,7 @@ namespace {
 				message << "\n  (" << position.x << ", " << position.y << ", " << position.z << ")";
 			}
 		}
-		message << "\n\nChoose OK to renumber every door in this house. If opened from Browse Field, pending changes on this tile will be included and Browse Field will close. Choose Cancel to return to the door properties without saving.";
+		message << "\n\nChoose OK to renumber every door in this house. Pending property and Browse Field changes will be discarded. Browse Field will close if open. Renumbering uses the latest live tiles and changes only door IDs, preserving concurrent remote edits. Choose Cancel to return to the door properties without saving.";
 		return message.str();
 	}
 
@@ -89,18 +89,14 @@ namespace {
 		return tilePositions;
 	}
 
-	size_t countHouseDoors(const House &house, const Map &map, const std::vector<Position> &tilePositions, const Tile* pendingTile) {
+	size_t countHouseDoors(const House &house, const Map &map, const std::vector<Position> &tilePositions) {
 		size_t doorCount = 0;
 		for (const Position &position : tilePositions) {
 			const Tile* liveTile = map.getTile(position);
 			if (!liveTile || liveTile->getHouseID() != house.id) {
 				continue;
 			}
-			const Tile* tile = pendingTile && pendingTile->getPosition() == position ? pendingTile : liveTile;
-			if (tile->getHouseID() != house.id) {
-				continue;
-			}
-			for (const Item* item : tile->items) {
+			for (const Item* item : liveTile->items) {
 				if (dynamic_cast<const Door*>(item)) {
 					++doorCount;
 				}
@@ -109,7 +105,7 @@ namespace {
 		return doorCount;
 	}
 
-	std::unique_ptr<Action> createHouseDoorRenumberAction(Editor &editor, Map &map, const House &house, const std::vector<Position> &tilePositions, const Tile* pendingTile) {
+	std::unique_ptr<Action> createHouseDoorRenumberAction(Editor &editor, Map &map, const House &house, const std::vector<Position> &tilePositions) {
 		auto action = std::unique_ptr<Action>(editor.createAction(ACTION_CHANGE_PROPERTIES));
 		uint16_t nextDoorID = 1;
 		for (const Position &position : tilePositions) {
@@ -117,11 +113,9 @@ namespace {
 			if (!liveTile || liveTile->getHouseID() != house.id) {
 				continue;
 			}
-			const Tile* sourceTile = pendingTile && pendingTile->getPosition() == position ? pendingTile : liveTile;
-			if (sourceTile->getHouseID() != house.id) {
-				continue;
-			}
-			auto updatedTile = std::unique_ptr<Tile>(sourceTile->deepCopy(map));
+			// Live contents win over pending drafts, including concurrent remote edits.
+			// Only the door IDs are changed by this action.
+			auto updatedTile = std::unique_ptr<Tile>(liveTile->deepCopy(map));
 			bool hasDoors = false;
 			for (Item* item : updatedTile->items) {
 				auto* door = dynamic_cast<Door*>(item);
@@ -143,7 +137,7 @@ namespace {
 
 } // namespace
 
-DuplicateDoorIDChoice ShowDuplicateDoorIDsDialog(wxWindow* parent, const House &house, uint8_t proposedDoorID, const Tile* pendingTile, uint8_t originalDoorID, const std::function<void()> &applyPendingChanges) {
+DuplicateDoorIDChoice ShowDuplicateDoorIDsDialog(wxWindow* parent, const House &house, uint8_t proposedDoorID, const Tile* pendingTile, uint8_t originalDoorID) {
 	const auto duplicatePositions = collectDuplicateDoorIDPositions(house, pendingTile, proposedDoorID, originalDoorID);
 	if (duplicatePositions.empty()) {
 		return DuplicateDoorIDChoice::Continue;
@@ -162,13 +156,12 @@ DuplicateDoorIDChoice ShowDuplicateDoorIDsDialog(wxWindow* parent, const House &
 
 	Map &map = editor->getMap();
 	const auto tilePositions = getSortedHouseTilePositions(house, map);
-	if (countHouseDoors(house, map, tilePositions, pendingTile) > 255) {
+	if (countHouseDoors(house, map, tilePositions) > 255) {
 		g_gui.PopupDialog(parent, "Cannot Renumber Doors", "This house has more than 255 doors, so unique Door IDs cannot be assigned.", wxOK | wxICON_ERROR);
 		return DuplicateDoorIDChoice::Cancel;
 	}
 
-	applyPendingChanges();
-	auto action = createHouseDoorRenumberAction(*editor, map, house, tilePositions, pendingTile);
+	auto action = createHouseDoorRenumberAction(*editor, map, house, tilePositions);
 	if (!action->empty()) {
 		// Keep whole-house renumbering as one distinct undo step.
 		editor->resetActionsTimer();

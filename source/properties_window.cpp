@@ -26,7 +26,7 @@
 
 namespace {
 
-	DuplicateDoorIDChoice checkDuplicateDoorID(wxWindow* parent, const Map* map, const Tile* tile, uint8_t proposedDoorID, uint8_t originalDoorID, const std::function<void()> &applyPendingChanges) {
+	DuplicateDoorIDChoice checkDuplicateDoorID(wxWindow* parent, const Map* map, const Tile* tile, uint8_t proposedDoorID, uint8_t originalDoorID) {
 		if (!g_settings.getInteger(Config::WARN_FOR_DUPLICATE_ID) || !map || !tile || !tile->isHouseTile()) {
 			return DuplicateDoorIDChoice::Continue;
 		}
@@ -34,7 +34,7 @@ namespace {
 		if (!house || !house->hasDoorID(proposedDoorID, tile, originalDoorID)) {
 			return DuplicateDoorIDChoice::Continue;
 		}
-		return ShowDuplicateDoorIDsDialog(parent, *house, proposedDoorID, tile, originalDoorID, applyPendingChanges);
+		return ShowDuplicateDoorIDsDialog(parent, *house, proposedDoorID, tile, originalDoorID);
 	}
 
 } // namespace
@@ -640,14 +640,14 @@ void PropertiesWindow::OnClickOK(wxCommandEvent &) {
 				continue;
 			}
 			int advancedDoorID;
-			if (attributesGrid->GetCellValue(rowIndex, 2).ToInt(&advancedDoorID)) {
-				doorID = static_cast<uint8_t>(advancedDoorID);
+			if (!attributesGrid->GetCellValue(rowIndex, 2).ToInt(&advancedDoorID) || advancedDoorID < 0 || advancedDoorID > 255) {
+				g_gui.PopupDialog(this, "Invalid Door ID", "Door ID must be a whole number from 0 to 255.", wxOK | wxICON_ERROR);
+				return;
 			}
+			doorID = static_cast<uint8_t>(advancedDoorID);
 		}
 		SetAdvancedPropertyNumberData("doorid", doorID);
-		const auto duplicateChoice = checkDuplicateDoorID(this, edit_map, edit_tile, doorID, door->getDoorID(), [this] {
-			saveAttributesPanel();
-		});
+		const auto duplicateChoice = checkDuplicateDoorID(this, edit_map, edit_tile, doorID, door->getDoorID());
 		if (duplicateChoice == DuplicateDoorIDChoice::Renumber) {
 			EndModal(DOOR_IDS_RENUMBERED);
 			return;
