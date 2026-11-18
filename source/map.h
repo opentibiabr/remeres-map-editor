@@ -31,6 +31,7 @@
 #include <map>
 #include <set>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 struct MapUniqueItem {
@@ -49,12 +50,8 @@ struct MapWorldChanges {
 };
 
 struct MapIdentifierItem {
-	uint16_t itemId;
-	uint16_t aid;
-	uint16_t uid;
 	const Item* item;
 	Position position;
-	bool ground;
 	std::vector<const Item*> containers;
 };
 
@@ -181,6 +178,12 @@ public:
 	}
 
 	bool hasUniqueId(uint16_t uid) const;
+	void reindexTile(Tile* tile, bool contentChanged = true);
+	void observeLuaItem(const Item* item, Tile* tile);
+	Tile* luaItemTile(const Item* item);
+	bool uniqueIdsChangedSinceSave() const noexcept {
+		return uidOccupancyChanged;
+	}
 	const std::vector<MapUniqueItem> &uniqueItems() const noexcept {
 		return uniqueItemOccurrences;
 	}
@@ -229,7 +232,7 @@ public:
 	SpawnsNpc spawnsNpc;
 
 protected:
-	void updateUniqueIds(Tile* old_tile, Tile* new_tile) override;
+	void updateUniqueIds(Tile* old_tile, Tile* new_tile, bool contentChanged = true) override;
 	void addUniqueId(uint16_t uid);
 	void removeUniqueId(uint16_t uid);
 
@@ -251,8 +254,14 @@ private:
 	std::unordered_map<const Item*, size_t> uniqueItemIndexes;
 	std::unordered_map<const Item*, MapIdentifierItem> identifierItemOccurrences;
 	std::map<Position, std::vector<const Item*>> identifierItemsByTile;
+	// Lua exposes bare Item handles. Keep their tile only while the item remains
+	// on that tile, so an item setter can reindex a single live tile.
+	std::unordered_map<const Item*, Position> luaItemPositions;
+	std::map<Position, std::unordered_set<const Item*>> luaItemsByTile;
 	MapWorldChanges pendingWorldChanges;
 	bool trackWorldChanges = false;
+	bool loadingMap = false;
+	bool uidOccupancyChanged = false;
 	// Updated by the existing per-tile mutation hook. Adoption can therefore
 	// distinguish a selector that depends on an unsaved map edit without a
 	// second whole-map traversal.
@@ -356,6 +365,7 @@ inline int64_t RemoveItemOnMap(Map &map, RemoveIfType &condition, bool selectedO
 			continue;
 		}
 
+		const auto before = removed;
 		if (tile->ground) {
 			if (condition(map, tile->ground, removed, done)) {
 				delete tile->ground;
@@ -373,6 +383,9 @@ inline int64_t RemoveItemOnMap(Map &map, RemoveIfType &condition, bool selectedO
 			} else {
 				++iit;
 			}
+		}
+		if (removed != before) {
+			map.reindexTile(tile);
 		}
 		++it;
 	}
@@ -400,6 +413,7 @@ inline int64_t RemoveItemDuplicateOnMap(Map &map, RemoveIfType &condition, bool 
 			continue;
 		}
 
+		const auto before = removed;
 		if (tile->ground) {
 			if (condition(map, tile, tile->ground, removed, done)) {
 				delete tile->ground;
@@ -417,6 +431,9 @@ inline int64_t RemoveItemDuplicateOnMap(Map &map, RemoveIfType &condition, bool 
 			} else {
 				++iit;
 			}
+		}
+		if (removed != before) {
+			map.reindexTile(tile);
 		}
 		++it;
 	}

@@ -21,6 +21,7 @@
 #include "../gui.h"
 #include "../editor.h"
 #include "../map.h"
+#include "../map_tab.h"
 #include "../brush.h"
 #include "../action.h"
 #include "../tile.h"
@@ -133,7 +134,7 @@ namespace LuaAPI {
 				if (modifiedTile) {
 					Tile* modifiedCopy = modifiedTile->deepCopy(editor->getMap());
 
-					std::unique_ptr<Tile> swappedOut(editor->getMap().swapTile(pos, originalTile.release()));
+					std::unique_ptr<Tile> swappedOut(editor->getMap().swapTile(pos, originalTile.release(), false));
 
 					updateTileMetadata(editor, swappedOut.get(), false);
 					updateTileMetadata(editor, editor->getMap().getTile(pos), true);
@@ -163,7 +164,7 @@ namespace LuaAPI {
 			for (auto &[key, originalTile] : originalTiles) {
 				if (originalTile) {
 					Position pos = originalTile->getPosition();
-					std::unique_ptr<Tile> modifiedTile(editor->getMap().swapTile(pos, originalTile.release()));
+					std::unique_ptr<Tile> modifiedTile(editor->getMap().swapTile(pos, originalTile.release(), false));
 
 					updateTileMetadata(editor, modifiedTile.get(), false);
 					updateTileMetadata(editor, editor->getMap().getTile(pos), true);
@@ -204,10 +205,62 @@ namespace LuaAPI {
 		}
 	};
 
-	// Global accessor for tile modification tracking (used by lua_api_tile.cpp)
+	// A script can keep a handle when the user changes tabs.
+	template <typename Matches>
+	static Editor* findItemEditor(Matches matches) {
+		auto* current = g_gui.GetCurrentEditor();
+		if (current && matches(current->getMap())) {
+			return current;
+		}
+		if (g_gui.tabbook) {
+			for (int index = 0; index < g_gui.GetTabCount(); ++index) {
+				const auto* tab = dynamic_cast<MapTab*>(g_gui.GetTab(index));
+				if (tab && tab->GetEditor() != current && matches(*tab->GetMap())) {
+					return tab->GetEditor();
+				}
+			}
+		}
+		return nullptr;
+	}
+
+	static Editor* editorForTile(Tile* tile) {
+		return tile ? findItemEditor([&](Map &map) { return map.getTile(tile->getPosition()) == tile; }) : nullptr;
+	}
+
+	Item* observeTileItem(Tile* tile, Item* item) {
+		if (item) {
+			if (auto* editor = editorForTile(tile)) {
+				editor->getMap().observeLuaItem(item, tile);
+			}
+		}
+		return item;
+	}
+
+	Tile* itemTile(const Item* item) {
+		Tile* tile = nullptr;
+		findItemEditor([&](Map &map) { tile = map.luaItemTile(item); return tile != nullptr; });
+		return tile;
+	}
+
 	void markTileForUndo(Tile* tile) {
-		if (LuaTransaction::getInstance().isActive()) {
-			LuaTransaction::getInstance().markTileModified(tile);
+		auto &transaction = LuaTransaction::getInstance();
+		if (transaction.isActive() && transaction.getEditor() == editorForTile(tile)) {
+			transaction.markTileModified(tile);
+		}
+	}
+
+	void finishTileEdit(Tile* tile) {
+		if (!tile) {
+			return;
+		}
+		tile->modify();
+		if (auto* editor = editorForTile(tile)) {
+			auto &transaction = LuaTransaction::getInstance();
+			const bool committed = !transaction.isActive() || transaction.getEditor() != editor;
+			editor->getMap().reindexTile(tile, committed);
+			if (committed) {
+				editor->getMap().doChange();
+			}
 		}
 	}
 

@@ -49,7 +49,9 @@ bool Map::open(const std::string file) {
 
 	IOMapOTBM maploader(getVersion());
 
+	loadingMap = true;
 	bool success = maploader.loadMap(*this, wxstr(file));
+	loadingMap = false;
 
 	mapVersion = maploader.version;
 
@@ -60,7 +62,7 @@ bool Map::open(const std::string file) {
 		return false;
 	}
 
-	has_changed = false;
+	clearChanges();
 
 	wxFileName fn = wxstr(file);
 	filename = fn.GetFullPath().mb_str(wxConvUTF8);
@@ -163,6 +165,7 @@ bool Map::convert(const ConversionMap &rm, bool showdialog) {
 
 		// Keep track of how many items have been inserted at the bottom
 		size_t inserted_items = 0;
+		bool changed = cfmtm != rm.mtm.end();
 
 		if (cfmtm != rm.mtm.end()) {
 			const std::vector<uint16_t> &v = cfmtm->first;
@@ -196,6 +199,7 @@ bool Map::convert(const ConversionMap &rm, bool showdialog) {
 		if (tile->ground) {
 			ConversionMap::STM::const_iterator cfstm = rm.stm.find(tile->ground->getID());
 			if (cfstm != rm.stm.end()) {
+				changed = true;
 				uint16_t aid = tile->ground->getActionID();
 				uint16_t uid = tile->ground->getUniqueID();
 				delete tile->ground;
@@ -223,6 +227,7 @@ bool Map::convert(const ConversionMap &rm, bool showdialog) {
 			uint16_t id = (*replace_item_iter)->getID();
 			ConversionMap::STM::const_iterator cf = rm.stm.find(id);
 			if (cf != rm.stm.end()) {
+				changed = true;
 				// uint16_t aid = (*replace_item_iter)->getActionID();
 				// uint16_t uid = (*replace_item_iter)->getUniqueID();
 				delete *replace_item_iter;
@@ -239,6 +244,9 @@ bool Map::convert(const ConversionMap &rm, bool showdialog) {
 			}
 		}
 
+		if (changed) {
+			reindexTile(tile);
+		}
 		++tiles_done;
 		if (showdialog && tiles_done % 0x10000 == 0) {
 			g_gui.SetLoadDone(int(tiles_done / double(getTileCount()) * 100.0));
@@ -267,15 +275,20 @@ void Map::cleanInvalidTiles(bool showdialog) {
 			continue;
 		}
 
+		bool changed = false;
 		for (ItemVector::iterator item_iter = tile->items.begin(); item_iter != tile->items.end();) {
 			if (g_items.isValidID((*item_iter)->getID())) {
 				++item_iter;
 			} else {
+				changed = true;
 				delete *item_iter;
 				item_iter = tile->items.erase(item_iter);
 			}
 		}
 
+		if (changed) {
+			reindexTile(tile);
+		}
 		++tiles_done;
 		if (showdialog && tiles_done % 0x10000 == 0) {
 			g_gui.SetLoadDone(int(tiles_done / double(getTileCount()) * 100.0));
@@ -350,6 +363,7 @@ bool Map::clearChanges() {
 	bool doupdate = has_changed;
 	has_changed = false;
 	changedTilesSinceSave.clear();
+	uidOccupancyChanged = false;
 	return doupdate;
 }
 
@@ -801,97 +815,153 @@ bool Map::exportMinimap(FileName filename, int floor /*= rme::MapGroundLayer*/, 
 	return true;
 }
 
-void Map::updateUniqueIds(Tile* old_tile, Tile* new_tile) {
-	if (old_tile) {
-		changedTilesSinceSave.insert(old_tile->getPosition());
-		if (trackWorldChanges) {
-			pendingWorldChanges.positions.insert(old_tile->getPosition());
-		}
-	}
-	if (new_tile) {
-		changedTilesSinceSave.insert(new_tile->getPosition());
-		if (trackWorldChanges) {
-			pendingWorldChanges.positions.insert(new_tile->getPosition());
-		}
-	}
-	const auto visit = [](const Tile* tile, const auto &operation) {
-		if (!tile) {
+void Map::observeLuaItem(const Item* item, Tile* tile) {
+	const auto &position = tile->getPosition();
+	const auto [entry, inserted] = luaItemPositions.try_emplace(item, position);
+	if (!inserted) {
+		if (entry->second == position) {
 			return;
 		}
-		const auto item = [&](const auto &recurse, const Item* current, bool ground, std::vector<const Item*> containers) -> void {
-			operation(current, tile->getPosition(), ground, containers);
-			if (const auto container = current->getContainer()) {
-				containers.push_back(current);
-				for (const auto child : container->getVector()) {
-					recurse(recurse, child, false, containers);
-				}
-			}
-		};
-		if (tile->ground) {
-			item(item, tile->ground, true, {});
+		const auto previous = luaItemsByTile.find(entry->second);
+		previous->second.erase(item);
+		if (previous->second.empty()) {
+			luaItemsByTile.erase(previous);
 		}
-		for (const auto current : tile->items) {
-			item(item, current, false, {});
-		}
-	};
-	if (old_tile) {
-		visit(old_tile, [&](const Item* item, const Position &, bool, const std::vector<const Item*> &) {
-			if (trackWorldChanges && (item->getActionID() || item->getUniqueID())) {
-				pendingWorldChanges.identifiers = true;
-			}
-			if (item->getUniqueID()) {
-				removeUniqueId(item->getUniqueID());
-				const auto indexed = uniqueItemIndexes.find(item);
-				if (indexed != uniqueItemIndexes.end()) {
-					const auto index = indexed->second;
-					const auto last = uniqueItemOccurrences.size() - 1;
-					if (index != last) {
-						uniqueItemOccurrences[index] = uniqueItemOccurrences[last];
-						uniqueItemIndexes[uniqueItemOccurrences[index].item] = index;
-					}
-					uniqueItemOccurrences.pop_back();
-					uniqueItemIndexes.erase(indexed);
-				}
-			}
-			const auto identifier = identifierItemOccurrences.find(item);
-			if (identifier != identifierItemOccurrences.end()) {
-				const auto tile = identifierItemsByTile.find(identifier->second.position);
-				if (tile != identifierItemsByTile.end()) {
-					std::erase(tile->second, item);
-					if (tile->second.empty()) {
-						identifierItemsByTile.erase(tile);
-					}
-				}
-				identifierItemOccurrences.erase(identifier);
-			}
-		});
+		entry->second = position;
+	}
+	luaItemsByTile[position].insert(item);
+}
+
+Tile* Map::luaItemTile(const Item* item) {
+	const auto found = luaItemPositions.find(item);
+	if (found == luaItemPositions.end()) {
+		return nullptr;
+	}
+	Tile* tile = getTile(found->second);
+	if (tile && (item == tile->ground || std::find(tile->items.begin(), tile->items.end(), item) != tile->items.end())) {
+		return tile;
+	}
+	return nullptr;
+}
+
+void Map::reindexTile(Tile* tile, bool contentChanged) {
+	updateUniqueIds(tile, tile, contentChanged);
+}
+
+void Map::updateUniqueIds(Tile* oldTile, Tile* newTile, bool contentChanged) {
+	const Position &position = newTile ? newTile->getPosition() : oldTile->getPosition();
+	const bool trackPersistence = contentChanged && !loadingMap;
+	if (trackPersistence) {
+		changedTilesSinceSave.insert(position);
+	}
+	if (trackWorldChanges) {
+		// Selection and transaction rollback can replace every Item pointer without dirtying the OTBM.
+		++change_revision;
+		pendingWorldChanges.positions.insert(position);
 	}
 
-	if (new_tile) {
-		visit(new_tile, [&](const Item* item, const Position &position, bool ground, const std::vector<const Item*> &containers) {
-			if (trackWorldChanges && (item->getActionID() || item->getUniqueID())) {
+	if (!luaItemsByTile.empty()) {
+		const auto observed = luaItemsByTile.find(position);
+		if (observed != luaItemsByTile.end()) {
+			std::erase_if(observed->second, [&](const Item* item) {
+				if (newTile && (newTile->ground == item || std::find(newTile->items.begin(), newTile->items.end(), item) != newTile->items.end())) {
+					return false;
+				}
+				luaItemPositions.erase(item);
+				return true;
+			});
+			if (observed->second.empty()) {
+				luaItemsByTile.erase(observed);
+			}
+		}
+	}
+
+	// An in-place edit may already have removed or destroyed an item. Unindex
+	// the previous occurrences by their recorded tile and UID, using keys only.
+	const auto unindexUid = [&](const Item* key) -> uint16_t {
+		const auto indexed = uniqueItemIndexes.find(key);
+		if (indexed == uniqueItemIndexes.end()) {
+			return 0;
+		}
+		const size_t index = indexed->second;
+		const auto uid = uniqueItemOccurrences[index].uid;
+		removeUniqueId(uid);
+		const size_t last = uniqueItemOccurrences.size() - 1;
+		if (index != last) {
+			uniqueItemOccurrences[index] = uniqueItemOccurrences[last];
+			uniqueItemIndexes[uniqueItemOccurrences[index].item] = index;
+		}
+		uniqueItemOccurrences.pop_back();
+		uniqueItemIndexes.erase(indexed);
+		return uid;
+	};
+	std::map<uint16_t, int> uidDeltas;
+	const auto previous = identifierItemsByTile.find(position);
+	if (previous != identifierItemsByTile.end()) {
+		if (trackWorldChanges) {
+			pendingWorldChanges.identifiers = true;
+		}
+		for (const auto* key : previous->second) {
+			const auto uid = unindexUid(key);
+			if (uid && trackPersistence && !uidOccupancyChanged) {
+				--uidDeltas[uid];
+			}
+			identifierItemOccurrences.erase(key);
+		}
+		identifierItemsByTile.erase(previous);
+	}
+
+	std::vector<const Item*> parents;
+	const auto indexItem = [&](const auto &self, const Item* item) -> void {
+		// Moving the same instance can publish its destination before its source.
+		// Detach the recorded owner so later source cleanup cannot remove it here.
+		const auto previousOwner = loadingMap ? identifierItemOccurrences.end() : identifierItemOccurrences.find(item);
+		if (previousOwner != identifierItemOccurrences.end()) {
+			const auto source = identifierItemsByTile.find(previousOwner->second.position);
+			std::erase(source->second, item);
+			if (source->second.empty()) {
+				identifierItemsByTile.erase(source);
+			}
+			if (unindexUid(item) && trackPersistence) {
+				uidOccupancyChanged = true;
+			}
+			identifierItemOccurrences.erase(previousOwner);
+		}
+		const auto uid = item->getUniqueID();
+		const auto aid = item->getActionID();
+		if (uid) {
+			if (trackPersistence && !uidOccupancyChanged) {
+				++uidDeltas[uid];
+			}
+			addUniqueId(uid);
+			uniqueItemIndexes[item] = uniqueItemOccurrences.size();
+			uniqueItemOccurrences.push_back({ uid, item, position });
+		}
+		if (aid || uid) {
+			if (trackWorldChanges) {
 				pendingWorldChanges.identifiers = true;
 			}
-			if (item->getUniqueID()) {
-				addUniqueId(item->getUniqueID());
-				uniqueItemIndexes[item] = uniqueItemOccurrences.size();
-				uniqueItemOccurrences.push_back({ item->getUniqueID(), item, position });
+			identifierItemOccurrences.emplace(item, MapIdentifierItem { item, position, parents });
+			identifierItemsByTile[position].push_back(item);
+		}
+		if (const auto container = item->getContainer()) {
+			parents.push_back(item);
+			for (const auto* child : container->getVector()) {
+				self(self, child);
 			}
-			if (item->getActionID() || item->getUniqueID()) {
-				const auto [identifier, inserted] = identifierItemOccurrences.emplace(item, MapIdentifierItem { item->getID(), item->getActionID(), item->getUniqueID(), item, position, ground, containers });
-				if (!inserted) {
-					const auto previous = identifierItemsByTile.find(identifier->second.position);
-					if (previous != identifierItemsByTile.end()) {
-						std::erase(previous->second, item);
-						if (previous->second.empty()) {
-							identifierItemsByTile.erase(previous);
-						}
-					}
-					identifier->second = MapIdentifierItem { item->getID(), item->getActionID(), item->getUniqueID(), item, position, ground, containers };
-				}
-				identifierItemsByTile[position].push_back(item);
-			}
-		});
+			parents.pop_back();
+		}
+	};
+	if (newTile) {
+		if (newTile->ground) {
+			indexItem(indexItem, newTile->ground);
+		}
+		for (const auto* item : newTile->items) {
+			indexItem(indexItem, item);
+		}
+	}
+	if (!uidOccupancyChanged) {
+		uidOccupancyChanged = std::any_of(uidDeltas.begin(), uidDeltas.end(), [](const auto &delta) { return delta.second != 0; });
 	}
 }
 

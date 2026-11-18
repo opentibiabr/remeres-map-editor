@@ -50,7 +50,7 @@ namespace LuaAPI {
 		int idx = 1;
 		for (Item* item : tile->items) {
 			if (item) {
-				items[idx++] = item;
+				items[idx++] = observeTileItem(tile, item);
 			}
 		}
 		return items;
@@ -81,9 +81,9 @@ namespace LuaAPI {
 		}
 
 		tile->addItem(item);
-		tile->modify();
+		finishTileEdit(tile);
 
-		return item;
+		return observeTileItem(tile, item);
 	}
 
 	// Remove item from tile
@@ -97,14 +97,14 @@ namespace LuaAPI {
 
 		// Find and remove the item
 		if (tile->removeItem(itemToRemove)) {
-			tile->modify();
+			finishTileEdit(tile);
 			return true;
 		}
 
 		// Check if it's the ground
 		if (tile->ground == itemToRemove) {
 			tile->clearGround();
-			tile->modify();
+			finishTileEdit(tile);
 			return true;
 		}
 
@@ -143,7 +143,7 @@ namespace LuaAPI {
 		}
 
 		tile->monsters.emplace_back(monster);
-		tile->modify();
+		finishTileEdit(tile);
 		return monster;
 	}
 
@@ -154,7 +154,7 @@ namespace LuaAPI {
 		}
 		markTileForUndo(tile);
 		tile->clearMonsters();
-		tile->modify();
+		finishTileEdit(tile);
 		return true;
 	}
 
@@ -194,7 +194,7 @@ namespace LuaAPI {
 		// Register new spawn with map
 		map.addSpawnMonster(tile);
 
-		tile->modify();
+		finishTileEdit(tile);
 		return tile->spawnMonster;
 	}
 
@@ -218,7 +218,7 @@ namespace LuaAPI {
 		map.removeSpawnMonster(tile);
 
 		tile->clearSpawnMonster();
-		tile->modify();
+		finishTileEdit(tile);
 		return true;
 	}
 
@@ -257,7 +257,7 @@ namespace LuaAPI {
 		// Replace ground
 		tile->replaceGround(newGround);
 
-		tile->modify();
+		finishTileEdit(tile);
 	}
 
 	// Set house ID
@@ -270,7 +270,7 @@ namespace LuaAPI {
 		markTileForUndo(tile);
 
 		tile->house_id = houseId;
-		tile->modify();
+		finishTileEdit(tile);
 	}
 
 	// Apply a brush to a tile (with optional auto-bordering)
@@ -325,7 +325,7 @@ namespace LuaAPI {
 			if (doBorder) {
 				tile->borderize(&editor->getMap());
 			}
-			tile->modify();
+			finishTileEdit(tile);
 		}
 
 		return success;
@@ -345,7 +345,7 @@ namespace LuaAPI {
 			"z", sol::property([](Tile* tile) { return tile ? tile->getZ() : 0; }),
 
 			// Ground (read/write)
-			"ground", sol::property([](Tile* tile) -> Item* { return tile ? tile->ground : nullptr; }, setTileGround),
+			"ground", sol::property([](Tile* tile) -> Item* { return tile ? observeTileItem(tile, tile->ground) : nullptr; }, setTileGround),
 			"hasGround", sol::property([](Tile* tile) { return tile && tile->hasGround(); }),
 
 			// Items collection (read-only - use addItem/removeItem to modify)
@@ -380,7 +380,7 @@ namespace LuaAPI {
 					if (tile) {
 						markTileForUndo(tile);
 						tile->setMapFlags(flags);
-						tile->modify();
+						finishTileEdit(tile);
 					} }),
 
 			// Selection
@@ -414,14 +414,14 @@ namespace LuaAPI {
 				if (!editor){ return; }  
 				markTileForUndo(tile);  
 				tile->borderize(&editor->getMap());  
-				tile->modify(); },
+				finishTileEdit(tile); },
 			"wallize", [](Tile* tile) {  
 				if (!tile){ return; }  
 				Editor* editor = g_gui.GetCurrentEditor();  
 				if (!editor){ return; }  
 				markTileForUndo(tile);  
 				tile->wallize(&editor->getMap());  
-				tile->modify(); },
+				finishTileEdit(tile); },
 			"moveItem", sol::overload(
 							// Index-based move within same tile
 							// Semantics: Move item at fromIdx so it ends up at toIdx position
@@ -451,7 +451,7 @@ namespace LuaAPI {
 								int insertPos = std::clamp(to, 0, (int)tile->items.size());
 
 								tile->items.insert(tile->items.begin() + insertPos, item);
-								tile->modify();
+								finishTileEdit(tile);
 							},
 							// Move specific item object to new index in same tile
 							[](Tile* tile, Item* item, int toIdx) {
@@ -474,7 +474,7 @@ namespace LuaAPI {
 
 								int insertPos = std::clamp(to, 0, (int)tile->items.size());
 								tile->items.insert(tile->items.begin() + insertPos, item);
-								tile->modify();
+								finishTileEdit(tile);
 							},
 							// Move item to DIFFERENT tile
 							[](Tile* sourceTile, Item* item, Tile* destTile, sol::optional<int> toIdx) {
@@ -493,8 +493,9 @@ namespace LuaAPI {
 								int to = toIdx ? std::clamp(*toIdx - 1, 0, (int)destTile->items.size()) : (int)destTile->items.size();
 								destTile->items.insert(destTile->items.begin() + to, item);
 
-								sourceTile->modify();
-								destTile->modify();
+								finishTileEdit(sourceTile);
+								finishTileEdit(destTile);
+								observeTileItem(destTile, item);
 							}
 						),
 
@@ -513,15 +514,15 @@ namespace LuaAPI {
 				if (!tile){ return nullptr;
 }
 				// Lua uses 1-based indexing
-				return tile->getItemAt(index - 1); },
+				return observeTileItem(tile, tile->getItemAt(index - 1)); },
 
-			"getTopItem", [](Tile* tile) -> Item* { return tile ? tile->getTopItem() : nullptr; },
+			"getTopItem", [](Tile* tile) -> Item* { return tile ? observeTileItem(tile, tile->getTopItem()) : nullptr; },
 
-			"getWall", [](Tile* tile) -> Item* { return tile ? tile->getWall() : nullptr; },
+			"getWall", [](Tile* tile) -> Item* { return tile ? observeTileItem(tile, tile->getWall()) : nullptr; },
 
-			"getTable", [](Tile* tile) -> Item* { return tile ? tile->getTable() : nullptr; },
+			"getTable", [](Tile* tile) -> Item* { return tile ? observeTileItem(tile, tile->getTable()) : nullptr; },
 
-			"getCarpet", [](Tile* tile) -> Item* { return tile ? tile->getCarpet() : nullptr; },
+			"getCarpet", [](Tile* tile) -> Item* { return tile ? observeTileItem(tile, tile->getCarpet()) : nullptr; },
 
 			// String representation
 			sol::meta_function::to_string, [](Tile* tile) {

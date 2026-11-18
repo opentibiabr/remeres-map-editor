@@ -183,13 +183,18 @@ namespace {
 					continue;
 				}
 				world_layers::Selector selector;
-				selector.itemId = entry.itemId;
-				selector.ground = entry.ground;
-				std::string error;
-				if (!world_layers::captureSelector(selector, *siblings, reinterpret_cast<uintptr_t>(entry.item), error)) {
+				const auto itemKey = reinterpret_cast<uintptr_t>(entry.item);
+				const auto item = std::find_if(siblings->begin(), siblings->end(), [itemKey](const auto &candidate) { return candidate.key == itemKey; });
+				if (item == siblings->end() || (!item->aid && !item->uid)) {
 					continue;
 				}
-				result.push_back({ reinterpret_cast<uintptr_t>(entry.item), position, entry.itemId, entry.aid, entry.uid, entry.ground, std::move(containers), selector.occurrence });
+				selector.itemId = item->itemId;
+				selector.ground = item->ground;
+				std::string error;
+				if (!world_layers::captureSelector(selector, *siblings, itemKey, error)) {
+					continue;
+				}
+				result.push_back({ itemKey, position, item->itemId, item->aid, item->uid, item->ground, std::move(containers), selector.occurrence });
 			}
 			return result;
 		}
@@ -560,6 +565,15 @@ void WorldLayerEditor::adoptIdentifiers() {
 	if (scopeDialog.ShowModal() != wxID_OK) {
 		return;
 	}
+	const auto mapRevision = editor.getMap().revision();
+	const auto documentRevision = document.revision();
+	const auto stillCurrent = [&] {
+		if (editor.getMap().revision() == mapRevision && document.revision() == documentRevision) {
+			return true;
+		}
+		g_gui.PopupDialog("World changed", "The map or World documents changed. Run adoption again against the current revisions.", wxOK);
+		return false;
+	};
 	const auto scope = scopeDialog.GetSelection();
 	std::unordered_set<const Item*> selectedItems;
 	std::set<Position> selectedTiles;
@@ -612,7 +626,7 @@ void WorldLayerEditor::adoptIdentifiers() {
 	for (const auto &entry : editor.getMap().uniqueItems()) {
 		const auto key = reinterpret_cast<uintptr_t>(entry.item);
 		if (indexedKeys.insert(key).second) {
-			census.push_back({ key, portable(entry.position), entry.item->getID(), entry.item->getActionID(), entry.uid });
+			census.push_back({ key, portable(entry.position), 0, 0, entry.uid });
 		}
 	}
 	std::sort(census.begin(), census.end(), [](const auto &left, const auto &right) {
@@ -679,7 +693,7 @@ void WorldLayerEditor::adoptIdentifiers() {
 		return;
 	}
 	auto nameSpace = nstr(wxGetTextFromUser("Stable namespace for newly adopted objects", "Adopt map AID/UID", chosenLayer->id + ".map", g_gui.root));
-	if (nameSpace.empty()) {
+	if (nameSpace.empty() || !stillCurrent()) {
 		return;
 	}
 
@@ -699,8 +713,6 @@ void WorldLayerEditor::adoptIdentifiers() {
 	for (const auto &[x, y, z] : positions) {
 		frozen.tiles.emplace(FrozenMapView::TileKey { x, y, z }, live.tile({ x, y, z }));
 	}
-	const auto mapRevision = editor.getMap().revision();
-	const auto documentRevision = document.revision();
 	const auto project = document.data();
 	std::atomic_bool cancelled = false, done = false;
 	bool valid = false;
@@ -721,8 +733,7 @@ void WorldLayerEditor::adoptIdentifiers() {
 	if (cancelled.load(std::memory_order_relaxed)) {
 		return;
 	}
-	if (editor.getMap().revision() != mapRevision || document.revision() != documentRevision) {
-		g_gui.PopupDialog("World changed", "The map or World documents changed during analysis. Run adoption again against the current revisions.", wxOK);
+	if (!stillCurrent()) {
 		return;
 	}
 	if (!valid) {
@@ -742,7 +753,7 @@ void WorldLayerEditor::adoptIdentifiers() {
 		uidCount += adoptValues && includeUid && instance.uid.effective.has_value() && instance.uid.confidence == world_layers::EffectiveConfidence::Proven;
 	}
 	const auto review = wxString::Format("Objects in scope: %llu\nExisting identities reused: %llu\nProven AIDs adopted: %llu\nProven UIDs adopted: %llu\n\nApply this as one undoable World operation?", static_cast<unsigned long long>(candidates), static_cast<unsigned long long>(existing), static_cast<unsigned long long>(aidCount), static_cast<unsigned long long>(uidCount));
-	if (wxMessageBox(review, "Review identifier adoption", wxYES_NO | wxICON_QUESTION, g_gui.root) != wxYES) {
+	if (wxMessageBox(review, "Review identifier adoption", wxYES_NO | wxICON_QUESTION, g_gui.root) != wxYES || !stillCurrent()) {
 		return;
 	}
 
@@ -825,6 +836,7 @@ void WorldLayerEditor::adoptIdentifiers() {
 		object.lifecycle = world_layers::Lifecycle::Native;
 		object.position = found->second.position;
 		object.itemId = found->second.item->itemId;
+		object.container = parent;
 		object.selector = std::move(selector);
 		layer->objects.push_back(std::move(object));
 		identities.emplace(key, id);

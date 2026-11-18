@@ -22,6 +22,7 @@
 
 // Forward declarations
 class Tile;
+class Item;
 
 // Forward declarations for API modules
 namespace LuaAPI {
@@ -40,6 +41,9 @@ namespace LuaAPI {
 
 	// Called by tile modification functions to track changes
 	void markTileForUndo(Tile* tile);
+	void finishTileEdit(Tile* tile);
+	Item* observeTileItem(Tile* tile, Item* item);
+	Tile* itemTile(const Item* item);
 
 	void registerColor(sol::state &lua);
 	void registerCreature(sol::state &lua);

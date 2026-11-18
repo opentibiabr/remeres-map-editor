@@ -916,6 +916,7 @@ void Editor::borderizeMap(bool showdialog) {
 	}
 
 	uint64_t tiles_done = 0;
+	bool changed = false;
 	for (TileLocation* tileLocation : map) {
 		if (showdialog && tiles_done % 4096 == 0) {
 			g_gui.SetLoadDone(static_cast<int32_t>(tiles_done / double(map.tilecount) * 100.0));
@@ -924,10 +925,18 @@ void Editor::borderizeMap(bool showdialog) {
 		Tile* tile = tileLocation->get();
 		ASSERT(tile);
 
+		const bool hadBorders = !tile->items.empty() && tile->items.front()->isBorder();
 		tile->borderize(&map);
+		if (hadBorders || (!tile->items.empty() && tile->items.front()->isBorder())) {
+			map.reindexTile(tile);
+			changed = true;
+		}
 		++tiles_done;
 	}
 
+	if (changed) {
+		map.doChange();
+	}
 	if (showdialog) {
 		g_gui.DestroyLoadBar();
 	}
@@ -967,6 +976,7 @@ void Editor::randomizeMap(bool showdialog) {
 	}
 
 	uint64_t tiles_done = 0;
+	bool changed = false;
 	for (TileLocation* tileLocation : map) {
 		if (showdialog && tiles_done % 4096 == 0) {
 			g_gui.SetLoadDone(static_cast<int32_t>(tiles_done / double(map.tilecount) * 100.0));
@@ -995,10 +1005,15 @@ void Editor::randomizeMap(bool showdialog) {
 				newGround->setUniqueID(uniqueId);
 			}
 			tile->update();
+			map.reindexTile(tile);
+			changed = true;
 		}
 		++tiles_done;
 	}
 
+	if (changed) {
+		map.doChange();
+	}
 	if (showdialog) {
 		g_gui.DestroyLoadBar();
 	}

@@ -17,6 +17,7 @@
 
 #include "main.h"
 #include "lua_api_item.h"
+#include "lua_api.h"
 #include "../item.h"
 #include "../items.h"
 
@@ -37,6 +38,14 @@ namespace LuaAPI {
 		std::string lowerHaystack = toLower(haystack);
 		std::string lowerNeedle = toLower(needle);
 		return lowerHaystack.contains(lowerNeedle);
+	}
+
+	template <typename Method, typename... Args>
+	static void editItem(Item &item, Method method, const Args &... args) {
+		Tile* tile = itemTile(&item);
+		markTileForUndo(tile);
+		(item.*method)(args...);
+		finishTileEdit(tile);
 	}
 
 	void registerItem(sol::state &lua) {
@@ -62,9 +71,15 @@ namespace LuaAPI {
 
 			// Read/write properties
 			"count", sol::property(&Item::getCount, [require_u16](Item &item, int count) {
-				item.setSubtype(require_u16(count, "count"));
+				editItem(item, &Item::setSubtype, require_u16(count, "count"));
 			}),
-			"subtype", sol::property([](const Item &item) -> int { return item.getSubtype(); }, [require_u16](Item &item, int subtype) { item.setSubtype(require_u16(subtype, "subtype")); }), "actionId", sol::property([](const Item &item) -> int { return item.getActionID(); }, [require_u16](Item &item, int aid) { item.setActionID(require_u16(aid, "actionId")); }), "uniqueId", sol::property([](const Item &item) -> int { return item.getUniqueID(); }, [require_u16](Item &item, int uid) { item.setUniqueID(require_u16(uid, "uniqueId")); }), "text", sol::property(&Item::getText, &Item::setText), "description", sol::property(&Item::getDescription, &Item::setDescription),
+			"subtype", sol::property([](const Item &item) -> int { return item.getSubtype(); }, [require_u16](Item &item, int subtype) { editItem(item, &Item::setSubtype, require_u16(subtype, "subtype")); }), "actionId", sol::property(&Item::getActionID, [require_u16](Item &item, int aid) {
+				editItem(item, &Item::setActionID, require_u16(aid, "actionId"));
+			}),
+			"uniqueId", sol::property(&Item::getUniqueID, [require_u16](Item &item, int uid) {
+				editItem(item, &Item::setUniqueID, require_u16(uid, "uniqueId"));
+			}),
+			"text", sol::property(&Item::getText, [](Item &item, const std::string &value) { editItem(item, &Item::setText, value); }), "description", sol::property(&Item::getDescription, [](Item &item, const std::string &value) { editItem(item, &Item::setDescription, value); }),
 
 			// Selection
 			"isSelected", sol::property(&Item::isSelected), "select", &Item::select, "deselect", &Item::deselect,
@@ -76,7 +91,7 @@ namespace LuaAPI {
 			"zOrder", sol::property(&Item::getTopOrder),
 
 			// Methods
-			"clone", [](const Item &item) { return item.deepCopy(); }, "rotate", &Item::doRotate,
+			"clone", [](const Item &item) { return item.deepCopy(); }, "rotate", [](Item &item) { editItem(item, &Item::doRotate); },
 
 			"getName", [](int id) -> std::string {  
 			if (g_items[id].id != 0) {  

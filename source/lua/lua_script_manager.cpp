@@ -451,7 +451,7 @@ static bool parseHoverTooltip(const sol::table &table, MapOverlayTooltip &toolti
 
 void LuaOverlayManager::updateMapOverlayHover(LuaEngine &engine, int map_x, int map_y, int map_z, int screen_x, int screen_y, Tile* tile, Item* topItem) {
 	mapOverlayHover = MapOverlayHoverState {};
-	if (map_x < 0 || map_y < 0) {
+	if (map_x < 0 || map_y < 0 || std::none_of(mapOverlays.begin(), mapOverlays.end(), [](const auto &overlay) { return overlay.enabled && overlay.onhover.valid(); })) {
 		return;
 	}
 
@@ -468,7 +468,7 @@ void LuaOverlayManager::updateMapOverlayHover(LuaEngine &engine, int map_x, int 
 		info["tile"] = tile;
 	}
 	if (topItem) {
-		info["topItem"] = topItem;
+		info["topItem"] = LuaAPI::observeTileItem(tile, topItem);
 	}
 
 	for (const auto &overlay : mapOverlays) {

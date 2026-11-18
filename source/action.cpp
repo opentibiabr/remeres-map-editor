@@ -195,7 +195,7 @@ void Action::commit(DirtyList* dirty_list) {
 					}
 				}
 
-				Tile* old_tile = map.swapTile(pos, new_tile);
+				Tile* old_tile = map.swapTile(pos, new_tile, type != ACTION_SELECT && type != ACTION_UNSELECT);
 				TileLocation* location = new_tile->getLocation();
 
 				// Update other nodes in the network
@@ -370,7 +370,7 @@ void Action::undo(DirtyList* dirty_list) {
 					}
 				}
 
-				Tile* new_tile = map.swapTile(pos, old_tile);
+				Tile* new_tile = map.swapTile(pos, old_tile, type != ACTION_SELECT && type != ACTION_UNSELECT);
 
 				// Update server side change list (for broadcast)
 				if (editor.IsLiveServer() && dirty_list) {
