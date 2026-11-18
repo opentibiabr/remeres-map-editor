@@ -457,6 +457,7 @@ void MapDrawer::DrawSecondaryMap(int map_z) {
 
 			int draw_x, draw_y;
 			getDrawPosition(final_pos, draw_x, draw_y);
+			const wxPoint tileOrigin(draw_x, draw_y);
 
 			// Draw ground
 			uint8_t r = 160, g = 160, b = 160;
@@ -493,29 +494,9 @@ void MapDrawer::DrawSecondaryMap(int map_z) {
 				BlitItem(draw_x, draw_y, tile, tile->ground, true, r, g, b, 160);
 			}
 
-			bool hidden = options.hide_items_when_zoomed && zoom > 10.f;
-
-			// Draw items
-			if (!hidden && !tile->items.empty()) {
-				for (const Item* item : tile->items) {
-					if (item->isBorder()) {
-						BlitItem(draw_x, draw_y, tile, item, true, 160, r, g, b);
-					} else {
-						BlitItem(draw_x, draw_y, tile, item, true, 160, 160, 160, 160);
-					}
-				}
-			}
-
-			// Monsters
-			if (!hidden && options.show_monsters && !tile->monsters.empty()) {
-				for (auto monster : tile->monsters) {
-					BlitCreature(draw_x, draw_y, monster);
-				}
-			}
-
-			// NPCS
-			if (!hidden && options.show_npcs && tile->npc) {
-				BlitCreature(draw_x, draw_y, tile->npc);
+			const bool hidden = options.hide_items_when_zoomed && zoom > 10.f;
+			if (!hidden) {
+				DrawTileContents(tile, wxPoint(draw_x, draw_y), tileOrigin, GLColor { r, g, b, 255 }, true, false);
 			}
 		}
 	}
@@ -1437,6 +1418,67 @@ void MapDrawer::WriteTooltip(const Waypoint* waypoint, MapTooltip &tooltip) {
 	tooltip.addEntry("wp: ", waypoint->name);
 }
 
+void MapDrawer::TileItemLayers::collect(const std::vector<Item*> &tileItems) {
+	border.clear();
+	bottom.clear();
+	common.clear();
+	top.clear();
+
+	for (Item* item : tileItems) {
+		const auto &type = item->getItemType();
+		if (!type.alwaysOnBottom) {
+			common.push_back(item);
+		} else if (type.alwaysOnTopOrder == 1) {
+			border.push_back(item);
+		} else if (type.alwaysOnTopOrder == 3) {
+			top.push_back(item);
+		} else {
+			bottom.push_back(item);
+		}
+	}
+}
+
+void MapDrawer::DrawTileContents(Tile* tile, wxPoint drawPosition, wxPoint tileOrigin, const GLColor &color, bool ephemeral, bool dimmed) {
+	const bool animate = !ephemeral && options.show_preview && zoom <= 2.0;
+	const GLColor defaultColor = ephemeral ? GLColor { 160, 160, 160, 160 } : GLColor { 255, 255, 255, 255 };
+	const auto drawLayer = [&](std::vector<Item*> &items, wxPoint &position) {
+		for (Item* item : items) {
+			if (animate) {
+				item->animate();
+			}
+			const GLColor &tint = item->isBorder() || dimmed ? color : defaultColor;
+			if (ephemeral) {
+				BlitItem(position.x, position.y, tile, item, true, 160, tint.r, tint.g, tint.b);
+			} else {
+				BlitItem(position.x, position.y, tile, item, false, tint.r, tint.g, tint.b);
+			}
+		}
+		items.clear();
+	};
+
+	// Follow the client layers without changing the order used for saving.
+	const bool hasItems = !tile->items.empty();
+	if (hasItems) {
+		tileItemLayers.collect(tile->items);
+		drawLayer(tileItemLayers.border, drawPosition);
+		drawLayer(tileItemLayers.bottom, drawPosition);
+		drawLayer(tileItemLayers.common, drawPosition);
+	}
+
+	if (options.show_monsters) {
+		for (auto monster : tile->monsters) {
+			BlitCreature(drawPosition.x, drawPosition.y, monster);
+		}
+	}
+	if (options.show_npcs && tile->npc) {
+		BlitCreature(drawPosition.x, drawPosition.y, tile->npc);
+	}
+
+	if (hasItems) {
+		drawLayer(tileItemLayers.top, tileOrigin);
+	}
+}
+
 void MapDrawer::DrawTile(TileLocation* location) {
 	if (!location) {
 		return;
@@ -1469,6 +1511,7 @@ void MapDrawer::DrawTile(TileLocation* location) {
 
 	int draw_x, draw_y;
 	getDrawPosition(position, draw_x, draw_y);
+	const wxPoint tileOrigin(draw_x, draw_y);
 
 	const bool dimmed = canvas->IsPreviewDimmed(position);
 
@@ -1566,31 +1609,9 @@ void MapDrawer::DrawTile(TileLocation* location) {
 		}
 	}
 
-	bool hidden = only_colors || (options.hide_items_when_zoomed && zoom > 10.f);
-
-	if (!hidden && !tile->items.empty()) {
-		for (Item* item : tile->items) {
-
-			if (options.show_preview && zoom <= 2.0) {
-				item->animate();
-			}
-
-			if (item->isBorder() || dimmed) {
-				BlitItem(draw_x, draw_y, tile, item, false, r, g, b);
-			} else {
-				BlitItem(draw_x, draw_y, tile, item);
-			}
-		}
-	}
-
-	if (!hidden && options.show_monsters && !tile->monsters.empty()) {
-		for (auto monster : tile->monsters) {
-			BlitCreature(draw_x, draw_y, monster);
-		}
-	}
-
-	if (!hidden && options.show_npcs && tile->npc) {
-		BlitCreature(draw_x, draw_y, tile->npc);
+	const bool hidden = only_colors || (options.hide_items_when_zoomed && zoom > 10.f);
+	if (!hidden) {
+		DrawTileContents(tile, wxPoint(draw_x, draw_y), tileOrigin, GLColor { r, g, b, 255 }, false, dimmed);
 	}
 
 	if (show_tooltips && position.z == floor) {

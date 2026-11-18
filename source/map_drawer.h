@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 #include "light_drawer.h"
 #include "gl_renderer.h"
 
@@ -263,6 +264,17 @@ protected:
 	void drawFilledRect(int x, int y, int w, int h, const wxColor &color);
 
 private:
+	struct TileItemLayers {
+		std::vector<Item*> border;
+		std::vector<Item*> bottom;
+		std::vector<Item*> common;
+		std::vector<Item*> top;
+
+		void collect(const std::vector<Item*> &tileItems);
+	};
+
+	TileItemLayers tileItemLayers;
+	void DrawTileContents(Tile* tile, wxPoint drawPosition, wxPoint tileOrigin, const GLColor &color, bool ephemeral, bool dimmed);
 	void getDrawPosition(const Position &position, int &x, int &y);
 };
 
