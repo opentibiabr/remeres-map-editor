@@ -144,7 +144,7 @@ uint8_t House::getEmptyDoorID() const {
 	std::set<uint8_t> taken;
 	for (const Position &tilePosition : tiles) {
 		const Tile* tile = map->getTile(tilePosition);
-		if (!tile) {
+		if (!tile || tile->getHouseID() != id) {
 			continue;
 		}
 		for (Item* item : tile->items) {
@@ -173,10 +173,18 @@ bool House::hasDoorID(uint8_t doorID, const Tile* pendingTile, uint8_t excludedD
 		return false;
 	}
 	const Position pendingPosition = pendingTile ? pendingTile->getPosition() : Position();
+	PositionList tilePositions = tiles;
+	if (pendingTile && pendingTile->getHouseID() == id && std::find(tilePositions.begin(), tilePositions.end(), pendingPosition) == tilePositions.end()) {
+		tilePositions.push_back(pendingPosition);
+	}
 	bool excludedDoorSkipped = false;
-	for (const Position &tilePosition : tiles) {
-		const Tile* tile = pendingTile && tilePosition == pendingPosition ? pendingTile : map->getTile(tilePosition);
-		if (!tile) {
+	for (const Position &tilePosition : tilePositions) {
+		const Tile* liveTile = map->getTile(tilePosition);
+		if (!liveTile || liveTile->getHouseID() != id) {
+			continue;
+		}
+		const Tile* tile = pendingTile && tilePosition == pendingPosition ? pendingTile : liveTile;
+		if (tile->getHouseID() != id) {
 			continue;
 		}
 		for (const Item* item : tile->items) {
@@ -197,10 +205,18 @@ bool House::hasDoorID(uint8_t doorID, const Tile* pendingTile, uint8_t excludedD
 std::map<uint8_t, std::vector<Position>> House::getDoorIDPositions(const Tile* pendingTile, uint8_t excludedDoorID) const {
 	std::map<uint8_t, std::vector<Position>> doorPositions;
 	const Position pendingPosition = pendingTile ? pendingTile->getPosition() : Position();
+	PositionList tilePositions = tiles;
+	if (pendingTile && pendingTile->getHouseID() == id && std::find(tilePositions.begin(), tilePositions.end(), pendingPosition) == tilePositions.end()) {
+		tilePositions.push_back(pendingPosition);
+	}
 	bool excludedDoorSkipped = false;
-	for (const Position &tilePosition : tiles) {
-		const Tile* tile = pendingTile && tilePosition == pendingPosition ? pendingTile : map->getTile(tilePosition);
-		if (!tile) {
+	for (const Position &tilePosition : tilePositions) {
+		const Tile* liveTile = map->getTile(tilePosition);
+		if (!liveTile || liveTile->getHouseID() != id) {
+			continue;
+		}
+		const Tile* tile = pendingTile && tilePosition == pendingPosition ? pendingTile : liveTile;
+		if (tile->getHouseID() != id) {
 			continue;
 		}
 		for (const Item* item : tile->items) {

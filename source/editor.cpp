@@ -752,6 +752,13 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 			newsize_y = new_pos.y;
 		}
 
+		Tile* old_tile = map.getTile(new_pos);
+		if (old_tile && old_tile->isHouseTile()) {
+			if (House* old_house = map.houses.getHouse(old_tile->getHouseID())) {
+				old_house->removeTile(old_tile);
+			}
+		}
+
 		imported_map.setTile(import_tile->getPosition(), nullptr);
 		TileLocation* location = map.createTileL(new_pos);
 
@@ -759,8 +766,6 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 		int new_houseid = house_id_map[import_tile->getHouseID()];
 		House* house = map.houses.getHouse(new_houseid);
 		if (import_tile->isHouseTile() && house_import_type != IMPORT_DONT && house) {
-			// We need to notify houses of the tile moving
-			house->removeTile(import_tile);
 			import_tile->setLocation(location);
 			house->addTile(import_tile);
 		} else {
@@ -776,7 +781,6 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 			}
 		}
 
-		Tile* old_tile = map.getTile(new_pos);
 		if (old_tile) {
 			map.removeSpawnMonster(old_tile);
 			map.removeSpawnNpc(old_tile);

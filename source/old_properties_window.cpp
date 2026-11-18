@@ -641,7 +641,7 @@ void OldPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 			int new_count = count_field ? count_field->GetValue() : 1;
 			std::string new_desc;
 			if (edit_item->canHoldDescription() && description_field) {
-				description_field->GetValue();
+				new_desc = nstr(description_field->GetValue());
 			}
 			uint8_t new_door_id = 0;
 			if (door) {
@@ -657,12 +657,39 @@ void OldPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 			}
 			*/
 
+			if (teleport) {
+				Position destination = destination_field->GetPosition();
+				if (!edit_map->getTile(destination) || edit_map->getTile(destination)->isBlocking()) {
+					int ret = g_gui.PopupDialog(this, "Warning", "This teleport leads nowhere, or to an invalid location. Do you want to change the destination?", wxYES | wxNO);
+					if (ret == wxID_YES) {
+						return;
+					}
+				}
+			}
+
 			if (door && g_settings.getInteger(Config::WARN_FOR_DUPLICATE_ID)) {
 				if (edit_tile && edit_tile->isHouseTile()) {
 					const House* house = edit_map->houses.getHouse(edit_tile->getHouseID());
 					if (house) {
 						if (house->hasDoorID(new_door_id, edit_tile, door->getDoorID())) {
-							const DuplicateDoorIDChoice choice = ShowDuplicateDoorIDsDialog(this, *house, new_door_id, edit_tile, door->getDoorID());
+							const DuplicateDoorIDChoice choice = ShowDuplicateDoorIDsDialog(this, *house, new_door_id, edit_tile, door->getDoorID(), [&] {
+								if (teleport) {
+									teleport->setDestination(destination_field->GetPosition());
+								}
+								if (edit_item->canHoldDescription()) {
+									edit_item->setText(new_desc);
+								}
+								if (edit_item->isStackable() || edit_item->isCharged()) {
+									edit_item->setSubtype(new_count);
+								}
+								door->setDoorID(new_door_id);
+								if (uid_changed) {
+									edit_item->setUniqueID(new_uid);
+								}
+								if (aid_changed) {
+									edit_item->setActionID(new_aid);
+								}
+							});
 							if (choice == DuplicateDoorIDChoice::Renumber) {
 								EndModal(DOOR_IDS_RENUMBERED);
 								return;
@@ -677,12 +704,6 @@ void OldPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 
 			if (teleport) {
 				Position destination = destination_field->GetPosition();
-				if (!edit_map->getTile(destination) || edit_map->getTile(destination)->isBlocking()) {
-					int ret = g_gui.PopupDialog(this, "Warning", "This teleport leads nowhere, or to an invalid location. Do you want to change the destination?", wxYES | wxNO);
-					if (ret == wxID_YES) {
-						return;
-					}
-				}
 				teleport->setDestination(destination);
 			}
 

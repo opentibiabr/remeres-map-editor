@@ -26,7 +26,7 @@
 
 namespace {
 
-	DuplicateDoorIDChoice checkDuplicateDoorID(wxWindow* parent, const Map* map, const Tile* tile, uint8_t proposedDoorID, uint8_t originalDoorID) {
+	DuplicateDoorIDChoice checkDuplicateDoorID(wxWindow* parent, const Map* map, const Tile* tile, uint8_t proposedDoorID, uint8_t originalDoorID, const std::function<void()> &applyPendingChanges) {
 		if (!g_settings.getInteger(Config::WARN_FOR_DUPLICATE_ID) || !map || !tile || !tile->isHouseTile()) {
 			return DuplicateDoorIDChoice::Continue;
 		}
@@ -34,7 +34,7 @@ namespace {
 		if (!house || !house->hasDoorID(proposedDoorID, tile, originalDoorID)) {
 			return DuplicateDoorIDChoice::Continue;
 		}
-		return ShowDuplicateDoorIDsDialog(parent, *house, proposedDoorID, tile, originalDoorID);
+		return ShowDuplicateDoorIDsDialog(parent, *house, proposedDoorID, tile, originalDoorID, applyPendingChanges);
 	}
 
 } // namespace
@@ -634,9 +634,20 @@ void PropertiesWindow::OnGridValueChanged(wxGridEvent &event) {
 
 void PropertiesWindow::OnClickOK(wxCommandEvent &) {
 	if (Door* door = edit_item->getDoor(); door && doorIdField) {
-		const auto doorID = static_cast<uint8_t>(doorIdField->GetValue());
+		auto doorID = static_cast<uint8_t>(doorIdField->GetValue());
+		for (int32_t rowIndex = 0; rowIndex < attributesGrid->GetNumberRows(); ++rowIndex) {
+			if (attributesGrid->GetCellValue(rowIndex, 0) != "doorid") {
+				continue;
+			}
+			int advancedDoorID;
+			if (attributesGrid->GetCellValue(rowIndex, 2).ToInt(&advancedDoorID)) {
+				doorID = static_cast<uint8_t>(advancedDoorID);
+			}
+		}
 		SetAdvancedPropertyNumberData("doorid", doorID);
-		const auto duplicateChoice = checkDuplicateDoorID(this, edit_map, edit_tile, doorID, door->getDoorID());
+		const auto duplicateChoice = checkDuplicateDoorID(this, edit_map, edit_tile, doorID, door->getDoorID(), [this] {
+			saveAttributesPanel();
+		});
 		if (duplicateChoice == DuplicateDoorIDChoice::Renumber) {
 			EndModal(DOOR_IDS_RENUMBERED);
 			return;

@@ -88,7 +88,7 @@ void HouseBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 			 it != tile->items.end();
 			 ++it) {
 			if (Door* door = dynamic_cast<Door*>(*it)) {
-				if (door->getDoorID() == 0 || old_house_id != 0) {
+				if (door->getDoorID() == 0 || old_house_id != draw_house->id) {
 					Map* real_map = dynamic_cast<Map*>(map);
 					if (real_map) {
 						door->setDoorID(draw_house->getEmptyDoorID());
