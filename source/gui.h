@@ -19,6 +19,11 @@
 #define RME_GUI_H_
 
 #include <atomic>
+#include <cstdint>
+#include <filesystem>
+#include <future>
+#include <map>
+#include <memory>
 #include <thread>
 
 #include "graphics.h"
@@ -340,6 +345,8 @@ public:
 	void SetScreenCenterPosition(const Position &position, bool showIndicator = true);
 	// Refresh the view canvas
 	void RefreshView();
+	void RefreshEditorView(Editor* editor);
+	void RefreshEditorOverlay(Editor* editor);
 	// Fit all/specified current map view to map dimensions
 	void FitViewToMap();
 	void FitViewToMap(MapTab* mt);
@@ -386,6 +393,9 @@ public:
 	}
 	bool NewMap();
 	void OpenMap();
+	bool LoadServerWorlds(const wxString &path = wxEmptyString, bool automatic = false);
+	bool ProcessPendingWorldLoads();
+	bool FinishPendingWorldLoad(uint64_t session);
 	void SaveMap();
 	void SaveMapAs();
 	bool LoadMap(const FileName &fileName);
@@ -515,6 +525,9 @@ protected:
 	int disabled_counter;
 	std::thread sqlite_bootstrap_thread_;
 	std::atomic<bool> sqlite_bootstrap_running_ = false;
+	struct PendingWorldLoad;
+	std::map<uint64_t, std::unique_ptr<PendingWorldLoad>> pending_world_loads_;
+	void QueueServerWorlds(Editor &editor, const std::filesystem::path &catalog, bool associated);
 
 	friend class RenderingLock;
 	friend class IOMinimap;

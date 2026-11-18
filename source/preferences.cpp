@@ -632,6 +632,21 @@ wxNotebookPage* PreferencesWindow::CreateClientPage() {
 	npcs_lua_text->SetToolTip("Path to the server NPC files, Lua, XML or .npc (e.g. data-otservbr-global/npc/ or data/npc/)");
 	npcs_lua_dir_picker->SetToolTip("Path to the server NPC files, Lua, XML or .npc (e.g. data-otservbr-global/npc/ or data/npc/)");
 
+	client_list_sizer->Add(new wxStaticText(client_list_window, wxID_ANY, "World catalog (.world.json):"), 0, wxTOP, 10);
+	auto world_path_sizer = new wxBoxSizer(wxHORIZONTAL);
+	world_catalog_picker = new wxTextCtrl(client_list_window, wxID_ANY, wxstr(g_settings.getString(Config::WORLD_CATALOG_FILE)));
+	world_catalog_picker->SetToolTip("Loaded automatically when its OTBM is opened. Leave empty to use a sibling <map>.world.json catalog.");
+	auto world_browse = new wxButton(client_list_window, wxID_ANY, "Browse...");
+	world_browse->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
+		wxFileDialog dialog(this, "Select server world catalog", "", "", "World catalog (*.world.json)|*.world.json", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+		if (dialog.ShowModal() == wxID_OK) {
+			world_catalog_picker->SetValue(dialog.GetPath());
+		}
+	});
+	world_path_sizer->Add(world_catalog_picker, 1, wxEXPAND);
+	world_path_sizer->Add(world_browse, 0, wxLEFT, 5);
+	client_list_sizer->Add(world_path_sizer, 0, wxEXPAND | wxRIGHT, 10);
+
 	// Set the sizers
 	client_list_window->SetSizer(client_list_sizer);
 	client_list_window->FitInside();
@@ -809,6 +824,11 @@ void PreferencesWindow::Apply() {
 	}
 	g_settings.setFloat(Config::SCROLL_SPEED, scroll_mul * scroll_speed_slider->GetValue() / 10.f);
 	g_settings.setFloat(Config::ZOOM_SPEED, zoom_speed_slider->GetValue() / 10.f);
+
+	if (g_settings.getString(Config::WORLD_CATALOG_FILE) != nstr(world_catalog_picker->GetValue())) {
+		g_settings.setString(Config::WORLD_CATALOG_MAP_FILE, "");
+	}
+	g_settings.setString(Config::WORLD_CATALOG_FILE, nstr(world_catalog_picker->GetValue()));
 
 	ClientAssets::setPath(version_dir_picker->GetValue());
 	ClientAssets::save();

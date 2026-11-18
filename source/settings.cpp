@@ -349,6 +349,8 @@ void Settings::IO(IOMode mode) {
 	section("Creatures");
 	String(MONSTERS_LUA_DIRECTORY, "");
 	String(NPCS_LUA_DIRECTORY, "");
+	String(WORLD_CATALOG_FILE, "");
+	String(WORLD_CATALOG_MAP_FILE, "");
 
 	section("");
 	Int(GOTO_WEBSITE_ON_BOOT, 0);

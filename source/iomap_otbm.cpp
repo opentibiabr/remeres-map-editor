@@ -4227,7 +4227,8 @@ namespace {
 
 		const wxString backupPath = filepath + "~";
 		if (!wxFileExists(filepath) && fileMatchesXmlContent(backupPath, content)) {
-			return wxRenameFile(backupPath, filepath, false);
+			// Keep the recovery copy until the complete map save commits.
+			return wxCopyFile(backupPath, filepath, false);
 		}
 
 		return writeContentToFile(filepath, content);
@@ -5901,21 +5902,32 @@ bool IOMapOTBM::saveMap(Map &map, const FileName &identifier) {
 		return false;
 	}
 
-	if (!saveMap(map, f)) {
+	const bool serialized = saveMap(map, f);
+	f.close();
+	if (!serialized || f.error_code != FILE_NO_ERROR) {
+		error("Could not finish writing the OTBM file.");
 		return false;
 	}
 
 	g_gui.SetLoadDone(99, "Saving monster spawns...");
-	saveSpawns(map, identifier);
+	if (!saveSpawns(map, identifier)) {
+		return false;
+	}
 
 	g_gui.SetLoadDone(99, "Saving houses...");
-	saveHouses(map, identifier);
+	if (!saveHouses(map, identifier)) {
+		return false;
+	}
 
 	g_gui.SetLoadDone(99, "Saving zones...");
-	saveZones(map, identifier);
+	if (!saveZones(map, identifier)) {
+		return false;
+	}
 
 	g_gui.SetLoadDone(99, "Saving npcs spawns...");
-	saveSpawnsNpc(map, identifier);
+	if (!saveSpawnsNpc(map, identifier)) {
+		return false;
+	}
 	return true;
 }
 
@@ -6012,8 +6024,7 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 		}
 		f.endNode();
 	}
-	f.endNode();
-	return true;
+	return f.endNode();
 }
 
 bool IOMapOTBM::saveSpawns(Map &map, const FileName &dir) {

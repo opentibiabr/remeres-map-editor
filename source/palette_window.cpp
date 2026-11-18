@@ -18,6 +18,7 @@
 #include "main.h"
 
 #include "settings.h"
+#include "editor.h"
 #include "gui.h"
 #include "brush.h"
 #include "map_display.h"
@@ -27,6 +28,7 @@
 #include "palette_house.h"
 #include "palette_monster.h"
 #include "palette_npc.h"
+#include "world/world_editor.h"
 #include "palette_waypoints.h"
 #include "palette_zones.h"
 
@@ -71,6 +73,9 @@ PaletteWindow::PaletteWindow(wxWindow* parent, const TilesetContainer &tilesets)
 
 	npcPalette = static_cast<NpcPalettePanel*>(CreateNpcPalette(choicebook, tilesets));
 	choicebook->AddPage(npcPalette, npcPalette->GetName());
+
+	worldPalette = CreateWorldPalette(choicebook);
+	choicebook->AddPage(worldPalette, worldPalette->GetName());
 
 	rawPalette = static_cast<BrushPalettePanel*>(CreateRAWPalette(choicebook, tilesets));
 	choicebook->AddPage(rawPalette, rawPalette->GetName());
@@ -248,6 +253,9 @@ void PaletteWindow::InvalidateContents() {
 	}
 	if (npcPalette) {
 		npcPalette->OnUpdate();
+	}
+	if (worldPalette) {
+		worldPalette->OnUpdate();
 	}
 	if (housePalette) {
 		housePalette->OnUpdate();
@@ -460,11 +468,16 @@ void PaletteWindow::OnUpdateBrushSize(BrushShape shape, int size) {
 }
 
 void PaletteWindow::OnUpdate(Map* map) {
+	const auto editor = g_gui.GetCurrentEditor();
+	Enable(editor && editor->CanEdit());
 	if (monsterPalette) {
 		monsterPalette->OnUpdate();
 	}
 	if (npcPalette) {
 		npcPalette->OnUpdate();
+	}
+	if (worldPalette) {
+		worldPalette->OnUpdate();
 	}
 	if (housePalette) {
 		housePalette->SetMap(map);

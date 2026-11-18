@@ -37,6 +37,7 @@
 #include "monster.h"
 #include "npc.h"
 #include "lua/lua_script_manager.h"
+#include "world/world_files.hpp"
 
 #include "../brushes/icon/rme_icon.xpm"
 
@@ -215,61 +216,31 @@ bool Application::OnInit() {
 	}
 #endif
 
-	FileName save_failed_file = GUI::GetLocalDataDirectory();
-	save_failed_file.SetName(".saving.txt");
-	if (save_failed_file.FileExists()) {
-		std::ifstream f(nstr(save_failed_file.GetFullPath()).c_str(), std::ios::in);
+	const auto markerName = GUI::GetLocalDataDirectory() + ".saving.txt";
+	if (FileName(markerName).FileExists()) {
+		const auto marker = std::filesystem::u8path(nstr(markerName));
+		world_files::MapSaveRecovery recovery;
+		std::string error;
+		if (!world_files::readMapSave(marker, recovery, error)) {
+			g_gui.PopupDialog("Map save recovery needs attention", wxstr(error), wxOK);
+			return true;
+		}
 
-		std::string backup_otbm, backup_house, backup_spawn, backup_spawn_npc;
+		const bool rollback = !recovery.committed && (!recovery.writing || g_gui.PopupDialog("Interrupted map save", "Restore the previous map files? Choose No to keep the files currently on disk.", wxYES | wxNO) == wxID_YES);
+		if ((rollback && !world_files::restoreMapSave(recovery, error))
+			|| (!recovery.catalog.empty() && !world_files::recoverCoordination(recovery.catalog, recovery.catalog.parent_path(), rollback, error))
+			|| !world_files::clearMapSave(marker, error)) {
+			g_gui.PopupDialog("Map save recovery needs attention", wxstr(error), wxOK);
+			return true;
+		}
 
-		getline(f, backup_otbm);
-		getline(f, backup_house);
-		getline(f, backup_spawn);
-		getline(f, backup_spawn_npc);
-
-		// Remove the file
-		f.close();
-		std::remove(nstr(save_failed_file.GetFullPath()).c_str());
-
-		// Query file retrieval if possible
-		if (!backup_otbm.empty()) {
-			long ret = g_gui.PopupDialog(
-				"Editor Crashed",
-				wxString(
-					"IMPORTANT! THE EDITOR CRASHED WHILE SAVING!\n\n"
-					"Do you want to recover the lost map? (it will be opened immediately):\n"
-				) << wxstr(backup_otbm)
-				  << "\n"
-				  << wxstr(backup_house) << "\n"
-				  << wxstr(backup_spawn) << "\n"
-				  << wxstr(backup_spawn_npc) << "\n",
-				wxYES | wxNO
-			);
-
-			if (ret == wxID_YES) {
-				// Recover if the user so wishes
-				std::remove(backup_otbm.substr(0, backup_otbm.size() - 1).c_str());
-				std::rename(backup_otbm.c_str(), backup_otbm.substr(0, backup_otbm.size() - 1).c_str());
-
-				if (!backup_house.empty()) {
-					std::remove(backup_house.substr(0, backup_house.size() - 1).c_str());
-					std::rename(backup_house.c_str(), backup_house.substr(0, backup_house.size() - 1).c_str());
-				}
-				if (!backup_spawn.empty()) {
-					std::remove(backup_spawn.substr(0, backup_spawn.size() - 1).c_str());
-					std::rename(backup_spawn.c_str(), backup_spawn.substr(0, backup_spawn.size() - 1).c_str());
-				}
-				if (!backup_spawn_npc.empty()) {
-					std::remove(backup_spawn_npc.substr(0, backup_spawn_npc.size() - 1).c_str());
-					std::rename(backup_spawn_npc.c_str(), backup_spawn_npc.substr(0, backup_spawn_npc.size() - 1).c_str());
-				}
-
-				// Load the map
-				g_gui.LoadMap(wxstr(backup_otbm.substr(0, backup_otbm.size() - 1)));
-				return true;
-			}
+		if (rollback && !recovery.files.empty() && recovery.files.front().existed) {
+			const auto target = recovery.files.front().target.u8string();
+			g_gui.LoadMap(wxstr(std::string(target.begin(), target.end())));
+			return true;
 		}
 	}
+
 	// Keep track of first event loop entry
 	m_startup = true;
 	return true;
@@ -338,9 +309,17 @@ bool Application::ParseCommandLineMap(wxString &fileName) {
 }
 
 MainFrame::MainFrame(const wxString &title, const wxPoint &pos, const wxSize &size) :
-	wxFrame((wxFrame*)nullptr, -1, title, pos, size, wxDEFAULT_FRAME_STYLE) {
+	wxFrame((wxFrame*)nullptr, -1, title, pos, size, wxDEFAULT_FRAME_STYLE), world_load_timer(this) {
 	// Receive idle events
 	SetExtraStyle(wxWS_EX_PROCESS_IDLE);
+	Bind(
+		wxEVT_TIMER, [this](wxTimerEvent &) {
+			if (!g_gui.ProcessPendingWorldLoads()) {
+				world_load_timer.Stop();
+			}
+		},
+		world_load_timer.GetId()
+	);
 
 #if wxCHECK_VERSION(3, 1, 0) // 3.1.0 or higher
 	// Make sure ShowFullScreen() uses the full screen API on macOS
@@ -382,6 +361,12 @@ MainFrame::~MainFrame() = default;
 
 void MainFrame::OnIdle(wxIdleEvent &event) {
 	////
+}
+
+void MainFrame::WatchPendingWorldLoads() {
+	if (!world_load_timer.IsRunning()) {
+		world_load_timer.Start(50);
+	}
 }
 
 #ifdef _USE_UPDATER_
@@ -547,6 +532,9 @@ bool MainFrame::DoQuerySave(bool doclose, bool checkTileset) {
 				} else {
 					return false;
 				}
+			}
+			if (editor.hasChanges()) {
+				return false;
 			}
 		} else if (ret == wxID_CANCEL) {
 			return false;

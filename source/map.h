@@ -28,6 +28,32 @@
 #include "zones.h"
 #include "templates.h"
 #include "spawn_npc.h"
+#include <map>
+#include <set>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
+struct MapUniqueItem {
+	uint16_t uid;
+	const Item* item;
+	Position position;
+};
+
+struct MapWorldChanges {
+	std::set<Position> positions;
+	bool identifiers = false;
+
+	bool empty() const noexcept {
+		return positions.empty() && !identifiers;
+	}
+};
+
+struct MapIdentifierItem {
+	const Item* item;
+	Position position;
+	std::vector<const Item*> containers;
+};
 
 class Map : public BaseMap {
 public:
@@ -56,6 +82,9 @@ public:
 	}
 	// Makes a change, doesn't matter what. Just so that it asks when saving (Also adds a * to the window title)
 	bool doChange();
+	uint64_t revision() const noexcept {
+		return change_revision;
+	}
 	// Clears any changes
 	bool clearChanges();
 
@@ -149,6 +178,27 @@ public:
 	}
 
 	bool hasUniqueId(uint16_t uid) const;
+	void reindexTile(Tile* tile, bool contentChanged = true);
+	void observeLuaItem(const Item* item, Tile* tile);
+	Tile* luaItemTile(const Item* item);
+	bool uniqueIdsChangedSinceSave() const noexcept {
+		return uidOccupancyChanged;
+	}
+	const std::vector<MapUniqueItem> &uniqueItems() const noexcept {
+		return uniqueItemOccurrences;
+	}
+	std::vector<MapIdentifierItem> identifierItems() const;
+	std::vector<MapIdentifierItem> identifierItems(const std::unordered_set<const Item*> &items) const;
+	std::vector<MapIdentifierItem> identifierItems(const std::set<Position> &positions) const;
+	std::vector<MapIdentifierItem> identifierItems(const Position &minimum, const Position &maximum) const;
+	bool identifierTileChangedSinceSave(const Position &position) const {
+		return changedTilesSinceSave.contains(position);
+	}
+	MapWorldChanges takeWorldChanges();
+	void beginWorldChangeTracking() {
+		pendingWorldChanges = {};
+		trackWorldChanges = true;
+	}
 
 protected:
 	// Loads a map
@@ -182,11 +232,12 @@ public:
 	SpawnsNpc spawnsNpc;
 
 protected:
-	void updateUniqueIds(Tile* old_tile, Tile* new_tile) override;
+	void updateUniqueIds(Tile* old_tile, Tile* new_tile, bool contentChanged = true) override;
 	void addUniqueId(uint16_t uid);
 	void removeUniqueId(uint16_t uid);
 
 	bool has_changed; // If the map has changed
+	uint64_t change_revision = 0;
 	bool unnamed; // If the map has yet to receive a name
 
 	friend class IOMapOTBM;
@@ -198,7 +249,23 @@ public:
 	Zones zones;
 
 private:
-	std::vector<uint16_t> uniqueIds;
+	std::unordered_map<uint16_t, size_t> uniqueIds;
+	std::vector<MapUniqueItem> uniqueItemOccurrences;
+	std::unordered_map<const Item*, size_t> uniqueItemIndexes;
+	std::unordered_map<const Item*, MapIdentifierItem> identifierItemOccurrences;
+	std::map<Position, std::vector<const Item*>> identifierItemsByTile;
+	// Lua exposes bare Item handles. Keep their tile only while the item remains
+	// on that tile, so an item setter can reindex a single live tile.
+	std::unordered_map<const Item*, Position> luaItemPositions;
+	std::map<Position, std::unordered_set<const Item*>> luaItemsByTile;
+	MapWorldChanges pendingWorldChanges;
+	bool trackWorldChanges = false;
+	bool loadingMap = false;
+	bool uidOccupancyChanged = false;
+	// Updated by the existing per-tile mutation hook. Adoption can therefore
+	// distinguish a selector that depends on an unsaved map edit without a
+	// second whole-map traversal.
+	std::set<Position> changedTilesSinceSave;
 };
 
 template <typename ForeachType>
@@ -298,6 +365,7 @@ inline int64_t RemoveItemOnMap(Map &map, RemoveIfType &condition, bool selectedO
 			continue;
 		}
 
+		const auto before = removed;
 		if (tile->ground) {
 			if (condition(map, tile->ground, removed, done)) {
 				delete tile->ground;
@@ -315,6 +383,9 @@ inline int64_t RemoveItemOnMap(Map &map, RemoveIfType &condition, bool selectedO
 			} else {
 				++iit;
 			}
+		}
+		if (removed != before) {
+			map.reindexTile(tile);
 		}
 		++it;
 	}
@@ -342,6 +413,7 @@ inline int64_t RemoveItemDuplicateOnMap(Map &map, RemoveIfType &condition, bool 
 			continue;
 		}
 
+		const auto before = removed;
 		if (tile->ground) {
 			if (condition(map, tile, tile->ground, removed, done)) {
 				delete tile->ground;
@@ -359,6 +431,9 @@ inline int64_t RemoveItemDuplicateOnMap(Map &map, RemoveIfType &condition, bool 
 			} else {
 				++iit;
 			}
+		}
+		if (removed != before) {
+			map.reindexTile(tile);
 		}
 		++it;
 	}

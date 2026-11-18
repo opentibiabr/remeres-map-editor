@@ -33,6 +33,7 @@
 #include "lua/lua_script_manager.h"
 #include "lua/lua_scripts_window.h"
 #include "gui.h"
+#include "world/world_editor.h"
 
 #include <wx/chartype.h>
 #include <wx/choicdlg.h>
@@ -646,6 +647,8 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 
 	MAKE_ACTION(NEW, wxITEM_NORMAL, OnNew);
 	MAKE_ACTION(OPEN, wxITEM_NORMAL, OnOpen);
+	MAKE_ACTION(LOAD_SERVER_WORLDS, wxITEM_NORMAL, OnLoadServerWorlds);
+	MAKE_ACTION(ADOPT_WORLD_IDENTIFIERS, wxITEM_NORMAL, OnAdoptWorldIdentifiers);
 	MAKE_ACTION(SAVE, wxITEM_NORMAL, OnSave);
 	MAKE_ACTION(SAVE_AS, wxITEM_NORMAL, OnSaveAs);
 	MAKE_ACTION(GENERATE_MAP, wxITEM_NORMAL, OnGenerateMap);
@@ -730,6 +733,7 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	MAKE_ACTION(VIEW_TOOLBARS_SIZES, wxITEM_CHECK, OnToolbars);
 	MAKE_ACTION(VIEW_TOOLBARS_INDICATORS, wxITEM_CHECK, OnToolbars);
 	MAKE_ACTION(VIEW_TOOLBARS_STANDARD, wxITEM_CHECK, OnToolbars);
+	MAKE_ACTION(VIEW_WORLDS, wxITEM_NORMAL, OnWorlds);
 	MAKE_ACTION(NEW_VIEW, wxITEM_NORMAL, OnNewView);
 	MAKE_ACTION(TOGGLE_FULLSCREEN, wxITEM_NORMAL, OnToggleFullscreen);
 
@@ -940,6 +944,8 @@ void MainMenuBar::Update() {
 	EnableItem(CLOSE, is_local);
 	EnableItem(SAVE, is_host);
 	EnableItem(SAVE_AS, is_host);
+	EnableItem(LOAD_SERVER_WORLDS, is_local && !editor->world);
+	EnableItem(ADOPT_WORLD_IDENTIFIERS, is_local && editor->world);
 	EnableItem(GENERATE_MAP, false);
 
 	EnableItem(IMPORT_MAP, is_local);
@@ -1380,6 +1386,16 @@ void MainMenuBar::OnOpenRecent(wxCommandEvent &event) {
 
 void MainMenuBar::OnOpen(wxCommandEvent &WXUNUSED(event)) {
 	g_gui.OpenMap();
+}
+
+void MainMenuBar::OnLoadServerWorlds(wxCommandEvent &WXUNUSED(event)) {
+	g_gui.LoadServerWorlds();
+}
+
+void MainMenuBar::OnAdoptWorldIdentifiers(wxCommandEvent &WXUNUSED(event)) {
+	if (const auto editor = g_gui.GetCurrentEditor(); editor && editor->world) {
+		editor->world->adoptIdentifiers();
+	}
 }
 
 void MainMenuBar::OnClose(wxCommandEvent &WXUNUSED(event)) {
@@ -2949,6 +2965,10 @@ void MainMenuBar::OnToolbars(wxCommandEvent &event) {
 	}
 }
 
+void MainMenuBar::OnWorlds(wxCommandEvent &event) {
+	ShowWorldPalette();
+}
+
 void MainMenuBar::OnNewView(wxCommandEvent &WXUNUSED(event)) {
 	g_gui.NewMapView();
 }
@@ -3105,6 +3125,15 @@ void MainMenuBar::OnStartLive(wxCommandEvent &event) {
 		return;
 	}
 
+	const auto session = editor->sessionId();
+	if (!g_gui.FinishPendingWorldLoad(session) || g_gui.GetCurrentEditor() != editor) {
+		return;
+	}
+	if (editor->world) {
+		g_gui.PopupDialog("Live editing", "Live editing does not synchronize server world catalogs yet.", wxOK);
+		return;
+	}
+
 	wxDialog* live_host_dlg = newd wxDialog(frame, wxID_ANY, "Host Live Server", wxDefaultPosition, wxDefaultSize);
 
 	wxSizer* top_sizer = newd wxBoxSizer(wxVERTICAL);
@@ -3142,6 +3171,9 @@ void MainMenuBar::OnStartLive(wxCommandEvent &event) {
 	while (true) {
 		int ret = live_host_dlg->ShowModal();
 		if (ret == wxID_OK) {
+			if (g_gui.GetCurrentEditor() != editor || editor->sessionId() != session || editor->IsLive() || editor->world) {
+				break;
+			}
 			LiveServer* liveServer = editor->StartLiveServer();
 			liveServer->setName(hostname->GetValue());
 			liveServer->setPassword(password->GetValue());

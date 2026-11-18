@@ -26,6 +26,8 @@ namespace MenuBar {
 	enum ActionID {
 		NEW,
 		OPEN,
+		LOAD_SERVER_WORLDS,
+		ADOPT_WORLD_IDENTIFIERS,
 		SAVE,
 		SAVE_AS,
 		GENERATE_MAP,
@@ -99,6 +101,7 @@ namespace MenuBar {
 		VIEW_TOOLBARS_SIZES,
 		VIEW_TOOLBARS_INDICATORS,
 		VIEW_TOOLBARS_STANDARD,
+		VIEW_WORLDS,
 		NEW_VIEW,
 		TOGGLE_FULLSCREEN,
 		ZOOM_IN,
@@ -206,6 +209,8 @@ public:
 	// File Menu
 	void OnNew(wxCommandEvent &event);
 	void OnOpen(wxCommandEvent &event);
+	void OnLoadServerWorlds(wxCommandEvent &event);
+	void OnAdoptWorldIdentifiers(wxCommandEvent &event);
 	void OnGenerateMap(wxCommandEvent &event);
 	void OnOpenRecent(wxCommandEvent &event);
 	void OnSave(wxCommandEvent &event);
@@ -284,6 +289,7 @@ public:
 
 	// View Menu
 	void OnToolbars(wxCommandEvent &event);
+	void OnWorlds(wxCommandEvent &event);
 	void OnNewView(wxCommandEvent &event);
 	void OnToggleFullscreen(wxCommandEvent &event);
 	void OnZoomIn(wxCommandEvent &event);

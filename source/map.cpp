@@ -49,7 +49,9 @@ bool Map::open(const std::string file) {
 
 	IOMapOTBM maploader(getVersion());
 
+	loadingMap = true;
 	bool success = maploader.loadMap(*this, wxstr(file));
+	loadingMap = false;
 
 	mapVersion = maploader.version;
 
@@ -60,7 +62,7 @@ bool Map::open(const std::string file) {
 		return false;
 	}
 
-	has_changed = false;
+	clearChanges();
 
 	wxFileName fn = wxstr(file);
 	filename = fn.GetFullPath().mb_str(wxConvUTF8);
@@ -163,6 +165,7 @@ bool Map::convert(const ConversionMap &rm, bool showdialog) {
 
 		// Keep track of how many items have been inserted at the bottom
 		size_t inserted_items = 0;
+		bool changed = cfmtm != rm.mtm.end();
 
 		if (cfmtm != rm.mtm.end()) {
 			const std::vector<uint16_t> &v = cfmtm->first;
@@ -196,6 +199,7 @@ bool Map::convert(const ConversionMap &rm, bool showdialog) {
 		if (tile->ground) {
 			ConversionMap::STM::const_iterator cfstm = rm.stm.find(tile->ground->getID());
 			if (cfstm != rm.stm.end()) {
+				changed = true;
 				uint16_t aid = tile->ground->getActionID();
 				uint16_t uid = tile->ground->getUniqueID();
 				delete tile->ground;
@@ -223,6 +227,7 @@ bool Map::convert(const ConversionMap &rm, bool showdialog) {
 			uint16_t id = (*replace_item_iter)->getID();
 			ConversionMap::STM::const_iterator cf = rm.stm.find(id);
 			if (cf != rm.stm.end()) {
+				changed = true;
 				// uint16_t aid = (*replace_item_iter)->getActionID();
 				// uint16_t uid = (*replace_item_iter)->getUniqueID();
 				delete *replace_item_iter;
@@ -239,6 +244,9 @@ bool Map::convert(const ConversionMap &rm, bool showdialog) {
 			}
 		}
 
+		if (changed) {
+			reindexTile(tile);
+		}
 		++tiles_done;
 		if (showdialog && tiles_done % 0x10000 == 0) {
 			g_gui.SetLoadDone(int(tiles_done / double(getTileCount()) * 100.0));
@@ -267,15 +275,20 @@ void Map::cleanInvalidTiles(bool showdialog) {
 			continue;
 		}
 
+		bool changed = false;
 		for (ItemVector::iterator item_iter = tile->items.begin(); item_iter != tile->items.end();) {
 			if (g_items.isValidID((*item_iter)->getID())) {
 				++item_iter;
 			} else {
+				changed = true;
 				delete *item_iter;
 				item_iter = tile->items.erase(item_iter);
 			}
 		}
 
+		if (changed) {
+			reindexTile(tile);
+		}
 		++tiles_done;
 		if (showdialog && tiles_done % 0x10000 == 0) {
 			g_gui.SetLoadDone(int(tiles_done / double(getTileCount()) * 100.0));
@@ -340,6 +353,7 @@ Position Map::getZonePosition(unsigned int zoneId) {
 }
 
 bool Map::doChange() {
+	++change_revision;
 	bool doupdate = !has_changed;
 	has_changed = true;
 	return doupdate;
@@ -348,6 +362,8 @@ bool Map::doChange() {
 bool Map::clearChanges() {
 	bool doupdate = has_changed;
 	has_changed = false;
+	changedTilesSinceSave.clear();
+	uidOccupancyChanged = false;
 	return doupdate;
 }
 
@@ -799,52 +815,225 @@ bool Map::exportMinimap(FileName filename, int floor /*= rme::MapGroundLayer*/, 
 	return true;
 }
 
-void Map::updateUniqueIds(Tile* old_tile, Tile* new_tile) {
-	if (old_tile && old_tile->hasUniqueItem()) {
-		if (old_tile->ground) {
-			uint16_t uid = old_tile->ground->getUniqueID();
-			if (uid != 0) {
-				removeUniqueId(uid);
-			}
+void Map::observeLuaItem(const Item* item, Tile* tile) {
+	const auto &position = tile->getPosition();
+	const auto [entry, inserted] = luaItemPositions.try_emplace(item, position);
+	if (!inserted) {
+		if (entry->second == position) {
+			return;
 		}
-		for (const Item* item : old_tile->items) {
-			if (item) {
-				uint16_t uid = item->getUniqueID();
-				if (uid != 0) {
-					removeUniqueId(uid);
+		const auto previous = luaItemsByTile.find(entry->second);
+		previous->second.erase(item);
+		if (previous->second.empty()) {
+			luaItemsByTile.erase(previous);
+		}
+		entry->second = position;
+	}
+	luaItemsByTile[position].insert(item);
+}
+
+Tile* Map::luaItemTile(const Item* item) {
+	const auto found = luaItemPositions.find(item);
+	if (found == luaItemPositions.end()) {
+		return nullptr;
+	}
+	Tile* tile = getTile(found->second);
+	if (tile && (item == tile->ground || std::find(tile->items.begin(), tile->items.end(), item) != tile->items.end())) {
+		return tile;
+	}
+	return nullptr;
+}
+
+void Map::reindexTile(Tile* tile, bool contentChanged) {
+	updateUniqueIds(tile, tile, contentChanged);
+}
+
+void Map::updateUniqueIds(Tile* oldTile, Tile* newTile, bool contentChanged) {
+	const Tile* tile = newTile ? newTile : oldTile;
+	if (!tile) {
+		return;
+	}
+	const Position &position = tile->getPosition();
+	const bool trackPersistence = contentChanged && !loadingMap;
+	if (trackPersistence) {
+		changedTilesSinceSave.insert(position);
+	}
+	if (trackWorldChanges) {
+		// Selection and transaction rollback can replace every Item pointer without dirtying the OTBM.
+		++change_revision;
+		pendingWorldChanges.positions.insert(position);
+	}
+
+	if (!luaItemsByTile.empty()) {
+		const auto observed = luaItemsByTile.find(position);
+		if (observed != luaItemsByTile.end()) {
+			std::erase_if(observed->second, [&](const Item* item) {
+				if (newTile && (newTile->ground == item || std::find(newTile->items.begin(), newTile->items.end(), item) != newTile->items.end())) {
+					return false;
 				}
+				luaItemPositions.erase(item);
+				return true;
+			});
+			if (observed->second.empty()) {
+				luaItemsByTile.erase(observed);
 			}
 		}
 	}
 
-	if (new_tile && new_tile->hasUniqueItem()) {
-		if (new_tile->ground) {
-			uint16_t uid = new_tile->ground->getUniqueID();
-			if (uid != 0) {
-				addUniqueId(uid);
-			}
+	// An in-place edit may already have removed or destroyed an item. Unindex
+	// the previous occurrences by their recorded tile and UID, using keys only.
+	const auto unindexUid = [&](const Item* key) -> uint16_t {
+		const auto indexed = uniqueItemIndexes.find(key);
+		if (indexed == uniqueItemIndexes.end()) {
+			return 0;
 		}
-		for (const Item* item : new_tile->items) {
-			if (item) {
-				uint16_t uid = item->getUniqueID();
-				if (uid != 0) {
-					addUniqueId(uid);
-				}
+		const size_t index = indexed->second;
+		const auto uid = uniqueItemOccurrences[index].uid;
+		removeUniqueId(uid);
+		const size_t last = uniqueItemOccurrences.size() - 1;
+		if (index != last) {
+			uniqueItemOccurrences[index] = uniqueItemOccurrences[last];
+			uniqueItemIndexes[uniqueItemOccurrences[index].item] = index;
+		}
+		uniqueItemOccurrences.pop_back();
+		uniqueItemIndexes.erase(indexed);
+		return uid;
+	};
+	std::map<uint16_t, int> uidDeltas;
+	const auto previous = identifierItemsByTile.find(position);
+	if (previous != identifierItemsByTile.end()) {
+		if (trackWorldChanges) {
+			pendingWorldChanges.identifiers = true;
+		}
+		for (const auto* key : previous->second) {
+			const auto uid = unindexUid(key);
+			if (uid && trackPersistence && !uidOccupancyChanged) {
+				--uidDeltas[uid];
 			}
+			identifierItemOccurrences.erase(key);
+		}
+		identifierItemsByTile.erase(previous);
+	}
+
+	std::vector<const Item*> parents;
+	const auto indexItem = [&](const auto &self, const Item* item) -> void {
+		// Moving the same instance can publish its destination before its source.
+		// Detach the recorded owner so later source cleanup cannot remove it here.
+		const auto previousOwner = loadingMap ? identifierItemOccurrences.end() : identifierItemOccurrences.find(item);
+		if (previousOwner != identifierItemOccurrences.end()) {
+			const auto source = identifierItemsByTile.find(previousOwner->second.position);
+			std::erase(source->second, item);
+			if (source->second.empty()) {
+				identifierItemsByTile.erase(source);
+			}
+			if (unindexUid(item) && trackPersistence) {
+				uidOccupancyChanged = true;
+			}
+			identifierItemOccurrences.erase(previousOwner);
+		}
+		const auto uid = item->getUniqueID();
+		const auto aid = item->getActionID();
+		if (uid) {
+			if (trackPersistence && !uidOccupancyChanged) {
+				++uidDeltas[uid];
+			}
+			addUniqueId(uid);
+			uniqueItemIndexes[item] = uniqueItemOccurrences.size();
+			uniqueItemOccurrences.push_back({ uid, item, position });
+		}
+		if (aid || uid) {
+			if (trackWorldChanges) {
+				pendingWorldChanges.identifiers = true;
+			}
+			identifierItemOccurrences.emplace(item, MapIdentifierItem { item, position, parents });
+			identifierItemsByTile[position].push_back(item);
+		}
+		if (const auto container = item->getContainer()) {
+			parents.push_back(item);
+			for (const auto* child : container->getVector()) {
+				self(self, child);
+			}
+			parents.pop_back();
+		}
+	};
+	if (newTile) {
+		if (newTile->ground) {
+			indexItem(indexItem, newTile->ground);
+		}
+		for (const auto* item : newTile->items) {
+			indexItem(indexItem, item);
 		}
 	}
+	if (!uidOccupancyChanged) {
+		uidOccupancyChanged = std::any_of(uidDeltas.begin(), uidDeltas.end(), [](const auto &delta) { return delta.second != 0; });
+	}
+}
+
+MapWorldChanges Map::takeWorldChanges() {
+	auto changes = std::move(pendingWorldChanges);
+	pendingWorldChanges = {};
+	return changes;
+}
+
+std::vector<MapIdentifierItem> Map::identifierItems() const {
+	std::vector<MapIdentifierItem> result;
+	result.reserve(identifierItemOccurrences.size());
+	for (const auto &[item, occurrence] : identifierItemOccurrences) {
+		result.push_back(occurrence);
+	}
+	return result;
+}
+
+std::vector<MapIdentifierItem> Map::identifierItems(const std::unordered_set<const Item*> &items) const {
+	std::vector<MapIdentifierItem> result;
+	result.reserve(items.size());
+	for (const auto item : items) {
+		const auto found = identifierItemOccurrences.find(item);
+		if (found != identifierItemOccurrences.end()) {
+			result.push_back(found->second);
+		}
+	}
+	return result;
+}
+
+std::vector<MapIdentifierItem> Map::identifierItems(const std::set<Position> &positions) const {
+	std::vector<MapIdentifierItem> result;
+	for (const auto &position : positions) {
+		const auto tile = identifierItemsByTile.find(position);
+		if (tile == identifierItemsByTile.end()) {
+			continue;
+		}
+		for (const auto item : tile->second) {
+			result.push_back(identifierItemOccurrences.at(item));
+		}
+	}
+	return result;
+}
+
+std::vector<MapIdentifierItem> Map::identifierItems(const Position &minimum, const Position &maximum) const {
+	std::vector<MapIdentifierItem> result;
+	for (auto tile = identifierItemsByTile.lower_bound(minimum); tile != identifierItemsByTile.end(); ++tile) {
+		const auto &position = tile->first;
+		if (position.z != minimum.z || position.y > maximum.y) {
+			break;
+		}
+		if (position.x < minimum.x || position.x > maximum.x) {
+			continue;
+		}
+		for (const auto item : tile->second) {
+			result.push_back(identifierItemOccurrences.at(item));
+		}
+	}
+	return result;
 }
 
 void Map::addUniqueId(uint16_t uid) {
-	auto it = std::find(uniqueIds.begin(), uniqueIds.end(), uid);
-	if (it == uniqueIds.end()) {
-		uniqueIds.push_back(uid);
-	}
+	++uniqueIds[uid];
 }
 
 void Map::removeUniqueId(uint16_t uid) {
-	auto it = std::find(uniqueIds.begin(), uniqueIds.end(), uid);
-	if (it != uniqueIds.end()) {
+	const auto it = uniqueIds.find(uid);
+	if (it != uniqueIds.end() && --it->second == 0) {
 		uniqueIds.erase(it);
 	}
 }
@@ -854,8 +1043,7 @@ bool Map::hasUniqueId(uint16_t uid) const {
 		return false;
 	}
 
-	auto it = std::find(uniqueIds.begin(), uniqueIds.end(), uid);
-	return it != uniqueIds.end();
+	return uniqueIds.contains(uid);
 }
 
 int64_t RemoveMonstersOnMap(Map &map, bool selectedOnly) {

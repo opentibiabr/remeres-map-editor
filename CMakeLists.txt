@@ -169,3 +169,10 @@ endif()
 # *****************************************************************************
 add_subdirectory(source/protobuf)
 add_subdirectory(source)
+
+option(WORLD_LAYER_TESTS "Build headless world layer contract tests" OFF)
+if(WORLD_LAYER_TESTS)
+  enable_testing()
+  find_package(nlohmann_json CONFIG REQUIRED)
+  add_subdirectory(tests/world_layers)
+endif()

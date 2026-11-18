@@ -110,8 +110,8 @@ void BaseMap::setTile(TileLocation* location, Tile* new_tile, bool remove) {
 	Tile* old_tile = location->tile;
 	location->tile = new_tile;
 
-	if ((remove && old_tile) || new_tile) {
-		updateUniqueIds(remove ? old_tile : nullptr, new_tile);
+	if (old_tile || new_tile) {
+		updateUniqueIds(old_tile, new_tile);
 	}
 
 	if (new_tile && !old_tile) {
@@ -134,8 +134,8 @@ void BaseMap::setTile(int x, int y, int z, Tile* new_tile, bool remove) {
 	QTreeNode* leaf = root.getLeafForce(x, y);
 	Tile* old_tile = leaf->setTile(x, y, z, new_tile);
 
-	if ((remove && old_tile) || new_tile) {
-		updateUniqueIds(remove ? old_tile : nullptr, new_tile);
+	if (old_tile || new_tile) {
+		updateUniqueIds(old_tile, new_tile);
 	}
 
 	if (remove) {
@@ -154,7 +154,7 @@ void BaseMap::setTile(Tile* new_tile, bool remove) {
 	setTile(position.x, position.y, position.z, new_tile, remove);
 }
 
-Tile* BaseMap::swapTile(int x, int y, int z, Tile* new_tile) {
+Tile* BaseMap::swapTile(int x, int y, int z, Tile* new_tile, bool contentChanged) {
 	ASSERT(z < rme::MapLayers);
 	ASSERT(!new_tile || new_tile->getX() == x);
 	ASSERT(!new_tile || new_tile->getY() == y);
@@ -164,14 +164,14 @@ Tile* BaseMap::swapTile(int x, int y, int z, Tile* new_tile) {
 	Tile* old_tile = leaf->setTile(x, y, z, new_tile);
 
 	if (old_tile || new_tile) {
-		updateUniqueIds(old_tile, new_tile);
+		updateUniqueIds(old_tile, new_tile, contentChanged);
 	}
 
 	return old_tile;
 }
 
-Tile* BaseMap::swapTile(const Position &position, Tile* new_tile) {
-	return swapTile(position.x, position.y, position.z, new_tile);
+Tile* BaseMap::swapTile(const Position &position, Tile* new_tile, bool contentChanged) {
+	return swapTile(position.x, position.y, position.z, new_tile, contentChanged);
 }
 
 // Iterators

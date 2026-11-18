@@ -129,8 +129,8 @@ public:
 	void setTile(const Position &position, Tile* new_tile, bool remove = false);
 	void setTile(Tile* new_tile, bool remove = false);
 	// Replaces a tile and returns the old one
-	Tile* swapTile(int x, int y, int z, Tile* new_tile);
-	Tile* swapTile(const Position &position, Tile* new_tile);
+	Tile* swapTile(int x, int y, int z, Tile* new_tile, bool contentChanged = true);
+	Tile* swapTile(const Position &position, Tile* new_tile, bool contentChanged = true);
 
 	// Clears the visiblity according to the mask passed
 	void clearVisible(uint32_t mask);
@@ -143,7 +143,7 @@ public:
 	MapAllocator allocator;
 
 protected:
-	virtual void updateUniqueIds(Tile* old_tile, Tile* new_tile) { }
+	virtual void updateUniqueIds(Tile* old_tile, Tile* new_tile, bool contentChanged = true) { }
 
 	template <typename Fn>
 	void forEachFloorTileLocation(Floor &floor, Fn &fn) {
