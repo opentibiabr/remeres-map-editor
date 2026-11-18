@@ -885,6 +885,8 @@ wxString ActionQueue::createLabel(ActionIdentifier type) {
 			return "Change Properties";
 		case ACTION_LUA_SCRIPT:
 			return "Lua Script";
+		case ACTION_REPLACE_BUILDING_WALLS:
+			return "Replace Building Walls";
 		case ACTION_WORLD_OBJECT:
 			return "World Object";
 		default:

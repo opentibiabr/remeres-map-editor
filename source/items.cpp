@@ -566,6 +566,7 @@ bool ItemDatabase::loadFromProtobuf(wxString &error, wxArrayString &warnings, ca
 		g_gui.gfx.loadItemSpriteMetadata(t, error, warnings);
 		t->sprite = static_cast<GameSprite*>(g_gui.gfx.getSprite(t->id));
 		if (t->sprite) {
+			t->sprite->ground_speed = object.flags().has_bank() ? static_cast<uint16_t>(std::min<uint32_t>(object.flags().bank().waypoints(), std::numeric_limits<uint16_t>::max())) : 0;
 			t->sprite->minimap_color = object.flags().has_automap() ? static_cast<uint16_t>(object.flags().automap().color()) : 0;
 			t->sprite->draw_height = object.flags().has_height() ? static_cast<uint16_t>(object.flags().height().elevation()) : 0;
 			if (object.flags().has_shift()) {

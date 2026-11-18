@@ -385,17 +385,27 @@ void Tile::addLoadedItem(Item* item, const ItemType &type) {
 		return;
 	}
 
-	const bool createsGroundEquivalent = !type.isGroundTile() && type.ground_equivalent != 0;
-	addItem(item, type);
-
 	if (type.isGroundTile()) {
+		addItem(item, type);
 		updateStateForItem(item, type);
 		return;
 	}
 
-	if (createsGroundEquivalent && ground) {
-		updateStateForItem(ground, ground->getItemType());
+	if (items.empty()) {
+		constexpr size_t initialTileItemCapacity = 4;
+		items.reserve(initialTileItemCapacity);
 	}
+
+	if (type.ground_equivalent != 0) {
+		delete ground;
+		ground = Item::Create(type.ground_equivalent);
+		if (ground) {
+			updateStateForItem(ground, ground->getItemType());
+		}
+	}
+
+	// The file already contains the draw order chosen in Browse Field.
+	items.emplace_back(item);
 	updateStateForItem(item, type);
 }
 
@@ -756,6 +766,21 @@ Item* Tile::getWall() const {
 		}
 	}
 	return nullptr;
+}
+
+bool Tile::hasBorderBlockingWall() const {
+	return std::ranges::any_of(items, [](const Item* item) {
+		if (!item->isWall()) {
+			return false;
+		}
+
+		if (const WallBrush* brush = item->getWallBrush(); brush && brush->isWallDecoration()) {
+			return false;
+		}
+
+		// Walls that can be seen through, like rope bridges, leave the terrain connected
+		return item->isBrushDoor() || item->isBlockMissiles();
+	});
 }
 
 Item* Tile::getCarpet() const {

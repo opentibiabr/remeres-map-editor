@@ -24,6 +24,7 @@
 #include "map.h"
 #include "client_assets.h"
 #include "complexitem.h"
+#include "creature_directories.h"
 #include "settings.h"
 #include "gui.h"
 #include "map_display.h"
@@ -120,6 +121,9 @@ Editor::Editor(CopyBuffer &copybuffer, const FileName &fn) :
 	bool success = true;
 	wxString error;
 	wxArrayString warnings;
+
+	// The creatures of the datapack of this map load together with the rest of the data
+	adoptCreatureDirectories(findCreatureDirectories(fn));
 
 	success = g_gui.loadMapWindow(error, warnings);
 	if (!success) {
@@ -1792,7 +1796,7 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 			Tile* tile = location->get();
 			if (tile) {
 				Tile* new_tile = tile->deepCopy(map);
-				if (g_settings.getInteger(Config::USE_AUTOMAGIC)) {
+				if (g_settings.getInteger(Config::USE_AUTOMAGIC) && (brush->isEraser() || !new_tile->hasBorderBlockingWall())) {
 					new_tile->cleanBorders();
 				}
 				if (dodraw) {
@@ -1983,6 +1987,11 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 					if (tile) {
 						Tile* new_tile = tile->deepCopy(map);
 						new_tile->wallize(&map);
+						// What used to cross this wall goes away now that the wall is there
+						if (!new_tile->hasBorderBlockingWall()) {
+							new_tile->cleanBorders();
+						}
+						new_tile->borderize(&map);
 						// if(*tile == *new_tile) delete new_tile;
 						action->addChange(newd Change(new_tile));
 					}

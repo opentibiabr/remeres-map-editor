@@ -21,8 +21,51 @@
 #include "editor.h"
 #include "client_assets.h"
 #include "gui.h"
+#include "monsters.h"
+#include "npcs.h"
 
 #include "preferences.h"
+
+namespace {
+	struct CreatureDirectoryChange {
+		bool applied = false;
+		bool needsRestart = false;
+	};
+
+	template <typename Database>
+	CreatureDirectoryChange applyCreatureLuaDirectory(Config::Key setting, const wxString &selectedPath, Database &database, const wxString &name, wxArrayString &warnings) {
+		const std::string previousPath = g_settings.getString(setting);
+		const std::string newPath = nstr(selectedPath);
+		if (newPath == previousPath) {
+			return {};
+		}
+
+		if (!newPath.empty()) {
+			const wxString directory(newPath);
+			if (!wxDir::Exists(directory)) {
+				warnings.push_back(name + " Lua directory does not exist: " + directory);
+				return {};
+			}
+			if (ClientAssets::isLoaded()) {
+				wxString error;
+				wxArrayString loadWarnings;
+				const bool loaded = database.loadFromDirectory(directory, error, loadWarnings);
+				if (!loaded) {
+					warnings.push_back(error);
+				}
+				for (const auto &warning : loadWarnings) {
+					warnings.push_back(warning);
+				}
+				if (!loaded) {
+					return {};
+				}
+			}
+		}
+
+		g_settings.setString(setting, newPath);
+		return { true, !previousPath.empty() };
+	}
+}
 
 BEGIN_EVENT_TABLE(PreferencesWindow, wxDialog)
 EVT_BUTTON(wxID_OK, PreferencesWindow::OnClickOK)
@@ -561,7 +604,7 @@ wxNotebookPage* PreferencesWindow::CreateClientPage() {
 	tmp_text->SetToolTip(tooltip);
 	version_dir_picker->SetToolTip(tooltip);
 
-	wxStaticText* monsters_lua_text = newd wxStaticText(client_list_window, wxID_ANY, wxString("Monsters Lua directory:"));
+	wxStaticText* monsters_lua_text = newd wxStaticText(client_list_window, wxID_ANY, wxString("Monsters directory:"));
 	client_list_sizer->Add(monsters_lua_text, wxSizerFlags(0).Expand());
 
 	wxBoxSizer* monsters_path_sizer = newd wxBoxSizer(wxHORIZONTAL);
@@ -572,10 +615,10 @@ wxNotebookPage* PreferencesWindow::CreateClientPage() {
 	monsters_path_sizer->Add(monsters_lua_dir_picker, wxSizerFlags(1).Expand());
 	monsters_path_sizer->Add(monsters_browse_button, wxSizerFlags(0).Border(wxLEFT, 5));
 	client_list_sizer->Add(monsters_path_sizer, wxSizerFlags(0).Border(wxRIGHT, 10).Expand());
-	monsters_lua_text->SetToolTip("Path to Canary server monster Lua files (e.g. data-otservbr-global/monster/)");
-	monsters_lua_dir_picker->SetToolTip("Path to Canary server monster Lua files (e.g. data-otservbr-global/monster/)");
+	monsters_lua_text->SetToolTip("Path to the server monster files, Lua or XML (e.g. data-otservbr-global/monster/ or data/monster/)");
+	monsters_lua_dir_picker->SetToolTip("Path to the server monster files, Lua or XML (e.g. data-otservbr-global/monster/ or data/monster/)");
 
-	wxStaticText* npcs_lua_text = newd wxStaticText(client_list_window, wxID_ANY, wxString("NPCs Lua directory:"));
+	wxStaticText* npcs_lua_text = newd wxStaticText(client_list_window, wxID_ANY, wxString("NPCs directory:"));
 	client_list_sizer->Add(npcs_lua_text, wxSizerFlags(0).Expand());
 
 	wxBoxSizer* npcs_path_sizer = newd wxBoxSizer(wxHORIZONTAL);
@@ -586,8 +629,8 @@ wxNotebookPage* PreferencesWindow::CreateClientPage() {
 	npcs_path_sizer->Add(npcs_lua_dir_picker, wxSizerFlags(1).Expand());
 	npcs_path_sizer->Add(npcs_browse_button, wxSizerFlags(0).Border(wxLEFT, 5));
 	client_list_sizer->Add(npcs_path_sizer, wxSizerFlags(0).Border(wxRIGHT, 10).Expand());
-	npcs_lua_text->SetToolTip("Path to Canary server NPC Lua files (e.g. data-otservbr-global/npc/)");
-	npcs_lua_dir_picker->SetToolTip("Path to Canary server NPC Lua files (e.g. data-otservbr-global/npc/)");
+	npcs_lua_text->SetToolTip("Path to the server NPC files, Lua, XML or .npc (e.g. data-otservbr-global/npc/ or data/npc/)");
+	npcs_lua_dir_picker->SetToolTip("Path to the server NPC files, Lua, XML or .npc (e.g. data-otservbr-global/npc/ or data/npc/)");
 
 	client_list_sizer->Add(new wxStaticText(client_list_window, wxID_ANY, "World catalog (.world.json):"), 0, wxTOP, 10);
 	auto world_path_sizer = new wxBoxSizer(wxHORIZONTAL);
@@ -643,7 +686,7 @@ void PreferencesWindow::OnBrowseClientPath(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void PreferencesWindow::OnBrowseMonstersPath(wxCommandEvent &WXUNUSED(event)) {
-	wxDirDialog dialog(this, "Select monsters Lua directory", monsters_lua_dir_picker->GetValue(), wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+	wxDirDialog dialog(this, "Select monsters directory", monsters_lua_dir_picker->GetValue(), wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
 	if (dialog.ShowModal() == wxID_OK) {
 		wxString path = dialog.GetPath();
 		monsters_lua_dir_picker->SetValue(path);
@@ -652,7 +695,7 @@ void PreferencesWindow::OnBrowseMonstersPath(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void PreferencesWindow::OnBrowseNpcsPath(wxCommandEvent &WXUNUSED(event)) {
-	wxDirDialog dialog(this, "Select NPCs Lua directory", npcs_lua_dir_picker->GetValue(), wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+	wxDirDialog dialog(this, "Select NPCs directory", npcs_lua_dir_picker->GetValue(), wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
 	if (dialog.ShowModal() == wxID_OK) {
 		wxString path = dialog.GetPath();
 		npcs_lua_dir_picker->SetValue(path);
@@ -782,8 +825,6 @@ void PreferencesWindow::Apply() {
 	g_settings.setFloat(Config::SCROLL_SPEED, scroll_mul * scroll_speed_slider->GetValue() / 10.f);
 	g_settings.setFloat(Config::ZOOM_SPEED, zoom_speed_slider->GetValue() / 10.f);
 
-	g_settings.setString(Config::MONSTERS_LUA_DIRECTORY, nstr(monsters_lua_dir_picker->GetValue()));
-	g_settings.setString(Config::NPCS_LUA_DIRECTORY, nstr(npcs_lua_dir_picker->GetValue()));
 	if (g_settings.getString(Config::WORLD_CATALOG_FILE) != nstr(world_catalog_picker->GetValue())) {
 		g_settings.setString(Config::WORLD_CATALOG_MAP_FILE, "");
 	}
@@ -793,16 +834,16 @@ void PreferencesWindow::Apply() {
 	ClientAssets::save();
 	ClientAssets::load();
 
+	wxArrayString luaWarnings;
+	const auto monstersLuaChange = applyCreatureLuaDirectory(Config::MONSTERS_LUA_DIRECTORY, monsters_lua_dir_picker->GetValue(), g_monsters, "Monsters", luaWarnings);
+	const auto npcsLuaChange = applyCreatureLuaDirectory(Config::NPCS_LUA_DIRECTORY, npcs_lua_dir_picker->GetValue(), g_npcs, "NPCs", luaWarnings);
 	g_settings.save();
 
 	if (must_restart) {
 		g_gui.PopupDialog(this, "Notice", "You must restart the editor for the changes to take effect.", wxOK);
 	}
 
-	if (!palette_update_needed) {
-		// update palette icons
-		g_gui.RebuildPalettes();
-	} else {
+	if (palette_update_needed) {
 		// change palette structure
 		wxString error;
 		wxArrayString warnings;
@@ -810,5 +851,16 @@ void PreferencesWindow::Apply() {
 			g_gui.PopupDialog("Error", error, wxOK);
 			g_gui.ListDialog("Warnings", warnings);
 		}
+	}
+	if (!palette_update_needed || monstersLuaChange.applied || npcsLuaChange.applied) {
+		// update palette settings and creature lists
+		g_gui.RebuildPalettes();
+	}
+	if (monstersLuaChange.applied || npcsLuaChange.applied) {
+		g_gui.RefreshView();
+	}
+	g_gui.ListDialog("Warnings", luaWarnings);
+	if (monstersLuaChange.needsRestart || npcsLuaChange.needsRestart) {
+		g_gui.PopupDialog(this, "Notice", "Restart the editor to remove definitions from the previous Lua directories.", wxOK);
 	}
 }

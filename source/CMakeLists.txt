@@ -205,11 +205,13 @@ target_sources(
           browse_tile_window.cpp
           positionctrl.cpp
           carpet_brush.cpp
+          building_walls.cpp
           client_assets.cpp
           common.cpp
           common_windows.cpp
           complexitem.cpp
           container_properties_window.cpp
+          creature_directories.cpp
           copybuffer.cpp
           monster_brush.cpp
           monster.cpp
@@ -295,6 +297,7 @@ target_sources(
           process_com.cpp
           properties_window.cpp
           raw_brush.cpp
+          replace_building_walls_window.cpp
           replace_items_window.cpp
           result_window.cpp
           rme_net.cpp

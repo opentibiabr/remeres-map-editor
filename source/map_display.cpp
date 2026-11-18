@@ -34,6 +34,8 @@
 #include "application.h"
 #include "live_server.h"
 #include "browse_tile_window.h"
+#include "building_walls.h"
+#include "replace_building_walls_window.h"
 
 #include "main_menubar.h"
 
@@ -92,6 +94,7 @@ EVT_MENU(MAP_POPUP_MENU_SELECT_GROUND_BRUSH, MapCanvas::OnSelectGroundBrush)
 EVT_MENU(MAP_POPUP_MENU_SELECT_DOODAD_BRUSH, MapCanvas::OnSelectDoodadBrush)
 EVT_MENU(MAP_POPUP_MENU_SELECT_DOOR_BRUSH, MapCanvas::OnSelectDoorBrush)
 EVT_MENU(MAP_POPUP_MENU_SELECT_WALL_BRUSH, MapCanvas::OnSelectWallBrush)
+EVT_MENU(MAP_POPUP_MENU_REPLACE_BUILDING_WALLS, MapCanvas::OnReplaceBuildingWalls)
 EVT_MENU(MAP_POPUP_MENU_SELECT_CARPET_BRUSH, MapCanvas::OnSelectCarpetBrush)
 EVT_MENU(MAP_POPUP_MENU_SELECT_TABLE_BRUSH, MapCanvas::OnSelectTableBrush)
 EVT_MENU(MAP_POPUP_MENU_SELECT_MONSTER_BRUSH, MapCanvas::OnSelectMonsterBrush)
@@ -108,7 +111,7 @@ END_EVENT_TABLE()
 
 bool MapCanvas::processed[] = { 0 };
 
-MapCanvas::MapCanvas(MapWindow* parent, Editor &editor, int* attriblist) :
+MapCanvas::MapCanvas(wxWindow* parent, Editor &editor, int* attriblist) :
 	wxGLCanvas(parent, wxID_ANY, attriblist, wxDefaultPosition, wxDefaultSize, wxWANTS_CHARS),
 	editor(editor),
 	floor(rme::MapGroundLayer),
@@ -193,7 +196,7 @@ void MapCanvas::SetZoom(double value) {
 		GetScreenCenter(&center_x, &center_y);
 
 		zoom = value;
-		GetMapWindow()->SetScreenCenterPosition(Position(center_x, center_y, floor));
+		CenterViewOnPosition(Position(center_x, center_y, floor));
 
 		UpdatePositionStatus();
 		UpdateZoomStatus();
@@ -205,6 +208,37 @@ void MapCanvas::GetViewBox(int* view_scroll_x, int* view_scroll_y, int* screensi
 	MapWindow* window = GetMapWindow();
 	window->GetViewSize(screensize_x, screensize_y);
 	window->GetViewStart(view_scroll_x, view_scroll_y);
+}
+
+void MapCanvas::SetPreviewMap(BaseMap* map) {
+	preview_map = map;
+	Refresh();
+}
+
+Tile* MapCanvas::GetPreviewTile(const Position &position) const {
+	return preview_map ? preview_map->getTile(position) : nullptr;
+}
+
+void MapCanvas::SetPreviewFocus(const std::set<Position>* tiles) {
+	preview_focus = tiles;
+	Refresh();
+}
+
+bool MapCanvas::IsPreviewDimmed(const Position &position) const {
+	return preview_focus && preview_focus->count(position) == 0;
+}
+
+void MapCanvas::ConfigureDrawingOptions(DrawingOptions &WXUNUSED(options)) {
+	////
+}
+
+void MapCanvas::CenterViewOnPosition(const Position &position) {
+	GetMapWindow()->SetScreenCenterPosition(position);
+}
+
+void MapCanvas::OnFloorChanged() {
+	g_gui.root->UpdateFloorMenu();
+	g_gui.UpdateMinimap(true);
 }
 
 void MapCanvas::OnPaint(wxPaintEvent &event) {
@@ -250,6 +284,7 @@ void MapCanvas::OnPaint(wxPaintEvent &event) {
 		}
 
 		options.dragging = boundbox_selection;
+		ConfigureDrawingOptions(options);
 
 		const bool animate_position_indicator = drawer->GetPositionIndicatorTime() != 0;
 		const bool animate_preview = options.show_preview && zoom <= 2.0f;
@@ -1967,7 +2002,15 @@ void MapCanvas::OnKeyDown(wxKeyEvent &event) {
 			break;
 		}
 		case 'z':
-		case 'Z': { // Rotate counterclockwise (actually shift variaton, but whatever... :P)
+		case 'Z': { // Rotate items, otherwise rotate counterclockwise (actually shift variaton, but whatever... :P)
+			if (g_gui.IsSelectionMode()) {
+				RotateSelectedItems();
+				break;
+			}
+			if (g_gui.GetCurrentBrush() && g_gui.GetCurrentBrush()->isRaw()) {
+				RotateCurrentRawBrush();
+				break;
+			}
 			int nv = g_gui.GetBrushVariation();
 			--nv;
 			if (nv < 0) {
@@ -2186,6 +2229,9 @@ bool MapCanvas::DispatchMenuShortcut(wxKeyEvent &event) {
 			case 'N':
 				menuId = static_cast<int>(MenuBar::SHOW_NPCS);
 				break;
+			case 'Z':
+				menuId = static_cast<int>(MenuBar::SELECT_ZONES);
+				break;
 		}
 	} else {
 		switch (key) {
@@ -2394,35 +2440,53 @@ void MapCanvas::OnBrowseTile(wxCommandEvent &WXUNUSED(event)) {
 }
 
 void MapCanvas::OnRotateItem(wxCommandEvent &WXUNUSED(event)) {
+	RotateSelectedItems();
+}
+
+void MapCanvas::RotateSelectedItems() {
 	if (!editor.hasSelection()) {
 		return;
 	}
 
-	Selection &selection = editor.getSelection();
-	if (selection.size() != 1) {
-		return;
-	}
-
-	Tile* tile = selection.getSelectedTile();
-	ItemVector items = tile->getSelectedItems();
-	if (items.empty()) {
-		return;
-	}
-
-	Item* item = items.front();
-	if (!item || !item->isRoteable()) {
-		return;
-	}
-
 	Action* action = editor.createAction(ACTION_ROTATE_ITEM);
-	Tile* new_tile = tile->deepCopy(editor.getMap());
-	Item* new_item = new_tile->getSelectedItems().front();
-	new_item->doRotate();
-	action->addChange(new Change(new_tile));
+	for (Tile* tile : editor.getSelection()) {
+		bool has_roteable = false;
+		for (Item* item : tile->getSelectedItems()) {
+			if (item->isRoteable()) {
+				has_roteable = true;
+				break;
+			}
+		}
+		if (!has_roteable) {
+			continue;
+		}
+
+		Tile* new_tile = tile->deepCopy(editor.getMap());
+		new_tile->setStatFlags(TILESTATE_SELECTED);
+		for (Item* item : new_tile->getSelectedItems()) {
+			if (item->isRoteable()) {
+				item->doRotate();
+			}
+		}
+		action->addChange(newd Change(new_tile));
+	}
 
 	editor.addAction(action);
 	editor.updateActions();
 	g_gui.RefreshView();
+}
+
+void MapCanvas::RotateCurrentRawBrush() {
+	const auto type = g_gui.GetCurrentBrush()->asRaw()->getItemType();
+	if (!type || type->rotateTo == 0) {
+		return;
+	}
+
+	RAWBrush* rotated_brush = g_items.getItemType(type->rotateTo).raw_brush;
+	if (rotated_brush && !g_gui.SelectBrush(rotated_brush)) {
+		// The rotated item is not always listed in a palette
+		g_gui.SelectBrushInternal(rotated_brush);
+	}
 }
 
 void MapCanvas::OnGotoDestination(wxCommandEvent &WXUNUSED(event)) {
@@ -2541,6 +2605,22 @@ void MapCanvas::OnSelectWallBrush(wxCommandEvent &WXUNUSED(event)) {
 
 	if (wb) {
 		g_gui.SelectBrush(wb, TILESET_TERRAIN);
+	}
+}
+
+void MapCanvas::OnReplaceBuildingWalls(wxCommandEvent &WXUNUSED(event)) {
+	if (editor.getSelection().size() != 1) {
+		return;
+	}
+
+	Tile* tile = editor.getSelection().getSelectedTile();
+	if (!hasBuildingWall(tile)) {
+		return;
+	}
+
+	ReplaceBuildingWallsDialog dialog(this, editor, tile->getPosition());
+	if (dialog.ShowModal() == wxID_OK) {
+		Refresh();
 	}
 }
 
@@ -2737,8 +2817,7 @@ void MapCanvas::ChangeFloor(int new_floor) {
 	floor = new_floor;
 	if (old_floor != new_floor) {
 		UpdatePositionStatus();
-		g_gui.root->UpdateFloorMenu();
-		g_gui.UpdateMinimap(true);
+		OnFloorChanged();
 	}
 	Refresh();
 }
@@ -2845,6 +2924,8 @@ void MapPopupMenu::Update() {
 			std::vector<Monster*> selectedMonsters = tile->getSelectedMonsters();
 
 			bool hasWall = false;
+			// Rebuilding a building needs tiles that a live client may not have loaded
+			const bool canReplaceWalls = !editor.IsLive() && hasBuildingWall(tile);
 			bool hasCarpet = false;
 			bool hasTable = false;
 			Item* topItem = nullptr;
@@ -2942,6 +3023,9 @@ void MapPopupMenu::Update() {
 				if (hasWall) {
 					Append(MAP_POPUP_MENU_SELECT_WALL_BRUSH, "Select Wallbrush", "Uses the current item as a wallbrush");
 				}
+				if (canReplaceWalls) {
+					Append(MAP_POPUP_MENU_REPLACE_BUILDING_WALLS, "Replace Building Walls...", "Replaces the walls of this building with another wall style");
+				}
 
 				if (hasCarpet) {
 					Append(MAP_POPUP_MENU_SELECT_CARPET_BRUSH, "Select Carpetbrush", "Uses the current item as a carpetbrush");
@@ -2990,6 +3074,9 @@ void MapPopupMenu::Update() {
 				Append(MAP_POPUP_MENU_SELECT_RAW_BRUSH, "Select RAW", "Uses the top item as a RAW brush");
 				if (hasWall) {
 					Append(MAP_POPUP_MENU_SELECT_WALL_BRUSH, "Select Wallbrush", "Uses the current item as a wallbrush");
+				}
+				if (canReplaceWalls) {
+					Append(MAP_POPUP_MENU_REPLACE_BUILDING_WALLS, "Replace Building Walls...", "Replaces the walls of this building with another wall style");
 				}
 				if (tile->hasGround() && tile->getGroundBrush() && tile->getGroundBrush()->visibleInPalette()) {
 					Append(MAP_POPUP_MENU_SELECT_GROUND_BRUSH, "Select Groundbrush", "Uses the current tile as a groundbrush");

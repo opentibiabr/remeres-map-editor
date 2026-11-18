@@ -180,7 +180,9 @@ void BitmapToMapConverter::placeGroundTiles(
 
 			if (tile) {
 				new_tile = tile->deepCopy(map);
-				new_tile->cleanBorders();
+				if (!new_tile->hasBorderBlockingWall()) {
+					new_tile->cleanBorders();
+				}
 			} else {
 				new_tile = map.allocator(location);
 			}
