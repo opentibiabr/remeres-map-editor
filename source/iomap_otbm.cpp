@@ -5822,7 +5822,10 @@ bool IOMapOTBM::saveMap(Map &map, const FileName &identifier) {
 		return false;
 	}
 
-	if (!saveMap(map, f)) {
+	const bool serialized = saveMap(map, f);
+	f.close();
+	if (!serialized || f.error_code != FILE_NO_ERROR) {
+		error("Could not finish writing the OTBM file.");
 		return false;
 	}
 
@@ -5941,8 +5944,7 @@ bool IOMapOTBM::saveMap(Map &map, NodeFileWriteHandle &f) {
 		}
 		f.endNode();
 	}
-	f.endNode();
-	return true;
+	return f.endNode();
 }
 
 bool IOMapOTBM::saveSpawns(Map &map, const FileName &dir) {
