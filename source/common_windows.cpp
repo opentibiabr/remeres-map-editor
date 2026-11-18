@@ -55,7 +55,7 @@ namespace {
 		return positions;
 	}
 
-	std::string formatDuplicateDoorIDMessage(const DoorIDPositions &duplicatePositions) {
+	std::string formatDuplicateDoorIDMessage(const DoorIDPositions &duplicatePositions, bool canRenumber) {
 		std::ostringstream message;
 		message << "Duplicate door IDs were found in this house:\n";
 		for (const auto &[doorID, positions] : duplicatePositions) {
@@ -63,6 +63,10 @@ namespace {
 			for (const auto &position : positions) {
 				message << "\n  (" << position.x << ", " << position.y << ", " << position.z << ")";
 			}
+		}
+		if (!canRenumber) {
+			message << "\n\nAsk the Live host to renumber the doors in this house.";
+			return message.str();
 		}
 		message << "\n\nChoose OK to renumber every door in this house. Changes to this door's properties will be saved with the renumbering. Other pending Browse Field changes will be discarded, and Browse Field will close if open. Renumbering uses the latest live tiles and preserves concurrent edits to other live items. Choose Cancel to return to the door properties without saving.";
 		return message.str();
@@ -172,15 +176,18 @@ DuplicateDoorIDChoice ShowDuplicateDoorIDsDialog(wxWindow* parent, const House &
 	if (duplicatePositions.empty()) {
 		return Continue;
 	}
-	const auto message = formatDuplicateDoorIDMessage(duplicatePositions);
-	const long choice = g_gui.PopupDialog(parent, "Duplicate House Door IDs", wxString::FromUTF8(message.c_str()), wxOK | wxCANCEL);
-	if (choice != wxID_OK) {
+	const Editor* currentEditor = g_gui.GetCurrentEditor();
+	const bool canRenumber = !currentEditor || !currentEditor->IsLiveClient();
+	const auto message = formatDuplicateDoorIDMessage(duplicatePositions, canRenumber);
+	const long buttons = canRenumber ? (wxOK | wxCANCEL) : (wxOK | wxICON_WARNING);
+	const long choice = g_gui.PopupDialog(parent, "Duplicate House Door IDs", wxString::FromUTF8(message.c_str()), buttons);
+	if (!canRenumber || choice != wxID_OK) {
 		return Cancel;
 	}
 
 	Editor* editor = g_gui.GetCurrentEditor();
-	if (!editor || editor->getMap().houses.getHouse(house.id) != &house) {
-		g_gui.PopupDialog(parent, "Error", "The house is no longer available in the current map.", wxOK | wxICON_ERROR);
+	if (!editor || editor->IsLiveClient() || editor->getMap().houses.getHouse(house.id) != &house) {
+		g_gui.PopupDialog(parent, "Error", "Door renumbering is no longer available in the current editor.", wxOK | wxICON_ERROR);
 		return Cancel;
 	}
 
