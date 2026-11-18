@@ -52,6 +52,7 @@ public:
 	// Event handling
 	void OnChangeSpawnMonsterTime(wxSpinEvent &event);
 	void OnChangeSpawnMonsterSize(wxSpinEvent &event);
+	void OnChangeDefaultMonsterWeight(wxSpinEvent &event);
 
 	void OnTilesetChange(wxCommandEvent &event);
 	void OnListBoxChange(wxCommandEvent &event);
