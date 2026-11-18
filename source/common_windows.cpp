@@ -64,7 +64,7 @@ namespace {
 				message << "\n  (" << position.x << ", " << position.y << ", " << position.z << ")";
 			}
 		}
-		message << "\n\nChoose OK to renumber every door in this house. Pending property and Browse Field changes will be discarded. Browse Field will close if open. Renumbering uses the latest live tiles and changes only door IDs, preserving concurrent remote edits. Choose Cancel to return to the door properties without saving.";
+		message << "\n\nChoose OK to renumber every door in this house. Changes to this door's properties will be saved with the renumbering. Other pending Browse Field changes will be discarded, and Browse Field will close if open. Renumbering uses the latest live tiles and preserves concurrent edits to other live items. Choose Cancel to return to the door properties without saving.";
 		return message.str();
 	}
 
@@ -111,7 +111,7 @@ namespace {
 		return doorCount;
 	}
 
-	std::unique_ptr<Action> createHouseDoorRenumberAction(Editor &editor, Map &map, const House &house, const std::vector<Position> &tilePositions) {
+	std::unique_ptr<Action> createHouseDoorRenumberAction(Editor &editor, Map &map, const House &house, const std::vector<Position> &tilePositions, const Tile* pendingTile, int pendingItemIndex, const Item* pendingItem) {
 		auto action = std::unique_ptr<Action>(editor.createAction(ACTION_CHANGE_PROPERTIES));
 		uint16_t nextDoorID = 1;
 		for (const Position &position : tilePositions) {
@@ -120,8 +120,17 @@ namespace {
 				continue;
 			}
 			// Live contents win over pending drafts, including concurrent remote edits.
-			// Only the door IDs are changed by this action.
+			// Preserve the explicitly edited item while retaining other live contents.
 			auto updatedTile = std::unique_ptr<Tile>(liveTile->deepCopy(map));
+			if (pendingTile && pendingItem && pendingTile->getPosition() == position && pendingItemIndex >= 0 &&
+				static_cast<size_t>(pendingItemIndex) < pendingTile->items.size() && static_cast<size_t>(pendingItemIndex) < updatedTile->items.size()) {
+				const Item* pendingTileItem = pendingTile->items[pendingItemIndex];
+				const Item* liveItem = updatedTile->items[pendingItemIndex];
+				if (pendingTileItem && liveItem && pendingTileItem->getID() == pendingItem->getID() && liveItem->getID() == pendingItem->getID()) {
+					delete updatedTile->items[pendingItemIndex];
+					updatedTile->items[pendingItemIndex] = pendingItem->deepCopy();
+				}
+			}
 			bool hasDoors = false;
 			for (Item* item : updatedTile->items) {
 				auto* door = dynamic_cast<Door*>(item);
@@ -141,9 +150,22 @@ namespace {
 		return action;
 	}
 
+	bool pendingItemMatchesLiveTile(const Map &map, const House &house, const Tile* pendingTile, int pendingItemIndex, const Item* pendingItem) {
+		if (!pendingTile || !pendingItem || pendingItemIndex < 0 || static_cast<size_t>(pendingItemIndex) >= pendingTile->items.size()) {
+			return false;
+		}
+		const Tile* liveTile = map.getTile(pendingTile->getPosition());
+		if (!liveTile || liveTile->getHouseID() != house.id || static_cast<size_t>(pendingItemIndex) >= liveTile->items.size()) {
+			return false;
+		}
+		const Item* draftItem = pendingTile->items[pendingItemIndex];
+		const Item* liveItem = liveTile->items[pendingItemIndex];
+		return draftItem && liveItem && draftItem->getID() == pendingItem->getID() && liveItem->getID() == pendingItem->getID();
+	}
+
 } // namespace
 
-DuplicateDoorIDChoice ShowDuplicateDoorIDsDialog(wxWindow* parent, const House &house, uint8_t proposedDoorID, const Tile* pendingTile, uint8_t originalDoorID) {
+DuplicateDoorIDChoice ShowDuplicateDoorIDsDialog(wxWindow* parent, const House &house, uint8_t proposedDoorID, const Tile* pendingTile, uint8_t originalDoorID, int pendingItemIndex, const Item* pendingItem) {
 	const auto duplicatePositions = collectDuplicateDoorIDPositions(house, pendingTile, proposedDoorID, originalDoorID);
 	if (duplicatePositions.empty()) {
 		return DuplicateDoorIDChoice::Continue;
@@ -161,13 +183,17 @@ DuplicateDoorIDChoice ShowDuplicateDoorIDsDialog(wxWindow* parent, const House &
 	}
 
 	Map &map = editor->getMap();
+	if (!pendingItemMatchesLiveTile(map, house, pendingTile, pendingItemIndex, pendingItem)) {
+		g_gui.PopupDialog(parent, "Door Changed", "The selected door changed while its properties were open. Renumbering was cancelled; review its properties and try again.", wxOK | wxICON_WARNING);
+		return DuplicateDoorIDChoice::Cancel;
+	}
 	const auto tilePositions = getSortedHouseTilePositions(house, map);
 	if (countHouseDoors(house, map, tilePositions) > 255) {
 		g_gui.PopupDialog(parent, "Cannot Renumber Doors", "This house has more than 255 doors, so unique Door IDs cannot be assigned.", wxOK | wxICON_ERROR);
 		return DuplicateDoorIDChoice::Cancel;
 	}
 
-	auto action = createHouseDoorRenumberAction(*editor, map, house, tilePositions);
+	auto action = createHouseDoorRenumberAction(*editor, map, house, tilePositions, pendingTile, pendingItemIndex, pendingItem);
 	if (!action->empty()) {
 		// Keep whole-house renumbering as one distinct undo step.
 		editor->resetActionsTimer();

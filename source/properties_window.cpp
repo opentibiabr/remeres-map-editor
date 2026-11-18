@@ -26,7 +26,7 @@
 
 namespace {
 
-	DuplicateDoorIDChoice checkDuplicateDoorID(wxWindow* parent, const Map* map, const Tile* tile, uint8_t proposedDoorID, uint8_t originalDoorID) {
+	DuplicateDoorIDChoice checkDuplicateDoorID(wxWindow* parent, const Map* map, const Tile* tile, uint8_t proposedDoorID, uint8_t originalDoorID, int pendingItemIndex, const Item* pendingItem) {
 		if (!g_settings.getInteger(Config::WARN_FOR_DUPLICATE_ID) || !map || !tile || !tile->isHouseTile()) {
 			return DuplicateDoorIDChoice::Continue;
 		}
@@ -34,7 +34,7 @@ namespace {
 		if (!house || !house->hasDoorID(proposedDoorID, tile, originalDoorID)) {
 			return DuplicateDoorIDChoice::Continue;
 		}
-		return ShowDuplicateDoorIDsDialog(parent, *house, proposedDoorID, tile, originalDoorID);
+		return ShowDuplicateDoorIDsDialog(parent, *house, proposedDoorID, tile, originalDoorID, pendingItemIndex, pendingItem);
 	}
 
 } // namespace
@@ -634,6 +634,7 @@ void PropertiesWindow::OnGridValueChanged(wxGridEvent &event) {
 
 void PropertiesWindow::OnClickOK(wxCommandEvent &) {
 	if (Door* door = edit_item->getDoor(); door && doorIdField) {
+		const auto originalDoorID = door->getDoorID();
 		auto doorID = static_cast<uint8_t>(doorIdField->GetValue());
 		for (int32_t rowIndex = 0; rowIndex < attributesGrid->GetNumberRows(); ++rowIndex) {
 			if (attributesGrid->GetCellValue(rowIndex, 0) != "doorid") {
@@ -647,7 +648,17 @@ void PropertiesWindow::OnClickOK(wxCommandEvent &) {
 			doorID = static_cast<uint8_t>(advancedDoorID);
 		}
 		SetAdvancedPropertyNumberData("doorid", doorID);
-		const auto duplicateChoice = checkDuplicateDoorID(this, edit_map, edit_tile, doorID, door->getDoorID());
+		saveAttributesPanel();
+		std::unique_ptr<Item> pendingItem(edit_item->deepCopy());
+		door->setDoorID(originalDoorID);
+		int pendingItemIndex = -1;
+		if (edit_tile) {
+			const auto pendingItemPosition = std::find(edit_tile->items.begin(), edit_tile->items.end(), edit_item);
+			if (pendingItemPosition != edit_tile->items.end()) {
+				pendingItemIndex = static_cast<int>(std::distance(edit_tile->items.begin(), pendingItemPosition));
+			}
+		}
+		const auto duplicateChoice = checkDuplicateDoorID(this, edit_map, edit_tile, doorID, originalDoorID, pendingItemIndex, pendingItem.get());
 		if (duplicateChoice == DuplicateDoorIDChoice::Renumber) {
 			EndModal(DOOR_IDS_RENUMBERED);
 			return;
@@ -655,6 +666,7 @@ void PropertiesWindow::OnClickOK(wxCommandEvent &) {
 		if (duplicateChoice == DuplicateDoorIDChoice::Cancel) {
 			return;
 		}
+		door->setDoorID(doorID);
 	}
 	saveAttributesPanel();
 	EndModal(1);

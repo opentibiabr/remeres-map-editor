@@ -648,18 +648,18 @@ void OldPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 				new_door_id = door_id_field->GetValue();
 			}
 			const Position destination = teleport ? destination_field->GetPosition() : Position();
-			auto applyPendingProperties = [&] {
-				if (teleport) {
-					teleport->setDestination(destination);
+			auto applyPendingProperties = [&](Item* target) {
+				if (Teleport* targetTeleport = target->getTeleport()) {
+					targetTeleport->setDestination(destination);
 				}
-				if (edit_item->canHoldDescription()) {
-					edit_item->setText(new_desc);
+				if (target->canHoldDescription()) {
+					target->setText(new_desc);
 				}
-				if (edit_item->isStackable() || edit_item->isCharged()) {
-					edit_item->setSubtype(new_count);
+				if (target->isStackable() || target->isCharged()) {
+					target->setSubtype(new_count);
 				}
-				if (door) {
-					door->setDoorID(new_door_id);
+				if (Door* targetDoor = target->getDoor()) {
+					targetDoor->setDoorID(new_door_id);
 				}
 			};
 
@@ -686,7 +686,21 @@ void OldPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 					const House* house = edit_map->houses.getHouse(edit_tile->getHouseID());
 					if (house) {
 						if (house->hasDoorID(new_door_id, edit_tile, door->getDoorID())) {
-							const DuplicateDoorIDChoice choice = ShowDuplicateDoorIDsDialog(this, *house, new_door_id, edit_tile, door->getDoorID());
+							std::unique_ptr<Item> pendingItem(edit_item->deepCopy());
+							applyPendingProperties(pendingItem.get());
+							if (uid_changed) {
+								pendingItem->setUniqueID(new_uid);
+							}
+							if (aid_changed) {
+								pendingItem->setActionID(new_aid);
+							}
+							int pendingItemIndex = -1;
+							const auto itemPosition = std::find(edit_tile->items.begin(), edit_tile->items.end(), edit_item);
+							if (itemPosition != edit_tile->items.end()) {
+								pendingItemIndex = static_cast<int>(std::distance(edit_tile->items.begin(), itemPosition));
+							}
+							const uint8_t originalDoorID = door->getDoorID();
+							const DuplicateDoorIDChoice choice = ShowDuplicateDoorIDsDialog(this, *house, new_door_id, edit_tile, originalDoorID, pendingItemIndex, pendingItem.get());
 							if (choice == DuplicateDoorIDChoice::Renumber) {
 								EndModal(DOOR_IDS_RENUMBERED);
 								return;
@@ -700,7 +714,7 @@ void OldPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 			}
 
 			// Done validating, set the values.
-			applyPendingProperties();
+			applyPendingProperties(edit_item);
 		}
 
 		if (uid_changed) {

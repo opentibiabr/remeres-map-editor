@@ -188,8 +188,8 @@ uint8_t House::getEmptyDoorID(const Tile* pendingTile) const {
 		if (!tile) {
 			return;
 		}
-		for (Item* item : tile->items) {
-			auto* door = dynamic_cast<Door*>(item);
+		for (const Item* item : tile->items) {
+			const auto* door = dynamic_cast<const Door*>(item);
 			if (door) {
 				taken.insert(door->getDoorID());
 			}
