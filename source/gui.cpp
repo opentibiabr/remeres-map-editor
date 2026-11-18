@@ -1548,11 +1548,11 @@ bool GUI::CanRedo() {
 bool GUI::DoUndo() {
 	Editor* editor = GetCurrentEditor();
 	if (editor && editor->canUndo()) {
+		SetStatusText("Undo action");
 		editor->undo();
 		if (editor->hasSelection()) {
 			SetSelectionMode();
 		}
-		SetStatusText("Undo action");
 		UpdateMinimap();
 		root->UpdateMenubar();
 		RefreshView();
@@ -1564,11 +1564,11 @@ bool GUI::DoUndo() {
 bool GUI::DoRedo() {
 	Editor* editor = GetCurrentEditor();
 	if (editor && editor->canRedo()) {
+		SetStatusText("Redo action");
 		editor->redo();
 		if (editor->hasSelection()) {
 			SetSelectionMode();
 		}
-		SetStatusText("Redo action");
 		UpdateMinimap();
 		root->UpdateMenubar();
 		RefreshView();

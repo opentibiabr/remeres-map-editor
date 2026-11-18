@@ -277,6 +277,7 @@ public:
 
 protected:
 	static wxString createLabel(ActionIdentifier type);
+	void discardRetiredBatch(size_t index);
 
 	size_t current;
 	size_t memory_size;

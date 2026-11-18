@@ -768,7 +768,11 @@ void ActionQueue::generateLabels() {
 bool ActionQueue::undo() {
 	if (current > 0) {
 		BatchAction* batch = actions.at(current - 1);
-		if (!batch || !batch->undo()) {
+		if (!batch->undo()) {
+			if (batch->retired) {
+				discardRetiredBatch(--current);
+				return true;
+			}
 			return false;
 		}
 		current--;
@@ -789,7 +793,11 @@ bool ActionQueue::undo() {
 bool ActionQueue::redo() {
 	if (current < actions.size()) {
 		BatchAction* batch = actions.at(current);
-		if (!batch || !batch->redo()) {
+		if (!batch->redo()) {
+			if (batch->retired) {
+				discardRetiredBatch(current);
+				return true;
+			}
 			return false;
 		}
 		current++;
@@ -805,6 +813,13 @@ bool ActionQueue::redo() {
 		return true;
 	}
 	return false;
+}
+
+void ActionQueue::discardRetiredBatch(size_t index) {
+	BatchAction* batch = actions.at(index);
+	memory_size -= batch->memsize();
+	actions.erase(actions.begin() + index);
+	delete batch;
 }
 
 bool ActionQueue::hasChanges() const {
