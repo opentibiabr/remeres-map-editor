@@ -40,6 +40,8 @@
 
 #include "../brushes/icon/rme_icon.xpm"
 
+#include <wx/sysopt.h>
+
 BEGIN_EVENT_TABLE(MainFrame, wxFrame)
 EVT_CLOSE(MainFrame::OnExit)
 
@@ -107,6 +109,15 @@ bool Application::OnInit() {
 
 	mt_seed(time(nullptr));
 	srand(time(nullptr));
+
+#if defined(wxHAS_EGL) && defined(wxHAS_GLX)
+	// Under X11, wx defaults to EGL, which fails to create a window surface
+	// with some drivers (NVIDIA). GLX is the established X11 path. Wayland
+	// always uses EGL. Setting wx_opengl_egl in the environment overrides this.
+	if (!wxSystemOptions::HasOption("opengl.egl")) {
+		wxGLCanvas::PreferGLX();
+	}
+#endif
 
 	// Discover data directory
 	g_gui.discoverDataDirectory("clients.xml");
