@@ -526,7 +526,7 @@ void DoorBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 				ASSERT(house);
 				Map* real_map = dynamic_cast<Map*>(map);
 				if (real_map) {
-					door->setDoorID(house->getEmptyDoorID());
+					door->setDoorID(house->getEmptyDoorID(tile));
 				}
 			}
 		}

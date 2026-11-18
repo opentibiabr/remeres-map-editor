@@ -160,7 +160,7 @@ void House::addTile(Tile* tile) {
 	ASSERT(tile);
 	tile->setHouse(this);
 	const Position &position = tile->getPosition();
-	if (std::find(tiles.begin(), tiles.end(), position) == tiles.end()) {
+	if (tilePositionIndex.insert(position).second) {
 		tiles.push_back(position);
 	}
 }
@@ -168,6 +168,7 @@ void House::addTile(Tile* tile) {
 void House::removeTile(Tile* tile) {
 	ASSERT(tile);
 	bool removed = false;
+	tilePositionIndex.erase(tile->getPosition());
 	for (auto tile_iter = tiles.begin(); tile_iter != tiles.end();) {
 		if (*tile_iter == tile->getPosition()) {
 			tile_iter = tiles.erase(tile_iter);
@@ -181,20 +182,31 @@ void House::removeTile(Tile* tile) {
 	}
 }
 
-uint8_t House::getEmptyDoorID() const {
+uint8_t House::getEmptyDoorID(const Tile* pendingTile) const {
 	std::set<uint8_t> taken;
-	for (const Position &tilePosition : tiles) {
-		const Tile* tile = map->getTile(tilePosition);
-		if (!tile || tile->getHouseID() != id) {
-			continue;
+	const auto addDoorIDs = [&taken](const Tile* tile) {
+		if (!tile) {
+			return;
 		}
 		for (Item* item : tile->items) {
 			auto* door = dynamic_cast<Door*>(item);
-			if (!door) {
-				continue;
+			if (door) {
+				taken.insert(door->getDoorID());
 			}
-			taken.insert(door->getDoorID());
 		}
+	};
+	bool pendingTileIncluded = false;
+	for (const Position &tilePosition : tiles) {
+		const bool isPendingTile = pendingTile && pendingTile->getPosition() == tilePosition;
+		const Tile* tile = isPendingTile ? pendingTile : map->getTile(tilePosition);
+		if (!tile || tile->getHouseID() != id) {
+			continue;
+		}
+		addDoorIDs(tile);
+		pendingTileIncluded = pendingTileIncluded || isPendingTile;
+	}
+	if (pendingTile && !pendingTileIncluded && pendingTile->getHouseID() == id) {
+		addDoorIDs(pendingTile);
 	}
 
 	for (int i = 1; i < 256; ++i) {

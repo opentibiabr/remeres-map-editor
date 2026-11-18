@@ -50,7 +50,7 @@ public:
 	const Position &getExit() const noexcept {
 		return exit;
 	}
-	uint8_t getEmptyDoorID() const;
+	uint8_t getEmptyDoorID(const Tile* pendingTile = nullptr) const;
 	bool hasDoorID(uint8_t doorID, const Tile* pendingTile, uint8_t excludedDoorID) const;
 	std::map<uint8_t, std::vector<Position>> getDoorIDPositions(const Tile* pendingTile, uint8_t excludedDoorID) const;
 
@@ -61,6 +61,7 @@ public:
 protected:
 	Map* map;
 	PositionList tiles;
+	std::set<Position> tilePositionIndex;
 	Position exit;
 
 	friend class Houses;

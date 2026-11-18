@@ -72,7 +72,13 @@ namespace {
 		std::vector<Position> tilePositions;
 		for (auto mapIterator = map.begin(); mapIterator != map.end(); ++mapIterator) {
 			const Tile* tile = (*mapIterator)->get();
-			if (tile && tile->getHouseID() == house.id) {
+			if (!tile || tile->getHouseID() != house.id) {
+				continue;
+			}
+			const bool hasDoor = std::any_of(tile->items.begin(), tile->items.end(), [](const Item* item) {
+				return dynamic_cast<const Door*>(item) != nullptr;
+			});
+			if (hasDoor) {
 				tilePositions.push_back(tile->getPosition());
 			}
 		}
