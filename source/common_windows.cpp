@@ -122,8 +122,7 @@ namespace {
 			// Live contents win over pending drafts, including concurrent remote edits.
 			// Preserve the explicitly edited item while retaining other live contents.
 			auto updatedTile = std::unique_ptr<Tile>(liveTile->deepCopy(map));
-			if (pendingTile && pendingItem && pendingTile->getPosition() == position && pendingItemIndex >= 0 &&
-				static_cast<size_t>(pendingItemIndex) < pendingTile->items.size() && static_cast<size_t>(pendingItemIndex) < updatedTile->items.size()) {
+			if (pendingTile && pendingItem && pendingTile->getPosition() == position && pendingItemIndex >= 0 && static_cast<size_t>(pendingItemIndex) < pendingTile->items.size() && static_cast<size_t>(pendingItemIndex) < updatedTile->items.size()) {
 				const Item* pendingTileItem = pendingTile->items[pendingItemIndex];
 				const Item* liveItem = updatedTile->items[pendingItemIndex];
 				if (pendingTileItem && liveItem && pendingTileItem->getID() == pendingItem->getID() && liveItem->getID() == pendingItem->getID()) {
