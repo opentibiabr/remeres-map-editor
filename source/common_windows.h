@@ -343,7 +343,8 @@ enum class DuplicateDoorIDChoice {
 	Cancel,
 	Renumber,
 };
-DuplicateDoorIDChoice ShowDuplicateDoorIDsDialog(wxWindow* parent, const House &house, uint8_t proposedDoorID, const Position &proposedPosition, uint8_t originalDoorID);
+constexpr int DOOR_IDS_RENUMBERED = -2;
+DuplicateDoorIDChoice ShowDuplicateDoorIDsDialog(wxWindow* parent, const House &house, uint8_t proposedDoorID, const Tile* pendingTile, uint8_t originalDoorID);
 
 /**
  * The edit towns dialog, ugly as sin.

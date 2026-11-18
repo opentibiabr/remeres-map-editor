@@ -119,8 +119,13 @@ void BrowseTileListBox::OpenPropertiesWindow(int index) {
 	} else {
 		dialog = newd OldPropertiesWindow(g_gui.root, currentMap, editTile, items[index]);
 	}
-	dialog->ShowModal();
+	const int result = dialog->ShowModal();
 	dialog->Destroy();
+	if (result == DOOR_IDS_RENUMBERED) {
+		if (auto* browseWindow = dynamic_cast<BrowseTileWindow*>(GetParent())) {
+			browseWindow->EndModal(0);
+		}
+	}
 }
 
 void BrowseTileListBox::OnItemDoubleClick(wxCommandEvent &evt) {

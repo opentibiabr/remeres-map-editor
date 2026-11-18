@@ -619,17 +619,20 @@ void PropertiesWindow::OnGridValueChanged(wxGridEvent &event) {
 
 void PropertiesWindow::OnClickOK(wxCommandEvent &) {
 	Door* door = edit_item->getDoor();
-	if (door && doorIdField && g_settings.getInteger(Config::WARN_FOR_DUPLICATE_ID) && edit_tile && edit_tile->isHouseTile()) {
-		const House* house = edit_map->houses.getHouse(edit_tile->getHouseID());
-		if (house && house->hasDoorID(static_cast<uint8_t>(doorIdField->GetValue()), edit_tile->getPosition(), door->getDoorID())) {
-			const uint8_t doorId = static_cast<uint8_t>(doorIdField->GetValue());
-			const DuplicateDoorIDChoice choice = ShowDuplicateDoorIDsDialog(this, *house, doorId, edit_tile->getPosition(), door->getDoorID());
-			if (choice == DuplicateDoorIDChoice::Renumber) {
-				EndModal(0);
-				return;
-			}
-			if (choice == DuplicateDoorIDChoice::Cancel) {
-				return;
+	if (door && doorIdField) {
+		const uint8_t doorId = static_cast<uint8_t>(doorIdField->GetValue());
+		SetAdvancedPropertyNumberData("doorid", doorId);
+		if (g_settings.getInteger(Config::WARN_FOR_DUPLICATE_ID) && edit_tile && edit_tile->isHouseTile()) {
+			const House* house = edit_map->houses.getHouse(edit_tile->getHouseID());
+			if (house && house->hasDoorID(doorId, edit_tile, door->getDoorID())) {
+				const DuplicateDoorIDChoice choice = ShowDuplicateDoorIDsDialog(this, *house, doorId, edit_tile, door->getDoorID());
+				if (choice == DuplicateDoorIDChoice::Renumber) {
+					EndModal(DOOR_IDS_RENUMBERED);
+					return;
+				}
+				if (choice == DuplicateDoorIDChoice::Cancel) {
+					return;
+				}
 			}
 		}
 	}

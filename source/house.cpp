@@ -164,17 +164,19 @@ uint8_t House::getEmptyDoorID() const {
 	return 0;
 }
 
-bool House::hasDoorID(uint8_t id, const Position &excludedPosition, uint8_t excludedDoorID) const {
+bool House::hasDoorID(uint8_t id, const Tile* pendingTile, uint8_t excludedDoorID) const {
 	if (id == 0) {
 		return false;
 	}
+	const Position pendingPosition = pendingTile ? pendingTile->getPosition() : Position();
 	bool excludedDoorSkipped = false;
 	for (PositionList::const_iterator tile_iter = tiles.begin(); tile_iter != tiles.end(); ++tile_iter) {
-		if (const Tile* tile = map->getTile(*tile_iter)) {
+		const Tile* tile = pendingTile && *tile_iter == pendingPosition ? pendingTile : map->getTile(*tile_iter);
+		if (tile) {
 			for (ItemVector::const_iterator item_iter = tile->items.begin(); item_iter != tile->items.end(); ++item_iter) {
 				if (const Door* door = dynamic_cast<const Door*>(*item_iter)) {
 					if (door->getDoorID() == id) {
-						if (!excludedDoorSkipped && *tile_iter == excludedPosition && excludedDoorID == id) {
+						if (!excludedDoorSkipped && *tile_iter == pendingPosition && excludedDoorID == id) {
 							excludedDoorSkipped = true;
 							continue;
 						}
@@ -187,15 +189,17 @@ bool House::hasDoorID(uint8_t id, const Position &excludedPosition, uint8_t excl
 	return false;
 }
 
-std::map<uint8_t, std::vector<Position>> House::getDoorIDPositions(const Position &excludedPosition, uint8_t excludedDoorID) const {
+std::map<uint8_t, std::vector<Position>> House::getDoorIDPositions(const Tile* pendingTile, uint8_t excludedDoorID) const {
 	std::map<uint8_t, std::vector<Position>> doorPositions;
+	const Position pendingPosition = pendingTile ? pendingTile->getPosition() : Position();
 	bool excludedDoorSkipped = false;
 	for (PositionList::const_iterator tile_iter = tiles.begin(); tile_iter != tiles.end(); ++tile_iter) {
-		if (const Tile* tile = map->getTile(*tile_iter)) {
+		const Tile* tile = pendingTile && *tile_iter == pendingPosition ? pendingTile : map->getTile(*tile_iter);
+		if (tile) {
 			for (ItemVector::const_iterator item_iter = tile->items.begin(); item_iter != tile->items.end(); ++item_iter) {
 				if (const Door* door = dynamic_cast<const Door*>(*item_iter)) {
 					if (door->getDoorID() != 0) {
-						if (!excludedDoorSkipped && *tile_iter == excludedPosition && door->getDoorID() == excludedDoorID) {
+						if (!excludedDoorSkipped && *tile_iter == pendingPosition && door->getDoorID() == excludedDoorID) {
 							excludedDoorSkipped = true;
 							continue;
 						}

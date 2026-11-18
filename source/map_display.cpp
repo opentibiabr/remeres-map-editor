@@ -688,7 +688,7 @@ void MapCanvas::OnMouseLeftDoubleClick(wxMouseEvent &event) {
 		}
 
 		int ret = dialog->ShowModal();
-		if (ret != 0) {
+		if (ret != 0 && ret != DOOR_IDS_RENUMBERED) {
 			Action* action = editor.createAction(ACTION_CHANGE_PROPERTIES);
 			action->addChange(newd Change(new_tile));
 			editor.addAction(action);
@@ -2687,7 +2687,8 @@ void MapCanvas::OnProperties(wxCommandEvent &WXUNUSED(event)) {
 		}
 	}
 
-	if (w->ShowModal() != 0) {
+	const int result = w->ShowModal();
+	if (result != 0 && result != DOOR_IDS_RENUMBERED) {
 		const auto action = editor.createAction(ACTION_CHANGE_PROPERTIES);
 		action->addChange(newd Change(newTile));
 		editor.addAction(action);

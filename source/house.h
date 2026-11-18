@@ -51,8 +51,8 @@ public:
 		return exit;
 	}
 	uint8_t getEmptyDoorID() const;
-	bool hasDoorID(uint8_t id, const Position &excludedPosition, uint8_t excludedDoorID) const;
-	std::map<uint8_t, std::vector<Position>> getDoorIDPositions(const Position &excludedPosition, uint8_t excludedDoorID) const;
+	bool hasDoorID(uint8_t id, const Tile* pendingTile, uint8_t excludedDoorID) const;
+	std::map<uint8_t, std::vector<Position>> getDoorIDPositions(const Tile* pendingTile, uint8_t excludedDoorID) const;
 
 	const PositionList &getTiles() const {
 		return tiles;

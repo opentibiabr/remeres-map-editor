@@ -37,8 +37,9 @@
 
 #include "iominimap.h"
 
-DuplicateDoorIDChoice ShowDuplicateDoorIDsDialog(wxWindow* parent, const House &house, uint8_t proposedDoorID, const Position &proposedPosition, uint8_t originalDoorID) {
-	auto duplicatePositions = house.getDoorIDPositions(proposedPosition, originalDoorID);
+DuplicateDoorIDChoice ShowDuplicateDoorIDsDialog(wxWindow* parent, const House &house, uint8_t proposedDoorID, const Tile* pendingTile, uint8_t originalDoorID) {
+	const Position proposedPosition = pendingTile->getPosition();
+	auto duplicatePositions = house.getDoorIDPositions(pendingTile, originalDoorID);
 	if (proposedDoorID != 0) {
 		duplicatePositions[proposedDoorID].push_back(proposedPosition);
 	}

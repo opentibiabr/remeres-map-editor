@@ -661,10 +661,10 @@ void OldPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 				if (edit_tile && edit_tile->isHouseTile()) {
 					const House* house = edit_map->houses.getHouse(edit_tile->getHouseID());
 					if (house) {
-						if (house->hasDoorID(new_door_id, edit_tile->getPosition(), door->getDoorID())) {
-							const DuplicateDoorIDChoice choice = ShowDuplicateDoorIDsDialog(this, *house, new_door_id, edit_tile->getPosition(), door->getDoorID());
+						if (house->hasDoorID(new_door_id, edit_tile, door->getDoorID())) {
+							const DuplicateDoorIDChoice choice = ShowDuplicateDoorIDsDialog(this, *house, new_door_id, edit_tile, door->getDoorID());
 							if (choice == DuplicateDoorIDChoice::Renumber) {
-								EndModal(0);
+								EndModal(DOOR_IDS_RENUMBERED);
 								return;
 							}
 							if (choice == DuplicateDoorIDChoice::Cancel) {
