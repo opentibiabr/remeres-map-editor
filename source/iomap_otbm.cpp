@@ -5435,8 +5435,9 @@ bool IOMapOTBM::loadSpawnsMonster(Map &map, pugi::xml_document &doc) {
 				spawntime = g_settings.getInteger(Config::DEFAULT_SPAWN_MONSTER_TIME);
 			}
 
-			auto weight = static_cast<uint8_t>(monsterNode.attribute("weight").as_uint());
-			if (weight == 0) {
+			const auto weightAttribute = monsterNode.attribute("weight");
+			auto weight = static_cast<uint8_t>(weightAttribute.as_uint());
+			if (weight == 0 && std::string_view(weightAttribute.value()) != "0") {
 				weight = static_cast<uint8_t>(g_settings.getInteger(Config::MONSTER_DEFAULT_WEIGHT));
 			}
 
