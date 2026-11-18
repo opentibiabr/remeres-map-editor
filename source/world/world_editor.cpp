@@ -338,9 +338,6 @@ public:
 #endif
 		Unbind(wxEVT_TIMER, &WorldFileMonitor::tick, this);
 		DeletePendingEvents();
-		if (scan) {
-			scan->wait();
-		}
 	}
 	WorldFileMonitor(const WorldFileMonitor &) = delete;
 	WorldFileMonitor &operator=(const WorldFileMonitor &) = delete;
@@ -379,7 +376,8 @@ private:
 	std::set<std::filesystem::path> observed, dirty;
 	Revisions revisions;
 	Stamps stamps;
-	std::optional<std::future<ScanResult>> scan;
+	// The last future from launch::async joins the scan when the monitor is destroyed.
+	std::future<ScanResult> scan;
 	uint64_t revision = UINT64_MAX;
 	wxLongLong eventTime = 0, checkedAt = 0, exactCheckedAt = 0;
 	bool fullScan = false, active = false;
@@ -408,7 +406,7 @@ private:
 	void beginScan(std::set<std::filesystem::path> files, bool exactAll, std::set<std::filesystem::path> exactFiles) {
 		const auto before = revisions;
 		const auto beforeStamps = stamps;
-		scan.emplace(std::async(std::launch::async, [files = std::move(files), exactFiles = std::move(exactFiles), before, beforeStamps, exactAll] {
+		scan = std::async(std::launch::async, [files = std::move(files), exactFiles = std::move(exactFiles), before, beforeStamps, exactAll] {
 			ScanResult result;
 			result.revisions = before;
 			result.stamps = beforeStamps;
@@ -436,7 +434,7 @@ private:
 				result.revisions[file] = std::make_shared<const world_files::Revision>(std::move(disk));
 			}
 			return result;
-		}));
+		});
 	}
 	void tick(wxTimerEvent &) {
 		// A properties dialog owns an editable draft and synchronous base-item
@@ -456,9 +454,14 @@ private:
 		}
 		active = foreground;
 		const auto now = wxGetUTCTimeMillis();
-		if (scan && scan->wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-			auto result = scan->get();
-			scan.reset();
+		if (scan.valid() && scan.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+			ScanResult result;
+			try {
+				result = scan.get();
+			} catch (const std::exception &exception) {
+				g_gui.SetStatusText(wxstr(std::string("Cannot scan World files: ") + exception.what()));
+				return;
+			}
 			revisions = std::move(result.revisions);
 			stamps = std::move(result.stamps);
 			if (result.changed) {
@@ -498,7 +501,7 @@ private:
 		}
 		const bool periodic = now - checkedAt >= 5000;
 		const bool exactPeriodic = now - exactCheckedAt >= 60000;
-		if (!scan && ((fullScan && now - eventTime >= 400) || (!dirty.empty() && now - eventTime >= 400) || periodic || exactPeriodic)) {
+		if (!scan.valid() && ((fullScan && now - eventTime >= 400) || (!dirty.empty() && now - eventTime >= 400) || periodic || exactPeriodic)) {
 			const bool inspectAll = fullScan || periodic || exactPeriodic;
 			fullScan = false;
 			checkedAt = now;
