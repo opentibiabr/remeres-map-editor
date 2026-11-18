@@ -647,6 +647,21 @@ void OldPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 			if (door) {
 				new_door_id = door_id_field->GetValue();
 			}
+			const Position destination = teleport ? destination_field->GetPosition() : Position();
+			auto applyPendingProperties = [&] {
+				if (teleport) {
+					teleport->setDestination(destination);
+				}
+				if (edit_item->canHoldDescription()) {
+					edit_item->setText(new_desc);
+				}
+				if (edit_item->isStackable() || edit_item->isCharged()) {
+					edit_item->setSubtype(new_count);
+				}
+				if (door) {
+					door->setDoorID(new_door_id);
+				}
+			};
 
 			/*
 			if(edit_item->canHoldDescription()) {
@@ -658,7 +673,6 @@ void OldPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 			*/
 
 			if (teleport) {
-				Position destination = destination_field->GetPosition();
 				if (!edit_map->getTile(destination) || edit_map->getTile(destination)->isBlocking()) {
 					int ret = g_gui.PopupDialog(this, "Warning", "This teleport leads nowhere, or to an invalid location. Do you want to change the destination?", wxYES | wxNO);
 					if (ret == wxID_YES) {
@@ -673,16 +687,7 @@ void OldPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 					if (house) {
 						if (house->hasDoorID(new_door_id, edit_tile, door->getDoorID())) {
 							const DuplicateDoorIDChoice choice = ShowDuplicateDoorIDsDialog(this, *house, new_door_id, edit_tile, door->getDoorID(), [&] {
-								if (teleport) {
-									teleport->setDestination(destination_field->GetPosition());
-								}
-								if (edit_item->canHoldDescription()) {
-									edit_item->setText(new_desc);
-								}
-								if (edit_item->isStackable() || edit_item->isCharged()) {
-									edit_item->setSubtype(new_count);
-								}
-								door->setDoorID(new_door_id);
+								applyPendingProperties();
 								if (uid_changed) {
 									edit_item->setUniqueID(new_uid);
 								}
@@ -702,21 +707,8 @@ void OldPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 				}
 			}
 
-			if (teleport) {
-				Position destination = destination_field->GetPosition();
-				teleport->setDestination(destination);
-			}
-
 			// Done validating, set the values.
-			if (edit_item->canHoldDescription()) {
-				edit_item->setText(new_desc);
-			}
-			if (edit_item->isStackable() || edit_item->isCharged()) {
-				edit_item->setSubtype(new_count);
-			}
-			if (door) {
-				door->setDoorID(new_door_id);
-			}
+			applyPendingProperties();
 		}
 
 		if (uid_changed) {
