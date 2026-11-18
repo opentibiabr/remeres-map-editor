@@ -270,13 +270,17 @@ void BrowseTileWindow::OnClickSelectRaw(wxCommandEvent &WXUNUSED(event)) {
 	EndModal(1);
 }
 
-void BrowseTileWindow::OnClickProperties(wxCommandEvent &evt) {
-	const auto index = itemList->GetSelection();
-	if (index == wxNOT_FOUND) {
+void BrowseTileWindow::OnClickProperties(wxCommandEvent &WXUNUSED(evt)) {
+	if (itemList->GetSelectedCount() != 1) {
 		return;
 	}
 
-	itemList->OpenPropertiesWindow(index);
+	for (size_t index = 0; index < itemList->GetItemCount(); ++index) {
+		if (itemList->IsSelected(index)) {
+			itemList->OpenPropertiesWindow(static_cast<int>(index));
+			return;
+		}
+	}
 }
 
 void BrowseTileWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
