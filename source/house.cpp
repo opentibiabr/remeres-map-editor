@@ -22,6 +22,47 @@
 #include "tile.h"
 #include "map.h"
 
+namespace {
+
+	template <typename Callback>
+	bool forEachHouseDoor(const Map* map, const PositionList &houseTiles, uint32_t houseID, const Tile* pendingTile, uint8_t excludedDoorID, Callback callback) {
+		const Position pendingPosition = pendingTile ? pendingTile->getPosition() : Position();
+		PositionList tilePositions = houseTiles;
+		if (pendingTile && pendingTile->getHouseID() == houseID && std::find(tilePositions.begin(), tilePositions.end(), pendingPosition) == tilePositions.end()) {
+			tilePositions.push_back(pendingPosition);
+		}
+
+		bool excludedDoorSkipped = false;
+		for (const Position &tilePosition : tilePositions) {
+			const Tile* liveTile = map->getTile(tilePosition);
+			if (!liveTile || liveTile->getHouseID() != houseID) {
+				continue;
+			}
+
+			const Tile* tile = pendingTile && tilePosition == pendingPosition ? pendingTile : liveTile;
+			if (tile->getHouseID() != houseID) {
+				continue;
+			}
+
+			for (const Item* item : tile->items) {
+				const auto* door = dynamic_cast<const Door*>(item);
+				if (!door || door->getDoorID() == 0) {
+					continue;
+				}
+				if (!excludedDoorSkipped && pendingTile && tilePosition == pendingPosition && door->getDoorID() == excludedDoorID) {
+					excludedDoorSkipped = true;
+					continue;
+				}
+				if (callback(tilePosition, door)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+} // namespace
+
 Houses::Houses(Map &map) :
 	map(map),
 	max_house_id(0) {
@@ -118,55 +159,82 @@ size_t House::size() const {
 void House::addTile(Tile* tile) {
 	ASSERT(tile);
 	tile->setHouse(this);
-	tiles.push_back(tile->getPosition());
+	const Position &position = tile->getPosition();
+	if (tilePositionIndex.insert(position).second) {
+		tiles.push_back(position);
+	}
 }
 
 void House::removeTile(Tile* tile) {
 	ASSERT(tile);
-	for (PositionList::iterator tile_iter = tiles.begin(); tile_iter != tiles.end(); ++tile_iter) {
+	bool removed = false;
+	tilePositionIndex.erase(tile->getPosition());
+	for (auto tile_iter = tiles.begin(); tile_iter != tiles.end();) {
 		if (*tile_iter == tile->getPosition()) {
-			tiles.erase(tile_iter);
-			tile->setHouse(nullptr);
+			tile_iter = tiles.erase(tile_iter);
+			removed = true;
+		} else {
+			++tile_iter;
+		}
+	}
+	if (removed) {
+		tile->setHouse(nullptr);
+	}
+}
+
+uint8_t House::getEmptyDoorID(const Tile* pendingTile, const std::bitset<256> &reservedDoorIDs) const {
+	auto taken = reservedDoorIDs;
+	const auto addDoorIDs = [&taken](const Tile* tile) {
+		if (!tile) {
 			return;
 		}
-	}
-}
-
-uint8_t House::getEmptyDoorID() const {
-	std::set<uint8_t> taken;
-	for (PositionList::const_iterator tile_iter = tiles.begin(); tile_iter != tiles.end(); ++tile_iter) {
-		if (const Tile* tile = map->getTile(*tile_iter)) {
-			for (ItemVector::const_iterator item_iter = tile->items.begin(); item_iter != tile->items.end(); ++item_iter) {
-				if (Door* door = dynamic_cast<Door*>(*item_iter)) {
-					taken.insert(door->getDoorID());
-				}
+		for (const Item* item : tile->items) {
+			const auto* door = dynamic_cast<const Door*>(item);
+			if (door) {
+				taken.set(door->getDoorID());
 			}
 		}
+	};
+	bool pendingTileIncluded = false;
+	for (const Position &tilePosition : tiles) {
+		const bool isPendingTile = pendingTile && pendingTile->getPosition() == tilePosition;
+		const Tile* tile = isPendingTile ? pendingTile : map->getTile(tilePosition);
+		if (!tile || tile->getHouseID() != id) {
+			continue;
+		}
+		addDoorIDs(tile);
+		pendingTileIncluded = pendingTileIncluded || isPendingTile;
+	}
+	if (pendingTile && !pendingTileIncluded && pendingTile->getHouseID() == id) {
+		addDoorIDs(pendingTile);
 	}
 
-	for (int i = 1; i < 256; ++i) {
-		std::set<uint8_t>::iterator it = taken.find(uint8_t(i));
-		if (it == taken.end()) {
-			// Free ID!
-			return i;
+	for (size_t doorID = 1; doorID < taken.size(); ++doorID) {
+		if (!taken[doorID]) {
+			return static_cast<uint8_t>(doorID);
 		}
 	}
-	return 255;
+	// Door ID 0 means "unassigned". Do not return an occupied ID when the
+	// supported range is exhausted.
+	return 0;
 }
 
-Position House::getDoorPositionByID(uint8_t id) const {
-	for (PositionList::const_iterator tile_iter = tiles.begin(); tile_iter != tiles.end(); ++tile_iter) {
-		if (const Tile* tile = map->getTile(*tile_iter)) {
-			for (ItemVector::const_iterator item_iter = tile->items.begin(); item_iter != tile->items.end(); ++item_iter) {
-				if (Door* door = dynamic_cast<Door*>(*item_iter)) {
-					if (door->getDoorID() == id) {
-						return *tile_iter;
-					}
-				}
-			}
-		}
+bool House::hasDoorID(uint8_t doorID, const Tile* pendingTile, uint8_t excludedDoorID) const {
+	if (doorID == 0) {
+		return false;
 	}
-	return Position();
+	return forEachHouseDoor(map, tiles, id, pendingTile, excludedDoorID, [doorID](const Position &, const Door* door) {
+		return door->getDoorID() == doorID;
+	});
+}
+
+std::map<uint8_t, std::vector<Position>> House::getDoorIDPositions(const Tile* pendingTile, uint8_t excludedDoorID) const {
+	std::map<uint8_t, std::vector<Position>> doorPositions;
+	forEachHouseDoor(map, tiles, id, pendingTile, excludedDoorID, [&doorPositions](const Position &tilePosition, const Door* door) {
+		doorPositions[door->getDoorID()].push_back(tilePosition);
+		return false;
+	});
+	return doorPositions;
 }
 
 std::string House::getDescription() {

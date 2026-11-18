@@ -49,6 +49,7 @@ public:
 
 protected:
 	ItemsMap items;
+	std::map<const Item*, const Item*> liveItems;
 	Tile* editTile = nullptr;
 
 	DECLARE_EVENT_TABLE();

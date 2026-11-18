@@ -20,6 +20,8 @@
 
 #include "brush.h"
 
+#include <bitset>
+
 //=============================================================================
 // HouseBrush, draw house tiles
 // This brush is created on demand and NOT loaded, as such, the load() method is empty
@@ -49,6 +51,7 @@ public:
 	}
 	// Draw the shit!
 	virtual void draw(BaseMap* map, Tile* tile, void* parameter);
+	void drawWithDoorIDs(BaseMap* map, Tile* tile, std::bitset<256> &reservedDoorIDs);
 	// Undraw the shit!
 	virtual void undraw(BaseMap* map, Tile* tile);
 

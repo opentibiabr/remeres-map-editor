@@ -20,8 +20,24 @@
 #include "properties_window.h"
 
 #include "gui_ids.h"
+#include "gui.h"
 #include "complexitem.h"
 #include "container_properties_window.h"
+
+namespace {
+
+	DuplicateDoorIDChoice checkDuplicateDoorID(wxWindow* parent, const Map* map, const Tile* tile, const DuplicateDoorIDChange &change) {
+		if (!g_settings.getInteger(Config::WARN_FOR_DUPLICATE_ID) || !map || !tile || !tile->isHouseTile()) {
+			return DuplicateDoorIDChoice::Continue;
+		}
+		const House* house = map->houses.getHouse(tile->getHouseID());
+		if (!house || !house->hasDoorID(change.proposedDoorID, tile, change.originalDoorID)) {
+			return DuplicateDoorIDChoice::Continue;
+		}
+		return ShowDuplicateDoorIDsDialog(parent, *house, change);
+	}
+
+} // namespace
 
 const wxArrayString PropertiesWindow::types = {
 	"Number",
@@ -153,7 +169,7 @@ void PropertiesWindow::createTeleportDestinationCtrl(wxPanel* panel, wxFlexGridS
 void PropertiesWindow::createDoorIdCtrl(wxPanel* panel, wxFlexGridSizer* gridsizer) {
 	if (const auto door = edit_item->getDoor()) {
 		gridsizer->Add(newd wxStaticText(panel, wxID_ANY, "Door ID"));
-		doorIdField = newd wxSpinCtrl(panel, wxID_ANY, i2ws(door->getDoorID()), wxDefaultPosition, wxSize(-1, 20), wxSP_ARROW_KEYS, 0, 0xFFFF, door->getDoorID());
+		doorIdField = newd wxSpinCtrl(panel, wxID_ANY, i2ws(door->getDoorID()), wxDefaultPosition, wxSize(-1, 20), wxSP_ARROW_KEYS, 0, 0xFF, door->getDoorID());
 		if (!edit_tile->isHouseTile()) {
 			doorIdField->Disable();
 		}
@@ -413,27 +429,27 @@ void PropertiesWindow::saveContainerPanel() {
 	////
 }
 
-void PropertiesWindow::setBasicAttributes() {
+void PropertiesWindow::setBasicAttributes(Item* target) {
 	const auto aid = simpleActionIdField->GetValue();
 	const auto uid = simpleUniqueIdField->GetValue();
 
 	if (aid > 0) {
-		edit_item->setAttribute("aid", ItemAttribute(aid));
+		target->setAttribute("aid", ItemAttribute(aid));
 	}
 
 	if (uid > 0) {
-		edit_item->setAttribute("uid", ItemAttribute(uid));
+		target->setAttribute("uid", ItemAttribute(uid));
 	}
 }
 
-void PropertiesWindow::setTeleportAttributes(const std::string &key, int value) {
-	if (!edit_item) {
+void PropertiesWindow::setTeleportAttributes(Item* target, const std::string &key, int value) {
+	if (!target) {
 		return;
 	}
 
-	setBasicAttributes();
+	setBasicAttributes(target);
 
-	auto teleportItem = dynamic_cast<Teleport*>(edit_item);
+	auto teleportItem = dynamic_cast<Teleport*>(target);
 	if (!teleportItem) {
 		return;
 	}
@@ -450,14 +466,14 @@ void PropertiesWindow::setTeleportAttributes(const std::string &key, int value) 
 	teleportItem->setDestination(position);
 }
 
-void PropertiesWindow::setDepotAttributes(const std::string &key, int value) {
-	if (!edit_item) {
+void PropertiesWindow::setDepotAttributes(Item* target, const std::string &key, int value) {
+	if (!target) {
 		return;
 	}
 
-	setBasicAttributes();
+	setBasicAttributes(target);
 
-	auto depot = dynamic_cast<Depot*>(edit_item);
+	auto depot = dynamic_cast<Depot*>(target);
 	if (!depot) {
 		return;
 	}
@@ -467,14 +483,14 @@ void PropertiesWindow::setDepotAttributes(const std::string &key, int value) {
 	}
 }
 
-void PropertiesWindow::setDoorAttributes(const std::string &key, int value) {
-	if (!edit_item) {
+void PropertiesWindow::setDoorAttributes(Item* target, const std::string &key, int value) {
+	if (!target) {
 		return;
 	}
 
-	setBasicAttributes();
+	setBasicAttributes(target);
 
-	auto door = dynamic_cast<Door*>(edit_item);
+	auto door = dynamic_cast<Door*>(target);
 	if (!door) {
 		return;
 	}
@@ -484,24 +500,24 @@ void PropertiesWindow::setDoorAttributes(const std::string &key, int value) {
 	}
 }
 
-void PropertiesWindow::setLiquidAttributes(const std::string &key, int value) {
-	if (!edit_item) {
+void PropertiesWindow::setLiquidAttributes(Item* target, const std::string &key, int value) {
+	if (!target) {
 		return;
 	}
 
-	setBasicAttributes();
+	setBasicAttributes(target);
 
-	if (!edit_item->isSplash() && !edit_item->isFluidContainer()) {
+	if (!target->isSplash() && !target->isFluidContainer()) {
 		return;
 	}
 
 	if (strcmp(key.c_str(), "subtype") == 0) {
-		edit_item->setSubtype(value);
+		target->setSubtype(value);
 	}
 }
 
-void PropertiesWindow::saveAttributesPanel() {
-	edit_item->clearAllAttributes();
+void PropertiesWindow::saveAttributesPanel(Item* target) {
+	target->clearAllAttributes();
 
 	for (int32_t rowIndex = 0; rowIndex < attributesGrid->GetNumberRows(); ++rowIndex) {
 		ItemAttribute attr;
@@ -530,16 +546,16 @@ void PropertiesWindow::saveAttributesPanel() {
 		int value;
 		const auto gotValue = cellValue.ToInt(&value);
 
-		if (dynamic_cast<Teleport*>(edit_item) && gotValue) {
-			setTeleportAttributes(key, value);
-		} else if (dynamic_cast<Depot*>(edit_item) && gotValue) {
-			setDepotAttributes(key, value);
-		} else if (dynamic_cast<Door*>(edit_item) && gotValue) {
-			setDoorAttributes(key, value);
-		} else if (edit_item->isSplash() || edit_item->isFluidContainer()) {
-			setLiquidAttributes(key, value);
+		if (dynamic_cast<Teleport*>(target) && gotValue) {
+			setTeleportAttributes(target, key, value);
+		} else if (dynamic_cast<Depot*>(target) && gotValue) {
+			setDepotAttributes(target, key, value);
+		} else if (dynamic_cast<Door*>(target) && gotValue) {
+			setDoorAttributes(target, key, value);
+		} else if (target->isSplash() || target->isFluidContainer()) {
+			setLiquidAttributes(target, key, value);
 		} else {
-			edit_item->setAttribute(key, attr);
+			target->setAttribute(key, attr);
 		}
 	}
 }
@@ -617,7 +633,48 @@ void PropertiesWindow::OnGridValueChanged(wxGridEvent &event) {
 }
 
 void PropertiesWindow::OnClickOK(wxCommandEvent &) {
-	saveAttributesPanel();
+	if (Door* door = edit_item->getDoor(); door && doorIdField) {
+		const auto originalDoorID = door->getDoorID();
+		auto doorID = static_cast<uint8_t>(doorIdField->GetValue());
+		for (int32_t rowIndex = 0; rowIndex < attributesGrid->GetNumberRows(); ++rowIndex) {
+			if (attributesGrid->GetCellValue(rowIndex, 0) != "doorid") {
+				continue;
+			}
+			int advancedDoorID;
+			if (!attributesGrid->GetCellValue(rowIndex, 2).ToInt(&advancedDoorID) || advancedDoorID < 0 || advancedDoorID > 255) {
+				g_gui.PopupDialog(this, "Invalid Door ID", "Door ID must be a whole number from 0 to 255.", wxOK | wxICON_ERROR);
+				return;
+			}
+			doorID = static_cast<uint8_t>(advancedDoorID);
+		}
+		SetAdvancedPropertyNumberData("doorid", doorID);
+		std::unique_ptr<Item> pendingItem(edit_item->deepCopy());
+		saveAttributesPanel(pendingItem.get());
+		int pendingItemIndex = -1;
+		if (edit_tile) {
+			const auto pendingItemPosition = std::find(edit_tile->items.begin(), edit_tile->items.end(), edit_item);
+			if (pendingItemPosition != edit_tile->items.end()) {
+				pendingItemIndex = static_cast<int>(std::distance(edit_tile->items.begin(), pendingItemPosition));
+			}
+		}
+		const DuplicateDoorIDChange doorIDChange { doorID, originalDoorID, edit_tile, pendingItemIndex, pendingItem.get(), edit_live_item };
+		const auto duplicateChoice = checkDuplicateDoorID(this, edit_map, edit_tile, doorIDChange);
+		if (duplicateChoice == DuplicateDoorIDChoice::Renumber) {
+			EndModal(DOOR_IDS_RENUMBERED);
+			return;
+		}
+		if (duplicateChoice == DuplicateDoorIDChoice::Cancel) {
+			return;
+		}
+		edit_item->clearAllAttributes();
+		for (const auto &[key, value] : pendingItem->getAttributes()) {
+			edit_item->setAttribute(key, value);
+		}
+		door->setDoorID(pendingItem->getDoor()->getDoorID());
+		EndModal(1);
+		return;
+	}
+	saveAttributesPanel(edit_item);
 	EndModal(1);
 }
 

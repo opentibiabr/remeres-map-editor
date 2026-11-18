@@ -36,6 +36,12 @@ END_EVENT_TABLE()
 
 BrowseTileListBox::BrowseTileListBox(wxWindow* parent, wxWindowID id, Tile* tile) :
 	wxVListBox(parent, id, wxDefaultPosition, wxSize(200, 180), wxLB_MULTIPLE), editTile(tile) {
+	const Tile* liveTile = g_gui.GetCurrentEditor()->getMap().getTile(tile->getPosition());
+	if (liveTile && liveTile->items.size() == tile->items.size()) {
+		for (size_t i = 0; i < tile->items.size(); ++i) {
+			liveItems.emplace(tile->items[i], liveTile->items[i]);
+		}
+	}
 	UpdateItems();
 }
 
@@ -113,14 +119,21 @@ void BrowseTileListBox::UpdateItems() {
 void BrowseTileListBox::OpenPropertiesWindow(int index) {
 	const auto* currentMap = &g_gui.GetCurrentEditor()->getMap();
 
-	wxDialog* dialog;
+	ObjectPropertiesWindowBase* dialog;
 	if (!g_settings.getInteger(Config::USE_OLD_ITEM_PROPERTIES_WINDOW)) {
 		dialog = newd PropertiesWindow(g_gui.root, currentMap, editTile, items[index]);
 	} else {
 		dialog = newd OldPropertiesWindow(g_gui.root, currentMap, editTile, items[index]);
 	}
-	dialog->ShowModal();
+	const auto liveItem = liveItems.find(items[index]);
+	dialog->setLiveItemBeingEdited(liveItem != liveItems.end() ? liveItem->second : nullptr);
+	const int result = dialog->ShowModal();
 	dialog->Destroy();
+	if (result == DOOR_IDS_RENUMBERED) {
+		if (auto* browseWindow = dynamic_cast<BrowseTileWindow*>(GetParent())) {
+			browseWindow->EndModal(0);
+		}
+	}
 }
 
 void BrowseTileListBox::OnItemDoubleClick(wxCommandEvent &evt) {
@@ -265,13 +278,17 @@ void BrowseTileWindow::OnClickSelectRaw(wxCommandEvent &WXUNUSED(event)) {
 	EndModal(1);
 }
 
-void BrowseTileWindow::OnClickProperties(wxCommandEvent &evt) {
-	const auto index = itemList->GetSelection();
-	if (index == wxNOT_FOUND) {
+void BrowseTileWindow::OnClickProperties(wxCommandEvent &WXUNUSED(evt)) {
+	if (itemList->GetSelectedCount() != 1) {
 		return;
 	}
 
-	itemList->OpenPropertiesWindow(index);
+	for (size_t index = 0; index < itemList->GetItemCount(); ++index) {
+		if (itemList->IsSelected(index)) {
+			itemList->OpenPropertiesWindow(static_cast<int>(index));
+			return;
+		}
+	}
 }
 
 void BrowseTileWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {

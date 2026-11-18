@@ -69,15 +69,15 @@ protected:
 	// Advanced pane
 	wxGrid* attributesGrid;
 	wxWindow* createAttributesPanel(wxWindow* parent);
-	void saveAttributesPanel();
+	void saveAttributesPanel(Item* target);
 	void SetGridValue(wxGrid* grid, int rowIndex, std::string name, const ItemAttribute &attr);
 
 	// Attributes
-	void setBasicAttributes();
-	void setTeleportAttributes(const std::string &key, int value);
-	void setDepotAttributes(const std::string &key, int value);
-	void setDoorAttributes(const std::string &key, int value);
-	void setLiquidAttributes(const std::string &key, int value);
+	void setBasicAttributes(Item* target);
+	void setTeleportAttributes(Item* target, const std::string &key, int value);
+	void setDepotAttributes(Item* target, const std::string &key, int value);
+	void setDoorAttributes(Item* target, const std::string &key, int value);
+	void setLiquidAttributes(Item* target, const std::string &key, int value);
 
 protected:
 	const static wxArrayString types;
