@@ -182,8 +182,8 @@ void House::removeTile(Tile* tile) {
 	}
 }
 
-uint8_t House::getEmptyDoorID(const Tile* pendingTile) const {
-	std::set<uint8_t> taken;
+uint8_t House::getEmptyDoorID(const Tile* pendingTile, const std::bitset<256> &reservedDoorIDs) const {
+	auto taken = reservedDoorIDs;
 	const auto addDoorIDs = [&taken](const Tile* tile) {
 		if (!tile) {
 			return;
@@ -191,7 +191,7 @@ uint8_t House::getEmptyDoorID(const Tile* pendingTile) const {
 		for (const Item* item : tile->items) {
 			const auto* door = dynamic_cast<const Door*>(item);
 			if (door) {
-				taken.insert(door->getDoorID());
+				taken.set(door->getDoorID());
 			}
 		}
 	};
@@ -209,11 +209,9 @@ uint8_t House::getEmptyDoorID(const Tile* pendingTile) const {
 		addDoorIDs(pendingTile);
 	}
 
-	for (int i = 1; i < 256; ++i) {
-		auto it = taken.find(uint8_t(i));
-		if (it == taken.end()) {
-			// Free ID!
-			return i;
+	for (size_t doorID = 1; doorID < taken.size(); ++doorID) {
+		if (!taken[doorID]) {
+			return static_cast<uint8_t>(doorID);
 		}
 	}
 	// Door ID 0 means "unassigned". Do not return an occupied ID when the

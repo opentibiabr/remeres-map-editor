@@ -63,7 +63,12 @@ void HouseBrush::undraw(BaseMap* map, Tile* tile) {
 	}
 }
 
-void HouseBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
+void HouseBrush::draw(BaseMap* map, Tile* tile, void*) {
+	std::bitset<256> reservedDoorIDs;
+	drawWithDoorIDs(map, tile, reservedDoorIDs);
+}
+
+void HouseBrush::drawWithDoorIDs(BaseMap* map, Tile* tile, std::bitset<256> &reservedDoorIDs) {
 	ASSERT(draw_house);
 	uint32_t old_house_id = tile->getHouseID();
 	tile->setHouse(draw_house);
@@ -92,7 +97,11 @@ void HouseBrush::draw(BaseMap* map, Tile* tile, void* parameter) {
 					Map* real_map = dynamic_cast<Map*>(map);
 					if (real_map) {
 						door->setDoorID(0);
-						door->setDoorID(draw_house->getEmptyDoorID(tile));
+						const auto doorID = draw_house->getEmptyDoorID(tile, reservedDoorIDs);
+						door->setDoorID(doorID);
+						if (doorID != 0) {
+							reservedDoorIDs.set(doorID);
+						}
 					}
 				}
 			}

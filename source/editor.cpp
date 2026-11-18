@@ -32,6 +32,7 @@
 #include "table_brush.h"
 #include "carpet_brush.h"
 #include "waypoint_brush.h"
+#include "house_brush.h"
 #include "house_exit_brush.h"
 #include "doodad_brush.h"
 #include "monster_brush.h"
@@ -1659,6 +1660,15 @@ void Editor::drawInternal(const PositionVector &tilestodraw, bool alt, bool dodr
 			}
 		}
 	} else {
+		auto* houseBrush = brush->asHouse();
+		std::bitset<256> reservedDoorIDs;
+		const auto drawTile = [&](Tile* tile) {
+			if (houseBrush) {
+				houseBrush->drawWithDoorIDs(&map, tile, reservedDoorIDs);
+			} else {
+				brush->draw(&map, tile, &alt);
+			}
+		};
 
 		for (PositionVector::const_iterator it = tilestodraw.begin(); it != tilestodraw.end(); ++it) {
 			TileLocation* location = map.createTileL(*it);
@@ -1666,14 +1676,14 @@ void Editor::drawInternal(const PositionVector &tilestodraw, bool alt, bool dodr
 			if (tile) {
 				Tile* new_tile = tile->deepCopy(map);
 				if (dodraw) {
-					brush->draw(&map, new_tile, &alt);
+					drawTile(new_tile);
 				} else {
 					brush->undraw(&map, new_tile);
 				}
 				action->addChange(newd Change(new_tile));
 			} else if (dodraw) {
 				Tile* new_tile = map.allocator(location);
-				brush->draw(&map, new_tile, &alt);
+				drawTile(new_tile);
 				action->addChange(newd Change(new_tile));
 			}
 		}
