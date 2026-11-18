@@ -78,8 +78,6 @@ namespace {
 }
 
 struct GUI::PendingWorldLoad {
-	uint64_t editorSession = 0;
-	std::filesystem::path catalog;
 	bool associated = false;
 	std::future<WorldLoadResult> result;
 };
@@ -441,6 +439,10 @@ void GUI::SaveCurrentMap(FileName filename, bool showdialog) {
 	if (mapTab) {
 		Editor* editor = mapTab->GetEditor();
 		if (editor) {
+			const auto session = editor->sessionId();
+			if (!FinishPendingWorldLoad(session) || GetCurrentMapTab() != mapTab || GetCurrentEditor()->sessionId() != session) {
+				return;
+			}
 			editor->saveMap(filename, showdialog);
 
 			const std::string &filename = editor->getMap().getFilename();
@@ -532,12 +534,10 @@ void GUI::OpenMap() {
 
 void GUI::QueueServerWorlds(Editor &editor, const std::filesystem::path &catalog, bool associated) {
 	const auto session = editor.sessionId();
-	if (std::any_of(pending_world_loads_.begin(), pending_world_loads_.end(), [&](const auto &load) { return load->editorSession == session; })) {
+	if (pending_world_loads_.contains(session)) {
 		return;
 	}
 	auto load = std::make_unique<PendingWorldLoad>();
-	load->editorSession = session;
-	load->catalog = catalog;
 	load->associated = associated;
 	load->result = std::async(std::launch::async, [catalog] {
 		WorldLoadResult result;
@@ -548,47 +548,62 @@ void GUI::QueueServerWorlds(Editor &editor, const std::filesystem::path &catalog
 		}
 		return result;
 	});
-	pending_world_loads_.push_back(std::move(load));
+	pending_world_loads_.emplace(session, std::move(load));
 	SetStatusText("Loading this map's World catalog in the background...");
 	root->WatchPendingWorldLoads();
 }
 
 bool GUI::ProcessPendingWorldLoads() {
-	for (auto load = pending_world_loads_.begin(); load != pending_world_loads_.end();) {
-		if ((*load)->result.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
-			++load;
-			continue;
-		}
-		WorldLoadResult result;
-		try {
-			result = (*load)->result.get();
-		} catch (const std::exception &exception) {
-			result.error = exception.what();
-		}
-		Editor* editor = nullptr;
-		for (int i = 0; i < tabbook->GetTabCount(); ++i) {
-			if (const auto tab = dynamic_cast<MapTab*>(tabbook->GetTab(i)); tab && tab->GetEditor()->sessionId() == (*load)->editorSession) {
-				editor = tab->GetEditor();
-				break;
-			}
-		}
-		if (editor && !result.loaded) {
-			PopupDialog(root, "Cannot load server worlds", wxstr(result.error), wxOK);
-		} else if (editor && !(*load)->associated && !result.document.matchesMap(std::filesystem::u8path(editor->getMap().getFilename()))) {
-			PopupDialog(root, "World catalog association", "The sibling catalog refers to another map. Associate it explicitly with this copy in Preferences > Directories.", wxOK);
-		} else if (editor && !editor->world) {
-			editor->world = std::make_unique<WorldLayerEditor>(*editor, std::move(result.document), std::move(result.items), std::move(result.revisions));
-			if (GetCurrentEditor() == editor) {
-				for (const auto palette : palettes) {
-					palette->OnUpdate(&editor->getMap());
-				}
-				SetStatusText("Server world objects loaded into this map. Double-click an object to edit its properties.");
-				editor->world->refresh();
-			}
-		}
-		load = pending_world_loads_.erase(load);
+	const auto ready = std::find_if(pending_world_loads_.begin(), pending_world_loads_.end(), [](const auto &entry) {
+		return entry.second->result.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+	});
+	if (ready != pending_world_loads_.end()) {
+		FinishPendingWorldLoad(ready->first);
 	}
 	return !pending_world_loads_.empty();
+}
+
+bool GUI::FinishPendingWorldLoad(uint64_t session) {
+	// A modal error can dispatch this timer again. Take ownership before entering any UI code.
+	auto pending = pending_world_loads_.extract(session);
+	if (pending.empty()) {
+		return true;
+	}
+	auto &load = *pending.mapped();
+	WorldLoadResult result;
+	try {
+		result = load.result.get();
+	} catch (const std::exception &exception) {
+		result.error = exception.what();
+	}
+	for (int i = 0; i < tabbook->GetTabCount(); ++i) {
+		const auto tab = dynamic_cast<MapTab*>(tabbook->GetTab(i));
+		if (!tab || tab->GetEditor()->sessionId() != session) {
+			continue;
+		}
+		auto editor = tab->GetEditor();
+		if (editor->world || editor->IsLive()) {
+			return true;
+		}
+		if (!result.loaded) {
+			PopupDialog(root, "Cannot load server worlds", wxstr(result.error), wxOK);
+			return false;
+		}
+		if (!load.associated && !result.document.matchesMap(std::filesystem::u8path(editor->getMap().getFilename()))) {
+			PopupDialog(root, "World catalog association", "The sibling catalog refers to another map. Associate it explicitly with this copy in Preferences > Directories.", wxOK);
+			return false;
+		}
+		editor->world = std::make_unique<WorldLayerEditor>(*editor, std::move(result.document), std::move(result.items), std::move(result.revisions));
+		if (GetCurrentEditor() == editor) {
+			for (const auto palette : palettes) {
+				palette->OnUpdate(&editor->getMap());
+			}
+			SetStatusText("Server world objects loaded into this map. Double-click an object to edit its properties.");
+			editor->world->refresh();
+		}
+		return true;
+	}
+	return false;
 }
 
 bool GUI::LoadServerWorlds(const wxString &path, bool automatic) {
@@ -603,6 +618,7 @@ bool GUI::LoadServerWorlds(const wxString &path, bool automatic) {
 		}
 		return true;
 	}
+	const auto session = editor->sessionId();
 	wxString file = path;
 	if (file.empty()) {
 		wxFileDialog dialog(root, "Load server worlds for this map", "", "", "World catalog (*.world.json)|*.world.json", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
@@ -611,11 +627,18 @@ bool GUI::LoadServerWorlds(const wxString &path, bool automatic) {
 		}
 		file = dialog.GetPath();
 	}
+	const auto catalog = std::filesystem::absolute(std::filesystem::u8path(nstr(file))).lexically_normal();
+	if (!RecoverWorldPublication(catalog, root)) {
+		return false;
+	}
+	if (GetCurrentEditor() != editor || editor->sessionId() != session || editor->IsLive()) {
+		return false;
+	}
+	if (editor->world) {
+		SetStatusText("This map's World catalog finished loading while the dialog was open.");
+		return true;
+	}
 	if (automatic) {
-		const auto catalog = std::filesystem::absolute(std::filesystem::u8path(nstr(file))).lexically_normal();
-		if (!RecoverWorldPublication(catalog, root)) {
-			return false;
-		}
 		const FileName configured(wxstr(g_settings.getString(Config::WORLD_CATALOG_FILE)));
 		const FileName configuredMap(wxstr(g_settings.getString(Config::WORLD_CATALOG_MAP_FILE)));
 		QueueServerWorlds(*editor, catalog, FileName(file) == configured && configuredMap == FileName(wxstr(editor->getMap().getFilename())));
@@ -623,21 +646,16 @@ bool GUI::LoadServerWorlds(const wxString &path, bool automatic) {
 	}
 	WorldLayerDocument document;
 	std::string error;
-	if (!RecoverWorldPublication(std::filesystem::u8path(nstr(file)), root)) {
-		return false;
-	}
-	if (!document.open(std::filesystem::u8path(nstr(file)), error)) {
+	if (!document.open(catalog, error)) {
 		PopupDialog(root, "Cannot load server worlds", wxstr(error), wxOK);
 		return false;
 	}
 	auto items = LoadWorldItemCatalog(document.data().items);
 	auto revisions = document.observedRevisions();
 	editor->world = std::make_unique<WorldLayerEditor>(*editor, std::move(document), std::move(items), std::move(revisions));
-	if (!automatic) {
-		g_settings.setString(Config::WORLD_CATALOG_FILE, nstr(file));
-		g_settings.setString(Config::WORLD_CATALOG_MAP_FILE, editor->getMap().getFilename());
-		ShowWorldPalette();
-	}
+	g_settings.setString(Config::WORLD_CATALOG_FILE, nstr(file));
+	g_settings.setString(Config::WORLD_CATALOG_MAP_FILE, editor->getMap().getFilename());
+	ShowWorldPalette();
 	for (const auto palette : palettes) {
 		palette->OnUpdate(&editor->getMap());
 	}
@@ -674,7 +692,9 @@ void GUI::SaveMapAs() {
 	if (dialog.ShowModal() == wxID_OK) {
 		SaveCurrentMap(dialog.GetPath(), true);
 		UpdateTitle();
-		root->menu_bar->AddRecentFile(dialog.GetPath());
+		if (IsEditorOpen() && FileName(wxstr(GetCurrentMap().getFilename())) == FileName(dialog.GetPath())) {
+			root->menu_bar->AddRecentFile(dialog.GetPath());
+		}
 		root->UpdateMenubar();
 	}
 }

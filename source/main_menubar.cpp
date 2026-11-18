@@ -839,15 +839,6 @@ MainMenuBar::MainMenuBar(MainFrame* frame) :
 	for (std::map<std::string, MenuBar::Action*>::iterator ai = actions.begin(); ai != actions.end(); ++ai) {
 		frame->Connect(MAIN_FRAME_MENU + ai->second->id, wxEVT_COMMAND_MENU_SELECTED, (wxObjectEventFunction)(wxEventFunction)(ai->second->handler), nullptr, this);
 	}
-	frame->Bind(
-		wxEVT_MENU, [](wxCommandEvent &event) {
-		const auto editor = g_gui.GetCurrentEditor();
-		if (editor && editor->world) {
-			g_gui.PopupDialog("Live editing", "Live editing does not synchronize server world catalogs yet.", wxOK);
-			return;
-		}
-		event.Skip(); }, MAIN_FRAME_MENU + LIVE_START
-	);
 	for (size_t i = 0; i < 10; ++i) {
 		frame->Connect(recentFiles.GetBaseId() + i, wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainMenuBar::OnOpenRecent), nullptr, this);
 	}
@@ -3134,6 +3125,15 @@ void MainMenuBar::OnStartLive(wxCommandEvent &event) {
 		return;
 	}
 
+	const auto session = editor->sessionId();
+	if (!g_gui.FinishPendingWorldLoad(session) || g_gui.GetCurrentEditor() != editor) {
+		return;
+	}
+	if (editor->world) {
+		g_gui.PopupDialog("Live editing", "Live editing does not synchronize server world catalogs yet.", wxOK);
+		return;
+	}
+
 	wxDialog* live_host_dlg = newd wxDialog(frame, wxID_ANY, "Host Live Server", wxDefaultPosition, wxDefaultSize);
 
 	wxSizer* top_sizer = newd wxBoxSizer(wxVERTICAL);
@@ -3171,6 +3171,9 @@ void MainMenuBar::OnStartLive(wxCommandEvent &event) {
 	while (true) {
 		int ret = live_host_dlg->ShowModal();
 		if (ret == wxID_OK) {
+			if (g_gui.GetCurrentEditor() != editor || editor->sessionId() != session || editor->IsLive() || editor->world) {
+				break;
+			}
 			LiveServer* liveServer = editor->StartLiveServer();
 			liveServer->setName(hostname->GetValue());
 			liveServer->setPassword(password->GetValue());

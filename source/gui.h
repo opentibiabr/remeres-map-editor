@@ -19,11 +19,12 @@
 #define RME_GUI_H_
 
 #include <atomic>
+#include <cstdint>
 #include <filesystem>
 #include <future>
+#include <map>
 #include <memory>
 #include <thread>
-#include <vector>
 
 #include "graphics.h"
 #include "position.h"
@@ -394,6 +395,7 @@ public:
 	void OpenMap();
 	bool LoadServerWorlds(const wxString &path = wxEmptyString, bool automatic = false);
 	bool ProcessPendingWorldLoads();
+	bool FinishPendingWorldLoad(uint64_t session);
 	void SaveMap();
 	void SaveMapAs();
 	bool LoadMap(const FileName &fileName);
@@ -524,7 +526,7 @@ protected:
 	std::thread sqlite_bootstrap_thread_;
 	std::atomic<bool> sqlite_bootstrap_running_ = false;
 	struct PendingWorldLoad;
-	std::vector<std::unique_ptr<PendingWorldLoad>> pending_world_loads_;
+	std::map<uint64_t, std::unique_ptr<PendingWorldLoad>> pending_world_loads_;
 	void QueueServerWorlds(Editor &editor, const std::filesystem::path &catalog, bool associated);
 
 	friend class RenderingLock;
