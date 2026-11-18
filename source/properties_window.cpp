@@ -657,7 +657,7 @@ void PropertiesWindow::OnClickOK(wxCommandEvent &) {
 				pendingItemIndex = static_cast<int>(std::distance(edit_tile->items.begin(), pendingItemPosition));
 			}
 		}
-		const DuplicateDoorIDChange doorIDChange{doorID, originalDoorID, edit_tile, pendingItemIndex, pendingItem.get(), edit_live_item};
+		const DuplicateDoorIDChange doorIDChange { doorID, originalDoorID, edit_tile, pendingItemIndex, pendingItem.get(), edit_live_item };
 		const auto duplicateChoice = checkDuplicateDoorID(this, edit_map, edit_tile, doorIDChange);
 		if (duplicateChoice == DuplicateDoorIDChoice::Renumber) {
 			EndModal(DOOR_IDS_RENUMBERED);
