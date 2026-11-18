@@ -82,8 +82,8 @@ namespace {
 
 	class EditorMapView final : public world_layers::MapView {
 	public:
-		EditorMapView(Map &map, const std::bitset<65536> &knownItems) :
-			map(map), knownItems(knownItems) { }
+		EditorMapView(Map &map, const std::bitset<65536> &knownItems, bool* dependsOnUnsavedMap = nullptr) :
+			map(map), knownItems(knownItems), dependsOnUnsavedMap(dependsOnUnsavedMap) { }
 		bool nativeTeleport(uint16_t id) const override {
 			return g_items.isValidID(id) && g_items.getItemType(id).isTeleport();
 		}
@@ -123,7 +123,11 @@ namespace {
 		}
 		world_layers::MapTile tile(const world_layers::Position &position) override {
 			world_layers::MapTile result;
-			const auto tile = map.getTile(native(position));
+			const auto mapPosition = native(position);
+			if (dependsOnUnsavedMap && !*dependsOnUnsavedMap && map.identifierTileChangedSinceSave(mapPosition)) {
+				*dependsOnUnsavedMap = true;
+			}
+			const auto tile = map.getTile(mapPosition);
 			if (!tile) {
 				return result;
 			}
@@ -202,6 +206,7 @@ namespace {
 	private:
 		Map &map;
 		const std::bitset<65536> &knownItems;
+		bool* dependsOnUnsavedMap;
 	};
 
 	class FrozenMapView final : public world_layers::MapView {
@@ -881,33 +886,6 @@ void WorldLayerEditor::adoptIdentifiers() {
 	ShowWorldPalette();
 }
 
-bool WorldLayerEditor::dependsOnUnsavedMap() const {
-	std::set<std::string> visiting;
-	std::function<std::optional<world_layers::Position>(const world_layers::Object &)> root = [&](const world_layers::Object &object) -> std::optional<world_layers::Position> {
-		if (!object.selector) {
-			return std::nullopt;
-		}
-		if (object.selector->container.empty()) {
-			return object.selector->position;
-		}
-		if (!visiting.insert(object.selector->container).second) {
-			return std::nullopt;
-		}
-		const auto parent = document.data().find(object.selector->container);
-		const auto result = parent ? root(*parent) : std::nullopt;
-		visiting.erase(object.selector->container);
-		return result;
-	};
-	for (const auto &layer : document.data().layers) {
-		for (const auto &object : layer.objects) {
-			if (const auto position = root(object); position && editor.getMap().identifierTileChangedSinceSave(native(*position))) {
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
 void WorldLayerEditor::manageLayers() {
 	if (!ensureV2()) {
 		return;
@@ -1352,7 +1330,7 @@ bool WorldLayerEditor::pickAt(const world_layers::Position &position) {
 	return true;
 }
 
-void WorldLayerEditor::validate() {
+void WorldLayerEditor::validate(bool* dependsOnUnsavedMap) {
 	editor.getMap().takeWorldChanges();
 	mapRevision = editor.getMap().revision();
 	mapValidationPending = false;
@@ -1360,7 +1338,12 @@ void WorldLayerEditor::validate() {
 	validatedRevision = document.revision();
 	diagnostics.clear();
 	plan = {};
-	EditorMapView view(editor.getMap(), knownItems);
+	// Validation reads selector roots, placement tiles and every base teleport in the arrival chain.
+	// UID uniqueness also depends on items outside those tiles, including UIDs freed by an edit.
+	if (dependsOnUnsavedMap) {
+		*dependsOnUnsavedMap = editor.getMap().uniqueIdsChangedSinceSave();
+	}
+	EditorMapView view(editor.getMap(), knownItems, dependsOnUnsavedMap);
 	world_layers::validateMap(document.data(), view, plan, diagnostics);
 	diagnostics.insert(diagnostics.end(), catalogDiagnostics.begin(), catalogDiagnostics.end());
 	if (!catalogDiagnostics.empty()) {
@@ -1412,16 +1395,7 @@ void WorldLayerEditor::refreshDisplay(bool overlayOnly) {
 	}
 }
 
-bool WorldLayerEditor::save() {
-	if (drag) {
-		finishDrag(true);
-	}
-	checkExternal(false);
-	validate();
-	if (!diagnostics.empty()) {
-		g_gui.PopupDialog("Cannot save World", wxstr(diagnostics.front().describe() + "\nResolve the diagnostics or save a draft copy."), wxOK);
-		return false;
-	}
+bool WorldLayerEditor::publish() {
 	std::string error;
 	if (!document.save(error)) {
 		g_gui.PopupDialog("Cannot save world layers", wxstr(error), wxOK);
@@ -1471,9 +1445,9 @@ bool RecoverWorldPublication(const std::filesystem::path &catalog, wxWindow* par
 	return true;
 }
 
-void WorldLayerEditor::checkExternal(bool interactive) {
+bool WorldLayerEditor::checkExternal(bool interactive) {
 	if (interactive && !RecoverWorldPublication(document.data().file, g_gui.root)) {
-		return;
+		return false;
 	}
 	std::vector<WorldExternalChange> changes;
 	std::string error;
@@ -1500,7 +1474,7 @@ void WorldLayerEditor::checkExternal(bool interactive) {
 		}
 	}
 	if (!interactive || result == WorldExternalResult::Unchanged || result == WorldExternalResult::Reloaded) {
-		return;
+		return result == WorldExternalResult::Unchanged || result == WorldExternalResult::Reloaded;
 	}
 	wxDialog dialog(g_gui.root, wxID_ANY, "Changes outside RME", wxDefaultPosition, wxSize(920, 650), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
 	auto layout = new wxBoxSizer(wxVERTICAL);
@@ -1551,29 +1525,30 @@ void WorldLayerEditor::checkExternal(bool interactive) {
 	const auto answer = dialog.ShowModal();
 	if (answer == wxID_SAVE) {
 		saveDraft();
-		return;
+		return false;
 	}
 	if (answer != wxID_APPLY) {
-		return;
+		return false;
 	}
 	if (wxMessageBox("Discard local changes in the conflicting files and load the displayed external versions? Unrelated edits will be retained.", "Reload World files", wxYES_NO | wxNO_DEFAULT | wxICON_WARNING, g_gui.root) != wxYES) {
-		return;
+		return false;
 	}
 	std::vector<WorldExternalChange> latest;
 	if (!document.externalChanges(latest, error)) {
 		g_gui.PopupDialog("Cannot reload World", wxstr(error), wxOK);
-		return;
+		return false;
 	}
 	if (latest.size() != changes.size() || !std::equal(latest.begin(), latest.end(), changes.begin(), [](const auto &a, const auto &b) { return a.file == b.file && a.disk == b.disk; })) {
 		g_gui.PopupDialog("Files changed again", "Review the new external versions before discarding any local edits.", wxOK);
-		return;
+		return false;
 	}
 	if (document.reconcileExternal(true, latest, error) != WorldExternalResult::Reloaded) {
 		g_gui.PopupDialog("Cannot reload World", wxstr(error), wxOK);
-		return;
+		return false;
 	}
 	externalStatus.clear();
 	refresh();
+	return true;
 }
 
 bool WorldLayerEditor::suppressed(const Item* item) const {

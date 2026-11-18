@@ -279,30 +279,36 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 	}
 	const bool copyWorld = world && !filename.GetFullPath().empty() && filename != FileName(wxstr(map.filename));
 	bool coordinatedWorldSave = false;
-	if (copyWorld) {
-		std::string error;
-		if (!world->document.canCopyForMap(std::filesystem::u8path(nstr(filename.GetFullPath())), error)) {
-			g_gui.PopupDialog("Cannot copy server worlds", wxstr(error), wxOK);
+	if (world) {
+		if (!copyWorld && !map.hasChanged() && !world->document.dirty()) {
 			return;
 		}
-	} else if (world) {
-		if (world->document.dirty()) {
-			coordinatedWorldSave = world->dependsOnUnsavedMap();
-			if (coordinatedWorldSave) {
-				world->validate();
-				if (!world->diagnostics.empty()) {
-					g_gui.PopupDialog("Cannot save World", wxstr(world->diagnostics.front().describe() + "\nThe map and World files were not published."), wxOK);
-					return;
-				}
-			} else if (!world->save()) {
+		if (!copyWorld && !world->checkExternal(false)) {
+			g_gui.PopupDialog("Cannot save World", wxstr(world->externalStatus), wxOK);
+			return;
+		}
+		world->validate(!copyWorld && world->document.dirty() ? &coordinatedWorldSave : nullptr);
+		if (!world->diagnostics.empty()) {
+			g_gui.PopupDialog("Cannot save World", wxstr(world->diagnostics.front().describe() + "\nResolve the diagnostics or save a draft copy."), wxOK);
+			return;
+		}
+		if (copyWorld) {
+			std::string error;
+			if (!world->document.canCopyForMap(std::filesystem::u8path(nstr(filename.GetFullPath())), error)) {
+				g_gui.PopupDialog("Cannot copy server worlds", wxstr(error), wxOK);
 				return;
 			}
-		}
-		if (!map.hasChanged()) {
-			if (coordinatedWorldSave) {
-				g_gui.PopupDialog("Unsaved map dependency", "A World selector depends on a map revision that is not marked for saving. Reassociate the target or save the map edit first.", wxOK);
+		} else {
+			if (coordinatedWorldSave && !map.hasChanged()) {
+				g_gui.PopupDialog("Unsaved map dependency", "The World depends on a map edit that is not marked for saving. Reassociate the target or save the map edit first.", wxOK);
+				return;
 			}
-			return;
+			if (!coordinatedWorldSave && world->document.dirty() && !world->publish()) {
+				return;
+			}
+			if (!map.hasChanged()) {
+				return;
+			}
 		}
 	}
 	std::string savefile = filename.GetFullPath().mb_str(wxConvUTF8).data();
@@ -404,7 +410,7 @@ void Editor::saveMap(FileName filename, bool showdialog) {
 		bool success = mapsaver.saveMap(map, fn);
 		bool recoveryPending = false;
 		if (success && coordinatedWorldSave) {
-			if (!world->save()) {
+			if (!world->publish()) {
 				success = false;
 			} else {
 				std::string error;

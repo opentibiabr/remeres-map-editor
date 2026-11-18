@@ -27,7 +27,7 @@ class WorldLayerEditor {
 public:
 	WorldLayerEditor(Editor &editor, WorldLayerDocument document, WorldItemCatalog items, std::map<std::filesystem::path, world_files::Revision> revisions);
 	~WorldLayerEditor();
-	void validate();
+	void validate(bool* dependsOnUnsavedMap = nullptr);
 	void synchronizeMap();
 	void acknowledgeMapChange();
 	void select(const std::string &id);
@@ -53,9 +53,9 @@ public:
 	bool isPicking() const;
 	void refresh();
 	void refreshDisplay(bool overlayOnly = false);
-	void checkExternal(bool interactive);
+	bool checkExternal(bool interactive);
 	void saveDraft();
-	bool save();
+	bool publish();
 	bool suppressed(const Item* item) const;
 	const Item* sprite(uint16_t id) const;
 	std::string at(const world_layers::Position &position) const;
@@ -64,7 +64,6 @@ public:
 		return spatialIndex;
 	}
 	void finishDrag(bool commit);
-	bool dependsOnUnsavedMap() const;
 
 	WorldLayerDocument document;
 	world_layers::Diagnostics diagnostics;
