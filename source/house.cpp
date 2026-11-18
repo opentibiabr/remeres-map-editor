@@ -24,42 +24,42 @@
 
 namespace {
 
-template <typename Callback>
-bool forEachHouseDoor(const Map* map, const PositionList &houseTiles, uint32_t houseID, const Tile* pendingTile, uint8_t excludedDoorID, Callback callback) {
-	const Position pendingPosition = pendingTile ? pendingTile->getPosition() : Position();
-	PositionList tilePositions = houseTiles;
-	if (pendingTile && pendingTile->getHouseID() == houseID && std::find(tilePositions.begin(), tilePositions.end(), pendingPosition) == tilePositions.end()) {
-		tilePositions.push_back(pendingPosition);
-	}
-
-	bool excludedDoorSkipped = false;
-	for (const Position &tilePosition : tilePositions) {
-		const Tile* liveTile = map->getTile(tilePosition);
-		if (!liveTile || liveTile->getHouseID() != houseID) {
-			continue;
+	template <typename Callback>
+	bool forEachHouseDoor(const Map* map, const PositionList &houseTiles, uint32_t houseID, const Tile* pendingTile, uint8_t excludedDoorID, Callback callback) {
+		const Position pendingPosition = pendingTile ? pendingTile->getPosition() : Position();
+		PositionList tilePositions = houseTiles;
+		if (pendingTile && pendingTile->getHouseID() == houseID && std::find(tilePositions.begin(), tilePositions.end(), pendingPosition) == tilePositions.end()) {
+			tilePositions.push_back(pendingPosition);
 		}
 
-		const Tile* tile = pendingTile && tilePosition == pendingPosition ? pendingTile : liveTile;
-		if (tile->getHouseID() != houseID) {
-			continue;
-		}
-
-		for (const Item* item : tile->items) {
-			const auto* door = dynamic_cast<const Door*>(item);
-			if (!door || door->getDoorID() == 0) {
+		bool excludedDoorSkipped = false;
+		for (const Position &tilePosition : tilePositions) {
+			const Tile* liveTile = map->getTile(tilePosition);
+			if (!liveTile || liveTile->getHouseID() != houseID) {
 				continue;
 			}
-			if (!excludedDoorSkipped && pendingTile && tilePosition == pendingPosition && door->getDoorID() == excludedDoorID) {
-				excludedDoorSkipped = true;
+
+			const Tile* tile = pendingTile && tilePosition == pendingPosition ? pendingTile : liveTile;
+			if (tile->getHouseID() != houseID) {
 				continue;
 			}
-			if (callback(tilePosition, door)) {
-				return true;
+
+			for (const Item* item : tile->items) {
+				const auto* door = dynamic_cast<const Door*>(item);
+				if (!door || door->getDoorID() == 0) {
+					continue;
+				}
+				if (!excludedDoorSkipped && pendingTile && tilePosition == pendingPosition && door->getDoorID() == excludedDoorID) {
+					excludedDoorSkipped = true;
+					continue;
+				}
+				if (callback(tilePosition, door)) {
+					return true;
+				}
 			}
 		}
+		return false;
 	}
-	return false;
-}
 
 } // namespace
 
