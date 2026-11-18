@@ -333,9 +333,39 @@ void MapDrawer::DrawShade(int map_z) {
 	}
 }
 
+struct MapDrawer::TileItemLayers {
+	enum Layer { Border, Bottom, Common, Top, Count };
+	std::array<ItemVector, Count> items;
+
+	void collect(const ItemVector &tileItems) {
+		for (auto &layer : items) {
+			layer.clear();
+		}
+		for (Item* item : tileItems) {
+			const auto &type = item->getItemType();
+			Layer layer = Common;
+			if (type.alwaysOnBottom) {
+				switch (type.alwaysOnTopOrder) {
+					case 1:
+						layer = Border;
+						break;
+					case 3:
+						layer = Top;
+						break;
+					default:
+						layer = Bottom;
+						break;
+				}
+			}
+			items[layer].push_back(item);
+		}
+	}
+};
+
 void MapDrawer::DrawMap() {
 	tooltips.clear();
 	bool live_client = editor.IsLiveClient();
+	TileItemLayers itemLayers;
 
 	Brush* brush = g_gui.GetCurrentBrush();
 
@@ -379,7 +409,7 @@ void MapDrawer::DrawMap() {
 						for (int map_x = 0; map_x < 4; ++map_x) {
 							for (int map_y = 0; map_y < 4; ++map_y) {
 								TileLocation* location = nd->getTile(map_x, map_y, map_z);
-								DrawTile(location);
+								DrawTile(location, itemLayers);
 								// draw light, but only if not zoomed too far
 								if (location && options.show_lights && zoom <= 10) {
 									AddLight(location);
@@ -1437,7 +1467,7 @@ void MapDrawer::WriteTooltip(const Waypoint* waypoint, MapTooltip &tooltip) {
 	tooltip.addEntry("wp: ", waypoint->name);
 }
 
-void MapDrawer::DrawTile(TileLocation* location) {
+void MapDrawer::DrawTile(TileLocation* location, TileItemLayers &itemLayers) {
 	if (!location) {
 		return;
 	}
@@ -1471,6 +1501,7 @@ void MapDrawer::DrawTile(TileLocation* location) {
 	getDrawPosition(position, draw_x, draw_y);
 
 	const bool dimmed = canvas->IsPreviewDimmed(position);
+	int top_x = draw_x, top_y = draw_y;
 
 	uint8_t r = 255, g = 255, b = 255;
 	if (dimmed) {
@@ -1568,17 +1599,24 @@ void MapDrawer::DrawTile(TileLocation* location) {
 
 	bool hidden = only_colors || (options.hide_items_when_zoomed && zoom > 10.f);
 
-	if (!hidden && !tile->items.empty()) {
-		for (Item* item : tile->items) {
+	const bool drawItems = !hidden && !tile->items.empty();
+	const auto drawItem = [&](Item* item, int &x, int &y) {
+		if (options.show_preview && zoom <= 2.0) {
+			item->animate();
+		}
 
-			if (options.show_preview && zoom <= 2.0) {
-				item->animate();
-			}
-
-			if (item->isBorder() || dimmed) {
-				BlitItem(draw_x, draw_y, tile, item, false, r, g, b);
-			} else {
-				BlitItem(draw_x, draw_y, tile, item);
+		if (item->isBorder() || dimmed) {
+			BlitItem(x, y, tile, item, false, r, g, b);
+		} else {
+			BlitItem(x, y, tile, item);
+		}
+	};
+	if (drawItems) {
+		// Match the client layers while keeping the original map item order for saving.
+		itemLayers.collect(tile->items);
+		for (auto layer : { TileItemLayers::Border, TileItemLayers::Bottom, TileItemLayers::Common }) {
+			for (Item* item : itemLayers.items[layer]) {
+				drawItem(item, draw_x, draw_y);
 			}
 		}
 	}
@@ -1591,6 +1629,11 @@ void MapDrawer::DrawTile(TileLocation* location) {
 
 	if (!hidden && options.show_npcs && tile->npc) {
 		BlitCreature(draw_x, draw_y, tile->npc);
+	}
+	if (drawItems) {
+		for (Item* item : itemLayers.items[TileItemLayers::Top]) {
+			drawItem(item, top_x, top_y);
+		}
 	}
 
 	if (show_tooltips && position.z == floor) {

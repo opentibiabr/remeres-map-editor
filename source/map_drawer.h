@@ -227,7 +227,8 @@ protected:
 	void BlitCreature(int screenx, int screeny, const Monster* npc, int red = 255, int green = 255, int blue = 255, int alpha = 255);
 	void BlitCreature(int screenx, int screeny, const Npc* c, int red = 255, int green = 255, int blue = 255, int alpha = 255);
 	void BlitCreature(int screenx, int screeny, const Outfit &outfit, const Direction &dir, int red = 255, int green = 255, int blue = 255, int alpha = 255);
-	void DrawTile(TileLocation* tile);
+	struct TileItemLayers;
+	void DrawTile(TileLocation* tile, TileItemLayers &itemLayers);
 	void DrawBrushIndicator(int x, int y, [[maybe_unused]] Brush* brush, uint8_t r, uint8_t g, uint8_t b);
 	void DrawHookIndicator(int x, int y, const ItemType &type);
 	void DrawLightStrength(int x, int y, const Item*&item);
