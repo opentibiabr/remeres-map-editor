@@ -334,7 +334,11 @@ void MapDrawer::DrawShade(int map_z) {
 }
 
 struct MapDrawer::TileItemLayers {
-	enum Layer { Border, Bottom, Common, Top, Count };
+	enum Layer { Border,
+				 Bottom,
+				 Common,
+				 Top,
+				 Count };
 	std::array<ItemVector, Count> items;
 
 	void collect(const ItemVector &tileItems) {
