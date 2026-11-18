@@ -34,6 +34,13 @@ namespace {
 		contained.id = "contained";
 		contained.container = "active.first";
 		active.objects.push_back(contained);
+		world_layers::Object replacement;
+		replacement.id = "from_container";
+		replacement.mode = world_layers::SourceMode::Replace;
+		replacement.position = { 112, 108, 7 };
+		replacement.selector.emplace();
+		replacement.selector->container = "chest";
+		active.objects.push_back(replacement);
 		project.layers.push_back(active);
 		auto disabled = active;
 		disabled.id = "disabled";
@@ -49,6 +56,9 @@ namespace {
 		require(index.entry(sameTile[0]).invalid && !index.entry(sameTile[1]).invalid, "spatial index retains per-object diagnostics");
 		const auto &near = index.visible(7, 99, 99, 101, 101);
 		require(near.size() == 2, "viewport query includes only visible objects on its floor");
+		const auto &placed = index.at(replacement.position);
+		require(placed.size() == 1 && index.entry(placed.front()).id == replacement.id, "a replacement from inside a container is selectable at its final tile");
+		require(index.visible(7, 112, 108, 112, 108) == placed, "a replacement from inside a container is drawn at its final tile");
 		const auto &far = index.visible(7, 104, 104, 106, 106);
 		require(far.size() == 1 && index.entry(far.front()).id == "far", "viewport bounds invalidate the cached query");
 		require(index.find("other_floor") && !index.find("hidden") && !index.find("missing"), "identity lookup follows active top-level entries");

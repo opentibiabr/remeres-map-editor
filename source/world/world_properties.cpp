@@ -491,7 +491,7 @@ struct WorldProperties::State {
 	std::vector<std::string> attributeKeys, relationKeys, childIds;
 
 	State(wxNotebook* notebook, Object &object, const Project &project, Project* draft, const MapItem &base, const Map* map) :
-		notebook(notebook), object(object), project(project), draft(draft), base(base), map(map) { }
+		notebook(notebook), object(object), project(project), draft(draft), base(object.mode == SourceMode::Map ? base : MapItem {}), map(map) { }
 	wxScrolledWindow* page(const wxString &title, wxBoxSizer*&layout) {
 		auto panel = new wxScrolledWindow(notebook, wxID_ANY);
 		panel->SetScrollRate(8, 8);
@@ -594,8 +594,15 @@ struct WorldProperties::State {
 		for (const auto* key : { "aid", "uid", "text", "description", "name", "article", "plural", "writer", "date" }) {
 			attributeKeys.emplace_back(key);
 			const auto from = inherited.find(key), to = overridden.find(key);
-			attributes->Append(wxString::FromUTF8(key) + (to != overridden.end() ? " = " + display(to->second) + " (override)" : from != inherited.end() ? " = " + display(from->second) + " (inherited)"
-			                                                                                                                                             : wxString(" (inherited / absent)")));
+			wxString label = wxString::FromUTF8(key);
+			if (to != overridden.end()) {
+				label += " = " + display(to->second) + " (override)";
+			} else if (from != inherited.end()) {
+				label += " = " + display(from->second) + (object.mode == SourceMode::Map ? " (inherited)" : " (default)");
+			} else {
+				label += " (absent)";
+			}
+			attributes->Append(label);
 		}
 		std::set<std::string> keys;
 		for (const auto* collection : { &inherited, &overridden }) {
@@ -613,7 +620,7 @@ struct WorldProperties::State {
 	void attributePage() {
 		wxBoxSizer* layout;
 		auto panel = page("Attributes", layout);
-		layout->Add(new wxStaticText(panel, wxID_ANY, "AID may repeat. Nonzero UID must be unique. Inherit removes an override."), 0, wxALL, 8);
+		layout->Add(new wxStaticText(panel, wxID_ANY, "AID may repeat. Nonzero UID must be unique."), 0, wxALL, 8);
 		attributes = new wxListBox(panel, wxID_ANY);
 		layout->Add(attributes, 1, wxEXPAND | wxALL, 8);
 		const auto edit = [this, panel] {
@@ -669,7 +676,7 @@ struct WorldProperties::State {
 		};
 		auto row = new wxBoxSizer(wxHORIZONTAL);
 		button(panel, row, "Edit override...", [edit](wxCommandEvent &) { edit(); });
-		button(panel, row, "Inherit", [this](wxCommandEvent &) {
+		button(panel, row, object.mode == SourceMode::Map ? "Inherit" : "Use default", [this](wxCommandEvent &) {
 			const auto index = attributes->GetSelection();
 			if (index == wxNOT_FOUND) {
 				return;

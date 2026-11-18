@@ -19,7 +19,7 @@ void WorldViewIndex::rebuild(const world_layers::Project &project, const world_l
 			continue;
 		}
 		for (const auto &object : layer.objects) {
-			if (!object.container.empty() || (object.selector && !object.selector->container.empty())) {
+			if (!object.container.empty() || (object.mode == world_layers::SourceMode::Map && object.selector && !object.selector->container.empty())) {
 				continue;
 			}
 			const auto position = world_layers::objectPosition(project, object);
