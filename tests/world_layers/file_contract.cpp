@@ -44,6 +44,8 @@ namespace {
 			put(file, "concurrent creation");
 		} else if (fault == 4) {
 			put(competingFile, "later recovery edit");
+		} else if (fault == 5) {
+			put(file, "occupied pending path");
 		}
 	}
 	void arm(const char* stage, const std::filesystem::path &file, int value) {
@@ -166,6 +168,13 @@ void runWorldFileTests(const std::filesystem::path &scratch) {
 	}
 	check(publish(publication, error), "publish World files while the coordinated guard remains");
 	check(!transactionPending(catalog) && coordinatedPending(catalog), "completed World publication retains coordinated rollback data");
+	const auto pendingFile = root / "map.world.json.pending";
+	arm("rollback-handoff", pendingFile, 5);
+	check(!recoverCoordination(catalog, root, true, error), "an occupied pending path blocks coordinated rollback");
+	check(get(pendingFile) == "occupied pending path" && std::filesystem::exists(root / "map.world.json.coordinated.rollback"), "failed handoff preserves the pending file and the rollback receipt");
+	check(std::filesystem::remove(pendingFile), "remove the test obstruction");
+	arm("recovery-verified", catalog, 1);
+	check(!recoverCoordination(catalog, root, true, error) && transactionPending(catalog), "an interruption after handoff retains the journal");
 	check(recoverCoordination(catalog, root, true, error), "coordinated rollback restores World files");
 	check(get(layer) == "second" && get(catalog) == "catalog-second" && !pending(catalog), "coordinated rollback is complete");
 	check(beginCoordination(catalog, error), "begin second coordinated save");
