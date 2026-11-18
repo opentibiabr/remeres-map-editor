@@ -337,6 +337,14 @@ protected:
 	SpawnNpc* edit_spawn_npc;
 };
 
+class House;
+enum class DuplicateDoorIDChoice {
+	Continue,
+	Cancel,
+	Renumber,
+};
+DuplicateDoorIDChoice ShowDuplicateDoorIDsDialog(wxWindow* parent, const House &house, uint8_t proposedDoorID, const Position &proposedPosition, uint8_t originalDoorID);
+
 /**
  * The edit towns dialog, ugly as sin.
  */

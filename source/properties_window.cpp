@@ -20,6 +20,7 @@
 #include "properties_window.h"
 
 #include "gui_ids.h"
+#include "gui.h"
 #include "complexitem.h"
 #include "container_properties_window.h"
 
@@ -153,7 +154,7 @@ void PropertiesWindow::createTeleportDestinationCtrl(wxPanel* panel, wxFlexGridS
 void PropertiesWindow::createDoorIdCtrl(wxPanel* panel, wxFlexGridSizer* gridsizer) {
 	if (const auto door = edit_item->getDoor()) {
 		gridsizer->Add(newd wxStaticText(panel, wxID_ANY, "Door ID"));
-		doorIdField = newd wxSpinCtrl(panel, wxID_ANY, i2ws(door->getDoorID()), wxDefaultPosition, wxSize(-1, 20), wxSP_ARROW_KEYS, 0, 0xFFFF, door->getDoorID());
+		doorIdField = newd wxSpinCtrl(panel, wxID_ANY, i2ws(door->getDoorID()), wxDefaultPosition, wxSize(-1, 20), wxSP_ARROW_KEYS, 0, 0xFF, door->getDoorID());
 		if (!edit_tile->isHouseTile()) {
 			doorIdField->Disable();
 		}
@@ -617,6 +618,21 @@ void PropertiesWindow::OnGridValueChanged(wxGridEvent &event) {
 }
 
 void PropertiesWindow::OnClickOK(wxCommandEvent &) {
+	Door* door = edit_item->getDoor();
+	if (door && doorIdField && g_settings.getInteger(Config::WARN_FOR_DUPLICATE_ID) && edit_tile && edit_tile->isHouseTile()) {
+		const House* house = edit_map->houses.getHouse(edit_tile->getHouseID());
+		if (house && house->hasDoorID(static_cast<uint8_t>(doorIdField->GetValue()), edit_tile->getPosition(), door->getDoorID())) {
+			const uint8_t doorId = static_cast<uint8_t>(doorIdField->GetValue());
+			const DuplicateDoorIDChoice choice = ShowDuplicateDoorIDsDialog(this, *house, doorId, edit_tile->getPosition(), door->getDoorID());
+			if (choice == DuplicateDoorIDChoice::Renumber) {
+				EndModal(0);
+				return;
+			}
+			if (choice == DuplicateDoorIDChoice::Cancel) {
+				return;
+			}
+		}
+	}
 	saveAttributesPanel();
 	EndModal(1);
 }

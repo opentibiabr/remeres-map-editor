@@ -118,17 +118,25 @@ size_t House::size() const {
 void House::addTile(Tile* tile) {
 	ASSERT(tile);
 	tile->setHouse(this);
-	tiles.push_back(tile->getPosition());
+	const Position &position = tile->getPosition();
+	if (std::find(tiles.begin(), tiles.end(), position) == tiles.end()) {
+		tiles.push_back(position);
+	}
 }
 
 void House::removeTile(Tile* tile) {
 	ASSERT(tile);
-	for (PositionList::iterator tile_iter = tiles.begin(); tile_iter != tiles.end(); ++tile_iter) {
+	bool removed = false;
+	for (PositionList::iterator tile_iter = tiles.begin(); tile_iter != tiles.end();) {
 		if (*tile_iter == tile->getPosition()) {
-			tiles.erase(tile_iter);
-			tile->setHouse(nullptr);
-			return;
+			tile_iter = tiles.erase(tile_iter);
+			removed = true;
+		} else {
+			++tile_iter;
 		}
+	}
+	if (removed) {
+		tile->setHouse(nullptr);
 	}
 }
 
@@ -151,22 +159,54 @@ uint8_t House::getEmptyDoorID() const {
 			return i;
 		}
 	}
-	return 255;
+	// Door ID 0 means "unassigned". Do not return an occupied ID when the
+	// supported range is exhausted.
+	return 0;
 }
 
-Position House::getDoorPositionByID(uint8_t id) const {
+bool House::hasDoorID(uint8_t id, const Position &excludedPosition, uint8_t excludedDoorID) const {
+	if (id == 0) {
+		return false;
+	}
+	bool excludedDoorSkipped = false;
 	for (PositionList::const_iterator tile_iter = tiles.begin(); tile_iter != tiles.end(); ++tile_iter) {
 		if (const Tile* tile = map->getTile(*tile_iter)) {
 			for (ItemVector::const_iterator item_iter = tile->items.begin(); item_iter != tile->items.end(); ++item_iter) {
-				if (Door* door = dynamic_cast<Door*>(*item_iter)) {
+				if (const Door* door = dynamic_cast<const Door*>(*item_iter)) {
 					if (door->getDoorID() == id) {
-						return *tile_iter;
+						if (!excludedDoorSkipped && *tile_iter == excludedPosition && excludedDoorID == id) {
+							excludedDoorSkipped = true;
+							continue;
+						}
+						return true;
 					}
 				}
 			}
 		}
 	}
-	return Position();
+	return false;
+}
+
+std::map<uint8_t, std::vector<Position>> House::getDoorIDPositions(const Position &excludedPosition, uint8_t excludedDoorID) const {
+	std::map<uint8_t, std::vector<Position>> doorPositions;
+	bool excludedDoorSkipped = false;
+	for (PositionList::const_iterator tile_iter = tiles.begin(); tile_iter != tiles.end(); ++tile_iter) {
+		if (const Tile* tile = map->getTile(*tile_iter)) {
+			for (ItemVector::const_iterator item_iter = tile->items.begin(); item_iter != tile->items.end(); ++item_iter) {
+				if (const Door* door = dynamic_cast<const Door*>(*item_iter)) {
+					if (door->getDoorID() != 0) {
+						if (!excludedDoorSkipped && *tile_iter == excludedPosition && door->getDoorID() == excludedDoorID) {
+							excludedDoorSkipped = true;
+							continue;
+						}
+						doorPositions[door->getDoorID()].push_back(*tile_iter);
+					}
+				}
+			}
+		}
+	}
+
+	return doorPositions;
 }
 
 std::string House::getDescription() {

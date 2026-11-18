@@ -661,10 +661,13 @@ void OldPropertiesWindow::OnClickOK(wxCommandEvent &WXUNUSED(event)) {
 				if (edit_tile && edit_tile->isHouseTile()) {
 					const House* house = edit_map->houses.getHouse(edit_tile->getHouseID());
 					if (house) {
-						Position pos = house->getDoorPositionByID(new_door_id);
-						if (pos.isValid() && pos != edit_tile->getPosition()) {
-							int ret = g_gui.PopupDialog(this, "Warning", "This doorid conflicts with another one in this house, are you sure you want to continue?", wxYES | wxNO);
-							if (ret == wxID_NO) {
+						if (house->hasDoorID(new_door_id, edit_tile->getPosition(), door->getDoorID())) {
+							const DuplicateDoorIDChoice choice = ShowDuplicateDoorIDsDialog(this, *house, new_door_id, edit_tile->getPosition(), door->getDoorID());
+							if (choice == DuplicateDoorIDChoice::Renumber) {
+								EndModal(0);
+								return;
+							}
+							if (choice == DuplicateDoorIDChoice::Cancel) {
 								return;
 							}
 						}
