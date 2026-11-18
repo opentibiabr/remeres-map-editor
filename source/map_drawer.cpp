@@ -457,6 +457,7 @@ void MapDrawer::DrawSecondaryMap(int map_z) {
 
 			int draw_x, draw_y;
 			getDrawPosition(final_pos, draw_x, draw_y);
+			const wxPoint tileOrigin(draw_x, draw_y);
 
 			// Draw ground
 			uint8_t r = 160, g = 160, b = 160;
@@ -493,29 +494,9 @@ void MapDrawer::DrawSecondaryMap(int map_z) {
 				BlitItem(draw_x, draw_y, tile, tile->ground, true, r, g, b, 160);
 			}
 
-			bool hidden = options.hide_items_when_zoomed && zoom > 10.f;
-
-			// Draw items
-			if (!hidden && !tile->items.empty()) {
-				for (const Item* item : tile->items) {
-					if (item->isBorder()) {
-						BlitItem(draw_x, draw_y, tile, item, true, 160, r, g, b);
-					} else {
-						BlitItem(draw_x, draw_y, tile, item, true, 160, 160, 160, 160);
-					}
-				}
-			}
-
-			// Monsters
-			if (!hidden && options.show_monsters && !tile->monsters.empty()) {
-				for (auto monster : tile->monsters) {
-					BlitCreature(draw_x, draw_y, monster);
-				}
-			}
-
-			// NPCS
-			if (!hidden && options.show_npcs && tile->npc) {
-				BlitCreature(draw_x, draw_y, tile->npc);
+			const bool hidden = options.hide_items_when_zoomed && zoom > 10.f;
+			if (!hidden) {
+				DrawTileContents(tile, wxPoint(draw_x, draw_y), tileOrigin, GLColor { r, g, b, 255 }, true, false);
 			}
 		}
 	}
@@ -1457,17 +1438,19 @@ void MapDrawer::TileItemLayers::collect(const std::vector<Item*> &tileItems) {
 	}
 }
 
-void MapDrawer::DrawTileContents(Tile* tile, int drawX, int drawY, int topX, int topY, const GLColor &color, bool dimmed) {
-	const bool animate = options.show_preview && zoom <= 2.0;
-	const auto drawLayer = [&](std::vector<Item*> &items, int &x, int &y) {
+void MapDrawer::DrawTileContents(Tile* tile, wxPoint drawPosition, wxPoint tileOrigin, const GLColor &color, bool ephemeral, bool dimmed) {
+	const bool animate = !ephemeral && options.show_preview && zoom <= 2.0;
+	const GLColor defaultColor = ephemeral ? GLColor { 160, 160, 160, 160 } : GLColor { 255, 255, 255, 255 };
+	const auto drawLayer = [&](std::vector<Item*> &items, wxPoint &position) {
 		for (Item* item : items) {
 			if (animate) {
 				item->animate();
 			}
-			if (item->isBorder() || dimmed) {
-				BlitItem(x, y, tile, item, false, color.r, color.g, color.b);
+			const GLColor &tint = item->isBorder() || dimmed ? color : defaultColor;
+			if (ephemeral) {
+				BlitItem(position.x, position.y, tile, item, true, 160, tint.r, tint.g, tint.b);
 			} else {
-				BlitItem(x, y, tile, item);
+				BlitItem(position.x, position.y, tile, item, false, tint.r, tint.g, tint.b);
 			}
 		}
 		items.clear();
@@ -1477,22 +1460,22 @@ void MapDrawer::DrawTileContents(Tile* tile, int drawX, int drawY, int topX, int
 	const bool hasItems = !tile->items.empty();
 	if (hasItems) {
 		tileItemLayers.collect(tile->items);
-		drawLayer(tileItemLayers.border, drawX, drawY);
-		drawLayer(tileItemLayers.bottom, drawX, drawY);
-		drawLayer(tileItemLayers.common, drawX, drawY);
+		drawLayer(tileItemLayers.border, drawPosition);
+		drawLayer(tileItemLayers.bottom, drawPosition);
+		drawLayer(tileItemLayers.common, drawPosition);
 	}
 
 	if (options.show_monsters) {
 		for (auto monster : tile->monsters) {
-			BlitCreature(drawX, drawY, monster);
+			BlitCreature(drawPosition.x, drawPosition.y, monster);
 		}
 	}
 	if (options.show_npcs && tile->npc) {
-		BlitCreature(drawX, drawY, tile->npc);
+		BlitCreature(drawPosition.x, drawPosition.y, tile->npc);
 	}
 
 	if (hasItems) {
-		drawLayer(tileItemLayers.top, topX, topY);
+		drawLayer(tileItemLayers.top, tileOrigin);
 	}
 }
 
@@ -1528,8 +1511,7 @@ void MapDrawer::DrawTile(TileLocation* location) {
 
 	int draw_x, draw_y;
 	getDrawPosition(position, draw_x, draw_y);
-	const int tile_x = draw_x;
-	const int tile_y = draw_y;
+	const wxPoint tileOrigin(draw_x, draw_y);
 
 	const bool dimmed = canvas->IsPreviewDimmed(position);
 
@@ -1629,7 +1611,7 @@ void MapDrawer::DrawTile(TileLocation* location) {
 
 	const bool hidden = only_colors || (options.hide_items_when_zoomed && zoom > 10.f);
 	if (!hidden) {
-		DrawTileContents(tile, draw_x, draw_y, tile_x, tile_y, GLColor { r, g, b, 255 }, dimmed);
+		DrawTileContents(tile, wxPoint(draw_x, draw_y), tileOrigin, GLColor { r, g, b, 255 }, false, dimmed);
 	}
 
 	if (show_tooltips && position.z == floor) {

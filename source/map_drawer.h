@@ -274,7 +274,7 @@ private:
 	};
 
 	TileItemLayers tileItemLayers;
-	void DrawTileContents(Tile* tile, int drawX, int drawY, int topX, int topY, const GLColor &color, bool dimmed);
+	void DrawTileContents(Tile* tile, wxPoint drawPosition, wxPoint tileOrigin, const GLColor &color, bool ephemeral, bool dimmed);
 	void getDrawPosition(const Position &position, int &x, int &y);
 };
 
