@@ -24,6 +24,21 @@
 #include "complexitem.h"
 #include "container_properties_window.h"
 
+namespace {
+
+	DuplicateDoorIDChoice checkDuplicateDoorID(wxWindow* parent, const Map* map, const Tile* tile, uint8_t proposedDoorID, uint8_t originalDoorID) {
+		if (!g_settings.getInteger(Config::WARN_FOR_DUPLICATE_ID) || !map || !tile || !tile->isHouseTile()) {
+			return DuplicateDoorIDChoice::Continue;
+		}
+		const House* house = map->houses.getHouse(tile->getHouseID());
+		if (!house || !house->hasDoorID(proposedDoorID, tile, originalDoorID)) {
+			return DuplicateDoorIDChoice::Continue;
+		}
+		return ShowDuplicateDoorIDsDialog(parent, *house, proposedDoorID, tile, originalDoorID);
+	}
+
+} // namespace
+
 const wxArrayString PropertiesWindow::types = {
 	"Number",
 	"Float",
@@ -618,22 +633,16 @@ void PropertiesWindow::OnGridValueChanged(wxGridEvent &event) {
 }
 
 void PropertiesWindow::OnClickOK(wxCommandEvent &) {
-	Door* door = edit_item->getDoor();
-	if (door && doorIdField) {
-		const uint8_t doorId = static_cast<uint8_t>(doorIdField->GetValue());
-		SetAdvancedPropertyNumberData("doorid", doorId);
-		if (g_settings.getInteger(Config::WARN_FOR_DUPLICATE_ID) && edit_tile && edit_tile->isHouseTile()) {
-			const House* house = edit_map->houses.getHouse(edit_tile->getHouseID());
-			if (house && house->hasDoorID(doorId, edit_tile, door->getDoorID())) {
-				const DuplicateDoorIDChoice choice = ShowDuplicateDoorIDsDialog(this, *house, doorId, edit_tile, door->getDoorID());
-				if (choice == DuplicateDoorIDChoice::Renumber) {
-					EndModal(DOOR_IDS_RENUMBERED);
-					return;
-				}
-				if (choice == DuplicateDoorIDChoice::Cancel) {
-					return;
-				}
-			}
+	if (Door* door = edit_item->getDoor(); door && doorIdField) {
+		const auto doorID = static_cast<uint8_t>(doorIdField->GetValue());
+		SetAdvancedPropertyNumberData("doorid", doorID);
+		const auto duplicateChoice = checkDuplicateDoorID(this, edit_map, edit_tile, doorID, door->getDoorID());
+		if (duplicateChoice == DuplicateDoorIDChoice::Renumber) {
+			EndModal(DOOR_IDS_RENUMBERED);
+			return;
+		}
+		if (duplicateChoice == DuplicateDoorIDChoice::Cancel) {
+			return;
 		}
 	}
 	saveAttributesPanel();

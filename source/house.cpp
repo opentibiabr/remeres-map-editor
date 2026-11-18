@@ -127,7 +127,7 @@ void House::addTile(Tile* tile) {
 void House::removeTile(Tile* tile) {
 	ASSERT(tile);
 	bool removed = false;
-	for (PositionList::iterator tile_iter = tiles.begin(); tile_iter != tiles.end();) {
+	for (auto tile_iter = tiles.begin(); tile_iter != tiles.end();) {
 		if (*tile_iter == tile->getPosition()) {
 			tile_iter = tiles.erase(tile_iter);
 			removed = true;
@@ -142,18 +142,22 @@ void House::removeTile(Tile* tile) {
 
 uint8_t House::getEmptyDoorID() const {
 	std::set<uint8_t> taken;
-	for (PositionList::const_iterator tile_iter = tiles.begin(); tile_iter != tiles.end(); ++tile_iter) {
-		if (const Tile* tile = map->getTile(*tile_iter)) {
-			for (ItemVector::const_iterator item_iter = tile->items.begin(); item_iter != tile->items.end(); ++item_iter) {
-				if (Door* door = dynamic_cast<Door*>(*item_iter)) {
-					taken.insert(door->getDoorID());
-				}
+	for (const Position &tilePosition : tiles) {
+		const Tile* tile = map->getTile(tilePosition);
+		if (!tile) {
+			continue;
+		}
+		for (Item* item : tile->items) {
+			auto* door = dynamic_cast<Door*>(item);
+			if (!door) {
+				continue;
 			}
+			taken.insert(door->getDoorID());
 		}
 	}
 
 	for (int i = 1; i < 256; ++i) {
-		std::set<uint8_t>::iterator it = taken.find(uint8_t(i));
+		auto it = taken.find(uint8_t(i));
 		if (it == taken.end()) {
 			// Free ID!
 			return i;
@@ -164,26 +168,27 @@ uint8_t House::getEmptyDoorID() const {
 	return 0;
 }
 
-bool House::hasDoorID(uint8_t id, const Tile* pendingTile, uint8_t excludedDoorID) const {
-	if (id == 0) {
+bool House::hasDoorID(uint8_t doorID, const Tile* pendingTile, uint8_t excludedDoorID) const {
+	if (doorID == 0) {
 		return false;
 	}
 	const Position pendingPosition = pendingTile ? pendingTile->getPosition() : Position();
 	bool excludedDoorSkipped = false;
-	for (PositionList::const_iterator tile_iter = tiles.begin(); tile_iter != tiles.end(); ++tile_iter) {
-		const Tile* tile = pendingTile && *tile_iter == pendingPosition ? pendingTile : map->getTile(*tile_iter);
-		if (tile) {
-			for (ItemVector::const_iterator item_iter = tile->items.begin(); item_iter != tile->items.end(); ++item_iter) {
-				if (const Door* door = dynamic_cast<const Door*>(*item_iter)) {
-					if (door->getDoorID() == id) {
-						if (!excludedDoorSkipped && *tile_iter == pendingPosition && excludedDoorID == id) {
-							excludedDoorSkipped = true;
-							continue;
-						}
-						return true;
-					}
-				}
+	for (const Position &tilePosition : tiles) {
+		const Tile* tile = pendingTile && tilePosition == pendingPosition ? pendingTile : map->getTile(tilePosition);
+		if (!tile) {
+			continue;
+		}
+		for (const Item* item : tile->items) {
+			auto* door = dynamic_cast<const Door*>(item);
+			if (!door || door->getDoorID() != doorID) {
+				continue;
 			}
+			if (!excludedDoorSkipped && pendingTile && tilePosition == pendingPosition && excludedDoorID == doorID) {
+				excludedDoorSkipped = true;
+				continue;
+			}
+			return true;
 		}
 	}
 	return false;
@@ -193,20 +198,21 @@ std::map<uint8_t, std::vector<Position>> House::getDoorIDPositions(const Tile* p
 	std::map<uint8_t, std::vector<Position>> doorPositions;
 	const Position pendingPosition = pendingTile ? pendingTile->getPosition() : Position();
 	bool excludedDoorSkipped = false;
-	for (PositionList::const_iterator tile_iter = tiles.begin(); tile_iter != tiles.end(); ++tile_iter) {
-		const Tile* tile = pendingTile && *tile_iter == pendingPosition ? pendingTile : map->getTile(*tile_iter);
-		if (tile) {
-			for (ItemVector::const_iterator item_iter = tile->items.begin(); item_iter != tile->items.end(); ++item_iter) {
-				if (const Door* door = dynamic_cast<const Door*>(*item_iter)) {
-					if (door->getDoorID() != 0) {
-						if (!excludedDoorSkipped && *tile_iter == pendingPosition && door->getDoorID() == excludedDoorID) {
-							excludedDoorSkipped = true;
-							continue;
-						}
-						doorPositions[door->getDoorID()].push_back(*tile_iter);
-					}
-				}
+	for (const Position &tilePosition : tiles) {
+		const Tile* tile = pendingTile && tilePosition == pendingPosition ? pendingTile : map->getTile(tilePosition);
+		if (!tile) {
+			continue;
+		}
+		for (const Item* item : tile->items) {
+			auto* door = dynamic_cast<const Door*>(item);
+			if (!door || door->getDoorID() == 0) {
+				continue;
 			}
+			if (!excludedDoorSkipped && pendingTile && tilePosition == pendingPosition && door->getDoorID() == excludedDoorID) {
+				excludedDoorSkipped = true;
+				continue;
+			}
+			doorPositions[door->getDoorID()].push_back(tilePosition);
 		}
 	}
 
