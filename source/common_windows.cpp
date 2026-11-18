@@ -126,7 +126,7 @@ namespace {
 				const Item* pendingTileItem = pendingTile->items[pendingItemIndex];
 				const Item* liveItem = updatedTile->items[pendingItemIndex];
 				if (pendingTileItem && liveItem && pendingTileItem->getID() == pendingItem->getID() && liveItem->getID() == pendingItem->getID()) {
-					delete updatedTile->items[pendingItemIndex];
+					std::unique_ptr<Item> replacedItem(updatedTile->items[pendingItemIndex]);
 					updatedTile->items[pendingItemIndex] = pendingItem->deepCopy();
 				}
 			}
