@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 #include "light_drawer.h"
 #include "gl_renderer.h"
 
@@ -227,8 +228,7 @@ protected:
 	void BlitCreature(int screenx, int screeny, const Monster* npc, int red = 255, int green = 255, int blue = 255, int alpha = 255);
 	void BlitCreature(int screenx, int screeny, const Npc* c, int red = 255, int green = 255, int blue = 255, int alpha = 255);
 	void BlitCreature(int screenx, int screeny, const Outfit &outfit, const Direction &dir, int red = 255, int green = 255, int blue = 255, int alpha = 255);
-	struct TileItemLayers;
-	void DrawTile(TileLocation* tile, TileItemLayers &itemLayers);
+	void DrawTile(TileLocation* tile);
 	void DrawBrushIndicator(int x, int y, [[maybe_unused]] Brush* brush, uint8_t r, uint8_t g, uint8_t b);
 	void DrawHookIndicator(int x, int y, const ItemType &type);
 	void DrawLightStrength(int x, int y, const Item*&item);
@@ -264,6 +264,17 @@ protected:
 	void drawFilledRect(int x, int y, int w, int h, const wxColor &color);
 
 private:
+	struct TileItemLayers {
+		std::vector<Item*> border;
+		std::vector<Item*> bottom;
+		std::vector<Item*> common;
+		std::vector<Item*> top;
+
+		void collect(const std::vector<Item*> &tileItems);
+	};
+
+	TileItemLayers tileItemLayers;
+	void DrawTileContents(Tile* tile, int drawX, int drawY, int topX, int topY, const GLColor &color, bool dimmed);
 	void getDrawPosition(const Position &position, int &x, int &y);
 };
 

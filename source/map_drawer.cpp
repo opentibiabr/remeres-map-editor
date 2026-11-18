@@ -333,43 +333,9 @@ void MapDrawer::DrawShade(int map_z) {
 	}
 }
 
-struct MapDrawer::TileItemLayers {
-	enum Layer { Border,
-				 Bottom,
-				 Common,
-				 Top,
-				 Count };
-	std::array<ItemVector, Count> items;
-
-	void collect(const ItemVector &tileItems) {
-		for (auto &layer : items) {
-			layer.clear();
-		}
-		for (Item* item : tileItems) {
-			const auto &type = item->getItemType();
-			Layer layer = Common;
-			if (type.alwaysOnBottom) {
-				switch (type.alwaysOnTopOrder) {
-					case 1:
-						layer = Border;
-						break;
-					case 3:
-						layer = Top;
-						break;
-					default:
-						layer = Bottom;
-						break;
-				}
-			}
-			items[layer].push_back(item);
-		}
-	}
-};
-
 void MapDrawer::DrawMap() {
 	tooltips.clear();
 	bool live_client = editor.IsLiveClient();
-	TileItemLayers itemLayers;
 
 	Brush* brush = g_gui.GetCurrentBrush();
 
@@ -413,7 +379,7 @@ void MapDrawer::DrawMap() {
 						for (int map_x = 0; map_x < 4; ++map_x) {
 							for (int map_y = 0; map_y < 4; ++map_y) {
 								TileLocation* location = nd->getTile(map_x, map_y, map_z);
-								DrawTile(location, itemLayers);
+								DrawTile(location);
 								// draw light, but only if not zoomed too far
 								if (location && options.show_lights && zoom <= 10) {
 									AddLight(location);
@@ -1471,7 +1437,66 @@ void MapDrawer::WriteTooltip(const Waypoint* waypoint, MapTooltip &tooltip) {
 	tooltip.addEntry("wp: ", waypoint->name);
 }
 
-void MapDrawer::DrawTile(TileLocation* location, TileItemLayers &itemLayers) {
+void MapDrawer::TileItemLayers::collect(const std::vector<Item*> &tileItems) {
+	border.clear();
+	bottom.clear();
+	common.clear();
+	top.clear();
+
+	for (Item* item : tileItems) {
+		const auto &type = item->getItemType();
+		if (!type.alwaysOnBottom) {
+			common.push_back(item);
+		} else if (type.alwaysOnTopOrder == 1) {
+			border.push_back(item);
+		} else if (type.alwaysOnTopOrder == 3) {
+			top.push_back(item);
+		} else {
+			bottom.push_back(item);
+		}
+	}
+}
+
+void MapDrawer::DrawTileContents(Tile* tile, int drawX, int drawY, int topX, int topY, const GLColor &color, bool dimmed) {
+	const bool animate = options.show_preview && zoom <= 2.0;
+	const auto drawLayer = [&](std::vector<Item*> &items, int &x, int &y) {
+		for (Item* item : items) {
+			if (animate) {
+				item->animate();
+			}
+			if (item->isBorder() || dimmed) {
+				BlitItem(x, y, tile, item, false, color.r, color.g, color.b);
+			} else {
+				BlitItem(x, y, tile, item);
+			}
+		}
+		items.clear();
+	};
+
+	// Follow the client layers without changing the order used for saving.
+	const bool hasItems = !tile->items.empty();
+	if (hasItems) {
+		tileItemLayers.collect(tile->items);
+		drawLayer(tileItemLayers.border, drawX, drawY);
+		drawLayer(tileItemLayers.bottom, drawX, drawY);
+		drawLayer(tileItemLayers.common, drawX, drawY);
+	}
+
+	if (options.show_monsters) {
+		for (auto monster : tile->monsters) {
+			BlitCreature(drawX, drawY, monster);
+		}
+	}
+	if (options.show_npcs && tile->npc) {
+		BlitCreature(drawX, drawY, tile->npc);
+	}
+
+	if (hasItems) {
+		drawLayer(tileItemLayers.top, topX, topY);
+	}
+}
+
+void MapDrawer::DrawTile(TileLocation* location) {
 	if (!location) {
 		return;
 	}
@@ -1503,9 +1528,10 @@ void MapDrawer::DrawTile(TileLocation* location, TileItemLayers &itemLayers) {
 
 	int draw_x, draw_y;
 	getDrawPosition(position, draw_x, draw_y);
+	const int tile_x = draw_x;
+	const int tile_y = draw_y;
 
 	const bool dimmed = canvas->IsPreviewDimmed(position);
-	int top_x = draw_x, top_y = draw_y;
 
 	uint8_t r = 255, g = 255, b = 255;
 	if (dimmed) {
@@ -1601,43 +1627,9 @@ void MapDrawer::DrawTile(TileLocation* location, TileItemLayers &itemLayers) {
 		}
 	}
 
-	bool hidden = only_colors || (options.hide_items_when_zoomed && zoom > 10.f);
-
-	const bool drawItems = !hidden && !tile->items.empty();
-	const auto drawItem = [&](Item* item, int &x, int &y) {
-		if (options.show_preview && zoom <= 2.0) {
-			item->animate();
-		}
-
-		if (item->isBorder() || dimmed) {
-			BlitItem(x, y, tile, item, false, r, g, b);
-		} else {
-			BlitItem(x, y, tile, item);
-		}
-	};
-	if (drawItems) {
-		// Match the client layers while keeping the original map item order for saving.
-		itemLayers.collect(tile->items);
-		for (auto layer : { TileItemLayers::Border, TileItemLayers::Bottom, TileItemLayers::Common }) {
-			for (Item* item : itemLayers.items[layer]) {
-				drawItem(item, draw_x, draw_y);
-			}
-		}
-	}
-
-	if (!hidden && options.show_monsters && !tile->monsters.empty()) {
-		for (auto monster : tile->monsters) {
-			BlitCreature(draw_x, draw_y, monster);
-		}
-	}
-
-	if (!hidden && options.show_npcs && tile->npc) {
-		BlitCreature(draw_x, draw_y, tile->npc);
-	}
-	if (drawItems) {
-		for (Item* item : itemLayers.items[TileItemLayers::Top]) {
-			drawItem(item, top_x, top_y);
-		}
+	const bool hidden = only_colors || (options.hide_items_when_zoomed && zoom > 10.f);
+	if (!hidden) {
+		DrawTileContents(tile, draw_x, draw_y, tile_x, tile_y, GLColor { r, g, b, 255 }, dimmed);
 	}
 
 	if (show_tooltips && position.z == floor) {
