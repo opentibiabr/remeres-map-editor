@@ -385,7 +385,7 @@ OldPropertiesWindow::OldPropertiesWindow(wxWindow* win_parent, const Map* map, c
 	subsizer->Add(newd wxStaticText(this, wxID_ANY, "\"" + wxstr(edit_monster->getName()) + "\""), wxSizerFlags(1).Expand());
 
 	subsizer->Add(newd wxStaticText(this, wxID_ANY, "Spawn interval"));
-	count_field = newd wxSpinCtrl(this, wxID_ANY, i2ws(edit_monster->getSpawnMonsterTime()), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 10, 3600, edit_monster->getSpawnMonsterTime());
+	count_field = newd wxSpinCtrl(this, wxID_ANY, i2ws(edit_monster->getSpawnMonsterTime()), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 10, std::max(86400, edit_monster->getSpawnMonsterTime()), edit_monster->getSpawnMonsterTime());
 	// count_field->SetSelection(-1, -1);
 	subsizer->Add(count_field, wxSizerFlags(1).Expand());
 

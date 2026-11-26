@@ -5429,7 +5429,7 @@ bool IOMapOTBM::loadSpawnsMonster(Map &map, pugi::xml_document &doc) {
 				break;
 			}
 
-			uint16_t spawntime = monsterNode.attribute("spawntime").as_uint(0);
+			int32_t spawntime = monsterNode.attribute("spawntime").as_int(0);
 			if (spawntime == 0) {
 				spawntime = g_settings.getInteger(Config::DEFAULT_SPAWN_MONSTER_TIME);
 			}

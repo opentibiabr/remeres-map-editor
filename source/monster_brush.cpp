@@ -82,7 +82,7 @@ void MonsterBrush::drawMonster(BaseMap* map, Tile* tile, void* parameter) {
 			});
 			if (it == tile->monsters.end()) {
 				const auto monster = newd Monster(monster_type);
-				monster->setSpawnMonsterTime(*(uint16_t*)parameter);
+				monster->setSpawnMonsterTime(*(int*)parameter);
 				tile->monsters.emplace_back(monster);
 			}
 		}

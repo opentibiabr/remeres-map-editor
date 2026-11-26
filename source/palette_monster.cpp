@@ -78,7 +78,7 @@ MonsterPalettePanel::MonsterPalettePanel(wxWindow* parent, wxWindowID id) :
 	grid->AddGrowableCol(1);
 
 	grid->Add(newd wxStaticText(this, wxID_ANY, "Spawntime"));
-	monster_spawntime_spin = newd wxSpinCtrl(this, PALETTE_MONSTER_SPAWN_TIME, i2ws(g_settings.getInteger(Config::DEFAULT_SPAWN_MONSTER_TIME)), wxDefaultPosition, wxSize(50, 20), wxSP_ARROW_KEYS, 0, 3600, g_settings.getInteger(Config::DEFAULT_SPAWN_MONSTER_TIME));
+	monster_spawntime_spin = newd wxSpinCtrl(this, PALETTE_MONSTER_SPAWN_TIME, i2ws(g_settings.getInteger(Config::DEFAULT_SPAWN_MONSTER_TIME)), wxDefaultPosition, wxSize(50, 20), wxSP_ARROW_KEYS, 0, 86400, g_settings.getInteger(Config::DEFAULT_SPAWN_MONSTER_TIME));
 	grid->Add(monster_spawntime_spin, 0, wxEXPAND);
 	monster_brush_button = newd wxToggleButton(this, PALETTE_MONSTER_BRUSH_BUTTON, "Place Monster");
 	grid->Add(monster_brush_button, 0, wxEXPAND);
