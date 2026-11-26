@@ -5453,7 +5453,7 @@ bool IOMapOTBM::loadSpawnsMonster(Map &map, pugi::xml_document &doc) {
 				uint8_t parsedWeight = 0;
 				const auto valueEnd = weightValue.data() + weightValue.size();
 				const auto [end, error] = std::from_chars(weightValue.data(), valueEnd, parsedWeight, isHex ? 16 : 10);
-				if (error == std::errc{} && end == valueEnd) {
+				if (error == std::errc {} && end == valueEnd) {
 					weight = parsedWeight;
 				}
 			}
