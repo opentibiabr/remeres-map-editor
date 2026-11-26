@@ -773,6 +773,10 @@ void GUI::LoadPerspective() {
 			}
 		}
 
+		if (palettes.empty()) {
+			CreatePalette();
+		}
+
 		if (g_settings.getInteger(Config::MINIMAP_VISIBLE)) {
 			if (!minimap) {
 				wxAuiPaneInfo info;
@@ -967,7 +971,8 @@ PaletteWindow* GUI::CreatePalette() {
 
 	auto* palette = newd PaletteWindow(root, g_materials.tilesets);
 	aui_manager->AddPane(palette, wxAuiPaneInfo().Caption("Palette").TopDockable(false).BottomDockable(false));
-	palette->OnUpdate(GetCurrentMapTab()->GetMap());
+	MapTab* mapTab = GetCurrentMapTab();
+	palette->OnUpdate(mapTab ? mapTab->GetMap() : nullptr);
 	aui_manager->Update();
 
 	// Make us the active palette
