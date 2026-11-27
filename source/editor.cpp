@@ -32,6 +32,7 @@
 #include "table_brush.h"
 #include "carpet_brush.h"
 #include "waypoint_brush.h"
+#include "house_brush.h"
 #include "house_exit_brush.h"
 #include "doodad_brush.h"
 #include "monster_brush.h"
@@ -614,6 +615,8 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 			if (newexit.isValid()) {
 				imported_house->setExit(&map, newexit);
 			}
+			// Register destination positions as the imported tiles are installed.
+			imported_house->clearTilePositions();
 			map.houses.addHouse(imported_house);
 
 			hit = imported_map.houses.erase(hit);
@@ -752,19 +755,29 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 			newsize_y = new_pos.y;
 		}
 
+		Tile* old_tile = map.getTile(new_pos);
+		if (old_tile && old_tile->isHouseTile()) {
+			if (House* old_house = map.houses.getHouse(old_tile->getHouseID())) {
+				old_house->removeTile(old_tile);
+			}
+		}
+
 		imported_map.setTile(import_tile->getPosition(), nullptr);
 		TileLocation* location = map.createTileL(new_pos);
 
 		// Check if we should update any houses
+		const bool wasHouseTile = import_tile->isHouseTile();
 		int new_houseid = house_id_map[import_tile->getHouseID()];
 		House* house = map.houses.getHouse(new_houseid);
-		if (import_tile->isHouseTile() && house_import_type != IMPORT_DONT && house) {
-			// We need to notify houses of the tile moving
-			house->removeTile(import_tile);
-			import_tile->setLocation(location);
+		if (House* imported_house = imported_map.houses.getHouse(import_tile->getHouseID())) {
+			imported_house->removeTile(import_tile);
+		}
+		import_tile->setLocation(location);
+		if (wasHouseTile && house_import_type != IMPORT_DONT && house) {
+			// Register the destination even when the imported house ID is unchanged.
 			house->addTile(import_tile);
 		} else {
-			import_tile->setLocation(location);
+			import_tile->setHouse(nullptr);
 		}
 
 		if (offset != Position(0, 0, 0)) {
@@ -776,7 +789,6 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 			}
 		}
 
-		Tile* old_tile = map.getTile(new_pos);
 		if (old_tile) {
 			map.removeSpawnMonster(old_tile);
 			map.removeSpawnNpc(old_tile);
@@ -1645,6 +1657,15 @@ void Editor::drawInternal(const PositionVector &tilestodraw, bool alt, bool dodr
 			}
 		}
 	} else {
+		auto* houseBrush = brush->asHouse();
+		std::bitset<256> reservedDoorIDs;
+		const auto drawTile = [&](Tile* tile) {
+			if (houseBrush) {
+				houseBrush->drawWithDoorIDs(&map, tile, reservedDoorIDs);
+			} else {
+				brush->draw(&map, tile, &alt);
+			}
+		};
 
 		for (PositionVector::const_iterator it = tilestodraw.begin(); it != tilestodraw.end(); ++it) {
 			TileLocation* location = map.createTileL(*it);
@@ -1652,14 +1673,14 @@ void Editor::drawInternal(const PositionVector &tilestodraw, bool alt, bool dodr
 			if (tile) {
 				Tile* new_tile = tile->deepCopy(map);
 				if (dodraw) {
-					brush->draw(&map, new_tile, &alt);
+					drawTile(new_tile);
 				} else {
 					brush->undraw(&map, new_tile);
 				}
 				action->addChange(newd Change(new_tile));
 			} else if (dodraw) {
 				Tile* new_tile = map.allocator(location);
-				brush->draw(&map, new_tile, &alt);
+				drawTile(new_tile);
 				action->addChange(newd Change(new_tile));
 			}
 		}

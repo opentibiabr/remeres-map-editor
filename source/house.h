@@ -20,6 +20,8 @@
 
 #include "position.h"
 
+#include <bitset>
+
 class Map;
 class Tile;
 class Door;
@@ -31,6 +33,7 @@ public:
 	House(Map &map);
 
 	void clean();
+	void clearTilePositions();
 	void addTile(Tile* tile);
 	void removeTile(Tile* tile);
 	size_t size() const;
@@ -50,8 +53,9 @@ public:
 	const Position &getExit() const noexcept {
 		return exit;
 	}
-	uint8_t getEmptyDoorID() const;
-	Position getDoorPositionByID(uint8_t id) const;
+	uint8_t getEmptyDoorID(const Tile* pendingTile = nullptr, const std::bitset<256> &reservedDoorIDs = {}) const;
+	bool hasDoorID(uint8_t doorID, const Tile* pendingTile, uint8_t excludedDoorID) const;
+	std::map<uint8_t, std::vector<Position>> getDoorIDPositions(const Tile* pendingTile, uint8_t excludedDoorID) const;
 
 	const PositionList &getTiles() const {
 		return tiles;
@@ -60,6 +64,7 @@ public:
 protected:
 	Map* map;
 	PositionList tiles;
+	std::set<Position> tilePositionIndex;
 	Position exit;
 
 	friend class Houses;
