@@ -169,7 +169,7 @@ void CarpetBrush::undraw(BaseMap* map, Tile* tile) {
 	}
 }
 
-void CarpetBrush::doCarpets(BaseMap* map, Tile* tile) {
+void CarpetBrush::doCarpets(BaseMap* map, Tile* tile, bool keepGroundBorders) {
 	static const auto hasMatchingCarpetBrushAtTile = [](BaseMap* map, CarpetBrush* carpetBrush, uint32_t x, uint32_t y, uint32_t z) -> bool {
 		Tile* tile = map->getTile(x, y, z);
 		if (!tile) {
@@ -208,6 +208,10 @@ void CarpetBrush::doCarpets(BaseMap* map, Tile* tile) {
 
 		CarpetBrush* carpetBrush = item->getCarpetBrush();
 		if (!carpetBrush) {
+			continue;
+		}
+
+		if (keepGroundBorders && item->isBorder()) {
 			continue;
 		}
 

@@ -263,7 +263,7 @@ public: // Functions
 	// Tableize (name sucks even worse, I know) this tile
 	void tableize(BaseMap* parent);
 	// Carpetize (name sucks even worse than last one, I know) this tile
-	void carpetize(BaseMap* parent);
+	void carpetize(BaseMap* parent, bool keepGroundBorders = false);
 
 	// Has to do with houses
 	bool isHouseTile() const noexcept;

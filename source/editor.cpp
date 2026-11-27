@@ -1119,7 +1119,7 @@ void Editor::moveSelection(const Position &offset) {
 			}
 			new_tile->wallize(&map);
 			new_tile->tableize(&map);
-			new_tile->carpetize(&map);
+			new_tile->carpetize(&map, true);
 			if (tile->ground && tile->ground->isSelected()) {
 				new_tile->selectGround();
 			}
@@ -1235,7 +1235,7 @@ void Editor::moveSelection(const Position &offset) {
 				}
 				new_tile->wallize(&map);
 				new_tile->tableize(&map);
-				new_tile->carpetize(&map);
+				new_tile->carpetize(&map, true);
 				if (tile->ground->isSelected()) {
 					new_tile->selectGround();
 				}
@@ -1335,7 +1335,7 @@ void Editor::destroySelection() {
 					new_tile->borderize(&map);
 					new_tile->wallize(&map);
 					new_tile->tableize(&map);
-					new_tile->carpetize(&map);
+					new_tile->carpetize(&map, true);
 					action->addChange(newd Change(new_tile));
 				} else {
 					Tile* new_tile = map.allocator(location);
@@ -1742,7 +1742,7 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 					if (brush->isEraser()) {
 						new_tile->wallize(&map);
 						new_tile->tableize(&map);
-						new_tile->carpetize(&map);
+						new_tile->carpetize(&map, true);
 					}
 					new_tile->borderize(&map);
 					action->addChange(newd Change(new_tile));

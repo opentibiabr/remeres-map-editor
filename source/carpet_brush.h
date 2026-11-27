@@ -44,7 +44,10 @@ public:
 	virtual void draw(BaseMap* map, Tile* tile, void* parameter);
 	virtual void undraw(BaseMap* map, Tile* tile);
 
-	static void doCarpets(BaseMap* map, Tile* tile);
+	// keepGroundBorders leaves alone the items that also belong to a ground's
+	// border set (the "(tiny)" carpets reuse those pieces). Use it when tidying
+	// up around an edit, where borderize() decides those pieces.
+	static void doCarpets(BaseMap* map, Tile* tile, bool keepGroundBorders = false);
 
 	virtual bool canDrag() const {
 		return true;

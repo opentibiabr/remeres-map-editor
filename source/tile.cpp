@@ -851,8 +851,8 @@ void Tile::tableize(BaseMap* parent) {
 	TableBrush::doTables(parent, this);
 }
 
-void Tile::carpetize(BaseMap* parent) {
-	CarpetBrush::doCarpets(parent, this);
+void Tile::carpetize(BaseMap* parent, bool keepGroundBorders) {
+	CarpetBrush::doCarpets(parent, this, keepGroundBorders);
 }
 
 void Tile::selectGround() {
