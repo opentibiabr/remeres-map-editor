@@ -44,6 +44,7 @@
 #include <array>
 #include <algorithm>
 #include <cctype>
+#include <charconv>
 #include <cstring>
 #include <cstdlib>
 #include <ctime>
@@ -61,6 +62,7 @@
 #include <span>
 #include <sstream>
 #include <string_view>
+#include <system_error>
 #include <thread>
 
 typedef uint8_t attribute_t;
@@ -5434,9 +5436,26 @@ bool IOMapOTBM::loadSpawnsMonster(Map &map, pugi::xml_document &doc) {
 				spawntime = g_settings.getInteger(Config::DEFAULT_SPAWN_MONSTER_TIME);
 			}
 
-			auto weight = static_cast<uint8_t>(monsterNode.attribute("weight").as_uint());
-			if (weight == 0) {
-				weight = static_cast<uint8_t>(g_settings.getInteger(Config::MONSTER_DEFAULT_WEIGHT));
+			const auto weightAttribute = monsterNode.attribute("weight");
+			auto weight = static_cast<uint8_t>(g_settings.getInteger(Config::MONSTER_DEFAULT_WEIGHT));
+			std::string_view weightValue(weightAttribute.value());
+			constexpr std::string_view xmlWhitespace = " \t\r\n";
+			if (const auto first = weightValue.find_first_not_of(xmlWhitespace); first != std::string_view::npos) {
+				weightValue = weightValue.substr(first, weightValue.find_last_not_of(xmlWhitespace) - first + 1);
+				if (weightValue.starts_with('+')) {
+					weightValue.remove_prefix(1);
+				}
+				const bool isHex = weightValue.starts_with("0x") || weightValue.starts_with("0X");
+				if (isHex) {
+					weightValue.remove_prefix(2);
+				}
+
+				uint8_t parsedWeight = 0;
+				const auto valueEnd = weightValue.data() + weightValue.size();
+				const auto [end, error] = std::from_chars(weightValue.data(), valueEnd, parsedWeight, isHex ? 16 : 10);
+				if (error == std::errc {} && end == valueEnd) {
+					weight = parsedWeight;
+				}
 			}
 
 			Direction direction = NORTH;
@@ -6072,10 +6091,7 @@ bool IOMapOTBM::saveSpawns(Map &map, pugi::xml_document &doc) {
 								monsterNode.append_attribute("direction") = monster->getDirection();
 							}
 
-							if (monsterTile->monsters.size() > 1) {
-								const auto weight = monster->getWeight();
-								monsterNode.append_attribute("weight") = weight > 0 ? weight : g_settings.getInteger(Config::MONSTER_DEFAULT_WEIGHT);
-							}
+							monsterNode.append_attribute("weight") = monster->getWeight();
 
 							// Mark as saved
 							monster->save();

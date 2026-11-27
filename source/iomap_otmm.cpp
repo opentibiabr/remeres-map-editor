@@ -603,6 +603,7 @@ bool IOMapOTMM::loadMap(Map &map, NodeFileReadHandle &f, const FileName &identif
 										type = g_monsters.addMissingMonsterType(name);
 									}
 									Monster* monster = newd Monster(type);
+									monster->setWeight(g_settings.getInteger(Config::MONSTER_DEFAULT_WEIGHT));
 									monster->setSpawnMonsterTime(spawntime);
 									monster_tile->monster = monster;
 									if (monster_tile->spawn_monster_count == 0) {

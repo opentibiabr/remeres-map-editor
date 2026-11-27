@@ -131,6 +131,7 @@ namespace LuaAPI {
 
 		// Create new monster
 		auto monster = newd Monster(type);
+		monster->setWeight(g_settings.getInteger(Config::MONSTER_DEFAULT_WEIGHT));
 
 		// Set spawn time
 		int spawnTime = spawnTimeOpt.value_or(g_settings.getInteger(Config::DEFAULT_SPAWN_MONSTER_TIME));
