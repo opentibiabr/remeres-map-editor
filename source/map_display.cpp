@@ -475,8 +475,7 @@ void MapCanvas::UpdatePositionStatus(int x, int y) {
 	} else if (!tile->monsters.empty() && g_settings.getInteger(Config::SHOW_MONSTERS)) {
 		std::vector<std::string> texts;
 		for (const auto monster : tile->monsters) {
-			const auto monsterWeight = tile->monsters.size() > 1 ? std::to_string(monster->getWeight()) : "0";
-			texts.emplace_back(fmt::format("Monster \"{}\", spawntime: {}, weight: {}", monster->getName(), monster->getSpawnMonsterTime(), monsterWeight));
+			texts.emplace_back(fmt::format("Monster \"{}\", spawntime: {}, weight: {}", monster->getName(), monster->getSpawnMonsterTime(), monster->getWeight()));
 		}
 		description = fmt::format("{}", fmt::join(texts, " - "));
 	} else if (tile->spawnNpc && g_settings.getInteger(Config::SHOW_SPAWNS_NPC)) {
