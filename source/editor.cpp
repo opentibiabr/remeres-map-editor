@@ -615,6 +615,8 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 			if (newexit.isValid()) {
 				imported_house->setExit(&map, newexit);
 			}
+			// Register destination positions as the imported tiles are installed.
+			imported_house->clearTilePositions();
 			map.houses.addHouse(imported_house);
 
 			hit = imported_map.houses.erase(hit);
@@ -767,12 +769,7 @@ bool Editor::importMap(FileName filename, int import_x_offset, int import_y_offs
 		const bool wasHouseTile = import_tile->isHouseTile();
 		int new_houseid = house_id_map[import_tile->getHouseID()];
 		House* house = map.houses.getHouse(new_houseid);
-		House* imported_house = imported_map.houses.getHouse(import_tile->getHouseID());
-		if (!imported_house) {
-			// Transferred houses already belong to the destination map.
-			imported_house = house;
-		}
-		if (imported_house) {
+		if (House* imported_house = imported_map.houses.getHouse(import_tile->getHouseID())) {
 			imported_house->removeTile(import_tile);
 		}
 		import_tile->setLocation(location);

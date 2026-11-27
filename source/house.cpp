@@ -156,6 +156,11 @@ size_t House::size() const {
 	return count;
 }
 
+void House::clearTilePositions() {
+	tiles.clear();
+	tilePositionIndex.clear();
+}
+
 void House::addTile(Tile* tile) {
 	ASSERT(tile);
 	tile->setHouse(this);

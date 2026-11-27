@@ -33,6 +33,7 @@ public:
 	House(Map &map);
 
 	void clean();
+	void clearTilePositions();
 	void addTile(Tile* tile);
 	void removeTile(Tile* tile);
 	size_t size() const;
