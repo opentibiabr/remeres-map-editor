@@ -53,11 +53,7 @@ void HistoryListBox::OnDrawItem(wxDC &dc, const wxRect &rect, size_t index) cons
 		return;
 	}
 
-	if (IsSelected(index)) {
-		dc.SetTextForeground(*wxBLUE);
-	} else {
-		dc.SetTextForeground(*wxBLACK);
-	}
+	dc.SetTextForeground(wxSystemSettings::GetColour(IsSelected(index) ? wxSYS_COLOUR_HIGHLIGHTTEXT : wxSYS_COLOUR_LISTBOXTEXT));
 
 	const BatchAction* action = actions->getAction(index - 1);
 	if (action) {

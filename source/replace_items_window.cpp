@@ -127,6 +127,8 @@ void ReplaceItemsListBox::OnDrawItem(wxDC &dc, const wxRect &rect, size_t index)
 	const ItemType &type2 = g_items.getItemType(item.withId);
 	Sprite* sprite2 = g_gui.gfx.getSprite(type2.clientID);
 
+	dc.SetTextForeground(wxSystemSettings::GetColour(IsSelected(index) ? wxSYS_COLOUR_HIGHLIGHTTEXT : wxSYS_COLOUR_LISTBOXTEXT));
+
 	if (sprite1 && sprite2) {
 		int x = rect.GetX();
 		int y = rect.GetY();
@@ -140,16 +142,6 @@ void ReplaceItemsListBox::OnDrawItem(wxDC &dc, const wxRect &rect, size_t index)
 			dc.DrawBitmap(m_flag_bitmap, x + 70, y + 10, true);
 			dc.DrawText(wxString::Format("Total: %d", item.total), x, y + 10);
 		}
-	}
-
-	if (IsSelected(index)) {
-		if (HasFocus()) {
-			dc.SetTextForeground(wxColor(0xFF, 0xFF, 0xFF));
-		} else {
-			dc.SetTextForeground(wxColor(0x00, 0x00, 0xFF));
-		}
-	} else {
-		dc.SetTextForeground(wxColor(0x00, 0x00, 0x00));
 	}
 }
 
