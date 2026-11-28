@@ -445,7 +445,7 @@ void MainToolBar::SavePerspective() {
 
 	if (g_settings.getBoolean(Config::SHOW_TOOLBAR_INDICATORS)) {
 		wxString info = manager->SavePaneInfo(GetPane(TOOLBAR_INDICATORS));
-		g_settings.setString(Config::SHOW_TOOLBAR_INDICATORS, info.ToStdString());
+		g_settings.setString(Config::TOOLBAR_INDICATORS_LAYOUT, info.ToStdString());
 	}
 }
 
