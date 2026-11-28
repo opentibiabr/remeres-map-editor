@@ -36,7 +36,7 @@
 			<brush name="brown sand thick (tiny)"/>
 			<brush name="dirt mud (tiny)"/>
 			<brush name="muddy sand (tiny)"/>
-			<brush name="unknown2 (tiny)"/>
+			<brush name="wasteland (tiny)"/>
 			<brush name="crystal dirt (tiny)"/>
 			<brush name="krailos dirt (tiny)"/>
 			<brush name="krailos dirt thick (tiny)"/>
@@ -60,8 +60,8 @@
 			<brush name="acid (tiny)"/>
 			<brush name="muddy floor (tiny)"/>
 			<brush name="venore muddy floor (tiny)"/>
-			<brush name="unknown5 (tiny)"/>
-			<brush name="unknown6 (tiny)"/>
+			<brush name="green slime floor (tiny)"/>
+			<brush name="pink slime floor (tiny)"/>
 			<brush name="hive structure (tiny)"/>
 			<brush name="red hive structure (tiny)"/>
 			<brush name="colourful honeycomb floor (tiny)"/>
@@ -93,8 +93,8 @@
 			<brush name="salt floor (tiny)"/>
 			<brush name="cookie floor (tiny)"/>
 			<brush name="branch floor (tiny)"/>
-			<brush name="unknown4 (tiny)"/>
-			<brush name="unknown7 (tiny)"/>
+			<brush name="stone pavement (tiny)"/>
+			<brush name="dark overgrown rift floor (tiny)"/>
 			<brush name="ocean floor (tiny)"/>
 			<brush name="serpent seacrest ground (tiny)"/>
 			<brush name="krailos orange (tiny)"/>

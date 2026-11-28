@@ -2977,7 +2977,7 @@
 		<border align="outer" id="184"/>
 	</brush>
 
-	<brush name="unknown1" type="ground" lookid="19841" z-order="25">
+	<brush name="stone pebble floor" type="ground" lookid="19841" z-order="25">
 		<item id="19841" chance="2500"/>
 		<item id="19842" chance="2500"/>
 		<item id="19843" chance="2500"/>
@@ -3073,7 +3073,7 @@
 		<border align="inner" to="none" id="1"/>
 	</brush>
 
-	<brush name="unknown2" type="ground" lookid="19558" z-order="1400">
+	<brush name="wasteland" type="ground" lookid="19558" z-order="1400">
 		<item id="19558" chance="2500"/>
 		<item id="19559" chance="2500"/>
 		<item id="19560" chance="2500"/>
@@ -3113,7 +3113,7 @@
 		<border align="inner" to="none" id="1"/>
 	</brush>
 
-	<brush name="unknown4" type="ground" lookid="19833" z-order="2100">
+	<brush name="stone pavement" type="ground" lookid="19833" z-order="2100">
 		<item id="19833" chance="2500"/>
 		<item id="19834" chance="2500"/>
 		<item id="19835" chance="500"/>
@@ -3127,7 +3127,7 @@
 		<border align="inner" to="none" id="1"/>
 	</brush>
 
-	<brush name="unknown5" type="ground" lookid="20953" z-order="1800">
+	<brush name="green slime floor" type="ground" lookid="20953" z-order="1800">
 		<item id="20953" chance="2500"/>
 		<item id="20954" chance="2500"/>
 		<item id="20955" chance="2500"/>
@@ -3136,7 +3136,7 @@
 		<border align="inner" to="none" id="1"/>
 	</brush>
 
-	<brush name="unknown6" type="ground" lookid="21772" z-order="1900">
+	<brush name="pink slime floor" type="ground" lookid="21772" z-order="1900">
 		<item id="21772" chance="2500"/>
 		<item id="21773" chance="500"/>
 		<item id="21774" chance="2500"/>
@@ -3345,7 +3345,7 @@
 		<item id="23056" chance="5"/>
 	</brush>
 
-	<brush name="unknown7" type="ground" lookid="23097" z-order="5400">
+	<brush name="dark overgrown rift floor" type="ground" lookid="23097" z-order="5400">
 		<item id="23097" chance="10"/>
 		<item id="23098" chance="10"/>
 		

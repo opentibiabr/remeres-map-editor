@@ -1644,7 +1644,7 @@
 		<borderitem edge="dse" item="18479"/>
 	</border>
 	
-	<border id="169"> -- grey floor (unknown4) border --
+	<border id="169"> -- grey floor (stone pavement) border --
 		<borderitem edge="n"   item="19861"/>
 		<borderitem edge="e"   item="19864"/>
 		<borderitem edge="s"   item="19862"/>
@@ -1883,7 +1883,7 @@
 		<borderitem edge="dse" item="19859"/>
 	</border>
 	
-	<border id="185"> -- unknown1 border --
+	<border id="185"> -- stone pebble floor border --
 		<borderitem edge="n"   item="19873"/>
 		<borderitem edge="e"   item="19876"/>
 		<borderitem edge="s"   item="19874"/>
@@ -2160,7 +2160,7 @@
 		<borderitem edge="dse" item="23081"/>
 	</border>
 	
-	<border id="205"> -- unknown7 --
+	<border id="205"> -- dark overgrown rift floor --
 		<borderitem edge="n"   item="23100"/>
 		<borderitem edge="e"   item="23101"/>
 		<borderitem edge="s"   item="23099"/>
@@ -2220,7 +2220,7 @@
 		<borderitem edge="dse" item="22445"/>
 	</border>
 	
-	<border id="209"> -- unknown5 --
+	<border id="209"> -- green slime floor --
 		<borderitem edge="n"   item="20963"/>
 		<borderitem edge="e"   item="20960"/>
 		<borderitem edge="s"   item="20962"/>
@@ -2235,7 +2235,7 @@
 		<borderitem edge="cse" item="20968"/>
 	</border>
 	
-	<border id="210"> -- unknown6 pink acid --
+	<border id="210"> -- pink slime floor (pink acid) --
 		<borderitem edge="n"   item="21781"/>
 		<borderitem edge="e"   item="21778"/>
 		<borderitem edge="s"   item="21780"/>

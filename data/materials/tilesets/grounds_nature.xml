@@ -16,6 +16,7 @@
 			<brush name="clear water"/>
 			<brush name="sea"/>
 			<brush name="walkable sea"/>
+			<brush name="walkable sea outfit"/>
 			<brush name="small brook"/>
 			<brush name="shallow water"/>
 			<brush name="dirty water"/>
@@ -44,7 +45,7 @@
 			<brush name="brown sand"/>
 			<brush name="dirt mud"/>
 			<brush name="muddy sand"/>
-			<brush name="unknown2"/>
+			<brush name="wasteland"/>
 			<brush name="crystal dirt"/>
 			<brush name="light dirt"/>
 			<brush name="cake tile"/>
@@ -68,8 +69,8 @@
 			<brush name="acid"/>
 			<brush name="muddy floor"/>
 			<brush name="venore muddy floor"/>
-			<brush name="unknown5"/>
-			<brush name="unknown6"/>
+			<brush name="green slime floor"/>
+			<brush name="pink slime floor"/>
 			<brush name="fog"/>
 			<brush name="hive structure"/>
 			<brush name="red hive structure"/>
@@ -97,7 +98,7 @@
 			<brush name="deepling spawn"/>
 			<brush name="blue sea floor"/>
 			<brush name="brown sea floor"/>
-			<brush name="unknowndeepling"/>
+			<brush name="deepling cracks"/>
 			<brush name="crystal floor"/>
 			<brush name="scattered crystals"/>
 			<brush name="basalt floor"/>
@@ -106,8 +107,8 @@
 			<brush name="salt floor"/>
 			<brush name="cookie floor"/>
 			<brush name="branch floor"/>
-			<brush name="unknown4"/>
-			<brush name="unknown7"/>
+			<brush name="stone pavement"/>
+			<brush name="dark overgrown rift floor"/>
 			<brush name="ocean floor"/>
 			<brush name="serpent seacrest ground"/>
 			<brush name="krailos orange"/>

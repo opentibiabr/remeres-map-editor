@@ -12,13 +12,14 @@
 			<brush name="venore cobblestone"/>
 			<brush name="venore plaster"/>
 			<brush name="roshamuul pavement"/>
-			<brush name="unknown1"/>
+			<brush name="stone pebble floor"/>
 			<brush name="oramond pavement"/>
 			<!-- Wood -->
 			<brush name="wooden floor"/>
 			<brush name="drawbridge"/>
 			<brush name="svargrond wooden floor"/>
 			<brush name="carlin wooden floor"/>
+			<brush name="dark wooden floor (seabed)"/>
 			<brush name="dark wooden floor"/>
 			<brush name="darkest wooden floor"/>
 			<brush name="timber floor"/>
@@ -47,6 +48,7 @@
 			<brush name="gray stone tiles"/>
 			<brush name="gray stone tiles pressed"/>
 			<brush name="gray stone tiles depressed"/>
+			<brush name="small tiled gray stone"/>
 			<brush name="shiny white marble floor1"/>
 			<brush name="shiny white marble floor2"/>
 			<brush name="shiny white marble floor3"/>

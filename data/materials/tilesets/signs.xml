@@ -31,6 +31,8 @@
 			<brush name="large post sign"/>
 			<brush name="large gem shop sign"/>
 			<brush name="large tavern sign"/>
+			<brush name="large book shop sign"/>
+			<brush name="large fluid shop sign"/>
 			<brush name="large library sign"/>
 			<brush name="rectangle sign"/>
 			<brush name="pointing sign"/>
