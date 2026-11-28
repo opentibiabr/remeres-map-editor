@@ -234,8 +234,12 @@ bool GUI::loadMapWindow(wxString &error, wxArrayString &warnings, bool force /* 
 		return true;
 	}
 
-	// There is another version loaded right now, save window layout
-	g_gui.SavePerspective();
+	// There is another version loaded right now, save window layout.
+	// On the first load no palettes or panels exist yet, so saving here
+	// would overwrite the layout from the last session with an empty one.
+	if (ClientAssets::isLoaded()) {
+		g_gui.SavePerspective();
+	}
 
 	// Disable all rendering so the data is not accessed while reloading
 	UnnamedRenderingLock();
