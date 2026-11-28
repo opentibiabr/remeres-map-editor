@@ -17,6 +17,7 @@
 
 #include "main.h"
 #include <array>
+#include <memory>
 
 #include "gui.h"
 #include "editor.h"
@@ -2035,6 +2036,35 @@ void MapCanvas::OnKeyDown(wxKeyEvent &event) {
 }
 
 #ifdef __LINUX__
+// Finds the enabled menu item whose hotkey (set in menubar.xml) matches
+// the given accelerator flags and key code.
+static int FindMenuItemByHotkey(wxMenu* menu, int flags, int key) {
+	for (wxMenuItem* item : menu->GetMenuItems()) {
+		if (item->IsSubMenu()) {
+			const int id = FindMenuItemByHotkey(item->GetSubMenu(), flags, key);
+			if (id != wxNOT_FOUND) {
+				return id;
+			}
+			continue;
+		}
+		const std::unique_ptr<wxAcceleratorEntry> accel(item->GetAccel());
+		if (accel && accel->GetFlags() == flags && accel->GetKeyCode() == key && item->IsEnabled()) {
+			return item->GetId();
+		}
+	}
+	return wxNOT_FOUND;
+}
+
+static int FindMenuItemByHotkey(wxMenuBar* menuBar, int flags, int key) {
+	for (size_t i = 0; i < menuBar->GetMenuCount(); ++i) {
+		const int id = FindMenuItemByHotkey(menuBar->GetMenu(i), flags, key);
+		if (id != wxNOT_FOUND) {
+			return id;
+		}
+	}
+	return wxNOT_FOUND;
+}
+
 bool MapCanvas::DispatchMenuShortcut(wxKeyEvent &event) {
 	int key = event.GetKeyCode();
 	if (key == WXK_NONE || key == 0) {
@@ -2199,10 +2229,28 @@ bool MapCanvas::DispatchMenuShortcut(wxKeyEvent &event) {
 		}
 	}
 
+	wxMenuBar* mb = g_gui.root->GetMenuBar();
+	int fullId = wxNOT_FOUND;
 	if (menuId >= 0) {
-		int fullId = static_cast<int>(MAIN_FRAME_MENU) + menuId;
+		fullId = static_cast<int>(MAIN_FRAME_MENU) + menuId;
+	} else if (mb && (ctrl || event.AltDown() || (key >= WXK_F1 && key <= WXK_F24))) {
+		// Any other Ctrl or Alt combination or function key from menubar.xml
+		// (Ctrl+S, Ctrl+O, F5, ...). Plain letter keys stay with the canvas,
+		// which uses some of them for its own tools.
+		int flags = wxACCEL_NORMAL;
+		if (ctrl) {
+			flags |= wxACCEL_CTRL;
+		}
+		if (event.AltDown()) {
+			flags |= wxACCEL_ALT;
+		}
+		if (shift) {
+			flags |= wxACCEL_SHIFT;
+		}
+		fullId = FindMenuItemByHotkey(mb, flags, key);
+	}
 
-		wxMenuBar* mb = g_gui.root->GetMenuBar();
+	if (fullId != wxNOT_FOUND) {
 		if (mb) {
 			wxMenuItem* item = mb->FindItem(fullId);
 			if (item && item->IsCheckable()) {
