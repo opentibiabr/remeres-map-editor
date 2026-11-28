@@ -74,7 +74,7 @@
 			<item fromid="23453" toid="23455"/>
 			<item id="23537"/>
 			<item fromid="23715" toid="23720"/>
-			<brush name="new unknown carpet"/>
+			<brush name="new tapestry carpet"/>
 			<brush name="blue psicodelic carpet"/>
 			<brush name="violet arcane carpet"/>
 			<brush name="blue arcane carpet"/>
@@ -123,15 +123,15 @@
 			<brush name="fancy table"/>
 			<brush name="light wooden table"/>
 			<brush name="festive table"/>
-			<brush name="unknown17"/>
+			<brush name="magnificent chair"/>
 			<brush name="ferocious chair"/>
-			<brush name="unknown19"/>
+			<brush name="rustic chair"/>
 			<brush name="ferocious trunk"/>
-			<brush name="unknown21"/>
-			<brush name="unknown22"/>
-			<brush name="unknown23"/>
-			<brush name="unknown24"/>
-			<brush name="unknown25"/>
+			<brush name="magnificent trunk"/>
+			<brush name="magnificent cabinet"/>
+			<brush name="rustic trunk"/>
+			<brush name="rustic trunk 2"/>
+			<brush name="rustic cabinet"/>
 			<!-- Misc -->
 			<brush name="large cask 2"/>
 			<brush name="large cask 3"/>
@@ -225,7 +225,7 @@
 			<brush name="decorative axes"/>
 			<brush name="decorative axes (random)"/>
 			<brush name="crystal ball"/>
-			<brush name="unknown26"/>
+			<brush name="bone shelf"/>
 			<brush name="lizard weapon rack - full"/>
 			<brush name="lizard weapon rack - pair"/>
 			<brush name="lizard weapon rack - empty"/>
