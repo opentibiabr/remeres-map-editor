@@ -1804,7 +1804,7 @@ void Editor::drawInternal(const PositionVector &tilestodraw, PositionVector &til
 			} else if (brush->isCarpet()) {
 				if (tile && tile->hasCarpet()) {
 					Tile* new_tile = tile->deepCopy(map);
-					new_tile->carpetize(&map);
+					new_tile->carpetize(&map, true, brush->asCarpet());
 					action->addChange(newd Change(new_tile));
 				}
 			}
