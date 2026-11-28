@@ -18,6 +18,7 @@
 			<brush name="stone altar"/>
 			<brush name="decorative altar"/>
 			<brush name="sacrificial stone"/>
+			<brush name="gate mechanism"/>
 			<brush name="sacrificial altar"/>
 			<item id="23730"/>
 			<brush name="old desk"/>
@@ -85,11 +86,13 @@
 			<brush name="stone coffin (red rose)"/>
 			<brush name="buried stone coffin"/>
 			<brush name="old stone coffin"/>
+			<brush name="new mirror pillar"/>
 			<brush name="sarcophagus"/>
 			<!-- Campfires -->
 			<brush name="campfire"/>
 			<brush name="campfire pot"/>
 			<brush name="new bonfire"/>
+			<brush name="ancient tombstone 3"/>
 			<brush name="coal basin (immovable)"/>
 			<brush name="coal basin (movable)"/>
 			<brush name="sun coal basin 1"/>
@@ -131,6 +134,7 @@
 			<brush name="huge cauldron WHY"/>
 			<brush name="krailos pot"/>
 			<brush name="color purple pool"/>
+			<brush name="sundial"/>
 			<brush name="large vortex"/>
 			<!-- Tents -->
 			<brush name="gray striped tent"/>
@@ -151,6 +155,8 @@
 			<brush name="stone shelf"/>
 			<brush name="cart"/>
 			<brush name="sugar cart"/>
+			<brush name="empty sugar cart"/>
+			<brush name="distillery"/>
 			<brush name="bunch of sugar cane"/>
 			<brush name="straw mat 2sqm"/>
 			<brush name="straw mat"/>
@@ -176,6 +182,7 @@
 			<brush name="yalahar street lamp - off"/>
 			<brush name="venore street lamp - on"/>
 			<brush name="venore street lamp - off"/>
+			<brush name="yalahar flickering lamp - off"/>
 			<brush name="light of change"/>
 			<brush name="food stones"/>
 			<brush name="barbarian banner"/>

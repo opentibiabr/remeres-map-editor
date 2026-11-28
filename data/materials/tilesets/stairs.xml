@@ -83,6 +83,7 @@
 			<item id="5542"/>
 			<item id="7771"/>
 			<brush name="ladder"/>
+			<brush name="wooden ladder trapdoor"/>
 			<brush name="wooden ladder hole"/>
 			<!-- Ladder Hole -->
 			<brush name="wooden trapdoor"/>
@@ -120,6 +121,21 @@
 			<item id="34243"/>
 			<item id="34255"/>
 			<item id="34335"/>
+			<brush name="grass open stone pile"/>
+			<brush name="grass closed stone pile"/>
+			<brush name="grass pitfall"/>
+			<brush name="grass pitfall2"/>
+			<brush name="ice open stone pile"/>
+			<brush name="ice closed stone pile"/>
+			<brush name="hole in the ice"/>
+			<brush name="cave hole"/>
+			<brush name="cave ropespot"/>
+			<brush name="cave small hole"/>
+			<brush name="cave pickhole"/>
+			<brush name="sand open stone pile"/>
+			<brush name="sand closed stone pile"/>
+			<brush name="sand scarab hole"/>
+			<brush name="stairs"/>
 		</terrain>
 		<raw>
 			<!-- Stairs -->

@@ -4,16 +4,32 @@
 			<!-- Furniture -->
 			<brush name="bookcase"/>
 			<brush name="bambu bookcase with books"/>
+			<brush name="bambu drawer"/>
 			<brush name="new bookcase"/>
 			<brush name="venorean bookcase"/>
 			<brush name="hovering shelf"/>
 			<brush name="strong wooden gable"/>
+			<brush name="elf bookcase"/>
+			<brush name="writing desk"/>
 			<brush name="bamboo shelf"/>
+			<brush name="cabinet"/>
+			<brush name="shelf"/>
+			<brush name="cake cabinet"/>
+			<brush name="venorean cabinet"/>
+			<brush name="venorean wardrobe"/>
+			<brush name="venorean drawer"/>
+			<brush name="venorean pendulum clock"/>
+			<brush name="venorean glass cabinet"/>
+			<brush name="flower pots"/>
+			<brush name="venorean flower pots"/>
 			<!-- Tables -->
 			<brush name="wooden counter"/>
 			<brush name="store counter"/>
 			<brush name="venorean wooden counter"/>
 			<brush name="venorean store counter"/>
+			<brush name="carved stone table"/>
+			<brush name="tusk table"/>
+			<brush name="bamboo table"/>
 			<brush name="big brown table, horizontal"/>
 			<brush name="big brown table, vertical"/>
 			<brush name="new big brown table, horizontal"/>
@@ -97,16 +113,41 @@
 			<!-- Chests, Boxes -->
 			<item id="2526"/>
 			<item id="3501"/>
+			<brush name="blue treasure chest"/>
+			<brush name="wooden trunk"/>
+			<brush name="shoddy wooden trunk"/>
+			<brush name="brown underwater chest"/>
 			<brush name="mailbox (furniture)"/>
 			<brush name="ornate mailbox"/>
+			<brush name="ferocious table"/>
+			<brush name="fancy table"/>
+			<brush name="light wooden table"/>
+			<brush name="festive table"/>
+			<brush name="unknown17"/>
+			<brush name="ferocious chair"/>
+			<brush name="unknown19"/>
+			<brush name="ferocious trunk"/>
+			<brush name="unknown21"/>
+			<brush name="unknown22"/>
+			<brush name="unknown23"/>
+			<brush name="unknown24"/>
+			<brush name="unknown25"/>
 			<!-- Misc -->
 			<brush name="large cask 2"/>
 			<brush name="large cask 3"/>
 			<brush name="large cask"/>
+			<brush name="normal wardrobe"/>
+			<brush name="bambu wardrobe"/>
+			<brush name="bambu bookcase"/>
 			<brush name="big potion cask"/>
 			<brush name="big potion keg"/>
 			<item id="137"/>
 			<item fromid="2519" toid="2542"/>
+			<brush name="cookbooks"/>
+			<brush name="deepling books"/>
+			<brush name="deepling books - bloody"/>
+			<brush name="green deepling book"/>
+			<brush name="tomes"/>
 			<brush name="yalahar fire basin"/>
 			<item id="8523"/>
 			<brush name="dragon basin"/>
@@ -122,6 +163,7 @@
 			<brush name="heart lamp 3"/>
 			<brush name="little big flower lamp"/>
 			<brush name="curly hortensis lamp"/>
+			<brush name="stack of books"/>
 			<brush name="new crystal lamp"/>
 			<brush name="wooden candelabra"/>
 			<brush name="wooden coffin"/>
@@ -129,6 +171,24 @@
 			<item id="2904"/>
 			<brush name="oven - on"/>
 			<brush name="oven - off"/>
+			<brush name="oven2 - on"/>
+			<brush name="oven2 - off"/>
+			<brush name="wooden chair"/>
+			<brush name="tusk chair"/>
+			<brush name="ivory chair"/>
+			<brush name="frozen chair"/>
+			<brush name="heavy wooden chair"/>
+			<brush name="zao chair1"/>
+			<brush name="zao chair2"/>
+			<brush name="timber chair"/>
+			<brush name="stool"/>
+			<brush name="toad stool"/>
+			<brush name="venorean chair1"/>
+			<brush name="venorean chair2"/>
+			<brush name="gilded throne"/>
+			<brush name="sofa chair"/>
+			<brush name="dull throne"/>
+			<brush name="festive rocking chair"/>
 			<brush name="chimney - on"/>
 			<brush name="chimney - off"/>
 			<brush name="festive fireplace"/>
@@ -137,10 +197,16 @@
 			<brush name="weapon rack - empty"/>
 			<brush name="rack weapons"/>
 			<brush name="armor rack"/>
+			<brush name="small drawer"/>
+			<brush name="flashy drawer"/>
+			<brush name="pendulum clock"/>
+			<brush name="tall locker"/>
+			<brush name="mirror stand"/>
 			<brush name="map board"/>
 			<item id="3458"/>
 			<item id="6501"/>
 			<brush name="distilling machine"/>
+			<brush name="books"/>
 			<brush name="strange apparatus1"/>
 			<brush name="strange apparatus2"/>
 			<brush name="strange apparatus3"/>
@@ -177,6 +243,7 @@
 			<item fromid="2427" toid="2430"/>
 			<item fromid="2445" toid="2471"/>
 			<brush name="wooden chest"/>
+			<brush name="large trunk"/>
 			<item id="2473"/>
 			<item id="2519"/>
 			<item id="2523"/>
@@ -344,6 +411,12 @@
 			<item fromid="34054" toid="34057"/>
 			<item fromid="34296" toid="34299"/>
 			<item id="33923"/>
+			<brush name="hoard of gold"/>
+			<brush name="green hoard of gold"/>
+			<brush name="red cushioned chair"/>
+			<brush name="green cushioned chair"/>
+			<brush name="rocking chair"/>
+			<brush name="chest of abundance"/>
 		</doodad>
 		<raw>
 			<item fromid="2302" toid="2385"/>

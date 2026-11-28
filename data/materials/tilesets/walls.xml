@@ -10,6 +10,8 @@
 			<brush name="plaster wall arch"/>
 			<brush name="wooden archway"/>
 			<brush name="stone wall"/>
+			<brush name="broken wall"/>
+			<brush name="broken wall 2"/>
 			<brush name="egypt wall"/>
 			<brush name="egypt stone wall"/>
 			<brush name="metal wall"/>
@@ -24,6 +26,7 @@
 			<brush name="bone wall"/>
 			<brush name="icy bones"/>
 			<brush name="croft wall"/>
+			<brush name="bridge"/>
 			<brush name="wood wall"/>
 			<brush name="plant wall"/>
 			<brush name="frozen wall"/>

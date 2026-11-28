@@ -34,6 +34,8 @@
 			<brush name="wall candle2 - lit"/>
 			<brush name="wall dual lamp"/>
 			<brush name="wall dual lamp - lit"/>
+			<brush name="green fungi"/>
+			<brush name="mossy wall"/>
 			<brush name="sun lamp"/>
 			<brush name="magic sphere lamp"/>
 			<brush name="magic sphere lamp 2"/>
@@ -233,12 +235,16 @@
 			<brush name="large rafzan painting"/>
 			<brush name="pirate emblem"/>
 			<brush name="hanging swords"/>
+			<brush name="glowing hanging skull"/>
 			<brush name="wall chain"/>
 			<brush name="hanging skull"/>
 			<brush name="hanging triple skull"/>
 			<brush name="cobra wall statue"/>
+			<brush name="cobra statue socket"/>
+			<brush name="blackboard"/>
 			<brush name="head stone cobra"/>
 			<brush name="head stone cobra with fumes"/>
+			<brush name="simple wallsign"/>
 			<brush name="large map"/>
 			<brush name="celestial map"/>
 			<brush name="chalk board"/>

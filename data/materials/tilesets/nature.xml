@@ -4,6 +4,7 @@
 			
 			<brush name="plant wall2"/>
 			<brush name="cave wall twigs"/>
+			<brush name="cave wall thingy"/>
 			<brush name="tigerhead"/>
 			<brush name="dragonhead"/>
 			<brush name="spider web"/>
@@ -48,6 +49,7 @@
 			<brush name="cat's food mushrooms"/>
 			<brush name="giggle mushrooms"/>
 			<brush name="dark mushrooms"/>
+			<brush name="jungle maw"/>
 			<brush name="light mushrooms"/>
 			<brush name="new diverse fungi"/>
 			<brush name="mushroom house"/>
@@ -192,6 +194,9 @@
 			<brush name="unknown15"/>
 			<brush name="purple things"/>
 			<brush name="diverse obsidian pipes"/>
+			<brush name="cave enter"/>
+			<brush name="cave enter2"/>
+			<brush name="cave enter3"/>
 		</doodad>
 		<raw>
 			<item fromid="957" toid="958"/>

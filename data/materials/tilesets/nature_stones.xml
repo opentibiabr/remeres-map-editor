@@ -27,6 +27,7 @@
 			<brush name="rocks (stone cave)"/>
 			<brush name="rocks (stone cave with mud)"/>
 			<brush name="rubles"/>
+			<brush name="rocks (small)"/>
 			<brush name="rubble (brown)"/>
 			<brush name="rubble (gray)"/>
 			<brush name="rubble (brown rough)"/>
@@ -60,10 +61,12 @@
 			<brush name="stone 5 (4 SQMS)"/>
 			<brush name="stone 6 (4 SQMS)"/>
 			<brush name="stone 1 (2 SQMS)"/>
+			<brush name="gray rocks"/>
 			<brush name="stone 2 (2 SQMS)"/>
 			<brush name="stone 3 (2 SQMS)"/>
 			<brush name="stone 4 (2 SQMS)"/>
 			<brush name="stone 5 (2 SQMS)"/>
+			<brush name="stones (weird shaped)"/>
 			<brush name="stalagmite"/>
 			<brush name="veined rocks"/>
 			<brush name="veined stones"/>
